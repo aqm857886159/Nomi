@@ -33,9 +33,9 @@ function useTransportClearance(): number {
 /**
  * What Nomi looks like once the user hands the screen back to the result
  * (design contract §2.6, "结果全屏"). Collapsing hides the transcript, not the
- * conversation: the composer drops to the bottom edge of the preview stage,
- * centred, with the intervention slot stacked directly above it, so an edit
- * plan can still be read and approved without giving the panel its column back.
+ * conversation: the very same composer drops to the bottom edge of the preview
+ * stage, centred. The intervention slot rides along inside it, so an edit plan
+ * can still be read and approved without giving the panel its column back.
  *
  * The dock is positioned against the collapsed dock `<aside>`, which spans the
  * preview stage — the timeline sits below that box, so `bottom` here is the
@@ -46,14 +46,12 @@ export function ResidentCollapsedDock({
   statusLabel,
   statusToneClassName,
   onRecall,
-  interventions,
   children,
 }: {
   recallLabel: string
   statusLabel: string
   statusToneClassName: string
   onRecall: () => void
-  interventions: readonly JSX.Element[]
   children: React.ReactNode
 }): JSX.Element {
   const transportClearance = useTransportClearance()
@@ -66,7 +64,6 @@ export function ResidentCollapsedDock({
     </button>
     <div className="pointer-events-none absolute inset-x-0 z-40 flex justify-center px-4 pb-3" style={{ bottom: transportClearance }}>
       <div className="pointer-events-auto grid w-full max-w-[560px] gap-1.5" data-agent-collapsed-dock="true">
-        {interventions.length ? <div className="grid gap-1.5" data-agent-intervention-slot="true">{interventions}</div> : null}
         {children}
       </div>
     </div>

@@ -1,13 +1,18 @@
 import React from 'react'
 import { createPortal } from 'react-dom'
-import type { ProjectAgentApprovalPolicy } from '../../../../electron/shared/projectAgentContracts'
 import { timelineRevision } from '../../timeline/kernel/timelineKernel'
 import type { TimelineState } from '../../timeline/timelineTypes'
 import { TimelinePlanPreviewLayer } from '../../timeline/agent/TimelinePlanPreviewLayer'
 import { timelinePlanOperations, timelinePlanPreviewBands } from '../../timeline/agent/timelinePlanPreview'
+import { timelinePlanLines, type TimelinePlanLine } from '../../timeline/agent/timelinePlanSummary'
 
 /** Tool aliases whose arguments carry an edit plan worth previewing on the timeline. */
 const TIMELINE_PLAN_TOOLS: readonly string[] = ['propose_edit_plan', 'apply_edit_plan', 'nomi_timeline_edit']
+
+/** True when a pending tool call is a timeline edit plan, in either projection. */
+export function isTimelinePlanTool(toolName: string): boolean {
+  return TIMELINE_PLAN_TOOLS.includes(toolName)
+}
 
 export type TimelineSelectionProjection = {
   clip: TimelineState['tracks'][number]['clips'][number] | TimelineState['textClips'][number]
@@ -89,30 +94,43 @@ export function useTimelinePlanPreview(
     : null
 }
 
-/**
- * The timeline surface's whole contract is propose → highlight → approve
- * (§2.6), but the shared default policy is `safe-auto`, which lets the Host
- * commit a reversible local write with no card at all — the plan would land
- * before the user ever saw the highlight. Priming the policy once, instead of
- * rewriting it on every send, is what keeps "this session" / "always" alive:
- * after the user escalates, the escalation *is* the policy and nothing
- * overrides it on the next turn.
- *
- * The primed set is module scope because the resident shell remounts whenever
- * Nomi is collapsed or expanded; a per-instance ref would re-prime on the next
- * mount and silently undo the choice the user just made.
- */
-const primedApprovalBindings = new Set<string>()
 
-export function useTimelineApprovalPriming(
+/**
+ * Everything the composer needs to show what the user pointed at: the chips
+ * themselves plus the revision each one was made at. Kept together because a
+ * chip without its recorded revision cannot say "changed, select again", which
+ * is the only reason the chip carries a revision at all.
+ */
+export function useTimelineSelectionChips(
   surface: string,
-  bindingKey: string,
-  policy: ProjectAgentApprovalPolicy,
-  setPolicy: (next: ProjectAgentApprovalPolicy) => void,
-): void {
-  React.useEffect(() => {
-    if (surface !== 'preview' || !bindingKey || primedApprovalBindings.has(bindingKey)) return
-    primedApprovalBindings.add(bindingKey)
-    if (policy.mode !== 'step') setPolicy({ mode: 'step', spend: policy.spend })
-  }, [bindingKey, policy, setPolicy, surface])
+  timeline: TimelineState,
+  selectedClipIds: readonly string[],
+  selectedTextClipId: string,
+): Readonly<{ selections: TimelineSelectionProjection[]; revision: string; revisionFor: (id: string) => string }> {
+  const revision = timelineSelectionRevision(timeline)
+  const ids = React.useMemo(() => [...selectedClipIds, ...(selectedTextClipId ? [selectedTextClipId] : [])], [selectedClipIds, selectedTextClipId])
+  const recorded = useTimelineSelectionRevisions(ids, revision)
+  const selections = React.useMemo(
+    () => surface === 'preview' ? collectTimelineSelections(timeline, selectedClipIds, selectedTextClipId) : [],
+    [selectedClipIds, selectedTextClipId, surface, timeline],
+  )
+  return { selections, revision, revisionFor: (id) => recorded.get(id) ?? revision }
+}
+
+/**
+ * A timeline plan is the one proposal whose raw arguments are unreadable: the
+ * operation list carries frames and clip ids, not what the edit does. One
+ * checkable sentence per operation, with the exact JSON kept for the detail row
+ * (design contract §2.6/§2.8).
+ */
+export function useTimelinePlanRows(
+  toolName: string | undefined,
+  args: unknown,
+  timeline: TimelineState,
+  t: (key: string, values?: Record<string, unknown>) => string,
+): TimelinePlanLine[] {
+  return React.useMemo(
+    () => toolName && isTimelinePlanTool(toolName) ? timelinePlanLines(timelinePlanOperationsForTool(toolName, args), timeline, t) : [],
+    [args, t, timeline, toolName],
+  )
 }

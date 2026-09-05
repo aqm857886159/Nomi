@@ -32,19 +32,19 @@ const residentReference = readSource(
 const residentExceptions = readSource(
   path.join(process.cwd(), 'src/workbench/ai/resident/ResidentExceptionStates.tsx'),
 )
+const interventionSlot = readSource(
+  path.join(process.cwd(), 'src/workbench/ai/InterventionSlot.tsx'),
+)
 const residentGenerationEditor = readSource(
   path.join(process.cwd(), 'src/workbench/ai/resident/GenerationProposalEditor.tsx'),
 )
-// The collapsed launcher and the pending-approval cards moved into their own
-// owners when the collapsed timeline dock started rendering the same composer
-// and the same cards (design contract §2.6). The invariants below still belong
-// to the resident surface; only the file that holds them changed.
+// The collapsed launcher moved into its own owner when the collapsed dock
+// started rendering the same composer (design contract §2.6). The invariant
+// below still belongs to the resident surface; only its file changed.
 const residentCollapsedDock = readSource(
   path.join(process.cwd(), 'src/workbench/ai/resident/ResidentCollapsedDock.tsx'),
 )
-const residentPendingToolCards = readSource(
-  path.join(process.cwd(), 'src/workbench/ai/resident/residentPendingToolCards.tsx'),
-)
+
 const reconcileCard = readSource(
   path.join(process.cwd(), 'src/workbench/generationCanvas/components/ReconcileDeviationCard.tsx'),
 )
@@ -201,7 +201,7 @@ describe('ProjectAgentResidentShell production contract', () => {
   it('keeps review cards actionable and progressively discloses technical detail', () => {
     expect(resident).toContain('hasContextLocator')
     expect(resident).toContain('data-agent-proposal')
-    expect(residentPendingToolCards).toContain('proposal={')
+    expect(resident).toContain('proposal={')
     expect(residentDisplay).toContain('readableProposalModel')
     expect(residentDisplay).toContain("replace(/16:9/g")
     expect(residentPrimitives).toContain('data-agent-tool-effect')
@@ -214,8 +214,8 @@ describe('ProjectAgentResidentShell production contract', () => {
     expect(residentPrimitives).toContain('data-agent-proposal-editor-slot')
     expect(residentPrimitives).toContain('data-agent-approval-variant="generation"')
     expect(residentPrimitives).toContain('compactGeneration')
-    expect(residentPendingToolCards).toContain('isGenerationProposalTool')
-    expect(residentPendingToolCards).toContain('compactGeneration={compactGeneration}')
+    expect(resident).toContain('isGenerationProposalTool')
+    expect(resident).toContain('compactGeneration={compactGeneration}')
     expect(residentPrimitives).toContain('partitionResidentProposalFields')
     expect(resident).toContain('data-agent-queue')
     expect(resident).toContain('data-agent-queue-remove')
@@ -310,6 +310,20 @@ describe('ProjectAgentResidentShell production contract', () => {
     expect(resident).toContain("summaryLabel={(total, selected) => t('agentResident.planSummary', { total, selected })}")
     expect(resident).toContain("openLabel={t('agentResident.pinnedOpen')}")
     expect(resident).toContain("collapseLabel={t('agentResident.pinnedCollapse')}")
+  })
+
+  it('uses one intervention slot with typed kinds and effect-scoped approval actions', () => {
+    expect(interventionSlot).toContain("export type InterventionKind = 'approval' | 'question' | 'missing_credential' | 'missing_param'")
+    expect(interventionSlot).toContain('onApproveOnce')
+    expect(interventionSlot).toContain('onApproveSession')
+    expect(interventionSlot).toContain('onApproveAlways')
+    expect(interventionSlot).toContain('data-agent-approval-scope="once"')
+    expect(interventionSlot).toContain('data-agent-approval-scope="session"')
+    expect(interventionSlot).toContain('data-agent-approval-scope="always"')
+    expect(interventionSlot).toContain("effectClass !== 'spend' && effectClass !== 'irreversible'")
+    expect(interventionSlot).toContain('data-agent-reject-reason')
+    expect(interventionSlot).toContain('data-agent-intervention-pending-count')
+    expect(resident).toContain("onApproveAlways={interventionEffect === 'reversible_local'")
   })
 
   it('keeps queue mutations Host-owned while exposing the typed mutation seam', () => {

@@ -39,17 +39,12 @@ import { useProductionRunStore } from '../production/productionRunStore'
 import { ResidentThinkingState, ResidentToolChips, type ResidentApprovalState, type ResidentToolChipData } from './resident/ResidentUiPrimitives'
 import { ResidentArtifactCard, ResidentAtPicker, ResidentDeviationCard, ResidentFailureCard, ResidentFoldableText, ResidentPinnedResultCard, ResidentPlanCard, ResidentWriteFailureRow } from './resident/ResidentExceptionStates'
 import { ResidentReferenceChip } from './resident/ResidentReferenceChip'
-import { TimelineSelectionChips } from './resident/TimelineSelectionChips'
-import { isTimelinePlanApproval } from './resident/TimelineApprovalCard'
-import { ResidentCollapsedDock } from './resident/ResidentCollapsedDock'
-import { renderResidentPendingTool } from './resident/residentPendingToolCards'
-import { TimelineAgentReceiptEffect } from './resident/TimelineAgentReceiptEffect'
-import { collectTimelineSelections, timelineSelectionRevision, useTimelineApprovalPriming, useTimelinePlanPreview, useTimelineSelectionRevisions } from './resident/timelineAgentSurface'
 import { MenuCopy, MenuRow, Popover, PROMPT_PRESETS, ResidentPromptMenu, iconControlClass } from './resident/ResidentMenus'
 import { attachmentPayloads, itemRef } from './resident/agentItemHelpers'
 import { normalizeResidentToolProjection, readResidentToolProjections, residentToolProjectionKey, residentToolProjectionScope, writeResidentToolProjections, type ResidentToolProjection } from './resident/residentToolProjection'
-import { readableToolName, readableToolPreview, readableToolResult, readableToolSummary, readableToolTarget, residentToolProjectionForCall } from './resident/residentToolDisplay'
-import { proposalDecisionPayload } from './resident/generationProposalEditing'
+import { proposalForTool, readableToolDetailRows, readableToolName, readableToolPreview, readableToolResult, readableToolSummary, readableToolTarget, residentToolProjectionForCall } from './resident/residentToolDisplay'
+import { isGenerationProposalTool, proposalDecisionPayload } from './resident/generationProposalEditing'
+import { residentQuestionOptions } from './resident/residentExceptionProjections'
 import { useAssetPool } from '../assets/useAssetPool'
 import { buildResidentAssetReference, buildResidentReference, contextHandleForResidentReference, residentReferencePromptValue } from './resident/residentReferences'
 import { composeResidentSystemPrompt, libraryPromptReferenceId } from './resident/residentPromptSelection'
@@ -60,6 +55,13 @@ import { agentFailureCategory, isWriteFailure, readableFailure, safeAgentFailure
 import { buildStaticAgentSystemPrompt } from '../generationCanvas/agent/generationCanvasAgentClient'
 import { projectAgentSkillEvents } from './skillEventProjection'
 import { runProposalUndo, useCommittedProposal } from '../generationCanvas/agent/proposalUndo'
+import { InterventionSlot, type ApprovalScope } from './InterventionSlot'
+import { TimelineSelectionChips } from './resident/TimelineSelectionChips'
+import { TimelineAgentReceiptEffect } from './resident/TimelineAgentReceiptEffect'
+import { ResidentCollapsedDock } from './resident/ResidentCollapsedDock'
+import { useTimelinePlanPreview, useTimelinePlanRows, useTimelineSelectionChips } from './resident/timelineAgentSurface'
+import { resolveCapabilityEffectClass } from '../../../electron/shared/agentCapabilities/registry'
+import { GenerationProposalEditor } from './resident/GenerationProposalEditor'
 import ReconcileDeviationCard from '../generationCanvas/components/ReconcileDeviationCard'
 import { buildContentFixMessage, useShotVerifyStore } from '../generationCanvas/agent/shotVerifyStore'
 import { isEmptyStoryboardPlan } from '../generationCanvas/agent/storyboardPlan'
@@ -85,6 +87,7 @@ function cacheResidentToolProjection(scope: string, turnId: string, toolCallId: 
   residentToolProjections.set(residentToolProjectionKey(scope, turnId, toolCallId), normalizeResidentToolProjection(projection))
   emitPending()
 }
+
 function clearResidentPendingTools(turnId: string): void {
   let changed = false
   for (const key of residentPendingTools.keys()) {
@@ -96,11 +99,13 @@ function clearResidentPendingTools(turnId: string): void {
   }
   if (changed) emitPending()
 }
+
 function useResidentPendingTools(key: string | null): PendingTool[] {
   const [, redraw] = React.useState(0)
   React.useEffect(() => { const listener = () => redraw((value) => value + 1); residentPendingListeners.add(listener); return () => { residentPendingListeners.delete(listener) } }, [])
   return key ? Array.from(residentPendingTools.values()).filter((item) => item.bindingKey === key) : []
 }
+
 function surfaceLabel(t: (key: string, options?: Record<string, unknown>) => string, surface: ResidentSurface): string {
   return surface === 'generation'
     ? t('agentResident.contextGeneration')
@@ -110,6 +115,7 @@ function surfaceLabel(t: (key: string, options?: Record<string, unknown>) => str
         ? t('agentResident.contextStoryboard')
         : t('agentResident.contextCreation')
 }
+
 const STATUS_LABEL_KEY = {
   drafting: 'agentResident.planning',
   proposed: 'agentResident.waitingApprovalShort',
@@ -120,16 +126,25 @@ const STATUS_LABEL_KEY = {
   failed: 'agentResident.failed',
   stopped: 'agentResident.stopped',
 } as const satisfies Record<ProjectAgentStatus, TranslationKey>
+
 function statusLabel(t: (key: string, options?: Record<string, unknown>) => string, status: ProjectAgentStatus): string {
   return t(STATUS_LABEL_KEY[status])
 }
+
 function isActiveQueueStatus(status: ProjectAgentStatus): boolean {
   return status === 'queued' || status === 'proposed' || status === 'running'
 }
+
+function interventionDetails(t: (key: string, options?: Record<string, unknown>) => string, call: ToolCallEvent, args: Record<string, unknown>, proposal?: ReturnType<typeof proposalForTool>): readonly { label: string; value: string }[] {
+  const rows = [...readableToolDetailRows(t, call.toolName, args), ...(proposal?.fields ?? [])]
+  return rows.filter((row, index, all) => all.findIndex((candidate) => candidate.label === row.label && candidate.value === row.value) === index).slice(0, 12).map((row) => ({ label: row.label, value: row.value }))
+}
+
 function friendlyError(error: unknown, t: (key: string, options?: Record<string, unknown>) => string): string {
   const code = error instanceof Error ? error.message : ''
   return code === 'project_agent_unavailable' || code === 'project_binding_stale' ? t('agentResident.unavailable') : t('agentResident.sendFailed')
 }
+
 function residentItemClassName(item: ProjectAgentItem, declined: boolean): string {
   if (item.kind === 'user') return 'ml-auto min-h-[52px] max-w-[86%] text-caption text-nomi-paper'
   if (item.kind === 'assistant') return 'max-w-full px-1 text-caption leading-5'
@@ -137,6 +152,7 @@ function residentItemClassName(item: ProjectAgentItem, declined: boolean): strin
   if (ownsCard) return 'max-w-full'
   return cn('rounded-nomi-sm border px-2.5 py-1.5 text-caption', declined ? 'border-nomi-line-soft bg-nomi-ink-05' : 'border-nomi-line-soft bg-nomi-paper')
 }
+
 type ResidentSendContext = Readonly<{
   snapshot: AgentContextSnapshot
   activeDocumentId: string
@@ -144,6 +160,7 @@ type ResidentSendContext = Readonly<{
   selectedClipIds: readonly string[]
   documentState?: Readonly<{ revision: number; contentHash: string; anchor: DocumentAnchorRef }>
 }>
+
 /**
  * Read all domain selections in one synchronous turn immediately before
  * enqueue.  The composer must never send a render-time selection that changed
@@ -188,6 +205,7 @@ function captureResidentSendContext(surface: ResidentSurface, creationDocumentTo
   })
   return Object.freeze({ snapshot, activeDocumentId, selectedNodeIds, selectedClipIds, ...(documentState ? { documentState } : {}) })
 }
+
 export default function ProjectAgentResidentShell({ surface }: { surface: ResidentSurface }): JSX.Element {
   const { t } = useTranslation()
   const snapshot = useProjectAgentSnapshot()
@@ -202,7 +220,8 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
   const runMode = useWorkbenchStore((state) => state.projectAgentRunMode)
   const setRunMode = useWorkbenchStore((state) => state.setProjectAgentRunMode)
   const approvalPolicy = useWorkbenchStore((state) => state.projectAgentApprovalPolicy)
-  const setApprovalPolicy = useWorkbenchStore((state) => state.setProjectAgentApprovalPolicy)
+  // 第 B 段介入槽会在实际批准时承载审批档位与花费策略；本段只保留 store
+  // 读写和请求传递，避免把策略入口继续混进模式弹层。
   const activeDocumentId = useWorkbenchStore((state) => state.activeDocumentId)
   const storyboardDesignsByDocumentId = useWorkbenchStore((state) => state.storyboardDesignsByDocumentId)
   const setWorkspaceMode = useWorkbenchStore((state) => state.setWorkspaceMode)
@@ -216,11 +235,8 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
   const selectedClipIds = useWorkbenchStore((state) => state.selectedTimelineClipIds)
   const selectedTextClipId = useWorkbenchStore((state) => state.selectedTextClipId)
   const timeline = useWorkbenchStore((state) => state.timeline)
+  const timelineSelection = useTimelineSelectionChips(surface, timeline, selectedClipIds, selectedTextClipId)
   const selectedNodeIds = useGenerationCanvasStore((state) => state.selectedNodeIds)
-  const selectionRevision = timelineSelectionRevision(timeline)
-  const selectionIds = React.useMemo(() => [...selectedClipIds, ...(selectedTextClipId ? [selectedTextClipId] : [])], [selectedClipIds, selectedTextClipId])
-  const selectionRevisions = useTimelineSelectionRevisions(selectionIds, selectionRevision)
-  const timelineSelectionClips = React.useMemo(() => surface === 'preview' ? collectTimelineSelections(timeline, selectedClipIds, selectedTextClipId) : [], [selectedClipIds, selectedTextClipId, surface, timeline])
   const [menu, setMenu] = React.useState<MenuId>(null)
   // Prompt bodies stay in the canonical prompt-library API/cache. The
   // resident stores only the ephemeral selected projection for this composer.
@@ -228,7 +244,8 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
   const [promptSearch, setPromptSearch] = React.useState('')
   const [threadsOpen, setThreadsOpen] = React.useState(false)
   const [queueMenuOpen, setQueueMenuOpen] = React.useState<string | null>(null)
-  const [queueExpanded, setQueueExpanded] = React.useState(false)
+  const [queueExpanded, setQueueExpanded] = React.useState(true)
+  const [interruptMode, setInterruptMode] = React.useState<'queue' | 'insert'>('queue')
   const [error, setError] = React.useState('')
   const [editingQueue, setEditingQueue] = React.useState<{ queueItemId: string; userItemId: string } | null>(null)
   const [skills, setSkills] = React.useState<SkillListItemDto[]>([])
@@ -299,22 +316,19 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
     : surface === 'generation'
       ? selectedNodeIds.length > 0
       : selectedClipIds.length > 0
-  // Exception-card actions stay on the resident surface. These listeners
-  // make the two explicit recovery events actionable instead of leaving a
-  // button that only emits an unhandled browser event.
+
+  // Exception-card recovery stays on the resident surface.
   React.useEffect(() => {
-    const onPriceRefresh = (): void => setError(t('agentResident.priceUnavailable'))
     const onWriteRetry = (): void => {
       setError('')
       setDraft(t('agentResident.editPlanPrompt'))
     }
-    window.addEventListener('nomi-agent-price-refresh', onPriceRefresh)
     window.addEventListener('nomi-agent-write-retry', onWriteRetry)
     return () => {
-      window.removeEventListener('nomi-agent-price-refresh', onPriceRefresh)
       window.removeEventListener('nomi-agent-write-retry', onWriteRetry)
     }
   }, [setDraft, t])
+
   // The picker is the user's capability index: expose every selectable
   // repository/user Skill. Electron filters implementation-only resources
   // before they cross the bridge.
@@ -405,6 +419,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
     document.addEventListener('pointerdown', onPointer)
     return () => { document.removeEventListener('keydown', onKey); document.removeEventListener('pointerdown', onPointer) }
   }, [threadsOpen])
+
   const attachmentApi = useComposerAttachments({ attachments, setAttachments, onError: setError })
   const closeMenu = React.useCallback(() => setMenu(null), [])
   const selectLibraryPrompt = React.useCallback((prompt: LibraryPrompt) => {
@@ -476,13 +491,14 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
       setError(friendlyError(caught, t))
     }
   }, [t])
-  const resolveTool = React.useCallback(async (pending: PendingTool, ok: boolean, editedArgs?: Record<string, unknown>) => {
+  const resolveTool = React.useCallback(async (pending: PendingTool, ok: boolean, editedArgs?: Record<string, unknown>, approvalScope?: ApprovalScope) => {
     const key = pendingKey(pending.call)
     if (pending.state !== 'pending' || residentResolvingTools.has(key)) return
     residentResolvingTools.add(key)
     try {
       const editedPayload = ok ? proposalDecisionPayload(pending.call.args, editedArgs ?? proposalDrafts[key]) : {}
-      await pending.call.confirm({ ok, ...(ok ? editedPayload : { message: t('agentResident.deny') }) })
+      const rejectionReason = !ok && editedArgs && typeof editedArgs.rejectionReason === 'string' ? editedArgs.rejectionReason : undefined
+      await pending.call.confirm({ ok, ...(ok ? editedPayload : { message: rejectionReason || t('agentResident.deny') }), ...(ok && approvalScope ? { approvalScope } : {}) })
       const current = residentPendingTools.get(key)
       if (current?.state === 'pending') {
         residentPendingTools.set(key, { ...current, state: ok ? 'approved' : 'denied' })
@@ -494,11 +510,12 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
       residentResolvingTools.delete(key)
     }
   }, [proposalDrafts, t])
+
   // Every explicit action entry (including the selection popover and resource
   // sidebar) must converge on this same Host turn path. The tool profile is
   // captured at the caller boundary, so storyboard capability does not depend
   // on a keyword classifier or a second planner implementation.
-  const sendTurn = React.useCallback(async (rawText: string, options?: { toolProfile?: AgentToolProfile; displayText?: string }) => {
+  const sendTurn = React.useCallback(async (rawText: string, options?: { toolProfile?: AgentToolProfile; displayText?: string; interruptMode?: 'queue' | 'insert' }) => {
     const text = rawText.trim(); if (!text || !snapshot) return; setError('')
     if (attachments.some((item) => item.status === 'uploading')) { setError(t('creationAi.attachmentsUploading')); return }
     const turnId = `turn-resident-${globalThis.crypto.randomUUID()}`
@@ -527,10 +544,8 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
         target = { kind: 'canvas', nodeIds: Object.freeze([...selectedNodeIdsAtSend]) }
       }
     } catch (caught) { setError(friendlyError(caught, t)); return }
-    const contextSnapshot = mergeResidentContextHandles(
-      sendContext.snapshot,
-      references.flatMap((reference) => reference.contextHandle ? [reference.contextHandle] : []),
-    )
+    const contextSnapshot = mergeResidentContextHandles(sendContext.snapshot, references.flatMap((reference) => reference.contextHandle ? [reference.contextHandle] : []))
+    const queuedCountAtSend = activeQueue.filter((entry) => entry.status === 'queued').length
     const referencesText = references.length ? `\n\n${t('agentResident.referencesLabel')}: ${references.map(residentReferencePromptValue).join(', ')}` : ''
     attachmentApi.clearAttachments(); closeMenu()
     try {
@@ -544,7 +559,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
           ? selectedPromptPreset.prompt || selectedPrompt.prompt
           : undefined
       const systemPrompt = composeResidentSystemPrompt(surfaceSystemPrompt, activeSkill ? null : selectedLibraryPrompt)
-      const response = await runWorkbenchAgent({ turnId, prompt: `${surfaceContext}\n${contextDetail}${referencesText}\n\n${text}`, ...(systemPrompt ? { systemPrompt } : {}), displayPrompt: options?.displayText ?? text, capability, ...(options?.toolProfile ? { toolProfile: options.toolProfile } : surface === 'preview' ? { toolProfile: 'timeline' as const } : {}), history: { kind: 'ephemeral' }, projectId: snapshot.binding.projectId, selectedNodeIds: surface === 'generation' ? selectedNodeIdsAtSend : undefined, target, ...(preconditions ? { preconditions } : {}), originSurface: { surfaceId: 'project-agent-resident', kind: isDocumentSurface(surface) ? 'document' : surface === 'generation' ? 'canvas' : 'preview' }, mode: requestMode, workMode: runMode, approvalPolicy, skillKey, skillName: activeSkill?.name ?? (selectedLibraryPrompt ? promptDisplayTitle(selectedLibraryPrompt) : surface === 'preview' ? t('agentResident.skillTimeline') : selectedPrompt.title), contextSnapshot, attachmentClaims: projectAgentAttachmentClaims(attachments.filter((item) => item.status === 'ready')), attachments: attachmentPayloads(attachments), onToolCall: async (call) => { residentToolArgs.set(pendingKey(call), call.args); residentPendingTools.set(pendingKey(call), { call, bindingKey: bindingKey(snapshot.binding), state: 'pending' }); const projectionScope = residentToolProjectionScope(bindingKey(snapshot.binding), snapshot.activeThreadId ?? ''); if (projectionScope) { const projection = residentToolProjectionForCall(t, call.toolName, call.args, 'proposed'); cacheResidentToolProjection(projectionScope, call.turnId, call.toolCallId, projection); const persisted = new Map(Object.entries(readResidentToolProjections(projectionScope))); persisted.set(`${call.turnId}:${call.toolCallId}`, projection); writeResidentToolProjections(projectionScope, persisted) }; emitPending() } })
+      const response = await runWorkbenchAgent({ turnId, prompt: `${surfaceContext}\n${contextDetail}${referencesText}\n\n${text}`, ...(systemPrompt ? { systemPrompt } : {}), displayPrompt: options?.displayText ?? text, capability, ...(options?.toolProfile ? { toolProfile: options.toolProfile } : surface === 'preview' ? { toolProfile: 'timeline' as const } : {}), history: { kind: 'ephemeral' }, projectId: snapshot.binding.projectId, selectedNodeIds: surface === 'generation' ? selectedNodeIdsAtSend : undefined, target, ...(preconditions ? { preconditions } : {}), originSurface: { surfaceId: 'project-agent-resident', kind: isDocumentSurface(surface) ? 'document' : surface === 'generation' ? 'canvas' : 'preview' }, mode: requestMode, workMode: runMode, approvalPolicy, skillKey, skillName: activeSkill?.name ?? (selectedLibraryPrompt ? promptDisplayTitle(selectedLibraryPrompt) : surface === 'preview' ? t('agentResident.skillTimeline') : selectedPrompt.title), contextSnapshot, attachmentClaims: projectAgentAttachmentClaims(attachments.filter((item) => item.status === 'ready')), attachments: attachmentPayloads(attachments), onEnqueued: ({ queueItemId }) => { if (options?.interruptMode === 'insert') void (async () => { for (let index = 0; index < queuedCountAtSend; index += 1) await moveProjectAgentQueueItem(queueItemId, 'up') })().catch(() => undefined) }, onToolCall: async (call) => { residentToolArgs.set(pendingKey(call), call.args); residentPendingTools.set(pendingKey(call), { call, bindingKey: bindingKey(snapshot.binding), state: 'pending' }); const projectionScope = residentToolProjectionScope(bindingKey(snapshot.binding), snapshot.activeThreadId ?? ''); if (projectionScope) { const projection = residentToolProjectionForCall(t, call.toolName, call.args, 'proposed'); cacheResidentToolProjection(projectionScope, call.turnId, call.toolCallId, projection); const persisted = new Map(Object.entries(readResidentToolProjections(projectionScope))); persisted.set(`${call.turnId}:${call.toolCallId}`, projection); writeResidentToolProjections(projectionScope, persisted) }; emitPending() } })
       const projectionScope = residentToolProjectionScope(bindingKey(snapshot.binding), snapshot.activeThreadId ?? '')
       if (projectionScope && response.toolCalls.length) {
         const persisted = new Map(Object.entries(readResidentToolProjections(projectionScope)))
@@ -559,7 +574,8 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
       }
       setLastTurnTokens(response.usage.totalTokens)
     } catch (caught) { setError(friendlyError(caught, t)) } finally { clearResidentPendingTools(turnId) }
-  }, [activeSkill, approvalPolicy, attachmentApi, attachments, closeMenu, creationDocumentTools, promptModeId, references, runMode, selectedLibraryPrompt, selectedPromptPreset, snapshot, surface, t])
+  }, [activeQueue, activeSkill, approvalPolicy, attachmentApi, attachments, closeMenu, creationDocumentTools, promptModeId, references, runMode, selectedLibraryPrompt, selectedPromptPreset, snapshot, surface, t])
+
   // Shot verification is a canvas-owned state machine, while this resident
   // surface is the single Agent entry point for its recovery action. Keep the
   // card's view derived from that store and send the fix through the same Host
@@ -575,12 +591,15 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
     useShotVerifyStore.getState().markFixing()
     void sendTurn(buildContentFixMessage(current), { displayText: t('generationCommon.reconcile.aiFix') })
   }, [sendTurn, t])
+
   const submit = React.useCallback(async () => {
     const text = draft.trim(); if (!text || !snapshot) return
     if (editingQueue) { try { await editProjectAgentQueueItem({ ...editingQueue, text }); setEditingQueue(null); setDraft('') } catch (caught) { setError(friendlyError(caught, t)) }; return }
     setDraft('')
-    await sendTurn(text)
-  }, [draft, editingQueue, sendTurn, setDraft, snapshot, t])
+    await sendTurn(text, { interruptMode: runningTurn ? interruptMode : 'queue' })
+    setInterruptMode('queue')
+  }, [draft, editingQueue, interruptMode, runningTurn, sendTurn, setDraft, snapshot, t])
+
   // The resident Agent is the sole owner of the storyboard launcher. Keep the
   // bridge alive for the creation surface and clear it on unmount/surface
   // changes so a hidden creation dock cannot receive a later click.
@@ -599,6 +618,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
     if (event.key === '@') window.setTimeout(() => setMenu('references'), 0)
     if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); void submit() }
   }, [submit])
+
   // Search by the stable Skill key and directory as well as the localized
   // label. Users (and walk-throughs) commonly paste `brand.promo` from a
   // manifest or MCP request; filtering only the translated label made a
@@ -627,32 +647,30 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
     setActiveStoryboardId(storyboardReceiptDesign.id, activeDocumentId)
     setWorkspaceMode('storyboard')
   }, [activeDocumentId, setActiveStoryboardId, setWorkspaceMode, storyboardReceiptDesign])
+  const primaryPending = pendingTools.find((pending) => pending.state === 'pending')
+  const pendingToolCount = pendingTools.filter((pending) => pending.state === 'pending').length
+  const interventionRecord = React.useMemo(() => primaryPending?.call.args && typeof primaryPending.call.args === 'object' && !Array.isArray(primaryPending.call.args) ? primaryPending.call.args as Record<string, unknown> : {}, [primaryPending?.call.args])
+  const interventionKind: 'approval' | 'question' | 'missing_credential' | 'missing_param' | null = primaryPending ? (typeof interventionRecord.missingCredential === 'string' ? 'missing_credential' : typeof interventionRecord.missingParam === 'string' ? 'missing_param' : typeof interventionRecord.question === 'string' ? 'question' : 'approval') : null
+  const interventionEffect = primaryPending ? (resolveCapabilityEffectClass(primaryPending.call.toolName, primaryPending.call.args) ?? 'irreversible') : undefined
+  const interventionKey = primaryPending ? pendingKey(primaryPending.call) : ''
+  const interventionEditableArgs = primaryPending ? proposalDrafts[interventionKey] ?? interventionRecord : interventionRecord
+  const interventionProposal = primaryPending ? proposalForTool(t, primaryPending.call.toolName, interventionEditableArgs) : undefined
+  const compactGeneration = Boolean(primaryPending && isGenerationProposalTool(primaryPending.call.toolName, interventionEditableArgs)); const interventionDetailRows = primaryPending ? interventionDetails(t, primaryPending.call, interventionEditableArgs, interventionProposal) : []
   const timelinePlanPreviewPortal = useTimelinePlanPreview(surface, pendingTools, timeline, t('agentResident.timelinePlanPreview'))
-  useTimelineApprovalPriming(surface, snapshot ? bindingKey(snapshot.binding) : '', approvalPolicy, setApprovalPolicy)
-  // One renderer, two hosts: the transcript and the collapsed dock both show the
-  // same approval cards (design contract §2.6), so the projection lives beside
-  // the cards instead of inside this shell.
-  const renderPendingTool = (pending: PendingTool): JSX.Element => renderResidentPendingTool(pending, {
-    t, timeline, approvalPolicy, draft,
-    keyFor: (item) => pendingKey((item as PendingTool).call),
-    editableArgsFor: (item) => proposalDrafts[pendingKey((item as PendingTool).call)] ?? ((item.call.args && typeof item.call.args === 'object' && !Array.isArray(item.call.args)) ? item.call.args as Record<string, unknown> : undefined),
-    onDraftChange: setDraft,
-    onSubmitDraft: () => { void submit() },
-    onProposalChange: (key, next) => setProposalDrafts((previous) => ({ ...previous, [key]: next })),
-    onResolve: (item, approved, args) => { void resolveTool(item as PendingTool, approved, args) },
-    onTimelineChoice: (choice) => {
-      if (choice === 'session' || choice === 'always') {
-        setApprovalPolicy({ mode: choice === 'session' ? 'safe-auto' : 'project', spend: approvalPolicy.spend })
-      }
-    },
-  })
+  const timelinePlanRows = useTimelinePlanRows(primaryPending?.call.toolName, interventionEditableArgs, timeline, t)
+  const interventionTitle = interventionKind === 'question' ? t('agentResident.questionPage') : interventionKind === 'missing_credential' ? t('agentResident.missingCredentialTitle') : interventionKind === 'missing_param' ? t('agentResident.missingParamTitle') : t('agentResident.approvalMode')
+  const interventionSummary = interventionKind === 'question' ? String(interventionRecord.question ?? '') : interventionKind === 'missing_credential' ? t('agentResident.missingCredentialSummary') : interventionKind === 'missing_param' ? t('agentResident.missingParamSummary') : timelinePlanRows.length ? timelinePlanRows.map((row) => row.text).join(' · ') : primaryPending ? readableToolPreview(t, primaryPending.call.toolName, interventionRecord) : ''
+  const approveWithScope = React.useCallback((scope: ApprovalScope) => { if (!primaryPending) return; void resolveTool(primaryPending, true, interventionRecord, scope) }, [interventionRecord, primaryPending, resolveTool])
+
   const composer = <div className={cn('relative z-20 shrink-0 bg-nomi-paper', collapsed ? 'rounded-nomi-lg border border-nomi-line shadow-nomi-lg' : 'border-t border-nomi-line-soft')} data-agent-composer="true">
+    {primaryPending && interventionKind ? <InterventionSlot kind={interventionKind} title={interventionTitle} summary={`${interventionSummary}${pendingToolCount > 1 ? ` · ${t('agentResident.interventionMore', { count: pendingToolCount - 1 })}` : ''}`} proposal={interventionRecord} effectClass={interventionEffect} scopeLabel={interventionEffect === 'spend' || interventionEffect === 'irreversible' ? t('agentResident.approvalScopeOnce') : t('agentResident.approvalScopeSession')} costLabel={interventionEffect === 'spend' ? t('agentResident.approvalCostBoundary') : undefined} details={timelinePlanRows.length ? timelinePlanRows.map((row) => ({ label: row.text, value: row.technical })) : interventionDetailRows} detailsLabel={t('agentResident.toolInspectDetails')} variant={compactGeneration ? 'generation' : undefined} compactGeneration={compactGeneration} children={compactGeneration ? <GenerationProposalEditor args={interventionEditableArgs} t={t} onChange={(next) => { if (primaryPending) setProposalDrafts((previous) => ({ ...previous, [interventionKey]: next })) }} /> : undefined} questionOptions={residentQuestionOptions(interventionRecord).map((option) => option.label)} missingItems={[interventionRecord.missingCredential, interventionRecord.missingParam].filter((value): value is string => typeof value === 'string')} pendingCount={pendingToolCount} onApproveOnce={() => approveWithScope('once')} onApproveSession={interventionEffect === 'spend' || interventionEffect === 'irreversible' ? undefined : () => approveWithScope('session')} onApproveAlways={interventionEffect === 'reversible_local' ? () => approveWithScope('always') : undefined} onAnswer={(answer) => setDraft(answer)} onResolveMissing={() => { if (interventionKind === 'missing_credential') window.dispatchEvent(new Event('nomi-open-model-catalog')); else document.querySelector<HTMLTextAreaElement>('[data-agent-input="true"]')?.focus() }} onReject={(reason) => { if (primaryPending) void resolveTool(primaryPending, false, reason ? { ...interventionRecord, rejectionReason: reason } : undefined) }} labels={{ once: t('agentResident.approvalOnce'), session: t('agentResident.approvalSession'), always: t('agentResident.approvalAlways'), reject: t('agentResident.deny'), rejectPlaceholder: t('agentResident.rejectReasonPlaceholder'), answer: t('agentResident.questionNext'), resolve: t('agentResident.resolveMissing'), close: t('agentResident.cancel'), scope: t('agentResident.approvalScope'), approve: t('agentResident.approve') }} /> : null}
     {activeQueue.length ? <div className="grid gap-0.5 px-3 pt-1" data-agent-queue="true">{activeQueue.slice(0, queueExpanded ? activeQueue.length : 3).map((entry) => { const user = snapshot?.items.find((candidate) => candidate.kind === 'user' && candidate.turnId === entry.turnId); const label = user?.kind === 'user' ? user.text : t('agentResident.taskFallback'); const queued = entry.status === 'queued'; const open = queueMenuOpen === entry.queueItemId; return <div key={entry.queueItemId} className="relative" data-agent-queue-row="true"><div className="flex min-h-7 items-center gap-1.5 px-1 text-micro text-nomi-ink-40"><span className="size-1.5 shrink-0 rounded-pill border border-nomi-ink-30" aria-hidden="true" /><span className="min-w-0 flex-1 truncate" title={label}>{label}</span><span className="shrink-0">{statusLabel(t, entry.status)}</span><button type="button" className="grid size-6 shrink-0 place-items-center rounded-nomi-sm text-nomi-ink-40 hover:bg-nomi-ink-05 hover:text-nomi-ink" aria-label={t('agentResident.more')} title={t('agentResident.more')} onClick={() => setQueueMenuOpen(open ? null : entry.queueItemId)}><IconDotsVertical size={14} /></button>{queued ? <button type="button" data-agent-queue-remove="true" className="grid size-6 shrink-0 place-items-center rounded-nomi-sm text-nomi-ink-40 hover:bg-workbench-danger-soft hover:text-workbench-danger" aria-label={t('agentResident.cancel')} title={t('agentResident.cancel')} onClick={() => void runQueueMutation(() => deleteProjectAgentQueueItem(entry.queueItemId))}><IconX size={13} /></button> : <button type="button" className="grid size-6 shrink-0 place-items-center rounded-nomi-sm text-workbench-danger hover:bg-workbench-danger-soft" aria-label={t('agentResident.stop')} title={t('agentResident.stop')} onClick={() => void stopTurn(entry.turnId)}><IconPlayerStopFilled size={12} /></button>}</div>{open ? <div className="ml-4 flex gap-1 border-l border-nomi-line-soft pl-2 pb-1" data-agent-queue-actions="true"><button type="button" className={iconControlClass()} aria-label={t('agentResident.edit')} title={t('agentResident.edit')} onClick={() => { if (user?.kind === 'user') { setDraft(user.text); setEditingQueue({ queueItemId: entry.queueItemId, userItemId: user.itemId }) }; setQueueMenuOpen(null) }}><IconPencil size={13} /></button>{queued ? <><button type="button" className={iconControlClass()} aria-label={t('agentResident.moveUp')} title={t('agentResident.moveUp')} onClick={() => void runQueueMutation(() => moveProjectAgentQueueItem(entry.queueItemId, 'up'))}><IconChevronLeft size={13} /></button><button type="button" className={iconControlClass()} aria-label={t('agentResident.moveDown')} title={t('agentResident.moveDown')} onClick={() => void runQueueMutation(() => moveProjectAgentQueueItem(entry.queueItemId, 'down'))}><IconChevronRight size={13} /></button><button type="button" className={iconControlClass()} aria-label={entry.paused ? t('agentResident.resume') : t('agentResident.pause')} title={entry.paused ? t('agentResident.resume') : t('agentResident.pause')} onClick={() => void runQueueMutation(() => entry.paused ? resumeProjectAgentQueueItem(entry.queueItemId) : pauseProjectAgentQueueItem(entry.queueItemId))}><IconAdjustmentsHorizontal size={13} /></button><button type="button" className={iconControlClass()} aria-label={t('agentResident.delete')} title={t('agentResident.delete')} onClick={() => void runQueueMutation(() => deleteProjectAgentQueueItem(entry.queueItemId))}><IconTrash size={13} /></button></> : null}</div> : null}</div> })}{activeQueue.length > 3 ? <button type="button" className="flex min-h-7 items-center gap-1 px-1 text-left text-micro text-nomi-accent" data-queue-more-row="true" data-queue-more-count={String(activeQueue.length - 3)} onClick={() => setQueueExpanded((value) => !value)}><IconChevronDown size={12} className={cn(queueExpanded && 'rotate-180')} aria-hidden="true" />{queueExpanded ? t('agentResident.queueCollapse') : t('agentResident.queueMore', { count: activeQueue.length - 3 })}</button> : null}</div> : null}
+    {runningTurn ? <div className="flex items-center gap-1 border-b border-nomi-line-soft px-3 py-1" data-agent-interrupt-actions="true"><span className="mr-auto text-micro text-nomi-ink-40">{t('agentResident.running')}</span><button type="button" className={cn('min-h-7 rounded-nomi-sm px-2 text-micro', interruptMode === 'queue' ? 'bg-nomi-ink-05 text-nomi-ink' : 'text-nomi-ink-60')} onClick={() => setInterruptMode('queue')} data-agent-interrupt="queue">{t('agentResident.interruptQueue')}</button><button type="button" className={cn('min-h-7 rounded-nomi-sm px-2 text-micro', interruptMode === 'insert' ? 'bg-nomi-accent-soft text-nomi-accent' : 'text-nomi-ink-60')} onClick={() => setInterruptMode('insert')} data-agent-interrupt="insert">{t('agentResident.interruptInsert')}</button><button type="button" className="min-h-7 rounded-nomi-sm px-2 text-micro text-workbench-danger hover:bg-workbench-danger-soft" onClick={() => void stopTurn(runningTurn.turnId)} data-agent-interrupt="stop">{t('agentResident.interruptStop')}</button></div> : null}
     {error ? <div className="px-3 pb-1 text-micro text-workbench-danger" role="alert">{error}</div> : null}
     <form className="relative grid gap-1 px-3 pb-1.5 pt-1" onSubmit={(event) => { event.preventDefault(); void submit() }} {...attachmentApi.dragHandlers}>
       <input ref={attachmentApi.inputRef} type="file" multiple accept={COMPOSER_ATTACHMENT_ACCEPT} className="hidden" tabIndex={-1} aria-hidden="true" onChange={attachmentApi.onInputChange} />
       <AttachmentRail attachments={attachments} onRemove={attachmentApi.removeAttachment} />
-{references.length || timelineSelectionClips.length || activeSkill || selectedLibraryPrompt || (promptModeId !== 'general' && !activeSkill) ? <div className="flex max-h-14 flex-wrap gap-1 overflow-y-auto" data-agent-references="true"><TimelineSelectionChips selections={timelineSelectionClips} revisionFor={(id) => selectionRevisions.get(id) ?? selectionRevision} revision={selectionRevision} staleLabel={t('agentResident.timelineSelectionStale')} label={t('agentResident.referenceTimeline')} removeLabel={t('agentResident.removeReference')} />{references.map((reference) => <ResidentReferenceChip key={reference.id} reference={reference} t={t} onRemove={() => removeReference(reference.id)} />)}{activeSkill ? <span data-agent-reference={`skill:${activeSkill.key}`} className="inline-flex h-6 items-center gap-1 rounded-pill bg-nomi-accent-soft px-2 text-micro text-nomi-accent"><IconTool size={12} /><span className="truncate">{activeSkill.name}</span><button type="button" aria-label={t('agentResident.removeReference')} onClick={() => setActiveSkill(null)}><IconX size={11} /></button></span> : null}{selectedLibraryPrompt && !activeSkill ? <span data-agent-reference={libraryPromptReferenceId(selectedLibraryPrompt)} className="inline-flex h-6 max-w-full items-center gap-1 rounded-pill bg-nomi-accent-soft px-2 text-micro text-nomi-accent" title={selectedLibraryPrompt.prompt}><IconPencil size={12} /><span className="truncate">{promptDisplayTitle(selectedLibraryPrompt)}</span><button type="button" aria-label={t('agentResident.removeReference')} title={t('agentResident.removeReference')} onClick={() => setSelectedLibraryPrompt(null)}><IconX size={11} /></button></span> : null}{promptModeId !== 'general' && !activeSkill && !selectedLibraryPrompt ? <span data-agent-reference={`prompt:${promptModeId}`} className="inline-flex h-6 max-w-full items-center gap-1 rounded-pill bg-nomi-ink-05 px-2 text-micro text-nomi-ink-80"><PromptIcon size={12} /><span className="truncate">{t(promptPreset.labelKey)}</span><button type="button" aria-label={t('agentResident.removeReference')} onClick={() => setPromptModeId('general')}><IconX size={11} /></button></span> : null}</div> : null}
+      {references.length || timelineSelection.selections.length || activeSkill || selectedLibraryPrompt || (promptModeId !== 'general' && !activeSkill) ? <div className="flex max-h-14 flex-wrap gap-1 overflow-y-auto" data-agent-references="true"><TimelineSelectionChips selections={timelineSelection.selections} revisionFor={timelineSelection.revisionFor} revision={timelineSelection.revision} staleLabel={t('agentResident.timelineSelectionStale')} label={t('agentResident.referenceTimeline')} removeLabel={t('agentResident.removeReference')} />{references.map((reference) => <ResidentReferenceChip key={reference.id} reference={reference} t={t} onRemove={() => removeReference(reference.id)} />)}{activeSkill ? <span data-agent-reference={`skill:${activeSkill.key}`} className="inline-flex h-6 max-w-full items-center gap-1 rounded-pill bg-nomi-accent-soft px-2 text-micro text-nomi-accent"><IconTool size={12} /><span className="truncate">{activeSkill.name}</span><button type="button" aria-label={t('agentResident.removeReference')} onClick={() => setActiveSkill(null)}><IconX size={11} /></button></span> : null}{selectedLibraryPrompt && !activeSkill ? <span data-agent-reference={libraryPromptReferenceId(selectedLibraryPrompt)} className="inline-flex h-6 max-w-full items-center gap-1 rounded-pill bg-nomi-accent-soft px-2 text-micro text-nomi-accent" title={selectedLibraryPrompt.prompt}><IconPencil size={12} /><span className="truncate">{promptDisplayTitle(selectedLibraryPrompt)}</span><button type="button" aria-label={t('agentResident.removeReference')} title={t('agentResident.removeReference')} onClick={() => setSelectedLibraryPrompt(null)}><IconX size={11} /></button></span> : null}{promptModeId !== 'general' && !activeSkill && !selectedLibraryPrompt ? <span data-agent-reference={`prompt:${promptModeId}`} className="inline-flex h-6 max-w-full items-center gap-1 rounded-pill bg-nomi-ink-05 px-2 text-micro text-nomi-ink-80"><PromptIcon size={12} /><span className="truncate">{t(promptPreset.labelKey)}</span><button type="button" aria-label={t('agentResident.removeReference')} onClick={() => setPromptModeId('general')}><IconX size={11} /></button></span> : null}</div> : null}
       <div className={cn('rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2 py-1', attachmentApi.isDragging && 'border-nomi-accent bg-nomi-accent-soft', runningTurn && 'border-nomi-accent/60 ring-2 ring-nomi-accent/20 motion-safe:animate-[nomi-composer-breathe_2s_ease-in-out_infinite] motion-reduce:ring-1')} data-agent-running-feedback={runningTurn ? 'true' : undefined}>
         <AutoGrowTextarea value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={onKeyDown} onPaste={attachmentApi.handlePaste} placeholder={t('agentResident.placeholder')} aria-label={t('agentResident.messageAria')} maxHeight={120} className="min-h-10 text-body-sm" data-agent-input="true" />
         <div className="flex items-center gap-1 border-t border-nomi-line-soft pt-1">
@@ -702,17 +720,16 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
     return <section id="project-agent-resident" className="pointer-events-none relative h-full w-full overflow-visible" aria-label={t('agentResident.aria')} data-agent-resident="true" data-agent-surface={surface} data-agent-collapsed="true">
       <TimelineAgentReceiptEffect />
       {timelinePlanPreviewPortal}
-      <ResidentCollapsedDock recallLabel={t('agentResident.recall')} statusLabel={compactStatus} statusToneClassName={runningTurn ? 'bg-nomi-accent' : pendingTools.some((pending) => pending.state === 'pending') ? 'bg-nomi-warning' : 'bg-nomi-ink-30'} onRecall={() => setCollapsed(false)} interventions={pendingTools.filter((pending) => isTimelinePlanApproval(pending.call.toolName)).map(renderPendingTool)}>{composer}</ResidentCollapsedDock>
+      <ResidentCollapsedDock recallLabel={t('agentResident.recall')} statusLabel={compactStatus} statusToneClassName={runningTurn ? 'bg-nomi-accent' : pendingTools.some((pending) => pending.state === 'pending') ? 'bg-nomi-warning' : 'bg-nomi-ink-30'} onRecall={() => setCollapsed(false)}>{composer}</ResidentCollapsedDock>
     </section>
   }
-  return <section id="project-agent-resident" onKeyDownCapture={(event) => { if (event.key === 'Escape') { setThreadsOpen(false); setMenu(null); setQueueMenuOpen(null) } }} className="relative isolate flex h-full min-h-0 w-full min-w-0 flex-col bg-[var(--workbench-ai-panel-bg)] text-nomi-ink" aria-label={t('agentResident.aria')} data-agent-resident="true" data-agent-panel="true" data-agent-surface={surface} data-agent-run-mode={runMode} data-agent-approval-mode={approvalPolicy.mode} data-agent-spend-policy={approvalPolicy.spend}>
+
+  return <section id="project-agent-resident" onKeyDownCapture={(event) => { if (event.key === 'Escape') { setThreadsOpen(false); setMenu(null); setQueueMenuOpen(null) } if (event.key === 'ArrowUp' && event.target instanceof HTMLTextAreaElement && !draft.trim()) { const candidate = activeQueue.find((entry) => entry.status === 'queued'); const user = candidate ? snapshot?.items.find((item) => item.kind === 'user' && item.turnId === candidate.turnId) : undefined; if (candidate && user?.kind === 'user') { event.preventDefault(); setDraft(user.text); setEditingQueue({ queueItemId: candidate.queueItemId, userItemId: user.itemId }) } } }} className="relative isolate flex h-full min-h-0 w-full min-w-0 flex-col bg-[var(--workbench-ai-panel-bg)] text-nomi-ink" aria-label={t('agentResident.aria')} data-agent-resident="true" data-agent-panel="true" data-agent-surface={surface} data-agent-run-mode={runMode} data-agent-approval-mode={approvalPolicy.mode} data-agent-spend-policy={approvalPolicy.spend}>
     <TimelineAgentReceiptEffect />
     {timelinePlanPreviewPortal}
     <style>{`@keyframes nomi-composer-breathe { 0%, 100% { box-shadow: 0 0 0 1px color-mix(in srgb, var(--nomi-accent) 28%, transparent), 0 0 0 0 color-mix(in srgb, var(--nomi-accent) 0%, transparent); } 50% { box-shadow: 0 0 0 1px color-mix(in srgb, var(--nomi-accent) 55%, transparent), 0 0 0 4px color-mix(in srgb, var(--nomi-accent) 20%, transparent); } }`}</style>
     <header className="relative flex min-h-11 shrink-0 items-center gap-2 border-b border-nomi-line-soft px-3 py-1.5" data-agent-header="true">
-      {/* Beta 徽标：常驻 Agent 已默认开（2026-09-05 删发布闸），但编排/审批链仍在打磨——
-          未完成处**明着标**而不是藏起整套 UI（D4 诚实交付）。它是标签不是控件，
-          贴在标题旁不占 §1.5 的常驻控件预算。 */}
+      {/* Beta：编排/审批链仍在打磨，未完成处明着标。 */}
       <div className="flex min-w-0 items-center gap-2"><NomiLogoMark size={19} /><span className="text-body-sm font-semibold">{t('agentResident.brand')}</span><span className="shrink-0" title={t('agentResident.betaHint')}><StatusBadge tone="info" size="xs" data-agent-beta-badge="true" aria-label={t('agentResident.betaHint')}>{t('agentResident.beta')}</StatusBadge></span></div>
       <div className="relative shrink-0" onMouseEnter={() => setUsageOpen(true)}>
         <button type="button" className="inline-flex h-6 items-center gap-1.5 rounded-pill border border-nomi-line bg-nomi-paper px-2 text-micro tabular-nums text-nomi-ink-60" data-agent-usage-pill="true" title={t('agentResident.usageTitle', { last: lastTurnTokens, total: sessionTotalTokens })} aria-label={t('agentResident.usageRoundsTitle', { count: remainingRounds })} onFocus={() => setUsageOpen(true)} onClick={() => setUsageOpen(true)}><IconCircleDashed size={13} className="text-nomi-accent" aria-hidden="true" />{t('agentResident.usageRounds', { count: remainingRounds })}</button>
@@ -766,7 +783,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
           {item.deviated ? <ResidentDeviationCard deviations={[{ where: t('agentResident.deviationWhere'), field: t('agentResident.deviationField'), detail: t('agentResident.deviationDetail') }]} moreLabel={t('agentResident.deviationMore', { count: 1 })} collapseLabel={t('agentResident.deviationCollapse')} actions={[t('agentResident.viewLog')]} onAction={() => window.dispatchEvent(new Event('nomi-open-task-center'))} /> : null}
           {item.kind === 'task' || (item.kind === 'artifact' && item.status !== 'running' && item.status !== 'failed') ? <div className="flex items-center justify-between gap-2"><span className="flex min-w-0 items-center gap-1.5 truncate"><IconExternalLink size={14} />{item.kind === 'task' ? t('agentResident.task', { id: itemRef(item) }) : t('agentResident.artifact', { id: itemRef(item) })}</span><button type="button" className="h-7 rounded-nomi-sm border border-nomi-line px-2 text-micro" onClick={() => openTask(item)}>{item.kind === 'task' ? t('agentResident.openTask') : t('agentResident.openArtifact')}</button></div> : null}
         </article> })}
-        {pendingTools.map(renderPendingTool)}
+        {/* Pending decisions live in the intervention slot above the composer. */}
       </div>
       {showLatest ? <button type="button" className="absolute bottom-2 right-3 z-10 grid size-7 place-items-center rounded-pill border border-nomi-line bg-nomi-paper text-nomi-ink-60 shadow-nomi-md transition-[background,box-shadow,transform] duration-[var(--nomi-transition-fast)] hover:-translate-y-px hover:bg-nomi-ink-05 hover:text-nomi-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-nomi-accent/40 motion-reduce:transition-none" data-agent-action="scroll-latest" aria-label={t('agentResident.scrollLatest')} title={t('agentResident.scrollLatest')} onClick={scrollToLatest}><IconChevronDown size={15} aria-hidden="true" /></button> : null}
     </div>

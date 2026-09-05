@@ -9,7 +9,10 @@ import { projectAgentApprovalPolicyOf } from "../shared/projectAgentContracts";
 describe("Project Agent approval policy", () => {
   it("defaults local reversible actions to this-session approval and spend to per-action confirmation", () => {
     expect(projectAgentApprovalPolicyOf(undefined)).toEqual({ mode: "safe-auto", spend: "confirm" });
-    expect(projectAgentMayReuseSafeApproval(undefined, "nomi_document_edit", { operation: "append" }, false)).toBe(true);
+    // This-session approval, not no approval: the first reversible write asks,
+    // the rest of the session reuses that one answer.
+    expect(projectAgentMayReuseSafeApproval(undefined, "nomi_document_edit", { operation: "append" }, false)).toBe(false);
+    expect(projectAgentMayReuseSafeApproval(undefined, "nomi_document_edit", { operation: "append" }, true)).toBe(true);
     expect(projectAgentMayReuseSafeApproval(undefined, "nomi_request_generation_gate", {}, false)).toBe(false);
     expect(projectAgentMayReuseSafeApproval(undefined, "export_timeline", {}, false)).toBe(false);
     expect(projectAgentMayReuseSafeApproval(undefined, "delete_canvas_nodes", {}, false)).toBe(false);
@@ -59,11 +62,17 @@ describe("Project Agent approval policy", () => {
   it("reuses one explicit approval only for a later reversible write", () => {
     const safeAuto = { mode: "safe-auto" as const, spend: "confirm" as const };
     const project = { mode: "project" as const, spend: "within-budget" as const };
-    expect(projectAgentMayReuseSafeApproval(safeAuto, "nomi_document_edit", { operation: "append" }, false)).toBe(true);
+    // "One explicit approval" means the first reversible write still asks; only
+    // then may a later one reuse it. Otherwise the intervention slot never opens.
+    expect(projectAgentMayReuseSafeApproval(safeAuto, "nomi_document_edit", { operation: "append" }, false)).toBe(false);
     expect(projectAgentMayReuseSafeApproval(safeAuto, "append_to_end", {}, true)).toBe(true);
+    expect(projectAgentMayReuseSafeApproval(safeAuto, "apply_edit_plan", { operation: "apply_edit_plan" }, false)).toBe(false);
     expect(projectAgentMayReuseSafeApproval(project, "export_timeline", {}, true)).toBe(false);
     expect(projectAgentMayReuseSafeApproval(project, "nomi_operation_create", {}, true)).toBe(true);
+    // "Always" needs no prior approval at all; the default policy still does.
+    expect(projectAgentMayReuseSafeApproval(project, "apply_edit_plan", { operation: "apply_edit_plan" }, false)).toBe(true);
     expect(projectAgentMayReuseSafeApproval(undefined, "nomi_document_edit", { operation: "append" }, true)).toBe(true);
+    expect(projectAgentMayReuseSafeApproval(undefined, "nomi_document_edit", { operation: "append" }, false)).toBe(false);
   });
 
   it("makes Ask read-only at the Host boundary", () => {

@@ -63,16 +63,26 @@ export function projectAgentWorkModeDecision(
 }
 
 /**
- * `safe-auto` and `project` allow descriptor-marked local reversible actions
- * without a confirmation card. Spend, irreversible, and unknown actions keep
- * the per-action gate in every mode. `step` always asks for local writes too.
+ * `project` ("always") lets a descriptor-marked local reversible action run with
+ * no card at all. `safe-auto` — the default — *reuses one explicit approval*:
+ * the first reversible write of an execution still asks, and the reuse is
+ * granted only by an approval the user did not scope to `once`. `step` always
+ * asks. Spend, irreversible and unknown actions keep the per-action gate in
+ * every mode.
+ *
+ * The granted flag has to be load-bearing here or the whole intervention slot
+ * is theatre: without it `safe-auto` auto-applies the very first reversible
+ * write, so a timeline edit plan lands before its highlight is ever shown and
+ * the slot's "this session" / "always" choices have nothing left to change.
  */
 export function projectAgentMayReuseSafeApproval(
   policy: ProjectAgentApprovalPolicy | undefined,
   toolName: string,
   args: unknown,
-  _safeApprovalGranted: boolean,
+  safeApprovalGranted: boolean,
 ): boolean {
   const normalized = projectAgentApprovalPolicyOf(policy);
-  return normalized.mode !== "step" && projectAgentExecutionEffectClass(toolName, args) === "reversible_local";
+  if (projectAgentExecutionEffectClass(toolName, args) !== "reversible_local") return false;
+  if (normalized.mode === "project") return true;
+  return normalized.mode === "safe-auto" && safeApprovalGranted;
 }

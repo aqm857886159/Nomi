@@ -186,11 +186,12 @@ try {
     plan: { planId: 'walk-plan-trim', summary: '把「推门近景」的结尾收紧 1 秒', operations: [{ kind: 'trim', clipId: 'clip-b', edge: 'right', deltaFrame: -30 }] },
     doneText: 'WALK_TRIM_DONE：已按计划把结尾收紧。',
   })
-  const approval = agent.locator('[data-agent-timeline-approval="true"]').first()
-  const approvalProof = await proveProbe(approval, '剪辑计划的介入槽审批卡必须可见')
-  await expect(approval, '审批卡必须逐条给出人话摘要').toContainText('收紧')
-  await expect(approval.locator('[data-agent-action="approve-session"]'), '「本会话」必须是真控件').toBeVisible()
-  await expect(approval.locator('[data-agent-action="approve-always"]'), '「总是」必须是真控件').toBeVisible()
+  const approval = agent.locator('[data-agent-intervention-slot="true"]').first()
+  const approvalProof = await proveProbe(approval, '剪辑计划的介入槽必须可见')
+  await expect(approval, '介入槽必须逐条给出人话摘要，而不是一串 operation JSON').toContainText('收紧')
+  await expect(approval, '可逆的本地改动才给到「总是」这一档').toHaveAttribute('data-agent-effect-class', 'reversible_local')
+  await expect(approval.locator('[data-agent-approval-scope="session"]'), '「本会话」必须是真控件').toBeVisible()
+  await expect(approval.locator('[data-agent-approval-scope="always"]'), '「总是」必须是真控件').toBeVisible()
   const previewBands = win.locator('[data-timeline-plan-preview="true"] [data-plan-preview-band]')
   await expect(previewBands.first(), '待批准的计划必须先在时间轴上高亮').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
   const bandsProof = await proveProbe(previewBands.first(), '待批准的计划会在时间轴上画出高亮带')
@@ -199,7 +200,7 @@ try {
   await screenshotSettled(win, { path: path.join(shotsDir, '02-plan-highlight-and-approval.png') })
 
   // ③ 应用这次 → 收据 toast（含撤销）
-  await clickOrFail(approval.locator('[data-agent-action="approve"]'), '应用这次', { noWaitAfter: true })
+  await clickOrFail(approval.locator('[data-agent-approval-scope="once"]'), '应用这次', { noWaitAfter: true })
   const trimWire = await recorded(trimmed.received, '已应用的剪辑结果回到模型')
   expect(toolResultText(trimWire.body, 'walk-trim-1'), '批准后的 apply_edit_plan 必须真的应用，而不是报错后被模型的措辞盖过去').toContain('"applied":true')
   await expect(win.locator(PREVIEW_PANEL)).toContainText('WALK_TRIM_DONE')
@@ -233,11 +234,13 @@ try {
     },
     doneText: 'WALK_OPS_DONE：转场、字幕、音量都按计划改好了。',
   })
-  const opsApproval = agent.locator('[data-agent-timeline-approval="true"]').first()
-  await expect(opsApproval, '三类 op 走同一张审批卡').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
-  await expect(opsApproval, '审批卡必须逐条列出三条操作').toHaveAttribute('data-agent-plan-operations', '3')
+  const opsApproval = agent.locator('[data-agent-intervention-slot="true"]').first()
+  await expect(opsApproval, '三类 op 走同一个介入槽').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
+  for (const sentence of ['加叠化', '改成', '音量']) {
+    await expect(opsApproval, `介入槽必须逐条列出三类 op：缺了「${sentence}」`).toContainText(sentence)
+  }
   await screenshotSettled(win, { path: path.join(shotsDir, '05-three-ops-approval.png') })
-  await clickOrFail(opsApproval.locator('[data-agent-action="approve"]'), '应用三类 op', { noWaitAfter: true })
+  await clickOrFail(opsApproval.locator('[data-agent-approval-scope="once"]'), '应用三类 op', { noWaitAfter: true })
   const opsWire = await recorded(authored.received, '三类 op 的结果回到模型')
   expect(toolResultText(opsWire.body, 'walk-ops-2'), '三类 op 必须真的应用').toContain('"applied":true')
   await expect.poll(async () => {
@@ -262,6 +265,7 @@ try {
   const dock = win.locator('[data-agent-collapsed-dock="true"]')
   await expect(dock, '收起后输入框必须落到预览下沿').toBeVisible()
   await expect(dock.locator('[data-agent-input="true"]'), '收起后仍然只有一个输入框').toHaveCount(1)
+  await expect(win.locator('[data-agent-input="true"]'), '收起不该多造一个 composer').toHaveCount(1)
   await expect(win.locator('[data-agent-resident-collapsed="true"]'), '右上角必须留「叫回 Nomi」')
     .toHaveAttribute('aria-label', '叫回 Nomi')
   const geometry = await dock.evaluate((node) => {
