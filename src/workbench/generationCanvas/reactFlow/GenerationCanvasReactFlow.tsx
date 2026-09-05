@@ -38,6 +38,8 @@ import { useNodeAppearTracking } from '../components/useNodeAppearTracking'
 import { useAutoFitOnLoad } from '../components/useAutoFitOnLoad'
 import { useComposerVisibilityPan } from '../components/useComposerVisibilityPan'
 import { useCreatedNodeVisibilityPan } from '../components/useCreatedNodeVisibilityPan'
+import { createViewportTargetTracker, type ViewportTargetTracker } from '../components/viewportTargetTracker'
+import { createViewportAnimationCoordinator, type ViewportAnimationCoordinator } from '../components/viewportAnimationCoordinator'
 import { useCanvasContextNodeMenu } from '../components/useCanvasContextNodeMenu'
 import type { ViewportAnimationSettlementOutcome } from '../components/viewportAnimationSettlement'
 import { useBatchPlanPreviewStore } from '../components/batchPlanPreview'
@@ -234,13 +236,94 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
   zoomRef.current = liveViewport.zoom
   offsetRef.current = { x: liveViewport.x, y: liveViewport.y }
 
+  // 所有自动让位（新建节点露出 / composer 推开画布）共用这一个入口，动画由我们自己的
+  // rAF 调度器逐帧以 duration=0 直写 React Flow，而**不用** React Flow 的 setViewport({ duration })：
+  //   ① 它的 d3 过渡对被打断的调用永不结算 promise（composer 的让位请求闩会卡死）；
+  //   ② 它的缩放插值读的是 XYPanZoom 里一份 ResizeObserver 缓存的 extent，pane 只要有一帧 0×0
+  //      （建卡当帧就会发生），缓存就是 0，接下来任何一次过渡都算出 NaN transform，
+  //      onlyRenderVisibleElements 把所有节点判不可见——画布整片空白、节点却还在（走查 ~30% 复现）。
+  // 直写不经过插值，也不看那份缓存；调度器自己负责 cancelled/completed。
+  // 每个请求都从「正在去的目标」出发算增量（viewportTargetTracker），后到的不抹掉先到的。
+  const viewportTargetRef = React.useRef<ViewportTargetTracker | null>(null)
+  if (viewportTargetRef.current === null) {
+    viewportTargetRef.current = createViewportTargetTracker(() => ({ zoom: zoomRef.current, offset: offsetRef.current }))
+  }
+  const readViewportTarget = React.useCallback(() => viewportTargetRef.current!.read(), [])
+  const readLastAutoTarget = React.useCallback(() => viewportTargetRef.current!.readLastAutoTarget(), [])
+  const animationCoordinatorRef = React.useRef<ViewportAnimationCoordinator | null>(null)
+  React.useEffect(() => {
+    const coordinator = createViewportAnimationCoordinator({
+      requestFrame: (callback) => window.requestAnimationFrame(callback),
+      cancelFrame: (frame) => window.cancelAnimationFrame(frame),
+      readViewport: () => {
+        const live = flow.getViewport()
+        return { zoom: live.zoom, offset: { x: live.x, y: live.y } }
+      },
+      writeViewport: (next) => {
+        void flow.setViewport({ x: next.offset.x, y: next.offset.y, zoom: next.zoom }, { duration: 0 })
+      },
+    })
+    animationCoordinatorRef.current = coordinator
+    return () => {
+      if (animationCoordinatorRef.current === coordinator) animationCoordinatorRef.current = null
+      coordinator.dispose()
+    }
+  }, [flow])
+  /** 直接写视口（切分类还原 / 聚焦还原）前先取得所有权，别让在飞的自动让位下一帧又把它盖回去。 */
+  const cancelViewportAnimation = React.useCallback(() => {
+    animationCoordinatorRef.current?.takeOwnershipAndCancel()
+  }, [])
+  /** React Flow 吐出非有限视口时：不记、不信，用最后一份好视口把它拉回来（否则画布永久空白）。 */
+  const healViewport = React.useCallback((broken: { x: number; y: number; zoom: number }) => {
+    console.error('[generation-canvas] React Flow 交出了非有限视口，已用最后一份好视口恢复', broken)
+    cancelViewportAnimation()
+    void flow.setViewport({ x: offsetRef.current.x, y: offsetRef.current.y, zoom: zoomRef.current || 1 }, { duration: 0 })
+  }, [cancelViewportAnimation, flow])
+  const animateViewportTo = React.useCallback(
+    (
+      zoom: number,
+      offset: { x: number; y: number },
+      duration = 160,
+      onSettled?: (outcome: ViewportAnimationSettlementOutcome) => void,
+    ) => {
+      if (!Number.isFinite(zoom) || !Number.isFinite(offset.x) || !Number.isFinite(offset.y)) {
+        // 非有限的视口一旦交给 React Flow，内部 transform 变 NaN，节点全部判不可见。拒收并把调用栈亮出来。
+        console.error('[generation-canvas] animateViewportTo 拒收非有限视口', { zoom, offset, stack: new Error().stack })
+        onSettled?.('cancelled')
+        return
+      }
+      const coordinator = animationCoordinatorRef.current
+      if (!coordinator) {
+        onSettled?.('cancelled')
+        return
+      }
+      const tracker = viewportTargetRef.current!
+      const token = tracker.begin({ zoom, offset }, duration)
+      coordinator.animateTo(zoom, offset, duration, (outcome) => {
+        tracker.settle(token)
+        onSettled?.(outcome)
+      })
+    },
+    [],
+  )
+
   React.useEffect(() => {
     const nextKey = `${activeCategoryId}:${viewport.x}:${viewport.y}:${viewport.zoom}`
     if (appliedViewportKeyRef.current === nextKey) return
     appliedViewportKeyRef.current = nextKey
     setLiveViewport(viewport)
+    // 只在 React Flow 与 store 真不一致时才直接写入（切分类 / 外部还原）。onMoveEnd 回写 store 后
+    // 这里会再收到同一份视口——那是回声，不是新命令；零时长写入会**打断正在飞的动画**，而 React Flow
+    // 对被打断的 setViewport 永不结算 promise：新建节点的横向露出就是这样被抹掉、卡在 Agent 面板底下的。
+    const current = flow.getViewport()
+    if (
+      Math.abs(current.x - viewport.x) < 0.5
+      && Math.abs(current.y - viewport.y) < 0.5
+      && Math.abs(current.zoom - viewport.zoom) < 1e-3
+    ) return
+    cancelViewportAnimation()
     void flow.setViewport(viewport, { duration: 0 })
-  }, [activeCategoryId, flow, viewport])
+  }, [activeCategoryId, cancelViewportAnimation, flow, viewport])
 
   const {
     canvasPanMovedRef,
@@ -282,6 +365,8 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
   })
   useGenerationCanvasReactFlowHostEffects({
     activeCategoryId,
+    animateViewportTo,
+    cancelViewportAnimation,
     flow,
     hostRef,
     nodes,
@@ -359,25 +444,9 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
   // 事件从此无人接收 → 画布不再让位 → composer 只能溢出 stage（j5 composer-usable-at-min-window
   // 因此确定性变红：spaceAbove 140 / spaceBelow 132 都 < 150，卡片仍按 150 渲染，捅出底边 32px）。
   // 复用原 hook 而不是在这里另写一份监听：事件契约、delta 校验和 onSettled 回执它都已经处理好（P1）。
-  const animateViewportTo = React.useCallback(
-    (
-      zoom: number,
-      offset: { x: number; y: number },
-      duration = 160,
-      onSettled?: (outcome: ViewportAnimationSettlementOutcome) => void,
-    ) => {
-      // React Flow 的 setViewport 用 Promise<boolean> 表达「动画是否跑完」，正好对上结算契约的
-      // completed / cancelled；被新动画打断时要回 cancelled，否则请求闩会一直不释放。
-      void flow
-        .setViewport({ x: offset.x, y: offset.y, zoom }, { duration })
-        .then((completed) => onSettled?.(completed ? 'completed' : 'cancelled'))
-        .catch(() => onSettled?.('cancelled'))
-    },
-    [flow],
-  )
-  useComposerVisibilityPan({ animateViewportTo, offsetRef, zoomRef })
+  useComposerVisibilityPan({ animateViewportTo, offsetRef, readViewportTarget })
   // 「新建即可见」：避让把新卡推出视口时最小平移露出它（见 useCreatedNodeVisibilityPan 的头注释）。
-  useCreatedNodeVisibilityPan({ nodes, animateViewportTo, offsetRef, zoomRef, stageRef: hostRef })
+  useCreatedNodeVisibilityPan({ nodes, animateViewportTo, readViewportTarget, readLastAutoTarget, stageRef: hostRef })
   const { isTidying, tidy } = useTidyCanvas(activeCategoryId)
   const production = useCanvasProductionActions({ activeCategoryId, selectedNodeIds })
   const batchDock = useCanvasBatchDockVisibility({
@@ -726,6 +795,7 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
         setLiveViewport={setLiveViewport}
         activeCategoryId={activeCategoryId}
         rememberCategoryViewport={rememberCategoryViewport}
+        healViewport={healViewport}
         groupBoxes={groupBoxes}
         collapsedGroupCards={collapsedProjection.cards}
         onGroupFramePointerDown={handleGroupFramePointerDown}

@@ -1,0 +1,321 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-05-canvas-walkthrough-stage-width",
+  "problem_type": "canvas walkthroughs trusted a stale geometry sample and canvas auto-pans clobbered each other; both surfaced when the stage got narrower",
+  "symptom": "PR #488 (resident Agent dock on by default, stage 1540px -> 1200px at a 1600 window) turned three CI jobs red with no product regression: Canvas Acceptance shard 1 (canvas-drag-pan-gestures: CI '等了 5017ms 这一屏仍未视觉安定' after the marquee, macOS '点一下空白就取消选中' 2/2), shard 2 (canvas-card-stack: 'subtree intercepts pointer events' on the aggregate edge hit path), Canvas Performance ('warmup 失败 1 次（gating 场景）' on wheel-zoom, budgets all green). Walking the same flow by hand also showed the second created card sitting under the Agent dock with the viewport never panning. Separately, the same walkthrough failed 6 of ~16 local runs at its very first assertion: two nodes created and persisted, React Flow rendering none, the canvas blank at a normal zoom.",
+  "direct_cause": "Six copies of findBlankPoint sampled document.elementFromPoint once and trusted it; the magnetic connect handle's hit-area lives on the React Flow node shell outside the inner card and ate the click when the real cursor arrived. findMarqueeGesture allowed endpoints 8px from the stage edge, inside React Flow's 40px selection auto-pan band, so the viewport moved every frame while the mouse was held and screenshotSettled never stabilised. clickOrFail clicked the bounding-box centre of a curved edge path, which lies on a node card. The benchmark's node-identity guard captured its baseline before a round-trip zoom, so onlyRenderVisibleElements culling read as a DOM rebuild. In product code, useCreatedNodeVisibilityPan cleared its pending reveal in the effect cleanup on every nodes change, and even when it fired, useComposerVisibilityPan's flow.setViewport interrupted it and recomputed from the current offset, discarding the x pan. Third product layer: GenerationCanvasReactFlow re-applied the store's remembered viewport with duration 0 whenever it changed, and it changes on every onMoveEnd including the end React Flow emits for an interrupted transition; that instant write interrupted the reveal transition, and React Flow never resolves an interrupted setViewport promise, so the composer's pan-request latch also stayed held. Blank-canvas flake: node renderers are React.lazy per kind (renderRegistry) with no Suspense boundary nearer than the app-level one around the whole canvas, so the first node of a kind suspends and React hides the entire stage section (inline display:none) for ~30ms until the chunk lands; React Flow's XYPanZoom caches its d3 zoom extent from a ResizeObserver and recorded that frame as 0×0; the composer pan that started inside that window ran d3's interpolateZoom with a zero width and produced an all-NaN transform ([NaN,NaN,NaN] in the React Flow store, captured by a store subscription trap), which onlyRenderVisibleElements turns into 'no node is visible'; onMoveEnd then remembered the NaN viewport and the category sync effect wrote it back, so the canvas stayed blank.",
+  "class_root": "Three missing invariants. Harness: any screen point or path point chosen for a real pointer action must be re-verified with the real cursor in place and must respect the interaction kernel's own edge bands; a one-shot elementFromPoint sample is a candidate, not a verdict. Product, viewport: every automatic viewport pan must compute its increment from the viewport's pending target, must be driven by our own frame scheduler (React Flow's d3 transitions never settle interrupted promises and read a cached extent that can be 0×0), and a non-finite viewport must never be remembered or written back. Product, rendering: a lazily loaded node renderer must suspend inside its own card, never at the canvas boundary.",
+  "affected_population": [
+    "Every canvas walkthrough and script that scans for a blank stage point (7 copies across tests/ux and scripts)",
+    "Every walkthrough that clicks an edge hit path (card-stack, clip-node-editing)",
+    "Every window / sidebar / dock configuration that changes stage width: 1280 windows, collapsed sidebars, the resident Agent dock, Windows minimum-window CI",
+    "The canvas performance gate on any platform whenever a zoom round-trip culls edge nodes",
+    "Users creating a node while the stage is narrow: the card lands under the Agent dock and the reveal pan never runs"
+  ],
+  "scope_paths": [
+    "tests/ux/_canvasPoints.mjs",
+    "tests/ux/_canvasPoints.test.mjs",
+    "tests/ux/canvas-drag-pan-gestures.walk.mjs",
+    "tests/ux/canvas-card-stack.walk.mjs",
+    "tests/ux/clip-node-editing.walk.mjs",
+    "tests/ux/canvas-context-menu-click.walk.mjs",
+    "tests/ux/canvas-node-context-menu.walk.mjs",
+    "tests/ux/canvas-s5-walkthrough.walk.mjs",
+    "tests/ux/canvas-shortcuts.walk.mjs",
+    "tests/ux/canvas-performance-benchmark.e2e.mjs",
+    "scripts/canvas-image-sharpness-measure.mjs",
+    "src/workbench/generationCanvas/components/viewportTargetTracker.ts",
+    "src/workbench/generationCanvas/components/viewportTargetTracker.test.ts",
+    "src/workbench/generationCanvas/components/useCreatedNodeVisibilityPan.ts",
+    "src/workbench/generationCanvas/components/useComposerVisibilityPan.ts",
+    "src/workbench/generationCanvas/components/useComposerVisibilityPan.test.ts",
+    "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+    "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx",
+    "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx",
+    "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowEffects.ts",
+    "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlowAdapter.ts",
+    "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlowAdapter.test.ts"
+  ],
+  "entry_points": [
+    "findBlankPoint in canvas-drag-pan-gestures / canvas-s5-walkthrough / canvas-shortcuts / canvas-context-menu-click / canvas-node-context-menu walkthroughs and scripts/canvas-image-sharpness-measure",
+    "findMarqueeGesture in canvas-drag-pan-gestures",
+    "clickOrFail on g[data-aggregate-group] path[role=button] in canvas-card-stack, inline on-path picker in clip-node-editing",
+    "wheel-zoom scenario in canvas-performance-benchmark (captureNodeIdentity before the action)",
+    "useCreatedNodeVisibilityPan and useComposerVisibilityPan both calling the GenerationCanvasReactFlow animateViewportTo wrapper",
+    "GenerationCanvasReactFlowNodes rendering the lazy per-kind node component without a local Suspense boundary",
+    "GenerationCanvasReactFlowViewport onMoveEnd remembering whatever viewport React Flow reports",
+    "focus jump via flow.setCenter({ duration }) in useGenerationCanvasReactFlowHostEffects"
+  ],
+  "external_sources": [
+    {
+      "kind": "source-code",
+      "url": "https://github.com/xyflow/xyflow/blob/main/packages/system/src/utils/general.ts",
+      "checked_at": "2026-09-05",
+      "purpose": "calcAutoPan(pos, bounds, speed = 15, distance = 40): the 40px edge band that auto-pans during marquee selection; verified in the installed @xyflow/system 0.0.81 bundle"
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/xyflow/xyflow/blob/main/packages/react/src/container/Pane/index.tsx",
+      "checked_at": "2026-09-05",
+      "purpose": "Pane autoPanOnSelection defaults to true and re-schedules requestAnimationFrame while the pointer stays in the band; verified in installed @xyflow/react 12.11.5"
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/xyflow/xyflow/blob/main/packages/system/src/xypanzoom/XYPanZoom.ts",
+      "checked_at": "2026-09-05",
+      "purpose": "XYPanZoom caches the d3 zoom extent from a ResizeObserver contentRect and never rejects a 0×0 entry; verified in installed @xyflow/system 0.0.81 (cachedExtent / extentResizeObserver); setTransform resolves only on the transition 'end' event"
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/d3/d3-interpolate/blob/main/src/zoom.js",
+      "checked_at": "2026-09-05",
+      "purpose": "interpolateZoom divides by w0 (extent width / zoom); w0 = 0 yields NaN for every frame, matching the [NaN,NaN,NaN] transform captured in the trap"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://react.dev/reference/react/Suspense#showing-stale-content-while-fresh-content-is-loading",
+      "checked_at": "2026-09-05",
+      "purpose": "When an update suspends without a nearer boundary, React hides the already-committed content of the nearest Suspense boundary (display:none) and shows its fallback; the nearest boundary here wrapped the whole canvas"
+    }
+  ],
+  "invariants": [
+    "A blank canvas point is only returned after the real mouse has been moved there and elementFromPoint still resolves to the stage outside every exclusion; otherwise the candidate is rejected and the next one is tried.",
+    "The blank-point exclusion list includes the React Flow node shell (.react-flow__node), not only the inner card, so hover-only affordances mounted on the shell disqualify a point.",
+    "Marquee gesture endpoints stay at least MARQUEE_STAGE_MARGIN_PX (48px) from the stage edge, derived from React Flow's 40px auto-pan band.",
+    "Edge hit paths are clicked at a sampled on-path point that is topmost under elementFromPoint; a path with no such point fails loudly rather than being force-clicked.",
+    "The benchmark's node-identity baseline for a zoom round trip is captured at the zoomed-in state, so viewport culling cannot be reported as a DOM rebuild.",
+    "Every automatic viewport pan derives its target from the viewport target tracker (the in-flight target or the live viewport), never from the live viewport alone while another pan is in flight.",
+    "A created-node reveal survives subsequent nodes-array updates; it is cancelled only by unmount or by a newer single-node creation.",
+    "The store-to-React-Flow viewport sync only writes when React Flow's live viewport actually differs from the store value; a move-end echo never interrupts an in-flight animation.",
+    "A superseded animateViewportTo request is settled as cancelled by the wrapper itself, because React Flow never resolves an interrupted setViewport promise; the tracker's pending target also expires after duration plus a grace window so an unresolved promise cannot pin a stale target.",
+    "A lazily loaded node renderer suspends inside a node-local Suspense boundary whose fallback is the lightweight card; the canvas stage is never hidden by a chunk load.",
+    "Animated viewport changes owned by the canvas (composer pan, created-node reveal, focus jump) run through createViewportAnimationCoordinator writing flow.setViewport with duration 0 per frame; no auto-pan uses React Flow's d3 transition path.",
+    "onMoveEnd refuses a non-finite viewport (isFiniteFlowViewport): it is neither stored as live viewport nor remembered per category, and the canvas restores the last finite viewport.",
+    "Every duration-0 direct viewport write that expresses a user or restore command (category sync, focus restore, focused-node recovery on undo) cancels the coordinator first; otherwise the next animation frame overwrites it.",
+    "Undoing a creation that triggered an automatic reveal restores the pre-reveal viewport when the viewport still sits on the last automatic pan target (shouldRestoreAfterReveal); once the user has moved the canvas, nothing is restored."
+  ],
+  "generality_proof": "All seven blank-point scanners now delegate to findBlankCanvasPoint and both edge-path click sites delegate to clickEdgeHitPath, so the re-verification and exclusion list are owned by one module rather than reimplemented per walkthrough; the marquee margin is a named constant derived from React Flow's own auto-pan distance instead of a per-file magic number. On the product side the only entry into animated viewport changes for auto-pans is the GenerationCanvasReactFlow animateViewportTo wrapper, which now registers every target in the tracker; both auto-pan hooks read that tracker, so any future auto-pan that uses the same wrapper composes for free.",
+  "shared_boundaries": [
+    {
+      "path": "tests/ux/_canvasPoints.mjs",
+      "symbol": "findBlankCanvasPoint / clickEdgeHitPath / MARQUEE_STAGE_MARGIN_PX / CANVAS_BLANK_EXCLUSIONS",
+      "responsibility": "Own point selection for real pointer actions on the canvas: scan, move the real cursor, re-verify, and expose the auto-pan-derived marquee margin and the unified exclusion list."
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/viewportTargetTracker.ts",
+      "symbol": "createViewportTargetTracker",
+      "responsibility": "Single registry of the viewport's pending target so concurrent auto-pans compose instead of clobbering each other."
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "symbol": "animateViewportTo / readViewportTarget",
+      "responsibility": "The one wrapper every auto-pan goes through; registers the target (with expiry) before calling flow.setViewport, settles superseded requests as cancelled, and the sibling store-to-flow sync effect skips move-end echoes so it cannot interrupt in-flight animations."
+    },
+    {
+      "path": "tests/ux/canvas-performance-benchmark.e2e.mjs",
+      "symbol": "wheel-zoom scenario captureNodeIdentity after the first tick",
+      "responsibility": "Make the DOM-identity guard measure rebuilds among nodes that stay mounted through the zoom round trip, not viewport culling."
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx",
+      "symbol": "React.Suspense around NodeComponent",
+      "responsibility": "Contain a lazy renderer's suspension to its own card so the stage never goes display:none."
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlowAdapter.ts",
+      "symbol": "isFiniteFlowViewport",
+      "responsibility": "Single predicate for 'this viewport may be remembered or written back'; used by the viewport's onMoveEnd heal."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "tests/ux/canvas-drag-pan-gestures.walk.mjs",
+      "entry_point": "findBlankPoint / findMarqueeGesture",
+      "disposition": "enforced",
+      "evidence": "Local copy deleted; delegates to findBlankCanvasPoint with BOTTOM_FIRST_BLANK_ROWS option; marquee insideStage uses MARQUEE_STAGE_MARGIN_PX and CANVAS_BLANK_EXCLUSIONS. Reproduced 2/2 before (99-failure.png shows the magnetic + under the point) and passes after."
+    },
+    {
+      "path": "tests/ux/canvas-card-stack.walk.mjs",
+      "entry_point": "aggregate edge hit path clicks (two sites)",
+      "disposition": "enforced",
+      "evidence": "Both clickOrFail calls replaced by clickEdgeHitPath; reproduced locally with the same 'subtree intercepts pointer events' log as CI, passes after."
+    },
+    {
+      "path": "tests/ux/clip-node-editing.walk.mjs",
+      "entry_point": "inline on-path picker over five output edges",
+      "disposition": "enforced",
+      "evidence": "Inline evaluateAll picker deleted; clickEdgeHitPath iterates every matched path so the fall-through behaviour is preserved."
+    },
+    {
+      "path": "tests/ux/canvas-s5-walkthrough.walk.mjs",
+      "entry_point": "findBlankPoint",
+      "disposition": "enforced",
+      "evidence": "Copy deleted; delegates to findBlankCanvasPoint with default scan order (identical rows/columns to the previous copy)."
+    },
+    {
+      "path": "tests/ux/canvas-shortcuts.walk.mjs",
+      "entry_point": "findBlankPoint",
+      "disposition": "enforced",
+      "evidence": "Copy deleted; delegates with the file's original rows/columns passed as options."
+    },
+    {
+      "path": "tests/ux/canvas-context-menu-click.walk.mjs",
+      "entry_point": "findBlankPoint",
+      "disposition": "enforced",
+      "evidence": "Copy deleted; delegates with original rows/columns. This copy was the only one that already excluded .react-flow__node, which is now in the shared list."
+    },
+    {
+      "path": "tests/ux/canvas-node-context-menu.walk.mjs",
+      "entry_point": "findBlankPoint",
+      "disposition": "enforced",
+      "evidence": "Copy deleted; delegates with original rows/columns."
+    },
+    {
+      "path": "scripts/canvas-image-sharpness-measure.mjs",
+      "entry_point": "findBlankPoint",
+      "disposition": "enforced",
+      "evidence": "Copy deleted; delegates via ../tests/ux/_canvasPoints.mjs with original rows/columns."
+    },
+    {
+      "path": "tests/ux/canvas-performance-benchmark.e2e.mjs",
+      "entry_point": "findBlank(page, preference)",
+      "disposition": "not-affected",
+      "evidence": "The benchmark's scanner feeds pan/drag starts where a magnetic handle under the cursor would surface as 'blank click left N selected nodes' or a pan that does not move; CI run 33947462331 shows every scanner-driven scenario green on the narrow stage, and the benchmark is a perf instrument whose extra mouse moves would perturb timing, so it keeps its own scanner. Only the wheel-zoom identity baseline changed."
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/useComposerVisibilityPan.ts",
+      "entry_point": "ENSURE_COMPOSER_VISIBLE_EVENT listener",
+      "disposition": "enforced",
+      "evidence": "Now composes via composeComposerPanTarget: x and zoom from readViewportTarget(), y from the live offset plus the measured deltaY. Positive control on the timer-fix-only build: video card x pan cut off at 1px (probe series x=1); after composition the reveal survives."
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/useCreatedNodeVisibilityPan.ts",
+      "entry_point": "single-node creation reveal",
+      "disposition": "enforced",
+      "evidence": "Pending timer moved to a ref cleared only on unmount or a newer creation; delta computed from readViewportTarget(). Probe on the PR build: viewport x stayed 0 with the video card 200+px past the stage edge; walkthrough now asserts both created cards are fully inside the stage."
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/useCanvasViewportGestures.ts",
+      "entry_point": "coordinator-based animateViewportTo (fit / reset / focus)",
+      "disposition": "not-affected",
+      "evidence": "Discrete user jumps are meant to take ownership and cancel any auto-pan (takeOwnershipAndCancel); they are not auto-pans competing with each other, so they intentionally do not read the tracker."
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "entry_point": "store viewport -> flow.setViewport(duration 0) sync effect",
+      "disposition": "enforced",
+      "evidence": "Instrumented build showed the reveal's animateViewportTo firing with delta {x:-232} yet the viewport x never moving and neither promise settling; the effect now compares flow.getViewport() with the store value and skips echoes. Positive control on the previous build: x stuck at 1px in 3/3 probe runs."
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx",
+      "entry_point": "lazy NodeComponent render",
+      "disposition": "enforced",
+      "evidence": "ResizeObserver trap on the ancestor chain showed only the stage section (and its React Flow children) going to 0×0 with display none for ~30ms right after each first-of-kind node add; wrapped in a node-local Suspense with LightweightGenerationNode fallback. nodes/render/NodeCardBody.tsx already did this for the whiteboard body."
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx",
+      "entry_point": "onMoveEnd -> setLiveViewport / rememberCategoryViewport",
+      "disposition": "enforced",
+      "evidence": "Store-subscription trap showed the NaN transform being remembered and re-applied by the category sync effect; onMoveEnd now guards with isFiniteFlowViewport and calls healViewport."
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowEffects.ts",
+      "entry_point": "focus jump setCenter with duration",
+      "disposition": "enforced",
+      "evidence": "Same d3 transition path; now computes the centre target and animates through animateViewportTo, and cancels the coordinator before its duration-0 restore write."
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "entry_point": "fitView(animate) / zoomTo / onResetView with duration",
+      "disposition": "not-affected",
+      "evidence": "Explicit user commands issued from a settled layout, not from a node-creation frame; they still use React Flow transitions. If a chunk load ever coincides, onMoveEnd's finite guard heals the viewport instead of leaving the canvas blank. Listed as residual risk."
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowEffects.ts",
+      "entry_point": "focusedRecoveryRef restore on undo after focus jump",
+      "disposition": "enforced",
+      "evidence": "card-stack walk: duplicate variant -> focus jump (220ms) -> Cmd+Z within the animation; the direct restore write was overwritten by the next coordinator frame, leaving the viewport at (250,-557) with the video card culled (probe). Now cancels the coordinator before writing; the created-node reveal has the symmetric shouldRestoreAfterReveal rule for creations without a focus event."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any change to stage width (window size, sidebar, dock, platform minimum window) re-rolls which scan candidates land on hover affordances or auto-pan bands, and any new auto-pan source on the canvas would again race the existing ones through the same interrupting setViewport.",
+    "same_class_scan": [
+      "git grep 'async function findBlankPoint\\|function findBlank' over tests and scripts: 7 copies (6 walkthrough/script copies unified, benchmark scanner kept and justified above).",
+      "git grep 'path\\[role=\"button\"\\]\\|edge-hit' over tests and scripts: card-stack (2 sites) and clip-node-editing (1 inline picker) click paths; group-reference-direction, feedback-batch-hardening and react-flow-read-only only read or assert absence.",
+      "git grep 'findMarqueeGesture\\|insideStage': only canvas-drag-pan-gestures builds a marquee; tests/ux/canvas-perf/dragScenarios.mjs insideStage guards node drags, which use autoPanOnNodeDrag and are outside this failure class.",
+      "git grep 'animateViewportTo' in src/workbench/generationCanvas: the React Flow canvas wrapper feeds exactly two auto-pan hooks (composer, created node); both now read the tracker.",
+      "Benchmark warmupFailures in CI evidence canvas-validation-gate.json: only wheel-zoom flagged 'mounted node DOM identity changed'; pan-zoom-mix zooms one way and is unaffected.",
+      "git grep 'setViewport(' in src/workbench/generationCanvas/reactFlow: the category sync effect and the focus-restore effect both write with duration 0; the sync effect fires on every move-end echo (fixed), the focus restore is an explicit user command that intentionally cancels animations.",
+      "git grep 'React.lazy' in src/workbench/generationCanvas: renderRegistry (per-kind node component, unguarded -> fixed) and NodeCardBody (whiteboard body, already wrapped in Suspense).",
+      "git grep 'setViewport(\\|setCenter(\\|fitView(\\|zoomTo(' in reactFlow: auto-pans and focus jump now go through the coordinator; category sync and focus restore write duration 0 after cancelling it; fitView/zoomTo/reset remain React Flow transitions (user commands).",
+      "git grep 'duration: 0' in src/workbench/generationCanvas/reactFlow: three direct writes (category sync, pending focus restore, focused-node recovery); all three now cancel the coordinator first."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "tests/ux/_canvasPoints.mjs",
+    "invariant": "Pointer targets on the canvas are re-verified under the real cursor and respect the interaction kernel's edge band; auto-pans compose through the viewport target tracker and run on our own frame scheduler; a lazy node renderer suspends inside its own card; a non-finite viewport is never remembered.",
+    "failure_mode": "findBlankCanvasPoint returns null and callers throw; clickEdgeHitPath throws a labelled error instead of force-clicking; the walkthrough asserts created cards are inside the stage and reports overflow pixels.",
+    "exception_policy": "none",
+    "strategy": "Delete every per-file copy and route through one module so the re-verification cannot be skipped; derive the marquee margin from React Flow's own constant; register every animated viewport target in one tracker consumed by all auto-pans.",
+    "artifacts": [
+      "tests/ux/_canvasPoints.mjs",
+      "src/workbench/generationCanvas/components/viewportTargetTracker.ts",
+      "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "src/workbench/generationCanvas/components/useCreatedNodeVisibilityPan.ts",
+      "src/workbench/generationCanvas/components/useComposerVisibilityPan.ts",
+      "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx",
+      "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx",
+      "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlowAdapter.ts",
+      "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowEffects.ts"
+    ]
+  },
+  "regression_tests": [
+    "tests/ux/_canvasPoints.test.mjs",
+    "tests/ux/canvas-drag-pan-gestures.walk.mjs",
+    "tests/ux/canvas-card-stack.walk.mjs",
+    "src/workbench/generationCanvas/components/viewportTargetTracker.test.ts",
+    "src/workbench/generationCanvas/components/useComposerVisibilityPan.test.ts",
+    "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlowAdapter.test.ts"
+  ],
+  "class_regression_tests": [
+    "tests/ux/_canvasPoints.test.mjs",
+    "src/workbench/generationCanvas/components/viewportTargetTracker.test.ts",
+    "src/workbench/generationCanvas/components/useComposerVisibilityPan.test.ts",
+    "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlowAdapter.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "tests/ux/canvas-drag-pan-gestures.walk.mjs",
+      "tests/ux/canvas-s5-walkthrough.walk.mjs",
+      "tests/ux/canvas-shortcuts.walk.mjs",
+      "tests/ux/canvas-context-menu-click.walk.mjs",
+      "tests/ux/canvas-node-context-menu.walk.mjs",
+      "tests/ux/clip-node-editing.walk.mjs",
+      "scripts/canvas-image-sharpness-measure.mjs",
+      "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowEffects.ts"
+    ],
+    "rationale": "Each listed file lost its private findBlankPoint or inline on-path picker; the hooks lost their offsetRef/zoomRef-based target computation in favour of readViewportTarget. No parallel implementation remains. GenerationCanvasReactFlow lost the flow.setViewport({ duration }) transition path for auto-pans; the host effects lost flow.setCenter({ duration })."
+  },
+  "dependency_lifecycle": {
+    "decision": "retain-with-exit",
+    "rationale": "Two upstream defects are bound at our boundary instead of forked: React Flow's XYPanZoom accepts a 0×0 ResizeObserver extent and never settles an interrupted setViewport promise. Our auto-pans no longer use its transition path and onMoveEnd refuses non-finite viewports, so the app is safe on 12.11.5; a fix upstream would let fitView/zoomTo/reset transitions also become safe.",
+    "current": "@xyflow/react 12.11.5 / @xyflow/system 0.0.81",
+    "target": "a @xyflow/system release whose XYPanZoom ignores zero-size extent entries and resolves interrupted setViewport promises",
+    "exit_criteria": [
+      "Upstream issue filed with the trap evidence (0×0 extent entry -> NaN transform; interrupted transition never resolves) and referenced here.",
+      "On upgrade, re-run tests/ux/canvas-drag-pan-gestures.walk.mjs 10x with the node-local Suspense temporarily removed: zero NaN viewports proves the extent fix; then the isFiniteFlowViewport heal can be kept as a pure assertion."
+    ]
+  },
+  "migration": "No persisted data changes. Walkthrough evidence under outputs/canvas-card-stack-20260827 regenerates with the dock present; committed perf references are untouched because the identity baseline change only affects the wheel-zoom guard, not budgets.",
+  "residual_risks": [
+    "The benchmark keeps its own blank scanner; if a future stage width lands its pan start on a magnetic handle, click-select or blank-pan will report a hard failure that this contract does not yet route through the shared helper.",
+    "A composer pan that wants to move the viewport less than an in-flight reveal in y takes the composer's absolute y; the created-node reveal's y is subsumed only because the composer sits below the card.",
+    "useGenerationCanvasReactFlowEffects' focus-restore still writes duration 0 by design; an auto-pan in flight at that instant is intentionally dropped and its promise will only settle through the wrapper's supersede path if a newer auto-pan arrives, otherwise through tracker expiry.",
+    "fitView(animate) / zoomTo / onResetView still use React Flow's d3 transition; a chunk load coinciding with one of them would be healed by onMoveEnd rather than prevented.",
+    "The created-node reveal now really pans; undoing a creation does not restore the viewport, so a walkthrough or user that undoes a duplicate may be looking at a different region than before the duplicate."
+  ]
+}

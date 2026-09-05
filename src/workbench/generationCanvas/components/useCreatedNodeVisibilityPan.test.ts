@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { getCanvasNodeVisualSize } from './generationCanvasGeometry'
-import { REVEAL_MARGIN_PX, revealPanDelta } from './useCreatedNodeVisibilityPan'
+import { REVEAL_MARGIN_PX, revealPanDelta, shouldRestoreAfterReveal } from './useCreatedNodeVisibilityPan'
 
 const at = (x: number, y: number): GenerationCanvasNode =>
   ({ id: 'created', kind: 'image', position: { x, y } } as unknown as GenerationCanvasNode)
@@ -43,5 +43,34 @@ describe('revealPanDelta', () => {
 
   it('refuses to guess before the stage has been measured', () => {
     expect(revealPanDelta(at(9999, 9999), 1, { x: 0, y: 0 }, 0, 0)).toBeNull()
+  })
+})
+
+describe('shouldRestoreAfterReveal', () => {
+  const record = { id: 'dup', before: { zoom: 1, offset: { x: 0, y: 0 } } }
+  const revealLanding = { zoom: 1, offset: { x: 250, y: -557 } }
+
+  it('卡还在 → 不回', () => {
+    expect(shouldRestoreAfterReveal(record, new Set(['dup']), revealLanding, revealLanding)).toBe(false)
+  })
+
+  it('卡被撤销、视口仍停在最近一次自动让位的落点 → 回到出发点（阳性对照：card-stack 复制变体后撤销，视频卡被留在视口外 557px）', () => {
+    expect(shouldRestoreAfterReveal(record, new Set(['other']), { zoom: 1, offset: { x: 251, y: -556 } }, revealLanding)).toBe(true)
+  })
+
+  it('露出之后 composer 又让位了一次：比较对象是最近那次自动落点，仍然回', () => {
+    const composerLanding = { zoom: 1, offset: { x: 250, y: -620 } }
+    expect(shouldRestoreAfterReveal(record, new Set(), composerLanding, composerLanding)).toBe(true)
+    expect(shouldRestoreAfterReveal(record, new Set(), composerLanding, revealLanding)).toBe(false)
+  })
+
+  it('用户此后自己动过画布 → 不抢', () => {
+    expect(shouldRestoreAfterReveal(record, new Set(), { zoom: 1, offset: { x: 40, y: -557 } }, revealLanding)).toBe(false)
+    expect(shouldRestoreAfterReveal(record, new Set(), { zoom: 0.8, offset: { x: 250, y: -557 } }, revealLanding)).toBe(false)
+  })
+
+  it('没有露出记录或没有自动让位记录 → 不回', () => {
+    expect(shouldRestoreAfterReveal(null, new Set(), revealLanding, revealLanding)).toBe(false)
+    expect(shouldRestoreAfterReveal(record, new Set(), revealLanding, null)).toBe(false)
   })
 })

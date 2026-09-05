@@ -12,7 +12,7 @@ import {
   toGenerationFlowEdges,
   toGenerationFlowNode,
   toGenerationFlowNodes,
-} from './generationCanvasReactFlowAdapter'
+ isFiniteFlowViewport } from './generationCanvasReactFlowAdapter'
 import type { GenerationFlowNode } from './generationCanvasReactFlowAdapter'
 import type { GenerationCanvasEdge, GenerationCanvasNode } from '../model/generationCanvasTypes'
 
@@ -201,5 +201,22 @@ describe('generation canvas React Flow adapter', () => {
     const flow = flowViewportFromCanvas(canvas)
     expect(flow).toEqual({ x: -42, y: 18, zoom: 1.25 })
     expect(canvasViewportFromFlow(flow)).toEqual(canvas)
+  })
+})
+
+describe('isFiniteFlowViewport', () => {
+  it('正常视口通过', () => {
+    expect(isFiniteFlowViewport({ x: -232, y: -120.5, zoom: 1 })).toBe(true)
+  })
+
+  it('React Flow d3 过渡撞上 0×0 extent 缓存吐出的 NaN 视口被拒（2026-09-05 走查 ~30% 复现的画布整片空白）', () => {
+    expect(isFiniteFlowViewport({ x: Number.NaN, y: Number.NaN, zoom: Number.NaN })).toBe(false)
+    expect(isFiniteFlowViewport({ x: 0, y: Number.NaN, zoom: 1 })).toBe(false)
+  })
+
+  it('zoom 为 0 / 负数 / 无穷也不算合法视口', () => {
+    expect(isFiniteFlowViewport({ x: 0, y: 0, zoom: 0 })).toBe(false)
+    expect(isFiniteFlowViewport({ x: 0, y: 0, zoom: -1 })).toBe(false)
+    expect(isFiniteFlowViewport({ x: 0, y: 0, zoom: Number.POSITIVE_INFINITY })).toBe(false)
   })
 })

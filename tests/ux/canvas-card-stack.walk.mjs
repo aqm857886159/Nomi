@@ -15,6 +15,7 @@ import {
   proveProbe,
   screenshotSettled,
 } from './_assert.mjs'
+import { clickEdgeHitPath } from './_canvasPoints.mjs'
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-card-stack-walk-'))
 const settingsDir = path.join(root, 'settings')
@@ -297,8 +298,9 @@ try {
     JSON.stringify(collapsedHandleStates),
   )
   check('三条成员输入聚合为一条编组线', await win.locator('g[data-aggregate-group="reference-group"]').count() === 1)
+  // 沿连线取样点最上层那一点，别让 Playwright 点贝塞尔包围盒中心（多半压在节点卡上，见 _canvasPoints.mjs）。
   const aggregateHit = win.locator('g[data-aggregate-group="reference-group"] path[role="button"]')
-  await clickOrFail(aggregateHit, '选中聚合后的编组输入线')
+  await clickEdgeHitPath(win, aggregateHit, '选中聚合后的编组输入线')
   await expectVisible(win.getByText('编组输入', { exact: true }), '聚合线应显示编组关系而不是伪造成员模式')
   await screenshotSettled(win, { path: path.join(outputDir, '04-real-collapsed-group-link-light.png') })
 
@@ -334,7 +336,7 @@ try {
   await applyColorSchemeForShot(win, 'dark')
   await screenshotSettled(win, { path: path.join(outputDir, '05-real-collapsed-group-dark.png') })
 
-  await clickOrFail(win.locator('g[data-aggregate-group="reference-group"] path[role="button"]'), '重新选中编组输入线')
+  await clickEdgeHitPath(win, win.locator('g[data-aggregate-group="reference-group"] path[role="button"]'), '重新选中编组输入线')
   await clickOrFail(win.getByRole('button', { name: '断开整条编组连接' }), '一次断开完整编组关系')
   await expectAbsent(win.locator('g[data-aggregate-group="reference-group"]'), {
     provenBy: await proveProbe(collapsed, '断开后编组卡仍存在'),

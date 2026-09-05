@@ -812,6 +812,14 @@ async function runAction(page, scenario, fixture) {
     for (let index = 0; index < 60; index += 1) {
       await page.mouse.wheel(0, index % 2 ? 100 : -100)
       await sleep(page, 16)
+      if (index === 0) {
+        // 第一格是放大（deltaY<0）：从此视口只在「放大态 / 原态」两档之间来回。
+        // onlyRenderVisibleElements 会在放大态把贴边的节点卸载、回到原态再挂回来——那是视口裁剪，
+        // 不是整层重建。DOM 身份基线要在放大态量：此后一直挂着的节点才是「该保住身份」的那批。
+        // stage 一变窄（常驻 Agent 面板）贴边节点就多了，基线不挪会把裁剪误判成重建（#488 CI perf 红）。
+        await sleep(page, 120)
+        await captureNodeIdentity(page)
+      }
     }
     const after = await page.evaluate(() => {
       const layer = document.querySelector('.generation-canvas-v2__canvas')

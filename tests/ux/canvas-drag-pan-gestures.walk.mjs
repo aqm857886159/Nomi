@@ -15,6 +15,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { screenshotSettled } from './_assert.mjs'
+import { BOTTOM_FIRST_BLANK_ROWS, CANVAS_BLANK_EXCLUSIONS, MARQUEE_STAGE_MARGIN_PX, findBlankCanvasPoint } from './_canvasPoints.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/canvas-drag-pan-gestures')
@@ -82,29 +83,10 @@ async function readTransform() {
   })
 }
 
-// 找一块「真·空白」：扫画布 stage 内的候选点，取第一个命中 stage/变换层本身的点。
+// 找一块「真·空白」：扫描 + 把真实鼠标挪过去复验（磁性「+」句柄只在光标下才算数）。
+// 取点/复验/排除清单都在 tests/ux/_canvasPoints.mjs，这里只保留「优先从底部扫」这一个本地偏好。
 async function findBlankPoint(preferBottom = false) {
-  return getWin().evaluate((bottom) => {
-    const stage = document.querySelector('.generation-canvas-v2__stage')
-    const rect = stage.getBoundingClientRect()
-    const rows = bottom
-      ? [0.88, 0.78, 0.68, 0.58, 0.48, 0.38, 0.28, 0.18, 0.1]
-      : [0.2, 0.28, 0.36, 0.5, 0.64, 0.76, 0.88, 0.12]
-    for (const ry of rows) {
-      for (const rx of [0.62, 0.7, 0.78, 0.86, 0.93, 0.54, 0.42, 0.3, 0.2, 0.12, 0.06]) {
-        const x = rect.left + rect.width * rx
-        const y = rect.top + rect.height * ry
-        const hit = document.elementFromPoint(x, y)
-        if (!hit || !stage.contains(hit)) continue
-        // React Flow 的多选包围浮层（.react-flow__nodesselection[-rect]）是可拖动的交互层，
-        // 会盖住两个已选节点之间的画布：点它既不平移也不取消选中（原生行为）。它不是「空白」，
-        // 否则「点空白取消选中」这一步会落到浮层上被吞（窗口尺寸不同处随机命中，见 S4 尾修）。
-        if (hit.closest('.generation-canvas-v2-node, .generation-canvas-v2-node__composer, .generation-canvas-v2-toolbar, .generation-canvas-v2__zoom-bar, .generation-canvas-v2__selection-bounds, .generation-canvas-v2__selection-toolbar, .react-flow__nodesselection, button, input, textarea, [role="menu"], [role="toolbar"], .generation-canvas-v2__edge-hit, .generation-canvas-v2__minimap, .generation-canvas-v2__navigation-stack')) continue
-        return { x: Math.round(x), y: Math.round(y) }
-      }
-    }
-    return null
-  }, preferBottom)
+  return findBlankCanvasPoint(getWin(), preferBottom ? { rows: BOTTOM_FIRST_BLANK_ROWS } : {})
 }
 
 async function readStageOrigin() {
@@ -124,7 +106,7 @@ function canvasPointAt(transform, screen, origin) {
 
 // 适应视图后，从包围节点的四个方向寻找完整落在 stage 内的框选手势。
 async function findMarqueeGesture() {
-  return getWin().evaluate(() => {
+  return getWin().evaluate(({ margin, excluded }) => {
     const stage = document.querySelector('.generation-canvas-v2__stage')
     const nodes = Array.from(document.querySelectorAll('.generation-canvas-v2-node'))
     if (!stage) throw new Error('画布 stage 未渲染，无法构造框选手势')
@@ -137,11 +119,13 @@ async function findMarqueeGesture() {
       right: Math.max(...nodeRects.map((rect) => rect.right)),
       bottom: Math.max(...nodeRects.map((rect) => rect.bottom)),
     }
+    // 起/终点必须避开 React Flow 框选 autoPan 带（离 stage 边 40px 内画布会一直走）：
+    // 按住不动画布却在动，`screenshotSettled` 永远等不到安定——#488 CI shard 1 就死在这。
     const insideStage = (point) =>
-      point.x >= stageRect.left + 8 && point.x <= stageRect.right - 8 &&
-      point.y >= stageRect.top + 8 && point.y <= stageRect.bottom - 8
-    const excluded = '.generation-canvas-v2-node, .generation-canvas-v2-node__composer, .generation-canvas-v2-toolbar, .generation-canvas-v2__zoom-bar, .generation-canvas-v2__selection-bounds, .generation-canvas-v2__selection-toolbar, button, input, textarea, [role="menu"], [role="toolbar"], .generation-canvas-v2__edge-hit, .generation-canvas-v2__minimap, .generation-canvas-v2__navigation-stack'
+      point.x >= stageRect.left + margin && point.x <= stageRect.right - margin &&
+      point.y >= stageRect.top + margin && point.y <= stageRect.bottom - margin
 
+    const rejected = []
     for (const gap of [24, 40, 64, 80]) {
       const gestures = [
         { start: { x: bounds.right + gap, y: bounds.bottom + gap }, end: { x: bounds.left - gap, y: bounds.top - gap } },
@@ -150,18 +134,20 @@ async function findMarqueeGesture() {
         { start: { x: bounds.left - gap, y: bounds.top - gap }, end: { x: bounds.right + gap, y: bounds.bottom + gap } },
       ]
       for (const gesture of gestures) {
-        if (!insideStage(gesture.start) || !insideStage(gesture.end)) continue
+        const r = (p) => `${Math.round(p.x)},${Math.round(p.y)}`
+        if (!insideStage(gesture.start) || !insideStage(gesture.end)) { rejected.push(`${gap}:${r(gesture.start)}→${r(gesture.end)} 出 stage 边距`); continue }
         const hit = document.elementFromPoint(gesture.start.x, gesture.start.y)
-        if (!hit || !stage.contains(hit)) continue
-        if (hit.closest(excluded)) continue
+        if (!hit || !stage.contains(hit)) { rejected.push(`${gap}:${r(gesture.start)} 不在 stage`); continue }
+        if (hit.closest(excluded)) { rejected.push(`${gap}:${r(gesture.start)} 压在 ${hit.tagName.toLowerCase()}.${String(hit.className).split(' ')[0]}`); continue }
         return {
           start: { x: Math.round(gesture.start.x), y: Math.round(gesture.start.y) },
           end: { x: Math.round(gesture.end.x), y: Math.round(gesture.end.y) },
         }
       }
     }
-    return null
-  })
+    // 找不到就把几何交出去：报红信息要能直接看出是「stage 太窄」还是「起点压在了什么上」。
+    return { unavailable: true, bounds: { l: Math.round(bounds.left), t: Math.round(bounds.top), r: Math.round(bounds.right), b: Math.round(bounds.bottom) }, stage: { l: Math.round(stageRect.left), t: Math.round(stageRect.top), r: Math.round(stageRect.right), b: Math.round(stageRect.bottom) }, margin, rejected }
+  }, { margin: MARQUEE_STAGE_MARGIN_PX, excluded: CANVAS_BLANK_EXCLUSIONS })
 }
 
 // 数一段操作里「连线层 / 标签层 / 画布外壳」到底被写了多少次 DOM。
@@ -212,6 +198,10 @@ async function addNode(kind) {
 
 const pageErrors = []
 getWin().on('pageerror', (error) => pageErrors.push(String(error)))
+const consoleWarnings = []
+getWin().on('console', (msg) => {
+  if (msg.type() === 'warning' || msg.type() === 'error') consoleWarnings.push(msg.text().slice(0, 200))
+})
 
 try {
   await getWin().waitForLoadState('domcontentloaded')
@@ -256,7 +246,42 @@ try {
       kind: node.getAttribute('data-kind'),
     })),
   )
+  if (nodeIds.length < 2) {
+    // 节点建了却没渲染出来：把 React Flow 容器尺寸、视口、节点数与控制台告警一起交出去（NaN 视口那一族见
+    // docs/lessons/walkthrough-geometry-must-reverify-under-the-real-cursor.md）。
+    const diag = await getWin().evaluate(() => {
+      const rf = document.querySelector('.react-flow')?.getBoundingClientRect()
+      const layer = document.querySelector('.generation-canvas-v2__canvas')
+      const m = layer ? new DOMMatrixReadOnly(getComputedStyle(layer).transform) : null
+      return {
+        rf: rf ? { w: Math.round(rf.width), h: Math.round(rf.height) } : null,
+        viewport: m ? { x: Math.round(m.m41), y: Math.round(m.m42), zoom: m.a } : null,
+        rfNodes: document.querySelectorAll('.react-flow__nodes > *').length,
+        stageReady: document.querySelector('.generation-canvas-v2__stage')?.getAttribute('data-ready'),
+      }
+    })
+    console.log('  · DIAG', JSON.stringify({ ...diag, consoleWarnings: consoleWarnings.slice(0, 4), pageErrors }))
+  }
   assert(nodeIds.length >= 2, '画布上有两个节点', JSON.stringify(nodeIds))
+  // 新建即可见：两次建卡的露出动画（60ms 延迟 + 200ms）与 composer 让位（160ms）都得落地。
+  // 常驻 Agent 面板把 stage 压窄后，第二张卡的落点会被避让推到右边界外——这条断言就是为它写的。
+  await getWin().waitForTimeout(700)
+  const createdPlacement = await getWin().evaluate(() => {
+    const stage = document.querySelector('.generation-canvas-v2__stage').getBoundingClientRect()
+    return Array.from(document.querySelectorAll('.react-flow__node')).map((node) => {
+      const r = node.getBoundingClientRect()
+      return {
+        id: node.getAttribute('data-id'),
+        inside: r.left >= stage.left - 1 && r.right <= stage.right + 1 && r.top >= stage.top - 1 && r.bottom <= stage.bottom + 1,
+        overflowRight: Math.round(r.right - stage.right),
+      }
+    })
+  })
+  assert(
+    createdPlacement.length >= 2 && createdPlacement.every((entry) => entry.inside),
+    '新建的节点完整落在 stage 内（不被常驻 Agent 面板遮住）',
+    JSON.stringify(createdPlacement),
+  )
 
   // ── ① 空白左键拖 = 平移画布 ────────────────────────────────────────────
   const blank = await findBlankPoint()
@@ -342,8 +367,17 @@ try {
   // Shift 框选：先用真实「适应视图」收回所有节点，再从空白角落包围它们。
   await getWin().locator('.generation-canvas-v2__zoom-bar button').first().click()
   await getWin().waitForTimeout(420)
-  const marqueeGesture = await findMarqueeGesture()
-  assert(Boolean(marqueeGesture), '框选起手点与终点完整落在画布空白处', JSON.stringify(marqueeGesture))
+  let marqueeGesture = await findMarqueeGesture()
+  for (let attempt = 0; attempt < 3 && marqueeGesture?.unavailable; attempt += 1) {
+    // 适应视图后两张卡几乎填满被常驻 Agent 面板压窄的 stage（1072/1200px），四角都避不开 React Flow 的
+    // 框选 autoPan 带。用户这时会滚轮缩小一档再框——照做，而不是把边距调小去凑绿。
+    const zoomOutAnchor = await findBlankPoint()
+    assert(Boolean(zoomOutAnchor), '框选前缩小一档：找得到空白锚点', JSON.stringify(marqueeGesture))
+    await getWin().mouse.wheel(0, 240)
+    await getWin().waitForTimeout(420)
+    marqueeGesture = await findMarqueeGesture()
+  }
+  assert(marqueeGesture && !marqueeGesture.unavailable, '框选起手点与终点完整落在画布空白处', JSON.stringify(marqueeGesture))
   await getWin().keyboard.down('Shift')
   await getWin().mouse.move(marqueeGesture.start.x, marqueeGesture.start.y)
   await getWin().mouse.down()

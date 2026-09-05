@@ -17,6 +17,7 @@ import { mkdirSync, mkdtempSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { findBlankCanvasPoint } from './_canvasPoints.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/canvas-node-context-menu')
@@ -64,22 +65,8 @@ async function resize(w, h) {
 const countNodes = () => getWin().evaluate(() => document.querySelectorAll('.generation-canvas-v2-node').length)
 
 async function findBlankPoint() {
-  return getWin().evaluate(() => {
-    const stage = document.querySelector('.generation-canvas-v2__stage')
-    if (!stage) return null
-    const rect = stage.getBoundingClientRect()
-    for (const ry of [0.3, 0.45, 0.6, 0.75]) {
-      for (const rx of [0.6, 0.7, 0.8, 0.5, 0.4]) {
-        const x = rect.left + rect.width * rx
-        const y = rect.top + rect.height * ry
-        const hit = document.elementFromPoint(x, y)
-        if (!hit || !stage.contains(hit)) continue
-        if (hit.closest('.generation-canvas-v2-node, .generation-canvas-v2-toolbar, .generation-canvas-v2__zoom-bar, .generation-canvas-v2__selection-toolbar, .generation-canvas-v2__minimap, .generation-canvas-v2__navigation-stack, button, input, textarea, [role="menu"]')) continue
-        return { x: Math.round(x), y: Math.round(y) }
-      }
-    }
-    return null
-  })
+  // 扫描 + 真实鼠标到位复验，见 tests/ux/_canvasPoints.mjs（磁性「+」句柄只在光标下才冒出来）。
+  return findBlankCanvasPoint(getWin(), { rows: [0.3, 0.45, 0.6, 0.75], columns: [0.6, 0.7, 0.8, 0.5, 0.4] })
 }
 
 try {
