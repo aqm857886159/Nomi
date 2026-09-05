@@ -63,6 +63,7 @@
     "check:mjs-parse": "node --test ./scripts/check-mjs-parse.node-test.mjs && node ./scripts/check-mjs-parse.mjs",
     "check:docs-index": "node --test ./scripts/check-docs-index.node-test.mjs && node ./scripts/check-docs-index.mjs",
     "check:doc-status": "node ./scripts/check-doc-status.mjs",
+    "check:competitive-research": "node ./scripts/check-competitive-research-report.mjs",
     "check:ledger": "node --test ./scripts/build-delivery-ledger.node-test.mjs && node ./scripts/build-delivery-ledger.mjs --check",
     "check:handoff": "node ./scripts/check-handoff.mjs",
     "gen:ledger": "node ./scripts/build-delivery-ledger.mjs",
