@@ -1,0 +1,7 @@
+Attempted runtime observation (2026-09-05):
+- `bun install --frozen-lockfile` completed.
+- `bun run dev:web` reached Next.js 16.1.3 at http://localhost:3000.
+- Browser/CDP opening localhost returned HTTP 500 before editor render:
+  TypeError: Cannot read properties of null (reading 'useInsertionEffect')
+  at usePagesDevOverlayBridge (.../next/dist/next-devtools/userspace/pages/pages-dev-overlay-setup.js)
+- Therefore no trustworthy OpenCut screenshots or DOM of the editor were captured. Source inspection is the evidence for component placement.

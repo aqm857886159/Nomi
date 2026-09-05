@@ -1,0 +1,180 @@
+    30	} from "@/preview/overlays";
+    31	import { usePreviewStore } from "@/preview/preview-store";
+    32	import { getGuidePreviewOverlaySource } from "@/guides";
+    33	import {
+    34		bookmarkNotesPreviewOverlay,
+    35		getBookmarkPreviewOverlaySource,
+    36	} from "@/timeline/bookmarks/index";
+    37	
+    38	export default function Editor() {
+    39		const params = useParams();
+    40		const projectId = params.project_id as string;
+    41	
+    42		return (
+    43			<MobileGate>
+    44				<EditorProvider projectId={projectId}>
+    45					<div className="bg-background flex h-screen w-screen flex-col overflow-hidden">
+    46						<DegradedRendererBanner />
+    47						<EditorHeader />
+    48						<div className="min-h-0 min-w-0 flex-1">
+    49							<EditorLayout />
+    50						</div>
+    51						<Onboarding />
+    52						<MigrationDialog />
+    53						<ChangelogNotification />
+    54					</div>
+    55				</EditorProvider>
+    56			</MobileGate>
+    57		);
+    58	}
+    59	
+    60	function DegradedRendererBanner() {
+    61		const isDegraded = useEditor((e) => e.renderer.isDegraded);
+    62		const [dismissed, setDismissed] = useState(false);
+    63		if (!isDegraded || dismissed) return null;
+    64	
+    65		return (
+    66			<div className="bg-accent border-b h-9 flex items-center justify-center gap-2 text-xs text-muted-foreground">
+    67				<span>For the best experience, open OpenCut in Chrome.</span>
+    68				<Button
+    69					variant="text"
+    70					size="icon"
+    71					className="p-0 w-auto [&_svg]:size-3.5"
+    72					onClick={() => setDismissed(true)}
+    73					aria-label="Dismiss"
+    74				>
+    75					<HugeiconsIcon icon={Cancel01Icon} />
+    76				</Button>
+    77			</div>
+    78		);
+    79	}
+    80	
+    81	function EditorLayout() {
+    82		usePasteMedia();
+    83		const { panels, setPanel } = usePanelStore();
+    84		const activeScene = useEditor((editor) =>
+    85			editor.scenes.getActiveSceneOrNull(),
+    86		);
+    87		const currentTime = useEditor((editor) => editor.playback.getCurrentTime());
+    88		const activeGuide = usePreviewStore((state) => state.activeGuide);
+    89		const overlays = usePreviewStore((state) => state.overlays);
+    90		const setOverlayVisibility = usePreviewStore(
+    91			(state) => state.setOverlayVisibility,
+    92		);
+    93		const showBookmarkNotes = isPreviewOverlayVisible({
+    94			overlay: bookmarkNotesPreviewOverlay,
+    95			overlays,
+    96		});
+    97	
+    98		const overlaySource = useMemo(
+    99			() =>
+   100				mergePreviewOverlaySources({
+   101					sources: [
+   102						getGuidePreviewOverlaySource({
+   103							guideId: activeGuide,
+   104						}),
+   105						activeScene
+   106							? getBookmarkPreviewOverlaySource({
+   107									bookmarks: activeScene.bookmarks,
+   108									time: currentTime,
+   109									isVisible: showBookmarkNotes,
+   110								})
+   111							: {
+   112									definitions: [bookmarkNotesPreviewOverlay],
+   113									instances: [],
+   114								},
+   115					],
+   116				}),
+   117			[activeGuide, activeScene, currentTime, showBookmarkNotes],
+   118		);
+   119	
+   120		const overlayControls = useMemo(
+   121			() =>
+   122				overlaySource.definitions.map((overlay) =>
+   123					createPreviewOverlayControl({ overlay, overlays }),
+   124				),
+   125			[overlaySource.definitions, overlays],
+   126		);
+   127	
+   128		return (
+   129			<ResizablePanelGroup
+   130				direction="vertical"
+   131				className="size-full gap-[0.18rem]"
+   132				onLayout={(sizes) => {
+   133					setPanel({
+   134						panel: "mainContent",
+   135						size: sizes[0] ?? panels.mainContent,
+   136					});
+   137					setPanel({
+   138						panel: "timeline",
+   139						size: sizes[1] ?? panels.timeline,
+   140					});
+   141				}}
+   142			>
+   143				<ResizablePanel
+   144					defaultSize={panels.mainContent}
+   145					minSize={30}
+   146					maxSize={85}
+   147					className="min-h-0"
+   148				>
+   149					<ResizablePanelGroup
+   150						direction="horizontal"
+   151						className="size-full gap-[0.19rem] px-3"
+   152						onLayout={(sizes) => {
+   153							setPanel({ panel: "tools", size: sizes[0] ?? panels.tools });
+   154							setPanel({ panel: "preview", size: sizes[1] ?? panels.preview });
+   155							setPanel({
+   156								panel: "properties",
+   157								size: sizes[2] ?? panels.properties,
+   158							});
+   159						}}
+   160					>
+   161						<ResizablePanel
+   162							defaultSize={panels.tools}
+   163							minSize={15}
+   164							maxSize={40}
+   165							className="min-w-0"
+   166						>
+   167							<AssetsPanel />
+   168						</ResizablePanel>
+   169	
+   170						<ResizableHandle withHandle />
+   171	
+   172						<ResizablePanel
+   173							defaultSize={panels.preview}
+   174							minSize={30}
+   175							className="min-h-0 min-w-0 flex-1"
+   176						>
+   177							<PreviewPanel
+   178								overlayControls={overlayControls}
+   179								overlayInstances={overlaySource.instances}
+   180								onOverlayVisibilityChange={setOverlayVisibility}
+   181							/>
+   182						</ResizablePanel>
+   183	
+   184						<ResizableHandle withHandle />
+   185	
+   186						<ResizablePanel
+   187							defaultSize={panels.properties}
+   188							minSize={15}
+   189							maxSize={40}
+   190							className="min-w-0"
+   191						>
+   192							<PropertiesPanel />
+   193						</ResizablePanel>
+   194					</ResizablePanelGroup>
+   195				</ResizablePanel>
+   196	
+   197				<ResizableHandle withHandle />
+   198	
+   199				<ResizablePanel
+   200					defaultSize={panels.timeline}
+   201					minSize={15}
+   202					maxSize={70}
+   203					className="min-h-0 px-3 pb-3"
+   204				>
+   205					<Timeline />
+   206				</ResizablePanel>
+   207			</ResizablePanelGroup>
+   208		);
+   209	}

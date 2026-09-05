@@ -1,0 +1,146 @@
+     1	"use client";
+     2	
+     3	import { useState, useEffect } from "react";
+     4	import { useEditor } from "@/editor/use-editor";
+     5	import { formatTimecode } from "opencut-wasm";
+     6	import { invokeAction } from "@/actions";
+     7	import { EditableTimecode } from "@/components/editable-timecode";
+     8	import { Button } from "@/components/ui/button";
+     9	import {
+    10		FullScreenIcon,
+    11		PauseIcon,
+    12		PlayIcon,
+    13	} from "@hugeicons/core-free-icons";
+    14	import { HugeiconsIcon } from "@hugeicons/react";
+    15	import { Separator } from "@/components/ui/separator";
+    16	import {
+    17		Select,
+    18		SelectTrigger,
+    19		SelectContent,
+    20		SelectItem,
+    21		SelectSeparator,
+    22	} from "@/components/ui/select";
+    23	import { PREVIEW_ZOOM_PRESETS } from "@/preview/zoom";
+    24	import { usePreviewViewport } from "./preview-viewport";
+    25	import { GridPopover } from "./guide-popover";
+    26	import { usePreviewStore } from "@/preview/preview-store";
+    27	import type { MediaTime } from "@/wasm";
+    28	
+    29	export function PreviewToolbar({
+    30		onToggleFullscreen,
+    31	}: {
+    32		onToggleFullscreen: () => void;
+    33	}) {
+    34		return (
+    35			<div className="grid grid-cols-[1fr_auto_1fr] items-center pb-3 pt-5 px-5">
+    36				<TimecodeDisplay />
+    37				<PlayPauseButton />
+    38				<div className="justify-self-end flex items-center gap-2.5">
+    39					<ZoomSelect />
+    40					<Separator orientation="vertical" className="h-4" />
+    41					{/* v0.4.0 */}
+    42					{/* <GridPopover>
+    43						<Button
+    44							variant={activeGuideDefinition ? "secondary" : "text"}
+    45							size="icon"
+    46						>
+    47							{activeGuideDefinition ? (
+    48								activeGuideDefinition.renderTriggerIcon()
+    49							) : (
+    50								<HugeiconsIcon icon={GridTableIcon} />
+    51							)}
+    52						</Button>
+    53					</GridPopover> */}
+    54					<Button variant="text" onClick={onToggleFullscreen}>
+    55						<HugeiconsIcon icon={FullScreenIcon} />
+    56					</Button>
+    57				</div>
+    58			</div>
+    59		);
+    60	}
+    61	
+    62	function TimecodeDisplay() {
+    63		const editor = useEditor();
+    64		const totalDuration = useEditor((e) => e.timeline.getTotalDuration());
+    65		const fps = useEditor((e) => e.project.getActive().settings.fps);
+    66		const [currentTime, setCurrentTime] = useState<MediaTime>(() =>
+    67			editor.playback.getCurrentTime(),
+    68		);
+    69	
+    70		useEffect(() => {
+    71			const unsubscribeUpdate = editor.playback.onUpdate(setCurrentTime);
+    72			const unsubscribeSeek = editor.playback.onSeek(setCurrentTime);
+    73			return () => {
+    74				unsubscribeUpdate();
+    75				unsubscribeSeek();
+    76			};
+    77		}, [editor.playback]);
+    78	
+    79		return (
+    80			<div className="flex items-center">
+    81				<EditableTimecode
+    82					time={currentTime}
+    83					duration={totalDuration}
+    84					format="HH:MM:SS:FF"
+    85					fps={fps}
+    86					onTimeChange={({ time }) => editor.playback.seek({ time })}
+    87					className="text-center"
+    88				/>
+    89				<span className="text-muted-foreground px-2 font-mono text-xs">/</span>
+    90				<span className="text-muted-foreground font-mono text-xs">
+    91					{formatTimecode({
+    92						time: totalDuration,
+    93						format: "HH:MM:SS:FF",
+    94						rate: fps,
+    95					})}
+    96				</span>
+    97			</div>
+    98		);
+    99	}
+   100	
+   101	function ZoomSelect() {
+   102		const { isAtFit, zoomPercent, fitToScreen, setViewportPercent } =
+   103			usePreviewViewport();
+   104	
+   105		const displayLabel = isAtFit ? "Fit" : `${zoomPercent}%`;
+   106	
+   107		const onValueChange = (value: string) => {
+   108			if (value === "fit") {
+   109				fitToScreen();
+   110			} else {
+   111				setViewportPercent({ percent: Number(value) });
+   112			}
+   113		};
+   114	
+   115		return (
+   116			<Select
+   117				value={isAtFit ? "fit" : String(zoomPercent)}
+   118				onValueChange={onValueChange}
+   119			>
+   120				<SelectTrigger className="tabular-nums">{displayLabel}</SelectTrigger>
+   121				<SelectContent>
+   122					<SelectItem value="fit">Fit</SelectItem>
+   123					<SelectSeparator />
+   124					{PREVIEW_ZOOM_PRESETS.map((preset) => (
+   125						<SelectItem key={preset} value={String(preset)}>
+   126							{preset}%
+   127						</SelectItem>
+   128					))}
+   129				</SelectContent>
+   130			</Select>
+   131		);
+   132	}
+   133	
+   134	function PlayPauseButton() {
+   135		const isPlaying = useEditor((e) => e.playback.getIsPlaying());
+   136	
+   137		return (
+   138			<Button
+   139				variant="text"
+   140				size="icon"
+   141				onClick={() => invokeAction("toggle-play")}
+   142			>
+   143				<HugeiconsIcon icon={isPlaying ? PauseIcon : PlayIcon} />
+   144			</Button>
+   145		);
+   146	}

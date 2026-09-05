@@ -1,0 +1,224 @@
+     1	"use client";
+     2	
+     3	import type {
+     4		ParamDefinition,
+     5		NumberParamDefinition,
+     6		ParamValue,
+     7	} from "@/params";
+     8	import {
+     9		formatNumberForDisplay,
+    10		getFractionDigitsForStep,
+    11		snapToStep,
+    12	} from "@/utils/math";
+    13	import { SectionField } from "@/components/section";
+    14	import { NumberField } from "@/components/ui/number-field";
+    15	import { Switch } from "@/components/ui/switch";
+    16	import { ColorPicker } from "@/components/ui/color-picker";
+    17	import {
+    18		Select,
+    19		SelectContent,
+    20		SelectItem,
+    21		SelectTrigger,
+    22		SelectValue,
+    23	} from "@/components/ui/select";
+    24	import { usePropertyDraft } from "../hooks/use-property-draft";
+    25	import { KeyframeToggle } from "./keyframe-toggle";
+    26	import { Textarea } from "@/components/ui/textarea";
+    27	
+    28	export function PropertyParamField({
+    29		param,
+    30		value,
+    31		onPreview,
+    32		onCommit,
+    33		keyframe,
+    34	}: {
+    35		param: ParamDefinition;
+    36		value: ParamValue;
+    37		onPreview: (value: ParamValue) => void;
+    38		onCommit: () => void;
+    39		keyframe?: {
+    40			isActive: boolean;
+    41			isDisabled: boolean;
+    42			onToggle: () => void;
+    43		};
+    44	}) {
+    45		return (
+    46			<SectionField
+    47				label={param.label}
+    48				beforeLabel={
+    49					keyframe && param.keyframable !== false ? (
+    50						<KeyframeToggle
+    51							isActive={keyframe.isActive}
+    52							isDisabled={keyframe.isDisabled}
+    53							title={`Toggle ${param.label.toLowerCase()} keyframe`}
+    54							onToggle={keyframe.onToggle}
+    55						/>
+    56					) : undefined
+    57				}
+    58			>
+    59				<ParamInput
+    60					param={param}
+    61					value={value}
+    62					onPreview={onPreview}
+    63					onCommit={onCommit}
+    64				/>
+    65			</SectionField>
+    66		);
+    67	}
+    68	
+    69	function ParamInput({
+    70		param,
+    71		value,
+    72		onPreview,
+    73		onCommit,
+    74	}: {
+    75		param: ParamDefinition;
+    76		value: ParamValue;
+    77		onPreview: (value: ParamValue) => void;
+    78		onCommit: () => void;
+    79	}) {
+    80		if (param.type === "number") {
+    81			return (
+    82				<NumberParamField
+    83					param={param}
+    84					value={typeof value === "number" ? value : Number(value)}
+    85					onPreview={onPreview}
+    86					onCommit={onCommit}
+    87				/>
+    88			);
+    89		}
+    90	
+    91		if (param.type === "boolean") {
+    92			return (
+    93				<Switch
+    94					checked={Boolean(value)}
+    95					onCheckedChange={(checked) => {
+    96						onPreview(checked);
+    97						onCommit();
+    98					}}
+    99				/>
+   100			);
+   101		}
+   102	
+   103		if (param.type === "select") {
+   104			return (
+   105				<Select
+   106					value={String(value)}
+   107					onValueChange={(selected) => {
+   108						onPreview(selected);
+   109						onCommit();
+   110					}}
+   111				>
+   112					<SelectTrigger className="w-full">
+   113						<SelectValue />
+   114					</SelectTrigger>
+   115					<SelectContent>
+   116						{param.options.map((option) => (
+   117							<SelectItem key={option.value} value={option.value}>
+   118								{option.label}
+   119							</SelectItem>
+   120						))}
+   121					</SelectContent>
+   122				</Select>
+   123			);
+   124		}
+   125	
+   126		if (param.type === "color") {
+   127			return (
+   128				<ColorPicker
+   129					value={String(value).replace(/^#/, "").toUpperCase()}
+   130					onChange={(color) => onPreview(`#${color}`)}
+   131					onChangeEnd={(color) => {
+   132						onPreview(`#${color}`);
+   133						onCommit();
+   134					}}
+   135				/>
+   136			);
+   137		}
+   138	
+   139		if (param.type === "text") {
+   140			return (
+   141				<Textarea
+   142					value={String(value)}
+   143					onChange={(event) => onPreview(event.currentTarget.value)}
+   144					onBlur={onCommit}
+   145				/>
+   146			);
+   147		}
+   148	
+   149		if (param.type === "font") {
+   150			return (
+   151				<input
+   152					className="border-input bg-accent h-9 w-full rounded-md border px-3 text-sm outline-none"
+   153					value={String(value)}
+   154					onChange={(event) => onPreview(event.currentTarget.value)}
+   155					onBlur={onCommit}
+   156				/>
+   157			);
+   158		}
+   159	
+   160		return null;
+   161	}
+   162	
+   163	function NumberParamField({
+   164		param,
+   165		value,
+   166		onPreview,
+   167		onCommit,
+   168	}: {
+   169		param: NumberParamDefinition;
+   170		value: number;
+   171		onPreview: (value: number) => void;
+   172		onCommit: () => void;
+   173	}) {
+   174		const { min, max, step, displayMultiplier = 1 } = param;
+   175		const displayValue = value * displayMultiplier;
+   176		const clampDisplayValue = (nextDisplayValue: number) =>
+   177			Math.max(
+   178				min,
+   179				max !== undefined ? Math.min(max, nextDisplayValue) : nextDisplayValue,
+   180			);
+   181	
+   182		const previewFromDisplay = (displayVal: number) => {
+   183			const clamped = clampDisplayValue(
+   184				snapToStep({ value: displayVal, step }),
+   185			);
+   186			onPreview(clamped / displayMultiplier);
+   187		};
+   188	
+   189		const maxFractionDigits = getFractionDigitsForStep({ step });
+   190	
+   191		const draft = usePropertyDraft({
+   192			displayValue: formatNumberForDisplay({
+   193				value: displayValue,
+   194				maxFractionDigits,
+   195			}),
+   196			parse: (input) => {
+   197				const parsed = parseFloat(input);
+   198				if (Number.isNaN(parsed)) return null;
+   199				return clampDisplayValue(snapToStep({ value: parsed, step }));
+   200			},
+   201			onPreview: previewFromDisplay,
+   202			onCommit,
+   203		});
+   204	
+   205		const handleReset = () => {
+   206			onPreview(param.default);
+   207			onCommit();
+   208		};
+   209	
+   210		return (
+   211			<NumberField
+   212				icon={param.shortLabel}
+   213				value={draft.displayValue}
+   214				dragSensitivity="slow"
+   215				isDefault={value === param.default}
+   216				onFocus={draft.onFocus}
+   217				onChange={draft.onChange}
+   218				onBlur={draft.onBlur}
+   219				onScrub={previewFromDisplay}
+   220				onScrubEnd={onCommit}
+   221				onReset={handleReset}
+   222			/>
+   223		);
+   224	}

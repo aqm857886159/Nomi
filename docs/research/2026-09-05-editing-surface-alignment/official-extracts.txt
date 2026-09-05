@@ -1,0 +1,22 @@
+CapCut official: https://www.capcut.com/resource/how-to-use-capcut-on-pc (accessed 2026-09-05)
+- Split: select timeline video, place playhead, click Split icon.
+- Transition tab, Filters, Effects, Audio > Music are editing destinations.
+- Export button is at top right; adjust resolution, frame rate, bitrate, codec.
+
+Descript official: https://help.descript.com/descript-tour/view-menu (accessed 2026-09-05)
+- View menu at top left controls panel visibility and timeline display.
+- Timeline can be toggled; advanced timeline tools and volume meter are optional.
+- Timeline display offers Zoom in/out, 100%, Fit in view, Fit current scene.
+- Sidebar can show Project, Media, Properties, Comments.
+
+Descript transitions: https://help.descript.com/hc/en-us/articles/10255989387661-Transitions (accessed 2026-09-05)
+- Transition picker is reachable from timeline icon between scenes or Properties panel Transitions section.
+- Clip transition handle is a small white dot at clip edge; click opens menu; duration adjustable.
+
+DaVinci Resolve official PDF: https://documents.blackmagicdesign.com/SupportNotes/DaVinci_Resolve_19_New_Features_Guide.pdf (accessed 2026-09-05)
+- Cut Page Enhanced Viewer occupies top half while leaving Timeline in place; Option-F toggles.
+- Viewer trim editor has transport-adjacent one-frame increment buttons.
+- Cut Page Viewer has Effects Overlay icon at far right of viewer toolbar.
+
+DaVinci Resolve reference manual (official PDF): https://documents.blackmagicdesign.com/UserManuals/DaVinci_Resolve_12_Reference_Manual.pdf (accessed 2026-09-05; older edition)
+- Viewer has jog bar at bottom, jog control and simple transport underneath; timecode field at upper right.

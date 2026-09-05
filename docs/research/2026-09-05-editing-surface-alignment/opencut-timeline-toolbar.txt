@@ -1,0 +1,330 @@
+     1	import { useEditor } from "@/editor/use-editor";
+     2	import { useElementSelection } from "@/timeline/hooks/element/use-element-selection";
+     3	import {
+     4		TooltipProvider,
+     5		Tooltip,
+     6		TooltipTrigger,
+     7		TooltipContent,
+     8	} from "@/components/ui/tooltip";
+     9	import { Button } from "@/components/ui/button";
+    10	import {
+    11		SplitButton,
+    12		SplitButtonLeft,
+    13		SplitButtonRight,
+    14		SplitButtonSeparator,
+    15	} from "@/components/ui/split-button";
+    16	import { Slider } from "@/components/ui/slider";
+    17	import { TIMELINE_ZOOM_BUTTON_FACTOR } from "./interaction";
+    18	import { TIMELINE_ZOOM_MAX } from "@/timeline/scale";
+    19	import { sliderToZoom, zoomToSlider } from "@/timeline/zoom-utils";
+    20	import { ScenesView } from "@/components/editor/scenes-view";
+    21	import { type TActionWithOptionalArgs, invokeAction } from "@/actions";
+    22	import {
+    23		canToggleSourceAudio,
+    24		getSourceAudioActionLabel,
+    25		isSourceAudioSeparated,
+    26	} from "@/timeline/audio-separation";
+    27	import { hasMediaId } from "@/timeline";
+    28	import { cn } from "@/utils/ui";
+    29	import { useTimelineStore } from "@/timeline/timeline-store";
+    30	import { ScrollArea } from "@/components/ui/scroll-area";
+    31	import {
+    32		Bookmark02Icon,
+    33		Delete02Icon,
+    34		SnowIcon,
+    35		ScissorIcon,
+    36		MagnetIcon,
+    37		SearchAddIcon,
+    38		SearchMinusIcon,
+    39		Copy01Icon,
+    40		AlignLeftIcon,
+    41		AlignRightIcon,
+    42		Link02Icon,
+    43		Layers01Icon,
+    44		Chart03Icon,
+    45		Unlink02Icon,
+    46	} from "@hugeicons/core-free-icons";
+    47	import { HugeiconsIcon } from "@hugeicons/react";
+    48	import { OcRippleIcon } from "@/components/icons";
+    49	import { GraphEditorPopover } from "./graph-editor/popover";
+    50	import { PopoverTrigger } from "@/components/ui/popover";
+    51	import { useGraphEditorController } from "./graph-editor/use-controller";
+    52	
+    53	export function TimelineToolbar({
+    54		zoomLevel,
+    55		minZoom,
+    56		setZoomLevel,
+    57	}: {
+    58		zoomLevel: number;
+    59		minZoom: number;
+    60		setZoomLevel: ({ zoom }: { zoom: number }) => void;
+    61	}) {
+    62		const handleZoom = ({ direction }: { direction: "in" | "out" }) => {
+    63			const newZoomLevel =
+    64				direction === "in"
+    65					? Math.min(TIMELINE_ZOOM_MAX, zoomLevel * TIMELINE_ZOOM_BUTTON_FACTOR)
+    66					: Math.max(minZoom, zoomLevel / TIMELINE_ZOOM_BUTTON_FACTOR);
+    67			setZoomLevel({ zoom: newZoomLevel });
+    68		};
+    69	
+    70		return (
+    71			<ScrollArea className="scrollbar-hidden">
+    72				<div className="flex h-10 items-center justify-between border-b px-2 py-1">
+    73					<ToolbarLeftSection />
+    74	
+    75					<SceneSelector />
+    76	
+    77					<ToolbarRightSection
+    78						zoomLevel={zoomLevel}
+    79						minZoom={minZoom}
+    80						onZoomChange={(zoom) => setZoomLevel({ zoom })}
+    81						onZoom={handleZoom}
+    82					/>
+    83				</div>
+    84			</ScrollArea>
+    85		);
+    86	}
+    87	
+    88	function ToolbarLeftSection() {
+    89		const editor = useEditor();
+    90		const mediaAssets = useEditor((currentEditor) =>
+    91			currentEditor.media.getAssets(),
+    92		);
+    93		const { selectedElements } = useElementSelection();
+    94		const graphEditor = useGraphEditorController();
+    95		const isCurrentlyBookmarked = useEditor((e) =>
+    96			e.scenes.isBookmarked({ time: e.playback.getCurrentTime() }),
+    97		);
+    98		const selectedElement =
+    99			selectedElements.length === 1
+   100				? (editor.timeline.getElementsWithTracks({
+   101						elements: selectedElements,
+   102					})[0] ?? null)
+   103				: null;
+   104		const selectedMediaAsset = (() => {
+   105			if (!selectedElement) {
+   106				return null;
+   107			}
+   108	
+   109			const { element } = selectedElement;
+   110			if (!hasMediaId(element)) {
+   111				return null;
+   112			}
+   113	
+   114			return mediaAssets.find((asset) => asset.id === element.mediaId) ?? null;
+   115		})();
+   116		const canToggleSelectedSourceAudio =
+   117			!!selectedElement &&
+   118			canToggleSourceAudio(selectedElement.element, selectedMediaAsset);
+   119		const sourceAudioLabel =
+   120			selectedElement?.element.type === "video"
+   121				? getSourceAudioActionLabel({
+   122						element: selectedElement.element,
+   123					})
+   124				: "Extract audio";
+   125		const isSelectedSourceAudioSeparated =
+   126			selectedElement?.element.type === "video" &&
+   127			isSourceAudioSeparated({
+   128				element: selectedElement.element,
+   129			});
+   130	
+   131		const handleAction = ({
+   132			action,
+   133			event,
+   134		}: {
+   135			action: TActionWithOptionalArgs;
+   136			event: React.MouseEvent;
+   137		}) => {
+   138			event.stopPropagation();
+   139			invokeAction(action);
+   140		};
+   141	
+   142		return (
+   143			<div className="flex items-center gap-1">
+   144				<TooltipProvider delayDuration={500}>
+   145					<ToolbarButton
+   146						icon={<HugeiconsIcon icon={ScissorIcon} />}
+   147						tooltip="Split element"
+   148						onClick={({ event }) => handleAction({ action: "split", event })}
+   149					/>
+   150	
+   151					<ToolbarButton
+   152						icon={<HugeiconsIcon icon={AlignLeftIcon} />}
+   153						tooltip="Split left"
+   154						onClick={({ event }) => handleAction({ action: "split-left", event })}
+   155					/>
+   156	
+   157					<ToolbarButton
+   158						icon={<HugeiconsIcon icon={AlignRightIcon} />}
+   159						tooltip="Split right"
+   160						onClick={({ event }) =>
+   161							handleAction({ action: "split-right", event })
+   162						}
+   163					/>
+   164	
+   165					<ToolbarButton
+   166						icon={
+   167							<HugeiconsIcon
+   168								icon={isSelectedSourceAudioSeparated ? Unlink02Icon : Link02Icon}
+   169							/>
+   170						}
+   171						tooltip={sourceAudioLabel}
+   172						disabled={!canToggleSelectedSourceAudio}
+   173						onClick={({ event }) =>
+   174							handleAction({ action: "toggle-source-audio", event })
+   175						}
+   176					/>
+   177	
+   178					<ToolbarButton
+   179						icon={<HugeiconsIcon icon={Copy01Icon} />}
+   180						tooltip="Duplicate element"
+   181						onClick={({ event }) =>
+   182							handleAction({ action: "duplicate-selected", event })
+   183						}
+   184					/>
+   185	
+   186					<ToolbarButton
+   187						icon={<HugeiconsIcon icon={SnowIcon} />}
+   188						tooltip="Freeze frame (coming soon)"
+   189						disabled={true}
+   190						onClick={({ event: _event }) => {}}
+   191					/>
+   192	
+   193					<ToolbarButton
+   194						icon={<HugeiconsIcon icon={Delete02Icon} />}
+   195						tooltip="Delete element"
+   196						onClick={({ event }) =>
+   197							handleAction({ action: "delete-selected", event })
+   198						}
+   199					/>
+   200	
+   201					<div className="bg-border mx-1 h-6 w-px" />
+   202	
+   203					<Tooltip>
+   204						<ToolbarButton
+   205							icon={<HugeiconsIcon icon={Bookmark02Icon} />}
+   206							isActive={isCurrentlyBookmarked}
+   207							tooltip={isCurrentlyBookmarked ? "Remove bookmark" : "Add bookmark"}
+   208							onClick={({ event }) =>
+   209								handleAction({ action: "toggle-bookmark", event })
+   210							}
+   211						/>
+   212					</Tooltip>
+   213	
+   214					<GraphEditorPopover
+   215						open={graphEditor.open}
+   216						onOpenChange={graphEditor.onOpenChange}
+   217						value={
+   218							graphEditor.state.status === "ready"
+   219								? graphEditor.state.cubicBezier
+   220								: null
+   221						}
+   222						message={graphEditor.state.message}
+   223						componentOptions={graphEditor.state.componentOptions}
+   224						activeComponentKey={graphEditor.state.activeComponentKey}
+   225						onActiveComponentKeyChange={graphEditor.onActiveComponentKeyChange}
+   226						onPreviewValue={graphEditor.onPreviewValue}
+   227						onCommitValue={graphEditor.onCommitValue}
+   228						onCancelPreview={graphEditor.onCancelPreview}
+   229					>
+   230						<ToolbarButton
+   231							icon={<HugeiconsIcon icon={Chart03Icon} />}
+   232							tooltip={graphEditor.tooltip}
+   233							disabled={!graphEditor.canOpen}
+   234							buttonWrapper={(button) =>
+   235								graphEditor.canOpen ? (
+   236									<PopoverTrigger asChild>{button}</PopoverTrigger>
+   237								) : (
+   238									button
+   239								)
+   240							}
+   241						/>
+   242					</GraphEditorPopover>
+   243				</TooltipProvider>
+   244			</div>
+   245		);
+   246	}
+   247	
+   248	function SceneSelector() {
+   249		const editor = useEditor();
+   250		const currentScene = editor.scenes.getActiveScene();
+   251	
+   252		return (
+   253			<div>
+   254				<SplitButton className="border-foreground/10 border">
+   255					<SplitButtonLeft>{currentScene?.name || "No Scene"}</SplitButtonLeft>
+   256					<SplitButtonSeparator />
+   257					<ScenesView>
+   258						<SplitButtonRight onClick={() => {}}>
+   259							<HugeiconsIcon icon={Layers01Icon} className="size-4" />
+   260						</SplitButtonRight>
+   261					</ScenesView>
+   262				</SplitButton>
+   263			</div>
+   264		);
+   265	}
+   266	
+   267	function ToolbarRightSection({
+   268		zoomLevel,
+   269		minZoom,
+   270		onZoomChange,
+   271		onZoom,
+   272	}: {
+   273		zoomLevel: number;
+   274		minZoom: number;
+   275		onZoomChange: (zoom: number) => void;
+   276		onZoom: (options: { direction: "in" | "out" }) => void;
+   277	}) {
+   278		const snappingEnabled = useTimelineStore((s) => s.snappingEnabled);
+   279		const rippleEditingEnabled = useTimelineStore((s) => s.rippleEditingEnabled);
+   280		const toggleSnapping = useTimelineStore((s) => s.toggleSnapping);
+   281		const toggleRippleEditing = useTimelineStore((s) => s.toggleRippleEditing);
+   282	
+   283		return (
+   284			<div className="flex items-center gap-1">
+   285				<TooltipProvider delayDuration={500}>
+   286					<ToolbarButton
+   287						icon={<HugeiconsIcon icon={MagnetIcon} />}
+   288						isActive={snappingEnabled}
+   289						tooltip="Auto snapping"
+   290						onClick={() => toggleSnapping()}
+   291					/>
+   292	
+   293					<ToolbarButton
+   294						icon={<OcRippleIcon size={24} className="scale-110" />}
+   295						isActive={rippleEditingEnabled}
+   296						tooltip="Ripple editing"
+   297						onClick={() => toggleRippleEditing()}
+   298					/>
+   299				</TooltipProvider>
+   300	
+   301				<div className="bg-border mx-1 h-6 w-px" />
+   302	
+   303				<div className="flex items-center gap-1">
+   304					<Button
+   305						variant="text"
+   306						size="icon"
+   307						onClick={() => onZoom({ direction: "out" })}
+   308					>
+   309						<HugeiconsIcon icon={SearchMinusIcon} />
+   310					</Button>
+   311					<Slider
+   312						className="w-28"
+   313						value={[zoomToSlider({ zoomLevel, minZoom })]}
+   314						onValueChange={(values) =>
+   315							onZoomChange(sliderToZoom({ sliderPosition: values[0], minZoom }))
+   316						}
+   317						min={0}
+   318						max={1}
+   319						step={0.005}
+   320					/>
+   321					<Button
+   322						variant="text"
+   323						size="icon"
+   324						onClick={() => onZoom({ direction: "in" })}
+   325					>
+   326						<HugeiconsIcon icon={SearchAddIcon} />
+   327					</Button>
+   328				</div>
+   329			</div>
+   330		);

@@ -1,0 +1,10 @@
+Source: https://chatcut.io/docs/editor-overview (accessed 2026-09-05)
+- Default view puts AI and media controls beside Viewer, Timeline below.
+- Top bar includes Undo, Redo, Workspace, Versions, Export.
+- Viewer displays current playhead frame.
+- Playback controls above Timeline include split, snapping, play/pause, time, zoom, canvas aspect ratio, captions, fullscreen.
+- Timeline has video tracks above audio tracks; track header controls visibility and audio.
+
+Source: https://chatcut.io/docs/timeline (accessed 2026-09-05)
+- Timeline runs left to right; yellow playhead marks current Viewer frame.
+- Zoom controls change visible time; right-click exposes clip operations and empty-area Zoom to fit.

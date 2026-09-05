@@ -1,0 +1,80 @@
+     1	"use client";
+     2	
+     3	import { Button } from "../ui/button";
+     4	import { useRef, useState } from "react";
+     5	import {
+     6		DropdownMenu,
+     7		DropdownMenuContent,
+     8		DropdownMenuItem,
+     9		DropdownMenuSeparator,
+    10		DropdownMenuTrigger,
+    11	} from "../ui/dropdown-menu";
+    12	import Link from "next/link";
+    13	import { RenameProjectDialog } from "@/project/components/rename-project-dialog";
+    14	import { DeleteProjectDialog } from "@/project/components/delete-project-dialog";
+    15	import { useRouter } from "next/navigation";
+    16	import { FaDiscord } from "react-icons/fa6";
+    17	import { ExportButton } from "./export-button";
+    18	import { FeedbackPopover } from "@/feedback/components/feedback-popover";
+    19	import { ThemeToggle } from "../theme-toggle";
+    20	import { DEFAULT_LOGO_URL } from "@/site/brand";
+    21	import { SOCIAL_LINKS } from "@/site/social";
+    22	import { toast } from "sonner";
+    23	import { useEditor } from "@/editor/use-editor";
+    24	import { CommandIcon, Logout05Icon } from "@hugeicons/core-free-icons";
+    25	import { HugeiconsIcon } from "@hugeicons/react";
+    26	import { ShortcutsDialog } from "@/actions/components/shortcuts-dialog";
+    27	import Image from "next/image";
+    28	import { cn } from "@/utils/ui";
+    29	
+    30	export function EditorHeader() {
+    31		return (
+    32			<header className="bg-background flex h-[3.4rem] items-center justify-between px-3 pt-0.5">
+    33				<div className="flex items-center gap-1">
+    34					<ProjectDropdown />
+    35					<EditableProjectName />
+    36				</div>
+    37				<nav className="flex items-center gap-2">
+    38					<FeedbackPopover />
+    39					<ExportButton />
+    40					<ThemeToggle />
+    41				</nav>
+    42			</header>
+    43		);
+    44	}
+    45	
+    46	function ProjectDropdown() {
+    47		const [openDialog, setOpenDialog] = useState<
+    48			"delete" | "rename" | "shortcuts" | null
+    49		>(null);
+    50		const [isExiting, setIsExiting] = useState(false);
+    51		const router = useRouter();
+    52		const editor = useEditor();
+    53		const activeProject = useEditor((e) => e.project.getActive());
+    54	
+    55		const handleExit = async () => {
+    56			if (isExiting) return;
+    57			setIsExiting(true);
+    58	
+    59			try {
+    60				await editor.project.prepareExit();
+    61				editor.project.closeProject();
+    62			} catch (error) {
+    63				console.error("Failed to prepare project exit:", error);
+    64			} finally {
+    65				editor.project.closeProject();
+    66				router.push("/projects");
+    67			}
+    68		};
+    69	
+    70		const handleSaveProjectName = async (newName: string) => {
+    71			if (
+    72				activeProject &&
+    73				newName.trim() &&
+    74				newName !== activeProject.metadata.name
+    75			) {
+    76				try {
+    77					await editor.project.renameProject({
+    78						id: activeProject.metadata.id,
+    79						name: newName.trim(),
+    80					});

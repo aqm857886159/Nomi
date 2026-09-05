@@ -1,0 +1,487 @@
+URL: https://www.descript.com/tour
+Accessed: 2026-09-05
+
+Product Tour: Video Editing & Podcasting Features | Descript
+Introducing
+Underlord
+A new AI-powered editing assistant, right inside Descript
+Sign up for free
+Product Tour
+Features
+KEY FEATURES
+Video Editing
+Editing video in Descript is as easy as using docs and slides.
+Podcasting
+Multitrack audio editing, as easy as a doc.
+Clips
+Let AI pick your most viral-worthy clips, then make them pop with dead-simple editing.
+Transcription
+Industry-leading accuracy & speed, with powerful correction tools.
+AI Voices
+Easily create a realistic voice clone or pick from our stock AI voices.
+Remote Recording
+Record crystal-clear podcasts and video with others, from anywhere.
+Screen Recording
+Instantly capture, edit, and share screen/webcam recordings.
+AI VOICES
+NEW
+Text-to-speech
+Overdub
+Regenerate
+AI EFFECTS
+Eye Contact
+Remove Filler Words
+Studio Sound
+Green Screen
+AI ACTIONS
+NEW
+Find Good Clips
+Podcast Show Notes
+Edit for Clarity
+YouTube Description
+Remove Retakes
+Social Post Writer
+Chapter Generator
+See all
+For Teams
+Marketing
+Sales
+Learning & Development
+For Work
+Pricing
+Resources
+Blog
+Help & Support
+Changelog
+Community
+Affiliate program
+Tools
+Sign in
+Sign Up
+Let’s show you around
+See how Descript will reinvent how you create.
+Get started for free →
+Our new simplified timeline is optimized for precision editing. Expand to see all tracks.
+Redesigned around scenes, most of your visual editing can be done directly from the script.
+Canvas interactions have been expanded to make it feel more like working in your favorite slide editor.
+Use the insert toolbar to add templates, stock media, project files, and recordings to your composition.
+A single sidepanel includes everything you need to edit properties, effects, transitions, and animation.
+A timeline is available for precision editing. Expand to see all tracks and a full suite of advanced editing features.
+Descript works like a mashup of a doc and a slide app. Edit recordings with the script, and arrange visuals by adding scenes.
+Interact with the canvas like you would in your favorite slide editor.
+Use the insert toolbar to add templates, stock media, project files, and recordings to your composition.
+A single sidepanel includes everything you need to edit properties, effects, transitions, and animation.
+Edit by script and scene
+Have you ever typed anything? Then you know how to use Descript. Your recordings are automatically transcribed so you can edit them like a doc. Then you can arrange visuals like you would on a slide.
+/
+The Manatee is one of the ocean’s great wonders. They wander vast mangrove forests like giant sea cows.
+/
+These creatures have evolved, very much, to fit with their environment. Saltwater estuaries and mangroves...
+/
+They are often referred to as the Cadillacs of the sea for their swift swimming ability and striking appearance.
+/
+The Manatee is one of the ocean’s great wonders. They wander vast mangrove forests like giant sea cows.
+/
+These creatures have evolved, very much, to fit with their environment. Saltwater estuaries and mangroves...
+/
+They are often referred to as the Cadillacs of the sea for their swift swimming ability and striking appearance.
+Non-destructive editing
+Multitrack recording
+Fades & crossfades
+Volume automation
+Real-time record & edit
+Sequences
+Nested timelines
+Cloud media library
+Multitrack transcripts with dynamic speaker labels
+Spot audition
+Playback speed adjustment
+Non-destructive editing
+Multitrack recording
+Fades & crossfades
+Volume automation
+Real-time record & edit
+Sequences
+Nested timelines
+Cloud media library
+Multitrack transcripts with dynamic speaker labels
+Spot audition
+Playback speed adjustment
+Timeline editor
+Timeline editor
+Sequences
+Compressor
+Multiband EQ
+Parametric EQ
+Noise gate
+DeEsser
+Limiter
+Bit crusher
+Reverb
+Distortion
+Flanger
+Delay
+High/Low Shelf EQ
+Hi/Low Pass Filter
+Ducking
+Track & Clip level effects
+Timeline editor
+Timeline editor
+Sequences
+Compressor
+Multiband EQ
+Parametric EQ
+Noise gate
+DeEsser
+Limiter
+Bit crusher
+Reverb
+Distortion
+Flanger
+Delay
+High/Low Shelf EQ
+Hi/Low Pass Filter
+Ducking
+Track & Clip level effects
+Automatic room tone generation
+Automatic loudness leveling
+Mic bleed detection
+Multi-timeline projects
+Clip to Composition
+Copy highlights
+Range & Clip selection modes
+Markers
+Automatic microfades
+Mic bleed detection
+Speaker detection
+Shorten/remove silence
+Automatic room tone generation
+Automatic loudness leveling
+Mic bleed detection
+Multi-timeline projects
+Clip to Composition
+Copy highlights
+Range & Clip selection modes
+Markers
+Automatic microfades
+Mic bleed detection
+Speaker detection
+Shorten/remove silence
+Batch export
+Adobe Audition export
+Automatic proxy asset generation
+Loudness normalization
+Keyword search
+Copy keywords with surrounding sentences
+Podcast metadata
+Podcast host publishing
+Mic bleed detection
+Speaker detection
+Shorten/remove silence
+AAF export for Pro Tools & Logic
+Batch export
+Adobe Audition export
+Automatic proxy asset generation
+Loudness normalization
+Keyword search
+Copy keywords with surrounding sentences
+Podcast metadata
+Podcast host publishing
+Mic bleed detection
+Speaker detection
+Shorten/remove silence
+AAF export for Pro Tools & Logic
+Multitrack recording
+Fades & crossfades
+Volume automation
+Real-time record & edit
+Sequences
+Nested timelines
+Cloud media library
+Multitrack transcripts with dynamic speaker labels
+Spot audition
+Playback speed adjustment
+Non-destructive editing
+Multitrack recording
+Fades & crossfades
+Volume automation
+Real-time record & edit
+Sequences
+Nested timelines
+Cloud media library
+Multitrack transcripts with dynamic speaker labels
+Spot audition
+Playback speed adjustment
+Non-destructive editing
+Sequences
+Multiband EQ
+Parametric EQ
+Noise gate
+DeEsser
+Limiter
+Bit crusher
+Reverb
+Distortion
+Flanger
+Delay
+High/Low Shelf EQ
+Hi/Low Pass Filter
+Ducking
+Track & Clip level effects
+Timeline editor
+Timeline editor
+Compressor
+Sequences
+Multiband EQ
+Parametric EQ
+Noise gate
+DeEsser
+Limiter
+Bit crusher
+Reverb
+Distortion
+Flanger
+Delay
+High/Low Shelf EQ
+Hi/Low Pass Filter
+Ducking
+Track & Clip level effects
+Timeline editor
+Timeline editor
+Compressor
+Automatic room tone generation
+Automatic loudness leveling
+Mic bleed detection
+Multi-timeline projects
+Clip to Composition
+Copy highlights
+Range & Clip selection modes
+Markers
+Speaker detection
+Shorten/remove silence
+Automatic microfades
+Mic bleed detection
+Automatic room tone generation
+Automatic loudness leveling
+Mic bleed detection
+Multi-timeline projects
+Clip to Composition
+Copy highlights
+Range & Clip selection modes
+Markers
+Speaker detection
+Shorten/remove silence
+Automatic microfades
+Mic bleed detection
+Batch export
+AAF export for Pro Tools & Logic
+Adobe Audition export
+Automatic proxy asset generation
+Loudness normalization
+Keyword search
+Copy keywords with surrounding sentences
+Podcast metadata
+Podcast host publishing
+Mic bleed detection
+Speaker detection
+Shorten/remove silence
+Batch export
+AAF export for Pro Tools & Logic
+Adobe Audition export
+Automatic proxy asset generation
+Loudness normalization
+Keyword search
+Copy keywords with surrounding sentences
+Podcast metadata
+Podcast host publishing
+Mic bleed detection
+Speaker detection
+Shorten/remove silence
+Non-destructive editing
+Multitrack recording
+Fades & crossfades
+Volume automation
+Real-time record & edit
+Sequences
+Nested timelines
+Cloud media library
+Multitrack transcripts with dynamic speaker labels
+Spot audition
+Playback speed adjustment
+Non-destructive editing
+Multitrack recording
+Fades & crossfades
+Volume automation
+Real-time record & edit
+Sequences
+Nested timelines
+Cloud media library
+Multitrack transcripts with dynamic speaker labels
+Spot audition
+Playback speed adjustment
+Timeline editor
+Timeline editor
+Compressor
+Multiband EQ
+Parametric EQ
+Noise gate
+DeEsser
+Limiter
+Bit crusher
+Reverb
+Distortion
+Flanger
+Delay
+High/Low Shelf EQ
+Hi/Low Pass Filter
+Ducking
+Sequences
+Track & Clip level effects
+Timeline editor
+Timeline editor
+Compressor
+Multiband EQ
+Parametric EQ
+Noise gate
+DeEsser
+Limiter
+Bit crusher
+Reverb
+Distortion
+Flanger
+Delay
+High/Low Shelf EQ
+Hi/Low Pass Filter
+Ducking
+Sequences
+Track & Clip level effects
+Simple and powerful
+There are simple video editors, and there are powerful video editors. Only Descript is both. Beneath its familiar exterior is a formidable multitrack production engine that can handle your most fantastical creative impulses.
+Artificially intelligent. Genuinely useful.
+With Descript, AI does the tedious stuff so you can do the fun stuff.
+Studio Sound
+Transform lousy recordings into studio quality with a single click.
+Learn more
+Play
+Before
+Before
+After
+After
+Before
+After
+Before
+Before
+After
+After
+Filler Word Removal
+Instantly purge recordings of "um" and "uh" and "you know" and all those repeat words.
+Learn more
+AI voices
+Create a shockingly realistic clone of your voice, then record new words by simply typing them in. Or try one of our many stock voices.
+Learn more
+Templates
+Descript includes a full gallery of templates to quickly make your videos shine, or to repurpose your content as social clips. Save your own templates for easy reuse on your next project.
+Premium Stock Media
+Get access to millions of stock videos, images, sound effects, and music tracks, plus Unsplash images and GIPHY gifs.
+Screen recordings with a ⌫ backspace key.
+Get an instant transcript of your recording, and use it to edit your video recording before you share. Communicate with video without losing the flexibility of text.
+AI powered green screen
+Remove your background with a click, then put yourself in any setting you can imagine.
+Transitions, effects, and animation
+Choose from dozens of powerful effects, transitions, and animation presets.
+One tool, infinite uses
+Creators don’t confine themselves to one kind of content, and your tools shouldn’t either. Descript has everything you need to make everything: explainer videos, sales presentations, podcasts, social media posts, even just a quick video message to a teammate.
+Quick recorder
+Our recorder runs as a standalone app so you can instantly capture and share screen recordings.
+Clip creation
+Quickly create clips for all social platforms using templates, subtitles, and more.
+Podcasting
+Edit your podcast the way you edit a doc.
+A new, better workflow
+When your entire workflow lives in a single tool, you can completely reimagine the creative process. You’ll go from idea to publish in record time.
+Write & Storyboard
+Write and edit your script in Descript, and watch your video come to life as you type.
+Manatees are the
+fighter jets
+cadillacs of the sea
+Collaborate
+With live collaboration and comments, Descript is built for teams from the ground up. Projects sync to the cloud so anyone can access updates from anywhere.
+Export
+Export 4k video up to 10 times faster than conventional editors. And easily move your project into Pro Tools, Final Cut Pro, and various Adobe apps.
+Share
+Publish your video online with your own custom branding. Or embed the Descript player on your site with an interactive transcript by its side.
+Loved the film, let’s stay in touch -martin
+Get started for free
+Our free plan shows you what Descript can do — no credit card required. When you need more horsepower, paid plans start at $12 per month.
+Get started for free →
+Thank you! Check your email for instructions on how to access Descript Storyboard.
+* If you have a Descript account, enter the associated email.
+* If you're new to Descript, enter your email and we'll send you a link to create an account.
+Oops! Something went wrong while submitting the form.
+385 Grove St. San Francisco, CA 94102
+© Descript 2024
+Features
+Underlord
+Video Editing
+Podcasting
+Clips
+Transcription
+Rooms
+Screen Recording
+Captions & Subtitles
+Translate Video
+AI Eye Contact
+Text-to-Speech
+Studio Sound
+Regenerate
+AI Green Screen
+Product
+Pricing
+Download
+Status
+Changelog
+Feature Requests
+Integrations
+Resources
+Blog
+Tools
+Community & Events
+Affiliate Program
+Help & Support
+Company
+About Us
+Careers
+Lyrebird
+Ethics
+Privacy
+Terms
+Resources
+Blog
+Tools
+Community & Events
+Affiliate Program
+Help & Support
+Company
+About Us
+Careers
+Lyrebird
+Ethics
+Privacy
+Terms
+Guides
+How to start a podcast
+How to record a podcast
+How to start a YouTube channel
+How to improve the audio quality of a recording
+How to reduce background noise from audio
+How to create video links to share your content
+All guides →
+Tools
+Video Editor
+Voice Enhancer
+Speech to Text Converter
+Audio to Text Converter
+YouTube Clip Maker
+All tools →
+Descript for Teams
+Descript for Enterprise

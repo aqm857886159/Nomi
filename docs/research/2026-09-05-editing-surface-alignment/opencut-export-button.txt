@@ -1,0 +1,110 @@
+     1	"use client";
+     2	
+     3	import { useState } from "react";
+     4	import { TransitionTopIcon } from "@hugeicons/core-free-icons";
+     5	import { HugeiconsIcon } from "@hugeicons/react";
+     6	import {
+     7		Popover,
+     8		PopoverContent,
+     9		PopoverTrigger,
+    10	} from "@/components/ui/popover";
+    11	import { Button } from "@/components/ui/button";
+    12	import { Label } from "@/components/ui/label";
+    13	import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+    14	import { Progress } from "@/components/ui/progress";
+    15	import { Checkbox } from "@/components/ui/checkbox";
+    16	import { cn } from "@/utils/ui";
+    17	import {
+    18		getExportMimeType,
+    19		getExportFileExtension,
+    20		downloadBuffer,
+    21	} from "@/export";
+    22	import { Check, Copy, Download, RotateCcw } from "lucide-react";
+    23	import {
+    24		EXPORT_FORMAT_VALUES,
+    25		EXPORT_QUALITY_VALUES,
+    26		type ExportFormat,
+    27		type ExportQuality,
+    28	} from "@/export";
+    29	import {
+    30		Section,
+    31		SectionContent,
+    32		SectionHeader,
+    33		SectionTitle,
+    34	} from "@/components/section";
+    35	import { useEditor } from "@/editor/use-editor";
+    36	import { DEFAULT_EXPORT_OPTIONS } from "@/export/defaults";
+    37	
+    38	function isExportFormat(value: string): value is ExportFormat {
+    39		return EXPORT_FORMAT_VALUES.some((formatValue) => formatValue === value);
+    40	}
+    41	
+    42	function isExportQuality(value: string): value is ExportQuality {
+    43		return EXPORT_QUALITY_VALUES.some((qualityValue) => qualityValue === value);
+    44	}
+    45	
+    46	export function ExportButton() {
+    47		const [isExportPopoverOpen, setIsExportPopoverOpen] = useState(false);
+    48		const editor = useEditor();
+    49		const activeProject = useEditor((e) => e.project.getActiveOrNull());
+    50		const hasProject = !!activeProject;
+    51	
+    52		const handlePopoverOpenChange = ({ open }: { open: boolean }) => {
+    53			if (!open) {
+    54				editor.project.cancelExport();
+    55				editor.project.clearExportState();
+    56			}
+    57			setIsExportPopoverOpen(open);
+    58		};
+    59	
+    60		return (
+    61			<Popover
+    62				open={isExportPopoverOpen}
+    63				onOpenChange={(open) => handlePopoverOpenChange({ open })}
+    64			>
+    65				<PopoverTrigger asChild>
+    66					<button
+    67						type="button"
+    68						className={cn(
+    69							"flex items-center gap-1.5 rounded-md bg-[#38BDF8] px-[0.12rem] py-[0.12rem] text-white",
+    70							hasProject ? "cursor-pointer" : "cursor-not-allowed opacity-50",
+    71						)}
+    72						onClick={hasProject ? () => setIsExportPopoverOpen(true) : undefined}
+    73						disabled={!hasProject}
+    74						onKeyDown={(event) => {
+    75							if (hasProject && (event.key === "Enter" || event.key === " ")) {
+    76								event.preventDefault();
+    77								setIsExportPopoverOpen(true);
+    78							}
+    79						}}
+    80					>
+    81						<div className="relative flex items-center gap-1.5 rounded-[0.6rem] bg-linear-270 from-[#2567EC] to-[#37B6F7] px-4 py-1 shadow-[0_1px_3px_0px_rgba(0,0,0,0.65)]">
+    82							<HugeiconsIcon icon={TransitionTopIcon} className="z-50 size-3.5" />
+    83							<span className="z-50 text-[0.875rem]">Export</span>
+    84							<div className="absolute top-0 left-0 z-10 flex size-full items-center justify-center rounded-[0.6rem] bg-linear-to-t from-white/0 to-white/50">
+    85								<div className="absolute top-[0.08rem] z-50 h-[calc(100%-2px)] w-[calc(100%-2px)] rounded-[0.6rem] bg-linear-270 from-[#2567EC] to-[#37B6F7]"></div>
+    86							</div>
+    87						</div>
+    88					</button>
+    89				</PopoverTrigger>
+    90				{hasProject && <ExportPopover onOpenChange={setIsExportPopoverOpen} />}
+    91			</Popover>
+    92		);
+    93	}
+    94	
+    95	function ExportPopover({
+    96		onOpenChange,
+    97	}: {
+    98		onOpenChange: (open: boolean) => void;
+    99	}) {
+   100		const editor = useEditor();
+   101		const activeProject = useEditor((e) => e.project.getActive());
+   102		const exportState = useEditor((e) => e.project.getExportState());
+   103		const { isExporting, progress, result: exportResult } = exportState;
+   104		const [format, setFormat] = useState<ExportFormat>(
+   105			DEFAULT_EXPORT_OPTIONS.format,
+   106		);
+   107		const [quality, setQuality] = useState<ExportQuality>(
+   108			DEFAULT_EXPORT_OPTIONS.quality,
+   109		);
+   110		const [shouldIncludeAudio, setShouldIncludeAudio] = useState<boolean>(
