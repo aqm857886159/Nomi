@@ -75,7 +75,7 @@ npm dist-tags 实查（2026-09-06）：
 |---|---|---|
 | React latest | `19.2.8`（`@types/react` `19.2.18`、`@types/react-dom` `19.2.7`、`scheduler` `0.27.0`） | npm registry |
 | React 19 破坏点 | 见 §2 | react.dev/blog/2024/04/25/react-19-upgrade-guide |
-| Mantine | latest `9.6.0`；`legacy` tag = `7.17.8`；**9.x 要求 React 19.2+**；8.1.0 起把 `MutableRefObject` 换成 `RefObject` 以配 React 19 类型 | Context7 `/mantinedev/mantine` 变更日志与 8x→9x 迁移指南；npm peers |
+| Mantine | latest `9.6.0`；`legacy` tag = `7.17.8`；**9.x 要求 React 19.2+**；8.1.0 起把 `MutableRefObject` 换成 `RefObject` 以配 React 19 类型；8.0 的破坏项逐条对账见 §2.3(a) | Context7 `/mantinedev/mantine` 变更日志与 8x→9x 迁移指南；mantine.dev/changelog/8-0-0；npm peers |
 | `@xyflow/react` | `12.11.5` 与 latest 的 peer 都是 `react >=17` | npm peers |
 | R3F | fiber `9.7.0` / drei `10.7.8`；v9 要求 React 19，`Props`→`CanvasProps`，`MeshProps` 等硬编码导出改成 `ThreeElements['mesh']`，**StrictMode 现在会穿透到画布** | github.com/pmndrs/react-three-fiber releases/v9.0.0 |
 | AI SDK | 见 §0.2 表；`ai@6` 的 zod peer 是 `^3.25.76 \|\| ^4.1.8`，engines `node >=18` | npm registry |
@@ -124,9 +124,23 @@ npm dist-tags 实查（2026-09-06）：
 
 **(a) Mantine 7.13 → 8**（`^18.x || ^19.x`，是唯一能同时兼容 18 和 19 的档，因此也是**唯一能做"先升 Mantine、再升 React"这种可回滚顺序**的档）
 
-- 7→8 的破坏面：全局样式 import 拆分（我们用的是 `@mantine/core/styles.css` 整包 → **无需改动**，`scripts/build-tailwind.mjs:21` 直接读这个文件拼进 `public/tailwind.generated.css`）。
-- 真正的风险不在 API 而在**像素**：Mantine 8 的默认样式有变动，而 `tailwind.config.ts:584` 的 `darkMode: ['selector', '[data-mantine-color-scheme="dark"]']` 把我们的暗色模式**绑在 Mantine 的属性上**。
-- 不选 Mantine 9：它要求 React 19.2+，等于把 Mantine 和 React 焊死成一步，失去中间的可回滚点。9 可以以后再走。
+8.0 的破坏项逐条对本仓命中（changelog 实读）：
+
+| Mantine 8 破坏项 | 我们中不中 |
+|---|---|
+| 全局样式 import 拆成 `baseline` / `default-css-variables` / `global` 三份 | ❌ 不中。我们用整包 `@mantine/core/styles.css`（`scripts/build-tailwind.mjs:21` 直接读它拼进 `public/tailwind.generated.css`），整包已含三者 |
+| `@mantine/dates` 全部改用字符串日期、`DatesProvider` 去 timezone | ❌ 不中，未装该包 |
+| `Carousel` 需显式装 embla、删若干 prop | ❌ 不中，未装 |
+| `Switch` 指示器默认移进 thumb | ❌ 不中。`src/ui/switch.tsx` 是 Radix 的 Switch，不是 Mantine 的 |
+| `Menu.Item` 删 `data-hovered` | ❌ 不中。仓里两处 `data-hovered` 是画布连线自己的属性（`generationCanvas.css:240/246`） |
+| **`SegmentedControl` 默认高度改成对齐 Input 尺寸** | ✅ **中**。`src/design/forms.tsx` 的 `DesignSegmentedControl` 直接包 Mantine 的，全仓 16 处引用 |
+| **`ScrollArea` 去掉 wrapper 上强制的 `display: table`** | ✅ **中**。`BrowserAssetPopoverView.tsx:228` 那个滚动区带 `viewportRef` + 自定义 `classNames`，正好压在这条上 |
+| **Notification 默认间距变大** | ✅ **中**。toast 三合一走 `@mantine/notifications`（`src/ui/toast.tsx`） |
+| checkbox/radio/chip 的 `wrapperProps` 类型收紧 | ⚠️ 需 typecheck 确认 |
+
+所以这一步**风险在像素不在 API**：三处命中全是默认尺寸/间距，编译不会红，只有视觉基线会红。另外 `tailwind.config.ts:601` 的 `darkMode: ['selector', '[data-mantine-color-scheme="dark"]']` 把我们的暗色模式**绑在 Mantine 的属性上**——它要是改了属性名，暗色会整片失效而编译全绿。
+
+不选 Mantine 9：它要求 React 19.2+，等于把 Mantine 和 React 焊死成一步，失去中间的可回滚点。9 可以以后再走。
 
 **(b) R3F 8 → 9 + drei 9 → 10**：**28 个文件**触及（`src/workbench/generationCanvas/nodes/scene3d/**` 全族 + `model3d/Model3DViewer.tsx` + `fencedCanvas.tsx` + 3 个 devlab 入口）。
 
@@ -175,7 +189,7 @@ npm dist-tags 实查（2026-09-06）：
 
 三个候选。**"用户看到什么"这一列对全部三个方案都是「一模一样」**——这是一次纯内部升级，没有任何一条能让用户看见的收益。所以这张表真正在权衡的是：**我们愿意为「和 vendor 源同代」付多少墙钟和多少回归风险。**
 
-| | 方案 A · 一次全升 | 方案 B · 分三步（推荐） | 方案 C · 不升，继续 vendor 改造 |
+| | 方案 A · 一次全升 | 方案 B · 分四步（推荐） | 方案 C · 不升，继续 vendor 改造 |
 |---|---|---|---|
 | **做什么** | 一个分支里同时升 React 19 + Mantine 8 + R3F 9/drei 10 + AI SDK 6 + Tailwind 4 | 四步四个 PR，每步独立验收、独立可回滚：① AI SDK 6 ② Mantine 8 ③ React 19 + R3F 9/drei 10 ④ Tailwind 4 | 不动任何版本；继续把 AI Elements 的源码往 React 18 + Tailwind 3 + Mantine 上翻译（`aiElementsContract.ts` 已经在这么做） |
 | **用户看到** | 无差别 | 无差别 | 无差别 |
@@ -185,11 +199,9 @@ npm dist-tags 实查（2026-09-06）：
 | **付出后拿到什么** | 与 AI Elements 上游同代，vendor 时可直抄；R3F/Mantine 脱离已停更的大版本 | 同 A | 省下全部成本；代价是 §0.1 说的——AI SDK 那部分**本来也拿不到东西** |
 | **不做的代价** | — | — | Mantine 7 和 R3F 8 会持续落后（Mantine 已到 9、R3F 已到 9）；越晚升，一次要跨的版本越多 |
 
-**推荐 B，但把顺序改成 ①AI SDK → ②Mantine 8 → ③React 19 + R3F → ④Tailwind 4。**
+**推荐 B。四步的顺序（①AI SDK 6 → ②Mantine 8 → ③React 19 + R3F 9 → ④Tailwind 4）不是随意排的，三条理由：**
 
-三条理由：
-
-1. **AI SDK 排第一不是因为它最重要，恰恰因为它最独立。** 它只碰主进程 8 个文件，和 React / Tailwind / Mantine 零交集，能在两小时内单独验完并合掉，先把这条腿从依赖图里摘出去。
+1. **AI SDK 排第一不是因为它最重要，恰恰因为它最独立。** 它只碰主进程 8 个文件，和 React / Tailwind / Mantine 零交集，也不动任何一张视觉基线。先把这条腿从依赖图里摘出去，后面三步的红就一定不是它。
 2. **Mantine 8 必须排在 React 19 前面。** 它是唯一同时兼容 18 和 19 的档；先升 Mantine（React 还是 18）→ 验一遍视觉基线 → 再升 React，出问题时你知道是哪一层。反过来做，Mantine 和 React 的像素红会缠在一起。
 3. **React 19 和 R3F 9 必须同一步。** R3F 8 的 peer 是 `>=18 <19`，物理上不能分开。
 
@@ -272,7 +284,7 @@ v4 的改动：
 
 ### 步骤 ② Mantine 7.13 → 8
 
-- **范围**：`@mantine/core` `@mantine/modals` `@mantine/notifications` 三个包；`src/theme/nomiTheme.ts` 若有 API 漂移；`tailwind.config.ts:584` 的 `darkMode` selector 若 Mantine 改了属性名。
+- **范围**：`@mantine/core` `@mantine/modals` `@mantine/notifications` 三个包；`src/theme/nomiTheme.ts` 若有 API 漂移；`tailwind.config.ts:601` 的 `darkMode` selector 若 Mantine 改了属性名。
 - **不动**：React 仍是 18（Mantine 8 的 peer 是 `^18.x || ^19.x`，这一步刻意保持 React 不变，好把像素红归因到 Mantine）。
 - **回滚**：单 PR revert。
 - **验收门**：typecheck → 全量单测 → **45 张设计实验室视觉基线**（`pnpm run check:design-lab`，darwin 已校准，容差 `threshold 0.2` / `maxDiffPixelRatio 0.002`）→ 光/暗双模式各走一遍（Mantine 的 `data-mantine-color-scheme` 是我们暗色的挂钩点）→ 真实旅程 J1–J5 → `pnpm run gates`。
@@ -295,7 +307,7 @@ v4 的改动：
 
 ### 步骤 ④ Tailwind 3 → 4（仅换引擎，配置留在 JS）
 
-- **范围**：`tailwindcss` → 4.3.3；新增 `@tailwindcss/cli`；重写 `scripts/build-tailwind.mjs` 的 CLI 解析；`src/styles/index.css` 的 `@tailwind` → `@import "tailwindcss"` + `@config "./tailwind.config.ts"`；删 `postcss.config.js` 里的 autoprefixer（v4 内置）；§5.1 那 132 处类名。
+- **范围**：`tailwindcss` → 4.3.3；新增 `@tailwindcss/cli`；重写 `scripts/build-tailwind.mjs` 的 CLI 解析；`src/styles/index.css` 开头三行 `@import 'tailwindcss/base'/'components'/'utilities'` 合并成 `@import "tailwindcss"` + `@config "./tailwind.config.ts"`；删 `postcss.config.js` 里的 autoprefixer（v4 内置）；§5.1 那 132 处类名。
 - **不动项（这是本步最重要的一条）**：`tailwind.config.ts` **不搬进 `@theme`**。两个门岗在文本解析它（见 §5.2），搬家=让它们失明。搬家另立项。
 - **回滚**：单 PR revert；`public/tailwind.generated.css` 是产物不是源，回滚即重建。
 - **验收门**：
@@ -340,12 +352,14 @@ v4 的改动：
 
 本次升级**不新增运行时模块**，所以分层的问题只有一处：`scripts/build-tailwind.mjs` 的 CLI 解析。
 
-现在它把「找到 tailwind 可执行文件」和「拼 Mantine + Tailwind 两段 CSS」写在同一个文件里（102 行）。v4 换包后，前者要重写。拆法：
+现在它把「找到 tailwind 可执行文件」（`require.resolve('tailwindcss/package.json')` → `bin.tailwindcss`）和「拼 Mantine + Tailwind 两段 CSS + watch」写在同一个文件里（93 行）。v4 把 CLI 挪进独立包后，前者要重写。拆法：
 
-- `scripts/lib/tailwindCli.mjs` —— 只负责「解析出当前 Tailwind CLI 的可执行路径」，一个导出函数，可单测（node:test）。
+- `scripts/lib/tailwindCli.mjs` —— 只负责「解析出当前 Tailwind CLI 的可执行路径」，一个导出函数。
 - `scripts/build-tailwind.mjs` —— 保留拼接与 watch 逻辑，从上面那个库拿路径。
 
-这样将来再换一次 Tailwind 大版本，改动收在一个 20 行的库里，且有测试接住。其余全部文件保持原分层，无一超 800 行（`tailwind.config.ts` 723 行不在 `check:filesize` 的扫描目录 `src`/`electron` 内，但已接近，v4 迁移**不许**让它变长）。
+已有的 `scripts/build-tailwind.test.ts` **不要拆**：它守的是「扫描面覆盖 `.ts`」这个端到端不变量（真跑一次构建再断言 CSS 内容），拆成对 CLI 解析函数的单测就把它降级了。两者是不同层的防线，都留。
+
+其余全部文件保持原分层，无一超 800 行。`tailwind.config.ts` 740 行不在 `check:filesize` 的扫描目录（只扫 `src`/`electron`）内，但已越过那条线的精神——v4 迁移**不许**让它继续变长。
 
 ---
 
