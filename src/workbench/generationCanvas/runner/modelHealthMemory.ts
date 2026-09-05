@@ -4,7 +4,18 @@
 // 机制：唯一提交咽喉 runGenerationNode 失败记账 / 成功清零（可找回超时不算失败——上游可能仍出片）；
 // chooseDefaultModelOption 自动选默认时跳过「近 24h 连败 ≥ 2」的模型。只影响自动默认——
 // 用户手动选择永不拦、不弹警告；全部候选都在避让期 → 回退原序（绝不空选）。24h 过期自动回流。
-const STORAGE_KEY = "nomi:model-health:v1";
+//
+// **健康的身份键是 (vendor, modelKey)，不是 modelKey**（2026-09-03 真实付费复验暴露）。
+// 同一个模型名可以来自多家供应商，各家死活互不相干：Kie 的 gpt-image-2 余额为负连连失败，
+// APIMart 的同名模型好好的。按裸 modelKey 记账时两家共享一个判定，于是
+// pickHealthiestProvider 的 healthyVendors 只能是「全好」或「全病」——
+// **「换家优先于换模型」这个机制对它本来要解决的多供应商场景完全失效**，永远绕不开坏的那家
+// （走查实测：点 Gpt Image 2 反复落到 Kie，要手动切回 APIMart）。
+// 与 buildAgentModelEntries 的去重键、PlanShot.modelVendor 是同一条身份规则。
+//
+// v1 → v2：旧记录按裸 key 存，无法追认属于哪一家，直接弃用（记忆本就 24h 过期，重学一天就回来），
+// 不做双读兼容——那会让「这条记录算哪家的」长期有两个答案（P1 无并行版）。
+const STORAGE_KEY = "nomi:model-health:v2";
 const AILING_FAILS = 2;
 const STALE_MS = 24 * 60 * 60 * 1000;
 
@@ -58,13 +69,26 @@ function writeMap(map: ModelHealthMap): void {
   writeRaw(JSON.stringify(map));
 }
 
-function normalizeKey(modelKey: unknown): string {
-  return typeof modelKey === "string" ? modelKey.trim() : "";
+/**
+ * 模型身份：健康记账的主体。**必须成对传**，不接受裸 modelKey——
+ * 用对象而不是 `(modelKey, vendor?, now?)` 三个位置参数，是因为旧签名是 `(modelKey, now?)`，
+ * 加一个可选 vendor 会让旧调用把 `now`（number）静默当成 vendor 记进另一个桶，
+ * 类型上还完全合法。对象形状让旧写法在编译期就过不去（fail-closed）。
+ */
+export type ModelHealthIdentity = { modelKey: unknown; vendor: unknown };
+
+/** 身份键：`vendor::modelKey`。vendor 缺省（未接供应商的异常路径）用空串占位，仍与有 vendor 的分开记。 */
+function normalizeKey(identity: ModelHealthIdentity | null | undefined): string {
+  // 身份本身可能整个缺失（未选模型的异常路径）——那也是「记空=跳过」，不是崩溃。
+  const key = typeof identity?.modelKey === "string" ? identity.modelKey.trim() : "";
+  if (!key) return "";
+  const vendorKey = typeof identity?.vendor === "string" ? identity.vendor.trim() : "";
+  return `${vendorKey}::${key}`;
 }
 
 /** 生成失败记一笔（连败计数 +1）。无 modelKey（未选模型的异常路径）静默跳过。 */
-export function recordModelFailure(modelKey: unknown, now: number = Date.now()): void {
-  const key = normalizeKey(modelKey);
+export function recordModelFailure(identity: ModelHealthIdentity | null | undefined, now: number = Date.now()): void {
+  const key = normalizeKey(identity);
   if (!key) return;
   const map = readMap();
   const prev = map[key];
@@ -73,8 +97,8 @@ export function recordModelFailure(modelKey: unknown, now: number = Date.now()):
 }
 
 /** 生成成功即清零——该模型完全恢复默认资格。 */
-export function recordModelSuccess(modelKey: unknown): void {
-  const key = normalizeKey(modelKey);
+export function recordModelSuccess(identity: ModelHealthIdentity | null | undefined): void {
+  const key = normalizeKey(identity);
   if (!key) return;
   const map = readMap();
   if (!(key in map)) return;
@@ -83,8 +107,8 @@ export function recordModelSuccess(modelKey: unknown): void {
 }
 
 /** 是否处于避让期：近 24h 内连败 ≥ 2。过期记录视为健康（上游修好自然回流）。 */
-export function isModelRecentlyAiling(modelKey: unknown, now: number = Date.now()): boolean {
-  const key = normalizeKey(modelKey);
+export function isModelRecentlyAiling(identity: ModelHealthIdentity | null | undefined, now: number = Date.now()): boolean {
+  const key = normalizeKey(identity);
   if (!key) return false;
   const record = readMap()[key];
   if (!record) return false;
