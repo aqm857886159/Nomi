@@ -276,7 +276,7 @@ try {
   note('画布真节点数', String(nodeCount))
 
   // 打开右侧助手栏（launcher 用原生 DOM click，避免 actionability 抖动）
-  // Host cutover：画布内旧助手已退役，Agent 现居 ResidentShell dock（default-off agentHost flag, #194）；
+  // Host cutover：画布内旧助手已退役，Agent 现居 ResidentShell dock（默认常驻，2026-09-05 起无发布闸）；
   // 折叠态 launcher 是 [data-agent-resident-collapsed] 药丸。
   await getWin().evaluate(() => {
     const btn = document.querySelector('[data-agent-resident-collapsed="true"]')

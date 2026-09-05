@@ -23,7 +23,7 @@ export type PersistedAiMessage = {
   role: string
   content: string
   /** 分镜方案卡锚在这条消息上(方案随项目持久化,它的「家」也要一起落盘)。 */
-  storyboardPlan?: true
+  storyboardArtifact?: true
 }
 
 /** 一条会话线程(v2 会话历史)。messages=该线程气泡;title=一句话摘要(首句兜底)。 */

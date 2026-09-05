@@ -9,7 +9,7 @@ import { FIXTURE_IMAGE_MODEL, flattenRequestText } from './agent-runtime-fixture
 import {
   CANVAS_PANEL, CREATION_PANEL, DOCUMENT, chooseCreationMode, createRuntimeWalk, hasToolResult,
   openCanvas, readConversations, readNativeContexts, readProject, recorded, sendCreation,
-  snapshotMessages, toolNames,
+  readCurrentProjectAgentHostSnapshot, snapshotMessages, toolNames,
 } from './agent-runtime-walk-support.mjs'
 
 const STORY = 'F_INLINE_STORY：清晨，一位创作者来到咖啡馆。她将红色杯子放到白桌正中央，然后坐在窗边整理相机。镜头保持正面中景，自然光照亮杯沿，背景不要多余物件。画面只需要表现拍摄开始前安静的准备时刻。'
@@ -23,13 +23,10 @@ const CANDIDATES = [
 ]
 
 function snapshots(projectRoot, settingsRoot) {
-  const read = (root) => {
-    try { return fs.readFileSync(path.join(root, '.nomi', 'agent-session.json'), 'utf8') }
-    catch (error) { if (error.code === 'ENOENT') return null; throw error }
-  }
-  // Include the whole container and the local bucket: empty/cleared records,
-  // source/state metadata and newly created files must not disappear in a projection.
-  return { project: read(projectRoot), local: read(settingsRoot) }
+  const host = readCurrentProjectAgentHostSnapshot(settingsRoot, projectRoot)
+  // Include the complete Host snapshot as the positive persistence control;
+  // ephemeral tasks must leave this canonical source unchanged.
+  return { host: host ? JSON.stringify(host) : null }
 }
 
 const walk = await createRuntimeWalk('production')
@@ -111,10 +108,13 @@ try {
   // v5：方案落成中列摘要卡（完整编辑器只住分镜页），先卡后审。
   await expect(win.locator('[data-storyboard-card="draft"]')).toBeVisible()
   await expect(win.locator('[data-workspace-mode="creation"]')).toBeVisible()
-  await expect.poll(async () => (await readProject(win, projectId)).payload.storyboardPlan?.title,
+  await expect.poll(async () => {
+    const payload = (await readProject(win, projectId)).payload
+    return payload.storyboardDesignsByDocumentId?.[payload.activeDocumentId]?.[0]?.plan?.title
+  },
     { timeout: 30_000 }).toBe('F镜头')
   const draft = (await readProject(win, projectId)).payload
-  expect(draft.storyboardPlanCommitted).toBe(false)
+  expect(draft.storyboardDesignsByDocumentId?.[draft.activeDocumentId]?.[0]?.committed).toBe(false)
   expect(draft.generationCanvas.nodes).toHaveLength(0)
   expect(walk.fixture.images).toHaveLength(0)
   await expect.poll(() => readNativeContexts(projectRoot, settingsRoot)?.some((record) => record.snapshot

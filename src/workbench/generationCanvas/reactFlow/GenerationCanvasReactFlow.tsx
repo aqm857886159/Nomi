@@ -37,6 +37,7 @@ import { useTidyCanvas } from '../components/useTidyCanvas'
 import { useNodeAppearTracking } from '../components/useNodeAppearTracking'
 import { useAutoFitOnLoad } from '../components/useAutoFitOnLoad'
 import { useComposerVisibilityPan } from '../components/useComposerVisibilityPan'
+import { useCreatedNodeVisibilityPan } from '../components/useCreatedNodeVisibilityPan'
 import { useCanvasContextNodeMenu } from '../components/useCanvasContextNodeMenu'
 import type { ViewportAnimationSettlementOutcome } from '../components/viewportAnimationSettlement'
 import { useBatchPlanPreviewStore } from '../components/batchPlanPreview'
@@ -375,6 +376,8 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
     [flow],
   )
   useComposerVisibilityPan({ animateViewportTo, offsetRef, zoomRef })
+  // 「新建即可见」：避让把新卡推出视口时最小平移露出它（见 useCreatedNodeVisibilityPan 的头注释）。
+  useCreatedNodeVisibilityPan({ nodes, animateViewportTo, offsetRef, zoomRef, stageRef: hostRef })
   const { isTidying, tidy } = useTidyCanvas(activeCategoryId)
   const production = useCanvasProductionActions({ activeCategoryId, selectedNodeIds })
   const batchDock = useCanvasBatchDockVisibility({

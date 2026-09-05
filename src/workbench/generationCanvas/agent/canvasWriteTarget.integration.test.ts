@@ -237,7 +237,7 @@ describe('canvas.write real renderer execution', () => {
       [{ id: 'storyboard-doc', version: 1, title: '雨夜追凶', contentJson: { type: 'doc', content: [] }, updatedAt: 1 }],
       'storyboard-doc',
     )
-    useWorkbenchStore.getState().hydrateStoryboardPlans({ 'storyboard-doc': { plan, committed: false } })
+    useWorkbenchStore.getState().hydrateStoryboardDesigns({ 'storyboard-doc': [{ id: 'test-storyboard-doc', documentId: 'storyboard-doc', title: plan.title, plan, committed: false, status: 'draft', sourceDocumentUpdatedAt: 1, createdAt: 1, updatedAt: 1 }] })
 
     const input: CanvasWriteInput = {
       operation: 'patch_shots',
@@ -245,7 +245,7 @@ describe('canvas.write real renderer execution', () => {
       patch: { promptAppend: '雨天', aspectRatio: '9:16' },
     }
     const result = await executeCanvasWriteTarget(buildRequest(input), readGenerationCanvasSnapshot)
-    const persisted = useWorkbenchStore.getState().storyboardPlans['storyboard-doc']?.plan.shots ?? []
+    const persisted = useWorkbenchStore.getState().storyboardDesignsByDocumentId['storyboard-doc']?.[0]?.plan.shots ?? []
     expect(result).toMatchObject({
       applied: true,
       operation: 'patch_shots',

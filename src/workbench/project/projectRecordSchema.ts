@@ -10,7 +10,6 @@ import {
 import type { StoryboardDesign } from '../workbenchTypes'
 import { createDefaultGenerationCanvasSnapshot } from '../generationCanvas/store/generationCanvasDefaults'
 import type { GenerationCanvasSnapshot } from '../generationCanvas/model/generationCanvasTypes'
-import type { StoryboardPlan } from '../generationCanvas/agent/storyboardPlan'
 import { storyboardPlanSchema } from '../generationCanvas/agent/storyboardPlanSchema'
 import { cloneBuiltinCategories, projectCategorySchema, type ProjectCategory } from './projectCategories'
 
@@ -63,22 +62,7 @@ export const workbenchProjectPayloadSchema = z.object({
   categories: z.array(projectCategorySchema).optional(),
   /** S5-b-1:快照覆盖到事件日志的哪个 seq——hydrate 时重放其后的尾巴(崩溃恢复)。可选,老项目无。 */
   generationCanvasLastSeq: z.number().optional(),
-  /**
-   * P0-6:创作区分镜方案(用户手改过锚/镜序的结构化产物)。此前是纯内存态,切项目/重载即蒸发。
-   * 可选 + nullable 让老项目向后兼容(无此字段即无方案)。
-   * @deprecated P4:改为 storyboardPlans(按 documentId 索引)。此单字段仅读侧迁移用。
-   */
-  storyboardPlan: storyboardPlanSchema.nullable().optional(),
-  /** @deprecated P4:随 storyboardPlans 每条 entry 内嵌 committed。此字段仅读侧迁移用。 */
-  storyboardPlanCommitted: z.boolean().optional(),
-  /** P4:每篇原稿的分镜方案映射（key=documentId，value={plan, committed}）。可选，老项目无。 */
-  storyboardPlans: z.record(
-    z.object({
-      plan: storyboardPlanSchema,
-      committed: z.boolean().optional(),
-    }),
-  ).optional(),
-  /** Multiple storyboard designs per draft. Older payloads are migrated from storyboardPlans. */
+  /** 每篇原稿的分镜设计（唯一持久化 owner）。 */
   storyboardDesignsByDocumentId: z.record(
     z.array(z.object({
       id: z.string().min(1),
@@ -150,13 +134,7 @@ export type WorkbenchProjectPayload = {
   categories?: ProjectCategory[]
   /** S5-b-1:快照覆盖到日志的 seq(尾部重放游标);老项目无此字段则跳过重放。 */
   generationCanvasLastSeq?: number
-  /** P4:每篇原稿的分镜方案映射（key=documentId）。无则空。 */
-  storyboardPlans?: Record<string, { plan: StoryboardPlan; committed: boolean }>
   storyboardDesignsByDocumentId?: Record<string, StoryboardDesign[]>
-  /** @deprecated P0-6 单字段，P4 改为 storyboardPlans；仅读侧迁移用。 */
-  storyboardPlan?: StoryboardPlan | null
-  /** @deprecated 随 storyboardPlans entry 内嵌；仅读侧迁移用。 */
-  storyboardPlanCommitted?: boolean
 }
 
 export type WorkbenchProjectRecordV1 = WorkbenchProjectSummary & {
