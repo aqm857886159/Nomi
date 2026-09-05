@@ -41,12 +41,13 @@ export function timelineClipLabel(timeline: TimelineState, clipId: string): stri
   return clipId
 }
 
-function audioFragments(operation: Extract<TimelineOperation, { kind: 'audio' }>, fps: number, t: PlanTranslate): string[] {
+function audioFragments(operation: Extract<TimelineOperation, { kind: 'clip-audio' }>, fps: number, t: PlanTranslate): string[] {
+  const { gainDb, muted, fadeInFrames, fadeOutFrames } = operation.audio
   const parts: string[] = []
-  if (operation.gainDb !== undefined) parts.push(t('timelineEditor.agentPlan.audioGain', { gain: operation.gainDb }))
-  if (operation.muted !== undefined) parts.push(t(operation.muted ? 'timelineEditor.agentPlan.audioMuted' : 'timelineEditor.agentPlan.audioUnmuted'))
-  if (operation.fadeInFrames !== undefined) parts.push(t('timelineEditor.agentPlan.audioFadeIn', { seconds: seconds(operation.fadeInFrames, fps) }))
-  if (operation.fadeOutFrames !== undefined) parts.push(t('timelineEditor.agentPlan.audioFadeOut', { seconds: seconds(operation.fadeOutFrames, fps) }))
+  if (gainDb !== undefined) parts.push(t('timelineEditor.agentPlan.audioGain', { gain: gainDb }))
+  if (muted !== undefined) parts.push(t(muted ? 'timelineEditor.agentPlan.audioMuted' : 'timelineEditor.agentPlan.audioUnmuted'))
+  if (fadeInFrames !== undefined) parts.push(t('timelineEditor.agentPlan.audioFadeIn', { seconds: seconds(fadeInFrames, fps) }))
+  if (fadeOutFrames !== undefined) parts.push(t('timelineEditor.agentPlan.audioFadeOut', { seconds: seconds(fadeOutFrames, fps) }))
   return parts
 }
 
@@ -87,7 +88,7 @@ function sentence(operation: TimelineOperation, timeline: TimelineState, t: Plan
         return t(key('textStyle'), { clip: clip(operation.clipId), style: t(styleKey) })
       }
       return t(key('textTime'), { clip: clip(operation.clipId), start: timecode(operation.startFrame, fps), end: timecode(operation.endFrame, fps) })
-    case 'audio':
+    case 'clip-audio':
       return t(key('audio'), { clip: clip(operation.clipId), changes: audioFragments(operation, fps, t).join(' · ') })
   }
 }

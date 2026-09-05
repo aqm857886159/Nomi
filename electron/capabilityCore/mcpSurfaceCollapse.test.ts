@@ -39,6 +39,7 @@ const COLLAPSED_TOOL_NAMES = [
 const M2_EDITING_TOOL_NAMES = [
   'nomi_canvas_maintenance', 'nomi_document_read', 'nomi_document_edit',
   'nomi_timeline_read', 'nomi_timeline_edit', 'nomi_export_job', 'nomi_media_query',
+  'nomi_layout_read', 'nomi_layout_write',
 ]
 const NEW_TOOL_NAMES = [...COLLAPSED_TOOL_NAMES, ...M2_EDITING_TOOL_NAMES]
 

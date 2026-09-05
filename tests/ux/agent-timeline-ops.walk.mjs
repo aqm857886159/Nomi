@@ -229,7 +229,7 @@ try {
       operations: [
         { kind: 'transition', action: 'set', fromClipId: 'clip-b', toClipId: 'clip-c', type: 'dissolve', durationFrames: 15 },
         { kind: 'text', action: 'edit', clipId: 'caption-2', text: '他终于推开了门' },
-        { kind: 'audio', clipId: 'clip-b', gainDb: -6, fadeOutFrames: 15 },
+        { kind: 'clip-audio', clipId: 'clip-b', audio: { gainDb: -6, fadeOutFrames: 15 } },
       ],
     },
     doneText: 'WALK_OPS_DONE：转场、字幕、音量都按计划改好了。',
@@ -268,13 +268,17 @@ try {
   await expect(win.locator('[data-agent-input="true"]'), '收起不该多造一个 composer').toHaveCount(1)
   await expect(win.locator('[data-agent-resident-collapsed="true"]'), '右上角必须留「叫回 Nomi」')
     .toHaveAttribute('aria-label', '叫回 Nomi')
+  // 量的是**预览列**（`.workbench-preview-player`），不是早已不存在的 `.workbench-preview__stage`
+  // ——T1 把剪辑面迁到面板系统后那个类名就没了，而 querySelector 拿到 null 只会在
+  // getBoundingClientRect 那一行炸，看起来像产品坏了。锚点跟着真实结构走。
   const geometry = await dock.evaluate((node) => {
-    const stage = document.querySelector('.workbench-preview__stage')
+    const column = document.querySelector('.workbench-preview-player')
     const transport = document.querySelector('.workbench-preview-player__control-bar')
     const dockRect = node.getBoundingClientRect()
-    const stageRect = stage.getBoundingClientRect()
+    if (!column) throw new Error('找不到预览列 .workbench-preview-player')
+    const columnRect = column.getBoundingClientRect()
     return {
-      centreOffset: Math.abs((dockRect.left + dockRect.right) / 2 - (stageRect.left + stageRect.right) / 2),
+      centreOffset: Math.abs((dockRect.left + dockRect.right) / 2 - (columnRect.left + columnRect.right) / 2),
       transportOverlap: transport ? dockRect.bottom - transport.getBoundingClientRect().top : Number.NEGATIVE_INFINITY,
     }
   })

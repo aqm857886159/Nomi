@@ -83,7 +83,7 @@ describe('canonical Timeline capability target', () => {
   it.each([
     ['transition', (_revision: string) => ({ kind: 'transition' as const, action: 'set' as const, fromClipId: 'clip-a', toClipId: 'clip-b', type: 'dissolve' as const, durationFrames: 6 }), 'clip-a'],
     ['text', (_revision: string) => ({ kind: 'text' as const, action: 'add' as const, id: 'caption-1', text: 'X', style: 'caption' as const, startFrame: 0, endFrame: 12 }), 'caption-1'],
-    ['audio', (_revision: string) => ({ kind: 'audio' as const, clipId: 'clip-a', gainDb: -6, muted: false, fadeOutFrames: 6 }), 'clip-a'],
+    ['clip-audio', (_revision: string) => ({ kind: 'clip-audio' as const, clipId: 'clip-a', audio: { gainDb: -6, muted: false, fadeOutFrames: 6 } }), 'clip-a'],
   ])('supports %s through replay, plan conflict, and stale undo guards', (_kind, operationFactory, targetId) => {
     const base = useWorkbenchStore.getState().timeline
     const prepared = _kind === 'transition'

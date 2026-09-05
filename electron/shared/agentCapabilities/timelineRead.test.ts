@@ -44,10 +44,10 @@ describe("timeline.read capability contract", () => {
     expect(schema?.safeParse({ ...base, operations: [
       { kind: 'transition', action: 'set', fromClipId: 'a', toClipId: 'b', type: 'dissolve', durationFrames: 6 },
       { kind: 'text', action: 'edit', clipId: 'caption-2', text: 'X' },
-      { kind: 'audio', clipId: 'a', gainDb: -6, fadeOutFrames: 15 },
+      { kind: 'clip-audio', clipId: 'a', audio: { gainDb: -6, fadeOutFrames: 15 } },
     ] }).success).toBe(true)
     expect(schema?.safeParse({ ...base, operations: [{ kind: 'transition', action: 'set', fromClipId: 'a', toClipId: 'b' }] }).success).toBe(false)
-    expect(schema?.safeParse({ ...base, operations: [{ kind: 'audio', clipId: 'a' }] }).success).toBe(false)
+    expect(schema?.safeParse({ ...base, operations: [{ kind: 'clip-audio', clipId: 'a', audio: {} }] }).success).toBe(false)
     expect(schema?.safeParse({ ...base, operations: [{ kind: 'text', action: 'time', clipId: 'caption-2', startFrame: 10 }] }).success).toBe(false)
   });
 

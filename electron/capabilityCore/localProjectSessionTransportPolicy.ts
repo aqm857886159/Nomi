@@ -11,6 +11,8 @@ const PROJECT_SESSION_ONLY_METHODS = new Set([
   'timeline.write',
   'asset.read',
   'export.read',
+  'layout.read',
+  'layout.write',
   'nomi_session_open',
 ])
 

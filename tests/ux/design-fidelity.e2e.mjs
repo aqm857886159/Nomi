@@ -357,40 +357,64 @@ try {
   assert(assetLib.tabCount === 2 && assetLib.tabRows === 1, "来源 2 标签同一行（全部素材 / 项目素材，不折行）", `tabs=${assetLib.tabCount}/rows=${assetLib.tabRows}`);
   assert(assetLib.inViewport, "素材库面板完整在视口内（不溢出/不被裁）", `inViewport=${assetLib.inViewport}`);
 
-  // ── 本会话回归点 #C(预览控制条)：导出MP4 单行(高28不折行) + 画幅/显示 select 值不截断(无 …) ──
-  // 「安全框」按钮已在 b74d09c 整体删除（chop），相关断言一并删（断言对齐产品现状，不留陈旧红）。
+  // ── 回归点 #C（剪辑面 C′ 布局）：transport 贴列底 + 参数落属性面板 + 导出/布局在顶栏 ──
+  // 合同 §2.2 把「整片画幅」「这一段显示/缩放」「导出 MP4」三块从控制条撤走：
+  // 画幅/分辨率/质量进属性面板，导出固定到应用顶栏右上。所以这里验的是**新家**，
+  // 而不是把旧控件加回控制条（旧断言 aria-label 预览画幅/画面适配 已随控件一起下线）。
   await win.keyboard.press("Escape").catch(() => {}); // 关素材库面板
   await win.waitForTimeout(300);
   await win.getByRole("button", { name: "预览", exact: false }).first().click().catch(() => {});
   await win.waitForTimeout(1200);
   const prev = await win.evaluate(() => {
     const bar = document.querySelector('[aria-label="预览控制"]');
-    // 必须从控制条内部取导出钮：app bar 的导出钮在预览态也挂 aria-label="导出 MP4"（且故意 h-[30px]），
-    // 且 DOM 顺序在前；用 document 全局 query 会抓到 app bar 那颗(30) 而非控制条这颗(28)，断言对错元素。
-    const exportBtn = bar ? bar.querySelector('[aria-label="导出 MP4"]') : null;
+    const column = document.querySelector(".workbench-preview-player");
+    const inspector = document.querySelector('[aria-label="属性面板"]');
+    const timeline = document.querySelector(".workbench-timeline");
     // NomiSelect 触发里的值 span（truncate）：scrollWidth>clientWidth 即被截断成 …。
     const valueSpan = (chip) => chip?.querySelector("span.truncate") || null;
-    const aspectChip = document.querySelector('[aria-label="预览画幅"]');
-    const fitChip = document.querySelector('[aria-label="画面适配"]');
     const truncated = (chip) => { const s = valueSpan(chip); return s ? (s.scrollWidth > s.clientWidth + 1) : false; };
+    const aspectChip = inspector?.querySelector('[aria-label="画幅"]') || null;
+    const resolutionChip = inspector?.querySelector('[aria-label="导出分辨率"]') || null;
     const barRect = bar ? bar.getBoundingClientRect() : null;
+    const columnRect = column ? column.getBoundingClientRect() : null;
+    const timelineRect = timeline ? timeline.getBoundingClientRect() : null;
+    const appBarExport = document.querySelector('.nomi-appbar [aria-label="导出 MP4"]');
     return {
       barPresent: Boolean(bar),
-      exportH: exportBtn ? exportBtn.offsetHeight : -1,
+      barHeight: bar ? Math.round(bar.getBoundingClientRect().height) : -1,
+      // transport 贴列底：控制条底边与预览列底边重合（±2px），不再浮在列顶。
+      barBottomGap: barRect && columnRect ? Math.round(columnRect.bottom - barRect.bottom) : -1,
+      barTopFromColumnTop: barRect && columnRect ? Math.round(barRect.top - columnRect.top) : -1,
+      // 时间轴紧接在下面（合同：贴时间轴上沿）。
+      barToTimelineGap: barRect && timelineRect ? Math.round(timelineRect.top - barRect.bottom) : -1,
+      exportInBar: Boolean(bar && bar.querySelector('[aria-label="导出 MP4"]')),
+      exportInAppBar: Boolean(appBarExport),
+      layoutMenuInAppBar: Boolean(document.querySelector('.nomi-appbar [aria-label="布局"]')),
+      inspectorPresent: Boolean(inspector),
+      aspectInInspector: Boolean(aspectChip),
+      resolutionInInspector: Boolean(resolutionChip),
       aspectTruncated: truncated(aspectChip),
-      fitTruncated: truncated(fitChip),
+      resolutionTruncated: truncated(resolutionChip),
       aspectText: valueSpan(aspectChip)?.textContent?.trim() || "",
-      fitText: valueSpan(fitChip)?.textContent?.trim() || "",
+      resolutionText: valueSpan(resolutionChip)?.textContent?.trim() || "",
       // 控制条横向无溢出（不该再有 overflow-x 滚动条「杠」）。
       barOverflowsX: bar ? (bar.scrollWidth > bar.clientWidth + 1) : true,
       barInViewport: barRect ? (barRect.left >= -1 && barRect.right <= window.innerWidth + 1) : false,
     };
   });
-  console.log("\n── 预览控制条(#C：导出单行高28 + 不截断 + 不裁不溢出) ──");
+  console.log("\n── 剪辑面 C′（transport 在列底 + 参数在属性面板 + 导出/布局在顶栏）──");
   assert(prev.barPresent, "预览控制条已渲染", `barPresent=${prev.barPresent}`);
-  assert(prev.exportH === 28, "「导出 MP4」单行（高 28，不折两行）", String(prev.exportH));
+  assert(prev.barHeight === 40, "transport 高 40（合同 §2.2）", String(prev.barHeight));
+  assert(prev.barBottomGap >= -2 && prev.barBottomGap <= 2, "transport 贴预览列**底部**（不是顶部）", `底部间隙 ${prev.barBottomGap}px / 距列顶 ${prev.barTopFromColumnTop}px`);
+  assert(prev.barToTimelineGap >= -2 && prev.barToTimelineGap <= 8, "transport 贴时间轴上沿", `间隙 ${prev.barToTimelineGap}px`);
+  assert(!prev.exportInBar, "导出已撤出 transport（不重复入口）", `exportInBar=${prev.exportInBar}`);
+  assert(prev.exportInAppBar, "「导出 MP4」固定在应用顶栏右上", `exportInAppBar=${prev.exportInAppBar}`);
+  assert(prev.layoutMenuInAppBar, "「布局」菜单在应用顶栏（不在 Nomi 面板头）", `layoutMenuInAppBar=${prev.layoutMenuInAppBar}`);
+  assert(prev.inspectorPresent, "属性面板常驻", `inspectorPresent=${prev.inspectorPresent}`);
+  assert(prev.aspectInInspector, "「画幅」落在属性面板整片态", `aspectInInspector=${prev.aspectInInspector}`);
+  assert(prev.resolutionInInspector, "「导出分辨率」落在属性面板整片态", `resolutionInInspector=${prev.resolutionInInspector}`);
   assert(!prev.aspectTruncated, "画幅 select 值不被截断（无 …）", `${prev.aspectText}/truncated=${prev.aspectTruncated}`);
-  assert(!prev.fitTruncated, "显示 select 值不被截断（无 …）", `${prev.fitText}/truncated=${prev.fitTruncated}`);
+  assert(!prev.resolutionTruncated, "分辨率 select 值不被截断（无 …）", `${prev.resolutionText}/truncated=${prev.resolutionTruncated}`);
   assert(!prev.barOverflowsX, "控制条横向无溢出（无多余滚动条「杠」）", `overflowsX=${prev.barOverflowsX}`);
   assert(prev.barInViewport, "控制条整体在视口内（不溢出/不被裁）", `barInViewport=${prev.barInViewport}`);
 

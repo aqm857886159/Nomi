@@ -10,7 +10,6 @@ import {
   removeClipsByIds,
   removeClipsBySourceNodeIds,
   resizeClipEdge,
-  setClipFraming,
   setTimelinePlayheadFrame,
   setTimelineScale,
   splitClipAtFrame,
@@ -18,7 +17,6 @@ import {
 } from './timeline/timelineEdit'
 import { applyRegeneratedResultToClip } from './generationCanvas/model/buildClipFromGenerationNode'
 import type { GenerationNodeResult } from './generationCanvas/model/generationCanvasTypes'
-import type { ClipFraming } from './timeline/clipFraming'
 import {
   addTextClip,
   moveTextClip,
@@ -30,7 +28,6 @@ import {
 } from './timeline/timelineTextEdit'
 import type { Vec2 } from './timeline/overlayTransform'
 import { createDefaultTimeline, normalizeTimeline } from './timeline/timelineMath'
-import { readPreviewSourceCollapsed, writePreviewSourceCollapsed } from './preview/previewSourcePanelPreference'
 import type { TimelineClip, TimelineState, TimelineTextStyle, TimelineTrackType } from './timeline/timelineTypes'
 import type { TimelineTransition } from './timeline/timelineTypes'
 import { applyTimelineOperation } from './timeline/kernel/timelineKernel'
@@ -55,6 +52,9 @@ import {
   type ProjectAgentApprovalPolicy,
   type ProjectAgentWorkMode,
 } from '../../electron/shared/projectAgentContracts'
+import { createEditingPanelLayoutSlice, type EditingPanelLayoutSlice } from './preview/editingPanelLayoutSlice'
+import { createTimelineClipWritesSlice, type TimelineClipWritesSlice } from './timeline/timelineClipWritesSlice'
+import type { ExportQuality } from './export/exportTypes'
 
 /** 拖动中临时吸附辅助线（非持久化）。 */
 export type TimelineSnapGuide = { frame: number; label: string }
@@ -101,7 +101,7 @@ export type ProjectAgentReference = Readonly<{
 /** Renderer alias; the canonical work-mode vocabulary lives in shared contracts. */
 export type ProjectAgentRunMode = ProjectAgentWorkMode
 
-type WorkbenchState = WorkbenchDocumentSlice & {
+type WorkbenchState = WorkbenchDocumentSlice & EditingPanelLayoutSlice & TimelineClipWritesSlice & {
   persistRevision: number
   workspaceMode: WorkspaceMode
   /** 生成/预览区右侧助手侧栏宽度（px，可拖宽）。 */
@@ -159,9 +159,10 @@ type WorkbenchState = WorkbenchDocumentSlice & {
   /** 跨生成/预览共享的时间轴高度（会话级 UI 态，不写入项目）。 */
   timelinePanelHeight: number
   setTimelinePanelHeight: (height: number) => void
-  /** 剪辑页左侧素材来源栏收起/展开（跨会话记住：剪片习惯因人而异）。 */
-  previewSourcePanelCollapsed: boolean
-  setPreviewSourcePanelCollapsed: (collapsed: boolean) => void
+  exportResolution: '720p' | '1080p'
+  exportQuality: ExportQuality
+  setExportResolution: (resolution: '720p' | '1080p') => void
+  setExportQuality: (quality: ExportQuality) => void
   /** 时间轴撤销栈（仅时间轴编辑，非持久化）。封顶后丢最旧。 */
   timelineUndoStack: TimelineUndoEntry[]
   /** 时间轴重做栈。撤销时压入；任一新编辑清空（新编辑使 redo 失效，标准语义）。 */
@@ -228,8 +229,6 @@ type WorkbenchState = WorkbenchDocumentSlice & {
   splitTimelineClip: (clipId: string, frame: number) => void
   duplicateTimelineClip: (clipId: string) => void
   nudgeTimelineClip: (clipId: string, deltaFrame: number) => void
-  /** 设置 clip 取景（适应/填充 + 缩放 + 平移）。拖动/连续缩放传 commit:false，落定 commit:true 落盘一次。 */
-  setTimelineClipFraming: (clipId: string, patch: Partial<ClipFraming>, options?: { commit?: boolean }) => void
   /** additive(shift/⌘)：在集合中切换；否则替换为单选。 */
   selectTimelineClip: (clipId: string, options?: { additive?: boolean }) => void
   setTimelineSelection: (clipIds: string[]) => void
@@ -345,7 +344,13 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
   })),
   setProjectAgentRunMode: (projectAgentRunMode) => set({ projectAgentRunMode }),
   setProjectAgentApprovalPolicy: (projectAgentApprovalPolicy) => set({ projectAgentApprovalPolicy: Object.freeze({ mode: projectAgentApprovalPolicy.mode, spend: projectAgentApprovalPolicy.spend }) }),
-  setProjectAgentDockCollapsed: (projectAgentDockCollapsed) => set({ projectAgentDockCollapsed: Boolean(projectAgentDockCollapsed) }),
+  setProjectAgentDockCollapsed: (collapsed) => set((state) => ({
+    projectAgentDockCollapsed: Boolean(collapsed),
+    // 见 toggleEditingPanel：Nomi 栏只有一个开关，布局里的 visibility.assistant 是它的投影。
+    editingPanelLayout: state.editingPanelLayout.visibility.assistant === !collapsed
+      ? state.editingPanelLayout
+      : { ...state.editingPanelLayout, visibility: { ...state.editingPanelLayout.visibility, assistant: !collapsed } },
+  })),
   timeline: createDefaultTimeline(),
   timelinePlaying: false,
   previewAspectRatio: '16:9',
@@ -353,18 +358,16 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
   selectedTextClipId: '',
   timelineSnapGuide: null,
   timelineSplitMode: false,
-  // 默认折叠（对齐 origin/main）：展开态时间轴要吃掉画布 stage 底部 ~188px，在 720 最小窗口下
-  // 会把 stage 压到装不下靠底节点的 composer 下挂（j5 composer-usable-at-min-window 红）。cutover 把它
-  // 翻成 false（默认展开）是本回归的根因——恢复 true，可拖拽面板特性不变，用户仍可随时展开/拉高。
+  // 默认折叠以保持最小窗口的 composer 可用空间；用户仍可拖拽展开。
   timelinePanelCollapsed: true,
   setTimelinePanelCollapsed: (collapsed) => set({ timelinePanelCollapsed: Boolean(collapsed) }),
   timelinePanelHeight: TIMELINE_PANEL_DEFAULT,
   setTimelinePanelHeight: (height) => set({ timelinePanelHeight: clampTimelinePanelHeight(height) }),
-  previewSourcePanelCollapsed: readPreviewSourceCollapsed(),
-  setPreviewSourcePanelCollapsed: (collapsed) => {
-    writePreviewSourceCollapsed(Boolean(collapsed))
-    set({ previewSourcePanelCollapsed: Boolean(collapsed) })
-  },
+  ...createEditingPanelLayoutSlice(set, get, store),
+  exportResolution: '1080p',
+  exportQuality: 'standard',
+  setExportResolution: (exportResolution) => set({ exportResolution }),
+  setExportQuality: (exportQuality) => set({ exportQuality }),
   timelineUndoStack: [],
   timelineRedoStack: [],
   setWorkspaceMode: (mode) => {
@@ -778,17 +781,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
       }
     })
   },
-  setTimelineClipFraming: (clipId, patch, options) => {
-    const commit = options?.commit !== false
-    set((state) => {
-      const next = setClipFraming(state.timeline, clipId, patch)
-      const changed = next !== state.timeline
-      return {
-        timeline: next,
-        persistRevision: commit && changed ? state.persistRevision + 1 : state.persistRevision,
-      }
-    })
-  },
+  ...createTimelineClipWritesSlice(pushTimelineUndo)(set, get, store),
   updateTimelineTextClipFont: (id, fontId) => {
     set((state) => {
       const next = updateTextClipFont(state.timeline, id, fontId)

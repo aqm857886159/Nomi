@@ -1,4 +1,4 @@
 {
-  "maxBytes": 24052,
-  "reason": "23 tools: the 15 collapsed tools + 7 preserved M2 semantic editing tools (nomi_canvas_plan retired 2026-09-05 — it was byte-identical to nomi_canvas_edit in tools/list, a P1 parallel version on the public surface). Recalibrated upward once (20016 -> 24052) when canvas.write and timeline.write stopped broadcasting a hand-written flat superset and started deriving their transport schema from the Zod validator: that is what makes all 9 canvas operations and timeline preview/apply constructible at all (7 of them were structurally unreachable before), and it carries the prompt-writing guidance and reference-slot semantics to the host. The added bytes are the fields and guidance a host previously had to guess. Ratchet stays only-decrease from here; see docs/fixes/2026-09-05-mcp-host-holes.root-cause.json."
+  "maxBytes": 25751,
+  "reason": "25 tools: the 15 collapsed tools + 7 preserved M2 semantic editing tools + T1 layout.read/layout.write projections. The T1 tools are the canonical reversible local panel-layout surface; their bounded layout schema is required so a host can construct every layout.write operation. This is a deliberate surface expansion for the T1 contract; subsequent changes remain shrink-only."
 }

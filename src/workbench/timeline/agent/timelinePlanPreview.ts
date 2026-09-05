@@ -19,7 +19,7 @@ export type TimelinePlanPreviewBand = {
 }
 
 const PREVIEWABLE_KINDS: ReadonlySet<string> = new Set([
-  'move', 'remove', 'split', 'trim', 'source-window', 'ripple', 'transition', 'text', 'audio',
+  'move', 'remove', 'split', 'trim', 'source-window', 'ripple', 'transition', 'text', 'clip-audio',
 ])
 
 /** Accept only operation shapes the kernel can execute; anything else previews as nothing. */

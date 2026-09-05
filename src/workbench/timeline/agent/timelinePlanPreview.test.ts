@@ -50,7 +50,7 @@ describe('timeline plan preview', () => {
 
   it('reports settings-only edits as a change over the clip rather than as geometry', () => {
     const bands = timelinePlanPreviewBands(timeline(), timelinePlanOperations([
-      { kind: 'audio', clipId: 'clip-b', gainDb: -6, fadeOutFrames: 15 },
+      { kind: 'clip-audio', clipId: 'clip-b', audio: { gainDb: -6, fadeOutFrames: 15 } },
       { kind: 'text', action: 'edit', clipId: 'caption-2', text: 'X' },
     ]))
     expect(bands).toEqual([
@@ -76,7 +76,7 @@ describe('timeline plan summary', () => {
       { kind: 'trim', clipId: 'clip-b', edge: 'right', deltaFrame: -15 },
       { kind: 'transition', action: 'set', fromClipId: 'clip-a', toClipId: 'clip-b', type: 'dissolve', durationFrames: 12 },
       { kind: 'text', action: 'edit', clipId: 'caption-2', text: 'X' },
-      { kind: 'audio', clipId: 'clip-b', gainDb: -6, fadeOutFrames: 15 },
+      { kind: 'clip-audio', clipId: 'clip-b', audio: { gainDb: -6, fadeOutFrames: 15 } },
     ]), timeline(), t)
     expect(lines[0]?.text).toContain('trimShortenEnd')
     expect(lines[0]?.text).toContain('"clip":"推门"')

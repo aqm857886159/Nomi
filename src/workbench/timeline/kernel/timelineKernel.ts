@@ -83,12 +83,10 @@ export type TimelineOperation =
       endFrame: number
     }
   | {
-      kind: 'audio'
+      kind: 'clip-audio'
       clipId: string
-      gainDb?: number
-      muted?: boolean
-      fadeInFrames?: number
-      fadeOutFrames?: number
+      /** Patch: omitted fields keep the clip's current value, so a caller can change one knob without a stale read. */
+      audio: TimelineClipAudio
     }
 
 export type TimelineDiagnosticSeverity = 'error' | 'warning'
@@ -610,41 +608,36 @@ function applyText(timeline: TimelineState, operation: Extract<TimelineOperation
   return { timeline: { ...timeline, textClips }, diagnostics: [] }
 }
 
-function applyAudio(timeline: TimelineState, operation: Extract<TimelineOperation, { kind: 'audio' }>): OperationResult {
+function applyClipAudio(timeline: TimelineState, operation: Extract<TimelineOperation, { kind: 'clip-audio' }>): OperationResult {
   const source = findClip(timeline, operation.clipId)
   if (!source) return operationError('clip_not_found', 'operation.clipId', `Clip not found: ${operation.clipId}`)
-  if (source.clip.type === 'image') return operationError('clip_audio_unsupported', 'operation.clipId', 'Image clips cannot carry audio settings')
+  if (source.clip.type === 'image') return operationError('clip_audio_unsupported', 'operation.audio', 'Image clips cannot carry audio settings')
+  const { gainDb, muted, fadeInFrames, fadeOutFrames } = operation.audio
   const durationFrames = source.clip.endFrame - source.clip.startFrame
-  if (operation.gainDb !== undefined && (operation.gainDb < MIN_CLIP_GAIN_DB || operation.gainDb > MAX_CLIP_GAIN_DB)) {
-    return operationError('clip_audio_gain_invalid', 'operation.gainDb', `gainDb must be between ${MIN_CLIP_GAIN_DB} and ${MAX_CLIP_GAIN_DB}`)
+  if (gainDb !== undefined && (!Number.isFinite(gainDb) || gainDb < MIN_CLIP_GAIN_DB || gainDb > MAX_CLIP_GAIN_DB)) {
+    return operationError('clip_audio_gain_invalid', 'operation.audio.gainDb', `gainDb must be between ${MIN_CLIP_GAIN_DB} and ${MAX_CLIP_GAIN_DB}`)
   }
-  if (operation.fadeInFrames !== undefined && (!isNonNegativeInteger(operation.fadeInFrames) || operation.fadeInFrames > durationFrames)) {
-    return operationError('clip_audio_fade_invalid', 'operation.fadeInFrames', 'fadeInFrames must fit the visible clip duration')
+  if (fadeInFrames !== undefined && (!isNonNegativeInteger(fadeInFrames) || fadeInFrames > durationFrames)) {
+    return operationError('clip_audio_fade_invalid', 'operation.audio.fadeInFrames', 'fadeInFrames must fit the visible clip duration')
   }
-  if (operation.fadeOutFrames !== undefined && (!isNonNegativeInteger(operation.fadeOutFrames) || operation.fadeOutFrames > durationFrames)) {
-    return operationError('clip_audio_fade_invalid', 'operation.fadeOutFrames', 'fadeOutFrames must fit the visible clip duration')
+  if (fadeOutFrames !== undefined && (!isNonNegativeInteger(fadeOutFrames) || fadeOutFrames > durationFrames)) {
+    return operationError('clip_audio_fade_invalid', 'operation.audio.fadeOutFrames', 'fadeOutFrames must fit the visible clip duration')
   }
-  const fadeInFrames = operation.fadeInFrames ?? source.clip.audio?.fadeInFrames ?? 0
-  const fadeOutFrames = operation.fadeOutFrames ?? source.clip.audio?.fadeOutFrames ?? 0
-  if (fadeInFrames + fadeOutFrames > durationFrames) {
-    return operationError('clip_audio_fade_overlap', 'operation', 'Audio fades cannot exceed the visible clip duration')
-  }
-  const audio: TimelineClipAudio = {
+  const merged: TimelineClipAudio = {
     ...(source.clip.audio ?? {}),
-    ...(operation.gainDb === undefined ? {} : { gainDb: operation.gainDb }),
-    ...(operation.muted === undefined ? {} : { muted: operation.muted }),
-    ...(operation.fadeInFrames === undefined ? {} : { fadeInFrames: operation.fadeInFrames }),
-    ...(operation.fadeOutFrames === undefined ? {} : { fadeOutFrames: operation.fadeOutFrames }),
+    ...(gainDb === undefined ? {} : { gainDb }),
+    ...(muted === undefined ? {} : { muted }),
+    ...(fadeInFrames === undefined ? {} : { fadeInFrames }),
+    ...(fadeOutFrames === undefined ? {} : { fadeOutFrames }),
   }
-  const resolvedAudio = resolveClipAudio(audio, durationFrames)
-  const updated: TimelineClip = { ...source.clip, audio: resolvedAudio }
+  if ((merged.fadeInFrames ?? 0) + (merged.fadeOutFrames ?? 0) > durationFrames) {
+    return operationError('clip_audio_fade_overlap', 'operation.audio', 'Audio fades cannot exceed the visible clip duration')
+  }
+  const updated: TimelineClip = { ...source.clip, audio: resolveClipAudio(merged, durationFrames) }
   const tracks = timeline.tracks.map((track, trackIndex) => trackIndex === source.trackIndex
     ? { ...track, clips: track.clips.map((clip) => clip.id === source.clip.id ? updated : clip) }
     : track)
-  const candidate = makeTracks(timeline, tracks)
-  const validation = validateTimeline(candidate)
-  if (!validation.ok) return { timeline, diagnostics: validation.diagnostics }
-  return { timeline: candidate, diagnostics: [] }
+  return { timeline: makeTracks(timeline, tracks), diagnostics: [] }
 }
 
 function applyOperation(timeline: TimelineState, operation: TimelineOperation): OperationResult {
@@ -657,7 +650,7 @@ function applyOperation(timeline: TimelineState, operation: TimelineOperation): 
     case 'ripple': return applyRipple(timeline, operation)
     case 'transition': return applyTransition(timeline, operation)
     case 'text': return applyText(timeline, operation)
-    case 'audio': return applyAudio(timeline, operation)
+    case 'clip-audio': return applyClipAudio(timeline, operation)
   }
 }
 

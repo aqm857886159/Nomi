@@ -97,16 +97,27 @@ const textOperationSchema = z.object({
   if (value.action === "time" && (value.startFrame === undefined || value.endFrame === undefined)) context.addIssue({ code: z.ZodIssueCode.custom, message: "text time requires startFrame and endFrame" });
 });
 
-const audioOperationSchema = z
+const clipAudioOperationSchema = z
   .object({
-    kind: z.literal("audio"), clipId: canonicalIdSchema,
-    gainDb: z.number().finite().optional(), muted: z.boolean().optional(),
-    fadeInFrames: nonNegativeFrameSchema.optional(), fadeOutFrames: nonNegativeFrameSchema.optional(),
+    kind: z.literal("clip-audio"),
+    clipId: canonicalIdSchema,
+    /**
+     * Patch: omitted fields keep the clip's current value. Gain range and fade bounds are owned by
+     * the timeline kernel (clip_audio_gain_invalid / clip_audio_fade_*) so the limits live in one place.
+     */
+    audio: z
+      .object({
+        gainDb: z.number().finite().optional(),
+        muted: z.boolean().optional(),
+        fadeInFrames: nonNegativeFrameSchema.optional(),
+        fadeOutFrames: nonNegativeFrameSchema.optional(),
+      })
+      .strict()
+      .refine((value) => Object.keys(value).length > 0, {
+        message: "audio patch requires at least one field",
+      }),
   })
-  .strict()
-  .refine((value) => Object.keys(value).some((key) => key !== "kind" && key !== "clipId"), {
-    message: "audio operation requires at least one audio field",
-  });
+  .strict();
 
 export const timelineOperationSchema = z.union([
   moveOperationSchema,
@@ -117,7 +128,7 @@ export const timelineOperationSchema = z.union([
   rippleOperationSchema,
   transitionOperationSchema,
   textOperationSchema,
-  audioOperationSchema,
+  clipAudioOperationSchema,
 ]);
 
 export const timelineEditPlanSchema = z

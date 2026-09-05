@@ -9,6 +9,7 @@ import { DOCUMENT_WRITE_CAPABILITY, DOCUMENT_WRITE_ALIASES } from "./documentWri
 import { EXPORT_READ_CAPABILITY, EXPORT_WRITE_CAPABILITY } from "./exportCapabilities";
 import { TIMELINE_READ_CAPABILITY } from "./timelineRead";
 import { TIMELINE_WRITE_CAPABILITY } from "./timelineWrite";
+import { LAYOUT_READ_CAPABILITY, LAYOUT_WRITE_CAPABILITY } from "./layout";
 import {
   PRODUCTION_ARTIFACT_WRITE_CAPABILITY,
   PRODUCTION_RUN_READ_CAPABILITY,
@@ -54,6 +55,8 @@ describe("capability contract registry", () => {
       EXPORT_WRITE_CAPABILITY,
       TIMELINE_READ_CAPABILITY,
       TIMELINE_WRITE_CAPABILITY,
+      LAYOUT_READ_CAPABILITY,
+      LAYOUT_WRITE_CAPABILITY,
       PRODUCTION_RUN_READ_CAPABILITY,
       PRODUCTION_RUN_WRITE_CAPABILITY,
       PRODUCTION_ARTIFACT_WRITE_CAPABILITY,
@@ -82,6 +85,8 @@ describe("capability contract registry", () => {
       "export.write",
       "timeline.read",
       "timeline.write",
+      "layout.read",
+      "layout.write",
       "production.run.read",
       "production.run.write",
       "production.artifact.write",
@@ -114,6 +119,10 @@ describe("capability contract registry", () => {
       "nomi_timeline_read",
       "apply_edit_plan",
       "nomi_timeline_edit",
+      "layout.read",
+      "nomi_layout_read",
+      "layout.write",
+      "nomi_layout_write",
       "get_production_run",
       "start_production_run",
       "revise_production_artifact",

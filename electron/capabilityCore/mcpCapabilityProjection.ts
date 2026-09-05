@@ -11,6 +11,7 @@ import { ASSET_READ_CAPABILITY } from "../shared/agentCapabilities/assetRead";
 import { EXPORT_READ_CAPABILITY } from "../shared/agentCapabilities/exportCapabilities";
 import { TIMELINE_READ_CAPABILITY, timelineEditPlanSchema } from "../shared/agentCapabilities/timelineRead";
 import { TIMELINE_WRITE_CAPABILITY } from "../shared/agentCapabilities/timelineWrite";
+import { LAYOUT_READ_CAPABILITY, LAYOUT_WRITE_CAPABILITY, layoutReadInputSchema, layoutWriteInputSchema, layoutWriteTransportInputSchema, layoutResultSchema } from "../shared/agentCapabilities/layout";
 import { findUnsupportedSchemaFeatures, type SchemaLike } from "./mcpArgValidation";
 import { transportSchemaFromZod } from "./mcpTransportSchemaFromZod";
 import { buildCanonicalMcpToolResult, type CanonicalMcpToolResult } from "./mcpCanonicalToolResult";
@@ -169,7 +170,7 @@ const timelineEditTransportSchema = immutableSchemaSnapshot({
         operations: { type: "array", minItems: 1, maxItems: 128, items: {
           type: "object", additionalProperties: false,
           properties: {
-            kind: { type: "string", enum: ["move", "remove", "split", "trim", "source-window", "ripple", "transition", "text", "audio"] },
+            kind: { type: "string", enum: ["move", "remove", "split", "trim", "source-window", "ripple", "transition", "text", "clip-audio"] },
             action: { type: "string", enum: ["set", "remove", "add", "edit", "style", "time"] },
             clipId: { type: "string" }, clipIds: { type: "array", items: { type: "string" } },
             fromClipId: { type: "string" }, toClipId: { type: "string" }, targetTrackId: { type: "string" }, trackId: { type: "string" },
@@ -177,7 +178,8 @@ const timelineEditTransportSchema = immutableSchemaSnapshot({
             sourceStartFrame: { type: "integer", minimum: 0 }, sourceEndFrame: { type: "integer", minimum: 0 }, rightClipId: { type: "string", minLength: 1 },
             type: { type: "string", enum: ["cut", "dissolve", "fade", "match_cut", "whip_pan"] }, durationFrames: { type: "integer", minimum: 1 },
             id: { type: "string" }, sourceNodeId: { type: "string" }, text: { type: "string" }, style: { type: "string", enum: ["caption", "title"] },
-            gainDb: { type: "number" }, muted: { type: "boolean" }, fadeInFrames: { type: "integer", minimum: 0 }, fadeOutFrames: { type: "integer", minimum: 0 }, ripple: { type: "boolean" }, includeText: { type: "boolean" },
+            audio: { type: "object", additionalProperties: false, properties: { gainDb: { type: "number" }, muted: { type: "boolean" }, fadeInFrames: { type: "integer", minimum: 0 }, fadeOutFrames: { type: "integer", minimum: 0 } } },
+            ripple: { type: "boolean" }, includeText: { type: "boolean" },
           },
         } },
       },
@@ -262,12 +264,32 @@ export const MEDIA_QUERY_MCP_ADAPTER: McpCapabilityAdapter = Object.freeze({
   },
 });
 
+const layoutReadTransportSchema = immutableSchemaSnapshot({ type: "object", properties: { leaseHandle: { type: "string", minLength: 1 }, projectId: { type: "string", minLength: 1 }, operation: { type: "string", enum: ["read"] } }, required: ["leaseHandle", "operation"], additionalProperties: false });
+const layoutWriteTransportSchema = immutableSchemaSnapshot(transportSchemaFromZod(layoutWriteTransportInputSchema, {
+  label: "layout.write",
+  extraProperties: {
+    leaseHandle: { type: "string", minLength: 1 },
+    projectId: { type: "string", minLength: 1 },
+  },
+  required: ["leaseHandle", "operation", "layout"],
+}));
+export const LAYOUT_READ_MCP_ADAPTER: McpCapabilityAdapter = Object.freeze({
+  contract: LAYOUT_READ_CAPABILITY, authority: Object.freeze({ kind: "project_session", requiredScope: "layout:read" }), port: Object.freeze({ kind: "document", access: "read" }), semanticInputJsonSchema: layoutReadTransportSchema, transportInputSchema: layoutReadTransportSchema, outputSchema: layoutResultSchema,
+  parseCall(args) { const input = z.object({ ...leaseField, operation: z.literal("read") }).strict().parse(args); return { semanticInput: layoutReadInputSchema.parse({ operation: "read_layout" }), transport: input }; },
+});
+export const LAYOUT_WRITE_MCP_ADAPTER: McpCapabilityAdapter = Object.freeze({
+  contract: LAYOUT_WRITE_CAPABILITY, authority: Object.freeze({ kind: "project_session", requiredScope: "layout:write" }), port: Object.freeze({ kind: "document", access: "write" }), semanticInputJsonSchema: layoutWriteTransportSchema, transportInputSchema: layoutWriteTransportSchema, outputSchema: layoutResultSchema,
+  parseCall(args) { const input = z.object({ ...leaseField, ...layoutWriteTransportInputSchema.shape }).strict().parse(args); const semantic = layoutWriteInputSchema.parse({ operation: "write_layout", layout: input.layout }); return { semanticInput: semantic, transport: input }; },
+});
+
 export const MCP_EDITING_METHODS = Object.freeze(new Set([
   TIMELINE_READ_CAPABILITY.id,
   TIMELINE_WRITE_CAPABILITY.id,
   DOCUMENT_WRITE_CAPABILITY.id,
   EXPORT_READ_CAPABILITY.id,
   ASSET_READ_CAPABILITY.id,
+  LAYOUT_READ_CAPABILITY.id,
+  LAYOUT_WRITE_CAPABILITY.id,
 ]));
 
 export function isMcpEditingMethod(method: string): boolean {
@@ -467,6 +489,7 @@ export const DOCUMENT_EDIT_MCP_ADAPTER: McpCapabilityAdapter = Object.freeze({
 const MCP_SAFE_ADAPTERS = new Set<McpCapabilityAdapter>([
   CANVAS_READ_MCP_ADAPTER, CANVAS_EDIT_MCP_ADAPTER, CANVAS_MAINTENANCE_MCP_ADAPTER,
   DOCUMENT_READ_MCP_ADAPTER, DOCUMENT_EDIT_MCP_ADAPTER, TIMELINE_READ_MCP_ADAPTER, TIMELINE_EDIT_MCP_ADAPTER, EXPORT_JOB_MCP_ADAPTER, MEDIA_QUERY_MCP_ADAPTER,
+  LAYOUT_READ_MCP_ADAPTER, LAYOUT_WRITE_MCP_ADAPTER,
 ]);
 const MCP_READ_ONLY_ADAPTERS = new Set<McpCapabilityAdapter>([
   CANVAS_READ_MCP_ADAPTER, TIMELINE_READ_MCP_ADAPTER, EXPORT_JOB_MCP_ADAPTER, MEDIA_QUERY_MCP_ADAPTER,
@@ -483,4 +506,6 @@ export const MCP_CAPABILITY_RESOLVER = createMcpCapabilityResolver([
   TIMELINE_EDIT_MCP_ADAPTER,
   EXPORT_JOB_MCP_ADAPTER,
   MEDIA_QUERY_MCP_ADAPTER,
+  LAYOUT_READ_MCP_ADAPTER,
+  LAYOUT_WRITE_MCP_ADAPTER,
 ]);
