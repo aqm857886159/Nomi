@@ -1,0 +1,180 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-06-main-process-logs-into-the-void",
+  "problem_type": "主进程诊断输出写进黑洞：console.* 打包后无人接收，且唯一落盘的崩溃日志会外泄本机路径",
+  "symptom": "用户报「导出失败了 / 模型调不通 / 打不开」时，装机版上没有任何可查的记录：99 处 console.error/warn 只进 stdout，双击启动的 .app 没有终端接住它们，进程一退即失。真 Electron 走查还证明了第二面：现有 nomi-crash.log 把原始栈整段落盘，且 macOS 的 app.getPath(\"logs\") 不随 userData 走，于是隔离实例导出的诊断包里出现了另一个 worktree 的完整绝对路径。",
+  "direct_cause": "electron/ 下 35 个文件各自直接调 console.*（electron/main.ts 独占 18 处），没有任何一处把输出接到文件；crashLog.ts:recordCrash 直接把 error.stack 原样 append；electron/main.ts 的 profile 重定向只 setPath(\"userData\")，没有一并重定向 logs。",
+  "class_root": "「往哪里写诊断信息」从来没有共享边界：每个调用点自己决定用哪个 console 方法、拼什么串、带不带敏感值。只要还允许调用点自行选择输出口，就一定会有新写法既丢失证据（进 stdout）又泄漏内容（把路径/密钥/自由文本拼进串里）——这是入口集问题，不是某一处的笔误。",
+  "migration": "新增 electron/logging/{logFiles,redact,logger}.ts 作为唯一出口；同 diff 把 35 个文件里全部 99 处 console.* 改掉，一处不留（P1 无并行版）。crashLog.ts 的自有滚动实现被删除，改调 logFiles.createLogFileSink，行为语义（2MB、truncate、会话表头）保持不变；它自己那句 console.error 也改成 logError。electron/main.ts 里 registerDevDiagnostics 整体搬进 electron/logging/devDiagnostics.ts。",
+  "affected_population": [
+    "所有装机版用户：遇到不崩溃的失败（模型调不通、导出中途放弃）时本机零证据，只能被要求重现",
+    "所有在同一台机器跑多个实例的开发/E2E 场景：logs 目录不随 profile 隔离，日志互相交叉",
+    "任何导出诊断包的用户：崩溃日志里的绝对路径会随包外发"
+  ],
+  "scope_paths": [
+    "electron/logging/",
+    "electron/crashLog.ts",
+    "electron/mainProcessLifecycle.ts",
+    "electron/main.ts",
+    "electron/mainWindowPresence.ts",
+    "electron/systemProxy.ts",
+    "electron/ai/agentChatV2Ipc.ts",
+    "electron/ai/buildAiSdkModel.ts",
+    "electron/assets/localFileImport.ts",
+    "electron/assets/videoImportNormalize.ts",
+    "electron/browser/core/browserViewSession.ts",
+    "electron/capabilityCore/appIntegration.ts",
+    "electron/capabilityCore/appIntegrationAuthorities.ts",
+    "electron/capabilityCore/mcpStdioServer.ts",
+    "electron/capabilityCore/rendererBridge.ts",
+    "electron/catalog/catalogStore.ts",
+    "electron/catalog/modelCatalogListing.ts",
+    "electron/catalog/relayNativeWireUpgrade.ts",
+    "electron/catalog/secrets.ts",
+    "electron/diagnostics/",
+    "electron/events/eventLogRepository.ts",
+    "electron/experience/projectAgentExperience.ts",
+    "electron/harness/context/agentContextHost.ts",
+    "electron/onboarding/demoAssetSeed.ts",
+    "electron/productionRun/batchSchedulerKick.ts",
+    "electron/productionRun/multiShotBatchScheduler.ts",
+    "electron/productionRun/multiShotCanvasLanding.ts",
+    "electron/productionRun/productionRunDesktopLifecycle.ts",
+    "electron/productionRun/productionRunDriverOps.ts",
+    "electron/productionRun/productionRunService.ts",
+    "electron/projectAgentHost/projectAgentExecutionCoordinator.ts",
+    "electron/review/reviewTrace.ts",
+    "electron/screenshot/screenshotHotkey.ts",
+    "electron/settings/registerSettingsIpc.ts",
+    "electron/tasks/taskResultQuery.ts",
+    "electron/vendor/vendorBaseFallback.ts",
+    "electron/workspace/workspaceManifest.ts",
+    "electron/workspace/workspaceRepository.ts",
+    "scripts/check-main-console.mjs"
+  ],
+  "entry_points": [
+    "electron/main.ts registerDevDiagnostics / startup catch 链（原 18 处 console.*）",
+    "electron/capabilityCore/appIntegration.ts startCapabilityCore 内的 12 处 observation/status catch",
+    "electron/productionRun/productionRunDriverOps.ts 各 driver catch（原 8 处）",
+    "electron/capabilityCore/mcpStdioServer.ts stdio 模式的 7 处（含 console 方法改写）",
+    "electron/vendor/vendorBaseFallback.ts runLadder / restorePrimaryIfHealthy（原 5 处）",
+    "electron/catalog/secrets.ts decryptApiKeyRecord / decryptCustomSecretValue（原 3 处，直接贴近密钥）",
+    "electron/crashLog.ts recordCrash / logBreadcrumb / logCrash"
+  ],
+  "invariants": [
+    "electron/ 下不存在任何 console.* 调用（赋值形态与注入页面脚本的模板串除外，判据是形状不是白名单）",
+    "落盘日志里不出现绝对路径、密钥形串、data: URI，也不出现调用方塞进禁用字段名的值",
+    "供应商调用只留 vendor/model/status/ms/cost/requestId 六字段，请求体与响应体没有参数位",
+    "profile 被 NOMI_ELECTRON_USER_DATA_DIR 显式重定向时，日志目录随之重定向",
+    "任何落盘失败都被吞掉，不得让写日志本身拖垮 app 或让崩溃处理器递归"
+  ],
+  "regression_tests": [
+    "electron/logging/redact.test.ts",
+    "electron/logging/logFiles.test.ts",
+    "electron/logging/logger.test.ts",
+    "electron/diagnostics/catalogRedaction.test.ts",
+    "electron/diagnostics/diagnosticsBundle.test.ts",
+    "scripts/check-main-console.node-test.mjs",
+    "tests/ux/diagnostics-bundle.walk.mjs"
+  ],
+  "residual_risks": [
+    "自写文件写手意味着 EACCES / 磁盘满 / Windows 文件锁这些边界归我们；缓解是所有写路径 try/catch 吞掉（丢一行日志可以接受，拖垮 app 不行），并有单测钉住滚动与保留期。",
+    "脱敏不试图识别「这是不是一段提示词」——提示词没有可匹配的特征。挡住它的是 API 形状（没有参数位）+ 字段名黑名单 + 单值 200 字符上限，不是内容检测。",
+    "渲染层 console 转发刻意只到 stderr、不落盘，所以渲染层的错误在装机版上仍然没有文件证据；那一档由 render-process-gone 与 Crashpad 覆盖。"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://github.com/megahertz/electron-log/blob/master/docs/transports/file.md",
+      "checked_at": "2026-09-06",
+      "purpose": "核实 electron-log v5 现役的滚动模型（只有 maxSize → .old.log）、resolvePathFn / archiveLogFn / hooks 的真实能力，作为 R20 build-vs-buy 不引入它的依据，而不是凭印象判断。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "只要调用点还能自行选择输出口，每写一处新的错误处理就可能再造一次同样的两个毛病：证据丢进 stdout、敏感值拼进串里。99 处存量本身就是这条机制反复发生了 99 次的证明。",
+    "same_class_scan": [
+      "全仓扫 electron/**/*.ts（排除 *.test.ts）：改前 99 处 console.* 调用分布在 35 个文件，已逐处改到 logger；改后 scripts/check-main-console.mjs 实扫结果为 0。",
+      "扫到两类非违规形态并按形状放过而不是加白名单：electron/capabilityCore/mcpStdioServer.ts 的 console.log = toErr 四处赋值（把第三方依赖输出从 JSON-RPC 的 stdout 赶到 stderr），electron/browser/core/browserViewBridges.ts 的五处 console.info（在模板串里，注入 BrowserView 页面执行）。",
+      "扫 app.getPath(\"logs\") 的全部使用点：只有 electron/logging/logFiles.ts:logsDir 一处，其余都经它取；因此 main.ts 的一次 setPath 即可覆盖整条道。"
+    ]
+  },
+  "generality_proof": "证据通路收敛成一条：调用点只能拿到 logInfo/logWarn/logError/logVendorCall/logDevDetail 五个出口，它们全部经 write() → redact → logFiles 的单一写手。要泄漏敏感值，调用方得先绕过类型（fields 只收标量、VendorCallSummary 只有六个字段），再绕过字段名黑名单与值形态脱敏；要丢失证据，得先绕过 check:main-console 的硬零。三层都在同一条路径上，新增调用者无法各走各的。",
+  "shared_boundaries": [
+    {
+      "path": "electron/logging/logger.ts",
+      "symbol": "logInfo / logWarn / logError / logVendorCall / logDevDetail",
+      "responsibility": "主进程诊断输出的唯一出口：限定调用方能传什么（scope + 短事件名 + 标量字段表），并保证每条都经脱敏后落到同一个写手。"
+    },
+    {
+      "path": "electron/logging/redact.ts",
+      "symbol": "redactField / redactLogValue / redactError",
+      "responsibility": "值层第二道网：字段名黑名单整段略掉，绝对路径 / URL query / 密钥形串 / data: URI / 超长值按形态替换，错误栈逐帧只留 file:line:col。"
+    },
+    {
+      "path": "electron/logging/logFiles.ts",
+      "symbol": "createLogFileSink / pruneExpiredLogs",
+      "responsibility": "仓库里唯一一份滚动落盘实现：同步 append、会话表头、大小上限滚动、按天文件名与保留期；崩溃道与通用道共用，杜绝第二套策略。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/crashLog.ts",
+      "entry_point": "recordCrash / logBreadcrumb",
+      "disposition": "enforced",
+      "evidence": "自有的 MAX_BYTES/append/sessionLine 实现已删除，改调 createLogFileSink（rotate: truncate，语义不变）；写入内容改走 redactError / redactLogValue，走查复跑后包里不再出现 /Users/ 路径。"
+    },
+    {
+      "path": "electron/ai/buildAiSdkModel.ts",
+      "entry_point": "buildProfiledFetch 的 vendor HTTP 失败分支",
+      "disposition": "enforced",
+      "evidence": "落盘的一条改成 logVendorCall 六字段摘要；会回显请求内容的上游响应体片段改走 logDevDetail（只喷 stderr、永不落盘），两条通路在同一处显式分开。"
+    },
+    {
+      "path": "electron/capabilityCore/mcpStdioServer.ts",
+      "entry_point": "console.log = toErr 四处赋值",
+      "disposition": "not-affected",
+      "evidence": "这是保护而非日志调用：stdout 是 JSON-RPC 通道，该赋值把第三方依赖的输出赶到 stderr。check-main-console 只认 console.x( 调用形态，赋值天然不匹配，并由 scripts/check-main-console.node-test.mjs 的用例钉住这条放过。"
+    },
+    {
+      "path": "electron/browser/core/browserViewBridges.ts",
+      "entry_point": "注入 BrowserView 页面脚本里的五处 console.info",
+      "disposition": "not-affected",
+      "evidence": "它们在模板串里，是页面代码不是主进程代码。门岗扫描前先把模板串内容抹成等高空白，node-test 里有专门用例证明这一族放过且行号不漂。"
+    }
+  ],
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "electron/logging/logger.ts",
+    "invariant": "主进程只有一个诊断输出口；electron/ 下新增任何 console.* 调用即为回归。",
+    "failure_mode": "pnpm run check:main-console 退出码 1，逐条打印 file:line 与违规文本，并指明该改用哪个出口；它在 gates:contracts 链里，push 前必跑。",
+    "exception_policy": "none",
+    "strategy": "把「往哪里写」从调用点的自由选择变成唯一出口，并用硬零门岗守住它不复长——存量已清到 0，留可上涨的棘轮数字等于邀请回归。",
+    "artifacts": [
+      "electron/logging/logger.ts",
+      "electron/logging/redact.ts",
+      "electron/logging/logFiles.ts",
+      "scripts/check-main-console.mjs",
+      "scripts/check-main-console.node-test.mjs"
+    ]
+  },
+  "class_regression_tests": [
+    "scripts/check-main-console.node-test.mjs",
+    "electron/logging/redact.test.ts",
+    "electron/logging/logger.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/crashLog.ts",
+      "electron/main.ts",
+      "electron/systemProxy.ts"
+    ],
+    "rationale": "crashLog.ts 自有的滚动落盘实现（MAX_BYTES 判定 + logFilePath + sessionLine + append）与那句 console.error 同 diff 删除，改用共享写手与 logger；main.ts 里 registerDevDiagnostics 整段搬走不留副本；systemProxy.ts 收口后失去唯一使用者的 LOG 前缀常量同 diff 删掉。全仓 console.* 调用清零，没有并行输出口。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "未新增运行时依赖。zip 用仓库既有的 fflate；electron-log 经 Context7 与官方文档实查后不引入，理由与代价写在 docs/plan/2026-09-06-logging-and-diagnostics-bundle.md §3。",
+    "exit_criteria": []
+  }
+}
