@@ -17,6 +17,7 @@ import { recordDetectedMcpClient } from './mcpDetectedClients'
 // 直接吃纯 locale 模块，不经 i18n.ts——后者顶层 `import { app } from 'electron'`，本 launcher 打包后跑在
 // 无 electron 的裸 Node 里，引 i18n 会 MODULE_NOT_FOUND。这条 electron-free 由 mcpLauncherClosure.test.ts 钉死。
 import { normalizeDesktopLocale, type DesktopLocale } from '../desktopLocale'
+import { readPersistedLocale } from '../settings/localePreference'
 import {
   instanceAdvertFileName,
   parseAdvert,
@@ -170,10 +171,18 @@ function startNomi(): void {
   })
 }
 
-// 结果/进度文案 locale：bare-Node launcher 没有 Electron 的 app.getLocale()，改读**同一份 OS locale**——
-// Intl.DateTimeFormat().resolvedOptions().locale 就是 Electron app.getLocale() 底下那个系统区域信号（同源、非
-// 凭空发明的通道），经 normalizeDesktopLocale 归成 en / zh-CN，取不到/异常时缺省 zh-CN。provider 可注入（单测）。
-export function resolveLauncherLocale(readSystemLocale: () => string = () => Intl.DateTimeFormat().resolvedOptions().locale): DesktopLocale {
+// 结果/进度文案 locale：bare-Node launcher 优先读 GUI 写入的 preferences.language；Nomi 未运行或偏好缺失时
+// 才读系统 locale。provider 可注入（单测），并保留 zh-CN 作为无信号兜底。
+export function resolveLauncherLocale(
+  readSystemLocale: () => string = () => Intl.DateTimeFormat().resolvedOptions().locale,
+  readPreference: () => DesktopLocale | null = () => readPersistedLocale(),
+): DesktopLocale {
+  try {
+    const preferred = readPreference()
+    if (preferred) return preferred
+  } catch {
+    // A corrupt/unavailable preference must not prevent the OS fallback.
+  }
   try {
     return normalizeDesktopLocale(readSystemLocale())
   } catch {
@@ -259,8 +268,18 @@ async function callViaRpc(
   return body.result
 }
 
-// OS locale 解析一次（进程生命周期内 UI 语言不变，同 mcpStdioServer 的 setDesktopLocale(app.getLocale())）。
-const launcherLocale = resolveLauncherLocale()
+// 首次无 GUI 时从持久化偏好解析；在线请求会通过 loopback RPC 刷新，避免用户切语言后旧缓存继续生效。
+let launcherLocale = resolveLauncherLocale()
+async function refreshLauncherLocale(instance: InstanceAdvertisement): Promise<void> {
+  try {
+    const result = await callViaRpc(instance, 'nomi_get_locale', {})
+    if (result && typeof result === 'object' && typeof (result as { locale?: unknown }).locale === 'string') {
+      launcherLocale = normalizeDesktopLocale((result as { locale: string }).locale)
+    }
+  } catch {
+    // Offline or older GUI: keep persisted/system resolution.
+  }
+}
 let connection: McpConnectionContext | null = null
 // Mint lazily but at most once for this stdio transport. Lazy construction
 // keeps pure helper imports side-effect free; the first real RPC still fails
@@ -277,7 +296,9 @@ const protocol = createMcpProtocol({
   send: (message) => process.stdout.write(`${JSON.stringify(message)}\n`),
   invoke: async (method, params, options) => {
     const requestSignal = (params as Record<PropertyKey, unknown>)[MCP_REQUEST_SIGNAL] as AbortSignal | undefined
-    return callViaRpc(await ensureLiveInstance(requestSignal), method, params, requestSignal ? { ...options, signal: requestSignal } : options)
+    const instance = await ensureLiveInstance(requestSignal)
+    await refreshLauncherLocale(instance)
+    return callViaRpc(instance, method, params, requestSignal ? { ...options, signal: requestSignal } : options)
   },
   isAppOpen: () => Boolean(readLiveInstance()),
   getAuthenticatedClient: () => launcherConnection().authenticatedClient,

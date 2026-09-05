@@ -45,7 +45,7 @@ import { isMcpEditingMethod } from './mcpCapabilityProjection'
 import type { ProjectBinding } from '../shared/projectBinding'
 import type { ProjectAgentProposalReceiptService } from '../projectAgentHost/projectAgentProposalReceiptStore'
 import { executeMcpDocumentWriteWithReceipt } from './mcpDocumentWriteReceipt'
-import type { DispatchContext } from './dispatcher'
+import { getDesktopLocale } from '../desktopLocale'
 
 export type RpcServerOptions = {
   /** 真实生成入口（runtime.runTask）。注入式：headless host 与 app 各自传同一份。 */
@@ -78,7 +78,7 @@ export type RpcServerOptions = {
   /** Main-owned durable proposal receipt service resolved only after a verified project lease. */
   proposalReceiptFor?: (binding: ProjectBinding) => ProjectAgentProposalReceiptService | undefined | Promise<ProjectAgentProposalReceiptService | undefined>
   /** After a durable credential handoff is queued, focus/show the GUI and open model settings. */
-  openCredentialsInNomi?: DispatchContext['openCredentialsInNomi']
+  openCredentialsInNomi?: import('./dispatcher').DispatchContext['openCredentialsInNomi']
 }
 
 function readBody(req: http.IncomingMessage): Promise<string> {
@@ -209,6 +209,11 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
           if (typeof options.verifyClientGenerationGateInMain !== 'function') throw new RpcError('Client generation verification is unavailable', 501)
           const result = await options.verifyClientGenerationGateInMain({ challengeToken, authenticatedClient })
           send(200, { ok: true, result })
+          return
+        }
+        if (method === 'nomi_get_locale') {
+          if (origin === 'external' || origin === 'nomi') throw new RpcError('Registered MCP client proof is required', 403)
+          send(200, { ok: true, result: { locale: getDesktopLocale() } })
           return
         }
         if (isCanvasRead) {

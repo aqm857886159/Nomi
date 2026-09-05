@@ -101,6 +101,7 @@ describe('capabilityCore/mcpConfig', () => {
     expect(after.mcpServers.nomi.env.NOMI_MCP_STDIO).toBe('1')
     expect(after.mcpServers.nomi.env.NOMI_MCP_APP_COMMAND).toBe(process.execPath)
     expect(JSON.parse(after.mcpServers.nomi.env.NOMI_MCP_APP_ARGS)).toEqual(['/fake/repo'])
+    expect(after.mcpServers.nomi.env.NOMI_SETTINGS_DIR).toBe(homeDir)
     expect(after.mcpServers.nomi.env[MCP_CONFIG_VERSION_ENV]).toBe(MCP_CONFIG_VERSION)
     expect(after.mcpServers.nomi.env[MCP_CONFIG_KIND_ENV]).toBe('development')
     expect(after.mcpServers.nomi.env[MCP_CLIENT_ENV]).toBe('claude')

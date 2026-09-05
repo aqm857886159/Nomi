@@ -89,6 +89,7 @@
 - [grep 静默跳过含 NUL 字节的文件](grep-silently-skips-files-with-nul-bytes.md) — 搜不到已知存在的符号时先 `file` / `grep -a`
 - [查重别按报错串 grep](dedupe-grep-misses-silent-copy.md) — 不抛异常的那份正好隐身，而它才是真 bug
 - [死 i18n 词条有两种成因，处置相反](dead-i18n-keys-two-causes.md) — 删之前先做「译文值 × 源码硬编码」交叉比对
+- [Tailwind 只扫 `.tsx` 时，住进 `.ts` 的类名会静默消失](tailwind-content-ts-classnames-silently-dropped.md) — 「类名写着却没生效」先查它在不在生成的 CSS 里；已由 `content` 加 `./src/**/*.ts` + 哨兵单测固化，附全仓 4 处失效盘点
 - [Electron 被 macOS 误报恶意软件的修法](electron-xprotect-false-positive-resign.md) — 重下 + ad-hoc 重签换 cdhash；摘 quarantine 没用
 - [Windows 改保存名闪退：根因已修、平台未验](sogou-save-dialog-crash-pending-win32-verify.md) — 再遇先要崩溃日志尾行和 minidump，别重猜
 - [MCP 侧改动必须重新打包 app 才看得到](mcp-fixes-need-repackaged-app.md) — MCP server 就是 app 二进制
