@@ -5,7 +5,7 @@
 // 或修改 extract-design-spec.mjs 的 CLASS_TO_ANCHOR 映射表。
 //
 // 样张：docs/design/mockups/2026-09-01-agent-ui-final-redesign.html
-// 样张 hash：ddbf0c2d345f1368（hash 不变代表样张未改，规格仍有效）
+// 样张 hash：7c2327c620d7c09f（hash 不变代表样张未改，规格仍有效）
 //
 // 这份契约与意图层（*.intent.mjs）**平行但不重叠**：
 //   · 自动层（本文件）：挂点全不全、几何有没有跑偏（从样张渲染量出的真实像素）。
