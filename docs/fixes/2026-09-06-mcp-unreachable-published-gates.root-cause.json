@@ -1,0 +1,140 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-06-mcp-unreachable-published-gates",
+  "problem_type": "已公开的 MCP 工具，被一道没有任何代码路径能满足的门挡死",
+  "symptom": "外部 MCP 宿主（真 Claude Code CLI 2.1.261 / Codex CLI 0.153.4 实测）可以看到 nomi_timeline_edit、nomi_layout_read、nomi_layout_write 出现在 tools/list 里，schema 完整，nomi_timeline_edit 的 preview 还能返回正确的 diff——然后 apply 一律撞 `Project lease scope is insufficient`，layout 两个工具则任何调用都撞同一句。同时，接模型要密钥时 Codex 自动拒掉 URL 模式 elicitation 而 Nomi 报「安全页被取消或超时」，把一个用户从没见过的页面算到用户头上，并且以 tool error 收场、agent 没有下一步；而那句兜底文案指向的「设置 → 模型 → 添加连接」在 UI 里根本不存在。",
+  "direct_cause": "三处各自成立、合起来不可达：① `electron/capabilityCore/projectSessionAuthority.ts` 的 `deriveProjectSessionScopes` 从不发放 `timeline:write` / `layout:read` / `layout:write`，而 `electron/capabilityCore/mcpCapabilityProjection.ts` 的三个 adapter 把它们声明为 `authority.requiredScope`；② `electron/capabilityCore/rpcServer.ts:273` 要求 timeline.write 的 apply/undo 必须带 `planConfirmed: true`，而协议层只在 `mcpProtocol.ts:550`（canvas.write / create_canvas_nodes）铸这个标志，timeline 没有任何签发点；③ `electron/capabilityCore/mcpCredentialElicitation.ts` 把客户端的 `decline` 一律当成真人取消，抛成 tool error，且兜底文案抄了一个 UI 里不存在的按钮名。",
+  "class_root": "一条对外公开的能力，它的**声明面**和它的**放行面**由两处分别手工维护，谁都不知道对方写了什么。声明面（tools/list 的 schema、adapter 的 requiredScope）说「这个工具存在、需要 X」，放行面（scope 发放、confirm 标志的签发点）决定 X 到底能不能出现。两边各自看都完全正确，只有把它们对起来才看得出这个工具结构上不存在——而进程内没有任何东西会去对。MCP 面上这一族是致命的而非瑕疵：宿主看到的就是全部可用面，一个发不出来的 scope 等于这个工具不存在，而用户得到的是一句没有下一步的权限错误。同一族的第三种形态是**把客户端的机器回答当成人的意图**（`decline` ≠ 有人拒绝）以及**兜底路径指向不存在的 UI**——都是「我方以为对面能做到 / 用户能照做」，从没验过。",
+  "migration": "旧的不可达状态没有留下任何并行实现：三个 scope 直接补进同一个 `deriveProjectSessionScopes` 集合（不是新开一条授权路径），timeline 的真人确认走新的 `mcpTimelineConfirmation.ts` 并复用既有的 `elicitBooleanConfirm` / `planConfirmed` 通道（不是新协议），credential 的 decline 分支从 `{kind:'error'}` 改为既有的 manual 兜底结果形状（不是新字段族，只多一个 `reason`）。没有 feature flag、没有回退开关。",
+  "affected_population": [
+    "每一个把 Nomi 接进 Claude Code / Codex / Cursor 的用户：nomi_timeline_edit 只能预览、永远应用不了，nomi_layout_read / nomi_layout_write 完全不可用——三个工具在工具列表里占着位置",
+    "每一个在 Codex 里让 Nomi 接新模型的用户：URL 模式被客户端自动拒，收到的是「安全页被取消或超时」这句怪到自己头上的错误，且流程以 tool error 中断",
+    "每一个在 Claude Code 里接模型的用户：正确地走到手动兜底，但兜底文案指着一个 UI 里没有的按钮名",
+    "每一个配置还指着已删除的 scripts/nomi-mcp.mjs 入口的用户：宿主只显示 CONNECTION_CLOSED，而自动修复只在有人主动打开「模型接入」面板时才发生"
+  ],
+  "scope_paths": [
+    "electron/capabilityCore/projectSessionAuthority.ts",
+    "electron/capabilityCore/mcpCapabilityProjection.ts",
+    "electron/capabilityCore/mcpProtocol.ts",
+    "electron/capabilityCore/mcpTimelineConfirmation.ts",
+    "electron/capabilityCore/mcpTimelineConfirmation.test.ts",
+    "electron/capabilityCore/mcpCredentialElicitation.ts",
+    "electron/capabilityCore/mcpCredentialElicitation.test.ts",
+    "electron/capabilityCore/mcpConfig.ts",
+    "electron/capabilityCore/mcpConfig.test.ts",
+    "electron/capabilityCore/appIntegration.ts",
+    "electron/capabilityCore/rpcServer.ts",
+    "scripts/check-mcp-scope-reachable.mjs",
+    "docs/qa/2026-09-06-agent-mcp-restart-real-user-pass.md",
+    "docs/qa/evidence/2026-09-06-mcp-real-host/",
+    "docs/fixes/2026-09-06-mcp-unreachable-published-gates.root-cause.json"
+  ],
+  "entry_points": [
+    "electron/capabilityCore/mcpCapabilityProjection.ts TIMELINE_EDIT_MCP_ADAPTER.authority.requiredScope = 'timeline:write'",
+    "electron/capabilityCore/mcpCapabilityProjection.ts LAYOUT_READ_MCP_ADAPTER.authority.requiredScope = 'layout:read'",
+    "electron/capabilityCore/mcpCapabilityProjection.ts LAYOUT_WRITE_MCP_ADAPTER.authority.requiredScope = 'layout:write'",
+    "electron/capabilityCore/projectSessionAuthority.ts deriveProjectSessionScopes",
+    "electron/capabilityCore/rpcServer.ts 的 timeline.write apply/undo planConfirmed 校验",
+    "electron/capabilityCore/mcpCredentialElicitation.ts runIntegrationCredentialElicitation 的 asked.action 分支",
+    "electron/capabilityCore/mcpConfig.ts clientInfo 里的自动迁移（原本只由 readMcpInfo 触发）"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation",
+      "checked_at": "2026-09-06",
+      "purpose": "核实：空的 `elicitation: {}` 表示只支持 form 模式，url 模式必须显式声明 `url` 成员，服务端不得发送客户端未声明的模式；以及 `action: accept` 只表示同意打开、不表示交互已完成。据此判定 Claude Code 走手动兜底是规范正确行为，而不是 Nomi 的缺陷。"
+    }
+  ],
+  "invariants": [
+    "任何在 tools/list 里公开、且 authority.kind === 'project_session' 的 MCP 工具，它声明的 requiredScope 必须真的能被 deriveProjectSessionScopes 发放；故意不发的必须逐条登记并写清理由。",
+    "任何要求某个确认标志才放行的写操作，都必须存在至少一个真实的签发点，且该签发点只在真人 accept 之后铸造。",
+    "客户端返回的 decline/cancel 只能被当作「没有拿到同意」，不得被表述成「用户取消了」；这类结果必须给出可执行的下一步，而不是终止式错误。",
+    "任何指向应用内 UI 的兜底文案，指的必须是界面上真实存在的标签。",
+    "Nomi 自己写过的宿主配置一旦过期，修复必须在能力核启动时发生，而不是等某个面板被渲染。"
+  ],
+  "regression_tests": [
+    "electron/capabilityCore/mcpTimelineConfirmation.test.ts",
+    "electron/capabilityCore/mcpCredentialElicitation.test.ts",
+    "electron/capabilityCore/mcpConfig.test.ts"
+  ],
+  "residual_risks": [
+    "「真人在真宿主上点同意 → 时间轴改动落地 → 收据」这一段没有在真宿主上验过：`claude -p` 非交互模式下客户端一律回 cancel（trace 见 docs/qa/evidence/2026-09-06-mcp-real-host/claude-code-launcher-after-fix.jsonl）。accept 分支由 mcpTimelineConfirmation.test.ts 钉死，真机交互确认待补。",
+    "外部宿主仍然只能改「GUI 里正打开的那个项目」：src/workbench/timeline/agent/exportToolCall.ts:73 与 timelineCapabilityTarget.ts:221,318 读 getDesktopActiveProjectId() 而不是 lease 的 projectId。该文件族本轮由另一条并行任务持有，未改动，已在 QA 文档 §2.5 按 file:line 交出。",
+    "Codex 自动拒 URL 模式是客户端行为（openai/codex#11816），Nomi 侧只能诚实兜底，无法从服务端修好。"
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "这一族在本仓已经至少发生三次：2026-09-03 客户端确认面在生产里整条不可达（两个签发点无条件要求一种没有任何实现能提供的凭证），2026-09-05 广播 schema 手写成 Zod 校验器的超集导致 7 个已公开操作无法构造（docs/fixes/2026-09-05-mcp-host-holes.root-cause.json），本次是同一机制的第三次：声明面与放行面各自手工维护。每新增一个能力面、每改一次授权集合，它都会再有一次机会发生，而且从进程内部完全看不出来。",
+    "same_class_scan": [
+      "扫了 mcpCapabilityProjection.ts 里全部 11 个 authority.kind === 'project_session' 的 adapter，逐个比对 deriveProjectSessionScopes 的返回：timeline:write / layout:read / layout:write 三个不可达（timeline 是走查抓到的，两个 layout 是写门岗时才暴露出来的），其余 8 个可达。这个比对现在由 check:mcp-scope-reachable 每次 Contracts 全量重跑。",
+      "扫了 rpcServer.ts 里全部三个确认标志（planConfirmed / documentConfirmed / spendConfirmed）各自的签发点：documentConfirmed 由 mcpDocumentConfirmation.ts 签发（可达）、spendConfirmed 走付费门（可达）、planConfirmed 原本只有 canvas 一个签发点而被两处消费（timeline 侧不可达），已补 mcpTimelineConfirmation.ts。",
+      "扫了 mcpCredentialElicitation.ts 全部四个出口分支（无 ticket / 不支持 / 非 accept / 轮询超时）：只有「非 accept」把客户端的机器回答当成人的意图，其余三个措辞与事实一致。",
+      "扫了全仓 `添加连接` / `Add connection` 的出现处：只有 mcpCredentialElicitation.ts 这一处，且 UI 侧真实标签是 modelSetup.addModel；无第二处同类漂移。"
+    ]
+  },
+  "generality_proof": "把「声明面 ↔ 放行面」的比对从人的记忆搬进一道每次 Contracts 都跑的门岗：check:mcp-scope-reachable 两侧都从代码真相源读（adapter 的 authority.requiredScope、deriveProjectSessionScopes 的返回），不手抄任何名单，也不写死工具个数——因此新增任何一个 project_session 工具、或从授权集合里删掉任何一个 scope，都会立刻红。它同时 fail-closed：读到 0 个 adapter 就直接红，导入坏掉不许读成通过。已实测：把三个 scope 撤回原状后门岗精确点名三个工具并 exit 1，补回即绿。",
+  "shared_boundaries": [
+    {
+      "path": "electron/capabilityCore/projectSessionAuthority.ts",
+      "symbol": "deriveProjectSessionScopes",
+      "responsibility": "一个 bootstrap 会话到底被授予哪些 scope 的唯一真相源；任何 project_session adapter 声明的 requiredScope 都必须在这里能被发出来。"
+    },
+    {
+      "path": "scripts/check-mcp-scope-reachable.mjs",
+      "symbol": "check:mcp-scope-reachable",
+      "responsibility": "把声明面与放行面的差集钉成 0：公开的工具要的 scope 发不出来就红，故意不发的必须登记理由。"
+    },
+    {
+      "path": "electron/capabilityCore/mcpTimelineConfirmation.ts",
+      "symbol": "handleTimelineEditConfirmation",
+      "responsibility": "timeline.write apply/undo 的唯一真人确认签发点：只有 accept 才铸 planConfirmed，客户端问不了人时给出人话出路而不是无人能满足的权限错误。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/capabilityCore/mcpCapabilityProjection.ts",
+      "entry_point": "TIMELINE_EDIT_MCP_ADAPTER / LAYOUT_READ_MCP_ADAPTER / LAYOUT_WRITE_MCP_ADAPTER",
+      "disposition": "enforced",
+      "evidence": "三者的 requiredScope 原本都发不出来；补进 deriveProjectSessionScopes 后 check:mcp-scope-reachable 报「11 个 project_session 工具要的 scope 全部发得出来」，撤回任一即精确报红（已实测 exit 1）。"
+    },
+    {
+      "path": "electron/capabilityCore/rpcServer.ts",
+      "entry_point": "document.write 的 documentConfirmed 校验",
+      "disposition": "not-affected",
+      "evidence": "逐条核查：该标志由 mcpDocumentConfirmation.ts handleDocumentEditConfirmation 在真人 accept 后签发（mcpProtocol.ts 的 nomi_document_edit 分支），签发点存在且可达，与 timeline 的空签发点不同。"
+    },
+    {
+      "path": "electron/capabilityCore/mcpConfig.ts",
+      "entry_point": "clientInfo 的 shouldAutoMigrate 分支",
+      "disposition": "enforced",
+      "evidence": "同一族的「修复存在但触发不到」：原本只在渲染模型接入面板时发生，现由 appIntegration.startCapabilityCore 在能力核启动时调 repairStaleMcpConfigs 触发；mcpConfig.test.ts 三条断言覆盖「陈旧条目被修好且幂等」「非 Nomi 写的条目不碰」「走查态不碰真实家目录」。"
+    }
+  ],
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/check-mcp-scope-reachable.mjs",
+    "invariant": "每个 authority.kind === 'project_session' 的 MCP adapter 声明的 requiredScope，都必须出现在 deriveProjectSessionScopes 在生成能力全开时的返回里，或被登记为故意不发并附理由。",
+    "failure_mode": "非零退出，逐个点名工具导出名、能力 id 与那个发不出来的 scope，并给出两条互斥的出路（发放它，或登记为故意不发）。读到 0 个 project_session adapter 同样红，导入坏掉不许读成通过。",
+    "exception_policy": "none",
+    "strategy": "把只存在于人脑里的「声明面与放行面要对得上」变成每次 Contracts 都跑的机器判据，两侧都从代码真相源读，不手抄名单也不写死个数。",
+    "artifacts": [
+      "scripts/check-mcp-scope-reachable.mjs",
+      "package.json",
+      "electron/capabilityCore/projectSessionAuthority.ts"
+    ]
+  },
+  "class_regression_tests": [
+    "electron/capabilityCore/mcpConfig.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "本次修的是「原本什么都到不了」，不是「新旧两套并存」：三个 scope 补进同一个既有集合，timeline 确认复用既有的 elicitBooleanConfirm / planConfirmed 通道，credential 的 decline 改走既有的 manual 结果形状。没有旧实现被留下，也没有新增并行路径或开关。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "没有涉及任何依赖的升级或保留决策；MCP 协议版本（2025-11-25）与客户端版本都是被观测对象，不是本仓依赖。",
+    "exit_criteria": []
+  }
+}
