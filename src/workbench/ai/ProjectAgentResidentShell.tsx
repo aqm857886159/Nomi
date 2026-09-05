@@ -65,22 +65,11 @@ import { GenerationProposalEditor } from './resident/GenerationProposalEditor'
 import ReconcileDeviationCard from '../generationCanvas/components/ReconcileDeviationCard'
 import { buildContentFixMessage, useShotVerifyStore } from '../generationCanvas/agent/shotVerifyStore'
 import { isEmptyStoryboardPlan } from '../generationCanvas/agent/storyboardPlan'
-import { friendlyError, interventionDetails, isActiveQueueStatus, statusLabel, surfaceLabel, type ResidentSurface } from './resident/residentShellDisplay'
+import { friendlyError, interventionDetails, isActiveQueueStatus, residentItemClassName, statusLabel, surfaceLabel, type ResidentSurface } from './resident/residentShellDisplay'
 
 const isDocumentSurface = (surface: ResidentSurface): boolean => surface === 'creation' || surface === 'storyboard'
 type PendingTool = { call: ToolCallEvent; bindingKey: string; state: ResidentApprovalState }
 
-/**
- * 每一条消息挂什么样式。它**必须**留在这个 .tsx 里：tailwind.config.ts 的 content 只扫
- * src 目录下的 .tsx，类名字符串搬进 .ts 就不再被生成，且是静默的（见 residentShellDisplay.ts 顶部）。
- */
-function residentItemClassName(item: ProjectAgentItem, declined: boolean): string {
-  if (item.kind === 'user') return 'ml-auto min-h-[52px] max-w-[86%] text-caption text-nomi-paper'
-  if (item.kind === 'assistant') return 'max-w-full px-1 text-caption leading-5'
-  const ownsCard = (item.kind === 'failure' && !declined) || (item.kind === 'artifact' && (item.status === 'running' || item.status === 'failed'))
-  if (ownsCard) return 'max-w-full'
-  return cn('rounded-nomi-sm border px-2.5 py-1.5 text-caption', declined ? 'border-nomi-line-soft bg-nomi-ink-05' : 'border-nomi-line-soft bg-nomi-paper')
-}
 type MenuId = 'attachments' | 'references' | 'skills' | 'prompts' | 'modes' | 'policy' | 'models' | null
 
 const residentPendingTools = new Map<string, PendingTool>()
