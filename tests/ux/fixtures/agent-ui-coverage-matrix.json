@@ -114,19 +114,25 @@
       "state": "pinned-expanded"
     },
     "data-agent-topbar-badge": {
-      "status": "missing-runtime-anchor",
+      "status": "runtime-present-unmeasured",
       "specRefs": [
         "C-03"
       ],
-      "source": null,
+      "source": {
+        "path": "src/ui/app-shell/CollapsedAiChip.tsx",
+        "selector": "data-agent-topbar-badge"
+      },
       "state": "deconstruction-active"
     },
     "data-agent-badge-dot": {
-      "status": "missing-runtime-anchor",
+      "status": "runtime-present-unmeasured",
       "specRefs": [
         "C-03"
       ],
-      "source": null,
+      "source": {
+        "path": "src/ui/app-shell/CollapsedAiChip.tsx",
+        "selector": "data-agent-badge-dot"
+      },
       "state": "agent-update-while-away"
     },
     "data-decon-node-stub": {
