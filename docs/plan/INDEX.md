@@ -161,6 +161,7 @@
 | [2026-08-27-unified-tool-surface.md](2026-08-27-unified-tool-surface.md) | **内外工具面统一**：对外 22 个 `nomi_*` vs 内嵌 17 个，6 处同事两名、确认面两套——违反 master plan「不造第二套」北极星；三方案待拍板 | 📋 |
 | [2026-08-30-agent-canvas-interaction-expansion.md](2026-08-30-agent-canvas-interaction-expansion.md) | #194 补全画布引用、多媒体、双轴模式与结果回画布（方案与样张完成，待生产实现） | ✅ |
 | [2026-09-06-opt-in-frequency-telemetry.md](2026-09-06-opt-in-frequency-telemetry.md) | T-01/T-02 opt-in 频率遥测：默认关闭、事件白名单、本地可见可删，与 autoUpdater 解耦 | 📋 |
+| [2026-09-06-mcp-key-window-front-and-host-config-toast.md](2026-09-06-mcp-key-window-front-and-host-config-toast.md) | MCP 凭据请求自动前台打开模型接入页，宿主配置修复后提示重启 | ✅ |
 
 ## 时间轴 / 预览 / 导出
 

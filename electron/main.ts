@@ -182,15 +182,11 @@ async function startDesktopCapabilityCore(): Promise<void> {
       canvasReadExecutionRuntime: desktopCanvasReadExecutionRuntime,
       onGenerationReady: (factory) => getInstalledProductionProjectAgentHost()?.setGenerationAdapterFactory(factory),
       proposalReceiptFor: createDesktopProposalReceiptResolver(),
-      onMcpConfigRepaired: async ({ clients }) => {
-        if (!clients.includes('claude')) return
-        try { await requestRenderer('host-config.repaired', {}, 30_000) } catch { /* renderer may still be settling; startup repair remains complete */ }
-      },
+      onMcpConfigRepaired: async ({ clients }) => clients.includes('claude') ? requestRenderer('host-config.repaired', {}, 30_000).catch(() => {}) : undefined,
     },
   );
   capabilityPortCache = core.getCapabilityPort();
 }
-
 function stopDesktopCapabilityCore(): void {
   capabilityCoreModule?.stopCapabilityCore();
   capabilityPortCache = null;

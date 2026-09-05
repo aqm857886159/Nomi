@@ -47,7 +47,7 @@ describe("MCP integration tool contract", () => {
     }, {
       integrationSessions: sessions,
       origin: { host: 'claude' },
-      openCredentialsInNomi: async ({ sessionId, vendorName }) => {
+      openCredentialsInNomi: async ({ sessionId, vendorName }: { sessionId: string; vendorName: string }) => {
         order.push(`${sessionId}:${vendorName}:${sessions.get(sessionId, 'claude').stage}`)
         return { opened: true }
       },

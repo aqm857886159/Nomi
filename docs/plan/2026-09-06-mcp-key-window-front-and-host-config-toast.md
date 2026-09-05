@@ -1,5 +1,7 @@
 # MCP 凭据前台导航与宿主配置修复提示
 
+> ✅ 已交付
+
 ## 范围
 
 - `integration.open_credentials` 在 GUI RPC 进程中完成持久 handoff 入队后，聚焦/显示主窗口并让渲染层打开模型设置工作区；URL elicitation 判定保持现有协议规则。

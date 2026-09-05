@@ -739,7 +739,6 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
       )
     }
     case 'integration.open_credentials': {
-      // 先把 durable handoff 落盘，再通知 GUI 消费它；这样设置页打开时不会错过队列事件。
       const opened = (ctx.integrationSessions || getIntegrationSessionService()).openCredentials(
         params.sessionId,
         params.expectedRevision,
