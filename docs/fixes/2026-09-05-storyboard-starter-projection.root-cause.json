@@ -18,6 +18,8 @@
     "src/workbench/creation/storyboard/StoryboardPlanCard.tsx",
     "src/workbench/project/workbenchProjectSession.ts",
     "src/workbench/project/workbenchProjectSession.persistence.test.ts",
+    "src/workbench/project/projectNormalize.ts",
+    "src/workbench/project/projectNormalize.test.ts",
     "docs/fixes/2026-09-05-storyboard-starter-projection.root-cause.json"
   ],
   "entry_points": [
@@ -53,6 +55,11 @@
       "path": "src/workbench/project/workbenchProjectSession.ts",
       "symbol": "readCurrentWorkbenchProjectPayload",
       "responsibility": "Persist the document-keyed storyboard projection and derive the deprecated single-plan fields for older consumers without introducing a second write source."
+    },
+    {
+      "path": "src/workbench/project/projectNormalize.ts",
+      "symbol": "normalizePayload",
+      "responsibility": "Preserve the active document's deprecated single-plan alias while rebuilding payload fields, so save/restart cannot silently drop the compatibility projection."
     }
   ],
   "same_class_entry_points": [
@@ -85,6 +92,12 @@
       "entry_point": "readCurrentWorkbenchProjectPayload storyboard serialization",
       "disposition": "enforced",
       "evidence": "The active document entry is the only source for the deprecated storyboardPlan alias, so legacy readers observe the same authored plan as storyboardPlans without adding a competing mutation path."
+    },
+    {
+      "path": "src/workbench/project/projectNormalize.ts",
+      "entry_point": "normalizePayload storyboard field rebuild",
+      "disposition": "enforced",
+      "evidence": "The normalizer now derives the same deprecated alias after resolving activeDocumentId and storyboardPlans; field rebuilding no longer strips it between renderer state and the persisted project record."
     }
   ],
   "recurrence": {
@@ -107,18 +120,21 @@
       "src/workbench/workbenchDocumentSlice.ts",
       "src/workbench/creation/storyboard/storyboardPlanLifecycle.test.ts",
       "src/workbench/creation/CreationWorkspace.structure.test.ts",
-      "src/workbench/project/workbenchProjectSession.persistence.test.ts"
+      "src/workbench/project/workbenchProjectSession.persistence.test.ts",
+      "src/workbench/project/projectNormalize.test.ts"
     ]
   },
   "regression_tests": [
     "src/workbench/creation/storyboard/storyboardPlanLifecycle.test.ts",
     "src/workbench/creation/CreationWorkspace.structure.test.ts",
-    "src/workbench/project/workbenchProjectSession.persistence.test.ts"
+    "src/workbench/project/workbenchProjectSession.persistence.test.ts",
+    "src/workbench/project/projectNormalize.test.ts"
   ],
   "class_regression_tests": [
     "src/workbench/creation/storyboard/storyboardPlanLifecycle.test.ts",
     "src/workbench/creation/CreationWorkspace.structure.test.ts",
-    "src/workbench/project/workbenchProjectSession.persistence.test.ts"
+    "src/workbench/project/workbenchProjectSession.persistence.test.ts",
+    "src/workbench/project/projectNormalize.test.ts"
   ],
   "legacy_paths": {
     "status": "not-applicable",

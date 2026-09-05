@@ -103,6 +103,7 @@ export function normalizePayload(input: unknown): WorkbenchProjectPayload {
     : payload.storyboardPlan
       ? { [activeDocumentId]: { plan: payload.storyboardPlan, committed: payload.storyboardPlanCommitted ?? false } }
       : {}
+  const activeStoryboardEntry = storyboardPlans[activeDocumentId]
   return {
     workbenchDocuments: normalizedDocuments,
     activeDocumentId,
@@ -111,6 +112,17 @@ export function normalizePayload(input: unknown): WorkbenchProjectPayload {
     categories: normalizeCategories(payload.categories),
     generationCanvasLastSeq: payload.generationCanvasLastSeq,
     storyboardPlans,
+    // Keep the deprecated single-plan fields as a read-side compatibility
+    // projection. `storyboardPlans` remains the canonical document-keyed
+    // source; this derived alias must survive the field-rebuilding normalizer
+    // so older project consumers observe the same active plan after save and
+    // restart.
+    ...(activeStoryboardEntry
+      ? {
+          storyboardPlan: activeStoryboardEntry.plan,
+          storyboardPlanCommitted: activeStoryboardEntry.committed,
+        }
+      : {}),
     ...(payload.storyboardDesignsByDocumentId
       && Object.values(payload.storyboardDesignsByDocumentId).some((designs) => designs.length > 0)
       ? { storyboardDesignsByDocumentId: payload.storyboardDesignsByDocumentId }
