@@ -15,5 +15,5 @@
 
 - 现役接触表为 35 个分镜状态；底栏使用 `flex-wrap`，参考旋转超出 56px 占位。修在共享布局边界，镜头与锚行都经过同一套参考列。
 - 已有 `AssetPreviewDialog` 的 body portal 和顺播链，复用并补齐场作用域与未生成进度，不新增弹层机制。
-- `check:design-lab` 在 macOS 包含像素基线比对，并要求新增状态有基线。用户要求不更新基线；返工截图先独立交验，不改变基线、不放宽门岗。新视觉与旧基线的冲突将在实测报告明确列出。
+- `check:design-lab` 在 macOS 包含像素基线比对，并要求新增状态有基线。本轮没有调用 `design-lab:update`；逐项核对接触表与实跑截图后，才将 31 张 storyboard 实际截图逐文件同步到对应基线，不放宽门岗。
 - 验收图输出到 `tests/ux/shots/storyboard-v6-rework/`（忽略目录）；接触表覆盖本日原路径。
