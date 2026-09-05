@@ -34,6 +34,7 @@ vi.mock('../generationCanvas/events/canvasEventEmitter', () => ({
 vi.mock('../generationCanvas/agent/shotVerifyStore', () => ({ useShotVerifyStore: { getState: () => ({ activateProject: vi.fn() }) } }))
 
 import {
+  readCurrentWorkbenchProjectPayload,
   persistActiveWorkbenchProjectNow,
   subscribeWorkbenchProjectPersistence,
   waitForActiveWorkbenchProjectSaveTarget,
@@ -95,5 +96,22 @@ describe('canonical persistence barrier suppresses stale debounce writes', () =>
     const pending = waitForActiveWorkbenchProjectSaveTarget('project-a')
     clearActiveWorkbenchProjectSaveTarget()
     await expect(pending).resolves.toBe(false)
+  })
+})
+
+describe('storyboard persistence compatibility projection', () => {
+  it('derives deprecated single-plan fields from the active document map', () => {
+    const plan = { title: 'F镜头', anchors: [], shots: [] }
+    deps.workbenchState.activeDocumentId = 'doc-a'
+    deps.workbenchState.storyboardPlans = {
+      'doc-a': { plan, committed: false },
+      'doc-b': { plan: { ...plan, title: '另一个方案' }, committed: true },
+    }
+
+    const payload = readCurrentWorkbenchProjectPayload()
+
+    expect(payload.storyboardPlans?.['doc-a']?.plan).toEqual(plan)
+    expect(payload.storyboardPlan).toEqual(plan)
+    expect(payload.storyboardPlanCommitted).toBe(false)
   })
 })

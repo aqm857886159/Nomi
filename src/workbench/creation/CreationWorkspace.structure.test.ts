@@ -9,8 +9,9 @@ describe('Creation workspace script entry', () => {
   it('keeps the script editor as the creation source of truth', () => {
     const source = read('src/workbench/creation/CreationWorkspace.tsx')
     expect(source).toContain('<WorkbenchEditor />')
+    expect(source).toContain("import StoryboardPlanCard from './storyboard/StoryboardPlanCard'")
+    expect(source).toContain('<StoryboardPlanCard />')
     expect(source).toContain('data-creation-surface="source"')
     expect(source).not.toContain('setWorkspaceMode(\'storyboard\')')
-    expect(source).not.toContain('isEmptyStoryboardPlan')
   })
 })

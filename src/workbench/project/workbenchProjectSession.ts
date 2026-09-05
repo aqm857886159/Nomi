@@ -10,6 +10,9 @@ import type { ProjectHydrationGuard } from './projectCanvasReadSurface'
 export function readCurrentWorkbenchProjectPayload(): WorkbenchProjectPayload {
   const workbench = useWorkbenchStore.getState()
   const generation = useGenerationCanvasStore.getState()
+  const activeStoryboardEntry = workbench.activeDocumentId
+    ? workbench.storyboardPlans[workbench.activeDocumentId]
+    : undefined
   return {
     workbenchDocuments: workbench.workbenchDocuments,
     activeDocumentId: workbench.activeDocumentId,
@@ -22,6 +25,15 @@ export function readCurrentWorkbenchProjectPayload(): WorkbenchProjectPayload {
     // P4:每篇原稿的分镜方案映射随项目落盘（P0-6 从单字段升级）。
     storyboardPlans: workbench.storyboardPlans,
     storyboardDesignsByDocumentId: workbench.storyboardDesignsByDocumentId,
+    // Keep the deprecated single-plan fields as a derived read-side bridge for
+    // older project consumers. The document-keyed map remains the only write
+    // source; this alias always follows the active document's projection.
+    ...(activeStoryboardEntry
+      ? {
+          storyboardPlan: activeStoryboardEntry.plan,
+          storyboardPlanCommitted: activeStoryboardEntry.committed,
+        }
+      : {}),
   }
 }
 

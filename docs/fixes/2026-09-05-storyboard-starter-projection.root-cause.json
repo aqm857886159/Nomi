@@ -13,12 +13,17 @@
   "scope_paths": [
     "src/workbench/workbenchDocumentSlice.ts",
     "src/workbench/creation/storyboard/storyboardPlanLifecycle.test.ts",
+    "src/workbench/creation/CreationWorkspace.tsx",
+    "src/workbench/creation/CreationWorkspace.structure.test.ts",
+    "src/workbench/creation/storyboard/StoryboardPlanCard.tsx",
+    "src/workbench/project/workbenchProjectSession.ts",
+    "src/workbench/project/workbenchProjectSession.persistence.test.ts",
     "docs/fixes/2026-09-05-storyboard-starter-projection.root-cause.json"
   ],
   "entry_points": [
     "applyCanvasToolCall propose_storyboard_plan calls the shared setStoryboardPlan action",
     "setStoryboardPlan selects the authored design and updates storyboardPlans compatibility projection",
-    "StoryboardPlanCard and StoryboardWorkspace read storyboardPlans while project persistence also stores storyboardDesignsByDocumentId"
+    "CreationWorkspace mounts StoryboardPlanCard, which reads storyboardPlans while project persistence also derives the deprecated single-plan read alias from that same active projection"
   ],
   "external_sources": [],
   "internal_only_reason": "The failure is caused by Nomi's internal multi-design storyboard store and compatibility projection contract; no external provider or library specification can decide which design the Nomi UI must make visible.",
@@ -33,6 +38,21 @@
       "path": "src/workbench/workbenchDocumentSlice.ts",
       "symbol": "setStoryboardPlan",
       "responsibility": "Select the visible design, replace only the structural empty starter for a new planner result, and update storyboardPlans/activeStoryboardId atomically with storyboardDesignsByDocumentId."
+    },
+    {
+      "path": "src/workbench/creation/CreationWorkspace.tsx",
+      "symbol": "CreationWorkspace",
+      "responsibility": "Mount the shared StoryboardPlanCard beside the source editor so an authored planner result is visible when the user returns to Creation."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/StoryboardPlanCard.tsx",
+      "symbol": "StoryboardPlanCard",
+      "responsibility": "Read the shared storyboardPlans projection and suppress only the structural empty starter; authored plans render the draft/committed summary."
+    },
+    {
+      "path": "src/workbench/project/workbenchProjectSession.ts",
+      "symbol": "readCurrentWorkbenchProjectPayload",
+      "responsibility": "Persist the document-keyed storyboard projection and derive the deprecated single-plan fields for older consumers without introducing a second write source."
     }
   ],
   "same_class_entry_points": [
@@ -51,8 +71,20 @@
     {
       "path": "src/workbench/creation/storyboard/StoryboardPlanCard.tsx",
       "entry_point": "StoryboardPlanCard projection read",
-      "disposition": "not-affected",
-      "evidence": "The card already reads storyboardPlans and design identity; the repaired store projection supplies the authored plan without UI-specific fallback logic."
+      "disposition": "enforced",
+      "evidence": "The card remains on the shared storyboardPlans read boundary, is now mounted by CreationWorkspace, and filters only the structural empty starter so an authored plan can be observed in the real Creation surface."
+    },
+    {
+      "path": "src/workbench/creation/CreationWorkspace.tsx",
+      "entry_point": "CreationWorkspace source column",
+      "disposition": "enforced",
+      "evidence": "CreationWorkspace is the single visible source surface; mounting the shared card here prevents a persisted planner result from remaining unreachable after the Agent approval."
+    },
+    {
+      "path": "src/workbench/project/workbenchProjectSession.ts",
+      "entry_point": "readCurrentWorkbenchProjectPayload storyboard serialization",
+      "disposition": "enforced",
+      "evidence": "The active document entry is the only source for the deprecated storyboardPlan alias, so legacy readers observe the same authored plan as storyboardPlans without adding a competing mutation path."
     }
   ],
   "recurrence": {
@@ -73,14 +105,20 @@
     "strategy": "Use the existing isEmptyStoryboardPlan structural predicate at the earliest shared state mutation boundary, before any renderer component or persistence adapter can observe diverging design and projection state.",
     "artifacts": [
       "src/workbench/workbenchDocumentSlice.ts",
-      "src/workbench/creation/storyboard/storyboardPlanLifecycle.test.ts"
+      "src/workbench/creation/storyboard/storyboardPlanLifecycle.test.ts",
+      "src/workbench/creation/CreationWorkspace.structure.test.ts",
+      "src/workbench/project/workbenchProjectSession.persistence.test.ts"
     ]
   },
   "regression_tests": [
-    "src/workbench/creation/storyboard/storyboardPlanLifecycle.test.ts"
+    "src/workbench/creation/storyboard/storyboardPlanLifecycle.test.ts",
+    "src/workbench/creation/CreationWorkspace.structure.test.ts",
+    "src/workbench/project/workbenchProjectSession.persistence.test.ts"
   ],
   "class_regression_tests": [
-    "src/workbench/creation/storyboard/storyboardPlanLifecycle.test.ts"
+    "src/workbench/creation/storyboard/storyboardPlanLifecycle.test.ts",
+    "src/workbench/creation/CreationWorkspace.structure.test.ts",
+    "src/workbench/project/workbenchProjectSession.persistence.test.ts"
   ],
   "legacy_paths": {
     "status": "not-applicable",
