@@ -8,6 +8,7 @@ import type {
   ProjectAgentItem,
   ProjectAgentProposalApproval,
   ProjectAgentQueueItem,
+  ProjectAgentRuntimeContext,
   ProjectAgentThread,
   ProjectAgentTurn,
   ProposalApprovalRef,
@@ -29,6 +30,7 @@ import { ProjectAgentSnapshotError, freezeProjectAgentSnapshot, stableProjectAge
 import { assertContextRef, assertPreconditions, assertTarget } from "./projectAgentReferenceValidation";
 import { assertProjectAgentAssistantLifecycle } from "./projectAgentAssistantStateInvariant";
 import { ProjectAgentStateError } from "./projectAgentStateError";
+import { assertProjectAgentRuntimeContext } from "./projectAgentRuntimeContextValidation";
 import {
   isProjectAgentClaimedProposalItemStatus, isProjectAgentLiveProposalItemStatus,
 } from "./projectAgentStatusSemantics";
@@ -50,12 +52,10 @@ import {
   assertVersionRef,
   assertVersionRefs,
 } from "./projectAgentStateValidationPrimitives";
-
 export { assertProjectAgentBinding, projectAgentPartitionKey, sameProjectAgentBinding } from "./projectAgentIdentity";
 export { freezeProjectAgentSnapshot, stableProjectAgentJson } from "./projectAgentSnapshot";
 export { ProjectAgentStateError } from "./projectAgentStateError";
 export { isProjectAgentStatus } from "./projectAgentStateValidationPrimitives";
-
 const ITEM_KIND_SET = new Set<string>(PROJECT_AGENT_ITEM_KINDS);
 const WORK_MODE_SET = new Set<string>(PROJECT_AGENT_WORK_MODES);
 const ORIGIN_SURFACE_KIND_SET = new Set<string>(PROJECT_AGENT_ORIGIN_SURFACE_KINDS);
@@ -66,7 +66,6 @@ type TrustedCommandIndex = Map<string, ProjectAgentAppliedCommand>;
 const trustedStates = new WeakSet<object>();
 const trustedCommandIndexes = new WeakMap<object, TrustedCommandIndex>();
 let fullValidationCount = 0;
-
 function assertApprovalPolicy(value: unknown): asserts value is ProjectAgentApprovalPolicy {
   const policy = asRecord(value);
   assertAllowedKeys(policy, ["mode", "spend"]);
@@ -74,7 +73,6 @@ function assertApprovalPolicy(value: unknown): asserts value is ProjectAgentAppr
     throw new ProjectAgentStateError("invalid_state");
   }
 }
-
 function assertWorkMode(value: unknown): void {
   if (!WORK_MODE_SET.has(String(value))) throw new ProjectAgentStateError("invalid_state");
 }
@@ -106,6 +104,7 @@ function assertTurn(
     "workMode",
     "approvalPolicy",
     "usage",
+    "runtimeContext",
     "skillVersions",
     "capabilityVersions",
     "contextRef",
@@ -121,6 +120,7 @@ function assertTurn(
   if (turn.workMode !== undefined) assertWorkMode(turn.workMode);
   if (turn.approvalPolicy !== undefined) assertApprovalPolicy(turn.approvalPolicy);
   if (turn.usage !== undefined) assertProjectAgentUsage(turn.usage);
+  if (turn.runtimeContext !== undefined) assertProjectAgentRuntimeContext(turn.runtimeContext);
   assertVersionRefs(turn.skillVersions);
   assertVersionRefs(turn.capabilityVersions);
   assertContextRef(turn.contextRef, binding, turn.threadId);

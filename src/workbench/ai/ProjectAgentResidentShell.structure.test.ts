@@ -71,6 +71,8 @@ describe('ProjectAgentResidentShell production contract', () => {
     expect(resident).toContain('readableToolPreview')
     expect(resident).toContain('useAgentUsageStore')
     expect(resident).toContain('data-agent-usage-pill')
+    expect(resident).toContain('data-agent-compaction-line')
+    expect(resident).toContain('runtimeContext?.compactions')
     expect(resident).not.toContain('resultRef ?? t(\'agentResident.waitingApproval\')')
     expect(resident).toContain("t('agentResident.task'")
     expect(resident).toContain("t('agentResident.artifact'")

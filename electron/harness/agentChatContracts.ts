@@ -70,6 +70,8 @@ export interface AgentChatResponse {
   usage: AgentChatUsage;
   finishReason: RuntimeFinishReason;
   promptCache?: PromptCacheTelemetry;
+  /** Runtime-owned Pi context accounting, committed only with a terminal turn. */
+  context?: import('./runtime/runtimePort').RuntimeContextMetadata;
   promptBudgetWarning?: string;
   promptWarnings?: readonly string[];
   provenance?: readonly ProvenanceProjection[];

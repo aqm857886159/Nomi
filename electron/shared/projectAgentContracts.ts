@@ -225,6 +225,8 @@ export type ProjectAgentTurn = ProjectAgentRecordBase &
     approvalPolicy?: ProjectAgentApprovalPolicy;
     /** Provider-reported usage for this terminal turn; absent on legacy/running records. */
     usage?: AgentChatResponse["usage"];
+    /** Runtime-owned Pi context accounting; present after a stable terminal run. */
+    runtimeContext?: ProjectAgentRuntimeContext;
     skillVersions: readonly ProjectAgentVersionRef[];
     capabilityVersions: readonly ProjectAgentVersionRef[];
     contextRef: ProjectAgentContextRef;
@@ -287,6 +289,13 @@ export type ProjectAgentTaskItem = Omit<ProjectAgentItemBase, "status" | "retrya
     retryable: false;
     deviated: false;
   }>;
+
+export type ProjectAgentRuntimeContext = Readonly<{
+  normalRequests: number;
+  summaryRequests: number;
+  compactions: number;
+  retainedMessages: number;
+}>;
 
 export type ProjectAgentArtifactRef = Readonly<{
   runId: string;
@@ -412,6 +421,7 @@ export type ProjectAgentAsyncResultEnvelope = Readonly<{
   turnStatus: ProjectAgentStatus;
   /** Provider-reported usage is committed with the terminal Host turn. */
   usage?: AgentChatResponse["usage"];
+  runtimeContext?: ProjectAgentRuntimeContext;
   retryable?: boolean;
   proposalApprovalId?: string;
   proposalStatus?: ProjectAgentStatus;
