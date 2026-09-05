@@ -7,6 +7,63 @@ import type { TimelineState } from '../timeline/timelineTypes'
 import { TextClipStyleControls } from './TextClipStyleControls'
 import { CONTROL_ICON_BUTTON_CLASS } from './previewControlTokens'
 
+// 播放器控制条（2026-08-03 从 TimelinePreview 抽出：那个文件已 812 行超 800 门岗，
+// 而控制条本来就是独立关注点）。
+//
+// 这一版把「作用域」讲清楚了。改之前 15 个控件横铺一行、长成同款 pill，里面混着三种作用域：
+//   · 整片（画幅）· 当前片段（显示/缩放/重置）· 无作用域（播放/音量/文字/导出）
+// 中间只有 5 道 w-px 分隔线，真机上淡到基本看不见——用户根本不知道自己改的是整片还是一段。
+// 查了 FCP / DaVinci / Firefly / OpenCut：通行做法是**按作用域物理分区**（OpenCut 干脆让播放器条
+// 只留传输控件、片段属性另开面板）。我们控件量小，取中间路线：**同一条，但分组带名字**，
+// 且「这一段」那组写出当前片段名、没有目标时整组禁用并说明原因。
+//
+// 契约（设计系统 §4.1 C1/C4）：可点即有效，否则禁用 + 说明为什么。
+// 禁用的 <button> 自己不触发 title，得靠外层 <span title> —— 沿用 NodeGenerationComposer 的既有范式。
+
+/** 一组控件 + 组名。组名是这版的关键：作用域从「猜」变成「写着」。 */
+export function ControlGroup({
+  label,
+  tone = 'plain',
+  disabled = false,
+  disabledReason,
+  children,
+}: {
+  label?: string
+  tone?: 'plain' | 'clip'
+  disabled?: boolean
+  disabledReason?: string
+  children: React.ReactNode
+}): JSX.Element {
+  const group = (
+    <div
+      className={cn(
+        'workbench-preview-player__control-group',
+        'relative inline-flex flex-none items-center gap-1 rounded-nomi-sm px-2 py-1',
+        label ? 'border border-[var(--workbench-border-soft)]' : 'border border-transparent',
+        tone === 'clip' && !disabled && 'border-[var(--workbench-accent)] bg-[var(--workbench-accent-soft)]',
+        disabled && 'opacity-45',
+      )}
+      aria-label={label}
+      data-control-scope={tone === 'clip' ? 'clip' : 'film'}
+    >
+      {label ? (
+        <span
+          className={cn(
+            'absolute -top-[7px] left-2 px-1 text-micro leading-none',
+            'bg-[var(--nomi-paper)]',
+            tone === 'clip' && !disabled ? 'text-[var(--workbench-accent)]' : 'text-[var(--workbench-muted-soft)]',
+          )}
+        >
+          {label}
+        </span>
+      ) : null}
+      {children}
+    </div>
+  )
+  // 禁用整组时把原因挂在外层 span 上：内部按钮 disabled 后自身 title 不触发（浏览器行为）。
+  return disabled && disabledReason ? <span title={disabledReason} style={{ display: 'contents' }}>{group}</span> : group
+}
+
 export type PreviewControlBarProps = {
   playing: boolean
   isEmpty: boolean

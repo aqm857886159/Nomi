@@ -235,6 +235,8 @@ export { default as IconLamp } from '@tabler/icons-react/dist/esm/icons/IconLamp
 export { default as IconWall } from '@tabler/icons-react/dist/esm/icons/IconWall.mjs'
 export { default as IconPackage } from '@tabler/icons-react/dist/esm/icons/IconPackage.mjs'
 export { default as IconMap2 } from '@tabler/icons-react/dist/esm/icons/IconMap2.mjs'
+export { default as IconMagnet } from '@tabler/icons-react/dist/esm/icons/IconMagnet.mjs'
+export { default as IconViewportWide } from '@tabler/icons-react/dist/esm/icons/IconViewportWide.mjs'
 // Project Agent resident shell (#194 cutover) icon additions.
 export { default as IconAperture } from '@tabler/icons-react/dist/esm/icons/IconAperture.mjs'
 export { default as IconArrowDown } from '@tabler/icons-react/dist/esm/icons/IconArrowDown.mjs'

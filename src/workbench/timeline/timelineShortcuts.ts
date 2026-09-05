@@ -8,6 +8,10 @@ export type TimelineShortcutAction =
   | { type: 'split-primary' }
   | { type: 'duplicate-primary' }
   | { type: 'nudge-primary'; delta: -1 | 1 }
+  | { type: 'remove-left' }
+  | { type: 'remove-right' }
+  | { type: 'ripple-remove' }
+  | { type: 'toggle-snap' }
 
 export type TimelineShortcutInput = {
   key: string
@@ -30,6 +34,7 @@ export function resolveTimelineShortcut(
   const key = input.key.toLowerCase()
   const mod = Boolean(input.metaKey || input.ctrlKey)
   if (mod && key === 'z') return input.shiftKey ? { type: 'redo' } : { type: 'undo' }
+  if (mod && input.key === '\\') return { type: 'toggle-snap' }
   if (input.key === 'Escape' && context.splitMode) return { type: 'exit-split-mode' }
   if (input.key === 'ArrowLeft' || input.key === 'ArrowRight') {
     return { type: 'nudge-playhead', delta: input.key === 'ArrowLeft' ? -1 : 1 }
@@ -38,6 +43,9 @@ export function resolveTimelineShortcut(
     return { type: 'remove-text-selection' }
   }
   if (!context.hasSelection) return null
+  if (input.key === 'q' && !mod) return { type: 'remove-left' }
+  if (input.key === 'w' && !mod) return { type: 'remove-right' }
+  if (input.shiftKey && key === 'z' && !mod) return { type: 'ripple-remove' }
   if (input.key === 'Backspace' || input.key === 'Delete') return { type: 'remove-selection' }
   if (!context.hasPrimaryClip) return null
   if (key === 's' && !mod) return { type: 'split-primary' }

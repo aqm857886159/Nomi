@@ -32,6 +32,7 @@ import type { Vec2 } from './timeline/overlayTransform'
 import { createDefaultTimeline, normalizeTimeline } from './timeline/timelineMath'
 import { readPreviewSourceCollapsed, writePreviewSourceCollapsed } from './preview/previewSourcePanelPreference'
 import type { TimelineClip, TimelineClipAudio, TimelineState, TimelineTextStyle, TimelineTrackType } from './timeline/timelineTypes'
+import type { TimelineTransition } from './timeline/timelineTypes'
 import { applyTimelineOperation } from './timeline/kernel/timelineKernel'
 import { timelineUndoTimeline, type TimelineUndoEntry } from './timeline/timelineUndoHistory'
 import { normalizeWorkbenchDocument, type CreationDocumentTools, type PreviewAspectRatio, type WorkbenchDocument } from './workbenchTypes'
@@ -221,6 +222,10 @@ type WorkbenchState = WorkbenchDocumentSlice & {
   setTimelineSnapGuide: (guide: TimelineSnapGuide | null) => void
   removeTimelineClip: (clipId: string) => void
   removeSelectedTimelineClips: () => void
+  removeTimelineClips: (clipIds: string[], ripple?: boolean) => void
+  setTimelineTransition: (transition: TimelineTransition) => void
+  removeTimelineTransition: (fromClipId: string, toClipId: string) => void
+  setTimelineTrackMuted: (trackId: string, muted: boolean) => void
   /**
    * 删画布节点后的时间轴对账：移除所有引用这些 sourceNodeId 的 clip。
    * 由 canvasNodeActions 的 deleteNode/deleteSelectedNodes 删完节点后调用（跨 store 最小耦合）。
@@ -503,11 +508,9 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
   captureTimelineUndo: () => {
     set((state) => {
       const stack = state.timelineUndoStack
-      // 去重：手势重复 capture 同一状态不重复入栈。
       if (stack.length > 0 && stack[stack.length - 1] === state.timeline) return state
       const next = [...stack, state.timeline]
       if (next.length > TIMELINE_UNDO_LIMIT) next.shift()
-      // capture 发生在一次新编辑（多为拖拽手势）首次改动前 → 清空 redo（新编辑使 redo 失效）。
       return { timelineUndoStack: next, timelineRedoStack: [] }
     })
   },
@@ -520,9 +523,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
       return {
         timeline: previous,
         timelineUndoStack: stack.slice(0, -1),
-        // 撤销 = 把当前态推入 redo 栈（供 ⇧⌘Z 放回）。
         timelineRedoStack: [...state.timelineRedoStack, state.timeline].slice(-TIMELINE_UNDO_LIMIT),
-        // 撤销后清掉指向已不存在 clip 的选择，避免 Delete/工具作用于幽灵选区
         selectedTimelineClipIds: state.selectedTimelineClipIds.filter((id) => liveIds.has(id)),
         selectedTextClipId: previous.textClips.some((c) => c.id === state.selectedTextClipId) ? state.selectedTextClipId : '',
         timelinePlaying: false,
@@ -538,7 +539,6 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
       const liveIds = new Set(restored.tracks.flatMap((track) => track.clips.map((clip) => clip.id)))
       return {
         timeline: restored,
-        // 重做 = 把当前态推回撤销栈、从 redo 弹出（不清 redo——这不是新编辑）。
         timelineUndoStack: [...state.timelineUndoStack, state.timeline].slice(-TIMELINE_UNDO_LIMIT),
         timelineRedoStack: stack.slice(0, -1),
         selectedTimelineClipIds: state.selectedTimelineClipIds.filter((id) => liveIds.has(id)),
@@ -573,6 +573,66 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
         selectedTimelineClipIds: [],
         timelinePlaying: false,
         persistRevision: changed ? state.persistRevision + 1 : state.persistRevision,
+      }
+    })
+  },
+  removeTimelineClips: (clipIds, ripple = false) => {
+    set((state) => {
+      const ids = Array.from(new Set(clipIds.map((id) => String(id).trim()).filter(Boolean)))
+      if (ids.length === 0) return state
+      const result = applyTimelineOperation(state.timeline, { kind: 'remove', clipIds: ids, ripple })
+      if (!result.ok || !result.diff.changed) return state
+      return {
+        timeline: result.timeline,
+        timelineUndoStack: pushTimelineUndo(state.timelineUndoStack, state.timeline),
+        timelineRedoStack: [],
+        selectedTimelineClipIds: [],
+        timelinePlaying: false,
+        persistRevision: state.persistRevision + 1,
+      }
+    })
+  },
+  setTimelineTransition: (transition) => {
+    set((state) => {
+      const transitions = [...(state.timeline.transitions ?? [])]
+      const index = transitions.findIndex((item) => item.fromClipId === transition.fromClipId && item.toClipId === transition.toClipId)
+      if (index >= 0 && JSON.stringify(transitions[index]) === JSON.stringify(transition)) return state
+      const previous = state.timeline
+      if (index >= 0) transitions[index] = transition
+      else transitions.push(transition)
+      return {
+        timeline: { ...state.timeline, transitions },
+        timelineUndoStack: pushTimelineUndo(state.timelineUndoStack, previous),
+        timelineRedoStack: [],
+        persistRevision: state.persistRevision + 1,
+      }
+    })
+  },
+  removeTimelineTransition: (fromClipId, toClipId) => {
+    set((state) => {
+      const transitions = state.timeline.transitions ?? []
+      const next = transitions.filter((item) => item.fromClipId !== fromClipId || item.toClipId !== toClipId)
+      if (next.length === transitions.length) return state
+      return {
+        timeline: { ...state.timeline, transitions: next },
+        timelineUndoStack: pushTimelineUndo(state.timelineUndoStack, state.timeline),
+        timelineRedoStack: [],
+        persistRevision: state.persistRevision + 1,
+      }
+    })
+  },
+  setTimelineTrackMuted: (trackId, muted) => {
+    set((state) => {
+      const track = state.timeline.tracks.find((item) => item.id === trackId)
+      if (!track || track.type === 'image' || track.clips.length === 0) return state
+      const tracks = state.timeline.tracks.map((item) => item.id === trackId
+        ? { ...item, clips: item.clips.map((clip) => ({ ...clip, audio: { ...clip.audio, muted } })) }
+        : item)
+      return {
+        timeline: { ...state.timeline, tracks },
+        timelineUndoStack: pushTimelineUndo(state.timelineUndoStack, state.timeline),
+        timelineRedoStack: [],
+        persistRevision: state.persistRevision + 1,
       }
     })
   },
