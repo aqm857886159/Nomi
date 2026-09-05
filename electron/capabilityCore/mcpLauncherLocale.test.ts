@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
 import { createMcpProtocol, type McpTransport } from './mcpProtocol'
 import { resolveLauncherLocale } from './mcpNodeLauncher'
+import { readPersistedLocale } from '../settings/localePreference'
 
 // Fix B · bare-Node launcher 的 locale 接线：生产 MCP 入口是 mcpNodeLauncher（ELECTRON_RUN_AS_NODE=1，无
 // app.getLocale()），改从 OS locale（Intl.DateTimeFormat().resolvedOptions().locale，经 normalizeDesktopLocale）取语言。
@@ -12,6 +16,26 @@ describe('resolveLauncherLocale（注入 provider → 归一 OS locale，缺省 
   })
   it("provider 返回 'zh-CN' → 'zh-CN'", () => {
     expect(resolveLauncherLocale(() => 'zh-CN')).toBe('zh-CN')
+  })
+  it("持久化 preferences.language=zh-CN 覆盖 en-US 系统 locale", () => {
+    expect(resolveLauncherLocale(() => 'en-US', () => 'zh-CN')).toBe('zh-CN')
+  })
+  it("没有持久化偏好时才回落到系统 locale", () => {
+    expect(resolveLauncherLocale(() => 'en-US', () => null)).toBe('en')
+  })
+  it("en-US 机器上持久化选择 zh-CN → MCP 结果仍是中文", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-locale-'))
+    try {
+      fs.writeFileSync(path.join(root, 'preferences.json'), JSON.stringify({ preferences: { language: 'zh-CN' } }))
+      const selected = resolveLauncherLocale(() => 'en-US', () => readPersistedLocale(root))
+      const { protocol, frames } = harness(() => selected)
+      protocol.handleIncoming({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'nomi_read', arguments: { target: 'models' } } } as never)
+      await flush()
+      expect(listModelsText(frames)).toContain('可用模型')
+      protocol.dispose()
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true })
+    }
   })
   it("provider 抛错 → 缺省 zh-CN（不崩、不强行英文）", () => {
     expect(resolveLauncherLocale(() => { throw new Error('no Intl') })).toBe('zh-CN')
