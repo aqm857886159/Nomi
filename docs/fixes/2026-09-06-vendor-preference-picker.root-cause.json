@@ -73,7 +73,6 @@
   ],
   "regression_tests": [
     "src/config/modelIdentity.test.ts",
-    "src/workbench/common/useDedupedModelSelect.test.ts",
     "src/ui/onboarding/VendorPreferenceOrderControl.test.ts",
     "electron/settings/vendorPreferenceContract.test.ts"
   ],
