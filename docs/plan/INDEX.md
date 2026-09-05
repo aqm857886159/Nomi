@@ -11,6 +11,8 @@
 
 | 文件 | 一句话 | 状态 |
 |---|---|---|
+| [2026-09-05-gpt-discussion-consolidation.md](2026-09-05-gpt-discussion-consolidation.md) | GPT 讨论梳理：统一 Agent/画布/视频拆解表/Skill 聚合的现状对账、三项被推翻旧结论与待拍板入口 | 📋 |
+| [2026-09-05-nomi-unified-agent-canvas-skill-collection.md](2026-09-05-nomi-unified-agent-canvas-skill-collection.md) | 统一 Agent、画布与 Skill 聚合区的需求入口、母表和总体方案索引 | 📋 |
 | [2026-09-04-nomi-convergence-execution-plan.md](2026-09-04-nomi-convergence-execution-plan.md) | **Nomi 收敛总执行方案**：以 M0–M5 为主轴，统一 Agent/MCP/分镜表/画布/视频/TikHub/真实 Provider/持久化/重启/视觉和 PR 收敛门槛；current baseline `origin/main@8ff53610`，#471 UI 合同与 #474 Skill 修复已合入但主轴未毕业 | 🚧 |
 | [2026-09-05-m0-m5-vertical-spine-status.md](2026-09-05-m0-m5-vertical-spine-status.md) | **M0–M5 真实垂直脊梁状态台账**：同一自然用户任务的红测、真实 Electron、Codex Host/MCP、持久化/重启、视觉、packaged 与合入证据边界 | 🚧 |
 | [2026-09-05-m0-live-certification-audit.md](2026-09-05-m0-live-certification-audit.md) | M0 MCP live certification 审计：中转站文档/API key 接入边界与真实调用证据 | 🚧 |
