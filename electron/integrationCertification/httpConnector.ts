@@ -6,6 +6,7 @@ import { mergeHeadersCaseInsensitive } from "../jsonUtils";
 import { guessModelKind } from "../catalog/modelKindHeuristic";
 import type { AiSdkProviderKind, BillingModelKind } from "../catalog/types";
 import { isPrivateHost } from "../hardenedFetch";
+import { desktopT } from "../i18n";
 import {
   createExistingConnectionActions,
   type ExistingConnectionActions,
@@ -57,6 +58,25 @@ export type HttpDiscoveryInput = {
   headers: Record<string, string>;
   search?: string;
 };
+
+function modesForKind(kind: BillingModelKind, inputModalities: string[] = []): string[] {
+  const inputs = new Set(inputModalities.map((value) => value.toLowerCase()));
+  if (kind === "text") return ["chat", ...(inputs.has("image") ? ["vision"] : [])];
+  if (kind === "image") return ["text_to_image", ...(inputs.has("image") ? ["image_to_image"] : [])];
+  if (kind === "video") return ["text_to_video", ...(inputs.has("image") ? ["image_to_video"] : [])];
+  if (kind === "audio") return ["text_to_audio"];
+  return [];
+}
+
+function kindFromArchitecture(outputModalities: string[]): BillingModelKind | undefined {
+  const outputs = outputModalities.map((value) => value.toLowerCase());
+  if (outputs.some((value) => /3d|model/.test(value))) return "model3d";
+  if (outputs.some((value) => /video/.test(value))) return "video";
+  if (outputs.some((value) => /audio|speech|voice/.test(value))) return "audio";
+  if (outputs.some((value) => /image/.test(value))) return "image";
+  if (outputs.some((value) => /text/.test(value))) return "text";
+  return undefined;
+}
 
 function localAiAuthHeader(input: HttpLocalRuntimeProbeInput): LocalAiExternalProbeInput["authHeader"] {
   const declared = String(input.authHeader || "").trim().toLowerCase();
@@ -156,10 +176,27 @@ export class HttpProviderConnector {
       query: authQueryParams(input.authType, input.apiKey, input.authQueryParam),
     });
     if (!result.ok) throw new Error(`model_discovery_${result.failureKind || "unknown"}`);
+    const descriptors = new Map((result.descriptors || []).map((descriptor) => [descriptor.id, descriptor]));
+    const catalog = readCatalog();
     const all = result.models.map((modelKey) => {
-      const kind = guessModelKind(modelKey) as BillingModelKind;
-      const modes = kind === "text" ? ["chat"] : kind === "image" ? ["text_to_image"] : kind === "video" ? ["text_to_video"] : kind === "audio" ? ["text_to_audio"] : [];
-      return { modelKey, label: modelKey, kind, modes, evidence: ["remote" as const], classification: modes.length ? ("supported" as const) : ("unavailable" as const), estimatedCalls: Math.max(1, modes.length) };
+      const descriptor = descriptors.get(modelKey);
+      const declaredKind = descriptor?.architecture
+        ? kindFromArchitecture(descriptor.architecture.outputModalities || [])
+        : undefined;
+      const catalogModel = catalog.models.find((model) => model.modelKey === modelKey);
+      const kind = declaredKind || (catalogModel?.kind as BillingModelKind | undefined) || "text";
+      const modes = modesForKind(kind, descriptor?.architecture?.inputModalities);
+      const unknownKind = !declaredKind && !catalogModel;
+      return {
+        modelKey,
+        label: modelKey,
+        kind,
+        modes,
+        evidence: ["remote" as const, ...(unknownKind ? [] : ["docs" as const])],
+        classification: unknownKind ? ("unknown" as const) : (modes.length ? ("supported" as const) : ("unavailable" as const)),
+        ...(unknownKind ? { detail: desktopT("integration.discoveryPlainText") } : {}),
+        estimatedCalls: Math.max(1, modes.length),
+      };
     });
     return input.search ? all.filter((candidate) => `${candidate.modelKey} ${candidate.label}`.toLowerCase().includes(input.search!.toLowerCase())) : all;
   }

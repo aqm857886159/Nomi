@@ -16,6 +16,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, expectVisible, screenshotSettled } from './_assert.mjs'
+import { findCanvasBlankPoint } from './_canvasHit.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'outputs/canvas-s5-walkthrough')
@@ -85,22 +86,11 @@ async function readTransform() {
   })
 }
 
+// 空白点判据住在 `_canvasHit.mjs`（单一 owner）：最顶层元素就是 React Flow pane。
 async function findBlankPoint() {
-  return getWin().evaluate(() => {
-    const stage = document.querySelector('.generation-canvas-v2__stage')
-    const rect = stage.getBoundingClientRect()
-    for (const ry of [0.2, 0.28, 0.36, 0.5, 0.64, 0.76, 0.88, 0.12]) {
-      for (const rx of [0.62, 0.7, 0.78, 0.86, 0.93, 0.54, 0.42, 0.3, 0.2, 0.12, 0.06]) {
-        const x = rect.left + rect.width * rx
-        const y = rect.top + rect.height * ry
-        const hit = document.elementFromPoint(x, y)
-        if (!hit || !stage.contains(hit)) continue
-        if (hit.closest('.generation-canvas-v2-node, .generation-canvas-v2-toolbar, .generation-canvas-v2__zoom-bar, .generation-canvas-v2__selection-bounds, .generation-canvas-v2__selection-toolbar, .react-flow__nodesselection, button, input, textarea, [role="menu"], [role="toolbar"], .generation-canvas-v2__edge-hit, .generation-canvas-v2__minimap, .generation-canvas-v2__navigation-stack')) continue
-        return { x: Math.round(x), y: Math.round(y) }
-      }
-    }
-    return null
-  })
+  const point = await findCanvasBlankPoint(getWin())
+  if (!point) throw new Error('画布上找不到任何空白点（stage 被浮层占满）')
+  return point
 }
 
 async function nodeInfo() {

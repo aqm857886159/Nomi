@@ -21,8 +21,6 @@ const { app, win } = await launchNomiApp({ name: "design-fidelity" });
 // 首启开屏(SplashIntro)会全屏覆盖挡住库页 → 标记已看过并 reload，让后续库页断言可见。
 await win.evaluate(() => {
   window.localStorage.setItem("nomi:splash:v1", "seen");
-  // 常驻 Agent 目前仍在发布闸后（agentHostPreference 默认关）；#488 删闸合入后这一行随之删除。
-  window.localStorage.setItem("nomi.agentHost.enabled", "true");
 });
 await win.reload();
 await win.waitForLoadState("domcontentloaded");

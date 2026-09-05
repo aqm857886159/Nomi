@@ -34,8 +34,8 @@ vi.mock('../generationCanvas/agent/shotVerifyStore', () => ({
 vi.mock('../workbenchStore', () => ({
   useWorkbenchStore: {
     getState: () => ({
-      workbenchDocument: {}, timeline: {}, categories: [], storyboardPlan: null,
-      storyboardPlanCommitted: false, setWorkbenchDocument: vi.fn(), setTimeline: vi.fn(),
+      workbenchDocument: {}, timeline: {}, categories: [],
+      setWorkbenchDocument: vi.fn(), setTimeline: vi.fn(),
       setCategories: vi.fn(), hydrateStoryboardPlan: vi.fn(),
     }),
     subscribe: vi.fn(() => vi.fn()),

@@ -10,7 +10,6 @@ import { expect } from './_assert.mjs'
 import { flattenRequestText } from './agent-runtime-fixture.mjs'
 
 const SHOT_DIR = path.join(path.dirname(new URL(import.meta.url).pathname), 'shots', 'agent-exception-states-runtime')
-const AGENT_HOST_ENABLED_KEY = 'nomi.agentHost.enabled'
 
 function patchCatalog(settingsDir) {
   const catalogPath = path.join(settingsDir, 'model-catalog.json')
@@ -18,11 +17,6 @@ function patchCatalog(settingsDir) {
   for (const model of catalog.models ?? []) model.published = true
   for (const vendor of catalog.vendors ?? []) vendor.authType = 'none'
   fs.writeFileSync(catalogPath, `${JSON.stringify(catalog, null, 2)}\n`)
-}
-
-async function enableAgentHost(win) {
-  await win.evaluate((key) => localStorage.setItem(key, 'true'), AGENT_HOST_ENABLED_KEY)
-  await win.reload({ waitUntil: 'domcontentloaded' })
 }
 
 async function appendHostItem(win, projectId, kind, status, label) {
@@ -103,7 +97,6 @@ let failure
 try {
   patchCatalog(path.join(walk.report.tempRoot, 'settings'))
   const { win } = await walk.start({ first: true })
-  await enableAgentHost(win)
   const { projectId } = await walk.newProject()
   await openCanvas(win)
 

@@ -23,19 +23,21 @@ export default function StoryboardPlanCard({ documentId, storyboardId }: Storybo
   const { t } = useTranslation()
   const activeDocumentId = useWorkbenchStore((s) => s.activeDocumentId)
   const targetDocumentId = documentId ?? activeDocumentId
-  const entry = useWorkbenchStore((s) => (targetDocumentId ? s.storyboardPlans[targetDocumentId] : undefined))
+  const visibleDesign = useWorkbenchStore((s) => {
+    const designs = targetDocumentId ? s.storyboardDesignsByDocumentId[targetDocumentId] ?? [] : []
+    return designs.find((design) => design.id === (storyboardId ?? s.activeStoryboardId)) ?? designs[0]
+  })
   const exactDesign = useWorkbenchStore((s) => storyboardId
     ? s.storyboardDesignsByDocumentId[targetDocumentId]?.find((design) => design.id === storyboardId)
     : undefined)
-  const plan = exactDesign?.plan ?? (storyboardId ? null : entry?.plan ?? null)
-  const storedCommitted = exactDesign?.committed ?? (storyboardId ? false : entry?.committed ?? false)
+  const plan = exactDesign?.plan ?? visibleDesign?.plan ?? null
+  const storedCommitted = exactDesign?.committed ?? visibleDesign?.committed ?? false
   const deleteStoryboardDesign = useWorkbenchStore((s) => s.deleteStoryboardDesign)
   const setWorkspaceMode = useWorkbenchStore((s) => s.setWorkspaceMode)
   const setActiveStoryboardId = useWorkbenchStore((s) => s.setActiveStoryboardId)
   const projectedStoryboardId = useWorkbenchStore((s) => {
-    const currentEntry = targetDocumentId ? s.storyboardPlans[targetDocumentId] : undefined
     const designs = s.storyboardDesignsByDocumentId[targetDocumentId] ?? []
-    return designs.find((design) => design.plan === currentEntry?.plan)?.id ?? designs[0]?.id
+    return designs.find((design) => design.id === s.activeStoryboardId)?.id ?? designs[0]?.id
   })
   const resolvedStoryboardId = exactDesign?.id ?? projectedStoryboardId
   // v5 committed 语义 derive：至少一镜已建节点（表是节点的投影；节点删光即回草稿）。

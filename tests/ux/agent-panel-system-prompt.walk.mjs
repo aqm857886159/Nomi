@@ -19,7 +19,7 @@
 import { expect, expectAbsent, proveProbe } from './_assert.mjs'
 import { flattenRequestText } from './agent-runtime-fixture.mjs'
 import {
-  CANVAS_PANEL, chooseAssistantModel, createRuntimeWalk, enableAgentHostThroughSettings, openCanvas, recorded, sendCanvas,
+  CANVAS_PANEL, chooseAssistantModel, createRuntimeWalk, openCanvas, recorded, sendCanvas,
 } from './agent-runtime-walk-support.mjs'
 
 const PROMPT = 'SYSPROMPT_WALK：帮我把这个画布搭起来'
@@ -45,8 +45,6 @@ const walk = await createRuntimeWalk('panel-system-prompt')
 let failure
 try {
   const { win } = await walk.start({ first: true })
-  // 常驻 Agent 目前仍在发布闸后（agentHostPreference 默认关）；#488 删闸合入后这一行随之删除。
-  await enableAgentHostThroughSettings(win)
   await walk.newProject()
   await chooseAssistantModel(win, 'agent-runtime-loopback/agent-runtime-text')
   await openCanvas(win)

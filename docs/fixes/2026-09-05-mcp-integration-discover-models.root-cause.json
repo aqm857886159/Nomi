@@ -1,0 +1,120 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-05-mcp-integration-discover-models",
+  "problem_type": "MCP model integration had a completed protocol probe with no production caller",
+  "symptom": "A user giving an MCP host a relay URL and saved key still had to guess model IDs and model types, so connected models could be unusable without an explanation.",
+  "direct_cause": "nomi_integration.propose required agent-supplied candidates and never called ConnectionCertificationService.discoverHttpModels; the list parser also discarded OpenRouter architecture metadata.",
+  "class_root": "The deterministic /models discovery contract was owned by onboarding code but had no shared MCP session boundary consuming it, leaving candidate identity and capability derivation to a second, less reliable author.",
+  "affected_population": [
+    "Signed MCP hosts connecting OpenAI-compatible or Anthropic relays",
+    "Bare /models responses containing only model IDs",
+    "OpenRouter-style model records with architecture metadata",
+    "Relays that do not expose /models or /v1/models"
+  ],
+  "scope_paths": [
+    "electron/ai/onboarding/modelListResponse.ts",
+    "electron/ai/onboarding/modelListProbe.ts",
+    "electron/integrationCertification/httpConnector.ts",
+    "electron/integrationCertification/httpModelDiscovery.ts",
+    "electron/integrationCertification/integrationSession.ts",
+    "electron/capabilityCore/mcpIntegrationTools.test.ts",
+    "electron/ai/onboarding/modelListResponse.test.ts",
+    "docs/guide/conversational-model-integration.md"
+  ],
+  "entry_points": [
+    "MCP nomi_integration begin → credentials → propose",
+    "Onboarding list-models IPC",
+    "Provider health model-list probe"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "This remediation enforces an internal Nomi routing invariant over the already-tested model-list protocol; no third-party contract decision is required.",
+  "invariants": [
+    "MCP HTTP integration proposal discovery uses the main-process credential resolver and the canonical discoverHttpModels boundary.",
+    "OpenRouter architecture modalities are preserved through parsing and derive candidate modes without vendor-specific branches.",
+    "A bare unmatched model ID is explicitly classified as an unknown plain-text candidate with a human repair instruction.",
+    "A missing model-list route fails closed with a human instruction to enter model IDs manually and never claims discovery success."
+  ],
+  "generality_proof": "All MCP HTTP integrations converge on IntegrationSessionService.propose, while all model-list callers share modelListResponse/modelListProbe. Preserving optional descriptors at that parser boundary and deriving candidates in the session boundary covers rich and bare responses without provider branches or credential values crossing MCP.",
+  "shared_boundaries": [
+    {
+      "path": "electron/integrationCertification/integrationSession.ts",
+      "symbol": "IntegrationSessionService.propose/discoverHttpCandidates",
+      "responsibility": "Own MCP discovery timing, credential resolution, candidate persistence, and human fallback errors."
+    },
+    {
+      "path": "electron/ai/onboarding/modelListResponse.ts",
+      "symbol": "parseModelListPage",
+      "responsibility": "Normalize model IDs and preserve optional architecture metadata for every list protocol."
+    },
+    {
+      "path": "electron/integrationCertification/httpConnector.ts",
+      "symbol": "HttpProviderConnector.discoverModels",
+      "responsibility": "Convert canonical list results into generic capability candidates using declared metadata, catalog matches, or explicit plain-text fallback."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/capabilityCore/dispatcher.ts",
+      "entry_point": "integration.propose",
+      "disposition": "enforced",
+      "evidence": "Dispatcher routes the MCP action to IntegrationSessionService.propose, the shared discovery boundary."
+    },
+    {
+      "path": "electron/ai/onboarding/onboardingIpc.ts",
+      "entry_point": "nomi:onboarding:list-models",
+      "disposition": "enforced",
+      "evidence": "The UI path already consumes fetchModelList; parser metadata is additive and preserves its existing string-model result contract."
+    },
+    {
+      "path": "electron/providerAdapter/service.ts",
+      "entry_point": "provider certification documentation compiler",
+      "disposition": "not-affected",
+      "evidence": "This path compiles media request mappings after candidate selection; it is retained for parameter and wire-shape certification, not MCP model-list discovery."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any new MCP relay could reproduce the zero-caller gap or lose capability metadata when its /models shape changes.",
+    "same_class_scan": [
+      "rg discoverHttpModels across electron and tests found only the service wrapper before this change.",
+      "rg fetchModelList callers confirmed onboarding IPC and vendor health are separate consumers of the same probe.",
+      "rg docsDiscovery/compiler confirmed the certification compiler remains a distinct media-shape path and is not an equivalent candidate-list owner."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/integrationCertification/integrationSession.ts",
+    "invariant": "An MCP HTTP proposal without agent candidates performs canonical discovery with a main-process-resolved credential before persisting candidates.",
+    "failure_mode": "Discovery errors are converted to a readable missing-route/auth/network instruction that offers manual model ID entry; no secret or false success is returned.",
+    "exception_policy": "none",
+    "strategy": "Make the session state machine, rather than the driving model, the only owner of MCP candidate discovery and capability fallback.",
+    "artifacts": [
+      "electron/integrationCertification/integrationSession.ts",
+      "electron/integrationCertification/httpConnector.ts",
+      "electron/ai/onboarding/modelListResponse.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/capabilityCore/mcpIntegrationTools.test.ts",
+    "electron/ai/onboarding/modelListResponse.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/capabilityCore/mcpIntegrationTools.test.ts",
+    "electron/ai/onboarding/modelListResponse.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The old providerAdapter docsDiscovery/compiler path cannot be deleted in this scoped change because certification still needs it for non-text parameter and wire-shape compilation. It is not used for MCP candidate discovery; retaining it is an explicit bounded dependency rather than a second MCP discovery path."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency controls the invariant; the change uses existing fetch and parser code.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted schema changes. Existing sessions with agent-provided candidates continue through the original proposal path; sessions that omit candidates now discover at propose time.",
+  "residual_risks": [
+    "OpenRouter metadata can declare modalities but cannot prove request wire shape; canonical certification still performs the real minimum production request.",
+    "ProviderAdapter documentation compilation remains a separate certification concern and is intentionally retained for media models."
+  ]
+}

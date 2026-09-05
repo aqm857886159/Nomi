@@ -22,6 +22,7 @@ import type { CertificationOperationRecord } from "./types";
 import type { WorkflowBinding, WorkflowEnumOption } from "../catalog/comfyuiWorkflowImport";
 import { certificationModeOperationKey } from "./modeIdentity";
 import { hardenedFetch, isPrivateHost } from "../hardenedFetch";
+import { discoverAndPersistHttpCandidates } from "./httpModelDiscovery";
 import { comfyuiHistoryTransform } from "../catalog/comfyuiLocal";
 import { candidateRevisionId } from "../catalog/stagedVendorIdentity";
 import { promoteCertifiedComfyCandidate, resolveComfyStagedCandidate } from "../catalog/comfyuiCandidateLifecycle";
@@ -574,7 +575,6 @@ function proposalSelections(value: unknown, candidates: IntegrationCandidate[]):
     return clone(candidate);
   });
 }
-
 function sanitizeWorkflowBinding(value: unknown): WorkflowBinding | undefined {
   if (value === undefined) return undefined;
   assertRecord(value);
@@ -669,7 +669,6 @@ function sanitizeWorkflowBinding(value: unknown): WorkflowBinding | undefined {
   }
   return result;
 }
-
 function sanitizeWorkflowEnumOptions(value: unknown): WorkflowEnumOption[] | undefined {
   if (value === undefined) return undefined;
   if (!Array.isArray(value) || value.length > 256) throw new Error("Invalid workflow enum options");
@@ -684,7 +683,6 @@ function sanitizeWorkflowEnumOptions(value: unknown): WorkflowEnumOption[] | und
     };
   });
 }
-
 function integrationContractDigest(session: IntegrationSession, idempotencyKey: string): string {
   return digest({
     kind: session.kind,
@@ -694,7 +692,6 @@ function integrationContractDigest(session: IntegrationSession, idempotencyKey: 
     idempotencyKey,
   });
 }
-
 function safeHandoffOrigin(baseUrl: string): { origin?: string } {
   try {
     const parsed = new URL(baseUrl);
@@ -1185,6 +1182,8 @@ export class IntegrationSessionService {
         proposalRejected("proposal", "cannot be accepted before the credential is ready", "call open_credentials and save the key in Nomi's secure page first");
       if (rawProposal.workflow !== undefined || rawProposal.modelKey !== undefined)
         proposalRejected("proposal", "contains ComfyUI-only fields for an HTTP provider", "send candidates and selections only");
+      if (rawProposal.candidates === undefined && rawProposal.selections === undefined)
+        return discoverAndPersistHttpCandidates({ session, owner, expectedRevision, certification: this.certification, credentialResolver: this.deps.credentialResolver, now: this.deps.now || (() => new Date().toISOString()), persist: () => { this.state.revision += 1; this.persist(); }, project: () => this.projection(session) });
       const candidates = proposalCandidates(rawProposal.candidates);
       const keys = new Set<string>();
       for (const candidate of candidates) {
@@ -1222,6 +1221,7 @@ export class IntegrationSessionService {
       current.stage = "needs_spend_confirmation";
     });
   }
+
   /** Create the signed, immutable confirmation challenge consumed by the trusted Nomi UI. */
   requestConfirmation(
     sessionId: unknown,
