@@ -6,7 +6,7 @@ const deps = vi.hoisted(() => ({
   saves: [] as unknown[],
   revision: 0,
   workbenchState: {
-    workbenchDocuments: [], activeDocumentId: null, timeline: null, categories: [],
+    workbenchDocuments: [], activeDocumentId: null as string | null, timeline: null, categories: [],
     storyboardPlans: {}, storyboardDesignsByDocumentId: {}, persistRevision: 0,
   },
   generationState: {

@@ -122,12 +122,12 @@ describe('canonicalCanvasPlanPatch changed-function coverage', () => {
   })
 
   it('does not return a receipt until the durable save resolves', async () => {
-    let resolveSave!: (value: unknown) => void
-    vi.mocked(persistActiveWorkbenchProjectNow).mockReturnValueOnce(new Promise((resolve) => { resolveSave = resolve }))
+    let resolveSave!: (value: Awaited<ReturnType<typeof persistActiveWorkbenchProjectNow>>) => void
+    vi.mocked(persistActiveWorkbenchProjectNow).mockReturnValueOnce(new Promise<Awaited<ReturnType<typeof persistActiveWorkbenchProjectNow>>>((resolve) => { resolveSave = resolve }))
     const pending = executeCanonicalCanvasPlanPatch(request(() => 'project-a'))
     await Promise.resolve()
     expect(vi.mocked(persistActiveWorkbenchProjectNow)).toHaveBeenCalledOnce()
-    resolveSave({ id: 'project-a', revision: 2, version: 1 })
+    resolveSave({ id: 'project-a', revision: 2, version: 1 } as never)
     await expect(pending).resolves.toMatchObject({ applied: true, operation: 'patch_shots' })
   })
 
