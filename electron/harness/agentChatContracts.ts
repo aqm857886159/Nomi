@@ -10,7 +10,7 @@ import type {
 } from '../shared/surfacePortBinding';
 import type { AgentContextSnapshot } from '../shared/agentContextSnapshot';
 import type { ProjectAgentWorkMode } from '../shared/projectAgentContracts';
-import { AGENT_TOOL_PROFILES, type AgentToolProfile } from '../shared/projectAgentContracts';
+import type { AgentToolProfile } from '../shared/projectAgentContracts';
 export { AGENT_TOOL_PROFILES, type AgentToolProfile } from '../shared/projectAgentContracts';
 
 /** One SDK-free wire contract shared by main, preload and renderer. */

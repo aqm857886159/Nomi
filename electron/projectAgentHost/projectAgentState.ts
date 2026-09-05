@@ -8,7 +8,6 @@ import type {
   ProjectAgentItem,
   ProjectAgentProposalApproval,
   ProjectAgentQueueItem,
-  ProjectAgentRuntimeContext,
   ProjectAgentThread,
   ProjectAgentTurn,
   ProposalApprovalRef,

@@ -56,6 +56,9 @@ export function MenuRow({ children, onClick, onMouseEnter, onFocus, selected, di
   return <button type="button" disabled={disabled} data-agent-menu-item={testId} data-agent-prompt-library-item={promptLibraryId} onClick={() => { if (pointerActivated.current) { pointerActivated.current = false; return }; onClick?.() }} onPointerDown={(event) => { event.stopPropagation(); if (event.button === 0 && !disabled) { pointerActivated.current = true; onClick?.() } }} onMouseEnter={onMouseEnter} onFocus={onFocus} className={cn('flex min-h-7 w-full items-center gap-2 rounded-nomi-sm px-2 py-1 text-left text-caption leading-tight transition-[background,color] duration-[var(--nomi-transition-fast)]', selected ? 'bg-nomi-accent-soft text-nomi-accent' : 'hover:bg-nomi-ink-05', disabled && 'cursor-not-allowed opacity-45', className)}>{children}</button>
 }
 
+// This module intentionally owns both menu components and their shared styling
+// helper; keep the Fast Refresh warning scoped to the non-component export.
+// eslint-disable-next-line react-refresh/only-export-components
 export function iconControlClass(active = false): string {
   return cn('inline-grid size-7 shrink-0 place-items-center rounded-nomi-sm border p-0 transition-[background,border-color,color,transform] duration-[var(--nomi-transition-fast)] motion-reduce:transition-none motion-safe:hover:-translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-nomi-accent/40', active ? 'border-nomi-accent bg-nomi-accent-soft text-nomi-accent' : 'border-nomi-line bg-transparent text-nomi-ink-60 hover:bg-nomi-ink-05 hover:text-nomi-ink')
 }
@@ -138,6 +141,7 @@ export function ResidentPromptMenu({
   </Popover>
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const PROMPT_PRESETS = [
   { id: 'general', labelKey: 'promptDefault', hintKey: 'promptDefaultHint', icon: IconCircleDashed, prompt: '' },
   { id: 'story', labelKey: 'promptCamera', hintKey: 'promptCameraHint', icon: IconAperture, prompt: '保留人物、机位和动作，只调整光线、景深与前景层次。' },
