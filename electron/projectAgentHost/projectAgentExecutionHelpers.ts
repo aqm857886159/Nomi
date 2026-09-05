@@ -50,6 +50,13 @@ export function statusForResponse(response: AgentChatResponse): ProjectAgentStat
 }
 
 export function executionPrompt(snapshot: ProjectAgentHostState, turnId: string, request: AgentChatRequest): string {
+  // Single-shot calls are deliberately ephemeral: direction planning and
+  // image judging must never inherit the resident thread's user/assistant
+  // transcript. The Host still stores their result item for observability,
+  // but that storage is not prompt history. Multi-turn resident capabilities
+  // keep the initiating thread context even though the transport envelope is
+  // also marked ephemeral by the Host queue boundary.
+  if (request.capability === "single-shot") return request.prompt;
   const prior = snapshot.items
     .filter((item) => item.threadId === snapshot.activeThreadId && item.turnId !== turnId)
     .flatMap((item) => {

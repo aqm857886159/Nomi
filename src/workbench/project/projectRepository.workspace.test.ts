@@ -54,6 +54,23 @@ describe('projectRepository workspace project creation', () => {
     expect('rootPath' in record).toBe(false)
   })
 
+  it('new blank projects expose an empty two-row storyboard starter', () => {
+    mockedGetDesktopBridge.mockReturnValue(null)
+
+    const record = createLocalProject('空白项目')
+    const payload = record.payload
+    const documentId = payload.activeDocumentId
+    expect(payload.workbenchDocuments?.[0]?.id).toBe(documentId)
+    const starter = documentId ? payload.storyboardPlans?.[documentId]?.plan : undefined
+
+    expect(starter).toMatchObject({ title: '', anchors: [] })
+    expect(starter?.shots).toHaveLength(2)
+    expect(starter?.shots.map((shot) => ({ index: shot.index, prompt: shot.prompt, anchorIds: shot.anchorIds }))).toEqual([
+      { index: 1, prompt: '', anchorIds: [] },
+      { index: 2, prompt: '', anchorIds: [] },
+    ])
+  })
+
   it('same project title still creates independent project records', () => {
     mockedGetDesktopBridge.mockReturnValue(null)
 

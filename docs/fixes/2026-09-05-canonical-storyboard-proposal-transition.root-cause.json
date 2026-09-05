@@ -1,0 +1,114 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-05-canonical-storyboard-proposal-transition",
+  "problem_type": "cross-surface Agent proposal transition regression",
+  "symptom": "In the real Electron creation surface, approving a canonical nomi_canvas_plan storyboard request leaves the Host tool item failed with proposal_transition_invalid; proposalApprovals stays empty and no storyboard plan is persisted.",
+  "direct_cause": "The canvas-write adapter prepared a verified proposal reference with a canvas target while the queued creation turn was anchored to a document target. proposal.put compares those target and precondition records and rejects the atomic mutation before the approval or item can be recorded.",
+  "class_root": "Host proposal registration conflated the verified capability execution target with the Host queue target. Renderer-owned storyboard operations use the canvas capability transport to execute against the creation store, but their durable proposal must remain anchored to the surface that queued the turn; this distinction was not enforced at the shared proposal registration boundary.",
+  "affected_population": [
+    "Creation/document Agent turns that invoke canonical nomi_canvas_plan with propose_storyboard_plan or patch_shots while a canvas-write adapter is available",
+    "Any future renderer-owned storyboard operation routed through the canvas capability from a non-canvas Host surface",
+    "Existing users whose inline storyboard planner approval reached the Host before the renderer could persist storyboardPlans, receipts, or revisions"
+  ],
+  "scope_paths": [
+    "electron/shared/agentCapabilities/canvasWrite.ts",
+    "electron/projectAgentHost/projectAgentExecutionCoordinator.ts",
+    "electron/projectAgentHost/projectAgentTurnExecution.ts",
+    "electron/projectAgentHost/projectAgentReducer.ts",
+    "electron/projectAgentHost/projectAgentExecutionCoordinator.test.ts",
+    "docs/fixes/2026-09-05-canonical-storyboard-proposal-transition.root-cause.json"
+  ],
+  "entry_points": [
+    "ProjectAgentTurnExecution prepares canonical storyboard calls through PiCanvasWriteTransportAdapter",
+    "persistApprovedProposal registers proposal.put and proposal.transition in the Host ledger",
+    "projectAgentReducer validates proposal target/precondition identity before accepting the durable approval"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The failing invariant is Nomi's internal Host queue, capability transport, renderer ownership, and durable receipt contract; provider documentation cannot define which target must own a Nomi proposal ledger entry.",
+  "invariants": [
+    "Every Host proposal approval is anchored to the queue item's target and preconditions unless a reducer-approved admission rule explicitly covers the same transition.",
+    "Renderer-owned storyboard operations share one capability predicate across turn execution and proposal registration, and they retain their verified canvas invocation for renderer execution without writing that cross-surface target into the Host queue ledger.",
+    "A failed proposal.put fails closed before execution and leaves no approval or storyboard receipt; a successful canonical storyboard approval creates a claimed Host approval and lets the renderer-owned executor persist its plan and receipt."
+  ],
+  "generality_proof": "The canonical storyboard predicate is owned by the shared canvas capability contract and proposal registration always derives the ledger target at the same Host boundary. Every caller that reaches persistPreparedProposal therefore receives the same queue-target normalization, while ordinary canvas, document, timeline, skill, export, and generation proposals retain their verified target matching and reducer rejection behavior.",
+  "shared_boundaries": [
+    {
+      "path": "electron/shared/agentCapabilities/canvasWrite.ts",
+      "symbol": "isRendererOwnedStoryboardProposal",
+      "responsibility": "Declare the exact canonical and compatibility storyboard operations whose renderer-owned execution target must be separated from the Host ledger target."
+    },
+    {
+      "path": "electron/projectAgentHost/projectAgentExecutionCoordinator.ts",
+      "symbol": "persistApprovedProposal",
+      "responsibility": "Anchor renderer-owned storyboard proposal refs to execution.queueItem while retaining the verified action/input hashes used by the canvas transport; keep all other proposal refs on their verified target."
+    },
+    {
+      "path": "electron/projectAgentHost/projectAgentReducer.ts",
+      "symbol": "proposal.put",
+      "responsibility": "Fail closed on target/precondition identity mismatches so callers cannot bypass Host admission with an unanchored proposal."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/projectAgentHost/projectAgentTurnExecution.ts",
+      "entry_point": "executeProjectAgentTurn awaitToolConfirmation",
+      "disposition": "enforced",
+      "evidence": "The turn now reuses isRendererOwnedStoryboardProposal for the renderer-owned branch, so the same operation set reaches the canvas adapter and proposal registration."
+    },
+    {
+      "path": "electron/projectAgentHost/projectAgentExecutionCoordinator.ts",
+      "entry_point": "persistPreparedProposal for ordinary Canvas writes",
+      "disposition": "not-affected",
+      "evidence": "set_node_prompt, create_canvas_nodes, and other ordinary canvas writes remain verified canvas-target proposals and continue to pass reducer identity checks only when their queue target is canvas."
+    },
+    {
+      "path": "electron/projectAgentHost/projectAgentExecutionCoordinator.ts",
+      "entry_point": "persistApprovedProposal for document, timeline, Skill, export, and generation writes",
+      "disposition": "not-affected",
+      "evidence": "The shared predicate is false for these tool names/operations, so verified target and preconditions remain unchanged and no new cross-surface admission is introduced."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any renderer-owned semantic operation that is exposed through a generic capability adapter can reproduce the mismatch when its Host turn starts from a document or another non-capability surface. The failure is structural and can recur with a new storyboard operation or caller unless target ownership remains centralized.",
+    "same_class_scan": [
+      "Searched projectAgentTurnExecution.ts and canvasWriteTransportAdapters.ts for every renderer-owned storyboard operation; canonical nomi_canvas_plan propose_storyboard_plan and patch_shots, plus the existing propose_storyboard_plan alias, are the only current set.",
+      "Searched persistPreparedProposal and persistApprovedProposal callers; ordinary Canvas, Timeline, Skill, ProductionRun, phase4 export, and document receipts all use their own verified target and are covered by existing coordinator tests.",
+      "Traced projectAgentReducer.ts proposal.put and proposal.transition: proposal.put is the earliest shared rejection boundary, so no renderer or runner assertion was changed and no legacy renderer-owned planner path was restored."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/projectAgentHost/projectAgentExecutionCoordinator.ts",
+    "invariant": "Renderer-owned storyboard proposal refs use the Host queue target/preconditions while their verified action hash and execution invocation remain available to the renderer capability adapter.",
+    "failure_mode": "Unknown operations and all non-storyboard writes retain strict reducer target identity validation; proposal.put continues to fail closed with proposal_transition_invalid for mismatches.",
+    "exception_policy": "none",
+    "strategy": "Classify renderer ownership once in the shared canvas capability contract and normalize only that declared class at the earliest shared proposal registration boundary. The reducer remains strict, so an unclassified cross-surface proposal cannot be admitted.",
+    "artifacts": [
+      "electron/shared/agentCapabilities/canvasWrite.ts",
+      "electron/projectAgentHost/projectAgentExecutionCoordinator.ts",
+      "electron/projectAgentHost/projectAgentTurnExecution.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/projectAgentHost/projectAgentExecutionCoordinator.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/projectAgentHost/projectAgentExecutionCoordinator.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The fix keeps the canonical Host/Agent path and the existing compatibility alias. It does not restore or add a renderer-owned planner bypass; the renderer remains the execution owner behind the Host approval."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency controls the proposal transition invariant.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted schema migration is needed. Failed pre-fix proposal.put attempts were atomic and left no approval or storyboard plan; after upgrade, a user can re-submit the same canonical storyboard turn and the Host records the claimed approval before the renderer persists the plan and receipt.",
+  "residual_risks": [
+    "The focused coordinator regression proves Host registration, approval, renderer execution, and receipt correlation with a deterministic adapter; a fresh packaged Electron walk must still prove real storyboardPlans, revision, and restart hydration on the current build.",
+    "The contract does not certify provider media generation or downstream video export; those remain separate journey gates."
+  ]
+}

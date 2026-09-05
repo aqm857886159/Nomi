@@ -298,6 +298,7 @@ function canvasWriteAdapter(
   options: Readonly<{
     prepareError?: string;
     prepareErrors?: readonly (string | undefined)[];
+    includeRendererStoryboard?: boolean;
     result?: AgentChatToolDecision;
     executeError?: string;
   }> = {},
@@ -308,7 +309,13 @@ function canvasWriteAdapter(
 } {
   let prepareCallCount = 0;
   const prepare = vi.fn(async (call: RuntimeToolCall, _signal: AbortSignal): Promise<PreparedCanvasWrite | null> => {
-    if (call.toolName !== "set_node_prompt" && call.toolName !== "create_canvas_nodes") return null;
+    const rendererStoryboardCall = options.includeRendererStoryboard
+      && call.toolName === "nomi_canvas_plan"
+      && call.args
+      && typeof call.args === "object"
+      && !Array.isArray(call.args)
+      && ["propose_storyboard_plan", "patch_shots"].includes((call.args as Record<string, unknown>).operation as string);
+    if (!rendererStoryboardCall && call.toolName !== "set_node_prompt" && call.toolName !== "create_canvas_nodes") return null;
     const prepareError = options.prepareErrors?.[prepareCallCount++] ?? options.prepareError;
     if (prepareError) {
       throw Object.assign(new Error(prepareError), { code: prepareError });
@@ -3402,6 +3409,66 @@ describe("ProjectAgentExecutionCoordinator", () => {
       status: "done",
       retryable: false,
     });
+    coordinator.release(opened.subscriptionId);
+  });
+
+  it("reproduces canonical storyboard approval from the creation document target", async () => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-storyboard-document-target-"));
+    const canvasAdapter = canvasWriteAdapter({ includeRendererStoryboard: true });
+    let receipt: ProjectAgentProposalReceiptView | null = null;
+    canvasAdapter.execute.mockImplementation(
+      async (_prepared: PreparedCanvasWrite, approval: CanvasWriteApprovalAuthority) => {
+        receipt = committedCanvasReceipt(binding, approval);
+        return { ok: true, result: { applied: true, proposalId: approval.receiptProposalId }, silent: true };
+      },
+    );
+    const coordinator = createProjectAgentExecutionCoordinator(
+      createProjectAgentRepositoryRouter({ rootDir: root }),
+      () => "subscription-storyboard-document-target",
+      {
+        runAgent: async (_request, hooks) => {
+          const call = {
+            toolCallId: "tool-storyboard-document-target",
+            toolName: "nomi_canvas_plan",
+            args: {
+              operation: "propose_storyboard_plan",
+              title: "Creation plan",
+              anchors: [],
+              shots: [{ index: 1, shotKind: "image", durationSec: 1, anchorIds: [], prompt: "cup" }],
+            },
+          };
+          const decision = await hooks.awaitToolConfirmation(call, hooks.abortSignal!);
+          return {
+            id: "result-storyboard-document-target",
+            status: "finished",
+            text: "done",
+            finishReason: "stop",
+            artifacts: [],
+            toolCalls: [{ ...call, status: decision.ok ? "ok" as const : "denied" as const, decision }],
+            usage: { promptTokens: 0, completionTokens: 1, cachedPromptTokens: 0, totalTokens: 1 },
+          } satisfies AgentChatResponse;
+        },
+      },
+    );
+    const opened = await coordinator.open(binding, {
+      canvasWrite: canvasAdapter,
+      proposalReceipt: vi.fn(() => receipt),
+    });
+    coordinator.subscribe(opened.subscriptionId, (event) => {
+      if (event.type === "tool-call") {
+        void coordinator.resolveToolDecision(opened.subscriptionId, event.turnId, event.toolCallId, {
+          ok: true,
+          result: { approved: true },
+        });
+      }
+    });
+    const input = executionInput("storyboard-document-target", 0);
+    await coordinator.enqueue(opened.subscriptionId, input);
+    const final = await coordinator.waitForTurn(opened.subscriptionId, input.mutation.payload.turn.turnId);
+    expect(final.items.find((item) => item.kind === "tool" && item.toolCallId === "tool-storyboard-document-target")).toMatchObject({ status: "done" });
+    expect(final.proposalApprovals).toHaveLength(1);
+    expect(canvasAdapter.prepare).toHaveBeenCalledOnce();
+    expect(canvasAdapter.execute).toHaveBeenCalledOnce();
     coordinator.release(opened.subscriptionId);
   });
 

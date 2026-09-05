@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { useWorkbenchStore } from '../../workbenchStore'
-import type { StoryboardPlan } from '../../generationCanvas/agent/storyboardPlan'
+import { createEmptyStoryboardPlan, type StoryboardPlan } from '../../generationCanvas/agent/storyboardPlan'
 
 const plan: StoryboardPlan = {
   title: '测试方案',
@@ -31,6 +31,19 @@ describe('分镜方案 生命周期', () => {
     const after = useWorkbenchStore.getState()
     expect(after.storyboardPlans[DOC].plan).toEqual(plan)
     expect(after.storyboardPlans[DOC].committed).toBe(false)
+  })
+
+  it('planner replaces the blank structural starter and projects the selected design', () => {
+    const s = useWorkbenchStore.getState()
+    s.hydrateStoryboardPlans({ [DOC]: { plan: createEmptyStoryboardPlan(), committed: false } })
+    const starterId = useWorkbenchStore.getState().activeStoryboardId
+
+    s.setStoryboardPlan(plan, DOC, undefined, true, true)
+    const after = useWorkbenchStore.getState()
+
+    expect(after.activeStoryboardId).toBe(starterId)
+    expect(after.storyboardDesignsByDocumentId[DOC]).toHaveLength(1)
+    expect(after.storyboardPlans[DOC]).toEqual({ plan, committed: false })
   })
 
   it('commitStoryboardPlan 不焚:方案保留、转已落画布', () => {
@@ -64,6 +77,7 @@ describe('分镜方案 生命周期', () => {
     const after = useWorkbenchStore.getState()
     expect(after.storyboardPlans[DOC].plan).toEqual(plan)
     expect(after.storyboardPlans[DOC].committed).toBe(true)
+    expect(after.activeStoryboardId).toBe(after.storyboardDesignsByDocumentId[DOC][0].id)
   })
 
   it('不同文档的方案互不影响（P4 核心不变量）', () => {
@@ -195,7 +209,7 @@ describe('分镜方案 生命周期', () => {
     expect(after.storyboardPlans[DOC].plan.title).toBe('测试方案')
   })
 
-  it('hydrateStoryboardDesigns 恢复多分镜并回到原稿视图', () => {
+  it('hydrateStoryboardDesigns 恢复多分镜并选中当前原稿的首个方案', () => {
     const s = useWorkbenchStore.getState()
     s.setStoryboardPlan(plan, DOC)
     const first = useWorkbenchStore.getState().storyboardDesignsByDocumentId[DOC][0]
@@ -206,9 +220,18 @@ describe('分镜方案 生命周期', () => {
     s.hydrateStoryboardDesigns(entries)
 
     const after = useWorkbenchStore.getState()
-    expect(after.activeStoryboardId).toBeNull()
+    expect(after.activeStoryboardId).toBe(first.id)
     expect(after.storyboardDesignsByDocumentId[DOC]).toHaveLength(2)
     expect(after.storyboardPlans[DOC].plan).toEqual(first.plan)
+  })
+
+  it('没有已恢复方案时保持未选中，创作区仍显示新建入口', () => {
+    const s = useWorkbenchStore.getState()
+
+    s.hydrateStoryboardDesigns({})
+
+    expect(useWorkbenchStore.getState().activeStoryboardId).toBeNull()
+    expect(useWorkbenchStore.getState().storyboardPlans).toEqual({})
   })
 
   it('混合版本恢复时按原稿用新设计优先、用旧投影补缺', () => {

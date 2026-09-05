@@ -10,6 +10,7 @@ import type { ModelListFailureKind, ModelListResult } from "../ai/onboarding/mod
 import { modelListErrorRedactor, publicModelListUrl } from "../ai/onboarding/modelListSafety";
 import type { CertificationContractBinding } from "../integrationCertification/types";
 import type { ProviderAdapterRun } from "./types";
+import { derivePublishedExecution } from "../shared/modelPublication";
 
 export type ExistingConnectionErrorCode =
   | "CONNECTION_NOT_FOUND"
@@ -179,7 +180,18 @@ function resolveConnection(
     return { ok: false, code: "BASE_URL_MISSING", error: "Saved connection has no usable API address" };
   }
   const models = state.models
-    .filter((candidate) => candidate.vendorKey === vendorKey)
+    .filter((candidate) => {
+      if (candidate.vendorKey !== vendorKey || candidate.enabled !== true) return false;
+      const adapter = candidate.meta && typeof candidate.meta === "object" && !Array.isArray(candidate.meta)
+        ? candidate.meta as Record<string, unknown>
+        : {};
+      const adapterMeta = adapter.adapter;
+      const adapterState = adapterMeta && typeof adapterMeta === "object" && !Array.isArray(adapterMeta)
+        ? (adapterMeta as Record<string, unknown>).state
+        : undefined;
+      return adapterState === "verified"
+        && derivePublishedExecution(candidate, { mappings: state.mappings }).published;
+    })
     .map(({ modelKey, labelZh, kind }) => ({ modelKey, labelZh, kind }));
   const summary: ExistingConnectionSummary = {
     vendorKey,

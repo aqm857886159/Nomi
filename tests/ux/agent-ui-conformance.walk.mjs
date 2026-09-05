@@ -952,13 +952,11 @@ if (TARGET === 'mockup' && !ONLY_FORM && !POSITIVE_CONTROL) {
 // ── 关闭夹具 / 浏览器 / Electron app ─────────────────────────────────────────
 
 if (TARGET === 'app' && !ONLY_FORM) {
-  const runtimeRules = (spec.runtimeRules ?? []).map((rule) => ({
-    ...rule,
-    // The ordinary conformance flow is intentionally a normal-state run. A
-    // conditional rule is recorded as state-not-reached here; its dedicated
-    // exception walk must drive the state before it can be green.
-    stateNotReached: true,
-  }))
+  // Preserve the rule metadata from the generated contract. A normal-state
+  // run may legitimately report a rule as state-not-reached, but the walk
+  // must not rewrite every rule into that bucket: doing so masks a real
+  // mismatch when the fixture actually reaches a P0/P1 state.
+  const runtimeRules = (spec.runtimeRules ?? []).map((rule) => ({ ...rule }))
   const report = await measureRuntimeContract(page, { spec, state: 'generation-normal', rules: runtimeRules })
   const reportPath = process.env.AGENT_UI_REPORT_PATH || path.join(ROOT, '.tmp', 'agent-ui-reports', 'agent-ui-conformance-app.json')
   writeMismatchReport(reportPath, report)

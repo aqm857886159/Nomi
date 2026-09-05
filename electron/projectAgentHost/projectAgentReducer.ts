@@ -27,6 +27,7 @@ import {
   hashProjectAgentMutation,
 } from "./projectAgentMutationValidation";
 import { assertProjectAgentUsage } from "./projectAgentStateValidationPrimitives";
+import { assertProjectAgentRuntimeContext } from "./projectAgentRuntimeContextValidation";
 import type { ProjectAgentReduction } from "./projectAgentReduction";
 import {
   isProjectAgentAbortStatus,
@@ -81,7 +82,6 @@ function findQueueForTurn(queue: readonly ProjectAgentQueueItem[], turnId: strin
   if (!item) fail("record_not_found");
   return item;
 }
-
 function assertSingleRunningTurn(state: ProjectAgentHostState, turnId: string): void {
   if (state.turns.some((turn) => turn.turnId !== turnId && turn.status === "running")) {
     fail("running_turn_exists");
@@ -575,6 +575,7 @@ export function reduceProjectAgentMutation(
           "items",
           "turnStatus",
           "usage",
+          "runtimeContext",
           "retryable",
           "proposalApprovalId",
           "proposalStatus",
@@ -585,6 +586,7 @@ export function reduceProjectAgentMutation(
         const result = mutation.payload;
         assertCanonicalMutationTimestamp(result.receivedAt);
         assertOptionalMutationBoolean(result.retryable);
+        if (result.runtimeContext !== undefined) { try { assertProjectAgentRuntimeContext(result.runtimeContext); } catch { fail("async_result_stale"); } }
         if (result.usage !== undefined) {
           try {
             assertProjectAgentUsage(result.usage);
@@ -703,6 +705,7 @@ export function reduceProjectAgentMutation(
         const updatedTurn = freezeProjectAgentIncremental({
           ...updatedTurnBase,
           ...(result.usage !== undefined ? { usage: result.usage } : {}),
+          ...(result.runtimeContext !== undefined ? { runtimeContext: result.runtimeContext } : {}),
         }) as ProjectAgentTurn;
         const updatedQueue = transitionRecord(
           queueItem,

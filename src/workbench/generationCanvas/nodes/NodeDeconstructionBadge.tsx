@@ -44,7 +44,7 @@ export default function NodeDeconstructionBadge({ node }: Props): JSX.Element | 
           'absolute -top-2.5 right-3 z-[3] inline-flex items-center gap-1 rounded-pill px-2 py-0.5 cursor-pointer',
           'bg-nomi-accent text-micro font-medium text-nomi-paper shadow-nomi-sm',
         )}
-        data-deconstruct-result-badge={nodeId}
+        data-decon-node-badge={nodeId}
         aria-label={t('generationCommon.node.deconstruct.reopenResult', { count: shotCount })}
         onClick={reopen}
         onPointerDown={(event) => event.stopPropagation()}
@@ -61,7 +61,7 @@ export default function NodeDeconstructionBadge({ node }: Props): JSX.Element | 
           'border border-nomi-line bg-nomi-paper py-1 pl-2.5 pr-1.5 shadow-nomi-md hover:shadow-nomi-lg',
           'text-body-sm text-nomi-ink-80',
         )}
-        data-deconstruct-stub={nodeId}
+        data-decon-node-stub={nodeId}
         aria-label={t('generationCommon.node.deconstruct.reopenResult', { count: shotCount })}
         onClick={reopen}
         onPointerDown={(event) => event.stopPropagation()}

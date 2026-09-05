@@ -1,0 +1,113 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-05-agent-ui-selector-drift",
+  "problem_type": "Agent UI design-contract selector drift",
+  "symptom": "The C-02 deconstruction stub and node badge exist in the production canvas, but their legacy data-deconstruct-* attributes do not match the canonical data-decon-node-* anchors in the Agent UI testspec and coverage matrix.",
+  "direct_cause": "NodeDeconstructionBadge and the deconstruction Electron walkthrough copied the older video-deconstruction selectors while the generated Agent UI contract declared data-decon-node-stub and data-decon-node-badge.",
+  "class_root": "The production selector owner was not required to use the generated design-contract anchor, so a renamed selector could silently become a coverage drift entry instead of a contract failure.",
+  "affected_population": [
+    "Users reaching the deconstruction collapsed state on a generation-canvas video node",
+    "C-02 Agent UI conformance and deconstruction-panel walkthroughs",
+    "Any future selector rename in a design-contract anchor without a production structure assertion"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/nodes/NodeDeconstructionBadge.tsx",
+    "src/workbench/generationCanvas/components/canvasControlsStructure.test.ts",
+    "tests/ux/deconstruction-panel.walk.mjs",
+    "tests/ux/fixtures/agent-ui-coverage-matrix.json",
+    "scripts/check-agent-ui-coverage.mjs",
+    "docs/fixes/2026-09-05-agent-ui-selector-drift.root-cause.json"
+  ],
+  "entry_points": [
+    "NodeDeconstructionBadge renders the source-node collapsed stub and badge",
+    "deconstruction-panel.walk.mjs locates those anchors during the C-02 state transition",
+    "check-agent-ui-coverage validates source selectors against generated design anchors"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The selector names are Nomi's internal generated design-contract and runtime test boundary; no third-party documentation defines them.",
+  "invariants": [
+    "Every production C-02 deconstruction node stub uses data-decon-node-stub.",
+    "Every production C-02 deconstruction node badge uses data-decon-node-badge.",
+    "The real walkthrough and coverage matrix query the same canonical anchors, and the legacy data-deconstruct-* selectors are absent from the production owner."
+  ],
+  "generality_proof": "The canonical attributes are enforced at the only production owner for these two C-02 elements, while both independent consumers—the Electron walkthrough and the coverage matrix—are updated to the same generated contract. The structure test fails if either selector drifts or the old alias returns.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeDeconstructionBadge.tsx",
+      "symbol": "NodeDeconstructionBadge",
+      "responsibility": "Own the canonical runtime anchors for the collapsed deconstruction stub and node badge."
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/canvasControlsStructure.test.ts",
+      "symbol": "keeps the C-02 deconstruction node anchors canonical",
+      "responsibility": "Fail closed when a canonical C-02 anchor is removed or a legacy selector is reintroduced."
+    },
+    {
+      "path": "scripts/check-agent-ui-coverage.mjs",
+      "symbol": "coverage matrix source selector validation",
+      "responsibility": "Validate that the matrix source selector exists in the production file and matches the uncovered generated anchor."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "tests/ux/deconstruction-panel.walk.mjs",
+      "entry_point": "C-02 collapsed stub/badge locators",
+      "disposition": "enforced",
+      "evidence": "Both locators now use data-decon-node-stub and data-decon-node-badge, matching the production owner and testspec."
+    },
+    {
+      "path": "scripts/extract-design-spec.mjs",
+      "entry_point": "C-02 generated anchor extraction",
+      "disposition": "not-affected",
+      "evidence": "The generated extractor already declares data-decon-node-stub and data-decon-node-badge; no alternate selector source is needed or changed."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Selector drift can recur for any design-contract anchor when production markup and independent walkthrough consumers are edited without a shared structural assertion.",
+    "same_class_scan": [
+      "Searched all src, tests, scripts, and docs paths for data-deconstruct-stub, data-deconstruct-result-badge, data-decon-node-stub, and data-decon-node-badge.",
+      "Checked the sole production owner NodeDeconstructionBadge.tsx, the Electron deconstruction walkthrough, the generated extractor, and the coverage gate matrix.",
+      "Confirmed the generated design spec and testspec already use the canonical data-decon-node-* names, so the repair is a convergence change rather than a contract rename."
+    ]
+  },
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "src/workbench/generationCanvas/components/canvasControlsStructure.test.ts",
+    "invariant": "The production owner contains both canonical C-02 selectors and contains neither legacy selector.",
+    "failure_mode": "Vitest fails before the walkthrough or coverage gate can report a misleading drift state.",
+    "exception_policy": "none",
+    "strategy": "Keep the canonical names in the generated contract and enforce them at the production owner with a structure test; make all independent consumers query those same names.",
+    "artifacts": [
+      "src/workbench/generationCanvas/nodes/NodeDeconstructionBadge.tsx",
+      "src/workbench/generationCanvas/components/canvasControlsStructure.test.ts",
+      "tests/ux/deconstruction-panel.walk.mjs",
+      "tests/ux/fixtures/agent-ui-coverage-matrix.json"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/components/canvasControlsStructure.test.ts",
+    "tests/ux/deconstruction-panel.walk.mjs"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/components/canvasControlsStructure.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/nodes/NodeDeconstructionBadge.tsx",
+      "tests/ux/deconstruction-panel.walk.mjs"
+    ],
+    "rationale": "The old data-deconstruct-* aliases are deleted from the production owner and the real walkthrough; retaining either changed path as a compatibility alias would violate the single canonical selector contract."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency controls this internal DOM selector contract.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted data is affected. Existing running walkthroughs must use the canonical selectors after the next build; no compatibility alias is retained because the old selectors were test-only contract drift.",
+  "residual_risks": [
+    "The coverage matrix still records these anchors as runtime-present-unmeasured because the general Agent conformance walk does not drive the full deconstruction fixture; the dedicated deconstruction walkthrough remains the behavioral evidence.",
+    "A real Electron C-02 run still depends on the deconstruction fixture and media path; this patch does not claim that paid or provider-backed generation is certified."
+  ]
+}

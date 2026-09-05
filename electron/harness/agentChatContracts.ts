@@ -10,6 +10,8 @@ import type {
 } from '../shared/surfacePortBinding';
 import type { AgentContextSnapshot } from '../shared/agentContextSnapshot';
 import type { ProjectAgentWorkMode } from '../shared/projectAgentContracts';
+import type { AgentToolProfile } from '../shared/projectAgentContracts';
+export { AGENT_TOOL_PROFILES, type AgentToolProfile } from '../shared/projectAgentContracts';
 
 /** One SDK-free wire contract shared by main, preload and renderer. */
 export const AGENT_CHAT_CAPABILITIES = [
@@ -20,8 +22,6 @@ export type AgentChatCapability = typeof AGENT_CHAT_CAPABILITIES[number];
  * A bounded projection of the canonical capability catalog. The Host may only
  * move this value forward within a Thread; it is never an authorization input.
  */
-export const AGENT_TOOL_PROFILES = ["creation", "generation", "storyboard", "timeline", "production"] as const;
-export type AgentToolProfile = typeof AGENT_TOOL_PROFILES[number];
 export type AgentChatHistory = AgentContextScope;
 export type AgentChatToolDecision = RuntimeToolDecision;
 export type AgentChatUsage = RuntimeUsage;
@@ -70,6 +70,8 @@ export interface AgentChatResponse {
   usage: AgentChatUsage;
   finishReason: RuntimeFinishReason;
   promptCache?: PromptCacheTelemetry;
+  /** Runtime-owned Pi context accounting, committed only with a terminal turn. */
+  context?: import('./runtime/runtimePort').RuntimeContextMetadata;
   promptBudgetWarning?: string;
   promptWarnings?: readonly string[];
   provenance?: readonly ProvenanceProjection[];

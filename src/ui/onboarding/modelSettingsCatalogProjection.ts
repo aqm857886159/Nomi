@@ -61,6 +61,7 @@ export function projectModelSettingsCatalog(source: Array<Record<string, unknown
       kind: kind as ChipModel['kind'],
       // enabled is absent in older catalog snapshots and remains opt-out.
       enabled: row.enabled !== false,
+      published: row.published === true,
       meta,
       ...adapter,
       hasCustomCall: Boolean(customCall.fallback.trim() || Object.keys(customCall.modes).length > 0),

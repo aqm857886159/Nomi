@@ -1,0 +1,106 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-05-canonical-patch-durable-persistence",
+  "problem_type": "Canonical canvas write receipt outruns project persistence",
+  "symptom": "The real M4 canonical nomi_canvas_plan patch_shots call returned an approved receipt at revision 2 while the durable project.json still reported revision 1, so cold-restart readback could not prove the approved storyboard edit.",
+  "direct_cause": "executeCanvasWriteTarget committed the proposal receipt and returned the in-memory canvas result while subscribeWorkbenchProjectPersistence held the persistRevision save behind its debounce; immediately after hydration, React could also expose the storyboard surface before its persistence effect installed the active save owner, so the canonical path could mutate before persistActiveWorkbenchProjectNow had a durable owner and the Host surfaced capability_receipt_unresolved.",
+  "class_root": "The renderer had two unsynchronized readiness boundaries for one mutation: a debounced subscription and an asynchronously installed immediate canonical barrier. Without an owner-readiness handoff before mutation plus cancellation/idle coordination, receipt ordering and no-op decline semantics could be defeated by a missing owner, stale duplicate save, or queued timer.",
+  "affected_population": [
+    "Canonical MCP canvas.write operations, including nomi_canvas_plan patch_shots, issued against an active Electron project",
+    "Any storyboard or canvas mutation that commits a receipt while the active project save target is absent, stale, or still queued behind debounce"
+  ],
+  "scope_paths": [
+    "src/workbench/capability/canonicalCanvasPlanPatch.ts",
+    "src/workbench/capability/canonicalCanvasPlanPatch.test.ts",
+    "src/workbench/project/workbenchProjectSession.ts",
+    "src/workbench/project/workbenchProjectSession.persistence.test.ts",
+    "docs/plan/2026-09-05-m0-m5-vertical-spine-status.md"
+  ],
+  "entry_points": [
+    "Project Agent Host canvas.write dispatch for nomi_canvas_plan patch_shots",
+    "Canonical renderer capability handler used by the public MCP transport"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Receipt-to-project revision ordering is an internal Nomi renderer/Host persistence contract; no external source defines this local invariant.",
+  "invariants": [
+    "A canonical canvas write does not return its committed result to MCP until the active project save owner is installed and returns a record for the same project with an integer durable revision.",
+    "An immediate canonical save cancels queued debounce work and waits for any in-flight save queue to become idle before writing, so one mutation cannot create a second revision later.",
+    "A missing, mismatched, failed, or stale save target fails closed as capability_receipt_unresolved or surface_port_stale; the owner-readiness wait is bounded and the caller never receives a success receipt backed only by in-memory state.",
+    "The receipt and project persistence remain owned by their existing shared boundaries; the canonical renderer owner provides the ordering barrier rather than a runner sleep or a second persistence implementation."
+  ],
+  "generality_proof": "All public canvas.write calls converge on executeCanonicalCanvasPlanPatch before the main process returns a committed MCP result, and every canonical call first waits for the active save owner then uses the active session single queue handoff. Awaiting persistActiveWorkbenchProjectNow plus cancel-and-idle coordination covers patch_shots and equivalent operations without depending on provider, runner timing, or stored revision.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/capability/canonicalCanvasPlanPatch.ts",
+      "symbol": "executeCanonicalCanvasPlanPatch",
+      "responsibility": "Sequence canonical renderer mutation, receipt result, and active project persistence; reject an externally visible success when durable save evidence is unavailable."
+    },
+    {
+      "path": "src/workbench/project/workbenchProjectSession.ts",
+      "symbol": "persistActiveWorkbenchProjectNow",
+      "responsibility": "Cancel queued debounce work, wait for any in-flight queue save to settle, then invoke the single active project save target and return its durable record."
+    },
+    {
+      "path": "src/workbench/project/workbenchProjectSession.ts",
+      "symbol": "waitForActiveWorkbenchProjectSaveTarget",
+      "responsibility": "Signal canonical callers after the existing single persistence owner is installed, closing the hydration-to-visible-surface race without a second writer."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/capability/capabilityApplyHandler.ts",
+      "entry_point": "canvas.write dispatch to executeCanonicalCanvasPlanPatch",
+      "disposition": "enforced",
+      "evidence": "The public canvas.write switch is the canonical renderer entry and now crosses the durable save barrier before returning."
+    },
+    {
+      "path": "src/workbench/NomiStudioApp.tsx",
+      "entry_point": "executeCanvasWriteTarget callback for renderer Agent canvas tools",
+      "disposition": "not-affected",
+      "evidence": "This callback serves the in-app Agent canvas tool path; its ordinary editing persistence remains debounce-driven and is not the public MCP canonical receipt boundary covered by this fix."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The project session intentionally debounces store persistence while proposal receipts are committed synchronously; every canonical caller could expose the same revision inversion whenever its response beats the timer or the save target is unavailable.",
+    "same_class_scan": [
+      "Searched executeCanvasWriteTarget, executeCanonicalCanvasPlanPatch, canvas.write dispatch, applyProposalBatch receipt commit, persistRevision subscribers, and persistActiveWorkbenchProjectNow callers across src/workbench and electron/.",
+      "Checked patch_shots, propose_storyboard_plan, arrange_storyboard_to_timeline, staging, and camera operations as equivalent canonical operations sharing the same renderer owner."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/capability/canonicalCanvasPlanPatch.ts",
+    "invariant": "No canonical MCP canvas write returns a success result until the active project owner is installed and has acknowledged a durable record for the request project.",
+    "failure_mode": "Save errors, absent targets, mismatched project ids, invalid revisions, and post-save project supersession return typed failure and do not claim durable success.",
+    "exception_policy": "none",
+    "strategy": "Place the await at the earliest shared canonical renderer boundary after proposal commit and before the transport response, reusing the existing active save target instead of adding a caller sleep or alternate writer.",
+    "artifacts": [
+      "src/workbench/capability/canonicalCanvasPlanPatch.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/capability/canonicalCanvasPlanPatch.test.ts",
+    "src/workbench/project/workbenchProjectSession.persistence.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/capability/canonicalCanvasPlanPatch.test.ts",
+    "src/workbench/project/workbenchProjectSession.persistence.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "No alternate persistence implementation is removed; the existing debounced subscription remains for ordinary UI edits and the canonical path now requires its shared active save target."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The ordering invariant is internal renderer persistence ownership and does not depend on a third-party runtime.",
+    "exit_criteria": []
+  },
+  "migration": "No data migration is needed. Existing project records remain readable; future canonical writes establish the durable save barrier before returning receipts.",
+  "residual_risks": [
+    "A canonical call made while project hydration is superseded still fails through the existing surface_port_stale guard; owner readiness is only signaled for the active project and returns unresolved after its bounded wait if no owner is installed.",
+    "A receipt committed before a later persistence failure may still require existing recovery classification; this fix fails the response closed but does not roll back an already committed receipt.",
+    "The queue handoff waits for existing saves but does not cancel an external writer outside this session owner."
+  ]
+}

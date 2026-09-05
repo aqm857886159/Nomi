@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "sources": [
+    "docs/design/mockups/2026-09-01-storyboard-table-image-first.html",
+    "docs/design/mockups/storyboard-options/A-inline-generation.html",
+    "docs/design/mockups/storyboard-options/B-first-column-composer.html",
+    "docs/design/mockups/storyboard-options/C-anchor-strip-inline-reference.html",
+    "docs/design/reviews/2026-06-15-storyboard-editor-redesign.html"
+  ],
+  "anchors": {
+    "storyboard-editor": {"specRefs":["table-root"],"source":{"path":"src/workbench/creation/storyboard/StoryboardWorkspace.tsx","selector":"data-storyboard-editor"},"status":"runtime-present-unmeasured"},
+    "storyboard-anchor-strip": {"specRefs":["anchors"],"source":{"path":"src/workbench/creation/storyboard/StoryboardPlanEditor.tsx","selector":"data-storyboard-anchors"},"status":"missing-runtime-anchor","state":"collapsed-and-expanded"},
+    "storyboard-anchor-reference-upload": {"specRefs":["anchors.reference-image","anchors.reference-video"],"source":{"path":"src/workbench/creation/storyboard/StoryboardAnchorCard.tsx","selector":"data-anchor-card"},"status":"runtime-present-unmeasured","state":"image-video-kind-and-empty-generating-failed"},
+    "storyboard-row": {"specRefs":["row"],"source":{"path":"src/workbench/creation/storyboard/StoryboardShotTable.tsx","selector":"data-storyboard-row"},"status":"runtime-present-unmeasured","state":"selected-folded-expanded"},
+    "storyboard-row-output": {"specRefs":["row.output"],"source":{"path":"src/workbench/creation/storyboard/shotRow/StoryboardShotFrame.tsx","selector":"data-storyboard-shot-frame"},"status":"missing-runtime-anchor","state":"empty-waiting-image-video-failed"},
+    "storyboard-row-reference-slots": {"specRefs":["row.references"],"source":{"path":"src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx","selector":"data-storyboard-reference"},"status":"missing-runtime-anchor","state":"image-video-add-remove-over-limit-rejected"},
+    "storyboard-row-model": {"specRefs":["row.model"],"source":{"path":"src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx","selector":"model select"},"status":"runtime-present-unmeasured","state":"image-model-video-model"},
+    "storyboard-model-capability": {"specRefs":["model.reference-capability"],"source":null,"status":"missing-runtime-anchor","state":"unsupported-reference-kind-and-count"},
+    "storyboard-row-aspect": {"specRefs":["row.aspect"],"source":{"path":"src/workbench/creation/storyboard/ShotParamControls.tsx","selector":"aspect_ratio control"},"status":"runtime-present-unmeasured","state":"model-default-and-explicit"},
+    "storyboard-row-duration": {"specRefs":["row.duration"],"source":{"path":"src/workbench/creation/storyboard/ShotParamControls.tsx","selector":"duration control"},"status":"runtime-present-unmeasured","state":"model-default-and-explicit"},
+    "storyboard-row-preview": {"specRefs":["row.preview"],"source":{"path":"src/workbench/creation/storyboard/StoryboardHoverPreview.tsx","selector":"preview surface"},"status":"runtime-present-unmeasured","state":"image-poster-video-playing-failed"},
+    "storyboard-row-anchor-mention": {"specRefs":["row.anchor-reference"],"source":{"path":"src/workbench/creation/storyboard/shotRow/useShotMentionSource.ts","selector":"mention source"},"status":"runtime-present-unmeasured","state":"mention-and-persist"},
+    "storyboard-bulkbar": {"specRefs":["batch.parameters"],"source":{"path":"src/workbench/creation/storyboard/StoryboardBulkBar.tsx","selector":"data-storyboard-bulkbar"},"status":"runtime-present-unmeasured","state":"model-kind-duration-aspect"},
+    "storyboard-batch-generate": {"specRefs":["batch.generate"],"source":{"path":"src/workbench/creation/storyboard/StoryboardSelectionToolbar.tsx","selector":"selection generate"},"status":"runtime-present-unmeasured","state":"selected-count-running-partial-failed"},
+    "storyboard-generated-reference": {"specRefs":["output.auto-reference"],"source":null,"status":"missing-runtime-anchor","state":"save-output-as-reference-and-reuse"},
+    "storyboard-persistence-restart": {"specRefs":["restart"],"source":{"path":"src/workbench/project/workbenchProjectSession.ts","selector":"storyboardPlans"},"status":"runtime-present-unmeasured","state":"plan-refs-output-and-selection"}
+  }
+}

@@ -26,6 +26,17 @@ describe('normalizePayload — storyboardPlan 持久化往返(P0-6)', () => {
     expect(out.storyboardPlans!['doc-1'].plan).toEqual(plan)
   })
 
+  it('从 active document projection 派生旧单方案字段，保存后仍与新真源一致', () => {
+    const base = createDefaultWorkbenchProjectPayload()
+    const documentId = base.activeDocumentId!
+    const out = normalizePayload({
+      ...base,
+      storyboardPlans: { [documentId]: { plan, committed: true } },
+    })
+    expect(out.storyboardPlan).toEqual(plan)
+    expect(out.storyboardPlanCommitted).toBe(true)
+  })
+
   it('老项目无 storyboardPlan → 归一化为空映射,不报错', () => {
     const out = normalizePayload(createDefaultWorkbenchProjectPayload())
     expect(out.storyboardPlans).toEqual({})

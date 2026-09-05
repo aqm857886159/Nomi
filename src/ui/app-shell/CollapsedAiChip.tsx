@@ -37,6 +37,7 @@ export default function CollapsedAiChip({ workspaceMode }: Props): JSX.Element |
       )}
       aria-label={t('appBar.generationCollapsedRestore')}
       data-generation-collapsed-chip="true"
+      data-agent-topbar-badge="true"
       onClick={() => setCollapsed(false)}
     >
       <NomiLogoMark size={18} />
@@ -44,14 +45,11 @@ export default function CollapsedAiChip({ workspaceMode }: Props): JSX.Element |
       {/* 有对话历史（收起前留下的动静）→ 冒 accent 数字徽标；纯空会话不冒（不制造假动静）。 */}
       {messageCount > 0 ? (
         <span
-          className={cn(
-            'absolute -right-1 -top-1 grid min-w-4 place-items-center rounded-pill px-1',
-            'bg-nomi-accent text-micro tabular-nums text-nomi-paper',
-          )}
-          aria-hidden
-        >
-          {messageCount}
-        </span>
+          className="absolute -right-0.5 -top-0.5 size-1.5 rounded-pill bg-nomi-accent"
+          data-agent-badge-dot="true"
+          aria-label={t('appBar.generationCollapsedUpdates', { count: messageCount })}
+          title={t('appBar.generationCollapsedUpdates', { count: messageCount })}
+        />
       ) : null}
     </WorkbenchButton>
   )

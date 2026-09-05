@@ -1,5 +1,5 @@
 import type { StateCreator } from 'zustand'
-import type { StoryboardPlan } from './generationCanvas/agent/storyboardPlan'
+import { isEmptyStoryboardPlan, type StoryboardPlan } from './generationCanvas/agent/storyboardPlan'
 import {
   createDefaultWorkbenchDocument,
   mintStoryboardDesignId,
@@ -276,11 +276,13 @@ export const createWorkbenchDocumentSlice: WorkbenchSliceCreator<WorkbenchDocume
       // A new planner run must not reuse a design the user selected while the
       // async result was in flight. Ordinary UI and compatibility calls keep
       // updating the currently visible design.
+      const visible = findDesign(state, state.activeStoryboardId, target)
+      const replaceEmptyStarter = createNew && !storyboardId && visible && isEmptyStoryboardPlan(visible.plan)
       const active = storyboardId
         ? findDesign(state, storyboardId, target)
-        : createNew
+        : createNew && !replaceEmptyStarter
           ? undefined
-          : findDesign(state, state.activeStoryboardId, target)
+          : visible
       // A revision whose target was deleted while the planner was running is
       // obsolete. Do not resurrect it as a new design.
       if (storyboardId && !active) return state
@@ -385,7 +387,9 @@ export const createWorkbenchDocumentSlice: WorkbenchSliceCreator<WorkbenchDocume
       design.status = entry.committed ? 'committed' : 'draft'
       designsByDocument[documentId] = [design]
     }
-    set({ storyboardPlans: entries, storyboardDesignsByDocumentId: designsByDocument, activeStoryboardId: null })
+    const activeDocumentId = get().activeDocumentId
+    const activeStoryboardId = designsByDocument[activeDocumentId]?.[0]?.id ?? null
+    set({ storyboardPlans: entries, storyboardDesignsByDocumentId: designsByDocument, activeStoryboardId })
   },
   hydrateStoryboardDesigns: (entries, fallbackEntries = {}) => {
     const safeEntries: Record<string, StoryboardDesign[]> = {}
@@ -408,6 +412,8 @@ export const createWorkbenchDocumentSlice: WorkbenchSliceCreator<WorkbenchDocume
       safeEntries[documentId] = [design]
       projection[documentId] = designToEntry(design)
     }
-    set({ storyboardDesignsByDocumentId: safeEntries, storyboardPlans: projection, activeStoryboardId: null })
+    const activeDocumentId = get().activeDocumentId
+    const activeStoryboardId = safeEntries[activeDocumentId]?.[0]?.id ?? null
+    set({ storyboardDesignsByDocumentId: safeEntries, storyboardPlans: projection, activeStoryboardId })
   },
 })

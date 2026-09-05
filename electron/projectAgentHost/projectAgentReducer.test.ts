@@ -706,6 +706,7 @@ describe("ProjectAgentHost turn serialization and async re-entry", () => {
       expectedRevision: 2,
       items: [resultItem],
       turnStatus: "done",
+      runtimeContext: { normalRequests: 2, summaryRequests: 1, compactions: 1, retainedMessages: 8 },
       assistantFinal: {
         itemId: "assistant-turn-a",
         executionToken: "token-turn-a",
@@ -747,6 +748,8 @@ describe("ProjectAgentHost turn serialization and async re-entry", () => {
     const applied = reduceProjectAgentMutation(running.state, mutation);
     expect(applied.state.items).toContainEqual(expect.objectContaining({ itemId: "tool-a" }));
     expect(applied.state.turns[0]?.status).toBe("done");
+    expect(applied.state.turns[0]?.runtimeContext).toEqual({ normalRequests: 2, summaryRequests: 1, compactions: 1, retainedMessages: 8 });
+    expect(() => reduceProjectAgentMutation(running.state, { ...mutation, commandId: "async-negative-context", payload: { ...envelope, runtimeContext: { ...envelope.runtimeContext!, compactions: -1 } } })).toThrowError(expect.objectContaining<Partial<ProjectAgentReducerError>>({ code: "async_result_stale" }));
     expect(applied.state.queue[0]?.status).toBe("done");
   });
 

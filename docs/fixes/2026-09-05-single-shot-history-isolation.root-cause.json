@@ -1,0 +1,100 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-05-single-shot-history-isolation",
+  "problem_type": "ephemeral single-shot prompt history isolation regression",
+  "symptom": "The production direction planner's HTTP request includes prior resident Agent messages such as F_PLAN_DONE and F_VERIFY_LOW, so the direction model receives unrelated thread history and strict real-walk isolation evidence fails.",
+  "direct_cause": "projectAgentExecutionHelpers.executionPrompt always prefixed snapshot.activeThreadId user/assistant items, even when the request capability was single-shot and its history envelope was ephemeral.",
+  "class_root": "The Host used one prompt assembly path for two different caller semantics: resident multi-turn tasks need initiating-thread context, while single-shot direction and visual-judge tasks require a fresh prompt. The transport history marker alone cannot distinguish these because the Host queue also uses an ephemeral envelope for resident turns.",
+  "affected_population": [
+    "Production direction candidate planning requests",
+    "Renderer-owned single-shot image and video shot verification requests",
+    "Any future single-shot capability routed through the ProjectAgent Host while a resident thread has prior items"
+  ],
+  "scope_paths": [
+    "electron/projectAgentHost/projectAgentExecutionHelpers.ts",
+    "electron/projectAgentHost/projectAgentExecutionHelpers.test.ts",
+    "docs/fixes/2026-09-05-single-shot-history-isolation.root-cause.json"
+  ],
+  "entry_points": [
+    "runDirectionPlanner and shotVerifyJudge enqueue capability=single-shot through runSingleShotAgent",
+    "ProjectAgent execution coordinator calls executionPrompt before runAgent",
+    "Resident ProjectAgent turns continue through the same helper with canvas-agent, creation-editor, storyboard, or timeline capability"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Prompt history admission is an internal ProjectAgent Host contract; no model vendor controls which Nomi thread items may enter a single-shot request.",
+  "invariants": [
+    "A single-shot capability receives exactly its current request prompt and never snapshot.activeThreadId prior messages.",
+    "Resident multi-turn capabilities retain initiating-thread prior context even when the Host transport envelope is ephemeral.",
+    "The fix is capability-based and does not infer isolation from a vendor, model, or prompt keyword."
+  ],
+  "generality_proof": "All renderer single-shot callers use the shared runSingleShotAgent capability and all resident callers pass a different capability through the same execution coordinator. The helper branch therefore covers direction planning, shot verification, and future single-shot callers while preserving resident thread continuity.",
+  "shared_boundaries": [
+    {
+      "path": "electron/projectAgentHost/projectAgentExecutionHelpers.ts",
+      "symbol": "executionPrompt",
+      "responsibility": "Admit only the current prompt for single-shot requests and assemble initiating-thread context for resident multi-turn requests."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/agent/runDirectionPlanner.ts",
+      "entry_point": "runSingleShotAgent direction planner",
+      "disposition": "enforced",
+      "evidence": "It sends capability=single-shot through the shared runner, so executionPrompt now isolates it from the active resident thread."
+    },
+    {
+      "path": "src/workbench/generationCanvas/agent/shotVerifyJudge.ts",
+      "entry_point": "runSingleShotAgent shot judge",
+      "disposition": "enforced",
+      "evidence": "The visual judge uses the same single-shot capability and receives no unrelated resident transcript."
+    },
+    {
+      "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "entry_point": "runWorkbenchAgent resident composer",
+      "disposition": "not-affected",
+      "evidence": "Resident composer requests use surface capabilities such as canvas-agent and must retain the initiating thread context; the regression test pins that behavior."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any new single-shot caller would otherwise inherit the active resident transcript through the shared execution helper.",
+    "same_class_scan": [
+      "Searched runSingleShotAgent and executionPrompt callers; direction planning and shot verification are the current single-shot production paths.",
+      "Searched resident runWorkbenchAgent capability assignments; resident turns use non-single-shot capabilities and rely on thread continuity.",
+      "Added paired helper regressions for single-shot isolation and resident multi-turn retention so a future branch cannot broaden isolation globally."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/projectAgentHost/projectAgentExecutionHelpers.ts",
+    "invariant": "executionPrompt branches on the canonical AgentChatCapability before reading activeThreadId prior items.",
+    "failure_mode": "A regression test fails if single-shot receives prior text or if resident multi-turn loses prior context.",
+    "exception_policy": "none",
+    "strategy": "Use the capability contract as the caller semantic discriminator at the shared Host prompt boundary; do not add vendor-specific or keyword-based exclusions.",
+    "artifacts": [
+      "electron/projectAgentHost/projectAgentExecutionHelpers.ts",
+      "electron/projectAgentHost/projectAgentExecutionHelpers.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/projectAgentHost/projectAgentExecutionHelpers.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/projectAgentHost/projectAgentExecutionHelpers.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "No renderer-owned history path is restored; the existing Host prompt boundary remains the sole owner."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The repair changes no third-party dependency or runtime lifecycle.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted data migration is needed. Existing Host items remain durable for UI receipts, while future single-shot model requests stop projecting those items into their prompt.",
+  "residual_risks": [
+    "The focused helper tests prove the prompt boundary; the real Electron walk must still verify direction request isolation and subsequent script/preview/export stages.",
+    "Resident context continuity remains dependent on the Host active thread and is intentionally covered by the paired non-single-shot test."
+  ]
+}
