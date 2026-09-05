@@ -4,6 +4,7 @@ import {
   installUncaughtExceptionNoiseFilter,
   startNativeCrashCapture,
 } from "./crashLog";
+import { installMainLogger } from "./logging/logger";
 import { installParentProcessWatchdog } from "./parentProcessWatchdog";
 import { installProcessStdioErrorGuards } from "./processStdio";
 
@@ -21,6 +22,7 @@ type MainProcessLifecycleDependencies = {
   startNativeCrashCapture?: typeof startNativeCrashCapture;
   installParentProcessWatchdog?: typeof installParentProcessWatchdog;
   installProcessStdioErrorGuards?: typeof installProcessStdioErrorGuards;
+  installMainLogger?: typeof installMainLogger;
 };
 
 function readLauncherPid(env: NodeJS.ProcessEnv): number | undefined {
@@ -43,7 +45,11 @@ export function installMainProcessLifecycle(
     dependencies.startNativeCrashCapture ?? startNativeCrashCapture;
   const noiseFilterInstaller =
     dependencies.installUncaughtExceptionNoiseFilter ?? installUncaughtExceptionNoiseFilter;
+  const mainLoggerInstaller = dependencies.installMainLogger ?? installMainLogger;
   stdioGuardInstaller();
+  // 排在崩溃处理之前：日志的第一行就是会话表头（版本/平台/pid）。启动早期崩掉时，
+  // 「这次会话到底起没起来、是哪个构建」全靠它——晚装一步就正好丢掉最该有的那一行。
+  mainLoggerInstaller();
   crashHandlerInstaller();
   // 装在 crashHandlerInstaller 之后：uncaughtExceptionMonitor 与 uncaughtException 是两条独立通道，
   // monitor 永远先跑、永远落盘（留证不受影响），这条只决定「要不要弹那个原生崩溃框」。
