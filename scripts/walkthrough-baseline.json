@@ -3,7 +3,7 @@
   "whole-page-text": 29,
   "sleep-as-done-signal": 111,
   "dead-selector": 0,
-  "dead-aria-label": 10,
+  "dead-aria-label": 9,
   "source-scan-without-strip": 9,
   "assertion-density-thin": {
     "tests/ux/accent-soft-hue.walk.mjs": 0,
