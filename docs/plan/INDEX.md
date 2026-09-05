@@ -118,6 +118,7 @@
 | [agent-compaction-runtime-projection.md](agent-compaction-runtime-projection.md) | Agent compaction runtime 元数据的 Host 状态、持久化、恢复与 renderer 投影契约 | 🚧 |
 | [2026-09-04-agent-usage-ledger-rebaseline-followup.md](2026-09-04-agent-usage-ledger-rebaseline-followup.md) | #452 rebaseline follow-up：Host usage persistence/projection 与生成 approval receipt 的 projectRevision C9 防漂移 | ✅ |
 | [2026-09-02-mcp-testnet-l1-handshake.md](2026-09-02-mcp-testnet-l1-handshake.md) | MCP 测试网第 1 片：真实 stdio L1 握手六条回归、tools/list payload 棘轮与 listChanged A1 | 🚧 |
+| [2026-09-05-mcp-tool-refs-blindspot.md](2026-09-05-mcp-tool-refs-blindspot.md) | `check:mcp-tool-refs` 扩展调用形态与 docs 可执行示例扫描，清理无 runner 的退役生成走查 | ✅ |
 | [2026-09-02-mcp-l2-journeys.md](2026-09-02-mcp-l2-journeys.md) | MCP 测试网第 2 片：C7-C12 真实语义生成、断连回收、产物审片与导出对账 | ✅ |
 | [2026-08-25-p4-anchor-checkpoint-approval-card.md](2026-08-25-p4-anchor-checkpoint-approval-card.md) | P4 锚定妆照检查点的渲染层审批卡（#155 §8.5 两条腿之二；样张已拍板、方案未入库）| 📋 |
 | [2026-09-01-agent-m0-baseline-freeze.md](2026-09-01-agent-m0-baseline-freeze.md) | M0 基线冻结：owner map、50 项工具映射、旧路径、schema-v3 草案、红灯与 PR 切片 | ⏳ |

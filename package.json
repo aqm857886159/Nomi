@@ -156,7 +156,7 @@
     "check:mcp-payload": "pnpm exec tsx scripts/check-mcp-payload.ts",
     "check:mcp-operation-constructible": "pnpm exec tsx scripts/check-mcp-operation-constructible.mjs",
     "check:mcp-legacy-entry": "node --test ./scripts/nomi-mcp-entry.node-test.mjs",
-    "check:mcp-tool-refs": "pnpm exec tsx scripts/check-mcp-tool-references.ts",
+    "check:mcp-tool-refs": "node --test ./scripts/check-mcp-tool-references.node-test.mjs && pnpm exec tsx scripts/check-mcp-tool-references.ts",
     "check:boundaries": "node ./scripts/check-boundaries.mjs",
     "check:model-identity": "node ./scripts/check-model-identity.mjs",
     "check:adoption-bridge": "node ./scripts/check-adoption-bridge.mjs",
