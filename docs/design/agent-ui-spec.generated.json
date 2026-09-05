@@ -5,10 +5,10 @@
     "height": 900,
     "deviceScaleFactor": 1
   },
-  "generatedAt": "2026-09-04T15:28:02.097Z",
+  "generatedAt": "2026-09-05T10:06:13.371Z",
   "description": "从样张 HTML 渲染提取的设计规格表——每条对应一个 conformance testspec 断言挂点，包含真实几何（px）和计算色值，供实现者核对实现与样张是否对齐。",
   "mockupPath": "docs/design/mockups/2026-09-01-agent-ui-final-redesign.html",
-  "mockupHash": "7853f8149d90e80b",
+  "mockupHash": "ddbf0c2d345f1368",
   "screens": [
     "A",
     "B",
@@ -45,9 +45,9 @@
     "data-agent-at-picker",
     "data-agent-at-token",
     "data-agent-composer-attach",
-    "data-agent-composer-mode",
     "data-agent-composer-model",
-    "data-agent-composer-prompt",
+    "data-agent-composer-skill",
+    "data-agent-composer-mode",
     "data-agent-composer-send",
     "data-agent-model-alert",
     "data-agent-plan-card",
@@ -1146,12 +1146,12 @@
       }
     },
     {
-      "anchor": "data-agent-composer-mode",
-      "selector": "[data-agent-composer-mode]",
-      "cssSelector": ".cbtn.ico[data-tip^=\"Agent\"]",
+      "anchor": "data-agent-composer-model",
+      "selector": "[data-agent-composer-model]",
+      "cssSelector": ".cbtn.ico[data-tip^=\"去选\"]",
       "screen": "A",
       "specRef": "A-19",
-      "desc": "底排执行方式钮",
+      "desc": "底排模型钮",
       "tolerances": {
         "w": 2,
         "h": 2
@@ -1161,7 +1161,7 @@
         "h": 2
       },
       "sourceLibrary": "Beautiful UI",
-      "sourceLocator": "docs/design/mockups/2026-09-01-agent-ui-final-redesign.html#.cbtn.ico[data-tip^=\"Agent\"]",
+      "sourceLocator": "docs/design/mockups/2026-09-01-agent-ui-final-redesign.html#.cbtn.ico[data-tip^=\"去选\"]",
       "adaptationRule": "Use the Thinking/Loading/Tool Chips/Streaming Text behavior only; implement with Nomi primitives and tokens.",
       "state": "normal",
       "severity": "P1",
@@ -1194,12 +1194,12 @@
       }
     },
     {
-      "anchor": "data-agent-composer-model",
-      "selector": "[data-agent-composer-model]",
-      "cssSelector": ".cbtn.ico[data-tip^=\"去选\"]",
+      "anchor": "data-agent-composer-skill",
+      "selector": "[data-agent-composer-skill]",
+      "cssSelector": ".cbtn.ico[data-tip=\"技能\"]",
       "screen": "A",
       "specRef": "A-19",
-      "desc": "底排模型钮",
+      "desc": "底排技能钮",
       "tolerances": {
         "w": 2,
         "h": 2
@@ -1209,7 +1209,7 @@
         "h": 2
       },
       "sourceLibrary": "Beautiful UI",
-      "sourceLocator": "docs/design/mockups/2026-09-01-agent-ui-final-redesign.html#.cbtn.ico[data-tip^=\"去选\"]",
+      "sourceLocator": "docs/design/mockups/2026-09-01-agent-ui-final-redesign.html#.cbtn.ico[data-tip=\"技能\"]",
       "adaptationRule": "Use the Thinking/Loading/Tool Chips/Streaming Text behavior only; implement with Nomi primitives and tokens.",
       "state": "normal",
       "severity": "P1",
@@ -1242,12 +1242,12 @@
       }
     },
     {
-      "anchor": "data-agent-composer-prompt",
-      "selector": "[data-agent-composer-prompt]",
-      "cssSelector": ".cbtn.ico[data-tip=\"提示词模板\"]",
+      "anchor": "data-agent-composer-mode",
+      "selector": "[data-agent-composer-mode]",
+      "cssSelector": ".cbtn.ico[data-tip=\"模式\"]",
       "screen": "A",
       "specRef": "A-19",
-      "desc": "底排提示词钮",
+      "desc": "底排执行方式钮",
       "tolerances": {
         "w": 2,
         "h": 2
@@ -1257,7 +1257,7 @@
         "h": 2
       },
       "sourceLibrary": "Beautiful UI",
-      "sourceLocator": "docs/design/mockups/2026-09-01-agent-ui-final-redesign.html#.cbtn.ico[data-tip=\"提示词模板\"]",
+      "sourceLocator": "docs/design/mockups/2026-09-01-agent-ui-final-redesign.html#.cbtn.ico[data-tip=\"模式\"]",
       "adaptationRule": "Use the Thinking/Loading/Tool Chips/Streaming Text behavior only; implement with Nomi primitives and tokens.",
       "state": "normal",
       "severity": "P1",
@@ -1266,11 +1266,11 @@
       "role": null,
       "ariaLabel": null,
       "geometry": {
-        "x": 1100,
+        "x": 1235,
         "y": 791,
         "w": 28,
         "h": 28,
-        "right": 1128,
+        "right": 1263,
         "bottom": 819
       },
       "tokens": {
@@ -1362,11 +1362,11 @@
       "role": null,
       "ariaLabel": null,
       "geometry": {
-        "x": 1085,
+        "x": 1052,
         "y": 795,
         "w": 6,
         "h": 6,
-        "right": 1091,
+        "right": 1058,
         "bottom": 801
       },
       "tokens": {
@@ -1822,9 +1822,9 @@
       "data-agent-at-token",
       "data-agent-at-token[data-stale=true]",
       "data-agent-composer-attach",
-      "data-agent-composer-mode",
       "data-agent-composer-model",
-      "data-agent-composer-prompt",
+      "data-agent-composer-skill",
+      "data-agent-composer-mode",
       "data-agent-composer-send",
       "data-agent-model-alert",
       "data-agent-plan-card",

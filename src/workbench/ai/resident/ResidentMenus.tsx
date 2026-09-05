@@ -84,7 +84,9 @@ type ResidentPromptMenuProps = {
   onClose: () => void
 }
 
-/** Compact prompt chooser: built-in round presets plus the canonical library. */
+/** Compact prompt chooser: built-in round presets plus the canonical library.
+ * It is opened from the resident Skill capability menu, so prompt guidance has
+ * one home without adding another composer button. */
 export function ResidentPromptMenu({
   t,
   promptLibraryItems,

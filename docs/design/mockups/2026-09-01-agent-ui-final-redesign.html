@@ -219,6 +219,7 @@ body.dark .userbubble{color:var(--bg)}
 .at{display:inline-flex;align-items:center;padding:0 6px;border-radius:5px;background:var(--acS);color:var(--ac);font-size:11.5px;line-height:18px}
 .at.stale{background:var(--warnBg);color:var(--warn)}
 .cbar{display:flex;align-items:center;gap:5px;margin-top:7px}
+.cspacer{flex:1;min-width:0}
 .cbtn{position:relative;height:28px;min-width:28px;border:1px solid var(--line);border-radius:7px;background:var(--paper);color:var(--ink60);display:inline-flex;align-items:center;justify-content:center;padding:0;cursor:pointer;font-family:inherit}
 .cbtn:hover{border-color:var(--ink20);color:var(--ink80)}
 .cbtn.ico{width:28px}
@@ -577,9 +578,10 @@ body.rule .divider .lk{outline:1px dashed var(--warn);outline-offset:2px}
             <div class="cprompt">第 5 镜也按 <span class="at">@阿青定妆</span> 的造型，接 <span class="at stale" title="引用之后这段素材改过，发送时按现在的版本">@街道 02:10</span> 那段的雨势</div>
             <div class="cbar">
               <button class="cbtn ico" data-tip="附件"><i class="ti ti-paperclip"></i></button>
-              <button class="cbtn ico" data-tip="Agent · 安全自动"><i class="ti ti-bolt"></i></button>
               <button class="cbtn ico" data-tip="去选文本模型"><i class="ti ti-robot"></i><span class="reddot"></span></button>
-              <button class="cbtn ico" data-tip="提示词模板"><i class="ti ti-file-pencil"></i></button>
+              <button class="cbtn ico" data-tip="技能"><i class="ti ti-list-check"></i></button>
+              <span class="cspacer"></span>
+              <button class="cbtn ico" data-tip="模式"><i class="ti ti-bolt"></i></button>
               <button class="send" title="发送"><i class="ti ti-arrow-up"></i></button>
             </div>
           </div>
@@ -932,9 +934,10 @@ body.rule .divider .lk{outline:1px dashed var(--warn);outline-offset:2px}
             <div class="cprompt ph">继续告诉 Nomi 要改什么… 输入 @ 可以引素材或技能</div>
             <div class="cbar">
               <button class="cbtn ico" data-tip="附件"><i class="ti ti-paperclip"></i></button>
-              <button class="cbtn ico" data-tip="Agent · 安全自动"><i class="ti ti-bolt"></i></button>
               <button class="cbtn ico" data-tip="文本模型 · Kimi K2"><i class="ti ti-robot"></i></button>
-              <button class="cbtn ico" data-tip="提示词模板"><i class="ti ti-file-pencil"></i></button>
+              <button class="cbtn ico" data-tip="技能"><i class="ti ti-list-check"></i></button>
+              <span class="cspacer"></span>
+              <button class="cbtn ico" data-tip="模式"><i class="ti ti-bolt"></i></button>
               <button class="send" title="发送"><i class="ti ti-arrow-up"></i></button>
             </div>
           </div>
