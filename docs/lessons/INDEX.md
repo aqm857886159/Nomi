@@ -52,6 +52,7 @@
 - [弹层被祖先 overflow 裁掉时三样证据同时失明](overlay-clipped-by-ancestor-overflow.md) — 浮层走查必查：`toBeVisible` / rect / 「点得动」全绿也可能用户点不到，改用 `expectOverlayReachable`
 
 ## B. 测试与 CI 的红绿判读
+- [停掉一个 agent ≠ 现场清空：子 agent 还在写、哨兵还在跑](stopping-an-agent-leaves-children-and-sentinels.md) — B · TaskStop 只停一个；先 ListAgents 停子 agent，再 pgrep 杀 until 循环，证明无写入后才派接力写手
 
 - [管道跑测试会吞掉退出码](piped-test-runs-mask-exit-codes.md) — `| tail` 的 exit 0 是 tail 的；错的 reporter 名会「全绿」通过
 - [测试文件不进主 typecheck](tests-are-not-typechecked.md) — 已由 `check:test-types` 接管，但 `pnpm typecheck` 仍看不见测试
@@ -122,3 +123,7 @@
 - [长等待交给 shell 哨兵，别交给子 agent](long-waits-belong-to-shell-sentinels-not-agents.md) — 同一天三种死法（Monitor 交卷 / 零 commit 等到超时 / `--watch` 挂死）；附哨兵模板与「CI 不替你跑新入库走查」
 
 > 另见 playbook [§14 门岗验「没变坏」，不验「做到了」](../engineering/agent-orchestration-playbook.md#14-门岗验没变坏不验做到了把-p3-机器化进派工合同)——派下去的活「36 门全绿」不等于规格达成；派工要绑验收物、收货先验规格再看门岗。
+- [两个各自绿的 PR 合到一起会红](two-green-prs-merge-red.md) — 连合同一区域 PR 前先 update-branch 等 CI；分类器 skip 的门不算绿
+- [合并收据只认 main 的 tip](merge-receipts-need-exact-tip.md) — 合一个等 CI 记一个再合下一个；probe worktree 分离 HEAD 跑 verify-merged
+- [Docs Gate Autosync 往受保护 main 推必败](docs-autosync-cannot-push-protected-main.md) — GH006 三连 = 有文档没进索引/没状态，本地补即可
+- [样张两条硬纪律：真字形、真比例](mockups-need-real-glyphs-and-true-proportions.md) — 图标从 @tabler 包抽真实路径；布局线框按 1680×842 真比例并自己看过

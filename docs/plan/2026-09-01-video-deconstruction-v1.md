@@ -1,6 +1,7 @@
 # 拆解视频 v1 —— 面板方案（一页纸）
 
-日期：2026-09-01 · 状态：📋 设计+文档 only，样张待用户拍板（拍板前不写壳）
+⚠️ 已被 2026-09-05 拍板推翻：不再采用“右槽就近面板、拆解后默认铺图成组”的交互；现行结论见 [GPT 讨论梳理 consolidation §3](2026-09-05-gpt-discussion-consolidation.md)。
+日期：2026-09-01 · 状态：⛔ 已废弃（❌ 不再采用，📦 归档）；现行结论见 [GPT 讨论梳理 consolidation §3](2026-09-05-gpt-discussion-consolidation.md)
 基线：`origin/main@59e1f6c0` · 引擎侧另一班在重建（#259 `feat/apimart-gemini-vision`）
 配套：面板样张 [`docs/design/mockups/2026-09-01-video-deconstruction-v1.html`](../design/mockups/2026-09-01-video-deconstruction-v1.html)（含渲染截图）
 
