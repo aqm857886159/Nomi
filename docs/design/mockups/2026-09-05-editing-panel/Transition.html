@@ -1,0 +1,314 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+body{margin:0;background:#fbfaf8;font-family:Inter,-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB",system-ui,sans-serif;color:#1d1a15;-webkit-font-smoothing:antialiased;font-size:13px}
+*{box-sizing:border-box}
+svg{flex:0 0 auto}
+.mono{font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;font-variant-numeric:tabular-nums}
+.sub{font-size:11px;color:#9b9891}
+.cap{font-size:12px;color:#66635d}
+.kbd{display:inline-block;min-width:16px;padding:0 4px;border:1px solid #e3e1de;border-bottom-width:2px;border-radius:4px;background:#fff;font-size:10.5px;line-height:15px;color:#66635d;text-align:center;font-family:ui-monospace,Menlo,monospace}
+/* ---- app frame ---- */
+.app{position:relative;width:1440px;background:#fbfaf8;overflow:hidden;display:grid;grid-template-rows:48px 1fr auto}
+.topbar{display:flex;align-items:center;gap:14px;padding:0 16px;background:#fff;border-bottom:1px solid #efeeec}
+.topbar .logo{display:flex;align-items:center;gap:8px;font-weight:600;font-size:15px}
+.topbar .logo i{display:grid;place-items:center;width:22px;height:22px;border-radius:6px;background:#1d1a15;color:#fff;font-style:normal;font-size:12px}
+.crumb{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border:1px solid #efeeec;border-radius:7px;font-size:12px;color:#66635d}
+.crumb b{color:#1d1a15;font-weight:500}
+.steps{margin-left:auto;margin-right:auto;display:inline-flex;gap:2px;padding:3px;border-radius:999px;background:#f6f5f3}
+.steps span{padding:5px 14px;border-radius:999px;font-size:13px;color:#66635d}
+.steps span.on{background:#fff;color:#1d1a15;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+.topbar .right{display:flex;align-items:center;gap:14px;font-size:12px;color:#36322d}
+.topbar .right span{display:inline-flex;align-items:center;gap:5px}
+.body{display:grid;grid-template-columns:272px 1fr 336px;min-height:0}
+.lrail{border-right:1px solid #efeeec;background:#fff;display:flex;flex-direction:column}
+.lrail .tabs{display:flex;border-bottom:1px solid #efeeec}
+.lrail .tabs span{flex:1;text-align:center;padding:9px 0;font-size:12px;color:#66635d}
+.lrail .tabs span.on{color:#1d1a15;border-bottom:2px solid #2a75ba}
+.shots{display:flex;flex-wrap:wrap;gap:6px;padding:8px}
+.shot{position:relative;width:104px;height:62px;border-radius:6px;border:1px solid #e3e1de;overflow:hidden}
+.shot i{position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:4px;background:#1d1a15;color:#fff;font-size:10px;font-style:normal;display:grid;place-items:center}
+.lrail .foot{margin-top:auto;padding:8px 10px;border-top:1px solid #efeeec;font-size:12px;color:#66635d}
+.center{display:flex;flex-direction:column;align-items:center;padding:20px 20px 10px;min-width:0}
+.stage{position:relative;width:100%;max-width:700px;aspect-ratio:16/9;border-radius:10px;overflow:hidden;background:#1500ff}
+.stage .capt{position:absolute;left:50%;bottom:12%;transform:translateX(-50%);padding:6px 14px;border-radius:6px;background:rgba(255,255,255,.86);color:#1d1a15;font-size:18px;font-weight:600;white-space:nowrap}
+/* preview control bar (real form) */
+.cbar{margin-top:10px;display:flex;align-items:center;gap:6px;height:44px;padding:0 10px;border:1px solid #efeeec;border-radius:10px;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.04),0 1px 1px rgba(0,0,0,.03)}
+.cbar .play{display:grid;place-items:center;width:28px;height:28px;border-radius:999px;background:#1d1a15;color:#fff}
+.cbar .ib{display:grid;place-items:center;width:24px;height:24px;color:#36322d}
+.cbar .tc{font-size:11px;color:#66635d;margin:0 4px}
+.cbar .vol{width:60px;height:3px;border-radius:2px;background:#e3e1de;position:relative}
+.cbar .vol:after{content:"";position:absolute;left:0;top:0;height:100%;width:70%;border-radius:2px;background:#2a75ba}
+.cbar .vol i{position:absolute;left:66%;top:50%;width:11px;height:11px;border-radius:999px;background:#2a75ba;transform:translate(-50%,-50%)}
+.grp{position:relative;display:inline-flex;align-items:center;gap:4px;height:30px;padding:0 8px;border:1px solid #efeeec;border-radius:6px}
+.grp .lg{position:absolute;top:-7px;left:8px;padding:0 4px;background:#fff;font-size:11px;line-height:1;color:#bbb7b0}
+.grp.cl{border-color:#2a75ba;background:#e5eef7}
+.grp.cl .lg{color:#2a75ba}
+.grp.off{opacity:.45}
+.grp.nb{border-color:transparent;padding:0 2px}
+.grp .pill{height:22px;font-size:12px}
+.exp{margin-left:auto;display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;border-radius:999px;background:#1d1a15;color:#fff;font-size:12px;font-weight:500}
+.pill{display:inline-flex;align-items:center;gap:4px;height:24px;padding:0 8px 0 10px;border:1px solid #e3e1de;border-radius:999px;background:#fff;white-space:nowrap}
+.pill .k{font-size:11px;color:#9b9891}
+.pill .v{font-size:12px;color:#36322d}
+/* ---- right rail (agent) ---- */
+.rrail{border-left:1px solid #efeeec;background:#fff;display:flex;flex-direction:column;min-height:0}
+.rr-head{display:flex;align-items:center;gap:8px;height:40px;padding:0 12px;border-bottom:1px solid #efeeec;font-size:13px;font-weight:600}
+.rr-head i{display:grid;place-items:center;width:18px;height:18px;border-radius:5px;background:#1d1a15;color:#fff;font-style:normal;font-size:10px}
+.rr-head .beta{padding:1px 5px;border-radius:999px;background:#e5eef7;color:#2a75ba;font-size:9.5px;font-weight:600}
+.rr-head .quota{display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 8px;border:1px solid #e3e1de;border-radius:999px;font-size:11px;font-weight:400;color:#66635d}
+.rr-head .ic{margin-left:auto;display:flex;gap:6px;color:#66635d}
+.rr-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;padding:20px}
+.rr-empty .b{width:40px;height:40px;border-radius:999px;background:#e5eef7;color:#2a75ba;display:grid;place-items:center}
+.rr-empty h4{margin:0;font-size:14px;font-weight:600}
+.rr-empty p{margin:0;font-size:12px;color:#66635d}
+.rr-empty .start{display:inline-flex;align-items:center;gap:4px;height:30px;padding:0 12px;border:1px solid #2a75ba;border-radius:6px;color:#2a75ba;font-size:12px}
+.composer{display:flex;flex-direction:column;margin:8px;border:1px solid #e3e1de;border-radius:10px;background:#fff;min-width:0}
+.composer .txt{padding:10px 12px 6px;font-size:13px;line-height:1.5;color:#9b9891;min-height:54px}
+.composer .bar{display:flex;align-items:center;gap:6px;padding:6px 8px 8px 8px}
+.composer .bar .sp{flex:1 1 auto}
+.cb{position:relative;display:grid;place-items:center;width:28px;height:28px;border:1px solid #e3e1de;border-radius:7px;background:#fff;color:#36322d}
+.cb.on{border-color:#2a75ba;color:#2a75ba;background:#e5eef7}
+.cb .dot{position:absolute;top:-3px;right:-3px;width:7px;height:7px;border-radius:999px;background:#ff3b30}
+.send{display:grid;place-items:center;width:30px;height:30px;border-radius:999px;background:#ecebe9;color:#9b9891}
+.send.on{background:#1d1a15;color:#fff}
+.chip{display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 6px 0 4px;border-radius:6px;background:#e5eef7;color:#2a75ba;font-size:12px}
+.chip i{display:inline-block;width:14px;height:10px;border-radius:2px;background:#f6a02c;font-style:normal}
+/* ---- inspector ---- */
+.insp{border-bottom:1px solid #efeeec;background:#fff}
+.insp .hd{display:flex;align-items:center;gap:6px;height:34px;padding:0 12px;font-size:12px;font-weight:600;border-bottom:1px solid #efeeec}
+.insp .hd .sw{width:10px;height:10px;border-radius:3px;background:#f6a02c}
+.insp .hd .sub{margin-left:auto;font-weight:400}
+.sec{padding:8px 12px 10px;border-bottom:1px solid #f6f5f3}
+.sec .st{display:flex;align-items:center;gap:6px;font-size:11px;color:#9b9891;margin-bottom:6px}
+.sec .st .sp{flex:1}
+.kv{display:grid;grid-template-columns:52px 1fr;align-items:center;gap:6px 8px;font-size:12px}
+.kv .k{color:#66635d}
+.kv .v{display:flex;align-items:center;gap:6px;min-width:0}
+.num{display:inline-flex;align-items:center;height:24px;border:1px solid #e3e1de;border-radius:6px;background:#fff;overflow:hidden}
+.num span{padding:0 8px;font-size:12px;color:#1d1a15;min-width:52px;text-align:center}
+.num b{display:grid;place-items:center;width:22px;height:22px;font-weight:400;color:#66635d;border-left:1px solid #efeeec;font-size:13px}
+.num b:first-child{border-left:0;border-right:1px solid #efeeec}
+.num .u{color:#9b9891;padding-left:0;min-width:0}
+.sl{position:relative;flex:1;height:3px;border-radius:2px;background:#e3e1de}
+.sl:after{content:"";position:absolute;left:0;top:0;height:100%;width:var(--p,60%);border-radius:2px;background:#2a75ba}
+.sl i{position:absolute;left:var(--p,60%);top:50%;width:12px;height:12px;border-radius:999px;background:#fff;border:1.5px solid #2a75ba;transform:translate(-50%,-50%)}
+.sw{display:inline-flex;width:28px;height:16px;border-radius:999px;background:#d9d7d4;position:relative}
+.sw:after{content:"";position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:999px;background:#fff}
+.sw.on{background:#2a75ba}.sw.on:after{left:14px}
+.seg{display:inline-flex;gap:2px;padding:2px;border-radius:6px;background:#f6f5f3}
+.seg span{min-height:22px;padding:0 9px;border-radius:5px;font-size:12px;color:#66635d;display:inline-flex;align-items:center}
+.seg span.on{background:#fff;color:#1d1a15;font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+.seg span.na{color:#bbb7b0;text-decoration:line-through}
+.trow{display:flex;align-items:center;gap:8px;font-size:12px;padding:3px 0}
+.trow .sw2{width:10px;height:10px;border-radius:3px}
+/* ---- timeline ---- */
+.tl{position:relative;border-top:1px solid #e3e1de;background:#fff;box-shadow:0 -1px 0 rgba(255,255,255,.7);padding:10px 18px 12px}
+.tl .hd{position:relative;height:22px;margin-bottom:6px;border-bottom:1px solid #efeeec;display:grid;grid-template-columns:96px 1fr}
+.ruler{position:relative;display:flex}
+.ruler span{flex:1;font-size:11px;line-height:22px;color:#66635d;font-family:ui-monospace,Menlo,monospace;border-left:1px solid #e3e1de;padding-left:6px}
+.tlbar{position:absolute;right:0;top:-2px;display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 4px;border-radius:999px;background:rgba(255,255,255,.84);backdrop-filter:blur(10px)}
+.tlbar .grp{height:28px;padding:0 4px;gap:1px}
+.tlbar .grp .lg{top:-7px;left:6px}
+.tb{display:grid;place-items:center;min-width:26px;height:24px;padding:0 4px;border-radius:6px;color:#66635d}
+.tb.on{background:#e5eef7;color:#2a75ba}
+.tb.acc{color:#2a75ba}
+.tb.off{opacity:.4}
+.tb.txt{font-size:11px;color:#66635d;min-width:38px;font-family:ui-monospace,Menlo,monospace}
+.track{display:grid;grid-template-columns:96px 1fr;align-items:center;margin-bottom:6px}
+.track .lab{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:500;color:#36322d}
+.track .lab i{width:6px;height:6px;border-radius:999px;font-style:normal}
+.track .lab b{margin-left:auto;margin-right:10px;font-weight:400;font-size:11px;color:#9b9891;width:16px;height:16px;border-radius:999px;background:#f6f5f3;display:grid;place-items:center}
+.lane{position:relative;height:52px;border-radius:6px}
+.lane.thin{height:30px}
+.lane.empty{border:1px dashed #e3e1de;background:#fbfaf8;display:flex;align-items:center;justify-content:center;font-size:11px;color:#9b9891}
+.lane.sec2{height:40px}
+.clip{position:absolute;top:5px;bottom:5px;border-radius:4px;border:1px solid;display:flex;align-items:center;padding:0 6px;font-size:11px;font-weight:500;box-shadow:inset 0 1px 0 rgba(255,255,255,.7);overflow:hidden}
+.clip .nm{padding:1px 5px;border-radius:4px;background:rgba(255,255,255,.72);backdrop-filter:blur(8px);font-size:11px;font-weight:600;color:#1d1a15}
+.clip.v1{background:#1500ff;border-color:rgba(0,168,134,.24)}
+.clip.v2{background:#f6a02c;border-color:rgba(0,168,134,.24)}
+.clip.v3{background:#2f8f2f;border-color:rgba(0,168,134,.24)}
+.clip.sel{border-color:rgba(0,168,134,.56);box-shadow:0 0 0 1.5px rgba(0,168,134,.13),0 8px 18px rgba(0,168,134,.11)}
+.clip.sel:before,.clip.sel:after{content:"";position:absolute;top:50%;width:3px;height:14px;border-radius:999px;background:#00a886;transform:translateY(-50%)}
+.clip.sel:before{left:3px}.clip.sel:after{right:3px}
+.clip.ghost{border:1.5px dashed #2a75ba;background:rgba(42,117,186,.08);box-shadow:none;color:#2a75ba}
+.clip.dim{opacity:.55}
+.tclip{position:absolute;top:5px;bottom:5px;display:flex;align-items:center;gap:4px;padding:0 8px;border-radius:6px;border:1px solid rgba(155,93,229,.36);background:rgba(155,93,229,.13);font-size:11px;font-weight:600;color:#1d1a15;white-space:nowrap;overflow:hidden}
+.tclip.sel{border-color:#9b5de5;box-shadow:0 0 0 1px #9b5de5}
+.aclip{position:absolute;top:5px;bottom:5px;border-radius:4px;border:1px solid rgba(139,92,246,.24);background:rgba(139,92,246,.11);display:flex;align-items:center;padding:0 6px;font-size:11px;font-weight:600}
+.addchip{display:inline-flex;align-items:center;gap:4px;height:24px;padding:0 8px;border:1px solid #efeeec;border-radius:7px;background:#fff;font-size:11px;font-weight:500;color:#1d1a15}
+.playhead{position:absolute;top:0;bottom:0;width:1px;background:#2a75ba;box-shadow:0 0 0 1px rgba(0,122,255,.08);z-index:6}
+.playhead i{position:absolute;top:-1px;left:50%;width:11px;height:11px;border-radius:4px;border:1.5px solid #fff;background:#2a75ba;transform:translateX(-50%);box-shadow:0 1px 2px rgba(0,0,0,.2)}
+/* seam + transition */
+.seam{position:absolute;top:-14px;transform:translateX(-50%);z-index:5;display:inline-flex;align-items:center;gap:0;height:20px}
+.seam .ln{width:14px;height:1px;background:#bbb7b0}
+.tmk{display:inline-flex;align-items:center;gap:3px;height:20px;padding:0 6px;border-radius:999px;border:1px solid #d9d7d4;background:#fff;color:#2a75ba;font-size:11px;font-weight:600;font-family:ui-monospace,Menlo,monospace}
+.tmk.hover{border-color:#2a75ba;box-shadow:0 0 0 2px #e5eef7}
+.tmk.add{color:#9b9891;border-style:dashed;padding:0 5px}
+.tmk.add.hover{color:#2a75ba;border-color:#2a75ba;border-style:solid;box-shadow:0 0 0 2px #e5eef7}
+.tmk.warn{color:#b67700;border-color:#b67700}
+.tmk.no{color:#bbb7b0;border-color:#e3e1de;background:#f6f5f3}
+/* popover / menu */
+.pop{position:absolute;z-index:30;display:flex;flex-direction:column;min-width:220px;padding:6px;border:1px solid #e3e1de;border-radius:10px;background:#fff;box-shadow:0 4px 8px rgba(0,0,0,.05),0 20px 50px rgba(0,0,0,.08)}
+.pop .ph{display:flex;align-items:center;gap:6px;padding:4px 6px 6px;font-size:11px;color:#9b9891}
+.pop .ph .sp{flex:1}
+.opt{display:flex;align-items:center;gap:8px;height:30px;padding:0 8px;border-radius:6px;font-size:12px;color:#36322d}
+.opt.on{background:#e5eef7;color:#2a75ba;font-weight:600}
+.opt.na{color:#bbb7b0}
+.opt .r{margin-left:auto;font-size:11px;color:#9b9891;font-weight:400}
+.opt.na .r{color:#b67700}
+.pop .ft{display:flex;align-items:center;gap:8px;margin-top:4px;padding:8px 6px 2px;border-top:1px solid #efeeec;font-size:12px}
+.menu{position:absolute;z-index:30;min-width:150px;display:flex;flex-direction:column;padding:4px 0;border:1px solid #e3e1de;border-radius:6px;background:#fff;box-shadow:0 4px 8px rgba(0,0,0,.05),0 20px 50px rgba(0,0,0,.08)}
+.mi{display:flex;align-items:center;gap:8px;padding:5px 10px;font-size:12px;color:#36322d}
+.mi .k{margin-left:auto;padding-left:14px;color:#bbb7b0;font-size:11px;font-family:ui-monospace,Menlo,monospace}
+.mi.dn{color:#ff3b30}
+.mi.dis{color:#bbb7b0}
+.msep{height:1px;margin:3px 0;background:#e3e1de}
+/* toast (existing receipt form) */
+.toast{position:absolute;z-index:40;display:inline-flex;align-items:center;gap:10px;height:44px;padding:0 10px 0 14px;border:1px solid #e3e1de;border-radius:10px;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.04),0 8px 24px rgba(0,0,0,.06);font-size:13px}
+.toast .ok{color:#34c759}
+.toast .undo{height:26px;padding:0 10px;border-radius:6px;background:#e5eef7;color:#2a75ba;font-size:12px;display:inline-flex;align-items:center}
+.toast .x{color:#9b9891}
+/* intervention card */
+.icard{margin:8px 8px 0;border:1px solid #2a75ba;border-radius:10px;background:#fff;overflow:hidden}
+.icard .ih{display:flex;align-items:center;gap:6px;padding:8px 10px;background:#e5eef7;color:#2a75ba;font-size:12px;font-weight:600}
+.icard .ih .sp{flex:1}
+.icard .ih .sub{color:#2a75ba;opacity:.8;font-weight:400}
+.icard ul{margin:0;padding:6px 10px;list-style:none;display:flex;flex-direction:column;gap:3px;font-size:12px;color:#36322d}
+.icard li{display:flex;gap:6px;align-items:center}
+.icard li .op{display:inline-block;min-width:34px;padding:0 5px;border-radius:4px;background:#f6f5f3;color:#66635d;font-size:11px;line-height:16px;text-align:center}
+.icard .ia{display:flex;align-items:center;gap:6px;padding:8px 10px;border-top:1px solid #efeeec}
+.icard .ia .sp{flex:1}
+.bt{display:inline-flex;align-items:center;justify-content:center;gap:4px;height:26px;padding:0 10px;border:1px solid #e3e1de;border-radius:6px;background:#fff;font-size:12px;color:#1d1a15;white-space:nowrap}
+.bt.p{border:0;background:#1d1a15;color:#fff}
+.bt.q{border:0;background:transparent;color:#66635d}
+/* annotations */
+.note{font-size:11px;line-height:1.5;color:#66635d}
+.h{font-size:13px;font-weight:600;margin:0 0 6px}
+.lbl{position:absolute;padding:2px 6px;border-radius:4px;background:#1d1a15;color:#fff;font-size:10.5px;line-height:1.3;z-index:50;white-space:nowrap}
+.lbl.b{background:#2a75ba}
+table.cmp{border-collapse:collapse;width:100%;font-size:12px}
+table.cmp th{position:sticky;top:0;text-align:left;padding:6px 8px;background:#f6f5f3;color:#66635d;font-weight:500;border-bottom:1px solid #e3e1de}
+table.cmp td{padding:6px 8px;border-bottom:1px solid #efeeec;vertical-align:top;color:#36322d}
+table.cmp td.k{color:#1d1a15;font-weight:500}
+.tg{display:inline-block;padding:0 6px;border-radius:999px;font-size:11px;line-height:18px}
+.tg.keep{background:rgba(52,199,89,.12);color:#248a3d}.tg.move{background:#e5eef7;color:#2a75ba}.tg.del{background:rgba(255,59,48,.1);color:#ff3b30}.tg.new{background:#fff3d6;color:#b67700}
+.rrail>*{flex:none}
+.rrail .rr-empty{flex:1 1 0;min-height:0;overflow:hidden}
+.grp .lg{white-space:nowrap}
+.tlbar{background:rgba(255,255,255,.92)}
+.strip{position:relative;display:flex;align-items:center;flex-wrap:wrap;gap:6px 12px;padding:12px 12px 8px;border:1px solid #2a75ba;border-radius:10px;background:#fff;margin-top:10px;width:100%;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.strip.film{border-color:#efeeec}
+.strip .lg{position:absolute;top:-7px;left:10px;padding:0 4px;background:#fff;font-size:11px;color:#2a75ba;line-height:1;white-space:nowrap}
+.strip.film .lg{color:#bbb7b0}
+.strip .g{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#36322d;padding-right:12px;border-right:1px solid #efeeec;white-space:nowrap}
+.strip .g:last-child{border-right:0;padding-right:0}
+.strip .g .t{color:#9b9891;font-size:11px}
+.strip .sl{width:90px;flex:none}
+/* ---- panel system (D) ---- */
+.pan{display:flex;flex-direction:column;min-height:0;min-width:0;background:#fff}
+.pan .ph{display:flex;align-items:center;gap:6px;height:32px;padding:0 10px;border-bottom:1px solid #efeeec;font-size:12px;font-weight:600;color:#1d1a15;flex:none}
+.pan .ph .sub{font-weight:400;margin-left:2px}
+.pan .ph .ic{margin-left:auto;display:flex;gap:6px;color:#9b9891}
+.hv{position:relative;width:6px;flex:none;background:#fbfaf8;cursor:col-resize}
+.hv:after{content:"";position:absolute;left:2px;top:50%;width:2px;height:22px;border-radius:2px;background:#d9d7d4;transform:translateY(-50%)}
+.hh{position:relative;height:6px;flex:none;background:#fbfaf8;cursor:row-resize}
+.hh:after{content:"";position:absolute;top:2px;left:50%;height:2px;width:22px;border-radius:2px;background:#d9d7d4;transform:translateX(-50%)}
+.body.d{display:flex;min-height:0}
+.rcol{display:flex;flex-direction:column;width:336px;flex:none;min-height:0}
+.lay{display:inline-flex;align-items:center;gap:4px;height:26px;padding:0 8px;border:1px solid #e3e1de;border-radius:7px;font-size:12px;color:#36322d;background:#fff}
+.lay.on{border-color:#2a75ba;color:#2a75ba;background:#e5eef7}
+.track .lab .mu{display:grid;place-items:center;width:18px;height:18px;border-radius:4px;color:#9b9891;margin-right:6px}
+.track .lab .mu.on{color:#ff3b30;background:rgba(255,59,48,.1)}
+.menu .mh{padding:4px 10px 2px;font-size:11px;color:#9b9891}
+.menu .mi .dotp{margin-left:auto;width:6px;height:6px;border-radius:999px;background:#2a75ba}
+.menu .mi .dotp.off{background:#e3e1de}
+.preset{display:flex;gap:4px;padding:4px 10px 6px}
+.preset span{height:22px;padding:0 8px;border:1px solid #e3e1de;border-radius:6px;font-size:11px;display:inline-flex;align-items:center;color:#36322d}
+.preset span.on{border-color:#2a75ba;color:#2a75ba;background:#e5eef7}
+.rcpt{display:flex;align-items:center;gap:6px;padding:4px 0;font-size:12px;color:#66635d}
+.rcpt i{width:6px;height:6px;border-radius:999px;background:#34c759;font-style:normal}
+.bub{align-self:flex-end;max-width:85%;padding:8px 10px;border-radius:10px;background:#f6f5f3;font-size:12px;color:#1d1a15;line-height:1.5}
+.ans{font-size:12px;color:#1d1a15;line-height:1.55}
+.cbar>*{flex:none}.cbar .tc,.cbar .exp{white-space:nowrap}
+.track .lab{white-space:nowrap;gap:5px}
+.track .lab b{margin-right:8px}
+.rail{width:32px;flex:none;display:flex;flex-direction:column;align-items:center;gap:6px;padding-top:8px;background:#fff;border-left:1px solid #efeeec}
+.rail .ri{display:grid;place-items:center;width:24px;height:24px;border-radius:6px;color:#66635d;border:1px solid transparent}
+.rail .ri.on{background:#e5eef7;color:#2a75ba}
+.rail .rt{writing-mode:vertical-rl;font-size:11px;color:#9b9891;letter-spacing:1px;margin-top:2px}
+.pan .ph .col{display:grid;place-items:center;width:20px;height:20px;border-radius:5px;color:#9b9891}
+.pan .ph .col:hover{background:#ecebe9}
+.lbl.g{background:#66635d}
+
+  </style>
+</helmet>
+<div style="width:1440px;height:520px;background:#fbfaf8;padding:20px 24px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px">
+  <div>
+    <p class="h">① 接缝悬停 → 出「+」把手</p>
+    <div class="note" style="margin-bottom:12px">鼠标靠近两段交界（±8px）时，标尺下沿冒出虚线「+」。移开就消失。不占常驻位。<br>点一下 = 直接落默认转场（叠化 · 15 帧），不弹表单；落完把手变成 ② 的标记。</div>
+    <div style="position:relative;height:230px;padding-top:44px">
+      <div class="lane" style="background:#fff;border:1px solid #efeeec">
+        <div class="clip v1" style="left:2%;width:46%"><span class="nm">镜头 1</span></div>
+        <div class="clip v2" style="left:48%;width:48%"><span class="nm">镜头 2</span></div>
+        <div class="seam" style="left:48%"><span class="ln"></span><span class="tmk add hover"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5l0 14"/><path d="M5 12l14 0"/></svg></span><span class="ln"></span></div>
+        <div class="lbl b" style="left:calc(48% - 12px);top:-44px">+ 叠化 15 帧</div>
+      </div>
+      <div class="lane" style="background:#fff;border:1px solid #efeeec;margin-top:60px;opacity:.9">
+        <div class="clip v2" style="left:2%;width:40%"><span class="nm">镜头 2</span></div>
+        <div class="clip v3" style="left:52%;width:44%"><span class="nm">镜头 3</span></div>
+        <div class="seam" style="left:47%"><span class="ln"></span><span class="tmk no"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5l0 14"/><path d="M5 12l14 0"/></svg></span><span class="ln"></span></div>
+        <div class="lbl" style="left:calc(47% - 80px);top:-46px;background:#66635d">title：两个片段之间有空隙 · 先拖拢再加</div>
+      </div>
+    </div>
+    <div class="note" style="margin-top:14px">下排：放不了的地方把手是灰的，悬停 title 直接给 9 条理由之一（已在词表里）——把手出不出现就是答案，不需要 FAQ。</div>
+  </div>
+  <div>
+    <p class="h">② 点标记 → 选择器（挂在剪切点上的对象）</p>
+    <div class="note" style="margin-bottom:12px">同一个浮层服务「新落」和「改已有」。类型 5 种照 i18n 现成词表；只有叠化 / 淡入淡出真能渲染，另外 3 种明标退化。时长 = 值 → 面板里的 stepper，不在时间轴上拖。</div>
+    <div style="position:relative;height:300px">
+      <div class="lane" style="background:#fff;border:1px solid #efeeec">
+        <div class="clip v2" style="left:2%;width:46%"><span class="nm">镜头 2</span></div>
+        <div class="clip v3" style="left:48%;width:48%"><span class="nm">镜头 3</span></div>
+        <div class="seam" style="left:48%"><span class="ln"></span><span class="tmk hover"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4l-8 4l8 4l8 -4l-8 -4"/><path d="M4 12l8 4l8 -4"/><path d="M4 16l8 4l8 -4"/></svg>12f</span><span class="ln"></span></div>
+      </div>
+      <div class="pop" style="left:120px;top:62px;width:250px">
+        <div class="ph">转场 · 镜头 2 → 镜头 3<span class="sp"></span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6l-12 12"/><path d="M6 6l12 12"/></svg></div>
+        <div class="opt"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="17" r="3"/><circle cx="17" cy="17" r="3"/><path d="M8.6 8.6l10.4 10.4"/><path d="M8.6 15.4l10.4 -10.4"/></svg>硬切</div>
+        <div class="opt on"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4l-8 4l8 4l8 -4l-8 -4"/><path d="M4 12l8 4l8 -4"/><path d="M4 16l8 4l8 -4"/></svg>叠化</div>
+        <div class="opt"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M3 12h1m8 -9v1m8 8h1m-9 8v1m-6.4 -15.4l.7 .7m12.1 -.7l-.7 .7m0 11.4l.7 .7m-12.1 -.7l-.7 .7"/></svg>淡入淡出<span class="r">经黑</span></div>
+        <div class="opt na"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3m0 1a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z"/><path d="M15 15m0 1a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z"/><path d="M21 11v-3a2 2 0 0 0 -2 -2h-6l3 3m0 -6l-3 3"/><path d="M3 13v3a2 2 0 0 0 2 2h6l-3 -3m0 6l3 -3"/></svg>匹配剪辑<span class="r">暂不支持 · 保持硬切</span></div>
+        <div class="opt na"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12h-2c-.894 0 -1.662 -.857 -1.761 -2c-.296 -3.431 -.868 -7 -2.239 -7c-1.858 0 -2.5 6.848 -2.75 9.5c-.25 -2.652 -.892 -9.5 -2.75 -9.5c-1.371 0 -1.943 3.569 -2.239 7c-.099 1.143 -.867 2 -1.761 2h-2"/></svg>甩镜<span class="r">暂不支持 · 保持硬切</span></div>
+        <div class="ft"><span class="cap">时长</span><span class="num"><b>−</b><span class="mono">12</span><b>+</b></span><span class="sub">帧 = 0.40s · 上限 45</span><span style="flex:1"></span><span style="color:#ff3b30;font-size:12px">删除</span></div>
+      </div>
+      <div class="note" style="position:absolute;left:120px;top:300px;width:250px">时长上限随两端片段 derive（不能长于较短那段的一半）；类型和拒绝理由都用现成词表，不新造文案。</div>
+    </div>
+  </div>
+  <div>
+    <p class="h">③ 转场在属性面板里的另一个家 + 标记形态</p>
+    <div class="note" style="margin-bottom:12px">选中片段时，面板底部「转场」段列出入 / 出两条；点其中一条 = 打开同一个选择器（一功能一个家：选择器是家，面板和标记都是入口，不是第二套控件）。</div>
+    <div class="insp" style="border:1px solid #efeeec;border-radius:10px;overflow:hidden;margin-bottom:14px">
+      <div class="sec" style="border-bottom:0"><div class="st">转场<span class="sp"></span></div>
+        <div class="trow"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="17" r="3"/><circle cx="17" cy="17" r="3"/><path d="M8.6 8.6l10.4 10.4"/><path d="M8.6 15.4l10.4 -10.4"/></svg><span>入 · 硬切</span><span class="sub" style="margin-left:auto">与镜头 1 ›</span></div>
+        <div class="trow" style="color:#2a75ba;background:#e5eef7;margin:0 -12px;padding:3px 12px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4l-8 4l8 4l8 -4l-8 -4"/><path d="M4 12l8 4l8 -4"/><path d="M4 16l8 4l8 -4"/></svg><span>出 · 叠化 12 帧</span><span class="sub" style="margin-left:auto;color:#2a75ba">与镜头 3 ›</span></div></div>
+    </div>
+    <p class="h" style="font-size:12px;margin-top:8px;clear:both">标记四态（现役只有第 1 态，且不可点）</p>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;align-items:center;gap:12px"><span class="tmk"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4l-8 4l8 4l8 -4l-8 -4"/><path d="M4 12l8 4l8 -4"/><path d="M4 16l8 4l8 -4"/></svg>12f</span><span class="cap">已连接 · 预览与导出一致（现役样式，改成按钮，hover 出描边）</span></div>
+      <div style="display:flex;align-items:center;gap:12px"><span class="tmk hover"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4l-8 4l8 4l8 -4l-8 -4"/><path d="M4 12l8 4l8 -4"/><path d="M4 16l8 4l8 -4"/></svg>12f</span><span class="cap">hover / 选择器打开时</span></div>
+      <div style="display:flex;align-items:center;gap:12px"><span class="tmk warn"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3m0 1a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z"/><path d="M15 15m0 1a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z"/><path d="M21 11v-3a2 2 0 0 0 -2 -2h-6l3 3m0 -6l-3 3"/><path d="M3 13v3a2 2 0 0 0 2 2h6l-3 -3m0 6l3 -3"/></svg>15f</span><span class="cap">类型不支持 → 琥珀色（现役 --nomi-warning），title 给「预览与导出暂不支持，将保持硬切」</span></div>
+      <div style="display:flex;align-items:center;gap:12px"><span class="tmk add"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5l0 14"/><path d="M5 12l14 0"/></svg></span><span class="cap">空接缝悬停出现的「+」（虚线，灰）</span></div>
+    </div>
+  </div>
+</div>
+
+</x-dc>
+</body>
+</html>
