@@ -89,7 +89,7 @@ Full reference: `docs/guide/capability-core-cli-mcp.md`. **Walk the user through
 2. **Restart the client** as prompted so it reloads the MCP config.
 
 **✅ Success signal:**
-- After the handshake, your client shows `nomi`'s **33 tools** (e.g. `nomi_list_models`, `nomi_create_project`, `nomi_generate`, `nomi_materialize_storyboard`, `nomi_control_run`; plus 11 `generation.single-shot` semantic tools that are the zero-credit editable-generation entry points).
+- After the handshake, your client shows a set of `nomi` tools (semantic read/write for canvas, documents, timeline and media, plus the zero-credit `nomi_operation_*` editable-generation flow). **Treat `tools/list` as the source of truth for the count and the names** — a number copied into prose goes stale the moment the surface changes, and this doc has been wrong about it before.
 - You can run end to end: "create a project 'coffee ad' in Nomi → list my image models → add 3 shots → generate the first one".
 
 > **Boundaries (state them honestly, to the user too)**: MCP can create / observe / control a run; **direction and sample** (reversible creative gates) can be re-confirmed by the Nomi server to elicitation-capable clients. But **budget, per-shot paid submission, rough-cut acceptance, and export** must return to Nomi for the user's explicit approval, enforced in the main process — you the agent cannot spend money out of band.

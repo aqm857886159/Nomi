@@ -1,7 +1,13 @@
 import type { BuiltinCanvasCategoryId, GenerationCanvasEdgeMode } from '../model/generationCanvasTypes'
 import { DEFAULT_IMAGE_SECONDS } from '../model/buildClipFromGenerationNode'
 import i18n from '../../../i18n'
-import { parsePromptSegments } from '../../assets/promptMentions'
+import {
+  buildAnchorSheetPrompt,
+  buildKeyframePrompt,
+  buildShotPrompt,
+  isVisualAnchor,
+  referenceOrderForShot,
+} from './storyboardPromptCompiler'
 
 /**
  * 「分镜方案」中间表示（IR）—— 剧本→方案文档→确认→落画布 主链路的中枢。
@@ -69,8 +75,19 @@ export type PlanAnchor = {
   referenceSourceNodeId?: string
   /** Image model used to render this visual anchor; explicit selection survives materialization. */
   modelKey?: string
+  /** 该锚所选模型的供应商 key（与 modelKey 成对构成身份唯一键；同 PlanShot.modelVendor）。 */
+  modelVendor?: string
   modeId?: string
   params?: Record<string, unknown>
+}
+
+/** 一条参考绑定：url 是发送真相，其余是来源事实（供 tile 显示与「从哪来的」溯源）。 */
+export type PlanReferenceBinding = {
+  url: string
+  /** 素材名（tile 的 caption / 缩略图加载失败时的兜底）。 */
+  name?: string
+  /** 引用某镜结果 / 某张参考卡时的来源节点（结果 hash 变了要能查回去）。参考卡本身也是画布节点。 */
+  sourceNodeId?: string
 }
 
 export type PlanShot = {
@@ -98,13 +115,25 @@ export type PlanShot = {
   durationSec: number
   /** 这镜用到哪些锚（按 anchor.id 引用）→ 视觉锚连参考边、文本锚拼 prompt。 */
   anchorIds: string[]
+  /**
+   * **按槽的参考绑定**（键 = `ArchetypeReferenceSlotKind`，值 = 有序素材列表）。
+   * 分镜行的具名槽（首帧/尾帧/源视频）与数组槽（图/视频/音频参考）各自独立成桶——`anchorIds`
+   * 是「引用了哪几张参考卡」的无类型关系，表达不了「这张放首帧、那段放参考视频」。
+   * 落画布时经 `referenceSlotStorage` 映射进节点 meta，请求体仍由档案的 `inputKey`/`asArray`
+   * 单源构造（`buildArchetypeInputParams`），**不为任何供应商写分支**。
+   * 切模式**不删**绑定：未被当前 mode 声明的键原样保留（前向兼容 + 切回来还在）。
+   */
+  referenceBindings?: Record<string, PlanReferenceBinding[]>
   /** 可直接生成的提示词（运镜+动作演进，不复述锚的静态描述）。 */
   prompt: string
   /** 片种骨架在 prompt 中的轻量标注；失效/丢失时不影响纯文本。 */
   promptSegments?: PromptSegmentRange[]
   /** 用户在分镜编辑器为该镜选的视频模型 catalog key；没选 → 落画布用默认视频模型兜底。 */
   modelKey?: string
-  /** Canonical model vendor paired with modelKey for an unambiguous model identity. */
+  /**
+   * 该镜所选模型的**供应商** key。身份唯一键是 `(vendor, modelKey)`——同名模型来自不同供应商是两个模型；
+   * 缺它时落画布只能按 key 反查、命中目录里第一家（2026-09-03 真实付费走查实测：选 APIMart 却发去 code-newcli-com）。
+   */
   modelVendor?: string
   /** 用户为该镜选的模型模式 id（随 modelKey 一起）；没选 → 默认模式。 */
   modeId?: string
@@ -156,6 +185,7 @@ export type PlanShot = {
     enabled?: boolean
     prompt?: string
     modelKey?: string
+    /** 首帧图模型的供应商 key（与 modelKey 成对，身份唯一键）。 */
     modelVendor?: string
     modeId?: string
     params?: Record<string, unknown>
@@ -233,6 +263,8 @@ export type PlanCreatedNode = {
   title: string
   prompt: string
   modelKey?: string
+  /** 供应商 key；与 modelKey 成对构成模型身份唯一键，避免落地时反查命中别家。 */
+  modelVendor?: string
   modeId?: string
   params?: Record<string, unknown>
   /** Structured provenance/shot-language metadata. applyCanvasToolCall maps this to node.meta. */
@@ -285,12 +317,16 @@ export type PlanCreateNodesArgs = {
 export type StoryboardPlanToArgsOptions = {
   /** 定妆卡/场景卡默认图片模型（偏好 GPT Image 2，通用解析）；调用方传入，不在此硬编码目录。 */
   defaultImageModelKey?: string
+  /** 默认图片模型的供应商 key（与 key 成对，构成身份唯一键）。 */
+  defaultImageModelVendor?: string
   /** 定妆卡（纯文生）默认模式 id；调用方传入。 */
   defaultImageModeId?: string
   /** （图片）图生图模式 id：保留给定妆卡变体等场景；调用方传入。 */
   defaultImageRefModeId?: string
   /** 镜头默认视频模型（用户没在编辑器为该镜选模型时兜底，通用解析偏好 Seedance）；调用方传入。 */
   defaultVideoModelKey?: string
+  /** 默认视频模型的供应商 key（与 key 成对，构成身份唯一键）。 */
+  defaultVideoModelVendor?: string
   /** 镜头默认视频模式 id（优先带 image_ref/first_frame 槽的 i2v，定妆卡参考才喂得进）；调用方传入。 */
   defaultVideoModeId?: string
   /** Stable id used to make a production materialization retry converge on existing nodes. */
@@ -298,17 +334,6 @@ export type StoryboardPlanToArgsOptions = {
   /** Creation resource provenance used to trace canvas nodes back to their source. */
   creationDocumentId?: string
   storyboardDesignId?: string
-}
-
-const VISUAL_KINDS: ReadonlySet<PlanAnchorKind> = new Set(['character', 'scene', 'prop'])
-
-/**
- * 「这把锚会生成参考图卡」的唯一谓词（materialize / 连边 / 分镜表卡面与等待判定共用）：
- * carrier=visual 且 kind 在可出图集合（style 恒文本语义，即使 carrier 被手动翻成 visual
- * 也不建节点——materialize 同一判定，卡面「生成」按钮与等待判定不得与它分裂）。
- */
-export function isVisualAnchor(anchor: Pick<PlanAnchor, 'carrier' | 'kind'>): boolean {
-  return anchor.carrier === 'visual' && VISUAL_KINDS.has(anchor.kind)
 }
 
 /** 锚类型 → 该锚连到镜头的参考边语义。 */
@@ -382,129 +407,12 @@ function storyboardShotMetadata(
   return metadata
 }
 
-/**
- * 定妆卡/场景卡提示词构造（R6 调研落地：把图当「版面/网格」描述，先锁身份再列视图，
- * 中性背景+平光+小标签，多视图+多变体集中一张图，整张喂参考视频）。GPT Image 2 尤擅此类多面板版面。
- * 视觉锚（character/scene/prop）→ 卡片大图；变体（成年/童年、白天/夜晚…）拼进「变体行」。
- */
-/**
- * 锚的「身份描述段」：W2 圣经优先用 static（身份 DNA）+ dynamic（服装/状态）分区拼——身份 DNA 先锁、
- * 服装状态另起一行，让身份与可变层在卡片 prompt 里就分开（对齐 ViMax：身份只看 static）。二者都空时
- * 退化到旧 description（旧草稿无新字段时向后兼容）。
- */
-function anchorIdentityBody(anchor: PlanAnchor): string {
-  const staticFeatures = (anchor.staticFeatures || '').trim()
-  const dynamicFeatures = (anchor.dynamicFeatures || '').trim()
-  if (staticFeatures || dynamicFeatures) {
-    return [
-      staticFeatures ? `身份特征（跨镜保持一致）：${staticFeatures}` : '',
-      dynamicFeatures ? `服装与状态：${dynamicFeatures}` : '',
-    ].filter(Boolean).join('\n')
-  }
-  return anchor.description.trim()
-}
-
-export function buildAnchorSheetPrompt(anchor: PlanAnchor): string {
-  const name = anchor.name.trim()
-  const desc = anchorIdentityBody(anchor)
-  const variantLine =
-    anchor.variants && anchor.variants.length
-      ? `\nVariants: ${anchor.variants.map((v) => v.trim()).filter(Boolean).join(', ')} (show each variant in its own labeled panel).`
-      : ''
-  if (anchor.kind === 'scene') {
-    return [
-      'Environment reference sheet. Landscape layout, clearly separated panels, small labels below each panel, consistent color palette and lighting.',
-      `The same location "${name}": ${desc}`,
-      'Views: 1) distant establishing view 2) close-up detail 3) overhead view 4) three-quarter view.' + variantLine,
-      'Requirements: keep the same location and visual style consistent across panels; avoid people, style drift, and merged panels.',
-    ].join('\n')
-  }
-  if (anchor.kind === 'prop') {
-    return [
-      'Prop reference sheet. White neutral background, flat lighting, clearly separated panels, small labels below each panel.',
-      `The same object "${name}": ${desc}`,
-      'Views: 1) front 2) side 3) close-up detail.' + variantLine,
-      'Requirements: keep the same object consistent across panels; avoid scene backgrounds, style drift, and merged panels.',
-    ].join('\n')
-  }
-  // character（默认）
-  return [
-    'Character reference sheet. White neutral background, flat lighting, landscape layout, clearly separated panels, small labels below each panel.',
-    `The same character "${name}" must keep the same face shape, hairstyle, clothing, and identifying features across all panels: ${desc}`,
-    'Views: 1) full-body front A-pose 2) side 3) back 4) three-quarter side 5) expression row (neutral / smiling / angry).' + variantLine,
-    'Requirements: keep facial features and clothing consistent across panels; avoid merged panels, cross-panel drift, and scene backgrounds.',
-  ].join('\n')
-}
-
-/**
- * 引用锚要拼进镜头 prompt 的那几段。两类锚、两种拼法，**唯一一处**（两个 build*Prompt 共用，别再各抄一份）：
- *
- *  · 文本锚（style 等，carrier='text'）：整段 description。它本来就不建节点，只能靠 prompt 说清。
- *  · 视觉锚（角色/场景/道具 = 定妆卡）：只拼 `staticFeatures`（身份 DNA），**绝不拼 dynamicFeatures**。
- *    档案本来就把这两层分开了：static 是「同一个人」的定义（脸/眼/疤/年龄性别），跨镜不变；
- *    dynamic 是服装与状态，跨镜本来就该变——拼进去会跟这一镜的画面打架（这一镜她刚从水里爬出来，
- *    卡上却写着「穿黄油布外套」）。
- *
- * 为什么视觉锚除了连参考图还要**再给一段字**（2026-09-02 实测才敢加，不是拍脑袋）：
- * Seedream 4.5 i2i、同一张参考图、同一段镜头文字，只有「拼不拼 static」一个变量，shot3 各跑 4 次——
- *   · 只给图：**0/4** 拿到要求的「脸部特写」（都退回全身/中景站位）
- *   · 图 + static：**3/4** 拿到特写
- * 身份本身两臂都没崩（参考图 i2i 已经锁得住），所以这段字的收益在**构图遵循度**：
- * 只给图时模型不知道这一镜的重点是谁，就退回最安全的全身；给了身份文字它才照着「特写谁的脸」去构图。
- *
- * 顺带解决黑盒：拼在这里 = 这段字进 `node.prompt`，用户在提示词框里**看得见也改得动**，
- * 而不是躺在 meta 里没人知道它存不存在。
- */
-function anchorPromptBits(shot: PlanShot, anchorById: Map<string, PlanAnchor>): string[] {
-  return shot.anchorIds
-    .map((id) => anchorById.get(id))
-    .filter((anchor): anchor is PlanAnchor => Boolean(anchor))
-    .map((anchor) => {
-      if (anchor.carrier === 'text') return `${anchor.name}：${anchor.description}`.trim()
-      const staticFeatures = (anchor.staticFeatures || '').trim()
-      return staticFeatures ? `${anchor.name}·身份特征（跨镜保持一致）：${staticFeatures}` : ''
-    })
-    .filter(Boolean)
-}
-
-/** 视觉参考的边顺序：先按提示词 @ 的出现顺序，再接没有 @ 的旧绑定，保持兼容。 */
-function referenceOrderForShot(shot: PlanShot, anchorById: Map<string, PlanAnchor>): Map<string, number> {
-  const byUrl = new Map<string, string>()
-  for (const anchor of anchorById.values()) {
-    if (anchor.referenceUrl) byUrl.set(anchor.referenceUrl, anchor.id)
-  }
-  const ordered = new Set<string>()
-  for (const segment of parsePromptSegments(shot.prompt)) {
-    if (segment.type !== 'mention') continue
-    const anchorId = byUrl.get(segment.url)
-    if (anchorId && shot.anchorIds.includes(anchorId)) ordered.add(anchorId)
-  }
-  for (const anchorId of shot.anchorIds) {
-    const anchor = anchorById.get(anchorId)
-    if (anchor && isVisualAnchor(anchor)) ordered.add(anchorId)
-  }
-  return new Map([...ordered].map((anchorId, index) => [anchorId, index]))
-}
-
-/** 镜头 prompt = 镜头本体 + 引用锚的描述段（文本锚整段 / 视觉锚只给身份 DNA）。 */
-function buildShotPrompt(shot: PlanShot, anchorById: Map<string, PlanAnchor>): string {
-  const bits = anchorPromptBits(shot, anchorById)
-  const base = shot.prompt.trim()
-  return bits.length ? [base, ...bits].filter(Boolean).join('\n') : base
-}
-
-function buildKeyframePrompt(shot: PlanShot, anchorById: Map<string, PlanAnchor>): string {
-  // 优先级：用户在编辑器手改的 keyframe.prompt > planner 的静态首帧分解 ffDesc > 镜头 prompt（今天的兜底）。
-  // 为什么 ffDesc 排在 shot.prompt 前：shot.prompt 写的是「运动」（推进/摇移/动作演进），拿它当首帧图
-  // 提示词会让静态首帧被运动词污染（director-shot-translation 的污染词铁律）；ffDesc 才是那一帧的快照。
-  const keyframePrompt = typeof shot.keyframe?.prompt === 'string' && shot.keyframe.prompt.trim()
-    ? shot.keyframe.prompt.trim()
-    : (typeof shot.ffDesc === 'string' && shot.ffDesc.trim() ? shot.ffDesc.trim() : shot.prompt.trim())
-  const bits = anchorPromptBits(shot, anchorById)
-  return bits.length ? [keyframePrompt, ...bits].filter(Boolean).join('\n') : keyframePrompt
-}
-
 /** 视觉锚 → 定妆卡/场景卡节点（clientId = anchor.id）。整方案落画布与单锚按需 materialize（B）共用。 */
+/** 锚自己选了模型就用它自己的 vendor；没选才回落默认图片模型的 vendor。 */
+function anchorVendor(anchor: PlanAnchor, options: StoryboardPlanToArgsOptions): string | undefined {
+  return anchor.modelKey ? anchor.modelVendor : (anchor.modelVendor || options.defaultImageModelVendor)
+}
+
 function buildAnchorCardNode(anchor: PlanAnchor, options: StoryboardPlanToArgsOptions): PlanCreatedNode {
   return {
     clientId: anchor.id,
@@ -528,6 +436,8 @@ function buildAnchorCardNode(anchor: PlanAnchor, options: StoryboardPlanToArgsOp
       ...(options.storyboardDesignId ? { storyboardDesignId: options.storyboardDesignId } : {}),
     },
     ...((anchor.modelKey || options.defaultImageModelKey) ? { modelKey: anchor.modelKey || options.defaultImageModelKey } : {}),
+    // vendor 与 key 成对流动，绝不混搭（混搭正是「选 A 家发去 B 家」的成因；同 buildShotRowNodes）。
+    ...(anchorVendor(anchor, options) ? { modelVendor: anchorVendor(anchor, options) } : {}),
     ...((anchor.modeId || (!anchor.modelKey && options.defaultImageModeId)) ? { modeId: anchor.modeId || options.defaultImageModeId } : {}),
     ...(anchor.params ? { params: anchor.params } : {}),
   }
@@ -586,11 +496,16 @@ function buildShotRowNodes(
   const defaultModelKey = isImageShot ? options.defaultImageModelKey : options.defaultVideoModelKey
   const defaultModeId = isImageShot ? options.defaultImageModeId : options.defaultVideoModeId
   const modelKey = shot.modelKey || defaultModelKey
+  // vendor 与 modelKey 成对流动：用户选了具体模型就用它自己的 vendor；用默认模型时用默认的 vendor。
+  // 二者不许混搭——混搭正是「选 A 家发去 B 家」的成因。
+  const modelVendor = shot.modelKey ? shot.modelVendor : (shot.modelVendor || options.defaultVideoModelVendor)
+  const imageDefaultVendor = options.defaultImageModelVendor
   // 用户为该镜选了具体模型 → 不套默认模型的 modeId（会张冠李戴）；留空让 buildPlannedNodeMeta
   // 按所选模型自己取默认模式。只有用默认模型时才用默认 modeId。
   const modeId = shot.modeId || (shot.modelKey ? undefined : defaultModeId)
   if (hasKeyframe && !options.existingKeyframeNodeId) {
     const keyframeModelKey = shot.keyframe?.modelKey || options.defaultImageModelKey
+    const keyframeVendor = shot.keyframe?.modelKey ? shot.keyframe.modelVendor : imageDefaultVendor
     const keyframeModeId = shot.keyframe?.modeId || (shot.keyframe?.modelKey ? undefined : (visualAnchorIds.length > 0 ? options.defaultImageRefModeId || options.defaultImageModeId : options.defaultImageModeId))
     nodes.push({
       clientId: keyframeTargetId,
@@ -599,6 +514,7 @@ function buildShotRowNodes(
       prompt: buildKeyframePrompt(shot, anchorById),
       storyboardKeyframe: true,
       ...(keyframeModelKey ? { modelKey: keyframeModelKey } : {}),
+      ...(keyframeVendor ? { modelVendor: keyframeVendor } : {}),
       ...(keyframeModeId ? { modeId: keyframeModeId } : {}),
       ...(shot.keyframe?.params ? { params: shot.keyframe.params } : {}),
       metadata: storyboardShotMetadata(
@@ -618,6 +534,7 @@ function buildShotRowNodes(
     title: i18n.t('generationCommon.agentRuntime.shotTitle', { index: shot.index }),
     prompt: buildShotPrompt(shot, anchorById),
     ...(modelKey ? { modelKey } : {}),
+    ...(modelVendor ? { modelVendor } : {}),
     ...(modeId ? { modeId } : {}),
     // duration 仅视频镜头写（由卡的「时长」选择器管）；图片镜头不写。其余模型参数（比例/清晰度/负向…）来自 shot.params。
     params: {

@@ -43,17 +43,26 @@ describe('shotRowModel — 视觉锚投影', () => {
 })
 
 describe('shotRowModel — 缺必填判定（画面格红态 + 组头计数共用）', () => {
-  it('具名帧槽 min≥1 → 表层无来源，恒缺', () => {
+  it('具名帧槽按声明算：没绑定 → 缺；绑上了 → 不缺（曾经是「恒缺、行内永远变不绿」）', () => {
     const mode = modeOf({ slots: [{ kind: 'first_frame', label: '首帧', min: 1, max: 1 }] })
     expect(missingRequiredSlots(mode, shotOf(), ANCHORS).map((s) => s.kind)).toEqual(['first_frame'])
+    const bound = shotOf({ referenceBindings: { first_frame: [{ url: 'a.png' }] } })
+    expect(missingRequiredSlots(mode, bound, ANCHORS)).toEqual([])
   })
 
-  it('image_ref min≥1 可被引用的视觉锚满足；不足才缺', () => {
+  it('image_ref min≥1 可被引用的视觉锚满足；也可被直接绑定满足；不足才缺', () => {
     const mode = modeOf({ slots: [{ kind: 'image_ref', label: '角色参考', min: 1, max: 9 }] })
     expect(missingRequiredSlots(mode, shotOf(), ANCHORS)).toHaveLength(1)
     expect(missingRequiredSlots(mode, shotOf({ anchorIds: ['a-hero'] }), ANCHORS)).toHaveLength(0)
+    expect(missingRequiredSlots(mode, shotOf({ referenceBindings: { image_ref: [{ url: 'a.png' }] } }), ANCHORS)).toHaveLength(0)
     // text 锚不算数
     expect(missingRequiredSlots(mode, shotOf({ anchorIds: ['a-style'] }), ANCHORS)).toHaveLength(1)
+  })
+
+  it('视频/音频参考槽 min≥1 时也按绑定数算，不再无条件报缺', () => {
+    const mode = modeOf({ slots: [{ kind: 'video_ref', label: '参考视频', min: 2, max: 10 }] })
+    expect(missingRequiredSlots(mode, shotOf({ referenceBindings: { video_ref: [{ url: 'v.mp4' }] } }), ANCHORS)).toHaveLength(1)
+    expect(missingRequiredSlots(mode, shotOf({ referenceBindings: { video_ref: [{ url: 'v.mp4' }, { url: 'w.mp4' }] } }), ANCHORS)).toHaveLength(0)
   })
 
   it('min=0 的槽从不缺；无档案（默认模型）无契约可判 → []', () => {
@@ -63,12 +72,12 @@ describe('shotRowModel — 缺必填判定（画面格红态 + 组头计数共�
   })
 })
 
-describe('shotRowModel — 参考区三形态', () => {
+describe('shotRowModel — 参考区形态', () => {
   it('slots 为空 → 此模型不吃参考', () => {
     expect(referenceZoneView(modeOf(), shotOf({ anchorIds: ['a-hero'] }), ANCHORS)).toEqual({ kind: 'none-accepted' })
   })
 
-  it('具名帧槽逐格展示；数组槽给「@」入口；引用的视觉锚随行带出', () => {
+  it('声明的每个槽各出一个描述符（单槽 / 数组槽按 asArray 分），引用的视觉锚随行带出', () => {
     const mode = modeOf({
       slots: [
         { kind: 'first_frame', label: '首帧', min: 1, max: 1 },
@@ -77,28 +86,21 @@ describe('shotRowModel — 参考区三形态', () => {
       ],
     })
     const view = referenceZoneView(mode, shotOf({ anchorIds: ['a-hero'] }), ANCHORS)
-    expect(view).toMatchObject({ kind: 'slots', hasArrayIntake: true })
+    expect(view.kind).toBe('slots')
     if (view.kind === 'slots') {
-      expect(view.namedSlots.map((s) => s.kind)).toEqual(['first_frame', 'last_frame'])
+      expect(view.slots.map((s) => [s.key, s.form])).toEqual([
+        ['first_frame', 'single'],
+        ['last_frame', 'single'],
+        ['image_ref', 'array'],
+      ])
       expect(view.referencedAnchors.map((a) => a.id)).toEqual(['a-hero'])
     }
   })
 
-  it('纯具名槽（首尾帧）不给「@」入口', () => {
-    const mode = modeOf({
-      slots: [
-        { kind: 'first_frame', label: '首帧', min: 1, max: 1 },
-        { kind: 'last_frame', label: '尾帧', min: 1, max: 1 },
-      ],
-    })
-    const view = referenceZoneView(mode, shotOf(), ANCHORS)
-    expect(view).toMatchObject({ kind: 'slots', hasArrayIntake: false })
-  })
-
-  it('无档案（默认模型）→ 最宽形态：无具名槽 + 「@」入口 + 已引用锚', () => {
+  it('无档案（默认模型）→ 契约未知，退回通用「@」入口 + 已引用锚', () => {
     const view = referenceZoneView(null, shotOf({ anchorIds: ['a-hero'] }), ANCHORS)
-    expect(view).toMatchObject({ kind: 'slots', namedSlots: [], hasArrayIntake: true })
-    if (view.kind === 'slots') expect(view.referencedAnchors).toHaveLength(1)
+    expect(view).toMatchObject({ kind: 'unknown-contract' })
+    if (view.kind === 'unknown-contract') expect(view.referencedAnchors).toHaveLength(1)
   })
 })
 
