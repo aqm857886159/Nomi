@@ -240,3 +240,10 @@
 - [2026-09-03 画布连线回归调查与修复](2026-09-03-canvas-connect-regression.md)
 
 - [2026-09-05] [第三刀·投影清零方案](2026-09-05-storyboard-projection-cleanup.md) — 分镜唯一 owner、旧字段一次迁移后丢弃、取证 runner 读 Host snapshot。
+
+## 🤖 自动收录（待人工归位）
+
+> 这些链接由 `.github/workflows/docs-autosync.yml` 在 main 上自动补登，只保证「能被搜到」，
+> 不代表已归好类。顺手把某一行挪进上面对应主题的表里即可——挪走后本区自然变短。
+
+- [2026-09-05-resident-composer-receipt-fix](2026-09-05-resident-composer-receipt-fix.md)
