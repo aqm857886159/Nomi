@@ -548,11 +548,28 @@ const workbenchBasePlugin = plugin(({ addBase, addUtilities }) => {
 })
 
 export default {
+  /**
+   * 扫 `.ts` 和 `.tsx` 两种后缀。**别只扫 `.tsx`**：类名字符串住在哪个后缀里，
+   * 是 R9 分层的结果（纯换算函数该从壳里搬出去，搬出去就落进 `.ts`），
+   * 和「这段类名要不要生成」毫无关系。只扫 `.tsx` 会把这两件事绑死——纯函数一搬进
+   * `.ts`，它拼出来的类当场不再生成，而且**完全静默**：不报错、不警告，只是那几条 CSS
+   * 不存在，界面掉回默认排版（2026-09-06 实测：`residentItemClassName` 一搬进
+   * `resident/residentShellDisplay.ts`，用户气泡的 `ml-auto` / `max-w-[86%]` 当场消失，
+   * 从右侧小卡片变成整行通栏）。防线建在构建层（R28）：让扫描面覆盖真实的类名来源，
+   * 就不需要门岗去禁止搬函数，也不需要人记住这条。
+   * 排除项与 `.tsx` 一一对齐——测试/规格/类型声明/第三方源码里出现的类名不是产品用的类名。
+   * 守住这条不再退回去的是 `scripts/build-tailwind.test.ts`（真跑一次 Tailwind，断言只在 `.ts`
+   * 出现的哨兵类进了 CSS）。全仓 4 处历史失效的盘点见
+   * `docs/lessons/tailwind-content-ts-classnames-silently-dropped.md`。
+   */
   content: [
     './index.html',
     './src/**/*.tsx',
+    './src/**/*.ts',
     '!./src/**/*.test.tsx',
     '!./src/**/*.spec.tsx',
+    '!./src/**/*.test.ts',
+    '!./src/**/*.spec.ts',
     '!./src/**/*.d.ts',
     '!./src/vendor/**',
   ],
