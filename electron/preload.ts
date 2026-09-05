@@ -100,6 +100,15 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
       get: () => ipcRenderer.invoke("nomi:settings:generation-model-defaults-get"),
       set: (payload: unknown) => ipcRenderer.invoke("nomi:settings:generation-model-defaults-set", payload),
     },
+    telemetry: {
+      get: () => ipcRenderer.invoke("nomi:settings:telemetry-get"),
+      set: (payload: unknown) => ipcRenderer.invoke("nomi:settings:telemetry-set", payload),
+      summary: () => ipcRenderer.invoke("nomi:settings:telemetry-summary"),
+      deleteAll: () => ipcRenderer.invoke("nomi:settings:telemetry-delete"),
+    },
+  },
+  telemetry: {
+    track: (payload: unknown) => ipcRenderer.invoke("nomi:telemetry:track", payload),
   },
   browserChromeMenu: {
     select: (id: unknown) => ipcRenderer.send("browser:chrome-menu:select", id),

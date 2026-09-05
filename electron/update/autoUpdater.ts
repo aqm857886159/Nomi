@@ -3,6 +3,7 @@ import { desktopT } from "../i18n";
 import { buildDownloadPageUrl } from "./downloadPage";
 
 import { assertTrustedSender } from "../ipcSenderGuard";
+import { recordTelemetryEvent } from "../telemetry/telemetryOutbox";
 // 版本号 + 检查更新 + 一键更新（功能需求 1/2/3）。
 // GitHub Releases provider 由 package.json build.publish 自动派生，无需额外服务器。
 // 全程用户显式触发：关自动下载 / 关退出即装，下载与安装都必须用户点（P2 用户掌控）。
@@ -24,6 +25,10 @@ const EVENT_CHANNEL = "nomi:update:event";
 // 未签名 mac 无法就地自动安装；其余平台（Windows NSIS）可以。
 const CAN_AUTO_INSTALL = process.platform !== "darwin";
 const CAN_CHECK_UPDATES = app.getName().trim().toLowerCase() === "nomi";
+
+function trackUpdate(action: "check" | "download" | "install", result: "success" | "failure" | "cancel"): void {
+  recordTelemetryEvent({ eventName: "update.action", props: { action, result } }, app.getVersion());
+}
 
 function broadcast(payload: Record<string, unknown>): void {
   for (const win of BrowserWindow.getAllWindows()) {
@@ -107,15 +112,18 @@ export function registerUpdaterIpc(): void {
     // 未打包（dev）时 electron-updater 不可用——诚实回错，不假装能更新。
     if (!app.isPackaged) {
       broadcast({ type: "error", message: desktopT("updater.devUnavailable") });
+      trackUpdate("check", "failure");
       return { ok: false, reason: "not-packaged" };
     }
-    if (!CAN_CHECK_UPDATES) return { ok: false, reason: "non-stable-build" };
+    if (!CAN_CHECK_UPDATES) { trackUpdate("check", "failure"); return { ok: false, reason: "non-stable-build" }; }
     try {
       const autoUpdater = await loadAutoUpdater();
       await autoUpdater.checkForUpdates();
+      trackUpdate("check", "success");
       return { ok: true };
     } catch (error) {
       broadcast({ type: "error", message: describeError(error) });
+      trackUpdate("check", "failure");
       return { ok: false };
     }
   });
@@ -125,9 +133,11 @@ export function registerUpdaterIpc(): void {
     try {
       const autoUpdater = await loadAutoUpdater();
       await autoUpdater.downloadUpdate();
+      trackUpdate("download", "success");
       return { ok: true };
     } catch (error) {
       broadcast({ type: "error", message: describeError(error) });
+      trackUpdate("download", "failure");
       return { ok: false };
     }
   });
@@ -135,6 +145,7 @@ export function registerUpdaterIpc(): void {
   ipcMain.handle("nomi:update:install", (event) => {
     // 装更新会立刻重启整个应用，是最强的一条控制权。
     assertTrustedSender(event);
+    trackUpdate("install", "success");
     // 立即重启并安装（非静默）。mac 未签名会被 Gatekeeper 拦——降级实况以真机为准。
     setImmediate(() => {
       try {

@@ -67,6 +67,12 @@ export async function exportTimelineToMp4(options: ExportTimelineToMp4Options): 
     throw new Error(i18n.t('runtime.export.mp4RequiresDesktop'))
   }
   const { projectId, timeline: exportTimeline, manifest } = createTimelineExportManifest(options)
+  const startedAt = typeof performance !== 'undefined' ? performance.now() : Date.now()
+  const trackExport = (result: 'success' | 'failure' | 'cancel'): void => {
+    const endedAt = typeof performance !== 'undefined' ? performance.now() : Date.now()
+    const elapsed = endedAt - startedAt
+    void desktop.telemetry?.track({ eventName: 'export.completed', props: { format: 'mp4', durationBucket: elapsed < 1000 ? '<1s' : elapsed <= 5000 ? '1-5s' : '>5s', result } })
+  }
   const { jobId, backend } = await desktop.exports.startJob({
     projectId,
     outputName: options.outputName,
@@ -90,6 +96,7 @@ export async function exportTimelineToMp4(options: ExportTimelineToMp4Options): 
       const result = await desktop.exports.finishTempInput({ jobId })
       finishedTempInput = true
       options.onProgress?.({ status: 'done', ratio: 1 })
+      trackExport('success')
       return result
     }
 
@@ -117,8 +124,10 @@ export async function exportTimelineToMp4(options: ExportTimelineToMp4Options): 
     const result = await desktop.exports.finishTempInput({ jobId })
     finishedTempInput = true
     options.onProgress?.({ status: 'done', ratio: 1 })
+    trackExport('success')
     return result
   } catch (error) {
+    trackExport('failure')
     if (!finishedTempInput && desktop.exports.cancel) {
       try {
         await desktop.exports.cancel(jobId)
