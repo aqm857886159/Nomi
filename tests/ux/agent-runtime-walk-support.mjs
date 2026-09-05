@@ -229,7 +229,12 @@ export function readCurrentProjectAgentToolEvidence(settingsRoot, projectRoot, c
 }
 
 export async function chooseCreationMode(win, mode) {
-  await clickOrFail(win.locator(`${CREATION_PANEL} [data-agent-composer-prompt="true"]`), '当前 Agent 提示词选择器')
+  // 2026-09-05：composer 改版（219451ce2「reorder composer controls and move prompt library」）把
+  // data-agent-composer-prompt 并进了 data-agent-composer-skill，src 里已零命中——
+  // main 自己的 agent-ui-a-composer.walk.mjs 甚至断言旧锚点必须消失，这条 helper 却还指着它。
+  await clickOrFail(win.locator(`${CREATION_PANEL} [data-agent-composer-skill="true"]`), '当前 Agent 技能/提示词选择器')
+  // 改版后提示词档不再直挂第一层，先进「提示词库」那一项；档位本身仍是 data-agent-menu-item={preset.id}。
+  await clickOrFail(win.locator('[data-agent-menu-item="prompt-library"]'), '技能菜单里的提示词库入口')
   await clickOrFail(win.locator(`[data-agent-menu-item="${mode}"]`), `当前 Agent 提示词 ${mode}`)
 }
 
