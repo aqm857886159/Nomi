@@ -23,6 +23,7 @@ import {
   packagedMcpLauncherAvailable,
   readMcpInfo,
   registerCustomMcpProfile,
+  repairStaleMcpConfigs,
   removeCustomMcpProfile,
   uninstallMcp,
 } from './mcpConfig'
@@ -335,6 +336,51 @@ describe('capabilityCore/mcpConfig', () => {
 
     const info = readMcpInfo(0)
     expect(info.clients.claude).toMatchObject({ installed: true, configState: 'custom', migration: 'none' })
+    expect(fs.readFileSync(claudeJson(), 'utf8')).toBe(original)
+    expect(fs.existsSync(`${claudeJson()}.nomi-backup`)).toBe(false)
+  })
+
+  it('repairs a stale host config at boot, without waiting for anyone to open the panel', () => {
+    // The user-visible failure this guards: a config still naming the retired scripts/nomi-mcp.mjs
+    // entry makes the coding assistant print CONNECTION_CLOSED, which says nothing about Nomi. The
+    // repair existed but only ran as a side effect of rendering 模型接入, so it never reached anyone
+    // who did not already suspect Nomi.
+    isPackaged = true
+    fs.writeFileSync(claudeJson(), JSON.stringify({
+      mcpServers: { nomi: { command: 'node', args: ['/old/Nomi/scripts/nomi-mcp.mjs'], env: {} } },
+    }, null, 2))
+
+    const repaired = repairStaleMcpConfigs()
+
+    expect(repaired).toEqual([{ client: 'claude', from: 'legacy-launcher' }])
+    const after = JSON.parse(fs.readFileSync(claudeJson(), 'utf8'))
+    expect(after.mcpServers.nomi.env[MCP_CONFIG_VERSION_ENV]).toBe(MCP_CONFIG_VERSION)
+    expect(after.mcpServers.nomi.args[0]).not.toContain('scripts/nomi-mcp.mjs')
+    // Idempotent: a healthy config is not rewritten again on the next launch.
+    expect(repairStaleMcpConfigs()).toEqual([])
+  })
+
+  it('does not touch host configs during a walkthrough, whose home directory is the real one', () => {
+    isPackaged = true
+    const original = JSON.stringify({
+      mcpServers: { nomi: { command: 'node', args: ['/old/Nomi/scripts/nomi-mcp.mjs'], env: {} } },
+    }, null, 2)
+    fs.writeFileSync(claudeJson(), original)
+    process.env.NOMI_E2E = '1'
+    try {
+      expect(repairStaleMcpConfigs()).toEqual([])
+      expect(fs.readFileSync(claudeJson(), 'utf8')).toBe(original)
+    } finally {
+      delete process.env.NOMI_E2E
+    }
+  })
+
+  it('leaves a config Nomi did not write alone at boot', () => {
+    isPackaged = true
+    const original = JSON.stringify({ mcpServers: { nomi: { command: 'custom-nomi-proxy', args: ['serve'] } } }, null, 2)
+    fs.writeFileSync(claudeJson(), original)
+
+    expect(repairStaleMcpConfigs()).toEqual([])
     expect(fs.readFileSync(claudeJson(), 'utf8')).toBe(original)
     expect(fs.existsSync(`${claudeJson()}.nomi-backup`)).toBe(false)
   })

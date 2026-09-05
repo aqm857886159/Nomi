@@ -67,6 +67,7 @@ export const EXCEPTION_STATES: readonly LabState[] = [
           statusLabel={() => '完成'}
           sectionLabel="工具调用"
           headerLabel="24 步 · 生成参考图 · 读分镜 · 检查参数"
+          failedLabel={(count) => `${count} 步没成功`}
           explanationLabel="它做了什么"
           targetLabel="作用在"
           resultLabel="结果"
