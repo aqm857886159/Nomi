@@ -83,7 +83,7 @@ type VideoDeconstructionTableNode = GenerationCanvasNode & {
 type VideoDeconstructionTableDocument = {
   schemaVersion: 1
   tableNodeId: string
-  status: 'idle' | 'deconstructing' | 'ready' | 'selected' | 'generating' | 'failed'
+  status: 'idle' | 'deconstructing' | 'ready' | 'generating' | 'failed'
   tableRevision: number
   sourceVideo: VideoSourceReference
   columns: VideoDeconstructionColumn[]
@@ -96,7 +96,7 @@ type VideoDeconstructionTableDocument = {
 }
 ```
 
-`status` 是设计实验室和 Agent 任务卡的投影词表；`selected` 不是存储字段，而是由 `selectedRowIds.length > 0` 且没有生成批次正在运行时派生。`selectedRowIds` 是唯一的行选择真相源，仍写进画布文档，重启后用户能看到上次要用的行；画布的 `selectedNodeIds` 仍是 React Flow 会话选区，不与行选择混用。
+`status` 是持久化的分析/生成状态；设计实验室和 Agent 任务卡读取一个派生的 `effectiveStatus`：当 `selectedRowIds.length > 0` 且没有生成批次正在运行时为 `selected`，否则等于持久化 `status`。因此 `selected` 不是存储字段，`selectedRowIds` 是唯一的行选择真相源，仍写进画布文档，重启后用户能看到上次要用的行；画布的 `selectedNodeIds` 仍是 React Flow 会话选区，不与行选择混用。
 
 ### 4.2 来源视频引用
 
