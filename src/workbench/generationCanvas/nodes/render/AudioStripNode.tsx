@@ -8,7 +8,7 @@
  */
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconPlayerPlay, IconPlayerPause, IconUpload, IconFileText, IconCopy, IconBadgeCc } from '@tabler/icons-react'
+import { IconPlayerPlay, IconPlayerPause, IconWaveSine, IconFileText, IconCopy, IconBadgeCc } from '../../../../vendor/tablerIcons'
 import { cn } from '../../../../utils/cn'
 import { WorkbenchButton } from '../../../../design'
 import { toast } from '../../../../ui/toast'
@@ -18,6 +18,7 @@ import { useNodeUsageCount } from '../../hooks/useNodeRelationships'
 import { useGenerationCanvasStore } from '../../store/generationCanvasStore'
 import { persistNodeImageFile } from '../../adapters/persistNodeImage'
 import { UsageDot } from './CardCommon'
+import { NodeEmptyState } from './NodeEmptyState'
 import { getDisplayTitle } from '../../model/titleHeuristics'
 
 type Props = {
@@ -138,7 +139,7 @@ function AudioStripNodeImpl({ node }: Props): JSX.Element {
         })
       })
     },
-    [node.id, node.meta, updateNode],
+    [node.id, node.meta, updateNode, t],
   )
 
   const handleTogglePlay = React.useCallback((event: React.MouseEvent) => {
@@ -228,6 +229,13 @@ function AudioStripNodeImpl({ node }: Props): JSX.Element {
     )
   }
 
+  if (!hasAudio) {
+    return <label className="block h-full w-full cursor-pointer bg-nomi-paper" title={t('generationCommon.audio.upload')}>
+      <NodeEmptyState compact icon={<IconWaveSine size={20} stroke={1.6} />} title={t('generationCommon.nodeEmpty.audio.title')} description={t('generationCommon.nodeEmpty.audio.description')} />
+      <input className="hidden" type="file" accept="audio/*" onChange={handleUpload} />
+    </label>
+  }
+
   const progress = duration > 0 ? Math.min(1, currentTime / duration) : 0
 
   return (
@@ -269,19 +277,8 @@ function AudioStripNodeImpl({ node }: Props): JSX.Element {
             <IconPlayerPlay size={14} stroke={1.6} aria-hidden />
           )}
         </button>
-      ) : (
-        <label
-          className={cn(
-            'inline-flex shrink-0 items-center justify-center w-8 h-8 rounded-full cursor-pointer bg-nomi-accent-soft text-nomi-accent hover:bg-nomi-accent hover:text-nomi-paper transition-colors',
-          )}
-          aria-label={t('generationCommon.audio.upload')}
-          title={t('generationCommon.audio.upload')}
-          onPointerDown={(event) => event.stopPropagation()}
-        >
-          <IconUpload size={14} stroke={1.6} aria-hidden />
-          <input className="hidden" type="file" accept="audio/*" onChange={handleUpload} />
-        </label>
-      )}
+      ) : null}
+
 
       <div className="flex flex-col gap-1 min-w-0 shrink-0 max-w-[140px]">
         {audioKindLabel ? (
@@ -296,30 +293,13 @@ function AudioStripNodeImpl({ node }: Props): JSX.Element {
         <span className="text-body-sm font-semibold text-nomi-ink-80 truncate" title={node.title}>
           {getDisplayTitle(node.title, t('generationCommon.audio.title'))}
         </span>
-        {!hasAudio ? (
-          <span className="text-micro text-nomi-ink-40 truncate">{t('generationCommon.audio.empty')}</span>
-        ) : null}
       </div>
 
-      {hasAudio ? (
-        <PlayBar progress={progress} onSeek={handleSeek} />
-      ) : (
-        <div className="flex-1 min-w-0 text-nomi-ink-20 flex items-center gap-[2px] h-8">
-          {[0.4, 0.7, 0.5, 0.9, 0.3, 0.8, 0.6, 0.7, 0.4, 0.8, 0.5, 0.6].map((h, i) => (
-            <span
-              key={i}
-              className="flex-1 rounded-full"
-              style={{ height: `${Math.round(h * 100)}%`, background: 'currentColor' }}
-            />
-          ))}
-        </div>
-      )}
+      <PlayBar progress={progress} onSeek={handleSeek} />
 
       <div className="shrink-0 flex flex-col items-end gap-0.5">
         <span className="text-caption text-nomi-ink-60 tabular-nums font-mono">
-          {hasAudio
-            ? `${formatDuration(currentTime)} / ${formatDuration(duration || meta.durationSec)}`
-            : formatDuration(meta.durationSec)}
+          {`${formatDuration(currentTime)} / ${formatDuration(duration || meta.durationSec)}`}
         </span>
         <UsageDot count={usageCount} />
       </div>

@@ -577,7 +577,7 @@ export default function ClipNodeTimeline({
                 />
               )
             })}
-            {!clips.length ? <div className="absolute inset-0 grid place-items-center text-micro text-nomi-ink/55">{t('generationCommon.clipNode.empty')}</div> : null}
+            {!clips.length ? <div className="absolute inset-0 grid place-items-center text-micro text-nomi-ink/55">{t('generationCommon.nodeEmpty.clip.description')}</div> : null}
           </div>
           {activeSnap ? (
             <div

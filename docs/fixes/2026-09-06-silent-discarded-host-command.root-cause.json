@@ -1,0 +1,130 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-06-silent-discarded-host-command",
+  "problem_type": "控件把跨进程命令的拒绝丢掉（点了失败，界面一个字不说）",
+  "symptom": "常驻 Agent 面板的会话列表里，每一行（含当前正看着的那一行）都有删除钮。删当前会话时 Host 拒绝，按钮点下去弹窗不关、行还在、面板顶上的错误条一个字都不显示——用户只能反复点。#519 已修掉这一处，但当时只修了这一处。",
+  "direct_cause": "src/workbench/ai/ProjectAgentResidentShell.tsx 的会话行写的是 onClick={() => void removeProjectAgentThread(thread.threadId)}；electron/projectAgentHost/projectAgentThreadReduction.ts 对当前会话回 thread_read_only，projectAgentUiCommands.ts 的 dispatch 把它抛成 ProjectAgentClientError，而裸 `void` 让这个拒绝变成 unhandled rejection，没有任何人把它送进面板既有的错误条。",
+  "class_root": "「渲染层把一个会被主进程拒绝的 Promise 丢掉、且没人把拒绝翻译给用户」这件事在本仓没有任何执行边界拦得住：本仓 lint 没开 no-floating-promises（需要类型信息），而唯一管「控件说谎」的门岗 scripts/check-control-contract.mjs 只认客户端短路守卫（handler 里 if 住了不做事）和空 handler 两种形状——它看的是「handler 没做事」，看不见「做了事、事失败了、用户什么都看不到」。于是同一句合同（设计系统 §4.1 C1「可点即有效」）下有一整类失效从门岗底下走过去。",
+  "migration": "判据这一层新增 scripts/control-contract-discarded-commands.mjs，由既有门岗 scripts/check-control-contract.mjs import 后与前两条规则合并报告——**不另开门岗**，「控件说谎」仍然只有一个 owner、一条命令（check:controls）。规则抓出的 5 处按 P1 就地修掉，没有加任何排除名单（ALLOWLIST 仍是 0 条）。",
+  "affected_population": [
+    "在画布助手记忆卡里改一条记忆文本、置顶或删除的用户：主进程写记忆失败时输入框照样收起、文字弹回原样，没有任何东西说没保存上（src/workbench/generationCanvas/components/MemoryFold.tsx 四处）",
+    "在任务中心点「取消导出」的用户：IPC 拒绝时行照样在跑、按钮照样在那儿，没有解释（src/workbench/taskCenter/TaskCenterPanel.tsx）",
+    "在时间轴收起条点「+ 配乐」挑一首曲子的用户：时长探不出来时函数返回 null，弹窗关了、轴上什么都没多、一声不吭（src/workbench/timeline/TimelineSecondaryAddRow.tsx）",
+    "任何未来在 JSX handler 里 void 掉、async 掉或裸飘一个 Host 命令的开发路径"
+  ],
+  "scope_paths": [
+    "scripts/check-control-contract.mjs",
+    "scripts/control-contract-discarded-commands.mjs",
+    "scripts/check-control-contract.test.mjs",
+    "src/workbench/generationCanvas/components/MemoryFold.tsx",
+    "src/workbench/taskCenter/TaskCenterPanel.tsx",
+    "src/workbench/timeline/TimelineSecondaryAddRow.tsx",
+    "src/i18n/locales/generationCommon.ts",
+    "src/i18n/resources.ts"
+  ],
+  "entry_points": [
+    "src/workbench/generationCanvas/components/MemoryFold.tsx:76 onBlur → commitEdit → updateProjectMemoryFact（桥的 memory.update 裸 await，无 catch）",
+    "src/workbench/generationCanvas/components/MemoryFold.tsx:77 onKeyDown → commitEdit → updateProjectMemoryFact（同上，Enter 提交那条路）",
+    "src/workbench/generationCanvas/components/MemoryFold.tsx:106 onClick → updateProjectMemoryFact（置顶，async handler 直接 setFacts(await …)）",
+    "src/workbench/generationCanvas/components/MemoryFold.tsx:117 onClick → removeProjectMemoryFact（删除，同上）",
+    "src/workbench/taskCenter/TaskCenterPanel.tsx:202 onAction → runAction → getDesktopBridge()?.exports.cancel(jobId)（裸 await 的 IPC）",
+    "src/workbench/ai/ProjectAgentResidentShell.tsx 会话行删除钮（#519 已修，本次用它做门岗的红证明 fixture）"
+  ],
+  "invariants": [
+    "JSX 的 on* handler 里，任何会被主进程拒绝的命令 Promise 都必须有人接住并把失败讲给用户；三种拼法（void f()、async handler 里 await、裸飘 f()）一视同仁，改拼法不能绕过。",
+    "「控件说谎」这条合同只有一个门岗 owner：check:controls。规则三与规则一二同进同出、同一条命令、同一份报告。",
+    "门岗对 #519 修前那一行必须报红、对 #519 的修法（把命令包进接住拒绝的 runThreadCommand）必须放行——由 scripts/check-control-contract.test.mjs 的头两条用例长期钉住。"
+  ],
+  "regression_tests": [
+    "scripts/check-control-contract.test.mjs"
+  ],
+  "residual_risks": [
+    "命令 reject 了、上层也 catch 了，但 catch 里只 console.warn 没告诉用户——语法上看不出「有没有告诉用户」，这一档仍然只能靠 R13 走查。",
+    "「成功地什么也没做」（命令 resolve 出 null/false 表示没做成、调用方不看）不是 Promise 拒绝，门岗测不到；本次 TimelineSecondaryAddRow 的配乐钮就是这一种，靠人读代码发现的。",
+    "命令经 props 传下去好几层才被丢掉的，需要跨组件数据流，门岗追不到。",
+    "canReject 顺着 await 往下追时，追不到声明的（注入依赖、第三方）一律当作不会 reject——这是为压掉 runPasteShareLinkImport 那类误报付的代价，可能漏掉真的会 reject 的注入依赖。"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "纯内部结构问题：判据全部来自本仓自己的模块图（渲染层到主进程只有 src/desktop/bridge.ts 一个闸口，由 R26 的 check:boundaries 保证）与本仓真实代码的逐条核查，不依赖任何第三方行为。",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "「控件说谎」这一族在本仓至少第 6 次（门岗自己的 header 记了前 5 次：剪辑页显示下拉、3D 空态启动器、连线参考图、死的 + 图标、确认落画布，加上 2026-09-06 转场按钮的空 handler）。本次是这族里门岗没覆盖的一支：不是「没做事」而是「做了事没人管失败」。只要 JSX handler 还能把命令 Promise 丢掉，任何新按钮都能再造一次，而 lint、单测、五门都不响。",
+    "same_class_scan": [
+      "AST 实扫全仓 .tsx 的 on* handler 里被丢弃的调用：共 121 处。",
+      "逐层核查后：10 处调用链摸得到主进程桥；其中 9 处被调函数是 async/返回 Promise（clipNodeSourceFromAsset 是同步纯映射，出局）；其中 5 处那个 Promise 真的会 reject。",
+      "被筛掉的每一条都独立核查过并记在 scripts/control-contract-discarded-commands.mjs 的 header 里：recoverTaskActions.ts 的 recoverNodeResult 与 extractShotCutsToNodes 自己 try/catch 完把失败写回节点状态；productionRunStore.ts 的 navigateTo 只 await 一个全程 try/catch 的 loadRun；design/confirmDialogStore.ts 的 confirmDialog 是 new Promise(resolve=>…) 没有 reject 这条路；pasteShareLinkImport.ts 的 runPasteShareLinkImport 每个 IPC 都 try/catch 了；StoryboardPlanEditor.tsx 的 void runAction(() => generateAnchorCard(…)) 由 runAction 的 try/catch 兜住。",
+      "扩到具名 handler（onClick={handleThing}）后又核查 3 处：CustomVendorManage 的 handleDeleteVendor 与 AssetLibraryPanel 的 handlePasteLink 经核查是误报（前者被桶文件再导出挡住解析，后者只剩注入对话框裸 await），据此收窄了判据；NodeGenerationComposer 的 handleGenerate 走 confirmAndRunNodeVariants，追 await 追不到会 reject 的路径。"
+    ]
+  },
+  "generality_proof": "拦在「JSX 的 on* handler ↔ 跨进程命令」这道边界上，而不是逐个按钮打补丁：全仓渲染层通往主进程只有 src/desktop/bridge.ts 一个闸口（R26 的 check:boundaries 保证没有第二条），所以「这个调用会不会被主进程拒绝」等价于「它的模块 import 得到 bridge.ts 吗」，是个可判定的静态问题；而「用户会不会知道」等价于「这条拒绝有没有人接」。两者都在同一个 AST 扫描里判完，任何新写的按钮、任何新的命令模块、以及把 void 改成 async 或裸飘这两种改拼法的绕法，都会在同一次 check:controls 里被同样地拦住，不需要谁记得再加一条规则。",
+  "shared_boundaries": [
+    {
+      "path": "scripts/control-contract-discarded-commands.mjs",
+      "symbol": "discardedCommandOffenders",
+      "responsibility": "扫出 JSX handler 里被丢弃、且没人把失败讲给用户的跨进程命令；顺着模块图判「会不会被主进程拒绝」，顺着 try/catch/.catch/包装函数判「有没有人接住」。"
+    },
+    {
+      "path": "scripts/check-control-contract.mjs",
+      "symbol": "check:controls",
+      "responsibility": "「控件说谎」这条合同的唯一门岗 owner：把三条规则（目标守卫、空 handler、被丢弃的命令）合并成一次判定、一份报告。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/components/MemoryFold.tsx",
+      "entry_point": "commitEdit / 置顶钮 / 删除钮",
+      "disposition": "enforced",
+      "evidence": "三处原本各自把 memory.update / memory.remove 的 Promise 丢掉（两处 void、两处 async handler）。改为统一走 runMemoryCommand：失败时 toast generationCommon.memory.changeFailed 并把列表拉回真相。门岗对修前那棵树报这 4 行，对修后放行。"
+    },
+    {
+      "path": "src/workbench/taskCenter/TaskCenterPanel.tsx",
+      "entry_point": "runAction",
+      "disposition": "enforced",
+      "evidence": "原本 await confirmAndRunNode 与 await getDesktopBridge()?.exports.cancel(jobId) 都裸着，整个 Promise 被 void 掉。加 try/catch + toast taskCenter.actionFailed 后门岗放行。"
+    },
+    {
+      "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "entry_point": "runThreadCommand（#519 的修法）",
+      "disposition": "enforced",
+      "evidence": "#519 已把三个会话命令包进 runThreadCommand（void command().catch(…) → setError）。门岗对这个形状放行，对它修之前那一行报红——两条都写死在 scripts/check-control-contract.test.mjs 的头两条用例里。"
+    },
+    {
+      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+      "entry_point": "onGenerateAnchor / onRegenerateAnchor",
+      "disposition": "not-affected",
+      "evidence": "形状是 void runAction(() => generateAnchorCard(…))，命令写在回调里，而 runAction 自己 try/catch 完 toast 了——回调是在它的 try 里跑的。早一版判据会顺着回调找进去误报它，据此加了「交给一个自己 catch 的函数去跑」这条放行，并写成回归用例。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
+      "entry_point": "recoverNodeResult",
+      "disposition": "not-affected",
+      "evidence": "它自己 try/catch 完，把失败写回节点状态（setNodeStatus(id,'error',message)）告诉用户，所以 void 它不会静默——门岗据此不报，且把这个形状写成「命令自己报失败就放行」的回归用例。"
+    }
+  ],
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/control-contract-discarded-commands.mjs",
+    "invariant": "JSX 的 on* handler 不得丢弃一个会被主进程拒绝、且没人把失败讲给用户的命令 Promise。",
+    "failure_mode": "check:controls 退出码 1，逐条列出 file:line、handler 名、被丢掉的调用、追到的命令与它所在模块，并给两条修法（在这里 catch 进既有错误条／让命令自己报失败）。gates:contracts 因此红，push 闸拦住。",
+    "exception_policy": "none",
+    "strategy": "把「点了失败没人说」做成与「点了不做事」同一道门岗的第三条规则，判据照着 121 处真实代码收窄到零误报，不留排除名单。",
+    "artifacts": [
+      "scripts/control-contract-discarded-commands.mjs",
+      "scripts/check-control-contract.mjs",
+      "scripts/check-control-contract.test.mjs"
+    ]
+  },
+  "class_regression_tests": [
+    "scripts/check-control-contract.test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "本次是给既有门岗补一条它看不见的规则，没有被替换掉的旧实现——规则一二原样保留，ALLOWLIST 仍是 0 条；被修的三个组件是把丢弃改成接住，不存在并行的旧路径。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "没有引入或升级任何依赖：分析全部用仓库已有的 typescript 编译器 API 做纯语法扫描。",
+    "exit_criteria": []
+  }
+}

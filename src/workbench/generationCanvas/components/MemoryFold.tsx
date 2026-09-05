@@ -2,6 +2,7 @@ import React from 'react'
 import { IconBrain, IconChevronDown, IconPin, IconPinFilled, IconX } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
 import { useTranslation } from 'react-i18next'
+import { toast } from '../../../ui/toast'
 import {
   fetchProjectMemoryFacts,
   removeProjectMemoryFact,
@@ -34,11 +35,27 @@ export function MemoryFold({ refreshKey }: { refreshKey: number }): JSX.Element 
 
   if (facts.length === 0) return null
 
-  const commitEdit = async (fact: MemoryFactView) => {
+  /**
+   * 三颗记忆按钮（改文本 / 置顶 / 删）走的都是主进程的记忆接口，它会失败（读写记忆文件、
+   * 项目已切走）。此前三处各自把 Promise 丢掉：用户改完一条记忆按回车，输入框收起来了，
+   * 文字弹回原样，没有任何东西说改失败了——他会以为自己没保存上（设计系统 §4.1 C1）。
+   * 一个包装管三处：成功了刷新列表，失败了说一句、并把列表拉回真相（乐观显示不留假象）。
+   */
+  const runMemoryCommand = (command: () => Promise<MemoryFactView[]>): void => {
+    void command()
+      .then(setFacts)
+      .catch((error: unknown) => {
+        console.error('project memory command failed', error)
+        toast(t('generationCommon.memory.changeFailed'), 'error')
+        void fetchProjectMemoryFacts().then(setFacts).catch(() => undefined)
+      })
+  }
+
+  const commitEdit = (fact: MemoryFactView): void => {
     setEditingId(null)
     const text = draft.trim()
     if (!text || text === fact.text) return
-    setFacts(await updateProjectMemoryFact(fact.id, { text }))
+    runMemoryCommand(() => updateProjectMemoryFact(fact.id, { text }))
   }
 
   return (
@@ -73,9 +90,9 @@ export function MemoryFold({ refreshKey }: { refreshKey: number }): JSX.Element 
                   value={draft}
                   autoFocus
                   onChange={(event) => setDraft(event.target.value)}
-                  onBlur={() => void commitEdit(fact)}
+                  onBlur={() => commitEdit(fact)}
                   onKeyDown={(event) => {
-                    if (event.key === 'Enter') void commitEdit(fact)
+                    if (event.key === 'Enter') commitEdit(fact)
                     if (event.key === 'Escape') setEditingId(null)
                   }}
                 />
@@ -103,7 +120,7 @@ export function MemoryFold({ refreshKey }: { refreshKey: number }): JSX.Element 
                     : 'text-nomi-ink-30 opacity-0 group-hover:opacity-100 hover:text-nomi-ink-60',
                 )}
                 aria-label={fact.pinned ? t('generationCommon.memory.unpin') : t('generationCommon.memory.pin')}
-                onClick={async () => setFacts(await updateProjectMemoryFact(fact.id, { pinned: !fact.pinned }))}
+                onClick={() => runMemoryCommand(() => updateProjectMemoryFact(fact.id, { pinned: !fact.pinned }))}
               >
                 {fact.pinned ? <IconPinFilled size={12} /> : <IconPin size={12} stroke={1.8} />}
               </button>
@@ -114,7 +131,7 @@ export function MemoryFold({ refreshKey }: { refreshKey: number }): JSX.Element 
                   'text-nomi-ink-30 opacity-0 group-hover:opacity-100 hover:text-nomi-ink-60',
                 )}
                 aria-label={t('generationCommon.memory.delete')}
-                onClick={async () => setFacts(await removeProjectMemoryFact(fact.id))}
+                onClick={() => runMemoryCommand(() => removeProjectMemoryFact(fact.id))}
               >
                 <IconX size={12} stroke={1.8} />
               </button>

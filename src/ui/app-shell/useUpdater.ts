@@ -46,6 +46,19 @@ type State = UpdaterReducerState
 
 export const UPDATER_INITIAL_STATE: State = { phase: 'idle', latestVersion: null, notes: '', percent: 0, errorMessage: '' }
 
+
+export type UpdaterVisibilityInput = {
+  phase: UpdaterPhase
+  hasRunningTask: boolean
+}
+
+/** The update remains pending while production work is running; show only a quiet badge. */
+export function shouldShowUpdaterDialog({ phase, hasRunningTask }: UpdaterVisibilityInput): boolean {
+  if (hasRunningTask) return false
+  return phase === 'available' || phase === 'downloading' || phase === 'downloaded' || phase === 'error'
+}
+
+
 const INITIAL = UPDATER_INITIAL_STATE
 
 export function reduceUpdaterState(state: State, event: DesktopUpdateEvent): State {
