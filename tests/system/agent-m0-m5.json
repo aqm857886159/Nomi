@@ -142,7 +142,7 @@
         "timeout": { "status": "ready", "commandRef": "m3-runtime-boundary", "assertions": ["M3-T-001 runtime capacity/compaction pressure has a bounded terminal outcome and no summary replay loop"] },
         "network": { "status": "ready", "commandRef": "m3-runtime-boundary", "assertions": ["M3-N-001 network errors are redacted/classified at the transport boundary"] }
       },
-      "persistence": { "status": "blocked", "coldStart": false, "reason": "The current main has no fresh real Host seven-layer context projection plus cold-start journey; agentHostEnabled=false remains the documented boundary.", "alternative": "The prompt/context/coordinator unit contracts are executed, but they cannot be promoted to Host persistence evidence." }
+      "persistence": { "status": "blocked", "coldStart": false, "reason": "The current main has no fresh real Host seven-layer context projection plus cold-start journey; the Host UI is resident by default since 2026-09-05, but no cold-start persistence journey has been recorded.", "alternative": "The prompt/context/coordinator unit contracts are executed, but they cannot be promoted to Host persistence evidence." }
     },
     {
       "id": "AGENT.M4.TRUST",

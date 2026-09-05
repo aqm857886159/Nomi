@@ -1,0 +1,134 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-05-agent-host-parallel-gate",
+  "problem_type": "release flag split the product into two divergent worlds",
+  "symptom": "Users running Nomi never saw the resident project Agent at all, while every walkthrough, fixture and conformance run saw a fully mounted Agent panel. Bugs found by tests were invisible to users, and bugs users hit were untestable, because the two paths were literally different renders of WorkbenchShell.",
+  "direct_cause": "src/utils/agentHostPreference.ts defaulted AGENT_HOST_ENABLED_KEY to false, and WorkbenchShell read it to decide whether to hand dock refs to the workspaces and whether to portal ProjectAgentResidentShell at all. Tests flipped the localStorage key to true and reloaded, so the shipped render tree and the tested render tree never coincided.",
+  "class_root": "The flag was introduced as a release gate but behaved as a parallel implementation (P1): one boolean selected between two whole product surfaces with no convergence date enforced anywhere. Any 'unfinished, so hide it' switch reproduces this class, because hiding removes the surface from the only feedback loop that could finish it. The correct discipline for an unfinished-but-shipped surface is to label it honestly (D4), not to fork the render tree.",
+  "affected_population": [
+    "Every end user of a released build: the resident project Agent was unreachable regardless of settings default",
+    "Every Agent walkthrough, e2e and conformance run, which asserted against a render tree no user had",
+    "Any future capability tempted to ship behind an 'off by default until polished' UI flag"
+  ],
+  "scope_paths": [
+    "src/workbench/WorkbenchShell.tsx",
+    "src/workbench/settings/SettingsDialog.tsx",
+    "src/workbench/ai/ProjectAgentResidentShell.tsx",
+    "src/workbench/ai/ProjectAgentResidentShell.structure.test.ts",
+    "src/i18n/locales/agentResident.ts",
+    "src/i18n/locales/settings.ts",
+    "tests/ux/agent-ui-conformance.walk.mjs",
+    "tests/ux/agent-ui-exception-states-runtime.walk.mjs",
+    "tests/ux/resident-composer-receipt-fix.e2e.mjs"
+  ],
+  "entry_points": [
+    "WorkbenchShell agent dock portal and agentDockRefs",
+    "Settings > General > AgentHostSection toggle",
+    "localStorage key nomi.agentHost.enabled read at module init",
+    "Walkthrough setup steps that wrote the key and reloaded before asserting"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The gate was an internal Nomi preference module with no vendor or protocol surface.",
+  "invariants": [
+    "The resident project Agent mounts for every user on every workspace surface; no preference, key or build flag can remove it.",
+    "There is exactly one render path for the Agent surface, so a walkthrough asserts against the same tree a user sees.",
+    "An unfinished capability that ships is labelled in place (Beta badge in the panel header, i18n zh-CN + en) rather than hidden.",
+    "No module named agentHostPreference and no AgentHostSection settings control exists in the tree."
+  ],
+  "generality_proof": "WorkbenchShell is the single owner of the workspace render tree and the only place the resident Agent is portalled; deleting the conditional there covers creation, storyboard, generation and preview surfaces at once, and deleting the preference module removes the only reader of the key anywhere in src, electron and tests.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/WorkbenchShell.tsx",
+      "symbol": "agentDockRefs / agentDock portal",
+      "responsibility": "Own the one and only mount decision for the resident Agent across all four workspace surfaces; it is now unconditional."
+    },
+    {
+      "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "symbol": "resident header Beta badge",
+      "responsibility": "Disclose in place that the surface is still being polished, replacing the hide-the-whole-thing gate."
+    },
+    {
+      "path": "src/workbench/ai/ProjectAgentResidentShell.structure.test.ts",
+      "symbol": "release-gate removal regression assertions",
+      "responsibility": "Pin the unconditional mount, the absent preference module and settings toggle, and the Beta disclosure so a revert cannot pass silently."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/WorkbenchShell.tsx",
+      "entry_point": "agentDock portal for creation/storyboard/generation/preview",
+      "disposition": "enforced",
+      "evidence": "agentDock is now agentDockTargets[agentSurface] with no boolean guard; asserted by ProjectAgentResidentShell.structure.test.ts."
+    },
+    {
+      "path": "src/workbench/settings/SettingsDialog.tsx",
+      "entry_point": "General tab release-gate toggle",
+      "disposition": "enforced",
+      "evidence": "Path deleted. AgentHostSection import and render deleted; structure test asserts the file no longer exists."
+    },
+    {
+      "path": "tests/ux/agent-ui-conformance.walk.mjs",
+      "entry_point": "walkthrough setup that wrote nomi.agentHost.enabled and reloaded",
+      "disposition": "enforced",
+      "evidence": "Path deleted. Repo-wide grep for nomi.agentHost / agentHostEnabled / agentHostPreference over src, electron and tests returns no hits."
+    },
+    {
+      "path": "tests/ux/agent-ui-exception-states-runtime.walk.mjs",
+      "entry_point": "enableAgentHost() fixture helper",
+      "disposition": "enforced",
+      "evidence": "Path deleted. Helper and its call site deleted; the walkthrough now asserts on the default render."
+    },
+    {
+      "path": "tests/ux/resident-composer-receipt-fix.e2e.mjs",
+      "entry_point": "localStorage write plus reload before newProject",
+      "disposition": "enforced",
+      "evidence": "Path deleted. Setup now starts the app and proceeds directly, matching the user's cold start."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every future half-finished user-visible surface invites the same 'ship it hidden behind a default-off flag' shortcut, which again splits the tested product from the shipped product.",
+    "same_class_scan": [
+      "Grepped agentHostEnabled / useAgentHostEnabled / setAgentHostEnabled / agentHostPreference / AgentHostSection / nomi.agentHost.enabled across src, electron, tests, scripts and docs.",
+      "Classified every hit as production render branch, settings control, test fixture step, or documentation prose; removed the first three classes entirely and rewrote stale prose.",
+      "Confirmed no other UI-visibility preference in src/utils follows the default-off release-gate pattern (canvasGesturePreference selects between two modes of a shipped control, not between shipped and hidden)."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/WorkbenchShell.tsx",
+    "invariant": "WorkbenchShell portals the resident Agent unconditionally, the preference module and settings toggle do not exist on disk, and the header carries the Beta disclosure.",
+    "failure_mode": "Reintroducing any gate reference in WorkbenchShell or recreating agentHostPreference.ts / AgentHostSection.tsx turns the structure test red before the change can merge.",
+    "exception_policy": "none",
+    "strategy": "Delete the branch and the preference module outright rather than flipping the default, and pin the deletion with existence assertions so a revert cannot pass silently.",
+    "artifacts": [
+      "src/workbench/WorkbenchShell.tsx",
+      "src/workbench/ai/ProjectAgentResidentShell.structure.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/ai/ProjectAgentResidentShell.structure.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/ai/ProjectAgentResidentShell.structure.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/utils/agentHostPreference.ts",
+      "src/utils/agentHostPreference.test.ts",
+      "src/workbench/settings/AgentHostSection.tsx"
+    ],
+    "rationale": "Keeping the module with DEFAULT flipped to true would have preserved the parallel world as an escape hatch (P1); the gate is deleted, not defaulted."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency is introduced or removed.",
+    "exit_criteria": []
+  },
+  "migration": "Users who had previously written nomi.agentHost.enabled into localStorage keep a harmless orphan key; nothing reads it, and the Agent is resident regardless of its value. No data migration is required.",
+  "residual_risks": [
+    "The resident Agent's orchestration and approval chain is genuinely unfinished; the Beta badge discloses this but does not fix it.",
+    "Users who never saw the panel before will now meet it on first open, so first-run friction on the Agent surface is newly on the critical path and needs experiential QA."
+  ]
+}

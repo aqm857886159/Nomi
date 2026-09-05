@@ -7,7 +7,7 @@ import {
   IconMessageQuestion, IconPencil, IconRobot, IconSettings, IconTimelineEvent, IconTool, IconVideo, IconWaveSine,
   IconPlus, IconTrash, IconWorld, IconX, IconFocusCentered, IconArrowBackUp, IconPlayerStopFilled, IconChevronDown,
 } from '@tabler/icons-react'
-import { NomiLogoMark, WorkbenchIconButton } from '../../design'
+import { NomiLogoMark, StatusBadge, WorkbenchIconButton } from '../../design'
 import { cn } from '../../utils/cn'
 import type { AgentToolProfile } from '../../../electron/shared/projectAgentContracts'
 import { useWorkbenchStore, type ProjectAgentReference, type ProjectAgentRunMode, type WorkspaceMode } from '../workbenchStore'
@@ -664,7 +664,10 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
 
   return <section id="project-agent-resident" onKeyDownCapture={(event) => { if (event.key === 'Escape') { setThreadsOpen(false); setMenu(null); setQueueMenuOpen(null) } }} className="relative isolate flex h-full min-h-0 w-full min-w-0 flex-col bg-[var(--workbench-ai-panel-bg)] text-nomi-ink" aria-label={t('agentResident.aria')} data-agent-resident="true" data-agent-panel="true" data-agent-surface={surface} data-agent-run-mode={runMode} data-agent-approval-mode={approvalPolicy.mode} data-agent-spend-policy={approvalPolicy.spend}>
     <header className="relative flex min-h-11 shrink-0 items-center gap-2 border-b border-nomi-line-soft px-3 py-1.5" data-agent-header="true">
-      <div className="flex min-w-0 items-center gap-2"><NomiLogoMark size={19} /><span className="text-body-sm font-semibold">{t('agentResident.brand')}</span></div>
+      {/* Beta 徽标：常驻 Agent 已默认开（2026-09-05 删发布闸），但编排/审批链仍在打磨——
+          未完成处**明着标**而不是藏起整套 UI（D4 诚实交付）。它是标签不是控件，
+          贴在标题旁不占 §1.5 的常驻控件预算。 */}
+      <div className="flex min-w-0 items-center gap-2"><NomiLogoMark size={19} /><span className="text-body-sm font-semibold">{t('agentResident.brand')}</span><span className="shrink-0" title={t('agentResident.betaHint')}><StatusBadge tone="info" size="xs" data-agent-beta-badge="true" aria-label={t('agentResident.betaHint')}>{t('agentResident.beta')}</StatusBadge></span></div>
       <div className="relative shrink-0" onMouseEnter={() => setUsageOpen(true)}>
         <button type="button" className="inline-flex h-6 items-center gap-1.5 rounded-pill border border-nomi-line bg-nomi-paper px-2 text-micro tabular-nums text-nomi-ink-60" data-agent-usage-pill="true" title={t('agentResident.usageTitle', { last: lastTurnTokens, total: sessionTotalTokens })} aria-label={t('agentResident.usageRoundsTitle', { count: remainingRounds })} onFocus={() => setUsageOpen(true)} onClick={() => setUsageOpen(true)}><IconCircleDashed size={13} className="text-nomi-accent" aria-hidden="true" />{t('agentResident.usageRounds', { count: remainingRounds })}</button>
         <Popover open={usageOpen} onClose={() => setUsageOpen(false)} label={t('agentResident.usageTitle', { last: lastTurnTokens, total: sessionTotalTokens })} className="w-[220px]" testId="usage-popover">

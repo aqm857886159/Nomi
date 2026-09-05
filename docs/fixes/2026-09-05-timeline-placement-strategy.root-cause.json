@@ -1,0 +1,149 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-05-timeline-placement-strategy",
+  "problem_type": "时间轴片段落位和面板尺寸没有共享策略，导致相邻微调静默无效、字幕重叠和内容溢出",
+  "symptom": "相邻片段点击向前或向后微调时按钮可点但位置不变；复制和拖动的落位行为不一致；新字幕与已有字幕叠印；素材变长或变短后默认时间轴仍显示大量空白；文字轨超出面板视口被裁掉。",
+  "direct_cause": "nudgeClipById 和 moveClipToFrame 使用严格 canPlaceClip，而拖动和新增媒体使用 nearestLegalStart；文字新增/移动没有任何重叠检查；时间轴标尺以固定 120 秒和 2400px 最小宽度计算；轨道容器使用 overflow-y-hidden。",
+  "class_root": "时间轴缺少统一的可复用落位不变量和由内容与可视空间推导的布局不变量，调用方各自决定碰撞与尺寸行为，导致等价入口在相邻内容、变化时长和超高轨道集合上产生不同结果。",
+  "affected_population": [
+    "在相邻片段上微调或复制媒体片段的剪辑用户",
+    "在已有字幕/标题卡后继续添加或拖动文字片段的剪辑用户",
+    "打开含任意时长素材的预览时间轴或窗口高度不足的用户"
+  ],
+  "scope_paths": [
+    "src/workbench/timeline/timelinePlacement.ts",
+    "src/workbench/timeline/timelineEdit.ts",
+    "src/workbench/timeline/timelineTextEdit.ts",
+    "src/workbench/timeline/timelineMath.ts",
+    "src/workbench/timeline/TimelinePanel.tsx",
+    "src/i18n/locales/timelineEditor.ts",
+    "src/workbench/timeline/timelineEdit.test.ts",
+    "src/workbench/timeline/timelineTextPlacement.test.ts",
+    "src/workbench/timeline/timelineFit.test.ts",
+    "src/workbench/timeline/timelinePanelLayout.test.ts"
+  ],
+  "entry_points": [
+    "TimelinePanel 片段微调和复制按钮",
+    "TimelineTrack 拖动/素材新增媒体片段",
+    "TimelineSecondaryAddRow 与 TimelinePreview 新增字幕",
+    "TimelineTextTrack 文字片段拖动",
+    "PreviewWorkspace/TimelinePanel 初次打开、窗口变化和素材时长变化"
+  ],
+  "internal_only_reason": "落位、时间轴缩放和面板布局是 Nomi 自有 timeline state 与 renderer layout 合同；没有第三方系统决定这些内部不变量。",
+  "invariants": [
+    "媒体片段移动、微调、复制和新增都通过同一个最近合法起点策略；无法离开当前位置时调用方必须可解释地禁用操作。",
+    "文字片段新增和移动在同一文字轨内不重叠，并通过同一个最近合法起点策略选择位置。",
+    "默认缩放由内容时长、可视轨道宽度和固定余量推导，时长或可视宽度变化时重新计算，不依赖固定像素标尺。",
+    "轨道内容超过面板可用高度时保持可滚动，任何轨道都不能因父面板裁剪而不可见。",
+    "已有文字片段不会移除字幕新增入口。"
+  ],
+  "generality_proof": "统一的区间落位核接收任意带 startFrame/endFrame 的片段集合，因此媒体和文字两个独立数据结构都在同一碰撞边界收敛；fit 函数只依赖内容长度和测得可视宽度，因此覆盖任意素材时长和窗口尺寸；轨道容器的纵向滚动覆盖任意轨道数量。",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/timeline/timelinePlacement.ts",
+      "symbol": "nearestLegalStart",
+      "responsibility": "计算不与同轨片段重叠且距期望起点最近的合法位置，媒体和文字入口共用。"
+    },
+    {
+      "path": "src/workbench/timeline/timelineEdit.ts",
+      "symbol": "moveClipToLegalFrame / resolveLegalInsertStart",
+      "responsibility": "让媒体拖动、微调、复制和新增统一收敛到共享落位核。"
+    },
+    {
+      "path": "src/workbench/timeline/timelineTextEdit.ts",
+      "symbol": "addTextClip / moveTextClip",
+      "responsibility": "让文字新增和移动在文字轨的同一共享边界执行非重叠落位。"
+    },
+    {
+      "path": "src/workbench/timeline/timelineMath.ts",
+      "symbol": "resolveTimelineFitScale",
+      "responsibility": "从内容时长和实际可视宽度推导带余量的默认缩放。"
+    },
+    {
+      "path": "src/workbench/timeline/TimelinePanel.tsx",
+      "symbol": "tracks viewport and fit effect",
+      "responsibility": "测量可视轨道宽度、在打开/内容变化时应用 fit，并允许垂直滚动。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/timeline/timelineEdit.ts",
+      "entry_point": "nudgeClipById and duplicateClipById",
+      "disposition": "enforced",
+      "evidence": "Both now resolve through the same legal-start placement used by move/add media paths; focused tests cover collision and duplicate cases."
+    },
+    {
+      "path": "src/workbench/timeline/timelineTextEdit.ts",
+      "entry_point": "addTextClip and moveTextClip",
+      "disposition": "enforced",
+      "evidence": "Both now filter the target clip and call the shared interval placement kernel; focused tests prove existing text clips are not overlapped."
+    },
+    {
+      "path": "src/workbench/timeline/TimelinePanel.tsx",
+      "entry_point": "preview timeline viewport and toolbar",
+      "disposition": "enforced",
+      "evidence": "The measured content width drives fit-to-content and the track viewport is vertically scrollable; the text add action remains rendered with existing text clips."
+    },
+    {
+      "path": "src/workbench/timeline/kernel/timelineKernel.ts",
+      "entry_point": "Agent timeline edit operations",
+      "disposition": "not-affected",
+      "evidence": "Kernel operations already own their explicit edit-plan semantics and are outside the requested renderer placement/default-state boundary; no kernel path is changed."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any future caller, imported timeline, generated storyboard, materialized caption, longer/shorter media asset, or smaller window can reproduce the same missing shared invariant if placement and layout remain caller-specific.",
+    "same_class_scan": [
+      "Searched all timeline callers of moveClipToFrame, moveClipToLegalFrame, addClipAtFrame, nudgeClipById, duplicateClipById, addTextClip, moveTextClip and resolveActiveTextClipsAtFrame.",
+      "Searched TimelinePanel, PreviewWorkspace and GenerationWorkspace for timeline scale, ruler width, panel height and overflow declarations.",
+      "Searched both zh-CN and en timelineEditor resources before adding disabled-action explanations."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/timeline/timelinePlacement.ts",
+    "invariant": "Every media/text placement uses one nearest legal interval strategy, and every default timeline scale uses measured available width and derived content duration.",
+    "failure_mode": "A missing clip returns the unchanged timeline; an occupied requested position resolves to the nearest legal gap; a zero-duration or unavailable viewport falls back to the bounded scale; overflow remains scrollable instead of clipping rows.",
+    "exception_policy": "none",
+    "strategy": "Move the collision calculation into a shared interval module, make all current media/text callers use it, derive fit from real layout measurement, and keep the track viewport scrollable as the structural escape for arbitrary row counts.",
+    "artifacts": [
+      "src/workbench/timeline/timelinePlacement.ts",
+      "src/workbench/timeline/timelineEdit.ts",
+      "src/workbench/timeline/timelineTextEdit.ts",
+      "src/workbench/timeline/timelineMath.ts",
+      "src/workbench/timeline/TimelinePanel.tsx"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/timeline/timelineEdit.test.ts",
+    "src/workbench/timeline/timelineTextPlacement.test.ts",
+    "src/workbench/timeline/timelineFit.test.ts",
+    "src/workbench/timeline/timelinePanelLayout.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/timeline/timelineEdit.test.ts",
+    "src/workbench/timeline/timelineTextPlacement.test.ts",
+    "src/workbench/timeline/timelineFit.test.ts",
+    "src/workbench/timeline/timelinePanelLayout.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/timeline/timelineEdit.ts",
+      "src/workbench/timeline/timelineTextEdit.ts",
+      "src/workbench/timeline/TimelinePanel.tsx"
+    ],
+    "rationale": "The obsolete caller-specific placement and fixed-size layout behavior are deleted in the same change; no fallback path remains."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The repair uses existing TypeScript, React and ResizeObserver capabilities; no third-party runtime controls the invariant.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted timeline schema changes. Existing clip positions remain valid; the next open or duration/viewport change derives the default fit scale, and future text/media edits use the shared placement rule.",
+  "residual_risks": [
+    "The focused unit tests do not replace the requested real Electron visual inspection; the zero-credit journey must still run and retain screenshots.",
+    "Manual zoom remains a user override until a later duration or viewport change, which intentionally preserves explicit zoom actions."
+  ]
+}

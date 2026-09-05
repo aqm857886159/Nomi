@@ -56,8 +56,6 @@ try {
   fs.writeFileSync(catalogPath, `${JSON.stringify(catalog, null, 2)}\n`, { mode: 0o600 })
 
   let { win } = await walk.start({ first: true })
-  await win.evaluate(() => localStorage.setItem('nomi.agentHost.enabled', 'true'))
-  await win.reload({ waitUntil: 'domcontentloaded' })
 
   const project = await walk.newProject()
   const { projectId, projectRoot } = project

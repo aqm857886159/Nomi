@@ -15,7 +15,6 @@ import { getAppLocale, setAppLocale, SUPPORTED_LOCALES, type AppLocale } from '.
 import { ThemeToggleButton } from '../../ui/theme/ThemeToggleButton'
 import { ScreenshotHotkeySection } from './ScreenshotHotkeySection'
 import { CanvasGestureSection } from './CanvasGestureSection'
-import { AgentHostSection } from './AgentHostSection'
 import { AboutSection } from './AboutSection'
 import { ProjectLocationSection } from './ProjectLocationSection'
 import { AiModelsSection } from './AiModelsSection'
@@ -353,7 +352,6 @@ export function SettingsDialog({
                 <div className="mb-4 text-body font-medium text-nomi-ink">{t('settings.general.title')}</div>
                 <ScreenshotHotkeySection />
                 <CanvasGestureSection />
-                <AgentHostSection />
                 {/* 语言 / 外观归位到这里（§1.5「归位」）：它们过去挤在 studio 顶栏右簇 + 项目库顶栏，
                     外观还另有一份藏在品牌钮弹窗里——纯偏好项本来就该住设置，且这里是唯一一份（P1）。
                     ⚠️ 这一步等于改写 PR#50 的判断（当时把语言从「关于」弹窗第三层提到顶栏常驻图标，

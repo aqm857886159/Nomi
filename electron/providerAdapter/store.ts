@@ -215,6 +215,19 @@ export class ProviderAdapterStore {
     }));
   }
 
+  /** Remove durable verification projections when their catalog connection is gone. */
+  deleteRunsForVendors(vendorKeys: ReadonlySet<string>): void {
+    if (vendorKeys.size === 0) return;
+    this.mutate((fresh) => ({
+      state: {
+        ...fresh,
+        runs: fresh.runs.filter((run) => !vendorKeys.has(run.vendorKey)),
+        revisions: fresh.revisions.filter((revision) => !vendorKeys.has(revision.vendorKey)),
+      },
+      result: undefined,
+    }));
+  }
+
   finalizePromotion(input: {
     runId: string;
     expectedActiveRevision?: string;
@@ -283,6 +296,18 @@ export class ProviderAdapterStore {
     this.state = loadState(this.filePath);
     return this.state;
   }
+}
+
+/**
+ * Catalog mutations own connection deletion, while adapter runs live in their
+ * own durable file. Keep the cleanup at that shared boundary without creating
+ * a catalog→service cycle; absent stores are left absent.
+ */
+export function invalidateProviderAdapterRunsForVendors(vendorKeys: ReadonlySet<string>): void {
+  if (vendorKeys.size === 0) return;
+  const filePath = providerAdapterStorePath();
+  if (!fs.existsSync(filePath)) return;
+  new ProviderAdapterStore(filePath).deleteRunsForVendors(vendorKeys);
 }
 
 export function recoverableAdapterRuns(runs: readonly ProviderAdapterRun[]): ProviderAdapterRun[] {
