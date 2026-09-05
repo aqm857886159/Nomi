@@ -10,6 +10,7 @@ import {
 import { buildToolErrorOutcome, buildProgressStartMessage, sanitizeArtifactResource, type ResultLocale } from './mcpToolResults'
 import { buildCanonicalMcpToolResult } from './mcpCanonicalToolResult'
 import { canvasReadResultSchema } from '../shared/agentCapabilities/canvasRead'
+import { CANVAS_WRITE_CAPABILITY } from '../shared/agentCapabilities/canvasWrite'
 import { assembleToolResultContent } from './mcpResultPayload'
 import { stripInternalEnrichFields } from './mcpResultEnrich'
 import { createProgressReporter } from './mcpProgress'
@@ -493,8 +494,12 @@ export function createMcpProtocol(transport: McpTransport) {
         // approve/deny decision at this protocol boundary before reaching the
         // verified lease/renderer path. The renderer receipt must not be given
         // Host correlation unless a Host turn actually claimed that approval.
+        // 判据从工具名改成 operation：画布语义写在 MCP 上已收敛成一个工具
+        //（曾经并列的 nomi_canvas_plan / nomi_canvas_edit 在 tools/list 里字节级相同，见
+        // mcpCapabilityProjection.ts 的 canvasAdapter 注释）。用 method 认「这是画布写」，用
+        // operation 认「这是分镜定点修改」，不再依赖两个名字里的哪一个。
         if (
-          tool.name === 'nomi_canvas_plan'
+          tool.method === CANVAS_WRITE_CAPABILITY.id
           && built.operation === 'patch_shots'
           && clientSupportsElicitation
           && transport.isAppOpen()

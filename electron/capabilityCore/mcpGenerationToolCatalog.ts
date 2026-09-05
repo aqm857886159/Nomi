@@ -17,9 +17,15 @@ const OPERATION_PLAN_SHARED_FIELDS = {
   projectId: { type: "string" },
   prompt: { type: "string", description: "单镜目标；无 candidate 时用默认模型创建草稿。" },
   taskKind: { type: "string", enum: ["text_to_image", "image_edit", "text_to_video", "image_to_video"] },
-  moduleId: { type: "string" },
-  providerId: { type: "string" },
-  modelId: { type: "string" },
+  // 模型身份三元组：三项都从 nomi_read(target=models) 的同一行读得到（moduleId / vendor / modelKey）。
+  moduleId: { type: "string", description: "模型身份：取 nomi_read(target=models) 里那一行的 moduleId。" },
+  providerId: { type: "string", description: "模型身份：取 nomi_read(target=models) 里那一行的 vendor（也可以直接写 vendor 字段）。" },
+  modelId: { type: "string", description: "模型身份：取 nomi_read(target=models) 里那一行的 modelKey（也可以直接写 modelKey 字段）。" },
+  // 读工具吐 {vendor, modelKey}，写工具本来只认 {providerId, modelId} —— 同一个东西两套叫法，
+  // 宿主把读到的行原样贴过来就被 additionalProperties:false 拒掉（探针 c-3）。这里直接收下读侧的名字，
+  // 在 build 里归一到 providerId/modelId，身份键定义一个字不改。
+  vendor: { type: "string", description: "providerId 的读侧别名：nomi_read(target=models) 里那一行的 vendor。" },
+  modelKey: { type: "string", description: "modelId 的读侧别名：nomi_read(target=models) 里那一行的 modelKey。" },
   mode: { type: "string" },
   modeId: { type: "string" },
   variantId: { type: "string" },
@@ -52,8 +58,11 @@ function buildOperationCreateParams(args: Record<string, unknown>): Record<strin
     ...(typeof args.prompt === "string" ? { prompt: args.prompt } : {}),
     ...(typeof args.taskKind === "string" ? { taskKind: args.taskKind } : {}),
     ...(typeof args.moduleId === "string" ? { moduleId: args.moduleId } : {}),
-    ...(typeof args.providerId === "string" ? { providerId: args.providerId } : {}),
-    ...(typeof args.modelId === "string" ? { modelId: args.modelId } : {}),
+    // 归一：读侧别名 vendor/modelKey 折成写侧的 providerId/modelId（canonical 名字优先）。
+    ...(typeof args.providerId === "string" ? { providerId: args.providerId }
+      : typeof args.vendor === "string" ? { providerId: args.vendor } : {}),
+    ...(typeof args.modelId === "string" ? { modelId: args.modelId }
+      : typeof args.modelKey === "string" ? { modelId: args.modelKey } : {}),
     ...(typeof args.mode === "string" ? { mode: args.mode } : {}),
     ...(typeof args.modeId === "string" ? { modeId: args.modeId } : {}),
     ...(typeof args.variantId === "string" ? { variantId: args.variantId } : {}),

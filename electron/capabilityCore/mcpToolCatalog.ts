@@ -82,7 +82,7 @@ const READ_TOOL = {
   inputSchema: {
     type: 'object',
     properties: {
-      target: { type: 'string', enum: READ_TARGETS, description: '读取：canvas/projects/models/generation_context/operation/run/run_events/artifact/artifact_content/integration。' },
+      target: { type: 'string', enum: READ_TARGETS, description: '读取：canvas/projects/models/generation_context/operation/run/run_events/artifact/artifact_content/integration。target=projects 的每一行都带 projectSelectionHandle，直接喂给 nomi_session_open 就能续接那个项目（不必自己新建）。' },
       projectId: { type: 'string' },
       leaseHandle: { type: 'string', description: 'target=canvas/generation_context/operation 必填。' },
       runId: { type: 'string', description: 'target=run/run_events/artifact/artifact_content 必填。' },

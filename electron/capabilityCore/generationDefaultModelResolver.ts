@@ -9,10 +9,11 @@ import { readCatalog } from "../catalog/catalogStore";
 import { apiKeyDecryptStatus, type ApiKeyDecryptStatus, type ApiKeyRecord } from "../catalog/secrets";
 import { buildVideoModelCandidates, videoArchetypeIdFromMeta } from "../shared/videoCapabilities/registry";
 import { effectiveVideoModes } from "../shared/videoCapabilities/recommendation";
+import { SINGLE_SHOT_GENERATION_MODULE_ID } from "../shared/generationModuleId";
 
 /** The candidate identity consumed by the semantic storyboard planner. */
 export type GenerationStoryboardDefault = Readonly<{
-  moduleId: "generation.single-shot";
+  moduleId: typeof SINGLE_SHOT_GENERATION_MODULE_ID;
   providerId: string;
   modelId: string;
   mode: GenerationDefaultTaskKind;
@@ -109,7 +110,7 @@ export function createGenerationDefaultModelResolver(
       })()
       : undefined;
     return {
-      moduleId: "generation.single-shot",
+      moduleId: SINGLE_SHOT_GENERATION_MODULE_ID,
       providerId: model.vendorKey,
       modelId: model.modelKey,
       mode: taskKind,

@@ -67,7 +67,7 @@ class StoryboardPatchHarness {
       id: 2,
       method: 'tools/call',
       params: {
-        name: 'nomi_canvas_plan',
+        name: 'nomi_canvas_edit',
         arguments: {
           leaseHandle: 'lease-a',
           projectId: 'project-a',
@@ -80,7 +80,7 @@ class StoryboardPatchHarness {
   }
 }
 
-describe('canonical nomi_canvas_plan patch_shots approval boundary', () => {
+describe('canonical canvas.write patch_shots approval boundary', () => {
   it('previews through elicitation, then invokes only after explicit approval', async () => {
     const harness = new StoryboardPatchHarness()
     await harness.initialize()
@@ -131,7 +131,7 @@ describe('canonical nomi_canvas_plan patch_shots approval boundary', () => {
     harness.send({ jsonrpc: '2.0', id: challenge.id, result: { action: 'accept', content: { confirm: true } } })
     const response = await harness.next()
     expect(response.result?.isError).toBe(true)
-    expect(response.result?.structuredContent).toMatchObject({ nomiOutcome: { kind: 'error', tool: 'nomi_canvas_plan', message: 'ECONNRESET' } })
+    expect(response.result?.structuredContent).toMatchObject({ nomiOutcome: { kind: 'error', tool: 'nomi_canvas_edit', message: 'ECONNRESET' } })
     expect(harness.invoke).toHaveBeenCalledTimes(1)
   })
 })
