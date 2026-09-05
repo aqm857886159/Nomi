@@ -20,6 +20,7 @@ import { resolveMcpOrigin, verifyToken } from './security'
 import { getProductionRunService } from '../productionRun/productionRunRuntime'
 import { handleArtifactPreviewHttpRequest, withAssetPreview } from '../productionRun/artifactPreviewHttpServer'
 import { setArtifactPreviewHttpOrigin } from '../productionRun/artifactProjection'
+import { startCredentialElicitationServer } from '../integrationCertification/credentialElicitationServer'
 import { resolveWorkspaceProjectDir } from '../workspace/workspaceRepository'
 import { getWorkspaceRepositoryDeps } from '../runtimePaths'
 import { dispatchAndEnrich } from './mcpResultEnrichLive'
@@ -390,10 +391,13 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
       const address = server.address() as AddressInfo
       const previewOrigin = `http://127.0.0.1:${address.port}`
       setArtifactPreviewHttpOrigin(previewOrigin)
+      // MCP URL 模式 elicitation 的凭据页自带一个严格 CSP 的回环 listener（见 credentialElicitationServer.ts）。
+      const credentialServer = startCredentialElicitationServer()
       resolve({
         port: address.port,
         close: () =>
           new Promise<void>((resolveClose) => {
+            void credentialServer.then((started) => started.close()).catch(() => undefined)
             server.close(() => {
               setArtifactPreviewHttpOrigin(null)
               resolveClose()
