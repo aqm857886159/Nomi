@@ -56,9 +56,10 @@ try {
   // localized and changed with the Agent shell copy, while this data contract
   // remains the stable user action.
   await expect(win.locator(`${CREATION_PANEL} [data-agent-composer-send="true"]`)).toBeVisible()
-  await expect.poll(async () => (await readConversations(win, projectId))?.creation.threads[0]?.messages
+  const durableRoots = { settingsRoot, projectRoot }
+  await expect.poll(async () => (await readConversations(win, projectId, durableRoots))?.creation.threads[0]?.messages
     .some((message) => message.content === PARENT), { timeout: 30_000 }).toBe(true)
-  const persistedConversations = await readConversations(win, projectId)
+  const persistedConversations = await readConversations(win, projectId, durableRoots)
   const parentThreadId = persistedConversations.creation.activeId
   expect(parentThreadId).toMatch(/^thread-/)
   // The current cutover snapshot is the persistence proof; the retired
@@ -69,8 +70,8 @@ try {
   const planner = walk.fixture.expectText({
     label: 'inline storyboard planner inherits the creation thread',
     match: (body) => flattenRequestText(body).includes('F_INLINE_STORY') && !hasToolResult(body, PLAN_CALL),
-    reply: { type: 'tool', id: PLAN_CALL, name: 'propose_storyboard_plan', args: {
-      title: 'F镜头', anchors: [],
+    reply: { type: 'tool', id: PLAN_CALL, name: 'nomi_canvas_plan', args: {
+      operation: 'propose_storyboard_plan', title: 'F镜头', anchors: [],
       shots: [{ index: 1, shotKind: 'image', durationSec: 0, anchorIds: [],
         modelKey: FIXTURE_IMAGE_MODEL, modeId: 't2i', params: { size: '1024x1024' },
         prompt: '正面中景，红色杯子放在白桌中央。' }],
@@ -90,10 +91,22 @@ try {
   await expect(selectionStoryboardButton).toBeEnabled()
   await clickOrFail(selectionStoryboardButton, '在创作区就地拆镜头')
   const plannerWire = await recorded(planner.received, 'inline planner request')
-  expect(toolNames(plannerWire.body)).toEqual(['propose_storyboard_plan', 'read_canvas_state'])
+  expect(toolNames(plannerWire.body)).toEqual([
+    'load_skill', 'nomi_canvas_edit', 'nomi_canvas_plan', 'nomi_canvas_read',
+    'nomi_document_edit', 'nomi_document_read', 'nomi_generation_plan', 'nomi_generation_status',
+  ])
   expect(plannerWire.body.messages.some((message) => message.role === 'user'
-    && flattenRequestText({ messages: [message] }) === PARENT),
-  'Planning must retain a separate native parent message, not copy its words into a new prompt').toBe(true)
+    && flattenRequestText({ messages: [message] }).includes(PARENT)),
+  'Planning must retain the parent thread context in the Host request').toBe(true)
+  const storyboardApproval = win.locator(`${CREATION_PANEL} [data-agent-approval="true"][data-agent-approval-state="pending"]`)
+  const storyboardApprovalProof = await proveProbe(storyboardApproval,
+    'Inline storyboard planning reaches the real Resident approval boundary')
+  await clickOrFail(storyboardApproval.getByRole('button', { name: '批准', exact: true }),
+    '批准内联分镜规划', { noWaitAfter: true })
+  await expectAbsent(storyboardApproval.getByRole('button', { name: '批准', exact: true }), {
+    provenBy: storyboardApprovalProof,
+    message: 'The applied storyboard approval is no longer actionable',
+  })
   await recorded(plannerDone.received, 'inline planner result')
   // v5：方案落成中列摘要卡（完整编辑器只住分镜页），先卡后审。
   await expect(win.locator('[data-storyboard-card="draft"]')).toBeVisible()
@@ -104,16 +117,16 @@ try {
   expect(draft.storyboardPlanCommitted).toBe(false)
   expect(draft.generationCanvas.nodes).toHaveLength(0)
   expect(walk.fixture.images).toHaveLength(0)
-  await expect.poll(() => readNativeContexts(projectRoot)?.some((record) => record.snapshot
+  await expect.poll(() => readNativeContexts(projectRoot, settingsRoot)?.some((record) => record.snapshot
     && snapshotMessages(record).some((message) => message.role === 'toolResult' && message.toolCallId === PLAN_CALL)),
   { timeout: 30_000 }).toBe(true)
-  const plannerContext = readNativeContexts(projectRoot).find((record) => record.snapshot
+  const plannerContext = readNativeContexts(projectRoot, settingsRoot).find((record) => record.snapshot
     && snapshotMessages(record).some((message) => message.role === 'toolResult' && message.toolCallId === PLAN_CALL))
   expect(plannerContext.sessionKey, 'A creation bubble must not secretly use the generation memory bucket')
     .toBe(`nomi:workbench:${projectId}:creation`)
   expect(plannerContext.threadId, 'Inline planning must keep the exact initiating thread, not open a new creation thread')
     .toBe(parentThreadId)
-  expect((await readConversations(win, projectId)).creation.activeId).toBe(parentThreadId)
+  expect((await readConversations(win, projectId, durableRoots)).creation.activeId).toBe(parentThreadId)
   await walk.snap('inline-plan-awaits-human')
 
   // v5 执行面：没有「确认落画布」——进分镜页，footer「生成未生成的 N 镜」按需 materialize + 批量。
