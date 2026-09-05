@@ -3,8 +3,6 @@ import { useTranslation } from 'react-i18next'
 import {
   IconArrowRight,
   IconAspectRatio,
-  IconChevronDown,
-  IconChevronUp,
   IconCopy,
   IconDots,
   IconGripVertical,
@@ -25,12 +23,10 @@ import StoryboardRowShell from './StoryboardRowShell'
 import StoryboardShotFrame from './StoryboardShotFrame'
 import StoryboardFrameActions from './StoryboardFrameActions'
 import StoryboardVariantsDrawer from './StoryboardVariantsDrawer'
-import StoryboardShotRowExpand from './StoryboardShotRowExpand'
 import ShotReferenceZone from './ShotReferenceZone'
 import ShotComposerBar from './ShotComposerBar'
 import PromptSkeletonSegments from './PromptSkeletonSegments'
 import type { ShotVariant } from './shotVariants'
-import { modeGeneratesDialogue } from '../../../generationCanvas/agent/storyboardDialogue'
 
 /**
  * 分镜表 v6 的一行：`[grip 14 | 画面格 136 | 参考列 200 | 提示词块 1fr]`（设计合同
@@ -102,7 +98,6 @@ type Props = {
   onUpdate: (patch: Partial<PlanShot>) => void
   onToggleAnchor: (anchorId: string) => void
   onRemove: () => void
-  onApplyParamsToAll?: () => void
   promptInvalid?: boolean
   draggable?: boolean
   isDragOver?: boolean
@@ -146,10 +141,9 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
     skipped, onToggleSkip, variants = [], adoptedVariantId, onAdoptVariant, onDeleteVariant, onGenerateVariants, outputTag,
     onGenerate, onJumpToAnchor, onOpenPreview, onRegenerate, onToggleLock, onAgentHandoff,
     onInsertAbove, onInsertBelow, targetShots, allShots, sourcePosition, onSaveAsReference, onSetAsFirstFrame,
-    onRerunFreshRefs, onUpdate, onToggleAnchor, onRemove, promptInvalid, onApplyParamsToAll,
+    onRerunFreshRefs, onUpdate, onToggleAnchor, onRemove, promptInvalid,
     mentionSearch, onMentionSelect, currentRefUrls, mentionUpload, storyboardProfile,
   } = props
-  const [expanded, setExpanded] = React.useState(false)
   const [actionsOpen, setActionsOpen] = React.useState(false)
   const [aspectMenuOpen, setAspectMenuOpen] = React.useState(false)
   const [variantsOpen, setVariantsOpen] = React.useState(false)
@@ -166,8 +160,6 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
   const resolved = resolveShotArchetypeMode(modelOptions?.find((option) => option.value === shot.modelKey) ?? null, shot.modeId)
   const resolvedMode = resolved?.mode ?? null
 
-  const dialogueText = shot.dialogue?.trim() || shot.subtitle?.trim() || ''
-  const dialogueWillGenerate = Boolean(dialogueText && modeGeneratesDialogue(resolvedMode, shot.params))
 
   /** 已生成/已锁定的行：底栏用一枚状态标签替换「生成」按钮位置，不额外加行（§2.3）。 */
   const statusTag = exec?.status === 'locked'
@@ -354,12 +346,6 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
         />
       </div>
 
-      {dialogueWillGenerate ? (
-        <div className="text-micro text-nomi-ink-40" data-storyboard-dialogue-hint="true">
-          {t('storyboardEditor.row.dialogueAudioHint')}
-        </div>
-      ) : null}
-
       {/* 参考已变警示行：只报事实 + 给一键补跑，绝不自动跑。 */}
       {exec && exec.changedRefs.length > 0 ? (
         <div className="flex min-w-0 items-center gap-2" data-storyboard-ref-warnline={shot.index}>
@@ -380,27 +366,11 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
         </div>
       ) : null}
 
-      {/* 台词/转场：composer **外部**一行小字 + ▾（v5 已有，v6 不动这块）。 */}
-      <div className="flex min-w-0 cursor-pointer items-center gap-2" data-storyboard-subline="true" onClick={() => setExpanded(true)}>
-        {dialogueText ? (
-          <span className="min-w-0 truncate text-micro text-nomi-ink-40">{t('storyboardEditor.row.dialogueQuiet', { text: dialogueText })}</span>
-        ) : null}
-        <button
-          type="button"
-          onClick={(event) => { event.stopPropagation(); setExpanded((open) => !open) }}
-          aria-expanded={expanded}
-          aria-label={expanded ? t('storyboardEditor.row.collapse') : t('storyboardEditor.row.expand')}
-          className="ml-auto grid size-6 shrink-0 place-items-center rounded-nomi-sm text-nomi-ink-40 hover:bg-nomi-ink-10 hover:text-nomi-ink-60"
-        >
-          {expanded ? <IconChevronUp size={14} stroke={1.8} /> : <IconChevronDown size={14} stroke={1.8} />}
-        </button>
-      </div>
     </div>
   )
 
   const footer = (
-    <>
-      {variantsOpen && variants.length > 0 ? (
+    variantsOpen && variants.length > 0 ? (
         <StoryboardVariantsDrawer
           shotIndex={shot.index}
           variants={variants}
@@ -411,21 +381,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
           onGenerateMore={onGenerateVariants}
           onClose={() => setVariantsOpen(false)}
         />
-      ) : null}
-      {expanded ? (
-        <div data-storyboard-expand="true">
-          <StoryboardShotRowExpand
-            shot={shot}
-            anchors={anchors}
-            danglingIds={danglingIds}
-            selectedModelOption={modelOptions?.find((option) => option.value === shot.modelKey) ?? null}
-            onUpdate={onUpdate}
-            onToggleAnchor={onToggleAnchor}
-            {...(onApplyParamsToAll ? { onApplyParamsToAll } : {})}
-          />
-        </div>
-      ) : null}
-    </>
+      ) : null
   )
 
   return (
@@ -473,7 +429,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
         />
       }
       prompt={prompt}
-      footer={variantsOpen || expanded ? footer : undefined}
+      footer={variantsOpen ? footer : undefined}
     />
   )
 }

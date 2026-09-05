@@ -163,14 +163,6 @@ export type PlanShot = {
   ffDesc?: string
   /** Explicit motion description (kept separate from the rendered prompt for downstream QA/binding). */
   motionDesc?: string
-  /** Optional caption/dialogue text carried to timeline assembly without reparsing the prompt. */
-  subtitle?: string
-  dialogue?: string
-  /** Explicit editorial transition into the next shot; omitted means no authored transition metadata. */
-  transition?: {
-    type: 'cut' | 'dissolve' | 'fade' | 'match_cut' | 'whip_pan'
-    durationFrames?: number
-  }
   /**
    * 镜头内变化幅度（ViMax variation_type，W4）：**审片与生成策略的路由键**——
    * large=构图与焦点剧变（重点审转场/几何崩塌）；medium=有人进出场或转身面向镜头；
@@ -419,9 +411,6 @@ function storyboardShotMetadata(
   }
   if (typeof shot.ffDesc === 'string' && shot.ffDesc.trim()) metadata.ffDesc = shot.ffDesc.trim()
   if (typeof shot.motionDesc === 'string' && shot.motionDesc.trim()) metadata.motionDesc = shot.motionDesc.trim()
-  if (typeof shot.subtitle === 'string' && shot.subtitle.trim()) metadata.subtitle = shot.subtitle.trim()
-  if (typeof shot.dialogue === 'string' && shot.dialogue.trim()) metadata.dialogue = shot.dialogue.trim()
-  if (shot.transition?.type) metadata.transition = { ...shot.transition }
   if (typeof shot.lfDesc === 'string' && shot.lfDesc.trim()) metadata.lfDesc = shot.lfDesc.trim()
   if (shot.variationType) metadata.variationType = shot.variationType
   if (typeof shot.camIdx === 'number' && Number.isInteger(shot.camIdx) && shot.camIdx >= 0) metadata.camIdx = shot.camIdx
