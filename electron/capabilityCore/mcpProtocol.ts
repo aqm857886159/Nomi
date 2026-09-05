@@ -22,6 +22,7 @@ import { isAnchorCheckpointGate } from '../productionRun/anchorCheckpoint'
 import type { AuthenticatedMcpClient } from './security'
 import { subscribeMcpToolCatalogChanges } from './mcpToolCatalogChanges'
 import { handleDocumentEditConfirmation } from './mcpDocumentConfirmation'
+import { handleTimelineEditConfirmation } from './mcpTimelineConfirmation'
 
 export type McpInvokeOptions = {
   spendConfirmed?: boolean
@@ -509,6 +510,8 @@ export function createMcpProtocol(transport: McpTransport) {
             return
           }
         }
+        // 名字先同步判掉再 await：多一个 microtask 会改变**其它**工具的并发派发次序（无 await 的分支不该被牵连）。
+        if (tool.name === 'nomi_timeline_edit' && await handleTimelineEditConfirmation({ id, toolName: tool.name, args, routedMethod, built, requestSignal }, { elicitBooleanConfirm, invokeForRequest, reply, buildToolResultPayload, locale })) return
         if (tool.name === 'nomi_document_edit') {
           await handleDocumentEditConfirmation(
             { id, args, routedMethod, built, requestSignal },

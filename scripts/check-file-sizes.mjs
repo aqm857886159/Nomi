@@ -45,7 +45,7 @@ const ALLOWLIST = {
   // 839→846：registerIntegrationHandoffIpc + registerIntegrationSessionIpc 的 import+调用（integration
   // certification handoff queue，0b6441c6 transplant 时误删后按根因恢复）7行；仍远低于本分支起点 847。
   "electron/main.ts": 846,
-  "electron/projectAgentHost/projectAgentState.ts": 808,
+  "electron/projectAgentHost/projectAgentState.ts": 803,
   // Phase 6 常驻壳成为唯一 Agent UI 后的应用外壳（pr223 评审基线曾为 908；并 origin/main 拆解面板宿主后
   // 折叠一行多名 import，曾 907；m1 侧栏收起修复顺手折叠 hydrate/navigate 多行调用参数，实际 903，锁棘轮只减不增）。
   "src/workbench/NomiStudioApp.tsx": 903,
