@@ -25,12 +25,20 @@ export function VendorPreferenceOrderSection({ entries }: { entries: readonly Ve
   const savedOrder = useVendorPreferenceOrder()
   const ordered = React.useMemo(() => orderConfiguredVendors(entries, savedOrder), [entries, savedOrder])
 
+  // 顺序写在主进程（版本化原子 JSON）。写失败必须**说出来**：这个控件唯一的反馈就是行序变了，
+  // 失败时行序不动 = 和「点了没反应」在屏幕上完全一样，用户只会以为按钮坏了。
+  const [saveError, setSaveError] = React.useState(false)
   const move = React.useCallback(async (index: number, delta: -1 | 1) => {
     const next = ordered.map((entry) => entry.vendorKey)
     const target = index + delta
     if (target < 0 || target >= next.length) return
     ;[next[index], next[target]] = [next[target], next[index]]
-    await saveVendorPreferenceOrder(next)
+    try {
+      await saveVendorPreferenceOrder(next)
+      setSaveError(false)
+    } catch {
+      setSaveError(true)
+    }
   }, [ordered])
 
   // 只有一家（或一家都没有）时整块不出现：一个只能排第一的列表是纯噪音，
@@ -50,6 +58,11 @@ export function VendorPreferenceOrderSection({ entries }: { entries: readonly Ve
       <div className="mb-3 text-micro leading-relaxed text-nomi-ink-40">
         {t('settings.ai.vendorPreference.hint')}
       </div>
+      {saveError ? (
+        <div role="alert" data-vendor-preference-error className="mb-3 text-micro leading-relaxed text-workbench-danger">
+          {t('settings.ai.vendorPreference.saveFailed')}
+        </div>
+      ) : null}
       <ol className="grid gap-2">
         {ordered.map((entry, index) => (
           <li

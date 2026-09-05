@@ -25,6 +25,7 @@ export const zhSettings = {
       hint: '同一个模型有好几家能跑时，按这个顺序挑第一家。只列已配置的供应商。',
       moveUp: '上移',
       moveDown: '下移',
+      saveFailed: '顺序没保存成功，暂时还按原来的顺序挑。再点一次试试。',
       rank: '第 {{rank}} 位',
     },
     upload: {
@@ -278,6 +279,7 @@ export const enSettings = {
       hint: 'When several providers can run the same model, the first one in this list is picked. Only configured providers are listed.',
       moveUp: 'Move up',
       moveDown: 'Move down',
+      saveFailed: "The order wasn't saved, so the previous one still applies. Try again.",
       rank: 'Position {{rank}}',
     },
     upload: {
