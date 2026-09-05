@@ -63,6 +63,7 @@ import { createLiveGenerationRuntime } from './liveGenerationRuntime'
 import { createGenerationProviderBootstrap } from './generationProviderBootstrap'
 import { createDefaultAuthorities } from './appIntegrationAuthorities'
 import { createProductionActionHooks } from './appIntegrationProductionActions'
+import { repairStaleMcpConfigs } from './mcpConfig'
 
 let handle: RpcServerHandle | null = null
 // P4 S5：打开/切换项目时的补齐钩子（startCapabilityCore 装配后设进来）——按 run.jobs[].nodeId × artifacts
@@ -147,6 +148,10 @@ export async function startCapabilityCore(
   disposeResidentGenerationAdapter?.();
   disposeResidentGenerationAdapter = null;
   try {
+    // 已接入的编程助手若还指着 Nomi 旧入口，宿主侧只显示一句 CONNECTION_CLOSED——里面一个字都没提 Nomi，
+    // 用户没有理由想到「去开 Nomi 的模型接入面板」。这个修复原本只作为渲染那块面板的副作用发生，等于没有。
+    // 能力核起来 = 这些配置指向的服务端就绪，正是把它们修回来的时刻（只动 Nomi 自己写过的条目，见 mcpConfig）。
+    try { repairStaleMcpConfigs() } catch { /* 宿主配置不可读不是 Nomi 的故障，不能反向拖垮能力核 */ }
     const token = ensureToken()
     const generationService = getProductionRunService()
     const operationStore = createProductionGenerationOperationStore(generationService)

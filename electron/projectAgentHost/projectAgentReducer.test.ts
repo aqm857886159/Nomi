@@ -218,6 +218,60 @@ describe("ProjectAgentHost reducer identity and exactly-once boundary", () => {
     expect(removed.state.activeThreadId).toBe(current.threadId);
   });
 
+  it("keeps the snapshot readable after deleting a thread the history still names", () => {
+    // Cold-restart regression. The `recentAppliedCommands` ledger keeps the last 64 patches, and
+    // those patches legitimately name a thread the user has deleted since. Validating them against
+    // the *present* thread set made every such snapshot fail `snapshotProjectAgentHostState`; the
+    // repository then rejected snapshot AND backup and threw ProjectAgentRepositoryIntegrityError,
+    // so the project's Agent history was unopenable until 64 further commands rolled the patch out.
+    // The in-session path never saw it, because the trusted append only validates the new delta.
+    const archived = { ...thread(), threadId: "archived-canonical-thread" };
+    const current = { ...thread(), threadId: "current-canonical-thread" };
+    const apply = (state: ReturnType<typeof snapshotProjectAgentHostState>, mutation: ProjectAgentMutation) =>
+      reduceProjectAgentMutation(state, mutation).state;
+
+    // Activating `archived` writes `active-thread-changed → archived` into the history ledger.
+    let state = apply(snapshotProjectAgentHostState(createInitialProjectAgentState(binding)), {
+      commandId: "seed-archived-thread",
+      expectedRevision: 0,
+      binding,
+      sender: { kind: "renderer", senderId: "renderer-a" },
+      type: "thread.put",
+      payload: { thread: archived, makeActive: true },
+    });
+    state = apply(state, {
+      commandId: "seed-current-thread",
+      expectedRevision: state.hostRevision,
+      binding,
+      sender: { kind: "renderer", senderId: "renderer-a" },
+      type: "thread.put",
+      payload: { thread: current, makeActive: true },
+    });
+    state = apply(state, {
+      commandId: "remove-archived-thread",
+      expectedRevision: state.hostRevision,
+      binding,
+      sender: { kind: "renderer", senderId: "renderer-a" },
+      type: "thread.remove",
+      payload: { threadId: archived.threadId, occurredAt: now },
+    });
+
+    expect(state.threads.map((value) => value.threadId)).toEqual([current.threadId]);
+    expect(
+      state.recentAppliedCommands.some((command) =>
+        command.patch.changes.some(
+          (change) => change.kind === "active-thread-changed" && change.activeThreadId === archived.threadId,
+        ),
+      ),
+    ).toBe(true);
+
+    // A cold start re-reads the persisted JSON, so it takes the full-validation path, not the
+    // trusted-object fast path. This is the assertion that used to throw `invalid_state`.
+    const reread = JSON.parse(JSON.stringify(state)) as unknown;
+    expect(() => snapshotProjectAgentHostState(reread)).not.toThrow();
+    expect(snapshotProjectAgentHostState(reread).activeThreadId).toBe(current.threadId);
+  });
+
   it("does not delete the active canonical thread", () => {
     const active = thread();
     const seeded = snapshotProjectAgentHostState({
