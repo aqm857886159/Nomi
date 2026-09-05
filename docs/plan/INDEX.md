@@ -22,6 +22,7 @@
 | [2026-09-05-proposal-transition-table.md](2026-09-05-proposal-transition-table.md) | **Agent Host proposal 转换表**：(来源域×目标域×状态×动作) 做成显式数据表，reducer 只查表，拒绝带格子坐标；`document→canvas` 是显式关闭格 | ✅ |
 | [2026-09-04-workbench-skill-picker-fix.md](2026-09-04-workbench-skill-picker-fix.md) | Workbench Agent Skill 选择器共享可选性边界修复：恢复 storyboard planner 的真实菜单选择与 Host 请求链路 | ✅ |
 | [2026-09-03-open-work-ledger.md](2026-09-03-open-work-ledger.md) | 全量开工账本历史快照；只用于追溯，不覆盖总方案的当前状态 | 📎 |
+| [../architecture-review/2026-09-05-agent-mcp-architecture-review.md](../architecture-review/2026-09-05-agent-mcp-architecture-review.md) | **Agent 与 MCP 架构评审**：五个质疑（两张嘴 / 审批过度通用 / MCP 按内部机制命名 / 每轮失忆 / 接模型主路径顺序）逐条 file:line 证实或推翻，含 6 角色评审与 R3 决策对比表；docs-only 待拍板 | 📋 |
 
 ## 模型接入 / Onboarding（最大簇）
 
