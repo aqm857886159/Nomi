@@ -127,8 +127,6 @@ export const DYNAMIC_KEY_PREFIXES: DynamicPrefix[] = [
   { prefix: 'generationCommon.production.runDetails.stageStatus', why: '动态: 制作阶段状态;枚举来源: ProductionDetails 的 stage.status(runDetails.stageStatus.* 词条)' },
   { prefix: 'generationCommon.production.runTone', why: '动态: 制作运行语气;枚举来源: ProductionRunTaskCard 的 view.tone(production.runTone.* 词条)' },
   { prefix: 'generationCommon.spend.cost.units', why: '动态: 花费单位;枚举来源: spendConfirm 的 kind(spend.cost.units.* 词条)' },
-  // ── storyboardEditor ──
-  { prefix: 'storyboardEditor.row.transition', why: '动态: 镜行展开态转场类型;枚举来源: StoryboardShotRowExpand 的 TRANSITION_TYPES 常量(=storyboardShotSchema transition.type 枚举, row.transition.* 词条)' },
   // ── timelineEditor ──
   { prefix: 'timelineEditor.transition.types', why: '动态: 转场类型;枚举来源: 时间线转场 type 集(transition.types.* 词条)' },
   // ── scene3d ──

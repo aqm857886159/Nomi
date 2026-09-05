@@ -58,12 +58,6 @@ const planShotSchema = z.object({
   ffDesc: z.string().optional(),
   lfDesc: z.string().optional(),
   motionDesc: z.string().optional(),
-  subtitle: z.string().optional(),
-  dialogue: z.string().optional(),
-  transition: z.object({
-    type: z.enum(['cut', 'dissolve', 'fade', 'match_cut', 'whip_pan']),
-    durationFrames: z.number().int().positive().optional(),
-  }).optional(),
   continuity: z.union([z.string(), z.number(), z.record(z.unknown())]).optional(),
   keyframe: z.object({
     enabled: z.boolean().optional(),

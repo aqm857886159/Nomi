@@ -176,7 +176,8 @@
     "check:storyboard-owner": "node scripts/check-storyboard-owner.mjs",
     "check:design-lab": "node ./scripts/check-design-lab.mjs",
     "design-lab:update": "node ./scripts/check-design-lab.mjs --update",
-    "design-lab:walk": "node ./tests/ux/design-lab-agent-panel.walk.mjs"
+    "design-lab:walk": "node ./tests/ux/design-lab-agent-panel.walk.mjs",
+    "design-lab:walk:storyboard": "node ./tests/ux/design-lab-storyboard.walk.mjs"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^1.2.12",

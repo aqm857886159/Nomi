@@ -16,13 +16,13 @@ const plan: StoryboardPlan = {
   scenes: [{ id: 'scene-1', title: 'Scene' }],
 }
 
-function row(position: number, status: StoryboardRowRuntime['exec']['status'], url?: string): StoryboardRowRuntime {
+function row(position: number, status: StoryboardRowRuntime['exec']['status'], url?: string, audioUrl?: string): StoryboardRowRuntime {
   return {
     shot: plan.shots[position],
     mode: null,
     exec: {
       status,
-      node: url ? { id: `node-${position}`, status: 'succeeded', result: { id: `result-${position}`, type: plan.shots[position].shotKind === 'image' ? 'image' : 'video', url, createdAt: 1 } } as never : null,
+      node: url ? { id: `node-${position}`, status: 'succeeded', result: { id: `result-${position}`, type: plan.shots[position].shotKind === 'image' ? 'image' : 'video', url, createdAt: 1 }, ...(audioUrl ? { history: [{ id: `audio-${position}`, type: 'audio', url: audioUrl, createdAt: 2 }] } : {}) } as never : null,
       keyframeNode: null,
       waitingRefs: [],
       unlockedRefs: [],
@@ -48,11 +48,23 @@ describe('storyboard D interaction pure functions', () => {
     expect(hiddenGeneratingCount([row(0, 'ready'), row(1, 'generating'), row(2, 'done', 'image://3')], [0, 2])).toBe(1)
   })
 
-  it('builds an ordered queue, skips incomplete rows, and uses the shared image default', () => {
+  it('builds an ordered queue with gray placeholders and shared image defaults', () => {
     const queue = buildStoryboardPlaybackQueue([row(0, 'done', 'image://1'), row(1, 'ready'), row(2, 'locked', 'video://3')])
-    expect(queue.map((item) => item.mediaUrl)).toEqual(['image://1', 'video://3'])
+    expect(queue.map((item) => item.mediaUrl)).toEqual(['image://1', null, 'video://3'])
+    expect(queue.map((item) => item.playable)).toEqual([true, false, true])
     expect(queue[0].durationSec).toBe(DEFAULT_IMAGE_SECONDS)
-    expect(queue[1].durationSec).toBe(4)
+    expect(queue[2].durationSec).toBe(4)
+  })
+
+  it('keeps a generated audio result attached to the same shot for simultaneous playback', () => {
+    const queue = buildStoryboardPlaybackQueue([row(1, 'done', 'video://1', 'audio://1')])
+    expect(queue[0]).toMatchObject({ mediaKind: 'video', mediaUrl: 'video://1', audioUrl: 'audio://1', playable: true })
+  })
+
+  it('keeps an all-unavailable list as non-playable rows for the empty state', () => {
+    const queue = buildStoryboardPlaybackQueue([row(0, 'ready'), row(1, 'failed')])
+    expect(queue).toHaveLength(2)
+    expect(queue.every((item) => !item.playable)).toBe(true)
   })
 
   it('resolves the next shot by default but accepts any other shot as target', () => {

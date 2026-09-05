@@ -1,7 +1,7 @@
 import type { GenerationCanvasNode } from '../../../generationCanvas/model/generationCanvasTypes'
 import type { ArchetypeMode, ArchetypeReferenceSlot } from '../../../../config/modelArchetypes/types'
 import type { ModelOption } from '../../../../config/models'
-import type { PlanAnchor, PlanShot, StoryboardPlan } from '../../../generationCanvas/agent/storyboardPlan'
+import { stableShotId, type PlanAnchor, type PlanShot, type StoryboardPlan } from '../../../generationCanvas/agent/storyboardPlan'
 import { isVisualAnchor } from '../../../generationCanvas/agent/storyboardPromptCompiler'
 import { isAnchorFrozen } from '../../../generationCanvas/model/anchorBibleKeys'
 import { hasUsableResult } from '../../../generationCanvas/runner/dependencyWaves'
@@ -266,22 +266,39 @@ export type StoryboardBatchView<T extends StoryboardRowWithExec = StoryboardRowR
     missingRequired: number
     locked: number
     generating: number
+    /**
+     * 「本次跳过」（v6 §2.10）：用户勾掉的行。**作用域是这一批**——跑完标记自动清，
+     * 与 `locked`（持久、要显式解锁）语义不同、视觉不同、清除时机不同，不许混成一个。
+     * 它必须在**这一份 derive** 里减掉，不许 footer 自己再减一次——那正是计数对不上的经典成因。
+     */
+    skipped: number
   }
   doneCount: number
   /** 按状态计数（组头/标题小结用同一份）。 */
   countByStatus: Record<ShotRowStatus, number>
 }
 
-export function deriveStoryboardBatch<T extends StoryboardRowWithExec>(rows: readonly T[]): StoryboardBatchView<T> {
+export function deriveStoryboardBatch<T extends StoryboardRowWithExec>(
+  rows: readonly T[],
+  /** 本次跳过的行（`stableShotId` 键）。缺省 = 没有人跳过。 */
+  skippedShotIds?: ReadonlySet<string>,
+): StoryboardBatchView<T> {
   const countByStatus = Object.fromEntries(SHOT_ROW_STATUSES.map((status) => [status, 0])) as Record<ShotRowStatus, number>
   const view: StoryboardBatchView<T> = {
     runnable: [],
-    excluded: { waitingRefs: 0, unlockedRefs: 0, missingRequired: 0, locked: 0, generating: 0 },
+    excluded: { waitingRefs: 0, unlockedRefs: 0, missingRequired: 0, locked: 0, generating: 0, skipped: 0 },
     doneCount: 0,
     countByStatus,
   }
   for (const row of rows) {
     countByStatus[row.exec.status] += 1
+    // 跳过是**批次筛选**，不是状态：它不改 countByStatus（那一份说的是"这镜做完没有"），
+    // 只把这一行从 runnable 里摘出来。
+    if (skippedShotIds?.has(stableShotId(row.shot))) {
+      if (row.exec.status === 'ready' || row.exec.status === 'failed') view.excluded.skipped += 1
+      if (row.exec.status === 'done') view.doneCount += 1
+      continue
+    }
     switch (row.exec.status) {
       case 'done':
         view.doneCount += 1

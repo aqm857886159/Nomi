@@ -21,12 +21,6 @@ export const ANCHOR_KINDS: readonly PlanAnchorKind[] = ['character', 'scene', 'p
 /** 时长预设（秒）。落画布时由 S4 钳到所选模型上限——这里只给常用档，不提前解析每模型时长表。 */
 export const DURATION_OPTIONS_SEC: readonly number[] = [4, 5, 6, 8, 10, 12, 15]
 
-/**
- * 画幅预设（批量条「画幅」，v5）。行级画幅由该镜模型档案的 aspect_ratio 控件给全集；
- * 批量条跨模型，只列各档案交集里的通用档（与时长预设同理，不提前解析每模型画幅表）。
- */
-export const BULK_ASPECT_OPTIONS: readonly string[] = ['16:9', '9:16', '1:1', '4:3', '3:4', '3:2', '2:3']
-
 /** 切到视频档/空方案首镜的兜底时长（秒）。 */
 const DEFAULT_VIDEO_DURATION_SEC = 5
 
@@ -403,25 +397,9 @@ export function applyDurationToAll(plan: StoryboardPlan, sec: number): Storyboar
   }
 }
 
-/**
- * 整片改画幅（批量条「画幅」，v5）：写 params.aspect_ratio、其余参数保留。
- * 落画布时 params 铺进节点 meta，模型档案没有该参数的照常忽略（声明式映射只取声明键）。
- */
-export function applyAspectToAll(plan: StoryboardPlan, aspect: string): StoryboardPlan {
-  if (!aspect) return plan
-  return {
-    ...plan,
-    shots: plan.shots.map((shot) => ({ ...shot, params: { ...(shot.params || {}), aspect_ratio: aspect } })),
-  }
-}
-
-/** 全镜共同的画幅（params.aspect_ratio，没写=空串「按模型默认」）；不一致 → null（批量条显「混合」）。 */
-export function deriveBulkAspect(plan: StoryboardPlan): string | null {
-  return commonValue(plan.shots.map((shot) => {
-    const aspect = shot.params?.aspect_ratio
-    return typeof aspect === 'string' ? aspect : ''
-  }))
-}
+// 画幅**不在这一层**（v6 §2.4.1）：它是「整片默认 + 行级覆盖」两段的，读写唯一 owner 是
+// `storyboardAspectScope.ts`。v5 的 applyAspectToAll/deriveBulkAspect/BULK_ASPECT_OPTIONS 三件
+// 已随本次改版删除——它们把"整片改画幅"实现成"把同一个值抄进每一行"，正是那层作用域丢失的成因。
 
 /** 全镜共同值，否则 null（无镜头也是 null）。批量条据此显「混合」。 */
 function commonValue<T>(values: readonly T[]): T | null {

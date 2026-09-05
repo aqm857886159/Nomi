@@ -27,7 +27,7 @@ import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const { readLabStates, readCalibration, BASELINE_DIR, CALIBRATION_FILE } = await import(
+const { readLabStates, readCalibration, baselineDirFor, LAB_SCREEN_IDS, CALIBRATION_FILE } = await import(
   path.join(repoRoot, 'tests/ux/design-lab/labStates.mjs')
 )
 
@@ -37,29 +37,60 @@ const SKIP_VISUAL = process.argv.includes('--structure-only')
 const errors = []
 const fail = (message) => errors.push(message)
 
-// ── 1. 注册表 ────────────────────────────────────────────────────────────────
-
-const states = readLabStates()
-const ids = new Set(states.map((state) => state.id))
-
-// ── 2. 设计文档覆盖 ──────────────────────────────────────────────────────────
+// ── 0. 实验室代码本身的类型检查 ───────────────────────────────────────────────
 //
-// 真相源是两份拍板文档的编号，不是这份脚本里的一句 magic number：
-// 形态 1–21 出自 2026-09-01 定稿 §4；P0 件 1–16 出自 2026-09-03 走读附录索引
-// （件 17 = 形态 18 与件 5 共用一张，文档明写「不独立画」，故这里是 16 不是 17）。
+// `tsconfig.json` 只 include `src/main.tsx` 并顺着 import 图走，而实验室**刻意**不在那张图里
+// （那正是它进不了安装包的原因）。副作用是：实验室代码此前一行都没被类型检查覆盖——
+// 一处少了一层 `../` 的相对路径能一路静默到 Playwright 跑十几分钟后整屏白屏。
+// 防线建在最早能拦住的那层（R28）：先跑一遍 tsconfig.devlab.json，再谈截图。
+{
+  const typecheck = spawnSync('npx', ['tsc', '--noEmit', '-p', 'tsconfig.devlab.json'], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+  })
+  if (typecheck.status !== 0) {
+    fail(`实验室代码类型检查未通过（tsconfig.devlab.json）：\n${(typecheck.stdout || typecheck.stderr || '').trim()}`)
+  }
+}
+
+// ── 1. 注册表 + 2. 设计文档覆盖 ────────────────────────────────────────────────
+//
+// 覆盖的真相源是**拍板文档的编号**，不是这份脚本里的一句 magic number：
+// - agent-panel：形态 1–21 出自 2026-09-01 定稿 §4；P0 件 1–16 出自 2026-09-03 走读附录索引
+//   （件 17 = 形态 18 与件 5 共用一张，文档明写「不独立画」，故是 16 不是 17）。
+// - storyboard：分镜表 v6 设计合同的章节号。合同里每一条**有形态的**章节都必须在实验室里
+//   至少有一个状态认领它（认领方式 = 该状态的 `source` 里写着这个章节号）。
+//   新加一节而实验室没跟上 = 红；这正是"设计改了但没人画出来"最容易漏掉的地方。
 const FORM_COUNT = 21
 const P0_PIECE_COUNT = 16
+const STORYBOARD_SECTIONS = [
+  '§2.1', '§2.2', '§2.3', '§2.4', '§2.4.1', '§2.6', '§2.7',
+  '§2.9', '§2.10', '§3.1', '§3.2', '§3.3', '§4.1', '§4.2', '§4.3', '§4.4',
+]
 
+const statesByScreen = new Map()
+for (const screen of LAB_SCREEN_IDS) statesByScreen.set(screen, readLabStates(screen))
+
+const agentIds = new Set(statesByScreen.get('agent-panel').map((state) => state.id))
 for (let form = 1; form <= FORM_COUNT; form += 1) {
   const prefix = `form-${String(form).padStart(2, '0')}`
-  if (![...ids].some((id) => id.startsWith(prefix))) {
+  if (![...agentIds].some((id) => id.startsWith(prefix))) {
     fail(`设计定稿 §4 形态 ${form} 在实验室里没有对应状态（期待 id 以 ${prefix} 开头）`)
   }
 }
 for (let piece = 1; piece <= P0_PIECE_COUNT; piece += 1) {
   const prefix = `p0-${String(piece).padStart(2, '0')}`
-  if (![...ids].some((id) => id.startsWith(prefix))) {
+  if (![...agentIds].some((id) => id.startsWith(prefix))) {
     fail(`P0 异常态件 ${piece} 在实验室里没有对应状态（期待 id 以 ${prefix} 开头）`)
+  }
+}
+
+const storyboardSources = statesByScreen.get('storyboard').map((state) => state.source).join(' | ')
+for (const section of STORYBOARD_SECTIONS) {
+  // 加边界：`§2.4` 不该被 `§2.4.1` 顶掉（前者讲几何、后者讲作用域，是两件事）。
+  const matcher = new RegExp(`${section.replace('.', '\\.')}(?![0-9.])`)
+  if (!matcher.test(storyboardSources)) {
+    fail(`分镜表 v6 合同 ${section} 在实验室里没有任何状态认领（在该状态的 source 里写上章节号）`)
   }
 }
 
@@ -95,19 +126,27 @@ if (productionImports.length) {
 // ── 4. 基线 ↔ 注册表 ─────────────────────────────────────────────────────────
 
 const calibration = readCalibration()
-const baselineFiles = fs.existsSync(BASELINE_DIR)
-  ? fs.readdirSync(BASELINE_DIR).filter((name) => name.endsWith('.png'))
-  : []
-const baselineIds = new Set(baselineFiles.map((name) => name.replace(/\.png$/, '')))
-// `--update` 就是来补基线的，这时候「缺基线」是它的输入而不是错误（否则新状态永远补不上）。
-// 孤儿基线仍然照查：update 从来不删图，删状态没删图的欠账必须在这一次就暴露。
-if (!UPDATE) {
-  for (const id of ids) {
-    if (!baselineIds.has(id)) fail(`状态 ${id} 没有视觉基线；拍板后跑 pnpm run design-lab:update`)
+let baselineTotal = 0
+let stateTotal = 0
+for (const screen of LAB_SCREEN_IDS) {
+  const ids = new Set(statesByScreen.get(screen).map((state) => state.id))
+  stateTotal += ids.size
+  const baselineDir = baselineDirFor(screen)
+  const baselineFiles = fs.existsSync(baselineDir)
+    ? fs.readdirSync(baselineDir).filter((name) => name.endsWith('.png'))
+    : []
+  baselineTotal += baselineFiles.length
+  const baselineIds = new Set(baselineFiles.map((name) => name.replace(/\.png$/, '')))
+  // `--update` 就是来补基线的，这时候「缺基线」是它的输入而不是错误（否则新状态永远补不上）。
+  // 孤儿基线仍然照查：update 从来不删图，删状态没删图的欠账必须在这一次就暴露。
+  if (!UPDATE) {
+    for (const id of ids) {
+      if (!baselineIds.has(id)) fail(`${screen} 的状态 ${id} 没有视觉基线；拍板后跑 pnpm run design-lab:update`)
+    }
   }
-}
-for (const id of baselineIds) {
-  if (!ids.has(id)) fail(`孤儿基线 ${id}.png：注册表里已经没有这个状态了，删掉它`)
+  for (const id of baselineIds) {
+    if (!ids.has(id)) fail(`孤儿基线 ${screen}/${id}.png：注册表里已经没有这个状态了，删掉它`)
+  }
 }
 
 if (errors.length) {
@@ -116,7 +155,7 @@ if (errors.length) {
   process.exit(1)
 }
 
-console.log(`✅ 设计实验室结构检查：${states.length} 个状态、${baselineFiles.length} 张基线，一一对应`)
+console.log(`✅ 设计实验室结构检查：${LAB_SCREEN_IDS.length} 屏、${stateTotal} 个状态、${baselineTotal} 张基线，一一对应`)
 
 // ── 5. 视觉基线 ──────────────────────────────────────────────────────────────
 

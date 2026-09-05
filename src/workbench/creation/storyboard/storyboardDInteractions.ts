@@ -1,14 +1,18 @@
 import { DEFAULT_IMAGE_SECONDS } from '../../generationCanvas/model/buildClipFromGenerationNode'
 import { effectiveShotDurationSec, type PlanShot, type StoryboardPlan } from '../../generationCanvas/agent/storyboardPlan'
 import type { StoryboardRowRuntime } from './exec/storyboardRowStatus'
+import { canvasNodeToAssetRefs } from '../../assets/assetTypes'
 
 /** D 段周边交互的纯函数 owner：视图只投影这些结果，不另存一份状态快照。 */
 
 export type StoryboardPlaybackItem = {
   shot: PlanShot
   runtime: StoryboardRowRuntime
-  mediaUrl: string
-  mediaKind: 'image' | 'video'
+  mediaUrl: string | null
+  mediaKind: 'image' | 'video' | null
+  audioUrl: string | null
+  /** Empty rows stay in the list so the player can show a gray progress segment. */
+  playable: boolean
   /** 只用于图片；视频由真实媒体的 ended 事件推进。 */
   durationSec: number
 }
@@ -50,20 +54,28 @@ export function resolveResultTargetShotIndex(
   return next >= 0 ? next : null
 }
 
-/** 顺播只把已生成结果排进队列；被跳过的镜数由调用方提示用户。 */
+/**
+ * 播放清单的唯一 owner：每一行都保留顺序，未生成行以 playable=false 占位。
+ * 场播放和整片播放都走这里，避免一条入口把缺失镜头静默删掉而另一条入口计数不一致。
+ */
 export function buildStoryboardPlaybackQueue(
   rows: readonly StoryboardRowRuntime[],
 ): StoryboardPlaybackItem[] {
-  return rows.flatMap((runtime) => {
-    const mediaUrl = runtime.exec.node?.result?.url || runtime.exec.node?.result?.thumbnailUrl || ''
-    if (!mediaUrl || (runtime.exec.status !== 'done' && runtime.exec.status !== 'locked')) return []
-    const mediaKind = runtime.shot.shotKind === 'image' ? 'image' : 'video'
-    return [{
+  return rows.map((runtime) => {
+    const assets = runtime.exec.node ? canvasNodeToAssetRefs(runtime.exec.node) : []
+    const visual = assets.find((asset) => asset.kind === 'image' || asset.kind === 'video')
+    const audio = assets.find((asset) => asset.kind === 'audio')
+    const mediaUrl = visual?.renderUrl || null
+    const mediaKind = visual?.kind === 'video' ? 'video' : visual?.kind === 'image' ? 'image' : null
+    const playable = Boolean(mediaUrl) && (runtime.exec.status === 'done' || runtime.exec.status === 'locked')
+    return {
       shot: runtime.shot,
       runtime,
       mediaUrl,
       mediaKind,
+      audioUrl: audio?.renderUrl || null,
+      playable,
       durationSec: effectiveShotDurationSec(runtime.shot) || DEFAULT_IMAGE_SECONDS,
-    }]
+    }
   })
 }
