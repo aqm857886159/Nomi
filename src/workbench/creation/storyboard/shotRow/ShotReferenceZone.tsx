@@ -13,6 +13,7 @@ import type { PlanAnchor } from '../../../generationCanvas/agent/storyboardPlan'
 import { appendBinding, bindingsOf, removeBinding, reorderBinding, type ReferenceBindingMap } from './shotReferenceSlots'
 import { cellCount, referenceColumnOf, type ShotReferenceCell } from './shotReferenceCells'
 import ShotReferenceSlotPopover from './ShotReferenceSlotPopover'
+import { referenceSlotWidth } from './shotReferenceStackGeometry'
 
 /**
  * 分镜行的参考列（合同 v6 §4）——**固定 200px、单行、一个槽一个格、永不换行**。
@@ -61,7 +62,7 @@ function SlotStack({ cell }: { cell: ShotReferenceCell }): JSX.Element {
   const { used, total } = cellCount(cell)
   const top = cell.bindings.slice(0, 3)
   return (
-    <span className="relative block h-14 w-14" data-storyboard-ref-stack={cell.key}>
+    <span className="relative block h-14 w-20" data-storyboard-ref-stack={cell.key} style={{ width: `${referenceSlotWidth(cell.bindings.length)}px` }}>
       {top.map((binding, index) => (
         <span
           key={`${binding.url}-${index}`}
@@ -195,12 +196,12 @@ export default function ShotReferenceZone({ mode, bindings, onChangeBindings, an
           </span>
         </span>
       ) : (
-        <div className="flex flex-nowrap items-start gap-2">
+        <div className="flex flex-nowrap items-start gap-3">
           {column.cells.map((cell) => {
             const caption = captionOf(cell)
             const first = cell.bindings[0]
             return (
-              <span key={cell.key} className="relative flex shrink-0 flex-col items-center gap-0.5" data-storyboard-ref-slot={cell.key}>
+              <span key={cell.key} className="relative flex shrink-0 flex-col items-center gap-0.5" style={{ width: `${referenceSlotWidth(cell.bindings.length)}px` }} data-storyboard-ref-slot={cell.key}>
                 <button
                   type="button"
                   onClick={() => setOpenSlotKey((previous) => (previous === cell.key ? '' : cell.key))}

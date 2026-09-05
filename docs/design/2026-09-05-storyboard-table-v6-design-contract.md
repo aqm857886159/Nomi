@@ -387,7 +387,7 @@ v6 的核心动作是**把这两件事的视觉预算分开**：批量观察继�
 |---|---|---|
 | 底栏参数网格（模型/模式/画幅/时长/清晰度/音频·尾帧/生成） | `NomiSelect size="xs"` + 固定 grid | 高 24px，七列统一断点换行；继承画幅保留空位，不能由单行内容改变列对齐 |
 | 参考 tile（单张） | 自定义（`.tile`，56×56） | 沿用 v5 已拍板的 56px（用户从 40px 提上来的下限，"40px 连这是谁都认不出"） |
-| 参考叠放格 | 自定义（`.stack`，约 80×62 外框） | t1 正放 z-index:3；t2 `rotate(13deg)` z-index:2；t3 `rotate(26deg)` z-index:1；`transform-origin:20% 100%`（左下角为轴）；计数角标 `.cnt` 深底白字 |
+| 参考叠放格 | 自定义（`.stack`，80px 保留宽度 × 56px 卡高） | t1 正放 z-index:3；t2 `rotate(13deg)` z-index:2；t3 `rotate(26deg)` z-index:1；`transform-origin:20% 100%`（左下角为轴）；计数角标 `.cnt` 深底白字 |
 | 生成按钮（提示词底栏内） | `.prim`（对应现役 ready 态"生成"按钮同款） | 高 24px，`background:#1d1a15;color:#fff`，`border-radius:6px` |
 | footer 主按钮「生成未生成的 N 镜」 | `WorkbenchButton variant="primary" size="md"` | 32px 高，`rounded-workbench-control`(7px) |
 | 多选浮条 | 沿用现役 `StoryboardSelectionToolbar` 样式 | 纸白 `#fff` + `border:1px solid #e3e1de` + `box-shadow: shadow-workbench-pop`，**不是黑条**（09-05 讨论中已核对现役截图并改回） |
