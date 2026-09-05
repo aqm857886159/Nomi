@@ -1,5 +1,7 @@
 # Agent compaction runtime projection
 
+> 状态：🚧 进行中
+
 ## Scope
 
 Expose Pi compaction metadata through the existing runtime → Project Agent Host → renderer path. The first slice carries the runtime-owned count on the terminal turn; the renderer only renders the line when the Host has committed a positive count. No local timer, inferred token threshold, fixture-only state, or fabricated summary is allowed.

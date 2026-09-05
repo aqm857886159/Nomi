@@ -1,5 +1,7 @@
 # 真实视频到导出与重启恢复走查计划
 
+> 状态：🚧 进行中
+
 ## 目标
 
 在已经通过的 `agent-runtime-production.walk.mjs` 五阶段之后，补一条独立的真实 Electron 旅程：

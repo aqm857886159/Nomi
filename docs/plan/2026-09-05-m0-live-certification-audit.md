@@ -1,5 +1,7 @@
 # M0 Codex → Nomi MCP live-certification audit
 
+> 状态：🚧 进行中
+
 ## Current evidence
 
 The repository has a real stdio MCP handshake at `tests/ux/mcp-l1-handshake.e2e.mjs`, semantic MCP journeys under `tests/ux/mcp-l2-journeys.e2e.mjs` and `tests/ux/production-mcp-journey.e2e.mjs`, and the public tool surface documented in `docs/guide/capability-core-cli-mcp.md`. These are Electron/stdio contract journeys; they do not prove a real Codex Host session. The M0–M5 contract explicitly records `publicMcpSessionProbe` as `PARTIAL_PROOF` and real Codex Host coverage as uncovered.

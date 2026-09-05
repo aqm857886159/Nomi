@@ -1,5 +1,7 @@
 # Storyboard table design-to-runtime coverage
 
+> 状态：🚧 进行中
+
 ## Scope
 
 This audit maps the storyboard table samples to the current `StoryboardWorkspace` / `StoryboardPlanEditor` runtime. It covers the image-first anchor strip, row-by-row generation table, model capability parameters, references, result preview, and batch actions. The matrix is an inventory and contract skeleton; an entry marked `runtime-present-unmeasured` is not production proof.
