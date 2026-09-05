@@ -23,6 +23,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 # 不取消在途：每个 merge 都要补自己那一份，取消上一班会漏账（补齐是幂等的，串行跑最省心）。
 concurrency:
@@ -34,7 +35,7 @@ jobs:
     name: Docs Gate Autosync
     runs-on: ubuntu-latest
     steps:
-      # ref: main 而不是触发 SHA —— 要 push 回去就必须站在分支上，不能是 detached HEAD。
+      # ref: main 保证修复基于触发时的受保护主线快照；提交由 create-pull-request 创建独立分支。
       - uses: actions/checkout@v7
         with:
           ref: main
@@ -56,25 +57,20 @@ jobs:
           pnpm run check:doc-status
           pnpm run check:ledger
 
-      - name: Commit the repair back to main
-        run: |
-          if git diff --quiet -- docs; then
-            echo "无补齐 diff，跳过提交。"
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -- docs
-          # [skip ci] 防自触发：这个 commit 不含任何代码，没有任何门岗需要重跑。
-          git commit -m "chore(docs-gates): auto-sync 索引/状态/账本 [skip ci]"
-          # 合并高峰里别人可能已经推了新的 main；rebase 重试而不是 force——
-          # 补齐是幂等的，rebase 后内容仍然正确。
-          for attempt in 1 2 3; do
-            if git push origin HEAD:main; then
-              exit 0
-            fi
-            echo "push 被拒（第 $attempt 次），拉取后重试"
-            git pull --rebase origin main
-          done
-          echo "::error::docs-autosync 连续三次 push 失败，请手动跑 node scripts/repair-doc-gates.mjs"
-          exit 1
+      # R17 证据：run 33967545325（2026-09-05）三次直推均收到 GH006，
+      # 明确要求通过 pull request 且缺少 2 个 required checks。受保护 main 只能走 PR。
+      # [skip ci] 放在 bot commit message 中，避免合并回 main 后再次触发门岗链。
+      - name: Open a docs repair pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          base: main
+          branch: docs/autosync-${{ github.sha }}
+          delete-branch: true
+          add-paths: docs
+          commit-message: "chore(docs-gates): auto-sync 索引/状态/账本 [skip ci]"
+          title: "chore(docs-gates): auto-sync 索引/状态/账本"
+          body: |
+            Automated repair for the three advisory docs gates after `${{ github.sha }}`.
+
+            [skip ci]

@@ -314,6 +314,7 @@ function TimelineClip({ clip, transitionLaneRows = 0 }: TimelineClipProps): JSX.
       ref={clipRef}
       className={cn(clipBaseClasses, selectedClasses)}
       data-testid="timeline-clip"
+      data-clip-id={clip.id}
       data-clip-type={clip.type}
       title={sourceWindow.trimmed ? `${title} · ${sourceWindowLabel}` : title}
       data-selected={isSelected ? 'true' : 'false'}

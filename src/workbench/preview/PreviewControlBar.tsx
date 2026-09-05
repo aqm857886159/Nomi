@@ -25,7 +25,7 @@ import { CONTROL_ICON_BUTTON_CLASS } from './previewControlTokens'
 // 禁用的 <button> 自己不触发 title，得靠外层 <span title> —— 沿用 NodeGenerationComposer 的既有范式。
 
 /** 一组控件 + 组名。组名是这版的关键：作用域从「猜」变成「写着」。 */
-function ControlGroup({
+export function ControlGroup({
   label,
   tone = 'plain',
   disabled = false,

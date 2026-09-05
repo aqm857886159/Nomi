@@ -15,6 +15,10 @@ describe('timeline shortcuts', () => {
     expect(resolveTimelineShortcut({ key: 'Delete' }, base)).toEqual({ type: 'remove-selection' })
     expect(resolveTimelineShortcut({ key: '>', shiftKey: true }, base)).toEqual({ type: 'nudge-primary', delta: 1 })
     expect(resolveTimelineShortcut({ key: '<', shiftKey: true }, base)).toEqual({ type: 'nudge-primary', delta: -1 })
+    expect(resolveTimelineShortcut({ key: 'q' }, base)).toEqual({ type: 'remove-left' })
+    expect(resolveTimelineShortcut({ key: 'w' }, base)).toEqual({ type: 'remove-right' })
+    expect(resolveTimelineShortcut({ key: 'z', shiftKey: true }, base)).toEqual({ type: 'ripple-remove' })
+    expect(resolveTimelineShortcut({ key: '\\', metaKey: true }, base)).toEqual({ type: 'toggle-snap' })
   })
 
   it('keeps transport and history commands independent from clip selection', () => {
