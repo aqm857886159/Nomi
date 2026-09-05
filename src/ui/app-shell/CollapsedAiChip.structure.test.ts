@@ -2,7 +2,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-const source = fs.readFileSync(path.join(process.cwd(), 'src/ui/app-shell/CollapsedAiChip.tsx'), 'utf8')
+const stripComments = (value: string): string => value.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+const source = stripComments(fs.readFileSync(path.join(process.cwd(), 'src/ui/app-shell/CollapsedAiChip.tsx'), 'utf8'))
 
 describe('CollapsedAiChip C-03 contract', () => {
   it('exposes the approved topbar badge and only marks real message updates', () => {
