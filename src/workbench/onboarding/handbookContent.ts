@@ -104,7 +104,7 @@ export const HANDBOOK_GOTCHAS: HandbookGotcha[] = [
   },
 ]
 
-export const HANDBOOK_TITLE = 'Nomi 一页上手'
+export const HANDBOOK_TITLE = 'Nomi 一页上手：从安装到第一条 AI 视频'
 export const HANDBOOK_SUBTITLE = '本地优先的 AI 视频创作台 · 从一句话到一条成片'
 
 const EN_HANDBOOK_PIPELINE: HandbookPipelineStep[] = [
