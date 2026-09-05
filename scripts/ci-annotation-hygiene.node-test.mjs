@@ -129,3 +129,26 @@ test('rejects malformed allowlist expiry instead of creating a permanent warning
     /invalid YYYY-MM-DD expiry/,
   )
 })
+
+test('advisory 文档门的 warning 委派给 docs-autosync，而不是当成意外警告', () => {
+  // gates:contracts 把 check:docs-index / doc-status / ledger 的失败降成一条注解
+  // （标题固定 docs-autosync），补齐由 main 上的 docs-autosync 工作流做。
+  // 它有真实 owner，所以不该出现在 unexpected 里逼作者去修——那样等于 advisory 白降。
+  const annotations = [
+    {
+      jobName: 'Contracts',
+      path: '.github',
+      title: 'docs-autosync',
+      message: 'check:docs-index 未通过：合入 main 后自动补齐',
+      level: 'warning',
+    },
+    { jobName: 'Contracts', path: '.github', title: '', message: 'Node.js 20 is deprecated', level: 'warning' },
+  ]
+  const result = evaluateAnnotations(annotations, { schemaVersion: 1, entries: [] }, new Date('2026-09-05T00:00:00Z'))
+
+  assert.equal(result.delegated.length, 1)
+  assert.equal(result.delegated[0].owner, 'docs-autosync workflow on main')
+  // 委派**只认这一个标题**：别的无路径 warning 照样是 unexpected，不许顺手放行一片。
+  assert.equal(result.unexpected.length, 1)
+  assert.match(result.unexpected[0].message, /Node\.js 20/)
+})
