@@ -10,7 +10,7 @@ await walkDesignLabScreen({
   screen: 'editing',
   title: '剪辑面 ',
   // 与 agent-panel 走查错开端口：两屏可能被并行跑，撞端口时 --strictPort 会直接失败。
-  port: 5200,
+  role: 'walk-editing',
   // 取景框最宽的那一格（转场选择器 420）；接触表按它开列。
   cellWidth: 420,
   columns: 3,
