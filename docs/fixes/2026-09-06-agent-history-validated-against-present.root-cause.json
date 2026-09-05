@@ -1,0 +1,116 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-06-agent-history-validated-against-present",
+  "problem_type": "把已经发生过的历史，拿现在的状态去校验",
+  "symptom": "用户删掉一条有过对话的 Agent 线程，当场一切正常；下次冷启动打开这个项目时，Agent 历史整个打不开——ProjectAgentRepositoryIntegrityError（快照和备份双双判为非法），并且要再产生 64 条命令把那条 patch 挤出窗口才会自行恢复。同一菜单里还有一个纯静默的缺陷：点当前这条对话的删除按钮什么都不会发生，永远。",
+  "direct_cause": "electron/projectAgentHost/projectAgentState.ts 的 assertProjectAgentHostState 在校验 recentAppliedCommands 里的历史 patch 时，把**当前**状态的 threadIds / turnIds / turnThreadById / itemTurnById 传给 assertPatchChange。历史 patch 里的 active-thread-changed / turn-upserted / item-upserted / queue-upserted / proposal-upserted 会点名已被删除的线程与它的记录，于是抛 invalid_state；readValidEnvelope 对快照与备份都返回 null，projectAgentRepository 随即抛 ProjectAgentRepositoryIntegrityError。写入侧完全看不见，因为 appendTrustedProjectAgentHostState 只校验新 delta。UI 那一半：ProjectAgentResidentShell.tsx 的线程菜单给包括当前行在内的每一行都画了删除按钮，Host 以 thread_read_only 拒绝，而调用点是 `void removeProjectAgentThread(...)`，拒绝变成 unhandled rejection，面板上不出现任何提示。",
+  "class_root": "同一个校验函数同时承担两件性质不同的工作：判断一条记录的**形状**是否合法，和判断它的**跨实体引用**在某个状态里是否解析得到。前者对历史和现状同样成立，后者只对「产生这条 patch 的那个状态」成立。把两者绑死之后，调用方无法表达「我在校验历史，请只验形状」，于是历史被迫满足一个只有现状能满足的不变量。这一族的共同特征是**故障发生在写入之后很久、在另一个进程生命周期里**——写入走快路径不重扫历史，所以开发机上永远看不到，要重启才现形。UI 那一半是同族的另一种表达：一个操作在界面上被提供、在边界上被拒绝，而拒绝没有任何人接住。",
+  "migration": "assertPatchChange 的四个引用参数收敛成一个显式的 ProjectAgentPatchReferences 视图，两个调用方各自说明自己是哪一种：历史用 HISTORICAL_PATCH_REFERENCES，live delta 用 liveProjectAgentPatchReferences(...)。旧的四参数形态在同一 commit 里删净（projectAgentTrustedStateValidation.ts 的 AssertPatchChange 类型同步收窄），没有留兼容重载。线程删除侧：removeProjectAgentThread 在删之前先把光标挪走（挪到剩下最近更新的一条，唯一一条时新开一条空的），Host 的 thread_read_only 不变量原样保留；三个线程命令改走 runThreadCommand，接上面板既有的 friendlyError 错误条，不再 void 吞掉。",
+  "affected_population": [
+    "每一个删过 Agent 对话线程的用户：那个项目的 Agent 历史在下次冷启动时打不开，且没有任何提示说明发生了什么",
+    "每一个想删掉自己正在看的那条对话的用户：那正是菜单里高亮的一行，点下去永远没有反应",
+    "任何一次线程创建/切换/删除失败：面板上同样什么都不显示"
+  ],
+  "scope_paths": [
+    "electron/projectAgentHost/projectAgentState.ts",
+    "electron/projectAgentHost/projectAgentPatchReferences.ts",
+    "electron/projectAgentHost/projectAgentTrustedStateValidation.ts",
+    "electron/projectAgentHost/projectAgentReducer.test.ts",
+    "src/workbench/ai/projectAgentUiCommands.ts",
+    "src/workbench/ai/ProjectAgentResidentShell.tsx",
+    "docs/qa/2026-09-06-agent-mcp-restart-real-user-pass.md",
+    "docs/fixes/2026-09-06-agent-history-validated-against-present.root-cause.json"
+  ],
+  "entry_points": [
+    "electron/projectAgentHost/projectAgentState.ts assertProjectAgentHostState 的 recentAppliedCommands 校验循环",
+    "electron/projectAgentHost/projectAgentTrustedStateValidation.ts assertTrustedProjectAgentDelta 的 changes 循环",
+    "electron/projectAgentHost/projectAgentCompactReplay.ts 的历史 receipt 复核",
+    "src/workbench/ai/ProjectAgentResidentShell.tsx 线程菜单的 create / activate / remove 三个 onClick",
+    "src/workbench/ai/projectAgentUiCommands.ts removeProjectAgentThread"
+  ],
+  "internal_only_reason": "纯内部不变量问题：涉及的全部是本仓自己定义的 Host 状态契约（ProjectAgentHostState / ProjectAgentPatch）与自家渲染层的命令派发，没有第三方库或协议语义需要查证；判据来自代码实读与一次可复现的阳性对照，不是对外部文档的理解。",
+  "invariants": [
+    "recentAppliedCommands 里的历史 patch 只按形状、id、枚举、时间戳与 binding 校验；跨实体存在性只对 live delta 与当前状态本身成立。",
+    "删除任意线程后，该项目的快照必须仍能通过全量校验（即冷启动读得回来）。",
+    "activeThreadId 永远指向一条真实存在的线程，或为 null——两条路径都不允许留下悬空引用。",
+    "界面上提供的每一个线程命令，其失败都必须出现在面板的错误条里，不得被 void 吞掉。"
+  ],
+  "regression_tests": [
+    "electron/projectAgentHost/projectAgentReducer.test.ts"
+  ],
+  "residual_risks": [
+    "本次只修了「历史被拿现状校验」这一类；`PROJECT_AGENT_RECENT_COMMAND_LIMIT = 64` 的窗口语义本身没有变，历史 patch 仍然只保留 64 条（这是设计，不是缺陷）。",
+    "已经损坏的存量快照不会被自动修复：它们在修复版上会重新通过校验（因为校验放宽的正是那一条），但如果用户在旧版上已经因此丢过一次 Host 状态，那次丢失无法追回。"
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "触发条件是「同一个校验函数被复用到一个语义不同的调用点上」，而这在本仓每加一个历史/审计/回放通道时都会再有一次机会：本次是 recentAppliedCommands，compactReplay 与 repository 的 receipt 复核是同族的另外两个调用点。更关键的是它的故障时机——写入侧走 trusted 快路径不重扫历史，所以这一族**永远不会在写入的那一刻暴露**，只在下一次冷启动暴露，开发与走查都天然看不见。不加区分地把 live 与 history 混用一个校验器，就会一直有下一次。",
+    "same_class_scan": [
+      "扫了 electron/projectAgentHost 下全部 recentAppliedCommands 的消费点（grep 命中 9 个非测试文件）：assertProjectAgentHostState 是唯一一个拿当前实体集合去校验历史 patch 内容的；projectAgentCompactReplay.ts:40-55 只核对 commandId / mutationHash / appliedRevision 区间，不看跨实体引用；projectAgentHost.ts:64 与 projectAgentRepository.ts:506 只按 commandId 查找/读取最后一条 receipt，均不触及引用解析。",
+      "扫了 assertPatchChange 的全部调用点（grep 命中 2 个）：projectAgentState.ts:713（历史）与 projectAgentTrustedStateValidation.ts:65（live delta）。两者现在必须各自显式给出 ProjectAgentPatchReferences，类型上再也写不出「用错了那一份」而不被发现。",
+      "扫了 ProjectAgentResidentShell.tsx 里全部把 Host 命令以 `void` 直接发出的调用点：线程的 create / activate / remove 三处（本次全部改走 runThreadCommand），队列的 edit / delete / move / pause / resume 早已走 runQueueMutation 接错误条，stopTurn 与 runProposalUndo 自带 try/catch——修完这三处后再无 void 吞错的 Host 命令。"
+    ]
+  },
+  "generality_proof": "把「这条 patch 该拿什么实体集合去校验」从一组散落的位置参数，变成一个必须显式选择的具名视图（ProjectAgentPatchReferences，带 enforceLinks）。调用方再也无法在不表态的情况下调用 assertPatchChange：历史那条路只有 HISTORICAL_PATCH_REFERENCES 一个来源，live 那条路只有 liveProjectAgentPatchReferences(...) 一个工厂，两者的名字就是它们的语义。任何将来新增的历史/回放通道要么复用其中一个具名视图（因而自动正确），要么必须自己造一个并在类型上写清它是什么——都不再可能像原来那样「顺手把当前状态的四个集合传进去」而无人察觉。",
+  "shared_boundaries": [
+    {
+      "path": "electron/projectAgentHost/projectAgentPatchReferences.ts",
+      "symbol": "ProjectAgentPatchReferences / HISTORICAL_PATCH_REFERENCES / liveProjectAgentPatchReferences",
+      "responsibility": "唯一定义「一条 patch 按哪一套实体集合校验」，并让历史与 live 两种语义在调用点上必须被显式说出来。"
+    },
+    {
+      "path": "src/workbench/ai/projectAgentUiCommands.ts",
+      "symbol": "removeProjectAgentThread",
+      "responsibility": "线程删除的唯一入口：在 Host 的「不许删活动线程」不变量之前先把光标挪走，使界面提供的操作与边界允许的操作一致。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/projectAgentHost/projectAgentState.ts",
+      "entry_point": "assertProjectAgentHostState 的 recentAppliedCommands 循环",
+      "disposition": "enforced",
+      "evidence": "改为传 HISTORICAL_PATCH_REFERENCES。阳性对照实测：把这一处临时改回 liveProjectAgentPatchReferences 后，新增的回归测试立刻红（ProjectAgentStateError: invalid_state），改回即绿。"
+    },
+    {
+      "path": "electron/projectAgentHost/projectAgentTrustedStateValidation.ts",
+      "entry_point": "assertTrustedProjectAgentDelta 的 changes 循环",
+      "disposition": "not-affected",
+      "evidence": "逐条核查：它校验的是刚刚产生的 delta 相对于 next 状态，跨实体引用在此**必须**全部解析得到，语义与历史相反。已改为显式调用 liveProjectAgentPatchReferences({...next 的四个集合})，行为一字未变，只是把原本隐含的语义写了出来。"
+    },
+    {
+      "path": "electron/projectAgentHost/projectAgentCompactReplay.ts",
+      "entry_point": "replayProjectAgentCompactCommand 的历史 receipt 复核",
+      "disposition": "not-affected",
+      "evidence": "逐条核查 :40-55：只校验 binding、commandId、mutationHash、appliedRevision 的取值与区间，不调用 assertPatchChange、不解析任何跨实体引用，因此不属于本类。"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/projectAgentHost/projectAgentPatchReferences.ts",
+    "invariant": "assertPatchChange 的每个调用点都必须显式给出一个具名的 ProjectAgentPatchReferences，因而必须表态自己校验的是历史还是 live 状态。",
+    "failure_mode": "类型错误：省略或传错这个参数在 tsc 阶段就编译不过；两个具名来源各自带着它的语义与不得混用的理由写在同一个文件里。",
+    "exception_policy": "none",
+    "strategy": "把只存在于注释与记忆里的「历史不该按现状校验」变成类型上必须表态的参数，让编译器而不是人来拦（R28：能让编译器拦的别留给门岗）。",
+    "artifacts": [
+      "electron/projectAgentHost/projectAgentPatchReferences.ts",
+      "electron/projectAgentHost/projectAgentState.ts",
+      "electron/projectAgentHost/projectAgentTrustedStateValidation.ts"
+    ]
+  },
+  "class_regression_tests": [
+    "electron/projectAgentHost/projectAgentReducer.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/projectAgentHost/projectAgentState.ts",
+      "electron/projectAgentHost/projectAgentTrustedStateValidation.ts"
+    ],
+    "rationale": "assertPatchChange 的旧四参数形态（threadIds / turnIds / turnThreadById / itemTurnById 直接位置传参）与 projectAgentTrustedStateValidation.ts 里对应的 AssertPatchChange 类型在同一 commit 里删净，没有保留兼容重载或可选参数；同时删掉了 projectAgentThreadReduction 之外无人可达的旧写法所依赖的隐式约定。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "不涉及任何依赖的升级或保留决策，改动全部在本仓自有的 Host 状态校验与渲染层命令派发内。",
+    "exit_criteria": []
+  }
+}

@@ -58,8 +58,13 @@ function ToolActionIcon({ name }: { name: string }): JSX.Element {
  * prevents long prompts and tool payloads from stealing the transcript's
  * attention while keeping every Host-owned detail reachable.
  */
-export function ResidentToolChips({ items, emptyLabel, statusLabel, sectionLabel, headerLabel, explanationLabel, targetLabel, resultLabel, technicalLabel }: { items: readonly ResidentToolChipData[]; emptyLabel: string; statusLabel: (status: ProjectAgentStatus) => string; sectionLabel: string; headerLabel: string; explanationLabel: string; targetLabel: string; resultLabel: string; technicalLabel: string }): JSX.Element | null {
+export function ResidentToolChips({ items, emptyLabel, statusLabel, sectionLabel, headerLabel, failedLabel, explanationLabel, targetLabel, resultLabel, technicalLabel }: { items: readonly ResidentToolChipData[]; emptyLabel: string; statusLabel: (status: ProjectAgentStatus) => string; sectionLabel: string; headerLabel: string; failedLabel: (count: number) => string; explanationLabel: string; targetLabel: string; resultLabel: string; technicalLabel: string }): JSX.Element | null {
   const hasRunningItem = items.some((item) => item.status === 'running' || item.status === 'drafting')
+  // A failed step must be legible without expanding anything. Measured 2026-09-06: a tool call that
+  // failed outright ("Tool create_canvas_nodes not found", canvas left empty) was recorded on the Host
+  // item and then shown nowhere — the collapsed header said "工具调用 · N" and the assistant's reply
+  // said the work was done. The transcript claimed success for work that never happened.
+  const failedCount = items.filter((item) => item.status === 'failed').length
   const [now, setNow] = React.useState(() => Date.now())
   React.useEffect(() => {
     if (!hasRunningItem) return
@@ -77,10 +82,11 @@ export function ResidentToolChips({ items, emptyLabel, statusLabel, sectionLabel
   }, [hasRunningItem, items.length])
   if (!items.length) return null
   // data-agent-tool-line: spec §0 挂点
-  return <section className="space-y-1.5" data-agent-tool-line="true" data-state={hasRunningItem ? 'running' : 'done'} aria-label={sectionLabel}>
+  return <section className="space-y-1.5" data-agent-tool-line="true" data-state={hasRunningItem ? 'running' : failedCount > 0 ? 'failed' : 'done'} aria-label={sectionLabel}>
     <button type="button" aria-expanded={groupOpen} aria-controls="agent-tool-run" onClick={() => { setGroupOpen((value) => { if (value) setOpenId(null); return !value }) }} className="-mx-1 flex min-h-7 w-fit items-center gap-1.5 rounded-nomi-sm px-1 text-micro text-nomi-ink-60 transition-[background,color] duration-[var(--nomi-transition-fast)] hover:bg-nomi-ink-05 hover:text-nomi-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-nomi-accent/40 motion-reduce:transition-none" data-agent-tool-header="true">
       <IconChevronRight size={12} className={cn('transition-transform duration-[var(--nomi-transition-fast)] motion-reduce:transition-none', groupOpen && 'rotate-90')} aria-hidden="true" /><IconTool size={13} className="shrink-0 text-nomi-ink-40" aria-hidden="true" />
       <span className="tabular-nums">{headerLabel}</span>
+      {failedCount > 0 ? <span className="shrink-0 rounded-nomi-sm border border-workbench-danger px-1 text-micro font-medium text-workbench-danger" data-agent-tool-failed="true">{failedLabel(failedCount)}</span> : null}
     </button>
     <div id="agent-tool-run" className="grid transition-[grid-template-rows,opacity] duration-[var(--nomi-transition-fast)] motion-reduce:transition-none" style={{ gridTemplateRows: groupOpen ? '1fr' : '0fr', opacity: groupOpen ? 1 : 0 }}>
       <div className="min-h-0 overflow-hidden">
