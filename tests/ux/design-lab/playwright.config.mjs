@@ -29,13 +29,15 @@ export default defineConfig({
   reporter: [['list']],
   // 基线只在用户拍板后更新（pnpm run design-lab:update）；CI 上永远不许自己写基线。
   updateSnapshots: process.env.NOMI_DESIGN_LAB_UPDATE === '1' ? 'all' : 'none',
+  // 容差**按屏**给（calibration.json 的 screens.<屏>.tolerance），由 spec 在每次
+  // toHaveScreenshot 上显式传——一格 340×620 与一格 900×1268 差 5 倍面积，同一个"差异像素比"
+  // 在大格上宽到能放过一整行控件改色（2026-09-06 实测：113 像素的真实改动在旧比例下是绿的）。
+  // 这里只留与容差无关的公共项。
   expect: {
     toHaveScreenshot: {
       animations: 'disabled',
       caret: 'hide',
       scale: 'css',
-      threshold: calibration.tolerance.threshold,
-      maxDiffPixelRatio: calibration.tolerance.maxDiffPixelRatio,
     },
   },
   use: {

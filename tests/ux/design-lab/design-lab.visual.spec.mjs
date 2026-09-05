@@ -7,10 +7,15 @@
 // 基线**只在用户拍板后**更新：`pnpm run design-lab:update`（走 NOMI_DESIGN_LAB_UPDATE=1）。
 // 平时跑（含 CI）配置里写死 updateSnapshots:'none'，谁也不能顺手把红洗绿。
 import { expect, test } from '@playwright/test'
-import { LAB_SCREEN_IDS, readLabStates } from './labStates.mjs'
+import { LAB_SCREEN_IDS, readCalibration, readLabStates } from './labStates.mjs'
+
+const calibration = readCalibration()
 
 for (const screen of LAB_SCREEN_IDS) {
   const states = readLabStates(screen)
+  // 容差按屏取（见 calibration.json 的 why.perScreenTolerance：大格用比例会宽到放过真实改动）。
+  const tolerance = calibration.screens[screen]?.tolerance
+  if (!tolerance) throw new Error(`calibration.json 里没有 ${screen} 屏的容差声明`)
 
   test.describe(`design lab · ${screen}`, () => {
     test('注册表与活页面一致（这把源码正则还活着的唯一证据）', async ({ page }) => {
@@ -30,8 +35,8 @@ for (const screen of LAB_SCREEN_IDS) {
         await expect(shot).toBeVisible()
         // 浮层类形态走 BodyPortal + fixed 定位，根本不在舞台的子树里——按元素截会截出
         // 「浮层没打开」的假证据，所以这一族改截整屏（注册项里显式声明 capture: 'viewport'）。
-        if (state.capture === 'viewport') await expect(page).toHaveScreenshot([screen, `${state.id}.png`])
-        else await expect(shot).toHaveScreenshot([screen, `${state.id}.png`])
+        if (state.capture === 'viewport') await expect(page).toHaveScreenshot([screen, `${state.id}.png`], tolerance)
+        else await expect(shot).toHaveScreenshot([screen, `${state.id}.png`], tolerance)
         expect(errors, `渲染 ${state.id} 时页面抛错`).toEqual([])
       })
     }
