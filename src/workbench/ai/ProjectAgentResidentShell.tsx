@@ -1,4 +1,3 @@
-import type { TranslationKey } from '../../i18n/translationKey'
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -11,7 +10,7 @@ import {
 import { NomiLogoMark, NomiSegmented, StatusBadge, WorkbenchIconButton } from '../../design'
 import { cn } from '../../utils/cn'
 import type { AgentToolProfile } from '../../../electron/shared/projectAgentContracts'
-import { useWorkbenchStore, type ProjectAgentReference, type ProjectAgentRunMode, type WorkspaceMode } from '../workbenchStore'
+import { useWorkbenchStore, type ProjectAgentReference, type ProjectAgentRunMode } from '../workbenchStore'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import { runWorkbenchAgent, type ToolCallEvent } from './workbenchAgentRunner'
 import { stopProjectAgentTurn } from './projectAgentTurnCommands'
@@ -42,7 +41,7 @@ import { ResidentReferenceChip } from './resident/ResidentReferenceChip'
 import { MenuCopy, MenuRow, Popover, PROMPT_PRESETS, ResidentPromptMenu, iconControlClass } from './resident/ResidentMenus'
 import { attachmentPayloads, itemRef } from './resident/agentItemHelpers'
 import { normalizeResidentToolProjection, readResidentToolProjections, residentToolProjectionKey, residentToolProjectionScope, writeResidentToolProjections, type ResidentToolProjection } from './resident/residentToolProjection'
-import { proposalForTool, readableToolDetailRows, readableToolName, readableToolPreview, readableToolResult, readableToolSummary, readableToolTarget, residentToolProjectionForCall } from './resident/residentToolDisplay'
+import { proposalForTool, readableToolName, readableToolPreview, readableToolResult, readableToolSummary, readableToolTarget, residentToolProjectionForCall } from './resident/residentToolDisplay'
 import { isGenerationProposalTool, proposalDecisionPayload } from './resident/generationProposalEditing'
 import { residentQuestionOptions } from './resident/residentExceptionProjections'
 import { useAssetPool } from '../assets/useAssetPool'
@@ -59,16 +58,29 @@ import { InterventionSlot, type ApprovalScope } from './InterventionSlot'
 import { TimelineSelectionChips } from './resident/TimelineSelectionChips'
 import { TimelineAgentReceiptEffect } from './resident/TimelineAgentReceiptEffect'
 import { ResidentCollapsedDock } from './resident/ResidentCollapsedDock'
+import { useResidentActivityStore } from './residentActivity'
 import { useTimelinePlanPreview, useTimelinePlanRows, useTimelineSelectionChips } from './resident/timelineAgentSurface'
 import { resolveCapabilityEffectClass } from '../../../electron/shared/agentCapabilities/registry'
 import { GenerationProposalEditor } from './resident/GenerationProposalEditor'
 import ReconcileDeviationCard from '../generationCanvas/components/ReconcileDeviationCard'
 import { buildContentFixMessage, useShotVerifyStore } from '../generationCanvas/agent/shotVerifyStore'
 import { isEmptyStoryboardPlan } from '../generationCanvas/agent/storyboardPlan'
+import { friendlyError, interventionDetails, isActiveQueueStatus, statusLabel, surfaceLabel, type ResidentSurface } from './resident/residentShellDisplay'
 
-type ResidentSurface = Extract<WorkspaceMode, 'creation' | 'storyboard' | 'generation' | 'preview'>
 const isDocumentSurface = (surface: ResidentSurface): boolean => surface === 'creation' || surface === 'storyboard'
 type PendingTool = { call: ToolCallEvent; bindingKey: string; state: ResidentApprovalState }
+
+/**
+ * 每一条消息挂什么样式。它**必须**留在这个 .tsx 里：tailwind.config.ts 的 content 只扫
+ * src 目录下的 .tsx，类名字符串搬进 .ts 就不再被生成，且是静默的（见 residentShellDisplay.ts 顶部）。
+ */
+function residentItemClassName(item: ProjectAgentItem, declined: boolean): string {
+  if (item.kind === 'user') return 'ml-auto min-h-[52px] max-w-[86%] text-caption text-nomi-paper'
+  if (item.kind === 'assistant') return 'max-w-full px-1 text-caption leading-5'
+  const ownsCard = (item.kind === 'failure' && !declined) || (item.kind === 'artifact' && (item.status === 'running' || item.status === 'failed'))
+  if (ownsCard) return 'max-w-full'
+  return cn('rounded-nomi-sm border px-2.5 py-1.5 text-caption', declined ? 'border-nomi-line-soft bg-nomi-ink-05' : 'border-nomi-line-soft bg-nomi-paper')
+}
 type MenuId = 'attachments' | 'references' | 'skills' | 'prompts' | 'modes' | 'policy' | 'models' | null
 
 const residentPendingTools = new Map<string, PendingTool>()
@@ -104,53 +116,6 @@ function useResidentPendingTools(key: string | null): PendingTool[] {
   const [, redraw] = React.useState(0)
   React.useEffect(() => { const listener = () => redraw((value) => value + 1); residentPendingListeners.add(listener); return () => { residentPendingListeners.delete(listener) } }, [])
   return key ? Array.from(residentPendingTools.values()).filter((item) => item.bindingKey === key) : []
-}
-
-function surfaceLabel(t: (key: string, options?: Record<string, unknown>) => string, surface: ResidentSurface): string {
-  return surface === 'generation'
-    ? t('agentResident.contextGeneration')
-    : surface === 'preview'
-      ? t('agentResident.contextPreview')
-      : surface === 'storyboard'
-        ? t('agentResident.contextStoryboard')
-        : t('agentResident.contextCreation')
-}
-
-const STATUS_LABEL_KEY = {
-  drafting: 'agentResident.planning',
-  proposed: 'agentResident.waitingApprovalShort',
-  declined: 'agentResident.declined',
-  queued: 'agentResident.queued',
-  running: 'agentResident.running',
-  done: 'agentResident.done',
-  failed: 'agentResident.failed',
-  stopped: 'agentResident.stopped',
-} as const satisfies Record<ProjectAgentStatus, TranslationKey>
-
-function statusLabel(t: (key: string, options?: Record<string, unknown>) => string, status: ProjectAgentStatus): string {
-  return t(STATUS_LABEL_KEY[status])
-}
-
-function isActiveQueueStatus(status: ProjectAgentStatus): boolean {
-  return status === 'queued' || status === 'proposed' || status === 'running'
-}
-
-function interventionDetails(t: (key: string, options?: Record<string, unknown>) => string, call: ToolCallEvent, args: Record<string, unknown>, proposal?: ReturnType<typeof proposalForTool>): readonly { label: string; value: string }[] {
-  const rows = [...readableToolDetailRows(t, call.toolName, args), ...(proposal?.fields ?? [])]
-  return rows.filter((row, index, all) => all.findIndex((candidate) => candidate.label === row.label && candidate.value === row.value) === index).slice(0, 12).map((row) => ({ label: row.label, value: row.value }))
-}
-
-function friendlyError(error: unknown, t: (key: string, options?: Record<string, unknown>) => string): string {
-  const code = error instanceof Error ? error.message : ''
-  return code === 'project_agent_unavailable' || code === 'project_binding_stale' ? t('agentResident.unavailable') : t('agentResident.sendFailed')
-}
-
-function residentItemClassName(item: ProjectAgentItem, declined: boolean): string {
-  if (item.kind === 'user') return 'ml-auto min-h-[52px] max-w-[86%] text-caption text-nomi-paper'
-  if (item.kind === 'assistant') return 'max-w-full px-1 text-caption leading-5'
-  const ownsCard = (item.kind === 'failure' && !declined) || (item.kind === 'artifact' && (item.status === 'running' || item.status === 'failed'))
-  if (ownsCard) return 'max-w-full'
-  return cn('rounded-nomi-sm border px-2.5 py-1.5 text-caption', declined ? 'border-nomi-line-soft bg-nomi-ink-05' : 'border-nomi-line-soft bg-nomi-paper')
 }
 
 type ResidentSendContext = Readonly<{
@@ -646,6 +611,13 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
         : activeQueue.length
           ? t('agentResident.queueCount', { count: activeQueue.length })
         : t('agentResident.ready')
+  // 收起后那颗状态点读的是同一份判据、同一格 token（residentActivity 只是它的投影口，
+  // 图标条不在这棵子树里，够不着 runningTurn / pendingTools）。
+  const activityDotClassName = runningTurn
+    ? 'bg-nomi-accent'
+    : pendingTools.some((pending) => pending.state === 'pending') ? 'bg-nomi-warning' : 'bg-nomi-ink-30'
+  const publishActivity = useResidentActivityStore((state) => state.setResidentActivity)
+  React.useEffect(() => { publishActivity(activityDotClassName, compactStatus) }, [activityDotClassName, compactStatus, publishActivity])
   const remainingRounds = Math.max(1, 40 - sessionTurns)
   const modelNeedsSelection = models.length === 0 || !selectedModelRow
   const openStoryboardReceipt = React.useCallback(() => {
@@ -676,7 +648,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
     <form className="relative grid gap-1 px-3 pb-1.5 pt-1" onSubmit={(event) => { event.preventDefault(); void submit() }} {...attachmentApi.dragHandlers}>
       <input ref={attachmentApi.inputRef} type="file" multiple accept={COMPOSER_ATTACHMENT_ACCEPT} className="hidden" tabIndex={-1} aria-hidden="true" onChange={attachmentApi.onInputChange} />
       <AttachmentRail attachments={attachments} onRemove={attachmentApi.removeAttachment} />
-      {references.length || timelineSelection.selections.length || activeSkill || selectedLibraryPrompt || (promptModeId !== 'general' && !activeSkill) ? <div className="flex max-h-14 flex-wrap gap-1 overflow-y-auto" data-agent-references="true"><TimelineSelectionChips selections={timelineSelection.selections} revisionFor={timelineSelection.revisionFor} revision={timelineSelection.revision} staleLabel={t('agentResident.timelineSelectionStale')} label={t('agentResident.referenceTimeline')} removeLabel={t('agentResident.removeReference')} />{references.map((reference) => <ResidentReferenceChip key={reference.id} reference={reference} t={t} onRemove={() => removeReference(reference.id)} />)}{activeSkill ? <span data-agent-reference={`skill:${activeSkill.key}`} className="inline-flex h-6 max-w-full items-center gap-1 rounded-pill bg-nomi-accent-soft px-2 text-micro text-nomi-accent"><IconTool size={12} /><span className="truncate">{activeSkill.name}</span><button type="button" aria-label={t('agentResident.removeReference')} onClick={() => setActiveSkill(null)}><IconX size={11} /></button></span> : null}{selectedLibraryPrompt && !activeSkill ? <span data-agent-reference={libraryPromptReferenceId(selectedLibraryPrompt)} className="inline-flex h-6 max-w-full items-center gap-1 rounded-pill bg-nomi-accent-soft px-2 text-micro text-nomi-accent" title={selectedLibraryPrompt.prompt}><IconPencil size={12} /><span className="truncate">{promptDisplayTitle(selectedLibraryPrompt)}</span><button type="button" aria-label={t('agentResident.removeReference')} title={t('agentResident.removeReference')} onClick={() => setSelectedLibraryPrompt(null)}><IconX size={11} /></button></span> : null}{promptModeId !== 'general' && !activeSkill && !selectedLibraryPrompt ? <span data-agent-reference={`prompt:${promptModeId}`} className="inline-flex h-6 max-w-full items-center gap-1 rounded-pill bg-nomi-ink-05 px-2 text-micro text-nomi-ink-80"><PromptIcon size={12} /><span className="truncate">{t(promptPreset.labelKey)}</span><button type="button" aria-label={t('agentResident.removeReference')} onClick={() => setPromptModeId('general')}><IconX size={11} /></button></span> : null}</div> : null}
+      {references.length || timelineSelection.selections.length || activeSkill || selectedLibraryPrompt || (promptModeId !== 'general' && !activeSkill) ? <div className="flex max-h-14 flex-wrap gap-1 overflow-y-auto" data-agent-references="true"><TimelineSelectionChips selections={timelineSelection.selections} revisionFor={timelineSelection.revisionFor} staleFor={timelineSelection.staleFor} fps={timeline.fps} t={t} unnamedLabel={t('agentResident.timelineSelectionUnnamed')} staleLabel={t('agentResident.timelineSelectionStale')} label={t('agentResident.referenceTimeline')} removeLabel={t('agentResident.removeReference')} />{references.map((reference) => <ResidentReferenceChip key={reference.id} reference={reference} t={t} onRemove={() => removeReference(reference.id)} />)}{activeSkill ? <span data-agent-reference={`skill:${activeSkill.key}`} className="inline-flex h-6 max-w-full items-center gap-1 rounded-pill bg-nomi-accent-soft px-2 text-micro text-nomi-accent"><IconTool size={12} /><span className="truncate">{activeSkill.name}</span><button type="button" aria-label={t('agentResident.removeReference')} onClick={() => setActiveSkill(null)}><IconX size={11} /></button></span> : null}{selectedLibraryPrompt && !activeSkill ? <span data-agent-reference={libraryPromptReferenceId(selectedLibraryPrompt)} className="inline-flex h-6 max-w-full items-center gap-1 rounded-pill bg-nomi-accent-soft px-2 text-micro text-nomi-accent" title={selectedLibraryPrompt.prompt}><IconPencil size={12} /><span className="truncate">{promptDisplayTitle(selectedLibraryPrompt)}</span><button type="button" aria-label={t('agentResident.removeReference')} title={t('agentResident.removeReference')} onClick={() => setSelectedLibraryPrompt(null)}><IconX size={11} /></button></span> : null}{promptModeId !== 'general' && !activeSkill && !selectedLibraryPrompt ? <span data-agent-reference={`prompt:${promptModeId}`} className="inline-flex h-6 max-w-full items-center gap-1 rounded-pill bg-nomi-ink-05 px-2 text-micro text-nomi-ink-80"><PromptIcon size={12} /><span className="truncate">{t(promptPreset.labelKey)}</span><button type="button" aria-label={t('agentResident.removeReference')} onClick={() => setPromptModeId('general')}><IconX size={11} /></button></span> : null}</div> : null}
       <div className={cn('rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2 py-1', attachmentApi.isDragging && 'border-nomi-accent bg-nomi-accent-soft', runningTurn && 'border-nomi-accent/60 ring-2 ring-nomi-accent/20 motion-safe:animate-[nomi-composer-breathe_2s_ease-in-out_infinite] motion-reduce:ring-1')} data-agent-running-feedback={runningTurn ? 'true' : undefined}>
         <AutoGrowTextarea value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={onKeyDown} onPaste={attachmentApi.handlePaste} placeholder={t('agentResident.placeholder')} aria-label={t('agentResident.messageAria')} maxHeight={120} className="min-h-10 text-body-sm" data-agent-input="true" />
         <div className="flex items-center gap-1 border-t border-nomi-line-soft pt-1">
@@ -726,7 +698,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
     return <section id="project-agent-resident" className="pointer-events-none relative h-full w-full overflow-visible" aria-label={t('agentResident.aria')} data-agent-resident="true" data-agent-surface={surface} data-agent-collapsed="true">
       <TimelineAgentReceiptEffect />
       {timelinePlanPreviewPortal}
-      <ResidentCollapsedDock recallLabel={t('agentResident.recall')} statusLabel={compactStatus} statusToneClassName={runningTurn ? 'bg-nomi-accent' : pendingTools.some((pending) => pending.state === 'pending') ? 'bg-nomi-warning' : 'bg-nomi-ink-30'} onRecall={() => setCollapsed(false)}>{composer}</ResidentCollapsedDock>
+      <ResidentCollapsedDock>{composer}</ResidentCollapsedDock>
     </section>
   }
 

@@ -1,6 +1,6 @@
 // 设计实验室走查的**共用实现**（R13 人眼判断的素材源）。零额度：纯本地渲染，不碰任何生成 API。
 //
-// 两屏（agent-panel / storyboard）走的是同一套流程，所以流程只写一份；各屏的入口文件
+// 各屏（agent-panel / editing / storyboard）走的是同一套流程，所以流程只写一份；各屏的入口文件
 // （`tests/ux/design-lab-<屏>.walk.mjs`）只声明"哪一屏、截多宽、接触表排几列"。
 // 把流程抄两份的代价不是多几行，是**两份会漂**——其中一份悄悄少了一条断言，没人看得出来。
 //
@@ -41,7 +41,7 @@ function waitForServer(url, child, timeoutMs = 60000) {
     const tick = async () => {
       if (exited !== null) {
         return reject(new Error(`vite 起不来（退出码 ${exited}）——${url} 多半被别的 worktree 占着；`
-          + '换个端口跑：DESIGN_LAB_PORT=<空闲端口> pnpm run design-lab:walk:storyboard'))
+          + '换个端口跑：DESIGN_LAB_PORT=<空闲端口> pnpm run design-lab:walk:<屏>'))
       }
       try {
         const response = await fetch(url)
@@ -133,8 +133,22 @@ export async function walkDesignLabScreen(config) {
         if (stage !== 'missing') record(`${state.id} 标了 coverage=missing，却渲染成 ${stage || '(无舞台)'}`)
       } else {
         if (stage === 'missing') record(`${state.id} 渲染成了「现役未实现」占位，但它的 coverage 是 ${state.coverage}`)
-        const distinct = await shot.evaluate((node) => node.querySelectorAll('*').length)
-        if (distinct < 3) record(`${state.id} 舞台里只有 ${distinct} 个元素，形态大概率没渲染出来`)
+        // 数元素时**连 Portal 层一起数**：走 AnchoredPopover 的形态（转场选择器、素材选择器）
+        // 整个身体都 Portal 到 body 上，舞台子树里只剩一颗锚点按钮。只数舞台子树，
+        // 「浮层渲染得好好的」会被误判成「舞台是空的」——2026-09-06 三条 picker-* 就是这么假红的。
+        // 元素截图截的是「整页渲染后按舞台的框裁」，盖在舞台上的浮层本来就进了图，
+        // 所以判据也该按「这一格画出了什么」算，而不是按 DOM 谁是谁的孩子算。
+        const distinct = await page.evaluate((shotId) => {
+          const stage = document.querySelector(`[data-design-lab-shot="${shotId}"]`)
+          const inStage = stage ? stage.querySelectorAll('*').length : 0
+          let inPortals = 0
+          for (const node of document.body.children) {
+            if (node.id === 'design-lab-root') continue
+            inPortals += 1 + node.querySelectorAll('*').length
+          }
+          return inStage + inPortals
+        }, state.id)
+        if (distinct < 3) record(`${state.id} 这一格只有 ${distinct} 个元素，形态大概率没渲染出来`)
       }
       console.log(`  ✓ ${state.id.padEnd(34)} ${Math.round(box.width)}×${Math.round(box.height)}  ${state.name}`)
     }

@@ -27,6 +27,10 @@ export const LAB_SCREENS = {
     registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/states'),
     baselineDir: path.join(BASELINE_ROOT, 'agent-panel'),
   },
+  editing: {
+    registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/editing/states'),
+    baselineDir: path.join(BASELINE_ROOT, 'editing'),
+  },
   storyboard: {
     registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/storyboard/states'),
     baselineDir: path.join(BASELINE_ROOT, 'storyboard'),
@@ -78,4 +82,16 @@ export function readLabStates(screenId = 'agent-panel') {
 
 export function readCalibration() {
   return JSON.parse(fs.readFileSync(CALIBRATION_FILE, 'utf8'))
+}
+
+/**
+ * 「基线待用户拍板」登记表：屏 id → 一句为什么。
+ *
+ * 这**不是**逃生口。没有获批基线的屏本来就没有可回归的对象——逐像素比一张没人看过的图
+ * 只会把「今天长这样」当成「应该长这样」，那才是真的假绿。登记是显式的、写在
+ * calibration.json 里、门岗每次都醒目打印，拍板录完基线就必须删掉这一条。
+ * 孤儿基线不受登记豁免：图在、状态没了，照红。
+ */
+export function pendingApprovalScreens() {
+  return readCalibration().pendingApprovalScreens ?? {}
 }

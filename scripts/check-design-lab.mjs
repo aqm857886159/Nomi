@@ -27,7 +27,7 @@ import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const { readLabStates, readCalibration, baselineDirFor, LAB_SCREEN_IDS, CALIBRATION_FILE } = await import(
+const { readLabStates, readCalibration, baselineDirFor, pendingApprovalScreens, LAB_SCREEN_IDS, CALIBRATION_FILE } = await import(
   path.join(repoRoot, 'tests/ux/design-lab/labStates.mjs')
 )
 
@@ -58,6 +58,9 @@ const fail = (message) => errors.push(message)
 // 覆盖的真相源是**拍板文档的编号**，不是这份脚本里的一句 magic number：
 // - agent-panel：形态 1–21 出自 2026-09-01 定稿 §4；P0 件 1–16 出自 2026-09-03 走读附录索引
 //   （件 17 = 形态 18 与件 5 共用一张，文档明写「不独立画」，故是 16 不是 17）。
+// - editing：剪辑面这一族形态出自「关闭剪辑面浮层被祖先 overflow 裁掉」那次根因修复
+//   （docs/lessons/overlay-clipped-by-ancestor-overflow.md）。它还没有编号化的覆盖真相源，
+//   所以这里只查注册表可解析 + 基线一一对应；等设计合同落定再补编号覆盖。
 // - storyboard：分镜表 v6 设计合同的章节号。合同里每一条**有形态的**章节都必须在实验室里
 //   至少有一个状态认领它（认领方式 = 该状态的 `source` 里写着这个章节号）。
 //   新加一节而实验室没跟上 = 红；这正是"设计改了但没人画出来"最容易漏掉的地方。
@@ -67,7 +70,6 @@ const STORYBOARD_SECTIONS = [
   '§2.1', '§2.2', '§2.3', '§2.4', '§2.4.1', '§2.6', '§2.7',
   '§2.9', '§2.10', '§3.1', '§3.2', '§3.3', '§4.1', '§4.2', '§4.3', '§4.4',
 ]
-
 const statesByScreen = new Map()
 for (const screen of LAB_SCREEN_IDS) statesByScreen.set(screen, readLabStates(screen))
 
@@ -126,6 +128,9 @@ if (productionImports.length) {
 // ── 4. 基线 ↔ 注册表 ─────────────────────────────────────────────────────────
 
 const calibration = readCalibration()
+// 「基线待用户拍板」的屏：见 calibration.json 的 why.pendingApprovalScreens。
+// 没被人看过的屏没有可回归的对象，现在录基线只会把「今天碰巧长这样」钉成「应该长这样」。
+const pending = pendingApprovalScreens()
 let baselineTotal = 0
 let stateTotal = 0
 for (const screen of LAB_SCREEN_IDS) {
@@ -138,8 +143,9 @@ for (const screen of LAB_SCREEN_IDS) {
   baselineTotal += baselineFiles.length
   const baselineIds = new Set(baselineFiles.map((name) => name.replace(/\.png$/, '')))
   // `--update` 就是来补基线的，这时候「缺基线」是它的输入而不是错误（否则新状态永远补不上）。
-  // 孤儿基线仍然照查：update 从来不删图，删状态没删图的欠账必须在这一次就暴露。
-  if (!UPDATE) {
+  // 孤儿基线仍然照查：update 从来不删图，删状态没删图的欠账必须在这一次就暴露；
+  // 待拍板的屏也照查孤儿——登记豁免的只有「还没录」，不是「录错了不用管」。
+  if (!UPDATE && !pending[screen]) {
     for (const id of ids) {
       if (!baselineIds.has(id)) fail(`${screen} 的状态 ${id} 没有视觉基线；拍板后跑 pnpm run design-lab:update`)
     }
@@ -156,6 +162,14 @@ if (errors.length) {
 }
 
 console.log(`✅ 设计实验室结构检查：${LAB_SCREEN_IDS.length} 屏、${stateTotal} 个状态、${baselineTotal} 张基线，一一对应`)
+
+for (const [screen, why] of Object.entries(pending)) {
+  if (!LAB_SCREEN_IDS.includes(screen)) {
+    console.error(`❌ calibration.json 登记了不存在的屏 ${screen}——登记过期了，删掉它`)
+    process.exit(1)
+  }
+  console.log(`\n⚠️  ${screen} 屏的视觉基线**尚未拍板**，本次没有比对它的像素。\n   ${why}`)
+}
 
 // ── 5. 视觉基线 ──────────────────────────────────────────────────────────────
 

@@ -1,6 +1,6 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconMusic, IconPlus } from '@tabler/icons-react'
+import { IconMusic, IconSubtitles } from '@tabler/icons-react'
 import { useWorkbenchStore } from '../workbenchStore'
 import { cn } from '../../utils/cn'
 import { WorkbenchButton } from '../../design'
@@ -63,7 +63,8 @@ export function TimelineSecondaryAddRow({
         className="h-6 px-2 text-micro [&>svg]:size-3 gap-1"
         aria-label={t('timelineEditor.secondary.addMusic')}
       >
-        <IconPlus stroke={2} />
+        {/* 类型图标比加号可识别（合同 §2.8）：一眼看出这颗是「配乐」不是「再来一个什么」。 */}
+        <IconMusic stroke={2} />
         {t('timelineEditor.secondary.music')}
       </WorkbenchButton>
       {musicPickerOpen ? (
@@ -72,10 +73,14 @@ export function TimelineSecondaryAddRow({
             projectId={getActiveWorkbenchProjectId()}
             accept={['audio']}
             onPick={(asset) => {
-              void addAssetToTimeline(asset, {
-                fps,
-                startFrame: useWorkbenchStore.getState().timeline.playheadFrame,
-              })
+              // 第一段配乐铺在**片头**，不是播放头。点「+ 配乐」的人说的是「给这支片子配个乐」，
+              // 没有位置意图；落在播放头上会让成片凭空长出一截黑场（15 秒的片子随手一拖播放头，
+              // 配乐从 7.5 秒起，导出就变成 22.5 秒），而用户完全不知道那一截哪来的。
+              // 想放在某个点上的第二段/音效仍按播放头走——那时位置就是意图了。想改第一段的位置，
+              // 拖它或拖素材过来，两条路都在。
+              const state = useWorkbenchStore.getState()
+              const audioTrackEmpty = state.timeline.tracks.every((track) => track.type !== 'audio' || track.clips.length === 0)
+              void addAssetToTimeline(asset, { fps, startFrame: audioTrackEmpty ? 0 : state.timeline.playheadFrame })
               setMusicPickerOpen(false)
             }}
             onUpload={() => {}}
@@ -91,7 +96,7 @@ export function TimelineSecondaryAddRow({
       className="h-6 px-2 text-micro [&>svg]:size-3 gap-1"
       aria-label={t('timelineEditor.secondary.addCaption')}
     >
-      <IconPlus stroke={2} />
+      <IconSubtitles stroke={2} />
       {t('timelineEditor.secondary.caption')}
     </WorkbenchButton>
   ) : null

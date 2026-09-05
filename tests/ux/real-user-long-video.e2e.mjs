@@ -10,7 +10,6 @@ import os from 'node:os'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
-import { enableAgentHostThroughSettings } from './agent-runtime-walk-support.mjs'
 import {
   REAL_USER_LONG_VIDEO_MANIFEST,
   blockedLiveReport,
@@ -149,7 +148,6 @@ async function openAgent(win) {
   if (!(await panel.isVisible().catch(() => false))) {
     // Agent Host is product-level opt-in. Enable it through the visible Settings UI,
     // never by mutating a workbench store or local storage preference.
-    await enableAgentHostThroughSettings(win)
     const nextCollapsed = win.locator('[data-agent-resident-collapsed="true"]').first()
     if (await nextCollapsed.isVisible().catch(() => false)) await nextCollapsed.click()
     panel = win.locator('[data-agent-panel="true"][data-agent-surface="generation"]').first()

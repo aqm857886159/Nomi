@@ -3,8 +3,8 @@ import type React from 'react'
 /**
  * 设计实验室的**屏**与**状态**的共享类型。
  *
- * 实验室从 #516 起是单屏（agent-panel）；本次加入 storyboard 屏时把这两个类型提到这里，
- * 让两屏共用同一份形状——不是给每屏各写一套（那就是同一个契约两份定义）。
+ * 实验室从 #516 起是单屏（agent-panel）；加第二、第三屏（editing / storyboard）时把这两个类型提到这里，
+ * 让各屏共用同一份形状——不是给每屏各写一套（那就是同一个契约两份定义）。
  */
 
 export type LabCoverage =
@@ -28,7 +28,7 @@ export type LabState = Readonly<{
   span?: 1 | 2
   /**
    * 截图取景范围。默认 `element`（只截这一格的舞台）。
-   * `viewport` 用于**逃出舞台的形态**——走 BodyPortal + fixed 定位的浮层（槽浮层、素材选择器）
+   * `viewport` 用于**逃出舞台的形态**——走 BodyPortal + fixed 定位的浮层
    * 根本不在舞台的 DOM 子树里，按元素截会截出"浮层没打开"的假证据。
    */
   capture?: 'element' | 'viewport'
@@ -40,6 +40,6 @@ export type LabScreen = Readonly<{
   /** 屏名（实验室头部显示）。 */
   label: string
   states: readonly LabState[]
-  /** 接触表里每一格 iframe 的取景尺寸。屏与屏差别很大（面板 340 宽、分镜表接近整页）。 */
+  /** 接触表里每一格 iframe 的取景尺寸。屏与屏差别很大（面板 340 宽、剪辑浮层 420 宽、分镜表接近整页）。 */
   cell: { width: number; height: number }
 }>

@@ -15,6 +15,9 @@ export const LAB_ORIGIN = `http://127.0.0.1:${LAB_PORT}`
 
 export default defineConfig({
   testDir: '.',
+  // 冷启动的 vite 会在头几条用例中间做完预打包并整页 reload，撞上去要么等不到就绪旗、
+  // 要么在半渲染帧上截图比出假红。预热跑一次真实加载，把那段窗口关掉（见 warmUp.mjs）。
+  globalSetup: './warmUp.mjs',
   testMatch: /.*\.visual\.spec\.mjs$/,
   // 基线路径：tests/ux/design-lab/__baselines__/<屏>/<id>.png。
   // 屏这一层由 `toHaveScreenshot([screen, id + '.png'])` 的**数组形式**给出——数组的每一项是一段

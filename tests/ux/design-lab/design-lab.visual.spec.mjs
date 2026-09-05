@@ -7,11 +7,17 @@
 // 基线**只在用户拍板后**更新：`pnpm run design-lab:update`（走 NOMI_DESIGN_LAB_UPDATE=1）。
 // 平时跑（含 CI）配置里写死 updateSnapshots:'none'，谁也不能顺手把红洗绿。
 import { expect, test } from '@playwright/test'
-import { LAB_SCREEN_IDS, readCalibration, readLabStates } from './labStates.mjs'
+import { LAB_SCREEN_IDS, pendingApprovalScreens, readCalibration, readLabStates } from './labStates.mjs'
 
 const calibration = readCalibration()
+// 「基线待用户拍板」的屏（calibration.json 的 pendingApprovalScreens）整屏跳过比对：
+// 没人看过的图没有可回归的对象，比它等于把「今天碰巧长这样」钉成「应该长这样」。
+// `design-lab:update` 跑的就是来录基线的那一趟，所以它不跳——拍板后录完记得删登记。
+const UPDATING = process.env.NOMI_DESIGN_LAB_UPDATE === '1'
+const pending = pendingApprovalScreens()
 
 for (const screen of LAB_SCREEN_IDS) {
+  if (pending[screen] && !UPDATING) continue
   const states = readLabStates(screen)
   // 容差按屏取（见 calibration.json 的 why.perScreenTolerance：大格用比例会宽到放过真实改动）。
   const tolerance = calibration.screens[screen]?.tolerance
