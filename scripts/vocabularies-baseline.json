@@ -1327,6 +1327,16 @@
       "reason": "experienceStatusSchema 是经验候选的唯一生命周期词表：quarantined/shadow/active 表示证据闸门，demoted/expired/superseded 表示不可再用于提示词的终态；策略、投影和回放都必须从此 owner 派生，不能与 Agent turn 或任务状态混用。"
     },
     {
+      "site": "electron/shared/contracts/telemetry.ts::type:TelemetryStatus/type-union",
+      "members": ["configured", "disabled", "unconfigured"],
+      "reason": "TelemetryStatus 是本地隐私设置视图的三态投影，描述 endpoint 配置与用户同意后的展示状态；它不是任务或连接生命周期，复用已有状态词表会把设置页的可见合同与业务状态混淆。"
+    },
+    {
+      "site": "electron/shared/contracts/telemetry.ts::variable:TELEMETRY_RESULT_VALUES/as-const",
+      "members": ["cancel", "failure", "success"],
+      "reason": "TelemetryResult 是遥测出站协议唯一允许的结果维度，跨主进程更新、生成与导出入口共用同一中立合同；它描述一次遥测事件结算，不等同于供应商任务、导出作业或 UI 状态。"
+    },
+    {
       "site": "src/workbench/ai/v4/agentPanelV4Types.ts::type:ComposerMode/type-union",
       "members": [
         "idle",

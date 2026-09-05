@@ -75,6 +75,14 @@ const workbenchShell = readSource(
 const settingsDialog = readSource(
   path.join(process.cwd(), 'src/workbench/settings/SettingsDialog.tsx'),
 )
+const timelineSurface = readSource(
+  path.join(process.cwd(), 'src/workbench/ai/resident/timelineAgentSurface.tsx'),
+)
+// 面名 / 状态名 / 介入槽行 / 出错文案 / 消息样式这一族纯显示换算，2026-09-06 从壳里搬到
+// resident/residentShellDisplay.ts（壳撞上 R12 的 800 行上限）。钉的还是同一条契约，只是换了住处。
+const residentShellDisplay = readSource(
+  path.join(process.cwd(), 'src/workbench/ai/resident/residentShellDisplay.ts'),
+)
 
 describe('ProjectAgentResidentShell production contract', () => {
   it('projects one Host timeline and keeps busy queue actions in the shell', () => {
@@ -181,8 +189,12 @@ describe('ProjectAgentResidentShell production contract', () => {
     expect(resident).toContain('aria-haspopup="menu"')
     expect(residentUi).toContain('BodyPortal')
     expect(residentUi).toContain('anchorRef')
-    expect(residentCollapsedDock).toContain('data-agent-resident-collapsed="true"')
-    expect(residentCollapsedDock).toContain('rounded-pill border border-nomi-line')
+    // 收起态只有**一个**叫回入口：面板系统最右侧那条 32px 图标条（合同 §2.1）。
+    // 浮在画面右上角的那颗「叫回 Nomi」胶囊已随 2026-09-06 收官走查删除——两个入口
+    // 一个动作两个名字，还挡住画面右上角。dock 只剩浮到预览下沿的 composer。
+    expect(residentCollapsedDock).toContain('data-agent-collapsed-dock="true"')
+    expect(residentCollapsedDock).not.toContain('data-agent-resident-collapsed="true"')
+    expect(residentCollapsedDock).not.toContain('agentResident.recall')
     expect(resident).not.toContain('CreationPromptPicker')
     expect(resident).not.toContain('AssistantModelPicker')
     expect(resident).not.toContain('<select')
@@ -234,7 +246,7 @@ describe('ProjectAgentResidentShell production contract', () => {
     expect(residentTiming).toContain('residentToolElapsedMs')
     // 2026-09-05：状态→文案从三目链改成整键查表（拼 `agentResident.${key}` 会让死键门岗
     // 对整棵 agentResident 失明）。断言跟着搬到查表项上，钉的还是「declined 有自己的文案」。
-    expect(resident).toContain("declined: 'agentResident.declined'")
+    expect(residentShellDisplay).toContain("declined: 'agentResident.declined'")
     expect(residentPrimitives).toContain('data-agent-proposal-prompt')
     expect(residentPrimitives).toContain('<IconMessage')
     expect(residentGenerationEditor).toContain('ResidentBatchStack')
@@ -379,5 +391,16 @@ describe('ProjectAgentResidentShell production contract', () => {
     expect(preview).toContain('collapsedSize={EDITING_PANEL_RAIL_WIDTH}')
     expect(preview).toContain('<PanelRail')
     expect(preview).not.toContain("aiCollapsed ? '0px'")
+  })
+
+  it('portals the timeline plan preview into the editing surface, not the first timeline in the DOM', () => {
+    // WorkbenchShell 把去过的工作区都留在 DOM 里（WorkspaceSlot 只是 hidden，为的是切回去时
+    // 状态还在），于是**两条**时间轴同时挂着 `.workbench-timeline__tracks`，而生成画布那条
+    // 排在剪辑面前面且是 0×0。裸 `document.querySelector('.workbench-timeline__tracks')`
+    // 因此稳稳地拿到隐藏的那条，色带被 Portal 进一个看不见的宿主：功能"跑通了"，用户什么都看不到。
+    // 这条断言把宿主必须限定在剪辑面那棵树里钉死——它在 DOM 里看不出错，只有肉眼看得出。
+    expect(shell).toContain('<WorkspaceSlot')
+    expect(timelineSurface).toContain("'.workbench-preview .workbench-timeline__tracks'")
+    expect(timelineSurface).not.toContain("querySelector<HTMLElement>('.workbench-timeline__tracks')")
   })
 })
