@@ -154,7 +154,7 @@ test('preflight fails closed on protected, dirty, and stale task branches', asyn
   )
 })
 
-test('merged verification accepts only the exact fetched main commit, not an equivalent-tree task commit', async (t) => {
+test('merged verification accepts the current origin/main tip', async (t) => {
   const f = fixture()
   t.after(f.cleanup)
   const expectedSha = git(f.work, ['rev-parse', 'origin/main'])
@@ -162,12 +162,43 @@ test('merged verification accepts only the exact fetched main commit, not an equ
   git(f.work, ['switch', '--detach', expectedSha])
   const mergedState = inspectDeliveryState({ cwd: f.work })
   assert.doesNotThrow(() => assertMergedState(mergedState, { expectedSha }))
+  assert.equal(assertMergedState(mergedState, { expectedSha }).verificationRelation, 'tip')
+})
 
-  git(f.work, ['switch', '-c', 'codex/equivalent-tree'])
-  git(f.work, ['commit', '--allow-empty', '-m', 'metadata only'])
-  const taskState = inspectDeliveryState({ cwd: f.work })
-  assert.equal(taskState.relation, 'same-tree-different-commit')
-  assert.throws(() => assertMergedState(taskState, { expectedSha }), /HEAD is not the expected merged commit/)
+test('merged verification accepts an expected SHA that is an ancestor of the current tip', async (t) => {
+  const f = fixture()
+  t.after(f.cleanup)
+  const expectedSha = git(f.work, ['rev-parse', 'origin/main'])
+  commit(f.seed, 'remote advances', 'remote\n')
+  git(f.seed, ['push', 'origin', 'main'])
+  git(f.work, ['switch', '--detach', expectedSha])
+
+  const result = await verifyMergedDelivery({
+    cwd: f.work,
+    expectedSha,
+    repository: 'example/nomi',
+    listCheckRuns: async () => passedChecks(),
+  })
+  assert.equal(result.receipt.commitSha, expectedSha)
+  assert.equal(result.receipt.tip, git(f.work, ['rev-parse', 'origin/main']))
+  assert.equal(result.receipt.relation, 'ancestor')
+})
+
+test('merged verification rejects an expected SHA outside the fetched main ancestry', async (t) => {
+  const f = fixture()
+  t.after(f.cleanup)
+  git(f.work, ['switch', '--detach', 'origin/main'])
+  const expectedSha = commit(f.work, 'unmerged task commit', 'task\n')
+  await assert.rejects(
+    verifyMergedDelivery({
+      cwd: f.work,
+      expectedSha,
+      repository: 'example/nomi',
+      fetchRemote: async () => {},
+      listCheckRuns: async () => passedChecks(),
+    }),
+    (error) => error instanceof DeliveryError && error.code === 'expected_sha_not_ancestor',
+  )
 })
 
 function checkRun(name, conclusion, overrides = {}) {
@@ -303,6 +334,30 @@ test('merged verification waits for missing checks and never converts a failed c
     (error) => error instanceof DeliveryError && error.code === 'required_checks_failed',
   )
   assert.equal(fs.existsSync(waiting.receiptPath), false)
+})
+
+test('merged verification fails closed when required checks remain incomplete', async (t) => {
+  const f = fixture()
+  t.after(f.cleanup)
+  const expectedSha = git(f.work, ['rev-parse', 'origin/main'])
+  git(f.work, ['switch', '--detach', expectedSha])
+
+  await assert.rejects(
+    verifyMergedDelivery({
+      cwd: f.work,
+      expectedSha,
+      repository: 'example/nomi',
+      fetchRemote: async () => {},
+      listCheckRuns: async () => [
+        checkRun('Quality Gate', null, { status: 'in_progress' }),
+        checkRun('Mac Package', 'skipped'),
+      ],
+      ciTimeoutMs: 1,
+      pollIntervalMs: 1,
+      sleep: async () => {},
+    }),
+    (error) => error instanceof DeliveryError && error.code === 'required_checks_timeout',
+  )
 })
 
 test('evidence lock prevents concurrent collectors for one merged SHA', async (t) => {

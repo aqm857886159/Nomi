@@ -541,7 +541,7 @@ pnpm run delivery:verify-merged -- --expected-sha <merge-commit-sha>
 
 **分支定性先算 merge-base（2026-09-01 一日三撞的「落后假象」固化）**：评审、对账或打捞任何分支前，先 `git merge-base origin/main <branch>`；真实 authored delta = `MB..branch`。直接对 main tip 的两点视图里出现的大片删除或陌生文件，**第一假设是「main 在分支落后期间前进了」**，不是分支真要删它们；GitHub 页面的 +/- 数字与 behind 红字同理不可直接采信（实例：某评估把三点视图 +1416 当真实贡献，两点实测是 272 文件混合物；另一分支两点视图「删 14.6 万行」实为落后 1500+ commit 的反转幻影）。远落后分支的并线一律 `gh pr update-branch` 服务端做——本地 merge 后 push 的追平 diff 会撞 R25 的评审上限（15-88MB 实测）。
 
-最终交付不再本地跑第三遍：在真实 merged-main SHA 上运行 `pnpm run delivery:verify-merged -- --expected-sha <SHA>`。命令仍用有界 Git fetch 证明 `HEAD`、远端主线和 expected SHA/tree 身份，然后等待该 exact SHA 的 `Quality Gate` 与 `Mac Package` check run。GitHub required-check 语义中的 success/skipped/neutral 可写入 Git common dir 的 per-SHA `ci-evidence.json`；missing、pending、failure 或错误 SHA 都不能生成成功收据。同一 SHA 再调用直接复用收据，不启动 repository tests。
+最终交付不再本地跑第三遍：在真实 merged-main SHA 上运行 `pnpm run delivery:verify-merged -- --expected-sha <SHA>`。命令用有界 Git fetch 确认 expected SHA 对象存在且属于当前远端主线 tip 的祖先，然后等待该 exact SHA 的 `Quality Gate` 与 `Mac Package` check run；即使 main 已继续合入提交，也不需要 checkout。GitHub required-check 语义中的 success/skipped/neutral 可写入 Git common dir 的 per-SHA `ci-evidence.json`，并记录当前 `tip` 与 `relation`；missing、pending、failure、非祖先或错误 SHA 都不能生成成功收据。同一 SHA 在 tip 未变化时直接复用收据，不启动 repository tests。
 
 ## R23 React Flow 生成画布单内核与迁移等价
 
