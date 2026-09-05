@@ -9,7 +9,7 @@ import { ConnectionCertificationService, getConnectionCertificationService } fro
 import type { AdapterAuthType, ProviderAdapterModelSelection, ProviderAdapterRun } from "../providerAdapter/types";
 import type { ApprovalReceiptAuthority, HumanApprovalReceiptV1 } from "../capabilityCore/approvalReceipt";
 import type { IntegrationHandoff } from "./handoffQueue";
-import { enqueueIntegrationHandoff } from "./handoffQueue";
+import { enqueueIntegrationHandoff, retireIntegrationHandoffs } from "./handoffQueue";
 import { mutateCatalog, readCatalog, normalizeProviderKind } from "../catalog/catalogStore";
 import { decryptApiKeyRecord } from "../catalog/secrets";
 import { deriveVendorKeyFromBaseUrl } from "../catalog/catalogCommit";
@@ -140,6 +140,8 @@ type Dependencies = {
     >;
   /** Durable UI handoff sink. The session service never emits an event-only handoff. */
   enqueueHandoff?: (input: Omit<IntegrationHandoff, "requestId" | "createdAt">) => unknown;
+  /** Retires a durable handoff whose reason to exist is gone, whichever route resolved it. */
+  retireHandoff?: (sessionId: string, target: IntegrationHandoff["target"]) => unknown;
   now?: () => string;
   /** Durable reservation for native ComfyUI certification submissions. */
   comfyOperationLedger?: OperationLedger;
@@ -151,6 +153,7 @@ export function createRuntimeIntegrationSessionService(
     approvalReceiptAuthority?: Dependencies["approvalReceiptAuthority"];
     certification?: ConnectionCertificationService;
     enqueueHandoff?: Dependencies["enqueueHandoff"];
+    retireHandoff?: Dependencies["retireHandoff"];
     save?: Dependencies["save"];
     filePath?: string;
     now?: () => string;
@@ -467,6 +470,7 @@ export function createRuntimeIntegrationSessionService(
     certification,
     approvalReceiptAuthority: authority,
     enqueueHandoff: input.enqueueHandoff || enqueueIntegrationHandoff,
+    retireHandoff: input.retireHandoff || retireIntegrationHandoffs,
     save: input.save,
     now: input.now,
     credentialResolver: resolveCredential,
@@ -1114,6 +1118,9 @@ export class IntegrationSessionService {
     session.updatedAt = (this.deps.now || (() => new Date().toISOString()))();
     this.state.revision += 1;
     this.persist();
+    // Only after the credential is durably recorded. Retiring first would drop the "type a key"
+    // request on a write that then failed, leaving the user with no route back to the page.
+    this.deps.retireHandoff?.(session.id, "credential");
     return this.projection(session);
   }
 
@@ -1164,6 +1171,7 @@ export class IntegrationSessionService {
     session.updatedAt = (this.deps.now || (() => new Date().toISOString()))();
     this.state.revision += 1;
     this.persist();
+    this.deps.retireHandoff?.(session.id, "credential");
     return this.projection(session);
   }
   async propose(

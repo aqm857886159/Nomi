@@ -10,6 +10,9 @@
   提示里点名的是**这次真的被改写的那些**助手（Claude Code / Cursor / Codex / 自建 profile 走同一个修复函数），
   不写死一个「Claude Code」——只提示其中一个等于对其余用户什么都没说。
 - 补充能力核单测、真实 Electron UX 走查/宿主级 e2e，并把这条提示按实验室的两处注册表正式登记成 `host-config` 屏（基线待用户拍板）。
+- 凭据落地即收走那条持久 handoff（`markCredentialReady` / `saveCredential` 落盘之后）。此前只有 GUI 向导会
+  ack 自己那条，密钥若走 AI 客户端里的 loopback 页进来，「去填 key」的请求就永远排着，用户下次打开
+  设置→模型仍被拽回一个已经接好的供应商的添加页——把窗口推到前台之后，这个陈旧页变成用户直接撞上的东西。
 
 ## 不动项
 

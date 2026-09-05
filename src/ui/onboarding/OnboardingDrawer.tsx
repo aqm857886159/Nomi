@@ -561,11 +561,6 @@ export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPa
         initialScreen={page.initialScreen}
         existingVendorKey={page.existingVendorKey}
         integrationSessionId={page.integrationSessionId}
-        integrationHandoffRequestId={
-          integrationHandoffs.find(
-            (item) => item.sessionId === page.integrationSessionId && item.target === 'credential',
-          )?.requestId
-        }
         existingConnection={existingConnectionSummary(page.existingVendorKey)}
         onDirectScriptDraftCreated={(identity) => {
           setCustomCallTarget({ ...identity, script: '', draft: true })
