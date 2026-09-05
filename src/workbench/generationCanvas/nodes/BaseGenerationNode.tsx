@@ -600,6 +600,7 @@ function BaseGenerationNodeImpl({
           <RemoveBackgroundPendingPlaceholder title={node.title} progress={node.progress?.percent} />
         ) : (
           <PendingGenerationPlaceholder
+            kind={node.kind}
             selected={selected}
             needsFirstFrame={needsFirstFrame}
             waitingUpstream={hasFrameSourceEdge}

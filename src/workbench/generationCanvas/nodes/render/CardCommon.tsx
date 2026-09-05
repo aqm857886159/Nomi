@@ -9,10 +9,11 @@
  */
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconPlayerStop } from '@tabler/icons-react'
+import { IconBox, IconMusic, IconPhoto, IconPlayerStop, IconUpload, IconUser, IconVideo, IconMap } from '../../../../vendor/tablerIcons'
 import { cn } from '../../../../utils/cn'
 import { NomiLoadingMark } from '../../../../design'
 import i18n from '../../../../i18n'
+import { NodeEmptyState } from './NodeEmptyState'
 
 export const STRIPED_BG_CLASS =
   'bg-[repeating-linear-gradient(45deg,var(--nomi-ink-05)_0_23px,var(--nomi-ink-20)_23px_24px)]'
@@ -67,13 +68,7 @@ export function EmptyStateLauncher({
   activateAriaLabel?: string
 }): JSX.Element {
   const { t } = useTranslation()
-  const cluster = (
-    <>
-      <span className="grid size-12 place-items-center rounded-full bg-nomi-ink text-nomi-paper">{icon}</span>
-      {label ? <span className="text-body-sm font-semibold text-nomi-ink-80">{label}</span> : null}
-      {hint ? <span className="text-caption text-nomi-ink-60">{hint}</span> : null}
-    </>
-  )
+  const cluster = <NodeEmptyState icon={icon} title={label || ''} description={hint || ''} />
   if (!onActivate) {
     return <div className="flex flex-col items-center justify-center gap-2 text-center">{cluster}</div>
   }
@@ -125,16 +120,6 @@ export function VariantChip({ count }: { count: number }): JSX.Element | null {
   )
 }
 
-export function PlaceholderCenter({ label }: { label: string }): JSX.Element {
-  const { t } = useTranslation()
-  return (
-    <div className={cn('flex flex-col items-center justify-center w-full h-full gap-1 pointer-events-none')}>
-      <span className="text-body-sm font-medium text-nomi-ink-60 tabular-nums">{label}</span>
-      <span className="text-micro text-nomi-ink-40">{t('generationCommon.card.pending')}</span>
-    </div>
-  )
-}
-
 /**
  * L3: 生成节点的"待生成"占位卡。未选中时不再只显斜纹 + "等待生成"，而是给
  * 镜头序号徽标 + 标题 + 提示词首行预览，让用户一眼分清哪个镜头（J3 走查）。
@@ -149,62 +134,33 @@ export function PendingGenerationPlaceholder({
   shotIndex,
   title,
   prompt,
+  kind,
 }: {
   selected: boolean
   needsFirstFrame: boolean
-  /** 审计 A15：已连首帧/参考边、只是上游还没生成出画面——提示等待而非再喊拖图。 */
   waitingUpstream?: boolean
   shotIndex: number | null
   title?: string
   prompt?: string
-}): JSX.Element | null {
+  kind: string
+}): JSX.Element {
   const { t } = useTranslation()
-  // Keep the title and prompt visible even while the node is selected and its
-  // composer is open. Hiding the entire placeholder made a selected video
-  // shot look like an empty card, so users could not verify what they were
-  // about to generate.
-  if (needsFirstFrame) {
-    return (
-      <div data-selected-placeholder={selected ? 'true' : 'false'} className="flex w-full h-full flex-col pointer-events-none p-2.5 gap-1 overflow-hidden">
-        <NodeBodyHeader title={title} shotIndex={shotIndex} />
-        {prompt ? (
-          <span className="text-caption text-nomi-ink-60 leading-snug overflow-hidden [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] select-text cursor-text pointer-events-auto" onPointerDown={(event) => event.stopPropagation()}>
-            {prompt}
-          </span>
-        ) : null}
-        <span className="mt-auto text-micro text-nomi-ink-40 leading-relaxed">
-          {waitingUpstream ? (
-            <>
-              {t('generationCommon.card.upstreamConnected')}
-              <br />
-              {t('generationCommon.card.waitingUpstream')}
-            </>
-          ) : (
-            <>
-              {t('generationCommon.card.dragImage')}
-              <br />
-              {t('generationCommon.card.asFirstFrame')}
-            </>
-          )}
-        </span>
-        <span className="text-micro text-nomi-ink-40">{t('generationCommon.card.pendingOnDemand')}</span>
-      </div>
-    )
-  }
+  const isVideo = kind === 'video'
+  const titleText = title || (isVideo ? t('generationCommon.nodeEmpty.video.title') : t('generationCommon.nodeEmpty.image.title'))
+  const description = waitingUpstream
+    ? t('generationCommon.nodeEmpty.waiting')
+    : needsFirstFrame
+      ? t('generationCommon.nodeEmpty.firstFrame')
+      : isVideo
+        ? t('generationCommon.nodeEmpty.video.description')
+        : t('generationCommon.nodeEmpty.image.description')
   return (
-    <div data-selected-placeholder={selected ? 'true' : 'false'} className="flex w-full h-full flex-col pointer-events-none p-2.5 gap-1 overflow-hidden">
-      <NodeBodyHeader title={title} shotIndex={shotIndex} />
-      {prompt ? (
-        // 提示词是用户最常想复制的内容：穿透容器的 pointer-events-none + 覆盖 stage 的
-        // user-select:none（select-text），并 stopPropagation 防节点拖拽吃掉划选手势。
-        <span
-          className="text-caption text-nomi-ink-60 leading-snug overflow-hidden [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] select-text cursor-text pointer-events-auto"
-          onPointerDown={(event) => event.stopPropagation()}
-        >
-          {prompt}
-        </span>
-      ) : null}
-      <span className="mt-auto text-micro text-nomi-ink-40">{t('generationCommon.card.pendingOnDemand')}</span>
+    <div data-selected-placeholder={selected ? 'true' : 'false'} className="h-full w-full">
+      <NodeEmptyState
+        icon={isVideo ? <IconVideo size={20} stroke={1.6} /> : <IconPhoto size={20} stroke={1.6} />}
+        title={shotIndex != null ? `${t('generationCommon.card.shot', { index: shotIndex })} · ${titleText}` : titleText}
+        description={prompt ? `${description} ${prompt}` : description}
+      />
     </div>
   )
 }
@@ -391,10 +347,12 @@ export function UploadFallback({
   accept,
   label,
   onUpload,
+  kind = 'image',
 }: {
   accept: string
   label: string
   onUpload: (dataUrl: string, file: File) => void
+  kind?: 'image' | 'video' | 'audio' | 'character' | 'scene' | 'prop'
 }): JSX.Element {
   const { t } = useTranslation()
   const handleChange = React.useCallback(
@@ -414,16 +372,29 @@ export function UploadFallback({
   // v0.7.3 fix: 不 stopPropagation onPointerDown — 否则空卡片没法拖动。
   // 「短按弹文件框、长按拖动」由外壳 useNodeDragResize 保证：pointer capture 推迟到拖拽
   // 阈值(2px)跨过才抢——按下就抢会把 click 重定向到外壳，label 弹文件框整类失效（2026-08-03 群反馈）。
+  const isAudio = accept.startsWith('audio')
+  const isVideo = accept.startsWith('video')
+  const icon = isAudio ? <IconMusic size={20} stroke={1.6} /> : isVideo ? <IconVideo size={20} stroke={1.6} /> : kind === 'character' ? <IconUser size={20} stroke={1.6} /> : kind === 'scene' ? <IconMap size={20} stroke={1.6} /> : kind === 'prop' ? <IconBox size={20} stroke={1.6} /> : <IconPhoto size={20} stroke={1.6} />
+  const action = t('generationCommon.card.upload', { label })
+  const nodeCopy = kind === 'character'
+    ? { title: t('generationCommon.nodeEmpty.character.title'), description: t('generationCommon.nodeEmpty.character.description') }
+    : kind === 'scene'
+      ? { title: t('generationCommon.nodeEmpty.scene.title'), description: t('generationCommon.nodeEmpty.scene.description') }
+      : kind === 'prop'
+        ? { title: t('generationCommon.nodeEmpty.prop.title'), description: t('generationCommon.nodeEmpty.prop.description') }
+        : isAudio
+          ? { title: t('generationCommon.nodeEmpty.audio.title'), description: t('generationCommon.nodeEmpty.audio.description') }
+          : isVideo
+            ? { title: t('generationCommon.nodeEmpty.video.title'), description: t('generationCommon.nodeEmpty.video.description') }
+            : { title: t('generationCommon.nodeEmpty.image.title'), description: t('generationCommon.nodeEmpty.image.description') }
   return (
-    <label
-      className={cn(
-        'flex flex-col items-center justify-center w-full h-full gap-1 cursor-pointer',
-        'text-nomi-ink-60 hover:text-nomi-ink hover:bg-nomi-ink-05/50 transition-colors',
-      )}
-    >
-      <span className="text-body-sm font-medium tabular-nums pointer-events-none">
-        {t('generationCommon.card.upload', { label })}
-      </span>
+    <label className="block h-full w-full cursor-pointer text-nomi-ink-60 transition-colors hover:text-nomi-ink hover:bg-nomi-ink-05/50">
+      <NodeEmptyState
+        icon={icon}
+        title={nodeCopy.title}
+        description={nodeCopy.description}
+        action={<span className="inline-flex items-center gap-1.5 rounded-nomi-sm bg-nomi-ink px-3 py-1.5 text-caption font-medium text-nomi-paper"><IconUpload size={14} stroke={1.8} />{action}</span>}
+      />
       <input className="hidden" type="file" accept={accept} onChange={handleChange} />
     </label>
   )

@@ -25,6 +25,7 @@ import { NomiAppProviders } from '../NomiAppProviders'
 import { NomiColorSchemeProvider } from '../theme/NomiColorSchemeProvider'
 import { persistColorScheme, primeNomiColorScheme } from '../theme/colorScheme'
 import { AGENT_PANEL_STATES, findAgentPanelState, PANEL_WIDTH, type LabState } from './designLab/agentPanelStates'
+import { UI_SHELL_STATES, findUiShellState, type UiShellLabState } from './uiShellLab'
 
 const params = new URL(window.location.href).searchParams
 const screen = params.get('screen') || 'agent-panel'
@@ -137,7 +138,19 @@ function SingleState({ state }: { state: LabState }): JSX.Element {
   )
 }
 
+function UiShellState({ state }: { state: UiShellLabState }): JSX.Element {
+  React.useEffect(() => { markReady() }, [])
+  if (frameMode) return <div data-design-lab-shot={state.id} style={{ display: 'inline-block' }}>{state.render()}</div>
+  return <div style={{ padding: 16 }}><strong style={{ font: '600 13px system-ui' }}>{state.name}</strong>{state.render()}</div>
+}
+
+function UiShellLabApp(): JSX.Element {
+  const state = findUiShellState(stateId) ?? UI_SHELL_STATES[0]
+  return <UiShellState state={state} />
+}
+
 function DesignLabApp(): JSX.Element {
+  if (screen === 'ui-shell') return <UiShellLabApp />
   const state = findAgentPanelState(stateId) ?? AGENT_PANEL_STATES[0]
   if (frameMode) return <SingleState state={state} />
   return (
@@ -203,7 +216,7 @@ primeNomiColorScheme()
 // 让走查能从**活页面**读到注册表，而不是只信 `labStates.mjs` 的源码正则。
 // 两边对不上 = 解析器漂了，走查当场红——这是那把正则唯一的活性证据。
 ;(window as unknown as { __designLabStates?: readonly string[] }).__designLabStates =
-  AGENT_PANEL_STATES.map((state) => state.id)
+  (screen === 'ui-shell' ? UI_SHELL_STATES : AGENT_PANEL_STATES).map((state) => state.id)
 
 const container = document.getElementById('design-lab-root')
 if (!container) throw new Error('design lab root missing')

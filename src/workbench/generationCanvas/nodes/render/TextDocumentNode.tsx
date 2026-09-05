@@ -12,13 +12,14 @@
  */
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconGripVertical } from '@tabler/icons-react'
+import { IconGripVertical, IconWriting } from '@tabler/icons-react'
 import { EditorContent, useEditorState, type JSONContent } from '@tiptap/react'
 import { cn } from '../../../../utils/cn'
 import type { GenerationCanvasNode, TiptapDocJson } from '../../model/generationCanvasTypes'
 import { useGenerationCanvasStore } from '../../store/generationCanvasStore'
 import { useNomiRichTextEditor } from '../../../common/useNomiRichTextEditor'
 import { buildRichTextActions } from '../../../common/richTextActions'
+import { NodeEmptyState } from './NodeEmptyState'
 
 const EMPTY_DOC: JSONContent = { type: 'doc', content: [] }
 type Props = {
@@ -62,7 +63,7 @@ function TextDocumentNodeImpl({ node }: Props): JSX.Element {
 
   const { editor, tools } = useNomiRichTextEditor({
     content,
-    placeholder: t('generationCommon.textDocument.placeholder'),
+    placeholder: '',
     onChange: handleChange,
     onSelectionChange: handleSelectionChange,
   })
@@ -162,10 +163,10 @@ function TextDocumentNodeImpl({ node }: Props): JSX.Element {
           onKeyUp={(event) => event.stopPropagation()}
           onBlur={() => commitPersistedChange()}
         >
-          {showPlaceholder ? (
-            <span className="pointer-events-none absolute left-8 top-6 text-title leading-relaxed text-nomi-ink-40">
-              {t('generationCommon.textDocument.placeholder')}
-            </span>
+          {showPlaceholder && !isFocused ? (
+            <div className="pointer-events-none absolute inset-0">
+              <NodeEmptyState icon={<IconWriting size={20} stroke={1.6} />} title={t('generationCommon.nodeEmpty.text.title')} description={t('generationCommon.nodeEmpty.text.description')} />
+            </div>
           ) : null}
           <EditorContent editor={editor} />
         </section>
