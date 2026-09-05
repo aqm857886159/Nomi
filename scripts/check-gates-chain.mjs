@@ -19,6 +19,9 @@ import { fileURLToPath } from 'node:url'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
+/** gates:contracts 的执行体；它的实参就是要跑的门岗清单（见 extractScriptRefs 的说明）。 */
+const GATES_RUNNER = 'scripts/run-gates-contracts.mjs'
+
 /**
  * 蓄意不入链的 check:*——**每条都必须写清楚为什么**。
  *
@@ -60,6 +63,20 @@ function extractScriptRefs(command, knownScripts) {
     const name = match[1]
     if (knownScripts.has(name)) refs.add(name)
   }
+  // gates:contracts 的门岗清单自 2026-09-05 起是 runner 的**实参**（`node scripts/run-gates-contracts.mjs
+  // --advisory=a,b check:x check:y …`），不再是 `pnpm run x && pnpm run y` 长链——理由见该文件头
+  // （`&&` 早退把「违反 3 个门岗」变成 3 轮 CI）。这些裸名字仍然是「真的会被执行」的引用，
+  // 必须算进可达集合，否则本门岗会把整条链判成「全都不跑」。
+  //
+  // 为什么只对这一个实现文件放开裸名匹配、不做成通用规则：通用地把任何命令里出现的 check:* 都
+  // 当作「跑过了」，会在「只是提到名字」的命令上给出**假绿**——而本门岗的失败方向必须是假红。
+  // 这里的判据很紧：命令必须真的调用 runner 的实现文件，而 runner 的语义就是「把实参逐个跑掉」。
+  if (command.includes(GATES_RUNNER)) {
+    for (const token of command.split(/[\s,]+/)) {
+      const name = token.replace(/^--advisory=/, '')
+      if (knownScripts.has(name)) refs.add(name)
+    }
+  }
   return refs
 }
 
@@ -80,8 +97,14 @@ function runsSameImplementation(command, targetCommand) {
   return flags.every((flag) => command.includes(flag))
 }
 
-/** 从 gates 出发做传递闭包：链里的脚本、它们引用的脚本、再往下……全部展开。 */
-function resolveReachable(scripts, entry) {
+/**
+ * 从某个入口做传递闭包：链里的脚本、它们引用的脚本、再往下……全部展开。
+ *
+ * **导出**（2026-09-05）：可达性判据只能有一份。原先 scripts/agent-runtime-wiring.test.mjs
+ * 里另抄了一份只认 `pnpm run x` 的正则闭包，gates:contracts 改成 runner 实参后它立刻
+ * 把「typecheck 不可达」这种假红报了出来——两份判据必然漂移，正是 R14.1 要拦的。
+ */
+export function resolveReachable(scripts, entry) {
   const reachable = new Set()
   const knownScripts = new Set(Object.keys(scripts))
   const queue = [entry]
@@ -158,4 +181,5 @@ function main() {
   console.log(`✅ 门岗链完整：${allChecks.length} 个 check:* 全部可达（蓄意豁免 ${excluded.length} 个：${excluded.join('、') || '无'}）`)
 }
 
-main()
+// 被别的脚本/测试 import 时不执行 CLI（它们要的是上面的可达性判据，不是退出码）。
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main()
