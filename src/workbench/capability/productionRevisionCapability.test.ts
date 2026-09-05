@@ -1,11 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const runWorkbenchAgent = vi.fn()
+// 2026-09-05：single-shot 改走 Host 临时执行路（不产生持久化回合），请求形状在 runEphemeral 上验。
+const runEphemeral = vi.fn()
 
-vi.mock('../ai/workbenchAgentRunner', () => ({
-  runWorkbenchAgent: (...args: unknown[]) => runWorkbenchAgent(...args),
+vi.mock('../ai/projectAgentClient', () => ({
+  projectAgentClient: { runEphemeral: (...args: unknown[]) => runEphemeral(...args) },
 }))
 vi.mock('../project/workbenchProjectSession', () => ({ getActiveWorkbenchProjectId: () => 'project-1' }))
+vi.mock('../ai/projectAgentProjectionStore', () => ({
+  projectAgentProjectionStore: { getState: () => ({ snapshot: { binding: { projectId: 'project-1' } }, subscriptionId: 'subscription-test' }) },
+}))
+vi.mock('../ai/assistantModelPref', () => ({ getAssistantModelPref: () => null }))
 vi.mock('../generationCanvas/agent/runDirectionPlanner', () => ({ runDirectionPlanner: vi.fn() }))
 vi.mock('../generationCanvas/agent/runStoryboardPlanner', () => ({ runStoryboardPlanner: vi.fn() }))
 
@@ -19,11 +24,11 @@ const VALID_PLAN = {
 
 describe('production.revise-storyboard renderer seam', () => {
   beforeEach(() => {
-    runWorkbenchAgent.mockReset()
+    runEphemeral.mockReset()
   })
 
   it('asks the real planner for schema-shaped JSON and validates the returned plan', async () => {
-    runWorkbenchAgent.mockResolvedValue({ text: JSON.stringify(VALID_PLAN) })
+    runEphemeral.mockResolvedValue({ text: JSON.stringify(VALID_PLAN) })
 
     const result = await handleCapabilityApply('production.revise-storyboard', {
       projectId: 'project-1',
@@ -33,7 +38,7 @@ describe('production.revise-storyboard renderer seam', () => {
     }) as { plan?: unknown }
 
     expect(result.plan).toEqual(VALID_PLAN)
-    const request = runWorkbenchAgent.mock.calls[0][0] as Record<string, unknown>
+    const request = runEphemeral.mock.calls[0][1] as Record<string, unknown>
     expect(String(request.prompt)).toContain('只输出 JSON')
     expect(String(request.prompt)).toContain('transition')
     expect(request.skillKey).toBe('workbench.production.script-planner')
@@ -43,7 +48,7 @@ describe('production.revise-storyboard renderer seam', () => {
   })
 
   it('rejects prose instead of turning an unstructured model answer into a candidate', async () => {
-    runWorkbenchAgent.mockResolvedValue({ text: '我建议把第一镜拍得更近一些。' })
+    runEphemeral.mockResolvedValue({ text: '我建议把第一镜拍得更近一些。' })
 
     await expect(handleCapabilityApply('production.revise-storyboard', {
       projectId: 'project-1',

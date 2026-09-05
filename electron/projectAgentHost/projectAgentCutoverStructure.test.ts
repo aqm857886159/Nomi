@@ -41,8 +41,12 @@ describe("Project Agent production cutover structure", () => {
     expect(preload).not.toContain("nomi:agents:chatV2");
     expect(bridge).not.toMatch(/\bagents\s*:/);
     expect(runner).not.toContain("desktopAgentsChatStream");
-    expect(singleShot).toContain("runWorkbenchAgent");
+    // 这条钉的是「single-shot 也走 Host 传输，不回退到旧的 chatV2 渲染层通道」。
+    // 2026-09-05 起它走 Host 的**临时执行路**（projectAgentClient.runEphemeral）而不是回合流水线，
+    // 所以判据从「含 runWorkbenchAgent」改成「含 Host 客户端」——不变的仍是「不碰旧通道」。
+    expect(singleShot).toContain("projectAgentClient");
     expect(singleShot).not.toContain("sendWorkbenchAiMessage");
+    expect(singleShot).not.toContain("desktopAgentsChatStream");
     expect(exists("src/api/desktopAgentsChatStream.ts")).toBe(false);
     expect(exists("src/workbench/ai/workbenchAiClient.ts")).toBe(false);
   });

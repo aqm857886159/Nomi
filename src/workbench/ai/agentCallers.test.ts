@@ -9,8 +9,17 @@ const deps = vi.hoisted(() => ({
   landing: vi.fn(),
   captureSurface: vi.fn(),
   sealSurfaceSnapshot: vi.fn(),
+  // 2026-09-05：single-shot 改走 Host 临时执行路（不产生持久化回合），
+  // 所以这些调用方的请求形状要在 runEphemeral 上验，不再在 runWorkbenchAgent 上验。
+  ephemeral: vi.fn(),
+  binding: 'A',
 }))
 vi.mock('./workbenchAgentRunner', () => ({ runWorkbenchAgent: deps.send }))
+vi.mock('./projectAgentClient', () => ({ projectAgentClient: { runEphemeral: deps.ephemeral } }))
+vi.mock('./projectAgentProjectionStore', () => ({
+  projectAgentProjectionStore: { getState: () => ({ snapshot: { binding: { projectId: deps.binding } }, subscriptionId: 'subscription-test' }) },
+}))
+vi.mock('./assistantModelPref', () => ({ getAssistantModelPref: () => null }))
 vi.mock('../windowUrlParam', () => ({ readWindowUrlParam: () => deps.project }))
 vi.mock('../project/workbenchProjectSession', () => ({ getActiveWorkbenchProjectId: () => deps.project }))
 vi.mock('../../desktop/bridge', () => ({ getDesktopBridge: () => ({
@@ -61,6 +70,8 @@ beforeEach(() => {
   })
   deps.send.mockResolvedValue({ id: 'r', status: 'finished', text: 'actual', toolCalls: [], artifacts: [], finishReason: 'stop',
     usage: { promptTokens: 2, completionTokens: 1, cachedPromptTokens: 0, totalTokens: 3 } })
+  deps.binding = 'A'
+  deps.ephemeral.mockResolvedValue({ text: 'actual', usage: { promptTokens: 2, completionTokens: 1, cachedPromptTokens: 0, totalTokens: 3 } })
   useGenerationCanvasStore.getState().restoreSnapshot(snapshot('A-node'))
   useGenerationCanvasStore.setState({ selectedNodeIds: ['A-node'] })
   useWorkbenchStore.setState({ storyboardDesignsByDocumentId: {}, workspaceMode: 'creation' })
@@ -68,13 +79,14 @@ beforeEach(() => {
 
 describe('remaining production callers use the explicit shared Agent profile', () => {
   it('direction uses the supplied project, one-shot ephemeral history and original domain parsing', async () => {
-    deps.send.mockResolvedValueOnce({ text: JSON.stringify({ candidates }) })
+    deps.ephemeral.mockResolvedValueOnce({ text: JSON.stringify({ candidates }) })
     deps.project = 'different-ui-project'
+    deps.binding = 'explicit-project'
     expect(await runDirectionPlanner({ projectId: 'explicit-project', brief: { goal: 'launch goal' } })).toEqual({ candidates })
-    expect(deps.send).toHaveBeenCalledWith(expect.objectContaining({
+    expect(deps.ephemeral).toHaveBeenCalledWith('subscription-test', expect.objectContaining({
       projectId: 'explicit-project', featureKey: 'nomi:production-directions:explicit-project',
       capability: 'single-shot', history: { kind: 'ephemeral' },
-    }))
+    }), [])
   })
 
   it('shot verification captures project before frame extraction and keeps its image attached', async () => {
@@ -87,28 +99,29 @@ describe('remaining production callers use the explicit shared Agent profile', (
     release({ url: 'nomi-local://frame-A' })
     await judge.judge('check A', await extracting)
     expect(deps.frame).toHaveBeenCalledWith({ videoUrl: 'nomi-local://video', which: 'first', projectId: 'A' })
-    expect(deps.send).toHaveBeenCalledWith(expect.objectContaining({ projectId: 'A', featureKey: 'nomi:shot-verify:A',
+    // claim 现在是 runEphemeral 的第三个实参（主进程据此把本地帧换成可读资产），不再混在请求体里。
+    expect(deps.ephemeral).toHaveBeenCalledWith('subscription-test', expect.objectContaining({
+      projectId: 'A', featureKey: 'nomi:shot-verify:A',
       capability: 'single-shot', history: { kind: 'ephemeral' }, attachments: [
         { url: 'nomi-local://frame-A', contentType: 'image/png', fileName: 'shot-frame.png', kind: 'image' },
       ],
-      attachmentClaims: [{ assetId: 'asset-frame-A', version: 1 }],
-    }))
+    }), [{ assetId: 'asset-frame-A', version: 1 }])
   })
 
   it('refuses a local frame that has no main-owned asset identity', async () => {
     deps.assets.mockResolvedValueOnce({ items: [], cursor: null })
     await expect(makeShotVerifyDeps('A').judge('check', 'nomi-local://missing-frame'))
       .rejects.toThrow('shot_verify_frame_asset_unresolved')
-    expect(deps.send).not.toHaveBeenCalled()
+    expect(deps.ephemeral).not.toHaveBeenCalled()
   })
 
   it.each(['production.plan-script', 'production.revise-script', 'production.revise-storyboard'])('%s uses ephemeral zero-tool text capability', async (operation) => {
-    deps.send.mockResolvedValueOnce({ text: operation.endsWith('storyboard') ? JSON.stringify(plan) : 'actual script' })
+    deps.ephemeral.mockResolvedValueOnce({ text: operation.endsWith('storyboard') ? JSON.stringify(plan) : 'actual script' })
     const result = await handleCapabilityApply(operation, { projectId: 'A', runId: 'run-A', brief: { goal: 'goal' }, sourceContent: 'source', instruction: 'revise' })
     expect(result).toEqual(operation.endsWith('storyboard') ? { plan } : { text: 'actual script' })
-    expect(deps.send).toHaveBeenCalledWith(expect.objectContaining({ projectId: 'A', capability: 'single-shot',
+    expect(deps.ephemeral).toHaveBeenCalledWith('subscription-test', expect.objectContaining({ projectId: 'A', capability: 'single-shot',
       featureKey: 'nomi:production-script:A', history: { kind: 'ephemeral' },
-    }))
+    }), [])
   })
 
   it('production storyboard keeps the launch snapshot/run attribution and returns its own plan after UI project changes', async () => {
