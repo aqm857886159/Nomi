@@ -1,0 +1,10 @@
+{
+  // 设计实验室的类型检查入口。
+  //
+  // 为什么单独一份：`tsconfig.json` 只 include `src/main.tsx`，靠 import 图往外走——而实验室
+  // **刻意**不在生产入口的图里（那正是它进不了安装包的原因）。结果是实验室代码此前**一行都没被
+  // 类型检查覆盖**：一处写错的相对路径（少一层 `../`）在 tsc 下静默通过，直到 Playwright 跑了
+  // 十几分钟、整屏白屏才发现。防线要建在最早能拦住的那层（R28）——`check:design-lab` 现在先跑这一份。
+  "extends": "./tsconfig.json",
+  "include": ["src/devlab/designLab.tsx", "src/vendor/**/*.d.ts"]
+}
