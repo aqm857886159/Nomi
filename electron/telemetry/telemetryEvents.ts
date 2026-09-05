@@ -1,9 +1,8 @@
-import os from 'node:os'
+import { TELEMETRY_RESULT_VALUES, type TelemetryResult } from '../shared/contracts/telemetry'
 
 export const TELEMETRY_SCHEMA_VERSION = 1 as const
 export const TELEMETRY_EVENT_NAMES = ['app.started', 'feature.used', 'generation.completed', 'export.completed', 'update.action'] as const
 export type TelemetryEventName = typeof TELEMETRY_EVENT_NAMES[number]
-export type TelemetryResult = 'success' | 'failure' | 'cancel'
 export type DurationBucket = '<1s' | '1-5s' | '>5s'
 export type AttemptCountBucket = '1' | '2-3' | '4+'
 export type FeatureId = 'generation' | 'export' | 'storyboard' | 'timeline' | 'asset-import'
@@ -28,7 +27,7 @@ export type TelemetryEnvelope = {
 }
 
 const EVENT_SET = new Set<string>(TELEMETRY_EVENT_NAMES)
-const RESULT_SET = new Set<TelemetryResult>(['success', 'failure', 'cancel'])
+const RESULT_SET = new Set<TelemetryResult>(TELEMETRY_RESULT_VALUES)
 const DURATION_SET = new Set<DurationBucket>(['<1s', '1-5s', '>5s'])
 const ATTEMPT_SET = new Set<AttemptCountBucket>(['1', '2-3', '4+'])
 const FEATURE_SET = new Set<FeatureId>(['generation', 'export', 'storyboard', 'timeline', 'asset-import'])

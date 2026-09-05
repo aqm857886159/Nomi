@@ -1,4 +1,6 @@
 export type TelemetryStatus = 'disabled' | 'unconfigured' | 'configured'
+export const TELEMETRY_RESULT_VALUES = ['success', 'failure', 'cancel'] as const
+export type TelemetryResult = typeof TELEMETRY_RESULT_VALUES[number]
 export type TelemetrySettingsView = {
   schemaVersion: 1
   enabled: boolean

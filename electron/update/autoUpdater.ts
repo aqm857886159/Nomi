@@ -4,6 +4,7 @@ import { buildDownloadPageUrl } from "./downloadPage";
 
 import { assertTrustedSender } from "../ipcSenderGuard";
 import { recordTelemetryEvent } from "../telemetry/telemetryOutbox";
+import type { TelemetryResult } from "../shared/contracts/telemetry";
 // 版本号 + 检查更新 + 一键更新（功能需求 1/2/3）。
 // GitHub Releases provider 由 package.json build.publish 自动派生，无需额外服务器。
 // 全程用户显式触发：关自动下载 / 关退出即装，下载与安装都必须用户点（P2 用户掌控）。
@@ -26,7 +27,7 @@ const EVENT_CHANNEL = "nomi:update:event";
 const CAN_AUTO_INSTALL = process.platform !== "darwin";
 const CAN_CHECK_UPDATES = app.getName().trim().toLowerCase() === "nomi";
 
-function trackUpdate(action: "check" | "download" | "install", result: "success" | "failure" | "cancel"): void {
+function trackUpdate(action: "check" | "download" | "install", result: TelemetryResult): void {
   recordTelemetryEvent({ eventName: "update.action", props: { action, result } }, app.getVersion());
 }
 

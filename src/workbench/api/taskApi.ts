@@ -1,5 +1,6 @@
 import { getDesktopActiveProjectId } from '../../desktop/activeProject'
 import { getDesktopBridge, type DesktopBridge } from '../../desktop/bridge'
+import type { TelemetryResult } from '../../../electron/shared/contracts/telemetry'
 
 export type TaskKind =
   | 'chat'
@@ -115,7 +116,7 @@ export async function runWorkbenchTaskByVendor(vendor: string, request: TaskRequ
   const desktop = requireDesktopRuntime('task execution')
   const projectId = getDesktopActiveProjectId()
   const startedAt = typeof performance !== 'undefined' ? performance.now() : Date.now()
-  const track = (result: 'success' | 'failure' | 'cancel'): void => {
+  const track = (result: TelemetryResult): void => {
     const capability = request.kind === 'text_to_image' ? 'image' : request.kind === 'image_edit' ? 'image-edit' : request.kind === 'text_to_video' || request.kind === 'image_to_video' ? 'video' : request.kind === 'text_to_audio' ? 'audio' : request.kind === 'text_to_3d' || request.kind === 'image_to_3d' ? '3d' : null
     if (!capability) return
     const endedAt = typeof performance !== 'undefined' ? performance.now() : Date.now()

@@ -3,7 +3,7 @@ import type { TelemetrySettingsView } from '../shared/contracts/telemetry'
 import { assertTrustedSender } from '../ipcSenderGuard'
 import { deleteTelemetryData, flushTelemetry, readTelemetrySummary, recordTelemetryEvent } from '../telemetry/telemetryOutbox'
 import { isTelemetryProps, type TelemetryEventName, type TelemetryProps } from '../telemetry/telemetryEvents'
-import { clearTelemetrySession, readTelemetrySettings, telemetryEndpointConfigured, writeTelemetrySettings, type TelemetrySettings } from '../telemetry/telemetrySettings'
+import { clearTelemetrySession, readTelemetrySettings, telemetryEndpointConfigured, writeTelemetrySettings } from '../telemetry/telemetrySettings'
 
 export type { TelemetrySettingsView } from '../shared/contracts/telemetry'
 
