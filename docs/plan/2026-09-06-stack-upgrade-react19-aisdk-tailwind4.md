@@ -232,7 +232,8 @@ v4 的改动：
 | 要改 | 现状 | v4 |
 |---|---|---|
 | CLI 入口 | `require.resolve('tailwindcss/package.json')` → `lib/cli.js` | CLI 搬去独立包 `@tailwindcss/cli`，`build-tailwind.mjs` 的解析逻辑必须重写 |
-| 配置形态 | `tailwind.config.ts`（723 行，含一个注入全部 `--nomi-*` token 的 `addBase` 插件 + `darkMode` selector + `safelist` + `content`） | v4 是 CSS-first。**但 v4 仍支持 `@config "./tailwind.config.ts"` 加载 JS 配置** ← 这是本次的关键退路 |
+| 配置形态 | `tailwind.config.ts`（740 行，含一个注入全部 `--nomi-*` token 的 `addBase` 插件 + `darkMode` selector + `safelist` + `content`） | v4 是 CSS-first。**但 v4 仍支持 `@config "./tailwind.config.ts"` 加载 JS 配置** ← 这是本次的关键退路 |
+| **`content` 扫描面** | 显式列 `./src/**/*.tsx` **和** `./src/**/*.ts`（2026-09-06 才补上 `.ts`，此前 4 处类名一直静默失效） | v4 改成**自动检测**（尊重 `.gitignore`、跳过二进制），显式白名单换成 `@source` / `@source not` |
 | 入口 CSS | `src/styles/index.css` 开头三行 `@import 'tailwindcss/base' / 'components' / 'utilities'` | 合成一行 `@import "tailwindcss"` |
 | `autoprefixer` | postcss 里显式挂 | v4 内置，应当删掉（P1：加新必删旧） |
 
@@ -241,7 +242,9 @@ v4 的改动：
 - `scripts/check-dangling-tailwind.mjs:146` —— `fs.readFileSync('tailwind.config.ts')`，然后手写括号匹配去抠 `theme.extend` 的键名，双向校验「类名引用了不存在的 token 键」和「定义了 token 却没出口」。
 - `scripts/check-design-tokens.mjs:95/137` —— 把 `tailwind.config.ts` 和 `.css` 一起扫，做 `color-mix(in oklch)` 色相漂移检查和「语义 token 困在作用域里」检查。
 
-把 token 搬进 `@theme` 会让这两个门岗**同时失明**。它们各自都是从真事故里长出来的（`text-nomi-ink-70` 静默失效、`--workbench-success-ink` 全 App 10 处绿字掉色、accent 色相被 oklch 插值拽成粉/橄榄绿）。所以顺序必须是：**先让 v4 在 JS 配置下跑绿 → 再单独立一项把配置搬进 CSS 并同步重写这两个门岗**。绝不能一步做完。
+还有第三条，比门岗更硬：**`.ts` 扫描面这个不变量必须原样活过去。** 2026-09-06 刚发现 `content` 只列 `.tsx` 时，住在 `.ts` 里的类名会**完全静默地**不生成——全仓盘出 4 处一直失效的真样式（浮窗八个 resize 手柄的定位、画布分组的半透明底与拖放描边、生成钮禁用底色、预览控制条禁用态 hover），教训见 `docs/lessons/tailwind-content-ts-classnames-silently-dropped.md`。守它的是 `scripts/build-tailwind.test.ts`（真跑一次 Tailwind，断言只在 `.ts` 里出现的哨兵类进了 CSS，并带 vacuity 守卫）。**v4 换成自动检测后，这条测试必须继续绿**——它是判断「新扫描面有没有偷偷缩回去」的唯一信号，且这个坑没有别的信号。
+
+把 token 搬进 `@theme` 会让前两个门岗**同时失明**。它们各自都是从真事故里长出来的（`text-nomi-ink-70` 静默失效、`--workbench-success-ink` 全 App 10 处绿字掉色、accent 色相被 oklch 插值拽成粉/橄榄绿）。所以顺序必须是：**先让 v4 在 JS 配置下跑绿 → 再单独立一项把配置搬进 CSS 并同步重写这两个门岗**。绝不能一步做完。
 
 ### 5.3 Tailwind 4 对我们意外便宜的地方
 
@@ -297,9 +300,10 @@ v4 的改动：
 - **回滚**：单 PR revert；`public/tailwind.generated.css` 是产物不是源，回滚即重建。
 - **验收门**：
   1. `pnpm run check:tokens` + `check:dangling-tokens` + `check:dangling-tailwind` 三个 token 门岗**必须仍然工作**——不是「跑绿」，是**先故意写一个 `text-nomi-ink-70` 验证它会红**，再撤掉（R17 那条「加规则必须先验它会红」的同款要求）
-  2. **45 张视觉基线逐张过**，这一步是四步里唯一预期会红的；每一张红都要拿 `-diff` 图判断是「预期的重命名后果」还是「真回归」，判完才更新基线
-  3. 光/暗双模式 + 真实旅程 J1–J5 + 163 条走查里的可视一族
-  4. `pnpm run gates`
+  2. `scripts/build-tailwind.test.ts` 必须绿，且同样验一次会红：把 v4 的扫描面故意缩回只认 `.tsx` → 三个哨兵类应当从 CSS 里消失、测试报红
+  3. **45 张视觉基线逐张过**，这一步是四步里唯一预期会红的；每一张红都要拿 `-diff` 图判断是「预期的重命名后果」还是「真回归」，判完才更新基线
+  4. 光/暗双模式 + 真实旅程 J1–J5 + 163 条走查里的可视一族
+  5. `pnpm run gates`
 
 ---
 
