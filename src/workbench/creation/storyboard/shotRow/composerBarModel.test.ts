@@ -74,11 +74,11 @@ describe('shotComposerBar', () => {
    * 这条断言就是"别另造一套"的机器判据——档案改了两边同时跟着改，谁都别写第二张映射表。
    */
   it('与画布节点 composer 同一集合（差集只有画幅与时长两个另有 owner 的键）', () => {
+    const modelKey = 'bytedance/seedance-2-5'
     const option: ModelOption = {
-      value: 'seedance-2-5', label: 'Seedance 2.5', vendor: 'kie', vendorName: 'kie',
-      modelKey: 'bytedance/seedance-2-5',
+      value: 'seedance-2-5', label: 'Seedance 2.5', vendor: 'kie', vendorName: 'kie', modelKey,
     }
-    const archetype = resolveArchetypeForModel({ modelKey: option.modelKey })
+    const archetype = resolveArchetypeForModel({ modelKey, vendorKey: option.vendor })
     const mode = archetype?.modes.find((candidate) => candidate.id === 'first')
     expect(mode).toBeTruthy()
 
