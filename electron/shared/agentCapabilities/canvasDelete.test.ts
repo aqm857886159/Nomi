@@ -10,7 +10,7 @@ import {
 describe("canvas.delete capability", () => {
   it("is a distinct destructive proposal contract", () => {
     expect(CANVAS_DELETE_CAPABILITY.effect).toBe("destructive");
-    expect(CANVAS_DELETE_CAPABILITY.approval).toBe("proposal");
+    expect(CANVAS_DELETE_CAPABILITY.effectClass).toBe("irreversible");
     expect(CANVAS_DELETE_CAPABILITY.execution.port).toBe("canvas");
     expect(canvasDeleteInputForAlias("delete_canvas_nodes", { nodeIds: ["node-1"] })).toEqual({
       operation: "delete_canvas_nodes",

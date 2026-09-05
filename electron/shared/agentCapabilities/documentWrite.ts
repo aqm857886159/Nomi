@@ -48,6 +48,7 @@ export const DOCUMENT_WRITE_CAPABILITY = {
   inputSchema: documentWriteSemanticInputSchema,
   outputSchema: documentWriteResultSchema,
   effect: "reversible_write",
+  effectClass: "reversible_local",
   execution: {
     port: "document",
     availability: "renderer_required",
@@ -55,7 +56,6 @@ export const DOCUMENT_WRITE_CAPABILITY = {
   exposure: "mcp_safe",
   requiredScope: "document:write",
   targetKind: "document",
-  approval: "proposal",
   projections: {
     pi: {
       description: "Propose an insertion, selection replacement, or append to the current creation document.",

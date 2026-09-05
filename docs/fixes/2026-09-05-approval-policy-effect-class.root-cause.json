@@ -1,0 +1,134 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-05-approval-policy-effect-class",
+  "problem_type": "Host approval classification guessed side effects from tool and operation names",
+  "symptom": "Architecture review reproduced ten wrong approval decisions in thirteen Project Agent examples: reversible canvas/document/timeline actions were gated, undo was gated, and timeline preview was gated while the real write was allowed.",
+  "direct_cause": "projectAgentExecutionPolicy.ts used hardGatePattern and safePattern regexes over renamed aliases instead of resolving the registered capability descriptor.",
+  "class_root": "The Host had no shared side-effect-class invariant connecting every capability alias and operation to the approval policy, so alias renames and mixed-operation tools silently changed the safety decision.",
+  "affected_population": [
+    "Project Agent Host tool calls using registered capability aliases",
+    "M2 semantic aliases and mixed-operation tools such as nomi_canvas_maintenance",
+    "Legacy and new queued turns using the step/safe-auto/project approval policy modes"
+  ],
+  "scope_paths": [
+    "electron/projectAgentHost/projectAgentExecutionPolicy.ts",
+    "electron/projectAgentHost/projectAgentExecutionPolicy.test.ts",
+    "electron/shared/agentCapabilities/capabilityContract.ts",
+    "electron/shared/agentCapabilities/registry.ts",
+    "electron/shared/agentCapabilities/assetRead.ts",
+    "electron/shared/agentCapabilities/canvasDelete.ts",
+    "electron/shared/agentCapabilities/canvasRead.ts",
+    "electron/shared/agentCapabilities/canvasWrite.ts",
+    "electron/shared/agentCapabilities/documentRead.ts",
+    "electron/shared/agentCapabilities/documentWrite.ts",
+    "electron/shared/agentCapabilities/exportCapabilities.ts",
+    "electron/shared/agentCapabilities/generation.ts",
+    "electron/shared/agentCapabilities/productionRun.ts",
+    "electron/shared/agentCapabilities/skillRead.ts",
+    "electron/shared/agentCapabilities/skillWrite.ts",
+    "electron/shared/agentCapabilities/timelineRead.ts",
+    "electron/shared/agentCapabilities/timelineWrite.ts",
+    "electron/shared/projectAgentContracts.ts"
+  ],
+  "entry_points": [
+    "projectAgentExecutionRisk(toolName, args)",
+    "projectAgentMayReuseSafeApproval(policy, toolName, args, safeApprovalGranted)",
+    "projectAgentWorkModeDecision(mode, toolName, args)",
+    "resolveCapabilityAlias(toolName) and operationEffectClasses"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "This is an internal Nomi capability-contract invariant; the repository design contract and architecture review define the policy, while no third-party runtime controls the classification.",
+  "invariants": [
+    "Every registered capability descriptor declares one effectClass from reversible_local, spend, or irreversible.",
+    "Host policy resolves effectClass from the canonical alias and explicit operation map; it never infers side effects from names.",
+    "Unknown aliases fail closed and spend/irreversible actions remain per-action confirmation gates in every approval mode.",
+    "The factory default is safe-auto for reversible local actions and confirm for spend/irreversible actions."
+  ],
+  "generality_proof": "All Project Agent aliases converge through CAPABILITY_ALIAS_ENTRIES and resolveCapabilityEffectClass before the Host decision. Operation overrides cover mixed-operation descriptors such as canvas.delete, so future aliases cannot bypass the same boundary; the required effectClass field makes an omitted declaration a type error.",
+  "shared_boundaries": [
+    {
+      "path": "electron/shared/agentCapabilities/capabilityContract.ts",
+      "symbol": "CapabilityContract.effectClass",
+      "responsibility": "Require the closed effectClass vocabulary on every capability descriptor and permit explicit operation-level overrides for mixed tools."
+    },
+    {
+      "path": "electron/shared/agentCapabilities/registry.ts",
+      "symbol": "resolveCapabilityEffectClass",
+      "responsibility": "Resolve the canonical descriptor and operation override for every Host tool call."
+    },
+    {
+      "path": "electron/projectAgentHost/projectAgentExecutionPolicy.ts",
+      "symbol": "projectAgentMayReuseSafeApproval",
+      "responsibility": "Map effectClass and the three user approval modes to whether a confirmation card is required; fail closed for unknown, spend, and irreversible calls."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/projectAgentHost/projectAgentExecutionPolicy.ts",
+      "entry_point": "projectAgentExecutionRisk",
+      "disposition": "enforced",
+      "evidence": "The Host coordinator uses this result for the legacy hard-gate/reversible distinction, and it now derives solely from resolveCapabilityEffectClass."
+    },
+    {
+      "path": "electron/projectAgentHost/projectAgentExecutionCoordinator.ts",
+      "entry_point": "awaitToolDecision via projectAgentMayReuseSafeApproval",
+      "disposition": "enforced",
+      "evidence": "All write adapters call the shared decision helper before prepare/execute; safe-auto/project local actions bypass the card while spend/irreversible actions still publish tool-call events."
+    },
+    {
+      "path": "electron/projectAgentHost/projectAgentTurnExecution.ts",
+      "entry_point": "awaitToolConfirmation",
+      "disposition": "enforced",
+      "evidence": "Read adapters remain ahead of the approval boundary, while every prepared write delegates its decision to the Host policy helper."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any renamed alias, newly added capability, or mixed-operation tool could reproduce the same silent misclassification while the old regex remained a second safety vocabulary.",
+    "same_class_scan": [
+      "rg projectAgentExecutionRisk/projectAgentMayReuseSafeApproval across electron/projectAgentHost and coordinator callers",
+      "rg CapabilityContract/effect/approval across electron/shared/agentCapabilities and capabilityCore projection tests",
+      "Reviewed all CAPABILITY_CONTRACTS registry entries and the mixed nomi_canvas_maintenance and nomi_canvas_plan aliases"
+    ]
+  },
+  "prevention": {
+    "kind": "type-system",
+    "enforcement_path": "electron/projectAgentHost/projectAgentExecutionPolicy.ts",
+    "invariant": "A Host decision must resolve a declared descriptor effectClass or fail closed; no tool-name or operation-name regex may classify a call.",
+    "failure_mode": "A missing descriptor effectClass fails TypeScript compilation; an unknown alias or operation uses the hard gate and cannot auto-run.",
+    "exception_policy": "none",
+    "strategy": "Make effectClass required at the descriptor boundary, derive aliases through the canonical registry, and keep the only mixed-operation exception as an explicit descriptor map.",
+    "artifacts": [
+      "electron/projectAgentHost/projectAgentExecutionPolicy.ts",
+      "electron/shared/agentCapabilities/capabilityContract.ts",
+      "electron/shared/agentCapabilities/registry.ts",
+      "electron/projectAgentHost/projectAgentExecutionPolicy.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/projectAgentHost/projectAgentExecutionPolicy.test.ts",
+    "electron/shared/agentCapabilities/registry.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/projectAgentHost/projectAgentExecutionPolicy.test.ts",
+    "electron/shared/agentCapabilities/registry.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/projectAgentHost/projectAgentExecutionPolicy.ts",
+      "electron/shared/agentCapabilities/capabilityContract.ts"
+    ],
+    "rationale": "The regex vocabulary and zero-consumer CapabilityApproval field were second sources of approval truth; both are deleted in the same change as the descriptor effectClass boundary."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The invariant is owned by Nomi TypeScript descriptors and Host policy; no third-party dependency controls it.",
+    "exit_criteria": []
+  },
+  "migration": "Existing queued turns retain the step/safe-auto/project mode strings. Missing approvalPolicy snapshots still normalize through projectAgentApprovalPolicyOf, whose factory default is now safe-auto with spend confirm; no persisted effectClass data needs migration because it is descriptor-owned.",
+  "residual_risks": [
+    "UI controls for changing the approval mode are outside this Host-only change and remain on the existing design track.",
+    "The full Electron real-user approval journey is covered by existing coordinator tests; no paid provider or API key was used in this fix."
+  ]
+}

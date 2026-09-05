@@ -476,6 +476,7 @@ export const CANVAS_WRITE_CAPABILITY = {
   aliases: {
     pi: CANVAS_WRITE_ALIASES.setNodePrompt,
     mcp: "nomi_canvas_edit",
+    ui: "nomi_canvas_plan",
   },
   additionalAliases: {
     pi: Object.freeze(Object.values(CANVAS_WRITE_OPERATION_ALIASES)),
@@ -483,6 +484,18 @@ export const CANVAS_WRITE_CAPABILITY = {
   inputSchema: canvasWriteSemanticInputSchema,
   outputSchema: canvasWriteResultSchema,
   effect: "reversible_write",
+  effectClass: "reversible_local",
+  operationEffectClasses: Object.freeze({
+    create_canvas_nodes: "reversible_local",
+    connect_canvas_edges: "reversible_local",
+    tidy_canvas: "reversible_local",
+    propose_storyboard_plan: "reversible_local",
+    patch_shots: "reversible_local",
+    arrange_storyboard_to_timeline: "reversible_local",
+    create_staging_reference: "reversible_local",
+    create_camera_move: "reversible_local",
+    set_node_prompt: "reversible_local",
+  }),
   execution: {
     port: "canvas",
     availability: "renderer_required",
@@ -490,7 +503,6 @@ export const CANVAS_WRITE_CAPABILITY = {
   exposure: "mcp_safe",
   requiredScope: "canvas:write",
   targetKind: "canvas",
-  approval: "proposal",
   projections: {
     pi: {
       description: "Propose an exact, reversible prompt update to one generation canvas node.",

@@ -12,9 +12,9 @@ import {
 describe("export capability contracts", () => {
   it("separates read facts from approved task mutation", () => {
     expect(EXPORT_READ_CAPABILITY.effect).toBe("read");
-    expect(EXPORT_READ_CAPABILITY.approval).toBe("none");
+    expect(EXPORT_READ_CAPABILITY.effectClass).toBe("reversible_local");
     expect(EXPORT_WRITE_CAPABILITY.effect).toBe("destructive");
-    expect(EXPORT_WRITE_CAPABILITY.approval).toBe("proposal");
+    expect(EXPORT_WRITE_CAPABILITY.effectClass).toBe("irreversible");
     expect(exportReadInputForAlias("inspect_export_job", { jobId: "job-1" })).toEqual({
       operation: "inspect_export_job",
       jobId: "job-1",

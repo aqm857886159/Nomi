@@ -293,11 +293,11 @@ export const TIMELINE_READ_CAPABILITY = {
   inputSchema: timelineReadSemanticInputSchema,
   outputSchema: timelineReadResultSchema,
   effect: "read",
+  effectClass: "reversible_local",
   execution: { port: "timeline", availability: "renderer_required" },
   exposure: "mcp_safe",
   requiredScope: "timeline:read",
   targetKind: "timeline",
-  approval: "none",
   projections: {
     pi: { description: "Read and preview the current project timeline." },
     mcp: { description: "Read the project timeline or a bounded frame range." },

@@ -52,11 +52,12 @@ export const CANVAS_DELETE_CAPABILITY = {
   inputSchema: canvasDeleteSemanticInputSchema,
   outputSchema: canvasDeleteResultSchema,
   effect: "destructive",
+  effectClass: "irreversible",
+  operationEffectClasses: Object.freeze({ undo_canvas_delete: "reversible_local" }),
   execution: { port: "canvas", availability: "renderer_required" },
   exposure: "mcp_safe",
   requiredScope: "canvas:write",
   targetKind: "canvas",
-  approval: "proposal",
   projections: {
     pi: { description: "Delete exact Canvas nodes after explicit approval." },
     mcp: { description: "Confirm or undo destructive Canvas maintenance." },
