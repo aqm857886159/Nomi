@@ -1,3 +1,4 @@
 2026-09-06T$(date +%H:%M:%S%z) plan worktree initialized
 2026-09-06T03:12:07+0800 plan and docs index written
 2026-09-06T03:12:52+0800 doc status marker added and source paths made explicit
+2026-09-05T19:25:07Z	plan self-review complete; stale path and legacy badge/toolbar deletion boundary corrected

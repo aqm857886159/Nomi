@@ -6,7 +6,7 @@
 
 **Goal:** 把视频拆解结果从右侧 Portal 面板和默认铺图，重做成一个自持于画布 Zustand store 的「视频拆解表」画布节点；用户只选择要用的行，生成物才逐个落到画布并自动编组，Agent 只投影同一份数据。
 
-**Architecture:** 视频拆解表是 `GenerationCanvasNode` 的新节点类型，表节点的行、关键帧、来源视频引用、选中状态和生成关联都进入画布文档快照；Zustand 画布 store 是业务与持久化真相源，React Flow 只负责交互投影。拆解分析是可撤销的本地/外部分析写入，选行生成单独经过现有 `nomi_operation_*` / `ProductionRun` 生产链，结果通过 canvas landing 渐进出现并打组；Agent 面板读取同一节点投影并提供「在画布中查看」。
+**Architecture:** 视频拆解表是 `GenerationCanvasNode` 的新节点类型，表节点的行、关键帧、来源视频引用、选中状态和生成关联进入画布文档快照；Zustand 画布 store 是业务与持久化真相源，React Flow 只负责交互投影。拆解分析是可撤销的本地/外部分析写入，选行生成统一经过现有 `nomi_operation_*` 与其 ProductionRun owner，结果通过 canvas landing 渐进出现并打组；Agent 面板读取同一节点投影并提供「在画布中查看」。
 
 **Tech Stack:** Electron + React 18 + Zustand/Immer + React Flow + Vercel AI SDK + MCP capability catalog + `ProductionRunService`。
 
@@ -43,6 +43,8 @@
 - 生成物逐个落画布、按这次批次自动成组、带来源边/来源元数据；整批生成仍是一个可撤销单元，符合 `batch-output-appears-progressively-and-grouped`。
 - 创作区「分镜计划」和画布「视频拆解表」是两个对象。阶段二只做一个动作：把选定行拷贝为一次性分镜计划草稿；不做双向同步、不把两张表合成一个语义。
 - V-08 字幕提取由 Agent Skill 完成；表中可显示拆解引擎已有的 `onScreenText`/`dialogue` 证据，但不创建字幕节点。
+
+阶段二只增加一个转换动作：`video_deconstruction_table` 的选定行 → 一次性 `storyboard plan` 草稿。转换复制 rowId、时间、关键帧引用、提示词和来源引用，生成新的 plan revision；表和分镜计划之后各自编辑，禁止双向同步。
 
 ### 2.2 不动项
 
@@ -88,13 +90,13 @@ type VideoDeconstructionTableDocument = {
   rows: VideoDeconstructionRow[]
   selectedRowIds: string[]
   generationBatches: VideoDeconstructionGenerationBatch[]
-  error?: DeconstructionError
+  error?: { code: string; message: string; retryable: boolean }
   legacySource?: 'video-node-meta'
   updatedAt: string
 }
 ```
 
-`status` 是设计实验室和 Agent 任务卡的投影词表；`selected` 由 `selectedRowIds.length > 0` 且没有生成批次正在运行时派生，避免 store 出现「状态字段和选择数组互相打架」。`selectedRowIds` 仍写进画布文档，重启后用户能看到上次要用的行；画布的 `selectedNodeIds` 仍是 React Flow 会话选区，不与行选择混用。
+`status` 是设计实验室和 Agent 任务卡的投影词表；`selected` 不是存储字段，而是由 `selectedRowIds.length > 0` 且没有生成批次正在运行时派生。`selectedRowIds` 是唯一的行选择真相源，仍写进画布文档，重启后用户能看到上次要用的行；画布的 `selectedNodeIds` 仍是 React Flow 会话选区，不与行选择混用。
 
 ### 4.2 来源视频引用
 
@@ -131,14 +133,8 @@ type VideoDeconstructionRow = {
   motionPrompt: string
   custom: Record<string, string>
   keyframes: VideoDeconstructionKeyframe[]
-  selected: boolean
-  generation: {
-    status: 'idle' | 'queued' | 'running' | 'ready' | 'failed'
-    runId?: string
-    outputNodeIds?: string[]
-    errorCode?: string
-    errorMessage?: string
-  }
+  /** Row selection is represented only by VideoDeconstructionTableDocument.selectedRowIds. */
+  vision?: { failed: boolean; errorCode?: string; errorMessage?: string }
 }
 
 type VideoDeconstructionKeyframe = {
@@ -152,7 +148,7 @@ type VideoDeconstructionKeyframe = {
 }
 ```
 
-字段来自 `electron/video/deconstructVideo.ts` 的 `DeconstructShot` 投影；`visionFailed` 进入行级错误/证据标记，不能被转成成功；`selected` 与 `selectedRowIds` 双写时由 reducer 同步校验，任何不一致以 `selectedRowIds` 重建派生视图。关键帧不进入顶层节点数组，所以「一行一镜」在数据和视觉上都成立。
+字段来自 `electron/video/deconstructVideo.ts` 的 `DeconstructShot` 投影；`visionFailed` 进入行级错误/证据标记，不能被转成成功。行级生成状态、runId 和输出节点 id 由 `generationBatches` + canvas/ProductionRun projection 派生，不在行内再存一套状态。关键帧不进入顶层节点数组，所以「一行一镜」在数据和视觉上都成立。
 
 ### 4.4 表列、选择和批次
 
@@ -189,13 +185,13 @@ type VideoDeconstructionGenerationBatch = {
 | 画布 store slice | `src/workbench/generationCanvas/store/canvasDeconstructionTableActions.ts` | 创建表、写入结果、编辑行/列、选择行、建立批次、撤销边界；通过现有 canvas write boundary 接入 `generationCanvasStore`。 |
 | 节点投影 | `src/workbench/generationCanvas/nodes/VideoDeconstructionTableNode.tsx`、`VideoDeconstructionTableRow.tsx`、`VideoDeconstructionTableStates.tsx` | React Flow 节点外壳、表格/行、六种实验室状态；不调用主进程、不自持业务状态。 |
 | 画布持久化/迁移 | `src/workbench/generationCanvas/store/canvasSnapshotNormalizer.ts`、项目 session persistence 就近模块、`VideoDeconstructionTableMigration.ts` | 新 kind 白名单、旧 video meta 一次性迁移、重启归一化；不保留旧面板分支。 |
-| 分析桥 | `src/workbench/generationCanvas/deconstruction/videoDeconstructionBridge.ts`、`electron/video/deconstructVideo.ts` 现有 bridge | 输入 source reference + column schema，输出经过 schema 校验的 rows；失败和逐行失败都结构化。 |
+| 分析桥 | `src/workbench/generationCanvas/deconstruction/videoDeconstructionBridge.ts`、`electron/video/deconstructVideo.ts` 现有 bridge | 输入 source reference + column schema，输出经过 schema 校验的 rows；失败和逐行失败都结构化。共享输入/输出类型放 `electron/shared/canvas/videoDeconstructionTable.ts`，避免 renderer 反向 import 主进程。 |
 | 生成编排 | `src/workbench/generationCanvas/deconstruction/deconstructionGeneration.ts`、`electron/productionRun/deconstructionGeneration.ts` | 选行批次快照、ProductionRun plan、来源元数据、渐进 landing；不直接调 provider。 |
 | Agent/MCP 适配 | `src/workbench/generationCanvas/agent/videoDeconstructionCanvasAdapter.ts`、`electron/capabilityCore/mcpToolCatalog.ts`、`electron/shared/agentCapabilities/canvasWrite.ts` | canonical `nomi_*` schema、租约/确认/回执、画布读写投影；不另造 transcript store。 |
-| Agent 结果卡 | `src/workbench/agent/VideoDeconstructionTaskCard.tsx`（沿现有 Agent result card 目录） | 只读同一表节点，展示任务/失败/进度，按钮只发「在画布中查看」深链。 |
+| Agent 结果卡 | `src/workbench/ai/resident/VideoDeconstructionTaskCard.tsx`（沿现有 Resident result card 目录） | 只读同一表节点，展示任务/失败/进度，按钮只发「在画布中查看」深链。 |
 | 测试 | 各层就近 `*.test.ts(x)` + `tests/ux/` 真实旅程 | 领域/持久化/MCP/ProductionRun/真实 Electron 逐层验证；不以 store injection 代替真实任务。 |
 
-旧 `NodeDeconstructionPanel.tsx`、`DeconstructionPanelHost.tsx`、`DeconstructionShotRow.tsx`、`extractDeconstructionShotsToNodes.ts` 和 `videoDeconstructionOpenNodeId/videoDeconstructions` 互斥状态必须在新节点的同一提交删除或完全迁移；删除后 `rg` 不得再出现旧右槽入口。所有新增实现文件保持职责单一，任何接近 800 行的节点壳必须拆成 states/row/toolbar 子模块。
+旧 `NodeDeconstructionPanel.tsx`、`DeconstructionPanelHost.tsx`、`DeconstructionShotRow.tsx`、`NodeDeconstructionBadge.tsx`、`extractDeconstructionShotsToNodes.ts` 和 `videoDeconstructionOpenNodeId/videoDeconstructions` 互斥状态必须在新节点的同一提交删除或完全迁移；视频节点工具栏 `NodeVideoFrameToolbar.tsx` 只保留仍有归属的抽帧/镜头切分动作，移除旧的右槽拆解按钮；删除后 `rg` 不得再出现旧右槽入口。所有新增实现文件保持职责单一，任何接近 800 行的节点壳必须拆成 states/row/toolbar 子模块。
 
 ## 6. `nomi_*` MCP 与 Agent 接口
 
@@ -222,9 +218,9 @@ patch_video_deconstruction_table
 ### 6.3 选行生成的工具链
 
 - Agent 先 `nomi_read(target=canvas)` 读取表 revision 和 `selectedRowIds`；若用户在对话中明确选行，先用 `patch_video_deconstruction_table` 写选择，再让用户看到任务卡。
-- 生成计划走 `nomi_operation_plan` 的 `shots[]`，每个 shot candidate 带 `metadata: { sourceKind: 'video_deconstruction_table', tableNodeId, rowId, sourceVideoRef, keyframeRefs }`。计划只是草稿，不调用 provider、不花额度。
+- 生成计划走 `nomi_operation_plan` 的 `shots[]`，每个 shot 带 typed source envelope `{ kind: 'video_deconstruction_table', tableNodeId, rowId, tableRevision, sourceVideo, keyframeRefs }`。计划只是草稿，不调用 provider、不花额度；不把来源塞进 prompt 字符串。
 - `nomi_operation_preview` 展示模型/模式/参数/参考和价格；`nomi_operation_gate` request/decide 走现有真人确认与收据；`nomi_operation_execute` 只在收据有效后提交。单镜生成仍复用这条 canonical single-shot seam。
-- 多行、可暂停、可重启的批次使用 `nomi_run_start` 建 ProductionRun，再由 `nomi_read(target=run|run_events)` 读任务卡，`nomi_run_gate` 处理创意门/物化，`nomi_run_control` pause/resume/cancel。任何预算门、付费生成和导出门仍由 Nomi 控制。
+- 多行、可暂停、可重启的 operation 仍由现有 generation operation store 绑定同一个 ProductionRun；Agent 用 `nomi_read(target=run|run_events)` 读任务卡，必要时用 `nomi_run_control` pause/resume/cancel。`nomi_run_start`/`nomi_run_gate` 继续服务普通 brief/storyboard playbook，不为拆解表开第二条入口。任何预算门、付费生成和导出门仍由 Nomi 控制。
 - `nomi_canvas_maintenance` 只处理删除/撤销等 destructive 操作，不能绕过生成收据；`nomi_artifact_review` 只用于分镜计划 artifact，不把表节点冒充 storyboard artifact。
 
 ### 6.4 Agent 面板投影
@@ -237,7 +233,7 @@ Agent 面板任务卡只持有 `{ tableNodeId, batchId?, runId?, status, summary
 
 ### 7.1 输入与身份
 
-在 `ProductionGenerationShot` 上增加可选、结构化的来源字段（而不是把来源散落在 prompt 字符串）：
+在 `ProductionGenerationShot` 上增加可选、结构化的来源字段；该字段由 `nomi_operation_plan` 的 shots schema 透传并由 ProductionRun 校验（而不是把来源散落在 prompt 字符串）：
 
 ```ts
 type DeconstructionGenerationSource = {
@@ -252,14 +248,14 @@ type DeconstructionGenerationSource = {
 source?: { kind: 'video_deconstruction_table'; deconstruction: DeconstructionGenerationSource }
 ```
 
-`createGenerationDraft({ projectId, operationId, candidate, shots })` 接收选中行快照；每个 shot 的 `candidate` 从该行的 `imagePrompt`/`motionPrompt` 和模型档案编译，`included: true`，`role: 'shot'`。服务端校验 table revision/source project，拒绝重复 row id、空选择和跨项目 source ref。
+`createGenerationDraft({ projectId, operationId, candidate, shots })` 接收选中行快照；每个 shot 的 `candidate` 从该行的 `imagePrompt`/`motionPrompt` 和模型档案编译，`included: true`，`role: 'shot'`，并带 `source`。服务端校验 table revision/source project，拒绝重复 row id、空选择和跨项目 source ref；MCP schema 与 internal type 必须在同一 canonical adapter 归一。
 
 ### 7.2 批次和门
 
 - plan draft 生成后，服务端按现有 `productionRunService`/repository revision 写入 Run；不在 renderer 里另建“生成中”状态机。
 - 预算/付费门沿用 `budget_envelope` 和 approval receipt；`anchor_checkpoint` 语义只在确有锚镜时出现，拆解表三行生成默认不添加锚门。
 - `RunEvent` 的 `stageId/jobId/artifactId/payload` 带 `tableNodeId/rowId/batchId`，Host 可把每一行映射为任务卡，不用猜 prompt。
-- 失败时保留之前成功的结果，行进入 `generation.status='failed'` 并保存 `errorCode/errorMessage`；重试产生新 attempt，不能覆盖旧结果或清掉其它行的批准。
+- 失败时保留之前成功的结果；对应行的失败态由 `generationBatches` 与 RunEvent 投影得出，并保存 `errorCode/errorMessage`；重试产生新 attempt，不能覆盖旧结果或清掉其它行的批准。
 
 ### 7.3 渐进 landing 与撤销
 
@@ -275,9 +271,9 @@ source?: { kind: 'video_deconstruction_table'; deconstruction: DeconstructionGen
 ### Task 1：先写领域合同和红测，再迁移旧快照
 
 **Files:**
-- Create: `src/workbench/generationCanvas/deconstruction/VideoDeconstructionTableTypes.ts`
-- Create: `src/workbench/generationCanvas/deconstruction/VideoDeconstructionTableSchema.ts`
+- Create: `electron/shared/canvas/videoDeconstructionTable.ts`（唯一跨主进程/渲染层 schema 与类型 owner）
 - Create: `src/workbench/generationCanvas/deconstruction/VideoDeconstructionTableMigration.ts`
+- Create: `src/workbench/generationCanvas/deconstruction/VideoDeconstructionTableSchema.ts`（仅 renderer 侧表单/编辑 patch 校验，不能复制持久化 schema）
 - Modify: `src/workbench/generationCanvas/model/generationNodeKinds.ts`, `generationCanvasSchema.ts`, `generationCanvasTypes.ts`
 - Modify: `src/workbench/generationCanvas/store/canvasSnapshotNormalizer.ts`, project persistence/session loader
 - Test: schema/migration/normalizer tests
@@ -299,8 +295,8 @@ source?: { kind: 'video_deconstruction_table'; deconstruction: DeconstructionGen
 - Create: `src/workbench/generationCanvas/nodes/VideoDeconstructionTableNode.tsx`
 - Create: `src/workbench/generationCanvas/nodes/VideoDeconstructionTableRow.tsx`
 - Create: `src/workbench/generationCanvas/nodes/VideoDeconstructionTableStates.tsx`
-- Modify: canvas store/types/write boundary/React Flow renderer registry
-- Delete in the same commit: `NodeDeconstructionPanel.tsx`, `DeconstructionPanelHost.tsx`, `DeconstructionShotRow.tsx`, `extractDeconstructionShotsToNodes.ts`
+- Modify: canvas store/types/write boundary/React Flow renderer registry, `NodeVideoFrameToolbar.tsx` (remove old right-slot action)
+- Delete in the same commit: `NodeDeconstructionPanel.tsx`, `DeconstructionPanelHost.tsx`, `DeconstructionShotRow.tsx`, `NodeDeconstructionBadge.tsx`, `extractDeconstructionShotsToNodes.ts`
 - Delete/replace: `videoDeconstructions`, `videoDeconstructionOpenNodeId` and related i18n/CollapsedAiChip branches
 - Test: store undo/persistence and node renderer structure tests
 
@@ -321,8 +317,10 @@ source?: { kind: 'video_deconstruction_table'; deconstruction: DeconstructionGen
 
 **Files:**
 - Create: `src/workbench/generationCanvas/deconstruction/videoDeconstructionBridge.ts`
-- Create: `src/workbench/agent/VideoDeconstructionTaskCard.tsx`
+- Create: `src/workbench/ai/resident/VideoDeconstructionTaskCard.tsx`
 - Modify: desktop bridge types, existing `electron/video/deconstructVideo.ts` adapter only where contract validation is needed, Agent result-card registry and i18n
+- Create: `src/devlab/designLab/deconstructionTableStates.tsx`, `tests/ux/design-lab/video-deconstruction.visual.spec.mjs`
+- Modify: `src/devlab/designLab.tsx`, `tests/ux/design-lab/labStates.mjs`, `scripts/check-design-lab.mjs` only to register the new screen/state family
 - Test: bridge contract, six-state design-lab fixture, task-card projection tests
 
 **Interfaces:**
@@ -357,7 +355,7 @@ source?: { kind: 'video_deconstruction_table'; deconstruction: DeconstructionGen
 - `DeconstructionGenerationSource` as defined in §7.1.
 
 - [ ] Add red tests for empty selection rejection, stale table revision rejection, three-row snapshot, per-row source provenance, one group per batch, progressive output order, and Cmd/Ctrl+Z removing the batch without reviving deleted nodes.
-- [ ] Implement the ProductionGenerationShot source envelope, service validation, event payload correlation, and existing approval/budget gates.
+- [ ] Implement the ProductionGenerationShot source envelope, canonical MCP shots validation, service validation, event payload correlation, and existing approval/budget gates.
 - [ ] Implement output landing through the single canvas store boundary; never call a provider from renderer code and never rebuild a second generation state machine.
 - [ ] Test failure preservation, `RunEvent` progress, pause/resume/cancel, restart recovery and repeat execution idempotency.
 - [ ] Commit milestone `feat: generate selected deconstruction rows through production runs`; push the task branch.
@@ -372,7 +370,7 @@ source?: { kind: 'video_deconstruction_table'; deconstruction: DeconstructionGen
 **Interfaces:**
 - `nomi_read(target=canvas)` returns the compact table-node projection.
 - `nomi_canvas_edit` supports `create_video_deconstruction_table` and `patch_video_deconstruction_table` with lease + expected revision.
-- `nomi_operation_plan/preview/gate/execute` handles single-shot selected-row generation; `nomi_run_start/read/run_events/run_gate/run_control` handles durable multi-row runs.
+- `nomi_operation_plan/preview/gate/execute` handles single- and multi-row selected generation through the same operation/ProductionRun owner; `nomi_read(target=run|run_events)` and `nomi_run_control` project/control the durable run. `nomi_run_start/run_gate` remain the ordinary brief/storyboard surface.
 
 - [ ] Add red tests for lease scope, project mismatch, stale revision, unknown operation, approval denial, no-spend preview, and output receipt containing `tableNodeId/rowId`.
 - [ ] Implement catalog and adapter changes without reintroducing `nomi_canvas_plan` or a legacy thin route.
@@ -381,7 +379,19 @@ source?: { kind: 'video_deconstruction_table'; deconstruction: DeconstructionGen
 - [ ] Fix every issue found in that task before declaring the implementation complete.
 - [ ] Commit milestone `test: certify deconstruction table real user journey`; push the task branch.
 
-### Task 6：合线验证与交付
+### Task 6：拆解表到分镜计划的一次性转换
+
+**Files:**
+- Create: `src/workbench/generationCanvas/deconstruction/deconstructionToStoryboardPlan.ts`
+- Modify: `src/workbench/generationCanvas/agent/canvasWriteTarget.ts`, storyboard plan owner and i18n
+- Test: conversion preserves row order/source refs, creates a new plan revision, and proves later table edits do not change the plan.
+
+- [ ] Add a red test for selecting three rows, copying once to a storyboard plan, editing the table afterwards, and observing no reverse mutation.
+- [ ] Implement one-way conversion with an explicit `sourceTableNodeId/tableRevision/rowIds` provenance stamp; do not add subscriptions or bidirectional reconcile.
+- [ ] Run the conversion test and the focused storyboard owner gate.
+- [ ] Commit milestone `feat: add one-way deconstruction-to-storyboard bridge`; push the task branch.
+
+### Task 7：合线验证与交付
 
 - [ ] `git fetch origin main` and rebase/merge the latest `origin/main` into the task branch without rewriting remote history.
 - [ ] Run `pnpm run gates` once the branch contains the exact final tree; investigate and repair failures at their earliest shared boundary.
@@ -403,7 +413,7 @@ source?: { kind: 'video_deconstruction_table'; deconstruction: DeconstructionGen
 - **代码回滚：** 回滚新节点提交时同时恢复旧文件和旧 store 字段；若已存在新快照，加载器按 `schemaVersion` 拒绝未知新节点并保留原始项目备份，不能把新表静默当普通图片节点。
 - **数据迁移回滚：** 迁移前保留原视频节点 meta；迁移是可撤销的一次画布写入，失败时不删除源视频节点或历史 meta。
 - **生成回滚：** 取消只阻止尚未提交的 job；已提交供应商任务按 ProductionRun 的真实状态展示，不能假装撤回或退费。撤销画布 landing 以节点删除事实为准，重启不复活已删除输出。
-- **MCP 回滚：** 新 operation 通过 catalog feature/version gate 关闭时，已存在的表节点仍可由 UI 读写；禁止把 MCP 关闭解释成删除画布数据。
+- **MCP 回滚：** 回滚 catalog/adapter 提交时，已存在的表节点仍由画布 schema 读写；禁止把 MCP 表写入面关闭解释成删除画布数据。
 - **用户体验边界：** 分析失败和逐行失败都保留原始成功行、来源视频和已选状态；失败卡必须给出下一步，不用绿色成功态掩盖未验证结果。
 
 ## 11. 验收门总表
