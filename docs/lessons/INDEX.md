@@ -45,6 +45,7 @@
 - [隔离实例的 key/设置组装三坑](iso-walkthrough-key-seeding-traps.md) — `hasApiKey=false` 不证解密失败；别手拷设置文件
 - [断言计算色：别比字面串、翻主题先等 transition](walkthrough-computed-color-asserts.md) — oklch 序列化 + 插值帧两坑
 - [一个死选择器同时造假红和假绿](dead-selector-lies-both-ways.md) — 找到一处失效锚点就 grep 它的全部用法
+- [按「位置」认对象的锚点，多一个兄弟就变成掷硬币](positional-anchor-breaks-when-a-sibling-appears.md) — `.first()` 不会报错，只会安静指错；失败顶着下游的名字出现，加超时永远修不好
 - [GitHub Windows runner 把窗口夹到下限](gh-windows-runner-clamps-window-to-minimum.md) — 「只有 Windows 红」的头号原因，先反推 stage 尺寸
 - [功能落地后要做体验测试并记情绪摩擦日志](experiential-qa-emotion-log.md) — 截图审查要问「舒服吗」，不只问「在不在」
 - [断言前先证明你在你以为的现场](assert-you-are-in-the-situation-you-claim.md) — 注入的 meta 会被归一，两种假绿看起来都和真绿一样
