@@ -22,6 +22,8 @@
 2. 「不存在」类断言一律改走 `tests/ux/_assert.mjs` 的 `expectAbsent(locator, { provenBy })`——签名会逼你先 `proveProbe()` 证明探针在这一屏是活的。
 3. 同理复查「点得动就算过」的写法（`.click().then(() => true)`）——**点中了错的元素也会 true**，要用状态数量变化来证明动作真发生了。
 
-**出处**：`tests/ux/scene3d-export-journey`（`[title="拖动播放头"]` 失效案例）；断言层 `tests/ux/_assert.mjs`。
+2026-09-05 再一例（**锚 i18n 文案的选择器会随组件退役整批死**）：`[aria-label="生成区 AI 助手"]` 是 i18n 值 `generationCommon.assistant.panelAria`，消费组件在 Agent Host cutover 里被删，但同一字面量还活在两份走查里——`agent-panel-system-prompt` 断言它存在（假红），`design-fidelity` 先断它「未挂载」（恒真=假绿）再 `waitForSelector` 它（假红）。走查锚点优先用 `data-*` 结构锚（`[data-agent-panel]`、`[data-agent-transcript]`），不随语言和文案变；一个 aria-label 字面量在 `tests/ux` 里出现就 `grep -rn` 它在 `src/` 里还有没有渲染者。
+
+**出处**：`tests/ux/scene3d-export-journey`（`[title="拖动播放头"]` 失效案例）；`tests/ux/agent-panel-system-prompt.walk.mjs` + `design-fidelity.e2e.mjs`（2026-09-05 `生成区 AI 助手` 案例）；断言层 `tests/ux/_assert.mjs`。
 
 **相关**：[walkthrough-assertions-need-a-real-signal](walkthrough-assertions-need-a-real-signal.md)、[walkthrough-repair-probe-first](walkthrough-repair-probe-first.md)、[assert-you-are-in-the-situation-you-claim](assert-you-are-in-the-situation-you-claim.md)、[gates-green-does-not-mean-walkthrough-ran](gates-green-does-not-mean-walkthrough-ran.md)

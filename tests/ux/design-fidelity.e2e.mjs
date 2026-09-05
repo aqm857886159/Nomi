@@ -19,7 +19,11 @@ const px = (v) => `${Math.round(parseFloat(v))}px`;
 const { app, win } = await launchNomiApp({ name: "design-fidelity" });
 
 // 首启开屏(SplashIntro)会全屏覆盖挡住库页 → 标记已看过并 reload，让后续库页断言可见。
-await win.evaluate(() => window.localStorage.setItem("nomi:splash:v1", "seen"));
+await win.evaluate(() => {
+  window.localStorage.setItem("nomi:splash:v1", "seen");
+  // 常驻 Agent 目前仍在发布闸后（agentHostPreference 默认关）；#488 删闸合入后这一行随之删除。
+  window.localStorage.setItem("nomi.agentHost.enabled", "true");
+});
 await win.reload();
 await win.waitForLoadState("domcontentloaded");
 await win.waitForTimeout(1500);
@@ -267,39 +271,38 @@ try {
   await win.keyboard.press("Escape").catch(() => {});
   await win.waitForTimeout(300);
 
-  // ── 本会话回归点 #C(生成区)：助手默认折叠；展开后 aside 是 flex 非 grid；模型选择器显具体名 ──
-  const collapsed = await win.evaluate(() => {
-    // Host cutover retired the in-canvas launcher; the ResidentShell collapsed pill
-    // ([data-agent-resident-collapsed], default-off agentHost flag #194) is the launcher button itself.
-    const launcherEl = Array.from(document.querySelectorAll('[data-agent-resident-collapsed="true"]')).find((el) => el.getClientRects().length > 0);
-    const btn = launcherEl;
-    const r = btn ? btn.getBoundingClientRect() : null;
-    const radius = btn ? parseFloat(getComputedStyle(btn).borderTopLeftRadius) : 0;
+  // ── 本会话回归点 #C(生成区)：常驻 Agent 面板的结构锁 ──
+  // 2026-09-05 重定向：旧画布助手（aria-label「生成区 AI 助手」/「生成区 AI 启动器」）已随 Agent Host cutover
+  // 退役，这两个 aria-label 在 src/ 里已无人渲染（原先这里「aside 未挂载」一条恒真=假绿，随后的
+  // waitForSelector 恒超时=假红）。常驻壳是真实两态 UI（展开/收起偏好持久化），且模型控件只剩图标
+  //（具体模型名在 title），故「默认折叠」「模型选择器显具体名」两条旧断言的前提已不在；
+  // 保留仍成立的两条结构锁：收起药丸整圆角（cn twMerge）+ 面板 display:flex（非 grid）。锚点来自真机探针。
+  const PANEL = '[data-agent-resident="true"][data-agent-panel="true"][data-agent-surface="generation"]';
+  const PILL = '[data-agent-resident-collapsed="true"]';
+  const residentState = await win.evaluate(([panelSel, pillSel]) => {
+    const pill = Array.from(document.querySelectorAll(pillSel)).find((el) => el.getClientRects().length > 0);
+    const panel = Array.from(document.querySelectorAll(panelSel)).find((el) => el.getClientRects().length > 0);
+    const r = pill ? pill.getBoundingClientRect() : null;
+    const radius = pill ? parseFloat(getComputedStyle(pill).borderTopLeftRadius) : 0;
     return {
-      launcher: Boolean(launcherEl),
-      asideMounted: Array.from(document.querySelectorAll('[aria-label="生成区 AI 助手"]')).some((el) => el.getClientRects().length > 0),
+      pill: Boolean(pill),
+      panel: Boolean(panel),
       // 收起胶囊应为整圆角（半径 ≥ 半高）；这锁住 cn() twMerge 让 rounded-full 压过组件基类
       // rounded-workbench-control 的修复——否则创作/生成胶囊外圆角会不一致。
-      launcherFullPill: r ? radius >= r.height / 2 - 1 : false,
+      pillFullRound: r ? radius >= r.height / 2 - 1 : null,
     };
-  });
-  console.log("\n── 生成助手(#C：默认折叠 → 启动器在、面板未挂载、整圆角) ──");
-  assert(collapsed.launcher && !collapsed.asideMounted, "生成助手默认折叠（启动器在、aside 未挂载）", JSON.stringify(collapsed));
-  assert(collapsed.launcherFullPill, "收起胶囊为整圆角 rounded-full（cn twMerge 压过基类圆角）", `fullPill=${collapsed.launcherFullPill}`);
-
-  await win.locator('[aria-label="生成区 AI 启动器"]:visible button').click();
-  await win.waitForSelector('[aria-label="生成区 AI 助手"]', { state: "visible", timeout: 3_000 });
-  const asst = await win.evaluate(() => {
-    const aside = document.querySelector('[aria-label="生成区 AI 助手"]');
-    const picker = document.querySelector('[aria-label="助手模型"]');
-    return {
-      asideDisplay: aside ? getComputedStyle(aside).display : "?",
-      pickerText: picker ? (picker.textContent || "").trim() : "?",
-    };
-  });
-  console.log("\n── 生成助手展开(#C：aside flex 非 grid + 模型显具体名) ──");
-  assert(asst.asideDisplay === "flex", "助手 aside display:flex（非 grid，修「上面空一大块」的根因点）", asst.asideDisplay);
-  assert(asst.pickerText.length > 0 && !asst.pickerText.includes("自动选模型"), "模型选择器显具体模型名（非「自动选模型」）", asst.pickerText);
+  }, [PANEL, PILL]);
+  console.log("\n── 生成区常驻 Agent(#C：药丸或面板恰有其一；收起药丸整圆角) ──");
+  // 「恰有其一」同时是活性证明：两者都没有 = 根本没站在生成区（或 dock 没挂上），不能拿「没有」当过。
+  assert(residentState.pill !== residentState.panel, "常驻 Agent 在生成区恰处于收起药丸 / 展开面板之一", JSON.stringify(residentState));
+  if (residentState.pill) {
+    assert(residentState.pillFullRound === true, "收起胶囊为整圆角 rounded-full（cn twMerge 压过基类圆角）", `fullRound=${residentState.pillFullRound}`);
+    await win.locator(PILL).click();
+  } else console.log("  ⊘ 收起胶囊圆角 — 跳过（本次面板默认展开，没有药丸可量）");
+  await win.waitForSelector(PANEL, { state: "visible", timeout: 5_000 });
+  const panelDisplay = await win.evaluate((panelSel) => getComputedStyle(document.querySelector(panelSel)).display, PANEL);
+  console.log("\n── 生成区常驻 Agent 展开(#C：面板 flex 非 grid) ──");
+  assert(panelDisplay === "flex", "常驻面板 display:flex（非 grid，修「上面空一大块」的根因点）", panelDisplay);
 
   // ── 本会话回归点 #C(左栏)：收起后导航用 svg 图标，不再是文字「类/文」──
   await win.locator('[aria-label="收起侧栏"]').first().click().catch(() => {});
