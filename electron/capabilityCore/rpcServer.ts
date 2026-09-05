@@ -252,8 +252,10 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
             ? 'canvas:write'
               : method === 'timeline.write' && (operation === 'apply' || operation === 'undo')
                 ? 'timeline:write'
-                : method === 'timeline.write' ? 'timeline:read'
-                  : method === 'document.write' ? 'document:write'
+            : method === 'timeline.write' ? 'timeline:read'
+                : method === 'layout.write' ? 'layout:write'
+                : method === 'layout.read' ? 'layout:read'
+                : method === 'document.write' ? 'document:write'
                 : method === 'asset.read' ? 'asset:read' : 'export:read'
           const lease = await options.projectSessionAuthority.verifyLease(leaseHandle, {
             connection: projectSessionConnection,
@@ -278,6 +280,8 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
                 ? 'timeline.write'
                 : method === 'document.write'
                   ? 'document.write'
+                  : method === 'layout.read' ? 'layout.read'
+                  : method === 'layout.write' ? 'layout.write'
                   : method === 'asset.read' ? 'asset.read' : 'export.read'
           const rendererPayload = isCanonicalCanvasPlanPatch
             ? (() => {

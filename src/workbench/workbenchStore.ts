@@ -31,7 +31,8 @@ import {
 import type { Vec2 } from './timeline/overlayTransform'
 import { createDefaultTimeline, normalizeTimeline } from './timeline/timelineMath'
 import { readPreviewSourceCollapsed, writePreviewSourceCollapsed } from './preview/previewSourcePanelPreference'
-import type { TimelineClip, TimelineState, TimelineTextStyle, TimelineTrackType } from './timeline/timelineTypes'
+import type { TimelineClip, TimelineClipAudio, TimelineState, TimelineTextStyle, TimelineTrackType } from './timeline/timelineTypes'
+import { applyTimelineOperation } from './timeline/kernel/timelineKernel'
 import { timelineUndoTimeline, type TimelineUndoEntry } from './timeline/timelineUndoHistory'
 import { normalizeWorkbenchDocument, type CreationDocumentTools, type PreviewAspectRatio, type WorkbenchDocument } from './workbenchTypes'
 import type { ComposerAttachment } from './ai/composer/composerAttachmentTypes'
@@ -53,6 +54,8 @@ import {
   type ProjectAgentApprovalPolicy,
   type ProjectAgentWorkMode,
 } from '../../electron/shared/projectAgentContracts'
+import { clampEditingPanelLayout, cloneEditingPanelLayout, EDITING_PANEL_DEFAULTS, EDITING_PANEL_PRESETS, type EditingPanelLayout, type EditingPanelPreset } from './preview/panelLayout'
+import type { ExportQuality } from './export/exportTypes'
 
 /** 拖动中临时吸附辅助线（非持久化）。 */
 export type TimelineSnapGuide = { frame: number; label: string }
@@ -157,6 +160,17 @@ type WorkbenchState = WorkbenchDocumentSlice & {
   /** 跨生成/预览共享的时间轴高度（会话级 UI 态，不写入项目）。 */
   timelinePanelHeight: number
   setTimelinePanelHeight: (height: number) => void
+  editingPanelLayout: EditingPanelLayout
+  setEditingPanelLayout: (patch: Partial<Omit<EditingPanelLayout, 'visibility'>> & { visibility?: Partial<EditingPanelLayout['visibility']> }, recordUndo?: boolean) => void
+  setEditingPanelPreset: (preset: EditingPanelPreset) => void
+  resetEditingPanelLayout: () => void
+  toggleEditingPanel: (panel: keyof EditingPanelLayout['visibility']) => void
+  editingPanelUndoStack: EditingPanelLayout[]
+  undoEditingPanelLayout: () => boolean
+  exportResolution: '720p' | '1080p'
+  exportQuality: ExportQuality
+  setExportResolution: (resolution: '720p' | '1080p') => void
+  setExportQuality: (quality: ExportQuality) => void
   /** 剪辑页左侧素材来源栏收起/展开（跨会话记住：剪片习惯因人而异）。 */
   previewSourcePanelCollapsed: boolean
   setPreviewSourcePanelCollapsed: (collapsed: boolean) => void
@@ -224,6 +238,7 @@ type WorkbenchState = WorkbenchDocumentSlice & {
   nudgeTimelineClip: (clipId: string, deltaFrame: number) => void
   /** 设置 clip 取景（适应/填充 + 缩放 + 平移）。拖动/连续缩放传 commit:false，落定 commit:true 落盘一次。 */
   setTimelineClipFraming: (clipId: string, patch: Partial<ClipFraming>, options?: { commit?: boolean }) => void
+  setTimelineClipAudio: (clipId: string, patch: Partial<TimelineClipAudio>, options?: { commit?: boolean }) => void
   /** additive(shift/⌘)：在集合中切换；否则替换为单选。 */
   selectTimelineClip: (clipId: string, options?: { additive?: boolean }) => void
   setTimelineSelection: (clipIds: string[]) => void
@@ -347,13 +362,41 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
   selectedTextClipId: '',
   timelineSnapGuide: null,
   timelineSplitMode: false,
-  // 默认折叠（对齐 origin/main）：展开态时间轴要吃掉画布 stage 底部 ~188px，在 720 最小窗口下
-  // 会把 stage 压到装不下靠底节点的 composer 下挂（j5 composer-usable-at-min-window 红）。cutover 把它
-  // 翻成 false（默认展开）是本回归的根因——恢复 true，可拖拽面板特性不变，用户仍可随时展开/拉高。
+  // 默认折叠以保持最小窗口的 composer 可用空间；用户仍可拖拽展开。
   timelinePanelCollapsed: true,
   setTimelinePanelCollapsed: (collapsed) => set({ timelinePanelCollapsed: Boolean(collapsed) }),
   timelinePanelHeight: TIMELINE_PANEL_DEFAULT,
   setTimelinePanelHeight: (height) => set({ timelinePanelHeight: clampTimelinePanelHeight(height) }),
+  editingPanelLayout: cloneEditingPanelLayout(EDITING_PANEL_DEFAULTS),
+  editingPanelUndoStack: [],
+  setEditingPanelLayout: (patch, recordUndo = true) => set((state) => {
+    const next = clampEditingPanelLayout({
+      ...state.editingPanelLayout,
+      ...patch,
+      visibility: { ...state.editingPanelLayout.visibility, ...(patch.visibility ?? {}) },
+      preset: patch.preset ?? 'custom',
+    })
+    return {
+      editingPanelLayout: next,
+      editingPanelUndoStack: recordUndo && JSON.stringify(next) !== JSON.stringify(state.editingPanelLayout)
+        ? [...state.editingPanelUndoStack, state.editingPanelLayout].slice(-20)
+        : state.editingPanelUndoStack,
+    }
+  }),
+  setEditingPanelPreset: (preset) => set((state) => ({ editingPanelUndoStack: [...state.editingPanelUndoStack, state.editingPanelLayout].slice(-20), editingPanelLayout: cloneEditingPanelLayout(EDITING_PANEL_PRESETS[preset === 'custom' ? 'default' : preset]) })),
+  resetEditingPanelLayout: () => set((state) => ({ editingPanelUndoStack: [...state.editingPanelUndoStack, state.editingPanelLayout].slice(-20), editingPanelLayout: cloneEditingPanelLayout(EDITING_PANEL_DEFAULTS) })),
+  undoEditingPanelLayout: () => { const stack = useWorkbenchStore.getState().editingPanelUndoStack; if (stack.length === 0) return false; set({ editingPanelLayout: cloneEditingPanelLayout(stack.at(-1)!), editingPanelUndoStack: stack.slice(0, -1) }); return true },
+  toggleEditingPanel: (panel) => set((state) => ({
+    editingPanelLayout: {
+      ...state.editingPanelLayout,
+      preset: 'custom',
+      visibility: { ...state.editingPanelLayout.visibility, [panel]: !state.editingPanelLayout.visibility[panel] },
+    },
+  })),
+  exportResolution: '1080p',
+  exportQuality: 'standard',
+  setExportResolution: (exportResolution) => set({ exportResolution }),
+  setExportQuality: (exportQuality) => set({ exportQuality }),
   previewSourcePanelCollapsed: readPreviewSourceCollapsed(),
   setPreviewSourcePanelCollapsed: (collapsed) => {
     writePreviewSourceCollapsed(Boolean(collapsed))
@@ -725,6 +768,22 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
       return {
         timeline: next,
         persistRevision: commit && changed ? state.persistRevision + 1 : state.persistRevision,
+      }
+    })
+  },
+  setTimelineClipAudio: (clipId, patch, options) => {
+    const commit = options?.commit !== false
+    set((state) => {
+      const source = state.timeline.tracks.flatMap((track) => track.clips).find((clip) => clip.id === clipId)
+      if (!source || source.type === 'image') return state
+      const result = applyTimelineOperation(state.timeline, { kind: 'clip-audio', clipId, audio: { ...(source.audio ?? {}), ...patch } })
+      if (!result.ok || !result.diff.changed) return state
+      return {
+        timeline: result.timeline,
+        timelineUndoStack: pushTimelineUndo(state.timelineUndoStack, state.timeline),
+        timelineRedoStack: [],
+        selectedTimelineClipIds: [clipId],
+        persistRevision: commit ? state.persistRevision + 1 : state.persistRevision,
       }
     })
   },

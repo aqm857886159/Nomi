@@ -4,6 +4,8 @@ import type { CapabilityContract } from '../../shared/agentCapabilities/capabili
 import * as exportCapabilities from '../../shared/agentCapabilities/exportCapabilities'
 import * as timelineRead from '../../shared/agentCapabilities/timelineRead'
 import * as timelineWrite from '../../shared/agentCapabilities/timelineWrite'
+import * as layoutRead from '../../shared/agentCapabilities/layout'
+import * as layoutWrite from '../../shared/agentCapabilities/layout'
 import { capabilityAliasesFor, capabilityOperationAliasesFor } from '../../shared/agentCapabilities/registry'
 
 export type EditingPiDescriptor = Readonly<{
@@ -36,6 +38,8 @@ const EDITING_PI_FACTORIES: readonly PiDescriptorFactory[] = [
   { capability: exportCapabilities.EXPORT_WRITE_CAPABILITY, descriptionForAlias: exportCapabilities.exportWritePiDescriptionForAlias, schemaForAlias: exportCapabilities.exportWritePiInputSchemaForAlias },
   { capability: timelineRead.TIMELINE_READ_CAPABILITY, descriptionForAlias: timelineRead.timelineReadPiDescriptionForAlias, schemaForAlias: timelineRead.timelineReadPiInputSchemaForAlias },
   { capability: timelineWrite.TIMELINE_WRITE_CAPABILITY, descriptionForAlias: timelineWrite.timelineWritePiDescriptionForAlias, schemaForAlias: timelineWrite.timelineWritePiInputSchemaForAlias },
+  { capability: layoutRead.LAYOUT_READ_CAPABILITY, descriptionForAlias: layoutRead.layoutPiDescriptionForAlias, schemaForAlias: layoutRead.layoutPiInputSchemaForAlias },
+  { capability: layoutWrite.LAYOUT_WRITE_CAPABILITY, descriptionForAlias: layoutWrite.layoutPiDescriptionForAlias, schemaForAlias: layoutWrite.layoutPiInputSchemaForAlias },
 ]
 
 /** Pi keeps established internal aliases; MCP exposes the semantic manifest instead. */
