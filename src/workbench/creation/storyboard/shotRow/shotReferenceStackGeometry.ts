@@ -69,12 +69,31 @@ export function referenceStackBox(bindingCount: number): ReferenceStackBox {
   }
 }
 
-/** 槽的占位宽度：单张 = tile 边长，多张 = 扇面包围盒宽。 */
-export function referenceSlotWidth(bindingCount: number): number {
-  return Math.max(REFERENCE_CARD_SIZE, referenceStackBox(bindingCount).width)
+/**
+ * **参考列的固定媒体盒**（2026-09-06 用户反馈四：「前两列——产物列和参考列——不同比例时排版要齐」）。
+ *
+ * 上一版槽宽槽高按**这一个槽装了几张**算：0 张 56×56、2 张 56×65、3 张 65×73。于是同一行的三个槽
+ * 一高一矮，行与行之间又各不相同——参考列成了整张表里最参差的一块。
+ *
+ * 现在只有一只盒，尺寸 = **扇面全开时的包围盒**（画满 `REFERENCE_STACK_VISIBLE_CARDS` 张）。
+ * 它是这一列的上界：预留了它，扇面就永远待在自己格子里；固定了它，参考 / 白膜预览 / 参考音频
+ * 三个槽、叠放堆、单张 tile、缺输入图的红虚框全部同宽同高、同一条顶线，caption 也就在一条线上。
+ * 内容一律**顶左对齐**（扇面的第一张卡本来就落在 `cardTop = 1`，与单张 tile 差 1px，肉眼是一条线）。
+ */
+export const REFERENCE_SLOT_BOX: { width: number; height: number } = {
+  width: referenceStackBox(REFERENCE_STACK_VISIBLE_CARDS).width,
+  height: referenceStackBox(REFERENCE_STACK_VISIBLE_CARDS).height,
 }
 
-/** 槽的媒体区高度；同一行三个槽取最大值对齐，caption 才在一条线上。 */
-export function referenceSlotHeight(bindingCount: number): number {
-  return Math.max(REFERENCE_CARD_SIZE, referenceStackBox(bindingCount).height)
-}
+/** 参考列最多几格（合同 §4.1 规则②，按六种真实档案定的上限）。 */
+export const REFERENCE_MAX_SLOTS = 3
+
+/**
+ * 参考列的列宽——**从盒子和间距 derive，不写死**。
+ *
+ * 合同 §4.1 写的「200px」是样张量出来的估值，而不是从内容推出来的：固定盒（65）× 3 格 + 两个 8px
+ * 间距 = 211，塞进 200 就又要横向滚，滚动条本身还会把 caption 那条线压掉一格。列宽跟着盒子走，
+ * 「固定单行三格、永不换行」这条规则才真的成立（宽度是结果，不是另一个要人工对齐的常数）。
+ */
+export const REFERENCE_COLUMN_WIDTH =
+  REFERENCE_SLOT_BOX.width * REFERENCE_MAX_SLOTS + REFERENCE_SLOT_GAP * (REFERENCE_MAX_SLOTS - 1)

@@ -53,18 +53,29 @@ describe('分镜行 v6：不许退回 v5 的三处形态（合同 §2.3/§2.4）
   const frame = stripComments(read('src/workbench/creation/storyboard/shotRow/StoryboardShotFrame.tsx'))
   const composerBar = stripComments(read('src/workbench/creation/storyboard/shotRow/ShotComposerBar.tsx'))
 
-  it('行 grid 是 14px 136px 200px 1fr，且只有一个 owner（锚展开行与镜头行共用同一份解剖）', () => {
+  it('行 grid 的两个固定列宽从几何 derive，且只有一个 owner（锚展开行与镜头行共用同一份解剖）', () => {
     const shell = stripComments(read('src/workbench/creation/storyboard/shotRow/StoryboardRowShell.tsx'))
-    expect(shell).toContain('grid-cols-[14px_136px_200px_minmax(0,1fr)]')
-    expect(shell).not.toContain('grid-cols-[14px_84px_136px_minmax(0,1fr)]')
+    expect(shell).toContain('STORYBOARD_ROW_GRID_TEMPLATE')
+    expect(shell).toContain('FRAME_COLUMN_WIDTH')
+    expect(shell).toContain('REFERENCE_COLUMN_WIDTH')
+    // 写死列宽的代价 2026-09-06 见过一次：盒子变了、`200px` 没跟着变，参考列当场横向溢出。
+    expect(shell).not.toContain('grid-cols-[')
     expect(row).toContain('<StoryboardRowShell')
     // 行自己不许再写一份 grid——写了就是同一个几何两份定义（R14.1）。
     expect(row).not.toContain('grid-cols-[')
   })
 
-  it('画面格不再写死 76×132：媒体框尺寸由 frameMediaBox 按画幅算', () => {
+  it('画面格不自己按画幅算盒：盒由整张表 derive，行只收 box（否则混排又不齐）', () => {
     expect(frame).toContain("from './shotFrameGeometry'")
     expect(frame).not.toContain('w-[76px] h-[132px]')
+    // 行/格都不许调 frameMediaBox——那是"每行按自己的画幅算"的入口。
+    expect(frame).not.toContain('frameMediaBox(')
+    expect(row).not.toContain('frameMediaBox(')
+    const table = stripComments(read('src/workbench/creation/storyboard/StoryboardShotTable.tsx'))
+    expect(table).toContain('tableFrameMediaBox')
+    // 盒固定、画面 letterbox 居中：混排时不拉伸也不裁切。
+    expect(frame).toContain('object-contain')
+    expect(frame).not.toContain('object-cover')
   })
 
   it('动作条在图下方常驻，不是压在图上的悬停浮层（设计系统 §1.5.3 反例）', () => {
@@ -85,28 +96,36 @@ describe('分镜行 v6：不许退回 v5 的三处形态（合同 §2.3/§2.4）
 
   it('底栏控件从档案 derive，不写"模型 → 控件"的映射表', () => {
     expect(composerBar).toContain("from './composerBarModel'")
-    expect(composerBar).toContain('composerBarParams')
+    expect(composerBar).toContain('composerBarPlan')
   })
 
   /**
-   * 2026-09-06 返工：上一版把七列写成 `minmax(0,1fr)_auto_auto…` 的死模板，容器不够时
-   * `auto` 轨道被压到 min-content 以下——「模式」被模型图标压住、「返回尾帧」被「生成」盖住。
-   * 列宽必须从内容量出来、断点必须全表共用，所以这两条钉死在这里。
+   * 2026-09-06 返工三（用户逐字）：「参数框为啥那么多？……能不能变成一行、再简洁些，
+   * 最右边就是生成。」上一版的解法是"装不下就整表换两行"——把一枚胶囊的溢出换成了全表行高抖动，
+   * 而真正的问题是胶囊本来就太多。所以这三条钉死：永远一行、只缩文字、生成钉最右。
    */
-  it('七列的列宽与断点由 composerGridLayout 算，底栏不写死轨道模板', () => {
-    expect(composerBar).toContain("from './composerGridLayout'")
-    expect(composerBar).toContain('useComposerGridPlan')
-    expect(composerBar).not.toContain('grid-cols-[minmax(0,1fr)_auto')
-    expect(composerBar).not.toMatch(/grid-cols-\[[^\]]*auto/)
-  })
-
-  it('断点全表共用一个：整表包在 ComposerGridScope 里（一行换、别行不换就再也对不齐）', () => {
+  it('底栏永远一行：换行/网格那一整套（含全表断点作用域）已删除，不许复活', () => {
+    expect(composerBar).toContain('flex-nowrap')
+    expect(composerBar).not.toContain('composerGridLayout')
+    expect(composerBar).not.toContain('useComposerGridPlan')
+    expect(composerBar).not.toContain('gridTemplateColumns')
+    expect(composerBar).not.toMatch(/grid-cols-\[/)
     const table = stripComments(read('src/workbench/creation/storyboard/StoryboardShotTable.tsx'))
-    expect(table).toContain('<StoryboardComposerGridScope>')
+    expect(table).not.toContain('ComposerGridScope')
   })
 
-  it('参考叠放格按**旋转后的包围盒**占位，不按卡片尺寸占位（否则扇面压到右邻槽和 caption）', () => {
+  it('「生成」钉在最右（ml-auto），开关收进行尾 ⋯ 不摆在行上', () => {
+    expect(composerBar).toContain('ml-auto')
+    expect(composerBar).toContain('data-storyboard-composer-switches')
+  })
+
+  it('参考槽用**固定盒**占位（= 扇面全开的包围盒）：按张数动态占位就一槽一个高度', () => {
+    expect(zone).toContain('REFERENCE_SLOT_BOX')
     expect(zone).toContain('referenceStackBox')
+    expect(zone).not.toContain('referenceSlotHeight')
+    expect(zone).not.toContain('referenceSlotWidth')
+    // 参考列与画面格共用同一条顶线：垂直居中会让 16:9 的行两列错开（2026-09-06 用户反馈四）。
+    expect(zone).not.toContain('justify-center')
     expect(zone).not.toContain('h-14 w-20')
     expect(zone).not.toContain('className="absolute inset-0 overflow-hidden rounded-nomi-sm')
   })

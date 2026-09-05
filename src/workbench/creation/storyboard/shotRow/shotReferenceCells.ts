@@ -8,7 +8,7 @@ import { bindingsOf, storyboardAssetSlots, type ReferenceBindingMap } from './sh
  *
  *   ① **一个槽一个格，不是一张图一个格**——首帧/尾帧/图片/视频/音频各一格；
  *      能放多张的槽画成叠放格 + 计数角标，点开是浮层网格。
- *   ② 参考列固定单行、最多三格、200px、永不换行。
+ *   ② 参考列固定单行、最多三格、永不换行（列宽由 `REFERENCE_COLUMN_WIDTH` 从固定盒 derive）。
  *
  * v5 是"一张图一个格"（逐张渲染 tile），Seedance 全能参考那种 30 图槽会把行高撑爆。
  * 改成"槽是格的单位"之后，一个 image_ref 槽不管装 1 张还是 30 张，在参考列里永远只占一个格，

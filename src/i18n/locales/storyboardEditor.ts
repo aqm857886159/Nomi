@@ -66,7 +66,6 @@ export const zhStoryboardEditor = {
     slotFull: '「{{label}}」最多 {{max}} 个',
     refIntakeCap: '加参考',
     aspectAria: '这一镜的画幅',
-    stayPill: '停留',
     stayHint: '图片镜的时长 = 进时间轴/顺播时这张图停留几秒',
     /** C1：参考区「@」入口（mention 触发按钮）。 */
     atRefAria: '输入 @ 选择参考',
@@ -167,13 +166,14 @@ export const zhStoryboardEditor = {
   resplitDraft: '照我最新的原稿重新拆一遍分镜：一镜一行，保留我已经改过的镜头。',
   aspectScope: {
     followDefault: '跟随整片默认',
-    overrideMark: '· 覆盖',
+    overrideMark: '覆盖',
     rowMenu: '这一镜换画幅…',
     bulkHint: '已覆盖画幅的 {{count}} 镜不跟着变',
   },
   composerBar: {
     doneTag: '已生成',
     lockedTag: '已锁定 · 不进批量',
+    switchesAria: '这一镜的开关（生成音频、返回尾帧…）',
   },
   skip: {
     aria: '本次跳过镜 {{index}}',
@@ -362,7 +362,6 @@ export const enStoryboardEditor = {
     slotFull: '"{{label}}" takes at most {{max}}',
     refIntakeCap: 'References',
     aspectAria: 'Aspect ratio for this shot',
-    stayPill: 'Hold',
     stayHint: 'For image shots, duration = how long this frame holds on the timeline / in sequence playback',
     atRefAria: 'Type @ to select a reference',
     atRefTitle: 'Insert a reference into the prompt (@ opens the picker)',
@@ -462,13 +461,14 @@ export const enStoryboardEditor = {
   resplitDraft: 'Re-split the storyboard from my latest draft: one shot per row, and keep the shots I already edited.',
   aspectScope: {
     followDefault: 'Follow project default',
-    overrideMark: '· overridden',
+    overrideMark: 'overridden',
     rowMenu: 'Change aspect for this shot…',
     bulkHint: '{{count}} shots with an overridden aspect stay as they are',
   },
   composerBar: {
     doneTag: 'Generated',
     lockedTag: 'Locked · out of batches',
+    switchesAria: 'Switches for this shot (generate audio, return last frame…)',
   },
   skip: {
     aria: 'Skip shot {{index}} this run',

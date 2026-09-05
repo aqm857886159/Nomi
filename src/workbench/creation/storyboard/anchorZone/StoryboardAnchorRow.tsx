@@ -23,6 +23,7 @@ import type { PlanAnchor, PlanAnchorKind } from '../../../generationCanvas/agent
 import { ANCHOR_KINDS } from '../../../generationCanvas/agent/storyboardPlanEdits'
 import type { AnchorCardRuntime } from '../exec/storyboardRowStatus'
 import StoryboardRowShell from '../shotRow/StoryboardRowShell'
+import { REFERENCE_COLUMN_WIDTH } from '../shotRow/shotReferenceStackGeometry'
 import ShotReferenceZone from '../shotRow/ShotReferenceZone'
 import { frameMediaBox, FRAME_COLUMN_WIDTH } from '../shotRow/shotFrameGeometry'
 import { resolveShotArchetypeMode } from '../shotRow/shotRowModel'
@@ -213,7 +214,7 @@ export default function StoryboardAnchorRow({
             mentionEnabled={false}
           />
         ) : (
-          <div className="flex w-[200px] min-h-[135px] shrink-0 items-center" data-storyboard-refzone="anchor-text">
+          <div className="flex shrink-0 items-start" style={{ width: REFERENCE_COLUMN_WIDTH, minHeight: box.height }} data-storyboard-refzone="anchor-text">
             <span className="text-micro leading-relaxed text-nomi-ink-30">{t('storyboardEditor.anchor.textNoRefs')}</span>
           </div>
         )

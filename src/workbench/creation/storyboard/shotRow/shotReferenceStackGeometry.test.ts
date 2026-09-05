@@ -1,14 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import {
   REFERENCE_CARD_SIZE,
+  REFERENCE_COLUMN_WIDTH,
+  REFERENCE_MAX_SLOTS,
+  REFERENCE_SLOT_BOX,
   REFERENCE_SLOT_GAP,
   REFERENCE_STACK_ANGLES,
   REFERENCE_STACK_CARD_HEIGHT,
   REFERENCE_STACK_CARD_WIDTH,
   REFERENCE_STACK_ORIGIN_X_RATIO,
   REFERENCE_STACK_VISIBLE_CARDS,
-  referenceSlotHeight,
-  referenceSlotWidth,
   referenceStackBox,
 } from './shotReferenceStackGeometry'
 
@@ -57,13 +58,31 @@ describe('参考叠放格几何', () => {
 
   it('张数封顶：≥3 张画的卡不再增加，占位也不再增长', () => {
     expect(referenceStackBox(30)).toEqual(referenceStackBox(REFERENCE_STACK_VISIBLE_CARDS))
-    expect(referenceSlotWidth(30)).toBe(referenceSlotWidth(3))
-    expect(referenceSlotHeight(30)).toBe(referenceSlotHeight(3))
   })
 
-  it('三格 + 间距装得进参考列的 200px（合同 §4.1 规则②：固定单行三格）', () => {
-    // 现实里最宽的一行：一个槽叠满 + 两个单张槽（Seedance 全能参考）。
-    const widest = referenceSlotWidth(30) + referenceSlotWidth(1) + referenceSlotWidth(0) + REFERENCE_SLOT_GAP * 2
-    expect(widest).toBeLessThanOrEqual(200)
+  /**
+   * 2026-09-06 用户反馈四：「前两列——产物列和参考列——不同比例时排版要齐。」
+   * 槽的占位改成**一只固定盒**：0 张、1 张、30 张、红虚框全同尺寸，三个槽因此同宽同高同顶线。
+   */
+  it('固定盒 = 扇面全开的包围盒，且与张数无关（0/1/30 张都是同一只）', () => {
+    expect(REFERENCE_SLOT_BOX).toEqual({
+      width: referenceStackBox(REFERENCE_STACK_VISIBLE_CARDS).width,
+      height: referenceStackBox(REFERENCE_STACK_VISIBLE_CARDS).height,
+    })
+    // 是上界：任何张数的扇面都装得进这只盒（这才叫"永远待在自己格子里"）。
+    for (let count = 0; count <= 30; count += 1) {
+      expect(referenceStackBox(count).width).toBeLessThanOrEqual(REFERENCE_SLOT_BOX.width)
+      expect(referenceStackBox(count).height).toBeLessThanOrEqual(REFERENCE_SLOT_BOX.height)
+    }
+    expect(REFERENCE_SLOT_BOX.width).toBeGreaterThanOrEqual(REFERENCE_CARD_SIZE)
+    expect(REFERENCE_SLOT_BOX.height).toBeGreaterThanOrEqual(REFERENCE_CARD_SIZE)
+  })
+
+  it('列宽由盒和间距 derive（三格永不换行、永不横向溢出），不是写死的 200', () => {
+    expect(REFERENCE_COLUMN_WIDTH).toBe(
+      REFERENCE_SLOT_BOX.width * REFERENCE_MAX_SLOTS + REFERENCE_SLOT_GAP * (REFERENCE_MAX_SLOTS - 1))
+    // 最宽的一行（三格全叠满）也不超列宽——旧写法按张数占位，一改盒就溢出，那是写死列宽的锅。
+    const widest = REFERENCE_SLOT_BOX.width * REFERENCE_MAX_SLOTS + REFERENCE_SLOT_GAP * (REFERENCE_MAX_SLOTS - 1)
+    expect(widest).toBeLessThanOrEqual(REFERENCE_COLUMN_WIDTH)
   })
 })

@@ -21,7 +21,7 @@ import {
 import type { AnchorCardRuntime, StoryboardRowRuntime } from './exec/storyboardRowStatus'
 import { useShotMentionSource } from './shotRow/useShotMentionSource'
 import StoryboardShotRow from './shotRow/StoryboardShotRow'
-import StoryboardComposerGridScope from './shotRow/ComposerGridScope'
+import { tableFrameMediaBox } from './shotRow/shotFrameGeometry'
 import type { MentionSuggestionItem } from '../../assets/AssetMentionSuggestionList'
 import {
   ASPECT_OPTIONS,
@@ -215,14 +215,20 @@ export default function StoryboardShotTable({ plan, projectId, rows, anchorCards
   }
 
   // 组头小结：与行状态同一份 derive（rows 按 startPos 切片；F2 禁静态快照）。
+  // 媒体盒**一张表算一次**（§2.4 修订 · 2026-09-06 用户反馈四「不同画幅的行一放进来整个框就不齐」）：
+  // 全表同一画幅 → 盒就是那个画幅的框，缩略图铺满、行行同高；混排 → 全表共用一只盒，各自 letterbox。
+  // 输入是**全部镜头**（不是当前可见的那几行）——按可见行算，展开/折叠一个场就会让盒子跳一次尺寸。
+  const tableBox = React.useMemo(
+    () => tableFrameMediaBox(plan.shots.map((shot) => effectiveShotAspect(plan, shot))),
+    [plan],
+  )
+
   const groupRowsOf = (group: SceneGroup): StoryboardRowRuntime[] =>
     group.shots
       .map((_shot, index) => rows[visiblePositions[group.startPos + index]])
       .filter((row): row is StoryboardRowRuntime => Boolean(row))
 
   return (
-    // 作用域包住全部行：底栏七列的列宽跨行取最大值、换行断点全表共用（合同 §2.3）。
-    <StoryboardComposerGridScope>
     <div className="border border-nomi-line rounded-nomi divide-y divide-nomi-line-soft overflow-hidden" data-storyboard-rows="true">
       {groups.map((group, groupIndex) => {
         const folded = foldedScenes.has(foldKeyOf(group))
@@ -299,6 +305,9 @@ export default function StoryboardShotTable({ plan, projectId, rows, anchorCards
                     // 画幅（v6 §2.4.1）：生效值与"是不是覆盖"都从 storyboardAspectScope 单源读，
                     // 行自己不判"读哪一个"。
                     aspect: effectiveShotAspect(plan, shot),
+                    // 媒体盒是**表级**的（§2.4 修订 · 2026-09-06 用户反馈四）：全表同画幅时盒=该画幅，
+                    // 混排时全表共用一只盒、画面 letterbox 居中。行自己按画幅算就会一行一个尺寸。
+                    frameBox: tableBox,
                     aspectOverridden: isAspectOverridden(plan, shot),
                     aspectOptions: ASPECT_OPTIONS,
                     onChangeAspect: (next: string | null) => onChange(setShotAspectOverride(plan, pos, next)),
@@ -426,6 +435,5 @@ export default function StoryboardShotTable({ plan, projectId, rows, anchorCards
         />
       ) : null}
     </div>
-    </StoryboardComposerGridScope>
   )
 }

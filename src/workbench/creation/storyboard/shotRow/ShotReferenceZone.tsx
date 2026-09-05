@@ -14,19 +14,18 @@ import { appendBinding, bindingsOf, removeBinding, reorderBinding, type Referenc
 import { cellCount, referenceColumnOf, type ShotReferenceCell } from './shotReferenceCells'
 import ShotReferenceSlotPopover from './ShotReferenceSlotPopover'
 import {
-  REFERENCE_CARD_SIZE,
+  REFERENCE_COLUMN_WIDTH,
+  REFERENCE_SLOT_BOX,
   REFERENCE_SLOT_GAP,
   REFERENCE_STACK_ANGLES,
   REFERENCE_STACK_CARD_HEIGHT,
   REFERENCE_STACK_CARD_WIDTH,
   REFERENCE_STACK_VISIBLE_CARDS,
-  referenceSlotHeight,
-  referenceSlotWidth,
   referenceStackBox,
 } from './shotReferenceStackGeometry'
 
 /**
- * 分镜行的参考列（合同 v6 §4）——**固定 200px、单行、一个槽一个格、永不换行**。
+ * 分镜行的参考列（合同 v6 §4）——**固定宽度、单行、一个槽一个格、永不换行**。
  *
  * 与 v5 的差别是"格的单位"变了：v5 一张图一个格（30 图的槽会把行撑爆），v6 一个槽一个格
  * ——装几张都只占一格，多张画成**手抓扑克**叠放 + 计数角标，点开是浮层网格加删排序。
@@ -68,8 +67,9 @@ function assetKindOfFile(file: File): AssetKind {
  * （`transform-origin: 20% 100%`）向右上各转 13°/26°，露出右上角；右下角落 `N/max` 计数角标。
  * 只画前三张——叠放是"这里不止一张"的信号，不是缩略图列表；全部内容在点开的浮层里。
  *
- * 尺寸全部来自 `referenceStackBox`：**格子按扇面的包围盒占位，不按卡片尺寸占位**。
- * 卡片自己是 44×56，扇开之后要占到 65×72——少预留那一圈，扇面就压到右边的槽和下面的 caption 上。
+ * 尺寸全部来自 `REFERENCE_SLOT_BOX`：**格子按扇面全开的包围盒占位，不按这一槽装了几张占位**。
+ * 卡片自己是 44×56，扇开之后要占到 65×73——少预留那一圈，扇面就压到右边的槽和下面的 caption 上；
+ * 按张数动态占位则会让每个槽、每一行高高低低（2026-09-06 用户反馈四），所以这只盒是**固定**的。
  */
 function SlotStack({ cell }: { cell: ShotReferenceCell }): JSX.Element {
   const { used, total } = cellCount(cell)
@@ -124,11 +124,6 @@ export default function ShotReferenceZone({ mode, bindings, onChangeBindings, an
   const [uploadError, setUploadError] = React.useState('')
   const column = referenceColumnOf(mode, bindings)
   const anchorsById = React.useMemo(() => new Map(anchors.map((anchor) => [anchor.id, anchor])), [anchors])
-  // 三个槽的媒体区**同高**（取本行最高的那个扇面）——高度不齐，三条 caption 就不在一条线上，
-  // 而"扫一列看全片"靠的正是这条线。
-  const mediaHeight = column.kind === 'cells'
-    ? Math.max(REFERENCE_CARD_SIZE, ...column.cells.map((cell) => referenceSlotHeight(cell.bindings.length)))
-    : REFERENCE_CARD_SIZE
 
   // 拒绝理由都用人话说清「为什么不行」，不做沉默失败（§1.6：禁用不做沟通死路）。
   const applyAppend = React.useCallback(
@@ -198,10 +193,15 @@ export default function ShotReferenceZone({ mode, bindings, onChangeBindings, an
   }
 
   return (
-    // 200px 固定、nowrap。槽数 >3 的模式今天不存在（合同 §4.1 按六种真实档案定的上限），
+    // 列宽固定（REFERENCE_COLUMN_WIDTH = 三只固定盒 + 两个间距）、nowrap。
+    // 槽数 >3 的模式今天不存在（合同 §4.1 按六种真实档案定的上限），
     // 真出现时这一行横向滚动——宁可滚，也不换行（换行 = 行高不稳 = 表格扫不动），更不静默丢槽。
+    // 顶对齐、不撑最小高：这一列要和左边的画面格共用同一条顶线（2026-09-06 用户反馈四）。
+    // 上一版 `min-h-[135px] justify-center` 把参考卡垂直居中在 135px 里——16:9 的行画面格只有 77 高，
+    // 参考卡却仍落在 135 的中线上，两列从此对不上。
     <div
-      className="flex w-[200px] min-h-[135px] shrink-0 flex-col justify-center gap-2 overflow-x-auto"
+      className="flex shrink-0 flex-col items-start gap-2 overflow-x-auto"
+      style={{ width: REFERENCE_COLUMN_WIDTH }}
       data-storyboard-refzone="true"
     >
       {column.kind === 'none-accepted' ? (
@@ -234,13 +234,13 @@ export default function ShotReferenceZone({ mode, bindings, onChangeBindings, an
             const caption = captionOf(cell)
             const first = cell.bindings[0]
             return (
-              <span key={cell.key} className="relative flex shrink-0 flex-col items-start gap-0.5" style={{ width: `${referenceSlotWidth(cell.bindings.length)}px` }} data-storyboard-ref-slot={cell.key}>
+              <span key={cell.key} className="relative flex shrink-0 flex-col items-start gap-0.5" style={{ width: `${REFERENCE_SLOT_BOX.width}px` }} data-storyboard-ref-slot={cell.key}>
                 <button
                   type="button"
                   onClick={() => setOpenSlotKey((previous) => (previous === cell.key ? '' : cell.key))}
                   aria-label={t('storyboardEditor.slot.openAria', { label: cell.label })}
-                  className="flex items-start rounded-nomi-sm"
-                  style={{ height: `${mediaHeight}px` }}
+                  className="flex w-full items-start rounded-nomi-sm"
+                  style={{ height: `${REFERENCE_SLOT_BOX.height}px` }}
                 >
                   {cell.bindings.length >= 2 ? (
                     <SlotStack cell={cell} />

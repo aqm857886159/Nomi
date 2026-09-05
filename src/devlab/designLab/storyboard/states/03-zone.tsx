@@ -47,6 +47,27 @@ function scenePlan(): StoryboardPlan {
   })
 }
 
+/**
+ * **全表同一画幅**的五镜（16:9 / 9:16 各一格）。
+ *
+ * 2026-09-06 用户反馈四点名的就是这两格：「至少大家都同一个比例（比如从上到下都 16:9）时，
+ * 单个分镜行要排得很好、对齐。」所以它们不是混排那格的陪衬，而是**对齐规则的主证据**——
+ * 每行的顶线、媒体盒、参数行、生成钮四条线必须逐行对得上，媒体盒还要正好被缩略图铺满（无黑边）。
+ */
+function uniformPlan(aspect: string): StoryboardPlan {
+  return labPlan({
+    aspectRatio: aspect,
+    scenes: SCENES,
+    shots: [
+      labShot({ index: 1, sceneId: 'sc-1' }),
+      labShot({ index: 2, sceneId: 'sc-1', prompt: '中景，@陈默 从阴影里走出来，两人对视' }),
+      labShot({ index: 3, sceneId: 'sc-1', shotKind: 'image', durationSec: 3, modelKey: 'nano-banana-2', modeId: 'edit', prompt: '近景，闪回定格，做旧照片质感' }),
+      labShot({ index: 4, sceneId: 'sc-2', prompt: '特写，固定机位，@旧怀表 在积水里' }),
+      labShot({ index: 5, sceneId: 'sc-2', prompt: '大远景，升降，无人机视角，城市重新亮起来' }),
+    ],
+  })
+}
+
 function TableStageWithPlan({ plan, clip = true }: { plan: StoryboardPlan; clip?: boolean }): JSX.Element {
   const rows = deriveStoryboardRowRuntimes({
     plan,
@@ -248,5 +269,19 @@ export const ZONE_STATES: readonly LabState[] = [
     coverage: 'shell',
     capture: 'viewport',
     render: () => <PlaybackStage variant="empty" />,
+  },
+  {
+    id: 'sb-zone-12-uniform-16-9',
+    name: '全 16:9 五行 · 四条线逐行对齐（媒体盒铺满、无黑边）',
+    source: '合同 §2.4 修订（2026-09-06 用户反馈四）：全表同一画幅 → 盒 = 该画幅的框',
+    coverage: 'component-only',
+    render: () => <TableStageWithPlan plan={uniformPlan('16:9')} />,
+  },
+  {
+    id: 'sb-zone-13-uniform-9-16',
+    name: '全 9:16 五行 · 竖版同一只盒',
+    source: '合同 §2.4 修订（2026-09-06 用户反馈四）：竖版全表同高同宽',
+    coverage: 'component-only',
+    render: () => <TableStageWithPlan plan={uniformPlan('9:16')} />,
   },
 ]

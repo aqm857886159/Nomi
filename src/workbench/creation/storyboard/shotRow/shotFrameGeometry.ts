@@ -46,3 +46,29 @@ export function frameMediaBox(aspect: string | null | undefined): FrameMediaBox 
     height: Math.round(ratio.height * scale),
   }
 }
+
+/**
+ * **整张表共用的一只媒体盒**（2026-09-06 用户反馈四：「不同画幅的行一放进来整个框就不齐……
+ * 至少大家都同一个比例时，单个分镜行要排得很好、对齐」）。
+ *
+ * 上一版每行按自己的画幅算框：一列 9:16 里混进一行 16:9，两行的媒体框一个 76×135、一个 136×77，
+ * 顶线对齐了、**底线和右边缘全错开**，参考列和参数行跟着上下浮动——用户看到的"整个框就不齐"。
+ * 合同 §2.4 原写的"列宽固定就够齐了"在混排下不成立：列宽齐、盒子不齐，人眼读的是盒子。
+ *
+ * 所以盒子改成**表级 derive**，两种输入两种答案：
+ *   - **全表同一画幅** → 盒子就是那个画幅的框（16:9 → 136×77、9:16 → 76×135、1:1 → 108×108）。
+ *     缩略图正好铺满，没有一条黑边；所有行同高、四条线（顶线、盒、参数行、生成钮）逐行对齐。
+ *   - **混合画幅** → 一只统一盒：宽取列宽上限、高取短边上限（`136×108`，两个数都是合同里已有的
+ *     两条封顶，不是新编的数）。横版贴满宽、竖版贴满高、方图居中，各自 letterbox 在盒内——
+ *     **盒不随内容变形**，于是混排行仍然行行同高、边缘同线。
+ *
+ * 缩略图在盒内 `object-contain` 居中（letterbox），不拉伸也不裁切：拉伸会让人对不上真实出画比例，
+ * 裁切会把用户已经生成出来的画面切掉一块，两种都是拿"排得齐"去换真实性。
+ */
+export function tableFrameMediaBox(aspects: readonly (string | null | undefined)[]): FrameMediaBox {
+  const ratios = aspects.map((aspect) => parseAspectRatio(aspect) ?? FALLBACK_RATIO)
+  const first = ratios[0] ?? FALLBACK_RATIO
+  const uniform = ratios.every((ratio) => ratio.width * first.height === first.width * ratio.height)
+  if (uniform) return frameMediaBox(`${first.width}:${first.height}`)
+  return { width: FRAME_COLUMN_WIDTH, height: FRAME_MAX_SHORT_EDGE }
+}

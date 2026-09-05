@@ -7,14 +7,17 @@ import type { PlanShot } from '../../../generationCanvas/agent/storyboardPlan'
 import { effectiveShotDurationSec } from '../../../generationCanvas/agent/storyboardPlan'
 import { translateModelDisplayText } from '../../../../i18n/modelDisplayText'
 import type { ShotRowExec } from '../exec/storyboardRowStatus'
-import { FRAME_COLUMN_WIDTH, frameMediaBox } from './shotFrameGeometry'
+import { FRAME_COLUMN_WIDTH, type FrameMediaBox } from './shotFrameGeometry'
 
 /**
  * 画面格（v6 §2.4）——行状态机的脸。
  *
  * v6 相对 v5 改了两件事，其余状态语义原样：
- * ① **列宽固定 136px，媒体框按画幅缩放**（v5 写死 76×132，横版镜头没有任何真实表达）。
- *    列宽不随内容变，所以 9:16 / 16:9 / 1:1 混排时左边缘永远对齐——表格"扫一列看全片"的价值就在这。
+ * ① **列宽固定 136px，媒体盒由整张表 derive**（v5 写死 76×132，横版镜头没有任何真实表达）。
+ *    盒子是**表级**的（`tableFrameMediaBox`，2026-09-06 用户反馈四）：全表同一画幅时盒子就是那个
+ *    画幅的框、缩略图铺满；混排时全表共用一只 136×108 的盒，画面在盒内 letterbox 居中。
+ *    盒不随行内容变形，所以每一行的顶线、盒、参数行、生成钮四条线都对得上——
+ *    "列宽固定就够齐了"在混排下不成立，人眼读的是盒子不是列。
  * ② **动作条搬到图下方常驻**（`StoryboardFrameActions`），不再是压在图上的半透明悬停浮层。
  *    半透明按钮压缩略图是设计系统 §1.5.3 点名的反例；媒体框下方本来就是空白，不需要遮住内容省这点空间。
  *
@@ -26,8 +29,11 @@ import { FRAME_COLUMN_WIDTH, frameMediaBox } from './shotFrameGeometry'
 type Props = {
   shot: PlanShot
   exec: ShotRowExec
-  /** 这一行**生效**的画幅（storyboardAspectScope.effectiveShotAspect；媒体框几何唯一输入）。 */
+  /** 这一行**生效**的画幅（storyboardAspectScope.effectiveShotAspect）；只用于挂点与图片语义，
+   *  几何不读它——几何来自表级的 `box`。 */
   aspect: string
+  /** 整张表共用的媒体盒（`tableFrameMediaBox`）。行不自己算，算了就又不齐了。 */
+  box: FrameMediaBox
   onGenerate?: (() => void) | undefined
   /** ⏳ 态点参考卡名 → 滚动定位那张参考卡。 */
   onJumpToAnchor?: ((anchorId: string) => void) | undefined
@@ -41,6 +47,7 @@ export default function StoryboardShotFrame({
   shot,
   exec,
   aspect,
+  box,
   onGenerate,
   onJumpToAnchor,
   onOpenPreview,
@@ -48,7 +55,6 @@ export default function StoryboardShotFrame({
   onSelect,
 }: Props): JSX.Element {
   const { t } = useTranslation()
-  const box = frameMediaBox(aspect)
   const mediaStyle = { width: box.width, height: box.height }
 
   const indexBadge = (quiet: boolean): JSX.Element => (
@@ -92,10 +98,11 @@ export default function StoryboardShotFrame({
         onDoubleClick={onOpenPreview}
         data-storyboard-frame-media={aspect || 'default'}
       >
+        {/* 盒是固定的，画面在盒内 letterbox 居中（object-contain）：混排时不拉伸也不裁切。 */}
         <NomiImage
           src={exec.resultUrl}
           alt={t('storyboardEditor.frame.resultAlt', { index: shot.index })}
-          className="absolute inset-0 w-full h-full object-cover"
+          className="absolute inset-0 w-full h-full object-contain"
         />
         {indexBadge(false)}
         {durationBadge}
@@ -124,7 +131,7 @@ export default function StoryboardShotFrame({
         data-storyboard-frame-media={aspect || 'default'}
       >
         {exec.resultUrl ? (
-          <NomiImage src={exec.resultUrl} alt="" className="absolute inset-0 w-full h-full object-cover opacity-50" />
+          <NomiImage src={exec.resultUrl} alt="" className="absolute inset-0 w-full h-full object-contain opacity-50" />
         ) : null}
         {indexBadge(false)}
         <div className="absolute inset-0 z-[1] flex flex-col items-center justify-center gap-1.5 bg-nomi-scrim text-nomi-paper p-1.5 text-center">
@@ -150,7 +157,7 @@ export default function StoryboardShotFrame({
         data-storyboard-frame-media={aspect || 'default'}
       >
         {exec.resultUrl ? (
-          <NomiImage src={exec.resultUrl} alt="" className="absolute inset-0 w-full h-full object-cover opacity-40" />
+          <NomiImage src={exec.resultUrl} alt="" className="absolute inset-0 w-full h-full object-contain opacity-40" />
         ) : null}
         {indexBadge(true)}
         <span

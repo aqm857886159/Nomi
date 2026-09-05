@@ -184,4 +184,17 @@ export const ROW_STATES: readonly LabState[] = [
     coverage: 'shell',
     render: () => RowStage({ sourceSegment: { id: 'F_SEG_B', edited: true } }),
   },
+  {
+    // 开关搬进 ⋯ 之后，弹层这一形态必须被取景钉住——不钉就只能靠人记得它存在（假绿，
+    // 2026-09-06 场组头 ▶「播放本场」刚踩过同一个坑）。点的是真按钮，走的是真状态机。
+    id: 'sb-row-18-composer-switches',
+    name: '行 · 底栏 ⋯ 开关弹层（生成音频 / 返回尾帧）',
+    source: '合同 §2.3 修订（2026-09-06 用户反馈三）：开关的家是行尾 ⋯，不摆在行上',
+    coverage: 'shell',
+    render: () => (
+      <AutoClick selector="[data-storyboard-composer-switches='1']">
+        {RowStage({ clip: false })}
+      </AutoClick>
+    ),
+  },
 ]

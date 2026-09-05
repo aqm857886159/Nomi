@@ -8,6 +8,7 @@ import {
   effectiveShotAspect,
   isAspectOverridden,
 } from '../../../workbench/generationCanvas/agent/storyboardAspectScope'
+import { tableFrameMediaBox } from '../../../workbench/creation/storyboard/shotRow/shotFrameGeometry'
 import type { ShotRowExec } from '../../../workbench/creation/storyboard/exec/storyboardRowStatus'
 import type { ShotVariant } from '../../../workbench/creation/storyboard/shotRow/shotVariants'
 import { LAB_ANCHORS, LAB_IMAGE_MODELS, LAB_VIDEO_MODELS, labExec, labPlan, labShot, NOOP } from './storyboardFixtures'
@@ -97,6 +98,7 @@ export function RowStage(overrides: RowOverrides & { clip?: boolean } = {}): JSX
         danglingIds={[]}
         exec={exec}
         aspect={effectiveShotAspect(plan, shot)}
+        frameBox={tableFrameMediaBox([effectiveShotAspect(plan, shot)])}
         aspectOverridden={isAspectOverridden(plan, shot)}
         aspectOptions={ASPECT_OPTIONS}
         onChangeAspect={NOOP}

@@ -17,6 +17,7 @@ import type { PlanAnchor, PlanShot } from '../../../generationCanvas/agent/story
 import type { PromptSegmentRange, StoryboardProfile } from '../../../generationCanvas/agent/storyboardPlan'
 import type { ModelOption } from '../../../../config/models'
 import { resolveShotArchetypeMode } from './shotRowModel'
+import { FRAME_COLUMN_WIDTH, type FrameMediaBox } from './shotFrameGeometry'
 import type { ShotRowExec } from '../exec/storyboardRowStatus'
 import type { Editor } from '@tiptap/react'
 import StoryboardRowShell from './StoryboardRowShell'
@@ -51,6 +52,8 @@ type Props = {
   exec?: ShotRowExec | undefined
   /** 这一行生效的画幅（storyboardAspectScope.effectiveShotAspect）。 */
   aspect: string
+  /** 整张表共用的媒体盒（`tableFrameMediaBox`）——行不自己按画幅算，算了混排就又不齐（§2.4 修订）。 */
+  frameBox: FrameMediaBox
   /** 这一行是否覆盖了整片默认画幅——底栏那枚画幅胶囊只在 true 时出现（§2.4.1 规则 3）。 */
   aspectOverridden: boolean
   aspectOptions: readonly string[]
@@ -139,7 +142,7 @@ function MenuItem({
 export default function StoryboardShotRow(props: Props): JSX.Element {
   const { t } = useTranslation()
   const {
-    shot, anchors, modelOptions, exec, aspect, aspectOverridden, aspectOptions, onChangeAspect,
+    shot, anchors, modelOptions, exec, aspect, frameBox, aspectOverridden, aspectOptions, onChangeAspect,
     skipped, onToggleSkip, variants = [], adoptedVariantId, onAdoptVariant, onDeleteVariant, onGenerateVariants, outputTag,
     onGenerate, onJumpToAnchor, onOpenPreview, onRegenerate, onToggleLock, onAgentHandoff,
     onInsertAbove, onInsertBelow, targetShots, allShots, sourcePosition, onSaveAsReference, onSetAsFirstFrame,
@@ -257,6 +260,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
         shot={shot}
         exec={exec}
         aspect={aspect}
+        box={frameBox}
         onGenerate={onGenerate}
         onJumpToAnchor={onJumpToAnchor}
         onOpenPreview={onOpenPreview}
@@ -282,8 +286,12 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
     </>
   ) : (
     /* exec 缺省（测试/降级）：纯占位格，仍按固定列宽出，不让行错位。 */
-    <div className="w-[136px]" data-storyboard-frame="ready">
-      <div className="relative h-[135px] w-[76px] rounded-nomi border border-dashed border-nomi-ink-20 bg-nomi-ink-05" data-storyboard-frame-media={aspect || 'default'}>
+    <div style={{ width: FRAME_COLUMN_WIDTH }} data-storyboard-frame="ready">
+      <div
+        className="relative rounded-nomi border border-dashed border-nomi-ink-20 bg-nomi-ink-05"
+        style={{ width: frameBox.width, height: frameBox.height }}
+        data-storyboard-frame-media={aspect || 'default'}
+      >
         <span className="absolute left-1 top-1 rounded-nomi-sm bg-nomi-ink-10 px-1 text-micro tabular-nums text-nomi-ink-60">
           {String(shot.index).padStart(2, '0')}
         </span>
