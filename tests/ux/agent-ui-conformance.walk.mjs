@@ -49,10 +49,6 @@ import { launchNomiApp, closeNomiApp } from './_launchApp.mjs'
 import { createAgentRuntimeFixture } from './agent-runtime-fixture.mjs'
 import { measureRuntimeContract, writeMismatchReport } from './agent-ui-contract.mjs'
 
-// 件0：agentHostEnabled localStorage key（来自 src/utils/agentHostPreference.ts）
-// 硬编码字面值，避免在 .mjs 里直接引入 .ts 源文件。值与源码保持同步。
-const AGENT_HOST_ENABLED_KEY = 'nomi.agentHost.enabled'
-
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const SPEC_PATH = path.join(ROOT, 'docs/design/agent-ui-spec.generated.json')
 const MOCKUP_PATH = path.join(ROOT, 'docs/design/mockups/2026-09-01-agent-ui-final-redesign.html')
@@ -263,7 +259,7 @@ if (TARGET === 'mockup') {
   // ── app 模式：起真实 Electron App，备场后才开始断言 ─────────────────────────
   // 件0：准备现场（步骤①②③④）
   //   ① 建临时隔离 profile 目录
-  //   ② 置 agentHostEnabled=true（在 settingsDir 或 launchApp 后 evaluate 进 localStorage）
+  //   ② 备场偏好（首启蒙层/引导标 seen、光色主题）
   //   ③ 起 Electron，等窗口
   //   ④ 导航：首启蒙层设 seen → reload → 新建空白项目 → 进生成画布 → 开 Agent 面板
   //   ⑤ 自证在现场：确认 [data-agent-panel] 存在，否则明确报「现场没准备好」并退出
@@ -332,19 +328,18 @@ if (TARGET === 'mockup') {
   })
   page = nomiApp.win
 
-  // ── ② 置 agentHostEnabled=true（在首次载入后写 localStorage，reload 后生效）──
+  // ── ② 备场偏好（首启蒙层/引导标 seen、光色主题）──────────────────────────
+  // 常驻 Agent 自 2026-09-05 起无条件渲染，不再需要在这里开发布闸。
   await page.waitForLoadState('domcontentloaded')
   await page.waitForTimeout(2200)
-  await page.evaluate((key) => {
-    // 首启蒙层/引导标 seen；关闭引导巡游；置 agentHostEnabled
+  await page.evaluate(() => {
     localStorage.setItem('nomi-color-scheme', 'light')
     for (const k of ['nomi:splash:v1', 'nomi:journey-tour:v1', 'nomi:canvas-gesture-hint:v1']) {
       localStorage.setItem(k, 'seen')
     }
-    localStorage.setItem(key, 'true')
-  }, AGENT_HOST_ENABLED_KEY)
+  })
 
-  // reload 让 agentHostEnabled 生效（模块级缓存读 localStorage 值）
+  // reload 让上面写的偏好生效。
   // 注意：进项目后再 reload 会让 getActiveWorkbenchProjectId() 恒 null，面板静默空掉。
   // 所以在进项目前 reload。
   await page.reload()
@@ -404,7 +399,7 @@ if (TARGET === 'mockup') {
     const shot = path.join(tempRoot, 'scene-not-ready.png')
     await page.screenshot({ path: shot }).catch(() => {})
     console.error(`❌ 现场没准备好：[data-agent-panel] 不在 DOM 中——Agent 面板未挂载。`)
-    console.error(`   可能原因：agentHostEnabled 未生效（需 localStorage.setItem('${AGENT_HOST_ENABLED_KEY}', 'true') + reload）。`)
+    console.error(`   可能原因：未进入项目、或工作区未挂载常驻 Agent dock（portal 目标为空）。`)
     console.error(`   截图：${shot}`)
     console.error(`   注意：这是「备场失败」，与「实现缺挂点」是完全不同的问题，修法相反。`)
     if (runtimeFixture) await runtimeFixture.close().catch(() => {})
