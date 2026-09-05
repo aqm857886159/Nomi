@@ -1023,6 +1023,7 @@ export const zhGenerationCommon = {
     unpin: '取消置顶',
     pin: '置顶（优先注入）',
     delete: '删除这条记忆',
+    changeFailed: '记忆没改动成，请再试一次',
   },
   reconcile: {
     fields: {
@@ -2484,6 +2485,7 @@ export const enGenerationCommon = {
     unpin: 'Unpin',
     pin: 'Pin for priority context',
     delete: 'Delete this memory',
+    changeFailed: 'The memory was not changed. Try again.',
   },
   reconcile: {
     fields: {
