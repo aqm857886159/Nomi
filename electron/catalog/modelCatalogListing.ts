@@ -12,6 +12,7 @@ import { bodyReferencedParamKeys } from "./paramTranslate";
 import type { ModelModeBody } from "./taskParams";
 import { billingKindForTaskKind, type BillingModelKind, type CatalogState, type Mapping, type ProfileKind } from "./types";
 import { modelHasPublishedExecution } from "../shared/modelPublication";
+import { SINGLE_SHOT_GENERATION_MODULE_ID } from "../shared/generationModuleId";
 
 /** 一个模型跨其所有 mapping 汇总出的参考承载力 + 是哪些模式（taskKind）带得动。 */
 export type ModelReferenceSupport = BodyReferenceSupport & {
@@ -23,6 +24,13 @@ export type ModelListingEntry = {
   vendor: string;
   vendorName: string;
   modelKey: string;
+  /**
+   * 生成写工具（nomi_operation_plan）要的 `{moduleId, providerId, modelId}` 三元组里的第一项。
+   * 修复前它**不出现在任何读工具的输出里**，外部宿主只能猜（探针猜了 `image`，plan 通过、preview 立刻回
+   * `Unknown module: image`）。`providerId` = 本行的 `vendor`、`modelId` = 本行的 `modelKey`，
+   * 三项现在都从这一行读得到 —— 写工具接受的东西，读工具认得。
+   */
+  moduleId: string;
   kind: string;
   label: string;
   /** 这个模型此刻能不能真用：ok=key 在且解得开；missing=没配 key；locked=key 在但当前宿主身份解不开。 */
@@ -187,6 +195,7 @@ export function deriveModelListing(
         vendor: model.vendorKey,
         vendorName,
         modelKey: model.modelKey,
+        moduleId: SINGLE_SHOT_GENERATION_MODULE_ID,
         kind: model.kind,
         label: model.labelZh || model.modelKey,
         keyStatus,

@@ -122,7 +122,7 @@ describe('production run MCP tools', () => {
     for (const name of listProductionPlaybookNames()) expect(playbook?.description).toContain(name)
   })
 
-  it('keeps the current README count and guide table aligned with the exported catalog', () => {
+  it('keeps the public docs aligned with the exported catalog, including the first doc users read', () => {
     // 面收敛（surface-16-collapse）：拉分支时 42 个塌成 15 个；并线 main +4 M2 编辑工具、并线 M2 canvas/document
     // 语义面 +4（canvas_plan/maintenance · document_read/edit）+ integration_manage = 24。README/guide 计数同步，且每个导出
     // name 在 guide 都有条目——公开契约不许漏面。
@@ -133,6 +133,14 @@ describe('production run MCP tools', () => {
     // Keep the public guide aligned with the live catalog so a newly reachable
     // semantic surface cannot be omitted from the user-facing MCP contract.
     for (const name of MCP_TOOL_NAMES) expect(guide).toContain(`\`${name}\``)
+    // docs/integrate-with-your-agent.md 是用户**第一眼读**的上手文档，此前没有任何断言盯着它：
+    // 它一直写着「47 个工具」并点名早已退役的 nomi_canvas_read，而 README 与 guide 都是对的
+    //（2026-09-05 外部宿主探针）。这里钉住「它提到的每个工具名都必须还活着」——
+    // 数量本身刻意不写在那份文档里，改为指向 tools/list。
+    const onboarding = fs.readFileSync(path.join(process.cwd(), 'docs/integrate-with-your-agent.md'), 'utf8')
+    const live = new Set<string>(MCP_TOOL_NAMES)
+    const mentioned = [...new Set([...onboarding.matchAll(/`(nomi_[a-z0-9_]+)`/g)].map((match) => match[1]))]
+    expect(mentioned.filter((name) => !live.has(name))).toEqual([])
   })
 
   it('keeps initialize clientInfo as an audit label and starts only a draft', async () => {
