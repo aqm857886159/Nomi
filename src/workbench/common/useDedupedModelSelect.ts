@@ -41,7 +41,7 @@ function providerLabel(provider?: ModelProviderRef | null): string {
 }
 
 /** 该模型是否「病」了：**每一家**供应商都在避让期才算。注入判据便于纯函数单测。 */
-type AilingProbe = (modelKey: string) => boolean
+type AilingProbe = (identity: { modelKey: unknown; vendor: unknown }) => boolean
 
 /**
  * 「病」= 该模型每一家供应商近 24h 都连败 ≥2（modelHealthMemory 记的本地实测经验，不是写死名单；
@@ -52,7 +52,7 @@ type AilingProbe = (modelKey: string) => boolean
  */
 function isModelAiling(model: DedupedModel, isAiling: AilingProbe): boolean {
   if (model.providers.length === 0) return false
-  return model.providers.every((p) => isAiling(p.option.modelKey || p.option.value))
+  return model.providers.every((p) => isAiling({ modelKey: p.option.modelKey || p.option.value, vendor: p.vendor }))
 }
 
 /** 病的沉到最后 + 灰化 + 右侧标注换成「最近多次失败」；健康的保持原有顺序不动。 */
@@ -108,7 +108,7 @@ export function buildVendorExplicitModelOptions(
       if (bucket) bucket.push(provider)
       else byVendor.set(key, [provider])
     }
-    const sickOf = (p: ModelProviderRef): boolean => isAiling(p.option.modelKey || p.option.value)
+    const sickOf = (p: ModelProviderRef): boolean => isAiling({ modelKey: p.option.modelKey || p.option.value, vendor: p.vendor })
     for (const bucket of byVendor.values()) {
       // 这家有健康变体就走健康那个；全病才落回首个（整行标病）。
       const representative = bucket.find((p) => !sickOf(p)) ?? bucket[0]
@@ -148,7 +148,7 @@ export function resolveProviderByAddress(
 export function pickHealthiestProvider(model: DedupedModel, isAiling: AilingProbe): ModelProviderRef | null {
   const healthyVendors = new Set(
     model.providers
-      .filter((p) => !isAiling(p.option.modelKey || p.option.value))
+      .filter((p) => !isAiling({ modelKey: p.option.modelKey || p.option.value, vendor: p.vendor }))
       .map((p) => p.vendor)
       .filter((v): v is string => v != null),
   )

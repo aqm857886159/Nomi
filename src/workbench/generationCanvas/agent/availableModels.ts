@@ -52,14 +52,22 @@ export type AgentModelEntry = {
 
 /**
  * 把 catalog 的 ModelOption[] join 档案后 flatten 成 agent 可选模型清单。纯函数，可单测。
- * 无档案的模型直接跳过；同一 modelKey 去重（image/video 两边可能重复）。
+ * 无档案的模型直接跳过。
+ *
+ * **去重键是 `(vendor, modelKey)`，不是 modelKey**——模型身份的唯一键包含供应商。
+ * 2026-08-18 曾按 modelKey 去重（「首家胜出」），后果是两家供应商提供同名模型时身份坍缩：
+ * 用户选 APIMart 的 Qwen-Image，请求实际发去 code-newcli-com（2026-09-03 真实付费闭环走查
+ * 实测 HTTP 400 阻断，见 docs/plan/2026-09-03-storyboard-entry-vendor-identity.md §1 Bug 3）。
+ * image/video 两边真正的重复由 `(vendor, modelKey, kind)` 之外的同源条目负责，不靠丢 vendor 实现。
  */
 export function buildAgentModelEntries(options: readonly ModelOption[]): AgentModelEntry[] {
   const entries: AgentModelEntry[] = [];
   const seen = new Set<string>();
   for (const option of options) {
     const modelKey = option.modelKey ?? option.value;
-    if (!modelKey || seen.has(modelKey)) continue;
+    // 身份键含 vendor：同名模型来自不同供应商是**两个模型**，不是重复项。
+    const identity = `${option.vendor ?? ""}::${modelKey}`;
+    if (!modelKey || seen.has(identity)) continue;
     const archetype = resolveArchetypeForModel({
       modelKey: option.modelKey ?? option.value,
       modelAlias: option.modelAlias,
@@ -94,7 +102,7 @@ export function buildAgentModelEntries(options: readonly ModelOption[]): AgentMo
           params: parseModelParameterControls(option.meta),
           slots: [],
         }];
-    seen.add(modelKey);
+    seen.add(identity);
     entries.push({
       modelKey,
       modelAlias: option.modelAlias ?? null,
@@ -132,7 +140,7 @@ export async function listAvailableModelsForAgent(): Promise<AgentModelEntry[]> 
  *   省略（参考边在生成期按能力降级跳过，不假装喂入）。
  * 无任何可用图片模型 → 全空，节点不带模型、用户自己选。
  */
-export async function resolveStoryboardImageDefault(): Promise<{ modelKey?: string; modeId?: string; refModeId?: string }> {
+export async function resolveStoryboardImageDefault(): Promise<{ modelKey?: string; modelVendor?: string; modeId?: string; refModeId?: string }> {
   let entries: AgentModelEntry[]
   try {
     entries = await listAvailableModelsForAgent()
@@ -148,6 +156,8 @@ export async function resolveStoryboardImageDefault(): Promise<{ modelKey?: stri
   const refMode = prefer.modes.find((m) => m.slots.some((s) => s.kind === 'image_ref'))
   return {
     modelKey: prefer.modelKey,
+    // vendor 与 key 一起返回：调用方据此写节点，避免落地时按 key 反查命中别家（身份唯一键）。
+    ...(prefer.vendor ? { modelVendor: prefer.vendor } : {}),
     ...(plainMode ? { modeId: plainMode.modeId } : {}),
     ...(refMode ? { refModeId: refMode.modeId } : {}),
   }
@@ -159,7 +169,7 @@ export async function resolveStoryboardImageDefault(): Promise<{ modelKey?: stri
  * （图→视频），故模式优先挑带 image_ref / first_frame 槽的 i2v（参考才喂得进），否则默认模式。
  * 无任何可用视频模型 → 全空，镜头不带模型、用户在画布上自己选；编辑器为某镜选了模型则覆盖本默认。
  */
-export async function resolveStoryboardVideoDefault(): Promise<{ modelKey?: string; modeId?: string }> {
+export async function resolveStoryboardVideoDefault(): Promise<{ modelKey?: string; modelVendor?: string; modeId?: string }> {
   let entries: AgentModelEntry[]
   try {
     entries = await listAvailableModelsForAgent()
@@ -175,6 +185,8 @@ export async function resolveStoryboardVideoDefault(): Promise<{ modelKey?: stri
   const mode = refMode ?? prefer.modes.find((m) => m.modeId === prefer.defaultModeId) ?? prefer.modes[0]
   return {
     modelKey: prefer.modelKey,
+    // vendor 与 key 一起返回（身份唯一键）——见 buildAgentModelEntries 去重键的注释。
+    ...(prefer.vendor ? { modelVendor: prefer.vendor } : {}),
     ...(mode ? { modeId: mode.modeId } : {}),
   }
 }
