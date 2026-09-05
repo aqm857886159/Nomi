@@ -10,7 +10,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
-import { screenshotSettled } from './_assert.mjs'
+import { expectAbsent, proveProbe, screenshotSettled } from './_assert.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/vendor-order')
@@ -117,8 +117,15 @@ try {
   // 模型名不许被行尾 chip 挤没（2026-09-06 用户返工的起因：真机上三行只剩图标 + 一排 chip）。
   const labelWidth = await option.locator('[data-nomi-select-option-label]').first().evaluate((node) => node.getBoundingClientRect().width)
   check(labelWidth > 24, `模型名在真机上仍看得见（${Math.round(labelWidth)}px）`)
-  check(await option.locator('[class*="rounded-pill"]').filter({ hasText: /^\d+ 家$/ }).count() === 0,
-    '有 chip 的行不再同时挂「N 家」附注（同一件事只说一遍）')
+  // 「不再挂 N 家」必须先证明这个选择器测得到东西——这一行本来就有一排 pill 形状的 chip，
+  // 拿它当基线（否则 selector 写错时「一个都没找到」会伪装成「已经修好了」）。
+  const pills = option.locator('[class*="rounded-pill"]')
+  const pillProof = await proveProbe(pills, '模型行上本来就有一排 pill 形状的供应商 chip')
+  await expectAbsent(pills.filter({ hasText: /^\d+ 家$/ }), {
+    provenBy: pillProof,
+    message: '有 chip 的行不再同时挂「N 家」附注（同一件事只说一遍）',
+  })
+  console.log('  ✓ 有 chip 的行不再同时挂「N 家」附注（同一件事只说一遍）')
   await snapClip(win, '[data-nomi-select-dropdown]', 'journey-model-picker.png')
   await option.click(); await win.locator('button[aria-label="模型"]').first().click({ timeout: 5000 })
   const reopened = win.getByRole('option').filter({ hasText: '供应商偏好 fixture' }).first(); await reopened.waitFor({ timeout: 8000 }); await reopened.locator('button[aria-pressed]').last().click()

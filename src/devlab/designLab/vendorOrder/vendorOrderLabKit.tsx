@@ -43,6 +43,11 @@ export function ModelPickerStage({
   selected?: string
 }): JSX.Element {
   const stageRef = React.useRef<HTMLDivElement>(null)
+  // 选中值是**真状态**：实验室里点一行就真的选中，和真机一个行为。
+  // 挂个空 handler 会让这个下拉点下去静默无效（`check:controls` 拦的正是这一族），
+  // 而且取景台自己变成「看着能点、其实是张图」——那就又是一份骗人的证据。
+  const [picked, setPicked] = React.useState(selected)
+  React.useEffect(() => { setPicked(selected) }, [selected])
   const options = React.useMemo(
     () => buildModelSelectOptions(dedupeModelOptions([...models]), NEVER_AILING, preferredVendorKeys),
     [models, preferredVendorKeys],
@@ -63,10 +68,12 @@ export function ModelPickerStage({
         ariaLabel="模型"
         placeholder="选择模型"
         triggerMaxWidth={150}
-        value={selected}
+        value={picked}
         options={options}
-        onChange={() => undefined}
-        onChipChange={() => undefined}
+        onChange={setPicked}
+        // 点 chip = 换这一行走哪家。真机把 (modelKey, vendor) 一起写进节点；实验室没有节点可写，
+        // 但仍要**真的**改选中值，否则这个 chip 就是个点不动的装饰。
+        onChipChange={(optionValue) => setPicked(optionValue)}
         portalTarget={stageRef}
       />
     </div>
