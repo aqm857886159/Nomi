@@ -1049,6 +1049,79 @@ describe("ProjectAgentHost turn serialization and async re-entry", () => {
     expect(claimed.state.queue[0]).toMatchObject({ status: "running", target: deferredTarget });
   });
 
+  it("binds an approved timeline plan's own clip scope and base revision over the selection it was queued from", () => {
+    // Regression: the preview surface queues the *selection*, while the plan the
+    // user approves names its own clips and its own base revision. Freezing the
+    // selection as the write scope rejected every approved timeline edit with
+    // `proposal_transition_invalid`, so no Agent timeline edit could ever land.
+    const base = enqueueMutation();
+    const queued = reduceProjectAgentMutation(createInitialProjectAgentState(binding), {
+      ...base,
+      payload: {
+        ...base.payload,
+        queueItem: {
+          ...base.payload.queueItem,
+          target: { kind: "timeline", clipIds: ["clip-selected"] },
+          preconditions: {},
+        },
+      },
+    });
+    const running = reduceProjectAgentMutation(queued.state, startMutation("start-deferred-timeline", "turn-a", 1));
+    const planTarget = { kind: "timeline", clipIds: ["clip-b", "clip-c"] } as const;
+    const planPreconditions = { timeline: { revision: "sha256-timeline-before" } } as const;
+    const approval = {
+      ref: {
+        approvalId: "approval-deferred-timeline",
+        receiptProposalId: "receipt-deferred-timeline",
+        threadId: "thread-a",
+        turnId: "turn-a",
+        toolCallId: "apply-edit-plan",
+        policyRevision: 5,
+        inputHash: "input-hash",
+        actionHash: "action-hash",
+        target: planTarget,
+        preconditions: planPreconditions,
+        expiresAt: "2026-08-28T00:10:00.000Z",
+      },
+      lifecycle: "pending",
+    } as const;
+    const item = {
+      kind: "proposal" as const,
+      itemId: "proposal-deferred-timeline",
+      threadId: "thread-a",
+      turnId: "turn-a",
+      status: "proposed" as const,
+      retryable: false,
+      deviated: false,
+      approval: approval.ref,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const proposed = reduceProjectAgentMutation(running.state, {
+      commandId: "put-deferred-timeline",
+      expectedRevision: 2,
+      binding,
+      sender: { kind: "embedded-agent", senderId: "agent" },
+      type: "proposal.put",
+      payload: { approval, item, occurredAt: now },
+    });
+    expect(proposed.state.queue[0]).toMatchObject({
+      status: "proposed",
+      target: planTarget,
+      preconditions: planPreconditions,
+    });
+    const claimed = reduceProjectAgentMutation(proposed.state, {
+      commandId: "claim-deferred-timeline",
+      expectedRevision: 3,
+      binding,
+      sender: { kind: "embedded-agent", senderId: "agent" },
+      type: "proposal.transition",
+      payload: { approvalId: approval.ref.approvalId, lifecycle: "claimed", occurredAt: now },
+    });
+    expect(claimed.state.proposalApprovals[0]?.lifecycle).toBe("claimed");
+    expect(claimed.state.queue[0]).toMatchObject({ status: "running", target: planTarget });
+  });
+
   it("stores only TaskRef and display-only HumanApprovalRef, never foreign truth", () => {
     const queued = reduceProjectAgentMutation(createInitialProjectAgentState(binding), enqueueMutation());
     const taskItem = {

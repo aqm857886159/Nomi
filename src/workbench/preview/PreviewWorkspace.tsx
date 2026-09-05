@@ -204,7 +204,7 @@ export default function PreviewWorkspace({ aiCollapsed = false, agentDockRef }: 
                 </Panel>
                 <SplitHandle vertical />
                 <Panel id="editing-surface-preview" minSize={EDITING_PANEL_BOUNDS.preview.min}>
-                  <div className="h-full min-w-0 overflow-hidden">
+                  <div className="relative h-full min-w-0 overflow-hidden">
                     <TimelinePreview
                       activeClips={activeClips}
                       aspectRatio={previewAspectRatio}
@@ -212,6 +212,15 @@ export default function PreviewWorkspace({ aiCollapsed = false, agentDockRef }: 
                       playheadFrame={timeline.playheadFrame}
                       timeline={timeline}
                     />
+                    {/*
+                      收起态是两件事叠加，不是二选一：Nomi 那一列收成 32px 图标条（§2.1，
+                      下面那条 PanelRail），同时同一个 composer 浮到**预览列**下沿（§2.6
+                      「结果全屏」——交回屏幕的是转录区，不是对话本身；介入槽跟着 composer 走，
+                      计划仍能读能批）。
+                      宿主挂在预览列而不是整条舞台行：居中要对齐画面而不是「素材+画面+属性」
+                      三块的合并中点，dock 量到的 bottom 也才等于 transport 所在的那条下沿。
+                    */}
+                    {aiCollapsed ? <div ref={agentDockRef} className="pointer-events-none absolute inset-0 z-40 overflow-visible" data-agent-collapsed-overlay="true" /> : null}
                   </div>
                 </Panel>
                 <SplitHandle vertical />

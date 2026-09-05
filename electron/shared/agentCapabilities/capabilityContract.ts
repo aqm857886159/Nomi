@@ -27,6 +27,17 @@ export type CapabilityContract<Input, Output> = {
   readonly effect: CapabilityEffect;
   readonly effectClass: CapabilityEffectClass;
   readonly operationEffectClasses?: Readonly<Record<string, CapabilityEffectClass>>;
+  /**
+   * This capability's payload is a plan the user has to *read* before it runs,
+   * so it never rides in on a policy default: the first call of an execution
+   * always asks, and later ones are reused only after the user's own
+   * "this session" / "always" answer. Reserved for reversible local writes
+   * whose effect is not visible from the call itself — a timeline edit plan is
+   * a multi-operation transaction against a compare-and-swap revision, and its
+   * whole review surface (highlight, then approve) is pointless if the Host
+   * commits it before the highlight is drawn.
+   */
+  readonly requiresPlanReview?: boolean;
   readonly execution: {
     readonly port: CapabilityPortKind;
     readonly availability: CapabilityAvailability;

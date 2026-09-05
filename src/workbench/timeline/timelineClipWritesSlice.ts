@@ -48,7 +48,7 @@ export function createTimelineClipWritesSlice(
       set((state) => {
         const source = state.timeline.tracks.flatMap((track) => track.clips).find((clip) => clip.id === clipId)
         if (!source || source.type === 'image') return state
-        const result = applyTimelineOperation(state.timeline, { kind: 'clip-audio', clipId, audio: { ...(source.audio ?? {}), ...patch } })
+        const result = applyTimelineOperation(state.timeline, { kind: 'clip-audio', clipId, audio: patch })
         if (!result.ok || !result.diff.changed) return state
         return {
           timeline: result.timeline,

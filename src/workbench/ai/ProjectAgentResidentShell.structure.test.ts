@@ -38,6 +38,13 @@ const interventionSlot = readSource(
 const residentGenerationEditor = readSource(
   path.join(process.cwd(), 'src/workbench/ai/resident/GenerationProposalEditor.tsx'),
 )
+// The collapsed launcher moved into its own owner when the collapsed dock
+// started rendering the same composer (design contract §2.6). The invariant
+// below still belongs to the resident surface; only its file changed.
+const residentCollapsedDock = readSource(
+  path.join(process.cwd(), 'src/workbench/ai/resident/ResidentCollapsedDock.tsx'),
+)
+
 const reconcileCard = readSource(
   path.join(process.cwd(), 'src/workbench/generationCanvas/components/ReconcileDeviationCard.tsx'),
 )
@@ -174,8 +181,8 @@ describe('ProjectAgentResidentShell production contract', () => {
     expect(resident).toContain('aria-haspopup="menu"')
     expect(residentUi).toContain('BodyPortal')
     expect(residentUi).toContain('anchorRef')
-    expect(resident).toContain('data-agent-resident-collapsed="true"')
-    expect(resident).toContain('rounded-pill border border-nomi-line')
+    expect(residentCollapsedDock).toContain('data-agent-resident-collapsed="true"')
+    expect(residentCollapsedDock).toContain('rounded-pill border border-nomi-line')
     expect(resident).not.toContain('CreationPromptPicker')
     expect(resident).not.toContain('AssistantModelPicker')
     expect(resident).not.toContain('<select')
