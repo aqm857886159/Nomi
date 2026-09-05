@@ -143,10 +143,8 @@ export function createLocalProject(
       }
     : docDefaults
   const record = createProjectRecord(summary, {
-    // Keep the new multi-document fields aligned with the document whose
-    // storyboard starter is created below. Passing only the deprecated
-    // workbenchDocument leaves createProjectRecord's generated document active
-    // and makes the starter unreachable after normalization.
+    // Keep the starter attached to the seeded document so the editor can open
+    // with its two empty structural rows.
     workbenchDocuments: [seededDocument],
     activeDocumentId: seededDocument.id,
     // A new blank project starts with two empty editable rows. This is
@@ -154,8 +152,18 @@ export function createLocalProject(
     // remain empty until the user or Agent supplies them.
     ...(isDraft
       ? {
-          storyboardPlans: {
-            [seededDocument.id]: { plan: createEmptyStoryboardPlan(), committed: false },
+          storyboardDesignsByDocumentId: {
+            [seededDocument.id]: [{
+              id: `starter-${seededDocument.id}`,
+              documentId: seededDocument.id,
+              title: createEmptyStoryboardPlan().title,
+              plan: createEmptyStoryboardPlan(),
+              committed: false,
+              status: 'draft',
+              sourceDocumentUpdatedAt: seededDocument.updatedAt,
+              createdAt: now,
+              updatedAt: now,
+            }],
           },
         }
       : {}),

@@ -355,21 +355,6 @@ export default {
     "severity": "P1"
   },
   {
-    "name": "[A-19] 底排执行方式钮（data-agent-composer-mode）",
-    "selector": ".cbtn.ico[data-tip=\"模式\"]",
-    "dimension": "height",
-    "expected": 28,
-    "sourceLocator": "docs/design/mockups/2026-09-01-agent-ui-final-redesign.html#.cbtn.ico[data-tip=\"模式\"]",
-    "sourceLibrary": "Beautiful UI",
-    "adaptationRule": "Use the Thinking/Loading/Tool Chips/Streaming Text behavior only; implement with Nomi primitives and tokens.",
-    "tolerance": {
-      "w": 2,
-      "h": 2
-    },
-    "state": "normal",
-    "severity": "P1"
-  },
-  {
     "name": "[A-19] 底排模型钮（data-agent-composer-model）",
     "selector": ".cbtn.ico[data-tip^=\"去选\"]",
     "dimension": "height",
@@ -390,6 +375,21 @@ export default {
     "dimension": "height",
     "expected": 28,
     "sourceLocator": "docs/design/mockups/2026-09-01-agent-ui-final-redesign.html#.cbtn.ico[data-tip=\"技能\"]",
+    "sourceLibrary": "Beautiful UI",
+    "adaptationRule": "Use the Thinking/Loading/Tool Chips/Streaming Text behavior only; implement with Nomi primitives and tokens.",
+    "tolerance": {
+      "w": 2,
+      "h": 2
+    },
+    "state": "normal",
+    "severity": "P1"
+  },
+  {
+    "name": "[A-19] 底排执行方式钮（data-agent-composer-mode）",
+    "selector": ".cbtn.ico[data-tip=\"模式\"]",
+    "dimension": "height",
+    "expected": 28,
+    "sourceLocator": "docs/design/mockups/2026-09-01-agent-ui-final-redesign.html#.cbtn.ico[data-tip=\"模式\"]",
     "sourceLibrary": "Beautiful UI",
     "adaptationRule": "Use the Thinking/Loading/Tool Chips/Streaming Text behavior only; implement with Nomi primitives and tokens.",
     "tolerance": {

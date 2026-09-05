@@ -512,9 +512,9 @@ if (POSITIVE_CONTROL) {
 //   - data-agent-collapse        → 已加（新增）
 //   - data-agent-input           → 已加（AutoGrowTextarea 透传 ...rest）
 //   - data-agent-composer-attach → 已加
-//   - data-agent-composer-mode   → 已加
 //   - data-agent-composer-model  → 已加
 //   - data-agent-composer-skill → 已加
+//   - data-agent-composer-mode   → 已加
 //   - data-agent-composer-send   → 已加
 //   - data-agent-user-bubble     → 已加（item.kind==='user' 时条件渲染）
 //   - data-agent-reply           → 已加（item.kind==='assistant' 时条件渲染）

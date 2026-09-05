@@ -69,7 +69,6 @@ export function releaseWorkbenchProjectRuntimeState(): void {
     projectAgentRunMode: DEFAULT_PROJECT_AGENT_WORK_MODE,
     projectAgentApprovalPolicy: DEFAULT_PROJECT_AGENT_APPROVAL_POLICY,
     projectAgentDockCollapsed: false,
-    storyboardPlans: {},
     storyboardDesignsByDocumentId: {},
     activeStoryboardId: null,
     timeline: createDefaultTimeline(),

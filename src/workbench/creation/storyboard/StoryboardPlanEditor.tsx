@@ -53,8 +53,10 @@ import { buildStoryboardReference } from '../../ai/resident/residentReferences'
 
 export default function StoryboardPlanEditor({ projectId }: { projectId?: string | null }): JSX.Element | null {
   const { t } = useTranslation()
-  const entry = useWorkbenchStore((s) => (s.activeDocumentId ? s.storyboardPlans[s.activeDocumentId] : undefined))
-  const plan = entry?.plan ?? null
+  const plan = useWorkbenchStore((s) => {
+    const designs = s.activeDocumentId ? s.storyboardDesignsByDocumentId[s.activeDocumentId] ?? [] : []
+    return (designs.find((design) => design.id === s.activeStoryboardId) ?? designs[0])?.plan ?? null
+  })
   const setStoryboardPlan = useWorkbenchStore((s) => s.setStoryboardPlan)
   const deleteStoryboardDesign = useWorkbenchStore((s) => s.deleteStoryboardDesign)
   const setWorkspaceMode = useWorkbenchStore((s) => s.setWorkspaceMode)

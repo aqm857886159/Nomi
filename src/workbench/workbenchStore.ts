@@ -399,7 +399,6 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
     set({
       workbenchDocuments: [doc],
       activeDocumentId: doc.id,
-      storyboardPlans: {},
       storyboardDesignsByDocumentId: {},
       activeStoryboardId: null,
       timeline: normalizeTimeline(timeline),

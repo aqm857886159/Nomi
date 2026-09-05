@@ -43,6 +43,16 @@ try {
   const composerProof = await proveProbe(composer, 'composer 面板已渲染')
   const order = await composer.locator('button[data-agent-composer-attach], button[data-agent-composer-model], button[data-agent-composer-skill], button[data-agent-composer-mode], button[data-agent-composer-send]').evaluateAll((buttons) => buttons.map((button) => button.dataset.agentComposerAttach !== undefined ? 'attach' : button.dataset.agentComposerModel !== undefined ? 'model' : button.dataset.agentComposerSkill !== undefined ? 'skill' : button.dataset.agentComposerMode !== undefined ? 'mode' : 'send'))
   check(JSON.stringify(order) === JSON.stringify(['attach', 'model', 'skill', 'mode', 'send']), `composer 顺序 ${order.join(' → ')}`)
+  const spacing = await composer.locator('[data-agent-composer-skill]').evaluate((skill) => {
+    const mode = document.querySelector('[data-agent-composer-mode]')
+    const send = document.querySelector('[data-agent-composer-send]')
+    if (!mode || !send) return null
+    const skillRect = skill.getBoundingClientRect()
+    const modeRect = mode.getBoundingClientRect()
+    const sendRect = send.getBoundingClientRect()
+    return { gap: modeRect.left - skillRect.right, modeToSend: sendRect.left - modeRect.right }
+  })
+  check(Boolean(spacing && spacing.gap > spacing.modeToSend), `composer 留白在左组三钮与右组之间（gap=${spacing?.gap ?? 'n/a'}，mode→send=${spacing?.modeToSend ?? 'n/a'}）`)
   await expectAbsent(composer.locator('[data-agent-composer-prompt]'), { provenBy: composerProof, message: '提示词库没有第二个常驻按钮' })
   await page.screenshot({ path: path.join(outputDir, '01-composer-order.png') })
 
