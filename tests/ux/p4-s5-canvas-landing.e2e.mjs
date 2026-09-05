@@ -144,6 +144,19 @@ try {
   }, { run: threeStateRun(projectId, {}), projectId })
   await win.waitForTimeout(400)
 
+  // 「三态同屏」是用户看得到的判据，所以先做用户会做的那一步：点「适应视图」。
+  // React Flow 的 onlyRenderVisibleElements 只把视口内的节点放进 DOM；常驻 Agent 面板默认
+  // 展开后画布窄了 ~340px，最右边那个占位（shot-3）落在视口外就根本不进 DOM——
+  // 断言会红成「没有已停占位」，而它其实只是没被带进视野。几何不写死：等到落地的
+  // 4 个占位（锚 + 3 镜）全部进 DOM 为止，进不齐就超时报红。
+  await clickOrFail(win.getByRole('button', { name: '适应视图' }), '适应视图：把四个占位都带进视口')
+  await win.waitForFunction(
+    (expected) => document.querySelectorAll('[data-shot-placeholder-state]').length >= expected,
+    landed.bindings.length,
+    { timeout: 10_000 },
+  )
+  check(true, `适应视图后 ${landed.bindings.length} 个占位全部进入视口`)
+
   const states = await win.evaluate(() => Array.from(document.querySelectorAll('[data-shot-placeholder-state]')).map((el) => el.getAttribute('data-shot-placeholder-state')))
   check(states.includes('generating'), '三态：有「生成中」占位（shot-1 polling）')
   check(states.includes('queued'), '三态：有「排队中」占位（shot-2 无 job）')
