@@ -1,0 +1,120 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-06-overlay-clipped-by-ancestor-overflow",
+  "problem_type": "浮层被祖先 overflow 裁切（弹层没出 Portal）",
+  "symptom": "预览页时间轴接缝上的转场标记点开后，选择器只露出「时长 − 12f +」一行；五个转场类型与「删除转场」看不见也点不到。走查却判绿：截图 tests/ux/shots/editing-real-user-pass/03-transition-picker.png 里只有那一条边。",
+  "direct_cause": "src/workbench/timeline/TimelineTransitionPicker.tsx 原来写 `absolute left-1/2 top-7 z-20`，就地渲染在 TimelineTransitionMarker 里；而该标记的定位祖先 src/workbench/timeline/TimelineTrack.tsx:256 的 .workbench-timeline-track__clips 是 `relative overflow-hidden`，于是选择器被这一格裁成一条边。",
+  "class_root": "浮层各写各的就地 absolute，没有一个共同的「浮层必须脱离容器裁切」的执行边界；而验证侧的三样常用证据（toBeVisible / getBoundingClientRect / Playwright click）对裁切结构性失明——rect 不受裁切影响，click 前的 scrollIntoViewIfNeeded 会把 overflow 容器滚一下再点——所以这一类坏法能一路绿着进仓。",
+  "migration": "转场选择器的就地 absolute 定位在同 commit 删除，改由 src/design/AnchoredPopover.tsx 统一定位；src/workbench/assets/AssetPickerPopover.tsx 里自成一套的 Portal/翻转/夹视口逻辑一并删除，收敛成对 AnchoredPopover 的一层薄封装。全仓因此只剩一套锚点浮层机制，无并行版。",
+  "affected_population": [
+    "在预览页时间轴上点开接缝转场标记、想换转场类型或删除转场的用户（转场类型与删除入口完全够不到）",
+    "从属性面板「转场 · 入/出」或时间轴右键「更改转场」进入同一个选择器的用户（两个入口都走 openTimelineTransitionPicker，落到同一个被裁的浮层）",
+    "任何未来在 overflow 容器内新增就地 absolute 浮层的开发路径"
+  ],
+  "scope_paths": [
+    "src/design/AnchoredPopover.tsx",
+    "src/design/anchoredPopoverPlacement.test.ts",
+    "src/design/index.ts",
+    "src/workbench/timeline/TimelineTransitionPicker.tsx",
+    "src/workbench/timeline/TimelineTransitionMarker.tsx",
+    "src/workbench/assets/AssetPickerPopover.tsx",
+    "tests/ux/_assert.mjs",
+    "tests/ux/editing-real-user-pass.walk.mjs"
+  ],
+  "entry_points": [
+    "src/workbench/timeline/TimelineTransitionPicker.tsx TimelineTransitionPicker（就地 absolute，被 .workbench-timeline-track__clips 裁切）",
+    "src/workbench/assets/AssetPickerPopover.tsx AssetPickerPopover（自带一套 BodyPortal + fixed + 翻转 + 夹视口，与前者同问题的另一份解）",
+    "src/workbench/timeline/TimelineContextMenu.tsx TimelineContextMenu（fixed，天然逃出祖先 overflow）",
+    "src/workbench/timeline/TimelinePanel.tsx 快捷键面板（fixed inset-0）",
+    "src/workbench/preview/PreviewControlBar.tsx 文字菜单（absolute，但其祖先链无 overflow 裁切）",
+    "src/workbench/preview/EditingLayoutMenu.tsx 布局菜单（absolute，挂在顶栏，无裁切祖先）"
+  ],
+  "invariants": [
+    "剪辑面上任何从容器内弹出的浮层，其矩形上的每一个采样点都必须由它自己或它的后代命中（document.elementFromPoint），且整块落在视口内。",
+    "锚点浮层的定位、翻转与夹进视口只有一份实现：src/design/AnchoredPopover.tsx；调用方只描述锚点与对齐，不自算坐标。",
+    "锚点移动（窗口缩放、时间轴横向滚动）后浮层跟着重算，不会停在原地指着空气。"
+  ],
+  "regression_tests": [
+    "src/design/anchoredPopoverPlacement.test.ts",
+    "tests/ux/editing-real-user-pass.walk.mjs"
+  ],
+  "residual_risks": [
+    "本次只在剪辑面（时间轴 + 预览 + 属性面板）实扫了六个浮层；生成画布与设置面板里的就地 absolute 浮层没有逐个量过，它们各自的祖先是否裁切仍未证伪。",
+    "expectOverlayReachable 只在走查里跑，不是静态门岗——新写的就地 absolute 浮层要等有人给它写一条走查断言才会被拦住。"
+  ],
+  "internal_only_reason": "纯本仓 CSS 布局与 React 渲染结构问题：裁切行为由本仓自己的 overflow-hidden 与定位写法决定，无第三方库契约介入，不需要外部依据。",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "同一族已经发生过第二次：docs/lessons/vendor-manage-is-a-discoverability-problem.md 记的是控件被 overflow 裁出视口，用户报「功能没有」；本次是浮层被轨道格裁掉。只要浮层还可以就地写 absolute，任何一个新的 overflow 容器都能再造一次，而三样常用证据都拦不住。",
+    "same_class_scan": [
+      "实扫剪辑面全部在容器内渲染的浮层（grep absolute/fixed/role=menu/role=dialog 于 src/workbench/timeline/*.tsx 与 src/workbench/preview/**/*.tsx），逐个在真 Electron 里开出来用 elementFromPoint 7×7 采样量命中率。",
+      "结果：TimelineTransitionPicker 7/49（红）；TimelineContextMenu 49/49、TimelinePanel 快捷键面板 49/49、PreviewControlBar 文字菜单 49/49、EditingLayoutMenu 49/49、AssetPickerPopover 49/49（五条阳性对照，证明这把尺子确实测得出东西）。",
+      "src/design/NomiSelect.tsx 已经用 Mantine 的 withinPortal，属性面板里的下拉不在本类之列。"
+    ]
+  },
+  "generality_proof": "所有锚点浮层的定位都收敛到 src/design/AnchoredPopover.tsx 一处：它 Portal 到 document.body 并用 fixed 定位，物理上不可能被任何祖先的 overflow 裁到；翻转与夹进视口由同一个纯函数 resolveAnchoredPopoverPlacement 决定。调用方不再持有坐标计算，因此未来新增的浮层只要用它，就继承同一条不变量；而 AssetPickerPopover 这条既有路径也已改为经过它，不留第二套解。",
+  "shared_boundaries": [
+    {
+      "path": "src/design/AnchoredPopover.tsx",
+      "symbol": "AnchoredPopover / resolveAnchoredPopoverPlacement",
+      "responsibility": "全站唯一的锚点浮层定位边界：Portal 到 body 逃出祖先 overflow，按锚点算位置并在放不下时翻转、夹进视口。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/timeline/TimelineTransitionPicker.tsx",
+      "entry_point": "TimelineTransitionPicker",
+      "disposition": "enforced",
+      "evidence": "就地 absolute 已删，改为 <AnchoredPopover anchorRef={anchorRef} align=\"center\">；同一份新断言在修复前构建上报 7/49、修复后 49/49。"
+    },
+    {
+      "path": "src/workbench/assets/AssetPickerPopover.tsx",
+      "entry_point": "AssetPickerPopover",
+      "disposition": "enforced",
+      "evidence": "自带的 BodyPortal + fixed + 两段式测量 + 翻转 + 夹视口整段删除，收敛为对 AnchoredPopover 的薄封装（只保留它自己的 z 轴档位）。"
+    },
+    {
+      "path": "src/workbench/timeline/TimelineContextMenu.tsx",
+      "entry_point": "TimelineContextMenu",
+      "disposition": "not-affected",
+      "evidence": "它用 position: fixed，祖先链上没有 transform/filter/contain 之类会给 fixed 造包含块的属性，所以不受 overflow 裁切；真机采样 49/49 命中。"
+    },
+    {
+      "path": "src/workbench/preview/EditingLayoutMenu.tsx",
+      "entry_point": "EditingLayoutMenu",
+      "disposition": "not-affected",
+      "evidence": "挂在顶栏 .nomi-appbar 下，祖先链无 overflow 裁切；真机采样 49/49 命中，8 颗菜单项中心点全部命中自己。"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/design/AnchoredPopover.tsx",
+    "invariant": "锚点浮层渲染在 document.body 上并以 fixed 定位，祖先的 overflow 在结构上够不到它；位置由单一纯函数计算并夹进视口。",
+    "failure_mode": "若有人绕开它改回就地 absolute，走查的 expectOverlayReachable 会报出「N/49 命中 + 漏点上实际画着谁」，直接指认裁它的那个容器。",
+    "exception_policy": "none",
+    "strategy": "把浮层定位从各调用点收回到一个 design 层组件，并给走查一把能看见裁切的尺子（elementFromPoint 采样），让这一族在验证侧不再失明。",
+    "artifacts": [
+      "src/design/AnchoredPopover.tsx",
+      "src/design/anchoredPopoverPlacement.test.ts",
+      "tests/ux/_assert.mjs",
+      "tests/ux/editing-real-user-pass.walk.mjs"
+    ]
+  },
+  "class_regression_tests": [
+    "src/design/anchoredPopoverPlacement.test.ts",
+    "tests/ux/editing-real-user-pass.walk.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/timeline/TimelineTransitionPicker.tsx",
+      "src/workbench/assets/AssetPickerPopover.tsx"
+    ],
+    "rationale": "两处旧实现在同 commit 删除：TimelineTransitionPicker 的就地 `absolute left-1/2 top-7 z-20` 定位整段删掉；AssetPickerPopover 自成一套的 Portal + 两段式测量 + 翻转 + 夹视口实现整段删掉，收敛成对 AnchoredPopover 的薄封装。全仓因此只剩一套锚点浮层机制，无并行版（P1 加新必删旧）。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "本次修复不引入也不升级任何依赖：AnchoredPopover 只用 react-dom 自带的 createPortal 与仓库既有的 overlayLayers z 轴契约。",
+    "exit_criteria": []
+  }
+}

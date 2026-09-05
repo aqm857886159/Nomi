@@ -12,6 +12,7 @@ import PreviewInspector from './inspector/PreviewInspector'
 import { PanelRail } from './PanelRail'
 import { EDITING_PANEL_BOUNDS, EDITING_PANEL_MAIN_MIN, EDITING_PANEL_RAIL_WIDTH, type EditingPanelSizeKey } from './panelLayout'
 import { useTimelinePlaybackClock } from '../timeline/useTimelinePlaybackClock'
+import { useResidentActivityStore } from '../ai/residentActivity'
 
 // 剪辑面板系统（合同 §2.1 布局 C′）。
 //
@@ -147,6 +148,8 @@ export default function PreviewWorkspace({ aiCollapsed = false, agentDockRef }: 
   const durationFrame = React.useMemo(() => computeTimelineDuration(timeline), [timeline])
   const activeClips = React.useMemo(() => resolveActiveClipsAtFrame(timeline, playheadFrame), [timeline, playheadFrame])
   const assistantVisible = layout.visibility.assistant && !aiCollapsed
+  const residentActivityDot = useResidentActivityStore((state) => state.dotClassName)
+  const residentActivityLabel = useResidentActivityStore((state) => state.label)
 
   useTimelinePlaybackClock({ playing, playheadFrame, durationFrame, fps: timeline.fps, onPlayheadChange: setTimelinePlayhead, onPlayingChange: setTimelinePlaying })
 
@@ -283,10 +286,15 @@ export default function PreviewWorkspace({ aiCollapsed = false, agentDockRef }: 
             {assistantVisible ? (
               <div ref={agentDockRef} className="h-full w-full min-w-0" />
             ) : (
+              /* 收起后叫回 Nomi 的**唯一**入口。状态点让「它还在跑 / 在等我确认」在收起态也看得见，
+                 这是删掉画面右上角那颗「叫回 Nomi」胶囊的前提——一功能一个家（合同 §1.5）。 */
               <PanelRail
                 icon={<IconMessageCircle size={16} />}
                 label={t('timelinePreview.previewLayout.panels.assistant')}
-                title={t('timelinePreview.previewLayout.expandAssistant')}
+                title={residentActivityLabel
+                  ? `${t('timelinePreview.previewLayout.expandAssistant')} · ${residentActivityLabel}`
+                  : t('timelinePreview.previewLayout.expandAssistant')}
+                statusDotClassName={residentActivityDot || 'bg-nomi-ink-30'}
                 onClick={() => setAgentCollapsed(false)}
               />
             )}

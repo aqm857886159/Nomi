@@ -211,7 +211,8 @@ type WorkbenchState = WorkbenchDocumentSlice & EditingPanelLayoutSlice & Timelin
   removeTimelineClip: (clipId: string) => void
   removeSelectedTimelineClips: () => void
   removeTimelineClips: (clipIds: string[], ripple?: boolean) => void
-  setTimelineTransition: (transition: TimelineTransition) => void
+  // 一条或一批转场。整批走同一次 set，一次 ⌘Z 全撤（「套用到所有接缝」靠这条）。
+  setTimelineTransition: (transition: TimelineTransition | readonly TimelineTransition[]) => void
   removeTimelineTransition: (fromClipId: string, toClipId: string) => void
   setTimelineTrackMuted: (trackId: string, muted: boolean) => void
   /**
@@ -556,14 +557,15 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
   setTimelineTransition: (transition) => {
     set((state) => {
       const transitions = [...(state.timeline.transitions ?? [])]
-      const index = transitions.findIndex((item) => item.fromClipId === transition.fromClipId && item.toClipId === transition.toClipId)
-      if (index >= 0 && JSON.stringify(transitions[index]) === JSON.stringify(transition)) return state
-      const previous = state.timeline
-      if (index >= 0) transitions[index] = transition
-      else transitions.push(transition)
+      for (const entry of Array.isArray(transition) ? transition : [transition as TimelineTransition]) {
+        const index = transitions.findIndex((item) => item.fromClipId === entry.fromClipId && item.toClipId === entry.toClipId)
+        if (index >= 0) transitions[index] = entry
+        else transitions.push(entry)
+      }
+      if (JSON.stringify(transitions) === JSON.stringify(state.timeline.transitions ?? [])) return state
       return {
         timeline: { ...state.timeline, transitions },
-        timelineUndoStack: pushTimelineUndo(state.timelineUndoStack, previous),
+        timelineUndoStack: pushTimelineUndo(state.timelineUndoStack, state.timeline),
         timelineRedoStack: [],
         persistRevision: state.persistRevision + 1,
       }

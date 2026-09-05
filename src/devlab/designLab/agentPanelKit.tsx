@@ -50,27 +50,8 @@ export const PANEL_WIDTH = 340
 /** 舞台高度。够高才能一屏看完一条完整对话，又不至于让接触表变成长条。 */
 export const PANEL_HEIGHT = 620
 
-export type LabCoverage =
-  /** 现役面板能真实走到这个形态（Host 数据 → 面板渲染整条通）。 */
-  | 'shell'
-  /** 组件已实现，但没有 Host 数据路径能让它出现在面板里——欠账。 */
-  | 'component-only'
-  /** 设计文档要求、现役一行代码都没有——缺口。 */
-  | 'missing'
-  /** 设计上已被后续裁决取消，基线用来钉死「它确实不在」。 */
-  | 'retired'
-
-export type LabState = Readonly<{
-  id: string
-  /** 人话名字，出现在选择器和接触表格子上。 */
-  name: string
-  /** 来源文档 + 章节。改设计先改文档，再改这里。 */
-  source: string
-  coverage: LabCoverage
-  /** 这一格在接触表里占几列（宽件占 2 列）。 */
-  span?: 1 | 2
-  render: () => JSX.Element
-}>
+// 状态与档位的类型住 `labScreen.ts`（各屏共用一份形状）；这里只 re-export，方便同屏的文件就近取用。
+export type { LabCoverage, LabState } from './labScreen'
 
 // ── shell 档：灌 Host 快照，渲染现役面板 ──────────────────────────────────────
 
