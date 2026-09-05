@@ -50,7 +50,7 @@ function resetStores(): void {
     [{ id: 'storyboard-doc', version: 1, title: '雨夜追凶', contentJson: { type: 'doc', content: [] }, updatedAt: 1 }],
     'storyboard-doc',
   )
-  useWorkbenchStore.getState().hydrateStoryboardPlans({ 'storyboard-doc': { plan, committed: false } })
+  useWorkbenchStore.getState().hydrateStoryboardDesigns({ 'storyboard-doc': [{ id: 'test-storyboard-doc', documentId: 'storyboard-doc', title: plan.title, plan, committed: false, status: 'draft', sourceDocumentUpdatedAt: 1, createdAt: 1, updatedAt: 1 }] })
 }
 
 function receiptCoordinator(service: ProjectAgentProposalReceiptService, proposalId: string): ProposalReceiptCoordinator {
@@ -152,7 +152,7 @@ describe('canonical storyboard patch production transaction', () => {
     )
 
     expect(outcome).toMatchObject({ status: 'committed', proposalId: 'receipt-canonical-patch' })
-    expect(useWorkbenchStore.getState().storyboardPlans['storyboard-doc']?.plan.shots).toEqual([
+    expect(useWorkbenchStore.getState().storyboardDesignsByDocumentId['storyboard-doc']?.[0]?.plan.shots).toEqual([
       plan.shots[0],
       { ...plan.shots[1], prompt: '跟拍，雨天', params: { aspect_ratio: '9:16', quality: 'high' } },
       plan.shots[2],
@@ -161,7 +161,7 @@ describe('canonical storyboard patch production transaction', () => {
     expect(createProjectAgentProposalReceiptService({ projectRoot, binding }).read()).toEqual(service.read())
 
     const payload = readCurrentWorkbenchProjectPayload()
-    expect(payload.storyboardPlans?.['storyboard-doc']?.plan.shots[1]).toMatchObject({
+    expect(payload.storyboardDesignsByDocumentId?.['storyboard-doc']?.[0]?.plan.shots[1]).toMatchObject({
       prompt: '跟拍，雨天',
       params: { aspect_ratio: '9:16', quality: 'high' },
     })
@@ -172,12 +172,11 @@ describe('canonical storyboard patch production transaction', () => {
     useWorkbenchStore.setState({
       workbenchDocuments: [],
       activeDocumentId: undefined,
-      storyboardPlans: {},
       storyboardDesignsByDocumentId: {},
       activeStoryboardId: null,
     })
     restoreWorkbenchProjectPayload(payload)
-    expect(useWorkbenchStore.getState().storyboardPlans['storyboard-doc']?.plan.shots[1]).toMatchObject({
+    expect(useWorkbenchStore.getState().storyboardDesignsByDocumentId['storyboard-doc']?.[0]?.plan.shots[1]).toMatchObject({
       prompt: '跟拍，雨天',
       durationSec: 8,
       params: { aspect_ratio: '9:16', quality: 'high' },
@@ -195,7 +194,7 @@ describe('canonical storyboard patch production transaction', () => {
       { operation: input.operation, input },
     )
     const admission = buildCanvasWriteAdmissionForOperation(rawEvidence, input)
-    const before = structuredClone(useWorkbenchStore.getState().storyboardPlans['storyboard-doc']?.plan)
+    const before = structuredClone(useWorkbenchStore.getState().storyboardDesignsByDocumentId['storyboard-doc']?.[0]?.plan)
     const outcome = await applyProposalBatch(
       [{ toolCallId: 'tool-stale-patch', toolName: 'nomi_canvas_plan', effectiveArgs: input }],
       undefined,
@@ -211,7 +210,7 @@ describe('canonical storyboard patch production transaction', () => {
       },
     )
     expect(outcome).toMatchObject({ status: 'aborted', proposalId: 'receipt-stale-patch' })
-    expect(useWorkbenchStore.getState().storyboardPlans['storyboard-doc']?.plan).toEqual(before)
+    expect(useWorkbenchStore.getState().storyboardDesignsByDocumentId['storyboard-doc']?.[0]?.plan).toEqual(before)
   })
 
 })

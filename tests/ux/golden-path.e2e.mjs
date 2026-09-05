@@ -111,13 +111,13 @@ function say(line) {
 }
 
 /**
- * 盘上真相源：分镜方案按 documentId 存在 payload.storyboardPlans 里
- * （见 applyCanvasToolCall.ts 的 patch_shots 分支：store.storyboardPlans[documentId]）。
+ * 盘上真相源：分镜方案按 documentId 存在 storyboardDesignsByDocumentId 里。
+ * 这里刻意只认 owner，避免兼容形状制造假绿。
  * 这里刻意**只**认这一份 —— 多认一份「兼容形状」就等于给假绿开后门。
  */
 function planFromPayload(payload) {
   const documentId = payload?.activeDocumentId
-  const entry = documentId ? payload?.storyboardPlans?.[documentId] : null
+  const entry = documentId ? payload?.storyboardDesignsByDocumentId?.[documentId]?.[0] : null
   return entry?.plan ?? null
 }
 
@@ -414,9 +414,9 @@ async function stepRestartAndVerify(projectRoot, projectId, { shotId, resultUrl 
   // 只比 src 字符串会假绿：src 在、图挂了也照样通过。判据取 naturalWidth——
   // 它 >0 意味着这张图**真的解码出来了**。
   const restoredImage = win.locator(`${row(2)} [data-storyboard-frame] img`).first()
-  await expect.poll(async () => restoredImage.evaluate((el) => ({ src: el.getAttribute('src'), w: el.naturalWidth })),
+  await expect.poll(async () => restoredImage.evaluate((el) => el.naturalWidth),
     { message: '重启后第 2 行的画面格没有真的把那张图解码出来', timeout: 20_000 })
-    .toEqual(expect.objectContaining({ w: expect.any(Number) }))
+    .toBeGreaterThan(0)
   const restored = await restoredImage.evaluate((el) => ({ src: el.getAttribute('src'), w: el.naturalWidth, h: el.naturalHeight, complete: el.complete }))
   console.log('  · 重启后画面格 img：', JSON.stringify(restored))
   expect(restored.src, '重启后第 2 行画面格的图不是本地资产').toContain('nomi-local://')

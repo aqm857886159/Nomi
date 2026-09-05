@@ -163,15 +163,6 @@ export async function readConversations(win, projectId, durableRoots) {
 }
 
 export function readNativeContexts(projectRoot, settingsRoot) {
-  const file = path.join(projectRoot, '.nomi', 'agent-session.json')
-  if (fs.existsSync(file)) {
-    const container = JSON.parse(fs.readFileSync(file, 'utf8'))
-    expect(container.version, 'Product entry must persist the v3 pi working-context store').toBe(3)
-    return Object.values(container.records)
-  }
-  // ProjectAgentHost is the current production owner. Fresh projects no
-  // longer create the retired .nomi/agent-session.json bucket; project-agent
-  // snapshots still expose the same durable conversation/tool evidence.
   if (!settingsRoot) return null
   const state = readCurrentProjectAgentHostSnapshot(settingsRoot, projectRoot)
   if (!state) return null
