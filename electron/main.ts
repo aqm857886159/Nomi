@@ -43,7 +43,7 @@ import { registerOnboardingIpc } from "./ai/onboarding/onboardingIpc";
 import { registerProviderAdapterIpc } from "./providerAdapter/ipc";
 import { registerExistingConnectionIpc } from "./providerAdapter/existingConnectionIpc";
 import { registerUpdaterIpc } from "./update/autoUpdater";
-import { setRendererTarget } from "./capabilityCore/rendererBridge";
+import { requestRenderer, setRendererTarget } from "./capabilityCore/rendererBridge";
 import { readMcpInfo, installMcp, uninstallMcp } from "./capabilityCore/mcpConfig";
 import { verifyMcp } from "./capabilityCore/mcpVerify";
 import { registerCustomMcpProfileIpc, watchMcpProfiles } from "./capabilityCore/mcpProfiles";
@@ -182,6 +182,10 @@ async function startDesktopCapabilityCore(): Promise<void> {
       canvasReadExecutionRuntime: desktopCanvasReadExecutionRuntime,
       onGenerationReady: (factory) => getInstalledProductionProjectAgentHost()?.setGenerationAdapterFactory(factory),
       proposalReceiptFor: createDesktopProposalReceiptResolver(),
+      onMcpConfigRepaired: async ({ clients }) => {
+        if (!clients.includes('claude')) return
+        try { await requestRenderer('host-config.repaired', {}, 30_000) } catch { /* renderer may still be settling; startup repair remains complete */ }
+      },
     },
   );
   capabilityPortCache = core.getCapabilityPort();

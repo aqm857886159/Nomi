@@ -105,6 +105,8 @@ export type DispatchContext = {
   makeVerifyDeps?: MakeVerifyDeps
   /** Conversational model-integration session authority. External MCP clients drive begin→…→start here. */
   integrationSessions?: IntegrationSessionService
+  /** GUI-owned credential handoff effect. Called after the durable handoff is queued. */
+  openCredentialsInNomi?: (input: { sessionId: string; vendorName: string }) => { opened: boolean } | void | Promise<{ opened: boolean } | void>
 }
 
 const PROJECT_SESSION_RETRY = 'Open a new project session and retry'
@@ -736,13 +738,24 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
         ctx.origin?.host || 'external',
       )
     }
-    case 'integration.open_credentials':
-      // 附上一次性凭据页（MCP URL 模式 elicitation）。铸在这一层 = 铸在真正持有会话的那个进程里。
-      return withCredentialElicitationTicket((ctx.integrationSessions || getIntegrationSessionService()).openCredentials(
+    case 'integration.open_credentials': {
+      // 先把 durable handoff 落盘，再通知 GUI 消费它；这样设置页打开时不会错过队列事件。
+      const opened = (ctx.integrationSessions || getIntegrationSessionService()).openCredentials(
         params.sessionId,
         params.expectedRevision,
         ctx.origin?.host || 'external',
-      ))
+      )
+      let ui: { opened: boolean } | void
+      try {
+        ui = await ctx.openCredentialsInNomi?.({ sessionId: opened.id, vendorName: opened.config.name })
+      } catch {
+        // A window can disappear between durable enqueue and the renderer request. Keep the MCP
+        // contract usable; the queued handoff will replay when Nomi is opened next time.
+        ui = { opened: false }
+      }
+      // 附上一次性凭据页（MCP URL 模式 elicitation）。铸在这一层 = 铸在真正持有会话的那个进程里。
+      return withCredentialElicitationTicket({ ...opened, credentialUiOpened: ui?.opened === true })
+    }
     case 'integration.propose':
       return (ctx.integrationSessions || getIntegrationSessionService()).propose(
         params.sessionId,

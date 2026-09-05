@@ -11,6 +11,7 @@
 //
 // 这里只做接线，不碰 main.ts 的其它职责（保持 main.ts 精简、单一关注点）。
 import { app } from 'electron'
+import { getMainWindow } from '../mainWindowRegistry'
 import { startRpcServer, type RpcServerHandle } from './rpcServer'
 import { ensureCapabilitySigningKey, ensureToken } from './security'
 import { clearInstanceAdvertisement, writeInstanceAdvertisement } from './lockfile'
@@ -132,6 +133,8 @@ export async function startCapabilityCore(
     generationModuleRegistry?: Pick<ModuleRegistry, 'resolve'>
     projectRevisionResolver?: (projectId: string) => number | undefined
     proposalReceiptFor?: import('./rpcServer').RpcServerOptions['proposalReceiptFor']
+    openCredentialsInNomi?: import('./rpcServer').RpcServerOptions['openCredentialsInNomi']
+    onMcpConfigRepaired?: (input: { clients: readonly string[] }) => void | Promise<void>
     canvasReadExecutionRuntime?: CanvasReadExecutionRuntime
     onGenerationReady?: (factory: ResidentGenerationAdapterFactory['factory']) => void
   } = {},
@@ -151,7 +154,10 @@ export async function startCapabilityCore(
     // 已接入的编程助手若还指着 Nomi 旧入口，宿主侧只显示一句 CONNECTION_CLOSED——里面一个字都没提 Nomi，
     // 用户没有理由想到「去开 Nomi 的模型接入面板」。这个修复原本只作为渲染那块面板的副作用发生，等于没有。
     // 能力核起来 = 这些配置指向的服务端就绪，正是把它们修回来的时刻（只动 Nomi 自己写过的条目，见 mcpConfig）。
-    try { repairStaleMcpConfigs() } catch { /* 宿主配置不可读不是 Nomi 的故障，不能反向拖垮能力核 */ }
+    try {
+      const repair = repairStaleMcpConfigs()
+      if (repair.changed) await authorities.onMcpConfigRepaired?.({ clients: repair.repaired.map((item) => item.client) })
+    } catch { /* 宿主配置不可读不是 Nomi 的故障，不能反向拖垮能力核 */ }
     const token = ensureToken()
     const generationService = getProductionRunService()
     const operationStore = createProductionGenerationOperationStore(generationService)
@@ -720,6 +726,16 @@ export async function startCapabilityCore(
       ...authorities,
       projectRevisionResolver,
       proposalReceiptFor: authorities.proposalReceiptFor,
+      openCredentialsInNomi: authorities.openCredentialsInNomi ?? (async ({ sessionId }: { sessionId: string; vendorName: string }) => {
+        const win = getMainWindow()
+        if (!win || win.isDestroyed()) throw new Error('Nomi window unavailable')
+        if (process.platform === 'darwin') app.focus({ steal: true })
+        if (win.isMinimized()) win.restore()
+        win.show()
+        win.focus()
+        await requestRenderer('integration.open-credentials', { sessionId }, 30_000)
+        return { opened: true }
+      }),
       generationPolicy,
       generationPlanning,
     })

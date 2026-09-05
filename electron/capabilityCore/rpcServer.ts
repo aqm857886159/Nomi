@@ -45,6 +45,7 @@ import { isMcpEditingMethod } from './mcpCapabilityProjection'
 import type { ProjectBinding } from '../shared/projectBinding'
 import type { ProjectAgentProposalReceiptService } from '../projectAgentHost/projectAgentProposalReceiptStore'
 import { executeMcpDocumentWriteWithReceipt } from './mcpDocumentWriteReceipt'
+import type { DispatchContext } from './dispatcher'
 
 export type RpcServerOptions = {
   /** 真实生成入口（runtime.runTask）。注入式：headless host 与 app 各自传同一份。 */
@@ -76,6 +77,8 @@ export type RpcServerOptions = {
   canvasReadExecutionRuntime?: CanvasReadExecutionRuntime
   /** Main-owned durable proposal receipt service resolved only after a verified project lease. */
   proposalReceiptFor?: (binding: ProjectBinding) => ProjectAgentProposalReceiptService | undefined | Promise<ProjectAgentProposalReceiptService | undefined>
+  /** After a durable credential handoff is queued, focus/show the GUI and open model settings. */
+  openCredentialsInNomi?: DispatchContext['openCredentialsInNomi']
 }
 
 function readBody(req: http.IncomingMessage): Promise<string> {
@@ -358,6 +361,7 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
           generationContext: options.generationContext,
           generationPlanning: options.generationPlanning,
           projectRevisionResolver: options.projectRevisionResolver,
+          openCredentialsInNomi: options.openCredentialsInNomi,
           ...(options.projectSessionAuthority && projectSessionConnection
             ? { projectSession: { authority: options.projectSessionAuthority, connection: projectSessionConnection } }
             : {}),

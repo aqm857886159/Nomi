@@ -25,4 +25,19 @@ describe("desktop credential startup ordering", () => {
     expect(delayedBackgroundWork).toBeGreaterThan(createWindow);
     expect(relayMaintenance).toBeGreaterThan(delayedBackgroundWork);
   });
+
+  it("only forwards the Claude restart notice after a real config write", () => {
+    const source = fs.readFileSync(new URL("./main.ts", import.meta.url), "utf8");
+    const repair = source.indexOf("onMcpConfigRepaired: async");
+    const guard = source.indexOf("if (!clients.includes('claude')) return", repair);
+    const request = source.indexOf("requestRenderer('host-config.repaired'", guard);
+    expect(repair).toBeGreaterThanOrEqual(0);
+    expect(guard).toBeGreaterThan(repair);
+    expect(request).toBeGreaterThan(guard);
+    const integration = fs.readFileSync(new URL("./capabilityCore/appIntegration.ts", import.meta.url), "utf8");
+    const repairResult = integration.indexOf("const repair = repairStaleMcpConfigs()");
+    const changedGuard = integration.indexOf("if (repair.changed)", repairResult);
+    expect(repairResult).toBeGreaterThanOrEqual(0);
+    expect(changedGuard).toBeGreaterThan(repairResult);
+  });
 });

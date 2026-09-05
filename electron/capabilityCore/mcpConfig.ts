@@ -471,10 +471,12 @@ export function readMcpInfo(rpcPort: number | null): McpInfo {
  * `launcher-stale`) are rewritten, only when a packaged launcher exists to point at, and every rewrite
  * takes a `.nomi-backup` first. A `custom` entry — anything Nomi did not write — is never touched.
  */
-export function repairStaleMcpConfigs(): readonly { client: McpClientKey; from: McpConfigState }[] {
+export type McpConfigRepairResult = { changed: boolean; repaired: readonly { client: McpClientKey; from: McpConfigState }[] }
+
+export function repairStaleMcpConfigs(): McpConfigRepairResult {
   // 走查/E2E 起的是真 GUI，但 `~/.claude.json` 的路径来自 os.homedir()，**不在**隔离目录里——不挡住的话，
   // 每跑一次走查就会把开发者真实的客户端配置改成指向那次测试的二进制。隔离得住的东西才可以自动改。
-  if (process.env.NOMI_E2E === '1') return []
+  if (process.env.NOMI_E2E === '1') return { changed: false, repaired: [] }
   const repaired: { client: McpClientKey; from: McpConfigState }[] = []
   const keys: McpClientKey[] = [...BUILTIN_MCP_CLIENTS, ...listCustomMcpProfiles().map((profile) => profile.key)]
   for (const client of keys) {
@@ -483,7 +485,7 @@ export function repairStaleMcpConfigs(): readonly { client: McpClientKey; from: 
       if (clientInfo(client).migration === 'upgraded') repaired.push({ client, from: before })
     } catch { /* an unreadable or non-existent client config is not a Nomi failure */ }
   }
-  return repaired
+  return { changed: repaired.length > 0, repaired }
 }
 
 function tomlUnescape(value: string): string {

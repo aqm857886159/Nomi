@@ -21,10 +21,16 @@ import React from 'react'
 import { createRoot } from 'react-dom/client'
 import '@fontsource-variable/inter/wght.css'
 import '@fontsource-variable/fraunces/wght.css'
+import '@mantine/core/styles/UnstyledButton.css'
+import '@mantine/core/styles/CloseButton.css'
+import '@mantine/core/styles/Notification.css'
+import '@mantine/notifications/styles.css'
+import '../styles/index.css'
 import { NomiAppProviders } from '../NomiAppProviders'
 import { NomiColorSchemeProvider } from '../theme/NomiColorSchemeProvider'
 import { persistColorScheme, primeNomiColorScheme } from '../theme/colorScheme'
 import { AGENT_PANEL_STATES, findAgentPanelState, PANEL_WIDTH, type LabState } from './designLab/agentPanelStates'
+import { McpKeyWindowToastState } from './designLab/mcpKeyWindowToast'
 
 const params = new URL(window.location.href).searchParams
 const screen = params.get('screen') || 'agent-panel'
@@ -137,7 +143,13 @@ function SingleState({ state }: { state: LabState }): JSX.Element {
   )
 }
 
+function McpKeyWindowLabApp(): JSX.Element {
+  React.useEffect(() => { markReady() }, [])
+  return <McpKeyWindowToastState />
+}
+
 function DesignLabApp(): JSX.Element {
+  if (screen === 'mcp-key-window') return <McpKeyWindowLabApp />
   const state = findAgentPanelState(stateId) ?? AGENT_PANEL_STATES[0]
   if (frameMode) return <SingleState state={state} />
   return (

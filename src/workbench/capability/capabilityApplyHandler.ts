@@ -33,6 +33,7 @@ import { handleMultiShotCanvasLandingOp } from './multiShotCanvasLanding'
 import { executeTimelineReadTarget, executeTimelineWriteTarget } from '../timeline/agent/timelineCapabilityTarget'
 import { executeAssetReadTarget, executeExportReadTarget } from '../timeline/agent/phase4CapabilityTargets'
 import { executeCanonicalCanvasPlanPatch } from './canonicalCanvasPlanPatch'
+import { toast } from '../../ui/toast'
 
 // 能力核 A 模式实时桥 · 渲染层处理器。
 // 主进程把外部 MCP 的画布读/写/付费确认转发到这里（只在该项目正打开时路由），处理后回结果。
@@ -368,6 +369,14 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
   if (landed !== null) return landed
 
   switch (op) {
+    case 'integration.open-credentials': {
+      window.dispatchEvent(new CustomEvent('nomi-open-settings', { detail: { tab: 'models' } }))
+      return { opened: true }
+    }
+    case 'host-config.repaired': {
+      toast(i18n.t('studio.hostConfigRepaired'), 'info')
+      return { notified: true }
+    }
     case 'document.write': {
       const tools = useWorkbenchStore.getState().creationDocumentTools
       const operation = data.operation === 'insert' || data.operation === 'replace' || data.operation === 'append'

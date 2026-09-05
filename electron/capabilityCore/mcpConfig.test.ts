@@ -352,12 +352,12 @@ describe('capabilityCore/mcpConfig', () => {
 
     const repaired = repairStaleMcpConfigs()
 
-    expect(repaired).toEqual([{ client: 'claude', from: 'legacy-launcher' }])
+    expect(repaired).toEqual({ changed: true, repaired: [{ client: 'claude', from: 'legacy-launcher' }] })
     const after = JSON.parse(fs.readFileSync(claudeJson(), 'utf8'))
     expect(after.mcpServers.nomi.env[MCP_CONFIG_VERSION_ENV]).toBe(MCP_CONFIG_VERSION)
     expect(after.mcpServers.nomi.args[0]).not.toContain('scripts/nomi-mcp.mjs')
     // Idempotent: a healthy config is not rewritten again on the next launch.
-    expect(repairStaleMcpConfigs()).toEqual([])
+    expect(repairStaleMcpConfigs()).toEqual({ changed: false, repaired: [] })
   })
 
   it('does not touch host configs during a walkthrough, whose home directory is the real one', () => {
@@ -368,7 +368,7 @@ describe('capabilityCore/mcpConfig', () => {
     fs.writeFileSync(claudeJson(), original)
     process.env.NOMI_E2E = '1'
     try {
-      expect(repairStaleMcpConfigs()).toEqual([])
+      expect(repairStaleMcpConfigs()).toEqual({ changed: false, repaired: [] })
       expect(fs.readFileSync(claudeJson(), 'utf8')).toBe(original)
     } finally {
       delete process.env.NOMI_E2E
@@ -380,7 +380,7 @@ describe('capabilityCore/mcpConfig', () => {
     const original = JSON.stringify({ mcpServers: { nomi: { command: 'custom-nomi-proxy', args: ['serve'] } } }, null, 2)
     fs.writeFileSync(claudeJson(), original)
 
-    expect(repairStaleMcpConfigs()).toEqual([])
+    expect(repairStaleMcpConfigs()).toEqual({ changed: false, repaired: [] })
     expect(fs.readFileSync(claudeJson(), 'utf8')).toBe(original)
     expect(fs.existsSync(`${claudeJson()}.nomi-backup`)).toBe(false)
   })

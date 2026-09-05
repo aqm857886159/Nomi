@@ -1,0 +1,33 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-06-mcp-key-window-front-and-host-config-toast",
+  "problem_type": "MCP credential handoff discoverability and silent host-config repair",
+  "symptom": "A client asks for a provider key but Nomi stays behind other windows and the user must find Settings manually; stale Claude Code configuration can be repaired at boot without telling the user to restart Claude Code.",
+  "direct_cause": "integration.open_credentials only enqueues a durable handoff and the startup repair result is discarded, so neither path has an application-visible navigation or notification signal.",
+  "class_root": "Shared boundaries do not propagate user-actionable effects after durable credential/config state changes: GUI focus/navigation and changed repair state are missing from the owning process contract.",
+  "affected_population": ["MCP clients using URL or form-only elicitation", "Nomi users with a stale Nomi-owned Claude/Codex/Cursor config", "macOS and other Electron desktop platforms"],
+  "scope_paths": ["electron/capabilityCore/dispatcher.ts", "electron/capabilityCore/rpcServer.ts", "electron/capabilityCore/appIntegration.ts", "electron/capabilityCore/mcpConfig.ts", "electron/capabilityCore/mcpCredentialElicitation.ts", "src/workbench/capability/capabilityApplyHandler.ts", "src/ui/onboarding/OnboardingDrawer.tsx", "src/i18n/resources.ts"],
+  "entry_points": ["MCP integration.open_credentials via GUI RPC", "MCP integration.open_credentials via headless stdio", "manual model-settings config inspection", "capability-core startup repair"],
+  "external_sources": [],
+  "internal_only_reason": "The invariant is an app-owned Electron/renderer contract; MCP protocol behavior is already covered by existing tests and is not changed.",
+  "invariants": ["A GUI-owned credential handoff focuses/shows the main window and dispatches the model-settings navigation after the handoff is durable.", "A headless or unreachable GUI never claims the window was opened and retains an actionable startup instruction.", "Host-config repair reports changed=true exactly when a Nomi-owned file was rewritten; only that signal emits the restart toast."],
+  "generality_proof": "All integration.open_credentials calls converge through dispatcher dispatch and GUI RPC dispatch; both URL-capable and form-only clients therefore receive the same focus/navigation side effect. All automatic config migrations converge through repairStaleMcpConfigs, so changed is derived at the shared write boundary rather than from a client-specific caller.",
+  "shared_boundaries": [
+    {"path": "electron/capabilityCore/dispatcher.ts", "symbol": "integration.open_credentials", "responsibility": "Persist the handoff, then invoke the optional GUI navigation callback before returning the projection."},
+    {"path": "electron/capabilityCore/appIntegration.ts", "symbol": "startCapabilityCore", "responsibility": "Own GUI callback wiring and propagate changed host-config repair to the renderer."},
+    {"path": "electron/capabilityCore/mcpConfig.ts", "symbol": "repairStaleMcpConfigs", "responsibility": "Return an explicit changed flag for every rewritten Nomi-owned host config."}
+  ],
+  "same_class_entry_points": [
+    {"path": "electron/capabilityCore/rpcServer.ts", "entry_point": "GUI RPC dispatchAndEnrich", "disposition": "enforced", "evidence": "This is the running-app path used by mcpNodeLauncher when an instance advertisement is live."},
+    {"path": "electron/capabilityCore/mcpStdioServer.ts", "entry_point": "headless stdio dispatch", "disposition": "not-affected", "evidence": "No GUI exists in this process; callback is absent and existing manual copy remains the honest fallback."},
+    {"path": "electron/capabilityCore/mcpConfig.ts", "entry_point": "readMcpInfo/clientInfo migration", "disposition": "enforced", "evidence": "Panel inspection and startup repair share clientInfo migration and the same atomic write boundary."}
+  ],
+  "recurrence": {"classification": "recurring", "reason": "Any supported MCP client can lack URL presentation or any future launch can encounter a stale Nomi-owned entry; the current behavior is structural.", "same_class_scan": ["rg integration.open_credentials across dispatcher, mcpStdioServer, mcpNodeLauncher and UX journeys", "rg repairStaleMcpConfigs across appIntegration and mcpConfig tests", "inspect handoffQueue consumer in OnboardingDrawer and SettingsDialog navigation"]},
+  "prevention": {"kind": "centralized-boundary", "enforcement_path": "electron/capabilityCore/dispatcher.ts", "invariant": "Every GUI-owned open_credentials handoff triggers the same renderer navigation callback after durable enqueue; every config repair reports its actual write delta.", "failure_mode": "Renderer unavailable rejects the callback and MCP retains the existing manual/startup text; unchanged configs produce changed=false and no toast.", "exception_policy": "none", "strategy": "Make the durable state transition and its user-facing effect one shared dispatch boundary, with explicit capability absence instead of caller guesses.", "artifacts": ["electron/capabilityCore/dispatcher.ts", "electron/capabilityCore/appIntegration.ts", "electron/capabilityCore/mcpConfig.ts", "src/workbench/capability/capabilityApplyHandler.ts"]},
+  "regression_tests": ["electron/capabilityCore/mcpCredentialElicitation.test.ts", "electron/capabilityCore/mcpConfig.test.ts", "electron/capabilityCore/mcpIntegrationTools.test.ts"],
+  "class_regression_tests": ["electron/capabilityCore/mcpCredentialElicitation.test.ts", "electron/capabilityCore/mcpConfig.test.ts", "electron/capabilityCore/mcpIntegrationTools.test.ts"],
+  "legacy_paths": {"status": "not-applicable", "removed_paths": [], "rationale": "Existing durable handoff and atomic migration paths remain the canonical paths; this change adds their missing effect signals."},
+  "dependency_lifecycle": {"decision": "not-applicable", "rationale": "No third-party dependency controls the application-owned callback or repair contract.", "exit_criteria": []},
+  "migration": "No persisted schema migration is needed. Existing handoff/config files are read unchanged; only runtime return shape and effect wiring change.",
+  "residual_risks": ["A GUI that exits between handoff enqueue and renderer acknowledgement still relies on the durable queue and will replay on next settings-open.", "macOS focus behavior is verified in the Electron walk-through environment; other window managers retain show/focus best effort semantics."]
+}
