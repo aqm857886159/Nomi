@@ -5,7 +5,7 @@
 // 或修改 extract-design-spec.mjs 的 CLASS_TO_ANCHOR 映射表。
 //
 // 样张：docs/design/mockups/2026-09-01-agent-ui-final-redesign.html
-// 样张 hash：7853f8149d90e80b（hash 不变代表样张未改，规格仍有效）
+// 样张 hash：ddbf0c2d345f1368（hash 不变代表样张未改，规格仍有效）
 //
 // 这份契约与意图层（*.intent.mjs）**平行但不重叠**：
 //   · 自动层（本文件）：挂点全不全、几何有没有跑偏（从样张渲染量出的真实像素）。
@@ -356,10 +356,10 @@ export default {
   },
   {
     "name": "[A-19] 底排执行方式钮（data-agent-composer-mode）",
-    "selector": ".cbtn.ico[data-tip^=\"Agent\"]",
+    "selector": ".cbtn.ico[data-tip=\"模式\"]",
     "dimension": "height",
     "expected": 28,
-    "sourceLocator": "docs/design/mockups/2026-09-01-agent-ui-final-redesign.html#.cbtn.ico[data-tip^=\"Agent\"]",
+    "sourceLocator": "docs/design/mockups/2026-09-01-agent-ui-final-redesign.html#.cbtn.ico[data-tip=\"模式\"]",
     "sourceLibrary": "Beautiful UI",
     "adaptationRule": "Use the Thinking/Loading/Tool Chips/Streaming Text behavior only; implement with Nomi primitives and tokens.",
     "tolerance": {
@@ -385,11 +385,11 @@ export default {
     "severity": "P1"
   },
   {
-    "name": "[A-19] 底排提示词钮（data-agent-composer-prompt）",
-    "selector": ".cbtn.ico[data-tip=\"提示词模板\"]",
+    "name": "[A-19] 底排技能钮（data-agent-composer-skill）",
+    "selector": ".cbtn.ico[data-tip=\"技能\"]",
     "dimension": "height",
     "expected": 28,
-    "sourceLocator": "docs/design/mockups/2026-09-01-agent-ui-final-redesign.html#.cbtn.ico[data-tip=\"提示词模板\"]",
+    "sourceLocator": "docs/design/mockups/2026-09-01-agent-ui-final-redesign.html#.cbtn.ico[data-tip=\"技能\"]",
     "sourceLibrary": "Beautiful UI",
     "adaptationRule": "Use the Thinking/Loading/Tool Chips/Streaming Text behavior only; implement with Nomi primitives and tokens.",
     "tolerance": {

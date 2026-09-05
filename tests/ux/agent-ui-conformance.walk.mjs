@@ -514,7 +514,7 @@ if (POSITIVE_CONTROL) {
 //   - data-agent-composer-attach → 已加
 //   - data-agent-composer-mode   → 已加
 //   - data-agent-composer-model  → 已加
-//   - data-agent-composer-prompt → 已加
+//   - data-agent-composer-skill → 已加
 //   - data-agent-composer-send   → 已加
 //   - data-agent-user-bubble     → 已加（item.kind==='user' 时条件渲染）
 //   - data-agent-reply           → 已加（item.kind==='assistant' 时条件渲染）
@@ -687,7 +687,7 @@ for (const elem of elements) {
           : anchor === 'data-agent-composer-attach' ? '（件1 已修·回归：应挂此属性）'
           : anchor === 'data-agent-composer-mode' ? '（件1 已修·回归：应挂此属性）'
           : anchor === 'data-agent-composer-model' ? '（件1 已修·回归：应挂此属性）'
-          : anchor === 'data-agent-composer-prompt' ? '（件1 已修·回归：应挂此属性）'
+          : anchor === 'data-agent-composer-skill' ? '（件1 已修·回归：应挂此属性）'
           : anchor === 'data-agent-composer-send' ? '（件1 已修·回归：应挂此属性）'
           : anchor === 'data-agent-user-bubble' ? '（件1 已修·回归：item.kind==="user" 时应带此属性）'
           : anchor === 'data-agent-reply' ? '（件1 已修·回归：item.kind==="assistant" 时应带此属性）'
@@ -799,7 +799,7 @@ for (const elem of elements) {
   }
 
   if (anchor === 'data-agent-composer-attach' || anchor === 'data-agent-composer-mode' ||
-      anchor === 'data-agent-composer-model' || anchor === 'data-agent-composer-prompt') {
+      anchor === 'data-agent-composer-model' || anchor === 'data-agent-composer-skill') {
     // A-19：底排钮高度 28px±1（即 ≤29px）
     if (rect.h < 24 || rect.h > 32) {
       fail(anchor, specRef, `底排钮高度不符: 期望 28px±4，实测 ${rect.h}px`)
