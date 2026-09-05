@@ -245,6 +245,10 @@ async function addNode(kind) {
 
 const pageErrors = []
 getWin().on('pageerror', (error) => pageErrors.push(String(error)))
+const consoleWarnings = []
+getWin().on('console', (msg) => {
+  if (msg.type() === 'warning' || msg.type() === 'error') consoleWarnings.push(msg.text().slice(0, 200))
+})
 
 try {
   await getWin().waitForLoadState('domcontentloaded')
@@ -289,7 +293,42 @@ try {
       kind: node.getAttribute('data-kind'),
     })),
   )
+  if (nodeIds.length < 2) {
+    // 节点建了却没渲染出来：把 React Flow 容器尺寸、视口、节点数与控制台告警一起交出去（NaN 视口那一族见
+    // docs/lessons/walkthrough-geometry-must-reverify-under-the-real-cursor.md）。
+    const diag = await getWin().evaluate(() => {
+      const rf = document.querySelector('.react-flow')?.getBoundingClientRect()
+      const layer = document.querySelector('.generation-canvas-v2__canvas')
+      const m = layer ? new DOMMatrixReadOnly(getComputedStyle(layer).transform) : null
+      return {
+        rf: rf ? { w: Math.round(rf.width), h: Math.round(rf.height) } : null,
+        viewport: m ? { x: Math.round(m.m41), y: Math.round(m.m42), zoom: m.a } : null,
+        rfNodes: document.querySelectorAll('.react-flow__nodes > *').length,
+        stageReady: document.querySelector('.generation-canvas-v2__stage')?.getAttribute('data-ready'),
+      }
+    })
+    console.log('  · DIAG', JSON.stringify({ ...diag, consoleWarnings: consoleWarnings.slice(0, 4), pageErrors }))
+  }
   assert(nodeIds.length >= 2, '画布上有两个节点', JSON.stringify(nodeIds))
+  // 新建即可见：两次建卡的露出动画（60ms 延迟 + 200ms）与 composer 让位（160ms）都得落地。
+  // 常驻 Agent 面板把 stage 压窄后，第二张卡的落点会被避让推到右边界外——这条断言就是为它写的。
+  await getWin().waitForTimeout(700)
+  const createdPlacement = await getWin().evaluate(() => {
+    const stage = document.querySelector('.generation-canvas-v2__stage').getBoundingClientRect()
+    return Array.from(document.querySelectorAll('.react-flow__node')).map((node) => {
+      const r = node.getBoundingClientRect()
+      return {
+        id: node.getAttribute('data-id'),
+        inside: r.left >= stage.left - 1 && r.right <= stage.right + 1 && r.top >= stage.top - 1 && r.bottom <= stage.bottom + 1,
+        overflowRight: Math.round(r.right - stage.right),
+      }
+    })
+  })
+  assert(
+    createdPlacement.length >= 2 && createdPlacement.every((entry) => entry.inside),
+    '新建的节点完整落在 stage 内（不被常驻 Agent 面板遮住）',
+    JSON.stringify(createdPlacement),
+  )
 
   // ── ① 空白左键拖 = 平移画布 ────────────────────────────────────────────
   const blank = await findBlankPoint()

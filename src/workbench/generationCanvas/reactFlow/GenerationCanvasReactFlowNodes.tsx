@@ -220,14 +220,30 @@ export function GenerationFlowNodeView({ data, selected }: NodeProps<GenerationF
       {!collapsedGroupProxy ? (
         <GenerationFlowNodeScope>
           {shouldRenderFullNodeContent({ lightweightMode, selected: primarySelection, focusFlash: data.focusFlash }) ? (
-            <NodeComponent
-              node={node}
-              selected={selected}
-              readOnly={data.readOnly}
-              focusFlash={data.focusFlash}
-              appear={data.appear}
-              host={pluginHost}
-            />
+            // 节点渲染器按种类懒加载（renderRegistry 的 React.lazy）。第一次建某种节点时 chunk 还没到，
+            // 若没有就近的 Suspense 边界，React 会把最近那层（NomiStudioApp 包住整个画布的那个）
+            // 已提交的内容整体 display:none 直到 chunk 到达：画布闪黑一帧，而且 React Flow 缓存的
+            // pane extent 在那一帧被 ResizeObserver 记成 0×0，接下来任何一次 d3 过渡都算出 NaN 视口。
+            // 就地兜底成轻量卡（同尺寸壳），让「加载中」只影响这一张卡。
+            <React.Suspense
+              fallback={
+                <LightweightGenerationNode
+                  node={node}
+                  appear={data.appear}
+                  selected={selected}
+                  readOnly={data.readOnly}
+                />
+              }
+            >
+              <NodeComponent
+                node={node}
+                selected={selected}
+                readOnly={data.readOnly}
+                focusFlash={data.focusFlash}
+                appear={data.appear}
+                host={pluginHost}
+              />
+            </React.Suspense>
           ) : (
             <LightweightGenerationNode
               node={node}
