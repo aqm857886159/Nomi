@@ -16,13 +16,14 @@ export const LAB_ORIGIN = `http://127.0.0.1:${LAB_PORT}`
 export default defineConfig({
   testDir: '.',
   testMatch: /.*\.visual\.spec\.mjs$/,
-  // 基线路径：tests/ux/design-lab/__baselines__/agent-panel/<id>.png。
-  // `agent-panel/` 这一层写在模板里而不是 toHaveScreenshot 的 name 里——name 里的 `/`
-  // 会被 Playwright 的文件名消毒换成 `-`，出来是 `agent-panel-<id>.png`（扁平），不是目录。
+  // 基线路径：tests/ux/design-lab/__baselines__/<屏>/<id>.png。
+  // 屏这一层由 `toHaveScreenshot([screen, id + '.png'])` 的**数组形式**给出——数组的每一项是一段
+  // 路径，才会真的落成目录；写成 `toHaveScreenshot('agent-panel/x.png')` 里的 `/` 会被
+  // Playwright 的文件名消毒换成 `-`，出来是扁平的 `agent-panel-x.png`。
   // 刻意不带 {platform}/{projectName} 后缀——只维护一套（darwin）基线，别的平台由
   // check-design-lab.mjs 按 calibration.json 判定「不跑视觉道」，而不是让 Playwright
   // 去找一份根本不存在的 linux 基线然后报「snapshot missing」（那是假红，看不出真因）。
-  snapshotPathTemplate: '{testDir}/__baselines__/agent-panel/{arg}{ext}',
+  snapshotPathTemplate: '{testDir}/__baselines__/{arg}{ext}',
   fullyParallel: false,
   workers: 1,
   reporter: [['list']],

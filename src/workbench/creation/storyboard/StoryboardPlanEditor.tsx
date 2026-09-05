@@ -1,6 +1,6 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconAlertTriangle, IconMovie, IconLockOpen, IconPlayerPlay, IconPlus, IconX } from '@tabler/icons-react'
+import { IconAlertTriangle, IconMovie, IconLockOpen, IconPlayerPlay, IconPlus, IconRobot, IconWand, IconX } from '@tabler/icons-react'
 import { confirmDialog, WorkbenchButton } from '../../../design'
 import { toast } from '../../../ui/toast'
 import { useWorkbenchStore } from '../../workbenchStore'
@@ -18,7 +18,8 @@ import {
   type PlanIssue,
 } from '../../generationCanvas/agent/storyboardPlanEdits'
 import type { StoryboardPlan } from '../../generationCanvas/agent/storyboardPlan'
-import StoryboardAnchorCard from './StoryboardAnchorCard'
+import { planDefaultAspect } from '../../generationCanvas/agent/storyboardAspectScope'
+import StoryboardAnchorZone from './anchorZone/StoryboardAnchorZone'
 import StoryboardBulkBar from './StoryboardBulkBar'
 import StoryboardShotTable from './StoryboardShotTable'
 import {
@@ -64,6 +65,8 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
   const activeDocumentId = useWorkbenchStore((s) => s.activeDocumentId)
   const activeStoryboardId = useWorkbenchStore((s) => s.activeStoryboardId)
   const setProjectAgentReferences = useWorkbenchStore((s) => s.setProjectAgentReferences)
+  const setProjectAgentDraft = useWorkbenchStore((s) => s.setProjectAgentDraft)
+  const setProjectAgentDockCollapsed = useWorkbenchStore((s) => s.setProjectAgentDockCollapsed)
   const canvasNodes = useGenerationCanvasStore((s) => s.nodes)
   // 图片/视频模型清单各拉一次，按镜头种类传给镜行的模型选择器 + 参数控件（完整 option 供解析 archetype 参数）。
   const videoModelOptions = useModelOptionsState('video').options
@@ -75,6 +78,16 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
   const [filterAnchorId, setFilterAnchorId] = React.useState<string | null>(null)
   const [playbackOpen, setPlaybackOpen] = React.useState(false)
   const [mentionPreviewAsset, setMentionPreviewAsset] = React.useState<AssetRef | null>(null)
+  // 锚区两态（v6 §2.2）：一次切全部，不做逐张展开（那会多出"哪几张是展开的"这个状态）。
+  const [anchorsExpanded, setAnchorsExpanded] = React.useState(false)
+  /**
+   * 「本次跳过」（v6 §2.10）。作用域是**这一批**：跑完自动清空——它是一次性的批次筛选，
+   * 不是持久属性（持久的那个叫「锁定」）。owner 在这里而不是表里，因为 footer 的「将跑 N 镜」
+   * 必须与它同一份 derive（合同 §9.3：不许 footer 自己再减一次）。
+   */
+  const [skippedShotIds, setSkippedShotIds] = React.useState<ReadonlySet<string>>(new Set())
+  // 选中的行（表上报）——footer 的「交给 Agent 改」与多选浮条读同一份，不各存一份。
+  const [selectedRuntimes, setSelectedRuntimes] = React.useState<StoryboardRowRuntime[]>([])
   const deletedPlanUndoRef = React.useRef<{ plan: NonNullable<typeof plan>; canvasSteps: number } | null>(null)
 
   const firstIssueLabel = (issue: PlanIssue): string => {
@@ -92,7 +105,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
     () => (plan ? deriveStoryboardRowRuntimes({ plan, designId, imageModelOptions, videoModelOptions, nodes: canvasNodes }) : []),
     [plan, designId, imageModelOptions, videoModelOptions, canvasNodes],
   )
-  const batch = React.useMemo(() => deriveStoryboardBatch(rows), [rows])
+  const batch = React.useMemo(() => deriveStoryboardBatch(rows, skippedShotIds), [rows, skippedShotIds])
   // 参考卡执行态（B3 图卡）：与行同一份 derive（「N 镜在等它」直接聚合 rows 的 waitingRefs）。
   const anchorCards = React.useMemo(
     () => (plan ? deriveAnchorCardRuntimes({ plan, designId, nodes: canvasNodes, rows }) : []),
@@ -189,7 +202,44 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
     void runAction(() => generateShotRow(execCtx, runtime.shot, runtime.mode))
   }
   const onRunBatch = (): void => {
-    void runAction(() => runStoryboardBatch(execCtx, batch.runnable))
+    const running = batch.runnable
+    // 「本次跳过」的作用域就是这一批：批次一发出去，标记立刻清空（§2.10）。
+    setSkippedShotIds(new Set())
+    void runAction(() => runStoryboardBatch(execCtx, running))
+  }
+  const onToggleSkip = (shotId: string): void => {
+    setSkippedShotIds((previous) => {
+      const next = new Set(previous)
+      if (next.has(shotId)) next.delete(shotId)
+      else next.add(shotId)
+      return next
+    })
+  }
+  /**
+   * 「交给 Agent 改」（§2.7）：把选中的镜头挂成常驻 Agent 的引用，用户接着用人话说要改什么。
+   * 改表本身走现役 canonical 工具（`nomi_canvas_plan(operation=patch_shots)`），
+   * 「就地预览 + 确认卡」的交互语义在 Agent 侧，本合同只保证入口可见。
+   */
+  const onAgentHandoff = (runtimes: StoryboardRowRuntime[]): void => {
+    if (runtimes.length === 0) return
+    setProjectAgentReferences((current) => [
+      ...current.filter((item) => !/^storyboard:(?:shot|result):\d+$/.test(item.value ?? '')),
+      ...runtimes.map((runtime) => buildStoryboardReference(
+        'shot',
+        runtime.shot.index,
+        t('storyboardEditor.row.selectAria', { index: runtime.shot.index }),
+        'agent handoff',
+      )),
+    ])
+    toast(t('storyboardEditor.agentHandoff.toast', { count: runtimes.length }), 'info')
+  }
+  const onLockSelected = (runtimes: StoryboardRowRuntime[]): void => {
+    for (const runtime of runtimes) if (runtime.exec.node) toggleNodeLock(runtime.exec.node.id)
+  }
+  /** 「从原稿重新拆分镜」：把请求交给常驻 Agent（分镜规划 Skill），不在这里另写一条拆镜逻辑。 */
+  const onResplitFromScript = (): void => {
+    setProjectAgentDockCollapsed(false)
+    setProjectAgentDraft(t('storyboardEditor.resplitDraft'))
   }
   const onRegenerateRow = (runtime: StoryboardRowRuntime): void => {
     const node = runtime.exec.node
@@ -291,6 +341,17 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
           <span className="shrink-0 text-micro text-nomi-ink-40 bg-nomi-ink-05 px-2 py-0.5 rounded-full">{t('storyboardEditor.shotCount', { count: plan.shots.length })}</span>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          {/* 「从原稿重新拆分镜」（§2.7 入口 1）：旧分镜表"写完剧本一键转化"的心智在这里延续——
+              只是执行者从确定性代码换成了 Agent，入口位置不变。 */}
+          <WorkbenchButton
+            variant="default"
+            size="sm"
+            data-storyboard-script-to-shots="true"
+            onClick={onResplitFromScript}
+          >
+            <IconWand size={14} stroke={1.7} />
+            {t('storyboardEditor.resplitFromScript')}
+          </WorkbenchButton>
           <WorkbenchButton
             variant="default"
             size="sm"
@@ -316,59 +377,24 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
       />
 
       <div className="overflow-y-auto px-4 py-4 flex flex-col gap-4">
-        <section data-storyboard-anchors="true">
-          <div className="flex items-baseline gap-2 mb-2">
-            <span className="text-body-sm font-medium text-nomi-ink-80">{t('storyboardEditor.consistencyTitle')}</span>
-            <span className="text-micro text-nomi-ink-40">{t('storyboardEditor.consistencyHint')}</span>
-            {/* 区头小结（样张 sec-head right）：就绪/生成中/待生成——与卡面同一份 derive（F2）。 */}
-            {(() => {
-              const visual = anchorCards.filter((card) => card.visual)
-              if (visual.length === 0) return null
-              const ready = visual.filter((card) => card.locked || (card.resultUrl && !card.generating && !card.failed)).length
-              const generating = visual.filter((card) => card.generating).length
-              const pending = visual.length - ready - generating
-              return (
-                <span className="ml-auto shrink-0 text-micro text-nomi-ink-40 flex items-center gap-1.5">
-                  {ready > 0 ? <span className="text-workbench-success">{t('storyboardEditor.anchor.headReady', { count: ready })}</span> : null}
-                  {generating > 0 ? <span>{t('storyboardEditor.anchor.headGenerating', { count: generating })}</span> : null}
-                  {pending > 0 ? <span>{t('storyboardEditor.anchor.headPending', { count: pending })}</span> : null}
-                </span>
-              )
-            })()}
-          </div>
-          {/* v5 图卡网格（样张 .anchors）：图是审阅对象，必须大到能审（§3.9 拍板）。 */}
-          <div className="flex flex-wrap gap-3 items-start">
-            {plan.anchors.length === 0 && (
-              <div className="text-caption text-nomi-ink-40 py-2">{t('storyboardEditor.noAnchors')}</div>
-            )}
-            {anchorCards.map((runtime) => (
-              <StoryboardAnchorCard
-                key={runtime.anchor.id}
-                anchor={runtime.anchor}
-                runtime={runtime}
-                nameInvalid={noNameAnchorIds.has(runtime.anchor.id)}
-                onUpdate={(patch) => setStoryboardPlan(updateAnchor(plan, runtime.anchor.id, patch))}
-                onChangeKind={(kind) => setStoryboardPlan(changeAnchorKind(plan, runtime.anchor.id, kind))}
-                onRemove={() => setStoryboardPlan(removeAnchor(plan, runtime.anchor.id))}
-                onGenerate={() => onGenerateAnchor(runtime)}
-                onRegenerate={() => onRegenerateAnchor(runtime)}
-                onToggleLock={() => onToggleLockAnchor(runtime)}
-                onFilterByAnchor={() => setFilterAnchorId(runtime.anchor.id)}
-                onOpenPreview={() => onOpenPreviewAnchor(runtime)}
-                modelOptions={imageModelOptions}
-              />
-            ))}
-            <button
-              type="button"
-              onClick={() => setStoryboardPlan(addAnchor(plan))}
-              aria-label={t('storyboardEditor.addAnchor')}
-              title={t('storyboardEditor.addAnchor')}
-              className="w-[108px] h-[144px] rounded-nomi border border-dashed border-nomi-ink-20 grid place-items-center text-nomi-ink-30 hover:text-nomi-ink-60 hover:border-nomi-ink-40"
-            >
-              <IconPlus size={20} stroke={1.6} />
-            </button>
-          </div>
-        </section>
+        <StoryboardAnchorZone
+          cards={anchorCards}
+          aspect={planDefaultAspect(plan)}
+          imageModelOptions={imageModelOptions}
+          noNameAnchorIds={noNameAnchorIds}
+          filterAnchorId={filterAnchorId}
+          expanded={anchorsExpanded}
+          onToggleExpanded={setAnchorsExpanded}
+          onUpdateAnchor={(anchorId, patch) => setStoryboardPlan(updateAnchor(plan, anchorId, patch))}
+          onChangeKind={(anchorId, kind) => setStoryboardPlan(changeAnchorKind(plan, anchorId, kind))}
+          onRemoveAnchor={(anchorId) => setStoryboardPlan(removeAnchor(plan, anchorId))}
+          onGenerateAnchor={onGenerateAnchor}
+          onRegenerateAnchor={onRegenerateAnchor}
+          onToggleLockAnchor={onToggleLockAnchor}
+          onOpenPreviewAnchor={onOpenPreviewAnchor}
+          onFilterByAnchor={setFilterAnchorId}
+          onAddAnchor={() => setStoryboardPlan(addAnchor(plan))}
+        />
 
         <section>
           <div className="flex items-center gap-2 mb-2">
@@ -409,6 +435,11 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
               emptyPromptShots={emptyPromptShots}
               onChange={setStoryboardPlan}
               onStoryboardShotSelect={onStoryboardShotSelect}
+              onSelectionChange={setSelectedRuntimes}
+              skippedShotIds={skippedShotIds}
+              onToggleSkip={onToggleSkip}
+              onAgentHandoff={onAgentHandoff}
+              onLockSelected={onLockSelected}
               onGenerateRow={onGenerateRow}
               onRegenerateRow={onRegenerateRow}
               onVariantsRow={onVariantsRow}
@@ -447,6 +478,17 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
             setWorkspaceMode('creation')
           }}>
             {t('storyboardEditor.backToCreation')}
+          </WorkbenchButton>
+          {/* 「选中 N 镜 · 交给 Agent 改」（§2.7 入口 1/3，footer 常驻）。 */}
+          <WorkbenchButton
+            variant="default"
+            size="sm"
+            data-storyboard-agent-handoff="footer"
+            disabled={selectedRuntimes.length === 0}
+            onClick={() => onAgentHandoff(selectedRuntimes)}
+          >
+            <IconRobot size={14} stroke={1.7} />
+            {t('storyboardEditor.agentHandoff.footer', { count: selectedRuntimes.length })}
           </WorkbenchButton>
           {issues.length > 0 ? (
             <span className="text-caption text-workbench-danger inline-flex items-center gap-[5px] min-w-0">

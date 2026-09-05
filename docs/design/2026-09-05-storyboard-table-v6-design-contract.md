@@ -1,6 +1,13 @@
 # 分镜表 v6 设计合同 · 方向 A（用户 2026-09-05 拍板）
 
-> **状态**：📋 设计已拍板，实现待排期（本文档 docs-only，不改生产代码）。
+> **状态**：🚧 **实验室优先实现进行中**（2026-09-06）——信息架构已用现役 React 组件落地，
+> 30 个形态摆在设计实验室里等用户拍板；**尚未接真数据与生成链**（那是下一刀，接线点见实现 PR）。
+> **真相源已从本文的手写样张切换到实验室**（见 `docs/design/2026-09-02-agent-ui-conformance-testspec.md` §0.5）：
+> `pnpm run dev:renderer` → `design-lab.html?screen=storyboard&contact=1`；
+> 视觉基线 `tests/ux/design-lab/__baselines__/storyboard/`，门岗 `pnpm run check:design-lab`；
+> 拍板用接触表快照：`docs/design/2026-09-06-storyboard-v6-contact-sheet.png`（30 格，
+> 由 `pnpm run design-lab:walk:storyboard` 重出）。
+> 下面 §5–§9 的样张对账项仍然有效，只是"对照的那张图"现在由实验室渲染，不再是 mockups 目录里的 HTML。
 > **修订 2（2026-09-05）**：用户在外部近邻调研后追加 8 条拍板（画幅作用域 §2.4.1、拆分镜自动绑锚 §2.8、历史变体抽屉 §2.9、本次跳过 + 产出 @tag §2.10、槽引用的三段声明 §4.4、底栏 derive §2.3、两条已知取舍进 §8、挂点与验收同步 §7.2/§9）。每条都注明依据的近邻，来源 URL 与抓取日期见 §⑩。
 > **样张**：`docs/design/mockups/2026-09-05-storyboard-table-v6/`（`Main.html` / `AnchorsExpanded.html` / `SlotMatrix.html` / `RowOps.html`，另见目录 README）。
 > **样张随修订 2 更新的部分**：`Main.html` 与 `preview-Main.png` 已按 §2.4.1 重画——批量条的「画幅」从"按每镜"改成整片默认 `9:16`；行 01/03/05（用默认画幅）底栏**不再有画幅胶囊**；行 02（16:9）与行 04（1:1）保留胶囊并加上蓝色「· 覆盖」标记 + `data-storyboard-aspect-override` 挂点。**这里画了两行覆盖态而不是一行**，是因为 §9.1 的"三种画幅混排仍左对齐"这条对账项需要 9:16 / 16:9 / 1:1 同屏；若只留一行覆盖，样张就证明不了这条几何规则。其余三张样张（`AnchorsExpanded` / `SlotMatrix` / `RowOps`）本次未涉及画幅，未改、未重截。
