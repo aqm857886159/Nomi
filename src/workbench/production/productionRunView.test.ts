@@ -53,7 +53,7 @@ describe('production run view', () => {
   it('shows real progress when known and omits it when unknown', () => {
     expect(buildProductionRunView(run(), now)).toMatchObject({
       tone: 'working',
-      titleKey: 'production.status.running',
+      titleKey: 'generationCommon.production.status.running',
       percent: 42,
       primaryAction: 'open-stage',
     })
@@ -65,12 +65,12 @@ describe('production run view', () => {
     expect(buildProductionRunView(run(), now).controls).toEqual(['pause', 'cancel'])
     expect(buildProductionRunView(run({ status: 'paused' }), now)).toMatchObject({
       tone: 'attention',
-      titleKey: 'production.status.paused',
+      titleKey: 'generationCommon.production.status.paused',
       primaryAction: 'resume-run',
       controls: ['cancel'],
     })
     expect(buildProductionRunView(run({ status: 'pausing' }), now)).toMatchObject({
-      titleKey: 'production.status.pausing',
+      titleKey: 'generationCommon.production.status.pausing',
       primaryAction: null,
       controls: ['cancel'],
     })
@@ -87,8 +87,8 @@ describe('production run view', () => {
 
     expect(view).toMatchObject({
       tone: 'danger',
-      titleKey: 'production.status.stalledDraft',
-      descriptionKey: 'production.description.stalledDraft',
+      titleKey: 'generationCommon.production.status.stalledDraft',
+      descriptionKey: 'generationCommon.production.description.stalledDraft',
       primaryAction: null,
       controls: ['cancel'],
     })
@@ -126,8 +126,8 @@ describe('production run view', () => {
 
     expect(buildProductionRunView(value, now)).toMatchObject({
       tone: 'attention',
-      titleKey: 'production.status.scriptReady',
-      descriptionKey: 'production.description.scriptReady',
+      titleKey: 'generationCommon.production.status.scriptReady',
+      descriptionKey: 'generationCommon.production.description.scriptReady',
       primaryAction: 'review-script',
       targetId: 'script-v1',
     })
@@ -150,7 +150,7 @@ describe('production run view', () => {
     })
     expect(buildProductionRunView(value, now)).toMatchObject({
       tone: 'attention',
-      titleKey: 'production.status.approvalRequired',
+      titleKey: 'generationCommon.production.status.approvalRequired',
       primaryAction: 'open-gate',
       targetId: 'gate-1',
     })
@@ -164,23 +164,23 @@ describe('production run view', () => {
     })
     const direction = buildProductionRunView(run({ status: 'awaiting_direction', gates: [gate('gate-direction-v1', 'stage')] }), now)
     expect(direction).toMatchObject({
-      titleKey: 'production.status.directionGate',
-      descriptionKey: 'production.description.directionGate',
+      titleKey: 'generationCommon.production.status.directionGate',
+      descriptionKey: 'generationCommon.production.description.directionGate',
       gateKind: 'direction',
       decisionHome: 'origin', // fixture origin=codex → 门首选发起端，Nomi 只指路兜底
     })
     const sample = buildProductionRunView(run({ status: 'running', gates: [gate('gate-sample-v1', 'stage')] }), now)
-    expect(sample).toMatchObject({ titleKey: 'production.status.sampleGate', gateKind: 'sample' })
+    expect(sample).toMatchObject({ titleKey: 'generationCommon.production.status.sampleGate', gateKind: 'sample' })
     const contract = buildProductionRunView(run({ status: 'awaiting_contract', gates: [gate('gate-contract-v1', 'budget_envelope')] }), now)
-    expect(contract).toMatchObject({ titleKey: 'production.status.approvalRequired', gateKind: 'contract', decisionHome: 'nomi' })
+    expect(contract).toMatchObject({ titleKey: 'generationCommon.production.status.approvalRequired', gateKind: 'contract', decisionHome: 'nomi' })
     const shot = buildProductionRunView(run({
       status: 'running',
       jobs: [{ ...run().jobs[0], nodeId: 'shot-1' }],
       gates: [{ ...gate('gate-shot-v1-job', 'job_set'), jobIds: ['job-1'] }],
     }), now)
     expect(shot).toMatchObject({
-      titleKey: 'production.status.shotGate',
-      descriptionKey: 'production.description.shotGate',
+      titleKey: 'generationCommon.production.status.shotGate',
+      descriptionKey: 'generationCommon.production.description.shotGate',
       gateKind: 'shot',
       decisionHome: 'nomi',
       gateJob: { index: 1, nodeId: 'shot-1', provider: 'tapcanvas', model: 'seedance' },
@@ -203,11 +203,11 @@ describe('production run view', () => {
       expiresAt: '2026-08-08T09:00:00.000Z',
     }
     expect(buildProductionRunView(run({ status: 'awaiting_rough_cut_review', gates: [exportGate] }), now)).toMatchObject({
-      titleKey: 'production.status.roughCutReady',
+      titleKey: 'generationCommon.production.status.roughCutReady',
       primaryAction: 'review-rough-cut',
     })
     expect(buildProductionRunView(run({ status: 'awaiting_export', gates: [exportGate] }), now)).toMatchObject({
-      titleKey: 'production.status.exportReady',
+      titleKey: 'generationCommon.production.status.exportReady',
       primaryAction: 'open-gate',
       targetId: 'gate-export-v1',
     })
@@ -224,8 +224,8 @@ describe('production run view', () => {
     })
     expect(buildProductionRunView(value, now)).toMatchObject({
       tone: 'neutral',
-      titleKey: 'production.status.contractDeclined',
-      descriptionKey: 'production.description.contractDeclined',
+      titleKey: 'generationCommon.production.status.contractDeclined',
+      descriptionKey: 'generationCommon.production.description.contractDeclined',
       primaryAction: null,
     })
   })
@@ -234,7 +234,7 @@ describe('production run view', () => {
     const value = run({ jobs: [{ ...run().jobs[0], status: 'submission_unknown', progressPercent: undefined }] })
     expect(buildProductionRunView(value, now)).toMatchObject({
       tone: 'danger',
-      titleKey: 'production.status.submissionUnknown',
+      titleKey: 'generationCommon.production.status.submissionUnknown',
       primaryAction: 'reconcile',
       targetId: 'job-1',
     })
@@ -248,7 +248,7 @@ describe('production run view', () => {
     const view = buildProductionRunView(value, now, { staleAfterMs: 60_000 })
     expect(view).toMatchObject({
       tone: 'attention',
-      titleKey: 'production.status.providerStale',
+      titleKey: 'generationCommon.production.status.providerStale',
       primaryAction: 'open-stage',
     })
     expect(view.percent).toBeUndefined()

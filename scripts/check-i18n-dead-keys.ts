@@ -45,7 +45,7 @@ import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 import ts from 'typescript'
-import { DYNAMIC_KEY_PREFIXES, type DynamicPrefix } from './lib/i18nDynamicKeyPrefixes'
+import { DYNAMIC_KEY_PREFIXES, OVERBROAD_NAMESPACE_DEBT, type DynamicPrefix } from './lib/i18nDynamicKeyPrefixes'
 
 // ── resource 树(与 parity / 正向门岗同一套 flatten) ──
 export type Tree = { leaves: Set<string>; subtrees: Set<string> }
@@ -172,6 +172,48 @@ export function buildLivePrefixes(
   return prefixes
 }
 
+/**
+ * **整命名空间前缀闸**（2026-09-05）。一个覆盖整棵顶层命名空间的前缀（`generationCommon.`、
+ * `agentResident.`…）让该命名空间下的死键**一条都报不出来**——本门岗对那一片彻底失明，
+ * 而报告照样打印「passed」。这比漏判几条严重得多：它是**门岗自身失效**，且没有任何外部信号。
+ *
+ * 来源不限注册表：源码里的模板 head 同样自动生效（`t(`ns.${key}`)`），所以两边都要查。
+ * 返回过宽前缀 → 来源，供调用方按 OVERBROAD_NAMESPACE_DEBT 做只减不增的棘轮核对。
+ */
+/** `file:line` → 是否产品源(渲染层/主进程,排除测试)。 */
+function isProductionSource(source: string): boolean {
+  const file = source.split(':')[0]
+  if (!file.startsWith('src/') && !file.startsWith('electron/')) return false
+  return !/\.(?:test|spec)\.[cm]?[jt]sx?$/.test(file) && !file.includes('/__tests__/')
+}
+
+export function overbroadNamespacePrefixes(
+  tree: Tree,
+  collected: Collected,
+  registry: DynamicPrefix[] = DYNAMIC_KEY_PREFIXES,
+): Map<string, string> {
+  const leaves = [...tree.leaves]
+  const found = new Map<string, string>()
+  const note = (prefix: string, source: string): void => {
+    if (!found.has(prefix)) found.set(prefix, source)
+  }
+  for (const [head, source] of collected.templateHeads) {
+    if (!isUsablePrefix(head, tree, leaves)) continue
+    const prefix = head.replace(/\.$/, '')
+    if (prefix.includes('.')) continue // 只认整棵顶层命名空间;更深的前缀是正常收窄
+    // 只认**产品源**里的 head。测试/脚本里长得像键路径的模板多半是夹具文件名(`media.${ext}`)、
+    // URL 或路径——它们同样会让 buildLivePrefixes 遮住一整片(这是本门岗的既有短板,另账),
+    // 但那不是「有人写了整命名空间的 i18n 模板」,拿它报红只会逼人去改夹具名，治不了病。
+    if (!isProductionSource(source)) continue
+    note(prefix, source)
+  }
+  for (const entry of registry) {
+    if (entry.kind === 'concat' || entry.prefix.includes('.')) continue
+    if (isUsablePrefix(`${entry.prefix}.`, tree, leaves)) note(entry.prefix, 'DYNAMIC_KEY_PREFIXES')
+  }
+  return found
+}
+
 // ── 判定 ──
 export type Verdict = { key: string; tier: 'dead' | 'dynamic-unreached'; prefix?: string }
 
@@ -253,6 +295,11 @@ async function main(): Promise<void> {
   }
 
   const livePrefixes = buildLivePrefixes(tree, collected)
+  // 整命名空间前缀 = 本门岗对那一片失明。棘轮:只许在册的存量,新增当场红,清掉了也要摘掉登记。
+  const overbroad = overbroadNamespacePrefixes(tree, collected)
+  const debt = new Set(OVERBROAD_NAMESPACE_DEBT)
+  const newlyOverbroad = [...overbroad.keys()].filter((prefix) => !debt.has(prefix)).sort()
+  const staleDebt = [...debt].filter((prefix) => !overbroad.has(prefix)).sort()
   const verdicts = classify(tree, collected, livePrefixes)
   const deadKeys = verdicts.filter((v) => v.tier === 'dead').map((v) => v.key)
   const unreached = verdicts.filter((v) => v.tier === 'dynamic-unreached')
@@ -262,6 +309,7 @@ async function main(): Promise<void> {
     console.log(`Keys (zh ∪ en leaves): ${tree.leaves.size}`)
     console.log(`Exact literal references: ${collected.exactRefs.size}; literal pool: ${collected.literalPool.size}`)
     console.log(`Live dynamic prefixes: ${livePrefixes.size} (registry ${DYNAMIC_KEY_PREFIXES.length} + source-derived)`)
+    console.log(`整命名空间前缀(本门岗对这些命名空间失明): ${[...overbroad].map(([p, src]) => `${p} @ ${src}`).join(', ') || '无'}`)
     console.log(`\nA 档 dead (high confidence, deletable): ${deadKeys.length}`)
     for (const key of deadKeys) console.log(`  ${key}`)
     console.log(`\nB 档 dynamic-unreached (suspect, DO NOT auto-delete): ${unreached.length}`)
@@ -320,10 +368,30 @@ async function main(): Promise<void> {
   const added = deadKeys.filter((key) => !baselineSet.has(key))
   const removed = baseline.deadKeys.filter((key) => !deadSet.has(key))
 
+  // 整命名空间前缀的棘轮先判:它是「门岗对整片失明」,比漏判几条死键严重,
+  // 且失明时下面那句 passed 依然会打印出来——必须在它之前拦住。
+  if (newlyOverbroad.length > 0 || staleDebt.length > 0) {
+    console.error('i18n dead-key gate failed: 整命名空间动态前缀的棘轮不符')
+    if (newlyOverbroad.length > 0) {
+      console.error(`\n新增 ${newlyOverbroad.length} 个覆盖整棵顶层命名空间的前缀——该命名空间下的死键从此一条都报不出来:`)
+      for (const prefix of newlyOverbroad) console.error(`- ${prefix}   (来源: ${overbroad.get(prefix)})`)
+      console.error('  → 收窄调用点:常量存**整键**并 satisfies TranslationKey(src/i18n/translationKey.ts),别存相对片段再拼命名空间。')
+      console.error('    确有必要保留则登记进 OVERBROAD_NAMESPACE_DEBT 并说明为什么——但那等于主动放弃该命名空间的死键检测。')
+    }
+    if (staleDebt.length > 0) {
+      console.error(`\nOVERBROAD_NAMESPACE_DEBT 里有 ${staleDebt.length} 条已经不再过宽(棘轮只减不增,清掉了就要摘登记):`)
+      for (const prefix of staleDebt) console.error(`- ${prefix}`)
+      console.error('  → 从 scripts/lib/i18nDynamicKeyPrefixes.ts 的 OVERBROAD_NAMESPACE_DEBT 里删掉这些条目。')
+    }
+    process.exitCode = 1
+    return
+  }
+
   if (added.length === 0) {
     const shrink = removed.length > 0 ? `,较基线少 ${removed.length} 条(跑 --update-baseline 收紧棘轮)` : ''
+    const blind = debt.size > 0 ? `;${debt.size} 个命名空间仍被整片前缀遮住(${[...debt].join('、')})` : ''
     console.log(
-      `i18n dead-key gate passed (${tree.leaves.size} keys, ${deadKeys.length} known-dead within baseline${shrink}; ${unreached.length} dynamic-unreached suspects)`,
+      `i18n dead-key gate passed (${tree.leaves.size} keys, ${deadKeys.length} known-dead within baseline${shrink}; ${unreached.length} dynamic-unreached suspects${blind})`,
     )
     return
   }

@@ -1,3 +1,4 @@
+import type { TranslationKey } from '../../i18n/translationKey'
 import type {
   ProductionArtifact,
   ProductionJob,
@@ -27,8 +28,8 @@ export type ProductionRunControl = 'pause' | 'cancel'
 
 export type ProductionRunView = {
   tone: ProductionRunTone
-  titleKey: string
-  descriptionKey: string
+  titleKey: TranslationKey
+  descriptionKey: TranslationKey
   percent?: number
   primaryAction: ProductionRunPrimaryAction
   /** 面板情境控制行：running → 暂停+取消；paused/pausing → 取消（继续走 primaryAction）。 */
@@ -132,8 +133,8 @@ export function buildProductionRunView(
     return {
       ...base,
       tone: 'danger',
-      titleKey: 'production.status.submissionUnknown',
-      descriptionKey: 'production.description.submissionUnknown',
+      titleKey: 'generationCommon.production.status.submissionUnknown',
+      descriptionKey: 'generationCommon.production.description.submissionUnknown',
       primaryAction: 'reconcile',
       targetId: unknown.jobId,
     }
@@ -146,8 +147,8 @@ export function buildProductionRunView(
     return {
       ...base,
       tone: 'danger',
-      titleKey: 'production.status.stalledDraft',
-      descriptionKey: 'production.description.stalledDraft',
+      titleKey: 'generationCommon.production.status.stalledDraft',
+      descriptionKey: 'generationCommon.production.description.stalledDraft',
       primaryAction: null,
       controls: ['cancel'],
     }
@@ -156,8 +157,8 @@ export function buildProductionRunView(
     return {
       ...base,
       tone: 'success',
-      titleKey: 'production.status.completed',
-      descriptionKey: 'production.description.completed',
+      titleKey: 'generationCommon.production.status.completed',
+      descriptionKey: 'generationCommon.production.description.completed',
       primaryAction: null,
     }
   }
@@ -168,8 +169,8 @@ export function buildProductionRunView(
     return {
       ...base,
       tone: 'attention',
-      titleKey: 'production.status.scriptReady',
-      descriptionKey: 'production.description.scriptReady',
+      titleKey: 'generationCommon.production.status.scriptReady',
+      descriptionKey: 'generationCommon.production.description.scriptReady',
       primaryAction: 'review-script',
       ...(script ? { targetId: script.artifactId } : {}),
     }
@@ -178,8 +179,8 @@ export function buildProductionRunView(
     return {
       ...base,
       tone: 'attention',
-      titleKey: 'production.status.storyboardReady',
-      descriptionKey: 'production.description.storyboardReady',
+      titleKey: 'generationCommon.production.status.storyboardReady',
+      descriptionKey: 'generationCommon.production.description.storyboardReady',
       primaryAction: 'review-storyboard',
       targetId: run.stageId,
     }
@@ -188,8 +189,8 @@ export function buildProductionRunView(
     return {
       ...base,
       tone: 'attention',
-      titleKey: 'production.status.roughCutReady',
-      descriptionKey: 'production.description.roughCutReady',
+      titleKey: 'generationCommon.production.status.roughCutReady',
+      descriptionKey: 'generationCommon.production.description.roughCutReady',
       primaryAction: 'review-rough-cut',
     }
   }
@@ -198,8 +199,8 @@ export function buildProductionRunView(
       ...base,
       decisionHome: 'nomi',
       tone: 'attention',
-      titleKey: 'production.status.exportReady',
-      descriptionKey: 'production.description.exportReady',
+      titleKey: 'generationCommon.production.status.exportReady',
+      descriptionKey: 'generationCommon.production.description.exportReady',
       primaryAction: waitingGate ? 'open-gate' : 'open-export',
       ...(waitingGate ? { targetId: waitingGate.gateId } : {}),
     }
@@ -211,8 +212,8 @@ export function buildProductionRunView(
     return {
       ...base,
       tone: 'neutral',
-      titleKey: 'production.status.contractDeclined',
-      descriptionKey: 'production.description.contractDeclined',
+      titleKey: 'generationCommon.production.status.contractDeclined',
+      descriptionKey: 'generationCommon.production.description.contractDeclined',
       primaryAction: null,
       targetId: rejectedContract.gateId,
     }
@@ -239,8 +240,8 @@ export function buildProductionRunView(
       ...base,
       decisionHome: gateKind === 'direction' || gateKind === 'sample' ? base.decisionHome : 'nomi',
       tone: 'attention',
-      titleKey: `production.status.${copyKey}`,
-      descriptionKey: `production.description.${copyKey}`,
+      titleKey: `generationCommon.production.status.${copyKey}`,
+      descriptionKey: `generationCommon.production.description.${copyKey}`,
       primaryAction: 'open-gate',
       gateKind,
       ...(gateJob ? {
@@ -258,8 +259,8 @@ export function buildProductionRunView(
     return {
       ...base,
       tone: 'danger',
-      titleKey: 'production.status.needsAttention',
-      descriptionKey: 'production.description.needsAttention',
+      titleKey: 'generationCommon.production.status.needsAttention',
+      descriptionKey: 'generationCommon.production.description.needsAttention',
       primaryAction: 'open-stage',
       targetId: job?.jobId ?? run.stageId,
     }
@@ -268,8 +269,8 @@ export function buildProductionRunView(
     return {
       ...base,
       tone: 'attention',
-      titleKey: run.status === 'paused' ? 'production.status.paused' : 'production.status.pausing',
-      descriptionKey: run.status === 'paused' ? 'production.description.paused' : 'production.description.pausing',
+      titleKey: run.status === 'paused' ? 'generationCommon.production.status.paused' : 'generationCommon.production.status.pausing',
+      descriptionKey: run.status === 'paused' ? 'generationCommon.production.description.paused' : 'generationCommon.production.description.pausing',
       primaryAction: run.status === 'paused' ? 'resume-run' : null,
       controls: ['cancel'],
       targetId: job?.jobId ?? run.stageId,
@@ -282,8 +283,8 @@ export function buildProductionRunView(
     return {
       ...base,
       tone: 'attention',
-      titleKey: 'production.status.providerStale',
-      descriptionKey: 'production.description.providerStale',
+      titleKey: 'generationCommon.production.status.providerStale',
+      descriptionKey: 'generationCommon.production.description.providerStale',
       primaryAction: 'open-stage',
       targetId: job.jobId,
     }
@@ -292,8 +293,8 @@ export function buildProductionRunView(
   return {
     ...base,
     tone: run.status === 'draft' ? 'neutral' : 'working',
-    titleKey: run.status === 'draft' ? 'production.status.draft' : 'production.status.running',
-    descriptionKey: run.status === 'draft' ? 'production.description.draft' : 'production.description.running',
+    titleKey: run.status === 'draft' ? 'generationCommon.production.status.draft' : 'generationCommon.production.status.running',
+    descriptionKey: run.status === 'draft' ? 'generationCommon.production.description.draft' : 'generationCommon.production.description.running',
     ...(percent === undefined ? {} : { percent }),
     primaryAction: 'open-stage',
     controls: run.status === 'running' ? ['pause', 'cancel'] : [],

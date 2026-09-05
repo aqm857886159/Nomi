@@ -20,4 +20,10 @@
 - **同一批文案存了两份时，先用「哪棵整棵都没人引用」定 owner**，别靠命名直觉。实测：`runtime.browser` 10 个叶子全死、`browserAssets` 163 个叶子只死 15——前者才是该删的副本。
 - 判「能不能翻译」看的是**有没有人拿这个值做比较**（`includes` / `===` / `startsWith` / `indexOf`），不是「它像不像标签」。那批里最可疑的 3 个 tag 追下去只进搜索 haystack、从不渲染也从不比对 → 可翻。
 
-**出处**：2026-09-01 / 2026-09-02 i18n 清理实测。相关：[走查断言必须有真信号](walkthrough-assertions-need-a-real-signal.md)、[一个死选择器同时造假红和假绿](dead-selector-lies-both-ways.md)。
+**存整键，别存相对片段（2026-09-05，这条让门岗整片瞎掉）**：上面那条「常量只存键」还差半句——**存的必须是整键**。把**相对片段**存进视图模型、渲染处再拼命名空间（`labelKey: 'composer.append'` + `t(`generationCommon.${labelKey}`)`）会同时坏两件事：① 片段是普通 string，编译器管不着；② 死键门岗把**源码里出现过的模板 head** 也当动态前缀（注册表之外自动生效），于是 head `generationCommon.` 覆盖整棵命名空间，该命名空间下的死键一律只报 B 档、永不报死。
+
+实测有多硬：删掉注册表里那条 `{ prefix: 'generationCommon' }`，输出**一个字都没变**（4965 键 / 0 死键 / 184 B 档，前后一致）——源码 head 顶上了。所以这类失明**只能在调用点治**：常量存整键并 `satisfies TranslationKey`（`src/i18n/translationKey.ts`），拼接消失，编译器顺手接管键的存在性（R28 防线建在最早那层）。四个调用点改完，A 档死键当场 0 → 180：39 条是 `assistant.toolCall.*` 的**真动态**（键存进 const 再 `` `${T}.${key}` ``，模板 head 为空、两道门岗都看不见 → 注册精确前缀），4 条是上面第 2 类（`BaseGenerationNode` 把「独立副本（来自 …）」写死，英文界面一直显中文 → 接线），其余 137 条真遗留 → 删。
+
+**别拿「门岗绿」当「没有死键」**：种一个谁都不引用的键进目标命名空间，改前门岗照样绿、改后当场点名——这个前后对照才是它真的看得见的证据。
+
+**出处**：2026-09-01 / 2026-09-02 i18n 清理实测；2026-09-05 `generationCommon` 整命名空间前缀收窄。相关：[走查断言必须有真信号](walkthrough-assertions-need-a-real-signal.md)、[一个死选择器同时造假红和假绿](dead-selector-lies-both-ways.md)。

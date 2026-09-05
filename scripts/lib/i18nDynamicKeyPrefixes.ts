@@ -19,6 +19,19 @@ export type DynamicPrefix =
   | { prefix: string; why: string; kind?: 'subtree'; members?: readonly string[] }
   | { prefix: string; why: string; kind: 'concat'; suffixes: string[] }
 
+/**
+ * **覆盖整棵顶层命名空间的前缀 = 死键门岗对该命名空间整片失明。**
+ *
+ * 2026-09-05 实证（`generationCommon`）：一条 `t(`generationCommon.${labelKey}`)` 就让 4965 键里
+ * 整个 generationCommon 只报 B 档、永不报死；把注册表那条 umbrella 删掉**一个字都没变**——
+ * 因为反向门岗把**源码模板 head** 也当动态前缀，注册表之外自动生效。收窄调用点后当场冒出 180 条 A 档。
+ *
+ * 故此表是**只减不增的欠账**（check-i18n-dead-keys 强制核对：新增一个整命名空间前缀当场报红；
+ * 某条已经不再过宽也报红，逼你把它摘掉）。清账方式**不是**改注册表，是改调用点：
+ * 常量存**整键**并 `satisfies TranslationKey`（见 `src/i18n/translationKey.ts`），拼接消失、前缀自然收窄。
+ */
+export const OVERBROAD_NAMESPACE_DEBT: readonly string[] = ['agentResident', 'antigravity']
+
 export const DYNAMIC_KEY_PREFIXES: DynamicPrefix[] = [
   // ── creationAi ──
   { prefix: 'creationAi.mode', why: '动态: 创作助手模式 id;枚举来源: listCreationAiModes() 的内置 mode.id(CreationPromptPicker 用 `creationAi.mode.${id}` 再接 .label/.short/.title/.description)' },
@@ -85,7 +98,7 @@ export const DYNAMIC_KEY_PREFIXES: DynamicPrefix[] = [
     why: '动态-拼接: 花费策略 `agentResident.spendPolicy${WithinBudget|Confirm}` 标签;枚举来源: ProjectAgentSpendPolicy 二态(within-budget/confirm)',
   },
   // ── generationCommon ──
-  { prefix: 'generationCommon', why: '动态(整命名空间): NodeGenerationComposer/ProductionRunTaskCard/SelectionPromptSaveController 的 `generationCommon.${option.labelKey|view.titleKey|view.descriptionKey|TEXT_MODE_PLACEHOLDER_KEY[...]}`;枚举来源: 这些视图模型里预置的 labelKey/titleKey/descriptionKey 常量(值指向 generationCommon.* 已存在词条)' },
+  { prefix: 'generationCommon.assistant.toolCall', why: "动态: 工具调用的人话摘要;枚举来源: toolCallSummary.ts 的 tt(key)——键先存进 const T 再 `${T}.${key}` 拼,模板 head 为空、正反两道门岗都看不见,故必须在册(该文件里 summarizeToolCall/buildStepDetailLabels 传入的字面量 key)" },
   { prefix: 'generationCommon.agentRuntime', why: '动态: 画布 agent 运行时动作;枚举来源: gate.ts 的 actionKey(agentRuntime.* 词条)' },
   { prefix: 'generationCommon.canvas.controlsHelp.sections', why: '动态: 画布控件帮助分节;枚举来源: CanvasControlsHelpPopover 的 section.id(controlsHelp.sections.* 词条)' },
   { prefix: 'generationCommon.canvas.controlsHelp.actions', why: '动态: 画布控件帮助动作行;枚举来源: CanvasControlsHelpPopover 的 row.actionKey(controlsHelp.actions.* 词条)' },
