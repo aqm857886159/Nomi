@@ -14,11 +14,7 @@
     "scripts/check-mcp-tool-references-lib.mjs",
     "scripts/check-mcp-tool-references.ts",
     "scripts/check-mcp-tool-references.node-test.mjs",
-    "package.json",
-    "tests/ux/draft-journey.e2e.mjs",
-    "tests/ux/mcp-draft-loop.e2e.mjs",
-    "tests/ux/spend-elicit-app-open.walk.mjs",
-    "tests/ux/workbench-token-root-scope.walk.mjs"
+    "package.json"
   ],
   "entry_points": ["pnpm run check:mcp-tool-refs", "tests/** executable MCP calls", "docs/** executable code fences"],
   "external_sources": [],
@@ -43,18 +39,6 @@
     }
   ],
   "same_class_entry_points": [
-    {
-      "path": "tests/ux/draft-journey.e2e.mjs",
-      "entry_point": "Three direct nomi_generate calls in the retired headless generation stage",
-      "disposition": "not-affected",
-      "evidence": "The file has no package or workflow runner reference and its own header says the single-shot generation path has no equivalent MCP name."
-    },
-    {
-      "path": "tests/ux/mcp-draft-loop.e2e.mjs",
-      "entry_point": "One paid nomi_generate call guarded by NOMI_R16_GEN",
-      "disposition": "not-affected",
-      "evidence": "The file is unreferenced by runners and explicitly documents that its generation step is retired; retaining it would preserve a known failing paid path."
-    },
     {
       "path": "tests/agent-runtime/session.test.mts",
       "entry_point": "Synthetic nomi_echo/nomi_frames fixture names",
