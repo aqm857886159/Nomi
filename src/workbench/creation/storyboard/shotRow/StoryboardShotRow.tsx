@@ -274,6 +274,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
               value={shot.modelKey ? modelSelect.modelValue : ''}
               options={modelSelectOptions}
               onChange={onModelSelect}
+              onChipChange={modelSelect.onModelProviderPick}
             />
           ) : null}
           {modelSelect.providerOptions.length > 1 ? (

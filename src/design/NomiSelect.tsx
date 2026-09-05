@@ -27,15 +27,21 @@ export type NomiSelectOption = {
   /** 选项右侧附加文字（如价格、模板/通用），在对勾左边。 */
   trailing?: string
   trailingTone?: NomiSelectTone
+  /** Compact provider chips rendered at the end of a model row. */
+  chips?: Array<{ value: string; label: string; active?: boolean; dimmed?: boolean; disabled?: boolean }>
   disabled?: boolean
   /** 整行减淡（仍可点）——「能选但眼下不建议」，如近期连败的模型沉底后。 */
   dimmed?: boolean
+  /** Optional non-selectable section heading shown before this option. */
+  sectionLabel?: string
 }
 
 export type NomiSelectProps = {
   value: string
   options: NomiSelectOption[]
   onChange: (value: string) => void
+  /** Optional click handler for row-end chips; chip clicks do not select the row itself. */
+  onChipChange?: (optionValue: string, chipValue: string) => void
   ariaLabel: string
   /** pill 内左侧小灰标签：比例 / 模式 / 画幅… */
   leadingLabel?: string
@@ -68,6 +74,7 @@ export function NomiSelect({
   value,
   options,
   onChange,
+  onChipChange,
   ariaLabel,
   leadingLabel,
   placeholder,
@@ -196,7 +203,9 @@ export function NomiSelect({
           {visibleOptions.map((option) => {
             const isSel = option.value === value
             return (
-              <Combobox.Option value={option.value} key={option.value} disabled={option.disabled} active={isSel} title={option.label}>
+              <React.Fragment key={option.value}>
+                {option.sectionLabel ? <div className="px-2 py-1 text-micro font-medium text-nomi-ink-40" role="presentation">{option.sectionLabel}</div> : null}
+              <Combobox.Option value={option.value} disabled={option.disabled} active={isSel} title={option.label}>
                 {/* dimmed：整行减淡但仍可点（「能选、眼下不建议」）。不用 disabled——那是"点不了"，
                     两种语义别混（近期连败的模型仍允许手动选，是拍板过的原则）。 */}
                 <span className={cn('flex min-w-0 items-center gap-2 w-full', option.dimmed ? 'opacity-45' : '')}>
@@ -214,11 +223,35 @@ export function NomiSelect({
                       {option.trailing}
                     </span>
                   ) : null}
+                  {option.chips?.map((chip) => (
+                    <button
+                      key={chip.value}
+                      type="button"
+                      disabled={chip.disabled}
+                      aria-label={chip.label}
+                      aria-pressed={chip.active}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={(event) => {
+                        event.preventDefault()
+                        event.stopPropagation()
+                        onChipChange?.(option.value, chip.value)
+                      }}
+                      className={cn(
+                        'shrink-0 rounded-pill border px-1.5 py-[1px] text-micro leading-none transition-colors',
+                        chip.active ? 'border-nomi-accent bg-nomi-accent-soft text-nomi-accent' : 'border-nomi-line text-nomi-ink-50 hover:border-nomi-accent hover:text-nomi-accent',
+                        chip.dimmed ? 'opacity-45' : '',
+                        chip.disabled ? 'cursor-not-allowed' : 'cursor-pointer',
+                      )}
+                    >
+                      {chip.label}
+                    </button>
+                  ))}
                   <span className={cn('shrink-0 w-3.5 grid place-items-center', option.trailing ? '' : 'ml-auto', isSel ? '' : 'invisible')} aria-hidden>
                     <IconCheck size={14} stroke={1.6} className="text-nomi-accent" aria-hidden />
                   </span>
                 </span>
               </Combobox.Option>
+              </React.Fragment>
             )
           })}
         </Combobox.Options>

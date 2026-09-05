@@ -37,5 +37,9 @@ export type DesktopSettingsBridge = {
   generationModelDefaults: {
     get: () => Promise<import('../../electron/settings/generationModelDefaultsContract').GenerationModelDefaults>
     set: (payload: unknown) => Promise<import('../../electron/settings/generationModelDefaultsContract').GenerationModelDefaults>
+  },
+  vendorPreference: {
+    get: () => Promise<import('../../electron/shared/contracts/vendorPreference').VendorPreferenceSettings>
+    set: (payload: unknown) => Promise<import('../../electron/shared/contracts/vendorPreference').VendorPreferenceSettings>
   }
 }

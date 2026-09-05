@@ -25,6 +25,7 @@ let catalogHealthCache: ModelCatalogHealthDto | null = null
 let catalogHealthPromise: Promise<ModelCatalogHealthDto> | null = null
 let enabledVendorKeysCache: Set<string> | null = null
 let enabledVendorKeysPromise: Promise<Set<string>> | null = null
+let configuredVendorKeysCache: Set<string> | null = null
 let vendorNamesCache: Map<string, string> | null = null
 
 const HIDDEN_IMAGE_MODEL_ID_RE = /^(gemini-.*-image(?:-(?:landscape|portrait))?|imagen-.*-(?:landscape|portrait))$/i
@@ -46,6 +47,7 @@ function invalidateAvailableCache() {
   catalogHealthPromise = null
   enabledVendorKeysCache = null
   enabledVendorKeysPromise = null
+  configuredVendorKeysCache = null
   vendorNamesCache = null
 }
 
@@ -78,28 +80,16 @@ async function getEnabledVendorKeys(): Promise<Set<string>> {
     enabledVendorKeysPromise = (async () => {
       try {
         const vendors = await listWorkbenchModelCatalogVendors()
-        // 「可见」= 启用 **且** 现在能用（有 API key，或免鉴权）。只看 enabled 会把断开的供应商
-        // （拔了 key 但 vendor.enabled 仍 true）的模型留在下拉，让用户误选到没钥匙的家 → 运行时报
-        // `API key missing`。可用性必须由 hasApiKey 派生（根因修复 2026-06-08）。
-        const enabled = new Set(
-          (Array.isArray(vendors) ? vendors : [])
-            .filter((v) => Boolean(v?.enabled) && (v?.authType === 'none' || Boolean(v?.hasApiKey)))
-            .map((v) => String(v?.key || '').trim().toLowerCase())
-            .filter(Boolean),
-        )
-        // 顺手缓存 key→显示名（节点下拉标注厂商用；自定义中转 key 是 baseUrl 派生串不宜直显）。
+        const rows = Array.isArray(vendors) ? vendors : []
+        const enabled = new Set(rows.filter((v) => Boolean(v?.enabled)).map((v) => String(v?.key || '').trim().toLowerCase()).filter(Boolean))
+        const configured = new Set(rows.filter((v) => Boolean(v?.enabled) && (v?.authType === 'none' || Boolean(v?.hasApiKey))).map((v) => String(v?.key || '').trim().toLowerCase()).filter(Boolean))
         const names = new Map<string, string>()
-        for (const v of Array.isArray(vendors) ? vendors : []) {
-          const key = String(v?.key || '').trim().toLowerCase()
-          const name = String(v?.name || '').trim()
-          if (key && name) names.set(key, name)
-        }
+        for (const v of rows) { const key = String(v?.key || '').trim().toLowerCase(); const name = String(v?.name || '').trim(); if (key && name) names.set(key, name) }
         vendorNamesCache = names
         enabledVendorKeysCache = enabled
+        configuredVendorKeysCache = configured
         return enabled
-      } finally {
-        enabledVendorKeysPromise = null
-      }
+      } finally { enabledVendorKeysPromise = null }
     })()
   }
   return enabledVendorKeysPromise
@@ -139,7 +129,7 @@ async function getCatalogModelOptions(kind?: NodeKind, requiredMode = defaultPub
       const withVendorName = names
         ? normalized.map((opt) => {
             const name = opt.vendor ? names.get(opt.vendor.toLowerCase()) : undefined
-            return name ? { ...opt, vendorName: name } : opt
+            return { ...opt, ...(name ? { vendorName: name } : {}), configured: Boolean(opt.vendor && configuredVendorKeysCache?.has(opt.vendor.toLowerCase())) }
           })
         : normalized
       catalogOptionsCache.set(cacheKey, withVendorName)

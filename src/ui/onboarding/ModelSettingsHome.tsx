@@ -16,6 +16,7 @@ import { cn } from '../../utils/cn'
 import type { ChipModel } from './ModelChipGroups'
 import { useVendorHealth } from './useVendorHealth'
 import { vendorConnectionPill } from './vendorConnectionView'
+import { VendorPreferenceOrderControl } from './VendorPreferenceOrderControl'
 import {
   resolveModelHomeStatus,
   summarizeModelHomeConnection,
@@ -541,6 +542,7 @@ export function ModelSettingsHome({
             {diagnostic ? <div className="mt-4">{diagnostic}</div> : null}
 
             {connectedSection}
+            <VendorPreferenceOrderControl entries={connections.map((connection) => ({ vendorKey: connection.vendorKey, name: translateModelDisplayText(connection.name) }))} />
             {adaptedSection}
             {otherMethodsSection}
 

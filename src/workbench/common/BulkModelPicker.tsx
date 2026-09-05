@@ -20,6 +20,7 @@ import { NomiSelect } from '../../design'
 import { dedupeModelOptions } from '../../config/modelIdentity'
 import { isModelRecentlyAiling } from '../generationCanvas/runner/modelHealthMemory'
 import { buildVendorExplicitModelOptions, resolveProviderByAddress } from './useDedupedModelSelect'
+import { useVendorPreferenceOrder } from './useVendorPreference'
 
 import i18n from '../../i18n'
 
@@ -61,10 +62,11 @@ export default function BulkModelPicker({
 }: BulkModelPickerProps): JSX.Element | null {
   const { t } = useTranslation()
   const deduped = React.useMemo(() => dedupeModelOptions([...modelOptions]), [modelOptions])
+  const orderedVendorKeys = useVendorPreferenceOrder()
   const vendorRows = React.useMemo(
-    () => buildVendorExplicitModelOptions(deduped, isModelRecentlyAiling),
+    () => buildVendorExplicitModelOptions(deduped, isModelRecentlyAiling, orderedVendorKeys),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- i18n.language：切语言要重算 trailing 文案
-    [deduped, i18n.language],
+    [deduped, i18n.language, orderedVendorKeys],
   )
 
   const handleChange = React.useCallback(

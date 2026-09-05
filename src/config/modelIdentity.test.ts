@@ -5,6 +5,8 @@ import {
   modelCatalogLifecycle,
   normalizeModelLabel,
   resolveBestProvider,
+  sortDedupedModelsByVendorPreference,
+  sortModelProviders,
   sortModelsByCatalogLifecycle,
   vendorTier,
 } from './modelIdentity'
@@ -159,5 +161,26 @@ describe('modelIdentity · catalog lifecycle ordering', () => {
       { ...lifecycleOption('official:model'), value: 'official:model', label: 'Shared', vendor: 'official', meta: { catalogLifecycle: 'flagship' } },
     ])
     expect(modelCatalogLifecycle(model)).toBe('flagship')
+  })
+})
+
+describe('modelIdentity · vendor preference ordering', () => {
+  it('preferred configured vendor first, unconfigured providers last, equal names stable', () => {
+    const models = dedupeModelOptions([
+      opt({ value: 'shared-kie', label: 'Shared', vendor: 'kie', modelKey: 'shared', configured: true, vendorName: 'Kie' }),
+      opt({ value: 'shared-z', label: 'Shared', vendor: 'relay-z', modelKey: 'shared', configured: false, vendorName: 'Z relay' }),
+      opt({ value: 'shared-a', label: 'Shared', vendor: 'relay-a', modelKey: 'shared', configured: true, vendorName: 'A relay' }),
+    ])
+    const ordered = sortModelProviders(models[0].providers, ['relay-a', 'kie'])
+    expect(ordered.map((provider) => provider.vendor)).toEqual(['relay-a', 'kie', 'relay-z'])
+  })
+
+  it('configured model families stay above all-unconfigured families with stable order', () => {
+    const models = dedupeModelOptions([
+      opt({ value: 'unconfigured', label: 'Unconfigured', vendor: 'z', modelKey: 'z', configured: false }),
+      opt({ value: 'configured', label: 'Configured', vendor: 'a', modelKey: 'a', configured: true }),
+      opt({ value: 'unconfigured-2', label: 'Unconfigured 2', vendor: 'y', modelKey: 'y', configured: false }),
+    ])
+    expect(sortDedupedModelsByVendorPreference(models, []).map((model) => model.label)).toEqual(['Configured', 'Unconfigured', 'Unconfigured 2'])
   })
 })

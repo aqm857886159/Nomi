@@ -167,3 +167,26 @@ export function dedupeModelOptions(options: ModelOption[]): DedupedModel[] {
   }
   return sortModelsByCatalogLifecycle(order.map((id) => byId.get(id) as DedupedModel))
 }
+
+/** Stable provider ordering shared by every model picker. Configured providers always precede unconfigured ones. */
+export function sortModelProviders<T extends ModelProviderRef>(providers: readonly T[], orderedVendorKeys: readonly string[] = []): T[] {
+  const rank = new Map(orderedVendorKeys.map((key, index) => [key.toLowerCase(), index]))
+  return providers.map((provider, index) => ({ provider, index })).sort((a, b) => {
+    const configured = Number(Boolean(b.provider.option.configured)) - Number(Boolean(a.provider.option.configured))
+    if (configured) return configured
+    const pref = (rank.get((a.provider.vendor || '').toLowerCase()) ?? Number.MAX_SAFE_INTEGER) - (rank.get((b.provider.vendor || '').toLowerCase()) ?? Number.MAX_SAFE_INTEGER)
+    if (pref) return pref
+    return (a.provider.option.vendorName || a.provider.vendor || '').localeCompare(b.provider.option.vendorName || b.provider.vendor || '', undefined, { sensitivity: 'base' }) || a.index - b.index
+  }).map(({ provider }) => provider)
+}
+
+export function sortDedupedModelsByVendorPreference(models: readonly DedupedModel[], orderedVendorKeys: readonly string[] = []): DedupedModel[] {
+  return models.map((model) => {
+    const providers = sortModelProviders(model.providers, orderedVendorKeys)
+    return { ...model, providers }
+  }).sort((a, b) => {
+    const aConfigured = Number(a.providers.some((provider) => provider.option.configured !== false))
+    const bConfigured = Number(b.providers.some((provider) => provider.option.configured !== false))
+    return bConfigured - aConfigured
+  }).map((model) => model)
+}
