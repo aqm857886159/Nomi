@@ -238,7 +238,7 @@ export function NomiSelect({
                       }}
                       className={cn(
                         'shrink-0 rounded-pill border px-1.5 py-[1px] text-micro leading-none transition-colors',
-                        chip.active ? 'border-nomi-accent bg-nomi-accent-soft text-nomi-accent' : 'border-nomi-line text-nomi-ink-50 hover:border-nomi-accent hover:text-nomi-accent',
+                        chip.active ? 'border-nomi-accent bg-nomi-accent-soft text-nomi-accent' : 'border-nomi-line text-nomi-ink-40 hover:border-nomi-accent hover:text-nomi-accent',
                         chip.dimmed ? 'opacity-45' : '',
                         chip.disabled ? 'cursor-not-allowed' : 'cursor-pointer',
                       )}

@@ -1,0 +1,109 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-06-vendor-preference-picker",
+  "problem_type": "model picker ordering and provider identity are duplicated across entry points",
+  "symptom": "The same model can appear once per provider, and a user preference cannot consistently control which configured provider is selected first.",
+  "direct_cause": "Catalog options were consumed as flat rows by several pickers, while provider availability and ordering were not represented in one shared view-model.",
+  "class_root": "Provider identity, configuration state, and ordering are cross-surface semantics. Keeping them in individual pickers guarantees drift between generation nodes, storyboard rows, batch controls, and the Agent composer.",
+  "affected_population": [
+    "Users with the same model available through two or more providers",
+    "Users who have connected providers alongside unconfigured catalog entries",
+    "Every model selection surface that previously consumed flat catalog options"
+  ],
+  "scope_paths": [
+    "src/config/modelIdentity.ts",
+    "src/workbench/common/useDedupedModelSelect.ts",
+    "src/workbench/common/BulkModelPicker.tsx",
+    "src/workbench/ai/AssistantModelPicker.tsx",
+    "src/workbench/generationCanvas/nodes/InlineParameterBar.tsx",
+    "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx",
+    "electron/settings/vendorPreferenceIpc.ts",
+    "electron/settings/vendorPreferenceSettings.ts",
+    "electron/shared/contracts/vendorPreference.ts"
+  ],
+  "entry_points": [
+    "Generation node model picker",
+    "Storyboard row model picker",
+    "Canvas and storyboard batch model pickers",
+    "Agent composer model picker",
+    "Model settings preferred provider order"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The catalog, settings bridge, and renderer pickers are internal Nomi contracts.",
+  "invariants": [
+    "Every picker uses the canonical identity aggregation and shared provider sorting function.",
+    "A configured provider is always before an unconfigured provider; saved preference breaks configured ties and all remaining ties are stable.",
+    "Selecting a model row uses the first configured provider; selecting a provider chip writes the exact provider and model identity.",
+    "Unconfigured providers remain visible, are grouped and dimmed, and route to model setup without silently generating.",
+    "Preference writes use schema version 1, atomic JSON persistence, and trusted sender validation."
+  ],
+  "generality_proof": "The shared hook is consumed by stateful generation, storyboard, and Agent pickers, while the shared batch picker covers both batch entry points; a single identity and ordering boundary therefore covers every current caller.",
+  "shared_boundaries": [
+    {
+      "path": "src/config/modelIdentity.ts",
+      "symbol": "dedupeModelOptions and sortModelProviders",
+      "responsibility": "Own canonical model grouping, configured-state ordering, preference ordering, and stable tie-breaking."
+    },
+    {
+      "path": "electron/shared/contracts/vendorPreference.ts",
+      "symbol": "normalizeVendorPreferenceSettings",
+      "responsibility": "Own the versioned cross-process settings shape and input normalization."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/common/useDedupedModelSelect.ts",
+      "entry_point": "stateful model and provider selection",
+      "disposition": "enforced",
+      "evidence": "Unit tests cover deduplication, preferred ordering, unconfigured grouping, and stable sorting."
+    },
+    {
+      "path": "src/workbench/common/BulkModelPicker.tsx",
+      "entry_point": "batch model selection",
+      "disposition": "enforced",
+      "evidence": "Both canvas and storyboard batch callers pass through the same component and shared ordering input."
+    },
+    {
+      "path": "src/workbench/ai/AssistantModelPicker.tsx",
+      "entry_point": "Agent composer model selection",
+      "disposition": "enforced",
+      "evidence": "The composer adapts catalog rows into the shared hook and uses the same provider chip callback."
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/config/modelIdentity.ts + src/workbench/common/modelSelectStructure.test.ts",
+    "invariant": "New model picker callers must use the shared stateful or batch picker boundary; duplicate provider ordering logic is not allowed.",
+    "failure_mode": "Structure tests identify hook callers that omit provider selection, and unit tests fail when preference, configuration, or stable ordering regresses.",
+    "exception_policy": "none",
+    "strategy": "Keep catalog identity and provider ordering pure, then inject one shared preference order into every picker.",
+    "artifacts": [
+      "src/config/modelIdentity.test.ts",
+      "src/workbench/common/useDedupedModelSelect.test.ts",
+      "src/ui/onboarding/VendorPreferenceOrderControl.test.ts",
+      "electron/settings/vendorPreferenceContract.test.ts"
+    ]
+  },
+  "recurrence": {
+    "classification": "one_off",
+    "reason": "This is the first implementation of the provider preference boundary; the prevention contract is added with the shared implementation.",
+    "same_class_scan": [
+      "rg modelOptionMappers, vendorKey, ModelSelect, useDedupedModelSelect, and BulkModelPicker across src and electron",
+      "Documented all current model picker entry points in docs/qa/2026-09-06-vendor-order-design-lab.md"
+    ]
+  },
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [],
+    "rationale": "No parallel provider ordering implementation is retained; existing picker callers converge on the shared boundary."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency is introduced.",
+    "exit_criteria": []
+  },
+  "residual_risks": [
+    "The first phase does not automatically retry or switch providers during generation; that remains phase two.",
+    "The real-provider generation step in the journey requires the fixture response path and must never be mistaken for live provider certification."
+  ]
+}

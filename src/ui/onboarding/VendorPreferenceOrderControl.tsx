@@ -37,7 +37,7 @@ export function VendorPreferenceOrderControl({ entries }: { entries: readonly Ve
                 title={t('onboardingProviders.drawer.home.vendorPreferenceMoveUp')}
                 disabled={index === 0}
                 onClick={() => { void move(index, -1) }}
-                className="size-7 text-nomi-ink-50 hover:text-nomi-accent"
+                className="size-7 text-nomi-ink-40 hover:text-nomi-accent"
                 icon={<IconChevronUp size={15} stroke={1.8} aria-hidden="true" />}
               />
               <IconActionButton
@@ -45,7 +45,7 @@ export function VendorPreferenceOrderControl({ entries }: { entries: readonly Ve
                 title={t('onboardingProviders.drawer.home.vendorPreferenceMoveDown')}
                 disabled={index === configuredEntries.length - 1}
                 onClick={() => { void move(index, 1) }}
-                className="size-7 text-nomi-ink-50 hover:text-nomi-accent"
+                className="size-7 text-nomi-ink-40 hover:text-nomi-accent"
                 icon={<IconChevronDown size={15} stroke={1.8} aria-hidden="true" />}
               />
             </div>
