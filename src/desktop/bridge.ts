@@ -345,6 +345,9 @@ export type DesktopBridge = DesktopMediaBridge & DesktopConnectorBridge & {
     getPathForFile?: (file: File) => string
   }
   settings?: DesktopSettingsBridge
+  telemetry?: {
+    track: (payload: unknown) => Promise<{ queued: boolean }>
+  }
   productionRuns?: DesktopProductionRunBridge
   startupProbe?: {
     enabled: boolean
