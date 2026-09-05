@@ -1,6 +1,7 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconCheck, IconTrash, IconX } from '@tabler/icons-react'
+import { AnchoredPopover } from '../../design'
 import { useWorkbenchStore } from '../workbenchStore'
 import { cn } from '../../utils/cn'
 import type { TimelineTransitionType } from './timelineTypes'
@@ -8,13 +9,23 @@ import type { TimelineTransitionFeedback } from './timelineVisualFeedback'
 
 const TYPES: TimelineTransitionType[] = ['cut', 'dissolve', 'fade', 'match_cut', 'whip_pan']
 
+/**
+ * 转场选择器。**必须走 AnchoredPopover（Portal 到 body）**，不许改回原地 absolute：
+ * 它挂在接缝标记上，而标记住在轨道格 `.workbench-timeline-track__clips` 里——那一格是
+ * `overflow-hidden`，原地定位会把选择器裁成「时长 − 12f +」一条边，五个类型和「删除转场」
+ * 全部露不出来也点不到（2026-09-06 真机撞上；49 个采样点只命中 7 个）。
+ * 走查判据在 tests/ux/_assert.mjs 的 expectOverlayReachable，别只断言 toBeVisible。
+ */
 export function TimelineTransitionPicker({
   feedback,
   fps,
+  anchorRef,
   onClose,
 }: {
   feedback: TimelineTransitionFeedback
   fps: number
+  /** 贴哪儿：接缝标记那颗按钮。 */
+  anchorRef: React.RefObject<HTMLElement | null>
   onClose: () => void
 }): JSX.Element {
   const { t } = useTranslation()
@@ -27,8 +38,9 @@ export function TimelineTransitionPicker({
   const unsupported = feedback.transition.type === 'match_cut' || feedback.transition.type === 'whip_pan'
 
   return (
+    <AnchoredPopover anchorRef={anchorRef} align="center" gap={6} onClose={onClose}>
     <div
-      className={cn('absolute left-1/2 top-7 z-20 w-64 -translate-x-1/2 p-3', 'rounded-[var(--nomi-radius-lg)] border border-[var(--workbench-border)] bg-[var(--nomi-paper)] shadow-[var(--nomi-shadow-lg)]')}
+      className={cn('w-64 p-3', 'rounded-[var(--nomi-radius-lg)] border border-[var(--workbench-border)] bg-[var(--nomi-paper)] shadow-[var(--nomi-shadow-lg)]')}
       role="dialog"
       aria-label={t('timelineEditor.transition.pickerTitle')}
       onClick={(event) => event.stopPropagation()}
@@ -69,5 +81,6 @@ export function TimelineTransitionPicker({
       </button>
       <span className="sr-only">{t('timelineEditor.transition.fpsHint', { fps })}</span>
     </div>
+    </AnchoredPopover>
   )
 }

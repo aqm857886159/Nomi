@@ -110,7 +110,12 @@ export function useTimelinePlanPreview(
   const [host, setHost] = React.useState<HTMLElement | null>(null)
   const wanted = surface === 'preview' && bands.length > 0
   React.useEffect(() => {
-    setHost(wanted ? document.querySelector<HTMLElement>('.workbench-timeline__tracks') : null)
+    // 必须限定在**剪辑面**那棵树里找宿主。WorkbenchShell 把去过的工作区都留在 DOM 里
+    // （WorkspaceSlot 只是 `hidden`，为的是切回去时状态还在），所以生成画布那条时间轴
+    // 同时也挂着 `.workbench-timeline__tracks`——而且它排在剪辑面前面。
+    // 裸 `document.querySelector` 于是稳稳地拿到那条**隐藏的**（0×0）轨道区，
+    // 计划预览的色带被 Portal 进一个看不见的宿主里：功能"跑通了"，用户什么都看不到。
+    setHost(wanted ? document.querySelector<HTMLElement>('.workbench-preview .workbench-timeline__tracks') : null)
   }, [wanted])
   return host && wanted
     ? createPortal(<TimelinePlanPreviewLayer bands={bands} scale={timeline.scale} label={label} />, host)

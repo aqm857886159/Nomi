@@ -8,7 +8,13 @@
 //                                     字幕 → 配乐 → 快捷键 → 导出，最后用 ffprobe/ffmpeg
 //                                     验成片（尺寸、时长、音轨、接缝真的混合了）。
 //
-// 零额度：素材是本机 ffmpeg 现造的纯色片与正弦音，画布节点按「已出片」预置，全程不触发生成。
+// 零额度：画布节点按「已出片」预置，全程不触发生成。
+// 素材是**真假混合**，两者各有各的必要性（2026-09-06 用户拍板「验收必须有真实用户 case」）：
+//   · 第 3 镜与配乐是**真素材**——真实连续性片项目里模型真出的一段画面（黄雨衣 / 手电 / 推门）
+//     与一段真 TTS 旁白，转码进仓在 tests/ux/fixtures/。纯色片证明不了真视频真音频走得通这条管线。
+//   · 第 1、2 镜是**标定靶**，不是偷懒——第 13 步要拿导出成品接缝处的像素证明「转场真的渲染
+//     进去了、而且是压暗不是闪一道绿光」，这条判据需要一个已知答案的靶，只有纯色给得出已知答案。
+//   两段真素材的那一头另有判据：导出成品在第 3 镜时刻必须有真实明暗跨度（不是纯色板）。
 // 隔离 profile（docs/lessons/walkthrough-default-profile-is-isolated.md）。
 // Run: pnpm run build && node tests/ux/editing-real-user-pass.walk.mjs
 import fs from 'node:fs'
@@ -17,7 +23,7 @@ import path from 'node:path'
 import { createRequire } from 'node:module'
 import { execFileSync } from 'node:child_process'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
-import { clickOrFail, expect, expectVisible, proveProbe, expectAbsent, screenshotSettled, DEFAULT_TIMEOUT_MS } from './_assert.mjs'
+import { clickOrFail, expect, expectVisible, expectHittable, expectOverlayReachable, proveProbe, expectAbsent, screenshotSettled, DEFAULT_TIMEOUT_MS } from './_assert.mjs'
 
 const require = createRequire(import.meta.url)
 const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path
@@ -41,14 +47,21 @@ const importedDir = path.join(projectRoot, 'assets', 'imported')
 fs.mkdirSync(path.join(projectRoot, '.nomi'), { recursive: true })
 fs.mkdirSync(importedDir, { recursive: true })
 
-// ── 素材：三段纯色片（颜色差得越开，接缝混合帧越好判）+ 一段正弦音当配乐 ──────────────
+// ── 素材：两镜标定靶（见文件头）+ 一镜真实素材 + 一段真 TTS 旁白当配乐 ─────────────
+const fixturesDir = path.join(repoRoot, 'tests/ux/fixtures')
+const REAL_SHOT_FIXTURE = path.join(fixturesDir, 'real-shot-640x360.mp4')
+const REAL_AUDIO_FIXTURE = path.join(fixturesDir, 'real-narration.mp3')
+for (const fixture of [REAL_SHOT_FIXTURE, REAL_AUDIO_FIXTURE]) {
+  if (!fs.existsSync(fixture)) throw new Error(`真实素材不在仓库里：${fixture}`)
+}
 const SHOTS = [
   { file: 'shot-1.mp4', label: '推门远景', color: '0xE03A2F', rgb: [224, 58, 47] },
   { file: 'shot-2.mp4', label: '推门近景', color: '0x1B6BCF', rgb: [27, 107, 207] },
-  { file: 'shot-3.mp4', label: '眼神反应', color: '0x14A06A', rgb: [20, 160, 106] },
+  { file: 'shot-3.mp4', label: '眼神反应', real: REAL_SHOT_FIXTURE },
 ]
 const CLIP_SECONDS = 5
 for (const shot of SHOTS) {
+  if (shot.real) { fs.copyFileSync(shot.real, path.join(importedDir, shot.file)); continue }
   execFileSync(ffmpegPath, [
     '-v', 'error', '-y', '-f', 'lavfi', '-i', `color=c=${shot.color}:s=640x360:r=30`,
     '-t', String(CLIP_SECONDS), '-pix_fmt', 'yuv420p', '-movflags', '+faststart',
@@ -56,10 +69,7 @@ for (const shot of SHOTS) {
   ], { timeout: 120_000 })
 }
 const MUSIC_FILE = 'bgm.mp3'
-execFileSync(ffmpegPath, [
-  '-v', 'error', '-y', '-f', 'lavfi', '-i', 'sine=frequency=440:sample_rate=44100',
-  '-t', '15', '-q:a', '4', path.join(importedDir, MUSIC_FILE),
-], { timeout: 120_000 })
+fs.copyFileSync(REAL_AUDIO_FIXTURE, path.join(importedDir, MUSIC_FILE))
 
 const assetUrl = (file) => `nomi-local://asset/${encodeURIComponent(projectId)}/assets/imported/${encodeURIComponent(file)}`
 const STORYBOARD_DESIGN_ID = 'design-closing-a'
@@ -135,6 +145,73 @@ async function persisted() {
 }
 const videoClips = (state) => state.tracks.find((track) => track.id === 'videoTrack')?.clips ?? []
 
+/**
+ * 点「轨道区空白处」——全站唯一一条回到整片属性的手势。
+ *
+ * 位置必须**算**出来，不能写死一个坐标：时间轴工具条是浮在轨道区右上角的（absolute），
+ * 窗口一窄它就盖到写死的那个点上，于是点击被 intercept、干等 30 秒超时
+ * （2026-09-06 撞上：导出中途外接屏休眠，窗口被压到 1512 宽，(600,6) 正好落进工具条）。
+ * 这和转场选择器是同一族毛病——**几何靠猜**。所以这里也改成问渲染结果：
+ * 逐点 elementFromPoint，找到第一个真正落在轨道区自己身上、又不是标尺/片段/按钮的点。
+ */
+async function clickTimelineBlank(page) {
+  // 轨道区必须先真的有尺寸再谈"哪里是空白"。切左栏 / 收放 Nomi 之后布局会重排，
+  // 量到一个 0×0 的框就会把"布局还没落定"报成"轨道被占满了"——两种红长得一模一样。
+  const tracksLocator = page.locator('.workbench-preview .workbench-timeline__tracks').first()
+  await tracksLocator.waitFor({ state: 'visible', timeout: DEFAULT_TIMEOUT_MS }).catch(() => {})
+  const laidOut = await page.evaluate(() => {
+    const nodes = [...document.querySelectorAll('.workbench-preview .workbench-timeline__tracks')]
+    return nodes.map((node) => {
+      const box = node.getBoundingClientRect()
+      const style = getComputedStyle(node)
+      return { w: Math.round(box.width), h: Math.round(box.height), display: style.display, visibility: style.visibility }
+    })
+  })
+  const found = await page.evaluate(() => {
+    // 限定在剪辑面那棵树里：去过的工作区都留在 DOM 里（WorkspaceSlot 只是 hidden），
+    // 生成画布那条时间轴排在前面且是 0×0，裸 querySelector 拿到的是它。
+    const tracks = document.querySelector('.workbench-preview .workbench-timeline__tracks')
+    if (!tracks) return { point: null, box: null, blockers: ['剪辑面的轨道区不在页面上'] }
+    const box = tracks.getBoundingClientRect()
+    const occupied = '[data-clip-id], [data-text-clip-id], [data-timeline-transition], button, [role="menuitem"], [role="dialog"], .workbench-timeline__ruler-content'
+    // 挡路的东西各记一次，报红时直接说是谁占满的——「无从做起」这种话查不出任何东西。
+    const blockers = new Map()
+    const note = (what) => blockers.set(what, (blockers.get(what) ?? 0) + 1)
+    for (let y = box.top + 6; y < box.bottom - 4; y += 6) {
+      for (let x = box.left + 140; x < box.right - 8; x += 12) {
+        const at = document.elementFromPoint(x, y)
+        if (!at) { note('(什么都没命中)'); continue }
+        // 工具条不是轨道区的后代，contains 这一关就把它挡掉了。
+        if (!tracks.contains(at)) {
+          const outside = at.closest('[data-testid], [class*="timeline"], [role]') ?? at
+          note(`轨道区外的浮层/工具条：${outside.tagName.toLowerCase()}${outside.className ? '.' + String(outside.className).split(/\s+/)[0] : ''}`)
+          continue
+        }
+        const blocker = at.closest(occupied)
+        if (blocker) {
+          note(`${blocker.tagName.toLowerCase()}${blocker.className ? '.' + String(blocker.className).split(/\s+/)[0] : ''}`)
+          continue
+        }
+        return { point: { x, y }, box: null, blockers: [] }
+      }
+    }
+    return {
+      point: null,
+      box: { top: box.top, right: box.right, bottom: box.bottom, left: box.left },
+      blockers: [...blockers.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([what, n]) => `${what} ×${n}`),
+    }
+  })
+  if (!found.point) {
+    throw new Error(
+      `轨道区里找不到一处真空白，这一步的手势无从做起。轨道区 ${JSON.stringify(found.box)}；`
+      + `页面上的 .workbench-timeline__tracks：${JSON.stringify(laidOut)}；`
+      + `挡路的（按命中次数）：${found.blockers.join(' · ') || '(一个都没扫到)'}`,
+    )
+  }
+  await page.mouse.click(found.point.x, found.point.y)
+  return found.point
+}
+
 let failure
 try {
   await win.evaluate(() => {
@@ -201,13 +278,36 @@ try {
   await clickOrFail(marker, '点开转场选择器')
   const picker = win.getByRole('dialog', { name: '转场' })
   await expectVisible(picker, '转场选择器没打开')
+
+  // ── 「打开了」≠「用得了」 ────────────────────────────────────────────────────────
+  // 2026-09-06 用户真机撞上：选择器被轨道格 `.workbench-timeline-track__clips` 的
+  // overflow-hidden 裁成只剩「时长 − 12f +」一条边，五个类型和「删除转场」全部露不出来。
+  // 而**上一轮走查在这里判了绿**——因为它只断言 toBeVisible 然后 click，
+  // 这三样证据在这一族上全都失明（rect 不受裁切影响；Playwright 点击前会把容器滚一下再点）。
+  // 所以判据换成渲染结果：elementFromPoint 采样必须命中浮层自己。详见 _assert.mjs。
+  const pickerReach = await expectOverlayReachable(picker, '转场选择器')
+  check('转场选择器整块露出来、没被轨道格的 overflow 裁掉（不再只露「时长」一条边）',
+    true, `采样命中 ${pickerReach.hits}/${pickerReach.samples}，rect=${JSON.stringify(pickerReach.rect)}`)
+  for (const name of ['硬切', '叠化', '淡入淡出', '匹配剪辑', '甩镜']) {
+    await expectHittable(picker.getByRole('button', { name, exact: true }), `转场类型「${name}」`)
+  }
+  await expectHittable(picker.getByRole('button', { name: '删除转场' }), '「删除转场」')
+  check('五个转场类型和「删除转场」都真的点得到（中心点 elementFromPoint 命中它们自己）', true)
+
   await clickOrFail(picker.getByRole('button', { name: '淡入淡出', exact: true }), '改成淡入淡出')
   await expect.poll(async () => (await persisted()).transitions[0].type,
     { message: '转场类型没改成 fade', timeout: DEFAULT_TIMEOUT_MS }).toBe('fade')
+  // 改完要在**接缝标记上**看得出来（用户的眼睛只看得到这个小标记，看不到盘上的 JSON）。
+  await expect(marker, '换了转场类型，接缝标记没跟着变').toHaveAttribute('data-transition-type', 'fade')
+  await expectHittable(picker.getByRole('button', { name: '转场调短一帧' }), '「转场调短一帧」')
   for (let i = 0; i < 3; i += 1) await clickOrFail(picker.getByRole('button', { name: '转场调短一帧' }), '把转场调短一帧')
   await expect.poll(async () => (await persisted()).transitions[0].durationFrames,
     { message: '转场时长没改到 12 帧', timeout: DEFAULT_TIMEOUT_MS }).toBe(12)
-  check('转场选择器能改类型与时长，改动直接落盘', true, JSON.stringify((await persisted()).transitions[0]))
+  await expect(marker, '改了时长，接缝标记上的帧数没跟着变').toContainText('12f')
+  check('转场选择器能改类型与时长，改动同时落盘、并在接缝标记上看得出来',
+    true, JSON.stringify((await persisted()).transitions[0]))
+  // 改完时长再量一次：翻转/夹视口的逻辑不能因为面板变高就把它推出去。
+  await expectOverlayReachable(picker, '改完时长后的转场选择器')
   await snap('03-transition-picker')
   await clickOrFail(picker.getByRole('button', { name: '关闭转场选择器' }), '关闭转场选择器')
   note('加转场', '悬停接缝才冒出「+」，第一次容易找不到；但落下之后标记上直接写着「12f」，改起来很直观。')
@@ -377,7 +477,7 @@ try {
   await win.keyboard.press('Escape')
   // 点轨道区空白处取消选中，回到整片属性。选中过之后回不到整片属性，就等于画幅 / 导出分辨率
   // / 配乐音量这三样再也改不了——这条手势是它们唯一的回头路。
-  await timelinePanel.locator('.workbench-timeline__tracks').first().click({ position: { x: 600, y: 6 } })
+  await clickTimelineBlank(win)
   await expect(inspector.locator('[data-testid="preview-inspector-object"]'),
     '点轨道空白处应当取消选中、回到整片属性').toHaveAttribute('data-object-type', 'film')
   check('点轨道空白处能取消选中、回到整片属性（原来选中后再也回不去）', true)
@@ -424,8 +524,14 @@ try {
   // ══ 第 13 步：导出 720p → ffprobe 验尺寸 / 时长 / 音轨 / 接缝混合帧 ══════════════════
   // `.partial.mp4` 是导出**进行中**的半成品，ffprobe 读它必然报 moov atom not found。
   // 只认最终产物，否则走查会把「还没写完」误判成「导出坏了」。
+  // 导出要等多久是**机器**说了算（1080p 比 720p 慢，本机同时还跑着别的 worktree 的套件），
+  // 所以别拿墙钟去猜「应该导完了」——那种等法单跑绿、机器一忙就红（R18 拦的正是这一族）。
+  // 判据换成产品自己的信号：进度条还在 = 还在导，就接着等；进度条没了还没出文件，才是真失败。
+  const exportBusy = async () => (await win.locator('.workbench-preview-player__export-progress').count()) > 0
   const findExport = async (since) => {
-    for (let attempt = 0; attempt < 80; attempt += 1) {
+    // 进度条起来之前先给几轮宽限，别把「还没开始」当成「已经结束」。
+    let idleRounds = 0
+    for (let attempt = 0; attempt < 400; attempt += 1) {
       await win.waitForTimeout(1500)
       const found = []
       const scan = (dir, depth = 0) => {
@@ -439,11 +545,15 @@ try {
       }
       scan(projectsDir)
       if (found.length) return found.sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs)[0]
+      // 文件是导完之后才落盘的，进度条消失与文件出现之间有一小段空窗——
+      // 所以「不忙」要连着数轮成立才算数，一帧的空窗不作数。
+      idleRounds = (await exportBusy()) ? 0 : idleRounds + 1
+      if (attempt >= 8 && idleRounds >= 6) return null
     }
     return null
   }
   // 导出参数在整片态，先点空白处取消字幕的选中。
-  await timelinePanel.locator('.workbench-timeline__tracks').first().click({ position: { x: 600, y: 6 } })
+  await clickTimelineBlank(win)
   await expect(inspector.locator('[data-testid="preview-inspector-object"]')).toHaveAttribute('data-object-type', 'film')
   await clickOrFail(inspector.getByLabel('导出分辨率'), '打开导出分辨率下拉')
   await clickOrFail(win.getByRole('option', { name: '720p' }).first(), '把导出分辨率选成 720p')
@@ -480,11 +590,21 @@ try {
     const luma = (rgb) => 0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]
     check('「淡入淡出」在接缝中间真的压到暗，不是闪一道绿光',
       sampled.some(({ rgb }) => luma(rgb) < 60), sampleText)
+
+    // 真实素材那一头的判据：第 3 镜（10–15 秒）在成品里必须是**真画面**。
+    // 纯色板做成的走查永远回答不了「真视频走不走得通这条管线」——8×8 缩略图的通道跨度
+    // 在纯色上恒为 0，在真实画面上是几十到上百。
+    const realGridPath = path.join(root, 'real-shot-frame.png')
+    execFileSync(ffmpegPath, ['-v', 'error', '-y', '-ss', '12.5', '-i', exported720, '-frames:v', '1', realGridPath], { timeout: 60_000 })
+    const realGrid = execFileSync(ffmpegPath, ['-v', 'error', '-i', realGridPath, '-vf', 'scale=8:8', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-'], { timeout: 60_000 })
+    const spread = Math.max(...realGrid) - Math.min(...realGrid)
+    check('第 3 镜用的是真实素材，且真的渲进了成品（12.5s 处 8×8 采样有真实明暗跨度，不是纯色板）',
+      spread > 60, `spread=${spread}`)
   }
   await snap('12-exported-720p')
 
   // 1080p 再导一次，验分辨率真的跟着属性面板走
-  await timelinePanel.locator('.workbench-timeline__tracks').first().click({ position: { x: 600, y: 6 } })
+  await clickTimelineBlank(win)
   await clickOrFail(inspector.getByLabel('导出分辨率'), '打开导出分辨率下拉')
   await clickOrFail(win.getByRole('option', { name: '1080p' }).first(), '把导出分辨率改成 1080p')
   const exported1080Before = Date.now()

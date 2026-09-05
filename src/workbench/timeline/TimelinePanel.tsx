@@ -26,6 +26,7 @@ import { reportAdoptionOutcome } from '../adoption/adoptionReceipt'
 import { dispatchTimelineShortcut } from './timelineShortcuts'
 import { groupTimelineTransitionFeedbackByTrack } from './timelineVisualFeedback'
 import { TimelineContextMenu, type TimelineContextTarget } from './TimelineContextMenu'
+import { TimelineShortcutsDialog } from './TimelineShortcutsDialog'
 import { openTimelineTransitionPicker } from './openTransitionPicker'
 import { ControlGroup } from '../preview/PreviewControlBar'
 
@@ -508,16 +509,7 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
           )
         })()}
         {contextMenu ? <TimelineContextMenu target={contextMenu.target} x={contextMenu.x} y={contextMenu.y} onClose={() => setContextMenu(null)} onRegenerate={handleRegenerate} onChangeTransition={handleChangeTransition} onArrange={handleAiArrange} /> : null}
-        {shortcutsOpen ? (
-          <div className="fixed inset-0 z-40 grid place-items-center bg-[color-mix(in_oklch,var(--nomi-ink)_18%,transparent)]" onClick={() => setShortcutsOpen(false)}>
-            <div className="w-80 rounded-[var(--nomi-radius-lg)] border border-[var(--workbench-border)] bg-[var(--nomi-paper)] p-4 shadow-[var(--nomi-shadow-lg)]" role="dialog" aria-label={t('timelineEditor.shortcuts.title')} onClick={(event) => event.stopPropagation()}>
-              <div className="mb-3 flex items-center justify-between"><strong className="text-body-sm">{t('timelineEditor.shortcuts.title')}</strong><button type="button" onClick={() => setShortcutsOpen(false)}>×</button></div>
-              <div className="grid grid-cols-[1fr_auto] gap-y-2 text-micro">
-                <span>{t('timelineEditor.context.split')}</span><kbd>{t('timelineEditor.shortcuts.splitKey')}</kbd><span>{t('timelineEditor.context.duplicate')}</span><kbd>{t('timelineEditor.shortcuts.duplicateKey')}</kbd><span>{t('timelineEditor.context.delete')}</span><kbd>{t('timelineEditor.shortcuts.deleteKey')}</kbd><span>{t('timelineEditor.context.rippleDelete')}</span><kbd>{t('timelineEditor.shortcuts.rippleKey')}</kbd><span>{t('timelineEditor.context.deleteLeft')}</span><kbd>{t('timelineEditor.shortcuts.leftKey')}</kbd><span>{t('timelineEditor.context.deleteRight')}</span><kbd>{t('timelineEditor.shortcuts.rightKey')}</kbd><span>{t('timelineEditor.undo')}</span><kbd>{t('timelineEditor.shortcuts.undoKey')}</kbd><span>{t('timelineEditor.redo')}</span><kbd>{t('timelineEditor.shortcuts.redoKey')}</kbd><span>{t('timelineEditor.shortcuts.toggleSnap')}</span><kbd>{t('timelineEditor.shortcuts.snapKey')}</kbd><span>{t('timelineEditor.shortcuts.zoom')}</span><kbd>{t('timelineEditor.shortcuts.zoomKey')}</kbd><span>{t('timelineEditor.shortcuts.toggleAssistant')}</span><kbd>{t('timelineEditor.shortcuts.assistantKey')}</kbd>
-              </div>
-            </div>
-          </div>
-        ) : null}
+        {shortcutsOpen ? <TimelineShortcutsDialog onClose={() => setShortcutsOpen(false)} /> : null}
       </div>
     </section>
   )

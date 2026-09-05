@@ -75,6 +75,9 @@ const workbenchShell = readSource(
 const settingsDialog = readSource(
   path.join(process.cwd(), 'src/workbench/settings/SettingsDialog.tsx'),
 )
+const timelineSurface = readSource(
+  path.join(process.cwd(), 'src/workbench/ai/resident/timelineAgentSurface.tsx'),
+)
 
 describe('ProjectAgentResidentShell production contract', () => {
   it('projects one Host timeline and keeps busy queue actions in the shell', () => {
@@ -383,5 +386,16 @@ describe('ProjectAgentResidentShell production contract', () => {
     expect(preview).toContain('collapsedSize={EDITING_PANEL_RAIL_WIDTH}')
     expect(preview).toContain('<PanelRail')
     expect(preview).not.toContain("aiCollapsed ? '0px'")
+  })
+
+  it('portals the timeline plan preview into the editing surface, not the first timeline in the DOM', () => {
+    // WorkbenchShell 把去过的工作区都留在 DOM 里（WorkspaceSlot 只是 hidden，为的是切回去时
+    // 状态还在），于是**两条**时间轴同时挂着 `.workbench-timeline__tracks`，而生成画布那条
+    // 排在剪辑面前面且是 0×0。裸 `document.querySelector('.workbench-timeline__tracks')`
+    // 因此稳稳地拿到隐藏的那条，色带被 Portal 进一个看不见的宿主：功能"跑通了"，用户什么都看不到。
+    // 这条断言把宿主必须限定在剪辑面那棵树里钉死——它在 DOM 里看不出错，只有肉眼看得出。
+    expect(shell).toContain('<WorkspaceSlot')
+    expect(timelineSurface).toContain("'.workbench-preview .workbench-timeline__tracks'")
+    expect(timelineSurface).not.toContain("querySelector<HTMLElement>('.workbench-timeline__tracks')")
   })
 })
