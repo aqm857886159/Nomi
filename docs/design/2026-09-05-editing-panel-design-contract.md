@@ -2,6 +2,7 @@
 
 > 状态：⏳ 已拍板·未开工 · 日期：2026-09-05
 > 样张：在线画布 https://claude.ai/code/artifact/f33e5872-7c64-4e1d-9b8b-14874ddc7e03 ；离线留存 [`mockups/2026-09-05-editing-panel/`](mockups/2026-09-05-editing-panel/)（9 块画板 + 预览图 + 四布局线框）。
+> 表现层依据：`docs/research/2026-09-05-editing-surface-alignment.md`（分支 `codex/editing-surface-alignment-20260905`，OpenCut classic 源码实读 + ChatCut / CapCut / Descript / Resolve 官方文档）；资源库依据：`docs/research/2026-09-05-editing-library-and-ai-assets.md`（分支 `codex/editing-library-research-20260905`）。
 > 事实来源：剪辑面简报（scratchpad `editing-design-brief/brief.md`，真机截图 13 张、工具条 11 图标解剖、数据模型能力面）、`docs/research/2026-09-05-chatcut-conversational-editing-teardown.md`（分支 `codex/chatcut-editing-research-20260905`）、审计 `editing-tools-audit.md` §6/§7、用户 ChatCut 真机截图 5 张。
 > 拍板记录：本文 §0。实施若偏离本文，先回来改本文再动代码（R8 逐项对账）。
 
@@ -17,7 +18,7 @@
 | 内核 | 时间轴数据模型、`propose→apply→undo` 链、导出 filtergraph 不换 | 换内核 = 今日合入的 Agent 四刀重做 |
 | 补齐范围 | 11 条（§④）这次做；变速 / 关键帧 / 自动字幕 / 自由加轨 / Slip / 资源库 / 多版本时间轴另立项 | 用户 09-05 点头 |
 | 固定三轨 | 这轮不放开 | 用户授权我定：语义轨绑导出与提案；等真实用户撞到 |
-| 资源库 | 三层方向：项目内生成资产 / 生成即素材（配乐、音效、配音、B-roll 就地生成）/ 免费商用素材带授权快照；Codex 调研后定 tab；本轮左栏只留位 | — |
+| 资源库 | 三层来源：项目内生成资产 / 生成即素材（配乐、音效、配音、B-roll）/ 免费商用素材带授权快照。调研结论：一个「素材库」tab、内部按来源三段筛选（B 的壳 + A 的语义），贵的生成走对话确认卡，结果统一回流素材库再拖到轨；不做剪映式下载商城。本轮左栏留位，第一版最小集见调研 §4.2 | 用户 09-05 方向 + Codex 调研 |
 | 对话位置 | 在右，不跟 ChatCut 放左（Nomi 创作 / 生成页 Agent 都在右） | — |
 
 ## ① 背后逻辑：解决哪个真实摩擦
@@ -40,11 +41,15 @@
 
 收起后的右侧图标条：32px 宽，属性 / Nomi 各一个图标，点击展开；顶栏「布局」菜单列五块面板开关 + 预设（默认 / 专注剪辑 / 结果全屏 / 竖屏预览）+ 恢复默认。Agent「布局」读写口：`layout.read` / `layout.write`（面板开关、尺寸、预设），effectClass = reversible_local，收据一行可撤销。
 
-### 2.2 预览控制条
+### 2.2 预览区与 transport（依据 `docs/research/2026-09-05-editing-surface-alignment.md` §A/§E/§G）
 
-只剩：播放簇 · 「叠加」（Aa 文字）· 导出 MP4。原「整片」（画幅）和「这一段」（显示 / 缩放）两组撤掉，各自搬进属性面板（一功能一个家，§1.5）。
+- 预览面板用中性底（`--nomi-ink-05`），画面在面板内居中；面板底部一条 40px transport 贴时间轴上沿：播放 / 上一帧 / 下一帧 · 当前 / 总时码（mono）· 右侧「叠加」可见开关（`IconSubtitles`）· 监听音量（`IconVolume`，只影响本机预览）· 全屏（`IconMaximize`）。
+- 撤出 transport：「整片画幅」→ 属性面板整片态；「这一段」显示 / 缩放 → 属性面板片段态「显示」组；「导出 MP4」→ 顶栏右上固定按钮（CapCut / ChatCut / OpenCut 一致），属性面板只放导出参数不放执行按钮。
+- 时间轴上沿只放编辑动作（§2.7），不重复播放控件。
 
 ### 2.3 属性面板（一个面板，组随选中 derive，组序固定：显示 → 时间 → 声音 → 转场 / 文字）
+
+头部形态（手册 §C）：标题「属性」（`IconAdjustments`）+ 折起钮；对象行 = 4px 类型色条（accent / video / text 现役色相）+ 16px 类型图标（`IconPhoto` / `IconMovie` / `IconLetterCase`）+ 对象名 + 类型·时长；**不做大面积彩色标题**。组标题 32px 可折叠；行内 label 左、控件右对齐，行高 32；音量 = 滑杆 + dB 数值框 + 静音开关；起点 / 时长 / 淡入 / 淡出 = 数值框（帧，可步进可拖）；画面 = 分段控件 + 缩放滑杆 / 数值框 + 重置。
 
 | 选中对象 | 出现的组 | 取值域（现成契约） |
 |---|---|---|
@@ -79,7 +84,7 @@
 
 ### 2.7 时间轴
 
-- 工具条三组用预览控制条同款「带 legend 分组框」：「这一段」分割 · 复制 · 删除｜「整片」AI 拼片 · 撤销 · 重做（恒渲染，无历史置灰）｜缩放 − % 适配 +。「重新生成」「微调」撤出常驻。
+- 工具条三簇用现役「带 legend 分组框」+ 竖线分隔：「这一段」分割 `IconScissors` · 复制 `IconCopy` · 删除 `IconTrash`｜「整片」AI 拼片 `IconWand` · 撤销 `IconArrowBackUp` · 重做 `IconArrowForwardUp`（恒渲染，无历史置灰）｜视图：吸附 `IconMagnet`（激活有底色）· 缩小 `IconZoomOut` · 适配 `IconViewportWide` · 放大 `IconZoomIn`。「重新生成」「微调」撤出常驻。图标唯一词典见手册 §F（Tabler，不混用）。
 - 轨道头：视频轨、配乐轨各一个静音钮；眼睛不加（三轨固定）。
 - 空轨一律收成窄条（图片轨与配乐行一致）；默认高度 260 装四轨；打开按内容 fit（#500 已做）。
 - 快捷键：所有 tooltip 带键位；顶栏「?」/ 按 ? 弹快捷键面板（现役 8 组 + Q / W / ⇧Z / ⌘\）。
