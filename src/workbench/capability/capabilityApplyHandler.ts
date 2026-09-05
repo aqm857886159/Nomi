@@ -8,7 +8,7 @@ import {
 import { useSpendConfirmStore } from '../generationCanvas/spend/spendConfirm'
 import { buildMultiShotContractView, type MultiShotGatePayload } from '../generationCanvas/spend/productionContractView'
 import { getDesktopBridge } from '../../desktop/bridge'
-import i18n, { getAppLocale } from '../../i18n'
+import i18n from '../../i18n'
 import { runStoryboardPlanner } from '../generationCanvas/agent/runStoryboardPlanner'
 import { runDirectionPlanner } from '../generationCanvas/agent/runDirectionPlanner'
 import { productionScriptSessionKey } from '../ai/agentSessionKey'
@@ -38,7 +38,7 @@ import { handleMultiShotCanvasLandingOp } from './multiShotCanvasLanding'
 import { executeTimelineReadTarget, executeTimelineWriteTarget } from '../timeline/agent/timelineCapabilityTarget'
 import { executeAssetReadTarget, executeExportReadTarget } from '../timeline/agent/phase4CapabilityTargets'
 import { executeCanonicalCanvasPlanPatch } from './canonicalCanvasPlanPatch'
-import { toast } from '../../ui/toast'
+import { handleMcpHostSurfaceOp } from './mcpHostSurfaceOps'
 
 // 能力核 A 模式实时桥 · 渲染层处理器。
 // 主进程把外部 MCP 的画布读/写/付费确认转发到这里（只在该项目正打开时路由），处理后回结果。
@@ -383,19 +383,11 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
   const landed = await handleMultiShotCanvasLandingOp(op, data)
   if (landed !== null) return landed
 
+  // 外部 MCP 宿主触发的纯渲染层副作用（打开凭据页 / 宿主配置已修复提示），落点住在 mcpHostSurfaceOps。
+  const hostSurface = handleMcpHostSurfaceOp(op, data)
+  if (hostSurface !== null) return hostSurface
+
   switch (op) {
-    case 'integration.open-credentials': {
-      window.dispatchEvent(new CustomEvent('nomi-open-settings', { detail: { tab: 'models' } }))
-      return { opened: true }
-    }
-    case 'host-config.repaired': {
-      // 主进程只在真的改了配置文件时才发这一条，并附上该重启哪些助手（Claude Code / Codex / Cursor
-      // 或用户自建的 profile）。名字从修复结果来，不在这里再写死一个「Claude Code」。
-      const clients = Array.isArray(data.clients) ? data.clients.filter((name): name is string => typeof name === 'string') : []
-      if (!clients.length) return { notified: false }
-      toast(i18n.t('studio.hostConfigRepaired', { clients: clients.join(getAppLocale() === 'en' ? ', ' : '、') }), 'info')
-      return { notified: true }
-    }
     case 'document.write': {
       const tools = useWorkbenchStore.getState().creationDocumentTools
       const operation = data.operation === 'insert' || data.operation === 'replace' || data.operation === 'append'

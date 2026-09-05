@@ -31,11 +31,11 @@ const ALLOWLIST = {
   // transitions together. It is reviewed as one security boundary and must
   // be split only along a stable ownership seam, not by moving methods into
   // a second writer. (2026-08-29)
-  "electron/integrationCertification/integrationSession.ts": 1696,
+  "electron/integrationCertification/integrationSession.ts": 1695,
   // Existing SettingsDialog shell now owns the durable integration handoff
   // projection alongside the legacy model settings pages. Keep this reviewed
   // baseline until the planned settings-surface extraction. (2026-08-29)
-  "src/ui/onboarding/OnboardingDrawer.tsx": 811,
+  "src/ui/onboarding/OnboardingDrawer.tsx": 806,
   "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx": 713, // …→ 731（2026-08-25 P4 S6：多镜叠加合一 ProductionShotOverlays）→ 713（2026-08-29 React Flow 单内核：移除旧布局与缩放分支）
   // Project Agent Host 迁移巨壳（M1 transplant：electron 切片随 r2 入库、renderer 切片随
   // 本次 cutover 入库；上游 pr223 原型已人工评审同一批 owner，数字按本分支实际行数锁棘轮，
