@@ -7,6 +7,7 @@ import {
   createCollected,
   createTree,
   isUsablePrefix,
+  overbroadNamespacePrefixes,
   pluralBaseOf,
 } from './check-i18n-dead-keys'
 import type { DynamicPrefix } from './lib/i18nDynamicKeyPrefixes'
@@ -73,6 +74,33 @@ describe('i18n 死键判定', () => {
     expect(dead).toContain('settings.orphan') // 前缀之外的仍照报
   })
 
+  // ── 规则③的出处判据（2026-09-05）──
+  // 阳性对照优先：先证明「没出处的模板不再豁免」，再逐条证明四种真出处仍然豁免。
+  // 误判成死键是本门岗最贵的错（删掉 = 线上渲染出原始 key），所以四条真出处一条都不能漏。
+  it('规则③ 出处：跟 i18n 无关的模板不再当前缀（夹具文件名 `settings.${ext}` 不豁免整片）', () => {
+    const { dead } = run({ 'fixture.test.ts': "const name = `settings.tab.${extension}`" })
+    expect(dead).toContain('settings.tab.models') // 没有出处 → 不豁免，照常判死
+  })
+
+  it('规则③ 出处①：t() 的实参', () => {
+    expect(run({ 'a.tsx': 't(`settings.tab.${id}`)' }).dead).not.toContain('settings.tab.models')
+  })
+
+  it('规则③ 出处②：存进变量、该名字在本文件被传进过 t()（knownVendors 的 const path 写法）', () => {
+    const code = "const path = `settings.tab.${id}`\nreturn i18n.exists(path) ? i18n.t(path) : fallback"
+    expect(run({ 'a.ts': code }).dead).not.toContain('settings.tab.models')
+  })
+
+  it('规则③ 出处③：名字自称是键（labelKey / KEY）', () => {
+    expect(run({ 'a.ts': "const labelKey = `settings.tab.${id}`" }).dead).not.toContain('settings.tab.models')
+  })
+
+  it('规则③ 出处④：由函数返回，三目/短路也要穿过去（canvasBatchModelLabel 的形状）', () => {
+    const code = "function k(x) { return x ? `settings.tab.${x}` : `settings.tab.${x}2` }"
+    expect(run({ 'a.ts': code }).dead).not.toContain('settings.tab.models')
+    expect(run({ 'b.ts': "const k = (x) => `settings.tab.${x}`" }).dead).not.toContain('settings.tab.models')
+  })
+
   it('规则③:注册表前缀与源码模板等效', () => {
     const registry: DynamicPrefix[] = [{ prefix: 'settings.tab', why: '测试用' }]
     const { dead } = run({ 'a.ts': 'export const x = 1' }, registry)
@@ -127,6 +155,45 @@ describe('前缀可用性闸(防垃圾 head 让门岗失效)', () => {
 
   it('指向不存在的子树 = 不可用(防假注册撑活一整片)', () => {
     expect(isUsablePrefix('settings.nonexistent.', tree, leaves)).toBe(false)
+  })
+})
+
+describe('整命名空间前缀闸(门岗对整片失明的那一类)', () => {
+  function overbroad(sources: Record<string, string>, registry: DynamicPrefix[] = []) {
+    const tree = createTree()
+    buildTree(DICT, '', tree)
+    const collected = createCollected()
+    for (const [fileName, text] of Object.entries(sources)) {
+      collectFromSourceText(text, { fileName, isDictionary: false }, collected)
+    }
+    return overbroadNamespacePrefixes(tree, collected, registry)
+  }
+
+  // 阳性对照(R17):先证明这条规则真的会红。
+  it('产品源里覆盖整棵命名空间的模板 head 被抓出来', () => {
+    const found = overbroad({ 'src/a.tsx': 'const s = t(`settings.${key}`)' })
+    expect([...found.keys()]).toEqual(['settings'])
+    expect(found.get('settings')).toBe('src/a.tsx:1')
+  })
+
+  it('这正是它要防的失明:同一个 head 会让该命名空间下的死键一条都报不出来', () => {
+    const { dead, unreached } = run({ 'src/a.tsx': 'const s = t(`settings.${key}`)' })
+    expect(dead).not.toContain('settings.orphan') // 没人引用,却因为整片覆盖而逃过判定
+    expect(unreached).toContain('settings.orphan')
+  })
+
+  it('收窄一层就不再算过宽(这就是修法:让 head 带上具体子树)', () => {
+    expect([...overbroad({ 'src/a.tsx': 'const s = t(`settings.tab.${key}`)' }).keys()]).toEqual([])
+  })
+
+  it('注册表里的整命名空间条目同样算过宽(注册不等于安全)', () => {
+    const found = overbroad({}, [{ prefix: 'settings', why: '测试用' }])
+    expect(found.get('settings')).toBe('DYNAMIC_KEY_PREFIXES')
+  })
+
+  it('测试夹具里的 `media.${ext}` 这类假前缀不报——改夹具名治不了病,那是另一档欠账', () => {
+    expect([...overbroad({ 'src/a.test.ts': 'const name = `settings.${ext}`' }).keys()]).toEqual([])
+    expect([...overbroad({ 'tests/ux/a.mjs': 'const name = `settings.${ext}`' }).keys()]).toEqual([])
   })
 })
 

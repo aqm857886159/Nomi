@@ -4,6 +4,7 @@ import { IconExternalLink, IconSparkles } from '@tabler/icons-react'
 import { ANTIGRAVITY_VENDOR_KEY, ANTIGRAVITY_IMAGE_MODEL_KEY } from '../../../electron/shared/antigravity'
 import { DesignButton } from '../../design'
 import { getDesktopBridge } from '../../desktop/bridge'
+import type { TranslationKey } from '../../i18n/translationKey'
 import { FoldableModelCard } from './FoldableModelCard'
 import { ModelChipGroups, type ChipModel } from './ModelChipGroups'
 import { groupAntigravityCatalogModels } from './antigravityCardModel'
@@ -19,9 +20,19 @@ type Props = {
   onChanged: () => void
 }
 
+type AntigravityFeedback = 'copied' | 'copyFailed' | 'saveFailed'
+
+// 存**整键**而非 `antigravity.${feedback}` 拼接：拼接的模板 head 覆盖整棵 antigravity 命名空间，
+// 死键门岗对它整片失明（见 src/i18n/translationKey.ts）；整键还顺带让编译器校验键存在。
+const FEEDBACK_KEY = {
+  copied: 'antigravity.copied',
+  copyFailed: 'antigravity.copyFailed',
+  saveFailed: 'antigravity.issues.saveFailed',
+} as const satisfies Record<AntigravityFeedback, TranslationKey>
+
 export function AntigravityConnectionCard({ enabled, models, selectedVariants, session, onOpenModel, onChanged }: Props): JSX.Element {
   const { t } = useTranslation()
-  const [feedback, setFeedback] = React.useState<'copied' | 'copyFailed' | 'saveFailed' | null>(null)
+  const [feedback, setFeedback] = React.useState<AntigravityFeedback | null>(null)
   const { view, controller, perform } = session
   const status = view.status
   const state = status?.state ?? 'unverified'
@@ -59,7 +70,7 @@ export function AntigravityConnectionCard({ enabled, models, selectedVariants, s
         <ModelChipGroups models={tools} connected={enabled} onOpenModel={onOpenModel} kindLabels={{ image: t('antigravity.imageTools') }} />
         <ModelChipGroups models={routes} connected={enabled} onOpenModel={onOpenModel} kindLabels={{ text: t('antigravity.routing') }} />
       </div>
-      {view.issue || feedback ? <p role="status" className="text-caption text-nomi-ink-60">{view.issue ? t(`antigravity.issues.${view.issue}`) : feedback === 'saveFailed' ? t('antigravity.issues.saveFailed') : t(`antigravity.${feedback!}`)}</p> : null}
+      {view.issue || feedback ? <p role="status" className="text-caption text-nomi-ink-60">{view.issue ? t(`antigravity.issues.${view.issue}`) : t(FEEDBACK_KEY[feedback!])}</p> : null}
       <details className="border-t border-nomi-line pt-3 text-caption text-nomi-ink-60">
         <summary className="cursor-pointer font-semibold">{t('antigravity.details')}</summary>
         <div className="mt-2 flex flex-col gap-2 text-micro leading-relaxed">

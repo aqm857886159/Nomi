@@ -222,7 +222,9 @@ describe('ProjectAgentResidentShell production contract', () => {
     expect(residentPrimitives).toContain('data-agent-tool-active')
     expect(residentPrimitives).toContain('data-agent-tool-elapsed')
     expect(residentTiming).toContain('residentToolElapsedMs')
-    expect(resident).toContain("status === 'declined' ? 'declined'")
+    // 2026-09-05：状态→文案从三目链改成整键查表（拼 `agentResident.${key}` 会让死键门岗
+    // 对整棵 agentResident 失明）。断言跟着搬到查表项上，钉的还是「declined 有自己的文案」。
+    expect(resident).toContain("declined: 'agentResident.declined'")
     expect(residentPrimitives).toContain('data-agent-proposal-prompt')
     expect(residentPrimitives).toContain('<IconMessage')
     expect(residentGenerationEditor).toContain('ResidentBatchStack')
