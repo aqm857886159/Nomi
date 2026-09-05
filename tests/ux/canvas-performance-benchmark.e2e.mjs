@@ -32,6 +32,14 @@ import {
   OFF_CANVAS_RENDER_TARGETS,
 } from './canvas-perf/offCanvasRenderProbe.mjs'
 import { buildScenarioAdvisory } from './canvas-perf/advisoryMetrics.mjs'
+import {
+  AUTO_PAN_SAFE_MARGIN_PX,
+  MIN_NODE_BAND_COVERAGE,
+  clampIntoAutoPanSafeArea,
+  expectedFullySelected,
+  nodeBandCoverage,
+  sweptRect,
+} from './canvas-perf/gestureGeometry.mjs'
 import { startDevRendererServer } from './canvas-perf/devRendererServer.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -412,9 +420,10 @@ function getTargetWindow(app, fallback) {
 // with the resident agent panel narrowing the stage, both could hand back a
 // point sitting on a magnetic connect handle, which turns "pan the blank canvas"
 // into "drag a connection" and silently measures the wrong gesture.
-async function findBlank(page, preference = 'default') {
-  const point = await findCanvasBlankPoint(page, { preference })
-  if (!point) throw new Error(`findBlank: no blank point on the stage (preference=${preference})`)
+async function findBlank(page, preference = 'default', { inset = 0 } = {}) {
+  const point = await findCanvasBlankPoint(page, { preference, inset })
+  if (!point)
+    throw new Error(`findBlank: no blank point on the stage (preference=${preference}, inset=${inset})`)
   return point
 }
 
@@ -686,7 +695,8 @@ async function runAction(page, scenario, fixture) {
   if (scenario === 'marquee-select') {
     const boxes = []
     const nodes = page.locator('.generation-canvas-v2-node')
-    for (let index = 0; index < Math.min(50, await nodes.count()); index += 1) {
+    const mountedNodeCount = await nodes.count()
+    for (let index = 0; index < Math.min(50, mountedNodeCount); index += 1) {
       const box = await nodes
         .nth(index)
         .boundingBox()
@@ -698,19 +708,24 @@ async function runAction(page, scenario, fixture) {
     const top = Math.min(...boxes.map((box) => box.y))
     const right = Math.max(...boxes.map((box) => box.x + box.width))
     const bottom = Math.max(...boxes.map((box) => box.y + box.height))
-    const start = await findBlank(page, 'top-left')
-    if (!start) throw new Error('找不到可用于框选的画布空白点')
+    // 起点和终点都必须留在自动平移安全区内。否则 React Flow 会按 requestAnimationFrame
+    // 自动平移视口，这一笔扫过的区域就变成「这台机器画了多少帧」的函数——同一份代码
+    // 在 darwin 上实测 9/12 跳变、在 Linux CI 上 8/12 跳变，全是这么来的。
+    const start = await findBlank(page, 'top-left', { inset: AUTO_PAN_SAFE_MARGIN_PX })
+    const end = clampIntoAutoPanSafeArea({ x: right + 30, y: bottom + 30 }, stage)
+    const swept = sweptRect(start, end)
+    // 期望值从**扫过的这块区域**derive，不再写死节点个数：节点个数随窗口尺寸变，
+    // 而窗口尺寸在 CI 和本机并不一样（这正是原来那个 12 在 Linux 上翻红的原因）。
+    const expectedSelection = expectedFullySelected(boxes, swept)
     await page.keyboard.down('Shift')
-    await dragPath(
-      page,
-      start,
-      { x: Math.min(stage.x + stage.width - 10, right + 30), y: Math.min(stage.y + stage.height - 10, bottom + 30) },
-      60,
-      12,
-    )
+    await dragPath(page, start, end, 60, 12)
     await page.keyboard.up('Shift')
     return {
       selected: await page.locator('.generation-canvas-v2-node[data-selected="true"]').count(),
+      mountedNodeCount,
+      expectedSelection,
+      nodeBandCoverage: Math.round(nodeBandCoverage(swept, boxes, stage) * 1000) / 1000,
+      swept,
       bounds: { left, top, right, bottom },
     }
   }
@@ -1250,12 +1265,29 @@ function sampleHardFailures(sample) {
     failures.push(`pan/zoom continuation error ${sample.actionDetails.stepErrorPx}px > 1.5px`)
   if (sample.actionDetails?.selectedAfterClear !== undefined && sample.actionDetails.selectedAfterClear !== 0)
     failures.push(`blank click left ${sample.actionDetails.selectedAfterClear} selected nodes`)
-  if (
-    sample.scenario === 'marquee-select' &&
-    Number.isFinite(sample.actionDetails?.selected) &&
-    sample.actionDetails.selected < 12
-  )
-    failures.push(`marquee selected only ${sample.actionDetails.selected} nodes`)
+  if (sample.scenario === 'marquee-select' && !sample.error && Number.isFinite(sample.actionDetails?.selected)) {
+    const { selected, expectedSelection, nodeBandCoverage: bandCoverage } = sample.actionDetails
+    // ① 框选正确性：框里的节点必须全被选中，框外的一个都不能进来。
+    //    区间的上下界差的只是压在框线上那几个节点（DOM 与 React Flow 的亚像素分歧），
+    //    真实的少选/多选回归依然会红。
+    if (Number.isFinite(expectedSelection?.definite) && Number.isFinite(expectedSelection?.possible)) {
+      if (selected < expectedSelection.definite || selected > expectedSelection.possible)
+        failures.push(
+          `marquee selected ${selected} nodes, expected ${expectedSelection.definite}–${expectedSelection.possible} `
+            + 'fully inside the swept rect',
+        )
+    } else {
+      failures.push('marquee sample did not record a derived selection expectation')
+    }
+    // ② 场景非退化：这一笔得真的把「够得着的那片节点」整个圈进去。用覆盖率代替原先写死的
+    //    「至少 12 个节点」——覆盖率是无量纲的，不随 stage 尺寸漂移，也不含任何时间量，
+    //    所以它既不会因为机器快慢翻红，也不会因为换了个窗口大小翻红。
+    if (Number.isFinite(bandCoverage) && bandCoverage < MIN_NODE_BAND_COVERAGE)
+      failures.push(
+        `marquee covered only ${Math.round(bandCoverage * 100)}% of the reachable node band `
+          + `(needs ≥ ${Math.round(MIN_NODE_BAND_COVERAGE * 100)}%)`,
+      )
+  }
   // eval v2 scenario integrity guards (correctness, not perf budgets): if a new
   // scenario silently degenerated (grabbed too few nodes / no dense band), the
   // sample would look "clean" for the wrong reason. Fail it explicitly so the

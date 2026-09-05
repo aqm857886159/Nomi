@@ -3,6 +3,11 @@
 > 📎 教训 · 首次记录 2026-08-31 · 状态：✅ 已固化（`NON_DARWIN_TIMING_CALIBRATION` 平台感知预算已落地，见下）
 > **触发场景**：CI 的「Canvas performance budget」红了，而你本地跑同一份代码是绿的；或者你正打算「让 PR 代码更快一点」来挤进阈值。
 
+> ⚠️ **先读**（2026-09-05 补）：本文只覆盖「红的是**预算**」那一种。`Canvas Performance` 的 `pass=false` 还有第二个来源——
+> 顶层 `warmupFailures` 与各 scenario 的**正确性**判据，它们不在预算表里。那天 main 930db4cd 的红就属于后者
+> （预算全绿，真凶是框选手势的自动平移），照本文去调预算会**修错东西**。定性步骤见
+> [Canvas Performance 红了：先看它红在哪一条判据](canvas-perf-red-read-which-assertion-failed.md)。
+
 **结论**：**别改预算、也别为了挤进阈值去优化 PR 代码**——先证明有没有真回归。当年 #243/#239 两个 PR 的 CI 红**都不是真回归**，是「预算在 macOS 校准、却在 Linux CI 上执行」的量具错配。诊断路径是：本地同机 A/B 跑 `main` vs 分支，如果 `分支 ≤ main` 且 `main` 自己都贴着阈值，那红的是量具不是被测物。
 
 **现状（已核实，2026-09-02）**：正解已实施为**平台感知预算**（当初两个候选里的 ①）。`tests/ux/canvas-performance-benchmark.e2e.mjs:1170-1179`：
