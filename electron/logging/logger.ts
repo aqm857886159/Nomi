@@ -103,11 +103,15 @@ function ensureSink(): LogFileSink {
   return sink;
 }
 
+/**
+ * 读不到 `app`（单测把 electron 整个 mock 掉）时按「已打包」处理——保守的一侧是
+ * **不往 stderr 喷**：真实 dev 里 app.isPackaged 永远读得到，读不到就说明这不是 dev 终端。
+ */
 function isPackaged(): boolean {
   try {
     return app.isPackaged !== false;
   } catch {
-    return false;
+    return true;
   }
 }
 

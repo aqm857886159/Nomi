@@ -14,6 +14,26 @@ vi.mock("electron", () => ({
   },
 }));
 
+// 主进程诊断输出已收口到 electron/logging/logger（打包后 console.* 没人接住，见
+// docs/fixes/2026-09-06-main-process-logs-into-the-void.root-cause.json）。
+// 这里改断言那个出口而不是 console：断言从「有人往终端喷了点什么」升级成
+// 「哪个模块、什么事件、带哪些字段」，比原来更能说明问题。
+const logged = vi.hoisted(() => [] as { level: string; scope: string; event: string; rest: unknown[] }[])
+vi.mock("../logging/logger", () => {
+  const record = (level: string) => (scope: string, event: string, ...rest: unknown[]) => {
+    logged.push({ level, scope, event, rest })
+  }
+  return {
+    logInfo: record("info"),
+    logWarn: record("warn"),
+    logError: record("error"),
+    logDevDetail: () => undefined,
+    logVendorCall: () => undefined,
+    installMainLogger: () => undefined,
+    currentLogFile: () => "",
+  }
+})
+
 import { apiKeyDecryptStatus, decryptApiKeyRecord, isSafeStorageAvailable, makeApiKeyRecordFromPlain } from "./secrets";
 
 describe("isSafeStorageAvailable", () => {
@@ -55,7 +75,7 @@ describe("decryptApiKeyRecord branches", () => {
   });
 
   it("returns '' (not throw) when a safeStorage value fails to decrypt", () => {
-    const spy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    logged.length = 0;
     const corrupted = {
       vendorKey: "v",
       apiKey: Buffer.from("FAIL", "utf8").toString("base64"),
@@ -65,8 +85,9 @@ describe("decryptApiKeyRecord branches", () => {
       updatedAt: "u",
     };
     expect(decryptApiKeyRecord(corrupted)).toBe("");
-    expect(spy).toHaveBeenCalled();
-    spy.mockRestore();
+    expect(logged).toEqual([
+      { level: "error", scope: "catalog", event: "api-key-decrypt-failed", rest: [expect.any(Error), { vendor: "v" }] },
+    ]);
   });
 });
 

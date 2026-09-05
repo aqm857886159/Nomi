@@ -19,6 +19,26 @@ import { deriveModelListing, referenceModeForIntent } from "./modelCatalogListin
 import { apiKeyDecryptStatus } from "./secrets";
 
 const b64 = (s: string) => Buffer.from(s, "utf8").toString("base64");
+// 主进程诊断输出已收口到 electron/logging/logger（打包后 console.* 没人接住，见
+// docs/fixes/2026-09-06-main-process-logs-into-the-void.root-cause.json）。
+// 这里改断言那个出口而不是 console：断言从「有人往终端喷了点什么」升级成
+// 「哪个模块、什么事件、带哪些字段」，比原来更能说明问题。
+const logged = vi.hoisted(() => [] as { level: string; scope: string; event: string; rest: unknown[] }[])
+vi.mock("../logging/logger", () => {
+  const record = (level: string) => (scope: string, event: string, ...rest: unknown[]) => {
+    logged.push({ level, scope, event, rest })
+  }
+  return {
+    logInfo: record("info"),
+    logWarn: record("warn"),
+    logError: record("error"),
+    logDevDetail: () => undefined,
+    logVendorCall: () => undefined,
+    installMainLogger: () => undefined,
+    currentLogFile: () => "",
+  }
+})
+
 const vendor = (over: Partial<Vendor>): Vendor => ({ key: "v", name: "V", enabled: true, authType: "bearer", createdAt: "t", updatedAt: "t", ...over });
 const model = (over: Partial<Model>): Model => ({
   modelKey: "m",
@@ -37,9 +57,8 @@ function state(over: Partial<CatalogState>): CatalogState {
   return { version: 8, vendors: [], models: [], mappings: [], apiKeysByVendor: {}, ...over } as CatalogState;
 }
 
-// locked 路会 console.error（解密失败日志）——静音，避免污染测试输出。
 beforeEach(() => {
-  vi.spyOn(console, "error").mockImplementation(() => undefined);
+  logged.length = 0;
 });
 
 describe("deriveModelListing — keyStatus 三态（ok / missing / locked）", () => {
@@ -203,9 +222,7 @@ describe("deriveModelListing — 解密探测按 vendor 记忆化（单 vendor �
     expect(probe).toHaveBeenCalledWith(singleVendorManyModels.apiKeysByVendor.apimart);
   });
 
-  it("locked vendor 多模型：解密只探一次 → 只吐一行 console.error（不再 N 行重复日志）", () => {
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
-    errorSpy.mockClear();
+  it("locked vendor 多模型：解密只探一次 → 只吐一行解密失败日志（不再 N 行重复）", () => {
     const lockedManyModels = state({
       vendors: [vendor({ key: "volcengine", name: "火山" })],
       models: [
@@ -217,10 +234,10 @@ describe("deriveModelListing — 解密探测按 vendor 记忆化（单 vendor �
         volcengine: { vendorKey: "volcengine", apiKey: b64("FAIL"), enc: "safeStorage", enabled: true, createdAt: "t", updatedAt: "t" },
       },
     });
-    // 用真 apiKeyDecryptStatus（会触发 decryptString→抛错→console.error）；记忆化后只应有 1 行。
+    // 用真 apiKeyDecryptStatus（会触发 decryptString→抛错→logError）；记忆化后只应有 1 行。
     const listing = deriveModelListing(lockedManyModels);
     expect(listing.every((e) => e.keyStatus === "locked")).toBe(true);
-    expect(errorSpy).toHaveBeenCalledTimes(1);
+    expect(logged.filter((entry) => entry.event === "api-key-decrypt-failed")).toHaveLength(1);
   });
 
   it("多 vendor：每个 vendor 各探一次（记忆化不跨 vendor 串台）", () => {

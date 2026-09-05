@@ -73,7 +73,10 @@ export function redactLogValue(input: string): string {
 
   // 密钥形串：常见前缀 + Bearer + 够长的连续无分隔串（base64/hex 形）。
   value = value.replace(/\b(?:Bearer|Basic)\s+[A-Za-z0-9._~+/=-]{8,}/gi, "<redacted>");
-  value = value.replace(/\b(?:sk|pk|rk|api|key|ghp|gho|xox[abps])[-_][A-Za-z0-9._-]{8,}/gi, "<redacted>");
+  // 刻意不含 api / key 两个前缀：它们信号最弱，却正好吃掉 `api-key-decrypt-failed`
+  // 这类合法事件名——把日志抹成 <redacted> 比漏抹更糟（证据没了，还看不出是被抹的）。
+  // 真正带 api key 的**字段**由字段名黑名单挡住，长 token 由下面的 base64 规则兜底。
+  value = value.replace(/\b(?:sk|pk|rk|ghp|gho|xox[abps])[-_][A-Za-z0-9._-]{8,}/gi, "<redacted>");
   value = value.replace(/\b(?:AKIA|ASIA)[A-Z0-9]{12,}\b/g, "<redacted>");
   value = value.replace(/\b[A-Za-z0-9+/]{40,}={0,2}\b/g, "<redacted>");
 

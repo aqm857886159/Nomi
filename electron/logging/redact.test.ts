@@ -57,6 +57,21 @@ describe("值形态脱敏（第二层）", () => {
     expect(redactLogValue("a".repeat(48))).toBe("<redacted>");
   });
 
+  it("合法事件名不许被密钥规则吃掉——抹过头比漏抹更糟：证据没了，还看不出是被抹的", () => {
+    // 2026-09-06 实测过的回归：`api-key-decrypt-failed` 曾整条变成 <redacted>，
+    // 于是那行日志只剩「某模块出了点什么事」。api/key 这两个前缀信号最弱，已从规则里去掉。
+    for (const event of [
+      "api-key-decrypt-failed",
+      "key-status-probe-skipped",
+      "relay-models-upgraded-to-native-wire",
+      "single-shot-observation-failed",
+    ]) {
+      expect(redactLogValue(event)).toBe(event);
+    }
+    // 去掉那两个前缀不影响真正的密钥形串：它们要么带 sk-/Bearer 这种强前缀，要么够长。
+    expect(redactLogValue("sk-live-0123456789abcdef")).toBe("<redacted>");
+  });
+
   it("data: / blob: 整条抹掉（那就是内容本身）", () => {
     expect(redactLogValue("data:image/png;base64,iVBORw0KGgoAAAANSUhEUg")).toBe("<blob>");
   });
