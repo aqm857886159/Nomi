@@ -85,12 +85,29 @@ describe("ExportJob TaskRef projection", () => {
 describe("execution prompt history admission", () => {
   const snapshot = {
     activeThreadId: "thread-resident",
-    items: [{ threadId: "thread-resident", turnId: "old-turn", kind: "user", text: "F_PLAN_DONE prior resident text" }],
+    turns: [
+      { turnId: "old-turn", capabilityVersions: [{ id: "canvas-agent", version: 1 }] },
+      { turnId: "judge-turn", capabilityVersions: [{ id: "single-shot", version: 1 }] },
+    ],
+    items: [
+      { threadId: "thread-resident", turnId: "old-turn", kind: "user", text: "F_PLAN_DONE prior resident text" },
+      // 判官那一轮留下的机器提示词与判决,同一条线程、同为 user/assistant item。
+      { threadId: "thread-resident", turnId: "judge-turn", kind: "user", text: "你是资深影视分镜审片。按 Rubric 打分" },
+      { threadId: "thread-resident", turnId: "judge-turn", kind: "assistant", text: "F_VERIFY_LOW" },
+    ],
   } as unknown as ProjectAgentHostState;
 
   it("keeps single-shot direction and judge requests isolated from resident prior", () => {
     const request = { capability: "single-shot", prompt: "fresh direction request", history: { kind: "ephemeral" } } as AgentChatRequest;
     expect(executionPrompt(snapshot, "new-turn", request)).toBe("fresh direction request");
+  });
+
+  // 阳性对照(R17):去掉 single-shot 过滤后,下面两条会把判官的机器提示词读进 prior。
+  it("never lets single-shot machine prompts become prior context for resident turns", () => {
+    const request = { capability: "canvas-agent", prompt: "continue canvas task", history: { kind: "ephemeral" } } as AgentChatRequest;
+    const prompt = executionPrompt(snapshot, "new-turn", request);
+    expect(prompt).not.toContain("你是资深影视分镜审片");
+    expect(prompt).not.toContain("F_VERIFY_LOW");
   });
 
   it("keeps initiating-thread context for resident multi-turn capabilities", () => {

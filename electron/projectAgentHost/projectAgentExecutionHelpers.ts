@@ -57,8 +57,17 @@ export function executionPrompt(snapshot: ProjectAgentHostState, turnId: string,
   // keep the initiating thread context even though the transport envelope is
   // also marked ephemeral by the Host queue boundary.
   if (request.capability === "single-shot") return request.prompt;
+  // 对称的另一半（2026-09-05）：single-shot 不**读**常驻线程历史（上面那行），也不能**变成**别人的历史。
+  // 它的 user/assistant item 仍按既定决定留在快照里供观测，但那是记录、不是提示词历史——
+  // 判官/方向规划的机器提示词一旦混进 prior，用户下一轮正常对话就会看到
+  // 「此前同一项目线程：用户：你是资深影视分镜审片…」。两个方向都收在这一个边界上。
+  const singleShotTurnIds = new Set(
+    snapshot.turns
+      .filter((turn) => turn.capabilityVersions.some((ref) => ref.id === "single-shot"))
+      .map((turn) => turn.turnId),
+  );
   const prior = snapshot.items
-    .filter((item) => item.threadId === snapshot.activeThreadId && item.turnId !== turnId)
+    .filter((item) => item.threadId === snapshot.activeThreadId && item.turnId !== turnId && !singleShotTurnIds.has(item.turnId))
     .flatMap((item) => {
       if (item.kind === "user") return [`用户：${item.text}`];
       if (item.kind === "assistant") return [`Nomi：${item.text}`];

@@ -39,6 +39,8 @@ export const PROJECT_AGENT_OPEN_CHANNEL = "nomi:projectAgent:open";
 export const PROJECT_AGENT_SNAPSHOT_CHANNEL = "nomi:projectAgent:snapshot";
 export const PROJECT_AGENT_COMMAND_CHANNEL = "nomi:projectAgent:command";
 export const PROJECT_AGENT_RELEASE_CHANNEL = "nomi:projectAgent:release";
+/** single-shot 的临时执行路：跑同一套运行时，但不产生任何 Host 回合/持久化痕迹。 */
+export const PROJECT_AGENT_RUN_EPHEMERAL_CHANNEL = "nomi:projectAgent:runEphemeral";
 export const PROJECT_AGENT_PROPOSAL_RECEIPT_READ_CHANNEL = "nomi:projectAgent:proposalReceipt:read";
 export const PROJECT_AGENT_PROPOSAL_RECEIPT_WRITE_CHANNEL = "nomi:projectAgent:proposalReceipt:write";
 export const PROJECT_AGENT_PROPOSAL_RECEIPT_TRANSITION_CHANNEL = "nomi:projectAgent:proposalReceipt:transition";
@@ -613,6 +615,31 @@ export function registerProjectAgentIpc(
       }
     }
     return input.runtime.executionCoordinator.dispatch(command.subscriptionId, mutation);
+  });
+
+  // 判官 / 方向规划这类 single-shot：问一次、零工具、不要历史，也不该在用户的项目会话里留痕。
+  // 附件 claim 仍走既有 resolver（判官要靠它把本地帧换成主进程可读的资产身份，8447f868f 刚修好这条）。
+  registerHandler(PROJECT_AGENT_RUN_EPHEMERAL_CHANNEL, async (event, raw) => {
+    const record = asRecord(raw);
+    exactKeys(record, ["subscriptionId", "request", "attachmentClaims"]);
+    const subscriptionId = stringField(record.subscriptionId, "subscriptionId");
+    assertSubscriptionOwner(event, subscriptionId);
+    if (!Array.isArray(record.attachmentClaims)) throw new ProjectAgentIpcInputError("Project Agent attachments are invalid");
+    const claims = Object.freeze([...record.attachmentClaims]);
+    const resolver = subscriptionAttachmentResolvers.get(subscriptionId);
+    if (claims.length > 0 && !resolver) throw new Error("project_agent_attachment_invalid");
+    const attachmentRefs = resolver ? resolver(claims) : Object.freeze([]);
+    const response = await input.runtime.executionCoordinator.runEphemeral(subscriptionId, {
+      ...(record.request as AgentChatRequest),
+      history: { kind: "ephemeral" as const },
+      attachments: attachmentRefs.flatMap((ref) => ref.display ? [{
+        url: ref.display.url,
+        contentType: ref.display.contentType,
+        fileName: ref.display.fileName,
+        kind: ref.display.kind,
+      }] : []),
+    });
+    return { text: response.text ?? "", usage: response.usage };
   });
 
   registerHandler(PROJECT_AGENT_RELEASE_CHANNEL, (_event, raw) => {

@@ -59,6 +59,12 @@ export type ProjectAgentClient = Readonly<{
     snapshotRequired?: boolean
   }>
   release(subscriptionId: string): Promise<{ released: true }>
+  /** single-shot：同一套运行时跑一次，不产生 Host 回合、不写用户会话。 */
+  runEphemeral(
+    subscriptionId: string,
+    request: unknown,
+    attachmentClaims: readonly unknown[],
+  ): Promise<{ text: string; usage?: unknown }>
   readProposalReceipt(subscriptionId: string): Promise<ProjectAgentProposalReceiptView | null>
   writeProposalReceipt(
     subscriptionId: string,
@@ -94,6 +100,9 @@ export function createProjectAgentClient(getBridge: () => ProjectAgentBridge | u
     },
     async release(subscriptionId) {
       return unwrap(await requireBridge().release(subscriptionId))
+    },
+    async runEphemeral(subscriptionId, request, attachmentClaims) {
+      return unwrap(await requireBridge().runEphemeral(subscriptionId, request, attachmentClaims))
     },
     async readProposalReceipt(subscriptionId) {
       return unwrap(await requireBridge().readProposalReceipt(subscriptionId))

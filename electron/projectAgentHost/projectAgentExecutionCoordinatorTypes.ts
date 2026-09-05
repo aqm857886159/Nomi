@@ -275,6 +275,8 @@ export type ProjectAgentExecutionCoordinator = Readonly<{
     subscriptionId: string,
     input: ProjectAgentExecutionEnqueue,
   ) => ReturnType<OfflineProjectAgentHost["dispatch"]>;
+  /** Run a single-shot request through the same runtime without recording a Host turn. */
+  runEphemeral: (subscriptionId: string, request: AgentChatRequest) => Promise<AgentChatResponse>;
   subscribe: (subscriptionId: string, listener: ProjectAgentExecutionListener) => () => void;
   resolveToolDecision: (
     subscriptionId: string,

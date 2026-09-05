@@ -28,6 +28,12 @@ export type ProjectAgentBridge = {
     replayed: boolean
     snapshotRequired?: boolean
   }>
+  /** single-shot（判官/方向规划）：跑同一套运行时，但不产生 Host 回合，也不写用户会话。 */
+  runEphemeral: (
+    subscriptionId: string,
+    request: unknown,
+    attachmentClaims: readonly unknown[],
+  ) => Promise<{ text: string; usage?: unknown }>
   release: (subscriptionId: string) => Promise<{ released: true }>
   readProposalReceipt: (subscriptionId: string) => Promise<ProjectAgentProposalReceiptView | null>
   writeProposalReceipt: (

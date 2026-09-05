@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import type { AgentChatToolDecision } from "../harness/agentChatContracts";
+import type { AgentChatRequest, AgentChatResponse } from "../harness/agentChatContracts";
 import { captureAgentChatRequest, mergeAgentToolProfiles, resolveAgentToolProfile } from "../harness/agentChatPolicy";
 import type {
   ProjectAgentExecutionEvent,
@@ -286,9 +287,44 @@ export function createProjectAgentExecutionCoordinator(
     return partition.host.getSnapshot(partition.binding);
   }
 
+  /**
+   * 临时执行路（2026-09-05）：single-shot（判官 / 方向规划）问一次、零工具、不要历史，
+   * 也**不该在用户的项目会话里留下任何痕迹**——机器提示词不是用户说的话。
+   *
+   * 它直接调既有的 runAgent 依赖：不 dispatch mutation、不进命令账本、不写仓库，
+   * 因此盘上快照（含 hostRevision）前后完全不变。附件 claim 由 IPC 侧沿用既有解析器解析后传进来，
+   * 判官的本地帧准入不受影响。
+   */
+  async function runEphemeral(subscriptionId: string, request: AgentChatRequest): Promise<AgentChatResponse> {
+    const record = requireSubscription(subscriptionId);
+    const partition = requirePartition(record);
+    if (request.capability !== "single-shot") {
+      throw new ProjectAgentSubscriptionError("Ephemeral execution is only for single-shot capability");
+    }
+    for (const claimedProjectId of [request.projectId, request.canvasProjectId]) {
+      if (claimedProjectId !== undefined && claimedProjectId !== record.binding.projectId) {
+        throw new ProjectAgentSubscriptionError("Project Agent request project does not match its subscription");
+      }
+    }
+    return runAgent(
+      captureAgentChatRequest({
+        ...request,
+        history: { kind: "ephemeral" },
+        projectId: partition.binding.projectId,
+        canvasProjectId: partition.binding.projectId,
+      }),
+      { abortSignal: undefined, emit: () => undefined, awaitToolConfirmation: async () => ({ ok: false, message: "single-shot runs without tools" }) },
+    );
+  }
+
   async function enqueue(subscriptionId: string, input: ProjectAgentExecutionEnqueue) {
     const record = requireSubscription(subscriptionId);
     const partition = requirePartition(record);
+    // 结构上堵死回头路（R28）：single-shot 只能走 runEphemeral。若它又被当成 Host 回合排进来，
+    // 就会重新在用户线程里留下机器提示词——那正是本次要消灭的那一类，故 fail-closed 而非静默接受。
+    if (input.request.capability === "single-shot") {
+      throw new ProjectAgentSubscriptionError("Single-shot requests must use ephemeral execution, not a persisted Host turn");
+    }
     const turnId = input.mutation.payload.turn.turnId;
     for (const claimedProjectId of [input.request.projectId, input.request.canvasProjectId]) {
       if (claimedProjectId !== undefined && claimedProjectId !== record.binding.projectId) {
@@ -670,6 +706,7 @@ export function createProjectAgentExecutionCoordinator(
     snapshot,
     dispatch,
     enqueue,
+    runEphemeral,
     subscribe,
     resolveToolDecision,
     steer,

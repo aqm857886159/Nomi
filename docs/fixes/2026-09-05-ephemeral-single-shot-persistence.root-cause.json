@@ -1,0 +1,128 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-05-ephemeral-single-shot-persistence",
+  "problem_type": "An execution mode declared ephemeral is recorded as durable state because the only available runtime path always persists",
+  "symptom": "After a shot verification, the user's project conversation contains machine prompts they never wrote (\"你是资深影视分镜审片。下面这张图是某个镜头实际生成出来的画面，按 Rubric …\") plus the judge verdict, and those items are prefixed as prior context into the user's next resident turn. tests/ux/agent-runtime-production.walk.mjs failed at 'Ephemeral image judging must not touch project or local working contexts' with hostRevision 10 → 14 across the judge call.",
+  "direct_cause": "runSingleShotAgent declared history {kind:'ephemeral'} but reached the model only through runWorkbenchAgent → enqueueProjectAgentTurn, which records a thread, turn, user item and queue item through the Host command ledger and persists them; executionPrompt then folded those user/assistant items into the prior context of later resident turns.",
+  "class_root": "After the Agent Host cutover the renderer had exactly one way to run a model turn, and that way is unconditionally durable. The ephemeral history marker survived in the request payload with nothing left to honour it, so every non-conversational caller silently wrote into the user's durable conversation.",
+  "affected_population": [
+    "Every project where shot-level image verification runs (judge prompts and verdicts entered the visible conversation and the next turn's prompt)",
+    "Every project where run direction planning runs (same path via runSingleShotAgent)",
+    "Any future single-shot caller, because the durable path was the only path"
+  ],
+  "scope_paths": [
+    "electron/projectAgentHost/projectAgentExecutionCoordinator.ts",
+    "electron/projectAgentHost/projectAgentExecutionCoordinatorTypes.ts",
+    "electron/projectAgentHost/projectAgentIpc.ts",
+    "electron/projectAgentHost/projectAgentExecutionHelpers.ts",
+    "electron/preload.ts",
+    "src/workbench/ai/agentLoopMode.ts",
+    "src/workbench/ai/projectAgentClient.ts",
+    "src/desktop/projectAgentBridgeTypes.ts"
+  ],
+  "entry_points": [
+    "Shot verification judge (shotVerifyJudge.judge) running a per-shot multimodal request",
+    "Run direction planner (runDirectionPlanner) running a one-shot planning request",
+    "Capability apply handler (capabilityApplyHandler) running a one-shot rewrite request"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The invariant is entirely internal: which Nomi execution path may write into the user's durable project conversation. No third-party contract decides it.",
+  "invariants": [
+    "A single-shot request never produces a Host turn, item, queue entry or command ledger entry, so the persisted snapshot (including hostRevision) is byte-identical across such a call",
+    "A single-shot request still resolves attachment claims through the same subscription-scoped resolver, so local-frame admission keeps working",
+    "Prompt assembly for resident multi-turn requests never includes items produced by single-shot turns"
+  ],
+  "generality_proof": "All three renderer single-shot callers share runSingleShotAgent, which now has exactly one implementation routed to coordinator.runEphemeral. The durable path is closed from the other side: enqueue rejects capability 'single-shot' with a ProjectAgentSubscriptionError, so a future caller cannot reintroduce persistence by constructing a turn itself. Both directions are enforced in the Host, not in the callers.",
+  "shared_boundaries": [
+    {
+      "path": "electron/projectAgentHost/projectAgentExecutionCoordinator.ts",
+      "symbol": "runEphemeral",
+      "responsibility": "Run a single-shot request through the same injected runAgent runtime while dispatching no mutation, writing no ledger entry and touching no repository."
+    },
+    {
+      "path": "electron/projectAgentHost/projectAgentExecutionCoordinator.ts",
+      "symbol": "enqueue",
+      "responsibility": "Fail closed when a single-shot capability is enqueued as a persisted Host turn, so the durable path cannot be re-entered."
+    },
+    {
+      "path": "electron/projectAgentHost/projectAgentExecutionHelpers.ts",
+      "symbol": "executionPrompt",
+      "responsibility": "Keep single-shot out of prompt history in both directions: it neither inherits resident transcript nor contributes items to another turn's prior context."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/agent/shotVerifyJudge.ts",
+      "entry_point": "judge",
+      "disposition": "enforced",
+      "evidence": "Calls runSingleShotAgent, which now routes to coordinator.runEphemeral; tests/ux/agent-runtime-production.walk.mjs asserts the persisted Host snapshot is unchanged across the judge call and now passes with paidCalls 0."
+    },
+    {
+      "path": "src/workbench/generationCanvas/agent/runDirectionPlanner.ts",
+      "entry_point": "runSingleShotAgent call at the direction planning step",
+      "disposition": "enforced",
+      "evidence": "Same shared helper; it cannot reach enqueueProjectAgentTurn any more, and enqueue rejects its capability if a future edit tries."
+    },
+    {
+      "path": "src/workbench/capability/capabilityApplyHandler.ts",
+      "entry_point": "runSingleShotAgent call at the capability apply step",
+      "disposition": "enforced",
+      "evidence": "Same shared helper and the same two-sided Host enforcement."
+    },
+    {
+      "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "entry_point": "resident composer submit through runWorkbenchAgent",
+      "disposition": "not-affected",
+      "evidence": "Resident turns are the user's own conversation and must stay durable; they keep the enqueue path and their initiating-thread context, which the coordinator tests still cover."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The mechanism is not specific to the judge: any caller that needs a one-shot model answer had only the durable path available, and two other callers already used it. Without a Host-level ephemeral route plus a closed durable door, the next one-shot feature repeats it.",
+    "same_class_scan": [
+      "grep -rn 'runSingleShotAgent' over src and electron: three production callers (shotVerifyJudge, runDirectionPlanner, capabilityApplyHandler), all sharing one helper",
+      "grep -rn 'ephemeral' over electron: no Host-side ephemeral execution concept existed; electron/durability.ts's ephemeral mode is an unrelated test-harness durability switch",
+      "Read src/workbench/ai/workbenchAgentRunner.ts buildRequest: history was hardcoded ephemeral for every caller while RunWorkbenchAgentInput.history was never read, confirming the marker was inert rather than caller-specific"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/projectAgentHost/projectAgentExecutionCoordinator.ts",
+    "invariant": "Single-shot requests execute only through runEphemeral and can never be recorded as a Host turn.",
+    "failure_mode": "enqueue throws ProjectAgentSubscriptionError when capability is single-shot, and runEphemeral throws when a non single-shot capability is passed, so a mis-routed caller fails loudly instead of silently persisting.",
+    "exception_policy": "none",
+    "strategy": "Close the class from both sides at the Host, which is the earliest boundary every renderer caller must cross: add the non-persisting route and refuse the durable one for that capability.",
+    "artifacts": [
+      "electron/projectAgentHost/projectAgentExecutionCoordinator.ts",
+      "electron/projectAgentHost/projectAgentExecutionCoordinatorTypes.ts",
+      "electron/projectAgentHost/projectAgentIpc.ts",
+      "electron/projectAgentHost/projectAgentExecutionHelpers.ts",
+      "src/workbench/ai/agentLoopMode.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/projectAgentHost/projectAgentExecutionCoordinator.test.ts",
+    "electron/projectAgentHost/projectAgentExecutionHelpers.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/projectAgentHost/projectAgentExecutionCoordinator.test.ts",
+    "electron/projectAgentHost/projectAgentExecutionHelpers.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/ai/agentLoopMode.ts"
+    ],
+    "rationale": "runSingleShotAgent no longer calls runWorkbenchAgent at all; the durable route is not left reachable as a fallback, and the Host refuses it for this capability."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency governs which Nomi execution path persists state.",
+    "exit_criteria": []
+  },
+  "migration": "No data migration. Projects created before this change keep any judge or direction items already written into their snapshot; nothing reads them as prompt history any more because executionPrompt excludes single-shot turns, and no new such items are produced. Clearing that historical residue is deliberately out of scope and recorded as a residual risk.",
+  "residual_risks": [
+    "Existing projects still carry previously persisted judge and direction items in their conversation snapshot; they remain visible in the panel until a separate cleanup or migration removes them",
+    "Only the judge path was exercised end to end on a real build; runDirectionPlanner and capabilityApplyHandler are covered by the shared helper and Host tests but were not driven through a real user journey in this change"
+  ]
+}

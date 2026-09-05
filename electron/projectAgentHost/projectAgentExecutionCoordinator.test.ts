@@ -598,6 +598,58 @@ afterEach(() => {
 });
 
 describe("ProjectAgentExecutionCoordinator", () => {
+  // 2026-09-05：判官/方向规划这类 single-shot 曾把机器提示词写进用户的项目会话
+  // （面板照原样渲染，还会变成下一轮对话的 prior）。现在它们只能走 runEphemeral，
+  // 而 runEphemeral **不产生任何 Host 回合/持久化痕迹**。下面两条一正一反把这个边界钉住。
+  it("runs a single-shot request without recording any Host turn or item", async () => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-ephemeral-"));
+    const coordinator = createProjectAgentExecutionCoordinator(
+      createProjectAgentRepositoryRouter({ rootDir: root }),
+      () => "subscription-ephemeral",
+      {
+        runAgent: async () => ({
+          id: "judge-result",
+          status: "finished",
+          text: "F_VERIFY_LOW",
+          finishReason: "stop",
+          artifacts: [],
+          toolCalls: [],
+          usage: { promptTokens: 0, completionTokens: 1, cachedPromptTokens: 0, totalTokens: 1 },
+        } satisfies AgentChatResponse),
+      },
+    );
+    const opened = await coordinator.open(binding);
+    const before = coordinator.snapshot(opened.subscriptionId);
+
+    const response = await coordinator.runEphemeral(opened.subscriptionId, {
+      prompt: "你是资深影视分镜审片。按 Rubric 打分",
+      displayPrompt: "判官",
+      capability: "single-shot",
+      history: { kind: "ephemeral" },
+      skillKey: "workbench.shot-verify",
+      skillName: "镜级画面校验",
+    } as unknown as AgentChatRequest);
+
+    expect(response.text).toBe("F_VERIFY_LOW");
+    const after = coordinator.snapshot(opened.subscriptionId);
+    // 快照必须逐字节不变：没有新回合、没有新 item、revision 不前进。
+    expect(after).toEqual(before);
+  });
+
+  it("refuses to enqueue a single-shot request as a persisted Host turn", async () => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-single-shot-guard-"));
+    const coordinator = createProjectAgentExecutionCoordinator(
+      createProjectAgentRepositoryRouter({ rootDir: root }),
+      () => "subscription-single-shot-guard",
+      { runAgent: async () => { throw new Error("single-shot must never reach the turn pipeline"); } },
+    );
+    const opened = await coordinator.open(binding);
+    const input = executionInput("single-shot-guard", 0, binding, { capability: "single-shot" });
+
+    await expect(coordinator.enqueue(opened.subscriptionId, input)).rejects.toThrow(ProjectAgentSubscriptionError);
+    expect(coordinator.snapshot(opened.subscriptionId).turns).toHaveLength(0);
+  });
+
   it("exposes the committed terminal turn to the experience completion side effect", async () => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-experience-completion-"));
     const onTurnCompleted = vi.fn();

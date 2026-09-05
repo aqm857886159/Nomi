@@ -659,6 +659,8 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
     snapshot: (subscriptionId: string) => ipcRenderer.invoke('nomi:projectAgent:snapshot', { subscriptionId }),
     command: (command: unknown) => ipcRenderer.invoke('nomi:projectAgent:command', command),
     release: (subscriptionId: string) => ipcRenderer.invoke('nomi:projectAgent:release', { subscriptionId }),
+    runEphemeral: (subscriptionId: string, request: unknown, attachmentClaims: readonly unknown[]) =>
+      ipcRenderer.invoke('nomi:projectAgent:runEphemeral', { subscriptionId, request, attachmentClaims }),
     readProposalReceipt: (subscriptionId: string) =>
       ipcRenderer.invoke('nomi:projectAgent:proposalReceipt:read', { subscriptionId }),
     writeProposalReceipt: (subscriptionId: string, input: { expectedRevision: number; proposalId: string; operationId: string; lifecycle: string; proposal: unknown }) =>
