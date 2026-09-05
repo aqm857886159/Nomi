@@ -1,5 +1,5 @@
 Agent 面板 v4 设计实验室阶段一已完成（不接线）。
-分支：feat/agent-panel-v4-lab-20260906；当前 push SHA：e9e5b976a9a9。
+分支：feat/agent-panel-v4-lab-20260906；实现 push SHA：e9e5b976a9a9；报告提交：d4cf570e5。
 计划：[docs/plan/2026-09-06-agent-panel-v4-lab.md](docs/plan/2026-09-06-agent-panel-v4-lab.md)。
 设计真相源：[docs/design/2026-09-06-agent-panel-v4.md](docs/design/2026-09-06-agent-panel-v4.md) 与 12 板 mockups 已拷入。
 AI Elements 解剖：[docs/research/2026-09-06-ai-elements-anatomy.md](docs/research/2026-09-06-ai-elements-anatomy.md)；适配件在 `src/workbench/ai/v4/vendor/`。
