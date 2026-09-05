@@ -20,4 +20,4 @@
 ## 冻结接口（勿依赖 · 勿清理）
 
 - **`generationAi*` composer 态 + 过渡版驻留壳 = C9 开闸删，新功能勿依赖**。指 `src/workbench/generationCanvas/store/canvasStoreTypes.ts` 的 `generationAiCollapsed` 与拆解槽互斥标志一族，及 `src/workbench/ai/ProjectAgentResidentShell.tsx`（前身 `CreationAiPanel` 已随 M1 round-3 `d270d34e` 删除）。C9 = Agent 界面 epic 开闸时删旧 composer 态 + 拆解 handoff 重接（定义见 `docs/design/2026-09-01-agent-ui-final-redesign.md` §5，分支 `docs/agent-ui-redesign-20260901`）。现在依赖它 = 给 C9 开闸添返工。
-- **`agentHostEnabled=false` 不是死代码**。`src/utils/agentHostPreference.ts`，是 #223 Agent 底座的闸门；开闸条件（样张拍板 + 交互不一致修完 + 验收网过）见会话记忆与 epic 验收合同。别当死码清理，也别擅自置 true。
+- **~~`agentHostEnabled=false` 不是死代码~~ → 2026-09-05 闸已拆除**。`src/utils/agentHostPreference.ts` 与 `src/workbench/settings/AgentHostSection.tsx` 已随开闸删除（不是把默认值翻真——那会留成逃生口，P1）；常驻 Agent 现在对所有用户无条件渲染，未完成处由面板 header 的 Beta 徽标明说。回归锚在 `src/workbench/ai/ProjectAgentResidentShell.structure.test.ts`，根因合同见 `docs/fixes/2026-09-05-agent-host-parallel-gate.root-cause.json`。**别再引入同类「默认关直到打磨完」的 UI 闸**：藏起来等于把这块 UI 移出唯一能修好它的反馈回路。
