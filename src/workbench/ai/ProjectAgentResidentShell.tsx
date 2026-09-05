@@ -9,6 +9,7 @@ import {
 } from '@tabler/icons-react'
 import { BodyPortal, NomiLogoMark, WorkbenchIconButton } from '../../design'
 import { cn } from '../../utils/cn'
+import type { AgentToolProfile } from '../../../electron/harness/agentChatContracts'
 import { useWorkbenchStore, type ProjectAgentReference, type ProjectAgentRunMode, type WorkspaceMode } from '../workbenchStore'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import { runWorkbenchAgent, type ToolCallEvent } from './workbenchAgentRunner'
@@ -324,6 +325,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
   const approvalPolicy = useWorkbenchStore((state) => state.projectAgentApprovalPolicy)
   const setApprovalPolicy = useWorkbenchStore((state) => state.setProjectAgentApprovalPolicy)
   const activeDocumentId = useWorkbenchStore((state) => state.activeDocumentId)
+  const setStoryboardPlannerLauncher = useWorkbenchStore((state) => state.setStoryboardPlannerLauncher)
   const creationDocumentTools = useWorkbenchStore((state) => state.creationDocumentTools)
   const promptModeId = useWorkbenchStore((state) => state.creationAiModeId)
   const activeSkill = useWorkbenchStore((state) => state.creationActiveSkill)
@@ -603,9 +605,12 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
     }
   }, [proposalDrafts, t])
 
-  const submit = React.useCallback(async () => {
-    const text = draft.trim(); if (!text || !snapshot) return; setError('')
-    if (editingQueue) { try { await editProjectAgentQueueItem({ ...editingQueue, text }); setEditingQueue(null); setDraft('') } catch (caught) { setError(friendlyError(caught, t)) }; return }
+  // Every explicit action entry (including the selection popover and resource
+  // sidebar) must converge on this same Host turn path. The tool profile is
+  // captured at the caller boundary, so storyboard capability does not depend
+  // on a keyword classifier or a second planner implementation.
+  const sendTurn = React.useCallback(async (rawText: string, options?: { toolProfile?: AgentToolProfile; displayText?: string }) => {
+    const text = rawText.trim(); if (!text || !snapshot) return; setError('')
     if (attachments.some((item) => item.status === 'uploading')) { setError(t('creationAi.attachmentsUploading')); return }
     const turnId = `turn-resident-${globalThis.crypto.randomUUID()}`
     let sendContext: ResidentSendContext
@@ -638,7 +643,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
       references.flatMap((reference) => reference.contextHandle ? [reference.contextHandle] : []),
     )
     const referencesText = references.length ? `\n\n${t('agentResident.referencesLabel')}: ${references.map(residentReferencePromptValue).join(', ')}` : ''
-    setDraft(''); attachmentApi.clearAttachments(); closeMenu()
+    attachmentApi.clearAttachments(); closeMenu()
     try {
       const actionIntent = isAgentActionIntent(text)
       const requestMode = runMode === 'ask' && !actionIntent ? 'chat' : 'auto'
@@ -650,7 +655,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
           ? selectedPromptPreset.prompt || selectedPrompt.prompt
           : undefined
       const systemPrompt = composeResidentSystemPrompt(surfaceSystemPrompt, activeSkill ? null : selectedLibraryPrompt)
-      const response = await runWorkbenchAgent({ turnId, prompt: `${surfaceContext}\n${contextDetail}${referencesText}\n\n${text}`, ...(systemPrompt ? { systemPrompt } : {}), displayPrompt: text, capability, ...(surface === 'preview' ? { toolProfile: 'timeline' as const } : {}), history: { kind: 'ephemeral' }, projectId: snapshot.binding.projectId, selectedNodeIds: surface === 'generation' ? selectedNodeIdsAtSend : undefined, target, ...(preconditions ? { preconditions } : {}), originSurface: { surfaceId: 'project-agent-resident', kind: isDocumentSurface(surface) ? 'document' : surface === 'generation' ? 'canvas' : 'preview' }, mode: requestMode, workMode: runMode, approvalPolicy, skillKey, skillName: activeSkill?.name ?? (selectedLibraryPrompt ? promptDisplayTitle(selectedLibraryPrompt) : surface === 'preview' ? t('agentResident.skillTimeline') : selectedPrompt.title), contextSnapshot, attachmentClaims: projectAgentAttachmentClaims(attachments.filter((item) => item.status === 'ready')), attachments: attachmentPayloads(attachments), onToolCall: async (call) => { residentToolArgs.set(pendingKey(call), call.args); residentPendingTools.set(pendingKey(call), { call, bindingKey: bindingKey(snapshot.binding), state: 'pending' }); const projectionScope = residentToolProjectionScope(bindingKey(snapshot.binding), snapshot.activeThreadId ?? ''); if (projectionScope) { const projection = residentToolProjectionForCall(t, call.toolName, call.args, 'proposed'); cacheResidentToolProjection(projectionScope, call.turnId, call.toolCallId, projection); const persisted = new Map(Object.entries(readResidentToolProjections(projectionScope))); persisted.set(`${call.turnId}:${call.toolCallId}`, projection); writeResidentToolProjections(projectionScope, persisted) }; emitPending() } })
+      const response = await runWorkbenchAgent({ turnId, prompt: `${surfaceContext}\n${contextDetail}${referencesText}\n\n${text}`, ...(systemPrompt ? { systemPrompt } : {}), displayPrompt: options?.displayText ?? text, capability, ...(options?.toolProfile ? { toolProfile: options.toolProfile } : surface === 'preview' ? { toolProfile: 'timeline' as const } : {}), history: { kind: 'ephemeral' }, projectId: snapshot.binding.projectId, selectedNodeIds: surface === 'generation' ? selectedNodeIdsAtSend : undefined, target, ...(preconditions ? { preconditions } : {}), originSurface: { surfaceId: 'project-agent-resident', kind: isDocumentSurface(surface) ? 'document' : surface === 'generation' ? 'canvas' : 'preview' }, mode: requestMode, workMode: runMode, approvalPolicy, skillKey, skillName: activeSkill?.name ?? (selectedLibraryPrompt ? promptDisplayTitle(selectedLibraryPrompt) : surface === 'preview' ? t('agentResident.skillTimeline') : selectedPrompt.title), contextSnapshot, attachmentClaims: projectAgentAttachmentClaims(attachments.filter((item) => item.status === 'ready')), attachments: attachmentPayloads(attachments), onToolCall: async (call) => { residentToolArgs.set(pendingKey(call), call.args); residentPendingTools.set(pendingKey(call), { call, bindingKey: bindingKey(snapshot.binding), state: 'pending' }); const projectionScope = residentToolProjectionScope(bindingKey(snapshot.binding), snapshot.activeThreadId ?? ''); if (projectionScope) { const projection = residentToolProjectionForCall(t, call.toolName, call.args, 'proposed'); cacheResidentToolProjection(projectionScope, call.turnId, call.toolCallId, projection); const persisted = new Map(Object.entries(readResidentToolProjections(projectionScope))); persisted.set(`${call.turnId}:${call.toolCallId}`, projection); writeResidentToolProjections(projectionScope, persisted) }; emitPending() } })
       const projectionScope = residentToolProjectionScope(bindingKey(snapshot.binding), snapshot.activeThreadId ?? '')
       if (projectionScope && response.toolCalls.length) {
         const persisted = new Map(Object.entries(readResidentToolProjections(projectionScope)))
@@ -665,7 +670,29 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
       }
       setLastTurnTokens(response.usage.totalTokens)
     } catch (caught) { setError(friendlyError(caught, t)) } finally { clearResidentPendingTools(turnId) }
-  }, [activeSkill, approvalPolicy, attachmentApi, attachments, closeMenu, creationDocumentTools, draft, editingQueue, promptModeId, references, runMode, selectedLibraryPrompt, selectedPromptPreset, setDraft, snapshot, surface, t])
+  }, [activeSkill, approvalPolicy, attachmentApi, attachments, closeMenu, creationDocumentTools, promptModeId, references, runMode, selectedLibraryPrompt, selectedPromptPreset, snapshot, surface, t])
+
+  const submit = React.useCallback(async () => {
+    const text = draft.trim(); if (!text || !snapshot) return
+    if (editingQueue) { try { await editProjectAgentQueueItem({ ...editingQueue, text }); setEditingQueue(null); setDraft('') } catch (caught) { setError(friendlyError(caught, t)) }; return }
+    setDraft('')
+    await sendTurn(text)
+  }, [draft, editingQueue, sendTurn, setDraft, snapshot, t])
+
+  // The resident Agent is the sole owner of the storyboard launcher. Keep the
+  // bridge alive for the creation surface and clear it on unmount/surface
+  // changes so a hidden creation dock cannot receive a later click.
+  React.useEffect(() => {
+    if (surface !== 'creation') return
+    const launch = (displayPrompt?: string) => {
+      void sendTurn(t('agentResident.storyboardRequest'), {
+        toolProfile: 'storyboard',
+        ...(displayPrompt ? { displayText: displayPrompt } : {}),
+      })
+    }
+    setStoryboardPlannerLauncher(launch)
+    return () => setStoryboardPlannerLauncher(null)
+  }, [sendTurn, setStoryboardPlannerLauncher, surface, t])
   const onKeyDown = React.useCallback((event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === '@') window.setTimeout(() => setMenu('references'), 0)
     if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); void submit() }

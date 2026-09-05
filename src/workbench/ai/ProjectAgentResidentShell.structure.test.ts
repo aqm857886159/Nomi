@@ -70,6 +70,14 @@ describe('ProjectAgentResidentShell production contract', () => {
     expect(resident).toContain("t('agentResident.changeModelRetry'")
   })
 
+  it('registers the creation storyboard action on the resident Agent lifecycle', () => {
+    expect(resident).toContain('const sendTurn = React.useCallback')
+    expect(resident).toContain("toolProfile: 'storyboard'")
+    expect(resident).toContain("t('agentResident.storyboardRequest')")
+    expect(resident).toContain('setStoryboardPlannerLauncher(launch)')
+    expect(resident).toContain('return () => setStoryboardPlannerLauncher(null)')
+  })
+
   it('renders the formal stopped marker on a retained assistant item', () => {
     expect(resident).toContain("item.kind === 'assistant' ? <><div data-agent-reply")
     expect(resident).toContain("item.status === 'stopped' ? <span data-agent-status-label=\"stopped\"")
