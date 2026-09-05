@@ -175,8 +175,9 @@ try {
   const timelineHandle = node.locator('[aria-label*="加入时间轴"]').first()
   await timelineHandle.waitFor({ state: 'visible', timeout: 10_000 })
   await timelineHandle.click()
-  await win.waitForTimeout(2500)
   const videoClip = win.locator('[data-track-type="video"] .workbench-timeline-clip').first()
+  // Adding a video probes its real duration asynchronously; wait for the clip
+  // itself instead of sleeping, so the evidence follows the production state.
   await videoClip.waitFor({ state: 'visible', timeout: 10_000 })
   const clipMeta = await videoClip.evaluate((el) => ({ text: el.textContent?.trim() || '', width: el.getBoundingClientRect().width }))
   check(clipMeta.width > 0, '生成视频通过可见入口进入视频时间轴', JSON.stringify(clipMeta))
