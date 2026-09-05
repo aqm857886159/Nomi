@@ -110,12 +110,14 @@
   "regression_tests": [
     "electron/projectAgentHost/projectAgentExecutionPolicy.test.ts",
     "electron/shared/agentCapabilities/registry.test.ts",
-    "electron/capabilityCore/canvasReadCapturedSnapshotFlow.test.ts"
+    "electron/capabilityCore/canvasReadCapturedSnapshotFlow.test.ts",
+    "tests/ux/resident-composer-receipt-fix.e2e.mjs"
   ],
   "class_regression_tests": [
     "electron/projectAgentHost/projectAgentExecutionPolicy.test.ts",
     "electron/shared/agentCapabilities/registry.test.ts",
-    "electron/capabilityCore/canvasReadCapturedSnapshotFlow.test.ts"
+    "electron/capabilityCore/canvasReadCapturedSnapshotFlow.test.ts",
+    "tests/ux/resident-composer-receipt-fix.e2e.mjs"
   ],
   "legacy_paths": {
     "status": "removed",
