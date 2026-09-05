@@ -203,6 +203,7 @@
 | [2026-06-04-runtime-split-execution.md](2026-06-04-runtime-split-execution.md) | 增量拆分 electron/runtime.ts（strangler） | 🚧 |
 | [2026-08-29-focused-validation-policy.md](2026-08-29-focused-validation-policy.md) | PR `fast/full` 两档验证历史基线（已被 08-30 独立风险面取代） | 📎 |
 | [2026-08-30-risk-scoped-validation-evidence.md](2026-08-30-risk-scoped-validation-evidence.md) | **按真实风险拆分 unit/desktop/journey/canvas/performance/package，并用 exact-SHA CI 证据替代合并后第三遍全量测试** | ✅ |
+| [2026-09-05-ci-gate-mechanics.md](2026-09-05-ci-gate-mechanics.md) | **CI 门岗机制修法**：三个文档/生成物门（docs-index / doc-status / ledger）降为 advisory 并由 main 上的 docs-autosync 自动补齐；`gates:contracts` 51 个 `&&` 改成「全跑完再汇总」 | ✅ |
 | [2026-08-29-root-cause-contract-v2.md](2026-08-29-root-cause-contract-v2.md) | 根因合同 v2、跨 AI 强制执行与规则收敛 | 🚧 |
 | [2026-08-29-git-delivery-integrity.md](2026-08-29-git-delivery-integrity.md) | Git 交付身份、有界远端刷新与 merged-main 单次验收 | ✅ |
 | [2026-06-03-styles-css-teardown.md](2026-06-03-styles-css-teardown.md) | styles.css 拆除（死 CSS 清理） | 🚧 |
