@@ -12,6 +12,7 @@ import path from 'node:path'
 import { launchNomiApp } from './_launchApp.mjs'
 import { repoRoot } from './_mcpJourney.mjs'
 import { clickOrFail, proveProbe, expectAbsent } from './_assert.mjs'
+import { findCanvasBlankPoint } from './_canvasHit.mjs'
 
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/p4-s5-canvas-landing')
 fs.rmSync(shotsDir, { recursive: true, force: true })
@@ -149,13 +150,49 @@ try {
   // 展开后画布窄了 ~340px，最右边那个占位（shot-3）落在视口外就根本不进 DOM——
   // 断言会红成「没有已停占位」，而它其实只是没被带进视野。几何不写死：等到落地的
   // 4 个占位（锚 + 3 镜）全部进 DOM 为止，进不齐就超时报红。
-  await clickOrFail(win.getByRole('button', { name: '适应视图' }), '适应视图：把四个占位都带进视口')
-  await win.waitForFunction(
-    (expected) => document.querySelectorAll('[data-shot-placeholder-state]').length >= expected,
-    landed.bindings.length,
-    { timeout: 10_000 },
-  )
-  check(true, `适应视图后 ${landed.bindings.length} 个占位全部进入视口`)
+  const expectedPlaceholders = landed.bindings.length
+  const placeholdersInView = async (timeout) =>
+    win
+      .waitForFunction(
+        (expected) => document.querySelectorAll('[data-shot-placeholder-state]').length >= expected,
+        expectedPlaceholders,
+        { timeout },
+      )
+      .then(() => true)
+      .catch(() => false)
+  let inView = false
+  for (let attempt = 0; attempt < 6 && !inView; attempt += 1) {
+    await clickOrFail(win.getByRole('button', { name: '适应视图' }).first(), '适应视图：把四个占位都带进视口')
+    inView = await placeholdersInView(3_000)
+    if (inView) break
+    // 适应视图还不够就再往外滚一格——真实用户看不全时就是这么干的。
+    const blank = await findCanvasBlankPoint(win)
+    if (!blank) break
+    await win.mouse.move(blank.x, blank.y)
+    await win.mouse.wheel(0, 240)
+    await win.waitForTimeout(300)
+    inView = await placeholdersInView(1_500)
+  }
+  if (!inView) {
+    // 还是不够就把现场原样报出来：下一次红不该再靠猜（stage 多宽、视口变换多少、
+    // 画布 store 里四个节点在哪、DOM 里到底挂了哪几个）。
+    const scene = await win.evaluate(() => {
+      const stage = document.querySelector('.generation-canvas-v2__stage')
+      const stageRect = stage?.getBoundingClientRect()
+      const layer = document.querySelector('.generation-canvas-v2__canvas')
+      const matrix = layer ? new DOMMatrixReadOnly(getComputedStyle(layer).transform) : null
+      return {
+        window: { width: window.innerWidth, height: window.innerHeight },
+        stage: stageRect && { x: Math.round(stageRect.x), y: Math.round(stageRect.y), width: Math.round(stageRect.width), height: Math.round(stageRect.height) },
+        viewport: matrix && { x: Math.round(matrix.m41), y: Math.round(matrix.m42), zoom: Math.round(matrix.a * 1000) / 1000 },
+        storeNodes: window.__nomiCanvasStore.getState().nodes.map((node) => ({ id: node.id, shot: node.meta?.productionShotId, x: Math.round(node.position?.x ?? 0), y: Math.round(node.position?.y ?? 0) })),
+        domNodes: Array.from(document.querySelectorAll('.react-flow__node[data-id]')).map((node) => node.getAttribute('data-id')),
+        placeholders: Array.from(document.querySelectorAll('[data-shot-placeholder-state]')).map((el) => el.getAttribute('data-shot-placeholder-state')),
+      }
+    })
+    throw new Error(`S5 CANVAS LANDING FAIL: 适应视图 + 缩小后仍不足 ${expectedPlaceholders} 个占位（onlyRenderVisibleElements 只渲染视口内节点）— ${JSON.stringify(scene)}`)
+  }
+  check(true, `适应视图后 ${expectedPlaceholders} 个占位全部进入视口`)
 
   const states = await win.evaluate(() => Array.from(document.querySelectorAll('[data-shot-placeholder-state]')).map((el) => el.getAttribute('data-shot-placeholder-state')))
   check(states.includes('generating'), '三态：有「生成中」占位（shot-1 polling）')

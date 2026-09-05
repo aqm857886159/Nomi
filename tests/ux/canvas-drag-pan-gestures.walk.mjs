@@ -113,6 +113,26 @@ function canvasPointAt(transform, screen, origin) {
 // 走查报的是「这一屏未视觉安定」，看起来像浮层抖动，其实是我们自己按住了自动平移带。
 const REACT_FLOW_AUTO_PAN_BAND_PX = 40
 const MARQUEE_STAGE_INSET_PX = REACT_FLOW_AUTO_PAN_BAND_PX + 8
+// 框选前把两张卡缩到只占画布这么大：余量因此是 stage 的两成起步，既大于自动平移带，
+// 也大于提示词面板让位平移的那几十像素。用比例而不是像素——画布宽度本来就随面板变。
+const MARQUEE_MAX_BOUNDS_RATIO = 0.6
+
+// 两张卡在 stage 里占多大：框选余量够不够，唯一可信的判据是实测，不是猜。
+async function readMarqueeHeadroom() {
+  return getWin().evaluate(() => {
+    const stage = document.querySelector('.generation-canvas-v2__stage')
+    const nodes = Array.from(document.querySelectorAll('.generation-canvas-v2-node'))
+    if (!stage || !nodes.length) return null
+    const stageRect = stage.getBoundingClientRect()
+    const rects = nodes.map((node) => node.getBoundingClientRect())
+    const width = Math.max(...rects.map((rect) => rect.right)) - Math.min(...rects.map((rect) => rect.left))
+    const height = Math.max(...rects.map((rect) => rect.bottom)) - Math.min(...rects.map((rect) => rect.top))
+    return {
+      widthRatio: Math.round((width / stageRect.width) * 1000) / 1000,
+      heightRatio: Math.round((height / stageRect.height) * 1000) / 1000,
+    }
+  })
+}
 
 async function findMarqueeGesture() {
   return getWin().evaluate(({ paneSelector, inset }) => {
@@ -355,6 +375,26 @@ try {
   // Shift 框选：先用真实「适应视图」收回所有节点，再从空白角落包围它们。
   await getWin().locator('.generation-canvas-v2__zoom-bar button').first().click()
   await getWin().waitForTimeout(420)
+  // 适应视图只保证节点**在**视口里，不保证**离边够远**：窄画布下它留的余量可能比 React Flow
+  // 的自动平移带还小，于是「框得住两张卡」和「端点别落进自动平移带」直接打架
+  // （CI 1280 宽实测左边只剩 40px，框到 48px 内缩就切掉了第一张卡的左沿）。
+  // 用户遇到这种情况会往外滚一格再框；走查照做——滚到实测占比够小为止。
+  let headroom = await readMarqueeHeadroom()
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    if (headroom && headroom.widthRatio <= MARQUEE_MAX_BOUNDS_RATIO && headroom.heightRatio <= MARQUEE_MAX_BOUNDS_RATIO) break
+    const zoomOutAt = await findBlankPoint()
+    await getWin().mouse.move(zoomOutAt.x, zoomOutAt.y)
+    await getWin().mouse.wheel(0, 240)
+    await getWin().waitForTimeout(220)
+    headroom = await readMarqueeHeadroom()
+  }
+  assert(
+    Boolean(headroom)
+      && headroom.widthRatio <= MARQUEE_MAX_BOUNDS_RATIO
+      && headroom.heightRatio <= MARQUEE_MAX_BOUNDS_RATIO,
+    '框选前两张卡已缩到画布的六成以内（四角才够离开自动平移带）',
+    JSON.stringify(headroom),
+  )
   const marqueeGesture = await findMarqueeGesture()
   assert(Boolean(marqueeGesture), '框选起手点与终点完整落在画布空白处', JSON.stringify(marqueeGesture))
   await getWin().keyboard.down('Shift')
