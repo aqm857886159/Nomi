@@ -126,7 +126,9 @@ export default function PreviewSourcePanel(): JSX.Element {
   // 那份在面板系统落地后就是并行版：面板给 300px、aside 却按自己的变量画，于是 tab 被裁成「素」）。
   const collapsed = useWorkbenchStore((state) => !state.editingPanelLayout.visibility.source)
   const toggleEditingPanel = useWorkbenchStore((state) => state.toggleEditingPanel)
-  const [tab, setTab] = React.useState<'shots' | 'assets'>('shots')
+  // tab 归 store（editingPanelLayoutSlice）：时间轴空轨右键的「从素材库添加…」要切它。
+  const tab = useWorkbenchStore((state) => state.previewSourceTab)
+  const setTab = useWorkbenchStore((state) => state.openPreviewSourceTab)
   const projectId = getActiveWorkbenchProjectId()
 
   if (collapsed) {

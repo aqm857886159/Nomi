@@ -59,6 +59,7 @@ export function EmptyStateLauncher({
   onActivate,
   onPreload,
   activateAriaLabel,
+  testId,
 }: {
   icon: React.ReactNode
   label?: string
@@ -66,6 +67,7 @@ export function EmptyStateLauncher({
   onActivate?: () => void
   onPreload?: () => void
   activateAriaLabel?: string
+  testId?: string
 }): JSX.Element {
   const { t } = useTranslation()
   const cluster = <NodeEmptyState icon={icon} title={label || ''} description={hint || ''} />
@@ -75,6 +77,7 @@ export function EmptyStateLauncher({
   return (
     <button
       type="button"
+      data-testid={testId}
       aria-label={activateAriaLabel || label || t('generationCommon.card.open')}
       className={cn(
         'flex flex-col items-center justify-center gap-2 text-center rounded-nomi px-4 py-3 bg-transparent border-0 cursor-pointer',

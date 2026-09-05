@@ -61,9 +61,9 @@ const NODE_EMPTY_COPY: Record<CanvasToolbarNodeKind, {
   clip: { name: '剪辑节点空态', titleKey: 'generationCommon.nodeEmpty.clip.title', descriptionKey: 'generationCommon.nodeEmpty.clip.description' },
   audio: { name: '声音节点空态', titleKey: 'generationCommon.nodeEmpty.audio.title', descriptionKey: 'generationCommon.nodeEmpty.audio.description' },
   model3d: { name: '3D 模型节点空态', titleKey: 'generationCommon.nodeEmpty.model3d.title', descriptionKey: 'generationCommon.nodeEmpty.model3d.description' },
-  whiteboard: { name: '画板节点空态', titleKey: 'generationCommon.whiteboard.title', descriptionKey: 'generationCommon.whiteboard.openHint' },
+  whiteboard: { name: '画板节点空态', titleKey: 'generationCommon.nodeEmpty.whiteboard.title', descriptionKey: 'generationCommon.nodeEmpty.whiteboard.description', actionKey: 'generationCommon.nodeEmpty.whiteboard.action' },
   panorama: { name: '全景节点空态', titleKey: 'generationCommon.nodeEmpty.panorama.title', descriptionKey: 'generationCommon.nodeEmpty.panorama.description', actionKey: 'generationCommon.node.uploadPanorama' },
-  scene3d: { name: '3D 场景节点空态', titleKey: 'scene3d.fullscreen.enterEditor', descriptionKey: 'scene3d.fullscreen.editorHint' },
+  scene3d: { name: '3D 场景节点空态', titleKey: 'generationCommon.nodeEmpty.scene3d.title', descriptionKey: 'generationCommon.nodeEmpty.scene3d.description', actionKey: 'generationCommon.nodeEmpty.scene3d.action' },
 }
 
 function NodeEmptyLabCell({ kind }: { kind: CanvasToolbarNodeKind }): JSX.Element {

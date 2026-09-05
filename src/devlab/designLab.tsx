@@ -6,9 +6,10 @@
 // 屏幕上那一格就是**现役 React 组件**渲染的，喂它固定夹具数据而已。
 //
 // 怎么开：
-//   pnpm run dev:renderer  →  http://127.0.0.1:5173/design-lab.html?screen=agent-panel&state=<id>
-//   接触表（所有状态平铺一图，拍板用）：            design-lab.html?screen=agent-panel&contact=1
-//   单格无 chrome（接触表 iframe / 视觉基线用）：    design-lab.html?screen=agent-panel&state=<id>&frame=1
+//   pnpm run dev:renderer  →  http://127.0.0.1:5173/design-lab.html?screen=<屏>&state=<id>
+//   接触表（该屏所有状态平铺一图，拍板用）：        design-lab.html?screen=<屏>&contact=1
+//   单格无 chrome（接触表 iframe / 视觉基线用）：    design-lab.html?screen=<屏>&state=<id>&frame=1
+// 屏在 `designLab/labScreens.ts` 注册（agent-panel / editing）。
 //
 // 生产包为什么进不来：`vite build` 只吃 `index.html`（vite.config.ts 没有覆盖 rollup input），
 // `design-lab.html` 是另一个根入口，**根本不参与打包**——不是运行时判旗、不是死代码分支，
@@ -24,11 +25,11 @@ import '@fontsource-variable/fraunces/wght.css'
 import { NomiAppProviders } from '../NomiAppProviders'
 import { NomiColorSchemeProvider } from '../theme/NomiColorSchemeProvider'
 import { persistColorScheme, primeNomiColorScheme } from '../theme/colorScheme'
-import { AGENT_PANEL_STATES, findAgentPanelState, PANEL_WIDTH, type LabState } from './designLab/agentPanelStates'
-import { UI_SHELL_STATES, findUiShellState, type UiShellLabState } from './uiShellLab'
+import { findLabScreen, findLabState, LAB_SCREENS } from './designLab/labScreens'
+import type { LabScreen, LabState } from './designLab/labScreen'
 
 const params = new URL(window.location.href).searchParams
-const screen = params.get('screen') || 'agent-panel'
+const screen = findLabScreen(params.get('screen'))
 const stateId = params.get('state')
 const contactMode = params.get('contact') === '1'
 const frameMode = params.get('frame') === '1'
@@ -66,15 +67,15 @@ function Cell({ state }: { state: LabState }): JSX.Element {
   )
 }
 
-function ContactSheet(): JSX.Element {
+function ContactSheet({ screen: sheetScreen }: { screen: LabScreen }): JSX.Element {
   const [loaded, setLoaded] = React.useState(0)
   React.useEffect(() => {
-    if (loaded >= AGENT_PANEL_STATES.length) markReady()
-  }, [loaded])
+    if (loaded >= sheetScreen.states.length) markReady()
+  }, [loaded, sheetScreen])
   return (
     <div style={{ padding: 16 }}>
       <h1 style={{ font: '600 15px/1.4 system-ui', margin: '0 0 4px' }}>
-        Agent 面板 · 接触表（{AGENT_PANEL_STATES.length} 个状态）
+        {sheetScreen.label} · 接触表（{sheetScreen.states.length} 个状态）
       </h1>
       <p style={{ font: '12px/1.5 system-ui', color: '#666', margin: '0 0 14px' }}>
         绿=面板整条通 · 棕=组件在但面板走不到 · 红=设计要求但现役没有 · 灰=设计已取消
@@ -82,13 +83,13 @@ function ContactSheet(): JSX.Element {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: `repeat(auto-fill, minmax(${PANEL_WIDTH + 24}px, 1fr))`,
+          gridTemplateColumns: `repeat(auto-fill, minmax(${sheetScreen.cell.width + 24}px, 1fr))`,
           gap: 16,
           alignItems: 'start',
         }}
         data-design-lab-contact="true"
       >
-        {AGENT_PANEL_STATES.map((state) => (
+        {sheetScreen.states.map((state) => (
           <figure key={state.id} style={{ margin: 0 }}>
             <figcaption style={{ font: '11px/1.4 system-ui', marginBottom: 6 }}>
               <span
@@ -110,7 +111,7 @@ function ContactSheet(): JSX.Element {
               title={state.name}
               src={labUrl({ state: state.id, contact: null, frame: '1' })}
               onLoad={() => setLoaded((value) => value + 1)}
-              style={{ width: PANEL_WIDTH + 4, height: 660, border: '1px solid #ddd', background: '#fff' }}
+              style={{ width: sheetScreen.cell.width + 4, height: sheetScreen.cell.height, border: '1px solid #ddd', background: '#fff' }}
             />
           </figure>
         ))}
@@ -138,20 +139,8 @@ function SingleState({ state }: { state: LabState }): JSX.Element {
   )
 }
 
-function UiShellState({ state }: { state: UiShellLabState }): JSX.Element {
-  React.useEffect(() => { markReady() }, [])
-  if (frameMode) return <div data-design-lab-shot={state.id} style={{ display: 'inline-block' }}>{state.render()}</div>
-  return <div style={{ padding: 16 }}><strong style={{ font: '600 13px system-ui' }}>{state.name}</strong>{state.render()}</div>
-}
-
-function UiShellLabApp(): JSX.Element {
-  const state = findUiShellState(stateId) ?? UI_SHELL_STATES[0]
-  return <UiShellState state={state} />
-}
-
 function DesignLabApp(): JSX.Element {
-  if (screen === 'ui-shell') return <UiShellLabApp />
-  const state = findAgentPanelState(stateId) ?? AGENT_PANEL_STATES[0]
+  const state = findLabState(screen, stateId) ?? screen.states[0]
   if (frameMode) return <SingleState state={state} />
   return (
     <div style={{ minHeight: '100%' }}>
@@ -170,7 +159,21 @@ function DesignLabApp(): JSX.Element {
         }}
         data-design-lab-header="true"
       >
-        <strong>设计实验室 · {screen}</strong>
+        <strong>设计实验室</strong>
+        <select
+          value={screen.id}
+          onChange={(event) => {
+            window.location.href = labUrl({ screen: event.currentTarget.value, state: null, contact: null })
+          }}
+          style={{ font: '12px system-ui', padding: '2px 4px' }}
+          aria-label="屏"
+        >
+          {LAB_SCREENS.map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.label}
+            </option>
+          ))}
+        </select>
         <select
           value={contactMode ? '' : state.id}
           onChange={(event) => {
@@ -179,7 +182,7 @@ function DesignLabApp(): JSX.Element {
           style={{ font: '12px system-ui', padding: '2px 4px' }}
           aria-label="状态"
         >
-          {AGENT_PANEL_STATES.map((item) => (
+          {screen.states.map((item) => (
             <option key={item.id} value={item.id}>
               {item.name}
             </option>
@@ -188,9 +191,9 @@ function DesignLabApp(): JSX.Element {
         <a href={labUrl({ contact: contactMode ? null : '1', state: null })}>
           {contactMode ? '回到单状态' : '接触表'}
         </a>
-        <span style={{ color: '#888' }}>{AGENT_PANEL_STATES.length} 个状态</span>
+        <span style={{ color: '#888' }}>{screen.states.length} 个状态</span>
       </header>
-      {contactMode ? <ContactSheet /> : <SingleState state={state} />}
+      {contactMode ? <ContactSheet screen={screen} /> : <SingleState state={state} />}
     </div>
   )
 }
@@ -216,7 +219,7 @@ primeNomiColorScheme()
 // 让走查能从**活页面**读到注册表，而不是只信 `labStates.mjs` 的源码正则。
 // 两边对不上 = 解析器漂了，走查当场红——这是那把正则唯一的活性证据。
 ;(window as unknown as { __designLabStates?: readonly string[] }).__designLabStates =
-  (screen === 'ui-shell' ? UI_SHELL_STATES : AGENT_PANEL_STATES).map((state) => state.id)
+  screen.states.map((state) => state.id)
 
 const container = document.getElementById('design-lab-root')
 if (!container) throw new Error('design lab root missing')

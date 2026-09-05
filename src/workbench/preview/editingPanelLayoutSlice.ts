@@ -19,8 +19,23 @@ import {
  * 三页也读它），所以 `visibility.assistant` 不是第二个开关，而是它的投影——凡是动到
  * assistant 可见性的 action，都在**同一次 set** 里把两边一起写，别让它们各自漂。
  */
+/** 左栏两个 tab。住在 store 而不是 PreviewSourcePanel 的局部 state：时间轴空轨右键的
+ *  「从素材库添加…」要能把它切过去，两处够不着彼此就只能各留一份真相。不落盘。 */
+export type PreviewSourceTab = 'shots' | 'assets'
+
 export type EditingPanelLayoutSlice = {
   editingPanelLayout: EditingPanelLayout
+  previewSourceTab: PreviewSourceTab
+  /** 切 tab；顺带保证左栏是展开的——收起状态下切 tab 等于什么都没发生。 */
+  openPreviewSourceTab: (tab: PreviewSourceTab) => void
+  /**
+   * 时间轴吸附开关。必须住在 store：预览面（full）与生成画布（compact）两个 TimelinePanel
+   * 因 keep-alive **同时挂载**，各注册一个 window keydown。放在组件局部 state 时，按 N 只翻了
+   * 「先注册的那个」——很可能是屏幕上看不见的那一个，用户看到的工具条纹丝不动，而拖动时的
+   * 吸附行为却偷偷变了。一个开关必须只有一份真相。
+   */
+  timelineSnapEnabled: boolean
+  setTimelineSnapEnabled: (next: boolean | ((previous: boolean) => boolean)) => void
   editingPanelUndoStack: EditingPanelLayout[]
   setEditingPanelLayout: (
     patch: Partial<Omit<EditingPanelLayout, 'visibility'>> & { visibility?: Partial<EditingPanelLayout['visibility']> },
@@ -62,6 +77,25 @@ export const createEditingPanelLayoutSlice: StateCreator<
 > = (set, get) => ({
   editingPanelLayout: cloneEditingPanelLayout(EDITING_PANEL_DEFAULTS),
   editingPanelUndoStack: [],
+  previewSourceTab: 'shots',
+  timelineSnapEnabled: true,
+
+  setTimelineSnapEnabled: (next) => set((state) => ({
+    timelineSnapEnabled: typeof next === 'function' ? next(state.timelineSnapEnabled) : next,
+  })),
+
+  openPreviewSourceTab: (tab) => set((state) => (
+    state.previewSourceTab === tab && state.editingPanelLayout.visibility.source
+      ? state
+      : {
+        previewSourceTab: tab,
+        ...(state.editingPanelLayout.visibility.source ? {} : replaceLayout(state, {
+          ...state.editingPanelLayout,
+          preset: 'custom' as const,
+          visibility: { ...state.editingPanelLayout.visibility, source: true },
+        })),
+      }
+  )),
 
   setEditingPanelLayout: (patch, recordUndo = true) => set((state) => {
     const next = clampEditingPanelLayout({
