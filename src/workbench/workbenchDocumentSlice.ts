@@ -1,5 +1,5 @@
 import type { StateCreator } from 'zustand'
-import type { StoryboardPlan } from './generationCanvas/agent/storyboardPlan'
+import { isEmptyStoryboardPlan, type StoryboardPlan } from './generationCanvas/agent/storyboardPlan'
 import {
   createDefaultWorkbenchDocument,
   mintStoryboardDesignId,
@@ -276,11 +276,13 @@ export const createWorkbenchDocumentSlice: WorkbenchSliceCreator<WorkbenchDocume
       // A new planner run must not reuse a design the user selected while the
       // async result was in flight. Ordinary UI and compatibility calls keep
       // updating the currently visible design.
+      const visible = findDesign(state, state.activeStoryboardId, target)
+      const replaceEmptyStarter = createNew && !storyboardId && visible && isEmptyStoryboardPlan(visible.plan)
       const active = storyboardId
         ? findDesign(state, storyboardId, target)
-        : createNew
+        : createNew && !replaceEmptyStarter
           ? undefined
-          : findDesign(state, state.activeStoryboardId, target)
+          : visible
       // A revision whose target was deleted while the planner was running is
       // obsolete. Do not resurrect it as a new design.
       if (storyboardId && !active) return state

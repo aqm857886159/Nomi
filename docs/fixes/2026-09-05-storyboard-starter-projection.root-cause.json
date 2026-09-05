@@ -1,0 +1,100 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-05-storyboard-starter-projection",
+  "problem_type": "renderer storyboard projection regression",
+  "symptom": "A real canonical nomi_canvas_plan approval committed its receipt and wrote a second storyboard design, but the active storyboardPlans projection remained the blank two-row starter. The creation UI therefore showed no draft storyboard card and the storyboard workspace opened empty.",
+  "direct_cause": "The new planner call used setStoryboardPlan with createNew=true while the active design was the structural empty starter. setStoryboardPlan correctly preserved the selected visible design when a non-empty design was active, but did not classify the blank starter as replaceable, so it appended the authored design while leaving storyboardPlans pointed at the starter.",
+  "class_root": "The multi-design store and its compatibility storyboardPlans projection did not share a single rule for selecting the visible design when an asynchronous planner result arrived. The renderer persisted the authored design but allowed a structural placeholder to remain the active projection, breaking the UI's read boundary even though the Host approval and receipt were correct.",
+  "affected_population": [
+    "Fresh blank projects whose document starts with the two-row empty storyboard starter",
+    "Canonical renderer-owned propose_storyboard_plan calls that arrive with createNew=true before the user has authored or selected a non-empty storyboard",
+    "Users reopening a project after a successful planner receipt while the compatibility projection still points at the empty starter"
+  ],
+  "scope_paths": [
+    "src/workbench/workbenchDocumentSlice.ts",
+    "src/workbench/creation/storyboard/storyboardPlanLifecycle.test.ts",
+    "docs/fixes/2026-09-05-storyboard-starter-projection.root-cause.json"
+  ],
+  "entry_points": [
+    "applyCanvasToolCall propose_storyboard_plan calls the shared setStoryboardPlan action",
+    "setStoryboardPlan selects the authored design and updates storyboardPlans compatibility projection",
+    "StoryboardPlanCard and StoryboardWorkspace read storyboardPlans while project persistence also stores storyboardDesignsByDocumentId"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The failure is caused by Nomi's internal multi-design storyboard store and compatibility projection contract; no external provider or library specification can decide which design the Nomi UI must make visible.",
+  "invariants": [
+    "When a planner result replaces a blank structural starter, the authored design is the sole design for that document, activeStoryboardId identifies it, and storyboardPlans projects the same plan and committed state.",
+    "When a non-empty design is active, createNew planner results remain separate designs and do not overwrite the user's selected design.",
+    "The canonical apply path persists the same selected design and projection that StoryboardPlanCard and StoryboardWorkspace read after hydration or restart."
+  ],
+  "generality_proof": "The shared setStoryboardPlan action is used by canonical planner writes, compatibility planner calls, patch edits, and storyboard UI edits. Classifying only the known structural empty starter at this boundary fixes fresh-project planner results while preserving the existing separate-design behavior for authored selections and all other storyboard mutations.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/workbenchDocumentSlice.ts",
+      "symbol": "setStoryboardPlan",
+      "responsibility": "Select the visible design, replace only the structural empty starter for a new planner result, and update storyboardPlans/activeStoryboardId atomically with storyboardDesignsByDocumentId."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts",
+      "entry_point": "applyCanvasToolCall propose_storyboard_plan",
+      "disposition": "enforced",
+      "evidence": "The canonical renderer-owned planner already routes through setStoryboardPlan with createNew=true; the shared action now owns starter replacement and projection."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+      "entry_point": "StoryboardPlanEditor storyboardPlans read",
+      "disposition": "not-affected",
+      "evidence": "The editor remains a read/interaction surface; changing its source would create a second projection instead of repairing the shared store boundary."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/StoryboardPlanCard.tsx",
+      "entry_point": "StoryboardPlanCard projection read",
+      "disposition": "not-affected",
+      "evidence": "The card already reads storyboardPlans and design identity; the repaired store projection supplies the authored plan without UI-specific fallback logic."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every asynchronous planner result targeting a fresh project can encounter the structural starter, and every future compatibility projection can repeat the same mismatch if selection remains split between the design list and storyboardPlans.",
+    "same_class_scan": [
+      "Traced applyCanvasToolCall canonical propose_storyboard_plan and patch_shots callers into setStoryboardPlan; canonical planner is the failing createNew=true entry while patch_shots updates the selected projection.",
+      "Inspected StoryboardPlanCard and StoryboardWorkspace: both consume storyboardPlans, so a design-list-only write cannot render the draft card or editor.",
+      "Checked hydrateStoryboardDesigns and project persistence: hydration projects the first design, confirming that the projection must be updated at mutation time and retained on restart."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/workbenchDocumentSlice.ts",
+    "invariant": "A createNew planner result may replace only an empty structural starter; the resulting active design and storyboardPlans projection must be updated together.",
+    "failure_mode": "Non-empty active designs remain separate and unknown/deleted explicit storyboard ids remain fail-closed through the existing obsolete/target-stale paths.",
+    "exception_policy": "none",
+    "strategy": "Use the existing isEmptyStoryboardPlan structural predicate at the earliest shared state mutation boundary, before any renderer component or persistence adapter can observe diverging design and projection state.",
+    "artifacts": [
+      "src/workbench/workbenchDocumentSlice.ts",
+      "src/workbench/creation/storyboard/storyboardPlanLifecycle.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/creation/storyboard/storyboardPlanLifecycle.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/creation/storyboard/storyboardPlanLifecycle.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The compatibility storyboardPlans projection remains required by current StoryboardPlanCard and StoryboardWorkspace; this fix centralizes its update and does not add or restore a second renderer path."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency controls storyboard design selection or persistence projection.",
+    "exit_criteria": []
+  },
+  "migration": "No data migration is needed. Existing projects with an authored design and a stale starter will project the first design during hydration as before; new planner writes now replace the empty starter before persistence. Existing stale projects can be corrected by opening or editing the saved authored design, while the real walk proves fresh-project creation.",
+  "residual_risks": [
+    "The production walk must be rerun after this renderer fix to prove the card, storyboard editor, receipt, and restart hydration together.",
+    "Projects containing multiple authored designs intentionally continue to project the first hydrated design until the user selects one; this preserves existing multi-design semantics."
+  ]
+}
