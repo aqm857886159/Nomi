@@ -2,7 +2,7 @@ import type { GenerationCanvasNode } from '../../../generationCanvas/model/gener
 import type { ArchetypeMode, ArchetypeReferenceSlot } from '../../../../config/modelArchetypes/types'
 import type { ModelOption } from '../../../../config/models'
 import type { PlanAnchor, PlanShot, StoryboardPlan } from '../../../generationCanvas/agent/storyboardPlan'
-import { isVisualAnchor } from '../../../generationCanvas/agent/storyboardPlan'
+import { isVisualAnchor } from '../../../generationCanvas/agent/storyboardPromptCompiler'
 import { isAnchorFrozen } from '../../../generationCanvas/model/anchorBibleKeys'
 import { hasUsableResult } from '../../../generationCanvas/runner/dependencyWaves'
 import { missingRequiredSlots, referencedVisualAnchors, resolveShotArchetypeMode } from '../shotRow/shotRowModel'

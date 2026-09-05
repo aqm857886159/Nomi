@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { buildAnchorSheetPrompt, effectiveShotDurationSec, storyboardPlanToCreateNodesArgs, type StoryboardPlan } from './storyboardPlan'
+import { effectiveShotDurationSec, storyboardPlanToCreateNodesArgs, type StoryboardPlan } from './storyboardPlan'
+import { buildAnchorSheetPrompt } from './storyboardPromptCompiler'
 import { parseStoryboardPlan, storyboardPlanSchema } from './storyboardPlanSchema'
 import { storyboardProfileForKey } from './storyboardProfiles'
 
@@ -75,21 +76,35 @@ describe('storyboardPlanToCreateNodesArgs', () => {
   // 画布框选那条链已经能把 vendor 一路写进节点；分镜这条**不能**——PlanShot 只有 modelKey，
   // 没有 vendor 字段，storyboardPlanToCreateNodesArgs 自然也传不出去。落地时 buildPlannedNodeMeta
   // 用 entryByKey.get(modelKey) 反查厂商，而 buildAgentModelEntries 按 modelKey 首次出现去重
-  // （见 availableModels.ts 的 seen 集合）→ 同一 modelKey 多家可用时**首家胜出**，与用户所选无关。
-  // 这条测试就是那个缺口的记录：等 PlanShot/PlanCreatedNode 补上 vendor 字段时，改这条即可。
-  it('厂商在 plan→canvas 落地路径上被丢弃：PlanShot 存不下 vendor，节点参数里也没有', () => {
+  // 2026-09-03：缺口已修。身份唯一键是 (vendor, modelKey)——同名模型来自不同供应商是两个模型。
+  // 本条从「固化错误行为」反转为「钉住正确行为」（P1：错误行为的留痕不能继续冒充规格）。
+  // 缺口真实代价：2026-09-03 首次真实付费闭环走查，用户选 APIMart Qwen-Image，请求发去
+  // code-newcli-com HTTP 400，全链阻断（docs/plan/2026-09-03-storyboard-entry-vendor-identity.md）。
+  it('厂商随模型一起落到节点：PlanShot.modelVendor 贯通 plan→canvas，不再按 key 反查取首家', () => {
     const plan: StoryboardPlan = {
       ...PLAN,
-      shots: [{ index: 1, durationSec: 5, anchorIds: [], prompt: '镜一', modelKey: 'nano-banana' }],
+      shots: [{ index: 1, durationSec: 5, anchorIds: [], prompt: '镜一', modelKey: 'nano-banana', modelVendor: 'apimart' }],
     }
     const { nodes } = storyboardPlanToCreateNodesArgs(plan)
     const shot = nodes.find((n) => n.prompt === '镜一')
 
-    // 用户选的模型确实传下去了……
     expect(shot?.modelKey).toBe('nano-banana')
-    // ……但「哪一家」没有：PlanCreatedNode 上根本不存在 vendor 槽（多家可用时落地取目录首家）。
-    expect(shot).not.toHaveProperty('vendor')
-    expect(Object.keys(shot ?? {})).not.toContain('modelVendor')
+    // 「哪一家」现在跟着走：落地不再靠 modelKey 反查目录首家。
+    expect(shot?.modelVendor).toBe('apimart')
+  })
+
+  it('没选模型时用默认模型的厂商，不与用户所选混搭', () => {
+    const plan: StoryboardPlan = {
+      ...PLAN,
+      shots: [{ index: 1, durationSec: 5, anchorIds: [], prompt: '镜一' }],
+    }
+    const { nodes } = storyboardPlanToCreateNodesArgs(plan, {
+      defaultVideoModelKey: 'seedance-1.5',
+      defaultVideoModelVendor: 'kie',
+    })
+    const shot = nodes.find((n) => n.prompt === '镜一')
+    expect(shot?.modelKey).toBe('seedance-1.5')
+    expect(shot?.modelVendor).toBe('kie')
   })
 
   it('anchorCount = 视觉锚数（落画布布局据此分「参考行 / 镜头网格」）', () => {
