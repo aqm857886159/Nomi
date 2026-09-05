@@ -1,0 +1,117 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-05-shot-verify-card-mount",
+  "problem_type": "renderer shot verification deviation card mount regression",
+  "symptom": "The real Electron generation journey receives a strict F_VERIFY_LOW verdict, but the generation Agent surface contains no reconcile deviation card and therefore offers no truthful explanation or recovery action.",
+  "direct_cause": "ReconcileDeviationCard remained defined under generationCanvas/components and shotVerifyStore continued to publish deviations, but the Host ResidentShell replacement removed the old AssistantTimeline mount and never subscribed to or rendered that state.",
+  "class_root": "Canvas verification state and the current resident Agent surface had no shared presentation boundary after the AssistantTimeline retirement. The state could be correct while the only user-facing recovery card was unreachable, so a real verifier result silently ended as a transcript-only response.",
+  "affected_population": [
+    "Users running image or video shot verification from the generation surface after a generated result diverges from its brief",
+    "The production M0-M5 journey at the post-judge deviation and AI-fix step",
+    "Any future canvas verification producer that writes useShotVerifyStore.deviations while the resident Host panel is mounted"
+  ],
+  "scope_paths": [
+    "src/workbench/ai/ProjectAgentResidentShell.tsx",
+    "src/workbench/ai/ProjectAgentResidentShell.structure.test.ts",
+    "src/workbench/generationCanvas/agent/shotVerifyStore.ts",
+    "src/workbench/generationCanvas/agent/shotVerifyStore.test.ts",
+    "src/workbench/generationCanvas/components/ReconcileDeviationCard.tsx",
+    "docs/fixes/2026-09-05-shot-verify-card-mount.root-cause.json"
+  ],
+  "entry_points": [
+    "verifyShotsAndReport completes a current canvas verification and writes deviations to useShotVerifyStore",
+    "ProjectAgentResidentShell is mounted at the generation surface as the current Host-owned Agent panel",
+    "ReconcileDeviationCard receives the canonical deviations and sends its AI-fix action through the resident sendTurn Host boundary"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The deviation store, resident surface, and card data attributes are internal Nomi workbench contracts; no external provider controls whether a local verifier result is rendered or recovered.",
+  "invariants": [
+    "Canvas shot verification deviations are read from useShotVerifyStore and are rendered on the generation resident surface whenever the list is non-empty.",
+    "The card's AI-fix action marks the canonical store fixing state and sends buildContentFixMessage through the existing Host Agent turn path; it never starts a second planner or vendor request.",
+    "Dismissal clears the canonical deviations, while exhausted remains owned by the store and removes the AI-fix affordance through the existing card policy.",
+    "Non-generation resident surfaces do not render a canvas shot verification card."
+  ],
+  "generality_proof": "All renderer shot verification producers converge on useShotVerifyStore.setDeviations/completeVerify, and every workspace surface uses ProjectAgentResidentShell. Mounting at the generation branch of that shared resident boundary covers image and video verifier results without model-specific or caller-specific cards; creation, storyboard, and preview remain unaffected.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "symbol": "generation resident transcript / requestContentFix",
+      "responsibility": "Project the canonical shot verification state into the current Host Agent surface and route recovery through sendTurn."
+    },
+    {
+      "path": "src/workbench/generationCanvas/agent/shotVerifyStore.ts",
+      "symbol": "useShotVerifyStore",
+      "responsibility": "Own verifier deviations, lifecycle, exhausted budget, markFixing, and dismissal state for every canvas verifier caller."
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/ReconcileDeviationCard.tsx",
+      "symbol": "ReconcileDeviationCard",
+      "responsibility": "Render the stable deviation-card contract and expose the existing AI-fix/dismiss actions without owning verification state."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/agent/shotVerifyStore.ts",
+      "entry_point": "verifyShotsAndReport -> completeVerify/setDeviations",
+      "disposition": "enforced",
+      "evidence": "The store remains the only producer-facing state owner; the new resident subscription consumes it without duplicating or transforming deviations."
+    },
+    {
+      "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "entry_point": "creation/storyboard/preview resident surfaces",
+      "disposition": "not-affected",
+      "evidence": "The card is guarded by surface === generation, so document and timeline Agent panels do not receive canvas-only deviation UI."
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/ReconcileDeviationCard.tsx",
+      "entry_point": "legacy canvas/timeline card callers",
+      "disposition": "enforced",
+      "evidence": "The shared card keeps its existing props and data-reconcile-deviation-card contract; only the current resident mount is restored."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Removing or replacing a legacy canvas shell can again leave verifier state without a user-facing recovery entry unless the current resident boundary is required to project the store.",
+    "same_class_scan": [
+      "Searched all ReconcileDeviationCard references and found the definition plus the retired AssistantTimeline call site; the current ResidentShell was the missing production mount.",
+      "Searched useShotVerifyStore.deviations, setDeviations, completeVerify, markFixing, and verifyShotsAndReport; producers converge on one store and do not render their own cards.",
+      "Checked all ResidentShell surface mounts and guarded the card to generation so creation, storyboard, and preview do not gain canvas-only state."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+    "invariant": "A non-empty canonical shot verification deviation list is rendered by the generation resident surface with the stable card selector and Host recovery action.",
+    "failure_mode": "A source-level structure regression fails if the resident stops subscribing to the store, drops the card selector, or bypasses buildContentFixMessage/sendTurn; store tests retain lifecycle and exhausted-state coverage.",
+    "exception_policy": "none",
+    "strategy": "Keep the store as the sole state owner and make the resident generation branch the one shared presentation/admission point for card actions.",
+    "artifacts": [
+      "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "src/workbench/ai/ProjectAgentResidentShell.structure.test.ts",
+      "src/workbench/generationCanvas/agent/shotVerifyStore.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/ai/ProjectAgentResidentShell.structure.test.ts",
+    "src/workbench/generationCanvas/agent/shotVerifyStore.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/ai/ProjectAgentResidentShell.structure.test.ts",
+    "src/workbench/generationCanvas/agent/shotVerifyStore.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The old AssistantTimeline mount was retired before this repair and is not changed by the current diff. This repair projects the existing card into the current resident surface and does not restore the retired renderer-owned shell."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The repair uses existing React/Zustand workbench contracts and introduces no dependency.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted schema migration is needed. Existing verifier results remain in the in-memory store; the current generation resident now projects them immediately and clears them through the existing store action.",
+  "residual_risks": [
+    "The focused structure and store tests prove the shared mount and lifecycle policy; the fresh production Electron walk must still prove the card appears after a real F_VERIFY_LOW verdict and that its AI-fix action reaches the Host.",
+    "Collapsed resident UI intentionally remains a compact affordance; users must expand the panel to inspect the generation verification card."
+  ]
+}

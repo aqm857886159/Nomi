@@ -55,6 +55,8 @@ import { agentFailureCategory, isWriteFailure, readableFailure, safeAgentFailure
 import { buildStaticAgentSystemPrompt } from '../generationCanvas/agent/generationCanvasAgentClient'
 import { projectAgentSkillEvents } from './skillEventProjection'
 import { runProposalUndo, useCommittedProposal } from '../generationCanvas/agent/proposalUndo'
+import ReconcileDeviationCard from '../generationCanvas/components/ReconcileDeviationCard'
+import { buildContentFixMessage, useShotVerifyStore } from '../generationCanvas/agent/shotVerifyStore'
 
 type ResidentSurface = Extract<WorkspaceMode, 'creation' | 'storyboard' | 'generation' | 'preview'>
 const isDocumentSurface = (surface: ResidentSurface): boolean => surface === 'creation' || surface === 'storyboard'
@@ -546,6 +548,22 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
     } catch (caught) { setError(friendlyError(caught, t)) } finally { clearResidentPendingTools(turnId) }
   }, [activeSkill, approvalPolicy, attachmentApi, attachments, closeMenu, creationDocumentTools, promptModeId, references, runMode, selectedLibraryPrompt, selectedPromptPreset, snapshot, surface, t])
 
+  // Shot verification is a canvas-owned state machine, while this resident
+  // surface is the single Agent entry point for its recovery action. Keep the
+  // card's view derived from that store and send the fix through the same Host
+  // turn path as every other Agent action.
+  const contentDeviations = useShotVerifyStore((state) => state.deviations)
+  const contentVerifyExhausted = useShotVerifyStore((state) => state.exhausted)
+  const dismissContentDeviations = React.useCallback(() => {
+    useShotVerifyStore.getState().setDeviations([])
+  }, [])
+  const requestContentFix = React.useCallback(() => {
+    const current = useShotVerifyStore.getState().deviations
+    if (!current.length) return
+    useShotVerifyStore.getState().markFixing()
+    void sendTurn(buildContentFixMessage(current), { displayText: t('generationCommon.reconcile.aiFix') })
+  }, [sendTurn, t])
+
   const submit = React.useCallback(async () => {
     const text = draft.trim(); if (!text || !snapshot) return
     if (editingQueue) { try { await editProjectAgentQueueItem({ ...editingQueue, text }); setEditingQueue(null); setDraft('') } catch (caught) { setError(friendlyError(caught, t)) }; return }
@@ -675,6 +693,14 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
     <div className="relative min-h-0 flex-1">
       <div ref={scrollRef} className={cn('h-full min-h-0 space-y-1 overflow-y-auto px-3 py-2', menu && 'pointer-events-none')} role="log" aria-live="polite" data-agent-transcript="true" data-agent-flow="true">
         {latestCompactionTurn?.runtimeContext && latestCompactionTurn.runtimeContext.compactions > 0 ? <div className="mb-2 flex min-h-7 items-center gap-1.5 rounded-nomi-sm border border-nomi-line-soft bg-nomi-ink-05 px-2.5 py-1.5 text-micro text-nomi-ink-60" data-agent-compaction-line="true"><IconCircleDashed size={12} className="shrink-0 text-nomi-accent" aria-hidden="true" /><span>{t('agentResident.compactionLine', { count: latestCompactionTurn.runtimeContext.compactions })}</span></div> : null}
+        {surface === 'generation' && contentDeviations.length > 0 ? <div className="flex flex-col gap-1" data-agent-shot-verify="true">
+          <ReconcileDeviationCard
+            deviations={contentDeviations}
+            exhausted={contentVerifyExhausted}
+            onAiFix={requestContentFix}
+            onDismiss={dismissContentDeviations}
+          />
+        </div> : null}
         {!items.length && !activeQueue.length ? <div className="grid min-h-40 place-items-center px-5 py-8 text-center" data-agent-empty-state="true"><div className="grid justify-items-center gap-2"><span className="grid size-10 place-items-center rounded-pill bg-nomi-accent-soft text-nomi-accent"><IconMessageQuestion size={22} aria-hidden="true" /></span><div className="text-body-sm font-semibold">{t('agentResident.emptyTitle')}</div><p className="m-0 max-w-[18rem] text-caption leading-5 text-nomi-ink-60">{t('agentResident.emptyDescription')}</p><button type="button" className="mt-1 inline-flex h-8 items-center gap-1.5 rounded-nomi-sm border border-nomi-accent bg-nomi-accent-soft px-3 text-caption font-medium text-nomi-accent transition-colors hover:bg-nomi-accent/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-nomi-accent/40" data-agent-empty-cta="true" onClick={() => { document.querySelector<HTMLTextAreaElement>('[data-agent-input="true"]')?.focus() }}><IconArrowUp size={14} aria-hidden="true" />{t('agentResident.emptyCta')}</button></div></div> : null}
         {planningTurn ? <ResidentThinkingState label={t('agentResident.planning')} detail={t('agentResident.planningDetail')} open={thinkingOpen} onToggle={() => setThinkingOpen((value) => !value)} /> : null}
         {planningTurn ? <ResidentPlanCard state="loading" shots={[]} parameters={[]} failureReason={t('agentResident.planFailed')} billing={t('agentResident.notCharged')} editLabel={t('agentResident.editPrompt')} retryLabel={t('agentResident.retry')} loadingLabel={t('agentResident.planLoading')} summaryLabel={(total, selected) => t('agentResident.planSummary', { total, selected })} generateLabel={(selected) => t('agentResident.planGenerate', { count: selected })} editedLabel={t('agentResident.planEdited')} selectAllLabel={t('agentResident.planSelectAll')} onEdit={() => undefined} onRetry={() => undefined} onGenerate={() => undefined} /> : null}

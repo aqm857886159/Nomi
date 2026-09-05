@@ -35,6 +35,9 @@ const residentExceptions = readSource(
 const residentGenerationEditor = readSource(
   path.join(process.cwd(), 'src/workbench/ai/resident/GenerationProposalEditor.tsx'),
 )
+const reconcileCard = readSource(
+  path.join(process.cwd(), 'src/workbench/generationCanvas/components/ReconcileDeviationCard.tsx'),
+)
 const residentBatchStack = readSource(
   path.join(process.cwd(), 'src/workbench/ai/resident/ResidentBatchStack.tsx'),
 )
@@ -258,6 +261,17 @@ describe('ProjectAgentResidentShell production contract', () => {
   it('exposes the stream cursor only while an assistant item is live', () => {
     expect(resident).toContain('data-agent-stream-cursor="true"')
     expect(resident).toContain('isLive(item.status)')
+  })
+
+  it('mounts canvas shot verification deviations in the resident Host surface', () => {
+    expect(resident).toContain("import ReconcileDeviationCard from '../generationCanvas/components/ReconcileDeviationCard'")
+    expect(resident).toContain("useShotVerifyStore((state) => state.deviations)")
+    expect(resident).toContain('data-agent-shot-verify="true"')
+    expect(reconcileCard).toContain('data-reconcile-deviation-card="true"')
+    expect(resident).toContain('onAiFix={requestContentFix}')
+    expect(resident).toContain('buildContentFixMessage(current)')
+    expect(resident).toContain('useShotVerifyStore.getState().markFixing()')
+    expect(resident).toContain("surface === 'generation' && contentDeviations.length > 0")
   })
 
   it('keeps completed proposal receipts compact and locator-aware', () => {
