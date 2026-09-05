@@ -8,6 +8,7 @@ import type {
   ProjectAgentMutation,
   ProjectAgentProposalApproval,
   ProjectAgentProposalItem,
+  ProjectAgentQueueItem,
   ProposalApprovalRef,
 } from "../shared/projectAgentContracts";
 import {
@@ -31,6 +32,13 @@ const target = { kind: "canvas", nodeIds: ["node-a"] } as const;
 const preconditions = {
   nodes: [{ nodeId: "node-a", revision: 2, contentHash: "node-hash" }],
 } as const;
+/** The creation surface anchor a document-queued Agent turn carries. */
+const documentTarget = {
+  kind: "document",
+  documentId: "doc-a",
+  anchor: { kind: "whole-document" },
+} as const;
+const documentPreconditions = { document: { revision: 4, contentHash: "doc-hash" } } as const;
 const contextRef = {
   binding: {
     project: binding,
@@ -43,7 +51,10 @@ const contextRef = {
 
 type ApprovalProposalItem = Extract<ProjectAgentProposalItem, { approval: ProposalApprovalRef }>;
 
-function enqueue(): ProjectAgentMutation {
+function enqueue(
+  queueTarget: ProjectAgentQueueItem["target"] = target,
+  queuePreconditions: ProjectAgentQueueItem["preconditions"] = preconditions,
+): ProjectAgentMutation {
   return {
     commandId: "enqueue-a",
     expectedRevision: 0,
@@ -86,8 +97,8 @@ function enqueue(): ProjectAgentMutation {
         retryable: false,
         deviated: false,
         binding,
-        target,
-        preconditions,
+        target: queueTarget,
+        preconditions: queuePreconditions,
         contextRef,
         model: { id: "model-a", version: 1 },
         skillVersions: [],
@@ -102,8 +113,14 @@ function enqueue(): ProjectAgentMutation {
   };
 }
 
-function runningState(): ProjectAgentHostState {
-  const queued = reduceProjectAgentMutation(createInitialProjectAgentState(binding), enqueue());
+function runningState(
+  queueTarget: ProjectAgentQueueItem["target"] = target,
+  queuePreconditions: ProjectAgentQueueItem["preconditions"] = preconditions,
+): ProjectAgentHostState {
+  const queued = reduceProjectAgentMutation(
+    createInitialProjectAgentState(binding),
+    enqueue(queueTarget, queuePreconditions),
+  );
   return reduceProjectAgentMutation(queued.state, {
     commandId: "start-a",
     expectedRevision: 1,
@@ -134,6 +151,8 @@ function runningState(): ProjectAgentHostState {
 function proposal(
   approvalId: string,
   itemId: string,
+  refTarget: ProjectAgentQueueItem["target"] = target,
+  refPreconditions: ProjectAgentQueueItem["preconditions"] = preconditions,
 ): {
   approval: ProjectAgentProposalApproval;
   item: ApprovalProposalItem;
@@ -147,8 +166,8 @@ function proposal(
     policyRevision: 1,
     inputHash: `input-${approvalId}`,
     actionHash: `action-${approvalId}`,
-    target,
-    preconditions,
+    target: refTarget,
+    preconditions: refPreconditions,
     expiresAt: "2026-08-29T00:00:00.000Z",
   } as const;
   return {
@@ -284,6 +303,47 @@ describe("ProjectAgent proposal reducer boundary", () => {
     }
     expect(state.items.some((item) => item.kind === "proposal")).toBe(false);
     expect(state.proposalApprovals).toEqual([]);
+  });
+
+  it("reports the missing table cell for a cross-domain proposal and admits the re-anchored one", () => {
+    // Regression for proposal_transition_invalid: the creation queue is anchored to
+    // a document target while the canvas-write adapter prepared a canvas-target ref.
+    const state = runningState(documentTarget, documentPreconditions);
+    const crossDomain = proposal("approval-cross", "proposal-cross");
+    let thrown: ProjectAgentReducerError | undefined;
+    try {
+      putProposal(state, crossDomain, "put-cross");
+    } catch (error) {
+      thrown = error as ProjectAgentReducerError;
+    }
+    expect(thrown).toBeInstanceOf(ProjectAgentReducerError);
+    expect(thrown?.code).toBe("proposal_transition_invalid");
+    expect(thrown?.transition).toEqual({
+      sourceDomain: "document",
+      targetDomain: "canvas",
+      fromState: "absent",
+      action: "put",
+      reason: "host_anchor_required",
+    });
+    expect(state.proposalApprovals).toEqual([]);
+
+    // Re-anchoring the ledger entry to the queue target — what the coordinator's
+    // persistApprovedProposal does for renderer-owned storyboard writes — lands on
+    // the document → document cell and is admitted.
+    const anchored = proposal("approval-anchored", "proposal-anchored", documentTarget, documentPreconditions);
+    const admitted = putProposal(state, anchored, "put-anchored");
+    expect(admitted.state.proposalApprovals).toMatchObject([
+      { lifecycle: "pending", ref: { approvalId: "approval-anchored", target: documentTarget } },
+    ]);
+    const claimed = reduceProjectAgentMutation(admitted.state, {
+      commandId: "claim-anchored",
+      expectedRevision: admitted.state.hostRevision,
+      binding,
+      sender: { kind: "renderer", senderId: "renderer-a" },
+      type: "proposal.transition",
+      payload: { approvalId: "approval-anchored", lifecycle: "claimed", occurredAt: now },
+    });
+    expect(claimed.state.proposalApprovals[0]?.lifecycle).toBe("claimed");
   });
 
   it("settles only the exact approval card and can continue the same running turn", () => {

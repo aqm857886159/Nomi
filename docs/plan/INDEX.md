@@ -18,6 +18,7 @@
 | [2026-09-05-storyboard-two-state-generation-design.md](2026-09-05-storyboard-two-state-generation-design.md) | **分镜 v6 双状态生成设计**：编辑态能力槽、生成态结果卡、模型参考矩阵、自动引用、迁移与真实验收 | 📋 |
 | [2026-09-05-storyboard-table-v6-design-contract.md](../design/2026-09-05-storyboard-table-v6-design-contract.md) | **分镜表 v6 设计合同**（方向 A，用户已拍板）：信息架构、行/锚状态表、参考列规则+六档案槽矩阵、旧版 15 条功能对账、token/选择器契约草案、不做项与验收清单；样张 `docs/design/mockups/2026-09-05-storyboard-table-v6/` | 📋 |
 | [2026-09-04-main-convergence-follow-ups.md](2026-09-04-main-convergence-follow-ups.md) | Main 收敛后续明细；历史执行拆解，状态以总方案和 current-main 审计为准 | 📎 |
+| [2026-09-05-proposal-transition-table.md](2026-09-05-proposal-transition-table.md) | **Agent Host proposal 转换表**：(来源域×目标域×状态×动作) 做成显式数据表，reducer 只查表，拒绝带格子坐标；`document→canvas` 是显式关闭格 | ✅ |
 | [2026-09-04-workbench-skill-picker-fix.md](2026-09-04-workbench-skill-picker-fix.md) | Workbench Agent Skill 选择器共享可选性边界修复：恢复 storyboard planner 的真实菜单选择与 Host 请求链路 | ✅ |
 | [2026-09-03-open-work-ledger.md](2026-09-03-open-work-ledger.md) | 全量开工账本历史快照；只用于追溯，不覆盖总方案的当前状态 | 📎 |
 
@@ -203,6 +204,7 @@
 | [2026-06-04-runtime-split-execution.md](2026-06-04-runtime-split-execution.md) | 增量拆分 electron/runtime.ts（strangler） | 🚧 |
 | [2026-08-29-focused-validation-policy.md](2026-08-29-focused-validation-policy.md) | PR `fast/full` 两档验证历史基线（已被 08-30 独立风险面取代） | 📎 |
 | [2026-08-30-risk-scoped-validation-evidence.md](2026-08-30-risk-scoped-validation-evidence.md) | **按真实风险拆分 unit/desktop/journey/canvas/performance/package，并用 exact-SHA CI 证据替代合并后第三遍全量测试** | ✅ |
+| [2026-09-05-ci-gate-mechanics.md](2026-09-05-ci-gate-mechanics.md) | **CI 门岗机制修法**：三个文档/生成物门（docs-index / doc-status / ledger）降为 advisory 并由 main 上的 docs-autosync 自动补齐；`gates:contracts` 51 个 `&&` 改成「全跑完再汇总」 | ✅ |
 | [2026-08-29-root-cause-contract-v2.md](2026-08-29-root-cause-contract-v2.md) | 根因合同 v2、跨 AI 强制执行与规则收敛 | 🚧 |
 | [2026-08-29-git-delivery-integrity.md](2026-08-29-git-delivery-integrity.md) | Git 交付身份、有界远端刷新与 merged-main 单次验收 | ✅ |
 | [2026-06-03-styles-css-teardown.md](2026-06-03-styles-css-teardown.md) | styles.css 拆除（死 CSS 清理） | 🚧 |
