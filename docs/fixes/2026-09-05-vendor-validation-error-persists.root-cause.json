@@ -1,0 +1,125 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-05-vendor-validation-error-persists",
+  "problem_type": "vendor validation projection invalidation regression",
+  "symptom": "After a provider validation failure, correcting or removing the API connection did not clear the red validation state; the failure returned after restart and could remain in the recent task list.",
+  "direct_cause": "The failed adapter run wrote model-catalog.json meta.adapter.state=failed/runId/modes and provider-adapters.json retained the terminal run, while credential clear, connection deletion, and connection-scope updates only changed catalog credentials/vendors/models and never invalidated those durable projections.",
+  "class_root": "Connection source state and validation projections were persisted by separate stores without a shared invalidation boundary, so deleting or replacing a source could not revoke the old validation lease.",
+  "affected_population": [
+    "Users recovering a failed custom or relay provider validation",
+    "Users disconnecting or deleting a provider after a failed validation",
+    "Users reopening the model settings after a failed validation"
+  ],
+  "scope_paths": [
+    "electron/catalog/catalogStore.ts",
+    "electron/catalog/vendorValidationInvalidation.ts",
+    "electron/providerAdapter/store.ts",
+    "electron/catalog/vendorValidationPersistence.test.ts"
+  ],
+  "entry_points": [
+    "model catalog vendor scope upsert",
+    "model catalog API-key clear/disabled write",
+    "model catalog transactional deleteVendor/deleteApiKey",
+    "provider-adapter durable run and revision store"
+  ],
+  "invariants": [
+    "A vendor connection scope change invalidates transient adapter validation metadata at the catalog write boundary while retaining any previously published revision.",
+    "Clearing or disabling a vendor credential invalidates failed/testing/repairing/partial adapter metadata and removes its durable provider-adapter runs and revisions.",
+    "Deleting a vendor lineage removes its durable provider-adapter runs and revisions together with catalog vendors, models, mappings, and credentials.",
+    "Invalidation removes the runId lease so an in-flight old validation cannot write its stale result back after the user changes the connection.",
+    "Historical certification ledgers remain audit evidence; only the user-facing adapter run/revision projections are revoked."
+  ],
+  "generality_proof": "All renderer and main-process catalog writes converge on catalogStore applyVendorUpsert/applyApiKeyUpsert/mutateCatalog; all provider-adapter run and revision persistence converges on ProviderAdapterStore, so future vendor cards, import paths, retries, and transactional writers inherit the same invalidation behavior.",
+  "same_class_scan": [
+    {
+      "path": "electron/catalog/catalogStore.ts",
+      "finding": "model-catalog.json vendors/models/mappings/apiKeysByVendor; fixed at vendor scope, credential, delete, and transaction boundaries."
+    },
+    {
+      "path": "electron/providerAdapter/store.ts",
+      "finding": "provider-adapters.json runs/revisions; fixed by deleting projections for invalidated vendor keys."
+    },
+    {
+      "path": "electron/integrationCertification/operationLedger.ts",
+      "finding": "integration-certification/operations.json is an append-only submission/audit ledger, not a current UI validation projection; retained intentionally for reconciliation evidence."
+    },
+    {
+      "path": "electron/integrationCertification/integrationSession.ts",
+      "finding": "integration session persistence is scoped to explicit session handoff and does not own the VendorConnectionNotice or adapter failure state; no stale current projection found."
+    },
+    {
+      "path": "src/ui/onboarding/useVendorHealth.ts",
+      "finding": "lastKnown is process memory only and is already invalidated by nomi-model-catalog-changed; not the restart-persistent source."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The same source/projection split can recur for another vendor card, credential writer, import path, or adapter revision unless invalidation is enforced at the shared catalog and adapter stores.",
+    "same_class_scan": [
+      "Scanned catalogStore public and transactional vendor/key/model/mapping writers and all renderer mutation wrappers.",
+      "Scanned provider-adapter run/revision persistence and integration certification ledgers for vendor-keyed validation records.",
+      "Scanned onboarding health snapshot and model settings readers; confirmed UI reads catalog adapter metadata and provider-adapter task projections after restart."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/catalog/catalogStore.ts",
+    "invariant": "A source mutation revokes its transient validation projections before the next read can present them as current.",
+    "failure_mode": "Old failed state is either removed/reset to unverified or rejected by the removed runId lease; unrelated vendors and append-only audit evidence remain intact.",
+    "exception_policy": "none",
+    "strategy": "Keep source mutation ownership in catalogStore, use one adapter-store cleanup primitive, and cover restart-shaped disk reads with a regression test.",
+    "artifacts": [
+      "electron/catalog/catalogStore.ts",
+      "electron/providerAdapter/store.ts",
+      "electron/catalog/vendorValidationPersistence.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/catalog/vendorValidationPersistence.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/catalog/vendorValidationPersistence.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The old writes were updated in place at their shared boundaries; no parallel invalidation implementation remains."
+  },
+  "migration": "Existing failed catalog metadata is repaired when the user clears/disables the credential, changes the connection scope, or deletes the vendor. Existing append-only certification ledgers are retained for reconciliation history.",
+  "residual_risks": [
+    "A failed record from a vendor that is never edited remains visible until the user changes or removes that connection; it is still actionable current state rather than an orphaned projection.",
+    "This zero-cost walk does not call a paid provider or expose a real API key."
+  ],
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The fix uses existing filesystem and catalog/adapter stores; no dependency changes.",
+    "exit_criteria": []
+  },
+  "internal_only_reason": "This repair concerns Nomi-owned filesystem projections and invalidation semantics; no external provider contract defines when local validation records become stale.",
+  "shared_boundaries": [
+    {
+      "path": "electron/catalog/catalogStore.ts",
+      "symbol": "applyVendorUpsert/applyApiKeyUpsert/mutateCatalog",
+      "responsibility": "Revoke transient adapter metadata whenever a vendor connection, credential, or lineage is changed."
+    },
+    {
+      "path": "electron/providerAdapter/store.ts",
+      "symbol": "invalidateProviderAdapterRunsForVendors",
+      "responsibility": "Delete durable adapter runs and revisions for invalidated vendor keys."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/catalog/catalogStore.ts",
+      "entry_point": "public and transactional vendor/key mutation APIs",
+      "disposition": "enforced",
+      "evidence": "All catalog write paths call the shared invalidation and durable cleanup primitives."
+    },
+    {
+      "path": "electron/providerAdapter/store.ts",
+      "entry_point": "provider-adapter durable run/revision writes",
+      "disposition": "enforced",
+      "evidence": "The store exposes one vendor-key cleanup primitive used by catalog boundaries."
+    }
+  ]
+}
