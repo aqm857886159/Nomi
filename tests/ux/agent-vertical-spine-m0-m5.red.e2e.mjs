@@ -12,7 +12,6 @@ import path from 'node:path'
 
 import { launchNomiApp, closeNomiApp } from './_launchApp.mjs'
 import { makeIsolatedDirs, parseToolResult, spawnMcpStdioClient } from './_mcpJourney.mjs'
-import { enableAgentHostThroughSettings } from './agent-runtime-walk-support.mjs'
 
 const contractPath = path.resolve('tests/system/agent-vertical-spine-m0-m5.contract.json')
 const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'))
@@ -312,13 +311,6 @@ async function runPhase(phase, executablePath = undefined) {
       await mcpProbe.terminate().catch(() => undefined)
     }
 
-    currentStep = 'M3.enable-agent-host-through-settings'
-    await enableAgentHostThroughSettings(win)
-    steps.push({
-      id: 'M3.enable-agent-host-through-settings',
-      status: 'passed',
-      evidence: 'Agent Host enabled through the visible Settings → General toggle; production default remains unchanged',
-    })
 
     currentStep = 'M3.configure-apimart-text-model'
     const apimartApiKey = typeof process.env.APIMART_API_KEY === 'string' ? process.env.APIMART_API_KEY.trim() : ''

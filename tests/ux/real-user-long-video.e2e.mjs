@@ -10,7 +10,6 @@ import os from 'node:os'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
-import { enableAgentHostThroughSettings } from './agent-runtime-walk-support.mjs'
 import {
   REAL_USER_LONG_VIDEO_MANIFEST,
   blockedLiveReport,
@@ -145,15 +144,9 @@ async function enterProject(win) {
 async function openAgent(win) {
   const collapsed = win.locator('[data-agent-resident-collapsed="true"]').first()
   if (await collapsed.isVisible().catch(() => false)) await collapsed.click()
-  let panel = win.locator('[data-agent-panel="true"][data-agent-surface="generation"]').first()
-  if (!(await panel.isVisible().catch(() => false))) {
-    // Agent Host is product-level opt-in. Enable it through the visible Settings UI,
-    // never by mutating a workbench store or local storage preference.
-    await enableAgentHostThroughSettings(win)
-    const nextCollapsed = win.locator('[data-agent-resident-collapsed="true"]').first()
-    if (await nextCollapsed.isVisible().catch(() => false)) await nextCollapsed.click()
-    panel = win.locator('[data-agent-panel="true"][data-agent-surface="generation"]').first()
-  }
+  // 常驻 Agent 自 #488 起无条件渲染，没有发布闸可开；面板没出来就是真出问题，
+  // 下面的 waitFor 直接报红，不再走「开闸重试」那条已不存在的兜底。
+  const panel = win.locator('[data-agent-panel="true"][data-agent-surface="generation"]').first()
   await panel.waitFor({ state: 'visible', timeout: 10_000 })
   return panel
 }

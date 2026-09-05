@@ -106,12 +106,6 @@
     "exclude": ["video canary in this red stage", "TikHub canary in this red stage", "Skill Hub", "UI redesign", "provider spend"]
   },
   "evidencePolicy": {
-    "agentHostPublication": {
-      "default": "disabled",
-      "testBoundary": "visible Settings → General → Project AI assistant toggle",
-      "helper": "tests/ux/agent-runtime-walk-support.mjs#enableAgentHostThroughSettings",
-      "rule": "The real user task explicitly enables the existing project preference after M1; no test-only state injection or production default flip is allowed."
-    },
     "apimartTextModelPublication": {
       "credentialSource": "process.env.APIMART_API_KEY",
       "visibleEntry": "dispatch nomi-open-model-catalog → APIMart connection → visible key field",

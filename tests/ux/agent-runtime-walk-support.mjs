@@ -106,27 +106,6 @@ export function requireCurrentPersistedWorkbenchDocument(record) {
   return readback.document
 }
 
-export async function enableAgentHostThroughSettings(win) {
-  const settings = win.getByRole('button', { name: '设置', exact: true }).first()
-  await clickOrFail(settings, '打开系统设置')
-  const settingsOverlay = win.locator('[data-settings-overlay]')
-  const settingsOverlayProof = await proveProbe(settingsOverlay, '系统设置打开后存在设置 overlay')
-  const dialog = win.getByRole('dialog', { name: '设置', exact: true })
-  await expect(dialog).toBeVisible()
-  await clickOrFail(dialog.locator('[data-settings-tab-id="general"]'), '打开通用设置')
-  const toggle = dialog.locator('[data-settings-section="agent-host"] [data-settings-agent-host-toggle]')
-  await expect(toggle).toBeAttached()
-  const toggleTrack = dialog.locator('[data-settings-section="agent-host"] .mantine-Switch-track')
-  await expect(toggleTrack).toBeVisible()
-  if (!(await toggle.isChecked())) await clickOrFail(toggleTrack, '开启常驻 Agent')
-  await expect(toggle).toBeChecked()
-  await clickOrFail(dialog.locator('[data-settings-close]'), '关闭系统设置')
-  await expectAbsent(settingsOverlay, {
-    provenBy: settingsOverlayProof,
-    message: '关闭系统设置后 overlay 应持续消失',
-  })
-}
-
 function conversationsFromProjectAgentSnapshot(snapshot) {
   const threads = (snapshot?.threads || []).map((thread) => ({
     id: thread.threadId,

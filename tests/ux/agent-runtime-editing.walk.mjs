@@ -5,7 +5,7 @@ import { clickOrFail, expect, expectAbsent, proveProbe } from './_assert.mjs'
 import path from 'node:path'
 import { FIXTURE_IMAGE_MODEL, flattenRequestText } from './agent-runtime-fixture.mjs'
 import {
-  CANVAS_PANEL, CREATION_PANEL, DOCUMENT, chooseAssistantModel, chooseCreationMode, createRuntimeWalk, enableAgentHostThroughSettings, hasToolResult,
+  CANVAS_PANEL, CREATION_PANEL, DOCUMENT, chooseAssistantModel, chooseCreationMode, createRuntimeWalk, hasToolResult,
   newConversation, openCanvas, readCurrentProjectAgentHostSnapshot, readCurrentProjectAgentToolEvidence, readProject,
   recorded, requireCurrentPersistedWorkbenchDocument,
   selectConversationAt, sendCanvas, sendCreation, toolNames,
@@ -54,7 +54,6 @@ const walk = await createRuntimeWalk('editing')
 let failure
 try {
   let { win } = await walk.start({ first: true })
-  await enableAgentHostThroughSettings(win)
   const project = await walk.newProject()
   const { projectId, projectRoot } = project
   const settingsRoot = path.join(walk.report.tempRoot, 'settings')

@@ -34,9 +34,6 @@ let failure
 try {
   const { win } = await walk.start({ first: true })
   const { projectId, projectRoot } = await walk.newProject()
-  // A real new user reaches the Agent through the visible Settings toggle. Keep
-  // this journey on that same boundary before locating the resident composer.
-  await (await import('./agent-runtime-walk-support.mjs')).enableAgentHostThroughSettings(win)
   const settingsRoot = path.join(walk.report.tempRoot, 'settings')
   await win.locator(DOCUMENT).fill(STORY)
   await expect(win.locator(DOCUMENT)).toHaveText(STORY)

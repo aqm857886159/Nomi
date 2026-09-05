@@ -40,7 +40,7 @@ import path from 'node:path'
 import { clickOrFail, expect, expectAbsent, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
 import { FIXTURE_IMAGE_MODEL, flattenRequestText } from './agent-runtime-fixture.mjs'
 import {
-  CREATION_PANEL, DOCUMENT, createRuntimeWalk, enableAgentHostThroughSettings,
+  CREATION_PANEL, DOCUMENT, createRuntimeWalk,
   hasToolResult, readProject, recorded,
 } from './agent-runtime-walk-support.mjs'
 
@@ -162,21 +162,6 @@ async function stepNewProject() {
   say(`新建空项目：${created.projectId}`)
   await shot('new-empty-project')
   return created
-}
-
-/**
- * 开常驻 Agent 的发布闸。走真实 Settings UI（不注入 store / localStorage），
- * 因为「新用户怎么打开它」本身就是这条路径的一部分。
- *
- * ⚠️ 闸删掉后此步删除：`agentHostEnabled` 是 #194 的发布闸（默认 false，
- * 见 src/utils/agentHostPreference.ts）。另一刀正在删它；删完后本函数连同调用点一起删掉，
- * 不要留成一个「有时开有时关」的并行态（P1）。
- */
-async function stepEnableAgentGate(win) {
-  await enableAgentHostThroughSettings(win)
-  await expectVisible(win.locator(CREATION_PANEL), '开闸后创作区没有出现常驻 Agent 面板')
-  say('已通过设置里的真实开关打开常驻 Agent')
-  await shot('agent-gate-enabled')
 }
 
 /** ② 在创作区文本编辑器写三句剧本。 */
@@ -434,7 +419,6 @@ try {
     : '▶ 金路径走查（新建空项目 → 三句剧本 → 拆 3 镜 → 改第 2 镜 → 批准 → 生成 → 重启）')
   const { projectId, projectRoot } = await stepNewProject()
   const win = currentWin
-  await stepEnableAgentGate(win)
   await stepWriteScript(win)
   await stepSplitIntoThreeShots(win, projectId)
   await stepOpenStoryboard(win)
