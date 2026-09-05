@@ -48,7 +48,7 @@ const proposalSchema = {
 export const MCP_INTEGRATION_TOOL = {
   name: 'nomi_integration',
   title: '模型 / ComfyUI 接入：公开配置、凭据页、提案、确认、启动、取消。',
-  description: 'Agent 发现/适配；Nomi 隔离密钥、落库、认证并执行付费两相；不得传 key。',
+  description: '空 proposal 探测 /models；candidates 可手填兜底；不得传 key。',
   inputSchema: {
     type: 'object',
     properties: {
