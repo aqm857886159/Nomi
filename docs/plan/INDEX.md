@@ -17,6 +17,7 @@
 | [2026-09-05-real-video-export-restart.md](2026-09-05-real-video-export-restart.md) | 真实视频生成→剪辑→预览→导出→关闭重启恢复旅程与证据门 | 🚧 |
 | [2026-09-05-storyboard-two-state-generation-design.md](2026-09-05-storyboard-two-state-generation-design.md) | **分镜 v6 双状态生成设计**：编辑态能力槽、生成态结果卡、模型参考矩阵、自动引用、迁移与真实验收 | 📋 |
 | [2026-09-04-main-convergence-follow-ups.md](2026-09-04-main-convergence-follow-ups.md) | Main 收敛后续明细；历史执行拆解，状态以总方案和 current-main 审计为准 | 📎 |
+| [2026-09-05-proposal-transition-table.md](2026-09-05-proposal-transition-table.md) | **Agent Host proposal 转换表**：(来源域×目标域×状态×动作) 做成显式数据表，reducer 只查表，拒绝带格子坐标；`document→canvas` 是显式关闭格 | ✅ |
 | [2026-09-04-workbench-skill-picker-fix.md](2026-09-04-workbench-skill-picker-fix.md) | Workbench Agent Skill 选择器共享可选性边界修复：恢复 storyboard planner 的真实菜单选择与 Host 请求链路 | ✅ |
 | [2026-09-03-open-work-ledger.md](2026-09-03-open-work-ledger.md) | 全量开工账本历史快照；只用于追溯，不覆盖总方案的当前状态 | 📎 |
 
