@@ -13,6 +13,9 @@ svg{flex:0 0 auto}
 .pill .k{font-size:11px;line-height:1;color:#9b9891}
 .pill .v{font-size:12px;color:#36322d}
 .pill.on{border-color:#2a75ba}
+.pill.ovr{border-color:#2a75ba;background:#e5eef7}
+.pill.ovr .k,.pill.ovr .v{color:#2a75ba}
+.pill.ovr .ov{font-size:11px;line-height:1;color:#2a75ba;opacity:.75}
 .tag{display:inline-flex;align-items:center;gap:3px;height:20px;padding:0 8px;border-radius:999px;background:#e5eef7;color:#2a75ba;font-size:11px;white-space:nowrap}
 .tag.g{background:rgba(52,199,89,.12);color:#248a3d}
 .tag.r{background:rgba(255,59,48,.1);color:#ff3b30}
@@ -101,9 +104,9 @@ svg{flex:0 0 auto}
       <span style="width:1px;align-self:stretch;background:#e3e1de;"></span>
       <span class="pill"><span class="k">类型</span><span class="v">视频</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9b9891" stroke-width="1.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span>
       <span class="pill"><span class="k">模型</span><span class="v">Seedance 2.5</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9b9891" stroke-width="1.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span>
-      <span class="pill"><span class="k">画幅</span><span class="v">按每镜</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9b9891" stroke-width="1.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span>
+      <span class="pill" data-storyboard-aspect-default title="整片默认画幅，行级可覆盖"><span class="k">画幅</span><span class="v">9:16</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9b9891" stroke-width="1.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span>
       <span class="pill"><span class="k">时长</span><span class="v">5 秒</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9b9891" stroke-width="1.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span>
-      <span class="sub" style="margin-left:auto;">改这里 = 5 个镜头一起改</span>
+      <span class="sub" style="margin-left:auto;">改这里 = 5 个镜头一起改 · 已覆盖画幅的 2 镜不跟着变</span>
     </div>
 
     <div style="padding:16px;display:flex;flex-direction:column;gap:16px;">
@@ -150,7 +153,7 @@ svg{flex:0 0 auto}
                 <div class="bar">
                   <span class="pill"><span class="k">模型</span><span class="v">Seedance 2.5</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9b9891" stroke-width="1.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span>
                   <span class="pill on"><span class="k">模式</span><span class="v">首尾帧</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9b9891" stroke-width="1.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span>
-                  <span class="pill"><span class="k">画幅</span><span class="v">9:16</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9b9891" stroke-width="1.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span>
+                  
                   <span class="pill"><span class="k">时长</span><span class="v">5 秒</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9b9891" stroke-width="1.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span>
                   <span class="pill"><span class="k">清晰度</span><span class="v">720p</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9b9891" stroke-width="1.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span>
                   <span class="sp"></span>
@@ -181,7 +184,7 @@ svg{flex:0 0 auto}
                 <div class="bar">
                   <span class="pill"><span class="k">模型</span><span class="v">Seedance 2.5</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9b9891" stroke-width="1.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span>
                   <span class="pill"><span class="k">模式</span><span class="v">首帧</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9b9891" stroke-width="1.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span>
-                  <span class="pill"><span class="k">画幅</span><span class="v">16:9</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9b9891" stroke-width="1.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span>
+                  <span class="pill ovr" data-storyboard-aspect-override title="本镜覆盖了整片默认画幅 9:16"><span class="k">画幅</span><span class="v">16:9</span><span class="ov">· 覆盖</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9b9891" stroke-width="1.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span>
                   <span class="pill"><span class="k">时长</span><span class="v">6 秒</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9b9891" stroke-width="1.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span>
                   <span class="sp"></span>
                   <span class="tag g"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 12l5 5L20 7"/></svg>已生成 · 已作为 镜 03 首帧</span>
@@ -212,7 +215,7 @@ svg{flex:0 0 auto}
                 <div class="bar">
                   <span class="pill"><span class="k">模型</span><span class="v">GPT Image 2</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9b9891" stroke-width="1.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span>
                   <span class="pill"><span class="k">模式</span><span class="v">图生图</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9b9891" stroke-width="1.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span>
-                  <span class="pill"><span class="k">画幅</span><span class="v">9:16</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9b9891" stroke-width="1.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span>
+                  
                   <span class="pill"><span class="k">停留</span><span class="v">3 秒</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9b9891" stroke-width="1.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span>
                   <span class="sp"></span>
                   <span class="tag n"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>已锁定 · 不进批量</span>
@@ -240,7 +243,7 @@ svg{flex:0 0 auto}
                 <div class="bar">
                   <span class="pill"><span class="k">模型</span><span class="v">Seedance 2.5</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9b9891" stroke-width="1.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span>
                   <span class="pill on"><span class="k">模式</span><span class="v">全能参考</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9b9891" stroke-width="1.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span>
-                  <span class="pill"><span class="k">画幅</span><span class="v">1:1</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9b9891" stroke-width="1.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span>
+                  <span class="pill ovr" data-storyboard-aspect-override title="本镜覆盖了整片默认画幅 9:16"><span class="k">画幅</span><span class="v">1:1</span><span class="ov">· 覆盖</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9b9891" stroke-width="1.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span>
                   <span class="pill"><span class="k">时长</span><span class="v">8 秒</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9b9891" stroke-width="1.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span>
                   <span class="pill"><span class="k">音频</span><span class="v">生成</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9b9891" stroke-width="1.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span>
                   <span class="sp"></span>
@@ -269,7 +272,7 @@ svg{flex:0 0 auto}
                 <div class="bar">
                   <span class="pill"><span class="k">模型</span><span class="v">Veo 3.1</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9b9891" stroke-width="1.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span>
                   <span class="pill"><span class="k">模式</span><span class="v">参考</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9b9891" stroke-width="1.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span>
-                  <span class="pill"><span class="k">画幅</span><span class="v">9:16</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9b9891" stroke-width="1.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span>
+                  
                   <span class="pill"><span class="k">时长</span><span class="v">4 秒</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9b9891" stroke-width="1.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span>
                   <span class="sp"></span>
                   <span class="tag r">失败 · 供应商未启用</span>
