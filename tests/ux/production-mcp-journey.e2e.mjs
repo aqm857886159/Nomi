@@ -115,6 +115,26 @@ async function openRunFromTaskCenter(window, shotName) {
   }
 }
 
+/**
+ * 按**身份**打开项目库里的某个项目，并证明真的进去了。
+ *
+ * 为什么不能 `.first()`：库卡的顺序是「最近用过」派生量（libraryDiscovery.sortByLibraryUsage），
+ * 本旅程自 2026-09-04 起在同一个隔离库里有**两个**项目（GUI 建的制作项目 + MCP 建的语义夹具），
+ * 两者 updatedAt 常落在同一秒里——`.first()` 于是变成掷硬币。点错那次，任务中心开出来是空的，
+ * 报错却是下游的「[data-production-task-card] 10s 超时」，一路指向假方向。
+ * 身份选择 + 这条 hash 屏障让「点错项目」当场按它真实的名字失败。
+ */
+async function openProjectFromLibrary(window, wantedProjectId) {
+  // 不给 click 加更紧的超时：开屏动画（SplashIntro，5 段 × 2600ms ≈ 13.5s）会挡住库页，
+  // 用 Playwright 默认超时才等得过它——收紧到 10s 会把这条重启步变成另一种抖动。
+  await window.locator(`[data-project-card="true"][data-project-id="${wantedProjectId}"]`).click()
+  await window.waitForFunction(
+    (id) => window.location.hash.includes(`projectId=${id}`),
+    wantedProjectId,
+    { timeout: 10_000 },
+  )
+}
+
 async function approveCurrentProductionGate(window) {
   await openRunFromTaskCenter(window)
   await window.locator('[data-production-primary-action]').first().click()
@@ -308,8 +328,7 @@ try {
   // 在逐镜头门等待时重启真实 Nomi；门与零提交状态必须从磁盘恢复。
   await gui.app.close()
   gui = await launchGui()
-  await gui.window.locator('[data-project-card="true"]').first().click()
-  await gui.window.waitForFunction(() => window.location.hash.includes('projectId='), undefined, { timeout: 10_000 })
+  await openProjectFromLibrary(gui.window, projectId)
   const afterRestartCanvas = await callTool('nomi_read', { target: 'canvas', leaseHandle, projectId: semanticProjectId })
   check(afterRestartCanvas.structuredContent?.nodes?.some((node) => node.id === nodeId), 'canvas semantic undo survives real Nomi restart')
   await openRunFromTaskCenter(gui.window)

@@ -1,6 +1,7 @@
 import type { DesktopAssetDto } from '../../../desktop/bridge'
 import { getDesktopBridge } from '../../../desktop/bridge'
 import { getDesktopActiveProjectId } from '../../../desktop/activeProject'
+import { resolveCapabilityProjectId } from '../../capability/capabilityProjectBinding'
 import { workbenchAdoptionPorts } from '../../adoption/adoptionStorePorts'
 import type { TimelineClip, TimelineState } from '../timelineTypes'
 import { ASSET_SOURCE_USAGE_LIMIT } from '../../../../electron/shared/agentCapabilities/assetRead'
@@ -317,21 +318,27 @@ const defaultRuntime: MediaToolRuntime = {
   readTimeline: () => workbenchAdoptionPorts.readTimeline(),
 }
 
-function activeProjectId(): string {
-  const projectId = getDesktopActiveProjectId().trim()
-  if (!projectId) throw new Error('project_scope_required: an active project is required for media tools')
-  return projectId
+/**
+ * 素材库按 projectId 在主进程寻址——不需要项目正开着。所以已校验的 lease projectId 优先，
+ * 没给才回退 GUI 当前项目（应用内调用者）。解析规则住在 capabilityProjectBinding.ts。
+ */
+function scopeProjectId(boundProjectId?: unknown): string {
+  return resolveCapabilityProjectId(
+    boundProjectId,
+    getDesktopActiveProjectId,
+    'project_scope_required: an active project is required for media tools',
+  )
 }
 
-async function mediaAssets(runtime: MediaToolRuntime): Promise<ProjectMediaAsset[]> {
-  const projectId = activeProjectId()
+async function mediaAssets(runtime: MediaToolRuntime, boundProjectId?: unknown): Promise<ProjectMediaAsset[]> {
+  const projectId = scopeProjectId(boundProjectId)
   return (await runtime.listProjectAssets(projectId))
     .map((asset) => toProjectMediaAsset(asset, projectId))
     .filter((asset): asset is ProjectMediaAsset => Boolean(asset))
 }
 
-async function requireMedia(assetId: string, runtime: MediaToolRuntime): Promise<ProjectMediaAsset> {
-  const asset = (await mediaAssets(runtime)).find((candidate) => candidate.id === assetId)
+async function requireMedia(assetId: string, runtime: MediaToolRuntime, boundProjectId?: unknown): Promise<ProjectMediaAsset> {
+  const asset = (await mediaAssets(runtime, boundProjectId)).find((candidate) => candidate.id === assetId)
   if (!asset) throw new Error(`media_not_found: ${assetId}`)
   return asset
 }
@@ -365,10 +372,10 @@ export async function applyMediaToolCall(
   const input = asRecord(args)
   switch (toolName as MediaToolCallName) {
     case 'get_media': {
-      return { operation: toolName, media: compactMedia(await requireMedia(stringArg(input, 'assetId'), runtime)) }
+      return { operation: toolName, media: compactMedia(await requireMedia(stringArg(input, 'assetId'), runtime, input.projectId)) }
     }
     case 'inspect_media': {
-      const asset = await requireMedia(stringArg(input, 'assetId'), runtime)
+      const asset = await requireMedia(stringArg(input, 'assetId'), runtime, input.projectId)
       return {
         operation: toolName,
         media: compactMedia(asset),
@@ -382,7 +389,7 @@ export async function applyMediaToolCall(
         ? new Set(input.kinds.filter((kind): kind is MediaKind => kind === 'image' || kind === 'video' || kind === 'audio'))
         : null
       const limit = input.limit === undefined ? 20 : positiveInteger(input.limit, 'limit', 100)
-      const results = (await mediaAssets(runtime))
+      const results = (await mediaAssets(runtime, input.projectId))
         .filter((asset) => !kinds || kinds.size === 0 || kinds.has(asset.kind))
         .filter((asset) => !query || asset.name.toLocaleLowerCase().includes(query))
         .sort((left, right) => Date.parse(right.dto.updatedAt) - Date.parse(left.dto.updatedAt) || left.id.localeCompare(right.id))
@@ -395,7 +402,7 @@ export async function applyMediaToolCall(
       }
     }
     case 'inspect_source_range': {
-      const asset = await requireMedia(stringArg(input, 'assetId'), runtime)
+      const asset = await requireMedia(stringArg(input, 'assetId'), runtime, input.projectId)
       const startFrame = nonNegativeInteger(input.startFrame, 'startFrame')
       const endFrame = positiveInteger(input.endFrame, 'endFrame', Number.MAX_SAFE_INTEGER)
       if (endFrame <= startFrame) throw new Error('endFrame must be greater than startFrame')
@@ -419,7 +426,7 @@ export async function applyMediaToolCall(
       }
     }
     case 'read_waveform': {
-      const asset = await requireMedia(stringArg(input, 'assetId'), runtime)
+      const asset = await requireMedia(stringArg(input, 'assetId'), runtime, input.projectId)
       const startSeconds = input.startSeconds === undefined ? 0 : finiteNonNegative(input.startSeconds, 'startSeconds')
       const endSeconds = input.endSeconds === undefined ? undefined : finiteNonNegative(input.endSeconds, 'endSeconds')
       if (endSeconds !== undefined && endSeconds <= startSeconds) throw new Error('endSeconds must be greater than startSeconds')

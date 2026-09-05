@@ -1,6 +1,7 @@
 import { AGENT_PANEL_STATES, PANEL_HEIGHT, PANEL_WIDTH } from './agentPanelStates'
 import { EDITING_STATES } from './editing/editingStates'
 import { EDITING_CELL_HEIGHT, EDITING_CELL_WIDTH } from './editing/editingLabKit'
+import { HOST_CONFIG_STATES } from './hostConfig/hostConfigStates'
 import { SETTINGS_STATES } from './settings/settingsStates'
 import { SETTINGS_CELL_HEIGHT, SETTINGS_CELL_WIDTH } from './settings/settingsLabKit'
 import type { LabScreen, LabState } from './labScreen'
@@ -24,6 +25,14 @@ export const LAB_SCREENS: readonly LabScreen[] = [
     // 这屏各状态取景框大小不一（浮层 300–420 宽、属性面板一条窄柱），
     // 接触表按最宽的那一格开列，免得宽件被挤成两行。
     cell: { width: EDITING_CELL_WIDTH, height: EDITING_CELL_HEIGHT },
+  },
+  {
+    id: 'host-config',
+    label: '宿主接入配置',
+    // 这一族是 toast：走 Mantine 单容器 Portal 到 body、fixed 贴在视口右上角，
+    // 所以每个状态都声明 capture: 'viewport'，取景格按整个视口开列。
+    cell: { width: 720, height: 420 },
+    states: HOST_CONFIG_STATES,
   },
   {
     id: 'settings',

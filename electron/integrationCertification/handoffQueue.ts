@@ -164,6 +164,26 @@ export function enqueueIntegrationHandoff(
   return structuredClone(entry);
 }
 
+/**
+ * Drop every queued handoff of one target for a session whose reason to exist is gone.
+ *
+ * A credential handoff is a durable "someone still has to type a key". Only the GUI wizard
+ * used to retire it, by acking after its own save — so a key that arrived through the other
+ * route (the MCP loopback page in the user's AI client) left the request queued forever, and
+ * the model settings drawer kept yanking the user back to a half-filled "add a model" page for
+ * a provider that is already connected. The session service is the earliest layer that knows
+ * the credential landed, whichever route wrote it, so the retirement belongs next to that
+ * write rather than in each consumer (R28).
+ */
+export function retireIntegrationHandoffs(sessionId: unknown, target: IntegrationHandoffTarget): number {
+  const id = safeId(sessionId, "sessionId");
+  const state = readState();
+  const next = state.entries.filter((entry) => !(entry.sessionId === id && entry.target === target));
+  const removed = state.entries.length - next.length;
+  if (removed > 0) persist({ version: 1, entries: next });
+  return removed;
+}
+
 export function acknowledgeIntegrationHandoff(requestId: unknown): boolean {
   const id = safeId(requestId, "requestId");
   const state = readState();

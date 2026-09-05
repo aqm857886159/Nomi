@@ -202,7 +202,11 @@ export function SettingsDialog({
       }
 
       event.stopPropagation()
-      if (tab === 'models' && dialog.querySelector('[data-model-settings-page]')) {
+      // 模型抽屉是下钻式的：站在子页上时 Esc 先退一层。判据必须是「上面确实还有一层可退」——
+      // 模型首页后来也带上了同一个 data-model-settings-page 标记，于是这个条件在整个「模型」tab 上
+      // 恒真，Esc 永远只在首页原地发一次 back，设置对话框再也关不掉（aria-modal 对话框的无障碍基本项）。
+      // 所以这里排掉首页，而不是让每个消费方各自去猜栈深。
+      if (tab === 'models' && dialog.querySelector('[data-model-settings-page]:not([data-model-settings-page="home"])')) {
         event.preventDefault()
         window.dispatchEvent(new CustomEvent('nomi-model-settings-back'))
         return

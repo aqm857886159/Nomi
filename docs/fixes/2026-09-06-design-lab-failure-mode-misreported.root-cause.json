@@ -1,0 +1,144 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-06-design-lab-failure-mode-misreported",
+  "problem_type": "验证门岗把「跑不起来」翻译成「被验证的东西不对」——退出码非零就下同一个结论，不看这一趟到底有没有产生该结论的证据",
+  "symptom": "2026-09-06 在 load ≈16 与 ≈30 的机器上跑 `pnpm run check:design-lab` 两次：46 条视觉用例全体失败，输出末尾恒为「❌ 视觉基线不符。差异图在 test-results/ 下（-expected/-actual/-diff 三张）。这是设计改动被拦住了，不是工具坏了」。按提示去 test-results/ 找不到任何 -diff.png；真实报错藏在 test-results/**/error-context.md 的 `page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:5197/design-lab.html`。同一条命令在机器空闲时 46/46 全绿——即门岗把基础设施失败报成了设计回归。",
+  "direct_cause": "scripts/check-design-lab.mjs 用 spawnSync(..., { stdio: 'inherit' }) 跑 Playwright，脚本自己拿不到任何输出，只剩一个退出码可判；于是 `if (result.status !== 0)` 后面无条件打印「视觉基线不符」。那句话里的两个断言（真的产出了差异图、真的是设计改动被拦住）从未被验证过。",
+  "class_root": "缺的不变量是：**一个验证门岗只能下它这一趟真正取得证据的那个结论**。差异图是「视觉基线不符」这个结论的唯一凭据，没有凭据就不许下这个结论；连接类错误、webServer 起不来、缺基线各自是另一个结论。第二条缺失的不变量在更下面一层：**实验室只能在证明属于本 worktree 的预览服务器上取像素**——端口写死成整机全局单例（视觉道 5197、走查 5198/5200）而复用逻辑只探「有没有人应答」，既能让本树的基线去和另一棵树的 UI 比（假绿/假红），也正是那 46 条 ERR_CONNECTION_REFUSED 的来源。",
+  "affected_population": [
+    "所有在本机跑 check:design-lab / design-lab:update 的人——这台机器常年挂 20+ worktree，端口争用是常态而非例外",
+    "两条设计实验室走查（design-lab:walk、design-lab:walk:editing）：同样写死端口、同样只探应答，会静默截出别的分支的 UI",
+    "任何按门岗结论行动的人：被指去看一批不存在的差异图，或据此认为自己的设计改动被拦住了"
+  ],
+  "scope_paths": [
+    "scripts/check-design-lab.mjs",
+    "tests/ux/design-lab/failureTriage.mjs",
+    "tests/ux/design-lab/labServer.mjs",
+    "tests/ux/design-lab/playwright.config.mjs",
+    "tests/ux/design-lab/warmUp.mjs",
+    "tests/ux/design-lab/walkScreen.mjs",
+    "tests/ux/design-lab-agent-panel.walk.mjs",
+    "tests/ux/design-lab-editing.walk.mjs"
+  ],
+  "entry_points": [
+    "pnpm run check:design-lab（gates:contracts 里的一环）",
+    "pnpm run design-lab:update（录基线，不经过门岗脚本但经过 globalSetup）",
+    "npx playwright test -c tests/ux/design-lab/playwright.config.mjs（手工直跑）",
+    "pnpm run design-lab:walk 与 design-lab:walk:editing（走查截图）"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "这是本仓门岗自己的报告契约与端口归属约定，Playwright 官方文档不决定「门岗该说哪句话」；-diff.png 的产出位置由本仓 playwright.config.mjs 的 outputDir 决定，已在本次改动中显式钉成绝对路径而不是依赖默认解析。",
+  "invariants": [
+    "「视觉基线不符」只能在磁盘上真的存在 -diff.png 时说出口",
+    "出现连接类错误或 webServer 起不来时，结论必须是「预览服务器不可达 / 基础设施失败」，并说明这一趟对设计没有任何结论",
+    "失败说明必须落在 gates 汇总回放的行数（FAILURE_TAIL_LINES）之内，否则等于没说",
+    "取像素之前必须证明应答端口的进程 cwd 就是本 worktree；证不出来就不算自己的"
+  ],
+  "generality_proof": "三条入口（门岗脚本、design-lab:update、手工直跑）都经过同一个 Playwright 配置与同一个 globalSetup，两条走查都经过同一个 walkScreen；把端口派生与归属断言放进 tests/ux/design-lab/labServer.mjs 这一个 owner，五条入口就都只能从它拿端口、都要过同一道断言，没有第二处裸端口号可写。结论口径同理：门岗唯一的失败出口改成 failureTriage.triageLabRun + formatLabFailure，判据是「磁盘上有没有 -diff.png」与「输出里有没有连接类签名」这两样可验证的证据，而不是退出码；因此不论将来是超时、页面报错、端口被占还是真的像素变了，门岗说的都是它这一趟实际拿到的那个结论。",
+  "shared_boundaries": [
+    {
+      "path": "tests/ux/design-lab/failureTriage.mjs",
+      "symbol": "triageLabRun",
+      "responsibility": "把 Playwright 的一次失败按证据分成 视觉不符 / 预览服务器不可达 / 缺基线 / 基础设施可疑 四档；没有 -diff.png 就不许返回视觉不符。"
+    },
+    {
+      "path": "tests/ux/design-lab/failureTriage.mjs",
+      "symbol": "formatLabFailure",
+      "responsibility": "每一档只说该档的话，并把机器 load 与排查顺序一起报出来；输出长度受 gates 回放行数约束。"
+    },
+    {
+      "path": "tests/ux/design-lab/labServer.mjs",
+      "symbol": "labPortFor",
+      "responsibility": "实验室每个角色的端口按 worktree 派生，消除整机全局单例带来的跨树争用；任何入口都不许再写裸端口号。"
+    },
+    {
+      "path": "tests/ux/design-lab/labServer.mjs",
+      "symbol": "assertLabPortOwnership",
+      "responsibility": "取像素之前 fail-closed 地证明应答者属于本 worktree；foreign 直接抛，cwd 问不出来也不算自己的。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "scripts/check-design-lab.mjs",
+      "entry_point": "视觉道 spawn Playwright 后的失败出口",
+      "disposition": "enforced",
+      "evidence": "原来 stdio:'inherit' + 「status !== 0 就说视觉基线不符」已删除；现在改成 pipe 转发并把输出与 collectDiffImages(LAB_RESULTS_DIR) 一起交给 triageLabRun，另在起跑前调用 inspectLabPort('visual') 拦下 foreign 端口。"
+    },
+    {
+      "path": "tests/ux/design-lab/warmUp.mjs",
+      "entry_point": "warmUp（Playwright globalSetup）",
+      "disposition": "enforced",
+      "evidence": "design-lab:update 与手工 npx playwright test 不经过门岗脚本但都经过 globalSetup，所以归属断言同样放在这里；预热失败时打印机器标记 NOMI_LAB_WARMUP_UNREACHABLE，failureTriage 的签名表认这一行，不认 Playwright 的报错排版。"
+    },
+    {
+      "path": "tests/ux/design-lab/walkScreen.mjs",
+      "entry_point": "walkDesignLabScreen",
+      "disposition": "enforced",
+      "evidence": "两条走查共用它。原来写死 port（5198/5200）+ vite stdio:'ignore' + waitForServer 只探应答：--strictPort 撞口时 vite 绑失败的报错被咽掉，而 waitForServer 会对着占口的**别人那个**服务器成功，于是整份走查截的是别的分支的 UI。现改为 labPortFor(role) 派生、vite stderr 转发、spawn 前与 waitForServer 后各断言一次归属。"
+    },
+    {
+      "path": "scripts/run-gates-contracts.mjs",
+      "entry_point": "门岗失败汇总",
+      "disposition": "not-affected",
+      "evidence": "它按 FAILURE_TAIL_LINES 回放各门岗输出的末尾若干行，本身不解释失败原因，也不下任何结论；本次只是把它导出的常量当成说明长度的上界来断言（见 labFailureTriage.test.mjs 的行数用例）。"
+    },
+    {
+      "path": "tests/ux/design-lab/labStates.mjs",
+      "entry_point": "readLabStates / readCalibration",
+      "disposition": "not-affected",
+      "evidence": "结构检查那一族本来就只读源码与磁盘，不碰服务器也不产生像素结论；它的失败口径逐条对应具体缺失（缺基线、孤儿基线、解析不出状态），不属于本类。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "触发条件是「机器忙 / 端口被别的 worktree 占着」，这台机器上是常态：2026-09-06 同一天两次实测撞上，且写死端口对 20+ worktree 必然复发。错误结论本身也会复发——只要门岗还用退出码代替证据，任何新的失败模式都会被塞进同一句话。",
+    "same_class_scan": [
+      "grep -rn '5197|LAB_PORT|LAB_ORIGIN' 全仓：命中 playwright.config.mjs 与 warmUp.mjs，端口无第三处裸写",
+      "grep -n 'port' tests/ux/design-lab-*.walk.mjs：命中两条走查各自写死 5198 / 5200，与视觉道同类",
+      "lsof -nP -iTCP:5197 -sTCP:LISTEN 实测（2026-09-06 05:22）：占口者 pid 21513，cwd=/Users/aoqimin/Desktop/Nomi-storyboard-v6-lab——本树跑门岗会复用另一棵 worktree 的 vite，这是跨树污染的直接证据",
+      "把 baseURL 指向死端口 5999 跑整条门岗：修复前输出末尾恒为「视觉基线不符」，0 张 -diff.png，46 条 ERR_CONNECTION_REFUSED（原始日志已留档）"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "tests/ux/design-lab/failureTriage.mjs",
+    "invariant": "门岗的每一句失败结论都必须由这一趟实际取得的证据支撑：-diff.png 存在才说视觉不符，连接类签名出现就报基础设施失败；同时任何取像素的入口都必须先通过 labServer 的 worktree 归属断言。",
+    "failure_mode": "证据不足时不下像素结论，改报「没能得出像素结论」并给排查顺序；端口归属为 foreign 时门岗与走查都在截图之前直接退出 1。",
+    "exception_policy": "none",
+    "strategy": "把「结论—证据」的对应关系与「服务器归属」各收进一个 owner 模块，五条入口全部改为从它取端口、经它下结论；脚本里不再留任何按退出码直接措辞的分支，也不再有第二处裸端口号。",
+    "artifacts": [
+      "tests/ux/design-lab/failureTriage.mjs",
+      "tests/ux/design-lab/labServer.mjs",
+      "scripts/check-design-lab.mjs",
+      "tests/ux/design-lab/warmUp.mjs",
+      "tests/ux/design-lab/walkScreen.mjs",
+      "tests/ux/design-lab/playwright.config.mjs"
+    ]
+  },
+  "regression_tests": [
+    "tests/ux/design-lab/labFailureTriage.test.mjs"
+  ],
+  "class_regression_tests": [
+    "tests/ux/design-lab/labFailureTriage.test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "scripts/check-design-lab.mjs",
+      "tests/ux/design-lab/playwright.config.mjs",
+      "tests/ux/design-lab/walkScreen.mjs"
+    ],
+    "rationale": "原来那条「Playwright 非零退出 → 一律打印视觉基线不符」的分支已整段删除，不保留任何回退口；三处写死的端口号（5197 / 5198 / 5200）同批删除，改为 labPortFor 派生，仓库里不再存在第二种取端口的方式。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Playwright 的行为没有问题——它已经把真实报错写进 test-results/**/error-context.md，也如实产出（或不产出）差异图。错的是本仓怎么解读它的退出码，属于应用层契约。",
+    "exit_criteria": []
+  },
+  "migration": "无需数据迁移。端口从写死改为派生只影响本机 dev server 的监听口，基线 PNG、calibration.json 与注册表都不含端口。既有的、还挂在 5197/5198/5200 上的旧服务器不会再被复用，跑完自然收掉即可。",
+  "residual_risks": [
+    "归属断言依赖 lsof：拿不到 lsof 的机器上只能得出 unknown，门岗照跑并显式打印「这一趟没有归属证明」，不假装安全也不制造假红。视觉道只在 darwin 上执行（calibration.json），所以 CI 不受影响。",
+    "端口按哈希派生仍可能与本机上别的程序撞口；撞上时 --strictPort 让 vite 绑失败，由归属断言与 port-taken 签名报成基础设施失败，而不是被误读成像素问题。",
+    "机器超载导致的用例超时无法被消除，只能被正确归类：门岗现在把 load 报出来并指向 docs/lessons/parallel-gates-thrash-the-machine.md，判断仍需人看。"
+  ]
+}

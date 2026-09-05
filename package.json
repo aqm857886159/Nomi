@@ -178,7 +178,8 @@
     "check:design-lab": "node ./scripts/check-design-lab.mjs",
     "design-lab:update": "node ./scripts/check-design-lab.mjs --update",
     "design-lab:walk": "node ./tests/ux/design-lab-agent-panel.walk.mjs",
-    "design-lab:walk:editing": "node ./tests/ux/design-lab-editing.walk.mjs"
+    "design-lab:walk:editing": "node ./tests/ux/design-lab-editing.walk.mjs",
+    "design-lab:walk:host-config": "node ./tests/ux/design-lab-host-config.walk.mjs"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^1.2.12",

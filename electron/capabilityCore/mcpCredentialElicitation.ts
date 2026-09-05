@@ -40,10 +40,14 @@ const COPY = {
     '没拿到密钥：安全页被取消或超时了。要手动接入就打开 Nomi → 设置 → 模型 →「添加一个 AI 模型」，在那里保存 key，然后让我继续。',
     'No key was received: the secure page was cancelled or timed out. To do it by hand, open Nomi → Settings → Models → "Add an AI model", save the key there, then ask me to continue.',
   ),
-  manual: (locale: ResultLocale, name: string) => L(
+  manual: (locale: ResultLocale, name: string, opened: boolean) => L(
     locale,
-    `你的 AI 客户端不支持 MCP 的 URL 模式 elicitation，Nomi 不会在对话里问密钥。请打开 Nomi → 设置 → 模型 →「添加一个 AI 模型」，在那里保存「${name}」的 key，然后让我继续。`,
-    `Your AI client does not support MCP URL-mode elicitation, and Nomi will not ask for a key in chat. Open Nomi → Settings → Models → "Add an AI model", save the key for "${name}" there, then ask me to continue.`,
+    opened
+      ? `你的 AI 客户端不支持 MCP 的 URL 模式 elicitation。Nomi 窗口已经打开在接入「${name}」的页面，粘上 key 保存后让我继续。`
+      : `Nomi 没在运行。请先打开 Nomi → 设置 → 模型 →「添加一个 AI 模型」，在那里保存「${name}」的 key，然后让我继续。`,
+    opened
+      ? `Your AI client does not support MCP URL-mode elicitation. The Nomi window is open on the "${name}" setup page; paste the key, save it, then ask me to continue.`
+      : `Nomi is not running. Open Nomi → Settings → Models → "Add an AI model", save the key for "${name}" there, then ask me to continue.`,
   ),
   // A `decline` is NOT evidence that a human said no. Measured 2026-09-06 against Codex CLI 0.153.4,
   // which declares `elicitation:{form:{},url:{}}` and then answers url-mode requests with
@@ -51,10 +55,14 @@ const COPY = {
   // as "the secure page was cancelled or timed out" blamed the user for cancelling a page they never
   // saw — and it came back as a tool error, so the agent had nothing left to do. Say what is actually
   // known ("it did not open"), and keep the flow alive by handing back the same manual route.
-  notOpened: (locale: ResultLocale, name: string) => L(
+  notOpened: (locale: ResultLocale, name: string, opened: boolean) => L(
     locale,
-    `填写页没有在你的 AI 客户端里打开（有些客户端会直接拒掉这类链接，也可能是你取消了）。密钥不会经过这个对话——请打开 Nomi → 设置 → 模型 →「添加一个 AI 模型」，在那里保存「${name}」的 key，然后让我继续。`,
-    `The entry page did not open in your AI client (some clients refuse these links outright, or you may have cancelled it). The key never travels through this conversation — open Nomi → Settings → Models → "Add an AI model", save the key for "${name}" there, then ask me to continue.`,
+    opened
+      ? `填写页没有在你的 AI 客户端里打开（有些客户端会直接拒掉这类链接，也可能是你取消了）。Nomi 窗口已经打开在接入「${name}」的页面，粘上 key 保存后让我继续。`
+      : `填写页没有打开，且 Nomi 没在运行。请先打开 Nomi → 设置 → 模型 →「添加一个 AI 模型」，在那里保存「${name}」的 key，然后让我继续。`,
+    opened
+      ? `The entry page did not open in your AI client (some clients refuse these links outright, or you may have cancelled it). The Nomi window is open on the "${name}" setup page; paste the key, save it, then ask me to continue.`
+      : `The entry page did not open and Nomi is not running. Open Nomi → Settings → Models → "Add an AI model", save the key for "${name}" there, then ask me to continue.`,
   ),
 }
 
@@ -80,6 +88,7 @@ function ticketOf(projection: unknown): Ticket | null {
 function withoutTicket(projection: unknown, extra?: Record<string, unknown>): Record<string, unknown> {
   const record = { ...(projection as Record<string, unknown> | null ?? {}) }
   delete record.credentialEntry
+  delete record.credentialUiOpened
   return extra ? { ...record, ...extra } : record
 }
 
@@ -94,15 +103,16 @@ export async function runIntegrationCredentialElicitation(input: {
 }): Promise<CredentialElicitationOutcome> {
   const locale = input.locale ?? 'zh-CN'
   const opened = await input.invoke('integration.open_credentials', input.built)
+  const uiOpened = (opened as Record<string, unknown> | null)?.credentialUiOpened === true
   const ticket = ticketOf(opened)
   // The provider name for the manual instruction: the ticket knows it, and so does the projection when
   // no ticket could be minted. Never a placeholder — the user has to recognise which connection to open.
   const projectionName = String(((opened as Record<string, unknown> | null)?.config as Record<string, unknown> | undefined)?.name || '')
-  const manual = (name: string) => ({ mode: 'manual' as const, instructions: COPY.manual(locale, name || projectionName) })
+  const manual = (name: string) => ({ mode: 'manual' as const, instructions: COPY.manual(locale, name || projectionName, uiOpened) })
   const notOpened = (name: string) => ({
     mode: 'manual' as const,
     reason: 'not_opened' as const,
-    instructions: COPY.notOpened(locale, name || projectionName),
+    instructions: COPY.notOpened(locale, name || projectionName, uiOpened),
   })
   if (!ticket) {
     // No loopback page available in the owning process. The durable handoff already fired, so the

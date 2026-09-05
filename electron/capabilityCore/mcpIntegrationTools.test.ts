@@ -36,6 +36,44 @@ function service(overrides: ConstructorParameters<typeof IntegrationSessionServi
 afterEach(() => vi.unstubAllGlobals());
 
 describe("MCP integration tool contract", () => {
+  it('queues the durable handoff before notifying the GUI navigation callback', async () => {
+    const sessions = service()
+    const created = await dispatch('integration.begin', {
+      kind: 'http-api-provider', name: 'Kling', baseUrl: 'https://api.kling.example/v1', providerKind: 'openai-compatible',
+    }, { integrationSessions: sessions, origin: { host: 'claude' } } as never) as { id: string; revision: number }
+    const order: string[] = []
+    const opened = await dispatch('integration.open_credentials', {
+      sessionId: created.id, expectedRevision: created.revision,
+    }, {
+      integrationSessions: sessions,
+      origin: { host: 'claude' },
+      openCredentialsInNomi: async ({ sessionId, vendorName }: { sessionId: string; vendorName: string }) => {
+        order.push(`${sessionId}:${vendorName}:${sessions.get(sessionId, 'claude').stage}`)
+        return { opened: true }
+      },
+    } as never) as Record<string, unknown>
+    expect(order).toEqual([`${created.id}:Kling:needs_credential`])
+    expect(opened.credentialUiOpened).toBe(true)
+    expect(opened.credentialEntry).toBeUndefined()
+  })
+
+  it('keeps the manual startup fallback when the GUI navigation callback is unavailable', async () => {
+    const handoffs: unknown[] = []
+    const sessions = service({ enqueueHandoff: (handoff) => handoffs.push(handoff) })
+    const created = await dispatch('integration.begin', {
+      kind: 'http-api-provider', name: 'Kling', baseUrl: 'https://api.kling.example/v1', providerKind: 'openai-compatible',
+    }, { integrationSessions: sessions, origin: { host: 'claude' } } as never) as { id: string; revision: number }
+    const opened = await dispatch('integration.open_credentials', {
+      sessionId: created.id, expectedRevision: created.revision,
+    }, {
+      integrationSessions: sessions,
+      origin: { host: 'claude' },
+      openCredentialsInNomi: async () => { throw new Error('renderer unavailable') },
+    } as never) as Record<string, unknown>
+    expect(handoffs).toHaveLength(1)
+    expect(opened.credentialUiOpened).toBe(false)
+  })
+
   it("accepts only public begin configuration and rejects credential-shaped fields", () => {
     const tool = beginTool();
     const valid = {
