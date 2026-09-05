@@ -59,6 +59,7 @@
 - [productionRun 这类 flake 的分腿处置](production-run-tests-are-flaky.md) — 验修复用 `git cat-file` 看代码，别看 PR 状态
 - [复现竞态必须有阳性对照](race-repro-needs-positive-control.md) — 没阳性对照的绿灯不作数；「换平台才能复现」多半是仪器没 power
 - [性能预算在 macOS 校准却在 Linux CI 执行 → 假回归](canvas-perf-budget-calibrated-on-macos-fails-on-linux.md) — 别改预算挤 PR，那是治症状
+- [Canvas Performance 红了：先看它红在哪一条判据](canvas-perf-red-read-which-assertion-failed.md) — 上一条的**前置步骤**：2026-09-05 那次红预算全绿，真凶是框选手势跑进 React Flow 自动平移带（按帧积分）导致选中数在 8/9/12 间跳；先打印 verdict + warmupFailures 再定性
 - [在满载机器上用墙钟做一次性 A/B，不算性能证据](wallclock-bisect-on-a-busy-machine-is-not-evidence.md) — 「拆完 9.1s→47s」已被证伪；量 CPU 时间 + 交错 A/B + 先注入已知变慢验尺子
 - [harness 的 catch 会把自己的 bug 洗成产品结论](harness-catch-launders-bugs-into-verdicts.md) — 报某腿失败前先分清是断言红的还是 catch 编的
 - [A/B 两版提示词：确认关卡会污染两臂](prompt-ab-gating-question-confounds-arms.md) — 量到的是服从度不是质量

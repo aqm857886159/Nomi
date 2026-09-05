@@ -1,0 +1,148 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-05-canvas-perf-marquee-autopan",
+  "problem_type": "benchmark gesture enters React Flow's frame-rate-driven auto-pan band, so a hardcoded post-gesture assertion becomes a coin flip across substrates",
+  "symptom": "Quality Gate job `Canvas Performance (Linux)` reported red on commits that do not touch canvas code (main 930db4cd, run 33967545326; branch commit 5f266afd, run 33956782546). Both artifacts fail with `marquee selected only 8 nodes` while every measured timing budget passed (max frameGapP95 29.9 ms against a 33 ms darwin ceiling and a 53 ms Linux ceiling). The same benchmark reproduced locally on darwin/arm64, alternating between 9 and 12 selected nodes across runs of identical code, fixture and window size.",
+  "direct_cause": "The marquee-select gesture ended at `stage edge - 10px` and started from a blank point at ratio 0.03 of the stage, both inside React Flow's 40px auto-pan band (`calcAutoPan(pos, bounds, speed = 15, distance = 40)` in @xyflow/system 0.0.81). While the pointer sits in that band, `Pane.autoPan()` pans the viewport once per `requestAnimationFrame`, so the swept region grows by an amount proportional to how many frames the machine rendered during the gesture. Measured viewport pan on three consecutive darwin runs of identical code: (-95.8, -113.8) -> 12 selected, (-49.9, -62.0) -> 9 selected, (-49.9, -62.5) -> 9 selected. The reliability guard compared that frame-rate-dependent count against the literal constant 12.",
+  "class_root": "The benchmark asserted a hardcoded expectation against a gesture whose swept region was not reproducible. Nothing owned the invariant that a benchmark pointer gesture must sweep a deterministic region, and nothing derived the post-gesture expectation from the region actually swept, so a constant tuned on one substrate silently became a frame-rate measurement on every other substrate.",
+  "affected_population": [
+    "Every Quality Gate `Canvas Performance (Linux)` run of the medium canvas profile, on any commit including ones that do not touch canvas code",
+    "Local darwin benchmark runs, which reproduce the same 9/12 alternation",
+    "Any future benchmark scenario whose pointer gesture reaches within 40px of the React Flow pane edge while a selection or node drag is active"
+  ],
+  "scope_paths": [
+    "scripts/check-canvas-gesture-determinism.mjs",
+    "tests/ux/canvas-perf/gestureGeometry.mjs",
+    "tests/ux/canvas-perf/gestureGeometry.test.mjs",
+    "tests/ux/canvas-performance-benchmark.e2e.mjs",
+    "tests/ux/_canvasHit.mjs",
+    "package.json"
+  ],
+  "entry_points": [
+    "canvas-performance-benchmark.e2e.mjs runAction marquee-select gesture construction",
+    "canvas-performance-benchmark.e2e.mjs sampleHardFailures marquee-select reliability guard",
+    "_canvasHit.mjs findCanvasBlankPoint gesture start-point search"
+  ],
+  "external_sources": [
+    {
+      "kind": "source-code",
+      "url": "https://github.com/xyflow/xyflow/blob/main/packages/system/src/utils/general.ts",
+      "checked_at": "2026-09-05",
+      "purpose": "calcAutoPan(pos, bounds, speed = 15, distance = 40) is the source of the 40px auto-pan band and the 15px-per-frame pan speed that AUTO_PAN_SAFE_MARGIN_PX is derived from; verified against the installed @xyflow/system 0.0.81 bundle in node_modules."
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/xyflow/xyflow/blob/main/packages/react/src/container/Pane/index.tsx",
+      "checked_at": "2026-09-05",
+      "purpose": "Pane.autoPan() runs on requestAnimationFrame, autoPanOnSelection defaults to true, and selectionMode defaults to SelectionMode.Full; verified against the installed @xyflow/react bundle, and Nomi overrides none of the three."
+    }
+  ],
+  "invariants": [
+    "A benchmark pointer gesture stays inside the auto-pan safe area, so the region it sweeps is a function of stage geometry alone and contains no time-dependent term.",
+    "The auto-pan safe margin is derived from @xyflow/system's calcAutoPan distance default, not from a hand-tuned constant.",
+    "A post-gesture selection expectation is derived from the region actually swept, never written as a literal node count.",
+    "Selection expectations use React Flow's SelectionMode.Full semantics and express sub-pixel boundary disagreement as a definite/possible interval, so a real over- or under-selection still fails.",
+    "A stage too small to contain the safe area fails closed instead of producing a non-reproducible measurement.",
+    "The non-degeneracy check is dimensionless: it measures how much of the reachable node band the sweep covered, so it does not drift with stage size the way a swept-area-over-safe-area ratio does (0.941 on a 1200x790 stage vs 0.583 on a wider one for the same fixture)."
+  ],
+  "generality_proof": "Every benchmark gesture that needs a reproducible swept region resolves its start point through findCanvasBlankPoint's inset option and its end point through clampIntoAutoPanSafeArea, both reading the single AUTO_PAN_SAFE_MARGIN_PX derived from the library constant. Every post-gesture selection verdict is built from expectedFullySelected over the same swept rectangle the gesture used, and the guard fails closed when a sample carries no derived expectation, so no caller can fall back to a literal count. autoPanSafeArea throws when the stage cannot contain the safe area, so a shrinking window surfaces as an explicit error rather than as a silently non-reproducible sweep. check:canvas-gesture-determinism then makes both writing shapes unwritable across the whole canvas benchmark tree: it was verified red against the pre-fix file (flagging the stage-edge endpoint and `selected < 12`) and green against the repaired file. The mechanism itself was verified end to end: viewport pan during marquee-select measured (0,0) on every run after the change, against a (-95.8,-113.8) / (-49.9,-62.0) spread before it.",
+  "shared_boundaries": [
+    {
+      "path": "tests/ux/canvas-perf/gestureGeometry.mjs",
+      "symbol": "autoPanSafeArea / clampIntoAutoPanSafeArea / expectedFullySelected / nodeBandCoverage",
+      "responsibility": "Own where a benchmark gesture may travel and what its swept region implies, so both the gesture and its expectation are derived from geometry rather than from a tuned constant."
+    },
+    {
+      "path": "tests/ux/_canvasHit.mjs",
+      "symbol": "findCanvasBlankPoint inset option",
+      "responsibility": "Own blank-point discovery for all canvas gestures and let a caller demand a start point outside the auto-pan band, returning null so the caller fails closed when none exists."
+    },
+    {
+      "path": "scripts/check-canvas-gesture-determinism.mjs",
+      "symbol": "edge-hugging-drag-endpoint / literal-marquee-selection-count",
+      "responsibility": "Fail the build when a benchmark drag endpoint is written against the stage edge inside the auto-pan band, or when a swept-region selection verdict is compared with a numeric literal instead of a derived expectation."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "tests/ux/canvas-performance-benchmark.e2e.mjs",
+      "entry_point": "runAction marquee-select and its sampleHardFailures guard",
+      "disposition": "enforced",
+      "evidence": "This is the reported failure. Start point now comes from findBlank with inset AUTO_PAN_SAFE_MARGIN_PX, end point from clampIntoAutoPanSafeArea, expectation from expectedFullySelected over the swept rect. Measured after the change: selected 9, expected 9-9, nodeBandCoverage 1.0, identical across 8 runs in two separate processes, with viewport pan delta (0,0)."
+    },
+    {
+      "path": "tests/ux/canvas-perf/dragScenarios.mjs",
+      "entry_point": "runMultiNodeDrag selection guard and the node-drag gestures",
+      "disposition": "not-affected",
+      "evidence": "Instrumented the viewport transform around every drag scenario on darwin: node-drag-image, node-drag-video, multi-node-drag and drag-over-dense-edges all recorded a pan delta of exactly (0,0) on both runs, so these gestures never enter the auto-pan band. Their selection is also established by discrete clicks rather than by a swept region, so no count depends on pan distance."
+    },
+    {
+      "path": "tests/ux/canvas-performance-benchmark.e2e.mjs",
+      "entry_point": "drag-at-low-zoom scenario transform change",
+      "disposition": "not-affected",
+      "evidence": "Recorded pan delta (300, 197.5) identical on both runs, which is the scenario's own deliberate zoomOutTo(page, 0.45) call rather than auto-pan. A time-integrated auto-pan would differ run to run, as marquee-select did before the fix."
+    },
+    {
+      "path": "tests/ux/canvas-performance-benchmark.e2e.mjs",
+      "entry_point": "PERFORMANCE_BUDGETS timing ceilings and the non-darwin calibration factor",
+      "disposition": "not-affected",
+      "evidence": "The platform-aware timing calibration already landed on main in e24dc8e84. Both failing Linux artifacts passed every timing budget: the worst measured frameGapP95 was 29.9 ms against a 33 ms darwin ceiling and the 53 ms Linux ceiling, and the worst longTaskP95 was 55 ms against 80/128 ms. No budget change is part of this repair."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The mechanism is a frame-rate-integrated viewport pan, so it re-fires on every run of the job and on every machine, and it has already produced two independent red Quality Gate runs on 2026-09-05 plus a local darwin reproduction. Any future scenario whose gesture reaches the pane edge would acquire the same non-reproducibility, and any future literal count assertion over a swept region would acquire the same false-red.",
+    "same_class_scan": [
+      "Searched tests/ux and src for data-selected consumers: found the marquee guard, click-select domainSelected, the blank-click selectedAfterClear read, and dragScenarios.mjs runMultiNodeDrag. Only the marquee guard compares a swept-region count against a literal.",
+      "Searched src for selectionMode, SelectionMode, autoPanOnSelection, selectionOnDrag and selectNodesOnDrag: production code overrides none of them, so React Flow's defaults (SelectionMode.Full, autoPanOnSelection true, 40px band, 15px per frame) are the ones in force.",
+      "Instrumented the viewport transform around runAction for node-drag-image, node-drag-video, multi-node-drag, drag-over-dense-edges, drag-at-low-zoom and marquee-select on darwin, two runs each, to separate gestures that auto-pan from gestures that do not.",
+      "Compared the two red Linux artifacts (run 33967545326 commit 930db4cd, run 33956782546 commit 5f266afd) against every scenario verdict in each: all timing and activation budgets passed in both; the sole failure in each was the marquee count, once as a warmup sample and once as a measured sample."
+    ]
+  },
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/check-canvas-gesture-determinism.mjs",
+    "invariant": "A benchmark drag endpoint is produced by clampIntoAutoPanSafeArea rather than by subtracting a literal from the stage edge; a swept-region selection verdict is compared with an expectation derived from the region actually swept; and the non-degeneracy check is dimensionless so it does not become a second platform-dependent threshold.",
+    "failure_mode": "check:canvas-gesture-determinism exits non-zero with the offending file, line and expression; it is hard-zero with no ratchet baseline and no debt registry. At runtime autoPanSafeArea throws when the stage cannot contain the safe area, the inset blank-point search returns null so the caller throws, and a marquee sample carrying no derived expectation is recorded as a hard failure instead of passing by default.",
+    "exception_policy": "none",
+    "strategy": "Put the auto-pan band width, the safe area, the clamp, the swept rectangle and the SelectionMode.Full expectation interval in one pure module derived from the library constant; make the gesture and its verdict read from that module; and add a hard-zero static gate to the gates chain so the two writing shapes that produced this false red cannot be reintroduced.",
+    "artifacts": [
+      "scripts/check-canvas-gesture-determinism.mjs",
+      "tests/ux/canvas-perf/gestureGeometry.mjs",
+      "tests/ux/canvas-performance-benchmark.e2e.mjs",
+      "tests/ux/_canvasHit.mjs",
+      "package.json"
+    ]
+  },
+  "regression_tests": [
+    "tests/ux/canvas-perf/gestureGeometry.test.mjs"
+  ],
+  "class_regression_tests": [
+    "tests/ux/canvas-perf/gestureGeometry.test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "tests/ux/canvas-performance-benchmark.e2e.mjs"
+    ],
+    "rationale": "The literal `selected < 12` guard and the `stage edge - 10px` gesture endpoint are deleted in the same change. No caller can select the old behaviour: the guard now fails closed when a sample carries no derived expectation, so a reverted gesture cannot pass silently."
+  },
+  "dependency_lifecycle": {
+    "decision": "retain-with-exit",
+    "current": "@xyflow/react 12.x with @xyflow/system 0.0.81 (calcAutoPan distance 40px, speed 15px per frame, autoPanOnSelection true, selectionMode Full)",
+    "target": "Stay on the installed @xyflow line; re-verify the auto-pan constants on every @xyflow upgrade rather than upgrading away from the behaviour.",
+    "rationale": "The auto-pan behaviour is correct for real users, so there is nothing to upgrade away from; the benchmark simply must not measure inside the band. The retained risk is that a future @xyflow release changes calcAutoPan's distance default and silently shrinks our safe margin.",
+    "exit_criteria": [
+      "On any @xyflow/react or @xyflow/system upgrade, re-read calcAutoPan's distance and speed defaults and update REACT_FLOW_AUTO_PAN_EDGE_PX to match.",
+      "After such an upgrade, re-run the marquee-select scenario and confirm the recorded viewport pan delta is still (0,0) on every run; a non-zero delta means the band grew past AUTO_PAN_SAFE_MARGIN_PX.",
+      "Confirm React Flow still defaults selectionMode to Full; if it changes to Partial, expectedFullySelected must switch to intersection semantics."
+    ]
+  },
+  "migration": "No persisted user data and no production code changes. Existing committed benchmark baselines remain readable. New marquee-select samples record mountedNodeCount, expectedSelection, nodeBandCoverage and the swept rect, so an artifact from a future red run states directly what was swept and what was expected.",
+  "residual_risks": [
+    "The auto-pan-free marquee sweeps a slightly smaller region than the pre-fix gesture did, so marquee-select frame timings are not directly comparable with baselines recorded before this change. Measured darwin frameGapP95 after the fix is 10.3-10.7 ms against a 33 ms ceiling, so no budget is at risk; the comparability caveat applies only to historical marquee-select deltas.",
+    "The Linux reading for the repaired gesture is proven only by the CI run on this branch. The darwin reading is 9 selected / 9-9 expected / 1.0 node-band coverage, stable across 8 runs in two processes. The Linux stage is a different size, so its absolute selected count will differ by design; what must hold on both is that the count equals the derived expectation and does not vary between runs.",
+    "check:canvas-gesture-determinism recognises a drag endpoint either inside a dragPath(...) call or on a variable-assignment line. A point built across several statements and only then passed to dragPath would escape the static rule; the runtime fail-closed guard and the derived expectation remain the second line of defence.",
+    "Rule 2 is scoped to scenarios whose selection comes from a swept region, currently only marquee-select. multi-node-drag still compares its click-established selection with a literal 2; that count does not depend on pan distance (measured pan delta (0,0)), so it is out of this failure class and deliberately untouched."
+  ]
+}
