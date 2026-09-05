@@ -338,4 +338,13 @@ describe('generation canvas control structure', () => {
     expect(helpPopover).toContain('text-caption whitespace-nowrap text-nomi-ink-60')
     expect(helpPopover).toContain('text-caption font-medium leading-none whitespace-nowrap text-nomi-ink')
   })
+
+  it('keeps the C-02 deconstruction node anchors canonical', () => {
+    const badge = source('../nodes/NodeDeconstructionBadge.tsx')
+
+    expect(badge).toContain('data-decon-node-stub={nodeId}')
+    expect(badge).toContain('data-decon-node-badge={nodeId}')
+    expect(badge).not.toContain('data-deconstruct-stub')
+    expect(badge).not.toContain('data-deconstruct-result-badge')
+  })
 })

@@ -39,7 +39,7 @@
 | 排队行 / 撤回 × | `data-agent-queue-row` / `data-agent-queue-remove` | 行，不是卡 |
 | composer / 输入 | `data-agent-composer` / `data-agent-input` | |
 | @ 选择器 / 句中 token | `data-agent-at-picker` / `data-agent-at-token` + `data-stale="true"`（变黄态） | |
-| 底排五钮 | `data-agent-composer-attach\|-mode\|-model\|-prompt\|-send` | |
+| 底排五钮 | `data-agent-composer-attach\|-model\|-skill\|-mode\|-send` | 左组三钮（资料、模型、Skill）与右组（模式、发送）之间用弹性留白分隔 |
 | 模型未选红点 | `data-agent-model-alert` | 挂在 `-model` 钮内 |
 | 六张卡 | `data-agent-plan-card`（现役）/ `-spend-card` / `-deviation-card` / `-question-card` / `-candidates-card` / `-artifact-card` / `-failure-card` | |
 | 固定结果卡 | `data-agent-pinned-card` + `data-open="true\|false"`；头 `-pinned-head`、摘要 `-pinned-summary`、体 `-pinned-body` | 屏 D |
@@ -77,9 +77,9 @@
 | A-16 | P0 | 排队行 | 忙时发的消息=浅色行**贴输入框上沿**，可撤回 | 忙时（夹具 running）发消息：`data-agent-queue-row` 出现，`row.bottom` 与 `data-agent-composer.top` 间距 ≤8px；行内 `qdot+文本+×` 结构；计算无边框无卡底（border-width=0）；点 `-queue-remove` 后行数 -1；空闲时 expectAbsent（provenBy=忙时出现过） | 忙时+点击后+空闲 |
 | A-17 | P0 | 忙时不禁用 | Nomi 忙时输入框照常可打字、回车即排 | 夹具 running 态：`data-agent-input` non-disabled、可聚焦、type 后值在；Enter 后 queue-row +1 且输入清空（P0 不静默丢弃） | 忙时 |
 | A-18 | P0 | @ 引用 token | @ 是唯一引用手势；选完=句中小色块；素材变过=token 变黄 | seed 两 token：`data-agent-at-token` ×2 内嵌在输入内容行内（token 的 boundingBox 含于 input 区域）；蓝 token 计算背景 ≈ accent-soft、黄 token `[data-stale=true]` 计算背景 ≈ warning-bg 且 tooltip 解释「按现在的版本」 | 静态 |
-| A-19 | P0 | 底排五钮全 icon | 📎⚡🤖✏️↑ 五颗、零常驻文字、悬停出含义 | `data-agent-composer` 内 button 恰 5 个（attach/mode/model/prompt/send 各 1）；**每颗的可见 innerText 为空**（icon-only；含义只在 `data-agent-tip`/aria-label）；高度 28px±1；悬停 mode 钮 → tooltip 文本匹配 `/Agent · /`（当前档回显） | 静态+悬停后 |
+| A-19 | P0 | 底排五钮全 icon | 📎🤖☷⚡↑ 五颗、零常驻文字、悬停出含义 | `data-agent-composer` 内 button 恰 5 个（attach/model/skill/mode/send 各 1）；**每颗的可见 innerText 为空**（icon-only；含义只在 `data-agent-tip`/aria-label）；高度 28px±1；左组三钮与右组两钮之间有弹性留白；悬停 mode 钮 → tooltip 文本匹配 `/Agent · /`（当前档回显） | 静态+悬停后 |
 | A-20 | P0 | 🤖 未配置红点 | 没选模型=右上角小红点，不是一句常驻文字 | 夹具未配模型：`data-agent-model-alert` 可见、直径 ≤8px、位于 model 钮右上象限（点心坐标在钮 boundingBox 右上 1/4）、计算色 ≈ danger；tooltip=「去选文本模型」；配好后 expectAbsent（provenBy=未配态出现）+ tooltip 变 `/文本模型 · /` | 静态×2 态 |
-| A-21 | P1 | 常驻区白名单 | 常驻可点收敛（账面 19→10），删的都是重复入口 | 常驻区（header+排队区+composer，**不含随流滚走的 flow**）内可交互元素（button/a/input/[role=button]/[tabindex≥0] 且可见）**⊆ 白名单** {usage-pill, history, collapse, queue-×(忙时), input, attach, mode, model, prompt, send}；白名单外出现任何可交互件 = 红。总数忙时 ≤10。（防复发主断言是白名单穷尽，不是总数字——口径之争别打在数字上） | 静态+忙时 |
+| A-21 | P1 | 常驻区白名单 | 常驻可点收敛（账面 19→10），删的都是重复入口 | 常驻区（header+排队区+composer，**不含随流滚走的 flow**）内可交互元素（button/a/input/[role=button]/[tabindex≥0] 且可见）**⊆ 白名单** {usage-pill, history, collapse, queue-×(忙时), input, attach, model, skill, mode, send}；白名单外出现任何可交互件 = 红。总数忙时 ≤10。（防复发主断言是白名单穷尽，不是总数字——口径之争别打在数字上） | 静态+忙时 |
 
 ### 屏 B · 六张决定卡（都在对话流里、决定完随流滚走）
 

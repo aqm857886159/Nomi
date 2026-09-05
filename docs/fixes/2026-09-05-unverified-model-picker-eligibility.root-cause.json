@@ -1,0 +1,139 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-05-unverified-model-picker-eligibility",
+  "problem_type": "unverified catalog rows block canonical model certification",
+  "symptom": "The APIMart onboarding picker labels an unverified seeded model as already added, so the user cannot select it and start canonical certification.",
+  "direct_cause": "Both buildExistingConnectionSummary and the main-process resolveConnection path forwarded catalog rows as existingModels; the latter replaced the renderer-filtered summary after remote discovery, while staged vendor identity also isolated a newly selected unverified model whenever an unrelated sibling was published, so certification either suppressed the picker row or promoted into a vendor the caller did not inspect.",
+  "class_root": "The onboarding and staging projections had no enforced distinction between staged/unverified rows, certified published rows, and selected-model publication predecessors across renderer, main-process, and candidate-identity boundaries, allowing unverified rows to suppress the canonical add-and-certify action or strand its result in an unnecessary candidate vendor.",
+  "affected_population": [
+    "Users onboarding a provider whose catalog contains seeded or previously staged models",
+    "The M0-M5 runner certifying APIMart deepseek-v4-pro after visible key onboarding"
+  ],
+  "scope_paths": [
+    "src/ui/onboarding/ModelChipGroups.tsx",
+    "src/ui/onboarding/modelSettingsCatalogProjection.ts",
+    "src/ui/onboarding/onboardingDrawerDerivations.ts",
+    "src/ui/onboarding/onboardingDrawerDerivations.test.ts",
+    "electron/providerAdapter/existingConnection.ts",
+    "electron/providerAdapter/existingConnection.test.ts",
+    "electron/catalog/stagedVendorIdentity.ts",
+    "electron/catalog/stagedVendorIdentity.test.ts",
+    "electron/providerAdapter/serviceCatalogLifecycle.integration.test.ts",
+    "electron/catalog/stagedVendorIdentity.ts",
+    "electron/catalog/stagedVendorIdentity.test.ts",
+    "tests/ux/agent-vertical-spine-m0-m5.red.e2e.mjs",
+    "tests/system/agent-vertical-spine-m0-m5.contract.json"
+  ],
+  "entry_points": [
+    "Visible model settings connection add flow",
+    "ExistingConnectionModelPicker alreadyAddedIds projection",
+    "M0-M5 APIMart visible certification picker"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The defect is in Nomi's catalog-to-onboarding projection and does not depend on an external contract.",
+  "invariants": [
+    "Only enabled models with published execution and verified adapter state are immutable already-added rows.",
+    "Disabled or unverified seeded rows remain selectable for the canonical certification flow.",
+    "Certification continues through the visible picker and onboarding.httpCertificationStartExisting; direct renderer enable remains forbidden."
+  ],
+  "generality_proof": "All known and custom provider connection add flows use buildExistingConnectionSummary and the shared ChipModel projection, so filtering at this boundary covers every provider without vendor-specific branches.",
+  "shared_boundaries": [
+    {
+      "path": "src/ui/onboarding/onboardingDrawerDerivations.ts",
+      "symbol": "buildExistingConnectionSummary",
+      "responsibility": "Project only certified published rows as existingModels for the canonical picker."
+    },
+    {
+      "path": "src/ui/onboarding/modelSettingsCatalogProjection.ts",
+      "symbol": "projectModelSettingsCatalog",
+      "responsibility": "Carry catalog publication state into the shared ChipModel projection."
+    },
+    {
+      "path": "electron/providerAdapter/existingConnection.ts",
+      "symbol": "resolveConnection",
+      "responsibility": "Return only certified published catalog rows in the public existingModels summary used after remote discovery."
+    },
+    {
+      "path": "electron/catalog/stagedVendorIdentity.ts",
+      "symbol": "planStagedVendorIdentity",
+      "responsibility": "Isolate only selections with a published model predecessor; keep new unverified models on the stable vendor even when unrelated siblings are published."
+    },
+    {
+      "path": "electron/catalog/stagedVendorIdentity.ts",
+      "symbol": "modelPublished",
+      "responsibility": "Treat a deliberately disabled known vendor as unpublished so certification promotes its stable vendor key."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/ui/onboarding/onboardingDrawerDerivations.ts",
+      "entry_point": "known and custom provider existing connection summary",
+      "disposition": "enforced",
+      "evidence": "The shared summary filter requires enabled, published, and adapterState=verified."
+    },
+    {
+      "path": "src/ui/onboarding/ExistingConnectionModelPicker.tsx",
+      "entry_point": "visible model picker alreadyAddedIds",
+      "disposition": "not-affected",
+      "evidence": "The picker consumes existingModels from the shared summary and keeps its duplicate guard unchanged."
+    },
+    {
+      "path": "electron/providerAdapter/existingConnection.ts",
+      "entry_point": "main-process existing connection list after remote model discovery",
+      "disposition": "enforced",
+      "evidence": "resolveConnection now requires enabled, published execution, and adapter state verified before returning an existing row."
+    },
+    {
+      "path": "electron/catalog/stagedVendorIdentity.ts",
+      "entry_point": "candidate allocation for selected model certification",
+      "disposition": "enforced",
+      "evidence": "Candidate isolation now depends on a published predecessor among the selected model keys, preserving the stable source key for new models alongside published siblings."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any provider can contain staged or unverified rows before canonical certification.",
+    "same_class_scan": [
+      "Searched all buildExistingConnectionSummary callers and ExistingConnectionModelPicker entry points.",
+      "Searched main-process resolveConnection/listModels callers that can replace the renderer summary.",
+      "Compared modelSettingsCatalogProjection output with listModelCatalogModels publication fields.",
+      "Added regression cases covering certified, disabled, unpublished, unverified, and published-sibling candidate identity rows."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/ui/onboarding/onboardingDrawerDerivations.ts",
+    "invariant": "The duplicate guard receives only certified published rows; staged rows must remain selectable.",
+    "failure_mode": "If publication metadata is missing or adapter state is not verified, the row is treated as selectable and canonical certification remains the only promotion path.",
+    "exception_policy": "none",
+    "strategy": "Filter existingModels once at the shared projection boundary and retain publication state in ChipModel for explicit checks.",
+    "artifacts": [
+      "src/ui/onboarding/onboardingDrawerDerivations.ts",
+      "src/ui/onboarding/modelSettingsCatalogProjection.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/ui/onboarding/onboardingDrawerDerivations.test.ts",
+    "tests/ux/agent-vertical-spine-m0-m5.red.e2e.mjs",
+    "electron/catalog/stagedVendorIdentity.test.ts",
+    "electron/providerAdapter/serviceCatalogLifecycle.integration.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/ui/onboarding/onboardingDrawerDerivations.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The shared projection is tightened in place; no alternate picker path is retained."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency is introduced or removed.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted catalog migration is needed; publication and adapter metadata are already part of the catalog DTO.",
+  "residual_risks": [
+    "A real provider certification still requires a valid APIMart credential and network request; no provider call is made by the no-key validation run.",
+    "Real Codex Host to Nomi MCP acceptance remains a separate uncovered gate in the vertical runner."
+  ]
+}

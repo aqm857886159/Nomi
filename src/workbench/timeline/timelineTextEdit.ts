@@ -1,6 +1,7 @@
 import type { TimelineState, TimelineTextClip, TimelineTextStyle } from './timelineTypes'
 import { DEFAULT_TEXT_CLIP_SECONDS, defaultTextForStyle } from './textLayout'
 import { clampCenter, clampScale, type Vec2 } from './overlayTransform'
+import { nearestLegalStart } from './timelinePlacement'
 
 function clampInteger(value: number, min: number): number {
   const next = Math.floor(Number(value))
@@ -28,12 +29,13 @@ export function addTextClip(
   const id = createTextClipId()
   const start = clampInteger(startFrame, 0)
   const duration = Math.max(1, Math.round(DEFAULT_TEXT_CLIP_SECONDS * timeline.fps))
+  const placedStart = nearestLegalStart(timeline.textClips, duration, start)
   const clip: TimelineTextClip = {
     id,
     text: defaultTextForStyle(style),
     style,
-    startFrame: start,
-    endFrame: start + duration,
+    startFrame: placedStart,
+    endFrame: placedStart + duration,
   }
   return {
     timeline: { ...timeline, textClips: sortTextClips([...timeline.textClips, clip]) },
@@ -57,7 +59,8 @@ export function moveTextClip(timeline: TimelineState, id: string, startFrame: nu
   const textClips = timeline.textClips.map((clip) => {
     if (clip.id !== id) return clip
     const duration = clip.endFrame - clip.startFrame
-    const nextStart = clampInteger(startFrame, 0)
+    const others = timeline.textClips.filter((current) => current.id !== id)
+    const nextStart = nearestLegalStart(others, duration, clampInteger(startFrame, 0))
     if (nextStart === clip.startFrame) return clip
     changed = true
     return { ...clip, startFrame: nextStart, endFrame: nextStart + duration }

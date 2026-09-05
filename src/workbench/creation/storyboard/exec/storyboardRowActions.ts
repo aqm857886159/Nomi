@@ -1,10 +1,10 @@
 import type { GenerationCanvasNode } from '../../../generationCanvas/model/generationCanvasTypes'
 import type { ArchetypeMode } from '../../../../config/modelArchetypes/types'
 import type { PlanAnchor, PlanShot, StoryboardPlan } from '../../../generationCanvas/agent/storyboardPlan'
+import { buildAnchorSheetPrompt } from '../../../generationCanvas/agent/storyboardPromptCompiler'
 import {
   renderShotKeyframePrompt,
   renderShotNodePrompt,
-  buildAnchorSheetPrompt,
   effectiveShotDurationSec,
   stableShotId,
   storyboardAnchorToCreateNodesArgs,
@@ -16,7 +16,6 @@ import {
   listAvailableModelsForAgent,
   resolveStoryboardImageDefault,
   resolveStoryboardVideoDefault,
-  type AgentModelEntry,
 } from '../../../generationCanvas/agent/availableModels'
 import { applyCanvasToolCall } from '../../../generationCanvas/agent/applyCanvasToolCall'
 import { useGenerationCanvasStore } from '../../../generationCanvas/store/generationCanvasStore'
@@ -24,10 +23,11 @@ import { buildDependencyWaves, hasUsableResult } from '../../../generationCanvas
 import { confirmAndRunNode, confirmAndRunNodeVariants, regenerateNodeInPlace } from '../../../generationCanvas/runner/generationRunController'
 import { confirmAndRunPlan } from '../../../generationCanvas/components/batchPlanPreview'
 import i18n from '../../../../i18n'
-import { buildPlannedNodeMeta } from '../../../generationCanvas/agent/plannedNodeMeta'
+import { buildModelEntryIndex, buildPlannedNodeMeta } from '../../../generationCanvas/agent/plannedNodeMeta'
 import { ANCHOR_META_KEYS, isAnchorFrozen, type AnchorFrozenMark } from '../../../generationCanvas/model/anchorBibleKeys'
 import { findAnchorNode, findShotKeyframeNode, findShotNode } from './storyboardNodeBinding'
 import { rowConsumesReferences, type StoryboardRowRuntime } from './storyboardRowStatus'
+import { shotReferenceMetaPatch } from '../shotRow/shotReferenceSlots'
 
 /**
  * 分镜表的**执行动作层**（v5 B）：行内/批量生成 = 按需 materialize（没建过的节点此刻建）+
@@ -54,9 +54,11 @@ async function resolveDefaults(): Promise<Pick<StoryboardShotRowArgsOptions,
   ])
   return {
     ...(imageDefault.modelKey ? { defaultImageModelKey: imageDefault.modelKey } : {}),
+    ...(imageDefault.modelVendor ? { defaultImageModelVendor: imageDefault.modelVendor } : {}),
     ...(imageDefault.modeId ? { defaultImageModeId: imageDefault.modeId } : {}),
     ...(imageDefault.refModeId ? { defaultImageRefModeId: imageDefault.refModeId } : {}),
     ...(videoDefault.modelKey ? { defaultVideoModelKey: videoDefault.modelKey } : {}),
+    ...(videoDefault.modelVendor ? { defaultVideoModelVendor: videoDefault.modelVendor } : {}),
     ...(videoDefault.modeId ? { defaultVideoModeId: videoDefault.modeId } : {}),
   }
 }
@@ -108,19 +110,23 @@ async function syncShotNodeWithRow(
   shot: PlanShot,
   node: GenerationCanvasNode,
   part: 'shot' | 'keyframe',
+  mode?: ArchetypeMode | null,
 ): Promise<void> {
   const isImageShot = shot.shotKind === 'image'
   const prompt = part === 'shot' ? renderShotNodePrompt(ctx.plan, shot) : renderShotKeyframePrompt(ctx.plan, shot)
   const meta: Record<string, unknown> = { ...(node.meta || {}) }
   const rowModelKey = part === 'shot' ? shot.modelKey : shot.keyframe?.modelKey
+  const rowModelVendor = part === 'shot' ? shot.modelVendor : shot.keyframe?.modelVendor
   const rowModeId = part === 'shot' ? shot.modeId : shot.keyframe?.modeId
   const rowParams = (part === 'shot' ? shot.params : shot.keyframe?.params) || {}
   const metaModeId = (meta.archetype as { modeId?: unknown } | undefined)?.modeId
   if (rowModelKey && (meta.modelKey !== rowModelKey || (rowModeId && metaModeId !== rowModeId))) {
-    const entryByKey = new Map<string, AgentModelEntry>(
-      (await listAvailableModelsForAgent()).map((entry) => [entry.modelKey, entry]),
+    const entryByKey = buildModelEntryIndex(await listAvailableModelsForAgent())
+    // 行上选的 vendor 一起递进去：同名模型来自不同供应商是两个模型（身份唯一键）。
+    const planned = buildPlannedNodeMeta(
+      { modelKey: rowModelKey, ...(rowModelVendor ? { modelVendor: rowModelVendor } : {}), modeId: rowModeId, params: rowParams },
+      entryByKey,
     )
-    const planned = buildPlannedNodeMeta({ modelKey: rowModelKey, modeId: rowModeId, params: rowParams }, entryByKey)
     if (planned) Object.assign(meta, planned)
   } else {
     for (const [key, value] of Object.entries(rowParams)) {
@@ -132,6 +138,12 @@ async function syncShotNodeWithRow(
   }
   if (part === 'shot' && isImageShot) {
     meta.imageDurationSec = effectiveShotDurationSec(shot)
+  }
+  // 按槽参考绑定 → 节点 meta（存储键与画布同一张表 referenceSlotStorage）。请求体仍由
+  // buildArchetypeInputParams 按档案的 inputKey/asArray 构造 —— 分镜侧零供应商分支（P4）。
+  // 空绑定也写空值：用户刚删掉的首帧不能还留在节点上被发出去。
+  if (part === 'shot' && mode !== undefined) {
+    Object.assign(meta, shotReferenceMetaPatch(mode, shot))
   }
   const patch: { prompt?: string; meta: Record<string, unknown> } = { meta }
   if ((node.prompt || '') !== prompt) patch.prompt = prompt
@@ -150,7 +162,7 @@ export async function materializeShotRow(
   const existing = existingRowBindings(ctx, shot)
   const keyframeEnabled = shot.shotKind !== 'image' && shot.keyframe?.enabled === true
   if (existing.shotNode && (!keyframeEnabled || existing.keyframeNode)) {
-    await syncShotNodeWithRow(ctx, shot, existing.shotNode, 'shot')
+    await syncShotNodeWithRow(ctx, shot, existing.shotNode, 'shot', mode)
     if (existing.keyframeNode) await syncShotNodeWithRow(ctx, shot, existing.keyframeNode, 'keyframe')
     return { shotNodeId: existing.shotNode.id, keyframeNodeId: existing.keyframeNode?.id ?? null }
   }
@@ -168,7 +180,10 @@ export async function materializeShotRow(
   if (!shotNodeId) throw new Error('materialize failed: shot node missing')
   const keyframeNodeId = existing.keyframeNode?.id
     ?? (keyframeEnabled ? clientIdToNodeId[`${stableShotId(shot)}-keyframe`] ?? null : null)
-  if (existing.shotNode) await syncShotNodeWithRow(ctx, shot, existing.shotNode, 'shot')
+  // 刚建出来的节点同样要过一遍写回 —— 参考绑定不在 create_canvas_nodes 的参数面里，
+  // 只在这条写回边界上进 meta；漏掉它 = 第一次生成不带参考、第二次才带（最阴的静默陷阱）。
+  const created = canvasState().nodes.find((node) => node.id === shotNodeId)
+  if (created) await syncShotNodeWithRow(ctx, shot, created, 'shot', mode)
   if (existing.keyframeNode) await syncShotNodeWithRow(ctx, shot, existing.keyframeNode, 'keyframe')
   return { shotNodeId, keyframeNodeId }
 }
@@ -197,9 +212,10 @@ export async function regenerateShotRow(
   ctx: RowActionContext,
   shot: PlanShot,
   node: GenerationCanvasNode,
+  mode: ArchetypeMode | null,
   confirmOpts?: { title?: string; confirmLabel?: string },
 ): Promise<void> {
-  await syncShotNodeWithRow(ctx, shot, node, 'shot')
+  await syncShotNodeWithRow(ctx, shot, node, 'shot', mode)
   await regenerateNodeInPlace(node.id, confirmOpts)
 }
 
@@ -212,24 +228,25 @@ export async function rerunShotRowWithFreshRefs(
   ctx: RowActionContext,
   shot: PlanShot,
   exec: { node: GenerationCanvasNode | null; keyframeNode: GenerationCanvasNode | null },
+  mode: ArchetypeMode | null,
 ): Promise<void> {
   if (!exec.node) return
   if (!exec.keyframeNode) {
     // 确认卡回声按钮文案「用新图重跑」——警示行刚说完「此镜用的还是旧图」，通用「重新生成」
     // 卡会让人迟疑这一下到底用没用新图（图+视频分支走批量波次卡，卡上列出首帧+视频，语义自明）。
     const rerunLabel = i18n.t('storyboardEditor.row.rerunFreshRefs')
-    await regenerateShotRow(ctx, shot, exec.node, { title: rerunLabel, confirmLabel: rerunLabel })
+    await regenerateShotRow(ctx, shot, exec.node, mode, { title: rerunLabel, confirmLabel: rerunLabel })
     return
   }
   await syncShotNodeWithRow(ctx, shot, exec.keyframeNode, 'keyframe')
-  await syncShotNodeWithRow(ctx, shot, exec.node, 'shot')
+  await syncShotNodeWithRow(ctx, shot, exec.node, 'shot', mode)
   const { nodes, edges } = canvasState()
   await confirmAndRunPlan(buildDependencyWaves([exec.keyframeNode.id, exec.node.id], { nodes, edges }))
 }
 
 /** 悬停浮条 ×3：写回行编辑 + 同镜连出 3 版（结果堆叠进历史，失败即停不连烧）。 */
-export async function generateShotRowVariants(ctx: RowActionContext, shot: PlanShot, node: GenerationCanvasNode): Promise<void> {
-  await syncShotNodeWithRow(ctx, shot, node, 'shot')
+export async function generateShotRowVariants(ctx: RowActionContext, shot: PlanShot, node: GenerationCanvasNode, mode: ArchetypeMode | null): Promise<void> {
+  await syncShotNodeWithRow(ctx, shot, node, 'shot', mode)
   await confirmAndRunNodeVariants(node.id, 3)
 }
 

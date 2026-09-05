@@ -14,6 +14,8 @@ const model = (vendorKey: string, modelKey: string, kind: ChipModel['kind'] = 'i
   labelZh: modelKey,
   kind,
   enabled: true,
+  published: true,
+  adapterState: 'verified',
   canRetype: true,
 })
 
@@ -79,5 +81,18 @@ describe('onboarding drawer derivations', () => {
     expect(canAddModelsToConnection('codex-local', meta)).toBe(false)
     expect(canAddModelsToConnection('comfyui-local', meta)).toBe(false)
     expect(canAddModelsToConnection('antigravity-cli', meta)).toBe(false)
+  })
+
+  it('does not mark disabled or unpublished seed rows as already added in the certification picker', () => {
+    const models = [
+      model('apimart', 'published-model'),
+      { ...model('apimart', 'disabled-model'), enabled: false, published: true },
+      { ...model('apimart', 'unpublished-model'), enabled: true, published: false },
+    ]
+    const meta = new Map([['apimart', vendor({ name: 'APIMart' })]])
+
+    expect(buildExistingConnectionSummary('apimart', 'APIMart', models, meta)?.existingModels).toEqual([
+      { modelKey: 'published-model', labelZh: 'published-model', kind: 'image' },
+    ])
   })
 })

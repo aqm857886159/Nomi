@@ -85,7 +85,7 @@ const composer = () => win.locator('footer textarea').first()
  * 四条断言全红，看起来像功能坏了，其实是等待写错了。判定源只此一处，全仓复用。
  */
 // Host cutover retired the creation-AI panel; the transcript now lives in the ResidentShell dock
-// (default-off agentHost flag, #194) as role="log" [data-agent-transcript], each turn an
+// (resident by default since 2026-09-05) as role="log" [data-agent-transcript], each turn an
 // [data-agent-item-kind] article.
 const messages = () => win.locator('[data-agent-transcript="true"]')
 

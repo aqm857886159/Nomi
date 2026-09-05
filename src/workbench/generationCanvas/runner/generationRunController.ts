@@ -12,7 +12,7 @@ import { narrateProgress } from '../../observability/narrate'
 import { LocalTaskCancelledError, clearTaskCancel, isTaskCancelRequested, isLocalTaskCancelledError } from './localTaskControl'
 import { useComfyuiPreviewStore } from '../store/comfyuiPreviewStore'
 import { isRecoverableTimeoutError } from './recoverableTimeout'
-import { recordModelFailure, recordModelSuccess } from './modelHealthMemory'
+import { recordNodeModelFailure, recordNodeModelSuccess } from './nodeModelHealth'
 import {
   beginSingletonBatch,
   isEntryCancelled,
@@ -232,12 +232,6 @@ export function reconcileNodeModeWithConnectedReferences(nodeId: string): void {
   })
 }
 
-/** 结算时读节点当前绑定的模型键（健康记忆的记账主体；meta 无 modelKey 的异常路径记空=跳过）。 */
-function currentNodeModelKey(nodeId: string): unknown {
-  const node = useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === nodeId)
-  return (node?.meta as Record<string, unknown> | undefined)?.modelKey
-}
-
 // options 没有默认值：`= {}` 正是让调用点能省略托管同意的那个逃生口（F16b 根因）。
 // 去掉它之后，「谁问的用户」在编译期就必须有答案。
 export async function runGenerationNode(
@@ -357,7 +351,7 @@ export async function runGenerationNode(
         ?.assets?.autoSave?.({ url: result.url as string, suggestedName: title || undefined })
         .catch(() => undefined)
     }
-    recordModelSuccess(currentNodeModelKey(id))
+    recordNodeModelSuccess(id)
     useGenerationQueueStore.getState().markSettled(batchId, id, 'success')
     await persistActiveWorkbenchProjectNow().catch(() => {})
     return result
@@ -388,7 +382,7 @@ export async function runGenerationNode(
       })
       throw error
     }
-    recordModelFailure(currentNodeModelKey(id))
+    recordNodeModelFailure(id)
     // Store the RAW message; the UI (NodeErrorReport) runs classifyGenerationError
     // to show a human reason + hint + the raw detail. Keeping node.error a plain
     // string avoids a persisted-shape migration for existing project files.

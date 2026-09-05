@@ -21,6 +21,7 @@ import type { ShotRowExec } from '../exec/storyboardRowStatus'
 import type { Editor } from '@tiptap/react'
 import StoryboardShotFrame from './StoryboardShotFrame'
 import StoryboardShotRowExpand from './StoryboardShotRowExpand'
+import ShotReferenceZone from './ShotReferenceZone'
 import PromptSkeletonSegments from './PromptSkeletonSegments'
 import { modeGeneratesDialogue } from '../../../generationCanvas/agent/storyboardDialogue'
 
@@ -158,6 +159,12 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
       tabIndex={-1}
       onDragOver={props.onDragOver}
       onDrop={props.onDrop}
+      onClick={(event) => {
+        // Keep row selection usable from the row surface while preserving the
+        // controls inside it (inputs, menus, and the frame action buttons).
+        if (event.target instanceof Element && event.target.closest('button, input, textarea, select')) return
+        props.onSelect?.(event)
+      }}
       onKeyDown={(event) => {
         if (event.altKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
           event.preventDefault()
@@ -175,6 +182,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
       }}
       className="relative grid grid-cols-[14px_84px_136px_minmax(0,1fr)] gap-3 py-3 pl-1.5 pr-3 items-start bg-nomi-paper"
       data-storyboard-row={shot.index}
+      data-selected={props.selected ? 'true' : undefined}
     >
       {props.isDragOver ? (
         <div className="absolute inset-x-1.5 top-0 h-0.5 rounded-full bg-nomi-accent" aria-hidden />
@@ -232,75 +240,15 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
         </div>
       )}
 
-      {/* ── 参考区（纯展示）：具名槽空 tile / 已引用锚 + 「@」入口占位 / 不吃参考 ── */}
-      <div className="min-h-[132px] flex flex-col justify-center gap-2" data-storyboard-refzone="true">
-        {zone.kind === 'none-accepted' ? (
-          <span className="text-micro text-nomi-ink-30 leading-relaxed">{t('storyboardEditor.row.noRefAccepted')}</span>
-        ) : (
-          <div className="flex flex-wrap gap-2">
-            {zone.namedSlots.map((slot) => {
-              const missing = slot.min >= 1
-              return (
-                <span key={slot.kind} className="flex flex-col items-center gap-0.5">
-                  <span
-                    data-storyboard-ref-tile="named-slot"
-                    className={cn(
-                      'grid place-items-center w-14 h-14 rounded-nomi-sm border border-dashed',
-                      missing ? 'border-workbench-danger bg-workbench-danger-soft text-workbench-danger' : 'border-nomi-ink-20 bg-nomi-ink-05 text-nomi-ink-30',
-                    )}
-                  >
-                    <span className="text-micro leading-tight text-center">
-                      {missing ? t('storyboardEditor.row.slotRequired') : null}
-                    </span>
-                  </span>
-                  <span className={cn('text-micro', missing ? 'text-workbench-danger' : 'text-nomi-ink-40')}>
-                    {translateModelDisplayText(slot.label)}
-                  </span>
-                </span>
-              )
-            })}
-            {zone.referencedAnchors.map((anchor) => (
-              <span key={anchor.id} className="flex flex-col items-center gap-0.5">
-                <span data-storyboard-ref-tile="anchor" className="grid place-items-center w-14 h-14 rounded-nomi-sm border border-nomi-line bg-nomi-ink-10 text-title text-nomi-ink-60">
-                  {(anchor.name || t('storyboardEditor.unnamed')).slice(0, 1)}
-                </span>
-                <span className="text-micro text-nomi-ink-40 max-w-14 truncate">{anchor.name || t('storyboardEditor.unnamed')}</span>
-              </span>
-            ))}
-            {zone.hasArrayIntake ? (
-              // C1：参考区「@」入口 = 触发提示词框 @ mention（一个实现两个入口）。
-              // 不吃参考的模型（zone.kind==='none-accepted'）走上面的 noRefAccepted 分支，此处不渲染。
-              // mentionSearch 缺省时说明该行禁用 @（§1.6 C4：禁用不做沟通死路，上面已有文案）。
-              <span className="flex flex-col items-center gap-0.5">
-                {mentionSearch ? (
-                  <button
-                    type="button"
-                    onClick={triggerAtMention}
-                    aria-label={t('storyboardEditor.row.atRefAria')}
-                    title={t('storyboardEditor.row.atRefTitle')}
-                    data-storyboard-ref-tile="intake"
-                    className="grid place-items-center w-14 h-14 rounded-nomi-sm border border-dashed border-nomi-ink-20 text-title text-nomi-ink-40 hover:border-nomi-accent hover:text-nomi-accent transition-colors duration-[var(--nomi-transition-fast)]"
-                  >
-                    @
-                  </button>
-                ) : (
-                  <span
-                    data-storyboard-ref-tile="intake"
-                    className="grid place-items-center w-14 h-14 rounded-nomi-sm border border-dashed border-nomi-ink-20 text-title text-nomi-ink-20 cursor-not-allowed"
-                    title={t('storyboardEditor.row.atRefDisabledTitle')}
-                    aria-hidden
-                  >
-                    @
-                  </span>
-                )}
-                <span className={cn('text-micro', mentionSearch ? 'text-nomi-ink-40' : 'text-nomi-ink-20')}>
-                  {t('storyboardEditor.row.refIntakeCap')}
-                </span>
-              </span>
-            ) : null}
-          </div>
-        )}
-      </div>
+      {/* ── 参考区：按档案声明逐槽出（ShotReferenceZone 复用画布的 AssetReference 一套） ── */}
+      <ShotReferenceZone
+        zone={zone}
+        mode={resolvedMode}
+        shot={shot}
+        onUpdate={onUpdate}
+        onTriggerMention={triggerAtMention}
+        mentionEnabled={Boolean(mentionSearch)}
+      />
 
       {/* ── 提示词块：上沿胶囊（这一镜作用域）→ 提示词 → 下沿台词小字 + ▾ ── */}
       <div className="min-w-0 min-h-[132px] flex flex-col gap-1.5" data-storyboard-prompt-block="true">
@@ -454,8 +402,13 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
           ) : null}
           <button
             type="button"
-            onClick={() => setExpanded((open) => !open)}
-            onClickCapture={(event) => event.stopPropagation()}
+            // 捕获阶段 stopPropagation 会连同**本元素自己的 onClick** 一起吃掉（React 合成事件在同一棵
+            // 派发树里走完捕获才走冒泡）——箭头因此点了没反应，只有点 subline 空白处才展开。
+            // 正确做法：在冒泡阶段的 onClick 里 stopPropagation，父层 subline 就收不到、自己照常触发。
+            onClick={(event) => {
+              event.stopPropagation()
+              setExpanded((open) => !open)
+            }}
             aria-expanded={expanded}
             aria-label={expanded ? t('storyboardEditor.row.collapse') : t('storyboardEditor.row.expand')}
             className="ml-auto shrink-0 size-6 grid place-items-center rounded-nomi-sm text-nomi-ink-40 hover:bg-nomi-ink-10 hover:text-nomi-ink-60"

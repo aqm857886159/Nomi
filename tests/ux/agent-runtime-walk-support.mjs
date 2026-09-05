@@ -127,18 +127,71 @@ export async function enableAgentHostThroughSettings(win) {
   })
 }
 
-export async function readConversations(win, projectId) {
-  const result = await win.evaluate((id) => window.nomiDesktop.conversations.read(id), projectId)
-  expect(result.ok, 'The real conversations IPC must succeed').toBe(true)
-  return result.conversations
+function conversationsFromProjectAgentSnapshot(snapshot) {
+  const threads = (snapshot?.threads || []).map((thread) => ({
+    id: thread.threadId,
+    title: thread.title || '',
+    createdAt: thread.createdAt || 0,
+    updatedAt: thread.updatedAt || 0,
+    messages: (snapshot?.items || [])
+      .filter((item) => item.threadId === thread.threadId && (item.kind === 'user' || item.kind === 'assistant'))
+      .map((item) => ({ id: item.itemId, role: item.kind, content: item.text || '' })),
+  }))
+  return { creation: { activeId: snapshot?.activeThreadId || null, threads }, generation: { activeId: null, threads: [] } }
 }
 
-export function readNativeContexts(projectRoot) {
-  const file = path.join(projectRoot, '.nomi', 'agent-session.json')
-  if (!fs.existsSync(file)) return null
-  const container = JSON.parse(fs.readFileSync(file, 'utf8'))
-  expect(container.version, 'Product entry must persist the v3 pi working-context store').toBe(3)
-  return Object.values(container.records)
+export async function readConversations(win, projectId, durableRoots) {
+  // The old conversations IPC was retired by the Project Agent cutover. When
+  // a walk already owns the isolated profile, read the persisted Host snapshot
+  // directly. Calling projectAgent.open() here would release the resident
+  // renderer subscription on the same WebContents, making the next user turn
+  // fail with project_agent_subscription_invalid.
+  if (durableRoots?.settingsRoot && durableRoots?.projectRoot) {
+    return conversationsFromProjectAgentSnapshot(readCurrentProjectAgentHostSnapshot(durableRoots.settingsRoot, durableRoots.projectRoot))
+  }
+  const snapshot = await win.evaluate(async (id) => {
+    const record = await window.nomiDesktop.projects.readAsync(id)
+    const opened = await window.nomiDesktop.projectAgent.open({
+      projectId: id,
+      immutableProjectUuid: record?.immutableProjectUuid,
+      projectGeneration: record?.projectGeneration,
+    })
+    if (!opened?.ok) throw new Error('projectAgent.open failed')
+    return opened.value.snapshot
+  }, projectId)
+  return conversationsFromProjectAgentSnapshot(snapshot)
+}
+
+export function readNativeContexts(projectRoot, settingsRoot) {
+  if (!settingsRoot) return null
+  const state = readCurrentProjectAgentHostSnapshot(settingsRoot, projectRoot)
+  if (!state) return null
+  const byThread = new Map()
+  for (const item of state.items || []) {
+    const threadId = item.threadId
+    if (typeof threadId !== 'string' || !threadId) continue
+    const entries = byThread.get(threadId) || []
+    if (item.kind === 'tool' && typeof item.toolCallId === 'string') {
+      entries.push({ type: 'message', message: {
+        role: 'toolResult',
+        toolCallId: item.toolCallId,
+        content: item.resultRef || '',
+      } })
+    } else if (item.kind === 'user' || item.kind === 'assistant') {
+      entries.push({ type: 'message', message: { role: item.kind, content: item.text || '' } })
+    }
+    byThread.set(threadId, entries)
+  }
+  const projectId = state.binding?.projectId
+  return [...byThread.entries()].map(([threadId, entries]) => ({
+    sessionKey: typeof projectId === 'string' ? `nomi:workbench:${projectId}:creation` : undefined,
+    threadId,
+    snapshot: JSON.stringify({
+      format: 'nomi.pi-work-context',
+      piVersion: '0.84.3',
+      data: { entries },
+    }),
+  }))
 }
 
 export function snapshotMessages(record) {
@@ -210,7 +263,7 @@ export async function openCanvas(win) {
   await clickOrFail(win.getByRole('button', { name: '生成', exact: true }), '生成工作区')
   await expect(win.locator('.generation-canvas-v2__stage')).toBeVisible()
   // Host cutover retired the in-canvas assistant panel; the project Agent now lives in the
-  // ResidentShell dock (gated by the default-off agentHost flag, #194). Its collapsed launcher is
+  // ResidentShell dock, resident by default since 2026-09-05. Its collapsed launcher is
   // the pill with [data-agent-resident-collapsed]; expanding it reveals [data-agent-composer].
   const launcher = win.locator('[data-agent-resident-collapsed="true"]')
   // This is a genuine two-state UI (persisted expanded/collapsed preference).

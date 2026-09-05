@@ -29,6 +29,18 @@
 2. ~~打 `@` 前必须有空格~~ —— **这条是真 bug，2026-08-18 已修**（`allowedPrefixes: null`，PR #101）：上游 tiptap 默认 `[' ']` 在中文里等于把功能关掉（中文不打空格，连逗号后都不弹）。现在任何位置打 `@` 都弹。面板锚点 `[data-mention-list="true"] [data-mention-item]`；另外**点参考 tile 本身也会插 chip**，那才是可发现的主路径。
 3. **新建 worktree 没有 `node_modules`**，`pnpm run build` 会失败并提示 `node_modules missing`，先 `pnpm install`（warm store 下约 5 秒）。**别想着 symlink 主仓的**：主仓 `node_modules` 里的包全是指向某个 sibling worktree 的 `node_modules/.pnpm/...` 的相对软链，而那个 worktree 早删了——整条链是断的（`readlink -f node_modules/vitest` 解不出来），主仓自己也跑不了 vitest。2026-08-18 在这上面绕了一圈。
 
-**出处**：`tests/ux/archetype-modebar.walk.mjs` 修复过程；PR #101（tiptap `allowedPrefixes`）。
+## 实测：过期的多半是「前提」，不是「选择器」（2026-09-05）
+
+修完 `design-fidelity.e2e.mjs` 的死锚点后，它跑到底报 4 条红。逐条追下去**一条回归都没有**，全是断言停在了旧世界：
+
+| 报红的断言 | 真相 | 判据来自哪 |
+|---|---|---|
+| 模式条按钮应 13px（实测 12） | 分段控件的真相源是共享控件 `NomiSegmented`（`text-caption`=12），ModeBar 内联重写时逐字保留；v4 规范只把字号限定在 11/12/13 这套 scale，从没为这个控件钉 13 | 读共享控件 + `git show` 那次内联提交 |
+| 收起栏「分类」「文件」应是 svg 图标 | 收起栏早已是 素材库/分组/提示词库/技能库/流程库 五项，**根本没有**这两个面 | 真机探针 dump 左缘全部按钮 |
+| 素材来源应 3 个 tab（实测 2） | 第三个「智能分组」2026-08-17 按用户拍板整个删掉 | `git log -S` 找到那次删除的提交说明 |
+
+**教训**：报红 ≠ 回归。判「过期还是回归」的三件套是 **真机探针 + 读真相源组件 + `git log -S` 找那次改动的理由**——缺任何一件都容易把「用户拍板删掉的东西」当成 bug 修回去。顺带：把「照着旧断言写的注释」也一起改掉（那条注释里写着「现来源 tab 3 个」，不改的话下一个人照着它又写回 3）。
+
+**出处**：`tests/ux/archetype-modebar.walk.mjs` 修复过程；PR #101（tiptap `allowedPrefixes`）；`tests/ux/design-fidelity.e2e.mjs` 四条断言分诊（2026-09-05）。
 
 **相关**：[walkthrough-assertions-need-a-real-signal](walkthrough-assertions-need-a-real-signal.md)、[dead-selector-lies-both-ways](dead-selector-lies-both-ways.md)、[gates-green-does-not-mean-walkthrough-ran](gates-green-does-not-mean-walkthrough-ran.md)

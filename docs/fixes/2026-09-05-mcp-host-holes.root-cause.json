@@ -1,0 +1,179 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-05-mcp-host-holes",
+  "problem_type": "MCP host-facing surface regressions found by an external-host probe",
+  "symptom": "An external MCP host (Claude Code, zero-credit isolated probe) cannot use Nomi through MCP: the installed host config points at a deleted entry point and dies as CONNECTION_CLOSED with no mention of Nomi; a reconnected host can only work inside projects it created in that same connection; 7 of the 9 published canvas operations cannot be constructed at all because the broadcast transport schema is a hand-written superset that omits their required fields; nomi_canvas_plan and nomi_canvas_edit are byte-identical in tools/list so nothing tells a host which to call; and nomi_read(models) emits {vendor, modelKey} while nomi_operation_plan demands {moduleId, providerId, modelId} with moduleId readable nowhere.",
+  "direct_cause": "Five separate boundaries each carried a second, hand-maintained copy of something that already had an owner: the host-side entry path (deleted without a signpost), the project-selection issuance (only wired into project.create), the canvas/timeline transport JSON Schema (hand-written next to the Zod validator), the canvas.write MCP adapter (registered twice under two names), and the model identity vocabulary (read side vs write side).",
+  "class_root": "A published contract has two definitions: the one the host is shown and the one the code actually enforces. Whenever those are maintained by hand in two places they drift, and the drift is invisible from inside the process because both halves individually look correct. The MCP surface makes this fatal rather than cosmetic: what the host is shown IS the whole affordance, so a field missing from the broadcast schema is a capability that structurally does not exist, and a retired entry point with no signpost is a product that silently stops working for everyone who already installed it.",
+  "affected_population": [
+    "Every user who connected Claude Code / Codex / Cursor to Nomi before the entry point moved to the app binary: their MCP server dies as CONNECTION_CLOSED after upgrading",
+    "Every external MCP host running without the Nomi GUI open: it could only act inside projects it created during the current connection, so 14 of the lease-gated tools were unreachable for any pre-existing project",
+    "Every host calling canvas.write: propose_storyboard_plan, create_camera_move and create_staging_reference were unreachable through either published tool, and connect_canvas_edges / create_canvas_nodes required guessing invisible fields",
+    "Every host calling nomi_timeline_edit preview/apply: the plan payload was broadcast as an opaque object, so its four required fields were invisible",
+    "Every host choosing a generation model: the identity triple the write tool requires was not fully readable from any read tool"
+  ],
+  "scope_paths": [
+    "scripts/nomi-mcp.mjs",
+    "scripts/nomi-mcp-entry.node-test.mjs",
+    "scripts/check-mcp-operation-constructible.mjs",
+    "scripts/check-mcp-tool-references.ts",
+    "scripts/mcp-payload-baseline.json",
+    "electron/capabilityCore/mcpTransportSchemaFromZod.ts",
+    "electron/capabilityCore/mcpCapabilityProjection.ts",
+    "electron/capabilityCore/mcpProtocol.ts",
+    "electron/capabilityCore/mcpToolCatalog.ts",
+    "electron/capabilityCore/mcpGenerationToolCatalog.ts",
+    "electron/capabilityCore/dispatcher.ts",
+    "electron/capabilityCore/projectSessionAuthority.ts",
+    "electron/capabilityCore/currentProjectResolver.ts",
+    "electron/catalog/modelCatalogListing.ts",
+    "electron/shared/generationModuleId.ts",
+    "electron/shared/agentCapabilities/canvasWrite.ts",
+    "docs/integrate-with-your-agent.md",
+    "docs/integrate-with-your-agent-en.md",
+    "docs/guide/capability-core-cli-mcp.md",
+    "docs/fixes/2026-09-05-mcp-host-holes.root-cause.json"
+  ],
+  "entry_points": [
+    "A host process launching the MCP server from its installed configuration",
+    "dispatcher project.list and project.create issuing project selection handles",
+    "createMcpCapabilityResolver broadcasting transportInputSchema in tools/list",
+    "validateToolArguments enforcing that same schema on tools/call",
+    "dispatcher canvas.write routing an operation that the main process cannot own",
+    "mcpGenerationToolCatalog building nomi_operation_plan parameters from host arguments"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://modelcontextprotocol.io/specification/2025-06-18/server/tools",
+      "checked_at": "2026-09-05",
+      "purpose": "Confirm that tool input validation failures belong in an isError tool result (so the model can see and self-correct them) rather than a protocol-level error, and that inputSchema is the whole affordance a host is given."
+    }
+  ],
+  "internal_only_reason": "",
+  "invariants": [
+    "A retired host-facing entry path keeps a signpost that names Nomi and the exact place to re-connect, and exits with a code distinct from a crash; it never restores the old implementation.",
+    "Every project the server itself enumerates carries a project selection handle minted by the one issuance function, so a host that can list a project can open a session on it.",
+    "The transport JSON Schema broadcast in tools/list is derived from the Zod validator that enforces it; every operation value in a published enum can be turned into arguments that pass both.",
+    "A canvas.write operation the main process cannot own returns capability_unsupported with the operations that ARE available on this transport, and an unknown operation returns capability_input_invalid listing every legal operation; neither is forwarded to the generation planner.",
+    "One capability has one MCP name: two tools may not publish an identical description, inputSchema and method.",
+    "The identity fields a write tool requires are all readable from the matching read tool, and the write tool accepts the field names that read tool emits."
+  ],
+  "generality_proof": "transportSchemaFromZod is the single derivation used by both canvas.write and timeline.write, and check:mcp-operation-constructible walks the whole published catalog rather than a named list, so a future hand-written transport schema or a newly published operation is caught the first time it appears. CANVAS_WRITE_OPERATIONS is derived from the Zod union's own branches, so the dispatcher's legal-operation list cannot drift from the validator. The project selection handle is minted by the same issueProjectSelection used by project.create; there is no second issuance path. check:mcp-legacy-entry runs the literal legacy command line from installed host configs, so the signpost cannot rot into a missing file again.",
+  "shared_boundaries": [
+    {
+      "path": "electron/capabilityCore/mcpTransportSchemaFromZod.ts",
+      "symbol": "transportSchemaFromZod",
+      "responsibility": "Derive the broadcast transport schema from the Zod execution boundary, flattening unions into a property superset that stays inside the runtime validator's keyword subset."
+    },
+    {
+      "path": "scripts/check-mcp-operation-constructible.mjs",
+      "symbol": "constructOperation",
+      "responsibility": "Prove, for every published operation enum value, that a minimal instance built from the broadcast schema passes both the transport validator and the Zod boundary."
+    },
+    {
+      "path": "electron/shared/agentCapabilities/canvasWrite.ts",
+      "symbol": "CANVAS_WRITE_OPERATIONS",
+      "responsibility": "Own the legal canvas.write operation list, derived from the discriminated union's branches, for every caller that must list or classify them."
+    },
+    {
+      "path": "electron/capabilityCore/projectSessionAuthority.ts",
+      "symbol": "issueProjectSelection",
+      "responsibility": "Remain the only place a project selection handle is minted, for created_project and listed_project alike."
+    },
+    {
+      "path": "electron/shared/generationModuleId.ts",
+      "symbol": "SINGLE_SHOT_GENERATION_MODULE_ID",
+      "responsibility": "Own the single-shot generation module id so the read listing, the registry manifest and the default resolvers cannot disagree."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/capabilityCore/mcpCapabilityProjection.ts",
+      "entry_point": "timelineEditTransportSchema",
+      "disposition": "enforced",
+      "evidence": "The same hand-written-superset failure was present here: plan was broadcast as an opaque object and its four required fields were invisible, so preview/apply were unconstructible. It now derives from the same helper and the gate covers it."
+    },
+    {
+      "path": "electron/capabilityCore/mcpCapabilityProjection.ts",
+      "entry_point": "canvasMaintenance / documentRead / documentWrite / exportJob / mediaQuery transport schemas",
+      "disposition": "not-affected",
+      "evidence": "check:mcp-operation-constructible constructs every operation of these tools successfully against their current hand-written schemas, so they are supersets that do not hide required fields. They stay as-is; the gate is what keeps them honest."
+    },
+    {
+      "path": "electron/harness/tools/modelToolSurfaceManifest.ts",
+      "entry_point": "in-app Agent (Pi/Host) canvas tool surface",
+      "disposition": "not-affected",
+      "evidence": "Deliberately out of scope, and not part of the affected population. The in-app Agent surface still publishes nomi_canvas_plan and nomi_canvas_edit as separate tools. That surface is model-facing inside Nomi rather than host-facing over MCP, it hands the model Zod schemas directly rather than a hand-written projection, and collapsing it touches the Project Agent Host reducer. Deliberately out of scope for this MCP-surface change."
+    },
+    {
+      "path": "electron/capabilityCore/dispatcher.ts",
+      "entry_point": "generationDispatcher routes that legitimately call ctx.generationPlanning",
+      "disposition": "not-affected",
+      "evidence": "Those callers pass real generation capabilities (context/create/preview/gate_request/start), which is exactly what the handler's vocabulary accepts; only the canvas.write branch was passing a canvas operation name into it."
+    },
+    {
+      "path": "electron/capabilityCore/mcpGenerationToolCatalog.ts",
+      "entry_point": "per-shot candidate identity inside shots[]",
+      "disposition": "not-affected",
+      "evidence": "Deliberately out of scope, and not part of the affected population. Nested per-shot candidates still take only the canonical {moduleId, providerId, modelId}. The top-level create path is the one a host reaches from nomi_read(models); widening the nested candidate parser belongs with the separate model-identity work on fix/model-identity-vendor-key-20260905."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Two of the five holes are textbook instances of classes this repo has hit before and will hit again: deleting an old implementation without migrating the installed configurations that still point at it (P1 done half-way), and maintaining a broadcast contract by hand next to the validator that actually enforces it (R14.1). Neither is a one-off slip; both reappear every time a surface is renamed or a new operation is published, and neither is visible from inside the process.",
+    "same_class_scan": [
+      "Scanned every immutableSchemaSnapshot literal in mcpCapabilityProjection.ts: canvas.write and timeline.write were the two hand-written schemas hiding required fields; the remaining five are supersets whose operations all construct, and check:mcp-operation-constructible now walks all of them on every Contracts run.",
+      "Scanned the repo for other retired host-facing entry paths: scripts/lib/nomiClient.mjs was removed in the same P1 cutover but is never named by an installed client configuration (only the deleted nomi-mcp.mjs is), so one signpost covers the installed population.",
+      "Scanned every issuance of projectSelectionHandle: dispatcher project.create was the only site; project.list now reuses the same function rather than adding a second issuance path.",
+      "Scanned for the 'generation.single-shot' literal: four sites (moduleCatalogBootstrap, generationDefaultModelResolver x2, mcpGenerationMultiShot) now all read one exported constant.",
+      "Scanned MCP_CAPABILITY_RESOLVER registrations for other duplicate name/description/schema triples: nomi_canvas_plan vs nomi_canvas_edit was the only pair; the resolver already throws on duplicate aliases, which is why the duplicate had to wear a different name to exist at all."
+    ]
+  },
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/check-mcp-operation-constructible.mjs",
+    "invariant": "Every operation enum value published in tools/list can be turned into arguments that pass both the broadcast transport validator and the Zod execution boundary.",
+    "failure_mode": "The gate fails closed: it exits non-zero when it finds zero operation-bearing tools (so a broken import cannot read as a pass), and it only ever fills fields the transport schema itself declares, so a validator requirement that the schema does not publish is reported as structurally unreachable rather than repaired.",
+    "exception_policy": "none",
+    "strategy": "Derive the broadcast schema from the validator (transportSchemaFromZod) so the two cannot be separately maintained, then hold the invariant with a Contracts-tier gate that walks the whole catalog rather than a named list. check:mcp-legacy-entry holds the second class by running the literal legacy command line from installed host configs.",
+    "artifacts": [
+      "scripts/check-mcp-operation-constructible.mjs",
+      "scripts/nomi-mcp-entry.node-test.mjs",
+      "electron/capabilityCore/mcpTransportSchemaFromZod.ts"
+    ]
+  },
+  "regression_tests": [
+    "scripts/nomi-mcp-entry.node-test.mjs",
+    "electron/capabilityCore/mcpListedProjectSelection.test.ts",
+    "electron/capabilityCore/mcpTransportSchemaFromZod.test.ts",
+    "electron/capabilityCore/mcpCanvasWriteHeadlessFallback.test.ts",
+    "electron/capabilityCore/mcpModelIdentityVocabulary.test.ts",
+    "electron/capabilityCore/mcpCanvasDocumentSurface.test.ts",
+    "electron/capabilityCore/mcpSurfaceCollapse.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/capabilityCore/mcpTransportSchemaFromZod.test.ts",
+    "electron/capabilityCore/mcpCanvasDocumentSurface.test.ts",
+    "electron/capabilityCore/mcpSurfaceCollapse.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/capabilityCore/mcpCapabilityProjection.ts",
+      "electron/capabilityCore/dispatcher.ts"
+    ],
+    "rationale": "Removed in the same commit as their replacements, with no parallel version and no fallback: mcpCapabilityProjection.ts loses the hand-written canvasMutationTransportSchema, the third hand-written copy canvasMcpInput, the opaque timeline plan projection, and the duplicate CANVAS_PLAN_MCP_ADAPTER; dispatcher.ts loses the canvas.write generationPlanning fallback. The restored scripts/nomi-mcp.mjs is a signpost, not a restored implementation: it contains no protocol framing, writes nothing to stdout, and exits 2."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "zod-to-json-schema was already a direct dependency and already used by this module for canonical capability inputs; the derivation reuses it rather than adding or upgrading anything.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted data changes. Users upgrading from a build that still had scripts/nomi-mcp.mjs as the MCP entry point must re-connect their client once in Nomi > Model access > Connect an AI coding assistant; the signpost now tells them so in both Chinese and English instead of dying as CONNECTION_CLOSED. Hosts that hard-coded the tool name nomi_canvas_plan must call nomi_canvas_edit with the same operation value; the arguments are unchanged.",
+  "residual_risks": [
+    "The tools/list payload ratchet was recalibrated upward once (20016 -> 24052 bytes) because the derived schemas publish the fields and prompt-writing guidance a host previously had to guess. The ratchet is only-decrease again from this baseline, but the surface is now closer to a real budget ceiling than it was.",
+    "The evidence here is unit and gate level plus the original external-host probe transcript; a fresh end-to-end probe from a real Claude Code / Codex host against a packaged build has not been re-run after these changes.",
+    "The MCP-side secret intake question raised by the same probe (nomi_integration pushes the user back to the GUI, which contradicts handoff 6.3) is deliberately untouched here: it is a product decision, not an engineering gap."
+  ]
+}

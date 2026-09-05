@@ -1,0 +1,104 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-05-agent-model-catalog-refresh",
+  "problem_type": "stale Agent model catalog after credential onboarding",
+  "symptom": "After a credential is saved through the existing model catalog bridge, the visible Agent composer continues to show no selectable text model and cannot expose the configured APIMart model.",
+  "direct_cause": "ProjectAgentResidentShell loads text models once on mount with an effect that has no catalog-change subscription; later credential writes update disk and the bridge but leave the shell's local model list empty.",
+  "class_root": "The Agent model picker had no shared refresh boundary for catalog mutations, so any provider credential/model change occurring after the resident mounted could leave its selectable model projection stale.",
+  "affected_population": [
+    "Users who save or change a provider credential while the resident Agent is already mounted",
+    "The M0-M5 vertical-spine runner that enables Agent first and then configures APIMart"
+  ],
+  "scope_paths": [
+    "src/workbench/ai/ProjectAgentResidentShell.tsx",
+    "src/workbench/ai/ProjectAgentResidentShell.structure.test.ts",
+    "tests/ux/agent-vertical-spine-m0-m5.red.e2e.mjs",
+    "tests/system/agent-vertical-spine-m0-m5.contract.json"
+  ],
+  "entry_points": [
+    "Visible Settings/model-catalog credential write while the resident Agent is mounted",
+    "Visible Agent model menu opening after a catalog refresh",
+    "M0-M5 runner APIMart credential precondition"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The stale projection is an internal React/catalog event lifecycle invariant; no external dependency controls it.",
+  "invariants": [
+    "Every mounted ProjectAgentResidentShell refreshes its usable text-model projection when the canonical nomi-model-catalog-changed event fires.",
+    "A refresh cannot let an older in-flight catalog read overwrite a newer read.",
+    "The visible model menu remains the only model-selection path and exposes the full vendor/model identity after refresh."
+  ],
+  "generality_proof": "Credential, model, and mapping onboarding all publish the same nomi-model-catalog-changed event; subscribing at the resident shell's shared catalog-read boundary covers every provider and mutation without provider-specific branches or model preference injection.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "symbol": "loadModels effect",
+      "responsibility": "Own one catalog read/derive path, subscribe it to nomi-model-catalog-changed, and discard stale asynchronous reads."
+    },
+    {
+      "path": "src/workbench/ai/ProjectAgentResidentShell.structure.test.ts",
+      "symbol": "ProjectAgentResidentShell production contract",
+      "responsibility": "Keep the event subscription and cleanup structurally covered at the resident boundary."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "entry_point": "resident Agent composer model menu",
+      "disposition": "enforced",
+      "evidence": "The shell's canonical catalog effect now reloads on nomi-model-catalog-changed and guards request order."
+    },
+    {
+      "path": "src/workbench/ai/AssistantModelPicker.tsx",
+      "entry_point": "standalone assistant model picker",
+      "disposition": "not-affected",
+      "evidence": "This picker already subscribes to nomi-model-catalog-changed and was used as the existing event contract."
+    },
+    {
+      "path": "src/ui/onboarding/useOnboardingDrawerCatalog.ts",
+      "entry_point": "model onboarding drawer mutation",
+      "disposition": "not-affected",
+      "evidence": "The drawer is a producer of the canonical catalog-change event, not a resident model projection consumer."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any provider credential or model mutation can occur after the resident mounts and reproduce the stale empty projection.",
+    "same_class_scan": [
+      "Searched all nomi-model-catalog-changed producers and consumers under src/ and electron/.",
+      "Compared ProjectAgentResidentShell's one-shot effect with AssistantModelPicker's existing event subscription.",
+      "Checked the visible model menu's identity encoding and the shared filterUsableAssistantTextModels gate."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+    "invariant": "The resident reloads and re-derives selectable text models for every canonical catalog-change event, with last-request-wins ordering.",
+    "failure_mode": "If the catalog read fails, the resident exposes no selectable models; stale reads cannot overwrite a newer successful refresh.",
+    "exception_policy": "none",
+    "strategy": "Subscribe the existing resident catalog read to the existing canonical event and guard asynchronous ordering at that single consumer boundary.",
+    "artifacts": [
+      "src/workbench/ai/ProjectAgentResidentShell.tsx"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/ai/ProjectAgentResidentShell.structure.test.ts",
+    "tests/ux/agent-vertical-spine-m0-m5.red.e2e.mjs"
+  ],
+  "class_regression_tests": [
+    "src/workbench/ai/ProjectAgentResidentShell.structure.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The one-shot effect implementation is replaced in place at the same resident boundary; there is no separately callable legacy picker path."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The defect is an internal React event subscription and asynchronous state ordering issue.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted catalog migration is needed; the resident re-reads the current canonical catalog after each mutation.",
+  "residual_risks": [
+    "A real-key run must still verify that the APIMart text request itself completes; this fix only restores the visible model selection boundary and does not call a provider during tests."
+  ]
+}

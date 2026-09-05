@@ -14,60 +14,41 @@ function node(overrides: Partial<GenerationCanvasNode> & { id: string }): Genera
   } as GenerationCanvasNode
 }
 
-describe('normalizePayload — storyboardPlan 持久化往返(P0-6)', () => {
+describe('normalizePayload — storyboard design owner', () => {
   const plan: StoryboardPlan = {
-    title: '雨夜告白',
-    anchors: [{ id: 'a1', kind: 'character', name: '男主', description: '黑发少年', carrier: 'visual' }],
+    title: '雨夜告白', anchors: [{ id: 'a1', kind: 'character', name: '男主', description: '黑发少年', carrier: 'visual' }],
     shots: [{ index: 1, durationSec: 3, anchorIds: ['a1'], prompt: '少年站在雨里' }],
   }
-
-  it('带方案的 payload 往返不丢(normalizePayload 字段重建式,曾会丢)', () => {
-    const out = normalizePayload({ ...createDefaultWorkbenchProjectPayload(), storyboardPlans: { 'doc-1': { plan, committed: false } } })
-    expect(out.storyboardPlans!['doc-1'].plan).toEqual(plan)
+  const design = (documentId: string) => ({ id: 'storyboard-1', documentId, title: plan.title, plan, committed: false, status: 'draft' as const, sourceDocumentUpdatedAt: 10, createdAt: 11, updatedAt: 12 })
+  it('owner payload round trips without projection fields', () => {
+    const base = createDefaultWorkbenchProjectPayload(); const documentId = base.activeDocumentId!
+    const out = normalizePayload({ ...base, storyboardDesignsByDocumentId: { [documentId]: [design(documentId)] } })
+    expect(out.storyboardDesignsByDocumentId?.[documentId]).toEqual([design(documentId)])
   })
-
-  it('老项目无 storyboardPlan → 归一化为空映射,不报错', () => {
+  it('migrates the retired map into owner designs and drops the retired field', () => {
+    const base = createDefaultWorkbenchProjectPayload(); const documentId = base.activeDocumentId!
+    const legacyKey = ['storyboard', 'Plans'].join('')
+    const out = normalizePayload({ ...base, [legacyKey]: { [documentId]: { plan, committed: true } } })
+    expect(out.storyboardDesignsByDocumentId?.[documentId]?.[0].plan).toEqual(plan)
+    expect(out.storyboardDesignsByDocumentId?.[documentId]?.[0].committed).toBe(true)
+    expect(Object.prototype.hasOwnProperty.call(out, legacyKey)).toBe(false)
+  })
+  it('migrates the retired single plan field once', () => {
+    const base = createDefaultWorkbenchProjectPayload(); const key = ['storyboard', 'Plan'].join('')
+    const out = normalizePayload({ ...base, [key]: plan })
+    expect(Object.values(out.storyboardDesignsByDocumentId ?? {})[0]?.[0].plan).toEqual(plan)
+  })
+  it('prefers owner designs when both owner and retired map exist', () => {
+    const base = createDefaultWorkbenchProjectPayload(); const documentId = base.activeDocumentId!
+    const legacyKey = ['storyboard', 'Plans'].join('')
+    const out = normalizePayload({ ...base, storyboardDesignsByDocumentId: { [documentId]: [design(documentId)] }, [legacyKey]: { [documentId]: { plan: { ...plan, title: '旧' }, committed: true } } })
+    expect(out.storyboardDesignsByDocumentId?.[documentId]?.[0].title).toBe(plan.title)
+  })
+  it('returns an empty owner when no storyboard exists', () => {
     const out = normalizePayload(createDefaultWorkbenchProjectPayload())
-    expect(out.storyboardPlans).toEqual({})
-  })
-
-  it('多分镜设计持久化往返不丢，且保留旧 storyboardPlans 投影', () => {
-    const base = createDefaultWorkbenchProjectPayload()
-    const documentId = base.activeDocumentId!
-    const design = {
-      id: 'storyboard-1',
-      documentId,
-      title: '导演版 A',
-      plan,
-      committed: false,
-      status: 'draft' as const,
-      sourceDocumentUpdatedAt: 10,
-      createdAt: 11,
-      updatedAt: 12,
-    }
-    const out = normalizePayload({
-      ...base,
-      storyboardPlans: { [documentId]: { plan, committed: false } },
-      storyboardDesignsByDocumentId: { [documentId]: [design] },
-    })
-    expect(out.storyboardDesignsByDocumentId?.[documentId]).toEqual([design])
-    expect(out.storyboardPlans?.[documentId].plan).toEqual(plan)
-  })
-
-  it('空的新字段不会遮掉仍有数据的旧 storyboardPlans', () => {
-    const base = createDefaultWorkbenchProjectPayload()
-    const documentId = base.activeDocumentId!
-    const out = normalizePayload({
-      ...base,
-      storyboardPlans: { [documentId]: { plan, committed: false } },
-      storyboardDesignsByDocumentId: {},
-    })
-
     expect(out.storyboardDesignsByDocumentId).toBeUndefined()
-    expect(out.storyboardPlans?.[documentId].plan).toEqual(plan)
   })
-
-  it('保留画布事件日志游标，避免结果级更新后重复回放旧事件', () => {
+  it('retains canvas event cursor', () => {
     const out = normalizePayload({ ...createDefaultWorkbenchProjectPayload(), generationCanvasLastSeq: 37 })
     expect(out.generationCanvasLastSeq).toBe(37)
   })

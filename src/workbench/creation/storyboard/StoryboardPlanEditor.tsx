@@ -17,6 +17,7 @@ import {
   validatePlan,
   type PlanIssue,
 } from '../../generationCanvas/agent/storyboardPlanEdits'
+import type { StoryboardPlan } from '../../generationCanvas/agent/storyboardPlan'
 import StoryboardAnchorCard from './StoryboardAnchorCard'
 import StoryboardBulkBar from './StoryboardBulkBar'
 import StoryboardShotTable from './StoryboardShotTable'
@@ -41,6 +42,7 @@ import { canvasNodeToAssetRefs } from '../../assets/assetTypes'
 import { AssetPreviewDialog, type AssetPreviewSequenceItem } from '../../assets/AssetPreviewDialog'
 import type { AssetRef } from '../../assets/assetTypes'
 import { buildStoryboardPlaybackQueue, hiddenGeneratingCount, positionsForAnchorFilter } from './storyboardDInteractions'
+import { buildStoryboardReference } from '../../ai/resident/residentReferences'
 
 /**
  * 分镜方案编辑器（v5 B：执行面）。表 = 画布节点的表格表示版——行内/批量直接生成，
@@ -51,14 +53,17 @@ import { buildStoryboardPlaybackQueue, hiddenGeneratingCount, positionsForAnchor
 
 export default function StoryboardPlanEditor({ projectId }: { projectId?: string | null }): JSX.Element | null {
   const { t } = useTranslation()
-  const entry = useWorkbenchStore((s) => (s.activeDocumentId ? s.storyboardPlans[s.activeDocumentId] : undefined))
-  const plan = entry?.plan ?? null
+  const plan = useWorkbenchStore((s) => {
+    const designs = s.activeDocumentId ? s.storyboardDesignsByDocumentId[s.activeDocumentId] ?? [] : []
+    return (designs.find((design) => design.id === s.activeStoryboardId) ?? designs[0])?.plan ?? null
+  })
   const setStoryboardPlan = useWorkbenchStore((s) => s.setStoryboardPlan)
   const deleteStoryboardDesign = useWorkbenchStore((s) => s.deleteStoryboardDesign)
   const setWorkspaceMode = useWorkbenchStore((s) => s.setWorkspaceMode)
   const setActiveStoryboardId = useWorkbenchStore((s) => s.setActiveStoryboardId)
   const activeDocumentId = useWorkbenchStore((s) => s.activeDocumentId)
   const activeStoryboardId = useWorkbenchStore((s) => s.activeStoryboardId)
+  const setProjectAgentReferences = useWorkbenchStore((s) => s.setProjectAgentReferences)
   const canvasNodes = useGenerationCanvasStore((s) => s.nodes)
   // 图片/视频模型清单各拉一次，按镜头种类传给镜行的模型选择器 + 参数控件（完整 option 供解析 archetype 参数）。
   const videoModelOptions = useModelOptionsState('video').options
@@ -173,6 +178,13 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
   }
 
   const execCtx = { documentId: activeDocumentId, designId, plan }
+  const onStoryboardShotSelect = (shot: StoryboardPlan['shots'][number]): void => {
+    const reference = buildStoryboardReference('shot', shot.index, t('storyboardEditor.row.selectAria', { index: shot.index }), 'selected shot')
+    setProjectAgentReferences((current) => [
+      ...current.filter((item) => !/^storyboard:(?:shot|result):\d+$/.test(item.value ?? '')),
+      reference,
+    ])
+  }
   const onGenerateRow = (runtime: StoryboardRowRuntime): void => {
     void runAction(() => generateShotRow(execCtx, runtime.shot, runtime.mode))
   }
@@ -181,11 +193,11 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
   }
   const onRegenerateRow = (runtime: StoryboardRowRuntime): void => {
     const node = runtime.exec.node
-    if (node) void runAction(() => regenerateShotRow(execCtx, runtime.shot, node))
+    if (node) void runAction(() => regenerateShotRow(execCtx, runtime.shot, node, runtime.mode))
   }
   const onVariantsRow = (runtime: StoryboardRowRuntime): void => {
     const node = runtime.exec.node
-    if (node) void runAction(() => generateShotRowVariants(execCtx, runtime.shot, node))
+    if (node) void runAction(() => generateShotRowVariants(execCtx, runtime.shot, node, runtime.mode))
   }
   // 锁定开关：同步写 meta（不花钱不确认）；状态经 derive 立刻回流行/组头/footer。
   const onToggleLockRow = (runtime: StoryboardRowRuntime): void => {
@@ -193,7 +205,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
   }
   // 参考已变「用新图重跑」：一键补跑（花钱确认照过；首帧行按波次连跑），绝不自动跑。
   const onRerunFreshRefsRow = (runtime: StoryboardRowRuntime): void => {
-    void runAction(() => rerunShotRowWithFreshRefs(execCtx, runtime.shot, runtime.exec))
+    void runAction(() => rerunShotRowWithFreshRefs(execCtx, runtime.shot, runtime.exec, runtime.mode))
   }
   // 参考卡就地生成/重生成/锁定（B3）：同一执行通路；重生成后引用镜经「参考已变」提示补跑。
   const onGenerateAnchor = (runtime: AnchorCardRuntime): void => {
@@ -343,6 +355,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
                 onToggleLock={() => onToggleLockAnchor(runtime)}
                 onFilterByAnchor={() => setFilterAnchorId(runtime.anchor.id)}
                 onOpenPreview={() => onOpenPreviewAnchor(runtime)}
+                modelOptions={imageModelOptions}
               />
             ))}
             <button
@@ -395,6 +408,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
               videoModelOptions={videoModelOptions}
               emptyPromptShots={emptyPromptShots}
               onChange={setStoryboardPlan}
+              onStoryboardShotSelect={onStoryboardShotSelect}
               onGenerateRow={onGenerateRow}
               onRegenerateRow={onRegenerateRow}
               onVariantsRow={onVariantsRow}

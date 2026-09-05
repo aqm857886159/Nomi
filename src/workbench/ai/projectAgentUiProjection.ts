@@ -50,7 +50,7 @@ function itemMessage(
         content: item.text,
         status: uiStatus(item.status),
         ...(turn?.skillVersions.some((skill) => skill.id === 'workbench.storyboard.planner')
-          ? { storyboardPlan: true as const }
+          ? { storyboardArtifact: true as const }
           : {}),
       }
     case 'tool':

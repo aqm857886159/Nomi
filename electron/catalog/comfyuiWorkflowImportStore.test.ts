@@ -213,6 +213,7 @@ describe("importComfyWorkflowToCatalog（S3 落库）", () => {
     const {
       listModelCatalogModels,
       listModelCatalogMappings,
+      upsertModelCatalogVendor,
       upsertModelCatalogModel,
       upsertModelCatalogMapping,
     } = await import("./catalogStore");
@@ -226,6 +227,12 @@ describe("importComfyWorkflowToCatalog（S3 落库）", () => {
       .find((mapping) => mapping.modelKey === modelKey);
     expect(stagedModel).toBeTruthy();
     expect(stagedMapping).toBeTruthy();
+    // A staged import is intentionally disabled until certification. Mark the
+    // whole candidate vendor active as well as its model/mapping so this
+    // fixture represents the real post-certification predecessor. The
+    // identity planner must then preserve it while writing the edited
+    // workflow into a new isolated candidate revision.
+    upsertModelCatalogVendor({ key: initial.vendorKey, enabled: true });
     upsertModelCatalogModel({
       ...stagedModel,
       enabled: true,

@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import type { RuntimeToolCallRecord } from "../harness/runtime/runtimePort";
-import type { ProjectAgentTaskItem, ProjectAgentTurn } from "../shared/projectAgentContracts";
-import { exportJobTaskItems, toolItem } from "./projectAgentExecutionHelpers";
+import type { ProjectAgentHostState, ProjectAgentTaskItem, ProjectAgentTurn } from "../shared/projectAgentContracts";
+import type { AgentChatRequest } from "../harness/agentChatContracts";
+import { executionPrompt, exportJobTaskItems, toolItem } from "./projectAgentExecutionHelpers";
 
 const binding = Object.freeze({
   projectId: "project-a",
@@ -78,6 +79,24 @@ describe("ExportJob TaskRef projection", () => {
     { ...successfulExport(), result: { ...(successfulExport().result as object), foreignStatus: "succeeded" } },
   ])("rejects unsuccessful, mismatched, or non-strict tool results", (record) => {
     expect(exportJobTaskItems(binding, turn, [record], [], "2026-08-29T00:00:00.000Z")).toEqual([]);
+  });
+});
+
+describe("execution prompt history admission", () => {
+  const snapshot = {
+    activeThreadId: "thread-resident",
+    items: [{ threadId: "thread-resident", turnId: "old-turn", kind: "user", text: "F_PLAN_DONE prior resident text" }],
+  } as unknown as ProjectAgentHostState;
+
+  it("keeps single-shot direction and judge requests isolated from resident prior", () => {
+    const request = { capability: "single-shot", prompt: "fresh direction request", history: { kind: "ephemeral" } } as AgentChatRequest;
+    expect(executionPrompt(snapshot, "new-turn", request)).toBe("fresh direction request");
+  });
+
+  it("keeps initiating-thread context for resident multi-turn capabilities", () => {
+    const request = { capability: "canvas-agent", prompt: "continue canvas task", history: { kind: "ephemeral" } } as AgentChatRequest;
+    expect(executionPrompt(snapshot, "new-turn", request)).toContain("F_PLAN_DONE prior resident text");
+    expect(executionPrompt(snapshot, "new-turn", request)).toContain("continue canvas task");
   });
 });
 

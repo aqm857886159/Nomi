@@ -45,11 +45,11 @@ export const SKILL_READ_CAPABILITY = {
   inputSchema: skillReadSemanticInputSchema,
   outputSchema: skillReadResultSchema,
   effect: "read",
+  effectClass: "reversible_local",
   execution: { port: "skills", availability: "main_only" },
   exposure: "internal_only",
   requiredScope: "skills:read",
   targetKind: "project",
-  approval: "none",
   projections: {
     pi: {
       description: "Load one named Skill body from the approved Nomi catalog without granting its permissions.",

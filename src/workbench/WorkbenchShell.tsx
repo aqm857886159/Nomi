@@ -17,7 +17,6 @@ import { WindowControls } from "../ui/app-shell/WindowControls";
 import { handleWindowTitlebarDoubleClick } from "../ui/app-shell/windowTitlebarDoubleClick";
 import { OnboardingChecklist } from "./onboarding/OnboardingChecklist";
 import ProjectAgentResidentShell from './ai/ProjectAgentResidentShell';
-import { useAgentHostEnabled } from '../utils/agentHostPreference';
 
 // 工作区懒加载走容错域（审计 A5）：单个工作区 chunk 失败不拖死其余工作区。
 const CreationWorkspace = lazyWithChunkBoundary(
@@ -150,22 +149,30 @@ export default function WorkbenchShell({
     );
     const categories = useWorkbenchStore((state) => state.categories);
     const agentDockCollapsed = useWorkbenchStore((state) => state.projectAgentDockCollapsed);
-    // 发布闸（默认关，见 agentHostPreference）：关闭时常驻 Agent 整套 UI 一概不渲染——
-    // 不挂 portal、不给工作区传 dock ref（于是也不预留助手列 / 折叠药丸 / 入口），不只是折叠态。
-    // 开闸即删此闸的默认值歧义（P1）。
-    const agentHostEnabled = useAgentHostEnabled();
+    // 常驻 Agent 无条件渲染（2026-09-05 开闸）：发布闸 agentHostPreference 已随开闸删除——
+    // 它曾让「用户日常用的产品」和「测试跑的产品」变成两条路（并行版，P1）。
+    // 未完成的能力用 header 上的 Beta 徽标明说（D4 诚实交付），不再靠藏整套 UI 遮掩。
     const [agentDockTargets, setAgentDockTargets] = React.useState<Record<'creation' | 'storyboard' | 'generation' | 'preview', HTMLDivElement | null>>({ creation: null, storyboard: null, generation: null, preview: null });
     const setAgentDockTarget = React.useCallback((surface: 'creation' | 'storyboard' | 'generation' | 'preview') => (node: HTMLDivElement | null) => {
         setAgentDockTargets((current) => current[surface] === node ? current : { ...current, [surface]: node });
     }, []);
-    const agentDockRefs = React.useMemo(() => agentHostEnabled ? {
+    const agentDockRefs = React.useMemo(() => ({
         creation: setAgentDockTarget('creation'),
         storyboard: setAgentDockTarget('storyboard'),
         generation: setAgentDockTarget('generation'),
         preview: setAgentDockTarget('preview'),
-    } : { creation: undefined, storyboard: undefined, generation: undefined, preview: undefined }, [agentHostEnabled, setAgentDockTarget]);
-    const agentSurface = workspaceMode === 'generation' ? 'generation' : workspaceMode === 'preview' ? 'preview' : 'creation';
-    const agentDock = agentHostEnabled ? agentDockTargets[agentSurface] : null;
+    }), [setAgentDockTarget]);
+    // Storyboard owns its own full-width workspace and its own dock target.
+    // Falling through to creation here portals the resident Agent into the
+    // hidden creation slot whenever storyboard is active.
+    const agentSurface = workspaceMode === 'generation'
+        ? 'generation'
+        : workspaceMode === 'preview'
+            ? 'preview'
+            : workspaceMode === 'storyboard'
+                ? 'storyboard'
+                : 'creation';
+    const agentDock = agentDockTargets[agentSurface];
     const [mountedWorkspaceModes, setMountedWorkspaceModes] = React.useState<
         WorkspaceMode[]
     >(() => [workspaceMode]);
@@ -187,6 +194,15 @@ export default function WorkbenchShell({
         window.addEventListener("popstate", onPopState);
         return () => window.removeEventListener("popstate", onPopState);
     }, [setWorkspaceMode]);
+
+    // Some workspace actions (for example a storyboard summary card) update
+    // the shared mode store directly instead of going through the app-bar
+    // callback. Keep the URL projection in sync for those visible entries too;
+    // otherwise a restart/back-forward can restore `step=create` while the
+    // user is already in the storyboard workspace.
+    React.useEffect(() => {
+        writeWorkspaceModeToUrl(workspaceMode);
+    }, [workspaceMode]);
 
     React.useEffect(() => {
         setMountedWorkspaceModes((current) =>

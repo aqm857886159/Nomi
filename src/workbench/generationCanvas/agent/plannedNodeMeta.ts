@@ -66,13 +66,33 @@ function isValidParamValue(
   return true;
 }
 
+/**
+ * 模型清单索引：**同时**含 `vendor::modelKey` 与裸 `modelKey` 两种键。
+ * 前者是身份唯一键（同名模型来自不同供应商是两个模型）；后者供旧计划/无 vendor 的目录行回落。
+ * 裸键取**第一次出现**的条目（后来者不覆盖），避免「索引里最后写入的那家」这种随机身份。
+ * 两处落地路径（applyCanvasToolCall / storyboardRowActions）共用本构造器，不各写一份（P1）。
+ */
+export function buildModelEntryIndex(entries: readonly AgentModelEntry[]): Map<string, AgentModelEntry> {
+  const index = new Map<string, AgentModelEntry>();
+  for (const entry of entries) {
+    if (entry.vendor) index.set(`${entry.vendor}::${entry.modelKey}`, entry);
+    if (!index.has(entry.modelKey)) index.set(entry.modelKey, entry);
+  }
+  return index;
+}
+
 export function buildPlannedNodeMeta(
   planned: PlannedNodeModelInput,
   entryByKey: ReadonlyMap<string, AgentModelEntry>,
 ): Record<string, unknown> | undefined {
   const modelKey = typeof planned.modelKey === "string" ? planned.modelKey.trim() : "";
   if (!modelKey) return undefined;
-  const entry = entryByKey.get(modelKey);
+  // 身份唯一键是 (vendor, modelKey)——先按带 vendor 的键查，查不到才回落裸 key（旧计划/无 vendor 目录行）。
+  // 只按裸 key 查会在两家供应商提供同名模型时拿到「索引里最后写入的那家」，
+  // 与用户所选无关（2026-09-03 真实付费走查实测：选 APIMart 却发去 code-newcli-com）。
+  const declaredVendor = nonBlankString(planned.vendor) || nonBlankString(planned.modelVendor);
+  const entry = (declaredVendor ? entryByKey.get(`${declaredVendor}::${modelKey}`) : undefined)
+    ?? entryByKey.get(modelKey);
   // 模型不在可用清单 → 不写模型 meta，回退原自动选（避开 effect3 供应商断开自愈覆盖）。
   if (!entry) return undefined;
 

@@ -8,6 +8,7 @@ import { assertWorkbenchProjectMediaUrlsPersistable } from './projectMediaMigrat
 import { getDesktopBridge } from '../../desktop/bridge'
 import { buildTemplateCategories, getProjectTemplate } from '../library/projectTemplates'
 import { createDefaultWorkbenchDocument } from '../workbenchTypes'
+import { createEmptyStoryboardPlan } from '../generationCanvas/agent/storyboardPlan'
 import {
   PROJECT_BACKUP_INDEX_PREFIX,
   PROJECT_BACKUP_PREFIX,
@@ -142,7 +143,30 @@ export function createLocalProject(
       }
     : docDefaults
   const record = createProjectRecord(summary, {
-    workbenchDocument: seededDocument,
+    // Keep the starter attached to the seeded document so the editor can open
+    // with its two empty structural rows.
+    workbenchDocuments: [seededDocument],
+    activeDocumentId: seededDocument.id,
+    // A new blank project starts with two empty editable rows. This is
+    // structural workspace state, not seeded user content: prompts and anchors
+    // remain empty until the user or Agent supplies them.
+    ...(isDraft
+      ? {
+          storyboardDesignsByDocumentId: {
+            [seededDocument.id]: [{
+              id: `starter-${seededDocument.id}`,
+              documentId: seededDocument.id,
+              title: createEmptyStoryboardPlan().title,
+              plan: createEmptyStoryboardPlan(),
+              committed: false,
+              status: 'draft',
+              sourceDocumentUpdatedAt: seededDocument.updatedAt,
+              createdAt: now,
+              updatedAt: now,
+            }],
+          },
+        }
+      : {}),
     categories: buildTemplateCategories(template),
   })
   const desktop = getDesktopBridge()

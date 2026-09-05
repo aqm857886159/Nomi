@@ -21,7 +21,7 @@ import {
 } from "./productionRun";
 import { SKILL_WRITE_CAPABILITY } from "./skillWrite";
 import { SKILL_READ_CAPABILITY } from "./skillRead";
-import type { CapabilityContract, CapabilityProjectionSurface } from "./capabilityContract";
+import type { CapabilityContract, CapabilityEffectClass, CapabilityProjectionSurface } from "./capabilityContract";
 
 type AnyCapabilityContract = CapabilityContract<unknown, unknown>;
 type ContractOnly<Contract extends AnyCapabilityContract> =
@@ -79,6 +79,25 @@ export function resolveCapabilityAlias(
   alias: string,
 ): Readonly<{ contract: (typeof CAPABILITY_CONTRACTS)[number]; surface: string; alias: string }> | undefined {
   return CAPABILITY_ALIAS_ENTRIES.find((entry) => entry.alias === alias);
+}
+
+/** Resolve side-effect policy from the descriptor and its explicit operation map. */
+export function resolveCapabilityEffectClass(
+  toolName: string,
+  args?: unknown,
+): CapabilityEffectClass | undefined {
+  const resolved = resolveCapabilityAlias(toolName);
+  if (!resolved) return undefined;
+  const operation = args && typeof args === "object" && !Array.isArray(args)
+    ? (args as Record<string, unknown>).operation
+    : undefined;
+  if (typeof operation === "string") {
+    const contract = resolved.contract as AnyCapabilityContract;
+    return contract.operationEffectClasses
+      ? contract.operationEffectClasses[operation]
+      : contract.effectClass;
+  }
+  return resolved.contract.effectClass;
 }
 
 export function capabilityAliasesFor(contractId: string, surface: string): readonly string[] {

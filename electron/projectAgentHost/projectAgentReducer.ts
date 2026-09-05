@@ -7,18 +7,15 @@ import type {
   ProjectAgentHostState,
   ProjectAgentMutation,
   ProjectAgentPatch,
-  ProjectAgentProposalApproval,
-  ProjectAgentProposalLifecycle,
-  ProjectAgentQueueItem,
   ProjectAgentStatus,
   ProjectAgentTurn,
 } from "../shared/projectAgentContracts";
 import { ProjectAgentReducerError, type ProjectAgentReducerErrorCode } from "./projectAgentReducerContract";
-import { assertCanAppendProjectAgentItem } from "./projectAgentItemSemantics";
 import {
-  hasDuplicateProjectAgentApprovalIdentity,
-  hasDuplicateProjectAgentProposalReceiptIdentity,
-} from "./projectAgentSemanticIdentity";
+  reduceProjectAgentProposalPut,
+  reduceProjectAgentProposalTransition,
+} from "./projectAgentProposalReduction";
+import { assertCanAppendProjectAgentItem } from "./projectAgentItemSemantics";
 import {
   assertCanonicalMutationTimestamp,
   assertExactMutationKeys,
@@ -27,6 +24,7 @@ import {
   hashProjectAgentMutation,
 } from "./projectAgentMutationValidation";
 import { assertProjectAgentUsage } from "./projectAgentStateValidationPrimitives";
+import { assertProjectAgentRuntimeContext } from "./projectAgentRuntimeContextValidation";
 import type { ProjectAgentReduction } from "./projectAgentReduction";
 import {
   isProjectAgentAbortStatus,
@@ -52,6 +50,8 @@ import { reduceProjectAgentQueueMutation } from "./projectAgentQueueMutationRedu
 import { reduceProjectAgentTurnStart } from "./projectAgentTurnStartReduction";
 import {
   assertStatusTransition,
+  findQueueForTurn,
+  findTurn,
   replaceById,
   transitionRecord,
   updateProposalItems,
@@ -65,27 +65,8 @@ export type { ProjectAgentReducerErrorCode } from "./projectAgentReducerContract
 export { hashProjectAgentMutation } from "./projectAgentMutationValidation";
 export { replayProjectAgentCompactCommand } from "./projectAgentCompactReplay";
 export type { ProjectAgentReduction } from "./projectAgentReduction";
-function isProposalTransition(from: ProjectAgentProposalLifecycle, to: ProjectAgentProposalLifecycle): boolean {
-  return from === "pending" && (to === "claimed" || to === "expired");
-}
 function fail(code: ProjectAgentReducerErrorCode): never {
   throw new ProjectAgentReducerError(code);
-}
-function findTurn(state: ProjectAgentHostState, turnId: string): ProjectAgentTurn {
-  const turn = state.turns.find((value) => value.turnId === turnId);
-  if (!turn) fail("record_not_found");
-  return turn;
-}
-function findQueueForTurn(queue: readonly ProjectAgentQueueItem[], turnId: string): ProjectAgentQueueItem {
-  const item = queue.find((value) => value.turnId === turnId);
-  if (!item) fail("record_not_found");
-  return item;
-}
-
-function assertSingleRunningTurn(state: ProjectAgentHostState, turnId: string): void {
-  if (state.turns.some((turn) => turn.turnId !== turnId && turn.status === "running")) {
-    fail("running_turn_exists");
-  }
 }
 
 function finalizeReduction(
@@ -394,169 +375,17 @@ export function reduceProjectAgentMutation(
         changes.push({ kind: "item-upserted", item: updated });
         break;
       }
-      case "proposal.put": {
-        assertExactMutationKeys(mutation.payload, ["approval", "item", "occurredAt"]);
-        const { approval, item, occurredAt } = mutation.payload;
-        assertCanonicalMutationTimestamp(occurredAt);
-        if (
-          !approval ||
-          typeof approval !== "object" ||
-          !approval.ref ||
-          typeof approval.ref !== "object" ||
-          !item ||
-          typeof item !== "object"
-        ) {
-          fail("invalid_mutation");
-        }
-        if (
-          approval.lifecycle !== "pending" ||
-          proposalApprovals.some((value) => value.ref.approvalId === approval.ref.approvalId) ||
-          hasDuplicateProjectAgentApprovalIdentity([...proposalApprovals, approval])
-        ) {
-          fail("record_exists");
-        }
-        const turn = findTurn(current, approval.ref.turnId);
-        const queueItem = findQueueForTurn(queue, turn.turnId);
-        const deferredCanvasAdmission =
-          queueItem.target.kind === "canvas" &&
-          Object.keys(queueItem.preconditions).length === 0 &&
-          approval.ref.target.kind === "canvas" &&
-          Array.isArray(approval.ref.preconditions.edges) &&
-          approval.ref.preconditions.edges.length > 0;
-        if (
-          turn.threadId !== approval.ref.threadId ||
-          turn.status !== "running" ||
-          item.kind !== "proposal" ||
-          !item.approval ||
-          item.status !== "proposed" ||
-          item.threadId !== turn.threadId ||
-          item.turnId !== turn.turnId ||
-          items.some((value) => value.itemId === item.itemId) ||
-          stableProjectAgentJson(item.approval) !== stableProjectAgentJson(approval.ref) ||
-          (!deferredCanvasAdmission &&
-            (stableProjectAgentJson(approval.ref.target) !== stableProjectAgentJson(queueItem.target) ||
-              stableProjectAgentJson(approval.ref.preconditions) !== stableProjectAgentJson(queueItem.preconditions))) ||
-          new Date(occurredAt).getTime() < new Date(turn.updatedAt).getTime() ||
-          new Date(approval.ref.expiresAt).getTime() <= new Date(occurredAt).getTime()
-        ) {
-          fail("proposal_transition_invalid");
-        }
-        if (hasDuplicateProjectAgentProposalReceiptIdentity([...items, item])) fail("record_exists");
-        assertCanAppendProjectAgentItem(items, item, true);
-        assertCanonicalMutationTimestamp(approval.ref.expiresAt);
-        const updatedTurn = transitionRecord(turn, {
-          status: "proposed",
-          updatedAt: occurredAt,
-        });
-        const updatedQueue = transitionRecord(deferredCanvasAdmission
-          ? { ...queueItem, target: approval.ref.target, preconditions: approval.ref.preconditions }
-          : queueItem, { status: "proposed", updatedAt: occurredAt });
-        proposalApprovals = [...proposalApprovals, approval];
-        items = [...items, item];
-        turns = replaceById(
-          turns,
-          turn.turnId,
-          (value) => value.turnId,
-          () => updatedTurn,
-        );
-        queue = replaceById(
-          queue,
-          queueItem.queueItemId,
-          (value) => value.queueItemId,
-          () => updatedQueue,
-        );
-        changes.push(
-          { kind: "proposal-upserted", approval },
-          { kind: "item-upserted", item },
-          { kind: "turn-upserted", turn: updatedTurn },
-          { kind: "queue-upserted", queueItem: updatedQueue },
-        );
-        break;
-      }
+      case "proposal.put":
       case "proposal.transition": {
-        assertExactMutationKeys(mutation.payload, ["approvalId", "lifecycle", "occurredAt"]);
-        assertCanonicalMutationTimestamp(mutation.payload.occurredAt);
-        const existingApproval = proposalApprovals.find(
-          (value) => value.ref.approvalId === mutation.payload.approvalId,
-        );
-        if (!existingApproval) fail("record_not_found");
-        if (!isProposalTransition(existingApproval.lifecycle, mutation.payload.lifecycle)) {
-          fail("proposal_transition_invalid");
-        }
-        const occurredAtMs = new Date(mutation.payload.occurredAt).getTime();
-        const expiresAtMs = new Date(existingApproval.ref.expiresAt).getTime();
-        if (
-          (mutation.payload.lifecycle === "claimed" && occurredAtMs >= expiresAtMs) ||
-          (mutation.payload.lifecycle === "expired" && occurredAtMs < expiresAtMs)
-        ) {
-          fail("proposal_transition_invalid");
-        }
-        const turn = findTurn(current, existingApproval.ref.turnId);
-        const queueItem = findQueueForTurn(queue, turn.turnId);
-        const proposalItem = items.find(
-          (item) => item.kind === "proposal" && item.approval?.approvalId === existingApproval.ref.approvalId,
-        );
-        if (
-          turn.status !== "proposed" ||
-          queueItem.status !== "proposed" ||
-          !proposalItem ||
-          occurredAtMs < new Date(turn.updatedAt).getTime() ||
-          occurredAtMs < new Date(proposalItem.updatedAt).getTime()
-        ) {
-          fail("proposal_transition_invalid");
-        }
-        const claimed = mutation.payload.lifecycle === "claimed";
-        if (claimed) assertSingleRunningTurn(current, turn.turnId);
-        const status: ProjectAgentStatus = claimed ? "running" : "stopped";
-        const updatedApproval: ProjectAgentProposalApproval = freezeProjectAgentIncremental({
-          ...existingApproval,
-          lifecycle: mutation.payload.lifecycle,
-          ...(claimed ? { claimedAt: mutation.payload.occurredAt } : { expiredAt: mutation.payload.occurredAt }),
-        });
-        const updatedTurn = transitionRecord(turn, {
-          status,
-          updatedAt: mutation.payload.occurredAt,
-        });
-        const updatedQueue = transitionRecord(queueItem, {
-          status,
-          updatedAt: mutation.payload.occurredAt,
-        });
-        const proposalItems = updateProposalItems(
-          items,
-          existingApproval.ref.approvalId,
-          status,
-          mutation.payload.occurredAt,
-        );
-        items = proposalItems.items;
-        const terminalAssistant = claimed
-          ? { items, changes: [] }
-          : reduceProjectAgentAssistantTerminal(items, turn.turnId, status, mutation.payload.occurredAt);
-        items = terminalAssistant.items;
-        proposalApprovals = replaceById(
-          proposalApprovals,
-          existingApproval.ref.approvalId,
-          (value) => value.ref.approvalId,
-          () => updatedApproval,
-        );
-        turns = replaceById(
-          turns,
-          turn.turnId,
-          (value) => value.turnId,
-          () => updatedTurn,
-        );
-        queue = replaceById(
-          queue,
-          queueItem.queueItemId,
-          (value) => value.queueItemId,
-          () => updatedQueue,
-        );
-        changes.push(
-          { kind: "proposal-upserted", approval: updatedApproval },
-          { kind: "turn-upserted", turn: updatedTurn },
-          { kind: "queue-upserted", queueItem: updatedQueue },
-          ...proposalItems.changes,
-          ...terminalAssistant.changes,
-        );
+        const reduced =
+          mutation.type === "proposal.put"
+            ? reduceProjectAgentProposalPut(current, mutation)
+            : reduceProjectAgentProposalTransition(current, mutation);
+        turns = reduced.turns;
+        items = reduced.items;
+        queue = reduced.queue;
+        proposalApprovals = reduced.proposalApprovals;
+        changes.push(...reduced.changes);
         break;
       }
       case "async.result": {
@@ -575,6 +404,7 @@ export function reduceProjectAgentMutation(
           "items",
           "turnStatus",
           "usage",
+          "runtimeContext",
           "retryable",
           "proposalApprovalId",
           "proposalStatus",
@@ -585,6 +415,7 @@ export function reduceProjectAgentMutation(
         const result = mutation.payload;
         assertCanonicalMutationTimestamp(result.receivedAt);
         assertOptionalMutationBoolean(result.retryable);
+        if (result.runtimeContext !== undefined) { try { assertProjectAgentRuntimeContext(result.runtimeContext); } catch { fail("async_result_stale"); } }
         if (result.usage !== undefined) {
           try {
             assertProjectAgentUsage(result.usage);
@@ -703,6 +534,7 @@ export function reduceProjectAgentMutation(
         const updatedTurn = freezeProjectAgentIncremental({
           ...updatedTurnBase,
           ...(result.usage !== undefined ? { usage: result.usage } : {}),
+          ...(result.runtimeContext !== undefined ? { runtimeContext: result.runtimeContext } : {}),
         }) as ProjectAgentTurn;
         const updatedQueue = transitionRecord(
           queueItem,

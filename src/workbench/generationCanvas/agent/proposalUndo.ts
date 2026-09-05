@@ -529,6 +529,11 @@ export async function recoverPendingProposalReceipt(): Promise<boolean> {
   let receipt = currentReceipt
   if (!receipt) receipt = await readReceipt(context)
   if (!receipt) return false
+  // The durable journal is shared with MCP's main-process receipt owner. A
+  // transport-owned proposal has no Host approval/action correlation and must
+  // never be compensated by renderer recovery while its write is in flight;
+  // doing so would race the MCP commit CAS and falsely undo a real effect.
+  if (!receipt.proposal.hostApprovalId?.trim() || !receipt.proposal.hostActionHash?.trim()) return false
   if (receipt.lifecycle === 'committed' || receipt.lifecycle === 'undone') {
     installReceipt(receipt)
     return false

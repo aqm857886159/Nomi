@@ -1,0 +1,100 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-05-mcp-tool-refs-blindspot",
+  "problem_type": "Static MCP reference gate recognizes only one object-property spelling and misses positional tool calls.",
+  "symptom": "The existing check:mcp-tool-refs exited 0 while tests/ux contained 9 callTool('nomi_generate', ...) calls to a retired MCP tool.",
+  "direct_cause": "The gate matched only name: 'nomi_x' properties in tests/ux and never inspected positional callTool arguments or executable documentation examples.",
+  "class_root": "Tool-reference validation had no shared reference extractor for the equivalent MCP call shapes, so a retired name could remain callable in an unrun walkthrough without failing Contracts.",
+  "affected_population": [
+    "Contributors changing the MCP catalog or migrating tests",
+    "CI reviewers relying on unrun UX walkthroughs as evidence",
+    "Executable examples under tests/ and docs/ that call MCP tools by position or template literal"
+  ],
+  "scope_paths": [
+    "scripts/check-mcp-tool-references-lib.mjs",
+    "scripts/check-mcp-tool-references.ts",
+    "scripts/check-mcp-tool-references.node-test.mjs",
+    "package.json"
+  ],
+  "entry_points": ["pnpm run check:mcp-tool-refs", "tests/** executable MCP calls", "docs/** executable code fences"],
+  "external_sources": [],
+  "internal_only_reason": "The invariant is entirely internal: MCP_TOOL_RESOLVER is the repository's catalog truth source and the failure is a repository static-gate gap.",
+  "invariants": [
+    "Every statically recognizable MCP tool reference in tests/ and executable docs examples resolves in MCP_TOOL_RESOLVER.",
+    "Intentional unknown-tool probes remain explicit with unknown-tool-probe and are not confused with stale calls.",
+    "Host fixture tool names are checked against the agent catalog only when the call site visibly has type: 'tool'.",
+    "NUL-containing source files are read and scanned instead of being silently skipped."
+  ],
+  "generality_proof": "All supported spellings converge through scanSource: positional callTool-like calls, name properties in tools/call payloads, and template literals use the same catalog set. The scan covers every tests subtree except the independently scoped synthetic agent-runtime fixtures and all executable documentation fences, so another caller cannot reintroduce this exact blind spot by changing syntax or location.",
+  "shared_boundaries": [
+    {
+      "path": "scripts/check-mcp-tool-references-lib.mjs",
+      "symbol": "scanSource",
+      "responsibility": "Extract equivalent MCP tool-reference shapes and associate each with the correct MCP or host catalog."
+    },
+    {
+      "path": "scripts/check-mcp-tool-references.ts",
+      "symbol": "scanTargets",
+      "responsibility": "Run the shared extractor over tests and executable docs in the Contracts gate."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "tests/agent-runtime/session.test.mts",
+      "entry_point": "Synthetic nomi_echo/nomi_frames fixture names",
+      "disposition": "not-affected",
+      "evidence": "These names feed a fake Pi/HTTP tool pipeline and do not call the MCP service; the scanner excludes this independently scoped fixture directory."
+    },
+    {
+      "path": "electron/capabilityCore/mcpToolCatalog.ts",
+      "entry_point": "MCP_TOOL_RESOLVER",
+      "disposition": "enforced",
+      "evidence": "The gate derives its declared set from MCP_TOOL_RESOLVER.list() and does not maintain a second hand-written name list."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any future catalog retirement can be hidden by a different call syntax or by an executable example outside the former tests/ux-only scan.",
+    "same_class_scan": [
+      "rg -n \"callTool|tools/call|name:.*nomi_\" tests docs",
+      "rg -n \"nomi_generate\" tests/ux --glob '*.mjs' found 9 calls across four unreferenced walkthrough files",
+      "rg -n \"draft-journey|mcp-draft-loop|spend-elicit-app-open|workbench-token-root-scope\" package.json .github scripts found no runner references"
+    ]
+  },
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/check-mcp-tool-references.ts",
+    "invariant": "All supported executable MCP reference shapes resolve against the catalog truth source, while host fixtures use their own visible catalog boundary.",
+    "failure_mode": "A stale or retired tool name makes check:mcp-tool-refs exit 1 with file and line; only an explicitly marked unknown-tool-probe is exempt.",
+    "exception_policy": "none",
+    "strategy": "Centralize extraction in scanSource, run it in Contracts over tests and executable docs, and prove the class boundary with node:test fixtures including NUL input.",
+    "artifacts": [
+      "scripts/check-mcp-tool-references-lib.mjs",
+      "scripts/check-mcp-tool-references.ts",
+      "scripts/check-mcp-tool-references.node-test.mjs",
+      "package.json"
+    ]
+  },
+  "regression_tests": ["scripts/check-mcp-tool-references.node-test.mjs"],
+  "class_regression_tests": ["scripts/check-mcp-tool-references.node-test.mjs"],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "tests/ux/draft-journey.e2e.mjs",
+      "tests/ux/mcp-draft-loop.e2e.mjs",
+      "tests/ux/spend-elicit-app-open.walk.mjs",
+      "tests/ux/workbench-token-root-scope.walk.mjs"
+    ],
+    "rationale": "All four walkthroughs were unreferenced by package/workflow runners and depended on the retired nomi_generate path. P1 removes the obsolete tests instead of replacing a paid legacy call with an invented non-equivalent operation sequence."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party runtime or dependency controls this static reference invariant.",
+    "exit_criteria": []
+  },
+  "migration": "No user data migration. The gate command now runs its node-test before the catalog scan; obsolete unrun walkthrough files are deleted in the same change.",
+  "residual_risks": [
+    "Dynamic string concatenation or interpolated template names cannot be resolved statically and remain outside this gate; such callers must use a literal or add a dedicated runtime contract.",
+    "The synthetic tests/agent-runtime fixture directory remains intentionally outside this MCP catalog gate and is covered by its own agent-runtime tests."
+  ]
+}

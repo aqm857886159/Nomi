@@ -59,6 +59,12 @@ export function resolvedCandidateRootVendorKey(state: CatalogState, vendorKey: s
 }
 
 function modelPublished(state: CatalogState, vendorKey: string, selected: ReadonlySet<string>): boolean {
+  // A disabled vendor is not an active execution predecessor. This matters for
+  // known seeded models: saving a new credential deliberately de-publishes the
+  // vendor, so certification must promote the stable vendor key instead of
+  // isolating a candidate and leaving the source row disabled.
+  const vendor = state.vendors.find((candidate) => candidate.key === vendorKey);
+  if (!vendor?.enabled) return false;
   return state.models.some((model) =>
     model.vendorKey === vendorKey &&
     (selected.size === 0 || selected.has(model.modelKey)) &&
@@ -173,11 +179,14 @@ export function planStagedVendorIdentity(input: {
     .sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt))[0];
   const publishedSource = vendorPublished(input.state, sourceVendorKey) ? sourceVendor : undefined;
   const activeSource = publishedSelected || publishedSource;
-  const hasPublishedLineage = lineage.some((vendor) => vendorPublished(input.state, vendor.key));
 
-  // First-time, unpublished onboarding keeps the stable source key. Isolation starts
-  // once there is active execution or the caller explicitly supersedes a candidate.
-  if (!hasPublishedLineage && !isCandidateVendor(sourceVendor)) {
+  // First-time onboarding for a model without an active predecessor keeps the
+  // stable source key even when a sibling model in the same vendor is already
+  // published. Isolation is only needed when this selection replaces active
+  // execution (or the caller explicitly supersedes a candidate); checking the
+  // whole vendor here strands newly certified models in a candidate vendor.
+  const hasPublishedSelectedModel = Boolean(publishedSelected);
+  if (!hasPublishedSelectedModel && !isCandidateVendor(sourceVendor)) {
     return {
       vendorKey: sourceVendorKey,
       isolated: false,

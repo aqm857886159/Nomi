@@ -22,7 +22,7 @@ import { toCatalogModelOptions } from '../../config/modelOptionMappers'
 function option(modelKey: string, vendor: string, label: string): ModelOption {
   return { value: `${vendor}:${modelKey}`, label, modelKey, vendor, kind: 'image' } as ModelOption
 }
-const ailing = (...keys: string[]) => (modelKey: string) => keys.includes(modelKey)
+const ailing = (...keys: string[]) => ({ modelKey }: { modelKey: unknown; vendor: unknown }) => keys.includes(String(modelKey))
 const healthy = () => false
 
 function variantOptions(tiers = ['low', 'medium', 'high']): ModelOption[] {
@@ -268,5 +268,41 @@ describe('供应商锁定寻址 — 同名 modelKey 跨厂商不撞值（2026-07
     expect(opts.some((o) => o.value === valueB)).toBe(true)
     // vendor 缺省（旧数据）→ 回退首家，不落空。
     expect(resolveProviderSelectValue(model, 'gpt-image-2')).toBe(valueB)
+  })
+})
+
+describe('健康记忆按 (vendor, modelKey) 判定 —— 「换家优先于换模型」才真的能换家', () => {
+  // 2026-09-03 真实付费复验实测：点「Gpt Image 2」反复落到 Kie（余额为负、连连失败），
+  // 要手动切回 APIMart。根因不在 picker，在健康记忆的身份键少了 vendor：
+  // Kie 那家连败被记成「gpt-image-2 这个模型病了」，APIMart 的同名模型跟着背锅，
+  // healthyVendors 于是只能全好或全病 —— 整个换家机制对它本来要解决的多供应商场景完全失效。
+  const twoVendors = () => dedupeModelOptions([
+    option('gpt-image-2', 'kie', 'GPT Image 2'),
+    option('gpt-image-2', 'apimart', 'GPT Image 2'),
+  ])
+  /** 只有 Kie 那家病了；APIMart 的同名模型健康。 */
+  const kieAiling = ({ modelKey, vendor }: { modelKey: unknown; vendor: unknown }) => modelKey === 'gpt-image-2' && vendor === 'kie'
+
+  it('一家病了就换另一家，不是整条模型判病', () => {
+    const model = twoVendors()[0]
+    expect(pickHealthiestProvider(model, kieAiling)?.vendor).toBe('apimart')
+  })
+
+  it('还有健康的家时，模型不该被标成「最近多次失败」', () => {
+    const [entry] = buildModelSelectOptions(twoVendors(), kieAiling)
+    expect(entry.dimmed).toBeFalsy()
+    expect(entry.trailing).toBe('2 家')
+  })
+
+  it('批量下拉一家一行：只有病的那一行标红并沉底', () => {
+    const rows = buildVendorExplicitModelOptions(twoVendors(), kieAiling)
+    expect(rows).toHaveLength(2)
+    expect(rows[0].dimmed).toBeFalsy()
+    expect(rows[1].dimmed).toBe(true)
+  })
+
+  it('两家都病了才回退全集（绝不空选）', () => {
+    const model = twoVendors()[0]
+    expect(pickHealthiestProvider(model, () => true)).not.toBeNull()
   })
 })

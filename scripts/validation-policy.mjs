@@ -50,6 +50,9 @@ const PACKAGE_PATTERNS = [
 const JOURNEY_PATTERNS = [
   /^(?:tests\/agent-runtime|evals\/model-integration)(?:\/|$)/,
   /^skills\/model-integration(?:\/|$)/,
+  // The resident Agent shell is the shared UI entry point for real user journeys;
+  // keep this boundary explicit instead of relying on the filename's `Agent` token.
+  /^src\/workbench\/ai\/ProjectAgentResidentShell\.(?:ts|tsx)$/i,
   /^electron\/(?:ai|catalog|comfyui|providerAdapter|vendor)(?:\/|$)/,
   /^electron\/runtime(?:\.|\/)/,
   /^src\/.*(?:agent|bridge|credential|model|provider|catalog|comfyui|network|security|generationCanvas\/runner).*\.(?:ts|tsx|mts|cts|js|jsx|mjs|cjs)$/i,

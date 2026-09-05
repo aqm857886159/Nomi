@@ -1,0 +1,103 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-05-storyboard-mode-url-projection",
+  "problem_type": "storyboard visible entry loses workspace mode projection",
+  "symptom": "After restart, a visible storyboard plan card can be clicked while the URL remains step=create and the dedicated storyboard editor does not become the active reentry surface.",
+  "direct_cause": "StoryboardPlanCard updates the shared workspaceMode store directly, while WorkbenchShell only wrote the step query when app-bar navigation or initial mount ran; direct card actions therefore left the URL projection stale during cold reentry. The journey runner also queried the first global storyboard card, which could belong to a hidden WorkspaceSlot even when body text made the card appear present.",
+  "class_root": "Workspace mode had two unsynchronized projections: the store controlled mounted WorkspaceSlot visibility, but URL step remained an independent navigation hint. Direct visible workspace actions could not establish one canonical mode across render, URL, and restart boundaries.",
+  "affected_population": [
+    "Users reopening a project and entering storyboard from a visible plan card",
+    "Any workspace action that calls setWorkspaceMode outside the app-bar callback",
+    "Cold restart and browser history paths that consume the step query"
+  ],
+  "scope_paths": [
+    "src/workbench/WorkbenchShell.tsx",
+    "src/workbench/creation/storyboard/StoryboardPlanCard.tsx",
+    "src/workbench/creation/storyboard/StoryboardWorkspace.tsx",
+    "src/workbench/ai/ProjectAgentResidentShell.structure.test.ts",
+    "tests/ux/agent-vertical-spine-m0-m5.red.e2e.mjs",
+    "docs/plan/2026-09-05-m0-m5-vertical-spine-status.md"
+  ],
+  "entry_points": [
+    "Visible StoryboardPlanCard open storyboard action",
+    "WorkbenchShell workspaceMode and URL step projection",
+    "StoryboardWorkspace active slot and editor mount"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Workspace mode and step query are internal Nomi navigation contracts.",
+  "invariants": [
+    "Every workspaceMode store transition projects the same mode to the URL step query, including direct visible card actions.",
+    "The storyboard WorkspaceSlot is active whenever workspaceMode is storyboard and StoryboardPlanEditor reads the active document plan.",
+    "URL synchronization does not invent storyboard data or bypass the visible card/editor boundary.",
+    "Journey evidence scopes storyboard cards and editors to the active WorkspaceSlot and never treats hidden slots as visible user actions."
+  ],
+  "generality_proof": "All workspace surfaces converge on WorkbenchShell's single workspaceMode store and WorkspaceSlot map; synchronizing the URL from that store covers app-bar, card, task-center, onboarding, and future direct mode setters.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/WorkbenchShell.tsx",
+      "symbol": "workspaceMode URL synchronization effect",
+      "responsibility": "Project the shared mode store into the step query for every direct or indirect workspace transition."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/StoryboardWorkspace.tsx",
+      "symbol": "StoryboardWorkspace plan projection",
+      "responsibility": "Render the dedicated editor from the active document's canonical storyboard plan when the storyboard slot is active."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/creation/storyboard/StoryboardPlanCard.tsx",
+      "entry_point": "openStoryboard direct setWorkspaceMode action",
+      "disposition": "enforced",
+      "evidence": "The shared WorkbenchShell effect observes this store transition and writes step=storyboard."
+    },
+    {
+      "path": "src/workbench/WorkbenchShell.tsx",
+      "entry_point": "app-bar handleWorkspaceModeChange",
+      "disposition": "enforced",
+      "evidence": "The existing callback and new mode effect converge on the same URL writer."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any future direct workspaceMode setter could otherwise leave URL navigation stale and reproduce the same reentry mismatch.",
+    "same_class_scan": [
+      "Searched setWorkspaceMode callers across src/workbench and onboarding.",
+      "Confirmed WorkbenchShell is the only WorkspaceSlot/step projection owner."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/WorkbenchShell.tsx",
+    "invariant": "URL step is derived from the shared workspaceMode store after every mode change.",
+    "failure_mode": "Unknown mode values are rejected by the existing store setter; URL writer maps only the closed WorkspaceMode union.",
+    "exception_policy": "none",
+    "strategy": "Observe workspaceMode in one effect and reuse writeWorkspaceModeToUrl instead of adding caller-specific URL writes.",
+    "artifacts": [
+      "src/workbench/WorkbenchShell.tsx"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/ai/ProjectAgentResidentShell.structure.test.ts",
+    "tests/ux/agent-runtime-walk-support.test.mjs"
+  ],
+  "class_regression_tests": [
+    "src/workbench/ai/ProjectAgentResidentShell.structure.test.ts",
+    "tests/ux/agent-runtime-walk-support.test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The app-bar path remains; direct setters now share the same URL projection boundary."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency is introduced.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted migration is needed; URL step is ephemeral navigation state.",
+  "residual_risks": [
+    "A stale URL can still be observed for one render before the synchronization effect runs; the store remains the render authority.",
+    "If the active document plan is absent, the dedicated storyboard workspace continues to show its existing empty state."
+  ]
+}

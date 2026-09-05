@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseModelListResponse } from "./modelListResponse";
+import { parseModelListPage, parseModelListResponse } from "./modelListResponse";
 
 describe("parseModelListResponse", () => {
   // 这条是根因回归：new-api/one-api 的 SPA 对未知路径回 200 + index.html。
@@ -21,6 +21,14 @@ describe("parseModelListResponse", () => {
   it("OpenAI 标准 { data: [{ id }] } 解析出 id", () => {
     const body = '{"object":"list","data":[{"id":"doubao-seedance-2-0-260128"},{"id":"gpt-4o-mini"}]}';
     expect(parseModelListResponse(body)).toEqual(["doubao-seedance-2-0-260128", "gpt-4o-mini"]);
+  });
+
+  it("保留 OpenRouter 架构元数据供 MCP 接入直接推导能力", () => {
+    const page = parseModelListPage(JSON.stringify({ data: [{
+      id: "openrouter/image",
+      architecture: { input_modalities: ["text", "image"], output_modalities: ["image"], supported_parameters: ["temperature"] },
+    }] }));
+    expect(page).toMatchObject({ models: ["openrouter/image"], descriptors: [{ id: "openrouter/image", architecture: { inputModalities: ["text", "image"], outputModalities: ["image"], supportedParameters: ["temperature"] } }] });
   });
 
   it("顶层数组 / 裸字符串元素也认（少数网关形状）", () => {

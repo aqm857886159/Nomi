@@ -760,6 +760,30 @@ showUndoToast({
 | Error | 字 `--workbench-danger`、背景 `--workbench-danger-soft` |
 | Verified Success | 中性表面 + 小号 `--workbench-success` 圆点或勾；完整成功页可用 success soft 背景 |
 
+### 5.6 密集生产型表格行（分镜表 v6）
+
+文件：`src/workbench/creation/storyboard/`（实现待排期）。
+
+视觉：一行一个生产单元（镜头/锚）的密集表格行——固定几何列（画面格列、参考列）+ 一个占满剩余宽度的提示词块，模型/模式/参数收进提示词块内部的底栏，不做成表格列。
+
+规格与完整规则见合同文档，不在此复制细节：**`docs/design/2026-09-05-storyboard-table-v6-design-contract.md` §2/§6**（行 grid `14px 136px 200px minmax(0,1fr)`、画面格列固定宽+媒体框按比例缩放、动作条在图下方不压图）。
+
+何时用 / 何时不用：
+- 用：需要"批量冗余观察 + 逐条精细编辑"两件事共存的密集列表（分镜表是目前唯一实例）。
+- 不用：非密集场景改用 §3.7 提到的 `DesignTable`（管理后台类）；单条编辑不需要批量观察的场景改用普通表单。
+
+### 5.7 参考槽叠放格（手抓扑克扇形）
+
+文件：`src/workbench/creation/storyboard/`（实现待排期）。
+
+视觉：一个槽（不是一张素材）在参考列/列表里的固定占位——单张素材是普通 tile；≥2 张素材时叠成"手抓扑克"扇形（首张正放最上，其余以左下角为轴逐张多转 13°，露出右上角）+ 右下角 `已用/上限` 计数角标，点开出浮层网格增删排序。
+
+规格与完整规则见合同文档，不在此复制细节：**`docs/design/2026-09-05-storyboard-table-v6-design-contract.md` §4/§6**（槽 vs 素材的语义区分、`characterIndexed` 编号规则、`max` 缺省时的角标画法）。
+
+何时用 / 何时不用：
+- 用：一个数据槽可能装多个素材、且槽本身需要在密集列表里占**固定**视觉预算的场景。
+- 不用：单素材场景直接用普通 tile（§4.6 的 `AttachmentChip` 或 `2026-06-06-reference-v4-implementation-spec.md` 的 `AssetTile`），不要为只装一张的槽套叠放格外壳。
+
 ---
 
 ## 6. 图标使用规则（强制）

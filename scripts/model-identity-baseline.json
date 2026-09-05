@@ -1,0 +1,14 @@
+{
+  "entries": [
+    "src/config/modelArchetypes/customCapabilityContract.ts:meta,modelAlias,modelKey",
+    "src/config/modelArchetypes/customCapabilityContract.ts:modelAlias,modelKey",
+    "src/config/modelArchetypes/types.ts:id,identifierPatterns,label,modelKey",
+    "src/workbench/ai/assistantModelIdentity.ts:modelKey",
+    "src/workbench/api/taskApi.ts:modelKey,revisionId,taskKind",
+    "src/workbench/api/taskApi.ts:modelKey,revisionId,taskKind",
+    "src/workbench/creation/storyboard/StoryboardShotTable.tsx:fn(modelKey)",
+    "src/workbench/generationCanvas/agent/storyboardPlanEdits.ts:fn(plan,modelKey)",
+    "src/workbench/generationCanvas/nodes/controls/archetypeMeta.ts:archetype,modelKey",
+    "src/workbench/observability/classifyError.ts:modelKey,registered,requested"
+  ]
+}

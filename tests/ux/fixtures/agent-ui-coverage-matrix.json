@@ -1,0 +1,172 @@
+{
+  "version": 1,
+  "generatedSpec": "docs/design/agent-ui-spec.generated.json",
+  "sourceOfTruth": "docs/design/2026-09-02-agent-ui-conformance-testspec.md",
+  "anchors": {
+    "data-agent-panel": {
+      "status": "scene-root",
+      "specRefs": [
+        "§0"
+      ],
+      "source": {
+        "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+        "selector": "data-agent-panel"
+      },
+      "gate": "resident-panel-root",
+      "state": "resident-mounted"
+    },
+    "data-agent-usage-popover": {
+      "status": "runtime-present-unmeasured",
+      "specRefs": [
+        "A-02"
+      ],
+      "source": {
+        "path": "src/workbench/ai/resident/ResidentMenus.tsx",
+        "selector": "data-agent-usage-popover"
+      },
+      "state": "hover"
+    },
+    "data-agent-compaction-expand": {
+      "status": "missing-runtime-anchor",
+      "specRefs": [
+        "A-04"
+      ],
+      "source": null,
+      "state": "compaction-expanded"
+    },
+    "data-agent-stream-cursor": {
+      "status": "runtime-present-unmeasured",
+      "specRefs": [
+        "A-10"
+      ],
+      "source": {
+        "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+        "selector": "data-agent-stream-cursor"
+      },
+      "state": "streaming"
+    },
+    "data-agent-tool-detail": {
+      "status": "runtime-present-unmeasured",
+      "specRefs": [
+        "A-11"
+      ],
+      "source": {
+        "path": "src/workbench/ai/resident/ResidentUiPrimitives.tsx",
+        "selector": "data-agent-tool-detail"
+      },
+      "state": "tool-expanded"
+    },
+    "data-agent-at-picker": {
+      "status": "runtime-present-unmeasured",
+      "specRefs": [
+        "X-03"
+      ],
+      "source": {
+        "path": "src/workbench/ai/resident/ResidentExceptionStates.tsx",
+        "selector": "data-agent-at-picker"
+      },
+      "state": "reference-picker-open"
+    },
+    "data-agent-question-card": {
+      "status": "runtime-present-unmeasured",
+      "specRefs": [
+        "B-04"
+      ],
+      "source": {
+        "path": "src/workbench/ai/resident/ResidentExceptionStates.tsx",
+        "selector": "data-agent-question-card"
+      },
+      "state": "question-card"
+    },
+    "data-agent-candidates-card": {
+      "status": "runtime-present-unmeasured",
+      "specRefs": [
+        "B-05"
+      ],
+      "source": {
+        "path": "src/workbench/ai/resident/ResidentExceptionStates.tsx",
+        "selector": "data-agent-candidates-card"
+      },
+      "state": "candidates-card"
+    },
+    "data-agent-pinned-summary": {
+      "status": "runtime-present-blocked",
+      "specRefs": [
+        "D-03"
+      ],
+      "source": {
+        "path": "src/workbench/ai/resident/ResidentExceptionStates.tsx",
+        "selector": "data-agent-pinned-summary"
+      },
+      "state": "pinned-summary",
+      "blocker": "selected-shot-count interaction is not driven by the current conformance fixture"
+    },
+    "data-agent-pinned-body": {
+      "status": "runtime-present-unmeasured",
+      "specRefs": [
+        "D-04",
+        "D-05"
+      ],
+      "source": {
+        "path": "src/workbench/ai/resident/ResidentExceptionStates.tsx",
+        "selector": "data-agent-pinned-body"
+      },
+      "state": "pinned-expanded"
+    },
+    "data-agent-topbar-badge": {
+      "status": "runtime-present-unmeasured",
+      "specRefs": [
+        "C-03"
+      ],
+      "source": {
+        "path": "src/ui/app-shell/CollapsedAiChip.tsx",
+        "selector": "data-agent-topbar-badge"
+      },
+      "state": "deconstruction-active"
+    },
+    "data-agent-badge-dot": {
+      "status": "runtime-present-unmeasured",
+      "specRefs": [
+        "C-03"
+      ],
+      "source": {
+        "path": "src/ui/app-shell/CollapsedAiChip.tsx",
+        "selector": "data-agent-badge-dot"
+      },
+      "state": "agent-update-while-away"
+    },
+    "data-decon-node-stub": {
+      "status": "runtime-present-unmeasured",
+      "specRefs": [
+        "C-02"
+      ],
+      "source": {
+        "path": "src/workbench/generationCanvas/nodes/NodeDeconstructionBadge.tsx",
+        "selector": "data-decon-node-stub"
+      },
+      "state": "deconstruction-active"
+    },
+    "data-decon-node-badge": {
+      "status": "runtime-present-unmeasured",
+      "specRefs": [
+        "C-02"
+      ],
+      "source": {
+        "path": "src/workbench/generationCanvas/nodes/NodeDeconstructionBadge.tsx",
+        "selector": "data-decon-node-badge"
+      },
+      "state": "deconstruction-active"
+    },
+    "data-agent-tip": {
+      "status": "runtime-present-unmeasured",
+      "specRefs": [
+        "X-06"
+      ],
+      "source": {
+        "path": "src/workbench/ai/resident/ResidentExceptionStates.tsx",
+        "selector": "data-agent-tip"
+      },
+      "state": "tooltip-visible"
+    }
+  }
+}

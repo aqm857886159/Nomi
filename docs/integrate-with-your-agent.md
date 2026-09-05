@@ -87,9 +87,10 @@ git clone https://github.com/aqm857886159/Nomi.git
    - 接入卡会**真正启动配置里的命令做一次握手**，不是「配置里有一行」就显示成功。
    - **不要**照网上手写一份只有 `NOMI_MCP_STDIO=1` 的配置：当前版本会为每个客户端生成本机签名的 `NOMI_MCP_CLIENT` / `NOMI_MCP_CLIENT_PROOF`，绑定这台电脑和这个客户端，不能跨客户端复用、不能写死在公开文档里。缺证明的配置能列工具，但正式付费 Production Run 会被安全地当成 `external` 拦下。
 2. 按提示**重启对应客户端**，让它重新加载 MCP 配置。
+   - 从旧版本升上来、客户端里 `nomi` 报 `CONNECTION_CLOSED`：多半是配置还指着已迁移的旧入口 `scripts/nomi-mcp.mjs`。**照上面重新接一次**即可（不要手改配置文件）。
 
 **✅ 验证成功的标志：**
-- 握手成功后，你的客户端里出现 `nomi` 的**47 个工具**（含 `nomi_canvas_read`、`nomi_canvas_plan`、`nomi_canvas_edit`、`nomi_document_read`、`nomi_document_edit` 等画布 / 文档语义工具；另有 11 个 `generation.single-shot` 语义工具是零额度的可编辑生成入口）。
+- 握手成功后，你的客户端里出现一组 `nomi` 工具（画布 / 文档 / 时间轴 / 素材的语义读写，外加 `nomi_operation_*` 那条零额度的可编辑生成流程）。工具总数**以 `tools/list` 为准**（别再手抄一个数字：面一收敛，抄下来的那个数就成了错的）。想现在就看真实清单，在仓库里跑 `pnpm exec tsx -e "import('./electron/capabilityCore/mcpToolCatalog').then(m=>console.log(m.MCP_TOOL_RESOLVER.list().map(t=>t.name).join('\n')))"`；在客户端里则直接看它列出的 `nomi` 工具。
 - 你能跑通：「在 Nomi 里新建项目『咖啡广告』→ 列我有哪些图模型 → 加 3 个镜头 → 把第一个生成出来」。
 
 > **边界（诚实标注，也讲给用户）**：MCP 能建 / 观察 / 控制制作；**方向与样片**这类可逆创意门可由 Nomi 服务端向支持 elicitation 的客户端再次向真人确认。但**预算、逐镜头付费提交、粗剪采用、导出**必须回到 Nomi 由用户明确批准，主进程强制执行——你 agent 无法越权花钱。
@@ -144,7 +145,7 @@ git clone https://github.com/aqm857886159/Nomi.git
 - 自定义 / 中转供应商卡：`src/ui/onboarding/CustomVendorCard.tsx`、地址字段 `src/ui/onboarding/VendorBaseUrlField.tsx`、管理块 `src/ui/onboarding/CustomVendorManage.tsx`。
 - 本地 ComfyUI 卡：`src/ui/onboarding/ComfyuiLocalCard.tsx`；后端契约 / 默认值 / `/object_info` 对账：`electron/catalog/comfyuiLocal.ts`。
 - 内置供应商清单（哪些 host 是内置认得的）：`electron/catalog/builtinVendorSeeds.ts`。
-- MCP / CLI 完整流程、47 个工具、故障排查、安全边界：`docs/guide/capability-core-cli-mcp.md`。
+- MCP / CLI 完整流程、工具清单（以 `tools/list` 为准）、故障排查、安全边界：`docs/guide/capability-core-cli-mcp.md`。
 - 技能格式：`docs/skill-pack-format.md`。
 - 供应商接入通用说明：`docs/provider-integration.md`；使用指南：`docs/user-guide.md`。
 

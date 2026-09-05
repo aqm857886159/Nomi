@@ -166,6 +166,8 @@ export default function AssetTile({ asset, index, onRemove, onClick, dragProps, 
           dragProps?.draggable && 'data-[dragover=true]:outline data-[dragover=true]:outline-2 data-[dragover=true]:outline-nomi-accent',
           className,
         )}
+        // 稳定走查锚点（同 AssetAddTile 的理由）：按 kind 数 tile 才能验「视频进视频桶、没污染图片桶」。
+        data-asset-tile={asset.kind}
         role={clickable ? 'button' : undefined}
         tabIndex={clickable ? 0 : undefined}
         aria-label={clickable ? asset.name : undefined}
@@ -190,6 +192,9 @@ export function AssetAddTile({ onClick, selected, label, className }: { onClick:
   return (
     <button
       type="button"
+      // 稳定走查锚点：两处空槽入口的 aria-label 不同（具名槽是「添加{label}」、合并数组槽是「加参考」），
+      // 靠文案选元素会在改文案时静默失效（死选择器既造假红也造假绿）。
+      data-asset-add-tile="true"
       aria-label={label ?? t('assetLibrary.addReference')}
       onClick={onClick}
       className={cn(

@@ -46,6 +46,7 @@ export const DOCUMENT_READ_CAPABILITY = {
   inputSchema: documentReadSemanticInputSchema,
   outputSchema: documentReadResultSchema,
   effect: "read",
+  effectClass: "reversible_local",
   execution: {
     port: "document",
     availability: "renderer_required",
@@ -53,7 +54,6 @@ export const DOCUMENT_READ_CAPABILITY = {
   exposure: "mcp_safe",
   requiredScope: "document:read",
   targetKind: "document",
-  approval: "none",
   projections: {
     pi: {
       description: "Read the current creation document or selection as plain text.",

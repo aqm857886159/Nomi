@@ -58,6 +58,15 @@ describe('shotVerifyStore 状态机', () => {
     expect(s.exhausted).toBe(false)
   })
 
+  it('generation resident consumes the canonical deviation payload before recovery', () => {
+    const deviation = content('镜头-真实校验')
+    useShotVerifyStore.getState().setDeviations([deviation])
+    expect(useShotVerifyStore.getState().deviations).toEqual([deviation])
+    useShotVerifyStore.getState().markFixing()
+    expect(useShotVerifyStore.getState().deviations).toEqual([])
+    expect(useShotVerifyStore.getState().status).toBe('verifying')
+  })
+
   it('收敛(偏差清零)→ 预算回满 + exhausted 复位', () => {
     const st = useShotVerifyStore.getState()
     st.setDeviations([content('镜5')])
