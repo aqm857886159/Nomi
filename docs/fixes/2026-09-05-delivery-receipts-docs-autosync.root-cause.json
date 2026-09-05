@@ -1,0 +1,101 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-05-delivery-receipts-docs-autosync",
+  "problem_type": "Merged-main CI receipt ancestry and protected-branch docs autosync",
+  "symptom": "Merged verification rejected a valid earlier merge SHA after main advanced, while Docs Gate Autosync failed three times with GH006 when trying to push generated docs directly to protected main.",
+  "direct_cause": "verify-merged required HEAD and origin/main to equal expectedSha and keyed receipts to HEAD; the workflow committed on main and retried a forbidden direct push without a pull-request path.",
+  "class_root": "The delivery boundary did not distinguish an exact checked commit from the current main tip, and the autosync boundary had no protected-branch-safe write protocol.",
+  "affected_population": [
+    "Consecutive merged pull requests verified after origin/main advances",
+    "Any docs gate autosync run that finds generated changes on protected main",
+    "Maintainers relying on durable per-SHA CI evidence"
+  ],
+  "scope_paths": [
+    "scripts/git-delivery.mjs",
+    ".github/workflows/docs-autosync.yml"
+  ],
+  "entry_points": [
+    "verify-merged delivery command",
+    "Docs Gate Autosync workflow after a main push"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The missing invariants are repository-specific delivery and workflow policies; the captured GitHub run log and repository tests directly establish the failure and fix.",
+  "invariants": [
+    "The expected commit must exist locally and be an ancestor of the freshly fetched origin/main tip; checks are fetched for that exact commit.",
+    "Every receipt records the checked commit, current main tip, and tip/ancestor relation.",
+    "Docs repairs targeting protected main are committed on docs/autosync-<sha> and proposed through a pull request with [skip ci]."
+  ],
+  "generality_proof": "All merged verification calls converge on verifyMergedDelivery and its Git ancestry assertion, while the only docs autosync writer is this workflow. The shared checks therefore cover both the current-tip case and every earlier ancestor without requiring checkout, and replace every protected-main direct push attempt with the same pull-request action.",
+  "shared_boundaries": [
+    {
+      "path": "scripts/git-delivery.mjs",
+      "symbol": "verifyMergedDelivery",
+      "responsibility": "Fetch the authoritative remote tip, validate expected commit existence and ancestry, query exact-SHA checks, and write an idempotent receipt."
+    },
+    {
+      "path": ".github/workflows/docs-autosync.yml",
+      "symbol": "Open a docs repair pull request",
+      "responsibility": "Publish repaired docs through a bot branch and pull request so protected main is never written directly."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "scripts/git-delivery.mjs",
+      "entry_point": "verifyMergedDelivery",
+      "disposition": "enforced",
+      "evidence": "The command is the sole merged-main verifier and now enforces cat-file existence plus merge-base ancestry before exact-SHA checks."
+    },
+    {
+      "path": ".github/workflows/docs-autosync.yml",
+      "entry_point": "autosync job",
+      "disposition": "enforced",
+      "evidence": "The workflow is the sole writer for generated docs and now delegates branch creation and PR submission to create-pull-request."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Main can advance between any two merged PR validations, and every future autosync run executes against a protected branch with the same required checks.",
+    "same_class_scan": [
+      "Searched scripts/git-delivery.mjs and scripts/git-delivery.node-test.mjs for HEAD, remote main, expected SHA, receipt, and check-runs handling.",
+      "Searched all .github/workflows files for docs autosync writers, direct main pushes, and existing create-pull-request usage.",
+      "Inspected run 33967545325 logs: all three direct pushes were rejected with GH006 requiring a pull request and two required checks."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "scripts/git-delivery.mjs",
+    "invariant": "An explicit expected SHA is valid only when its Git object exists and it is an ancestor of the freshly fetched origin/main tip; the receipt names both identities and the relation.",
+    "failure_mode": "The command exits with missing_expected_sha or expected_sha_not_ancestor before querying checks or writing a receipt.",
+    "exception_policy": "none",
+    "strategy": "Move identity validation from equality with the caller's checkout to the earliest shared Git object boundary, and make the workflow use a protected-branch-safe PR writer.",
+    "artifacts": [
+      "scripts/git-delivery.mjs",
+      ".github/workflows/docs-autosync.yml"
+    ]
+  },
+  "regression_tests": [
+    "scripts/git-delivery.node-test.mjs",
+    "scripts/run-gates-contracts.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/git-delivery.node-test.mjs",
+    "scripts/run-gates-contracts.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      ".github/workflows/docs-autosync.yml"
+    ],
+    "rationale": "The workflow's direct commit and push-to-main implementation was removed and replaced by the pull-request action."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The defect was a repository identity and branch-protection invariant; GitHub Actions and Git CLI versions do not control that policy.",
+    "exit_criteria": []
+  },
+  "migration": "Existing v2 receipts are ignored and regenerated with schema v3 when the checked SHA is verified again. No branch or commit rewrite is needed; future docs repairs appear as ordinary pull requests.",
+  "residual_risks": [
+    "A required-check run may still remain pending or fail on the exact ancestor SHA; verification continues to fail closed until checks complete successfully.",
+    "A docs repair PR still requires the repository's normal required checks and merge policy before it changes main."
+  ]
+}
