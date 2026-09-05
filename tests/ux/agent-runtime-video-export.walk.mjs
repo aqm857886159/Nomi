@@ -6,7 +6,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { launchNomiApp } from './_launchApp.mjs'
-import { screenshotSettled } from './_assert.mjs'
+import { expect, screenshotSettled } from './_assert.mjs'
 
 const repoRoot = process.cwd()
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/agent-runtime-video-export')
@@ -182,6 +182,30 @@ try {
   const clipMeta = await videoClip.evaluate((el) => ({ text: el.textContent?.trim() || '', width: el.getBoundingClientRect().width }))
   check(clipMeta.width > 0, '生成视频通过可见入口进入视频时间轴', JSON.stringify(clipMeta))
   await snap(win, 'video-clip-on-timeline')
+
+  // M3 editing proof: use the visible blade tool and split the real clip at its
+  // midpoint. The clip count and persisted frame windows are the product truth;
+  // no store mutation or fixed delay is used by the walk.
+  const splitButton = win.getByRole('button', { name: /剪刀模式/ }).first()
+  await splitButton.waitFor({ state: 'visible', timeout: 5000 })
+  await splitButton.click()
+  const clipBox = await videoClip.boundingBox()
+  check(Boolean(clipBox && clipBox.width > 8), '剪刀模式下视频片段仍有可点击画面区域')
+  await videoClip.click({ position: { x: Math.max(4, Math.floor((clipBox?.width || 20) / 2)), y: Math.max(4, Math.floor((clipBox?.height || 20) / 2)) } })
+  const splitClips = win.locator('[data-track-type="video"] .workbench-timeline-clip')
+  await win.waitForFunction(() => document.querySelectorAll('[data-track-type="video"] .workbench-timeline-clip').length === 2, undefined, { timeout: 10_000 })
+  check(await splitClips.count() === 2, '真实剪辑操作把视频片段分成两段')
+  await expect.poll(() => {
+    const projectFile = findProjectJson(projectsDir)
+    if (!projectFile) return 0
+    const payload = JSON.parse(fs.readFileSync(projectFile, 'utf8')).payload
+    return payload?.timeline?.tracks?.flatMap((track) => track.clips || []).filter((clip) => clip.type === 'video').length || 0
+  }, { timeout: 10_000 }).toBe(2)
+  const splitProjectFile = findProjectJson(projectsDir)
+  const splitPayload = splitProjectFile ? JSON.parse(fs.readFileSync(splitProjectFile, 'utf8')).payload : null
+  const persistedSplitClips = splitPayload?.timeline?.tracks?.flatMap((track) => track.clips || []).filter((clip) => clip.type === 'video') || []
+  check(persistedSplitClips.length === 2, '剪辑后的两段视频已持久化到项目 payload', `count=${persistedSplitClips.length}`)
+  await snap(win, 'video-clips-split')
 
   await win.locator('[aria-label="工作区切换"]').getByText('预览', { exact: true }).click({ timeout: 5000 })
   await win.waitForTimeout(1200)
