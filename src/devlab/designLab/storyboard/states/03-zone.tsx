@@ -5,7 +5,7 @@ import StoryboardBulkBar from '../../../../workbench/creation/storyboard/Storybo
 import StoryboardShotTable from '../../../../workbench/creation/storyboard/StoryboardShotTable'
 import { deriveStoryboardRowRuntimes } from '../../../../workbench/creation/storyboard/exec/storyboardRowStatus'
 import type { StoryboardPlan } from '../../../../workbench/generationCanvas/agent/storyboardPlan'
-import { AutoClick, AutoFocus, TableStage } from '../storyboardLabKit'
+import { AutoClick, AutoFocus, PlaybackStage, TableStage } from '../storyboardLabKit'
 import {
   LAB_ANCHORS,
   LAB_IMAGE_MODELS,
@@ -221,5 +221,29 @@ export const ZONE_STATES: readonly LabState[] = [
         </TableStage>
       )
     },
+  },
+  {
+    id: 'sb-zone-09-playback-playing',
+    name: '播放本场 · 播放中（镜 i / n + 进度）',
+    source: '合同 §2.6 播放本场 / §3 播放中',
+    coverage: 'shell',
+    capture: 'viewport',
+    render: () => <PlaybackStage variant="playing" />,
+  },
+  {
+    id: 'sb-zone-10-playback-skipped',
+    name: '播放全部 · 未生成行灰色跳过',
+    source: '合同 §2.6 播放全部 / §3 跳过未生成',
+    coverage: 'shell',
+    capture: 'viewport',
+    render: () => <PlaybackStage variant="skipped" />,
+  },
+  {
+    id: 'sb-zone-11-playback-empty',
+    name: '播放全部 · 全部未生成（空态）',
+    source: '合同 §3 播放空态',
+    coverage: 'shell',
+    capture: 'viewport',
+    render: () => <PlaybackStage variant="empty" />,
   },
 ]

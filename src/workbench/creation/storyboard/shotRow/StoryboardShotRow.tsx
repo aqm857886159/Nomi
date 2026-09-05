@@ -80,6 +80,8 @@ type Props = {
   onToggleLock?: (() => void) | undefined
   /** 「交给 Agent 改这一镜」（§2.7 入口 3/3）。 */
   onAgentHandoff?: (() => void) | undefined
+  /** 设计返工 §2.7：剧本来源只展示设计，不在本轮接真实文稿读写链。 */
+  sourceSegment?: { id: string; edited: boolean; onClick?: (() => void) | undefined }
   onInsertAbove?: (() => void) | undefined
   onInsertBelow?: (() => void) | undefined
   targetShots?: readonly PlanShot[]
@@ -142,7 +144,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
     onGenerate, onJumpToAnchor, onOpenPreview, onRegenerate, onToggleLock, onAgentHandoff,
     onInsertAbove, onInsertBelow, targetShots, allShots, sourcePosition, onSaveAsReference, onSetAsFirstFrame,
     onRerunFreshRefs, onUpdate, onToggleAnchor, onRemove, promptInvalid,
-    mentionSearch, onMentionSelect, currentRefUrls, mentionUpload, storyboardProfile,
+    mentionSearch, onMentionSelect, currentRefUrls, mentionUpload, storyboardProfile, sourceSegment,
   } = props
   const [actionsOpen, setActionsOpen] = React.useState(false)
   const [aspectMenuOpen, setAspectMenuOpen] = React.useState(false)
@@ -315,6 +317,20 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
 
       {/* composer：提示词正文 + 底栏，一个框（"就像图片节点那样"）。 */}
       <div className={cn('rounded-nomi-sm border bg-nomi-paper', promptInvalid ? 'border-workbench-danger' : 'border-nomi-line')}>
+        {sourceSegment ? (
+          <div className="flex items-center gap-1.5 border-b border-nomi-line-soft px-2.5 py-1.5" data-storyboard-source-segment={sourceSegment.id} data-storyboard-prompt-origin={sourceSegment.edited ? 'script-edited' : 'script-derived'}>
+            {sourceSegment.onClick ? (
+              <button type="button" onClick={sourceSegment.onClick} className="rounded-pill bg-nomi-accent-soft px-1.5 py-0.5 text-micro text-nomi-accent hover:underline">
+                {sourceSegment.id}
+              </button>
+            ) : (
+              <span className="rounded-pill bg-nomi-accent-soft px-1.5 py-0.5 text-micro text-nomi-accent">{sourceSegment.id}</span>
+            )}
+            <span className="text-micro text-nomi-ink-50">
+              {sourceSegment.edited ? t('storyboardEditor.scriptProvenance.edited') : t('storyboardEditor.scriptProvenance.original')}
+            </span>
+          </div>
+        ) : null}
         <PromptSkeletonSegments
           prompt={shot.prompt}
           profile={storyboardProfile}

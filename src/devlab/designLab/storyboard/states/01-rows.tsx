@@ -170,4 +170,18 @@ export const ROW_STATES: readonly LabState[] = [
       },
     }),
   },
+  {
+    id: 'sb-row-16-script-source-original',
+    name: '行 · 来自剧本未改（F_SEG_B）',
+    source: '合同 §2.7 剧本连接 / §3 行·来自剧本未改',
+    coverage: 'shell',
+    render: () => RowStage({ sourceSegment: { id: 'F_SEG_B', edited: false } }),
+  },
+  {
+    id: 'sb-row-17-script-source-edited',
+    name: '行 · 来自剧本已改（回跳 chip）',
+    source: '合同 §2.7 剧本连接 / §3 行·来自剧本已改',
+    coverage: 'shell',
+    render: () => RowStage({ sourceSegment: { id: 'F_SEG_B', edited: true } }),
+  },
 ]

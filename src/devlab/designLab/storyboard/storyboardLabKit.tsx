@@ -1,5 +1,7 @@
 import React from 'react'
 import StoryboardShotRow from '../../../workbench/creation/storyboard/shotRow/StoryboardShotRow'
+import { AssetPreviewDialog, type AssetPreviewSequenceItem } from '../../../workbench/assets/AssetPreviewDialog'
+import type { AssetRef } from '../../../workbench/assets/assetTypes'
 import type { PlanShot, StoryboardPlan } from '../../../workbench/generationCanvas/agent/storyboardPlan'
 import {
   ASPECT_OPTIONS,
@@ -75,6 +77,7 @@ type RowOverrides = {
   outputTag?: string
   selected?: boolean
   isDragOver?: boolean
+  sourceSegment?: { id: string; edited: boolean }
 }
 
 /**
@@ -107,6 +110,7 @@ export function RowStage(overrides: RowOverrides & { clip?: boolean } = {}): JSX
         onToggleLock={NOOP}
         onOpenPreview={NOOP}
         onAgentHandoff={NOOP}
+        sourceSegment={overrides.sourceSegment}
         onInsertAbove={NOOP}
         onInsertBelow={NOOP}
         onSaveAsReference={NOOP}
@@ -131,4 +135,29 @@ export function RowStage(overrides: RowOverrides & { clip?: boolean } = {}): JSX
 /** 一行「换个模型/模式」的快捷取景——槽矩阵那六格全靠它，只换 modelKey/modeId。 */
 export function SlotMatrixRow(modelKey: string, modeId: string, shot?: Partial<PlanShot>): JSX.Element {
   return RowStage({ shot: { modelKey, modeId, referenceBindings: {}, ...shot } })
+}
+
+function labAsset(id: string, kind: 'image' | 'video', renderUrl: string): AssetRef {
+  return { id, kind, name: id, renderUrl, source: 'project', origin: { source: 'project', projectId: 'design-lab', relativePath: id } }
+}
+
+/** 播放器三种实验室登记态：播放中、含未生成占位、全部未生成空态。 */
+export function PlaybackStage({ variant }: { variant: 'playing' | 'skipped' | 'empty' }): JSX.Element {
+  const image = labAsset('lab-playback-image', 'image', 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180"><rect width="320" height="180" fill="#243244"/><text x="160" y="96" fill="white" text-anchor="middle" font-size="18">playback</text></svg>'))
+  const sequence: AssetPreviewSequenceItem[] = variant === 'empty'
+    ? [1, 2].map((index) => ({ asset: labAsset(`empty-${index}`, 'image', ''), playable: false, label: `镜 ${index}：未生成` }))
+    : variant === 'skipped'
+      ? [{ asset: labAsset('empty-1', 'image', ''), playable: false, label: '镜 1：未生成' }, { asset: image, playable: true, durationSec: 3 }]
+      : [{ asset: image, playable: true, durationSec: 3 }, { asset: labAsset('empty-2', 'image', ''), playable: false, label: '镜 2：未生成' }, { asset: image, playable: true, durationSec: 3 }]
+  const [open, setOpen] = React.useState(true)
+  return (
+    <TableStage clip={false}>
+      <div className="h-40 p-4 text-caption text-nomi-ink-40">
+        <span className="mr-2">播放弹层状态</span>
+        <span className="rounded-pill bg-nomi-ink-05 px-2 py-0.5">镜序</span>
+        <span className="ml-2 rounded-pill bg-nomi-ink-05 px-2 py-0.5">进度</span>
+      </div>
+      {open ? <AssetPreviewDialog asset={sequence[0].asset!} sequence={sequence} onClose={() => setOpen(false)} /> : null}
+    </TableStage>
+  )
 }
