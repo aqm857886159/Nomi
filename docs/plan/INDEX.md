@@ -89,6 +89,7 @@
 
 | 文件 | 一句话 | 状态 |
 |---|---|---|
+| [2026-09-06-ui-shell-version-dialog-node-empty.md](2026-09-06-ui-shell-version-dialog-node-empty.md) | P-01 新版本弹窗与 C-01 生成画布节点共享空态（设计实验室先行） | ✅ |
 | [2026-09-03-narrowed-mode-guidance-dismiss.md](2026-09-03-narrowed-mode-guidance-dismiss.md) | 收窄模式指路提示的节点级关闭与项目持久化 | 🚧 |
 | [2026-08-13-video-deconstruction-storyboard-table.md](2026-08-13-video-deconstruction-storyboard-table.md) | **视频拆解→分镜表→复刻生成**（表格=节点组的视图，非新数据模型；含 gemini/whisper 实测契约） | 📋 |
 | [2026-08-09-canvas-ux-feedback-round.md](2026-08-09-canvas-ux-feedback-round.md) | 画布体验反馈第 1 轮迭代（Windows 顶栏/视频工具栏并排等，样张阶段） | |
