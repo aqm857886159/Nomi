@@ -1,14 +1,8 @@
 # UI shell small delivery
-- Worktree: `/Users/aoqimin/Desktop/Nomi-ui-shell-small`; branch: `codex/ui-shell-version-dialog-node-empty-20260906`。
-- 计划：`docs/plan/2026-09-06-ui-shell-version-dialog-node-empty.md:1`（lab-first，范围/不动项/回滚/验收门）。
-- P-01：`src/ui/app-shell/UpdaterDialog.tsx:10`；版本、Markdown notes、更新并重启/稍后、下载进度、失败重试。
-- P-01 判定：`src/ui/app-shell/useUpdater.ts:56`；运行任务时不弹，只显示下载/更新角标。
-- C-01 共享空态：`src/workbench/generationCanvas/nodes/render/NodeEmptyState.tsx:14`，各节点旧空态已收敛删除。
-- 设计实验室注册：`src/devlab/uiShellLab.tsx:52`，更新四态 + 10 类节点空态，使用真实组件与 Tabler 图标。
-- 截图证据：`tests/ux/shots/design-lab-pending/`（14 张 PNG，未更新 baseline）。
-- 验证：`pnpm exec vitest run src/ui/app-shell/useUpdater.test.ts`（8 passed）；i18n/typecheck/lint 通过（81 warnings, 0 errors）。
-- 验证：`pnpm run check:design-lab`（46 passed，visual baseline green）。
-- 验证：`pnpm run gates`（60/60 contracts，full unit/build 通过；0 blocking/advisory failures）。
-- Fresh base：已合并 `origin/main@41e6f7557dd1`。
-- 实现推送 SHA：`d640cdc44b10b41cb4082978ba4e52d418daf276`。
-- 未开 PR；主仓 `/Users/aoqimin/Desktop/Nomi` 未改动。
+- 分支 `codex/ui-shell-version-dialog-node-empty-20260906` 已合并 `origin/main@4e8c342b4`。
+- 共享 `generationCommon.nodeEmpty` 已统一 whiteboard/scene3d 中英文节奏，并删除旧键。
+- 生产空态按钮增加稳定 `data-testid`；scene3d、whiteboard、remove-background 走查已改锚点。
+- Electron 走查：scene3d 7/7、whiteboard 6/6、remove-background 7/7，均无 console errors。
+- 实验室 pending 截图与 `contact.png` 已刷新，未更新 baseline。
+- `pnpm run gates`（提交 `a8bb2080d`）全绿：60/60 contracts、Vitest 11047 passed、build 通过。
+- 本分支待正常 push；未开 PR，主仓 `/Users/aoqimin/Desktop/Nomi` 未改动。
