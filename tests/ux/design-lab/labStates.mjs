@@ -31,6 +31,10 @@ export const LAB_SCREENS = {
     registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/editing/states'),
     baselineDir: path.join(BASELINE_ROOT, 'editing'),
   },
+  'host-config': {
+    registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/hostConfig/states'),
+    baselineDir: path.join(BASELINE_ROOT, 'host-config'),
+  },
 }
 
 export const LAB_SCREEN_IDS = Object.keys(LAB_SCREENS)

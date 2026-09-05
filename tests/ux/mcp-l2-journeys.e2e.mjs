@@ -5,7 +5,7 @@ import path from 'node:path'
 import { launchNomiApp } from './_launchApp.mjs'
 import { makeIsolatedDirs, packagedMcpRuntime, parseToolResult, spawnMcpStdioClient } from './_mcpJourney.mjs'
 import { startFakeApimartServer, writeFakeApimartCatalog } from './_mcpL2Fixture.mjs'
-import { expectAbsent, proveProbe } from './_assert.mjs'
+import { expectAbsent, expectHidden, expectVisible, proveProbe } from './_assert.mjs'
 
 const dirs = makeIsolatedDirs('nomi-mcp-l2-')
 const packagedBundle = process.argv.includes('--packaged')
@@ -131,15 +131,34 @@ try {
     action: 'open_credentials', sessionId: integrationSessionId, expectedRevision: integrationStartData.revision,
   })
   check(resultTextJson(credentialHandoff).stage === 'needs_credential', 'C7 T14 open_credentials 只打开 Nomi 安全页')
-  await win.evaluate(async (id) => {
+  // open_credentials 现在还有一个 GUI 副作用：把 Nomi 叫到前台并停在「设置 → 模型 → 添加一个 AI 模型」，
+  // 供应商名从持久 handoff 还原。这是 PR #528 要证明的那件事，所以在这里正面断言它，
+  // 而不是让它以「后面某个点击被模态挡住」的形式暴露出来。
+  const settingsOverlay = win.locator('[data-settings-overlay="true"]')
+  await expectVisible(settingsOverlay, 'C7 T14 open_credentials 把设置对话框带到前台')
+  const addModelPage = settingsOverlay.locator('[data-model-settings-page="add"]')
+  await expectVisible(addModelPage, 'C7 T14 设置停在「添加一个 AI 模型」页')
+  const providerNameInput = settingsOverlay.getByPlaceholder('如：TOAPI 中转')
+  await expectVisible(providerNameInput, 'C7 T14 添加页带供应商名输入框')
+  check(await providerNameInput.inputValue() === 'C7 relay proposal', 'C7 T14 供应商名从持久 handoff 预填')
+  // 关掉的方式必须是用户手上真有的那两个（Escape / 关闭钮），不是 force click 绕过 aria-modal。
+  // 模型页是抽屉里的下钻页：第一下 Escape 退回模型首页，第二下才关整个对话框——两级都断言，
+  // 「Escape 能关设置」这条无障碍基本项因此是被证明的，不是被假设的。
+  await win.keyboard.press('Escape')
+  await expectHidden(addModelPage, 'C7 T14 Escape 从添加页退回模型首页')
+  await win.keyboard.press('Escape')
+  await expectHidden(settingsOverlay, 'C7 T14 再按一次 Escape 关闭设置对话框')
+  const credentialSaved = await win.evaluate(async (id) => {
     const onboarding = window.nomiDesktop?.onboarding
     const current = await onboarding?.integrationSessionGet?.(id)
     const saved = await onboarding?.integrationSessionSaveCredential?.({ sessionId: id, expectedRevision: Number(current?.revision), apiKey: 'mcp-l2-proposal-key' })
-    const handoffs = await onboarding?.integrationHandoffList?.() || []
-    const handoff = handoffs.find((item) => item.sessionId === id && item.target === 'credential')
-    if (handoff) await onboarding?.integrationHandoffAck?.(handoff.requestId)
     if (saved?.credentialStatus !== 'ready') throw new Error('T14 fixture credential was not saved')
+    const handoffs = await onboarding?.integrationHandoffList?.() || []
+    return { queued: handoffs.filter((item) => item.sessionId === id && item.target === 'credential').length }
   }, integrationSessionId)
+  // 密钥落地后，那条持久「去填 key」请求必须由写它的那层收走。留着它 = 用户下次打开设置→模型
+  // 又被拽回一个已经接好的供应商的添加页（走查里这条 fixture 原本自己 ack 掉，把这个缺口盖住了）。
+  check(credentialSaved.queued === 0, 'C7 T14 密钥落地后持久凭据 handoff 被收走')
   const afterCredential = await call(mcp, 'nomi_read', { target: 'integration', sessionId: integrationSessionId })
   const afterCredentialData = resultTextJson(afterCredential)
   const rejectedProposal = await mcp.callTool('nomi_integration', {

@@ -38,6 +38,7 @@ import { handleMultiShotCanvasLandingOp } from './multiShotCanvasLanding'
 import { executeTimelineReadTarget, executeTimelineWriteTarget } from '../timeline/agent/timelineCapabilityTarget'
 import { executeAssetReadTarget, executeExportReadTarget } from '../timeline/agent/phase4CapabilityTargets'
 import { executeCanonicalCanvasPlanPatch } from './canonicalCanvasPlanPatch'
+import { handleMcpHostSurfaceOp } from './mcpHostSurfaceOps'
 
 // 能力核 A 模式实时桥 · 渲染层处理器。
 // 主进程把外部 MCP 的画布读/写/付费确认转发到这里（只在该项目正打开时路由），处理后回结果。
@@ -381,6 +382,10 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
   // 落点住在 multiShotCanvasLanding（保持本 handler 精简）。未处理返回 null → 继续走下方 switch。
   const landed = await handleMultiShotCanvasLandingOp(op, data)
   if (landed !== null) return landed
+
+  // 外部 MCP 宿主触发的纯渲染层副作用（打开凭据页 / 宿主配置已修复提示），落点住在 mcpHostSurfaceOps。
+  const hostSurface = handleMcpHostSurfaceOp(op, data)
+  if (hostSurface !== null) return hostSurface
 
   switch (op) {
     case 'document.write': {
