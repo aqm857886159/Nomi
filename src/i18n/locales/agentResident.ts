@@ -1,6 +1,8 @@
 export const zhAgentResident = {
   aria: 'Nomi Agent 工作区',
   brand: 'Nomi',
+  beta: 'Beta',
+  betaHint: '常驻 Agent 仍在打磨：多步编排与审批链可能出错，重要改动请先确认。',
   collapse: '收起 Agent',
   expand: '展开 Agent',
   newThread: '新对话',
@@ -305,6 +307,8 @@ export const zhAgentResident = {
 export const enAgentResident = {
   aria: 'Nomi Agent workspace',
   brand: 'Nomi',
+  beta: 'Beta',
+  betaHint: 'The resident Agent is still being polished: multi-step orchestration and approvals can go wrong, so double-check important changes.',
   collapse: 'Collapse Agent',
   expand: 'Expand Agent',
   newThread: 'New conversation',

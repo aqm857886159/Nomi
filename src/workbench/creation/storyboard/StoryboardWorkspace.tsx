@@ -13,8 +13,10 @@ import StoryboardPlanEditor from './StoryboardPlanEditor'
  */
 export default function StoryboardWorkspace({ projectId, aiCollapsed = false, agentDockRef }: { projectId?: string | null; aiCollapsed?: boolean; agentDockRef?: React.Ref<HTMLDivElement> }): JSX.Element {
   const { t } = useTranslation()
-  const entry = useWorkbenchStore((state) => (state.activeDocumentId ? state.storyboardPlans[state.activeDocumentId] : undefined))
-  const plan = entry?.plan ?? null
+  const plan = useWorkbenchStore((state) => {
+    const designs = state.activeDocumentId ? state.storyboardDesignsByDocumentId[state.activeDocumentId] ?? [] : []
+    return (designs.find((design) => design.id === state.activeStoryboardId) ?? designs[0])?.plan ?? null
+  })
   const setWorkspaceMode = useWorkbenchStore((state) => state.setWorkspaceMode)
   const workspaceMode = useWorkbenchStore((state) => state.workspaceMode)
   const activeDocumentId = useWorkbenchStore((state) => state.activeDocumentId)

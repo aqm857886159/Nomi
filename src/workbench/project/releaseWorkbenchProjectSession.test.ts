@@ -41,7 +41,6 @@ describe('releaseWorkbenchProjectRuntimeState', () => {
       hasClipboard: true,
     })
     useWorkbenchStore.setState({
-      storyboardPlans: { 'doc-a': { plan: { title: 'plan', anchors: [], shots: [] }, committed: true } },
       storyboardDesignsByDocumentId: {
         'doc-a': [{
           id: 'storyboard-a', documentId: 'doc-a', title: 'plan',
@@ -74,7 +73,7 @@ describe('releaseWorkbenchProjectRuntimeState', () => {
     expect(canvas.addNode).toBe(addNode)
 
     const workbench = useWorkbenchStore.getState()
-    expect(workbench.storyboardPlans).toEqual({})
+    expect(workbench.storyboardDesignsByDocumentId).toEqual({})
     expect(workbench.storyboardDesignsByDocumentId).toEqual({})
     expect(workbench.activeStoryboardId).toBeNull()
     expect(workbench.timeline).toEqual(createDefaultTimeline())

@@ -61,7 +61,7 @@ describe('projectRepository workspace project creation', () => {
     const payload = record.payload
     const documentId = payload.activeDocumentId
     expect(payload.workbenchDocuments?.[0]?.id).toBe(documentId)
-    const starter = documentId ? payload.storyboardPlans?.[documentId]?.plan : undefined
+    const starter = documentId ? payload.storyboardDesignsByDocumentId?.[documentId]?.[0]?.plan : undefined
 
     expect(starter).toMatchObject({ title: '', anchors: [] })
     expect(starter?.shots).toHaveLength(2)

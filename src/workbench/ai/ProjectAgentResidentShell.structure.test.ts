@@ -59,6 +59,12 @@ const generation = readSource(
 const preview = readSource(
   path.join(process.cwd(), 'src/workbench/preview/PreviewWorkspace.tsx'),
 )
+const workbenchShell = readSource(
+  path.join(process.cwd(), 'src/workbench/WorkbenchShell.tsx'),
+)
+const settingsDialog = readSource(
+  path.join(process.cwd(), 'src/workbench/settings/SettingsDialog.tsx'),
+)
 
 describe('ProjectAgentResidentShell production contract', () => {
   it('projects one Host timeline and keeps busy queue actions in the shell', () => {
@@ -310,6 +316,24 @@ describe('ProjectAgentResidentShell production contract', () => {
     expect(residentDisplay).toContain('patch?.modelId')
     expect(residentDisplay).toContain('nestedParameterRecords')
     expect(residentDisplay).toContain('Array.isArray(record.shots)')
+  })
+
+  // 发布闸拆除回归（2026-09-05）：闸曾把「用户日常用的产品」和「测试跑的产品」劈成两条路（并行版，P1）。
+  // 这三条断言锁住「无条件常驻 + 未完成明着标 Beta + 偏好模块彻底消失」，防止它以任何形式回来。
+  it('mounts the resident Agent unconditionally, with no release gate left behind', () => {
+    expect(workbenchShell).toContain('const agentDock = agentDockTargets[agentSurface]')
+    expect(workbenchShell).toContain('createPortal(<ProjectAgentResidentShell surface={agentSurface} />, agentDock)')
+    expect(workbenchShell).not.toContain('useAgentHostEnabled')
+    expect(workbenchShell).not.toContain('agentHostPreference')
+    expect(settingsDialog).not.toContain('AgentHostSection')
+    expect(fs.existsSync(path.join(process.cwd(), 'src/utils/agentHostPreference.ts'))).toBe(false)
+    expect(fs.existsSync(path.join(process.cwd(), 'src/workbench/settings/AgentHostSection.tsx'))).toBe(false)
+  })
+
+  it('labels the unfinished surface Beta in the header instead of hiding it', () => {
+    expect(resident).toContain('data-agent-beta-badge="true"')
+    expect(resident).toContain("t('agentResident.beta')")
+    expect(resident).toContain("t('agentResident.betaHint')")
   })
 
   it('overlays the collapsed affordance without reserving a sidebar column', () => {
