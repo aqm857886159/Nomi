@@ -16,7 +16,9 @@ import TimelineClip from './TimelineClip'
 import type { TimelineTrack as TimelineTrackData } from './timelineTypes'
 import { toast } from '../../ui/toast'
 import TimelineTransitionMarker from './TimelineTransitionMarker'
+import TimelineSeamHandle from './TimelineSeamHandle'
 import type { TimelineTransitionFeedback } from './timelineVisualFeedback'
+import { IconVolume, IconVolumeOff } from '@tabler/icons-react'
 import { getActiveWorkbenchProjectId } from '../project/workbenchProjectSession'
 
 type TimelineTrackProps = {
@@ -37,6 +39,8 @@ function TimelineTrack({ track, transitionFeedback = [], variant = 'primary' }: 
         ? t('timelineEditor.track.railVideoLabel')
         : t('timelineEditor.track.railAudioLabel')
   const secondary = variant === 'secondary'
+  const setTimelineTrackMuted = useWorkbenchStore((state) => state.setTimelineTrackMuted)
+  const trackMuted = track.type !== 'image' && track.clips.length > 0 && track.clips.every((clip) => clip.audio?.muted === true)
   const transitionRowsAtBoundary = new Map<number, number>()
   const laidOutTransitionFeedback = transitionFeedback.map((feedback) => {
     const stackRow = transitionRowsAtBoundary.get(feedback.boundaryFrame) ?? 0
@@ -185,12 +189,13 @@ function TimelineTrack({ track, transitionFeedback = [], variant = 'primary' }: 
       )}
       data-testid="timeline-track"
       data-track-type={track.type}
+      data-track-id={track.id}
     >
       <div
         className={cn(
           'workbench-timeline-track__label',
           'sticky left-0 z-[3] flex items-center gap-[7px]',
-          secondary ? 'min-h-[40px]' : 'min-h-[52px]',
+            secondary || (track.type === 'image' && track.clips.length === 0) ? 'min-h-[30px]' : 'min-h-[52px]',
           'min-w-0 pr-3 border-r-0 bg-transparent',
           secondary
             ? 'text-[var(--workbench-muted)] text-micro font-medium'
@@ -215,6 +220,17 @@ function TimelineTrack({ track, transitionFeedback = [], variant = 'primary' }: 
         >
           {displayTrackLabel}
         </span>
+        {track.type !== 'image' ? (
+          <button
+            type="button"
+            className="ml-auto inline-grid h-6 w-6 place-items-center rounded-[var(--nomi-radius-sm)] text-[var(--workbench-muted)] hover:bg-[var(--workbench-hover)]"
+            aria-label={trackMuted ? t('timelineEditor.track.unmute') : t('timelineEditor.track.mute')}
+            title={trackMuted ? t('timelineEditor.track.unmuteShortcut') : t('timelineEditor.track.muteShortcut')}
+            onClick={() => setTimelineTrackMuted(track.id, !trackMuted)}
+          >
+            {trackMuted ? <IconVolumeOff size={14} /> : <IconVolume size={14} />}
+          </button>
+        ) : null}
         <span
           className={cn(
             'workbench-timeline-track__count',
@@ -330,6 +346,12 @@ function TimelineTrack({ track, transitionFeedback = [], variant = 'primary' }: 
             </span>
           </div>
         ) : null}
+        {track.clips.slice(0, -1).map((clip, index) => {
+          const next = track.clips[index + 1]
+          return next && clip.endFrame === next.startFrame ? (
+            <TimelineSeamHandle key={`seam:${clip.id}:${next.id}`} track={track} from={clip} to={next} scale={scale} />
+          ) : null
+        })}
         {track.clips.map((clip) => (
           <TimelineClip key={clip.id} clip={clip} transitionLaneRows={transitionLaneRows} />
         ))}

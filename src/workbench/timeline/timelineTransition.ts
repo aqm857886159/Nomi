@@ -1,5 +1,7 @@
 import type { TimelineClip, TimelineState, TimelineTransition } from './timelineTypes'
 
+export const DEFAULT_TRANSITION_FRAMES = 15
+
 export const DEFAULT_TIMELINE_TRANSITION_FRAMES = 15
 
 export type ResolvedTimelineTransition = {
