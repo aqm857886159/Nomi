@@ -11,18 +11,24 @@
   ],
   "scope_paths": [
     "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx",
+    "src/workbench/creation/storyboard/StoryboardShotTable.tsx",
+    "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+    "src/workbench/creation/storyboard/storyboardDInteractions.ts",
+    "src/workbench/assets/AssetPreviewDialog.tsx",
     "src/workbench/generationCanvas/agent/storyboardPlan.ts",
     "src/workbench/generationCanvas/agent/storyboardPlanSchema.ts",
     "src/workbench/capability/capabilityApplyHandler.ts"
   ],
   "entry_points": [
-    "StoryboardShotRow expanded editor",
+    "StoryboardShotRow and StoryboardShotTable row/scene controls",
+    "buildStoryboardPlaybackQueue and AssetPreviewDialog sequence",
     "parseStoryboardPlan and storyboardPlanToCreateNodesArgs"
   ],
   "external_sources": [],
   "internal_only_reason": "The user-defined separation between generation rows and timeline editing is internal product ownership, independent of third-party API behavior.",
   "invariants": [
-    "Generation rows have one reference editor and one parameter editor; editorial caption/dialogue/transition fields are absent from the shot schema and materialization projection."
+    "Generation rows have one reference editor and one parameter editor; editorial caption/dialogue/transition fields are absent from the shot schema and materialization projection.",
+    "Every playback entry point uses one complete row-ordered queue with non-playable placeholders; image timing, video ended, attached audio, gray skips, keyboard navigation and empty state are consistent."
   ],
   "generality_proof": "Removing the obsolete editing path and excluding editorial fields at both parsing and materialization prevents them from returning through interactive edits, Agent input, or legacy in-memory plans.",
   "shared_boundaries": [
@@ -35,6 +41,16 @@
       "path": "src/workbench/generationCanvas/agent/storyboardPlan.ts",
       "symbol": "storyboardPlanToCreateNodesArgs",
       "responsibility": "Project only generation metadata, including legacy plans."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/storyboardDInteractions.ts",
+      "symbol": "buildStoryboardPlaybackQueue",
+      "responsibility": "Build the one ordered playback list for scene and whole-film callers, preserving unavailable rows and shared durations."
+    },
+    {
+      "path": "src/workbench/assets/AssetPreviewDialog.tsx",
+      "symbol": "AssetPreviewDialog",
+      "responsibility": "Own the body-portal sequence player, media timing, attached audio, progress and keyboard/escape controls."
     }
   ],
   "same_class_entry_points": [
@@ -49,6 +65,18 @@
       "entry_point": "storyboardPlanToCreateNodesArgs",
       "disposition": "enforced",
       "evidence": "Previously copied subtitle, dialogue and transition into generated node metadata."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/StoryboardShotTable.tsx",
+      "entry_point": "scene group play button",
+      "disposition": "enforced",
+      "evidence": "Scene playback delegates its group rows to the same editor callback and queue owner as whole-film playback."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+      "entry_point": "whole-film play button",
+      "disposition": "enforced",
+      "evidence": "Whole-film playback passes all rows to buildStoryboardPlaybackQueue and the shared portal dialog."
     }
   ],
   "recurrence": {
@@ -56,6 +84,7 @@
     "reason": "Any parsed or legacy plan and every future row could recreate the duplicate ownership.",
     "same_class_scan": [
       "rg dialogue/subtitle/transition across storyboardPlan, schema, UI and capabilityApplyHandler",
+      "rg buildStoryboardPlaybackQueue, AssetPreviewDialog, play-scene and play-all across storyboard UI",
       "Inspected storyboard row and node materialization consumers; existing timeline text/seam editors remain their own owners."
     ]
   },
@@ -69,15 +98,19 @@
     "artifacts": [
       "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx",
       "src/workbench/generationCanvas/agent/storyboardPlanSchema.ts",
-      "src/workbench/generationCanvas/agent/storyboardPlan.ts"
+      "src/workbench/generationCanvas/agent/storyboardPlan.ts",
+      "src/workbench/creation/storyboard/storyboardDInteractions.ts",
+      "src/workbench/assets/AssetPreviewDialog.tsx"
     ]
   },
   "regression_tests": [
     "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.structure.test.ts",
-    "src/workbench/generationCanvas/agent/storyboardPlanProvenance.test.ts"
+    "src/workbench/generationCanvas/agent/storyboardPlanProvenance.test.ts",
+    "src/workbench/creation/storyboard/storyboardDInteractions.test.ts"
   ],
   "class_regression_tests": [
     "src/workbench/generationCanvas/agent/storyboardPlanProvenance.test.ts"
+    ,"src/workbench/creation/storyboard/storyboardDInteractions.test.ts"
   ],
   "legacy_paths": {
     "status": "removed",

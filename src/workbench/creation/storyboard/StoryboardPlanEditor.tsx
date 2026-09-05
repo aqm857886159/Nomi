@@ -77,6 +77,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
   const [previewNodeId, setPreviewNodeId] = React.useState<string | null>(null)
   const [filterAnchorId, setFilterAnchorId] = React.useState<string | null>(null)
   const [playbackOpen, setPlaybackOpen] = React.useState(false)
+  const [playbackRows, setPlaybackRows] = React.useState<StoryboardRowRuntime[] | null>(null)
   const [mentionPreviewAsset, setMentionPreviewAsset] = React.useState<AssetRef | null>(null)
   // 锚区两态（v6 §2.2）：一次切全部，不做逐张展开（那会多出"哪几张是展开的"这个状态）。
   const [anchorsExpanded, setAnchorsExpanded] = React.useState(false)
@@ -149,13 +150,39 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
     () => visiblePositions.map((position) => rows[position]).filter((row): row is StoryboardRowRuntime => Boolean(row)),
     [rows, visiblePositions],
   )
-  const playbackQueue = React.useMemo(() => buildStoryboardPlaybackQueue(visibleRows), [visibleRows])
+  const playbackQueue = React.useMemo(() => buildStoryboardPlaybackQueue(playbackRows ?? rows), [playbackRows, rows])
   const playbackSequence = React.useMemo<AssetPreviewSequenceItem[]>(
-    () => playbackQueue.flatMap((item) => {
-      const asset = item.runtime.exec.node ? canvasNodeToAssetRefs(item.runtime.exec.node)[0] : null
-      return asset ? [{ asset, durationSec: item.durationSec }] : []
+    () => playbackQueue.map((item) => {
+      const asset = item.mediaUrl
+        ? {
+            id: `${item.runtime.exec.node?.id ?? item.shot.index}:storyboard-playback`,
+            kind: item.mediaKind ?? 'image',
+            name: t('storyboardEditor.playback.shotLabel', { index: item.shot.index }),
+            renderUrl: item.mediaUrl,
+            source: 'canvas' as const,
+            origin: { source: 'canvas' as const, nodeId: item.runtime.exec.node?.id ?? `storyboard-shot-${item.shot.index}` },
+          }
+        : {
+            id: `storyboard-empty-${item.shot.index}`,
+            kind: 'image' as const,
+            name: t('storyboardEditor.playback.shotLabel', { index: item.shot.index }),
+            renderUrl: '',
+            source: 'project' as const,
+            origin: { source: 'project' as const, projectId: '', relativePath: '' },
+          }
+      const audio = item.audioUrl
+        ? {
+            id: `${item.runtime.exec.node?.id ?? item.shot.index}:storyboard-audio`,
+            kind: 'audio' as const,
+            name: t('storyboardEditor.playback.audioForShot', { index: item.shot.index }),
+            renderUrl: item.audioUrl,
+            source: 'canvas' as const,
+            origin: { source: 'canvas' as const, nodeId: item.runtime.exec.node?.id ?? `storyboard-shot-${item.shot.index}` },
+          }
+        : undefined
+      return { asset, audio, durationSec: item.durationSec, playable: item.playable, label: t('storyboardEditor.playback.notGeneratedShot', { index: item.shot.index }) }
     }),
-    [playbackQueue],
+    [playbackQueue, t],
   )
 
   if (!plan) return null
@@ -300,10 +327,12 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
     const keyframe = target.shotKind !== 'image' ? { ...(target.keyframe ?? {}), enabled: true } : target.keyframe
     setStoryboardPlan({ ...result.plan, shots: result.plan.shots.map((shot, position) => position === targetPosition ? { ...shot, anchorIds, ...(keyframe ? { keyframe } : {}) } : shot) })
   }
-  const onStartPlayback = (): void => {
-    if (playbackSequence.length === 0) return
-    const skipped = visibleRows.length - playbackSequence.length
+  const onStartPlayback = (selectedRows: StoryboardRowRuntime[] = rows): void => {
+    if (selectedRows.length === 0) return
+    const selectedQueue = buildStoryboardPlaybackQueue(selectedRows)
+    const skipped = selectedQueue.filter((item) => !item.playable).length
     if (skipped > 0) toast(t('storyboardEditor.playback.skipped', { count: skipped }), 'info')
+    setPlaybackRows(selectedRows)
     setPreviewNodeId(null)
     setPlaybackOpen(true)
   }
@@ -401,9 +430,10 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
             <div className="text-body-sm font-medium text-nomi-ink-80">{t('storyboardEditor.storyboardHeading', { count: filterAnchorId ? visibleRows.length : plan.shots.length })}</div>
             <button
               type="button"
-              onClick={onStartPlayback}
-              disabled={playbackSequence.length === 0}
+              onClick={() => onStartPlayback(rows)}
+              disabled={rows.length === 0}
               aria-label={t('storyboardEditor.playback.aria')}
+              data-storyboard-play-all="true"
               className="h-6 px-2.5 rounded-full border border-nomi-line text-caption text-nomi-ink-60 inline-flex items-center gap-1 hover:border-nomi-accent hover:text-nomi-accent disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <IconPlayerPlay size={12} stroke={1.8} />
@@ -457,6 +487,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
                 const selectedIds = new Set(selected.map((runtime) => runtime.shot.shotId ?? `index:${runtime.shot.index}`))
                 setStoryboardPlan({ ...plan, shots: plan.shots.filter((shot) => !selectedIds.has(shot.shotId ?? `index:${shot.index}`)).map((shot, index) => ({ ...shot, index: index + 1 })) })
               }}
+              onPlayGroup={onStartPlayback}
               filterAnchorId={filterAnchorId}
             />
             <button
@@ -518,7 +549,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
 
       {/* 放大预览：素材库同一 body-portal lightbox（NodeMediaPreviewDialog 挂画布容器在分镜页不可见）。 */}
       {playbackOpen && playbackSequence.length > 0 ? (
-        <AssetPreviewDialog asset={playbackSequence[0].asset} sequence={playbackSequence} onClose={() => setPlaybackOpen(false)} />
+        <AssetPreviewDialog asset={playbackSequence[0].asset!} sequence={playbackSequence} onClose={() => { setPlaybackOpen(false); setPlaybackRows(null) }} />
       ) : previewAsset ? <AssetPreviewDialog asset={previewAsset} onClose={() => setPreviewNodeId(null)} /> : mentionPreviewAsset ? <AssetPreviewDialog asset={mentionPreviewAsset} onClose={() => setMentionPreviewAsset(null)} /> : null}
     </section>
   )

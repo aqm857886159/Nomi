@@ -1,6 +1,6 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconChevronDown, IconChevronRight, IconPlus } from '@tabler/icons-react'
+import { IconChevronDown, IconChevronRight, IconPlayerPlay, IconPlus } from '@tabler/icons-react'
 import type { ModelOption } from '../../../config/models'
 import type { StoryboardPlan } from '../../generationCanvas/agent/storyboardPlan'
 import { storyboardProfileForKey } from '../../generationCanvas/agent/storyboardProfiles'
@@ -93,6 +93,8 @@ type Props = {
   /** 「交给 Agent」——多选浮条与每行 ⋯ 菜单两处（§2.7 入口 2/3 与 3/3）。 */
   onAgentHandoff?: ((runtimes: StoryboardRowRuntime[]) => void) | undefined
   onLockSelected?: ((runtimes: StoryboardRowRuntime[]) => void) | undefined
+  /** 播放本场；整片播放复用同一 playback queue owner。 */
+  onPlayGroup?: ((runtimes: StoryboardRowRuntime[]) => void) | undefined
 }
 
 /**
@@ -135,7 +137,7 @@ function ShotRowWithMention({
   )
 }
 
-export default function StoryboardShotTable({ plan, projectId, rows, anchorCards, imageModelOptions, videoModelOptions, emptyPromptShots, onChange, onStoryboardShotSelect, onSelectionChange, onGenerateRow, onRegenerateRow, onVariantsRow, onToggleLockRow, onOpenPreviewRow, onRerunFreshRefsRow, onJumpToAnchor, onSaveResultAsReference, onSetResultAsFirstFrame, onGenerateSelected, onDeleteSelected, filterAnchorId, skippedShotIds, onToggleSkip, variantsByShotId, adoptedVariantByShotId, outputTagByShotId, onAgentHandoff, onLockSelected, onAdoptVariant: props_onAdoptVariant, onDeleteVariant: props_onDeleteVariant }: Props): JSX.Element {
+export default function StoryboardShotTable({ plan, projectId, rows, anchorCards, imageModelOptions, videoModelOptions, emptyPromptShots, onChange, onStoryboardShotSelect, onSelectionChange, onGenerateRow, onRegenerateRow, onVariantsRow, onToggleLockRow, onOpenPreviewRow, onRerunFreshRefsRow, onJumpToAnchor, onSaveResultAsReference, onSetResultAsFirstFrame, onGenerateSelected, onDeleteSelected, filterAnchorId, skippedShotIds, onToggleSkip, variantsByShotId, adoptedVariantByShotId, outputTagByShotId, onAgentHandoff, onLockSelected, onPlayGroup, onAdoptVariant: props_onAdoptVariant, onDeleteVariant: props_onDeleteVariant }: Props): JSX.Element {
   const { t } = useTranslation()
   const [dragIndex, setDragIndex] = React.useState<number | null>(null)
   const [overIndex, setOverIndex] = React.useState<number | null>(null)
@@ -228,19 +230,20 @@ export default function StoryboardShotTable({ plan, projectId, rows, anchorCards
         return (
           <React.Fragment key={foldKeyOf(group)}>
             {showHeads ? (
-              <button
-                type="button"
-                onClick={() => toggleFold(group)}
-                aria-expanded={!folded}
-                className="w-full flex items-center gap-2 px-3 py-1.5 bg-nomi-ink-05 hover:bg-nomi-ink-10 text-left"
-              >
-                {folded ? (
-                  <IconChevronRight size={13} stroke={1.8} className="shrink-0 text-nomi-ink-40" aria-hidden />
-                ) : (
-                  <IconChevronDown size={13} stroke={1.8} className="shrink-0 text-nomi-ink-40" aria-hidden />
-                )}
-                <span className="min-w-0 truncate text-caption font-medium text-nomi-ink-80">{headTitleOf(group, groupIndex)}</span>
-                <span className="ml-auto shrink-0 flex items-center gap-2.5 text-micro text-nomi-ink-40">
+              <div className="flex w-full items-center gap-2 bg-nomi-ink-05 px-3 py-1.5 hover:bg-nomi-ink-10">
+                <button
+                  type="button"
+                  onClick={() => toggleFold(group)}
+                  aria-expanded={!folded}
+                  className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                >
+                  {folded ? (
+                    <IconChevronRight size={13} stroke={1.8} className="shrink-0 text-nomi-ink-40" aria-hidden />
+                  ) : (
+                    <IconChevronDown size={13} stroke={1.8} className="shrink-0 text-nomi-ink-40" aria-hidden />
+                  )}
+                  <span className="min-w-0 truncate text-caption font-medium text-nomi-ink-80">{headTitleOf(group, groupIndex)}</span>
+                  <span className="ml-auto shrink-0 flex items-center gap-2.5 text-micro text-nomi-ink-40">
                   <span>{(() => {
                     const allGroup = allGroups.find((candidate) => foldKeyOf(candidate) === foldKeyOf(group))
                     return filterAnchorId && allGroup
@@ -256,8 +259,22 @@ export default function StoryboardShotTable({ plan, projectId, rows, anchorCards
                   {missingCount > 0 ? (
                     <span className="text-workbench-danger">{t('storyboardEditor.sceneGroup.missingRequired', { count: missingCount })}</span>
                   ) : null}
-                </span>
-              </button>
+                  </span>
+                </button>
+                {onPlayGroup ? (
+                  <button
+                    type="button"
+                    onClick={() => onPlayGroup(groupRows)}
+                    disabled={groupRows.length === 0}
+                    data-storyboard-play-scene={foldKeyOf(group)}
+                    className="inline-flex shrink-0 items-center gap-1 rounded-full border border-nomi-line px-2 py-0.5 text-micro text-nomi-ink-60 hover:border-nomi-accent hover:text-nomi-accent disabled:cursor-not-allowed disabled:opacity-40"
+                    aria-label={t('storyboardEditor.playback.sceneAria', { name: headTitleOf(group, groupIndex) })}
+                  >
+                    <IconPlayerPlay size={11} stroke={1.8} />
+                    {t('storyboardEditor.playback.scene')}
+                  </button>
+                ) : null}
+              </div>
             ) : null}
             {!folded
               ? group.shots.map((shot, indexInGroup) => {
