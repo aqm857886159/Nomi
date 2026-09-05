@@ -1,0 +1,115 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-06-mcp-locale-and-tool-titles",
+  "problem_type": "MCP launcher locale drift and missing human tool titles",
+  "symptom": "With Nomi set to zh-CN on an en-US machine, external MCP results are English; nine semantic tools appear with only bare identifiers because tools/list omits title.",
+  "direct_cause": "The bare Node launcher snapshots Intl.DateTimeFormat().resolvedOptions().locale at process load and has no authenticated live-locale refresh or persisted preference reader. Capability-projected semantic tools carry description/schema but no title, and the handshake explicitly exempts them.",
+  "class_root": "The MCP transport has no single locale authority spanning persisted preference, live GUI state, and offline fallback, and the catalog has no invariant requiring a localized human title for every exposed tool.",
+  "affected_population": [
+    "Users whose Nomi language differs from the operating-system locale",
+    "External Claude Code/Codex MCP hosts using the bare Node launcher",
+    "All hosts rendering the nine semantic editing tools from tools/list"
+  ],
+  "scope_paths": [
+    "electron/capabilityCore/mcpNodeLauncher.ts",
+    "electron/capabilityCore/mcpProtocol.ts",
+    "electron/capabilityCore/mcpCapabilityProjection.ts",
+    "electron/capabilityCore/mcpToolCatalog.ts",
+    "electron/capabilityCore/rpcServer.ts",
+    "electron/i18n.ts",
+    "electron/settings/localePreference.ts",
+    "scripts/check-mcp-payload.ts"
+  ],
+  "entry_points": [
+    "Bare Node mcpNodeLauncher stdio transport",
+    "Electron mcpStdioServer transport",
+    "MCP tools/list through createMcpProtocol"
+  ],
+  "internal_only_reason": "This is an application-level locale and catalog invariant; no third-party behavior determines the required precedence or title contract.",
+  "invariants": [
+    "Persisted preferences.language is preferred, authenticated live GUI locale overrides the launcher cache while online, and system locale is used only when no preference or live value exists.",
+    "Every MCP tool exposed by tools/list has a non-empty title for zh-CN and en.",
+    "Locale changes replace cached launcher state without requiring process restart."
+  ],
+  "generality_proof": "Both bare Node and Electron transports converge on createMcpProtocol for tools/list and result text. The launcher reads the same persisted preference and authenticated RPC locale used by the GUI, while catalog titles are projected at the protocol boundary for every caller locale.",
+  "shared_boundaries": [
+    {
+      "path": "electron/capabilityCore/mcpNodeLauncher.ts",
+      "symbol": "resolveLauncherLocale / refreshLauncherLocale",
+      "responsibility": "Resolve persisted preference first, refresh from live GUI when reachable, and retain OS fallback only for offline startup."
+    },
+    {
+      "path": "electron/capabilityCore/mcpProtocol.ts",
+      "symbol": "tools/list projection",
+      "responsibility": "Select each tool's localized title from the transport locale at the MCP boundary."
+    },
+    {
+      "path": "electron/capabilityCore/mcpToolCatalog.ts",
+      "symbol": "SEMANTIC_EDITING_TOOL_TITLES",
+      "responsibility": "Require and attach both supported human title variants to the nine capability-projected tools."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/capabilityCore/mcpStdioServer.ts",
+      "entry_point": "getLocale via getDesktopLocale",
+      "disposition": "enforced",
+      "evidence": "The Electron stdio transport already follows the GUI locale; it now shares the localized title projection and persisted IPC write path."
+    },
+    {
+      "path": "electron/capabilityCore/mcpNodeLauncher.ts",
+      "entry_point": "launcher protocol getLocale",
+      "disposition": "enforced",
+      "evidence": "This is the reported bare Node entry; persisted and live RPC sources converge before system fallback."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any user selecting a language different from the OS, any launcher restart, or any newly projected capability without title can reproduce the same class.",
+    "same_class_scan": [
+      "rg resolveLauncherLocale/getLocale across electron/capabilityCore",
+      "rg all nine nomi_* semantic names across capability adapters and tools/list handshake",
+      "Checked mcpStdioServer.ts and createMcpCapabilityResolver as the independent transport and catalog entry points."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/capabilityCore/mcpProtocol.ts",
+    "invariant": "tools/list always selects a non-empty localized title for every exposed tool.",
+    "failure_mode": "A missing title mapping throws during catalog construction; a missing locale variant falls back to the tool's zh-CN title rather than emitting an empty field.",
+    "exception_policy": "none",
+    "strategy": "Keep title ownership in the catalog and locale selection at the protocol boundary so every MCP host receives the same complete contract.",
+    "artifacts": [
+      "electron/capabilityCore/mcpToolCatalog.ts",
+      "electron/capabilityCore/mcpProtocol.ts",
+      "electron/capabilityCore/mcpNodeLauncher.ts",
+      "scripts/check-mcp-payload.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/capabilityCore/mcpLauncherLocale.test.ts",
+    "electron/capabilityCore/mcpToolCatalog.test.ts",
+    "electron/capabilityCore/mcpProtocol.test.ts",
+    "tests/ux/mcp-l1-handshake.e2e.mjs"
+  ],
+  "class_regression_tests": [
+    "electron/capabilityCore/mcpLauncherLocale.test.ts",
+    "electron/capabilityCore/mcpToolCatalog.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "tests/ux/mcp-l1-handshake.e2e.mjs"
+    ],
+    "rationale": "The exemption was the obsolete escape hatch for the nine untitled tools; deleting it makes the complete-directory invariant executable."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency controls locale precedence or MCP title projection.",
+    "exit_criteria": []
+  },
+  "migration": "Existing clients continue to send the same tool names, schemas, and methods. Existing settings without preferences.json keep the OS locale fallback; the first GUI locale IPC write creates the persisted preference.",
+  "residual_risks": [
+    "A launcher started with no settings directory and no live GUI still necessarily uses the OS fallback until Nomi is opened once."
+  ]
+}

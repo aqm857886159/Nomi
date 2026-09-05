@@ -25,6 +25,7 @@ import {
 } from './security'
 import { profilesPath } from './mcpDetectedClients'
 import { readAutomationPolicySettings } from '../settings/automationPolicySettings'
+import { getSettingsRoot } from '../settings/settingsRoot'
 
 const SERVER_NAME = 'nomi'
 export const MCP_CONFIG_VERSION_ENV = 'NOMI_MCP_CONFIG_VERSION'
@@ -202,6 +203,7 @@ function nodeLauncherEntry(appCommand: string, appArgs: string[], kind: McpLaunc
       ELECTRON_RUN_AS_NODE: '1',
       NOMI_MCP_APP_COMMAND: appCommand,
       NOMI_MCP_APP_ARGS: JSON.stringify(appArgs),
+      NOMI_SETTINGS_DIR: getSettingsRoot(),
     },
   }
 }

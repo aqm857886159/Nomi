@@ -18,7 +18,7 @@ async function run(): Promise<void> {
     const result = frames.find((frame) => frame.result !== undefined)?.result as { tools?: Array<Record<string, unknown>> } | undefined
     const tools = Array.isArray(result?.tools) ? result.tools : []
     const actualBytes = Buffer.byteLength(JSON.stringify({
-      tools: tools.map(({ name, description, inputSchema }) => ({ name, description, inputSchema })),
+      tools: tools.map(({ name, title, description, inputSchema }) => ({ name, title, description, inputSchema })),
     }))
     console.log(`MCP tools/list payload: ${actualBytes} bytes (ratchet max ${maxBytes})`)
     if (actualBytes > maxBytes) {
