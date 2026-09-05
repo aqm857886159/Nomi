@@ -1,4 +1,15 @@
 <!DOCTYPE html>
+<!--
+  ⚠️ 历史稿（2026-09-06 起）。Agent 界面的真相源已换成**设计实验室**：
+  `design-lab.html?screen=agent-panel&state=<id>`（源码 `src/devlab/designLab/agentPanelStates.tsx`），
+  它用现役 React 组件 + 固定夹具渲染，逐状态视觉基线在
+  `tests/ux/design-lab/__baselines__/agent-panel/`，由 `pnpm run check:design-lab` 逐像素守。
+  本文件保留作**当时的拍板证据**与走查锚点来源，不再作为「实现该长成什么样」的依据；
+  设计有变动改实验室，不改这里（两处都改 = 又造了一个会漂移的第二真相源）。
+  背景：用户 2026-09-06 拍板「UI 交付的定义 = 实验室截图拍板 + 视觉基线绿」。
+  不一致清单见 `docs/design/2026-09-06-agent-panel-design-lab-deviations.md`。
+-->
+
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
