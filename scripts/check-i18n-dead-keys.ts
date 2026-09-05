@@ -88,6 +88,83 @@ export function createCollected(): Collected {
   return { exactRefs: new Set(), literalPool: new Set(), templateHeads: new Map() }
 }
 
+
+// ── 规则③的「像不像翻译键」判据 ──
+// 为什么需要它（2026-09-05）：head 采集原先**不问出处**，于是任何长得像键路径的模板都成了动态前缀，
+// 而一个前缀会让它覆盖的整片叶子免于判死。实例：时间轴测试里的夹具文件名 `media.${extension}`
+// 让真实的 media.* 命名空间（5 叶）整片豁免——那两个文件跟 i18n 毫无关系。
+// 反过来又不能只认 `t()` 实参：本仓大量写法是「键先拼好存进变量/由函数返回，再传进 t()」
+// （knownVendors 的 `const path = ...` 57 叶、canvasBatchModelLabel 的返回值 17 叶），
+// 砍掉它们会把活键判死——而误判成死键是本门岗**最贵**的错（删掉 = 线上渲染出原始 key）。
+// 故取「四选一」的宽口径证据，只把真正无出处的模板挡在外面。
+
+/**
+ * 往上穿过「不改变这个值用途」的包装，找到真正表达用途的那个父节点。
+ * 三目/短路必须穿：`return a ? `k.${x}` : `k2.${y}`` 里模板的直接父是 ConditionalExpression，
+ * 不穿的话「由函数返回」这条证据就命中不了——首版实测因此把 canvasBatchModelLabel 的 13 个活键
+ * 判成死键（误判成死是本门岗最贵的错，所以这条必须穿）。
+ */
+function unwrapOuter(node: ts.Node): ts.Node {
+  let current = node
+  for (;;) {
+    const parent = current.parent
+    if (!parent) return current
+    const transparent = ts.isAsExpression(parent)
+      || ts.isParenthesizedExpression(parent)
+      || ts.isTypeAssertionExpression(parent)
+      || (ts.isConditionalExpression(parent) && (parent.whenTrue === current || parent.whenFalse === current))
+      || (ts.isBinaryExpression(parent)
+        && (parent.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken
+          || parent.operatorToken.kind === ts.SyntaxKind.BarBarToken))
+    if (!transparent) return current
+    current = parent
+  }
+}
+
+function isTranslateCallee(expression: ts.Expression): boolean {
+  if (ts.isIdentifier(expression)) return expression.text === 't' || expression.text === 'tt'
+  if (ts.isPropertyAccessExpression(expression)) return expression.name.text === 't'
+  return false
+}
+
+/** 本文件里被当作翻译键传进 t() 的**标识符名**（`t(path)` / `t(key)`）——供「一跳」判定用。 */
+function collectTranslatedIdentifiers(sourceFile: ts.SourceFile): Set<string> {
+  const names = new Set<string>()
+  const walk = (node: ts.Node): void => {
+    if (ts.isCallExpression(node) && isTranslateCallee(node.expression) && node.arguments.length > 0) {
+      const arg = unwrapInner(node.arguments[0])
+      if (ts.isIdentifier(arg)) names.add(arg.text)
+    }
+    ts.forEachChild(node, walk)
+  }
+  walk(sourceFile)
+  return names
+}
+
+function unwrapInner(node: ts.Expression): ts.Expression {
+  let current = node
+  while (ts.isAsExpression(current) || ts.isParenthesizedExpression(current) || ts.isTypeAssertionExpression(current)) current = current.expression
+  return current
+}
+
+/** 这个模板有没有「它是翻译键」的出处。四选一，任一成立即算。 */
+export function templateLooksLikeTranslationKey(node: ts.TemplateExpression, translatedIdentifiers: Set<string>): boolean {
+  const outer = unwrapOuter(node)
+  const parent = outer.parent
+  if (!parent) return false
+  // ① 直接就是 t()/i18n.t() 的第一个实参
+  if (ts.isCallExpression(parent) && parent.arguments[0] === outer && isTranslateCallee(parent.expression)) return true
+  // ② 存进变量/属性，而这个名字在本文件里被传进过 t()（knownVendors 的 `const path = …; i18n.t(path)`）
+  if (ts.isVariableDeclaration(parent) && ts.isIdentifier(parent.name) && translatedIdentifiers.has(parent.name.text)) return true
+  // ③ 名字自称是键（labelKey / hintKey / KEY…）——本仓视图模型的通用写法
+  if (ts.isVariableDeclaration(parent) && ts.isIdentifier(parent.name) && /key$/i.test(parent.name.text)) return true
+  if (ts.isPropertyAssignment(parent) && (ts.isIdentifier(parent.name) || ts.isStringLiteral(parent.name)) && /key$/i.test(parent.name.text)) return true
+  // ④ 由函数返回（canvasBatchModelLabel 的 return、modeKey 的箭头简写体）
+  if (ts.isReturnStatement(parent)) return true
+  if (ts.isArrowFunction(parent) && parent.body === outer) return true
+  return false
+}
+
 export function collectFromSourceText(
   sourceText: string,
   options: { fileName: string; isDictionary: boolean },
@@ -102,6 +179,8 @@ export function collectFromSourceText(
     fileName.endsWith('.tsx') || fileName.endsWith('.jsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
   )
 
+  const translatedIdentifiers = collectTranslatedIdentifiers(sourceFile)
+
   function visit(node: ts.Node): void {
     // 规则①②:任何位置的字符串字面量,含类型位置的 `as 'a.b'`(forEachChild 会走进类型节点)。
     if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
@@ -114,11 +193,12 @@ export function collectFromSourceText(
         if (node.text.startsWith('i18n:')) collected.exactRefs.add(node.text.slice('i18n:'.length))
       }
     }
-    // 规则③:模板 head 作为动态前缀。仓库全量扫、不限 t() 实参——
-    // 键先拼好存进 const 再传进 t() 的写法(CapabilityModeEditor 就是),正向门岗看不见,这里必须覆盖。
+    // 规则③:模板 head 作为动态前缀。仍**不限 t() 实参**(键先拼好再传进 t() 的写法正向门岗看不见,
+    // 这里必须覆盖),但要求这个模板有「它是翻译键」的出处——否则夹具文件名、URL、缓存 key 这类
+    // 长得像键路径的串会白白豁免掉一整片叶子(见 templateLooksLikeTranslationKey 的注释)。
     if (ts.isTemplateExpression(node) && !isDictionary) {
       const head = node.head.text
-      if (head && !collected.templateHeads.has(head)) {
+      if (head && !collected.templateHeads.has(head) && templateLooksLikeTranslationKey(node, translatedIdentifiers)) {
         const line = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1
         collected.templateHeads.set(head, `${fileName}:${line}`)
       }
