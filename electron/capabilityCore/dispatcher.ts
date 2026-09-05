@@ -329,14 +329,14 @@ function productionStartInput(params: Record<string, unknown>, authority: Dispat
   }
 }
 
-/** 主进程（无头 stdio / 磁盘网关）自己就能落账的画布操作。 */
+/**
+ * 主进程（无头 stdio / 磁盘网关）自己就能落账的画布操作。
+ * 补集（分镜/站位/运镜/时间轴落地/整理布局）的耐久 owner 在渲染层创作区，主进程只能诚实地说「需要 GUI」，
+ * 不再假装那是一次生成计划。
+ */
 const HEADLESS_CANVAS_OPERATIONS: ReadonlySet<CanvasWriteOperation> = new Set<CanvasWriteOperation>([
   'set_node_prompt', 'create_canvas_nodes', 'connect_canvas_edges',
 ])
-/** 耐久 owner 在渲染层创作区的画布操作：主进程只能诚实地说「需要 GUI」，不再假装是一次生成计划。 */
-const RENDERER_OWNED_CANVAS_OPERATIONS: ReadonlySet<CanvasWriteOperation> = new Set<CanvasWriteOperation>(
-  CANVAS_WRITE_OPERATIONS.filter((operation) => !HEADLESS_CANVAS_OPERATIONS.has(operation)),
-)
 
 export async function dispatch(method: string, params: Record<string, unknown>, ctx: DispatchContext): Promise<unknown> {
   if (method === 'nomi_session_open') {

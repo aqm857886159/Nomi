@@ -301,7 +301,7 @@ export const MCP_TOOL_CATALOG = [
   MCP_INTEGRATION_TOOL, // T14（接入状态机 5 个确定性缝）
   MCP_INTEGRATION_MANAGEMENT_TOOL, // T14 supplemental（已接入连接管理）
   PROJECT_CREATE_TOOL, // T15
-  ...SEMANTIC_EDITING_TOOLS, // M2 语义编辑（canvas_plan/maintenance · document_read/edit · timeline_read/edit · export_job · media_query）——原样保留待续裁
+  ...SEMANTIC_EDITING_TOOLS, // M2 语义编辑（canvas_maintenance · document_read/edit · timeline_read/edit · export_job · media_query）——原样保留待续裁
 ] as const
 
 export type McpToolDefinition = (typeof MCP_TOOL_CATALOG)[number] & {

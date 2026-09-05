@@ -33,11 +33,13 @@ const SCAN_EXTENSIONS = new Set(['.mjs', '.js', '.ts', '.mts', '.tsx'])
 // 只认 tools/call 的调用点形状 `name: 'nomi_xxx'`，不去扫散文与注释里提到的工具名
 // （历史记录、迁移说明里本来就会提到已删除的旧名字，扫它们只会制造噪音）。
 const CALL_SITE = /\bname:\s*['"](nomi_[a-z0-9_]+)['"]/g
-// tests/ux/agent-runtime-*.walk.mjs 里的 `name: 'nomi_…'` **不是 MCP tools/call**：它们是喂给假 LLM 的
-// 工具调用回放，走的是应用内 Agent（Pi/Host）那张目录 modelToolSurfaceManifest。两张目录本来就不是同一份名单
-//（例如画布语义写在 MCP 上收敛成一个名字后，应用内仍是 plan/edit 两个工具）。拿 MCP 目录去判它们只会
-// 制造假红并逼人放宽门岗——所以这些文件改判**应用内 Agent 目录**，一样 fail-closed，不是豁免。
-const HOST_FIXTURE_FILE = /(^|\/)agent-runtime-[a-z0-9-]+\.walk\.mjs$/
+// tests/ux 里还有一类 `name: 'nomi_…'` **不是 MCP tools/call**：走查用假 LLM 回放一次工具调用时写的
+// `reply: { type: 'tool', id: …, name: 'nomi_…' }`。它走的是应用内 Agent（Pi/Host）那张目录
+// modelToolSurfaceManifest —— 与 MCP 目录本来就不是同一份名单（画布语义写在 MCP 上收敛成一个名字后，
+// 应用内仍是 plan/edit 两个工具）。拿 MCP 目录去判它们只会制造假红并逼人放宽门岗。
+// 判据刻意按**调用点**而不是文件名：同一个走查文件里两种调用都可能出现，而 `type: 'tool'` 紧邻
+// `name:` 正是「这是一次模型工具调用回放」的字面证据。两边都 fail-closed，谁都不是豁免。
+const HOST_FIXTURE_CALL = /type:\s*['"]tool['"][^}]{0,120}$/
 // 故意调用不存在的工具（验 -32602 这类协议错）是合法的，但必须在同行或上一行显式声明，
 // 免得「忘了迁移」和「故意写假名」长得一模一样。
 const INTENTIONAL_UNKNOWN = 'unknown-tool-probe'
@@ -63,9 +65,10 @@ for (const file of SCAN_ROOTS.flatMap((root) => collectFiles(path.join(repoRoot,
   const source = fs.readFileSync(file, 'utf8')
   const relative = path.relative(repoRoot, file).split(path.sep).join('/')
   const lines = source.split('\n')
-  const catalog = HOST_FIXTURE_FILE.test(relative) ? hostDeclared : declared
   for (const match of source.matchAll(CALL_SITE)) {
     referenceCount += 1
+    const before = source.slice(Math.max(0, (match.index ?? 0) - 160), match.index ?? 0)
+    const catalog = HOST_FIXTURE_CALL.test(before) ? hostDeclared : declared
     if (catalog.has(match[1])) continue
     const line = source.slice(0, match.index ?? 0).split('\n').length
     const context = `${lines[line - 2] ?? ''}\n${lines[line - 1] ?? ''}`

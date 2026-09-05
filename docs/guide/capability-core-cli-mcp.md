@@ -196,7 +196,6 @@ Claude Code 会依次调 `nomi_project_create` → `nomi_read`（target=models�
 | `nomi_session_open` | 打开当前项目的安全会话，拿一个短期项目句柄（写副作用） |
 | `nomi_read` | 读任意只读投影（`target`=canvas/projects/models/generation_context/operation/run/run_events/artifact/artifact_content/integration）；整体只读、免确认 |
 | `nomi_canvas_edit` | 画布语义写，唯一的画布写工具（`operation` 枚举即全部合法动作；须持项目租约，一批一个 undo；渲染层拥有的动作在无 GUI 时回 `capability_unsupported` 并说明下一步） |
-| `nomi_canvas_plan` | 画布规划写（分镜方案/排布/站位参考/运镜等 `operation`；须持项目租约） |
 | `nomi_canvas_maintenance` | 删除节点或撤销删除（破坏性操作需确认，undoToken 可撤销） |
 | `nomi_document_read` | 读项目创作文档（只读） |
 | `nomi_document_edit` | 编辑项目创作文档（`operation`=insert/replace/append） |

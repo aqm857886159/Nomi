@@ -22,6 +22,18 @@ import { createProjectLeaseAuthority } from './projectLease'
 import { createProjectLeaseStore } from './projectLeaseStore'
 import { createProjectSessionAuthority } from './projectSessionAuthority'
 
+/** dispatch 失败时抛的 RpcError 的公开面（测试只关心宿主看得到的这三项）。 */
+type PublicFailure = { code?: string; nextAction?: string; message?: string }
+
+async function failureOf(promise: Promise<unknown>): Promise<PublicFailure> {
+  try {
+    await promise
+  } catch (error) {
+    return error as PublicFailure
+  }
+  throw new Error('expected canvas.write to fail')
+}
+
 const tempDirs: string[] = []
 afterEach(() => {
   for (const dir of tempDirs.splice(0)) fs.rmSync(dir, { recursive: true, force: true })
@@ -79,13 +91,13 @@ async function leasedContext() {
 describe('canvas.write headless fallback', () => {
   it('rejects an unknown operation by listing every legal one, not by inventing a generation plan', async () => {
     const { ctx, leaseHandle, generationPlanning } = await leasedContext()
-    const failure = await dispatch('canvas.write', {
+    const failure = await failureOf(dispatch('canvas.write', {
       projectId: 'project-1', leaseHandle, operation: 'reticulate_splines',
-    }, ctx as never).catch((error: unknown) => error as { code?: string; nextAction?: string; message?: string })
+    }, ctx as never))
 
-    expect(failure?.message).toContain('reticulate_splines')
-    expect(failure?.code).toBe('capability_input_invalid')
-    const nextAction = String(failure?.nextAction ?? '')
+    expect(failure.message).toContain('reticulate_splines')
+    expect(failure.code).toBe('capability_input_invalid')
+    const nextAction = String(failure.nextAction ?? '')
     for (const operation of CANVAS_WRITE_OPERATIONS) {
       expect(nextAction, `${operation} must be listed so the model can self-correct`).toContain(operation)
     }
@@ -94,13 +106,13 @@ describe('canvas.write headless fallback', () => {
 
   it('tells the host that a renderer-owned operation needs the Nomi creation surface', async () => {
     const { ctx, leaseHandle, generationPlanning } = await leasedContext()
-    const failure = await dispatch('canvas.write', {
+    const failure = await failureOf(dispatch('canvas.write', {
       projectId: 'project-1', leaseHandle, operation: 'tidy_canvas',
-    }, ctx as never).catch((error: unknown) => error as { code?: string; nextAction?: string; message?: string })
+    }, ctx as never))
 
-    expect(failure?.code).toBe('capability_unsupported')
-    expect(String(failure?.message)).not.toMatch(/Production run not found/)
-    const nextAction = String(failure?.nextAction ?? '')
+    expect(failure.code).toBe('capability_unsupported')
+    expect(String(failure.message)).not.toMatch(/Production run not found/)
+    const nextAction = String(failure.nextAction ?? '')
     expect(nextAction).toContain('create_canvas_nodes')
     expect(nextAction).not.toContain('tidy_canvas')
     // 关键：一次都不许递给生成处理器——那正是把画布动作洗成 `Production run not found` 的那一步。
