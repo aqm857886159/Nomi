@@ -1,4 +1,4 @@
-import type { TimelineClip, TimelineState, TimelineTextClip, TimelineTrack, TimelineTrackType } from '../timelineTypes'
+import type { TimelineClip, TimelineClipAudio, TimelineState, TimelineTextClip, TimelineTrack, TimelineTrackType } from '../timelineTypes'
 import { MAX_CLIP_GAIN_DB, MIN_CLIP_GAIN_DB } from '../clipAudio'
 
 /**
@@ -43,6 +43,11 @@ export type TimelineOperation =
       deltaFrame: number
       trackId?: string
       includeText?: boolean
+    }
+  | {
+      kind: 'clip-audio'
+      clipId: string
+      audio: TimelineClipAudio
     }
 
 export type TimelineDiagnosticSeverity = 'error' | 'warning'
@@ -514,6 +519,16 @@ function applyRipple(timeline: TimelineState, operation: Extract<TimelineOperati
   return { timeline: { ...makeTracks(timeline, tracks), textClips }, diagnostics: [] }
 }
 
+function applyClipAudio(timeline: TimelineState, operation: Extract<TimelineOperation, { kind: 'clip-audio' }>): OperationResult {
+  const source = findClip(timeline, operation.clipId)
+  if (!source) return operationError('clip_not_found', 'operation.clipId', `Clip not found: ${operation.clipId}`)
+  if (source.clip.type === 'image') return operationError('clip_audio_unsupported', 'operation.audio', 'Image clips cannot carry audio settings')
+  const tracks = timeline.tracks.map((track, index) => index === source.trackIndex
+    ? { ...track, clips: track.clips.map((clip) => clip.id === source.clip.id ? { ...clip, audio: operation.audio } : clip) }
+    : track)
+  return { timeline: makeTracks(timeline, tracks), diagnostics: [] }
+}
+
 function applyOperation(timeline: TimelineState, operation: TimelineOperation): OperationResult {
   switch (operation.kind) {
     case 'move': return applyMove(timeline, operation)
@@ -522,6 +537,7 @@ function applyOperation(timeline: TimelineState, operation: TimelineOperation): 
     case 'trim': return applyTrim(timeline, operation)
     case 'source-window': return applySourceWindow(timeline, operation)
     case 'ripple': return applyRipple(timeline, operation)
+    case 'clip-audio': return applyClipAudio(timeline, operation)
   }
 }
 

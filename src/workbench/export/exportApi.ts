@@ -66,8 +66,6 @@ export async function exportTimelineToMp4(options: ExportTimelineToMp4Options): 
   if (!desktop?.exports?.startJob || !desktop.exports.writeTempInput || !desktop.exports.finishTempInput) {
     throw new Error(i18n.t('runtime.export.mp4RequiresDesktop'))
   }
-  const resolution = options.resolution || '1080p'
-  const quality = options.quality || 'standard'
   const { projectId, timeline: exportTimeline, manifest } = createTimelineExportManifest(options)
   const { jobId, backend } = await desktop.exports.startJob({
     projectId,

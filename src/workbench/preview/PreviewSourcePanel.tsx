@@ -1,6 +1,7 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconChevronLeft, IconMovie, IconPhoto } from '@tabler/icons-react'
+import { PanelRail } from './PanelRail'
 import { cn } from '../../utils/cn'
 import { DesignEmptyState } from '../../design'
 import { lazyWithChunkBoundary } from '../../ui/chunkBoundary'
@@ -120,8 +121,11 @@ function ShotGrid(): JSX.Element {
 
 export default function PreviewSourcePanel(): JSX.Element {
   const { t } = useTranslation()
-  const collapsed = useWorkbenchStore((state) => state.previewSourcePanelCollapsed)
-  const setCollapsed = useWorkbenchStore((state) => state.setPreviewSourcePanelCollapsed)
+  // 收起态与宽度都归面板系统（editingPanelLayout.visibility.source）——本栏不再自带第二套
+  // 收起开关与固定宽度（旧 previewSourcePanelCollapsed + --workbench-preview-source-width
+  // 那份在面板系统落地后就是并行版：面板给 300px、aside 却按自己的变量画，于是 tab 被裁成「素」）。
+  const collapsed = useWorkbenchStore((state) => !state.editingPanelLayout.visibility.source)
+  const toggleEditingPanel = useWorkbenchStore((state) => state.toggleEditingPanel)
   const [tab, setTab] = React.useState<'shots' | 'assets'>('shots')
   const projectId = getActiveWorkbenchProjectId()
 
@@ -129,22 +133,12 @@ export default function PreviewSourcePanel(): JSX.Element {
     // 收起态照抄侧栏 rail 的既定做法（2026-07-12 方案 A）：图标下带微字。
     // 只留一个箭头的话「一列孤图标认不出这是素材库」——那正是 rail 当初要治的毛病。
     return (
-      <button
-        type="button"
-        className={cn(
-          'workbench-preview-source workbench-preview-source--collapsed',
-          'flex w-11 flex-none cursor-pointer flex-col items-center gap-0.5 border-0 border-r border-[var(--workbench-border)]',
-          'bg-[var(--workbench-surface)] pt-2.5 text-[var(--workbench-muted)]',
-          'transition-[color,background] duration-[var(--nomi-transition-fast)]',
-          'hover:bg-nomi-ink-05 hover:text-[var(--workbench-ink)]',
-        )}
-        aria-label={t('previewSource.expand')}
+      <PanelRail
+        icon={<IconPhoto size={16} stroke={1.7} />}
+        label={t('previewSource.railLabel')}
         title={t('previewSource.expand')}
-        onClick={() => setCollapsed(false)}
-      >
-        <IconPhoto size={17} stroke={1.7} aria-hidden="true" />
-        <span className="text-micro leading-none">{t('previewSource.railLabel')}</span>
-      </button>
+        onClick={() => toggleEditingPanel('source')}
+      />
     )
   }
 
@@ -152,7 +146,7 @@ export default function PreviewSourcePanel(): JSX.Element {
     <aside
       className={cn(
         'workbench-preview-source',
-        'flex w-[var(--workbench-preview-source-width)] flex-none flex-col overflow-hidden',
+        'flex h-full w-full min-w-0 flex-col overflow-hidden',
         'border-r border-[var(--workbench-border)] bg-[var(--workbench-surface)]',
       )}
       aria-label={t('previewSource.aria')}
@@ -173,7 +167,10 @@ export default function PreviewSourcePanel(): JSX.Element {
             )}
             onClick={() => setTab(value)}
           >
-            {t(value === 'shots' ? 'previewSource.tabs.shots' : 'previewSource.tabs.assets')}
+            <span className="inline-flex items-center justify-center gap-1 whitespace-nowrap">
+              {value === 'shots' ? <IconMovie size={14} stroke={1.7} aria-hidden="true" /> : <IconPhoto size={14} stroke={1.7} aria-hidden="true" />}
+              {t(value === 'shots' ? 'previewSource.tabs.shots' : 'previewSource.tabs.assets')}
+            </span>
           </button>
         ))}
       </div>
@@ -201,7 +198,7 @@ export default function PreviewSourcePanel(): JSX.Element {
           'bg-transparent px-2.5 py-1.5 text-micro text-[var(--workbench-muted)] hover:text-[var(--workbench-ink)]',
         )}
         aria-label={t('previewSource.collapse')}
-        onClick={() => setCollapsed(true)}
+        onClick={() => toggleEditingPanel('source')}
       >
         <IconChevronLeft size={13} stroke={1.8} aria-hidden="true" />
         {t('previewSource.collapse')}

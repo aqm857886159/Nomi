@@ -10,6 +10,7 @@ import {
 import type { StoryboardDesign } from '../workbenchTypes'
 import { createDefaultGenerationCanvasSnapshot } from '../generationCanvas/store/generationCanvasDefaults'
 import type { GenerationCanvasSnapshot } from '../generationCanvas/model/generationCanvasTypes'
+import type { EditingPanelLayout } from '../preview/panelLayout'
 import { storyboardPlanSchema } from '../generationCanvas/agent/storyboardPlanSchema'
 import { cloneBuiltinCategories, projectCategorySchema, type ProjectCategory } from './projectCategories'
 
@@ -76,6 +77,7 @@ export const workbenchProjectPayloadSchema = z.object({
       updatedAt: z.number().finite(),
     })),
   ).optional(),
+  editingPanelLayout: z.unknown().optional(),
 })
 
 export const workbenchProjectRecordSchema = workbenchProjectSummarySchema.extend({
@@ -135,6 +137,8 @@ export type WorkbenchProjectPayload = {
   /** S5-b-1:快照覆盖到日志的 seq(尾部重放游标);老项目无此字段则跳过重放。 */
   generationCanvasLastSeq?: number
   storyboardDesignsByDocumentId?: Record<string, StoryboardDesign[]>
+  /** Preview editing surface dimensions and visibility are project-local UI state. */
+  editingPanelLayout?: EditingPanelLayout
 }
 
 export type WorkbenchProjectRecordV1 = WorkbenchProjectSummary & {
