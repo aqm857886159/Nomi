@@ -1,5 +1,7 @@
 # Agent 面板 v4 设计实验室实施计划
 
+> ✅ 已交付（阶段一设计实验室，不接线）
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** 在设计实验室增加 `screen=agent-panel-v4`，用 Nomi token 与 Tabler icon 的真实 React 组件复现 v4 设计 12 板，阶段一不接 Host/网络。

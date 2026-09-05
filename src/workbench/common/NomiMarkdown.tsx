@@ -1,4 +1,5 @@
-import { memo } from 'react'
+import { memo, useState, type ReactNode } from 'react'
+import { IconChevronDown, IconCopy, IconPhoto } from '@tabler/icons-react'
 import ReactMarkdown, { type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
@@ -18,7 +19,9 @@ import remarkGfm from 'remark-gfm'
  * `compact` tightens spacing + shrinks headings for narrow contexts like chat
  * bubbles; the default (doc) spacing suits the wider file-preview panel.
  */
-function makeComponents(compact: boolean): Components {
+type MarkdownProfile = 'agent-v4'
+
+function makeComponents(compact: boolean, profile?: MarkdownProfile, labels?: MarkdownLabels): Components {
   const pMy = compact ? 'my-1' : 'my-2'
   const hMt = compact ? 'mt-2.5' : 'mt-4'
   const hMb = compact ? 'mb-1' : 'mb-2'
@@ -36,7 +39,7 @@ function makeComponents(compact: boolean): Components {
     },
     ol: ({ node: _n, ...p }) => <ol className={`list-decimal pl-5 ${pMy} text-body leading-relaxed text-nomi-ink-80`} {...p} />,
     li: ({ node: _n, className, ...p }) => <li className={`my-0.5 ${/task-list-item/.test(className || '') ? 'list-none' : ''}`.trim()} {...p} />,
-    a: ({ node: _n, ...p }) => <a className="text-nomi-accent underline underline-offset-2 [overflow-wrap:anywhere]" target="_blank" rel="noreferrer" {...p} />,
+    a: ({ node: _n, children, ...p }) => <a className="text-nomi-accent underline underline-offset-2 [overflow-wrap:anywhere]" target="_blank" rel="noreferrer" {...p}>{children}{profile === 'agent-v4' ? <span aria-hidden="true" className="ml-0.5 no-underline">↗</span> : null}</a>,
     blockquote: ({ node: _n, ...p }) => <blockquote className={`border-l-2 border-nomi-line pl-3 ${pMy} text-nomi-ink-60`} {...p} />,
     hr: ({ node: _n, ...p }) => <hr className="border-nomi-line my-3" {...p} />,
     strong: ({ node: _n, ...p }) => <strong className="font-semibold text-nomi-ink" {...p} />,
@@ -47,7 +50,12 @@ function makeComponents(compact: boolean): Components {
         ? <code className={`font-nomi-mono text-caption ${className || ''}`.trim()} {...p}>{children}</code>
         : <code className="font-nomi-mono text-caption bg-nomi-ink-05 rounded-nomi-sm px-1 py-0.5 [overflow-wrap:anywhere]" {...p}>{children}</code>
     },
-    pre: ({ node: _n, ...p }) => <pre className={`bg-nomi-ink-05 rounded-nomi-sm p-3 ${pMy} overflow-auto text-nomi-ink-80`} {...p} />,
+    pre: ({ node: _n, children, ...p }) => profile === 'agent-v4'
+      ? <AgentV4Code labels={labels} {...p}>{children}</AgentV4Code>
+      : <pre className={`bg-nomi-ink-05 rounded-nomi-sm p-3 ${pMy} overflow-auto text-nomi-ink-80`} {...p}>{children}</pre>,
+    img: ({ node: _n, alt }) => profile === 'agent-v4'
+      ? <span className="inline-flex items-center gap-1 rounded-nomi-sm border border-nomi-line bg-nomi-ink-05 px-1.5 py-0.5 text-caption text-nomi-ink-60"><IconPhoto size={12} />{alt || labels?.imageLabel}</span>
+      : <img alt={alt} />,
     // GFM 表格：token 化 + 整体可横向滚动（窄聊天列不溢出/不撑破气泡）。
     table: ({ node: _n, ...p }) => (
       <div className={`${pMy} max-w-full overflow-x-auto`}>
@@ -62,6 +70,16 @@ function makeComponents(compact: boolean): Components {
   }
 }
 
+type MarkdownLabels = { copyLabel: string; imageLabel: string; expandLabel: string; collapseLabel: string }
+
+function AgentV4Code({ children, labels, ...props }: { children?: ReactNode; labels?: MarkdownLabels } & Record<string, unknown>): JSX.Element {
+  const [expanded, setExpanded] = useState(false)
+  const source = String(children ?? '')
+  const long = source.split('\n').length > 12
+  const copy = () => { void navigator.clipboard?.writeText(source) }
+  return <div className="relative my-1"><button type="button" onClick={copy} aria-label={labels?.copyLabel} className="absolute right-1 top-1 rounded-nomi-sm p-1 text-nomi-ink-60 hover:bg-nomi-ink-10"><IconCopy size={13} /></button><pre className={`bg-nomi-ink-05 rounded-nomi-sm p-3 pr-8 overflow-auto text-nomi-ink-80 ${long && !expanded ? 'max-h-52' : ''}`} {...props}>{children}</pre>{long ? <button type="button" onClick={() => setExpanded(value => !value)} className="inline-flex items-center gap-1 text-micro text-nomi-ink-60"><IconChevronDown size={12} className={expanded ? 'rotate-180' : undefined} />{expanded ? labels?.collapseLabel : labels?.expandLabel}</button> : null}</div>
+}
+
 const docComponents = makeComponents(false)
 const compactComponents = makeComponents(true)
 // 模块级常量：避免会渲染的那几次给 ReactMarkdown 传新数组引用（触发其内部 effect 重跑）。
@@ -73,13 +91,24 @@ const REMARK_PLUGINS = [remarkGfm]
 export const NomiMarkdown = memo(function NomiMarkdown({
   children,
   compact = false,
+  profile,
+  copyLabel,
+  imageLabel,
+  expandLabel,
+  collapseLabel,
 }: {
   children: string
   compact?: boolean
+  profile?: MarkdownProfile
+  copyLabel?: string
+  imageLabel?: string
+  expandLabel?: string
+  collapseLabel?: string
 }): JSX.Element {
+  const labels = profile === 'agent-v4' ? { copyLabel: copyLabel ?? 'Copy', imageLabel: imageLabel ?? 'Image', expandLabel: expandLabel ?? 'Expand', collapseLabel: collapseLabel ?? 'Collapse' } : undefined
   return (
     <div className="min-w-0 [overflow-wrap:anywhere]">
-      <ReactMarkdown remarkPlugins={REMARK_PLUGINS} components={compact ? compactComponents : docComponents}>
+      <ReactMarkdown remarkPlugins={REMARK_PLUGINS} components={profile === 'agent-v4' ? makeComponents(compact, profile, labels) : (compact ? compactComponents : docComponents)}>
         {children}
       </ReactMarkdown>
     </div>
