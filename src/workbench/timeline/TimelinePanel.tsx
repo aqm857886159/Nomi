@@ -16,13 +16,13 @@ import {
   IconWand,
 } from '@tabler/icons-react'
 import { useWorkbenchStore } from '../workbenchStore'
-import { WorkbenchButton, WorkbenchIconButton } from '../../design'
+import { WorkbenchIconButton } from '../../design'
 import { cn } from '../../utils/cn'
-import { computeTimelineDuration } from './timelineMath'
+import { computeTimelineDuration, resolveTimelineFitScale } from './timelineMath'
 import TimelineTrack from './TimelineTrack'
 import TimelineTextTrack from './TimelineTextTrack'
 import { TimelineSecondaryAddRow } from './TimelineSecondaryAddRow'
-import { frameToPixel, pixelToFrame, TIMELINE_MIN_SCALE, TIMELINE_MAX_SCALE } from './timelineEdit'
+import { frameToPixel, pixelToFrame, TIMELINE_MIN_SCALE, TIMELINE_MAX_SCALE, resolveNudgeStartFrame } from './timelineEdit'
 import { buildSnapPoints, resolveSnap, pixelThresholdToFrames } from './snapping'
 import { toast } from '../../ui/toast'
 import { reportAdoptionOutcome } from '../adoption/adoptionReceipt'
@@ -52,13 +52,7 @@ function resolveTimelineRulerEndFrame(params: {
   fps: number
 }): number {
   const fps = Math.max(1, params.fps)
-  const minEditableFrame = fps * 120
-  const trailingFrame = fps * 60
-  return Math.max(
-    minEditableFrame,
-    params.durationFrame + trailingFrame,
-    params.playheadFrame + trailingFrame,
-  )
+  return Math.max(fps * 10, params.durationFrame, params.playheadFrame)
 }
 
 function buildTimelineRulerTicks(endFrame: number, fps: number, scale: number): Array<{ frame: number; label: string }> {
@@ -155,8 +149,28 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
     () => buildTimelineRulerTicks(rulerEndFrame, timeline.fps, timeline.scale),
     [rulerEndFrame, timeline.fps, timeline.scale],
   )
-  const minScrollableWidth = 2400
-  const rulerWidth = Math.max(frameToPixel(rulerEndFrame, timeline.scale), minScrollableWidth)
+  const tracksRef = React.useRef<HTMLDivElement | null>(null)
+  const [tracksViewportWidth, setTracksViewportWidth] = React.useState(0)
+  const contentViewportWidth = tracksViewportWidth
+  const rulerWidth = Math.max(frameToPixel(rulerEndFrame, timeline.scale), contentViewportWidth)
+  React.useEffect(() => {
+    const element = tracksRef.current
+    if (!element) return
+    const update = () => {
+      const labelWidth = Number.parseFloat(getComputedStyle(element).getPropertyValue('--workbench-timeline-label-width')) || 0
+      setTracksViewportWidth(Math.max(0, element.clientWidth - labelWidth))
+    }
+    update()
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(update)
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [])
+  React.useEffect(() => {
+    if (durationFrame <= 0 || contentViewportWidth <= 0) return
+    const fittedScale = resolveTimelineFitScale(durationFrame, contentViewportWidth)
+    if (Math.abs(fittedScale - timeline.scale) > 0.001) setTimelineZoom(fittedScale)
+  }, [contentViewportWidth, durationFrame, setTimelineZoom, timeline.scale])
   React.useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       // 预览(full)与生成(compact)两个 TimelinePanel 因 keep-alive 同时挂载，各注册一个 window keydown。
@@ -201,6 +215,14 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
   const rulerContentRef = React.useRef<HTMLDivElement | null>(null)
   // hover 幽灵播放头：预告点击落点的半透明竖线。拖动中（buttons>0）与剪刀模式下隐藏（后者有 clip 级切点线）。
   const [hoverFrame, setHoverFrame] = React.useState<number | null>(null)
+  const primaryClipStartFrame = React.useMemo(() => {
+    if (!primaryClipId) return null
+    return timeline.tracks.flatMap((track) => track.clips).find((clip) => clip.id === primaryClipId)?.startFrame ?? null
+  }, [primaryClipId, timeline.tracks])
+  const nudgeEarlierStart = resolveNudgeStartFrame(timeline, primaryClipId, -1)
+  const nudgeLaterStart = resolveNudgeStartFrame(timeline, primaryClipId, 1)
+  const canNudgeEarlier = nudgeEarlierStart !== null && nudgeEarlierStart !== primaryClipStartFrame
+  const canNudgeLater = nudgeLaterStart !== null && nudgeLaterStart !== primaryClipStartFrame
 
   const frameFromClientX = React.useCallback((clientX: number): number => {
     const rect = rulerContentRef.current?.getBoundingClientRect()
@@ -250,9 +272,9 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
     <section
       className={cn(
         'workbench-timeline',
-        'relative min-w-0 min-h-0 grid grid-rows-[minmax(0,1fr)]',
+        'relative min-w-0 min-h-0 h-full grid grid-rows-[minmax(0,1fr)]',
         'bg-[var(--workbench-surface-solid)] border-t border-[var(--workbench-border)]',
-        'shadow-[0_-1px_0_var(--workbench-bevel)]',
+        'shadow-[0_-1px_0_var(--workbench-bevel)] overflow-hidden',
         density === 'full' ? 'px-[18px] pt-[10px] pb-5' : 'px-4 pt-3 pb-4',
       )}
       data-density={density}
@@ -289,9 +311,9 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
                     .then(({ regenerateNodeInPlace }) => regenerateNodeInPlace(primaryMediaClip.sourceNodeId))
                 }}
               />
-              <WorkbenchIconButton className={CLIP_TOOL_CLASS} label={t('timelineEditor.nudgeEarlier')} icon={<IconArrowLeft size={14} />} disabled={!primaryClipId} onClick={() => nudgeTimelineClip(primaryClipId, -1)} />
+              <WorkbenchIconButton className={CLIP_TOOL_CLASS} label={t('timelineEditor.nudgeEarlier')} title={!primaryClipId ? t('timelineEditor.clipToolsHint') : canNudgeEarlier ? t('timelineEditor.nudgeEarlier') : t('timelineEditor.nudgeUnavailable')} icon={<IconArrowLeft size={14} />} disabled={!canNudgeEarlier} onClick={() => nudgeTimelineClip(primaryClipId, -1)} />
               <WorkbenchIconButton className={CLIP_TOOL_CLASS} label={t('timelineEditor.duplicateClip')} icon={<IconCopy size={14} />} disabled={!primaryClipId} onClick={() => duplicateTimelineClip(primaryClipId)} />
-              <WorkbenchIconButton className={CLIP_TOOL_CLASS} label={t('timelineEditor.nudgeLater')} icon={<IconArrowRight size={14} />} disabled={!primaryClipId} onClick={() => nudgeTimelineClip(primaryClipId, 1)} />
+              <WorkbenchIconButton className={CLIP_TOOL_CLASS} label={t('timelineEditor.nudgeLater')} title={!primaryClipId ? t('timelineEditor.clipToolsHint') : canNudgeLater ? t('timelineEditor.nudgeLater') : t('timelineEditor.nudgeUnavailable')} icon={<IconArrowRight size={14} />} disabled={!canNudgeLater} onClick={() => nudgeTimelineClip(primaryClipId, 1)} />
             </div>
           </span>
           {/* C2 一键拼片：把画布镜头按镜序排进时间轴（accent，主操作权重）。 */}
@@ -340,10 +362,11 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
         className={cn(
           'workbench-timeline__tracks',
           'relative min-w-0 min-h-0 block bg-transparent',
-          'overflow-x-auto overflow-y-hidden pb-2',
+          'overflow-x-auto overflow-y-auto pb-2',
           'scrollbar-thin scrollbar-color-transparent',
           'hover:scrollbar-color-[color-mix(in_srgb,var(--nomi-ink)_22%,transparent)]',
         )}
+        ref={tracksRef}
         onWheel={(e) => {
           if (!e.ctrlKey && !e.metaKey) return
           e.preventDefault()
@@ -461,13 +484,12 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
         {(() => {
           const audioTrack = timeline.tracks.find((t) => t.type === 'audio')
           const audioHasClips = (audioTrack?.clips.length ?? 0) > 0
-          const textHasClips = (timeline.textClips?.length ?? 0) > 0
           const showAudioChip = Boolean(audioTrack) && !audioHasClips
-          const showTextChip = showTextTrack && !textHasClips
+          const showTextChip = showTextTrack
           return (
             <>
               {audioTrack && audioHasClips ? <TimelineTrack key={audioTrack.id} track={audioTrack} transitionFeedback={transitionFeedbackByTrack.get(audioTrack.id)} variant="secondary" /> : null}
-              {showTextTrack && textHasClips ? <TimelineTextTrack /> : null}
+              {showTextTrack ? <TimelineTextTrack /> : null}
               {showAudioChip || showTextChip ? <TimelineSecondaryAddRow showAudio={showAudioChip} showText={showTextChip} /> : null}
             </>
           )
