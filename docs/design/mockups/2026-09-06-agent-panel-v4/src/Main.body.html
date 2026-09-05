@@ -1,0 +1,15 @@
+<div class="board" style="width:1440px;height:340px;display:flex;flex-direction:column;gap:16px">
+<div><div style="font-size:18px;font-weight:600">Nomi Agent 面板 v4 · 一页读懂</div><div class="note" style="margin-top:6px;font-size:12px;max-width:1100px">这版是从零重做的，不是在旧面板上补。底子三样：<b>Nomi 设计系统</b>（token 原样引用，Tabler icon，密度优先）· <b>MiniMax Design 实测</b>（任务卡带完整状态、附件读取轨迹、复杂操作的确认与恢复闭环）· <b>AI Elements + Beautiful UI</b>（组件解剖和长相）。思路参照 Claude Code 自己：一行收据、思考行带秒数、三档权限、清单、上下文环。</div></div>
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px">
+<div class="cell"><div style="font-size:13px;font-weight:600">只有 8 个积木</div><div class="why">用户气泡 · 助手文本 · 一行收据 · 任务卡 · 介入槽 · 队列行 · 收起坞 · composer（含上下文环）。原来 21 种「形态」全是这 8 个的状态组合。每个积木的状态只改<b>行尾</b>，位置和 icon 不动——用户不用重新找。</div></div>
+<div class="cell"><div style="font-size:13px;font-weight:600">工具调用不置顶</div><div class="why">收据就在对话流里，上一条是它的原因、下一条是它的结果。默认收起，› 展开看输入输出。失败留在原行，不弹窗不 toast；付费的标「未扣费」。</div></div>
+<div class="cell"><div style="font-size:13px;font-weight:600">介入槽只有一个位置</div><div class="why">计划 / 付费 / 改动 / 反问四种内容体，永远出现在 composer 正上方。按钮只有 <b>确认 / 不要</b>，加一个「不再问 →」当场抬权限档。多候选结果不是介入槽，是任务卡里点一张采用。</div></div>
+<div class="cell"><div style="font-size:13px;font-weight:600">composer 按你的批注改</div><div class="why">一个「+」收任何文件；没有语音；模型钮只显示<b>模型名</b>（无 icon）并管图片/视频/音频三类默认；Skill 是引用 chip；权限三档「每步问 / 自动改 / 全自动」（照 Claude Code）；真实 token 和花费在头部的环里。</div></div>
+</div>
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px">
+<div class="cell"><div style="font-size:13px;font-weight:600">过程反馈 7 个时刻</div><div class="why">发出 → 思考（shimmer + 秒数）→ 调工具（同一行变收据）→ 完成 / 失败（只换行尾）→ 流式（光标）→ 打断 / 排队。每个时刻只有一个东西在动，动的旁边有动词，动词配固定 icon。</div></div>
+<div class="cell"><div style="font-size:13px;font-weight:600">icon 按动作家族</div><div class="why">读取 / 检索 / 改写 / 生成图·视频·音频 / 剪辑 / 转场字幕音量 / 技能 / 起草 / 落画布 / 导出，共 13 个；状态只用 spinner ✓ ⚠。不用机器人头、闪光、芯片、沙漏、纯转圈。</div></div>
+<div class="cell"><div style="font-size:13px;font-weight:600">Markdown 沿用 NomiMarkdown</div><div class="why">GFM 全集已经有。面板里定的是显示决定：标题降级成粗体行、代码块加复制并折叠、内外链区分、图片不在文本里渲、超长折 60%、流式不预测闭合。</div></div>
+<div class="cell"><div style="font-size:13px;font-weight:600">怎么落地</div><div class="why">AI Elements vendor 进仓改成 token（它是 React 19 + Tailwind 4，我们 18 + 3，不能直接装）。设计实验室按积木 × 状态注册；旧面板先整体隐藏 → 走查 → 同轨删掉。</div></div>
+</div>
+</div>

@@ -80,7 +80,19 @@ export function TimelineSecondaryAddRow({
               // 拖它或拖素材过来，两条路都在。
               const state = useWorkbenchStore.getState()
               const audioTrackEmpty = state.timeline.tracks.every((track) => track.type !== 'audio' || track.clips.length === 0)
+              // 加不进去时它**成功地返回 null**（时长探不出来、素材类型落不了轨），此前整个
+              // Promise 被裸 `void` 丢掉：用户挑了首曲子，弹窗关了，轴上什么都没多，一个字的
+              // 解释也没有（设计系统 §4.1 C1）。这不是拒绝、是「静悄悄地没做成」，所以要看返回值，
+              // 光加 catch 没用；catch 是给同步抛出的意外留的，说的是同一句话。
+              // 「轴保持原样」是真的：失败都发生在写轴之前。
               void addAssetToTimeline(asset, { fps, startFrame: audioTrackEmpty ? 0 : state.timeline.playheadFrame })
+                .then((clip) => {
+                  if (!clip) toast(t('timelineEditor.adoption.failedRecovered'), 'error')
+                })
+                .catch((error: unknown) => {
+                  console.error('add music to timeline failed', error)
+                  toast(t('timelineEditor.adoption.failedRecovered'), 'error')
+                })
               setMusicPickerOpen(false)
             }}
             onUpload={() => {}}

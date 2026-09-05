@@ -145,7 +145,7 @@ export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPa
     return () => { unsubscribe?.(); window.clearInterval(timer) }
   }, [loaded, reloadIntegrationHandoffs])
   React.useEffect(() => {
-    if (!loaded || currentModelSettingsPage(navigation).type !== 'home') return
+    if (!loaded) return
     const credential = integrationHandoffs.find((item) => item.target === 'credential')
     if (!credential || openedIntegrationHandoff.current === credential.requestId) return
     openedIntegrationHandoff.current = credential.requestId
@@ -561,11 +561,6 @@ export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPa
         initialScreen={page.initialScreen}
         existingVendorKey={page.existingVendorKey}
         integrationSessionId={page.integrationSessionId}
-        integrationHandoffRequestId={
-          integrationHandoffs.find(
-            (item) => item.sessionId === page.integrationSessionId && item.target === 'credential',
-          )?.requestId
-        }
         existingConnection={existingConnectionSummary(page.existingVendorKey)}
         onDirectScriptDraftCreated={(identity) => {
           setCustomCallTarget({ ...identity, script: '', draft: true })

@@ -135,9 +135,6 @@ async function run() {
           expectedRevision: revision,
           apiKey: 'isolated-fixture-key',
         })
-        const handoffs = await onboarding?.integrationHandoffList?.() || []
-        const credential = handoffs.find((item) => item.sessionId === id && item.target === 'credential')
-        if (credential) await onboarding?.integrationHandoffAck?.(credential.requestId)
         return result
       }, { id: sessionId })
       assert(saved?.credentialStatus === 'ready' && saved?.stage === 'draft', 'trusted renderer stores the credential')
