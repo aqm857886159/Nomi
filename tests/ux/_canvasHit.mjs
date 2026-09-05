@@ -41,18 +41,38 @@ const SCAN_RATIOS = {
 /**
  * 找一块**真·空白**：stage 内第一个「最顶层元素就是 React Flow pane」的点。
  *
+ * `inset` 把扫描范围从 stage 四边各往内缩这么多像素。它存在的唯一理由是
+ * React Flow 的自动平移带（`calcAutoPan` 默认 40px）：手势起点落在带内，
+ * 视口就会按帧率自动平移，手势扫过的区域随之变成不可复现的量
+ * （见 tests/ux/canvas-perf/gestureGeometry.mjs 的完整根因注释）。
+ * 默认 0 = 保持原行为，只有需要「起点必须可复现」的调用方才传。
+ *
  * @param {import('@playwright/test').Page} page
- * @param {{ preference?: 'default' | 'bottom' | 'top-left' }} [options]
+ * @param {{ preference?: 'default' | 'bottom' | 'top-left', inset?: number }} [options]
  * @returns {Promise<{ x: number, y: number } | null>} 屏幕坐标；找不到返回 null（调用方须 fail-closed）
  */
-export async function findCanvasBlankPoint(page, { preference = 'default' } = {}) {
+export async function findCanvasBlankPoint(page, { preference = 'default', inset = 0 } = {}) {
   const ratios = SCAN_RATIOS[preference]
   if (!ratios) throw new Error(`findCanvasBlankPoint: 未知 preference「${preference}」`)
+  if (!Number.isFinite(inset) || inset < 0) {
+    throw new Error(`findCanvasBlankPoint: inset 必须是非负有限数，收到 ${JSON.stringify(inset)}`)
+  }
   return page.evaluate(
-    ({ rows, columns, stageSelector, paneSelector }) => {
+    ({ rows, columns, stageSelector, paneSelector, inset: insetPx }) => {
       const stage = document.querySelector(stageSelector)
       if (!stage) return null
-      const rect = stage.getBoundingClientRect()
+      const full = stage.getBoundingClientRect()
+      // 缩到装不下就直接返回 null，让调用方 fail-closed——缩过头再扫等于扫了个空矩形，
+      // 却会安静地退化成「这一屏没有空白」，把配置错误伪装成环境问题。
+      if (full.width - insetPx * 2 <= 0 || full.height - insetPx * 2 <= 0) return null
+      const rect = {
+        left: full.left + insetPx,
+        top: full.top + insetPx,
+        right: full.right - insetPx,
+        bottom: full.bottom - insetPx,
+        width: full.width - insetPx * 2,
+        height: full.height - insetPx * 2,
+      }
       // 空白判据：那一点的最顶层元素**就是** pane 本身。
       // 用 `matches` 而不是 `closest`——`closest` 会把「pane 的后代浮层」也算进来，
       // 那就又变回黑名单了。
@@ -76,7 +96,13 @@ export async function findCanvasBlankPoint(page, { preference = 'default' } = {}
       }
       return null
     },
-    { rows: ratios.rows, columns: ratios.columns, stageSelector: CANVAS_STAGE_SELECTOR, paneSelector: CANVAS_PANE_SELECTOR },
+    {
+      rows: ratios.rows,
+      columns: ratios.columns,
+      stageSelector: CANVAS_STAGE_SELECTOR,
+      paneSelector: CANVAS_PANE_SELECTOR,
+      inset,
+    },
   )
 }
 

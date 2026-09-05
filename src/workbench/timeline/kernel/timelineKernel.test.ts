@@ -127,6 +127,30 @@ describe('timeline kernel operations', () => {
     ])
   })
 
+  it('writes clip audio through the kernel and rejects unsupported image audio', () => {
+    const base = timeline([clip('video', 0, 90)])
+    const state: TimelineState = {
+      ...base,
+      tracks: [...base.tracks, { id: 'image', type: 'image', label: 'Image', clips: [clip('image', 100, 130, 'image')] }],
+    }
+    const edited = applyTimelineOperation(state, {
+      kind: 'clip-audio',
+      clipId: 'video',
+      audio: { gainDb: -6, muted: false, fadeInFrames: 5, fadeOutFrames: 10 },
+    })
+    expect(edited.ok).toBe(true)
+    expect(edited.timeline.tracks[0].clips[0].audio).toEqual({ gainDb: -6, muted: false, fadeInFrames: 5, fadeOutFrames: 10 })
+
+    const rejected = applyTimelineOperation(state, {
+      kind: 'clip-audio',
+      clipId: 'image',
+      audio: { muted: true },
+    })
+    expect(rejected.ok).toBe(false)
+    expect(rejected.timeline).toBe(state)
+    expect(rejected.diagnostics[0].code).toBe('clip_audio_unsupported')
+  })
+
   it('rejects ripple removal that spans multiple tracks', () => {
     const state = timeline([clip('video-a', 0, 30)], [clip('audio-a', 0, 30, 'audio', 30)])
     const result = applyTimelineOperation(state, { kind: 'remove', clipIds: ['video-a', 'audio-a'], ripple: true })

@@ -30,7 +30,7 @@ type TimelineTrackProps = {
 
 function TimelineTrack({ track, transitionFeedback = [], variant = 'primary' }: TimelineTrackProps): JSX.Element {
   const { t } = useTranslation()
-  // 轨道标签列宽度固定（--workbench-timeline-label-width=112px，标尺/播放头都按它对齐），用短的 rail*Label，
+  // 轨道标签列宽度固定（--workbench-timeline-label-width=132px，标尺/播放头都按它对齐），用短的 rail*Label，
   // 别用描述名 *Label（英文 'Image track' 会被这列截成 'Image t…'）。句子里的轨道名仍用 *Label（见下 wrongType）。
   const displayTrackLabel =
     track.type === 'image'
@@ -194,7 +194,7 @@ function TimelineTrack({ track, transitionFeedback = [], variant = 'primary' }: 
       <div
         className={cn(
           'workbench-timeline-track__label',
-          'sticky left-0 z-[3] flex items-center gap-[7px]',
+          'sticky left-0 z-[3] flex items-center gap-[5px]',
             secondary || (track.type === 'image' && track.clips.length === 0) ? 'min-h-[30px]' : 'min-h-[52px]',
           'min-w-0 pr-3 border-r-0 bg-transparent',
           secondary
@@ -220,21 +220,23 @@ function TimelineTrack({ track, transitionFeedback = [], variant = 'primary' }: 
         >
           {displayTrackLabel}
         </span>
+        {/* 轨道名优先：静音钮与计数都 flex-none 并靠右排（原来两颗都写 ml-auto，
+            第二个 ml-auto 才生效、第一个白占一段 auto 空白，名字被挤到只剩 ~29px）。 */}
         {track.type !== 'image' ? (
           <button
             type="button"
-            className="ml-auto inline-grid h-6 w-6 place-items-center rounded-[var(--nomi-radius-sm)] text-[var(--workbench-muted)] hover:bg-[var(--workbench-hover)]"
+            className="flex-none inline-grid h-5 w-5 place-items-center rounded-[var(--nomi-radius-sm)] text-[var(--workbench-muted)] hover:bg-[var(--workbench-hover)]"
             aria-label={trackMuted ? t('timelineEditor.track.unmute') : t('timelineEditor.track.mute')}
             title={trackMuted ? t('timelineEditor.track.unmuteShortcut') : t('timelineEditor.track.muteShortcut')}
             onClick={() => setTimelineTrackMuted(track.id, !trackMuted)}
           >
-            {trackMuted ? <IconVolumeOff size={14} /> : <IconVolume size={14} />}
+            {trackMuted ? <IconVolumeOff size={13} /> : <IconVolume size={13} />}
           </button>
         ) : null}
         <span
           className={cn(
             'workbench-timeline-track__count',
-            'flex-none min-w-0 h-auto ml-auto px-1.5 py-px',
+            'flex-none min-w-0 h-auto px-1.5 py-px',
             'inline-grid place-items-center border-0 rounded-full',
             'bg-[var(--nomi-ink-05)] text-[var(--nomi-ink-40)]',
             'text-micro font-bold tabular-nums',

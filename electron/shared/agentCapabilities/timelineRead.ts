@@ -65,6 +65,21 @@ const rippleOperationSchema = z
   })
   .strict();
 
+const clipAudioOperationSchema = z
+  .object({
+    kind: z.literal("clip-audio"),
+    clipId: canonicalIdSchema,
+    audio: z
+      .object({
+        gainDb: z.number().finite().min(-96).max(0).optional(),
+        muted: z.boolean().optional(),
+        fadeInFrames: nonNegativeFrameSchema.optional(),
+        fadeOutFrames: nonNegativeFrameSchema.optional(),
+      })
+      .strict(),
+  })
+  .strict();
+
 export const timelineOperationSchema = z.union([
   moveOperationSchema,
   removeOperationSchema,
@@ -72,6 +87,7 @@ export const timelineOperationSchema = z.union([
   trimOperationSchema,
   sourceWindowOperationSchema,
   rippleOperationSchema,
+  clipAudioOperationSchema,
 ]);
 
 export const timelineEditPlanSchema = z

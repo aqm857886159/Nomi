@@ -41,13 +41,9 @@ const SRC = path.join(ROOT, 'src')
 const HANDLERS = new Set(['onClick', 'onChange', 'onPointerDown', 'onSubmit'])
 
 /** 例外必须写清理由；不写理由不许加。 */
-const ALLOWLIST = new Map([
-  [
-    'src/workbench/preview/TextClipStyleControls.tsx:字体下拉',
-    '整个组件在 `if (!selectedTextClip) return null`（TextClipStyleControls.tsx:55）之后才渲染，' +
-      '控件出现时 selectedTextClipId 必非空——守卫恒真，不存在静默失效。',
-  ],
-])
+// 2026-09-05：唯一一条例外（TextClipStyleControls 的字体下拉）随该组件一起删除——
+// 字号/字体已迁进属性面板的 TextClipFields，那里拿到的是一个必然存在的 clip，无守卫可言。
+const ALLOWLIST = new Map([])
 
 function sourceFiles(dir, out = []) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {

@@ -20,6 +20,7 @@ export function readCurrentWorkbenchProjectPayload(): WorkbenchProjectPayload {
     // S5-b-1:尾部重放游标(append 回执维护;回执延迟导致略旧也安全——reducer 幂等)
     generationCanvasLastSeq: getCanvasEventLastSeq(),
     storyboardDesignsByDocumentId: workbench.storyboardDesignsByDocumentId,
+    editingPanelLayout: workbench.editingPanelLayout,
   }
 }
 
@@ -33,6 +34,7 @@ export function restoreWorkbenchProjectPayload(payload: WorkbenchProjectPayload)
   // P4：恢复整套分镜方案映射。用 hydrateStoryboardDesigns（非 setStoryboardPlan）载入不标脏。
   const store = useWorkbenchStore.getState()
   store.hydrateStoryboardDesigns(payload.storyboardDesignsByDocumentId ?? {})
+  if (payload.editingPanelLayout) store.setEditingPanelLayout(payload.editingPanelLayout, false)
   useGenerationCanvasStore.getState().restoreSnapshot(payload.generationCanvas)
 }
 

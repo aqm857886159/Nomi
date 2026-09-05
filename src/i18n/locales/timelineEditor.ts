@@ -82,10 +82,10 @@ export const zhTimelineEditor = {
     emptyAudio: '从素材库拖入音频当配乐',
     emptyVisual: '从生成区拖入素材',
     placeAt: '放到 {{timecode}}',
-    // rail*Label = 轨道左侧固定宽标签列（--workbench-timeline-label-width，112px，标尺/播放头都按它对齐）
+    // rail*Label = 轨道左侧固定宽标签列（--workbench-timeline-label-width，132px，标尺/播放头都按它对齐）
     //   里显示的短名，几何约束：必须塞得进这列，不能靠加宽列来容纳（那会牵动整条轴的内容起点与标尺对齐）。
     // *Label（不带 rail 前缀）= 句子里用的描述名（如 wrongType「…需要放到{{track}}」），要读得通顺。
-    //   中文两者恰好同字；英文分开——rail 用 Images/Videos/Audio（进得了 112px 列），句子用 Image track/… 更自然。
+    //   中文两者恰好同字；英文分开——rail 用 Images/Videos/Audio（进得了 132px 列），句子用 Image track/… 更自然。
     railImageLabel: '图片轨',
     railVideoLabel: '视频轨',
     railAudioLabel: '音频轨',
@@ -208,7 +208,7 @@ export const enTimelineEditor = {
     emptyAudio: 'Drag audio from Assets to use as music',
     emptyVisual: 'Drag media from Generation',
     placeAt: 'Place at {{timecode}}',
-    // rail*Label: short names for the fixed-width rail column (112px); must fit without widening it.
+    // rail*Label: short names for the fixed-width rail column (132px); must fit without widening it.
     // *Label (no rail prefix): descriptive names used inside sentences (e.g. wrongType), kept readable.
     railImageLabel: 'Images',
     railVideoLabel: 'Videos',

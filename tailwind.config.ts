@@ -108,7 +108,9 @@ const workbenchBasePlugin = plugin(({ addBase, addUtilities }) => {
       // 预览时间轴：标尺28 + 3×52 + 间距/内距 ≈ 222px，贴合内容高度（上手清单聚光在预览区锚此 var）。
       '--workbench-preview-timeline-height': '222px',
       '--workbench-preview-source-width': '268px',
-      '--workbench-timeline-label-width': '112px',
+      // 132px（原 112）：112 减掉 pr-3 后只剩 100，被类型点 + 静音钮 + 计数 chip 占去七成，
+      // 「视频轨」被挤成「视…」。标尺/播放头/各行都读这一个 token，改这里就整体对齐。
+      '--workbench-timeline-label-width': '132px',
       '--workbench-bg': 'var(--nomi-bg)',
       '--workbench-surface': 'var(--nomi-paper)',
       '--workbench-surface-solid': 'var(--nomi-paper)',

@@ -1,10 +1,12 @@
-// R13 走查：剪辑控制条「作用域」根治后的真机取证（2026-08-03）。
-// 零额度——只用本地 ffmpeg 造的色块图，绝不触发任何生成。
+// R13 走查：剪辑面「作用域」的真机取证。零额度——只用本地 ffmpeg 造的色块图，绝不触发任何生成。
 //
-// 要验的正是那个活过七门 + 3634 单测 + 多轮走查的缺陷：
-//   ① 没选中画面片段时，「这一段」那组必须**整组禁用且说得出原因**（改之前是可点、点了静默失效）
-//   ② 选中一个片段后，那组亮起并**写出片段名**（改之前界面完全不写作用对象）
-//   ③ 控制条分成 4 组、每组有名字（改之前 15 个横铺一行、只有 5 道看不见的分隔线）
+// 2026-08-03 首版验的是**预览控制条**分成 4 个带名字的作用域组。2026-09-05 剪辑面合同 §2.2
+// 把作用域整体搬了家：控制条退回纯 transport（播放 / 步帧 / 时码 / 叠加 / 音量 / 全屏），
+// 「整片」与「这一段」的值去了属性面板、动作留在时间轴工具条。所以本走查跟着搬，验的是同一件事
+// 在**新家**成立，而不是把旧控件加回控制条：
+//   ① transport 里不再有任何作用域组（没有 data-control-scope="clip"/"film"）
+//   ② 没选中时，时间轴「这一段」工具组整组禁用且说得出原因
+//   ③ 选中一个片段后解禁，且属性面板从「整片」切到该片段（写出对象名与类型）
 // 断言用属性/几何，不靠人眼——人眼看静态截图恰恰看不出「作用域跟着谁走」。
 import { launchNomiApp } from './_launchApp.mjs'
 import { createRequire } from 'node:module'
@@ -71,7 +73,7 @@ const snapBar = async (name) => {
   await screenshotSettled(getWin(), { path: path.join(outDir, name), clip: box })
   console.log(`  · 截图 ${name}`)
 }
-/** 读控制条各组的名字 / 作用域 / 禁用态 / 是否给了原因。 */
+/** 读 transport 各组：合同要求这里只剩 transport / overlay 两组，没有片段/整片作用域。 */
 const readGroups = () => getWin().evaluate(() => {
   const bar = document.querySelector('.workbench-preview-player__control-bar')
   if (!bar) return null
@@ -80,10 +82,16 @@ const readGroups = () => getWin().evaluate(() => {
     const scope = g.getAttribute('data-control-scope') || ''
     const controls = [...g.querySelectorAll('button, input, select, [role="button"]')]
     const disabledCount = controls.filter((c) => c.disabled === true || c.getAttribute('aria-disabled') === 'true').length
-    // 禁用整组时原因挂在外层 <span title>（禁用的 button 自己不触发 title）
-    const reason = g.parentElement?.getAttribute('title') || ''
-    return { label, scope, controls: controls.length, disabledCount, reason }
+    return { label, scope, controls: controls.length, disabledCount }
   })
+})
+
+/** 属性面板当前对着谁：整片 / 视频片段 / 图片片段 / 字幕。 */
+const readInspector = () => getWin().evaluate(() => {
+  const row = document.querySelector('[data-testid="preview-inspector-object"]')
+  if (!row) return null
+  const groups = [...document.querySelectorAll('[aria-label="属性面板"] section > button')].map((b) => b.textContent?.trim() || '')
+  return { objectType: row.getAttribute('data-object-type') || '', text: row.textContent?.trim() || '', groups }
 })
 
 win.on('pageerror', (e) => console.log(`  [pageerror] ${String(e).slice(0, 160)}`))
@@ -94,10 +102,13 @@ const readClipTools = () => getWin().evaluate(() => {
       .find((el) => el.getBoundingClientRect().width > 0)
     if (!box) return null
     const btns = [...box.querySelectorAll('button')]
+    // 「这一段」现在是一个 ControlGroup：禁用整组时原因挂在**组自己的外层 <span title>** 上
+    // （禁用的 button 不触发自己的 title）。那个 span 在 .workbench-timeline__clip-tools **里面**，
+    // 不是它的 parentElement——#508 把工具条改成带 legend 的分组框后层级变了。
     return {
       count: btns.length,
       disabled: btns.filter((b) => b.disabled).length,
-      reason: box.parentElement?.getAttribute('title') || '',
+      reason: box.querySelector('[title]')?.getAttribute('title') || box.parentElement?.getAttribute('title') || '',
       width: Math.round(box.getBoundingClientRect().width),
     }
   })
@@ -157,15 +168,15 @@ try {
   // （从源面板加片段会自动选中刚加的那个，加完再测就不是空选了。）
   await getWin().waitForTimeout(600)
   const idle = await readGroups()
-  console.log('  · 无目标时各组：', JSON.stringify(idle))
-  const clipGroupIdle = (idle || []).find((g) => g.scope === 'clip')
-  check('控制条分成 4 个组', (idle || []).length === 4, `实际 ${(idle || []).length} 组`)
-  check('每组都有名字（传输组形态自明可无名）', (idle || []).filter((g) => g.label).length >= 3)
-  check('无目标时「这一段」组全部禁用', Boolean(clipGroupIdle) && clipGroupIdle.controls > 0 && clipGroupIdle.disabledCount === clipGroupIdle.controls,
-    clipGroupIdle ? `${clipGroupIdle.disabledCount}/${clipGroupIdle.controls} 禁用` : '没找到该组')
-  check('禁用时说得出原因（不是沟通死路）', Boolean(clipGroupIdle?.reason), clipGroupIdle?.reason || '无 title')
+  console.log('  · transport 各组：', JSON.stringify(idle))
+  const scopes = (idle || []).map((g) => g.scope)
+  check('transport 已渲染', (idle || []).length > 0, `实际 ${(idle || []).length} 组`)
+  check('transport 里不再有作用域组（画幅/缩放已迁属性面板）', !scopes.includes('clip') && !scopes.includes('film'), scopes.join(',') || '无')
+  const inspectorIdle = await readInspector()
+  check('无选中时属性面板显示整片', inspectorIdle?.objectType === 'film', JSON.stringify(inspectorIdle))
   const idleTools = await readClipTools()
-  check('无选中时单片工具禁用', (idleTools?.disabled ?? 0) === 4, `${idleTools?.disabled}/4 禁用`)
+  // 3 颗（分割 / 复制 / 删除），不是 4：#508 把「重新生成」撤出常驻工具条，进右键菜单。
+  check('无选中时单片工具整组禁用', (idleTools?.count ?? 0) > 0 && idleTools.disabled === idleTools.count, `${idleTools?.disabled}/${idleTools?.count} 禁用`)
   check('无选中时说得出原因', Boolean(idleTools?.reason), idleTools?.reason || '无 title')
   await snapBar('01-bar-no-target.png')
 
@@ -191,24 +202,20 @@ try {
   // ========== ② 选中一个片段：组亮起 + 写出片段名 ==========
   await visibleClips.first().click({ timeout: 5000 })
   await getWin().waitForTimeout(900)
-  const selected = await readGroups()
-  console.log('  · 选中后各组：', JSON.stringify(selected))
-  const clipGroupSel = (selected || []).find((g) => g.scope === 'clip')
-  // 不数 DOM：时间轴有两套 TimelinePanel 实例，同一个 clip 会渲染两遍、data-selected 也翻倍（仓库旧坑）。
-  // 真正的证据是下面那条——resolveFramingTarget 要求**恰好选中 1 个**才给目标，
-  // 组名能写出片段名，就等于证明了选中数 === 1。
+  const inspectorSel = await readInspector()
+  console.log('  · 选中后属性面板：', JSON.stringify(inspectorSel))
   const selectedNodes = await getWin().locator('[data-testid="timeline-clip"][data-selected="true"]:visible').count()
   check('点击后时间轴出现选中态', selectedNodes >= 1, `data-selected 元素 ${selectedNodes} 个（可见实例）`)
-  check('选中后「这一段」组解禁', Boolean(clipGroupSel) && clipGroupSel.disabledCount === 0,
-    clipGroupSel ? `${clipGroupSel.disabledCount}/${clipGroupSel.controls} 禁用` : '没找到该组')
-  check('组名写出了当前片段（作用对象可见）', Boolean(clipGroupSel?.label) && clipGroupSel.label !== '这一段' && clipGroupSel.label.includes('·'),
-    clipGroupSel?.label || '')
+  check('属性面板从整片切到该片段（作用对象可见）', inspectorSel?.objectType === 'video' || inspectorSel?.objectType === 'image',
+    inspectorSel?.objectType || '无')
+  check('片段态出「显示 / 时间」两组（组序固定）', (inspectorSel?.groups || []).slice(0, 2).join('/') === '显示/时间',
+    (inspectorSel?.groups || []).join('/'))
   await snapBar('02-bar-clip-selected.png')
 
   // ========== ③ 单片工具：恒常渲染、无选中时禁用带原因（原先是有选中才插入 → 整条 pill 变长、布局抖） ==========
   const withSel = await readClipTools()
-  check('单片工具恒常渲染（4 颗）', withSel?.count === 4, JSON.stringify(withSel))
-  check('选中片段时可用', withSel?.disabled === 0, `${withSel?.disabled}/4 禁用`)
+  check('单片工具恒常渲染（3 颗：分割 / 复制 / 删除）', withSel?.count === 3, JSON.stringify(withSel))
+  check('选中片段时可用', withSel?.disabled === 0, `${withSel?.disabled}/${withSel?.count} 禁用`)
   check('工具条宽度恒定（不再一选中就抖）', idleTools && withSel && idleTools.width === withSel.width,
     `${idleTools?.width}px → ${withSel?.width}px`)
 
