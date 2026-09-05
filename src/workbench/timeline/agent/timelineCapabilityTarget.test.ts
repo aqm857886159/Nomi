@@ -80,6 +80,27 @@ describe('canonical Timeline capability target', () => {
     })
   })
 
+  it.each([
+    ['transition', (_revision: string) => ({ kind: 'transition' as const, action: 'set' as const, fromClipId: 'clip-a', toClipId: 'clip-b', type: 'dissolve' as const, durationFrames: 6 }), 'clip-a'],
+    ['text', (_revision: string) => ({ kind: 'text' as const, action: 'add' as const, id: 'caption-1', text: 'X', style: 'caption' as const, startFrame: 0, endFrame: 12 }), 'caption-1'],
+    ['audio', (_revision: string) => ({ kind: 'audio' as const, clipId: 'clip-a', gainDb: -6, muted: false, fadeOutFrames: 6 }), 'clip-a'],
+  ])('supports %s through replay, plan conflict, and stale undo guards', (_kind, operationFactory, targetId) => {
+    const base = useWorkbenchStore.getState().timeline
+    const prepared = _kind === 'transition'
+      ? { ...base, tracks: base.tracks.map((track) => track.type === 'video' ? { ...track, clips: track.clips.map((clip) => clip.id === 'clip-b' ? { ...clip, startFrame: 24 } : clip) } : track) }
+      : base
+    useWorkbenchStore.setState({ timeline: prepared, timelineUndoStack: [], timelineRedoStack: [] })
+    const baseRevision = timelineRevision(prepared)
+    const operation = operationFactory(baseRevision)
+    const plan = { operation: 'apply_edit_plan' as const, planId: `plan-${_kind}`, baseRevision, summary: `Apply ${_kind}`, operations: [operation] }
+    const first = applyEditWrite(executeTimelineWriteTarget({ input: plan, target: { kind: 'timeline', clipIds: [targetId] }, preconditions: { timeline: { revision: baseRevision } }, ...approval }))
+    expect(first).toMatchObject({ ok: true, applied: true })
+    expect(executeTimelineWriteTarget({ input: plan, target: { kind: 'timeline', clipIds: [targetId] }, preconditions: { timeline: { revision: baseRevision } }, ...approval })).toMatchObject({ ok: true, replayed: true })
+    expect(executeTimelineWriteTarget({ input: { ...plan, operations: [{ kind: 'remove' as const, clipId: 'clip-a' }] }, target: { kind: 'timeline', clipIds: ['clip-a'] }, preconditions: { timeline: { revision: baseRevision } }, ...approval })).toMatchObject({ ok: false, code: 'plan_id_conflict' })
+    useWorkbenchStore.getState().moveTimelineClip('clip-b', 72)
+    expect(executeTimelineWriteTarget({ input: { operation: 'undo_timeline_edit', undoToken: first.undoToken, expectedRevision: first.revision }, target: { kind: 'timeline', clipIds: [targetId] }, preconditions: { timeline: { revision: first.revision } }, ...approval })).toMatchObject({ ok: false, code: 'undo_stale_revision' })
+  })
+
   it('projects reads without paths or state mutation', () => {
     const before = useWorkbenchStore.getState()
     const result = executeTimelineReadTarget({ operation: 'read_timeline' })

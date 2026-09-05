@@ -143,6 +143,38 @@ describe('timeline kernel operations', () => {
     expect(result.timeline.tracks[1].clips[0].startFrame).toBe(50)
     expect(result.timeline.textClips[0].startFrame).toBe(0)
   })
+
+  it('applies transition, text, and audio operations through the same transaction kernel', () => {
+    const state = timeline([clip('a', 0, 30), clip('b', 30, 60)])
+    const result = applyTimelineOperations(state, [
+      { kind: 'transition', action: 'set', fromClipId: 'a', toClipId: 'b', type: 'dissolve', durationFrames: 6 },
+      { kind: 'text', action: 'edit', clipId: 'caption', text: 'X' },
+      { kind: 'audio', clipId: 'a', gainDb: -6, fadeOutFrames: 5 },
+    ])
+    expect(result.ok).toBe(true)
+    expect(result.timeline.transitions).toEqual([{ fromClipId: 'a', toClipId: 'b', type: 'dissolve', durationFrames: 6 }])
+    expect(result.timeline.textClips[0]?.text).toBe('X')
+    expect(result.timeline.tracks[0]?.clips[0]?.audio).toMatchObject({ gainDb: -6, fadeOutFrames: 5 })
+  })
+
+  it('rejects invalid transition support and overlapping audio fades before commit', () => {
+    const state = timeline([clip('a', 0, 30), clip('b', 30, 60)])
+    const unsupported = applyTimelineOperation(state, { kind: 'transition', action: 'set', fromClipId: 'a', toClipId: 'b', type: 'match_cut', durationFrames: 6 })
+    expect(unsupported.ok).toBe(false)
+    expect(unsupported.diagnostics[0]?.code).toBe('transition_unsupported_type')
+    const overlap = applyTimelineOperation(state, { kind: 'audio', clipId: 'a', fadeInFrames: 20, fadeOutFrames: 20 })
+    expect(overlap.ok).toBe(false)
+    expect(overlap.diagnostics[0]?.code).toBe('clip_audio_fade_overlap')
+  })
+
+  it('adds and retimes text clips with strict non-empty ranges', () => {
+    const state = timeline([clip('a', 0, 30)])
+    const added = applyTimelineOperation(state, { kind: 'text', action: 'add', id: 'caption-2', text: 'new', style: 'title', startFrame: 30, endFrame: 45 })
+    expect(added.ok).toBe(true)
+    const retimed = applyTimelineOperation(added.timeline, { kind: 'text', action: 'time', clipId: 'caption-2', startFrame: 32, endFrame: 44 })
+    expect(retimed.ok).toBe(true)
+    expect(retimed.timeline.textClips.find((clip) => clip.id === 'caption-2')).toMatchObject({ startFrame: 32, endFrame: 44 })
+  })
 })
 
 describe('timeline kernel transactions and diffs', () => {

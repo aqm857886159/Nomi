@@ -65,6 +65,49 @@ const rippleOperationSchema = z
   })
   .strict();
 
+const transitionOperationSchema = z
+  .object({
+    kind: z.literal("transition"),
+    action: z.enum(["set", "remove"]),
+    fromClipId: canonicalIdSchema,
+    toClipId: canonicalIdSchema,
+    type: z.enum(["cut", "dissolve", "fade", "match_cut", "whip_pan"]).optional(),
+    durationFrames: z.number().int().safe().positive().optional(),
+  })
+  .strict()
+  .refine((value) => value.action === "remove" || value.type !== undefined, {
+    message: "transition set requires type",
+    path: ["type"],
+  })
+  .refine((value) => value.action !== "remove" || value.type === undefined && value.durationFrames === undefined, {
+    message: "transition remove only accepts endpoints",
+    path: ["action"],
+  });
+
+const textOperationSchema = z.object({
+  kind: z.literal("text"), action: z.enum(["add", "edit", "style", "time"]),
+  id: canonicalIdSchema.optional(), clipId: canonicalIdSchema.optional(), sourceNodeId: canonicalIdSchema.optional(),
+  text: z.string().trim().min(1).optional(), style: z.enum(["caption", "title"]).optional(),
+  startFrame: nonNegativeFrameSchema.optional(), endFrame: nonNegativeFrameSchema.optional(),
+}).strict().superRefine((value, context) => {
+  if (value.action === "add" && (!value.id || !value.text || !value.style || value.startFrame === undefined || value.endFrame === undefined)) context.addIssue({ code: z.ZodIssueCode.custom, message: "text add requires id, text, style, startFrame, endFrame" });
+  if (value.action !== "add" && !value.clipId) context.addIssue({ code: z.ZodIssueCode.custom, message: "text edit/style/time requires clipId" });
+  if (value.action === "edit" && !value.text) context.addIssue({ code: z.ZodIssueCode.custom, message: "text edit requires text" });
+  if (value.action === "style" && !value.style) context.addIssue({ code: z.ZodIssueCode.custom, message: "text style requires style" });
+  if (value.action === "time" && (value.startFrame === undefined || value.endFrame === undefined)) context.addIssue({ code: z.ZodIssueCode.custom, message: "text time requires startFrame and endFrame" });
+});
+
+const audioOperationSchema = z
+  .object({
+    kind: z.literal("audio"), clipId: canonicalIdSchema,
+    gainDb: z.number().finite().optional(), muted: z.boolean().optional(),
+    fadeInFrames: nonNegativeFrameSchema.optional(), fadeOutFrames: nonNegativeFrameSchema.optional(),
+  })
+  .strict()
+  .refine((value) => Object.keys(value).some((key) => key !== "kind" && key !== "clipId"), {
+    message: "audio operation requires at least one audio field",
+  });
+
 export const timelineOperationSchema = z.union([
   moveOperationSchema,
   removeOperationSchema,
@@ -72,6 +115,9 @@ export const timelineOperationSchema = z.union([
   trimOperationSchema,
   sourceWindowOperationSchema,
   rippleOperationSchema,
+  transitionOperationSchema,
+  textOperationSchema,
+  audioOperationSchema,
 ]);
 
 export const timelineEditPlanSchema = z
@@ -147,6 +193,12 @@ const sourceWindowSchema = z
   .object({ startFrame: nonNegativeFrameSchema, endFrame: nonNegativeFrameSchema })
   .strict()
   .nullable();
+const projectedClipAudioSchema = z.object({
+  gainDb: z.number().finite(),
+  muted: z.boolean(),
+  fadeInFrames: nonNegativeFrameSchema,
+  fadeOutFrames: nonNegativeFrameSchema,
+}).strict();
 const projectedClipSchema = z
   .object({
     id: canonicalIdSchema,
@@ -158,6 +210,7 @@ const projectedClipSchema = z
     endFrame: nonNegativeFrameSchema,
     durationFrames: nonNegativeFrameSchema,
     sourceWindow: sourceWindowSchema,
+    audio: projectedClipAudioSchema.optional(),
     text: z.string().optional(),
     sourceAvailable: z.boolean(),
   })
@@ -277,7 +330,7 @@ export function timelineReadPiDescriptionForAlias(alias: string): string | undef
     case TIMELINE_READ_ALIASES.inspectRange:
       return "Inspect clips and text overlays that intersect one timeline frame range.";
     case TIMELINE_READ_ALIASES.proposePlan:
-      return "Validate and preview an atomic timeline edit plan without changing the project.";
+      return "Validate and preview an atomic timeline edit plan without changing the project. Valid operation kinds: move, remove, split, trim, source-window, ripple, transition, text, audio.";
     default:
       return undefined;
   }
