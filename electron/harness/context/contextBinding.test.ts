@@ -37,7 +37,10 @@ describe('explicit Agent working-context binding', () => {
   });
 
   it('returns a frozen canonical copy rather than the caller-owned object', () => {
-    const callerOwned = { ...createProjectAgentContextBinding(PROJECT, 'thread-1'), project: { ...PROJECT } };
+    const callerOwned = {
+      ...createProjectAgentContextBinding(PROJECT, 'thread-1'),
+      project: { ...PROJECT } as { projectId: string; immutableProjectUuid: string; projectGeneration: number },
+    };
     const captured = captureAgentContextBinding(callerOwned);
     callerOwned.project.projectId = 'attacker-mutated';
     expect(captured.project.projectId).toBe('project-1');

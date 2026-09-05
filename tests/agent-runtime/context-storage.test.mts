@@ -10,10 +10,18 @@ import { createAgentContextStore } from '../../electron/harness/context/contextS
 import type { RuntimeSnapshotCodec, RuntimeTurnRequest } from '../../electron/harness/runtime/runtimePort.js';
 import { runAgentTurn, snapshotCodec } from '../../electron/harness/runtime/pi/nativeLoader.cjs';
 import { exportSnapshot, importSnapshot } from '../../electron/harness/runtime/pi/snapshot.mjs';
+import { createProjectAgentContextBinding } from '../../electron/shared/contracts/projectAgentContextBinding.js';
 import { createRuntimeFixture, type FixtureReply } from './httpFixture.mjs';
 
-const creation: AgentContextBinding = { sessionKey: 'nomi:workbench:project-1:creation', threadId: 'same-thread' };
-const generation: AgentContextBinding = { sessionKey: 'nomi:workbench:project-1:generation', threadId: 'same-thread' };
+// Two different threads of the same project. Their durable contexts must stay
+// separate even though they share a project and (historically) a thread id.
+const PROJECT = Object.freeze({
+  projectId: 'project-1',
+  immutableProjectUuid: '4d80f2e0-4a45-4a8f-8fe1-78ac659177c8',
+  projectGeneration: 3,
+});
+const creation: AgentContextBinding = createProjectAgentContextBinding(PROJECT, 'thread-creation');
+const generation: AgentContextBinding = createProjectAgentContextBinding(PROJECT, 'thread-generation');
 const persistent = (binding: AgentContextBinding): AgentContextScope => ({ kind: 'persistent', binding });
 const bubbles = [{ role: 'user', content: 'OLD_EXPLICIT_UI_BRIEF' }, { role: 'assistant', content: 'OLD_EXPLICIT_UI_ANSWER' },
   { role: 'tool', content: 'Old UI operation text, not permission to replay' }];
@@ -21,7 +29,7 @@ const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR
 const pdf = Buffer.from('%PDF-1.7\nNomi durable reference document.\n%%EOF');
 
 function serviceAt(request: RuntimeTurnRequest) {
-  const file = join(request.cwd, '.nomi', 'agent-session.json');
+  const file = join(request.cwd, '.nomi', 'agent-thread-context-v1.json');
   const store = createAgentContextStore({ resolveFile: () => file });
   return { file, store, service: createAgentContextService({ store, codec: snapshotCodec, runAgentTurn }) };
 }
@@ -84,7 +92,7 @@ test('fresh disk service restores actual SDK tools, images, PDF and compaction w
   assert.deepEqual(await readdir(request.tempRoot), []);
 });
 
-test('same thread ID in creation and generation sends separate real model contexts after reopening', async (t) => {
+test('two threads of one project send separate real model contexts after reopening', async (t) => {
   const { request, http } = await createRuntimeFixture(t, [
     { type: 'text', text: 'Creation answer.' }, { type: 'text', text: 'Generation answer.' },
     { type: 'text', text: 'Creation continuation.' },
@@ -109,7 +117,7 @@ test('real legacy migration backs up unbound v2 bytes and only imports the expli
   await writeFile(file, original);
   const imported = await service.ensure(persistent(creation), { ...request, legacyBubbles: bubbles });
   assert.deepEqual(imported, { source: 'legacy-limited', state: 'ready', retainedMessages: 2 });
-  const backup = `${file}.v2-${createHash('sha256').update(original).digest('hex')}.bak`;
+  const backup = `${file}.legacy-${createHash('sha256').update(original).digest('hex')}.bak`;
   assert.deepEqual(await readFile(backup), original);
   const oldSnapshot = store.read(creation)!.snapshot!;
   assert.doesNotMatch(oldSnapshot, /UNBOUND_CORE_NOT_OWNED/);
@@ -198,7 +206,7 @@ test('a real ephemeral multi-step planner never resolves, migrates, inspects, wr
     { type: 'tool', calls: [{ id: 'plan-1', name: 'propose_shots', arguments: {} }] },
     { type: 'text', text: 'The ephemeral plan is ready.' },
   ]);
-  const file = join(request.cwd, '.nomi', 'agent-session.json');
+  const file = join(request.cwd, '.nomi', 'agent-thread-context-v1.json');
   await mkdir(join(request.cwd, '.nomi'));
   const original = Buffer.from('{"version":2,"sessions":{"unbound":[{"role":"user","content":"KEEP_V2_EXACT"}]}}\n');
   await writeFile(file, original);
@@ -225,6 +233,6 @@ test('a real ephemeral multi-step planner never resolves, migrates, inspects, wr
   assert.equal(paths, 0);
   assert.equal(codecs, 0);
   assert.deepEqual(await readFile(file), original);
-  assert.deepEqual(await readdir(join(request.cwd, '.nomi')), ['agent-session.json']);
+  assert.deepEqual(await readdir(join(request.cwd, '.nomi')), ['agent-thread-context-v1.json']);
   assert.deepEqual(await readdir(request.tempRoot), []);
 });

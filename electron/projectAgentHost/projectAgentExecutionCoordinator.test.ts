@@ -853,7 +853,7 @@ describe("ProjectAgentExecutionCoordinator", () => {
         ...base.request,
         workMode: "agent",
         approvalPolicy: { mode: "project", spend: "within-budget" },
-      } as AgentChatRequest,
+      } as ProjectAgentExecutionRequest,
     };
 
     await coordinator.enqueue(opened.subscriptionId, input);

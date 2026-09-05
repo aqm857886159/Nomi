@@ -52,13 +52,12 @@ beforeEach(() => {
 })
 
 describe('ProjectAgent turn commands', () => {
-  it('enqueues a canonical turn with an explicit target and ephemeral model history', async () => {
+  it('enqueues a canonical turn with an explicit target and no caller-authored history', async () => {
     const result = await enqueueProjectAgentTurn({
       turnId: 'turn-from-caller',
       request: {
         prompt: 'rewrite this',
         capability: 'creation-editor',
-        history: { kind: 'ephemeral' },
         projectId: binding.projectId,
         skillKey: 'workbench.creation.general',
       },
@@ -75,7 +74,8 @@ describe('ProjectAgent turn commands', () => {
 
     const command = deps.command.mock.calls[0][0]
     expect(command.type).toBe('turn.enqueue')
-    expect(command.payload.request.history).toEqual({ kind: 'ephemeral' })
+    expect(command.payload.request, 'The Host authors a thread\'s history; a renderer command never carries one')
+      .not.toHaveProperty('history')
     expect(command.payload.thread.threadId).toMatch(/^thread-/)
     expect(command.payload.queueItem.target).toEqual({
       kind: 'document',
