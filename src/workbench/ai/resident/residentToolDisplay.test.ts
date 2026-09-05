@@ -2,11 +2,14 @@ import { describe, expect, it } from 'vitest'
 import {
   proposalForTool,
   readableToolDetailRows,
+  isReadOnlyToolName,
+  readableToolName,
   readableToolPreview,
   readableToolSummary,
   residentToolProjectionForCall,
 } from './residentToolDisplay'
 import { partitionResidentProposalFields } from './residentProposalDisplay'
+import { CAPABILITY_ALIAS_ENTRIES, CAPABILITY_CONTRACTS } from '../../../../electron/shared/agentCapabilities/registry'
 
 const translate = (key: string, options?: Record<string, unknown>): string => {
   if (!options) return key
@@ -19,6 +22,50 @@ describe('resident tool display projection', () => {
     expect(readableToolPreview(translate, 'nomi_start_generation', args)).toBe('agentResident.toolGenerationSummary')
     expect(readableToolSummary(translate, 'nomi_start_generation', args)).toContain('a small cat avatar')
     expect(readableToolSummary(translate, 'nomi_start_generation', args)).toContain('provider/image-fast')
+  })
+
+  it('names every registered capability and every surface alias of it, derived from the registry', () => {
+    // Class-level, not a spot check. Both lists come from the registry, so a new capability — or a
+    // rename of any pi/MCP alias — fails here instead of silently rendering as the generic "工具" in
+    // the tool chips and, since the approval card titles itself with this string, on the card a human
+    // is asked to approve. Neither list is ever hand-copied.
+    const unnamedContracts = CAPABILITY_CONTRACTS
+      .map((contract) => contract.id)
+      .filter((id) => readableToolName(translate, id) === 'agentResident.toolGeneric')
+    expect(unnamedContracts).toEqual([])
+
+    const unnamedAliases = CAPABILITY_ALIAS_ENTRIES
+      .filter((entry) => readableToolName(translate, entry.alias) === 'agentResident.toolGeneric')
+      .map((entry) => `${entry.surface}:${entry.alias}`)
+    expect(unnamedAliases).toEqual([])
+
+    expect(CAPABILITY_CONTRACTS.length).toBeGreaterThan(10)
+    expect(CAPABILITY_ALIAS_ENTRIES.length).toBeGreaterThan(CAPABILITY_CONTRACTS.length)
+  })
+
+  it('trusts the registry over the words in an alias', () => {
+    // `propose_edit_plan` belongs to timeline.read; word-matching sees "edit" and calls it a write.
+    expect(isReadOnlyToolName('propose_edit_plan')).toBe(true)
+    expect(isReadOnlyToolName('apply_edit_plan')).toBe(false)
+    expect(readableToolName(translate, 'insert_at_cursor')).toBe('agentResident.toolDocumentWrite')
+    expect(readableToolName(translate, 'read_production_artifact')).toBe('agentResident.toolProductionRead')
+  })
+
+  it('reads the operation out of the arguments, not just the collapsed tool name', () => {
+    // The canvas surface advertises `nomi_canvas_maintenance` / `nomi_canvas_edit`; the semantics are
+    // in `args.operation`. Keying on the name alone made an irreversible delete render as the generic
+    // "inspect details" label, so the approval card said nothing about what was being deleted.
+    const del = { operation: 'delete_canvas_nodes', nodeIds: ['node-a', 'node-b'] }
+    expect(readableToolName(translate, 'nomi_canvas_maintenance', del)).toBe('agentResident.toolCanvasDelete')
+    expect(readableToolSummary(translate, 'nomi_canvas_maintenance', del)).toBe('agentResident.toolCanvasDeleteSummary')
+    expect(readableToolPreview(translate, 'nomi_canvas_maintenance', del)).toBe('agentResident.toolTargetCount(count=2)')
+
+    const create = { operation: 'create_canvas_nodes', nodes: [{ title: '镜头 1' }] }
+    expect(readableToolName(translate, 'nomi_canvas_edit', create)).toBe('agentResident.toolCanvasWrite')
+    expect(readableToolPreview(translate, 'nomi_canvas_edit', create)).toContain('agentResident.toolShotCount(count=1)')
+
+    // The pi-side aliases still carry the operation in the name; both halves keep working.
+    expect(readableToolName(translate, 'delete_canvas_nodes')).toBe('agentResident.toolCanvasDelete')
   })
 
   it('partitions proposal content into a compact bar and on-demand evidence', () => {
