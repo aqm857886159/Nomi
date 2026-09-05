@@ -1,4 +1,5 @@
 import type { TimelineClip, TimelineState, TimelineTransition } from './timelineTypes'
+import { resolveTimelineTransitionFeedback } from './timelineVisualFeedback'
 
 export const DEFAULT_TRANSITION_FRAMES = 15
 
@@ -104,4 +105,37 @@ export function findTimelineTransitionForClipType(
   type: 'image' | 'video',
 ): ResolvedTimelineTransition | null {
   return transitions.find((transition) => transition.toClip.type === type) ?? null
+}
+
+/**
+ * 一条模板转场能落到哪些接缝上（右键「套用到所有接缝」用）。
+ *
+ * 判据借 `resolveTimelineTransitionFeedback`——就是接缝把手灰不灰用的同一把尺子，
+ * 免得「把手说这里不能放、批量套用却硬塞进去」两套判断各说各话。
+ * 每条候选单独喂进去评一次：一次全喂，前一条造成的「同向重复」会把后一条误判成不可放。
+ */
+export function collectApplicableSeams(
+  timeline: TimelineState,
+  template: Pick<TimelineTransition, 'type' | 'durationFrames'>,
+): TimelineTransition[] {
+  const applicable: TimelineTransition[] = []
+  for (const track of timeline.tracks) {
+    if (track.type === 'audio') continue
+    const ordered = [...track.clips].sort((a, b) => a.startFrame - b.startFrame)
+    for (let index = 0; index < ordered.length - 1; index += 1) {
+      const candidate: TimelineTransition = {
+        fromClipId: ordered[index].id,
+        toClipId: ordered[index + 1].id,
+        type: template.type,
+        durationFrames: template.durationFrames ?? DEFAULT_TRANSITION_FRAMES,
+      }
+      const others = (timeline.transitions ?? []).filter(
+        (item) => item.fromClipId !== candidate.fromClipId || item.toClipId !== candidate.toClipId,
+      )
+      const feedback = resolveTimelineTransitionFeedback([track], [...others, candidate])
+        .find((item) => item.transition.fromClipId === candidate.fromClipId && item.transition.toClipId === candidate.toClipId)
+      if (feedback && !feedback.reason) applicable.push(candidate)
+    }
+  }
+  return applicable
 }
