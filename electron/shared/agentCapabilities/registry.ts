@@ -7,6 +7,7 @@ import { DOCUMENT_WRITE_CAPABILITY } from "./documentWrite";
 import { EXPORT_READ_CAPABILITY, EXPORT_WRITE_CAPABILITY } from "./exportCapabilities";
 import { TIMELINE_READ_CAPABILITY } from "./timelineRead";
 import { TIMELINE_WRITE_CAPABILITY } from "./timelineWrite";
+import { LAYOUT_READ_CAPABILITY, LAYOUT_WRITE_CAPABILITY } from "./layout";
 import {
   GENERATION_CONTEXT_READ_CAPABILITY,
   GENERATION_PLAN_CAPABILITY,
@@ -43,6 +44,8 @@ const REGISTERED_CONTRACTS = [
   EXPORT_WRITE_CAPABILITY,
   TIMELINE_READ_CAPABILITY,
   TIMELINE_WRITE_CAPABILITY,
+  LAYOUT_READ_CAPABILITY,
+  LAYOUT_WRITE_CAPABILITY,
   PRODUCTION_RUN_READ_CAPABILITY,
   PRODUCTION_RUN_WRITE_CAPABILITY,
   PRODUCTION_ARTIFACT_WRITE_CAPABILITY,
@@ -79,6 +82,11 @@ export function resolveCapabilityAlias(
   alias: string,
 ): Readonly<{ contract: (typeof CAPABILITY_CONTRACTS)[number]; surface: string; alias: string }> | undefined {
   return CAPABILITY_ALIAS_ENTRIES.find((entry) => entry.alias === alias);
+}
+
+/** True when the descriptor says its payload is a plan the user must read first. */
+export function capabilityRequiresPlanReview(toolName: string): boolean {
+  return (resolveCapabilityAlias(toolName)?.contract as AnyCapabilityContract | undefined)?.requiresPlanReview === true;
 }
 
 /** Resolve side-effect policy from the descriptor and its explicit operation map. */

@@ -442,6 +442,20 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
         assertCurrent: () => undefined,
       })
     }
+    case 'layout.read': {
+      const layout = useWorkbenchStore.getState().editingPanelLayout
+      return { operation: 'read_layout', ok: true, layout }
+    }
+    case 'layout.write': {
+      const next = data.layout && typeof data.layout === 'object' && !Array.isArray(data.layout)
+        ? data.layout as Parameters<ReturnType<typeof useWorkbenchStore.getState>['setEditingPanelLayout']>[0]
+        : null
+      if (!next) throw new SurfacePortWireError('capability_input_invalid')
+      const store = useWorkbenchStore.getState()
+      const previous = store.editingPanelLayout
+      store.setEditingPanelLayout(next)
+      return { operation: 'write_layout', ok: true, layout: useWorkbenchStore.getState().editingPanelLayout, receipt: `布局已更新 · ⌘Z 可撤销`, undoToken: `layout:${Date.now()}:${previous.preset}` }
+    }
     case 'asset.read': {
       const operation = data.operation === 'list' ? 'search_media' : data.operation === 'get' ? 'get_media' : data.operation === 'inspect' ? 'inspect_media' : data.operation === 'source_range' ? 'inspect_source_range' : data.operation === 'waveform' ? 'read_waveform' : 'search_media'
       return executeAssetReadTarget({
@@ -520,7 +534,6 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
           : {}
       const result = await runStoryboardPlanner({
         target: 'production',
-        history: { kind: 'ephemeral' },
         projectId,
         featureKey: plannerFeatureKey,
         snapshot: plannerSnapshot!,

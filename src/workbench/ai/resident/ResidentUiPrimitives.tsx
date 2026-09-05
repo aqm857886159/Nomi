@@ -58,8 +58,13 @@ function ToolActionIcon({ name }: { name: string }): JSX.Element {
  * prevents long prompts and tool payloads from stealing the transcript's
  * attention while keeping every Host-owned detail reachable.
  */
-export function ResidentToolChips({ items, emptyLabel, statusLabel, sectionLabel, headerLabel, explanationLabel, targetLabel, resultLabel, technicalLabel }: { items: readonly ResidentToolChipData[]; emptyLabel: string; statusLabel: (status: ProjectAgentStatus) => string; sectionLabel: string; headerLabel: string; explanationLabel: string; targetLabel: string; resultLabel: string; technicalLabel: string }): JSX.Element | null {
+export function ResidentToolChips({ items, emptyLabel, statusLabel, sectionLabel, headerLabel, failedLabel, explanationLabel, targetLabel, resultLabel, technicalLabel }: { items: readonly ResidentToolChipData[]; emptyLabel: string; statusLabel: (status: ProjectAgentStatus) => string; sectionLabel: string; headerLabel: string; failedLabel: (count: number) => string; explanationLabel: string; targetLabel: string; resultLabel: string; technicalLabel: string }): JSX.Element | null {
   const hasRunningItem = items.some((item) => item.status === 'running' || item.status === 'drafting')
+  // A failed step must be legible without expanding anything. Measured 2026-09-06: a tool call that
+  // failed outright ("Tool create_canvas_nodes not found", canvas left empty) was recorded on the Host
+  // item and then shown nowhere — the collapsed header said "工具调用 · N" and the assistant's reply
+  // said the work was done. The transcript claimed success for work that never happened.
+  const failedCount = items.filter((item) => item.status === 'failed').length
   const [now, setNow] = React.useState(() => Date.now())
   React.useEffect(() => {
     if (!hasRunningItem) return
@@ -77,10 +82,11 @@ export function ResidentToolChips({ items, emptyLabel, statusLabel, sectionLabel
   }, [hasRunningItem, items.length])
   if (!items.length) return null
   // data-agent-tool-line: spec §0 挂点
-  return <section className="space-y-1.5" data-agent-tool-line="true" data-state={hasRunningItem ? 'running' : 'done'} aria-label={sectionLabel}>
+  return <section className="space-y-1.5" data-agent-tool-line="true" data-state={hasRunningItem ? 'running' : failedCount > 0 ? 'failed' : 'done'} aria-label={sectionLabel}>
     <button type="button" aria-expanded={groupOpen} aria-controls="agent-tool-run" onClick={() => { setGroupOpen((value) => { if (value) setOpenId(null); return !value }) }} className="-mx-1 flex min-h-7 w-fit items-center gap-1.5 rounded-nomi-sm px-1 text-micro text-nomi-ink-60 transition-[background,color] duration-[var(--nomi-transition-fast)] hover:bg-nomi-ink-05 hover:text-nomi-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-nomi-accent/40 motion-reduce:transition-none" data-agent-tool-header="true">
       <IconChevronRight size={12} className={cn('transition-transform duration-[var(--nomi-transition-fast)] motion-reduce:transition-none', groupOpen && 'rotate-90')} aria-hidden="true" /><IconTool size={13} className="shrink-0 text-nomi-ink-40" aria-hidden="true" />
       <span className="tabular-nums">{headerLabel}</span>
+      {failedCount > 0 ? <span className="shrink-0 rounded-nomi-sm border border-workbench-danger px-1 text-micro font-medium text-workbench-danger" data-agent-tool-failed="true">{failedLabel(failedCount)}</span> : null}
     </button>
     <div id="agent-tool-run" className="grid transition-[grid-template-rows,opacity] duration-[var(--nomi-transition-fast)] motion-reduce:transition-none" style={{ gridTemplateRows: groupOpen ? '1fr' : '0fr', opacity: groupOpen ? 1 : 0 }}>
       <div className="min-h-0 overflow-hidden">
@@ -113,7 +119,15 @@ export function ResidentToolChips({ items, emptyLabel, statusLabel, sectionLabel
 }
 
 export type ResidentApprovalState = 'pending' | 'approved' | 'denied'
-export function ResidentApprovalCard({ title, iconName, summary, details, detailsLabel, detailsOpen = false, proposal, state, approveLabel, denyLabel, pendingLabel, approvedLabel, deniedLabel, resolvedApprovedHint, resolvedDeniedHint, notWrittenLabel, onApprove, onDeny, children, compactGeneration = false }: { title: string; iconName?: string; summary: string; details?: readonly ResidentApprovalDetail[]; detailsLabel?: string; detailsOpen?: boolean; proposal?: ResidentProposalData; state: ResidentApprovalState; approveLabel: string; denyLabel: string; pendingLabel: string; approvedLabel: string; deniedLabel: string; resolvedApprovedHint: string; resolvedDeniedHint: string; notWrittenLabel: string; onApprove: () => void; onDeny: () => void; children?: React.ReactNode; /** Generation proposals already render the canonical prompt/parameter bar; never wrap them in the generic evidence projection. */ compactGeneration?: boolean }): JSX.Element {
+/** One escalating approval choice ("this session", "always"), rendered next to deny/approve. */
+export type ResidentApprovalAction = Readonly<{ id: string; label: string; onSelect: () => void }>
+
+function ResidentApprovalSecondaryActions({ actions }: { actions?: readonly ResidentApprovalAction[] }): JSX.Element | null {
+  if (!actions?.length) return null
+  return <div className="flex flex-wrap gap-1.5">{actions.map((action) => <button key={action.id} type="button" className="inline-flex min-h-7 flex-1 items-center justify-center gap-1 rounded-nomi-sm border border-nomi-line px-2 text-micro text-nomi-ink-60 transition-[background,color] duration-[var(--nomi-transition-fast)] hover:bg-nomi-ink-05 hover:text-nomi-ink" onClick={action.onSelect} data-agent-action={action.id}>{action.label}</button>)}</div>
+}
+
+export function ResidentApprovalCard({ title, iconName, summary, details, detailsLabel, detailsOpen = false, proposal, state, approveLabel, denyLabel, pendingLabel, approvedLabel, deniedLabel, resolvedApprovedHint, resolvedDeniedHint, notWrittenLabel, onApprove, onDeny, children, secondaryActions, compactGeneration = false }: { title: string; iconName?: string; summary: string; details?: readonly ResidentApprovalDetail[]; detailsLabel?: string; detailsOpen?: boolean; proposal?: ResidentProposalData; state: ResidentApprovalState; approveLabel: string; denyLabel: string; pendingLabel: string; approvedLabel: string; deniedLabel: string; resolvedApprovedHint: string; resolvedDeniedHint: string; notWrittenLabel: string; onApprove: () => void; onDeny: () => void; children?: React.ReactNode; /** Extra approval choices shown above deny/approve, e.g. escalating auto-apply. */ secondaryActions?: readonly ResidentApprovalAction[]; /** Generation proposals already render the canonical prompt/parameter bar; never wrap them in the generic evidence projection. */ compactGeneration?: boolean }): JSX.Element {
   const resolved = state !== 'pending'
   const footerRef = React.useRef<HTMLDivElement>(null)
   const stateLabel = state === 'approved' ? approvedLabel : state === 'denied' ? deniedLabel : pendingLabel
@@ -159,7 +173,7 @@ export function ResidentApprovalCard({ title, iconName, summary, details, detail
         {details?.length ? <dl className={cn('grid max-h-40 gap-1.5 overflow-y-auto overscroll-contain border-t border-nomi-line-soft py-1.5 text-micro', proposal?.fields.length && 'mt-1.5')} data-agent-tool-details="true"><div className="grid gap-0.5">{details.map((detail) => <div key={`${detail.label}-${detail.value}`}><dt className="text-nomi-ink-40">{detail.label}</dt><dd className="m-0 break-words text-nomi-ink-80">{detail.value}</dd></div>)}</div></dl> : null}
       </details> : null}
     </div>
-    <div ref={footerRef} className="flex items-center justify-between gap-2 border-t border-nomi-line-soft px-2.5 py-1.5">{!resolved ? <div className="grid w-full grid-cols-2 gap-1.5"><button type="button" className="inline-flex min-h-7 items-center justify-center gap-1 rounded-nomi-sm border border-nomi-line px-2 text-micro text-nomi-ink-80 transition-[background,color] duration-[var(--nomi-transition-fast)] hover:bg-nomi-ink-05 hover:text-nomi-ink" onClick={onDeny} data-agent-action="deny"><IconX size={13} aria-hidden="true" />{denyLabel}</button><button type="button" className="inline-flex min-h-7 items-center justify-center gap-1 rounded-nomi-sm bg-nomi-ink px-2 text-micro text-nomi-paper transition-opacity duration-[var(--nomi-transition-fast)] hover:opacity-85" onClick={onApprove} data-agent-action="approve"><IconCheck size={13} aria-hidden="true" />{approveLabel}</button></div> : <><span className={cn('inline-flex min-h-7 items-center gap-1 rounded-nomi-sm px-2 text-micro font-medium', state === 'approved' ? 'bg-workbench-success-soft text-workbench-success-ink' : 'bg-nomi-ink-05 text-nomi-ink-60')}>{state === 'approved' ? <IconCheck size={13} aria-hidden="true" /> : <IconCircleDashed size={13} aria-hidden="true" />}{stateLabel}</span><span className="text-micro text-nomi-ink-40">{state === 'approved' ? resolvedApprovedHint : resolvedDeniedHint || notWrittenLabel}</span></>}</div>
+    <div ref={footerRef} className="flex items-center justify-between gap-2 border-t border-nomi-line-soft px-2.5 py-1.5">{!resolved ? <div className="grid w-full gap-1.5"><ResidentApprovalSecondaryActions actions={secondaryActions} /><div className="grid w-full grid-cols-2 gap-1.5"><button type="button" className="inline-flex min-h-7 items-center justify-center gap-1 rounded-nomi-sm border border-nomi-line px-2 text-micro text-nomi-ink-80 transition-[background,color] duration-[var(--nomi-transition-fast)] hover:bg-nomi-ink-05 hover:text-nomi-ink" onClick={onDeny} data-agent-action="deny"><IconX size={13} aria-hidden="true" />{denyLabel}</button><button type="button" className="inline-flex min-h-7 items-center justify-center gap-1 rounded-nomi-sm bg-nomi-ink px-2 text-micro text-nomi-paper transition-opacity duration-[var(--nomi-transition-fast)] hover:opacity-85" onClick={onApprove} data-agent-action="approve"><IconCheck size={13} aria-hidden="true" />{approveLabel}</button></div></div> : <><span className={cn('inline-flex min-h-7 items-center gap-1 rounded-nomi-sm px-2 text-micro font-medium', state === 'approved' ? 'bg-workbench-success-soft text-workbench-success-ink' : 'bg-nomi-ink-05 text-nomi-ink-60')}>{state === 'approved' ? <IconCheck size={13} aria-hidden="true" /> : <IconCircleDashed size={13} aria-hidden="true" />}{stateLabel}</span><span className="text-micro text-nomi-ink-40">{state === 'approved' ? resolvedApprovedHint : resolvedDeniedHint || notWrittenLabel}</span></>}</div>
   </article>
 }
 

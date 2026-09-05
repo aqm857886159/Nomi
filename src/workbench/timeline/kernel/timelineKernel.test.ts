@@ -127,6 +127,30 @@ describe('timeline kernel operations', () => {
     ])
   })
 
+  it('writes clip audio through the kernel and rejects unsupported image audio', () => {
+    const base = timeline([clip('video', 0, 90)])
+    const state: TimelineState = {
+      ...base,
+      tracks: [...base.tracks, { id: 'image', type: 'image', label: 'Image', clips: [clip('image', 100, 130, 'image')] }],
+    }
+    const edited = applyTimelineOperation(state, {
+      kind: 'clip-audio',
+      clipId: 'video',
+      audio: { gainDb: -6, muted: false, fadeInFrames: 5, fadeOutFrames: 10 },
+    })
+    expect(edited.ok).toBe(true)
+    expect(edited.timeline.tracks[0].clips[0].audio).toEqual({ gainDb: -6, muted: false, fadeInFrames: 5, fadeOutFrames: 10 })
+
+    const rejected = applyTimelineOperation(state, {
+      kind: 'clip-audio',
+      clipId: 'image',
+      audio: { muted: true },
+    })
+    expect(rejected.ok).toBe(false)
+    expect(rejected.timeline).toBe(state)
+    expect(rejected.diagnostics[0].code).toBe('clip_audio_unsupported')
+  })
+
   it('rejects ripple removal that spans multiple tracks', () => {
     const state = timeline([clip('video-a', 0, 30)], [clip('audio-a', 0, 30, 'audio', 30)])
     const result = applyTimelineOperation(state, { kind: 'remove', clipIds: ['video-a', 'audio-a'], ripple: true })
@@ -142,6 +166,38 @@ describe('timeline kernel operations', () => {
     expect(result.timeline.tracks[0].clips[1].startFrame).toBe(40)
     expect(result.timeline.tracks[1].clips[0].startFrame).toBe(50)
     expect(result.timeline.textClips[0].startFrame).toBe(0)
+  })
+
+  it('applies transition, text, and audio operations through the same transaction kernel', () => {
+    const state = timeline([clip('a', 0, 30), clip('b', 30, 60)])
+    const result = applyTimelineOperations(state, [
+      { kind: 'transition', action: 'set', fromClipId: 'a', toClipId: 'b', type: 'dissolve', durationFrames: 6 },
+      { kind: 'text', action: 'edit', clipId: 'caption', text: 'X' },
+      { kind: 'clip-audio', clipId: 'a', audio: { gainDb: -6, fadeOutFrames: 5 } },
+    ])
+    expect(result.ok).toBe(true)
+    expect(result.timeline.transitions).toEqual([{ fromClipId: 'a', toClipId: 'b', type: 'dissolve', durationFrames: 6 }])
+    expect(result.timeline.textClips[0]?.text).toBe('X')
+    expect(result.timeline.tracks[0]?.clips[0]?.audio).toMatchObject({ gainDb: -6, fadeOutFrames: 5 })
+  })
+
+  it('rejects invalid transition support and overlapping audio fades before commit', () => {
+    const state = timeline([clip('a', 0, 30), clip('b', 30, 60)])
+    const unsupported = applyTimelineOperation(state, { kind: 'transition', action: 'set', fromClipId: 'a', toClipId: 'b', type: 'match_cut', durationFrames: 6 })
+    expect(unsupported.ok).toBe(false)
+    expect(unsupported.diagnostics[0]?.code).toBe('transition_unsupported_type')
+    const overlap = applyTimelineOperation(state, { kind: 'clip-audio', clipId: 'a', audio: { fadeInFrames: 20, fadeOutFrames: 20 } })
+    expect(overlap.ok).toBe(false)
+    expect(overlap.diagnostics[0]?.code).toBe('clip_audio_fade_overlap')
+  })
+
+  it('adds and retimes text clips with strict non-empty ranges', () => {
+    const state = timeline([clip('a', 0, 30)])
+    const added = applyTimelineOperation(state, { kind: 'text', action: 'add', id: 'caption-2', text: 'new', style: 'title', startFrame: 30, endFrame: 45 })
+    expect(added.ok).toBe(true)
+    const retimed = applyTimelineOperation(added.timeline, { kind: 'text', action: 'time', clipId: 'caption-2', startFrame: 32, endFrame: 44 })
+    expect(retimed.ok).toBe(true)
+    expect(retimed.timeline.textClips.find((clip) => clip.id === 'caption-2')).toMatchObject({ startFrame: 32, endFrame: 44 })
   })
 })
 

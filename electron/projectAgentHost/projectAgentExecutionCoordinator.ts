@@ -11,6 +11,7 @@ import type {
   ProjectAgentExecutionEventPayload,
 } from "../shared/projectAgentContracts";
 import { projectAgentPartitionKey, sameProjectAgentBinding } from "./projectAgentIdentity";
+import { createProjectAgentContextBinding } from "./projectAgentContextBinding";
 import type { OfflineProjectAgentHost } from "./projectAgentHost";
 import type { ProjectAgentRepositoryRouter } from "./projectAgentRepositoryRouter";
 import type { PiCanvasReadTransportAdapter } from "../capabilityCore/canvasReadTransportAdapters";
@@ -306,7 +307,15 @@ export function createProjectAgentExecutionCoordinator(
       // record; approval/spend remains Host-only and is never copied here.
       workMode: projectAgentWorkModeOf(input.mutation.payload.turn.workMode),
       toolProfile: stickyProfile,
-      history: { kind: "ephemeral" },
+      // The Host owns the thread, so it owns the thread's model-visible history.
+      // Resident capabilities bind the durable per-thread context; single-shot
+      // planning/judging must never inherit a resident transcript.
+      history: input.request.capability === "single-shot"
+        ? { kind: "ephemeral" as const }
+        : {
+          kind: "persistent" as const,
+          binding: createProjectAgentContextBinding(record.binding, input.mutation.payload.turn.threadId),
+        },
       projectId: record.binding.projectId,
       ...(target.kind === "canvas"
         ? { canvasProjectId: record.binding.projectId, selectedNodeIds: [...target.nodeIds] }
@@ -438,7 +447,7 @@ export function createProjectAgentExecutionCoordinator(
         if (execution.pending.get(call.toolCallId)?.resolve !== settleResolve) return;
         execution.pending.delete(call.toolCallId);
         signal.removeEventListener("abort", abort);
-        if (decision.ok && !decision.silent && safeReversible) execution.safeApprovalGranted = true;
+        if (decision.ok && !decision.silent && safeReversible && decision.approvalScope !== "once") execution.safeApprovalGranted = true;
         resolve(decision);
       };
       const settleResolve = (decision: AgentChatToolDecision): void => {

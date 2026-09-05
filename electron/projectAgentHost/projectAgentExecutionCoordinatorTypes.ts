@@ -1,4 +1,6 @@
 import type { AgentChatRequest, AgentChatResponse, AgentChatToolDecision, AgentToolProfile } from "../harness/agentChatContracts";
+import type { ProjectAgentExecutionRequest } from "../shared/contracts/agentChatContracts";
+export type { ProjectAgentExecutionRequest };
 import type { AgentChatV2Hooks } from "../ai/agentChatV2";
 import type {
   ProjectAgentExecutionEvent,
@@ -80,7 +82,7 @@ export function readProposalReceiptSafely(
 }
 export type ProjectAgentExecutionEnqueue = Readonly<{
   mutation: Extract<ProjectAgentMutation, { type: "turn.enqueue" }>;
-  request: AgentChatRequest;
+  request: ProjectAgentExecutionRequest;
   canvasRead?: PiCanvasReadTransportAdapter;
 }>;
 export type ProjectAgentExecutionListener = (event: ProjectAgentExecutionEvent) => void;

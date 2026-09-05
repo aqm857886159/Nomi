@@ -9,6 +9,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { screenshotSettled } from './_assert.mjs'
+import { findEdgeHitPoint } from './_canvasHit.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const require = createRequire(import.meta.url)
@@ -517,22 +518,9 @@ try {
   const fiveOutputEdges = (await outputEdges.count()) === 5
   const restingEdgesHaveNoLabels = (await win.locator('.generation-canvas-v2__edge-control').count()) === 0
   await preview.getByRole('button', { name: '关闭预览' }).click()
-  const edgePoint = await outputEdges.locator('.generation-canvas-v2__edge-hit').evaluateAll((paths) => {
-    for (const candidate of paths) {
-      const path = candidate
-      const length = path.getTotalLength()
-      const matrix = path.getScreenCTM()
-      if (!matrix) continue
-      for (let index = 2; index <= 8; index += 1) {
-        const local = path.getPointAtLength(length * index / 10)
-        const screen = new DOMPoint(local.x, local.y).matrixTransform(matrix)
-        if (screen.x < 16 || screen.x > window.innerWidth - 16 || screen.y < 80 || screen.y > window.innerHeight - 16) continue
-        if ((document.elementFromPoint(screen.x, screen.y))?.closest('.generation-canvas-v2__edge-hit') === path) {
-          return { x: screen.x, y: screen.y }
-        }
-      }
-    }
-    return null
+  const edgePoint = await findEdgeHitPoint(win, {
+    edgeSelector: '.generation-canvas-v2__edge[data-edge-id^="edge-canvas-clip-editor::"] .generation-canvas-v2__edge-hit',
+    margins: { left: 16, top: 80, right: 16, bottom: 16 },
   })
   if (!edgePoint) throw new Error('找不到可见的输出连线点击位置')
   await win.mouse.click(edgePoint.x, edgePoint.y)

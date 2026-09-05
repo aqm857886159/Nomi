@@ -1,3 +1,5 @@
+import { resolveCapabilityAlias } from '../../../../electron/shared/agentCapabilities/registry'
+import type { TranslationKey } from '../../../i18n/translationKey'
 import type { ProjectAgentStatus } from '../../../../electron/shared/projectAgentContracts'
 import { normalizeResidentToolProjection, type ResidentToolProjection } from './residentToolProjection'
 import type { ResidentApprovalDetail, ResidentProposalData } from './residentProposalDisplay'
@@ -23,31 +25,101 @@ export function isGenerationToolName(name: string): boolean {
     || normalized.includes('image')
     || normalized.includes('video')
 }
-export function isCanvasWriteToolName(name: string): boolean {
-  const normalized = name.toLowerCase()
+/**
+ * What this tool call actually does — name **and** `args.operation` together.
+ *
+ * After the MCP surface collapse the tool name is generic (`nomi_canvas_maintenance`,
+ * `nomi_canvas_edit`, `nomi_canvas_plan`, …) and the semantics moved into `args.operation`. Every
+ * recognizer below used to substring-match the name alone, so a real `delete_canvas_nodes` arriving
+ * as `nomi_canvas_maintenance` matched nothing and fell through to the generic
+ * `agentResident.toolInspectDetails` label. Measured 2026-09-06: the approval card for an
+ * irreversible canvas delete named neither the action nor the count — a human was asked to approve a
+ * destructive write with no information about what it destroyed.
+ *
+ * Matching on both halves fixes every branch at once, and keeps working for the pi-side aliases whose
+ * names still carry the operation.
+ */
+function toolIdentity(name: string, args?: unknown): string {
+  const record = args && typeof args === 'object' && !Array.isArray(args) ? args as Record<string, unknown> : {}
+  const operation = typeof record.operation === 'string' ? record.operation : ''
+  // Ask the registry that owns the tool what it is before falling back to reading its name. Every
+  // surface names the same capability differently — pi says `apply_edit_plan` / `insert_at_cursor`,
+  // MCP says `nomi_timeline_edit` / `nomi_document_edit` — and matching those by hand is how the
+  // recognisers drifted in the first place. The canonical contract id (`timeline.write`,
+  // `document.write`, …) is the one name that does not move.
+  return `${canonicalCapabilityId(name)} ${name} ${operation}`.toLowerCase()
+}
+
+function canonicalCapabilityId(name: string): string {
+  return resolveCapabilityAlias(name)?.contract.id ?? ''
+}
+
+/** True for canvas *creation* only. A delete is not a write here — it has its own, louder treatment. */
+export function isCanvasWriteToolName(name: string, args?: unknown): boolean {
+  const normalized = toolIdentity(name, args)
+  if (isCanvasDeleteToolName(name, args)) return false
   return normalized.includes('create_canvas_nodes') || normalized.includes('canvas.write') || normalized.includes('canvas_nodes')
 }
 
-const READABLE_PARAMETER_LABELS: Record<string, string> = {
-  size: 'toolParameterSize',
-  aspectRatio: 'toolParameterAspectRatio',
-  aspect_ratio: 'toolParameterAspectRatio',
-  duration: 'toolParameterDuration',
-  fps: 'toolParameterFrameRate',
-  frameRate: 'toolParameterFrameRate',
-  quality: 'toolParameterQuality',
-  count: 'toolParameterCount',
-  copies: 'toolParameterCount',
-  resolution: 'toolParameterResolution',
-  negative_prompt: 'toolParameterNegativePrompt',
-  negativePrompt: 'toolParameterNegativePrompt',
-  seed: 'toolParameterSeed',
-  steps: 'toolParameterSteps',
-  guidance_scale: 'toolParameterGuidance',
-  guidanceScale: 'toolParameterGuidance',
+/**
+ * Read-only tools. They had no branch of their own in `readableToolPreview`, so every read fell
+ * through to the generic `toolInspectDetails` — the row for "read the draft" said the same thing as
+ * the row for a tool nobody could identify. A read's honest effect line is that nothing changes.
+ */
+export function isReadOnlyToolName(name: string, args?: unknown): boolean {
+  // When the registry owns this name its contract id is authoritative: `propose_edit_plan` is a
+  // `timeline.read` despite the word "edit" in the alias, and no word-matching gets that right.
+  const canonical = canonicalCapabilityId(name)
+  if (canonical) return canonical.endsWith('.read')
+  const normalized = toolIdentity(name, args)
+  if (/write|edit|delete|create|apply|maintenance/.test(normalized)) return false
+  // `nomi_export_job` publishes only `status` / `verify` today — the Host starts and cancels exports,
+  // this tool can only ask about them. If it ever gains a write operation, that operation must be
+  // matched above (the `write|edit|…` guard) rather than quietly inheriting this read classification.
+  return /(?:^|[._])read(?:$|[._\s])/.test(normalized) || normalized.includes('media_query')
+    || normalized.includes('operation_preview') || normalized.includes('export_job')
 }
 
-const TOOL_CONTEXT_KEYS = new Set(['model', 'modelKey', 'modelId', 'providerId', 'moduleId', 'variantId', 'prompt', 'text', 'content', 'nodes', 'edges', 'nodeIds', 'clientId', 'title', 'kind', 'summary', 'parameters', 'candidate', 'patch', 'shots', 'references', 'scriptText', 'operationId', 'taskKind', 'mode', 'modeId', 'leaseHandle'])
+/**
+ * Deletes must be recognised before writes: `canvas_nodes` is a substring of `delete_canvas_nodes`,
+ * so the write matcher swallowed every delete that carried the operation in its name, and
+ * `readableToolPreview`'s delete branch had been unreachable for that alias the whole time.
+ */
+export function isCanvasDeleteToolName(name: string, args?: unknown): boolean {
+  const normalized = toolIdentity(name, args)
+  return normalized.includes('delete_canvas_nodes') || normalized.includes('canvas.delete')
+}
+
+// 整键，不拼命名空间（拼接会让死键门岗对整棵 agentResident 失明）。
+// 用 `as const satisfies`（而不是把 TranslationKey 当值类型标注）：TranslationKey 只适合做**约束**，
+// 标注成值类型会把字面量擦成它自身、`t()` 收不了。见 src/i18n/translationKey.ts。
+const READABLE_PARAMETER_LABELS = {
+  size: 'agentResident.toolParameterSize',
+  aspectRatio: 'agentResident.toolParameterAspectRatio',
+  aspect_ratio: 'agentResident.toolParameterAspectRatio',
+  duration: 'agentResident.toolParameterDuration',
+  fps: 'agentResident.toolParameterFrameRate',
+  frameRate: 'agentResident.toolParameterFrameRate',
+  quality: 'agentResident.toolParameterQuality',
+  count: 'agentResident.toolParameterCount',
+  copies: 'agentResident.toolParameterCount',
+  resolution: 'agentResident.toolParameterResolution',
+  negative_prompt: 'agentResident.toolParameterNegativePrompt',
+  negativePrompt: 'agentResident.toolParameterNegativePrompt',
+  // The model's own justification. It is the single most useful thing on an approval card and it was
+  // being swallowed into the anonymous "other settings" count.
+  reason: 'agentResident.toolParameterReason',
+  seed: 'agentResident.toolParameterSeed',
+  steps: 'agentResident.toolParameterSteps',
+  guidance_scale: 'agentResident.toolParameterGuidance',
+  guidanceScale: 'agentResident.toolParameterGuidance',
+} as const satisfies Record<string, TranslationKey>
+
+type ParameterLabelKey = (typeof READABLE_PARAMETER_LABELS)[keyof typeof READABLE_PARAMETER_LABELS]
+
+// `operation` is already what the card is titled with; counting it as an anonymous "other setting"
+// turned a delete card into "生成设置：其他设置 2 项" and buried the model's own stated reason with it.
+const TOOL_CONTEXT_KEYS = new Set(['model', 'modelKey', 'modelId', 'providerId', 'moduleId', 'variantId', 'prompt', 'text', 'content', 'nodes', 'edges', 'nodeIds', 'clientId', 'title', 'kind', 'summary', 'parameters', 'candidate', 'patch', 'shots', 'references', 'scriptText', 'operationId', 'taskKind', 'mode', 'modeId', 'leaseHandle', 'operation'])
 
 function readableParameterValue(t: Translate, value: unknown): string {
   if (typeof value === 'boolean') return value ? t('agentResident.toolParameterOn') : t('agentResident.toolParameterOff')
@@ -63,12 +135,12 @@ function readableParameters(t: Translate, record: Record<string, unknown>): stri
     if (TOOL_CONTEXT_KEYS.has(key)) continue
     const value = readableParameterValue(t, rawValue)
     if (!value) continue
-    const labelKey = READABLE_PARAMETER_LABELS[key]
+    const labelKey = (READABLE_PARAMETER_LABELS as Record<string, ParameterLabelKey | undefined>)[key]
     if (!labelKey) {
       hidden += 1
       continue
     }
-    readable.push(`${t(`agentResident.${labelKey}`)}: ${value}`)
+    readable.push(`${t(labelKey)}: ${value}`)
   }
   if (hidden) readable.push(t('agentResident.toolParameterHidden', { count: hidden }))
   return readable.join(' · ')
@@ -120,26 +192,34 @@ function readableParameterSummary(t: Translate, record: Record<string, unknown>,
     .join(' · ')
 }
 
-export function readableToolName(t: Translate, name: string): string {
-  const normalized = name.toLowerCase()
-  if (normalized.includes('delete_canvas_nodes') || normalized.includes('canvas.delete')) return t('agentResident.toolCanvasDelete')
+export function readableToolName(t: Translate, name: string, args?: unknown): string {
+  const normalized = toolIdentity(name, args)
+  if (isCanvasDeleteToolName(name, args)) return t('agentResident.toolCanvasDelete')
   if (normalized.includes('append_to_end') || normalized.includes('document_append')) return t('agentResident.toolDocumentWrite')
   if (normalized.includes('create_canvas_nodes') || normalized.includes('canvas_nodes')) return t('agentResident.toolCanvasWrite')
-  if (normalized.includes('document.read')) return t('agentResident.toolDocumentRead')
-  if (normalized.includes('document.write')) return t('agentResident.toolDocumentWrite')
-  if (normalized.includes('canvas.read')) return t('agentResident.toolCanvasRead')
-  if (normalized.includes('canvas.write')) return t('agentResident.toolCanvasWrite')
-  if (normalized.includes('canvas.delete')) return t('agentResident.toolCanvasDelete')
-  if (normalized.includes('timeline.read')) return t('agentResident.toolTimelineRead')
-  if (normalized.includes('timeline.write')) return t('agentResident.toolTimelineWrite')
-  if (normalized.includes('asset.read')) return t('agentResident.toolAssetRead')
+  if (normalized.includes('document.read') || normalized.includes('document_read')) return t('agentResident.toolDocumentRead')
+  if (normalized.includes('document.write') || normalized.includes('document_edit')) return t('agentResident.toolDocumentWrite')
+  if (normalized.includes('canvas.read') || normalized.includes('canvas_read')) return t('agentResident.toolCanvasRead')
+  if (normalized.includes('canvas.write') || normalized.includes('canvas_edit')) return t('agentResident.toolCanvasWrite')
+  if (normalized.includes('timeline.read') || normalized.includes('timeline_read')) return t('agentResident.toolTimelineRead')
+  if (normalized.includes('timeline.write') || normalized.includes('timeline_edit')) return t('agentResident.toolTimelineWrite')
+  if (normalized.includes('asset.read') || normalized.includes('media_query')) return t('agentResident.toolAssetRead')
+  if (normalized.includes('production.artifact')) return t('agentResident.toolArtifactRevise')
+  if (normalized.includes('production.run.read')) return t('agentResident.toolProductionRead')
+  if (normalized.includes('production.run.write')) return t('agentResident.toolProductionWrite')
+  if (normalized.includes('skill.read')) return t('agentResident.toolSkillRead')
+  if (normalized.includes('skill.write')) return t('agentResident.toolSkillWrite')
+  if (normalized.includes('layout_read') || normalized.includes('layout.read')) return t('agentResident.toolLayoutRead')
+  if (normalized.includes('layout_write') || normalized.includes('layout.write')) return t('agentResident.toolLayoutWrite')
+  if (normalized.includes('asset_import')) return t('agentResident.toolAssetImport')
+  if (normalized.includes('nomi_read')) return t('agentResident.toolProjectRead')
   if (normalized.includes('export')) return t('agentResident.toolExport')
   if (isGenerationToolName(name)) return t('agentResident.toolGeneration')
   return t('agentResident.toolGeneric')
 }
 
 export function readableToolSummary(t: Translate, name: string, args?: unknown): string {
-  const normalized = name.toLowerCase()
+  const normalized = toolIdentity(name, args)
   const record = args && typeof args === 'object' ? args as Record<string, unknown> : {}
   const patch = asRecord(record.patch) ?? {}
   const candidate = asRecord(record.candidate) ?? {}
@@ -159,34 +239,47 @@ export function readableToolSummary(t: Translate, name: string, args?: unknown):
     return [title, shotModel, shotParams, shotPrompt].filter(Boolean).join(' · ')
   }).filter(Boolean).join(' | ') : ''
   const relations = Array.isArray(record.edges) && record.edges.length ? t('agentResident.toolReferences', { count: record.edges.length }) : ''
-  if (normalized.includes('delete_canvas_nodes') || normalized.includes('canvas.delete')) return t('agentResident.toolCanvasDeleteSummary')
-  if (normalized.includes('append_to_end') || normalized.includes('document.write') || normalized.includes('document_append')) return details ? `${t('agentResident.toolDocumentWriteSummary')} · ${details}` : t('agentResident.toolDocumentWriteSummary')
-  if (isCanvasWriteToolName(name)) return [t('agentResident.toolCanvasWriteSummary'), shotCards ? t('agentResident.toolShotConfig', { details: shotCards }) : '', relations, t('agentResident.toolNoGeneration'), details].filter(Boolean).join(' · ')
-  if (normalized.includes('timeline.write')) return details ? `${t('agentResident.toolTimelineWriteSummary')} · ${details}` : t('agentResident.toolTimelineWriteSummary')
+  if (isCanvasDeleteToolName(name, args)) return t('agentResident.toolCanvasDeleteSummary')
+  if (normalized.includes('append_to_end') || normalized.includes('document.write') || normalized.includes('document_edit') || normalized.includes('document_append')) return details ? `${t('agentResident.toolDocumentWriteSummary')} · ${details}` : t('agentResident.toolDocumentWriteSummary')
+  if (isCanvasWriteToolName(name, args)) return [t('agentResident.toolCanvasWriteSummary'), shotCards ? t('agentResident.toolShotConfig', { details: shotCards }) : '', relations, t('agentResident.toolNoGeneration'), details].filter(Boolean).join(' · ')
+  if (normalized.includes('timeline.write') || normalized.includes('timeline_edit')) return details ? `${t('agentResident.toolTimelineWriteSummary')} · ${details}` : t('agentResident.toolTimelineWriteSummary')
   if (isGenerationToolName(name)) return details ? `${t('agentResident.toolGenerationSummary')} · ${details}` : t('agentResident.toolGenerationSummary')
   return details || t('agentResident.toolPendingSummary')
 }
 
+/**
+ * 介入槽卡上那一行摘要。
+ *
+ * 兜底**不能**是「查看细节」——那是下面折叠区的按钮文案，把它当摘要用，卡片就成了
+ * 「需要你确认 / 查看细节 / [查看细节 ▸]」：一句都没说这次到底要动什么，等于让人盲批。
+ * 认不出的工具至少说清「它要做哪件事、动的是谁」（合同 §2.6：逐条给人话）。
+ */
 export function readableToolPreview(t: Translate, name: string, args?: unknown): string {
-  const normalized = name.toLowerCase()
+  const normalized = toolIdentity(name, args)
   const record = args && typeof args === 'object' ? args as Record<string, unknown> : {}
-  if (normalized.includes('append_to_end') || normalized.includes('document.write') || normalized.includes('document_append')) return typeof record.content === 'string' && record.content.trim() ? t('agentResident.toolContentCount', { count: 1 }) : t('agentResident.toolInspectDetails')
-  if (isCanvasWriteToolName(name)) {
+  if (normalized.includes('append_to_end') || normalized.includes('document.write') || normalized.includes('document_edit') || normalized.includes('document_append')) return typeof record.content === 'string' && record.content.trim() ? t('agentResident.toolContentCount', { count: 1 }) : t('agentResident.toolDocumentWriteSummary')
+  if (isCanvasDeleteToolName(name, args)) {
+    const count = Array.isArray(record.nodeIds) ? record.nodeIds.length : 0
+    return count ? t('agentResident.toolTargetCount', { count }) : t('agentResident.toolCanvasDeleteSummary')
+  }
+  if (isCanvasWriteToolName(name, args)) {
     const nodes = Array.isArray(record.nodes) ? record.nodes.length : 0
     const edges = Array.isArray(record.edges) ? record.edges.length : 0
-    return [nodes ? t('agentResident.toolShotCount', { count: nodes }) : '', edges ? t('agentResident.toolRelationCount', { count: edges }) : '', t('agentResident.toolNoGenerationShort')].filter(Boolean).join(' · ') || t('agentResident.toolInspectDetails')
+    return [nodes ? t('agentResident.toolShotCount', { count: nodes }) : '', edges ? t('agentResident.toolRelationCount', { count: edges }) : '', t('agentResident.toolNoGenerationShort')].filter(Boolean).join(' · ') || t('agentResident.toolCanvasWriteSummary')
   }
-  if (normalized.includes('delete_canvas_nodes') || normalized.includes('canvas.delete')) {
-    const count = Array.isArray(record.nodeIds) ? record.nodeIds.length : 0
-    return count ? t('agentResident.toolTargetCount', { count }) : t('agentResident.toolInspectDetails')
-  }
-  if (normalized.includes('timeline.write')) return t('agentResident.toolTimelineWriteSummary')
+  if (normalized.includes('timeline.write') || normalized.includes('timeline_edit')) return t('agentResident.toolTimelineWriteSummary')
   if (isGenerationToolName(name)) return t('agentResident.toolGenerationSummary')
-  return t('agentResident.toolInspectDetails')
+  if (normalized.includes('layout_write') || normalized.includes('layout.write')) return t('agentResident.toolLayoutWriteSummary')
+  if (normalized.includes('asset_import')) return t('agentResident.toolAssetImportSummary')
+  if (isReadOnlyToolName(name, args)) return t('agentResident.toolReadNoChange')
+  // 兜底仍然不是「查看细节」（见函数头）：main 这一轮补的是**覆盖**（document_edit /
+  // canvas 删除的 args 判定 / timeline_edit / layout_write / asset_import / 只读工具），
+  // 认不出的那一档该说什么是本分支修的那件事——说清「哪件事、动的是谁」，别让人盲批。
+  return `${readableToolName(t, name)} · ${readableToolTarget(t, name, record)}`
 }
 
 export function readableToolTarget(t: Translate, name: string, args?: unknown): string {
-  const normalized = name.toLowerCase()
+  const normalized = toolIdentity(name, args)
   const record = args && typeof args === 'object' && !Array.isArray(args) ? args as Record<string, unknown> : {}
   if (Array.isArray(record.nodeIds) && record.nodeIds.length) return t('agentResident.targetShotCount', { count: record.nodeIds.length })
   if (Array.isArray(record.nodes) && record.nodes.length) return t('agentResident.targetShotCount', { count: record.nodes.length })
@@ -231,7 +324,7 @@ function readableProposalParameters(t: Translate, record: Record<string, unknown
 
 export function proposalForTool(t: Translate, name: string, args?: unknown): ResidentProposalData | undefined {
   const record = args && typeof args === 'object' && !Array.isArray(args) ? args as Record<string, unknown> : {}
-  const generationLike = isGenerationToolName(name) || isCanvasWriteToolName(name)
+  const generationLike = isGenerationToolName(name) || isCanvasWriteToolName(name, record)
   if (!generationLike) return undefined
   const nodes = Array.isArray(record.nodes) ? record.nodes.filter((node): node is Record<string, unknown> => Boolean(node && typeof node === 'object' && !Array.isArray(node))) : []
   const shots = Array.isArray(record.shots) ? record.shots.map(asRecord).filter((shot): shot is Record<string, unknown> => Boolean(shot)) : []
@@ -284,7 +377,7 @@ export function proposalForTool(t: Translate, name: string, args?: unknown): Res
   fields.push({ label: t('agentResident.proposalEstimate'), value: readableEstimate(t, record), kind: 'estimate' })
   fields.push({ label: t('agentResident.proposalTarget'), value: readableToolTarget(t, name, record), kind: 'target' })
   if (referenceCount) fields.push({ label: t('agentResident.referencesLabel'), value: t('agentResident.proposalReferences', { count: referenceCount }), kind: 'references' })
-  fields.push({ label: t('agentResident.proposalBoundary'), value: isCanvasWriteToolName(name) ? t('agentResident.boundaryCanvasOnly') : t('agentResident.boundaryGeneration'), kind: 'boundary' })
+  fields.push({ label: t('agentResident.proposalBoundary'), value: isCanvasWriteToolName(name, record) ? t('agentResident.boundaryCanvasOnly') : t('agentResident.boundaryGeneration'), kind: 'boundary' })
   return { fields }
 }
 
@@ -322,7 +415,7 @@ export function readableToolDetailRows(t: Translate, name: string, args?: unknow
     }).filter(Boolean)
     rows.push({ label: t('agentResident.toolRelationLabel'), value: relations.join(' | ') || t('agentResident.toolRelationCount', { count: record.edges.length }), kind: 'target' })
   }
-  if (isCanvasWriteToolName(name)) rows.push({ label: t('agentResident.toolBoundaryLabel'), value: t('agentResident.toolNoGeneration'), kind: 'boundary' })
+  if (isCanvasWriteToolName(name, args)) rows.push({ label: t('agentResident.toolBoundaryLabel'), value: t('agentResident.toolNoGeneration'), kind: 'boundary' })
   const patch = asRecord(record.patch)
   const candidate = asRecord(record.candidate)
   const modelValues = [record.model, record.modelKey, record.modelId, record.variantId, patch?.model, patch?.modelKey, patch?.modelId, patch?.variantId, candidate?.model, candidate?.modelKey, candidate?.modelId, candidate?.variantId].filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
@@ -331,9 +424,11 @@ export function readableToolDetailRows(t: Translate, name: string, args?: unknow
   if (promptValues.length) rows.push({ label: t('agentResident.toolPromptLabel'), value: Array.from(new Set(promptValues)).join(' · '), kind: 'prompt' })
   if (!nodes.length && Array.isArray(record.shots) && record.shots.length) rows.push({ label: t('agentResident.toolShotLabel'), value: t('agentResident.targetShotCount', { count: record.shots.length }), kind: 'target' })
   const parameterEntries = readableParameterSummary(t, record)
-  if (parameterEntries) rows.push({ label: t('agentResident.toolParametersLabel'), value: parameterEntries, kind: 'parameters' })
+  // 「生成设置」 on a delete card is inherited from the generation path and is plainly wrong there —
+  // nothing is being generated. Label the row for what this tool actually is.
+  if (parameterEntries) rows.push({ label: t(isGenerationToolName(name) ? 'agentResident.toolParametersLabel' : 'agentResident.toolOperationDetailsLabel'), value: parameterEntries, kind: 'parameters' })
   if (isGenerationToolName(name) || normalized.includes('canvas.write')) rows.push({ label: t('agentResident.proposalEstimate'), value: readableEstimate(t, record), kind: 'estimate' })
-  if (!rows.length && (normalized.includes('delete_canvas_nodes') || normalized.includes('canvas.delete'))) rows.push({ label: t('agentResident.toolTargetLabel'), value: t('agentResident.toolTargetCount', { count: Array.isArray(record.nodeIds) ? record.nodeIds.length : 0 }), kind: 'target' })
+  if (!rows.length && isCanvasDeleteToolName(name, args)) rows.push({ label: t('agentResident.toolTargetLabel'), value: t('agentResident.toolTargetCount', { count: Array.isArray(record.nodeIds) ? record.nodeIds.length : 0 }), kind: 'target' })
   if (!rows.length) rows.push({ label: t('agentResident.toolDetailLabel'), value: readableToolSummary(t, name, args), kind: 'technical' })
   return rows
 }

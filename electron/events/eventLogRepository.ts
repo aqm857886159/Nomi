@@ -65,13 +65,6 @@ export function setEventLogSecretsProvider(provider: () => readonly string[]): v
  * 必须先剥 area 后缀再取 projectId——否则贪婪匹配会把 `proj:creation` 整体当 id,致 trace 全线丢盘(I1/I2)。
  * 全仓唯一的 sessionKey→projectId 解析点（Agent context 等消费者 import 此函数，不另写正则）。
  */
-export function projectIdFromSessionKey(sessionKey: string | undefined): string | null {
-  const key = String(sessionKey || "").trim();
-  const withArea = /^nomi:workbench:(.+):(?:creation|generation)$/.exec(key);
-  const id = (withArea ? withArea[1] : /^nomi:workbench:(.+)$/.exec(key)?.[1])?.trim() || "";
-  return id && id !== "local" ? id : null;
-}
-
 function segmentPath(dir: string, segIndex: number): string {
   return path.join(dir, `log-${segIndex}.jsonl`);
 }

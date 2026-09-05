@@ -8,6 +8,7 @@ vi.mock("electron", () => ({
 }));
 
 import { beginTurnTrace, traceChatEvent, traceGateDenied, traceToolDecision } from "./agentChatTrace";
+import { createProjectAgentContextBinding } from "../shared/contracts/projectAgentContextBinding";
 import {
   readEvents,
   resetEventLogStateForTests,
@@ -17,9 +18,15 @@ import {
 
 let tmpRoot = "";
 const SESSION = "sess-1";
-// 用渲染层真实格式(带 :area 后缀,cdc433c 起)——曾用无后缀的 `nomi:workbench:p1` 掩盖了 trace 全丢的回归。
-const SESSION_KEY = "nomi:workbench:p1:generation";
-const history = { kind: 'persistent', binding: { sessionKey: SESSION_KEY, threadId: 'explicit-thread' } };
+// 用 Host 真实格式：线程身份由不可变项目 UUID 派生（`projectAgentContextBinding`）。
+// 曾用可解析的 `nomi:workbench:p1` 掩盖了 trace 全丢的回归；projectId 现在直接从 binding 读。
+const history = {
+  kind: 'persistent',
+  binding: createProjectAgentContextBinding(
+    { projectId: 'p1', immutableProjectUuid: '4d80f2e0-4a45-4a8f-8fe1-78ac659177c8', projectGeneration: 3 },
+    'explicit-thread',
+  ),
+};
 
 beforeEach(() => {
   tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-trace-"));

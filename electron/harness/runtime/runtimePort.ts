@@ -28,7 +28,7 @@ export interface RuntimeToolCall {
 }
 
 export type RuntimeToolDecision =
-  | { ok: true; result?: unknown; effectiveArgs?: Record<string, unknown>; overridesDelta?: Record<string, unknown>; silent?: boolean; proposalId?: string }
+  | { ok: true; result?: unknown; effectiveArgs?: Record<string, unknown>; overridesDelta?: Record<string, unknown>; silent?: boolean; proposalId?: string; approvalScope?: 'once' | 'session' | 'always' }
   | { ok: false; message?: string; code?: string; denied?: boolean }
 
 export interface RuntimeToolCallRecord extends RuntimeToolCall {

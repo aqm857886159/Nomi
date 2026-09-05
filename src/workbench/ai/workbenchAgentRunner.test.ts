@@ -145,7 +145,6 @@ const baseInput = {
   prompt: 'edit the canvas',
   displayPrompt: 'edit the canvas',
   capability: 'canvas-agent' as const,
-  history: { kind: 'ephemeral' as const },
   projectId: binding.projectId,
   skillKey: 'canvas.general',
   skillName: 'Canvas general',
@@ -175,7 +174,6 @@ describe('Project Agent workbench compatibility runner', () => {
       request: {
         prompt: baseInput.prompt,
         capability: 'canvas-agent',
-        history: { kind: 'ephemeral' },
         projectId: binding.projectId,
       },
     })

@@ -38,6 +38,19 @@ describe("timeline.read capability contract", () => {
     expect(schema?.safeParse({ ...plan, operations: [] }).success).toBe(false);
   });
 
+  it('accepts the transition, text, and audio operation vocabulary with their field guards', () => {
+    const schema = timelineReadPiInputSchemaForAlias('propose_edit_plan')
+    const base = { planId: 'plan-three-kinds', baseRevision: 'deadbeef', summary: 'Three edits' }
+    expect(schema?.safeParse({ ...base, operations: [
+      { kind: 'transition', action: 'set', fromClipId: 'a', toClipId: 'b', type: 'dissolve', durationFrames: 6 },
+      { kind: 'text', action: 'edit', clipId: 'caption-2', text: 'X' },
+      { kind: 'clip-audio', clipId: 'a', audio: { gainDb: -6, fadeOutFrames: 15 } },
+    ] }).success).toBe(true)
+    expect(schema?.safeParse({ ...base, operations: [{ kind: 'transition', action: 'set', fromClipId: 'a', toClipId: 'b' }] }).success).toBe(false)
+    expect(schema?.safeParse({ ...base, operations: [{ kind: 'clip-audio', clipId: 'a', audio: {} }] }).success).toBe(false)
+    expect(schema?.safeParse({ ...base, operations: [{ kind: 'text', action: 'time', clipId: 'caption-2', startFrame: 10 }] }).success).toBe(false)
+  });
+
   it("keeps public Timeline results strict and bound to the requested operation", () => {
     const result = {
       operation: "read_timeline" as const,

@@ -64,6 +64,12 @@ describe("Project Agent approval policy", () => {
     expect(projectAgentMayReuseSafeApproval(project, "export_timeline", {}, true)).toBe(false);
     expect(projectAgentMayReuseSafeApproval(project, "nomi_operation_create", {}, true)).toBe(true);
     expect(projectAgentMayReuseSafeApproval(undefined, "nomi_document_edit", { operation: "append" }, true)).toBe(true);
+    // A descriptor that declares `requiresPlanReview` is the one exception: the
+    // first plan of an execution asks even under the default policy, so its
+    // timeline highlight is drawn before anything is committed.
+    expect(projectAgentMayReuseSafeApproval(safeAuto, "apply_edit_plan", { operation: "apply_edit_plan" }, false)).toBe(false);
+    expect(projectAgentMayReuseSafeApproval(safeAuto, "apply_edit_plan", { operation: "apply_edit_plan" }, true)).toBe(true);
+    expect(projectAgentMayReuseSafeApproval(project, "apply_edit_plan", { operation: "apply_edit_plan" }, false)).toBe(true);
   });
 
   it("makes Ask read-only at the Host boundary", () => {

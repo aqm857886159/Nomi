@@ -10,7 +10,7 @@ describe("Agent tool catalog", () => {
       "nomi_generation_plan",
       "nomi_generation_status",
     ]);
-    expect(allNames).toHaveLength(33);
+    expect(allNames).toHaveLength(35);
     expect(allNames).not.toEqual(expect.arrayContaining([
       "nomi_operation_create",
       "nomi_submit_generation_plan",

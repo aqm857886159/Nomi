@@ -1,0 +1,203 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-05-resident-thread-history-lossy-renarration",
+  "problem_type": "A stateful conversation's history is reconstructed by a caller-side prose compensator instead of being owned by the component that owns the thread, so every non-text turn record is silently dropped",
+  "symptom": "In the resident Project Agent panel a user says \"检查时间轴\", then \"把刚才你说的最长那段删掉\". The Agent cannot resolve \"刚才你说的\": it sees only the plain text of prior user/assistant bubbles, never which tool it called, what that tool returned, whether the write was approved, or what receipt it produced. Users report it as the Agent forgetting what it just did.",
+  "direct_cause": "electron/projectAgentHost/projectAgentTurnExecution.ts:161 froze every runtime request as history: { kind: \"ephemeral\" }, so electron/harness/context/contextService.ts ran each turn with snapshot: undefined and discarded the settled Pi snapshot. To compensate, electron/projectAgentHost/projectAgentExecutionHelpers.ts:52-70 re-narrated prior items into one Chinese string (`用户：…` / `Nomi：…`) whose flatMap returned [] for every item kind other than user and assistant, dropping tool, proposal, receipt and error items, collapsing the role boundary, invalidating the KV-cache prefix every turn, and growing without any truncation or budget.",
+  "class_root": "The Project Agent Host owns a thread's identity and records (ProjectAgentTurn.contextRef, validated by assertContextRef in electron/projectAgentHost/projectAgentState.ts:125) but did not own that thread's model-visible history. With no owner at the Host boundary, each layer wrote its own history field and every layer downstream overwrote it, so the only surviving carrier was a caller-side prose summary. A second, unrelated session-key vocabulary (nomi:workbench:<projectId>:<area>) existed for the durable-context binding, which is exactly the same defect one level down: one invariant with two authors.",
+  "affected_population": [
+    "Every multi-turn conversation in the resident Project Agent panel, on every surface (document, canvas, preview), for every project",
+    "Every capability except single-shot: creation-editor, creation-chat, canvas-agent, canvas-chat, canvas-refine, storyboard",
+    "Long threads specifically: with no truncation or token budget the re-narrated prefix grew until the provider rejected the request"
+  ],
+  "scope_paths": [
+    "electron/harness/context/contextBinding.ts",
+    "electron/harness/context/contextPaths.ts",
+    "electron/harness/context/contextStore.ts",
+    "electron/harness/context/contextService.ts",
+    "electron/harness/agentChatPolicy.ts",
+    "electron/ai/agentChatV2.ts",
+    "electron/ai/agentChatV2Ipc.ts",
+    "electron/events/agentChatTrace.ts",
+    "electron/events/eventLogRepository.ts",
+    "electron/shared/contracts/agentChatContracts.ts",
+    "electron/projectAgentHost/projectAgentExecutionCoordinator.ts",
+    "electron/projectAgentHost/projectAgentExecutionCoordinatorTypes.ts",
+    "electron/projectAgentHost/projectAgentExecutionHelpers.ts",
+    "electron/projectAgentHost/projectAgentIpc.ts",
+    "electron/projectAgentHost/projectAgentTurnExecution.ts",
+    "src/workbench/ai/ProjectAgentResidentShell.tsx",
+    "src/workbench/ai/agentLoopMode.ts",
+    "src/workbench/ai/agentSessionKey.ts",
+    "src/workbench/ai/projectAgentTurnCommands.ts",
+    "src/workbench/ai/workbenchAgentRunner.ts",
+    "src/workbench/capability/capabilityApplyHandler.ts",
+    "src/workbench/generationCanvas/agent/generationCanvasAgentClient.ts",
+    "src/workbench/generationCanvas/agent/runStoryboardPlanner.ts"
+  ],
+  "entry_points": [
+    "Resident composer send: ProjectAgentResidentShell -> runWorkbenchAgent -> enqueueProjectAgentTurn -> Host IPC -> execution coordinator -> turn execution -> runAgentChatV2",
+    "Generation canvas send: sendGenerationCanvasAgentMessage -> runWorkbenchAgent (same Host path)",
+    "Storyboard planner (inline and production): runStoryboardPlanner -> runWorkbenchAgent (same Host path)",
+    "Single-shot planning and judging: runSingleShotAgent -> runWorkbenchAgent (same Host path, capability single-shot)"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The invariant is internal to Nomi's own layering: which component owns a thread's conversation history. The durable carrier is Nomi's own version-locked Pi snapshot codec (electron/harness/runtime/pi/snapshot.mts, pinned to pi 0.84.3) whose entry schema already admits assistant toolCall parts and toolResult messages; no third-party contract decides ownership.",
+  "invariants": [
+    "A Project Agent turn's conversation history is authored exactly once, by the Host, from Host-owned state (the subscription's ProjectBinding plus the queued turn's threadId)",
+    "No renderer-shaped request may carry a history scope: the field does not exist on the enqueue contract, so supplying one is a compile error and any same-named runtime field is stripped at the IPC boundary",
+    "A resident (non-single-shot) turn binds the durable per-thread Pi context; single-shot planning and judging stay ephemeral so they never inherit a resident transcript",
+    "A thread's durable context is keyed by exactly one binding vocabulary, the Host's canonical ProjectAgentContextBinding derived from the immutable project UUID and generation",
+    "The prompt sent for a turn contains that turn's request only; prior turns are carried as structured messages, never re-narrated as prose"
+  ],
+  "generality_proof": "Every production caller of the Agent runtime reaches the model through one funnel: runWorkbenchAgent -> enqueueProjectAgentTurn -> PROJECT_AGENT_COMMAND channel -> projectAgentExecutionCoordinator.enqueue -> captureAgentChatRequest -> executeProjectAgentTurn -> runAgentChatV2. Removing `history` from the enqueue request type (ProjectAgentExecutionRequest) makes it impossible for any of those callers to author history at all, and the coordinator is the single point that supplies it. The four previously independent writers of `history` (renderer buildRequest, renderer turn command, Host IPC, Host turn execution) are all deleted, so there is no second author left to drift. Because the binding is derived from the subscription's authenticated ProjectBinding rather than from anything the renderer sends, a forged or replayed request cannot reach another project's or another thread's transcript. The same reasoning covers the binding vocabulary: assertAgentContextBinding now delegates to assertProjectAgentContextBinding, so the store, the path resolver and the chat policy all reject any key that is not the Host's canonical one.",
+  "shared_boundaries": [
+    {
+      "path": "electron/projectAgentHost/projectAgentExecutionCoordinator.ts",
+      "symbol": "enqueue",
+      "responsibility": "Sole author of a turn's AgentChatHistory: derives the persistent binding from the authenticated subscription binding and the queued turn's threadId, and keeps single-shot ephemeral."
+    },
+    {
+      "path": "electron/shared/contracts/agentChatContracts.ts",
+      "symbol": "ProjectAgentExecutionRequest",
+      "responsibility": "Type-level prevention: the enqueue request omits `history`, so no renderer or Host caller can supply or smuggle one."
+    },
+    {
+      "path": "electron/projectAgentHost/projectAgentIpc.ts",
+      "symbol": "executionEnqueueField",
+      "responsibility": "Runtime prevention at the trust boundary: strips any same-named `history` field from the untrusted renderer payload before it reaches the Host."
+    },
+    {
+      "path": "electron/harness/context/contextBinding.ts",
+      "symbol": "assertAgentContextBinding",
+      "responsibility": "Single binding vocabulary for a thread's durable context: delegates to the Host's canonical ProjectAgentContextBinding, so the legacy nomi:workbench:<projectId>:<area> key is rejected everywhere."
+    },
+    {
+      "path": "electron/projectAgentHost/projectAgentExecutionHelpers.ts",
+      "symbol": "steeredExecutionPrompt",
+      "responsibility": "The turn prompt carries this turn's request plus any steering only; it can no longer re-narrate prior turns."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "entry_point": "sendResidentTurn -> runWorkbenchAgent",
+      "disposition": "enforced",
+      "evidence": "Its hardcoded `history: { kind: 'ephemeral' }` argument is deleted; the field no longer exists on RunWorkbenchAgentInput, so the Host-derived binding is the only history this path can produce."
+    },
+    {
+      "path": "src/workbench/generationCanvas/agent/generationCanvasAgentClient.ts",
+      "entry_point": "sendGenerationCanvasAgentMessage",
+      "disposition": "enforced",
+      "evidence": "The `history` field and its defensive re-capture block are deleted from GenerationCanvasAgentRequest; the test 'agent uses explicit capability and never authors history' asserts the request reaching runWorkbenchAgent has no history property."
+    },
+    {
+      "path": "src/workbench/ai/projectAgentTurnCommands.ts",
+      "entry_point": "enqueueProjectAgentTurn",
+      "disposition": "enforced",
+      "evidence": "Its `history: { kind: 'ephemeral' as const }` in the turn.enqueue payload is deleted and the input is typed as ProjectAgentExecutionRequest, so the renderer command cannot carry one."
+    },
+    {
+      "path": "electron/projectAgentHost/projectAgentTurnExecution.ts",
+      "entry_point": "executeProjectAgentTurn",
+      "disposition": "enforced",
+      "evidence": "The `history: { kind: \"ephemeral\" as const }` override that had the last word before runAgent is deleted; the request now inherits the coordinator-authored history unchanged."
+    },
+    {
+      "path": "src/workbench/ai/agentLoopMode.ts",
+      "entry_point": "runSingleShotAgent",
+      "disposition": "enforced",
+      "evidence": "Single-shot no longer states its own ephemeral scope; the coordinator derives ephemeral from capability === 'single-shot', and captureAgentChatRequest in electron/harness/agentChatPolicy.ts:44 still fails closed if a single-shot request ever arrives with a persistent scope."
+    },
+    {
+      "path": "src/workbench/generationCanvas/agent/runDirectionPlanner.ts",
+      "entry_point": "directionSessionKey as featureKey",
+      "disposition": "not-affected",
+      "evidence": "featureKey is attribution metadata carried into the event log, never a conversation binding; it never reaches AgentChatRequest.history or the context store, and electron/harness/agentChatContracts.ts:37 documents that separation."
+    },
+    {
+      "path": "electron/capabilityCore/mcpToolCatalog.ts",
+      "entry_point": "external MCP tool surface",
+      "disposition": "not-affected",
+      "evidence": "The MCP surface is lease-based and stateless per call; it never constructs an AgentChatRequest, so it has no conversation history to lose. grep for 'history' under electron/capabilityCore returns no AgentChatHistory usage."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The mechanism is not one bad line: four separate layers each wrote a `history` value and the last writer won, so any future layer added to the funnel could re-introduce the same loss without a compile error. The same shape had already produced sibling defects in this family (single-shot-history-isolation, resident-composer-receipt-revision, canvas-snapshot-projection), and the 2026-09-05 architecture review counted 12 root-cause contracts in the resident-shell/context bucket.",
+    "same_class_scan": [
+      "grep -rn \"history\" over src/ and electron/ filtered to kind:/ephemeral/persistent/AgentContextScope found 9 production writers before the change; 4 of them (projectAgentIpc.ts:577, projectAgentExecutionCoordinator.ts:309, projectAgentTurnExecution.ts:161, workbenchAgentRunner.ts:133) wrote the same turn's history in sequence, each overwriting the previous",
+      "grep -rn \"AgentContextBinding|contextBindingKey|assertAgentContextBinding|AgentContextScope|projectIdFromSessionKey|binding.sessionKey|history.binding\" over electron/ src/ tests/ scripts/ enumerated all 23 files touching the binding vocabulary; each was migrated to the canonical Host binding or shown not to use it",
+      "grep -rn \"workbenchSessionKey|sessionKeyFor\" showed workbenchSessionKey had zero production callers (only a re-export and a test mock), proving the nomi:workbench:<area> key was an unused second vocabulary rather than a live one",
+      "grep -rn \"createProjectAgentContextBinding|deriveProjectAgentSessionKey\" showed the canonical Host binding already existed with tests (electron/projectAgentHost/projectAgentContextBinding.test.ts) and was minted for every turn as ProjectAgentTurn.contextRef, but had zero runtime consumers outside test fixtures",
+      "grep -rn \"projectIdFromSessionKey\" after migration returned only its own definition, proving the legacy parser had become dead and could be deleted rather than left as a second identity path"
+    ]
+  },
+  "prevention": {
+    "kind": "type-system",
+    "enforcement_path": "electron/shared/contracts/agentChatContracts.ts",
+    "invariant": "The turn-enqueue request type omits `history`, so only the Host execution coordinator can supply a conversation scope, and it derives that scope from Host-owned state alone.",
+    "failure_mode": "A caller that tries to supply `history` fails to compile. A runtime payload that carries a same-named field has it stripped at electron/projectAgentHost/projectAgentIpc.ts before the Host sees it. A binding whose session key, thread id or project identity does not match the canonical form throws ProjectAgentContextBindingError from assertProjectAgentContextBinding, and captureAgentChatRequest additionally rejects a persistent scope whose project disagrees with the request's project or that is paired with a single-shot capability.",
+    "exception_policy": "none",
+    "strategy": "Move authorship of the invariant to the component that already owns the thread, and make every other layer structurally incapable of expressing it: remove the field from the shared contract (compiler), strip it at the trust boundary (runtime), and delete the prose compensator that existed only because no owner held the invariant.",
+    "artifacts": [
+      "electron/shared/contracts/agentChatContracts.ts",
+      "electron/projectAgentHost/projectAgentExecutionCoordinator.ts",
+      "electron/projectAgentHost/projectAgentExecutionCoordinatorTypes.ts",
+      "electron/projectAgentHost/projectAgentIpc.ts",
+      "electron/projectAgentHost/projectAgentExecutionHelpers.ts",
+      "electron/harness/context/contextBinding.ts",
+      "electron/harness/context/contextPaths.ts",
+      "electron/harness/context/contextStore.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/harness/context/agentThreadHistory.test.ts",
+    "electron/projectAgentHost/projectAgentExecutionCoordinator.test.ts",
+    "electron/projectAgentHost/projectAgentExecutionHelpers.test.ts",
+    "electron/harness/context/contextBinding.test.ts",
+    "electron/harness/context/contextPaths.test.ts",
+    "electron/harness/context/contextStore.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/harness/context/agentThreadHistory.test.ts",
+    "electron/projectAgentHost/projectAgentExecutionCoordinator.test.ts",
+    "electron/harness/context/contextBinding.test.ts",
+    "electron/harness/context/contextPaths.test.ts",
+    "electron/harness/context/contextStore.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/projectAgentHost/projectAgentExecutionHelpers.ts",
+      "electron/projectAgentHost/projectAgentTurnExecution.ts",
+      "electron/projectAgentHost/projectAgentIpc.ts",
+      "electron/events/eventLogRepository.ts",
+      "src/workbench/ai/agentSessionKey.ts",
+      "src/workbench/ai/workbenchAgentRunner.ts",
+      "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "src/workbench/ai/agentLoopMode.ts",
+      "src/workbench/ai/projectAgentTurnCommands.ts",
+      "src/workbench/capability/capabilityApplyHandler.ts",
+      "src/workbench/generationCanvas/agent/generationCanvasAgentClient.ts",
+      "src/workbench/generationCanvas/agent/runStoryboardPlanner.ts"
+    ],
+    "rationale": "executionPrompt (the prose re-narrator) is deleted, not left behind a flag. The three redundant `history: ephemeral` writers in the Host and the two renderer writers are deleted with the field itself. workbenchSessionKey/WorkbenchAgentArea and projectIdFromSessionKey are deleted because the legacy nomi:workbench:<projectId>:<area> vocabulary they served no longer exists; keeping them would leave a second way to name a thread's context."
+  },
+  "dependency_lifecycle": {
+    "decision": "retain-with-exit",
+    "rationale": "The durable carrier is @earendil-works/pi-coding-agent, pinned to 0.84.3 by an explicit literal in electron/harness/runtime/pi/snapshot.mts (envelope piVersion) and by a schema locked to that release in snapshotSchema.mts. The application invariant enforced here (the Host is the sole author of a thread binding, and the exported snapshot is the only carrier) holds independently of the SDK version; the snapshot envelope validates its own version and refuses to restore a transcript that changed during load. Retention is deliberate because the codec is version-locked by design, not by neglect.",
+    "exit_criteria": [
+      "A pi release later than 0.84.3 is adopted only together with a bumped envelope piVersion literal and a re-verified snapshotEntrySchema in electron/harness/runtime/pi/snapshotSchema.mts",
+      "importSnapshot's digest equality check (snapshot entries must not change during restore) still passes on the new version, otherwise the upgrade is rejected rather than silently migrating a user's transcript"
+    ],
+    "current": "@earendil-works/pi-coding-agent 0.84.3",
+    "target": "@earendil-works/pi-coding-agent 0.84.3 (retained; the snapshot envelope and entry schema are locked to this exact release)"
+  },
+  "migration": "No user data migration is required for existing conversations: before this change nothing ever wrote a persistent Agent context record, because no production caller produced a persistent scope. The context container version moves from 3 to 4 with the binding shape; a version-3 file is backed up byte-for-byte next to the original (the same exclusive-create, verified backup path already used for version 2) and replaced with an empty container, because a version-3 record's project identity cannot be proven against the canonical immutable UUID. Threads that already exist keep working: their first turn after the update starts a fresh durable context and grows from there, and their visible Host transcript is untouched.",
+  "residual_risks": [
+    "Deleting a thread that was ever the active thread currently corrupts the Host snapshot on read-back (assertPatchChange in electron/projectAgentHost/projectAgentState.ts:437 validates retained active-thread-changed patches against the current thread set). This is a pre-existing defect independent of this change and is filed as its own remediation; until it is fixed, a removed thread's durable context is not cleared and its Pi snapshot stays orphaned in <project>/.nomi/agent-session.json.",
+    "Context budget and compaction are delegated to the Pi runtime (compaction: { enabled: true } in electron/ai/agentChatV2.ts), which is the correct owner, but Nomi still shows the user nothing when compaction happens. docs/design/nomi-agent-interaction.md:112-113 requires a context-usage line and a compaction divider; neither is implemented here, so a long thread compacts silently.",
+    "The three-turn lossless assertion is proven against the context service contract with a transcript-shaped fake runtime plus the version-locked snapshot schema, not against a live provider; the real-model behaviour is covered only by the loopback Electron walkthrough."
+  ]
+}

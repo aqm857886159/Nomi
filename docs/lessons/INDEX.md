@@ -49,6 +49,7 @@
 - [功能落地后要做体验测试并记情绪摩擦日志](experiential-qa-emotion-log.md) — 截图审查要问「舒服吗」，不只问「在不在」
 - [断言前先证明你在你以为的现场](assert-you-are-in-the-situation-you-claim.md) — 注入的 meta 会被归一，两种假绿看起来都和真绿一样
 - [带状态的 UI 元素要立双层一致性合同](stateful-ui-needs-two-layer-conformance-contract.md) — 设计断言 + 功能承诺三层验证，专防装饰性 UI（`deviated` 恒 false 前科）
+- [弹层被祖先 overflow 裁掉时三样证据同时失明](overlay-clipped-by-ancestor-overflow.md) — 浮层走查必查：`toBeVisible` / rect / 「点得动」全绿也可能用户点不到，改用 `expectOverlayReachable`
 
 ## B. 测试与 CI 的红绿判读
 - [停掉一个 agent ≠ 现场清空：子 agent 还在写、哨兵还在跑](stopping-an-agent-leaves-children-and-sentinels.md) — B · TaskStop 只停一个；先 ListAgents 停子 agent，再 pgrep 杀 until 循环，证明无写入后才派接力写手
@@ -60,6 +61,7 @@
 - [productionRun 这类 flake 的分腿处置](production-run-tests-are-flaky.md) — 验修复用 `git cat-file` 看代码，别看 PR 状态
 - [复现竞态必须有阳性对照](race-repro-needs-positive-control.md) — 没阳性对照的绿灯不作数；「换平台才能复现」多半是仪器没 power
 - [性能预算在 macOS 校准却在 Linux CI 执行 → 假回归](canvas-perf-budget-calibrated-on-macos-fails-on-linux.md) — 别改预算挤 PR，那是治症状
+- [Canvas Performance 红了：先看它红在哪一条判据](canvas-perf-red-read-which-assertion-failed.md) — 上一条的**前置步骤**：2026-09-05 那次红预算全绿，真凶是框选手势跑进 React Flow 自动平移带（按帧积分）导致选中数在 8/9/12 间跳；先打印 verdict + warmupFailures 再定性
 - [在满载机器上用墙钟做一次性 A/B，不算性能证据](wallclock-bisect-on-a-busy-machine-is-not-evidence.md) — 「拆完 9.1s→47s」已被证伪；量 CPU 时间 + 交错 A/B + 先注入已知变慢验尺子
 - [harness 的 catch 会把自己的 bug 洗成产品结论](harness-catch-launders-bugs-into-verdicts.md) — 报某腿失败前先分清是断言红的还是 catch 编的
 - [A/B 两版提示词：确认关卡会污染两臂](prompt-ab-gating-question-confounds-arms.md) — 量到的是服从度不是质量
@@ -88,6 +90,7 @@
 - [grep 静默跳过含 NUL 字节的文件](grep-silently-skips-files-with-nul-bytes.md) — 搜不到已知存在的符号时先 `file` / `grep -a`
 - [查重别按报错串 grep](dedupe-grep-misses-silent-copy.md) — 不抛异常的那份正好隐身，而它才是真 bug
 - [死 i18n 词条有两种成因，处置相反](dead-i18n-keys-two-causes.md) — 删之前先做「译文值 × 源码硬编码」交叉比对
+- [Tailwind 只扫 `.tsx` 时，住进 `.ts` 的类名会静默消失](tailwind-content-ts-classnames-silently-dropped.md) — 「类名写着却没生效」先查它在不在生成的 CSS 里；已由 `content` 加 `./src/**/*.ts` + 哨兵单测固化，附全仓 4 处失效盘点
 - [Electron 被 macOS 误报恶意软件的修法](electron-xprotect-false-positive-resign.md) — 重下 + ad-hoc 重签换 cdhash；摘 quarantine 没用
 - [Windows 改保存名闪退：根因已修、平台未验](sogou-save-dialog-crash-pending-win32-verify.md) — 再遇先要崩溃日志尾行和 minidump，别重猜
 - [MCP 侧改动必须重新打包 app 才看得到](mcp-fixes-need-repackaged-app.md) — MCP server 就是 app 二进制

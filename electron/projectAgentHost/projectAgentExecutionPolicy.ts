@@ -1,4 +1,4 @@
-import { resolveCapabilityAlias, resolveCapabilityEffectClass } from "../shared/agentCapabilities/registry";
+import { capabilityRequiresPlanReview, resolveCapabilityAlias, resolveCapabilityEffectClass } from "../shared/agentCapabilities/registry";
 import type { CapabilityEffectClass } from "../shared/agentCapabilities/capabilityContract";
 import {
   projectAgentApprovalPolicyOf,
@@ -66,13 +66,24 @@ export function projectAgentWorkModeDecision(
  * `safe-auto` and `project` allow descriptor-marked local reversible actions
  * without a confirmation card. Spend, irreversible, and unknown actions keep
  * the per-action gate in every mode. `step` always asks for local writes too.
+ *
+ * One exception, declared by the capability rather than decided here: a
+ * descriptor that sets `requiresPlanReview` carries a payload the user has to
+ * read (a timeline edit plan is a multi-operation transaction whose effect is
+ * invisible from the call). Those ask once per execution under `safe-auto`, and
+ * the reuse is granted only by the user's own "this session"/"always" answer —
+ * otherwise the plan would commit before its highlight was ever drawn and the
+ * intervention slot's escalating choices would have nothing left to change.
  */
 export function projectAgentMayReuseSafeApproval(
   policy: ProjectAgentApprovalPolicy | undefined,
   toolName: string,
   args: unknown,
-  _safeApprovalGranted: boolean,
+  safeApprovalGranted: boolean,
 ): boolean {
   const normalized = projectAgentApprovalPolicyOf(policy);
-  return normalized.mode !== "step" && projectAgentExecutionEffectClass(toolName, args) === "reversible_local";
+  if (normalized.mode === "step") return false;
+  if (projectAgentExecutionEffectClass(toolName, args) !== "reversible_local") return false;
+  if (normalized.mode === "project") return true;
+  return !capabilityRequiresPlanReview(toolName) || safeApprovalGranted;
 }

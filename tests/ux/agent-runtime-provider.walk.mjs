@@ -8,7 +8,7 @@ import { createHash } from 'node:crypto'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { clickOrFail, expect, expectAbsent, proveProbe, screenshotSettled } from './_assert.mjs'
 import {
-  CANVAS_PANEL, CREATION_PANEL, DOCUMENT, chooseCreationMode, readNativeContexts, readProject,
+  CANVAS_PANEL, CREATION_PANEL, DOCUMENT, readNativeContexts, readProject,
   finalizeRuntimeWalk, openCanvas, sendCanvas, sendCreation, snapshotMessages, stopRuntimeApp,
 } from './agent-runtime-walk-support.mjs'
 
@@ -102,14 +102,12 @@ try {
   expect(projectRoot).toBeTruthy()
   expect(path.relative(launched.projectsDir, projectRoot).startsWith('..')).toBe(false)
   await win.locator(DOCUMENT).fill(ORIGINAL)
-  await chooseCreationMode(win, 'general')
   await sendCreation(win, '这是一条连接验收消息。请不要调用任何工具，只回复 NOMI_PI_LIVE_OK。')
   await expect.poll(() => finishedTurns().length, { timeout: 120_000 }).toBe(1)
   await expect(win.locator(CREATION_PANEL)).toContainText('NOMI_PI_LIVE_OK', { timeout: 120_000 })
   expect(finishedTurns()[0].payload.status).toBe('finished')
   expect(finishedTurns()[0].payload.usage.totalTokens).toBeGreaterThan(0)
 
-  await chooseCreationMode(win, 'script')
   await sendCreation(win, `请只调用一次 append_to_end，把这句原样追加到文末：${APPEND}。不要调用其他工具，不要扩写。`)
   const approval = win.locator(`${CREATION_PANEL} [data-tool-call-id]`).filter({ hasText: APPEND })
   const proof = await proveProbe(approval, 'The real model must propose an actual append for human approval', 120_000)

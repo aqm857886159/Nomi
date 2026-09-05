@@ -58,7 +58,6 @@ describe('Project Agent dual-axis policy contract', () => {
       request: {
         prompt: 'make a draft',
         capability: 'creation-editor',
-        history: { kind: 'ephemeral' },
         projectId: binding.projectId,
       },
       displayPrompt: 'make a draft',
@@ -81,7 +80,6 @@ describe('Project Agent dual-axis policy contract', () => {
       request: {
         prompt: 'safe draft',
         capability: 'creation-editor',
-        history: { kind: 'ephemeral' },
         projectId: binding.projectId,
         workMode: 'legacy-auto',
         approvalPolicy: { mode: 'project', spend: 'within-budget' },

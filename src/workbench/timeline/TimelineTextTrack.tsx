@@ -175,6 +175,7 @@ export default function TimelineTextTrack(): JSX.Element {
                   : 'border-[color-mix(in_oklch,var(--workbench-text)_36%,transparent)]',
               )}
               style={{ left: `${left}px`, width: `${width}px` }}
+              data-text-clip-id={clip.id}
               title={
                 clip.style === 'title' ? t('timelineEditor.textTrack.titleCard') : t('timelineEditor.textTrack.caption')
               }

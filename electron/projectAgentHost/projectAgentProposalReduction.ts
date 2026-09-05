@@ -98,13 +98,21 @@ export function reduceProjectAgentProposalPut(
     action: "put",
   });
   if (!admission.ok) failTransition(admission);
-  // The only admission rule that may re-anchor the frozen queue item: a canvas
-  // turn queued without preconditions adopts the ref's edge preconditions.
+  // The two admission rules that may re-anchor the frozen queue item, both for
+  // the same reason: the turn was queued before the write's real scope existed.
+  // A canvas turn queued without preconditions adopts the ref's edge
+  // preconditions; a timeline turn queued from a selection adopts the approved
+  // plan's clip scope and base revision.
   const deferredCanvasAdmission =
     admission.admission.includes("deferred-canvas-edges") &&
     Object.keys(queueItem.preconditions).length === 0 &&
     Array.isArray(approval.ref.preconditions.edges) &&
     approval.ref.preconditions.edges.length > 0;
+  const deferredTimelineAdmission =
+    admission.admission.includes("deferred-timeline-plan") &&
+    Object.keys(queueItem.preconditions).length === 0 &&
+    typeof approval.ref.preconditions.timeline?.revision === "string";
+  const deferredAdmission = deferredCanvasAdmission || deferredTimelineAdmission;
   if (
     turn.threadId !== approval.ref.threadId ||
     turn.status !== "running" ||
@@ -115,7 +123,7 @@ export function reduceProjectAgentProposalPut(
     item.turnId !== turn.turnId ||
     items.some((value) => value.itemId === item.itemId) ||
     stableProjectAgentJson(item.approval) !== stableProjectAgentJson(approval.ref) ||
-    (!deferredCanvasAdmission &&
+    (!deferredAdmission &&
       (stableProjectAgentJson(approval.ref.target) !== stableProjectAgentJson(queueItem.target) ||
         stableProjectAgentJson(approval.ref.preconditions) !== stableProjectAgentJson(queueItem.preconditions))) ||
     new Date(occurredAt).getTime() < new Date(turn.updatedAt).getTime() ||
@@ -130,7 +138,7 @@ export function reduceProjectAgentProposalPut(
     status: "proposed",
     updatedAt: occurredAt,
   });
-  const updatedQueue = transitionRecord(deferredCanvasAdmission
+  const updatedQueue = transitionRecord(deferredAdmission
     ? { ...queueItem, target: approval.ref.target, preconditions: approval.ref.preconditions }
     : queueItem, { status: "proposed", updatedAt: occurredAt });
   proposalApprovals = [...proposalApprovals, approval];
