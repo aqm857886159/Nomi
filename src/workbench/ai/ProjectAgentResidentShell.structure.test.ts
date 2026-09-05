@@ -253,6 +253,11 @@ describe('ProjectAgentResidentShell production contract', () => {
     expect(resident).toContain('onMouseEnter={() => setUsageOpen(true)}')
   })
 
+  it('exposes the stream cursor only while an assistant item is live', () => {
+    expect(resident).toContain('data-agent-stream-cursor="true"')
+    expect(resident).toContain('isLive(item.status)')
+  })
+
   it('keeps completed proposal receipts compact and locator-aware', () => {
     expect(resident).toContain('data-agent-proposal-receipt')
     expect(resident).toContain("item.status === 'done' ? t('agentResident.approved')")
