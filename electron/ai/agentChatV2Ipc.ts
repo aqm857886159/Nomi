@@ -8,6 +8,7 @@ import type { RuntimeToolCall } from '../harness/runtime/runtimePort';
 import type { PiCanvasReadIpcCapture, PiCanvasReadTransportAdapter } from '../capabilityCore/canvasReadTransportAdapters';
 import { createPiSkillReadTransportAdapter, type PiSkillReadTransportAdapter } from '../capabilityCore/skillReadTransportAdapters';
 import { SurfacePortWireError } from '../shared/surfacePortBinding';
+import { logWarn } from '../logging/logger';
 
 const CONFIRM_TIMEOUT_MS = 10 * 60_000;
 type Owner = { contents: WebContents; frame: WebFrameMain; webContentsId: number; processId: number; routingId: number; origin: string };
@@ -43,7 +44,7 @@ function sameOwner(event: IpcMainInvokeEvent, session: Session): boolean {
 }
 
 function observe(work: () => void): void {
-  try { work(); } catch (error) { console.warn('Agent trace unavailable', error); }
+  try { work(); } catch (error) { logWarn('agent', 'trace-unavailable', undefined, error); }
 }
 
 function send(session: Session, event: AgentChatWireEvent): void {

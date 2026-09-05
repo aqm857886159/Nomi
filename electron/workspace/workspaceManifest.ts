@@ -26,6 +26,7 @@ import {
   WorkspaceProjectIdentityUnavailableError,
   type WorkspaceProjectRecordV2,
 } from "./workspaceTypes";
+import { logWarn } from "../logging/logger";
 
 function workspaceId(): string {
   return `workspace-${crypto.randomUUID()}`;
@@ -501,8 +502,7 @@ export function readWorkspaceManifest(rootPath: string): WorkspaceProjectRecordV
     ) {
       throw error;
     }
-    const message = error instanceof Error ? error.message : String(error);
-    console.warn(`[workspace] failed to read workspace manifest: ${rootPath} (${message})`);
+    logWarn("workspace", "manifest-read-failed", undefined, error);
     return null;
   }
 }

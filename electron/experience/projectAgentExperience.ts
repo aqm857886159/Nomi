@@ -9,6 +9,7 @@ import type { AgentChatResponse } from "../harness/agentChatContracts";
 import type { ProjectAgentHostState, ProjectBinding } from "../shared/projectAgentContracts";
 import { getExperienceRepository } from "./experienceRepository";
 import type { ExperienceTrajectory } from "./experienceTypes";
+import { logWarn } from "../logging/logger";
 
 const EVENT_LIMIT = 256;
 const TEXT_HEAD = 2000;
@@ -91,9 +92,9 @@ export function notifyProjectAgentCompletion(
       state,
       completedAt,
     })).catch((error: unknown) => {
-      console.warn(`[nomi:project-agent] completion side effect failed for ${execution.turn.turnId}`, error);
+      logWarn("agent", "completion-side-effect-failed", { turnId: execution.turn.turnId }, error);
     });
   } catch (error) {
-    console.warn(`[nomi:project-agent] completion side effect failed for ${execution.turn.turnId}`, error);
+    logWarn("agent", "completion-side-effect-failed", { turnId: execution.turn.turnId }, error);
   }
 }

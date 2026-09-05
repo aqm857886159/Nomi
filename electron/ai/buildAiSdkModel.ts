@@ -21,6 +21,7 @@ import { appFetch } from "../appFetch";
 // 单一真相源：provider-kind 联合定义在 catalog/types，这里只 re-export，避免并行定义漂移（规则 1）。
 import type { AiSdkProviderKind, Vendor } from "../catalog/types";
 import { createExplicitProxyDispatcher } from "../systemProxy";
+import { logDevDetail, logVendorCall } from "../logging/logger";
 export type { AiSdkProviderKind };
 
 export interface BuildAiSdkModelInput {
@@ -38,6 +39,18 @@ export interface BuildAiSdkModelInput {
   headers?: Record<string, string>;
   /** Optional per-connection proxy; empty/absent keeps the application route. */
   proxyUrl?: string;
+}
+
+/**
+ * 供应商标识：这一层拿不到 catalog 的 vendorKey（它只被给了 baseURL + modelId），
+ * 所以用主机名当标识。主机名不是凭据，且「打的是哪家」正是排查 502/路由错时第一个要问的。
+ */
+function vendorHostOf(url: string): string {
+  try {
+    return new URL(url).host;
+  } catch {
+    return "?";
+  }
 }
 
 /**
@@ -68,19 +81,27 @@ function buildProfiledFetch(modelId: string, proxyUrl?: string): typeof fetch {
         /* body is not JSON — pass through unchanged */
       }
     }
-    // 可观测：vendor HTTP **失败时**打实际 URL + 状态 + 上游返回体片段（诊断 502/超时/路由错的根因，别靠猜——
-    // 见 docs/workflow/2026-06-06-real-generation-e2e-loop.md「主进程埋点」）。成功不打，避免噪音。
+    // 可观测：vendor HTTP **失败时**留证。分两条通路，因为这两件事的隐私代价不一样：
+    //   · 落盘的是 `logVendorCall` 的六字段摘要（供应商主机 / 模型 / 状态 / 耗时）——
+    //     没有请求体、没有响应体、没有素材 URL；
+    //   · 上游返回体片段（诊断 502/超时/路由错的关键，见
+    //     docs/workflow/2026-06-06-real-generation-e2e-loop.md「主进程埋点」）会回显请求内容，
+    //     所以只走 `logDevDetail`：开发终端照看，用户机器上一个字都不留。
+    // 成功不打，避免噪音。
     const urlStr = typeof url === "string" ? url : ((url as { url?: string })?.url || String(url));
+    const startedAt = Date.now();
     try {
       const res = await appFetch(url, { ...init, ...(dispatcher ? { dispatcher } : {}) });
       if (!res.ok) {
+        logVendorCall({ vendor: vendorHostOf(urlStr), model: modelId, status: res.status, ms: Date.now() - startedAt });
         let snippet = "";
         try { snippet = (await res.clone().text()).replace(/\s+/g, " ").slice(0, 300); } catch { /* body unreadable */ }
-        console.error(`[vendor-http] ${res.status} ${res.statusText} ← ${urlStr} (model=${modelId}) :: ${snippet}`);
+        logDevDetail("vendor", `${res.status} ${res.statusText} ← ${urlStr} (model=${modelId}) :: ${snippet}`);
       }
       return res;
     } catch (fetchError: unknown) {
-      console.error(`[vendor-http] fetch threw ← ${urlStr} (model=${modelId}) :: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`);
+      logVendorCall({ vendor: vendorHostOf(urlStr), model: modelId, status: "error", ms: Date.now() - startedAt });
+      logDevDetail("vendor", `fetch threw ← ${urlStr} (model=${modelId}) :: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`);
       throw fetchError;
     }
   }) as typeof fetch;

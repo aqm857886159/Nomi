@@ -5,6 +5,7 @@
 // 进入零窗口态的路不止一条（macOS 关窗后按设计不退出、窗口重建半途失败……），所以不在每条路上
 // 各补一次症状，而是让所有路都汇到这里自愈：谁发现「该有窗口却没有」，就调它。
 import { BrowserWindow } from "electron";
+import { logError } from "./logging/logger";
 
 export function createMainWindowGuard(args: {
   createWindow: () => Promise<unknown>;
@@ -20,7 +21,7 @@ export function createMainWindowGuard(args: {
       .createWindow()
       .then(() => args.onWindowReady())
       .catch((error) => {
-        console.error("[nomi:desktop] failed to ensure main window:", error);
+        logError("window", "ensure-main-window-failed", error);
       })
       .finally(() => {
         inFlight = null;

@@ -14,6 +14,7 @@ import {
   transcodeFileToPlayableMp4IfNeeded,
 } from "./videoImportNormalize";
 import type { JsonRecord } from "../jsonUtils";
+import { logWarn } from "../logging/logger";
 
 function bytesFromPayload(value: unknown): Buffer {
   if (value instanceof ArrayBuffer) return Buffer.from(value);
@@ -60,10 +61,7 @@ async function importNativeSourcePath(
         });
       }
     } catch (error) {
-      console.warn(
-        "[nomi-video-import] native playability normalize failed, importing original file:",
-        error instanceof Error ? error.message : error,
-      );
+      logWarn("assets", "video-normalize-failed-import-original-file", undefined, error);
     }
     return await copyAssetFile(projectId, sourcePath, fileName, effectiveContentType, baseMeta);
   } finally {
