@@ -163,3 +163,15 @@ test('package.json 的 gates:contracts 就是这个 runner，且 advisory 只限
     assert.match(autosync, new RegExp(name.replace(':', '[:-]')), `${name} 必须由 docs-autosync 验收补齐结果`)
   }
 })
+
+test('Docs Gate Autosync never writes protected main directly and opens a SHA-scoped PR', async () => {
+  const { default: fs } = await import('node:fs')
+  const { default: path } = await import('node:path')
+  const { fileURLToPath } = await import('node:url')
+  const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+  const autosync = fs.readFileSync(path.join(repoRoot, '.github/workflows/docs-autosync.yml'), 'utf8')
+  assert.match(autosync, /peter-evans\/create-pull-request@v7/)
+  assert.match(autosync, /branch:\s*docs\/autosync-\$\{\{ github\.sha \}\}/)
+  assert.match(autosync, /commit-message:.*\[skip ci\]/)
+  assert.doesNotMatch(autosync, /git push[^\n]*HEAD:main/)
+})

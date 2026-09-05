@@ -44,6 +44,8 @@ function withRequestSignal(params: Record<string, unknown>, signal?: AbortSignal
 }
 
 import { createGenerationGateConfirmation } from './mcpGateConfirmation'
+import { createElicitationClient, readElicitationCapability } from './mcpElicitation'
+import { runIntegrationCredentialElicitation } from './mcpCredentialElicitation'
 import type { GenerationGateChallengeProjection, GenerationGateVerificationResult } from './mcpGateConfirmation'
 export type { GenerationGateChallengeProjection, GenerationGateConfirmation, GenerationGateVerificationResult } from './mcpGateConfirmation'
 
@@ -110,6 +112,8 @@ type SkillContentFrame = SkillSummaryFrame & { body: string }
 export function createMcpProtocol(transport: McpTransport) {
   // 客户端能力（initialize 时捕获）。elicitation = 客户端能代我们向真人弹确认对话框（MCP 规范 2025-06-18）。
   let clientSupportsElicitation = false
+  // url 模式单独一位：规范禁止向未声明该模式的客户端发 mode:'url'（空 {} = 只支持 form）。
+  let clientSupportsUrlElicitation = false
   let clientHost = 'external'
   let initialized = false
   const unsubscribeCatalogChanges = subscribeMcpToolCatalogChanges(() => {
@@ -208,37 +212,14 @@ export function createMcpProtocol(transport: McpTransport) {
     })
   }
 
-  async function elicitBooleanConfirm(input: {
-    message: string
-    title: string
-    description: string
-  }, signal?: AbortSignal): Promise<{ supported: boolean; confirmed?: boolean; action?: 'accept' | 'decline' | 'cancel' | 'timeout'; attestation?: unknown }> {
-    if (!clientSupportsElicitation) return { supported: false }
-    try {
-      const res = (await sendServerRequest('elicitation/create', {
-        message: input.message,
-        requestedSchema: {
-          type: 'object',
-          properties: {
-            confirm: { type: 'boolean', title: input.title, description: input.description },
-          },
-          required: ['confirm'],
-        },
-      }, 300000, signal)) as { action?: string; content?: { confirm?: boolean; attestation?: unknown; confirmationAttestation?: unknown } } | null
-      // 三态：accept / decline / cancel。只有明确 accept + confirm=true 才能跨过服务端边界。
-      const confirmed = res?.action === 'accept' && res?.content?.confirm === true
-      return {
-        supported: true,
-        confirmed,
-        action: res?.action === 'accept' || res?.action === 'decline' || res?.action === 'cancel' ? res.action : 'cancel',
-        attestation: res?.content?.attestation ?? res?.content?.confirmationAttestation,
-      }
-    } catch (error) {
-      if (signal?.aborted) throw error
-      // 超时/异常 → 当作未确认（不死等、不偷偷花钱）。
-      return { supported: true, confirmed: false, action: 'timeout' }
-    }
-  }
+  // elicitation 线协议（form + url 两模式）住 mcpElicitation.ts；这里只喂 getter（能力在 initialize 才定）。
+  const elicitation = createElicitationClient({
+    sendServerRequest,
+    send,
+    supportsElicitation: () => clientSupportsElicitation,
+    supportsUrlElicitation: () => clientSupportsUrlElicitation,
+  })
+  const elicitBooleanConfirm = elicitation.booleanConfirm
 
   // 生成门确认（challenge → 恰好一个确认面，同 challengeId 并发去重）：逻辑住 mcpGateConfirmation.ts，
   // 这里只喂依赖。elicitation 能力在 initialize 时才定 → 传 getter 不传快照。
@@ -333,7 +314,9 @@ export function createMcpProtocol(transport: McpTransport) {
     }
 
     if (method === 'initialize') {
-      clientSupportsElicitation = Boolean(params?.capabilities && (params.capabilities as Record<string, unknown>).elicitation)
+      const declaredElicitation = readElicitationCapability(params?.capabilities)
+      clientSupportsElicitation = declaredElicitation.form
+      clientSupportsUrlElicitation = declaredElicitation.url
       const rawName = String((params?.clientInfo as Record<string, unknown> | undefined)?.name || '').trim()
       const clientName = rawName.toLowerCase()
       clientHost = ['codex', 'claude', 'cursor'].find((host) => clientName.includes(host)) ?? 'external'
@@ -579,6 +562,19 @@ export function createMcpProtocol(transport: McpTransport) {
             reply,
             locale,
           }, requestSignal)
+          return
+        }
+        // 接模型要 key：规范 2025-11-25 要求走 URL 模式 elicitation（密钥不得经 form / 客户端 / 模型上下文）。
+        if (tool.name === 'nomi_integration' && args.action === 'open_credentials') {
+          const outcome = await runIntegrationCredentialElicitation({
+            built,
+            invoke: (method, params) => invokeForRequest(method, params),
+            elicitation,
+            locale: locale(),
+            ...(requestSignal ? { signal: requestSignal } : {}),
+          })
+          if (outcome.kind === 'error') throw new Error(outcome.message)
+          reply(id, buildToolResultPayload(tool.name, args, outcome.result))
           return
         }
         const result = await invokeForRequest(routedMethod, built)

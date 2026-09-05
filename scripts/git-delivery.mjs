@@ -238,7 +238,7 @@ export function assertPreflightState(state, { protectedBranches = ['main', 'mast
   return state
 }
 
-export function assertMergedState(state, { expectedSha } = {}) {
+export function assertMergedState(state, { expectedSha, cwd = state.repoRoot } = {}) {
   if (!SHA_PATTERN.test(String(expectedSha || ''))) {
     throw new DeliveryError(
       'invalid_expected_sha',
@@ -248,28 +248,34 @@ export function assertMergedState(state, { expectedSha } = {}) {
   if (!state.clean) {
     throw new DeliveryError('dirty_worktree', 'Merged verification requires a clean worktree', state)
   }
-  if (state.headCommit !== expectedSha) {
+  const expectedCommit = gitStatus(cwd, ['cat-file', '-e', `${expectedSha}^{commit}`])
+  if (expectedCommit.exitCode !== 0) {
     throw new DeliveryError(
-      'unexpected_head',
-      `HEAD is not the expected merged commit: expected ${expectedSha}, observed ${state.headCommit}`,
-      state,
+      'missing_expected_sha',
+      `Expected merged commit is not available locally: ${expectedSha}`,
+      { ...state, expectedSha, expectedCommit },
     )
   }
-  if (state.remoteCommit !== expectedSha) {
+  const ancestry = gitStatus(cwd, ['merge-base', '--is-ancestor', expectedSha, state.remoteRef])
+  if (![0, 1].includes(ancestry.exitCode)) {
     throw new DeliveryError(
-      'remote_main_moved',
-      `${state.remoteRef} is not the expected merged commit: expected ${expectedSha}, observed ${state.remoteCommit}`,
-      state,
+      'git_state_failed',
+      `Cannot compare expected merged commit with ${state.remoteRef}`,
+      { ...state, expectedSha, ancestry },
     )
   }
-  if (state.relation !== 'same-commit') {
+  if (ancestry.exitCode !== 0) {
     throw new DeliveryError(
-      'merged_identity_diverged',
-      `Merged identity relation must be same-commit, observed ${state.relation}`,
-      state,
+      'expected_sha_not_ancestor',
+      `${state.remoteRef} does not contain expected merged commit ${expectedSha}; observed tip ${state.remoteCommit}`,
+      { ...state, expectedSha, ancestry },
     )
   }
-  return state
+  return {
+    ...state,
+    expectedSha,
+    verificationRelation: state.remoteCommit === expectedSha ? 'tip' : 'ancestor',
+  }
 }
 
 export async function preflightDelivery({
@@ -410,15 +416,15 @@ export async function waitForRequiredChecks({
   }
 }
 
-function receiptPathFor(state) {
-  return path.join(state.commonDir, 'nomi-delivery', 'merged-main', state.headCommit, 'ci-evidence.json')
+function receiptPathFor(state, commitSha = state.expectedSha || state.headCommit) {
+  return path.join(state.commonDir, 'nomi-delivery', 'merged-main', commitSha, 'ci-evidence.json')
 }
 
 function readReceipt(receiptPath) {
   if (!fs.existsSync(receiptPath)) return null
   try {
     const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'))
-    return receipt?.schemaVersion === 2 && receipt?.kind === 'exact-sha-ci-evidence' && Array.isArray(receipt.checks)
+    return receipt?.schemaVersion === 3 && receipt?.kind === 'exact-sha-ci-evidence' && Array.isArray(receipt.checks)
       ? receipt
       : null
   } catch (error) {
@@ -495,10 +501,17 @@ export async function verifyMergedDelivery({
   sleep,
 } = {}) {
   await fetchRemote({ cwd, remote, base, timeoutMs })
-  const state = assertMergedState(inspectDeliveryState({ cwd, remote, base }), { expectedSha })
-  const receiptPath = receiptPathFor(state)
+  const state = assertMergedState(inspectDeliveryState({ cwd, remote, base }), { expectedSha, cwd })
+  const receiptPath = receiptPathFor(state, expectedSha)
   const existing = readReceipt(receiptPath)
-  if (existing && evaluateRequiredChecks(existing.checks).state === 'passed') {
+  if (
+    existing &&
+    existing.commitSha === expectedSha &&
+    existing.tip === state.remoteCommit &&
+    existing.relation === state.verificationRelation &&
+    existing.treeSha === gitOutput(cwd, ['rev-parse', `${expectedSha}^{tree}`]) &&
+    evaluateRequiredChecks(existing.checks).state === 'passed'
+  ) {
     return { state, receiptPath, receipt: existing, reused: true }
   }
 
@@ -515,11 +528,13 @@ export async function verifyMergedDelivery({
       ...(sleep ? { sleep } : {}),
     })
     const receipt = {
-      schemaVersion: 2,
+      schemaVersion: 3,
       kind: 'exact-sha-ci-evidence',
-      commitSha: state.headCommit,
-      treeSha: state.headTree,
+      commitSha: expectedSha,
+      treeSha: gitOutput(cwd, ['rev-parse', `${expectedSha}^{tree}`]),
       remoteRef: state.remoteRef,
+      tip: state.remoteCommit,
+      relation: state.verificationRelation,
       repository: resolvedRepository,
       observedAt: now().toISOString(),
       requiredChecks: [...REQUIRED_MERGED_CHECKS],

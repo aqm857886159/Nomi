@@ -26,6 +26,8 @@ pnpm run test:journeys
 
 推送任务分支并创建 PR。禁止直接推送 `main`。
 
+PR 合入后运行 `pnpm run delivery:verify-merged -- --expected-sha <SHA>`：它按该 SHA 拉取 checks，即使 `origin/main` 已前进也会记录当前 `tip` 与 `relation=ancestor`；文档门岗补齐则由 `Docs Gate Autosync` 另开 PR 回写，禁止直推受保护主线。
+
 ## 2. 生成可安装的开发预览版
 
 在 PR 上添加 `desktop-preview` label，或者手动运行 GitHub Actions 的 `Desktop Preview` 工作流并填写分支名。
