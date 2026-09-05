@@ -106,7 +106,7 @@ export function ResidentPromptMenu({
   const normalizedQuery = query.trim().toLowerCase()
   const visiblePresets = PROMPT_PRESETS.filter((preset) => {
     if (!normalizedQuery) return true
-    return `${t(`agentResident.${preset.labelKey}`)} ${t(`agentResident.${preset.hintKey}`)} ${preset.prompt}`.toLowerCase().includes(normalizedQuery)
+    return `${t(preset.labelKey)} ${t(preset.hintKey)} ${preset.prompt}`.toLowerCase().includes(normalizedQuery)
   })
   const renderLibraryRow = (prompt: LibraryPrompt): JSX.Element => {
     const selected = selectedLibraryPrompt?.id === prompt.id && selectedLibraryPrompt.origin === prompt.origin
@@ -127,7 +127,7 @@ export function ResidentPromptMenu({
       const selected = !activeSkill && !selectedLibraryPrompt && promptModeId === preset.id
       return <MenuRow key={preset.id} selected={selected} testId={preset.id} onClick={() => onSelectPreset(preset.id)} className={rowClass}>
         <PresetIcon size={16} className="shrink-0 text-nomi-ink-60" />
-        <MenuCopy label={<>{t(`agentResident.${preset.labelKey}`)}{preset.id !== 'general' ? <span className="ml-1 rounded-pill bg-nomi-ink-05 px-1 text-micro text-nomi-ink-40">{t('agentResident.builtIn')}</span> : null}</>} hint={t(`agentResident.${preset.hintKey}`)} />
+        <MenuCopy label={<>{t(preset.labelKey)}{preset.id !== 'general' ? <span className="ml-1 rounded-pill bg-nomi-ink-05 px-1 text-micro text-nomi-ink-40">{t('agentResident.builtIn')}</span> : null}</>} hint={t(preset.hintKey)} />
         {selected ? <IconCheck size={14} className="shrink-0 text-nomi-accent" /> : null}
       </MenuRow>
     })}
@@ -141,11 +141,12 @@ export function ResidentPromptMenu({
   </Popover>
 }
 
+// labelKey/hintKey 存**整键**（拼接会让死键门岗对整棵 agentResident 失明）。
 // eslint-disable-next-line react-refresh/only-export-components
 export const PROMPT_PRESETS = [
-  { id: 'general', labelKey: 'promptDefault', hintKey: 'promptDefaultHint', icon: IconCircleDashed, prompt: '' },
-  { id: 'story', labelKey: 'promptCamera', hintKey: 'promptCameraHint', icon: IconAperture, prompt: '保留人物、机位和动作，只调整光线、景深与前景层次。' },
-  { id: 'script', labelKey: 'promptScript', hintKey: 'promptScriptHint', icon: IconFilePencil, prompt: '先指出冲突与节奏问题，再给出尽量保留原意的改写。' },
-  { id: 'review', labelKey: 'promptReview', hintKey: 'promptReviewHint', icon: IconTextSpellcheck, prompt: '检查结构、逻辑和表达，逐条说明原因后再修订。' },
-  { id: 'assets', labelKey: 'promptAssets', hintKey: 'promptAssetsHint', icon: IconWorldSearch, prompt: '只返回可追溯来源与明确授权状态的候选素材。' },
+  { id: 'general', labelKey: 'agentResident.promptDefault', hintKey: 'agentResident.promptDefaultHint', icon: IconCircleDashed, prompt: '' },
+  { id: 'story', labelKey: 'agentResident.promptCamera', hintKey: 'agentResident.promptCameraHint', icon: IconAperture, prompt: '保留人物、机位和动作，只调整光线、景深与前景层次。' },
+  { id: 'script', labelKey: 'agentResident.promptScript', hintKey: 'agentResident.promptScriptHint', icon: IconFilePencil, prompt: '先指出冲突与节奏问题，再给出尽量保留原意的改写。' },
+  { id: 'review', labelKey: 'agentResident.promptReview', hintKey: 'agentResident.promptReviewHint', icon: IconTextSpellcheck, prompt: '检查结构、逻辑和表达，逐条说明原因后再修订。' },
+  { id: 'assets', labelKey: 'agentResident.promptAssets', hintKey: 'agentResident.promptAssetsHint', icon: IconWorldSearch, prompt: '只返回可追溯来源与明确授权状态的候选素材。' },
 ] as const

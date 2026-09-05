@@ -1,3 +1,4 @@
+import type { TranslationKey } from '../../../i18n/translationKey'
 import type { ProjectAgentStatus } from '../../../../electron/shared/projectAgentContracts'
 import { normalizeResidentToolProjection, type ResidentToolProjection } from './residentToolProjection'
 import type { ResidentApprovalDetail, ResidentProposalData } from './residentProposalDisplay'
@@ -28,24 +29,29 @@ export function isCanvasWriteToolName(name: string): boolean {
   return normalized.includes('create_canvas_nodes') || normalized.includes('canvas.write') || normalized.includes('canvas_nodes')
 }
 
-const READABLE_PARAMETER_LABELS: Record<string, string> = {
-  size: 'toolParameterSize',
-  aspectRatio: 'toolParameterAspectRatio',
-  aspect_ratio: 'toolParameterAspectRatio',
-  duration: 'toolParameterDuration',
-  fps: 'toolParameterFrameRate',
-  frameRate: 'toolParameterFrameRate',
-  quality: 'toolParameterQuality',
-  count: 'toolParameterCount',
-  copies: 'toolParameterCount',
-  resolution: 'toolParameterResolution',
-  negative_prompt: 'toolParameterNegativePrompt',
-  negativePrompt: 'toolParameterNegativePrompt',
-  seed: 'toolParameterSeed',
-  steps: 'toolParameterSteps',
-  guidance_scale: 'toolParameterGuidance',
-  guidanceScale: 'toolParameterGuidance',
-}
+// 整键，不拼命名空间（拼接会让死键门岗对整棵 agentResident 失明）。
+// 用 `as const satisfies`（而不是把 TranslationKey 当值类型标注）：TranslationKey 只适合做**约束**，
+// 标注成值类型会把字面量擦成它自身、`t()` 收不了。见 src/i18n/translationKey.ts。
+const READABLE_PARAMETER_LABELS = {
+  size: 'agentResident.toolParameterSize',
+  aspectRatio: 'agentResident.toolParameterAspectRatio',
+  aspect_ratio: 'agentResident.toolParameterAspectRatio',
+  duration: 'agentResident.toolParameterDuration',
+  fps: 'agentResident.toolParameterFrameRate',
+  frameRate: 'agentResident.toolParameterFrameRate',
+  quality: 'agentResident.toolParameterQuality',
+  count: 'agentResident.toolParameterCount',
+  copies: 'agentResident.toolParameterCount',
+  resolution: 'agentResident.toolParameterResolution',
+  negative_prompt: 'agentResident.toolParameterNegativePrompt',
+  negativePrompt: 'agentResident.toolParameterNegativePrompt',
+  seed: 'agentResident.toolParameterSeed',
+  steps: 'agentResident.toolParameterSteps',
+  guidance_scale: 'agentResident.toolParameterGuidance',
+  guidanceScale: 'agentResident.toolParameterGuidance',
+} as const satisfies Record<string, TranslationKey>
+
+type ParameterLabelKey = (typeof READABLE_PARAMETER_LABELS)[keyof typeof READABLE_PARAMETER_LABELS]
 
 const TOOL_CONTEXT_KEYS = new Set(['model', 'modelKey', 'modelId', 'providerId', 'moduleId', 'variantId', 'prompt', 'text', 'content', 'nodes', 'edges', 'nodeIds', 'clientId', 'title', 'kind', 'summary', 'parameters', 'candidate', 'patch', 'shots', 'references', 'scriptText', 'operationId', 'taskKind', 'mode', 'modeId', 'leaseHandle'])
 
@@ -63,12 +69,12 @@ function readableParameters(t: Translate, record: Record<string, unknown>): stri
     if (TOOL_CONTEXT_KEYS.has(key)) continue
     const value = readableParameterValue(t, rawValue)
     if (!value) continue
-    const labelKey = READABLE_PARAMETER_LABELS[key]
+    const labelKey = (READABLE_PARAMETER_LABELS as Record<string, ParameterLabelKey | undefined>)[key]
     if (!labelKey) {
       hidden += 1
       continue
     }
-    readable.push(`${t(`agentResident.${labelKey}`)}: ${value}`)
+    readable.push(`${t(labelKey)}: ${value}`)
   }
   if (hidden) readable.push(t('agentResident.toolParameterHidden', { count: hidden }))
   return readable.join(' · ')

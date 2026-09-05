@@ -24,6 +24,13 @@
 
 实测有多硬：删掉注册表里那条 `{ prefix: 'generationCommon' }`，输出**一个字都没变**（4965 键 / 0 死键 / 184 B 档，前后一致）——源码 head 顶上了。所以这类失明**只能在调用点治**：常量存整键并 `satisfies TranslationKey`（`src/i18n/translationKey.ts`），拼接消失，编译器顺手接管键的存在性（R28 防线建在最早那层）。四个调用点改完，A 档死键当场 0 → 180：39 条是 `assistant.toolCall.*` 的**真动态**（键存进 const 再 `` `${T}.${key}` ``，模板 head 为空、两道门岗都看不见 → 注册精确前缀），4 条是上面第 2 类（`BaseGenerationNode` 把「独立副本（来自 …）」写死，英文界面一直显中文 → 接线），其余 137 条真遗留 → 删。
 
+**清完三个命名空间后的账（2026-09-05 当天做完）**：`generationCommon` 137 条、`agentResident` 57 条、
+`antigravity` 3 条，全部是组件退役/改版后没跟着删的真遗留；`OVERBROAD_NAMESPACE_DEBT` 归零，
+B 档存疑从 184 降到 44。**收窄的写法有个坑**：`TranslationKey` 只能做**约束**，
+写成值类型标注（`const M: Record<K, TranslationKey> = {…}`）会把字面量擦掉、`t()` 收不了（TS2345）；
+正解是 `as const satisfies Record<K, TranslationKey>`。另外结构测试可能钉着旧实现的源码文本
+（`status === 'declined' ? 'declined'`），改成查表后要把断言搬到查表项上，别顺手删掉。
+
 **别拿「门岗绿」当「没有死键」**：种一个谁都不引用的键进目标命名空间，改前门岗照样绿、改后当场点名——这个前后对照才是它真的看得见的证据。
 
 **出处**：2026-09-01 / 2026-09-02 i18n 清理实测；2026-09-05 `generationCommon` 整命名空间前缀收窄。相关：[走查断言必须有真信号](walkthrough-assertions-need-a-real-signal.md)、[一个死选择器同时造假红和假绿](dead-selector-lies-both-ways.md)。

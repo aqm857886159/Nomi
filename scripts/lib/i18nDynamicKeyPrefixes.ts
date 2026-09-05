@@ -30,7 +30,7 @@ export type DynamicPrefix =
  * 某条已经不再过宽也报红，逼你把它摘掉）。清账方式**不是**改注册表，是改调用点：
  * 常量存**整键**并 `satisfies TranslationKey`（见 `src/i18n/translationKey.ts`），拼接消失、前缀自然收窄。
  */
-export const OVERBROAD_NAMESPACE_DEBT: readonly string[] = ['agentResident']
+export const OVERBROAD_NAMESPACE_DEBT: readonly string[] = []
 
 export const DYNAMIC_KEY_PREFIXES: DynamicPrefix[] = [
   // ── creationAi ──
@@ -82,7 +82,6 @@ export const DYNAMIC_KEY_PREFIXES: DynamicPrefix[] = [
   // ── runtime ──
   { prefix: 'runtime.capability.intent', why: '动态: 能力应用意图;枚举来源: capabilityApplyHandler 归一化后的 intent(capability.intent.* 词条)' },
   // ── agentResident ──
-  { prefix: 'agentResident', why: '动态(整命名空间): ProjectAgentResidentShell 及 resident/ 展示器的 `agentResident.${preset.labelKey|preset.hintKey|promptPreset.labelKey|hintKey|key|labelKey}`(提示词档 label/hint、审批/花费 hint、referenceRole、工具参数标签);枚举来源: 内置 prompt preset 的 labelKey/hintKey 常量、residentReferenceRole 的 kind→key 映射、READABLE_PARAMETER_LABELS 的 labelKey(均指向 agentResident.* 已存在词条)' },
   {
     prefix: 'agentResident.mode',
     kind: 'concat',
