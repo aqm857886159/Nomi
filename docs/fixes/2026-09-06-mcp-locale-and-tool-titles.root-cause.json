@@ -18,7 +18,8 @@
     "electron/capabilityCore/rpcServer.ts",
     "electron/i18n.ts",
     "electron/settings/localePreference.ts",
-    "scripts/check-mcp-payload.ts"
+    "scripts/check-mcp-payload.ts",
+    "scripts/mcp-payload.mjs"
   ],
   "entry_points": [
     "Bare Node mcpNodeLauncher stdio transport",
@@ -47,6 +48,11 @@
       "path": "electron/capabilityCore/mcpToolCatalog.ts",
       "symbol": "SEMANTIC_EDITING_TOOL_TITLES",
       "responsibility": "Require and attach both supported human title variants to the nine capability-projected tools."
+    },
+    {
+      "path": "scripts/mcp-payload.mjs",
+      "symbol": "measureMcpToolsListPayload",
+      "responsibility": "Serialize the tools/list ratchet projection for every supported locale and return the maximum UTF-8 byte length."
     }
   ],
   "same_class_entry_points": [
@@ -74,16 +80,17 @@
   },
   "prevention": {
     "kind": "centralized-boundary",
-    "enforcement_path": "electron/capabilityCore/mcpProtocol.ts",
-    "invariant": "tools/list always selects a non-empty localized title for every exposed tool.",
-    "failure_mode": "A missing title mapping throws during catalog construction; a missing locale variant falls back to the tool's zh-CN title rather than emitting an empty field.",
+    "enforcement_path": "scripts/mcp-payload.mjs",
+    "invariant": "tools/list always selects a non-empty localized title for every exposed tool, and the ratchet measures the maximum UTF-8 payload across zh-CN and en.",
+    "failure_mode": "A missing title mapping throws during catalog construction; a missing locale variant falls back to the tool's zh-CN title rather than emitting an empty field; any growth in either locale exceeds the single max baseline and fails both contract checks.",
     "exception_policy": "none",
     "strategy": "Keep title ownership in the catalog and locale selection at the protocol boundary so every MCP host receives the same complete contract.",
     "artifacts": [
       "electron/capabilityCore/mcpToolCatalog.ts",
       "electron/capabilityCore/mcpProtocol.ts",
       "electron/capabilityCore/mcpNodeLauncher.ts",
-      "scripts/check-mcp-payload.ts"
+      "scripts/check-mcp-payload.ts",
+      "scripts/mcp-payload.mjs"
     ]
   },
   "regression_tests": [
@@ -94,7 +101,8 @@
   ],
   "class_regression_tests": [
     "electron/capabilityCore/mcpLauncherLocale.test.ts",
-    "electron/capabilityCore/mcpToolCatalog.test.ts"
+    "electron/capabilityCore/mcpToolCatalog.test.ts",
+    "tests/ux/mcp-l1-handshake.e2e.mjs"
   ],
   "legacy_paths": {
     "status": "removed",

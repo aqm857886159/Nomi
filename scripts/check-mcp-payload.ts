@@ -1,6 +1,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { createMcpProtocol } from '../electron/capabilityCore/mcpProtocol'
+import { MCP_TOOL_RESOLVER } from '../electron/capabilityCore/mcpToolCatalog'
+import { measureMcpToolsListPayload, measureMcpToolsListPayloadByLocale } from './mcp-payload.mjs'
 
 type Frame = { result?: unknown }
 const baselinePath = path.resolve('scripts/mcp-payload-baseline.json')
@@ -15,12 +17,10 @@ async function run(): Promise<void> {
   try {
     protocol.handleIncoming({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} })
     await new Promise<void>((resolve) => setImmediate(resolve))
-    const result = frames.find((frame) => frame.result !== undefined)?.result as { tools?: Array<Record<string, unknown>> } | undefined
-    const tools = Array.isArray(result?.tools) ? result.tools : []
-    const actualBytes = Buffer.byteLength(JSON.stringify({
-      tools: tools.map(({ name, title, description, inputSchema }) => ({ name, title, description, inputSchema })),
-    }))
-    console.log(`MCP tools/list payload: ${actualBytes} bytes (ratchet max ${maxBytes})`)
+    if (!frames.some((frame) => frame.result !== undefined)) throw new Error('MCP tools/list returned no result')
+    const payloadBytesByLocale = measureMcpToolsListPayloadByLocale(MCP_TOOL_RESOLVER.list())
+    const actualBytes = measureMcpToolsListPayload(MCP_TOOL_RESOLVER.list())
+    console.log(`MCP tools/list payload: ${actualBytes} bytes (zh-CN ${payloadBytesByLocale['zh-CN']}, en ${payloadBytesByLocale.en}; ratchet max ${maxBytes})`)
     if (actualBytes > maxBytes) {
       throw new Error(`MCP payload ratchet failed: ${actualBytes} > ${maxBytes}`)
     }

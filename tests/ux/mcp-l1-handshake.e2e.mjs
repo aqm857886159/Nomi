@@ -4,6 +4,7 @@ import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { makeIsolatedDirs, spawnMcpStdioClient, parseToolResult } from './_mcpJourney.mjs'
+import { measureMcpToolsListPayload, measureMcpToolsListPayloadByLocale } from '../../scripts/mcp-payload.mjs'
 
 // 面收敛（surface-16-collapse）：拉分支时存在的 42 个 API 镜像塌成 15 个按对象归并的工具。nomi_intake_brief 从
 // MCP 目录移除（无外部 MCP 消费者，内部 capability 保留）。并线 main 后 **+4 个 M2 语义编辑工具**
@@ -61,10 +62,9 @@ async function main() {
     check(tools.every((tool) => typeof tool.title === 'string' && tool.title.length > 0), 'C2 every MCP tool carries a human title')
     const readOnly = tools.filter((tool) => tool.annotations?.readOnlyHint === true).map((tool) => tool.name)
     check(JSON.stringify(readOnly) === JSON.stringify(READ_ONLY_TOOL_NAMES), 'C2 readOnlyHint is exactly nomi_read + nomi_operation_preview + M2 read tools')
-    const payloadBytes = Buffer.byteLength(JSON.stringify({
-      tools: tools.map(({ name, title, description, inputSchema }) => ({ name, title, description, inputSchema })),
-    }))
-    console.log(`  payload bytes=${payloadBytes} baseline=${BASELINE_PAYLOAD_BYTES}`)
+    const payloadBytesByLocale = measureMcpToolsListPayloadByLocale(MCP_TOOL_RESOLVER.list())
+    const payloadBytes = measureMcpToolsListPayload(MCP_TOOL_RESOLVER.list())
+    console.log(`  payload bytes=${payloadBytes} (zh-CN=${payloadBytesByLocale['zh-CN']}, en=${payloadBytesByLocale.en}) baseline=${BASELINE_PAYLOAD_BYTES}`)
     check(payloadBytes <= BASELINE_PAYLOAD_BYTES, 'C2 tools/list payload is within ratchet budget')
 
     // C3 · protocol error vs recoverable tool execution error.
