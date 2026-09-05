@@ -13,6 +13,7 @@ import { compileExecutionContract, type ExecutionContractV1, type PlanCandidate 
 import type { ModuleRegistry } from "./moduleRegistry";
 import type { ParameterField } from "./moduleManifest";
 import type { VideoModelCandidate } from "../shared/videoCapabilities/recommendation";
+import { SINGLE_SHOT_GENERATION_MODULE_ID } from "../shared/generationModuleId";
 import type { GenerationDefaultTaskKind } from "../settings/generationModelDefaultsContract";
 import {
   isLongFormGenerationRequest,
@@ -223,7 +224,7 @@ export function createMultiShotCreateHelpers(deps: MultiShotHelperDeps) {
     const selectedMode = deps.effectiveVideoModes(first).find((item) => item.transportTaskKind === taskKind)
       ?? deps.effectiveVideoModes(first)[0];
     const mode = selectedMode?.transportTaskKind ?? "image-to-video";
-    return { moduleId: "generation.single-shot", providerId: first.provider, modelId: first.modelKey, mode, ...(selectedMode?.id ? { modeId: selectedMode.id } : {}) };
+    return { moduleId: SINGLE_SHOT_GENERATION_MODULE_ID, providerId: first.provider, modelId: first.modelKey, mode, ...(selectedMode?.id ? { modeId: selectedMode.id } : {}) };
   };
 
   /**
