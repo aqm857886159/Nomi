@@ -16,11 +16,11 @@ export const GENERATION_CONTEXT_READ_CAPABILITY = {
   inputSchema: input,
   outputSchema: output,
   effect: "read",
+  effectClass: "reversible_local",
   execution: { port: "production-run", availability: "main_only" },
   exposure: "internal_only",
   requiredScope: "context:read",
   targetKind: "generation",
-  approval: "none",
   projections: { pi: { description: "Read the current catalog-backed generation context." } },
 } as const satisfies CapabilityContract<unknown, unknown>;
 
@@ -32,11 +32,11 @@ export const GENERATION_PLAN_CAPABILITY = {
   inputSchema: input,
   outputSchema: output,
   effect: "reversible_write",
+  effectClass: "reversible_local",
   execution: { port: "production-run", availability: "main_only" },
   exposure: "internal_only",
   requiredScope: "generation:plan",
   targetKind: "generation",
-  approval: "none",
   projections: { pi: { description: "Create, edit, or preview a generation plan without submitting paid work." } },
 } as const satisfies CapabilityContract<unknown, unknown>;
 
@@ -48,11 +48,11 @@ export const GENERATION_GATE_CAPABILITY = {
   inputSchema: input,
   outputSchema: output,
   effect: "paid",
+  effectClass: "spend",
   execution: { port: "production-run", availability: "main_only" },
   exposure: "internal_only",
   requiredScope: "generation:submit",
   targetKind: "generation",
-  approval: "human_receipt",
   projections: { pi: { description: "Confirm and start one frozen generation plan." } },
 } as const satisfies CapabilityContract<unknown, unknown>;
 
@@ -64,11 +64,11 @@ export const GENERATION_RUN_READ_CAPABILITY = {
   inputSchema: input,
   outputSchema: output,
   effect: "read",
+  effectClass: "reversible_local",
   execution: { port: "production-run", availability: "main_only" },
   exposure: "internal_only",
   requiredScope: "generation:read",
   targetKind: "generation",
-  approval: "none",
   projections: { pi: { description: "Read a generation plan, task, or artifact state." } },
 } as const satisfies CapabilityContract<unknown, unknown>;
 
@@ -80,11 +80,11 @@ export const GENERATION_CONTROL_CAPABILITY = {
   inputSchema: input,
   outputSchema: output,
   effect: "reversible_write",
+  effectClass: "reversible_local",
   execution: { port: "production-run", availability: "main_only" },
   exposure: "internal_only",
   requiredScope: "generation:control",
   targetKind: "generation",
-  approval: "proposal",
   projections: { pi: { description: "Cancel or reconcile a generation operation without retrying unknown work." } },
 } as const satisfies CapabilityContract<unknown, unknown>;
 

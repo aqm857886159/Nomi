@@ -11,7 +11,7 @@ import {
 describe("asset.read capability", () => {
   it("owns all five strict Pi aliases", () => {
     expect(ASSET_READ_CAPABILITY.effect).toBe("read");
-    expect(ASSET_READ_CAPABILITY.approval).toBe("none");
+    expect(ASSET_READ_CAPABILITY.effectClass).toBe("reversible_local");
     expect([ASSET_READ_CAPABILITY.aliases.pi, ...ASSET_READ_CAPABILITY.additionalAliases.pi]).toEqual([
       "get_media",
       "inspect_media",

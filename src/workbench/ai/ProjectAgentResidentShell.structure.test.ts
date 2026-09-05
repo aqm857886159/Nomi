@@ -128,11 +128,16 @@ describe('ProjectAgentResidentShell production contract', () => {
   it('keeps PR194 controls separate and routes actions through the Host boundary', () => {
     for (const control of [
       'data-agent-composer-attach',
-      'data-agent-composer-prompt',
-      'data-agent-composer-mode',
       'data-agent-composer-model',
+      'data-agent-composer-skill',
+      'data-agent-composer-mode',
       'data-agent-composer-send',
     ]) expect(resident).toContain(control)
+    expect(resident).not.toContain('data-agent-composer-prompt')
+    expect(resident).toContain('<NomiSegmented')
+    expect(resident).toContain('testId="prompt-library"')
+    expect(resident).not.toContain('data-agent-menu-item="approval-mode-')
+    expect(resident).not.toContain('data-agent-menu-item="spend-policy-')
     expect(resident).toContain('data-agent-queue-row')
     expect(resident).toContain('data-agent-queue-actions')
     expect(residentPrimitives).toContain('data-agent-tool-header')
@@ -145,7 +150,7 @@ describe('ProjectAgentResidentShell production contract', () => {
     expect(resident).toContain("window.addEventListener('nomi-model-catalog-changed', loadModels)")
     expect(resident).toContain("window.removeEventListener('nomi-model-catalog-changed', loadModels)")
     expect(resident).toContain('projectAgentReferences')
-    for (const icon of ['IconPaperclip', 'IconBolt', 'IconTool', 'IconPencil', 'IconRobot', 'IconArrowUp', 'IconPlayerStopFilled', 'IconChevronLeft', 'IconFocusCentered']) {
+    for (const icon of ['IconPaperclip', 'IconBolt', 'IconTool', 'IconListCheck', 'IconPencil', 'IconRobot', 'IconArrowUp', 'IconPlayerStopFilled', 'IconChevronLeft', 'IconFocusCentered']) {
       expect(resident).toContain(icon)
     }
     expect(resident).toContain("event.key === '@'")

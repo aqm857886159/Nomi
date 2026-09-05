@@ -160,6 +160,7 @@ function executionInput(
     threadId: thread.threadId,
     executionToken: `token-${id}`,
     model: { id: "model", version: 1 },
+    approvalPolicy: { mode: "step" as const, spend: "confirm" as const },
     skillVersions: [],
     capabilityVersions: [{ id: "creation-chat", version: 1 }],
     contextRef,
@@ -190,6 +191,7 @@ function executionInput(
     preconditions: {},
     contextRef,
     model: turn.model,
+    approvalPolicy: { mode: "step" as const, spend: "confirm" as const },
     skillVersions: [],
     capabilityVersions: turn.capabilityVersions,
     policyRevision: 1,
@@ -926,9 +928,9 @@ describe("ProjectAgentExecutionCoordinator", () => {
     };
     await coordinator.enqueue(opened.subscriptionId, input);
     const final = await coordinator.waitForTurn(opened.subscriptionId, input.mutation.payload.turn.turnId);
-    expect(toolEvents).toBe(1);
+    expect(toolEvents).toBe(0);
     expect(decisions).toHaveLength(2);
-    expect(decisions[0]).toMatchObject({ ok: true });
+    expect(decisions[0]).toMatchObject({ ok: true, silent: true });
     expect(decisions[1]).toMatchObject({ ok: true, silent: true });
     expect(documentAdapter.execute).toHaveBeenCalledTimes(2);
     expect(final.items.filter((item) => item.kind === "proposal")).toHaveLength(2);
@@ -1732,6 +1734,7 @@ describe("ProjectAgentExecutionCoordinator", () => {
       threadId: thread.threadId,
       executionToken: "execution-token",
       model: { id: "model", version: 1 },
+      approvalPolicy: { mode: "step" as const, spend: "confirm" as const },
       skillVersions: [],
       capabilityVersions: [{ id: "creation-chat", version: 1 }],
       contextRef,
@@ -1762,6 +1765,7 @@ describe("ProjectAgentExecutionCoordinator", () => {
       preconditions: {},
       contextRef,
       model: turn.model,
+      approvalPolicy: { mode: "step" as const, spend: "confirm" as const },
       skillVersions: [],
       capabilityVersions: turn.capabilityVersions,
       policyRevision: 1,

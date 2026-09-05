@@ -17,7 +17,7 @@ describe("canvas.write canonical contract", () => {
     expect(CANVAS_WRITE_CAPABILITY).toEqual({
       id: "canvas.write",
       version: 1,
-      aliases: { pi: "set_node_prompt", mcp: "nomi_canvas_edit" },
+      aliases: { pi: "set_node_prompt", mcp: "nomi_canvas_edit", ui: "nomi_canvas_plan" },
       additionalAliases: {
         pi: [
           "create_canvas_nodes",
@@ -32,11 +32,22 @@ describe("canvas.write canonical contract", () => {
       inputSchema: canvasWriteSemanticInputSchema,
       outputSchema: canvasWriteResultSchema,
       effect: "reversible_write",
+      effectClass: "reversible_local",
+      operationEffectClasses: {
+        create_canvas_nodes: "reversible_local",
+        connect_canvas_edges: "reversible_local",
+        tidy_canvas: "reversible_local",
+        propose_storyboard_plan: "reversible_local",
+        patch_shots: "reversible_local",
+        arrange_storyboard_to_timeline: "reversible_local",
+        create_staging_reference: "reversible_local",
+        create_camera_move: "reversible_local",
+        set_node_prompt: "reversible_local",
+      },
       execution: { port: "canvas", availability: "renderer_required" },
       exposure: "mcp_safe",
       requiredScope: "canvas:write",
       targetKind: "canvas",
-      approval: "proposal",
       projections: {
         pi: { description: "Propose an exact, reversible prompt update to one generation canvas node." },
         mcp: { description: "Propose a validated, reversible canvas edit from current intent." },

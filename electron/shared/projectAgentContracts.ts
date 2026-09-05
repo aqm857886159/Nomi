@@ -58,7 +58,7 @@ export type ProjectAgentApprovalPolicy = Readonly<{
 
 /** Safe, backwards-compatible default for records written before this field existed. */
 export const DEFAULT_PROJECT_AGENT_APPROVAL_POLICY: ProjectAgentApprovalPolicy = Object.freeze({
-  mode: "step",
+  mode: "safe-auto",
   spend: "confirm",
 });
 

@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next'
 import { cn } from '../../utils/cn'
 import WorkbenchEditor from './WorkbenchEditor'
 import DocumentListSidebar from './DocumentListSidebar'
-import StoryboardPlanCard from './storyboard/StoryboardPlanCard'
 
 type CreationWorkspaceProps = {
   aiCollapsed?: boolean
@@ -36,11 +35,6 @@ export default function CreationWorkspace({ aiCollapsed = false, agentDockRef }:
               explicit navigation action so a starter row cannot hide the draft. */}
           <WorkbenchEditor />
         </div>
-        {/* The planner result is a summary of the source document. Keep it in
-            Creation so returning from the storyboard still exposes the same
-            draft; the card itself stays hidden while only the structural
-            empty starter exists. */}
-        <StoryboardPlanCard />
       </div>
       {agentDockRef ? <aside className={cn(
         aiCollapsed

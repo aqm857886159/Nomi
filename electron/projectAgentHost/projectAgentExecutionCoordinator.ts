@@ -33,6 +33,7 @@ import type {
 import type { PiSkillReadTransportAdapter } from "../capabilityCore/skillReadTransportAdapters";
 import type { PiProductionRunTransportAdapter } from "../capabilityCore/productionRunTransportAdapters";
 import type { PiGenerationTransportAdapter } from "../capabilityCore/generationTransportAdapters";
+import { isRendererOwnedStoryboardProposal } from "../shared/agentCapabilities/canvasWrite";
 import {
   digest,
   validateSteering,
@@ -452,7 +453,12 @@ export function createProjectAgentExecutionCoordinator(
       return { ok: false, denied: true, message: workModeDecision.reason ?? "Agent work mode denied this action" };
     }
     const policy = execution.turn.approvalPolicy;
-    if (projectAgentMayReuseSafeApproval(policy, call.toolName, call.args, execution.safeApprovalGranted === true)) {
+    // Renderer-owned storyboard proposals still need the renderer callback to
+    // capture the parsed plan, even though their descriptor effect is a local
+    // reversible write. A silent safe-auto decision would otherwise let the
+    // model continue without populating the planner's returned plan.
+    if (!isRendererOwnedStoryboardProposal(call.toolName, call.args)
+      && projectAgentMayReuseSafeApproval(policy, call.toolName, call.args, execution.safeApprovalGranted === true)) {
       return { ok: true, silent: true };
     }
     const safeReversible = projectAgentExecutionRisk(call.toolName, call.args) === "safe-reversible";
