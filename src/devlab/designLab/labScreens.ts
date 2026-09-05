@@ -1,6 +1,7 @@
 import { AGENT_PANEL_STATES, PANEL_HEIGHT, PANEL_WIDTH } from './agentPanelStates'
 import { EDITING_STATES } from './editing/editingStates'
 import { EDITING_CELL_HEIGHT, EDITING_CELL_WIDTH } from './editing/editingLabKit'
+import { AGENT_PANEL_V4_STATES, V4_CELL_HEIGHT, V4_PANEL_WIDTH } from './v4/agentPanelV4States'
 import type { LabScreen, LabState } from './labScreen'
 
 /**
@@ -14,6 +15,14 @@ export const LAB_SCREENS: readonly LabScreen[] = [
     label: 'Agent 面板',
     states: AGENT_PANEL_STATES,
     cell: { width: PANEL_WIDTH, height: PANEL_HEIGHT + 40 },
+  },
+  {
+    id: 'agent-panel-v4',
+    label: 'Agent 面板 v4',
+    states: AGENT_PANEL_V4_STATES,
+    // 这屏大多数格子是**单个积木**（Vocabulary / Composer 两组），只有 Flow 那几张渲整块面板。
+    // 取景框按面板宽 390 开列，整块面板那几格用 span:2 占两列。
+    cell: { width: V4_PANEL_WIDTH, height: V4_CELL_HEIGHT },
   },
   {
     id: 'editing',

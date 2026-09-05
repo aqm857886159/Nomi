@@ -27,6 +27,7 @@ export { default as IconFileImport } from '@tabler/icons-react/dist/esm/icons/Ic
 export { default as IconDeviceGamepad2 } from '@tabler/icons-react/dist/esm/icons/IconDeviceGamepad2.mjs'
 export { default as IconGift } from '@tabler/icons-react/dist/esm/icons/IconGift.mjs'
 export { default as IconMoodConfuzed } from '@tabler/icons-react/dist/esm/icons/IconMoodConfuzed.mjs'
+export { default as IconPlug } from '@tabler/icons-react/dist/esm/icons/IconPlug.mjs'
 export { default as IconPlugConnectedX } from '@tabler/icons-react/dist/esm/icons/IconPlugConnectedX.mjs'
 export { default as IconTimeline } from '@tabler/icons-react/dist/esm/icons/IconTimeline.mjs'
 export { default as IconSubtitles } from '@tabler/icons-react/dist/esm/icons/IconSubtitles.mjs'

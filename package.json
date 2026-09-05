@@ -177,6 +177,7 @@
     "check:design-lab": "node ./scripts/check-design-lab.mjs",
     "design-lab:update": "node ./scripts/check-design-lab.mjs --update",
     "design-lab:walk": "node ./tests/ux/design-lab-agent-panel.walk.mjs",
+    "design-lab:walk:v4": "node ./tests/ux/design-lab-agent-panel-v4.walk.mjs",
     "design-lab:walk:editing": "node ./tests/ux/design-lab-editing.walk.mjs"
   },
   "dependencies": {

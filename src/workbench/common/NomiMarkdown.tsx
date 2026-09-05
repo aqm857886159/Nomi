@@ -25,19 +25,24 @@ function makeComponents(compact: boolean, profile?: MarkdownProfile, labels?: Ma
   const pMy = compact ? 'my-1' : 'my-2'
   const hMt = compact ? 'mt-2.5' : 'mt-4'
   const hMb = compact ? 'mb-1' : 'mb-2'
-  const h1 = compact ? 'text-title' : 'text-h2'
-  const h2 = compact ? 'text-body' : 'text-title'
-  const h3 = compact ? 'text-body-sm' : 'text-body'
+  // agent-v4 档：390 宽的面板里**标题一律降成粗体行**（13px/600），不放大字号——
+  // 聊天里没有文档层级，放大只会像广告（定稿 Rendering 板「标题 △ 降级」）。
+  // 正文同样落到 13px：14px 在 390 宽里一行装不下一句完整的镜头描述。
+  const flat = profile === 'agent-v4'
+  const h1 = flat ? 'text-body-sm' : compact ? 'text-title' : 'text-h2'
+  const h2 = flat ? 'text-body-sm' : compact ? 'text-body' : 'text-title'
+  const h3 = flat ? 'text-body-sm' : compact ? 'text-body-sm' : 'text-body'
+  const bodyText = flat ? 'text-body-sm' : 'text-body'
   return {
     h1: ({ node: _n, ...p }) => <h1 className={`${h1} font-semibold leading-snug text-nomi-ink ${hMt} ${hMb} first:mt-0`} {...p} />,
     h2: ({ node: _n, ...p }) => <h2 className={`${h2} font-semibold leading-snug text-nomi-ink ${hMt} ${hMb} first:mt-0`} {...p} />,
     h3: ({ node: _n, ...p }) => <h3 className={`${h3} font-semibold leading-snug text-nomi-ink ${hMt} ${hMb} first:mt-0`} {...p} />,
-    p: ({ node: _n, ...p }) => <p className={`text-body leading-relaxed text-nomi-ink-80 ${pMy}`} {...p} />,
+    p: ({ node: _n, ...p }) => <p className={`${bodyText} leading-relaxed text-nomi-ink-80 ${pMy}`} {...p} />,
     ul: ({ node: _n, className, ...p }) => {
       const isTask = /contains-task-list/.test(className || '')
-      return <ul className={`${isTask ? 'list-none pl-1' : 'list-disc pl-5'} ${pMy} text-body leading-relaxed text-nomi-ink-80`} {...p} />
+      return <ul className={`${isTask ? 'list-none pl-1' : 'list-disc pl-5'} ${pMy} ${bodyText} leading-relaxed text-nomi-ink-80`} {...p} />
     },
-    ol: ({ node: _n, ...p }) => <ol className={`list-decimal pl-5 ${pMy} text-body leading-relaxed text-nomi-ink-80`} {...p} />,
+    ol: ({ node: _n, ...p }) => <ol className={`list-decimal pl-5 ${pMy} ${bodyText} leading-relaxed text-nomi-ink-80`} {...p} />,
     li: ({ node: _n, className, ...p }) => <li className={`my-0.5 ${/task-list-item/.test(className || '') ? 'list-none' : ''}`.trim()} {...p} />,
     a: ({ node: _n, children, ...p }) => <a className="text-nomi-accent underline underline-offset-2 [overflow-wrap:anywhere]" target="_blank" rel="noreferrer" {...p}>{children}{profile === 'agent-v4' ? <span aria-hidden="true" className="ml-0.5 no-underline">↗</span> : null}</a>,
     blockquote: ({ node: _n, ...p }) => <blockquote className={`border-l-2 border-nomi-line pl-3 ${pMy} text-nomi-ink-60`} {...p} />,

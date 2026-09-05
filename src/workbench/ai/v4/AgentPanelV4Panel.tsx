@@ -1,41 +1,130 @@
+// Agent 面板 v4 · 整块面板的装配壳
+//
+// 定稿三张 Flow 板（创作 / 生成 / 预览）+ Rendering + Dark 板画的都是**同一个壳**装不同内容：
+//   头部（N Nomi + Context 环 …… 历史 / 收起）→ 对话流 → 介入槽（永远在 composer 正上方）
+//   → 队列（只在运行中还继续输入时）→ composer。
+//
+// 头部逐件照定稿 `.ph`：`<logo>N</logo>Nomi <ctx/> <sp/> <ic>hist side</ic>`——
+// **Context 环紧跟品牌名**（不是甩到最右），右端是历史与收起两个图标。品牌名是「Nomi」不是「Nomi Agent」。
+//
+// 这个壳**不**按 view 枚举改形状：它只接一份对话流数据。早先那版把 44 个状态全渲成
+// 「整块面板 + 几处 if」，结果接触表三列近乎一样，看不出任何一个积木的状态差别。
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconChevronRight, IconLayersSubtract, IconTimelineEvent } from '@tabler/icons-react'
+import { cn } from '../../../utils/cn'
 import { AgentPanelV4Composer } from './AgentPanelV4Composer'
-import { AgentPanelV4Context } from './AgentPanelV4Context'
-import { V4AssistantMessage, V4Intervention, V4Queue, V4TaskCard, V4ToolReceipt, V4UserBubble } from './AgentPanelV4Primitives'
-import type { AgentPanelV4View } from './agentPanelV4Types'
-import type { InterventionData, QueueRowData, TaskCardData, ToolReceipt, V4TaskStatus, V4ToolStatus } from './agentPanelV4Types'
-export type { AgentPanelV4View } from './agentPanelV4Types'
+import { V4ContextRing } from './AgentPanelV4Context'
+import { V4Intervention, V4Queue, V4TaskCard } from './AgentPanelV4Cards'
+import { V4AssistantMessage, V4Thinking, V4UserBubble } from './AgentPanelV4Message'
+import { V4ErrorBar, V4ToolReceipt } from './AgentPanelV4Receipt'
+import { IconHistory, IconLayoutSidebarRightCollapse } from './AgentPanelV4Icons'
+import { useV4Labels } from './agentPanelV4Labels'
+import type {
+  ComposerMode,
+  ContextUsage,
+  InterventionData,
+  PermissionTier,
+  QueueRowData,
+  TaskCardData,
+  ToolReceipt,
+  V4AssistantStatus,
+  V4Chip,
+} from './agentPanelV4Types'
+import { DEFAULT_PERMISSION_TIER } from './agentPanelV4Types'
 
-const statusForView: Record<string, V4ToolStatus> = { 'v4-tool-input-streaming': 'input-streaming', 'v4-tool-input-available': 'input-available', 'v4-tool-approval-requested': 'approval-requested', 'v4-tool-approval-responded': 'approval-responded', 'v4-tool-output-available': 'output-available', 'v4-tool-output-denied': 'output-denied', 'v4-tool-output-error': 'output-error' }
+export type V4FlowItem =
+  | { kind: 'user'; text: string; chips?: readonly V4Chip[] }
+  | { kind: 'assistant'; text: string; status: V4AssistantStatus }
+  | { kind: 'thinking'; label: string; meta: string }
+  | { kind: 'tool'; receipt: ToolReceipt }
+  | { kind: 'task'; task: TaskCardData }
+  | { kind: 'error'; reason: string; action?: string }
 
-function Popover({ kind }: { kind: 'model' | 'skill' }): JSX.Element {
-  const { t } = useTranslation()
-  if (kind === 'model') return <aside className="absolute bottom-14 left-2 z-20 w-72 rounded-nomi border border-nomi-line bg-nomi-paper p-2.5 text-micro shadow-nomi-sm" data-v4-popover="model"><strong>{t('agentPanelV4.modelDialog')}</strong><div className="mt-2 grid gap-1.5"><div className="flex justify-between"><span>{t('agentPanelV4.model')}</span><b>{t('agentPanelV4.chatModel')}</b></div><div className="flex justify-between"><span>{t('agentPanelV4.imageDefault')}</span><b>{t('agentPanelV4.imageModel')}</b></div><div className="flex justify-between"><span>{t('agentPanelV4.videoDefault')}</span><b>{t('agentPanelV4.videoModel')}</b></div><div className="flex justify-between"><span>{t('agentPanelV4.audioDefault')}</span><b>{t('agentPanelV4.audioModel')}</b></div></div></aside>
-  return <aside className="absolute bottom-14 left-2 z-20 w-72 rounded-nomi border border-nomi-line bg-nomi-paper p-2.5 text-micro shadow-nomi-sm" data-v4-popover="skill"><div className="rounded-nomi-sm border border-nomi-line px-2 py-1 text-nomi-ink-40">{t('agentPanelV4.skillSearch')}</div><div className="mt-2 flex gap-1 text-micro"><span className="rounded-pill bg-nomi-ink px-2 py-0.5 text-nomi-paper">{t('agentPanelV4.skillAll')}</span><span>{t('agentPanelV4.skillMine')}</span><span>{t('agentPanelV4.skillScript')}</span></div><div className="mt-2 grid gap-1">{[t('agentPanelV4.skillKasdan'), t('agentPanelV4.skillShots'), t('agentPanelV4.skillPace'), t('agentPanelV4.skillAd')].map((name) => <div key={name} className="rounded-nomi-sm px-2 py-1 hover:bg-nomi-ink-05">{name}</div>)}</div></aside>
+export type AgentPanelV4PanelProps = {
+  flow: readonly V4FlowItem[]
+  slot?: InterventionData
+  queue?: readonly QueueRowData[]
+  context: ContextUsage
+  composer?: { mode?: ComposerMode; permission?: PermissionTier; chips?: readonly V4Chip[]; text?: string; skillSelected?: boolean; focused?: boolean }
+  width?: number
+  height?: number
+  darkMode?: boolean
 }
 
-function PanelContent({ view }: { view: AgentPanelV4View }): JSX.Element {
-  const { t } = useTranslation()
-  const toolStatus = statusForView[view] ?? (view === 'rendering' ? 'input-streaming' : view === 'sources' ? 'output-error' : 'output-available')
-  const taskStatusLabels: Record<V4TaskStatus, string> = { queued: t('agentPanelV4.statusQueued'), running: t('agentPanelV4.statusRunning'), complete: t('agentPanelV4.statusComplete'), failed: t('agentPanelV4.failed'), stopped: t('agentPanelV4.statusStopped') }
-  const taskStatus: V4TaskStatus = view === 'rendering' ? 'running' : view === 'v4-task-queued' ? 'queued' : view === 'v4-task-failed' ? 'failed' : view === 'v4-task-stopped' ? 'stopped' : 'complete'
-  const interventionKind = view === 'v4-intervention-question' ? 'question' : view === 'v4-intervention-plan' ? 'plan' : view === 'v4-intervention-spend' ? 'spend' : view === 'v4-intervention-credential' ? 'credential' : view === 'v4-intervention-deviation' ? 'deviation' : 'approval-reversible'
-  const action = view === 'flow-creation' ? 'document' : view === 'flow-generation' ? 'image' : view === 'flow-preview' ? 'timeline' : view === 'rendering' ? 'video' : view === 'sources' ? 'attachment' : 'timeline'
-  const actionLabel = action === 'document' ? t('agentPanelV4.document') : action === 'image' ? t('agentPanelV4.imageAction') : action === 'video' ? t('agentPanelV4.video') : action === 'attachment' ? t('agentPanelV4.attachmentAction') : t('agentPanelV4.timeline')
-  const tool: ToolReceipt = { label: actionLabel, action, status: toolStatus, elapsed: toolStatus === 'output-error' ? t('agentPanelV4.failed') : t('agentPanelV4.toolElapsed'), detail: t('agentPanelV4.toolDetail') }
-  const task: TaskCardData = { title: action === 'video' ? t('agentPanelV4.video') : t('agentPanelV4.taskTitle'), status: taskStatus, cost: t('agentPanelV4.taskCost'), candidates: taskStatus === 'complete' ? ['采用', '', ''] : undefined, selected: 0, detail: t('agentPanelV4.taskDetail') }
-  const intervention: InterventionData = { kind: interventionKind, title: interventionKind === 'question' ? t('agentPanelV4.questionTitle') : t('agentPanelV4.interventionTitle'), summary: interventionKind === 'question' ? t('agentPanelV4.questionSummary') : t('agentPanelV4.interventionSummary'), options: interventionKind === 'question' ? [t('agentPanelV4.optionLandscape'), t('agentPanelV4.optionPortrait'), t('agentPanelV4.optionSquare')] : undefined, shots: interventionKind === 'plan' ? [t('agentPanelV4.planShot1'), t('agentPanelV4.planShot2'), t('agentPanelV4.planShot3'), t('agentPanelV4.planShot4')] : undefined, cost: interventionKind === 'spend' ? t('agentPanelV4.spendCost') : undefined, reason: interventionKind === 'deviation' ? t('agentPanelV4.rejectReason') : undefined }
-  const queue: readonly QueueRowData[] = [{ title: t('agentPanelV4.queueOne'), status: 'running' }, { title: t('agentPanelV4.queueTwo'), status: 'queued', action: t('agentPanelV4.queueAction') }, { title: t('agentPanelV4.queueThree'), status: 'complete' }]
-  if (view === 'collapsed') return <div className="flex h-full w-8 flex-col items-center gap-2 border-l border-nomi-line-soft bg-nomi-paper py-2 text-nomi-ink-60"><span className="grid size-5 place-items-center rounded-nomi-sm bg-nomi-accent-soft text-nomi-accent" aria-label={t('agentPanelV4.context')}><span className="size-2 rounded-pill border border-nomi-accent" /></span><IconChevronRight size={14} /><IconTimelineEvent size={15} /><IconLayersSubtract size={15} /></div>
-  const process = view === 'process'
-  const showIntervention = view !== 'composer' && view !== 'rendering'
-  const showQueue = process || view === 'main'
-  const composerText = view === 'height-growth' ? t('agentPanelV4.heightGrowthText') : view === 'height-scroll' ? t('agentPanelV4.heightScrollText') : ''
-  return <div className="flex min-h-0 flex-1 flex-col bg-nomi-paper text-nomi-ink"><header className="flex h-10 shrink-0 items-center justify-between border-b border-nomi-line-soft px-3"><span className="flex items-center gap-1.5 text-micro font-semibold"><span className="grid size-4 place-items-center rounded-nomi-sm bg-nomi-ink text-nano text-nomi-paper">{t('agentPanelV4.logo')}</span>{t('agentPanelV4.brand')}</span><AgentPanelV4Context /></header><main className="min-h-0 flex-1 space-y-2 overflow-y-auto px-3 py-2"><V4UserBubble text={t('agentPanelV4.queueOne')} darkMode={view === 'dark'} attachment={view === 'vocabulary-user' ? t('agentPanelV4.attachment') : undefined} /><V4AssistantMessage text={t('agentPanelV4.assistantText')} status={process ? 'streaming' : view === 'feasible' ? 'interrupted' : 'complete'} continueLabel={t('agentPanelV4.continue')} />{process ? <div className="grid gap-1 rounded-nomi-sm border border-nomi-line-soft bg-nomi-ink-05 p-2 text-micro" data-v4-block="process-flow">{String(t('agentPanelV4.processLabels')).split('|').map((label,index) => <div key={label} className="flex items-center gap-2"><span className="grid size-4 place-items-center rounded-pill bg-nomi-paper text-nomi-accent">{index + 1}</span><span>{label}</span><span className="ml-auto text-nomi-ink-40">{index < 3 ? '✓' : index === 3 ? '→' : '·'}</span></div>)}</div> : null}<V4ToolReceipt receipt={tool} statusLabel={toolStatus === 'output-error' ? t('agentPanelV4.failed') : t('agentPanelV4.running')} />{process ? <V4ToolReceipt receipt={{ ...tool, label: t('agentPanelV4.video'), action: 'video', status: 'output-error', elapsed: t('agentPanelV4.vendorFailure') }} statusLabel={t('agentPanelV4.failed')} /> : null}<V4TaskCard task={task} labels={{ status: taskStatusLabels, adopt: t('agentPanelV4.adopt'), undo: t('agentPanelV4.undo') }} /></main>{showIntervention ? <div className="shrink-0 px-3 pb-2"><V4Intervention data={intervention} labels={{ confirm: t('agentPanelV4.confirm'), reject: t('agentPanelV4.reject'), escalate: t('agentPanelV4.escalate'), cancel: t('agentPanelV4.cancel') }} /></div> : null}{showQueue ? <div className="shrink-0 px-3 pb-2"><V4Queue rows={queue} labels={{ queued: t('agentPanelV4.statusQueued'), running: t('agentPanelV4.running'), complete: t('agentPanelV4.statusComplete'), remove: t('agentPanelV4.cancel') }} /></div> : null}<div className="relative shrink-0 px-3 pb-2"><AgentPanelV4Composer panelHeight={view === 'composer' ? 900 : 620} mode={process ? 'running' : view === 'sources' ? 'reference' : 'idle'} permission={view === 'permission-step' ? '每步问' : view === 'permission-project' ? '全自动' : '自动改'} initialText={composerText} reference={view === 'sources' ? t('agentPanelV4.referenceClip') : undefined} /></div>{view === 'model-popover' ? <Popover kind="model" /> : null}{view === 'skill-popover' ? <Popover kind="skill" /> : null}</div>
+/** 对话流里的一条 = 一个积木；哪个积木由 kind 决定，壳不认识内容。 */
+export function V4FlowRow({ item, darkMode, panelHeight }: { item: V4FlowItem; darkMode: boolean; panelHeight?: number }): JSX.Element {
+  const labels = useV4Labels()
+  if (item.kind === 'user') return <V4UserBubble text={item.text} chips={item.chips} darkMode={darkMode} />
+  if (item.kind === 'assistant') return <V4AssistantMessage text={item.text} status={item.status} labels={labels.assistant} panelHeight={panelHeight} />
+  if (item.kind === 'thinking') return <V4Thinking label={item.label} meta={item.meta} />
+  if (item.kind === 'tool') return <V4ToolReceipt receipt={item.receipt} statusLabel={labels.toolStatus[item.receipt.status]} undoLabel={labels.task.undo} />
+  if (item.kind === 'task') return <V4TaskCard task={item.task} labels={labels.task} />
+  return <V4ErrorBar reason={item.reason} action={item.action} />
 }
 
-export function AgentPanelV4Panel({ view = 'main' }: { view?: AgentPanelV4View }): JSX.Element {
-  return <section className="overflow-hidden rounded-nomi border border-nomi-line bg-nomi-bg" style={{ width: view === 'collapsed' ? 32 : 390, height: view === 'dark' ? 800 : view === 'composer' ? 900 : 620 }} data-v4-panel={view}><PanelContent view={view} /></section>
+export function AgentPanelV4Panel({
+  flow,
+  slot,
+  queue,
+  context,
+  composer,
+  width = 390,
+  height = 620,
+  darkMode = false,
+}: AgentPanelV4PanelProps): JSX.Element {
+  const { t } = useTranslation()
+  const labels = useV4Labels()
+  return (
+    <section
+      className="flex flex-col overflow-hidden rounded-nomi border border-nomi-line bg-nomi-paper"
+      style={{ width, height }}
+      data-v4-panel="true"
+    >
+      <header className="flex h-10 shrink-0 items-center gap-2 border-b border-nomi-line-soft px-3 text-body-sm font-semibold">
+        <span
+          className="grid size-[18px] shrink-0 place-items-center rounded-nomi-sm bg-nomi-ink text-micro not-italic text-nomi-paper"
+          aria-hidden="true"
+        >
+          {t('agentPanelV4.logo')}
+        </span>
+        {t('agentPanelV4.brand')}
+        <V4ContextRing usage={context} labels={labels.context} />
+        <span className="flex-1" />
+        <span className="flex shrink-0 gap-2 text-nomi-ink-40">
+          <button type="button" aria-label={t('agentPanelV4.history')}>
+            <IconHistory size={15} />
+          </button>
+          <button type="button" aria-label={t('agentPanelV4.collapsePanel')}>
+            <IconLayoutSidebarRightCollapse size={15} />
+          </button>
+        </span>
+      </header>
+      <div className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto px-3 py-2.5">
+        {flow.map((item, index) => (
+          <V4FlowRow key={`${item.kind}-${index}`} item={item} darkMode={darkMode} panelHeight={height} />
+        ))}
+      </div>
+      {slot ? (
+        <div className="shrink-0 px-2.5 pb-2">
+          <V4Intervention data={slot} labels={labels.intervention} />
+        </div>
+      ) : null}
+      {queue?.length ? (
+        <div className="shrink-0 px-2.5 pb-2">
+          <V4Queue rows={queue} labels={labels.queue} />
+        </div>
+      ) : null}
+      <div className={cn('shrink-0 px-2.5 pb-2.5', !slot && !queue?.length && 'pt-2')}>
+        <AgentPanelV4Composer
+          panelHeight={height}
+          mode={composer?.mode ?? 'idle'}
+          permission={composer?.permission ?? DEFAULT_PERMISSION_TIER}
+          chips={composer?.chips}
+          initialText={composer?.text ?? ''}
+          skillSelected={composer?.skillSelected}
+          focused={composer?.focused}
+        />
+      </div>
+    </section>
+  )
 }

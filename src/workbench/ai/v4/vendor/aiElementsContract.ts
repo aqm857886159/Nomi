@@ -16,11 +16,8 @@ export const AI_ELEMENTS_BUILDING_BLOCKS = [
 ] as const
 export type AiElementsBuildingBlock = (typeof AI_ELEMENTS_BUILDING_BLOCKS)[number]
 
-export const NOMI_ICON_RULES = {
-  timeline: 'IconTimelineEvent',
-  document: 'IconFileText',
-  canvas: 'IconLayersSubtract',
-  image: 'IconPhoto',
-  video: 'IconVideo',
-  status: 'spinner/check/alert',
-} as const
+/**
+ * icon 家族的真身是 `../AgentPanelV4Icons.tsx` 的 ACTION_ICONS —— 唯一 owner。
+ * 这里曾抄过一份 6 条的表，两处对不上（timeline 抄成 IconTimelineEvent、video 抄成 IconVideo，
+ * 定稿样张的 path 反查出来的是 IconTimeline / IconMovie），正是同一语义两份定义的典型。
+ */
