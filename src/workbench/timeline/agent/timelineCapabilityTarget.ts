@@ -19,6 +19,7 @@ import {
   type TimelineOperation,
 } from '../kernel/timelineKernel'
 import type { TimelineState, TimelineTextClip, TimelineTrack } from '../timelineTypes'
+import { resolveClipAudio } from '../clipAudio'
 import {
   createTimelineAgentUndoEntry,
   timelineAgentUndoMetadata,
@@ -60,6 +61,7 @@ function compactClip(clip: TimelineTrack['clips'][number], trackId: string): Jso
       ? { sourceWindow: null }
       : { sourceWindow: { startFrame: clip.offsetStartFrame, endFrame: clip.frameCount - clip.offsetEndFrame } }),
     ...(clip.text ? { text: clip.text } : {}),
+    ...(clip.audio ? { audio: resolveClipAudio(clip.audio, clip.endFrame - clip.startFrame) } : {}),
     sourceAvailable: Boolean(clip.url),
   }
 }

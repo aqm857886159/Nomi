@@ -1,5 +1,6 @@
-import type { TimelineClip, TimelineClipAudio, TimelineState, TimelineTextClip, TimelineTrack, TimelineTrackType } from '../timelineTypes'
-import { MAX_CLIP_GAIN_DB, MIN_CLIP_GAIN_DB } from '../clipAudio'
+import type { TimelineClip, TimelineClipAudio, TimelineState, TimelineTextClip, TimelineTrack, TimelineTrackType, TimelineTransition } from '../timelineTypes'
+import { MAX_CLIP_GAIN_DB, MIN_CLIP_GAIN_DB, resolveClipAudio } from '../clipAudio'
+import { resolveTimelineTransitionFeedback } from '../timelineVisualFeedback'
 
 /**
  * P0 editor operations deliberately operate on the existing TimelineState.
@@ -45,8 +46,46 @@ export type TimelineOperation =
       includeText?: boolean
     }
   | {
+      kind: 'transition'
+      action: 'set' | 'remove'
+      fromClipId: string
+      toClipId: string
+      type?: TimelineTransition['type']
+      durationFrames?: number
+    }
+  | {
+      kind: 'text'
+      action: 'add'
+      id: string
+      sourceNodeId?: string
+      text: string
+      style: TimelineTextClip['style']
+      startFrame: number
+      endFrame: number
+    }
+  | {
+      kind: 'text'
+      action: 'edit'
+      clipId: string
+      text: string
+    }
+  | {
+      kind: 'text'
+      action: 'style'
+      clipId: string
+      style: TimelineTextClip['style']
+    }
+  | {
+      kind: 'text'
+      action: 'time'
+      clipId: string
+      startFrame: number
+      endFrame: number
+    }
+  | {
       kind: 'clip-audio'
       clipId: string
+      /** Patch: omitted fields keep the clip's current value, so a caller can change one knob without a stale read. */
       audio: TimelineClipAudio
     }
 
@@ -519,12 +558,84 @@ function applyRipple(timeline: TimelineState, operation: Extract<TimelineOperati
   return { timeline: { ...makeTracks(timeline, tracks), textClips }, diagnostics: [] }
 }
 
+function applyTransition(timeline: TimelineState, operation: Extract<TimelineOperation, { kind: 'transition' }>): OperationResult {
+  const transitions = [...(timeline.transitions ?? [])]
+    .filter((transition) => !(transition.fromClipId === operation.fromClipId && transition.toClipId === operation.toClipId))
+  if (operation.action === 'remove') return { timeline: { ...timeline, transitions }, diagnostics: [] }
+  if (!operation.type) return operationError('transition_type_required', 'operation.type', 'Transition type is required when setting a transition')
+  if (operation.durationFrames !== undefined && (!isInteger(operation.durationFrames) || operation.durationFrames < 1)) {
+    return operationError('transition_duration_invalid', 'operation.durationFrames', 'Transition duration must be a positive integer')
+  }
+  const transition: TimelineTransition = {
+    fromClipId: operation.fromClipId,
+    toClipId: operation.toClipId,
+    type: operation.type,
+    ...(operation.durationFrames === undefined ? {} : { durationFrames: operation.durationFrames }),
+  }
+  const candidate = { ...timeline, transitions: [...transitions, transition] }
+  const feedback = resolveTimelineTransitionFeedback(candidate.tracks, candidate.transitions)
+  const issue = feedback.find((entry) => entry.transition.fromClipId === transition.fromClipId && entry.transition.toClipId === transition.toClipId && entry.reason)
+  if (issue?.reason) return operationError(`transition_${issue.reason}`, 'operation', `Transition cannot be applied: ${issue.reason}`)
+  return { timeline: candidate, diagnostics: [] }
+}
+
+function findTextIndex(timeline: TimelineState, clipId: string): number {
+  return timeline.textClips.findIndex((clip) => clip.id === clipId)
+}
+
+function applyText(timeline: TimelineState, operation: Extract<TimelineOperation, { kind: 'text' }>): OperationResult {
+  if (operation.action === 'add') {
+    if (!isNonNegativeInteger(operation.startFrame) || !isInteger(operation.endFrame) || operation.endFrame <= operation.startFrame) {
+      return operationError('text_time_invalid', 'operation', 'Text range must be a non-empty frame range')
+    }
+    if ([...timeline.tracks.flatMap((track) => track.clips), ...timeline.textClips].some((clip) => clip.id === operation.id)) {
+      return operationError('text_id_conflict', 'operation.id', `Text clip id already exists: ${operation.id}`)
+    }
+    const clip: TimelineTextClip = { id: operation.id, text: operation.text, style: operation.style, startFrame: operation.startFrame, endFrame: operation.endFrame, ...(operation.sourceNodeId ? { sourceNodeId: operation.sourceNodeId } : {}) }
+    return { timeline: { ...timeline, textClips: [...timeline.textClips, clip] }, diagnostics: [] }
+  }
+  const index = findTextIndex(timeline, operation.clipId)
+  if (index < 0) return operationError('text_clip_not_found', 'operation.clipId', `Text clip not found: ${operation.clipId}`)
+  const current = timeline.textClips[index]
+  let updated: TimelineTextClip
+  if (operation.action === 'edit') updated = { ...current, text: operation.text }
+  else if (operation.action === 'style') updated = { ...current, style: operation.style }
+  else {
+    if (!isNonNegativeInteger(operation.startFrame) || !isInteger(operation.endFrame) || operation.endFrame <= operation.startFrame) return operationError('text_time_invalid', 'operation', 'Text range must be a non-empty frame range')
+    updated = { ...current, startFrame: operation.startFrame, endFrame: operation.endFrame }
+  }
+  const textClips = timeline.textClips.map((clip, clipIndex) => clipIndex === index ? updated : clip)
+  return { timeline: { ...timeline, textClips }, diagnostics: [] }
+}
+
 function applyClipAudio(timeline: TimelineState, operation: Extract<TimelineOperation, { kind: 'clip-audio' }>): OperationResult {
   const source = findClip(timeline, operation.clipId)
   if (!source) return operationError('clip_not_found', 'operation.clipId', `Clip not found: ${operation.clipId}`)
   if (source.clip.type === 'image') return operationError('clip_audio_unsupported', 'operation.audio', 'Image clips cannot carry audio settings')
-  const tracks = timeline.tracks.map((track, index) => index === source.trackIndex
-    ? { ...track, clips: track.clips.map((clip) => clip.id === source.clip.id ? { ...clip, audio: operation.audio } : clip) }
+  const { gainDb, muted, fadeInFrames, fadeOutFrames } = operation.audio
+  const durationFrames = source.clip.endFrame - source.clip.startFrame
+  if (gainDb !== undefined && (!Number.isFinite(gainDb) || gainDb < MIN_CLIP_GAIN_DB || gainDb > MAX_CLIP_GAIN_DB)) {
+    return operationError('clip_audio_gain_invalid', 'operation.audio.gainDb', `gainDb must be between ${MIN_CLIP_GAIN_DB} and ${MAX_CLIP_GAIN_DB}`)
+  }
+  if (fadeInFrames !== undefined && (!isNonNegativeInteger(fadeInFrames) || fadeInFrames > durationFrames)) {
+    return operationError('clip_audio_fade_invalid', 'operation.audio.fadeInFrames', 'fadeInFrames must fit the visible clip duration')
+  }
+  if (fadeOutFrames !== undefined && (!isNonNegativeInteger(fadeOutFrames) || fadeOutFrames > durationFrames)) {
+    return operationError('clip_audio_fade_invalid', 'operation.audio.fadeOutFrames', 'fadeOutFrames must fit the visible clip duration')
+  }
+  const merged: TimelineClipAudio = {
+    ...(source.clip.audio ?? {}),
+    ...(gainDb === undefined ? {} : { gainDb }),
+    ...(muted === undefined ? {} : { muted }),
+    ...(fadeInFrames === undefined ? {} : { fadeInFrames }),
+    ...(fadeOutFrames === undefined ? {} : { fadeOutFrames }),
+  }
+  if ((merged.fadeInFrames ?? 0) + (merged.fadeOutFrames ?? 0) > durationFrames) {
+    return operationError('clip_audio_fade_overlap', 'operation.audio', 'Audio fades cannot exceed the visible clip duration')
+  }
+  const updated: TimelineClip = { ...source.clip, audio: resolveClipAudio(merged, durationFrames) }
+  const tracks = timeline.tracks.map((track, trackIndex) => trackIndex === source.trackIndex
+    ? { ...track, clips: track.clips.map((clip) => clip.id === source.clip.id ? updated : clip) }
     : track)
   return { timeline: makeTracks(timeline, tracks), diagnostics: [] }
 }
@@ -537,6 +648,8 @@ function applyOperation(timeline: TimelineState, operation: TimelineOperation): 
     case 'trim': return applyTrim(timeline, operation)
     case 'source-window': return applySourceWindow(timeline, operation)
     case 'ripple': return applyRipple(timeline, operation)
+    case 'transition': return applyTransition(timeline, operation)
+    case 'text': return applyText(timeline, operation)
     case 'clip-audio': return applyClipAudio(timeline, operation)
   }
 }

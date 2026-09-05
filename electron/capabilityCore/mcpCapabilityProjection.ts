@@ -155,16 +155,40 @@ const timelineReadTransportSchema = immutableSchemaSnapshot({
   type: "object", properties: { leaseHandle: { type: "string", minLength: 1 }, projectId: { type: "string", minLength: 1 }, operation: { type: "string", enum: ["read", "range"] }, startFrame: { type: "integer", minimum: 0 }, endFrame: { type: "integer", minimum: 1 } },
   required: ["leaseHandle", "operation"], additionalProperties: false,
 });
-const timelineEditTransportSchema = immutableSchemaSnapshot(
-  transportSchemaFromZod(timelineEditMcpInput, {
-    label: "timeline.write",
-    extraProperties: {
-      leaseHandle: { type: "string", minLength: 1, description: "nomi_session_open 返回的项目租约句柄。" },
-      projectId: { type: "string", minLength: 1 },
+// Keep the broadcast schema compact while the Zod schema above remains the
+// strict execution boundary. This makes all valid operation kinds discoverable
+// without repeating every branch's conditional requirements in tools/list.
+const timelineEditTransportSchema = immutableSchemaSnapshot({
+  type: "object",
+  properties: {
+    leaseHandle: { type: "string" }, projectId: { type: "string" },
+    operation: { type: "string", enum: ["preview", "apply", "undo"] },
+    plan: {
+      type: "object", additionalProperties: false,
+      properties: {
+        planId: { type: "string" }, baseRevision: { type: "string" }, summary: { type: "string" },
+        operations: { type: "array", minItems: 1, maxItems: 128, items: {
+          type: "object", additionalProperties: false,
+          properties: {
+            kind: { type: "string", enum: ["move", "remove", "split", "trim", "source-window", "ripple", "transition", "text", "clip-audio"] },
+            action: { type: "string", enum: ["set", "remove", "add", "edit", "style", "time"] },
+            clipId: { type: "string" }, clipIds: { type: "array", items: { type: "string" } },
+            fromClipId: { type: "string" }, toClipId: { type: "string" }, targetTrackId: { type: "string" }, trackId: { type: "string" },
+            startFrame: { type: "integer", minimum: 0 }, endFrame: { type: "integer", minimum: 0 }, atFrame: { type: "integer", minimum: 0 }, deltaFrame: { type: "integer" },
+            sourceStartFrame: { type: "integer", minimum: 0 }, sourceEndFrame: { type: "integer", minimum: 0 }, rightClipId: { type: "string", minLength: 1 },
+            type: { type: "string", enum: ["cut", "dissolve", "fade", "match_cut", "whip_pan"] }, durationFrames: { type: "integer", minimum: 1 },
+            id: { type: "string" }, sourceNodeId: { type: "string" }, text: { type: "string" }, style: { type: "string", enum: ["caption", "title"] },
+            audio: { type: "object", additionalProperties: false, properties: { gainDb: { type: "number" }, muted: { type: "boolean" }, fadeInFrames: { type: "integer", minimum: 0 }, fadeOutFrames: { type: "integer", minimum: 0 } } },
+            ripple: { type: "boolean" }, includeText: { type: "boolean" },
+          },
+        } },
+      },
+      required: ["planId", "baseRevision", "summary", "operations"],
     },
-    required: ["leaseHandle", "operation"],
-  }),
-);
+    undoToken: { type: "string" }, expectedRevision: { type: "string" }, reason: { type: "string" },
+  },
+  required: ["leaseHandle", "operation"], additionalProperties: false,
+});
 const exportJobTransportSchema = immutableSchemaSnapshot({
   type: "object", properties: { leaseHandle: { type: "string", minLength: 1 }, projectId: { type: "string", minLength: 1 }, operation: { type: "string", enum: ["status", "verify"] }, jobId: { type: "string", minLength: 1 } },
   required: ["leaseHandle", "operation", "jobId"], additionalProperties: false,

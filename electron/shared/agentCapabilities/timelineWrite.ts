@@ -99,7 +99,7 @@ export function timelineWriteInputForAlias(alias: string, value: unknown): Timel
 export function timelineWritePiDescriptionForAlias(alias: string): string | undefined {
   switch (alias) {
     case TIMELINE_WRITE_ALIASES.applyPlan:
-      return "Apply one compare-and-swap guarded timeline edit plan after user approval.";
+      return "Apply one compare-and-swap guarded timeline edit plan after user approval. Valid operation kinds: move, remove, split, trim, source-window, ripple, transition, text, audio.";
     case TIMELINE_WRITE_ALIASES.undo:
       return "Undo the exact most recent Agent timeline edit after user approval.";
     default:
@@ -116,6 +116,7 @@ export const TIMELINE_WRITE_CAPABILITY = {
   outputSchema: timelineWriteResultSchema,
   effect: "reversible_write",
   effectClass: "reversible_local",
+  requiresPlanReview: true,
   execution: { port: "timeline", availability: "renderer_required" },
   exposure: "mcp_safe",
   requiredScope: "timeline:write",
