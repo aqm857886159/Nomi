@@ -95,19 +95,19 @@ export function AssetPreviewDialog({ asset, onClose, sequence, initialIndex = 0 
     return () => window.clearTimeout(timer)
   }, [current.kind, currentDuration, currentPlayable, onClose, sequence, sequenceIndex])
 
-  React.useEffect(() => {
-    if (!sequence || sequence.length === 0 || currentPlayable || !sequence.some((item) => item.playable)) return
-    const timer = window.setTimeout(() => advance(), 180)
-    return () => window.clearTimeout(timer)
-  }, [currentPlayable, sequence, sequenceIndex])
-
-  const advance = (): void => {
+  const advance = React.useCallback((): void => {
     if (!sequence || sequenceIndex + 1 >= sequence.length) {
       onClose()
       return
     }
     setSequenceIndex((index) => index + 1)
-  }
+  }, [onClose, sequence, sequenceIndex])
+
+  React.useEffect(() => {
+    if (!sequence || sequence.length === 0 || currentPlayable || !sequence.some((item) => item.playable)) return
+    const timer = window.setTimeout(() => advance(), 180)
+    return () => window.clearTimeout(timer)
+  }, [advance, currentPlayable, sequence])
 
   return createPortal(
     <div

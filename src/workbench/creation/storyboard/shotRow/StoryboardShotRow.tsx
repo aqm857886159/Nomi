@@ -139,11 +139,11 @@ function MenuItem({
 export default function StoryboardShotRow(props: Props): JSX.Element {
   const { t } = useTranslation()
   const {
-    shot, anchors, modelOptions, danglingIds, exec, aspect, aspectOverridden, aspectOptions, onChangeAspect,
+    shot, anchors, modelOptions, exec, aspect, aspectOverridden, aspectOptions, onChangeAspect,
     skipped, onToggleSkip, variants = [], adoptedVariantId, onAdoptVariant, onDeleteVariant, onGenerateVariants, outputTag,
     onGenerate, onJumpToAnchor, onOpenPreview, onRegenerate, onToggleLock, onAgentHandoff,
     onInsertAbove, onInsertBelow, targetShots, allShots, sourcePosition, onSaveAsReference, onSetAsFirstFrame,
-    onRerunFreshRefs, onUpdate, onToggleAnchor, onRemove, promptInvalid,
+    onRerunFreshRefs, onUpdate, onRemove, promptInvalid,
     mentionSearch, onMentionSelect, currentRefUrls, mentionUpload, storyboardProfile, sourceSegment,
   } = props
   const [actionsOpen, setActionsOpen] = React.useState(false)
@@ -326,7 +326,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
             ) : (
               <span className="rounded-pill bg-nomi-accent-soft px-1.5 py-0.5 text-micro text-nomi-accent">{sourceSegment.id}</span>
             )}
-            <span className="text-micro text-nomi-ink-50">
+            <span className="text-micro text-nomi-ink-40">
               {sourceSegment.edited ? t('storyboardEditor.scriptProvenance.edited') : t('storyboardEditor.scriptProvenance.original')}
             </span>
           </div>
