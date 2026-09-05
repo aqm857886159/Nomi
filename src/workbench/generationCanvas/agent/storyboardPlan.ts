@@ -7,10 +7,7 @@ import {
   buildShotPrompt,
   isVisualAnchor,
   referenceOrderForShot,
-} from './storyboardPlanPrompts'
-
-// 提示词构造住 storyboardPlanPrompts.ts；这里原样再导出，调用方的 import 路径不变（不是并行版，是同一份实现）。
-export { buildAnchorSheetPrompt, isVisualAnchor }
+} from './storyboardPromptCompiler'
 
 /**
  * 「分镜方案」中间表示（IR）—— 剧本→方案文档→确认→落画布 主链路的中枢。

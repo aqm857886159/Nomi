@@ -1,14 +1,17 @@
-// 分镜方案 · 提示词构造（从 storyboardPlan.ts 抽出，R9/R12 巨壳门岗）。
-//
-// 这里只放**纯函数**：锚的身份描述怎么拼、定妆卡/场景卡的版面提示词长什么样、
-// 镜头与首帧图的最终 prompt 怎么由「镜头本体 + 引用锚」合成、视觉参考的边按什么顺序排。
-// 它们不碰节点构造、不碰画布参数，只依赖 PlanAnchor / PlanShot 两个类型 ——
-// 所以搬出来是纯粹的位置移动，行为逐字不变（storyboardPlan.test.ts 原样绿）。
-//
-// 类型仍住 storyboardPlan.ts（IR 的定义处），这里用 `import type` 引用：编译期擦除，不构成运行时环。
 import { parsePromptSegments } from '../../assets/promptMentions'
-
 import type { PlanAnchor, PlanAnchorKind, PlanShot } from './storyboardPlan'
+
+/**
+ * 分镜方案的**提示词编译层**：把 `StoryboardPlan` 的锚/镜头结构编译成真正下发给模型的文字
+ * （定妆卡 prompt、镜头 prompt、首帧 prompt），外加同样由 prompt 派生的视觉参考顺序。
+ *
+ * 为什么单独一层：这些全是**纯函数**——只读 plan、只吐字符串，不碰节点/边/落画布参数。
+ * 它们和 `storyboardPlan.ts` 里的「结构 → create_canvas_nodes 参数」是两件事，混住会让
+ * 「改一句提示词措辞」和「改落画布结构」挤在同一个文件里（R9 分层）。
+ *
+ * 依赖方向：本文件只**按类型**回引 `storyboardPlan.ts`（`import type`，无运行期环）；
+ * `storyboardPlan.ts` 反过来按值 import 这里的编译函数。
+ */
 
 const VISUAL_KINDS: ReadonlySet<PlanAnchorKind> = new Set(['character', 'scene', 'prop'])
 
@@ -94,7 +97,7 @@ export function buildAnchorSheetPrompt(anchor: PlanAnchor): string {
  * 顺带解决黑盒：拼在这里 = 这段字进 `node.prompt`，用户在提示词框里**看得见也改得动**，
  * 而不是躺在 meta 里没人知道它存不存在。
  */
-export function anchorPromptBits(shot: PlanShot, anchorById: Map<string, PlanAnchor>): string[] {
+function anchorPromptBits(shot: PlanShot, anchorById: Map<string, PlanAnchor>): string[] {
   return shot.anchorIds
     .map((id) => anchorById.get(id))
     .filter((anchor): anchor is PlanAnchor => Boolean(anchor))

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { buildAnchorSheetPrompt, effectiveShotDurationSec, storyboardPlanToCreateNodesArgs, type StoryboardPlan } from './storyboardPlan'
+import { effectiveShotDurationSec, storyboardPlanToCreateNodesArgs, type StoryboardPlan } from './storyboardPlan'
+import { buildAnchorSheetPrompt } from './storyboardPromptCompiler'
 import { parseStoryboardPlan, storyboardPlanSchema } from './storyboardPlanSchema'
 import { storyboardProfileForKey } from './storyboardProfiles'
 
