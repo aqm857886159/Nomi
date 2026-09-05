@@ -1,0 +1,16 @@
+<div class="board" style="width:1440px;height:560px;display:flex;flex-direction:column;gap:12px">
+<div><div style="font-size:15px;font-weight:600">可行性 · 每个积木背后现在仓库里已经有什么（file 级，实查过）</div><div class="note" style="margin-top:4px">这版设计不要求新造后端。<b>已有</b> = 数据和能力都在，只换皮；<b>补一段</b> = 要加一小层；<b>没有</b> = 明说不做或另立项。</div></div>
+<div class="src" style="grid-template-columns:150px 1fr 1fr 220px">
+<div class="hd">积木 / 行为</div><div class="hd">现在仓库里的东西</div><div class="hd">要补的</div><div class="hd">判定</div>
+<div class="bk">一行收据 / 展开体</div><div class="c">无损历史里工具调用和结果已是 message parts（#515，<span class="k">hasToolResult</span>）；MCP 工具名 → 动作家族只是一张映射表。</div><div class="c">动词人话化的映射表（工具名 → 「读取时间轴」）；展开体读同一条 part 的 input/output。</div><div class="c ours"><b>已有</b></div>
+<div class="bk">任务卡 / 缩略图 / 已花</div><div class="c">生成走 productionRun，投影 <span class="k">nomi_get_run</span> 带 jobs、artifact.projectRelativePath、metadata.shotId；单价在模型档案里（模型弹层的「预计单价」同源）。</div><div class="c">卡片订阅 run 投影；「已花」= 完成 job × 单价，前端算。</div><div class="c ours"><b>已有</b></div>
+<div class="bk">介入槽四种体</div><div class="c">审批流 + <span class="k">InterventionSlot</span>（#507 / #514）；计划走 <span class="k">propose_edit_plan → apply_edit_plan</span>；缺凭证走 MCP elicitation URL（#512）。</div><div class="c">反问体（一行文字 + 选项 chip）是新的 kind，走同一个槽。</div><div class="c ours"><b>补一段</b></div>
+<div class="bk">权限三档 / 不再问</div><div class="c"><span class="k">electron/shared/projectAgentContracts.ts</span>：<span class="k">approvalPolicy.mode = step | safe-auto | project</span>，<span class="k">spend = confirm | within-budget</span>。</div><div class="c">三档 = 两个字段的三种组合；「不再问 →」= 写一次 policy。零新概念。</div><div class="c ours"><b>已有</b></div>
+<div class="bk">撤销</div><div class="c"><span class="k">undo_timeline_edit</span>（<span class="k">src/workbench/timeline/agent/timelineCapabilityTarget.ts</span>）；文稿改动走文档历史。</div><div class="c">收据尾部「撤销」绑到对应 op id。</div><div class="c ours"><b>已有</b></div>
+<div class="bk">队列行</div><div class="c">Host enqueue 是历史的唯一作者（#515），运行中继续发送已经排队。</div><div class="c">把队列暴露给面板 + 「插队 / 删」两个动作。</div><div class="c ours"><b>补一段</b></div>
+<div class="bk">上下文环 / token</div><div class="c"><span class="k">src/workbench/ai/agentUsageStore.ts</span>：prompt / completion / total 已按会话累计。</div><div class="c">环 = total / 模型上下文上限；花费 = token × 对话模型单价（档案里要有单价字段，缺的补）。</div><div class="c ours"><b>补一段</b></div>
+<div class="bk">思考行 / 流式 / 打断</div><div class="c"><span class="k">workbenchAgentRunner.ts</span> 已流式；停止按钮已有。</div><div class="c">秒数计时是前端；打断后标「已停」要 runner 回一个终态。</div><div class="c ours"><b>已有</b></div>
+<div class="bk">收起坞 / rail</div><div class="c"><span class="k">ResidentCollapsedDock</span>（#514）已在剪辑面。</div><div class="c">改成同一个 composer 实例落下去，不是第二份。</div><div class="c ours"><b>已有</b></div>
+<div class="bk">Markdown</div><div class="c"><span class="k">src/workbench/common/NomiMarkdown.tsx</span> compact 档。</div><div class="c">代码块复制 / 折叠、外链 icon、图片 → chip 四个小改。</div><div class="c ours"><b>补一段</b></div>
+</div>
+</div>

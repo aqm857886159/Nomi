@@ -1,0 +1,55 @@
+<div class="board" style="width:1440px;height:1330px;display:flex;flex-direction:column;gap:18px">
+<div><div style="font-size:15px;font-weight:600">过程反馈 · 一条消息从发出到落定的 7 个时刻</div><div class="note" style="margin-top:4px">左列：用户看到什么、为什么这样；中列：Nomi v4 面板里的真实样子（390 宽）；右列：Claude Code 终端里对应的做法（我们照着抄语义，不抄字符画）。原则：<b>每个时刻只有一个动的东西</b>，动的东西旁边永远有一个「动词」，动词永远配同一个 icon。</div></div>
+<div class="tline">
+  <div class="mo">1 · 发出<span class="sub">气泡立刻出现，输入框清空。send 按钮变成 ■ 停止。没有「发送中」态——本地先落。</span></div>
+  <div class="nm-"><div class="msg user">把这段结尾收紧一点，别拖。</div></div>
+  <div class="cc"><span class="g">&gt;</span> 把这段结尾收紧一点<span class="g">
+（回显后立即进入 ⏺ 行，无中间态）</span></div>
+  <div class="mo">2 · 思考中<span class="sub">一行 shimmer 文字「正在想…」+ 秒数。不用转圈——转圈没有时间感；秒数告诉用户「没死」。同一行右侧就是 esc / 停止提示。<b>icon = brain</b>，只在这一行出现。</span></div>
+  <div class="nm-"><div class="think">{{i:brain:14}}<span class="shim">正在想…</span><span class="k">4s · esc 打断</span></div></div>
+  <div class="cc"><span class="o">✻</span> Thinking… <span class="g">(4s · ↓ 312 tokens · esc to interrupt)</span></div>
+  <div class="mo">3 · 调工具中<span class="sub">思考行原地变成一行收据：icon = 对象（时间轴就是时间轴 icon），名字 = 人话动词 + 对象，右侧 spinner + 「进行中」。<b>不置顶、不另开卡</b>，就在对话流里，上一条是它的原因。</span></div>
+  <div class="nm-"><div class="rcpt">{{i:timeline:14}}<span class="nm">读取时间轴</span><span class="st run"><span class="spin"></span>进行中</span></div></div>
+  <div class="cc"><span class="o">⏺</span> Read(timeline.json)
+  <span class="g">⎿  Reading…</span></div>
+  <div class="mo">4 · 工具完成<span class="sub">spinner 变 ✓ + 用时，右端 › 可展开看输入/输出。默认收起：用户要的是结果，不是日志。同一行、同一个 icon，只换了尾巴——用户不用重新定位。</span></div>
+  <div class="nm-"><div class="rcpt">{{i:timeline:14}}<span class="nm">读取时间轴</span><span class="sub">3 段 · 9.0s</span><span class="st ok">{{i:check:12}}<span class="sub">0.3s</span>{{i:chevr:12}}</span></div><div class="rcptbody"><div class="k">输入</div><pre>{ "scope": "timeline", "range": "all" }</pre><div class="k">输出</div><pre>clips: 3 · duration: 9.0s · selected: clip-2 (0:03–0:06)</pre></div></div>
+  <div class="cc"><span class="o">⏺</span> Read(timeline.json)
+  <span class="g">⎿  Read 3 clips (ctrl+o to expand)</span></div>
+  <div class="mo">5 · 工具失败<span class="sub">同一行变红 + 原因一句话 + 一个动作。<b>不弹窗、不 toast</b>：错误发生在哪一行就留在哪一行，用户回看时能对上。付费任务必须标「未扣费」。</span></div>
+  <div class="nm-"><div class="rcpt">{{i:film:14}}<span class="nm">生成 3 秒视频</span><span class="st err">{{i:alert:12}}失败</span></div><div class="errbar">{{i:alert:13}}供应商 500 · 未扣费<span class="sp"></span><span class="a">换模型重试</span></div></div>
+  <div class="cc"><span class="o">⏺</span> Bash(kling generate …)
+  <span class="r">⎿  Error: upstream 500</span></div>
+  <div class="mo">6 · 回复流式<span class="sub">文字逐字出现，末尾一个方块光标；Markdown 边流边渲（见「渲染」板）。流完光标消失，出现复制/重试两个小动作。<b>没有 icon</b>：助手文本是主体，不需要标签。</span></div>
+  <div class="nm-"><div class="msg ai streaming">结尾 0.4 秒是静止的，我把它裁掉并让后一镜前移，叠化跟着</div></div>
+  <div class="cc"><span class="o">⏺</span> 结尾 0.4 秒是静止的，我把它裁掉并让后一镜前移，叠化跟着▌</div>
+  <div class="mo">7 · 打断 / 排队<span class="sub">按 esc 或 ■：正在跑的那行标「已停」，已完成的收据不动；排队中的输入停在 composer 顶上一行「排队 1」。停止 = 停这一轮，不撤已做的改动（撤销走收据的「撤销」）。</span></div>
+  <div class="nm-"><div class="rcpt">{{i:photo:14}}<span class="nm">生成 4 张图片</span><span class="sub">2 / 4</span><span class="st">{{i:stop:12}}已停 · 已花 ¥0.24</span></div><div class="queue"><div class="qi"><i></i>把第 2 张做成视频<span class="a"><b>排队 1</b><b class="dn">删</b></span></div></div></div>
+  <div class="cc"><span class="g">⎿  Interrupted · What should Claude do instead?</span></div>
+</div>
+<div style="border-top:1px solid var(--nomi-line-soft);padding-top:14px"><div style="font-size:13px;font-weight:600">icon ↔ 动词 · 一个家族一个 icon，永远不换</div><div class="note" style="margin:4px 0 10px">规则：icon 标的是<b>动的那个对象</b>（文稿 / 时间轴 / 节点 / 图 / 视频 / 音频），不是具体工具名（用户不认识 nomi_timeline_read，认识「时间轴」）；「读」「写」由动词说，不占 icon。状态永远在行尾，不用 icon 表达状态（spinner / ✓ / ⚠ 三个够了）。虚线框 = 有意不做的。</div>
+<div class="icontab">
+<span class="it">{{i:brain:14}}思考<span class="sub">只在思考行</span></span>
+<span class="it">{{i:filetext:14}}读取文稿<span class="sub">read</span></span>
+<span class="it">{{i:timeline:14}}读取时间轴<span class="sub">read</span></span>
+<span class="it">{{i:layers:14}}读取节点 / 落画布<span class="sub">read · canvas</span></span>
+<span class="it">{{i:search:14}}检索 · 素材库/网络<span class="sub">search</span></span>
+<span class="it">{{i:pencil:14}}改写 · 文稿/提示词<span class="sub">write</span></span>
+<span class="it">{{i:photo:14}}生成图片<span class="sub">image</span></span>
+<span class="it">{{i:film:14}}生成视频<span class="sub">video</span></span>
+<span class="it">{{i:music:14}}生成音频/配乐<span class="sub">audio</span></span>
+<span class="it">{{i:scissors:14}}剪辑 · 修剪/拆分/前移<span class="sub">edit</span></span>
+<span class="it">{{i:transition:14}}转场 / 字幕 / 音量<span class="sub">edit</span></span>
+<span class="it">{{i:skill:14}}载入技能<span class="sub">skill</span></span>
+<span class="it">{{i:listcheck:14}}起草 · 计划/分镜<span class="sub">plan</span></span>
+<span class="it">{{i:download:14}}导出<span class="sub">export</span></span>
+<span class="it">{{i:check:14}}完成<span class="sub">状态·行尾</span></span>
+<span class="it">{{i:alert:14}}失败 / 要你决定<span class="sub">状态·行尾</span></span>
+<span class="it bad">{{i:robot:14}}机器人头<span class="sub">不用</span></span>
+<span class="it bad">{{i:sparkles:14}}闪光「AI」<span class="sub">不用</span></span>
+<span class="it bad">{{i:cpu:14}}芯片「模型」<span class="sub">不用，用模型名</span></span>
+<span class="it bad">{{i:loader:14}}纯转圈无文字<span class="sub">不用</span></span>
+<span class="it bad">{{i:hourglass:14}}沙漏<span class="sub">不用，用秒数</span></span>
+</div></div>
+<div class="note">和 Claude Code 对应关系：⏺ 行 = 我们的一行收据 · ⎿ 折叠输出 = 收据展开体 · Thinking… (Ns · esc) = 思考行 · 权限模式（default / accept edits / bypass）= composer 的「每步问 / 自动改 / 全自动」· 弹出时的 Yes / No = 介入槽「确认 / 不要」· Yes-don't-ask = 槽里的「不再问 →」· TodoWrite 清单 = 计划卡 · /context 环 = 头部 Context 环。我们不抄的：字符画、多种思考动词轮换（终端趣味，面板里像抽风）、彩色 diff（时间轴改动直接在时间轴上高亮更直观）。</div>
+</div>

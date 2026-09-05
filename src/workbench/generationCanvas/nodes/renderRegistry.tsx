@@ -62,6 +62,14 @@ const NODE_ICONS: Record<GenerationNodeIconKey, GenerationNodeIcon> = {
   clip: IconScissors,
 }
 
+/**
+ * 节点种类 → 图标组件。左侧工具栏按钮、右键菜单与设计实验室的空态**共用这一个出口**，
+ * 所以「实验室里那颗图标和左边栏那颗不是同一个」这种漂移在结构上不可能发生（P1 无并行版）。
+ */
+export function getGenerationNodeIcon(kind: GenerationNodeKind): GenerationNodeIcon {
+  return NODE_ICONS[GENERATION_NODE_PLUGIN_BY_KIND[kind].icon]
+}
+
 const lazyComponents = new Map<GenerationNodeKind, React.LazyExoticComponent<GenerationNodeComponent>>()
 
 function getLazyGenerationNodeComponent(

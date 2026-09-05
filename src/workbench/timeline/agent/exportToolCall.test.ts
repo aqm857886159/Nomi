@@ -56,6 +56,37 @@ describe('project-scoped export Agent tools', () => {
     expect(deps.startExport).toHaveBeenCalledWith(expect.objectContaining({ projectId: 'project-1', profile: expect.objectContaining({ outputName: 'vertical-cut' }) }))
   })
 
+  // 2026-09-06 根因回归（docs/fixes/2026-09-06-mcp-lease-project-binding.root-cause.json）：
+  // 导出作业按 projectId 在主进程登记表里寻址，跟「Nomi 里正开着哪个项目」无关。已校验的 lease
+  // projectId 必须压过 GUI 当前项目；旧代码把它丢掉、只读 GUI，于是外部宿主拿到没有下一步的
+  // project_scope_required（GUI 没开项目）或者操作了错误的项目（GUI 开着别的项目）。
+  it('addresses export jobs by the verified lease project, not by what the GUI has open', async () => {
+    const noProjectOpen = runtime({ activeProjectId: () => '' })
+    await expect(applyExportToolCall('inspect_export_job', { jobId: 'job-1' }, noProjectOpen))
+      .rejects.toThrow('project_scope_required')
+    await expect(applyExportToolCall('inspect_export_job', { jobId: 'job-1', projectId: 'project-1' }, noProjectOpen))
+      .resolves.toMatchObject({ operation: 'inspect_export_job', jobId: 'job-1', status: 'encoding' })
+
+    const otherProjectOpen = runtime({ activeProjectId: () => 'project-2' })
+    await expect(applyExportToolCall('inspect_export_job', { jobId: 'job-1', projectId: 'project-1' }, otherProjectOpen))
+      .resolves.toMatchObject({ jobId: 'job-1' })
+    await expect(applyExportToolCall('cancel_export_job', { jobId: 'job-1', projectId: 'project-1' }, otherProjectOpen))
+      .resolves.toMatchObject({ cancelled: true })
+
+    const started = runtime({ activeProjectId: () => '' })
+    await expect(applyExportToolCall('export_timeline', {
+      projectId: 'project-1', expectedRevision: timelineRevision(started.readTimeline()),
+    }, started)).resolves.toMatchObject({ accepted: true, jobId: 'job-1' })
+    expect(started.startExport).toHaveBeenCalledWith(expect.objectContaining({ projectId: 'project-1' }))
+  })
+
+  it('scopes verify_render to the same project boundary as inspect and cancel', async () => {
+    const foreign = runtime({ activeProjectId: () => '', getJob: vi.fn(async () => job({ projectId: 'project-2' })) })
+    await expect(applyExportToolCall('verify_render', { jobId: 'job-1', projectId: 'project-1' }, foreign))
+      .rejects.toThrow('export_job_not_found')
+    expect(foreign.verifyJob).not.toHaveBeenCalled()
+  })
+
   it('rejects stale and empty timelines before creating an export job', async () => {
     const deps = runtime()
     await expect(applyExportToolCall('export_timeline', { expectedRevision: 'stale' }, deps)).resolves.toMatchObject({ accepted: false, code: 'stale_revision' })
