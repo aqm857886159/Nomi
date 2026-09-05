@@ -36,7 +36,7 @@
     "test": "node ./scripts/vitest-fair-share.mjs && pnpm run test:agent-worktree-janitor && pnpm run test:agent-runtime",
     "check:vitest-fair-share": "node --test ./scripts/vitest-fair-share.node-test.mjs",
     "test:agent-worktree-janitor": "node --test ./scripts/agent-worktree-janitor.node-test.mjs",
-    "test:agent-runtime": "tsc -p tests/agent-runtime/tsconfig.json && node --test --test-concurrency=1 .tmp/agent-runtime-tests/tests/agent-runtime/*.test.mjs",
+    "test:agent-runtime": "tsc -p tests/agent-runtime/tsconfig.json && node --test --test-concurrency=1 --test-timeout=60000 .tmp/agent-runtime-tests/tests/agent-runtime/*.test.mjs",
     "test:agent-system:l1": "tsc -p tests/agent-system/tsconfig.json && node --test --test-concurrency=1 .tmp/agent-system-tests/tests/agent-system/contracts/l1-replay.node-test.mjs",
     "test:agent-system:m0-m1": "tsc -p tests/agent-system/tsconfig.json && node --test --test-concurrency=1 .tmp/agent-system-tests/tests/agent-system/schema.node-test.mjs .tmp/agent-system-tests/tests/agent-system/contracts/l1-replay.node-test.mjs",
     "test:build": "pnpm run build",
