@@ -1,0 +1,143 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-06-mcp-lease-project-binding",
+  "problem_type": "MCP lease project identity discarded by the renderer capability adapters",
+  "symptom": "A verified MCP lease bound to project P fails on nomi_export_job and nomi_media_query with `project_scope_required: an active project is required`, and nomi_timeline_read / nomi_timeline_edit either fail with the same dead-end code or silently operate on whatever project the human happens to have open in Nomi.",
+  "direct_cause": "electron/capabilityCore/rpcServer.ts already puts `projectId: lease.projectId` into the renderer payload for the M2 semantic routes, but src/workbench/timeline/agent/exportToolCall.ts, mediaToolCall.ts and timelineCapabilityTarget.ts drop it and read getDesktopActiveProjectId() instead, while capabilityApplyHandler.ts let a lease-bound call through whenever no project was open at all.",
+  "class_root": "The M2 semantic capability family has no single place where the verified lease project becomes the project identity. Each renderer adapter re-derives ownership from GUI state after the authority has already decided it, so the transport's answer and the adapter's answer can differ per route.",
+  "affected_population": [
+    "Any MCP client that creates or selects a project other than the one open in the Nomi window",
+    "MCP clients running while Nomi has no project open",
+    "The timeline, export and media capability routes, which share the same renderer adapter family"
+  ],
+  "scope_paths": [
+    "electron/capabilityCore/rpcServer.ts",
+    "src/workbench/capability/capabilityApplyHandler.ts",
+    "src/workbench/capability/capabilityProjectBinding.ts",
+    "src/workbench/timeline/agent/phase4CapabilityTargets.ts",
+    "src/workbench/timeline/agent/timelineCapabilityTarget.ts",
+    "src/workbench/timeline/agent/exportToolCall.ts",
+    "src/workbench/timeline/agent/mediaToolCall.ts",
+    "src/i18n/locales/runtime.ts"
+  ],
+  "entry_points": [
+    "MCP loopback RPC timeline.read / timeline.write / export.read / asset.read renderer payload",
+    "Renderer capability apply channel (capability.onApply → handleCapabilityApply)",
+    "In-app Project Agent Host surface ports, which call the same adapters without a lease"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Lease project identity, GUI active-project identity and the renderer capability payload are internal Nomi contracts; no third-party API shape is involved.",
+  "invariants": [
+    "After lease verification the verified projectId is the project identity for every project-scoped capability; adapters never re-derive it from GUI state when it is supplied.",
+    "Project-addressable faces (asset.read, export.read) answer for the lease project regardless of which project the GUI has open, including when no project is open.",
+    "Realtime-surface faces (timeline.read, timeline.write) refuse whenever the lease project is not the open project — no project open counts as not matching — and the refusal names the lease project, the open project and the next action in the user's language.",
+    "The renderer builds strict semantic capability inputs field by field from the transport payload; it never spreads the transport envelope into a strict semantic schema."
+  ],
+  "generality_proof": "One boundary (capabilityProjectBinding.ts, consumed by handleCapabilityApply) classifies every lease-bound op into the addressable or realtime face and decides identity once. The adapters take the decided projectId explicitly through a single shared resolver, so a new MCP route inherits the rule by being listed in one of the two sets rather than by re-implementing an active-project lookup.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/capability/capabilityProjectBinding.ts",
+      "symbol": "MCP_PROJECT_ADDRESSABLE_CAPABILITY_OPS / MCP_REALTIME_SURFACE_CAPABILITY_OPS / resolveCapabilityProjectId",
+      "responsibility": "Single definition of which capability faces can be addressed by project id, which are bound to the open project, and how an adapter resolves the project identity (explicit lease first, GUI fallback only for in-app callers)."
+    },
+    {
+      "path": "src/workbench/capability/capabilityApplyHandler.ts",
+      "symbol": "handleCapabilityApply project identity gate",
+      "responsibility": "The one renderer entry for main-forwarded capability ops: applies the face split, raises the actionable binding error, and hands the verified projectId to the adapters."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/timeline/agent/exportToolCall.ts",
+      "entry_point": "export_timeline, inspect_export_job, verify_render, cancel_export_job",
+      "disposition": "enforced",
+      "evidence": "scopeProjectId() resolves the explicit lease project before the GUI fallback; verify_render now passes the same job-ownership gate as inspect and cancel instead of skipping it."
+    },
+    {
+      "path": "src/workbench/timeline/agent/mediaToolCall.ts",
+      "entry_point": "search_media, get_media, inspect_media, inspect_source_range, read_waveform",
+      "disposition": "enforced",
+      "evidence": "scopeProjectId() resolves the explicit lease project before the GUI fallback for every media operation."
+    },
+    {
+      "path": "src/workbench/timeline/agent/timelineCapabilityTarget.ts",
+      "entry_point": "apply_edit_plan, undo_timeline_edit",
+      "disposition": "enforced",
+      "evidence": "writeProjectId() takes the verified lease project for the receipt and undo metadata instead of re-reading getDesktopActiveProjectId(); mismatches were already refused upstream by the identity gate."
+    },
+    {
+      "path": "src/workbench/capability/capabilityApplyHandler.ts",
+      "entry_point": "timeline.read (read_timeline, inspect_timeline_range, propose_edit_plan)",
+      "disposition": "enforced",
+      "evidence": "This face reads the open project's live renderer store and cannot address another project, so it is declared a realtime face: the identity gate refuses it with the actionable binding error naming both projects instead of letting it answer for the wrong one. Proven by capabilityApplyHandler.projectBinding.test.ts and by the real GUI + stdio journey."
+    },
+    {
+      "path": "electron/capabilityCore/dispatcher.ts",
+      "entry_point": "headless (no-GUI) stdio dispatch of timeline.read / timeline.write / export.read / asset.read",
+      "disposition": "not-affected",
+      "evidence": "These methods have no dispatcher case at all, so a no-GUI stdio host gets `未知方法` for the whole M2 family. That is a missing headless route, not a project-identity defect, and building a main-process timeline executor would duplicate the renderer timeline kernel (P1). Recorded here so the next owner finds it; the delivered journey therefore runs against a real GUI, which is also the transport the reported bug was filed on."
+    },
+    {
+      "path": "src/desktop/activeProject.ts",
+      "entry_point": "every other getDesktopActiveProjectId() caller (browser overlay, upload/task APIs, preview playback, onboarding, canvas node controls)",
+      "disposition": "not-affected",
+      "evidence": "Scanned all callers of this module: outside the three MCP adapters they are GUI-only surfaces with no lease in front of them, so reading the open project is their correct and only meaning."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The family already spans three adapters and four MCP routes, and each one lost the same identity independently. A new project-scoped capability adapter can repeat it by calling getDesktopActiveProjectId() after the lease has already been verified.",
+    "same_class_scan": [
+      "Searched every getDesktopActiveProjectId() and activeProjectId() caller in src/ and electron/: the MCP-facing family is exactly timelineCapabilityTarget.ts, mediaToolCall.ts and exportToolCall.ts; all other callers are GUI-only surfaces.",
+      "Traced the transport: MCP_EDITING_METHODS routes (timeline.read/write, document.write, export.read, asset.read, layout.read/write) all reach the renderer through requestRenderer → handleCapabilityApply with lease.projectId in the payload — one entry, so the gate has one home.",
+      "Checked document.write and layout.read/write: they do not read the active project (they read activeDocumentId / editingPanelLayout), so they stay on the pre-existing generic guard rather than being pulled into this fix.",
+      "Ran the fix through a real GUI + real MCP stdio journey, which exposed a second never-reachable defect in the same handler: asset.read spread the transport envelope into a strict semantic schema, so nomi_media_query returned capability_input_invalid on every call."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/capability/capabilityProjectBinding.ts",
+    "invariant": "Lease-bound capability ops are classified once into a project-addressable face (identity = lease projectId) or a realtime face (identity must equal the open project, otherwise an actionable localized refusal); adapters resolve identity only through resolveCapabilityProjectId.",
+    "failure_mode": "An adapter that goes back to reading GUI state fails capabilityApplyHandler.projectBinding.test.ts and the real-process journey, which assert both the forwarded projectId and the actionable refusal text.",
+    "exception_policy": "none",
+    "strategy": "Decide project identity once at the renderer entry where the verified lease arrives, split by whether the face can physically address a non-open project, and make every adapter take that decision explicitly instead of re-deriving it.",
+    "artifacts": [
+      "src/workbench/capability/capabilityProjectBinding.ts",
+      "src/workbench/capability/capabilityApplyHandler.ts",
+      "src/workbench/timeline/agent/phase4CapabilityTargets.ts",
+      "src/workbench/timeline/agent/timelineCapabilityTarget.ts",
+      "src/workbench/timeline/agent/exportToolCall.ts",
+      "src/workbench/timeline/agent/mediaToolCall.ts",
+      "src/i18n/locales/runtime.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/capability/capabilityApplyHandler.projectBinding.test.ts",
+    "src/workbench/timeline/agent/exportToolCall.test.ts",
+    "src/workbench/timeline/agent/mediaToolCall.test.ts",
+    "tests/ux/mcp-lease-project-binding.e2e.mjs"
+  ],
+  "class_regression_tests": [
+    "src/workbench/capability/capabilityApplyHandler.projectBinding.test.ts",
+    "tests/ux/mcp-lease-project-binding.e2e.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/i18n/locales/runtime.ts",
+      "src/workbench/capability/capabilityApplyHandler.ts"
+    ],
+    "rationale": "The non-actionable `runtime.capability.projectChanged` string and the guard that read it are deleted in the same commit (no parallel message, no fallback); the GUI-only inference inside the three adapters is replaced by the shared explicit-first resolver."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency is added, upgraded or removed; the repair uses existing capability contracts and the existing renderer transport.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted data or schema changes. Existing MCP clients see the same tool surface; previously failing calls now succeed or return a named, actionable refusal.",
+  "residual_risks": [
+    "A renderer-owned realtime timeline surface still cannot edit a project that is not open; the refusal tells the user which project to open, and the journey proves that instruction actually unblocks the same lease.",
+    "The no-GUI stdio transport still has no dispatcher route for the M2 semantic family (recorded above as out-of-scope); a headless host gets `未知方法` rather than a project-identity error.",
+    "getActiveWorkbenchProjectId() and getDesktopActiveProjectId() remain two definitions of 'the active project'. The MCP path no longer depends on which one it asks, but the in-app path still can; that duplication is untouched here."
+  ]
+}
