@@ -527,7 +527,6 @@ try {
   await win.waitForTimeout(250)
   const clickingEdgeShowsNativeControl = (await win.locator('.generation-canvas-v2__edge-control[data-active="true"]').count()) === 1
   await screenshotSettled(win, { path: screenshots.outputs, fullPage: true })
-  await win.locator('.generation-canvas-v2__edge-control[data-active="true"] button').click()
 
   const firstBox = await first.boundingBox()
   if (!firstBox) throw new Error('找不到首个片段')
