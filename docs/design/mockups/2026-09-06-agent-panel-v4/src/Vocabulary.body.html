@@ -1,0 +1,54 @@
+<div class="board" style="width:1440px;height:1660px">
+  <p class="h" style="font-size:16px">Agent 面板 v4 · 8 个积木（用户只需要认这 8 种东西；其余全是状态）</p>
+  <div class="note" style="margin-bottom:16px;max-width:1100px">解剖照 AI Elements（Message / Tool / Task / Confirmation / Queue / PromptInput / Context），外观照 Beautiful UI（Approval Card · Tool Chips · Task Rows · Prompt Bar）与 MiniMax Design 实测截图，颜色 / 圆角 / 字体全部直接引用 src/theme/nomi-tokens.css 的变量（本页样张 CSS 里没有一个手写色值）。每格右侧一句「这是什么 · 为什么 · 参照哪里」。</div>
+  <div class="grid" style="grid-template-columns:366px 366px 1fr">
+    <!-- 1 用户气泡 -->
+    <div class="cell"><div class="h">① 用户气泡</div><div class="stack"><div class="msg user">把第 2 镜的结尾收紧一点，别拖。</div><div class="msg user"><div class="att" style="display:flex;gap:6px;margin-bottom:6px"><span class="a" style="display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 6px 0 4px;border-radius:6px;background:oklch(1 0 0/.12);font-size:11px"><span class="t" style="width:16px;height:12px;border-radius:2px;background:oklch(1 0 0/.4)"></span>参考.png</span></div>照这张图的风格重做第 3 镜。</div></div></div>
+    <div class="cell"><div class="h">② 助手文本</div><div class="stack"><div class="msg ai streaming">我先读一遍时间轴，再决定裁多少</div><div class="msg ai">最长的一段是「推门近景」，3.0 秒。要不要把结尾收 0.4 秒？<div class="acts">{{i:copy:14}}{{i:refresh:14}}</div></div><div class="msg ai" style="color:var(--nomi-ink-60)">已中断，保留到这里。<span class="more">继续 {{i:chevr:12}}</span></div></div></div>
+    <div class="cell"><div class="why"><b>①</b> 右对齐深色气泡，附件缩成小 chip 在气泡内。参照：现役 + MiniMax（09 图）。<br><b>②</b> 纯文本无框（AI Elements Message assistant 无底色）；三态：生成中光标 · 完成（hover 出复制/重来两个图标）· 已中断（灰字 + 继续）。超长只折叠不换形态。</div></div>
+    <!-- 3 一行收据 -->
+    <div class="cell"><div class="h">③ 一行收据（Tool）</div><div class="stack">
+      <div class="rcpt">{{i:timeline:14}}<span class="nm">读取时间轴</span><span class="st run"><span class="spin"></span>进行中</span></div>
+      <div class="rcpt">{{i:timeline:14}}<span class="nm">读取时间轴</span><span class="sub">3 段 · 9.0s</span><span class="st ok">{{i:check:12}}<span class="sub">0.4s</span>{{i:chevr:12}}</span></div>
+      <div class="rcpt open">{{i:timeline:14}}<span class="nm">读取时间轴</span><span class="st ok">{{i:check:12}}{{i:chev:12}}</span></div>
+      <div class="rcptbody"><div class="k">读到</div><pre>推门近景 0:03.00–0:06.00 · 3.0s（最长）
+开场远景 0:00–0:03 · 眼神反应 0:06–0:09</pre></div>
+      <div class="rcpt">{{i:skill:14}}<span class="nm">载入技能</span><span class="sub">编剧 · Kasdan</span><span class="st ok">{{i:check:12}}</span></div>
+      <div class="rcpt">{{i:clip:14}}<span class="nm">读取附件</span><span class="sub">参考.png · 定位到画布</span><span class="st ok">{{i:check:12}}</span></div>
+      <div class="rcpt">{{i:side:14}}<span class="nm">收起属性面板</span><span class="st ok">{{i:check:12}}<span class="sub">撤销</span></span></div>
+      <div class="rcpt">{{i:timeline:14}}<span class="nm">读取时间轴</span><span class="st err">{{i:x:12}}项目未打开</span></div>
+    </div></div>
+    <div class="cell"><div class="h">④ 任务卡（Task）</div><div class="stack">
+      <div class="task"><div class="th">{{i:photo:14}}生成 1 张图片<span class="st run">· 排队 2 / 3</span></div></div>
+      <div class="task"><div class="th">{{i:photo:14}}生成 1 张图片<span class="st run">· 生成中</span><span class="cnt">14s</span></div><div class="tb"><div class="ex">第 2 镜参考图：蓝色水杯置于白色桌面，自然光落到杯沿…</div><div class="chips"><span class="chip">GPT Image 2</span><span class="chip">16:9</span><span class="chip">2K</span><span class="chip cost">≈ ¥0.12</span></div><div class="prog" style="--p:45%"></div></div></div>
+      <div class="task"><div class="th">{{i:photo:14}}生成 3 张图片<span class="st ok">· 完成</span><span class="cnt">¥0.36</span></div><div class="tb"><div class="thumbs"><div class="thumb pick"><span class="tag">采用</span></div><div class="thumb"></div><div class="thumb"></div></div><div class="foot"><span>点一张即采用，其余留在历史</span><span class="sp"></span><span class="undo">撤销</span></div></div></div>
+      <div class="task"><div class="th">{{i:film:14}}生成 3 秒视频<span class="st err">· 失败</span></div><div class="tb"><div class="errbar">{{i:alert:13}}供应商 500 · 未扣费<span class="sp"></span><span class="a">换模型重试</span></div></div></div>
+      <div class="task"><div class="th">{{i:film:14}}生成 3 秒视频<span class="st stop">· 已停止</span><span class="cnt">已完成 2 / 4 帧任务</span></div></div>
+    </div></div>
+    <div class="cell"><div class="why"><b>③</b> 一行 28px：图标 + 动作名 + 摘要 + 右侧状态；只有「还有内容可看」才有 ›，点开就地展开（AI Elements Tool：header + content）。技能载入、附件读取、布局改动都是它，**内联在发生的位置，不置顶**（用户点名 + 实验室 D1）。参照：Claude Code 的工具行、MiniMax「读取了 1 个文件 ›」。<br><b>④</b> 卡头 = 类型图标 + 标题 + 状态 + 右侧计数 / 用时 / 花费；卡体 = 提示词摘录（2 行）+ 参数 chip + 进度条 / 缩略图 / 结果。五态：排队 · 生成中 · 完成 · 失败 · 已停止；多候选 = 完成态结果区多张，点一张即采用（用户拍板）。**每张卡都带花费**——MiniMax 没有，这是我们要赢的地方。参照：MiniMax 任务卡（13b、21f）、AI Elements Task、Beautiful UI Task Rows。</div></div>
+    <!-- 5 介入槽 -->
+    <div class="cell"><div class="h">⑤ 介入槽（Confirmation）· 审批</div><div class="stack">
+      <div class="slot"><div class="sh">{{i:alert:13}}要删掉画布上的 3 个节点<span class="sp"></span><span class="sub">不可逆</span></div><div class="sb">镜头 4、5、6 及它们的生成记录。<div class="rng">范围：仅这一次</div></div><div class="sa"><span class="bt p">{{i:check:12}}删除</span><span class="bt dn">不要</span></div></div>
+      <div class="slot"><div class="sh">{{i:check:13}}修剪镜头 2 尾部 0.4 秒<span class="sp"></span><span class="sub">可撤销</span></div><div class="sb"><div class="rng">已在时间轴高亮，未落盘 · 不计费</div></div><div class="sa"><span class="bt p">确认</span><span class="sub" style="margin-left:6px">不再问 →</span><span class="sp"></span><span class="bt dn">不要</span></div></div>
+      <div class="slot"><div class="sh">{{i:check:13}}修剪镜头 2 尾部 0.4 秒</div><div class="sb"><div class="rng">拒绝原因（可选）</div><div style="height:28px;border:1px solid var(--nomi-line);border-radius:var(--nomi-radius-sm);padding:0 8px;display:flex;align-items:center;font-size:12px;color:var(--nomi-ink-40)">这次先不删，保留镜头待复核</div></div><div class="sa"><span class="sp"></span><span class="bt q">取消</span><span class="bt dn">确认不要</span></div></div>
+      <div class="slot"><div class="sh">{{i:bolt:13}}要花 ¥1.20 生成 4 段视频<span class="sp"></span><span class="sub">付费</span></div><div class="sb"><div class="chips"><span class="chip">Kling O1</span><span class="chip">4 × 3s</span><span class="chip">std</span><span class="chip cost">¥1.20</span></div></div><div class="sa"><span class="bt p">{{i:check:12}}生成</span><span class="bt dn">不要</span></div></div>
+    </div></div>
+    <div class="cell"><div class="h">⑤ 介入槽 · 反问 / 计划 / 缺东西</div><div class="stack">
+      <div class="slot"><div class="sh">{{i:msg:13}}第 2 镜参考图用什么画幅？</div><div class="sb"><div class="opts"><span class="opt on">16:9 横版</span><span class="opt">9:16 竖版</span><span class="opt">1:1</span></div></div></div>
+      <div class="slot"><div class="sh">{{i:list:13}}拆出 4 镜，勾选要生成的<span class="sp"></span><span class="sub">≈ ¥0.48</span></div><div class="sb"><div class="plan"><div class="pr"><span class="cb on">✓</span>1 开场远景 · 蓝色水杯推门<span class="d">3.0s</span></div><div class="pr"><span class="cb on">✓</span>2 推门近景 · 水流特写<span class="d">4.0s</span></div><div class="pr"><span class="cb">·</span>3 眼神反应 · 缺首帧<span class="d">4.0s</span></div><div class="pr"><span class="cb on">✓</span>4 尾声 · 产品定格<span class="d">4.0s</span></div></div></div><div class="sa"><span class="bt p">生成 3 镜</span><span class="bt q">改一下</span><span class="sp"></span><span class="sub">收起 ▴</span></div></div>
+      <div class="slot"><div class="sh">{{i:plug:13}}Kling 还没配密钥</div><div class="sb"><div class="rng">在 Nomi 自己的窗口里填，模型看不到。</div></div><div class="sa"><span class="bt p">去配置</span><span class="bt q">换个模型</span></div></div>
+      <div class="slot"><div class="sh">{{i:alert:13}}第 3 镜没有首帧，跳过还是先生图？</div><div class="sb"><div class="opts"><span class="opt">先生图（+¥0.12）</span><span class="opt on">跳过</span></div></div></div>
+    </div></div>
+    <div class="cell"><div class="why"><b>⑤</b> 一个组件，kind 不同：审批 / 付费 / 反问 / 计划 / 缺凭证 / 缺参数 / 有出入。永远只在输入框上方那一格出现，一次一张，多张排队计数。按钮只有「确认 / 不要」；可撤销的改动才显示「不再问 →」（点了 = 权限抬一档），不可逆的和花钱的永远逐次问；拒绝原因渐进披露（点了「不要」才出输入框）。反问 = 一行文字 + 选项芯片（用户拍板）；计划卡可就地展开成勾选表（用户拍板）。参照：AI Elements Confirmation（Approve / Reject 状态机）、Beautiful UI Approval Card、MiniMax 追问画幅（11b）。</div></div>
+    <!-- 6 队列 7 收起坞 8 context -->
+    <div class="cell"><div class="h">⑥ 队列行（Queue）</div><div class="stack">
+      <div class="queue"><div class="qi"><i class="run"></i>把这段结尾收紧一点<span class="a"><b>进行中</b></span></div><div class="qi"><i></i>给 2、3 之间加叠化<span class="a"><b>插队</b><b class="dn">删</b></span></div><div class="qi"><i></i>把第 2 镜字幕改成「清爽相伴」<span class="a"><b>插队</b><b class="dn">删</b></span></div></div>
+      <div class="queue"><div class="qi done"><i></i>把这段结尾收紧一点</div><div class="qi"><i class="run"></i>给 2、3 之间加叠化<span class="a"><b>立即中断</b></span></div></div>
+    </div></div>
+    <div class="cell"><div class="h">⑦ 收起坞 · ⑧ 上下文用量（Context）</div><div class="stack">
+      <div style="display:flex;gap:10px;align-items:flex-start"><div class="rail" style="height:120px;border:1px solid var(--nomi-line);border-radius:var(--nomi-radius-sm)"><span class="ri on">{{i:msg:14}}<span class="st"></span></span><span class="ri">{{i:adjust:14}}</span></div><div class="note" style="flex:1">右栏收起 = 一根 32px 图标条；Nomi 图标带运行状态点。输入框落到预览下沿居中（见结果全屏板）。</div></div>
+      <div style="display:flex;gap:10px;align-items:flex-start"><span class="ctx"><span class="ring" style="--p:31%"></span>31%</span><div class="ctxcard"><div style="display:flex;justify-content:space-between"><b>31%</b><span class="cap">62.4K / 200K</span></div><div class="bar" style="--p:31%"></div><div class="row"><span>输入</span><b>48.1K</b></div><div class="row"><span>输出</span><b>9.8K</b></div><div class="row"><span>推理</span><b>2.1K</b></div><div class="row"><span>缓存命中</span><b>2.4K</b></div><div class="ft"><span>本线程花费</span><span>¥0.83</span></div></div></div>
+    </div></div>
+    <div class="cell"><div class="why"><b>⑥</b> 输入框上方一小块：进行中 · 排队 · 插队 · 立即中断；完成的划掉。↑ 取回编辑。参照：AI Elements Queue、MiniMax 运行中占位「可继续输入，将排队发送」。<br><b>⑦</b> 结果全屏时右栏收成图标条，对话不中断。<br><b>⑧</b> 面板头部一个小环 + 百分比，hover 出真实 token 分项与本线程花费；替换现役「还能聊 ~40 轮」估计（用户点名要真实用量）。参照：AI Elements Context。</div></div>
+  </div>
+</div>

@@ -1,0 +1,56 @@
+<div class="board" style="width:1440px;height:1000px">
+  <p class="h" style="font-size:16px">composer 与三个弹层（底栏照 MiniMax：`[+] [模型名 ▾] ｜ [Skill] …… [权限 ▾] [↑/■]`）</p>
+  <div class="grid" style="grid-template-columns:390px 390px 1fr">
+    <div class="cell"><div class="h">空闲 / 运行中 / 带引用</div>
+      <div class="panel" style="width:390px"><div class="composer focus"><div class="txt">继续告诉 Nomi 要改什么… @ 引用素材或技能</div><div class="bar"><span class="cb i" title="添加任意文件">{{i:plus:16}}</span><span class="cb">GPT-5.6 {{i:chev:12}}</span><span class="vsep"></span><span class="cb">{{i:skill:14}}Skill</span><span class="sp"></span><span class="cb">自动改 {{i:chev:12}}</span><span class="send on">{{i:up:15}}</span></div></div></div>
+      <div class="panel" style="width:390px"><div class="composer run"><div class="txt">可继续输入，将排队发送…</div><div class="bar"><span class="cb i">{{i:plus:16}}</span><span class="cb">GPT-5.6 {{i:chev:12}}</span><span class="vsep"></span><span class="cb">{{i:skill:14}}Skill</span><span class="sp"></span><span class="cb">自动改 {{i:chev:12}}</span><span class="send stop"><span style="width:10px;height:10px;border-radius:2px;background:var(--nomi-ink)"></span></span></div></div></div>
+      <div class="panel" style="width:390px"><div class="composer"><div class="att"><span class="a"><span class="t"></span>参考.png <span class="x">{{i:x:11}}</span></span><span class="a sk">{{i:skill:12}}编剧 · Kasdan <span class="x">{{i:x:11}}</span></span><span class="a"><span class="t" style="background:var(--nomi-track-video, var(--nomi-accent))"></span>推门近景 · 0:03–0:06 <span class="x">{{i:x:11}}</span></span></div><div class="txt has">照这张图的风格，把推门近景重做一版</div><div class="bar"><span class="cb i">{{i:plus:16}}</span><span class="cb">GPT-5.6 {{i:chev:12}}</span><span class="vsep"></span><span class="cb on">{{i:skill:14}}Skill <span class="dot"></span></span><span class="sp"></span><span class="cb">自动改 {{i:chev:12}}</span><span class="send on">{{i:up:15}}</span></div></div></div>
+      <div class="why"><b>[+]</b> 一个加号 = 系统文件选择器，任意文件；拖任何东西进来都落成上方 chip（附件、技能、选中的片段 / 节点三种 chip 同一形态）。<b>没有语音钮</b>（我们没有语音输入）。<b>模型钮</b>显示当前对话模型名（用户点名，参照 ChatCut）。<b>Skill</b> 选中后成 chip，钮上一个点表示已引用。右侧<b>权限</b>文字胶囊（参照 MiniMax「自动 ▾」），发送钮运行中变 ■，占位改「可继续输入，将排队发送」。</div>
+    </div>
+    <div class="cell"><div class="h">模型弹层 · 对话模型 + 三类生成默认预设</div>
+      <div class="pop"><div class="pt">模型<span class="sp"></span><span>每类一个默认，Agent 帮你生成时用它</span></div>
+        <div class="pr"><span class="k">对话</span>GPT-5.6<span class="v">GPT-5.6 {{i:chev:11}}</span></div>
+        <div class="pr"><span class="k">图片默认</span>NanoBanana 2<span class="cost">≈¥0.12/张</span><span class="v">2K {{i:chev:11}}</span></div>
+        <div class="pr"><span class="k">视频默认</span>Kling O1<span class="cost">≈¥0.30/秒</span><span class="v">std {{i:chev:11}}</span></div>
+        <div class="pr"><span class="k">音频默认</span>Music 3.0<span class="cost">≈¥0.05/秒</span><span class="v">{{i:chev:11}}</span></div>
+        <div class="pf">{{i:plug:12}}去模型库添加 / 接自己的 key<span class="sp"></span>{{i:chevr:12}}</div></div>
+      <div class="why" style="margin-top:8px">四行一个弹层，替换现役「去选文本模型 / 去模型库添加」两级冗余。三类生成模型各一个默认预设（用户早前点名），预设读写走现役模型档案的单一真相。每行带<b>预计单价</b>——MiniMax 的模型面板没有价格（18、19 图），这是我们赢的一点。</div>
+      <div class="h" style="margin-top:14px">权限 · 三档（已拍板，照 Claude Code 的 default / accept edits / bypass）</div>
+      <div style="display:flex;gap:16px;align-items:center"><span class="seg"><span>每步问</span><span class="on">自动改</span><span>全自动</span></span><span class="sub">默认「自动改」</span></div>
+      <div class="why" style="margin-top:6px"><b>每步问</b>：改动、花钱、计划都先问。<b>自动改</b>：文稿和时间轴改动直接做（收据可撤销），付费生成才问。<b>全自动</b>：都不问，流里只留收据。范围不是权限：选中的 chip 已经限定了改哪。这三档直接对应仓库合同 <code>approvalPolicy.mode = step / safe-auto / project</code> 和 <code>spend = confirm / within-budget</code>，不新造。介入槽里点「不再问 →」= 当场抬到下一档。</div>
+    </div>
+    <div class="cell"><div class="h">Skill 弹层 · 搜索 + 分类 + 列表 + hover 预览</div>
+      <div class="pop" style="width:330px"><div class="search">{{i:list:12}}搜索技能，或输入 / 命令</div><div class="cats"><span class="on">全部</span><span>我的</span><span>剧本</span><span>分镜</span><span>剪辑</span><span>配乐</span><span>营销</span></div>
+        <div class="sk hover"><div class="cover" style="background:var(--nomi-accent-soft)"></div><div><div class="n">编剧 · Kasdan <code>/kasdan</code></div><div class="d">三幕结构拆场，给每场冲突与转折</div></div></div>
+        <div class="sk"><div class="cover"></div><div><div class="n">拆镜头 <code>/shots</code></div><div class="d">按导演方法论把剧本拆成分镜表</div></div></div>
+        <div class="sk"><div class="cover"></div><div><div class="n">节奏剪辑 <code>/pace</code></div><div class="d">按情绪曲线收紧或放松每一镜</div></div></div>
+        <div class="sk"><div class="cover"></div><div><div class="n">产品短片 <code>/product-ad</code></div><div class="d">15 秒电商产品片模板</div></div></div>
+        <div class="pf">探索更多<span class="sp"></span>{{i:plus:12}}新建 · 管理</div></div>
+      <div class="why" style="margin-top:8px">照 MiniMax（24b 图）：搜索框、分类 chip、列表行 = 名称 + /命令 + 一句描述；hover 一行时左侧封面换成该技能的预览视频（MiniMax 没做，我们做）。选中即成 composer 里的引用 chip；「新建 · 管理」退到底部一行小链接（用户点名不是重点）。图标换 `IconPackage`，删「默认自动匹配」文案。</div>
+    </div>
+  </div>
+
+<div style="grid-column:1/-1;border-top:1px solid var(--nomi-line-soft);padding-top:14px;display:grid;grid-template-columns:390px 390px 390px;gap:16px 24px;align-items:start">
+  <div class="cell"><div class="h">高度 ① 初始 · 一行</div><div class="panel" style="width:390px"><div class="composer"><div class="txt">继续告诉 Nomi 要改什么…</div><div class="bar"><span class="cb i">{{i:plus:16}}</span><span class="cb">GPT-5.6 {{i:chev:12}}</span><span class="vsep"></span><span class="cb">{{i:skill:14}}Skill</span><span class="sp"></span><span class="cb">自动改 {{i:chev:12}}</span><span class="send">{{i:up:15}}</span></div></div></div><div class="why">textarea 最小 1 行（行高 20），整块 ≈ 84px。现在实机空框有两行半高（收官 A 截图里约 130px），改回一行——空框不该占位。</div></div>
+  <div class="cell"><div class="h">高度 ② 自动增长 · 逐行长</div><div class="panel" style="width:390px"><div class="composer focus"><div class="txt lines">把第 2 镜的结尾收紧一点，
+然后 2、3 之间加叠化 12 帧，
+第 2 镜字幕改成「清爽相伴」，
+镜头 2 音量降 6dB</div><div class="bar"><span class="cb i">{{i:plus:16}}</span><span class="cb">GPT-5.6 {{i:chev:12}}</span><span class="vsep"></span><span class="cb">{{i:skill:14}}Skill</span><span class="sp"></span><span class="cb">自动改 {{i:chev:12}}</span><span class="send on">{{i:up:15}}</span></div></div></div><div class="why">随内容一行一行长，工具条始终贴底不动。上方消息区 <code>min-height:0</code> 让位、自己内部滚（沿用实施契约 §6.2「Dock 内部滚动，不挤压或遮住时间线」）。</div></div>
+  <div class="cell"><div class="h">高度 ③ 到顶 · 内部滚动</div><div class="panel" style="width:390px"><div class="composer focus" style="position:relative"><div class="txt lines capped">这是一段贴进来的长提示词：她推开咖啡馆的门，
+红色杯子放在白色桌面上，侧光，浅景深，
+胶片颗粒，16:9，镜头缓慢推进，
+背景虚化的街道有行人经过，
+杯沿有一道高光随时间移动，
+最后她按下录制键，画面定格。
+（下面还有 6 行）</div><span class="sbar"></span><div class="bar"><span class="cb i">{{i:plus:16}}</span><span class="cb">GPT-5.6 {{i:chev:12}}</span><span class="vsep"></span><span class="cb">{{i:skill:14}}Skill</span><span class="sp"></span><span class="cb">自动改 {{i:chev:12}}</span><span class="send on">{{i:up:15}}</span></div></div></div><div class="why">封顶后 textarea 内部滚动，光标行永远可见；不弹「太长」提示。滚轮在框内到边界不外泄到画布 / 时间轴（2026-08-13 提示词滚轮那条坑同一根因）。</div></div>
+  <div class="cell" style="grid-column:1/-1"><div class="h">上限怎么定（随面板高度 derive，不写死）</div><div class="hrule" style="grid-template-columns:150px 1fr 150px 1fr;column-gap:24px">
+    <b>面板高 ≥ 800</b><span>textarea 上限 = 面板高 × 40%（900 高 ≈ 12 行）</span>
+    <b>面板高 640–800</b><span>上限 = 30%（13" 笔电 ≈ 8 行）</span>
+    <b>面板高 &lt; 640</b><span>上限 = 6 行，附件 chip 行最多 2 行、多的收成「+N」</span>
+    <b>收起坞（结果全屏）</b><span>上限 6 行——它压在画面上，不能盖住预览</span>
+    <b>面板宽</b><span>默认 390，可拖 320–520；&lt; 320 直接收成 rail</span>
+    <b>键盘</b><span>Enter 发送 · Shift+Enter 换行 · 中文输入法 composition 期间 Enter 不发送</span>
+    <b>粘贴 / 拖入</b><span>长文本直接长到上限；文件落成 chip 不占 textarea 行</span>
+  </div><div class="why" style="margin-top:8px">这四条都是「随输入 derive」：一个 <code>useComposerHeight(panelHeight, mode)</code> 算出 max-height，textarea 用 field-sizing / 测量 scrollHeight 长高。AI Elements PromptInput 自带 textarea 自动长高，我们只补上限。</div></div>
+</div>
+</div>
