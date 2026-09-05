@@ -30,13 +30,17 @@ export type DynamicPrefix =
  * 某条已经不再过宽也报红，逼你把它摘掉）。清账方式**不是**改注册表，是改调用点：
  * 常量存**整键**并 `satisfies TranslationKey`（见 `src/i18n/translationKey.ts`），拼接消失、前缀自然收窄。
  */
-export const OVERBROAD_NAMESPACE_DEBT: readonly string[] = ['agentResident', 'antigravity']
+export const OVERBROAD_NAMESPACE_DEBT: readonly string[] = ['agentResident']
 
 export const DYNAMIC_KEY_PREFIXES: DynamicPrefix[] = [
   // ── creationAi ──
   { prefix: 'creationAi.mode', why: '动态: 创作助手模式 id;枚举来源: listCreationAiModes() 的内置 mode.id(CreationPromptPicker 用 `creationAi.mode.${id}` 再接 .label/.short/.title/.description)' },
   // ── antigravity ──
-  { prefix: 'antigravity', why: '动态(整命名空间): AntigravityConnectionCard 的 `antigravity.${feedback}` feedback 反馈码;枚举来源: antigravity 视图 feedback 联合(antigravity.* 顶层词条)' },
+  { prefix: 'antigravity.state', why: '动态: Antigravity 连接状态;枚举来源: AntigravityConnectionStatus["state"] 六态(antigravity.state.* 词条)' },
+  { prefix: 'antigravity.notice', why: '动态: Antigravity 连接状态对应的提示语;枚举来源: 同 state 六态(antigravity.notice.* 词条)' },
+  { prefix: 'antigravity.check', why: '动态: Antigravity 能力校验展示态;枚举来源: antigravityDisplayCheckState() 的返回联合(antigravity.check.* 词条)' },
+  { prefix: 'antigravity.capability', why: '动态: Antigravity 能力项;枚举来源: 卡片 capabilities 列表(antigravity.capability.* 词条)' },
+  { prefix: 'antigravity.issues', why: '动态: Antigravity 失败原因码;枚举来源: 视图 view.issue 联合(antigravity.issues.* 词条)' },
   { prefix: 'antigravity.state', why: '动态: antigravity 连接状态机 state 值;枚举来源: AntigravityViewState.state 联合(state.* 词条)' },
   { prefix: 'antigravity.issues', why: '动态: 校验失败原因码;枚举来源: antigravity 档案的 issue 联合(issues.* 词条)' },
   { prefix: 'antigravity.check', why: '动态: 能力自检状态;枚举来源: antigravityDisplayCheckState() 返回值(check.* 词条)' },
