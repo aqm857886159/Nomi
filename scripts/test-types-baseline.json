@@ -26,7 +26,6 @@
   "electron/runtime.imageEditGuards.test.ts": 5,
   "electron/runtime.provider-adapter.test.ts": 1,
   "electron/runtime.task-envelope.test.ts": 1,
-  "electron/skills/skillStore.test.ts": 1,
   "electron/vendor/vendorBaseFallback.test.ts": 1,
   "evals/journeys/journeyContracts.test.ts": 4,
   "evals/lib/isoAppEnv.test.ts": 1,

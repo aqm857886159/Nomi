@@ -1,10 +1,10 @@
 import type { GenerationCanvasNode } from '../../../generationCanvas/model/generationCanvasTypes'
 import type { ArchetypeMode } from '../../../../config/modelArchetypes/types'
 import type { PlanAnchor, PlanShot, StoryboardPlan } from '../../../generationCanvas/agent/storyboardPlan'
+import { buildAnchorSheetPrompt } from '../../../generationCanvas/agent/storyboardPromptCompiler'
 import {
   renderShotKeyframePrompt,
   renderShotNodePrompt,
-  buildAnchorSheetPrompt,
   effectiveShotDurationSec,
   stableShotId,
   storyboardAnchorToCreateNodesArgs,

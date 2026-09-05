@@ -276,6 +276,15 @@ export type CanvasWriteInput = z.infer<typeof canvasWriteSemanticInputSchema>;
 export type CanvasWriteOperation = CanvasWriteInput["operation"];
 
 /**
+ * 全部合法 canvas.write operation —— **派生自上面这个 union 的分支**，不另抄一份名单。
+ * 用途：给调用方在拒绝时列出「合法动作有哪些」（MCP 规范要求模型能自纠），以及让传输层
+ * 按「主进程能落账 / 需要创作区」分档。手抄一份名单就是第二个真相源，新增 operation 时必漂移。
+ */
+export const CANVAS_WRITE_OPERATIONS: readonly CanvasWriteOperation[] = Object.freeze(
+  canvasWriteSemanticInputUnion.options.map((option) => option.shape.operation.value as CanvasWriteOperation),
+);
+
+/**
  * Storyboard writes are semantically canvas capabilities but their durable
  * owner is the renderer's creation/storyboard store.  Keep this predicate at
  * the capability boundary so Host proposal registration and turn execution

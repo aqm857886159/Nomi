@@ -172,7 +172,8 @@ describe("canvas.read MCP capability projection", () => {
   });
 
   it("registers only the explicitly project-session-authorized canvas.read adapter", () => {
-    expect(MCP_CAPABILITY_RESOLVER.list()).toHaveLength(10);
+    // 9，不是 10：nomi_canvas_plan 于 2026-09-05 退役（与 nomi_canvas_edit 在 tools/list 里字节级相同）。
+    expect(MCP_CAPABILITY_RESOLVER.list()).toHaveLength(9);
     const [tool] = MCP_CAPABILITY_RESOLVER.list();
     expect(tool).toMatchObject({
       name: CANVAS_READ_CAPABILITY.aliases.mcp,

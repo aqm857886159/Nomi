@@ -12,6 +12,7 @@ import { EXPORT_READ_CAPABILITY } from "../shared/agentCapabilities/exportCapabi
 import { TIMELINE_READ_CAPABILITY, timelineEditPlanSchema } from "../shared/agentCapabilities/timelineRead";
 import { TIMELINE_WRITE_CAPABILITY } from "../shared/agentCapabilities/timelineWrite";
 import { findUnsupportedSchemaFeatures, type SchemaLike } from "./mcpArgValidation";
+import { transportSchemaFromZod } from "./mcpTransportSchemaFromZod";
 import { buildCanonicalMcpToolResult, type CanonicalMcpToolResult } from "./mcpCanonicalToolResult";
 import { emitMcpToolCatalogChanged } from "./mcpToolCatalogChanges";
 
@@ -127,9 +128,13 @@ const timelineReadMcpInput = z.discriminatedUnion("operation", [
   z.object({ ...leaseField, operation: z.literal("read") }).strict(),
   z.object({ ...leaseField, operation: z.literal("range"), startFrame: z.number().int().safe().nonnegative(), endFrame: z.number().int().safe().positive() }).strict(),
 ]).refine((v) => v.operation !== "range" || v.endFrame > v.startFrame, "endFrame must be greater than startFrame");
+// plan 直接用 timelineEditPlanSchema（不是 `z.object({}).passthrough()` 再在 parseCall 里二次 parse）：
+// 二次 parse 让 Zod 的错误路径相对于 plan（报 `planId` 而不是 `plan.planId`），宿主看不出该往哪儿填；
+// 而传输层把 plan 广播成一个不透明对象，planId/baseRevision/summary/operations 四个必填在 tools/list 上
+// 一个字都看不见 —— preview/apply 因此结构性不可构造（check:mcp-operation-constructible 现在会红）。
 const timelineEditMcpInput = z.discriminatedUnion("operation", [
-  z.object({ ...leaseField, operation: z.literal("preview"), plan: z.object({}).passthrough() }).strict(),
-  z.object({ ...leaseField, operation: z.literal("apply"), plan: z.object({}).passthrough() }).strict(),
+  z.object({ ...leaseField, operation: z.literal("preview"), plan: timelineEditPlanSchema }).strict(),
+  z.object({ ...leaseField, operation: z.literal("apply"), plan: timelineEditPlanSchema }).strict(),
   z.object({ ...leaseField, operation: z.literal("undo"), undoToken: z.string().trim().min(1), expectedRevision: z.string().trim().min(1), reason: z.string().trim().max(300).optional() }).strict(),
 ]);
 const exportJobMcpInput = z.object({ ...leaseField, operation: z.enum(["status", "verify"]), jobId: z.string().trim().min(1) }).strict();
@@ -149,10 +154,16 @@ const timelineReadTransportSchema = immutableSchemaSnapshot({
   type: "object", properties: { leaseHandle: { type: "string", minLength: 1 }, projectId: { type: "string", minLength: 1 }, operation: { type: "string", enum: ["read", "range"] }, startFrame: { type: "integer", minimum: 0 }, endFrame: { type: "integer", minimum: 1 } },
   required: ["leaseHandle", "operation"], additionalProperties: false,
 });
-const timelineEditTransportSchema = immutableSchemaSnapshot({
-  type: "object", properties: { leaseHandle: { type: "string", minLength: 1 }, projectId: { type: "string", minLength: 1 }, operation: { type: "string", enum: ["preview", "apply", "undo"] }, plan: { type: "object", additionalProperties: true }, undoToken: { type: "string", minLength: 1 }, expectedRevision: { type: "string", minLength: 1 }, reason: { type: "string", maxLength: 300 } },
-  required: ["leaseHandle", "operation"], additionalProperties: false,
-});
+const timelineEditTransportSchema = immutableSchemaSnapshot(
+  transportSchemaFromZod(timelineEditMcpInput, {
+    label: "timeline.write",
+    extraProperties: {
+      leaseHandle: { type: "string", minLength: 1, description: "nomi_session_open 返回的项目租约句柄。" },
+      projectId: { type: "string", minLength: 1 },
+    },
+    required: ["leaseHandle", "operation"],
+  }),
+);
 const exportJobTransportSchema = immutableSchemaSnapshot({
   type: "object", properties: { leaseHandle: { type: "string", minLength: 1 }, projectId: { type: "string", minLength: 1 }, operation: { type: "string", enum: ["status", "verify"] }, jobId: { type: "string", minLength: 1 } },
   required: ["leaseHandle", "operation", "jobId"], additionalProperties: false,
@@ -186,7 +197,7 @@ export const TIMELINE_EDIT_MCP_ADAPTER: McpCapabilityAdapter = Object.freeze({
     const input = timelineEditMcpInput.parse(args);
     const { leaseHandle, projectId, operation } = input;
     if (operation === "preview" || operation === "apply") {
-      const plan = timelineEditPlanSchema.parse(input.plan);
+      const plan = input.plan;
       return {
         semanticInput: { operation: operation === "preview" ? "propose_edit_plan" : "apply_edit_plan", ...plan },
         transport: { leaseHandle, ...(projectId ? { projectId } : {}), operation, plan },
@@ -321,29 +332,21 @@ export const CANVAS_READ_MCP_ADAPTER: McpCapabilityAdapter = Object.freeze({
   },
 });
 
-const canvasOperationNames = [
-  "set_node_prompt", "create_canvas_nodes", "connect_canvas_edges", "tidy_canvas",
-  "propose_storyboard_plan", "patch_shots", "arrange_storyboard_to_timeline", "create_staging_reference", "create_camera_move",
-] as const;
-const canvasNodeKinds = [
-  "text", "character", "scene", "image", "keyframe", "video", "audio", "clip", "shot", "output", "panorama",
-  "scene3d", "whiteboard", "model3d", "asset",
-] as const;
-const canvasEdgeModes = ["reference", "first_frame", "last_frame", "style_ref", "character_ref", "composition_ref"] as const;
-const canvasMutationTransportSchema = immutableSchemaSnapshot({
-  type: "object",
-  properties: {
-    leaseHandle: { type: "string", minLength: 1 }, projectId: { type: "string", minLength: 1 },
-    operation: { type: "string", enum: [...canvasOperationNames] }, nodeId: { type: "string", minLength: 1 },
-    prompt: { type: "string", minLength: 1 }, summary: { type: "string", minLength: 1 },
-    nodes: { type: "array", maxItems: 24, items: { type: "object", additionalProperties: true } },
-    edges: { type: "array", maxItems: 48, items: { type: "object", additionalProperties: true } },
-    select: { type: "object", additionalProperties: true }, patch: { type: "object", additionalProperties: true },
-    categoryId: { type: "string", minLength: 1 }, nodeIds: { type: "array", maxItems: 48, items: { type: "string" } },
-    kind: { type: "string", enum: [...canvasNodeKinds] }, mode: { type: "string", enum: [...canvasEdgeModes] },
-  },
-  required: ["leaseHandle", "operation"], additionalProperties: false,
-});
+// canvas.write 的传输 schema **派生自** canvasWrite.ts 的 Zod union（单一真相源，见
+// mcpTransportSchemaFromZod.ts 的根因说明）。此前这里是一份手抄的扁平超集，属性表缺了
+// propose_storyboard_plan / create_camera_move / create_staging_reference 的必填字段，
+// `additionalProperties:false` 把它们在到达 Zod 前就打掉 —— 9 个 operation 里 7 个构造不出来。
+// 派生之后，Zod 里的 prompt 撰写指南与参考槽语义也一并到了 tools/list 上。
+const canvasMutationTransportSchema = immutableSchemaSnapshot(
+  transportSchemaFromZod(canvasWriteSemanticInputSchema, {
+    label: "canvas.write",
+    extraProperties: {
+      leaseHandle: { type: "string", minLength: 1, description: "nomi_session_open 返回的项目租约句柄。" },
+      projectId: { type: "string", minLength: 1 },
+    },
+    required: ["leaseHandle", "operation"],
+  }),
+);
 const canvasMaintenanceTransportSchema = immutableSchemaSnapshot({
   type: "object",
   properties: {
@@ -368,8 +371,11 @@ const documentWriteTransportSchema = immutableSchemaSnapshot({
   }, required: ["leaseHandle", "operation", "content"], additionalProperties: false,
 });
 
-const canvasMcpInput = z.object({ ...leaseField, operation: z.enum(canvasOperationNames), nodeId: z.string().trim().min(1).optional(), prompt: z.string().min(1).optional(), summary: z.string().trim().min(1).optional(), nodes: z.array(z.record(z.unknown())).min(1).max(24).optional(), edges: z.array(z.record(z.unknown())).max(48).optional(), select: z.record(z.unknown()).optional(), patch: z.record(z.unknown()).optional(), categoryId: z.string().trim().min(1).optional(), nodeIds: z.array(z.string().trim().min(1)).max(48).optional() }).strict();
-function canvasAdapter(name: string, allowed: readonly string[]): McpCapabilityAdapter {
+// 传输层只负责剥掉租约字段；operation 分支的必填/互斥判定**只有一个边界**，就是下面的
+// canvasWriteSemanticInputSchema（`.strict()` discriminated union）。此前这里还有一份手写的
+// 扁平 z.object().strict()，属性表与传输 schema 各抄一遍，正是第三份真相源。
+const canvasLeaseEnvelope = z.object({ ...leaseField }).passthrough();
+function canvasAdapter(name: string): McpCapabilityAdapter {
   return Object.freeze({
     contract: CANVAS_WRITE_CAPABILITY,
     mcpName: name,
@@ -379,20 +385,19 @@ function canvasAdapter(name: string, allowed: readonly string[]): McpCapabilityA
     transportInputSchema: canvasMutationTransportSchema,
     outputSchema: canvasWriteResultSchema,
     parseCall(args) {
-      const input = canvasMcpInput.parse(args);
-      if (!allowed.includes(input.operation)) throw new Error("operation is not valid for this semantic tool");
-      const { leaseHandle, projectId, ...semantic } = input;
-      return { semanticInput: canvasWriteSemanticInputSchema.parse(semantic), transport: { leaseHandle, ...(projectId ? { projectId } : {}), ...semantic } };
+      const { leaseHandle, projectId, ...semantic } = canvasLeaseEnvelope.parse(args);
+      const parsed = canvasWriteSemanticInputSchema.parse(semantic);
+      return { semanticInput: parsed, transport: { leaseHandle, ...(projectId ? { projectId } : {}), ...semantic } };
     },
   });
 }
 
-export const CANVAS_PLAN_MCP_ADAPTER = canvasAdapter("nomi_canvas_plan", [
-  "propose_storyboard_plan", "patch_shots", "arrange_storyboard_to_timeline", "create_staging_reference", "create_camera_move",
-]);
-export const CANVAS_EDIT_MCP_ADAPTER = canvasAdapter("nomi_canvas_edit", [
-  "set_node_prompt", "create_canvas_nodes", "connect_canvas_edges", "tidy_canvas",
-]);
+// 画布语义写在 MCP 上**只有一个名字**：CANVAS_WRITE_CAPABILITY.aliases.mcp。
+// 曾经并列的 nomi_canvas_plan 与 nomi_canvas_edit 在 tools/list 里 description / inputSchema /
+// method 字节级完全相同，只有名字不同 —— 宿主没有任何依据选哪个，正是 P1 说的并行版发生在公开面上。
+// 两者真正的差别（各自 allowed 一半 operation）从不对外可见，只在调用失败时以一句
+// "operation is not valid for this semantic tool" 现身。合成一个之后，operation 枚举就是全部合法动作。
+export const CANVAS_EDIT_MCP_ADAPTER = canvasAdapter(CANVAS_WRITE_CAPABILITY.aliases.mcp);
 export const CANVAS_MAINTENANCE_MCP_ADAPTER: McpCapabilityAdapter = Object.freeze({
   contract: CANVAS_DELETE_CAPABILITY,
   authority: Object.freeze({ kind: "project_session", requiredScope: CANVAS_DELETE_CAPABILITY.requiredScope }),
@@ -437,7 +442,7 @@ export const DOCUMENT_EDIT_MCP_ADAPTER: McpCapabilityAdapter = Object.freeze({
 });
 
 const MCP_SAFE_ADAPTERS = new Set<McpCapabilityAdapter>([
-  CANVAS_READ_MCP_ADAPTER, CANVAS_PLAN_MCP_ADAPTER, CANVAS_EDIT_MCP_ADAPTER, CANVAS_MAINTENANCE_MCP_ADAPTER,
+  CANVAS_READ_MCP_ADAPTER, CANVAS_EDIT_MCP_ADAPTER, CANVAS_MAINTENANCE_MCP_ADAPTER,
   DOCUMENT_READ_MCP_ADAPTER, DOCUMENT_EDIT_MCP_ADAPTER, TIMELINE_READ_MCP_ADAPTER, TIMELINE_EDIT_MCP_ADAPTER, EXPORT_JOB_MCP_ADAPTER, MEDIA_QUERY_MCP_ADAPTER,
 ]);
 const MCP_READ_ONLY_ADAPTERS = new Set<McpCapabilityAdapter>([
@@ -447,7 +452,6 @@ const MCP_READ_ONLY_ADAPTERS = new Set<McpCapabilityAdapter>([
 // Deliberately explicit: do not map CAPABILITY_CONTRACTS, Skills, manifests, or plugin metadata.
 export const MCP_CAPABILITY_RESOLVER = createMcpCapabilityResolver([
   CANVAS_READ_MCP_ADAPTER,
-  CANVAS_PLAN_MCP_ADAPTER,
   CANVAS_EDIT_MCP_ADAPTER,
   CANVAS_MAINTENANCE_MCP_ADAPTER,
   DOCUMENT_READ_MCP_ADAPTER,

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { deriveProjectSessionScopes } from "./projectSessionAuthority";
-import { CANVAS_PLAN_MCP_ADAPTER, MCP_CAPABILITY_RESOLVER } from "./mcpCapabilityProjection";
+import { CANVAS_EDIT_MCP_ADAPTER, MCP_CAPABILITY_RESOLVER } from "./mcpCapabilityProjection";
 import { normalizeSnapshot, connectNodes, deleteNodes, setNodePrompt } from "./canvasGraph";
 import { projectCanvasRead } from "../shared/agentCapabilities/canvasRead";
 import { canvasWriteResultSchema } from "../shared/agentCapabilities/canvasWrite";
@@ -10,13 +10,15 @@ describe("M2 canvas/document semantic MCP surface", () => {
   it("R1 exposes semantic canvas and document tools and no direct legacy canvas tools", () => {
     expect(MCP_CAPABILITY_RESOLVER.list().map((tool) => tool.name)).toEqual(expect.arrayContaining([
       "nomi_canvas_read",
-      "nomi_canvas_plan",
       "nomi_canvas_edit",
       "nomi_canvas_maintenance",
       "nomi_document_read",
       "nomi_document_edit",
     ]));
+    // nomi_canvas_plan 已退役：它与 nomi_canvas_edit 在 tools/list 里 description/inputSchema/method
+    // 字节级相同，宿主没有依据选哪个（P1 并行版）。画布语义写只此一名。
     expect(MCP_CAPABILITY_RESOLVER.list().map((tool) => tool.name)).not.toEqual(expect.arrayContaining([
+      "nomi_canvas_plan",
       "nomi_read_canvas",
       "nomi_add_nodes",
       "nomi_connect_nodes",
@@ -30,7 +32,7 @@ describe("M2 canvas/document semantic MCP surface", () => {
       snapshot: () => ({ flagEnabled: false, effectiveScope: [] }),
     } as never);
     expect(scopes).toEqual(expect.arrayContaining(["canvas:read", "canvas:write", "document:read", "document:write"]));
-    for (const name of ["nomi_canvas_read", "nomi_canvas_plan", "nomi_canvas_edit", "nomi_canvas_maintenance", "nomi_document_read", "nomi_document_edit"]) {
+    for (const name of ["nomi_canvas_read", "nomi_canvas_edit", "nomi_canvas_maintenance", "nomi_document_read", "nomi_document_edit"]) {
       expect(MCP_CAPABILITY_RESOLVER.resolve(name)?.inputSchema.required).toContain("leaseHandle");
     }
   });
@@ -65,8 +67,8 @@ describe("M2 canvas/document semantic MCP surface", () => {
     expect(projected.nodes[0]?.prompt.length).toBeLessThanOrEqual(8_192);
   });
 
-  it("routes the real storyboard task through nomi_canvas_plan and its semantic operation", () => {
-    const parsed = CANVAS_PLAN_MCP_ADAPTER.parseCall({
+  it("routes the real storyboard task through the single canvas.write tool and its semantic operation", () => {
+    const parsed = CANVAS_EDIT_MCP_ADAPTER.parseCall({
       leaseHandle: "lease-a",
       operation: "patch_shots",
       select: { kind: "indexes", indexes: [2, 4] },
@@ -78,7 +80,7 @@ describe("M2 canvas/document semantic MCP surface", () => {
       patch: { promptAppend: "雨天" },
     });
     expect(MCP_CAPABILITY_RESOLVER.resolve("patch_shots")).toBeUndefined();
-    expect(() => CANVAS_PLAN_MCP_ADAPTER.parseCall({
+    expect(() => CANVAS_EDIT_MCP_ADAPTER.parseCall({
       leaseHandle: "lease-a", operation: "unknown_operation",
     })).toThrow();
   });
