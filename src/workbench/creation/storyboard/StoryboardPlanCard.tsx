@@ -6,6 +6,7 @@ import { WorkbenchButton, confirmDialog } from '../../../design'
 import { useWorkbenchStore } from '../../workbenchStore'
 import { useGenerationCanvasStore } from '../../generationCanvas/store/generationCanvasStore'
 import { totalDurationSec } from '../../generationCanvas/agent/storyboardPlanEdits'
+import { isEmptyStoryboardPlan } from '../../generationCanvas/agent/storyboardPlan'
 import { materializedShotIds } from './exec/storyboardNodeBinding'
 
 /**
@@ -44,7 +45,10 @@ export default function StoryboardPlanCard({ documentId, storyboardId }: Storybo
   ))
   const committed = builtCount > 0 || storedCommitted
 
-  if (!plan) return null
+  // A fresh project carries a structural two-row starter so the storyboard
+  // editor can be opened explicitly. It is not an authored planner result and
+  // must not surface as a misleading draft card in Creation.
+  if (!plan || isEmptyStoryboardPlan(plan)) return null
 
   const title = plan.title.trim() || t('storyboardEditor.planCard.defaultTitle')
   const shotCount = plan.shots.length

@@ -190,6 +190,7 @@ export async function runAgentChatV2(input: AgentChatRequest, hooks: AgentChatV2
     status: diagnostic ? 'error' : result.status,
     ...(result.status === 'cancelled' ? { raw: { cancelled: true as const } } : {}),
     toolCalls: result.toolCalls, artifacts: [], usage: result.usage, finishReason: result.finishReason,
+    ...(result.context ? { context: result.context } : {}),
     ...(promptCompilation ? { promptCache: measurePromptCacheUsage(promptCompilation, result.usage) } : {}),
     ...(promptCompilation?.budgetWarning ? { promptBudgetWarning: promptCompilation.budgetWarning } : {}),
     ...(promptCompilation?.warnings.length ? { promptWarnings: promptCompilation.warnings } : {}),

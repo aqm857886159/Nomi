@@ -15,6 +15,9 @@ import {
 } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
 import { NomiImage } from '../../../design/media'
+import { NomiSelect } from '../../../design'
+import type { ModelOption } from '../../../config/models'
+import { translateModelDisplayText } from '../../../i18n/modelDisplayText'
 import { AutoGrowTextarea } from '../../ai/composer/AutoGrowTextarea'
 import type { PlanAnchor, PlanAnchorKind } from '../../generationCanvas/agent/storyboardPlan'
 import { ANCHOR_KINDS } from '../../generationCanvas/agent/storyboardPlanEdits'
@@ -55,6 +58,7 @@ type Props = {
   onOpenPreview?: () => void
   /** 视觉锚缺名字 → 校验高亮（名字是落画布的卡片标题）。 */
   nameInvalid?: boolean
+  modelOptions?: ModelOption[]
 }
 
 /** 卡面动作钮（浮条同款 32×26 深底白字）。 */
@@ -72,7 +76,7 @@ function FaceButton({ label, onClick, children }: { label: string; onClick: () =
   )
 }
 
-export default function StoryboardAnchorCard({ anchor, runtime, onUpdate, onChangeKind, onRemove, onGenerate, onRegenerate, onToggleLock, onFilterByAnchor, onOpenPreview, nameInvalid }: Props): JSX.Element {
+export default function StoryboardAnchorCard({ anchor, runtime, onUpdate, onChangeKind, onRemove, onGenerate, onRegenerate, onToggleLock, onFilterByAnchor, onOpenPreview, nameInvalid, modelOptions = [] }: Props): JSX.Element {
   const { t } = useTranslation()
   // 空描述（新加的锚）默认展开好直接写；AI 填好的默认收起成图卡。
   const [editing, setEditing] = React.useState(() => !anchor.description.trim())
@@ -251,6 +255,20 @@ export default function StoryboardAnchorCard({ anchor, runtime, onUpdate, onChan
             })}
             <CarrierToggle value={anchor.carrier} onChange={(carrier) => onUpdate({ carrier })} />
           </div>
+          {anchor.carrier === 'visual' ? (modelOptions.length > 0 ? (
+            <NomiSelect
+              ariaLabel={t('storyboardEditor.anchor.modelAria')}
+              leadingLabel={t('storyboardEditor.anchor.modelLabel')}
+              size="xs"
+              value={anchor.modelKey || ''}
+              options={[{ value: '', label: t('storyboardEditor.defaultModel') }, ...modelOptions.map((option) => ({ value: option.value, label: translateModelDisplayText(option.label) }))]}
+              onChange={(value) => onUpdate({ modelKey: value || undefined, modeId: undefined, params: undefined })}
+            />
+          ) : (
+            <span className="text-micro text-nomi-warning" data-anchor-model-empty="true">
+              {t('storyboardEditor.anchor.noImageModel')}
+            </span>
+          )) : null}
           <AutoGrowTextarea
             value={anchor.description}
             onChange={(event) => onUpdate({ description: event.target.value })}

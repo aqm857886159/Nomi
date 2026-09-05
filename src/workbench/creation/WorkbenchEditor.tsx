@@ -234,7 +234,7 @@ export default function WorkbenchEditor(): JSX.Element {
         editor={editor}
         selectedText={selectionState.text}
         selectionVersion={selectionState.version}
-        onStoryboard={storyboardPlannerLauncher ? () => storyboardPlannerLauncher() : undefined}
+        onStoryboard={storyboardPlannerLauncher ? () => storyboardPlannerLauncher(selectionState.text) : undefined}
         onCreated={clearSelectionText}
       />
       <div

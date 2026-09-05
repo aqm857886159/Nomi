@@ -166,6 +166,7 @@ export const zhCN = {
     projectQuickActions: '项目快捷操作',
     generationCollapsedChip: '生成',
     generationCollapsedRestore: '展开生成 AI 栏（拆解占用右栏时暂收于此）',
+    generationCollapsedUpdates: '有 {{count}} 条 Agent 新动静',
   },
   window: {
     controls: '窗口控制',
@@ -546,6 +547,7 @@ export const en = {
     projectQuickActions: 'Project quick actions',
     generationCollapsedChip: 'Generate',
     generationCollapsedRestore: 'Reopen the generation AI panel (tucked here while deconstruction uses the right dock)',
+    generationCollapsedUpdates: '{{count}} new Agent updates',
   },
   window: {
     controls: 'Window controls',

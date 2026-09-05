@@ -1,0 +1,214 @@
+{
+  "schemaVersion": 1,
+  "id": "nomi.agent.vertical-spine.m0-m5",
+  "title": "M0-M5 Agent vertical spine red contract",
+  "baseRef": "origin/main",
+  "userTask": "我想做一个30秒竖屏短片，先理顺故事和分镜，不要一上来生成；第三个镜头改为站门口犹豫两秒，其他镜头不动；先告诉我改哪些，确认后再生成",
+  "userSurfaceRule": "用户层只出现上述自然语言与可读的 Skill、模型、分镜和审批文案；不得出现 API 参数、工具名、operation、patch_shots、leaseHandle 或内部 id。",
+  "generationBoundary": "当前核心 spine 先跑到可验证的生成提案/真实项目写入边界；完整视频生成仍属于总目标，待 M0-M5 闭环后用 APIMart/TikHub 做真实媒体 canary。",
+  "multiRoundProtocol": {
+    "rule": "同一真实项目、同一 Agent thread、同一用户任务必须经历补充、否定、改口、单镜头范围、预览后确认、分步生成、生成后微调、关闭重启后追问并继续；不得把整段压成一条 prompt。",
+    "technicalBoundary": "用户话术不得出现 operation、tool、id、fixture 或 API 参数；canonical tool/id 只允许出现在内部 assertion、MCP trace、receipt 和 revision evidence。",
+    "transcript": [
+      {
+        "turn": "R1",
+        "when": "新建项目后",
+        "user": "我想做一个30秒竖屏短片，先理顺故事和分镜，不要一上来生成。",
+        "internal": {
+          "M0": { "assertion": "real isolated project is current project", "status": "pending-red-gate", "receipt": "none before approval", "revision": "read durable project revision", "context": "project identity from route and disk" },
+          "M1": { "assertion": "storyboard surface is visible", "status": "blocked-by-current-M1-B", "receipt": "not applicable", "revision": "selection revision not available", "context": "no row context yet" },
+          "M2": { "assertion": "no write is proposed before user asks", "status": "not-reached", "receipt": "none", "revision": "unchanged", "context": "natural planning request only" },
+          "M3": { "assertion": "Agent reads current project and storyboard context", "status": "not-reached", "receipt": "none", "revision": "same current revision", "context": "right Agent thread" },
+          "M4": { "assertion": "no approval card or write before confirmation", "status": "not-reached", "receipt": "none", "revision": "unchanged", "context": "waiting for plan" },
+          "M5": { "assertion": "thread and durable state remain resumable", "status": "not-reached", "receipt": "none", "revision": "readback pending", "context": "same project after restart" }
+        }
+      },
+      {
+        "turn": "R2",
+        "when": "Agent asks what to change",
+        "user": "先不要生成，只改第三个镜头：让人物站在门口犹豫两秒，其他镜头和内容都不要动。",
+        "internal": {
+          "M0": { "assertion": "same real project, no project switch", "status": "pending-red-gate", "receipt": "none", "revision": "same as R1", "context": "same project" },
+          "M1": { "assertion": "‘第三个镜头’ maps to visible row 2 index only", "status": "blocked-by-current-M1-B", "receipt": "not applicable", "revision": "selection revision pending", "context": "selected storyboard row 2" },
+          "M2": { "assertion": "proposal diff contains only the third shot", "status": "not-reached", "receipt": "proposal only", "revision": "must not advance", "context": "selection handle from R2" },
+          "M3": { "assertion": "Agent repeats requested scope and untouched-shot constraint", "status": "not-reached", "receipt": "none", "revision": "same selection revision", "context": "third-shot reference" },
+          "M4": { "assertion": "preview is shown without mutation", "status": "not-reached", "receipt": "none", "revision": "unchanged", "context": "approval still pending" },
+          "M5": { "assertion": "preview state is durable/resumable without write", "status": "not-reached", "receipt": "none", "revision": "unchanged after readback", "context": "same Agent thread" }
+        }
+      },
+      {
+        "turn": "R3",
+        "when": "用户否定并改口，要求先看改动",
+        "user": "我改主意了，先告诉我具体会改哪些，再让我确认；现在不要生成，也不要碰其他镜头。",
+        "internal": {
+          "M0": { "assertion": "same project remains bound", "status": "pending-red-gate", "receipt": "none", "revision": "same as R2", "context": "project unchanged" },
+          "M1": { "assertion": "selection remains only the third storyboard row", "status": "blocked-by-current-M1-B", "receipt": "not applicable", "revision": "selection revision pending", "context": "same row context" },
+          "M2": { "assertion": "proposal preview is explainable in user language", "status": "not-reached", "receipt": "proposal not committed", "revision": "must not advance", "context": "one-shot diff" },
+          "M3": { "assertion": "Agent acknowledges changed instruction and preserves scope", "status": "not-reached", "receipt": "none", "revision": "same revision", "context": "same thread plus third-shot handle" },
+          "M4": { "assertion": "no write until explicit confirmation", "status": "not-reached", "receipt": "none", "revision": "unchanged", "context": "approval gate visible" },
+          "M5": { "assertion": "uncommitted preview can be reconciled", "status": "not-reached", "receipt": "none", "revision": "readback unchanged", "context": "resume-safe draft" }
+        }
+      },
+      {
+        "turn": "R4",
+        "when": "确认后只执行部分范围",
+        "user": "确认这次修改。先执行这一个镜头的改动，但只生成前三个镜头，后面的先别动。",
+        "internal": {
+          "M0": { "assertion": "same project is the write target", "status": "pending-red-gate", "receipt": "one receipt target", "revision": "current revision precondition", "context": "same project" },
+          "M1": { "assertion": "third-shot selection is preserved", "status": "blocked-by-current-M1-B", "receipt": "not applicable", "revision": "selected revision pending", "context": "row 2 only" },
+          "M2": { "assertion": "canonical semantic proposal encodes only selected patch", "status": "not-reached", "receipt": "proposal id internal only", "revision": "pre-write revision", "context": "patch scope row 2" },
+          "M3": { "assertion": "Skill/model/context identity travels with request", "status": "not-reached", "receipt": "none", "revision": "pre-write revision", "context": "Agent + third-shot + first-three generation range" },
+          "M4": { "assertion": "approval writes once and exposes readable diff", "status": "not-reached", "receipt": "durable receipt required", "revision": "must advance exactly once", "context": "approved proposal" },
+          "M5": { "assertion": "partial generation boundary is durable and resumable", "status": "not-reached", "receipt": "receipt survives restart", "revision": "readback equals approved revision", "context": "first three shots only" }
+        }
+      },
+      {
+        "turn": "R5",
+        "when": "生成后继续微调",
+        "user": "刚才第三个镜头的犹豫再短一点，门外的雨声保留，其他已经完成的镜头不要改；先预览这个小改动。",
+        "internal": {
+          "M0": { "assertion": "same project and completed partial generation", "status": "pending-red-gate", "receipt": "prior receipt must be readable", "revision": "post-R4 revision", "context": "same project" },
+          "M1": { "assertion": "same third-shot row remains selected", "status": "blocked-by-current-M1-B", "receipt": "prior receipt only", "revision": "post-R4 selection revision", "context": "row 2" },
+          "M2": { "assertion": "second proposal changes only the third shot detail", "status": "not-reached", "receipt": "new preview receipt pending", "revision": "must not advance before approval", "context": "delta from post-R4" },
+          "M3": { "assertion": "Agent carries prior receipt/revision and current context", "status": "not-reached", "receipt": "prior receipt id internal", "revision": "post-R4 revision", "context": "same thread and row" },
+          "M4": { "assertion": "preview remains reversible until next approval", "status": "not-reached", "receipt": "no new committed receipt yet", "revision": "unchanged", "context": "second approval gate" },
+          "M5": { "assertion": "micro-adjustment is resumable without duplicate write", "status": "not-reached", "receipt": "duplicate check pending", "revision": "readback pending", "context": "same project after restart" }
+        }
+      },
+      {
+        "turn": "R6",
+        "when": "关闭重启后追问并继续",
+        "user": "我重新打开项目了，刚才做到哪里？请接着之前的工作，先告诉我现在的状态和下一步，不要直接生成。",
+        "internal": {
+          "M0": { "assertion": "fresh process reads the same project", "status": "pending-red-gate", "receipt": "prior receipt readback", "revision": "durable current revision", "context": "same project after restart" },
+          "M1": { "assertion": "storyboard row and selection reconcile", "status": "blocked-by-current-M1-B", "receipt": "prior receipt reference", "revision": "reconciled revision", "context": "third-shot row" },
+          "M2": { "assertion": "next proposal uses reconciled selection, not stale state", "status": "not-reached", "receipt": "new receipt only after approval", "revision": "reconciled precondition", "context": "canonical semantic plan internally" },
+          "M3": { "assertion": "Agent explains durable progress and resumes context", "status": "not-reached", "receipt": "prior receipt visible internally", "revision": "reconciled revision", "context": "fresh Agent process/thread projection" },
+          "M4": { "assertion": "no action is executed before renewed confirmation", "status": "not-reached", "receipt": "none for this turn", "revision": "unchanged", "context": "approval remains explicit" },
+          "M5": { "assertion": "restart/reconcile has no duplicate write and supports continuation", "status": "not-reached", "receipt": "duplicate-free durable receipt", "revision": "same as disk readback", "context": "same task continuation" }
+        }
+      }
+    ]
+  },
+  "scope": {
+    "include": [
+      "real Electron project creation",
+      "storyboard row selection",
+      "visible Skill and model identity selection",
+      "right-side Agent context read",
+      "nomi_canvas_plan with operation=patch_shots",
+      "approval and decline",
+      "durable project write, receipt, and revision",
+      "Agent/storyboard/canvas projection agreement",
+      "cold restart and reconcile",
+      "current-SHA packaged repeat"
+    ],
+    "exclude": ["video canary in this red stage", "TikHub canary in this red stage", "Skill Hub", "UI redesign", "provider spend"]
+  },
+  "evidencePolicy": {
+    "agentHostPublication": {
+      "default": "disabled",
+      "testBoundary": "visible Settings → General → Project AI assistant toggle",
+      "helper": "tests/ux/agent-runtime-walk-support.mjs#enableAgentHostThroughSettings",
+      "rule": "The real user task explicitly enables the existing project preference after M1; no test-only state injection or production default flip is allowed."
+    },
+    "apimartTextModelPublication": {
+      "credentialSource": "process.env.APIMART_API_KEY",
+      "visibleEntry": "dispatch nomi-open-model-catalog → APIMart connection → visible key field",
+      "writeBoundary": "onboarding.httpCertificationStartExisting({ entryPoint: 'manual-ui', vendorKey: 'apimart', models: [{ modelKey: 'deepseek-v4-pro', kind: 'text' }] })",
+      "modelIdentity": "apimart/deepseek-v4-pro",
+      "missingCredential": "BLOCKED_ENVIRONMENT (runner stops before model selection)",
+      "refreshBoundary": "certificationGet terminal completed, then complete public catalog DTO exact-row check (enabled + published + adapter verified), existing nomi-model-catalog-changed event, and visible Agent model menu",
+      "secretPolicy": "The key is passed only to the visible onboarding bridge; it is never written to contract/evidence/log output.",
+      "forbidden": "Direct modelCatalog upsertVendorApiKey(... enabled:true) or direct vendor/model enable is test injection and is not evidence."
+    },
+    "settingsOverlayClosure": {
+      "after": "APIMart certification publication and catalog refresh",
+      "action": "visible click on the outer Settings dialog [data-settings-close] control",
+      "assertion": "[data-settings-overlay] is hidden before the runner opens Agent Skill/model menus",
+      "forbidden": "Escape-only dismissal, DOM evaluate-based hiding, or synthetic settings state"
+    },
+    "publicMcpSessionProbe": {
+      "entryPoint": "public MCP stdio client after visible storyboard row selection",
+      "call": "nomi_session_open({ bootstrap: { mode: 'current_project' } })",
+      "evidence": "M2.public-mcp-session-open is PARTIAL_PROOF from a custom stdio diagnostic only; it records projectId and leaseIssued, while leaseHandle remains in memory and is never logged or persisted.",
+      "purpose": "Probe the preload-to-public-MCP session boundary before provider credentials can block later milestones.",
+      "codexHostCoverage": "未覆盖：不得把自定义 stdio 客户端结果当作真实 Codex Host 验收；需后续用真实 Codex 会话验证同一 MCP 全旅程。"
+    },
+    "required": [
+      "real Electron window",
+      "visible DOM user actions",
+      "preload bridge and public MCP stdio (custom diagnostic PARTIAL_PROOF only)",
+      "real Codex Host → Nomi MCP full journey (currently uncovered; required for completion)",
+      "public MCP session_open probe after M1",
+      "production semantic tool name nomi_canvas_plan",
+      "disk-backed project and receipt readback",
+      "cold Electron restart",
+      "packaged app repeat from the same SHA"
+    ],
+    "forbidden": [
+      "fake store injection",
+      "direct production handler invocation",
+      "loopback as final evidence",
+      "legacy bare patch_shots MCP tool",
+      "static DOM-only completion claim"
+    ]
+  },
+  "productionCallShape": {
+    "tool": "nomi_canvas_plan",
+    "args": {
+      "projectId": "<real project id>",
+      "leaseHandle": "<verified current-project lease>",
+      "operation": "patch_shots",
+      "select": { "kind": "indexes", "indexes": [2] },
+      "patch": { "promptAppend": "夜雨反光", "aspectRatio": "9:16" }
+    },
+    "approval": "one real approval before the write and one real decline with no mutation"
+  },
+  "milestones": [
+    {
+      "id": "M0",
+      "entry": "Create one isolated project through the real Electron library UI",
+      "exit": "projectId is visible in the route and the project record is readable from disk"
+    },
+    {
+      "id": "M1",
+      "entry": "Select storyboard row 2 through the visible storyboard editor",
+      "exit": "the selection is observable and bound to the same project revision"
+    },
+    {
+      "id": "M2",
+      "entry": "Use the canonical semantic canvas plan call shape",
+      "exit": "only selected row 2 is proposed and unmentioned fields remain unchanged"
+    },
+    {
+      "id": "M3",
+      "entry": "Choose a visible Skill and model/vendor identity, then let the right Agent read the selection",
+      "exit": "the Agent request carries project, selection, Skill, model/vendor, and revision identity"
+    },
+    {
+      "id": "M4",
+      "entry": "Approve one proposal and decline a second proposal",
+      "exit": "approval writes once; decline creates no project mutation or receipt"
+    },
+    {
+      "id": "M5",
+      "entry": "Read project, receipt, revision, and projections, then cold restart and repeat from the packaged app",
+      "exit": "fresh process reconciles the same durable state without duplicate write or receipt"
+    }
+  ],
+  "dimensions": {
+    "H": "User-visible creation, row selection, Skill/model selection, Agent read, approval, decline, restart",
+    "B": "Selection injection, context propagation, canonical operation, and three-surface projection",
+    "E": "Project payload, revision, receipt, approval/decline outcome, and duplicate-write evidence",
+    "T": "Electron renderer → preload → Host/MCP → project owner → persistence → fresh process → packaged app",
+    "N": "Missing surface, stale revision, wrong project, empty selection, decline, duplicate confirmation, and reconcile mismatch"
+  },
+  "naturalTaskVariants": {
+    "H": "用户只表达短片目标、故事/分镜优先、第三镜头的自然修改和先确认后生成；观察可见 Skill/model、Agent 上下文与 approval 文案是否可理解。",
+    "B": "用户说‘第三个镜头’，内部必须解析为同一项目的第 3 行；仅该行进入提案，其他镜头和未提及字段保持不动，三面投影一致。",
+    "E": "用户先看‘改哪些’再确认；批准只写一次并留下 receipt/revision，拒绝不改项目、不写 receipt。",
+    "T": "自然语言从真实 Electron composer 经 preload/Host 到公共 MCP 语义调用，再落盘、重启回读并在 packaged app 重复；canonical tool/id 只在技术 assertion/receipt 中出现。",
+    "N": "同一自然任务覆盖空白项目无分镜、歧义‘第三个镜头’、错项目/旧 revision、空选择、拒绝、重复确认和重启 reconcile 不一致，并 fail closed。"
+  }
+}

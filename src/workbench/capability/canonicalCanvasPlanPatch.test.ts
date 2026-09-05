@@ -5,6 +5,7 @@ import { executeCanonicalCanvasPlanPatch } from './canonicalCanvasPlanPatch'
 import { buildCanvasWriteAdmissionForOperation } from '../../../electron/shared/agentCapabilities/canvasWriteEvidence'
 import { captureCanvasWriteRawEvidence, executeCanvasWriteTarget } from '../generationCanvas/agent/canvasWriteTarget'
 import { readGenerationCanvasSnapshot } from '../generationCanvas/agent/generationCanvasTools'
+import { persistActiveWorkbenchProjectNow, waitForActiveWorkbenchProjectSaveTarget } from '../project/workbenchProjectSession'
 
 vi.mock('../../../electron/shared/agentCapabilities/canvasWriteEvidence', () => ({
   buildCanvasWriteAdmissionForOperation: vi.fn(),
@@ -17,6 +18,11 @@ vi.mock('../generationCanvas/agent/canvasWriteTarget', () => ({
 
 vi.mock('../generationCanvas/agent/generationCanvasTools', () => ({
   readGenerationCanvasSnapshot: vi.fn(),
+}))
+
+vi.mock('../project/workbenchProjectSession', () => ({
+  persistActiveWorkbenchProjectNow: vi.fn(),
+  waitForActiveWorkbenchProjectSaveTarget: vi.fn(),
 }))
 
 const snapshot = { nodes: [], edges: [], selectedNodeIds: [], groups: [] }
@@ -47,6 +53,8 @@ describe('canonicalCanvasPlanPatch changed-function coverage', () => {
       targetRequest.assertCurrent()
       return { applied: true, operation: 'patch_shots', proposalId: 'receipt-a', changedShotIndexes: [2], changedFields: ['prompt'], result: {}, reconciliation: { ok: true, deviationCount: 0 } } as never
     })
+    vi.mocked(waitForActiveWorkbenchProjectSaveTarget).mockReturnValue(true)
+    vi.mocked(persistActiveWorkbenchProjectNow).mockResolvedValue({ id: 'project-a', revision: 2, version: 1 } as never)
   })
 
   it('fails closed for a stale active project before parsing or capturing', async () => {
@@ -72,6 +80,55 @@ describe('canonicalCanvasPlanPatch changed-function coverage', () => {
       receiptProposalId: 'receipt-a',
       approvalId: 'approval-a',
     }), readGenerationCanvasSnapshot)
+    expect(persistActiveWorkbenchProjectNow).toHaveBeenCalledOnce()
+  })
+
+  it('fails closed when the committed receipt has no durable project save', async () => {
+    vi.mocked(persistActiveWorkbenchProjectNow).mockResolvedValueOnce(null)
+
+    await expect(executeCanonicalCanvasPlanPatch(request(() => 'project-a'))).rejects.toMatchObject({
+      code: 'capability_receipt_unresolved',
+    } satisfies Partial<SurfacePortWireError>)
+  })
+
+  it('waits for the active persistence owner before attempting the durable barrier', async () => {
+    let releaseOwner!: () => void
+    vi.mocked(waitForActiveWorkbenchProjectSaveTarget).mockReturnValueOnce(new Promise((resolve) => {
+      releaseOwner = () => resolve(true)
+    }))
+    const pending = executeCanonicalCanvasPlanPatch(request(() => 'project-a'))
+    await Promise.resolve()
+    expect(persistActiveWorkbenchProjectNow).not.toHaveBeenCalled()
+    expect(executeCanvasWriteTarget).not.toHaveBeenCalled()
+    releaseOwner()
+    await expect(pending).resolves.toMatchObject({ applied: true, operation: 'patch_shots' })
+    expect(persistActiveWorkbenchProjectNow).toHaveBeenCalledOnce()
+  })
+
+  it('fails before mutation when the owner readiness window expires', async () => {
+    vi.mocked(waitForActiveWorkbenchProjectSaveTarget).mockReturnValueOnce(false)
+    await expect(executeCanonicalCanvasPlanPatch(request(() => 'project-a'))).rejects.toMatchObject({
+      code: 'capability_receipt_unresolved',
+    } satisfies Partial<SurfacePortWireError>)
+    expect(executeCanvasWriteTarget).not.toHaveBeenCalled()
+  })
+
+  it('fails closed when the save owner acknowledges a different project', async () => {
+    vi.mocked(persistActiveWorkbenchProjectNow).mockResolvedValueOnce({ id: 'project-b', revision: 2, version: 1 } as never)
+
+    await expect(executeCanonicalCanvasPlanPatch(request(() => 'project-a'))).rejects.toMatchObject({
+      code: 'capability_receipt_unresolved',
+    } satisfies Partial<SurfacePortWireError>)
+  })
+
+  it('does not return a receipt until the durable save resolves', async () => {
+    let resolveSave!: (value: Awaited<ReturnType<typeof persistActiveWorkbenchProjectNow>>) => void
+    vi.mocked(persistActiveWorkbenchProjectNow).mockReturnValueOnce(new Promise<Awaited<ReturnType<typeof persistActiveWorkbenchProjectNow>>>((resolve) => { resolveSave = resolve }))
+    const pending = executeCanonicalCanvasPlanPatch(request(() => 'project-a'))
+    await Promise.resolve()
+    expect(vi.mocked(persistActiveWorkbenchProjectNow)).toHaveBeenCalledOnce()
+    resolveSave({ id: 'project-a', revision: 2, version: 1 } as never)
+    await expect(pending).resolves.toMatchObject({ applied: true, operation: 'patch_shots' })
   })
 
   it('fails closed if the active project changes after admission', async () => {

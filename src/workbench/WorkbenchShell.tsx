@@ -164,7 +164,16 @@ export default function WorkbenchShell({
         generation: setAgentDockTarget('generation'),
         preview: setAgentDockTarget('preview'),
     } : { creation: undefined, storyboard: undefined, generation: undefined, preview: undefined }, [agentHostEnabled, setAgentDockTarget]);
-    const agentSurface = workspaceMode === 'generation' ? 'generation' : workspaceMode === 'preview' ? 'preview' : 'creation';
+    // Storyboard owns its own full-width workspace and its own dock target.
+    // Falling through to creation here portals the resident Agent into the
+    // hidden creation slot whenever storyboard is active.
+    const agentSurface = workspaceMode === 'generation'
+        ? 'generation'
+        : workspaceMode === 'preview'
+            ? 'preview'
+            : workspaceMode === 'storyboard'
+                ? 'storyboard'
+                : 'creation';
     const agentDock = agentHostEnabled ? agentDockTargets[agentSurface] : null;
     const [mountedWorkspaceModes, setMountedWorkspaceModes] = React.useState<
         WorkspaceMode[]
@@ -187,6 +196,15 @@ export default function WorkbenchShell({
         window.addEventListener("popstate", onPopState);
         return () => window.removeEventListener("popstate", onPopState);
     }, [setWorkspaceMode]);
+
+    // Some workspace actions (for example a storyboard summary card) update
+    // the shared mode store directly instead of going through the app-bar
+    // callback. Keep the URL projection in sync for those visible entries too;
+    // otherwise a restart/back-forward can restore `step=create` while the
+    // user is already in the storyboard workspace.
+    React.useEffect(() => {
+        writeWorkspaceModeToUrl(workspaceMode);
+    }, [workspaceMode]);
 
     React.useEffect(() => {
         setMountedWorkspaceModes((current) =>

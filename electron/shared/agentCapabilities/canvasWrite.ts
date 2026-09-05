@@ -275,6 +275,19 @@ const cameraMoveActionPiInputSchema = cameraMoveActionInputSchema
 export type CanvasWriteInput = z.infer<typeof canvasWriteSemanticInputSchema>;
 export type CanvasWriteOperation = CanvasWriteInput["operation"];
 
+/**
+ * Storyboard writes are semantically canvas capabilities but their durable
+ * owner is the renderer's creation/storyboard store.  Keep this predicate at
+ * the capability boundary so Host proposal registration and turn execution
+ * agree on the same canonical operation set.
+ */
+export function isRendererOwnedStoryboardProposal(toolName: string, args: unknown): boolean {
+  if (toolName === "propose_storyboard_plan") return true;
+  if (toolName !== "nomi_canvas_plan" || !args || typeof args !== "object" || Array.isArray(args)) return false;
+  const operation = (args as Record<string, unknown>).operation;
+  return operation === "propose_storyboard_plan" || operation === "patch_shots";
+}
+
 export function canvasWritePiInputSchemaForAlias(alias: string): z.ZodTypeAny | undefined {
   switch (alias) {
     case "set_node_prompt":

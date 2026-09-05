@@ -67,6 +67,10 @@ export type PlanAnchor = {
   referenceKind?: 'image' | 'video' | 'audio'
   /** 某镜结果已是画布节点时直接复用该节点，不复制成新的参考卡。 */
   referenceSourceNodeId?: string
+  /** Image model used to render this visual anchor; explicit selection survives materialization. */
+  modelKey?: string
+  modeId?: string
+  params?: Record<string, unknown>
 }
 
 export type PlanShot = {
@@ -175,6 +179,37 @@ export type StoryboardPlan = {
   sourceScriptArtifactId?: string
   sourceScriptVersion?: number
   sourceScriptHash?: string
+}
+
+/**
+ * Blank starter rows for a newly-created project. These rows carry no authored
+ * story content; they only make the first storyboard editing surface reachable
+ * before the user (or Agent) supplies the actual prompts.
+ */
+export function createEmptyStoryboardPlan(): StoryboardPlan {
+  return {
+    title: '',
+    anchors: [],
+    shots: [1, 2].map((index) => ({
+      index,
+      shotId: `shot-${index}`,
+      shotKind: 'video' as const,
+      durationSec: 5,
+      anchorIds: [],
+      prompt: '',
+    })),
+  }
+}
+
+export function isEmptyStoryboardPlan(plan: StoryboardPlan): boolean {
+  return plan.title.trim() === ''
+    && plan.anchors.length === 0
+    && plan.shots.length === 2
+    && plan.shots.every((shot, index) => (
+      shot.index === index + 1
+      && shot.prompt.trim() === ''
+      && shot.anchorIds.length === 0
+    ))
 }
 
 /**
@@ -492,8 +527,9 @@ function buildAnchorCardNode(anchor: PlanAnchor, options: StoryboardPlanToArgsOp
       ...(options.creationDocumentId ? { creationDocumentId: options.creationDocumentId } : {}),
       ...(options.storyboardDesignId ? { storyboardDesignId: options.storyboardDesignId } : {}),
     },
-    ...(options.defaultImageModelKey ? { modelKey: options.defaultImageModelKey } : {}),
-    ...(options.defaultImageModeId ? { modeId: options.defaultImageModeId } : {}),
+    ...((anchor.modelKey || options.defaultImageModelKey) ? { modelKey: anchor.modelKey || options.defaultImageModelKey } : {}),
+    ...((anchor.modeId || (!anchor.modelKey && options.defaultImageModeId)) ? { modeId: anchor.modeId || options.defaultImageModeId } : {}),
+    ...(anchor.params ? { params: anchor.params } : {}),
   }
 }
 

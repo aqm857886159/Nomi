@@ -45,6 +45,8 @@ type Props = {
   /** 提示词为空的镜号（validatePlan 的 empty-shot-prompt 投影，行红边用）。 */
   emptyPromptShots: Set<number>
   onChange: (plan: StoryboardPlan) => void
+  /** The resident Agent receives the same stable storyboard reference as the row selection UI. */
+  onStoryboardShotSelect?: (shot: StoryboardPlan['shots'][number]) => void
   /** 行内「生成」（画面格常驻按钮 / 失败重试）。 */
   onGenerateRow: (runtime: StoryboardRowRuntime) => void
   /** 浮条 ↻ 原地重生成。 */
@@ -169,7 +171,7 @@ function ShotRowWithMention(props: {
   )
 }
 
-export default function StoryboardShotTable({ plan, projectId, rows, anchorCards, imageModelOptions, videoModelOptions, emptyPromptShots, onChange, onGenerateRow, onRegenerateRow, onVariantsRow, onToggleLockRow, onOpenPreviewRow, onRerunFreshRefsRow, onJumpToAnchor, onSaveResultAsReference, onSetResultAsFirstFrame, onGenerateSelected, onDeleteSelected, filterAnchorId }: Props): JSX.Element {
+export default function StoryboardShotTable({ plan, projectId, rows, anchorCards, imageModelOptions, videoModelOptions, emptyPromptShots, onChange, onStoryboardShotSelect, onGenerateRow, onRegenerateRow, onVariantsRow, onToggleLockRow, onOpenPreviewRow, onRerunFreshRefsRow, onJumpToAnchor, onSaveResultAsReference, onSetResultAsFirstFrame, onGenerateSelected, onDeleteSelected, filterAnchorId }: Props): JSX.Element {
   const { t } = useTranslation()
   const [dragIndex, setDragIndex] = React.useState<number | null>(null)
   const [overIndex, setOverIndex] = React.useState<number | null>(null)
@@ -203,6 +205,7 @@ export default function StoryboardShotTable({ plan, projectId, rows, anchorCards
       setSelectedShotIds(new Set([keyAt(position)]))
       setSelectionAnchor(visible.indexOf(position))
     }
+    onStoryboardShotSelect?.(rows[position].shot)
   }
   const moveSelectedToScene = (sceneId: string): void => {
     if (!sceneId) return

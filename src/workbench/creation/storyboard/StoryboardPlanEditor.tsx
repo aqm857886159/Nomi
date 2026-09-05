@@ -17,6 +17,7 @@ import {
   validatePlan,
   type PlanIssue,
 } from '../../generationCanvas/agent/storyboardPlanEdits'
+import type { StoryboardPlan } from '../../generationCanvas/agent/storyboardPlan'
 import StoryboardAnchorCard from './StoryboardAnchorCard'
 import StoryboardBulkBar from './StoryboardBulkBar'
 import StoryboardShotTable from './StoryboardShotTable'
@@ -41,6 +42,7 @@ import { canvasNodeToAssetRefs } from '../../assets/assetTypes'
 import { AssetPreviewDialog, type AssetPreviewSequenceItem } from '../../assets/AssetPreviewDialog'
 import type { AssetRef } from '../../assets/assetTypes'
 import { buildStoryboardPlaybackQueue, hiddenGeneratingCount, positionsForAnchorFilter } from './storyboardDInteractions'
+import { buildStoryboardReference } from '../../ai/resident/residentReferences'
 
 /**
  * 分镜方案编辑器（v5 B：执行面）。表 = 画布节点的表格表示版——行内/批量直接生成，
@@ -59,6 +61,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
   const setActiveStoryboardId = useWorkbenchStore((s) => s.setActiveStoryboardId)
   const activeDocumentId = useWorkbenchStore((s) => s.activeDocumentId)
   const activeStoryboardId = useWorkbenchStore((s) => s.activeStoryboardId)
+  const setProjectAgentReferences = useWorkbenchStore((s) => s.setProjectAgentReferences)
   const canvasNodes = useGenerationCanvasStore((s) => s.nodes)
   // 图片/视频模型清单各拉一次，按镜头种类传给镜行的模型选择器 + 参数控件（完整 option 供解析 archetype 参数）。
   const videoModelOptions = useModelOptionsState('video').options
@@ -173,6 +176,13 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
   }
 
   const execCtx = { documentId: activeDocumentId, designId, plan }
+  const onStoryboardShotSelect = (shot: StoryboardPlan['shots'][number]): void => {
+    const reference = buildStoryboardReference('shot', shot.index, t('storyboardEditor.row.selectAria', { index: shot.index }), 'selected shot')
+    setProjectAgentReferences((current) => [
+      ...current.filter((item) => !/^storyboard:(?:shot|result):\d+$/.test(item.value ?? '')),
+      reference,
+    ])
+  }
   const onGenerateRow = (runtime: StoryboardRowRuntime): void => {
     void runAction(() => generateShotRow(execCtx, runtime.shot, runtime.mode))
   }
@@ -343,6 +353,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
                 onToggleLock={() => onToggleLockAnchor(runtime)}
                 onFilterByAnchor={() => setFilterAnchorId(runtime.anchor.id)}
                 onOpenPreview={() => onOpenPreviewAnchor(runtime)}
+                modelOptions={imageModelOptions}
               />
             ))}
             <button
@@ -395,6 +406,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
               videoModelOptions={videoModelOptions}
               emptyPromptShots={emptyPromptShots}
               onChange={setStoryboardPlan}
+              onStoryboardShotSelect={onStoryboardShotSelect}
               onGenerateRow={onGenerateRow}
               onRegenerateRow={onRegenerateRow}
               onVariantsRow={onVariantsRow}

@@ -158,6 +158,12 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
       tabIndex={-1}
       onDragOver={props.onDragOver}
       onDrop={props.onDrop}
+      onClick={(event) => {
+        // Keep row selection usable from the row surface while preserving the
+        // controls inside it (inputs, menus, and the frame action buttons).
+        if (event.target instanceof Element && event.target.closest('button, input, textarea, select')) return
+        props.onSelect?.(event)
+      }}
       onKeyDown={(event) => {
         if (event.altKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
           event.preventDefault()
@@ -175,6 +181,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
       }}
       className="relative grid grid-cols-[14px_84px_136px_minmax(0,1fr)] gap-3 py-3 pl-1.5 pr-3 items-start bg-nomi-paper"
       data-storyboard-row={shot.index}
+      data-selected={props.selected ? 'true' : undefined}
     >
       {props.isDragOver ? (
         <div className="absolute inset-x-1.5 top-0 h-0.5 rounded-full bg-nomi-accent" aria-hidden />
@@ -242,17 +249,20 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
               const missing = slot.min >= 1
               return (
                 <span key={slot.kind} className="flex flex-col items-center gap-0.5">
-                  <span
+                  <button
+                    type="button"
                     data-storyboard-ref-tile="named-slot"
+                    aria-label={`${translateModelDisplayText(slot.label)} ${t('storyboardEditor.row.atRefAria')}`}
+                    onClick={triggerAtMention}
                     className={cn(
-                      'grid place-items-center w-14 h-14 rounded-nomi-sm border border-dashed',
+                      'grid place-items-center w-14 h-14 rounded-nomi-sm border border-dashed hover:border-nomi-accent hover:text-nomi-accent',
                       missing ? 'border-workbench-danger bg-workbench-danger-soft text-workbench-danger' : 'border-nomi-ink-20 bg-nomi-ink-05 text-nomi-ink-30',
                     )}
                   >
                     <span className="text-micro leading-tight text-center">
-                      {missing ? t('storyboardEditor.row.slotRequired') : null}
+                      {missing ? t('storyboardEditor.row.slotRequired') : t('storyboardEditor.row.refIntakeCap')}
                     </span>
-                  </span>
+                  </button>
                   <span className={cn('text-micro', missing ? 'text-workbench-danger' : 'text-nomi-ink-40')}>
                     {translateModelDisplayText(slot.label)}
                   </span>

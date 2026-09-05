@@ -191,6 +191,9 @@ export const zhStoryboardEditor = {
   videoPromptPlaceholder: '这镜画什么：运镜 + 动作演进（不复述参考卡里的静态描述）',
   anchor: {
     kind: { character: '角色', scene: '场景', prop: '道具', style: '风格' },
+    modelAria: '参考卡生成模型',
+    modelLabel: '生成模型',
+    noImageModel: '暂无可用图片模型，请先在设置中接入并验证图片模型。',
     namePlaceholder: '起个名字',
     nameAria: '参考卡名字',
     editDescription: '编辑描述',
@@ -445,6 +448,9 @@ export const enStoryboardEditor = {
     'Describe the shot: camera movement + action progression (do not repeat static reference card descriptions)',
   anchor: {
     kind: { character: 'Character', scene: 'Scene', prop: 'Prop', style: 'Style' },
+    modelAria: 'Model for reference card',
+    modelLabel: 'Generation model',
+    noImageModel: 'No image model is available. Connect and verify an image model in Settings first.',
     namePlaceholder: 'Name it',
     nameAria: 'Reference card name',
     editDescription: 'Edit description',

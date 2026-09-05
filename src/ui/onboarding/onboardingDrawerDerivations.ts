@@ -84,7 +84,12 @@ export function buildExistingConnectionSummary(
     vendorName,
     baseUrl: vendorMeta.get(vendorKey)?.baseUrl ?? '',
     existingModels: models
-      .filter((model) => model.vendorKey === vendorKey)
+      .filter((model) => (
+        model.vendorKey === vendorKey
+        && model.enabled
+        && model.published === true
+        && model.adapterState === 'verified'
+      ))
       .map((model) => ({ modelKey: model.modelKey, labelZh: model.labelZh, kind: model.kind })),
   }
 }

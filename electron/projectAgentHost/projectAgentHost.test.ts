@@ -507,6 +507,7 @@ describe("offline ProjectAgentHost orchestration", () => {
       expectedRevision: 2,
       items: [toolItem],
       turnStatus: "done",
+      runtimeContext: { normalRequests: 1, summaryRequests: 1, compactions: 1, retainedMessages: 5 },
       assistantFinal: {
         itemId: "assistant-turn-a",
         executionToken: "token-turn-a",
@@ -535,7 +536,7 @@ describe("offline ProjectAgentHost orchestration", () => {
     expect(applied.state.items).toContainEqual(expect.objectContaining({ itemId: "tool-a" }));
     expect(createOfflineProjectAgentHost({ repository: repository() }).getSnapshot(binding)).toMatchObject({
       hostRevision: 3,
-      turns: [expect.objectContaining({ turnId: "turn-a", status: "done" })],
+      turns: [expect.objectContaining({ turnId: "turn-a", status: "done", runtimeContext: { normalRequests: 1, summaryRequests: 1, compactions: 1, retainedMessages: 5 } })],
       queue: [expect.objectContaining({ queueItemId: "queue-turn-a", status: "done" })],
     });
   });
