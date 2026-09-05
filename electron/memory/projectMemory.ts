@@ -84,6 +84,17 @@ type RuleHit = { id: string; text: string; kind: MemoryFactKind } | { removeId: 
 /** 零 LLM 提炼规则(v1,总方案 §C 层2 拍板):定妆实体 / 锁约束 / overridesDelta 偏好。 */
 function distillEvent(event: NomiEvent): RuleHit[] {
   const payload = event.payload || {};
+  if (event.type === "experience.candidate.created") {
+    const candidate = asRecord(payload.candidate);
+    if (String(candidate.destination || "") !== "memory"
+      || String(candidate.status || "") !== "active"
+      || candidate.eligibleForPrompt !== true
+      || String(candidate.kind || "") !== "fact") return [];
+    const candidateId = String(candidate.candidateId || "");
+    const content = headOf(String(candidate.content || ""), 2000);
+    if (!candidateId || !content) return [];
+    return [{ id: `experience:${candidateId}`, text: content, kind: "constraint" }];
+  }
   if (event.type === "canvas.node.added") {
     const node = asRecord(payload.node);
     const kind = String(node.kind || "");
