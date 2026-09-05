@@ -213,6 +213,7 @@
 
 | 文件 | 一句话 | 状态 |
 |---|---|---|
+| [2026-09-06-stack-upgrade-react19-aisdk-tailwind4.md](2026-09-06-stack-upgrade-react19-aisdk-tailwind4.md) | **技术栈升级立项**（React 19 · AI SDK · Tailwind 4）：实查纠正三个前提（我们没用 `useChat`，AI SDK 升级与 Agent 面板无因果；目标是 SDK 6 不是 5，7 是 ESM-only 进不来；React 19 捆着 Mantine 8 + R3F 9 两个次级迁移），逐条命中清单（`JSX.Element` 652 处 / AI SDK 仅 8 个生产文件 / Tailwind 132 处类名）、R3 三方案对比与四步执行门 | 📋 |
 | [2026-06-08-performance-foundation.md](2026-06-08-performance-foundation.md) | 性能地基改造立项 | ⛔ |
 | [2026-05-25-phase-e2-completion-and-tech-uplift.md](2026-05-25-phase-e2-completion-and-tech-uplift.md) | Phase E.2 完成 + 技术栈升级(v0.6) | ⛔ |
 | [2026-05-31-unify-request-pipeline.md](2026-05-31-unify-request-pipeline.md) | 统一请求构建管线（根治测试过/生产挂） | 📋 |
