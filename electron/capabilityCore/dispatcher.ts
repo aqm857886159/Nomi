@@ -39,6 +39,7 @@ import {
   getIntegrationSessionService,
   type IntegrationSessionService,
 } from '../integrationCertification/integrationSession'
+import { withCredentialElicitationTicket } from '../integrationCertification/credentialElicitation'
 import { manageModelCatalogConnection } from '../catalog/catalogManagement'
 
 export function projectIdOf(params: Record<string, unknown>): string {
@@ -736,11 +737,12 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
       )
     }
     case 'integration.open_credentials':
-      return (ctx.integrationSessions || getIntegrationSessionService()).openCredentials(
+      // 附上一次性凭据页（MCP URL 模式 elicitation）。铸在这一层 = 铸在真正持有会话的那个进程里。
+      return withCredentialElicitationTicket((ctx.integrationSessions || getIntegrationSessionService()).openCredentials(
         params.sessionId,
         params.expectedRevision,
         ctx.origin?.host || 'external',
-      )
+      ))
     case 'integration.propose':
       return (ctx.integrationSessions || getIntegrationSessionService()).propose(
         params.sessionId,
