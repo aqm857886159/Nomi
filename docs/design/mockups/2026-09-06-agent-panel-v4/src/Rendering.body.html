@@ -1,0 +1,33 @@
+<div class="board" style="width:1440px;height:800px;display:flex;flex-direction:column;gap:16px">
+<div><div style="font-size:15px;font-weight:600">渲染 · 助手文本里会出现的 12 种格式，在 390 宽面板里各长什么样</div><div class="note" style="margin-top:4px">底子：现有 <code>NomiMarkdown</code>（react-markdown + remark-gfm，token 化，compact 档）已经覆盖 GFM 全集，<b>沿用，不重造</b>。本板定的是「面板这个宽度下的显示决定」：哪些原样渲、哪些降级、哪些折叠、哪些禁。右侧标 ✓ 沿用 / △ 要改 / ✕ 禁。</div></div>
+<div style="display:grid;grid-template-columns:390px 1fr;gap:24px;align-items:start">
+<div class="panel" style="height:640px"><div class="ph"><span class="logo">N</span>Nomi<span class="ctx"><span class="ring" style="--p:22%"></span>22%</span><span class="sp"></span><span class="ic">{{i:hist:15}}{{i:side:15}}</span></div><div class="flow" style="gap:6px"><div class="md">
+<p>三镜的节奏是<b>快—慢—快</b>，中间那镜留 <code>4.0s</code> 给光线变化。</p>
+<div class="noh">建议的分镜</div>
+<ol><li>开场远景 · 推门 · 3.0s</li><li>推门近景 · 杯子落桌 · 4.0s</li><li>按下录制键 · 2.0s</li></ol>
+<ul><li>用同一只红色杯子，别换道具</li><li>第 2 镜的光从左上来</li></ul>
+<div class="tl2"><span class="bx on">✓</span>参考图已生成</div><div class="tl2"><span class="bx"></span>视频待你确认</div>
+<div class="tw"><table><tr><th>镜</th><th>时长</th><th>模型</th><th>单价</th></tr><tr><td>1</td><td>3.0s</td><td>Kling O1</td><td>¥0.90</td></tr><tr><td>2</td><td>4.0s</td><td>Kling O1</td><td>¥1.20</td></tr><tr><td>3</td><td>2.0s</td><td>Kling O1</td><td>¥0.60</td></tr></table></div>
+<pre>杯子放在白色桌面上，侧光，浅景深，
+胶片颗粒，16:9 <span class="cp">{{i:copy:12}}复制</span></pre>
+<p>相关素材看 <a>素材库 › 咖啡馆</a>，模型说明见 <a>Kling O1 {{i:link:11}}</a>。</p>
+<blockquote>引用自你的文稿：「她把红色杯子放在白色桌面上」</blockquote>
+<div class="fold">{{i:chev:12}}还有 18 行 · 展开</div>
+</div></div></div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;font-size:12px;line-height:1.5;color:var(--nomi-ink-80)">
+<div><b>段落 / 粗体 / 行内代码 ✓</b><br>沿用。行内 code 用于参数值（时长、尺寸、模型名），mono 让数字对齐。</div>
+<div><b>标题 △ 降级</b><br>h1/h2/h3 在 390 宽里一律渲成「粗体行」（13px/600），不放大字号——聊天里没有文档层级，放大只会像广告。</div>
+<div><b>有序 / 无序列表 ✓</b><br>沿用。缩进 20px；列表项内不再套第二层（LLM 爱套三层，第三层起拍平）。</div>
+<div><b>任务清单 △</b><br>GFM 的 disabled checkbox 改成只读的 13px 方块，勾 = accent 底。它是「Nomi 汇报进度」不是「让用户点」——可点的进度在计划卡里。</div>
+<div><b>表格 ✓ + 横向滚动</b><br>沿用现有 overflow-x 容器。超 4 列时表头第一列 sticky（改动小，收益大：镜号不滚丢）。</div>
+<div><b>代码块 △</b><br>加右上角「复制」；语言标签不显示（用户不关心 json/yaml）。超 12 行折叠，尾行「还有 N 行」。提示词是最常见的代码块内容。</div>
+<div><b>链接 △</b><br>内部链接（素材库 / 节点 / 时间点）不带 icon，点了在 Nomi 内跳；外部链接尾巴带 ↗ 小 icon 且走系统浏览器。禁止裸 URL 全文显示，超长自动截中间。</div>
+<div><b>引用块 ✓</b><br>沿用；主要用于回引用户文稿原句。</div>
+<div><b>图片 ✕ 不在文本里渲</b><br>助手文本里的 <code>![]()</code> 不渲成内联大图——所有生成结果走任务卡的缩略图 + 画布。文本里出现图片 markdown 只渲成一个可点的 chip。</div>
+<div><b>删除线 / 分隔线 ✓</b><br>沿用；分隔线在 compact 档 margin 减半。</div>
+<div><b>HTML 原文 ✕</b><br>react-markdown 默认不渲 raw HTML，保持。</div>
+<div><b>超长回复 △ 折叠</b><br>超过面板高度 60% 的单条助手文本默认折到 60% 高，尾部「还有 N 行 · 展开」。流式时不折（正在读），流完才折。</div>
+<div><b>流式时的渲染 ✓</b><br>边流边 parse（已 memo 历史气泡）。未闭合的 ``` 和表格在流式中先当纯文本显示，闭合后重排——不闪烁的关键是不预测。</div>
+<div><b>数学 / mermaid ✕</b><br>不做。出现 <code>$$</code> 或 mermaid 围栏按普通代码块显示。</div>
+</div></div>
+</div>
