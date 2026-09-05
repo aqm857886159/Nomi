@@ -1,3 +1,4 @@
+import type { TranslationKey } from '../../i18n/translationKey'
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -109,9 +110,19 @@ function surfaceLabel(t: (key: string, options?: Record<string, unknown>) => str
         : t('agentResident.contextCreation')
 }
 
+const STATUS_LABEL_KEY = {
+  drafting: 'agentResident.planning',
+  proposed: 'agentResident.waitingApprovalShort',
+  declined: 'agentResident.declined',
+  queued: 'agentResident.queued',
+  running: 'agentResident.running',
+  done: 'agentResident.done',
+  failed: 'agentResident.failed',
+  stopped: 'agentResident.stopped',
+} as const satisfies Record<ProjectAgentStatus, TranslationKey>
+
 function statusLabel(t: (key: string, options?: Record<string, unknown>) => string, status: ProjectAgentStatus): string {
-  const key = status === 'drafting' ? 'planning' : status === 'proposed' ? 'waitingApprovalShort' : status === 'declined' ? 'declined' : status
-  return t(`agentResident.${key}`)
+  return t(STATUS_LABEL_KEY[status])
 }
 
 function isActiveQueueStatus(status: ProjectAgentStatus): boolean {
@@ -737,7 +748,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
       <form className="relative grid gap-1 px-3 pb-1.5 pt-1" onSubmit={(event) => { event.preventDefault(); void submit() }} {...attachmentApi.dragHandlers}>
         <input ref={attachmentApi.inputRef} type="file" multiple accept={COMPOSER_ATTACHMENT_ACCEPT} className="hidden" tabIndex={-1} aria-hidden="true" onChange={attachmentApi.onInputChange} />
         <AttachmentRail attachments={attachments} onRemove={attachmentApi.removeAttachment} />
-        {references.length || activeSkill || selectedLibraryPrompt || (promptModeId !== 'general' && !activeSkill) ? <div className="flex max-h-14 flex-wrap gap-1 overflow-y-auto" data-agent-references="true">{references.map((reference) => <ResidentReferenceChip key={reference.id} reference={reference} t={t} onRemove={() => removeReference(reference.id)} />)}{activeSkill ? <span data-agent-reference={`skill:${activeSkill.key}`} className="inline-flex h-6 max-w-full items-center gap-1 rounded-pill bg-nomi-accent-soft px-2 text-micro text-nomi-accent"><IconTool size={12} /><span className="truncate">{activeSkill.name}</span><button type="button" aria-label={t('agentResident.removeReference')} onClick={() => setActiveSkill(null)}><IconX size={11} /></button></span> : null}{selectedLibraryPrompt && !activeSkill ? <span data-agent-reference={libraryPromptReferenceId(selectedLibraryPrompt)} className="inline-flex h-6 max-w-full items-center gap-1 rounded-pill bg-nomi-accent-soft px-2 text-micro text-nomi-accent" title={selectedLibraryPrompt.prompt}><IconPencil size={12} /><span className="truncate">{promptDisplayTitle(selectedLibraryPrompt)}</span><button type="button" aria-label={t('agentResident.removeReference')} title={t('agentResident.removeReference')} onClick={() => setSelectedLibraryPrompt(null)}><IconX size={11} /></button></span> : null}{promptModeId !== 'general' && !activeSkill && !selectedLibraryPrompt ? <span data-agent-reference={`prompt:${promptModeId}`} className="inline-flex h-6 max-w-full items-center gap-1 rounded-pill bg-nomi-ink-05 px-2 text-micro text-nomi-ink-80"><PromptIcon size={12} /><span className="truncate">{t(`agentResident.${promptPreset.labelKey}`)}</span><button type="button" aria-label={t('agentResident.removeReference')} onClick={() => setPromptModeId('general')}><IconX size={11} /></button></span> : null}</div> : null}
+        {references.length || activeSkill || selectedLibraryPrompt || (promptModeId !== 'general' && !activeSkill) ? <div className="flex max-h-14 flex-wrap gap-1 overflow-y-auto" data-agent-references="true">{references.map((reference) => <ResidentReferenceChip key={reference.id} reference={reference} t={t} onRemove={() => removeReference(reference.id)} />)}{activeSkill ? <span data-agent-reference={`skill:${activeSkill.key}`} className="inline-flex h-6 max-w-full items-center gap-1 rounded-pill bg-nomi-accent-soft px-2 text-micro text-nomi-accent"><IconTool size={12} /><span className="truncate">{activeSkill.name}</span><button type="button" aria-label={t('agentResident.removeReference')} onClick={() => setActiveSkill(null)}><IconX size={11} /></button></span> : null}{selectedLibraryPrompt && !activeSkill ? <span data-agent-reference={libraryPromptReferenceId(selectedLibraryPrompt)} className="inline-flex h-6 max-w-full items-center gap-1 rounded-pill bg-nomi-accent-soft px-2 text-micro text-nomi-accent" title={selectedLibraryPrompt.prompt}><IconPencil size={12} /><span className="truncate">{promptDisplayTitle(selectedLibraryPrompt)}</span><button type="button" aria-label={t('agentResident.removeReference')} title={t('agentResident.removeReference')} onClick={() => setSelectedLibraryPrompt(null)}><IconX size={11} /></button></span> : null}{promptModeId !== 'general' && !activeSkill && !selectedLibraryPrompt ? <span data-agent-reference={`prompt:${promptModeId}`} className="inline-flex h-6 max-w-full items-center gap-1 rounded-pill bg-nomi-ink-05 px-2 text-micro text-nomi-ink-80"><PromptIcon size={12} /><span className="truncate">{t(promptPreset.labelKey)}</span><button type="button" aria-label={t('agentResident.removeReference')} onClick={() => setPromptModeId('general')}><IconX size={11} /></button></span> : null}</div> : null}
         <div className={cn('rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2 py-1', attachmentApi.isDragging && 'border-nomi-accent bg-nomi-accent-soft', runningTurn && 'border-nomi-accent/60 ring-2 ring-nomi-accent/20 motion-safe:animate-[nomi-composer-breathe_2s_ease-in-out_infinite] motion-reduce:ring-1')} data-agent-running-feedback={runningTurn ? 'true' : undefined}>
           <AutoGrowTextarea value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={onKeyDown} onPaste={attachmentApi.handlePaste} placeholder={t('agentResident.placeholder')} aria-label={t('agentResident.messageAria')} maxHeight={120} className="min-h-10 text-body-sm" data-agent-input="true" />
           <div className="flex items-center gap-1 border-t border-nomi-line-soft pt-1">

@@ -45,7 +45,7 @@ import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 import ts from 'typescript'
-import { DYNAMIC_KEY_PREFIXES, type DynamicPrefix } from './lib/i18nDynamicKeyPrefixes'
+import { DYNAMIC_KEY_PREFIXES, OVERBROAD_NAMESPACE_DEBT, type DynamicPrefix } from './lib/i18nDynamicKeyPrefixes'
 
 // ── resource 树(与 parity / 正向门岗同一套 flatten) ──
 export type Tree = { leaves: Set<string>; subtrees: Set<string> }
@@ -88,6 +88,83 @@ export function createCollected(): Collected {
   return { exactRefs: new Set(), literalPool: new Set(), templateHeads: new Map() }
 }
 
+
+// ── 规则③的「像不像翻译键」判据 ──
+// 为什么需要它（2026-09-05）：head 采集原先**不问出处**，于是任何长得像键路径的模板都成了动态前缀，
+// 而一个前缀会让它覆盖的整片叶子免于判死。实例：时间轴测试里的夹具文件名 `media.${extension}`
+// 让真实的 media.* 命名空间（5 叶）整片豁免——那两个文件跟 i18n 毫无关系。
+// 反过来又不能只认 `t()` 实参：本仓大量写法是「键先拼好存进变量/由函数返回，再传进 t()」
+// （knownVendors 的 `const path = ...` 57 叶、canvasBatchModelLabel 的返回值 17 叶），
+// 砍掉它们会把活键判死——而误判成死键是本门岗**最贵**的错（删掉 = 线上渲染出原始 key）。
+// 故取「四选一」的宽口径证据，只把真正无出处的模板挡在外面。
+
+/**
+ * 往上穿过「不改变这个值用途」的包装，找到真正表达用途的那个父节点。
+ * 三目/短路必须穿：`return a ? `k.${x}` : `k2.${y}`` 里模板的直接父是 ConditionalExpression，
+ * 不穿的话「由函数返回」这条证据就命中不了——首版实测因此把 canvasBatchModelLabel 的 13 个活键
+ * 判成死键（误判成死是本门岗最贵的错，所以这条必须穿）。
+ */
+function unwrapOuter(node: ts.Node): ts.Node {
+  let current = node
+  for (;;) {
+    const parent = current.parent
+    if (!parent) return current
+    const transparent = ts.isAsExpression(parent)
+      || ts.isParenthesizedExpression(parent)
+      || ts.isTypeAssertionExpression(parent)
+      || (ts.isConditionalExpression(parent) && (parent.whenTrue === current || parent.whenFalse === current))
+      || (ts.isBinaryExpression(parent)
+        && (parent.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken
+          || parent.operatorToken.kind === ts.SyntaxKind.BarBarToken))
+    if (!transparent) return current
+    current = parent
+  }
+}
+
+function isTranslateCallee(expression: ts.Expression): boolean {
+  if (ts.isIdentifier(expression)) return expression.text === 't' || expression.text === 'tt'
+  if (ts.isPropertyAccessExpression(expression)) return expression.name.text === 't'
+  return false
+}
+
+/** 本文件里被当作翻译键传进 t() 的**标识符名**（`t(path)` / `t(key)`）——供「一跳」判定用。 */
+function collectTranslatedIdentifiers(sourceFile: ts.SourceFile): Set<string> {
+  const names = new Set<string>()
+  const walk = (node: ts.Node): void => {
+    if (ts.isCallExpression(node) && isTranslateCallee(node.expression) && node.arguments.length > 0) {
+      const arg = unwrapInner(node.arguments[0])
+      if (ts.isIdentifier(arg)) names.add(arg.text)
+    }
+    ts.forEachChild(node, walk)
+  }
+  walk(sourceFile)
+  return names
+}
+
+function unwrapInner(node: ts.Expression): ts.Expression {
+  let current = node
+  while (ts.isAsExpression(current) || ts.isParenthesizedExpression(current) || ts.isTypeAssertionExpression(current)) current = current.expression
+  return current
+}
+
+/** 这个模板有没有「它是翻译键」的出处。四选一，任一成立即算。 */
+export function templateLooksLikeTranslationKey(node: ts.TemplateExpression, translatedIdentifiers: Set<string>): boolean {
+  const outer = unwrapOuter(node)
+  const parent = outer.parent
+  if (!parent) return false
+  // ① 直接就是 t()/i18n.t() 的第一个实参
+  if (ts.isCallExpression(parent) && parent.arguments[0] === outer && isTranslateCallee(parent.expression)) return true
+  // ② 存进变量/属性，而这个名字在本文件里被传进过 t()（knownVendors 的 `const path = …; i18n.t(path)`）
+  if (ts.isVariableDeclaration(parent) && ts.isIdentifier(parent.name) && translatedIdentifiers.has(parent.name.text)) return true
+  // ③ 名字自称是键（labelKey / hintKey / KEY…）——本仓视图模型的通用写法
+  if (ts.isVariableDeclaration(parent) && ts.isIdentifier(parent.name) && /key$/i.test(parent.name.text)) return true
+  if (ts.isPropertyAssignment(parent) && (ts.isIdentifier(parent.name) || ts.isStringLiteral(parent.name)) && /key$/i.test(parent.name.text)) return true
+  // ④ 由函数返回（canvasBatchModelLabel 的 return、modeKey 的箭头简写体）
+  if (ts.isReturnStatement(parent)) return true
+  if (ts.isArrowFunction(parent) && parent.body === outer) return true
+  return false
+}
+
 export function collectFromSourceText(
   sourceText: string,
   options: { fileName: string; isDictionary: boolean },
@@ -102,6 +179,8 @@ export function collectFromSourceText(
     fileName.endsWith('.tsx') || fileName.endsWith('.jsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
   )
 
+  const translatedIdentifiers = collectTranslatedIdentifiers(sourceFile)
+
   function visit(node: ts.Node): void {
     // 规则①②:任何位置的字符串字面量,含类型位置的 `as 'a.b'`(forEachChild 会走进类型节点)。
     if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
@@ -114,11 +193,12 @@ export function collectFromSourceText(
         if (node.text.startsWith('i18n:')) collected.exactRefs.add(node.text.slice('i18n:'.length))
       }
     }
-    // 规则③:模板 head 作为动态前缀。仓库全量扫、不限 t() 实参——
-    // 键先拼好存进 const 再传进 t() 的写法(CapabilityModeEditor 就是),正向门岗看不见,这里必须覆盖。
+    // 规则③:模板 head 作为动态前缀。仍**不限 t() 实参**(键先拼好再传进 t() 的写法正向门岗看不见,
+    // 这里必须覆盖),但要求这个模板有「它是翻译键」的出处——否则夹具文件名、URL、缓存 key 这类
+    // 长得像键路径的串会白白豁免掉一整片叶子(见 templateLooksLikeTranslationKey 的注释)。
     if (ts.isTemplateExpression(node) && !isDictionary) {
       const head = node.head.text
-      if (head && !collected.templateHeads.has(head)) {
+      if (head && !collected.templateHeads.has(head) && templateLooksLikeTranslationKey(node, translatedIdentifiers)) {
         const line = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1
         collected.templateHeads.set(head, `${fileName}:${line}`)
       }
@@ -170,6 +250,48 @@ export function buildLivePrefixes(
     if (isUsablePrefix(head, tree, leaves)) prefixes.set(head, 'DYNAMIC_KEY_PREFIXES')
   }
   return prefixes
+}
+
+/**
+ * **整命名空间前缀闸**（2026-09-05）。一个覆盖整棵顶层命名空间的前缀（`generationCommon.`、
+ * `agentResident.`…）让该命名空间下的死键**一条都报不出来**——本门岗对那一片彻底失明，
+ * 而报告照样打印「passed」。这比漏判几条严重得多：它是**门岗自身失效**，且没有任何外部信号。
+ *
+ * 来源不限注册表：源码里的模板 head 同样自动生效（`t(`ns.${key}`)`），所以两边都要查。
+ * 返回过宽前缀 → 来源，供调用方按 OVERBROAD_NAMESPACE_DEBT 做只减不增的棘轮核对。
+ */
+/** `file:line` → 是否产品源(渲染层/主进程,排除测试)。 */
+function isProductionSource(source: string): boolean {
+  const file = source.split(':')[0]
+  if (!file.startsWith('src/') && !file.startsWith('electron/')) return false
+  return !/\.(?:test|spec)\.[cm]?[jt]sx?$/.test(file) && !file.includes('/__tests__/')
+}
+
+export function overbroadNamespacePrefixes(
+  tree: Tree,
+  collected: Collected,
+  registry: DynamicPrefix[] = DYNAMIC_KEY_PREFIXES,
+): Map<string, string> {
+  const leaves = [...tree.leaves]
+  const found = new Map<string, string>()
+  const note = (prefix: string, source: string): void => {
+    if (!found.has(prefix)) found.set(prefix, source)
+  }
+  for (const [head, source] of collected.templateHeads) {
+    if (!isUsablePrefix(head, tree, leaves)) continue
+    const prefix = head.replace(/\.$/, '')
+    if (prefix.includes('.')) continue // 只认整棵顶层命名空间;更深的前缀是正常收窄
+    // 只认**产品源**里的 head。测试/脚本里长得像键路径的模板多半是夹具文件名(`media.${ext}`)、
+    // URL 或路径——它们同样会让 buildLivePrefixes 遮住一整片(这是本门岗的既有短板,另账),
+    // 但那不是「有人写了整命名空间的 i18n 模板」,拿它报红只会逼人去改夹具名，治不了病。
+    if (!isProductionSource(source)) continue
+    note(prefix, source)
+  }
+  for (const entry of registry) {
+    if (entry.kind === 'concat' || entry.prefix.includes('.')) continue
+    if (isUsablePrefix(`${entry.prefix}.`, tree, leaves)) note(entry.prefix, 'DYNAMIC_KEY_PREFIXES')
+  }
+  return found
 }
 
 // ── 判定 ──
@@ -253,6 +375,11 @@ async function main(): Promise<void> {
   }
 
   const livePrefixes = buildLivePrefixes(tree, collected)
+  // 整命名空间前缀 = 本门岗对那一片失明。棘轮:只许在册的存量,新增当场红,清掉了也要摘掉登记。
+  const overbroad = overbroadNamespacePrefixes(tree, collected)
+  const debt = new Set(OVERBROAD_NAMESPACE_DEBT)
+  const newlyOverbroad = [...overbroad.keys()].filter((prefix) => !debt.has(prefix)).sort()
+  const staleDebt = [...debt].filter((prefix) => !overbroad.has(prefix)).sort()
   const verdicts = classify(tree, collected, livePrefixes)
   const deadKeys = verdicts.filter((v) => v.tier === 'dead').map((v) => v.key)
   const unreached = verdicts.filter((v) => v.tier === 'dynamic-unreached')
@@ -262,6 +389,7 @@ async function main(): Promise<void> {
     console.log(`Keys (zh ∪ en leaves): ${tree.leaves.size}`)
     console.log(`Exact literal references: ${collected.exactRefs.size}; literal pool: ${collected.literalPool.size}`)
     console.log(`Live dynamic prefixes: ${livePrefixes.size} (registry ${DYNAMIC_KEY_PREFIXES.length} + source-derived)`)
+    console.log(`整命名空间前缀(本门岗对这些命名空间失明): ${[...overbroad].map(([p, src]) => `${p} @ ${src}`).join(', ') || '无'}`)
     console.log(`\nA 档 dead (high confidence, deletable): ${deadKeys.length}`)
     for (const key of deadKeys) console.log(`  ${key}`)
     console.log(`\nB 档 dynamic-unreached (suspect, DO NOT auto-delete): ${unreached.length}`)
@@ -320,10 +448,30 @@ async function main(): Promise<void> {
   const added = deadKeys.filter((key) => !baselineSet.has(key))
   const removed = baseline.deadKeys.filter((key) => !deadSet.has(key))
 
+  // 整命名空间前缀的棘轮先判:它是「门岗对整片失明」,比漏判几条死键严重,
+  // 且失明时下面那句 passed 依然会打印出来——必须在它之前拦住。
+  if (newlyOverbroad.length > 0 || staleDebt.length > 0) {
+    console.error('i18n dead-key gate failed: 整命名空间动态前缀的棘轮不符')
+    if (newlyOverbroad.length > 0) {
+      console.error(`\n新增 ${newlyOverbroad.length} 个覆盖整棵顶层命名空间的前缀——该命名空间下的死键从此一条都报不出来:`)
+      for (const prefix of newlyOverbroad) console.error(`- ${prefix}   (来源: ${overbroad.get(prefix)})`)
+      console.error('  → 收窄调用点:常量存**整键**并 satisfies TranslationKey(src/i18n/translationKey.ts),别存相对片段再拼命名空间。')
+      console.error('    确有必要保留则登记进 OVERBROAD_NAMESPACE_DEBT 并说明为什么——但那等于主动放弃该命名空间的死键检测。')
+    }
+    if (staleDebt.length > 0) {
+      console.error(`\nOVERBROAD_NAMESPACE_DEBT 里有 ${staleDebt.length} 条已经不再过宽(棘轮只减不增,清掉了就要摘登记):`)
+      for (const prefix of staleDebt) console.error(`- ${prefix}`)
+      console.error('  → 从 scripts/lib/i18nDynamicKeyPrefixes.ts 的 OVERBROAD_NAMESPACE_DEBT 里删掉这些条目。')
+    }
+    process.exitCode = 1
+    return
+  }
+
   if (added.length === 0) {
     const shrink = removed.length > 0 ? `,较基线少 ${removed.length} 条(跑 --update-baseline 收紧棘轮)` : ''
+    const blind = debt.size > 0 ? `;${debt.size} 个命名空间仍被整片前缀遮住(${[...debt].join('、')})` : ''
     console.log(
-      `i18n dead-key gate passed (${tree.leaves.size} keys, ${deadKeys.length} known-dead within baseline${shrink}; ${unreached.length} dynamic-unreached suspects)`,
+      `i18n dead-key gate passed (${tree.leaves.size} keys, ${deadKeys.length} known-dead within baseline${shrink}; ${unreached.length} dynamic-unreached suspects${blind})`,
     )
     return
   }

@@ -25,6 +25,15 @@ const RAW_EVIDENCE: CanvasWriteRawEvidence = {
   groups: [],
 };
 
+const DELETE_RAW_EVIDENCE: CanvasWriteBatchRawEvidence = {
+  nodes: [{
+    id: "node-real", kind: "image", title: "Shot", prompt: "old", locked: false,
+    categoryId: "shots", groupId: null, position: { x: 0, y: 0 },
+    model: RAW_EVIDENCE.node.model, currentResult: null,
+  }],
+  edges: [], groups: [], resolvedReferences: [{ requestedId: "node-real", nodeId: "node-real" }],
+};
+
 async function setup(rawEvidence: unknown = RAW_EVIDENCE) {
   const ownerAuthority = createSurfaceOwnerAuthority();
   const owner = ownerAuthority.capture({
@@ -105,6 +114,24 @@ async function setup(rawEvidence: unknown = RAW_EVIDENCE) {
 }
 
 describe("canvas.write Pi transport", () => {
+  it("routes the resident nomi_canvas_maintenance alias through the irreversible delete transport", async () => {
+    const test = await setup(DELETE_RAW_EVIDENCE);
+    const prepared = await test.adapter.prepare(
+      {
+        toolCallId: "tool-delete",
+        toolName: "nomi_canvas_maintenance",
+        args: { operation: "delete_canvas_nodes", nodeIds: ["node-real"] },
+      },
+      new AbortController().signal,
+    );
+
+    expect(prepared?.invocation.input).toEqual({
+      operation: "delete_canvas_nodes",
+      nodeIds: ["node-real"],
+    });
+    expect(prepared?.invocation.target).toEqual({ kind: "canvas", nodeIds: ["node-real"] });
+  });
+
   it("prepares tidy_canvas through the same verified write transport", async () => {
     const batchEvidence: CanvasWriteBatchRawEvidence = {
       nodes: [
