@@ -35,7 +35,7 @@ async function snap(win, name) {
   await screenshotSettled(win, { path: path.join(shotsDir, `${String(shot).padStart(2, '0')}-${name}.png`) })
 }
 async function openModels(win) {
-  const directTrigger = win.locator('[aria-label="打开模型设置"], [aria-label="打开模型接入"], button:has-text("模型接入"), button:has-text("Connect model")').first()
+  const directTrigger = win.locator('[aria-label="打开模型设置"], button:has-text("模型接入"), button:has-text("Connect model")').first()
   if (await directTrigger.count()) {
     await expectVisible(directTrigger, '工作区应提供模型设置入口')
     await directTrigger.click({ timeout: 5000 })
@@ -59,7 +59,7 @@ async function openModels(win) {
     await expectHidden(splash, '开屏介绍应已关闭')
     project = win.getByRole('button', { name: /新建空白项目/ }).first()
   }
-  let trigger = win.locator('[aria-label="打开模型设置"], [aria-label="打开模型接入"], button:has-text("模型接入"), button:has-text("Connect model")').first()
+  let trigger = win.locator('[aria-label="打开模型设置"], button:has-text("模型接入"), button:has-text("Connect model")').first()
   if (!(await trigger.count())) {
     const settings = win.getByRole('button', { name: '设置', exact: true }).first()
     await expectVisible(settings, '项目库应提供设置入口')

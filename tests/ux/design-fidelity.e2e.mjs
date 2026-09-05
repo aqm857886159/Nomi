@@ -19,7 +19,9 @@ const px = (v) => `${Math.round(parseFloat(v))}px`;
 const { app, win } = await launchNomiApp({ name: "design-fidelity" });
 
 // 首启开屏(SplashIntro)会全屏覆盖挡住库页 → 标记已看过并 reload，让后续库页断言可见。
-await win.evaluate(() => window.localStorage.setItem("nomi:splash:v1", "seen"));
+await win.evaluate(() => {
+  window.localStorage.setItem("nomi:splash:v1", "seen");
+});
 await win.reload();
 await win.waitForLoadState("domcontentloaded");
 await win.waitForTimeout(1500);
@@ -151,8 +153,12 @@ try {
     };
   });
 
-  console.log("\n── 模式条 / 标签(规范 §1 字号 13/11) ──");
-  assert(px(m.segBtnFont) === "13px", "模式条按钮 13px", m.segBtnFont);
+  console.log("\n── 模式条 / 标签(字号 12/11) ──");
+  // 12 不是 13：分段控件的真相源是设计系统的共享控件 NomiSegmented（src/design/NomiSegmented.tsx
+  // 用 text-caption = 12px），ModeBar 2026-08-29 内联重写时逐字保留了它。v4 实现规范 §1 只把字号
+  // 限定在 11/12/13 这套 scale 里，从没为这个控件钉死 13——原断言（2026-06-06 固化时写的）是过期的，
+  // 不是回归。仍钉死具体值：它挡的是 text-[9.5px] 这类随意值，以及 text-bodySm 驼峰笔误静默回落 16px。
+  assert(px(m.segBtnFont) === "12px", "模式条按钮 12px（与共享控件 NomiSegmented 同档）", m.segBtnFont);
   assert(px(m.labelFont) === "11px" && m.labelText === "生成方式", "生成方式 label 11px", `${m.labelText}/${m.labelFont}`);
 
   console.log("\n── 参考块(规范 §1/§2:56px / 6px / 虚线) ──");
@@ -267,56 +273,66 @@ try {
   await win.keyboard.press("Escape").catch(() => {});
   await win.waitForTimeout(300);
 
-  // ── 本会话回归点 #C(生成区)：助手默认折叠；展开后 aside 是 flex 非 grid；模型选择器显具体名 ──
-  const collapsed = await win.evaluate(() => {
-    // Host cutover retired the in-canvas launcher; the ResidentShell collapsed pill
-    // ([data-agent-resident-collapsed]) is the launcher button itself.
-    const launcherEl = Array.from(document.querySelectorAll('[data-agent-resident-collapsed="true"]')).find((el) => el.getClientRects().length > 0);
-    const btn = launcherEl;
-    const r = btn ? btn.getBoundingClientRect() : null;
-    const radius = btn ? parseFloat(getComputedStyle(btn).borderTopLeftRadius) : 0;
+  // ── 本会话回归点 #C(生成区)：常驻 Agent 面板的结构锁 ──
+  // 2026-09-05 重定向：旧画布助手（aria-label「生成区 AI 助手」/「生成区 AI 启动器」）已随 Agent Host cutover
+  // 退役，这两个 aria-label 在 src/ 里已无人渲染（原先这里「aside 未挂载」一条恒真=假绿，随后的
+  // waitForSelector 恒超时=假红）。常驻壳是真实两态 UI（展开/收起偏好持久化），且模型控件只剩图标
+  //（具体模型名在 title），故「默认折叠」「模型选择器显具体名」两条旧断言的前提已不在；
+  // 保留仍成立的两条结构锁：收起药丸整圆角（cn twMerge）+ 面板 display:flex（非 grid）。锚点来自真机探针。
+  const PANEL = '[data-agent-resident="true"][data-agent-panel="true"][data-agent-surface="generation"]';
+  const PILL = '[data-agent-resident-collapsed="true"]';
+  const residentState = await win.evaluate(([panelSel, pillSel]) => {
+    const pill = Array.from(document.querySelectorAll(pillSel)).find((el) => el.getClientRects().length > 0);
+    const panel = Array.from(document.querySelectorAll(panelSel)).find((el) => el.getClientRects().length > 0);
+    const r = pill ? pill.getBoundingClientRect() : null;
+    const radius = pill ? parseFloat(getComputedStyle(pill).borderTopLeftRadius) : 0;
     return {
-      launcher: Boolean(launcherEl),
-      asideMounted: Array.from(document.querySelectorAll('[aria-label="生成区 AI 助手"]')).some((el) => el.getClientRects().length > 0),
+      pill: Boolean(pill),
+      panel: Boolean(panel),
       // 收起胶囊应为整圆角（半径 ≥ 半高）；这锁住 cn() twMerge 让 rounded-full 压过组件基类
       // rounded-workbench-control 的修复——否则创作/生成胶囊外圆角会不一致。
-      launcherFullPill: r ? radius >= r.height / 2 - 1 : false,
+      pillFullRound: r ? radius >= r.height / 2 - 1 : null,
     };
-  });
-  console.log("\n── 生成助手(#C：默认折叠 → 启动器在、面板未挂载、整圆角) ──");
-  assert(collapsed.launcher && !collapsed.asideMounted, "生成助手默认折叠（启动器在、aside 未挂载）", JSON.stringify(collapsed));
-  assert(collapsed.launcherFullPill, "收起胶囊为整圆角 rounded-full（cn twMerge 压过基类圆角）", `fullPill=${collapsed.launcherFullPill}`);
+  }, [PANEL, PILL]);
+  console.log("\n── 生成区常驻 Agent(#C：药丸或面板恰有其一；收起药丸整圆角) ──");
+  // 「恰有其一」同时是活性证明：两者都没有 = 根本没站在生成区（或 dock 没挂上），不能拿「没有」当过。
+  assert(residentState.pill !== residentState.panel, "常驻 Agent 在生成区恰处于收起药丸 / 展开面板之一", JSON.stringify(residentState));
+  if (residentState.pill) {
+    assert(residentState.pillFullRound === true, "收起胶囊为整圆角 rounded-full（cn twMerge 压过基类圆角）", `fullRound=${residentState.pillFullRound}`);
+    await win.locator(PILL).click();
+  } else console.log("  ⊘ 收起胶囊圆角 — 跳过（本次面板默认展开，没有药丸可量）");
+  await win.waitForSelector(PANEL, { state: "visible", timeout: 5_000 });
+  const panelDisplay = await win.evaluate((panelSel) => getComputedStyle(document.querySelector(panelSel)).display, PANEL);
+  console.log("\n── 生成区常驻 Agent 展开(#C：面板 flex 非 grid) ──");
+  assert(panelDisplay === "flex", "常驻面板 display:flex（非 grid，修「上面空一大块」的根因点）", panelDisplay);
 
-  await win.locator('[aria-label="生成区 AI 启动器"]:visible button').click();
-  await win.waitForSelector('[aria-label="生成区 AI 助手"]', { state: "visible", timeout: 3_000 });
-  const asst = await win.evaluate(() => {
-    const aside = document.querySelector('[aria-label="生成区 AI 助手"]');
-    const picker = document.querySelector('[aria-label="助手模型"]');
-    return {
-      asideDisplay: aside ? getComputedStyle(aside).display : "?",
-      pickerText: picker ? (picker.textContent || "").trim() : "?",
-    };
-  });
-  console.log("\n── 生成助手展开(#C：aside flex 非 grid + 模型显具体名) ──");
-  assert(asst.asideDisplay === "flex", "助手 aside display:flex（非 grid，修「上面空一大块」的根因点）", asst.asideDisplay);
-  assert(asst.pickerText.length > 0 && !asst.pickerText.includes("自动选模型"), "模型选择器显具体模型名（非「自动选模型」）", asst.pickerText);
-
-  // ── 本会话回归点 #C(左栏)：收起后导航用 svg 图标，不再是文字「类/文」──
+  // ── 本会话回归点 #C(左栏)：收起后导航每项都有 svg 图标，不是被截成单字的文字 ──
+  // 2026-09-05 重定向：原断言锚 [aria-label="展开分类面板"] / [aria-label="展开文件面板"]，这两个
+  // aria-label 在 src/ 里已无人渲染（探针实测：收起栏是 素材库/分组/提示词库/技能库/流程库 五项，
+  // 没有「分类」「文件」这两个面）。锚点取自真机探针，不是照源码猜的。
   await win.locator('[aria-label="收起侧栏"]').first().click().catch(() => {});
   await win.waitForTimeout(400);
   const railIcons = await win.evaluate(() => {
-    const cat = document.querySelector('[aria-label="展开分类面板"]');
-    const file = document.querySelector('[aria-label="展开文件面板"]');
-    const ok = (el) => Boolean(el && el.querySelector("svg") && !/^[类文]$/.test((el.textContent || "").trim()));
-    return { catOk: ok(cat), fileOk: ok(file), catText: (cat?.textContent || "").trim(), fileText: (file?.textContent || "").trim() };
+    const nav = document.querySelector('[aria-label="项目侧栏导航"]');
+    const items = Array.from(nav?.querySelectorAll('button, [role="button"], [role="tab"]') || [])
+      .filter((el) => el.getClientRects().length > 0);
+    return {
+      count: items.length,
+      // 每项都得有真图标；文字若被截成单字（「类」「文」这种）就是当年要修的那个病。
+      bad: items
+        .map((el) => ({ label: el.getAttribute("aria-label") || "", text: (el.textContent || "").trim(), svg: Boolean(el.querySelector("svg")) }))
+        .filter((it) => !it.svg || /^.$/.test(it.text)),
+      labels: items.map((el) => el.getAttribute("aria-label") || (el.textContent || "").trim()),
+    };
   });
-  console.log("\n── 左栏收起(#C：导航是 svg 图标，非文字「类/文」) ──");
-  assert(railIcons.catOk, "收起栏「分类」是 svg 图标（非文字「类」）", railIcons.catText);
-  assert(railIcons.fileOk, "收起栏「文件」是 svg 图标（非文字「文」）", railIcons.fileText);
+  console.log("\n── 左栏收起(#C：导航每项有 svg 图标，文字不被截成单字) ──");
+  // count>0 同时是活性证明：一个都没找到 = 探针没打中收起栏，不能拿「没有坏项」当过。
+  assert(railIcons.count > 0, "收起栏导航项可被探针找到（否则下面的检查恒真）", `count=${railIcons.count}`);
+  assert(railIcons.bad.length === 0, "收起栏每项都是 svg 图标且文字未被截成单字", JSON.stringify(railIcons.bad) + " of " + JSON.stringify(railIcons.labels));
 
   // ── 本会话回归点 #C(#A 素材库)：来源 3 标签同一行不折行 + 面板 flex 列 ──
   // 2026-07-22 方案一重执行：右侧抽屉已删，素材库唯一门=侧栏 tab（nomi-open-files-panel 展开）；
-  // 老断言「4 标签」是分类还是 role=tab 时代的，现来源 tab 3 个、分类筛选是菜单。
+  // 老断言「4 标签」是分类还是 role=tab 时代的；来源 tab 现为 2 个（智能分组 2026-08-17 已删），分类筛选是菜单。
   await win.evaluate(() => window.dispatchEvent(new CustomEvent("nomi-open-files-panel")));
   await win.waitForTimeout(700);
   const assetLib = await win.evaluate(() => {
@@ -335,7 +351,10 @@ try {
   console.log("\n── 素材库面板(#A：来源标签单行 + flex 列 + 不溢出) ──");
   assert(assetLib.panelMounted, "素材库侧栏面板挂载（dispatch nomi-open-files-panel 展开）", JSON.stringify(assetLib));
   assert(assetLib.panelDisplay === "flex", "素材库面板 display:flex 列布局", assetLib.panelDisplay);
-  assert(assetLib.tabCount === 3 && assetLib.tabRows === 1, "来源 3 标签同一行（不折行）", `tabs=${assetLib.tabCount}/rows=${assetLib.tabRows}`);
+  // 2 不是 3：第三个来源「智能分组」已于 2026-08-17 按用户拍板整个删掉（commit 3bf206642：
+  // 「没人用，且视频封面必然加载失败」），tests/ux/creation-flow-fixes.walk.mjs 正是验它不存在的。
+  // 这条断言停在删除之前，所以是过期，不是回归。
+  assert(assetLib.tabCount === 2 && assetLib.tabRows === 1, "来源 2 标签同一行（全部素材 / 项目素材，不折行）", `tabs=${assetLib.tabCount}/rows=${assetLib.tabRows}`);
   assert(assetLib.inViewport, "素材库面板完整在视口内（不溢出/不被裁）", `inViewport=${assetLib.inViewport}`);
 
   // ── 本会话回归点 #C(预览控制条)：导出MP4 单行(高28不折行) + 画幅/显示 select 值不截断(无 …) ──

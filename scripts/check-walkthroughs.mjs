@@ -10,6 +10,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { collectAriaLabelLiterals, extractInterpolatedValues, isAriaLabelAlive } from './lib/ariaLabelLiterals.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const BASELINE_FILE = path.join(repoRoot, 'scripts/walkthrough-baseline.json')
@@ -66,6 +67,9 @@ const SRC_TEXT = (() => {
   walk(path.join(repoRoot, 'src'))
   return chunks.join('\n')
 })()
+
+/** src/ 里带 `{{插值}}` 的字符串值（i18n 模板）——「添加视频节点」这类拼出来的 label 靠它判活。 */
+const SRC_INTERPOLATED = extractInterpolatedValues(SRC_TEXT)
 
 const RULES = [
   {
@@ -150,6 +154,21 @@ const RULES = [
         hits.push({ line, text: `.${cls} —— src/ 里零命中`, file })
       }
       return hits
+    },
+  },
+  {
+    id: 'dead-aria-label',
+    label: '走查在等一个源码里已无人渲染的 aria-label 文案（同一个死锚点同时造假红与假绿）',
+    appliesTo: (file) => file.includes(`${path.sep}tests${path.sep}ux${path.sep}`),
+    // 与上面的 dead-selector 同源,但盯的是**文案锚点**:aria-label 多半来自 i18n,
+    // 组件退役或文案改写后字面量就悬空。2026-09-05 实例:`[aria-label="生成区 AI 助手"]`
+    // 的渲染者随 Agent Host cutover 被删,字面量却在两份走查里各留一处——一处假红、一处假绿。
+    // 判活口径**故意宽**(整串命中 src 全文,或能由某条 i18n 模板拼出),宁可漏报也不误报:
+    // 误报会让人把还在用的好断言删掉。
+    scan(code, file) {
+      return collectAriaLabelLiterals(code)
+        .filter(({ literal }) => !isAriaLabelAlive(literal, { srcText: SRC_TEXT, templates: SRC_INTERPOLATED }))
+        .map(({ literal, line }) => ({ line, text: `[aria-label="${literal}"] —— src/ 里零命中（含 i18n 译文与模板）`, file }))
     },
   },
   {

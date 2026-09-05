@@ -20,4 +20,6 @@
 - **同一批文案存了两份时，先用「哪棵整棵都没人引用」定 owner**，别靠命名直觉。实测：`runtime.browser` 10 个叶子全死、`browserAssets` 163 个叶子只死 15——前者才是该删的副本。
 - 判「能不能翻译」看的是**有没有人拿这个值做比较**（`includes` / `===` / `startsWith` / `indexOf`），不是「它像不像标签」。那批里最可疑的 3 个 tag 追下去只进搜索 haystack、从不渲染也从不比对 → 可翻。
 
-**出处**：2026-09-01 / 2026-09-02 i18n 清理实测。相关：[走查断言必须有真信号](walkthrough-assertions-need-a-real-signal.md)、[一个死选择器同时造假红和假绿](dead-selector-lies-both-ways.md)。
+**死键门岗看不见的第三种（2026-09-05）**：`check:i18n-dead-keys` 对**整命名空间动态前缀**（`scripts/lib/i18nDynamicKeyPrefixes.ts` 里的 `generationCommon` 一整棵）下的键一律降为 B 档不报。所以 Agent Host cutover（d270d34ec）删掉 `CanvasAssistantPanel` / `CanvasAssistantEntry` 后，`generationCommon.assistant.*` 留下 44 条死键、零报警，直到走查按其中一条的译文值 `[aria-label="生成区 AI 助手"]` 找元素才暴露。组件退役时顺手 `git show <sha> --diff-filter=D --name-only` 列出删掉的消费者，对它们用过的整棵键做一次零引用扫描；扫描要把模板前缀（`t(\`ns.${id}.x\`)`）也算引用，否则会把 `creationAi.mode.*` 这种活键误判成死。
+
+**出处**：2026-09-01 / 2026-09-02 i18n 清理实测；2026-09-05 `generationCommon.assistant.*` 清理。相关：[走查断言必须有真信号](walkthrough-assertions-need-a-real-signal.md)、[一个死选择器同时造假红和假绿](dead-selector-lies-both-ways.md)。
