@@ -72,7 +72,6 @@ const project = {
     workbenchDocuments: [{ id: 'doc-1', version: 1, title: '走查', updatedAt: 10, contentJson: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: '雨夜。' }] }] } }],
     activeDocumentId: 'doc-1', timeline: null,
     generationCanvas: { nodes, edges: [], selectedNodeIds: [], groups: [] },
-    storyboardPlans: { 'doc-1': { plan, committed: false } },
     storyboardDesignsByDocumentId: { 'doc-1': [{ id: designId, documentId: 'doc-1', title: plan.title, plan, committed: false, status: 'draft', sourceDocumentUpdatedAt: 10, createdAt: 11, updatedAt: 12 }] },
   },
 }

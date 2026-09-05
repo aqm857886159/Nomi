@@ -1,0 +1,138 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-05-storyboard-projection-cleanup",
+  "problem_type": "duplicated storyboard persistence projections",
+  "symptom": "Storyboard edits and Agent patch receipts can read or persist different values because the same design is stored under three field names.",
+  "direct_cause": "Workbench actions wrote storyboardDesignsByDocumentId and a document map plus active single-plan aliases independently; persistence and UX runners then selected different fields.",
+  "class_root": "The storyboard domain had no enforced single owner boundary for state serialization and evidence reads.",
+  "affected_population": [
+    "all projects with storyboard designs",
+    "legacy .nomi projects carrying retired storyboard fields",
+    "storyboard Agent and canvas UX walks"
+  ],
+  "scope_paths": [
+    "src/workbench/workbenchDocumentSlice.ts",
+    "src/workbench/project/projectNormalize.ts",
+    "src/workbench/project/projectRecordSchema.ts",
+    "src/workbench/project/workbenchProjectSession.ts",
+    "src/workbench/project/projectRepository.ts",
+    "src/workbench/creation/storyboard/StoryboardWorkspace.tsx",
+    "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+    "src/workbench/creation/storyboard/StoryboardPlanCard.tsx",
+    "src/workbench/creation/storyboard/StoryboardNudge.tsx",
+    "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts",
+    "tests/ux/agent-runtime-walk-support.mjs",
+    "tests/ux/agent-runtime-production.walk.mjs"
+  ],
+  "entry_points": [
+    "planner/UI setStoryboardPlan",
+    "Agent nomi_canvas_plan patch_shots",
+    "project load/save normalization",
+    "storyboard UX evidence runner"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "This is an application state and evidence ownership invariant; no third-party behavior determines it.",
+  "invariants": [
+    "storyboardDesignsByDocumentId is the only persisted storyboard state owner",
+    "writers mutate owner designs directly and never maintain a projection",
+    "current evidence reads the Host snapshot",
+    "legacy fields are consumed once during normalization and omitted from normalized output"
+  ],
+  "generality_proof": "The state slice, project normalizer/session, Agent patch handler, storyboard UI, and UX runner are the independently checked entry points. They now converge on the owner design array or the Host snapshot, while a source structure test rejects retired field names in renderer source.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/workbenchDocumentSlice.ts",
+      "symbol": "createWorkbenchDocumentSlice",
+      "responsibility": "Own all storyboard design writes and active-design selection in one map."
+    },
+    {
+      "path": "src/workbench/project/projectNormalize.ts",
+      "symbol": "normalizePayload",
+      "responsibility": "Migrate legacy fields once and rebuild payload with owner only."
+    },
+    {
+      "path": "src/workbench/project/workbenchProjectSession.ts",
+      "symbol": "readCurrentWorkbenchProjectPayload",
+      "responsibility": "Serialize only owner designs."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts",
+      "entry_point": "patch_shots",
+      "disposition": "enforced",
+      "evidence": "Patch preview reads the selected owner design and writes through setStoryboardPlan."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/StoryboardPlanCard.tsx",
+      "entry_point": "visible design card",
+      "disposition": "enforced",
+      "evidence": "Card derives plan and committed state from owner designs."
+    },
+    {
+      "path": "tests/ux/agent-runtime-walk-support.mjs",
+      "entry_point": "readNativeContexts",
+      "disposition": "enforced",
+      "evidence": "Runner reads the binding-partitioned Host snapshot only."
+    },
+    {
+      "path": "src/workbench/ai/resident/residentToolProjection.ts",
+      "entry_point": "readResidentToolProjections",
+      "disposition": "not-affected",
+      "evidence": "It stores bounded redacted display strings only; Host snapshot owns lifecycle and result truth."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The same projection drift can recur whenever a new state field or runner reads a parallel compatibility shape.",
+    "same_class_scan": [
+      "rg storyboardPlans/storyboardPlan/storyboardPlanCommitted src tests electron",
+      "rg agent-session.json tests/ux electron",
+      "rg residentToolProjections localStorage src/workbench/ai"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/workbenchDocumentSlice.ts",
+    "invariant": "Every storyboard mutation updates only storyboardDesignsByDocumentId; serialization and readers derive from it.",
+    "failure_mode": "Retired fields are absent from normalized output and source structure tests fail if reintroduced.",
+    "exception_policy": "none",
+    "strategy": "Move migration to the load boundary, remove projection writes, and make evidence readers consume the current Host snapshot.",
+    "artifacts": [
+      "src/workbench/workbenchDocumentSlice.ts",
+      "src/workbench/project/projectNormalize.ts",
+      "src/workbench/project/workbenchProjectSession.ts",
+      "src/workbench/project/storyboardProjectionInvariant.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/project/storyboardProjectionInvariant.test.ts",
+    "src/workbench/creation/storyboard/storyboardPlanLifecycle.test.ts",
+    "src/workbench/project/projectNormalize.test.ts",
+    "src/workbench/project/workbenchProjectSession.persistence.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/project/storyboardProjectionInvariant.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/workbenchDocumentSlice.ts",
+      "src/workbench/project/projectNormalize.ts",
+      "src/workbench/project/projectRecordSchema.ts",
+      "src/workbench/project/workbenchProjectSession.ts",
+      "tests/ux/agent-runtime-walk-support.mjs",
+      "tests/ux/agent-runtime-production.walk.mjs"
+    ],
+    "rationale": "Legacy fields are read only as computed keys at normalization input and are dropped before state/persistence; no runtime fallback or dual write remains."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency controls storyboard ownership or Host snapshot selection.",
+    "exit_criteria": []
+  },
+  "migration": "normalizePayload recognizes old map and single-plan keys at the load boundary, creates StoryboardDesign records, prefers existing owner records, and returns a rebuilt payload without retired keys. The next save and cold restart therefore contain owner data only.",
+  "residual_risks": [
+    "Full Electron golden and storyboard UX walks require the packaged runtime and may expose fixture assumptions outside the changed renderer paths."
+  ]
+}
