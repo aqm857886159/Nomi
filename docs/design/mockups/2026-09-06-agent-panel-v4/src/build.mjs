@@ -1,3 +1,4 @@
+/* global URL, console */
 import fs from 'node:fs'; import path from 'node:path';
 const D = path.dirname(new URL(import.meta.url).pathname);
 const P = JSON.parse(fs.readFileSync(path.join(D,'_tabler.json'),'utf8'));
