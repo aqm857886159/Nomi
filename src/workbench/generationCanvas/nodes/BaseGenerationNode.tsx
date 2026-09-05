@@ -601,8 +601,7 @@ function BaseGenerationNodeImpl({
         ) : (
           <PendingGenerationPlaceholder
             kind={node.kind}
-            selected={selected}
-            needsFirstFrame={needsFirstFrame}
+            selected={selected} needsFirstFrame={needsFirstFrame}
             waitingUpstream={hasFrameSourceEdge}
             shotIndex={shotIndex}
             title={node.title}
