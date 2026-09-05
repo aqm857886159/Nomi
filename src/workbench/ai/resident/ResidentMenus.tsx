@@ -9,7 +9,7 @@ import type { LibraryPrompt } from '../../api/promptLibraryApi'
 import { promptDisplayTitle, promptSourceLabel } from '../../promptLibrary/promptDisplay'
 import { libraryPromptMenuId } from './residentPromptSelection'
 
-export function Popover({ open, onClose, children, role = 'menu', label, className }: { open: boolean; onClose: () => void; children: React.ReactNode; role?: 'menu' | 'dialog'; label: string; className?: string }): JSX.Element | null {
+export function Popover({ open, onClose, children, role = 'menu', label, className, testId }: { open: boolean; onClose: () => void; children: React.ReactNode; role?: 'menu' | 'dialog'; label: string; className?: string; testId?: string }): JSX.Element | null {
   const ref = React.useRef<HTMLDivElement>(null)
   const anchorRef = React.useRef<HTMLSpanElement>(null)
   const [position, setPosition] = React.useState<{ left: number; bottom: number } | null>(null)
@@ -44,7 +44,7 @@ export function Popover({ open, onClose, children, role = 'menu', label, classNa
     return () => { window.removeEventListener('resize', updatePosition); window.removeEventListener('scroll', updatePosition, true) }
   }, [alignEnd, className, open])
   if (!open) return null
-  const menu = <div ref={ref} role={role} aria-label={label} data-agent-menu={label} style={position ? { left: position.left, bottom: position.bottom } : { left: -10000, bottom: -10000 }} className={cn('fixed z-[60] mb-1 max-h-[min(420px,65vh)] w-[min(320px,calc(100vw-24px))] overflow-y-auto rounded-nomi border border-nomi-line bg-nomi-paper p-1.5 text-body-sm text-nomi-ink shadow-nomi-lg', !position && 'pointer-events-none opacity-0', className)}>{children}</div>
+  const menu = <div ref={ref} role={role} aria-label={label} data-agent-menu={label} data-agent-usage-popover={testId === 'usage-popover' ? 'true' : undefined} {...(testId ? { [`data-agent-${testId}`]: 'true' } : {})} style={position ? { left: position.left, bottom: position.bottom } : { left: -10000, bottom: -10000 }} className={cn('fixed z-[60] mb-1 max-h-[min(420px,65vh)] w-[min(320px,calc(100vw-24px))] overflow-y-auto rounded-nomi border border-nomi-line bg-nomi-paper p-1.5 text-body-sm text-nomi-ink shadow-nomi-lg', !position && 'pointer-events-none opacity-0', className)}>{children}</div>
   return <><span ref={anchorRef} className="pointer-events-none absolute inset-0" aria-hidden="true" />{typeof document === 'undefined' ? menu : <BodyPortal>{menu}</BodyPortal>}</>
 }
 

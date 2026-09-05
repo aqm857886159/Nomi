@@ -648,7 +648,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
       <div className="flex min-w-0 items-center gap-2"><NomiLogoMark size={19} /><span className="text-body-sm font-semibold">{t('agentResident.brand')}</span></div>
       <div className="relative shrink-0" onMouseEnter={() => setUsageOpen(true)}>
         <button type="button" className="inline-flex h-6 items-center gap-1.5 rounded-pill border border-nomi-line bg-nomi-paper px-2 text-micro tabular-nums text-nomi-ink-60" data-agent-usage-pill="true" title={t('agentResident.usageTitle', { last: lastTurnTokens, total: sessionTotalTokens })} aria-label={t('agentResident.usageRoundsTitle', { count: remainingRounds })} onFocus={() => setUsageOpen(true)} onClick={() => setUsageOpen(true)}><IconCircleDashed size={13} className="text-nomi-accent" aria-hidden="true" />{t('agentResident.usageRounds', { count: remainingRounds })}</button>
-        <Popover open={usageOpen} onClose={() => setUsageOpen(false)} label={t('agentResident.usageTitle', { last: lastTurnTokens, total: sessionTotalTokens })} className="w-[220px]">
+        <Popover open={usageOpen} onClose={() => setUsageOpen(false)} label={t('agentResident.usageTitle', { last: lastTurnTokens, total: sessionTotalTokens })} className="w-[220px]" testId="usage-popover">
           <div className="grid gap-1 px-2 py-1.5 text-micro tabular-nums text-nomi-ink-60">
             <div>{t('agentResident.usagePopoverRound', { value: lastTurnTokens })}</div>
             <div>{t('agentResident.usagePopoverTotal', { value: sessionTotalTokens })}</div>

@@ -16,11 +16,14 @@
       "state": "resident-mounted"
     },
     "data-agent-usage-popover": {
-      "status": "missing-runtime-anchor",
+      "status": "runtime-present-unmeasured",
       "specRefs": [
         "A-02"
       ],
-      "source": null,
+      "source": {
+        "path": "src/workbench/ai/resident/ResidentMenus.tsx",
+        "selector": "data-agent-usage-popover"
+      },
       "state": "hover"
     },
     "data-agent-compaction-expand": {
@@ -32,11 +35,14 @@
       "state": "compaction-expanded"
     },
     "data-agent-stream-cursor": {
-      "status": "missing-runtime-anchor",
+      "status": "runtime-present-unmeasured",
       "specRefs": [
         "A-10"
       ],
-      "source": null,
+      "source": {
+        "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+        "selector": "data-agent-stream-cursor"
+      },
       "state": "streaming"
     },
     "data-agent-tool-detail": {
