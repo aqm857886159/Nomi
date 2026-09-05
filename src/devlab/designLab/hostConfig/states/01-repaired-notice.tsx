@@ -51,11 +51,13 @@ export const HOST_CONFIG_STATES: readonly LabState[] = [
     capture: 'viewport',
     render: () => <RepairedNotice clients="Claude Code" />,
   },
+  // 同一个修复函数扫的是 Claude Code / Cursor / Codex + 用户自建 profile，一次修好两个是真实存在的
+  // 情况——名单一长，这条提示就是两行，得看得出来还站得住。
+  // （注释只能放在注册项**外面**：labStates.mjs 那把源码正则要求 id/name/source/coverage 四行相邻，
+  //   夹一行注释进去那一条就会被静默漏掉，走查的「活页面 vs 源码解析」比对当场红。）
   {
     id: 'host-config-02-repaired-many',
     name: '一次修好多个助手 · 名单会换行',
-    // 同一个修复函数扫的是 Claude Code / Cursor / Codex + 用户自建 profile，
-    // 一次修好两个是真实存在的情况——名单一长，这条提示就是两行，得看得出来还站得住。
     source: '现役 repairStaleMcpConfigs() 一次可修多个客户端（electron/capabilityCore/mcpConfig.ts）',
     coverage: 'shell',
     capture: 'viewport',

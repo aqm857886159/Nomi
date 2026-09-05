@@ -43,7 +43,7 @@ import { registerOnboardingIpc } from "./ai/onboarding/onboardingIpc";
 import { registerProviderAdapterIpc } from "./providerAdapter/ipc";
 import { registerExistingConnectionIpc } from "./providerAdapter/existingConnectionIpc";
 import { registerUpdaterIpc } from "./update/autoUpdater";
-import { requestRenderer, setRendererTarget } from "./capabilityCore/rendererBridge";
+import { setRendererTarget } from "./capabilityCore/rendererBridge";
 import { readMcpInfo, installMcp, uninstallMcp } from "./capabilityCore/mcpConfig";
 import { verifyMcp } from "./capabilityCore/mcpVerify";
 import { registerCustomMcpProfileIpc, watchMcpProfiles } from "./capabilityCore/mcpProfiles";
@@ -182,17 +182,11 @@ async function startDesktopCapabilityCore(): Promise<void> {
       canvasReadExecutionRuntime: desktopCanvasReadExecutionRuntime,
       onGenerationReady: (factory) => getInstalledProductionProjectAgentHost()?.setGenerationAdapterFactory(factory),
       proposalReceiptFor: createDesktopProposalReceiptResolver(),
-      onMcpConfigRepaired: async ({ clientLabels }) => {
-        // 主进程只做接线：改没改文件由能力核判（appIntegration 的 repair.changed），
-        // 说成什么话由渲染层的 i18n 决定，这里只把「该重启谁」原样递过去。
-        try {
-          await requestRenderer('host-config.repaired', { clients: clientLabels }, 30_000);
-        } catch { /* 窗口还没接上桥时没人收——不能因为一句提示拖垮能力核启动 */ }
-      },
     },
   );
   capabilityPortCache = core.getCapabilityPort();
 }
+
 function stopDesktopCapabilityCore(): void {
   capabilityCoreModule?.stopCapabilityCore();
   capabilityPortCache = null;

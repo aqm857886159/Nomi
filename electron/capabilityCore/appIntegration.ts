@@ -12,6 +12,7 @@
 // 这里只做接线，不碰 main.ts 的其它职责（保持 main.ts 精简、单一关注点）。
 import { app } from 'electron'
 import { getMainWindow } from '../mainWindowRegistry'
+import { notifyHostConfigRepaired } from './hostConfigRepairNotice'
 import { startRpcServer, type RpcServerHandle } from './rpcServer'
 import { ensureCapabilitySigningKey, ensureToken } from './security'
 import { clearInstanceAdvertisement, writeInstanceAdvertisement } from './lockfile'
@@ -134,8 +135,6 @@ export async function startCapabilityCore(
     projectRevisionResolver?: (projectId: string) => number | undefined
     proposalReceiptFor?: import('./rpcServer').RpcServerOptions['proposalReceiptFor']
     openCredentialsInNomi?: import('./rpcServer').RpcServerOptions['openCredentialsInNomi']
-    /** Fired only when the startup repair actually rewrote a host config, naming the clients to restart. */
-    onMcpConfigRepaired?: (input: { clientLabels: readonly string[] }) => void | Promise<void>
     canvasReadExecutionRuntime?: CanvasReadExecutionRuntime
     onGenerationReady?: (factory: ResidentGenerationAdapterFactory['factory']) => void
   } = {},
@@ -160,7 +159,7 @@ export async function startCapabilityCore(
     // 而不是让每个接线方各自去猜要不要弹（R28：防线建在最早能拦住的那层）。
     try {
       const repair = repairStaleMcpConfigs()
-      if (repair.changed) await authorities.onMcpConfigRepaired?.({ clientLabels: repair.repaired.map((item) => item.label) })
+      if (repair.changed) await notifyHostConfigRepaired({ clientLabels: repair.repaired.map((item) => item.label) })
     } catch { /* 宿主配置不可读不是 Nomi 的故障，不能反向拖垮能力核 */ }
     const token = ensureToken()
     const generationService = getProductionRunService()
@@ -733,6 +732,11 @@ export async function startCapabilityCore(
       openCredentialsInNomi: authorities.openCredentialsInNomi ?? (async ({ sessionId }: { sessionId: string; vendorName: string }) => {
         const win = getMainWindow()
         if (!win || win.isDestroyed()) throw new Error('Nomi window unavailable')
+        // macOS 上只 win.focus() 不够：它让某扇窗成为 key window，但不会把 Nomi 变成最前面的
+        // **应用**——用户还是看不见它。app.focus({steal:true}) 管的是后面那件事，两件都要做。
+        // 2026-09-06 实测这条路径能把窗口叫到前台（tests/ux/mcp-key-window.walk.mjs）；
+        // 那条走查在锁屏/无前台登录会话时会用阳性对照判出「窗口服务器不给任何 App 焦点」并明说没跑成，
+        // 不会把环境没功率报成 Nomi 的 bug。
         if (process.platform === 'darwin') app.focus({ steal: true })
         if (win.isMinimized()) win.restore()
         win.show()

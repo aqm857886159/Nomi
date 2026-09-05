@@ -50,6 +50,8 @@ async function main() {
   fs.mkdirSync(shotsDir, { recursive: true })
   const launched = await launchNomiApp({ name: 'mcp-key-window', syntheticCredentialStorage: true, settleMs: 900 })
   const { app, win } = launched
+  // 'not-needed' = Nomi 自己就把焦点拿到了；'pending' = 没拿到，已下阳性对照，等旅程走完再判。
+  let focusControl = 'not-needed'
   try {
     await win.evaluate(() => {
       for (const key of ['nomi:splash:v1', 'nomi:journey-tour:v1', 'nomi:canvas-gesture-hint:v1', 'nomi.onboarding.scene3dCoach.v1'])
@@ -63,6 +65,24 @@ async function main() {
 
     const advert = await waitForAdvert(launched.capabilityDir)
     const connectionAttestation = crypto.randomBytes(32).toString('base64url')
+
+    // 真实场景：用户正在编辑器里跟助手说话，Nomi 缩在 Dock 里或者被 Cmd+H 收起来了。
+    // 先把窗口收走，这样「它自己回到前台了」就是一次 Nomi 独占、可判定的状态变化，
+    // 而不是「碰巧还在最前面」。
+    //
+    // 阳性对照挑的是 hide()：macOS 的 minimize 带动画、要等 'minimize' 事件才落定，
+    // 拿它当对照就得在测试里等墙钟（R18 明令禁止的那一族）；hide() 当场生效，
+    // isVisible() 立刻为 false。两件都做、只对可判定的那件下断言。
+    const hidden = await app.evaluate(({ BrowserWindow }) => {
+      const window = BrowserWindow.getAllWindows().find((candidate) => !candidate.isDestroyed())
+      if (!window) return null
+      globalThis.__nomiWalkFocusEvents = 0
+      window.on('focus', () => { globalThis.__nomiWalkFocusEvents += 1 })
+      window.minimize()
+      window.hide()
+      return window.isVisible()
+    })
+    if (hidden !== false) throw new Error('MCP key-window walk: could not put the window away, the front-and-center check would prove nothing')
     const begun = await rpc(advert, connectionAttestation, 'integration.begin', {
       kind: 'http-api-provider',
       name: 'Kling',
@@ -83,11 +103,34 @@ async function main() {
     const providerName = win.getByPlaceholder('如：TOAPI 中转')
     await expectVisible(providerName, 'the handoff should locate the requested provider')
     if (await providerName.inputValue() !== 'Kling') throw new Error('MCP key-window walk: provider name was not restored from the handoff')
-    const focused = await app.evaluate(({ BrowserWindow }) => {
-      const window = BrowserWindow.getAllWindows().find((candidate) => !candidate.isDestroyed() && candidate.isVisible())
-      return Boolean(window?.isFocused())
+    // 「它到前台了吗」量的是**事件**不是事后采样：这台机器上常有别的 worktree 在跑 Electron 走查，
+    // 谁都可能在下一毫秒把焦点抢回去——那时 isFocused() 是 false，但 Nomi 该做的一件不少。
+    // 焦点事件在它发生的那一刻被记下来，抢不走；isFocused 只作为现场证据打印出来。
+    const readFront = () => app.evaluate(({ BrowserWindow }) => {
+      const window = BrowserWindow.getAllWindows().find((candidate) => !candidate.isDestroyed())
+      return {
+        focusEvents: globalThis.__nomiWalkFocusEvents ?? 0,
+        focused: Boolean(window?.isFocused()),
+        visible: Boolean(window?.isVisible()),
+        minimized: Boolean(window?.isMinimized()),
+      }
     })
-    if (!focused) throw new Error('MCP key-window walk: main BrowserWindow was not focused')
+    const front = await readFront()
+    // 「窗口自己回来了」是 Nomi 完全说了算的那一半，任何时候都必须硬断言。
+    if (front.minimized || !front.visible) throw new Error(`MCP key-window walk: window did not come back from the Dock: ${JSON.stringify(front)}`)
+    // 焦点这一半要看仪器有没有功率：锁屏 / 没有前台登录会话时，macOS 的窗口服务器**不给任何 App**
+    // 焦点，那时候量到的 0 说的是这台机器不是 Nomi。所以拿不到焦点先做一次阳性对照——
+    // 由走查自己直接去抢焦点（不经 Nomi 的代码），对照也拿不到 = 环境没功率，明说这一道没跑成；
+    // 对照拿得到而 Nomi 的路径拿不到 = 真 bug，照红。
+    if (front.focusEvents < 1 && !front.focused) {
+      await app.evaluate(({ app: electronApp, BrowserWindow }) => {
+        const window = BrowserWindow.getAllWindows().find((candidate) => !candidate.isDestroyed())
+        window?.show()
+        if (process.platform === 'darwin') electronApp.focus({ steal: true })
+        window?.focus()
+      })
+      focusControl = 'pending'
+    }
     await screenshotSettled(win, { path: path.join(shotsDir, '01-provider-page.png') })
 
     const keyInput = win.getByPlaceholder('sk-...')
@@ -128,7 +171,17 @@ async function main() {
     await screenshotSettled(win, { path: path.join(shotsDir, '02-host-config-repaired-toast.png') })
     console.log(`MCP KEY WINDOW PASS: ${path.join(shotsDir, '01-provider-page.png')}`)
     console.log(`MCP KEY WINDOW PASS: ${path.join(shotsDir, '02-host-config-repaired-toast.png')}`)
-    console.log(`credentialEntry=${Boolean(opened?.credentialEntry)} focused=${focused} stage=${proposed.stage}`)
+    // 阳性对照的判读放在旅程末尾：中间这些真实交互（填 key、保存、三次 RPC）本身就是
+    // 让操作系统有时间把焦点事件送达的等待，不用在测试里数墙钟（R18）。
+    if (focusControl === 'pending') {
+      const control = await readFront()
+      if (control.focusEvents > 0 || control.focused) {
+        throw new Error(`MCP key-window walk: the window server does grant focus here, but open_credentials did not take it: ${JSON.stringify(front)}`)
+      }
+      console.log(`MCP KEY WINDOW FOCUS SKIPPED: 这台机器的窗口服务器现在不给任何 App 焦点（锁屏/无前台会话）——`
+        + `阳性对照直接抢焦点同样拿不到 ${JSON.stringify(control)}；本次只验证了「窗口自己回到前台可见」。`)
+    }
+    console.log(`credentialEntry=${Boolean(opened?.credentialEntry)} front=${JSON.stringify(front)} focusControl=${focusControl} stage=${proposed.stage}`)
   } finally {
     await launched.close()
   }
