@@ -11,6 +11,14 @@ import { createAgentRuntimeFixture } from './agent-runtime-fixture.mjs'
 export const CREATION_PANEL = '[data-agent-resident="true"][data-agent-panel="true"][data-agent-surface="creation"]'
 export const CANVAS_PANEL = '[data-agent-resident="true"][data-agent-panel="true"][data-agent-surface="generation"]'
 export const DOCUMENT = '[aria-label="创作文档编辑区"] .tiptap[contenteditable="true"]'
+/**
+ * 待批准的操作卡（介入槽）。**复合**选择器，不是后代选择器：自 2026-09-05 的介入槽收口
+ * （合同 §2.6）起，`data-agent-item-kind="approval"` 与 `data-agent-approval="true"` 落在
+ * **同一个** <aside> 上；旧的 `A B` 写法要求二者一父一子，于是一个都匹配不到，走查报
+ * 「面板没渲染」而实际是选择器过期（docs/lessons/dead-selector-lies-both-ways.md）。
+ * 这条串只此一份，别再在各走查里手抄。
+ */
+export const APPROVAL_CARD = '[data-agent-item-kind="approval"][data-agent-approval="true"]'
 
 export function toolNames(body) {
   return (body.tools ?? []).map((tool) => tool.function.name).sort()
@@ -104,33 +112,6 @@ export function requireCurrentPersistedWorkbenchDocument(record) {
     throw new Error(`Current multi-document persistence evidence missing: ${detail}`)
   }
   return readback.document
-}
-
-export async function enableAgentHostThroughSettings(win) {
-  const settings = win.getByRole('button', { name: '设置', exact: true }).first()
-  await clickOrFail(settings, '打开系统设置')
-  const settingsOverlay = win.locator('[data-settings-overlay]')
-  const settingsOverlayProof = await proveProbe(settingsOverlay, '系统设置打开后存在设置 overlay')
-  const dialog = win.getByRole('dialog', { name: '设置', exact: true })
-  await expect(dialog).toBeVisible()
-  await clickOrFail(dialog.locator('[data-settings-tab-id="general"]'), '打开通用设置')
-  const toggle = dialog.locator('[data-settings-section="agent-host"] [data-settings-agent-host-toggle]')
-  if (await toggle.count() === 0) {
-    // The resident Agent is now unconditionally mounted; old walks keep this
-    // helper as a compatibility probe for profiles created before the cutover.
-    await clickOrFail(dialog.locator('[data-settings-close]'), '关闭系统设置')
-    return
-  }
-  await expect(toggle).toBeAttached()
-  const toggleTrack = dialog.locator('[data-settings-section="agent-host"] .mantine-Switch-track')
-  await expect(toggleTrack).toBeVisible()
-  if (!(await toggle.isChecked())) await clickOrFail(toggleTrack, '开启常驻 Agent')
-  await expect(toggle).toBeChecked()
-  await clickOrFail(dialog.locator('[data-settings-close]'), '关闭系统设置')
-  await expectAbsent(settingsOverlay, {
-    provenBy: settingsOverlayProof,
-    message: '关闭系统设置后 overlay 应持续消失',
-  })
 }
 
 function conversationsFromProjectAgentSnapshot(snapshot) {
@@ -266,13 +247,6 @@ export function readCurrentProjectAgentToolEvidence(settingsRoot, projectRoot, c
     : undefined
   const receipt = readProjectAgentProposalReceipt(projectRoot)
   return { state, tool, proposal, receipt }
-}
-
-export async function chooseCreationMode(win, mode) {
-  const prompt = win.locator(`${CREATION_PANEL} [data-agent-composer-prompt="true"]`)
-  if (await prompt.count() === 0) return
-  await clickOrFail(prompt, '当前 Agent 提示词选择器')
-  await clickOrFail(win.locator(`[data-agent-menu-item="${mode}"]`), `当前 Agent 提示词 ${mode}`)
 }
 
 export async function chooseAssistantModel(win, modelIdentity) {

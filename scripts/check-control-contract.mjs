@@ -22,6 +22,12 @@
 //      另一个模式自有它的处理，不是静默失效
 //   5. 同一元素上没有 disabled / aria-disabled
 //
+// 规则二（2026-09-06 加）：**空 handler**。`onClick={() => undefined}` / `() => {}` / `() => null`
+// 画得像能点、点下去恒定什么都不做，比规则一那种「有时不做」还直白。加这条的由头是剪辑面属性
+// 面板的「转场 · 入 / 出」两颗按钮——它们带着「转场选择器将在下一阶段打开」的 title 上线了，
+// 用户点半天以为坏了。判据只有一条、零解释空间：handler 是箭头函数，body 是空块或
+// undefined/null 字面量。真要占位就别渲染这个控件，或者 disabled + 说明为什么。
+//
 // 抓不到的（诚实标注，别把它当万能）：
 //   · 守卫藏在具名函数里、JSX 上只写 onClick={handler} → 需要跨函数数据流，留给 R13 走查断言
 //   · disabled 了但没说明原因（契约 C4）→ 全仓 100+ 处 disabled={readOnly} 语境自明，做成硬门必成噪音
@@ -150,6 +156,16 @@ function isTargetGuard(condition, action) {
   return hit
 }
 
+/** 空 handler：`() => undefined` / `() => null` / `() => {}` / `() => { }`。 */
+function isEmptyHandler(fn) {
+  const body = fn.body
+  if (!body) return false
+  if (ts.isBlock(body)) return body.statements.length === 0
+  return body.kind === ts.SyntaxKind.NullKeyword
+    || (ts.isIdentifier(body) && body.text === 'undefined')
+    || (ts.isVoidExpression(body) && ts.isNumericLiteral(body.expression))
+}
+
 const offenders = []
 for (const file of sourceFiles(SRC)) {
   const text = fs.readFileSync(file, 'utf8')
@@ -162,27 +178,30 @@ for (const file of sourceFiles(SRC)) {
       const hasDisabled = attrs.some(
         (a) => ts.isJsxAttribute(a) && (a.name.getText() === 'disabled' || a.name.getText() === 'aria-disabled'),
       )
-      if (!hasDisabled) {
-        for (const attr of attrs) {
-          if (!ts.isJsxAttribute(attr) || !HANDLERS.has(attr.name.getText())) continue
-          const init = attr.initializer
-          if (!init || !ts.isJsxExpression(init) || !init.expression) continue
-          const fn = init.expression
-          if (!ts.isArrowFunction(fn) && !ts.isFunctionExpression(fn)) continue
-          const guard = wholeBodyGuard(fn)
-          if (!guard) continue
-          const { condition, action } = guard
-          if (referencesParams(condition, parameterNames(fn))) continue // 事件判定，不是目标守卫
-          if (!isTargetGuard(condition, action)) continue // 模式守卫，不是「拿不到目标」
-          const line = sf.getLineAndCharacterOfPosition(attr.getStart(sf)).line + 1
-          const key = [...ALLOWLIST.keys()].find((k) => k.startsWith(`${rel}:`))
-          if (key) continue
-          offenders.push({
-            where: `${rel}:${line}`,
-            handler: attr.name.getText(),
-            guard: condition.getText(sf).replace(/\s+/g, ' ').slice(0, 70),
-          })
+      for (const attr of attrs) {
+        if (!ts.isJsxAttribute(attr) || !HANDLERS.has(attr.name.getText())) continue
+        const init = attr.initializer
+        if (!init || !ts.isJsxExpression(init) || !init.expression) continue
+        const fn = init.expression
+        if (!ts.isArrowFunction(fn) && !ts.isFunctionExpression(fn)) continue
+        const line = sf.getLineAndCharacterOfPosition(attr.getStart(sf)).line + 1
+        if ([...ALLOWLIST.keys()].some((k) => k.startsWith(`${rel}:`))) continue
+        // 规则二不看 disabled：一个「有时能点、点了永远不做事」的控件，disabled 也救不了它。
+        if (isEmptyHandler(fn)) {
+          offenders.push({ where: `${rel}:${line}`, handler: attr.name.getText(), guard: '空 handler（恒定什么都不做）' })
+          continue
         }
+        if (hasDisabled) continue
+        const guard = wholeBodyGuard(fn)
+        if (!guard) continue
+        const { condition, action } = guard
+        if (referencesParams(condition, parameterNames(fn))) continue // 事件判定，不是目标守卫
+        if (!isTargetGuard(condition, action)) continue // 模式守卫，不是「拿不到目标」
+        offenders.push({
+          where: `${rel}:${line}`,
+          handler: attr.name.getText(),
+          guard: condition.getText(sf).replace(/\s+/g, ' ').slice(0, 70),
+        })
       }
     }
     node.forEachChild(visit)
@@ -192,7 +211,7 @@ for (const file of sourceFiles(SRC)) {
 
 if (offenders.length > 0) {
   console.error('✗ 控件交互契约门岗未通过（设计系统 §4.1 C1）：')
-  console.error('  下面这些控件的 handler 里有目标守卫，控件本身却没有 disabled —— 用户点了会静默失效。')
+  console.error('  下面这些控件点下去会静默失效：handler 里有目标守卫、或 handler 根本是空的，控件却没有 disabled。')
   console.error('  修法：守卫为假时给控件 disabled，并用 title 说清「为什么现在点不了」。')
   console.error('  禁用的 <button> 自身不触发 title，要用外层 <span title={原因} style={{display:"contents"}}> 包住')
   console.error('  （既有范式见 NodeGenerationComposer.tsx 的生成钮）。\n')
