@@ -1,6 +1,14 @@
 import type { ArchetypeMode, ModelArchetype } from '../../../../config/modelArchetypes/types'
 import type { ModelParameterControl } from '../../../../config/modelCatalogMeta'
 
+export const COMPOSER_GRID_SLOTS = ['model', 'mode', 'aspect', 'duration', 'quality', 'media', 'generate'] as const
+export type ComposerGridSlot = typeof COMPOSER_GRID_SLOTS[number]
+
+/** Every row owns the same seven columns; empty capabilities still occupy their column. */
+export function composerBarLayout(): readonly ComposerGridSlot[] {
+  return COMPOSER_GRID_SLOTS
+}
+
 /**
  * 提示词底栏的**控件集合投影**（设计合同 v6 §2.3，2026-09-05 用户拍板）。
  *

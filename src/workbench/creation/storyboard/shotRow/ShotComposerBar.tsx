@@ -9,7 +9,7 @@ import type { ArchetypeMode, ModelArchetype } from '../../../../config/modelArch
 import type { PlanShot } from '../../../generationCanvas/agent/storyboardPlan'
 import { effectiveShotDurationSec } from '../../../generationCanvas/agent/storyboardPlan'
 import { DURATION_OPTIONS_SEC, shotTypeOf } from '../../../generationCanvas/agent/storyboardPlanEdits'
-import { composerBarParams, composerModeOptions } from './composerBarModel'
+import { composerBarLayout, composerBarParams, composerModeOptions } from './composerBarModel'
 
 /**
  * 提示词框下方的**底栏**（合同 v6 §2.3）——「和画布里的图片节点一样」那句话的落点。
@@ -69,6 +69,9 @@ export default function ShotComposerBar({
 
   const modeOptions = composerModeOptions(archetype)
   const barParams = composerBarParams(mode)
+  const qualityParams = barParams.filter((control) => control.type !== 'boolean')
+  const mediaParams = barParams.filter((control) => control.type === 'boolean')
+  const gridSlots = composerBarLayout()
 
   // 时长：视频镜=生成时长；图片镜=停留时长（进时间轴/顺播时这张图停几秒）。
   const effectiveDuration = effectiveShotDurationSec(shot)
@@ -86,9 +89,10 @@ export default function ShotComposerBar({
 
   return (
     <div
-      className="flex flex-wrap items-center gap-1.5 border-t border-nomi-line-soft px-2 py-1.5"
+      className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto_auto_auto_auto] items-center gap-1.5 border-t border-nomi-line-soft px-2 py-1.5"
       data-storyboard-composer-bar="true"
     >
+      <div className="flex min-w-0 items-center gap-1" data-storyboard-grid-slot={gridSlots[0]}>
       {modelSelectOptions ? (
         <NomiSelect
           ariaLabel={isImageShot ? t('storyboardEditor.imageModel') : t('storyboardEditor.videoModel')}
@@ -111,6 +115,8 @@ export default function ShotComposerBar({
           onChange={modelSelect.onProviderPick}
         />
       ) : null}
+      </div>
+      <div data-storyboard-grid-slot={gridSlots[1]}>
       {modeOptions.length > 0 ? (
         <NomiSelect
           ariaLabel={t('storyboardEditor.shotParams.mode')}
@@ -122,9 +128,11 @@ export default function ShotComposerBar({
           onChange={(value) => onUpdate({ modeId: value || undefined, params: undefined })}
         />
       ) : null}
+      </div>
 
       {/* 画幅：**只有覆盖了整片默认的行才有这枚胶囊**（§2.4.1 规则 3）。
           蓝色 + 「· 覆盖」标记，让它在一列继承行里一眼可辨；选「跟随整片默认」即收回覆盖、胶囊消失。 */}
+      <div data-storyboard-grid-slot={gridSlots[2]} className="flex min-w-0 items-center gap-1">
       {aspectOverridden ? (
         <span className="inline-flex items-center gap-1" data-storyboard-aspect-override={aspect}>
           <NomiSelect
@@ -137,8 +145,10 @@ export default function ShotComposerBar({
           />
           <span className="text-micro text-nomi-accent">{t('storyboardEditor.aspectScope.overrideMark')}</span>
         </span>
-      ) : null}
+      ) : <span className="block h-6 min-w-16" aria-hidden="true" />}
+      </div>
 
+      <div data-storyboard-grid-slot={gridSlots[3]}>
       <NomiSelect
         ariaLabel={isImageShot ? t('storyboardEditor.row.stayHint') : t('storyboardEditor.duration')}
         leadingLabel={isImageShot ? t('storyboardEditor.row.stayPill') : t('storyboardEditor.duration')}
@@ -147,8 +157,10 @@ export default function ShotComposerBar({
         options={durationOptions}
         onChange={(value) => onUpdate({ durationSec: Number(value) })}
       />
+      </div>
 
-      {barParams.map((control) => {
+      <div data-storyboard-grid-slot={gridSlots[4]} className="flex min-w-0 items-center gap-1">
+      {qualityParams.map((control) => {
         const current = shot.params?.[control.key]
         if (control.type === 'boolean') {
           const active = current === undefined ? control.defaultValue === true : current === true
@@ -179,8 +191,19 @@ export default function ShotComposerBar({
           />
         )
       })}
+      </div>
 
-      <span className="ml-auto shrink-0">
+      <div data-storyboard-grid-slot={gridSlots[5]} className="flex min-w-0 items-center gap-1">
+      {mediaParams.map((control) => {
+        const active = shot.params?.[control.key] === undefined ? control.defaultValue === true : shot.params?.[control.key] === true
+        return (
+          <button key={control.key} type="button" onClick={() => onUpdate({ params: { ...(shot.params ?? {}), [control.key]: !active } })} className={cn('h-6 shrink-0 rounded-pill px-2 text-micro', active ? 'bg-nomi-accent-soft text-nomi-accent' : 'border border-nomi-line text-nomi-ink-60 hover:text-nomi-ink-80')}>
+            {translateModelDisplayText(control.label)}
+          </button>
+        )
+      })}
+      </div>
+      <span className="shrink-0" data-storyboard-grid-slot={gridSlots[6]}>
         {statusTag ? (
           <span className="rounded-pill bg-nomi-ink-05 px-2 py-0.5 text-micro text-nomi-ink-60">{statusTag}</span>
         ) : onGenerate ? (

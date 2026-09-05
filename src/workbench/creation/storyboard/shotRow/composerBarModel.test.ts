@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ArchetypeMode, ModelArchetype } from '../../../../config/modelArchetypes/types'
-import { composerBarParams, composerModeOptions } from './composerBarModel'
+import { composerBarLayout, composerBarParams, composerModeOptions } from './composerBarModel'
 
 const control = (over: Partial<ArchetypeMode['params'][number]>): ArchetypeMode['params'][number] => ({
   key: 'resolution',
@@ -14,6 +14,9 @@ const modeOf = (params: ArchetypeMode['params']): ArchetypeMode => ({
 })
 
 describe('shotComposerBar', () => {
+  it('固定七列，空画幅列也保留位置', () => {
+    expect(composerBarLayout()).toEqual(['model', 'mode', 'aspect', 'duration', 'quality', 'media', 'generate'])
+  })
   it('画幅与时长不进底栏参数（各自另有 owner，进来就是第二份真相）', () => {
     const mode = modeOf([
       control({}),
