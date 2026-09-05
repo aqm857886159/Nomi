@@ -270,7 +270,7 @@ try {
   // ── 本会话回归点 #C(生成区)：助手默认折叠；展开后 aside 是 flex 非 grid；模型选择器显具体名 ──
   const collapsed = await win.evaluate(() => {
     // Host cutover retired the in-canvas launcher; the ResidentShell collapsed pill
-    // ([data-agent-resident-collapsed], default-off agentHost flag #194) is the launcher button itself.
+    // ([data-agent-resident-collapsed]) is the launcher button itself.
     const launcherEl = Array.from(document.querySelectorAll('[data-agent-resident-collapsed="true"]')).find((el) => el.getClientRects().length > 0);
     const btn = launcherEl;
     const r = btn ? btn.getBoundingClientRect() : null;

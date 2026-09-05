@@ -272,7 +272,7 @@ export async function openCanvas(win) {
   await clickOrFail(win.getByRole('button', { name: '生成', exact: true }), '生成工作区')
   await expect(win.locator('.generation-canvas-v2__stage')).toBeVisible()
   // Host cutover retired the in-canvas assistant panel; the project Agent now lives in the
-  // ResidentShell dock (gated by the default-off agentHost flag, #194). Its collapsed launcher is
+  // ResidentShell dock, resident by default since 2026-09-05. Its collapsed launcher is
   // the pill with [data-agent-resident-collapsed]; expanding it reveals [data-agent-composer].
   const launcher = win.locator('[data-agent-resident-collapsed="true"]')
   // This is a genuine two-state UI (persisted expanded/collapsed preference).
