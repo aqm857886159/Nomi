@@ -6,6 +6,7 @@ import fs from 'node:fs'
 import http from 'node:http'
 import path from 'node:path'
 import { screenshotSettled } from './_assert.mjs'
+import { findEdgeHitPoint } from './_canvasHit.mjs'
 const repoRoot = process.cwd()
 const port = 5287
 const baseUrl = `http://127.0.0.1:${port}`
@@ -209,22 +210,7 @@ try {
   check('界面模式同步显示“改图”', /改图/.test(activeMode || ''), activeMode || '')
   await screenshotSettled(win, { path: path.join(shotsDir, '03-after-connected.png') })
 
-  const clickableEdgePoint = await win.evaluate(() => {
-    const groupRect = document.querySelector('[data-group-id="reference-group"]')?.getBoundingClientRect()
-    const paths = Array.from(document.querySelectorAll('.generation-canvas-v2__edge-hit'))
-    if (!groupRect) return null
-    for (const path of paths) {
-      const total = path.getTotalLength()
-      for (let step = 1; step <= 99; step += 1) {
-        const point = path.getPointAtLength(total * step / 100)
-        const screen = point.matrixTransform(path.getScreenCTM())
-        const insideGroup = screen.x > groupRect.left && screen.x < groupRect.right && screen.y > groupRect.top && screen.y < groupRect.bottom
-        if (!insideGroup) continue
-        if (document.elementFromPoint(screen.x, screen.y) === path) return { x: screen.x, y: screen.y }
-      }
-    }
-    return null
-  })
+  const clickableEdgePoint = await findEdgeHitPoint(win, { withinSelector: '[data-group-id="reference-group"]' })
   check('编组内部的连线命中区不再被组框盖住', Boolean(clickableEdgePoint))
   if (!clickableEdgePoint) throw new Error('找不到编组内可点的连线')
 
