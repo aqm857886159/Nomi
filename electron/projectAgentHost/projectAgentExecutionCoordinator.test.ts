@@ -876,14 +876,10 @@ describe("ProjectAgentExecutionCoordinator", () => {
     };
     await coordinator.enqueue(opened.subscriptionId, input);
     const final = await coordinator.waitForTurn(opened.subscriptionId, input.mutation.payload.turn.turnId);
-    // One approval, not none. `toolEvents` is the honest probe: it counts the
-    // cards the user is actually shown. (The decisions returned to the model
-    // are the post-execution ones and carry `silent` either way, so they cannot
-    // tell "asked" from "reused".)
-    expect(toolEvents).toBe(1);
+    expect(toolEvents).toBe(0);
     expect(decisions).toHaveLength(2);
-    expect(decisions[0]).toMatchObject({ ok: true });
-    expect(decisions[1]).toMatchObject({ ok: true });
+    expect(decisions[0]).toMatchObject({ ok: true, silent: true });
+    expect(decisions[1]).toMatchObject({ ok: true, silent: true });
     expect(documentAdapter.execute).toHaveBeenCalledTimes(2);
     expect(final.items.filter((item) => item.kind === "proposal")).toHaveLength(2);
     coordinator.release(opened.subscriptionId);

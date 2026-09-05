@@ -81,6 +81,11 @@ export function resolveCapabilityAlias(
   return CAPABILITY_ALIAS_ENTRIES.find((entry) => entry.alias === alias);
 }
 
+/** True when the descriptor says its payload is a plan the user must read first. */
+export function capabilityRequiresPlanReview(toolName: string): boolean {
+  return (resolveCapabilityAlias(toolName)?.contract as AnyCapabilityContract | undefined)?.requiresPlanReview === true;
+}
+
 /** Resolve side-effect policy from the descriptor and its explicit operation map. */
 export function resolveCapabilityEffectClass(
   toolName: string,

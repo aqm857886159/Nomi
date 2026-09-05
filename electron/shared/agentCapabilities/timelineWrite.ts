@@ -116,6 +116,7 @@ export const TIMELINE_WRITE_CAPABILITY = {
   outputSchema: timelineWriteResultSchema,
   effect: "reversible_write",
   effectClass: "reversible_local",
+  requiresPlanReview: true,
   execution: { port: "timeline", availability: "renderer_required" },
   exposure: "mcp_safe",
   requiredScope: "timeline:write",

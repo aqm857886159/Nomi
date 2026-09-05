@@ -1,4 +1,4 @@
-import { resolveCapabilityAlias, resolveCapabilityEffectClass } from "../shared/agentCapabilities/registry";
+import { capabilityRequiresPlanReview, resolveCapabilityAlias, resolveCapabilityEffectClass } from "../shared/agentCapabilities/registry";
 import type { CapabilityEffectClass } from "../shared/agentCapabilities/capabilityContract";
 import {
   projectAgentApprovalPolicyOf,
@@ -63,17 +63,17 @@ export function projectAgentWorkModeDecision(
 }
 
 /**
- * `project` ("always") lets a descriptor-marked local reversible action run with
- * no card at all. `safe-auto` — the default — *reuses one explicit approval*:
- * the first reversible write of an execution still asks, and the reuse is
- * granted only by an approval the user did not scope to `once`. `step` always
- * asks. Spend, irreversible and unknown actions keep the per-action gate in
- * every mode.
+ * `safe-auto` and `project` allow descriptor-marked local reversible actions
+ * without a confirmation card. Spend, irreversible, and unknown actions keep
+ * the per-action gate in every mode. `step` always asks for local writes too.
  *
- * The granted flag has to be load-bearing here or the whole intervention slot
- * is theatre: without it `safe-auto` auto-applies the very first reversible
- * write, so a timeline edit plan lands before its highlight is ever shown and
- * the slot's "this session" / "always" choices have nothing left to change.
+ * One exception, declared by the capability rather than decided here: a
+ * descriptor that sets `requiresPlanReview` carries a payload the user has to
+ * read (a timeline edit plan is a multi-operation transaction whose effect is
+ * invisible from the call). Those ask once per execution under `safe-auto`, and
+ * the reuse is granted only by the user's own "this session"/"always" answer —
+ * otherwise the plan would commit before its highlight was ever drawn and the
+ * intervention slot's escalating choices would have nothing left to change.
  */
 export function projectAgentMayReuseSafeApproval(
   policy: ProjectAgentApprovalPolicy | undefined,
@@ -82,7 +82,8 @@ export function projectAgentMayReuseSafeApproval(
   safeApprovalGranted: boolean,
 ): boolean {
   const normalized = projectAgentApprovalPolicyOf(policy);
+  if (normalized.mode === "step") return false;
   if (projectAgentExecutionEffectClass(toolName, args) !== "reversible_local") return false;
   if (normalized.mode === "project") return true;
-  return normalized.mode === "safe-auto" && safeApprovalGranted;
+  return !capabilityRequiresPlanReview(toolName) || safeApprovalGranted;
 }
