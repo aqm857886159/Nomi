@@ -1,22 +1,21 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconAdjustments, IconChevronDown, IconMovie, IconMusic, IconPhoto, IconSubtitles, IconTransitionLeft, IconTransitionRight } from '@tabler/icons-react'
+import { IconAdjustments, IconChevronDown, IconMovie, IconMusic, IconPhoto, IconSubtitles } from '@tabler/icons-react'
 import { WorkbenchButton, WorkbenchIconButton, NomiSelect } from '../../../design'
 import { cn } from '../../../utils/cn'
 import { useWorkbenchStore } from '../../workbenchStore'
 import { resolveClipAudio } from '../../timeline/clipAudio'
 import { resolveClipFraming } from '../../timeline/clipFraming'
 import { computeTimelineDuration } from '../../timeline/timelineMath'
+// 时码只有一份实现（合同 §2.8：用户读时码和秒）。本文件原来自带第三份手抄的 MM:SS，
+// 于是同一个起点在属性面板和计划摘要里读出两个不一样的数。
+import { timelineTimecodePrecise } from '../../timeline/timelineTimecode'
 import type { TimelineState } from '../../timeline/timelineTypes'
 import { TextClipFields } from './TextClipFields'
+import { ClipTransitionFields } from './ClipTransitionFields'
 import { PanelRail } from '../PanelRail'
 import { PREVIEW_RATIOS } from '../previewAspectRatios'
 import type { PreviewAspectRatio } from '../../workbenchTypes'
-
-function timecode(frame: number, fps: number): string {
-  const total = Math.max(0, Math.floor(frame / Math.max(1, fps)))
-  return `${Math.floor(total / 60).toString().padStart(2, '0')}:${(total % 60).toString().padStart(2, '0')}`
-}
 
 function Section({ title, children, defaultOpen = true }: { title: string; children: React.ReactNode; defaultOpen?: boolean }): JSX.Element {
   const [open, setOpen] = React.useState(defaultOpen)
@@ -65,6 +64,14 @@ export default function PreviewInspector({ timeline, collapsed, onToggleCollapse
   const objectKind = objectType
     ? t(({ video: 'timelinePreview.previewInspector.types.video', image: 'timelinePreview.previewInspector.types.image', text: 'timelinePreview.previewInspector.types.text' } as const)[objectType])
     : t('timelinePreview.previewInspector.project')
+  // 「配乐音量」写的是音频轨每一段的 clip.audio.gainDb（合同 §2.3）。上一版这条滑杆是
+  // `defaultValue={0}` 且**没有 onChange**：拖得动、什么都不改。空轨时它现在明着禁用并说明
+  // 为什么，而不是让人拖半天再去猜是不是坏了。
+  const musicClips = React.useMemo(
+    () => timeline.tracks.filter((track) => track.type === 'audio').flatMap((track) => track.clips),
+    [timeline],
+  )
+  const musicGainDb = musicClips.length ? Math.round(resolveClipAudio(musicClips[0].audio, musicClips[0].endFrame - musicClips[0].startFrame).gainDb) : 0
   const durationFrames = target ? target.endFrame - target.startFrame : computeTimelineDuration(timeline)
   const objectDuration = `${(durationFrames / fps).toFixed(1)}${t('timelinePreview.previewInspector.seconds')}`
   // 收起态与素材栏共用同一个 PanelRail：宽度由面板系统的 collapsedSize 决定，组件里不再各写一个 w-8。
@@ -87,15 +94,15 @@ export default function PreviewInspector({ timeline, collapsed, onToggleCollapse
       {!objectType ? <>
         <Section title={t('timelinePreview.previewInspector.groups.display')}><Field label={t('timelinePreview.previewInspector.aspectRatio')}><NomiSelect ariaLabel={t('timelinePreview.previewInspector.aspectRatio')} size="xs" value={aspectRatio} options={PREVIEW_RATIOS.map((ratio) => ({ value: ratio.value, label: ratio.label }))} onChange={(value) => setAspectRatio(value as PreviewAspectRatio)} /></Field></Section>
         <Section title={t('timelinePreview.previewInspector.groups.export')}><Field label={t('timelinePreview.previewInspector.resolution')}><NomiSelect ariaLabel={t('timelinePreview.previewInspector.resolution')} size="xs" value={exportResolution} options={[{ value: '720p', label: '720p' }, { value: '1080p', label: '1080p' }]} onChange={(value) => setExportResolution(value as '720p' | '1080p')} /></Field><Field label={t('timelinePreview.previewInspector.quality')}><NomiSelect ariaLabel={t('timelinePreview.previewInspector.quality')} size="xs" value={exportQuality} options={[{ value: 'small', label: t('timelinePreview.previewInspector.qualities.small') }, { value: 'standard', label: t('timelinePreview.previewInspector.qualities.standard') }, { value: 'high', label: t('timelinePreview.previewInspector.qualities.high') }]} onChange={(value) => setExportQuality(value as 'small' | 'standard' | 'high')} /></Field></Section>
-        <Section title={t('timelinePreview.previewInspector.groups.audio')}><Field label={t('timelinePreview.previewInspector.musicVolume')}><input aria-label={t('timelinePreview.previewInspector.musicVolume')} type="range" min={-60} max={0} step={1} defaultValue={0} className="w-24" /></Field></Section>
+        <Section title={t('timelinePreview.previewInspector.groups.audio')}><Field label={t('timelinePreview.previewInspector.musicVolume')} hint={musicClips.length ? undefined : t('timelinePreview.previewInspector.musicVolumeEmpty')}><input aria-label={t('timelinePreview.previewInspector.musicVolume')} type="range" min={-60} max={0} step={1} value={musicGainDb} disabled={musicClips.length === 0} title={musicClips.length ? undefined : t('timelinePreview.previewInspector.musicVolumeEmpty')} className="w-24 disabled:opacity-40" data-inspector-music-volume="true" onChange={(event) => { const gainDb = Number(event.target.value); for (const entry of musicClips) setAudio(entry.id, { gainDb }) }} /><span className="w-10 text-right tabular-nums">{t('timelinePreview.previewInspector.decibels', { value: musicGainDb })}</span></Field></Section>
       </> : objectType === 'text' && textClip ? <>
         <Section title={t('timelinePreview.previewInspector.groups.text')}><TextClipFields clip={textClip} /></Section>
-        <Section title={t('timelinePreview.previewInspector.groups.time')}><Field label={t('timelinePreview.previewInspector.start')}><span className="tabular-nums">{timecode(textClip.startFrame, fps)}</span></Field><Field label={t('timelinePreview.previewInspector.duration')}><span className="tabular-nums">{((textClip.endFrame - textClip.startFrame) / fps).toFixed(1)}{t('timelinePreview.previewInspector.seconds')}</span></Field></Section>
+        <Section title={t('timelinePreview.previewInspector.groups.time')}><Field label={t('timelinePreview.previewInspector.start')}><span className="tabular-nums">{timelineTimecodePrecise(textClip.startFrame, fps)}</span></Field><Field label={t('timelinePreview.previewInspector.duration')}><span className="tabular-nums">{((textClip.endFrame - textClip.startFrame) / fps).toFixed(1)}{t('timelinePreview.previewInspector.seconds')}</span></Field></Section>
       </> : clip ? <>
         <Section title={t('timelinePreview.previewInspector.groups.display')}><Field label={t('timelinePreview.previewInspector.fit')}><div className="flex overflow-hidden rounded-nomi-sm border border-[var(--workbench-border)]"><button type="button" className={cn('px-2 py-1 text-micro', framing.fit === 'contain' && 'bg-[var(--workbench-accent-soft)]')} onClick={() => setFraming(clip.id, { fit: 'contain' })}>{t('timelinePreview.contain')}</button><button type="button" className={cn('px-2 py-1 text-micro', framing.fit === 'cover' && 'bg-[var(--workbench-accent-soft)]')} onClick={() => setFraming(clip.id, { fit: 'cover' })}>{t('timelinePreview.cover')}</button></div></Field><Field label={t('timelinePreview.previewInspector.scale')}><input aria-label={t('timelinePreview.previewInspector.scale')} type="range" min={0.5} max={3} step={0.05} value={framing.scale} className="w-20" onChange={(event) => setFraming(clip.id, { scale: Number(event.target.value) })} /><span className="w-10 tabular-nums text-right">{Math.round(framing.scale * 100)}%</span></Field><Field label={t('timelinePreview.previewInspector.reset')}><WorkbenchButton className="h-6 px-2 text-micro" onClick={() => setFraming(clip.id, { fit: 'contain', scale: 1, offsetX: 0, offsetY: 0 })}>{t('timelinePreview.previewInspector.reset')}</WorkbenchButton></Field></Section>
-        <Section title={t('timelinePreview.previewInspector.groups.time')}><Field label={t('timelinePreview.previewInspector.start')}><span className="tabular-nums">{timecode(clip.startFrame, fps)}</span></Field><Field label={t('timelinePreview.previewInspector.duration')}><span className="tabular-nums">{((clip.endFrame - clip.startFrame) / fps).toFixed(1)}{t('timelinePreview.previewInspector.seconds')}</span></Field><Field label={t('timelinePreview.previewInspector.sourceWindow')}><span className="tabular-nums text-micro">{clip.offsetStartFrame}–{clip.frameCount - clip.offsetEndFrame}{t('timelinePreview.previewInspector.frames')}</span></Field></Section>
+        <Section title={t('timelinePreview.previewInspector.groups.time')}><Field label={t('timelinePreview.previewInspector.start')}><span className="tabular-nums">{timelineTimecodePrecise(clip.startFrame, fps)}</span></Field><Field label={t('timelinePreview.previewInspector.duration')}><span className="tabular-nums">{((clip.endFrame - clip.startFrame) / fps).toFixed(1)}{t('timelinePreview.previewInspector.seconds')}</span></Field><Field label={t('timelinePreview.previewInspector.sourceWindow')}><span className="tabular-nums text-micro">{clip.offsetStartFrame}–{clip.frameCount - clip.offsetEndFrame}{t('timelinePreview.previewInspector.frames')}</span></Field></Section>
         {clip.type !== 'image' ? <Section title={t('timelinePreview.previewInspector.groups.audio')}><Field label={t('timelinePreview.previewInspector.volumeDb')}><input aria-label={t('timelinePreview.previewInspector.volumeDb')} type="range" min={-60} max={0} step={1} value={audio.gainDb} className="w-20" onChange={(event) => setAudio(clip.id, { gainDb: Number(event.target.value) })} /><input aria-label={t('timelinePreview.previewInspector.volumeDbInput')} type="number" min={-60} max={0} value={audio.gainDb} className="w-12 rounded-nomi-sm border border-[var(--workbench-border)] bg-transparent px-1 text-right text-micro" onChange={(event) => setAudio(clip.id, { gainDb: Number(event.target.value) })} /></Field><Field label={t('timelinePreview.previewInspector.muted')}><input type="checkbox" checked={audio.muted} aria-label={t('timelinePreview.previewInspector.muted')} onChange={(event) => setAudio(clip.id, { muted: event.target.checked })} /></Field><Field label={t('timelinePreview.previewInspector.fadeIn')}><input type="number" min={0} value={(audio.fadeInFrames / fps).toFixed(2)} className="w-14 rounded-nomi-sm border border-[var(--workbench-border)] bg-transparent px-1 text-right text-micro" onChange={(event) => setAudio(clip.id, { fadeInFrames: Math.max(0, Math.round(Number(event.target.value) * fps)) })} /><span className="text-micro">{t('timelinePreview.previewInspector.seconds')}</span></Field><Field label={t('timelinePreview.previewInspector.fadeOut')}><input type="number" min={0} value={(audio.fadeOutFrames / fps).toFixed(2)} className="w-14 rounded-nomi-sm border border-[var(--workbench-border)] bg-transparent px-1 text-right text-micro" onChange={(event) => setAudio(clip.id, { fadeOutFrames: Math.max(0, Math.round(Number(event.target.value) * fps)) })} /><span className="text-micro">{t('timelinePreview.previewInspector.seconds')}</span></Field></Section> : null}
-        <Section title={t('timelinePreview.previewInspector.groups.transition')}><Field label={t('timelinePreview.previewInspector.transitionIn')}><WorkbenchButton className="h-7 px-2 text-micro" title={t('timelinePreview.previewInspector.transitionHint')} onClick={() => undefined}><IconTransitionLeft size={14} />{t('timelinePreview.previewInspector.choose')}</WorkbenchButton></Field><Field label={t('timelinePreview.previewInspector.transitionOut')}><WorkbenchButton className="h-7 px-2 text-micro" title={t('timelinePreview.previewInspector.transitionHint')} onClick={() => undefined}><IconTransitionRight size={14} />{t('timelinePreview.previewInspector.choose')}</WorkbenchButton></Field></Section>
+        <Section title={t('timelinePreview.previewInspector.groups.transition')}><ClipTransitionFields clip={clip} timeline={timeline} /></Section>
       </> : null}
     </div>
   </aside>

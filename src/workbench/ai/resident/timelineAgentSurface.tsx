@@ -29,6 +29,23 @@ export function timelineSelectionRevision(timeline: TimelineState): string {
 }
 
 /**
+ * chip 指的那一段「还是不是我当初点的那一段」。
+ *
+ * 只认**存在与位置**：片段没了，或者它被移动 / 修剪到别处了。这正好是提示语要求的那件事
+ * ——「已变更，请重新选择」。以前比的是**整条时间轴**的 revision：在别处加个转场、调一下
+ * 配乐音量，甚至用户自己在属性面板把这一段的音量拧了 1dB，都会把 chip 标红逼人重选一个
+ * 明明还在原地的东西。那是噪音，不是保护：Agent 动手前会自己 read_timeline 拿最新 revision，
+ * chip 这条红线只服务于「你指的东西跑了」。
+ */
+export function timelineClipRevision(timeline: TimelineState, clipId: string): string {
+  const clip = [
+    ...timeline.tracks.flatMap((track) => track.clips),
+    ...timeline.textClips,
+  ].find((candidate) => candidate.id === clipId)
+  return clip ? `${clip.startFrame}-${clip.endFrame}` : 'gone'
+}
+
+/**
  * Remembers the revision each selection was made at, so a chip can say "changed,
  * select again" instead of silently referring to a clip that no longer has the
  * shape the user pointed at. The map is only written in an effect, after the
@@ -36,12 +53,18 @@ export function timelineSelectionRevision(timeline: TimelineState): string {
  * meaningful: the render that first sees a newer revision still reads the older
  * recorded one and therefore reports the selection as stale.
  */
-export function useTimelineSelectionRevisions(selectionIds: readonly string[], revision: string): ReadonlyMap<string, string> {
+export function useTimelineSelectionRevisions(
+  selectionIds: readonly string[],
+  revisionOf: (id: string) => string,
+): ReadonlyMap<string, string> {
   const revisions = React.useRef(new Map<string, string>())
+  const signature = selectionIds.map((id) => `${id}:${revisionOf(id)}`).join('|')
   React.useEffect(() => {
-    for (const id of selectionIds) if (!revisions.current.has(id)) revisions.current.set(id, revision)
+    for (const id of selectionIds) if (!revisions.current.has(id)) revisions.current.set(id, revisionOf(id))
     for (const id of [...revisions.current.keys()]) if (!selectionIds.includes(id)) revisions.current.delete(id)
-  }, [revision, selectionIds])
+    // revisionOf 每次渲染都是新函数；依赖钉在 signature 上，值没变就不重跑。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [signature])
   return revisions.current
 }
 
@@ -87,7 +110,12 @@ export function useTimelinePlanPreview(
   const [host, setHost] = React.useState<HTMLElement | null>(null)
   const wanted = surface === 'preview' && bands.length > 0
   React.useEffect(() => {
-    setHost(wanted ? document.querySelector<HTMLElement>('.workbench-timeline__tracks') : null)
+    // 必须限定在**剪辑面**那棵树里找宿主。WorkbenchShell 把去过的工作区都留在 DOM 里
+    // （WorkspaceSlot 只是 `hidden`，为的是切回去时状态还在），所以生成画布那条时间轴
+    // 同时也挂着 `.workbench-timeline__tracks`——而且它排在剪辑面前面。
+    // 裸 `document.querySelector` 于是稳稳地拿到那条**隐藏的**（0×0）轨道区，
+    // 计划预览的色带被 Portal 进一个看不见的宿主里：功能"跑通了"，用户什么都看不到。
+    setHost(wanted ? document.querySelector<HTMLElement>('.workbench-preview .workbench-timeline__tracks') : null)
   }, [wanted])
   return host && wanted
     ? createPortal(<TimelinePlanPreviewLayer bands={bands} scale={timeline.scale} label={label} />, host)
@@ -106,15 +134,19 @@ export function useTimelineSelectionChips(
   timeline: TimelineState,
   selectedClipIds: readonly string[],
   selectedTextClipId: string,
-): Readonly<{ selections: TimelineSelectionProjection[]; revision: string; revisionFor: (id: string) => string }> {
-  const revision = timelineSelectionRevision(timeline)
+): Readonly<{ selections: TimelineSelectionProjection[]; revisionFor: (id: string) => string; staleFor: (id: string) => boolean }> {
   const ids = React.useMemo(() => [...selectedClipIds, ...(selectedTextClipId ? [selectedTextClipId] : [])], [selectedClipIds, selectedTextClipId])
-  const recorded = useTimelineSelectionRevisions(ids, revision)
+  const revisionOf = React.useCallback((id: string) => timelineClipRevision(timeline, id), [timeline])
+  const recorded = useTimelineSelectionRevisions(ids, revisionOf)
   const selections = React.useMemo(
     () => surface === 'preview' ? collectTimelineSelections(timeline, selectedClipIds, selectedTextClipId) : [],
     [selectedClipIds, selectedTextClipId, surface, timeline],
   )
-  return { selections, revision, revisionFor: (id) => recorded.get(id) ?? revision }
+  return {
+    selections,
+    revisionFor: (id) => recorded.get(id) ?? revisionOf(id),
+    staleFor: (id) => (recorded.get(id) ?? revisionOf(id)) !== revisionOf(id),
+  }
 }
 
 /**

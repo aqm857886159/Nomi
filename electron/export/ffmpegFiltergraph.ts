@@ -168,6 +168,19 @@ type VisualUnit = {
 
 const DEFAULT_TRANSITION_FRAMES = 15;
 
+/**
+ * The pixel format both transition inputs are forced into before `blend`.
+ *
+ * `blend`'s expression runs **per plane of whatever format arrives**, and the
+ * fade expression below encodes "0 means black". That is only true in RGB. Left
+ * in YUV, `A*(1-2p)` drives U and V toward 0 instead of the 128 neutral, so a
+ * "淡入淡出" rendered a bright green flash at the seam instead of dipping to
+ * black (caught in the 2026-09-06 real-user export walk: the frame at the seam
+ * probed rgb(0,138,0)). Declaring the format is what makes the one expression
+ * below well-defined; do not drop it.
+ */
+const TRANSITION_BLEND_FORMAT = "gbrp";
+
 function transitionBlendExpression(type: NomiRenderTransition["type"], offset: number, duration: number): string {
   // FFmpeg 4.x (the bundled Windows binary) has no xfade filter. `blend` is
   // available there and keeps the same frame-accurate behavior. Escape the
@@ -588,8 +601,8 @@ function buildTransitionVisualGraph(
         const currentDuration = secondsFromFrames(current.clip.endFrame - current.clip.startFrame, fps);
         const paddedPrevious = labelForClip(`${group.clips[index - 1].clip.id}_transition_padded`, "video");
         const paddedCurrent = labelForClip(`${current.clip.id}_transition_padded`, "video");
-        filters.push(`[${previousLabel}]tpad=stop_mode=clone:stop_duration=${formatSeconds(currentDuration)}[${paddedPrevious}]`);
-        filters.push(`[${currentLabel}]tpad=start_mode=clone:start_duration=${formatSeconds(cumulativeSeconds)}[${paddedCurrent}]`);
+        filters.push(`[${previousLabel}]tpad=stop_mode=clone:stop_duration=${formatSeconds(currentDuration)},format=${TRANSITION_BLEND_FORMAT}[${paddedPrevious}]`);
+        filters.push(`[${currentLabel}]tpad=start_mode=clone:start_duration=${formatSeconds(cumulativeSeconds)},format=${TRANSITION_BLEND_FORMAT}[${paddedCurrent}]`);
         const outputLabel = labelForClip(`${group.clips[0].clip.id}_transition_blend`, String(index));
         filters.push(
           `[${paddedPrevious}][${paddedCurrent}]blend=all_expr='${transitionBlendExpression(transition.type, cumulativeSeconds, transitionDuration)}':eof_action=repeat:shortest=0[${outputLabel}]`,

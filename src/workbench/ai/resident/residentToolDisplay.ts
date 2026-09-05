@@ -247,26 +247,35 @@ export function readableToolSummary(t: Translate, name: string, args?: unknown):
   return details || t('agentResident.toolPendingSummary')
 }
 
+/**
+ * 介入槽卡上那一行摘要。
+ *
+ * 兜底**不能**是「查看细节」——那是下面折叠区的按钮文案，把它当摘要用，卡片就成了
+ * 「需要你确认 / 查看细节 / [查看细节 ▸]」：一句都没说这次到底要动什么，等于让人盲批。
+ * 认不出的工具至少说清「它要做哪件事、动的是谁」（合同 §2.6：逐条给人话）。
+ */
 export function readableToolPreview(t: Translate, name: string, args?: unknown): string {
   const normalized = toolIdentity(name, args)
   const record = args && typeof args === 'object' ? args as Record<string, unknown> : {}
-  if (normalized.includes('append_to_end') || normalized.includes('document.write') || normalized.includes('document_edit') || normalized.includes('document_append')) return typeof record.content === 'string' && record.content.trim() ? t('agentResident.toolContentCount', { count: 1 }) : t('agentResident.toolInspectDetails')
+  if (normalized.includes('append_to_end') || normalized.includes('document.write') || normalized.includes('document_edit') || normalized.includes('document_append')) return typeof record.content === 'string' && record.content.trim() ? t('agentResident.toolContentCount', { count: 1 }) : t('agentResident.toolDocumentWriteSummary')
   if (isCanvasDeleteToolName(name, args)) {
     const count = Array.isArray(record.nodeIds) ? record.nodeIds.length : 0
-    return count ? t('agentResident.toolTargetCount', { count }) : t('agentResident.toolInspectDetails')
+    return count ? t('agentResident.toolTargetCount', { count }) : t('agentResident.toolCanvasDeleteSummary')
   }
   if (isCanvasWriteToolName(name, args)) {
     const nodes = Array.isArray(record.nodes) ? record.nodes.length : 0
     const edges = Array.isArray(record.edges) ? record.edges.length : 0
-    return [nodes ? t('agentResident.toolShotCount', { count: nodes }) : '', edges ? t('agentResident.toolRelationCount', { count: edges }) : '', t('agentResident.toolNoGenerationShort')].filter(Boolean).join(' · ') || t('agentResident.toolInspectDetails')
+    return [nodes ? t('agentResident.toolShotCount', { count: nodes }) : '', edges ? t('agentResident.toolRelationCount', { count: edges }) : '', t('agentResident.toolNoGenerationShort')].filter(Boolean).join(' · ') || t('agentResident.toolCanvasWriteSummary')
   }
-
   if (normalized.includes('timeline.write') || normalized.includes('timeline_edit')) return t('agentResident.toolTimelineWriteSummary')
   if (isGenerationToolName(name)) return t('agentResident.toolGenerationSummary')
   if (normalized.includes('layout_write') || normalized.includes('layout.write')) return t('agentResident.toolLayoutWriteSummary')
   if (normalized.includes('asset_import')) return t('agentResident.toolAssetImportSummary')
   if (isReadOnlyToolName(name, args)) return t('agentResident.toolReadNoChange')
-  return t('agentResident.toolInspectDetails')
+  // 兜底仍然不是「查看细节」（见函数头）：main 这一轮补的是**覆盖**（document_edit /
+  // canvas 删除的 args 判定 / timeline_edit / layout_write / asset_import / 只读工具），
+  // 认不出的那一档该说什么是本分支修的那件事——说清「哪件事、动的是谁」，别让人盲批。
+  return `${readableToolName(t, name)} · ${readableToolTarget(t, name, record)}`
 }
 
 export function readableToolTarget(t: Translate, name: string, args?: unknown): string {

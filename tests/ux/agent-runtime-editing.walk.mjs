@@ -5,7 +5,7 @@ import { clickOrFail, expect, expectAbsent, proveProbe } from './_assert.mjs'
 import path from 'node:path'
 import { FIXTURE_IMAGE_MODEL, flattenRequestText } from './agent-runtime-fixture.mjs'
 import {
-  CANVAS_PANEL, CREATION_PANEL, DOCUMENT, chooseAssistantModel, createRuntimeWalk, enableAgentHostThroughSettings, hasToolResult,
+  CANVAS_PANEL, CREATION_PANEL, DOCUMENT, chooseAssistantModel, createRuntimeWalk, hasToolResult,
   newConversation, openCanvas, readCurrentProjectAgentHostSnapshot, readCurrentProjectAgentToolEvidence, readProject,
   recorded, requireCurrentPersistedWorkbenchDocument,
   selectConversationAt, sendCanvas, sendCreation, toolNames,
@@ -54,7 +54,6 @@ const walk = await createRuntimeWalk('editing')
 let failure
 try {
   let { win } = await walk.start({ first: true })
-  await enableAgentHostThroughSettings(win)
   const project = await walk.newProject()
   const { projectId, projectRoot } = project
   const settingsRoot = path.join(walk.report.tempRoot, 'settings')
@@ -78,20 +77,20 @@ try {
   await sendCreation(win, A_PROMPT)
   const docWire = await recorded(appendRequest.received, 'creation editor HTTP request')
   expect(toolNames(docWire.body), 'The real editor profile advertises precisely its six tools').toEqual(DOC_TOOLS)
-  const approval = win.locator(`${CREATION_PANEL} [data-agent-item-kind="approval"] [data-agent-approval="true"]`).first()
-  const approvalProof = await proveProbe(approval, 'A real document write approval is visible')
-  await expect(document, 'A proposal must not mutate the live document').toHaveText(ORIGINAL)
-  expect(JSON.stringify(requireCurrentPersistedWorkbenchDocument(await readProject(win, projectId)))).not.toContain(APPEND)
-  await walk.snap('document-awaits-approval')
-  await clickOrFail(approval.locator('[data-agent-action="approve"]'), '批准文稿追加', { noWaitAfter: true })
-  await recorded(appendFollowup.received, 'approved document tool result')
+  // 出厂审批档是 safe-auto（electron/shared/projectAgentContracts.ts:60-63）：
+  // document.write 的 effectClass 是 reversible_local 且不需要计划审阅，于是它**不弹审批卡**，
+  // 直接应用并留收据（projectAgentExecutionPolicy.ts:83-88）。
+  // 这条走查原来在这里等一张卡再去点「批准」——那是 step 档的行为。审批分档合入后产品不再
+  // 那样跑，走查却没跟着改，于是它在 main 上一直红着，报的还是「面板没渲染」这种误导人的话。
+  // 现在验的是**产品真正的承诺**：可逆本地写自动落，落完仍然有完整证据链（下面那段 evidence）。
+  await recorded(appendFollowup.received, 'auto-applied document tool result')
   await expect(win.locator(CREATION_PANEL)).toContainText('F_DOC_DONE')
   await expect(win.locator(`${CREATION_PANEL} [data-agent-composer-send="true"][data-agent-stop="true"]`)).toHaveCount(0)
   await expect(document).toContainText(APPEND)
-  expect((await document.innerText()).split(APPEND)).toHaveLength(2)
+  expect((await document.innerText()).split(APPEND), '自动落也只能落一次，不许重放成两段').toHaveLength(2)
   await expect.poll(async () => JSON.stringify(requireCurrentPersistedWorkbenchDocument(await readProject(win, projectId))),
     { timeout: 30_000 }).toContain(APPEND)
-  await expectAbsent(approval, { provenBy: approvalProof, message: 'Applied approval is no longer actionable' })
+  await walk.snap('document-auto-applied')
   await clickOrFail(win.locator('[aria-label="文本工具栏"]').getByRole('button', { name: '撤销', exact: true }), '撤销实际文稿变更')
   await expect(document).toHaveText(ORIGINAL)
   await expect.poll(async () => JSON.stringify(requireCurrentPersistedWorkbenchDocument(await readProject(win, projectId))),
@@ -147,17 +146,17 @@ try {
   await sendCanvas(win, 'F_CANVAS_REQUEST：创建两个杯子镜头并连接参考，不要生成。')
   const canvasWire = await recorded(canvasRequest.received, 'canvas HTTP request')
   expect(toolNames(canvasWire.body)).toEqual(CANVAS_TOOLS)
-  const canvasApproval = win.locator(`${CANVAS_PANEL} [data-agent-item-kind="approval"] [data-agent-approval="true"]`).first()
-  await expect(canvasApproval).toBeVisible()
-  await expect(canvasApproval.locator('[data-agent-tool-details="true"]')).toContainText('F_SOURCE')
-  await expect(canvasApproval.locator('[data-agent-tool-details="true"]')).toContainText('F_TARGET')
-  const beforeCanvas = (await readProject(win, projectId)).payload.generationCanvas
-  expect(beforeCanvas.nodes).toHaveLength(0)
-  expect(beforeCanvas.edges).toHaveLength(0)
-  expect(walk.fixture.images).toHaveLength(0)
-  await walk.snap('canvas-proposal')
-  await clickOrFail(canvasApproval.locator('[data-agent-action="approve"]'), '批准两个节点及参考关系', { noWaitAfter: true })
+  // 同上：canvas.write 也是 reversible_local，safe-auto 档下自动落，不弹卡。
+  // 「用户能读到它做了什么」这条承诺没变——两个镜头的标题必须出现在面板的工具明细里。
+  expect(walk.fixture.images, '落画布不许顺手触发生成').toHaveLength(0)
   await recorded(canvasFollowup.received, 'canvas tool result')
+  const canvasToolLine = win.locator(`${CANVAS_PANEL} [data-agent-tool-line="true"]`).last()
+  await proveProbe(canvasToolLine, '落画布之后，面板上有这次工具调用的那一行')
+  // 自动落之后，用户能读到的那句话就是这一行的无障碍名。它必须说清「建了卡、没有去生成」
+  // ——safe-auto 不问自答，这一行就是唯一的交代。
+  await expect(canvasToolLine.locator('button[aria-expanded]').last(),
+    '落画布那一行要说清它做了什么').toHaveAttribute('aria-label', /只建卡.*不生成/)
+  await walk.snap('canvas-auto-applied')
   await expect(win.locator(CANVAS_PANEL)).toContainText('F_CANVAS_DONE')
   await expect.poll(async () => {
     const canvas = (await readProject(win, projectId)).payload.generationCanvas
@@ -181,6 +180,8 @@ try {
   const proposalId = canvasEvidence?.receipt?.proposalId
   expect(proposalId).toBeTruthy()
   await walk.snap('canvas-committed')
+  // 先证明这颗撤销钮真的能被探针找到，下面两处「撤销过就不该再有撤销钮」才不是空话。
+  const undoButtonProof = await proveProbe(receipt.locator('[data-agent-receipt-undo="true"]'), '收据上的整笔撤销钮可见')
   await clickOrFail(receipt.locator('[data-agent-receipt-undo="true"]'), '整笔撤销画布提案')
   await expect.poll(async () => {
     const canvas = (await readProject(win, projectId)).payload.generationCanvas
@@ -203,7 +204,8 @@ try {
   })
   await expect(receipt, 'Undo keeps the immutable audit receipt visible').toHaveCount(1)
   await expect(receipt).toHaveAttribute('data-agent-proposal-receipt', 'true')
-  await expect(receipt.locator('[data-agent-receipt-undo="true"]'), 'An undone receipt cannot trigger Undo again').toHaveCount(0)
+  await expectAbsent(receipt.locator('[data-agent-receipt-undo="true"]'),
+    { provenBy: undoButtonProof, message: 'An undone receipt cannot trigger Undo again' })
   expect(walk.fixture.images).toHaveLength(0)
 
   await clickOrFail(win.getByRole('button', { name: '创作', exact: true }), '回到原创作对话')
@@ -222,9 +224,12 @@ try {
   await expect(stoppedAssistant, 'A stopped assistant item remains visible with its terminal status').toBeVisible()
   await expect(stoppedAssistant.locator('[data-agent-status-label="stopped"]'), 'The retained stopped turn has an explicit user-facing marker').toHaveText('已停止')
   stoppedRequest.release({ type: 'tool', id: 'f-late-write', name: 'nomi_document_edit', args: { operation: 'append', content: 'F_FORBIDDEN_LATE_WRITE' } })
-  await expectAbsent(win.locator(`${CREATION_PANEL} [data-agent-item-kind="approval"]`),
-    { provenBy: approvalProof, message: 'Stopped request cannot publish a late approval' })
+  // 「晚到的写入不许落」这条以前是靠「审批卡没冒出来」来证的。safe-auto 档下可逆写本来就
+  // 不弹卡，那条缺席断言于是恒真——换成直接查**文稿本身**：晚到的写入真落了，这段文字就会
+  // 出现在编辑器和盘上，这是个有值的判据，不是空话。
   await expect(win.locator(DOCUMENT)).toHaveText(ORIGINAL)
+  expect(JSON.stringify(requireCurrentPersistedWorkbenchDocument(await readProject(win, projectId))),
+    '被停止的请求不许把晚到的写入落到盘上').not.toContain('F_FORBIDDEN_LATE_WRITE')
   const savedA = readCurrentProjectAgentToolEvidence(settingsRoot, projectRoot, 'document.write')
   expect(savedA?.tool?.status).toBe('done')
   expect(savedA?.proposal?.approval?.threadId).toBe(creationA.threadId)
@@ -315,7 +320,8 @@ try {
   await expect(win.locator(CANVAS_PANEL)).toBeVisible()
   const coldCanvasReceipt = win.locator(`${CANVAS_PANEL} [data-agent-proposal-receipt="true"]`).last()
   await expect(coldCanvasReceipt, 'Cold start keeps the undone audit receipt').toHaveCount(1)
-  await expect(coldCanvasReceipt.locator('[data-agent-receipt-undo="true"]'), 'Cold start must not restore an undone action').toHaveCount(0)
+  await expectAbsent(coldCanvasReceipt.locator('[data-agent-receipt-undo="true"]'),
+    { provenBy: undoButtonProof, message: 'Cold start must not restore an undone action' })
   const coldCanvas = (await readProject(win, projectId)).payload.generationCanvas
   expect({ nodes: coldCanvas.nodes.length, edges: coldCanvas.edges.length }).toEqual({ nodes: 0, edges: 0 })
   const coldCanvasEvidence = readCurrentProjectAgentToolEvidence(settingsRoot, projectRoot, 'canvas.write')
