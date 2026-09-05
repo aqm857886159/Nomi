@@ -28,6 +28,11 @@
 // 用户点半天以为坏了。判据只有一条、零解释空间：handler 是箭头函数，body 是空块或
 // undefined/null 字面量。真要占位就别渲染这个控件，或者 disabled + 说明为什么。
 //
+// 规则三（2026-09-06 加）：**被静默丢弃的命令**。前两条看的是「handler 没做事」，这条看的是
+// 「做了事、事失败了、用户什么都看不到」——`onClick={() => void someHostCommand(id)}`，命令被
+// Host 拒绝，裸 `void` 把拒绝丢进 unhandled rejection，界面一个字都不说。判据和它是怎么从
+// 121 处 `void` 收窄到个位数真问题的，都写在 control-contract-discarded-commands.mjs 里。
+//
 // 抓不到的（诚实标注，别把它当万能）：
 //   · 守卫藏在具名函数里、JSX 上只写 onClick={handler} → 需要跨函数数据流，留给 R13 走查断言
 //   · disabled 了但没说明原因（契约 C4）→ 全仓 100+ 处 disabled={readOnly} 语境自明，做成硬门必成噪音
@@ -36,6 +41,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
+import { discardedCommandOffenders } from './control-contract-discarded-commands.mjs'
 
 const require = createRequire(import.meta.url)
 const ts = require('typescript')
@@ -166,8 +172,9 @@ function isEmptyHandler(fn) {
     || (ts.isVoidExpression(body) && ts.isNumericLiteral(body.expression))
 }
 
+const SCANNED = sourceFiles(SRC)
 const offenders = []
-for (const file of sourceFiles(SRC)) {
+for (const file of SCANNED) {
   const text = fs.readFileSync(file, 'utf8')
   const sf = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
   const rel = path.relative(ROOT, file)
@@ -209,14 +216,30 @@ for (const file of sourceFiles(SRC)) {
   visit(sf)
 }
 
-if (offenders.length > 0) {
+// 规则三：被静默丢弃的命令。判据和缘起住在 control-contract-discarded-commands.mjs，
+// 那份分析要走模块图和 Promise 数据流，塞进本文件会把两种完全不同的判断搅在一起。
+const discarded = discardedCommandOffenders({ root: ROOT, files: SCANNED })
+
+if (offenders.length > 0 || discarded.length > 0) {
   console.error('✗ 控件交互契约门岗未通过（设计系统 §4.1 C1）：')
-  console.error('  下面这些控件点下去会静默失效：handler 里有目标守卫、或 handler 根本是空的，控件却没有 disabled。')
-  console.error('  修法：守卫为假时给控件 disabled，并用 title 说清「为什么现在点不了」。')
-  console.error('  禁用的 <button> 自身不触发 title，要用外层 <span title={原因} style={{display:"contents"}}> 包住')
-  console.error('  （既有范式见 NodeGenerationComposer.tsx 的生成钮）。\n')
-  for (const o of offenders) console.error(`  · ${o.where}  ${o.handler} 守卫: ${o.guard}`)
+  if (offenders.length > 0) {
+    console.error('\n【点了不做事】handler 里有目标守卫、或 handler 根本是空的，控件却没有 disabled。')
+    console.error('  修法：守卫为假时给控件 disabled，并用 title 说清「为什么现在点不了」。')
+    console.error('  禁用的 <button> 自身不触发 title，要用外层 <span title={原因} style={{display:"contents"}}> 包住')
+    console.error('  （既有范式见 NodeGenerationComposer.tsx 的生成钮）。\n')
+    for (const o of offenders) console.error(`  · ${o.where}  ${o.handler} 守卫: ${o.guard}`)
+  }
+  if (discarded.length > 0) {
+    console.error('\n【点了失败但用户看不到】handler 丢掉了一个会被拒绝的跨进程命令的 Promise，')
+    console.error('  拒绝变成 unhandled rejection：控件像是生效了，实际什么都没发生，界面也不解释。')
+    console.error('  修法二选一：① 在这里接住并告诉用户（`.catch(…)` 走本面板既有的错误条／toast，')
+    console.error('  范式见 ProjectAgentResidentShell.tsx 的 runThreadCommand）；② 让命令自己把失败')
+    console.error('  报给用户（像 recoverTaskActions.ts 那样 catch 完写回节点状态），此时它就不再 reject。\n')
+    for (const d of discarded) console.error(`  · ${d.where}  ${d.handler}={() => void ${d.discarded}}  → ${d.command}（${d.module}）`)
+  }
   process.exit(1)
 }
 
-console.log(`✓ 控件交互契约门岗通过：无「点了没反应」的控件（例外 ${ALLOWLIST.size} 条，均已写明理由）。`)
+console.log(
+  `✓ 控件交互契约门岗通过：无「点了没反应」「点了失败没人说」的控件（例外 ${ALLOWLIST.size} 条，均已写明理由）。`,
+)

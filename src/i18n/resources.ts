@@ -94,6 +94,7 @@ export const zhCN = {
     freeToCancel: '取消不产生费用',
     cancelQueued: '取消排队的 {{count}} 个',
     retryFailed: '重试失败的 {{count}} 个',
+    actionFailed: '这个操作没执行成，请再试一次',
     sections: {
       running: '进行中 {{count}}',
       queued: '排队中 {{count}}',
@@ -477,6 +478,7 @@ export const en = {
     freeToCancel: 'free to cancel',
     cancelQueued: 'Cancel {{count}} queued',
     retryFailed: 'Retry {{count}} failed',
+    actionFailed: 'That action did not go through. Try again.',
     sections: {
       running: 'Running {{count}}',
       queued: 'Queued {{count}}',
