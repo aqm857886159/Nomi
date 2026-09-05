@@ -5,12 +5,7 @@
 
 ## 范围
 
-**走查层（三条 CI 红的直接原因，全是量具）**
-
-- `tests/ux/_canvasPoints.mjs`（新）：`findBlankCanvasPoint` 扫描 + 真实鼠标到位复验；`clickEdgeHitPath` 沿 path 取样只点最上层；`MARQUEE_STAGE_MARGIN_PX = 40 + 8`（React Flow 框选 autoPan 带）；`CANVAS_BLANK_EXCLUSIONS` 并集（含 `.react-flow__node` 壳）。
-- 删掉 7 份私有 `findBlankPoint`（gestures / s5 / shortcuts / context-menu-click / node-context-menu / image-sharpness 脚本）与 clip-node-editing 的内联取点，全部改走共用模块；card-stack 两处连线点击改 `clickEdgeHitPath`。
-- `canvas-drag-pan-gestures`：框选起终点避开 autoPan 带；新增断言「新建的节点完整落在 stage 内」。
-- `canvas-performance-benchmark` wheel-zoom：DOM 身份基线挪到第一格放大态之后量（视口裁剪 ≠ 整层重建）。**预算未动**。
+**走查层（三条 CI 红的直接原因，全是量具）** —— 由同分支的 commit ec7e493f9 / a4daf5642 完成（`tests/ux/_canvasHit.mjs` 单一 owner：空白 = 最顶层元素就是 React Flow pane；`findEdgeHitPoint` 沿 path 取样；框选避开 autoPan 带并先缩小；benchmark 只对全程挂着的节点做身份守卫）。本分支起初也做了一份等价实现，合并时删掉、只留他们那份（P1）。本分支保留在走查层的只有：gestures 走查新增断言「新建的节点完整落在 stage 内」+ 节点没渲染出来时的 React Flow 状态转储。
 
 **产品层（走查顺手挖出的 #488 自身缺陷：新卡落在 Agent 面板底下、视口不动）**
 
@@ -30,8 +25,8 @@
 
 ## 验收门
 
-- 本机：`canvas-drag-pan-gestures` / `canvas-card-stack` 在常驻面板展开下绿；探针序列里 video 卡 x 位移到位（`-232`）。
-- 单测：`tests/ux/_canvasPoints.test.mjs`、`viewportTargetTracker.test.ts`、`useComposerVisibilityPan.test.ts`、`useCreatedNodeVisibilityPan.test.ts`（含撤销回位规则）、`generationCanvasReactFlowAdapter.test.ts`（`isFiniteFlowViewport`）。
+- 本机：`canvas-drag-pan-gestures` 连续多次 48/48、`canvas-card-stack` 绿（常驻面板展开）；探针序列里 video 卡 x 位移到位（`-232`）；建卡后不再出现整片空白。
+- 单测：`viewportTargetTracker.test.ts`、`useComposerVisibilityPan.test.ts`、`useCreatedNodeVisibilityPan.test.ts`（含撤销回位规则）、`generationCanvasReactFlowAdapter.test.ts`（`isFiniteFlowViewport`）。
 - CI：#488 三条红 job 转绿；`check:root-cause-contracts` 过。
 
 ## 回滚

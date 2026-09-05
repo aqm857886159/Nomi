@@ -15,7 +15,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { screenshotSettled } from './_assert.mjs'
-import { BOTTOM_FIRST_BLANK_ROWS, CANVAS_BLANK_EXCLUSIONS, MARQUEE_STAGE_MARGIN_PX, findBlankCanvasPoint } from './_canvasPoints.mjs'
+import { CANVAS_PANE_SELECTOR, findCanvasBlankPoint } from './_canvasHit.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/canvas-drag-pan-gestures')
@@ -83,10 +83,12 @@ async function readTransform() {
   })
 }
 
-// 找一块「真·空白」：扫描 + 把真实鼠标挪过去复验（磁性「+」句柄只在光标下才算数）。
-// 取点/复验/排除清单都在 tests/ux/_canvasPoints.mjs，这里只保留「优先从底部扫」这一个本地偏好。
+// 空白点判据住在 `_canvasHit.mjs`（单一 owner）：最顶层元素就是 React Flow pane。
+// 找不到就直接报错——「这一屏没有空白」是走查前提被打破，不该悄悄往下走。
 async function findBlankPoint(preferBottom = false) {
-  return findBlankCanvasPoint(getWin(), preferBottom ? { rows: BOTTOM_FIRST_BLANK_ROWS } : {})
+  const point = await findCanvasBlankPoint(getWin(), { preference: preferBottom ? 'bottom' : 'default' })
+  if (!point) throw new Error('WALK FAIL: 画布上找不到任何空白点（stage 被浮层占满）')
+  return point
 }
 
 async function readStageOrigin() {
@@ -105,8 +107,35 @@ function canvasPointAt(transform, screen, origin) {
 }
 
 // 适应视图后，从包围节点的四个方向寻找完整落在 stage 内的框选手势。
+// React Flow 在拖动中把指针带进 pane 边缘 40px 就开始**持续自动平移**
+// （`calcAutoPan(pos, bounds, speed = 15, distance = 40)`，@xyflow/system 0.0.81）。
+// 框选手势的两端必须离边比这更远，否则松手前画面一直在动：截图等不到安定，
+// 走查报的是「这一屏未视觉安定」，看起来像浮层抖动，其实是我们自己按住了自动平移带。
+const REACT_FLOW_AUTO_PAN_BAND_PX = 40
+const MARQUEE_STAGE_INSET_PX = REACT_FLOW_AUTO_PAN_BAND_PX + 8
+// 框选前把两张卡缩到只占画布这么大：余量因此是 stage 的两成起步，既大于自动平移带，
+// 也大于提示词面板让位平移的那几十像素。用比例而不是像素——画布宽度本来就随面板变。
+const MARQUEE_MAX_BOUNDS_RATIO = 0.6
+
+// 两张卡在 stage 里占多大：框选余量够不够，唯一可信的判据是实测，不是猜。
+async function readMarqueeHeadroom() {
+  return getWin().evaluate(() => {
+    const stage = document.querySelector('.generation-canvas-v2__stage')
+    const nodes = Array.from(document.querySelectorAll('.generation-canvas-v2-node'))
+    if (!stage || !nodes.length) return null
+    const stageRect = stage.getBoundingClientRect()
+    const rects = nodes.map((node) => node.getBoundingClientRect())
+    const width = Math.max(...rects.map((rect) => rect.right)) - Math.min(...rects.map((rect) => rect.left))
+    const height = Math.max(...rects.map((rect) => rect.bottom)) - Math.min(...rects.map((rect) => rect.top))
+    return {
+      widthRatio: Math.round((width / stageRect.width) * 1000) / 1000,
+      heightRatio: Math.round((height / stageRect.height) * 1000) / 1000,
+    }
+  })
+}
+
 async function findMarqueeGesture() {
-  return getWin().evaluate(({ margin, excluded }) => {
+  return getWin().evaluate(({ paneSelector, inset }) => {
     const stage = document.querySelector('.generation-canvas-v2__stage')
     const nodes = Array.from(document.querySelectorAll('.generation-canvas-v2-node'))
     if (!stage) throw new Error('画布 stage 未渲染，无法构造框选手势')
@@ -119,35 +148,53 @@ async function findMarqueeGesture() {
       right: Math.max(...nodeRects.map((rect) => rect.right)),
       bottom: Math.max(...nodeRects.map((rect) => rect.bottom)),
     }
-    // 起/终点必须避开 React Flow 框选 autoPan 带（离 stage 边 40px 内画布会一直走）：
-    // 按住不动画布却在动，`screenshotSettled` 永远等不到安定——#488 CI shard 1 就死在这。
     const insideStage = (point) =>
-      point.x >= stageRect.left + margin && point.x <= stageRect.right - margin &&
-      point.y >= stageRect.top + margin && point.y <= stageRect.bottom - margin
+      point.x >= stageRect.left + inset && point.x <= stageRect.right - inset &&
+      point.y >= stageRect.top + inset && point.y <= stageRect.bottom - inset
 
-    const rejected = []
-    for (const gap of [24, 40, 64, 80]) {
+    // 余量从大往小试，最大那档扫满整块 stage（四边各内缩到自动平移带之外）。
+    // 为什么要余量最大化：框选是**拖动中**判定的，而 React Flow 只选「完全落在框内」的节点；
+    // 拖到一半选中第一个节点会弹出它的提示词面板，面板贴边时生产代码会平移视口让它露出来
+    // （useComposerVisibilityPan），节点因此在框选进行中整体位移几十像素。贴着节点外框 24px
+    // 起手的框在窄画布下会被这几十像素挤掉一个节点——量到的不是「框选坏了」，是「框太紧」。
+    // 扫满 stage 的框对这段位移免疫；余量由 stage 与节点实测推出，唯一的常数是
+    // React Flow 自己的自动平移带宽度（见上方注释）。
+    const gapLadder = [
+      Math.max(
+        bounds.left - (stageRect.left + inset),
+        bounds.top - (stageRect.top + inset),
+        stageRect.right - inset - bounds.right,
+        stageRect.bottom - inset - bounds.bottom,
+      ),
+      80,
+      64,
+      40,
+      24,
+    ]
+    const clampToStage = (point) => ({
+      x: Math.min(Math.max(point.x, stageRect.left + inset), stageRect.right - inset),
+      y: Math.min(Math.max(point.y, stageRect.top + inset), stageRect.bottom - inset),
+    })
+    for (const gap of gapLadder) {
       const gestures = [
         { start: { x: bounds.right + gap, y: bounds.bottom + gap }, end: { x: bounds.left - gap, y: bounds.top - gap } },
         { start: { x: bounds.right + gap, y: bounds.top - gap }, end: { x: bounds.left - gap, y: bounds.bottom + gap } },
         { start: { x: bounds.left - gap, y: bounds.bottom + gap }, end: { x: bounds.right + gap, y: bounds.top - gap } },
         { start: { x: bounds.left - gap, y: bounds.top - gap }, end: { x: bounds.right + gap, y: bounds.bottom + gap } },
-      ]
+      ].map(({ start, end }) => ({ start: clampToStage(start), end: clampToStage(end) }))
       for (const gesture of gestures) {
-        const r = (p) => `${Math.round(p.x)},${Math.round(p.y)}`
-        if (!insideStage(gesture.start) || !insideStage(gesture.end)) { rejected.push(`${gap}:${r(gesture.start)}→${r(gesture.end)} 出 stage 边距`); continue }
+        if (!insideStage(gesture.start) || !insideStage(gesture.end)) continue
+        // 起手点必须落在 pane 上（同 _canvasHit.mjs 的空白判据），否则手势会被浮层吞掉。
         const hit = document.elementFromPoint(gesture.start.x, gesture.start.y)
-        if (!hit || !stage.contains(hit)) { rejected.push(`${gap}:${r(gesture.start)} 不在 stage`); continue }
-        if (hit.closest(excluded)) { rejected.push(`${gap}:${r(gesture.start)} 压在 ${hit.tagName.toLowerCase()}.${String(hit.className).split(' ')[0]}`); continue }
+        if (!hit || !stage.contains(hit) || !hit.matches(paneSelector)) continue
         return {
           start: { x: Math.round(gesture.start.x), y: Math.round(gesture.start.y) },
           end: { x: Math.round(gesture.end.x), y: Math.round(gesture.end.y) },
         }
       }
     }
-    // 找不到就把几何交出去：报红信息要能直接看出是「stage 太窄」还是「起点压在了什么上」。
-    return { unavailable: true, bounds: { l: Math.round(bounds.left), t: Math.round(bounds.top), r: Math.round(bounds.right), b: Math.round(bounds.bottom) }, stage: { l: Math.round(stageRect.left), t: Math.round(stageRect.top), r: Math.round(stageRect.right), b: Math.round(stageRect.bottom) }, margin, rejected }
-  }, { margin: MARQUEE_STAGE_MARGIN_PX, excluded: CANVAS_BLANK_EXCLUSIONS })
+    return null
+  }, { paneSelector: CANVAS_PANE_SELECTOR, inset: MARQUEE_STAGE_INSET_PX })
 }
 
 // 数一段操作里「连线层 / 标签层 / 画布外壳」到底被写了多少次 DOM。
@@ -367,17 +414,28 @@ try {
   // Shift 框选：先用真实「适应视图」收回所有节点，再从空白角落包围它们。
   await getWin().locator('.generation-canvas-v2__zoom-bar button').first().click()
   await getWin().waitForTimeout(420)
-  let marqueeGesture = await findMarqueeGesture()
-  for (let attempt = 0; attempt < 3 && marqueeGesture?.unavailable; attempt += 1) {
-    // 适应视图后两张卡几乎填满被常驻 Agent 面板压窄的 stage（1072/1200px），四角都避不开 React Flow 的
-    // 框选 autoPan 带。用户这时会滚轮缩小一档再框——照做，而不是把边距调小去凑绿。
-    const zoomOutAnchor = await findBlankPoint()
-    assert(Boolean(zoomOutAnchor), '框选前缩小一档：找得到空白锚点', JSON.stringify(marqueeGesture))
+  // 适应视图只保证节点**在**视口里，不保证**离边够远**：窄画布下它留的余量可能比 React Flow
+  // 的自动平移带还小，于是「框得住两张卡」和「端点别落进自动平移带」直接打架
+  // （CI 1280 宽实测左边只剩 40px，框到 48px 内缩就切掉了第一张卡的左沿）。
+  // 用户遇到这种情况会往外滚一格再框；走查照做——滚到实测占比够小为止。
+  let headroom = await readMarqueeHeadroom()
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    if (headroom && headroom.widthRatio <= MARQUEE_MAX_BOUNDS_RATIO && headroom.heightRatio <= MARQUEE_MAX_BOUNDS_RATIO) break
+    const zoomOutAt = await findBlankPoint()
+    await getWin().mouse.move(zoomOutAt.x, zoomOutAt.y)
     await getWin().mouse.wheel(0, 240)
-    await getWin().waitForTimeout(420)
-    marqueeGesture = await findMarqueeGesture()
+    await getWin().waitForTimeout(220)
+    headroom = await readMarqueeHeadroom()
   }
-  assert(marqueeGesture && !marqueeGesture.unavailable, '框选起手点与终点完整落在画布空白处', JSON.stringify(marqueeGesture))
+  assert(
+    Boolean(headroom)
+      && headroom.widthRatio <= MARQUEE_MAX_BOUNDS_RATIO
+      && headroom.heightRatio <= MARQUEE_MAX_BOUNDS_RATIO,
+    '框选前两张卡已缩到画布的六成以内（四角才够离开自动平移带）',
+    JSON.stringify(headroom),
+  )
+  const marqueeGesture = await findMarqueeGesture()
+  assert(Boolean(marqueeGesture), '框选起手点与终点完整落在画布空白处', JSON.stringify(marqueeGesture))
   await getWin().keyboard.down('Shift')
   await getWin().mouse.move(marqueeGesture.start.x, marqueeGesture.start.y)
   await getWin().mouse.down()

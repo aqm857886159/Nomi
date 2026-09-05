@@ -21,7 +21,7 @@ import { mkdirSync, mkdtempSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { findBlankCanvasPoint } from './_canvasPoints.mjs'
+import { findCanvasBlankPoint } from './_canvasHit.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/canvas-context-menu-click')
@@ -82,9 +82,11 @@ async function resize(width, height) {
 const countNodes = () => getWin().evaluate(() => document.querySelectorAll('.generation-canvas-v2-node').length)
 
 // 找一块「真·空白」：命中 stage 本身、不落在任何节点/工具条/菜单上。
+// 空白点判据住在 `_canvasHit.mjs`（单一 owner）：最顶层元素就是 React Flow pane。
 async function findBlankPoint() {
-  // 扫描 + 真实鼠标到位复验，见 tests/ux/_canvasPoints.mjs（磁性「+」句柄只在光标下才冒出来）。
-  return findBlankCanvasPoint(getWin(), { rows: [0.3, 0.45, 0.6, 0.72, 0.85], columns: [0.55, 0.65, 0.75, 0.85, 0.45, 0.35] })
+  const point = await findCanvasBlankPoint(getWin())
+  if (!point) throw new Error('画布上找不到任何空白点（stage 被浮层占满）')
+  return point
 }
 
 try {

@@ -1,13 +1,13 @@
 # 走查取点只信「真实光标到位后的那一次」，stage 一变窄假绿假红一起来
 
-> 📎 教训 · 首次记录 2026-09-05 · 状态：✅ 已固化（取点/复验/连线点击收口在 `tests/ux/_canvasPoints.mjs`；框选边距 `MARQUEE_STAGE_MARGIN_PX`；benchmark wheel-zoom 身份基线改在放大态量）
+> 📎 教训 · 首次记录 2026-09-05 · 状态：✅ 已固化（走查层：`tests/ux/_canvasHit.mjs` 单一 owner——空白 = 最顶层元素就是 React Flow pane、沿 path 取样点连线、框选避开 autoPan 带并先缩小；benchmark 只对全程挂着的节点做身份守卫。产品层：`useReactFlowViewportAnimation` + 节点就地 Suspense + `isFiniteFlowViewport`）
 > **触发场景**：画布走查在 CI 或本机随机翻红，报的是「点空白没取消选中」「等了 5s 仍未视觉安定」「subtree intercepts pointer events」；或者你刚让画布 stage 变窄/变宽（侧栏、常驻面板、窗口尺寸）。
 
-**结论**：走查里所有「找个点去点/去拖」的地方，**扫描那一刻的 `elementFromPoint` 只是候选，真实鼠标移到那里之后必须再查一次**，不空白就换下一个；框选起终点离 stage 边至少 48px（React Flow 框选 autoPan 带 40px + 8px）；点连线命中层沿 path 取样、只点最上层真是这条 path 的点。这三件事以前散在 7 个文件里各抄一份，现在只许走 `tests/ux/_canvasPoints.mjs`。
+**结论**：走查里「找个点去点/去拖」的判据不能是黑名单（`closest('.generation-canvas-v2-node, …')`）——每多一层浮层就少写一条，而少写的那条不报错只假绿。要用**白名单：那一点的最顶层元素就是 React Flow pane 本身**；框选起终点离 stage 边至少 48px（React Flow 框选 autoPan 带 40px + 8px），放不下先缩小；点连线命中层沿 path 取样、只点最上层真是这条 path 的点。这三件事以前散在 7 个文件里各抄一份，现在只许走 `tests/ux/_canvasHit.mjs`（同一天两个会话各修一份，合并时留白名单那份、删了复验那份——本条记的是根因，不是哪份实现）。
 
 **为什么会踩**（PR #488 把常驻 Agent 面板默认展开，1600 窗口下 stage 从 ~1540 压到 1200px，三条 CI 一起红，全都不是产品回归）：
 
-- **点空白被磁性「+」吃掉**：扫描时用 `hit.closest('.generation-canvas-v2-node, …')` 判空白，但磁性连接句柄的 hit-area（`generation-canvas-v2-node__magnetic-handle`，`pointer-events-auto absolute`）挂在 **React Flow 节点壳** `.react-flow__node` 上、伸到卡片外面。stage 一窄，行列扫描落点正好落在两张卡之间的句柄带上：`{x:900,y:213}` 扫描时"空白"，鼠标一到就是蓝色「+」，点击被它吃掉，选中态不清。本机 2/2 确定性复现，`tests/ux/shots/canvas-drag-pan-gestures/99-failure.png` 里那个「+」就压在点上。
+- **点空白被磁性「+」吃掉**：扫描时用 `hit.closest('.generation-canvas-v2-node, …')` 判空白，但磁性连接句柄的命中区（`.generation-canvas-react-flow__handle-hit`）挂在 **React Flow 节点壳** `.react-flow__node` 下、**不在** `.generation-canvas-v2-node` 里，六份黑名单全放它过。它一直在 DOM 里，不是「光标到了才冒出来」——stage 一窄，扫描落点正好落在两张卡之间的句柄带上：`{x:900,y:213}` 判成"空白"，点下去是蓝色「+」，选中态不清。本机 2/2 确定性复现，`tests/ux/shots/canvas-drag-pan-gestures/99-failure.png` 里那个「+」就压在点上。
 - **框选截图永远等不到安定**：`findMarqueeGesture` 只要求起终点在 stage 内 8px；stage 变窄后 fitView 把节点包围盒贴到左边，终点落到离 stage 左边 20px 处。React Flow `Pane` 在框选时对离容器边 40px 内的指针**持续 autoPan**（`@xyflow/system` `calcAutoPan(pos, bounds, speed, distance = 40)`），鼠标按着不动、画布每帧都在走，`screenshotSettled` 的几何指纹永远不稳 → 「等了 5017ms 仍未视觉安定」。CI 上死在这一步，本机死在上一步——同一根因两种死法。
 - **连线点击被节点卡拦截**：`clickOrFail(path)` 让 Playwright 点 path 包围盒中心；收起编组后那条聚合线是从 (414,250) 往回弯到 (179,592) 的贝塞尔，包围盒中心压在节点卡上 → 「subtree intercepts pointer events」15s 超时。stage 宽时纯属运气好。
 - **perf 门岗的 DOM 身份守卫把视口裁剪当成整层重建**：wheel-zoom 场景 60 格 ±100 交替，`onlyRenderVisibleElements` 在放大态把贴边节点卸载、回原态再挂回来；stage 变窄贴边节点变多，`commonIdentityPreserved=false`（9 个共有、6 个保住）→ 「warmup 失败 1 次，结果不可靠」。**不是预算红**（p95 23.8 / 53），也不是回归。修法是把身份基线挪到第一格放大态之后量：此后一直挂着的节点才是「该保住身份」的那批。
@@ -16,11 +16,10 @@
 
 **怎么用**：
 
-- 新写/修画布走查，取点一律 `findBlankCanvasPoint(win, …)`、点连线一律 `clickEdgeHitPath(win, locator, label)`、框选边距用 `MARQUEE_STAGE_MARGIN_PX`；别再 copy 一份 `findBlankPoint`。`tests/ux/_canvasPoints.test.mjs` 钉着「复验发生在 mouse.move 之后」。
-- 排除清单要含 `.react-flow__node`（壳）不只 `.generation-canvas-v2-node`（卡）：hover 才冒出来的东西大多挂在壳上。
+- 新写/修画布走查，取点一律 `findCanvasBlankPoint(page, …)`、点连线一律 `findEdgeHitPoint(page, …)` 再 `mouse.click`；别再 copy 一份 `findBlankPoint`，也别往黑名单里补类名。
 - CI 报「未视觉安定 + 没有未结束的动画」且当时鼠标按着 → 先查指针离 stage 边多远，别去调 timeout。
 - 画布整片空白但节点还在 store：先看 React Flow store 的 `transform` 是不是 NaN（走查失败时 DIAG 会打），再查那一帧谁把 stage 藏了（Suspense 最常见）；别去调 timeout。
 - perf 门岗红先看 `warmupFailures[].failures` 是什么：`identity changed` 类是正确性守卫不是预算，先问「这一步会不会让视口裁剪卸载节点」。
-- 三份证据都在 #488 CI run 33947462331 的三个 job 与本机 `docs/fixes/2026-09-05-canvas-walkthrough-stage-width.root-cause.json`。
+- 走查层证据在 #488 CI run 33947462331 的三个 job 与同分支 commit ec7e493f9 / a4daf5642；产品层在 `docs/fixes/2026-09-05-canvas-walkthrough-stage-width.root-cause.json`。
 
 **相关**：[dead-selector-lies-both-ways](dead-selector-lies-both-ways.md)、[expect-absent-passes-too-early](expect-absent-passes-too-early.md)、[canvas-perf-budget-calibrated-on-macos-fails-on-linux](canvas-perf-budget-calibrated-on-macos-fails-on-linux.md)、[walkthrough-repair-probe-first](walkthrough-repair-probe-first.md)

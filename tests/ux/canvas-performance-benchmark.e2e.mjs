@@ -7,6 +7,7 @@
 // 可选环境变量：NOMI_CANVAS_PERF_RUNS、NOMI_CANVAS_PERF_SCALES、NOMI_CANVAS_PERF_SCENARIOS。
 // 结果写入 tests/ux/perf-results/canvas-<label>.json。零额度、零网络媒体依赖。
 import { launchNomiApp } from './_launchApp.mjs'
+import { findCanvasBlankPoint } from './_canvasHit.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -405,77 +406,16 @@ function getTargetWindow(app, fallback) {
   return live.find((candidate) => /projectId=/.test(candidate.url())) || live[live.length - 1] || fallback
 }
 
+// Blank-point semantics live in `_canvasHit.mjs` (single owner): a point is
+// blank only when React Flow's own pane is the topmost element there. The old
+// local copy used a blocklist plus a hardcoded `left+16 / bottom-16` fallback —
+// with the resident agent panel narrowing the stage, both could hand back a
+// point sitting on a magnetic connect handle, which turns "pan the blank canvas"
+// into "drag a connection" and silently measures the wrong gesture.
 async function findBlank(page, preference = 'default') {
-  return page.evaluate((mode) => {
-    const stage = document.querySelector('.generation-canvas-v2__stage')
-    if (!stage) return null
-    const rect = stage.getBoundingClientRect()
-    const preferred =
-      mode === 'top-left'
-        ? [0.03, 0.08, 0.14, 0.2, 0.28, 0.4, 0.56, 0.72, 0.88]
-        : [0.92, 0.84, 0.76, 0.68, 0.56, 0.44, 0.32, 0.2, 0.08, 0.03]
-    const xRatios = [...preferred]
-    const yRatios = [...preferred]
-    for (const ry of yRatios) {
-      for (const rx of xRatios) {
-        const x = Math.round(rect.left + rect.width * rx)
-        const y = Math.round(rect.top + rect.height * ry)
-        const hit = document.elementFromPoint(x, y)
-        if (!hit || !stage.contains(hit)) continue
-        if (
-          hit.tagName === 'IMG' ||
-          hit.tagName === 'VIDEO' ||
-          hit.closest(
-            '.generation-canvas-v2-node,button,input,textarea,[role="menu"],[role="toolbar"],.generation-canvas-v2__edge-hit,.generation-canvas-v2__edge-path,.generation-canvas-v2__minimap',
-          )
-        )
-          continue
-        return { x, y }
-      }
-    }
-    for (let y = Math.ceil(rect.top + 8); y < rect.bottom - 8; y += 24) {
-      for (let x = Math.ceil(rect.left + 8); x < rect.right - 8; x += 24) {
-        const hit = document.elementFromPoint(x, y)
-        if (!hit || !stage.contains(hit)) continue
-        if (
-          hit.tagName === 'IMG' ||
-          hit.tagName === 'VIDEO' ||
-          hit.closest(
-            '.generation-canvas-v2-node,button,input,textarea,[role="menu"],[role="toolbar"],.generation-canvas-v2__edge-hit,.generation-canvas-v2__edge-path,.generation-canvas-v2__minimap',
-          )
-        )
-          continue
-        return { x, y }
-      }
-    }
-    const nodeRects = Array.from(document.querySelectorAll('.generation-canvas-v2-node')).map((node) =>
-      node.getBoundingClientRect(),
-    )
-    for (let y = Math.ceil(rect.top + 8); y < rect.bottom - 8; y += 10) {
-      for (let x = Math.ceil(rect.left + 8); x < rect.right - 8; x += 10) {
-        if (
-          nodeRects.some(
-            (nodeRect) => x >= nodeRect.left && x <= nodeRect.right && y >= nodeRect.top && y <= nodeRect.bottom,
-          )
-        )
-          continue
-        const hit = document.elementFromPoint(x, y)
-        if (
-          hit &&
-          (hit.tagName === 'IMG' ||
-            hit.tagName === 'VIDEO' ||
-            hit.closest('button,input,textarea,select,[role="menu"],[role="toolbar"],[role="button"]'))
-        )
-          continue
-        return { x, y }
-      }
-    }
-    // The canvas event surface can sit under a full-stage SVG with pointer
-    // events disabled, so elementFromPoint may not expose the stage itself.
-    // The left/bottom inset is outside the fixture grid and remains a stable
-    // blank coordinate for the synthetic workloads.
-    return { x: Math.round(rect.left + 16), y: Math.round(rect.bottom - 16) }
-  }, preference)
+  const point = await findCanvasBlankPoint(page, { preference })
+  if (!point) throw new Error(`findBlank: no blank point on the stage (preference=${preference})`)
+  return point
 }
 
 async function dragPath(page, start, end, steps = 60, interval = 16) {
@@ -514,34 +454,101 @@ async function visibleNodeBox(page, kind) {
   return null
 }
 
+// Node-identity guard. What it is here to catch: the node layer being REBUILT by
+// React during an interaction (every card unmounted and re-mounted, which is what a
+// broken memoisation boundary looks like from the DOM).
+//
+// What it must NOT flag: React Flow's own virtualization. `onlyRenderVisibleElements`
+// unmounts a node when it leaves the visible window and mounts a *fresh* element when
+// it comes back, so the element for that node id legitimately changes. That is product
+// behaviour, and it fires far more often now that the resident agent panel takes ~340px
+// off the stage: on the Linux runner (xvfb clamps the window to 1280 wide) the M-scale
+// wheel-zoom excursion carries 3 of 9 cards out of the window and back, deterministically
+// (CI runs 33945616926 and 33947462331 both report preserved 6 of 9; darwin at a wider
+// stage reports 9 of 9).
+//
+// The two are separated without any timing threshold: React commits synchronously, so a
+// rebuild's remove+add for one node id land in the SAME MutationObserver callback batch;
+// a virtualization round trip is a removal in one batch and an addition in a later one
+// (the node stays gone while it is off-window). So batch index is the discriminator.
 async function captureNodeIdentity(page) {
   await page.evaluate(() => {
+    const nodeId = (element) =>
+      element instanceof HTMLElement && element.matches('.react-flow__node[data-id]')
+        ? element.getAttribute('data-id')
+        : null
     window.__canvasPerformanceNodeIdentity = new Map(
       Array.from(document.querySelectorAll('.react-flow__node[data-id]')).map((element) => [
         element.getAttribute('data-id'),
         element,
       ]),
     )
+    window.__canvasPerformanceNodeChurn?.observer?.disconnect()
+    const container = document.querySelector('.react-flow__nodes')
+    const churn = new Map()
+    const entryFor = (id) => {
+      const existing = churn.get(id)
+      if (existing) return existing
+      const created = { removedBatch: null, readdedBatch: null, remountedInPlace: false }
+      churn.set(id, created)
+      return created
+    }
+    let batch = 0
+    const observer = new MutationObserver((records) => {
+      batch += 1
+      for (const record of records) {
+        for (const removed of record.removedNodes) {
+          const id = nodeId(removed)
+          if (id) entryFor(id).removedBatch = batch
+        }
+        for (const added of record.addedNodes) {
+          const id = nodeId(added)
+          if (!id) continue
+          const entry = entryFor(id)
+          if (entry.removedBatch === batch) entry.remountedInPlace = true
+          else if (entry.removedBatch !== null) entry.readdedBatch = batch
+        }
+      }
+    })
+    if (container) observer.observe(container, { childList: true })
+    window.__canvasPerformanceNodeChurn = { churn, observer }
   })
 }
 
 async function readNodeIdentity(page, targetNodeId = null) {
   return page.evaluate((targetId) => {
     const before = window.__canvasPerformanceNodeIdentity || new Map()
+    const tracker = window.__canvasPerformanceNodeChurn
+    tracker?.observer?.disconnect()
+    const churn = tracker?.churn || new Map()
     const current = new Map(
       Array.from(document.querySelectorAll('.react-flow__node[data-id]')).map((element) => [
         element.getAttribute('data-id'),
         element,
       ]),
     )
+    // Left the visible window and came back: a different element for the same id is
+    // exactly what React Flow's virtualization is supposed to produce.
+    const virtualizationChurn = [...churn.entries()]
+      .filter(([, entry]) => entry.removedBatch !== null && !entry.remountedInPlace)
+      .map(([id]) => id)
+    const remountedInPlace = [...churn.entries()]
+      .filter(([, entry]) => entry.remountedInPlace)
+      .map(([id]) => id)
+    const churned = new Set(virtualizationChurn)
     const commonIds = [...before.keys()].filter((id) => current.has(id))
-    const preservedIds = commonIds.filter((id) => before.get(id) === current.get(id))
+    // Only nodes that stayed mounted for the whole action carry the identity contract.
+    const trackedIds = commonIds.filter((id) => !churned.has(id))
+    const preservedIds = trackedIds.filter((id) => before.get(id) === current.get(id))
     return {
       before: before.size,
       after: current.size,
       common: commonIds.length,
+      tracked: trackedIds.length,
       preserved: preservedIds.length,
-      commonIdentityPreserved: preservedIds.length === commonIds.length,
+      virtualizationChurn,
+      remountedInPlace,
+      commonIdentityPreserved: preservedIds.length === trackedIds.length && remountedInPlace.length === 0,
       targetNodeId: targetId,
       targetIdentityPreserved: targetId ? before.get(targetId) === current.get(targetId) : null,
     }
@@ -812,14 +819,6 @@ async function runAction(page, scenario, fixture) {
     for (let index = 0; index < 60; index += 1) {
       await page.mouse.wheel(0, index % 2 ? 100 : -100)
       await sleep(page, 16)
-      if (index === 0) {
-        // 第一格是放大（deltaY<0）：从此视口只在「放大态 / 原态」两档之间来回。
-        // onlyRenderVisibleElements 会在放大态把贴边的节点卸载、回到原态再挂回来——那是视口裁剪，
-        // 不是整层重建。DOM 身份基线要在放大态量：此后一直挂着的节点才是「该保住身份」的那批。
-        // stage 一变窄（常驻 Agent 面板）贴边节点就多了，基线不挪会把裁剪误判成重建（#488 CI perf 红）。
-        await sleep(page, 120)
-        await captureNodeIdentity(page)
-      }
     }
     const after = await page.evaluate(() => {
       const layer = document.querySelector('.generation-canvas-v2__canvas')
@@ -1275,7 +1274,14 @@ function sampleHardFailures(sample) {
     sample.actionDetails.connectedEdges < 1
   )
     failures.push('drag-over-dense-edges dragged a node with 0 connected edges')
-  if (sample.nodeIdentity?.commonIdentityPreserved === false) failures.push('mounted node DOM identity changed')
+  if (sample.nodeIdentity?.commonIdentityPreserved === false) {
+    const remounted = sample.nodeIdentity.remountedInPlace || []
+    failures.push(
+      remounted.length
+        ? `node layer rebuilt in place: ${remounted.join(', ')}`
+        : `continuously mounted node DOM identity changed (${sample.nodeIdentity.preserved}/${sample.nodeIdentity.tracked} preserved)`,
+    )
+  }
   if (sample.nodeIdentity?.targetIdentityPreserved === false)
     failures.push(`target node DOM identity changed: ${sample.nodeIdentity.targetNodeId}`)
   if (sample.probe?.maxLoadingImages > 4) failures.push(`image activation peak ${sample.probe.maxLoadingImages} > 4`)

@@ -238,6 +238,7 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
     animateViewportTo,
     readViewportTarget,
     readLastAutoTarget,
+    readLiveViewport,
     cancelViewportAnimation,
     healViewport,
   } = useReactFlowViewportAnimation({ flow, zoomRef, offsetRef })
@@ -374,7 +375,7 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
   // 事件从此无人接收 → 画布不再让位 → composer 只能溢出 stage（j5 composer-usable-at-min-window
   // 因此确定性变红：spaceAbove 140 / spaceBelow 132 都 < 150，卡片仍按 150 渲染，捅出底边 32px）。
   // 复用原 hook 而不是在这里另写一份监听：事件契约、delta 校验和 onSettled 回执它都已经处理好（P1）。
-  useComposerVisibilityPan({ animateViewportTo, offsetRef, readViewportTarget })
+  useComposerVisibilityPan({ animateViewportTo, readLiveViewport, readViewportTarget })
   // 「新建即可见」：避让把新卡推出视口时最小平移露出它（见 useCreatedNodeVisibilityPan 的头注释）。
   useCreatedNodeVisibilityPan({ nodes, animateViewportTo, readViewportTarget, readLastAutoTarget, stageRef: hostRef })
   const { isTidying, tidy } = useTidyCanvas(activeCategoryId)

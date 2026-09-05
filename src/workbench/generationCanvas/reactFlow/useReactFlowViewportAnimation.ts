@@ -16,6 +16,11 @@ export function useReactFlowViewportAnimation(input: {
   offsetRef: React.MutableRefObject<Offset>
 }) {
   const { flow, zoomRef, offsetRef } = input
+  // React Flow 此刻的真实视口。zoomRef/offsetRef 随渲染更新，在「直写 + 同一提交里的让位请求」这种时序下是旧的。
+  const readLiveViewport = React.useCallback(() => {
+    const live = flow.getViewport()
+    return { zoom: live.zoom, offset: { x: live.x, y: live.y } }
+  }, [flow])
   // 所有自动让位（新建节点露出 / composer 推开画布）共用这一个入口，动画由我们自己的
   // rAF 调度器逐帧以 duration=0 直写 React Flow，而**不用** React Flow 的 setViewport({ duration })：
   //   ① 它的 d3 过渡对被打断的调用永不结算 promise（composer 的让位请求闩会卡死）；
@@ -26,7 +31,7 @@ export function useReactFlowViewportAnimation(input: {
   // 每个请求都从「正在去的目标」出发算增量（viewportTargetTracker），后到的不抹掉先到的。
   const viewportTargetRef = React.useRef<ViewportTargetTracker | null>(null)
   if (viewportTargetRef.current === null) {
-    viewportTargetRef.current = createViewportTargetTracker(() => ({ zoom: zoomRef.current, offset: offsetRef.current }))
+    viewportTargetRef.current = createViewportTargetTracker(readLiveViewport)
   }
   const readViewportTarget = React.useCallback(() => viewportTargetRef.current!.read(), [])
   const readLastAutoTarget = React.useCallback(() => viewportTargetRef.current!.readLastAutoTarget(), [])
@@ -87,5 +92,5 @@ export function useReactFlowViewportAnimation(input: {
     [],
   )
 
-  return { animateViewportTo, readViewportTarget, readLastAutoTarget, cancelViewportAnimation, healViewport }
+  return { animateViewportTo, readViewportTarget, readLastAutoTarget, readLiveViewport, cancelViewportAnimation, healViewport }
 }

@@ -79,7 +79,7 @@
 
 | 文件 | 一句话 | 状态 |
 |---|---|---|
-| [2026-09-05-canvas-walkthrough-stage-width.md](2026-09-05-canvas-walkthrough-stage-width.md) | 常驻 Agent 面板压窄画布后：走查取点复验收口 `_canvasPoints.mjs` + 自动让位合成 `viewportTargetTracker`（#488 三条 CI 红的量具修法与顺手挖出的新卡被面板遮住） | ✅ |
+| [2026-09-05-canvas-walkthrough-stage-width.md](2026-09-05-canvas-walkthrough-stage-width.md) | 常驻 Agent 面板压窄画布后：自动让位改走自家调度器并合成目标、懒加载节点就地 Suspense、NaN 视口拒收（#488 走查挖出的新卡被面板遮住 + 画布随机整片空白）；走查层由同分支 `_canvasHit.mjs` 收口 | ✅ |
 | [2026-09-03-narrowed-mode-guidance-dismiss.md](2026-09-03-narrowed-mode-guidance-dismiss.md) | 收窄模式指路提示的节点级关闭与项目持久化 | 🚧 |
 | [2026-08-13-video-deconstruction-storyboard-table.md](2026-08-13-video-deconstruction-storyboard-table.md) | **视频拆解→分镜表→复刻生成**（表格=节点组的视图，非新数据模型；含 gemini/whisper 实测契约） | 📋 |
 | [2026-08-09-canvas-ux-feedback-round.md](2026-08-09-canvas-ux-feedback-round.md) | 画布体验反馈第 1 轮迭代（Windows 顶栏/视频工具栏并排等，样张阶段） | |

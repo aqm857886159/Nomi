@@ -17,7 +17,7 @@ import { mkdirSync, mkdtempSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { findBlankCanvasPoint } from '../tests/ux/_canvasPoints.mjs'
+import { findCanvasBlankPoint } from '../tests/ux/_canvasHit.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/canvas-image-sharpness')
@@ -84,8 +84,8 @@ const measure = () => getWin().evaluate(() => {
 })
 
 async function findBlankPoint() {
-  // 扫描 + 真实鼠标到位复验，见 tests/ux/_canvasPoints.mjs（磁性「+」句柄只在光标下才冒出来）。
-  return findBlankCanvasPoint(getWin(), { rows: [0.35, 0.5, 0.65, 0.8], columns: [0.6, 0.7, 0.8, 0.5, 0.4] })
+  // 空白判据住在 tests/ux/_canvasHit.mjs（单一 owner）：最顶层元素就是 React Flow pane。
+  return findCanvasBlankPoint(getWin())
 }
 
 try {

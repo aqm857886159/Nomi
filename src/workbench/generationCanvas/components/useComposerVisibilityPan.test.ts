@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { composeComposerPanTarget } from './useComposerVisibilityPan'
+import { composeComposerPanTarget, shouldHonourComposerPanRequest } from './useComposerVisibilityPan'
 
 describe('composeComposerPanTarget', () => {
   it('没有别的动画在飞：目标 = 当前 + deltaY', () => {
@@ -30,5 +30,24 @@ describe('composeComposerPanTarget', () => {
     })
     expect(target.zoom).toBe(0.5)
     expect(target.offset).toEqual({ x: 40, y: 30 })
+  })
+})
+
+describe('shouldHonourComposerPanRequest', () => {
+  const alive = (id: string) => id === 'image'
+
+  it('有限非零 delta、节点还在 → 执行', () => {
+    expect(shouldHonourComposerPanRequest({ nodeId: 'image', deltaY: -60 }, alive)).toBe(true)
+  })
+
+  it('节点已被撤销删掉 → 丢掉（阳性对照：复制变体后 Cmd+Z，迟到的让位把视口拖到 y=-319，视频卡露不出「2 版」）', () => {
+    expect(shouldHonourComposerPanRequest({ nodeId: 'dup', deltaY: -60 }, alive)).toBe(false)
+  })
+
+  it('没带 nodeId 的旧请求照旧只看 delta', () => {
+    expect(shouldHonourComposerPanRequest({ deltaY: 12 }, alive)).toBe(true)
+    expect(shouldHonourComposerPanRequest({ deltaY: 0 }, alive)).toBe(false)
+    expect(shouldHonourComposerPanRequest({ deltaY: Number.NaN }, alive)).toBe(false)
+    expect(shouldHonourComposerPanRequest(undefined, alive)).toBe(false)
   })
 })

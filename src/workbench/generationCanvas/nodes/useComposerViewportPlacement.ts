@@ -253,7 +253,7 @@ export function useComposerViewportPlacement(input: {
       } else {
         const acknowledge = panRequestLatch.tryAcquire()
         if (acknowledge) {
-          const detail: EnsureComposerVisibleEventDetail = { deltaY: panDeltaY, onSettled: acknowledge }
+          const detail: EnsureComposerVisibleEventDetail = { nodeId: node.id, deltaY: panDeltaY, onSettled: acknowledge }
           window.dispatchEvent(new CustomEvent(ENSURE_COMPOSER_VISIBLE_EVENT, { detail }))
         }
       }
