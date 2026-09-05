@@ -1,5 +1,7 @@
 # Resident Composer 收据旅程修复
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 ## 范围
 
 - 跟随合并后的 Agent UI A 设计，删除旅程对模式弹层审批入口的依赖。
