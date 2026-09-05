@@ -313,6 +313,8 @@ export function spawnMcpStdioClient({
   // Progress frames observed per progressToken (token → count). elicitation acceptance counter.
   const progressByToken = new Map()
   let elicitationCount = 0
+  const urlElicitations = []
+  const elicitationCompletions = []
   let childExit = null
   let stderrText = ''
   const messages = []
@@ -351,12 +353,23 @@ export function spawnMcpStdioClient({
     // Server→client request: elicitation/create → auto-accept (headless test authorization).
     if (msg.method === 'elicitation/create' && msg.id != null) {
       elicitationCount += 1
-      const result = elicitationAction === 'decline'
-        ? { action: 'decline', content: { confirm: false } }
-        : { action: 'accept', content: { confirm: true } }
+      // URL mode (spec 2025-11-25 §URL Mode): the client only consents to opening the URL — the
+      // reply carries NO content, and the out-of-band work is the caller's to drive. We record the
+      // request so the journey can act as the "user in the browser".
+      const isUrlMode = msg.params?.mode === 'url'
+      if (isUrlMode) urlElicitations.push({ ...msg.params })
+      const action = elicitationAction === 'decline' ? 'decline' : 'accept'
+      const result = isUrlMode
+        ? { action }
+        : (action === 'decline' ? { action, content: { confirm: false } } : { action, content: { confirm: true } })
       const frame = { jsonrpc: '2.0', id: msg.id, result }
       trace('out', frame)
       child.stdin.write(JSON.stringify(frame) + '\n')
+      return
+    }
+    // Server→client notification: the out-of-band URL interaction finished.
+    if (msg.method === 'notifications/elicitation/complete' && msg.params) {
+      elicitationCompletions.push(String(msg.params.elicitationId))
       return
     }
     // Server→client notification: progress frame → tally per token.
@@ -467,6 +480,8 @@ export function spawnMcpStdioClient({
     disconnect,
     progressForToken: (token) => progressByToken.get(String(token)) || 0,
     elicitationCount: () => elicitationCount,
+    urlElicitations: () => urlElicitations.slice(),
+    elicitationCompletions: () => elicitationCompletions.slice(),
     childExited: () => childExit,
     stderrText: () => stderrText,
     messages: () => messages.slice(),
