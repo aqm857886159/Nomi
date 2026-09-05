@@ -12,7 +12,7 @@ describe("timeline.read capability contract", () => {
   it("owns the three strict Pi projections", () => {
     expect(TIMELINE_READ_CAPABILITY.id).toBe("timeline.read");
     expect(TIMELINE_READ_CAPABILITY.effect).toBe("read");
-    expect(TIMELINE_READ_CAPABILITY.approval).toBe("none");
+    expect(TIMELINE_READ_CAPABILITY.effectClass).toBe("reversible_local");
     expect(TIMELINE_READ_CAPABILITY.aliases.pi).toBe("read_timeline");
     expect(TIMELINE_READ_CAPABILITY.additionalAliases.pi).toEqual([
       "inspect_timeline_range",

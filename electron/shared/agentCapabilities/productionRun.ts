@@ -19,11 +19,11 @@ export const PRODUCTION_RUN_READ_CAPABILITY = {
   inputSchema: productionInputSchema,
   outputSchema: productionOutputSchema,
   effect: "read",
+  effectClass: "reversible_local",
   execution: { port: "production-run", availability: "main_only" },
   exposure: "internal_only",
   requiredScope: "production:read",
   targetKind: "production",
-  approval: "none",
   projections: { pi: { description: "Read the current ProductionRun projection or resumable progress." } },
 } as const satisfies CapabilityContract<unknown, unknown>;
 
@@ -35,11 +35,11 @@ export const PRODUCTION_RUN_WRITE_CAPABILITY = {
   inputSchema: productionInputSchema,
   outputSchema: productionOutputSchema,
   effect: "reversible_write",
+  effectClass: "reversible_local",
   execution: { port: "production-run", availability: "main_only" },
   exposure: "internal_only",
   requiredScope: "production:write",
   targetKind: "production",
-  approval: "proposal",
   projections: { pi: { description: "Create a draft or control a ProductionRun without submitting paid work." } },
 } as const satisfies CapabilityContract<unknown, unknown>;
 
@@ -53,10 +53,10 @@ export const PRODUCTION_ARTIFACT_WRITE_CAPABILITY = {
   inputSchema: productionInputSchema,
   outputSchema: productionOutputSchema,
   effect: "reversible_write",
+  effectClass: "reversible_local",
   execution: { port: "production-run", availability: "main_only" },
   exposure: "internal_only",
   requiredScope: "production:artifact:write",
   targetKind: "production",
-  approval: "proposal",
   projections: { pi: { description: "Revise, review, or materialize a versioned production artifact." } },
 } as const satisfies CapabilityContract<unknown, unknown>;
