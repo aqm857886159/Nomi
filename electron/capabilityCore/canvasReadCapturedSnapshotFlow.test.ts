@@ -402,6 +402,7 @@ describe("production captured canvas read through real main interception", () =>
     };
     let compactA = "";
     let readDecision: unknown;
+    let proposalDecision: unknown;
     state.run.mockImplementationOnce(async (request, hooks: AgentChatV2Hooks) => {
       expect(request.prompt).toContain(compactA);
       expect(request.prompt).not.toContain("Later live B");
@@ -413,7 +414,7 @@ describe("production captured canvas read through real main interception", () =>
         },
         hooks.abortSignal!,
       );
-      await hooks.awaitToolConfirmation(
+      proposalDecision = await hooks.awaitToolConfirmation(
         {
           toolCallId: "propose-captured-a",
           toolName: "propose_storyboard_plan",
@@ -466,6 +467,11 @@ describe("production captured canvas read through real main interception", () =>
 
     await expect(pending).resolves.toMatchObject({ text: "done", plan: { title: "Captured plan" } });
     expect(readDecision).toEqual({ ok: true, result: compactA, silent: true });
+    expect(proposalDecision).toMatchObject({
+      ok: true,
+      result: { title: "Captured plan", anchorCount: 0, shotCount: 1 },
+      silent: true,
+    });
     expect(readDisk).not.toHaveBeenCalled();
     expect(renderer.frame.send.mock.calls.some(([channel]) => channel === "nomi:surface:canvasRead:request")).toBe(
       false,

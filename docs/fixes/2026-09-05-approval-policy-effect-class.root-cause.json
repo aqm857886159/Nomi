@@ -28,7 +28,8 @@
     "electron/shared/agentCapabilities/skillWrite.ts",
     "electron/shared/agentCapabilities/timelineRead.ts",
     "electron/shared/agentCapabilities/timelineWrite.ts",
-    "electron/shared/projectAgentContracts.ts"
+    "electron/shared/projectAgentContracts.ts",
+    "electron/projectAgentHost/projectAgentExecutionCoordinator.ts"
   ],
   "entry_points": [
     "projectAgentExecutionRisk(toolName, args)",
@@ -44,7 +45,7 @@
     "Unknown aliases fail closed and spend/irreversible actions remain per-action confirmation gates in every approval mode.",
     "The factory default is safe-auto for reversible local actions and confirm for spend/irreversible actions."
   ],
-  "generality_proof": "All Project Agent aliases converge through CAPABILITY_ALIAS_ENTRIES and resolveCapabilityEffectClass before the Host decision. Operation overrides cover mixed-operation descriptors such as canvas.delete, so future aliases cannot bypass the same boundary; the required effectClass field makes an omitted declaration a type error.",
+  "generality_proof": "All Project Agent aliases converge through CAPABILITY_ALIAS_ENTRIES and resolveCapabilityEffectClass before the Host decision. Operation overrides cover mixed-operation descriptors such as canvas.delete, so future aliases cannot bypass the same boundary; the required effectClass field makes an omitted declaration a type error. Renderer-owned proposal callbacks remain explicit at the Host decision boundary, so safe-auto cannot silently bypass the renderer-owned plan capture.",
   "shared_boundaries": [
     {
       "path": "electron/shared/agentCapabilities/capabilityContract.ts",
@@ -94,24 +95,27 @@
   "prevention": {
     "kind": "type-system",
     "enforcement_path": "electron/projectAgentHost/projectAgentExecutionPolicy.ts",
-    "invariant": "A Host decision must resolve a declared descriptor effectClass or fail closed; no tool-name or operation-name regex may classify a call.",
-    "failure_mode": "A missing descriptor effectClass fails TypeScript compilation; an unknown alias or operation uses the hard gate and cannot auto-run.",
+    "invariant": "A Host decision must resolve a declared descriptor effectClass or fail closed; renderer-owned storyboard proposals must still reach their renderer callback before the turn can continue.",
+    "failure_mode": "A missing descriptor effectClass fails TypeScript compilation; an unknown alias or operation uses the hard gate, and a renderer-owned storyboard proposal is never silently auto-settled.",
     "exception_policy": "none",
     "strategy": "Make effectClass required at the descriptor boundary, derive aliases through the canonical registry, and keep the only mixed-operation exception as an explicit descriptor map.",
     "artifacts": [
       "electron/projectAgentHost/projectAgentExecutionPolicy.ts",
       "electron/shared/agentCapabilities/capabilityContract.ts",
       "electron/shared/agentCapabilities/registry.ts",
-      "electron/projectAgentHost/projectAgentExecutionPolicy.test.ts"
+      "electron/projectAgentHost/projectAgentExecutionPolicy.test.ts",
+      "electron/projectAgentHost/projectAgentExecutionCoordinator.ts"
     ]
   },
   "regression_tests": [
     "electron/projectAgentHost/projectAgentExecutionPolicy.test.ts",
-    "electron/shared/agentCapabilities/registry.test.ts"
+    "electron/shared/agentCapabilities/registry.test.ts",
+    "electron/capabilityCore/canvasReadCapturedSnapshotFlow.test.ts"
   ],
   "class_regression_tests": [
     "electron/projectAgentHost/projectAgentExecutionPolicy.test.ts",
-    "electron/shared/agentCapabilities/registry.test.ts"
+    "electron/shared/agentCapabilities/registry.test.ts",
+    "electron/capabilityCore/canvasReadCapturedSnapshotFlow.test.ts"
   ],
   "legacy_paths": {
     "status": "removed",
@@ -129,6 +133,7 @@
   "migration": "Existing queued turns retain the step/safe-auto/project mode strings. Missing approvalPolicy snapshots still normalize through projectAgentApprovalPolicyOf, whose factory default is now safe-auto with spend confirm; no persisted effectClass data needs migration because it is descriptor-owned.",
   "residual_risks": [
     "UI controls for changing the approval mode are outside this Host-only change and remain on the existing design track.",
-    "The full Electron real-user approval journey is covered by existing coordinator tests; no paid provider or API key was used in this fix."
+    "The full Electron real-user approval journey is covered by existing coordinator tests; no paid provider or API key was used in this fix.",
+    "Renderer-owned storyboard proposals remain reversible_local for policy classification, but their callback delivery is required to materialize the returned plan."
   ]
 }
