@@ -9,7 +9,7 @@
  */
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconBox, IconMusic, IconPhoto, IconPlayerStop, IconUpload, IconUser, IconVideo, IconMap } from '../../../../vendor/tablerIcons'
+import { Icon3dCubeSphere, IconBox, IconMusic, IconPhoto, IconPlayerStop, IconUpload, IconUser, IconVideo, IconMap } from '../../../../vendor/tablerIcons'
 import { cn } from '../../../../utils/cn'
 import { NomiLoadingMark } from '../../../../design'
 import i18n from '../../../../i18n'
@@ -146,18 +146,26 @@ export function PendingGenerationPlaceholder({
 }): JSX.Element {
   const { t } = useTranslation()
   const isVideo = kind === 'video'
-  const titleText = title || (isVideo ? t('generationCommon.nodeEmpty.video.title') : t('generationCommon.nodeEmpty.image.title'))
+  // 3D 模型节点也走这条通用占位（无专属卡 body）。不按 kind 分就会拿图片文案自称「图片节点」。
+  const isModel3d = kind === 'model3d'
+  const titleText = title || (isVideo
+    ? t('generationCommon.nodeEmpty.video.title')
+    : isModel3d
+      ? t('generationCommon.nodeEmpty.model3d.title')
+      : t('generationCommon.nodeEmpty.image.title'))
   const description = waitingUpstream
     ? t('generationCommon.nodeEmpty.waiting')
     : needsFirstFrame
       ? t('generationCommon.nodeEmpty.firstFrame')
       : isVideo
         ? t('generationCommon.nodeEmpty.video.description')
-        : t('generationCommon.nodeEmpty.image.description')
+        : isModel3d
+          ? t('generationCommon.nodeEmpty.model3d.description')
+          : t('generationCommon.nodeEmpty.image.description')
   return (
     <div data-selected-placeholder={selected ? 'true' : 'false'} className="h-full w-full">
       <NodeEmptyState
-        icon={isVideo ? <IconVideo size={20} stroke={1.6} /> : <IconPhoto size={20} stroke={1.6} />}
+        icon={isVideo ? <IconVideo size={20} stroke={1.6} /> : isModel3d ? <Icon3dCubeSphere size={20} stroke={1.6} /> : <IconPhoto size={20} stroke={1.6} />}
         title={shotIndex != null ? `${t('generationCommon.card.shot', { index: shotIndex })} · ${titleText}` : titleText}
         description={prompt ? `${description} ${prompt}` : description}
       />

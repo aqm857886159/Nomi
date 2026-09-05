@@ -96,6 +96,8 @@ export const zhGenerationCommon = {
     video: { title: '视频节点', description: '连接首帧或提示词，生成一段视频。' },
     audio: { title: '音频节点', description: '放入声音，为作品添加配乐或旁白。' },
     text: { title: '文本节点', description: '写下脚本、对白或制作备注。' },
+    clip: { title: '剪辑节点', description: '把视频节点连进来，或从素材库添加图片/视频。' },
+    model3d: { title: '3D 模型节点', description: '描述想要的模型或连入参考图，生成一个 3D 模型。' },
     character: { title: '角色节点', description: '放入角色参考图，保持人物形象一致。' },
     scene: { title: '场景节点', description: '放入场景参考图，固定空间与氛围。' },
     prop: { title: '道具节点', description: '放入道具参考图，让关键物件保持一致。' },
@@ -356,7 +358,6 @@ export const zhGenerationCommon = {
   },
   clipNode: {
     addMaterial: '添加素材',
-    empty: '把视频节点连进来，或从素材库添加图片/视频。',
     axis: '剪辑轴',
     actions: '片段操作',
     timeline: '剪辑时间线',
@@ -1563,6 +1564,8 @@ export const enGenerationCommon = {
     video: { title: 'Video node', description: 'Connect a first frame or prompt to generate a clip.' },
     audio: { title: 'Audio node', description: 'Add sound for music, effects, or voiceover.' },
     text: { title: 'Text node', description: 'Write a script, dialogue, or production note.' },
+    clip: { title: 'Clip node', description: 'Connect a video node or add image/video from your library.' },
+    model3d: { title: '3D model node', description: 'Describe the model you want or connect a reference image to generate a 3D model.' },
     character: { title: 'Character node', description: 'Add a character reference to keep the person consistent.' },
     scene: { title: 'Scene node', description: 'Add a scene reference to keep space and mood consistent.' },
     prop: { title: 'Prop node', description: 'Add a prop reference to keep key objects consistent.' },
@@ -1822,7 +1825,6 @@ export const enGenerationCommon = {
   },
   clipNode: {
     addMaterial: 'Add material',
-    empty: 'Connect a video node or add image/video from your library.',
     axis: 'Edit axis',
     actions: 'Clip actions',
     timeline: 'Edit timeline',

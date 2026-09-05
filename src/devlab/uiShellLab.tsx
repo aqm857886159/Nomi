@@ -1,5 +1,7 @@
 import React from 'react'
-import { Icon360, IconBox, IconBrush, IconLayoutGrid, IconMap, IconMusic, IconPhoto, IconMessage, IconFileText, IconUser, IconVideo } from '../vendor/tablerIcons'
+import { useTranslation } from 'react-i18next'
+import { CANVAS_TOOLBAR_NODE_GROUPS, type CanvasToolbarNodeKind } from '../workbench/generationCanvas/components/canvasToolbarModel'
+import { getGenerationNodeIcon } from '../workbench/generationCanvas/nodes/renderRegistry'
 import { NodeEmptyState } from '../workbench/generationCanvas/nodes/render/NodeEmptyState'
 import { UpdaterDialog } from '../ui/app-shell/UpdaterDialog'
 import type { Updater } from '../ui/app-shell/useUpdater'
@@ -33,20 +35,62 @@ function UpdateState({ phase, running = false }: { phase: UpdaterPhase; running?
   return <LabFrame><UpdaterDialog updater={updater(phase)} hasRunningTask={running} /></LabFrame>
 }
 
-const nodeStates = [
-  { id: 'node-empty-image', name: '图片节点空态', icon: <IconPhoto size={20} stroke={1.6} />, title: '图片节点', description: '放入图片，作为参考或生成结果。', action: '上传图片' },
-  { id: 'node-empty-character', name: '角色节点空态', icon: <IconUser size={20} stroke={1.6} />, title: '角色节点', description: '放入角色参考图，保持人物形象一致。', action: '上传角色图' },
-  { id: 'node-empty-scene', name: '场景节点空态', icon: <IconLayoutGrid size={20} stroke={1.6} />, title: '场景节点', description: '放入场景参考图，固定空间与氛围。', action: '上传场景图' },
-  { id: 'node-empty-prop', name: '道具节点空态', icon: <IconBox size={20} stroke={1.6} />, title: '道具节点', description: '放入道具参考图，让关键物件保持一致。', action: '上传道具图' },
-  { id: 'node-empty-panorama', name: '全景节点空态', icon: <Icon360 size={20} stroke={1.6} />, title: '全景节点', description: '放入全景图，作为环境参考。', action: '上传全景图' },
-  { id: 'node-empty-video', name: '视频节点空态', icon: <IconVideo size={20} stroke={1.6} />, title: '视频节点', description: '连接首帧或提示词，生成一段视频。', action: '添加首帧' },
-  { id: 'node-empty-audio', name: '音频节点空态', icon: <IconMusic size={20} stroke={1.6} />, title: '音频节点', description: '放入声音，为作品添加配乐或旁白。', action: '上传音频' },
-  { id: 'node-empty-text', name: '文本节点空态', icon: <IconFileText size={20} stroke={1.6} />, title: '文本节点', description: '写下脚本、对白或制作备注。', action: '开始输入' },
-  { id: 'node-empty-prompt', name: '提示词节点空态', icon: <IconMessage size={20} stroke={1.6} />, title: '提示词节点', description: '写下你想让模型完成的画面。', action: '开始输入' },
-  { id: 'node-empty-whiteboard', name: '画板节点空态', icon: <IconBrush size={20} stroke={1.6} />, title: '画板节点', description: '画下构图、动作或参考关系。', action: '打开画板' },
-].map((item) => ({
-  ...item,
-  render: () => <LabFrame><div className="h-64 w-[26rem] rounded-nomi border border-nomi-line bg-nomi-paper"><NodeEmptyState icon={item.icon} title={item.title} description={item.description} action={<span className="rounded-nomi-sm bg-nomi-ink px-3 py-1.5 text-caption font-medium text-nomi-paper">{item.action}</span>} /></div></LabFrame>,
+/**
+ * 空态清单 = **左侧竖排工具栏能创建的节点**，一一对应（2026-09-06 用户拍板）。
+ *
+ * 为什么以工具栏为准：registry 里注册着 15 种 kind，但其中角色/场景/镜头/关键帧/输出/素材
+ * 是 Agent、分镜流程或导入产生的，用户点不出来；给它们画空态样张 = 给不存在的入口做设计。
+ * 键类型钉成 `Record<CanvasToolbarNodeKind, …>`：工具栏加一颗按钮而这里没跟上 = **编译错**，
+ * 不是等门岗、更不是等人眼（R28 防线建在最早能拦住的那层）。
+ *
+ * 文案与图标都不在这里自造：图标走 `getGenerationNodeIcon`（左侧栏那颗按钮的同一个出口），
+ * 文案走各节点在生产里真正渲染的 i18n 键。实验室要照出现役的样子，不是再画一版（P1）。
+ *
+ * 已知落差（诚实标注）：剪辑节点的空态提示挤在 40px 高的轨道里，生产只渲染 description 那一行，
+ * 不渲染标题；这里按统一节奏连标题一起显示。
+ */
+const NODE_EMPTY_COPY: Record<CanvasToolbarNodeKind, {
+  name: string
+  titleKey: string
+  descriptionKey: string
+  actionKey?: string
+}> = {
+  text: { name: '文本节点空态', titleKey: 'generationCommon.nodeEmpty.text.title', descriptionKey: 'generationCommon.nodeEmpty.text.description' },
+  image: { name: '图片节点空态', titleKey: 'generationCommon.nodeEmpty.image.title', descriptionKey: 'generationCommon.nodeEmpty.image.description' },
+  video: { name: '视频节点空态', titleKey: 'generationCommon.nodeEmpty.video.title', descriptionKey: 'generationCommon.nodeEmpty.video.description' },
+  clip: { name: '剪辑节点空态', titleKey: 'generationCommon.nodeEmpty.clip.title', descriptionKey: 'generationCommon.nodeEmpty.clip.description' },
+  audio: { name: '声音节点空态', titleKey: 'generationCommon.nodeEmpty.audio.title', descriptionKey: 'generationCommon.nodeEmpty.audio.description' },
+  model3d: { name: '3D 模型节点空态', titleKey: 'generationCommon.nodeEmpty.model3d.title', descriptionKey: 'generationCommon.nodeEmpty.model3d.description' },
+  whiteboard: { name: '画板节点空态', titleKey: 'generationCommon.whiteboard.title', descriptionKey: 'generationCommon.whiteboard.openHint' },
+  panorama: { name: '全景节点空态', titleKey: 'generationCommon.nodeEmpty.panorama.title', descriptionKey: 'generationCommon.nodeEmpty.panorama.description', actionKey: 'generationCommon.node.uploadPanorama' },
+  scene3d: { name: '3D 场景节点空态', titleKey: 'scene3d.fullscreen.enterEditor', descriptionKey: 'scene3d.fullscreen.editorHint' },
+}
+
+function NodeEmptyLabCell({ kind }: { kind: CanvasToolbarNodeKind }): JSX.Element {
+  const { t } = useTranslation()
+  const copy = NODE_EMPTY_COPY[kind]
+  const Icon = getGenerationNodeIcon(kind)
+  const literal = 'generationCommon.nodeEmpty.image.title' as const
+  return (
+    <LabFrame>
+      <div className="h-64 w-[26rem] rounded-nomi border border-nomi-line bg-nomi-paper">
+        <NodeEmptyState
+          icon={<Icon size={20} stroke={1.6} />}
+          title={t(copy.titleKey as typeof literal)}
+          description={t(copy.descriptionKey as typeof literal)}
+          action={copy.actionKey
+            ? <span className="rounded-nomi-sm bg-nomi-ink px-3 py-1.5 text-caption font-medium text-nomi-paper">{t(copy.actionKey as typeof literal)}</span>
+            : undefined}
+        />
+      </div>
+    </LabFrame>
+  )
+}
+
+const nodeStates: readonly UiShellLabState[] = CANVAS_TOOLBAR_NODE_GROUPS.flat().map((kind) => ({
+  id: `node-empty-${kind}`,
+  name: NODE_EMPTY_COPY[kind].name,
+  render: () => <NodeEmptyLabCell kind={kind} />,
 }))
 
 export const UI_SHELL_STATES: readonly UiShellLabState[] = [
