@@ -130,27 +130,25 @@
       "state": "agent-update-while-away"
     },
     "data-decon-node-stub": {
-      "status": "selector-drift",
+      "status": "runtime-present-unmeasured",
       "specRefs": [
         "C-02"
       ],
       "source": {
         "path": "src/workbench/generationCanvas/nodes/NodeDeconstructionBadge.tsx",
-        "selector": "data-deconstruct-stub"
+        "selector": "data-decon-node-stub"
       },
-      "contractSelector": "data-decon-node-stub",
       "state": "deconstruction-active"
     },
     "data-decon-node-badge": {
-      "status": "selector-drift",
+      "status": "runtime-present-unmeasured",
       "specRefs": [
         "C-02"
       ],
       "source": {
         "path": "src/workbench/generationCanvas/nodes/NodeDeconstructionBadge.tsx",
-        "selector": "data-deconstruct-result-badge"
+        "selector": "data-decon-node-badge"
       },
-      "contractSelector": "data-decon-node-badge",
       "state": "deconstruction-active"
     },
     "data-agent-tip": {
