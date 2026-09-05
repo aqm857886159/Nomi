@@ -82,6 +82,10 @@ export const PROJECT_AGENT_ITEM_KINDS = [
   "failure",
 ] as const;
 
+/** User-facing execution profile shared by renderer and Host contracts. */
+export const AGENT_TOOL_PROFILES = ["creation", "generation", "storyboard", "timeline", "production"] as const;
+export type AgentToolProfile = (typeof AGENT_TOOL_PROFILES)[number];
+
 export type ProjectAgentItemKind = (typeof PROJECT_AGENT_ITEM_KINDS)[number];
 
 export const PROJECT_AGENT_PROPOSAL_LIFECYCLES = ["pending", "claimed", "expired"] as const;

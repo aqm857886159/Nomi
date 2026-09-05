@@ -9,7 +9,7 @@ import {
 } from '@tabler/icons-react'
 import { NomiLogoMark, WorkbenchIconButton } from '../../design'
 import { cn } from '../../utils/cn'
-import type { AgentToolProfile } from '../../../electron/harness/agentChatContracts'
+import type { AgentToolProfile } from '../../../electron/shared/projectAgentContracts'
 import { useWorkbenchStore, type ProjectAgentReference, type ProjectAgentRunMode, type WorkspaceMode } from '../workbenchStore'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import { runWorkbenchAgent, type ToolCallEvent } from './workbenchAgentRunner'
@@ -222,6 +222,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
   const [selectedModel, setSelectedModel] = React.useState(() => { const pref = getAssistantModelPref(); return pref ? `${pref.vendorKey}:${pref.modelKey}` : '' })
   const [lastTurnTokens, setLastTurnTokens] = React.useState(0)
   const [thinkingOpen, setThinkingOpen] = React.useState(false)
+  const [usageOpen, setUsageOpen] = React.useState(false)
   const [proposalDrafts, setProposalDrafts] = React.useState<Record<string, Record<string, unknown>>>({})
   const scrollRef = React.useRef<HTMLDivElement>(null)
   const transcriptAtBottomRef = React.useRef(true)
@@ -645,7 +646,16 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
   return <section id="project-agent-resident" onKeyDownCapture={(event) => { if (event.key === 'Escape') { setThreadsOpen(false); setMenu(null); setQueueMenuOpen(null) } }} className="relative isolate flex h-full min-h-0 w-full min-w-0 flex-col bg-[var(--workbench-ai-panel-bg)] text-nomi-ink" aria-label={t('agentResident.aria')} data-agent-resident="true" data-agent-panel="true" data-agent-surface={surface} data-agent-run-mode={runMode} data-agent-approval-mode={approvalPolicy.mode} data-agent-spend-policy={approvalPolicy.spend}>
     <header className="relative flex min-h-11 shrink-0 items-center gap-2 border-b border-nomi-line-soft px-3 py-1.5" data-agent-header="true">
       <div className="flex min-w-0 items-center gap-2"><NomiLogoMark size={19} /><span className="text-body-sm font-semibold">{t('agentResident.brand')}</span></div>
-      <span className="relative inline-flex h-6 shrink-0 items-center gap-1.5 rounded-pill border border-nomi-line bg-nomi-paper px-2 text-micro tabular-nums text-nomi-ink-60" data-agent-usage-pill="true" title={t('agentResident.usageTitle', { last: lastTurnTokens, total: sessionTotalTokens })} aria-label={t('agentResident.usageRoundsTitle', { count: remainingRounds })}><IconCircleDashed size={13} className="text-nomi-accent" aria-hidden="true" />{t('agentResident.usageRounds', { count: remainingRounds })}</span>
+      <div className="relative shrink-0" onMouseEnter={() => setUsageOpen(true)}>
+        <button type="button" className="inline-flex h-6 items-center gap-1.5 rounded-pill border border-nomi-line bg-nomi-paper px-2 text-micro tabular-nums text-nomi-ink-60" data-agent-usage-pill="true" title={t('agentResident.usageTitle', { last: lastTurnTokens, total: sessionTotalTokens })} aria-label={t('agentResident.usageRoundsTitle', { count: remainingRounds })} onFocus={() => setUsageOpen(true)} onClick={() => setUsageOpen(true)}><IconCircleDashed size={13} className="text-nomi-accent" aria-hidden="true" />{t('agentResident.usageRounds', { count: remainingRounds })}</button>
+        <Popover open={usageOpen} onClose={() => setUsageOpen(false)} label={t('agentResident.usageTitle', { last: lastTurnTokens, total: sessionTotalTokens })} className="w-[220px]">
+          <div className="grid gap-1 px-2 py-1.5 text-micro tabular-nums text-nomi-ink-60">
+            <div>{t('agentResident.usagePopoverRound', { value: lastTurnTokens })}</div>
+            <div>{t('agentResident.usagePopoverTotal', { value: sessionTotalTokens })}</div>
+            <div>{t('agentResident.usagePopoverCost', { value: t('agentResident.costUnknown') })}</div>
+          </div>
+        </Popover>
+      </div>
       <span className="min-w-0 flex-1" aria-hidden="true" />
       <WorkbenchIconButton size="sm" label={t('agentResident.threadList')} icon={<IconHistory size={15} />} onClick={() => setThreadsOpen((value) => !value)} data-agent-history="true" />
       <WorkbenchIconButton size="sm" label={t('agentResident.collapse')} icon={<IconLayoutSidebarRightCollapse size={15} />} onClick={() => setCollapsed(true)} data-agent-collapse="true" />

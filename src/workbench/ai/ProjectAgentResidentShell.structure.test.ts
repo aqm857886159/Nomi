@@ -245,6 +245,14 @@ describe('ProjectAgentResidentShell production contract', () => {
     expect(residentExceptions).toContain('data-agent-write-failure="true"')
   })
 
+  it('keeps usage details behind the resident header pill', () => {
+    expect(resident).toContain('data-agent-usage-pill')
+    expect(resident).toContain('usagePopoverRound')
+    expect(resident).toContain('usagePopoverTotal')
+    expect(resident).toContain('usagePopoverCost')
+    expect(resident).toContain('onMouseEnter={() => setUsageOpen(true)}')
+  })
+
   it('keeps completed proposal receipts compact and locator-aware', () => {
     expect(resident).toContain('data-agent-proposal-receipt')
     expect(resident).toContain("item.status === 'done' ? t('agentResident.approved')")
