@@ -24,7 +24,6 @@ type SendGenerationCanvasAgentMessageBase = {
   displayMessage?: string
   selectedNodes: GenerationCanvasNode[]
   projectId?: string
-  history: AgentChatHistory
   capability: Extract<AgentChatCapability, 'canvas-agent' | 'canvas-chat' | 'canvas-refine' | 'storyboard'>
   featureKey?: string
   canWrite: () => boolean
@@ -170,12 +169,8 @@ export async function sendGenerationCanvasAgentMessage(
     capturedCanvasReadSnapshot: _capturedCanvasReadSnapshot,
     ...requestWithoutCanvas
   } = request
-  const history: AgentChatHistory = request.history.kind === 'persistent'
-    ? { kind: 'persistent', binding: { ...request.history.binding } }
-    : { kind: 'ephemeral' }
   const input = {
     ...requestWithoutCanvas,
-    history,
     skill: request.skill ? { ...request.skill } : undefined,
     attachments: request.attachments?.map((attachment) => ({ ...attachment })),
   }
@@ -198,7 +193,6 @@ export async function sendGenerationCanvasAgentMessage(
     prompt,
     ...(input.buildPrompt ? {} : { systemPrompt: staticSystemPrompt }),
     displayPrompt: input.displayMessage ?? input.message,
-    history: input.history,
     capability: input.capability,
     projectId: input.projectId,
     ...(surfaceBinding ? { surfaceBinding } : {}),

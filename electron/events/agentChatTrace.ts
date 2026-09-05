@@ -2,7 +2,7 @@
 // 挂在 agentChatV2Ipc 的事件出口上:只观察、只追加,任何失败不影响对话主流程。
 // 因果链:tool.completed / proposal.approved|rejected 的 causeId 指回 tool.proposed 事件 id。
 import crypto from "node:crypto";
-import { appendEvents, projectIdFromSessionKey } from "./eventLogRepository";
+import { appendEvents } from "./eventLogRepository";
 import type { NewNomiEvent } from "./types";
 
 const TEXT_HEAD = 2048;
@@ -32,9 +32,12 @@ function append(trace: TurnTrace, event: Omit<NewNomiEvent, "id"> & { id?: strin
 
 /** turn 开始:从 start payload 建 trace(项目不可解析时返回 null,全程 no-op)。 */
 export function beginTurnTrace(sessionId: string, payload: Record<string, unknown>): void {
-  const history = payload.history as { kind?: string; binding?: { sessionKey?: string; threadId?: string } } | undefined;
+  const history = payload.history as {
+    kind?: string;
+    binding?: { sessionKey?: string; threadId?: string; project?: { projectId?: string } };
+  } | undefined;
   const binding = history?.kind === 'persistent' ? history.binding : undefined;
-  const projectId = projectIdFromSessionKey(binding?.sessionKey)
+  const projectId = (typeof binding?.project?.projectId === 'string' ? binding.project.projectId : null)
     || (typeof payload.projectId === 'string' ? payload.projectId : typeof payload.canvasProjectId === 'string' ? payload.canvasProjectId : null);
   if (!projectId) return;
   const trace: TurnTrace = { projectId, sessionId, proposedIds: new Map() };

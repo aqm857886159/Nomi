@@ -274,9 +274,10 @@ try {
   })
   await sendCreation(win, 'F_RESUME_A：回顾刚才已批准的操作，不要再次执行。')
   const restoredWire = await recorded(resume.received, 'cold restored request')
-  // Current Host history is ref-only: the durable native result is read from
-  // the canonical tool item below, never replayed as a second tool message.
-  expect(hasToolResult(restoredWire.body, DOC_TOOL)).toBe(false)
+  // A resident thread's history is the durable Pi context, so a cold restart
+  // restores the real tool call and its result rather than a prose retelling.
+  // The tool is never re-executed: only the recorded result travels.
+  expect(hasToolResult(restoredWire.body, DOC_TOOL)).toBe(true)
   expect(flattenRequestText(restoredWire.body)).toContain(A_PROMPT)
   expect(flattenRequestText(restoredWire.body)).not.toContain(B_PROMPT)
   const resumedEvidence = readCurrentProjectAgentToolEvidence(settingsRoot, projectRoot, 'document.write')

@@ -37,7 +37,6 @@ describe('runSingleShotAgent', () => {
       displayPrompt: 'plan direction',
       featureKey: 'nomi:production-directions:p1',
       capability: 'single-shot',
-      history: { kind: 'ephemeral' },
       projectId: 'p1',
       skillKey: 'workbench.production.direction-planner',
       skillName: 'direction planner',

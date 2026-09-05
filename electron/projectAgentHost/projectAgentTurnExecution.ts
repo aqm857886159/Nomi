@@ -158,10 +158,10 @@ export async function executeProjectAgentTurn(context: ProjectAgentTurnExecution
   try {
     const request = {
       ...execution.request,
-      history: { kind: "ephemeral" as const },
       projectId: execution.request.projectId ?? partition.binding.projectId,
       canvasProjectId: execution.request.canvasProjectId ?? partition.binding.projectId,
-      prompt: steeredExecutionPrompt(partition.host.getSnapshot(partition.binding), execution.turn.turnId, execution.request, execution.steering), hostPromptLedger: hostPromptLedgerForTurn(partition.host.getSnapshot(partition.binding), execution.turn.threadId),
+      prompt: steeredExecutionPrompt(execution.request, execution.steering),
+      hostPromptLedger: hostPromptLedgerForTurn(partition.host.getSnapshot(partition.binding), execution.turn.threadId),
     };
     const response = await runAgent(request, {
       abortSignal: execution.controller.signal,

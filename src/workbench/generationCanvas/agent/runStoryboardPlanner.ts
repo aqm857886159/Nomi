@@ -30,10 +30,9 @@ type StoryboardPlannerInput = {
   onContent?: (text: string) => void
   onCancelReady?: (cancel: () => void) => void
 } & (
-  | { target: 'creation'; history: AgentChatHistory }
+  | { target: 'creation' }
   | {
       target: 'production'
-      history: Extract<AgentChatHistory, { kind: 'ephemeral' }>
       snapshot: CanvasReadResult
       capturedCanvasReadSnapshot: CapturedCanvasReadSnapshotHandleWire
     }
@@ -115,13 +114,11 @@ export async function runStoryboardPlanner(
     input.target === 'production'
       ? {
           ...agentRequestBase,
-          history: input.history,
           snapshot: input.snapshot,
           capturedCanvasReadSnapshot: input.capturedCanvasReadSnapshot,
         }
       : {
           ...agentRequestBase,
-          history: input.history,
           snapshot: readGenerationCanvasSnapshot(),
         },
   )

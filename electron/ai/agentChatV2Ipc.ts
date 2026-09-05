@@ -7,7 +7,6 @@ import type { AgentChatErrorCode, AgentChatHistoryRequest, AgentChatResponse, Ag
 import type { RuntimeToolCall } from '../harness/runtime/runtimePort';
 import type { PiCanvasReadIpcCapture, PiCanvasReadTransportAdapter } from '../capabilityCore/canvasReadTransportAdapters';
 import { createPiSkillReadTransportAdapter, type PiSkillReadTransportAdapter } from '../capabilityCore/skillReadTransportAdapters';
-import { projectIdFromSessionKey } from '../events/eventLogRepository';
 import { SurfacePortWireError } from '../shared/surfacePortBinding';
 
 const CONFIRM_TIMEOUT_MS = 10 * 60_000;
@@ -179,14 +178,14 @@ function assertSurfaceMatchesRequest(
     throw new SurfacePortWireError('surface_port_stale');
   }
   if (request.history.kind === 'persistent'
-    && boundProjectId !== projectIdFromSessionKey(request.history.binding.sessionKey)) {
+    && boundProjectId !== request.history.binding.project.projectId) {
     throw new SurfacePortWireError('surface_port_stale');
   }
 }
 
 function canvasReadRequestProjectId(request: AgentChatStartRequest['request']): string {
   const value = request.projectId ?? request.canvasProjectId
-    ?? (request.history.kind === 'persistent' ? projectIdFromSessionKey(request.history.binding.sessionKey) : '')
+    ?? (request.history.kind === 'persistent' ? request.history.binding.project.projectId : '')
   return typeof value === 'string' ? value.trim() : ''
 }
 
