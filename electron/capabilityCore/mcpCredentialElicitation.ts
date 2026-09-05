@@ -20,6 +20,10 @@ import type { ResultLocale } from './mcpToolResults'
 // `electron`, which the bare-Node MCP launcher's import closure forbids (mcpLauncherClosure.test.ts).
 // The credential PAGE is real UI and does go through desktopT — see credentialElicitationHttp.ts.
 
+// The manual route names the button as it is actually labelled in the app (`modelSetup.addModel` /
+// `customApiTitle`). It used to say "添加连接" / "Add connection", which appears nowhere in the UI — an
+// escape hatch nobody can follow is not an escape hatch (cf. docs/lessons/vendor-manage-is-a-
+// discoverability-problem.md). If those labels are renamed, this copy has to move with them.
 const POLL_INTERVAL_MS = 1000
 const DEFAULT_WAIT_MS = 5 * 60 * 1000
 
@@ -33,13 +37,24 @@ const COPY = {
   ),
   declined: (locale: ResultLocale) => L(
     locale,
-    '没拿到密钥：安全页被取消或超时了。要手动接入就打开 Nomi → 设置 → 模型 → 添加连接，在那里保存 key，然后让我继续。',
-    'No key was received: the secure page was cancelled or timed out. To do it by hand, open Nomi → Settings → Models → Add connection, save the key there, then ask me to continue.',
+    '没拿到密钥：安全页被取消或超时了。要手动接入就打开 Nomi → 设置 → 模型 →「添加一个 AI 模型」，在那里保存 key，然后让我继续。',
+    'No key was received: the secure page was cancelled or timed out. To do it by hand, open Nomi → Settings → Models → "Add an AI model", save the key there, then ask me to continue.',
   ),
   manual: (locale: ResultLocale, name: string) => L(
     locale,
-    `你的 AI 客户端不支持 MCP 的 URL 模式 elicitation，Nomi 不会在对话里问密钥。请打开 Nomi → 设置 → 模型 → 添加连接，在那里保存「${name}」的 key，然后让我继续。`,
-    `Your AI client does not support MCP URL-mode elicitation, and Nomi will not ask for a key in chat. Open Nomi → Settings → Models → Add connection, save the key for "${name}" there, then ask me to continue.`,
+    `你的 AI 客户端不支持 MCP 的 URL 模式 elicitation，Nomi 不会在对话里问密钥。请打开 Nomi → 设置 → 模型 →「添加一个 AI 模型」，在那里保存「${name}」的 key，然后让我继续。`,
+    `Your AI client does not support MCP URL-mode elicitation, and Nomi will not ask for a key in chat. Open Nomi → Settings → Models → "Add an AI model", save the key for "${name}" there, then ask me to continue.`,
+  ),
+  // A `decline` is NOT evidence that a human said no. Measured 2026-09-06 against Codex CLI 0.153.4,
+  // which declares `elicitation:{form:{},url:{}}` and then answers url-mode requests with
+  // `{"action":"decline"}` without ever showing the URL to anyone (openai/codex#11816). Reporting that
+  // as "the secure page was cancelled or timed out" blamed the user for cancelling a page they never
+  // saw — and it came back as a tool error, so the agent had nothing left to do. Say what is actually
+  // known ("it did not open"), and keep the flow alive by handing back the same manual route.
+  notOpened: (locale: ResultLocale, name: string) => L(
+    locale,
+    `填写页没有在你的 AI 客户端里打开（有些客户端会直接拒掉这类链接，也可能是你取消了）。密钥不会经过这个对话——请打开 Nomi → 设置 → 模型 →「添加一个 AI 模型」，在那里保存「${name}」的 key，然后让我继续。`,
+    `The entry page did not open in your AI client (some clients refuse these links outright, or you may have cancelled it). The key never travels through this conversation — open Nomi → Settings → Models → "Add an AI model", save the key for "${name}" there, then ask me to continue.`,
   ),
 }
 
@@ -84,6 +99,11 @@ export async function runIntegrationCredentialElicitation(input: {
   // no ticket could be minted. Never a placeholder — the user has to recognise which connection to open.
   const projectionName = String(((opened as Record<string, unknown> | null)?.config as Record<string, unknown> | undefined)?.name || '')
   const manual = (name: string) => ({ mode: 'manual' as const, instructions: COPY.manual(locale, name || projectionName) })
+  const notOpened = (name: string) => ({
+    mode: 'manual' as const,
+    reason: 'not_opened' as const,
+    instructions: COPY.notOpened(locale, name || projectionName),
+  })
   if (!ticket) {
     // No loopback page available in the owning process. The durable handoff already fired, so the
     // in-app route is live; say so rather than leaving the agent to improvise.
@@ -100,7 +120,9 @@ export async function runIntegrationCredentialElicitation(input: {
     return { kind: 'result', result: withoutTicket(opened, { credentialEntry: manual(ticket.display.name) }) }
   }
   if (asked.action !== 'accept') {
-    return { kind: 'error', message: COPY.declined(locale) }
+    // Not an error: the session is still `needs_credential`, the in-app route is live, and the caller
+    // has somewhere to go. Only a page that was opened and then abandoned (below) is a real dead end.
+    return { kind: 'result', result: withoutTicket(opened, { credentialEntry: notOpened(ticket.display.name) }) }
   }
 
   // `accept` is consent to open the URL, not proof the key was saved. The session is the only honest
