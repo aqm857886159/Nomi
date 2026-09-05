@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildPlannedNodeMeta, resolvePlannedNodeArgs } from "./plannedNodeMeta";
+import { buildModelEntryIndex, buildPlannedNodeMeta, resolvePlannedNodeArgs } from "./plannedNodeMeta";
 import { buildAgentModelEntries, type AgentModelEntry } from "./availableModels";
 import type { ModelOption } from "../../../config/models";
 
@@ -121,5 +121,55 @@ describe("resolvePlannedNodeArgs — 批准≡执行(消灭对账出入)", () =>
     expect(resolved.modeId).toBeUndefined();
     expect(resolved.params).toBeUndefined();
     expect(resolved.title).toBe("镜头");
+  });
+});
+
+// ── 根因回归：模型身份的唯一键是 (vendor, modelKey) ──────────────────────────
+// 2026-09-03 首次真实付费闭环走查的阻断：UI 选 APIMart 的模型，出站请求实际发去
+// code-newcli-com（HTTP 400，全链阻断）。成因是落地写 node.meta 时只按裸 modelKey
+// 反查模型清单——两家供应商提供同名模型时，拿到的是「索引里碰巧那一家」。
+// node.meta.modelVendor 就是运行器出站时用的供应商，所以这里断言的就是「出站发去哪家」。
+describe("模型身份唯一键含 vendor（选 A 家就发去 A 家）", () => {
+  const TWO_VENDORS: ModelOption[] = [
+    { value: "nano-banana", label: "Nano Banana", vendor: "code-newcli-com", meta: { archetypeId: "nano-banana" } } as ModelOption,
+    { value: "nano-banana", label: "Nano Banana", vendor: "apimart", meta: { archetypeId: "nano-banana" } } as ModelOption,
+  ];
+
+  it("同名不同家 = 两个条目，各自可按 vendor::key 取回", () => {
+    const index = buildModelEntryIndex(buildAgentModelEntries(TWO_VENDORS));
+    expect(index.get("code-newcli-com::nano-banana")?.vendor).toBe("code-newcli-com");
+    expect(index.get("apimart::nano-banana")?.vendor).toBe("apimart");
+  });
+
+  it("裸 key 取首次出现的那家，不是「最后写入的那家」", () => {
+    const index = buildModelEntryIndex(buildAgentModelEntries(TWO_VENDORS));
+    expect(index.get("nano-banana")?.vendor).toBe("code-newcli-com");
+  });
+
+  it("选 apimart → 写进 node.meta 的供应商就是 apimart（不是目录里的另一家）", () => {
+    const index = buildModelEntryIndex(buildAgentModelEntries(TWO_VENDORS));
+    const meta = buildPlannedNodeMeta({ modelKey: "nano-banana", modelVendor: "apimart" }, index);
+    expect(meta).toBeTruthy();
+    expect(meta!.modelVendor).toBe("apimart");
+    expect(meta!.vendor).toBe("apimart");
+  });
+
+  it("选 code-newcli-com → 写进 node.meta 的供应商就是 code-newcli-com", () => {
+    const index = buildModelEntryIndex(buildAgentModelEntries(TWO_VENDORS));
+    const meta = buildPlannedNodeMeta({ modelKey: "nano-banana", modelVendor: "code-newcli-com" }, index);
+    expect(meta!.modelVendor).toBe("code-newcli-com");
+  });
+
+  // 裸 key 索引下这条会红：apimart 的请求反查到 code-newcli-com 的条目，
+  // buildPlannedNodeMeta 的「不许跨家混搭」判定随即拒收 → 用户选的模型被整个剥掉，
+  // 静默回落自动选（走查实测的第二种表现）。vendor 限定键让它稳稳落在 apimart 上。
+  it("resolvePlannedNodeArgs 按 vendor 限定键落地，用户所选不被静默剥掉", () => {
+    const index = buildModelEntryIndex(buildAgentModelEntries(TWO_VENDORS));
+    const resolved = resolvePlannedNodeArgs(
+      { clientId: "k1", kind: "image", title: "镜头", modelKey: "nano-banana", modelVendor: "apimart" },
+      index,
+    );
+    expect(resolved.modelKey).toBe("nano-banana");
+    expect(resolved.modelVendor).toBe("apimart");
   });
 });

@@ -1,0 +1,151 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-05-storyboard-reference-slots",
+  "problem_type": "storyboard row reference slots ignore the archetype declaration",
+  "symptom": "Picking Seedance 2.5 on a storyboard row makes the row unusable: the first/last-frame tiles are permanently red and cannot be filled, the omni mode's 30-image / 10-video / 10-audio slots collapse into one anonymous '@' button, and the row-end chevron does nothing when clicked.",
+  "direct_cause": "Three independent defects on the same surface. (1) The expand chevron carried onClickCapture={e => e.stopPropagation()} on the button itself, and React stops dispatch for that element's own bubble-phase onClick as well, so setExpanded never ran. (2) missingRequiredSlots returned true unconditionally for every required slot whose kind was not image_ref, because the row had no per-slot binding storage at all; the tile's red state read the contract, never the content, so nothing in the row could clear it. (3) referenceZoneView collapsed every array slot into a single boolean hasArrayIntake and rendered one generic '@' tile, discarding kind, label, max, characterIndexed and asArray.",
+  "class_root": "The storyboard row consumed the model archetype as a shape hint instead of as the contract. PlanShot carried only an untyped anchorIds bag, so there was no place to record 'this image goes in the first frame, that clip goes in the video reference slot'; with no storage, the derive layer had to guess, and it guessed with a hardcoded NAMED_FRAME_SLOT_KINDS set that duplicated archetypeMeta's asArray inference as a second source of truth. The canvas node had already solved the same problem (AssetSlot descriptors, AssetReference/AssetTile/AssetPicker, referenceSlotStorage, buildArchetypeInputParams), and the row reimplemented a degraded copy rather than consuming it.",
+  "affected_population": [
+    "Every storyboard row on a model whose current mode declares a named frame slot (Seedance 2.5 first/firstlast, Veo 3.1 frame, every first_frame-only video model) — permanently excluded from batch generation",
+    "Every storyboard row on a mode with more than one array slot kind (Seedance 2.5 omni) — video and audio references unreachable",
+    "Every storyboard row user trying to open the per-row expand panel with the chevron"
+  ],
+  "scope_paths": [
+    "src/workbench/creation/storyboard/shotRow/shotRowModel.ts",
+    "src/workbench/creation/storyboard/shotRow/shotReferenceSlots.ts",
+    "src/workbench/creation/storyboard/shotRow/ShotReferenceZone.tsx",
+    "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx",
+    "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+    "src/workbench/generationCanvas/agent/storyboardPlan.ts",
+    "src/workbench/generationCanvas/agent/storyboardPlanSchema.ts",
+    "src/workbench/generationCanvas/nodes/controls/archetypeMeta.ts",
+    "src/i18n/locales/storyboardEditor.ts"
+  ],
+  "entry_points": [
+    "Storyboard row reference zone (third column) intake",
+    "Storyboard row missing-required derivation feeding the frame red state, scene-group counts and the batch exclusion list",
+    "Storyboard row expand chevron",
+    "materializeShotRow / syncShotNodeWithRow write-back before every row and batch generation"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Every field involved (kind/min/max/inputKey/asArray/characterIndexed) is already declared in Nomi's own archetype files; no provider contract changed. The provider-facing request body is still built by the existing buildArchetypeInputParams boundary.",
+  "invariants": [
+    "A required slot is missing only when its bound count is below the declared min; min is the only required signal and no slot kind is exempt.",
+    "Every slot declared by the current mode gets its own intake with its own accepted media kind and its own declared capacity.",
+    "A slot rejects media whose kind differs from referenceSlotAccept(slot.kind), and rejects an append past slot.max.",
+    "The request body is built only from the current mode's declared slots via inputKey/asArray; the storyboard writes no vendor branch.",
+    "referenceBindings keys not declared by the current mode are preserved verbatim across edits and mode switches.",
+    "A control must not stop event dispatch in the capture phase on the element that also handles the click."
+  ],
+  "generality_proof": "storyboardAssetSlots, appendShotBinding and shotReferenceMetaPatch read only ArchetypeReferenceSlot fields and the two shared kind tables in archetypeMeta (ARRAY_SLOT_ROUTE / SINGLE_SLOT_META_KEY), so any model archetype — present or future — routes without a code change. Contract tests exercise the six real modes from three real archetypes (Seedance 2.5 t2v/first/firstlast/omni, Veo 3.1 frame, Nano Banana 2 edit) rather than fixtures.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/controls/archetypeMeta.ts",
+      "symbol": "slotAsArray",
+      "responsibility": "The single answer to 'is this slot one tile or a bag' — declared asArray first, DEFAULT_AS_ARRAY by kind otherwise. Replaces the row's duplicate NAMED_FRAME_SLOT_KINDS set."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/controls/archetypeMeta.ts",
+      "symbol": "referenceSlotAccept",
+      "responsibility": "The single answer to 'what media does this slot take' (the declaration has no such field; it is derived from kind). Basis for image/video/audio rejection."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/shotRow/shotReferenceSlots.ts",
+      "symbol": "storyboardAssetSlots / appendShotBinding / shotReferenceMetaPatch",
+      "responsibility": "Translate the archetype declaration into the canvas AssetSlot descriptors, enforce kind and capacity on every write, and project bindings into node meta using the canvas storage table."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/controls/archetypeMeta.ts",
+      "symbol": "buildArchetypeInputParams",
+      "responsibility": "Unchanged single source for the outgoing request body: inputKey, asArray, combineSlotsInto, fixedParams. The storyboard now feeds it instead of bypassing it."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+      "symbol": "syncShotNodeWithRow",
+      "responsibility": "The one write-back edge before every run; now also projects reference bindings, including for freshly created nodes."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/creation/storyboard/shotRow/shotRowModel.ts",
+      "entry_point": "missingRequiredSlots (frame red state, scene-group counts, batch exclusion)",
+      "disposition": "enforced",
+      "evidence": "The kind-specific branch is gone; every slot is judged by bound count vs declared min, with referenced visual anchors still crediting image_ref."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/shotRow/shotRowModel.ts",
+      "entry_point": "referenceZoneView (reference column shape)",
+      "disposition": "enforced",
+      "evidence": "Emits one AssetSlot descriptor per declared slot plus its current value; the hasArrayIntake boolean and the anonymous merged '@' tile are deleted."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeParameterControls.tsx",
+      "entry_point": "canvas node reference slots",
+      "disposition": "not-affected",
+      "evidence": "Already declaration-driven; it is the implementation the row now reuses. Its slot derivation switches to the exported referenceSlotAccept/referenceSlotIsArray helpers' own source tables, unchanged in behaviour."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowStatus.ts",
+      "entry_point": "row runtime status and footer exclusion reasons",
+      "disposition": "not-affected",
+      "evidence": "Consumes missingRequiredSlots; the corrected derivation flows through unchanged."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx",
+      "entry_point": "every other click handler in the row",
+      "disposition": "enforced",
+      "evidence": "A structure test asserts the file contains no onClickCapture at all, so the capture-phase self-block cannot come back on another control."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "New model archetypes land continuously (the daily model radar exists for exactly that), and each one can declare a slot combination the row has never seen. A hardcoded kind list or a kind-specific branch is wrong again the moment a profile declares asArray or a new slot mix. The capture-phase pattern is likewise a general React footgun, not a one-off typo.",
+    "same_class_scan": [
+      "Grepped every consumer of ArchetypeReferenceSlot in src/ and electron/ for kind-specific branching; the storyboard row was the only place outside archetypeMeta's own tables.",
+      "Grepped the whole repo for NAMED_FRAME_SLOT_KINDS and for hardcoded slot-kind sets; the one occurrence was deleted with this change.",
+      "Grepped src/ for onClickCapture to find other controls blocking their own click; the storyboard row was the only occurrence in this surface.",
+      "Enumerated every mode of Seedance 2.5, Veo 3.1 and Nano Banana 2 and asserted the derived slot descriptors against the declarations, including the invariant that a mode never declares two slots of the same kind (the premise for keying bindings by kind)."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/creation/storyboard/shotRow/shotReferenceSlots.ts",
+    "invariant": "The storyboard row reads slot shape, capacity, accepted media and storage key only through the shared archetypeMeta helpers, and writes bindings only through appendShotBinding/removeShotBinding/reorderShotBinding.",
+    "failure_mode": "An unrecognised slot kind falls back to accept='image' and single form, and shotReferenceMetaPatch skips it entirely — the slot renders inert rather than silently mis-routing media into another slot's request key.",
+    "exception_policy": "none",
+    "strategy": "Delete the row's private slot classification, export the canvas's tables as named helpers, and make the row consume the same AssetReference/AssetTile/AssetPicker components so there is one reference-slot implementation rather than two.",
+    "artifacts": [
+      "src/workbench/creation/storyboard/shotRow/shotReferenceSlots.ts",
+      "src/workbench/generationCanvas/nodes/controls/archetypeMeta.ts",
+      "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.structure.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/creation/storyboard/shotRow/shotReferenceSlots.test.ts",
+    "src/workbench/creation/storyboard/shotRow/shotRowModel.test.ts",
+    "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.structure.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/creation/storyboard/shotRow/shotReferenceSlots.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/creation/storyboard/shotRow/shotRowModel.ts",
+      "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx",
+      "src/i18n/locales/storyboardEditor.ts"
+    ],
+    "rationale": "P1：降级版的第二套参考槽实现与复用同 commit 删除 —— shotRowModel.ts 删掉写死的 NAMED_FRAME_SLOT_KINDS 与 ReferenceZoneView.hasArrayIntake，StoryboardShotRow.tsx 删掉行内自绘的具名槽 tile 与合并「@」格，storyboardEditor.ts 删掉随之作废的 row.slotRequired 词条。无并行版、无 fallback。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency is introduced or removed; the change consumes components already in the repo.",
+    "exit_criteria": []
+  },
+  "migration": "PlanShot.referenceBindings is optional and absent on every existing plan, so old plans hydrate unchanged and behave exactly as before except that a required named slot is now fillable instead of permanently red. The zod schema accepts unknown slot keys and every writer preserves them, so a plan written by a newer build round-trips through an older one without losing bindings.",
+  "residual_risks": [
+    "No paid provider call was made during verification; the outgoing body is proven by unit tests against the real archetypes plus the shared buildArchetypeInputParams, not by a live generation.",
+    "The array slots reuse the canvas's merged one-row presentation, so a per-kind used/limit counter is not displayed; over-capacity is communicated by dimming the at-limit kind in the picker and by an explicit rejection toast. A visible counter belongs to the separate storyboard redesign contract.",
+    "Anchor references (shot.anchorIds) and per-slot bindings remain two coexisting relations; unifying them is deliberately out of scope for this fix."
+  ]
+}

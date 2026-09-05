@@ -191,11 +191,11 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
   }
   const onRegenerateRow = (runtime: StoryboardRowRuntime): void => {
     const node = runtime.exec.node
-    if (node) void runAction(() => regenerateShotRow(execCtx, runtime.shot, node))
+    if (node) void runAction(() => regenerateShotRow(execCtx, runtime.shot, node, runtime.mode))
   }
   const onVariantsRow = (runtime: StoryboardRowRuntime): void => {
     const node = runtime.exec.node
-    if (node) void runAction(() => generateShotRowVariants(execCtx, runtime.shot, node))
+    if (node) void runAction(() => generateShotRowVariants(execCtx, runtime.shot, node, runtime.mode))
   }
   // 锁定开关：同步写 meta（不花钱不确认）；状态经 derive 立刻回流行/组头/footer。
   const onToggleLockRow = (runtime: StoryboardRowRuntime): void => {
@@ -203,7 +203,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
   }
   // 参考已变「用新图重跑」：一键补跑（花钱确认照过；首帧行按波次连跑），绝不自动跑。
   const onRerunFreshRefsRow = (runtime: StoryboardRowRuntime): void => {
-    void runAction(() => rerunShotRowWithFreshRefs(execCtx, runtime.shot, runtime.exec))
+    void runAction(() => rerunShotRowWithFreshRefs(execCtx, runtime.shot, runtime.exec, runtime.mode))
   }
   // 参考卡就地生成/重生成/锁定（B3）：同一执行通路；重生成后引用镜经「参考已变」提示补跑。
   const onGenerateAnchor = (runtime: AnchorCardRuntime): void => {

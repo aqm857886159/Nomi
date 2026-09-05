@@ -69,8 +69,19 @@ export type PlanAnchor = {
   referenceSourceNodeId?: string
   /** Image model used to render this visual anchor; explicit selection survives materialization. */
   modelKey?: string
+  /** 该锚所选模型的供应商 key（与 modelKey 成对构成身份唯一键；同 PlanShot.modelVendor）。 */
+  modelVendor?: string
   modeId?: string
   params?: Record<string, unknown>
+}
+
+/** 一条参考绑定：url 是发送真相，其余是来源事实（供 tile 显示与「从哪来的」溯源）。 */
+export type PlanReferenceBinding = {
+  url: string
+  /** 素材名（tile 的 caption / 缩略图加载失败时的兜底）。 */
+  name?: string
+  /** 引用某镜结果 / 某张参考卡时的来源节点（结果 hash 变了要能查回去）。参考卡本身也是画布节点。 */
+  sourceNodeId?: string
 }
 
 export type PlanShot = {
@@ -98,13 +109,25 @@ export type PlanShot = {
   durationSec: number
   /** 这镜用到哪些锚（按 anchor.id 引用）→ 视觉锚连参考边、文本锚拼 prompt。 */
   anchorIds: string[]
+  /**
+   * **按槽的参考绑定**（键 = `ArchetypeReferenceSlotKind`，值 = 有序素材列表）。
+   * 分镜行的具名槽（首帧/尾帧/源视频）与数组槽（图/视频/音频参考）各自独立成桶——`anchorIds`
+   * 是「引用了哪几张参考卡」的无类型关系，表达不了「这张放首帧、那段放参考视频」。
+   * 落画布时经 `referenceSlotStorage` 映射进节点 meta，请求体仍由档案的 `inputKey`/`asArray`
+   * 单源构造（`buildArchetypeInputParams`），**不为任何供应商写分支**。
+   * 切模式**不删**绑定：未被当前 mode 声明的键原样保留（前向兼容 + 切回来还在）。
+   */
+  referenceBindings?: Record<string, PlanReferenceBinding[]>
   /** 可直接生成的提示词（运镜+动作演进，不复述锚的静态描述）。 */
   prompt: string
   /** 片种骨架在 prompt 中的轻量标注；失效/丢失时不影响纯文本。 */
   promptSegments?: PromptSegmentRange[]
   /** 用户在分镜编辑器为该镜选的视频模型 catalog key；没选 → 落画布用默认视频模型兜底。 */
   modelKey?: string
-  /** Canonical model vendor paired with modelKey for an unambiguous model identity. */
+  /**
+   * 该镜所选模型的**供应商** key。身份唯一键是 `(vendor, modelKey)`——同名模型来自不同供应商是两个模型；
+   * 缺它时落画布只能按 key 反查、命中目录里第一家（2026-09-03 真实付费走查实测：选 APIMart 却发去 code-newcli-com）。
+   */
   modelVendor?: string
   /** 用户为该镜选的模型模式 id（随 modelKey 一起）；没选 → 默认模式。 */
   modeId?: string
@@ -156,6 +179,7 @@ export type PlanShot = {
     enabled?: boolean
     prompt?: string
     modelKey?: string
+    /** 首帧图模型的供应商 key（与 modelKey 成对，身份唯一键）。 */
     modelVendor?: string
     modeId?: string
     params?: Record<string, unknown>
@@ -233,6 +257,8 @@ export type PlanCreatedNode = {
   title: string
   prompt: string
   modelKey?: string
+  /** 供应商 key；与 modelKey 成对构成模型身份唯一键，避免落地时反查命中别家。 */
+  modelVendor?: string
   modeId?: string
   params?: Record<string, unknown>
   /** Structured provenance/shot-language metadata. applyCanvasToolCall maps this to node.meta. */
@@ -285,12 +311,16 @@ export type PlanCreateNodesArgs = {
 export type StoryboardPlanToArgsOptions = {
   /** 定妆卡/场景卡默认图片模型（偏好 GPT Image 2，通用解析）；调用方传入，不在此硬编码目录。 */
   defaultImageModelKey?: string
+  /** 默认图片模型的供应商 key（与 key 成对，构成身份唯一键）。 */
+  defaultImageModelVendor?: string
   /** 定妆卡（纯文生）默认模式 id；调用方传入。 */
   defaultImageModeId?: string
   /** （图片）图生图模式 id：保留给定妆卡变体等场景；调用方传入。 */
   defaultImageRefModeId?: string
   /** 镜头默认视频模型（用户没在编辑器为该镜选模型时兜底，通用解析偏好 Seedance）；调用方传入。 */
   defaultVideoModelKey?: string
+  /** 默认视频模型的供应商 key（与 key 成对，构成身份唯一键）。 */
+  defaultVideoModelVendor?: string
   /** 镜头默认视频模式 id（优先带 image_ref/first_frame 槽的 i2v，定妆卡参考才喂得进）；调用方传入。 */
   defaultVideoModeId?: string
   /** Stable id used to make a production materialization retry converge on existing nodes. */
@@ -505,6 +535,11 @@ function buildKeyframePrompt(shot: PlanShot, anchorById: Map<string, PlanAnchor>
 }
 
 /** 视觉锚 → 定妆卡/场景卡节点（clientId = anchor.id）。整方案落画布与单锚按需 materialize（B）共用。 */
+/** 锚自己选了模型就用它自己的 vendor；没选才回落默认图片模型的 vendor。 */
+function anchorVendor(anchor: PlanAnchor, options: StoryboardPlanToArgsOptions): string | undefined {
+  return anchor.modelKey ? anchor.modelVendor : (anchor.modelVendor || options.defaultImageModelVendor)
+}
+
 function buildAnchorCardNode(anchor: PlanAnchor, options: StoryboardPlanToArgsOptions): PlanCreatedNode {
   return {
     clientId: anchor.id,
@@ -528,6 +563,8 @@ function buildAnchorCardNode(anchor: PlanAnchor, options: StoryboardPlanToArgsOp
       ...(options.storyboardDesignId ? { storyboardDesignId: options.storyboardDesignId } : {}),
     },
     ...((anchor.modelKey || options.defaultImageModelKey) ? { modelKey: anchor.modelKey || options.defaultImageModelKey } : {}),
+    // vendor 与 key 成对流动，绝不混搭（混搭正是「选 A 家发去 B 家」的成因；同 buildShotRowNodes）。
+    ...(anchorVendor(anchor, options) ? { modelVendor: anchorVendor(anchor, options) } : {}),
     ...((anchor.modeId || (!anchor.modelKey && options.defaultImageModeId)) ? { modeId: anchor.modeId || options.defaultImageModeId } : {}),
     ...(anchor.params ? { params: anchor.params } : {}),
   }
@@ -586,11 +623,16 @@ function buildShotRowNodes(
   const defaultModelKey = isImageShot ? options.defaultImageModelKey : options.defaultVideoModelKey
   const defaultModeId = isImageShot ? options.defaultImageModeId : options.defaultVideoModeId
   const modelKey = shot.modelKey || defaultModelKey
+  // vendor 与 modelKey 成对流动：用户选了具体模型就用它自己的 vendor；用默认模型时用默认的 vendor。
+  // 二者不许混搭——混搭正是「选 A 家发去 B 家」的成因。
+  const modelVendor = shot.modelKey ? shot.modelVendor : (shot.modelVendor || options.defaultVideoModelVendor)
+  const imageDefaultVendor = options.defaultImageModelVendor
   // 用户为该镜选了具体模型 → 不套默认模型的 modeId（会张冠李戴）；留空让 buildPlannedNodeMeta
   // 按所选模型自己取默认模式。只有用默认模型时才用默认 modeId。
   const modeId = shot.modeId || (shot.modelKey ? undefined : defaultModeId)
   if (hasKeyframe && !options.existingKeyframeNodeId) {
     const keyframeModelKey = shot.keyframe?.modelKey || options.defaultImageModelKey
+    const keyframeVendor = shot.keyframe?.modelKey ? shot.keyframe.modelVendor : imageDefaultVendor
     const keyframeModeId = shot.keyframe?.modeId || (shot.keyframe?.modelKey ? undefined : (visualAnchorIds.length > 0 ? options.defaultImageRefModeId || options.defaultImageModeId : options.defaultImageModeId))
     nodes.push({
       clientId: keyframeTargetId,
@@ -599,6 +641,7 @@ function buildShotRowNodes(
       prompt: buildKeyframePrompt(shot, anchorById),
       storyboardKeyframe: true,
       ...(keyframeModelKey ? { modelKey: keyframeModelKey } : {}),
+      ...(keyframeVendor ? { modelVendor: keyframeVendor } : {}),
       ...(keyframeModeId ? { modeId: keyframeModeId } : {}),
       ...(shot.keyframe?.params ? { params: shot.keyframe.params } : {}),
       metadata: storyboardShotMetadata(
@@ -618,6 +661,7 @@ function buildShotRowNodes(
     title: i18n.t('generationCommon.agentRuntime.shotTitle', { index: shot.index }),
     prompt: buildShotPrompt(shot, anchorById),
     ...(modelKey ? { modelKey } : {}),
+    ...(modelVendor ? { modelVendor } : {}),
     ...(modeId ? { modeId } : {}),
     // duration 仅视频镜头写（由卡的「时长」选择器管）；图片镜头不写。其余模型参数（比例/清晰度/负向…）来自 shot.params。
     params: {
