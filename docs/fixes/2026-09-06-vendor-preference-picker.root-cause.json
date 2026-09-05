@@ -19,6 +19,7 @@
     "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx",
     "electron/settings/vendorPreferenceIpc.ts",
     "electron/settings/vendorPreferenceSettings.ts",
+    "electron/settings/registerSettingsIpc.ts",
     "electron/shared/contracts/vendorPreference.ts"
   ],
   "entry_points": [
@@ -70,23 +71,16 @@
       "evidence": "The composer adapts catalog rows into the shared hook and uses the same provider chip callback."
     }
   ],
-  "prevention": {
-    "kind": "centralized-boundary",
-    "enforcement_path": "src/config/modelIdentity.ts + src/workbench/common/modelSelectStructure.test.ts",
-    "invariant": "New model picker callers must use the shared stateful or batch picker boundary; duplicate provider ordering logic is not allowed.",
-    "failure_mode": "Structure tests identify hook callers that omit provider selection, and unit tests fail when preference, configuration, or stable ordering regresses.",
-    "exception_policy": "none",
-    "strategy": "Keep catalog identity and provider ordering pure, then inject one shared preference order into every picker.",
-    "artifacts": [
-      "src/config/modelIdentity.test.ts",
-      "src/workbench/common/useDedupedModelSelect.test.ts",
-      "src/ui/onboarding/VendorPreferenceOrderControl.test.ts",
-      "electron/settings/vendorPreferenceContract.test.ts"
-    ]
-  },
+  "regression_tests": [
+    "src/config/modelIdentity.test.ts",
+    "src/workbench/common/useDedupedModelSelect.test.ts",
+    "src/ui/onboarding/VendorPreferenceOrderControl.test.ts",
+    "electron/settings/vendorPreferenceContract.test.ts"
+  ],
+  "migration": "No existing model identity is rewritten. Catalog rows are grouped at read time by canonical model key; the new version-1 preference document is created atomically on first save and an absent or invalid document normalizes to an empty order.",
   "recurrence": {
     "classification": "one_off",
-    "reason": "This is the first implementation of the provider preference boundary; the prevention contract is added with the shared implementation.",
+    "reason": "This is the first implementation of the provider preference boundary; regression coverage records the shared boundary without introducing a separate structural gate.",
     "same_class_scan": [
       "rg modelOptionMappers, vendorKey, ModelSelect, useDedupedModelSelect, and BulkModelPicker across src and electron",
       "Documented all current model picker entry points in docs/qa/2026-09-06-vendor-order-design-lab.md"
