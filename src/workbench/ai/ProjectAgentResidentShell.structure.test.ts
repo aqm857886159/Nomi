@@ -32,6 +32,9 @@ const residentReference = readSource(
 const residentExceptions = readSource(
   path.join(process.cwd(), 'src/workbench/ai/resident/ResidentExceptionStates.tsx'),
 )
+const interventionSlot = readSource(
+  path.join(process.cwd(), 'src/workbench/ai/InterventionSlot.tsx'),
+)
 const residentGenerationEditor = readSource(
   path.join(process.cwd(), 'src/workbench/ai/resident/GenerationProposalEditor.tsx'),
 )
@@ -300,6 +303,20 @@ describe('ProjectAgentResidentShell production contract', () => {
     expect(resident).toContain("summaryLabel={(total, selected) => t('agentResident.planSummary', { total, selected })}")
     expect(resident).toContain("openLabel={t('agentResident.pinnedOpen')}")
     expect(resident).toContain("collapseLabel={t('agentResident.pinnedCollapse')}")
+  })
+
+  it('uses one intervention slot with typed kinds and effect-scoped approval actions', () => {
+    expect(interventionSlot).toContain("export type InterventionKind = 'approval' | 'question' | 'missing_credential' | 'missing_param'")
+    expect(interventionSlot).toContain('onApproveOnce')
+    expect(interventionSlot).toContain('onApproveSession')
+    expect(interventionSlot).toContain('onApproveAlways')
+    expect(interventionSlot).toContain('data-agent-approval-scope="once"')
+    expect(interventionSlot).toContain('data-agent-approval-scope="session"')
+    expect(interventionSlot).toContain('data-agent-approval-scope="always"')
+    expect(interventionSlot).toContain("effectClass !== 'spend' && effectClass !== 'irreversible'")
+    expect(interventionSlot).toContain('data-agent-reject-reason')
+    expect(interventionSlot).toContain('data-agent-intervention-pending-count')
+    expect(resident).toContain("onApproveAlways={interventionEffect === 'reversible_local'")
   })
 
   it('keeps queue mutations Host-owned while exposing the typed mutation seam', () => {
