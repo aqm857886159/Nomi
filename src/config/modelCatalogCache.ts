@@ -104,9 +104,36 @@ function defaultPublishedMode(kind?: NodeKind): ProfileKind {
   return 'chat'
 }
 
-async function getCatalogModelOptions(kind?: NodeKind, requiredMode = defaultPublishedMode(kind)): Promise<ModelOption[]> {
+/**
+ * 「列出来的都能跑」是这一层对所有下游的**默认承诺**（根因修复 2026-06-08）：拔了 key 但 vendor
+ * 仍 enabled 的家，它的模型不许出现在任何调用方眼前，否则用户选中就撞 `API key missing`。
+ * 依赖这条承诺的不止选择器——agent 的可用模型清单（agent/availableModels.ts）、批量成本预估、
+ * 「换到 X」指路（nodes/controls/narrowedModeGuidance.ts 的注释把它写成了前提）都在它上面。
+ *
+ * `includeUnconfigured` 是**唯一**的放宽口，给「选择器要把没配的家灰显出来、点了跳接入」那一个用途；
+ * 拿到的行会带 `configured: false`，调用方**必须**自己拦住选中（见 useDedupedModelSelect）。
+ * 默认关着 = fail-closed：将来新加的调用方不写这个参数，拿到的就是能跑的那一份。
+ */
+export type CatalogOptionScope = { includeUnconfigured?: boolean }
+
+/**
+ * 模型**选择器**的取景：连没配 key 的家也要（灰显沉底、点了跳接入）。
+ *
+ * 只有这一族界面配得上它——它们都把 `configured === false` 的行拦在选中之外，改为触发
+ * `nomi-open-model-catalog`。别处（agent 可用模型清单、成本预估、「换到 X」指路）一律用默认取景，
+ * 那边的前提是「列出来的都能跑」。放宽是**逐个调用点显式声明**的，不是全局默认。
+ */
+export const MODEL_PICKER_CATALOG_SCOPE: CatalogOptionScope = { includeUnconfigured: true }
+
+async function getCatalogModelOptions(
+  kind?: NodeKind,
+  requiredMode = defaultPublishedMode(kind),
+  scope: CatalogOptionScope = {},
+): Promise<ModelOption[]> {
   const catalogKind = resolveCatalogKind(kind)
-  const cacheKey = `${catalogKind}:${requiredMode}`
+  const includeUnconfigured = scope.includeUnconfigured === true
+  // 两种取景各自成缓存项：同 key 存两份不同内容会让先到的那份决定后到者看见什么。
+  const cacheKey = `${catalogKind}:${requiredMode}:${includeUnconfigured ? 'all' : 'usable'}`
   const cached = catalogOptionsCache.get(cacheKey)
   if (cached) return cached
   const inflight = catalogPromiseCache.get(cacheKey)
@@ -115,25 +142,32 @@ async function getCatalogModelOptions(kind?: NodeKind, requiredMode = defaultPub
     try {
       const rows = await listWorkbenchModelCatalogModels({ kind: catalogKind, enabled: true })
       const enabledVendorKeys = await getEnabledVendorKeys()
+      const configuredVendorKeys = configuredVendorKeysCache ?? new Set<string>()
       const filteredRows = (Array.isArray(rows) ? rows : []).filter((row) => {
         if (!row?.published || !Array.isArray(row.publishedModes) || !row.publishedModes.includes(requiredMode)) return false
         const vendorKey = String(row?.vendorKey || '').trim().toLowerCase()
         if (!vendorKey) return false
         // 空集 = 「一家可用供应商都没有」，不是「随便放行」。此前在这里 return true，
         // 于是供应商还没加载完 / 用户一家都没配时，整个 catalog 会被全量曝给选择器。
-        return enabledVendorKeys.has(vendorKey)
+        if (!enabledVendorKeys.has(vendorKey)) return false
+        return includeUnconfigured || configuredVendorKeys.has(vendorKey)
       })
       const normalized = toCatalogModelOptions(filteredRows)
-      // 回填厂商显示名（getEnabledVendorKeys 已顺手缓存 key→name）。
+      // 回填厂商显示名（getEnabledVendorKeys 已顺手缓存 key→name）与「这家现在能不能跑」。
+      // `configured` 必须**无条件**打上：只在有显示名时才打，会让没名字的家 configured 恒 undefined，
+      // 而下游把 undefined 当「已配置」——一条静默的假绿。
       const names = vendorNamesCache
-      const withVendorName = names
-        ? normalized.map((opt) => {
-            const name = opt.vendor ? names.get(opt.vendor.toLowerCase()) : undefined
-            return { ...opt, ...(name ? { vendorName: name } : {}), configured: Boolean(opt.vendor && configuredVendorKeysCache?.has(opt.vendor.toLowerCase())) }
-          })
-        : normalized
-      catalogOptionsCache.set(cacheKey, withVendorName)
-      return withVendorName
+      const annotated = normalized.map((opt) => {
+        const vendorKey = opt.vendor?.toLowerCase()
+        const name = vendorKey ? names?.get(vendorKey) : undefined
+        return {
+          ...opt,
+          ...(name ? { vendorName: name } : {}),
+          configured: Boolean(vendorKey && configuredVendorKeys.has(vendorKey)),
+        }
+      })
+      catalogOptionsCache.set(cacheKey, annotated)
+      return annotated
     } finally {
       catalogPromiseCache.delete(cacheKey)
     }
@@ -142,8 +176,12 @@ async function getCatalogModelOptions(kind?: NodeKind, requiredMode = defaultPub
   return promise
 }
 
-export async function preloadModelOptions(kind?: NodeKind, requiredMode?: ProfileKind): Promise<ModelOption[]> {
-  const catalogOptions = await getCatalogModelOptions(kind, requiredMode)
+export async function preloadModelOptions(
+  kind?: NodeKind,
+  requiredMode?: ProfileKind,
+  scope?: CatalogOptionScope,
+): Promise<ModelOption[]> {
+  const catalogOptions = await getCatalogModelOptions(kind, requiredMode, scope)
   return filterHiddenOptionsByKind(catalogOptions, kind)
 }
 

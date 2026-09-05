@@ -1,4 +1,4 @@
-// 设计实验室（Design Lab）—— Agent 面板的可拍板真相源。
+// 设计实验室（Design Lab）—— 现役界面的可拍板真相源（按**屏**分，见 designLab/labScreens.ts）。
 //
 // 2026-09-06 用户拍板：**以后 UI 交付的定义 = 「实验室截图拍板 + 视觉基线绿」**，
 // 不再靠手写 HTML 样张与人眼对比。手写样张的问题是结构性的：样张是 HTML、实现是 React，
@@ -6,17 +6,18 @@
 // 屏幕上那一格就是**现役 React 组件**渲染的，喂它固定夹具数据而已。
 //
 // 怎么开：
-//   pnpm run dev:renderer  →  http://127.0.0.1:5173/design-lab.html?screen=agent-panel&state=<id>
-//   接触表（所有状态平铺一图，拍板用）：            design-lab.html?screen=agent-panel&contact=1
-//   单格无 chrome（接触表 iframe / 视觉基线用）：    design-lab.html?screen=agent-panel&state=<id>&frame=1
+//   pnpm run dev:renderer  →  http://127.0.0.1:5173/design-lab.html?screen=<屏>&state=<id>
+//   接触表（所有状态平铺一图，拍板用）：            design-lab.html?screen=<屏>&contact=1
+//   单格无 chrome（接触表 iframe / 视觉基线用）：    design-lab.html?screen=<屏>&state=<id>&frame=1
+//   现有的屏：agent-panel（Agent 面板）、vendor-order（供应商偏好）
 //
 // 生产包为什么进不来：`vite build` 只吃 `index.html`（vite.config.ts 没有覆盖 rollup input），
 // `design-lab.html` 是另一个根入口，**根本不参与打包**——不是运行时判旗、不是死代码分支，
 // 是这段代码物理上不在产物里（同 `pose-lab.html` / `staging-lab.html` 的既有做法）。
 // `scripts/check-design-lab.mjs` 把这条守住：一旦有人把 lab 入口接进 index.html 的模块图，当场红。
 //
-// 不接 Host、不发网络：面板数据来自 `agentPanelFixtures.ts` 灌进 store，
-// Host IPC / 模型目录 / 技能列表在无桥环境下各自 catch 成空，面板照常渲染。
+// 不接 Host、不发网络：各屏的数据来自自己的 `*Fixtures.ts`，
+// Host IPC / 模型目录 / 技能列表在无桥环境下各自 catch 成空，界面照常渲染。
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 import '@fontsource-variable/inter/wght.css'
@@ -24,10 +25,11 @@ import '@fontsource-variable/fraunces/wght.css'
 import { NomiAppProviders } from '../NomiAppProviders'
 import { NomiColorSchemeProvider } from '../theme/NomiColorSchemeProvider'
 import { persistColorScheme, primeNomiColorScheme } from '../theme/colorScheme'
-import { AGENT_PANEL_STATES, findAgentPanelState, PANEL_WIDTH, type LabState } from './designLab/agentPanelStates'
+import { findLabScreen, findLabState } from './designLab/labScreens'
+import type { LabState } from './designLab/labScreen'
 
 const params = new URL(window.location.href).searchParams
-const screen = params.get('screen') || 'agent-panel'
+const screen = findLabScreen(params.get('screen'))
 const stateId = params.get('state')
 const contactMode = params.get('contact') === '1'
 const frameMode = params.get('frame') === '1'
@@ -68,12 +70,12 @@ function Cell({ state }: { state: LabState }): JSX.Element {
 function ContactSheet(): JSX.Element {
   const [loaded, setLoaded] = React.useState(0)
   React.useEffect(() => {
-    if (loaded >= AGENT_PANEL_STATES.length) markReady()
+    if (loaded >= screen.states.length) markReady()
   }, [loaded])
   return (
     <div style={{ padding: 16 }}>
       <h1 style={{ font: '600 15px/1.4 system-ui', margin: '0 0 4px' }}>
-        Agent 面板 · 接触表（{AGENT_PANEL_STATES.length} 个状态）
+        {screen.label} · 接触表（{screen.states.length} 个状态）
       </h1>
       <p style={{ font: '12px/1.5 system-ui', color: '#666', margin: '0 0 14px' }}>
         绿=面板整条通 · 棕=组件在但面板走不到 · 红=设计要求但现役没有 · 灰=设计已取消
@@ -81,13 +83,13 @@ function ContactSheet(): JSX.Element {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: `repeat(auto-fill, minmax(${PANEL_WIDTH + 24}px, 1fr))`,
+          gridTemplateColumns: `repeat(auto-fill, minmax(${screen.cell.width + 24}px, 1fr))`,
           gap: 16,
           alignItems: 'start',
         }}
         data-design-lab-contact="true"
       >
-        {AGENT_PANEL_STATES.map((state) => (
+        {screen.states.map((state) => (
           <figure key={state.id} style={{ margin: 0 }}>
             <figcaption style={{ font: '11px/1.4 system-ui', marginBottom: 6 }}>
               <span
@@ -109,7 +111,7 @@ function ContactSheet(): JSX.Element {
               title={state.name}
               src={labUrl({ state: state.id, contact: null, frame: '1' })}
               onLoad={() => setLoaded((value) => value + 1)}
-              style={{ width: PANEL_WIDTH + 4, height: 660, border: '1px solid #ddd', background: '#fff' }}
+              style={{ width: screen.cell.width + 4, height: screen.cell.height, border: '1px solid #ddd', background: '#fff' }}
             />
           </figure>
         ))}
@@ -138,7 +140,7 @@ function SingleState({ state }: { state: LabState }): JSX.Element {
 }
 
 function DesignLabApp(): JSX.Element {
-  const state = findAgentPanelState(stateId) ?? AGENT_PANEL_STATES[0]
+  const state = findLabState(screen, stateId) ?? screen.states[0]
   if (frameMode) return <SingleState state={state} />
   return (
     <div style={{ minHeight: '100%' }}>
@@ -157,7 +159,7 @@ function DesignLabApp(): JSX.Element {
         }}
         data-design-lab-header="true"
       >
-        <strong>设计实验室 · {screen}</strong>
+        <strong>设计实验室 · {screen.label}</strong>
         <select
           value={contactMode ? '' : state.id}
           onChange={(event) => {
@@ -166,7 +168,7 @@ function DesignLabApp(): JSX.Element {
           style={{ font: '12px system-ui', padding: '2px 4px' }}
           aria-label="状态"
         >
-          {AGENT_PANEL_STATES.map((item) => (
+          {screen.states.map((item) => (
             <option key={item.id} value={item.id}>
               {item.name}
             </option>
@@ -175,7 +177,7 @@ function DesignLabApp(): JSX.Element {
         <a href={labUrl({ contact: contactMode ? null : '1', state: null })}>
           {contactMode ? '回到单状态' : '接触表'}
         </a>
-        <span style={{ color: '#888' }}>{AGENT_PANEL_STATES.length} 个状态</span>
+        <span style={{ color: '#888' }}>{screen.states.length} 个状态</span>
       </header>
       {contactMode ? <ContactSheet /> : <SingleState state={state} />}
     </div>
@@ -203,7 +205,7 @@ primeNomiColorScheme()
 // 让走查能从**活页面**读到注册表，而不是只信 `labStates.mjs` 的源码正则。
 // 两边对不上 = 解析器漂了，走查当场红——这是那把正则唯一的活性证据。
 ;(window as unknown as { __designLabStates?: readonly string[] }).__designLabStates =
-  AGENT_PANEL_STATES.map((state) => state.id)
+  screen.states.map((state) => state.id)
 
 const container = document.getElementById('design-lab-root')
 if (!container) throw new Error('design lab root missing')

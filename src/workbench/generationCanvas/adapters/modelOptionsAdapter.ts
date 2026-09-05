@@ -5,6 +5,7 @@ import {
   findModelOptionByIdentifier as findCatalogModelOptionByIdentifier,
   useModelOptions,
   useModelOptionsState,
+  type CatalogOptionScope,
   type ModelOptionsState,
 } from '../../../config/useModelOptions'
 import { normalizeOrientation, type Orientation } from '../../../utils/orientation'
@@ -33,12 +34,12 @@ export type GenerationModelSelection = {
   meta: unknown
 }
 
-export function useGenerationModelOptions(kind: GenerationNodeKind, requiredMode?: ProfileKind): ModelOption[] {
-  return useModelOptions(toCatalogNodeKind(kind, requiredMode), requiredMode)
+export function useGenerationModelOptions(kind: GenerationNodeKind, requiredMode?: ProfileKind, scope?: CatalogOptionScope): ModelOption[] {
+  return useModelOptions(toCatalogNodeKind(kind, requiredMode), requiredMode, scope)
 }
 
-export function useGenerationModelOptionsState(kind: GenerationNodeKind, requiredMode?: ProfileKind): ModelOptionsState {
-  return useModelOptionsState(toCatalogNodeKind(kind, requiredMode), requiredMode)
+export function useGenerationModelOptionsState(kind: GenerationNodeKind, requiredMode?: ProfileKind, scope?: CatalogOptionScope): ModelOptionsState {
+  return useModelOptionsState(toCatalogNodeKind(kind, requiredMode), requiredMode, scope)
 }
 
 export function deriveGenerationModelCatalogStatus(kind: GenerationNodeKind, state: ModelOptionsState) {

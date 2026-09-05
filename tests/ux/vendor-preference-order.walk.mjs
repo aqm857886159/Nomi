@@ -1,5 +1,9 @@
-// 第一阶段真实旅程：两家同模型 → 设置偏好 → 选择器折叠 → 点另一家 chip → 真实生成一次。
+// 供应商偏好的真实旅程：两家同模型 → 设置里排偏好 → 选择器折叠成一行 → 点另一家 chip → 真实生成一次。
 // 外部供应商只由隔离 loopback 代替；Electron、IPC、选择器、付费确认、生成和项目持久化走生产路径。
+//
+// 它同时留下两张**真机**截图（`journey-*.png`，与设计实验室的 `lab-*.png` 同目录）：
+// 选择框实际长相、设置排序控件实际长相。实验室那份是喂固定夹具的现役组件，真机这份是走完整条
+// IPC + catalog 的同一批组件——两张摆一起才答得了「实验室里对，真机里也对吗」。
 import fs from 'node:fs'
 import http from 'node:http'
 import os from 'node:os'
@@ -10,8 +14,12 @@ import { screenshotSettled } from './_assert.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/vendor-order')
-fs.rmSync(shotsDir, { recursive: true, force: true })
+// 只清自己那几张：同目录里还躺着设计实验室走查的 `lab-*.png` 与 `contact.png`，
+// 整目录 rmSync 会把它们一起抹掉，而「证据不见了」和「那次没跑到」事后长得一模一样。
 fs.mkdirSync(shotsDir, { recursive: true })
+for (const name of fs.readdirSync(shotsDir)) {
+  if (name.startsWith('journey-')) fs.rmSync(path.join(shotsDir, name), { force: true })
+}
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-vendor-order-'))
 const userDataDir = path.join(tempRoot, 'user-data')
 const settingsDir = path.join(tempRoot, 'settings')
@@ -54,6 +62,18 @@ fs.writeFileSync(path.join(settingsDir, 'model-catalog.json'), JSON.stringify({
 
 const check = (condition, message) => { if (!condition) throw new Error(`WALK FAIL: ${message}`); console.log(`  ✓ ${message}`) }
 const snap = async (win, name, target = win) => { const file = path.join(shotsDir, name); await screenshotSettled(target, { path: file }); console.log(`  · ${name}`); return file }
+// 浮层（Mantine portal + fixed 定位）按 locator 截图会卡在「element is not visible」——
+// keepMounted 的那份隐藏副本也匹配同一个选择器。改成量出可见那份的矩形再整屏 clip。
+const snapClip = async (win, selector, name) => {
+  const box = await win.evaluate((sel) => {
+    const visible = [...document.querySelectorAll(sel)].filter((node) => node.getBoundingClientRect().width > 20)
+    const rect = visible[visible.length - 1]?.getBoundingClientRect()
+    return rect ? { x: Math.max(0, rect.x - 8), y: Math.max(0, rect.y - 8), width: rect.width + 16, height: rect.height + 16 } : null
+  }, selector)
+  if (!box) throw new Error(`WALK FAIL: 截 ${name} 时没找到可见的 ${selector}`)
+  await screenshotSettled(win, { path: path.join(shotsDir, name), clip: box })
+  console.log(`  · ${name}`)
+}
 const findProjectJson = (root) => { const stack = [root]; while (stack.length) { const current = stack.pop(); for (const entry of fs.readdirSync(current, { withFileTypes: true })) { const full = path.join(current, entry.name); if (entry.isDirectory()) stack.push(full); else if (entry.name === 'project.json' && full.includes(`${path.sep}.nomi${path.sep}`)) return full } } return null }
 const dismissFirstRun = async (win) => { await win.evaluate(() => { localStorage.setItem('__nomiE2E', '1'); for (const key of ['nomi:splash:v1', 'nomi:journey-tour:v1', 'nomi:canvas-gesture-hint:v1', 'nomi-onboarding-checklist:v1']) localStorage.setItem(key, 'seen') }); await win.reload(); await win.waitForTimeout(1200) }
 const spendDialog = async (win) => { const dialog = win.locator('div.fixed.inset-0').filter({ hasText: /开始生成/ }).last(); await dialog.waitFor({ timeout: 8000 }); return dialog }
@@ -72,19 +92,38 @@ try {
   await win.reload(); await win.waitForTimeout(1200)
   await win.getByText('新建空白项目', { exact: false }).first().click({ timeout: 5000 }); await win.waitForTimeout(2200)
   await win.locator('[aria-label="工作区切换"]').getByText('生成', { exact: true }).click({ timeout: 5000 }); await win.waitForTimeout(1000)
-  await win.getByRole('button', { name: /打开模型设置/ }).first().click({ timeout: 5000 })
-  await win.locator('[data-model-settings-page="home"]').waitFor({ timeout: 5000 })
-  const preference = win.locator('[data-vendor-preference-order]'); await preference.waitFor({ timeout: 5000 })
-  const rows = preference.locator('[data-vendor-preference-row]'); check(await rows.count() === 2, '设置里只列两家已配置供应商')
+  // 优先供应商的家在「AI 策略」tab（设计系统 §1.7.2：接入归「模型」，「默认走哪家」是策略）。
+  await win.evaluate(() => window.dispatchEvent(new CustomEvent('nomi-open-settings', { detail: { tab: 'ai' } })))
+  await win.locator('[data-settings-page="ai"], [data-settings-section="ai-models"]').first().waitFor({ timeout: 8000 })
+  const preference = win.locator('[data-vendor-preference-order]'); await preference.waitFor({ timeout: 8000 })
+  check(await win.locator('[data-settings-section="default-generation-models"]').count() === 1,
+    '优先供应商与「新建卡片默认模型」同屏（同一族策略住一起）')
+  const rows = preference.locator('[data-vendor-preference-row]')
+  // 「只列已配置的家」不等于「只列这次种进去的两家」：本机默认还带着免鉴权的本地通道
+  // （即梦 CLI、火山语音），它们也是能真的调起来的供应商，排进去是诚实的。
+  // 断言因此钉两件事：种进去的两家都在；没配 key 的家一个都不在。
+  const listed = await rows.evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-vendor-preference-row')))
+  check(listed.includes('apimart') && listed.includes('kie'), `两家已配置供应商都在偏好列表里（${listed.join(', ')}）`)
+  check(!listed.includes('newapi'), '没配 key 的供应商不进偏好列表')
+  await preference.scrollIntoViewIfNeeded()
+  await snap(win, 'journey-settings-vendor-order.png', preference)
   const first = await rows.first().getAttribute('data-vendor-preference-row'); await rows.first().getByRole('button', { name: /下移|Move down/ }).click(); await win.waitForTimeout(350)
-  check(await rows.first().getAttribute('data-vendor-preference-row') !== first, '调整偏好顺序后设置已更新')
+  const moved = await rows.first().getAttribute('data-vendor-preference-row')
+  check(moved !== first, `调整偏好顺序后设置已更新（${first} → ${moved}）`)
   await win.locator('[data-settings-close]').first().click().catch(() => win.keyboard.press('Escape'))
+  await win.waitForTimeout(500)
   await win.locator('[aria-label="添加图片节点"]').first().click({ timeout: 5000 }); await win.waitForTimeout(800)
   const node = win.locator('[data-kind="image"][data-node-id]').last(); await node.waitFor({ timeout: 5000 }); const nodeId = await node.getAttribute('data-node-id')
   const promptEditor = node.locator('div[contenteditable="true"]').last(); await promptEditor.click(); await promptEditor.fill('供应商偏好真实生成验收图')
   await node.locator('button[aria-label="模型"]').first().click({ timeout: 5000 })
   const option = win.getByRole('option').filter({ hasText: '供应商偏好 fixture' }).first(); await option.waitFor({ timeout: 8000 })
   const chips = option.locator('button[aria-pressed]'); check(await chips.count() === 2, '同一模型折叠为一行并显示两家供应商 chip')
+  // 模型名不许被行尾 chip 挤没（2026-09-06 用户返工的起因：真机上三行只剩图标 + 一排 chip）。
+  const labelWidth = await option.locator('[data-nomi-select-option-label]').first().evaluate((node) => node.getBoundingClientRect().width)
+  check(labelWidth > 24, `模型名在真机上仍看得见（${Math.round(labelWidth)}px）`)
+  check(await option.locator('[class*="rounded-pill"]').filter({ hasText: /^\d+ 家$/ }).count() === 0,
+    '有 chip 的行不再同时挂「N 家」附注（同一件事只说一遍）')
+  await snapClip(win, '[data-nomi-select-dropdown]', 'journey-model-picker.png')
   await option.click(); await win.locator('button[aria-label="模型"]').first().click({ timeout: 5000 })
   const reopened = win.getByRole('option').filter({ hasText: '供应商偏好 fixture' }).first(); await reopened.waitFor({ timeout: 8000 }); await reopened.locator('button[aria-pressed]').last().click()
   const currentNode = win.locator('[data-kind="image"][data-node-id]').last(); await currentNode.waitFor({ timeout: 5000 })

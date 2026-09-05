@@ -2,6 +2,7 @@ import React from 'react'
 import { useTranslation } from 'react-i18next'
 import type { ModelOption } from '../../../config/models'
 import BulkModelPicker from '../../common/BulkModelPicker'
+import { MODEL_PICKER_CATALOG_SCOPE } from '../../../config/useModelOptions'
 import { useGenerationModelOptionsState } from '../adapters/modelOptionsAdapter'
 import { resolveCanvasBulkModelLabelKey } from './canvasBatchModelLabel'
 import type { CanvasGenerationExecutionGroup } from './canvasProductionScope'
@@ -40,7 +41,7 @@ export function CanvasBulkModelSelect({
   onApplyModel: (input: CanvasApplyModelInput) => void
 }): JSX.Element | null {
   const { t } = useTranslation()
-  const state = useGenerationModelOptionsState(group.representativeKind, group.requiredMode)
+  const state = useGenerationModelOptionsState(group.representativeKind, group.requiredMode, MODEL_PICKER_CATALOG_SCOPE)
   const handlePick = React.useCallback(
     (value: string, vendor?: string) => {
       onApplyModel({ executionKind: group.executionKind, requiredMode: group.requiredMode, value, vendor, modelOptions: state.options })

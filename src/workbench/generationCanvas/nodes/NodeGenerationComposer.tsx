@@ -52,6 +52,7 @@ import {
   requiredModeForGenerationNode,
   useGenerationModelOptionsState,
 } from '../adapters/modelOptionsAdapter'
+import { MODEL_PICKER_CATALOG_SCOPE } from '../../../config/useModelOptions'
 import { nodeSelectedModelAddress } from './controls/parameterControlModel'
 import { comfyWorkflowTakesPrompt } from '../runner/promptRequirement'
 
@@ -265,7 +266,7 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
   const nodes = useGenerationCanvasStore((state) => state.nodes)
   const edges = useGenerationCanvasStore((state) => state.edges)
   const requiredMode = requiredModeForGenerationNode(node, { nodes, edges })
-  const modelOptions = useGenerationModelOptionsState(node.kind, requiredMode).options
+  const modelOptions = useGenerationModelOptionsState(node.kind, requiredMode, MODEL_PICKER_CATALOG_SCOPE).options
   const selectedModelAddress = nodeSelectedModelAddress(node.meta || {})
   const selectedModelOption = findModelOptionByIdentifier(
     modelOptions,

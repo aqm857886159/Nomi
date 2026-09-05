@@ -6,7 +6,7 @@ import {
   normalizeCatalogLoadError,
   type ModelCatalogStatus,
 } from './modelCatalogStatus'
-import { MODEL_REFRESH_EVENT, getCatalogHealth, preloadModelOptions } from './modelCatalogCache'
+import { MODEL_REFRESH_EVENT, getCatalogHealth, preloadModelOptions, type CatalogOptionScope } from './modelCatalogCache'
 
 // 重导出：实现已拆到兄弟模块（resolvers / mappers / status / cache），
 // 但 useModelOptions.ts 对外公共导出面保持不变，外部 import 路径无需改动。
@@ -16,6 +16,8 @@ export {
   notifyModelOptionsRefresh,
   preloadModelOptions,
   resolveExecutableImageModel,
+  MODEL_PICKER_CATALOG_SCOPE,
+  type CatalogOptionScope,
 } from './modelCatalogCache'
 export {
   deriveModelCatalogStatus,
@@ -41,13 +43,20 @@ export type ModelOptionsState = {
   statusMessage: string
 }
 
-export function useModelOptionsState(kind?: NodeKind, requiredMode?: ProfileKind): ModelOptionsState {
+/**
+ * @param scope 缺省 = 只要「现在就能跑」的模型（见 modelCatalogCache 的 CatalogOptionScope）。
+ *   只有把未配置的家灰显出来、并且点了会跳接入的选择器才传 `{ includeUnconfigured: true }`。
+ */
+export function useModelOptionsState(kind?: NodeKind, requiredMode?: ProfileKind, scope?: CatalogOptionScope): ModelOptionsState {
   const [options, setOptions] = useState<ModelOption[]>([])
   const [error, setError] = useState<Error | null>(null)
   const [healthError, setHealthError] = useState<Error | null>(null)
   const [health, setHealth] = useState<ModelCatalogHealthDto | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshSeq, setRefreshSeq] = useState(0)
+  // 解构成标量再进依赖数组：`scope` 多半是调用点的字面量对象，每次渲染都是新引用，
+  // 直接进依赖 = 每帧重取一次 catalog。
+  const includeUnconfigured = scope?.includeUnconfigured === true
 
   useEffect(() => {
     setOptions([])
@@ -55,7 +64,7 @@ export function useModelOptionsState(kind?: NodeKind, requiredMode?: ProfileKind
     setHealthError(null)
     setHealth(null)
     setLoading(true)
-  }, [kind, requiredMode])
+  }, [kind, requiredMode, includeUnconfigured])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -69,7 +78,7 @@ export function useModelOptionsState(kind?: NodeKind, requiredMode?: ProfileKind
     setLoading(true)
     ;(async () => {
       try {
-        const catalogOptions = await preloadModelOptions(kind, requiredMode)
+        const catalogOptions = await preloadModelOptions(kind, requiredMode, { includeUnconfigured })
         if (!canceled) {
           setError(null)
           setOptions(catalogOptions)
@@ -102,7 +111,7 @@ export function useModelOptionsState(kind?: NodeKind, requiredMode?: ProfileKind
     return () => {
       canceled = true
     }
-  }, [kind, requiredMode, refreshSeq])
+  }, [kind, requiredMode, includeUnconfigured, refreshSeq])
 
   const derived = deriveModelCatalogStatus({ kind, options, health, error, healthError, loading })
   return {
@@ -116,8 +125,8 @@ export function useModelOptionsState(kind?: NodeKind, requiredMode?: ProfileKind
   }
 }
 
-export function useModelOptions(kind?: NodeKind, requiredMode?: ProfileKind): ModelOption[] {
-  const state = useModelOptionsState(kind, requiredMode)
+export function useModelOptions(kind?: NodeKind, requiredMode?: ProfileKind, scope?: CatalogOptionScope): ModelOption[] {
+  const state = useModelOptionsState(kind, requiredMode, scope)
   if (state.error) throw state.error
 
   return state.options

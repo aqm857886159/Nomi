@@ -77,7 +77,14 @@ export default function BulkModelPicker({
         return
       }
       const provider = resolveProviderByAddress(deduped, picked)
-      if (provider) onPick(provider.option.value, provider.vendor)
+      if (!provider) return
+      // 没配 key 的那一家点了是「去接入」，不是「就用它」——直接写下去的话，整批生成会在
+      // 运行时集体撞 `API key missing`，而用户以为自己刚统一好了模型。
+      if (provider.option.configured === false) {
+        if (typeof window !== 'undefined') window.dispatchEvent(new Event('nomi-open-model-catalog'))
+        return
+      }
+      onPick(provider.option.value, provider.vendor)
     },
     [deduped, leadingOptions, onPick, onPickLeadingOption],
   )

@@ -113,26 +113,6 @@ export function vendorTier(vendorKey?: string): number {
   return 2
 }
 
-export interface ResolveBestProviderOptions {
-  /** 用户锁定的供应商：在则优先用它（可用时）。 */
-  lockedVendorKey?: string | null
-  /** 仅在这些可用供应商里选（缺省=不过滤，picker 的 options 已是可用集）。 */
-  usableVendorKeys?: Set<string> | null
-}
-
-/** 自动选最优供应商：锁定家优先 → 官方 > 内置中转 > 其余；同级保持 catalog 顺序（稳定）。 */
-export function resolveBestProvider(model: DedupedModel, opts: ResolveBestProviderOptions = {}): ModelProviderRef | null {
-  const providers = model.providers.filter(
-    (p) => !opts.usableVendorKeys || (p.vendor != null && opts.usableVendorKeys.has(p.vendor)),
-  )
-  if (providers.length === 0) return null
-  if (opts.lockedVendorKey) {
-    const locked = providers.find((p) => p.vendor === opts.lockedVendorKey)
-    if (locked) return locked
-  }
-  return providers.reduce((best, p) => (vendorTier(p.vendor) < vendorTier(best.vendor) ? p : best), providers[0])
-}
-
 /** 按 canonical 身份聚合：同模型只一条，收集所有供应商；保持首次出现顺序。 */
 export function dedupeModelOptions(options: ModelOption[]): DedupedModel[] {
   if (!Array.isArray(options)) return []
@@ -168,14 +148,28 @@ export function dedupeModelOptions(options: ModelOption[]): DedupedModel[] {
   return sortModelsByCatalogLifecycle(order.map((id) => byId.get(id) as DedupedModel))
 }
 
-/** Stable provider ordering shared by every model picker. Configured providers always precede unconfigured ones. */
+/**
+ * 「同一个模型，先走哪家」的**唯一**排序规则——每个模型选择器、自动选家、批量摊平都用这一份。
+ *
+ * 四级判据，从强到弱：
+ *   1. **能不能跑**：没配 key 的家永远沉底（`configured === false` 才算没配；缺省视为能跑，
+ *      与全仓 `configured !== false` 同口径。用 `Boolean(configured)` 会把「没标注」误判成没配）。
+ *   2. **用户的优先供应商顺序**（设置 → AI 策略）。用户明说过的话，就按他说的来。
+ *   3. **供应商分级** `vendorTier`：官方 > 内置中转 > 用户自接/未知。用户没说过话时的默认，
+ *      也是 2026-06-23 起「自动选最优」一直用的那把尺——**这一级不能省**：省掉它就退化成按厂商名
+ *      字母序，同一个模型的默认家会从火山方舟静默漂到 apimart，而没有任何人做过这个决定。
+ *   4. 厂商显示名字母序 → catalog 原序（纯为稳定，不携带任何偏好语义）。
+ */
 export function sortModelProviders<T extends ModelProviderRef>(providers: readonly T[], orderedVendorKeys: readonly string[] = []): T[] {
   const rank = new Map(orderedVendorKeys.map((key, index) => [key.toLowerCase(), index]))
+  const rankOf = (provider: ModelProviderRef): number => rank.get((provider.vendor || '').toLowerCase()) ?? Number.MAX_SAFE_INTEGER
   return providers.map((provider, index) => ({ provider, index })).sort((a, b) => {
-    const configured = Number(Boolean(b.provider.option.configured)) - Number(Boolean(a.provider.option.configured))
+    const configured = Number(b.provider.option.configured !== false) - Number(a.provider.option.configured !== false)
     if (configured) return configured
-    const pref = (rank.get((a.provider.vendor || '').toLowerCase()) ?? Number.MAX_SAFE_INTEGER) - (rank.get((b.provider.vendor || '').toLowerCase()) ?? Number.MAX_SAFE_INTEGER)
+    const pref = rankOf(a.provider) - rankOf(b.provider)
     if (pref) return pref
+    const tier = vendorTier(a.provider.vendor) - vendorTier(b.provider.vendor)
+    if (tier) return tier
     return (a.provider.option.vendorName || a.provider.vendor || '').localeCompare(b.provider.option.vendorName || b.provider.vendor || '', undefined, { sensitivity: 'base' }) || a.index - b.index
   }).map(({ provider }) => provider)
 }

@@ -1,18 +1,64 @@
-# 供应商偏好 · 第一阶段实验室登记
+# 供应商偏好 · 设计实验室登记（2026-09-06 返工）
 
-实验室页面：`tests/ux/design-lab/vendor-order.html`。
+## 为什么返工
 
-四个选择框状态与设置排序控件已登记：有偏好、无偏好、有未配置分组、全部未配置空态。
-真实 Electron 走查的截图目录固定为 `tests/ux/shots/vendor-order/`（该目录由 `.gitignore` 忽略）。
+第一版的「设计证据」是一张手写静态页（`tests/ux/design-lab/vendor-order.html`，本次已删）。
+它有两个结构性问题，用户看完当场否掉：
 
-预期截图：
+1. **没走现役组件**——页面里的下拉、chip、排序行都是另写的 HTML/CSS，改了生产代码它照样"绿"。
+   这正是 2026-09-06 用户拍板「UI 交付 = 实验室截图拍板 + 视觉基线绿」要消灭的那种证据。
+2. **没走设计系统**——通篇 hex 色值（`#6c62e8`、`#deded8`…）、任意 px 字号与圆角、自造按钮，
+   与 `docs/design/nomi-design-system.md` §2 的 token 表没有一处对得上。
 
-- `01-picker-preferred.png`
-- `02-picker-no-preference.png`
-- `03-picker-unconfigured-group.png`
-- `04-picker-all-unconfigured-empty.png`
-- `05-settings-vendor-order.png`
+## 现在的证据链
 
-实现对账：模型入口复用 `useDedupedModelSelect`；批量入口复用 `BulkModelPicker` 的同一排序函数；设置控件写入版本化原子 JSON。
+| 层 | 在哪 | 证明什么 |
+|---|---|---|
+| 实验室屏 | `design-lab.html?screen=vendor-order` | 屏上每一格都是**现役组件**（`NomiSelect` + `buildModelSelectOptions` + `VendorPreferenceOrderSection`）渲染的，夹具只决定目录内容 |
+| 走查截图 | `pnpm run design-lab:walk:vendor-order` → `tests/ux/shots/vendor-order/lab-*.png` + `contact.png` | 人眼逐格看 / 接触表拍板 |
+| 真机旅程 | `node tests/ux/vendor-preference-order.walk.mjs` → 同目录 `journey-*.png` | 真 Electron + 真 IPC + 真生成一次，实验室里那套在真机上确实长这样 |
+| 视觉基线 | `pnpm run check:design-lab` | **暂缺，故意的**：`vendor-order` 屏标着 `pendingApproval`，拍板前一张基线都不许有（录一张没人认可过的图钉住，等于把「待定」伪装成「已定」）。门岗两头都查：待拍板的屏有基线 = 红，已拍板的屏缺基线 = 红 |
 
-入口盘点（2026-09-06 实扫）：`src/workbench/generationCanvas/nodes/InlineParameterBar.tsx:227,564`（生成节点）；`src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx:136,269`（分镜行）；`src/workbench/generationCanvas/components/CanvasBulkModelSelect.tsx:52` 与 `src/workbench/creation/storyboard/StoryboardBulkBar.tsx:125`（批量）；`src/workbench/ai/AssistantModelPicker.tsx:90,148`（Agent composer）；`src/workbench/common/useDedupedModelSelect.ts:255`（唯一有状态 view-model）；`src/workbench/common/BulkModelPicker.tsx:64`（唯一批量 view-model）；`src/config/modelOptionMappers.ts:39`（catalog DTO → option 身份入口）。
+拍板后的动作：摘掉 `src/devlab/designLab/labScreens.ts` 与 `tests/ux/design-lab/labStates.mjs`
+两处的 `pendingApproval`，跑 `pnpm run design-lab:update` 录基线。
+
+## 屏上的七个状态
+
+| id | 看什么 |
+|---|---|
+| `vo-01-picker-preferred` | 有偏好：偏好那家排第一并高亮 |
+| `vo-02-picker-no-preference` | 无偏好：按供应商分级排（官方在两家中转前面，**不是**厂商名字母序） |
+| `vo-03-picker-unconfigured-group` | 能跑的在上，没配 key 的沉进「未配置的供应商」分组灰显 |
+| `vo-04-picker-all-unconfigured` | 全部未配置：整张单子只剩那一组 |
+| `vo-05-picker-selected-row` | 选中行：加粗模型名 + 一排 chip + 最右对勾三样同行不打架 |
+| `vo-06-settings-order` | 设置 → AI 策略 → 优先供应商（三家可排序） |
+| `vo-07-settings-two-vendors` | 同上，两家：首尾两端的按钮禁用态 |
+
+## 这次修掉的真机问题（现状截图见 PR）
+
+- **模型名被供应商 chip 挤到 0 宽**：真机实测（2026-09-06，画布节点模型下拉）三行只剩
+  `[图标] 3 家 (APIMart)(Kie)(RunningHub)`，模型名一个字都不剩。根因是同一件事说了两遍
+  （`trailing: "N 家"` + 一排 chip），而模型名没有 `flex-1` 兜底。现在：多家只留 chip、
+  单家只留厂商短名附注；模型名 `flex-1` 优先占宽；chip 最多三个，超出收成 `+N`。
+- **「优先供应商」放错了 tab**：它是**策略**（在已接好的几家里定默认走哪家），不是**接入**，
+  按设计系统 §1.7.2 的分界线归「AI 策略」，与紧邻的「新建卡片默认模型」同族。原先挂在
+  「模型」tab 的 `ModelSettingsHome` 里，那是第二个「默认用什么」的家（§1.5.2 一功能一个家）。
+- **没设偏好时默认家静默漂移**：新排序函数漏了供应商分级这一级，退化成厂商名字母序，
+  同一个模型的默认家会从火山方舟（官方）漂到 apimart，而没有人做过这个决定。
+- **目录硬过滤被全局放宽**：为了灰显未配置的家，`getCatalogModelOptions` 的
+  「列出来的都能跑」承诺被整个拿掉了，连 agent 可用模型清单、成本预估、「换到 X」指路
+  都跟着拿到没钥匙的家。现在放宽改成**逐调用点显式声明**（`MODEL_PICKER_CATALOG_SCOPE`），
+  默认仍然 fail-closed。
+
+## 入口盘点（2026-09-06 实扫）
+
+| 入口 | 组件 | view-model |
+|---|---|---|
+| 生成节点模型下拉 | `src/workbench/generationCanvas/nodes/InlineParameterBar.tsx:566` | `useDedupedModelSelect` |
+| 分镜行模型 chip | `src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx:269` | `useDedupedModelSelect` |
+| Agent composer 模型钮 | `src/workbench/ai/AssistantModelPicker.tsx:148` | `useDedupedModelSelect` |
+| 画布框选批量 | `src/workbench/generationCanvas/components/CanvasBulkModelSelect.tsx:53` | `BulkModelPicker` |
+| 分镜「全部镜头」批量 | `src/workbench/creation/storyboard/StoryboardBulkBar.tsx:125` | `BulkModelPicker` |
+| 设置 → AI 策略 → 优先供应商 | `src/workbench/settings/VendorPreferenceOrderSection.tsx` | — |
+
+排序真相源只有一份：`src/config/modelIdentity.ts` 的 `sortModelProviders`。

@@ -67,6 +67,7 @@ import {
   referencesSectionIsEmpty,
   useNarrowedModeGuidance,
 } from './controls/narrowedModeGuidance'
+import { MODEL_PICKER_CATALOG_SCOPE } from '../../../config/useModelOptions'
 import NarrowedModeGuidanceNote from './controls/NarrowedModeGuidanceNote'
 import { resolveReferenceSlots, decideArrayReferenceRemoval } from '../runner/referenceSlots'
 import { useChannelCreateBodies } from './controls/useChannelCreateBody'
@@ -135,7 +136,9 @@ export default function NodeParameterControls({
   const isModel3dLike = isModel3dLikeGenerationNodeKind(node.kind)
   const isGenerationNode = isImageLike || isVideoLike || isTextLike || isAudioLike || isModel3dLike
   const requiredMode = requiredModeForGenerationNode(node, { nodes, edges })
-  const modelOptionsState = useGenerationModelOptionsState(node.kind, requiredMode)
+  // 选择器要把没配 key 的家灰显出来（点了跳接入），所以这里显式要更宽的那一份；
+  // 「换到 X」指路的候选在 candidatesForArchetype 里自己把它们剔掉，不靠这里的取景。
+  const modelOptionsState = useGenerationModelOptionsState(node.kind, requiredMode, MODEL_PICKER_CATALOG_SCOPE)
   const modelOptions = modelOptionsState.options
   const modelCatalogStatus = deriveGenerationModelCatalogStatus(node.kind, modelOptionsState)
 

@@ -35,11 +35,15 @@ const settingsDirectory = path.join(process.cwd(), 'src/workbench/settings')
 //             说明缺的不是词条而是这条路没过翻译边界）。三处渲染点接上 translateModelDisplayText，
 //             故更新 AiModelsSection 基线；对应正向断言见下方 translates vendor and model display
 //             names through the model-display boundary。
+// 2026-09-06：「优先供应商」排序区归位到本 tab（设计系统 §1.7.2：接入决定「有没有」归「模型」，
+//             「已接好的几家里默认走哪家」是策略，和紧邻的「新建卡片默认模型」同族）。原实现挂在
+//             「模型」tab 的 ModelSettingsHome 里，那是第二个「默认用什么」的家。故更新
+//             AiModelsSection 基线；对应正向断言见下方 hosts the vendor preference order。
 const MAIN_NON_MODEL_SECTION_SHA256 = {
   // 2026-09-04：检查反馈 tone 改为从公共 toast 函数参数推导，避免重复词表 owner。
   'ProjectLocationSection.tsx': 'c0b2350bda45c5126b69296a0b526fda521feb210a1f6908c5d8ac187a7a0c3a',
   // 2026-09-02: AiModelsSection 按渲染边界收口供应商/模型展示名（translateModelDisplayText）。
-  'AiModelsSection.tsx': 'f05b4e11bdeb83ef04b6b40d84e4fdfe275de41e06511163c8ee1be87b3240c8',
+  'AiModelsSection.tsx': '991aed2910a81b3cedd005c230f5585efa7cbdc5cd4cb1e309c818b183d42504',
   // 2026-09-03：toggleHost 参数类型从 SettingsHostKey（四值联合）泛化为 string（支持自定义 profile key）；
   // 新增 CustomMcpClientCard UI TODO 注释（底层能力已就绪，UI 面另排样张拍板）。
   'AutomationPermissionsSection.tsx': '07b3790752d0a64fffdf814e4febcfc5eadebf469332d797c1754a5bce1851ff',
@@ -183,6 +187,19 @@ describe('settings dialog structure', () => {
     expect(aiModelsSource).toContain('const providerName = translateModelDisplayText(')
     // 不许再出现直连原始字段的裸渲染。
     expect(aiModelsSource).not.toContain('<span className="truncate">{provider.name}</span>')
+  })
+
+  // 2026-09-06：「同一个模型好几家都能跑时默认走哪家」是**策略**（设计系统 §1.7.2 的分界线：
+  // 接入决定「有没有」→「模型」tab，策略决定「怎么用」→ 本 tab），和紧邻的「新建卡片默认模型」
+  // 同族。锁住它住在这里，是因为「搬回模型 tab」不会让任何测试变红，却会重新造出第二个
+  // 「默认用什么」的家（§1.5.2 一功能一个家）。
+  it('hosts the vendor preference order next to the default-model policy', () => {
+    expect(aiModelsSource).toContain("import { VendorPreferenceOrderSection } from './VendorPreferenceOrderSection'")
+    expect(aiModelsSource).toContain('<VendorPreferenceOrderSection entries={configuredVendorEntries} />')
+    // 只列真的调得动的家：排一个 needs-key / disabled 的家，排了也走不了。
+    expect(aiModelsSource).toContain("provider.state !== 'needs-key' && provider.state !== 'disabled'")
+    const modelHome = readCode(path.join(process.cwd(), 'src/ui/onboarding/ModelSettingsHome.tsx'))
+    expect(modelHome, '优先供应商不该在「模型」tab 再有一个家').not.toContain('VendorPreference')
   })
 
   it('keeps all five non-model sections byte-for-byte at the origin/main baseline', () => {

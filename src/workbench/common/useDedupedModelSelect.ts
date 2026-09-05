@@ -1,7 +1,7 @@
 // 去重模型选择 view-model（单一真相，节点/镜卡共用 —— P1 消除三处选模型不一致）。
 //
 // 把平铺的 ModelOption[] 收成「按 canonical 身份去重」的两段式选择：
-//   ① 模型下拉：同模型只一条，>1 家供应商标「N 家」；选中=自动选最优供应商（写其 value）。
+//   ① 模型下拉：同模型只一条，多家供应商在行尾排成一列 chip；选中=自动选最优供应商（写其 value）。
 //   ② 供应商下拉：仅当选中模型有多家可用时出现，让用户锁定某家（写该家 value）。
 // 节点仍存 (vendor, modelKey)，生成路径与失败换家逻辑不变 —— 去重纯发生在选择层。
 import React from 'react'
@@ -49,7 +49,7 @@ type AilingProbe = (identity: { modelKey: unknown; vendor: unknown }) => boolean
  * 服务商修好后成功一次即清零回位）。
  *
  * 必须是**供应商级**而不是模型级：下拉里一条 = 去重后的模型，底下可能挂 2-4 家。只要还有一家健康，
- * pickHealthiestProvider 就会走那家，整条不该被标病——否则 Nano Banana「3 家」里一家挂了就误伤整个模型。
+ * pickHealthiestProvider 就会走那家，整条不该被标病——否则 Nano Banana 挂三家里的一家就误伤整个模型。
  */
 function isModelAiling(model: DedupedModel, isAiling: AilingProbe): boolean {
   if (model.providers.length === 0) return false
@@ -61,13 +61,17 @@ export function buildModelSelectOptions(deduped: readonly DedupedModel[], isAili
   const ordered = sortDedupedModelsByVendorPreference(deduped, orderedVendorKeys)
   let unconfiguredHeadingUsed = false
   const toOption = (m: DedupedModel): NomiSelectOption => {
-    // 厂商标注（用户 2026-07-17：模型来自哪家要看得见）：多家=「N 家」，单家=厂商短名。
+    // 「模型来自哪家」的两种表达，**同一行上只用一种**（用户 2026-07-17 要求看得见，
+    // 2026-09-06 要求别把模型名挤没）：
+    //   · 多家 → 行尾一排供应商 chip（第一个 = 当前生效那家，点别的当场换家）；
+    //   · 单家 → 一条厂商短名附注（chip 只有一个的话点它没有任何意义，纯噪音）。
+    // 曾经两种一起上（chip + 「N 家」附注），窄下拉里把模型名压到 0 宽——同一件事说两遍，
+    // 代价却是主语没了。
     const providers = sortModelProviders(m.providers, orderedVendorKeys)
     const uniqueProviders = providers.filter((provider, index, all) => all.findIndex((candidate) => (candidate.vendor || candidate.option.value) === (provider.vendor || provider.option.value)) === index)
-    const providerCount = uniqueProviders.length
     const configured = providers.some((p) => p.option.configured !== false)
-    const origin = !configured ? i18n.t('generationCommon.parameters.unconfigured') : providerCount > 1 ? `${providerCount} 家` : providerLabel(providers[0])
-    const chips = uniqueProviders.length > 1
+    const multiVendor = uniqueProviders.length > 1
+    const chips = multiVendor
       ? uniqueProviders.map((provider, index) => ({
           value: providerAddress(provider),
           label: providerLabel(provider),
@@ -75,17 +79,21 @@ export function buildModelSelectOptions(deduped: readonly DedupedModel[], isAili
           dimmed: provider.option.configured === false,
         }))
       : undefined
+    const origin = !configured
+      ? i18n.t('generationCommon.parameters.unconfigured')
+      : providerLabel(providers[0])
     const sectionLabel = !configured && !unconfiguredHeadingUsed ? i18n.t('generationCommon.parameters.unconfiguredGroup') : undefined
     if (sectionLabel) unconfiguredHeadingUsed = true
     if (!isModelAiling(m, isAiling)) return {
       value: m.canonicalId,
       label: m.label,
       icon: modelIdentityIcon(m),
-      trailing: origin,
-      chips,
+      ...(multiVendor ? { chips } : { trailing: origin }),
       ...(!configured ? { dimmed: true } : {}),
       ...(sectionLabel ? { sectionLabel } : {}),
     }
+    // 「最近多次失败」是行级判断（每一家都在避让期才成立），压过 chip 的换家提示——
+    // 这一行现在没有一家能走，摆一排可点的 chip 是在骗人。
     return {
       value: m.canonicalId,
       label: m.label,
@@ -93,7 +101,6 @@ export function buildModelSelectOptions(deduped: readonly DedupedModel[], isAili
       trailing: i18n.t('generationCommon.parameters.recentlyFailing'),
       trailingTone: 'danger',
       dimmed: true,
-      chips,
       ...(sectionLabel ? { sectionLabel } : {}),
     }
   }
@@ -107,7 +114,7 @@ export function buildModelSelectOptions(deduped: readonly DedupedModel[], isAili
  * 批量下拉专用：把去重模型**按供应商摊平**——一家一行，右侧标注永远是那一家的短名。
  *
  * 为什么不能复用 buildModelSelectOptions（用户 2026-08-18 报「框选没法选不同供应商 → 一直生成失败」）：
- * 那份把多家折叠成一条标「N 家」，选中后由第二段供应商下拉锁家。但批量下拉是**一次性命令**
+ * 那份把多家折叠成一条（行尾 chip 标出各家），选中后由第二段供应商下拉锁家。但批量下拉是**一次性命令**
  * （无常驻值、永远显占位「统一模型」），第二段结构上出不来 → pickHealthiestProvider 替用户定死一家；
  * 那家在他账号上不通 = 每次都失败且无路可换。摊平后「哪家」直接在第一段选，不需要第二段。
  *
@@ -119,7 +126,7 @@ export function buildVendorExplicitModelOptions(
   isAiling: AilingProbe,
   orderedVendorKeys: readonly string[] = [],
 ): NomiSelectOption[] {
-  type Row = { option: NomiSelectOption; ailing: boolean }
+  type Row = { option: NomiSelectOption; ailing: boolean; configured: boolean }
   const rows: Row[] = []
   for (const model of deduped) {
     // 一「模型 × 供应商」一行 —— 折叠维度必须是 vendor，不能是 (vendor, option.value)。
@@ -141,9 +148,11 @@ export function buildVendorExplicitModelOptions(
       // 这家有健康变体就走健康那个；全病才落回首个（整行标病）。
       const representative = bucket.find((p) => !sickOf(p)) ?? bucket[0]
       const sick = sickOf(representative)
+      const configured = representative.option.configured !== false
       const value = providerAddress(representative)
       rows.push({
         ailing: sick,
+        configured,
         option: sick
           ? {
               value,
@@ -152,11 +161,35 @@ export function buildVendorExplicitModelOptions(
               trailingTone: 'danger',
               dimmed: true,
             }
-          : { value, label: model.label, icon: modelIdentityIcon(model), trailing: providerLabel(representative) },
+          : {
+              value,
+              label: model.label,
+              icon: modelIdentityIcon(model),
+              trailing: configured ? providerLabel(representative) : i18n.t('generationCommon.parameters.unconfigured'),
+              ...(configured ? {} : { dimmed: true }),
+            },
       })
     }
   }
-  return [...rows.filter((r) => !r.ailing), ...rows.filter((r) => r.ailing)].map((r) => r.option)
+  // 三段：能跑的 → 最近连败的 → 没配 key 的。与折叠版同一套沉底口径（同一件事只有一种排法）。
+  // 没配 key 的那段仍然列出来（点了跳接入，见 BulkModelPicker），但绝不许排在能跑的前面。
+  const ordered = [
+    ...rows.filter((row) => row.configured && !row.ailing),
+    ...rows.filter((row) => row.configured && row.ailing),
+    ...rows.filter((row) => !row.configured),
+  ]
+  let unconfiguredHeadingUsed = false
+  return ordered.map((row) => {
+    if (row.configured || unconfiguredHeadingUsed) return row.option
+    unconfiguredHeadingUsed = true
+    return { ...row.option, sectionLabel: i18n.t('generationCommon.parameters.unconfiguredGroup') }
+  })
+}
+
+/** 该寻址串指向的那一家有没有配 key。批量下拉靠它把「点了跳接入」和「真的选中」分开。 */
+export function providerIsConfigured(deduped: readonly DedupedModel[], addressValue: string): boolean {
+  const provider = resolveProviderByAddress(deduped, addressValue)
+  return provider ? provider.option.configured !== false : true
 }
 
 /** buildVendorExplicitModelOptions 的反查：复合寻址串 → 那一家供应商（认不出 → null，调用方不写）。 */
@@ -224,7 +257,7 @@ export function resolveProviderSelectValue(
 }
 
 export interface DedupedModelSelectView {
-  /** 去重后的模型下拉选项（value=canonicalId，trailing 标「N 家」）。 */
+  /** 去重后的模型下拉选项（value=canonicalId；多家的行尾带供应商 chip）。 */
   modelOptions: NomiSelectOption[]
   /** 当前选中模型的 canonicalId（无则空串）。 */
   modelValue: string

@@ -78,6 +78,52 @@ describe('model select structure — 选了模型就必须选得了供应商', (
     ).toEqual([])
   })
 
+  // 2026-09-06：这一轮返工的**类**根因是「共享边界长出第二个答案」，一次改动里犯了三回：
+  // 第二条供应商排序规则、同一行上两种「走哪家」的说法、以及把 catalog 的全局硬过滤直接放宽。
+  // 前两条各自删到只剩一份，这条把第三条钉住——放宽必须是逐调用点显式的，默认永远 fail-closed。
+  it('「列出来的都能跑」默认不许被放宽：未配置的家只能由显式声明的调用点看见', () => {
+    const cache = readCode('src/config/modelCatalogCache.ts')
+    expect(cache, 'catalog 层必须保留取景开关，而不是把过滤直接删掉').toContain('includeUnconfigured')
+    expect(cache, '放宽必须是显式参数，默认关着').toContain('scope.includeUnconfigured === true')
+
+    // 拿得到未配置行的调用点，必须是**声明过**的那几个；新加一个而不声明，这条会红。
+    const OPT_IN = [
+      'src/workbench/generationCanvas/nodes/NodeParameterControls.tsx',
+      'src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx',
+      'src/workbench/generationCanvas/components/CanvasBulkModelSelect.tsx',
+      'src/workbench/creation/storyboard/StoryboardPlanEditor.tsx',
+    ]
+    const users = listSourceFiles(SRC_ROOT)
+      .map((file) => path.relative(process.cwd(), file))
+      .filter((relative) => relative !== 'src/config/modelCatalogCache.ts' && relative !== 'src/config/useModelOptions.ts')
+      .filter((relative) => readCode(relative).includes('MODEL_PICKER_CATALOG_SCOPE'))
+      .filter((relative) => !relative.endsWith('.test.ts') && !relative.endsWith('.test.tsx'))
+      .sort()
+    expect(
+      users,
+      [
+        '有调用点自己打开了「连没配 key 的家也要」这档取景，但它不在声明名单里。',
+        '这一档只给**会把未配置行拦在选中之外、改为跳接入**的选择器用；',
+        'agent 可用模型清单 / 成本预估 / 「换到 X」指路拿到没钥匙的家，会在运行时集体撞 API key missing。',
+        '确实是选择器 → 把它加进这条测试的 OPT_IN；不是 → 去掉那个参数。',
+      ].join('\n'),
+    ).toEqual([...OPT_IN].sort())
+  })
+
+  // 同一个问题只能有一个答案：「先走哪家」的排序规则全仓只许有 sortModelProviders 一份。
+  // 第一版留下了 resolveBestProvider（零生产调用方却还在），两份规则里活着的那份还悄悄
+  // 丢了供应商分级——默认家于是从官方漂到字母序第一家，没有人做过这个决定。
+  it('「先走哪家」只有一条排序规则', () => {
+    const identity = readCode('src/config/modelIdentity.ts')
+    expect(identity, '排序规则必须住在 sortModelProviders').toContain('export function sortModelProviders')
+    expect(identity, '分级这一级不许省：省了就退化成厂商名字母序').toContain('vendorTier(a.provider.vendor) - vendorTier(b.provider.vendor)')
+    const survivors = listSourceFiles(SRC_ROOT)
+      .map((file) => path.relative(process.cwd(), file))
+      .filter((relative) => readCode(relative).includes('resolveBestProvider'))
+      .sort()
+    expect(survivors, 'resolveBestProvider 是被 sortModelProviders 取代的旧规则，不许复活（P1）').toEqual([])
+  })
+
   it('批量选模型只有一份实现：所有批量调用点都走同一份 BulkModelPicker，不各写各的', () => {
     // 画布两个批量入口（框选工具条 + 底部「生成全部」坞）实现共同住进 CanvasBulkModelSelect —
     // 那份薄封装内部用 BulkModelPicker（PR #157：抽共享组件防两入口漂移）。分镜批量条直接用 BulkModelPicker。

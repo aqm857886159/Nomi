@@ -1,155 +1,16 @@
 // 设计实验室 · Agent 面板走查（R13 人眼判断的素材源）。零额度：纯本地渲染，不碰任何生成 API。
 //
-// 它产出两样东西：
-//   1. 每个状态一张 PNG（`tests/ux/shots/design-lab-agent-panel/<id>.png`）——人眼逐格看。
-//   2. 一张接触表（`.../_contact-sheet.png`）——所有状态平铺一图，给用户拍板用。
-//
-// 它同时把三件事变成硬断言（走查不带断言就是装饰品，见 check:walkthroughs 的断言密度规则）：
-//   - 活页面的注册表 === `labStates.mjs` 从源码解析出来的清单（那把正则的活性证据）；
-//   - 每个状态都真的渲染出了非空舞台（宽高 > 0，且不是一整块纯背景色）；
-//   - 渲染期间零 pageerror。
-//
-// 视觉基线的**比对**不在这里，在 `pnpm run check:design-lab`（Playwright toHaveScreenshot）。
-// 这里只负责「让人看得见」。
+// 流程住在 `design-lab/walkScreen.mjs`（各屏共用一份）；这里只声明这一屏的取景参数。
 //
 // 用法：node tests/ux/design-lab-agent-panel.walk.mjs   （ONLY=form-06-tool-line 只跑一个）
-import { chromium } from 'playwright'
-import { spawn } from 'node:child_process'
-import { spawnSync } from 'node:child_process'
-import fs from 'node:fs'
-import path from 'node:path'
-import { readLabStates, REPO_ROOT } from './design-lab/labStates.mjs'
+import { walkDesignLabScreen } from './design-lab/walkScreen.mjs'
 
-const OUT_DIR = path.join(REPO_ROOT, 'tests/ux/shots/design-lab-agent-panel')
-const PORT = 5198
-const HOST = '127.0.0.1'
-const BASE = `http://${HOST}:${PORT}`
-const ONLY = (process.env.ONLY || '').split(',').map((value) => value.trim()).filter(Boolean)
-
-const failures = []
-const record = (message) => { failures.push(message); console.error(`  ✗ ${message}`) }
-
-fs.rmSync(OUT_DIR, { recursive: true, force: true })
-fs.mkdirSync(OUT_DIR, { recursive: true })
-
-const states = readLabStates()
-const wanted = ONLY.length ? states.filter((state) => ONLY.includes(state.id)) : states
-if (!wanted.length) throw new Error(`ONLY=${ONLY.join(',')} 没有匹配到任何状态`)
-
-console.log('▶ 生成 tailwind 产物…')
-const tailwind = spawnSync('node', ['scripts/build-tailwind.mjs'], { cwd: REPO_ROOT, stdio: 'inherit' })
-if (tailwind.status !== 0) throw new Error('build-tailwind 失败：整页会没有样式，截图无意义')
-
-function waitForServer(url, timeoutMs = 60000) {
-  const start = Date.now()
-  return new Promise((resolve, reject) => {
-    const tick = async () => {
-      try {
-        const response = await fetch(url)
-        if (response.ok || response.status === 404) return resolve()
-      } catch { /* not up yet */ }
-      if (Date.now() - start > timeoutMs) return reject(new Error('vite dev server 启动超时'))
-      setTimeout(tick, 400)
-    }
-    tick()
-  })
-}
-
-console.log('▶ 启动 vite dev server…')
-const vite = spawn('npx', ['vite', '--host', HOST, '--port', String(PORT), '--strictPort'], {
-  cwd: REPO_ROOT,
-  stdio: 'ignore',
+await walkDesignLabScreen({
+  screen: 'agent-panel',
+  title: 'Agent 面板',
+  port: 5198,
+  outDir: 'tests/ux/shots/design-lab-agent-panel',
+  // 面板固定 340px 宽（workbenchStore.assistantWidth 默认值）；四列刚好一屏看完。
+  cellWidth: 340,
+  columns: 4,
 })
-await waitForServer(`${BASE}/design-lab.html`)
-
-const browser = await chromium.launch({ headless: true })
-const context = await browser.newContext({
-  viewport: { width: 1440, height: 1000 },
-  deviceScaleFactor: 1,
-  colorScheme: 'light',
-})
-const page = await context.newPage()
-const pageErrors = []
-page.on('pageerror', (error) => pageErrors.push(String(error)))
-
-try {
-  // ① 活页面的注册表必须与源码解析结果一致。
-  await page.goto(`${BASE}/design-lab.html?screen=agent-panel&frame=1&state=${states[0].id}`)
-  await page.waitForFunction(() => window.__designLabReady === true, { timeout: 20000 })
-  const live = await page.evaluate(() => window.__designLabStates)
-  const parsed = states.map((state) => state.id)
-  if (JSON.stringify(live) !== JSON.stringify(parsed)) {
-    record(`注册表解析漂了：活页面 ${live?.length} 个 / 源码解析 ${parsed.length} 个`)
-    console.error('    只在活页面：', (live || []).filter((id) => !parsed.includes(id)).join(', '))
-    console.error('    只在解析里：', parsed.filter((id) => !(live || []).includes(id)).join(', '))
-  }
-
-  // ② 逐状态截图 + 非空断言。
-  for (const state of wanted) {
-    await page.goto(`${BASE}/design-lab.html?screen=agent-panel&frame=1&state=${state.id}`)
-    await page.waitForFunction(() => window.__designLabReady === true, { timeout: 20000 })
-    const shot = page.locator(`[data-design-lab-shot="${state.id}"]`)
-    const box = await shot.boundingBox()
-    if (!box || box.width < 40 || box.height < 24) {
-      record(`${state.id} 舞台没渲染出来（boundingBox=${JSON.stringify(box)}）`)
-      continue
-    }
-    const file = path.join(OUT_DIR, `${state.id}.png`)
-    await shot.screenshot({ path: file, animations: 'disabled' })
-    // 「有个框但里面是空的」和「渲染对了」在 boundingBox 上分不出来，所以还要数元素。
-    // 但 `missing` 档**本来**就只有一句「现役未实现」——对它数元素会把设计缺口误报成渲染失败。
-    // 判据因此按各自的承诺分开：missing 档必须是 missing 舞台，其余档必须有真内容。
-    const stage = await shot.evaluate((node) => node.firstElementChild?.getAttribute('data-design-lab-stage') || '')
-    if (state.coverage === 'missing') {
-      if (stage !== 'missing') record(`${state.id} 标了 coverage=missing，却渲染成 ${stage || '(无舞台)'}`)
-    } else {
-      if (stage === 'missing') record(`${state.id} 渲染成了「现役未实现」占位，但它的 coverage 是 ${state.coverage}`)
-      const distinct = await shot.evaluate((node) => node.querySelectorAll('*').length)
-      if (distinct < 3) record(`${state.id} 舞台里只有 ${distinct} 个元素，形态大概率没渲染出来`)
-    }
-    console.log(`  ✓ ${state.id.padEnd(30)} ${Math.round(box.width)}×${Math.round(box.height)}  ${state.name}`)
-  }
-
-  // ③ 接触表（拍板用）。
-  //
-  // 它是**把刚截的那些 PNG 拼起来**，不是再渲染一遍页面。
-  // 页面里的 `?contact=1` 是给人在浏览器里滚着看的活视图；但拿它做 fullPage 截图会得到
-  // 一张大半空白的图——视口外的 iframe 浏览器根本不渲染，fullPage 只是把视口拉长、
-  // 补不回那些从没画过的帧（首版实测：10602px 高的图里只有头两排有东西）。
-  // 用 <img> 拼则没有这个问题，而且拼进去的就是基线钉住的那几张图，不是第二个真相源。
-  if (!ONLY.length) {
-    const cells = wanted.map((state) => {
-      const data = fs.readFileSync(path.join(OUT_DIR, `${state.id}.png`)).toString('base64')
-      const tone = { shell: '#2f7d4f', 'component-only': '#9a6a3c', missing: '#b23c3c', retired: '#6b6b6b' }[state.coverage]
-      const text = { shell: '整条通', 'component-only': '只有组件', missing: '没实现', retired: '已取消' }[state.coverage]
-      return `<figure><figcaption><span style="background:${tone}">${text}</span> <b>${state.name}</b> <i>${state.id}</i></figcaption>` +
-        `<img src="data:image/png;base64,${data}" width="340" /></figure>`
-    })
-    await page.setViewportSize({ width: 1480, height: 1000 })
-    await page.setContent(
-      `<style>body{margin:0;padding:16px;background:#faf8f4;font:12px/1.5 system-ui}` +
-      `h1{font-size:16px;margin:0 0 4px}p{margin:0 0 14px;color:#666}` +
-      `.g{display:grid;grid-template-columns:repeat(4,360px);gap:14px;align-items:start}` +
-      `figure{margin:0}figcaption{font-size:11px;margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}` +
-      `figcaption span{display:inline-block;padding:1px 5px;border-radius:8px;color:#fff}` +
-      `figcaption i{color:#999;font-style:normal}img{display:block;border:1px solid #ddd;background:#fff}</style>` +
-      `<h1>Nomi · Agent 面板接触表（${wanted.length} 个状态 · ${new Date().toISOString().slice(0, 10)}）</h1>` +
-      `<p>绿=面板整条通 · 棕=组件在但面板走不到 · 红=设计文档要求而现役没有 · 灰=设计已取消</p>` +
-      `<div class="g">${cells.join('')}</div>`,
-    )
-    const sheet = path.join(OUT_DIR, '_contact-sheet.png')
-    await page.screenshot({ path: sheet, fullPage: true, animations: 'disabled' })
-    console.log(`\n▶ 接触表：${sheet}`)
-  }
-
-  if (pageErrors.length) record(`页面抛错 ${pageErrors.length} 条：${pageErrors.slice(0, 3).join(' | ')}`)
-} finally {
-  await browser.close()
-  vite.kill('SIGTERM')
-}
-
-if (failures.length) {
-  console.error(`\n❌ 设计实验室走查失败 ${failures.length} 条`)
-  process.exit(1)
-}
-console.log(`\n✅ ${wanted.length} 个状态全部渲染并截图：${OUT_DIR}`)

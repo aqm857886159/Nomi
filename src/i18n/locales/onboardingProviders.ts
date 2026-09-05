@@ -321,10 +321,6 @@ export const zhOnboardingProviders = {
       workingCount: '{{count}} 个配置中',
       needsSetupCount: '{{count}} 个待设置',
       disabledCount: '{{count}} 个已关闭',
-      vendorPreferenceTitle: '优先供应商',
-      vendorPreferenceHint: '同一模型有多家时，排在前面的会默认优先使用。只显示已配置的供应商。',
-      vendorPreferenceMoveUp: '上移',
-      vendorPreferenceMoveDown: '下移',
     },
     kind: {
       image: '图片',
@@ -1462,10 +1458,6 @@ export const enOnboardingProviders = {
       workingCount: '{{count}} configuring',
       needsSetupCount: '{{count}} need setup',
       disabledCount: '{{count}} disabled',
-      vendorPreferenceTitle: 'Preferred providers',
-      vendorPreferenceHint: 'When a model has multiple providers, the first one is used by default. Only configured providers are shown.',
-      vendorPreferenceMoveUp: 'Move up',
-      vendorPreferenceMoveDown: 'Move down',
     },
     kind: {
       image: 'Images',
