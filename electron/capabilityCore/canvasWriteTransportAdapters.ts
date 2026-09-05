@@ -1,6 +1,8 @@
 import type { RuntimeToolCall, RuntimeToolDecision } from "../harness/runtime/runtimePort";
 import {
+  CANVAS_DELETE_CAPABILITY,
   CANVAS_DELETE_ALIAS,
+  canvasDeleteSemanticInputSchema,
   canvasDeleteInputForAlias,
   type CanvasDeleteInput,
 } from "../shared/agentCapabilities/canvasDelete";
@@ -62,6 +64,8 @@ const PUBLIC_FAILURE_CODES = new Set([
   "surface_owner_mismatch",
 ]);
 
+const CANVAS_DELETE_TOOL_ALIAS = CANVAS_DELETE_CAPABILITY.aliases.mcp;
+
 function safeFailure(error: unknown): Extract<RuntimeToolDecision, { ok: false }> {
   const candidate =
     error && typeof error === "object" && typeof (error as { code?: unknown }).code === "string"
@@ -100,14 +104,16 @@ export function createPiCanvasWriteTransportAdapter(
       const semanticTool = call.toolName === "nomi_canvas_plan" || call.toolName === "nomi_canvas_edit";
       const operation = canvasWriteOperationForAlias(call.toolName)
         ?? (semanticTool && typeof args.operation === "string" ? args.operation as ReturnType<typeof canvasWriteOperationForAlias> : undefined);
-      const isDelete = call.toolName === CANVAS_DELETE_ALIAS;
+      const isDelete = call.toolName === CANVAS_DELETE_ALIAS || call.toolName === CANVAS_DELETE_TOOL_ALIAS;
       if (!operation && !isDelete) return null;
       if (disposed) throw Object.assign(new Error("surface_port_unavailable"), { code: "surface_port_unavailable" });
       if (signal.aborted) throw Object.assign(new Error("capability_cancelled"), { code: "capability_cancelled" });
       let semanticInput: CanvasMutationInput;
       try {
         if (isDelete) {
-          semanticInput = canvasDeleteInputForAlias(call.toolName, args)!;
+          semanticInput = call.toolName === CANVAS_DELETE_ALIAS
+            ? canvasDeleteInputForAlias(call.toolName, args)!
+            : canvasDeleteSemanticInputSchema.parse({ operation: "delete_canvas_nodes", ...args });
         } else {
           const parsed = semanticTool ? args : canvasWritePiInputSchemaForAlias(call.toolName)?.parse(args);
           semanticInput = canvasWriteSemanticInputSchema.parse({ operation, ...parsed });
