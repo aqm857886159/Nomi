@@ -1,0 +1,12 @@
+# Codex Report
+- Worktree: `/Users/aoqimin/Desktop/Nomi-plans-vendor-telemetry`
+- Branch: `codex/plans-vendor-pref-telemetry-20260906`
+- Added [vendor plan](docs/plan/2026-09-06-vendor-preference-auto-fallback.md:1): S-01/S-02, R20/R3/D6, resolver/model-identity alignment, fallback gates.
+- Added [telemetry plan](docs/plan/2026-09-06-opt-in-frequency-telemetry.md:1): T-01/T-02, default-off privacy contract, local view/delete, updater boundary.
+- Registered both in [docs/plan/INDEX.md](docs/plan/INDEX.md:38) and :163.
+- Evidence: `textBrainResolver.ts:33-205`; generation defaults contract `:7-43`; playback telemetry `src/media/videoPlaybackTelemetry.ts:3-43`; updater `electron/update/autoUpdater.ts:56-142`.
+- Research: Context7 + official OpenRouter/LiteLLM/Portkey and PostHog/Aptabase/Plausible/Umami sources are linked in each plan §3/§11.
+- Gates: `check:docs-index`, `check:doc-status` clean; full `pnpm run gates` passed (59/59 contracts; tests/build/typecheck green).
+- Commits: initial docs `c621f2984f5d`; report follow-up pending gates.
+- Push: `origin/codex/plans-vendor-pref-telemetry-20260906` (initial SHA c621f2984f5d; final SHA after report gate).
+- Acceptance artifacts: plans are the review documents; no screenshots generated because this is docs-only.
