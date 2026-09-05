@@ -165,6 +165,7 @@
 | [2026-08-28-editing-engine-review.md](2026-08-28-editing-engine-review.md) | Editing engine build-vs-buy review and open-source research | 🚧 |
 | [2026-08-28-editing-engine-uplift.md](2026-08-28-editing-engine-uplift.md) | P0 timeline kernel and Agent editing control plane | 🚧 |
 | [2026-08-28-timeline-visual-feedback.md](2026-08-28-timeline-visual-feedback.md) | Timeline source-window and transition support feedback | 🚧 |
+| [2026-09-05-timeline-placement-strategy.md](2026-09-05-timeline-placement-strategy.md) | 时间轴 P0 落位、默认 fit、轨道滚动与字幕不重叠 | 🚧 |
 
 ## 项目库 / 素材库 / Workspace / 左面板
 
