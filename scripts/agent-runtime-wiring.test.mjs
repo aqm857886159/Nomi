@@ -5,6 +5,11 @@ import { ESLint } from 'eslint'
 import ts from 'typescript'
 import { describe, expect, test } from 'vitest'
 
+// 可达性判据只有一份：门岗自己的 resolveReachable。这里原先抄了一份只认 `pnpm run x` 的
+// 正则闭包，gates:contracts 改成 runner 实参清单后它立刻报出「typecheck 不可达」的假红——
+// 两份判据必然漂移（R14.1）。要改可达性语义只改 scripts/check-gates-chain.mjs。
+import { resolveReachable } from './check-gates-chain.mjs'
+
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const read = (relative) => fs.readFileSync(path.join(repoRoot, relative), 'utf8')
 const pkg = JSON.parse(read('package.json'))
@@ -35,19 +40,7 @@ function stringArrayProperty(relative, propertyName) {
   return values
 }
 
-function reachable(entry) {
-  const seen = new Set()
-  const pending = [entry]
-  while (pending.length) {
-    const name = pending.pop()
-    if (seen.has(name)) continue
-    seen.add(name)
-    for (const match of (pkg.scripts[name] ?? '').matchAll(/\b(?:pnpm|npm)\s+run\s+([\w:-]+)/g)) {
-      pending.push(match[1])
-    }
-  }
-  return seen
-}
+const reachable = (entry) => resolveReachable(pkg.scripts, entry)
 
 describe('private pi build and test wiring', () => {
   test('pins the verified SDK graph while preserving non-Agent ai@4 and Nomi Zod', () => {

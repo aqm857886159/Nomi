@@ -1,0 +1,160 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-05-ci-doc-gates-friction",
+  "problem_type": "记账型门岗（判据只看文档/生成物是否登记，不看代码正确性）被接进阻塞验证链，且验证链是 `&&` 早退 —— 于是「补齐动作机器能做」的失败被反复推回给作者，一次改动违反 N 个门岗就要 N 轮完整 CI",
+  "symptom": "用户视角：「经常 CI 不过」。实测（2026-08-23T11:03 → 2026-09-05T03:00 全量 226 次 Quality Gate 失败，非抽样）：226 次里只有 1 次同一 headSha 重跑就绿（0.4%），也就是每一次红都要求人改点什么再推一次。其中最大一块是记账：check:docs-index 28 次 + check:ledger 21 次 + check:doc-status 14 次 = 63 次（28%）。`gates:contracts` 是 51 个 check 的 `&&` 串联，第一个红就停，于是同一分支为一篇 Markdown 连红 15 轮（codex/project-agent-host-phase1-20260827：docs-index → ledger → ledger → docs-index → docs-index → doc-status ×4 → ledger ×6）。main 上留下 30 个纯粹为过这三个门而存在的 commit（`chore(docs): 补登 …至 plan INDEX`、`chore(ledger): regenerate …`），以及同一篇文档拆成两个 commit 两轮 CI 的化石（3015cb32 + 28e9d269）。",
+  "direct_cause": "① package.json 的 `gates:contracts` 用 `&&` 把 51 个门岗串成一条链：任一失败即短路，后面的门岗根本不跑，所以一轮 CI 最多只能暴露一个问题。② check:docs-index / check:doc-status / check:ledger 这三个门的失败被当成与 unit/typecheck 同级的阻断信号，可它们的补齐动作是确定性的机器动作（重跑生成器、追加一行链接、盖一个状态标记），却没有任何自动补齐主体，只能由分支作者手工做、再走一整轮 CI。check:ledger 更严重：它的产物依赖全仓文档集合，两个分支各加一篇各自重生成，合并后必然过期——21 次红里 10 次那个分支一篇文档都没加（对每个 headSha 算 merge-base 后 `--diff-filter=A -- docs/` 为空），失败完全由 main 前进造成，分支作者无法规避。",
+  "class_root": "把「记账」和「正确性」放进同一条阻塞链，并让人来做机器能做的补齐。判据一旦只看「有没有登记」而不看代码行为，它的红就既拦不住 bug（结构上不可能：只查 Markdown 链接、开头 12 行有没有状态 emoji、生成物新不新鲜），又必然把成本转嫁成一轮墙钟 + 一个补丁 commit。叠加 `&&` 早退，成本再乘以「这次违反了几个门」。实测这三个门连它们声称守的覆盖率都没守住：596 篇里 323 篇未收录、533 篇里 425 篇缺状态，80% 的债已冻进基线，棘轮只是不让它涨——也就是说它们买到的其实只有摩擦。",
+  "migration": "① 新增 `scripts/run-gates-contracts.mjs` 取代 `&&` 长链：顺序跑完全部门岗、边跑边流式输出，最后统一汇总失败清单（每条带退出码与输出尾巴），任一阻断性门岗失败即 exit 1（fail-closed 不变，只是不早退）；门岗清单仍逐个写在 package.json 的 `gates:contracts` 实参里，顺序即执行顺序。② 同一个 runner 支持 `--advisory=`：被点名的门岗照跑照打印，失败降为一条 GitHub warning 注解（标题固定 `docs-autosync`）而不阻断——当且仅当它有真实的自动补齐主体。目前只有那三个文档/生成物门。③ 新增 `.github/workflows/docs-autosync.yml` + `scripts/repair-doc-gates.mjs` 做补齐主体：main 每前进一次就重生成账本、给新增文档盖 `📋 方案待拍板`、把漏的那篇追加进对应 INDEX.md 的「🤖 自动收录」区，然后由三个门岗**本人**验绿，有 diff 就以 bot 身份提交回 main（`[skip ci]`）。④ 抽出 `scripts/docs-index-lib.mjs`：门岗与补齐脚本共用同一份「哪些文档没被索引」的扫描，避免出现「补齐脚本认为补好了、门岗认为还没有」的死循环。⑤ `check-gates-chain.mjs` 增加一条只对该 runner 生效的裸名解析，保证门岗从链里消失仍然报红。⑥ `ci-annotation-hygiene.mjs` 把 `docs-autosync` 标题的 warning 记为**委派**（owner 是 main 上的工作流），而不是需要写过期日期的 allowlist 豁免。 ⑦ 顺手消掉一份并行判据：scripts/agent-runtime-wiring.test.mjs 里另抄了一份只认 `pnpm run x` 的可达性闭包，改成 import check-gates-chain.mjs 导出的 resolveReachable —— 它正是被本次改动照出来的（runner 实参一上，它立刻报「typecheck 不可达」的假红），两份判据必然漂移。",
+  "affected_population": [
+    "每一个在 Nomi 仓库开分支的人/agent：全窗口 226 次 CI 失败里 63 次（28%）由这三个门造成，每次意味着一轮墙钟加一个补丁 commit",
+    "并行开发本身：check:ledger 的 21 次红里 10 次那个分支一篇文档都没加，纯粹因为 main 前进导致生成物过期——分支越多越必红，且没有任何作者能规避",
+    "同时违反多个门岗的改动：`&&` 早退让「一次暴露一个问题」成为默认，实测有分支为一篇 Markdown 连红 15 轮",
+    "main 的提交历史：30 个纯记账 commit、100 个标题带 gate/门岗/ratchet 的 commit（约 6% 的提交在维护门岗本身而不是做产品）"
+  ],
+  "scope_paths": [
+    "scripts/run-gates-contracts.mjs",
+    "scripts/run-gates-contracts.node-test.mjs",
+    "scripts/repair-doc-gates.mjs",
+    "scripts/repair-doc-gates.node-test.mjs",
+    "scripts/docs-index-lib.mjs",
+    "scripts/check-docs-index.mjs",
+    "scripts/check-gates-chain.mjs",
+    "scripts/ci-annotation-hygiene.mjs",
+    "scripts/ci-annotation-hygiene.node-test.mjs",
+    "scripts/electron-install-identity.node-test.mjs",
+    "scripts/agent-runtime-wiring.test.mjs",
+    ".github/workflows/docs-autosync.yml",
+    "package.json"
+  ],
+  "entry_points": [
+    "package.json `gates:contracts`（`&&` 早退的源头；现在是 runner 的实参清单）",
+    "CI 的 Contracts job → `test:system:contracts` → tests/system/profiles.mjs 的 contracts stage → `pnpm run gates:contracts`（CI 与本地走同一条命令，故语义天然一致）",
+    "本地 `pnpm run gates` → `gates:contracts`（R11 push 前五门）",
+    ".github/workflows/docs-autosync.yml（新的补齐主体：main push 后重跑补齐并回写）",
+    "scripts/ci-annotation-hygiene.mjs `delegatedOwner`（决定一条 warning 是「有主人」还是「意外」）"
+  ],
+  "invariants": [
+    "advisory 只存在于 `gates:contracts` 的汇总层：三个门岗直接运行（`pnpm run check:docs-index` 等）仍然 fail-closed exit 1，docs-autosync 就是靠这个语义验收补齐结果的",
+    "advisory 名单里的每一条都必须有一个真实存在、且真的会跑的自动补齐主体；run-gates-contracts.node-test.mjs 钉死当前三条并要求它们出现在 docs-autosync 工作流里，加第四条会翻红",
+    "runner 跑完全部门岗才汇总，且任一阻断性门岗失败即 exit 1；被信号打断（无退出码）按失败处理",
+    "补齐只碰「新增违规」，基线里冻着的历史存量一律不动——碰了等于偷偷抬基线",
+    "自动盖的状态一律是 `📋 方案待拍板`，不猜真实状态：猜错会污染交付账本现役区，比没有标记更糟",
+    "门岗从链里消失必须报红：check:gates-chain 对 runner 实参做裸名解析，删掉一个 check 即 exit 1（已做变异对照）"
+  ],
+  "regression_tests": [
+    "scripts/run-gates-contracts.node-test.mjs",
+    "scripts/repair-doc-gates.node-test.mjs",
+    "scripts/ci-annotation-hygiene.node-test.mjs",
+    "scripts/electron-install-identity.node-test.mjs",
+    "scripts/agent-runtime-wiring.test.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/run-gates-contracts.node-test.mjs",
+    "scripts/repair-doc-gates.node-test.mjs"
+  ],
+  "generality_proof": "不是一次手滑，是链的形状决定的一族，判据有三：① **全量而非抽样的复发计数**——226 次失败逐条归因后，同一形状（记账门阻塞 + 早退）命中 63 次，跨 93 个分支中的数十个，其中 7 个分支在同一轮里撞上 ≥2 个不同的文档门；② **仓库自己已经承认过同一形状两次**：`a7b629d1f perf(canvas): maxFrameGapMs 降为 advisory（#264 不给抖动指标设硬门）` 是「把守不住的门降 advisory」的先例，`21d25bf60 fix(rootcause-gate): let a behaviour-preserving change say so instead of inventing a root cause` 是「记账门逼人编造内容」的先例——同一族病在不同门岗上各犯一次；③ **机制必然性**：只要判据看的是「有没有登记」而不是「代码对不对」，补齐动作就必然是确定性的机器动作，而把机器能做的事放进阻塞链，成本就必然以「一轮 CI + 一个 commit」为单位转嫁给作者；再叠加 `&&` 早退，成本乘以违规门岗数。ledger 那一支更强：它的产物是全仓聚合派生物，两个分支各自重生成后合并必然过期——这是并行开发的结构税，不是任何作者的疏忽。",
+  "shared_boundaries": [
+    {
+      "path": "scripts/run-gates-contracts.mjs",
+      "symbol": "runGateSuite",
+      "responsibility": "唯一的门岗聚合层：决定「跑完全部再汇总」以及「哪些失败是 advisory」。CI 的 Contracts job 与本地 `pnpm run gates` 走同一个函数，故两边语义不可能漂移；advisory 只在这一层存在，门岗自身的判据与退出码不受影响。"
+    },
+    {
+      "path": "scripts/docs-index-lib.mjs",
+      "symbol": "scanDocumentIndex",
+      "responsibility": "「哪些文档没被索引收录」的唯一扫描定义，门岗（check-docs-index）与补齐脚本（repair-doc-gates）共用；两处各写一份链接解析会造出「补齐完门岗还红」的死循环。"
+    },
+    {
+      "path": "scripts/repair-doc-gates.mjs",
+      "symbol": "repairDocGates",
+      "responsibility": "advisory 的对价：确定性补齐的唯一实现（重生成账本 / 盖待拍板状态 / 追加索引链接），只碰新增违规、幂等、补不了就报红。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "package.json",
+      "entry_point": "gates:contracts（本地 push 前五门与 CI Contracts job 的共同入口）",
+      "disposition": "enforced",
+      "evidence": "实跑对照：同一篇违规文档（docs/plan 下新增、未索引、无状态标记），`node scripts/run-gates-contracts.mjs --advisory=check:docs-index,check:doc-status …` exit 0 并打出两条 `::warning title=docs-autosync::`；去掉 `--advisory=` 同一条命令 exit 1。变异对照：从实参里删掉 check:secrets 后 `node scripts/check-gates-chain.mjs` exit 1 并点名该门岗，恢复后 exit 0。"
+    },
+    {
+      "path": ".github/workflows/quality-gate.yml",
+      "entry_point": "Contracts job → test:system:contracts → contracts stage → pnpm run gates:contracts",
+      "disposition": "enforced",
+      "evidence": "CI 与本地共用 package.json 的同一条命令（tests/system/profiles.mjs 的 contracts stage 就是 `pnpm run gates:contracts`），所以 advisory/汇总语义在两边由同一份实现保证，不需要在 workflow 里另写一套；`check:quality-gate-workflow` 继续钉 workflow 结构。"
+    },
+    {
+      "path": ".github/workflows/docs-autosync.yml",
+      "entry_point": "main push → repair-doc-gates → 三门岗验绿 → bot 提交回 main",
+      "disposition": "enforced",
+      "evidence": "repair-doc-gates.node-test.mjs 在夹具仓里做阳性对照：补齐前 scanDocumentIndex/documentStatus 判定两篇新增文档违规，补齐后不再违规、历史存量逐字未动、再跑一遍幂等；真仓实跑同样产出 diff（一篇探针文档 → INDEX 追加一行 + 文档盖上 📋）后三个门岗自跑全绿。"
+    },
+    {
+      "path": "scripts/ci-annotation-hygiene.mjs",
+      "entry_point": "delegatedOwner（Quality Gate 汇总 job 判定 warning 是否「意外」）",
+      "disposition": "enforced",
+      "evidence": "ci-annotation-hygiene.node-test.mjs 新增用例：标题为 docs-autosync 的 warning 进 delegated（owner = docs-autosync workflow on main），同一批里另一条无路径 warning 仍然是 unexpected——委派没有顺手放行一片。"
+    },
+    {
+      "path": "scripts/check-doc-status.mjs",
+      "entry_point": "方案状态棘轮的判定与基线读写",
+      "disposition": "not-affected",
+      "evidence": "判断逻辑、基线格式与退出码逐字未改：本次只改「失败是否阻断」（在聚合层）与「谁负责补齐」（新工作流）。补齐脚本复用 doc-status-lib 的 documentStatus，与该门岗同源，不另写判据。"
+    },
+    {
+      "path": "scripts/agent-runtime-wiring.test.mjs",
+      "entry_point": "「typecheck / check:test-types / test:agent-runtime 仍从 gates 可达」这条断言的可达性判据",
+      "disposition": "enforced",
+      "evidence": "本次改动直接把它照红了（AssertionError: expected false to be true，reachable('gates').has('typecheck')）——因为它抄了第三份只认 `pnpm run x` 的闭包。改成 import check-gates-chain.mjs 的 resolveReachable 后 6/6 通过；之后链的形状再变，判据只需改一处。"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "scripts/run-gates-contracts.mjs",
+    "invariant": "门岗聚合只有一个实现：它必须跑完全部门岗再汇总，任一阻断性门岗失败即 exit 1；降级为 advisory 的门岗必须同时出现在一个真实存在的自动补齐主体里，且门岗自身直接运行仍然 fail-closed。",
+    "failure_mode": "配置面全部 fail-closed 并点名报错：链为空、门岗重名、`--advisory` 点到不在链里的门岗、门岗名不在 package.json、未知参数——都 exit 1 而不是「跳过」，因为静默不跑的门岗和不存在的门岗在 CI 输出里长得一模一样。运行期：advisory 名单里出现第四条时 run-gates-contracts.node-test.mjs 翻红；门岗从实参里消失时 check:gates-chain 翻红。",
+    "exception_policy": "none",
+    "strategy": "把「跑不跑、红不红」的决定收进一个可注入、可单测的聚合层，而不是散在一条 shell `&&` 链上：门岗自身的判据一行未改，advisory 只是聚合层对某类失败换了接收人（作者 → main 上的自动补齐工作流）。判据与执行分离，因此降级不会污染门岗本身，也就不会出现「以为降级了其实判据也松了」。",
+    "artifacts": [
+      "scripts/run-gates-contracts.mjs",
+      "scripts/repair-doc-gates.mjs",
+      "scripts/docs-index-lib.mjs",
+      ".github/workflows/docs-autosync.yml",
+      "package.json"
+    ]
+  },
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "同一形状在本仓已至少三次：① 2026-08-30 `a7b629d1f` 把 canvas 的 maxFrameGapMs 从硬门降为 advisory（守不住的门在训练所有人无视红灯）；② `21d25bf60` 承认 check:root-cause-contracts 会逼纯结构改动编造 symptom/root_cause；③ 本次三个文档门。前两次都是就地修一个门岗，没人去问「记账型判据该不该进阻塞链」，于是换个门岗再犯一次。",
+    "same_class_scan": [
+      "对 2026-08-23→09-05 的 226 次 Quality Gate 失败做全量（非抽样）归因，按日志里最后启动的 `> nomi@0.21.0 <script>` 定位到具体门岗：记账型门岗共 77 次（34%），其中本次处理的三个占 63 次；剩余 14 次是 check:root-cause-contracts（触发规则问题，审计建议 5a，本次不动，单独立项）。",
+      "对 `gates:contracts` 里 52 个条目逐个分类「判据看的是代码行为还是登记状态」：只有 docs-index / doc-status / ledger 三个是纯登记且补齐动作确定性可机器化；check:vocabularies / check:filesize / check:i18n 等虽然也是棘轮，但判据直接读源码，补齐需要人做真实取舍，故不降级。",
+      "对 check:ledger 的 21 次红逐个 fetch headSha 并对 merge-base 算 `git diff --diff-filter=A -- docs/`：10 次为空，即分支没加任何文档，失败纯由 main 前进导致——确认它是并行开发的结构税而非作者疏忽。",
+      "扫 `.github/workflows/` 找已有的「CI 以 bot 身份写回 main」先例：download-stats.yml 用 `permissions: contents: write` + github-actions[bot] 直推 main，已在跑；docs-autosync 沿用同一形态（另加 rebase 重试与 `[skip ci]`），不新引入权限模型。",
+      "核对早退语义的其它宿主：`gates`（fresh-base → contracts → test → build → stamp）与 `test-system.mjs` 的 stage 循环同样是失败即停，但它们的每一段都是重活（unit/build/e2e），跑完全部的代价远大于收益，且失败信号本身可诊断——故本次只改 contracts 这一段，不做无差别铺开。"
+    ]
+  },
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "package.json",
+      "scripts/check-docs-index.mjs",
+      "scripts/agent-runtime-wiring.test.mjs"
+    ],
+    "rationale": "不留并行版（P1）：package.json 里 51 个 `&&` 的旧门岗链在同一 commit 里被 runner 实参清单整体取代，没有保留任何回退开关或第二条链；check-docs-index.mjs 里的本地扫描实现（collectMarkdownFiles / extractLinkTargets / 索引文件收集）在同一 commit 里删除并改为 import scripts/docs-index-lib.mjs，判断逻辑逐字保留但不再存在第二份拷贝——否则补齐脚本与门岗会各认一套链接形态。 同 commit 还删掉了 agent-runtime-wiring.test.mjs 里第三份可达性闭包（只认 `pnpm run x` 的正则），改为 import 门岗导出的 resolveReachable：判据只留一份，否则下一次链的形状再变时它会再报一次假红。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "不涉及任何第三方依赖的引入、升级或保留：runner、补齐脚本与新工作流只用 node 内置模块（child_process/fs/path/url），docs-autosync 因此连 pnpm install 都不需要。",
+    "exit_criteria": []
+  },
+  "residual_risks": [
+    "docs-autosync 需要 `contents: write` 直推 main。若 main 的分支保护将来收紧到禁止 bot 直推，这个工作流会红（连续三次 push 失败后 `::error::` 报错，不静默漏账），届时要改成开 PR 而不是直推——先例 seo-radar.yml 已经是 create-pull-request 形态，可直接搬。",
+    "自动盖的 `📋 方案待拍板` 是登记而非判断：作者若忘了改，交付账本现役区会多出一条名不副实的欠账。这比缺状态好（至少可见），但账本的 salience 会被稀释；下一次 R14 审计应抽查自动盖章文档的状态准确率。",
+    "「🤖 自动收录」区只保证链接存在、不保证归类正确。docs/plan/INDEX.md 的主题表是人读的，自动区长期变长会让索引变难读；check:docs-index 的棘轮不会因为自动补齐而下降（它只看有没有链接），所以「归位」这件事没有机器提醒，靠人顺手做。",
+    "advisory 降级依赖「补齐主体真的会跑」。若 docs-autosync 工作流被 disable 或长期红而没人看，三个门就变成事实上的无人区——现有防线只有工作流自身报红，没有「N 天没成功跑过就报警」的活性探测。",
+    "runner 现在是顺序执行：红的时候总耗时从「跑到第一个红」变成「跑满全部」，Contracts job 的墙钟中位数会上升几分钟。绿的时候与现在完全相同。若将来这段成为瓶颈，应上有限并发并按门岗缓冲输出，而不是退回早退。"
+  ],
+  "internal_only_reason": "根因、判据与修法全部落在仓内自有工程：门岗链是本仓 package.json 的形状，三个门岗是本仓脚本，补齐主体是本仓 workflow。唯一的外部契约是 GitHub Actions 的 workflow command 注解格式（`::warning title=…::`）与 `permissions: contents: write` 下的 bot 提交，两者在本仓 download-stats.yml / quality-gate.yml 里已有在跑的实例可对照，无需引用外部文档。"
+}
