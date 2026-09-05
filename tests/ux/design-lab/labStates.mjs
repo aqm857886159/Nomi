@@ -19,22 +19,21 @@ const BASELINE_ROOT = path.join(REPO_ROOT, 'tests/ux/design-lab/__baselines__')
  * 这边是取景/基线/门岗的。加一屏要同时改两处；只改一处的后果是那屏截不出图或留下孤儿基线，
  * 而 `check-design-lab.mjs` 的「基线 ↔ 注册表一一对应」那一条会把它逼出来。
  *
- * `pendingApproval` = 这一屏的样子还没给用户拍过板，因此**一张基线都不该有**（录一张没人认可过的
- * 图钉住，等于把「待定」伪装成「已定」）。它必须与 `labScreens.ts` 里同名字段一致，门岗会对。
- *
- * 注册表真身按主题拆在各自的 `states/` 里（单文件 ≤800 行，R12 巨壳门岗）。
+ * 注册表真身按来源/主题拆在各自的 `states/` 里（单文件 ≤800 行，R12 巨壳门岗）。
  * 解析顺序 = 文件名排序，与汇总口的拼接顺序一一对应（文件名带数字前缀就是为了这个）。
  */
 export const LAB_SCREENS = {
   'agent-panel': {
     registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/states'),
     baselineDir: path.join(BASELINE_ROOT, 'agent-panel'),
-    pendingApproval: false,
+  },
+  editing: {
+    registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/editing/states'),
+    baselineDir: path.join(BASELINE_ROOT, 'editing'),
   },
   'vendor-order': {
     registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/vendorOrder/states'),
     baselineDir: path.join(BASELINE_ROOT, 'vendor-order'),
-    pendingApproval: true,
   },
 }
 
@@ -50,26 +49,31 @@ export function baselineDirFor(screenId) {
   return screenConfig(screenId).baselineDir
 }
 
-export function screenIsPendingApproval(screenId) {
-  return screenConfig(screenId).pendingApproval === true
-}
-
-/** 注册项形如：`id: 'form-06-tool-line',` 紧跟 `name: '…'`, `source: '…'`, `coverage: '…'`。 */
+/**
+ * 注册项形如：`id: 'form-06-tool-line',` 紧跟 `name`, `source`, `coverage`；
+ * `capture: 'viewport'`（浮层类形态要截整屏）是可选的，出现在同一条注册项内。
+ */
 export function readLabStates(screenId = 'agent-panel') {
   const registryDir = screenConfig(screenId).registryDir
   const files = fs.readdirSync(registryDir).filter((name) => name.endsWith('.tsx')).sort()
   if (!files.length) throw new Error(`${registryDir} 里一个注册表文件都没有`)
   const source = files.map((name) => fs.readFileSync(path.join(registryDir, name), 'utf8')).join('\n')
   const entries = []
-  // `source` 允许是模板串（各屏常把公共来源抽成常量再拼一句），所以那一段用 [^,]* 而不是只认单引号。
-  const re = /\bid:\s*'([a-z0-9-]+)',\s*\n\s*name:\s*'([^']+)',\s*\n\s*source:\s*([^,]*),\s*\n\s*coverage:\s*'([a-z-]+)'/g
+  const re = /\bid:\s*'([a-z0-9-]+)',\s*\n\s*name:\s*'([^']+)',\s*\n\s*source:\s*'([^']*)',\s*\n\s*coverage:\s*'([a-z-]+)'/g
   let match
+  const starts = []
   while ((match = re.exec(source)) !== null) {
-    entries.push({ id: match[1], name: match[2], source: match[3].trim(), coverage: match[4] })
+    entries.push({ id: match[1], name: match[2], source: match[3], coverage: match[4], capture: 'element' })
+    starts.push(match.index)
   }
   if (!entries.length) {
     throw new Error(`没有从 ${registryDir} 解析出任何状态——注册表格式变了，先修这把正则`)
   }
+  // `capture` 只在本条注册项的范围内找（到下一条 `id:` 为止）——跨条找会把别人的取景方式记到自己头上。
+  entries.forEach((entry, index) => {
+    const segment = source.slice(starts[index], starts[index + 1] ?? source.length)
+    if (/\bcapture:\s*'viewport'/.test(segment)) entry.capture = 'viewport'
+  })
   const ids = entries.map((entry) => entry.id)
   const duplicates = ids.filter((id, index) => ids.indexOf(id) !== index)
   if (duplicates.length) throw new Error(`状态 id 重复：${duplicates.join(', ')}`)
@@ -78,4 +82,16 @@ export function readLabStates(screenId = 'agent-panel') {
 
 export function readCalibration() {
   return JSON.parse(fs.readFileSync(CALIBRATION_FILE, 'utf8'))
+}
+
+/**
+ * 「基线待用户拍板」登记表：屏 id → 一句为什么。
+ *
+ * 这**不是**逃生口。没有获批基线的屏本来就没有可回归的对象——逐像素比一张没人看过的图
+ * 只会把「今天长这样」当成「应该长这样」，那才是真的假绿。登记是显式的、写在
+ * calibration.json 里、门岗每次都醒目打印，拍板录完基线就必须删掉这一条。
+ * 孤儿基线不受登记豁免：图在、状态没了，照红。
+ */
+export function pendingApprovalScreens() {
+  return readCalibration().pendingApprovalScreens ?? {}
 }

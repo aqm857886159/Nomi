@@ -1,12 +1,12 @@
 // 设计实验室走查的**共用实现**（R13 人眼判断的素材源）。零额度：纯本地渲染，不碰任何生成 API。
 //
-// 各屏走的是同一套流程，所以流程只写一份；各屏的入口文件（`tests/ux/design-lab-<屏>.walk.mjs`）
-// 只声明「哪一屏、截到哪、接触表排几列、还要额外断言什么」。把流程抄两份的代价不是多几行，
-// 是**两份会漂**——其中一份悄悄少了一条断言，没人看得出来。
+// 各屏走的是同一套流程，所以流程只写一份；各屏的入口文件
+// （`tests/ux/design-lab-<屏>.walk.mjs`）只声明"哪一屏、截多宽、接触表排几列、还要额外断言什么"。
+// 把流程抄两份的代价不是多几行，是**两份会漂**——其中一份悄悄少了一条断言，没人看得出来。
 //
 // 它产出两样东西：
-//   1. 每个状态一张 PNG——人眼逐格看。
-//   2. 一张接触表（所有状态平铺一图）——给用户拍板用。
+//   1. 每个状态一张 PNG（`tests/ux/shots/design-lab-<屏>/<id>.png`）——人眼逐格看。
+//   2. 一张接触表（`.../_contact-sheet.png`）——所有状态平铺一图，给用户拍板用。
 //
 // 它同时把三件事变成硬断言（走查不带断言就是装饰品，见 check:walkthroughs 的断言密度规则）：
 //   - 活页面的注册表 === `labStates.mjs` 从源码解析出来的清单（那把正则的活性证据）；
@@ -30,13 +30,12 @@ const COVERAGE_TEXT = { shell: '整条通', 'component-only': '只有组件', mi
  *
  * 这台机器上常有 20+ worktree，各自都可能在跑 vite。`--strictPort` 撞了端口只会让**我们这个**
  * vite 悄悄退出，而 `waitForServer` 照样连得上——连上的是**别人那棵树**的 design-lab.html。
- * 于是走查会兴高采烈地截一屏别人的界面回来（2026-09-06 实测：撞上 Nomi-ui-shell-small 的 5199，
- * 拿回来的是 agent-panel 的 45 个状态）。这种假证据比失败危险得多，所以在起飞前就拦。
+ * 于是走查会兴高采烈地截一屏别人的界面回来（2026-09-06 实测：撞上另一棵树占着的 5199，
+ * 拿回来的是那边 agent-panel 的 45 个状态）。这种假证据比失败危险得多，所以在起飞前就拦。
  */
 async function assertPortIsFree(port) {
-  const url = `http://127.0.0.1:${port}/design-lab.html`
   try {
-    await fetch(url, { signal: AbortSignal.timeout(2000) })
+    await fetch(`http://127.0.0.1:${port}/design-lab.html`, { signal: AbortSignal.timeout(2000) })
   } catch {
     return // 连不上 = 端口是空的，正是我们要的
   }
@@ -67,19 +66,14 @@ function waitForServer(url, timeoutMs = 60000) {
  *   screen: string,
  *   title: string,
  *   port: number,
- *   outDir: string,
  *   cellWidth: number,
  *   columns: number,
- *   filePrefix?: string,
- *   contactName?: string,
  *   viewport?: {width: number, height: number},
  *   assertState?: (page: import('playwright').Page, state: {id: string, name: string}, record: (message: string) => void) => Promise<void>,
  * }} config
  */
 export async function walkDesignLabScreen(config) {
-  const OUT_DIR = path.isAbsolute(config.outDir) ? config.outDir : path.join(REPO_ROOT, config.outDir)
-  const prefix = config.filePrefix ?? ''
-  const contactName = config.contactName ?? '_contact-sheet.png'
+  const OUT_DIR = path.join(REPO_ROOT, `tests/ux/shots/design-lab-${config.screen}`)
   const HOST = '127.0.0.1'
   const PORT = Number(process.env.DESIGN_LAB_PORT || config.port)
   const BASE = `http://${HOST}:${PORT}`
@@ -88,15 +82,8 @@ export async function walkDesignLabScreen(config) {
   const failures = []
   const record = (message) => { failures[failures.length] = message; console.error(`  ✗ ${message}`) }
 
-  // 只清自己产出的那些文件：同一个目录里可能还躺着别的走查的证据
-  // （供应商偏好屏就与真实 Electron 旅程共用一个目录），整目录 rmSync 会把它们一起抹掉，
-  // 而「证据不见了」和「这次没跑到那一步」在事后长得一模一样。
+  fs.rmSync(OUT_DIR, { recursive: true, force: true })
   fs.mkdirSync(OUT_DIR, { recursive: true })
-  for (const name of fs.readdirSync(OUT_DIR)) {
-    if (name === contactName || (prefix && name.startsWith(prefix)) || (!prefix && name.endsWith('.png'))) {
-      fs.rmSync(path.join(OUT_DIR, name), { force: true })
-    }
-  }
 
   const states = readLabStates(config.screen)
   const wanted = ONLY.length ? states.filter((state) => ONLY.includes(state.id)) : states
@@ -149,8 +136,11 @@ export async function walkDesignLabScreen(config) {
         record(`${state.id} 舞台没渲染出来（boundingBox=${JSON.stringify(box)}）`)
         continue
       }
-      const file = path.join(OUT_DIR, `${prefix}${state.id}.png`)
-      await shot.screenshot({ path: file, animations: 'disabled' })
+      const file = path.join(OUT_DIR, `${state.id}.png`)
+      // 浮层类形态（BodyPortal + fixed 定位）不在舞台的 DOM 子树里，按元素截会截出
+      // 「浮层没打开」的假证据，所以这一族改截整屏（注册项里显式声明 capture: 'viewport'）。
+      if (state.capture === 'viewport') await page.screenshot({ path: file, animations: 'disabled' })
+      else await shot.screenshot({ path: file, animations: 'disabled' })
       // 「有个框但里面是空的」和「渲染对了」在 boundingBox 上分不出来，所以还要数元素。
       // 但 `missing` 档**本来**就只有一句「现役未实现」——对它数元素会把设计缺口误报成渲染失败。
       // 判据因此按各自的承诺分开：missing 档必须是 missing 舞台，其余档必须有真内容。
@@ -161,8 +151,22 @@ export async function walkDesignLabScreen(config) {
         if (stage !== 'missing') record(`${state.id} 标了 coverage=missing，却渲染成 ${stage || '(无舞台)'}`)
       } else {
         if (stage === 'missing') record(`${state.id} 渲染成了「现役未实现」占位，但它的 coverage 是 ${state.coverage}`)
-        const distinct = await shot.evaluate((node) => node.querySelectorAll('*').length)
-        if (distinct < 3) record(`${state.id} 舞台里只有 ${distinct} 个元素，形态大概率没渲染出来`)
+        // 数元素时**连 Portal 层一起数**：走 AnchoredPopover 的形态（转场选择器、素材选择器）
+        // 整个身体都 Portal 到 body 上，舞台子树里只剩一颗锚点按钮。只数舞台子树，
+        // 「浮层渲染得好好的」会被误判成「舞台是空的」——2026-09-06 三条 picker-* 就是这么假红的。
+        // 元素截图截的是「整页渲染后按舞台的框裁」，盖在舞台上的浮层本来就进了图，
+        // 所以判据也该按「这一格画出了什么」算，而不是按 DOM 谁是谁的孩子算。
+        const distinct = await page.evaluate((shotId) => {
+          const stage = document.querySelector(`[data-design-lab-shot="${shotId}"]`)
+          const inStage = stage ? stage.querySelectorAll('*').length : 0
+          let inPortals = 0
+          for (const node of document.body.children) {
+            if (node.id === 'design-lab-root') continue
+            inPortals += 1 + node.querySelectorAll('*').length
+          }
+          return inStage + inPortals
+        }, state.id)
+        if (distinct < 3) record(`${state.id} 这一格只有 ${distinct} 个元素，形态大概率没渲染出来`)
       }
       if (config.assertState) await config.assertState(page, state, record)
       console.log(`  ✓ ${state.id.padEnd(34)} ${Math.round(box.width)}×${Math.round(box.height)}  ${state.name}`)
@@ -174,10 +178,10 @@ export async function walkDesignLabScreen(config) {
     // 页面里的 `?contact=1` 是给人在浏览器里滚着看的活视图；但拿它做 fullPage 截图会得到
     // 一张大半空白的图——视口外的 iframe 浏览器根本不渲染，fullPage 只是把视口拉长、
     // 补不回那些从没画过的帧（首版实测：10602px 高的图里只有头两排有东西）。
-    // 用 <img> 拼则没有这个问题，而且拼进去的就是逐格看过的那几张图，不是第二个真相源。
+    // 用 <img> 拼则没有这个问题，而且拼进去的就是基线钉住的那几张图，不是第二个真相源。
     if (!ONLY.length) {
       const cells = wanted.map((state) => {
-        const data = fs.readFileSync(path.join(OUT_DIR, `${prefix}${state.id}.png`)).toString('base64')
+        const data = fs.readFileSync(path.join(OUT_DIR, `${state.id}.png`)).toString('base64')
         return `<figure><figcaption><span style="background:${COVERAGE_TONE[state.coverage]}">${COVERAGE_TEXT[state.coverage]}</span> <b>${state.name}</b> <i>${state.id}</i></figcaption>`
           + `<img src="data:image/png;base64,${data}" width="${config.cellWidth}" /></figure>`
       })
@@ -194,7 +198,7 @@ export async function walkDesignLabScreen(config) {
         + `<p>绿=整条通 · 棕=组件在但界面走不到 · 红=设计文档要求而现役没有 · 灰=设计已取消</p>`
         + `<div class="g">${cells.join('')}</div>`,
       )
-      const sheet = path.join(OUT_DIR, contactName)
+      const sheet = path.join(OUT_DIR, '_contact-sheet.png')
       await page.screenshot({ path: sheet, fullPage: true, animations: 'disabled' })
       console.log(`\n▶ 接触表：${sheet}`)
     }

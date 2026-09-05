@@ -796,7 +796,7 @@ if (hasSingleInstanceLock)
       } catch (error) {
         console.error("[nomi:desktop] ensureBuiltinModelSeeds failed:", error);
       }
-      registerIpc();
+      registerIpc(); void import('./telemetry/telemetryLifecycle').then(({ recordAppStarted }) => recordAppStarted());
       await createWindow();
       // 外部 capability RPC 不是首窗依赖，且它一旦 listen 就可能收到会解析凭据的 models/generation 请求。
       // 必须在窗口完成后才暴露；失败显式消化，不能反向拖垮已经可用的首窗。低内存模式仍默认跳过。

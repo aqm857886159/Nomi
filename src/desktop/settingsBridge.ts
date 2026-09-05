@@ -42,4 +42,10 @@ export type DesktopSettingsBridge = {
     get: () => Promise<import('../../electron/shared/contracts/vendorPreference').VendorPreferenceSettings>
     set: (payload: unknown) => Promise<import('../../electron/shared/contracts/vendorPreference').VendorPreferenceSettings>
   }
+  telemetry?: {
+    get: () => Promise<import('../../electron/shared/contracts/telemetry').TelemetrySettingsView>
+    set: (payload: unknown) => Promise<import('../../electron/shared/contracts/telemetry').TelemetrySettingsView>
+    summary: () => Promise<import('../../electron/shared/contracts/telemetry').TelemetrySummary>
+    deleteAll: () => Promise<{ deletedCount: number }>
+  }
 }

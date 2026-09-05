@@ -107,10 +107,9 @@
   },
   "evidencePolicy": {
     "agentHostPublication": {
-      "default": "disabled",
-      "testBoundary": "visible Settings → General → Project AI assistant toggle",
-      "helper": "tests/ux/agent-runtime-walk-support.mjs#enableAgentHostThroughSettings",
-      "rule": "The real user task explicitly enables the existing project preference after M1; no test-only state injection or production default flip is allowed."
+      "default": "always mounted",
+      "testBoundary": "no preference to flip: the resident Project Agent is mounted unconditionally since the agent-host gate was removed",
+      "rule": "Walks reach the Agent through its visible panel only. There is no enable step to perform and no test-only state injection is allowed."
     },
     "apimartTextModelPublication": {
       "credentialSource": "process.env.APIMART_API_KEY",

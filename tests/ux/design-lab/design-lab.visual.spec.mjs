@@ -6,20 +6,24 @@
 //
 // 基线**只在用户拍板后**更新：`pnpm run design-lab:update`（走 NOMI_DESIGN_LAB_UPDATE=1）。
 // 平时跑（含 CI）配置里写死 updateSnapshots:'none'，谁也不能顺手把红洗绿。
-//
-// **待拍板的屏整屏跳过**（`pendingApproval`）：它一张基线都没有，跑进来只会得到一串
-// 「snapshot missing」——那既不是设计回归也不是工具坏了，是还没到录基线的时候。
-// 跳过是明说出来的（test.skip 会在报告里留一行），不是静默不跑。
 import { expect, test } from '@playwright/test'
-import { LAB_SCREEN_IDS, readLabStates, screenIsPendingApproval } from './labStates.mjs'
+import { LAB_SCREEN_IDS, pendingApprovalScreens, readCalibration, readLabStates } from './labStates.mjs'
+
+const calibration = readCalibration()
+// 「基线待用户拍板」的屏（calibration.json 的 pendingApprovalScreens）整屏跳过比对：
+// 没人看过的图没有可回归的对象，比它等于把「今天碰巧长这样」钉成「应该长这样」。
+// `design-lab:update` 跑的就是来录基线的那一趟，所以它不跳——拍板后录完记得删登记。
+const UPDATING = process.env.NOMI_DESIGN_LAB_UPDATE === '1'
+const pending = pendingApprovalScreens()
 
 for (const screen of LAB_SCREEN_IDS) {
+  if (pending[screen] && !UPDATING) continue
   const states = readLabStates(screen)
-  const pending = screenIsPendingApproval(screen)
+  // 容差按屏取（见 calibration.json 的 why.perScreenTolerance：大格用比例会宽到放过真实改动）。
+  const tolerance = calibration.screens[screen]?.tolerance
+  if (!tolerance) throw new Error(`calibration.json 里没有 ${screen} 屏的容差声明`)
 
   test.describe(`design lab · ${screen}`, () => {
-    test.skip(pending, `${screen} 待用户拍板，还没有基线可比`)
-
     test('注册表与活页面一致（这把源码正则还活着的唯一证据）', async ({ page }) => {
       await page.goto(`/design-lab.html?screen=${screen}&frame=1&state=${states[0].id}`)
       await page.waitForFunction(() => window.__designLabReady === true)
@@ -35,9 +39,10 @@ for (const screen of LAB_SCREEN_IDS) {
         await page.waitForFunction(() => window.__designLabReady === true)
         const shot = page.locator(`[data-design-lab-shot="${state.id}"]`)
         await expect(shot).toBeVisible()
-        // 屏这一层由数组形式给出——写成 `'<屏>/<id>.png'` 里的 `/` 会被 Playwright 的
-        // 文件名消毒换成 `-`，出来是扁平的 `<屏>-<id>.png`，不是目录。
-        await expect(shot).toHaveScreenshot([screen, `${state.id}.png`])
+        // 浮层类形态走 BodyPortal + fixed 定位，根本不在舞台的子树里——按元素截会截出
+        // 「浮层没打开」的假证据，所以这一族改截整屏（注册项里显式声明 capture: 'viewport'）。
+        if (state.capture === 'viewport') await expect(page).toHaveScreenshot([screen, `${state.id}.png`], tolerance)
+        else await expect(shot).toHaveScreenshot([screen, `${state.id}.png`], tolerance)
         expect(errors, `渲染 ${state.id} 时页面抛错`).toEqual([])
       })
     }

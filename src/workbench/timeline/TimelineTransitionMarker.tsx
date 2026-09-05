@@ -29,6 +29,8 @@ function reasonKey(reason: TimelineTransitionFeedbackReason): string {
 function TimelineTransitionMarker({ feedback, fps, scale, stackRow = 0 }: TimelineTransitionMarkerProps): JSX.Element {
   const { t } = useTranslation()
   const [open, setOpen] = React.useState(false)
+  // 选择器 Portal 到 body，所以要把这颗按钮的位置交给它当锚点。
+  const anchorRef = React.useRef<HTMLButtonElement>(null)
   const type = feedback.transition.type
   const typeLabel = t(`timelineEditor.transition.types.${type}`)
   const durationLabel =
@@ -63,6 +65,7 @@ function TimelineTransitionMarker({ feedback, fps, scale, stackRow = 0 }: Timeli
     >
       <span className={cn('h-px w-2', feedback.connected ? 'bg-current' : 'border-t border-dashed border-current')} aria-hidden="true" />
       <button
+        ref={anchorRef}
         type="button"
         className="inline-flex cursor-pointer items-center rounded-[var(--nomi-radius-sm)] border-0 bg-transparent p-0 text-inherit hover:outline hover:outline-1 hover:outline-current"
         aria-label={accessibleLabel}
@@ -94,7 +97,7 @@ function TimelineTransitionMarker({ feedback, fps, scale, stackRow = 0 }: Timeli
         className={cn('h-px w-2', feedback.connected ? 'bg-current' : 'border-t border-dashed border-current')}
         aria-hidden="true"
       />
-      {open ? <TimelineTransitionPicker feedback={feedback} fps={fps} onClose={() => setOpen(false)} /> : null}
+      {open ? <TimelineTransitionPicker feedback={feedback} fps={fps} anchorRef={anchorRef} onClose={() => setOpen(false)} /> : null}
     </span>
   )
 }

@@ -1,9 +1,9 @@
 // 供应商偏好的真实旅程：两家同模型 → 设置里排偏好 → 选择器折叠成一行 → 点另一家 chip → 真实生成一次。
 // 外部供应商只由隔离 loopback 代替；Electron、IPC、选择器、付费确认、生成和项目持久化走生产路径。
 //
-// 它同时留下两张**真机**截图（`journey-*.png`，与设计实验室的 `lab-*.png` 同目录）：
-// 选择框实际长相、设置排序控件实际长相。实验室那份是喂固定夹具的现役组件，真机这份是走完整条
-// IPC + catalog 的同一批组件——两张摆一起才答得了「实验室里对，真机里也对吗」。
+// 它同时留下两张**真机**截图（`tests/ux/shots/vendor-order/journey-*.png`）：选择框实际长相、
+// 设置排序控件实际长相。设计实验室那份（`shots/design-lab-vendor-order/`）是喂固定夹具的现役组件，
+// 真机这份走完整条 IPC + catalog 的同一批组件——两边摆一起才答得了「实验室里对，真机里也对吗」。
 import fs from 'node:fs'
 import http from 'node:http'
 import os from 'node:os'
@@ -14,12 +14,8 @@ import { screenshotSettled } from './_assert.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/vendor-order')
-// 只清自己那几张：同目录里还躺着设计实验室走查的 `lab-*.png` 与 `contact.png`，
-// 整目录 rmSync 会把它们一起抹掉，而「证据不见了」和「那次没跑到」事后长得一模一样。
+fs.rmSync(shotsDir, { recursive: true, force: true })
 fs.mkdirSync(shotsDir, { recursive: true })
-for (const name of fs.readdirSync(shotsDir)) {
-  if (name.startsWith('journey-')) fs.rmSync(path.join(shotsDir, name), { force: true })
-}
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-vendor-order-'))
 const userDataDir = path.join(tempRoot, 'user-data')
 const settingsDir = path.join(tempRoot, 'settings')

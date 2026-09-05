@@ -222,12 +222,15 @@ function TimelineTrack({ track, transitionFeedback = [], variant = 'primary' }: 
         </span>
         {/* 轨道名优先：静音钮与计数都 flex-none 并靠右排（原来两颗都写 ml-auto，
             第二个 ml-auto 才生效、第一个白占一段 auto 空白，名字被挤到只剩 ~29px）。 */}
+        {/* 空轨上没有任何 clip.audio 可写，setTimelineTrackMuted 会原样返回 state ——
+            那就是「可点但无效」。明着禁用并说明为什么（设计系统 C1）。 */}
         {track.type !== 'image' ? (
           <button
             type="button"
-            className="flex-none inline-grid h-5 w-5 place-items-center rounded-[var(--nomi-radius-sm)] text-[var(--workbench-muted)] hover:bg-[var(--workbench-hover)]"
+            className="flex-none inline-grid h-5 w-5 place-items-center rounded-[var(--nomi-radius-sm)] text-[var(--workbench-muted)] hover:bg-[var(--workbench-hover)] disabled:cursor-not-allowed disabled:opacity-40"
             aria-label={trackMuted ? t('timelineEditor.track.unmute') : t('timelineEditor.track.mute')}
-            title={trackMuted ? t('timelineEditor.track.unmuteShortcut') : t('timelineEditor.track.muteShortcut')}
+            title={track.clips.length === 0 ? t('timelineEditor.track.muteEmpty') : trackMuted ? t('timelineEditor.track.unmuteShortcut') : t('timelineEditor.track.muteShortcut')}
+            disabled={track.clips.length === 0}
             onClick={() => setTimelineTrackMuted(track.id, !trackMuted)}
           >
             {trackMuted ? <IconVolumeOff size={13} /> : <IconVolume size={13} />}
@@ -357,9 +360,12 @@ function TimelineTrack({ track, transitionFeedback = [], variant = 'primary' }: 
         {track.clips.map((clip) => (
           <TimelineClip key={clip.id} clip={clip} transitionLaneRows={transitionLaneRows} />
         ))}
-        {laidOutTransitionFeedback.map(({ feedback, stackRow }, index) => (
+        {/* key 只认接缝身份（哪两段之间），**不能**带上转场类型：标记自己揣着选择器的开合状态，
+            key 里含 type 时「在选择器里换个类型」就换了 key → React 卸载重挂 → 选择器当场消失，
+            用户想接着改时长得再点开一次。接缝的身份是 from→to，类型只是它的值。 */}
+        {laidOutTransitionFeedback.map(({ feedback, stackRow }) => (
           <TimelineTransitionMarker
-            key={`${feedback.transition.fromClipId}:${feedback.transition.toClipId}:${feedback.transition.type}:${index}`}
+            key={`${feedback.transition.fromClipId}:${feedback.transition.toClipId}`}
             feedback={feedback}
             fps={fps}
             scale={scale}

@@ -1,11 +1,14 @@
 import { AGENT_PANEL_STATES, PANEL_HEIGHT, PANEL_WIDTH } from './agentPanelStates'
-import { VENDOR_ORDER_STATES, STAGE_HEIGHT, STAGE_WIDTH } from './vendorOrder/vendorOrderStates'
+import { EDITING_STATES } from './editing/editingStates'
+import { EDITING_CELL_HEIGHT, EDITING_CELL_WIDTH } from './editing/editingLabKit'
+import { VENDOR_ORDER_STATES } from './vendorOrder/vendorOrderStates'
+import { STAGE_HEIGHT, STAGE_WIDTH } from './vendorOrder/vendorOrderLabKit'
 import type { LabScreen, LabState } from './labScreen'
 
 /**
  * 实验室的**屏注册表**。加一屏 = 在这里加一条 + 在 `tests/ux/design-lab/labStates.mjs` 的
  * `LAB_SCREENS` 里登记它的注册表目录与基线目录（两处必须同时改，门岗会对；
- * 只改一处 = 那一屏要么截不出图、要么留下孤儿基线）。
+ * 只改一处 = 那一屏要么截不出图、要么孤儿基线）。
  */
 export const LAB_SCREENS: readonly LabScreen[] = [
   {
@@ -15,12 +18,18 @@ export const LAB_SCREENS: readonly LabScreen[] = [
     cell: { width: PANEL_WIDTH, height: PANEL_HEIGHT + 40 },
   },
   {
+    id: 'editing',
+    label: '剪辑面',
+    states: EDITING_STATES,
+    // 这屏各状态取景框大小不一（浮层 300–420 宽、属性面板一条窄柱），
+    // 接触表按最宽的那一格开列，免得宽件被挤成两行。
+    cell: { width: EDITING_CELL_WIDTH, height: EDITING_CELL_HEIGHT },
+  },
+  {
     id: 'vendor-order',
     label: '供应商偏好',
     states: VENDOR_ORDER_STATES,
     cell: { width: STAGE_WIDTH, height: STAGE_HEIGHT + 40 },
-    // 还没给用户看过。拍板前**一张基线都不许有**（见 labScreen.ts 上的说明）。
-    pendingApproval: true,
   },
 ]
 

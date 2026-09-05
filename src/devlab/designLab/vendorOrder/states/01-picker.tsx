@@ -15,13 +15,13 @@ import {
 import { ModelPickerStage } from '../vendorOrderLabKit'
 import type { LabState } from '../../labScreen'
 
-const SOURCE = 'docs/design/nomi-design-system.md §2（token）+ §1.5（控件层级）· 用户 2026-09-06 返工要求'
-
+// `source` 逐条写成字面单引号串（不是抽个常量再拼）：`labStates.mjs` 那把源码正则按
+// 「id / name / source / coverage 四行紧挨着的单引号串」解析注册项，模板串或标识符会解析不出来。
 export const PICKER_STATES: readonly LabState[] = [
   {
     id: 'vo-01-picker-preferred',
     name: '有偏好 · 偏好那家排第一并高亮',
-    source: SOURCE,
+    source: 'docs/design/nomi-design-system.md §2 token + §1.5 控件层级 · 用户 2026-09-06 返工要求',
     coverage: 'shell',
     render: () => (
       <ModelPickerStage models={CONFIGURED_MODELS} preferredVendorKeys={[VENDOR_KIE, VENDOR_APIMART]} />
@@ -30,7 +30,7 @@ export const PICKER_STATES: readonly LabState[] = [
   {
     id: 'vo-02-picker-no-preference',
     name: '无偏好 · 按供应商分级（官方在前）',
-    source: `${SOURCE}｜排序规则见 src/config/modelIdentity.ts sortModelProviders`,
+    source: 'src/config/modelIdentity.ts sortModelProviders · 用户 2026-09-06 返工要求',
     coverage: 'shell',
     // 没设过偏好时**不该退化成厂商名字母序**：这一格钉住「火山方舟（官方）排在两家中转前面」。
     render: () => <ModelPickerStage models={CONFIGURED_MODELS} />,
@@ -38,7 +38,7 @@ export const PICKER_STATES: readonly LabState[] = [
   {
     id: 'vo-03-picker-unconfigured-group',
     name: '含未配置分组 · 能跑的在上、没配 key 的沉底灰显',
-    source: SOURCE,
+    source: 'docs/design/nomi-design-system.md §2 token + §1.5 控件层级 · 用户 2026-09-06 返工要求',
     coverage: 'shell',
     render: () => (
       <ModelPickerStage models={MIXED_MODELS} preferredVendorKeys={[VENDOR_APIMART, VENDOR_KIE]} />
@@ -47,14 +47,14 @@ export const PICKER_STATES: readonly LabState[] = [
   {
     id: 'vo-04-picker-all-unconfigured',
     name: '全部未配置 · 整张单子只剩「未配置」那一组',
-    source: SOURCE,
+    source: 'docs/design/nomi-design-system.md §2 token + §1.5 控件层级 · 用户 2026-09-06 返工要求',
     coverage: 'shell',
     render: () => <ModelPickerStage models={ALL_UNCONFIGURED_MODELS} />,
   },
   {
     id: 'vo-05-picker-selected-row',
     name: '选中态 · 对勾与 chip 同行不打架',
-    source: SOURCE,
+    source: 'docs/design/nomi-design-system.md §2 token + §1.5 控件层级 · 用户 2026-09-06 返工要求',
     coverage: 'shell',
     // 选中行同时有：加粗模型名 + 一排 chip + 最右对勾。这三样挤在一行里最容易把模型名压没，
     // 所以单独立一格钉住。

@@ -50,8 +50,7 @@ export const PANEL_WIDTH = 340
 /** 舞台高度。够高才能一屏看完一条完整对话，又不至于让接触表变成长条。 */
 export const PANEL_HEIGHT = 620
 
-// 状态/档位的类型住 `labScreen.ts`（各屏共用一份形状）；这里只转出去，
-// 让既有 import 路径不用改，也不给同一个契约留第二份定义。
+// 状态与档位的类型住 `labScreen.ts`（各屏共用一份形状）；这里只 re-export，方便同屏的文件就近取用。
 export type { LabCoverage, LabState } from './labScreen'
 
 // ── shell 档：灌 Host 快照，渲染现役面板 ──────────────────────────────────────

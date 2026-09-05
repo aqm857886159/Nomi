@@ -136,6 +136,7 @@ export const DYNAMIC_KEY_PREFIXES: DynamicPrefix[] = [
   { prefix: 'scene3d.taskFlow.taskLabel', why: '动态: 3D 任务流任务标签;枚举来源: scene3dTaskMode 的 task(taskFlow.taskLabel.* 词条)' },
   { prefix: 'scene3d.taskFlow.taskShortLabel', why: '动态: 3D 任务流任务短标签;枚举来源: scene3dTaskMode 的 task(taskFlow.taskShortLabel.* 词条)' },
   // ── settings ──
+  { prefix: 'settings.general.telemetry', why: '动态: 遥测设置状态标签;枚举来源: TelemetrySettingsView.status 的 configured/unconfigured/disabled 三态映射为 statusConfigured/statusUnconfigured/statusDisabled 词条' },
   { prefix: 'settings.ai.upload.channel.kind', why: '动态: 上传通道类别;枚举来源: AiModelsSection 的 channel.kind(upload.channel.kind.* 词条)' },
   { prefix: 'settings.ai.tikhub.route', why: '动态: TikHub 路由字段;枚举来源: TikhubConnectorCard 的 route 字段(tikhub.route.* 词条)' },
   {

@@ -1,28 +1,29 @@
-// 设计实验室 · 供应商偏好屏走查（R13 人眼判断的素材源）。零额度：纯本地渲染，不碰任何生成 API。
+// 设计实验室 · 供应商偏好走查（R13 人眼判断的素材源）。零额度：纯本地渲染，不碰任何生成 API。
 //
-// 流程住在 `design-lab/walkScreen.mjs`（各屏共用一份）；这里声明这一屏的取景参数，
+// 流程住 `design-lab/walkScreen.mjs`（与其它屏共用一份）；这里声明这一屏的取景参数，
 // 外加**一条只有这一屏才成立的断言**。
 //
 // 那条断言是这一屏的命门：要看的东西全在展开后的浮层里（模型名有没有被 chip 挤没、
 // 偏好那家排第几、未配置那组沉在哪）。浮层没打开的话，截出来是一个孤零零的触发钮——
-// 一张「看着挺正常」的废图，而且和真绿长得一模一样。所以逐格验：
+// 一张「看着挺正常」的废图，而且和真绿长得一模一样。所以逐格验三件事：
 //   · picker 类的格子必须真的有一个展开的下拉，且至少两行选项；
-//   · 每一行都必须看得见模型名（宽度 > 0）——这正是 2026-09-06 用户返工时的那个 bug。
+//   · 每一行都必须看得见模型名（宽度 > 0）——这正是 2026-09-06 用户返工时的那个 bug；
+//   · 浮层整个落在舞台里（溢出的部分按元素截图会被无声裁掉）。
 //
-// 输出与真实 Electron 旅程（vendor-preference-order.walk.mjs）**共用一个目录**，
-// 前缀区分：`lab-*` 是实验室里的现役组件，`journey-*` 是真机跑出来的。放一起是为了
-// 对账时一眼能比「实验室里长这样、真机里长这样」。
+// 产出：`tests/ux/shots/design-lab-vendor-order/<state>.png` + `_contact-sheet.png`（拍板用）。
+// 真机那份证据在 `tests/ux/shots/vendor-order/journey-*.png`（vendor-preference-order.walk.mjs）——
+// 实验室这份是喂固定夹具的现役组件，真机那份走完整条 IPC + catalog，两边摆一起才答得了
+// 「实验室里对，真机里也对吗」。
 //
 // 用法：node tests/ux/design-lab-vendor-order.walk.mjs   （ONLY=vo-01-picker-preferred 只跑一个）
 import { walkDesignLabScreen } from './design-lab/walkScreen.mjs'
 
 await walkDesignLabScreen({
   screen: 'vendor-order',
-  title: '供应商偏好',
-  port: 5209,
-  outDir: 'tests/ux/shots/vendor-order',
-  filePrefix: 'lab-',
-  contactName: 'contact.png',
+  title: '供应商偏好 ',
+  // 与其它屏走查错开端口（agent-panel 5198 / editing 5200）：并行跑时撞端口，
+  // --strictPort 会让我们的 vite 退出而连上别人那棵树（walkScreen 起飞前会拦）。
+  port: 5201,
   // 舞台 460 宽（vendorOrderLabKit.STAGE_WIDTH）；三列一屏看完七格。
   cellWidth: 460,
   columns: 3,
@@ -53,10 +54,10 @@ await walkDesignLabScreen({
     // 拍出来是一张「下拉好像就这么短」的图——看着完全正常的假证据。
     const overflow = await page.evaluate((id) => {
       const stage = document.querySelector(`[data-design-lab-shot="${id}"] [data-design-lab-stage]`)
-      const dropdown = document.querySelector('[data-nomi-select-dropdown]')
-      if (!stage || !dropdown) return null
+      const panel = document.querySelector('[data-nomi-select-dropdown]')
+      if (!stage || !panel) return null
       const a = stage.getBoundingClientRect()
-      const b = dropdown.getBoundingClientRect()
+      const b = panel.getBoundingClientRect()
       return { bottom: Math.round(b.bottom - a.bottom), right: Math.round(b.right - a.right) }
     }, state.id)
     if (overflow && (overflow.bottom > 0 || overflow.right > 0)) {

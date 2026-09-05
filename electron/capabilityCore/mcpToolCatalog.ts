@@ -50,9 +50,24 @@ const CANVAS_EDIT_TOOL = {
 // canvas.read 已进 nomi_read（target=canvas）、canvas 写已是 T3 本体，这两个从透传里排除以免撞名/并行版。
 const SEMANTIC_EDITING_TOOLS = MCP_CAPABILITY_RESOLVER.list().filter((tool) => tool.name !== CANVAS_READ_ALIAS && tool.name !== CANVAS_EDIT_TOOL.name)
 if (SEMANTIC_EDITING_TOOLS.length === 0) throw new Error('M2 semantic editing MCP adapters are not registered')
-/** M2 语义编辑工具名单（真相源），供测试派生 collapsedTitled 范围而非手抄排除规则。
- *  这些工具来自 MCP_CAPABILITY_RESOLVER（capability 层），暂无 title——续裁时统一补（A 线任务）。 */
+const SEMANTIC_EDITING_TOOL_TITLES = {
+  nomi_canvas_maintenance: { 'zh-CN': '确认后删除画布节点，或撤销最近一次删除。', en: 'Delete Canvas nodes after confirmation, or undo the latest deletion.' },
+  nomi_document_read: { 'zh-CN': '读取当前创作文档或选区文本。', en: 'Read the current creation document or a selected range.' },
+  nomi_document_edit: { 'zh-CN': '向创作文档插入、替换或追加内容。', en: 'Insert, replace, or append content in the creation document.' },
+  nomi_timeline_read: { 'zh-CN': '读取时间轴或检查指定帧区间。', en: 'Read the timeline or inspect a frame range.' },
+  nomi_timeline_edit: { 'zh-CN': '预览、应用或撤销一次受版本保护的时间轴修改。', en: 'Preview, apply, or undo a revision-guarded timeline edit.' },
+  nomi_export_job: { 'zh-CN': '查看导出任务状态或核验导出结果。', en: 'Inspect an export job or verify its rendered result.' },
+  nomi_media_query: { 'zh-CN': '查询项目媒体、技术信息、来源区间或波形。', en: 'Query project media, technical metadata, source ranges, or waveforms.' },
+  nomi_layout_read: { 'zh-CN': '读取当前剪辑工作区布局。', en: 'Read the current editing workspace layout.' },
+  nomi_layout_write: { 'zh-CN': '调整剪辑工作区布局并保留撤销凭据。', en: 'Change the editing workspace layout with an undo receipt.' },
+} as const
+/** M2 语义编辑工具名单（真相源），供测试派生完整目录范围而非手抄排除规则。 */
 export const SEMANTIC_EDITING_TOOL_NAMES = Object.freeze(SEMANTIC_EDITING_TOOLS.map((t) => t.name))
+const SEMANTIC_EDITING_TOOLS_WITH_TITLES = SEMANTIC_EDITING_TOOLS.map((tool) => {
+  const titles = SEMANTIC_EDITING_TOOL_TITLES[tool.name as keyof typeof SEMANTIC_EDITING_TOOL_TITLES]
+  if (!titles) throw new Error(`Missing localized MCP title for ${tool.name}`)
+  return { ...tool, title: titles['zh-CN'], titleByLocale: Object.freeze(titles) }
+})
 
 // ── T2 · nomi_read：读侧统一入口（多态只读，整体 readOnlyHint） ───────────────────────────────
 // 每个旧读工具 = 一个 target 值；get/read 双读（get_artifact vs read_artifact）= artifact vs artifact_content
@@ -301,14 +316,27 @@ export const MCP_TOOL_CATALOG = [
   MCP_INTEGRATION_TOOL, // T14（接入状态机 5 个确定性缝）
   MCP_INTEGRATION_MANAGEMENT_TOOL, // T14 supplemental（已接入连接管理）
   PROJECT_CREATE_TOOL, // T15
-  ...SEMANTIC_EDITING_TOOLS, // M2 语义编辑（canvas_maintenance · document_read/edit · timeline_read/edit · export_job · media_query）——原样保留待续裁
+  ...SEMANTIC_EDITING_TOOLS_WITH_TITLES, // M2 语义编辑（含中英文人话标题）
 ] as const
 
 export type McpToolDefinition = (typeof MCP_TOOL_CATALOG)[number] & {
   title?: string
+  titleByLocale?: { readonly 'zh-CN': string; readonly en: string }
   resolveMethod?: (args: Record<string, unknown>) => string
   annotations?: { readonly readOnlyHint: true }
   presentResult?: (result: unknown) => unknown
+}
+
+export function assertMcpToolTitles(tools: readonly McpToolDefinition[]): void {
+  for (const tool of tools) {
+    if (typeof tool.title !== 'string' || tool.title.trim().length === 0) {
+      throw new Error(`Missing MCP tool title for ${tool.name}`)
+    }
+    const localized = tool.titleByLocale
+    if (localized && (!localized['zh-CN'].trim() || !localized.en.trim())) {
+      throw new Error(`Missing localized MCP tool title for ${tool.name}`)
+    }
+  }
 }
 
 // 再导出整族路由映射，供测试逐条 assert 「旧 name 的 method+params ≡ 新 name 某枚举分支的 build 输出」。
@@ -324,6 +352,8 @@ const MCP_TOOL_SNAPSHOT = Object.freeze(MCP_TOOL_CATALOG.map((tool) => {
     ...(annotations ? { annotations } : {}),
   })
 })) as readonly McpToolDefinition[]
+
+assertMcpToolTitles(MCP_TOOL_SNAPSHOT)
 
 const MCP_TOOL_BY_NAME = new Map<string, McpToolDefinition>(
   MCP_TOOL_SNAPSHOT.map((tool) => [tool.name, tool]),

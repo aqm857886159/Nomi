@@ -15,12 +15,12 @@
 | 层 | 在哪 | 证明什么 |
 |---|---|---|
 | 实验室屏 | `design-lab.html?screen=vendor-order` | 屏上每一格都是**现役组件**（`NomiSelect` + `buildModelSelectOptions` + `VendorPreferenceOrderSection`）渲染的，夹具只决定目录内容 |
-| 走查截图 | `pnpm run design-lab:walk:vendor-order` → `tests/ux/shots/vendor-order/lab-*.png` + `contact.png` | 人眼逐格看 / 接触表拍板 |
-| 真机旅程 | `node tests/ux/vendor-preference-order.walk.mjs` → 同目录 `journey-*.png` | 真 Electron + 真 IPC + 真生成一次，实验室里那套在真机上确实长这样 |
-| 视觉基线 | `pnpm run check:design-lab` | **暂缺，故意的**：`vendor-order` 屏标着 `pendingApproval`，拍板前一张基线都不许有（录一张没人认可过的图钉住，等于把「待定」伪装成「已定」）。门岗两头都查：待拍板的屏有基线 = 红，已拍板的屏缺基线 = 红 |
+| 走查截图 | `pnpm run design-lab:walk:vendor-order` → `tests/ux/shots/design-lab-vendor-order/*.png` + `_contact-sheet.png` | 人眼逐格看 / 接触表拍板 |
+| 真机旅程 | `node tests/ux/vendor-preference-order.walk.mjs` → `tests/ux/shots/vendor-order/journey-*.png` | 真 Electron + 真 IPC + 真生成一次，实验室里那套在真机上确实长这样 |
+| 视觉基线 | `pnpm run check:design-lab` | **暂缺，故意的**：`vendor-order` 登记在 `calibration.json` 的 `pendingApprovalScreens` 里。没被人看过的屏没有可回归的对象，现在录一套只会把「今天碰巧长这样」钉成「应该长这样」。孤儿基线不受豁免，照红 |
 
-拍板后的动作：摘掉 `src/devlab/designLab/labScreens.ts` 与 `tests/ux/design-lab/labStates.mjs`
-两处的 `pendingApproval`，跑 `pnpm run design-lab:update` 录基线。
+拍板后的动作：删掉 `tests/ux/design-lab/calibration.json` 里 `pendingApprovalScreens.vendor-order`
+那一条，跑 `pnpm run design-lab:update` 录基线。
 
 ## 屏上的七个状态
 
