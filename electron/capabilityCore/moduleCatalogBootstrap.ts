@@ -4,6 +4,7 @@ import type { GenerationProviderCapabilities } from "./generationRuntimeAdapter"
 import { readCatalog } from "../catalog/catalogStore";
 import type { CatalogState, Mapping, Model, ProfileKind } from "../catalog/types";
 import { derivePublishedExecution } from "../shared/modelPublication";
+import { SINGLE_SHOT_GENERATION_MODULE_ID } from "../shared/generationModuleId";
 
 /**
  * Built-ins are passed in by the application bootstrap. This keeps provider/model
@@ -13,7 +14,7 @@ export function createBuiltinModuleRegistry(manifests: readonly ModuleManifest[]
   return createModuleRegistry(manifests);
 }
 
-const SINGLE_SHOT_MODULE_ID = "generation.single-shot";
+const SINGLE_SHOT_MODULE_ID = SINGLE_SHOT_GENERATION_MODULE_ID;
 
 export type GenerationProviderReadiness = {
   providerReady: boolean;

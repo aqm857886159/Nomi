@@ -11,7 +11,14 @@ import type {
   ProjectSelectionInput,
 } from './projectLease'
 
-export type ProjectSelectionSource = 'current_project' | 'created_project' | 'server_allowlist'
+/**
+ * 服务端认可的项目选择来源。
+ * `listed_project` 是 2026-09-05 补的：此前**只有** `created_project` 会签发 selection handle，
+ * 于是没开 GUI 的外部宿主只能在「本次连接里自己新建的项目」里干活 —— 断线即失忆，
+ * 用户在 Nomi 里已经建好的项目一个也接不上（24 个工具里 14 个是租约门控的）。
+ * 项目 id 本来就由服务端自己的 project.list 列出（不是客户端猜的），签发路径与 created_project 逐字节相同。
+ */
+export type ProjectSelectionSource = 'current_project' | 'created_project' | 'listed_project' | 'server_allowlist'
 
 export type ProjectSelectionResolution = Readonly<Omit<ProjectSelectionInput, 'scopeSet' | 'ttlMs'>>
 

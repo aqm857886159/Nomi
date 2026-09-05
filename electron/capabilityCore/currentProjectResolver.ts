@@ -62,8 +62,10 @@ function authorizedProject(
     && !deps.isServerAllowlisted(projectId, request.connection)) {
     throw new ProjectSelectionUnavailableError()
   }
-  // `created_project` is reachable only from the server-owned project.create
-  // result path, which issues a handle immediately on this same connection.
+  // `created_project` and `listed_project` are both reachable only from
+  // server-owned result paths (project.create / project.list). In each case the
+  // project id comes from this server's own workspace enumeration, never from
+  // client-supplied input, and the handle is minted for this exact connection.
   return { projectId }
 }
 
