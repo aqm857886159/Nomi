@@ -5,7 +5,7 @@
 - 登记：[docs/plan/INDEX.md](docs/plan/INDEX.md:58)；状态标记位于计划第 3 行。
 - 计划覆盖：D-2=A 画布节点、Zustand/R23、行内关键帧、选行生成、Agent 投影、MCP/ProductionRun、阶段二单向转换、V-08 Skill。
 - P1 删除边界：Portal 438 行、铺图 147 行及旧角标/入口同 commit 删除，证据见计划 §3/§5。
-- 里程碑提交：`63b427da6`、`d3d183d1c5a5`；均已推送至远端任务分支。
+- 里程碑提交：`63b427da6`、`d3d183d1c5a5`、本次状态投影澄清提交；均已推送至远端任务分支。
 - 基线：`origin/main=dab73638b54962b920babfd075c7261ae7c3bca2`，已整合且 `check:fresh-base` 通过。
 - 验证：`pnpm run gates` 全绿（59 contracts、1196 Vitest 文件/11019 tests、agent runtime、build）。
 - 文档门：`check:docs-index` 与 `check:doc-status` 均通过，无 warning。
