@@ -143,7 +143,6 @@ export function ResidentPromptMenu({
 
 // labelKey/hintKey 存**整键**（拼接会让死键门岗对整棵 agentResident 失明）。
 // eslint-disable-next-line react-refresh/only-export-components
-// labelKey/hintKey 存**整键**（拼接会让死键门岗对整棵 agentResident 失明）。
 export const PROMPT_PRESETS = [
   { id: 'general', labelKey: 'agentResident.promptDefault', hintKey: 'agentResident.promptDefaultHint', icon: IconCircleDashed, prompt: '' },
   { id: 'story', labelKey: 'agentResident.promptCamera', hintKey: 'agentResident.promptCameraHint', icon: IconAperture, prompt: '保留人物、机位和动作，只调整光线、景深与前景层次。' },
