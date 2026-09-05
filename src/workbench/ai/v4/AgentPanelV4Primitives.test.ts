@@ -10,7 +10,7 @@ const interventionKinds = ['approval-irreversible', 'approval-reversible', 'reje
 
 describe('agent panel v4 building blocks', () => {
   it('renders a user attachment chip', () => expect(renderToString(React.createElement(V4UserBubble, { text: 'hello', attachment: 'ref.png' }))).toContain('ref.png'))
-  it.each(toolStatuses)('renders tool status %s', (status) => expect(renderToString(React.createElement(V4ToolReceipt, { receipt: { label: 'read', action: 'timeline', status }, statusLabel: '状态' }))).toContain(`data-status=\"${status}\"`))
-  it.each(taskStatuses)('renders task status %s', (status) => expect(renderToString(React.createElement(V4TaskCard, { task: { title: '生成', status }, labels }))).toContain(`data-status=\"${status}\"`))
-  it.each(interventionKinds)('renders intervention kind %s', (kind) => expect(renderToString(React.createElement(V4Intervention, { data: { kind, title: '介入', summary: '确认' }, labels: { confirm: '确认', reject: '不要', escalate: '不再问 →', cancel: '取消' } }))).toContain(`data-kind=\"${kind}\"`))
+  it.each(toolStatuses)('renders tool status %s', (status) => expect(renderToString(React.createElement(V4ToolReceipt, { receipt: { label: 'read', action: 'timeline', status }, statusLabel: '状态' }))).toContain(`data-status="${status}"`))
+  it.each(taskStatuses)('renders task status %s', (status) => expect(renderToString(React.createElement(V4TaskCard, { task: { title: '生成', status }, labels }))).toContain(`data-status="${status}"`))
+  it.each(interventionKinds)('renders intervention kind %s', (kind) => expect(renderToString(React.createElement(V4Intervention, { data: { kind, title: '介入', summary: '确认' }, labels: { confirm: '确认', reject: '不要', escalate: '不再问 →', cancel: '取消' } }))).toContain(`data-kind="${kind}"`))
 })

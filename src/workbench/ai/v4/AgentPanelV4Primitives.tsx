@@ -1,6 +1,6 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconAlertTriangle, IconCheck, IconChevronDown, IconChevronRight, IconFileText, IconLayersSubtract, IconLoader2, IconMessage, IconPaperclip, IconPhoto, IconTimelineEvent, IconVideo, IconX } from '@tabler/icons-react'
+import { IconAlertTriangle, IconCheck, IconChevronRight, IconFileText, IconLayersSubtract, IconLoader2, IconMessage, IconPaperclip, IconPhoto, IconTimelineEvent, IconVideo, IconX } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
 import { AgentPanelV4Markdown } from './AgentPanelV4Markdown'
 import type { InterventionData, QueueRowData, TaskCardData, ToolReceipt, V4AssistantStatus, V4TaskStatus, V4ToolStatus } from './agentPanelV4Types'
