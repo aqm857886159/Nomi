@@ -18,6 +18,13 @@ function delegatedOwner(annotation) {
   ) {
     return 'lint:ci warning budget'
   }
+  // 文档/生成物门在 PR 上是 advisory：失败变成一条带 docs-autosync 标题的 warning 注解，
+  // 补齐由 .github/workflows/docs-autosync.yml 在 main 上做（见 scripts/run-gates-contracts.mjs）。
+  // 它**有主体、且主体真的会跑**，所以是「委派」而不是「豁免」——因此不进需要写过期日期的
+  // allowlist：allowlist 是给临时状况用的，给一条永久且有 owner 的机制配过期日只会到期再红一次。
+  if (annotation.level === 'warning' && annotation.title === 'docs-autosync') {
+    return 'docs-autosync workflow on main'
+  }
   return null
 }
 

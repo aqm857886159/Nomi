@@ -7,63 +7,25 @@
  *
  * docs/lessons 一并纳管（2026-09-02）：教训库的入口就是 INDEX.md，孤儿教训文件等于不存在
  * ——没人会去 grep 一条自己不知道存在的坑。这条罩着的是纪律「新增一条就挂号」。
+ *
+ * 扫描本身住在 `scripts/docs-index-lib.mjs`（2026-09-05 抽出）：main 上的自动补齐脚本
+ * 要用同一份判据决定「把哪篇写进索引」，两处各写一份链接解析必然漂成两套语义。
+ * 本文件只负责棘轮基线与红绿——判断逻辑没变。
+ *
+ * 在 `gates:contracts` 里本门岗是 **advisory**（失败只出 warning 注解，不阻断）：
+ * 补齐由 `.github/workflows/docs-autosync.yml` 在 main 上自动做掉。直接运行本脚本
+ * 仍然 fail-closed（退出码 1），autosync 用的就是这个语义来验证补齐成功。
  */
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { scanDocumentIndex, toRepoRelative } from './docs-index-lib.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const docsRoot = path.join(repoRoot, 'docs')
 const baselinePath = path.join(repoRoot, 'scripts', 'docs-index-baseline.json')
-const scanRoots = [
-  path.join(docsRoot, 'plan'),
-  path.join(docsRoot, 'superpowers', 'plans'),
-  path.join(docsRoot, 'lessons'),
-]
-
-function collectMarkdownFiles(root) {
-  if (!fs.existsSync(root)) return []
-  const files = []
-  for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
-    const file = path.join(root, entry.name)
-    if (entry.isDirectory()) files.push(...collectMarkdownFiles(file))
-    else if (entry.isFile() && entry.name.endsWith('.md')) files.push(file)
-  }
-  return files
-}
 
 function relative(file) {
-  return path.relative(repoRoot, file).split(path.sep).join('/')
-}
-
-function stripNonProse(source) {
-  return source
-    .replace(/<!--[^]*?-->/g, '')
-    .replace(/^\s*(```|~~~)[^\n]*\n[^]*?^\s*\1\s*$/gm, '')
-}
-
-function extractLinkTargets(indexFile) {
-  const source = stripNonProse(fs.readFileSync(indexFile, 'utf8'))
-  const targets = []
-  // 本仓索引使用 inline Markdown links。目标允许 <...> 包裹，也允许可选 title。
-  const pattern = /(!?)\[[^\n]*?\]\(\s*(?:<([^>\n]+)>|([^\s)\n]+))(?:\s+["'][^"'\n]*["'])?\s*\)/g
-  for (const match of source.matchAll(pattern)) {
-    if (match[1] === '!') continue
-    const raw = (match[2] ?? match[3]).trim()
-    if (!raw || raw.startsWith('#') || /^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(raw)) continue
-    let decoded
-    try {
-      decoded = decodeURIComponent(raw)
-    } catch {
-      decoded = raw
-    }
-    const withoutSuffix = decoded.split(/[?#]/, 1)[0].replaceAll('\\', '/')
-    const absolute = withoutSuffix.startsWith('/')
-      ? path.resolve(repoRoot, withoutSuffix.slice(1))
-      : path.resolve(path.dirname(indexFile), withoutSuffix)
-    targets.push(relative(absolute))
-  }
-  return targets
+  return toRepoRelative(repoRoot, file)
 }
 
 function readBaseline() {
@@ -94,15 +56,7 @@ function writeBaseline(paths) {
   fs.writeFileSync(baselinePath, `${JSON.stringify(baseline, null, 2)}\n`)
 }
 
-// INDEX.md 是索引本身，不是被审的方案文档；否则新建一个目录索引会把自己判成违规。
-const documents = scanRoots.flatMap(collectMarkdownFiles)
-  .filter((file) => path.basename(file) !== 'INDEX.md')
-  .map(relative)
-  .sort()
-const documentSet = new Set(documents)
-const indexFiles = [path.join(docsRoot, 'README.md'), ...collectMarkdownFiles(docsRoot).filter((file) => path.basename(file) === 'INDEX.md')]
-const indexed = new Set(indexFiles.flatMap(extractLinkTargets).filter((target) => documentSet.has(target)))
-const unindexed = documents.filter((file) => !indexed.has(file))
+const { documents, indexed, unindexed } = scanDocumentIndex(repoRoot)
 
 const updateBaseline = process.argv.includes('--update-baseline')
 const allowedList = readBaseline()
