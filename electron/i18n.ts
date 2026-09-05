@@ -1,4 +1,6 @@
 import { app, ipcMain } from "electron";
+import { writePersistedLocale } from './settings/localePreference'
+import { getSettingsRoot } from './settings/settingsRoot'
 
 // locale 归一是纯逻辑，住在 electron-free 的 desktopLocale.ts（打包裸 Node launcher 也要 require 它，
 // 不能碰 electron）。本地引来给 setDesktopLocale 用，再原样导出——保持 i18n 对既有消费者的公开面不变
@@ -351,7 +353,14 @@ export function desktopT(key: DesktopTranslationKey, values: Record<string, stri
 //  · set-locale：渲染层切语言 → 同步桌面侧（原生菜单/对话框文案）。
 //  · get-system-locale：首启无存储偏好时，渲染层同步探测 OS 语言（app.getLocale() 由 --lang/系统设定）。
 export function registerI18nIpc(): void {
-  ipcMain.on("nomi:i18n:set-locale", (_event, locale: unknown) => setDesktopLocale(locale));
+  ipcMain.on("nomi:i18n:set-locale", (_event, locale: unknown) => {
+    setDesktopLocale(locale)
+    try {
+      writePersistedLocale(getSettingsRoot(), getDesktopLocale())
+    } catch {
+      // Locale still applies for this session when the settings root is unavailable.
+    }
+  });
   ipcMain.on("nomi:i18n:get-system-locale", (event) => {
     try {
       event.returnValue = { ok: true, value: app.getLocale() };

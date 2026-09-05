@@ -357,8 +357,9 @@ export function createMcpProtocol(transport: McpTransport) {
       reply(id, {
         tools: MCP_TOOL_RESOLVER.list().map((tool) => {
           const { name, description, inputSchema } = tool
-          // title（MCP tools spec 2025-06-18；宿主 UI 优先显示）——面收敛后每个工具带一句人读 title。
-          const title = typeof (tool as { title?: unknown }).title === 'string' ? { title: (tool as { title: string }).title } : {}
+          const localizedTitles = (tool as { titleByLocale?: { 'zh-CN': string; en: string } }).titleByLocale
+          const selectedTitle = localizedTitles?.[locale()] ?? ((tool as { title?: unknown }).title as string | undefined)
+          const title = typeof selectedTitle === 'string' && selectedTitle.length > 0 ? { title: selectedTitle } : {}
           // 挂活 widget 的工具：预声明 _meta.ui.resourceUri（MCP Apps 标准）+ openai/outputTemplate（ChatGPT 别名）
           // + 调用状态文案。always 广告（宿主不支持则忽略 _meta，spec 设计）→ 跨 Claude/ChatGPT 通用（P4）。
           // nomi_read 整体预声明（运行时按 target 决定是否真挂 widget frame，见 widgetUriFor）。
