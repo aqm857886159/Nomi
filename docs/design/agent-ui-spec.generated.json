@@ -5,10 +5,10 @@
     "height": 900,
     "deviceScaleFactor": 1
   },
-  "generatedAt": "2026-09-05T10:06:13.371Z",
+  "generatedAt": "2026-09-05T16:56:57.546Z",
   "description": "从样张 HTML 渲染提取的设计规格表——每条对应一个 conformance testspec 断言挂点，包含真实几何（px）和计算色值，供实现者核对实现与样张是否对齐。",
   "mockupPath": "docs/design/mockups/2026-09-01-agent-ui-final-redesign.html",
-  "mockupHash": "ddbf0c2d345f1368",
+  "mockupHash": "7c2327c620d7c09f",
   "screens": [
     "A",
     "B",
