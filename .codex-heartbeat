@@ -1,0 +1,3 @@
+2026-09-06T$(date +%H:%M:%S%z) plan worktree initialized
+2026-09-06T03:12:07+0800 plan and docs index written
+2026-09-06T03:12:52+0800 doc status marker added and source paths made explicit
