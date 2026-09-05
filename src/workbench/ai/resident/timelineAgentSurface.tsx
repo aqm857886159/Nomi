@@ -1,5 +1,6 @@
 import React from 'react'
 import { createPortal } from 'react-dom'
+import type { ProjectAgentApprovalPolicy } from '../../../../electron/shared/projectAgentContracts'
 import { timelineRevision } from '../../timeline/kernel/timelineKernel'
 import type { TimelineState } from '../../timeline/timelineTypes'
 import { TimelinePlanPreviewLayer } from '../../timeline/agent/TimelinePlanPreviewLayer'
@@ -86,4 +87,32 @@ export function useTimelinePlanPreview(
   return host && wanted
     ? createPortal(<TimelinePlanPreviewLayer bands={bands} scale={timeline.scale} label={label} />, host)
     : null
+}
+
+/**
+ * The timeline surface's whole contract is propose → highlight → approve
+ * (§2.6), but the shared default policy is `safe-auto`, which lets the Host
+ * commit a reversible local write with no card at all — the plan would land
+ * before the user ever saw the highlight. Priming the policy once, instead of
+ * rewriting it on every send, is what keeps "this session" / "always" alive:
+ * after the user escalates, the escalation *is* the policy and nothing
+ * overrides it on the next turn.
+ *
+ * The primed set is module scope because the resident shell remounts whenever
+ * Nomi is collapsed or expanded; a per-instance ref would re-prime on the next
+ * mount and silently undo the choice the user just made.
+ */
+const primedApprovalBindings = new Set<string>()
+
+export function useTimelineApprovalPriming(
+  surface: string,
+  bindingKey: string,
+  policy: ProjectAgentApprovalPolicy,
+  setPolicy: (next: ProjectAgentApprovalPolicy) => void,
+): void {
+  React.useEffect(() => {
+    if (surface !== 'preview' || !bindingKey || primedApprovalBindings.has(bindingKey)) return
+    primedApprovalBindings.add(bindingKey)
+    if (policy.mode !== 'step') setPolicy({ mode: 'step', spend: policy.spend })
+  }, [bindingKey, policy, setPolicy, surface])
 }

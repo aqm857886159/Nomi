@@ -35,6 +35,16 @@ const residentExceptions = readSource(
 const residentGenerationEditor = readSource(
   path.join(process.cwd(), 'src/workbench/ai/resident/GenerationProposalEditor.tsx'),
 )
+// The collapsed launcher and the pending-approval cards moved into their own
+// owners when the collapsed timeline dock started rendering the same composer
+// and the same cards (design contract §2.6). The invariants below still belong
+// to the resident surface; only the file that holds them changed.
+const residentCollapsedDock = readSource(
+  path.join(process.cwd(), 'src/workbench/ai/resident/ResidentCollapsedDock.tsx'),
+)
+const residentPendingToolCards = readSource(
+  path.join(process.cwd(), 'src/workbench/ai/resident/residentPendingToolCards.tsx'),
+)
 const reconcileCard = readSource(
   path.join(process.cwd(), 'src/workbench/generationCanvas/components/ReconcileDeviationCard.tsx'),
 )
@@ -171,8 +181,8 @@ describe('ProjectAgentResidentShell production contract', () => {
     expect(resident).toContain('aria-haspopup="menu"')
     expect(residentUi).toContain('BodyPortal')
     expect(residentUi).toContain('anchorRef')
-    expect(resident).toContain('data-agent-resident-collapsed="true"')
-    expect(resident).toContain('rounded-pill border border-nomi-line')
+    expect(residentCollapsedDock).toContain('data-agent-resident-collapsed="true"')
+    expect(residentCollapsedDock).toContain('rounded-pill border border-nomi-line')
     expect(resident).not.toContain('CreationPromptPicker')
     expect(resident).not.toContain('AssistantModelPicker')
     expect(resident).not.toContain('<select')
@@ -191,7 +201,7 @@ describe('ProjectAgentResidentShell production contract', () => {
   it('keeps review cards actionable and progressively discloses technical detail', () => {
     expect(resident).toContain('hasContextLocator')
     expect(resident).toContain('data-agent-proposal')
-    expect(resident).toContain('proposal={')
+    expect(residentPendingToolCards).toContain('proposal={')
     expect(residentDisplay).toContain('readableProposalModel')
     expect(residentDisplay).toContain("replace(/16:9/g")
     expect(residentPrimitives).toContain('data-agent-tool-effect')
@@ -204,8 +214,8 @@ describe('ProjectAgentResidentShell production contract', () => {
     expect(residentPrimitives).toContain('data-agent-proposal-editor-slot')
     expect(residentPrimitives).toContain('data-agent-approval-variant="generation"')
     expect(residentPrimitives).toContain('compactGeneration')
-    expect(resident).toContain('isGenerationProposalTool')
-    expect(resident).toContain('compactGeneration={compactGeneration}')
+    expect(residentPendingToolCards).toContain('isGenerationProposalTool')
+    expect(residentPendingToolCards).toContain('compactGeneration={compactGeneration}')
     expect(residentPrimitives).toContain('partitionResidentProposalFields')
     expect(resident).toContain('data-agent-queue')
     expect(resident).toContain('data-agent-queue-remove')
