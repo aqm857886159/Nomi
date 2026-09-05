@@ -29,6 +29,9 @@ const residentDisplay = readSource(
 const residentReference = readSource(
   path.join(process.cwd(), 'src/workbench/ai/resident/ResidentReferenceChip.tsx'),
 )
+const residentExceptions = readSource(
+  path.join(process.cwd(), 'src/workbench/ai/resident/ResidentExceptionStates.tsx'),
+)
 const residentGenerationEditor = readSource(
   path.join(process.cwd(), 'src/workbench/ai/resident/GenerationProposalEditor.tsx'),
 )
@@ -224,6 +227,22 @@ describe('ProjectAgentResidentShell production contract', () => {
     expect(residentProjection).toContain('MAX_TEXT_LENGTH')
     expect(residentProjection).toContain('Object.fromEntries(entries.map')
     expect(residentProjection).not.toContain('apiKey')
+  })
+
+  it('covers the approved P0 exception hooks and thresholds', () => {
+    for (const hook of [
+      'data-agent-plan-card', 'data-agent-spend-card', 'data-agent-write-failure',
+      'data-agent-artifact-card', 'data-agent-deviation-card', 'data-agent-candidates-card',
+      'data-agent-question-card', 'data-agent-at-picker', 'data-at-search',
+    ]) expect(residentExceptions + residentUi).toContain(hook)
+    for (const contract of [
+      "data-state=\"loading\"", "data-state=\"failed\"", 'data-state={state}',
+      'data-state={amount === null ? \'price-failed\' : \'ready\'}',
+      'max-h-[220px]', 'max-h-[280px]', 'slice(0, 5)', 'slice(0, 4)',
+      'candidates.length > 3', 'assets.length > 50', 'activeQueue.length > 3',
+    ]) expect(residentExceptions + residentUi + resident).toContain(contract)
+    expect(resident).toContain('activeQueue.slice(0, queueExpanded ? activeQueue.length : 3)')
+    expect(residentExceptions).toContain('data-agent-write-failure="true"')
   })
 
   it('keeps completed proposal receipts compact and locator-aware', () => {
