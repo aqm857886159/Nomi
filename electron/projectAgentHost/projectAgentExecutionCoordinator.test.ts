@@ -53,6 +53,8 @@ import type {
   ProjectAgentProposalReceiptView,
 } from "../shared/projectAgentProposalReceipt";
 import type { ProjectAgentProposalReceiptWriter } from "./projectAgentExecutionCoordinatorTypes";
+import { readEvents, setEventLogProjectDirResolverForTests } from "../events/eventLogRepository";
+import { getExperienceRepository, resetExperienceRepositoryForTests, setExperienceProjectDirResolverForTests } from "../experience/experienceRepository";
 import {
   createProjectAgentProposalReceiptService,
   projectAgentProposalReceiptPath,
@@ -589,6 +591,124 @@ afterEach(() => {
 });
 
 describe("ProjectAgentExecutionCoordinator", () => {
+  it("exposes the committed terminal turn to the experience completion side effect", async () => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-experience-completion-"));
+    const onTurnCompleted = vi.fn();
+    const coordinator = createProjectAgentExecutionCoordinator(
+      createProjectAgentRepositoryRouter({ rootDir: root }),
+      () => "subscription-experience-completion",
+      {
+        onTurnCompleted,
+        runAgent: async () => ({
+          id: "experience-result",
+          status: "finished",
+          text: "done",
+          finishReason: "stop",
+          artifacts: [],
+          toolCalls: [],
+          usage: { promptTokens: 0, completionTokens: 1, cachedPromptTokens: 0, totalTokens: 1 },
+        } satisfies AgentChatResponse),
+      },
+    );
+    const opened = await coordinator.open(binding);
+    const input = executionInput("experience-completion", 0, binding, { prompt: "验证这个任务" });
+
+    await coordinator.enqueue(opened.subscriptionId, input);
+    const terminal = await coordinator.waitForTurn(opened.subscriptionId, input.mutation.payload.turn.turnId);
+
+    expect(terminal.turns.find((turn) => turn.turnId === input.mutation.payload.turn.turnId)?.status).toBe("done");
+    expect(onTurnCompleted).toHaveBeenCalledTimes(1);
+    expect(onTurnCompleted.mock.calls[0]?.[0]).toMatchObject({
+      binding,
+      turnId: input.mutation.payload.turn.turnId,
+      executionToken: input.mutation.payload.turn.executionToken,
+      request: { prompt: "验证这个任务" },
+      response: { text: "done", status: "finished" },
+      state: { turns: expect.arrayContaining([expect.objectContaining({ turnId: input.mutation.payload.turn.turnId, status: "done" })]) },
+    });
+  });
+
+  it("runs the default experience loop from the canonical Host terminal path", async () => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-experience-default-"));
+    setEventLogProjectDirResolverForTests(() => root);
+    setExperienceProjectDirResolverForTests(() => root);
+    try {
+      const coordinator = createProjectAgentExecutionCoordinator(
+        createProjectAgentRepositoryRouter({ rootDir: root }),
+        () => "subscription-experience-default",
+        {
+          runAgent: async () => ({
+            id: "experience-default-result",
+            status: "finished",
+            text: "<!-- nomi-learning {\"kind\":\"fact\",\"title\":\"Host 终态证据\",\"content\":\"只从已提交终态沉淀\",\"evidence\":{\"problem\":\"缺少可追溯终态\",\"action\":\"由 canonical Host 写入完成事件\",\"outcome\":\"经验候选已落盘\",\"verification\":\"EventLog 与候选投影均存在\",\"eventSeqs\":[1]},\"confidence\":0.9} } -->",
+            finishReason: "stop",
+            artifacts: [],
+            toolCalls: [],
+            usage: { promptTokens: 0, completionTokens: 1, cachedPromptTokens: 0, totalTokens: 1 },
+          } satisfies AgentChatResponse),
+        },
+      );
+      const opened = await coordinator.open(binding);
+      const input = executionInput("experience-default", 0, binding, { prompt: "验证默认经验闭环" });
+
+      await coordinator.enqueue(opened.subscriptionId, input);
+      const terminal = await coordinator.waitForTurn(opened.subscriptionId, input.mutation.payload.turn.turnId);
+      await vi.waitFor(() => expect(getExperienceRepository().list(binding.projectId)).toHaveLength(1));
+
+      expect(terminal.turns.find((turn) => turn.turnId === input.mutation.payload.turn.turnId)?.status).toBe("done");
+      expect(readEvents(binding.projectId).map((event) => event.type)).toEqual([
+        "agent.turn.finished",
+        "experience.candidate.created",
+      ]);
+      expect(getExperienceRepository().list(binding.projectId)[0]).toMatchObject({
+        kind: "fact",
+        status: "active",
+        eligibleForPrompt: true,
+      });
+    } finally {
+      setEventLogProjectDirResolverForTests(() => null);
+      setExperienceProjectDirResolverForTests(() => null);
+      resetExperienceRepositoryForTests();
+    }
+  });
+
+  it("keeps a completion side-effect failure off the committed result path", async () => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-experience-failure-"));
+    const onTurnCompleted = vi.fn(async () => {
+      throw new Error("experience persistence unavailable");
+    });
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    try {
+      const coordinator = createProjectAgentExecutionCoordinator(
+        createProjectAgentRepositoryRouter({ rootDir: root }),
+        () => "subscription-experience-failure",
+        {
+          onTurnCompleted,
+          runAgent: async () => ({
+            id: "experience-failure-result",
+            status: "finished",
+            text: "done",
+            finishReason: "stop",
+            artifacts: [],
+            toolCalls: [],
+            usage: { promptTokens: 0, completionTokens: 1, cachedPromptTokens: 0, totalTokens: 1 },
+          } satisfies AgentChatResponse),
+        },
+      );
+      const opened = await coordinator.open(binding);
+      const input = executionInput("experience-failure", 0, binding, { prompt: "验证副作用隔离" });
+
+      await coordinator.enqueue(opened.subscriptionId, input);
+      const terminal = await coordinator.waitForTurn(opened.subscriptionId, input.mutation.payload.turn.turnId);
+      await vi.waitFor(() => expect(warn).toHaveBeenCalledOnce());
+
+      expect(terminal.turns.find((turn) => turn.turnId === input.mutation.payload.turn.turnId)?.status).toBe("done");
+      expect(onTurnCompleted).toHaveBeenCalledOnce();
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
   it("uses the Host turn work mode when freezing the runtime request", async () => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-work-mode-freeze-"));
     const router = createProjectAgentRepositoryRouter({ rootDir: root });

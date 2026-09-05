@@ -33,6 +33,18 @@ set +e
 
 INPUT="$(cat)"
 
+# ── push 绕口留痕（2026-09-03）───────────────────────────────────────────────
+# 目的：留痕而非禁止——绕口被写进目标 worktree 的 .claude/push-bypass.log，
+# `check:push-bypass` 门岗审计。命令字符串只用于判断是否需要留痕；目标、worktree、
+# branch、SHA 一律在下方消费共用词法分析层已经解析出的 TARGETS 后取得。
+# 只读 INPUT 一次，不影响下面的词法分析流程。
+_raw_cmd="$(printf '%s' "$INPUT" | python3 -c '
+import sys,json
+try: print(json.load(sys.stdin).get("tool_input",{}).get("command",""))
+except: print("")
+' 2>/dev/null)"
+# ─────────────────────────────────────────────────────────────────────────────
+
 # 命令怎么理解，交给两个 Bash 闸门共用的那一层（见 _bash-command-analysis.sh 的抬头注释：
 # 此前两个闸门各用一套正则，犯的是同一类错）。这段**每条 Bash 命令都要跑**，
 # 所以进程数是所有命令共担的交互延迟：保持恰好一次 python3。
@@ -54,6 +66,32 @@ STATUS="$(printf '%s\n' "$PARSED" | sed -n '1p')"
 HOOK_CWD="$(printf '%s\n' "$PARSED" | sed -n '2p')"
 # 只取 push 那些行的目录列（第 2 列）。
 TARGETS="$(printf '%s\n' "$PARSED" | sed -n '3,$p' | awk -F'\t' '$1=="push"{print $2}' | sed '/^$/d')"
+
+# ── push 绕口留痕（2026-09-03）───────────────────────────────────────────────
+# 必须放在 TARGETS 解析之后：不能用 CLAUDE_PROJECT_DIR、PWD 或早期 HOOK_CWD
+# 猜推送发生在哪里。一个 Bash 命令可能 push 多棵树，每个已解析目标各写一条；
+# 无法还原的 `?` 不伪造归因，gate 后续仍按原规则 fail-closed。
+if [ -n "$TARGETS" ] &&
+  printf '%s' "$_raw_cmd" | grep -qE 'core\.hooksPath|--no-verify'; then
+  _ts="$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date +%Y-%m-%dT%H:%M:%SZ)"
+  _cmd_short="$(printf '%s' "$_raw_cmd" | head -c 200)"
+  while IFS= read -r _target; do
+    [ -n "$_target" ] || continue
+    [ "$_target" = "?" ] && continue
+
+    _target_root="$(git -C "$_target" rev-parse --show-toplevel 2>/dev/null || echo '')"
+    [ -n "$_target_root" ] || continue
+    _br="$(git -C "$_target_root" branch --show-current 2>/dev/null || echo '')"
+    _sha="$(git -C "$_target_root" rev-parse HEAD 2>/dev/null || echo '')"
+    _bypass_log="$_target_root/.claude/push-bypass.log"
+    mkdir -p "$_target_root/.claude"
+    printf '%s|bypass|branch=%s|sha=%s|worktree=%s|cmd=%s|confirmed=no\n' \
+      "$_ts" "$_br" "$_sha" "$_target_root" "$_cmd_short" >> "$_bypass_log"
+    printf '⚠️  push 绕口已记录（%s）。本次 push 将照常执行，但 check:push-bypass 门岗会要求解释。\n' \
+      "$_bypass_log" >&2
+  done <<< "$TARGETS"
+fi
+# ─────────────────────────────────────────────────────────────────────────────
 
 block_plain() {
   cat >&2 <<EOF

@@ -62,6 +62,7 @@ import {
 } from "./projectAgentExecutionCoordinatorTypes";
 import { executeProjectAgentTurn, type ProjectAgentTurnExecutionContext } from "./projectAgentTurnExecution";
 import { recoverOrphanedExecutions } from "./projectAgentExecutionRecovery";
+import { completeProjectAgentExperience } from "../experience/projectAgentExperience";
 
 import { createProjectAgentAdapterResolvers } from "./projectAgentAdapterResolvers";
 export type {
@@ -104,6 +105,7 @@ export function createProjectAgentExecutionCoordinator(
     ((error: unknown, context: Readonly<{ phase: string; turnId: string; message: string }>) => {
       console.error(`[nomi:project-agent] ${context.phase} failed for ${context.turnId}: ${context.message}`, error);
     });
+  const onTurnCompleted = deps.onTurnCompleted ?? completeProjectAgentExperience;
 
   function publish(partition: ExecutionPartition, event: ProjectAgentExecutionEventPayload): void {
     for (const subscriptionId of partition.subscriptionIds) {
@@ -581,6 +583,7 @@ export function createProjectAgentExecutionCoordinator(
     cleanupExecution,
     reportInternalError,
     runAgent,
+    onTurnCompleted,
     awaitToolDecision,
     persistApprovedProposal,
     persistPreparedProposal,

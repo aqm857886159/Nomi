@@ -48,8 +48,19 @@ export type ProjectAgentExecutionOpenOptions = Readonly<{
   /** Main-owned writer. Renderer clients only receive the read/undo IPC seam. */
   proposalReceiptWriter?: ProjectAgentProposalReceiptWriter;
 }>;
+export type ProjectAgentTurnCompletedInput = Readonly<{
+  binding: ProjectBinding;
+  turnId: string;
+  executionToken: string;
+  request: AgentChatRequest;
+  response: AgentChatResponse;
+  state: ProjectAgentHostState;
+  completedAt: string;
+}>;
 export type ProjectAgentExecutionCoordinatorDeps = Readonly<{
   runAgent?: (request: AgentChatRequest, hooks: AgentChatV2Hooks) => Promise<AgentChatResponse>;
+  /** Local-only observer invoked after Host commits a terminal successful turn. */
+  onTurnCompleted?: (input: ProjectAgentTurnCompletedInput) => void | Promise<void>;
   now?: () => string;
   reportInternalError?: (
     error: unknown,

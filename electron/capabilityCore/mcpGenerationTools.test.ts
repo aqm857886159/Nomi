@@ -5,9 +5,9 @@ import {
   coldstartEtaForGate,
   createGenerationPlanningHandler,
   createInMemoryGenerationOperationStore,
-  MCP_GENERATION_TOOL_CATALOG,
   type GenerationOperation,
 } from "./mcpGenerationTools";
+import { MCP_GENERATION_TOOL_CATALOG } from "./mcpGenerationToolCatalog";
 import { PROJECT_LEASE_ALGORITHM, PROJECT_LEASE_AUDIENCE, PROJECT_LEASE_VERSION, type ProjectLeaseV2 } from "./projectLease";
 import { buildVideoModelCandidates, recommendVideoGeneration, SEEDANCE_2_5_APIMART_ARCHETYPE } from "../shared/videoCapabilities";
 

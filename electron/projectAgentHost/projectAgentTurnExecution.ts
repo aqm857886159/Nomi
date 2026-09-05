@@ -38,7 +38,7 @@ import {
   documentProposalReceiptFor,
   prepareDocumentProposalReceipt,
 } from "./projectAgentDocumentReceipt";
-
+import { notifyProjectAgentCompletion } from "../experience/projectAgentExperience";
 type ToolCall = { toolCallId: string; toolName: string; args: unknown };
 type PreparedInvocation = { target: ProjectAgentQueueItem["target"]; preconditions: ProjectAgentQueueItem["preconditions"]; policyRevision: number; inputHash: string; actionHash: string };
 export type ProjectAgentTurnExecutionContext = Readonly<{
@@ -50,7 +50,7 @@ export type ProjectAgentTurnExecutionContext = Readonly<{
   recordProposalSettlement: (execution: ActiveExecution, approvalId: string, status: ProjectAgentStatus) => void;
   cleanupExecution: (partition: ExecutionPartition, execution: ActiveExecution, keepRequest: boolean) => void;
   reportInternalError: NonNullable<ProjectAgentExecutionCoordinatorDeps["reportInternalError"]>;
-  runAgent: NonNullable<ProjectAgentExecutionCoordinatorDeps["runAgent"]>;
+  runAgent: NonNullable<ProjectAgentExecutionCoordinatorDeps["runAgent"]>; onTurnCompleted: NonNullable<ProjectAgentExecutionCoordinatorDeps["onTurnCompleted"]>;
   awaitToolDecision: (partition: ExecutionPartition, execution: ActiveExecution, call: ToolCall, signal: AbortSignal) => Promise<AgentChatToolDecision>;
   persistPreparedProposal: (partition: ExecutionPartition, execution: ActiveExecution, call: ToolCall, decision: AgentChatToolDecision, prepared: { invocation: PreparedInvocation }) => Promise<ProposalApprovalRef>;
   persistApprovedProposal: (partition: ExecutionPartition, execution: ActiveExecution, call: ToolCall, decision: AgentChatToolDecision, verified?: Readonly<{
@@ -77,9 +77,8 @@ export type ProjectAgentTurnExecutionContext = Readonly<{
   proposalReceiptReaderFor: (partition: ExecutionPartition, preferredSubscriptionId: string) => (() => import("../shared/projectAgentProposalReceipt").ProjectAgentProposalReceiptView | null) | undefined;
   proposalReceiptWriterFor: (partition: ExecutionPartition, preferredSubscriptionId: string) => ProjectAgentProposalReceiptWriter | undefined;
 }>;
-
 export async function executeProjectAgentTurn(context: ProjectAgentTurnExecutionContext, partition: ExecutionPartition, execution: ActiveExecution): Promise<"continue" | "stop"> {
-  const { now, dispatchPartition, publish, dispatchFresh, queueExecutionMutation, recordProposalSettlement, cleanupExecution, reportInternalError, runAgent, awaitToolDecision, persistApprovedProposal, persistPreparedProposal, rememberCanvasWriteOutcome, canvasReadFor, documentReadFor, documentWriteFor, canvasWriteFor, timelineReadFor, timelineWriteFor, phase4SurfaceFor, skillReadFor, skillWriteFor, productionRunFor, generationFor, proposalReceiptReaderFor, proposalReceiptWriterFor } = context;
+  const { now, dispatchPartition, publish, dispatchFresh, queueExecutionMutation, recordProposalSettlement, cleanupExecution, reportInternalError, runAgent, onTurnCompleted, awaitToolDecision, persistApprovedProposal, persistPreparedProposal, rememberCanvasWriteOutcome, canvasReadFor, documentReadFor, documentWriteFor, canvasWriteFor, timelineReadFor, timelineWriteFor, phase4SurfaceFor, skillReadFor, skillWriteFor, productionRunFor, generationFor, proposalReceiptReaderFor, proposalReceiptWriterFor } = context;
   const startAt = now();
   const current = partition.host.getSnapshot(partition.binding);
   const assistantItem = Object.freeze({
@@ -702,6 +701,7 @@ export async function executeProjectAgentTurn(context: ProjectAgentTurnExecution
     if (!committedStatus || ["queued", "running", "proposed"].includes(committedStatus)) {
       throw new Error("Project Agent execution result has no committed terminal turn");
     }
+    if (committedStatus === "done") notifyProjectAgentCompletion(onTurnCompleted, partition.binding, execution, response, committed, receivedAt);
     publish(partition, {
       type: "execution-result",
       binding: partition.binding,
