@@ -1,11 +1,10 @@
 import type { AgentAttachmentPayload, AgentsChatResponseDto } from '../../api/desktopClient'
 import type {
   AgentChatCapability,
-  AgentChatHistory,
-  AgentChatRequest,
   AgentChatToolDecision,
   AgentToolProfile,
 } from '../../../electron/harness/agentChatContracts'
+import type { ProjectAgentExecutionRequest } from '../../../electron/shared/contracts/agentChatContracts'
 import type {
   ProjectAgentExecutionEvent,
   ProjectAgentAttachmentClaim,
@@ -32,7 +31,6 @@ import {
 import { projectAgentProjectionStore } from './projectAgentProjectionStore'
 import { useAgentUsageStore } from './agentUsageStore'
 
-export { workbenchSessionKey, type WorkbenchAgentArea } from './agentSessionKey'
 
 export type ToolCallEvent = {
   turnId: string
@@ -62,7 +60,6 @@ export type RunWorkbenchAgentInput = {
   systemPrompt?: string
   displayPrompt: string
   capability: AgentChatCapability
-  history: AgentChatHistory
   featureKey?: string
   selectedNodeIds?: readonly string[]
   skillKey: string
@@ -117,7 +114,8 @@ function responseStatus(status: ProjectAgentStatus): AgentsChatResponseDto['stat
   return 'finished'
 }
 
-function buildRequest(input: RunWorkbenchAgentInput): AgentChatRequest {
+/** History is deliberately absent: the Host owns a thread's conversation context. */
+function buildRequest(input: RunWorkbenchAgentInput): ProjectAgentExecutionRequest {
   const pref = getAssistantModelPref()
   // The Host context resolver intentionally reads the canonical nested skill
   // identity (`chatContext.skill`).  Keep the renderer-facing convenience
@@ -130,7 +128,6 @@ function buildRequest(input: RunWorkbenchAgentInput): AgentChatRequest {
     ...(input.systemPrompt ? { systemPrompt: input.systemPrompt } : {}),
     displayPrompt: input.displayPrompt,
     capability: input.capability,
-    history: { kind: 'ephemeral' },
     ...(input.featureKey ? { featureKey: input.featureKey } : {}),
     ...(input.selectedNodeIds ? { selectedNodeIds: [...input.selectedNodeIds] } : {}),
     ...(input.projectId ? { projectId: input.projectId } : {}),

@@ -8,11 +8,15 @@ import type { AgentContextScope } from './contextBinding';
 import { contextBindingKey } from './contextBinding';
 import { createAgentContextService } from './contextService';
 import { createAgentContextStore } from './contextStore';
+import { createProjectAgentContextBinding } from '../../shared/contracts/projectAgentContextBinding';
 
-const scope: AgentContextScope = { kind: 'persistent', binding: {
-  sessionKey: 'nomi:workbench:project-1:creation', threadId: 'thread-1',
-} };
-const second: AgentContextScope = { kind: 'persistent', binding: { ...scope.binding, threadId: 'thread-2' } };
+const PROJECT = Object.freeze({
+  projectId: 'project-1',
+  immutableProjectUuid: '4d80f2e0-4a45-4a8f-8fe1-78ac659177c8',
+  projectGeneration: 3,
+});
+const scope: AgentContextScope = { kind: 'persistent', binding: createProjectAgentContextBinding(PROJECT, 'thread-1') };
+const second: AgentContextScope = { kind: 'persistent', binding: createProjectAgentContextBinding(PROJECT, 'thread-2') };
 const bubbles = [{ role: 'user', content: 'Original brief' }, { role: 'assistant', content: 'Original answer' }];
 const hooks: RuntimeTurnHooks = { emit: () => {}, awaitToolConfirmation: async () => ({ ok: true }) };
 const result = (snapshot = 'native-completed', status: RuntimeTurnResult['status'] = 'finished'): RuntimeTurnResult => ({
@@ -35,7 +39,7 @@ describe('bound Agent context service', () => {
   let request: Omit<RuntimeTurnRequest, 'snapshot'>;
   beforeEach(() => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-context-service-'));
-    file = path.join(root, '.nomi', 'agent-session.json');
+    file = path.join(root, '.nomi', 'agent-thread-context-v1.json');
     request = { cwd: root, agentDir: root, tempRoot: root, systemPrompt: 'system',
       model: { kind: 'openai-compatible', providerId: 'fixture', modelId: 'chosen', baseURL: 'http://unused.invalid', authType: 'none' },
       user: { durableText: 'Continue.' }, tools: [], capability: { maxSteps: 8 }, compaction: { enabled: false } };
@@ -156,7 +160,7 @@ describe('bound Agent context service', () => {
     expect(actual.toolCalls).toEqual(result().toolCalls);
     expect(actual.snapshot).toBe(result().snapshot);
     expect(store.read(binding())?.snapshot).toBeUndefined();
-    expect(fs.readdirSync(path.dirname(file))).toEqual(['agent-session.json']);
+    expect(fs.readdirSync(path.dirname(file))).toEqual(['agent-thread-context-v1.json']);
   });
 
   it('unresolved persistent bindings fail before request preparation or model execution', async () => {

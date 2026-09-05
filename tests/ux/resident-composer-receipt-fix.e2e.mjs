@@ -9,7 +9,7 @@ import path from 'node:path'
 import { clickOrFail, expect, expectAbsent, proveProbe } from './_assert.mjs'
 import { parseToolResult, spawnMcpStdioClient } from './_mcpJourney.mjs'
 import { flattenRequestText } from './agent-runtime-fixture.mjs'
-import { DOCUMENT, createRuntimeWalk, openCanvas, readProject, recorded } from './agent-runtime-walk-support.mjs'
+import { DOCUMENT, createRuntimeWalk, hasToolResult, openCanvas, readProject, recorded } from './agent-runtime-walk-support.mjs'
 
 const ORIGINAL = '真实用户任务基线：创作者准备在文末补充收尾。'
 const RESIDENT_INTENT = '请在文末补一句收尾，保留原文并等待我确认。'
@@ -67,10 +67,13 @@ try {
   }).toContain(ORIGINAL)
   await clickOrFail(win.getByRole('button', { name: '创作', exact: true }), '进入创作工作区')
 
+  // Matchers key on this turn's own tool_call_id, never on "no tool message at all":
+  // the Host owns one lossless resident thread, so every later request carries the
+  // earlier turns' tool calls and results.
   const proposalRequest = walk.fixture.expectText({
     label: 'Resident Composer plans a real document write',
     match: (body) => flattenRequestText(body).includes(RESIDENT_INTENT)
-      && !body.messages?.some((message) => message.role === 'tool'),
+      && !hasToolResult(body, 'resident-receipt-fix-1'),
     reply: {
       type: 'tool', id: 'resident-receipt-fix-1', name: 'nomi_document_edit',
       args: { operation: 'append', content: RESIDENT_APPEND },
@@ -78,8 +81,7 @@ try {
   })
   const approvedFollowup = walk.fixture.expectText({
     label: 'Agent receives the real approved write result',
-    match: (body) => body.messages?.some((message) => message.role === 'tool'
-      && message.tool_call_id === 'resident-receipt-fix-1'),
+    match: (body) => hasToolResult(body, 'resident-receipt-fix-1'),
     reply: { type: 'text', text: '已按确认写入文稿，并保留可追溯回执。' },
   })
   await sendResidentIntent(win, RESIDENT_INTENT)
@@ -127,7 +129,7 @@ try {
   const canvasCreateRequest = walk.fixture.expectText({
     label: 'Resident Composer creates a reversible canvas fixture node',
     match: (body) => flattenRequestText(body).includes('请创建一个临时图片节点')
-      && !body.messages?.some((message) => message.role === 'tool'),
+      && !hasToolResult(body, 'resident-receipt-fix-canvas-create'),
     reply: {
       type: 'tool', id: 'resident-receipt-fix-canvas-create', name: 'nomi_canvas_edit',
       args: {
@@ -138,12 +140,15 @@ try {
   })
   const canvasCreateFollowup = walk.fixture.expectText({
     label: 'Agent receives the canvas fixture result',
-    match: (body) => body.messages?.some((message) => message.role === 'tool'
-      && message.tool_call_id === 'resident-receipt-fix-canvas-create'),
+    match: (body) => hasToolResult(body, 'resident-receipt-fix-canvas-create'),
     reply: { type: 'text', text: '已创建临时画布节点。' },
   })
   await sendResidentIntent(win, '请创建一个临时图片节点，只用于接下来验证审批。')
-  await recorded(canvasCreateRequest.received, 'the real canvas fixture request')
+  const canvasCreateWire = await recorded(canvasCreateRequest.received, 'the real canvas fixture request')
+  // One resident thread spans both surfaces, so a canvas turn still carries the creation
+  // turn's tool result. A matcher may only exclude *this* turn's own tool_call_id.
+  expect(hasToolResult(canvasCreateWire.body, 'resident-receipt-fix-1'),
+    'The canvas turn must still carry the earlier creation turn\'s tool result').toBe(true)
   await recorded(canvasCreateFollowup.received, 'the canvas fixture result')
   await expect.poll(async () => (await readProject(win, projectId)).payload.generationCanvas.nodes.length, {
     message: 'Canvas fixture node must persist before the irreversible proposal', timeout: 30_000,
@@ -162,7 +167,7 @@ try {
   const rejectedRequest = walk.fixture.expectText({
     label: 'Resident Composer gated-action rejection proposal',
     match: (body) => flattenRequestText(body).includes('请提出一个需要拒绝的删除动作')
-      && !body.messages?.some((message) => message.role === 'tool'),
+      && !hasToolResult(body, 'resident-receipt-fix-rejected'),
     reply: {
       type: 'tool', id: 'resident-receipt-fix-rejected', name: 'nomi_canvas_maintenance',
       args: { operation: 'delete_canvas_nodes', nodeIds: [fixtureNodeId], reason: 'journey approval gate' },
@@ -170,8 +175,7 @@ try {
   })
   const rejectedFollowup = walk.fixture.expectText({
     label: 'Agent receives the real denied gated-action result',
-    match: (body) => body.messages?.some((message) => message.role === 'tool'
-      && message.tool_call_id === 'resident-receipt-fix-rejected'),
+    match: (body) => hasToolResult(body, 'resident-receipt-fix-rejected'),
     reply: { type: 'text', text: '已记录拒绝，本次没有删除画布内容。' },
   })
   await sendResidentIntent(win, '请提出一个需要拒绝的删除动作，不要自行删除。')

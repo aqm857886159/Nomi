@@ -38,7 +38,7 @@ describe('production.revise-storyboard renderer seam', () => {
     expect(String(request.prompt)).toContain('transition')
     expect(request.skillKey).toBe('workbench.production.script-planner')
     expect(request.capability).toBe('single-shot')
-    expect(request.history).toEqual({ kind: 'ephemeral' })
+    expect(request).not.toHaveProperty('history')
     expect(request.featureKey).toBe('nomi:production-script:project-1')
   })
 

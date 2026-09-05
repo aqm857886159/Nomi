@@ -29,11 +29,7 @@ const capturedCanvasReadSnapshot = Object.freeze({
   handleId: 'captured-a',
   nonce: 'captured-nonce-a',
 })
-const history = {
-  kind: 'persistent' as const,
-  binding: { sessionKey: 'nomi:workbench:A:creation', threadId: 'creation-thread' },
-}
-const base = () => ({ storyText: 'story', projectId: 'A', history, target: 'creation' as const, canWrite: () => true })
+const base = () => ({ storyText: 'story', projectId: 'A', target: 'creation' as const, canWrite: () => true })
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -60,7 +56,6 @@ describe('storyboard planner scope and projection', () => {
     expect(deps.send.mock.calls[0][0]).toMatchObject({
       turnId: input.turnId,
       displayMessage: input.displayPrompt,
-      history,
       projectId: 'A',
       capability: 'storyboard',
     })
@@ -138,7 +133,6 @@ describe('storyboard planner scope and projection', () => {
     await runStoryboardPlanner({
       ...base(),
       target: 'production',
-      history: { kind: 'ephemeral' },
       snapshot,
       capturedCanvasReadSnapshot,
     })
@@ -167,7 +161,6 @@ describe('storyboard planner scope and projection', () => {
     const input = {
       ...base(),
       target: 'production' as const,
-      history: { kind: 'ephemeral' as const },
       snapshot: captureCanvasReadResult({ nodes: [], edges: [], groups: [], selectedNodeIds: [] }),
       capturedCanvasReadSnapshot,
       featureKey: 'nomi:production-planner:A:run-1:plan',
@@ -177,7 +170,6 @@ describe('storyboard planner scope and projection', () => {
     expect(deps.apply).not.toHaveBeenCalled()
     expect(deps.uiTitle).toBe('project B after async switch')
     expect(deps.send.mock.calls[0][0]).toMatchObject({
-      history: { kind: 'ephemeral' },
       capability: 'storyboard',
       featureKey: input.featureKey,
     })

@@ -2,7 +2,8 @@ import { ipcMain } from "electron";
 import type { IpcMainInvokeEvent, WebContents, WebFrameMain } from "electron";
 
 import { assertTrustedSender } from "../ipcSenderGuard";
-import type { AgentChatRequest, AgentChatToolDecision } from "../harness/agentChatContracts";
+import type { AgentChatToolDecision } from "../harness/agentChatContracts";
+import type { ProjectAgentExecutionRequest } from "./projectAgentExecutionCoordinatorTypes";
 import type {
   ProjectAgentHostState,
   ProjectAgentAttachmentRef,
@@ -91,13 +92,17 @@ export type ProjectAgentPreparedProject = Readonly<{
 
 function executionEnqueueField(value: unknown): Readonly<{
   payload: Extract<ProjectAgentMutation, { type: "turn.enqueue" }>["payload"];
-  request: AgentChatRequest;
+  request: ProjectAgentExecutionRequest;
   attachmentClaims: readonly unknown[];
   capturedCanvasReadSnapshot?: CapturedCanvasReadSnapshotHandleWire;
 }> {
   const record = asRecord(value);
   exactKeys(record, ["thread", "turn", "userItem", "queueItem", "request", "attachmentClaims", "capturedCanvasReadSnapshot"]);
   if (!Array.isArray(record.attachmentClaims)) throw new ProjectAgentIpcInputError("Project Agent attachments are invalid");
+  // A renderer request never carries conversation history. Drop any same-named
+  // field here so it cannot reach the Host as if it were an authority grant.
+  const { history: _rendererHistory, ...requestWithoutHistory } =
+    (asRecord(record.request) ?? {}) as Record<string, unknown>;
   return Object.freeze({
     payload: {
       thread: record.thread,
@@ -105,7 +110,7 @@ function executionEnqueueField(value: unknown): Readonly<{
       userItem: record.userItem,
       queueItem: record.queueItem,
     } as Extract<ProjectAgentMutation, { type: "turn.enqueue" }>["payload"],
-    request: record.request as AgentChatRequest,
+    request: requestWithoutHistory as ProjectAgentExecutionRequest,
     attachmentClaims: record.attachmentClaims,
     ...(record.capturedCanvasReadSnapshot !== undefined
       ? { capturedCanvasReadSnapshot: record.capturedCanvasReadSnapshot as CapturedCanvasReadSnapshotHandleWire }
@@ -574,7 +579,6 @@ export function registerProjectAgentIpc(
       const attachmentRefs = resolver ? resolver(execution.attachmentClaims) : Object.freeze([]);
       const request = {
         ...execution.request,
-        history: { kind: "ephemeral" as const },
         attachments: attachmentRefs.flatMap((ref) => ref.display ? [{
           url: ref.display.url,
           contentType: ref.display.contentType,

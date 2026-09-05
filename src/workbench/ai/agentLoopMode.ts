@@ -26,7 +26,6 @@ export async function runSingleShotAgent(request: SingleShotAgentRequest): Promi
     displayPrompt: request.displayPrompt,
     featureKey: request.featureKey,
     capability: 'single-shot',
-    history: { kind: 'ephemeral' },
     ...(request.projectId ? { projectId: request.projectId } : {}),
     skillKey: request.skillKey,
     skillName: request.skillName,

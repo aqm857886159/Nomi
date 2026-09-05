@@ -234,6 +234,19 @@ export function readCurrentProjectAgentHostSnapshot(settingsRoot, projectRoot) {
   return envelope.state
 }
 
+/**
+ * The durable per-thread conversation context production actually writes today:
+ * one project-scoped container keyed by the Host's canonical context binding.
+ * Unlike readNativeContexts above, nothing here is reconstructed from Host items.
+ */
+export function readDurableThreadContexts(projectRoot) {
+  const file = path.join(projectRoot, '.nomi', 'agent-thread-context-v1.json')
+  if (!fs.existsSync(file)) return null
+  const container = JSON.parse(fs.readFileSync(file, 'utf8'))
+  expect(container.version, 'Durable Agent context container schema').toBe(4)
+  return Object.values(container.records ?? {})
+}
+
 export function readProjectAgentProposalReceipt(projectRoot) {
   const receiptFile = path.join(projectRoot, '.nomi', 'project-agent-proposal-receipt.json')
   if (!fs.existsSync(receiptFile)) return null

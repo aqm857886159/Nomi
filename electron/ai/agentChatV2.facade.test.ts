@@ -20,14 +20,18 @@ vi.mock('../files/extractText', () => ({ extractTextFromLocalAsset: async () => 
 vi.mock('../harness/context/contextService', () => ({ createAgentContextService: () => ({ run: state.run }) }));
 
 import { runAgentChatV2 as productionRunAgentChatV2 } from './agentChatV2';
+import { createProjectAgentContextBinding } from '../shared/contracts/projectAgentContextBinding';
 
 // Invalid IPC-shaped objects deliberately exercise the main boundary's runtime validation.
 const runAgentChatV2 = (payload: { prompt: string } & Record<string, unknown>, eventHooks: ReturnType<typeof hooks>) =>
   productionRunAgentChatV2(payload as unknown as Parameters<typeof productionRunAgentChatV2>[0], eventHooks);
 
+const THREAD_BINDING = createProjectAgentContextBinding(
+  { projectId: 'project', immutableProjectUuid: '11111111-1111-4111-8111-111111111111', projectGeneration: 1 }, 'thread-a');
+
 function request(capability = 'canvas-chat') {
   return { prompt: 'current complete canvas', displayPrompt: 'short request',
-    capability, history: { kind: 'persistent' as const, binding: { sessionKey: 'nomi:workbench:project:generation', threadId: 'thread-a' } },
+    capability, history: { kind: 'persistent' as const, binding: THREAD_BINDING },
     projectId: 'project', skillKey: 'workbench.creation.editor',
   };
 }

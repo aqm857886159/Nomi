@@ -18,6 +18,7 @@ import type {
 } from "../harness/agentChatContracts";
 import type { RuntimeToolCall } from "../harness/runtime/runtimePort";
 import { createProjectAgentContextBinding } from "./projectAgentContextBinding";
+import type { ProjectAgentExecutionRequest } from "../shared/contracts/agentChatContracts";
 import {
   createProjectAgentExecutionCoordinator,
   ProjectAgentSubscriptionError,
@@ -215,7 +216,6 @@ function executionInput(
     request: {
       prompt: options.prompt ?? id,
       capability: options.capability ?? "creation-chat",
-      history: { kind: "ephemeral" as const },
       projectId: projectBinding.projectId,
     },
   };
@@ -718,6 +718,107 @@ describe("ProjectAgentExecutionCoordinator", () => {
     }
   });
 
+  it("binds every resident turn of one thread to the same durable context, so later turns can cite earlier tool results", async () => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-thread-history-"));
+    const router = createProjectAgentRepositoryRouter({ rootDir: root });
+    const observed: AgentChatRequest[] = [];
+    const coordinator = createProjectAgentExecutionCoordinator(router, () => "subscription-thread-history", {
+      runAgent: async (request) => {
+        observed[observed.length] = request;
+        return {
+          id: `result-${observed.length}`,
+          status: "finished",
+          text: "done",
+          finishReason: "stop",
+          artifacts: [],
+          toolCalls: [],
+          usage: { promptTokens: 0, completionTokens: 1, cachedPromptTokens: 0, totalTokens: 1 },
+        } satisfies AgentChatResponse;
+      },
+    });
+    const opened = await coordinator.open(binding);
+    let revision = 0;
+    for (const [index, prompt] of ["\u68c0\u67e5\u65f6\u95f4\u8f74", "\u628a\u6700\u957f\u90a3\u6bb5\u5220\u6389", "\u6539\u56de\u53bb"].entries()) {
+      const input = executionInput(`history-${index}`, revision, binding, { threadId: "thread-resident", prompt });
+      await coordinator.enqueue(opened.subscriptionId, input);
+      await coordinator.waitForTurn(opened.subscriptionId, input.mutation.payload.turn.turnId);
+      revision = coordinator.snapshot(opened.subscriptionId).hostRevision;
+    }
+
+    const expected = createProjectAgentContextBinding(binding, "thread-resident");
+    expect(observed).toHaveLength(3);
+    for (const request of observed) {
+      expect(request.history).toEqual({ kind: "persistent", binding: expected });
+    }
+    // The prompt carries only this turn's request: prior turns live in the durable
+    // context as structured messages, never re-narrated as prose that drops tool results.
+    expect(observed[2].prompt).toBe("\u6539\u56de\u53bb");
+    expect(observed[2].prompt).not.toContain("\u68c0\u67e5\u65f6\u95f4\u8f74");
+    expect(observed[2].prompt).not.toContain("\u7528\u6237\uff1a");
+  });
+
+  it("gives a second thread of the same project its own context instead of one project-wide transcript", async () => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-thread-isolation-"));
+    const router = createProjectAgentRepositoryRouter({ rootDir: root });
+    const observed: AgentChatRequest[] = [];
+    const coordinator = createProjectAgentExecutionCoordinator(router, () => "subscription-thread-isolation", {
+      runAgent: async (request) => {
+        observed[observed.length] = request;
+        return {
+          id: `result-${observed.length}`,
+          status: "finished",
+          text: "done",
+          finishReason: "stop",
+          artifacts: [],
+          toolCalls: [],
+          usage: { promptTokens: 0, completionTokens: 1, cachedPromptTokens: 0, totalTokens: 1 },
+        } satisfies AgentChatResponse;
+      },
+    });
+    const opened = await coordinator.open(binding);
+    const first = executionInput("isolation-a", 0, binding, { threadId: "thread-a" });
+    await coordinator.enqueue(opened.subscriptionId, first);
+    await coordinator.waitForTurn(opened.subscriptionId, first.mutation.payload.turn.turnId);
+    const second = executionInput("isolation-b", coordinator.snapshot(opened.subscriptionId).hostRevision, binding, {
+      threadId: "thread-b",
+    });
+    await coordinator.enqueue(opened.subscriptionId, second);
+    await coordinator.waitForTurn(opened.subscriptionId, second.mutation.payload.turn.turnId);
+
+    expect(observed[0].history).toEqual({
+      kind: "persistent", binding: createProjectAgentContextBinding(binding, "thread-a"),
+    });
+    expect(observed[1].history).toEqual({
+      kind: "persistent", binding: createProjectAgentContextBinding(binding, "thread-b"),
+    });
+  });
+
+  it("keeps single-shot planning and judging ephemeral so they never inherit a resident transcript", async () => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-single-shot-history-"));
+    const router = createProjectAgentRepositoryRouter({ rootDir: root });
+    let observed: AgentChatRequest | undefined;
+    const coordinator = createProjectAgentExecutionCoordinator(router, () => "subscription-single-shot-history", {
+      runAgent: async (request) => {
+        observed = request;
+        return {
+          id: "result-single-shot-history",
+          status: "finished",
+          text: "done",
+          finishReason: "stop",
+          artifacts: [],
+          toolCalls: [],
+          usage: { promptTokens: 0, completionTokens: 1, cachedPromptTokens: 0, totalTokens: 1 },
+        } satisfies AgentChatResponse;
+      },
+    });
+    const opened = await coordinator.open(binding);
+    const input = executionInput("single-shot-history", 0, binding, { capability: "single-shot" });
+    await coordinator.enqueue(opened.subscriptionId, input);
+    await coordinator.waitForTurn(opened.subscriptionId, input.mutation.payload.turn.turnId);
+
+    expect(observed?.history).toEqual({ kind: "ephemeral" });
+  });
+
   it("uses the Host turn work mode when freezing the runtime request", async () => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-work-mode-freeze-"));
     const router = createProjectAgentRepositoryRouter({ rootDir: root });
@@ -752,7 +853,7 @@ describe("ProjectAgentExecutionCoordinator", () => {
         ...base.request,
         workMode: "agent",
         approvalPolicy: { mode: "project", spend: "within-budget" },
-      } as AgentChatRequest,
+      } as ProjectAgentExecutionRequest,
     };
 
     await coordinator.enqueue(opened.subscriptionId, input);
@@ -1733,10 +1834,9 @@ describe("ProjectAgentExecutionCoordinator", () => {
       type: "turn.enqueue",
       payload: { thread, turn, userItem, queueItem },
     };
-    const request: AgentChatRequest = {
+    const request: ProjectAgentExecutionRequest = {
       prompt: "hi",
       capability: "creation-chat",
-      history: { kind: "ephemeral" },
       projectId: binding.projectId,
     };
     void coordinator.enqueue(opened.subscriptionId, { mutation, request }).catch((error) => {
@@ -3814,8 +3914,7 @@ describe("ProjectAgentExecutionCoordinator", () => {
       request: {
         prompt: "hi",
         capability: "creation-chat",
-        history: { kind: "ephemeral" },
-        projectId: binding.projectId,
+          projectId: binding.projectId,
       },
     });
     const final = await Promise.race([
@@ -3956,8 +4055,7 @@ describe("ProjectAgentExecutionCoordinator", () => {
       request: {
         prompt: "hi",
         capability: "creation-chat",
-        history: { kind: "ephemeral" },
-        projectId: binding.projectId,
+          projectId: binding.projectId,
       },
     });
     await terminalAttempt;
@@ -4073,10 +4171,9 @@ describe("ProjectAgentExecutionCoordinator", () => {
       deviated: false,
       updatedAt: now,
     };
-    const request: AgentChatRequest = {
+    const request: ProjectAgentExecutionRequest = {
       prompt: "wait",
       capability: "creation-chat",
-      history: { kind: "ephemeral" },
       projectId: binding.projectId,
     };
     await coordinator.enqueue(opened.subscriptionId, {
@@ -4231,10 +4328,9 @@ describe("ProjectAgentExecutionCoordinator", () => {
       deviated: false,
       updatedAt: now,
     };
-    const request: AgentChatRequest = {
+    const request: ProjectAgentExecutionRequest = {
       prompt: "original",
       capability: "creation-chat",
-      history: { kind: "ephemeral" },
       projectId: binding.projectId,
     };
     await coordinator.enqueue(opened.subscriptionId, {
@@ -4366,8 +4462,7 @@ describe("ProjectAgentExecutionCoordinator", () => {
         request: {
           prompt: "forged",
           capability: "canvas-refine",
-          history: { kind: "ephemeral" },
-          projectId: "project-b",
+              projectId: "project-b",
           selectedNodeIds: ["forged-node"],
         },
       }),
@@ -4378,8 +4473,7 @@ describe("ProjectAgentExecutionCoordinator", () => {
       request: {
         prompt: "valid",
         capability: "canvas-refine",
-        history: { kind: "ephemeral" },
-        projectId: binding.projectId,
+          projectId: binding.projectId,
         selectedNodeIds: ["forged-node"],
       },
     });
