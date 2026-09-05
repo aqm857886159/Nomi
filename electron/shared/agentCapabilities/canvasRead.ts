@@ -323,6 +323,7 @@ export const CANVAS_READ_CAPABILITY = {
   inputSchema: canvasReadSemanticInputSchema,
   outputSchema: canvasReadResultSchema,
   effect: "read",
+  effectClass: "reversible_local",
   execution: {
     port: "canvas",
     availability: "main_or_renderer",
@@ -330,7 +331,6 @@ export const CANVAS_READ_CAPABILITY = {
   exposure: "mcp_safe",
   requiredScope: "canvas:read",
   targetKind: "project",
-  approval: "none",
   projections: {
     pi: {
       description: "Read the current generation canvas (nodes + edges).",

@@ -19,9 +19,11 @@
 | [2026-09-05-storyboard-table-v6-design-contract.md](../design/2026-09-05-storyboard-table-v6-design-contract.md) | **分镜表 v6 设计合同**（方向 A，用户已拍板）：信息架构、行/锚状态表、参考列规则+六档案槽矩阵、旧版 15 条功能对账、token/选择器契约草案、不做项与验收清单；样张 `docs/design/mockups/2026-09-05-storyboard-table-v6/` | 📋 |
 | [2026-09-04-main-convergence-follow-ups.md](2026-09-04-main-convergence-follow-ups.md) | Main 收敛后续明细；历史执行拆解，状态以总方案和 current-main 审计为准 | 📎 |
 | [2026-09-05-agent-host-gate-removal.md](2026-09-05-agent-host-gate-removal.md) | **常驻 Agent 拆发布闸**：删掉默认关的 `agentHostPreference` 与设置页开关，Agent 对所有用户无条件常驻，未完成处改用 header Beta 徽标明说；根因是「用户用的产品」与「测试跑的产品」分叉的并行版 | 🚧 |
+| [2026-09-05-agent-ui-a-composer.md](2026-09-05-agent-ui-a-composer.md) | Agent UI A 段：composer 五按钮调序、模式弹层收敛、运行呼吸光与分镜入口 | 🚧 |
 | [2026-09-05-proposal-transition-table.md](2026-09-05-proposal-transition-table.md) | **Agent Host proposal 转换表**：(来源域×目标域×状态×动作) 做成显式数据表，reducer 只查表，拒绝带格子坐标；`document→canvas` 是显式关闭格 | ✅ |
 | [2026-09-04-workbench-skill-picker-fix.md](2026-09-04-workbench-skill-picker-fix.md) | Workbench Agent Skill 选择器共享可选性边界修复：恢复 storyboard planner 的真实菜单选择与 Host 请求链路 | ✅ |
 | [2026-09-03-open-work-ledger.md](2026-09-03-open-work-ledger.md) | 全量开工账本历史快照；只用于追溯，不覆盖总方案的当前状态 | 📎 |
+| [../architecture-review/2026-09-05-agent-mcp-architecture-review.md](../architecture-review/2026-09-05-agent-mcp-architecture-review.md) | **Agent 与 MCP 架构评审**：五个质疑（两张嘴 / 审批过度通用 / MCP 按内部机制命名 / 每轮失忆 / 接模型主路径顺序）逐条 file:line 证实或推翻，含 6 角色评审与 R3 决策对比表；docs-only 待拍板 | 📋 |
 
 ## 模型接入 / Onboarding（最大簇）
 

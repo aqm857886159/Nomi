@@ -227,11 +227,11 @@ export const ASSET_READ_CAPABILITY = {
   inputSchema: assetReadSemanticInputSchema,
   outputSchema: assetReadResultSchema,
   effect: "read",
+  effectClass: "reversible_local",
   execution: { port: "asset", availability: "renderer_required" },
   exposure: "mcp_safe",
   requiredScope: "asset:read",
   targetKind: "asset",
-  approval: "none",
   projections: {
     pi: { description: "Read bounded technical facts about active-project media." },
     mcp: { description: "Query project media, metadata, sources, or waveforms." },

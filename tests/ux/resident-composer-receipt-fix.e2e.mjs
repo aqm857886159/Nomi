@@ -86,23 +86,18 @@ try {
   await sendResidentIntent(win, RESIDENT_INTENT)
   await recorded(proposalRequest.received, 'the real Agent planning request')
   const approval = win.locator(`${CREATION_PANEL} [data-agent-approval="true"][data-agent-approval-state="pending"]`)
-  const approvalProof = await proveProbe(approval, 'Resident Composer shows a real pending approval')
-  walk.report.matrix.H.evidence.push('visible intent -> real Agent planning request -> pending approval')
-  await expect(document, 'Proposal must not mutate the document before approval').toHaveText(ORIGINAL)
-  await clickOrFail(approval.getByRole('button', { name: '批准', exact: true }), '用户确认 Resident 文稿提案', {
-    noWaitAfter: true,
+  const composerProof = await proveProbe(win.locator(CREATION_PANEL), 'Resident Composer renders the real planning surface')
+  await expectAbsent(approval, {
+    provenBy: composerProof,
+    message: 'A reversible local document edit is auto-approved in safe-auto mode',
   })
-  await recorded(approvedFollowup.received, 'the approved write result')
+  walk.report.matrix.H.evidence.push('visible intent -> real Agent planning request -> safe-auto reversible write without a card')
+  await recorded(approvedFollowup.received, 'the auto-approved write result')
   await expect(document).toContainText(RESIDENT_APPEND)
   await expect.poll(async () => JSON.stringify((await readProject(win, projectId)).payload.workbenchDocuments), {
-    message: 'Approved Resident write must persist to the project',
+    message: 'Auto-approved Resident write must persist to the project',
     timeout: 30_000,
   }).toContain(RESIDENT_APPEND)
-  await expectAbsent(approval.getByRole('button', { name: '批准', exact: true }), {
-    provenBy: approvalProof,
-    message: 'An applied approval must no longer be actionable',
-  })
-
   const receiptPath = path.join(projectRoot, '.nomi', 'project-agent-proposal-receipt.json')
   const beforeMcp = fs.existsSync(receiptPath) ? JSON.parse(fs.readFileSync(receiptPath, 'utf8')) : null
   if (!beforeMcp) {
@@ -127,9 +122,16 @@ try {
     status: 'passed', evidence: ['real Composer empty input remains disabled', 'Unicode content persisted through H'],
   }
 
+  // E: switch the user to explicit per-step review, then deny a reversible write.
+  // Safe-auto already proved the default local-edit posture above; this keeps the
+  // refusal path meaningful without pretending that the default policy still gates it.
+  await clickOrFail(win.getByRole('button', { name: '模式', exact: true }), '打开 Agent 模式菜单')
+  await clickOrFail(win.locator('[data-agent-menu-item="approval-mode-step"]'), '切换为每步确认')
+  await expect(win.locator(`${CREATION_PANEL}[data-agent-approval-mode="step"]`)).toBeVisible()
+
   // E: a real Agent proposal is denied at the UI approval boundary and cannot mutate the document.
   const rejectedRequest = walk.fixture.expectText({
-    label: 'Resident Composer rejection proposal',
+    label: 'Resident Composer step-mode rejection proposal',
     match: (body) => flattenRequestText(body).includes('请提出一个需要拒绝的收尾')
       && !body.messages?.some((message) => message.role === 'tool'),
     reply: {
@@ -146,7 +148,7 @@ try {
   await sendResidentIntent(win, '请提出一个需要拒绝的收尾，不要自行写入。')
   await recorded(rejectedRequest.received, 'the real rejection proposal')
   const rejectedApproval = win.locator(`${CREATION_PANEL} [data-agent-approval="true"][data-agent-approval-state="pending"]`)
-  await proveProbe(rejectedApproval, 'Resident Composer shows the rejection approval')
+  await proveProbe(rejectedApproval, 'Resident Composer shows a real per-step approval')
   await clickOrFail(rejectedApproval.getByRole('button', { name: '拒绝', exact: true }), '用户拒绝 Resident 文稿提案')
   await recorded(rejectedFollowup.received, 'the denied write result')
   await expect(document).not.toContainText(REJECTED_APPEND)

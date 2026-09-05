@@ -12,7 +12,7 @@ describe("timeline.write capability contract", () => {
   it("owns apply and undo as proposal-approved reversible writes", () => {
     expect(TIMELINE_WRITE_CAPABILITY.id).toBe("timeline.write");
     expect(TIMELINE_WRITE_CAPABILITY.effect).toBe("reversible_write");
-    expect(TIMELINE_WRITE_CAPABILITY.approval).toBe("proposal");
+    expect(TIMELINE_WRITE_CAPABILITY.effectClass).toBe("reversible_local");
     expect(TIMELINE_WRITE_CAPABILITY.aliases.pi).toBe("apply_edit_plan");
     expect(TIMELINE_WRITE_CAPABILITY.additionalAliases.pi).toEqual(["undo_timeline_edit"]);
   });

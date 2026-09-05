@@ -61,9 +61,12 @@ console.log(`mock auth-fail      → http://127.0.0.1:${mockFail.port}/v1`);
 
 const { app, win } = await launchNomiApp({ name: "wire-protocol-walkthrough", settleMs: 1800 });
 
+// 2026-09-05：锚点从已退役的「打开模型接入」换成实际渲染的「打开模型设置」。
+// 旧锚点在 src 里零命中，于是 `count() === 0` 恒真（每次都白点一遍「继续创作」）、
+// 下面那行 click 必然超时——一个死锚点同时造了假绿和真红。
 async function enterStudioOnce() {
   // app 开在项目库首页：用户点一个项目进 studio（模型设置浮层只在 studio 内）。
-  if (await win.locator('[aria-label="打开模型接入"]').count() === 0) {
+  if (await win.locator('[aria-label="打开模型设置"]').count() === 0) {
     await win.getByRole("button", { name: /继续创作/ }).first().click().catch(() => {});
     await win.waitForTimeout(3500);
   }
@@ -71,7 +74,7 @@ async function enterStudioOnce() {
 
 async function openWizard() {
   await enterStudioOnce();
-  await win.locator('[aria-label="打开模型接入"]').first().click();
+  await win.locator('[aria-label="打开模型设置"]').first().click();
   await win.waitForTimeout(700);
   // drawer 里的「添加模型」按钮才开 wizard modal（getByText 会误中标题 span）。
   await win.getByRole("button", { name: "添加模型", exact: true }).first().click();

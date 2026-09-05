@@ -115,11 +115,11 @@ export const TIMELINE_WRITE_CAPABILITY = {
   inputSchema: timelineWriteSemanticInputSchema,
   outputSchema: timelineWriteResultSchema,
   effect: "reversible_write",
+  effectClass: "reversible_local",
   execution: { port: "timeline", availability: "renderer_required" },
   exposure: "mcp_safe",
   requiredScope: "timeline:write",
   targetKind: "timeline",
-  approval: "proposal",
   projections: {
     pi: { description: "Apply or undo an approved project timeline edit." },
     mcp: { description: "Preview/apply/undo revision-guarded timeline edits after Host approval." },

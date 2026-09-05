@@ -34,6 +34,7 @@ export default function DocumentListSidebar(): JSX.Element {
   const designsByDocumentId = useWorkbenchStore((state) => state.storyboardDesignsByDocumentId)
   const setActiveDocumentId = useWorkbenchStore((state) => state.setActiveDocumentId)
   const setActiveStoryboardId = useWorkbenchStore((state) => state.setActiveStoryboardId)
+  const setWorkspaceMode = useWorkbenchStore((state) => state.setWorkspaceMode)
   const addWorkbenchDocument = useWorkbenchStore((state) => state.addWorkbenchDocument)
   const deleteWorkbenchDocument = useWorkbenchStore((state) => state.deleteWorkbenchDocument)
   const renameWorkbenchDocument = useWorkbenchStore((state) => state.renameWorkbenchDocument)
@@ -108,6 +109,7 @@ export default function DocumentListSidebar(): JSX.Element {
 
   const selectStoryboard = (id: string, documentId: string) => {
     setActiveStoryboardId(id, documentId)
+    setWorkspaceMode('storyboard')
     setExpanded((current) => ({ ...current, [documentId]: true }))
   }
 
