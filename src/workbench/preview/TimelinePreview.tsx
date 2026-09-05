@@ -30,6 +30,7 @@ import { findTimelineTransitionForClipType, resolveTimelineTransitionsAtFrame } 
 import { TimelineTransitionLayer } from './TimelineTransitionLayer'
 import { resolvePreviewMediaVolume } from '../timeline/clipAudio'
 import { recordVideoPlaybackState } from '../../media/videoPlaybackTelemetry'
+import { PREVIEW_EXPORT_EVENT } from './previewExportRequest'
 
 type TimelinePreviewProps = {
   activeClips: TimelineClip[]
@@ -277,11 +278,11 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
 
   React.useEffect(() => {
     const onExportRequest = () => { void handleExport() }
-    window.addEventListener('nomi-preview-export', onExportRequest)
-    return () => window.removeEventListener('nomi-preview-export', onExportRequest)
+    window.addEventListener(PREVIEW_EXPORT_EVENT, onExportRequest)
+    return () => window.removeEventListener(PREVIEW_EXPORT_EVENT, onExportRequest)
   }, [handleExport])
 
-  // 预览页的唯一导出入口是 PreviewWorkspace 顶栏按钮；事件桥让 transport 与导出实现解耦。
+  // 预览页的唯一导出入口是应用顶栏右上那颗「导出 MP4」（合同 §2.2）；事件桥让 transport 与导出实现解耦。
 
   const togglePlayback = React.useCallback(() => {
     const durationFrame = computeTimelineDuration(timeline)
@@ -350,10 +351,12 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
   return (
     <section className={cn(
       'workbench-preview-player',
-      'relative min-w-0 min-h-0 flex flex-col items-center p-8 gap-3 bg-[var(--workbench-bg)]',
+      // h-full 是这条的关键：没有它 section 只有内容高，transport 会紧贴画面浮在列**顶部**
+      // （合同 §2.2 要求它贴时间轴上沿）。padding 只给舞台区，transport 才能真正压到列底边。
+      'relative h-full w-full min-w-0 min-h-0 flex flex-col bg-[var(--nomi-ink-05)]',
     )} aria-label={t('timelinePreview.player')}>
       {/* 测量区：stage 居中于此（控制条之上的可用高度），控制条作为下方独立一行不再压住画面。 */}
-      <div ref={playerRef} className="workbench-preview-player__stage-area flex-1 min-h-0 w-full grid place-items-center">
+      <div ref={playerRef} className="workbench-preview-player__stage-area min-h-0 min-w-0 flex-1 w-full grid place-items-center p-6">
       <div
         ref={stageRef}
         className={cn(
@@ -596,8 +599,6 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
         textMenuOpen={textMenuOpen}
         onTextMenuOpenChange={setTextMenuOpen}
         onAddText={addText}
-        timeline={timeline}
-        selectedTextClipId={selectedTextClipId}
       />
     </section>
   )

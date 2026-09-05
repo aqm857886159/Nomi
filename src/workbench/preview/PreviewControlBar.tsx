@@ -3,8 +3,6 @@ import { useTranslation } from 'react-i18next'
 import { IconChevronDown, IconLetterCase, IconMaximize, IconMinimize, IconPlayerPause, IconPlayerPlay, IconPlayerSkipBack, IconPlayerSkipForward, IconSubtitles, IconVolume, IconVolumeOff } from '@tabler/icons-react'
 import { WorkbenchButton, WorkbenchIconButton } from '../../design'
 import { cn } from '../../utils/cn'
-import type { TimelineState } from '../timeline/timelineTypes'
-import { TextClipStyleControls } from './TextClipStyleControls'
 import { CONTROL_ICON_BUTTON_CLASS } from './previewControlTokens'
 
 // 播放器控制条（2026-08-03 从 TimelinePreview 抽出：那个文件已 812 行超 800 门岗，
@@ -81,14 +79,12 @@ export type PreviewControlBarProps = {
   textMenuOpen: boolean
   onTextMenuOpenChange: (open: boolean) => void
   onAddText: (style: 'caption' | 'title') => void
-  timeline: TimelineState
-  selectedTextClipId: string
 }
 
 export function PreviewControlBar({
   playing, isEmpty, onTogglePlayback, onStepFrame, currentSeconds, totalSeconds,
   muted, onMutedChange, volume, onVolumeChange, isFullscreen, onToggleFullscreen,
-  textMenuRef, textMenuOpen, onTextMenuOpenChange, onAddText, timeline, selectedTextClipId,
+  textMenuRef, textMenuOpen, onTextMenuOpenChange, onAddText,
 }: PreviewControlBarProps): JSX.Element {
   const { t } = useTranslation()
   return (
@@ -111,7 +107,6 @@ export function PreviewControlBar({
         <WorkbenchIconButton className={CONTROL_ICON_BUTTON_CLASS} label={muted ? t('timelinePreview.unmute') : t('timelinePreview.mute')} title={muted ? t('timelinePreview.unmute') : t('timelinePreview.mute')} icon={muted ? <IconVolumeOff size={15} /> : <IconVolume size={15} />} onClick={() => onMutedChange(!muted)} />
         <input type="range" min={0} max={1} step={0.05} value={muted ? 0 : volume} aria-label={t('timelinePreview.volume')} className="h-1 w-14 cursor-pointer" style={{ accentColor: 'var(--nomi-accent)' }} onChange={(event) => onVolumeChange(Number(event.target.value))} />
         <WorkbenchIconButton className={CONTROL_ICON_BUTTON_CLASS} label={isFullscreen ? t('timelinePreview.exitFullscreen') : t('timelinePreview.fullscreen')} title={t('timelinePreview.fullscreenPreview')} icon={isFullscreen ? <IconMinimize size={15} /> : <IconMaximize size={15} />} onClick={onToggleFullscreen} />
-        <TextClipStyleControls timeline={timeline} selectedTextClipId={selectedTextClipId} />
       </div>
     </div>
   )

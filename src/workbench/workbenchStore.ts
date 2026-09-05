@@ -10,7 +10,6 @@ import {
   removeClipsByIds,
   removeClipsBySourceNodeIds,
   resizeClipEdge,
-  setClipFraming,
   setTimelinePlayheadFrame,
   setTimelineScale,
   splitClipAtFrame,
@@ -18,7 +17,6 @@ import {
 } from './timeline/timelineEdit'
 import { applyRegeneratedResultToClip } from './generationCanvas/model/buildClipFromGenerationNode'
 import type { GenerationNodeResult } from './generationCanvas/model/generationCanvasTypes'
-import type { ClipFraming } from './timeline/clipFraming'
 import {
   addTextClip,
   moveTextClip,
@@ -30,8 +28,7 @@ import {
 } from './timeline/timelineTextEdit'
 import type { Vec2 } from './timeline/overlayTransform'
 import { createDefaultTimeline, normalizeTimeline } from './timeline/timelineMath'
-import { readPreviewSourceCollapsed, writePreviewSourceCollapsed } from './preview/previewSourcePanelPreference'
-import type { TimelineClip, TimelineClipAudio, TimelineState, TimelineTextStyle, TimelineTrackType } from './timeline/timelineTypes'
+import type { TimelineClip, TimelineState, TimelineTextStyle, TimelineTrackType } from './timeline/timelineTypes'
 import type { TimelineTransition } from './timeline/timelineTypes'
 import { applyTimelineOperation } from './timeline/kernel/timelineKernel'
 import { timelineUndoTimeline, type TimelineUndoEntry } from './timeline/timelineUndoHistory'
@@ -55,7 +52,8 @@ import {
   type ProjectAgentApprovalPolicy,
   type ProjectAgentWorkMode,
 } from '../../electron/shared/projectAgentContracts'
-import { clampEditingPanelLayout, cloneEditingPanelLayout, EDITING_PANEL_DEFAULTS, EDITING_PANEL_PRESETS, type EditingPanelLayout, type EditingPanelPreset } from './preview/panelLayout'
+import { createEditingPanelLayoutSlice, type EditingPanelLayoutSlice } from './preview/editingPanelLayoutSlice'
+import { createTimelineClipWritesSlice, type TimelineClipWritesSlice } from './timeline/timelineClipWritesSlice'
 import type { ExportQuality } from './export/exportTypes'
 
 /** 拖动中临时吸附辅助线（非持久化）。 */
@@ -103,7 +101,7 @@ export type ProjectAgentReference = Readonly<{
 /** Renderer alias; the canonical work-mode vocabulary lives in shared contracts. */
 export type ProjectAgentRunMode = ProjectAgentWorkMode
 
-type WorkbenchState = WorkbenchDocumentSlice & {
+type WorkbenchState = WorkbenchDocumentSlice & EditingPanelLayoutSlice & TimelineClipWritesSlice & {
   persistRevision: number
   workspaceMode: WorkspaceMode
   /** 生成/预览区右侧助手侧栏宽度（px，可拖宽）。 */
@@ -161,20 +159,10 @@ type WorkbenchState = WorkbenchDocumentSlice & {
   /** 跨生成/预览共享的时间轴高度（会话级 UI 态，不写入项目）。 */
   timelinePanelHeight: number
   setTimelinePanelHeight: (height: number) => void
-  editingPanelLayout: EditingPanelLayout
-  setEditingPanelLayout: (patch: Partial<Omit<EditingPanelLayout, 'visibility'>> & { visibility?: Partial<EditingPanelLayout['visibility']> }, recordUndo?: boolean) => void
-  setEditingPanelPreset: (preset: EditingPanelPreset) => void
-  resetEditingPanelLayout: () => void
-  toggleEditingPanel: (panel: keyof EditingPanelLayout['visibility']) => void
-  editingPanelUndoStack: EditingPanelLayout[]
-  undoEditingPanelLayout: () => boolean
   exportResolution: '720p' | '1080p'
   exportQuality: ExportQuality
   setExportResolution: (resolution: '720p' | '1080p') => void
   setExportQuality: (quality: ExportQuality) => void
-  /** 剪辑页左侧素材来源栏收起/展开（跨会话记住：剪片习惯因人而异）。 */
-  previewSourcePanelCollapsed: boolean
-  setPreviewSourcePanelCollapsed: (collapsed: boolean) => void
   /** 时间轴撤销栈（仅时间轴编辑，非持久化）。封顶后丢最旧。 */
   timelineUndoStack: TimelineUndoEntry[]
   /** 时间轴重做栈。撤销时压入；任一新编辑清空（新编辑使 redo 失效，标准语义）。 */
@@ -241,9 +229,6 @@ type WorkbenchState = WorkbenchDocumentSlice & {
   splitTimelineClip: (clipId: string, frame: number) => void
   duplicateTimelineClip: (clipId: string) => void
   nudgeTimelineClip: (clipId: string, deltaFrame: number) => void
-  /** 设置 clip 取景（适应/填充 + 缩放 + 平移）。拖动/连续缩放传 commit:false，落定 commit:true 落盘一次。 */
-  setTimelineClipFraming: (clipId: string, patch: Partial<ClipFraming>, options?: { commit?: boolean }) => void
-  setTimelineClipAudio: (clipId: string, patch: Partial<TimelineClipAudio>, options?: { commit?: boolean }) => void
   /** additive(shift/⌘)：在集合中切换；否则替换为单选。 */
   selectTimelineClip: (clipId: string, options?: { additive?: boolean }) => void
   setTimelineSelection: (clipIds: string[]) => void
@@ -359,7 +344,13 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
   })),
   setProjectAgentRunMode: (projectAgentRunMode) => set({ projectAgentRunMode }),
   setProjectAgentApprovalPolicy: (projectAgentApprovalPolicy) => set({ projectAgentApprovalPolicy: Object.freeze({ mode: projectAgentApprovalPolicy.mode, spend: projectAgentApprovalPolicy.spend }) }),
-  setProjectAgentDockCollapsed: (projectAgentDockCollapsed) => set({ projectAgentDockCollapsed: Boolean(projectAgentDockCollapsed) }),
+  setProjectAgentDockCollapsed: (collapsed) => set((state) => ({
+    projectAgentDockCollapsed: Boolean(collapsed),
+    // 见 toggleEditingPanel：Nomi 栏只有一个开关，布局里的 visibility.assistant 是它的投影。
+    editingPanelLayout: state.editingPanelLayout.visibility.assistant === !collapsed
+      ? state.editingPanelLayout
+      : { ...state.editingPanelLayout, visibility: { ...state.editingPanelLayout.visibility, assistant: !collapsed } },
+  })),
   timeline: createDefaultTimeline(),
   timelinePlaying: false,
   previewAspectRatio: '16:9',
@@ -372,41 +363,11 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
   setTimelinePanelCollapsed: (collapsed) => set({ timelinePanelCollapsed: Boolean(collapsed) }),
   timelinePanelHeight: TIMELINE_PANEL_DEFAULT,
   setTimelinePanelHeight: (height) => set({ timelinePanelHeight: clampTimelinePanelHeight(height) }),
-  editingPanelLayout: cloneEditingPanelLayout(EDITING_PANEL_DEFAULTS),
-  editingPanelUndoStack: [],
-  setEditingPanelLayout: (patch, recordUndo = true) => set((state) => {
-    const next = clampEditingPanelLayout({
-      ...state.editingPanelLayout,
-      ...patch,
-      visibility: { ...state.editingPanelLayout.visibility, ...(patch.visibility ?? {}) },
-      preset: patch.preset ?? 'custom',
-    })
-    return {
-      editingPanelLayout: next,
-      editingPanelUndoStack: recordUndo && JSON.stringify(next) !== JSON.stringify(state.editingPanelLayout)
-        ? [...state.editingPanelUndoStack, state.editingPanelLayout].slice(-20)
-        : state.editingPanelUndoStack,
-    }
-  }),
-  setEditingPanelPreset: (preset) => set((state) => ({ editingPanelUndoStack: [...state.editingPanelUndoStack, state.editingPanelLayout].slice(-20), editingPanelLayout: cloneEditingPanelLayout(EDITING_PANEL_PRESETS[preset === 'custom' ? 'default' : preset]) })),
-  resetEditingPanelLayout: () => set((state) => ({ editingPanelUndoStack: [...state.editingPanelUndoStack, state.editingPanelLayout].slice(-20), editingPanelLayout: cloneEditingPanelLayout(EDITING_PANEL_DEFAULTS) })),
-  undoEditingPanelLayout: () => { const stack = useWorkbenchStore.getState().editingPanelUndoStack; if (stack.length === 0) return false; set({ editingPanelLayout: cloneEditingPanelLayout(stack.at(-1)!), editingPanelUndoStack: stack.slice(0, -1) }); return true },
-  toggleEditingPanel: (panel) => set((state) => ({
-    editingPanelLayout: {
-      ...state.editingPanelLayout,
-      preset: 'custom',
-      visibility: { ...state.editingPanelLayout.visibility, [panel]: !state.editingPanelLayout.visibility[panel] },
-    },
-  })),
+  ...createEditingPanelLayoutSlice(set, get, store),
   exportResolution: '1080p',
   exportQuality: 'standard',
   setExportResolution: (exportResolution) => set({ exportResolution }),
   setExportQuality: (exportQuality) => set({ exportQuality }),
-  previewSourcePanelCollapsed: readPreviewSourceCollapsed(),
-  setPreviewSourcePanelCollapsed: (collapsed) => {
-    writePreviewSourceCollapsed(Boolean(collapsed))
-    set({ previewSourcePanelCollapsed: Boolean(collapsed) })
-  },
   timelineUndoStack: [],
   timelineRedoStack: [],
   setWorkspaceMode: (mode) => {
@@ -820,33 +781,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
       }
     })
   },
-  setTimelineClipFraming: (clipId, patch, options) => {
-    const commit = options?.commit !== false
-    set((state) => {
-      const next = setClipFraming(state.timeline, clipId, patch)
-      const changed = next !== state.timeline
-      return {
-        timeline: next,
-        persistRevision: commit && changed ? state.persistRevision + 1 : state.persistRevision,
-      }
-    })
-  },
-  setTimelineClipAudio: (clipId, patch, options) => {
-    const commit = options?.commit !== false
-    set((state) => {
-      const source = state.timeline.tracks.flatMap((track) => track.clips).find((clip) => clip.id === clipId)
-      if (!source || source.type === 'image') return state
-      const result = applyTimelineOperation(state.timeline, { kind: 'clip-audio', clipId, audio: { ...(source.audio ?? {}), ...patch } })
-      if (!result.ok || !result.diff.changed) return state
-      return {
-        timeline: result.timeline,
-        timelineUndoStack: pushTimelineUndo(state.timelineUndoStack, state.timeline),
-        timelineRedoStack: [],
-        selectedTimelineClipIds: [clipId],
-        persistRevision: commit ? state.persistRevision + 1 : state.persistRevision,
-      }
-    })
-  },
+  ...createTimelineClipWritesSlice(pushTimelineUndo)(set, get, store),
   updateTimelineTextClipFont: (id, fontId) => {
     set((state) => {
       const next = updateTextClipFont(state.timeline, id, fontId)

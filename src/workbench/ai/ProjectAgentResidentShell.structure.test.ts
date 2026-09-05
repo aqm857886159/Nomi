@@ -364,8 +364,13 @@ describe('ProjectAgentResidentShell production contract', () => {
     expect(generation).toContain("aiCollapsed ? '0px' : assistantTargetWidth")
     expect(generation).toContain("data-ai-layout={hasAssistant ? (aiCollapsed ? 'overlay' : 'sidebar') : 'none'}")
     expect(generation).toContain('pointer-events-none absolute inset-0 z-40 overflow-visible')
-    expect(preview).toContain("aiCollapsed ? '0px' : `${assistantWidth}px`")
-    expect(preview).toContain("'relative min-w-0 min-h-0 grid overflow-hidden'")
-    expect(preview).toContain('pointer-events-none absolute inset-0 z-40 overflow-visible')
+    // 剪辑面（预览页）自 2026-09-05 T1 起走面板系统，收起态**不是**覆盖层而是一条 32px 图标条
+    //（设计合同 §2.1 明写「收起后的右侧图标条：32px 宽，属性 / Nomi 各一个图标，点击展开」）。
+    // 所以这里不该再找旧的 grid + 0px 列 + overlay 三件套——那三条是被合同替换掉的写法，
+    // 换成钉住新契约：面板系统 + collapsedSize 用同一个 rail 常量 + 收起时渲染 PanelRail。
+    expect(preview).toContain("from 'react-resizable-panels'")
+    expect(preview).toContain('collapsedSize={EDITING_PANEL_RAIL_WIDTH}')
+    expect(preview).toContain('<PanelRail')
+    expect(preview).not.toContain("aiCollapsed ? '0px'")
   })
 })

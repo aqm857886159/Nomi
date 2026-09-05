@@ -36,12 +36,12 @@ export const zhTimelinePreview = {
   timelineActionPrefix: '预览时间轴-',
   previewInspector: {
     aria: '属性面板', title: '属性', collapse: '收起属性', expand: '展开属性', wholeFilm: '整片', project: '项目',
-    types: { film: '整片', video: '视频片段', image: '图片片段', text: '字幕' },
+    types: { video: '视频片段', image: '图片片段', text: '字幕' },
     groups: { display: '显示', export: '导出', time: '时间', audio: '声音', transition: '转场', text: '文字' },
     aspectRatio: '画幅', resolution: '导出分辨率', quality: '质量', musicVolume: '配乐音量',
     qualities: { small: '小文件', standard: '标准', high: '高质量' }, fit: '画面分段', scale: '缩放', reset: '重置',
     start: '起点', duration: '时长', sourceWindow: '源窗口', volumeDb: '音量', volumeDbInput: '音量 dB', muted: '静音', fadeIn: '淡入', fadeOut: '淡出', seconds: '秒', frames: '帧',
-    textStyle: '文字样式', transitionIn: '入场', transitionOut: '出场', choose: '选择', transitionHint: '转场选择器将在下一阶段打开',
+    transitionIn: '入场', transitionOut: '出场', choose: '选择', transitionHint: '转场选择器将在下一阶段打开',
   },
   previewLayout: {
     title: '布局', panelsTitle: '面板', presetsTitle: '预设', reset: '恢复默认', expandAssistant: '展开 Nomi',
@@ -49,7 +49,6 @@ export const zhTimelinePreview = {
     presets: { default: '默认', focus: '专注剪辑', result: '结果全屏', portrait: '竖屏预览' },
   },
   textStyle: {
-    aria: '文字样式',
     size: '字号',
     decrease: '减小字号',
     percentage: '字号百分比',
@@ -107,12 +106,12 @@ export const enTimelinePreview = {
   timelineActionPrefix: 'Preview timeline - ',
   previewInspector: {
     aria: 'Inspector panel', title: 'Inspector', collapse: 'Collapse inspector', expand: 'Expand inspector', wholeFilm: 'Whole film', project: 'Project',
-    types: { film: 'Whole film', video: 'Video clip', image: 'Image clip', text: 'Subtitle' },
+    types: { video: 'Video clip', image: 'Image clip', text: 'Subtitle' },
     groups: { display: 'Display', export: 'Export', time: 'Time', audio: 'Audio', transition: 'Transition', text: 'Text' },
     aspectRatio: 'Canvas ratio', resolution: 'Export resolution', quality: 'Quality', musicVolume: 'Music volume',
     qualities: { small: 'Small file', standard: 'Standard', high: 'High quality' }, fit: 'Fit', scale: 'Scale', reset: 'Reset',
     start: 'Start', duration: 'Duration', sourceWindow: 'Source window', volumeDb: 'Volume', volumeDbInput: 'Volume dB', muted: 'Mute', fadeIn: 'Fade in', fadeOut: 'Fade out', seconds: 's', frames: 'frames',
-    textStyle: 'Text style', transitionIn: 'In', transitionOut: 'Out', choose: 'Choose', transitionHint: 'The transition picker will open in the next stage',
+    transitionIn: 'In', transitionOut: 'Out', choose: 'Choose', transitionHint: 'The transition picker will open in the next stage',
   },
   previewLayout: {
     title: 'Layout', panelsTitle: 'Panels', presetsTitle: 'Presets', reset: 'Restore defaults', expandAssistant: 'Expand Nomi',
@@ -120,7 +119,6 @@ export const enTimelinePreview = {
     presets: { default: 'Default', focus: 'Focus edit', result: 'Result fullscreen', portrait: 'Portrait preview' },
   },
   textStyle: {
-    aria: 'Text style',
     size: 'Size',
     decrease: 'Decrease text size',
     percentage: 'Text size percentage',
