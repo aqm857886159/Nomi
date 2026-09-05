@@ -1,0 +1,146 @@
+# Visible DOM text snapshot
+
+Source file: chatcut-ai-music-sfx.dom.txt
+
+AI Music and Sound Effects — ChatCut
+🎬
+Seedance 2.5
+is live
+｜
+Limited-time offer: up to 51% off, from just $0.046/sec
+Upgrade Now
+ChatCut
+Docs
+Download ChatCut
+Home
+Understand ChatCut
+What is ChatCut?
+Web, Desktop, and Agent Plugin
+Start Your First Edit
+AI Workspace
+AI Panel Overview
+Prompt Composer
+Selection Mode
+Skills / My Skills
+Design Styles / My Styles
+Agent Settings
+Voice Library / My Voices / Voice Cloning
+Generation Confirmations and Auto-Allow
+Editor and Media
+Editor Layout
+My Assets / Media Pool
+Library
+Timeline
+Transcript and Captions
+Record Voiceover, Camera, and Screen
+Versions / Undo / Redo
+Keyboard Shortcuts
+AI Features
+AI Video Generation
+AI Image Generation
+Motion Graphics
+AI Voiceover
+AI Music and Sound Effects
+What do I need before writing the prompt?
+Prompts you can copy
+Generate with AI
+Add a supplied sound effect manually
+AI Avatars / Digital Humans
+AI Effects
+AI Background Removal
+Talking Head Edit
+AI Video Translation
+Generation References
+Generation Credits
+Export and Delivery
+Export Panel
+Export Video, Audio, and Subtitles
+Export Transparent Motion Graphics
+Premiere / DaVinci XML
+Editable Jianying / CapCut Drafts
+Desktop Local Export and 4K
+Web vs Desktop Export
+Export Queue, Downloads, and Retries
+Platforms and Agents
+ChatCut Desktop
+Agent Plugin
+Account, Collaboration, and Billing
+Sign In and Account
+Sharing and Collaboration
+Plans and Credits Overview
+Free and Pro
+Credits
+Credits History
+Manage Your Plan
+Payments and Paid Benefits
+Troubleshooting and Reference
+Common Errors
+Upload, Generation, and Export Failures
+Browser and Permission Issues
+English–Chinese UI Glossary
+Supported Formats
+Model Capability Matrix
+Keyboard Shortcut Reference
+Releases
+Current versions
+Changelog
+Contents
+Ask AI to generate music or a sound when the edit needs something unique. When Library already contains a suitable sound, preview and drag it to the timeline instead. Audio from either path can be moved, trimmed, and mixed like a regular clip.
+First check
+Library → Sound Effects
+for a suitable supplied sound. Generate only when you need something unique.
+For music, decide the mood, genre, instruments, tempo, target duration, and whether vocals are allowed.
+For sound effects, decide the source, action, environment, intensity, listening distance, and duration.
+To synchronize with the picture, plan to use
+@
+for a clip or exact time. You may also prepare a rhythm or style reference without asking to copy a protected work.
+Prompt
+Copy
+Generate 30 seconds of instrumental background music for
+@product-demo
+: modern electronic, steady rhythm, positive but not overexcited. Fade in at 00:04 and leave a natural fade at the end.
+Create an eight-second audio logo for
+@interview-intro
+using warm piano and a soft synthesizer, with no drums. Hold the final chord for one second so it can lead into dialogue.
+Generate and add a 0.8-second close, metallic latch sound at the action in
+@door-shot
+. Make it clean and slightly heavy, without environmental reverb.
+Use
+to identify the clip, range, or action point the audio should support.
+Enter the music or sound description and send it. Check the estimate if a confirmation appears.
+Follow progress in
+My Assets
+.
+Drag the completed audio to the target audio track. If the prompt specified placement, ChatCut can place it on the timeline directly.
+Select the audio clip to adjust its start, length, and volume on the timeline and in the Inspector.
+Open
+in the media panel.
+Search or select a card to preview the sound.
+Drag it to the target time on an audio track.
+It becomes a regular audio clip that you can move, trim, and mix.
+AI music and sound generation use credits. Supplied Library sounds do not need to be generated again. Use the estimate before generation and the completed entry under
+Credits History → Detail
+as the source of truth.
+See
+Library and Templates
+and
+Next:
+On this page
+Company
+Careers
+Contact
+Product
+Features
+AI Video Editor
+AI Motion Graphics
+AI Video Generator
+AI Captions
+AI Music Generator
+AI Image Generator
+Resources
+Blog
+Prompt Library
+Discord
+© 2026 ChatCut. All rights reserved.
+Privacy Policy
+Terms of Service

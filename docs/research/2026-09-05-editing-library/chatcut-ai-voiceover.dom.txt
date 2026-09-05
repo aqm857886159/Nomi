@@ -1,0 +1,156 @@
+# Visible DOM text snapshot
+
+Source file: chatcut-ai-voiceover.dom.txt
+
+AI Voiceover — ChatCut
+🎬
+Seedance 2.5
+is live
+｜
+Limited-time offer: up to 51% off, from just $0.046/sec
+Upgrade Now
+ChatCut
+Docs
+Download ChatCut
+Home
+Understand ChatCut
+What is ChatCut?
+Web, Desktop, and Agent Plugin
+Start Your First Edit
+AI Workspace
+AI Panel Overview
+Prompt Composer
+Selection Mode
+Skills / My Skills
+Design Styles / My Styles
+Agent Settings
+Voice Library / My Voices / Voice Cloning
+Generation Confirmations and Auto-Allow
+Editor and Media
+Editor Layout
+My Assets / Media Pool
+Library
+Timeline
+Transcript and Captions
+Record Voiceover, Camera, and Screen
+Versions / Undo / Redo
+Keyboard Shortcuts
+AI Features
+AI Video Generation
+AI Image Generation
+Motion Graphics
+AI Voiceover
+What do I need before writing the prompt?
+Prompts you can copy
+Choose a voice and add narration manually
+Record your own voiceover manually
+What happens afterward?
+AI Music and Sound Effects
+AI Avatars / Digital Humans
+AI Effects
+AI Background Removal
+Talking Head Edit
+AI Video Translation
+Generation References
+Generation Credits
+Export and Delivery
+Export Panel
+Export Video, Audio, and Subtitles
+Export Transparent Motion Graphics
+Premiere / DaVinci XML
+Editable Jianying / CapCut Drafts
+Desktop Local Export and 4K
+Web vs Desktop Export
+Export Queue, Downloads, and Retries
+Platforms and Agents
+ChatCut Desktop
+Agent Plugin
+Account, Collaboration, and Billing
+Sign In and Account
+Sharing and Collaboration
+Plans and Credits Overview
+Free and Pro
+Credits
+Credits History
+Manage Your Plan
+Payments and Paid Benefits
+Troubleshooting and Reference
+Common Errors
+Upload, Generation, and Export Failures
+Browser and Permission Issues
+English–Chinese UI Glossary
+Supported Formats
+Model Capability Matrix
+Keyboard Shortcut Reference
+Releases
+Current versions
+Changelog
+Contents
+AI Voiceover turns a script into narration. Use a voice from Voice Library or a custom voice saved under
+My Voices
+. The result is a project audio asset; whether it is placed on the timeline depends on whether your prompt specifies a destination.
+First decide whether to generate AI narration or record your own voice. AI narration needs a final or near-final script.
+Choose a voice from
+Voice Library
+or
+. If none fits, clone a voice you are authorized to use first.
+Decide the language, tone, pace, pronunciation, and any clip, time range, or narration the result must match.
+If you only want to record narration, no prompt is needed; use the Timeline recording control directly.
+Prompt
+Copy
+Read the following script in Mandarin with the attached voice. Sound natural and trustworthy, with a slightly slower pace. Place the result on A1 starting at 00:03:
+[paste script]
+Create an English voiceover for
+@product-demo
+, about 20 seconds long, concise and energetic. Match each sentence to the current visuals and add the result to an available audio track.
+Regenerate
+@existing-voiceover
+with
+@my-voice
+. Only correct the pronunciation of “Start creating now”; keep the rest of the script, pauses, and timeline position unchanged.
+For timing-sensitive narration, state a start time, target duration, or the clip it must match. Avoid a prompt that only says “generate a voiceover.”
+Select
++ → Voices
+below the AI composer.
+Preview voices under
+Featured
+. Click
+Browse all voices
+for search, filters, and voice cloning — see
+.
+Click a voice name or
+Use
+on its card. This attaches the voice to the draft but does not generate audio yet.
+Add the script and placement instructions, then send. The generated audio appears in
+My Assets
+If it was not placed automatically, drag it from
+to A1, A2, or another audio track.
+Click the arrow beside the recording control above the timeline and choose
+Voiceover
+. Confirm the microphone and countdown, then start recording. When you stop, ChatCut saves the recording and, depending on the entry point, adds it to the project or places it at the playhead.
+AI narration uses credits; selecting a voice alone does not generate audio. Review pronunciation, pauses, volume, and sync, then move, trim, or replace the audio on the timeline.
+For narration delivered by a presenter on camera rather than as an audio track, see
+See also
+,
+Record voiceover, camera, and screen
+, and
+Next:
+On this page
+Company
+Careers
+Contact
+Product
+Features
+AI Video Editor
+AI Motion Graphics
+AI Video Generator
+AI Captions
+AI Music Generator
+AI Image Generator
+Resources
+Blog
+Prompt Library
+Discord
+© 2026 ChatCut. All rights reserved.
+Privacy Policy
+Terms of Service

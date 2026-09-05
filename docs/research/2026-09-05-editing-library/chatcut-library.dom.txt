@@ -1,0 +1,155 @@
+# Visible DOM text snapshot
+
+Source file: chatcut-library.dom.txt
+
+Library — ChatCut
+🎬
+Seedance 2.5
+is live
+｜
+Limited-time offer: up to 51% off, from just $0.046/sec
+Upgrade Now
+ChatCut
+Docs
+Download ChatCut
+Home
+Understand ChatCut
+What is ChatCut?
+Web, Desktop, and Agent Plugin
+Start Your First Edit
+AI Workspace
+AI Panel Overview
+Prompt Composer
+Selection Mode
+Skills / My Skills
+Design Styles / My Styles
+Agent Settings
+Voice Library / My Voices / Voice Cloning
+Generation Confirmations and Auto-Allow
+Editor and Media
+Editor Layout
+My Assets / Media Pool
+Library
+Use Library content
+Use Templates
+Add a sound effect
+Add a transition
+Timeline
+Transcript and Captions
+Record Voiceover, Camera, and Screen
+Versions / Undo / Redo
+Keyboard Shortcuts
+AI Features
+AI Video Generation
+AI Image Generation
+Motion Graphics
+AI Voiceover
+AI Music and Sound Effects
+AI Avatars / Digital Humans
+AI Effects
+AI Background Removal
+Talking Head Edit
+AI Video Translation
+Generation References
+Generation Credits
+Export and Delivery
+Export Panel
+Export Video, Audio, and Subtitles
+Export Transparent Motion Graphics
+Premiere / DaVinci XML
+Editable Jianying / CapCut Drafts
+Desktop Local Export and 4K
+Web vs Desktop Export
+Export Queue, Downloads, and Retries
+Platforms and Agents
+ChatCut Desktop
+Agent Plugin
+Account, Collaboration, and Billing
+Sign In and Account
+Sharing and Collaboration
+Plans and Credits Overview
+Free and Pro
+Credits
+Credits History
+Manage Your Plan
+Payments and Paid Benefits
+Troubleshooting and Reference
+Common Errors
+Upload, Generation, and Export Failures
+Browser and Permission Issues
+English–Chinese UI Glossary
+Supported Formats
+Model Capability Matrix
+Keyboard Shortcut Reference
+Releases
+Current versions
+Changelog
+Contents
+This page covers the built-in content supplied by ChatCut. In the editor,
+contains effects, transitions, LUTs, and sound effects.
+Templates
+is a separate adjacent tab, but it belongs to the same built-in-content group. Both are different from the media you import, record, or generate in
+My Assets
+.
+Open the
+tab in the media panel beside the Viewer. If it is hidden, use
+Workspace → Library
+Choose
+Effects
+,
+Transitions
+LUTs
+Sound Effects
+, or another category currently shown.
+Use search or preview controls when that category provides them.
+Drag the item to a compatible clip, cut, or track. A successful drop places it at that Timeline location or applies it to the target clip.
+If a drop does nothing, check that the target accepts that content type. For example, sound effects belong on audio tracks, while transitions belong on a cut between adjacent clips on the same video track.
+tab.
+Browse
+Popular
+and the available categories. Select
+Favorite
+to show only templates you have saved.
+Select a template card to inspect its preview and actions.
+Select
+Add to timeline
+to place the template at the current playhead, or drag it onto a compatible Timeline track.
+Use with AI
+to add the template to the current Agent request instead of placing it directly on the Timeline.
+Select the star to add or remove the template from
+. A published template must be unpublished before it can be removed from Favorite.
+When one Motion Graphic is selected in My Assets and Templates is available, right-click its card and choose
+Add as template to Favorite
+. ChatCut creates a reusable template while keeping the original Motion Graphic in My Assets.
+Open
+Library → Sound Effects
+Select a sound to preview it, or search for the sound you need.
+Drag it to the desired time on an audio track. After you drop it, it becomes an audio clip that you can move or trim.
+If Library does not contain the sound you need, ask AI to generate one from its action, environment, duration, and listening distance; see
+Put two compatible visual clips next to each other on the same video track.
+Library → Transitions
+Drag a transition to their shared cut. After you drop it, the transition connects the two clips.
+If a transition will not attach, close the gap and confirm that both clips have enough source duration for the overlap. Deleting or separating either adjacent clip can also remove the transition.
+Templates, Skills, and Design Styles serve different purposes: Templates add prebuilt editing content to a project; Skills save reusable AI workflows; Design Styles control the visual style of generated content.
+See
+, and
+Next:
+On this page
+Company
+Careers
+Contact
+Product
+Features
+AI Video Editor
+AI Motion Graphics
+AI Video Generator
+AI Captions
+AI Music Generator
+AI Image Generator
+Resources
+Blog
+Prompt Library
+Discord
+© 2026 ChatCut. All rights reserved.
+Privacy Policy
+Terms of Service

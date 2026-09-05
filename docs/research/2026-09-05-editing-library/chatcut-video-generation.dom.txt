@@ -1,0 +1,179 @@
+# Visible DOM text snapshot
+
+Source file: chatcut-video-generation.dom.txt
+
+AI Video Generation — ChatCut
+🎬
+Seedance 2.5
+is live
+｜
+Limited-time offer: up to 51% off, from just $0.046/sec
+Upgrade Now
+ChatCut
+Docs
+Download ChatCut
+Home
+Understand ChatCut
+What is ChatCut?
+Web, Desktop, and Agent Plugin
+Start Your First Edit
+AI Workspace
+AI Panel Overview
+Prompt Composer
+Selection Mode
+Skills / My Skills
+Design Styles / My Styles
+Agent Settings
+Voice Library / My Voices / Voice Cloning
+Generation Confirmations and Auto-Allow
+Editor and Media
+Editor Layout
+My Assets / Media Pool
+Library
+Timeline
+Transcript and Captions
+Record Voiceover, Camera, and Screen
+Versions / Undo / Redo
+Keyboard Shortcuts
+AI Features
+AI Video Generation
+What do I need before writing the prompt?
+Prompts you can copy
+Configure Video Gen manually
+Choose a model
+Edit or extend an existing video
+AI Image Generation
+Motion Graphics
+AI Voiceover
+AI Music and Sound Effects
+AI Avatars / Digital Humans
+AI Effects
+AI Background Removal
+Talking Head Edit
+AI Video Translation
+Generation References
+Generation Credits
+Export and Delivery
+Export Panel
+Export Video, Audio, and Subtitles
+Export Transparent Motion Graphics
+Premiere / DaVinci XML
+Editable Jianying / CapCut Drafts
+Desktop Local Export and 4K
+Web vs Desktop Export
+Export Queue, Downloads, and Retries
+Platforms and Agents
+ChatCut Desktop
+Agent Plugin
+Account, Collaboration, and Billing
+Sign In and Account
+Sharing and Collaboration
+Plans and Credits Overview
+Free and Pro
+Credits
+Credits History
+Manage Your Plan
+Payments and Paid Benefits
+Troubleshooting and Reference
+Common Errors
+Upload, Generation, and Export Failures
+Browser and Permission Issues
+English–Chinese UI Glossary
+Supported Formats
+Model Capability Matrix
+Keyboard Shortcut Reference
+Releases
+Current versions
+Changelog
+Contents
+AI Video Generation creates clips from text, images, first and last frames, references, or a source video. Models support different inputs, editing operations, durations, and resolutions, so define the task before selecting a model.
+Video generation requires Pro and uses credits. Use the estimate shown in the editor before sending; see
+for current rates.
+First decide whether you are generating from scratch, connecting first and last frames, using references, editing a source video, or extending a clip. That choice determines the available models and inputs.
+Text-only generation needs no upload, but you should know the subject, action, setting, camera, and visual style.
+To preserve a person, product, or composition, prepare clear images, first and last frames, or supported references. To edit or extend a clip, import the source video into
+My Assets
+first.
+Decide the aspect ratio, target duration, resolution, and anything that must remain unchanged.
+You can switch to
+Video Gen
+for manual setup or stay in Agent mode and describe the task in natural language. When the current Agent supports commands, typing
+/
+opens its available commands; the list varies by Agent.
+Prompt
+Copy
+Generate a 6-second 16:9 product shot of black wireless headphones floating against a dark background. Slowly push the camera forward, add a soft blue rim light, and use realistic commercial lighting. Do not add text.
+Generate a natural transition from
+@first-frame
+to
+@last-frame
+. Keep the person's face, clothing, and background consistent. Have the person turn away from the camera and walk out of frame; keep the camera locked.
+Edit
+@source-video
+: remove the cup from the desk and replace the background with a clean light-gray studio. Keep the person, action, camera, and original duration unchanged.
+State what each reference controls and which details may change or must remain fixed.
+Switch the AI composer to
+.
+Select the model name below the composer, then choose
+,
+Seedance 2.0
+Seedance 2.0 Fast
+Seedance 2.0 mini
+Kling 3.0
+, or
+Gemini Omni
+Select the
+Video settings
+slider icon. Under
+Input
+, choose a supported operation such as text generation, frames, references, video editing, or extension.
+Set
+Aspect ratio
+Resolution
+, and
+Duration
+. Seedance 2.5 also offers MP4 or MOV output.
+Upload media through the displayed slots, or drag compatible media from
+Enter the prompt, check the credit estimate beside Send, and select
+Send message
+Follow progress in
+, then drag the finished video to the timeline.
+: for mixed references, source-video editing, or clip extension.
+: for standard text, first/last-frame, and mixed-reference generation.
+Seedance 2.0 Fast / mini
+: for faster or lower-cost iterations.
+: for image-led tasks with character or object references.
+: for generation from a small image set or editing a short source clip.
+The
+is the source of truth for changing input counts, durations, resolutions, editing, and extension support. Switching models can remove incompatible inputs, so recheck the slots and settings before sending.
+With
+, choose
+Video settings → Input → Edit video
+or
+Extend video
+, add the source clip, and describe the change. With
+Edit video
+and drag a short project video from My Assets into the source slot.
+When aspect ratio, duration, or resolution must inherit from the source clip, the editor locks or labels that setting. The result is added to My Assets as a new asset; it does not overwrite the source file.
+See also
+and
+Next:
+On this page
+Company
+Careers
+Contact
+Product
+Features
+AI Video Editor
+AI Motion Graphics
+AI Video Generator
+AI Captions
+AI Music Generator
+AI Image Generator
+Resources
+Blog
+Prompt Library
+Discord
+© 2026 ChatCut. All rights reserved.
+Privacy Policy
+Terms of Service

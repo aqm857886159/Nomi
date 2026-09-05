@@ -1,0 +1,323 @@
+# Visible DOM text snapshot
+
+Source file: descript-underlord-primer.dom.txt
+
+How to Get Started With Underlord: A Primer
+Introducing
+Underlord
+A new AI-powered editing assistant, right inside Descript
+Features
+Video editing
+Editing video in Descript is as easy as using docs and slides.
+Podcasting
+Multitrack audio editing, just like editing text.
+Clips
+AI picks your best clips, your creativity makes them pop.
+Rooms
+Record crystal-clear podcasts and video with anyone, anywhere.
+Captions
+Add subtitles to extend your reach in a single click.
+Generate media
+Create bespoke, custom video and images from a prompt.
+Transcription
+It’s automatic, with industry-leading accuracy & speed.
+AI speech
+Easily create a realistic voice clone or pick from our stock AI voices.
+Templates
+Jumpstart your workflow with battle-tested AI templates.
+AI avatars
+Pick an avatar from our gallery or upload a photo to create your own.
+AI Features
+Market / Promote
+Create Clips
+YouTube descriptions
+Show notes
+Translation
+Look Good
+Eye Contact
+Green Screen
+Automatic Multicam
+Video Regenerate
+Brand Studio
+Generate video
+Sound Good
+Edit for Clarity
+Studio Sound
+Remove Filler Words
+Remove Retakes
+Regenerate Speech
+Meet Underlord
+Our AI assistant can do anything you need to bring your creative vision to life.
+Generate video with AI
+Type a prompt, get a video. Add the finishing touches in Descript.
+Solutions
+Enterprise
+Collaborate better, work faster, produce more.
+By function
+Marketing
+Sales
+Sales enablement
+Learning and development
+Customer success
+Customer support
+By use case
+Marketing video
+Webinar recording
+Tutorial video
+Product demo
+Educational video
+Case studies
+Resources
+Blog
+Learn how to create with AI + make podcasts, video, clips, and stuff.
+Community
+Connect with other creators. Ask questions, share tips, make friends.
+Learn Descript
+Explore quick tutorials that show you how to create, edit and share your content with Descript.
+Additional Resources
+Changelog
+Customer stories
+Tools
+Affiliate program
+Help and support
+Pricing
+Contact sales
+Sign in
+Sign up
+For teams
+For work
+Back
+Use Cases
+Screen recording
+Instantly capture, edit, and share screen or webcam recordings.
+Easily create a realistic voice clone or pick from our stock Al voices.
+Create clips
+Automatic multicam
+SOON
+Edit for clarity
+Remove filler words
+Remove retakes
+Regenerate speech
+Our AI assistant will help bring your creative vision to life.
+Teams
+One tool for all the video your team needs to create.
+Sales Enablement
+What creative-workflow problems do you want to solve? Check all that apply.
+Saying “um” or “you know” too much
+Doing several retakes every time I record
+Recording in a noisy room instead of a professional studio
+Manually scrubbing my timeline to find specific parts to cut or clip
+If you could take a magic aspirin to rid yourself of any creative headache, you’d pick:
+Juggling 5 different apps to write, record, edit, and publish a single podcast or video
+The time-consuming slog of finding and creating clips for social media
+The blank page you stare at whenever you have to write a script, show notes, YouTube description, etc.
+Losing an hour-long recording due to “technical issues”
+Last question. There are two bananas. One is newly ripe, and unblemished. The other is squishy, and covered in spots. Which one are you eating?
+The perfect banana — start using Descript for free to see how good it feels
+The spotty, mushy banana — go back to making podcasts and videos the way I currently am
+Eat both — for science
+Continue
+Eliminating background noise and elevate voice quality in one click
+Editing audio and video as easily as editing a doc
+Drag-and-drop transcription of audio & video files
+Built-in remote recording for up to 10 guests, in up to 4k video
+A vast library of royalty-free videos, images, music, and GIFs
+AI Actions to repurpose content into blog posts, social media clips, summaries, and more
+Automatic filler word removal for “um”, “like”, and awkward pauses
+You’re going to love Descript.
+Descript is a different kind of video & podcast editor that gives creators superpowers like:
+Create your next project in Descript. It’s free.
+Get started for free
+Oops! Something went wrong while submitting the form.
+Filler Words
+How to get started with Underlord: an AI video editor primer
+Updated
+July 29, 2026
+Underlord edits video by working on the transcript. Learn what it handles, how to phrase a request, and where a manual pass still beats an automated one.
+Ashley Hamer Pritchard
+,
+AI for Creators
+Product Updates
+In this article
+Related tools
+Video Editing
+Underlord is Descript's AI editing assistant, and it works on the transcript rather than the timeline. It handles filler word removal, clip selection, and show notes as instructions rather than manual passes. The starting point is a recording and a plain request.
+Descript’s new AI video editor, a reborn Underlord, has been turned loose—anybody can try it now, in Labs. It’s the first of its kind: an AI agent built into a fully powered video editor.
+That means you can now create or edit a video just by telling Underlord what you want.
+The new Underlord understands what a good video looks and sounds like. It knows how to do anything you’d do in Descript. And it can execute entire editing workflows—like generating a rough cut, styling all the visuals, adding B-roll, and applying AI effects like Eye contact and Studio sound—from a single prompt.
+As with most any creative tool, but
+especially
+with an AI agent like Underlord: trial and error is the best way to learn how to use it. So if you haven’t already, go give it a try.
+Try the new Underlord
+That said, this is all new, and it may not be obvious where to start or how to get the most out of it. So we’ve gathered a few tips and ideas from our team and the Descript power users who’ve been testing the new Underlord.
+The basics: Getting started with Underlord
+Conversation, not commands
+Sure, Underlord can do anything you tell it to do in Descript. But to get the most out of it, try asking questions or explaining what you're trying to achieve before you just start ordering it around.
+“Talk to it like a person. This is your creative partner to chat with and create ideas with,” says Mario Salazar, host of the women’s soccer podcast
+Casual FC
+.
+Be explicit where you want to be, but don’t worry about giving step-by-step directions. Try telling Underlord what you have in mind, and trust that it knows how to get there; it will use its judgment and make choices that fit your vision.
+Tactic
+Prompt example
+Describe your goal first
+I want to turn this hour-long webinar about our product into a 5-minute YouTube video that just hits on the most compelling points. I know I want it to stress how much time it saves customers. What would you suggest?
+Ask for ideas
+Can you take a look at this demo and let me know your thoughts on making it more inspiring?
+Lead with emotion
+I want this this video to connect with people and make them feel motivated and supported. What are some changes we can make?
+Invite reflection
+Review this video and identify anything that needs improvement
+Be specific, and generous, with context
+Here's where you should provide a lot of detail. Just like a human co-editor, Underlord is far more likely to give you satisfying results if you tell it exactly what you're after. So give it as much detail as you can about the kind of video you want, the platform you’ll be publishing to, and the audience you’re aiming for. It will tailor its responses and actions to whatever you describe.
+“For example, instead of ‘cut this down,’ say something like ‘make this a fast-paced highlight reel for TikTok with a humorous tone, that’s less than 60 seconds,’” says Katrina Lui, a Descript software engineer helping to build Underlord.
+Before
+After
+Make this video more concise
+Turn this video into a clear, narrative-driven product demo that will engage hiring managers on YouTube. It should showcase the use case I mention and highlight the key outcomes. Keep it under two minutes, with a confident, helpful tone and no overt sales language. Suggest some more engaging visuals, and give it all a structure that prioritizes clarity and flow
+Edit this video
+I want to make a 2-3 minute product demo video for YouTube; the target audience is creative leaders and the goal is to show them our product can help them work faster without sacrificing quality. What would you suggest?
+Use positive language
+Much like a two-year-old, Underlord responds better when you tell it what
+to
+do rather than what
+not
+to do. That’s true whether you’re giving creative direction or asking it to complete a task. So instead of “Make this script sound less robotic,” try something like this:
+Make this script sound less robotic
+Make this script sound more natural and conversational, like how a friend would explain it.
+Don't make the visuals boring
+Make it visually interesting by drawing attention to key moments
+Make this video shorter but don't cut any parts where we talk about content marketing
+Make this video more concise but leave in all the parts where we talk about content marketing
+Always be iterating
+Another way Underlord is like a human co-editor: it can misunderstand or misinterpret what you tell it. So if your initial prompt doesn't work, don't just repeat it (or give up)—try coming at it from a different angle.
+Jethro Jones, host of the podcast
+Transformative Principal
+, discovered this when he was asking Underlord to cut down an interactive Zoom course so that it only contained the parts where he was talking. After that didn’t work, he flipped it.
+“I told it to remove everybody that wasn't me from the conversation,” he says. Underlord knocked that out “in lightning speed.”
+Descript’s CEO, Laura Burkhauser, was having trouble getting Underlord to style her social clips in bulk. So she tried asking Underlord to style the main composition
+first
+and
+then
+cut clips—worked like a charm.
+☑️ Sample prompt:
+Version 1:
+Split this video into topic-based chapters
+Version 2:
+Add chapter markers, dividing the video by topic
+Version 3:
+Make a list of the topics this script covers, then label them in the video with chapter markers
+Prompt your way through
+If you’re not getting the results you want from Underlord. If Underlord does or something you can’t understand, or weren’t expecting. If you don’t know what your next move should be. If you know what you want it to be but don’t have the video knowledge or terminology to describe it. If you’re just generally confused or unsure.
+In any of these situations, just prompt your way through. One of the incredible things about this whole AI thing is its ability to work with you to sort out your thoughts, give you suggestions and even troubleshoot its own work.
+☑️ Sample prompts:
+I want to make a video about how content marketing will change in the AI age. I have a script but I don’t know how to start making it into a video. How do I proceed?
+I’m still not loving the video, but I’m not sure why. Can you help?
+The next level: Refining your prompts
+Workflows: start with simple tasks, then build as you go
+Jethro has one monster prompt he uses with every episode of his show—it clips out the beginning of the recording, applies automatic multicam, adds chapter markers, and make a few other time-consuming edits.
+“ It does about 90% of the work for me,” he says. “Being able to just copy and paste that in and then I'm done editing is pretty amazing.”
+But he didn’t start that way—instead, he dipped a toe in by testing individual prompts and refining them until each one worked every time. Then he tried putting a few together, then a few more, until he had the end-to-end prompt he uses today.
+First:
+Cut filler words
+Apply Studio sound
+Apply a layout
+Add captions
+Add a title card, with a snappy title
+Then, after you’ve refined those, you might land on something like:
+First, remove retakes—use the last complete take in most cases. Then cut filler words, unless removing them will make it sound unnatural. Then apply Studio sound at about 55%. Then, apply the Berlin Carrot layout to the entire video. Next, add captions to the entire video. Finally, add a title card with a title card that captures the main takeaway in 5 words or less.
+Consult other AI tools
+If you're struggling to write prompts, or can’t get Underlord to understand you, try consulting with ChatGPT or another AI tool. Two synthetic brains can be better than one, it seems.
+“I like to conference with ChatGPT or Claude on putting together a good prompt because they’re good at writing a ton of context,” Laura says. “And editing that context is easier than writing it myself.”
+Help me write a prompt for my AI video editor in Descript (Underlord). I want it to edit my hourlong podcast video down to just the most compelling 30 minutes, plus do whatever else I should do to make the video flow smoothly and stay engaging throughout. Then I want it to create 3-5 short clips I can use on social media. What should I ask it to do?
+Make Underlord check its own work
+Before you get caught in a cycle where you prompt Underlord, then have to prompt it to fix the thing it broke when it did the first thing, try getting ahead of the issue: make Underlord double-check its work.
+Add background music but make sure to adjust the audio levels so the speaker can still be heard.
+The fun stuff: Pushing your creative boundaries with Underlord
+Think bigger, not just faster
+Use Underlord to make new stuff, not just as an efficiency multiplier. Think beyond your current workflow: if you had an assistant with unlimited bandwidth, good taste, and deep expertise, what would you ask it to do? Then ask Underlord to do it.
+Our early power users leaned on Underlord to make trailers, video podcasts, courses, social media clips, translations—stuff that was either beyond their skillsets or just too time-consuming before.
+What other content directions could we explore based on this video?
+Experiment with generated media
+Underlord can search Descript’s stock media library when you want to add an image. But stock is, by definition, generic. If you want to create something unique, ask Underlord to generate the exact image or video you want.
+“Think about it like being able to custom order stock media,” Laura says.
+For optimal, non-slop results, be ultra specific—for Underlord, no amount of contextual detail is too much.
+Generate an image of people talking for each scene.
+Find scenes that would benefit from B-roll. Use generated images in a vibrant, documentary-inspired style that captures unconventional individuals in candid, emotionally resonant moments. It celebrates human quirks, fringe aesthetics, and raw intimacy with warmth and whimsy. The images feel like found footage from a beautiful alternate reality—where everyone is a little weird, and that weirdness is adored.
+Save your prompt as a template
+Once you've determined the exact details and instructions you need to get Underlord to do what you want, you'll have two things: An edit you can be happy with, and a prompt you can use again in future projects.
+To save your prompt:
+Copy the prompt from the chat window
+Hit the
+Home
+button in Descript
+Click
+Browse more templates
+New template
+Paste your prompt and gill out the rest of the information
+Boom—you have a fully tested prompt that you can reuse whenever you need it.
+Find Underlord’s limits—and keep going
+Got a crazy idea you think could never work, or that you’re pretty sure Underlord can’t handle? Try asking it anyway.
+Conclusion: If at first you don’t succeed, keep asking
+We’re giving Underlord new capabilities and powers every day. And it’s learning from all the things you and your Descript peers are asking it to do. So if it completely fails at something today, try asking again next week. “You might be surprised what it can do,” Laura says.
+Managing Editor at Descript. Musician, podcaster, writer, science nerd.
+Share this article
+Get free recording and editing tips delivered to your inbox
+Thank you for subscribing!
+By subscribing, you consent to receiving marketing emails.
+You may unsubscribe at any time.
+Related articles
+Don’t ship your API as an MCP
+By
+Helen Zeng
+Engineering
+The research behind Descript's seamless video edits
+Xingzhe He
+How to turn the video you have into the video you were hoping for
+Sherry Lin
+Go deeper, make better video
+Descript is an all-in-one editing platform that makes creating video as easy as editing text, with AI tools that reduce the drudgery so you can focus on making something good.
+Try it free ->
+385 Grove St. San Francisco, CA 94102
+© Descript 2026
+Remote Recording Studio
+Screen Recording
+AI Eye Contact
+AI Tools
+Text-to-Speech
+Overdub
+Regenerate
+AI Green Screen
+Product
+Download
+Status
+Feature Requests
+Integrations
+Community & Events
+Affiliate Program
+Help & Support
+Company
+About Us
+Careers
+Lyrebird
+Ethics
+Privacy
+Terms
+Guides
+How to start a podcast
+How to record a podcast
+How to start a YouTube channel
+How to improve the audio quality of a recording
+How to reduce background noise from audio
+How to create video links to share your content
+All guides →
+Video Editor
+Voice Enhancer
+Speech to Text Converter
+Split Audio Online
+YouTube Clip Maker
+All tools →
+Descript for Teams
+Descript for Enterprise
+RSS comes to YouTube: How to add your podcast to the world's largest podcast platform
+By Firstname Lastname
+Video

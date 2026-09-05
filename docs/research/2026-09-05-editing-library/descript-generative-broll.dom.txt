@@ -1,0 +1,229 @@
+# Visible DOM text snapshot
+
+Source file: descript-generative-broll.dom.txt
+
+Create AI-Generated B-Roll | Descript
+Features
+Video editing
+Editing video in Descript is as easy as using docs and slides.
+Podcasting
+Multitrack audio editing, just like editing text.
+Screen recorder
+Capture your screen for instant sharing or polished B-roll.
+Rooms
+Record crystal-clear podcasts and video with anyone, anywhere.
+Enhance video
+Just hit record. Descript’s AI will fix your look, sound, and mistakes.
+Generate media
+Create bespoke, custom video and images from a prompt.
+Captions
+Add subtitles to extend your reach in a single click.
+AI speech
+Easily create a realistic voice clone or pick from our stock AI voices.
+Transcription
+It’s automatic, with industry-leading accuracy & speed.
+Templates
+Jumpstart your workflow with battle-tested AI templates.
+AI Features
+Market / Promote
+Create Clips
+AI Avatars
+YouTube descriptions
+Show notes
+Translation
+Look Good
+Eye Contact
+Green Screen
+Automatic Multicam
+Video Regenerate
+Brand Studio
+Generate video
+Sound Good
+Edit for Clarity
+Studio Sound
+Remove Filler Words
+Remove Retakes
+Regenerate Speech
+Meet Underlord
+Our AI assistant can do anything you need to bring your creative vision to life.
+API + MCP
+Edit video through code, or from inside your AI assistant
+Underlord
+Solutions
+Enterprise
+Collaborate better, work faster, produce more.
+Customer stories
+Every day, people use Descript to create.
+By industry
+Media
+Tech
+By team
+Marketing
+Sales
+Sales enablement
+Learning and development
+Customer success
+Customer support
+By use case
+Marketing video
+Webinar recording
+Tutorial video
+Product demo
+Educational video
+Case studies
+Increased content production by 100%, publishing 3-4 videos/day
+Learn more
+Produced 10+ clips from a single interview
+Resources
+Blog
+Learn how to create with AI + make podcasts, video, clips, and stuff.
+Community
+Connect with other creators. Ask questions, share tips, make friends.
+Learn Descript
+Explore quick tutorials that show you how to create, edit and share your content with Descript.
+Additional resources
+Changelog
+Tools
+Affiliate program
+Help and support
+Pricing
+Contact sales
+Sign in
+Sign up
+Using Generative Video to Add or Create B-Roll
+Elevate your storytelling with Descript’s generative video tools — create dynamic, on-brand B-roll in seconds without stock searches or reshoots.
+Get started
+These companies use Descript. Not bad!
+How to use generative video to add or create B-Roll
+01
+Set Up Your Primary Footage
+Start by gathering the main footage you want to enhance with additional visuals. If your goal is to replace or remove backgrounds, make sure your subject is well lit and clearly visible. The AI needs a strong starting clip to generate or insert B-roll that blends naturally with your scene.
+02
+Generate AI-Based B-Roll
+Use Descript’s generative video tools to describe the type of B-roll you need — like an office shot, cityscape, or nature scene. The AI can create entirely new clips or repurpose your existing footage to match your vision. If needed, use background removal to isolate your subject and drop it into an AI-generated or stock background for a seamless blend.
+03
+Refine Your Final B-Roll
+Once your B-roll is generated, fine-tune the timing so each cutaway flows naturally with your main footage. Add transitions, layer in ambient sound or music, and adjust pacing until everything feels cohesive. The result: polished, professional-looking visuals that elevate your story — all inside Descript.
+Why generative B-Roll transforms your video
+Turn Ideas into Visuals
+Describe the scene you need — a bustling city, a quiet park, or a cozy office — and let Descript’s AI bring it to life. No location scouting, no extra shoots, just instant visuals that fit perfectly into your story.
+Stay Flexible with Your Edits
+With Descript’s generative video tools, you can skip costly reshoots and stay agile in post-production. Swap placeholders for AI-generated B-roll or fine-tune existing clips on the fly — all without leaving your timeline.
+Keep Viewers Engaged
+Use Descript’s generative tools to keep your audience hooked from opener to outro. B-roll fills slow moments, adds context, and creates smooth transitions that make your videos more dynamic and engaging.
+Powerful features for next-level B-Roll
+Explore Descript’s built-in tools to effortlessly create stunning cutaways, dynamic backgrounds, and polished B-roll visuals.
+AI Green Screen
+Instantly remove or replace backgrounds around your subject — perfect for layering new B-roll or creating fresh backdrops without re-recording.
+Regenerate Audio or Video
+Smooth out jump cuts or instantly refresh outdated footage with Descript’s Regenerate tool. Create on-brand visuals or seamless audio transitions when your clips need a quick, professional revamp.
+Stock Media Integration
+Access a full library of stock images, clips, music, and sound effects right inside Descript — then combine them with generative video to elevate your final edit.
+Collaboration & Reviews
+Share your generative B-roll projects with teammates to comment, refine, and perfect together — no exporting files or juggling complicated workflows. Everything happens seamlessly inside Descript.
+Don’t just take our word for it
+With a 4.6-out-of-5-star rating and a bunch of distinctions on G2, Descript’s users have declared it an industry standard in the video and podcasting world.
+2026
+Best Software
+Video Editing
+AI Video Generators
+Screen and Video Capture
+Text to Speech
+“With Descript I'll be able to at least double my content output since editing is taking one-quarter the time it used to.”
+Donna B.
+“With Descript we can create videos for our YouTube channel and our LinkedIn page much faster and with high quality.”
+Balázs N.
+“Descript has made cleaning up and creating my educational videos into professional presentations [possible] without needing extensive technical computer skills.”
+Barbara C.
+“Descript makes recording and editing audio and video a breeze. It's advanced features have streamlined my workflows, saving me a lot of time usually spent editing.”
+Roderick F.
+“The collaborative tools streamline teamwork, allowing my team and me to work efficiently together on projects. Overall, Descript enhances productivity and simplifies the editing process.”
+Aldrich M.
+“Transcription-based editing makes the process much faster…All in all, a must have editor for most audiences, especially in SaaS marketing.”
+Nidhin M.
+PRICING
+Surely there’s one for you
+Free
+$0
+per person / month
+Start your journey with text-based editing
+1 media hour / month
+100 AI credits / month
+Export 720p, watermark-free
+Limited use of Underlord, our agentic video co-editor and AI tools
+Limited trial of AI Speech
+Hobbyist
+$24
+$16
+1 person included
+Elevate your projects, watermark-free
+10 media hours / month
+400 AI credits / month
+Export 1080p, watermark-free
+Access to Underlord, our AI video co-editor
+AI tools including Studio Sound, Remove Filler Words, Create Clips, and more
+AI Speech with custom voice clones and video regenerate
+Most Popular
+Creator
+$35
+Scale to a team of 3 (billed separately)
+Unlock advanced AI-powered creativity
+30 media hours / month
+800 AI credits / month
+Export 4k, watermark-free
+Full access to Underlord, our AI video co-editor and 20+ more AI tools
+Generate video with the latest AI models
+Unlimited access to royalty-free stock media library
+Access to top ups for more media hours and AI credits
+DISCOVER MORE
+Edit video
+Convert audio to text
+Text-to-Speech Voice Generator
+Speech to Text Converter
+Voice Cloning
+Video Transcript Generator
+View all tools
+Frequently Asked Questions
+Is generative B-Roll different from stock footage?
+Yes. Stock footage comes from pre-recorded libraries, while generative B-roll uses AI to create custom visuals from scratch or reimagine your existing clips. With Descript, you’re not limited to generic shots — you can generate visuals that fit your story perfectly.
+Can I still use real-world B-roll?
+Absolutely. Generative video in Descript doesn’t replace traditional B-roll — it enhances it. You can blend your real footage with AI-generated clips for added variety, flexibility, and a more polished final result.
+What’s the benefit of removing backgrounds?
+Background removal lets you instantly place your subject into any AI-generated or stock scene. It’s an easy way to add context, refresh visuals, or change environments — whether you’re swapping in a realistic setting or something more imaginative.
+© Descript
+Screen Recording
+Captions and subtitles
+Translate video
+Text-to-Speech
+Regenerate
+Product
+Download
+Status
+Feature Requests
+Integrations
+Community & Events
+Affiliate Program
+Help & Support
+Company
+About Us
+Careers
+Research
+Ethics
+Privacy
+Terms
+Guides
+All guides
+How to record a podcast
+How to start a YouTube channel
+How to make a slideshow on TikTok
+YouTube video size guide
+How to create a YouTube video
+How to clip and trim YouTube Videos
+All tools
+Video Editor
+Audio to Text Converter
+Video Background Changer
+Add Music to Audio
+AI Video Describer
+Descript for teams
+Descript for enterprise

@@ -1,0 +1,130 @@
+# Visible DOM text snapshot
+
+Source file: chatcut-what-is.dom.txt
+
+What is ChatCut? — AI Video Editing Agent
+🎬
+Seedance 2.5
+is live
+｜
+Limited-time offer: up to 51% off, from just $0.046/sec
+Upgrade Now
+ChatCut
+Docs
+Download ChatCut
+Home
+Understand ChatCut
+What is ChatCut?
+What can I make with ChatCut?
+How do I start?
+How is the editor organized?
+Web, Desktop, and Agent Plugin
+Start Your First Edit
+AI Workspace
+AI Panel Overview
+Prompt Composer
+Selection Mode
+Skills / My Skills
+Design Styles / My Styles
+Agent Settings
+Voice Library / My Voices / Voice Cloning
+Generation Confirmations and Auto-Allow
+Editor and Media
+Editor Layout
+My Assets / Media Pool
+Library
+Timeline
+Transcript and Captions
+Record Voiceover, Camera, and Screen
+Versions / Undo / Redo
+Keyboard Shortcuts
+AI Features
+AI Video Generation
+AI Image Generation
+Motion Graphics
+AI Voiceover
+AI Music and Sound Effects
+AI Avatars / Digital Humans
+AI Effects
+AI Background Removal
+Talking Head Edit
+AI Video Translation
+Generation References
+Generation Credits
+Export and Delivery
+Export Panel
+Export Video, Audio, and Subtitles
+Export Transparent Motion Graphics
+Premiere / DaVinci XML
+Editable Jianying / CapCut Drafts
+Desktop Local Export and 4K
+Web vs Desktop Export
+Export Queue, Downloads, and Retries
+Platforms and Agents
+ChatCut Desktop
+Agent Plugin
+Account, Collaboration, and Billing
+Sign In and Account
+Sharing and Collaboration
+Plans and Credits Overview
+Free and Pro
+Credits
+Credits History
+Manage Your Plan
+Payments and Paid Benefits
+Troubleshooting and Reference
+Common Errors
+Upload, Generation, and Export Failures
+Browser and Permission Issues
+English–Chinese UI Glossary
+Supported Formats
+Model Capability Matrix
+Keyboard Shortcut Reference
+Releases
+Current versions
+Changelog
+Contents
+ChatCut is a video editor with an AI agent built into the editing workspace. Ask the agent to assemble or revise an edit in natural language, generate new media, or make precise changes yourself on a multi-track timeline. You can use ChatCut through the Desktop app, web app, or Agent Plugin.
+Turn talking-head, interview, or screen-recording footage into a tighter cut.
+Create short versions and alternate timelines from a longer project.
+Generate video, motion graphics, images, music, captions, and narration.
+Make app promos, product ads, explainers, and social videos.
+Edit speech by deleting or rearranging words in the Transcript panel.
+Export finished video, audio, subtitles, graphics, or XML.
+Sign in and ChatCut opens a project for you. Add media, tell the agent what you want, review the result, and export it.
+walks through those five steps with screenshots.
+Which product you use — Desktop, the web app, or the Agent Plugin — changes where the conversation happens, not the steps. See
+to choose one.
+AI
+: describe edits and attach references, Skills, styles, voices, or generation models.
+My Assets / Library / Transcript
+: import and organize media, browse built-in assets, or edit speech as text.
+Viewer
+: play and inspect the frame at the current playhead.
+: arrange clips on video and audio tracks and switch between multiple timelines.
+Top bar
+: return to projects, rename or share, undo, manage the workspace and versions, and export.
+Continue to
+for the walkthrough,
+for a button-by-button tour, or
+for the AI workflow.
+Next:
+On this page
+Company
+Careers
+Contact
+Product
+Features
+AI Video Editor
+AI Motion Graphics
+AI Video Generator
+AI Captions
+AI Music Generator
+AI Image Generator
+Resources
+Blog
+Prompt Library
+Discord
+© 2026 ChatCut. All rights reserved.
+Privacy Policy
+Terms of Service

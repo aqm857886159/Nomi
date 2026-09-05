@@ -1,0 +1,150 @@
+# Visible DOM text snapshot
+
+Source file: chatcut-ai-effects.dom.txt
+
+AI Effects — ChatCut
+🎬
+Seedance 2.5
+is live
+｜
+Limited-time offer: up to 51% off, from just $0.046/sec
+Upgrade Now
+ChatCut
+Docs
+Download ChatCut
+Home
+Understand ChatCut
+What is ChatCut?
+Web, Desktop, and Agent Plugin
+Start Your First Edit
+AI Workspace
+AI Panel Overview
+Prompt Composer
+Selection Mode
+Skills / My Skills
+Design Styles / My Styles
+Agent Settings
+Voice Library / My Voices / Voice Cloning
+Generation Confirmations and Auto-Allow
+Editor and Media
+Editor Layout
+My Assets / Media Pool
+Library
+Timeline
+Transcript and Captions
+Record Voiceover, Camera, and Screen
+Versions / Undo / Redo
+Keyboard Shortcuts
+AI Features
+AI Video Generation
+AI Image Generation
+Motion Graphics
+AI Voiceover
+AI Music and Sound Effects
+AI Avatars / Digital Humans
+AI Effects
+What do I need before writing the prompt?
+Prompts you can copy
+Add a built-in effect manually
+What happens afterward?
+AI Background Removal
+Talking Head Edit
+AI Video Translation
+Generation References
+Generation Credits
+Export and Delivery
+Export Panel
+Export Video, Audio, and Subtitles
+Export Transparent Motion Graphics
+Premiere / DaVinci XML
+Editable Jianying / CapCut Drafts
+Desktop Local Export and 4K
+Web vs Desktop Export
+Export Queue, Downloads, and Retries
+Platforms and Agents
+ChatCut Desktop
+Agent Plugin
+Account, Collaboration, and Billing
+Sign In and Account
+Sharing and Collaboration
+Plans and Credits Overview
+Free and Pro
+Credits
+Credits History
+Manage Your Plan
+Payments and Paid Benefits
+Troubleshooting and Reference
+Common Errors
+Upload, Generation, and Export Failures
+Browser and Permission Issues
+English–Chinese UI Glossary
+Supported Formats
+Model Capability Matrix
+Keyboard Shortcut Reference
+Releases
+Current versions
+Changelog
+Contents
+AI Effects lets you describe a visual treatment in natural language. ChatCut uses a compatible built-in effect when possible and can create a custom effect or transition when the Library does not cover the request. Effects change timeline playback without rewriting the source video.
+First check whether
+already has the Effect, LUT, Zoom, or Transition you need. A built-in effect can be dragged to the timeline without a prompt.
+When asking AI to create or apply an effect, prepare the target video clip or two adjacent clips for a transition.
+Decide the time range, intensity, and any faces, products, or text that must remain intact. Optionally prepare reference images, reference video, or color samples.
+Use Selection Mode or an
+@
+mention to identify the target precisely.
+Prompt
+Copy
+Apply a subtle cinematic grade to
+@selected-clip
+. Lower the highlights, add a small amount of teal to the shadows, keep skin tones natural, and do not change the exposure.
+Add an eight-frame glass-refraction transition at the cut between
+@clip-A
+and
+@clip-B
+. Move left to right with soft edges and no bright flash.
+Create a circular reveal mask over the first three seconds of
+@product-shot
+. Expand from the center of the product, keep the background unchanged, and reveal the full original frame at the end.
+State the target, effect type, time range, intensity, and anything that must remain unchanged. A prompt that only says “make it cinematic” is harder to control.
+Open
+. If it is hidden, use
+Workspace → Library
+.
+Browse
+Effects
+,
+LUTs
+Zoom
+, or
+Transitions
+Drag an Effect, LUT, or Zoom onto a compatible video clip. Drag a Transition onto the cut between two adjacent clips on the same video track.
+Select the affected clip or effect and adjust any available strength, duration, or other controls in the current toolbar.
+Delete the effect or use Undo to return to the previous state.
+For portrait background removal, do not generate a custom shader. ChatCut Desktop provides the dedicated
+AI Portrait Cutout
+effect. See
+If a prompt only asks ChatCut to “create” a custom effect, it may remain as a project resource. To use it immediately, say “create and apply it to @target.” Generation may show a credit confirmation; built-in Library effects normally require no generation.
+To separate a person from the background instead of treating the whole frame, use the built-in effect covered in
+See also
+, and
+Next:
+On this page
+Company
+Careers
+Contact
+Product
+Features
+AI Video Editor
+AI Motion Graphics
+AI Video Generator
+AI Captions
+AI Music Generator
+AI Image Generator
+Resources
+Blog
+Prompt Library
+Discord
+© 2026 ChatCut. All rights reserved.
+Privacy Policy
+Terms of Service
