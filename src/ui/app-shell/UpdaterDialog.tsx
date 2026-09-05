@@ -15,7 +15,7 @@ export function UpdaterDialog({ updater, hasRunningTask }: { updater: Updater; h
     if (updater.phase === 'available' || updater.phase === 'downloaded') setDismissed(false)
   }, [updater.phase])
 
-  const badgeVisible = hasRunningTask && (updater.phase === 'available' || updater.phase === 'downloaded' || updater.phase === 'error')
+  const badgeVisible = hasRunningTask && (updater.phase === 'available' || updater.phase === 'downloading' || updater.phase === 'downloaded' || updater.phase === 'error')
   if (!visible && !badgeVisible) return null
 
   const title = updater.phase === 'error' ? t('updaterDialog.errorTitle') : updater.phase === 'downloading' ? t('updaterDialog.downloadingTitle') : updater.phase === 'downloaded' ? t('updaterDialog.downloadedTitle') : t('updaterDialog.availableTitle')

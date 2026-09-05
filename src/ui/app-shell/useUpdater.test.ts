@@ -45,6 +45,7 @@ describe('reduceUpdaterState', () => {
 describe('shouldShowUpdaterDialog', () => {
   it('keeps the update quiet while a task is running', () => {
     expect(shouldShowUpdaterDialog({ phase: 'available', hasRunningTask: true })).toBe(false)
+    expect(shouldShowUpdaterDialog({ phase: 'downloading', hasRunningTask: true })).toBe(false)
     expect(shouldShowUpdaterDialog({ phase: 'error', hasRunningTask: true })).toBe(false)
   })
 

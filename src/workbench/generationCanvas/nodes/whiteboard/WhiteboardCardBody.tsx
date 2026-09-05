@@ -44,6 +44,7 @@ function WhiteboardCardBodyImpl({
       <div className={cn('flex-1 min-h-0 flex flex-col items-center justify-center pb-3')}>
         <EmptyStateLauncher
           icon={<IconBrush size={24} stroke={1.55} />}
+          label={t('generationCommon.whiteboard.title')}
           hint={t('generationCommon.whiteboard.openHint')}
           activateAriaLabel={t('generationCommon.whiteboard.openAria')}
           onActivate={handleOpen}
