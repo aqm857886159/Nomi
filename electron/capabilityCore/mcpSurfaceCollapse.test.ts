@@ -73,9 +73,10 @@ describe('MCP surface collapse 42→15 · P1 retirement', () => {
   it('exposes exactly the 15 collapsed tools + the preserved M2 editing tools', () => {
     const listed = MCP_TOOL_RESOLVER.list()
     expect(listed.map((t) => t.name)).toEqual(NEW_TOOL_NAMES)
-    // 收敛的 15 个带人读 title；M2 语义工具（含 T3 槽位的语义 canvas_edit）沿用已发布形态（暂无 title，续裁时补）。
-    for (const t of listed.filter((t) => COLLAPSED_TOOL_NAMES.includes(t.name) && t.name !== 'nomi_canvas_edit')) {
+    // 所有公开工具都必须带人读 title；M2 语义工具的中英文标题由目录层补齐。
+    for (const t of listed) {
       expect(typeof (t as { title?: unknown }).title, `${t.name} carries a title`).toBe('string')
+      expect((t as { title: string }).title.length, `${t.name} title is non-empty`).toBeGreaterThan(0)
     }
   })
 

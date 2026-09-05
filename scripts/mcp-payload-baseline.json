@@ -1,4 +1,4 @@
 {
-  "maxBytes": 25751,
-  "reason": "25 tools: the 15 collapsed tools + 7 preserved M2 semantic editing tools + T1 layout.read/layout.write projections. The T1 tools are the canonical reversible local panel-layout surface; their bounded layout schema is required so a host can construct every layout.write operation. This is a deliberate surface expansion for the T1 contract; subsequent changes remain shrink-only."
+  "maxBytes": 28047,
+  "reason": "25 tools: baseline is measured as the maximum UTF-8 JSON byte length across zh-CN and en tools/list projections, so CI and developer machine locales cannot change the ratchet result. The payload includes the 15 collapsed tools, 7 preserved M2 semantic editing tools, T1 layout.read/layout.write projections, and localized human titles for all nine semantic tools. Subsequent changes remain shrink-only."
 }
