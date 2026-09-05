@@ -78,7 +78,16 @@ function Shimmer({ className }: { className?: string }): JSX.Element {
   return <span aria-hidden="true" className={cn('block rounded-pill bg-nomi-ink-10 motion-safe:animate-pulse motion-reduce:animate-none', className)} />
 }
 
-/** Shared long-content treatment: three lines, then an explicit link. No mask. */
+/**
+ * Shared long-content treatment: three lines, then an explicit link. No mask.
+ *
+ * Content **below** the fold threshold is shown in full and wraps normally. It used to be clamped to
+ * `h-5` (one line) with `whitespace-nowrap`, which meant every reply between one line and 360 chars
+ * was cut off mid-sentence with no fold link and no affordance of any kind — measured 2026-09-06, a
+ * 46-character reply lost 138px of itself. The clamp came from copying the approved mockup's measured
+ * height (`data-agent-reply` h:19 in agent-ui-spec.generated.json) as if it were a rule; it is a
+ * derived value of that mockup's one-line sample string, not a constraint on every reply.
+ */
 export function ResidentFoldableText({
   text,
   expandLabel,
@@ -87,7 +96,6 @@ export function ResidentFoldableText({
   className,
   contentClassName,
   dataUserContent = false,
-  singleLine = false,
   foldLinkOutside = false,
   contentWrapClassName,
 }: {
@@ -98,18 +106,17 @@ export function ResidentFoldableText({
   className?: string
   contentClassName?: string
   dataUserContent?: boolean
-  singleLine?: boolean
   foldLinkOutside?: boolean
   contentWrapClassName?: string
 }): JSX.Element {
   const long = text.split(/\r?\n/).length > 3 || text.length > 360
   const [open, setOpen] = React.useState(false)
-  const content = <div className={cn(!open && long && 'line-clamp-3', singleLine && !long ? 'whitespace-nowrap' : 'whitespace-pre-wrap', 'break-words', contentClassName)} data-user-content={dataUserContent ? 'true' : undefined}>{text}</div>
+  const content = <div className={cn(!open && long && 'line-clamp-3', 'whitespace-pre-wrap break-words', contentClassName)} data-user-content={dataUserContent ? 'true' : undefined}>{text}</div>
   const link = long ? <button type="button" className="mt-0.5 inline-flex items-center gap-0.5 text-micro text-nomi-accent hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-nomi-accent/40" data-fold-expand="true" onClick={() => setOpen((value) => !value)}>
       <IconChevronDown size={12} className={cn('transition-transform motion-reduce:transition-none', open && 'rotate-180')} aria-hidden="true" />{open ? collapseLabel : `${expandLabel}${estimatedExtra ? ` · ${estimatedExtra}` : ''}`}
     </button> : null
   if (foldLinkOutside) return <div className={cn('min-w-0', className)} data-fold-text={long ? 'true' : undefined}><div className={contentWrapClassName}>{content}</div>{link}</div>
-  return <div className={cn('min-w-0', !long && 'h-5 overflow-hidden', className)} data-fold-text={long ? 'true' : undefined}>{content}{link}</div>
+  return <div className={cn('min-w-0', className)} data-fold-text={long ? 'true' : undefined}>{content}{link}</div>
 }
 
 export function ResidentPlanCard({

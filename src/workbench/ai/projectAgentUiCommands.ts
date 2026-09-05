@@ -59,8 +59,36 @@ export async function activateProjectAgentThread(threadId: string): Promise<Proj
   return dispatch('thread.activate', { threadId, occurredAt: new Date().toISOString() })
 }
 
+/**
+ * Deleting the conversation you are looking at is the ordinary case — it is the highlighted row in
+ * the menu, so it is the one people reach for. The Host refuses `thread.remove` on the active thread
+ * (removing it would leave `activeThreadId` dangling), which used to make that trash button a silent
+ * no-op. Move the cursor first, then delete: to the most recently updated survivor, or to a fresh
+ * empty conversation when this was the only one.
+ */
 export async function removeProjectAgentThread(threadId: string): Promise<ProjectAgentHostState> {
-  return dispatch('thread.remove', { threadId, occurredAt: new Date().toISOString() })
+  const snapshot = currentSnapshot()
+  if (snapshot.activeThreadId !== threadId) {
+    return dispatch('thread.remove', { threadId, occurredAt: new Date().toISOString() })
+  }
+  const now = new Date().toISOString()
+  const successor = snapshot.threads
+    .filter((thread) => thread.threadId !== threadId)
+    .reduce<ProjectAgentThread | null>(
+      (best, thread) =>
+        !best || new Date(thread.updatedAt).getTime() > new Date(best.updatedAt).getTime() ? thread : best,
+      null,
+    )
+  if (successor) await dispatch('thread.activate', { threadId: successor.threadId, occurredAt: now })
+  else await dispatch('thread.put', { thread: newThread(now), makeActive: true })
+  try {
+    return await dispatch('thread.remove', { threadId, occurredAt: new Date().toISOString() })
+  } catch (error) {
+    // The Host still refuses threads with work in flight. Put the user back where they were before
+    // reporting it — moving them away AND failing would be two surprises for one click.
+    await dispatch('thread.activate', { threadId, occurredAt: new Date().toISOString() })
+    throw error
+  }
 }
 
 /** Edit a queued user turn through the Host; queue text is never owned by the shell. */

@@ -34,6 +34,7 @@ import {
   isProjectAgentClaimedProposalItemStatus, isProjectAgentLiveProposalItemStatus,
 } from "./projectAgentStatusSemantics";
 import { assertTrustedProjectAgentDelta } from "./projectAgentTrustedStateValidation";
+import { HISTORICAL_PATCH_REFERENCES, type ProjectAgentPatchReferences } from "./projectAgentPatchReferences";
 import { assertTrustedProjectAgentDeltaCoverage } from "./projectAgentTrustedDeltaCoverage";
 import { assertProjectAgentProvenance } from "./projectAgentProvenanceValidation";
 import {
@@ -415,11 +416,9 @@ function assertUniqueIds(values: readonly unknown[], readId: (value: unknown) =>
 function assertPatchChange(
   value: unknown,
   binding: ProjectBinding,
-  threadIds: ReadonlySet<string>,
-  turnIds: ReadonlySet<string>,
-  turnThreadById: ReadonlyMap<string, string>,
-  itemTurnById: ReadonlyMap<string, string>,
+  refs: ProjectAgentPatchReferences,
 ): asserts value is ProjectAgentChange {
+  const { threadIds, turnIds, turnThreadById, itemTurnById } = refs;
   const change = asRecord(value);
   switch (change.kind) {
     case "thread-upserted":
@@ -448,12 +447,11 @@ function assertPatchChange(
     case "item-upserted":
       assertAllowedKeys(change, ["kind", "item"]);
       assertItem(change.item, binding, threadIds, turnIds);
-      assertTurnThreadLink(
-        (change.item as ProjectAgentItem).threadId,
-        (change.item as ProjectAgentItem).turnId,
-        turnThreadById,
-      );
-      assertParentItemLink(change.item as ProjectAgentItem, itemTurnById);
+      if (refs.enforceLinks) {
+        const item = change.item as ProjectAgentItem;
+        assertTurnThreadLink(item.threadId, item.turnId, turnThreadById);
+        assertParentItemLink(item, itemTurnById);
+      }
       break;
     case "item-removed":
       assertAllowedKeys(change, ["kind", "itemId"]);
@@ -462,11 +460,10 @@ function assertPatchChange(
     case "queue-upserted":
       assertAllowedKeys(change, ["kind", "queueItem"]);
       assertQueueItem(change.queueItem, binding, threadIds, turnIds);
-      assertTurnThreadLink(
-        (change.queueItem as ProjectAgentQueueItem).threadId,
-        (change.queueItem as ProjectAgentQueueItem).turnId,
-        turnThreadById,
-      );
+      if (refs.enforceLinks) {
+        const queued = change.queueItem as ProjectAgentQueueItem;
+        assertTurnThreadLink(queued.threadId, queued.turnId, turnThreadById);
+      }
       break;
     case "queue-removed":
       assertAllowedKeys(change, ["kind", "queueItemId"]);
@@ -484,11 +481,10 @@ function assertPatchChange(
     case "proposal-upserted":
       assertAllowedKeys(change, ["kind", "approval"]);
       assertProposalApproval(change.approval, threadIds, turnIds);
-      assertTurnThreadLink(
-        (change.approval as ProjectAgentProposalApproval).ref.threadId,
-        (change.approval as ProjectAgentProposalApproval).ref.turnId,
-        turnThreadById,
-      );
+      if (refs.enforceLinks) {
+        const { ref } = change.approval as ProjectAgentProposalApproval;
+        assertTurnThreadLink(ref.threadId, ref.turnId, turnThreadById);
+      }
       break;
     case "proposal-removed":
       assertAllowedKeys(change, ["kind", "approvalId"]);
@@ -709,9 +705,8 @@ export function assertProjectAgentHostState(value: unknown): asserts value is Pr
       throw new ProjectAgentStateError("invalid_state");
     }
     if (!Array.isArray(patch.changes)) throw new ProjectAgentStateError("invalid_state");
-    patch.changes.forEach((change) =>
-      assertPatchChange(change, state.binding, threadIds, turnIds, turnThreadById, itemTurnById),
-    );
+    // History, not live state: a thread deleted since legitimately leaves patches naming it.
+    patch.changes.forEach((change) => assertPatchChange(change, state.binding, HISTORICAL_PATCH_REFERENCES));
   });
 }
 
