@@ -1,4 +1,5 @@
 import type { AgentAttachmentPayload, AgentsChatResponseDto } from '../../api/desktopClient'
+import type { ProjectAgentAttachmentClaim } from '../../../electron/shared/projectAgentContracts'
 import { runWorkbenchAgent } from './workbenchAgentRunner'
 
 export const AGENT_LOOP_MODE = { singleShot: 'single-shot', multiTurn: 'multi-turn' } as const
@@ -13,6 +14,8 @@ export type SingleShotAgentRequest = {
   skillKey: string
   skillName: string
   attachments?: AgentAttachmentPayload[]
+  /** Main-resolved asset identities for ephemeral multimodal requests. */
+  attachmentClaims?: readonly ProjectAgentAttachmentClaim[]
 }
 
 /** One step and zero tools. Ephemeral scope bypasses every persistent lifecycle
@@ -29,5 +32,6 @@ export async function runSingleShotAgent(request: SingleShotAgentRequest): Promi
     skillName: request.skillName,
     mode: 'chat',
     ...(request.attachments?.length ? { attachments: request.attachments } : {}),
+    ...(request.attachmentClaims?.length ? { attachmentClaims: request.attachmentClaims } : {}),
   })
 }

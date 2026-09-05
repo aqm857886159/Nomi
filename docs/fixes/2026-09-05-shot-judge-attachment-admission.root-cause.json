@@ -1,0 +1,112 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-05-shot-judge-attachment-admission",
+  "problem_type": "renderer image-judge attachment admission regression",
+  "symptom": "In the real Electron storyboard batch journey, the generated image is persisted locally but the renderer's image-judge request reaches the text model with zero image_url parts; strict production walk evidence fails and visual review would run without the generated frame.",
+  "direct_cause": "shotVerifyJudge enqueued a display-only attachment URL without a ProjectAgentAttachmentClaim. The Host IPC resolves only main-owned claims and replaces request.attachments with the resolved display refs; with no claims, it supplied an empty attachment list to agentChatV2, so buildAgentUserContent never received the frame.",
+  "class_root": "Every renderer-originated ephemeral multimodal Agent request must admit media through the same main-owned asset identity boundary as resident attachments. The shot-judge path had a second display-only attachment route that bypassed claim resolution, allowing a real local frame to be silently removed before the model wire.",
+  "affected_population": [
+    "Storyboard image and video verification requests launched by the renderer after a generated or extracted frame is written to the project asset store",
+    "Any future renderer-owned single-shot Agent caller that passes a nomi-local attachment without an attachment claim",
+    "Existing runs on the Host cutover path where the frame was valid on disk but the judge request was text-only"
+  ],
+  "scope_paths": [
+    "electron/projectAgentHost/projectAgentIpc.ts",
+    "src/workbench/ai/agentLoopMode.ts",
+    "src/workbench/generationCanvas/agent/shotVerifyJudge.ts",
+    "src/workbench/ai/agentCallers.test.ts",
+    "docs/fixes/2026-09-05-shot-judge-attachment-admission.root-cause.json"
+  ],
+  "entry_points": [
+    "shotVerifyStore gathers a generated image or extracted video frame and invokes the renderer-owned shot judge",
+    "shotVerifyJudge resolves the frame URL against the main-owned project asset index before enqueueing a single-shot Agent turn",
+    "ProjectAgent IPC resolves attachment claims and constructs the canonical display attachment passed to agentChatV2"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The invariant is Nomi's internal Host attachment admission and asset-index contract; vendor multimodal API documentation cannot define which renderer claims are trusted by the project Agent Host.",
+  "invariants": [
+    "A local frame sent from a renderer-owned shot judge must have a main-resolved assetId/version claim before the Host can enqueue it.",
+    "The Host remains the sole owner of attachment display fields and bytes; renderer URL fields are never trusted as an alternate admission path.",
+    "An unresolved local frame fails closed before the judge model request rather than silently degrading to text-only review."
+  ],
+  "generality_proof": "The resolver is used at the shared shotVerifyJudge boundary for both direct image results and video frames extracted into the same project asset index, while runSingleShotAgent now carries the claim into the common enqueue path. Ordinary resident attachments already use this Host claim contract, so every renderer single-shot media caller either supplies a main-owned claim or fails closed; no model/vendor branch can bypass it.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/agent/shotVerifyJudge.ts",
+      "symbol": "resolveFrameAssetClaim",
+      "responsibility": "Map a local frame URL to the exact main-owned asset identity and reject an unresolved frame before enqueue."
+    },
+    {
+      "path": "src/workbench/ai/agentLoopMode.ts",
+      "symbol": "runSingleShotAgent",
+      "responsibility": "Forward the validated attachment claim into the shared workbench Agent enqueue instead of relying on display-only attachment fields."
+    },
+    {
+      "path": "electron/projectAgentHost/projectAgentIpc.ts",
+      "symbol": "executionEnqueueField / attachment resolver",
+      "responsibility": "Remain the sole trust boundary that resolves claims and replaces renderer attachment display data before agentChatV2."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/agent/shotVerifyJudge.ts",
+      "entry_point": "makeShotVerifyDeps judge",
+      "disposition": "enforced",
+      "evidence": "The judge now looks up nomi-local frames through desktop.assets.list and sends attachmentClaims with the canonical URL; missing identity throws before runSingleShotAgent."
+    },
+    {
+      "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "entry_point": "resident composer attachmentClaims",
+      "disposition": "not-affected",
+      "evidence": "Resident sends projectAgentAttachmentClaims for ready ComposerAttachment records and already traverses the same Host resolver; the regression was isolated to the shot-judge one-shot caller."
+    },
+    {
+      "path": "electron/capabilityCore/shotVerifyDeps.ts",
+      "entry_point": "headless/MCP shot judge",
+      "disposition": "not-affected",
+      "evidence": "The headless capability path converts local frames to data:image bytes before its vendor request and does not enqueue a renderer Agent turn; it has separate local asset resolution tests."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The Host intentionally strips unclaimed renderer attachment URLs, so every future single-shot caller that omits claims would reproduce the same text-only request even when its local file exists.",
+    "same_class_scan": [
+      "Searched all runSingleShotAgent callers and attachmentClaims call sites; shotVerifyJudge was the only production caller passing attachments without claims, while resident and canvas callers use the claim projection.",
+      "Searched the renderer and headless shot verification paths; renderer shotVerifyJudge uses ProjectAgent IPC, while electron/capabilityCore/shotVerifyDeps uses direct local-to-data conversion and is not on the failing Host route.",
+      "Traced projectAgentIpc turn.enqueue: attachmentClaims are resolved once and request.attachments is reconstructed from main-owned refs, proving the empty claim list is the earliest shared drop boundary."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/agent/shotVerifyJudge.ts",
+    "invariant": "Every nomi-local frame admitted to the renderer-owned Agent judge has a matching main-owned asset claim.",
+    "failure_mode": "An unknown local frame raises shot_verify_frame_asset_unresolved and the judge request is not enqueued; the existing verify runner treats the failed judge as a skipped verification rather than sending untrusted text-only input.",
+    "exception_policy": "none",
+    "strategy": "Resolve the URL against the canonical asset index immediately before enqueue, then pass only the identity claim through runSingleShotAgent to the Host's existing resolver. No display-only or vendor-specific fallback is permitted.",
+    "artifacts": [
+      "src/workbench/generationCanvas/agent/shotVerifyJudge.ts",
+      "src/workbench/ai/agentLoopMode.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/ai/agentCallers.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/ai/agentCallers.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The repair uses the existing Host claim protocol and does not restore the retired renderer-owned planner or create a second media transport."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency controls the local asset identity or Host admission invariant.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted schema migration is needed. Generated assets already carry asset IDs and remain readable; only future renderer judge requests now include the corresponding claim before enqueue.",
+  "residual_risks": [
+    "The focused regression proves URL-to-claim projection and fail-closed behavior; the current production Electron walk must still prove the resulting chat wire contains a data:image URL and that downstream deviation/restart evidence completes.",
+    "Remote or data URL attachments without a local asset identity remain outside this renderer shot-judge path and must not be admitted by this resolver."
+  ]
+}
