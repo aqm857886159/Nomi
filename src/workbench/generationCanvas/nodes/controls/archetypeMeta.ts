@@ -581,17 +581,13 @@ export function referenceSlotStorage(slot: { kind: ArchetypeReferenceSlotKind })
 function slotInputKey(slot: { kind: ArchetypeReferenceSlotKind; inputKey?: string }): string {
   return slot.inputKey ?? DEFAULT_SLOT_INPUT_KEY[slot.kind]
 }
-function slotAsArray(slot: { kind: ArchetypeReferenceSlotKind; asArray?: boolean }): boolean {
-  return slot.asArray ?? DEFAULT_AS_ARRAY[slot.kind]
-}
-
 /**
  * 「这个槽是一格还是一袋」的**唯一判据**（P1）：声明的 `asArray` 优先，缺省按 kind 推（DEFAULT_AS_ARRAY）。
  * 从前分镜行另有一份写死的 `NAMED_FRAME_SLOT_KINDS` 集合与这里并列——两份真相源今天恰好一致、
  * 明天任一档案写 `asArray` 覆盖就分家。任何「单槽 vs 数组槽」的分叉都必须问这个函数。
  */
-export function referenceSlotIsArray(slot: { kind: ArchetypeReferenceSlotKind; asArray?: boolean }): boolean {
-  return slotAsArray(slot)
+export function slotAsArray(slot: { kind: ArchetypeReferenceSlotKind; asArray?: boolean }): boolean {
+  return slot.asArray ?? DEFAULT_AS_ARRAY[slot.kind]
 }
 
 /** 单帧槽收哪种媒体（数组槽由 ARRAY_SLOT_ROUTE 给）。首/尾帧收图、源视频收视频。 */

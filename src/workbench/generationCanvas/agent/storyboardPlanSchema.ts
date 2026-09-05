@@ -46,7 +46,6 @@ const planShotSchema = z.object({
     url: z.string().min(1),
     name: z.string().optional(),
     sourceNodeId: z.string().min(1).optional(),
-    anchorId: z.string().min(1).optional(),
   }))).optional(),
   prompt: z.string(),
   promptSegments: z.array(promptSegmentRangeSchema).optional(),

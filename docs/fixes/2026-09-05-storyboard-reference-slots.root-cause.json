@@ -41,7 +41,7 @@
   "shared_boundaries": [
     {
       "path": "src/workbench/generationCanvas/nodes/controls/archetypeMeta.ts",
-      "symbol": "referenceSlotIsArray",
+      "symbol": "slotAsArray",
       "responsibility": "The single answer to 'is this slot one tile or a bag' — declared asArray first, DEFAULT_AS_ARRAY by kind otherwise. Replaces the row's duplicate NAMED_FRAME_SLOT_KINDS set."
     },
     {

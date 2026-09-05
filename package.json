@@ -132,6 +132,7 @@
     "test:site:visual": "pnpm run build:site && node tests/ux/marketing-home.visual.mjs",
     "test:journeys": "pnpm run check:electron-install && node ./scripts/eval-journey.mjs --ci",
     "test:real-user-journeys": "pnpm run check:electron-install && pnpm run build && node scripts/real-user-test-gates.mjs --provider loopback",
+    "test:golden": "pnpm run check:electron-install && node tests/ux/golden-path.e2e.mjs",
     "test:real-user-journeys:ci": "node scripts/real-user-test-gates.mjs --provider loopback",
     "kill:zombies": "pkill -f \"$PWD/node_modules/.pnpm/electron\" || true",
     "test:system": "node scripts/test-system.mjs",

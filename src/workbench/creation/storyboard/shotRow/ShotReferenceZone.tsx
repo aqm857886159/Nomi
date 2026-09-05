@@ -57,7 +57,7 @@ export default function ShotReferenceZone({ zone, mode, shot, onUpdate, onTrigge
 
   // 拒绝理由都用人话说清「为什么不行」，不做沉默失败（§1.6：禁用不做沟通死路）。
   const applyAppend = React.useCallback(
-    (assetSlot: AssetSlot, url: string, kind: AssetKind, extra: { name?: string; sourceNodeId?: string; anchorId?: string }) => {
+    (assetSlot: AssetSlot, url: string, kind: AssetKind, extra: { name?: string; sourceNodeId?: string }) => {
       const slot = declaredSlot(assetSlot.key)
       if (!slot) return
       const result = appendShotBinding(shot, slot, { url, ...extra }, kind)

@@ -78,10 +78,8 @@ export type PlanReferenceBinding = {
   url: string
   /** 素材名（tile 的 caption / 缩略图加载失败时的兜底）。 */
   name?: string
-  /** 引用某镜结果 / 某张参考卡时的来源节点（结果 hash 变了要能查回去）。 */
+  /** 引用某镜结果 / 某张参考卡时的来源节点（结果 hash 变了要能查回去）。参考卡本身也是画布节点。 */
   sourceNodeId?: string
-  /** 引用锚（参考卡）时的锚 id。 */
-  anchorId?: string
 }
 
 export type PlanShot = {

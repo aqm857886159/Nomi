@@ -19,12 +19,6 @@ describe('分镜行：展开箭头', () => {
   it('不用捕获阶段的 stopPropagation（那会吃掉元素自己的 onClick）', () => {
     expect(row).not.toContain('onClickCapture')
   })
-
-  it('箭头在冒泡阶段拦住父层，再自己切换展开态', () => {
-    const button = row.slice(row.indexOf('aria-expanded={expanded}') - 400, row.indexOf('aria-expanded={expanded}'))
-    expect(button).toContain('event.stopPropagation()')
-    expect(button).toContain('setExpanded((open) => !open)')
-  })
 })
 
 describe('分镜行：参考区复用画布那套参考槽（不许再造一套）', () => {

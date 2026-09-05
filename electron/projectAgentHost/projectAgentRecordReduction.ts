@@ -1,11 +1,39 @@
-import type { ProjectAgentChange, ProjectAgentItem, ProjectAgentStatus } from "../shared/projectAgentContracts";
+import type {
+  ProjectAgentChange,
+  ProjectAgentHostState,
+  ProjectAgentItem,
+  ProjectAgentQueueItem,
+  ProjectAgentStatus,
+  ProjectAgentTurn,
+} from "../shared/projectAgentContracts";
 import { assertCanonicalMutationTimestamp, assertOptionalMutationBoolean } from "./projectAgentMutationValidation";
 import { ProjectAgentReducerError, isProjectAgentStatusTransition } from "./projectAgentReducerContract";
 import { freezeProjectAgentIncremental } from "./projectAgentSnapshot";
 import { isProjectAgentStatus } from "./projectAgentStateValidationPrimitives";
 
-function fail(code: "record_not_found" | "status_transition_invalid"): never {
+function fail(code: "record_not_found" | "status_transition_invalid" | "running_turn_exists"): never {
   throw new ProjectAgentReducerError(code);
+}
+
+export function findTurn(state: ProjectAgentHostState, turnId: string): ProjectAgentTurn {
+  const turn = state.turns.find((value) => value.turnId === turnId);
+  if (!turn) fail("record_not_found");
+  return turn;
+}
+
+export function findQueueForTurn(
+  queue: readonly ProjectAgentQueueItem[],
+  turnId: string,
+): ProjectAgentQueueItem {
+  const item = queue.find((value) => value.turnId === turnId);
+  if (!item) fail("record_not_found");
+  return item;
+}
+
+export function assertSingleRunningTurn(state: ProjectAgentHostState, turnId: string): void {
+  if (state.turns.some((turn) => turn.turnId !== turnId && turn.status === "running")) {
+    fail("running_turn_exists");
+  }
 }
 
 export function assertStatusTransition(from: ProjectAgentStatus, to: ProjectAgentStatus): void {

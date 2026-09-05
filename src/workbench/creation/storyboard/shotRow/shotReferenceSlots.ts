@@ -4,8 +4,8 @@ import type { ArchetypeMode, ArchetypeReferenceSlot } from '../../../../config/m
 import type { PlanReferenceBinding, PlanShot } from '../../../generationCanvas/agent/storyboardPlan'
 import {
   referenceSlotAccept,
-  referenceSlotIsArray,
   referenceSlotStorage,
+  slotAsArray,
 } from '../../../generationCanvas/nodes/controls/archetypeMeta'
 import { translateModelDisplayText } from '../../../../i18n/modelDisplayText'
 
@@ -30,7 +30,7 @@ export function storyboardAssetSlots(mode: ArchetypeMode | null | undefined): As
     key: slot.kind,
     label: translateModelDisplayText(slot.label),
     accept: referenceSlotAccept(slot.kind),
-    form: referenceSlotIsArray(slot) ? 'array' : 'single',
+    form: slotAsArray(slot) ? 'array' : 'single',
     // 分镜行没有画布边（行是 plan 上的编辑态，节点可能还没建）→ 一律存 plan、落画布时投影进 meta。
     persistAsEdge: false,
     numbered: Boolean(slot.characterIndexed),
@@ -49,7 +49,7 @@ export function shotBindingValues(mode: ArchetypeMode | null | undefined, shot: 
   const out: Record<string, string | string[]> = {}
   for (const slot of mode?.slots ?? []) {
     const urls = shotBindingsOf(shot, slot.kind).map((binding) => binding.url)
-    out[slot.kind] = referenceSlotIsArray(slot) ? urls : urls[0] ?? ''
+    out[slot.kind] = slotAsArray(slot) ? urls : urls[0] ?? ''
   }
   return out
 }
@@ -83,7 +83,7 @@ export function appendShotBinding(
   const url = binding.url.trim()
   if (!url) return { status: 'duplicate' }
   const current = shotBindingsOf(shot, slot.kind)
-  if (!referenceSlotIsArray(slot)) {
+  if (!slotAsArray(slot)) {
     return { status: 'added', patch: withBucket(shot, slot.kind, [{ ...binding, url }]) }
   }
   if (current.some((item) => item.url === url)) return { status: 'duplicate' }
