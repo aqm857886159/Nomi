@@ -1,6 +1,7 @@
 // Real Electron canonical storyboard user task.
 // The journey starts the app, opens a persisted project, starts the real MCP stdio
-// server, calls nomi_canvas_plan(operation=patch_shots), and checks disk + restart
+// server, calls nomi_canvas_edit(operation=patch_shots), and checks disk + restart
+// （2026-09-05：画布语义写在 MCP 上收敛成一个工具名，operation 语义一个字没变）
 // readback. It deliberately uses no provider, UI selector, static projection, or
 // legacy direct patch_shots tool name.
 import fs from 'node:fs'
@@ -140,7 +141,7 @@ try {
     select: { kind: 'indexes', indexes: [2] },
     patch: { promptAppend: '雨天', aspectRatio: '9:16' },
   }
-  const result = parseToolResult(await mcp.callToolOrThrow('nomi_canvas_plan', selectedArgs))
+  const result = parseToolResult(await mcp.callToolOrThrow('nomi_canvas_edit', selectedArgs))
   check(mcp.elicitationCount() === 1, 'real MCP user task was explicitly approved through elicitation before the write')
   check(result.json?.operation === 'patch_shots' || result.outcome?.operation === 'patch_shots', 'MCP result identifies the canonical patch_shots operation')
   check((result.json?.changedShotIndexes || result.outcome?.changedShotIndexes || []).join(',') === '2', 'selection injection reaches only row 2')
