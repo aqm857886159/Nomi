@@ -26,6 +26,7 @@ import { reportAdoptionOutcome } from '../adoption/adoptionReceipt'
 import { dispatchTimelineShortcut } from './timelineShortcuts'
 import { groupTimelineTransitionFeedbackByTrack } from './timelineVisualFeedback'
 import { TimelineContextMenu, type TimelineContextTarget } from './TimelineContextMenu'
+import { openTimelineTransitionPicker } from './openTransitionPicker'
 import { ControlGroup } from '../preview/PreviewControlBar'
 
 const WHEEL_ZOOM_FACTOR = 1.24
@@ -97,7 +98,10 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
   const primaryClipId = selectedClipIds.length > 0 ? selectedClipIds[selectedClipIds.length - 1] : ''
   const hasSelection = selectedClipIds.length > 0
   const activeStoryboardId = useWorkbenchStore((state) => state.activeStoryboardId)
-  const [snapEnabled, setSnapEnabled] = React.useState(true)
+  // 吸附归 store（见 editingPanelLayoutSlice 里的说明）：两个 TimelinePanel 同时挂载，
+  // 局部 state 会让键盘和工具条各翻各的。
+  const snapEnabled = useWorkbenchStore((state) => state.timelineSnapEnabled)
+  const setSnapEnabled = useWorkbenchStore((state) => state.setTimelineSnapEnabled)
   const [contextMenu, setContextMenu] = React.useState<{ target: TimelineContextTarget; x: number; y: number } | null>(null)
   const [shortcutsOpen, setShortcutsOpen] = React.useState(false)
 
@@ -186,6 +190,11 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
           case 'duplicate-primary': if (primaryClipId) duplicateTimelineClip(primaryClipId); break
           case 'nudge-primary': if (primaryClipId) nudgeTimelineClip(primaryClipId, action.delta); break
           case 'toggle-snap': setSnapEnabled((enabled) => !enabled); break
+          case 'zoom':
+            setTimelineZoom(action.direction === 'fit'
+              ? resolveTimelineFitScale(durationFrame, contentViewportWidth)
+              : action.direction === 'in' ? timeline.scale * 1.25 : timeline.scale / 1.25)
+            break
           case 'ripple-remove': if (primaryClipId) useWorkbenchStore.getState().removeTimelineClips([primaryClipId], true); break
           case 'remove-left': {
             const track = timeline.tracks.find((item) => item.clips.some((clip) => clip.id === primaryClipId))
@@ -215,6 +224,10 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
     splitMode,
     splitTimelineClip,
     setSnapEnabled,
+    setTimelineZoom,
+    contentViewportWidth,
+    durationFrame,
+    timeline.scale,
     timeline.tracks,
     timeline.playheadFrame,
   ])
@@ -303,8 +316,7 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
     void import('../generationCanvas/runner/generationRunController').then(({ regenerateNodeInPlace }) => regenerateNodeInPlace(clip.sourceNodeId))
   }, [])
   const handleChangeTransition = React.useCallback((fromClipId: string, toClipId: string) => {
-    const marker = document.querySelector<HTMLElement>(`[data-timeline-transition][data-transition-from="${CSS.escape(fromClipId)}"][data-transition-to="${CSS.escape(toClipId)}"]`)
-    marker?.click()
+    openTimelineTransitionPicker(fromClipId, toClipId)
   }, [])
 
   return (
@@ -356,6 +368,18 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
         )}
         ref={tracksRef}
         onContextMenu={handleContextMenu}
+        /*
+         * 点轨道区空白处取消选中 —— 全站唯一一条「回到整片属性」的路。
+         * 在这之前，一旦选中过任何片段，属性面板就永远停在那一段上：画幅、导出分辨率、
+         * 配乐音量（合同 §2.3 的整片态）再也回不去了，除非把片段删掉或重开项目。
+         * 这是所有 NLE 的通用手势，不需要额外的「取消选中」按钮。
+         */
+        onPointerDown={(event) => {
+          const target = event.target as HTMLElement
+          if (target.closest('[data-clip-id], [data-text-clip-id], [data-timeline-transition], button, [role="menuitem"], [role="dialog"], .workbench-timeline__ruler-content')) return
+          useWorkbenchStore.getState().setTimelineSelection([])
+          useWorkbenchStore.getState().selectTimelineTextClip('')
+        }}
         onWheel={(e) => {
           if (!e.ctrlKey && !e.metaKey) return
           e.preventDefault()
@@ -483,13 +507,13 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
             </>
           )
         })()}
-        {contextMenu ? <TimelineContextMenu target={contextMenu.target} x={contextMenu.x} y={contextMenu.y} onClose={() => setContextMenu(null)} onRegenerate={handleRegenerate} onChangeTransition={handleChangeTransition} /> : null}
+        {contextMenu ? <TimelineContextMenu target={contextMenu.target} x={contextMenu.x} y={contextMenu.y} onClose={() => setContextMenu(null)} onRegenerate={handleRegenerate} onChangeTransition={handleChangeTransition} onArrange={handleAiArrange} /> : null}
         {shortcutsOpen ? (
           <div className="fixed inset-0 z-40 grid place-items-center bg-[color-mix(in_oklch,var(--nomi-ink)_18%,transparent)]" onClick={() => setShortcutsOpen(false)}>
             <div className="w-80 rounded-[var(--nomi-radius-lg)] border border-[var(--workbench-border)] bg-[var(--nomi-paper)] p-4 shadow-[var(--nomi-shadow-lg)]" role="dialog" aria-label={t('timelineEditor.shortcuts.title')} onClick={(event) => event.stopPropagation()}>
               <div className="mb-3 flex items-center justify-between"><strong className="text-body-sm">{t('timelineEditor.shortcuts.title')}</strong><button type="button" onClick={() => setShortcutsOpen(false)}>×</button></div>
               <div className="grid grid-cols-[1fr_auto] gap-y-2 text-micro">
-                <span>{t('timelineEditor.context.split')}</span><kbd>{t('timelineEditor.shortcuts.splitKey')}</kbd><span>{t('timelineEditor.context.duplicate')}</span><kbd>{t('timelineEditor.shortcuts.duplicateKey')}</kbd><span>{t('timelineEditor.context.delete')}</span><kbd>{t('timelineEditor.shortcuts.deleteKey')}</kbd><span>{t('timelineEditor.context.rippleDelete')}</span><kbd>{t('timelineEditor.shortcuts.rippleKey')}</kbd><span>{t('timelineEditor.context.deleteLeft')}</span><kbd>{t('timelineEditor.shortcuts.leftKey')}</kbd><span>{t('timelineEditor.context.deleteRight')}</span><kbd>{t('timelineEditor.shortcuts.rightKey')}</kbd><span>{t('timelineEditor.undo')}</span><kbd>{t('timelineEditor.shortcuts.undoKey')}</kbd><span>{t('timelineEditor.redo')}</span><kbd>{t('timelineEditor.shortcuts.redoKey')}</kbd><span>{t('timelineEditor.shortcuts.toggleSnap')}</span><kbd>{t('timelineEditor.shortcuts.snapKey')}</kbd>
+                <span>{t('timelineEditor.context.split')}</span><kbd>{t('timelineEditor.shortcuts.splitKey')}</kbd><span>{t('timelineEditor.context.duplicate')}</span><kbd>{t('timelineEditor.shortcuts.duplicateKey')}</kbd><span>{t('timelineEditor.context.delete')}</span><kbd>{t('timelineEditor.shortcuts.deleteKey')}</kbd><span>{t('timelineEditor.context.rippleDelete')}</span><kbd>{t('timelineEditor.shortcuts.rippleKey')}</kbd><span>{t('timelineEditor.context.deleteLeft')}</span><kbd>{t('timelineEditor.shortcuts.leftKey')}</kbd><span>{t('timelineEditor.context.deleteRight')}</span><kbd>{t('timelineEditor.shortcuts.rightKey')}</kbd><span>{t('timelineEditor.undo')}</span><kbd>{t('timelineEditor.shortcuts.undoKey')}</kbd><span>{t('timelineEditor.redo')}</span><kbd>{t('timelineEditor.shortcuts.redoKey')}</kbd><span>{t('timelineEditor.shortcuts.toggleSnap')}</span><kbd>{t('timelineEditor.shortcuts.snapKey')}</kbd><span>{t('timelineEditor.shortcuts.zoom')}</span><kbd>{t('timelineEditor.shortcuts.zoomKey')}</kbd><span>{t('timelineEditor.shortcuts.toggleAssistant')}</span><kbd>{t('timelineEditor.shortcuts.assistantKey')}</kbd>
               </div>
             </div>
           </div>

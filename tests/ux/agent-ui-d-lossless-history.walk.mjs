@@ -10,7 +10,7 @@ import path from 'node:path'
 import { clickOrFail, expect } from './_assert.mjs'
 import { flattenRequestText } from './agent-runtime-fixture.mjs'
 import {
-  CREATION_PANEL, DOCUMENT, chooseAssistantModel, createRuntimeWalk, enableAgentHostThroughSettings,
+  CREATION_PANEL, DOCUMENT, chooseAssistantModel, createRuntimeWalk,
   hasToolResult, readDurableThreadContexts, readCurrentProjectAgentHostSnapshot, recorded, sendCreation,
 } from './agent-runtime-walk-support.mjs'
 
@@ -35,7 +35,6 @@ const walk = await createRuntimeWalk('agent-ui-d')
 let failure
 try {
   let { win } = await walk.start({ first: true })
-  await enableAgentHostThroughSettings(win)
   const project = await walk.newProject()
   const { projectRoot } = project
   const settingsRoot = path.join(walk.report.tempRoot, 'settings')

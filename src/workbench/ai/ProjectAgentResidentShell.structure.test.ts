@@ -181,8 +181,12 @@ describe('ProjectAgentResidentShell production contract', () => {
     expect(resident).toContain('aria-haspopup="menu"')
     expect(residentUi).toContain('BodyPortal')
     expect(residentUi).toContain('anchorRef')
-    expect(residentCollapsedDock).toContain('data-agent-resident-collapsed="true"')
-    expect(residentCollapsedDock).toContain('rounded-pill border border-nomi-line')
+    // 收起态只有**一个**叫回入口：面板系统最右侧那条 32px 图标条（合同 §2.1）。
+    // 浮在画面右上角的那颗「叫回 Nomi」胶囊已随 2026-09-06 收官走查删除——两个入口
+    // 一个动作两个名字，还挡住画面右上角。dock 只剩浮到预览下沿的 composer。
+    expect(residentCollapsedDock).toContain('data-agent-collapsed-dock="true"')
+    expect(residentCollapsedDock).not.toContain('data-agent-resident-collapsed="true"')
+    expect(residentCollapsedDock).not.toContain('agentResident.recall')
     expect(resident).not.toContain('CreationPromptPicker')
     expect(resident).not.toContain('AssistantModelPicker')
     expect(resident).not.toContain('<select')

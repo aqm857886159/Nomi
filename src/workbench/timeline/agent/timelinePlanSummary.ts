@@ -1,5 +1,6 @@
 import type { TimelineOperation } from '../kernel/timelineKernel'
 import type { TimelineState } from '../timelineTypes'
+import { timelineSeconds, timelineTimecodePrecise } from '../timelineTimecode'
 
 /**
  * Turns one edit-plan operation into a line a person can check before approving.
@@ -20,17 +21,8 @@ export type TimelinePlanLine = {
 
 export type PlanTranslate = (key: string, values?: Record<string, unknown>) => string
 
-function seconds(frames: number, fps: number): string {
-  const safeFps = fps > 0 ? fps : 30
-  return (Math.abs(frames) / safeFps).toFixed(2)
-}
-
-function timecode(frame: number, fps: number): string {
-  const safeFps = fps > 0 ? fps : 30
-  const total = Math.max(0, frame) / safeFps
-  const minutes = Math.floor(total / 60)
-  return `${minutes}:${(total - minutes * 60).toFixed(2).padStart(5, '0')}`
-}
+const seconds = timelineSeconds
+const timecode = timelineTimecodePrecise
 
 /** Prefer the label the user sees on the track; fall back to the id when unlabelled. */
 export function timelineClipLabel(timeline: TimelineState, clipId: string): string {

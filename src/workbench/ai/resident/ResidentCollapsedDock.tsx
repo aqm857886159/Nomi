@@ -1,7 +1,4 @@
 import React from 'react'
-import { IconChevronLeft } from '@tabler/icons-react'
-import { NomiLogoMark } from '../../../design'
-import { cn } from '../../../utils/cn'
 
 /**
  * How much room the preview's own transport needs. The dock hangs off the
@@ -54,33 +51,18 @@ function useTransportClearance(dockRef: React.RefObject<HTMLDivElement | null>):
  * The dock is positioned against the collapsed dock `<aside>`, which spans the
  * preview stage — the timeline sits below that box, so `bottom` here is the
  * preview's lower edge and the plan highlight underneath stays visible.
+ *
+ * 这里**没有**「叫回 Nomi」按钮：收起后叫回它的入口只有一个，就是面板系统在最右侧
+ * 留下的 32px 图标条（合同 §2.1，状态点见 residentActivity）。上一版两个入口并存
+ * ——图标条写「展开 Nomi」、画面右上角又浮一颗「叫回 Nomi」胶囊——同一个动作两个名字
+ * 两个位置，还把画面右上角挡掉一块。
  */
-export function ResidentCollapsedDock({
-  recallLabel,
-  statusLabel,
-  statusToneClassName,
-  onRecall,
-  children,
-}: {
-  recallLabel: string
-  statusLabel: string
-  statusToneClassName: string
-  onRecall: () => void
-  children: React.ReactNode
-}): JSX.Element {
+export function ResidentCollapsedDock({ children }: { children: React.ReactNode }): JSX.Element {
   const dockRef = React.useRef<HTMLDivElement>(null)
   const transportClearance = useTransportClearance(dockRef)
-  return <>
-    <button type="button" className="pointer-events-auto absolute right-0 top-0 z-40 flex h-9 w-fit max-w-[calc(100vw-24px)] items-center gap-1.5 rounded-pill border border-nomi-line bg-nomi-paper px-2 text-left text-caption text-nomi-ink shadow-nomi-md transition-[box-shadow,transform] duration-[var(--nomi-transition-fast)] motion-reduce:transition-none hover:-translate-y-px hover:shadow-nomi-lg" aria-label={recallLabel} title={recallLabel} aria-controls="project-agent-resident" aria-expanded="false" data-agent-resident-collapsed="true" onClick={onRecall}>
-      <NomiLogoMark size={17} />
-      <span className={cn('size-1.5 shrink-0 rounded-pill', statusToneClassName)} aria-hidden="true" />
-      <span className="max-w-[8rem] shrink truncate">{statusLabel}</span>
-      <IconChevronLeft size={14} className="shrink-0 text-nomi-ink-40" aria-hidden="true" />
-    </button>
-    <div ref={dockRef} className="pointer-events-none absolute inset-x-0 z-40 flex justify-center px-4 pb-3" style={{ bottom: transportClearance }}>
-      <div className="pointer-events-auto grid w-full max-w-[560px] gap-1.5" data-agent-collapsed-dock="true">
-        {children}
-      </div>
+  return <div ref={dockRef} className="pointer-events-none absolute inset-x-0 z-40 flex justify-center px-4 pb-3" style={{ bottom: transportClearance }}>
+    <div className="pointer-events-auto grid w-full max-w-[560px] gap-1.5" data-agent-collapsed-dock="true">
+      {children}
     </div>
-  </>
+  </div>
 }

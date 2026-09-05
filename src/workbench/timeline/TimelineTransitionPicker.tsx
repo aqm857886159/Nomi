@@ -52,14 +52,17 @@ export function TimelineTransitionPicker({
       </div>
       {unsupported ? <p className="mt-2 text-micro text-[var(--nomi-warning)]">{t('timelineEditor.transition.unsupportedNotice')}</p> : null}
       {feedback.transition.type !== 'cut' ? (
-        <label className="mt-3 flex items-center justify-between gap-2 text-micro">
-          {t('timelineEditor.transition.durationLabel')}
+        /* 这一行是 <div> 不是 <label>：里面有两颗按钮、没有输入框，<label> 会把自己的
+           文本挂到第一个可标注后代上——实测「−」这颗按钮的无障碍名变成了「时长 +」
+           （标签文本减去它自己的字），读屏念出来就是错的。步进钮各自写明自己干什么。 */
+        <div className="mt-3 flex items-center justify-between gap-2 text-micro">
+          <span>{t('timelineEditor.transition.durationLabel')}</span>
           <span className="inline-flex items-center gap-1">
-            <button type="button" className="h-6 w-6 rounded-[var(--nomi-radius-sm)] border border-[var(--workbench-border)]" onClick={() => setTimelineTransition({ ...feedback.transition, durationFrames: Math.max(1, currentDuration - 1) })}>−</button>
-            <output className="min-w-10 text-center font-mono tabular-nums">{t('timelineEditor.transition.durationFrames', { count: currentDuration })}</output>
-            <button type="button" className="h-6 w-6 rounded-[var(--nomi-radius-sm)] border border-[var(--workbench-border)]" onClick={() => setTimelineTransition({ ...feedback.transition, durationFrames: Math.min(maxFrames, currentDuration + 1) })}>+</button>
+            <button type="button" aria-label={t('timelineEditor.transition.durationShorter')} title={t('timelineEditor.transition.durationShorter')} className="h-6 w-6 rounded-[var(--nomi-radius-sm)] border border-[var(--workbench-border)]" onClick={() => setTimelineTransition({ ...feedback.transition, durationFrames: Math.max(1, currentDuration - 1) })}>−</button>
+            <output aria-label={t('timelineEditor.transition.durationLabel')} className="min-w-10 text-center font-mono tabular-nums">{t('timelineEditor.transition.durationFrames', { count: currentDuration })}</output>
+            <button type="button" aria-label={t('timelineEditor.transition.durationLonger')} title={t('timelineEditor.transition.durationLonger')} className="h-6 w-6 rounded-[var(--nomi-radius-sm)] border border-[var(--workbench-border)]" onClick={() => setTimelineTransition({ ...feedback.transition, durationFrames: Math.min(maxFrames, currentDuration + 1) })}>+</button>
           </span>
-        </label>
+        </div>
       ) : null}
       <button type="button" className="mt-3 inline-flex items-center gap-1 text-micro text-[var(--workbench-danger)]" onClick={() => { removeTimelineTransition(feedback.transition.fromClipId, feedback.transition.toClipId); onClose() }}>
         <IconTrash size={13} />{t('timelineEditor.transition.remove')}

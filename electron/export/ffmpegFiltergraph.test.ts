@@ -474,6 +474,10 @@ describe("compileFfmpegFiltergraph", () => {
     });
 
     expect(plan.filterComplex).toContain("blend=all_expr='if(lt(max(0\\,min(1\\,(T-1)/0.5))\\,0.5)\\,A*(1-2*max(0\\,min(1\\,(T-1)/0.5)))\\,B*(2*max(0\\,min(1\\,(T-1)/0.5))-1))':eof_action=repeat:shortest=0");
+    // 两条 blend 输入必须先转 RGB。fade 那条表达式把「0」当黑，只有 RGB 里成立；
+    // 留在 YUV 会把 U/V 拉向 0 而不是 128 的中性值，接缝上渲出一道亮绿闪帧
+    // （2026-09-06 真实用户导出走查实测到 rgb(0,138,0)）。
+    expect(plan.filterComplex.match(/tpad=[^[\]]*,format=gbrp/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
     expect(plan.warnings).toEqual([
       expect.stringContaining("clip-second->clip-third"),
     ]);
