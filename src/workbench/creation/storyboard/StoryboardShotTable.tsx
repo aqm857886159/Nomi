@@ -21,6 +21,7 @@ import {
 import type { AnchorCardRuntime, StoryboardRowRuntime } from './exec/storyboardRowStatus'
 import { useShotMentionSource } from './shotRow/useShotMentionSource'
 import StoryboardShotRow from './shotRow/StoryboardShotRow'
+import StoryboardComposerGridScope from './shotRow/ComposerGridScope'
 import type { MentionSuggestionItem } from '../../assets/AssetMentionSuggestionList'
 import {
   ASPECT_OPTIONS,
@@ -220,6 +221,8 @@ export default function StoryboardShotTable({ plan, projectId, rows, anchorCards
       .filter((row): row is StoryboardRowRuntime => Boolean(row))
 
   return (
+    // 作用域包住全部行：底栏七列的列宽跨行取最大值、换行断点全表共用（合同 §2.3）。
+    <StoryboardComposerGridScope>
     <div className="border border-nomi-line rounded-nomi divide-y divide-nomi-line-soft overflow-hidden" data-storyboard-rows="true">
       {groups.map((group, groupIndex) => {
         const folded = foldedScenes.has(foldKeyOf(group))
@@ -423,5 +426,6 @@ export default function StoryboardShotTable({ plan, projectId, rows, anchorCards
         />
       ) : null}
     </div>
+    </StoryboardComposerGridScope>
   )
 }

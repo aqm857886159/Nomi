@@ -13,7 +13,17 @@ import type { PlanAnchor } from '../../../generationCanvas/agent/storyboardPlan'
 import { appendBinding, bindingsOf, removeBinding, reorderBinding, type ReferenceBindingMap } from './shotReferenceSlots'
 import { cellCount, referenceColumnOf, type ShotReferenceCell } from './shotReferenceCells'
 import ShotReferenceSlotPopover from './ShotReferenceSlotPopover'
-import { referenceSlotWidth } from './shotReferenceStackGeometry'
+import {
+  REFERENCE_CARD_SIZE,
+  REFERENCE_SLOT_GAP,
+  REFERENCE_STACK_ANGLES,
+  REFERENCE_STACK_CARD_HEIGHT,
+  REFERENCE_STACK_CARD_WIDTH,
+  REFERENCE_STACK_VISIBLE_CARDS,
+  referenceSlotHeight,
+  referenceSlotWidth,
+  referenceStackBox,
+} from './shotReferenceStackGeometry'
 
 /**
  * 分镜行的参考列（合同 v6 §4）——**固定 200px、单行、一个槽一个格、永不换行**。
@@ -57,30 +67,48 @@ function assetKindOfFile(file: File): AssetKind {
  * 叠放格（手抓扑克，合同 §2.6/§6.3）：第一张正放在最上面，后面两张以**左下角为轴**
  * （`transform-origin: 20% 100%`）向右上各转 13°/26°，露出右上角；右下角落 `N/max` 计数角标。
  * 只画前三张——叠放是"这里不止一张"的信号，不是缩略图列表；全部内容在点开的浮层里。
+ *
+ * 尺寸全部来自 `referenceStackBox`：**格子按扇面的包围盒占位，不按卡片尺寸占位**。
+ * 卡片自己是 44×56，扇开之后要占到 65×72——少预留那一圈，扇面就压到右边的槽和下面的 caption 上。
  */
 function SlotStack({ cell }: { cell: ShotReferenceCell }): JSX.Element {
   const { used, total } = cellCount(cell)
-  const top = cell.bindings.slice(0, 3)
+  const box = referenceStackBox(cell.bindings.length)
+  const top = cell.bindings.slice(0, REFERENCE_STACK_VISIBLE_CARDS)
   return (
-    <span className="relative block h-14 w-20" data-storyboard-ref-stack={cell.key} style={{ width: `${referenceSlotWidth(cell.bindings.length)}px` }}>
+    <span
+      className="relative block"
+      data-storyboard-ref-stack={cell.key}
+      style={{ width: `${box.width}px`, height: `${box.height}px` }}
+    >
       {top.map((binding, index) => (
         <span
           key={`${binding.url}-${index}`}
-          className="absolute inset-0 overflow-hidden rounded-nomi-sm border border-nomi-line bg-nomi-ink-05"
+          className="absolute overflow-hidden rounded-nomi-sm border border-nomi-line bg-nomi-ink-05"
           style={{
+            left: `${box.cardLeft}px`,
+            top: `${box.cardTop}px`,
+            width: `${REFERENCE_STACK_CARD_WIDTH}px`,
+            height: `${REFERENCE_STACK_CARD_HEIGHT}px`,
             transformOrigin: '20% 100%',
-            transform: `rotate(${index * 13}deg)`,
-            zIndex: 3 - index,
+            transform: `rotate(${REFERENCE_STACK_ANGLES[index] ?? 0}deg)`,
+            zIndex: REFERENCE_STACK_VISIBLE_CARDS - index,
           }}
         >
           <NomiImage src={binding.url} alt="" className="absolute inset-0 h-full w-full object-cover" />
         </span>
       ))}
       {cell.numbered ? (
-        <span className="absolute left-0 top-0 z-[4] rounded-br-nomi-sm bg-nomi-overlay-chip px-1 text-micro text-nomi-paper tabular-nums">1</span>
+        <span
+          className="absolute z-[4] rounded-br-nomi-sm bg-nomi-overlay-chip px-1 text-micro text-nomi-paper tabular-nums"
+          style={{ left: `${box.cardLeft}px`, top: `${box.cardTop}px` }}
+        >
+          1
+        </span>
       ) : null}
+      {/* 角标落在预留框的右下角——扇面最低点在它左上方，两者不叠，也不会被格子裁掉。 */}
       <span
-        className="absolute -bottom-0.5 -right-0.5 z-[4] rounded-nomi-sm bg-nomi-overlay-chip-strong px-1 text-micro text-nomi-paper tabular-nums"
+        className="absolute bottom-0 right-0 z-[4] rounded-nomi-sm bg-nomi-overlay-chip-strong px-1 text-micro text-nomi-paper tabular-nums"
         data-storyboard-ref-stack-count={used}
       >
         {total === null ? used : `${used}/${total}`}
@@ -96,6 +124,11 @@ export default function ShotReferenceZone({ mode, bindings, onChangeBindings, an
   const [uploadError, setUploadError] = React.useState('')
   const column = referenceColumnOf(mode, bindings)
   const anchorsById = React.useMemo(() => new Map(anchors.map((anchor) => [anchor.id, anchor])), [anchors])
+  // 三个槽的媒体区**同高**（取本行最高的那个扇面）——高度不齐，三条 caption 就不在一条线上，
+  // 而"扫一列看全片"靠的正是这条线。
+  const mediaHeight = column.kind === 'cells'
+    ? Math.max(REFERENCE_CARD_SIZE, ...column.cells.map((cell) => referenceSlotHeight(cell.bindings.length)))
+    : REFERENCE_CARD_SIZE
 
   // 拒绝理由都用人话说清「为什么不行」，不做沉默失败（§1.6：禁用不做沟通死路）。
   const applyAppend = React.useCallback(
@@ -196,17 +229,18 @@ export default function ShotReferenceZone({ mode, bindings, onChangeBindings, an
           </span>
         </span>
       ) : (
-        <div className="flex flex-nowrap items-start gap-3">
+        <div className="flex flex-nowrap items-start" style={{ gap: `${REFERENCE_SLOT_GAP}px` }}>
           {column.cells.map((cell) => {
             const caption = captionOf(cell)
             const first = cell.bindings[0]
             return (
-              <span key={cell.key} className="relative flex shrink-0 flex-col items-center gap-0.5" style={{ width: `${referenceSlotWidth(cell.bindings.length)}px` }} data-storyboard-ref-slot={cell.key}>
+              <span key={cell.key} className="relative flex shrink-0 flex-col items-start gap-0.5" style={{ width: `${referenceSlotWidth(cell.bindings.length)}px` }} data-storyboard-ref-slot={cell.key}>
                 <button
                   type="button"
                   onClick={() => setOpenSlotKey((previous) => (previous === cell.key ? '' : cell.key))}
                   aria-label={t('storyboardEditor.slot.openAria', { label: cell.label })}
-                  className="rounded-nomi-sm"
+                  className="flex items-start rounded-nomi-sm"
+                  style={{ height: `${mediaHeight}px` }}
                 >
                   {cell.bindings.length >= 2 ? (
                     <SlotStack cell={cell} />
@@ -234,7 +268,7 @@ export default function ShotReferenceZone({ mode, bindings, onChangeBindings, an
                     </span>
                   )}
                 </button>
-                <span className={cn('max-w-14 truncate text-micro', caption.danger ? 'text-workbench-danger' : 'text-nomi-ink-40')} title={caption.title}>
+                <span className={cn('w-full truncate text-micro', caption.danger ? 'text-workbench-danger' : 'text-nomi-ink-40')} title={caption.title}>
                   {caption.text}
                 </span>
                 {openSlotKey === cell.key ? (

@@ -78,6 +78,9 @@ function TableStageWithPlan({ plan, clip = true }: { plan: StoryboardPlan; clip?
         onAgentHandoff={NOOP}
         onLockSelected={NOOP}
         onToggleSkip={NOOP}
+        // 场组头的 ▶「播放本场」只在编辑器传了 onPlayGroup 时渲染；实验室不传就等于
+        // 把这枚按钮从取景里悄悄漏掉——形态没被钉住，只能靠人记得它存在（假绿）。
+        onPlayGroup={NOOP}
       />
     </TableStage>
   )

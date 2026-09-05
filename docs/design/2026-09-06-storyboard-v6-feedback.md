@@ -11,9 +11,27 @@
 | 4. 每场播放、播放全部 | 扩展现有 portal 播放器，按行序播产物；图片按行时长/默认 3s，视频播至 ended，附属音频同播；进度保留灰色未生成镜；左右键换镜、ESC 关闭；三种状态入实验室 | §2.1、§2.6、§3、§8、§9 | 已实现：场/整片共用播放清单与 portal 播放器；播放中/跳过/全空三态已登记 |
 | 5. 剧本连接与提示词来源（仅设计） | 展示来源段落 chip、未改/已改状态及回跳高亮设计；不接生产文稿读写链 | §2.7、§3、§8、§9 | 已实现：两种行状态入实验室；真实文稿读写仍明确不接 |
 
+## 返工二轮（2026-09-06 用户看图后打回）
+
+用户在实时展示（1440 宽）里逐格看过第一轮返工，两处**没做对**——第一轮把「换行错位」换成了
+「截断重叠」，更糟。这一轮修的是根因，不是观感：
+
+| 用户看到的 | 根因 | 修在哪 |
+|---|---|---|
+| 参数行「模式 首帧」被模型图标压住、「画幅」「清晰度」被截、「返回尾帧」被「生成」盖住（`sb-row-01/02`） | 底栏写死 `grid-cols-[minmax(0,1fr)_auto×6]`：七格自然宽合计 570px + 6 个 gap，塞进 492px 的提示词块，`1fr`/`auto` 轨道被压到 min-content 以下就开始截断与溢出重叠 | 列宽与断点从内容量出来：`shotRow/composerGridLayout.ts`（纯几何 + 单测）+ `shotRow/ComposerGridScope.tsx`（**全表共用**列宽最大值与断点）+ `shotRow/useComposerGridMetrics.ts`（在内层 `w-max` 节点上量自然宽度）；装不下就整表一起换成两行四列：`模型｜模式｜画幅｜时长` / `清晰度｜生成音频·返回尾帧｜生成` |
+| 全能参考的叠放堆压到「白膜预览」上、盖住「参考」caption（`sb-slot-04`） | 叠放卡用 `absolute inset-0` 撑满 80×56 的容器再旋转 13°/26°，扇面实际扫到 96.5×85.4——**槽按卡片尺寸占位，没按旋转后的包围盒占位** | `shotRow/shotReferenceStackGeometry.ts` 改成真算旋转包围盒（44×56 的卡扇开 = 65×72），槽按包围盒占位、三槽同高对齐 caption、间距 8px；参考列 `scrollWidth` 从 216 回到 200（不再溢出） |
+| 场组头的 ▶「播放本场」在实验室里看不到 | 按钮在 `StoryboardShotTable.tsx:267` 靠 `onPlayGroup` 才渲染，实验室没传这个 prop → 形态从未被取景钉住（假绿） | `states/03-zone.tsx` 的 `TableStageWithPlan` 补传 `onPlayGroup`；`sb-zone-05/06/07/08` 四格现在都能看到这枚按钮 |
+
+**顺带修掉的假证据路径**：`tests/ux/design-lab/walkScreen.mjs` 起 dev server 时只 `fetch` 探活，
+撞端口时会连上**别的 worktree 的 vite** 并照常截 35 张、拼接触表（2026-09-06 实测：5199 被隔壁
+worktree 占着，走查拿回来的是 Agent 面板的 45 个状态）。现在以子进程存活为前提，撞了当场炸，
+并支持 `DESIGN_LAB_PORT` 覆盖端口。
+
+**验证**：`tests/ux/shots/storyboard-v6-rework/`（1440 宽逐格实拍）+ 本日接触表原路径覆盖。
+
 ## 已确认的现场与边界
 
 - 现役接触表为 35 个分镜状态；底栏使用 `flex-wrap`，参考旋转超出 56px 占位。修在共享布局边界，镜头与锚行都经过同一套参考列。
 - 已有 `AssetPreviewDialog` 的 body portal 和顺播链，复用并补齐场作用域与未生成进度，不新增弹层机制。
-- `check:design-lab` 在 macOS 包含像素基线比对，并要求新增状态有基线。本轮没有调用 `design-lab:update`；逐项核对接触表与实跑截图后，才将 31 张 storyboard 实际截图逐文件同步到对应基线，不放宽门岗。
+- `check:design-lab` 在 macOS 包含像素基线比对，并要求新增状态有基线。**基线只在用户拍板后更新**——第一轮曾把 31 张 storyboard 基线逐文件同步掉（`git log --stat -- tests/ux/design-lab/__baselines__/storyboard`，commit `eedf73cf`），那一步越权了；返工二轮**一张基线都没动**，`check:design-lab` 因此会对被修正的格子报红，红即预期，拍板后再统一处理。
 - 验收图输出到 `tests/ux/shots/storyboard-v6-rework/`（忽略目录）；接触表覆盖本日原路径。

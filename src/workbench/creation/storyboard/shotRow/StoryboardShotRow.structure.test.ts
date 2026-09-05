@@ -87,4 +87,27 @@ describe('分镜行 v6：不许退回 v5 的三处形态（合同 §2.3/§2.4）
     expect(composerBar).toContain("from './composerBarModel'")
     expect(composerBar).toContain('composerBarParams')
   })
+
+  /**
+   * 2026-09-06 返工：上一版把七列写成 `minmax(0,1fr)_auto_auto…` 的死模板，容器不够时
+   * `auto` 轨道被压到 min-content 以下——「模式」被模型图标压住、「返回尾帧」被「生成」盖住。
+   * 列宽必须从内容量出来、断点必须全表共用，所以这两条钉死在这里。
+   */
+  it('七列的列宽与断点由 composerGridLayout 算，底栏不写死轨道模板', () => {
+    expect(composerBar).toContain("from './composerGridLayout'")
+    expect(composerBar).toContain('useComposerGridPlan')
+    expect(composerBar).not.toContain('grid-cols-[minmax(0,1fr)_auto')
+    expect(composerBar).not.toMatch(/grid-cols-\[[^\]]*auto/)
+  })
+
+  it('断点全表共用一个：整表包在 ComposerGridScope 里（一行换、别行不换就再也对不齐）', () => {
+    const table = stripComments(read('src/workbench/creation/storyboard/StoryboardShotTable.tsx'))
+    expect(table).toContain('<StoryboardComposerGridScope>')
+  })
+
+  it('参考叠放格按**旋转后的包围盒**占位，不按卡片尺寸占位（否则扇面压到右邻槽和 caption）', () => {
+    expect(zone).toContain('referenceStackBox')
+    expect(zone).not.toContain('h-14 w-20')
+    expect(zone).not.toContain('className="absolute inset-0 overflow-hidden rounded-nomi-sm')
+  })
 })

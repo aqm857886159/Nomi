@@ -24,10 +24,25 @@ import { readLabStates, REPO_ROOT } from './labStates.mjs'
 const COVERAGE_TONE = { shell: '#2f7d4f', 'component-only': '#9a6a3c', missing: '#b23c3c', retired: '#6b6b6b' }
 const COVERAGE_TEXT = { shell: '整条通', 'component-only': '只有组件', missing: '没实现', retired: '已取消' }
 
-function waitForServer(url, timeoutMs = 60000) {
+/**
+ * 等**自己启的**那台 dev server 起来。
+ *
+ * 这台机器上常年并行着二十多个 worktree，端口写死就一定会撞。只 `fetch` 探活探不出撞没撞——
+ * 别人的 vite 一样回 200，于是走查会安安静静地把**另一个 worktree 的应用**截 35 张、
+ * 拼成接触表、和基线比对。2026-09-06 实测就撞上了：5199 被隔壁 worktree 占着，
+ * 走查拿回来的是 Agent 面板的 45 个状态。所以这里以**子进程还活着**为前提：
+ * `--strictPort` 撞端口会让 vite 立刻退出，那时必须当场炸，不能继续探别人的服务。
+ */
+function waitForServer(url, child, timeoutMs = 60000) {
   const start = Date.now()
   return new Promise((resolve, reject) => {
+    let exited = null
+    child.once('exit', (code) => { exited = code ?? 'signal' })
     const tick = async () => {
+      if (exited !== null) {
+        return reject(new Error(`vite 起不来（退出码 ${exited}）——${url} 多半被别的 worktree 占着；`
+          + '换个端口跑：DESIGN_LAB_PORT=<空闲端口> pnpm run design-lab:walk:storyboard'))
+      }
       try {
         const response = await fetch(url)
         if (response.ok || response.status === 404) return resolve()
@@ -45,7 +60,9 @@ function waitForServer(url, timeoutMs = 60000) {
 export async function walkDesignLabScreen(config) {
   const OUT_DIR = path.join(REPO_ROOT, `tests/ux/shots/design-lab-${config.screen}`)
   const HOST = '127.0.0.1'
-  const BASE = `http://${HOST}:${config.port}`
+  // 端口可覆盖：并行 worktree 撞端口时换一个跑，不必改源码（撞了会当场炸，见 waitForServer）。
+  const PORT = Number(process.env.DESIGN_LAB_PORT || config.port)
+  const BASE = `http://${HOST}:${PORT}`
   const ONLY = (process.env.ONLY || '').split(',').map((value) => value.trim()).filter(Boolean)
 
   const failures = []
@@ -63,11 +80,11 @@ export async function walkDesignLabScreen(config) {
   if (tailwind.status !== 0) throw new Error('build-tailwind 失败：整页会没有样式，截图无意义')
 
   console.log('▶ 启动 vite dev server…')
-  const vite = spawn('npx', ['vite', '--host', HOST, '--port', String(config.port), '--strictPort'], {
+  const vite = spawn('npx', ['vite', '--host', HOST, '--port', String(PORT), '--strictPort'], {
     cwd: REPO_ROOT,
     stdio: 'ignore',
   })
-  await waitForServer(`${BASE}/design-lab.html`)
+  await waitForServer(`${BASE}/design-lab.html`, vite)
 
   const browser = await chromium.launch({ headless: true })
   const context = await browser.newContext({

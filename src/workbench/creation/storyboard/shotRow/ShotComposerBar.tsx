@@ -10,6 +10,9 @@ import type { PlanShot } from '../../../generationCanvas/agent/storyboardPlan'
 import { effectiveShotDurationSec } from '../../../generationCanvas/agent/storyboardPlan'
 import { DURATION_OPTIONS_SEC, shotTypeOf } from '../../../generationCanvas/agent/storyboardPlanEdits'
 import { composerBarLayout, composerBarParams, composerModeOptions } from './composerBarModel'
+import { COMPOSER_GRID_GAP, composerGridTemplate } from './composerGridLayout'
+import useComposerGridPlan from './useComposerGridPlan'
+import useComposerGridMetrics from './useComposerGridMetrics'
 
 /**
  * 提示词框下方的**底栏**（合同 v6 §2.3）——「和画布里的图片节点一样」那句话的落点。
@@ -22,7 +25,9 @@ import { composerBarLayout, composerBarParams, composerModeOptions } from './com
  *   ① **控件集合 = 模型能力的投影**（`composerBarParams` 从档案 derive），不出置灰死控件；
  *   ② **画幅胶囊只在这一行覆盖了整片默认时出现**（§2.4.1）——没覆盖的行底栏里根本没有这枚，
  *      于是"胶囊出现"本身就成了信息；
- *   ③ 已生成/已锁定的行，「生成」按钮位置换成一枚状态标签，不额外加行。
+ *   ③ 已生成/已锁定的行，「生成」按钮位置换成一枚状态标签，不额外加行；
+ *   ④ **七列的列宽跨行取最大值、断点全表共用**（`composerGridLayout` + `ComposerGridScope`）——
+ *      装不下就整表一起换成两行，绝不靠压缩轨道把胶囊截断或叠起来（2026-09-06 返工的正是这条）。
  */
 
 type Props = {
@@ -87,12 +92,29 @@ export default function ShotComposerBar({
     ...(aspect ? [aspect] : []),
   ])].map((value) => ({ value, label: value }))
 
+  // 每格的自然宽度在内层 `w-max` 节点上量——外层格子被轨道定宽后，量它只会量到轨道宽，
+  // 于是"内容多宽"这个输入永远回不来（那正是上一版被压成 0px 还以为量到了的原因）。
+  const { barRef, slotRef, natural, available } = useComposerGridMetrics(gridSlots.length)
+  const plan = useComposerGridPlan(natural, available)
+  const cellStyle = (index: number): React.CSSProperties => {
+    const cell = plan?.placement[index]
+    if (!cell) return {}
+    return { gridRow: cell.row, gridColumn: `${cell.column} / span ${cell.span}` }
+  }
+
   return (
     <div
-      className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto_auto_auto_auto] items-center gap-1.5 border-t border-nomi-line-soft px-2 py-1.5"
+      ref={barRef}
+      className="grid items-center border-t border-nomi-line-soft px-2 py-1.5"
+      style={{
+        gap: `${COMPOSER_GRID_GAP}px`,
+        gridTemplateColumns: plan ? composerGridTemplate(plan) : 'repeat(7, max-content)',
+      }}
       data-storyboard-composer-bar="true"
+      data-storyboard-composer-wrapped={plan?.wrapped ? 'true' : 'false'}
     >
-      <div className="flex min-w-0 items-center gap-1" data-storyboard-grid-slot={gridSlots[0]}>
+      <div data-storyboard-grid-slot={gridSlots[0]} style={cellStyle(0)}>
+      <div ref={slotRef(0)} className="flex w-max items-center gap-1">
       {modelSelectOptions ? (
         <NomiSelect
           ariaLabel={isImageShot ? t('storyboardEditor.imageModel') : t('storyboardEditor.videoModel')}
@@ -116,7 +138,9 @@ export default function ShotComposerBar({
         />
       ) : null}
       </div>
-      <div data-storyboard-grid-slot={gridSlots[1]}>
+      </div>
+      <div data-storyboard-grid-slot={gridSlots[1]} style={cellStyle(1)}>
+      <div ref={slotRef(1)} className="flex w-max items-center gap-1">
       {modeOptions.length > 0 ? (
         <NomiSelect
           ariaLabel={t('storyboardEditor.shotParams.mode')}
@@ -129,10 +153,12 @@ export default function ShotComposerBar({
         />
       ) : null}
       </div>
+      </div>
 
       {/* 画幅：**只有覆盖了整片默认的行才有这枚胶囊**（§2.4.1 规则 3）。
           蓝色 + 「· 覆盖」标记，让它在一列继承行里一眼可辨；选「跟随整片默认」即收回覆盖、胶囊消失。 */}
-      <div data-storyboard-grid-slot={gridSlots[2]} className="flex min-w-0 items-center gap-1">
+      <div data-storyboard-grid-slot={gridSlots[2]} style={cellStyle(2)}>
+      <div ref={slotRef(2)} className="flex w-max items-center gap-1">
       {aspectOverridden ? (
         <span className="inline-flex items-center gap-1" data-storyboard-aspect-override={aspect}>
           <NomiSelect
@@ -145,10 +171,12 @@ export default function ShotComposerBar({
           />
           <span className="text-micro text-nomi-accent">{t('storyboardEditor.aspectScope.overrideMark')}</span>
         </span>
-      ) : <span className="block h-6 min-w-16" aria-hidden="true" />}
+      ) : <span className="block h-6 w-16" aria-hidden="true" />}
+      </div>
       </div>
 
-      <div data-storyboard-grid-slot={gridSlots[3]}>
+      <div data-storyboard-grid-slot={gridSlots[3]} style={cellStyle(3)}>
+      <div ref={slotRef(3)} className="flex w-max items-center gap-1">
       <NomiSelect
         ariaLabel={isImageShot ? t('storyboardEditor.row.stayHint') : t('storyboardEditor.duration')}
         leadingLabel={isImageShot ? t('storyboardEditor.row.stayPill') : t('storyboardEditor.duration')}
@@ -158,8 +186,10 @@ export default function ShotComposerBar({
         onChange={(value) => onUpdate({ durationSec: Number(value) })}
       />
       </div>
+      </div>
 
-      <div data-storyboard-grid-slot={gridSlots[4]} className="flex min-w-0 items-center gap-1">
+      <div data-storyboard-grid-slot={gridSlots[4]} style={cellStyle(4)}>
+      <div ref={slotRef(4)} className="flex w-max items-center gap-1">
       {qualityParams.map((control) => {
         const current = shot.params?.[control.key]
         if (control.type === 'boolean') {
@@ -192,8 +222,10 @@ export default function ShotComposerBar({
         )
       })}
       </div>
+      </div>
 
-      <div data-storyboard-grid-slot={gridSlots[5]} className="flex min-w-0 items-center gap-1">
+      <div data-storyboard-grid-slot={gridSlots[5]} style={cellStyle(5)}>
+      <div ref={slotRef(5)} className="flex w-max items-center gap-1">
       {mediaParams.map((control) => {
         const active = shot.params?.[control.key] === undefined ? control.defaultValue === true : shot.params?.[control.key] === true
         return (
@@ -203,7 +235,9 @@ export default function ShotComposerBar({
         )
       })}
       </div>
-      <span className="shrink-0" data-storyboard-grid-slot={gridSlots[6]}>
+      </div>
+      <div className="justify-self-end" data-storyboard-grid-slot={gridSlots[6]} style={cellStyle(6)}>
+      <div ref={slotRef(6)} className="flex w-max items-center gap-1">
         {statusTag ? (
           <span className="rounded-pill bg-nomi-ink-05 px-2 py-0.5 text-micro text-nomi-ink-60">{statusTag}</span>
         ) : onGenerate ? (
@@ -216,7 +250,8 @@ export default function ShotComposerBar({
             {t('storyboardEditor.frame.generate')}
           </button>
         ) : null}
-      </span>
+      </div>
+      </div>
     </div>
   )
 }
