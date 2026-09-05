@@ -42,7 +42,7 @@ export function chooseDefaultModelOption(
   // 不再霸占默认让新节点必死（2026-07-29 批量体检根治）。只影响自动默认（手动选择不拦）；
   // 全部候选都在避让期 → 回退原序，绝不空选。
   return (
-    runnable.find((option) => !isModelRecentlyAiling(option.modelKey || option.value)) ||
+    runnable.find((option) => !isModelRecentlyAiling({ modelKey: option.modelKey || option.value, vendor: option.vendor })) ||
     runnable[0] ||
     recognized[0] ||
     options[0]

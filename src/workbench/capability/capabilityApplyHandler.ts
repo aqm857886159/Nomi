@@ -551,9 +551,11 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
       ])
       const args = storyboardPlanToCreateNodesArgs(plan, {
         ...(imageDefault.modelKey ? { defaultImageModelKey: imageDefault.modelKey } : {}),
+        ...(imageDefault.modelVendor ? { defaultImageModelVendor: imageDefault.modelVendor } : {}),
         ...(imageDefault.modeId ? { defaultImageModeId: imageDefault.modeId } : {}),
         ...(imageDefault.refModeId ? { defaultImageRefModeId: imageDefault.refModeId } : {}),
         ...(videoDefault.modelKey ? { defaultVideoModelKey: videoDefault.modelKey } : {}),
+        ...(videoDefault.modelVendor ? { defaultVideoModelVendor: videoDefault.modelVendor } : {}),
         ...(videoDefault.modeId ? { defaultVideoModeId: videoDefault.modeId } : {}),
         ...(materializationOperationId ? { materializationOperationId } : {}),
       })

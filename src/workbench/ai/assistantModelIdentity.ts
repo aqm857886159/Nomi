@@ -92,6 +92,8 @@ export function decodeModelIdentity(value: string): ModelIdentity | null {
  */
 export function labelForModel(
   model: { modelKey: string; labelZh?: string; vendorKey: string },
+  // 这里**故意**只按裸 modelKey 比：它是碰撞探测器，不是身份断言——问的是「这个名字
+  // 出现了不止一次吗」，是就把供应商名缀上去消歧。带上 vendor 反而永远不重复，标签就永远缀不出来。
   allModels: ReadonlyArray<{ modelKey: string }>,
   vendorNameByKey: Readonly<Record<string, string>>,
 ): string {
