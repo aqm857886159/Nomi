@@ -159,6 +159,14 @@ describe("capabilityCore/rpcServer", () => {
     expect(res.body.ok).toBe(true);
   });
 
+  it("returns the current desktop locale only to a registered MCP client", async () => {
+    const denied = await rpc("nomi_get_locale");
+    expect(denied).toMatchObject({ status: 403, body: { ok: false } });
+    const proof = signMcpClient("codex")!;
+    const allowed = await rpc("nomi_get_locale", {}, token, { client: "codex", proof });
+    expect(allowed).toMatchObject({ status: 200, body: { ok: true, result: { locale: expect.any(String) } } });
+  });
+
   it("owns an approved MCP document.write receipt in the main RPC boundary", async () => {
     await server!.close();
     const root = makeTempDir("nomi-rpc-document-receipt-");
