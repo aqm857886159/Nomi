@@ -52,7 +52,10 @@ describe('nomi_integration credential elicitation (MCP url mode)', () => {
     expect(JSON.stringify(outcome.result)).not.toContain('integration-credential')
   })
 
-  it('returns a tool error naming the manual path when the user declines', async () => {
+  it('keeps the flow alive with the manual route when the page never opened', async () => {
+    // Codex CLI 0.153.4 declares url-mode and then declines every url elicitation without showing it
+    // (measured 2026-09-06). Calling that "you cancelled it" and returning a tool error left the user
+    // blamed for something they never saw, with no next step.
     const { invoke } = makeInvoke(['missing'])
     const outcome = await runIntegrationCredentialElicitation({
       built: { sessionId: TICKET.sessionId, expectedRevision: 1 },
@@ -60,9 +63,14 @@ describe('nomi_integration credential elicitation (MCP url mode)', () => {
       elicitation: { requestUrl: async () => ({ supported: true, action: 'decline' as const }), notifyComplete: vi.fn() },
       wait: noWait,
     })
-    expect(outcome.kind).toBe('error')
-    if (outcome.kind !== 'error') throw new Error('unreachable')
-    expect(outcome.message).toMatch(/设置|Settings/)
+    expect(outcome.kind).toBe('result')
+    if (outcome.kind !== 'result') throw new Error('unreachable')
+    const entry = outcome.result.credentialEntry as { mode: string; reason: string; instructions: string }
+    expect(entry).toMatchObject({ mode: 'manual', reason: 'not_opened' })
+    expect(entry.instructions).toMatch(/设置|Settings/)
+    expect(entry.instructions).not.toMatch(/超时|timed out/)
+    // The one-time ticket is never handed back out, decline or not.
+    expect(JSON.stringify(outcome.result)).not.toContain('integration-credential')
   })
 
   it('gives up with the manual path when the page is never completed', async () => {

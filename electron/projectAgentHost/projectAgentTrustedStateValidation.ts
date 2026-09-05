@@ -4,6 +4,7 @@ import { projectAgentApprovalPolicyOf, projectAgentWorkModeOf } from "../shared/
 import { assertProjectAgentAssistantLifecycle } from "./projectAgentAssistantStateInvariant";
 import { stableProjectAgentJson } from "./projectAgentSnapshot";
 import { ProjectAgentStateError } from "./projectAgentStateError";
+import { liveProjectAgentPatchReferences, type ProjectAgentPatchReferences } from "./projectAgentPatchReferences";
 import {
   hasDuplicateProjectAgentApprovalIdentity,
   hasDuplicateProjectAgentArtifactIdentity,
@@ -14,10 +15,7 @@ import {
 type AssertPatchChange = (
   value: unknown,
   binding: ProjectBinding,
-  threadIds: ReadonlySet<string>,
-  turnIds: ReadonlySet<string>,
-  turnThreadById: ReadonlyMap<string, string>,
-  itemTurnById: ReadonlyMap<string, string>,
+  refs: ProjectAgentPatchReferences,
 ) => void;
 
 export function assertTrustedProjectAgentDelta(
@@ -61,8 +59,9 @@ export function assertTrustedProjectAgentDelta(
   const turnIds = new Set(next.turns.map((turn) => turn.turnId));
   const turnThreadById = new Map(next.turns.map((turn) => [turn.turnId, turn.threadId]));
   const itemTurnById = new Map(next.items.map((item) => [item.itemId, item.turnId]));
+  const references = liveProjectAgentPatchReferences({ threadIds, turnIds, turnThreadById, itemTurnById });
   for (const change of changes) {
-    assertPatchChange(change, next.binding, threadIds, turnIds, turnThreadById, itemTurnById);
+    assertPatchChange(change, next.binding, references);
     let actual: object | undefined;
     let described: object | undefined;
     switch (change.kind) {
