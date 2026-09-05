@@ -34,7 +34,8 @@
     "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx",
     "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowEffects.ts",
     "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlowAdapter.ts",
-    "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlowAdapter.test.ts"
+    "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlowAdapter.test.ts",
+    "src/workbench/generationCanvas/reactFlow/useReactFlowViewportAnimation.ts"
   ],
   "entry_points": [
     "findBlankPoint in canvas-drag-pan-gestures / canvas-s5-walkthrough / canvas-shortcuts / canvas-context-menu-click / canvas-node-context-menu walkthroughs and scripts/canvas-image-sharpness-measure",
@@ -107,9 +108,9 @@
       "responsibility": "Single registry of the viewport's pending target so concurrent auto-pans compose instead of clobbering each other."
     },
     {
-      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
-      "symbol": "animateViewportTo / readViewportTarget",
-      "responsibility": "The one wrapper every auto-pan goes through; registers the target (with expiry) before calling flow.setViewport, settles superseded requests as cancelled, and the sibling store-to-flow sync effect skips move-end echoes so it cannot interrupt in-flight animations."
+      "path": "src/workbench/generationCanvas/reactFlow/useReactFlowViewportAnimation.ts",
+      "symbol": "useReactFlowViewportAnimation (animateViewportTo / readViewportTarget / readLastAutoTarget / cancelViewportAnimation / healViewport)",
+      "responsibility": "The one hook every auto-pan goes through: runs animations on our own frame scheduler with duration-0 direct writes, registers targets (with expiry) in the tracker, refuses non-finite targets, and heals a poisoned viewport; GenerationCanvasReactFlow only wires it."
     },
     {
       "path": "tests/ux/canvas-performance-benchmark.e2e.mjs",
@@ -268,7 +269,8 @@
       "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx",
       "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx",
       "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlowAdapter.ts",
-      "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowEffects.ts"
+      "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowEffects.ts",
+      "src/workbench/generationCanvas/reactFlow/useReactFlowViewportAnimation.ts"
     ]
   },
   "regression_tests": [
