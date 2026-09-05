@@ -48,7 +48,8 @@ fs.writeFileSync(path.join(settingsDir, 'model-catalog.json'), JSON.stringify({
   version: 12,
   vendors: VENDORS.map(({ key, name }) => ({ key, name, enabled: true, baseUrlHint: `http://127.0.0.1:${port}`, authType: 'none', providerKind: 'openai-compatible', createdAt: NOW, updatedAt: NOW })),
   models: VENDORS.map(({ key }) => ({ modelKey: MODEL, vendorKey: key, labelZh: '供应商偏好 fixture', kind: 'image', enabled: true, published: true, publishedModes: ['text_to_image'], meta: { archetypeId: 'agnes-image' }, createdAt: NOW, updatedAt: NOW })),
-  mappings: VENDORS.map(({ key }) => imageMapping(key)), apiKeysByVendor: {},
+  mappings: VENDORS.map(({ key }) => imageMapping(key)),
+  apiKeysByVendor: Object.fromEntries(VENDORS.map(({ key }) => [key, { vendorKey: key, apiKey: `vendor-order-${key}`, enc: 'plain', enabled: true, createdAt: NOW, updatedAt: NOW }])),
 }, null, 2))
 
 const check = (condition, message) => { if (!condition) throw new Error(`WALK FAIL: ${message}`); console.log(`  ✓ ${message}`) }
@@ -62,24 +63,34 @@ let win
 try {
   ({ app, win } = await launchNomiApp({ name: 'vendor-preference-order', userDataDir, settingsDir, projectsDir, syntheticCredentialStorage: true, args: ['--no-proxy-server'], settleMs: 1200 }))
   await dismissFirstRun(win)
+  await win.evaluate(async (baseUrl) => {
+    for (const vendor of [{ key: 'apimart', name: 'APIMart' }, { key: 'kie', name: 'Kie' }]) {
+      await window.nomiDesktop.modelCatalog.upsertVendorApiKey(vendor.key, { apiKey: `vendor-order-${vendor.key}`, enabled: true })
+      await window.nomiDesktop.modelCatalog.upsertVendor({ key: vendor.key, name: vendor.name, enabled: true, authType: 'none', providerKind: 'openai-compatible', baseUrlHint: baseUrl })
+    }
+  }, `http://127.0.0.1:${port}`)
+  await win.reload(); await win.waitForTimeout(1200)
   await win.getByText('新建空白项目', { exact: false }).first().click({ timeout: 5000 }); await win.waitForTimeout(2200)
   await win.locator('[aria-label="工作区切换"]').getByText('生成', { exact: true }).click({ timeout: 5000 }); await win.waitForTimeout(1000)
   await win.getByRole('button', { name: /打开模型设置/ }).first().click({ timeout: 5000 })
   await win.locator('[data-model-settings-page="home"]').waitFor({ timeout: 5000 })
-  const preference = win.locator('[data-vendor-preference-order]'); await preference.waitFor({ timeout: 5000 }); await snap(win, '05-settings-vendor-order.png', preference)
+  const preference = win.locator('[data-vendor-preference-order]'); await preference.waitFor({ timeout: 5000 })
   const rows = preference.locator('[data-vendor-preference-row]'); check(await rows.count() === 2, '设置里只列两家已配置供应商')
   const first = await rows.first().getAttribute('data-vendor-preference-row'); await rows.first().getByRole('button', { name: /下移|Move down/ }).click(); await win.waitForTimeout(350)
   check(await rows.first().getAttribute('data-vendor-preference-row') !== first, '调整偏好顺序后设置已更新')
   await win.locator('[data-settings-close]').first().click().catch(() => win.keyboard.press('Escape'))
   await win.locator('[aria-label="添加图片节点"]').first().click({ timeout: 5000 }); await win.waitForTimeout(800)
   const node = win.locator('[data-kind="image"][data-node-id]').last(); await node.waitFor({ timeout: 5000 }); const nodeId = await node.getAttribute('data-node-id')
-  await node.locator('div[contenteditable="true"]').last().fill('供应商偏好真实生成验收图')
+  const promptEditor = node.locator('div[contenteditable="true"]').last(); await promptEditor.click(); await promptEditor.fill('供应商偏好真实生成验收图')
   await node.locator('button[aria-label="模型"]').first().click({ timeout: 5000 })
   const option = win.getByRole('option').filter({ hasText: '供应商偏好 fixture' }).first(); await option.waitFor({ timeout: 8000 })
   const chips = option.locator('button[aria-pressed]'); check(await chips.count() === 2, '同一模型折叠为一行并显示两家供应商 chip')
-  await snap(win, '01-picker-preferred.png'); await chips.last().click(); await snap(win, '02-picker-alternate-chip.png'); await win.keyboard.press('Escape')
-  await node.locator('button[aria-label="生成素材"]').first().click({ timeout: 5000 }); const dialog = await spendDialog(win); await dialog.getByRole('button', { name: '生成', exact: true }).click()
+  await option.click(); await win.locator('button[aria-label="模型"]').first().click({ timeout: 5000 })
+  const reopened = win.getByRole('option').filter({ hasText: '供应商偏好 fixture' }).first(); await reopened.waitFor({ timeout: 8000 }); await reopened.locator('button[aria-pressed]').last().click()
+  const currentNode = win.locator('[data-kind="image"][data-node-id]').last(); await currentNode.waitFor({ timeout: 5000 })
+  const generate = currentNode.locator('button[aria-label="生成素材"]').first()
+  await generate.click({ timeout: 5000 }); const dialog = await spendDialog(win); await dialog.getByRole('button', { name: '生成', exact: true }).click()
   await win.waitForFunction((id) => document.querySelector(`[data-node-id="${id}"]`)?.getAttribute('data-status') === 'success', nodeId, { timeout: 30_000 })
-  check(wireCalls.length === 1 && wireCalls[0].model === MODEL, '切换 chip 后真实图片生成请求已发出'); check(Boolean(findProjectJson(projectsDir)), '真实生成结果已写入项目持久化文件'); await snap(win, '03-generated-with-alternate-vendor.png')
+  check(wireCalls.length === 1 && wireCalls[0].model === MODEL, '切换 chip 后真实图片生成请求已发出'); check(Boolean(findProjectJson(projectsDir)), '真实生成结果已写入项目持久化文件')
   console.log('vendor preference picker journey passed')
 } finally { await app?.close().catch(() => {}); await new Promise((resolve) => vendorServer.close(resolve)) }
