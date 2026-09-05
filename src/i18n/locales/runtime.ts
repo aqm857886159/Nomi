@@ -104,7 +104,9 @@ export const zhRuntime = {
     model: '模型',
     output: '产物',
     defaultModel: '默认模型',
-    projectChanged: '项目已切换，无法实时应用',
+    projectBindingMismatch:
+      '这项操作只能改 Nomi 里正在打开的那个项目。MCP 会话绑定的是项目 {{leaseProject}}，Nomi 现在打开的是 {{openProject}}。请在 Nomi 里打开 {{leaseProject}} 后重试。',
+    noProjectOpen: '（没有打开任何项目）',
     unknownOperation: '未知 capability 操作：{{operation}}',
     storyboardPlanMissing: '分镜规划没有返回可审阅的方案',
   },
@@ -253,7 +255,9 @@ export const enRuntime = {
     model: 'Model',
     output: 'Output',
     defaultModel: 'Default model',
-    projectChanged: 'The active project changed, so this operation cannot be applied live.',
+    projectBindingMismatch:
+      'This operation can only change the project Nomi currently has open. The MCP session is bound to project {{leaseProject}}, while Nomi has {{openProject}} open. Open {{leaseProject}} in Nomi and retry.',
+    noProjectOpen: '(no project open)',
     unknownOperation: 'Unknown capability operation: {{operation}}',
     storyboardPlanMissing: 'The storyboard planner did not return a reviewable plan.',
   },
