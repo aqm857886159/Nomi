@@ -471,18 +471,30 @@ export function readMcpInfo(rpcPort: number | null): McpInfo {
  * `launcher-stale`) are rewritten, only when a packaged launcher exists to point at, and every rewrite
  * takes a `.nomi-backup` first. A `custom` entry — anything Nomi did not write — is never touched.
  */
-export type McpConfigRepairResult = { changed: boolean; repaired: readonly { client: McpClientKey; from: McpConfigState }[] }
+/**
+ * A repaired entry carries the client's **display label** as well as its key, because the only thing
+ * anyone downstream does with this list is tell the user which assistant to restart. Deriving the
+ * label here keeps that name in the one place that already owns it (`CLIENT_SPECS` / custom profiles);
+ * re-deriving it in the renderer would be a second source of truth for the same string.
+ */
+export type McpConfigRepairResult = {
+  changed: boolean
+  repaired: readonly { client: McpClientKey; label: string; from: McpConfigState }[]
+}
 
 export function repairStaleMcpConfigs(): McpConfigRepairResult {
   // 走查/E2E 起的是真 GUI，但 `~/.claude.json` 的路径来自 os.homedir()，**不在**隔离目录里——不挡住的话，
   // 每跑一次走查就会把开发者真实的客户端配置改成指向那次测试的二进制。隔离得住的东西才可以自动改。
   if (process.env.NOMI_E2E === '1') return { changed: false, repaired: [] }
-  const repaired: { client: McpClientKey; from: McpConfigState }[] = []
+  const repaired: { client: McpClientKey; label: string; from: McpConfigState }[] = []
   const keys: McpClientKey[] = [...BUILTIN_MCP_CLIENTS, ...listCustomMcpProfiles().map((profile) => profile.key)]
   for (const client of keys) {
     try {
       const before = classifyMcpEntry(client, configuredMcpEntry(client))
-      if (clientInfo(client).migration === 'upgraded') repaired.push({ client, from: before })
+      // clientInfo() 是**修复本身**（migration 是它的副作用），label 住在 spec 里。
+      if (clientInfo(client).migration === 'upgraded') {
+        repaired.push({ client, label: resolveClientSpec(client)?.label ?? client, from: before })
+      }
     } catch { /* an unreadable or non-existent client config is not a Nomi failure */ }
   }
   return { changed: repaired.length > 0, repaired }

@@ -3,7 +3,7 @@ import { getActiveWorkbenchProjectId } from '../project/workbenchProjectSession'
 import { useSpendConfirmStore } from '../generationCanvas/spend/spendConfirm'
 import { buildMultiShotContractView, type MultiShotGatePayload } from '../generationCanvas/spend/productionContractView'
 import { getDesktopBridge } from '../../desktop/bridge'
-import i18n from '../../i18n'
+import i18n, { getAppLocale } from '../../i18n'
 import { runStoryboardPlanner } from '../generationCanvas/agent/runStoryboardPlanner'
 import { runDirectionPlanner } from '../generationCanvas/agent/runDirectionPlanner'
 import { productionScriptSessionKey } from '../ai/agentSessionKey'
@@ -374,7 +374,11 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
       return { opened: true }
     }
     case 'host-config.repaired': {
-      toast(i18n.t('studio.hostConfigRepaired'), 'info')
+      // 主进程只在真的改了配置文件时才发这一条，并附上该重启哪些助手（Claude Code / Codex / Cursor
+      // 或用户自建的 profile）。名字从修复结果来，不在这里再写死一个「Claude Code」。
+      const clients = Array.isArray(data.clients) ? data.clients.filter((name): name is string => typeof name === 'string') : []
+      if (!clients.length) return { notified: false }
+      toast(i18n.t('studio.hostConfigRepaired', { clients: clients.join(getAppLocale() === 'en' ? ', ' : '、') }), 'info')
       return { notified: true }
     }
     case 'document.write': {

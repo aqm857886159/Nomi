@@ -112,12 +112,19 @@ async function main() {
     })
     if (!confirmed.challengeId) throw new Error(`confirm did not return a challenge: ${JSON.stringify(confirmed)}`)
 
-    await win.evaluate(async () => {
+    // B 面：能力核启动时真的改写了某个助手的 Nomi 接入配置 → 主窗口弹一句「去重启它」。
+    // 走查里不能让它真去改开发者的 ~/.claude.json（NOMI_E2E=1 时修复整个关掉，见 mcpConfig），
+    // 所以这里从渲染层的入口喂进主进程会发的那条 payload——断言的是「名单原样进了提示」。
+    await win.waitForFunction(() => typeof window.__nomiCapabilityApply === 'function', undefined, { timeout: 10_000 })
+    const notified = await win.evaluate(async () => {
       const apply = window.__nomiCapabilityApply
-      if (typeof apply !== 'function') throw new Error('capability apply bridge missing')
-      await apply('host-config.repaired', {})
+      return apply('host-config.repaired', { clients: ['Claude Code', 'Codex'] })
     })
-    await expectVisible(win.getByText('已修复 Claude Code 的 Nomi 接入配置，重启 Claude Code 生效', { exact: true }), 'repair toast should be visible')
+    if (notified?.notified !== true) throw new Error(`repair notice was not delivered: ${JSON.stringify(notified)}`)
+    await expectVisible(
+      win.getByText('已修复 Claude Code、Codex 的 Nomi 接入配置，重启 Claude Code、Codex 后生效', { exact: true }),
+      'repair toast should name every repaired assistant',
+    )
     await screenshotSettled(win, { path: path.join(shotsDir, '02-host-config-repaired-toast.png') })
     console.log(`MCP KEY WINDOW PASS: ${path.join(shotsDir, '01-provider-page.png')}`)
     console.log(`MCP KEY WINDOW PASS: ${path.join(shotsDir, '02-host-config-repaired-toast.png')}`)

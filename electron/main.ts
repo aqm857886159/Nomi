@@ -182,7 +182,13 @@ async function startDesktopCapabilityCore(): Promise<void> {
       canvasReadExecutionRuntime: desktopCanvasReadExecutionRuntime,
       onGenerationReady: (factory) => getInstalledProductionProjectAgentHost()?.setGenerationAdapterFactory(factory),
       proposalReceiptFor: createDesktopProposalReceiptResolver(),
-      onMcpConfigRepaired: ({ clients }) => clients.includes('claude') ? requestRenderer('host-config.repaired', {}, 30_000).then(() => {}).catch(() => {}) : undefined,
+      onMcpConfigRepaired: async ({ clientLabels }) => {
+        // 主进程只做接线：改没改文件由能力核判（appIntegration 的 repair.changed），
+        // 说成什么话由渲染层的 i18n 决定，这里只把「该重启谁」原样递过去。
+        try {
+          await requestRenderer('host-config.repaired', { clients: clientLabels }, 30_000);
+        } catch { /* 窗口还没接上桥时没人收——不能因为一句提示拖垮能力核启动 */ }
+      },
     },
   );
   capabilityPortCache = core.getCapabilityPort();

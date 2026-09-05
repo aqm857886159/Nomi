@@ -352,7 +352,7 @@ describe('capabilityCore/mcpConfig', () => {
 
     const repaired = repairStaleMcpConfigs()
 
-    expect(repaired).toEqual({ changed: true, repaired: [{ client: 'claude', from: 'legacy-launcher' }] })
+    expect(repaired).toEqual({ changed: true, repaired: [{ client: 'claude', label: 'Claude Code', from: 'legacy-launcher' }] })
     const after = JSON.parse(fs.readFileSync(claudeJson(), 'utf8'))
     expect(after.mcpServers.nomi.env[MCP_CONFIG_VERSION_ENV]).toBe(MCP_CONFIG_VERSION)
     expect(after.mcpServers.nomi.args[0]).not.toContain('scripts/nomi-mcp.mjs')

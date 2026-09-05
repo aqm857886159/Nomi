@@ -6,8 +6,10 @@
 
 - `integration.open_credentials` 在 GUI RPC 进程中完成持久 handoff 入队后，聚焦/显示主窗口并让渲染层打开模型设置工作区；URL elicitation 判定保持现有协议规则。
 - 无法连接 GUI 时保留文字兜底，并明确说明先启动 Nomi。
-- 启动时宿主配置修复返回显式 `changed`，仅 changed 时通知渲染层并显示双语 toast。
-- 补充能力核单测、真实 Electron UX 走查/宿主级 e2e、实验室登记与截图。
+- 启动时宿主配置修复返回显式 `changed` 与被修客户端的显示名，仅 changed 时通知渲染层并显示双语 toast；
+  提示里点名的是**这次真的被改写的那些**助手（Claude Code / Cursor / Codex / 自建 profile 走同一个修复函数），
+  不写死一个「Claude Code」——只提示其中一个等于对其余用户什么都没说。
+- 补充能力核单测、真实 Electron UX 走查/宿主级 e2e，并把这条提示按实验室的两处注册表正式登记成 `host-config` 屏（基线待用户拍板）。
 
 ## 不动项
 
@@ -19,7 +21,7 @@
 
 1. `open_credentials` 时窗口 focused，设置模型页打开并自动消费对应 handoff；form-only 与 declined 文案包含已打开/需启动信息。
 2. 保存凭据后再次 `propose/confirm` 不再要求 key。
-3. 修复函数返回 `{ changed, repaired }`；changed=false 不发 toast，changed=true 只发一次双语本地化 toast。
+3. 修复函数返回 `{ changed, repaired }`（每条带 label）；changed=false 不发 toast，changed=true 只发一次双语本地化 toast，且点名全部被改写的客户端。
 4. `pnpm run gates` 全绿；分支推送前整合最新 `origin/main`。
 
 ## 回滚

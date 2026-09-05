@@ -26,14 +26,17 @@ describe("desktop credential startup ordering", () => {
     expect(relayMaintenance).toBeGreaterThan(delayedBackgroundWork);
   });
 
-  it("only forwards the Claude restart notice after a real config write", () => {
+  // 「只在真的改了文件时才提示」这道闸建在能力核里（appIntegration 的 repair.changed），
+  // 主进程只负责把「该重启谁」原样递给渲染层。两半各自有真单测（mcpConfig.test 的 changed 判定、
+  // capabilityApplyHandler.integration.test 的 toast），这里守的是中间那根线还接着。
+  it("only forwards the host restart notice after a real config write", () => {
     const source = fs.readFileSync(new URL("./main.ts", import.meta.url), "utf8");
-    const repair = source.indexOf("onMcpConfigRepaired: async");
-    const guard = source.indexOf("if (!clients.includes('claude')) return", repair);
-    const request = source.indexOf("requestRenderer('host-config.repaired'", guard);
+    const repair = source.indexOf("onMcpConfigRepaired:");
+    const request = source.indexOf("requestRenderer('host-config.repaired'", repair);
     expect(repair).toBeGreaterThanOrEqual(0);
-    expect(guard).toBeGreaterThan(repair);
-    expect(request).toBeGreaterThan(guard);
+    expect(request).toBeGreaterThan(repair);
+    // 名单原样透传：主进程不许自己挑一个客户端名写死（Cursor / Codex / 自建 profile 同样被修）。
+    expect(source.slice(repair, request + 200)).toContain("clients: clientLabels");
     const integration = fs.readFileSync(new URL("./capabilityCore/appIntegration.ts", import.meta.url), "utf8");
     const repairResult = integration.indexOf("const repair = repairStaleMcpConfigs()");
     const changedGuard = integration.indexOf("if (repair.changed)", repairResult);

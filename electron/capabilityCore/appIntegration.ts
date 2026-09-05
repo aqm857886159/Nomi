@@ -134,7 +134,8 @@ export async function startCapabilityCore(
     projectRevisionResolver?: (projectId: string) => number | undefined
     proposalReceiptFor?: import('./rpcServer').RpcServerOptions['proposalReceiptFor']
     openCredentialsInNomi?: import('./rpcServer').RpcServerOptions['openCredentialsInNomi']
-    onMcpConfigRepaired?: (input: { clients: readonly string[] }) => void | Promise<void>
+    /** Fired only when the startup repair actually rewrote a host config, naming the clients to restart. */
+    onMcpConfigRepaired?: (input: { clientLabels: readonly string[] }) => void | Promise<void>
     canvasReadExecutionRuntime?: CanvasReadExecutionRuntime
     onGenerationReady?: (factory: ResidentGenerationAdapterFactory['factory']) => void
   } = {},
@@ -154,9 +155,12 @@ export async function startCapabilityCore(
     // 已接入的编程助手若还指着 Nomi 旧入口，宿主侧只显示一句 CONNECTION_CLOSED——里面一个字都没提 Nomi，
     // 用户没有理由想到「去开 Nomi 的模型接入面板」。这个修复原本只作为渲染那块面板的副作用发生，等于没有。
     // 能力核起来 = 这些配置指向的服务端就绪，正是把它们修回来的时刻（只动 Nomi 自己写过的条目，见 mcpConfig）。
+    // 修好了还得说一声：宿主进程启动时已经读过那份旧配置，不重启就一直用着旧入口。
+    // 「有没有真的改文件」只有这一层知道（repair.changed），所以通知的闸也建在这里，
+    // 而不是让每个接线方各自去猜要不要弹（R28：防线建在最早能拦住的那层）。
     try {
       const repair = repairStaleMcpConfigs()
-      if (repair.changed) await authorities.onMcpConfigRepaired?.({ clients: repair.repaired.map((item) => item.client) })
+      if (repair.changed) await authorities.onMcpConfigRepaired?.({ clientLabels: repair.repaired.map((item) => item.label) })
     } catch { /* 宿主配置不可读不是 Nomi 的故障，不能反向拖垮能力核 */ }
     const token = ensureToken()
     const generationService = getProductionRunService()
