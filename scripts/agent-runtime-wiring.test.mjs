@@ -45,10 +45,17 @@ const reachable = (entry) => resolveReachable(pkg.scripts, entry)
 describe('private pi build and test wiring', () => {
   test('pins the verified SDK graph while preserving non-Agent ai@4 and Nomi Zod', () => {
     for (const name of ['pi-agent-core', 'pi-ai', 'pi-coding-agent']) {
-      expect(pkg.dependencies[`@earendil-works/${name}`]).toBe('0.84.3')
+      expect(pkg.dependencies[`@earendil-works/${name}`]).toBe('0.85.1')
     }
-    for (const name of ['pi-agent-core', 'pi-ai', 'pi-client', 'pi-coding-agent', 'pi-protocol', 'pi-tui']) {
-      expect(pkg.pnpm.overrides?.[`@earendil-works/${name}`]).toBe('0.84.3')
+    // The override set is exactly the pi packages that exist in the 0.85.1 tree:
+    // the three direct dependencies plus the three they pull in (chord, pi-telemetry,
+    // pi-tui). pi-client and pi-protocol left the tree in 0.85.1, so pinning them
+    // would be a dead lock nobody can notice going stale.
+    expect(Object.keys(pkg.pnpm.overrides ?? {}).filter((name) => name.startsWith('@earendil-works/')).sort())
+      .toEqual(['@earendil-works/chord', '@earendil-works/pi-agent-core', '@earendil-works/pi-ai',
+        '@earendil-works/pi-coding-agent', '@earendil-works/pi-telemetry', '@earendil-works/pi-tui'])
+    for (const name of ['chord', 'pi-agent-core', 'pi-ai', 'pi-coding-agent', 'pi-telemetry', 'pi-tui']) {
+      expect(pkg.pnpm.overrides?.[`@earendil-works/${name}`]).toBe('0.85.1')
     }
     expect(pkg.dependencies.typebox).toBe('1.3.7')
     expect(pkg.dependencies['zod-to-json-schema']).toBe('3.25.1')
