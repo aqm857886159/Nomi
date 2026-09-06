@@ -18,7 +18,7 @@ export type ProjectAgentCommand = Readonly<{
   subscriptionId: string
   clientCommandId: string
   knownRevision: number
-  type: ProjectAgentMutationType | 'tool.decision'
+  type: ProjectAgentMutationType | 'tool.decision' | 'turn.steer' | 'turn.interrupt'
   payload: unknown
 }>
 

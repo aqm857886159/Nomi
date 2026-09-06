@@ -55,9 +55,24 @@ export function assertSafeInteger(value: unknown, minimum = 0): asserts value is
 
 export function assertProjectAgentUsage(value: unknown): void {
   const usage = asRecord(value);
-  assertAllowedKeys(usage, ["promptTokens", "completionTokens", "cachedPromptTokens", "totalTokens"]);
+  assertAllowedKeys(usage, [
+    "promptTokens",
+    "completionTokens",
+    "cachedPromptTokens",
+    "totalTokens",
+    "reasoningTokens",
+    "costUsd",
+  ]);
   for (const key of ["promptTokens", "completionTokens", "cachedPromptTokens", "totalTokens"] as const) {
     assertSafeInteger(usage[key]);
+  }
+  // The two optional fields are optional because the provider may not report
+  // them. Present-but-nonsense is still a corrupt record; absent is legal.
+  if (usage.reasoningTokens !== undefined) assertSafeInteger(usage.reasoningTokens);
+  if (usage.costUsd !== undefined) {
+    if (typeof usage.costUsd !== "number" || !Number.isFinite(usage.costUsd) || usage.costUsd < 0) {
+      throw new ProjectAgentStateError("invalid_state");
+    }
   }
 }
 

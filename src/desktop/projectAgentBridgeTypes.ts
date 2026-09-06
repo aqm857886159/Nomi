@@ -10,7 +10,14 @@ export type ProjectAgentCommandWire = {
   subscriptionId: string
   clientCommandId: string
   knownRevision: number
-  type: ProjectAgentMutationType | 'tool.decision'
+  /**
+   * Host IPC accepts three things this union used to hide: the reducer
+   * mutations, a tool decision, and the two live turn controls. `turn.steer`
+   * and `turn.interrupt` have been handled in main since the coordinator
+   * landed; the renderer simply had no name for them, so the "继续" and real
+   * "中断" affordances had nothing to call.
+   */
+  type: ProjectAgentMutationType | 'tool.decision' | 'turn.steer' | 'turn.interrupt'
   payload: unknown
 }
 

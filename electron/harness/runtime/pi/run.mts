@@ -10,9 +10,25 @@ import { observeNativeStream } from './observeStream.mjs';
 import { createErrorFacts } from './errorFacts.mjs';
 
 function nomiUsage(usage: Usage): RuntimeUsage {
+  // `reasoning` and `cost` are the two fields the SDK leaves undefined when the
+  // provider says nothing. Carry that absence through untouched: a `?? 0` here
+  // is what turns "we don't know" into a printed "0" three layers up.
+  const reasoning = typeof usage.reasoning === 'number' && Number.isFinite(usage.reasoning)
+    ? Math.max(0, Math.floor(usage.reasoning)) : undefined;
+  // `cost` is not optional in the SDK: an unpriced model still yields a fully
+  // populated zero. A turn that burned tokens and "cost 0" is the runtime
+  // saying "I have no price for this model", not "this was free" — and
+  // 0 is exactly the number that prints as a confident `$0.00`. Treat it as
+  // unknown. A genuinely free turn is one that consumed nothing, and that one
+  // has nothing to show either way.
+  const total = usage.cost?.total;
+  const costUsd = typeof total === 'number' && Number.isFinite(total) && total > 0
+    ? total : undefined;
   return { promptTokens: usage.input + usage.cacheRead + usage.cacheWrite,
     completionTokens: usage.output, cachedPromptTokens: usage.cacheRead,
-    totalTokens: usage.totalTokens || usage.input + usage.cacheRead + usage.cacheWrite + usage.output };
+    totalTokens: usage.totalTokens || usage.input + usage.cacheRead + usage.cacheWrite + usage.output,
+    ...(reasoning !== undefined ? { reasoningTokens: reasoning } : {}),
+    ...(costUsd !== undefined ? { costUsd } : {}) };
 }
 
 function finishReason(reason: AssistantMessage['stopReason']): RuntimeFinishReason {
@@ -152,7 +168,18 @@ export const runAgentTurn: RunAgentTurn = async (request, hooks) => {
         signal, firstResponseMs: normalRequests + summaryRequests === 1 ? 90_000 : 120_000, idleMs: 120_000,
         onResult: (message) => {
           const consumed = nomiUsage(message.usage);
-          for (const key of Object.keys(usage) as Array<keyof RuntimeUsage>) usage[key] += consumed[key];
+          usage.promptTokens += consumed.promptTokens;
+          usage.completionTokens += consumed.completionTokens;
+          usage.cachedPromptTokens += consumed.cachedPromptTokens;
+          usage.totalTokens += consumed.totalTokens;
+          // 两个可选字段逐项累加，而且**只在这一步真的报了**的时候才累加：
+          // 一个回合有多次模型请求，其中一次报了推理 token、另一次没报，
+          // 把没报的当 0 加进去会让总数看起来「这一步没思考」，而真相是「这一步没说」。
+          // 只要有一步报过，字段就存在；一步都没报过，它整个不存在。
+          if (consumed.reasoningTokens !== undefined) {
+            usage.reasoningTokens = (usage.reasoningTokens ?? 0) + consumed.reasoningTokens;
+          }
+          if (consumed.costUsd !== undefined) usage.costUsd = (usage.costUsd ?? 0) + consumed.costUsd;
           const failure = message.stopReason === 'error' || message.stopReason === 'aborted'
             ? httpFailure ?? facts.describe(message.errorMessage ?? 'Model request failed') : undefined;
           if (normal) lastNormalFailure = failure;

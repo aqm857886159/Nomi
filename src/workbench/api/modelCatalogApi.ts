@@ -1,4 +1,5 @@
 import { getDesktopBridge, type DesktopBridge } from '../../desktop/bridge'
+import { modelContextWindow } from '../../../electron/shared/modelContextWindow'
 import type {
   BillingModelKind,
   ModelCatalogVendorCredentialMode,
@@ -73,6 +74,14 @@ export type ModelCatalogModelDto = {
   published: boolean
   publishedModes: ProfileKind[]
   meta?: unknown
+  /**
+   * 这个模型的上下文窗口（token）。目录里它住在 `meta.contextWindow`，`meta` 是
+   * `unknown`——渲染层要么各自解析各自校验，要么拿不到。Agent 面板的上下文环需要它当
+   * 分母，所以在 `listWorkbenchModelCatalogModels` 这一层用 `modelContextWindow`
+   * 解一次（和主进程组装 `NomiModelConfig` 用的是同一个 owner）。
+   * 目录没写就是 `undefined`：环画灰、不给百分比，**不编一个默认窗口**。
+   */
+  contextWindow?: number
   pricing?: {
     cost: number
     enabled: boolean
@@ -109,7 +118,13 @@ export async function listWorkbenchModelCatalogModels(params?: {
   kind?: BillingModelKind
   enabled?: boolean
 }): Promise<ModelCatalogModelDto[]> {
-  return requireDesktopRuntime('model catalog').modelCatalog.listModels(params) as ModelCatalogModelDto[]
+  const rows = requireDesktopRuntime('model catalog').modelCatalog.listModels(params) as ModelCatalogModelDto[]
+  // 目录的 `meta` 过 IPC 时还是 `unknown`。在**进入渲染层的第一处**把窗口解出来，
+  // 而不是让每个读它的组件各解一遍（那正是「同一语义几份定义」的起点）。
+  return rows.map((row) => {
+    const contextWindow = modelContextWindow(row.meta)
+    return contextWindow === undefined ? row : { ...row, contextWindow }
+  })
 }
 
 /** 启用/更新一个已存在的目录模型（恢复卡「一键启用被禁用的文本大脑」用）。 */

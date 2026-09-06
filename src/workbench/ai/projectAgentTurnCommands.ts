@@ -249,6 +249,47 @@ export async function stopProjectAgentTurn(turnId: string): Promise<void> {
   }
 }
 
+/**
+ * Live turn controls. Both have existed in main since the execution
+ * coordinator landed (`projectAgentIpc.ts` handles them before the reducer
+ * path); nothing in the renderer had a name for them, so the panel's only
+ * "stop" was `turn.transition → stopped`, which marks the record and lets the
+ * in-flight provider request run to completion on its own.
+ *
+ * They deliberately do NOT retry on `revision_conflict`: neither carries a
+ * `knownRevision` the Host compares, and main answers with a fresh snapshot,
+ * so a retry loop would only re-send the same instruction twice.
+ */
+async function turnControl(
+  type: 'turn.steer' | 'turn.interrupt',
+  payload: Readonly<{ turnId: string; instruction?: string }>,
+): Promise<void> {
+  const state = projectAgentProjectionStore.getState()
+  const subscriptionId = state.subscriptionId
+  const snapshot = state.snapshot
+  if (!subscriptionId || !snapshot) throw new Error('project_agent_unavailable')
+  const result = await projectAgentClient.command({
+    subscriptionId,
+    clientCommandId: id(type === 'turn.steer' ? 'ui-steer' : 'ui-interrupt'),
+    knownRevision: snapshot.hostRevision,
+    type,
+    payload,
+  })
+  projectAgentProjectionStore.applySnapshot(result.state)
+}
+
+/** 「继续」: hand the running turn one more instruction before its next model request. */
+export async function steerProjectAgentTurn(turnId: string, instruction: string): Promise<void> {
+  const normalized = instruction.trim()
+  if (!normalized) throw new Error('invalid_steer_instruction')
+  await turnControl('turn.steer', { turnId, instruction: normalized })
+}
+
+/** 真中断: abort the in-flight request, not just mark the record stopped. */
+export async function interruptProjectAgentTurn(turnId: string): Promise<void> {
+  await turnControl('turn.interrupt', { turnId })
+}
+
 export function subscribeProjectAgentEvents(listener: (event: ProjectAgentExecutionEvent) => void): () => void {
   return projectAgentClient.onEvent((event) => {
     const state = projectAgentProjectionStore.getState()

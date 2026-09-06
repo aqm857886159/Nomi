@@ -94,7 +94,17 @@ export function toolItem(
   now: string,
   provenance?: AgentChatResponse["provenance"],
 ): ProjectAgentItem {
-  const status = record.status === "ok" ? "done" : record.status === "cancelled" ? "stopped" : "failed";
+  // A tool the user refused is not a tool that broke. Folding `denied` into
+  // `failed` made the receipt say "失败" for a decision the user made on
+  // purpose, and left the panel unable to tell "Nomi could not" from "you said
+  // no" at all. `declined` is already a Host status; use it.
+  const status = record.status === "ok"
+    ? "done"
+    : record.status === "cancelled"
+      ? "stopped"
+      : record.status === "denied"
+        ? "declined"
+        : "failed";
   const canonicalCapability = resolveCapabilityAlias(record.toolName)?.contract;
   const skillResult = canonicalCapability?.id === "skill.read" && record.status === "ok"
     ? skillReadResultSchema.safeParse(record.result)
