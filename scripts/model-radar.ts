@@ -12,6 +12,14 @@
 //   pnpm run radar:models -- --offline <dir>     用本地样本跑（单测/离线复现，不打网络；
 //                                                文件名 = offlineFileName(url)，一家可有多份）
 //
+// 车道有两种（都是确定性集合差，都**不打生成调用**、不烧生成额度）：
+//   ① 文档车道（kie / apimart）：抓公开 llms.txt 索引，比对「文档里有几个模型页」。
+//   ② LLM 车道（apimart-llm）：打 authenticated `GET /v1/models`，比对「供应商今天列了哪些 chat id」。
+//      为什么必须有它：文档索引的 texts 分区不盯（用户拍板只盯生图/生视频/音频），于是
+//      **退役的文本模型能在我们的 catalog 里躺着没人发现**——2026-09-06 实测 `deepseek-v3.2-think`
+//      就是这么烂在种子里的。这条车道的主信号是 `unlisted`：我们种了、供应商今天没列。
+//      它需要凭据，取法见 resolveApimartApiKey（只从 env / 明文记录取，**永不打印**）。
+//
 // 失败语义（2026-08-31 apimart 改版把 kie 陪葬后定死，合同见
 // docs/fixes/2026-08-31-model-radar-vendor-isolation.root-cause.json）：
 //   单家采集失败（含解析 0 条）只把该家标成「没查成」——摘要打 ⚠️、latest.json 记 failures[]、
@@ -27,10 +35,11 @@ import type { CatalogState } from "../electron/catalog/types.ts";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SNAPSHOT_DIR = path.join(ROOT, "docs/research/model-radar");
 
-/** 盯的类别（2026-08-27 用户拍板：生图 + 生视频 + 音频/TTS；不含 LLM、不含 3D）。
- *  要开新类别只改这里一处。 */
-export type RadarCategory = "image" | "video" | "audio";
-const WATCHED: readonly RadarCategory[] = ["image", "video", "audio"];
+/** 盯的类别（2026-08-27 用户拍板：生图 + 生视频 + 音频/TTS；不含 3D）。
+ *  `text` 是 2026-09-06 补的 LLM 车道——**只走 authenticated /v1/models**，
+ *  文档车道的 texts 分区仍不盯（那是端点手册，不是模型目录）。要开新类别只改这里一处。 */
+export type RadarCategory = "image" | "video" | "audio" | "text";
+const WATCHED: readonly RadarCategory[] = ["image", "video", "audio", "text"];
 
 export type RadarEntry = {
   vendor: string;
@@ -190,11 +199,104 @@ export async function collectApimart(fetchText: FetchText): Promise<RadarEntry[]
   return parseApimart(texts.join("\n"));
 }
 
-export type VendorAdapter = { collect: (fetchText: FetchText) => Promise<RadarEntry[]> };
+// ---------------------------------------------------------------------------
+// LLM 车道：authenticated GET /v1/models（文档索引看不见的那一半）
+// ---------------------------------------------------------------------------
+
+/**
+ * apimart 的模型目录 API。带 `expand=category&category=chat` 只取 chat 一类——
+ * 裸 `/v1/models` 把生图/生视频 id 也混进来，而那些 id 与生成端点上的真实 id **命名不一致**
+ * （实测：目录写 `seedream-5-0-pro`，我们生成端点上种的是 `doubao-seedream-5-0-pro`），
+ * 拿它判生成模型死活会天天诈胡。chat 分区的 id 才和 `/v1/chat/completions` 的 model 同名。
+ */
+const APIMART_MODELS_API_URL = "https://api.apimart.ai/v1/models?expand=category&category=chat";
+
+/**
+ * 从凭据记录里取脚本层**能用**的明文。
+ *
+ * safeStorage 密文要 Electron 主进程才解得开，纯 tsx 脚本拿不到——这时返回空串，让调用方
+ * 走「这条车道今天没查成」的显式失败，**绝不**静默当成「没有新模型」。
+ * 永远不打印、不落盘任何返回值。
+ */
+export function usableApiKeyFromRecord(record: { apiKey?: string; enc?: string } | undefined): string {
+  if (!record?.apiKey) return "";
+  if (record.enc === "safeStorage") return ""; // 需 Electron safeStorage 才解得开
+  return record.apiKey;
+}
+
+/** 本机 Nomi catalog 的位置（与 electron 侧 userData 一致；两种大小写目录都试）。 */
+function localCatalogFiles(): string[] {
+  const home = process.env.HOME || "";
+  if (!home) return [];
+  const roots =
+    process.platform === "darwin"
+      ? [path.join(home, "Library", "Application Support")]
+      : [process.env.APPDATA || path.join(home, ".config")];
+  const out: string[] = [];
+  for (const root of roots) for (const dir of ["nomi", "Nomi"]) out.push(path.join(root, dir, "model-catalog.json"));
+  return out;
+}
+
+/**
+ * 取 apimart 凭据。顺序：`APIMART_API_KEY` 环境变量 → 本机 catalog 里的**明文**记录。
+ * 都拿不到就抛——错误文案只说「怎么给」，**不带任何密钥内容**。
+ */
+export function resolveApimartApiKey(): string {
+  const fromEnv = (process.env.APIMART_API_KEY || "").trim();
+  if (fromEnv) return fromEnv;
+  for (const file of localCatalogFiles()) {
+    try {
+      const parsed = JSON.parse(fs.readFileSync(file, "utf8")) as {
+        apiKeysByVendor?: Record<string, { apiKey?: string; enc?: string }>;
+      };
+      const usable = usableApiKeyFromRecord(parsed.apiKeysByVendor?.apimart);
+      if (usable) return usable;
+    } catch {
+      /* 该目录没有 catalog / 读不动 → 试下一个 */
+    }
+  }
+  throw new Error(
+    "拿不到 apimart 凭据：本机记录是 safeStorage 密文（要 Electron 才解得开）。" +
+      "给这条车道设 APIMART_API_KEY 环境变量后重跑。",
+  );
+}
+
+/** 把 `/v1/models` 的 JSON 解析成 RadarEntry。抛错 = 该车道「没查成」。 */
+export function parseApimartLlm(text: string): RadarEntry[] {
+  let json: unknown;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    throw new Error("/v1/models 返回的不是 JSON——凭据或网关可能出问题了，不是「没有新模型」");
+  }
+  const rows = (json as { data?: unknown })?.data;
+  if (!Array.isArray(rows)) throw new Error("/v1/models 返回里没有 data 数组——形状变了，实抓确认再适配");
+  const out: RadarEntry[] = [];
+  for (const row of rows) {
+    const id = typeof row === "string" ? row : String((row as { id?: unknown })?.id ?? "");
+    if (!id) continue;
+    out.push({ vendor: "apimart-llm", category: "text", slug: id, title: id, url: APIMART_MODELS_API_URL });
+  }
+  return dedupe(out);
+}
+
+export type VendorAdapter = {
+  collect: (fetchText: FetchText) => Promise<RadarEntry[]>;
+  /** catalog 里对应的 vendorKey（覆盖集/种子集按它取）。省略 = 与适配器名同名。 */
+  catalogVendorKey?: string;
+  /** 这条车道的 slug 是不是**真实 model id**——是才能做「我们种了、他们没列」的反向检查。
+   *  文档车道的 slug 是文档页路径，不是 id，做反向检查必然诈胡，故只有 LLM 车道开。 */
+  seededKind?: "text";
+};
 
 export const VENDORS: Record<string, VendorAdapter> = {
   kie: { collect: async (fetchText) => parseKie(await fetchText(KIE_INDEX_URL)) },
   apimart: { collect: collectApimart },
+  "apimart-llm": {
+    collect: async (fetchText) => parseApimartLlm(await fetchText(APIMART_MODELS_API_URL)),
+    catalogVendorKey: "apimart",
+    seededKind: "text",
+  },
 };
 
 export type VendorFailure = { vendor: string; error: string };
@@ -283,6 +385,25 @@ export function coverageTokens(vendorKey?: string): Set<string> {
   return tokens;
 }
 
+/**
+ * 我们**为某家种下的真实 chat model id**（不是文档页 slug）。用于 LLM 车道的反向检查
+ * 「我们种了、供应商今天没列」。全部从种子 derive，不手写清单。
+ *
+ * ⚠️ `kind === "text"` 还不够：种子里有 `MiniMax-H3-Context-IR` 这种 kind=text 但其实**走
+ * 生成端点**的行（提示词增强，POST /v1/videos/generations），它本来就不在 chat 目录里，
+ * 拿它比对会天天报一条假的「没列」——几次之后这个 ⚠️ 就没人看了。
+ * 判据用代码里已有的不变量（seedBuiltins.test.ts 断言过）：**聊天大脑不挂任何 mapping**
+ * （走 buildLanguageModelForVendor 直连 /chat/completions），挂了 mapping 的就不是聊天大脑。
+ */
+export function seededModelKeys(vendorKey: string, kind: "text"): string[] {
+  const empty: CatalogState = { version: 4, vendors: [], models: [], mappings: [], apiKeysByVendor: {} };
+  const state = applyBuiltinSeeds(empty, "2026-01-01T00:00:00.000Z").state;
+  const mapped = new Set(state.mappings.filter((p) => p.vendorKey === vendorKey).map((p) => p.modelKey));
+  return state.models
+    .filter((m) => m.vendorKey === vendorKey && m.kind === kind && !mapped.has(m.modelKey))
+    .map((m) => m.modelKey);
+}
+
 // ---------------------------------------------------------------------------
 // 差分
 // ---------------------------------------------------------------------------
@@ -293,24 +414,39 @@ export type RadarDiff = {
   added: RadarEntry[];
   removed: RadarEntry[];
   uncovered: RadarEntry[];
+  /**
+   * 我们种了、供应商这一轮**没列**的 model id。LLM 车道的主信号——它与快照无关，
+   * 首轮（还没基线）就能报，正是「退役文本模型烂在 catalog 里」那一族的探测器。
+   * 只有 slug 就是真实 id 的车道会传 seeded；其余车道恒空。
+   */
+  unlisted: string[];
 };
 
+/**
+ * @param coverage 传 `null` = 这条车道**不问**「供应商还有什么我们没接」。
+ *   反向车道（LLM）就该传 null：我们刻意只curated 几个大脑，把 186 个没接的 chat 模型
+ *   报成「未接入存量」既没有行动价值，又要把它们整包写进 latest.json。
+ */
 export function diffVendor(
   vendor: string,
   current: RadarEntry[],
   previous: RadarEntry[] | null,
-  coverage: Set<string>,
+  coverage: Set<string> | null,
+  seeded: readonly string[] = [],
 ): RadarDiff {
   const key = (e: RadarEntry) => `${e.category}:${normalizeToken(e.slug)}`;
   const prevKeys = new Set((previous ?? []).map(key));
   const curKeys = new Set(current.map(key));
+  const liveIds = new Set(current.map((e) => normalizeToken(e.slug)));
   return {
     vendor,
     total: current.length,
     // previous 为 null = 首次建基线：不把整册报成「新增」（那是噪音，不是信号）。
     added: previous ? current.filter((e) => !prevKeys.has(key(e))) : [],
     removed: (previous ?? []).filter((e) => !curKeys.has(key(e))),
-    uncovered: current.filter((e) => !isCovered(e.slug, coverage)),
+    uncovered: coverage ? current.filter((e) => !isCovered(e.slug, coverage)) : [],
+    // 归一后比对：目录大小写/分隔符与我们种的 id 偶有出入（MiniMax-H3 ↔ minimax-h3）。
+    unlisted: seeded.filter((id) => !liveIds.has(normalizeToken(id))),
   };
 }
 
@@ -348,6 +484,8 @@ function offlineFetcher(dir: string): FetchText {
 }
 
 /** 抓索引。走 HTTPS_PROXY（本机 apimart/kie 需本地代理）。
+ *  LLM 车道打的是需鉴权的模型目录 API，这里按 host 补 Authorization——凭据只在内存里流过，
+ *  **不打印、不落盘、不进任何报告**（抓取失败的报错也只带 URL 与状态码）。
  *  **失败必须抛**——collectVendors 会把抛错翻译成该家的显式「没查成」；
  *  静默当成「没有新模型」会让雷达永远绿，是最坏的坏法。 */
 async function fetchIndex(url: string): Promise<string> {
@@ -357,7 +495,9 @@ async function fetchIndex(url: string): Promise<string> {
     const { ProxyAgent } = await import("undici");
     dispatcher = new ProxyAgent(proxy);
   }
-  const res = await fetch(url, { ...(dispatcher ? { dispatcher } : {}) } as RequestInit);
+  const needsAuth = new URL(url).host === "api.apimart.ai";
+  const headers = needsAuth ? { Authorization: `Bearer ${resolveApimartApiKey()}` } : undefined;
+  const res = await fetch(url, { ...(headers ? { headers } : {}), ...(dispatcher ? { dispatcher } : {}) } as RequestInit);
   if (!res.ok) throw new Error(`抓取失败 ${url} → HTTP ${res.status}`);
   const text = await res.text();
   if (text.trim().length < 200) throw new Error(`抓到的索引异常短（${text.length} 字节），疑似被拦截：${url}`);
@@ -375,20 +515,37 @@ async function main(): Promise<void> {
 
   const diffs: RadarDiff[] = [];
   for (const [vendor, current] of Object.entries(entries)) {
-    diffs.push(diffVendor(vendor, current, readSnapshot(vendor), coverageTokens(vendor)));
+    const adapter = VENDORS[vendor];
+    const catalogVendorKey = adapter?.catalogVendorKey ?? vendor;
+    // 一处声明驱动两件事：声明了 seededKind 的车道做反向检查（unlisted），
+    // 并且不再问正向的「还有什么没接」（uncovered）——它俩是两个不同的问题。
+    const seeded = adapter?.seededKind ? seededModelKeys(catalogVendorKey, adapter.seededKind) : [];
+    const coverage = adapter?.seededKind ? null : coverageTokens(catalogVendorKey);
+    diffs.push(diffVendor(vendor, current, readSnapshot(vendor), coverage, seeded));
     // 没查成的家不在 entries 里，快照自然不动：修好后重跑才有真差异，不会把断档吃成「全下架」。
     if (updateBaseline) writeSnapshot(vendor, current);
   }
 
-  const byCat = (list: RadarEntry[]) =>
-    WATCHED.map((c) => `${c} ${list.filter((e) => e.category === c).length}`).join(" · ");
+  // 类别行只列这条车道真有的类别（LLM 车道只有 text，文档车道没有 text），别印一排恒 0。
+  const byCat = (list: RadarEntry[], present: ReadonlySet<RadarCategory>) =>
+    WATCHED.filter((c) => present.has(c))
+      .map((c) => `${c} ${list.filter((e) => e.category === c).length}`)
+      .join(" · ");
 
   for (const d of diffs) {
+    const present = new Set<RadarCategory>((entries[d.vendor] ?? []).map((e) => e.category));
     console.log(`\n=== ${d.vendor} ===  盯住 ${d.total} 个模型`);
-    console.log(`  新增 ${d.added.length} · 下架 ${d.removed.length} · 未接入 ${d.uncovered.length}（${byCat(d.uncovered)}）`);
+    const seededLane = Boolean(VENDORS[d.vendor]?.seededKind);
+    console.log(
+      `  新增 ${d.added.length} · 下架 ${d.removed.length}` +
+        (seededLane
+          ? ` · ⚠️ 我们种了但没列 ${d.unlisted.length}`
+          : ` · 未接入 ${d.uncovered.length}（${byCat(d.uncovered, present)}）`),
+    );
     for (const e of d.added) console.log(`  🆕 [${e.category}] ${e.slug} — ${e.title}`);
     for (const e of d.removed) console.log(`  🗑️  [${e.category}] ${e.slug}（上次有、这次没了）`);
-    if (d.added.length === 0 && d.removed.length === 0) console.log("  （索引无变化）");
+    for (const id of d.unlisted) console.log(`  ⚠️  ${id}（我们的种子里有，供应商这一轮没列——查是不是退役了）`);
+    if (d.added.length === 0 && d.removed.length === 0 && d.unlisted.length === 0) console.log("  （索引无变化）");
   }
   for (const f of failures) {
     console.log(`\n=== ${f.vendor} ===  ⚠️ 今天没查成：${f.error}`);
@@ -398,11 +555,13 @@ async function main(): Promise<void> {
   fs.mkdirSync(SNAPSHOT_DIR, { recursive: true });
   fs.writeFileSync(path.join(SNAPSHOT_DIR, "latest.json"), `${JSON.stringify({ diffs, failures }, null, 2)}\n`);
   const totalNew = diffs.reduce((n, d) => n + d.added.length, 0);
+  const totalUnlisted = diffs.reduce((n, d) => n + d.unlisted.length, 0);
   const failNote =
     failures.length > 0 ? `；⚠️ ${failures.map((f) => f.vendor).join(" / ")} 没查成（见上，不是「没新模型」）` : "";
   console.log(
     `\n结果已写 docs/research/model-radar/latest.json。本轮新增 ${totalNew} 个；` +
-      `未接入存量 ${diffs.reduce((n, d) => n + d.uncovered.length, 0)} 个${failNote}。` +
+      `未接入存量 ${diffs.reduce((n, d) => n + d.uncovered.length, 0)} 个；` +
+      `我们种了但供应商没列 ${totalUnlisted} 个${failNote}。` +
       (updateBaseline ? "（已更新快照）" : "（未更新快照，确认后跑 --update-baseline）"),
   );
 

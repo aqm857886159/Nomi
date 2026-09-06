@@ -12,6 +12,7 @@ import { narrateProgress } from '../../observability/narrate'
 import { LocalTaskCancelledError, clearTaskCancel, isTaskCancelRequested, isLocalTaskCancelledError } from './localTaskControl'
 import { useComfyuiPreviewStore } from '../store/comfyuiPreviewStore'
 import { isRecoverableTimeoutError } from './recoverableTimeout'
+import { outboundBlockedRecoverableMessage } from './outboundBlockedRecovery'
 import { recordNodeModelFailure, recordNodeModelSuccess } from './nodeModelHealth'
 import {
   beginSingletonBatch,
@@ -380,6 +381,15 @@ export async function runGenerationNode(
         error: error.message,
         countsTowardBrake: false,
       })
+      throw error
+    }
+    // 出站被自家策略拒下 = 钱已花、只是没取回来 → recoverable（免费续查），不是 error（那会把
+    // 用户推到付费重试上）。判据、「找不找得回」与刹车方向为何与超时相反，都在 outboundBlockedRecovery。
+    const blocked = outboundBlockedRecoverableMessage(error, useGenerationCanvasStore.getState().nodes.find((n) => n.id === id))
+    if (blocked) {
+      // 不记模型失败（挂的是本机网络），但刹车照记：后续每条都会同样失败而提交侧照旧扣费。
+      useGenerationCanvasStore.getState().setNodeStatus(id, 'recoverable', blocked)
+      useGenerationQueueStore.getState().markSettled(batchId, id, 'error', { error: blocked })
       throw error
     }
     recordNodeModelFailure(id)
