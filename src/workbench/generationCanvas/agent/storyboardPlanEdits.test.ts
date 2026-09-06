@@ -5,14 +5,12 @@ import {
   addExternalReferenceAnchor,
   addScene,
   addShot,
-  applyAspectToAll,
   applyDurationToAll,
   applyModelToAll,
   applyShotKindToAll,
   changeAnchorKind,
   danglingAnchorIdsForShot,
   defaultCarrierForKind,
-  deriveBulkAspect,
   deriveBulkDuration,
   deriveBulkModelKey,
   deriveBulkShotKind,
@@ -463,22 +461,5 @@ describe('storyboardPlanEdits — addShot 继承上一镜（v5）', () => {
   it('空方案仍默认视频 5s（旧行为）', () => {
     const p = addShot(planOf([]))
     expect(p.shots[0]).toMatchObject({ index: 1, durationSec: 5 })
-  })
-})
-
-describe('storyboardPlanEdits — 批量画幅（v5 批量条）', () => {
-  it('applyAspectToAll 写 params.aspect_ratio、保留其余参数；deriveBulkAspect 往返一致', () => {
-    const mixed = planOf([
-      { index: 1, durationSec: 5, anchorIds: [], prompt: 'a', params: { negative_prompt: 'x' } },
-      { index: 2, durationSec: 5, anchorIds: [], prompt: 'b', params: { aspect_ratio: '16:9' } },
-    ])
-    expect(deriveBulkAspect(mixed)).toBeNull()
-    const applied = applyAspectToAll(mixed, '9:16')
-    expect(applied.shots.map((s) => s.params?.aspect_ratio)).toEqual(['9:16', '9:16'])
-    expect(applied.shots[0].params?.negative_prompt).toBe('x')
-    expect(deriveBulkAspect(applied)).toBe('9:16')
-    // 都没写 → 空串（按模型默认）；空值应用 no-op
-    expect(deriveBulkAspect(planOf([{ index: 1, durationSec: 5, anchorIds: [], prompt: 'a' }]))).toBe('')
-    expect(applyAspectToAll(mixed, '')).toEqual(mixed)
   })
 })

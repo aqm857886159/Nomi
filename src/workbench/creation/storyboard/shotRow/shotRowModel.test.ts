@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ArchetypeMode } from '../../../../config/modelArchetypes/types'
 import type { PlanAnchor, PlanShot } from '../../../generationCanvas/agent/storyboardPlan'
-import { aspectControlOf, missingRequiredSlots, referencedVisualAnchors, referenceZoneView } from './shotRowModel'
+import { aspectControlOf, missingRequiredSlots, referencedVisualAnchors } from './shotRowModel'
 
 const shotOf = (over: Partial<PlanShot> = {}): PlanShot => ({
   index: 1,
@@ -69,38 +69,6 @@ describe('shotRowModel — 缺必填判定（画面格红态 + 组头计数共�
     const mode = modeOf({ slots: [{ kind: 'image_ref', label: '角色参考', min: 0, max: 9 }] })
     expect(missingRequiredSlots(mode, shotOf(), ANCHORS)).toHaveLength(0)
     expect(missingRequiredSlots(null, shotOf(), ANCHORS)).toHaveLength(0)
-  })
-})
-
-describe('shotRowModel — 参考区形态', () => {
-  it('slots 为空 → 此模型不吃参考', () => {
-    expect(referenceZoneView(modeOf(), shotOf({ anchorIds: ['a-hero'] }), ANCHORS)).toEqual({ kind: 'none-accepted' })
-  })
-
-  it('声明的每个槽各出一个描述符（单槽 / 数组槽按 asArray 分），引用的视觉锚随行带出', () => {
-    const mode = modeOf({
-      slots: [
-        { kind: 'first_frame', label: '首帧', min: 1, max: 1 },
-        { kind: 'last_frame', label: '尾帧', min: 0, max: 1 },
-        { kind: 'image_ref', label: '角色参考', min: 0, max: 9 },
-      ],
-    })
-    const view = referenceZoneView(mode, shotOf({ anchorIds: ['a-hero'] }), ANCHORS)
-    expect(view.kind).toBe('slots')
-    if (view.kind === 'slots') {
-      expect(view.slots.map((s) => [s.key, s.form])).toEqual([
-        ['first_frame', 'single'],
-        ['last_frame', 'single'],
-        ['image_ref', 'array'],
-      ])
-      expect(view.referencedAnchors.map((a) => a.id)).toEqual(['a-hero'])
-    }
-  })
-
-  it('无档案（默认模型）→ 契约未知，退回通用「@」入口 + 已引用锚', () => {
-    const view = referenceZoneView(null, shotOf({ anchorIds: ['a-hero'] }), ANCHORS)
-    expect(view).toMatchObject({ kind: 'unknown-contract' })
-    if (view.kind === 'unknown-contract') expect(view.referencedAnchors).toHaveLength(1)
   })
 })
 
