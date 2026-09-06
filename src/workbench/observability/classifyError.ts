@@ -448,6 +448,11 @@ export function classifyGenerationError(message: string): GenerationErrorReport 
       .trim() || i18n.t('generationCommon.observability.error.unknown.reason')
   const missingImageReference = detectMissingImageReference(cleanRaw)
   if (missingImageReference) return reportForMissingImageReference(missingImageReference, cleanRaw)
+  // 我们**自己**的出站策略拒绝：判据是稳定机器码（NOMI_ERR::outbound-blocked::），最先判。
+  // 必须先于一切「猜文案」的检测，也必须先于 structured.category —— 这条错误里根本没有服务商
+  // 参与（请求从未发出），把它归成 network 会配上「稍等重试」，而重试是确定性再撞同一堵墙，
+  // 且在生成语境下重试 = 再付一次钱。upstream 显式给 ''：抑制「服务商说：」框，别栽赃上游。
+  if (matchNomiErrorCode(cleanRaw) === 'outbound-blocked') return reportFor('outbound-blocked', cleanRaw, '')
   // 已退役下线**最先**判：判据是 electron 抛的专用签名（确定性事实），不该被任何猜文案的检测抢走。
   if (detectModelRetired(cleanRaw)) return reportFor('model-retired', cleanRaw, undefined)
   // 类型不符同理是专用签名，同层最先判。upstream 显式给 ''：这是**我们自己**的内部信号，

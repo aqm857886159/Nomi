@@ -61,12 +61,12 @@
   top: 0;
   z-index: 1;
   box-sizing: border-box;
-  border: 1px solid color-mix(in oklch, var(--nomi-ink) 32%, transparent);
+  border: 1px solid color-mix(in oklab, var(--nomi-ink) 32%, transparent);
   border-radius: 14px;
-  background: color-mix(in oklch, var(--nomi-paper) 5%, transparent);
+  background: color-mix(in oklab, var(--nomi-paper) 5%, transparent);
   box-shadow:
-    0 0 0 1px color-mix(in oklch, var(--nomi-paper) 22%, transparent) inset,
-    0 14px 34px color-mix(in oklch, var(--nomi-ink) 10%, transparent);
+    0 0 0 1px color-mix(in oklab, var(--nomi-paper) 22%, transparent) inset,
+    0 14px 34px color-mix(in oklab, var(--nomi-ink) 10%, transparent);
   pointer-events: auto;
   cursor: move;
 }
@@ -117,7 +117,7 @@
   z-index: 1;
   overflow: hidden;
   background:
-    radial-gradient(circle at 28% 22%, color-mix(in oklch, var(--nomi-paper) 88%, transparent), transparent 34%),
+    radial-gradient(circle at 28% 22%, color-mix(in oklab, var(--nomi-paper) 88%, transparent), transparent 34%),
     linear-gradient(135deg, var(--nomi-ink-05), color-mix(in oklch, var(--nomi-paper) 92%, var(--nomi-ink-05)));
   pointer-events: none;
 }
@@ -129,7 +129,7 @@
   background: linear-gradient(
     90deg,
     transparent 0%,
-    color-mix(in oklch, var(--nomi-paper) 72%, transparent) 48%,
+    color-mix(in oklab, var(--nomi-paper) 72%, transparent) 48%,
     transparent 100%
   );
   animation: generation-canvas-v2-media-loading-sweep 1.25s ease-in-out infinite;
@@ -144,10 +144,10 @@
   width: 34px;
   height: 34px;
   border-radius: 999px;
-  background: color-mix(in oklch, var(--nomi-paper) 82%, transparent);
+  background: color-mix(in oklab, var(--nomi-paper) 82%, transparent);
   box-shadow:
-    0 0 0 1px color-mix(in oklch, var(--nomi-ink) 8%, transparent),
-    0 10px 26px color-mix(in oklch, var(--nomi-ink) 10%, transparent);
+    0 0 0 1px color-mix(in oklab, var(--nomi-ink) 8%, transparent),
+    0 10px 26px color-mix(in oklab, var(--nomi-ink) 10%, transparent);
   transform: translate(-50%, -50%);
 }
 
@@ -188,7 +188,7 @@
   padding: 3px 8px;
   border: 0;
   border-radius: 999px;
-  background: color-mix(in oklch, var(--nomi-paper) 88%, transparent);
+  background: color-mix(in oklab, var(--nomi-paper) 88%, transparent);
   color: var(--nomi-accent);
   font: inherit;
   font-size: 11px;

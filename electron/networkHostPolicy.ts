@@ -13,10 +13,16 @@ for (const [address, prefix] of [
   ['2002::', 16], ['3fff::', 20],
 ] as const) blocked.addSubnet(address, prefix, 'ipv6');
 
-/** Shared private/loopback classification for proxy bypass and hardened URL checks. */
+/**
+ * Shared private/loopback classification for proxy bypass and hardened URL checks.
+ *
+ * Deliberately has NO escape hatch. The former `LAB_ALLOW_LOCALHOST=1` switch turned the whole
+ * classifier off - loopback, RFC 1918 and the 169.254 cloud-metadata range together - from an
+ * environment variable that shipped in production builds. Lab fixtures now name the exact origin
+ * they need through `setLabTrustedPrivateOrigins`, which `main.ts` only ever calls on an
+ * unpackaged build; see networkOutboundPolicy.ts.
+ */
 export function isPrivateHost(hostname: string): boolean {
-  // Existing lab-only escape hatch for local HTTP fixtures. Never set in production.
-  if (process.env.LAB_ALLOW_LOCALHOST === '1') return false;
   const host = hostname.toLowerCase().trim();
   if (!host) return true;
   if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local')) return true;

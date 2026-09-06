@@ -67,8 +67,14 @@ export function registerTaskIpcHandlers(loadRuntimeModule: RuntimeLoader): void 
         if (ownerDestroyed) return failComfyCandidateEnvelope(payload, "candidate_cancelled");
         return withTaskOwner(event.sender.id, () => runComfyCandidateTest(payload, { runTask, fetchTaskResult }));
       });
-    } catch {
-      return failComfyCandidateEnvelope(payload, ownerDestroyed ? "candidate_cancelled" : "provider_failed");
+    } catch (error) {
+      // 绑住这个 error：空 catch 曾把上游真因（含我们自己的出站策略拒绝）整个丢掉，
+      // 只留一个裸码给界面渲染。真因脱敏后随 params.detail 一起交出去。
+      return failComfyCandidateEnvelope(
+        payload,
+        ownerDestroyed ? "candidate_cancelled" : "provider_failed",
+        ownerDestroyed ? undefined : error,
+      );
     } finally {
       event.sender.removeListener("destroyed", onDestroyed);
     }
