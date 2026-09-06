@@ -1,6 +1,9 @@
 # Agent 架构总体方案：把 pi 真的当运行时用（2026-09-06）
 
-> 状态：📋 方案待拍板 —— **含必须先拍板的 3 条**（§6）。拍板前不动产品代码。
+> ⛔ **2026-09-07 被 [`docs/plan/2026-09-07-agent-runtime-rebuild.md`](2026-09-07-agent-runtime-rebuild.md) 取代（用户改判重做）。**
+> 本文的渐进修方向已不再采用，保留只为追溯证据与被吸收的结论。
+
+> 状态：⛔ 已废弃（2026-09-07 被重做方案取代）—— 原状态是「方案待拍板，含必须先拍板的 3 条（§6）」。
 > 上游评审：[`docs/audit/2026-09-06-agent-architecture-review.md`](../audit/2026-09-06-agent-architecture-review.md)（含全部 `file:line` 证据）
 > 基线：`origin/main@d974e6a55`
 
