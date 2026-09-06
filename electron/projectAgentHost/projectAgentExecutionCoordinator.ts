@@ -78,6 +78,7 @@ export type {
   ProjectAgentExecutionCoordinatorDeps,
   ProjectAgentExecutionCoordinator,
 } from "./projectAgentExecutionCoordinatorTypes";
+import { logError } from "../logging/logger";
 export { ProjectAgentSubscriptionError } from "./projectAgentExecutionCoordinatorTypes";
 export function createProjectAgentExecutionCoordinator(
   router: ProjectAgentRepositoryRouter,
@@ -108,7 +109,11 @@ export function createProjectAgentExecutionCoordinator(
   const reportInternalError =
     deps.reportInternalError ??
     ((error: unknown, context: Readonly<{ phase: string; turnId: string; message: string }>) => {
-      console.error(`[nomi:project-agent] ${context.phase} failed for ${context.turnId}: ${context.message}`, error);
+      logError("agent", "execution-phase-failed", error, {
+        phase: context.phase,
+        turnId: context.turnId,
+        reason: context.message,
+      });
     });
   const onTurnCompleted = deps.onTurnCompleted ?? completeProjectAgentExperience;
 

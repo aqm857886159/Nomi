@@ -66,6 +66,7 @@ import { createGenerationProviderBootstrap } from './generationProviderBootstrap
 import { createDefaultAuthorities } from './appIntegrationAuthorities'
 import { createProductionActionHooks } from './appIntegrationProductionActions'
 import { repairStaleMcpConfigs } from './mcpConfig'
+import { logDevDetail, logError, logInfo, logWarn } from '../logging/logger'
 
 let handle: RpcServerHandle | null = null
 // P4 S5：打开/切换项目时的补齐钩子（startCapabilityCore 装配后设进来）——按 run.jobs[].nodeId × artifacts
@@ -282,7 +283,7 @@ export async function startCapabilityCore(
           result: { id: `production-${job.jobId}`, type: artifact.kind === 'image' ? 'image' : 'video', url, createdAt: Date.now() },
         }, 15_000)
       } catch (error) {
-        console.warn('[nomi:production] push shot result failed:', error instanceof Error ? error.message : String(error))
+        logWarn('production-run', 'push-shot-result-failed', undefined, error)
       }
     }
     // P4 S4/S5：构造一个 Run 的提交门面（submission）。lease 身份（immutableProjectUuid/projectGeneration）
@@ -359,21 +360,21 @@ export async function startCapabilityCore(
       try {
         markSingleShotRunning(generationService.repository, projectId, runId)
       } catch (error) {
-        console.warn('[nomi:production] single-shot running status failed:', error instanceof Error ? error.name : 'unknown')
+        logWarn('production-run', 'single-shot-running-status-failed', undefined, error)
       }
     }
     const settleSingleShotCompleted = (projectId: string, runId: string, options: { jobId?: string; artifactId?: string } = {}): void => {
       try {
         markSingleShotCompleted(generationService.repository, projectId, runId, options)
       } catch (error) {
-        console.warn('[nomi:production] single-shot completion status failed:', error instanceof Error ? error.name : 'unknown')
+        logWarn('production-run', 'single-shot-completion-status-failed', undefined, error)
       }
     }
     const settleSingleShotAttention = (projectId: string, runId: string, jobId?: string): void => {
       try {
         markSingleShotAttention(generationService.repository, projectId, runId, jobId)
       } catch (error) {
-        console.warn('[nomi:production] single-shot attention status failed:', error instanceof Error ? error.name : 'unknown')
+        logWarn('production-run', 'single-shot-attention-status-failed', undefined, error)
       }
     }
     const activeSingleShotJobId = (projectId: string, runId: string): string | undefined => {
@@ -407,7 +408,7 @@ export async function startCapabilityCore(
           if (!outcome.quiescent) scheduleBatchRekick(projectId, runId)
         })
         .catch((error) => {
-          console.warn(`[nomi:production] ${label} failed:`, error instanceof Error ? error.message : String(error))
+          logWarn('production-run', 'observation-step-failed', { step: label }, error)
         })
         .finally(() => activeBatchDrives.delete(key))
     }
@@ -463,14 +464,14 @@ export async function startCapabilityCore(
           // promise rejection that causes the same provider task to be retried
           // forever on the next project reopen. Never submit from this path.
           if (isCurrent()) settleSingleShotAttention(projectId, runId, activeSingleShotJobId(projectId, runId))
-          console.warn('[nomi:production] single-shot observation failed:', error instanceof Error ? error.name : 'unknown')
+          logWarn('production-run', 'single-shot-observation-failed', undefined, error)
         }
       }).catch((error) => {
         // The inner try/catch handles provider/materialization errors. A final
         // lifecycle rejection (for example, a duplicate observer) must not
         // write attention: by this point the worker may belong to an older
         // capability-core epoch and the current Run could be unrelated.
-        console.warn('[nomi:production] single-shot observation failed:', error instanceof Error ? error.name : 'unknown')
+        logWarn('production-run', 'single-shot-observation-failed', undefined, error)
       })
     }
     // P4 §3.2：所有 gate 入口共用 post-decide 重踢。
@@ -626,7 +627,7 @@ export async function startCapabilityCore(
       const confirmGenerationInNomi = authorities.confirmGenerationInNomi ?? defaults.confirmGenerationInNomi
       disposeResidentGenerationAdapter = installResidentGenerationAdapter({ planning: generationPlanning, requestGenerationGate, authorizeGeneration, confirmGenerationInNomi, approvalReceiptAuthority: defaults.approvalReceiptAuthority!, projectSessionAuthority: defaults.projectSessionAuthority, owner: generationService }, authorities.onGenerationReady)
     } catch (error) {
-      console.error('[nomi:capability-core] resident generation adapter install failed:', error instanceof Error ? error.message : String(error))
+      logError('capability', 'resident-generation-adapter-install-failed', error)
     }
     // P4 S5：打开/切换项目时的补齐钩子（§3.4）。对该项目所有活跃 run：① landCanvasBestEffort 幂等补落缺失
     // 节点/组 + 回填已完成 result（materializationOperationId + 组章去重，跑两次不重复）；② single-shot 只 poll→materialize
@@ -687,14 +688,14 @@ export async function startCapabilityCore(
             kickSchedulerForRun(projectId, run.runId)
           }
         } catch (error) {
-          console.warn('[nomi:production] open-project canvas reconcile failed:', error instanceof Error ? error.message : String(error))
+          logWarn('production-run', 'open-project-canvas-reconcile-failed', undefined, error)
         }
         // 顺带把 S4 遗留的 resumeUnfinishedRuns 接上启动触发（legacy driver / 多镜批次的崩溃恢复；
         // semantic single-shot 已在上面走只读 observer，service 内部仍跳过它们，避免任何隐式 start）。
         try {
           await generationService.resumeUnfinishedRuns(projectId)
         } catch (error) {
-          console.warn('[nomi:production] resume unfinished runs failed:', error instanceof Error ? error.message : String(error))
+          logWarn('production-run', 'resume-unfinished-runs-failed', undefined, error)
         }
       })()
     }
@@ -761,9 +762,11 @@ export async function startCapabilityCore(
       }
     }, HEARTBEAT_INTERVAL_MS)
     heartbeatTimer.unref?.()
-    console.log(`[nomi:capability-core] RPC 监听 127.0.0.1:${handle.port}（库 ${location.path}）`)
+    logInfo('capability', 'rpc-listening', { port: handle.port })
+    // 库路径是本机路径，只在开发终端里给人看，不落盘。
+    logDevDetail('capability', `RPC 监听 127.0.0.1:${handle.port}（库 ${location.path}）`)
   } catch (error) {
-    console.error('[nomi:capability-core] 启动失败（不影响 app）:', error)
+    logError('capability', 'rpc-start-failed', error)
   }
 }
 

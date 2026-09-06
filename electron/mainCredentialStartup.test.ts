@@ -7,7 +7,8 @@ describe("desktop credential startup ordering", () => {
     const readyBlock = source.slice(source.indexOf("app\n    .whenReady()"));
     const createWindow = readyBlock.indexOf("await createWindow();");
     const capabilityStart = readyBlock.indexOf("void startDesktopCapabilityCore().catch");
-    const capabilityFailure = readyBlock.indexOf("startCapabilityCore failed", capabilityStart);
+    // 锚点跟着改名走：console.* 收口后这一句是 logError("capability", "start-failed", …)。
+    const capabilityFailure = readyBlock.indexOf('logError("capability", "start-failed"', capabilityStart);
 
     expect(createWindow).toBeGreaterThanOrEqual(0);
     expect(capabilityStart).toBeGreaterThan(createWindow);

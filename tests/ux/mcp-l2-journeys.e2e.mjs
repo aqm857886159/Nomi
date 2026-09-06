@@ -6,6 +6,9 @@ import { launchNomiApp } from './_launchApp.mjs'
 import { makeIsolatedDirs, packagedMcpRuntime, parseToolResult, spawnMcpStdioClient } from './_mcpJourney.mjs'
 import { startFakeApimartServer, writeFakeApimartCatalog } from './_mcpL2Fixture.mjs'
 import { expectAbsent, expectHidden, expectVisible, proveProbe } from './_assert.mjs'
+// 断连取消那条诊断的事件名派生自真相源（两条启动路共用的常量），不手抄散文：
+// 手抄的那份在日志收口时静默漂成假红，正是本轨踩到的坑。
+const { MCP_CANCELLED_IN_FLIGHT_EVENT } = await import('../../dist-electron/capabilityCore/mcpStdioDiagnostics.js')
 
 const dirs = makeIsolatedDirs('nomi-mcp-l2-')
 const packagedBundle = process.argv.includes('--packaged')
@@ -515,7 +518,10 @@ try {
   const c10Cancelled = await c10InFlight
   check(c10Exit?.code === 0, 'C10 stdin 断连后 stdio server 正常收口')
   check(c10Cancelled instanceof Error && /exited|cancel/i.test(c10Cancelled.message), 'C10 在飞 run_events 请求被断连取消')
-  check(/cancelled \d+ in-flight request/.test(c10Client.stderrText()), 'C10 stderr 留下断连取消日志')
+  // stderr 是宿主协议面（stdout 整条给了 JSON-RPC）：连计数字段一起钉，只查事件名的话，
+  // 一个「只落盘、stderr 静默」的回归照样能过。
+  const c10DropLine = c10Client.stderrText().split('\n').find((line) => line.includes(MCP_CANCELLED_IN_FLIGHT_EVENT)) || ''
+  check(/count=[1-9]\d*/.test(c10DropLine), 'C10 stderr 留下断连取消日志')
   check(provider.hits.filter((hit) => /^\/v1\/(images|videos)\/generations$/.test(hit.url || '')).length <= providerSubmissionsBeforeC10, 'C10 断连未新增供应商提交')
   c10Client = null
 

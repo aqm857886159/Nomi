@@ -93,6 +93,7 @@ export { default as IconEyeOff } from '@tabler/icons-react/dist/esm/icons/IconEy
 export { default as IconFile } from '@tabler/icons-react/dist/esm/icons/IconFile.mjs'
 export { default as IconFilePlus } from '@tabler/icons-react/dist/esm/icons/IconFilePlus.mjs'
 export { default as IconFileText } from '@tabler/icons-react/dist/esm/icons/IconFileText.mjs'
+export { default as IconFileZip } from '@tabler/icons-react/dist/esm/icons/IconFileZip.mjs'
 export { default as IconFilter } from '@tabler/icons-react/dist/esm/icons/IconFilter.mjs'
 export { default as IconFlag } from '@tabler/icons-react/dist/esm/icons/IconFlag.mjs'
 export { default as IconFlipHorizontal } from '@tabler/icons-react/dist/esm/icons/IconFlipHorizontal.mjs'

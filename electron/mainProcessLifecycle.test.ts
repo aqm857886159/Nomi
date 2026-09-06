@@ -61,6 +61,45 @@ describe("installMainProcessLifecycle", () => {
     expect(installProcessGoneHandlers).toHaveBeenCalledOnce();
   });
 
+  // MCP stdio 进程的 stderr 是宿主协议面（stdout 整条给了 JSON-RPC，宿主只能从 stderr 看诊断）。
+  // 日志收口那次把它当成了 dev 便利：打包版直接不镜像，于是真实宿主拉起的那个形态彻底哑掉。
+  // 顺序同样是产品语义——会话表头是第一行日志，晚一步就只落盘、进不了宿主视野。
+  it("MCP stdio 进程在装日志之前就把 stderr 标成宿主诊断面", () => {
+    const { app } = createApp(true);
+    const markStderrAsDiagnosticSurface = vi.fn();
+    const installMainLogger = vi.fn();
+
+    installMainProcessLifecycle(app, {
+      env: { NOMI_MCP_STDIO: "1" },
+      installCrashHandlers: vi.fn(),
+      installProcessStdioErrorGuards: vi.fn(),
+      installParentProcessWatchdog: vi.fn(() => vi.fn()),
+      markStderrAsDiagnosticSurface,
+      installMainLogger,
+    });
+
+    expect(markStderrAsDiagnosticSurface).toHaveBeenCalledOnce();
+    expect(markStderrAsDiagnosticSurface.mock.invocationCallOrder[0]).toBeLessThan(
+      installMainLogger.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("GUI 进程不动 stderr：那里它就是开发者的终端，打包后本就该安静", () => {
+    const { app } = createApp(true);
+    const markStderrAsDiagnosticSurface = vi.fn();
+
+    installMainProcessLifecycle(app, {
+      env: {},
+      installCrashHandlers: vi.fn(),
+      installProcessStdioErrorGuards: vi.fn(),
+      installParentProcessWatchdog: vi.fn(() => vi.fn()),
+      markStderrAsDiagnosticSurface,
+      installMainLogger: vi.fn(),
+    });
+
+    expect(markStderrAsDiagnosticSurface).not.toHaveBeenCalled();
+  });
+
   it("打包实例不启用开发父进程守卫", () => {
     const { app } = createApp(true);
     const installParentProcessWatchdog = vi.fn(() => vi.fn());

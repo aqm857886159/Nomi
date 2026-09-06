@@ -7,6 +7,7 @@ import { createAgentContextService } from './contextService';
 import { createAgentContextStore } from './contextStore';
 import { resolveAgentContextFile } from './contextPaths';
 import type { RunAgentTurn, RuntimeSnapshotCodec } from '../runtime/runtimePort';
+import { logWarn } from '../../logging/logger';
 
 type NativePort = { runAgentTurn: RunAgentTurn; snapshotCodec: RuntimeSnapshotCodec };
 // A runtime require keeps the native .cts/.mts island out of the CommonJS tsc graph.
@@ -35,6 +36,6 @@ export async function withAgentRuntimePaths<T>(work: (paths: AgentRuntimePaths) 
   } finally {
     // Only this exact mkdtemp-owned root is removed. A cleanup failure must not erase actual usage.
     try { rmSync(root, { recursive: true, force: true }); }
-    catch (error) { console.warn('Agent scratch cleanup failed', error); }
+    catch (error) { logWarn('agent', 'scratch-cleanup-failed', undefined, error); }
   }
 }

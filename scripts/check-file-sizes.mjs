@@ -44,7 +44,10 @@ const ALLOWLIST = {
   // 自定义 MCP 客户端 profile 接入（registerCustomMcpProfileIpc + watchMcpProfiles + import）3行；
   // 839→846：registerIntegrationHandoffIpc + registerIntegrationSessionIpc 的 import+调用（integration
   // certification handoff queue，0b6441c6 transplant 时误删后按根因恢复）7行；仍远低于本分支起点 847。
-  "electron/main.ts": 846,
+  // 846→828：console.* 收口到 logging/logger 时，把 registerDevDiagnostics（dev-only 窗口诊断挂钩，
+  // 整族最后都落在 logDevDetail 上）搬进 electron/logging/devDiagnostics.ts（−26 行），
+  // 同 commit 加回「profile 被隔离时日志跟着走」那段带注释的 setPath（+8 行）。
+  "electron/main.ts": 828,
   "electron/projectAgentHost/projectAgentState.ts": 803,
   // Phase 6 常驻壳成为唯一 Agent UI 后的应用外壳（pr223 评审基线曾为 908；并 origin/main 拆解面板宿主后
   // 折叠一行多名 import，曾 907；m1 侧栏收起修复顺手折叠 hydrate/navigate 多行调用参数，实际 903，锁棘轮只减不增）。

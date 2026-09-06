@@ -61,6 +61,25 @@ import {
   projectAgentProposalReceiptPath,
 } from "./projectAgentProposalReceiptStore";
 
+// 主进程诊断输出已收口到 electron/logging/logger（打包后 console.* 没人接住，见
+// docs/fixes/2026-09-06-main-process-logs-into-the-void.root-cause.json）。
+// 这里断言那个出口——比原来的「console.warn 被调过一次」更能说明发生了什么。
+const logged = vi.hoisted(() => [] as { level: string; scope: string; event: string; rest: unknown[] }[])
+vi.mock("../logging/logger", () => {
+  const record = (level: string) => (scope: string, event: string, ...rest: unknown[]) => {
+    logged.push({ level, scope, event, rest })
+  }
+  return {
+    logInfo: record("info"),
+    logWarn: record("warn"),
+    logError: record("error"),
+    logDevDetail: () => undefined,
+    logVendorCall: () => undefined,
+    installMainLogger: () => undefined,
+    currentLogFile: () => "",
+  }
+})
+
 function skillWriteAdapter(): PiSkillWriteTransportAdapter & {
   prepare: ReturnType<typeof vi.fn>;
   execute: ReturnType<typeof vi.fn>;
@@ -686,7 +705,7 @@ describe("ProjectAgentExecutionCoordinator", () => {
     const onTurnCompleted = vi.fn(async () => {
       throw new Error("experience persistence unavailable");
     });
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    logged.length = 0;
     try {
       const coordinator = createProjectAgentExecutionCoordinator(
         createProjectAgentRepositoryRouter({ rootDir: root }),
@@ -709,12 +728,13 @@ describe("ProjectAgentExecutionCoordinator", () => {
 
       await coordinator.enqueue(opened.subscriptionId, input);
       const terminal = await coordinator.waitForTurn(opened.subscriptionId, input.mutation.payload.turn.turnId);
-      await vi.waitFor(() => expect(warn).toHaveBeenCalledOnce());
+      await vi.waitFor(() =>
+        expect(logged.filter((entry) => entry.event === "completion-side-effect-failed")).toHaveLength(1),
+      );
 
       expect(terminal.turns.find((turn) => turn.turnId === input.mutation.payload.turn.turnId)?.status).toBe("done");
       expect(onTurnCompleted).toHaveBeenCalledOnce();
     } finally {
-      warn.mockRestore();
     }
   });
 

@@ -5,6 +5,7 @@ import { getMainWindow } from "../mainWindowRegistry";
 import { loadOrCreateArtifactPreviewSecret } from "./artifactProjection";
 import { resolveProductionDeepLink, type ProductionDeepLinkTarget } from "./productionDeepLink";
 import { createProductionRunRepository } from "./productionRunRepository";
+import { logError, logWarn } from "../logging/logger";
 
 type InstallArgs = {
   isMcpStdio: boolean;
@@ -50,10 +51,7 @@ export function installProductionRunDesktopLifecycle(args: InstallArgs): {
       const target = resolveProductionDeepLink(rawUrl, createProductionRunRepository());
       deliverProductionDeepLink(target);
     } catch (error) {
-      console.warn(
-        "[nomi:desktop] ignored invalid production deep link",
-        error instanceof Error ? error.message : String(error),
-      );
+      logWarn("production-run", "invalid-deep-link-ignored", undefined, error);
     }
   }
 
@@ -84,7 +82,7 @@ export function installProductionRunDesktopLifecycle(args: InstallArgs): {
     if (!args.hasSingleInstanceLock) {
       // Electron otherwise exits with code 0 and no window, which looks like a
       // renderer crash when another Nomi instance owns the profile lock.
-      (args.log ?? console.error)(
+      (args.log ?? ((message: string) => logError("main", "single-instance-exit", undefined, { reason: message })))(
         "[nomi:desktop] another Nomi instance is already using this profile; this process is exiting. " +
           "Close the running Nomi app, or set NOMI_ELECTRON_USER_DATA_DIR to an isolated directory for development.",
       );
