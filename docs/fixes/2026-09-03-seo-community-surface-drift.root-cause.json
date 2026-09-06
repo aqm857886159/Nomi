@@ -1,0 +1,137 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-03-seo-community-surface-drift",
+  "problem_type": "Stale public community destination after GitHub repository setting changed",
+  "symptom": "The SEO contract test fails because it still asserts that an active repository Discussions URL must be absent, while the current GitHub repository exposes a working Discussions page and the marketing website still labels Issues as the community destination.",
+  "direct_cause": "The former repository setting was encoded as a negative assertion, and the marketing source retained an Issues destination after Discussions was enabled externally.",
+  "class_root": "There is no enforced invariant that all active public community surfaces use one verified, current GitHub destination while keeping issue reporting as a separate surface.",
+  "affected_population": [
+    "Users arriving through the English or Chinese README",
+    "Users choosing the repository contact link before opening an issue",
+    "Users following the English model-connection tutorial",
+    "Search crawlers and link-preview consumers reading public repository and marketing content"
+  ],
+  "scope_paths": [
+    "scripts/marketing/content.mjs",
+    "marketing/index.html",
+    "marketing/en/index.html",
+    "README.md",
+    "README.zh-CN.md",
+    ".github/ISSUE_TEMPLATE/config.yml",
+    "docs/guide/model-connection-en.md",
+    "tests/seo/seo-contract.node.mjs",
+    "tests/ux/marketing-home.static.mjs"
+  ],
+  "entry_points": [
+    "Marketing content source and generated bilingual pages",
+    "English and Chinese repository READMEs",
+    "GitHub issue-template contact links",
+    "English model-connection guide",
+    "SEO and marketing static contract tests"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://github.com/aqm857886159/Nomi/discussions",
+      "checked_at": "2026-09-03",
+      "purpose": "Verify that the canonical Discussions destination is currently enabled, reachable, and populated."
+    }
+  ],
+  "invariants": [
+    "Active public community links use https://github.com/aqm857886159/Nomi/discussions.",
+    "Bug reports and feature requests continue to use the Issues surface.",
+    "Generated marketing pages and their content source remain in sync."
+  ],
+  "generality_proof": "Repository-wide search found the active README, issue-template, guide, marketing source, generated pages, and tests as the independent surfaces that expose the community destination. The updated static gate checks the active user-facing documents together, so a future repository-setting or copy change cannot silently leave the marketing pages on a contradictory URL. Historical plans, specs, and mockups are excluded because they document prior decisions rather than active entry points.",
+  "shared_boundaries": [
+    {
+      "path": "scripts/marketing/content.mjs",
+      "symbol": "shared.discussionUrl",
+      "responsibility": "Own the canonical marketing community destination used to generate both localized public pages."
+    },
+    {
+      "path": "tests/seo/seo-contract.node.mjs",
+      "symbol": "public community links resolve to a real GitHub surface",
+      "responsibility": "Enforce the current active-surface destination contract across source documents and prevent stale-link drift."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "README.md",
+      "entry_point": "English repository community and contribution links",
+      "disposition": "enforced",
+      "evidence": "Repository-wide search found three active community/contribution references; the test checks that the README retains the canonical Discussions destination."
+    },
+    {
+      "path": "README.zh-CN.md",
+      "entry_point": "Chinese repository community link",
+      "disposition": "enforced",
+      "evidence": "The Chinese README is an indexed repository entry point and already had the verified Discussions URL; it is now included in the active-surface assertion."
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/config.yml",
+      "entry_point": "Questions and ideas contact link",
+      "disposition": "enforced",
+      "evidence": "GitHub renders this configuration before issue creation, so it is an active user-facing community entry point and already targets the verified Discussions surface."
+    },
+    {
+      "path": "docs/guide/model-connection-en.md",
+      "entry_point": "English onboarding support links",
+      "disposition": "enforced",
+      "evidence": "The guide is linked from the public README and already contains the verified Discussions destination for setup questions and follow-up."
+    },
+    {
+      "path": "src/ui/community/communityLinks.ts",
+      "entry_point": "Desktop bug and feature issue submission",
+      "disposition": "not-affected",
+      "evidence": "This path intentionally reports reproducible bugs and feature requests to Issues; it is not a general community discussion destination."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "GitHub repository settings can change independently of commits, and the community destination is duplicated across generated source, READMEs, configuration, guides, and tests. Without a positive active-surface invariant, the same drift can recur after a future setting or copy change.",
+    "same_class_scan": [
+      "rg -n -i 'github\\.com/aqm857886159/Nomi/(discussions|issues)|GitHub Discussions|/discussions' across active repository, marketing, guide, and test paths.",
+      "Checked scripts/marketing/content.mjs and generated marketing/index.html plus marketing/en/index.html.",
+      "Checked README.md, README.zh-CN.md, .github/ISSUE_TEMPLATE/config.yml, and docs/guide/model-connection-en.md; these already use Discussions.",
+      "Checked src/ui/community/communityLinks.ts and retained its Issues-only reporting role as not affected."
+    ]
+  },
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "tests/seo/seo-contract.node.mjs",
+    "invariant": "Every active public/community surface must contain the verified canonical Discussions URL, and active generated marketing content must not silently diverge from it.",
+    "failure_mode": "The SEO contract test fails before delivery when an active surface omits the canonical destination or reintroduces a contradictory stale destination.",
+    "exception_policy": "none",
+    "strategy": "Keep the canonical destination in the marketing content source and assert the full active-surface set in one static test; keep issue-reporting code outside that set with an explicit not-affected disposition.",
+    "artifacts": [
+      "tests/seo/seo-contract.node.mjs",
+      "tests/ux/marketing-home.static.mjs",
+      "scripts/marketing/content.mjs"
+    ]
+  },
+  "regression_tests": [
+    "tests/seo/seo-contract.node.mjs",
+    "tests/ux/marketing-home.static.mjs"
+  ],
+  "class_regression_tests": [
+    "tests/seo/seo-contract.node.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "scripts/marketing/content.mjs"
+    ],
+    "rationale": "The obsolete Issues-only community copy is removed from active marketing source and generated pages where Discussions is the verified current destination. Historical plans, specs, mockups, and issue-reporting code are intentionally retained because they describe prior decisions or a different user intent."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party runtime controls this invariant; the failure is caused by repository-state drift and duplicated public copy.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted data or runtime state is involved. Regenerate the marketing HTML from scripts/marketing/content.mjs and update active Markdown/YAML links in the same change.",
+  "residual_risks": [
+    "GitHub can disable Discussions again without a repository commit; the static gate cannot prove external settings at every future run, so the verified external source and periodic SEO observatory remain necessary.",
+    "Keyword demand, ranking, backlink, and AI-visibility opportunities remain unmeasured until an authorized OpenSEO/DataForSEO connection is provided."
+  ]
+}

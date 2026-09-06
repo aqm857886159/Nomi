@@ -1,0 +1,162 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-03-seo-clean-route-drift",
+  "problem_type": "Public onboarding URLs disagree with deployed redirect targets and canonical signals",
+  "symptom": "OpenSEO finds /handbook and /quickstart as indexable 200 pages while each page declares a .html canonical; the .html sitemap entries return 307 redirects back to the clean URLs.",
+  "direct_cause": "The deployed site normalizes the onboarding pages to clean URLs, but the marketing content source, page manifest, generated metadata, sitemap, and one static footer still encode .html URLs.",
+  "class_root": "There is no single enforced invariant that the deployed final URL, rel=canonical, sitemap entry, structured page URL, and internal links for every public onboarding page are identical.",
+  "affected_population": [
+    "Search crawlers clustering duplicate onboarding URLs",
+    "Users following homepage, English homepage, or quickstart footer links",
+    "Search and analytics reports that split clean and .html URL signals"
+  ],
+  "scope_paths": [
+    "scripts/marketing/content.mjs",
+    "scripts/marketing/site-manifest.mjs",
+    "scripts/build-handbook-html.mjs",
+    "docs/seo/config.json",
+    "src/workbench/onboarding/handbookContent.ts",
+    "marketing/index.html",
+    "marketing/en/index.html",
+    "marketing/quickstart.html",
+    "marketing/handbook.html",
+    "marketing/sitemap.xml",
+    "tests/seo/sitemap.node.mjs",
+    "tests/seo/seo-contract.node.mjs",
+    "tests/ux/marketing-home.static.mjs"
+  ],
+  "entry_points": [
+    "Homepage and English homepage onboarding CTAs",
+    "Quickstart footer navigation",
+    "Handbook metadata, structured data, and next-step links",
+    "Generated sitemap and SEO contract tests"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls",
+      "checked_at": "2026-09-03",
+      "purpose": "Google recommends aligning redirects, canonical annotations, and sitemap URLs around one preferred canonical URL."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap",
+      "checked_at": "2026-09-03",
+      "purpose": "Google recommends listing the canonical URLs intended for search results in the sitemap."
+    }
+  ],
+  "invariants": [
+    "Each public onboarding page has one final clean URL used consistently by deployment-facing metadata, structured data, sitemap, and internal links.",
+    "Legacy .html URLs remain compatibility redirects only and are not listed as canonical sitemap entries.",
+    "The handbook exposes contextual next-step links to relevant Nomi pages and the verified Discussions surface."
+  ],
+  "generality_proof": "The same route constants feed homepage generation, handbook metadata, sitemap rendering, and public tests; the explicit footer scan covers the remaining hand-authored onboarding output. The contract tests assert both positive clean-route usage and negative legacy-route absence across all generated public surfaces.",
+  "shared_boundaries": [
+    {
+      "path": "scripts/marketing/content.mjs",
+      "symbol": "shared.quickstartUrl and shared.handbookUrl",
+      "responsibility": "Own the public onboarding destinations consumed by marketing page generation and handbook metadata."
+    },
+    {
+      "path": "scripts/marketing/site-manifest.mjs",
+      "symbol": "marketingPages",
+      "responsibility": "Own the canonical public route set rendered into the sitemap."
+    },
+    {
+      "path": "tests/seo/seo-contract.node.mjs",
+      "symbol": "public onboarding links use the final clean routes",
+      "responsibility": "Fail delivery when canonical metadata, sitemap-facing pages, or active internal links reintroduce the legacy route form."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "scripts/marketing/content.mjs",
+      "entry_point": "Homepage CTA hrefs",
+      "disposition": "enforced",
+      "evidence": "Homepage links derive from shared.quickstartUrl and shared.handbookUrl."
+    },
+    {
+      "path": "docs/seo/config.json",
+      "entry_point": "SEO Observatory public path allowlist",
+      "disposition": "enforced",
+      "evidence": "The observatory allowlist uses the same clean public routes as the sitemap manifest."
+    },
+    {
+      "path": "scripts/build-handbook-html.mjs",
+      "entry_point": "Handbook canonical, OG URL, JSON-LD, and next-step links",
+      "disposition": "enforced",
+      "evidence": "Handbook metadata and links derive from shared route constants and are covered by generated-output tests."
+    },
+    {
+      "path": "marketing/quickstart.html",
+      "entry_point": "Quickstart footer navigation",
+      "disposition": "enforced",
+      "evidence": "This static page contains a hand-authored handbook link and is included in the active output scan."
+    },
+    {
+      "path": "README.md",
+      "entry_point": "Repository onboarding links",
+      "disposition": "not-affected",
+      "evidence": "The repository README uses its own GitHub quick-start anchor and does not publish the marketing onboarding route."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "A future route rename or hosting normalization can diverge again because generated metadata, manifest, sitemap, and static output have separate consumers.",
+    "same_class_scan": [
+      "rg -n 'quickstart\\.html|handbook\\.html|/quickstart|/handbook' scripts marketing tests docs",
+      "Checked content source, site manifest, homepage generator, handbook generator, quickstart footer, generated pages, sitemap, and SEO/static contract tests.",
+      "Verified the deployed behavior through the OpenSEO audit: clean routes return 200 and .html routes return 307 to clean routes."
+    ]
+  },
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "tests/seo/seo-contract.node.mjs",
+    "invariant": "All active public onboarding metadata, sitemap entries, and internal links use the same final clean route; legacy .html forms do not appear in those public signals.",
+    "failure_mode": "The SEO contract and site static checks fail before delivery when a generated or hand-authored public surface reintroduces .html or drops handbook next-step links.",
+    "exception_policy": "none",
+    "strategy": "Centralize the route values in the marketing source and manifest, regenerate derived outputs, and assert both the route mapping and class-wide legacy absence.",
+    "artifacts": [
+      "scripts/marketing/content.mjs",
+      "scripts/marketing/site-manifest.mjs",
+      "docs/seo/config.json",
+      "scripts/build-handbook-html.mjs",
+      "tests/seo/seo-contract.node.mjs",
+      "tests/seo/sitemap.node.mjs",
+      "tests/ux/marketing-home.static.mjs"
+    ]
+  },
+  "regression_tests": [
+    "tests/seo/seo-contract.node.mjs",
+    "tests/seo/sitemap.node.mjs",
+    "tests/ux/marketing-home.static.mjs"
+  ],
+  "class_regression_tests": [
+    "tests/seo/seo-contract.node.mjs",
+    "tests/seo/sitemap.node.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "scripts/marketing/content.mjs",
+      "scripts/marketing/site-manifest.mjs",
+      "scripts/build-handbook-html.mjs",
+      "marketing/quickstart.html",
+      "marketing/handbook.html",
+      "docs/seo/config.json",
+      "marketing/sitemap.xml"
+    ],
+    "rationale": "The obsolete .html public URL declarations are removed from active canonical signals; the physical .html files remain as build artifacts and compatibility redirect sources."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The invariant is owned by Nomi's route source, generators, and static tests; no third-party runtime controls the URL decision.",
+    "exit_criteria": []
+  },
+  "migration": "Keep existing .html URLs serving their platform redirect to the clean targets, update first-party links and sitemap immediately, then re-run OpenSEO and Search Console URL Inspection after deployment.",
+  "residual_risks": [
+    "The hosting layer must continue redirecting the old .html paths permanently; repository tests cannot prove the production redirect status.",
+    "Search engines may retain old URL clusters temporarily after the signal change; verify the live deployed HTML and URL Inspection rather than relying only on local output.",
+    "The clean-route decision is implemented for the current two onboarding pages; any new public page must enter through the same content/manifest contract."
+  ]
+}
