@@ -28,6 +28,7 @@ import {
   renderMarkdown,
   resolvePlatforms,
   searchPlatform,
+  summarizeResults,
 } from './tikhub-search-lib.mjs'
 
 const USAGE = `用法：node scripts/research/tikhub-search.mjs --q "<关键词>" [--platform douyin|xhs|bilibili|x|all] [--limit 20] [--since 2026-01-01] --out <dir>
@@ -126,6 +127,9 @@ async function main() {
     limitPerPlatform: options.limit,
     generatedAt,
     failures,
+    // 摘要放在 results 之前：调用方（含 agent）第一眼就该看到「这轮靠不靠谱」，
+    // 而不是先读完几百条 records 才发现某个平台其实是空的。
+    summary: summarizeResults(results),
     results,
   }
   const jsonPath = path.join(outDir, 'tikhub-search.json')
@@ -133,8 +137,15 @@ async function main() {
   fs.writeFileSync(jsonPath, `${JSON.stringify(bundle, null, 2)}\n`)
   fs.writeFileSync(mdPath, renderMarkdown({ keyword: options.query, since: options.since, generatedAt, results }))
 
-  const total = results.reduce((sum, group) => sum + group.records.length, 0)
-  process.stdout.write(`${jsonPath}\n${mdPath}\n共 ${total} 条${failures.length > 0 ? `（${failures.length} 个平台失败）` : ''}\n`)
+  const { totalRecords, platforms: summaryRows } = bundle.summary
+  process.stdout.write(`${jsonPath}\n${mdPath}\n`)
+  for (const row of summaryRows) {
+    const missing = Object.entries(row.missingFields)
+      .map(([field, count]) => `${field}×${count}`)
+      .join('、')
+    process.stdout.write(`  ${row.status === 'ok' ? '✓' : row.status === 'empty' ? '⚠️' : '✗'} ${row.platformLabel}：${row.items} 条${missing ? ` · 缺字段 ${missing}` : ''}${row.error ? ` · ${row.error}` : ''}\n`)
+  }
+  process.stdout.write(`共 ${totalRecords} 条${failures.length > 0 ? `（${failures.length} 个平台失败）` : ''}\n`)
   return failures.length === platforms.length && platforms.length > 0 ? 3 : 0
 }
 
