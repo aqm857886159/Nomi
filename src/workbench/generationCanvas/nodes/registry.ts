@@ -273,6 +273,29 @@ export const GENERATION_NODE_PLUGINS = defineGenerationNodePlugins([
     quickAdd: false,
     providesImageReference: true,
   },
+  {
+    // AI 手艺产物：Agent 不调模型、用代码/标记语言直接做出的表达物（SVG / 动态 HTML / Markdown /
+    // 表格 / 3D 摆位…）的画布家。区别于生成节点（media 照旧走 image/video/audio/model3d）。
+    // - 无 executionKind → 不生成、无 composer（壳按 asset 同款逻辑关闭生成 UI）。
+    // - agentCreatable:true → 只能 Agent 经 create_nodes 创建（用户不手动加空节点，quickAdd:false）。
+    // - 产物元数据不塞 result（GenerationResultType 是 zod 5 值闭集），挂在 node.meta.artifact：
+    //   { fileType: 'svg'|'html'|'markdown'|'table'|'glb'|'text', url: nomi-local://… }，
+    //   url 带真实扩展名（下载/主进程按扩展名补全，无需动 useResultDownload 闭集）。
+    // - 渲染：BaseGenerationNode 的 kind 专属分支（scene3d/panorama 同级）→ ArtifactBody 按 fileType 分发子视图。
+    // - 不作参考槽源（providesImageReference 缺省 false）：要当参考图 → 浮条"固化为参考图"
+    //   栅格化 PNG 走 assetImportAdapter 另存为 asset 节点（参考语义归 asset，不双源）。
+    //   数据模型收敛见 docs/plan/2026-09-06-agent-artifact-node.md §4.1。
+    kind: 'agent-artifact',
+    label: 'Agent Artifact',
+    menuLabel: 'Artifact',
+    component: loadBaseGenerationNode,
+    icon: 'image',
+    defaultTitle: 'Agent Artifact',
+    defaultSize: { width: 360, height: 260 },
+    catalogKind: 'text',
+    quickAdd: false,
+    agentCreatable: true,
+  },
 ])
 
 export type GenerationNodePlugin = (typeof GENERATION_NODE_PLUGINS)[number]

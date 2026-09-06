@@ -128,14 +128,14 @@
 
 ## 10. 实施决议（v1 范围 · 拍板后）
 
-**v1 本轮实现（最小垂直切片，一个 PR）：**
-- kind 注册 + 镜像表三处：`registry.ts` 增插件；`electron/shared/agentCapabilities/canvasRead.ts` `CANVAS_NODE_KINDS`；`electron/capabilityCore/nodeKindDomain.ts` `NODE_KIND_DEFAULT_SIZE/TITLE`。icon 复用现有（新 key 会动 NODE_ICONS 闭集，先不扩——用 'image' 语义近似待 P1 换专属）。
-- `meta.artifact` 元数据 + `resolveNodeRenderKind`/BaseGenerationNode **kind 专属分支**（scene3d/panorama 同级，渲染 ArtifactBody）。
-- ArtifactBody 子视图：svg（复用 DeferredNodeImage 图片管线）/ html（沙箱 iframe allow-scripts）/ markdown（NomiMarkdown）/ table（轻量 HTML 表格渲染）/ glb（复用 Model3DViewer）。**v1 先落 svg + html + markdown + table 四类**，glb 复用 Model3DViewer 若接线成本可控则含，否则 P1。
-- HTML 沙箱（决策 3）+ main 侧拦截。
-- 浮条动作：复用 FloatingToolbarShell 组合（放大 / 下载 / 固化为参考图（SVG v1，栅格化 PNG）/ 复制）。
-- i18n zh+en（nodeRegistry 动态段 + 浮条文案）；check:i18n / key-parity 绿。
-- vitest：schema 兼容、分发、meta 持久化、下载扩展名。
-- 交付纪律：sibling worktree + delivery:preflight + 独立分支 PR（本分支 `feat/agent-artifact-node-20260906`）。
+**v1 本轮实现状态（2026-09-06 落地核对）：**
+- [x] kind 注册 + 镜像表三处：`registry.ts` 插件（agentCreatable:true / 无 executionKind / quickAdd:false）；`canvasRead.ts` `CANVAS_NODE_KINDS`；`nodeKindDomain.ts` 尺寸/标题镜像（equivalence 测试绿）。icon 复用 image（P1 换专属）。
+- [x] `meta.artifact`（`model/artifactMeta.ts`：fileType 词表 + reader + copy/参考谓词）+ `resolveNodeRenderKind` 强制 undefined（防 cast/scene 误判卡）+ BaseGenerationNode **kind 专属分支** → ArtifactBody。
+- [x] ArtifactBody 子视图：svg（img）/ html（沙箱 iframe allow-scripts，无 same-origin）/ markdown / table / text / glb（Model3DViewer）。
+- [x] HTML 沙箱纵深核对：窗口 `nodeIntegration:false + contextIsolation:true` + 无 nodeIntegrationInSubFrames + `setWindowOpenHandler` deny + `will-navigate` 只放行本地入口 → 无需新增 main 代码。
+- [x] 浮条动作 `ArtifactNodeToolbar`：下载（bridge.assets.download）+ 复制（text/markdown/html）。放大 / 固化参考图 / 3D 截图 = P1。
+- [x] i18n zh+en（`runtime.nodeRegistry.'agent-artifact'.*`）；check:i18n 全绿（5036 keys parity）。
+- [x] vitest：artifactMeta 6 用例 + generationCanvas 2743 passed 零回归 + electron equivalence 6 用例。
+- [ ] 交付纪律：sibling worktree `Nomi-agent-artifact-node` + preflight ✅ + 分支 PR（进行中）。
 
-**P1（不在本轮，文档待办）：** 3D 视口截图参考化、HTML 截图当画面素材、PPT/表格参考化、手艺选择 skill 落库（先核对 skills 体系）、设计实验室接入、node 专属 icon。
+**P1（不在本轮，文档待办）：** SVG→PNG 栅格化"固化为参考图"（derivedRef + asset 落库）、3D 视口截图参考化、HTML 放大/截图当画面素材、表格参考化、手艺选择 skill 落库（先核对 skills 体系）、设计实验室接入、node 专属 icon。

@@ -26,7 +26,9 @@ const RENDER_KIND_BY_NODE_KIND: Record<string, string> = {
 export function resolveNodeRenderKind(
   node: Pick<GenerationCanvasNode, "kind" | "renderKind" | "categoryId">,
 ): string | undefined {
-  if (node.kind === "asset") return undefined;
+  // 素材与 Agent 手艺产物都走「壳内 kind 专属渲染」，永远纯预览/专属 body（renderKind=undefined）——
+  // 否则落进 cast/scene/prop 分类会被误判成角色/场景/道具卡（asset 的历史边界 1，agent-artifact 同款）。
+  if (node.kind === "asset" || node.kind === "agent-artifact") return undefined;
   const kindOwned = RENDER_KIND_BY_NODE_KIND[node.kind as string];
   if (kindOwned) return kindOwned;
   const explicit = node.renderKind as string | undefined;

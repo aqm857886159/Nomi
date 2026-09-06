@@ -26,7 +26,7 @@ const nonnegativeSafeIntegerSchema = z
 /** Shared persisted-domain vocabulary; canvas read and write boundaries consume this same list. */
 export const CANVAS_NODE_KINDS = Object.freeze([
   "text", "character", "scene", "image", "keyframe", "video", "audio", "clip", "shot", "output", "panorama",
-  "scene3d", "whiteboard", "model3d", "asset",
+  "scene3d", "whiteboard", "model3d", "asset", "agent-artifact",
 ] as const);
 export const CANVAS_EDGE_MODES = Object.freeze([
   "reference", "first_frame", "last_frame", "style_ref", "character_ref", "composition_ref",

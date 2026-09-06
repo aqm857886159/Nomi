@@ -27,6 +27,7 @@ export const NODE_KIND_DEFAULT_SIZE: Record<string, { width: number; height: num
   whiteboard: { width: 320, height: 240 },
   model3d: { width: 320, height: 300 },
   asset: { width: 340, height: 280 },
+  'agent-artifact': { width: 360, height: 260 },
 }
 
 /** per-kind 英文默认标题（镜像 registry.defaultTitle；locale 版在渲染层 i18n，headless 用英文回退）。 */
@@ -46,6 +47,7 @@ export const NODE_KIND_DEFAULT_TITLE: Record<string, string> = {
   whiteboard: 'Whiteboard',
   model3d: '3D Model',
   asset: 'Asset',
+  'agent-artifact': 'Agent Artifact',
 }
 
 /** Persisted canvas kind registry. Every reader and writer uses this list. */

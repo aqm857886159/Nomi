@@ -53,6 +53,7 @@ import { anchorFreezeToolbarProps } from '../fixation/freezeAnchor'
 import { TechnicalReviewBadge } from './TechnicalReviewBadge'
 import { canDragGenerationNodeToTimeline } from '../model/timelineDragAffordance'
 import { useResultDownload } from './useResultDownload'
+import { canArtifactCopyText, readAgentArtifactMeta } from '../model/artifactMeta'
 import {
   STATUS_LABEL,
   RESIZE_DIRECTIONS,
@@ -75,6 +76,8 @@ export type BaseGenerationNodeProps = {
 }
 const Scene3DEditor = lazyWithChunkBoundary('3D 场景编辑器', () => import('./Scene3DEditor')) // A5：chunk 失败只降级本卡
 const Model3DViewer = lazyWithChunkBoundary('3D 模型预览', () => import('./model3d/Model3DViewer')) // 生成出的 .glb 卡内可旋转预览（R3F）
+const ArtifactBody = lazyWithChunkBoundary('Agent 产物预览', () => import('./artifact/ArtifactBody'))
+const ArtifactNodeToolbar = lazyWithChunkBoundary('Agent 产物操作', () => import('./artifact/ArtifactNodeToolbar'))
 const TextDocumentNode = lazyWithChunkBoundary('文本节点编辑器', () => import('./render/TextDocumentNode'))
 const PanoramaViewer = lazyWithChunkBoundary('全景预览', () => import('./PanoramaViewer'))
 const NodeGenerationComposer = lazyWithChunkBoundary('节点生成面板', () => import('./NodeGenerationComposer'))
@@ -183,6 +186,11 @@ function BaseGenerationNodeImpl({
   // 素材节点：永远走纯图片预览。强制 renderKind=undefined，否则落进 cast/scene 分类的素材
   // 会被推断成角色卡/场景卡（A1.5 边界 1）。素材不挂 composer、不渲染生成占位。
   const isAssetKind = node.kind === 'asset'
+  // agent-artifact（AI 手艺产物）：产物不塞 result（GenerationResultType 闭集），走 kind 专属渲染
+  // 分支读 meta.artifact（SVG/HTML/Markdown/表格/GLB…）。与 asset 同语义：无 composer、无生成占位。
+  const isArtifactKind = node.kind === 'agent-artifact'
+  const artifactMeta = isArtifactKind ? readAgentArtifactMeta(node) : undefined
+  const hasArtifact = Boolean(artifactMeta)
   // renderKind 分发收口在 resolveRenderKind（纯函数,单测锁优先级:kind > categoryId）。
   const renderKind = resolveNodeRenderKind(node)
   const isCardKind = isCardRenderKind(renderKind)
@@ -252,6 +260,16 @@ function BaseGenerationNodeImpl({
   const hasFrameSourceEdge = useHasFrameSourceEdge(node.id, nodeExecutionKind === 'video') // A15：已连上游边时占位不再喊「拖图」
   const needsFirstFrame = nodeExecutionKind === 'video' && !canGenerate && !isGenerating
   const { handlePanoramaFileChange, handlePanoramaScreenshot } = useNodePanoramaHandlers(node, visualSize)
+  // agent-artifact：复制产物文本（text/markdown/html）进剪贴板——取 nomi-local 文件原文，不执行。
+  const artifactCopyHandler = React.useMemo(() => {
+    if (!artifactMeta || !canArtifactCopyText(artifactMeta.fileType)) return undefined
+    return async () => {
+      const response = await fetch(artifactMeta.url)
+      if (!response.ok) throw new Error(String(response.status))
+      const text = await response.text()
+      await navigator.clipboard.writeText(text)
+    }
+  }, [artifactMeta])
 
   // 图片本地编辑（切图 / 裁剪 / 旋转翻转）—— A1.5 抽进 useNodeImageEditing。
   // 图片类与素材类共用；编辑产物进入当前节点历史堆叠，并切换为主图。
@@ -534,7 +552,18 @@ function BaseGenerationNodeImpl({
         draggable={false}
         {...mediaPreviewDoubleClick}
       >
-        {node.kind === 'scene3d' ? (
+        {node.kind === 'agent-artifact' ? (
+          hasArtifact && artifactMeta ? (
+            <React.Suspense fallback={<NodeBodyLoading />}>
+              <ArtifactBody node={node} artifact={artifactMeta} width={visualSize.width} height={previewHeight} />
+            </React.Suspense>
+          ) : (
+            // 理论不可达：agent-artifact 只能 Agent 带 meta.artifact 创建。兜底给人话空态而非静默空白。
+            <div className="h-full w-full flex items-center justify-center text-nomi-ink-40 text-body-sm">
+              {t('runtime.nodeRegistry.agent-artifact.emptyState')}
+            </div>
+          )
+        ) : node.kind === 'scene3d' ? (
           <React.Suspense fallback={<Scene3DEditorLoading />}>
             <Scene3DEditor node={node} width={visualSize.width} height={previewHeight} readOnly={readOnly} />
           </React.Suspense>
@@ -638,6 +667,17 @@ function BaseGenerationNodeImpl({
         />
       ) : null}
 
+      {isArtifactKind && hasArtifact && artifactMeta && selected && !isMultiSelectActive && !readOnly ? (
+        <React.Suspense fallback={null}>
+          <ArtifactNodeToolbar
+            title={node.title || ''}
+            artifact={artifactMeta}
+            canCopyText={Boolean(artifactCopyHandler)}
+            onCopyText={artifactCopyHandler}
+          />
+        </React.Suspense>
+      ) : null}
+
       {showTimelineNotch ? (
         <TimelineNotchDragHandle
           onAddAtPlayhead={handleAddToTimelineAtPlayhead}
@@ -660,7 +700,8 @@ function BaseGenerationNodeImpl({
       node.kind !== 'panorama' &&
       node.kind !== 'scene3d' &&
       node.kind !== 'whiteboard' &&
-      !isAssetKind ? (
+      !isAssetKind &&
+      !isArtifactKind ? (
         <React.Suspense fallback={null}>
           <NodeGenerationComposer node={node} visualSize={visualSize} />
         </React.Suspense>
