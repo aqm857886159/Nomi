@@ -43,6 +43,10 @@ export const LAB_SCREENS = {
     registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/canvasAddMenu/states'),
     baselineDir: path.join(BASELINE_ROOT, 'canvas-add-menu'),
   },
+  'canvas-frame': {
+    registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/canvasFrame/states'),
+    baselineDir: path.join(BASELINE_ROOT, 'canvas-frame'),
+  },
   settings: {
     registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/settings/states'),
     baselineDir: path.join(BASELINE_ROOT, 'settings'),

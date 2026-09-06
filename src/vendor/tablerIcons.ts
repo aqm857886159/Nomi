@@ -101,6 +101,8 @@ export { default as IconFlipHorizontal } from '@tabler/icons-react/dist/esm/icon
 export { default as IconFlipVertical } from '@tabler/icons-react/dist/esm/icons/IconFlipVertical.mjs'
 export { default as IconFocusCentered } from '@tabler/icons-react/dist/esm/icons/IconFocusCentered.mjs'
 export { default as IconFolder } from '@tabler/icons-react/dist/esm/icons/IconFolder.mjs'
+export { default as IconFrame } from '@tabler/icons-react/dist/esm/icons/IconFrame.mjs'
+export { default as IconFrameOff } from '@tabler/icons-react/dist/esm/icons/IconFrameOff.mjs'
 export { default as IconFolderMinus } from '@tabler/icons-react/dist/esm/icons/IconFolderMinus.mjs'
 export { default as IconFolderOpen } from '@tabler/icons-react/dist/esm/icons/IconFolderOpen.mjs'
 export { default as IconFolderPlus } from '@tabler/icons-react/dist/esm/icons/IconFolderPlus.mjs'
