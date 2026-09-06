@@ -9,6 +9,7 @@ import path from 'node:path'
 import os from 'node:os'
 import { mkdtempSync, mkdirSync } from 'node:fs'
 import { screenshotSettled } from './_assert.mjs'
+import { addCanvasNodeFromRail } from './_canvasRail.mjs'
 
 const outDir = path.join(repoRoot, '.camera-possess-lab')
 mkdirSync(outDir, { recursive: true })
@@ -89,8 +90,9 @@ try {
   if ((await genTab.count()) > 0) await genTab.click()
   await win.waitForTimeout(1500)
 
-  const byName = win.locator('[data-node-kind="scene3d"]')
-  if ((await byName.count()) > 0) await byName.first().click()
+  // 3D 场景自 2026-09-06「第三档」起住在左缘的「更多」里，不再是常驻钮。
+  // 走共享点法，找不到当场抛——软守卫会让整条走查在空画布上假绿。
+  await addCanvasNodeFromRail(win, 'scene3d')
   await win.waitForTimeout(2000)
 
   const openEmpty = win.getByRole('button', { name: '打开 3D 编辑器', exact: false })

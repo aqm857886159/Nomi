@@ -442,7 +442,7 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
     if (connectionCreateMenu && !pendingConnectionSourceId) setConnectionCreateMenu(null)
   }, [connectionCreateMenu, pendingConnectionSourceId])
 
-  const { handleAddContextNode, handleNodeContextAction, handleAddConnectedNode } = buildCanvasMenuActions({
+  const { handleAddContextNode, handleImportContextFiles, handleNodeContextAction, handleAddConnectedNode } = buildCanvasMenuActions({
     activeCategoryId,
     contextNodeMenu,
     setContextNodeMenu,
@@ -769,6 +769,7 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
         }
         onNodeContextAction={handleNodeContextAction}
         onAddContextNode={handleAddContextNode}
+        onImportContextFiles={handleImportContextFiles}
         onAddConnectedNode={handleAddConnectedNode}
         batchDock={batchDock}
         production={production}

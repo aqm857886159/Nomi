@@ -1,4 +1,6 @@
 import { AGENT_PANEL_STATES, PANEL_HEIGHT, PANEL_WIDTH } from './agentPanelStates'
+import { CANVAS_ADD_MENU_STATES } from './canvasAddMenu/canvasAddMenuStates'
+import { CANVAS_ADD_CELL_HEIGHT, CANVAS_ADD_CELL_WIDTH } from './canvasAddMenu/canvasAddMenuLabKit'
 import { EDITING_STATES } from './editing/editingStates'
 import { EDITING_CELL_HEIGHT, EDITING_CELL_WIDTH } from './editing/editingLabKit'
 import { HOST_CONFIG_STATES } from './hostConfig/hostConfigStates'
@@ -33,6 +35,14 @@ export const LAB_SCREENS: readonly LabScreen[] = [
     // 所以每个状态都声明 capture: 'viewport'，取景格按整个视口开列。
     cell: { width: 720, height: 420 },
     states: HOST_CONFIG_STATES,
+  },
+  {
+    id: 'canvas-add-menu',
+    label: '画布 · 加号收束',
+    states: CANVAS_ADD_MENU_STATES,
+    // 三格取景一样大：左缘工具条 + 它右侧展开的菜单要同框，右键菜单也按同一格开列，
+    // 免得「常驻」与「展开」两格宽度不同、看不出是同一条工具条。
+    cell: { width: CANVAS_ADD_CELL_WIDTH, height: CANVAS_ADD_CELL_HEIGHT },
   },
   {
     id: 'settings',
