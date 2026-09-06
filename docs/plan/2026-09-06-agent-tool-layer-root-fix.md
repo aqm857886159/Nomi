@@ -1,6 +1,9 @@
 # Agent 工具层根修方案（2026-09-06）
 
-状态：📋 方案待拍板 —— 上游证据是 `docs/audit/2026-09-06-agent-tool-layer-audit.md`（真机实测：`canvas.write` 18 次调用 0 次通过）。
+> ⛔ **2026-09-07 被 [`docs/plan/2026-09-07-agent-runtime-rebuild.md`](2026-09-07-agent-runtime-rebuild.md) 取代（用户改判重做）。**
+> 本文的渐进修方向已不再采用，保留只为追溯证据与被吸收的结论。
+
+状态：⛔ 已废弃（2026-09-07 被重做方案取代）—— 原状态是「方案待拍板」。上游证据是 `docs/audit/2026-09-06-agent-tool-layer-audit.md`（真机实测：`canvas.write` 18 次调用 0 次通过）。
 本文只写方案，**不含实现**；拍板后按 §7 分段落地。
 
 ---
