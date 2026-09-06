@@ -5,8 +5,6 @@ import {
   useReactFlow,
   type OnNodeDrag,
   type OnEdgesDelete,
-  type OnConnectStart,
-  type OnConnectEnd,
   type OnNodesChange,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
@@ -20,7 +18,6 @@ import { WORKSPACE_FILE_DRAG_MIME } from '../../explorer/workspaceFileDrag'
 import { ASSET_LIBRARY_DRAG_MIME } from '../../assets/assetLibraryDrag'
 import { useWorkbenchStore } from '../../workbenchStore'
 import { getActiveWorkbenchProjectId } from '../../project/workbenchProjectSession'
-import { completeNodeConnection } from '../nodes/completeNodeConnection'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { useStableCategoryNodes } from './useStableCategoryNodes'
 import { getCanvasGroupBoxes, getSelectedBounds } from '../components/generationCanvasGeometry'
@@ -39,11 +36,8 @@ import { useAutoFitOnLoad } from '../components/useAutoFitOnLoad'
 import { useComposerVisibilityPan } from '../components/useComposerVisibilityPan'
 import { useCreatedNodeVisibilityPan } from '../components/useCreatedNodeVisibilityPan'
 import { useReactFlowViewportAnimation } from './useReactFlowViewportAnimation'
-import { useCanvasContextNodeMenu } from '../components/useCanvasContextNodeMenu'
 import { useBatchPlanPreviewStore } from '../components/batchPlanPreview'
-import { buildCanvasMenuActions } from '../components/useCanvasMenuActions'
 import { hasPendingScene3DCameraMoveCapture, hasPendingScene3DStagingCapture } from '../components/scene3dCaptureHostActivation'
-import { isImageLikeGenerationNodeKind } from '../model/generationNodeKinds'
 import CanvasToolbar from '../components/CanvasToolbar'
 import { CANVAS_DRAGGING_OWNER, setCanvasDragging } from '../components/canvasDraggingFlag'
 import {
@@ -69,7 +63,7 @@ import { GenerationCanvasReactFlowOverlays } from './GenerationCanvasReactFlowOv
 import { GenerationCanvasReactFlowViewport } from './GenerationCanvasReactFlowViewport'
 import { useGenerationCanvasReactFlowPointer } from './useGenerationCanvasReactFlowPointer'
 import { useGenerationCanvasReactFlowProjection } from './useGenerationCanvasReactFlowProjection'
-import { resolveCanvasDropTargetFromDom } from './canvasConnectionDropTarget'
+import { useGenerationCanvasReactFlowMenus } from './useGenerationCanvasReactFlowMenus'
 import {
   useBrowserAssetImportEffects,
   useGenerationCanvasReactFlowHostEffects,
@@ -91,21 +85,12 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
   const draggingRef = React.useRef(false)
   const dragDraftNodesRef = React.useRef<GenerationFlowNode[]>([])
   const dragStartPositionsRef = React.useRef<Map<string, { x: number; y: number }>>(new Map())
-  const connectionStartRef = React.useRef<{ nodeId: string; side: 'left' | 'right' } | null>(null)
   const [selectedEdgeId, setSelectedEdgeId] = React.useState<string | null>(null)
   const [focusFlashNodeId, setFocusFlashNodeId] = React.useState<string | null>(null)
   const [stageSize, setStageSize] = React.useState({ width: 0, height: 0 })
   const [minimapVisible, setMinimapVisible] = React.useState(true)
   // #5 minimap 拖动中冻结门（纯渲染，只翻两次、不碰 RF 写入路径；冻结逻辑见 useStableCategoryNodes）。
   const [nodeDragActive, setNodeDragActive] = React.useState(false)
-  const [connectionCreateMenu, setConnectionCreateMenu] = React.useState<{
-    sourceNodeId: string
-    sourceSide: 'left' | 'right'
-    stageX: number
-    stageY: number
-    canvasX: number
-    canvasY: number
-  } | null>(null)
   const activeCategoryId = useWorkbenchStore((state) => state.activeCategoryId)
   const categoryViewports = useWorkbenchStore((state) => state.categoryViewports)
   const rememberCategoryViewport = useWorkbenchStore((state) => state.rememberCategoryViewport)
@@ -274,26 +259,6 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
     rememberCategoryViewport,
     setLiveViewport,
   })
-  const ensureContextNodeSelected = React.useCallback((nodeId: string) => {
-    const state = useGenerationCanvasStore.getState()
-    if (!state.selectedNodeIds.includes(nodeId)) state.selectNode(nodeId)
-  }, [])
-  const {
-    contextNodeMenu,
-    setContextNodeMenu,
-    prepareContextMenuPointerDown,
-    handleContextMenuPointerMove,
-    finishContextMenuPointerUp,
-    handleStageContextMenu,
-  } = useCanvasContextNodeMenu({
-    readOnly,
-    stageRef: hostRef,
-    offsetRef,
-    zoomRef,
-    pendingConnectionSourceId,
-    clearSelection,
-    ensureNodeSelected: ensureContextNodeSelected,
-  })
   useGenerationCanvasReactFlowHostEffects({
     activeCategoryId,
     animateViewportTo,
@@ -329,15 +294,6 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
     selectedGroupIds,
     selectedNodeIds,
   })
-  const handleConnectToGroupFromFlow = React.useCallback((groupId: string) => {
-    const state = useGenerationCanvasStore.getState()
-    if (state.pendingConnectionSourceKind === 'group') {
-      state.connectToNode(groupId)
-    } else {
-      handleConnectToGroup(groupId)
-    }
-    setConnectionCreateMenu(null)
-  }, [handleConnectToGroup])
 
   const getInsertionPosition = React.useCallback(() => {
     const rect = hostRef.current?.getBoundingClientRect()
@@ -357,6 +313,47 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
   const getCanvasPointFromClientPoint = React.useCallback((clientX: number, clientY: number) => {
     return flow.screenToFlowPosition({ x: clientX, y: clientY })
   }, [flow])
+  const {
+    contextNodeMenu,
+    connectionCreateMenu,
+    handleStageContextMenu,
+    handleFlowContextMenu,
+    handleStagePointerDownCapture,
+    handleStagePointerMove,
+    handleStagePointerEnd,
+    handlePendingGroupPointerUp,
+    handleConnectStart,
+    handleConnectEnd,
+    handleConnectToGroupFromFlow,
+    handleAddContextNode,
+    handleImportContextFiles,
+    handleNodeContextAction,
+    handleAddConnectedNode,
+  } = useGenerationCanvasReactFlowMenus({
+    readOnly,
+    hostRef,
+    offsetRef,
+    zoomRef,
+    activeCategoryId,
+    pendingConnectionSourceId,
+    nodeById,
+    visibleGroups,
+    getCanvasPointFromClientPoint,
+    handleConnectToGroup,
+    clearSelection,
+    cancelConnection,
+    addNode,
+    startConnection,
+    copySelectedNodes,
+    cutSelectedNodes,
+    pasteNodes,
+    groupSelectedNodes: handleGroupSelectedNodes,
+    deleteSelectedNodes,
+    handleCanvasPointerDownCapture,
+    handleCanvasPointerMove,
+    handleCanvasPointerEnd,
+    shouldSuppressContextMenu,
+  })
 
   useAutoFitOnLoad({
     nodes,
@@ -396,66 +393,6 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
     const current = flow.getViewport().zoom
     zoomTo(current * (direction > 0 ? 1.1 : 1 / 1.1))
   }, [flow, zoomTo])
-
-  const handleFlowContextMenu = React.useCallback((event: MouseEvent | React.MouseEvent) => {
-    handleStageContextMenu(event as React.MouseEvent<HTMLDivElement>)
-  }, [handleStageContextMenu])
-
-  const handleStagePointerDownCapture = React.useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    if (prepareContextMenuPointerDown(event)) {
-      event.stopPropagation()
-      return
-    }
-    handleCanvasPointerDownCapture(event)
-  }, [handleCanvasPointerDownCapture, prepareContextMenuPointerDown])
-
-  const handleStagePointerMove = React.useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    handleContextMenuPointerMove(event)
-    handleCanvasPointerMove(event)
-  }, [handleCanvasPointerMove, handleContextMenuPointerMove])
-
-  const handleStagePointerEnd = React.useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    const suppressContextMenu = event.button === 2 && shouldSuppressContextMenu()
-    handleCanvasPointerEnd()
-    finishContextMenuPointerUp(event, suppressContextMenu)
-  }, [finishContextMenuPointerUp, handleCanvasPointerEnd, shouldSuppressContextMenu])
-
-  React.useEffect(() => {
-    if (!contextNodeMenu && !connectionCreateMenu) return undefined
-    const closeMenus = () => {
-      setContextNodeMenu(null)
-      setConnectionCreateMenu(null)
-      cancelConnection()
-    }
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') closeMenus()
-    }
-    window.addEventListener('pointerdown', closeMenus)
-    window.addEventListener('keydown', handleKeyDown)
-    return () => {
-      window.removeEventListener('pointerdown', closeMenus)
-      window.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [cancelConnection, connectionCreateMenu, contextNodeMenu, setContextNodeMenu])
-
-  React.useEffect(() => {
-    if (connectionCreateMenu && !pendingConnectionSourceId) setConnectionCreateMenu(null)
-  }, [connectionCreateMenu, pendingConnectionSourceId])
-
-  const { handleAddContextNode, handleImportContextFiles, handleNodeContextAction, handleAddConnectedNode } = buildCanvasMenuActions({
-    activeCategoryId,
-    contextNodeMenu,
-    setContextNodeMenu,
-    connectionCreateMenu,
-    setConnectionCreateMenu,
-    addNode,
-    startConnection,
-    copySelectedNodes,
-    cutSelectedNodes,
-    pasteNodes,
-    groupSelectedNodes: handleGroupSelectedNodes,
-    deleteSelectedNodes,
-  })
 
   const handleNodesChange: OnNodesChange<GenerationFlowNode> = React.useCallback((changes) => {
     const positionChanges = collectFlowPositionChanges(changes)
@@ -552,81 +489,6 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
     startConnection(connection.source, side)
     connectToNode(connection.target)
   }, [connectToNode, readOnly, startConnection])
-
-  const handleConnectStart: OnConnectStart = React.useCallback((_event, params) => {
-    if (readOnly || !params.nodeId || params.handleType !== 'source') return
-    const side = params.handleId?.endsWith('-left') ? 'left' : 'right'
-    connectionStartRef.current = { nodeId: params.nodeId, side }
-    startConnection(params.nodeId, side)
-  }, [readOnly, startConnection])
-
-  const handleConnectEnd: OnConnectEnd = React.useCallback((event, connectionState) => {
-    const started = connectionStartRef.current
-    connectionStartRef.current = null
-    if (readOnly || !started || (connectionState.isValid && connectionState.toNode)) return
-    const sourceNode = nodeById.get(started.nodeId)
-    const canCreateMedia = sourceNode?.kind === 'text' || sourceNode?.kind === 'image' || Boolean(sourceNode && isImageLikeGenerationNodeKind(sourceNode.kind))
-    if (!canCreateMedia) {
-      cancelConnection()
-      return
-    }
-    const point = 'changedTouches' in event
-      ? event.changedTouches[0]
-      : event
-    if (!point) {
-      cancelConnection()
-      return
-    }
-    const targetNodeId = resolveCanvasDropTargetFromDom({ clientX: point.clientX, clientY: point.clientY }, started.nodeId, hostRef.current, '.generation-canvas-v2-node[data-node-id]', 'data-node-id', new Set(nodeById.keys()))
-    if (targetNodeId) {
-      completeNodeConnection(targetNodeId)
-      return
-    }
-    const targetGroupId = resolveCanvasDropTargetFromDom({ clientX: point.clientX, clientY: point.clientY }, '', hostRef.current, '[data-group-id]', 'data-group-id', new Set(visibleGroups.map((group) => group.id)))
-    if (targetGroupId) {
-      handleConnectToGroup(targetGroupId)
-      return
-    }
-    const rect = hostRef.current?.getBoundingClientRect()
-    if (!rect) {
-      cancelConnection()
-      return
-    }
-    const stageX = point.clientX - rect.left
-    const stageY = point.clientY - rect.top
-    const canvasPoint = getCanvasPointFromClientPoint(point.clientX, point.clientY)
-    setConnectionCreateMenu({
-      sourceNodeId: started.nodeId,
-      sourceSide: started.side,
-      stageX: Math.max(8, Math.min(rect.width - 140, stageX)),
-      stageY: Math.max(8, Math.min(rect.height - 90, stageY)),
-      canvasX: Math.round(canvasPoint.x),
-      canvasY: Math.round(canvasPoint.y),
-    })
-  }, [cancelConnection, getCanvasPointFromClientPoint, handleConnectToGroup, nodeById, readOnly, visibleGroups])
-
-  const handlePendingGroupPointerUp = React.useCallback((event: React.PointerEvent<HTMLElement> | React.MouseEvent<HTMLElement> | PointerEvent | MouseEvent) => {
-    if (readOnly || !pendingConnectionSourceId) return
-    const groupId = document.elementsFromPoint(event.clientX, event.clientY)
-      .map((element) => element.closest<HTMLElement>('[data-group-id]')?.dataset.groupId || null)
-      .find((candidate): candidate is string => Boolean(candidate && visibleGroups.some((group) => group.id === candidate)))
-    if (!groupId) return
-    event.preventDefault()
-    event.stopPropagation()
-    connectionStartRef.current = null
-    handleConnectToGroup(groupId)
-  }, [handleConnectToGroup, pendingConnectionSourceId, readOnly, visibleGroups])
-
-  React.useEffect(() => {
-    const handleNativePointerUp = (event: PointerEvent) => handlePendingGroupPointerUp(event)
-    const handleNativeMouseUp = (event: MouseEvent) => handlePendingGroupPointerUp(event)
-    window.addEventListener('pointerup', handleNativePointerUp)
-    window.addEventListener('mouseup', handleNativeMouseUp)
-    return () => {
-      window.removeEventListener('pointerup', handleNativePointerUp)
-      window.removeEventListener('mouseup', handleNativeMouseUp)
-    }
-  }, [handlePendingGroupPointerUp])
 
   const handlePaneClick = React.useCallback(() => {
     if (!readOnly && !canvasPanMovedRef.current) clearSelection()

@@ -9,6 +9,7 @@ import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { screenshotSettled } from './_assert.mjs'
+import { addCanvasNodeFromRail } from './_canvasRail.mjs'
 
 const repoRoot = process.cwd()
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/whiteboard-refactor')
@@ -66,11 +67,9 @@ try {
   await getWin().waitForTimeout(600)
   await snap('canvas-tab')
 
-  // 打开添加节点菜单 → 添加画板节点
-  const addMenu = getWin().locator('[aria-label="添加节点菜单"]').first()
-  if (await addMenu.count()) { await addMenu.click({ timeout: 3000 }).catch(() => {}); await getWin().waitForTimeout(500) }
-  const addWb = getWin().locator('[aria-label="添加画板节点"]').first()
-  await addWb.click({ timeout: 4000 }).catch(() => {})
+  // 加画板节点。自 2026-09-06「第三档」起它住在左缘的「更多」里；点法收口在 _canvasRail，
+  // 找不到当场抛（原来那句 `.catch(() => {})` 会静默不建节点，后面每一步都在空画布上跑成假绿）。
+  await addCanvasNodeFromRail(getWin(), 'whiteboard')
   await getWin().waitForTimeout(1200)
   await snap('node-added')
 
