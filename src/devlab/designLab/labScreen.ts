@@ -27,6 +27,13 @@ export type LabState = Readonly<{
   /** 这一格在接触表里占几列（宽件占 2 列）。 */
   span?: 1 | 2
   /**
+   * 这一格钉死的明暗档。默认浅色（见 designLab.tsx 顶部：实验室永远显式钉死，
+   * 否则「天黑自动暗」会让同一份代码上午绿、晚上红）。
+   * 暗色**必须**由这里给：暗色 token 只定义在 `:root[data-mantine-color-scheme="dark"]` 上，
+   * 组件自己加个 class 翻不动它——那会渲出一块「暗色状态却是浅色」的假证据。
+   */
+  scheme?: 'light' | 'dark'
+  /**
    * 截图取景范围。默认 `element`（只截这一格的舞台）。
    * `viewport` 用于**逃出舞台的形态**——走 BodyPortal + fixed 定位的浮层
    * 根本不在舞台的 DOM 子树里，按元素截会截出"浮层没打开"的假证据。

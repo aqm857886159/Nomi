@@ -149,6 +149,10 @@ const html = `<!DOCTYPE html>
   .gotcha{background:var(--soft);border-radius:12px;padding:12px}
   .gotcha-t{font-size:13px;font-weight:500;display:flex;align-items:center;gap:6px;margin-bottom:3px}
   .gotcha-b{font-size:12px;color:var(--ink60)}
+  .next{margin-top:28px;padding-top:20px;border-top:1px solid var(--line)}
+  .next-links{display:flex;flex-wrap:wrap;gap:8px}
+  .next-links a{display:inline-flex;align-items:center;padding:7px 10px;border:1px solid var(--line);border-radius:8px;color:var(--ink80);font-size:12px;text-decoration:none}
+  .next-links a:hover{border-color:var(--accent);color:var(--accent)}
   .foot{margin-top:28px;color:var(--ink40);font-size:12px;text-align:center}
 </style>
 </head>
@@ -172,6 +176,17 @@ const html = `<!DOCTYPE html>
 
   <h2>卡住了看这里</h2>
   <div class="grid" style="margin-top:8px">${gotchas}</div>
+
+  <div class="next">
+    <h2>继续下一步</h2>
+    <p class="note">看完流程后，直接选择你的下一步：先做首胜、下载客户端，或进入社区。</p>
+    <nav class="next-links" aria-label="继续下一步">
+      <a href="${esc(shared.quickstartUrl)}">打开新手指南 →</a>
+      <a href="${esc(shared.releaseUrl)}" target="_blank" rel="noreferrer">下载 Nomi →</a>
+      <a href="${esc(shared.repositoryUrl)}" target="_blank" rel="noreferrer">查看源码 →</a>
+      <a href="${esc(shared.discussionUrl)}" target="_blank" rel="noreferrer">加入 Discussions →</a>
+    </nav>
+  </div>
 
   <p class="foot">Nomi · 本地优先 AI 视频创作台 · nomiaqm.com</p>
 </div>

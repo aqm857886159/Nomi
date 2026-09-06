@@ -232,6 +232,11 @@ export function canvasViewportFromFlow(viewport: Viewport): { zoom: number; offs
   return { zoom: viewport.zoom, offset: { x: viewport.x, y: viewport.y } }
 }
 
+/** React Flow 的 d3 过渡在 extent 缓存为 0×0 时会吐出 NaN 视口；任何要记住/回写的视口先过这道门。 */
+export function isFiniteFlowViewport(viewport: Viewport): boolean {
+  return Number.isFinite(viewport.x) && Number.isFinite(viewport.y) && Number.isFinite(viewport.zoom) && viewport.zoom > 0
+}
+
 export function getFlowNodeKind(node: GenerationFlowNode): GenerationNodeKind {
   return node.data.generationNode.kind
 }

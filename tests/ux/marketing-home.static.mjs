@@ -198,6 +198,9 @@ expect(!fs.existsSync(path.join(root, 'marketing/assets/vendor/gsap.min.js')), '
 expect(!fs.existsSync(path.join(root, 'marketing/assets/vendor/ScrollTrigger.min.js')), 'ScrollTrigger remains removed')
 
 expect(sitemap.includes('<loc>https://nomiaqm.com/en/</loc>'), 'English route is in sitemap')
+expect(sitemap.includes('<loc>https://nomiaqm.com/quickstart</loc>'), 'clean quickstart route is in sitemap')
+expect(sitemap.includes('<loc>https://nomiaqm.com/handbook</loc>'), 'clean handbook route is in sitemap')
+expect(!sitemap.includes('/quickstart.html') && !sitemap.includes('/handbook.html'), 'legacy onboarding routes are absent from sitemap')
 expect((zh.match(/<meta property="og:locale"/g) || []).length === 1, 'one Chinese OG locale')
 expect((en.match(/<meta property="og:locale"/g) || []).length === 1, 'one English OG locale')
 expect(zh.includes('social-preview-zh.jpg'), 'Chinese social card')
@@ -231,7 +234,7 @@ expect(
   readmeEn.includes('docs/media/nomi-canvas-group-wechat-2026-09-01.jpg'),
   'English README uses the current group QR',
 )
-expect(readmeEn.includes('github.com/aqm857886159/Nomi/issues'), 'English README keeps GitHub Issues')
+expect(readmeEn.includes('github.com/aqm857886159/Nomi/discussions'), 'English README keeps GitHub Discussions')
 expect(readmeEn.includes('business_inquiry.yml'), 'English README keeps business inquiry')
 expect(readmeEn.includes('[Download](#download)'), 'English README download shortcut leads to direct installers')
 expect(readmeZh.includes('[下载](#下载)'), 'Chinese README download shortcut leads to direct installers')

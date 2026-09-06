@@ -218,7 +218,9 @@ function markReady(): void {
 
 // 实验室**永远显式钉死**明暗档：App 的默认是「天黑自动暗」（按本地时间），
 // 视觉基线要是跟着钟走，同一份代码上午绿、晚上红。默认浅色，`?scheme=dark` 手动看暗色。
-persistColorScheme(forcedScheme === 'dark' ? 'dark' : 'light')
+// 状态自己也能钉（`LabState.scheme`）——暗色 token 只定义在 `:root[data-mantine-color-scheme]` 上，
+// 「暗色板」那一格必须由这里翻，组件内部翻不动（翻不动的后果是一张浅色的「暗色」基线）。
+persistColorScheme(forcedScheme === 'dark' ? 'dark' : (findLabState(screen, stateId)?.scheme ?? 'light'))
 primeNomiColorScheme()
 
 // 让走查能从**活页面**读到注册表，而不是只信 `labStates.mjs` 的源码正则。
