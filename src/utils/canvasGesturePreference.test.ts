@@ -33,7 +33,7 @@ describe('resolveWheelIntent — 两档 × 修饰键真值表', () => {
 })
 
 // 测试环境是 node（无 jsdom），用最小 localStorage 桩（照 onboardingState.test.ts）。
-// 本模块读的是 globalThis.localStorage（照 previewSourcePanelPreference.ts），故直接 stub 它。
+// 本模块读的是 globalThis.localStorage，故直接 stub 它。
 const store = new Map<string, string>()
 const localStorageStub = {
   getItem: (k: string) => (store.has(k) ? store.get(k)! : null),

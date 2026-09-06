@@ -43,6 +43,7 @@ import {
 } from "./networkConfigStore";
 import { invalidateProviderAdapterRunsForVendors } from "../providerAdapter/store";
 import { invalidateVendorValidation, normalizedConnectionScope } from "./vendorValidationInvalidation";
+import { logWarn } from "../logging/logger";
 
 export type { CustomCallConfigPatchEntry, CustomCallConfigPublicEntry } from "./customConfigStore";
 
@@ -205,7 +206,7 @@ function migrateCatalogForward(state: CatalogState): CatalogState {
     const migrated = migrateCatalogMediaContracts(s);
     s = migrated.unresolved ? migrated.state : { ...migrated.state, version: 11 };
     if (!migrated.unresolved || migrated.state !== before) writeCatalog(s);
-    if (migrated.unresolved) console.warn("[catalog] v11 media migration has unresolved ambiguous bindings; catalog remains v10 for retry");
+    if (migrated.unresolved) logWarn("catalog", "v11-media-migration-unresolved");
   }
 
   if (s.version === 11) {
@@ -224,9 +225,7 @@ function migrateCatalogForward(state: CatalogState): CatalogState {
     // Newer file than this app understands — return it untouched so it stays
     // readable, and let `writeCatalog` REFUSE any write back (read-only guard).
     // This actually enforces "don't downgrade" instead of only warning about it.
-    console.warn(
-      `[catalog] file version ${s.version} > app version ${CURRENT_CATALOG_VERSION}; read-only (writes refused)`,
-    );
+    logWarn("catalog", "file-newer-than-app-readonly", { fileVersion: s.version, appVersion: CURRENT_CATALOG_VERSION });
     return s;
   }
 

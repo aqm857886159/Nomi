@@ -17,7 +17,7 @@ import {
   type BuiltRequest,
 } from "../requestPipeline";
 import { describeIllegalHeader, findIllegalHeader, isJsonRecord, mergeHeadersCaseInsensitive, pickUpstreamMessage } from "../../jsonUtils";
-import { parseModelListPage, type ModelListFailureKind } from "./modelListResponse";
+import { parseModelListPage, type ModelListDescriptor, type ModelListFailureKind } from "./modelListResponse";
 import { modelListErrorRedactor } from "./modelListSafety";
 import { createExplicitProxyDispatcher } from "../../systemProxy";
 import type { Dispatcher } from "undici";
@@ -78,7 +78,7 @@ export function buildAuthHeaders(
 }
 
 export type ModelListResult =
-  | { ok: true; models: string[]; statuses: number[]; partial?: boolean }
+  | { ok: true; models: string[]; descriptors?: ModelListDescriptor[]; statuses: number[]; partial?: boolean }
   | { ok: false; status?: number; error: string; statuses: number[]; failureKind?: ModelListFailureKind };
 
 type Failure = Extract<ModelListResult, { ok: false }> & { failureKind: ModelListFailureKind };
@@ -191,6 +191,7 @@ export async function fetchModelList(
     let url = new URL(candidate.url);
     const seenPages = new Set<string>();
     const models = new Set<string>();
+    const descriptors = new Map<string, ModelListDescriptor>();
     for (let pageNumber = 0; pageNumber < MAX_PAGES; pageNumber += 1) {
       seenPages.add(pageIdentity(url));
       let res: Response;
@@ -222,6 +223,7 @@ export async function fetchModelList(
         break;
       }
       for (const id of page.models) models.add(id);
+      for (const descriptor of page.descriptors || []) descriptors.set(descriptor.id, descriptor);
       let next: URL | undefined;
       if (page.next || page.afterId) {
         try {
@@ -238,10 +240,10 @@ export async function fetchModelList(
         } catch { return remember(failure("invalid_response", "Invalid model-list pagination link", res.status)); }
       }
       if (models.size > MAX_MODELS || (next && (models.size >= MAX_MODELS || pageNumber + 1 === MAX_PAGES))) {
-        return { ok: true, models: [...models].slice(0, MAX_MODELS), statuses, partial: true };
+        return { ok: true, models: [...models].slice(0, MAX_MODELS), ...(descriptors.size ? { descriptors: [...descriptors.values()].slice(0, MAX_MODELS) } : {}), statuses, partial: true };
       }
       if (next) { url = next; continue; }
-      if (models.size > 0) return { ok: true, models: [...models], statuses };
+      if (models.size > 0) return { ok: true, models: [...models], ...(descriptors.size ? { descriptors: [...descriptors.values()] } : {}), statuses };
       sawEmptyList = true;
       break;
     }

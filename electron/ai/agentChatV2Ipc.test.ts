@@ -18,6 +18,7 @@ vi.mock('../i18n', () => ({ desktopT: state.translate }));
 vi.mock('./agentChatV2', () => ({ runAgentChatV2: state.run, seedAgentChatV2History: state.seed,
   agentChatV2HasHistory: state.alive, clearAgentChatV2History: state.clear }));
 import { registerAgentChatV2Ipc } from './agentChatV2Ipc';
+import { createProjectAgentContextBinding } from '../shared/contracts/projectAgentContextBinding';
 
 function deferred<T>() { let resolve!: (value: T) => void; const promise = new Promise<T>((yes) => { resolve = yes; }); return { promise, resolve }; }
 function owner(id = 1, processId = 10) {
@@ -38,8 +39,10 @@ const SURFACE_BINDING: SurfacePortBindingWire = Object.freeze({
   portRevision: 4,
   nonce: 'nonce-a',
 });
+const THREAD_BINDING = createProjectAgentContextBinding(
+  { projectId: 'p', immutableProjectUuid: '11111111-1111-4111-8111-111111111111', projectGeneration: 3 }, 't');
 const payload = (withSurface = true) => ({ requestId: `test-${crypto.randomUUID()}`, request: { prompt: 'hello', capability: 'canvas-agent',
-  projectId: 'p', history: { kind: 'persistent', binding: { sessionKey: 'nomi:workbench:p:generation', threadId: 't' } } },
+  projectId: 'p', history: { kind: 'persistent', binding: THREAD_BINDING } },
   ...(withSurface ? { surfaceBinding: SURFACE_BINDING } : {}),
 });
 const response = (status: AgentChatResponse['status'] = 'finished'): AgentChatResponse => ({ id: 'result', text: 'actual', status,

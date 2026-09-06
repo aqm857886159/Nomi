@@ -89,7 +89,7 @@ try {
   if ((await genTab.count()) > 0) await genTab.click()
   await win.waitForTimeout(1500)
 
-  const byName = win.getByRole('button', { name: '3D场景', exact: false })
+  const byName = win.locator('[data-node-kind="scene3d"]')
   if ((await byName.count()) > 0) await byName.first().click()
   await win.waitForTimeout(2000)
 
@@ -99,6 +99,13 @@ try {
   pass.editorOpen = (await win.locator('[aria-label="3D 场景编辑器"]').count()) > 0
   log(`  ${pass.editorOpen ? '✓' : '✗'} 编辑器打开`)
   await screenshotSettled(win, { path: path.join(outDir, 'cp-0-editor.png') })
+
+  // 首次进入的 coach marks 会遮住场景节点与操控按钮；走查目标是相机录制链路，先跳过引导。
+  const coachSkip = win.getByRole('button', { name: '跳过', exact: true }).first()
+  if ((await coachSkip.count()) > 0) {
+    await coachSkip.click()
+    await win.waitForTimeout(500)
+  }
 
   // 选相机：左侧场景节点列表里点「相机1」。
   const cameraItem = win.getByText('相机1', { exact: true }).first()
@@ -152,14 +159,14 @@ try {
 
   // 出片是异步的；关编辑器后画布上应多出一个「录制走位参考」3D 节点（运镜 take 已落节点 = mp4 链路已起）。
   // 计 3D 节点入口数：原 1 个 → 录完应为 2 个（buildRecordedCameraTakeScene 返回非 null 才会建节点）。
-  const beforeNodes = await win.getByText('点击进入 3D 编辑器', { exact: false }).count()
+  const beforeNodes = await win.locator('[data-testid="scene3d-empty-action"]').count()
   const editor = win.locator('[aria-label="3D 场景编辑器"]')
   const closeBtn = editor.locator('[title="退出 3D 场景"]').first()
   await closeBtn.waitFor({ state: 'visible', timeout: 5000 })
   await closeBtn.click()
   await editor.waitFor({ state: 'hidden', timeout: 5000 })
   await win.waitForTimeout(3500)
-  const node3dCount = await win.getByText('点击进入 3D 编辑器', { exact: false }).count()
+  const node3dCount = await win.locator('[data-kind="scene3d"]').count()
   const titleSeen = (await win.getByText('录制走位参考', { exact: false }).count()) > 0
   pass.recordedNode = node3dCount >= 2 || titleSeen
   log(`  ${pass.recordedNode ? '✓' : '✗'} 录运镜落「录制走位参考」节点（3D 节点数 ${node3dCount}，标题可见=${titleSeen}）`)
@@ -168,7 +175,7 @@ try {
   // 离屏出片是真渲染：等节点徽标从「参考视频生成中…」走到「参考视频已生成 ✓」
   // = 这段运镜真的被离屏管线渲成了 mp4（cameraWithPlaybackPosition 按录下的位置+aim 轨迹逐帧出片）。
   for (let i = 0; i < 30; i += 1) {
-    if ((await win.getByText('参考视频已生成', { exact: false }).count()) > 0) { pass.videoRendered = true; break }
+    if ((await win.locator('[data-scene3d-take-video="true"]').count()) > 0 || (await win.getByText('参考视频已生成', { exact: false }).count()) > 0) { pass.videoRendered = true; break }
     await win.waitForTimeout(1000)
   }
   log(`  ${pass.videoRendered ? '✓' : '✗'} 离屏出片完成「参考视频已生成 ✓」（运镜真渲成 mp4）`)

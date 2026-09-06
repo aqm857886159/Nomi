@@ -1,9 +1,11 @@
 {
-  "absence-without-baseline": 65,
+  "absence-without-baseline": 64,
   "whole-page-text": 29,
   "sleep-as-done-signal": 111,
   "dead-selector": 0,
+  "dead-aria-label": 9,
   "source-scan-without-strip": 9,
+  "positional-project-open": 0,
   "assertion-density-thin": {
     "tests/ux/accent-soft-hue.walk.mjs": 0,
     "tests/ux/adapter-failed-unlock.walk.mjs": 0,

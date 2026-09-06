@@ -11,6 +11,7 @@ import type {
   ProjectAgentExecutionEventPayload,
 } from "../shared/projectAgentContracts";
 import { projectAgentPartitionKey, sameProjectAgentBinding } from "./projectAgentIdentity";
+import { createProjectAgentContextBinding } from "./projectAgentContextBinding";
 import type { OfflineProjectAgentHost } from "./projectAgentHost";
 import type { ProjectAgentRepositoryRouter } from "./projectAgentRepositoryRouter";
 import type { PiCanvasReadTransportAdapter } from "../capabilityCore/canvasReadTransportAdapters";
@@ -32,6 +33,7 @@ import type {
 import type { PiSkillReadTransportAdapter } from "../capabilityCore/skillReadTransportAdapters";
 import type { PiProductionRunTransportAdapter } from "../capabilityCore/productionRunTransportAdapters";
 import type { PiGenerationTransportAdapter } from "../capabilityCore/generationTransportAdapters";
+import { isRendererOwnedStoryboardProposal } from "../shared/agentCapabilities/canvasWrite";
 import {
   digest,
   validateSteering,
@@ -76,6 +78,7 @@ export type {
   ProjectAgentExecutionCoordinatorDeps,
   ProjectAgentExecutionCoordinator,
 } from "./projectAgentExecutionCoordinatorTypes";
+import { logError } from "../logging/logger";
 export { ProjectAgentSubscriptionError } from "./projectAgentExecutionCoordinatorTypes";
 export function createProjectAgentExecutionCoordinator(
   router: ProjectAgentRepositoryRouter,
@@ -106,7 +109,11 @@ export function createProjectAgentExecutionCoordinator(
   const reportInternalError =
     deps.reportInternalError ??
     ((error: unknown, context: Readonly<{ phase: string; turnId: string; message: string }>) => {
-      console.error(`[nomi:project-agent] ${context.phase} failed for ${context.turnId}: ${context.message}`, error);
+      logError("agent", "execution-phase-failed", error, {
+        phase: context.phase,
+        turnId: context.turnId,
+        reason: context.message,
+      });
     });
   const onTurnCompleted = deps.onTurnCompleted ?? completeProjectAgentExperience;
 
@@ -305,7 +312,15 @@ export function createProjectAgentExecutionCoordinator(
       // record; approval/spend remains Host-only and is never copied here.
       workMode: projectAgentWorkModeOf(input.mutation.payload.turn.workMode),
       toolProfile: stickyProfile,
-      history: { kind: "ephemeral" },
+      // The Host owns the thread, so it owns the thread's model-visible history.
+      // Resident capabilities bind the durable per-thread context; single-shot
+      // planning/judging must never inherit a resident transcript.
+      history: input.request.capability === "single-shot"
+        ? { kind: "ephemeral" as const }
+        : {
+          kind: "persistent" as const,
+          binding: createProjectAgentContextBinding(record.binding, input.mutation.payload.turn.threadId),
+        },
       projectId: record.binding.projectId,
       ...(target.kind === "canvas"
         ? { canvasProjectId: record.binding.projectId, selectedNodeIds: [...target.nodeIds] }
@@ -416,7 +431,12 @@ export function createProjectAgentExecutionCoordinator(
       return { ok: false, denied: true, message: workModeDecision.reason ?? "Agent work mode denied this action" };
     }
     const policy = execution.turn.approvalPolicy;
-    if (projectAgentMayReuseSafeApproval(policy, call.toolName, call.args, execution.safeApprovalGranted === true)) {
+    // Renderer-owned storyboard proposals still need the renderer callback to
+    // capture the parsed plan, even though their descriptor effect is a local
+    // reversible write. A silent safe-auto decision would otherwise let the
+    // model continue without populating the planner's returned plan.
+    if (!isRendererOwnedStoryboardProposal(call.toolName, call.args)
+      && projectAgentMayReuseSafeApproval(policy, call.toolName, call.args, execution.safeApprovalGranted === true)) {
       return { ok: true, silent: true };
     }
     const safeReversible = projectAgentExecutionRisk(call.toolName, call.args) === "safe-reversible";
@@ -432,7 +452,7 @@ export function createProjectAgentExecutionCoordinator(
         if (execution.pending.get(call.toolCallId)?.resolve !== settleResolve) return;
         execution.pending.delete(call.toolCallId);
         signal.removeEventListener("abort", abort);
-        if (decision.ok && !decision.silent && safeReversible) execution.safeApprovalGranted = true;
+        if (decision.ok && !decision.silent && safeReversible && decision.approvalScope !== "once") execution.safeApprovalGranted = true;
         resolve(decision);
       };
       const settleResolve = (decision: AgentChatToolDecision): void => {

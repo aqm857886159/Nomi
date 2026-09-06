@@ -52,6 +52,14 @@ test('model execution paths select full unit and real journeys without packaging
   })
 })
 
+test('the resident Agent shell selects the real-user journey lane', () => {
+  assert.deepEqual(surfaces(classifyValidationPolicy(['src/workbench/ai/ProjectAgentResidentShell.tsx'])), {
+    ...focusedOnly,
+    unit: 'full',
+    journeys: true,
+  })
+})
+
 test('the registered product journeys cannot fall back to focused-only validation', () => {
   for (const file of [
     'tests/ux/resident-composer-receipt-fix.e2e.mjs',

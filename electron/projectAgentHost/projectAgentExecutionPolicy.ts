@@ -1,5 +1,5 @@
-import { isPiGenerationToolName } from "../capabilityCore/generationTransportAdapters";
-import { resolveCapabilityAlias } from "../shared/agentCapabilities/registry";
+import { capabilityRequiresPlanReview, resolveCapabilityAlias, resolveCapabilityEffectClass } from "../shared/agentCapabilities/registry";
+import type { CapabilityEffectClass } from "../shared/agentCapabilities/capabilityContract";
 import {
   projectAgentApprovalPolicyOf,
   projectAgentWorkModeOf,
@@ -14,26 +14,20 @@ export type ProjectAgentWorkModeDecision = Readonly<{
   reason?: string;
 }>;
 
+/** Resolve the descriptor-owned side-effect class before any adapter can write. */
+export function projectAgentExecutionEffectClass(toolName: string, args?: unknown): CapabilityEffectClass | undefined {
+  return resolveCapabilityEffectClass(toolName, args);
+}
+
 /**
- * Classify at the Host boundary, before any adapter can write. The allow-list
- * is deliberately small: unknown or provider-facing operations remain hard
- * gated until a domain owner gives them an explicit policy.
+ * Keep the legacy Host risk result for callers that only need a gate/no-gate
+ * distinction. The descriptor effectClass is the sole classification source;
+ * unknown aliases fail closed.
  */
 export function projectAgentExecutionRisk(toolName: string, args?: unknown): ProjectAgentExecutionRisk {
-  const normalized = toolName.trim().toLowerCase();
-  if (!normalized) return "hard-gate";
-  if (isPiGenerationToolName(toolName)) return "hard-gate";
-
-  const record = args && typeof args === "object" && !Array.isArray(args)
-    ? args as Record<string, unknown>
-    : {};
-  const operation = typeof record.operation === "string" ? record.operation.toLowerCase() : "";
-  const hardGatePattern = /(delete|remove|destroy|export|publish|submit|start|cancel|reconcile|provider|external|production|payment|purchase|credential|account)/;
-  if (hardGatePattern.test(normalized) || hardGatePattern.test(operation)) return "hard-gate";
-
-  const safePattern = /(^|[._:-])(append_to_end|insert_at_cursor|replace_selection|document\.write|document_write|canvas\.write|create_canvas_nodes|set_node_prompt|patch_shots|timeline\.write|apply_edit_plan|undo_timeline_edit)([._:-]|$)/;
-  if (safePattern.test(normalized) || safePattern.test(operation)) return "safe-reversible";
-  return "hard-gate";
+  return projectAgentExecutionEffectClass(toolName, args) === "reversible_local"
+    ? "safe-reversible"
+    : "hard-gate";
 }
 
 /**
@@ -51,7 +45,8 @@ export function projectAgentWorkModeDecision(
   const workMode = projectAgentWorkModeOf(mode);
   if (workMode === "agent") return { allowed: true };
 
-  const effect = resolveCapabilityAlias(toolName)?.contract.effect;
+  const capability = resolveCapabilityAlias(toolName)?.contract;
+  const effect = capability?.effect;
   if (workMode === "ask") {
     return effect === "read"
       ? { allowed: true }
@@ -61,16 +56,24 @@ export function projectAgentWorkModeDecision(
   // Edit-selection may inspect the project and propose reversible edits, but
   // it must not start paid/destructive work. The existing target/precondition
   // gate remains the owner of the exact frozen selection scope.
-  if (effect === "read" || (effect === "reversible_write" && projectAgentExecutionRisk(toolName, args) === "safe-reversible")) {
+  if (effect === "read" || projectAgentExecutionEffectClass(toolName, args) === "reversible_local") {
     return { allowed: true };
   }
   return { allowed: false, reason: "Edit-selection mode only permits read or reversible selection edits" };
 }
 
 /**
- * `safe-auto` and `project` mean one explicit approval can cover subsequent
- * reversible writes in this Host turn. They never waive the first approval,
- * paid generation, export, deletion, or unknown operations.
+ * `safe-auto` and `project` allow descriptor-marked local reversible actions
+ * without a confirmation card. Spend, irreversible, and unknown actions keep
+ * the per-action gate in every mode. `step` always asks for local writes too.
+ *
+ * One exception, declared by the capability rather than decided here: a
+ * descriptor that sets `requiresPlanReview` carries a payload the user has to
+ * read (a timeline edit plan is a multi-operation transaction whose effect is
+ * invisible from the call). Those ask once per execution under `safe-auto`, and
+ * the reuse is granted only by the user's own "this session"/"always" answer —
+ * otherwise the plan would commit before its highlight was ever drawn and the
+ * intervention slot's escalating choices would have nothing left to change.
  */
 export function projectAgentMayReuseSafeApproval(
   policy: ProjectAgentApprovalPolicy | undefined,
@@ -79,6 +82,8 @@ export function projectAgentMayReuseSafeApproval(
   safeApprovalGranted: boolean,
 ): boolean {
   const normalized = projectAgentApprovalPolicyOf(policy);
-  if (normalized.mode === "step" || !safeApprovalGranted) return false;
-  return projectAgentExecutionRisk(toolName, args) === "safe-reversible";
+  if (normalized.mode === "step") return false;
+  if (projectAgentExecutionEffectClass(toolName, args) !== "reversible_local") return false;
+  if (normalized.mode === "project") return true;
+  return !capabilityRequiresPlanReview(toolName) || safeApprovalGranted;
 }

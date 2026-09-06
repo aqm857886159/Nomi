@@ -36,7 +36,6 @@ const surfaceBinding = (projectId: string) => Object.freeze({
 const inputFor = (mode: 'agent' | 'chat' | 'refine') => ({
   message: 'request', snapshot, selectedNodes: [node('launch-selection')], mode,
   projectId: 'project-A',
-  history: { kind: 'persistent' as const, binding: { sessionKey: 'nomi:workbench:project-A:generation', threadId: 'thread-A' } },
   capability: `canvas-${mode}` as 'canvas-agent' | 'canvas-chat' | 'canvas-refine',
   canWrite: () => true,
 })
@@ -58,13 +57,15 @@ describe('canvas business request ownership', () => {
     expect(generationPrompt).not.toContain('预览·时间线')
   })
 
-  it.each(['agent', 'chat', 'refine'] as const)('%s uses explicit capability and persistent thread', async (mode) => {
+  // The Host owns a thread's conversation history; a renderer request never carries one.
+  it.each(['agent', 'chat', 'refine'] as const)('%s uses explicit capability and never authors history', async (mode) => {
     const input = inputFor(mode)
     await sendGenerationCanvasAgentMessage(input)
     expect(deps.run).toHaveBeenCalledWith(expect.objectContaining({
-      capability: `canvas-${mode}`, history: input.history, projectId: 'project-A',
+      capability: `canvas-${mode}`, projectId: 'project-A',
       selectedNodeIds: ['launch-selection'],
     }))
+    expect(deps.run.mock.calls[0][0]).not.toHaveProperty('history')
   })
 
   it('captures binding, mode and exact selected IDs before catalog preflight', async () => {
@@ -72,7 +73,6 @@ describe('canvas business request ownership', () => {
     deps.catalog.mockImplementationOnce(() => new Promise((resolve) => { release = () => resolve([]) }))
     const input = inputFor('refine')
     const result = sendGenerationCanvasAgentMessage(input)
-    input.history.binding.threadId = 'thread-B'
     input.projectId = 'project-B'
     input.mode = 'agent'
     input.selectedNodes.splice(0, 1, node('later-selection'))
@@ -80,7 +80,6 @@ describe('canvas business request ownership', () => {
     await result
     expect(deps.run).toHaveBeenCalledWith(expect.objectContaining({
       projectId: 'project-A', capability: 'canvas-refine', selectedNodeIds: ['launch-selection'],
-      history: { kind: 'persistent', binding: { sessionKey: 'nomi:workbench:project-A:generation', threadId: 'thread-A' } },
     }))
   })
 
@@ -116,7 +115,6 @@ describe('canvas business request ownership', () => {
     const pending = sendGenerationCanvasAgentMessage({
       ...inputFor('agent'),
       capability: 'storyboard',
-      history: { kind: 'ephemeral' },
       snapshot: launchSnapshot,
       capturedCanvasReadSnapshot: handleA,
     })
@@ -155,7 +153,6 @@ describe('canvas business request ownership', () => {
     await sendGenerationCanvasAgentMessage({
       ...inputFor('agent'),
       capability: 'storyboard',
-      history: { kind: 'ephemeral' },
       snapshot: canonical,
       selectedNodes: [],
       capturedCanvasReadSnapshot: handleA,
@@ -185,7 +182,6 @@ describe('canvas business request ownership', () => {
     await expect(sendGenerationCanvasAgentMessage({
       ...inputFor('agent'),
       capability: 'storyboard',
-      history: { kind: 'ephemeral' },
       snapshot: structuralCopy,
       selectedNodes: [],
       capturedCanvasReadSnapshot: handleA,

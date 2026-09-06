@@ -10,6 +10,7 @@ import readline from 'node:readline'
 import { app, safeStorage, session } from 'electron'
 import { createMcpProtocol, MCP_REQUEST_SIGNAL, type McpInvokeOptions } from './mcpProtocol'
 import { MAX_MCP_LINE_BYTES, parseMcpStdioLine } from './mcpStdioLine'
+import { MCP_CANCELLED_IN_FLIGHT_EVENT, MCP_OVERSIZED_LINE_EVENT } from './mcpStdioDiagnostics'
 import { getDesktopLocale, setDesktopLocale } from '../i18n'
 import { createDiskGateway, withPreApprovedSpend, type ProjectGateway } from './gateway'
 import { readLiveInstance, type InstanceAdvertisement } from './lockfile'
@@ -19,6 +20,7 @@ import { appFetch } from '../appFetch'
 import { readProxyPrefs } from '../proxySettings'
 import { getProductionRunService } from '../productionRun/productionRunRuntime'
 import { startArtifactPreviewHttpServer, withAssetPreview } from '../productionRun/artifactPreviewHttpServer'
+import { startCredentialElicitationServer } from '../integrationCertification/credentialElicitationServer'
 import { readWorkspaceProject, resolveWorkspaceProjectDir } from '../workspace/workspaceRepository'
 import { ensureWorkspaceProjectIdentity } from '../workspace/workspaceProjectIdentity'
 import { getProjectLocationState, getWorkspaceRepositoryDeps } from '../runtimePaths'
@@ -61,6 +63,7 @@ import { recordDetectedMcpClient } from './mcpDetectedClients'
 import { createDefaultAuthorities } from './appIntegrationAuthorities'
 import { createProjectAgentProposalReceiptService } from '../projectAgentHost/projectAgentProposalReceiptStore'
 import { executeMcpDocumentWriteWithReceipt } from './mcpDocumentWriteReceipt'
+import { logWarn } from '../logging/logger'
 
 const productionRuns = getProductionRunService()
 
@@ -271,7 +274,11 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
   const previewServer = await startArtifactPreviewHttpServer(
     withAssetPreview(productionRuns, (projectId) => resolveWorkspaceProjectDir(projectId, getWorkspaceRepositoryDeps())),
   )
-  // 关键：stdout 是 JSON-RPC 通道，任何杂质都会毁帧。把我们自己的非错误 console.* 改写到 stderr
+  // MCP URL 模式 elicitation 的一次性凭据页（headless 时这就是密钥的唯一入口）。自成一个严格 CSP 的
+  // 回环 listener，不蹭预览服务器那套跨源放行的头（见 credentialElicitationServer.ts）。
+  await startCredentialElicitationServer()
+  // 关键：stdout 是 JSON-RPC 通道，任何杂质都会毁帧。我们自己的日志已经统一走 logging/logger
+  //（落盘 + stderr 镜像，不碰 stdout）；这里改写 console.* 是给**第三方依赖**留的闸——
   //（Chromium 自身日志本就走 stderr），stdout 只出 JSON-RPC。
   const toErr = (...parts: unknown[]) => process.stderr.write(parts.map((p) => (typeof p === 'string' ? p : JSON.stringify(p))).join(' ') + '\n')
   console.log = toErr
@@ -417,7 +424,7 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
             },
             driveScheduler: (scheduler) => {
               void scheduler.runToQuiescence().catch((error) => {
-                console.warn('[nomi:production] stdio semantic batch scheduler failed:', error instanceof Error ? error.message : String(error))
+                logWarn('production-run', 'stdio-semantic-batch-scheduler-failed', undefined, error)
               })
             },
           })
@@ -541,7 +548,7 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
     if (parsed.kind === 'blank') return
     if (parsed.kind === 'oversized') {
       // 超长行整条丢弃。无从可靠取 id（正是因为它可能根本不是一条完整 JSON）→ 按规范只记日志。
-      console.warn(`[nomi-mcp] dropped an oversized stdin line (> ${MAX_MCP_LINE_BYTES} bytes)`)
+      logWarn('mcp', MCP_OVERSIZED_LINE_EVENT, { limitBytes: MAX_MCP_LINE_BYTES })
       return
     }
     if (parsed.kind === 'parse-error') {
@@ -561,7 +568,7 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
     if (closing) return
     closing = true
     const cancelled = protocol.cancelAllInFlight('stdio disconnected')
-    if (cancelled > 0) console.warn(`[nomi-mcp] cancelled ${cancelled} in-flight request(s) on disconnect`)
+    if (cancelled > 0) logWarn('mcp', MCP_CANCELLED_IN_FLIGHT_EVENT, { count: cancelled })
     protocol.dispose()
     void previewServer.close().finally(() => app.exit(0))
   }

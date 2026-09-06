@@ -19,11 +19,28 @@ export type DynamicPrefix =
   | { prefix: string; why: string; kind?: 'subtree'; members?: readonly string[] }
   | { prefix: string; why: string; kind: 'concat'; suffixes: string[] }
 
+/**
+ * **覆盖整棵顶层命名空间的前缀 = 死键门岗对该命名空间整片失明。**
+ *
+ * 2026-09-05 实证（`generationCommon`）：一条 `t(`generationCommon.${labelKey}`)` 就让 4965 键里
+ * 整个 generationCommon 只报 B 档、永不报死；把注册表那条 umbrella 删掉**一个字都没变**——
+ * 因为反向门岗把**源码模板 head** 也当动态前缀，注册表之外自动生效。收窄调用点后当场冒出 180 条 A 档。
+ *
+ * 故此表是**只减不增的欠账**（check-i18n-dead-keys 强制核对：新增一个整命名空间前缀当场报红；
+ * 某条已经不再过宽也报红，逼你把它摘掉）。清账方式**不是**改注册表，是改调用点：
+ * 常量存**整键**并 `satisfies TranslationKey`（见 `src/i18n/translationKey.ts`），拼接消失、前缀自然收窄。
+ */
+export const OVERBROAD_NAMESPACE_DEBT: readonly string[] = []
+
 export const DYNAMIC_KEY_PREFIXES: DynamicPrefix[] = [
   // ── creationAi ──
   { prefix: 'creationAi.mode', why: '动态: 创作助手模式 id;枚举来源: listCreationAiModes() 的内置 mode.id(CreationPromptPicker 用 `creationAi.mode.${id}` 再接 .label/.short/.title/.description)' },
   // ── antigravity ──
-  { prefix: 'antigravity', why: '动态(整命名空间): AntigravityConnectionCard 的 `antigravity.${feedback}` feedback 反馈码;枚举来源: antigravity 视图 feedback 联合(antigravity.* 顶层词条)' },
+  { prefix: 'antigravity.state', why: '动态: Antigravity 连接状态;枚举来源: AntigravityConnectionStatus["state"] 六态(antigravity.state.* 词条)' },
+  { prefix: 'antigravity.notice', why: '动态: Antigravity 连接状态对应的提示语;枚举来源: 同 state 六态(antigravity.notice.* 词条)' },
+  { prefix: 'antigravity.check', why: '动态: Antigravity 能力校验展示态;枚举来源: antigravityDisplayCheckState() 的返回联合(antigravity.check.* 词条)' },
+  { prefix: 'antigravity.capability', why: '动态: Antigravity 能力项;枚举来源: 卡片 capabilities 列表(antigravity.capability.* 词条)' },
+  { prefix: 'antigravity.issues', why: '动态: Antigravity 失败原因码;枚举来源: 视图 view.issue 联合(antigravity.issues.* 词条)' },
   { prefix: 'antigravity.state', why: '动态: antigravity 连接状态机 state 值;枚举来源: AntigravityViewState.state 联合(state.* 词条)' },
   { prefix: 'antigravity.issues', why: '动态: 校验失败原因码;枚举来源: antigravity 档案的 issue 联合(issues.* 词条)' },
   { prefix: 'antigravity.check', why: '动态: 能力自检状态;枚举来源: antigravityDisplayCheckState() 返回值(check.* 词条)' },
@@ -65,7 +82,6 @@ export const DYNAMIC_KEY_PREFIXES: DynamicPrefix[] = [
   // ── runtime ──
   { prefix: 'runtime.capability.intent', why: '动态: 能力应用意图;枚举来源: capabilityApplyHandler 归一化后的 intent(capability.intent.* 词条)' },
   // ── agentResident ──
-  { prefix: 'agentResident', why: '动态(整命名空间): ProjectAgentResidentShell 及 resident/ 展示器的 `agentResident.${preset.labelKey|preset.hintKey|promptPreset.labelKey|hintKey|key|labelKey}`(提示词档 label/hint、审批/花费 hint、referenceRole、工具参数标签);枚举来源: 内置 prompt preset 的 labelKey/hintKey 常量、residentReferenceRole 的 kind→key 映射、READABLE_PARAMETER_LABELS 的 labelKey(均指向 agentResident.* 已存在词条)' },
   {
     prefix: 'agentResident.mode',
     kind: 'concat',
@@ -85,7 +101,7 @@ export const DYNAMIC_KEY_PREFIXES: DynamicPrefix[] = [
     why: '动态-拼接: 花费策略 `agentResident.spendPolicy${WithinBudget|Confirm}` 标签;枚举来源: ProjectAgentSpendPolicy 二态(within-budget/confirm)',
   },
   // ── generationCommon ──
-  { prefix: 'generationCommon', why: '动态(整命名空间): NodeGenerationComposer/ProductionRunTaskCard/SelectionPromptSaveController 的 `generationCommon.${option.labelKey|view.titleKey|view.descriptionKey|TEXT_MODE_PLACEHOLDER_KEY[...]}`;枚举来源: 这些视图模型里预置的 labelKey/titleKey/descriptionKey 常量(值指向 generationCommon.* 已存在词条)' },
+  { prefix: 'generationCommon.assistant.toolCall', why: "动态: 工具调用的人话摘要;枚举来源: toolCallSummary.ts 的 tt(key)——键先存进 const T 再 `${T}.${key}` 拼,模板 head 为空、正反两道门岗都看不见,故必须在册(该文件里 summarizeToolCall/buildStepDetailLabels 传入的字面量 key)" },
   { prefix: 'generationCommon.agentRuntime', why: '动态: 画布 agent 运行时动作;枚举来源: gate.ts 的 actionKey(agentRuntime.* 词条)' },
   { prefix: 'generationCommon.canvas.controlsHelp.sections', why: '动态: 画布控件帮助分节;枚举来源: CanvasControlsHelpPopover 的 section.id(controlsHelp.sections.* 词条)' },
   { prefix: 'generationCommon.canvas.controlsHelp.actions', why: '动态: 画布控件帮助动作行;枚举来源: CanvasControlsHelpPopover 的 row.actionKey(controlsHelp.actions.* 词条)' },
@@ -120,6 +136,7 @@ export const DYNAMIC_KEY_PREFIXES: DynamicPrefix[] = [
   { prefix: 'scene3d.taskFlow.taskLabel', why: '动态: 3D 任务流任务标签;枚举来源: scene3dTaskMode 的 task(taskFlow.taskLabel.* 词条)' },
   { prefix: 'scene3d.taskFlow.taskShortLabel', why: '动态: 3D 任务流任务短标签;枚举来源: scene3dTaskMode 的 task(taskFlow.taskShortLabel.* 词条)' },
   // ── settings ──
+  { prefix: 'settings.general.telemetry', why: '动态: 遥测设置状态标签;枚举来源: TelemetrySettingsView.status 的 configured/unconfigured/disabled 三态映射为 statusConfigured/statusUnconfigured/statusDisabled 词条' },
   { prefix: 'settings.ai.upload.channel.kind', why: '动态: 上传通道类别;枚举来源: AiModelsSection 的 channel.kind(upload.channel.kind.* 词条)' },
   { prefix: 'settings.ai.tikhub.route', why: '动态: TikHub 路由字段;枚举来源: TikhubConnectorCard 的 route 字段(tikhub.route.* 词条)' },
   {

@@ -56,6 +56,16 @@ export type ProposalAdmissionRule =
   /** A canvas turn queued with no preconditions adopts the ref's edge preconditions. */
   | "deferred-canvas-edges"
   /**
+   * A timeline turn is queued from the user's *selection*, but the plan the user
+   * approves names its own clips and its own base revision — a trim may ripple
+   * into neighbours the selection never mentioned. Freezing the selection as the
+   * write scope would reject every approved plan, so the queue item adopts the
+   * ref's plan scope instead. What guards the write is not the frozen selection
+   * but the plan's compare-and-swap `baseRevision` plus the approval card, which
+   * spells out every operation before the user says yes.
+   */
+  | "deferred-timeline-plan"
+  /**
    * Cross-surface write whose Host ledger entry must be re-anchored to the queue
    * target by its caller before it reaches the reducer. The reducer stays closed.
    */
@@ -130,7 +140,11 @@ const ADMISSION_TABLE: readonly AdmissionCell[] = [
   },
   sameDomainCell("canvas-result"),
   sameDomainCell("asset"),
-  sameDomainCell("timeline"),
+  {
+    sourceDomain: "timeline",
+    targetDomain: "timeline",
+    rules: ["queue-identity", "deferred-timeline-plan"],
+  },
   sameDomainCell("export"),
   sameDomainCell("artifact"),
   sameDomainCell("production"),

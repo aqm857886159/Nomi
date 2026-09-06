@@ -13,6 +13,7 @@ import { useShotVerifyStore } from '../generationCanvas/agent/shotVerifyStore'
 import { abandonPendingCanvasWrite } from '../generationCanvas/events/canvasWriteBoundary'
 import { invalidateAgentTurnStates } from '../ai/agentTurnLifecycle'
 import { DEFAULT_PROJECT_AGENT_APPROVAL_POLICY, DEFAULT_PROJECT_AGENT_WORK_MODE } from '../../../electron/shared/projectAgentContracts'
+import { cloneEditingPanelLayout, EDITING_PANEL_DEFAULTS } from '../preview/panelLayout'
 
 /**
  * Release the currently opened project's heavy renderer-only state after it has
@@ -69,7 +70,6 @@ export function releaseWorkbenchProjectRuntimeState(): void {
     projectAgentRunMode: DEFAULT_PROJECT_AGENT_WORK_MODE,
     projectAgentApprovalPolicy: DEFAULT_PROJECT_AGENT_APPROVAL_POLICY,
     projectAgentDockCollapsed: false,
-    storyboardPlans: {},
     storyboardDesignsByDocumentId: {},
     activeStoryboardId: null,
     timeline: createDefaultTimeline(),
@@ -81,5 +81,7 @@ export function releaseWorkbenchProjectRuntimeState(): void {
     timelineSplitMode: false,
     timelineUndoStack: [],
     timelineRedoStack: [],
+    editingPanelLayout: cloneEditingPanelLayout(EDITING_PANEL_DEFAULTS),
+    editingPanelUndoStack: [],
   })
 }

@@ -40,7 +40,7 @@ import path from 'node:path'
 import { clickOrFail, expect, expectAbsent, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
 import { FIXTURE_IMAGE_MODEL, flattenRequestText } from './agent-runtime-fixture.mjs'
 import {
-  CREATION_PANEL, DOCUMENT, createRuntimeWalk, enableAgentHostThroughSettings,
+  CREATION_PANEL, DOCUMENT, createRuntimeWalk,
   hasToolResult, readProject, recorded,
 } from './agent-runtime-walk-support.mjs'
 
@@ -111,13 +111,13 @@ function say(line) {
 }
 
 /**
- * 盘上真相源：分镜方案按 documentId 存在 payload.storyboardPlans 里
- * （见 applyCanvasToolCall.ts 的 patch_shots 分支：store.storyboardPlans[documentId]）。
+ * 盘上真相源：分镜方案按 documentId 存在 storyboardDesignsByDocumentId 里。
+ * 这里刻意只认 owner，避免兼容形状制造假绿。
  * 这里刻意**只**认这一份 —— 多认一份「兼容形状」就等于给假绿开后门。
  */
 function planFromPayload(payload) {
   const documentId = payload?.activeDocumentId
-  const entry = documentId ? payload?.storyboardPlans?.[documentId] : null
+  const entry = documentId ? payload?.storyboardDesignsByDocumentId?.[documentId]?.[0] : null
   return entry?.plan ?? null
 }
 
@@ -165,22 +165,14 @@ async function stepNewProject() {
 }
 
 /**
- * 开常驻 Agent 的发布闸。走真实 Settings UI（不注入 store / localStorage），
- * 因为「新用户怎么打开它」本身就是这条路径的一部分。
+ * ② 在创作区文本编辑器写三句剧本。
  *
- * ⚠️ 闸删掉后此步删除：`agentHostEnabled` 是 #194 的发布闸（默认 false，
- * 见 src/utils/agentHostPreference.ts）。另一刀正在删它；删完后本函数连同调用点一起删掉，
- * 不要留成一个「有时开有时关」的并行态（P1）。
+ * 这里先断言常驻 Agent 面板已经挂上：它现在是**无条件挂载**的（#194 那个
+ * `agentHostEnabled` 发布闸已删），所以原来那一步「走 Settings 打开常驻 Agent」
+ * 连同它的截图一起删掉了——闸没了还留着那一步，就是留一个「有时开有时关」的并行态（P1）。
  */
-async function stepEnableAgentGate(win) {
-  await enableAgentHostThroughSettings(win)
-  await expectVisible(win.locator(CREATION_PANEL), '开闸后创作区没有出现常驻 Agent 面板')
-  say('已通过设置里的真实开关打开常驻 Agent')
-  await shot('agent-gate-enabled')
-}
-
-/** ② 在创作区文本编辑器写三句剧本。 */
 async function stepWriteScript(win) {
+  await expectVisible(win.locator(CREATION_PANEL), '创作区没有出现常驻 Agent 面板')
   const document = win.locator(DOCUMENT)
   await document.fill(SCRIPT_TEXT)
   await expect(document, '三句剧本没有落进创作区编辑器').toHaveText(SCRIPT_TEXT)
@@ -239,7 +231,14 @@ async function stepSplitIntoThreeShots(win, projectId) {
 
 /** 进分镜页，并断言表里就是 3 行。 */
 async function stepOpenStoryboard(win) {
-  await clickOrFail(win.getByRole('button', { name: '打开分镜', exact: true }), '从方案卡进入分镜页')
+  // 方案卡就是常驻 Agent 里的分镜收据行「分镜方案已生成 [打开]」。按钮文案是「打开」，
+  // 不是「打开分镜」——这条走查钉的是早已改掉的旧文案，于是在 main 上一直红着，
+  // 报的是「元素找不到」，看不出根因（docs/lessons/dead-selector-lies-both-ways.md）。
+  // 作用域收到收据卡里，免得哪天别处也出现一个叫「打开」的按钮时指错。
+  await clickOrFail(
+    win.locator('[data-agent-storyboard-receipt="true"]').first().getByRole('button', { name: '打开', exact: true }),
+    '从方案卡进入分镜页',
+  )
   await expectVisible(win.locator(STORYBOARD_EDITOR), '分镜编辑器没有渲染')
   await expect(win.locator(`${STORYBOARD_EDITOR} [data-storyboard-row]`), '分镜表不是 3 行').toHaveCount(3)
   await expectVisible(win.locator(STORYBOARD_PANEL), '分镜页没有出现常驻 Agent 面板')
@@ -405,7 +404,7 @@ async function stepRestartAndVerify(projectRoot, projectId, { shotId, resultUrl 
   // 盘对了还不够：用户看得见的那一屏也得对。
   await clickOrFail(win.getByRole('button', { name: '创作', exact: true }), '切到创作页')
   await clickOrFail(win.locator('[data-storyboard-id]').first(), '侧栏选中分镜方案')
-  await clickOrFail(win.getByRole('button', { name: /再次编辑|打开分镜/ }).first(), '重启后进入分镜页')
+  await clickOrFail(win.locator('[data-agent-storyboard-receipt="true"]').first().getByRole('button', { name: '打开', exact: true }), '重启后进入分镜页')
   await expectVisible(win.locator(STORYBOARD_EDITOR), '重启后分镜编辑器没有渲染')
   await expect(win.locator(`${STORYBOARD_EDITOR} [data-storyboard-row]`), '重启后分镜表不是 3 行').toHaveCount(3)
   await expect(win.locator(row(2)), '重启后第 2 行没有显示改后的提示词').toContainText('逆光下的侧脸')
@@ -414,9 +413,9 @@ async function stepRestartAndVerify(projectRoot, projectId, { shotId, resultUrl 
   // 只比 src 字符串会假绿：src 在、图挂了也照样通过。判据取 naturalWidth——
   // 它 >0 意味着这张图**真的解码出来了**。
   const restoredImage = win.locator(`${row(2)} [data-storyboard-frame] img`).first()
-  await expect.poll(async () => restoredImage.evaluate((el) => ({ src: el.getAttribute('src'), w: el.naturalWidth })),
+  await expect.poll(async () => restoredImage.evaluate((el) => el.naturalWidth),
     { message: '重启后第 2 行的画面格没有真的把那张图解码出来', timeout: 20_000 })
-    .toEqual(expect.objectContaining({ w: expect.any(Number) }))
+    .toBeGreaterThan(0)
   const restored = await restoredImage.evaluate((el) => ({ src: el.getAttribute('src'), w: el.naturalWidth, h: el.naturalHeight, complete: el.complete }))
   console.log('  · 重启后画面格 img：', JSON.stringify(restored))
   expect(restored.src, '重启后第 2 行画面格的图不是本地资产').toContain('nomi-local://')
@@ -434,7 +433,6 @@ try {
     : '▶ 金路径走查（新建空项目 → 三句剧本 → 拆 3 镜 → 改第 2 镜 → 批准 → 生成 → 重启）')
   const { projectId, projectRoot } = await stepNewProject()
   const win = currentWin
-  await stepEnableAgentGate(win)
   await stepWriteScript(win)
   await stepSplitIntoThreeShots(win, projectId)
   await stepOpenStoryboard(win)

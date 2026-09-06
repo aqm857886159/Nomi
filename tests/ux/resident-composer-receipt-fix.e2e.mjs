@@ -9,12 +9,11 @@ import path from 'node:path'
 import { clickOrFail, expect, expectAbsent, proveProbe } from './_assert.mjs'
 import { parseToolResult, spawnMcpStdioClient } from './_mcpJourney.mjs'
 import { flattenRequestText } from './agent-runtime-fixture.mjs'
-import { DOCUMENT, createRuntimeWalk, readProject, recorded } from './agent-runtime-walk-support.mjs'
+import { DOCUMENT, createRuntimeWalk, hasToolResult, openCanvas, readProject, recorded } from './agent-runtime-walk-support.mjs'
 
 const ORIGINAL = '真实用户任务基线：创作者准备在文末补充收尾。'
 const RESIDENT_INTENT = '请在文末补一句收尾，保留原文并等待我确认。'
 const RESIDENT_APPEND = 'ResidentHostApproved她按下录制键，开始拍摄。'
-const REJECTED_APPEND = 'RejectedResidentWrite不得写入。'
 const MCP_APPEND = 'McpStdioProductionWrite这次写入必须经过同一确认回执。'
 const CREATION_PANEL = '[data-agent-resident="true"]'
 
@@ -68,10 +67,13 @@ try {
   }).toContain(ORIGINAL)
   await clickOrFail(win.getByRole('button', { name: '创作', exact: true }), '进入创作工作区')
 
+  // Matchers key on this turn's own tool_call_id, never on "no tool message at all":
+  // the Host owns one lossless resident thread, so every later request carries the
+  // earlier turns' tool calls and results.
   const proposalRequest = walk.fixture.expectText({
     label: 'Resident Composer plans a real document write',
     match: (body) => flattenRequestText(body).includes(RESIDENT_INTENT)
-      && !body.messages?.some((message) => message.role === 'tool'),
+      && !hasToolResult(body, 'resident-receipt-fix-1'),
     reply: {
       type: 'tool', id: 'resident-receipt-fix-1', name: 'nomi_document_edit',
       args: { operation: 'append', content: RESIDENT_APPEND },
@@ -79,30 +81,24 @@ try {
   })
   const approvedFollowup = walk.fixture.expectText({
     label: 'Agent receives the real approved write result',
-    match: (body) => body.messages?.some((message) => message.role === 'tool'
-      && message.tool_call_id === 'resident-receipt-fix-1'),
+    match: (body) => hasToolResult(body, 'resident-receipt-fix-1'),
     reply: { type: 'text', text: '已按确认写入文稿，并保留可追溯回执。' },
   })
   await sendResidentIntent(win, RESIDENT_INTENT)
   await recorded(proposalRequest.received, 'the real Agent planning request')
   const approval = win.locator(`${CREATION_PANEL} [data-agent-approval="true"][data-agent-approval-state="pending"]`)
-  const approvalProof = await proveProbe(approval, 'Resident Composer shows a real pending approval')
-  walk.report.matrix.H.evidence.push('visible intent -> real Agent planning request -> pending approval')
-  await expect(document, 'Proposal must not mutate the document before approval').toHaveText(ORIGINAL)
-  await clickOrFail(approval.getByRole('button', { name: '批准', exact: true }), '用户确认 Resident 文稿提案', {
-    noWaitAfter: true,
+  const composerProof = await proveProbe(win.locator(CREATION_PANEL), 'Resident Composer renders the real planning surface')
+  await expectAbsent(approval, {
+    provenBy: composerProof,
+    message: 'A reversible local document edit is auto-approved in safe-auto mode',
   })
-  await recorded(approvedFollowup.received, 'the approved write result')
+  walk.report.matrix.H.evidence.push('visible intent -> real Agent planning request -> safe-auto reversible write without a card')
+  await recorded(approvedFollowup.received, 'the auto-approved write result')
   await expect(document).toContainText(RESIDENT_APPEND)
   await expect.poll(async () => JSON.stringify((await readProject(win, projectId)).payload.workbenchDocuments), {
-    message: 'Approved Resident write must persist to the project',
+    message: 'Auto-approved Resident write must persist to the project',
     timeout: 30_000,
   }).toContain(RESIDENT_APPEND)
-  await expectAbsent(approval.getByRole('button', { name: '批准', exact: true }), {
-    provenBy: approvalProof,
-    message: 'An applied approval must no longer be actionable',
-  })
-
   const receiptPath = path.join(projectRoot, '.nomi', 'project-agent-proposal-receipt.json')
   const beforeMcp = fs.existsSync(receiptPath) ? JSON.parse(fs.readFileSync(receiptPath, 'utf8')) : null
   if (!beforeMcp) {
@@ -127,30 +123,79 @@ try {
     status: 'passed', evidence: ['real Composer empty input remains disabled', 'Unicode content persisted through H'],
   }
 
-  // E: a real Agent proposal is denied at the UI approval boundary and cannot mutate the document.
-  const rejectedRequest = walk.fixture.expectText({
-    label: 'Resident Composer rejection proposal',
-    match: (body) => flattenRequestText(body).includes('请提出一个需要拒绝的收尾')
-      && !body.messages?.some((message) => message.role === 'tool'),
+  await openCanvas(win)
+  await expect(win.locator(`${CREATION_PANEL}[data-agent-surface="generation"]`)).toBeVisible()
+
+  const canvasCreateRequest = walk.fixture.expectText({
+    label: 'Resident Composer creates a reversible canvas fixture node',
+    match: (body) => flattenRequestText(body).includes('请创建一个临时图片节点')
+      && !hasToolResult(body, 'resident-receipt-fix-canvas-create'),
     reply: {
-      type: 'tool', id: 'resident-receipt-fix-rejected', name: 'nomi_document_edit',
-      args: { operation: 'append', content: REJECTED_APPEND },
+      type: 'tool', id: 'resident-receipt-fix-canvas-create', name: 'nomi_canvas_edit',
+      args: {
+        operation: 'create_canvas_nodes', summary: 'resident receipt approval fixture',
+        nodes: [{ clientId: 'resident-receipt-fix-node', kind: 'image', title: 'Resident approval fixture', prompt: 'temporary approval fixture', modelKey: 'agent-runtime-image', modeId: 't2i', params: { size: '1024x1024' } }],
+      },
+    },
+  })
+  const canvasCreateFollowup = walk.fixture.expectText({
+    label: 'Agent receives the canvas fixture result',
+    match: (body) => hasToolResult(body, 'resident-receipt-fix-canvas-create'),
+    reply: { type: 'text', text: '已创建临时画布节点。' },
+  })
+  await sendResidentIntent(win, '请创建一个临时图片节点，只用于接下来验证审批。')
+  const canvasCreateWire = await recorded(canvasCreateRequest.received, 'the real canvas fixture request')
+  // One resident thread spans both surfaces, so a canvas turn still carries the creation
+  // turn's tool result. A matcher may only exclude *this* turn's own tool_call_id.
+  expect(hasToolResult(canvasCreateWire.body, 'resident-receipt-fix-1'),
+    'The canvas turn must still carry the earlier creation turn\'s tool result').toBe(true)
+  await recorded(canvasCreateFollowup.received, 'the canvas fixture result')
+  await expect.poll(async () => (await readProject(win, projectId)).payload.generationCanvas.nodes.length, {
+    message: 'Canvas fixture node must persist before the irreversible proposal', timeout: 30_000,
+  }).toBeGreaterThan(0)
+  const canvasNodesBeforeDelete = (await readProject(win, projectId)).payload.generationCanvas.nodes
+  const fixtureNodeId = canvasNodesBeforeDelete.at(-1).id
+  const fixtureNode = win.locator(`.generation-canvas-v2-node[data-node-id="${fixtureNodeId}"]`)
+  await expect(fixtureNode).toBeVisible()
+  await fixtureNode.click({ position: { x: 12, y: 12 } })
+  await expect(fixtureNode).toHaveAttribute('data-selected', 'true')
+
+  // E: a real gated action is denied at the UI approval boundary. Approval/spend
+  // policy no longer lives in the work-mode popover; use an irreversible canvas
+  // maintenance action so the default safe-auto posture still has to show the
+  // intervention card without spending provider credits.
+  const rejectedRequest = walk.fixture.expectText({
+    label: 'Resident Composer gated-action rejection proposal',
+    match: (body) => flattenRequestText(body).includes('请提出一个需要拒绝的删除动作')
+      && !hasToolResult(body, 'resident-receipt-fix-rejected'),
+    reply: {
+      type: 'tool', id: 'resident-receipt-fix-rejected', name: 'nomi_canvas_maintenance',
+      args: { operation: 'delete_canvas_nodes', nodeIds: [fixtureNodeId], reason: 'journey approval gate' },
     },
   })
   const rejectedFollowup = walk.fixture.expectText({
-    label: 'Agent receives the real denied write result',
-    match: (body) => body.messages?.some((message) => message.role === 'tool'
-      && message.tool_call_id === 'resident-receipt-fix-rejected'),
-    reply: { type: 'text', text: '已记录拒绝，本次没有写入文稿。' },
+    label: 'Agent receives the real denied gated-action result',
+    match: (body) => hasToolResult(body, 'resident-receipt-fix-rejected'),
+    reply: { type: 'text', text: '已记录拒绝，本次没有删除画布内容。' },
   })
-  await sendResidentIntent(win, '请提出一个需要拒绝的收尾，不要自行写入。')
-  await recorded(rejectedRequest.received, 'the real rejection proposal')
-  const rejectedApproval = win.locator(`${CREATION_PANEL} [data-agent-approval="true"][data-agent-approval-state="pending"]`)
-  await proveProbe(rejectedApproval, 'Resident Composer shows the rejection approval')
-  await clickOrFail(rejectedApproval.getByRole('button', { name: '拒绝', exact: true }), '用户拒绝 Resident 文稿提案')
-  await recorded(rejectedFollowup.received, 'the denied write result')
-  await expect(document).not.toContainText(REJECTED_APPEND)
-  walk.report.matrix.E = { status: 'passed', evidence: ['real approval card -> refusal -> no project mutation'] }
+  await sendResidentIntent(win, '请提出一个需要拒绝的删除动作，不要自行删除。')
+  await recorded(rejectedRequest.received, 'the real gated-action proposal')
+  const rejectedApprovalCard = win.locator(`${CREATION_PANEL} [data-agent-intervention-slot="true"]`).last()
+  await expect(rejectedApprovalCard).toHaveAttribute('data-agent-approval-state', 'pending')
+  await proveProbe(rejectedApprovalCard, 'Resident Composer shows a real irreversible approval')
+  await expect(rejectedApprovalCard.locator('[data-agent-approval-scope="once"]')).toHaveCount(1)
+  await expect(rejectedApprovalCard.locator('[data-agent-approval-scope="session"]')).toHaveCount(0)
+  await expect(rejectedApprovalCard.locator('[data-agent-approval-scope="always"]')).toHaveCount(0)
+  await expect(rejectedApprovalCard.locator('[data-agent-intervention-boundary="true"]')).toBeVisible()
+  await rejectedApprovalCard.locator('[data-agent-reject-reason]').fill('这次先不删，保留镜头待复核。')
+  await walk.snap('irreversible-approval-with-reason')
+  await clickOrFail(rejectedApprovalCard.getByRole('button', { name: '拒绝', exact: true }), '用户拒绝 Resident 删除提案')
+  await recorded(rejectedFollowup.received, 'the denied gated-action result')
+  await expect(win.locator(`${CREATION_PANEL} [data-agent-approval="true"][data-agent-approval-state="pending"]`)).toHaveCount(0)
+  await walk.snap('irreversible-rejection-receipt')
+  expect((await readProject(win, projectId)).payload.generationCanvas.nodes.map((node) => node.id)).toContain(fixtureNodeId)
+  walk.report.matrix.E = { status: 'passed', evidence: ['irreversible action -> real approval card -> refusal -> no project mutation'] }
+  await clickOrFail(win.getByRole('button', { name: '创作', exact: true }), '返回创作工作区')
 
   // N: use a separately spawned production MCP stdio Electron process. Elicitation accepts the
   // user's confirmation, then the GUI RPC boundary owns the same project-bound receipt service.

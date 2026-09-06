@@ -32,9 +32,19 @@ const residentReference = readSource(
 const residentExceptions = readSource(
   path.join(process.cwd(), 'src/workbench/ai/resident/ResidentExceptionStates.tsx'),
 )
+const interventionSlot = readSource(
+  path.join(process.cwd(), 'src/workbench/ai/InterventionSlot.tsx'),
+)
 const residentGenerationEditor = readSource(
   path.join(process.cwd(), 'src/workbench/ai/resident/GenerationProposalEditor.tsx'),
 )
+// The collapsed launcher moved into its own owner when the collapsed dock
+// started rendering the same composer (design contract §2.6). The invariant
+// below still belongs to the resident surface; only its file changed.
+const residentCollapsedDock = readSource(
+  path.join(process.cwd(), 'src/workbench/ai/resident/ResidentCollapsedDock.tsx'),
+)
+
 const reconcileCard = readSource(
   path.join(process.cwd(), 'src/workbench/generationCanvas/components/ReconcileDeviationCard.tsx'),
 )
@@ -64,6 +74,14 @@ const workbenchShell = readSource(
 )
 const settingsDialog = readSource(
   path.join(process.cwd(), 'src/workbench/settings/SettingsDialog.tsx'),
+)
+const timelineSurface = readSource(
+  path.join(process.cwd(), 'src/workbench/ai/resident/timelineAgentSurface.tsx'),
+)
+// 面名 / 状态名 / 介入槽行 / 出错文案 / 消息样式这一族纯显示换算，2026-09-06 从壳里搬到
+// resident/residentShellDisplay.ts（壳撞上 R12 的 800 行上限）。钉的还是同一条契约，只是换了住处。
+const residentShellDisplay = readSource(
+  path.join(process.cwd(), 'src/workbench/ai/resident/residentShellDisplay.ts'),
 )
 
 describe('ProjectAgentResidentShell production contract', () => {
@@ -128,11 +146,16 @@ describe('ProjectAgentResidentShell production contract', () => {
   it('keeps PR194 controls separate and routes actions through the Host boundary', () => {
     for (const control of [
       'data-agent-composer-attach',
-      'data-agent-composer-prompt',
-      'data-agent-composer-mode',
       'data-agent-composer-model',
+      'data-agent-composer-skill',
+      'data-agent-composer-mode',
       'data-agent-composer-send',
     ]) expect(resident).toContain(control)
+    expect(resident).not.toContain('data-agent-composer-prompt')
+    expect(resident).toContain('<NomiSegmented')
+    expect(resident).toContain('testId="prompt-library"')
+    expect(resident).not.toContain('data-agent-menu-item="approval-mode-')
+    expect(resident).not.toContain('data-agent-menu-item="spend-policy-')
     expect(resident).toContain('data-agent-queue-row')
     expect(resident).toContain('data-agent-queue-actions')
     expect(residentPrimitives).toContain('data-agent-tool-header')
@@ -145,7 +168,7 @@ describe('ProjectAgentResidentShell production contract', () => {
     expect(resident).toContain("window.addEventListener('nomi-model-catalog-changed', loadModels)")
     expect(resident).toContain("window.removeEventListener('nomi-model-catalog-changed', loadModels)")
     expect(resident).toContain('projectAgentReferences')
-    for (const icon of ['IconPaperclip', 'IconBolt', 'IconTool', 'IconPencil', 'IconRobot', 'IconArrowUp', 'IconPlayerStopFilled', 'IconChevronLeft', 'IconFocusCentered']) {
+    for (const icon of ['IconPaperclip', 'IconBolt', 'IconTool', 'IconListCheck', 'IconPencil', 'IconRobot', 'IconArrowUp', 'IconPlayerStopFilled', 'IconChevronLeft', 'IconFocusCentered']) {
       expect(resident).toContain(icon)
     }
     expect(resident).toContain("event.key === '@'")
@@ -166,8 +189,12 @@ describe('ProjectAgentResidentShell production contract', () => {
     expect(resident).toContain('aria-haspopup="menu"')
     expect(residentUi).toContain('BodyPortal')
     expect(residentUi).toContain('anchorRef')
-    expect(resident).toContain('data-agent-resident-collapsed="true"')
-    expect(resident).toContain('rounded-pill border border-nomi-line')
+    // 收起态只有**一个**叫回入口：面板系统最右侧那条 32px 图标条（合同 §2.1）。
+    // 浮在画面右上角的那颗「叫回 Nomi」胶囊已随 2026-09-06 收官走查删除——两个入口
+    // 一个动作两个名字，还挡住画面右上角。dock 只剩浮到预览下沿的 composer。
+    expect(residentCollapsedDock).toContain('data-agent-collapsed-dock="true"')
+    expect(residentCollapsedDock).not.toContain('data-agent-resident-collapsed="true"')
+    expect(residentCollapsedDock).not.toContain('agentResident.recall')
     expect(resident).not.toContain('CreationPromptPicker')
     expect(resident).not.toContain('AssistantModelPicker')
     expect(resident).not.toContain('<select')
@@ -217,7 +244,9 @@ describe('ProjectAgentResidentShell production contract', () => {
     expect(residentPrimitives).toContain('data-agent-tool-active')
     expect(residentPrimitives).toContain('data-agent-tool-elapsed')
     expect(residentTiming).toContain('residentToolElapsedMs')
-    expect(resident).toContain("status === 'declined' ? 'declined'")
+    // 2026-09-05：状态→文案从三目链改成整键查表（拼 `agentResident.${key}` 会让死键门岗
+    // 对整棵 agentResident 失明）。断言跟着搬到查表项上，钉的还是「declined 有自己的文案」。
+    expect(residentShellDisplay).toContain("declined: 'agentResident.declined'")
     expect(residentPrimitives).toContain('data-agent-proposal-prompt')
     expect(residentPrimitives).toContain('<IconMessage')
     expect(residentGenerationEditor).toContain('ResidentBatchStack')
@@ -295,6 +324,20 @@ describe('ProjectAgentResidentShell production contract', () => {
     expect(resident).toContain("collapseLabel={t('agentResident.pinnedCollapse')}")
   })
 
+  it('uses one intervention slot with typed kinds and effect-scoped approval actions', () => {
+    expect(interventionSlot).toContain("export type InterventionKind = 'approval' | 'question' | 'missing_credential' | 'missing_param'")
+    expect(interventionSlot).toContain('onApproveOnce')
+    expect(interventionSlot).toContain('onApproveSession')
+    expect(interventionSlot).toContain('onApproveAlways')
+    expect(interventionSlot).toContain('data-agent-approval-scope="once"')
+    expect(interventionSlot).toContain('data-agent-approval-scope="session"')
+    expect(interventionSlot).toContain('data-agent-approval-scope="always"')
+    expect(interventionSlot).toContain("effectClass !== 'spend' && effectClass !== 'irreversible'")
+    expect(interventionSlot).toContain('data-agent-reject-reason')
+    expect(interventionSlot).toContain('data-agent-intervention-pending-count')
+    expect(resident).toContain("onApproveAlways={interventionEffect === 'reversible_local'")
+  })
+
   it('keeps queue mutations Host-owned while exposing the typed mutation seam', () => {
     for (const mutation of [
       '"queue.delete"',
@@ -340,8 +383,24 @@ describe('ProjectAgentResidentShell production contract', () => {
     expect(generation).toContain("aiCollapsed ? '0px' : assistantTargetWidth")
     expect(generation).toContain("data-ai-layout={hasAssistant ? (aiCollapsed ? 'overlay' : 'sidebar') : 'none'}")
     expect(generation).toContain('pointer-events-none absolute inset-0 z-40 overflow-visible')
-    expect(preview).toContain("aiCollapsed ? '0px' : `${assistantWidth}px`")
-    expect(preview).toContain("'relative min-w-0 min-h-0 grid overflow-hidden'")
-    expect(preview).toContain('pointer-events-none absolute inset-0 z-40 overflow-visible')
+    // 剪辑面（预览页）自 2026-09-05 T1 起走面板系统，收起态**不是**覆盖层而是一条 32px 图标条
+    //（设计合同 §2.1 明写「收起后的右侧图标条：32px 宽，属性 / Nomi 各一个图标，点击展开」）。
+    // 所以这里不该再找旧的 grid + 0px 列 + overlay 三件套——那三条是被合同替换掉的写法，
+    // 换成钉住新契约：面板系统 + collapsedSize 用同一个 rail 常量 + 收起时渲染 PanelRail。
+    expect(preview).toContain("from 'react-resizable-panels'")
+    expect(preview).toContain('collapsedSize={EDITING_PANEL_RAIL_WIDTH}')
+    expect(preview).toContain('<PanelRail')
+    expect(preview).not.toContain("aiCollapsed ? '0px'")
+  })
+
+  it('portals the timeline plan preview into the editing surface, not the first timeline in the DOM', () => {
+    // WorkbenchShell 把去过的工作区都留在 DOM 里（WorkspaceSlot 只是 hidden，为的是切回去时
+    // 状态还在），于是**两条**时间轴同时挂着 `.workbench-timeline__tracks`，而生成画布那条
+    // 排在剪辑面前面且是 0×0。裸 `document.querySelector('.workbench-timeline__tracks')`
+    // 因此稳稳地拿到隐藏的那条，色带被 Portal 进一个看不见的宿主：功能"跑通了"，用户什么都看不到。
+    // 这条断言把宿主必须限定在剪辑面那棵树里钉死——它在 DOM 里看不出错，只有肉眼看得出。
+    expect(shell).toContain('<WorkspaceSlot')
+    expect(timelineSurface).toContain("'.workbench-preview .workbench-timeline__tracks'")
+    expect(timelineSurface).not.toContain("querySelector<HTMLElement>('.workbench-timeline__tracks')")
   })
 })

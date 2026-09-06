@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { dispatch } from "./dispatcher";
 import { validateToolArguments } from "./mcpArgValidation";
@@ -15,15 +15,65 @@ function beginTool() {
   return MCP_INTEGRATION_TOOL;
 }
 
-function service() {
+function service(overrides: ConstructorParameters<typeof IntegrationSessionService>[0] = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-mcp-integration-"));
   return new IntegrationSessionService({
     filePath: path.join(dir, "sessions.json"),
     save: (target, state) => fs.writeFileSync(target, JSON.stringify(state)),
+    credentialResolver: () => "relay-test-key",
+    approvalReceiptAuthority: {
+      requestChallenge: () => ({ challenge: {
+        challengeId: "challenge-test",
+        expiresAt: "2099-01-01T00:00:00.000Z",
+        contractHash: "contract",
+        reservationPreview: { maximum: 1, currency: "USD" },
+      } }),
+    } as never,
+    ...overrides,
   });
 }
 
+afterEach(() => vi.unstubAllGlobals());
+
 describe("MCP integration tool contract", () => {
+  it('queues the durable handoff before notifying the GUI navigation callback', async () => {
+    const sessions = service()
+    const created = await dispatch('integration.begin', {
+      kind: 'http-api-provider', name: 'Kling', baseUrl: 'https://api.kling.example/v1', providerKind: 'openai-compatible',
+    }, { integrationSessions: sessions, origin: { host: 'claude' } } as never) as { id: string; revision: number }
+    const order: string[] = []
+    const opened = await dispatch('integration.open_credentials', {
+      sessionId: created.id, expectedRevision: created.revision,
+    }, {
+      integrationSessions: sessions,
+      origin: { host: 'claude' },
+      openCredentialsInNomi: async ({ sessionId, vendorName }: { sessionId: string; vendorName: string }) => {
+        order.push(`${sessionId}:${vendorName}:${sessions.get(sessionId, 'claude').stage}`)
+        return { opened: true }
+      },
+    } as never) as Record<string, unknown>
+    expect(order).toEqual([`${created.id}:Kling:needs_credential`])
+    expect(opened.credentialUiOpened).toBe(true)
+    expect(opened.credentialEntry).toBeUndefined()
+  })
+
+  it('keeps the manual startup fallback when the GUI navigation callback is unavailable', async () => {
+    const handoffs: unknown[] = []
+    const sessions = service({ enqueueHandoff: (handoff) => handoffs.push(handoff) })
+    const created = await dispatch('integration.begin', {
+      kind: 'http-api-provider', name: 'Kling', baseUrl: 'https://api.kling.example/v1', providerKind: 'openai-compatible',
+    }, { integrationSessions: sessions, origin: { host: 'claude' } } as never) as { id: string; revision: number }
+    const opened = await dispatch('integration.open_credentials', {
+      sessionId: created.id, expectedRevision: created.revision,
+    }, {
+      integrationSessions: sessions,
+      origin: { host: 'claude' },
+      openCredentialsInNomi: async () => { throw new Error('renderer unavailable') },
+    } as never) as Record<string, unknown>
+    expect(handoffs).toHaveLength(1)
+    expect(opened.credentialUiOpened).toBe(false)
+  })
+
   it("accepts only public begin configuration and rejects credential-shaped fields", () => {
     const tool = beginTool();
     const valid = {
@@ -130,6 +180,68 @@ describe("MCP integration tool contract", () => {
       proposal: { workflow: "{}" },
     }, { integrationSessions: sessions, origin: { host: "codex" } } as never)).rejects.toThrow(/proposal\.workflow/);
     expect(sessions.get(created.id, "codex").revision).toBe(created.revision);
+  });
+
+  it("discovers a relay model list during propose and marks unmatched ids as plain text", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ data: [{ id: "relay-chat" }, { id: "house-model" }] }), { status: 200 })));
+    const sessions = service();
+    const created = await dispatch("integration.begin", {
+      kind: "http-api-provider", name: "Relay", baseUrl: "https://relay.example/v1", providerKind: "openai-compatible",
+    }, { integrationSessions: sessions, origin: { host: "codex" } } as never) as { id: string; revision: number };
+    const ready = sessions.markCredentialReady(created.id, "ref-never-returned", "codex");
+    const discovered = await dispatch("integration.propose", {
+      sessionId: created.id, expectedRevision: ready.revision, proposal: {},
+    }, { integrationSessions: sessions, origin: { host: "codex" } } as never) as { candidates: Array<Record<string, unknown>>; stage: string; revision: number };
+    expect(discovered.stage).toBe("needs_selection");
+    expect(discovered.candidates).toEqual(expect.arrayContaining([
+      expect.objectContaining({ modelKey: "relay-chat", kind: "text", classification: "unknown" }),
+      expect.objectContaining({ modelKey: "house-model", kind: "text", classification: "unknown" }),
+    ]));
+    expect(JSON.stringify(discovered)).toContain("纯文本");
+    const selected = await dispatch("integration.propose", {
+      sessionId: created.id,
+      expectedRevision: discovered.revision,
+      proposal: {
+        candidates: discovered.candidates.map(({ modelKey, kind }) => ({ modelKey, kind })),
+        selections: [{ modelKey: "relay-chat" }],
+      },
+    }, { integrationSessions: sessions, origin: { host: "codex" } } as never) as { revision: number; stage: string };
+    expect(selected.stage).toBe("needs_spend_confirmation");
+    const confirmation = await dispatch("integration.request_confirmation", {
+      sessionId: created.id, expectedRevision: selected.revision, idempotencyKey: "relay-discovery-confirm",
+    }, { integrationSessions: sessions, origin: { host: "codex" } } as never) as { challengeId: string };
+    expect(confirmation.challengeId).toMatch(/^challenge-/);
+  });
+
+  it("returns a readable manual model-id fallback when the relay has no models route", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: "not found" }), { status: 404 })));
+    const sessions = service();
+    const created = await dispatch("integration.begin", {
+      kind: "http-api-provider", name: "Relay", baseUrl: "https://relay.example", providerKind: "openai-compatible",
+    }, { integrationSessions: sessions, origin: { host: "codex" } } as never) as { id: string; revision: number };
+    const ready = sessions.markCredentialReady(created.id, "ref-never-returned", "codex");
+    await expect(dispatch("integration.propose", {
+      sessionId: created.id, expectedRevision: ready.revision, proposal: {},
+    }, { integrationSessions: sessions, origin: { host: "codex" } } as never)).rejects.toThrow(/手动填写 model ID|model ID/i);
+  });
+
+  it("derives media capability from OpenRouter architecture metadata", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ data: [
+      { id: "openrouter/image", architecture: { input_modalities: ["text", "image"], output_modalities: ["image"], supported_parameters: ["temperature"] } },
+      { id: "openrouter/video", architecture: { input_modalities: ["text"], output_modalities: ["video"] } },
+    ] }), { status: 200 })));
+    const sessions = service();
+    const created = await dispatch("integration.begin", {
+      kind: "http-api-provider", name: "OpenRouter relay", baseUrl: "https://relay.example/v1", providerKind: "openai-compatible",
+    }, { integrationSessions: sessions, origin: { host: "codex" } } as never) as { id: string; revision: number };
+    const ready = sessions.markCredentialReady(created.id, "ref-never-returned", "codex");
+    const discovered = await dispatch("integration.propose", {
+      sessionId: created.id, expectedRevision: ready.revision, proposal: {},
+    }, { integrationSessions: sessions, origin: { host: "codex" } } as never) as { candidates: Array<Record<string, unknown>> };
+    expect(discovered.candidates).toEqual(expect.arrayContaining([
+      expect.objectContaining({ modelKey: "openrouter/image", kind: "image", modes: ["text_to_image", "image_to_image"], classification: "supported" }),
+      expect.objectContaining({ modelKey: "openrouter/video", kind: "video", modes: ["text_to_video"], classification: "supported" }),
+    ]));
   });
 
   it("advertises every integration action to tools-only clients without reading a Skill resource", async () => {

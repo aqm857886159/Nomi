@@ -48,7 +48,9 @@ function expected(
       admission:
         sourceDomain === "canvas"
           ? ["queue-identity", "deferred-canvas-edges"]
-          : ["queue-identity"],
+          : sourceDomain === "timeline"
+            ? ["queue-identity", "deferred-timeline-plan"]
+            : ["queue-identity"],
     };
   }
   if (fromState === PROPOSAL_LEDGER_ABSENT) {

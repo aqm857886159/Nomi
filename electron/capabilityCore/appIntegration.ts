@@ -11,6 +11,8 @@
 //
 // 这里只做接线，不碰 main.ts 的其它职责（保持 main.ts 精简、单一关注点）。
 import { app } from 'electron'
+import { getMainWindow } from '../mainWindowRegistry'
+import { notifyHostConfigRepaired } from './hostConfigRepairNotice'
 import { startRpcServer, type RpcServerHandle } from './rpcServer'
 import { ensureCapabilitySigningKey, ensureToken } from './security'
 import { clearInstanceAdvertisement, writeInstanceAdvertisement } from './lockfile'
@@ -63,6 +65,8 @@ import { createLiveGenerationRuntime } from './liveGenerationRuntime'
 import { createGenerationProviderBootstrap } from './generationProviderBootstrap'
 import { createDefaultAuthorities } from './appIntegrationAuthorities'
 import { createProductionActionHooks } from './appIntegrationProductionActions'
+import { repairStaleMcpConfigs } from './mcpConfig'
+import { logDevDetail, logError, logInfo, logWarn } from '../logging/logger'
 
 let handle: RpcServerHandle | null = null
 // P4 S5：打开/切换项目时的补齐钩子（startCapabilityCore 装配后设进来）——按 run.jobs[].nodeId × artifacts
@@ -131,6 +135,7 @@ export async function startCapabilityCore(
     generationModuleRegistry?: Pick<ModuleRegistry, 'resolve'>
     projectRevisionResolver?: (projectId: string) => number | undefined
     proposalReceiptFor?: import('./rpcServer').RpcServerOptions['proposalReceiptFor']
+    openCredentialsInNomi?: import('./rpcServer').RpcServerOptions['openCredentialsInNomi']
     canvasReadExecutionRuntime?: CanvasReadExecutionRuntime
     onGenerationReady?: (factory: ResidentGenerationAdapterFactory['factory']) => void
   } = {},
@@ -147,6 +152,16 @@ export async function startCapabilityCore(
   disposeResidentGenerationAdapter?.();
   disposeResidentGenerationAdapter = null;
   try {
+    // 已接入的编程助手若还指着 Nomi 旧入口，宿主侧只显示一句 CONNECTION_CLOSED——里面一个字都没提 Nomi，
+    // 用户没有理由想到「去开 Nomi 的模型接入面板」。这个修复原本只作为渲染那块面板的副作用发生，等于没有。
+    // 能力核起来 = 这些配置指向的服务端就绪，正是把它们修回来的时刻（只动 Nomi 自己写过的条目，见 mcpConfig）。
+    // 修好了还得说一声：宿主进程启动时已经读过那份旧配置，不重启就一直用着旧入口。
+    // 「有没有真的改文件」只有这一层知道（repair.changed），所以通知的闸也建在这里，
+    // 而不是让每个接线方各自去猜要不要弹（R28：防线建在最早能拦住的那层）。
+    try {
+      const repair = repairStaleMcpConfigs()
+      if (repair.changed) await notifyHostConfigRepaired({ clientLabels: repair.repaired.map((item) => item.label) })
+    } catch { /* 宿主配置不可读不是 Nomi 的故障，不能反向拖垮能力核 */ }
     const token = ensureToken()
     const generationService = getProductionRunService()
     const operationStore = createProductionGenerationOperationStore(generationService)
@@ -268,7 +283,7 @@ export async function startCapabilityCore(
           result: { id: `production-${job.jobId}`, type: artifact.kind === 'image' ? 'image' : 'video', url, createdAt: Date.now() },
         }, 15_000)
       } catch (error) {
-        console.warn('[nomi:production] push shot result failed:', error instanceof Error ? error.message : String(error))
+        logWarn('production-run', 'push-shot-result-failed', undefined, error)
       }
     }
     // P4 S4/S5：构造一个 Run 的提交门面（submission）。lease 身份（immutableProjectUuid/projectGeneration）
@@ -345,21 +360,21 @@ export async function startCapabilityCore(
       try {
         markSingleShotRunning(generationService.repository, projectId, runId)
       } catch (error) {
-        console.warn('[nomi:production] single-shot running status failed:', error instanceof Error ? error.name : 'unknown')
+        logWarn('production-run', 'single-shot-running-status-failed', undefined, error)
       }
     }
     const settleSingleShotCompleted = (projectId: string, runId: string, options: { jobId?: string; artifactId?: string } = {}): void => {
       try {
         markSingleShotCompleted(generationService.repository, projectId, runId, options)
       } catch (error) {
-        console.warn('[nomi:production] single-shot completion status failed:', error instanceof Error ? error.name : 'unknown')
+        logWarn('production-run', 'single-shot-completion-status-failed', undefined, error)
       }
     }
     const settleSingleShotAttention = (projectId: string, runId: string, jobId?: string): void => {
       try {
         markSingleShotAttention(generationService.repository, projectId, runId, jobId)
       } catch (error) {
-        console.warn('[nomi:production] single-shot attention status failed:', error instanceof Error ? error.name : 'unknown')
+        logWarn('production-run', 'single-shot-attention-status-failed', undefined, error)
       }
     }
     const activeSingleShotJobId = (projectId: string, runId: string): string | undefined => {
@@ -393,7 +408,7 @@ export async function startCapabilityCore(
           if (!outcome.quiescent) scheduleBatchRekick(projectId, runId)
         })
         .catch((error) => {
-          console.warn(`[nomi:production] ${label} failed:`, error instanceof Error ? error.message : String(error))
+          logWarn('production-run', 'observation-step-failed', { step: label }, error)
         })
         .finally(() => activeBatchDrives.delete(key))
     }
@@ -449,14 +464,14 @@ export async function startCapabilityCore(
           // promise rejection that causes the same provider task to be retried
           // forever on the next project reopen. Never submit from this path.
           if (isCurrent()) settleSingleShotAttention(projectId, runId, activeSingleShotJobId(projectId, runId))
-          console.warn('[nomi:production] single-shot observation failed:', error instanceof Error ? error.name : 'unknown')
+          logWarn('production-run', 'single-shot-observation-failed', undefined, error)
         }
       }).catch((error) => {
         // The inner try/catch handles provider/materialization errors. A final
         // lifecycle rejection (for example, a duplicate observer) must not
         // write attention: by this point the worker may belong to an older
         // capability-core epoch and the current Run could be unrelated.
-        console.warn('[nomi:production] single-shot observation failed:', error instanceof Error ? error.name : 'unknown')
+        logWarn('production-run', 'single-shot-observation-failed', undefined, error)
       })
     }
     // P4 §3.2：所有 gate 入口共用 post-decide 重踢。
@@ -612,7 +627,7 @@ export async function startCapabilityCore(
       const confirmGenerationInNomi = authorities.confirmGenerationInNomi ?? defaults.confirmGenerationInNomi
       disposeResidentGenerationAdapter = installResidentGenerationAdapter({ planning: generationPlanning, requestGenerationGate, authorizeGeneration, confirmGenerationInNomi, approvalReceiptAuthority: defaults.approvalReceiptAuthority!, projectSessionAuthority: defaults.projectSessionAuthority, owner: generationService }, authorities.onGenerationReady)
     } catch (error) {
-      console.error('[nomi:capability-core] resident generation adapter install failed:', error instanceof Error ? error.message : String(error))
+      logError('capability', 'resident-generation-adapter-install-failed', error)
     }
     // P4 S5：打开/切换项目时的补齐钩子（§3.4）。对该项目所有活跃 run：① landCanvasBestEffort 幂等补落缺失
     // 节点/组 + 回填已完成 result（materializationOperationId + 组章去重，跑两次不重复）；② single-shot 只 poll→materialize
@@ -673,14 +688,14 @@ export async function startCapabilityCore(
             kickSchedulerForRun(projectId, run.runId)
           }
         } catch (error) {
-          console.warn('[nomi:production] open-project canvas reconcile failed:', error instanceof Error ? error.message : String(error))
+          logWarn('production-run', 'open-project-canvas-reconcile-failed', undefined, error)
         }
         // 顺带把 S4 遗留的 resumeUnfinishedRuns 接上启动触发（legacy driver / 多镜批次的崩溃恢复；
         // semantic single-shot 已在上面走只读 observer，service 内部仍跳过它们，避免任何隐式 start）。
         try {
           await generationService.resumeUnfinishedRuns(projectId)
         } catch (error) {
-          console.warn('[nomi:production] resume unfinished runs failed:', error instanceof Error ? error.message : String(error))
+          logWarn('production-run', 'resume-unfinished-runs-failed', undefined, error)
         }
       })()
     }
@@ -715,6 +730,21 @@ export async function startCapabilityCore(
       ...authorities,
       projectRevisionResolver,
       proposalReceiptFor: authorities.proposalReceiptFor,
+      openCredentialsInNomi: authorities.openCredentialsInNomi ?? (async ({ sessionId }: { sessionId: string; vendorName: string }) => {
+        const win = getMainWindow()
+        if (!win || win.isDestroyed()) throw new Error('Nomi window unavailable')
+        // macOS 上只 win.focus() 不够：它让某扇窗成为 key window，但不会把 Nomi 变成最前面的
+        // **应用**——用户还是看不见它。app.focus({steal:true}) 管的是后面那件事，两件都要做。
+        // 2026-09-06 实测这条路径能把窗口叫到前台（tests/ux/mcp-key-window.walk.mjs）；
+        // 那条走查在锁屏/无前台登录会话时会用阳性对照判出「窗口服务器不给任何 App 焦点」并明说没跑成，
+        // 不会把环境没功率报成 Nomi 的 bug。
+        if (process.platform === 'darwin') app.focus({ steal: true })
+        if (win.isMinimized()) win.restore()
+        win.show()
+        win.focus()
+        await requestRenderer('integration.open-credentials', { sessionId }, 30_000)
+        return { opened: true }
+      }),
       generationPolicy,
       generationPlanning,
     })
@@ -732,9 +762,11 @@ export async function startCapabilityCore(
       }
     }, HEARTBEAT_INTERVAL_MS)
     heartbeatTimer.unref?.()
-    console.log(`[nomi:capability-core] RPC 监听 127.0.0.1:${handle.port}（库 ${location.path}）`)
+    logInfo('capability', 'rpc-listening', { port: handle.port })
+    // 库路径是本机路径，只在开发终端里给人看，不落盘。
+    logDevDetail('capability', `RPC 监听 127.0.0.1:${handle.port}（库 ${location.path}）`)
   } catch (error) {
-    console.error('[nomi:capability-core] 启动失败（不影响 app）:', error)
+    logError('capability', 'rpc-start-failed', error)
   }
 }
 

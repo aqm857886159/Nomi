@@ -74,8 +74,8 @@ try {
   await getWin().waitForTimeout(1200)
   await snap('node-added')
 
-  // 打开白板节点 → modal（点卡片唯一文案「点击打开画板」）
-  await getWin().locator('text=点击打开画板').first().click({ timeout: 4000 }).catch(() => {})
+  // 打开白板节点 → modal（稳定的空态动作 testid）
+  await getWin().locator('[data-testid="whiteboard-empty-action"]').first().click({ timeout: 4000 }).catch(() => {})
   await getWin().waitForTimeout(800)
   // modal 出现
   const modal = getWin().locator('[data-nomi-whiteboard-modal="true"]').first()

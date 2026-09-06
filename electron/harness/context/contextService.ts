@@ -1,5 +1,5 @@
 import type { RunAgentTurn, RuntimeSnapshotCodec, RuntimeSnapshotOptions, RuntimeTurnHooks, RuntimeTurnRequest, RuntimeTurnResult } from '../runtime/runtimePort';
-import { assertAgentContextBinding, contextBindingKey, type AgentContextBinding, type AgentContextScope } from './contextBinding';
+import { captureAgentContextBinding, contextBindingKey, type AgentContextBinding, type AgentContextScope } from './contextBinding';
 import type { AgentContextSeed, AgentContextSource, AgentContextStore, StoredAgentContext } from './contextStore';
 import { bubblesToSeedTurns, type LegacyAgentBubble } from './legacyBubbles';
 
@@ -75,8 +75,7 @@ export function createAgentContextService(deps: {
   const empty = (): AgentContextInfo => ({ source: 'native', state: 'ready', retainedMessages: 0 });
 
   function capture(binding: AgentContextBinding): AgentContextBinding {
-    assertAgentContextBinding(binding);
-    return { sessionKey: binding.sessionKey, threadId: binding.threadId };
+    return captureAgentContextBinding(binding);
   }
   function queueFor(key: string): BindingQueue {
     let queue = queues.get(key);

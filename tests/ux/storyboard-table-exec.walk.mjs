@@ -95,7 +95,6 @@ const project = {
     activeDocumentId: 'doc-1',
     timeline: null,
     generationCanvas: { nodes, edges: [], selectedNodeIds: [], groups: [] },
-    storyboardPlans: { 'doc-1': { plan, committed: false } },
     storyboardDesignsByDocumentId: {
       'doc-1': [{ id: DESIGN, documentId: 'doc-1', title: plan.title, plan, committed: false, status: 'draft', sourceDocumentUpdatedAt: 10, createdAt: 11, updatedAt: 12 }],
     },

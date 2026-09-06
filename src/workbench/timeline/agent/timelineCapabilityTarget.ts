@@ -9,6 +9,7 @@ import type {
 } from '../../../../electron/shared/agentCapabilities/timelineWrite'
 import { SurfacePortWireError } from '../../../../electron/shared/surfacePortBinding'
 import { getDesktopActiveProjectId } from '../../../desktop/activeProject'
+import { resolveCapabilityProjectId } from '../../capability/capabilityProjectBinding'
 import { clearAdoptionUndoSnapshot, workbenchAdoptionPorts } from '../../adoption/adoptionStorePorts'
 import { useWorkbenchStore } from '../../workbenchStore'
 import {
@@ -19,6 +20,7 @@ import {
   type TimelineOperation,
 } from '../kernel/timelineKernel'
 import type { TimelineState, TimelineTextClip, TimelineTrack } from '../timelineTypes'
+import { resolveClipAudio } from '../clipAudio'
 import {
   createTimelineAgentUndoEntry,
   timelineAgentUndoMetadata,
@@ -31,6 +33,13 @@ type JsonRecord = Record<string, unknown>
 export type TimelineCapabilityTarget = Readonly<{ kind: 'timeline'; clipIds: readonly string[] }>
 export type TimelineCapabilityPreconditions = Readonly<{ timeline: Readonly<{ revision: string }> }>
 export type TimelineWriteTargetExecution = Readonly<{
+  /**
+   * 已校验的 lease 项目（MCP 路）。到得了这里就说明它**已经**是 Nomi 打开的那个项目
+   * ——不匹配在 capabilityApplyHandler 的项目身份闸就被点名拒了。这里用它而不是再去问一次
+   * GUI，是为了收据/撤销元数据的项目身份来自 lease 这一个源，不再从 GUI 状态二次推断。
+   * 缺省 = 应用内 Surface 端口调用者，落回 GUI 当前项目。
+   */
+  projectId?: string
   input: TimelineWriteInput
   target: TimelineCapabilityTarget
   preconditions: TimelineCapabilityPreconditions
@@ -40,6 +49,15 @@ export type TimelineWriteTargetExecution = Readonly<{
   signal: AbortSignal
   assertCurrent(): void
 }>
+
+/** 收据/撤销元数据的项目身份：已校验的 lease 优先，没给才落回 GUI 当前项目。 */
+function writeProjectId(request: TimelineWriteTargetExecution): string {
+  try {
+    return resolveCapabilityProjectId(request.projectId, getDesktopActiveProjectId, 'project_scope_required')
+  } catch {
+    return ''
+  }
+}
 
 function assertExecutionCurrent(request: TimelineWriteTargetExecution): void {
   if (request.signal.aborted) throw new SurfacePortWireError('capability_cancelled')
@@ -60,6 +78,7 @@ function compactClip(clip: TimelineTrack['clips'][number], trackId: string): Jso
       ? { sourceWindow: null }
       : { sourceWindow: { startFrame: clip.offsetStartFrame, endFrame: clip.frameCount - clip.offsetEndFrame } }),
     ...(clip.text ? { text: clip.text } : {}),
+    ...(clip.audio ? { audio: resolveClipAudio(clip.audio, clip.endFrame - clip.startFrame) } : {}),
     sourceAvailable: Boolean(clip.url),
   }
 }
@@ -215,7 +234,7 @@ function applyPlan(request: TimelineWriteTargetExecution & { input: Extract<Time
   const { input } = request
   const base = workbenchAdoptionPorts.readTimeline()
   const currentRevision = timelineRevision(base)
-  const projectId = getDesktopActiveProjectId().trim()
+  const projectId = writeProjectId(request)
   if (!projectId) return failure(input.operation, 'project_scope_required', currentRevision)
   if (request.preconditions.timeline.revision !== input.baseRevision) {
     return failure(input.operation, 'capability_target_stale', currentRevision)
@@ -312,7 +331,7 @@ function undoPlan(request: TimelineWriteTargetExecution & { input: Extract<Timel
   const { input } = request
   const state = useWorkbenchStore.getState()
   const currentRevision = timelineRevision(state.timeline)
-  const projectId = getDesktopActiveProjectId().trim()
+  const projectId = writeProjectId(request)
   if (!projectId) return failure(input.operation, 'project_scope_required', currentRevision, { undone: false })
   const metadata = timelineAgentUndoMetadata(state.timelineUndoStack.at(-1))
   if (!metadata || metadata.projectId !== projectId || metadata.undoToken !== input.undoToken) {

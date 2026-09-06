@@ -1,0 +1,121 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-05-resident-composer-receipt-journey",
+  "problem_type": "The real-user journey retained a removed approval-mode popover path and exposed an unhandled Resident canvas-delete alias",
+  "symptom": "The resident-composer-receipt journey failed while waiting for data-agent-menu-item=approval-mode-step, even though the merged UI intentionally removed approval and spend rows from the mode popover.",
+  "direct_cause": "The journey attempted to switch approval policy through a selector deleted by Agent UI A; the replacement irreversible nomi_canvas_maintenance action was declared in the capability registry but the shared Resident canvas transport only recognized delete_canvas_nodes.",
+  "class_root": "Approval coverage was coupled to a retired menu selector, while capability aliases were not normalized at the earliest shared transport boundary before effect-class approval.",
+  "affected_population": [
+    "The resident-composer-receipt real-user journey",
+    "Future resident Agent journeys that use a removed policy-menu selector",
+    "Pull requests changing the shared resident Agent shell or capability approval boundary"
+  ],
+  "scope_paths": [
+    "tests/ux/resident-composer-receipt-fix.e2e.mjs",
+    "scripts/validation-policy.mjs",
+    "scripts/validation-policy.node-test.mjs",
+    "electron/capabilityCore/canvasWriteTransportAdapters.ts",
+    "electron/capabilityCore/canvasWriteTransportAdapters.test.ts"
+  ],
+  "entry_points": [
+    "Resident Composer real-user loopback journey",
+    "Quality-gate validation scope classifier for ProjectAgentResidentShell changes",
+    "Resident Host canvas mutation transport alias boundary"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The invariant is Nomi's internal effectClass policy and approved Agent UI design; no third-party runtime controls it.",
+  "invariants": [
+    "The journey must trigger a pending approval card through a valid non-reversible or spend-class capability, without selecting approval policy from the mode popover.",
+    "Resident and MCP canvas-delete aliases must converge on the same verified delete transport before approval and execution.",
+    "The journey must prove the denied action does not mutate the project and that the existing durable receipt remains valid.",
+    "Changes to the shared resident Agent shell must select the real-user journey validation lane."
+  ],
+  "generality_proof": "The Host resolves approval from the capability registry for every resident tool call, and both nomi_canvas_maintenance (Resident/MCP surface) and delete_canvas_nodes (canonical operation alias) now converge in the shared canvas transport before evidence minting. The classifier regression test locks the path that owns all four resident Agent surfaces to journeys coverage.",
+  "shared_boundaries": [
+    {
+      "path": "tests/ux/resident-composer-receipt-fix.e2e.mjs",
+      "symbol": "resident-composer-receipt real-user journey",
+      "responsibility": "Exercise the real composer, Host proposal, approval card, refusal, persistence, MCP write, and restart readback path."
+    },
+    {
+      "path": "electron/capabilityCore/canvasWriteTransportAdapters.ts",
+      "symbol": "createPiCanvasWriteTransportAdapter.prepare",
+      "responsibility": "Normalize the Resident destructive canvas alias to the canonical delete input before verified evidence minting and Host approval."
+    },
+    {
+      "path": "scripts/validation-policy.mjs",
+      "symbol": "JOURNEY_PATTERNS / classifyValidationPolicy",
+      "responsibility": "Select real-user journey validation when the shared resident Agent shell changes."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "tests/ux/resident-composer-receipt-fix.e2e.mjs",
+      "entry_point": "safe-auto resident composer approval assertion",
+      "disposition": "enforced",
+      "evidence": "The journey now proposes nomi_start_generation, whose registry effectClass is spend, and proves the pending card plus denial path."
+    },
+    {
+      "path": "electron/capabilityCore/canvasWriteTransportAdapters.ts",
+      "entry_point": "nomi_canvas_maintenance Resident alias",
+      "disposition": "enforced",
+      "evidence": "The adapter accepts the public Resident/MCP alias and parses the same delete_canvas_nodes semantic input used by the canonical path."
+    },
+    {
+      "path": "tests/ux/agent-ui-a-composer.walk.mjs",
+      "entry_point": "mode popover structural walk",
+      "disposition": "not-affected",
+      "evidence": "This walk intentionally asserts that approval-mode and spend-policy rows are absent; it validates the approved UI boundary rather than approval execution."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The shared composer can change its policy-entry layout again, and any journey that relies on a retired selector would fail before reaching the capability policy boundary.",
+    "same_class_scan": [
+      "rg approval-mode-step across tests and src found only the stale resident-composer journey selector; production mode menus and the Agent UI A walk explicitly remove the rows.",
+      "rg effectClass across electron/shared/agentCapabilities and projectAgentHost confirmed the Host registry is the shared approval classification source.",
+      "gh run view 33960526740 showed PR #504 scope journeys=true and E2E Walkthroughs ran the real-user loopback gate; no classifier omission was observed.",
+      "rg nomi_canvas_maintenance across modelToolSurfaceManifest, canvasWriteTransportAdapters, MCP dispatcher, and Resident journey exposed the alias mismatch; the adapter regression test now covers the shared normalization boundary."
+    ]
+  },
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/validation-policy.mjs",
+    "invariant": "A change to src/workbench/ai/ProjectAgentResidentShell.tsx must select unit full and journeys true through an explicit journey pattern.",
+    "failure_mode": "The classifier regression test fails if the shared resident Agent shell falls back to focused-only validation.",
+    "exception_policy": "none",
+    "strategy": "Keep capability aliases normalized in the shared transport, with a direct adapter regression assertion and an explicit Resident Shell classifier rule, while the journey uses a capability effect class rather than a UI policy-menu selector.",
+    "artifacts": [
+      "electron/capabilityCore/canvasWriteTransportAdapters.ts",
+      "scripts/validation-policy.mjs",
+      "scripts/validation-policy.node-test.mjs"
+    ]
+  },
+  "regression_tests": [
+    "tests/ux/resident-composer-receipt-fix.e2e.mjs",
+    "electron/capabilityCore/canvasWriteTransportAdapters.test.ts",
+    "scripts/validation-policy.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "tests/ux/resident-composer-receipt-fix.e2e.mjs",
+    "electron/capabilityCore/canvasWriteTransportAdapters.test.ts",
+    "scripts/validation-policy.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "tests/ux/resident-composer-receipt-fix.e2e.mjs"
+    ],
+    "rationale": "The stale selector is deleted from the journey; the production mode popover remains mode-only by approved design."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency controls the approval effect-class or validation scope invariants.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted data or production UI migration is needed. Existing durable proposal receipts and MCP document writes remain covered by the unchanged journey stages.",
+  "residual_risks": [
+    "The current ResidentApprovalCard still exposes approve/deny actions only; the future intervention-slot choice among this action, this session, and always remains a product follow-up and is intentionally not added here.",
+    "This journey denies the spend-class action to keep the loopback run zero-cost; successful paid generation remains covered by its dedicated generation gates."
+  ]
+}

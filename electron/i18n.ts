@@ -1,4 +1,6 @@
 import { app, ipcMain } from "electron";
+import { writePersistedLocale } from './settings/localePreference'
+import { getSettingsRoot } from './settings/settingsRoot'
 
 // locale 归一是纯逻辑，住在 electron-free 的 desktopLocale.ts（打包裸 Node launcher 也要 require 它，
 // 不能碰 electron）。本地引来给 setDesktopLocale 用，再原样导出——保持 i18n 对既有消费者的公开面不变
@@ -53,6 +55,29 @@ const translations = {
     "agent.sessionCancelled": "会话已取消",
     "agent.processInterrupted": "上一次 Agent 进程在本轮完成前结束了。",
     "agent.provenanceConfirmation": "这段上下文来自未经验证的来源（{{sources}}），未经你确认不能直接执行{{action}}操作。",
+    "integration.discoveryMissingBaseUrl": "无法探测模型：缺少中转站地址。请填写 base URL，并可手动填写 model ID。",
+    "integration.discoveryMissingCredential": "无法探测模型：Nomi 没有找到已保存的密钥。请打开安全凭据页保存 key，或手动填写 model ID。",
+    "integration.discoveryUnsupported": "中转站没有可用的 /models 接口，无法自动读取模型清单。请直接手动填写 model ID 后再次提交。",
+    "integration.discoveryAuthFailed": "中转站拒绝了已保存的密钥。请回到安全凭据页重新保存 key，或手动填写 model ID。",
+    "integration.discoveryFailed": "自动读取模型清单失败（{{reason}}）。请检查 base URL 后重试，也可以手动填写 model ID。",
+    "integration.discoveryPlainText": "未能从模型清单识别类型，已按纯文本模型接入；如果它不是文本模型，请手动改类型。",
+    // MCP URL 模式 elicitation 的凭据页文案（spec 2025-11-25 §URL Mode：密钥必须走页面、不得走 form）。
+    "integration.credentialPage.title": "把 API 密钥交给 Nomi",
+    "integration.credentialPage.lede": "只有这台电脑上的 Nomi 会看到你输入的密钥：它加密存在本机，不会经过 AI 助手、不会进模型上下文、不会写进日志。",
+    "integration.credentialPage.providerLabel": "供应商",
+    "integration.credentialPage.baseUrlLabel": "接口地址",
+    "integration.credentialPage.keyLabel": "API 密钥",
+    "integration.credentialPage.keyPlaceholder": "粘贴供应商给你的 key",
+    "integration.credentialPage.keyRequired": "请先填写密钥。",
+    "integration.credentialPage.test": "测试连接",
+    "integration.credentialPage.testing": "正在连接…",
+    "integration.credentialPage.testOk": "连上了，读到 {{count}} 个模型。",
+    "integration.credentialPage.testFailed": "测试失败：{{reason}}",
+    "integration.credentialPage.save": "保存并关闭",
+    "integration.credentialPage.saving": "正在保存…",
+    "integration.credentialPage.saved": "已保存。可以关掉这个页面，回你的 AI 助手继续。",
+    "integration.credentialPage.saveFailed": "保存失败：{{reason}}",
+    "integration.credentialPage.expired": "这个链接已失效（一次性、10 分钟有效）。回到 AI 助手重新发起一次接入即可。",
     "experience.untitled": "未命名经验",
     "browser.promptCategory.image": "图片提示词",
     "browser.promptCategory.video": "视频提示词",
@@ -191,6 +216,28 @@ const translations = {
     "agent.sessionCancelled": "The session was cancelled",
     "agent.processInterrupted": "The previous Agent process ended before this turn completed.",
     "agent.provenanceConfirmation": "This context came from unverified sources ({{sources}}); your explicit confirmation is required before this {{action}} action.",
+    "integration.discoveryMissingBaseUrl": "Model discovery needs a relay URL. Enter a base URL, or enter a model ID manually.",
+    "integration.discoveryMissingCredential": "Model discovery could not find a saved key. Save it in Nomi's secure page, or enter a model ID manually.",
+    "integration.discoveryUnsupported": "This relay has no usable /models route, so Nomi cannot read its model list. Enter model IDs manually and submit again.",
+    "integration.discoveryAuthFailed": "The relay rejected the saved key. Save it again in Nomi's secure page, or enter a model ID manually.",
+    "integration.discoveryFailed": "Model-list discovery failed ({{reason}}). Check the base URL and retry, or enter a model ID manually.",
+    "integration.discoveryPlainText": "The model list did not identify a capability, so this was added as plain text. Change its type if needed.",
+    "integration.credentialPage.title": "Give Nomi the API key",
+    "integration.credentialPage.lede": "Only Nomi on this computer sees what you type: the key is encrypted locally and never reaches your AI assistant, the model context, or any log.",
+    "integration.credentialPage.providerLabel": "Provider",
+    "integration.credentialPage.baseUrlLabel": "API base URL",
+    "integration.credentialPage.keyLabel": "API key",
+    "integration.credentialPage.keyPlaceholder": "Paste the key your provider gave you",
+    "integration.credentialPage.keyRequired": "Enter the key first.",
+    "integration.credentialPage.test": "Test connection",
+    "integration.credentialPage.testing": "Connecting\u2026",
+    "integration.credentialPage.testOk": "Connected. Found {{count}} models.",
+    "integration.credentialPage.testFailed": "Test failed: {{reason}}",
+    "integration.credentialPage.save": "Save and close",
+    "integration.credentialPage.saving": "Saving\u2026",
+    "integration.credentialPage.saved": "Saved. You can close this page and go back to your AI assistant.",
+    "integration.credentialPage.saveFailed": "Could not save: {{reason}}",
+    "integration.credentialPage.expired": "This link is no longer valid (single use, 10 minutes). Ask your AI assistant to start the connection again.",
     "experience.untitled": "Untitled experience",
     "browser.promptCategory.image": "Image prompts",
     "browser.promptCategory.video": "Video prompts",
@@ -306,7 +353,14 @@ export function desktopT(key: DesktopTranslationKey, values: Record<string, stri
 //  · set-locale：渲染层切语言 → 同步桌面侧（原生菜单/对话框文案）。
 //  · get-system-locale：首启无存储偏好时，渲染层同步探测 OS 语言（app.getLocale() 由 --lang/系统设定）。
 export function registerI18nIpc(): void {
-  ipcMain.on("nomi:i18n:set-locale", (_event, locale: unknown) => setDesktopLocale(locale));
+  ipcMain.on("nomi:i18n:set-locale", (_event, locale: unknown) => {
+    setDesktopLocale(locale)
+    try {
+      writePersistedLocale(getSettingsRoot(), getDesktopLocale())
+    } catch {
+      // Locale still applies for this session when the settings root is unavailable.
+    }
+  });
   ipcMain.on("nomi:i18n:get-system-locale", (event) => {
     try {
       event.returnValue = { ok: true, value: app.getLocale() };

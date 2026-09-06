@@ -42,7 +42,7 @@ function SceneCardNodeImpl({ node }: Props): JSX.Element {
             className="w-full h-full object-contain object-center select-none pointer-events-none"
           />
         ) : (
-          <UploadFallback accept="image/*" label={t('generationCommon.card.scene.image')} onUpload={handleUpload} />
+          <UploadFallback accept="image/*" label={t('generationCommon.card.scene.image')} onUpload={handleUpload} kind="scene" />
         )}
       </div>
 

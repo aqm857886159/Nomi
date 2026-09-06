@@ -1,5 +1,5 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
-import type { CapabilityContract } from "./capabilityContract";
+import { CAPABILITY_EFFECT_CLASSES, type CapabilityContract } from "./capabilityContract";
 import { ASSET_READ_CAPABILITY } from "./assetRead";
 import { CANVAS_DELETE_CAPABILITY } from "./canvasDelete";
 import { CANVAS_READ_CAPABILITY } from "./canvasRead";
@@ -9,6 +9,7 @@ import { DOCUMENT_WRITE_CAPABILITY, DOCUMENT_WRITE_ALIASES } from "./documentWri
 import { EXPORT_READ_CAPABILITY, EXPORT_WRITE_CAPABILITY } from "./exportCapabilities";
 import { TIMELINE_READ_CAPABILITY } from "./timelineRead";
 import { TIMELINE_WRITE_CAPABILITY } from "./timelineWrite";
+import { LAYOUT_READ_CAPABILITY, LAYOUT_WRITE_CAPABILITY } from "./layout";
 import {
   PRODUCTION_ARTIFACT_WRITE_CAPABILITY,
   PRODUCTION_RUN_READ_CAPABILITY,
@@ -36,6 +37,10 @@ type ContractWithRuntimeObjects = CapabilityContract<unknown, unknown> & {
   readonly executor: RuntimeObject;
 };
 type RejectedRuntimeObjects = AssertNever<ContractOnlyRegistry<readonly [ContractWithRuntimeObjects]>[0]>;
+type MissingEffectClass = Omit<CapabilityContract<unknown, unknown>, "effectClass">;
+// @ts-expect-error Every registered capability must declare its Host effect class.
+const missingEffectClassMustFail: CapabilityContract<unknown, unknown> = {} as MissingEffectClass;
+void missingEffectClassMustFail;
 
 describe("capability contract registry", () => {
   it("registers canonical contracts exactly once with globally unique aliases", () => {
@@ -50,6 +55,8 @@ describe("capability contract registry", () => {
       EXPORT_WRITE_CAPABILITY,
       TIMELINE_READ_CAPABILITY,
       TIMELINE_WRITE_CAPABILITY,
+      LAYOUT_READ_CAPABILITY,
+      LAYOUT_WRITE_CAPABILITY,
       PRODUCTION_RUN_READ_CAPABILITY,
       PRODUCTION_RUN_WRITE_CAPABILITY,
       PRODUCTION_ARTIFACT_WRITE_CAPABILITY,
@@ -78,6 +85,8 @@ describe("capability contract registry", () => {
       "export.write",
       "timeline.read",
       "timeline.write",
+      "layout.read",
+      "layout.write",
       "production.run.read",
       "production.run.write",
       "production.artifact.write",
@@ -98,6 +107,7 @@ describe("capability contract registry", () => {
       "nomi_canvas_read",
       "set_node_prompt",
       "nomi_canvas_edit",
+      "nomi_canvas_plan",
       "read_full_text",
       "nomi_document_read",
       "insert_at_cursor",
@@ -109,6 +119,10 @@ describe("capability contract registry", () => {
       "nomi_timeline_read",
       "apply_edit_plan",
       "nomi_timeline_edit",
+      "layout.read",
+      "nomi_layout_read",
+      "layout.write",
+      "nomi_layout_write",
       "get_production_run",
       "start_production_run",
       "revise_production_artifact",
@@ -121,6 +135,7 @@ describe("capability contract registry", () => {
       "nomi_cancel_generation",
     ]);
     expect(CAPABILITY_CONTRACTS.find((contract) => contract.id === "canvas.read")?.exposure).toBe("mcp_safe");
+    expect(CAPABILITY_CONTRACTS.every((contract) => CAPABILITY_EFFECT_CLASSES.includes(contract.effectClass))).toBe(true);
     expect(resolveCapabilityAlias(CANVAS_WRITE_CAPABILITY.aliases.pi)?.contract).toBe(CANVAS_WRITE_CAPABILITY);
     expect(capabilityOperationAliasesFor(CANVAS_WRITE_CAPABILITY.id, "pi")).toEqual([
       "create_canvas_nodes",

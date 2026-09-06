@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { reduceUpdaterState, UPDATER_INITIAL_STATE } from './useUpdater'
+import { reduceUpdaterState, shouldShowUpdaterDialog, UPDATER_INITIAL_STATE } from './useUpdater'
 
 describe('reduceUpdaterState', () => {
   it('checking 重置为干净检查态', () => {
@@ -39,5 +39,19 @@ describe('reduceUpdaterState', () => {
     const next = reduceUpdaterState(UPDATER_INITIAL_STATE, { type: 'error', message: '网络不可达' })
     expect(next.phase).toBe('error')
     expect(next.errorMessage).toBe('网络不可达')
+  })
+})
+
+describe('shouldShowUpdaterDialog', () => {
+  it('keeps the update quiet while a task is running', () => {
+    expect(shouldShowUpdaterDialog({ phase: 'available', hasRunningTask: true })).toBe(false)
+    expect(shouldShowUpdaterDialog({ phase: 'downloading', hasRunningTask: true })).toBe(false)
+    expect(shouldShowUpdaterDialog({ phase: 'error', hasRunningTask: true })).toBe(false)
+  })
+
+  it('shows pending update states once the workspace is idle', () => {
+    expect(shouldShowUpdaterDialog({ phase: 'available', hasRunningTask: false })).toBe(true)
+    expect(shouldShowUpdaterDialog({ phase: 'downloaded', hasRunningTask: false })).toBe(true)
+    expect(shouldShowUpdaterDialog({ phase: 'idle', hasRunningTask: false })).toBe(false)
   })
 })

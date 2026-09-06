@@ -63,17 +63,17 @@ beforeEach(() => {
     usage: { promptTokens: 2, completionTokens: 1, cachedPromptTokens: 0, totalTokens: 3 } })
   useGenerationCanvasStore.getState().restoreSnapshot(snapshot('A-node'))
   useGenerationCanvasStore.setState({ selectedNodeIds: ['A-node'] })
-  useWorkbenchStore.setState({ storyboardPlans: { 'doc-a': { plan: { ...plan, title: 'unrelated UI plan' }, committed: false } }, workspaceMode: 'creation' })
+  useWorkbenchStore.setState({ storyboardDesignsByDocumentId: {}, workspaceMode: 'creation' })
 })
 
 describe('remaining production callers use the explicit shared Agent profile', () => {
-  it('direction uses the supplied project, one-shot ephemeral history and original domain parsing', async () => {
+  it('direction uses the supplied project, the single-shot capability and original domain parsing', async () => {
     deps.send.mockResolvedValueOnce({ text: JSON.stringify({ candidates }) })
     deps.project = 'different-ui-project'
     expect(await runDirectionPlanner({ projectId: 'explicit-project', brief: { goal: 'launch goal' } })).toEqual({ candidates })
     expect(deps.send).toHaveBeenCalledWith(expect.objectContaining({
       projectId: 'explicit-project', featureKey: 'nomi:production-directions:explicit-project',
-      capability: 'single-shot', history: { kind: 'ephemeral' },
+      capability: 'single-shot',
     }))
   })
 
@@ -88,7 +88,7 @@ describe('remaining production callers use the explicit shared Agent profile', (
     await judge.judge('check A', await extracting)
     expect(deps.frame).toHaveBeenCalledWith({ videoUrl: 'nomi-local://video', which: 'first', projectId: 'A' })
     expect(deps.send).toHaveBeenCalledWith(expect.objectContaining({ projectId: 'A', featureKey: 'nomi:shot-verify:A',
-      capability: 'single-shot', history: { kind: 'ephemeral' }, attachments: [
+      capability: 'single-shot', attachments: [
         { url: 'nomi-local://frame-A', contentType: 'image/png', fileName: 'shot-frame.png', kind: 'image' },
       ],
       attachmentClaims: [{ assetId: 'asset-frame-A', version: 1 }],
@@ -107,7 +107,7 @@ describe('remaining production callers use the explicit shared Agent profile', (
     const result = await handleCapabilityApply(operation, { projectId: 'A', runId: 'run-A', brief: { goal: 'goal' }, sourceContent: 'source', instruction: 'revise' })
     expect(result).toEqual(operation.endsWith('storyboard') ? { plan } : { text: 'actual script' })
     expect(deps.send).toHaveBeenCalledWith(expect.objectContaining({ projectId: 'A', capability: 'single-shot',
-      featureKey: 'nomi:production-script:A', history: { kind: 'ephemeral' },
+      featureKey: 'nomi:production-script:A',
     }))
   })
 
@@ -127,11 +127,11 @@ describe('remaining production callers use the explicit shared Agent profile', (
     expect(deps.landing).not.toHaveBeenCalled()
     deps.project = 'B'
     useGenerationCanvasStore.getState().restoreSnapshot(snapshot('B-node'))
-    useWorkbenchStore.setState({ storyboardPlans: { 'doc-a': { plan: { ...plan, title: 'B plan' }, committed: false } } })
+    useWorkbenchStore.setState({ storyboardDesignsByDocumentId: { 'doc-a': [{ id: 'b', documentId: 'doc-a', title: 'B plan', plan: { ...plan, title: 'B plan' }, committed: false, status: 'draft', sourceDocumentUpdatedAt: 1, createdAt: 1, updatedAt: 1 }] } })
     release()
     expect(await pending).toEqual({ text: 'own text', plan })
     expect(deps.planner).toHaveBeenCalledWith(expect.objectContaining({ target: 'production', projectId: 'A',
-      history: { kind: 'ephemeral' }, featureKey: 'nomi:production-planner:A:run-A:operation-A',
+      featureKey: 'nomi:production-planner:A:run-A:operation-A',
       snapshot: expect.objectContaining({
         nodes: [expect.objectContaining({ id: 'A-node' })],
         selectedNodeIds: [],
@@ -139,7 +139,7 @@ describe('remaining production callers use the explicit shared Agent profile', (
       capturedCanvasReadSnapshot: { version: 1, handleId: 'captured-A', nonce: 'captured-nonce-A' },
     }))
     expect(deps.planner.mock.calls[0]![0].snapshot).toBe(deps.sealSurfaceSnapshot.mock.calls[0]![1])
-    expect(useWorkbenchStore.getState()).toMatchObject({ workspaceMode: 'creation', storyboardPlans: { 'doc-a': { plan: { title: 'B plan' } } } })
+    expect(useWorkbenchStore.getState()).toMatchObject({ workspaceMode: 'creation', storyboardDesignsByDocumentId: { 'doc-a': [{ plan: { title: 'B plan' } }] } })
     expect(useGenerationCanvasStore.getState().nodes[0].id).toBe('B-node')
   })
 })

@@ -7,7 +7,7 @@ const deps = vi.hoisted(() => ({
   revision: 0,
   workbenchState: {
     workbenchDocuments: [], activeDocumentId: null as string | null, timeline: null, categories: [],
-    storyboardPlans: {}, storyboardDesignsByDocumentId: {}, persistRevision: 0,
+    storyboardDesignsByDocumentId: {}, persistRevision: 0,
   },
   generationState: {
     readDocumentSnapshot: vi.fn(() => ({ nodes: [], edges: [], groups: [] })), persistRevision: 0,
@@ -99,19 +99,19 @@ describe('canonical persistence barrier suppresses stale debounce writes', () =>
   })
 })
 
-describe('storyboard persistence compatibility projection', () => {
-  it('derives deprecated single-plan fields from the active document map', () => {
+describe('storyboard persistence owner', () => {
+  it('writes only the owner design map', () => {
     const plan = { title: 'F镜头', anchors: [], shots: [] }
     deps.workbenchState.activeDocumentId = 'doc-a'
-    deps.workbenchState.storyboardPlans = {
-      'doc-a': { plan, committed: false },
-      'doc-b': { plan: { ...plan, title: '另一个方案' }, committed: true },
+    deps.workbenchState.storyboardDesignsByDocumentId = {
+      'doc-a': [{ id: 'a', documentId: 'doc-a', title: plan.title, plan, committed: false, status: 'draft', sourceDocumentUpdatedAt: 1, createdAt: 1, updatedAt: 1 }],
+      'doc-b': [{ id: 'b', documentId: 'doc-b', title: '另一个方案', plan: { ...plan, title: '另一个方案' }, committed: true, status: 'committed', sourceDocumentUpdatedAt: 1, createdAt: 1, updatedAt: 1 }],
     }
 
     const payload = readCurrentWorkbenchProjectPayload()
 
-    expect(payload.storyboardPlans?.['doc-a']?.plan).toEqual(plan)
-    expect(payload.storyboardPlan).toEqual(plan)
-    expect(payload.storyboardPlanCommitted).toBe(false)
+    expect(payload.storyboardDesignsByDocumentId?.['doc-a']?.[0].plan).toEqual(plan)
+    expect(Object.keys(payload)).not.toContain(['storyboard', 'Plans'].join(''))
+    expect(Object.keys(payload)).not.toContain(['storyboard', 'Plan'].join(''))
   })
 })

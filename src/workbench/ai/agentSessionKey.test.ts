@@ -9,7 +9,6 @@ vi.mock('../windowUrlParam', () => ({
 import { readWindowUrlParam } from '../windowUrlParam'
 import {
   sessionKeyFor,
-  workbenchSessionKey,
   directionSessionKey,
   shotVerifySessionKey,
   productionScriptSessionKey,
@@ -31,12 +30,6 @@ describe('sessionKeyFor —— 收口 4 种硬编码约定，字面值逐字节�
     mockPid('later-project')
     expect(sessionKeyFor({ feature: 'workbench', area: 'creation', projectId: '' })).toBe('nomi:workbench:local:creation')
   })
-  it('workbench area 键：nomi:workbench:<pid>:<area>（历史起按 area 隔离）', () => {
-    mockPid('proj-42')
-    expect(workbenchSessionKey('creation', 'proj-42')).toBe('nomi:workbench:proj-42:creation')
-    expect(workbenchSessionKey('generation', 'proj-42')).toBe('nomi:workbench:proj-42:generation')
-  })
-
   it('单次任务键：nomi:<feature>:<pid>（方向 / 校验 / 脚本三种）', () => {
     mockPid('proj-42')
     expect(directionSessionKey('proj-42')).toBe('nomi:production-directions:proj-42')
@@ -46,8 +39,6 @@ describe('sessionKeyFor —— 收口 4 种硬编码约定，字面值逐字节�
 
   it('projectId 缺省一律落 local（打包版曾因只读 search 段全落 local，这里锁死兜底值）', () => {
     mockPid('')
-    expect(workbenchSessionKey('creation', null)).toBe('nomi:workbench:local:creation')
-    expect(workbenchSessionKey('generation', '')).toBe('nomi:workbench:local:generation')
     expect(directionSessionKey()).toBe('nomi:production-directions:local')
     expect(shotVerifySessionKey()).toBe('nomi:shot-verify:local')
     expect(productionScriptSessionKey()).toBe('nomi:production-script:local')

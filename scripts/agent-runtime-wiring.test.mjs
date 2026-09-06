@@ -87,7 +87,7 @@ describe('private pi build and test wiring', () => {
 
   test('all four native suites run once outside Vitest against private production modules', () => {
     expect(pkg.scripts['test:agent-runtime']).toBe(
-      'tsc -p tests/agent-runtime/tsconfig.json && node --test --test-concurrency=1 .tmp/agent-runtime-tests/tests/agent-runtime/*.test.mjs',
+      'tsc -p tests/agent-runtime/tsconfig.json && node --test --test-concurrency=1 --test-timeout=60000 .tmp/agent-runtime-tests/tests/agent-runtime/*.test.mjs',
     )
     expect(reachable('test').has('test:agent-runtime')).toBe(true)
     expect(reachable('gates').has('test:agent-runtime')).toBe(true)

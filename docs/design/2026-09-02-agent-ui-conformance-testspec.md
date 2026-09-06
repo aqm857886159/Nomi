@@ -17,6 +17,54 @@
 
 ---
 
+## §0.5 真相源 = 设计实验室（2026-09-06 起）
+
+> 用户 2026-09-06 拍板：**以后 UI 交付的定义 = 「实验室截图拍板 + 视觉基线绿」**，不再靠手写 HTML 样张与人眼对比。
+
+**为什么换。** 样张是 HTML、实现是 React，两套代码描述同一个东西，中间靠人脑翻译。
+翻译层存在多久，漂移就存在多久——而漂移在 CI 输出里是看不见的（两边各自都"对"，只是不是同一个东西）。
+实验室把翻译层删掉了：屏幕上那一格**就是现役 React 组件**渲染的，只是喂它固定夹具数据而已。
+拍板拍的是真东西，基线钉的也是真东西。
+
+**新真相源在哪。**
+
+| 东西 | 位置 |
+|---|---|
+| 状态注册表（21 形态 × P0 异常态 × 现役独有形态） | `src/devlab/designLab/agentPanelStates.tsx` |
+| Host 快照夹具 | `src/devlab/designLab/agentPanelFixtures.ts` |
+| 页面入口（只在 dev / 走查可达） | `design-lab.html?screen=agent-panel&state=<id>`；接触表 `&contact=1`；单格无 chrome `&frame=1` |
+| 视觉基线 | `tests/ux/design-lab/__baselines__/agent-panel/<state-id>.png` |
+| 容差与校准平台（含每条数字的理由） | `tests/ux/design-lab/calibration.json` |
+| 门岗 | `pnpm run check:design-lab`（已入 `gates:contracts` 链） |
+| 人眼走查 + 接触表 | `pnpm run design-lab:walk` → `tests/ux/shots/design-lab-agent-panel/`（该目录不入库）；拍板用的快照拷进 `docs/design/<日期>-agent-panel-contact-sheet.png` |
+| 基线更新（**仅在用户拍板后**） | `pnpm run design-lab:update`，PR 里必须附前后对比 |
+
+**生产包为什么进不来。** `design-lab.html` 是另一个根 HTML 入口，而 `vite build` 只吃 `index.html`——
+实验室代码**物理上不在产物里**，不是运行时判旗、也不是会被误开的死代码分支（同仓库既有的
+`pose-lab.html` / `staging-lab.html` 做法）。`check:design-lab` 把这条守住：index.html 引到 lab、
+vite 给 rollup 加 input、或者任何 `src/` 生产文件 import 了 `devlab/`，三种破法都当场红。
+
+**跨平台。** 基线是在 macOS 上渲染并拍板的；字体栅格化在 ubuntu runner（xvfb 软渲染）上不一样，
+跨平台逐像素比会红在平台上而不是设计上（仓库刚在画布性能预算上栽过同一个坑）。
+所以视觉道只在 `calibration.json` 声明的已校准平台上执行，别的平台跑结构检查并**明说没跑**——
+不假装绿，也不制造假红。要让 CI 也拦视觉回归，正解是在那个平台上重录一套基线，不是放宽容差。
+
+**旧物怎么处置。**
+
+- `docs/design/mockups/2026-09-01-agent-ui-final-redesign.html`、`2026-09-03-agent-ui-p0-exception-states.html`
+  → 文件头已标**历史稿**：保留作当时的拍板证据与走查锚点来源，不再作为「实现该长成什么样」的依据。
+- `scripts/extract-design-spec.mjs` 与 `docs/design/agent-ui-spec.generated.json`
+  → 降级为**历史层**，唯一职责是让 `tests/ux/agent-ui-conformance.walk.mjs` 现有的
+  `data-agent-*` 锚点与容差留在原地（那条走查还在跑，锚点不动）。
+  **新形态、新几何、新容差一律进实验室**，不要再往映射表里加——两处都维护就是又造了一个会漂移的第二真相源。
+- 本文 §0 的选择器契约**继续有效**：`data-agent-*` 是实现必须提供的挂点，实验室也靠它们取景截图。
+- §1/§2 的断言（A-/B-/C-/D-/R-）继续有效，它们查的是**行为与结构**；实验室基线查的是**像素**。
+  两者互补：断言说得清「为什么错」，基线说得清「哪里变了」。
+
+**第一批对账结果**：`docs/design/2026-09-06-agent-panel-design-lab-deviations.md`（45 个状态逐格比对，20 条不一致）。
+
+---
+
 ## §0 选择器契约（实施必须提供的挂点）
 
 | 挂点 | 属性（约定名） | 备注 |
@@ -39,7 +87,7 @@
 | 排队行 / 撤回 × | `data-agent-queue-row` / `data-agent-queue-remove` | 行，不是卡 |
 | composer / 输入 | `data-agent-composer` / `data-agent-input` | |
 | @ 选择器 / 句中 token | `data-agent-at-picker` / `data-agent-at-token` + `data-stale="true"`（变黄态） | |
-| 底排五钮 | `data-agent-composer-attach\|-mode\|-model\|-prompt\|-send` | |
+| 底排五钮 | `data-agent-composer-attach\|-model\|-skill\|-mode\|-send` | 左组三钮（资料、模型、Skill）与右组（模式、发送）之间用弹性留白分隔 |
 | 模型未选红点 | `data-agent-model-alert` | 挂在 `-model` 钮内 |
 | 六张卡 | `data-agent-plan-card`（现役）/ `-spend-card` / `-deviation-card` / `-question-card` / `-candidates-card` / `-artifact-card` / `-failure-card` | |
 | 固定结果卡 | `data-agent-pinned-card` + `data-open="true\|false"`；头 `-pinned-head`、摘要 `-pinned-summary`、体 `-pinned-body` | 屏 D |
@@ -77,9 +125,9 @@
 | A-16 | P0 | 排队行 | 忙时发的消息=浅色行**贴输入框上沿**，可撤回 | 忙时（夹具 running）发消息：`data-agent-queue-row` 出现，`row.bottom` 与 `data-agent-composer.top` 间距 ≤8px；行内 `qdot+文本+×` 结构；计算无边框无卡底（border-width=0）；点 `-queue-remove` 后行数 -1；空闲时 expectAbsent（provenBy=忙时出现过） | 忙时+点击后+空闲 |
 | A-17 | P0 | 忙时不禁用 | Nomi 忙时输入框照常可打字、回车即排 | 夹具 running 态：`data-agent-input` non-disabled、可聚焦、type 后值在；Enter 后 queue-row +1 且输入清空（P0 不静默丢弃） | 忙时 |
 | A-18 | P0 | @ 引用 token | @ 是唯一引用手势；选完=句中小色块；素材变过=token 变黄 | seed 两 token：`data-agent-at-token` ×2 内嵌在输入内容行内（token 的 boundingBox 含于 input 区域）；蓝 token 计算背景 ≈ accent-soft、黄 token `[data-stale=true]` 计算背景 ≈ warning-bg 且 tooltip 解释「按现在的版本」 | 静态 |
-| A-19 | P0 | 底排五钮全 icon | 📎⚡🤖✏️↑ 五颗、零常驻文字、悬停出含义 | `data-agent-composer` 内 button 恰 5 个（attach/mode/model/prompt/send 各 1）；**每颗的可见 innerText 为空**（icon-only；含义只在 `data-agent-tip`/aria-label）；高度 28px±1；悬停 mode 钮 → tooltip 文本匹配 `/Agent · /`（当前档回显） | 静态+悬停后 |
+| A-19 | P0 | 底排五钮全 icon | 📎🤖☷⚡↑ 五颗、零常驻文字、悬停出含义 | `data-agent-composer` 内 button 恰 5 个（attach/model/skill/mode/send 各 1）；**每颗的可见 innerText 为空**（icon-only；含义只在 `data-agent-tip`/aria-label）；高度 28px±1；左组三钮与右组两钮之间有弹性留白；悬停 mode 钮 → tooltip 文本匹配 `/Agent · /`（当前档回显） | 静态+悬停后 |
 | A-20 | P0 | 🤖 未配置红点 | 没选模型=右上角小红点，不是一句常驻文字 | 夹具未配模型：`data-agent-model-alert` 可见、直径 ≤8px、位于 model 钮右上象限（点心坐标在钮 boundingBox 右上 1/4）、计算色 ≈ danger；tooltip=「去选文本模型」；配好后 expectAbsent（provenBy=未配态出现）+ tooltip 变 `/文本模型 · /` | 静态×2 态 |
-| A-21 | P1 | 常驻区白名单 | 常驻可点收敛（账面 19→10），删的都是重复入口 | 常驻区（header+排队区+composer，**不含随流滚走的 flow**）内可交互元素（button/a/input/[role=button]/[tabindex≥0] 且可见）**⊆ 白名单** {usage-pill, history, collapse, queue-×(忙时), input, attach, mode, model, prompt, send}；白名单外出现任何可交互件 = 红。总数忙时 ≤10。（防复发主断言是白名单穷尽，不是总数字——口径之争别打在数字上） | 静态+忙时 |
+| A-21 | P1 | 常驻区白名单 | 常驻可点收敛（账面 19→10），删的都是重复入口 | 常驻区（header+排队区+composer，**不含随流滚走的 flow**）内可交互元素（button/a/input/[role=button]/[tabindex≥0] 且可见）**⊆ 白名单** {usage-pill, history, collapse, queue-×(忙时), input, attach, model, skill, mode, send}；白名单外出现任何可交互件 = 红。总数忙时 ≤10。（防复发主断言是白名单穷尽，不是总数字——口径之争别打在数字上） | 静态+忙时 |
 
 ### 屏 B · 六张决定卡（都在对话流里、决定完随流滚走）
 

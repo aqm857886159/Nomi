@@ -1,0 +1,32 @@
+# MCP 凭据前台导航与宿主配置修复提示
+
+> ✅ 已交付
+
+## 范围
+
+- `integration.open_credentials` 在 GUI RPC 进程中完成持久 handoff 入队后，聚焦/显示主窗口并让渲染层打开模型设置工作区；URL elicitation 判定保持现有协议规则。
+- 无法连接 GUI 时保留文字兜底，并明确说明先启动 Nomi。
+- 启动时宿主配置修复返回显式 `changed` 与被修客户端的显示名，仅 changed 时通知渲染层并显示双语 toast；
+  提示里点名的是**这次真的被改写的那些**助手（Claude Code / Cursor / Codex / 自建 profile 走同一个修复函数），
+  不写死一个「Claude Code」——只提示其中一个等于对其余用户什么都没说。
+- 补充能力核单测、真实 Electron UX 走查/宿主级 e2e，并把这条提示按实验室的两处注册表正式登记成 `host-config` 屏（基线待用户拍板）。
+- 凭据落地即收走那条持久 handoff（`markCredentialReady` / `saveCredential` 落盘之后）。此前只有 GUI 向导会
+  ack 自己那条，密钥若走 AI 客户端里的 loopback 页进来，「去填 key」的请求就永远排着，用户下次打开
+  设置→模型仍被拽回一个已经接好的供应商的添加页——把窗口推到前台之后，这个陈旧页变成用户直接撞上的东西。
+
+## 不动项
+
+- 不改变 MCP URL/form elicitation 安全判定，不把 key 放进 MCP 参数或结果。
+- 不触碰用户真实宿主配置；走查使用 `isoApp.prepareIsolation`。
+- 不修改主仓、不更新设计基线、不创建 PR。
+
+## 验收门
+
+1. `open_credentials` 时窗口 focused，设置模型页打开并自动消费对应 handoff；form-only 与 declined 文案包含已打开/需启动信息。
+2. 保存凭据后再次 `propose/confirm` 不再要求 key。
+3. 修复函数返回 `{ changed, repaired }`（每条带 label）；changed=false 不发 toast，changed=true 只发一次双语本地化 toast，且点名全部被改写的客户端。
+4. `pnpm run gates` 全绿；分支推送前整合最新 `origin/main`。
+
+## 回滚
+
+回滚本分支提交即可；不改持久化 schema，handoff 与配置文件现有格式保持兼容。

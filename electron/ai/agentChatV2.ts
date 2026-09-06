@@ -7,7 +7,6 @@ import { compilePromptPipe, deriveSkillLoadEvents, measurePromptCacheUsage, type
 import { projectProvenance } from '../harness/context/provenance';
 import { classifyToolAction, evaluateProvenanceAction } from '../harness/context/provenanceActionGuard';
 import type { RuntimeTurnHooks, NomiModelConfig } from '../harness/runtime/runtimePort';
-import { projectIdFromSessionKey } from '../events/eventLogRepository';
 import { getProjectMemory, formatMemoryForPrompt } from '../memory/projectMemory';
 import { chooseTextModel } from './textBrainResolver';
 import { vendorModelConnection } from './vendorModelConnection';
@@ -104,7 +103,7 @@ export async function runAgentChatV2(input: AgentChatRequest, hooks: AgentChatV2
     let memoryBlock = '';
     try {
       const projectId = payload.projectId ?? payload.canvasProjectId
-        ?? (payload.history.kind === 'persistent' ? projectIdFromSessionKey(payload.history.binding.sessionKey) : null);
+        ?? (payload.history.kind === 'persistent' ? payload.history.binding.project.projectId : null);
       if (projectId) memoryBlock = formatMemoryForPrompt(getProjectMemory(projectId).facts);
     } catch { /* Project facts remain best-effort; conversation persistence is not. */ }
     const display = sanitizeForBroadCompat(trim(payload.displayPrompt) || trim(payload.prompt));

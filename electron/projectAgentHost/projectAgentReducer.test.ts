@@ -218,6 +218,60 @@ describe("ProjectAgentHost reducer identity and exactly-once boundary", () => {
     expect(removed.state.activeThreadId).toBe(current.threadId);
   });
 
+  it("keeps the snapshot readable after deleting a thread the history still names", () => {
+    // Cold-restart regression. The `recentAppliedCommands` ledger keeps the last 64 patches, and
+    // those patches legitimately name a thread the user has deleted since. Validating them against
+    // the *present* thread set made every such snapshot fail `snapshotProjectAgentHostState`; the
+    // repository then rejected snapshot AND backup and threw ProjectAgentRepositoryIntegrityError,
+    // so the project's Agent history was unopenable until 64 further commands rolled the patch out.
+    // The in-session path never saw it, because the trusted append only validates the new delta.
+    const archived = { ...thread(), threadId: "archived-canonical-thread" };
+    const current = { ...thread(), threadId: "current-canonical-thread" };
+    const apply = (state: ReturnType<typeof snapshotProjectAgentHostState>, mutation: ProjectAgentMutation) =>
+      reduceProjectAgentMutation(state, mutation).state;
+
+    // Activating `archived` writes `active-thread-changed → archived` into the history ledger.
+    let state = apply(snapshotProjectAgentHostState(createInitialProjectAgentState(binding)), {
+      commandId: "seed-archived-thread",
+      expectedRevision: 0,
+      binding,
+      sender: { kind: "renderer", senderId: "renderer-a" },
+      type: "thread.put",
+      payload: { thread: archived, makeActive: true },
+    });
+    state = apply(state, {
+      commandId: "seed-current-thread",
+      expectedRevision: state.hostRevision,
+      binding,
+      sender: { kind: "renderer", senderId: "renderer-a" },
+      type: "thread.put",
+      payload: { thread: current, makeActive: true },
+    });
+    state = apply(state, {
+      commandId: "remove-archived-thread",
+      expectedRevision: state.hostRevision,
+      binding,
+      sender: { kind: "renderer", senderId: "renderer-a" },
+      type: "thread.remove",
+      payload: { threadId: archived.threadId, occurredAt: now },
+    });
+
+    expect(state.threads.map((value) => value.threadId)).toEqual([current.threadId]);
+    expect(
+      state.recentAppliedCommands.some((command) =>
+        command.patch.changes.some(
+          (change) => change.kind === "active-thread-changed" && change.activeThreadId === archived.threadId,
+        ),
+      ),
+    ).toBe(true);
+
+    // A cold start re-reads the persisted JSON, so it takes the full-validation path, not the
+    // trusted-object fast path. This is the assertion that used to throw `invalid_state`.
+    const reread = JSON.parse(JSON.stringify(state)) as unknown;
+    expect(() => snapshotProjectAgentHostState(reread)).not.toThrow();
+    expect(snapshotProjectAgentHostState(reread).activeThreadId).toBe(current.threadId);
+  });
+
   it("does not delete the active canonical thread", () => {
     const active = thread();
     const seeded = snapshotProjectAgentHostState({
@@ -1047,6 +1101,79 @@ describe("ProjectAgentHost turn serialization and async re-entry", () => {
     });
     expect(claimed.state.proposalApprovals[0]?.lifecycle).toBe("claimed");
     expect(claimed.state.queue[0]).toMatchObject({ status: "running", target: deferredTarget });
+  });
+
+  it("binds an approved timeline plan's own clip scope and base revision over the selection it was queued from", () => {
+    // Regression: the preview surface queues the *selection*, while the plan the
+    // user approves names its own clips and its own base revision. Freezing the
+    // selection as the write scope rejected every approved timeline edit with
+    // `proposal_transition_invalid`, so no Agent timeline edit could ever land.
+    const base = enqueueMutation();
+    const queued = reduceProjectAgentMutation(createInitialProjectAgentState(binding), {
+      ...base,
+      payload: {
+        ...base.payload,
+        queueItem: {
+          ...base.payload.queueItem,
+          target: { kind: "timeline", clipIds: ["clip-selected"] },
+          preconditions: {},
+        },
+      },
+    });
+    const running = reduceProjectAgentMutation(queued.state, startMutation("start-deferred-timeline", "turn-a", 1));
+    const planTarget = { kind: "timeline", clipIds: ["clip-b", "clip-c"] } as const;
+    const planPreconditions = { timeline: { revision: "sha256-timeline-before" } } as const;
+    const approval = {
+      ref: {
+        approvalId: "approval-deferred-timeline",
+        receiptProposalId: "receipt-deferred-timeline",
+        threadId: "thread-a",
+        turnId: "turn-a",
+        toolCallId: "apply-edit-plan",
+        policyRevision: 5,
+        inputHash: "input-hash",
+        actionHash: "action-hash",
+        target: planTarget,
+        preconditions: planPreconditions,
+        expiresAt: "2026-08-28T00:10:00.000Z",
+      },
+      lifecycle: "pending",
+    } as const;
+    const item = {
+      kind: "proposal" as const,
+      itemId: "proposal-deferred-timeline",
+      threadId: "thread-a",
+      turnId: "turn-a",
+      status: "proposed" as const,
+      retryable: false,
+      deviated: false,
+      approval: approval.ref,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const proposed = reduceProjectAgentMutation(running.state, {
+      commandId: "put-deferred-timeline",
+      expectedRevision: 2,
+      binding,
+      sender: { kind: "embedded-agent", senderId: "agent" },
+      type: "proposal.put",
+      payload: { approval, item, occurredAt: now },
+    });
+    expect(proposed.state.queue[0]).toMatchObject({
+      status: "proposed",
+      target: planTarget,
+      preconditions: planPreconditions,
+    });
+    const claimed = reduceProjectAgentMutation(proposed.state, {
+      commandId: "claim-deferred-timeline",
+      expectedRevision: 3,
+      binding,
+      sender: { kind: "embedded-agent", senderId: "agent" },
+      type: "proposal.transition",
+      payload: { approvalId: approval.ref.approvalId, lifecycle: "claimed", occurredAt: now },
+    });
+    expect(claimed.state.proposalApprovals[0]?.lifecycle).toBe("claimed");
+    expect(claimed.state.queue[0]).toMatchObject({ status: "running", target: planTarget });
   });
 
   it("stores only TaskRef and display-only HumanApprovalRef, never foreign truth", () => {

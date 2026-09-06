@@ -1,6 +1,6 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconArrowRight, IconBrowser, IconPlugConnected, IconSettings } from '@tabler/icons-react'
+import { IconArrowRight, IconBrowser, IconDownload, IconPlugConnected, IconSettings } from '@tabler/icons-react'
 import type { WorkspaceMode } from '../../workbench/workbenchStore'
 import {
   NomiBrand,
@@ -17,6 +17,8 @@ import CollapsedAiChip from './CollapsedAiChip'
 import { useGenerationCanvasStore } from '../../workbench/generationCanvas/store/generationCanvasStore'
 import { cn } from '../../utils/cn'
 import { APP_BAR_ACTION_GROUPS } from './appBarActionGroups'
+import EditingLayoutMenu from '../../workbench/preview/EditingLayoutMenu'
+import { requestPreviewExport } from '../../workbench/preview/previewExportRequest'
 
 // 平台分流：win32 下品牌/关于 + 上手清单都让位给 WorkbenchShell 的自绘标题栏（windowbar），
 // 本栏不重复渲染；非 win32（mac/Linux）保持原生窗口，品牌与清单仍住这里——两平台都有家、不丢失、不重复。
@@ -215,6 +217,18 @@ export default function NomiAppBar({
           role="toolbar"
           aria-label={t('appBar.globalActions')}
         >
+        {/* 剪辑面「布局」菜单（合同 §2.1/§2.2：五块开关 + 四预设，固定在顶栏，不塞进 Nomi 面板头）。
+            只在预览页出现——它调的是剪辑面那五块面板，别处没有对象可调。 */}
+        {workspaceMode === 'preview' ? (
+          <span
+            data-actions={APP_BAR_ACTION_GROUPS.layout.join(' ')}
+            className={cn('nomi-appbar__group nomi-appbar__group--layout', 'inline-flex items-center gap-2.5')}
+          >
+            <EditingLayoutMenu />
+            <span className={cn('nomi-appbar__divider', 'w-px h-[18px] bg-workbench-border')} aria-hidden="true" />
+          </span>
+        ) : null}
+
         {/* 任务：入口常驻；空闲时安静显示，有任务时由按钮表达数量和状态。 */}
         <span
           className={cn(
@@ -333,9 +347,30 @@ export default function NomiAppBar({
           className="nomi-appbar__group nomi-appbar__group--primary inline-flex items-center"
         >
           {/* 「导出」拆成两个诚实的词（§1.5「去重」+ 一功能一个家）：
-              这颗在非预览页时只是**跳转**（原来却叫「导出」，点了什么也不导），故改叫「去出片」；
-              到了预览页整颗隐藏 —— 那里控制条的「导出 MP4」才是真导出、且是唯一入口。 */}
-          {workspaceMode !== 'preview' ? (
+              这颗在非预览页时只是**跳转**（原来却叫「导出」，点了什么也不导），故改叫「去出片」。
+              到了预览页它换成真导出「导出 MP4」——合同 §2.2 把导出从预览控制条撤到顶栏右上
+              （CapCut / ChatCut / OpenCut 一致），属性面板只放分辨率/质量参数、不放执行按钮。 */}
+          {workspaceMode === 'preview' ? (
+            <AppBarActionTooltip label={t('timelinePreview.exportMp4')}>
+              <WorkbenchButton
+                className={cn(
+                  'nomi-appbar__primary',
+                  'app-no-drag',
+                  'inline-flex items-center gap-1.5 h-[30px] px-2.5',
+                  'border border-transparent rounded-[var(--nomi-radius-sm)]',
+                  'bg-[var(--nomi-ink)] text-[var(--nomi-paper)] font-inherit text-body-sm',
+                  'transition-[background,color] duration-[var(--nomi-transition-fast)]',
+                  'hover:bg-[var(--nomi-ink-80)]',
+                  'max-[1600px]:w-[30px] max-[1600px]:h-[30px] max-[1600px]:justify-center max-[1600px]:p-0',
+                )}
+                aria-label={t('timelinePreview.exportMp4')}
+                onClick={requestPreviewExport}
+              >
+                <IconDownload size={15} stroke={1.8} />
+                <span className={cn('nomi-appbar__action-text', 'max-[1600px]:hidden')}>{t('timelinePreview.exportMp4')}</span>
+              </WorkbenchButton>
+            </AppBarActionTooltip>
+          ) : (
             <AppBarActionTooltip label={t('appBar.goToProduce')}>
               <WorkbenchButton
                 className={cn(
@@ -355,7 +390,7 @@ export default function NomiAppBar({
                 <span className={cn('nomi-appbar__action-text', 'max-[1600px]:hidden')}>{t('appBar.goToProduce')}</span>
               </WorkbenchButton>
             </AppBarActionTooltip>
-          ) : null}
+          )}
         </span>
         </div>
       </TooltipProvider>

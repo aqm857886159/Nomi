@@ -234,15 +234,15 @@ function BaseGenerationNodeImpl({
   // 失败态不显文字徽标——错误已铺满节点正文（NodeErrorReport），顶部再写「生成失败」是重复噪音（2026-06-03 评审）。
   const showStatusBadge = status === 'queued' || status === 'running'
 
-  const sourceNodeLabel =
-    sourceNodeTitle || (node.derivedFrom && !sourceNodeExists ? '源节点已不在当前项目' : node.derivedFrom || '')
+  // 2026-09-05：这几条的 zh+en 词条一直都在，只是渲染处写死了中文（英文界面恒显中文），现接回词条。
+  const sourceNodeLabel = sourceNodeTitle || (node.derivedFrom && !sourceNodeExists ? t('generationCommon.node.sourceMissing') : node.derivedFrom || '')
   const sourceCategoryName = sourceNodeCategoryId ? getBuiltinCategoryById(sourceNodeCategoryId)?.name : null
   const independentCopyLabel =
     sourceCategoryName && sourceNodeExists
-      ? `独立副本（来自 ${sourceCategoryName}·${sourceNodeLabel}）`
+      ? t('generationCommon.node.copyFromCategory', { category: sourceCategoryName, source: sourceNodeLabel })
       : sourceNodeExists
-        ? `独立副本（来自 ${sourceNodeLabel}）`
-        : '独立副本（源节点已不存在）'
+        ? t('generationCommon.node.copyFrom', { source: sourceNodeLabel })
+        : t('generationCommon.node.copySourceMissing')
   const nodeExecutionKind = getGenerationNodeExecutionKind(node.kind)
   // L3：待生成卡给镜头序号，让未选中的占位卡也能一眼分清哪个镜头（非 shots 返回 null）。
   const shotIndex = useShotIndex(node.id, node.categoryId)
@@ -600,8 +600,8 @@ function BaseGenerationNodeImpl({
           <RemoveBackgroundPendingPlaceholder title={node.title} progress={node.progress?.percent} />
         ) : (
           <PendingGenerationPlaceholder
-            selected={selected}
-            needsFirstFrame={needsFirstFrame}
+            kind={node.kind}
+            selected={selected} needsFirstFrame={needsFirstFrame}
             waitingUpstream={hasFrameSourceEdge}
             shotIndex={shotIndex}
             title={node.title}

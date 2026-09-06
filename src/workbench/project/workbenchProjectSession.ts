@@ -10,9 +10,6 @@ import type { ProjectHydrationGuard } from './projectCanvasReadSurface'
 export function readCurrentWorkbenchProjectPayload(): WorkbenchProjectPayload {
   const workbench = useWorkbenchStore.getState()
   const generation = useGenerationCanvasStore.getState()
-  const activeStoryboardEntry = workbench.activeDocumentId
-    ? workbench.storyboardPlans[workbench.activeDocumentId]
-    : undefined
   return {
     workbenchDocuments: workbench.workbenchDocuments,
     activeDocumentId: workbench.activeDocumentId,
@@ -22,18 +19,8 @@ export function readCurrentWorkbenchProjectPayload(): WorkbenchProjectPayload {
     categories: workbench.categories,
     // S5-b-1:尾部重放游标(append 回执维护;回执延迟导致略旧也安全——reducer 幂等)
     generationCanvasLastSeq: getCanvasEventLastSeq(),
-    // P4:每篇原稿的分镜方案映射随项目落盘（P0-6 从单字段升级）。
-    storyboardPlans: workbench.storyboardPlans,
     storyboardDesignsByDocumentId: workbench.storyboardDesignsByDocumentId,
-    // Keep the deprecated single-plan fields as a derived read-side bridge for
-    // older project consumers. The document-keyed map remains the only write
-    // source; this alias always follows the active document's projection.
-    ...(activeStoryboardEntry
-      ? {
-          storyboardPlan: activeStoryboardEntry.plan,
-          storyboardPlanCommitted: activeStoryboardEntry.committed,
-        }
-      : {}),
+    editingPanelLayout: workbench.editingPanelLayout,
   }
 }
 
@@ -46,10 +33,8 @@ export function restoreWorkbenchProjectPayload(payload: WorkbenchProjectPayload)
   useWorkbenchStore.getState().setCategories(payload.categories)
   // P4：恢复整套分镜方案映射。用 hydrateStoryboardDesigns（非 setStoryboardPlan）载入不标脏。
   const store = useWorkbenchStore.getState()
-  store.hydrateStoryboardDesigns(
-    payload.storyboardDesignsByDocumentId ?? {},
-    payload.storyboardPlans ?? {},
-  )
+  store.hydrateStoryboardDesigns(payload.storyboardDesignsByDocumentId ?? {})
+  if (payload.editingPanelLayout) store.setEditingPanelLayout(payload.editingPanelLayout, false)
   useGenerationCanvasStore.getState().restoreSnapshot(payload.generationCanvas)
 }
 

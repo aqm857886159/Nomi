@@ -4,6 +4,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { readEvents, setEventLogProjectDirResolverForTests } from "./eventLogRepository";
 import { beginTurnTrace, traceChatEvent } from "./agentChatTrace";
+import { createProjectAgentContextBinding } from "../shared/contracts/projectAgentContextBinding";
 
 let root = "";
 
@@ -20,7 +21,10 @@ describe("legacy agent trace experience boundary", () => {
     beginTurnTrace("legacy-session", {
       history: {
         kind: "persistent",
-        binding: { sessionKey: "nomi:workbench:project-a:creation", threadId: "thread-1" },
+        binding: createProjectAgentContextBinding(
+          { projectId: "project-a", immutableProjectUuid: "4d80f2e0-4a45-4a8f-8fe1-78ac659177c8", projectGeneration: 1 },
+          "thread-1",
+        ),
       },
       prompt: "旧链路不应沉淀经验",
     });

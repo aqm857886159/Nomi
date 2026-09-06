@@ -382,9 +382,10 @@ function Scene3DEditor({ node, width, height, readOnly = false }: Scene3DEditorP
           <div className={cn('flex h-full w-full items-center justify-center')}>
             <EmptyStateLauncher
               icon={<IconCube size={24} stroke={1.65} />}
-              label={t('scene3d.fullscreen.enterEditor')}
-              hint={t('scene3d.fullscreen.editorHint')}
+              label={t('generationCommon.nodeEmpty.scene3d.action')}
+              hint={t('generationCommon.nodeEmpty.scene3d.description')}
               activateAriaLabel={t('scene3d.fullscreen.enterEditorAria')}
+              testId="scene3d-empty-action"
               onActivate={() => setFullscreen(true)}
               onPreload={preloadFullscreenEditor}
             />

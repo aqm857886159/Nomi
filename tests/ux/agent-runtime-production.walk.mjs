@@ -7,9 +7,9 @@ import { createHash } from 'node:crypto'
 import { clickOrFail, expect, expectAbsent, proveProbe } from './_assert.mjs'
 import { FIXTURE_IMAGE_MODEL, flattenRequestText } from './agent-runtime-fixture.mjs'
 import {
-  CANVAS_PANEL, CREATION_PANEL, DOCUMENT, chooseCreationMode, createRuntimeWalk, hasToolResult,
+  CANVAS_PANEL, CREATION_PANEL, DOCUMENT, createRuntimeWalk, hasToolResult,
   openCanvas, readConversations, readNativeContexts, readProject, recorded, sendCreation,
-  snapshotMessages, toolNames,
+  readCurrentProjectAgentHostSnapshot, snapshotMessages, toolNames,
 } from './agent-runtime-walk-support.mjs'
 
 const STORY = 'F_INLINE_STORY：清晨，一位创作者来到咖啡馆。她将红色杯子放到白桌正中央，然后坐在窗边整理相机。镜头保持正面中景，自然光照亮杯沿，背景不要多余物件。画面只需要表现拍摄开始前安静的准备时刻。'
@@ -23,13 +23,10 @@ const CANDIDATES = [
 ]
 
 function snapshots(projectRoot, settingsRoot) {
-  const read = (root) => {
-    try { return fs.readFileSync(path.join(root, '.nomi', 'agent-session.json'), 'utf8') }
-    catch (error) { if (error.code === 'ENOENT') return null; throw error }
-  }
-  // Include the whole container and the local bucket: empty/cleared records,
-  // source/state metadata and newly created files must not disappear in a projection.
-  return { project: read(projectRoot), local: read(settingsRoot) }
+  const host = readCurrentProjectAgentHostSnapshot(settingsRoot, projectRoot)
+  // Include the complete Host snapshot as the positive persistence control;
+  // ephemeral tasks must leave this canonical source unchanged.
+  return { host: host ? JSON.stringify(host) : null }
 }
 
 const walk = await createRuntimeWalk('production')
@@ -37,13 +34,9 @@ let failure
 try {
   const { win } = await walk.start({ first: true })
   const { projectId, projectRoot } = await walk.newProject()
-  // A real new user reaches the Agent through the visible Settings toggle. Keep
-  // this journey on that same boundary before locating the resident composer.
-  await (await import('./agent-runtime-walk-support.mjs')).enableAgentHostThroughSettings(win)
   const settingsRoot = path.join(walk.report.tempRoot, 'settings')
   await win.locator(DOCUMENT).fill(STORY)
   await expect(win.locator(DOCUMENT)).toHaveText(STORY)
-  await chooseCreationMode(win, 'general')
   const parent = walk.fixture.expectText({
     label: 'establish an actual parent conversation before inline planning',
     match: (body) => flattenRequestText(body).includes(PARENT),
@@ -108,13 +101,19 @@ try {
     message: 'The applied storyboard approval is no longer actionable',
   })
   await recorded(plannerDone.received, 'inline planner result')
-  // v5：方案落成中列摘要卡（完整编辑器只住分镜页），先卡后审。
-  await expect(win.locator('[data-storyboard-card="draft"]')).toBeVisible()
+  // 方案落成后，中列留一张摘要卡（完整编辑器只住分镜页）。这张卡如今是常驻 Agent 里的
+  // 分镜收据（ProjectAgentResidentShell 的 data-agent-storyboard-receipt）——旧的
+  // `[data-storyboard-card="draft"]` 早已不在 src 里的任何一处，这条走查于是长期红着，
+  // 报的还是「元素找不到」这种看不出根因的话（docs/lessons/dead-selector-lies-both-ways.md）。
+  await expect(win.locator('[data-agent-storyboard-receipt="true"]').first()).toBeVisible()
   await expect(win.locator('[data-workspace-mode="creation"]')).toBeVisible()
-  await expect.poll(async () => (await readProject(win, projectId)).payload.storyboardPlan?.title,
+  await expect.poll(async () => {
+    const payload = (await readProject(win, projectId)).payload
+    return payload.storyboardDesignsByDocumentId?.[payload.activeDocumentId]?.[0]?.plan?.title
+  },
     { timeout: 30_000 }).toBe('F镜头')
   const draft = (await readProject(win, projectId)).payload
-  expect(draft.storyboardPlanCommitted).toBe(false)
+  expect(draft.storyboardDesignsByDocumentId?.[draft.activeDocumentId]?.[0]?.committed).toBe(false)
   expect(draft.generationCanvas.nodes).toHaveLength(0)
   expect(walk.fixture.images).toHaveLength(0)
   await expect.poll(() => readNativeContexts(projectRoot, settingsRoot)?.some((record) => record.snapshot
@@ -130,7 +129,8 @@ try {
   await walk.snap('inline-plan-awaits-human')
 
   // v5 执行面：没有「确认落画布」——进分镜页，footer「生成未生成的 N 镜」按需 materialize + 批量。
-  await clickOrFail(win.getByRole('button', { name: '打开分镜', exact: true }), '从方案卡进入分镜页')
+  // 方案卡 = 常驻 Agent 里的分镜收据行「分镜方案已生成 [打开]」；旧文案「打开分镜」已不存在。
+  await clickOrFail(win.locator('[data-agent-storyboard-receipt="true"]').first().getByRole('button', { name: '打开', exact: true }), '从方案卡进入分镜页')
   await expect(win.getByRole('textbox', { name: '方案标题', exact: true })).toHaveValue('F镜头')
   const beforeJudge = snapshots(projectRoot, settingsRoot)
   const judge = walk.fixture.expectText({
