@@ -128,7 +128,7 @@ if (errors.length > 0) {
   console.error('✖ 先查别人门岗失败（R27：实施之前必须有一份可复核的「别人做过没有」报告）：')
   for (const error of errors) console.error(`  - ${error}`)
   console.error('\n  → 报告落 docs/research/<日期>-<主题>/prior-art.md，结论抄进方案的「## 先查别人」节；')
-  console.error('  → 派工 brief 必须引用那份方案的路径（详见 docs/engineering/agent-orchestration-playbook.md §15）。')
+  console.error('  → 派工 brief 必须引用那份方案的路径（详见 docs/engineering/agent-orchestration-playbook.md §16）。')
   process.exit(1)
 }
 

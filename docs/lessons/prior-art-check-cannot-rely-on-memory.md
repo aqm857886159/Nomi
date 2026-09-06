@@ -1,6 +1,6 @@
 # 查不查不能靠记性——「先看别人做了没」必须是机器逼出来的一步
 
-> 📎 教训 · 首次记录 2026-09-07 · 状态：✅ 已固化（`check:prior-art` + R27 §15 反方 agent 步骤接管）
+> 📎 教训 · 首次记录 2026-09-07 · 状态：✅ 已固化（`check:prior-art` + R27 §15/§16 反方 agent 步骤接管）
 > **触发场景**：准备动手写一个「通用能力」；派实施任务书；接框架 / 用它一个没用过的层；发现自己正在从零实现某个听起来很常见的东西。
 
 **结论**：**动手之前先派一次反方**——它的交付物不是「做出来」，而是「证明这件事已经有人做过了」。报告落 `docs/research/<日期>-<主题>/prior-art.md`，方案里抄成 `## 先查别人` 一节（四问各带 URL 或 file:line），实施任务书引用那份方案的路径。没有它，任务书不发。`pnpm run check:prior-art` 会拦。
@@ -17,4 +17,4 @@
 - 收反方报告时**至少抽一格点开出处**：门岗只判形式（三条链接就能过），判不了查得认不认真。指不开 = 按没查处理。
 - 自己是那个实施体时，把「找到已有」当成一次**成功**来报，不是空手——这条心态上的翻转是这整条教训的根。
 
-**出处**：`docs/fixes/2026-09-07-prior-art-not-enforced.root-cause.json`（v3 recurring 合同）、`docs/engineering/agent-orchestration-playbook.md` §15、`docs/engineering-rules.md` R29 / R27、门岗 `scripts/check-prior-art.mjs` + 判据 `scripts/prior-art-lib.mjs`。前情：2026-09-06 #546 pi SDK 架构评审、#547 内部 Agent 工具真实模型 0/18。
+**出处**：`docs/fixes/2026-09-07-prior-art-not-enforced.root-cause.json`（v3 recurring 合同）、`docs/engineering/agent-orchestration-playbook.md` §15（反方清单）/§16（机器强制）、`docs/engineering-rules.md` R29 / R27、门岗 `scripts/check-prior-art.mjs` + 判据 `scripts/prior-art-lib.mjs`。前情：2026-09-06 #546 pi SDK 架构评审、#547 内部 Agent 工具真实模型 0/18。

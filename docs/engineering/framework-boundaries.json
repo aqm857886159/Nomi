@@ -51,14 +51,14 @@
         "@earendil-works/pi-agent-core",
         "@earendil-works/pi-ai"
       ],
-      "version": "0.84.3",
+      "version": "0.85.1",
       "fourColumnTable": "docs/plan/2026-09-07-agent-runtime-rebuild.md",
       "why": "2026-09-06 #546 架构评审：接入时只接了最底层的 agent loop，pi 已提供的会话持久化、有序转录、重试、价格与 steer/followUp 各被我们重写了一份，而且更差。这张表把那次评审的结论钉成机器判据。",
       "capabilities": [
         {
           "id": "session-persistence",
           "provides": "SessionManager 负责会话的落盘、追加与恢复（含 CURRENT_SESSION_VERSION 迁移）",
-          "evidence": "@earendil-works/pi-coding-agent@0.84.3 dist/core/session-manager.d.ts:184 `export declare class SessionManager`；dist/core/session-manager.d.ts:333 `static inMemory`",
+          "evidence": "@earendil-works/pi-coding-agent@0.85.1 dist/core/session-manager.d.ts:184 `export declare class SessionManager`；dist/core/session-manager.d.ts:334 `static inMemory`",
           "scope": ["electron/harness/runtime/pi/"],
           "forbidden": [
             {
@@ -76,7 +76,7 @@
         {
           "id": "retry-policy",
           "provides": "RetryPolicy：模型请求的重试与退避策略，由 settings.retry 与 provider.maxRetries 驱动",
-          "evidence": "@earendil-works/pi-ai@0.84.3 `RetryPolicy`（经 dist/core/compaction/compaction.d.ts:100 等处透出）；pi-coding-agent dist/core/settings-manager.d.ts 的 retry 设置",
+          "evidence": "@earendil-works/pi-ai@0.85.1 `RetryPolicy`（经 pi-coding-agent dist/core/compaction/compaction.d.ts:8 import、:105 `completeSummarization(..., retry?: RetryPolicy, ...)` 透出）；pi-coding-agent dist/core/settings-manager.d.ts:81 `retry?: RetrySettings`",
           "scope": ["electron/harness/runtime/pi/"],
           "forbidden": [
             {
@@ -94,7 +94,7 @@
         {
           "id": "steering",
           "provides": "AgentSession.steer() / followUp()：把用户的新指令按流式状态排进当前回合或下一回合",
-          "evidence": "@earendil-works/pi-coding-agent@0.84.3 dist/core/agent-session.d.ts:377 `steer(text, images?)`、:385 `followUp(text, images?)`；pi-agent-core dist/agent.d.ts:84/86",
+          "evidence": "@earendil-works/pi-coding-agent@0.85.1 dist/core/agent-session.d.ts:375 `steer(text, images?)`、:383 `followUp(text, images?)`；pi-agent-core dist/agent.d.ts:84/86",
           "scope": ["electron/projectAgentHost/"],
           "forbidden": [
             {
@@ -112,7 +112,7 @@
         {
           "id": "resource-loading",
           "provides": "DefaultResourceLoader：扩展 / skills / prompts / themes / AGENTS 文件的发现、加载与系统提示词装配",
-          "evidence": "@earendil-works/pi-coding-agent@0.84.3 dist/core/resource-loader.d.ts:120 `export declare class DefaultResourceLoader implements ResourceLoader`",
+          "evidence": "@earendil-works/pi-coding-agent@0.85.1 dist/core/resource-loader.d.ts:120 `export declare class DefaultResourceLoader implements ResourceLoader`",
           "scope": ["electron/harness/runtime/pi/"],
           "forbidden": [
             {
@@ -130,7 +130,7 @@
         {
           "id": "ordered-transcript",
           "provides": "AgentSession 的有序事件流与会话条目：按段（文本 / 思考 / 工具调用 / 结果）保序，宿主订阅即可拿到结构",
-          "evidence": "@earendil-works/pi-coding-agent@0.84.3 dist/core/agent-session.d.ts:40 `AgentSessionEvent`、:108 `AgentSessionEventListener`",
+          "evidence": "@earendil-works/pi-coding-agent@0.85.1 dist/core/agent-session.d.ts:40 `AgentSessionEvent`、:103 `AgentSessionEventListener`",
           "scope": ["electron/harness/runtime/pi/"],
           "forbidden": [
             {

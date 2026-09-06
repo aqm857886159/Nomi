@@ -34,7 +34,7 @@
 
 | 你可能搜的词 | 规范名 | 去哪找 |
 |---|---|---|
-| agent 引擎 · runAgentChatV2 · streamText 循环 | **pi runtime**（pi SDK 0.84.3）。`runAgentChatV2` 是**已被取代**的旧名 | `electron/harness/runtime/pi/` |
+| agent 引擎 · runAgentChatV2 · streamText 循环 | **pi runtime**（pi SDK 0.85.1）。`runAgentChatV2` 是**已被取代**的旧名 | `electron/harness/runtime/pi/` |
 | 工具组 · toolset · skillKey 选工具 | **capability**（工具组按 capability 选，**不按 skillKey**） | `electron/harness/agentChatPolicy.ts:35` |
 | 工具定义 · tool schema · descriptor | **descriptors**（`canvasDescriptors.ts` / `documentDescriptors.ts`） | `electron/harness/tools/` |
 | 统一 agent · 跨区 agent · 常驻助手 | **R2-U1 项目级统一 Agent**（未交付） | `docs/plan/2026-08-26-pi-agent-loop-file-migration.md` §7 |
