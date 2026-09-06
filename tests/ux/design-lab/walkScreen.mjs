@@ -110,6 +110,18 @@ export async function walkDesignLabScreen(config) {
       record(`注册表解析漂了：活页面 ${live?.length} 个 / 源码解析 ${parsed.length} 个`)
       console.error('    只在活页面：', (live || []).filter((id) => !parsed.includes(id)).join(', '))
       console.error('    只在解析里：', parsed.filter((id) => !(live || []).includes(id)).join(', '))
+      // 两边**一个都不重叠** = 我们截的根本不是自己这棵 worktree 的页面：
+      // `reuseExistingServer` 式的「端口上已经有人应答就用它」在这台机器上会连到
+      // 另一个 worktree 的 vite（20+ worktree 并行是常态，端口写死必然撞）。
+      // 这一条要**当场停**：继续跑下去只会截出一批别人家的 UI，而每一张看起来都很正常。
+      const overlap = parsed.filter((id) => (live || []).includes(id)).length
+      if (overlap === 0) {
+        throw new Error(
+          `端口 ${config.port} 上应答的不是本 worktree 的实验室（活页面的状态和本仓一个都对不上）。`
+          + `\n先查是谁占着：lsof -nP -iTCP:${config.port} -sTCP:LISTEN`
+          + `\n别去 kill 别人的 dev server——给本屏换一个没人用的端口。`,
+        )
+      }
     }
 
     // ② 逐状态截图 + 非空断言。

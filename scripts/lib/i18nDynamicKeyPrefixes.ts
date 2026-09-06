@@ -34,6 +34,9 @@ export const OVERBROAD_NAMESPACE_DEBT: readonly string[] = []
 
 export const DYNAMIC_KEY_PREFIXES: DynamicPrefix[] = [
   // ── creationAi ──
+  // ── agentPanelV4 ──
+  { prefix: 'agentPanelV4.permission', why: "动态: Agent 面板 v4 的权限三档;枚举来源: PermissionTier = ProjectAgentApprovalPolicy['mode'] 的 step/safe-auto/project(permission.* 词条)" },
+  { prefix: 'agentPanelV4.permissionWhy', why: "动态: 权限三档各自的一句话解释;枚举来源: 同上三档(permissionWhy.* 词条)" },
   { prefix: 'creationAi.mode', why: '动态: 创作助手模式 id;枚举来源: listCreationAiModes() 的内置 mode.id(CreationPromptPicker 用 `creationAi.mode.${id}` 再接 .label/.short/.title/.description)' },
   // ── antigravity ──
   { prefix: 'antigravity.state', why: '动态: Antigravity 连接状态;枚举来源: AntigravityConnectionStatus["state"] 六态(antigravity.state.* 词条)' },

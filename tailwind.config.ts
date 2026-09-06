@@ -7,9 +7,21 @@ import plugin from 'tailwindcss/plugin'
  * 元素无背景/描边裸奔）。Issue #32（手势提示条、场景卡信息条压在图上失读）root cause 即此，
  * 当时全仓 60+ 处中招。color-mix 包一层 `<alpha-value>` 占位：不带修饰符时 calc(1*100%) 与原色
  * 恒等；带修饰符按比例向 transparent 混。新增 token 色映射必须走这里，别再写裸 var()。
+ *
+ * ⚠️ 混合空间必须是 `in oklab`，别改成 `in oklch`。oklch 是极坐标，色相是**独立分量**，
+ * Chromium 在把低彩度色转进 oklch 时会把色相判成 powerless 写成 `none`、却**保留彩度**——
+ * 于是 `none` 落地当 h=0，一个淡蓝被渲染成淡粉。实测（Chromium 140，浅色主题）：
+ *   color-mix(in oklch, rgb(229 238 247) 100%, transparent) → oklch(0.945 0.0155 none) = 淡粉
+ *   color-mix(in oklab, rgb(229 238 247) 100%, transparent) → oklab(0.945 -0.006 -0.013) = 淡蓝 ✓
+ * 高彩度色不中招（rgb(30 80 200) → h=263.5 稳），所以 --nomi-accent 一直是对的，
+ * 而 --nomi-accent-soft / -danger-soft / -warning-soft 这一族 12% 淡底（c≈0.015）全被染粉——
+ * 2026-09-06 用户看 Agent 面板 v4 介入槽「头部为什么是粉的」实锤，画布上 80+ 个 accent-soft
+ * 选中态/chip 同病。2026-08-02 那次把 token 定义从 `in oklch` 改成 `in srgb` 只修了内层，
+ * 外层这一包还在 oklch，病灶原地搬了个家。oklab 是直角坐标、没有色相分量，无从可漂：
+ * 对**每一个**现有 token（55 个，明暗两套）逐一比对过，除上述被染粉的几个外渲染值恒等。
  */
 const tokenColor = (cssVar: string): string =>
-  `color-mix(in oklch, var(${cssVar}) calc(<alpha-value> * 100%), transparent)`
+  `color-mix(in oklab, var(${cssVar}) calc(<alpha-value> * 100%), transparent)`
 
 const workbenchBasePlugin = plugin(({ addBase, addUtilities }) => {
   // 无边框窗口拖拽区（Windows 自绘标题栏）。.app-drag 整块可拖窗，内部交互元素自动 no-drag（否则按钮拖不动窗也点不动）。

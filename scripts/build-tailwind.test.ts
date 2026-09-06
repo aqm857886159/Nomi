@@ -34,8 +34,12 @@ const SENTINELS = [
   { source: 'bg-nomi-paper/[0.32]', selector: '.bg-nomi-paper\\/\\[0\\.32\\]' },
   // src/ui/browser/popover/browserAssetPopoverConstants.ts —— 浮窗上/下边 resize 手柄的右锚
   { source: 'right-5', selector: '.right-5' },
-  // src/workbench/ai/resident/residentShellDisplay.ts —— 最早暴露这个坑的那条：用户气泡的宽度上限
-  { source: 'max-w-[86%]', selector: '.max-w-\\[86\\%\\]' },
+  // 曾经还有第三条：`max-w-[86%]`（residentShellDisplay.ts，最早暴露这个坑的那条）。
+  // 2026-09-06 退役 —— Agent 面板 v4 的用户气泡（AgentPanelV4Message.tsx）用的是同一个宽度上限，
+  // 它一进 .tsx，这条哨兵就靠 .tsx 那条通过、从此永远绿（正是下面 vacuity 守卫要拦的那种空测）。
+  // 换不动：全仓扫下来，`.ts` 里独有的类只剩上面这两条。退役而不是「找个别的类顶上」，
+  // 也不是「把 v4 的气泡改成别的宽度」——哨兵是**测量仪器**，不该反过来约束产品代码写什么类。
+  // 两条哨兵证的是同一个不变量（content 扫不扫 .ts），少一条不掉覆盖，只是少一份冗余。
 ] as const
 
 function collectSources(dir: string, out: { tsx: string[]; ts: string[] }): void {

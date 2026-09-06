@@ -24,6 +24,7 @@
 | [2026-09-04-main-convergence-follow-ups.md](2026-09-04-main-convergence-follow-ups.md) | Main 收敛后续明细；历史执行拆解，状态以总方案和 current-main 审计为准 | 📎 |
 | [2026-09-05-agent-host-gate-removal.md](2026-09-05-agent-host-gate-removal.md) | **常驻 Agent 拆发布闸**：删掉默认关的 `agentHostPreference` 与设置页开关，Agent 对所有用户无条件常驻，未完成处改用 header Beta 徽标明说；根因是「用户用的产品」与「测试跑的产品」分叉的并行版 | 🚧 |
 | [2026-09-05-agent-ui-a-composer.md](2026-09-05-agent-ui-a-composer.md) | Agent UI A 段：composer 五按钮调序、模式弹层收敛、运行呼吸光与分镜入口 | 🚧 |
+| [2026-09-06-agent-panel-v4-lab.md](2026-09-06-agent-panel-v4-lab.md) | Agent 面板 v4 设计实验室阶段一：真实组件、44 个夹具状态、逐板截图对账，不接线 | ✅ |
 | [2026-09-05-editing-panel-t1.md](2026-09-05-editing-panel-t1.md) | T1 面板系统、属性面板、transport 与 layout capability | 🚧 |
 | [2026-09-05-resident-composer-receipt-fix.md](2026-09-05-resident-composer-receipt-fix.md) | 常驻 Agent 收据旅程修复：删掉旅程对模式弹层审批入口的依赖，改用真实审批卡/拒绝/收据断言 | ✅ |
 | [2026-09-05-proposal-transition-table.md](2026-09-05-proposal-transition-table.md) | **Agent Host proposal 转换表**：(来源域×目标域×状态×动作) 做成显式数据表，reducer 只查表，拒绝带格子坐标；`document→canvas` 是显式关闭格 | ✅ |

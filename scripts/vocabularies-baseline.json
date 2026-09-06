@@ -1340,6 +1340,70 @@
       "site": "electron/shared/contracts/telemetry.ts::variable:TELEMETRY_RESULT_VALUES/as-const",
       "members": ["cancel", "failure", "success"],
       "reason": "TelemetryResult 是遥测出站协议唯一允许的结果维度，跨主进程更新、生成与导出入口共用同一中立合同；它描述一次遥测事件结算，不等同于供应商任务、导出作业或 UI 状态。"
+    },
+    {
+      "site": "src/workbench/ai/v4/agentPanelV4Types.ts::type:ComposerMode/type-union",
+      "members": [
+        "idle",
+        "reference",
+        "running"
+      ],
+      "reason": "ComposerMode 是设计实验室 composer 的三种视图模式；它描述输入框展示上下文，不是任务或供应商生命周期，故保持局部 UI 词表。"
+    },
+    {
+      "site": "src/workbench/ai/v4/agentPanelV4Types.ts::type:QueueRowData/property:status/type-union",
+      "members": [
+        "complete",
+        "queued",
+        "running"
+],
+      "reason": "QueueRowData.status 是 Agent 面板队列行的展示投影，complete 表示行已收束；它与生产任务的 succeeded 语义不同，保持面板词表隔离。"
+    },
+    {
+      "site": "src/workbench/ai/v4/agentPanelV4Types.ts::type:V4AssistantStatus/type-union",
+      "members": [
+        "complete",
+        "interrupted",
+        "streaming"
+      ],
+      "reason": "V4AssistantStatus 是面板助手消息的流式显示状态，interrupted 是用户可见中断结果；它不等同于运行时任务或供应商状态。"
+    },
+    {
+      "site": "src/workbench/ai/v4/agentPanelV4Types.ts::type:V4TaskStatus/type-union",
+      "members": [
+        "complete",
+        "failed",
+        "queued",
+        "running",
+        "stopped"
+      ],
+      "reason": "V4TaskStatus 是 AI Elements Task 卡片的面板状态，stopped 与 failed 需要分别表达用户停止和执行失败，不能复用生产任务终态。"
+    },
+    {
+      "site": "src/workbench/ai/v4/agentPanelV4Types.ts::type:V4ToolStatus/type-union",
+      "members": [
+        "approval-requested",
+        "approval-responded",
+        "input-available",
+        "input-streaming",
+        "output-available",
+        "output-denied",
+        "output-error"
+      ],
+      "reason": "V4ToolStatus 保留 AI Elements 七态协议词面，供 Tool 收据把审批与输入输出阶段逐项映射；它不是供应商任务状态。"
+    },
+    {
+      "site": "src/workbench/ai/v4/vendor/aiElementsContract.ts::variable:AI_ELEMENTS_TOOL_STATUSES/as-const",
+      "members": [
+        "approval-requested",
+        "approval-responded",
+        "input-available",
+        "input-streaming",
+        "output-available",
+        "output-denied",
+        "output-error"
+],
+      "reason": "AI_ELEMENTS_TOOL_STATUSES 是 vendor 解剖报告对应的七态协议常量，作为 V4ToolStatus 的外部契约参照，不能由 Nomi 运行时任务词表替代。"
     }
   ],
   "debt": [
