@@ -19,8 +19,13 @@
  * 它们的共同点是「红了也拦不住任何生产 bug，只拦记账」，且**补齐动作是确定性的、机器能做**。
  * 判据没有放松：直接跑 `pnpm run check:docs-index` 仍然 exit 1，autosync 就是靠这个语义验收的。
  *
- * 谁能进 advisory 名单：失败可由机器确定性补齐，且补齐主体已经存在并会真的跑。
- * 「这个门岗老是红、很烦」不是理由——那是要么修根因、要么删门岗，不是降级。
+ * 谁能进 advisory 名单：**两类，只有两类**，且都由 `run-gates-contracts.node-test.mjs` 逐条钉住身份。
+ *   ① **有机器补齐主体**：失败可由机器确定性补齐，且补齐主体已经存在并会真的跑
+ *      （docs-index / doc-status / ledger ← `.github/workflows/docs-autosync.yml`）。
+ *   ② **判断题提醒**（2026-09-07 新增，`check:research-sources` 是第一条）：判据本身是判断题，
+ *      机器**原理上补不了**，而硬拦会逼出「写一节假的来过门」——那比没有更糟。
+ *      入选门槛很窄：判据必须允许「明写理由也算达标」的诚实出口，否则它就不是提醒而是躲。
+ * 「这个门岗老是红、很烦」在两类里都不是理由——那是要么修根因、要么删门岗，不是降级。
  *
  * 用法：node scripts/run-gates-contracts.mjs [--advisory=a,b] <check:x> <check:y> ...
  * 门岗清单仍然逐个写在 package.json 的 `gates:contracts` 里（顺序即执行顺序），

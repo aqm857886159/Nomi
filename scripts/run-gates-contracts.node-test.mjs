@@ -145,7 +145,7 @@ test('配置面 fail-closed：空链 / 重名 / 过期 advisory / 不存在的�
   assert.deepEqual([...parsed.advisory], ['check:a', 'check:b'])
 })
 
-test('package.json 的 gates:contracts 就是这个 runner，且 advisory 只限三个文档/生成物门', async () => {
+test('package.json 的 gates:contracts 就是这个 runner，且 advisory 只限两类、逐条点名', async () => {
   const { default: fs } = await import('node:fs')
   const { default: path } = await import('node:path')
   const { fileURLToPath } = await import('node:url')
@@ -156,11 +156,24 @@ test('package.json 的 gates:contracts 就是这个 runner，且 advisory 只限
 
   const { gates, advisory } = parseGateArgs(command.split(/\s+/).slice(2))
   assertGatesExist(gates, scripts)
-  assert.deepEqual([...advisory].sort(), ['check:doc-status', 'check:docs-index', 'check:ledger'])
-  // advisory 名单不许长大：每一条都必须有一个真的会跑的自动补齐主体（现在只有 docs-autosync）。
+  // advisory 名单不许长大。两类各自点名，加一条就得回来改这里并写清它属于哪类——
+  // 这就是「不许悄悄降级门岗」那道棘轮本体。
+  const AUTOSYNC_BACKED = ['check:doc-status', 'check:docs-index', 'check:ledger']
+  // 判断题提醒：机器原理上补不了（「这次该不该查自媒体」是判断），硬拦会逼出假章节。
+  const JUDGMENT_REMINDERS = ['check:research-sources']
+  assert.deepEqual([...advisory].sort(), [...AUTOSYNC_BACKED, ...JUDGMENT_REMINDERS].sort())
+
+  // ① 类：每一条都必须有一个真的会跑的自动补齐主体（现在只有 docs-autosync）。
   const autosync = fs.readFileSync(path.join(repoRoot, '.github/workflows/docs-autosync.yml'), 'utf8')
-  for (const name of advisory) {
+  for (const name of AUTOSYNC_BACKED) {
     assert.match(autosync, new RegExp(name.replace(':', '[:-]')), `${name} 必须由 docs-autosync 验收补齐结果`)
+  }
+  // ② 类：反过来钉死——它**不该**有机器补齐主体，否则它就该降到 ① 类去。
+  for (const name of JUDGMENT_REMINDERS) {
+    assert.doesNotMatch(autosync, new RegExp(name.replace(':', '[:-]')), `${name} 能被机器补齐的话就不属于判断题提醒`)
+    // 诚实出口必须真的存在：门岗自己得说清「明写理由也算达标」。
+    const source = fs.readFileSync(path.join(repoRoot, 'scripts', `${name.replace('check:', 'check-')}.mjs`), 'utf8')
+    assert.match(source, /明写|也算达标/u, `${name} 必须给出「明写理由也算达标」的诚实出口`)
   }
 })
 
