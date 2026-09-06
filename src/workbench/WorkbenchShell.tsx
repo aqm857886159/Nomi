@@ -12,6 +12,8 @@ import {
 } from "./workbenchStore";
 import { cn } from "../utils/cn";
 import ProjectExplorerSidebar from "./explorer/ProjectExplorerSidebar";
+import DocumentListSidebar from "./creation/DocumentListSidebar";
+import { workspaceModeCarriesCreationResourceTree } from "./creation/creationResourceTreeModes";
 import { lazyWithChunkBoundary } from "../ui/chunkBoundary";
 import { WindowControls } from "../ui/app-shell/WindowControls";
 import { handleWindowTitlebarDoubleClick } from "../ui/app-shell/windowTitlebarDoubleClick";
@@ -28,7 +30,7 @@ const CreationWorkspace = lazyWithChunkBoundary(
     () => import("./creation/CreationWorkspace"),
 );
 // 分镜独立工作区（v5 C3）：storyboard 模式不再共用 CreationWorkspace，
-// 单独懒挂载全宽 StoryboardWorkspace（无文档侧栏、无 AI 栏）。
+// 单独懒挂载全宽 StoryboardWorkspace（表本身全宽；创作资源树由本 shell 统一挂，见下）。
 const StoryboardWorkspace = lazyWithChunkBoundary(
     "i18n:workspace.storyboard",
     () => import("./creation/storyboard/StoryboardWorkspace"),
@@ -331,6 +333,10 @@ export default function WorkbenchShell({
                 {workspaceMode === "generation" ? (
                     <ProjectExplorerSidebar projectId={projectId ?? null} categories={categories} />
                 ) : null}
+                {/* 创作资源树（原稿 + 各自的分镜方案）：写剧本和编分镜表是同一批资源的两个视图，
+                    所以树归 shell 所有、跨这两个模式常驻——挂在任一工作区里都会让另一个工作区
+                    没有树（2026-09-06 回归：点开一个方案就再也点不到别的剧本/分镜）。 */}
+                {workspaceModeCarriesCreationResourceTree(workspaceMode) ? <DocumentListSidebar /> : null}
                 <div className='flex-1 min-w-0 min-h-0 relative'>
                     {mountedWorkspaceModes.includes("creation") ? (
                         <WorkspaceSlot

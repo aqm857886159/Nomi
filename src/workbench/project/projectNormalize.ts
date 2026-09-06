@@ -158,12 +158,27 @@ function recordHasPersistedContent(raw: unknown): boolean {
   )
 }
 
+/**
+ * 从原始 record 上取未经 zod 剥离的 payload；取不到就退回 undefined，让
+ * normalizePayload 自己走「缺字段」的既有兜底（它第一步就 safeParse）。
+ */
+function readRawPayload(raw: unknown): unknown {
+  if (!raw || typeof raw !== 'object') return undefined
+  return (raw as { payload?: unknown }).payload
+}
+
 export function normalizeRecord(summary: WorkbenchProjectSummary, raw: unknown): WorkbenchProjectRecordV1 {
   const legacyParsed = workbenchProjectRecordSchema.safeParse(raw)
   if (legacyParsed.success) {
     return {
       ...legacyParsed.data,
-      payload: normalizePayload(legacyParsed.data.payload),
+      // 迁移必须吃**原始** payload，不能吃 zod 解析后的那份：payload schema 是普通
+      // z.object，会把它不认识的键默默剥掉——而已退役的那三个老键（见上面
+      // legacyMapKey / legacyPlanKey / legacyCommittedKey 三处拼装）恰恰就不在 schema 里。
+      // 喂解析后的那份，兼容读取就永远看不见它们：老项目的分镜方案打开即静默消失，
+      // 随后任何一次自动保存会把它从盘上永久抹掉。
+      // normalizePayload 自己第一步就重新 safeParse，喂原始值不会放宽任何校验。
+      payload: normalizePayload(readRawPayload(raw)),
     }
   }
   // Freshly-initialized workspace (existing folder opened via "打开文件夹",
