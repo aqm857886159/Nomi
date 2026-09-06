@@ -337,6 +337,7 @@ export function useComposerViewportPlacement(input: {
     flipUp,
     gap,
     minUsableHeight,
+    node.id,
     node.position?.x,
     node.position?.y,
     node.result?.url,

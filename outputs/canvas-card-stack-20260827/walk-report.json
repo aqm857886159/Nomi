@@ -88,12 +88,12 @@
     {
       "name": "拖动进度条连续跳转",
       "ok": true,
-      "detail": "45.073384"
+      "detail": "45.075272"
     },
     {
       "name": "键盘左键精确回退一秒",
       "ok": true,
-      "detail": "45.073384 -> 44.077691"
+      "detail": "45.075272 -> 44.079799"
     },
     {
       "name": "离开历史视频后播放暂停并回到起点",
@@ -191,5 +191,5 @@
       "detail": ""
     }
   ],
-  "projectRoot": "/var/folders/f4/vz86j5nd0_sf56qdhzrmbbvw0000gn/T/nomi-card-stack-walk-wMLPRW/projects/canvas-card-stack-walk"
+  "projectRoot": "/var/folders/f4/vz86j5nd0_sf56qdhzrmbbvw0000gn/T/nomi-card-stack-walk-IReYsg/projects/canvas-card-stack-walk"
 }

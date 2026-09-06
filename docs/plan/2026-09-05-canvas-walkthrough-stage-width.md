@@ -16,19 +16,23 @@
 - `GenerationCanvasReactFlowNodes`：懒加载的节点渲染器包在节点自己的 `<Suspense fallback={轻量卡}>` 里——此前第一次建某种节点时整个 stage 被 React 藏 30ms（画布闪黑 + React Flow extent 缓存记成 0×0，走查 ~40% 随机空白的根因）。
 - `useGenerationCanvasReactFlowHostEffects`：聚焦跳转也走调度器；还原直写前先取消在飞动画。
 - `useCreatedNodeVisibilityPan.shouldRestoreAfterReveal`：露出过的卡被撤销、视口还停在落点 → 回到出发点（撤销对称；否则原卡被留在视口外）。
+- `projectAgentDockCollapsed`（2026-09-06 用户拍板：**默认展开 + 记住上次开合**）：默认值本来就是展开，缺的是「记住」。
+  这个开合的真相住在随项目落盘的 `editingPanelLayout.visibility.assistant`（`projectAgentDockCollapsed` 是它的投影），
+  但落盘只由 `persistRevision` 变化触发，而布局的几个 action 一个都没 bump——用户收起的栏、拖出来的栏宽，
+  下次开项目全复原，除非碰巧有别的改动顺手把它捎带存了。修在最早的共享边界：**凡真改到这份布局的 set 都同时 bump**
+  （`editingPanelLayoutSlice` 的 `bumpPersist` + `setProjectAgentDockCollapsed`），不新造存储。
 
 ## 不动项
 
-- `projectAgentDockCollapsed` 默认值（常驻面板默认展开 / 收起）——产品决定，留给用户拍板；本分支两种默认下走查都应绿。
 - perf 预算常数、`NON_DARWIN_TIMING_CALIBRATION`。
 - benchmark 自己的 `findBlank` 扫描器（perf 仪器，多余的 mouse.move 会扰动计时；CI 证据里它驱动的场景全绿）。
 
 ## 验收门
 
 - 本机：`canvas-drag-pan-gestures` 连续多次 48/48、`canvas-card-stack` 绿（常驻面板展开）；探针序列里 video 卡 x 位移到位（`-232`）；建卡后不再出现整片空白。
-- 单测：`viewportTargetTracker.test.ts`、`useComposerVisibilityPan.test.ts`、`useCreatedNodeVisibilityPan.test.ts`（含撤销回位规则）、`generationCanvasReactFlowAdapter.test.ts`（`isFiniteFlowViewport`）。
+- 单测：`agentDockPersistence.test.ts`（默认展开 / 切换写进落盘物并 bump / 无改动不 bump / 回读还原）、`viewportTargetTracker.test.ts`、`useComposerVisibilityPan.test.ts`、`useCreatedNodeVisibilityPan.test.ts`（含撤销回位规则）、`generationCanvasReactFlowAdapter.test.ts`（`isFiniteFlowViewport`）。
 - CI：#488 三条红 job 转绿；`check:root-cause-contracts` 过。
 
 ## 回滚
 
-单 PR 整体 revert；无持久化数据变化。`outputs/canvas-card-stack-20260827/` 截图随走查再生成。
+单 PR 整体 revert；持久化 schema 不变（`editingPanelLayout` 早已在 projectRecord 里），只是改动它的 action 现在会触发既有的防抖回存。`outputs/canvas-card-stack-20260827/` 截图随走查再生成。
