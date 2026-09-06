@@ -18,7 +18,12 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { HUE_DRIFT_THRESHOLD, analyzeHueDrift, collectTokenDefinitions } from "./lib/colorMixHue.mjs";
+import {
+  HUE_DRIFT_THRESHOLD,
+  analyzeHueDrift,
+  analyzeTransparentOklchMixes,
+  collectTokenDefinitions,
+} from "./lib/colorMixHue.mjs";
 import { scanScopedTokenDefinitions } from "./lib/scopedTokenScan.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -90,8 +95,8 @@ RULES.forEach((rule, i) => {
 // 结果会落在两者之间某个跟谁都不像的色相上。2026-08-02 实锤：--nomi-accent-soft 期望淡蓝，
 // 浅色实际算出 h≈347（粉）、暗色 h≈124（橄榄绿），全 App 80+ 个选中态/chip 跟着跑色，
 // 而 --nomi-accent 本身一直是对的 —— 所以肉眼查 token 定义查不出来，必须靠算。
-// 混 transparent 不受影响（实测色相恒等，只改 alpha），故放行 —— tokenColor() 那一大类安全。
 // 修法：改 `in srgb`（无色相分量，仓库既有做法：--nomi-focus、滚动条色）。
+// 混 transparent 的那一族不归本类判（transparent 无色相、拽不动谁），由下面第 5b 类整体禁止。
 const MIX_SCAN_GLOBS = "src electron tailwind.config.ts";
 const mixFiles = execSync(`git ls-files ${MIX_SCAN_GLOBS}`, { cwd: ROOT, encoding: "utf8" })
   .split("\n")
@@ -121,6 +126,28 @@ if (hueFindings.length > 0) {
               .join("\n") +
             `\n      修法：改成 color-mix(in srgb, …)（无色相分量，不会弧插值）`,
         )
+        .join("\n"),
+  );
+}
+
+// ---- 第 5b 类：color-mix(in oklch, X, transparent) 整体禁止（非棘轮，零容忍）----
+//
+// 「混 transparent 安全」曾是本门岗的原话，是假的。2026-09-06 实锤（Chromium 140）：非 oklch 字面量的
+// 操作数（rgb/hex/嵌套 color-mix 的结果）转进 oklch 时，彩度 c < 0.02 左右的色相被判 powerless 写成
+// `none`、彩度却留着，`none` 落地当 h=0 → --nomi-accent-soft（in srgb 混出来的，c≈0.015）淡蓝全渲染成
+// 淡粉，tailwind.config.ts 的 tokenColor() 就是这么把全 App 染粉的。现存的 20 来处都在混
+// --nomi-ink / --nomi-paper（oklch 字面量且近中性，今天看不出），但写法本身是陷阱：指向任何一个
+// 非字面量的低彩度 token 就静默变粉，而门岗算不出运行时彩度（出事的 token 自己就是 color-mix）。
+// 所以不按彩度/写法放行，整族禁掉。触发条件与修法等价性的实测见 scripts/lib/colorMixHue.mjs 文件头。
+// 修法：`in oklab`（直角坐标、无色相分量；对现有 token 渲染恒等，已在真 Electron 逐式比对 rgb）。
+const transparentMixes = analyzeTransparentOklchMixes(mixFiles);
+
+if (transparentMixes.length > 0) {
+  errors.push(
+    `✗ color-mix(in oklch, …, transparent)：${transparentMixes.length} 处（Chromium 会把低彩度操作数的色相判成 none、` +
+      `落地当 h=0 → 淡蓝变淡粉；对中性 token 现在看不出，指向有色相 token 就静默出事）：\n` +
+      transparentMixes
+        .map((f) => `    ${f.file}:${f.line}  ${f.expression}\n      修法：改成 color-mix(in oklab, …)（无色相分量，中性 token 渲染恒等）`)
         .join("\n"),
   );
 }
@@ -157,5 +184,6 @@ if (errors.length > 0) {
 console.log(
   `✓ 设计 token 门岗通过：${RULES.length} 类棘轮（只减不增，目标清零）。当前 ${counts.join("/")}（${RULES.map((r) => r.baseline).join("/")}）。` +
     `\n✓ color-mix 色相漂移零容忍：扫 ${mixFiles.length} 文件 / ${tokenDefs.size} 个 token 定义，无 in oklch 跨色相混合。` +
+    `\n✓ color-mix(in oklch, …, transparent) 零容忍：无一处（混 transparent 一律 in oklab）。` +
     `\n✓ 语义 token 作用域零容忍：--nomi-*/--workbench-* 定义全部在 :root 层（portal/浮层任意挂载点都解析得到）。`,
 );

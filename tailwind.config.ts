@@ -9,7 +9,7 @@ import plugin from 'tailwindcss/plugin'
  * 恒等；带修饰符按比例向 transparent 混。新增 token 色映射必须走这里，别再写裸 var()。
  */
 const tokenColor = (cssVar: string): string =>
-  `color-mix(in oklch, var(${cssVar}) calc(<alpha-value> * 100%), transparent)`
+  `color-mix(in oklab, var(${cssVar}) calc(<alpha-value> * 100%), transparent)`
 
 const workbenchBasePlugin = plugin(({ addBase, addUtilities }) => {
   // 无边框窗口拖拽区（Windows 自绘标题栏）。.app-drag 整块可拖窗，内部交互元素自动 no-drag（否则按钮拖不动窗也点不动）。

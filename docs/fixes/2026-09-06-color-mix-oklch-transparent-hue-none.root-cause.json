@@ -1,0 +1,142 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-06-color-mix-oklch-transparent-hue-none",
+  "problem_type": "color-mix(in oklch, X, transparent) 把低彩度操作数的色相丢成 none（淡蓝渲染成淡粉）",
+  "symptom": "Agent 面板 v4 介入槽头部、画布 80+ 处 accent-soft 选中态/chip 在浅色主题下显淡粉而非淡蓝（2026-09-06 用户实锤「头部为什么是粉的」）。PR #534 把 tailwind.config.ts tokenColor() 从 in oklch 改成 in oklab 修了症状点，但仓库里同一写法还剩 21 处（画布 CSS / 骨架屏 gradient / 时间轴预览内联样式 / 一条硬编码断言），门岗对这一族零覆盖，而且门岗注释原话「混 transparent 安全」是错的。",
+  "direct_cause": "Chromium 140 把非 oklch 字面量的操作数（rgb/hex/嵌套 color-mix 的结果）转进 oklch 时，彩度 c < 0.02 左右的色相被判 powerless 写成 none、彩度却保留；none 落地当 h=0，于是 --nomi-accent-soft（in srgb 混出来的，c≈0.015）在 color-mix(in oklch, …, transparent) 里被渲染成淡粉。真 Electron 逐档实测：c=0.02 丢色相、c=0.025 保；oklch(L C H) 字面量操作数不经转换、色相原样保留。",
+  "class_root": "仓库没有一条「混 transparent 的 color-mix 不许写 in oklch」的不变量：scripts/lib/colorMixHue.mjs 的 analyzeHueDrift 只管两个真颜色之间的弧插值，遇到 transparent 直接 continue 放行，并在注释里把它写成安全的。于是同一写法在 2026-08-02（token 定义内层改 in srgb）之后又在 tokenColor() 外层复发，修完外层后画布 CSS 里还躺着 20 处同款；只要有人把其中任何一处指向一个非字面量的低彩度 token，就静默变粉，没有任何门岗会红。",
+  "migration": "无数据迁移：改的全是 CSS/TSX 里的混合空间关键字，对现有 --nomi-ink / --nomi-paper（oklch 字面量、近中性）渲染恒等——已在真 Electron 里对仓库全部 11 种 (token, 百分比) 组合 + tokenColor() 的 calc 形态逐式比对合成后 rgb，明暗两套全部相等；阳性对照 --nomi-accent-soft 浅色下 in oklch 出 rgb(246,233,237) 粉、in oklab 出 rgb(229,238,247) 蓝，证明探针看得见差别。",
+  "affected_population": [
+    "浅色主题下所有 accent-soft / danger-soft / warning-soft 淡底消费点的用户（Agent 面板介入槽、画布选中态、chip）——PR #534 已修 tokenColor() 那一层",
+    "任何未来把画布 CSS / 内联样式里 in oklch + transparent 那 20 处指向非 oklch 字面量的低彩度 token 的开发路径（今天看不出，改完就粉）",
+    "任何在 src / electron / tailwind.config.ts 新写 color-mix(in oklch, …, transparent) 的开发路径"
+  ],
+  "scope_paths": [
+    "scripts/lib/colorMixHue.mjs",
+    "scripts/check-design-tokens.mjs",
+    "scripts/colorMixHue.test.mjs",
+    "tailwind.config.ts",
+    "src/styles/animations.css",
+    "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlow.css",
+    "src/workbench/generationCanvas/styles/generationCanvas.css",
+    "src/workbench/preview/TimelinePreview.tsx",
+    "src/workbench/generationCanvas/components/canvasControlsStructure.test.ts"
+  ],
+  "entry_points": [
+    "tailwind.config.ts tokenColor()（每一个 Tailwind token 色类的外包层，全 App 消费；PR #534 已改 in oklab，本分支同一行同一改法）",
+    "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlow.css .react-flow__selection / .react-flow__nodesselection-rect / 连接手柄（7 处）",
+    "src/workbench/generationCanvas/styles/generationCanvas.css 选中框 / 媒体遮罩 gradient / 圆钮 / chip（10 处）",
+    "src/styles/animations.css .tc-task-node__gen-overlay-sheen 生成态扫光 gradient（1 处）",
+    "src/workbench/preview/TimelinePreview.tsx 字幕底板内联 style（1 处）",
+    "src/workbench/generationCanvas/components/canvasControlsStructure.test.ts 对选中框 CSS 的硬编码字符串断言（1 处）"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://www.w3.org/TR/css-color-4/#powerless",
+      "checked_at": "2026-09-06",
+      "purpose": "确认这是规范行为不是 Chromium bug：§4.4.1 规定转进极坐标空间时 chroma 小于该空间的 ε 则 hue 为 powerless，且「由色彩空间转换自动产生的颜色，其 powerless 分量必须置为 missing（none）」。所以任何非 oklch 字面量的低彩度操作数进 in oklch 都会丢色相，修法只能是换掉极坐标空间（in oklab），不能等升级 Electron。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://www.w3.org/TR/css-color-4/#missing",
+      "checked_at": "2026-09-06",
+      "purpose": "确认 missing 分量在插值（color-mix）里走特殊处理而非当 0；与真 Electron 实测「结果序列化为 oklch(L C none)、落地按 h=0 渲染」对照，说明 Chromium 140 在 color-mix 里对单侧 transparent 的情形没有把 none 当 powerless 归零彩度。"
+    }
+  ],
+  "invariants": [
+    "src / electron / tailwind.config.ts 里不存在任何一处 color-mix(in oklch, …) 且任一操作数为 transparent（操作数顺序、百分比写法、是否嵌在 gradient / JS 字符串里都不影响判定）。",
+    "混 transparent 的 color-mix 一律写 in oklab（直角坐标、无色相分量），对现有 token 渲染与旧写法逐 rgb 相等。",
+    "门岗判据不按「操作数今天是中性的」放行：运行时彩度门岗算不出，放行等于把陷阱留在原地。"
+  ],
+  "regression_tests": [
+    "scripts/colorMixHue.test.mjs",
+    "src/workbench/generationCanvas/components/canvasControlsStructure.test.ts"
+  ],
+  "residual_risks": [
+    "门岗只扫 src / electron / tailwind.config.ts 的 .ts/.tsx/.css/.mjs；tests/ 与 docs/ 里的样张 HTML 不在扫描面（它们不进产品构建）。",
+    "in oklab 对有色相操作数的 alpha 混合不会漂色，但如果未来有人在 in oklab 里混两个不同色相的真颜色，走的是直角坐标插值（可能穿过灰轴变暗）——那是另一族，本契约不覆盖。"
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "同一族已发生三次：2026-08-02 token 定义内层 in oklch 弧插值（改 in srgb）；2026-09-06 tokenColor() 外层 in oklch + transparent（PR #534 改 in oklab）；本次画布 CSS 等 20 处同款还躺着。每次都是「修了看得见的那处，门岗没长眼」，不加规则就会第四次。",
+    "same_class_scan": [
+      "git grep -n 'color-mix(in oklch' -- src electron tailwind.config.ts | grep -i transparent → 21 处（含 tailwind.config.ts 在 origin/main 上仍未合入 #534 的那一行），逐处改 in oklab，改后 0 处。",
+      "git grep -n 'color-mix(in oklch' -- src electron tailwind.config.ts | grep -vi transparent → 仅 generationCanvas.css:121 一处混两个真颜色（--nomi-paper × --nomi-ink-05，两者近中性），归 analyzeHueDrift 既有判据管，未在本次判定范围。",
+      "新规则在修复前的树上跑 node scripts/check-design-tokens.mjs → 红，21 处逐一列出（R17 先证会红）；改完 → 绿。",
+      "真 Electron 里对 11 种 (token, pct) 组合 + calc(<alpha-value>) 形态明暗各跑一遍，in oklch 与 in oklab 合成后 rgb 全部相等；真消费点 .react-flow__selection（拖动中）与 .react-flow__nodesselection-rect（完成态）在构建产物里读到 oklab(…)，rgb 与旧 oklch 值相等。"
+    ]
+  },
+  "generality_proof": "不变量放在 scripts/lib/colorMixHue.mjs 的 analyzeTransparentOklchMixes：按括号配平截出实参、按顶层逗号切操作数、任一操作数是 transparent 即报，不依赖操作数顺序或百分比写法；check:tokens 门岗对 src / electron / tailwind.config.ts 全量扫描、零容忍，进 gates:contracts 每次 push 都跑。tokenColor() 那一层与画布 CSS 那 20 处是同一扫描面上的同一判据，未来任何新写法都会在同一处红。",
+  "shared_boundaries": [
+    {
+      "path": "scripts/lib/colorMixHue.mjs",
+      "symbol": "analyzeTransparentOklchMixes / findTransparentOklchMixes",
+      "responsibility": "全仓唯一的「color-mix(in oklch, …, transparent) 整族禁止」判定；check:tokens 与 colorMixHue.test.mjs 共用同一份实现，不再各写各的正则。"
+    },
+    {
+      "path": "scripts/check-design-tokens.mjs",
+      "symbol": "第 5b 类零容忍块",
+      "responsibility": "把判定接进 gates:contracts，红时逐处列出表达式与修法（in oklab）。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "tailwind.config.ts",
+      "entry_point": "tokenColor",
+      "disposition": "enforced",
+      "evidence": "origin/main 上仍是 in oklch（#534 未合入时新规则在这一行红）；本分支改 in oklab，与 #534 同一行同一内容，合并无冲突。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlow.css",
+      "entry_point": ".react-flow__selection / .react-flow__nodesselection-rect",
+      "disposition": "enforced",
+      "evidence": "7 处改 in oklab；真 Electron 拖动中 borderColor=oklab(0.22 … / 0.36)、完成态 borderColor=oklab(0.22 … / 0.32)，合成 rgb 与旧 in oklch 值相等（明暗各一遍）。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/styles/generationCanvas.css",
+      "entry_point": "选中框 / 媒体遮罩 gradient / 圆钮 / chip",
+      "disposition": "enforced",
+      "evidence": "10 处改 in oklab；构建产物 dist/assets/*.css 只剩 in oklab 变体（grep in oklch + transparent = 0）。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/styles/generationCanvas.css",
+      "entry_point": "行 121 color-mix(in oklch, var(--nomi-paper) 92%, var(--nomi-ink-05))",
+      "disposition": "not-affected",
+      "evidence": "两个操作数都是真颜色、没有 transparent，归 analyzeHueDrift 的弧插值判据管（两者近中性、色相差在阈值内），不属于本族。"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "scripts/lib/colorMixHue.mjs",
+    "invariant": "src / electron / tailwind.config.ts 中不存在 color-mix(in oklch, …) 且任一操作数为 transparent 的写法。",
+    "failure_mode": "check:tokens 退出码 1，逐处打印 文件:行 + 截出的表达式 + 修法（改 in oklab）；gates:contracts 每次 push 前必跑。",
+    "exception_policy": "none",
+    "strategy": "把「混 transparent 不安全」从注释里的口头结论变成可执行判据，放在与色相漂移判据同一个模块、同一个门岗、同一个扫描面；不按操作数今天的彩度放行。",
+    "artifacts": [
+      "scripts/lib/colorMixHue.mjs",
+      "scripts/check-design-tokens.mjs",
+      "scripts/colorMixHue.test.mjs"
+    ]
+  },
+  "class_regression_tests": [
+    "scripts/colorMixHue.test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "scripts/check-design-tokens.mjs",
+      "scripts/lib/colorMixHue.mjs"
+    ],
+    "rationale": "两处「混 transparent 不受影响、放行」的错误注释同 commit 删除改写；21 处 in oklch + transparent 写法全部就地改成 in oklab，不留任何一处旧写法、不留豁免名单。"
+  },
+  "dependency_lifecycle": {
+    "decision": "retain-with-exit",
+    "rationale": "powerless-hue 判定是 Chromium 的 CSS Color 4 实现行为（Electron 40 / Chromium 140 实测），不是可升级绕开的 bug：规范允许把 achromatic 色的 hue 标 none。应用侧的不变量（混 transparent 一律 in oklab）与 Chromium 版本无关，升级 Electron 不会改变结论。",
+    "current": "electron 40 / Chromium 140",
+    "target": "任意后续 Electron",
+    "exit_criteria": [
+      "若未来 Chromium 改为在 color-mix 里把 none 色相当 powerless 处理（结果与 in oklab 相等），本规则仍成立（in oklab 已是等价写法），无需回退。"
+    ]
+  }
+}

@@ -16,6 +16,19 @@
 // 修法结论：改用 `in srgb`（无色相分量，不存在弧插值）。这也是仓库既有做法 —— --nomi-focus
 // 与滚动条色早就写的 in srgb。`oklch(1 0 none)` 让色相 powerless 的路子已实测否决：暗色 paper
 // 的 chroma 非 0（0.007 @ h80，是刻意的暖灰），改成 none 会把整个暗色纸面从暖灰(h≈85)变成粉灰(h≈0.6)。
+//
+// 第二族（2026-09-06 实锤，Chromium 140 / Electron 40）：`color-mix(in oklch, X, transparent)`。
+//   这里没有两个色相之间的弧插值（transparent 无色相），却照样跑色：Chromium 把 X **转进** oklch 时，
+//   彩度 c < 0.02 左右的色相会被判 powerless 写成 `none`、彩度却**保留**；`none` 落地当 h=0，
+//   一个淡蓝（--nomi-accent-soft）就被渲染成淡粉。触发条件已在真 Electron 逐档量过（2026-09-06）：
+//   只咬**不是 oklch 字面量**的操作数 —— rgb()/hex/嵌套 color-mix(in srgb) 的结果转进 oklch 时才做
+//   powerless 判定（c=0.02 丢、0.025 保）；直接写成 oklch(L C H) 的操作数不经转换，色相原样保留。
+//   tailwind.config.ts 的 tokenColor() 曾用这一式包住每一个 token 色，accent-soft 是 in srgb 混出来的
+//   （c≈0.015）正中靶心，全 App 80+ 个消费点因此显粉；--nomi-ink / --nomi-paper 是 oklch 字面量
+//   且近中性，所以今天看不出来 —— 但写法本身就是陷阱：把它指向任何一个非字面量的低彩度 token
+//   就静默变粉。所以这一族**整体禁止**（analyzeTransparentOklchMixes），不按彩度/写法放行：
+//   门岗算不出运行时彩度（出事的 token 自己就是 color-mix 写的，resolveOperand 解析不出），
+//   而 `in oklab` 是直角坐标、没有色相分量，对现有 token 渲染恒等（已在真 Electron 逐式比对 rgb）。
 
 // ── 颜色数学（oklch ↔ sRGB）────────────────────────────────────────────────
 // 参考 Björn Ottosson 的 Oklab 矩阵。只用于算色相/校验，不追求 gamut mapping 精度。
@@ -191,6 +204,65 @@ export function evaluateColorMixExpression(expr, defs) {
   return space.toLowerCase() === 'oklch' ? mixInOklch(a[0], b[0], ratio) : mixInSrgb(a[0], b[0], ratio)
 }
 
+/**
+ * 找出内容里所有 `color-mix(in oklch, …)` 且任一操作数是 `transparent` 的写法（操作数顺序不限，
+ * 百分比可以是 `36%` 或 `calc(<alpha-value> * 100%)`，嵌在 gradient / JS 字符串里也算）。
+ * 按括号配平截出实参再按顶层逗号切分，不靠「第二个操作数是单词」那种巧合。
+ */
+export function findTransparentOklchMixes(content) {
+  const found = []
+  const re = /color-mix\(\s*in\s+oklch\s*,/gi
+  for (const m of content.matchAll(re)) {
+    const start = m.index
+    let depth = 0
+    let end = -1
+    for (let i = start; i < content.length; i++) {
+      const ch = content[i]
+      if (ch === '(') depth += 1
+      else if (ch === ')') {
+        depth -= 1
+        if (depth === 0) {
+          end = i
+          break
+        }
+      }
+    }
+    if (end < 0) continue
+    const args = content.slice(start + m[0].length, end)
+    const operands = []
+    let buf = ''
+    let d = 0
+    for (const ch of args) {
+      if (ch === '(') d += 1
+      else if (ch === ')') d -= 1
+      if (ch === ',' && d === 0) {
+        operands.push(buf)
+        buf = ''
+      } else buf += ch
+    }
+    operands.push(buf)
+    const hasTransparent = operands.some((op) => /^transparent(?:\s|$)/i.test(op.trim()))
+    if (!hasTransparent) continue
+    const line = content.slice(0, start).split('\n').length
+    found.push({ line, text: content.split('\n')[line - 1].trim(), expression: content.slice(start, end + 1) })
+  }
+  return found
+}
+
+/**
+ * 分析一批文件，返回所有 `color-mix(in oklch, X, transparent)`。零容忍：修法固定为 `in oklab`
+ * （直角坐标、无色相分量；对当前中性 token 渲染恒等，对有色相 token 才是正确答案）。
+ */
+export function analyzeTransparentOklchMixes(files) {
+  const findings = []
+  for (const { path: filePath, content } of files) {
+    for (const mix of findTransparentOklchMixes(content)) {
+      findings.push({ file: filePath, line: mix.line, text: mix.text, expression: mix.expression })
+    }
+  }
+  return findings
+}
+
 /** 色相漂移判定阈值（度）。低于它人眼看不出色相变化。 */
 export const HUE_DRIFT_THRESHOLD = 15
 
@@ -205,7 +277,10 @@ export function analyzeHueDrift(files, defs) {
     for (const mix of findOklchMixes(content)) {
       const a = resolveOperand(mix.a, defs)
       const b = resolveOperand(mix.b, defs)
-      if (a === 'transparent' || b === 'transparent') continue // 实测不拖色相，放行
+      // transparent 无色相，构不成**两操作数间**的弧插值，本判据管不着。但「混 transparent 安全」是假的
+      // （低彩度操作数会被判 powerless、色相写成 none，见文件头第二族）—— 这一整族由
+      // analyzeTransparentOklchMixes 整体禁掉，不在这里按彩度放行。
+      if (a === 'transparent' || b === 'transparent') continue
       if (!Array.isArray(a) || !Array.isArray(b) || a.length === 0 || b.length === 0) continue
       const pairs = []
       for (const ca of a) for (const cb of b) if (ca.h != null && cb.h != null) pairs.push([ca, cb])

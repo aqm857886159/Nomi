@@ -1,3 +1,4 @@
+import { execSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -8,7 +9,9 @@ import tailwindConfig from '../tailwind.config.ts'
 import {
   HUE_DRIFT_THRESHOLD,
   analyzeHueDrift,
+  analyzeTransparentOklchMixes,
   collectTokenDefinitions,
+  findTransparentOklchMixes,
   evaluateColorMixExpression,
   hueDelta,
   mixInOklch,
@@ -140,7 +143,7 @@ describe('色相漂移门岗本身有效（守住门岗，别让它变成空转�
     expect(findings[0].pairs[0].resultHue).toBeCloseTo(346.8, 1)
   })
 
-  it('放行混 transparent（实测色相恒等，只改 alpha —— tokenColor() 那一大类安全）', () => {
+  it('混 transparent 不归色相漂移判据管（transparent 无色相、拽不动谁）—— 那一族由下面的整族禁令拦', () => {
     const findings = analyzeHueDrift(
       [
         {
@@ -161,5 +164,53 @@ describe('色相漂移门岗本身有效（守住门岗，别让它变成空转�
       defs,
     )
     expect(findings).toEqual([])
+  })
+})
+
+describe('color-mix(in oklch, X, transparent) 整族禁令（R17：先证它在修复前的写法上红）', () => {
+  // 这几行是 2026-09-06 修复前仓库里的原文（tailwind.config.ts tokenColor() / 画布 CSS / 时间轴预览 /
+  // 骨架屏 gradient / 结构测试里的硬编码断言）。tokenColor() 那一行把全 App 的 --nomi-accent-soft 染粉了。
+  const PRE_FIX = [
+    '  `color-mix(in oklch, var(${cssVar}) calc(<alpha-value> * 100%), transparent)`',
+    '  border: 1px solid color-mix(in oklch, var(--nomi-ink) 36%, transparent);',
+    '    0 0 0 1px color-mix(in oklch, var(--nomi-paper) 22%, transparent) inset,',
+    '  background: linear-gradient(90deg, transparent, color-mix(in oklch, var(--nomi-ink) 10%, transparent), transparent);',
+    "                background: box.hasBackdrop ? 'color-mix(in oklch, var(--nomi-paper) 86%, transparent)' : 'transparent',",
+    "    expect(flowStyles).toContain('color-mix(in oklch, var(--nomi-ink) 32%, transparent)')",
+  ]
+
+  it('修复前的每一种写法都抓得住（含 calc(<alpha-value>) 百分比、嵌在 gradient / JS 字符串里的）', () => {
+    const findings = analyzeTransparentOklchMixes([{ path: 'prefix.css', content: PRE_FIX.join('\n') }])
+    expect(findings.map((f) => f.line)).toEqual(PRE_FIX.map((_, i) => i + 1))
+    expect(findings[0].expression).toBe('color-mix(in oklch, var(${cssVar}) calc(<alpha-value> * 100%), transparent)')
+  })
+
+  it('操作数顺序不限：transparent 写在前面一样抓', () => {
+    expect(findTransparentOklchMixes('x: color-mix(in oklch, transparent, var(--nomi-paper) 5%);')).toHaveLength(1)
+    expect(findTransparentOklchMixes('x: color-mix(in oklch, transparent 30%, oklch(0.5 0.1 250));')).toHaveLength(1)
+  })
+
+  it('只认 transparent 这个操作数：oklch 里混两个真颜色归色相漂移判据管，这里不重复报', () => {
+    expect(findTransparentOklchMixes('x: color-mix(in oklch, var(--nomi-accent) 12%, var(--nomi-paper));')).toEqual([])
+    expect(findTransparentOklchMixes('x: color-mix(in oklch, var(--transparent-ish) 12%, var(--nomi-paper));')).toEqual([])
+  })
+
+  it('修好之后的 in oklab（和既有的 in srgb）写法一律放行', () => {
+    const fixed = PRE_FIX.map((l) => l.replace('in oklch', 'in oklab'))
+    expect(analyzeTransparentOklchMixes([{ path: 'fixed.css', content: fixed.join('\n') }])).toEqual([])
+    expect(findTransparentOklchMixes('x: color-mix(in srgb, var(--nomi-ink) 32%, transparent);')).toEqual([])
+  })
+
+  it('真仓库里一处都不剩（src / electron / tailwind.config.ts，与门岗同一扫描面）', () => {
+    const files = execSync('git ls-files src electron tailwind.config.ts', { cwd: ROOT, encoding: 'utf8' })
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((f) => f && /\.(tsx?|css|mjs)$/.test(f) && fs.existsSync(path.join(ROOT, f)))
+      .map((f) => ({ path: f, content: fs.readFileSync(path.join(ROOT, f), 'utf8') }))
+    const findings = analyzeTransparentOklchMixes(files)
+    expect(
+      findings.map((f) => `${f.file}:${f.line}  ${f.expression}`),
+      '有人写回了 color-mix(in oklch, …, transparent)。改 in oklab —— 别按「操作数是中性色」放行，那是陷阱。',
+    ).toEqual([])
   })
 })
