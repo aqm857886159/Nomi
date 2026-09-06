@@ -41,7 +41,15 @@ function waitForServer(url, timeoutMs = 60000) {
 }
 
 /**
- * @param {{screen: string, title: string, role: string, cellWidth: number, columns: number, viewport?: {width: number, height: number}}} config
+ * @param {{
+ *   screen: string,
+ *   title: string,
+ *   role: string,
+ *   cellWidth: number,
+ *   columns: number,
+ *   viewport?: {width: number, height: number},
+ *   assertState?: (page: import('playwright').Page, state: {id: string, name: string}, record: (message: string) => void) => Promise<void>,
+ * }} config
  */
 export async function walkDesignLabScreen(config) {
   const OUT_DIR = path.join(REPO_ROOT, `tests/ux/shots/design-lab-${config.screen}`)
@@ -158,6 +166,8 @@ export async function walkDesignLabScreen(config) {
         }, state.id)
         if (distinct < 3) record(`${state.id} 这一格只有 ${distinct} 个元素，形态大概率没渲染出来`)
       }
+      // 屏自己还能再加断言——比如「下拉必须是展开的」这种只有那一屏才成立的承诺。
+      if (config.assertState) await config.assertState(page, state, record)
       console.log(`  ✓ ${state.id.padEnd(34)} ${Math.round(box.width)}×${Math.round(box.height)}  ${state.name}`)
     }
 

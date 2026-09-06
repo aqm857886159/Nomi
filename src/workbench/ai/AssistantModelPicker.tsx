@@ -3,9 +3,11 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { listWorkbenchModelCatalogModels, listWorkbenchModelCatalogVendors, type ModelCatalogModelDto } from '../api/modelCatalogApi'
-import { decodeModelIdentity, encodeModelIdentity, filterUsableAssistantTextModels, labelForModel } from './assistantModelIdentity'
+import { decodeModelIdentity, encodeModelIdentity, filterUsableAssistantTextModels } from './assistantModelIdentity'
 import { getAssistantModelPref, setAssistantModelPref } from './assistantModelPref'
 import { NomiSelect, NomiSkeleton, WorkbenchButton } from '../../design'
+import type { ModelOption } from '../../config/models'
+import { useDedupedModelSelect } from '../common/useDedupedModelSelect'
 
 // 与后端 chooseTextModel 一致的"像通用对话模型"判定：vision/preview 等不可靠发 tool_use 的降权，
 // 选默认时排到最后。让默认就是一个具体的、能用的模型（而不是看不懂的「自动选模型」）。
@@ -75,6 +77,27 @@ export default function AssistantModelPicker({ className }: { className?: string
     }
   }, [])
 
+  const modelOptions = React.useMemo<ModelOption[]>(() => models.map((model) => ({
+    value: model.modelKey,
+    label: model.labelZh || model.modelKey,
+    vendor: model.vendorKey,
+    vendorName: vendorNames[model.vendorKey],
+    modelKey: model.modelKey,
+    meta: model.meta,
+  })), [models, vendorNames])
+  const selectedIdentity = decodeModelIdentity(selected)
+  const modelSelect = useDedupedModelSelect(
+    modelOptions,
+    selectedIdentity?.modelKey || '',
+    (modelKey, vendorKey) => {
+      if (!vendorKey) return
+      const identity = { vendorKey, modelKey }
+      setSelected(encodeModelIdentity(identity))
+      setAssistantModelPref(identity)
+    },
+    selectedIdentity?.vendorKey,
+  )
+
   React.useEffect(() => {
     void loadCatalog()
     const sync = () => {
@@ -120,13 +143,6 @@ export default function AssistantModelPicker({ className }: { className?: string
     )
   }
 
-  const handleChange = (next: string) => {
-    setSelected(next)
-    // 按两段身份回解：同名模型下再也不会绑到另一个供应商去。
-    const identity = decodeModelIdentity(next)
-    if (identity) setAssistantModelPref(identity)
-  }
-
   return (
     <NomiSelect
       ariaLabel={t('creationAi.assistantMessage.modelAria')}
@@ -134,9 +150,13 @@ export default function AssistantModelPicker({ className }: { className?: string
       size="xs"
       className={className}
       triggerMaxWidth={160}
-      value={selected}
-      options={models.map((m) => ({ value: encodeModelIdentity(m), label: labelForModel(m, models, vendorNames) }))}
-      onChange={handleChange}
+      value={modelSelect.modelValue}
+      options={modelSelect.modelOptions}
+      onChange={modelSelect.onModelPick}
+      onChipChange={(optionValue, chipValue) => {
+        if (optionValue === modelSelect.modelValue) modelSelect.onProviderPick(chipValue)
+        else modelSelect.onModelProviderPick(optionValue, chipValue)
+      }}
     />
   )
 }

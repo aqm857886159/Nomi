@@ -38,6 +38,7 @@ export const zhCN = {
     select: '选择',
     searchOptions: '搜索选项',
     noMatchingOptions: '没有匹配的选项',
+    plusMore: '+{{count}}',
     undo: '撤销',
   },
   media: {
@@ -444,6 +445,7 @@ export const en = {
     select: 'Select',
     searchOptions: 'Search options',
     noMatchingOptions: 'No matching options',
+    plusMore: '+{{count}}',
     undo: 'Undo',
   },
   media: {

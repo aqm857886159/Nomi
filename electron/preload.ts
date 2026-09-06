@@ -100,6 +100,10 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
       get: () => ipcRenderer.invoke("nomi:settings:generation-model-defaults-get"),
       set: (payload: unknown) => ipcRenderer.invoke("nomi:settings:generation-model-defaults-set", payload),
     },
+    vendorPreference: {
+      get: () => ipcRenderer.invoke("nomi:settings:vendor-preference-get"),
+      set: (payload: unknown) => ipcRenderer.invoke("nomi:settings:vendor-preference-set", payload),
+    },
     telemetry: {
       get: () => ipcRenderer.invoke("nomi:settings:telemetry-get"),
       set: (payload: unknown) => ipcRenderer.invoke("nomi:settings:telemetry-set", payload),
