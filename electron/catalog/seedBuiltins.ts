@@ -325,9 +325,10 @@ const RETIRED_KIE_VIDEO_MODEL_KEYS: readonly string[] = [
  */
 const RETIRED_APIMART_IMAGE_MODEL_KEYS: readonly string[] = ["imagen-4.0-apimart"];
 const RETIRED_APIMART_IMAGE_MAPPING_IDS: readonly string[] = ["seed-apimart-imagen-4-text_to_image"];
-// APIMart 早期误种的 DeepSeek V3.1 250821 已不在当前官方模型目录中；精确清理旧 curated 行，
-// 再由 APIMART_TEXT_MODELS 种入官方当前 DeepSeek 集合。只命中 apimart vendor，不碰用户其它供应商。
-const RETIRED_APIMART_TEXT_MODEL_KEYS: readonly string[] = ["deepseek-v3.1-250821"];
+// 退役的 apimart 文本模型（与 APIMART_TEXT_MODELS 互斥，curated 必须同删，否则启动时插回来来回抖）：
+// `deepseek-v3.1-250821` 早期误种；`deepseek-v3.2-think` 2026-09-06 实测退役（仍列在目录里但调用 400 ——
+// 教训同 imagen-4.0-apimart：目录列表不是可用性证据）。证据与回归见 apimartTextMigration.test.ts。
+const RETIRED_APIMART_TEXT_MODEL_KEYS: readonly string[] = ["deepseek-v3.1-250821", "deepseek-v3.2-think"];
 
 const RETIRED_APIMART_VIDEO_MAPPING_IDS: readonly string[] = [
   "seed-apimart-seedance-2-apimart-fast-text_to_video",
@@ -576,7 +577,6 @@ const LEGACY_MODEL_KEYS = new Set([
   "agnes-video-v2.0",
   "meshy6",
   "deepseek-v3.2",
-  "deepseek-v3.2-think",
   "deepseek-v3.1-terminus",
   "qwen-image-2.0",
   "rh-qwen-image-2.0",

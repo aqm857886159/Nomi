@@ -20,6 +20,7 @@ import type { WorkspaceMode } from '../../workbenchStore'
 import type { ToolCallEvent } from '../workbenchAgentRunner'
 import type { ProjectAgentItem, ProjectAgentStatus } from '../../../../electron/shared/projectAgentContracts'
 import type { TranslationKey } from '../../../i18n/translationKey'
+import { classifyGenerationError } from '../../observability/classifyError'
 
 /** 常驻面板认得的四个面。它是 WorkspaceMode 的子集——面板不出现在项目库那一层。 */
 export type ResidentSurface = Extract<WorkspaceMode, 'creation' | 'storyboard' | 'generation' | 'preview'>
@@ -60,9 +61,24 @@ export function interventionDetails(t: Translate, call: ToolCallEvent, args: Rec
   return rows.filter((row, index, all) => all.findIndex((candidate) => candidate.label === row.label && candidate.value === row.value) === index).slice(0, 12).map((row) => ({ label: row.label, value: row.value }))
 }
 
+/**
+ * 出错时给人看哪句话。
+ *
+ * 曾经是个两分支等值判断：只认 `project_agent_unavailable` / `project_binding_stale` 两个字面量，
+ * **其余一切**——包括一路穿过 IPC、结构完好的 `VendorRequestError`（带 httpStatus / 上游原话 /
+ * 分类）——统统折成「发送失败，请检查后重试。」。2026-09-06 真实验收在这句话上烧掉 20 分钟：
+ * 真因是 Gemini 不认 JSON Schema 的 `const`，报文里写得清清楚楚，用户一个字都看不到。
+ *
+ * 现在：已知的两个内部码仍走专用文案；其余交给**全仓同一个**分类器（画布错误卡用的那一个），
+ * 拿它算出来的人话原因。分类器也认不出来才退回那句通用兜底——那时它才是诚实的。
+ */
 export function friendlyError(error: unknown, t: Translate): string {
   const code = error instanceof Error ? error.message : ''
-  return code === 'project_agent_unavailable' || code === 'project_binding_stale' ? t('agentResident.unavailable') : t('agentResident.sendFailed')
+  if (code === 'project_agent_unavailable' || code === 'project_binding_stale') return t('agentResident.unavailable')
+  if (!code) return t('agentResident.sendFailed')
+  const report = classifyGenerationError(code)
+  // providerMessage = 服务商原话摘要（有就一定要露出来，那是用户唯一能据以行动的事实）。
+  return report.providerMessage ? `${report.reason}：${report.providerMessage}` : report.reason
 }
 
 /** 每一条消息挂什么样式。纯换算：只看这条消息是什么、有没有被拒，不碰任何 React 状态。 */

@@ -34,7 +34,6 @@ export type ApimartTextModel = {
  * - `deepseek-v4-pro`：默认大脑，思考型纯文本与工具调用的主控入口。
  * - `deepseek-v4-flash`：低延迟回退，纯文本与工具调用。
  * - `deepseek-v3.2`：通用文本与工具调用回退。
- * - `deepseek-v3.2-think`：思考型文本与工具调用回退（自动选择时降权）。
  * - `deepseek-v3.1-terminus`：V3.1 终版文本与工具调用回退。
  * - `gemini-3.5-flash`：**看得见的那个**。图进文字出（image_to_prompt）走它——浏览器「画面复刻/画面风格」
  *   提取、以及视频拆解读帧，都需要一个能读图的文本模型；deepseek 读不了图。
@@ -55,7 +54,6 @@ export const APIMART_TEXT_MODELS: ApimartTextModel[] = [
   { modelKey: "deepseek-v4-pro", labelZh: "DeepSeek V4 Pro" },
   { modelKey: "deepseek-v4-flash", labelZh: "DeepSeek V4 Flash" },
   { modelKey: "deepseek-v3.2", labelZh: "DeepSeek V3.2" },
-  { modelKey: "deepseek-v3.2-think", labelZh: "DeepSeek V3.2 Think" },
   { modelKey: "deepseek-v3.1-terminus", labelZh: "DeepSeek V3.1 Terminus" },
   { modelKey: "gemini-3.5-flash", labelZh: "Gemini 3.5 Flash", meta: { supportsImageInput: true } },
   { modelKey: "MiniMax-H3-Context-IR", labelZh: "MiniMax H3 · Context-IR 提示词增强", meta: { promptRefineOnly: true } },

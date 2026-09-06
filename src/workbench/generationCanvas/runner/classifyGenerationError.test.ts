@@ -6,6 +6,7 @@ import { desktopT } from '../../../../electron/i18n'
 import { describeAgentError } from '../../../../electron/ai/agentError'
 import { vendorStallError } from '../../../../electron/ai/aiSdkVendorError'
 import { tagNomiError, stripNomiErrorCode } from '../../../../electron/shared/nomiErrorCodes'
+import { describeOutboundRefusal } from '../../../../electron/networkOutboundMessage'
 import i18n from '../../../i18n'
 
 describe('classifyGenerationError — 已知分类', () => {
@@ -682,5 +683,46 @@ describe('文本侧 AI SDK 错误：走 structured 分支，不靠关键词猜',
     const message = describeAgentError(new Error('模型「Mimo v2.5」这一轮达到了输出长度上限，内容被截断，没能完整返回。'))
     expect(parseVendorErrorFromMessage(message)).toBeNull()
     expect(classifyGenerationError(message).kind).toBe('output-truncated')
+  })
+})
+
+describe('出站被我们自己的安全策略拦下（2026-09-06 真实验收：钱扣了、成片取不回、界面只说「生成失败」）', () => {
+  const refusal = () =>
+    describeOutboundRefusal({
+      reason: 'private-address',
+      hostname: 'api.apimart.ai',
+      observedAddress: '198.18.0.140',
+      syntheticResolver: false,
+    })
+
+  it('归成 outbound-blocked，不再掉进 unknown 的「稍等重试」', () => {
+    const report = classifyGenerationError(refusal())
+    expect(report.kind).toBe('outbound-blocked')
+    expect(report.reason).not.toBe(i18n.t('generationCommon.observability.error.unknown.reason'))
+  })
+
+  it('主动作不是 retry —— 重试 = 再生成 = 再扣一次钱，而这次的钱根本没丢', () => {
+    const report = classifyGenerationError(refusal())
+    expect(report.primary).toBe('open-model-access')
+    expect(report.primary).not.toBe('retry')
+    // 文案必须明说别重新生成，否则用户仍会去点那颗要花钱的按钮。
+    expect(report.hint).toContain('不要重新生成')
+  })
+
+  it('给用户看的文案里没有机器码标记，但说得出 fake-ip 与「免费重新拉取」', () => {
+    const report = classifyGenerationError(refusal())
+    expect(report.reason).not.toContain('NOMI_ERR::')
+    expect(report.raw).not.toContain('NOMI_ERR::')
+    // 人话里必须同时出现「已付费没丢」与「重新拉取」，否则用户仍会去点那颗要花钱的重试。
+    expect(`${report.reason}${report.hint}`).toContain('重新拉取')
+  })
+
+  it('不把这条栽赃给服务商：它根本没被请求到，「服务商说：」框必须是空的', () => {
+    expect(classifyGenerationError(refusal()).providerMessage).toBeFalsy()
+  })
+
+  it('按稳定码分类，不按那句中文 —— 人话换成英文也照样归对', () => {
+    const englishShaped = tagNomiError('outbound-blocked', 'Download blocked by network policy.')
+    expect(classifyGenerationError(englishShaped).kind).toBe('outbound-blocked')
   })
 })

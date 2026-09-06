@@ -80,6 +80,8 @@ type Props = {
   onJumpToAnchor?: ((anchorId: string) => void) | undefined
   onOpenPreview?: (() => void) | undefined
   onRegenerate?: (() => void) | undefined
+  /** 可找回态的**免费**续查（`recoverNodeResult`）；与 onGenerate/onRegenerate 那两条付费路径分开。 */
+  onRecover?: (() => void) | undefined
   onToggleLock?: (() => void) | undefined
   /** 「交给 Agent 改这一镜」（§2.7 入口 3/3）。 */
   onAgentHandoff?: (() => void) | undefined
@@ -144,7 +146,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
   const {
     shot, anchors, modelOptions, exec, aspect, frameBox, aspectOverridden, aspectOptions, onChangeAspect,
     skipped, onToggleSkip, variants = [], adoptedVariantId, onAdoptVariant, onDeleteVariant, onGenerateVariants, outputTag,
-    onGenerate, onJumpToAnchor, onOpenPreview, onRegenerate, onToggleLock, onAgentHandoff,
+    onGenerate, onJumpToAnchor, onOpenPreview, onRegenerate, onRecover, onToggleLock, onAgentHandoff,
     onInsertAbove, onInsertBelow, targetShots, allShots, sourcePosition, onSaveAsReference, onSetAsFirstFrame,
     onRerunFreshRefs, onUpdate, onRemove, promptInvalid,
     mentionSearch, onMentionSelect, currentRefUrls, mentionUpload, storyboardProfile, sourceSegment,
@@ -166,12 +168,18 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
   const resolvedMode = resolved?.mode ?? null
 
 
-  /** 已生成/已锁定的行：底栏用一枚状态标签替换「生成」按钮位置，不额外加行（§2.3）。 */
+  /**
+   * 已生成/已锁定的行：底栏用一枚状态标签替换「生成」按钮位置，不额外加行（§2.3）。
+   * 可找回的行也走这里：它已经付过费了，底栏那枚「生成」是一条会重新扣费的路
+   * ——这一行的正解是画面格下方那枚**免费**的「重新拉取结果」，所以这里只留标签、不留付费按钮。
+   */
   const statusTag = exec?.status === 'locked'
     ? t('storyboardEditor.composerBar.lockedTag')
     : exec?.status === 'done'
       ? t('storyboardEditor.composerBar.doneTag')
-      : null
+      : exec?.status === 'recoverable'
+        ? t('storyboardEditor.frame.recoverable')
+        : null
 
   const grip = (
     <div className="flex flex-col items-center gap-1">
@@ -273,6 +281,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
         variants={variants}
         outputTag={outputTag}
         onRegenerate={onRegenerate}
+        onRecover={onRecover}
         onOpenPreview={onOpenPreview}
         onToggleLock={onToggleLock}
         onOpenVariants={() => setVariantsOpen((open) => !open)}
