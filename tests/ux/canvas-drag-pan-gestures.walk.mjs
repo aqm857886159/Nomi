@@ -15,7 +15,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { screenshotSettled } from './_assert.mjs'
-import { CANVAS_PANE_SELECTOR, findCanvasBlankPoint } from './_canvasHit.mjs'
+import { CANVAS_PANE_SELECTOR, findCanvasBlankPoint, findNodeHitPoint } from './_canvasHit.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/canvas-drag-pan-gestures')
@@ -238,13 +238,41 @@ async function selectedNodeIds() {
   )
 }
 
+/** 建一张卡，回报**这一次**新增的那个 React Flow 节点 id（下面按「新建即露出」逐张量）。 */
 async function addNode(kind) {
+  const before = await getWin().evaluate(() =>
+    Array.from(document.querySelectorAll('.react-flow__node')).map((node) => node.getAttribute('data-id')))
   await getWin().locator(`.generation-canvas-v2-toolbar [data-node-kind="${kind}"]`).first().click()
   await getWin().waitForTimeout(700)
+  const after = await getWin().evaluate(() =>
+    Array.from(document.querySelectorAll('.react-flow__node')).map((node) => node.getAttribute('data-id')))
+  return after.find((id) => !before.includes(id)) ?? null
+}
+
+/** 某张卡此刻相对 stage 的位置。stage 尺寸一并交出来：判几何红时先看是不是舞台根本不是这么大。 */
+async function measurePlacement(nodeId) {
+  return getWin().evaluate((id) => {
+    const stage = document.querySelector('.generation-canvas-v2__stage')?.getBoundingClientRect()
+    const node = id ? document.querySelector(`.react-flow__node[data-id="${id}"]`) : null
+    if (!stage || !node) return { id, inside: false, missing: true }
+    const r = node.getBoundingClientRect()
+    return {
+      id,
+      inside: r.left >= stage.left - 1 && r.right <= stage.right + 1 && r.top >= stage.top - 1 && r.bottom <= stage.bottom + 1,
+      overflowRight: Math.round(r.right - stage.right),
+      overflowLeft: Math.round(stage.left - r.left),
+      stage: { w: Math.round(stage.width), h: Math.round(stage.height) },
+      node: { w: Math.round(r.width), h: Math.round(r.height) },
+    }
+  }, nodeId)
 }
 
 const pageErrors = []
 getWin().on('pageerror', (error) => pageErrors.push(String(error)))
+const consoleWarnings = []
+getWin().on('console', (msg) => {
+  if (msg.type() === 'warning' || msg.type() === 'error') consoleWarnings.push(msg.text().slice(0, 200))
+})
 
 try {
   await getWin().waitForLoadState('domcontentloaded')
@@ -281,14 +309,45 @@ try {
   await getWin().locator('.generation-canvas-v2-toolbar').waitFor({ timeout: 8000 })
 
   // ── 任务准备：摆一个图片节点 + 一个视频节点 ─────────────────────────────
-  await addNode('image')
-  await addNode('video')
+  // 新建即可见：每建一张卡，**那张卡**的露出动画（60ms 延迟 + 200ms）与 composer 让位（160ms）
+  // 都得落地。所以逐张建、逐张量——而不是建完两张再要求「画布上所有卡同时都在 stage 内」：
+  // 那条更强的说法只在舞台宽到装得下两张时才成立，CI 的 Linux runner 会把窗口夹到 1280 宽
+  // （下面 resize(1600, 1000) 静默不生效），第一张卡被第二张的露出平移正常地推出左边界，
+  // 于是走查报的是「舞台不够宽」，却写着「被 Agent 面板遮住」。见 docs/lessons/
+  // walkthrough-geometry-must-reverify-under-the-real-cursor.md 同一族。
+  const createdPlacement = []
+  for (const kind of ['image', 'video']) {
+    const createdId = await addNode(kind)
+    await getWin().waitForTimeout(700)
+    createdPlacement.push({ kind, ...(await measurePlacement(createdId)) })
+  }
+  assert(
+    createdPlacement.length === 2 && createdPlacement.every((entry) => entry.inside),
+    '每张新建的卡当场完整露出在 stage 内（不被常驻 Agent 面板遮住）',
+    JSON.stringify(createdPlacement),
+  )
   const nodeIds = await getWin().evaluate(() =>
     Array.from(document.querySelectorAll('.generation-canvas-v2-node')).map((node) => ({
       id: node.getAttribute('data-node-id'),
       kind: node.getAttribute('data-kind'),
     })),
   )
+  if (nodeIds.length < 2) {
+    // 节点建了却没渲染出来：把 React Flow 容器尺寸、视口、节点数与控制台告警一起交出去（NaN 视口那一族见
+    // docs/lessons/walkthrough-geometry-must-reverify-under-the-real-cursor.md）。
+    const diag = await getWin().evaluate(() => {
+      const rf = document.querySelector('.react-flow')?.getBoundingClientRect()
+      const layer = document.querySelector('.generation-canvas-v2__canvas')
+      const m = layer ? new DOMMatrixReadOnly(getComputedStyle(layer).transform) : null
+      return {
+        rf: rf ? { w: Math.round(rf.width), h: Math.round(rf.height) } : null,
+        viewport: m ? { x: Math.round(m.m41), y: Math.round(m.m42), zoom: m.a } : null,
+        rfNodes: document.querySelectorAll('.react-flow__nodes > *').length,
+        stageReady: document.querySelector('.generation-canvas-v2__stage')?.getAttribute('data-ready'),
+      }
+    })
+    console.log('  · DIAG', JSON.stringify({ ...diag, consoleWarnings: consoleWarnings.slice(0, 4), pageErrors }))
+  }
   assert(nodeIds.length >= 2, '画布上有两个节点', JSON.stringify(nodeIds))
 
   // ── ① 空白左键拖 = 平移画布 ────────────────────────────────────────────
@@ -351,8 +410,11 @@ try {
   assert(nodeIdentity >= 2 && sameInstances, '平移前后节点是同一批 DOM 实例（没有整层重建）')
 
   // ── ① 点一下空白 = 取消选中；Shift + 左键拖 = 框选并追加 ─────────────────
-  const firstNode = getWin().locator('.generation-canvas-v2-node').first()
-  await firstNode.click({ position: { x: 20, y: 10 } })
+  // 点卡片本体的那一点由 `_canvasHit.mjs` 定（单一 owner）：外接盒角上的固定偏移在窄舞台下
+  // 会滑到左侧工具条底下，Playwright 只报 "html intercepts pointer events"。
+  const firstNodeHit = await findNodeHitPoint(getWin(), { nodeSelector: '.generation-canvas-v2-node' })
+  assert(Boolean(firstNodeHit), '第一张卡上找得到真正点得到的一点', JSON.stringify(firstNodeHit))
+  await getWin().mouse.click(firstNodeHit.x, firstNodeHit.y)
   await getWin().waitForTimeout(300)
   assert((await selectedNodeIds()).length === 1, '点节点会选中它')
 
@@ -644,7 +706,9 @@ try {
   await snap('03-edge-labels-hidden.png')
   assert(labelsWhenIdle === 0, '没选中任何节点时，画布上一个连线标签都没有')
 
-  await videoNode.click({ position: { x: 20, y: 10 } })
+  const videoHit = await findNodeHitPoint(getWin(), { nodeSelector: '.generation-canvas-v2-node[data-kind="video"]' })
+  assert(Boolean(videoHit), '视频卡上找得到真正点得到的一点', JSON.stringify(videoHit))
+  await getWin().mouse.click(videoHit.x, videoHit.y)
   await getWin().waitForTimeout(400)
   const selectedEdgeState = await getWin().evaluate(() => {
     const label = document.querySelector('.generation-canvas-v2__edge-tag-pill')
@@ -679,10 +743,13 @@ try {
   })
   assert(composerBefore === 'visible', '选中节点时提示词面板可见')
 
-  const dragBox = await videoNode.boundingBox()
-  await getWin().mouse.move(dragBox.x + dragBox.width / 2, dragBox.y + 12)
+  // 起手点同样按「最顶层就是这张卡」取（外接盒顶边 +12 在窄舞台下会压在卡片标题片/浮层上，
+  // 于是 mousedown 根本没落到卡上，走查报的却是「拖动中画布没发布 data-dragging」）。
+  const dragGrab = await findNodeHitPoint(getWin(), { nodeSelector: '.generation-canvas-v2-node[data-kind="video"]' })
+  assert(Boolean(dragGrab), '视频卡上找得到可以起手拖动的一点', JSON.stringify(dragGrab))
+  await getWin().mouse.move(dragGrab.x, dragGrab.y)
   await getWin().mouse.down()
-  await getWin().mouse.move(dragBox.x + dragBox.width / 2 + 70, dragBox.y + 60, { steps: 12 })
+  await getWin().mouse.move(dragGrab.x + 70, dragGrab.y + 48, { steps: 12 })
   const duringDrag = await getWin().evaluate(() => {
     const stage = document.querySelector('.generation-canvas-v2__stage')
     const composer = document.querySelector('.generation-canvas-v2-node__composer')

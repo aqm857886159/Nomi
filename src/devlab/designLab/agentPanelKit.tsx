@@ -44,6 +44,7 @@ import {
 } from './agentPanelFixtures'
 import type { ProjectAgentHostState } from '../../../electron/shared/projectAgentContracts'
 import type { AssetRef } from '../../workbench/assets/assetTypes'
+import type { LabState } from './labScreen'
 
 /** 面板的单一宽度真相源 = workbenchStore 的 assistantWidth 默认值（340）。 */
 export const PANEL_WIDTH = 340

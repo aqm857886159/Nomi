@@ -191,13 +191,11 @@ type WorkbenchState = WorkbenchDocumentSlice & EditingPanelLayoutSlice & Timelin
   projectAgentRunMode: ProjectAgentRunMode
   /** Approval and spend are a separate axis from work mode; this snapshot is copied into each Host turn. */
   projectAgentApprovalPolicy: ProjectAgentApprovalPolicy
-  projectAgentDockCollapsed: boolean
   setProjectAgentDraft: (draft: string) => void
   setProjectAgentAttachments: (attachments: ComposerAttachment[] | ((attachments: ComposerAttachment[]) => ComposerAttachment[])) => void
   setProjectAgentReferences: (references: ProjectAgentReference[] | ((references: ProjectAgentReference[]) => ProjectAgentReference[])) => void
   setProjectAgentRunMode: (mode: ProjectAgentRunMode) => void
   setProjectAgentApprovalPolicy: (policy: ProjectAgentApprovalPolicy) => void
-  setProjectAgentDockCollapsed: (collapsed: boolean) => void
   setTimeline: (timeline: TimelineState) => void
   restoreProjectWorkbenchState: (payload: { workbenchDocument: WorkbenchDocument; timeline: TimelineState }) => void
   setTimelinePlaying: (playing: boolean) => void
@@ -335,7 +333,6 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
   projectAgentReferences: [],
   projectAgentRunMode: DEFAULT_PROJECT_AGENT_WORK_MODE,
   projectAgentApprovalPolicy: DEFAULT_PROJECT_AGENT_APPROVAL_POLICY,
-  projectAgentDockCollapsed: false,
   setProjectAgentDraft: (projectAgentDraft) => set({ projectAgentDraft }),
   setProjectAgentAttachments: (attachments) => set((state) => ({
     projectAgentAttachments: typeof attachments === 'function' ? attachments(state.projectAgentAttachments) : attachments,
@@ -345,13 +342,6 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
   })),
   setProjectAgentRunMode: (projectAgentRunMode) => set({ projectAgentRunMode }),
   setProjectAgentApprovalPolicy: (projectAgentApprovalPolicy) => set({ projectAgentApprovalPolicy: Object.freeze({ mode: projectAgentApprovalPolicy.mode, spend: projectAgentApprovalPolicy.spend }) }),
-  setProjectAgentDockCollapsed: (collapsed) => set((state) => ({
-    projectAgentDockCollapsed: Boolean(collapsed),
-    // 见 toggleEditingPanel：Nomi 栏只有一个开关，布局里的 visibility.assistant 是它的投影。
-    editingPanelLayout: state.editingPanelLayout.visibility.assistant === !collapsed
-      ? state.editingPanelLayout
-      : { ...state.editingPanelLayout, visibility: { ...state.editingPanelLayout.visibility, assistant: !collapsed } },
-  })),
   timeline: createDefaultTimeline(),
   timelinePlaying: false,
   previewAspectRatio: '16:9',

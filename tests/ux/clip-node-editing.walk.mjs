@@ -518,6 +518,7 @@ try {
   const fiveOutputEdges = (await outputEdges.count()) === 5
   const restingEdgesHaveNoLabels = (await win.locator('.generation-canvas-v2__edge-control').count()) === 0
   await preview.getByRole('button', { name: '关闭预览' }).click()
+  // 沿连线取样、只点最上层真是这条 path 的那一点（单一 owner：_canvasHit.mjs）。
   const edgePoint = await findEdgeHitPoint(win, {
     edgeSelector: '.generation-canvas-v2__edge[data-edge-id^="edge-canvas-clip-editor::"] .generation-canvas-v2__edge-hit',
     margins: { left: 16, top: 80, right: 16, bottom: 16 },

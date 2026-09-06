@@ -35,7 +35,7 @@ describe('production.revise-storyboard renderer seam', () => {
     expect(result.plan).toEqual(VALID_PLAN)
     const request = runWorkbenchAgent.mock.calls[0][0] as Record<string, unknown>
     expect(String(request.prompt)).toContain('只输出 JSON')
-    expect(String(request.prompt)).toContain('transition')
+    expect(String(request.prompt)).not.toContain('transition')
     expect(request.skillKey).toBe('workbench.production.script-planner')
     expect(request.capability).toBe('single-shot')
     expect(request).not.toHaveProperty('history')

@@ -3,25 +3,25 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Nomi 一页上手</title>
+<title>Nomi 一页上手：从安装到第一条 AI 视频</title>
 <meta name="description" content="本地优先的 AI 视频创作台 · 从一句话到一条成片 按照安装、模型接入、分镜、生成、时间线与导出顺序，快速完成 Nomi 的第一条 AI 视频。" />
 <meta name="robots" content="index,follow,max-image-preview:large" />
 <meta name="theme-color" content="#faf9f6" />
-<link rel="canonical" href="https://nomiaqm.com/handbook.html" />
+<link rel="canonical" href="https://nomiaqm.com/handbook" />
 <meta property="og:type" content="article" />
 <meta property="og:site_name" content="Nomi" />
 <meta property="og:locale" content="zh_CN" />
-<meta property="og:title" content="Nomi 一页上手" />
+<meta property="og:title" content="Nomi 一页上手：从安装到第一条 AI 视频" />
 <meta property="og:description" content="本地优先的 AI 视频创作台 · 从一句话到一条成片 按照安装、模型接入、分镜、生成、时间线与导出顺序，快速完成 Nomi 的第一条 AI 视频。" />
-<meta property="og:url" content="https://nomiaqm.com/handbook.html" />
+<meta property="og:url" content="https://nomiaqm.com/handbook" />
 <meta property="og:image" content="https://nomiaqm.com/assets/social-preview-zh.jpg" />
-<meta property="og:image:alt" content="Nomi 一页上手" />
+<meta property="og:image:alt" content="Nomi 一页上手：从安装到第一条 AI 视频" />
 <meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:title" content="Nomi 一页上手" />
+<meta name="twitter:title" content="Nomi 一页上手：从安装到第一条 AI 视频" />
 <meta name="twitter:description" content="本地优先的 AI 视频创作台 · 从一句话到一条成片 按照安装、模型接入、分镜、生成、时间线与导出顺序，快速完成 Nomi 的第一条 AI 视频。" />
 <meta name="twitter:image" content="https://nomiaqm.com/assets/social-preview-zh.jpg" />
-<meta name="twitter:image:alt" content="Nomi 一页上手" />
-<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","@id":"https://nomiaqm.com/#website","name":"Nomi","url":"https://nomiaqm.com/","inLanguage":["zh-CN","en"]},{"@type":"WebPage","@id":"https://nomiaqm.com/handbook.html","url":"https://nomiaqm.com/handbook.html","name":"Nomi 一页上手","description":"本地优先的 AI 视频创作台 · 从一句话到一条成片 按照安装、模型接入、分镜、生成、时间线与导出顺序，快速完成 Nomi 的第一条 AI 视频。","inLanguage":"zh-CN","isPartOf":{"@id":"https://nomiaqm.com/#website"},"about":{"@id":"https://nomiaqm.com/#application"}},{"@type":"SoftwareApplication","@id":"https://nomiaqm.com/#application","name":"Nomi","applicationCategory":"MultimediaApplication","operatingSystem":"macOS, Windows","codeRepository":"https://github.com/aqm857886159/Nomi","license":"https://www.gnu.org/licenses/agpl-3.0.html","softwareVersion":"0.21.0","url":"https://nomiaqm.com/","downloadUrl":"https://github.com/aqm857886159/Nomi/releases/latest"}]}</script>
+<meta name="twitter:image:alt" content="Nomi 一页上手：从安装到第一条 AI 视频" />
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","@id":"https://nomiaqm.com/#website","name":"Nomi","url":"https://nomiaqm.com/","inLanguage":["zh-CN","en"]},{"@type":"WebPage","@id":"https://nomiaqm.com/handbook","url":"https://nomiaqm.com/handbook","name":"Nomi 一页上手：从安装到第一条 AI 视频","description":"本地优先的 AI 视频创作台 · 从一句话到一条成片 按照安装、模型接入、分镜、生成、时间线与导出顺序，快速完成 Nomi 的第一条 AI 视频。","inLanguage":"zh-CN","isPartOf":{"@id":"https://nomiaqm.com/#website"},"about":{"@id":"https://nomiaqm.com/#application"}},{"@type":"SoftwareApplication","@id":"https://nomiaqm.com/#application","name":"Nomi","applicationCategory":"MultimediaApplication","operatingSystem":"macOS, Windows","codeRepository":"https://github.com/aqm857886159/Nomi","license":"https://www.gnu.org/licenses/agpl-3.0.html","softwareVersion":"0.21.0","url":"https://nomiaqm.com/","downloadUrl":"https://github.com/aqm857886159/Nomi/releases/latest"}]}</script>
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
 <!-- Icon font loads non-render-blocking so a slow or blocked jsdelivr cannot blank first paint. -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css" media="print" onload="this.media='all'" />
@@ -64,12 +64,16 @@
   .gotcha{background:var(--soft);border-radius:12px;padding:12px}
   .gotcha-t{font-size:13px;font-weight:500;display:flex;align-items:center;gap:6px;margin-bottom:3px}
   .gotcha-b{font-size:12px;color:var(--ink60)}
+  .next{margin-top:28px;padding-top:20px;border-top:1px solid var(--line)}
+  .next-links{display:flex;flex-wrap:wrap;gap:8px}
+  .next-links a{display:inline-flex;align-items:center;padding:7px 10px;border:1px solid var(--line);border-radius:8px;color:var(--ink80);font-size:12px;text-decoration:none}
+  .next-links a:hover{border-color:var(--accent);color:var(--accent)}
   .foot{margin-top:28px;color:var(--ink40);font-size:12px;text-align:center}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>Nomi 一页上手</h1>
+  <h1>Nomi 一页上手：从安装到第一条 AI 视频</h1>
   <p class="sub">本地优先的 AI 视频创作台 · 从一句话到一条成片</p>
 
   <div class="pipe">
@@ -87,6 +91,17 @@
 
   <h2>卡住了看这里</h2>
   <div class="grid" style="margin-top:8px"><div class="gotcha"><div class="gotcha-t"><i class="ti ti-plug-connected-x" aria-hidden="true"></i>接了模型却不能生成</div><p class="gotcha-b">多半缺「文本大脑」。模型设置里加一个文本模型，拆镜 / 对话才转得起来。</p></div><div class="gotcha"><div class="gotcha-t"><i class="ti ti-mood-confuzed" aria-hidden="true"></i>每个镜头脸都不一样</div><p class="gotcha-b">把身份卡连到镜头当参考——没连，模型就分不清谁是谁。</p></div><div class="gotcha"><div class="gotcha-t"><i class="ti ti-alert-circle" aria-hidden="true"></i>模型「连了用不了」</div><p class="gotcha-b">看报错提示：多半是账号档位（要会员 / 企业 Key / 网页授权），按提示开通即可。</p></div><div class="gotcha"><div class="gotcha-t"><i class="ti ti-volume-off" aria-hidden="true"></i>导出后没声音</div><p class="gotcha-b">确认音频已在时间轴的音频轨上；最新版导出混音已修。</p></div></div>
+
+  <div class="next">
+    <h2>继续下一步</h2>
+    <p class="note">看完流程后，直接选择你的下一步：先做首胜、下载客户端，或进入社区。</p>
+    <nav class="next-links" aria-label="继续下一步">
+      <a href="/quickstart">打开新手指南 →</a>
+      <a href="https://github.com/aqm857886159/Nomi/releases/latest" target="_blank" rel="noreferrer">下载 Nomi →</a>
+      <a href="https://github.com/aqm857886159/Nomi" target="_blank" rel="noreferrer">查看源码 →</a>
+      <a href="https://github.com/aqm857886159/Nomi/discussions" target="_blank" rel="noreferrer">加入 Discussions →</a>
+    </nav>
+  </div>
 
   <p class="foot">Nomi · 本地优先 AI 视频创作台 · nomiaqm.com</p>
 </div>
