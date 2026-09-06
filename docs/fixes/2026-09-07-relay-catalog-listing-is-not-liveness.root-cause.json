@@ -1,0 +1,139 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-07-relay-catalog-listing-is-not-liveness",
+  "problem_type": "A relay model that no longer works stays seeded in the catalog until a user spends a turn discovering it",
+  "symptom": "deepseek-v3.2-think was offered as a selectable Agent brain in every install, but every call to it returns HTTP 400 'deepseek-v3.2-think is not a valid model ID'. A user picking it gets a failed turn with no indication that the model itself is gone rather than their setup being wrong. Nothing in the repository noticed, because the model radar only watched image/video/audio generation models and never looked at the LLM catalog at all.",
+  "direct_cause": "APIMART_TEXT_MODELS in electron/catalog/apimartTexts.ts seeds a fixed curated list of text models into every install. The list is hand-maintained, and deepseek-v3.2-think stayed on it after the relay stopped serving it.",
+  "class_root": "Two compounding gaps, both about what counts as evidence. First, the seeded catalog had no automated comparison against the provider's live model list for the text/LLM lane, so a curated entry could only be corrected by a human noticing. Second -- and this is what made the reported case invisible even to a listing check -- presence in GET /v1/models is not evidence of liveness: deepseek-v3.2-think is still enumerated by the relay today and only a real call reveals it is dead. Any check that treats the provider's own listing as the truth will keep shipping models that cannot be called.",
+  "affected_population": [
+    "Every install, since the model is seeded rather than user-added: it appears in the Agent brain picker for all users",
+    "Any user who selects it as an Agent brain or as an auto-selected fallback, whose turn then fails with an opaque provider error",
+    "The whole APIMart text lane, which had no radar coverage at all before this change; the same silent retirement could have happened to any of its models"
+  ],
+  "scope_paths": [
+    "electron/catalog/apimartTexts.ts",
+    "electron/catalog/seedBuiltins.ts",
+    "scripts/model-radar.ts"
+  ],
+  "entry_points": [
+    "Agent brain selection in the model picker",
+    "Automatic text-model fallback selection",
+    "Catalog seeding and migration on every app start"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://api.apimart.ai/v1/models",
+      "checked_at": "2026-09-06",
+      "purpose": "Authenticated live listing of the relay's model ids: 357 total, 200 in category=chat. Established that all five seeded DeepSeek ids are still enumerated, which is precisely why a listing-only check would have missed the dead one."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://platform.minimax.io/docs/api-reference/video-generation-v2-create",
+      "checked_at": "2026-09-06",
+      "purpose": "First-party MiniMax H3 contract used to reconcile the seeded duration, resolution and aspect-ratio enums against the relay's restatement of them."
+    }
+  ],
+  "invariants": [
+    "A model id is removed from the curated seed list and simultaneously added to RETIRED_APIMART_TEXT_MODEL_KEYS, so existing installs are pruned on next start rather than keeping a row the seed no longer produces. Leaving one without the other makes the row reappear on every launch.",
+    "Retirement requires a live call that fails, repeated, not absence from a listing and not a single error. Absence from GET /v1/models is explicitly not sufficient evidence, in either direction.",
+    "The model radar covers the text/LLM lane on the same deterministic, zero-inference footing as the generation lanes, and reports seeded chat ids the provider no longer lists as an 'unlisted' signal.",
+    "The radar never issues an inference call, so running it costs no generation credit."
+  ],
+  "generality_proof": "Retirement is enforced at the seeding boundary (RETIRED_*_MODEL_KEYS in electron/catalog/seedBuiltins.ts), which every install passes through on every start regardless of how the stale row got there -- an early mis-seed, a later provider retirement, or a partially migrated install. That mechanism already covers the image (imagen-4.0-apimart), video and Kie lanes; this change adds the text lane to the same mechanism rather than inventing a second one. Detection is generalized in the opposite direction: extending scripts/model-radar.ts with the LLM lane means the whole seeded chat catalog is diffed against the provider on every radar run, not just the id that was reported.",
+  "shared_boundaries": [
+    {
+      "path": "electron/catalog/seedBuiltins.ts",
+      "symbol": "RETIRED_APIMART_TEXT_MODEL_KEYS",
+      "responsibility": "Single pruning boundary for retired APIMart text models. Every install passes through it at startup, so a stale row is removed once here instead of being handled per surface."
+    },
+    {
+      "path": "electron/catalog/apimartTexts.ts",
+      "symbol": "APIMART_TEXT_MODELS",
+      "responsibility": "The one curated source of seeded APIMart text models; a retirement deletes the row here in the same change that adds it to the pruning list."
+    },
+    {
+      "path": "scripts/model-radar.ts",
+      "symbol": "apimart-llm lane",
+      "responsibility": "Deterministic detection: diffs the seeded chat catalog against the provider's authenticated listing and surfaces newly listed and no-longer-listed ids without spending generation credit."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/catalog/seedBuiltins.ts",
+      "entry_point": "RETIRED_APIMART_IMAGE_MODEL_KEYS",
+      "disposition": "enforced",
+      "evidence": "imagen-4.0-apimart was retired earlier through exactly this mechanism; the text lane now uses the same boundary and the same paired delete-plus-prune discipline rather than a parallel one."
+    },
+    {
+      "path": "electron/catalog/seedBuiltins.ts",
+      "entry_point": "RETIRED_KIE_VIDEO_MODEL_KEYS",
+      "disposition": "enforced",
+      "evidence": "The Kie video lane is an independently checked instance of the same class on a different provider, already pruned through the same boundary."
+    },
+    {
+      "path": "electron/catalog/apimartTextMigration.test.ts",
+      "entry_point": "startup pruning of an existing install",
+      "disposition": "enforced",
+      "evidence": "A new regression test seeds an install that still carries the retired row and asserts it is gone after migration, so the prune is proven on stored data rather than only on a fresh seed."
+    },
+    {
+      "path": "scripts/model-radar.ts",
+      "entry_point": "kie and apimart generation lanes",
+      "disposition": "not-affected",
+      "evidence": "The generation lanes already diffed their catalogs and were never blind in the way the text lane was. They are left unchanged; the new lane is additive and fails in isolation without taking them down."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Relay providers retire and rename models continuously and without notice, and the seed list is hand-maintained. The same silent breakage can reach any seeded model on any provider, and had already happened at least twice before (deepseek-v3.1-250821 and imagen-4.0-apimart). It cannot be a one-off: the mechanism is 'a third party changed something and nothing on our side was watching'.",
+    "same_class_scan": [
+      "Authenticated GET /v1/models against APIMart: 357 ids enumerated, all five seeded DeepSeek ids present -- establishing that the listing alone could not have found this.",
+      "Live minimal /v1/chat/completions probe of every seeded APIMart text model, run twice: deepseek-v3.2-think failed 400 on both runs; deepseek-v3.2, deepseek-v3.1-terminus, deepseek-v4-pro, deepseek-v4-flash and gemini-3.5-flash all returned 200. This falsified the reported premise that three DeepSeek models were retired -- only one is.",
+      "grep of RETIRED_*_MODEL_KEYS across electron/catalog/seedBuiltins.ts: image, video and Kie lanes already use the boundary; the text lane was the gap.",
+      "grep for the retired id across the repository, including LEGACY_MODEL_KEYS and both asserting tests, so no reference to it survives the removal."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/catalog/seedBuiltins.ts",
+    "invariant": "A retired model id is absent from the curated seed list and present in the matching RETIRED_*_MODEL_KEYS list, so both fresh installs and existing installs converge on not having it.",
+    "failure_mode": "Fails visibly rather than silently: an id left in only one of the two lists is caught by the seed and migration tests, which assert the curated list and the post-migration catalog separately. The radar's LLM lane fails loudly and in isolation when its credential is missing, instead of reporting an empty diff that would read as 'nothing changed'.",
+    "exception_policy": "none",
+    "strategy": "Correction is centralized at the one boundary every install passes through at startup, and detection is moved from human vigilance to a deterministic diff that now covers the text lane as well as the generation lanes. The pairing of the two lists is what stops the reported failure mode's twin -- a row deleted from the seed but left in stored catalogs, which reappears on every launch.",
+    "artifacts": [
+      "electron/catalog/seedBuiltins.ts",
+      "electron/catalog/apimartTexts.ts",
+      "scripts/model-radar.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/catalog/apimartTextMigration.test.ts",
+    "electron/catalog/seedBuiltins.test.ts",
+    "scripts/model-radar.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/catalog/apimartTextMigration.test.ts",
+    "scripts/model-radar.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/catalog/apimartTexts.ts",
+      "electron/catalog/seedBuiltins.ts"
+    ],
+    "rationale": "The deepseek-v3.2-think row is deleted from APIMART_TEXT_MODELS and from LEGACY_MODEL_KEYS in the same change that adds it to RETIRED_APIMART_TEXT_MODEL_KEYS. No alias, fallback or compatibility shim is left behind, and the two asserting tests were updated rather than relaxed."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party package controls this. The moving part is the relay provider's own model inventory, which Nomi observes over HTTP and does not depend on as a library.",
+    "exit_criteria": []
+  },
+  "migration": "Existing installs prune the retired row on next start through RETIRED_APIMART_TEXT_MODEL_KEYS; a new regression test proves this against a seeded pre-migration catalog. A user who had that model selected as their Agent brain falls back to model selection as they would for any unavailable model. No user data is rewritten.",
+  "residual_risks": [
+    "The radar's LLM lane detects ids the provider stops listing. It cannot detect the case actually reported here -- an id that is still listed but no longer callable -- because that requires a real inference call, which the radar deliberately never makes so it stays free to run. Catching that class automatically would need a periodic paid liveness probe, which is not part of this change.",
+    "Eight seeded image/video/audio ids (doubao-seedream-5-0-pro, doubao-seedream-4.5, doubao-seedance-2.0, doubao-seedance-2.5, nomi-audio, suno-v5.5, suno-sounds-v5.5, flowmusic-lyria-3.5) do not appear in GET /v1/models, but that listing names generation models under different ids, so their absence is not evidence of retirement. They were deliberately left alone rather than removed on a guess.",
+    "Two contract mismatches against first-party documentation were found and deliberately not fixed here, because neither is expressible in the current archetype model: MiniMax H3 caps mixed reference input at 12 files total while our slots allow 9+3+3=15, and Hailuo 2.3 supports 1080p only at 6s while our resolution and duration selects are independent. Both are recorded for separate work.",
+    "On this machine the radar's LLM lane needs APIMART_API_KEY exported, because safeStorage ciphertext cannot be decrypted from a plain tsx script. The lane is therefore not yet hands-free in the daily radar routine."
+  ]
+}

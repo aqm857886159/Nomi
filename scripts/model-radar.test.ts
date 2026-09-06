@@ -8,8 +8,11 @@ import {
   normalizeToken,
   offlineFileName,
   parseApimart,
+  parseApimartLlm,
   parseKie,
+  seededModelKeys,
   stripLocale,
+  usableApiKeyFromRecord,
 } from "./model-radar";
 import type { RadarEntry } from "./model-radar";
 
@@ -164,6 +167,88 @@ describe("差分 diffVendor", () => {
   it("uncovered 走 isCovered，不是裸全等", () => {
     const d = diffVendor("kie", [e("google/nanobanana2")], [], new Set(["nanobanana2"]));
     expect(d.uncovered).toEqual([]);
+  });
+
+  it("unlisted：我们种了、供应商这一轮没列——不依赖快照，首轮就能报", () => {
+    const live = [e("still-sold")];
+    const d = diffVendor("kie", live, null, new Set(), ["still-sold", "gone-upstream"]);
+    expect(d.unlisted).toEqual(["gone-upstream"]);
+  });
+
+  it("unlisted 比对走归一：大小写/分隔符出入不许诈胡", () => {
+    const d = diffVendor("kie", [e("MiniMax-H3")], null, new Set(), ["minimax-h3"]);
+    expect(d.unlisted).toEqual([]);
+  });
+
+  it("不传 seeded 的车道（文档车道）unlisted 恒空——它的 slug 是文档页不是 model id", () => {
+    const d = diffVendor("kie", [e("a-model")], null, new Set());
+    expect(d.unlisted).toEqual([]);
+  });
+});
+
+// —— LLM 车道（2026-09-06 补）：authenticated GET /v1/models ——
+// 样本形状 100% 抄自 2026-09-06 实抓（api.apimart.ai/v1/models?expand=category&category=chat）。
+describe("LLM 车道解析 parseApimartLlm", () => {
+  const SAMPLE = JSON.stringify({
+    object: "list",
+    data: [
+      { id: "deepseek-v4-pro", object: "model", created: 1, owned_by: "apimart", category: "chat" },
+      { id: "gemini-3.5-flash", object: "model", created: 1, owned_by: "apimart", category: "chat" },
+      { id: "deepseek-v4-pro", object: "model", created: 1, owned_by: "apimart", category: "chat" },
+    ],
+  });
+
+  it("取 data[].id，category 一律 text，重复 id 去重", () => {
+    const rows = parseApimartLlm(SAMPLE);
+    expect(rows.map((r) => r.slug)).toEqual(["deepseek-v4-pro", "gemini-3.5-flash"]);
+    expect(new Set(rows.map((r) => r.category))).toEqual(new Set(["text"]));
+    expect(new Set(rows.map((r) => r.vendor))).toEqual(new Set(["apimart-llm"]));
+  });
+
+  it("非 JSON（网关/鉴权出问题）必须抛，绝不静默成「没有新模型」", () => {
+    expect(() => parseApimartLlm("<html>403</html>")).toThrow();
+  });
+
+  it("形状变了（没有 data 数组）也必须抛", () => {
+    expect(() => parseApimartLlm(JSON.stringify({ models: [] }))).toThrow();
+  });
+});
+
+describe("LLM 车道凭据取用（不接触真实密钥）", () => {
+  it("safeStorage 密文脚本层解不开 → 返回空串，让车道走显式「没查成」", () => {
+    expect(usableApiKeyFromRecord({ apiKey: "Y2lwaGVy", enc: "safeStorage" })).toBe("");
+  });
+
+  it("没有记录 / 空记录 → 空串", () => {
+    expect(usableApiKeyFromRecord(undefined)).toBe("");
+    expect(usableApiKeyFromRecord({ apiKey: "", enc: "plain" })).toBe("");
+  });
+
+  it("明文记录可用", () => {
+    expect(usableApiKeyFromRecord({ apiKey: "sample-not-a-real-key", enc: "plain" })).toBe("sample-not-a-real-key");
+  });
+});
+
+describe("种子集 seededModelKeys（反向检查的另一半，全部从种子 derive）", () => {
+  it("apimart 文本种子非空，且是真实 model id（不是文档页 slug）", () => {
+    const keys = seededModelKeys("apimart", "text");
+    expect(keys.length).toBeGreaterThan(0);
+    expect(keys).toContain("deepseek-v4-pro");
+  });
+
+  it("挂了 mapping 的 kind=text 行不算聊天大脑（否则它天天被报成假的「没列」）", () => {
+    // MiniMax-H3-Context-IR 是 kind=text 但走 POST /v1/videos/generations 的提示词增强，
+    // 本来就不在 chat 目录里。2026-09-06 实测：它在裸 /v1/models 里、不在 category=chat 里。
+    expect(seededModelKeys("apimart", "text")).not.toContain("MiniMax-H3-Context-IR");
+  });
+
+  it("coverage 传 null 的反向车道不报 uncovered（我们刻意只 curated 几个大脑）", () => {
+    const d = diffVendor("apimart-llm", parseApimartLlm(JSON.stringify({ data: [{ id: "some-llm" }] })), null, null, []);
+    expect(d.uncovered).toEqual([]);
+  });
+
+  it("2026-09-06 实测退役的 deepseek-v3.2-think 已不在种子里", () => {
+    expect(seededModelKeys("apimart", "text")).not.toContain("deepseek-v3.2-think");
   });
 });
 
