@@ -381,11 +381,63 @@ function buildFixtures(t: TFunction) {
 
   // 两个弹层接线后是**受控**的：清单由容器给（模型来自目录、命令来自技能 + 提示词库）。
   // 实验室这两格照定稿画布逐行抄同一份清单，取的是「同样的数据长同样的样子」这件事。
+  // 每行**一个下拉**（`NomiSelect`）。此前这里是一段静态胶囊文字，接线后的生产版
+  // 却退化成「17 行都叫『对话』、一个下拉都没有」——两边谁都不是定稿的样子。
+  // 现在实验室与生产渲染的是同一个 `V4ModelRow`：一行 = 一个决定 + 它的可选项。
   const modelRows: readonly V4ModelRow[] = [
-    { slot: t('agentPanelV4.modelChat'), name: t('agentPanelV4.chatModel'), value: t('agentPanelV4.chatModel') },
-    { slot: t('agentPanelV4.imageDefault'), name: t('agentPanelV4.imageModel'), cost: t('agentPanelV4.imagePrice'), value: '2K' },
-    { slot: t('agentPanelV4.videoDefault'), name: t('agentPanelV4.videoModel'), cost: t('agentPanelV4.videoPrice'), value: 'std' },
-    { slot: t('agentPanelV4.audioDefault'), name: t('agentPanelV4.audioModel'), cost: t('agentPanelV4.audioPrice') },
+    {
+      slot: t('agentPanelV4.modelChat'),
+      name: t('agentPanelV4.chatModel'),
+      selectedValue: 'chat',
+      options: [{ value: 'chat', label: t('agentPanelV4.chatModel') }],
+    },
+    {
+      slot: t('agentPanelV4.imageDefault'),
+      name: t('agentPanelV4.imageModel'),
+      cost: t('agentPanelV4.imagePrice'),
+      selectedValue: 'image',
+      options: [{ value: '', label: t('agentPanelV4.modelAuto') }, { value: 'image', label: t('agentPanelV4.imageModel') }],
+    },
+    {
+      slot: t('agentPanelV4.videoDefault'),
+      name: t('agentPanelV4.videoModel'),
+      cost: t('agentPanelV4.videoPrice'),
+      selectedValue: 'video',
+      options: [{ value: '', label: t('agentPanelV4.modelAuto') }, { value: 'video', label: t('agentPanelV4.videoModel') }],
+    },
+    // 音频那一行留的是**诚实空态**：仓库里没有 audio 的默认模型概念
+    // （`GENERATION_DEFAULT_TASK_KINDS` 只有图/视频四个 taskKind），所以不画下拉。
+    { slot: t('agentPanelV4.audioDefault'), name: t('agentPanelV4.modelAuto'), empty: t('agentPanelV4.modelNone') },
+  ]
+
+  /**
+   * 「同一个工具连着失败六次」那一段（2026-09-06 打包版真实场景）。
+   * 折叠层的产出是两条：一行 `tool-group` + 一条 `process`——实验室渲的就是它们。
+   */
+  const retryStretch: readonly V4FlowItem[] = [
+    {
+      kind: 'tool-group',
+      label: t('agentPanelV4.fixtureShotCard'),
+      action: 'canvas',
+      status: 'output-error',
+      count: 6,
+      trailing: t('agentPanelV4.toolGroupAllFailed'),
+      reason: t('agentPanelV4.fixtureShotCardReason'),
+      receipts: Array.from({ length: 6 }, () => ({
+        label: t('agentPanelV4.fixtureShotCard'),
+        action: 'canvas' as const,
+        status: 'output-error' as const,
+        summary: t('agentPanelV4.fixtureShotCardReason'),
+        trailing: t('agentPanelV4.fixtureElapsedFast'),
+        input: t('agentPanelV4.fixtureShotCardInput'),
+        output: t('agentPanelV4.fixtureShotCardReason'),
+      })),
+    },
+    {
+      kind: 'process',
+      label: t('agentPanelV4.processAttempts', { count: 6 }),
+      segments: [t('agentPanelV4.fixtureProcessOne'), t('agentPanelV4.fixtureProcessTwo')],
+    },
   ]
 
   const commandCategories: readonly string[] = [
@@ -402,5 +454,5 @@ function buildFixtures(t: TFunction) {
     { id: 'prompt:ad', name: t('agentPanelV4.skillAd'), command: '/product-ad', desc: t('agentPanelV4.skillAdDesc'), section: t('agentPanelV4.sectionPrompts') },
   ]
 
-  return { context, receipts, tasks, slots, queues, chips, flows, modelRows, commandRows, commandCategories, t }
+  return { context, receipts, tasks, slots, queues, chips, flows, retryStretch, modelRows, commandRows, commandCategories, t }
 }
