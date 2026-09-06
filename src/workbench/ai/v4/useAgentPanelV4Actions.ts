@@ -233,12 +233,26 @@ export function useAgentPanelV4Actions(surface: ResidentSurface, data: AgentPane
       })
       // 终态到达：把每条调用的展示投影落盘。收据的正文在宿主那边是 ref-only，
       // 不在这里存一份，下次打开面板展开收据就是空的。
+      //
+      // **结果和错误一起落**（2026-09-06 真机使用抓到）：这里以前只传 `(toolName, args, status)`，
+      // 于是投影是按入参重算的一段描述——收据「输出」栏印的是「这次打算做什么」，
+      // 而失败那一路一个字的原因都没有。用户连吃六条「⚠ <1s」，只能靠模型自己在正文里
+      // 猜「参数应该是数组」。`record.error` / `record.result` 本来就在回执里，白丢。
       for (const record of response.toolCalls) {
         const status = record.status === 'ok' ? 'done' as const
           : record.status === 'cancelled' ? 'stopped' as const
             : record.status === 'denied' ? 'declined' as const
               : 'failed' as const
-        cacheProjection(bindingKey, snapshot.activeThreadId ?? '', turnId, record.toolCallId, toolProjectionForCall(t, record.toolName, record.args, status))
+        cacheProjection(
+          bindingKey,
+          snapshot.activeThreadId ?? '',
+          turnId,
+          record.toolCallId,
+          toolProjectionForCall(t, record.toolName, record.args, status, {
+            ...(record.result !== undefined ? { result: record.result } : {}),
+            ...(record.error ? { error: record.error } : {}),
+          }),
+        )
       }
     } catch (caught) {
       setError(friendlyError(caught, t))

@@ -188,6 +188,69 @@ describe('③ 一行收据 · 七态 join', () => {
   })
 })
 
+describe('③ 一行收据 · 展开体读的是这一次调用，不是工具描述', () => {
+  // 2026-09-06 打包版实测：展开「修改文稿」，输入栏和输出栏都写「将内容写入当前文稿」——
+  // 那是 `readableToolSummary` / `readableToolPreview` 的同一句兜底**描述**。
+  // 拍板基线 v4-tool-expanded 要的是：输入 = 真实入参 JSON，输出 = 结果摘要。
+  it('输入是真实入参 JSON，和工具描述不是同一个东西', () => {
+    const args = { operation: 'document_edit', content: '第一场：黄昏的天台' }
+    const flow = projectV4Flow(flowInput({
+      items: [toolItem('document.write', 'done')],
+      pendingTools: [],
+      toolArgs: new Map([['turn-1:call-1', args]]),
+    }))
+    const receipt = flow[0]!.kind === 'tool' ? flow[0]!.receipt : undefined
+    expect(receipt?.input).toContain('"content"')
+    expect(receipt?.input).toContain('第一场：黄昏的天台')
+    // 阳性对照：这一栏**不能**等于摘要那句描述，否则等于什么都没说。
+    expect(receipt?.input).not.toBe(receipt?.summary)
+  })
+
+  it('输出是宿主回执里的结果，不是入参重算出来的描述', () => {
+    const flow = projectV4Flow(flowInput({
+      items: [toolItem('document.write', 'done')],
+      toolProjections: new Map([['turn-1:call-1', {
+        effect: 'agentResident.toolDocumentWriteSummary',
+        target: 'agentResident.targetDocument',
+        technicalDetails: 'agentResident.toolDocumentWriteSummary',
+        input: '{ "content": "第一场" }',
+        output: 'document revision 12 · +148 字',
+      }]]),
+    }))
+    const receipt = flow[0]!.kind === 'tool' ? flow[0]!.receipt : undefined
+    expect(receipt?.output).toBe('document revision 12 · +148 字')
+    expect(receipt?.input).toBe('{ "content": "第一场" }')
+    expect(receipt?.input).not.toBe(receipt?.output)
+  })
+
+  it('单次失败也带原因，而且摘要不再印「打算做什么」', () => {
+    const flow = projectV4Flow(flowInput({
+      items: [toolItem('canvas.write', 'failed')],
+      toolProjections: new Map([['turn-1:call-1', {
+        effect: 'agentResident.toolCanvasWriteSummary',
+        target: 'agentResident.targetCanvas',
+        technicalDetails: '',
+        input: '{ "nodes": "[...]" }',
+        output: 'nodes：必须是数组（收到 字符串）\n第二行是同一件事的旁支',
+      }]]),
+    }))
+    const receipt = flow[0]!.kind === 'tool' ? flow[0]!.receipt : undefined
+    expect(receipt?.status).toBe('output-error')
+    expect(receipt?.summary).toBe('nodes：必须是数组（收到 字符串）')
+    expect(receipt?.summary).not.toContain('toolCanvasWriteSummary')
+  })
+
+  it('凭证不进展开体：按键名抹掉，不看值长什么样', () => {
+    const flow = projectV4Flow(flowInput({
+      items: [toolItem('generation.run', 'done')],
+      toolArgs: new Map([['turn-1:call-1', { apiKey: 'nomi-live-1234567890', prompt: '天台' }]]),
+    }))
+    const receipt = flow[0]!.kind === 'tool' ? flow[0]!.receipt : undefined
+    expect(receipt?.input).toContain('[redacted]')
+    expect(receipt?.input).not.toContain('nomi-live-1234567890')
+  })
+})
+
 describe('② 助手文本三态', () => {
   it('停止与拒绝都是「已中断」，失败不在这里', () => {
     expect(assistantStatusOf('done')).toBe('complete')

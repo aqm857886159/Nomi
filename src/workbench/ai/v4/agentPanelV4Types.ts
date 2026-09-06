@@ -148,6 +148,22 @@ export type V4FlowItem =
   | { kind: 'assistant'; text: string; status: V4AssistantStatus }
   | { kind: 'thinking'; label: string; meta: string }
   | { kind: 'tool'; receipt: ToolReceipt }
+  // 同一个工具连着调 N 次时，N 行收据折成的那一行（`agentPanelV4Collapse.ts` 是唯一产地）。
+  // 它**不是**第九个积木：展开体里逐条渲染的就是普通的一行收据。
+  | {
+      kind: 'tool-group'
+      label: string
+      action: V4ActionFamily
+      status: V4ToolStatus
+      count: number
+      /** 行尾那句「全部失败 / 3 次失败 / 全部完成」。 */
+      trailing: string
+      /** 第一条失败的原因短句。全成功时没有。 */
+      reason?: string
+      receipts: readonly ToolReceipt[]
+    }
+  // 反复试的过程里，模型说给自己听的那几段。收起态就是助手文本的一个状态。
+  | { kind: 'process'; label: string; segments: readonly string[] }
   | { kind: 'task'; task: TaskCardData }
   | { kind: 'suggestion'; text: string; options: readonly string[] }
   | { kind: 'error'; reason: string; action?: string }

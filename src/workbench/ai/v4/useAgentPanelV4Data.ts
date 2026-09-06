@@ -21,9 +21,20 @@ import { decodeModelIdentity, encodeModelIdentity, filterUsableAssistantTextMode
 import { getAssistantModelPref, setAssistantModelPref } from '../assistantModelPref'
 import { residentToolProjectionKey, residentToolProjectionScope, readResidentToolProjections, type ResidentToolProjection } from '../resident/residentToolProjection'
 import { useTimelinePlanRows, useTimelineSelectionChips } from '../resident/timelineAgentSurface'
+import { useVendorPreferenceOrder } from '../../common/useVendorPreference'
+import {
+  getGenerationModelDefaults,
+  loadGenerationModelDefaults,
+  saveGenerationModelDefaults,
+  subscribeGenerationModelDefaults,
+  type GenerationDefaultTaskKind,
+  type GenerationModelDefault,
+  type GenerationModelDefaultMap,
+} from '../../generationCanvas/model/generationModelDefaults'
 import type { ResidentSurface } from '../resident/residentShellDisplay'
 import { agentPanelV4PendingTools, projectBindingKey, toProjectionPendingTools, type V4PendingToolRecord } from './agentPanelV4PendingTools'
 import { projectV4Context, projectV4Flow, projectV4Queue, toolKey, type V4TaskFacts } from './agentPanelV4Projection'
+import { collapseV4Flow } from './agentPanelV4Collapse'
 import { missingParamSuggestion, projectV4Intervention } from './agentPanelV4Intervention'
 import { useV4Labels } from './agentPanelV4Labels'
 import type { ContextUsage, InterventionData, QueueRowData, V4Chip, V4FlowItem, V4TaskStatus } from './agentPanelV4Types'
@@ -43,6 +54,13 @@ export type AgentPanelV4Data = Readonly<{
   /** 有回合活着就是 running；composer 换成「停止」、占位文案改「将排队发送」。 */
   running: boolean
   models: readonly ModelCatalogModelDto[]
+  /** 图片 / 视频目录（模型弹层的「图片默认 / 视频默认」两行读它）。 */
+  generationModels: readonly ModelCatalogModelDto[]
+  /** 供应商排序偏好（PR #535）：同名模型折成一行时留哪一家，按它。 */
+  orderedVendorKeys: readonly string[]
+  /** 「新建卡片默认模型」的当前值。Agent 帮你生成时用的就是它——弹层改的也是它，不另开一份偏好。 */
+  generationDefaults: GenerationModelDefaultMap
+  setGenerationDefault: (taskKind: GenerationDefaultTaskKind, identity: GenerationModelDefault | null) => void
   vendors: Readonly<Record<string, string>>
   selectedModel: ModelCatalogModelDto | undefined
   modelLabel: string
@@ -137,12 +155,30 @@ export function useAgentPanelV4Data(surface: ResidentSurface): AgentPanelV4Data 
     return pref ? `${pref.vendorKey}:${pref.modelKey}` : ''
   })
   const [skills, setSkills] = React.useState<readonly SkillListItemDto[]>([])
+  const [generationModels, setGenerationModels] = React.useState<readonly ModelCatalogModelDto[]>([])
+  const orderedVendorKeys = useVendorPreferenceOrder()
+  // 「新建卡片默认模型」已经有一个 owner（`generationModelDefaults`，设置页那四行读写的也是它）。
+  // 弹层接的是同一份，不是第二份偏好——否则「Agent 生成时用哪个模型」会有两个答案。
+  const generationDefaults = React.useSyncExternalStore(
+    subscribeGenerationModelDefaults,
+    getGenerationModelDefaults,
+    getGenerationModelDefaults,
+  )
+  React.useEffect(() => {
+    void loadGenerationModelDefaults().catch(() => undefined)
+  }, [])
 
   const reloadModels = React.useCallback(() => {
     let alive = true
-    void Promise.all([listWorkbenchModelCatalogVendors(), listWorkbenchModelCatalogModels({ kind: 'text', enabled: true })])
-      .then(([vendorRows, modelRows]: [ModelCatalogVendorDto[], ModelCatalogModelDto[]]) => {
+    void Promise.all([
+      listWorkbenchModelCatalogVendors(),
+      listWorkbenchModelCatalogModels({ kind: 'text', enabled: true }),
+      listWorkbenchModelCatalogModels({ kind: 'image', enabled: true }),
+      listWorkbenchModelCatalogModels({ kind: 'video', enabled: true }),
+    ])
+      .then(([vendorRows, modelRows, imageRows, videoRows]: [ModelCatalogVendorDto[], ModelCatalogModelDto[], ModelCatalogModelDto[], ModelCatalogModelDto[]]) => {
         if (!alive) return
+        setGenerationModels(Object.freeze([...imageRows, ...videoRows]))
         const usable = filterUsableAssistantTextModels(modelRows, vendorRows)
         setModels(usable)
         setVendors(Object.fromEntries(vendorRows.map((row) => [row.key, row.name])))
@@ -156,7 +192,9 @@ export function useAgentPanelV4Data(surface: ResidentSurface): AgentPanelV4Data 
         }
       })
       .catch(() => {
-        if (alive) setModels([])
+        if (!alive) return
+        setModels([])
+        setGenerationModels([])
       })
     return () => {
       alive = false
@@ -307,7 +345,9 @@ export function useAgentPanelV4Data(surface: ResidentSurface): AgentPanelV4Data 
     }
     // ④ 缺参数：一条提问 + 建议 chip，长在流里，不占介入槽。
     if (suggestion) extra.push({ kind: 'suggestion', text: suggestion.text, options: suggestion.options })
-    return extra.length ? Object.freeze([...base, ...extra]) : base
+    // 折叠**最后**做：它认的是「相邻的同名收据」和「最后一次调用之前的助手文本」，
+    // 而思考行 / 缺参数提问是接在流尾的活件——先折再补，会把它们算进上一段的过程里。
+    return collapseV4Flow(extra.length ? [...base, ...extra] : base, t)
   }, [clipLabels, items, liveTurn, pendingTools, primaryPending, queueItems, skillNames, suggestion, t, taskFacts, thinkingSeconds, toolArgs, toolProjections, turns, undoableToolKey])
 
   const slot = React.useMemo(() => {
@@ -372,6 +412,15 @@ export function useAgentPanelV4Data(surface: ResidentSurface): AgentPanelV4Data 
     runningTurnId: runningTurn?.turnId,
     running: Boolean(liveTurn),
     models,
+    generationModels,
+    orderedVendorKeys,
+    generationDefaults,
+    setGenerationDefault: (taskKind, identity) => {
+      const next: GenerationModelDefaultMap = { ...getGenerationModelDefaults() }
+      if (identity) next[taskKind] = identity
+      else delete next[taskKind]
+      void saveGenerationModelDefaults(next).catch(() => undefined)
+    },
     vendors,
     selectedModel,
     modelLabel,

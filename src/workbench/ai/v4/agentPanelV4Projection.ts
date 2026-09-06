@@ -18,8 +18,8 @@ import type {
 } from '../../../../electron/shared/projectAgentContracts'
 import type { TargetRef } from '../../../../electron/shared/capabilityTargeting'
 import { formatResidentToolElapsed, residentToolElapsedMs } from '../resident/residentToolTiming'
-import { readableToolName, readableToolPreview, readableToolSummary } from '../resident/residentToolDisplay'
-import type { ResidentToolProjection } from '../resident/residentToolProjection'
+import { readableToolName, readableToolSummary } from '../resident/residentToolDisplay'
+import { redactToolArguments, type ResidentToolProjection } from '../resident/residentToolProjection'
 import { actionFamilyForCapability } from './agentPanelV4ActionFamily'
 import type {
   ContextUsage,
@@ -134,6 +134,18 @@ export function toolStatusOf(
   return 'input-available'
 }
 
+/**
+ * 一行原因：把结果/错误正文压成能塞进 28px 那一行的一句短句。
+ *
+ * 取第一行、砍到 60 字。多行错误（pi 的校验回执是 8 行 anyOf 分支）里第一行才是主诉，
+ * 后面几行是同一件事的旁支；行内塞不下，展开体里有全文。
+ */
+function shortReason(text: string | undefined): string | undefined {
+  const first = (text ?? '').split('\n').map((line) => line.trim()).find(Boolean)
+  if (!first) return undefined
+  return first.length > 60 ? `${first.slice(0, 60)}…` : first
+}
+
 function receiptFor(input: {
   capabilityId: string
   args: unknown
@@ -146,9 +158,22 @@ function receiptFor(input: {
   t: Translate
 }): ToolReceipt {
   const { t, capabilityId, args, projection } = input
-  const summary = projection?.effect || readableToolSummary(t, capabilityId, args) || input.text || ''
-  const output = projection?.technicalDetails || ''
-  const inputText = readableToolPreview(t, capabilityId, args)
+  // 展开体的两段读**这一次调用**的入参与结果，不是工具描述。
+  //
+  // 2026-09-06 打包版实测：展开「修改文稿」，输入和输出都写「将内容写入当前文稿」——
+  // 那是 `readableToolPreview` / `readableToolSummary` 在认不出细节时的同一句兜底描述。
+  // 两栏读同一个描述串，等于告诉用户「这次调用的入参就是这句话」，而它连一个字段名都没有。
+  // 拍板基线 `v4-tool-expanded.png` 要的是：输入 = 真实入参 JSON（脱敏），输出 = 结果摘要。
+  //
+  // 活的调用有 `args`（待决登记表带着它），历史调用只剩缓存投影——所以两个来源都要，
+  // 顺序是「手上有真参数就用真参数」。
+  const inputText = projection?.input || redactToolArguments(args)
+  const output = projection?.output || ''
+  const failed = input.status === 'output-error'
+  const reason = failed ? shortReason(output) : undefined
+  // 失败行的摘要**不能**继续印「打算做什么」。`readableToolSummary` 那句
+  // 「将内容写入当前文稿」在一次根本没写成的调用上是假的；这一刻用户要的是「为什么没成」。
+  const summary = reason || projection?.effect || readableToolSummary(t, capabilityId, args) || input.text || ''
   const elapsed = formatResidentToolElapsed(input.elapsedMs)
   // 行尾的字：停止有自己的说法，其余交给状态词表（组件侧的 `statusLabel`）。
   const trailing = input.hostStatus === 'stopped'
