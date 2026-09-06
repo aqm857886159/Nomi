@@ -25,6 +25,11 @@ for (const dir of [userDataDir, settingsDir, projectsDir]) fs.mkdirSync(dir, { r
 const NOW = '2026-09-06T00:00:00.000Z'
 const MODEL = 'vendor-order-image-fixture'
 const VENDORS = [{ key: 'apimart', name: 'APIMart' }, { key: 'kie', name: 'Kie' }]
+// 第三家：目录里有它的模型，但**没有钥匙**。2026-09-06 用户拍板「没接入的供应商不显示」，
+// 所以它是这条旅程的阴性对照——它的模型必须在真机下拉里一行都找不到。
+const UNCONNECTED_VENDOR = { key: 'unconnected-relay', name: '没接入的中转' }
+const UNCONNECTED_MODEL = 'vendor-order-unconnected-fixture'
+const UNCONNECTED_LABEL = '没接入供应商 fixture'
 const imageBytes = fs.readFileSync(path.join(repoRoot, 'resources/onboarding-demo/shot-4.jpg'))
 const imageDataUrl = `data:image/jpeg;base64,${imageBytes.toString('base64')}`
 const wireCalls = []
@@ -50,9 +55,16 @@ function imageMapping(vendorKey) {
 }
 fs.writeFileSync(path.join(settingsDir, 'model-catalog.json'), JSON.stringify({
   version: 12,
-  vendors: VENDORS.map(({ key, name }) => ({ key, name, enabled: true, baseUrlHint: `http://127.0.0.1:${port}`, authType: 'none', providerKind: 'openai-compatible', createdAt: NOW, updatedAt: NOW })),
-  models: VENDORS.map(({ key }) => ({ modelKey: MODEL, vendorKey: key, labelZh: '供应商偏好 fixture', kind: 'image', enabled: true, published: true, publishedModes: ['text_to_image'], meta: { archetypeId: 'agnes-image' }, createdAt: NOW, updatedAt: NOW })),
-  mappings: VENDORS.map(({ key }) => imageMapping(key)),
+  vendors: [
+    ...VENDORS.map(({ key, name }) => ({ key, name, enabled: true, baseUrlHint: `http://127.0.0.1:${port}`, authType: 'none', providerKind: 'openai-compatible', createdAt: NOW, updatedAt: NOW })),
+    // enabled 但 authType 要钥匙、又没给钥匙 = 「加过、没接通」——真实用户拔了 key 后就是这个状态。
+    { ...UNCONNECTED_VENDOR, enabled: true, baseUrlHint: `http://127.0.0.1:${port}`, authType: 'bearer', providerKind: 'openai-compatible', createdAt: NOW, updatedAt: NOW },
+  ],
+  models: [
+    ...VENDORS.map(({ key }) => ({ modelKey: MODEL, vendorKey: key, labelZh: '供应商偏好 fixture', kind: 'image', enabled: true, published: true, publishedModes: ['text_to_image'], meta: { archetypeId: 'agnes-image' }, createdAt: NOW, updatedAt: NOW })),
+    { modelKey: UNCONNECTED_MODEL, vendorKey: UNCONNECTED_VENDOR.key, labelZh: UNCONNECTED_LABEL, kind: 'image', enabled: true, published: true, publishedModes: ['text_to_image'], meta: { archetypeId: 'agnes-image' }, createdAt: NOW, updatedAt: NOW },
+  ],
+  mappings: [...VENDORS.map(({ key }) => imageMapping(key)), imageMapping(UNCONNECTED_VENDOR.key)],
   apiKeysByVendor: Object.fromEntries(VENDORS.map(({ key }) => [key, { vendorKey: key, apiKey: `vendor-order-${key}`, enc: 'plain', enabled: true, createdAt: NOW, updatedAt: NOW }])),
 }, null, 2))
 
@@ -114,6 +126,15 @@ try {
   await node.locator('button[aria-label="模型"]').first().click({ timeout: 5000 })
   const option = win.getByRole('option').filter({ hasText: '供应商偏好 fixture' }).first(); await option.waitFor({ timeout: 8000 })
   const chips = option.locator('button[aria-pressed]'); check(await chips.count() === 2, '同一模型折叠为一行并显示两家供应商 chip')
+  // 用户 2026-09-06 拍板：没接入的家的模型**不显示**（此前是灰显沉底）。阳性对照是上面那条
+  // 已经找到的 fixture 行——先证明这个下拉里确实找得到模型，「找不到没接入那条」才算数据而不是空探针。
+  const allOptions = win.getByRole('option')
+  const optionProof = await proveProbe(allOptions, '模型下拉里本来就列得出模型行')
+  await expectAbsent(allOptions.filter({ hasText: UNCONNECTED_LABEL }), {
+    provenBy: optionProof,
+    message: '没接入的供应商，它的模型一行都不出现（不是灰显沉底）',
+  })
+  console.log('  ✓ 没接入的供应商，它的模型一行都不出现（不是灰显沉底）')
   // 模型名不许被行尾 chip 挤没（2026-09-06 用户返工的起因：真机上三行只剩图标 + 一排 chip）。
   const labelWidth = await option.locator('[data-nomi-select-option-label]').first().evaluate((node) => node.getBoundingClientRect().width)
   check(labelWidth > 24, `模型名在真机上仍看得见（${Math.round(labelWidth)}px）`)

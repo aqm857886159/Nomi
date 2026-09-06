@@ -5,7 +5,7 @@ import { confirmDialog, WorkbenchButton } from '../../../design'
 import { toast } from '../../../ui/toast'
 import { useWorkbenchStore } from '../../workbenchStore'
 import { useGenerationCanvasStore } from '../../generationCanvas/store/generationCanvasStore'
-import { useModelOptionsState, MODEL_PICKER_CATALOG_SCOPE } from '../../../config/useModelOptions'
+import { useModelOptionsState } from '../../../config/useModelOptions'
 import {
   addAnchor,
   addExternalReferenceAnchor,
@@ -66,8 +66,8 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
   const setProjectAgentReferences = useWorkbenchStore((s) => s.setProjectAgentReferences)
   const canvasNodes = useGenerationCanvasStore((s) => s.nodes)
   // 图片/视频模型清单各拉一次，按镜头种类传给镜行的模型选择器 + 参数控件（完整 option 供解析 archetype 参数）。
-  const videoModelOptions = useModelOptionsState('video', undefined, MODEL_PICKER_CATALOG_SCOPE).options
-  const imageModelOptions = useModelOptionsState('image', undefined, MODEL_PICKER_CATALOG_SCOPE).options
+  const videoModelOptions = useModelOptionsState('video').options
+  const imageModelOptions = useModelOptionsState('image').options
   // 行内/批量生成的重入闸（生成本身异步、确认卡在别处；按钮点两下不重复 materialize）。
   const [busy, setBusy] = React.useState(false)
   // 放大预览：存 nodeId（不存快照），渲染时从画布节点现取结果——重生成后再开永远是最新图。

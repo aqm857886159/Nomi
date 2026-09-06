@@ -8,7 +8,7 @@ import React from 'react'
 import type { ModelOption } from '../../config/models'
 import type { NomiSelectOption } from '../../design'
 import i18n from '../../i18n'
-import { dedupeModelOptions, sortDedupedModelsByVendorPreference, sortModelProviders, type DedupedModel } from '../../config/modelIdentity'
+import { dedupeModelOptions, sortModelProviders, type DedupedModel } from '../../config/modelIdentity'
 import { useVendorPreferenceOrder } from './useVendorPreference'
 import { isModelRecentlyAiling } from '../generationCanvas/runner/modelHealthMemory'
 import { translateModelDisplayText } from '../../i18n/modelDisplayText'
@@ -56,10 +56,33 @@ function isModelAiling(model: DedupedModel, isAiling: AilingProbe): boolean {
   return model.providers.every((p) => isAiling({ modelKey: p.option.modelKey || p.option.value, vendor: p.vendor }))
 }
 
+/**
+ * 一家供应商都没接入时，模型框里放的那一行。
+ *
+ * 为什么不能就让它空着：空白下拉的意思是「没有匹配项」，而这里的真相是「你还没接入任何供应商」——
+ * 两件事差得远，用户读到空白只会以为是加载失败或程序坏了（D4 诚实交付：缺口明着标）。
+ * 这一行既说清现状，也自带出路：点它 = 打开设置里的模型接入页
+ * （与全仓其它「去接入」共用同一条 `nomi-open-model-catalog`，不另起第二条路）。
+ */
+export const CONNECT_VENDOR_OPTION_VALUE = '\u0000nomi-connect-vendor'
+
+export function openModelCatalog(): void {
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event('nomi-open-model-catalog'))
+}
+
+function connectVendorOption(): NomiSelectOption {
+  return {
+    value: CONNECT_VENDOR_OPTION_VALUE,
+    label: i18n.t('generationCommon.parameters.noVendorConnected'),
+    trailing: i18n.t('generationCommon.parameters.connectVendorAction'),
+    trailingTone: 'accent',
+  }
+}
+
 /** 病的沉到最后 + 灰化 + 右侧标注换成「最近多次失败」；健康的保持原有顺序不动。 */
 export function buildModelSelectOptions(deduped: readonly DedupedModel[], isAiling: AilingProbe, orderedVendorKeys: readonly string[] = []): NomiSelectOption[] {
-  const ordered = sortDedupedModelsByVendorPreference(deduped, orderedVendorKeys)
-  let unconfiguredHeadingUsed = false
+  // 空 = 一家都没接入（catalog 层的 keepRunnableVendorOptions 只放行能跑的家），不是「碰巧没模型」。
+  if (deduped.length === 0) return [connectVendorOption()]
   const toOption = (m: DedupedModel): NomiSelectOption => {
     // 「模型来自哪家」的两种表达，**同一行上只用一种**（用户 2026-07-17 要求看得见，
     // 2026-09-06 要求别把模型名挤没）：
@@ -69,28 +92,19 @@ export function buildModelSelectOptions(deduped: readonly DedupedModel[], isAili
     // 代价却是主语没了。
     const providers = sortModelProviders(m.providers, orderedVendorKeys)
     const uniqueProviders = providers.filter((provider, index, all) => all.findIndex((candidate) => (candidate.vendor || candidate.option.value) === (provider.vendor || provider.option.value)) === index)
-    const configured = providers.some((p) => p.option.configured !== false)
     const multiVendor = uniqueProviders.length > 1
     const chips = multiVendor
       ? uniqueProviders.map((provider, index) => ({
           value: providerAddress(provider),
           label: providerLabel(provider),
           active: index === 0,
-          dimmed: provider.option.configured === false,
         }))
       : undefined
-    const origin = !configured
-      ? i18n.t('generationCommon.parameters.unconfigured')
-      : providerLabel(providers[0])
-    const sectionLabel = !configured && !unconfiguredHeadingUsed ? i18n.t('generationCommon.parameters.unconfiguredGroup') : undefined
-    if (sectionLabel) unconfiguredHeadingUsed = true
     if (!isModelAiling(m, isAiling)) return {
       value: m.canonicalId,
       label: m.label,
       icon: modelIdentityIcon(m),
-      ...(multiVendor ? { chips } : { trailing: origin }),
-      ...(!configured ? { dimmed: true } : {}),
-      ...(sectionLabel ? { sectionLabel } : {}),
+      ...(multiVendor ? { chips } : { trailing: providerLabel(providers[0]) }),
     }
     // 「最近多次失败」是行级判断（每一家都在避让期才成立），压过 chip 的换家提示——
     // 这一行现在没有一家能走，摆一排可点的 chip 是在骗人。
@@ -101,12 +115,11 @@ export function buildModelSelectOptions(deduped: readonly DedupedModel[], isAili
       trailing: i18n.t('generationCommon.parameters.recentlyFailing'),
       trailingTone: 'danger',
       dimmed: true,
-      ...(sectionLabel ? { sectionLabel } : {}),
     }
   }
   // 用户选**之前**就避开坏的，而不是撞了才知道。仍可点（手动选择永不拦，2026-07-30 拍板）。
-  const healthy = ordered.filter((m) => !isModelAiling(m, isAiling))
-  const ailing = ordered.filter((m) => isModelAiling(m, isAiling))
+  const healthy = deduped.filter((m) => !isModelAiling(m, isAiling))
+  const ailing = deduped.filter((m) => isModelAiling(m, isAiling))
   return [...healthy, ...ailing].map(toOption)
 }
 
@@ -126,7 +139,8 @@ export function buildVendorExplicitModelOptions(
   isAiling: AilingProbe,
   orderedVendorKeys: readonly string[] = [],
 ): NomiSelectOption[] {
-  type Row = { option: NomiSelectOption; ailing: boolean; configured: boolean }
+  if (deduped.length === 0) return [connectVendorOption()]
+  type Row = { option: NomiSelectOption; ailing: boolean }
   const rows: Row[] = []
   for (const model of deduped) {
     // 一「模型 × 供应商」一行 —— 折叠维度必须是 vendor，不能是 (vendor, option.value)。
@@ -136,6 +150,7 @@ export function buildVendorExplicitModelOptions(
     // 用户分不清只能瞎猜，比选不了供应商更糟。这里与既有 buildProviderSelectOptions 的
     // byVendor 折叠同口径：用户锁的是「走哪家」，不是走这家的哪个内部 modelKey。
     const byVendor = new Map<string, ModelProviderRef[]>()
+    // 用户排过偏好才重排；没排过就保持 catalog 原序（批量下拉是一次性命令，不该替他改主意）。
     const providers = orderedVendorKeys.length > 0 ? sortModelProviders(model.providers, orderedVendorKeys) : model.providers
     for (const provider of providers) {
       const key = provider.vendor || provider.option.value
@@ -148,11 +163,9 @@ export function buildVendorExplicitModelOptions(
       // 这家有健康变体就走健康那个；全病才落回首个（整行标病）。
       const representative = bucket.find((p) => !sickOf(p)) ?? bucket[0]
       const sick = sickOf(representative)
-      const configured = representative.option.configured !== false
       const value = providerAddress(representative)
       rows.push({
         ailing: sick,
-        configured,
         option: sick
           ? {
               value,
@@ -165,31 +178,13 @@ export function buildVendorExplicitModelOptions(
               value,
               label: model.label,
               icon: modelIdentityIcon(model),
-              trailing: configured ? providerLabel(representative) : i18n.t('generationCommon.parameters.unconfigured'),
-              ...(configured ? {} : { dimmed: true }),
+              trailing: providerLabel(representative),
             },
       })
     }
   }
-  // 三段：能跑的 → 最近连败的 → 没配 key 的。与折叠版同一套沉底口径（同一件事只有一种排法）。
-  // 没配 key 的那段仍然列出来（点了跳接入，见 BulkModelPicker），但绝不许排在能跑的前面。
-  const ordered = [
-    ...rows.filter((row) => row.configured && !row.ailing),
-    ...rows.filter((row) => row.configured && row.ailing),
-    ...rows.filter((row) => !row.configured),
-  ]
-  let unconfiguredHeadingUsed = false
-  return ordered.map((row) => {
-    if (row.configured || unconfiguredHeadingUsed) return row.option
-    unconfiguredHeadingUsed = true
-    return { ...row.option, sectionLabel: i18n.t('generationCommon.parameters.unconfiguredGroup') }
-  })
-}
-
-/** 该寻址串指向的那一家有没有配 key。批量下拉靠它把「点了跳接入」和「真的选中」分开。 */
-export function providerIsConfigured(deduped: readonly DedupedModel[], addressValue: string): boolean {
-  const provider = resolveProviderByAddress(deduped, addressValue)
-  return provider ? provider.option.configured !== false : true
+  // 两段：能跑的 → 最近连败的。与折叠版同一套沉底口径（同一件事只有一种排法）。
+  return [...rows.filter((row) => !row.ailing), ...rows.filter((row) => row.ailing)].map((row) => row.option)
 }
 
 /** buildVendorExplicitModelOptions 的反查：复合寻址串 → 那一家供应商（认不出 → null，调用方不写）。 */
@@ -224,7 +219,6 @@ export function providerAddress(p: ModelProviderRef): string {
 export function buildProviderSelectOptions(model: DedupedModel | null, orderedVendorKeys: readonly string[] = []): Array<NomiSelectOption & { vendor?: string }> {
   if (!model || model.providers.length <= 1) return []
   const byVendor = new Map<string, NomiSelectOption & { vendor?: string }>()
-  let unconfiguredHeadingUsed = false
   for (const p of sortModelProviders(model.providers, orderedVendorKeys)) {
     const key = p.vendor || p.option.value
     if (!byVendor.has(key)) byVendor.set(key, {
@@ -232,13 +226,7 @@ export function buildProviderSelectOptions(model: DedupedModel | null, orderedVe
       label: providerLabel(p),
       icon: providerIdentityIcon(p.vendor, p.option.vendorName),
       vendor: p.vendor,
-      ...(p.option.configured === false ? {
-        trailing: i18n.t('generationCommon.parameters.unconfigured'),
-        dimmed: true,
-        ...(!unconfiguredHeadingUsed ? { sectionLabel: i18n.t('generationCommon.parameters.unconfiguredGroup') } : {}),
-      } : {}),
     })
-    if (p.option.configured === false) unconfiguredHeadingUsed = true
   }
   return byVendor.size > 1 ? [...byVendor.values()] : []
 }
@@ -307,6 +295,7 @@ export function useDedupedModelSelect(
 
   const onModelPick = React.useCallback(
     (canonicalId: string) => {
+      if (canonicalId === CONNECT_VENDOR_OPTION_VALUE) { openModelCatalog(); return }
       const model = deduped.find((m) => m.canonicalId === canonicalId)
       if (!model) return
       // Reopening/reselecting the family must not reset a saved reasoning tier.
@@ -314,8 +303,7 @@ export function useDedupedModelSelect(
       if (current) { onChange(current.option.value, current.vendor); return }
       const best = pickHealthiestProvider(model, isModelRecentlyAiling, orderedVendorKeys)
       const preferred = model.providers.find((p) => p.vendor === best?.vendor && p.option.variant?.defaultVariant) || best
-      if (preferred && preferred.option.configured !== false) onChange(preferred.option.value, preferred.vendor)
-      else if (typeof window !== 'undefined') window.dispatchEvent(new Event('nomi-open-model-catalog'))
+      if (preferred) onChange(preferred.option.value, preferred.vendor)
     },
     [deduped, onChange, value, vendor, orderedVendorKeys],
   )
@@ -325,10 +313,6 @@ export function useDedupedModelSelect(
       const model = deduped.find((candidate) => candidate.canonicalId === canonicalId)
       const picked = model?.providers.find((provider) => providerAddress(provider) === addressValue)
       if (!picked) return
-      if (picked.option.configured === false) {
-        if (typeof window !== 'undefined') window.dispatchEvent(new Event('nomi-open-model-catalog'))
-        return
-      }
       onChange(picked.option.value, picked.vendor)
     },
     [deduped, onChange],
@@ -342,7 +326,6 @@ export function useDedupedModelSelect(
   const onProviderPick = React.useCallback(
     (addressValue: string) => {
       const picked = selectedModel?.providers.find((p) => providerAddress(p) === addressValue)
-      if (picked?.option.configured === false) { if (typeof window !== 'undefined') window.dispatchEvent(new Event('nomi-open-model-catalog')); return }
       if (picked) onChange(picked.option.value, picked.vendor)
     },
     [selectedModel, onChange],

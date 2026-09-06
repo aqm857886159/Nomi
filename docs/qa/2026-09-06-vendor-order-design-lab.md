@@ -28,8 +28,8 @@
 |---|---|
 | `vo-01-picker-preferred` | 有偏好：偏好那家排第一并高亮 |
 | `vo-02-picker-no-preference` | 无偏好：按供应商分级排（官方在两家中转前面，**不是**厂商名字母序） |
-| `vo-03-picker-unconfigured-group` | 能跑的在上，没配 key 的沉进「未配置的供应商」分组灰显 |
-| `vo-04-picker-all-unconfigured` | 全部未配置：整张单子只剩那一组 |
+| `vo-03-picker-hides-unconnected` | 目录里有没接入的家，它们的模型一行都不出现（夹具喂整份目录，筛掉的是生产代码） |
+| `vo-04-picker-empty-no-vendor` | 一家都没接入：诚实空态一行「还没接入供应商 · 去接入」，不是空白下拉 |
 | `vo-05-picker-selected-row` | 选中行：加粗模型名 + 一排 chip + 最右对勾三样同行不打架 |
 | `vo-06-settings-order` | 设置 → AI 策略 → 优先供应商（三家可排序） |
 | `vo-07-settings-two-vendors` | 同上，两家：首尾两端的按钮禁用态 |
@@ -46,9 +46,24 @@
 - **没设偏好时默认家静默漂移**：新排序函数漏了供应商分级这一级，退化成厂商名字母序，
   同一个模型的默认家会从火山方舟（官方）漂到 apimart，而没有人做过这个决定。
 - **目录硬过滤被全局放宽**：为了灰显未配置的家，`getCatalogModelOptions` 的
-  「列出来的都能跑」承诺被整个拿掉了，连 agent 可用模型清单、成本预估、「换到 X」指路
-  都跟着拿到没钥匙的家。现在放宽改成**逐调用点显式声明**（`MODEL_PICKER_CATALOG_SCOPE`），
-  默认仍然 fail-closed。
+  「列出来的都能跑」承诺一度被整个拿掉，连 agent 可用模型清单、成本预估、「换到 X」指路
+  都跟着拿到没钥匙的家。
+
+## 2026-09-06 用户拍板后的收敛（本次改动）
+
+用户看完这一屏后拍板：**没接入的供应商，它的模型不显示**——不沉底、不灰显、也不「点了跳接入」。
+于是上面那条放宽口整个删掉，闸只剩一处：`src/config/modelCatalogCache.ts` 的
+`keepRunnableVendorOptions`，接在 `getCatalogModelOptions` 的派生链上。每个选择器都吃它的输出，
+没有一个自己再过滤一遍（也就不存在「漏掉的那个」）。
+
+连带删干净的旧实现（P1 加新必删旧）：`MODEL_PICKER_CATALOG_SCOPE` / `CatalogOptionScope` /
+`ModelOption.configured` / `NomiSelectOption.sectionLabel` / chip 的 `dimmed`·`disabled` /
+`sortModelProviders` 里的「能不能跑」那一级 / i18n 的 `unconfigured`·`unconfiguredGroup`。
+
+新增的是**诚实空态**：一家都没接入时，模型框不是空白，而是一行
+「还没接入供应商 · 去接入」（`useDedupedModelSelect.ts` 的 `connectVendorOption`，
+走 i18n `generationCommon.parameters.noVendorConnected` / `connectVendorAction`，zh-CN + en 两份），
+点它触发全仓同一条 `nomi-open-model-catalog` → 打开设置的模型接入页。
 
 ## 入口盘点（2026-09-06 实扫）
 

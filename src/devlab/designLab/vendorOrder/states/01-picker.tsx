@@ -6,9 +6,10 @@
 import React from 'react'
 
 import {
-  ALL_UNCONFIGURED_MODELS,
   CONFIGURED_MODELS,
   MIXED_MODELS,
+  NO_RUNNABLE_VENDORS,
+  RUNNABLE_VENDORS,
   VENDOR_APIMART,
   VENDOR_KIE,
 } from '../vendorOrderFixtures'
@@ -24,7 +25,11 @@ export const PICKER_STATES: readonly LabState[] = [
     source: 'docs/design/nomi-design-system.md §2 token + §1.5 控件层级 · 用户 2026-09-06 返工要求',
     coverage: 'shell',
     render: () => (
-      <ModelPickerStage models={CONFIGURED_MODELS} preferredVendorKeys={[VENDOR_KIE, VENDOR_APIMART]} />
+      <ModelPickerStage
+        models={CONFIGURED_MODELS}
+        runnableVendorKeys={RUNNABLE_VENDORS}
+        preferredVendorKeys={[VENDOR_KIE, VENDOR_APIMART]}
+      />
     ),
   },
   {
@@ -33,23 +38,31 @@ export const PICKER_STATES: readonly LabState[] = [
     source: 'src/config/modelIdentity.ts sortModelProviders · 用户 2026-09-06 返工要求',
     coverage: 'shell',
     // 没设过偏好时**不该退化成厂商名字母序**：这一格钉住「火山方舟（官方）排在两家中转前面」。
-    render: () => <ModelPickerStage models={CONFIGURED_MODELS} />,
+    render: () => <ModelPickerStage models={CONFIGURED_MODELS} runnableVendorKeys={RUNNABLE_VENDORS} />,
   },
   {
-    id: 'vo-03-picker-unconfigured-group',
-    name: '含未配置分组 · 能跑的在上、没配 key 的沉底灰显',
-    source: 'docs/design/nomi-design-system.md §2 token + §1.5 控件层级 · 用户 2026-09-06 返工要求',
+    id: 'vo-03-picker-hides-unconnected',
+    name: '有没接入的家 · 它们直接不出现（不是灰显沉底）',
+    source: 'src/config/modelCatalogCache.ts keepRunnableVendorOptions · 用户 2026-09-06 拍板',
     coverage: 'shell',
+    // 夹具喂的是**整份**目录：RunningHub 独家的 Kling 3 / Wan 2.6 都在里面，屏上必须一行都看不见，
+    // Seedream 4.5 的 chip 也只剩接入了的两家。筛掉它们的是生产代码，不是夹具。
     render: () => (
-      <ModelPickerStage models={MIXED_MODELS} preferredVendorKeys={[VENDOR_APIMART, VENDOR_KIE]} />
+      <ModelPickerStage
+        models={MIXED_MODELS}
+        runnableVendorKeys={RUNNABLE_VENDORS}
+        preferredVendorKeys={[VENDOR_APIMART, VENDOR_KIE]}
+      />
     ),
   },
   {
-    id: 'vo-04-picker-all-unconfigured',
-    name: '全部未配置 · 整张单子只剩「未配置」那一组',
-    source: 'docs/design/nomi-design-system.md §2 token + §1.5 控件层级 · 用户 2026-09-06 返工要求',
+    id: 'vo-04-picker-empty-no-vendor',
+    name: '一家都没接入 · 诚实空态：说清现状 + 一步去接入',
+    source: 'src/workbench/common/useDedupedModelSelect.ts connectVendorOption · 用户 2026-09-06 拍板',
     coverage: 'shell',
-    render: () => <ModelPickerStage models={ALL_UNCONFIGURED_MODELS} />,
+    // 没接入的模型不再沉底显示，于是新装机上这个下拉会**一条都不剩**。空白下拉读起来像「坏了」，
+    // 所以这一格钉住：必须有一行说「还没接入供应商」，且点它就是去接入。
+    render: () => <ModelPickerStage models={MIXED_MODELS} runnableVendorKeys={NO_RUNNABLE_VENDORS} />,
   },
   {
     id: 'vo-05-picker-selected-row',
@@ -61,6 +74,7 @@ export const PICKER_STATES: readonly LabState[] = [
     render: () => (
       <ModelPickerStage
         models={CONFIGURED_MODELS}
+        runnableVendorKeys={RUNNABLE_VENDORS}
         preferredVendorKeys={[VENDOR_APIMART]}
         selected="seedream-4-5"
       />

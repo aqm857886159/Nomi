@@ -62,11 +62,11 @@ export function hiddenModesForChannel(
  * 判据 = 对每个候选渠道，拿它自己的 body 重跑一遍 `archetypeModeIsVisible`。要求**全部**被藏的模式在该
  * 候选上都可见——只能做一半的家不配当「换到 X」的落点：用户换过去发现还是缺，等于我们又骗了他一次。
  *
- * `candidates` 由调用方从 `modelOptions` 里筛出「同一档案身份、不同 (vendor, model)」的行，且
- * `candidatesForArchetype` 在那一步就把 `configured === false` 的家剔掉了——**候选必然是「切过去立刻
- * 能用」的**。这条不再依赖 catalog 的默认取景：选择器为了灰显未配置的家会显式要更宽的那一份，
- * 同一个 `modelOptions` 因此可能带着没钥匙的行进来。样张 C（「别家有但那家还没接入」）仍然**不做**：
- * 指路只指跑得通的路，不用猜的去谎称——见本次交付报告与根因合同。
+ * `candidates` 由调用方从 `modelOptions` 里筛出「同一档案身份、不同 (vendor, model)」的行。**实测确认过
+ * `modelOptions` 只含已接入（enabled 且有 key / 免鉴权）的供应商**（src/config/modelCatalogCache.ts 的
+ * getRunnableVendorKeys → keepRunnableVendorOptions 硬过滤），所以这里的候选天然都是「切过去立刻能用」的，
+ * 不需要也**拿不到**凭证状态。样张 C（「别家有但那家还没接入」）因此在渲染层没有数据源可依据，**不做**，
+ * 也绝不用猜的去谎称——见本次交付报告与根因合同。
  *
  * 返回 `null` = 没有被藏的模式 = 不出提示（绝大多数模型走这条，零噪音）。
  */
@@ -160,11 +160,6 @@ export function referencesSectionIsEmpty(params: {
  * 身份判据用调用方传进来的 `archetypeIdOf`（渲染层是 `resolveArchetypeForOption`）——档案 id 相同 =
  * 同一个模型身份，走哪家都是这套模式，这正是「换一家就能用」成立的前提。
  * 同一 (vendor, value) 去重，且排除当前选中的那条。
- *
- * **没配 key 的家在这里当场剔掉**，判据写在这里而不是靠上游承诺：选择器为了把未配置的家灰显出来，
- * 会显式向 catalog 要「连没配的也给我」的那一份（`MODEL_PICKER_CATALOG_SCOPE`），而这个 hook 与
- * 选择器共用同一个 `modelOptions`。指路按钮一旦落到没钥匙的家，用户换过去还是跑不了——正是本模块
- * 一直要避免的「等于我们又骗了他一次」。
  */
 export function candidatesForArchetype(params: {
   options: readonly ModelOption[]
@@ -180,7 +175,6 @@ export function candidatesForArchetype(params: {
     const vendor = String(option.vendor || '').trim()
     const value = String(option.value || '').trim()
     if (!vendor || !value) continue
-    if (option.configured === false) continue
     if (vendor === currentVendor && value === currentValue) continue
     if (archetypeIdOf(option) !== archetypeId) continue
     const dedupeKey = `${vendor}\u0000${value}`

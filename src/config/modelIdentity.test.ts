@@ -4,7 +4,6 @@ import {
   deriveCanonicalModelId,
   modelCatalogLifecycle,
   normalizeModelLabel,
-  sortDedupedModelsByVendorPreference,
   sortModelProviders,
   sortModelsByCatalogLifecycle,
   vendorTier,
@@ -108,22 +107,6 @@ describe('modelIdentity · sortModelProviders 先走哪家', () => {
     expect(vendorsOf(sortModelProviders(model.providers, ['myrelay']))).toEqual(['myrelay', 'volcengine', 'apimart'])
   })
 
-  it('没配 key 的家永远沉底，压过偏好', () => {
-    const mixed = dedupeModelOptions([
-      opt({ value: 'a', label: 'X', vendor: 'apimart', modelKey: 'a', configured: false }),
-      opt({ value: 'b', label: 'X', vendor: 'kie', modelKey: 'b', configured: true }),
-    ])[0]
-    expect(vendorsOf(sortModelProviders(mixed.providers, ['apimart', 'kie']))).toEqual(['kie', 'apimart'])
-  })
-
-  it('configured 缺省视为「能跑」，不当成没配（与全仓 configured !== false 同口径）', () => {
-    const mixed = dedupeModelOptions([
-      opt({ value: 'a', label: 'X', vendor: 'myrelay', modelKey: 'a' }),
-      opt({ value: 'b', label: 'X', vendor: 'kie', modelKey: 'b', configured: false }),
-    ])[0]
-    expect(vendorsOf(sortModelProviders(mixed.providers))).toEqual(['myrelay', 'kie'])
-  })
-
   it('同级保持 catalog 顺序（稳定）', () => {
     const m = dedupeModelOptions([
       opt({ value: '1', label: 'X', vendor: 'apimart', modelKey: '1' }),
@@ -177,22 +160,13 @@ describe('modelIdentity · catalog lifecycle ordering', () => {
 })
 
 describe('modelIdentity · vendor preference ordering', () => {
-  it('preferred configured vendor first, unconfigured providers last, equal names stable', () => {
+  it('偏好那家排第一，其余按分级续排，同名稳定', () => {
     const models = dedupeModelOptions([
-      opt({ value: 'shared-kie', label: 'Shared', vendor: 'kie', modelKey: 'shared', configured: true, vendorName: 'Kie' }),
-      opt({ value: 'shared-z', label: 'Shared', vendor: 'relay-z', modelKey: 'shared', configured: false, vendorName: 'Z relay' }),
-      opt({ value: 'shared-a', label: 'Shared', vendor: 'relay-a', modelKey: 'shared', configured: true, vendorName: 'A relay' }),
+      opt({ value: 'shared-kie', label: 'Shared', vendor: 'kie', modelKey: 'shared', vendorName: 'Kie' }),
+      opt({ value: 'shared-z', label: 'Shared', vendor: 'relay-z', modelKey: 'shared', vendorName: 'Z relay' }),
+      opt({ value: 'shared-a', label: 'Shared', vendor: 'relay-a', modelKey: 'shared', vendorName: 'A relay' }),
     ])
     const ordered = sortModelProviders(models[0].providers, ['relay-a', 'kie'])
     expect(ordered.map((provider) => provider.vendor)).toEqual(['relay-a', 'kie', 'relay-z'])
-  })
-
-  it('configured model families stay above all-unconfigured families with stable order', () => {
-    const models = dedupeModelOptions([
-      opt({ value: 'unconfigured', label: 'Unconfigured', vendor: 'z', modelKey: 'z', configured: false }),
-      opt({ value: 'configured', label: 'Configured', vendor: 'a', modelKey: 'a', configured: true }),
-      opt({ value: 'unconfigured-2', label: 'Unconfigured 2', vendor: 'y', modelKey: 'y', configured: false }),
-    ])
-    expect(sortDedupedModelsByVendorPreference(models, []).map((model) => model.label)).toEqual(['Configured', 'Unconfigured', 'Unconfigured 2'])
   })
 })

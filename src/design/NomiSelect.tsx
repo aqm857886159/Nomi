@@ -34,12 +34,10 @@ export type NomiSelectOption = {
    * 它们会一起把模型名挤没——2026-09-06 真机实测，三行只剩「[图标] 3 家 (APIMart)(Kie)(RunningHub)」，
    * 模型名一个字都不剩。调用方要 chips 就别给 trailing。
    */
-  chips?: Array<{ value: string; label: string; active?: boolean; dimmed?: boolean; disabled?: boolean }>
+  chips?: Array<{ value: string; label: string; active?: boolean }>
   disabled?: boolean
   /** 整行减淡（仍可点）——「能选但眼下不建议」，如近期连败的模型沉底后。 */
   dimmed?: boolean
-  /** Optional non-selectable section heading shown before this option. */
-  sectionLabel?: string
 }
 
 export type NomiSelectProps = {
@@ -219,9 +217,7 @@ export function NomiSelect({
           {visibleOptions.map((option) => {
             const isSel = option.value === value
             return (
-              <React.Fragment key={option.value}>
-                {option.sectionLabel ? <div className="px-2 py-1 text-micro font-medium text-nomi-ink-40" role="presentation">{option.sectionLabel}</div> : null}
-              <Combobox.Option value={option.value} disabled={option.disabled} active={isSel} title={option.label}>
+              <Combobox.Option value={option.value} key={option.value} disabled={option.disabled} active={isSel} title={option.label}>
                 {/* dimmed：整行减淡但仍可点（「能选、眼下不建议」）。不用 disabled——那是"点不了"，
                     两种语义别混（近期连败的模型仍允许手动选，是拍板过的原则）。 */}
                 <span className={cn('flex min-w-0 items-center gap-2 w-full', option.dimmed ? 'opacity-45' : '')}>
@@ -253,7 +249,6 @@ export function NomiSelect({
                         <button
                           key={chip.value}
                           type="button"
-                          disabled={chip.disabled}
                           title={chip.label}
                           aria-label={chip.label}
                           aria-pressed={chip.active}
@@ -266,8 +261,7 @@ export function NomiSelect({
                           className={cn(
                             'max-w-[76px] truncate rounded-pill border px-1.5 py-[1px] text-micro leading-none transition-colors',
                             chip.active ? 'border-nomi-accent bg-nomi-accent-soft text-nomi-accent' : 'border-nomi-line text-nomi-ink-40 hover:border-nomi-accent hover:text-nomi-accent',
-                            chip.dimmed ? 'opacity-45' : '',
-                            chip.disabled ? 'cursor-not-allowed' : 'cursor-pointer',
+                            'cursor-pointer',
                           )}
                         >
                           {chip.label}
@@ -285,7 +279,6 @@ export function NomiSelect({
                   </span>
                 </span>
               </Combobox.Option>
-              </React.Fragment>
             )
           })}
         </Combobox.Options>

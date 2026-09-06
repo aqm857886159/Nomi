@@ -19,7 +19,7 @@ import type { ModelOption } from '../../config/models'
 import { NomiSelect } from '../../design'
 import { dedupeModelOptions } from '../../config/modelIdentity'
 import { isModelRecentlyAiling } from '../generationCanvas/runner/modelHealthMemory'
-import { buildVendorExplicitModelOptions, resolveProviderByAddress } from './useDedupedModelSelect'
+import { buildVendorExplicitModelOptions, resolveProviderByAddress, openModelCatalog, CONNECT_VENDOR_OPTION_VALUE } from './useDedupedModelSelect'
 import { useVendorPreferenceOrder } from './useVendorPreference'
 
 import i18n from '../../i18n'
@@ -76,14 +76,10 @@ export default function BulkModelPicker({
         onPickLeadingOption?.(fixed.value)
         return
       }
+      // 一家都没接入时下拉里只有「还没接入供应商」那一行——点它是去接入，不是选模型。
+      if (picked === CONNECT_VENDOR_OPTION_VALUE) { openModelCatalog(); return }
       const provider = resolveProviderByAddress(deduped, picked)
       if (!provider) return
-      // 没配 key 的那一家点了是「去接入」，不是「就用它」——直接写下去的话，整批生成会在
-      // 运行时集体撞 `API key missing`，而用户以为自己刚统一好了模型。
-      if (provider.option.configured === false) {
-        if (typeof window !== 'undefined') window.dispatchEvent(new Event('nomi-open-model-catalog'))
-        return
-      }
       onPick(provider.option.value, provider.vendor)
     },
     [deduped, leadingOptions, onPick, onPickLeadingOption],

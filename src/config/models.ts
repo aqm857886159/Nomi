@@ -30,8 +30,6 @@ export interface ModelOption {
   vendor?: string
   /** 厂商显示名（catalog vendor.name；自定义中转的 key 是派生串不宜直显）。节点下拉标注用。 */
   vendorName?: string
-  /** Whether the vendor has usable credentials (or is no-auth). */
-  configured?: boolean
   modelKey?: string
   modelAlias?: string | null
   /** Catalog billing kind. Kept alongside the option so non-media models (chat) retain their identity. */

@@ -7,7 +7,7 @@
   "class_root": "Provider identity, configuration state, and ordering are cross-surface semantics. Keeping them in individual pickers guarantees drift between generation nodes, storyboard rows, batch controls, and the Agent composer.",
   "affected_population": [
     "Users with the same model available through two or more providers",
-    "Users who have connected providers alongside unconfigured catalog entries",
+    "Users whose catalog still lists providers they have not connected",
     "Every model selection surface that previously consumed flat catalog options"
   ],
   "scope_paths": [
@@ -39,11 +39,11 @@
   "internal_only_reason": "The catalog, settings bridge, and renderer pickers are internal Nomi contracts.",
   "invariants": [
     "Every picker uses the canonical identity aggregation and shared provider sorting function.",
-    "Provider ordering has exactly one rule (sortModelProviders): configured first, then the user's saved preference, then vendorTier (official > built-in relay > unknown), then a stable name/catalog tie-break. Dropping the vendorTier level silently degrades the default provider to alphabetical order, which nobody decided.",
+    "Provider ordering has exactly one rule (sortModelProviders): the user's saved preference, then vendorTier (official > built-in relay > unknown), then a stable name/catalog tie-break. Dropping the vendorTier level silently degrades the default provider to alphabetical order, which nobody decided.",
     "A model row states its provider exactly once: multi-provider rows carry end-of-row chips, single-provider rows carry one vendor caption. Never both -- together they squeeze the model name to zero width in a narrow dropdown.",
-    "Selecting a model row uses the first configured provider; selecting a provider chip writes the exact provider and model identity.",
-    "Unconfigured providers remain visible, are grouped and dimmed, and route to model setup without silently generating -- in both the collapsed picker and the flattened batch picker.",
-    "The catalog layer keeps its 'everything listed is runnable' promise by default. Widening it to include unconfigured vendors is opt-in per call site (MODEL_PICKER_CATALOG_SCOPE) so agent model lists, cost estimation, and narrowed-mode guidance never receive a keyless vendor.",
+    "Selecting a model row uses the first provider in preference order; selecting a provider chip writes the exact provider and model identity.",
+    "Models from vendors that are not connected are never listed (user decision, 2026-09-06). When that leaves a picker with nothing to show, it states so honestly with one localized row -- no provider connected yet, plus a one-click route to model setup -- instead of rendering a blank dropdown.",
+    "The 'everything listed is runnable' promise has exactly one gate (keepRunnableVendorOptions in the catalog derivation layer) and no widening switch. Pickers, agent model lists, cost estimation, and narrowed-mode guidance all consume its output, so no call site can filter -- or forget to filter -- on its own.",
     "Preferred provider order lives in the AI strategy settings tab next to the default-model policy, because it decides how already-connected capabilities are used, not what is connected (design system 1.7.2).",
     "Preference writes use schema version 1, atomic JSON persistence, and trusted sender validation."
   ],
@@ -52,12 +52,12 @@
     {
       "path": "src/config/modelIdentity.ts",
       "symbol": "dedupeModelOptions and sortModelProviders",
-      "responsibility": "Own canonical model grouping, configured-state ordering, preference ordering, vendor tiering, and stable tie-breaking. sortModelProviders is now the only provider-ordering rule in the repo."
+      "responsibility": "Own canonical model grouping, preference ordering, vendor tiering, and stable tie-breaking. sortModelProviders is now the only provider-ordering rule in the repo."
     },
     {
       "path": "src/config/modelCatalogCache.ts",
-      "symbol": "getCatalogModelOptions and CatalogOptionScope",
-      "responsibility": "Own whether a caller sees only runnable models (default, fail-closed) or also unconfigured ones (explicit opt-in)."
+      "symbol": "getCatalogModelOptions and keepRunnableVendorOptions",
+      "responsibility": "Own the single decision of which vendors are runnable right now, so every downstream surface sees the same list and none of them filters again."
     },
     {
       "path": "electron/shared/contracts/vendorPreference.ts",
@@ -70,7 +70,7 @@
       "path": "src/workbench/common/useDedupedModelSelect.ts",
       "entry_point": "stateful model and provider selection",
       "disposition": "enforced",
-      "evidence": "Unit tests cover deduplication, preferred ordering, unconfigured grouping, and stable sorting."
+      "evidence": "Unit tests cover deduplication, preferred ordering, the honest empty state, and stable sorting."
     },
     {
       "path": "src/workbench/common/BulkModelPicker.tsx",
@@ -127,18 +127,20 @@
   "prevention": {
     "kind": "centralized-boundary",
     "enforcement_path": "src/config/modelCatalogCache.ts",
-    "invariant": "getCatalogModelOptions returns only models whose vendor is usable right now. Seeing unconfigured vendors requires an explicit per-call-site scope (MODEL_PICKER_CATALOG_SCOPE), and every such call site must gate selection and route to setup instead.",
+    "invariant": "getCatalogModelOptions returns only models whose vendor is usable right now, and there is no way for a caller to ask for more. When the result is empty, the shared select view-model renders one honest row that routes to model setup.",
     "failure_mode": "A new consumer of preloadModelOptions/useModelOptionsState silently receives keyless vendors and the user hits `API key missing` at generation time, with the UI having shown the model as available. The first pass did exactly this to the agent model list, batch cost estimation, and the 'switch to X' guidance at once.",
     "exception_policy": "none",
-    "strategy": "The wide view is opt-in, not opt-out: a caller that writes nothing gets the runnable-only list. The opt-in roster is pinned by a structural test that enumerates every file mentioning MODEL_PICKER_CATALOG_SCOPE, so adding a call site without declaring it fails.",
+    "strategy": "There is no wide view to opt into: keepRunnableVendorOptions is the only gate and it runs unconditionally inside catalog derivation, so a caller cannot see a keyless vendor whatever it writes. A structural test fails the build if any file grows a catalog scope switch again, and the design lab feeds the unfiltered catalog through that same gate so the screenshot proves the filtering rather than a pre-filtered fixture.",
     "artifacts": [
       "src/config/modelCatalogCache.ts",
       "src/config/useModelOptions.ts",
+      "src/config/modelCatalogCache.test.ts",
       "src/workbench/common/modelSelectStructure.test.ts"
     ]
   },
   "class_regression_tests": [
     "src/workbench/common/modelSelectStructure.test.ts",
+    "src/config/modelCatalogCache.test.ts",
     "src/config/modelIdentity.test.ts",
     "src/workbench/common/useDedupedModelSelect.test.ts"
   ]

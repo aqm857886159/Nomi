@@ -82,7 +82,6 @@ export default function AssistantModelPicker({ className }: { className?: string
     label: model.labelZh || model.modelKey,
     vendor: model.vendorKey,
     vendorName: vendorNames[model.vendorKey],
-    configured: true,
     modelKey: model.modelKey,
     meta: model.meta,
   })), [models, vendorNames])

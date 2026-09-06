@@ -151,21 +151,20 @@ export function dedupeModelOptions(options: ModelOption[]): DedupedModel[] {
 /**
  * 「同一个模型，先走哪家」的**唯一**排序规则——每个模型选择器、自动选家、批量摊平都用这一份。
  *
- * 四级判据，从强到弱：
- *   1. **能不能跑**：没配 key 的家永远沉底（`configured === false` 才算没配；缺省视为能跑，
- *      与全仓 `configured !== false` 同口径。用 `Boolean(configured)` 会把「没标注」误判成没配）。
- *   2. **用户的优先供应商顺序**（设置 → AI 策略）。用户明说过的话，就按他说的来。
- *   3. **供应商分级** `vendorTier`：官方 > 内置中转 > 用户自接/未知。用户没说过话时的默认，
+ * 三级判据，从强到弱：
+ *   1. **用户的优先供应商顺序**（设置 → AI 策略）。用户明说过的话，就按他说的来。
+ *   2. **供应商分级** `vendorTier`：官方 > 内置中转 > 用户自接/未知。用户没说过话时的默认，
  *      也是 2026-06-23 起「自动选最优」一直用的那把尺——**这一级不能省**：省掉它就退化成按厂商名
  *      字母序，同一个模型的默认家会从火山方舟静默漂到 apimart，而没有任何人做过这个决定。
- *   4. 厂商显示名字母序 → catalog 原序（纯为稳定，不携带任何偏好语义）。
+ *   3. 厂商显示名字母序 → catalog 原序（纯为稳定，不携带任何偏好语义）。
+ *
+ * 这里**不再有**「能不能跑」那一级：没接入的家在 catalog 派生层
+ * （`keepRunnableVendorOptions`）就已经不存在了，排到这里的每一家都能跑。
  */
 export function sortModelProviders<T extends ModelProviderRef>(providers: readonly T[], orderedVendorKeys: readonly string[] = []): T[] {
   const rank = new Map(orderedVendorKeys.map((key, index) => [key.toLowerCase(), index]))
   const rankOf = (provider: ModelProviderRef): number => rank.get((provider.vendor || '').toLowerCase()) ?? Number.MAX_SAFE_INTEGER
   return providers.map((provider, index) => ({ provider, index })).sort((a, b) => {
-    const configured = Number(b.provider.option.configured !== false) - Number(a.provider.option.configured !== false)
-    if (configured) return configured
     const pref = rankOf(a.provider) - rankOf(b.provider)
     if (pref) return pref
     const tier = vendorTier(a.provider.vendor) - vendorTier(b.provider.vendor)
@@ -174,13 +173,3 @@ export function sortModelProviders<T extends ModelProviderRef>(providers: readon
   }).map(({ provider }) => provider)
 }
 
-export function sortDedupedModelsByVendorPreference(models: readonly DedupedModel[], orderedVendorKeys: readonly string[] = []): DedupedModel[] {
-  return models.map((model) => {
-    const providers = sortModelProviders(model.providers, orderedVendorKeys)
-    return { ...model, providers }
-  }).sort((a, b) => {
-    const aConfigured = Number(a.providers.some((provider) => provider.option.configured !== false))
-    const bConfigured = Number(b.providers.some((provider) => provider.option.configured !== false))
-    return bConfigured - aConfigured
-  }).map((model) => model)
-}
