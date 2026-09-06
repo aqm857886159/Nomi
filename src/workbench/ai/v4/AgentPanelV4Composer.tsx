@@ -86,6 +86,9 @@ export function AgentPanelV4Composer({
   const cap = maxComposerHeight(panelHeight, dock ? 'dock' : mode)
   const policy = approvalPolicyForTier(permission)
   const running = mode === 'running'
+  // 「有东西可发」是**一个**判据，发送钮的长相、它的 disabled、以及 Enter 那条路都从这里取，
+  // 免得三处各判一次、以后有人只改了其中一处（长相灰着但 Enter 还能发＝还是在假装能发）。
+  const canSend = Boolean(value.trim() || chips?.length)
   const submit = React.useCallback(() => setValue(''), [])
   return (
     <form
@@ -126,7 +129,7 @@ export function AgentPanelV4Composer({
             })
           ) {
             event.preventDefault()
-            submit()
+            if (canSend) submit()
           }
         }}
         placeholder={running ? t('agentPanelV4.placeholderRunning') : t('agentPanelV4.placeholder')}
@@ -175,17 +178,21 @@ export function AgentPanelV4Composer({
           {t(`agentPanelV4.permission.${permission}`)}
           <IconChevronDown size={12} />
         </button>
+        {/* 有东西可发才点亮（文本或已挂 chip）。画布自己两种画法都出现过——
+            高度① 那格（专门讲空框）画的是灰钮，Flow 三板画的是深钮。
+            取「空框不该假装能发」这一条：它是那格的**论点**，另两处只是背景。
+            2026-09-06 用户拍板补齐：灰只是长相，钮还是能按（Enter 也照样触发 submit），
+            那就还是在假装能发。空态直接 `disabled`——点不动、键盘跳过、读屏念「已停用」，
+            长相和行为这才是同一件事。running 态是「停止」，永远可按。 */}
         <button
           type={running ? 'button' : 'submit'}
+          disabled={!running && !canSend}
           aria-label={running ? t('agentPanelV4.stop') : t('agentPanelV4.send')}
           className={cn(
             'grid size-[30px] shrink-0 place-items-center rounded-pill',
             running
               ? 'border-[1.5px] border-nomi-ink bg-nomi-paper text-nomi-ink'
-              : // 有东西可发才点亮（文本或已挂 chip）。画布自己两种画法都出现过——
-                // 高度① 那格（专门讲空框）画的是灰钮，Flow 三板画的是深钮。
-                // 取「空框不该假装能发」这一条：它是那格的**论点**，另两处只是背景。
-                value || chips?.length
+              : canSend
                 ? 'bg-nomi-ink text-nomi-paper'
                 : 'bg-nomi-ink-10 text-nomi-ink-40',
           )}

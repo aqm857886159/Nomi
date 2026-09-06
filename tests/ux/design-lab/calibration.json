@@ -1,8 +1,7 @@
 {
   "version": 2,
   "pendingApprovalScreens": {
-    "editing": "2026-09-06 · 剪辑面这一族浮层刚登记进实验室，接触表还没给用户看过；拍板后跑 pnpm run design-lab:update 录基线，并**删掉本条登记**。",
-    "agent-panel-v4": "2026-09-06 · v4 面板刚从「44 个状态全渲整块面板」返工成「按积木分格」，接触表还没给用户看过；拍板后跑 pnpm run design-lab:update 录基线，并**删掉本条登记**。"
+    "editing": "2026-09-06 · 剪辑面这一族浮层刚登记进实验室，接触表还没给用户看过；拍板后跑 pnpm run design-lab:update 录基线，并**删掉本条登记**。"
   },
   "calibratedPlatform": "darwin",
   "viewport": {

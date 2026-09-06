@@ -127,9 +127,8 @@ Flow 三板 + Rendering + Dark + Collapsed 画的是整块面板 → 才渲整�
 - `src/workbench/ai/v4/agentPanelV4Logic.test.ts`：高度三档 + 收起坞档 + 逐行长 + 封顶 + chip 行；权限三档 ↔ 合同两字段（含与 `DEFAULT_PROJECT_AGENT_APPROVAL_POLICY` 的一致性）+ 「不再问」抬档；Enter / Shift+Enter / IME composition。
 - `src/workbench/ai/v4/agentPanelV4Blocks.test.ts`：8 个积木**逐状态**渲染断言（Tool 七态、Task 五态、介入槽八 kind 各自 `data-*`；采用是描边不是填底；失败带原因与「未扣费」；空队列不渲染；composer 底栏四个控件齐全且无语音钮；高度写进 `data-height`）。共 56 条。
 - `pnpm run design-lab:walk:v4`：57 态逐个渲染 + 非空断言 + 零 pageerror + 拼接触表。
-- `check:design-lab`：结构道（注册表可解析、id 唯一、基线↔注册表一一对应、实验室代码类型检查）。
-  视觉基线**未录**——`calibration.json` 的 `pendingApprovalScreens` 里登记了 `agent-panel-v4`：
-  这一屏还没被用户看过，现在录基线只会把「今天碰巧长这样」钉成「应该长这样」。拍板后跑 `design-lab:update` 并删掉那条登记。
+- `check:design-lab`：结构道（注册表可解析、id 唯一、基线↔注册表一一对应、实验室代码类型检查）
+  **＋ 视觉道**——2026-09-06 用户看完接触表拍板后已录基线，见下节。
 
 ## 顺手修掉的两个走查坑
 
@@ -139,3 +138,59 @@ Flow 三板 + Rendering + Dark + Collapsed 画的是整块面板 → 才渲整�
    `lsof` 命令 + 「别 kill 别人的 dev server，换端口」。本屏端口改 5241。
 2. **32px 宽的件会被判成「没渲染出来」**：走查的非空判据是 `width < 40`，而收起坞 rail 本来就是 32px。
    把它放进同一个 `Piece` 取景框（左边留出它贴着的内容区），不动那条判据——判据在，别的空舞台才拦得住。
+
+## 2026-09-06 用户拍板：57 态认可，两处改动
+
+接触表（`artifacts/design-lab/agent-panel-v4/contact-sheet.png`，57 态平铺）用户逐格看过，
+**55 态照收**，点名改两处。两处都改完并重跑了走查，改后的图我自己逐张开过。
+
+### 改动 1 · 介入槽头部底色要蓝的，不要粉的
+
+用户看到的是事实：八张介入槽的头部、以及所有 accent 选中态（选项 chip、技能 chip、计划槽头）
+在浅色主题下都是**淡粉**的。但根因不在这一屏——**代码里引的一直就是 `--nomi-accent-soft`（蓝）**，
+一行粉色 token 都没有。粉是渲染出来的：
+
+| 层 | 值 | 结果 |
+|---|---|---|
+| token 定义（`tailwind.config.ts` / `nomi-tokens.css`） | `color-mix(in srgb, var(--nomi-accent) 12%, var(--nomi-paper))` | `color(srgb 0.899 0.935 0.968)` = **淡蓝** ✅ |
+| Tailwind 映射 `tokenColor()` 再包一层 | `color-mix(in oklch, var(--nomi-accent-soft) calc(1*100%), transparent)` | `oklch(0.946 0.0148 **none**)` = **淡粉** ❌ |
+
+`none` 是关键：oklch 是极坐标，色相是独立分量；Chromium 把**低彩度**色转进 oklch 时会把色相
+判成 powerless 写成 `none`、**却把彩度留着**，`none` 落地当 h=0 —— 于是淡蓝被渲染成淡粉。
+实测（Chromium 140，浅色）：`rgb(229 238 247)`（c≈0.015）→ `h=none`；`rgb(30 80 200)`（c≈0.19）→ `h=263.5` 稳。
+所以 `--nomi-accent` 本身一直是对的，只有 `-soft` 那一族 12% 淡底中招。
+
+这也是 2026-08-02 那次修（`d99f2ef6b`「accent-soft 混出来是粉/橄榄绿」）的**残留**：
+那次只把 token 定义的内层从 `in oklch` 改成 `in srgb`，外层 `tokenColor()` 这一包还在 oklch，
+病灶原地搬了个家。`check:design-tokens` 的第 5 类门岗当时还写下「混 transparent 不受影响
+（实测色相恒等）」放行 —— 那条实测只在高彩度操作数上成立，本轮已在 `scripts/lib/colorMixHue.mjs`
+把这条假前提改成真话（并写清为什么这道门岗现在还够不到这一族）。
+
+**修法**：`tokenColor()` 的混合空间 `in oklch` → `in oklab`。oklab 是直角坐标、**没有色相分量**，
+无从可漂；对 55 个 token × 明暗两套逐一比对过渲染值，除上述被染粉的几个外恒等。
+一行 hex 没写，token 引用一个字没动 —— 改的是让引用能正确落地的那一层（P2 修根因）。
+
+**波及面（诚实标注）**：这是全 App 的修复，不止本屏。已拍板的 `agent-panel` 屏 46 张基线里有
+5 张含 accent-soft 面（`form-08-plan-card` / `live-01-intervention-approval` /
+`live-02-intervention-missing` / `live-06-empty-panel` / `p0-04-plan-many`）随之从粉转蓝，
+本轮一并更新。这 5 张**没有设计改动**，只是把「淡粉」换成设计系统本来就规定的「淡蓝」。
+另注：这 5 张在旧基线下其实**是绿的** —— pixelmatch 在 `threshold: 0.2` 下算出来的色差
+（≈67，阈值 ≈1409）远够不着判异，所以视觉门岗本来就看不见这类低彩度跑色。
+这不是本轮要动的东西，但值得记一笔：**这道门岗拦得住间距/控件/明度，拦不住淡底色相**。
+
+### 改动 2 · 空输入时发送钮不亮（真 disabled）
+
+原来空态已经是灰的（`bg-nomi-ink-10 text-nomi-ink-40`），但**只是长相**：钮照样能按，
+Enter 也照样走 submit —— 那还是在假装能发。现在空态直接 `disabled`：点不动、键盘跳过、
+读屏念「已停用」，长相和行为终于是同一件事。
+
+「有东西可发」收成**一个**判据 `canSend = Boolean(value.trim() || chips?.length)`，
+发送钮的长相、它的 `disabled`、Enter 那条路三处同源（以前 Enter 那条路根本没判过），
+免得以后有人只改其中一处又漂开。`running` 态是「停止」，永远可按。
+顺带把 `value ||` 收紧成 `value.trim()`：一串空格不再点亮发送。
+
+### 基线已落
+
+- `pnpm run design-lab:update` 录 `tests/ux/design-lab/__baselines__/agent-panel-v4/` 共 **57 张**；
+- `calibration.json` 的 `pendingApprovalScreens` 里 `agent-panel-v4` 那条**已删**（`editing` 屏仍在册，未拍板，本轮没碰它的基线）；
+- `pnpm run check:design-lab` 视觉道 **104 passed**（agent-panel 46 + agent-panel-v4 57 + 注册表比对）。
