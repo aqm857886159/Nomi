@@ -1,0 +1,192 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-07-prior-art-not-enforced",
+  "problem_type": "the repository rewards shipping and never penalises skipping the search, so 'has anyone already done this' only happens when the user asks for it in person",
+  "symptom": "The user has repeatedly had to say, in person, 'go check whether someone already did this' before any prior-art search happened. The 2026-09-06 #546 pi SDK review is the loudest instance (five capabilities pi already ships were each re-written, worse), and #547 is the sibling: canvas-writing tools that a real model passed 0 of 18 times, shipped behind all-green unit tests. In every case the checking was easy and the checkers were capable; the check simply had no moment at which it was forced.",
+  "direct_cause": "Nothing in the repository could observe the absence of a prior-art search. A dispatch brief states a goal and an acceptance bar; no field of it says 'first prove nobody already built this'. The rules that ask for the search (R5 Context7, R6 read the neighbours, R20 build-vs-buy, R29 four-column table) are prose reminders injected into a prompt, and a reminder's hit rate falls as context pressure rises - which is exactly the condition of an implementation task.",
+  "class_root": "Three mechanisms, all structural rather than individual. (1) The scoring function only counts output: 'built it' scores, 'searched, found it already exists, wrote nothing' looks like an empty turn, so skipping the search is the locally optimal strategy for every executor. (2) The dispatch document has no slot for the search, so each executor sees only its own slice and nobody holds the question. (3) A discipline that lives only in prose is invisible under load - the same mechanism as 2026-09-07's framework-boundary contract, one layer upstream: that one covered 'a capability the framework already provides', this one covers the decision to write anything at all. The identical shape produced the hooks failure in this contract's scope: a guard that only exists after `pnpm install` is a guard by luck, and a docs-only session that skips install has none of it, silently.",
+  "affected_population": [
+    "Every implementation dispatch in this repository - to a Claude subagent, to Codex, or to the orchestrator itself - that could have reused something already present in node_modules, in the repository, or in the open-source ecosystem",
+    "Every worktree that has not run `pnpm install`: before this change it had zero PreToolUse interception, so `git commit --no-verify`, `git -c core.hooksPath=...` and the secret scan were all silently absent. This machine routinely carries 20+ worktrees and docs-only sessions deliberately skip install",
+    "Every corrective change: the root-cause flow is executed one fix at a time, so 'this module has now taken its third contract this week' had no owner and nobody counted"
+  ],
+  "scope_paths": [
+    "scripts/check-prior-art.mjs",
+    "scripts/prior-art-lib.mjs",
+    "scripts/gen-dependency-capabilities.mjs",
+    "scripts/dependency-capabilities-lib.mjs",
+    "scripts/check-symptom-cluster.mjs",
+    "scripts/symptom-cluster-lib.mjs",
+    "scripts/install-claude-hooks.cjs",
+    "scripts/claude-hooks-registry.cjs",
+    "scripts/root-cause-contracts.mjs",
+    "scripts/framework-boundary-lib.mjs",
+    "scripts/check-framework-boundary.mjs",
+    ".claude/settings.json",
+    ".github/workflows/quality-gate.yml"
+  ],
+  "entry_points": [
+    "pnpm run check:prior-art (plan documents on every contracts run; the PR-body rule additionally on the pull_request event, fed by PRIOR_ART_PR_BODY in .github/workflows/quality-gate.yml)",
+    "pnpm run check:dependency-capabilities (the machine-extracted capability inventory must match the installed versions)",
+    "pnpm run check:symptom-cluster (three root-cause contracts in one module inside seven days demand a structural review first)",
+    "pnpm run check:claude-hooks, whose judgement now lives in scripts/claude-hooks-registry.cjs: every hook must be registered in the committed .claude/settings.json and point at scripts/claude-hooks/",
+    "scripts/root-cause-contracts.mjs, which from 2026-09-07 requires invariant_owner_layer on every dated corrective contract"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://code.claude.com/docs/en/settings",
+      "checked_at": "2026-09-07",
+      "purpose": "Confirm the supported way to make hooks travel with a checkout: the settings precedence table names .claude/settings.json as the shared project file ('In a git repository, commit it so teammates get it') and .claude/settings.local.json as the per-person override. This is why the fix deletes our own installer instead of hardening it."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://danger.systems/js/",
+      "checked_at": "2026-09-07",
+      "purpose": "Prior art for the PR-body rule (R20 build-vs-buy). Danger JS does enforce policy over a PR's body and diff, but it brings a dependency and its own DSL for a judgement that is 40 lines here, and the judgement itself is this repository's dispatch discipline rather than a general problem."
+    }
+  ],
+  "invariants": [
+    "A plan document dated on or after 2026-09-07 cannot land without a 先查别人 section carrying at least three entries that each cite a URL or a file:line. An entry without a citation reads as 'I checked' and is not accepted as evidence.",
+    "A pull request changing more than 300 lines under src/ or electron/ cannot pass the contracts job unless its body references a plan document that itself passes the section rule.",
+    "Every hook this repository relies on exists after a bare `git checkout`, with no install step: .claude/settings.json is committed and every command in it must resolve to an existing script under scripts/claude-hooks/. A command pointing at .claude/hooks/ - the old install-only location - fails the gate by name.",
+    "A registered hook script and a written hook script cannot diverge: every *.sh under scripts/claude-hooks/ must be registered, and any leftover copy under .claude/hooks/ fails the gate (P1: no parallel versions).",
+    "The machine-extracted capability inventory cannot silently age: if an inventoried package's version or extracted word list changes, check:dependency-capabilities fails until the inventory is regenerated and its diff read by a human.",
+    "A dated corrective contract must name the layer that owns the repaired invariant and whether that layer has tests; 'none' is an allowed and honest answer, but only with a structural ticket attached, so an unowned invariant is recorded as debt instead of quietly becoming nobody's.",
+    "Three contracts against one module inside seven days fail the contracts chain until a structural review dated no earlier than the last of them, naming that module, exists under docs/audit/."
+  ],
+  "generality_proof": "None of the four gates encodes anything about pi, about hooks, or about any particular past mistake. check:prior-art scans every plan document by date and every large PR by diff size, so it fires on the next dispatch regardless of subject. gen:dependency-capabilities reads whatever packages are listed in capabilityInventory.packages - adding a framework is one line, no new code path. The hook registration check derives its requirement from the contents of scripts/claude-hooks/, so a hook added next month is covered the day it is written, and its judgement is a pure function (scripts/claude-hooks-registry.cjs) proven against synthetic trees rather than against today's tree. check:symptom-cluster groups by two-segment module key over all of docs/fixes, so it fires on whichever layer starts recurring next, and its window logic is proven on synthetic dates. invariant_owner_layer applies to every dated corrective contract, not to a class of bug. Each gate ships with a node-test that proves the red direction on a synthetic fixture (R17), so the guarantees do not depend on today's tree staying as it is.",
+  "shared_boundaries": [
+    {
+      "path": "scripts/check-prior-art.mjs",
+      "symbol": "the plan scan plus the pull-request evaluation",
+      "responsibility": "Own the single moment at which an implementation can begin without a prior-art search: every contracts run reads the governed plan documents, and the pull_request event additionally reads the PR body against the diff budget."
+    },
+    {
+      "path": "scripts/claude-hooks-registry.cjs",
+      "symbol": "validateRegistration",
+      "responsibility": "Own the question 'are the guards actually attached' as a pure function: every hook command must resolve to a versioned script inside the repository, every written script must be registered, and no install-only copy may survive."
+    },
+    {
+      "path": "scripts/symptom-cluster-lib.mjs",
+      "symbol": "findClusters and evaluateClusters",
+      "responsibility": "Own the signal that no single fix can see - the same layer taking its third contract inside a week - and convert it into a demand for a structural review before the fourth fix."
+    },
+    {
+      "path": "scripts/root-cause-contracts.mjs",
+      "symbol": "validateInvariantOwnerLayer",
+      "responsibility": "Own the third question every repair must answer: which layer holds this invariant from now on, and does that layer have tests."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "docs/plan/2026-09-07-rules-round2-adversary-inventory.md",
+      "entry_point": "a newly written plan document (the dispatch-time entry)",
+      "disposition": "enforced",
+      "evidence": "This plan is the first document governed by the new rule: it carries a 先查别人 section with five sourced rows, including the one row that honestly reports 'not checked' for the self-media question rather than inventing coverage. Removing the section makes check:prior-art exit 1 naming the file (proven in scripts/check-prior-art.node-test.mjs and by an R17 probe on the real tree)."
+    },
+    {
+      "path": ".github/workflows/quality-gate.yml",
+      "entry_point": "the contracts job on a pull_request event (the merge-time entry)",
+      "disposition": "enforced",
+      "evidence": "PRIOR_ART_PR_BODY and PRIOR_ART_BASE_REF are injected at job level, so a PR that changes more than 300 lines of src/ or electron/ without referencing a qualifying plan fails there even when no plan document was added in the diff. This is a different entry from the plan scan: one catches the author who writes no plan, the other the author who writes a plan nobody links."
+    },
+    {
+      "path": "scripts/claude-hooks/commit-bypass-check.sh",
+      "entry_point": "PreToolUse(Bash) in a worktree that never ran pnpm install",
+      "disposition": "enforced",
+      "evidence": "The same guard, in the same class of failure: a defence that exists only after an install step. .claude/settings.json is now committed and points at scripts/claude-hooks/, so a bare `git worktree add` has the commit-bypass, push and secret guards from its first command. Verified on a freshly created worktree with no node_modules: the hook exits 2 on `git commit --no-verify`."
+    },
+    {
+      "path": "docs/fixes/2026-09-07-framework-boundary-not-enforced.root-cause.json",
+      "entry_point": "the framework-boundary gate one layer downstream",
+      "disposition": "not-affected",
+      "evidence": "It already enforces 'a capability the framework provides must not grow a second implementation', and it stays exactly as it is. This contract sits upstream of it - the decision to write anything at all - and downstream adds only a non-blocking advisory heuristic to the same script. Changing that gate's judgement here would have been a second implementation of the very thing it guards."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The mechanism is a scoring function, not an incident: as long as shipping scores and searching does not, every executor on every task has an incentive to skip the search, on any machine, in any session. It has already recurred across unrelated subjects - five capabilities inside one SDK adoption (#546), the tool-argument fixture (#547), and the hooks-only-after-install shape that made the guards optional in more than twenty worktrees.",
+    "same_class_scan": [
+      "Read https://code.claude.com/docs/en/settings on 2026-09-07 and confirmed the shared/local settings split, which is why the installer is deleted rather than hardened - our own installer was itself an instance of this contract's class root.",
+      "Probed the new-violation direction for each gate on the real tree (R17): a dated plan without the section made check:prior-art exit 1; an unregistered hook script made check:claude-hooks exit 1; a hook command pointing back at .claude/hooks/ made it exit 1; a synthetic third contract in one module made check:symptom-cluster exit 1. Each probe was then removed and each gate returned to green.",
+      "Ran check:symptom-cluster against the existing 217 contracts: 37 clusters exist historically, all before the 2026-09-07 threshold and therefore reported and not enforced - the count is printed rather than hidden, so 'never clustered' cannot be inferred from a green line.",
+      "Scanned the repository for other guards that only exist after an install step: install-git-hooks.cjs installs .git/hooks, which git itself requires to live outside the tree, so it is not the same shape; the Claude harness hooks were the only defence whose location was our own choice.",
+      "Checked the ecosystem before writing: Danger JS (PR policy), ADR (decision records) and api-extractor (API reports) are the three nearest tools; each is recorded in the plan's 先查别人 table with why it was not adopted."
+    ]
+  },
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/check-prior-art.mjs",
+    "invariant": "An implementation cannot enter the repository without a machine-readable prior-art trail: a governed plan document must carry a 先查别人 section with at least three sourced entries, and a large production change must reference such a document from its pull-request body.",
+    "failure_mode": "Fail-closed and loud on both entries. A governed plan missing the section, or carrying fewer than three sourced entries, exits 1 naming the file and printing the four template questions. On a pull_request event an empty or non-referencing body over the 300-line budget exits 1. Where the gate genuinely cannot see - no PR context locally, or no trustworthy base for the diff - it says so on its own line and does not report a pass it did not verify.",
+    "exception_policy": "none",
+    "strategy": "Move the requirement out of prose and into the one artefact read on every change, and put it at the moment the work is dispatched rather than after it is written. Writing a sixth reminder would fail exactly the way R5, R6, R20 and R29's prose halves failed, because the shortfall was never knowledge - it was that no machine could observe the absence. The date threshold keeps the gate quiet on history: a gate that is red on arrival gets ignored, and an ignored gate is worse than none (R17).",
+    "artifacts": [
+      "scripts/check-prior-art.mjs",
+      "scripts/prior-art-lib.mjs",
+      "scripts/check-prior-art.node-test.mjs",
+      "scripts/gen-dependency-capabilities.mjs",
+      "scripts/dependency-capabilities-lib.mjs",
+      "scripts/check-symptom-cluster.mjs",
+      "scripts/symptom-cluster-lib.mjs",
+      "scripts/claude-hooks-registry.cjs",
+      "scripts/install-claude-hooks.cjs",
+      "scripts/root-cause-contracts.mjs",
+      "scripts/framework-boundary-lib.mjs",
+      "scripts/check-framework-boundary.mjs",
+      ".claude/settings.json",
+      ".gitignore",
+      "package.json",
+      ".github/workflows/quality-gate.yml",
+      "docs/engineering/framework-boundaries.json",
+      "docs/engineering/agent-orchestration-playbook.md",
+      "docs/engineering-rules.md",
+      "CLAUDE.md"
+    ]
+  },
+  "invariant_owner_layer": {
+    "layer": "scripts/check-prior-art.mjs",
+    "tests": [
+      "scripts/check-prior-art.node-test.mjs",
+      "scripts/check-symptom-cluster.node-test.mjs",
+      "scripts/install-claude-hooks.node-test.mjs",
+      "scripts/dependency-capabilities.node-test.mjs"
+    ],
+    "structural_ticket": "docs/plan/2026-09-07-rules-round2-adversary-inventory.md"
+  },
+  "regression_tests": [
+    "scripts/check-prior-art.node-test.mjs",
+    "scripts/check-symptom-cluster.node-test.mjs",
+    "scripts/install-claude-hooks.node-test.mjs",
+    "scripts/dependency-capabilities.node-test.mjs",
+    "scripts/check-framework-boundary.node-test.mjs",
+    "scripts/check-root-cause-contracts.node-test.mjs",
+    "scripts/check-quality-gate-workflow.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/check-prior-art.node-test.mjs",
+    "scripts/check-symptom-cluster.node-test.mjs",
+    "scripts/install-claude-hooks.node-test.mjs",
+    "scripts/check-root-cause-contracts.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "No superseded path survives to list, and the one that was superseded cannot be named here for a mechanical reason worth stating rather than hiding: the old registration source scripts/claude-hooks/settings.hooks.json was not deleted-and-replaced but moved into the committed .claude/settings.json, and git records that as a rename, so the old path never appears as a separate deletion in the diff this gate reads. The removal is nonetheless complete and machine-checked from the other side: the gitignored install copies under .claude/hooks/ are deleted by install-claude-hooks.cjs and any reappearance fails check:claude-hooks by name, so two registrations cannot coexist (P1). Listing a path the gate cannot see would have been a claim rather than evidence."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party runtime or protocol version governs these gates; they are node scripts over this repository's own documents, contracts and settings. The one external contract involved - Claude Code's settings precedence - is a documented convention rather than a pinned dependency, and using it removes code instead of adding a version to track.",
+    "exit_criteria": []
+  },
+  "migration": "No runtime migration; no product code changes. Existing branches see the four gates as green: plans, contracts and clusters before 2026-09-07 are exempt by date, and the framework-boundary heuristic is advisory. One manual step exists for machines that already have an untracked .claude/settings.json: because that file is now tracked, the first checkout of this branch will refuse to overwrite it - move personal env/permissions into .claude/settings.local.json (or delete the file, which in a worktree only holds the old hooks block) and check out again. The next `pnpm install` performs the same migration automatically for anyone who already merged.",
+  "residual_risks": [
+    "The plan gate judges form, not content: three links and a conclusion sentence pass whether or not the search behind them was serious. This is deliberate - a gate that tried to judge quality would start misjudging, and a misjudging gate gets routed around - so R27's adversary step and the orchestrator's own acceptance remain the judges of substance.",
+    "The PR rule only fires on the pull_request event. A change merged straight to main, or a PR whose body is edited after the contracts job ran, is not re-checked. Branch protection and the main push CI remain the backstop, as they already are for every other contract gate.",
+    "The 300-line budget is a guess at the boundary between an incidental fix and an implementation. If it turns out to catch mostly mechanical refactors, the honest correction is to change the number in scripts/prior-art-lib.mjs with a reason recorded, not to add per-directory exceptions that would grow into a waiver list.",
+    "The capability-word heuristic in check:framework-boundary is advisory only, so today it prevents nothing; its promotion criteria and review date live in docs/engineering/framework-boundaries.json under advisory.promotion, and if that review never happens the heuristic quietly stays decorative.",
+    "The capability inventory cannot be verified on a machine without node_modules: absent packages are warned about and skipped, because reddening on something that cannot be extracted would only teach people to delete the rule.",
+    "Committing .claude/settings.json means a future contributor could add machine-local keys to it; the gate rejects env and permissions specifically, but a new local-only key invented by a future Claude Code version would not be recognised until the list is extended."
+  ]
+}
