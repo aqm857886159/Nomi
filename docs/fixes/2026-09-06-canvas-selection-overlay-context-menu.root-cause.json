@@ -1,0 +1,130 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-06-canvas-selection-overlay-context-menu",
+  "problem_type": "画布右键落点用「不是节点 = 空白」的反向定义判断，覆盖在选中节点之上的图层被误判成空白并触发清选择",
+  "symptom": "shift 拖框选 ≥2 个生成节点后在选区上右键：选择被当场清空，弹出的是「添加节点」菜单而不是节点操作菜单，「建组」这条路凭空消失（真机实测 nodeMenu=0 / addMenu=1 / selectionToolbar=0，见 tests/ux/shots/group-frame-now/00b2、00b3 与 facts.json）",
+  "direct_cause": "useCanvasContextNodeMenu.prepareContextMenuPointerDown 只用 target.closest('.generation-canvas-v2-node') 取 nodeId。框选完成后 React Flow 在整片选中节点之上铺 .react-flow__nodesselection-rect，右键命中的是这层罩子，closest 取不到 data-node-id，nodeId 为 null，于是 finishContextMenuPointerUp 走 clearSelection() 并让 Overlays 渲染「添加节点」菜单",
+  "class_root": "「画布空白」是反向定义的：命中节点选择器才算节点，其余一律当空白。画布上还存在第三类落点——代表当前选中集的覆盖图层——反向定义把它整类吞进空白，于是任何盖在节点之上的选中集图层都会让右键清掉用户刚做出的选择",
+  "affected_population": [
+    "所有用 shift 框选（React Flow box-select）多选节点后想在选区上右键的用户",
+    "任意主题、任意窗口尺寸、任意节点种类：判定只看 DOM 命中，与数据无关",
+    "@xyflow/react 当前及后续版本中所有 nodesselection 图层实现"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/components/canvasPointerGestureModel.ts",
+    "src/workbench/generationCanvas/components/useCanvasContextNodeMenu.ts",
+    "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowOverlays.tsx"
+  ],
+  "entry_points": [
+    "画布 stage 的 onPointerDownCapture → prepareContextMenuPointerDown（右键落点判定）",
+    "画布 stage 的 onPointerUp → finishContextMenuPointerUp（决定清不清选择、弹哪个菜单）",
+    "GenerationCanvasReactFlowOverlays 的菜单选型"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "不变量是本仓自己的右键语义（哪种落点允许清选择），第三方文档不决定它；罩子的类名另有仓内真相源（generationCanvasReactFlow.css 给它上皮肤），已用交叉断言钉住",
+  "invariants": [
+    "只有『既不命中节点、也不命中当前选中集覆盖层』的右键才允许被当成空白，也只有这一支允许清选择",
+    "命中选中集覆盖层的右键 = 对当前选中集右键：弹节点操作菜单，选择原样不动",
+    "『这次右键点的是什么』只有一份判据，住在模型层，hook 与渲染层都从它读"
+  ],
+  "generality_proof": "落点判定从「反向排除」改成模型层一张正向三分表 resolveCanvasContextMenuTarget（node / selection / blank），hook 只负责把 DOM 命中结果喂给它、渲染层只根据 target 选菜单。任何新的『代表选中集的覆盖层』只需登记进 CANVAS_SELECTION_OVERLAY_SELECTOR 一处，不会再出现某个调用方忘记排除某图层而把用户选择清掉；clearSelection 现在被写死在 target === 'blank' 这一支，nodeId 是否存在不再充当菜单选型的替身判据",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/components/canvasPointerGestureModel.ts",
+      "symbol": "resolveCanvasContextMenuTarget",
+      "responsibility": "画布右键落点三分的唯一真相表：命中节点 / 命中当前选中集覆盖层 / 真空白；只有真空白允许清选择"
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/canvasPointerGestureModel.ts",
+      "symbol": "CANVAS_SELECTION_OVERLAY_SELECTOR",
+      "responsibility": "「哪些 DOM 图层代表当前选中集」的唯一登记处，供落点判定使用"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/components/useCanvasContextNodeMenu.ts",
+      "entry_point": "prepareContextMenuPointerDown / finishContextMenuPointerUp",
+      "disposition": "enforced",
+      "evidence": "两处改为从 resolveCanvasContextMenuTarget 读 target；clearSelection 只在 target === 'blank' 时执行。canvasControlsStructure.test.ts 的 'routes the right-click landing through one three-way arbiter' 钉死这两条，并断言 hook 内不再出现第二份 nodesselection 清单"
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowOverlays.tsx",
+      "entry_point": "contextNodeMenu 菜单选型",
+      "disposition": "enforced",
+      "evidence": "由 contextNodeMenu?.nodeId 改为 contextNodeMenu.target !== 'blank'。nodeId 不再兼任『是不是节点菜单』的判据，同一结构测试断言旧写法不得复活"
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowPointer.ts",
+      "entry_point": "handleCanvasPointerDownCapture / handleCanvasPointerDown",
+      "disposition": "not-affected",
+      "evidence": "平移与框选的空白判据是正向的 event.target.closest('.react-flow__pane')——罩子不是 pane，本来就不会被当成空白；左键落在罩子上由 React Flow 自己的 NodesSelection 拖拽接管（拖整批），语义正确"
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/canvasConnectionDropTarget.ts",
+      "entry_point": "resolveCanvasDropTargetFromDom",
+      "disposition": "not-affected",
+      "evidence": "连线落点用 querySelectorAll + getBoundingClientRect 的几何包含判定，不做 elementFromPoint/closest 的顶层命中，罩子盖在上面不影响；连线起点只能从节点上的 handle 发起，罩子上没有 handle"
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "entry_point": "onPaneClick={handlePaneClick}",
+      "disposition": "not-affected",
+      "evidence": "React Flow 只在 pane 本身被点时派发 onPaneClick，罩子上的点击不会触发它；画布上没有『双击空白建节点』这条路（generationCanvas 下无画布级 onDoubleClick），所以双击不在本类内"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "同一机制不依赖这一个图层：只要画布上再出现一层盖在节点之上、且不带 data-node-id 的覆盖层（React Flow 升级换名、或本仓新增选中集装饰），反向定义就会再次把它吞成空白并清掉用户的选择。罩子类名还由第三方版本决定，本仓无法靠自觉记得排除",
+    "same_class_scan": [
+      "grep -rn \"nodesselection\" src/ tests/：修复前仅 generationCanvasReactFlow.css 与 canvasControlsStructure.test.ts 命中，落点判定层零命中——即『判定层根本不知道有这层东西』",
+      "grep -rn \"closest\\('\\.generation-canvas-v2-node'\\)|data-node-id\" src/workbench/generationCanvas/：逐一核对了 useCanvasContextNodeMenu、useGenerationCanvasReactFlowPointer、canvasConnectionDropTarget 三处 DOM 命中判定的口径",
+      "grep -rn \"onDoubleClick|onPaneClick|onSelectionEnd\" src/workbench/generationCanvas/：确认画布级双击没有『空白建节点』动作，onPaneClick 只由 pane 派发",
+      "真机取证：tests/ux/shots/group-frame-now/facts.json 的 marqueeAftermath 记录 topAtNodeCenter=react-flow__nodesselection-rect、右键后 nodeMenu 0 / addMenu 1 / selectionToolbar 0"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/components/canvasPointerGestureModel.ts",
+    "invariant": "画布右键落点只能由 resolveCanvasContextMenuTarget 判成 node / selection / blank 三者之一；clearSelection 与「添加节点」菜单只允许出现在 blank 这一支",
+    "failure_mode": "命中选中集覆盖层时返回 'selection'，走节点菜单且不动选择；判据本身认不出的落点保持既有 blank 语义（右键仍有可见反馈，不会变成死右键）",
+    "exception_policy": "none",
+    "strategy": "把『这次右键点的是什么』从三个调用方各自的 closest 判断收进模型层一张正向表，覆盖层清单只登记一处；渲染层改看 target 而不是拿 nodeId 当替身，nodeId 退回纯数据",
+    "artifacts": [
+      "src/workbench/generationCanvas/components/canvasPointerGestureModel.ts",
+      "src/workbench/generationCanvas/components/useCanvasContextNodeMenu.ts",
+      "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowOverlays.tsx"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/components/canvasPointerGestureModel.test.ts",
+    "src/workbench/generationCanvas/components/canvasControlsStructure.test.ts",
+    "tests/ux/canvas-marquee-group.walk.mjs"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/components/canvasPointerGestureModel.test.ts",
+    "src/workbench/generationCanvas/components/canvasControlsStructure.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/components/useCanvasContextNodeMenu.ts",
+      "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowOverlays.tsx"
+    ],
+    "rationale": "同 commit 删掉旧判据：hook 里『nodeId 为空即清选择』的分支被 target === 'blank' 取代，Overlays 里 contextNodeMenu?.nodeId 作为菜单选型判据被 target !== 'blank' 取代。没有并行版、没有 fallback；结构测试断言旧写法不得复活"
+  },
+  "dependency_lifecycle": {
+    "decision": "retain-with-exit",
+    "rationale": "罩子由 @xyflow/react 渲染，类名 .react-flow__nodesselection-rect 是它的实现细节。当前版本行为已由真机走查证实，不需要升级；风险是未来升级换名后选择器悬空。退出判据是可机器验的：canvasPointerGestureModel.test.ts 拿画布 CSS 作为同一类名的第二真相源做交叉断言，走查另有『节点中心的最顶层元素必须是罩子』的现场断言，换名会让两者一起报红而不是静默失效",
+    "exit_criteria": [
+      "升级 @xyflow/react 时 canvasPointerGestureModel.test.ts 的 'points the selection-overlay selector at the class React Flow actually renders' 必须仍绿，否则同步更新 CANVAS_SELECTION_OVERLAY_SELECTOR 与画布 CSS",
+      "tests/ux/canvas-marquee-group.walk.mjs 的现场断言（节点中心最顶层元素是选中集罩子）必须仍绿"
+    ],
+    "current": "@xyflow/react 12.11.5",
+    "target": "保持当前版本（无需升级）；升级时按 exit_criteria 两条断言核验罩子类名"
+  },
+  "migration": "无数据或持久化涉及：改的只是一次指针事件的落点分类，不写 store、不改 schema、不影响任何已存工程",
+  "residual_risks": [
+    "组框（GroupFrame，[data-group-id]）上的右键仍然弹「添加节点」菜单：它同样是一层盖在节点之上的画布对象，但它不是『当前选中集的罩子』——右键它时组成员未必处于选中态（handleGroupFramePointerDown 只接 button===0），把它并入 'selection' 会让菜单作用在陈旧选择上。组的右键菜单本身是尚未设计的能力（画布上组没有右键菜单、没有改名、没有颜色，见 tests/ux/shots/group-frame-now/README.md §2），需要样张与用户拍板后单独交付，不在本次修复范围",
+    "Windows / Linux 上未真机复验：本次证据全部来自 macOS 真 Electron 构建。判定不含平台分支，风险低但未证"
+  ]
+}

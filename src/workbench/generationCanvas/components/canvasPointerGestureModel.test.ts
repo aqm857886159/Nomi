@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import {
   CANVAS_MENU_TARGET_SELECTOR,
+  CANVAS_SELECTION_OVERLAY_SELECTOR,
+  resolveCanvasContextMenuTarget,
   canvasDragExceededThreshold,
   isCanvasCapturePanPointer,
   isCanvasPanButtonHeld,
@@ -160,5 +164,29 @@ describe('generation canvas pointer arbitration', () => {
     expect(isCanvasContextMenuPointer(0, true, 'iPad')).toBe(true)
     expect(isCanvasContextMenuPointer(0, true, 'Win32')).toBe(false)
     expect(isCanvasContextMenuPointer(0, false, 'MacIntel')).toBe(false)
+  })
+
+  // ── 右键落点三分（2026-09-06 真机取证的那个 bug 的类级不变量）──
+  it('never calls a hit on the selection overlay blank', () => {
+    // 报告的那一例：框选后罩子盖住节点，右键取不到 data-node-id。判成 'blank' 就会清掉刚框好的
+    // 一批 + 弹「添加节点」菜单，「建组」当场不可达。
+    expect(resolveCanvasContextMenuTarget({ nodeId: null, selectionOverlay: true })).toBe('selection')
+    // 类级：罩子的存在与否，永远不能把落点降级成空白——哪怕同时命中节点。
+    expect(resolveCanvasContextMenuTarget({ nodeId: 'gen-1', selectionOverlay: true })).toBe('node')
+    expect(resolveCanvasContextMenuTarget({ nodeId: 'gen-1', selectionOverlay: false })).toBe('node')
+    // 只有两者都不命中才是真空白——这是唯一允许清选择的分支。
+    expect(resolveCanvasContextMenuTarget({ nodeId: null, selectionOverlay: false })).toBe('blank')
+  })
+
+  it('points the selection-overlay selector at the class React Flow actually renders', () => {
+    // 本仓单测跑在 node 环境（无 DOM），选择器本身测不了「命中没命中」。但它指错类名的后果
+    // 和没修一样，所以拿**同一个类名的另一处真相**交叉验：画布 CSS 就是给这层罩子上皮肤的地方。
+    // 罩子换名（React Flow 升级）时这条会红，而不是等到用户又一次框选建不了组。
+    const flowStyles = readFileSync(
+      fileURLToPath(new URL('../reactFlow/generationCanvasReactFlow.css', import.meta.url)),
+      'utf8',
+    )
+    expect(CANVAS_SELECTION_OVERLAY_SELECTOR).toContain('.react-flow__nodesselection-rect')
+    expect(flowStyles).toContain('.react-flow__nodesselection-rect')
   })
 })
