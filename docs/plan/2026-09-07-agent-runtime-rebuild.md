@@ -6,7 +6,7 @@
 > 上游输入（三份，全部吸收）：
 > - [#546 架构总评审](../audit/2026-09-06-agent-architecture-review.md) + [渐进方案](2026-09-06-agent-architecture-master-plan.md)（**它主张渐进修，用户已否决**；四列表 / 漏洞清单 / 三条岔路 / 合流顺序全部吸收）
 > - [#547 工具层审计](../audit/2026-09-06-agent-tool-layer-audit.md) + [根修方案](2026-09-06-agent-tool-layer-root-fix.md)（`canvas.write` 真实模型 **0/18**、读类 37/37、违反行业 10 条）
-> - 成熟 Agent 产品调研（分支 `docs/mature-agent-products-research-20260906`，**文件尚未 commit**，在工作树 `/Users/aoqimin/Desktop/Nomi-agent-products-research/docs/research/2026-09-06-mature-agent-products.md`）——本文引用它的 §1.9 并**独立复验**（见 §0.2）；它 commit 后本文的引用改成仓库路径，标记 **【待并入】**。
+> - [#549 成熟 Agent 产品调研](../research/2026-09-06-mature-agent-products.md)（**已并入 · 2026-09-07 随 PR #549 合入 main**，路径 `docs/research/2026-09-06-mature-agent-products.md`）——它的 §1.9 与本文 §0.2 是**两次相互独立的实核**：它实拉 `0.84.3` / `0.85.1` 两个 tarball，比 `dist/harness/agent-harness.js` 的字节数与 `HarnessNotImplemented` 计数，并读 `agent-harness.d.ts` 确认 `LaneSnapshot` 已带 `streamingMessage` 与 `runningTools`；结论与本文一致——**`AgentHarness` 在 0.85.1 是真实现，#546 §1.5「它是空壳」的判断只对 0.84.3 成立**。两条独立证据同向，是岔路 1 推荐 A 的依据。
 
 ---
 
@@ -395,8 +395,8 @@ toolProjection(registry, profile: "internal" | "mcp") → ModelFacingTool[]
 | `fix/agent-v4-real-use-20260906` | **ahead=6, behind=8**（6 个 commit，非任务书说的 A–H 八个） | **拆开处理**。可先合（重做后仍有效）：`9fed90d4f` 边界层解 JSON 字符串（**正是 §3.4 的正确落点**，重做时升级成 `prepareArguments`）· `b4c918b72` 同名连调折一行 · `425a29953` 模型弹层每类一行 · `e894d0d19` 分镜主语修正 · `a59cf7daa` 实验室加格。**不再叠**：`4bf23ecac`「上下文环补一手文档的窗口表」——它是 pi 免费给的东西（`Model.contextWindow` + `getContextUsage`）的手写替代品，重做后会**直接撞 `check:pi-boundary` 规则 O3**。但它里面「查不到就不画环、改说『已用 12.3k』」那条**产品规则是对的**（D4），单独保留 |
 | `feat/agent-panel-v4-logo-dock-20260906` | 本地分支存在，**未推 origin** | **可合**（纯外观，收起坞 logo 血统）。趁 Dock 文件还没被阶段 4 动 |
 | `fix/design-lab-wired-states-20260906` | **ahead=0, behind=4** —— 已合（PR #544） | 已在 main。它把 `sortedItems()` 第二键从 `itemId` 哈希改成宿主数组下标（`agentPanelV4Projection.ts:247-263`，方向正确）；**阶段 4 会把整个函数删掉**（顺序来自 transcript，不再排序）——PR 里要明写这是**净删**，免得下一个人以为排序键还在用 |
-| `docs/mature-agent-products-research-20260906` | **ahead=0**，研究文件**尚未 commit**（在工作树上） | **待并入**。它的 §1.9（0.85.1 harness 实现）已由本方案独立复验（§0.2）。合入后本文引用改成仓库路径 |
-| `docs/agent-architecture-review-20260906`(#546) / `docs/agent-tool-layer-audit-20260906`(#547) | docs-only | 随时可合，不阻塞任何人。**它们的渐进方案（`master-plan` / `root-fix`）在本方案拍板后应标 ⛔ 被本文取代**，避免两份方案并存 |
+| `docs/mature-agent-products-research-20260906`(#549) | **已合入 main（2026-09-07）** | **已并入**，路径 `docs/research/2026-09-06-mature-agent-products.md`。它的 §1.9（0.85.1 harness 实现）与本文 §0.2 是两次独立实核，结论一致 |
+| `docs/agent-architecture-review-20260906`(#546) / `docs/agent-tool-layer-audit-20260906`(#547) | docs-only | 随时可合，不阻塞任何人。**它们的渐进方案（`master-plan` / `root-fix`）已于 2026-09-07 标 ⛔ 被本文取代**（含 `docs/plan/INDEX.md` 与 doc-status 标记），两份方案不再并存 |
 
 ---
 
@@ -417,6 +417,8 @@ toolProjection(registry, profile: "internal" | "mcp") → ModelFacingTool[]
 **推荐 A，但拍板挂在阶段 0 探针之后**：探针四题全过 → A；任一不过 → B（方案主体不变，只是⑤⑥两层的分工变，⑤ 变厚）。**C 明确不选**，除非探针发现 CJS 兼容是死结。
 **这条为什么必须用户拍**：它是不可逆取舍（升级后回不去），且赌的是一个发布一天的版本。
 
+> ✅ **2026-09-07 用户拍板：按推荐** —— 取 **A**，但拍板挂在阶段 0 探针之后：探针四题全过才推 `0.85.1`，任一不过退 B。
+
 ### 岔路 2 · 转录的真相源放哪
 
 **背后的逻辑**：「这段对话到底发生了什么」现在有三份落盘记录，谁说了算今天没定。重做要往里加「顺序」，就必须先回答加到哪一份。
@@ -431,6 +433,8 @@ toolProjection(registry, profile: "internal" | "mcp") → ModelFacingTool[]
 **推荐 B**。一句话理由：**重做的全部意义就是「不再维护上游已经维护好的东西」；选 A 等于重做完还留着最大的那一件。**
 边界写清楚：**agent 转录 = pi lane；领域状态 = 各自领域存储；两者按 id join，永不互相复制。**
 
+> ✅ **2026-09-07 用户拍板：按推荐** —— 取 **B**，转录真相源 = pi lane transcript，宿主领域记录以 custom entry 骑在同一条流上。
+
 ### 岔路 3 · 模型可见 schema 的语言
 
 **背后的逻辑**：pi 的工具参数类型是 **TypeBox**（`Tool<TParameters extends TSchema>`，`pi-ai/dist/types.d.ts:381`），Nomi 的契约真相源是 **zod**（62 个文件）。今天的做法是 zod → `zodToJsonSchema` → pi 用 ajv 校验一遍 → 我们再用 zod 校验一遍。**两个校验器 = 那 8 行互不标记的报错**（#547 §2.2③：8 行里只有 1 行是真的）。
@@ -443,6 +447,8 @@ toolProjection(registry, profile: "internal" | "mcp") → ModelFacingTool[]
 
 **推荐 A**。理由：真正要消灭的不是「zod 还是 TypeBox」，是**「校验发生两次、错误来自两个不认识对方的验证器」**。A 用一个转换器把校验收成一次，且保住 62 个文件的既有投资；B 的收益（零阻抗）买不回重写 22 个契约的代价。
 **转换器必须自带门岗**（信息不丢），否则它会变成下一个 `tools.mts:47-49`——一个静默抹平 schema 的 override。
+
+> ✅ **2026-09-07 用户拍板：按推荐** —— 取 **A**，zod 保持作者写法，模型可见 schema 只有**单一生成点**，校验只发生一次。
 
 ---
 
