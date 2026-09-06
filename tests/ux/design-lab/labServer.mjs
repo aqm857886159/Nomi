@@ -36,6 +36,8 @@ export const LAB_ROLES = [
   'walk-editing',
   'walk-storyboard',
   'walk-host-config',
+  'walk-vendor-order',
+  'walk-canvas-add-menu',
 ]
 
 // 每棵 worktree 分到一段连续端口，段内按角色的下标取一口。

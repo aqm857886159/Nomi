@@ -568,6 +568,7 @@ export default function InlineParameterBar({
         value={modelSelect.modelValue}
         options={modelSelect.modelOptions}
         onChange={modelSelect.onModelPick}
+        onChipChange={modelSelect.onModelProviderPick}
       />
       {/* 变体（型号）小下拉：紧跟模型芯片（身份级，恒内联）。有变体的模型才显示。 */}
       {catalogVariants || visibleVariants.length > 1 ? (

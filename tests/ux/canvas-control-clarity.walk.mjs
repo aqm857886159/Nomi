@@ -1,7 +1,7 @@
 // 生成画布控件辨识与比例连续性 R13 走查。
 //
 // 真 Electron + 真构建产物，隔离 userData / projects，不触发任何生成请求（零额度）。
-// 验证：9 个节点入口及 tooltip、15 档比例与多供应商始终显式分段、自动比例本地化、面积守恒、
+// 验证：左缘 5 常驻 + 「更多」两段（2026-09-06 第三档）、15 档比例与多供应商始终显式分段、自动比例本地化、面积守恒、
 //       composer/触发器/浮层不漂移、1–4 张显式选择、任务/辅助/配置/主动作分组，以及深浅色与紧凑宽度截图。
 //
 // 用法：pnpm run build && node tests/ux/canvas-control-clarity.walk.mjs
@@ -10,7 +10,7 @@ import { mkdirSync, mkdtempSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { expectVisible, screenshotSettled } from './_assert.mjs'
+import { expectAbsent, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/canvas-control-clarity')
@@ -189,29 +189,73 @@ try {
   await ensureGenerationWorkspace()
   await expectVisible(getWin().locator('.react-flow').first(), '生产生成画布必须挂载 React Flow renderer')
 
-  // ① 左侧栏：9 个入口直接可见，没有省略号，悬浮名称完整。
+  // ① 左侧栏（2026-09-06 第三档）：**5 个常驻 + 一个「更多」**，常驻每颗悬浮名称完整；
+  //    收起去的 5 个必须在「更多」里、且每段有名字。原来那条「9 个平铺」的断言随设计一起退役
+  //    （P1：不留两套期望）——它当时钉的是「没有省略号」，现在钉的是「收纳之后仍然找得到」。
   const toolbar = getWin().locator('.generation-canvas-v2-toolbar').first()
-  const expectedTools = [
-    ['text', '文本节点'],
+  const residentTools = [
     ['image', '图片节点'],
     ['video', '视频节点'],
-    ['clip', '剪辑节点'],
     ['audio', '声音节点'],
-    ['model3d', '3D 模型节点'],
-    ['whiteboard', '画板节点'],
-    ['panorama', '全景图节点'],
-    ['scene3d', '3D 场景节点'],
+    ['clip', '剪辑节点'],
   ]
-  const toolButtons = toolbar.locator('[data-node-kind]')
-  assert((await toolButtons.count()) === expectedTools.length, '左侧 9 个节点入口全部直接可见')
-  assert((await toolbar.locator('[aria-label*="更多"], [aria-label*="省略"]').count()) === 0, '左侧栏没有省略号创建入口')
-  for (const [kind, tooltipText] of expectedTools) {
-    const button = toolbar.locator(`[data-node-kind="${kind}"]`)
-    assert(await button.isVisible(), `${tooltipText}入口可见`)
+  const moreTools = [
+    ['text', '文字'],
+    ['scene3d', '3D 场景'],
+    ['model3d', '3D 模型'],
+    ['panorama', '全景图'],
+    ['whiteboard', '画板'],
+  ]
+  const residentButtons = toolbar.locator('[data-add-intent]')
+  assert(
+    (await residentButtons.count()) === residentTools.length + 1,
+    '左侧常驻恰好 5 个（四种生成 + 导入）',
+    `实测 ${await residentButtons.count()} 个`,
+  )
+  for (const [kind, tooltipText] of residentTools) {
+    const button = toolbar.locator(`[data-add-intent="${kind}"]`)
+    assert(await button.isVisible(), `${tooltipText}常驻入口可见`)
     await button.focus()
     const tooltip = getWin().locator('[role="tooltip"]', { hasText: tooltipText }).last()
     await tooltip.waitFor({ timeout: 2400 })
     assert((await tooltip.textContent())?.trim() === tooltipText, `${tooltipText}悬浮/聚焦名称正确`)
+  }
+  const importButton = toolbar.locator('[data-add-intent="import-file"]')
+  assert(await importButton.isVisible(), '导入入口常驻可见')
+  assert(
+    (await importButton.getAttribute('aria-label')) === '导入文件',
+    '导入钮说得清按下去会发生什么',
+  )
+
+  // 「更多」：先展开、证明收进去的 5 个都在（这是基线），再收起来证明它们真的不占常驻位。
+  // 顺序不能反——没有基线的「没看到」和「探针根本没生效」在观测上一模一样。
+  const moreButton = toolbar.locator('[data-canvas-add-more="true"]')
+  await expectVisible(moreButton, '左侧栏底部必须有一颗「更多」')
+  await moreButton.click()
+  const moreMenu = getWin().locator('.generation-canvas-v2-toolbar__more-menu').first()
+  await expectVisible(moreMenu, '「更多」点开必须弹出菜单')
+  const moreProofs = []
+  for (const [kind, label] of moreTools) {
+    const item = moreMenu.locator(`[data-node-kind="${kind}"]`)
+    assert(await item.isVisible(), `「更多」里找得到${label}`)
+    assert((await item.textContent())?.includes(label), `「更多」里${label}写的是它自己的名字`)
+    moreProofs.push([kind, label, await proveProbe(toolbar.locator(`[data-node-kind="${kind}"]`), `展开时${label}在工具条里`)])
+  }
+  // §1.5.3「分段要有名字」：两段各自带名字，不是一条看不见的分隔线。
+  for (const sectionLabel of ['更多', '空间 · 草图']) {
+    assert(
+      (await moreMenu.locator(`[role="group"][aria-label="${sectionLabel}"]`).count()) === 1,
+      `「更多」菜单里有名为「${sectionLabel}」的一段`,
+    )
+  }
+  await getWin().keyboard.press('Escape')
+  for (const [kind, label, proof] of moreProofs) {
+    await expectAbsent(toolbar.locator(`[data-node-kind="${kind}"]`), {
+      provenBy: proof,
+      message: `${label}收进了「更多」，收起后不再占常驻位`,
+    })
+    passed += 1
+    console.log(`  ✓ ${label}收起后不占常驻位（kind=${kind}）`)
   }
 
   // ② 新建图像节点并打开真实参数面板。

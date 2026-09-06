@@ -45,15 +45,24 @@ function waitForServer(url, timeoutMs = 60000) {
  * 入口文件传进来的取景参数，**只认这几个键**。
  *
  * 立项根因（2026-09-06）：端口写死那一版留下的 `port` 键，在改成 `labPortFor(role)` 派生之后
- * 变成了没人读的死参数，而两份入口（host-config、agent-panel-v4）都还传着它、都没传 `role`。
- * 少一个键有 labPortFor 兜底（当场抛「未知的实验室角色：undefined」），**多一个键以前没人管**——
- * 于是「这两份入口从来没跑起来过」只能等到有人手动跑那条 npm script 才会暴露。
+ * 变成了没人读的死参数，而入口还传着它、没传 `role`。少一个键有 labPortFor 兜底（当场抛
+ * 「未知的实验室角色：undefined」），**多一个键以前没人管**——于是「这份入口从来没跑起来过」
+ * 只能等到有人手动跑那条 npm script 才会暴露（agent-panel-v4 就这么躺了好几个 PR）。
  * 这里把多出来的键也变成当场抛：死参数不许安静地躺着（R28 防线建在最早能拦住的那层）。
+ * **加取景参数就在这里加一项**，不然新键会被当成死参数拦下来。
  */
-const CONFIG_KEYS = new Set(['screen', 'title', 'role', 'cellWidth', 'columns', 'viewport'])
+const CONFIG_KEYS = new Set(['screen', 'title', 'role', 'cellWidth', 'columns', 'viewport', 'assertState'])
 
 /**
- * @param {{screen: string, title: string, role: string, cellWidth: number, columns: number, viewport?: {width: number, height: number}}} config
+ * @param {{
+ *   screen: string,
+ *   title: string,
+ *   role: string,
+ *   cellWidth: number,
+ *   columns: number,
+ *   viewport?: {width: number, height: number},
+ *   assertState?: (page: import('playwright').Page, state: {id: string, name: string}, record: (message: string) => void) => Promise<void>,
+ * }} config
  */
 export async function walkDesignLabScreen(config) {
   const strayKeys = Object.keys(config).filter((key) => !CONFIG_KEYS.has(key))
@@ -176,6 +185,8 @@ export async function walkDesignLabScreen(config) {
         }, state.id)
         if (distinct < 3) record(`${state.id} 这一格只有 ${distinct} 个元素，形态大概率没渲染出来`)
       }
+      // 屏自己还能再加断言——比如「下拉必须是展开的」这种只有那一屏才成立的承诺。
+      if (config.assertState) await config.assertState(page, state, record)
       console.log(`  ✓ ${state.id.padEnd(34)} ${Math.round(box.width)}×${Math.round(box.height)}  ${state.name}`)
     }
 

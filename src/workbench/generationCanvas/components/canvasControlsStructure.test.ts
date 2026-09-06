@@ -162,6 +162,9 @@ describe('generation canvas control structure', () => {
 
   it('defers the blank-canvas menu without swallowing native menus inside controls', () => {
     const generationCanvas = source('../reactFlow/GenerationCanvasReactFlow.tsx')
+    // 菜单层（右键菜单 + 连线创建菜单的开合与 stage 指针链）住在 useGenerationCanvasReactFlowMenus，
+    // 画布壳只保留把它接到 stage/React Flow 上的那几个 prop。
+    const canvasMenus = source('../reactFlow/useGenerationCanvasReactFlowMenus.ts')
     const contextMenu = source('./useCanvasContextNodeMenu.ts')
 
     expect(contextMenu).toContain('isCanvasContextMenuPointer(event.button, event.ctrlKey, navigator.platform)')
@@ -180,12 +183,13 @@ describe('generation canvas control structure', () => {
     expect(contextMenu).toContain('active.suppressContextMenu = true')
     expect(contextMenu).toContain('!active?.suppressContextMenu')
     expect(contextMenu).toContain('event.preventDefault()')
-    expect(generationCanvas).toContain('useCanvasContextNodeMenu({')
-    expect(generationCanvas).toContain('if (prepareContextMenuPointerDown(event))')
-    expect(generationCanvas).toContain('finishContextMenuPointerUp(event, suppressContextMenu)')
+    expect(canvasMenus).toContain('useCanvasContextNodeMenu({')
+    expect(canvasMenus).toContain('if (prepareContextMenuPointerDown(event))')
+    expect(canvasMenus).toContain('finishContextMenuPointerUp(event, suppressContextMenu)')
+    expect(canvasMenus).toContain("if (event.key === 'Escape') closeMenus()")
+    expect(generationCanvas).toContain('useGenerationCanvasReactFlowMenus({')
     expect(generationCanvas).toContain('onContextMenu={handleStageContextMenu}')
     expect(generationCanvas).toContain('onPaneContextMenu={handleFlowContextMenu}')
-    expect(generationCanvas).toContain("if (event.key === 'Escape') closeMenus()")
   })
 
   it('cancels marquee when an explicit pan chord takes ownership after primary down', () => {

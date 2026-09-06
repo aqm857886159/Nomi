@@ -4,6 +4,7 @@ import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'; import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { screenshotSettled } from './_assert.mjs'
+import { addCanvasNodeFromRail } from './_canvasRail.mjs'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/runninghub'); fs.mkdirSync(shotsDir, { recursive: true })
 const userData = path.join(repoRoot, '.tmp', 'nomi-rh-userdata'); fs.mkdirSync(userData, { recursive: true })
@@ -32,8 +33,8 @@ await tryClick(win, 'button:has-text("新建画面")', 'new-board'); await win.w
 await snap(win, 'canvas')
 
 // 加视频节点
-await tryClick(win, '[aria-label="添加节点菜单"]', 'add-menu'); await win.waitForTimeout(500)
-if (!await tryClick(win, '[aria-label="添加视频节点"]', 'add-video')) { await dumpButtons(win) }
+// 左缘加节点一律走 _canvasRail：它自己判断该种在常驻位还是在「更多」里，找不到当场抛。
+await addCanvasNodeFromRail(win, 'video')
 await win.waitForTimeout(1200); await snap(win, 'video-node')
 // 选中
 await tryClick(win, '.generation-canvas-v2-node, [data-node-kind], article', 'select-node'); await win.waitForTimeout(700)
@@ -49,8 +50,8 @@ console.log('  图片节点下拉项:', JSON.stringify([...new Set(opts.filter(B
 await win.keyboard.press('Escape'); await win.waitForTimeout(400)
 
 // ── 加 3D 节点，验混元/HiTem/Meshy ──
-await tryClick(win, '[aria-label="添加节点菜单"]', 'add-menu2'); await win.waitForTimeout(400)
-if (!await tryClick(win, '[aria-label="添加3D 模型节点"]', 'add-3d')) { await dumpButtons(win) }
+// 3D 模型自「第三档」起在左缘的「更多」里，同样走 _canvasRail。
+await addCanvasNodeFromRail(win, 'model3d')
 await win.waitForTimeout(1200); await snap(win, '3d-node')
 await tryClick(win, 'text=3D 模型', 'select-3d'); await win.waitForTimeout(700)
 await snap(win, '3d-node-selected')

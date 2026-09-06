@@ -13,6 +13,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { mkdirSync } from 'node:fs'
 import { screenshotSettled } from './_assert.mjs'
+import { addCanvasNodeFromRail } from './_canvasRail.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const outDir = path.join(repoRoot, '.viewfinder-marker-lab')
@@ -115,10 +116,8 @@ try {
   if ((await genTab.count()) > 0) await genTab.click()
   await win.waitForTimeout(1500)
 
-  // 最新画布已收敛为左侧纯图标快速添加栏；用稳定的无障碍名称直接建 3D 节点。
-  const addScene3d = win.locator('button[aria-label="添加3D 场景节点"]').first()
-  await addScene3d.waitFor({ timeout: 8000 })
-  await addScene3d.click()
+  // 3D 场景自 2026-09-06「第三档」起住在左缘的「更多」里；点法收口在 _canvasRail，找不到当场抛。
+  await addCanvasNodeFromRail(win, 'scene3d', { timeout: 8000 })
   await win.waitForTimeout(2000)
 
   const openEmpty = win.getByRole('button', { name: '打开 3D 编辑器', exact: false })

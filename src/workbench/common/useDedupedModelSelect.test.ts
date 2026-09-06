@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import {
+  CONNECT_VENDOR_OPTION_VALUE,
   buildModelSelectOptions,
   buildProviderSelectOptions,
   buildVendorExplicitModelOptions,
@@ -97,7 +98,7 @@ describe('buildModelSelectOptions — 病模型沉底 + 灰化', () => {
     expect(view[0].trailing).toBe('APIMart')
   })
 
-  it('多家里只病一家 → 整条**不算病**（否则「N 家」里一家挂就误伤整个模型）', () => {
+  it('多家里只病一家 → 整条**不算病**（否则多家里一家挂就误伤整个模型）', () => {
     const deduped = dedupeModelOptions([
       option('nano-banana-apimart', 'apimart', 'Nano Banana'),
       option('nano-banana-kie', 'kie', 'Nano Banana'),
@@ -106,7 +107,10 @@ describe('buildModelSelectOptions — 病模型沉底 + 灰化', () => {
 
     expect(view).toHaveLength(1)
     expect(view[0].dimmed).toBeUndefined()
-    expect(view[0].trailing).toBe('2 家')
+    // 多家 → 行尾 chip 说明走哪几家；**不再**同时挂一条「N 家」附注。
+    // 两种表达一起上会把模型名挤没（2026-09-06 真机实测），这条钉住只留一种。
+    expect(view[0].trailing).toBeUndefined()
+    expect(view[0].chips?.map((chip) => chip.label)).toEqual(['APIMart', 'Kie'])
   })
 
   it('全healthy 时顺序与打标一律不动（避让机制不该影响常态）', () => {
@@ -291,7 +295,15 @@ describe('健康记忆按 (vendor, modelKey) 判定 —— 「换家优先于换
   it('还有健康的家时，模型不该被标成「最近多次失败」', () => {
     const [entry] = buildModelSelectOptions(twoVendors(), kieAiling)
     expect(entry.dimmed).toBeFalsy()
-    expect(entry.trailing).toBe('2 家')
+    expect(entry.trailing).toBeUndefined()
+    expect(entry.chips).toHaveLength(2)
+  })
+
+  it('只有一家时给厂商短名附注，不给只能点自己的单个 chip', () => {
+    const deduped = dedupeModelOptions([option('solo', 'apimart', 'Solo')])
+    const [entry] = buildModelSelectOptions(deduped, healthy)
+    expect(entry.chips).toBeUndefined()
+    expect(entry.trailing).toBe('APIMart')
   })
 
   it('批量下拉一家一行：只有病的那一行标红并沉底', () => {
@@ -304,5 +316,44 @@ describe('健康记忆按 (vendor, modelKey) 判定 —— 「换家优先于换
   it('两家都病了才回退全集（绝不空选）', () => {
     const model = twoVendors()[0]
     expect(pickHealthiestProvider(model, () => true)).not.toBeNull()
+  })
+})
+
+// 2026-09-06 用户拍板：没接入的供应商，它的模型不再沉底灰显，而是根本不出现。
+// 于是新装机上这个下拉会一条都不剩——空白下拉读起来像「坏了」，必须换成说得清、点得动的一行。
+describe('一家供应商都没接入 → 诚实空态，而不是空白下拉', () => {
+  it('折叠版下拉给出「还没接入供应商 · 去接入」一行', () => {
+    const view = buildModelSelectOptions([], healthy)
+    expect(view).toHaveLength(1)
+    expect(view[0]).toMatchObject({
+      value: CONNECT_VENDOR_OPTION_VALUE,
+      label: '还没接入供应商',
+      trailing: '去接入',
+      trailingTone: 'accent',
+    })
+  })
+
+  it('批量下拉给出同一行（同一件事只有一种说法）', () => {
+    expect(buildVendorExplicitModelOptions([], healthy)).toEqual(buildModelSelectOptions([], healthy))
+  })
+
+  it('点那一行 = 打开模型接入页，绝不当成选了个模型', () => {
+    const onChange = vi.fn()
+    const events: string[] = []
+    // 这个测试文件跑在无 DOM 环境（纯函数直测），所以只桩出这一行代码真正用到的那个口子。
+    vi.stubGlobal('window', { dispatchEvent: (event: Event) => { events.push(event.type); return true } })
+    try {
+      let view!: DedupedModelSelectView
+      function Probe() {
+        view = useDedupedModelSelect([], '', onChange)
+        return null
+      }
+      renderToStaticMarkup(createElement(Probe))
+      view.onModelPick(CONNECT_VENDOR_OPTION_VALUE)
+      expect(events).toEqual(['nomi-open-model-catalog'])
+      expect(onChange).not.toHaveBeenCalled()
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 })
