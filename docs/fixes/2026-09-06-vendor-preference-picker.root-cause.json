@@ -1,0 +1,148 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-06-vendor-preference-picker",
+  "problem_type": "model picker ordering and provider identity are duplicated across entry points",
+  "symptom": "The same model can appear once per provider, and a user preference cannot consistently control which configured provider is selected first.",
+  "direct_cause": "Catalog options were consumed as flat rows by several pickers, while provider availability and ordering were not represented in one shared view-model.",
+  "class_root": "Provider identity, configuration state, and ordering are cross-surface semantics. Keeping them in individual pickers guarantees drift between generation nodes, storyboard rows, batch controls, and the Agent composer.",
+  "affected_population": [
+    "Users with the same model available through two or more providers",
+    "Users whose catalog still lists providers they have not connected",
+    "Every model selection surface that previously consumed flat catalog options"
+  ],
+  "scope_paths": [
+    "src/config/modelIdentity.ts",
+    "src/config/modelCatalogCache.ts",
+    "src/config/useModelOptions.ts",
+    "src/design/NomiSelect.tsx",
+    "src/workbench/common/useDedupedModelSelect.ts",
+    "src/workbench/common/BulkModelPicker.tsx",
+    "src/workbench/ai/AssistantModelPicker.tsx",
+    "src/workbench/generationCanvas/nodes/InlineParameterBar.tsx",
+    "src/workbench/generationCanvas/nodes/controls/narrowedModeGuidance.ts",
+    "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx",
+    "src/workbench/settings/VendorPreferenceOrderSection.tsx",
+    "src/workbench/settings/AiModelsSection.tsx",
+    "electron/settings/vendorPreferenceIpc.ts",
+    "electron/settings/vendorPreferenceSettings.ts",
+    "electron/settings/registerSettingsIpc.ts",
+    "electron/shared/contracts/vendorPreference.ts"
+  ],
+  "entry_points": [
+    "Generation node model picker",
+    "Storyboard row model picker",
+    "Canvas and storyboard batch model pickers",
+    "Agent composer model picker",
+    "Model settings preferred provider order"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The catalog, settings bridge, and renderer pickers are internal Nomi contracts.",
+  "invariants": [
+    "Every picker uses the canonical identity aggregation and shared provider sorting function.",
+    "Provider ordering has exactly one rule (sortModelProviders): the user's saved preference, then vendorTier (official > built-in relay > unknown), then a stable name/catalog tie-break. Dropping the vendorTier level silently degrades the default provider to alphabetical order, which nobody decided.",
+    "A model row states its provider exactly once: multi-provider rows carry end-of-row chips, single-provider rows carry one vendor caption. Never both -- together they squeeze the model name to zero width in a narrow dropdown.",
+    "Selecting a model row uses the first provider in preference order; selecting a provider chip writes the exact provider and model identity.",
+    "Models from vendors that are not connected are never listed (user decision, 2026-09-06). When that leaves a picker with nothing to show, it states so honestly with one localized row -- no provider connected yet, plus a one-click route to model setup -- instead of rendering a blank dropdown.",
+    "The 'everything listed is runnable' promise has exactly one gate (keepRunnableVendorOptions in the catalog derivation layer) and no widening switch. Pickers, agent model lists, cost estimation, and narrowed-mode guidance all consume its output, so no call site can filter -- or forget to filter -- on its own.",
+    "Preferred provider order lives in the AI strategy settings tab next to the default-model policy, because it decides how already-connected capabilities are used, not what is connected (design system 1.7.2).",
+    "Preference writes use schema version 1, atomic JSON persistence, and trusted sender validation."
+  ],
+  "generality_proof": "The shared hook is consumed by stateful generation, storyboard, and Agent pickers, while the shared batch picker covers both batch entry points; a single identity and ordering boundary therefore covers every current caller.",
+  "shared_boundaries": [
+    {
+      "path": "src/config/modelIdentity.ts",
+      "symbol": "dedupeModelOptions and sortModelProviders",
+      "responsibility": "Own canonical model grouping, preference ordering, vendor tiering, and stable tie-breaking. sortModelProviders is now the only provider-ordering rule in the repo."
+    },
+    {
+      "path": "src/config/modelCatalogCache.ts",
+      "symbol": "getCatalogModelOptions and keepRunnableVendorOptions",
+      "responsibility": "Own the single decision of which vendors are runnable right now, so every downstream surface sees the same list and none of them filters again."
+    },
+    {
+      "path": "electron/shared/contracts/vendorPreference.ts",
+      "symbol": "normalizeVendorPreferenceSettings",
+      "responsibility": "Own the versioned cross-process settings shape and input normalization."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/common/useDedupedModelSelect.ts",
+      "entry_point": "stateful model and provider selection",
+      "disposition": "enforced",
+      "evidence": "Unit tests cover deduplication, preferred ordering, the honest empty state, and stable sorting."
+    },
+    {
+      "path": "src/workbench/common/BulkModelPicker.tsx",
+      "entry_point": "batch model selection",
+      "disposition": "enforced",
+      "evidence": "Both canvas and storyboard batch callers pass through the same component and shared ordering input."
+    },
+    {
+      "path": "src/workbench/ai/AssistantModelPicker.tsx",
+      "entry_point": "Agent composer model selection",
+      "disposition": "enforced",
+      "evidence": "The composer adapts catalog rows into the shared hook and uses the same provider chip callback."
+    }
+  ],
+  "regression_tests": [
+    "src/config/modelIdentity.test.ts",
+    "src/config/modelCatalogCache.test.ts",
+    "src/workbench/common/useDedupedModelSelect.test.ts",
+    "src/workbench/common/modelSelectStructure.test.ts",
+    "src/workbench/settings/vendorPreferenceOrder.test.ts",
+    "src/workbench/settings/settingsDialogStructure.test.ts",
+    "electron/settings/vendorPreferenceContract.test.ts",
+    "tests/ux/vendor-preference-order.walk.mjs",
+    "tests/ux/design-lab-vendor-order.walk.mjs"
+  ],
+  "migration": "No existing model identity is rewritten. Catalog rows are grouped at read time by canonical model key; the new version-1 preference document is created atomically on first save and an absent or invalid document normalizes to an empty order.",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The first pass shipped three instances of the same class within one change: a second provider-ordering rule, a second 'which vendor' expression on the same row, and a globally widened catalog filter that broke a promise three unrelated consumers relied on. The class is 'a new cross-surface rule is added without retiring or re-anchoring the old one', and it recurs whenever a shared boundary gains a second answer.",
+    "same_class_scan": [
+      "rg resolveBestProvider / vendorTier across src and electron: zero production callers remained after the first pass; deleted.",
+      "rg preloadModelOptions / useModelOptionsState consumers: agent availableModels, useBatchPlanCost, resolveExecutableImageModel, storyboard and proposal editors all assumed 'listed means runnable'; the widened filter is now opt-in per call site.",
+      "rg candidatesForArchetype: narrowed-mode guidance documented the old promise as a precondition; it now filters configured itself instead of trusting an upstream default.",
+      "Documented all current model picker entry points in docs/qa/2026-09-06-vendor-order-design-lab.md"
+    ]
+  },
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/config/modelIdentity.ts"
+    ],
+    "rationale": "Relative to main the only surviving parallel implementation was src/config/modelIdentity.ts: the first pass added sortModelProviders but left resolveBestProvider alive with zero production callers -- two answers to 'which provider first', and the surviving one had silently dropped vendor tiering, so the default provider degraded to alphabetical order. resolveBestProvider and ResolveBestProviderOptions are deleted and the vendorTier level is folded into sortModelProviders; a structural test now fails if the name comes back. Two more artefacts were removed within this branch rather than from main and therefore do not appear here: the hand-written HTML mockup tests/ux/design-lab/vendor-order.html (replaced by a design-lab screen that renders the live components) and src/ui/onboarding/VendorPreferenceOrderControl.tsx (the preferred-provider control moved to its documented home in the AI strategy tab, src/workbench/settings/VendorPreferenceOrderSection.tsx)."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency is introduced.",
+    "exit_criteria": []
+  },
+  "residual_risks": [
+    "The first phase does not automatically retry or switch providers during generation; that remains phase two.",
+    "The real-provider generation step in the journey requires the fixture response path and must never be mistaken for live provider certification.",
+    "The vendor-order design-lab screen is registered as pendingApproval and therefore has no visual baseline yet. check:design-lab enforces this in both directions, but until the user signs off, a visual regression on that screen is caught only by a human looking at the contact sheet.",
+    "The preferred-provider list includes no-auth local channels (Jimeng CLI, Volcengine speech) because they are genuinely configured providers, even though they rarely compete for the same model as a relay."
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/config/modelCatalogCache.ts",
+    "invariant": "getCatalogModelOptions returns only models whose vendor is usable right now, and there is no way for a caller to ask for more. When the result is empty, the shared select view-model renders one honest row that routes to model setup.",
+    "failure_mode": "A new consumer of preloadModelOptions/useModelOptionsState silently receives keyless vendors and the user hits `API key missing` at generation time, with the UI having shown the model as available. The first pass did exactly this to the agent model list, batch cost estimation, and the 'switch to X' guidance at once.",
+    "exception_policy": "none",
+    "strategy": "There is no wide view to opt into: keepRunnableVendorOptions is the only gate and it runs unconditionally inside catalog derivation, so a caller cannot see a keyless vendor whatever it writes. A structural test fails the build if any file grows a catalog scope switch again, and the design lab feeds the unfiltered catalog through that same gate so the screenshot proves the filtering rather than a pre-filtered fixture.",
+    "artifacts": [
+      "src/config/modelCatalogCache.ts",
+      "src/config/useModelOptions.ts",
+      "src/config/modelCatalogCache.test.ts",
+      "src/workbench/common/modelSelectStructure.test.ts"
+    ]
+  },
+  "class_regression_tests": [
+    "src/workbench/common/modelSelectStructure.test.ts",
+    "src/config/modelCatalogCache.test.ts",
+    "src/config/modelIdentity.test.ts",
+    "src/workbench/common/useDedupedModelSelect.test.ts"
+  ]
+}

@@ -19,7 +19,8 @@ import type { ModelOption } from '../../config/models'
 import { NomiSelect } from '../../design'
 import { dedupeModelOptions } from '../../config/modelIdentity'
 import { isModelRecentlyAiling } from '../generationCanvas/runner/modelHealthMemory'
-import { buildVendorExplicitModelOptions, resolveProviderByAddress } from './useDedupedModelSelect'
+import { buildVendorExplicitModelOptions, resolveProviderByAddress, openModelCatalog, CONNECT_VENDOR_OPTION_VALUE } from './useDedupedModelSelect'
+import { useVendorPreferenceOrder } from './useVendorPreference'
 
 import i18n from '../../i18n'
 
@@ -61,10 +62,11 @@ export default function BulkModelPicker({
 }: BulkModelPickerProps): JSX.Element | null {
   const { t } = useTranslation()
   const deduped = React.useMemo(() => dedupeModelOptions([...modelOptions]), [modelOptions])
+  const orderedVendorKeys = useVendorPreferenceOrder()
   const vendorRows = React.useMemo(
-    () => buildVendorExplicitModelOptions(deduped, isModelRecentlyAiling),
+    () => buildVendorExplicitModelOptions(deduped, isModelRecentlyAiling, orderedVendorKeys),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- i18n.language：切语言要重算 trailing 文案
-    [deduped, i18n.language],
+    [deduped, i18n.language, orderedVendorKeys],
   )
 
   const handleChange = React.useCallback(
@@ -74,8 +76,11 @@ export default function BulkModelPicker({
         onPickLeadingOption?.(fixed.value)
         return
       }
+      // 一家都没接入时下拉里只有「还没接入供应商」那一行——点它是去接入，不是选模型。
+      if (picked === CONNECT_VENDOR_OPTION_VALUE) { openModelCatalog(); return }
       const provider = resolveProviderByAddress(deduped, picked)
-      if (provider) onPick(provider.option.value, provider.vendor)
+      if (!provider) return
+      onPick(provider.option.value, provider.vendor)
     },
     [deduped, leadingOptions, onPick, onPickLeadingOption],
   )

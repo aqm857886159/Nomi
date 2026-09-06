@@ -33,6 +33,9 @@
     },
     "settings": {
       "tolerance": { "threshold": 0.2, "maxDiffPixels": 40 }
+    },
+    "vendor-order": {
+      "tolerance": { "threshold": 0.2, "maxDiffPixels": 40 }
     }
   },
   "why": {

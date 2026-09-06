@@ -20,6 +20,14 @@ export const zhSettings = {
       pickerLabel: '{{task}} 默认模型',
       unavailable: '该模型已不可用，将自动选择',
     },
+    vendorPreference: {
+      title: '优先供应商',
+      hint: '同一个模型有好几家能跑时，按这个顺序挑第一家。只列已配置的供应商。',
+      moveUp: '上移',
+      moveDown: '下移',
+      saveFailed: '顺序没保存成功，暂时还按原来的顺序挑。再点一次试试。',
+      rank: '第 {{rank}} 位',
+    },
     upload: {
       title: '数据上传',
       minimize: '仅发送当前任务需要的素材',
@@ -275,6 +283,14 @@ export const enSettings = {
       imageToVideo: 'Image to video',
       pickerLabel: 'Default model for {{task}}',
       unavailable: 'No longer available — will auto select',
+    },
+    vendorPreference: {
+      title: 'Preferred providers',
+      hint: 'When several providers can run the same model, the first one in this list is picked. Only configured providers are listed.',
+      moveUp: 'Move up',
+      moveDown: 'Move down',
+      saveFailed: "The order wasn't saved, so the previous one still applies. Try again.",
+      rank: 'Position {{rank}}',
     },
     upload: {
       title: 'Data upload',

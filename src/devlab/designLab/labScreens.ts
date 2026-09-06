@@ -7,6 +7,8 @@ import { HOST_CONFIG_STATES } from './hostConfig/hostConfigStates'
 import { SETTINGS_STATES } from './settings/settingsStates'
 import { SETTINGS_CELL_HEIGHT, SETTINGS_CELL_WIDTH } from './settings/settingsLabKit'
 import { AGENT_PANEL_V4_STATES, V4_CELL_HEIGHT, V4_PANEL_WIDTH } from './v4/agentPanelV4States'
+import { VENDOR_ORDER_STATES } from './vendorOrder/vendorOrderStates'
+import { STAGE_HEIGHT as VENDOR_ORDER_STAGE_HEIGHT, STAGE_WIDTH as VENDOR_ORDER_STAGE_WIDTH } from './vendorOrder/vendorOrderLabKit'
 import type { LabScreen, LabState } from './labScreen'
 
 /**
@@ -57,6 +59,12 @@ export const LAB_SCREENS: readonly LabScreen[] = [
     states: SETTINGS_STATES,
     // 这屏各状态取景框一样大（设置内容区实际可用宽），尺寸从取景台取，不另抄一个数。
     cell: { width: SETTINGS_CELL_WIDTH, height: SETTINGS_CELL_HEIGHT },
+  },
+  {
+    id: 'vendor-order',
+    label: '供应商偏好',
+    states: VENDOR_ORDER_STATES,
+    cell: { width: VENDOR_ORDER_STAGE_WIDTH, height: VENDOR_ORDER_STAGE_HEIGHT + 40 },
   },
 ]
 

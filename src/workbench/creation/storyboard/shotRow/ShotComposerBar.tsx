@@ -131,6 +131,7 @@ export default function ShotComposerBar({
             value={shot.modelKey ? modelSelect.modelValue : ''}
             options={modelSelectOptions}
             onChange={(id) => (id ? modelSelect.onModelPick(id) : onShotModelChange(''))}
+            onChipChange={modelSelect.onModelProviderPick}
           />
         </Chip>
       ) : null}

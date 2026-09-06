@@ -28,7 +28,7 @@ import { REPO_ROOT } from './labStates.mjs'
  * 实验室要占端口的角色。**加角色就在这里加**——端口段的宽度随它走，
  * 不许在别处再写一个裸端口号（那就又造出一个全局单例）。
  */
-export const LAB_ROLES = ['visual', 'walk-agent-panel', 'walk-editing', 'walk-storyboard', 'walk-host-config']
+export const LAB_ROLES = ['visual', 'walk-agent-panel', 'walk-editing', 'walk-storyboard', 'walk-host-config', 'walk-vendor-order']
 
 // 每棵 worktree 分到一段连续端口，段内按角色的下标取一口。
 // 5300–5491：避开 vite 默认的 5173、以及本仓历史上写死过的 5197/5198/5200。
