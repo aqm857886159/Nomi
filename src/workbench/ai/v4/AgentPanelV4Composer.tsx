@@ -17,6 +17,7 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../../../utils/cn'
+import { NomiSelect, type NomiSelectOption } from '../../../design'
 import {
   IconArrowUp,
   IconChevronDown,
@@ -262,15 +263,31 @@ export function AgentPanelV4Composer({
 export type V4ModelRow = Readonly<{
   /** 行首那个小标签：「对话」「图片默认」…… */
   slot: string
+  /** 当前生效的模型名（没设默认时是「自动选」这类实话）。 */
   name: string
   /** 预计单价。目录没写价就没有——不印 `≈¥0.00`。 */
   cost?: string
-  /** 行尾胶囊里的规格（2K / std / …）。没有规格的行不画胶囊。 */
-  value?: string
-  onSelect?: () => void
+  /**
+   * 行尾的下拉：这一类可以换成谁（供应商已去重）。
+   *
+   * 定稿每行**一个**下拉，因为这一行就是一个决定。此前生产版把整个文本模型目录摊成 N 行、
+   * 一个下拉都没有——那既不是这个形状，也把「选型」这件事整个推回给了用户。
+   */
+  options?: readonly NomiSelectOption[]
+  selectedValue?: string
+  onChange?: (value: string) => void
+  /** 这一类目录里一个可用模型都没有时的实话。有它就不画一个按不动的空下拉。 */
+  empty?: string
 }>
 
-/** 模型弹层：四行一个层，替换现役「去选文本模型 / 去模型库添加」两级冗余。每行带**预计单价**。 */
+/**
+ * 模型弹层：四行一个层，替换现役「去选文本模型 / 去模型库添加」两级冗余。每行带**预计单价**。
+ *
+ * 行数由**数据**决定，不由这里写死：一类没有可用模型就不出这一行（`rows` 里本来就没有它）。
+ * 定稿画的是四行；今天仓库里能真正落到某处的默认只有对话 / 图片 / 视频三类——
+ * 音频没有任何一个「默认模型」的家（`GENERATION_DEFAULT_TASK_KINDS` 只有图/视频四个 taskKind），
+ * 画一个存不下去的下拉比少画一行更糟。
+ */
 export function V4ModelPopover({ rows, onOpenLibrary }: { rows: readonly V4ModelRow[]; onOpenLibrary?: () => void }): JSX.Element {
   const { t } = useTranslation()
   return (
@@ -284,22 +301,30 @@ export function V4ModelPopover({ rows, onOpenLibrary }: { rows: readonly V4Model
         <span>{t('agentPanelV4.modelHint')}</span>
       </div>
       {rows.map((row) => (
-        <button
-          type="button"
+        <div
           key={row.slot}
-          onClick={row.onSelect}
-          className="flex min-h-9 w-full items-center gap-2 px-2.5 text-left text-caption text-nomi-ink hover:bg-nomi-ink-05"
+          className="flex min-h-9 w-full items-center gap-2 px-2.5 text-left text-caption text-nomi-ink"
+          data-v4-model-row={row.slot}
         >
           <span className="w-16 shrink-0 text-micro text-nomi-ink-60">{row.slot}</span>
           <span className="truncate">{row.name}</span>
           {row.cost ? <span className="shrink-0 text-micro text-nomi-ink-40">{row.cost}</span> : null}
-          {row.value ? (
-            <span className="ml-auto inline-flex h-6 shrink-0 items-center gap-1 rounded-nomi-sm border border-nomi-line px-2 text-caption">
-              {row.value}
-              <IconChevronDown size={11} />
-            </span>
-          ) : null}
-        </button>
+          <span className="ml-auto shrink-0">
+            {row.options?.length ? (
+              // 下拉走全仓统一的 `NomiSelect`（设计系统规则 1/5：一个来源，别散落原生 select）。
+              <NomiSelect
+                size="xs"
+                value={row.selectedValue ?? ''}
+                options={[...row.options]}
+                onChange={(value) => row.onChange?.(value)}
+                ariaLabel={row.slot}
+                triggerMaxWidth={116}
+              />
+            ) : (
+              <span className="text-micro text-nomi-ink-40">{row.empty}</span>
+            )}
+          </span>
+        </div>
       ))}
       <button
         type="button"
@@ -322,8 +347,49 @@ export type V4CommandRow = Readonly<{
   desc: string
   /** 分段名：技能 / 提示词。同一个菜单两段，各自有名字（2026-09-06 拍板 ⑤）。 */
   section: string
+  /** 封面。提示词库有 `mediaUrl`；技能今天没有封面字段，所以多数行不会有。 */
+  cover?: string
   selected?: boolean
 }>
+
+/**
+ * 行首那一格。
+ *
+ * 2026-09-06 用户在打包版上看到的是**一排白块**：这一格原本是一个纯色 `<span>`，
+ * 为「hover 换预览视频」预留的位置，但那个功能没做、`SkillListItemDto` 里也从来没有封面字段。
+ * 于是每一行都画一个 36×56 的白方块——它不承载任何信息，只是在告诉用户「这里有东西没加载出来」。
+ *
+ * 现在：**有图才画图，没图画图标**。提示词库那一段本来就带 `mediaUrl`（此前被整包丢掉），
+ * 技能那一段没有封面就落到图标格。图挂了（404 / 文件没了）也退回图标，不留破图。
+ */
+function CommandRowCover({ row }: { row: V4CommandRow }): JSX.Element {
+  const [broken, setBroken] = React.useState(false)
+  React.useEffect(() => setBroken(false), [row.cover])
+  if (row.cover && !broken) {
+    return (
+      <img
+        src={row.cover}
+        alt=""
+        loading="lazy"
+        onError={() => setBroken(true)}
+        className="h-9 w-14 shrink-0 rounded-sm object-cover"
+        data-v4-command-cover="image"
+      />
+    )
+  }
+  return (
+    <span
+      className={cn(
+        'grid h-9 w-14 shrink-0 place-items-center rounded-sm border',
+        row.selected ? 'border-nomi-accent-soft text-nomi-accent' : 'border-nomi-line-soft text-nomi-ink-30',
+      )}
+      data-v4-command-cover="icon"
+      aria-hidden="true"
+    >
+      <IconPackage size={15} />
+    </span>
+  )
+}
 
 /**
  * `/` 命令弹层：搜索 + 分类 chip + 列表（名称 + /命令 + 一句描述）。
@@ -400,10 +466,7 @@ export function V4SkillPopover({
                 data-v4-command={row.id}
                 className={cn('flex w-full items-start gap-2.5 px-2.5 py-2 text-left', row.selected && 'bg-nomi-ink-05')}
               >
-                <span
-                  className={cn('h-9 w-14 shrink-0 rounded-sm', row.selected ? 'bg-nomi-accent-soft' : 'bg-nomi-ink-10')}
-                  aria-hidden="true"
-                />
+                <CommandRowCover row={row} />
                 <span className="min-w-0">
                   <span className="block truncate text-caption font-medium text-nomi-ink">
                     {row.name}
