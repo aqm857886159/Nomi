@@ -1,5 +1,5 @@
 import type { AgentChatToolDecision } from "../harness/agentChatContracts";
-import type { ProjectAgentExecutionEventPayload, ProjectAgentMutation, ProjectAgentFailureItem, ProjectAgentHostState, ProjectAgentQueueItem, ProjectAgentStatus, ProposalApprovalRef } from "../shared/projectAgentContracts";
+import type { ProjectAgentExecutionEventPayload, ProjectAgentMutation, ProjectAgentHostState, ProjectAgentQueueItem, ProjectAgentStatus, ProposalApprovalRef } from "../shared/projectAgentContracts";
 import type { PiCanvasReadTransportAdapter } from "../capabilityCore/canvasReadTransportAdapters";
 import type { PiDocumentReadTransportAdapter } from "../capabilityCore/documentReadTransportAdapters";
 import type { PiDocumentWriteTransportAdapter, PreparedDocumentWrite } from "../capabilityCore/documentWriteTransportAdapters";
@@ -31,7 +31,7 @@ import { EXPORT_READ_CAPABILITY, EXPORT_WRITE_CAPABILITY } from "../shared/agent
 import { SKILL_WRITE_CAPABILITY } from "../shared/agentCapabilities/skillWrite";
 import { SKILL_READ_CAPABILITY } from "../shared/agentCapabilities/skillRead";
 import { committedProjectAgentReceiptMatchesApproval } from "./projectAgentProposalReceiptCorrelation";
-import { digest, steeredExecutionPrompt, exportJobTaskItems, productionRunTaskItems, statusForResponse, toolItem, hostPromptLedgerForTurn } from "./projectAgentExecutionHelpers";
+import { digest, steeredExecutionPrompt, exportJobTaskItems, productionRunTaskItems, statusForResponse, terminalFailureItemFor, toolItem, hostPromptLedgerForTurn } from "./projectAgentExecutionHelpers";
 import { isPiGenerationToolName } from "../capabilityCore/generationTransportAdapters";
 import {
   abandonDocumentProposalReceipt,
@@ -640,44 +640,14 @@ export async function executeProjectAgentTurn(context: ProjectAgentTurnExecution
     );
     const productionTaskItems = productionRunTaskItems(partition.binding, execution.turn, response.toolCalls.filter((record) => record.status === "ok"), [...beforeResult.items, ...taskItems], receivedAt);
     const resultItems = [...toolItems, ...taskItems, ...productionTaskItems];
-    const outcomeFailure: ProjectAgentFailureItem | undefined = capabilityOutcome
-      ? Object.freeze({
-          itemId: `failure-${digest([execution.turn.executionToken, capabilityOutcome.toolCallId, capabilityOutcome.code])}`,
-          threadId: execution.turn.threadId,
-          turnId: execution.turn.turnId,
-          correlationId: capabilityOutcome.toolCallId,
-          kind: "failure" as const,
-          code: capabilityOutcome.code,
-          message: capabilityOutcome.message,
-          nextAction: capabilityOutcome.nextAction,
-          status: capabilityOutcome.status,
-          retryable: capabilityOutcome.retryable,
-          deviated: false,
-          createdAt: receivedAt,
-          updatedAt: receivedAt,
-        })
-      : undefined;
-    // 运行时（而非某一次工具调用）自己失败时也必须留下**一条能读的**痕迹。
-    // 抛出那条路早就会建 `runtime_error` failure 条目；「正常返回但 status=error」这条路
-    // 以前什么都不建，于是同一种失败在两条路上一条有原因、一条只有一个状态字。
-    const runtimeFailure: ProjectAgentFailureItem | undefined = !outcomeFailure && status === "failed"
-      ? Object.freeze({
-          itemId: `failure-${digest([execution.turn.executionToken, "runtime-response-failure"])}`,
-          threadId: execution.turn.threadId,
-          turnId: execution.turn.turnId,
-          kind: "failure" as const,
-          code: "runtime_error",
-          message: execution.runtimeDiagnostic ?? "Nomi runtime did not produce a response",
-          status: "failed" as const,
-          retryable: true,
-          deviated: false,
-          createdAt: receivedAt,
-          updatedAt: receivedAt,
-        })
-      : undefined;
-    const terminalItems = outcomeFailure
-      ? [...resultItems, outcomeFailure]
-      : runtimeFailure ? [...resultItems, runtimeFailure] : resultItems;
+    const terminalFailure = terminalFailureItemFor({
+      turn: execution.turn,
+      status,
+      receivedAt,
+      ...(capabilityOutcome ? { capabilityOutcome } : {}),
+      ...(execution.runtimeDiagnostic ? { runtimeDiagnostic: execution.runtimeDiagnostic } : {}),
+    });
+    const terminalItems = terminalFailure ? [...resultItems, terminalFailure] : resultItems;
     const currentStatus = beforeResult.turns.find((turn) => turn.turnId === execution.turn.turnId)?.status;
     if (!currentStatus || ["queued", "running", "proposed"].includes(currentStatus)) {
       await dispatchFresh(partition, (state) => ({
