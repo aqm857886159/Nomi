@@ -54,6 +54,17 @@ function waitForServer(url, timeoutMs = 60000) {
 }
 
 /**
+ * 入口文件传进来的取景参数，**只认这几个键**。
+ *
+ * 立项根因（2026-09-06）：端口写死那一版留下的 `port` 键，在改成 `labPortFor(role)` 派生之后
+ * 变成了没人读的死参数，而当时两份入口（host-config、agent-panel-v4）都还传着它、都没传 `role`。
+ * 少一个键有 labPortFor 兜底（当场抛「未知的实验室角色：undefined」），**多一个键以前没人管**——
+ * 于是「这两条 npm script 从来没跑起来过」只能等有人手动跑那条 script 才会暴露。
+ * 这里把多出来的键也变成当场抛：死参数不许安静地躺着（R28 防线建在最早能拦住的那层）。
+ */
+const CONFIG_KEYS = new Set(['screen', 'title', 'role', 'cellWidth', 'columns', 'viewport', 'assertState'])
+
+/**
  * @param {{
  *   screen: string,
  *   title: string,
@@ -65,6 +76,10 @@ function waitForServer(url, timeoutMs = 60000) {
  * }} config
  */
 export async function walkDesignLabScreen(config) {
+  const strayKeys = Object.keys(config).filter((key) => !CONFIG_KEYS.has(key))
+  if (strayKeys.length) {
+    throw new Error(`走查入口传了没人读的参数：${strayKeys.join(', ')}（已登记：${[...CONFIG_KEYS].join(', ')}）`)
+  }
   const OUT_DIR = path.join(REPO_ROOT, `tests/ux/shots/design-lab-${config.screen}`)
   const HOST = '127.0.0.1'
   // 端口按 worktree 派生，不再写死（labServer.mjs）：写死的端口是整台机器的全局单例，
@@ -137,9 +152,10 @@ export async function walkDesignLabScreen(config) {
       const overlap = parsed.filter((id) => (live || []).includes(id)).length
       if (overlap === 0) {
         throw new Error(
-          `端口 ${config.port} 上应答的不是本 worktree 的实验室（活页面的状态和本仓一个都对不上）。`
-          + `\n先查是谁占着：lsof -nP -iTCP:${config.port} -sTCP:LISTEN`
-          + `\n别去 kill 别人的 dev server——给本屏换一个没人用的端口。`,
+          `端口 ${PORT} 上应答的不是本 worktree 的实验室（活页面的状态和本仓一个都对不上）。`
+          + `\n先查是谁占着：lsof -nP -iTCP:${PORT} -sTCP:LISTEN`
+          + `\n别去 kill 别人的 dev server，也别在入口里写死另一个端口`
+          + `——端口按 worktree + 角色派生（labServer.mjs），撞上就是那台机器问不出 cwd，等对方跑完。`,
         )
       }
     }
