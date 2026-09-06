@@ -5,6 +5,7 @@
 // 截图人眼判断 + 程序断言（节点位移/锚点漂移/选中数）双保险。
 // 用法：node scripts/canvas-gestures-walkthrough.mjs
 import { launchNomiApp, repoRoot } from '../tests/ux/_launchApp.mjs'
+import { addCanvasNodeFromRail } from '../tests/ux/_canvasRail.mjs'
 import path from 'node:path'
 import { mkdirSync, mkdtempSync } from 'node:fs'
 import os from 'node:os'
@@ -38,7 +39,7 @@ try {
 
   // 建 2 个图片节点（多选/框选素材）
   for (let i = 0; i < 2; i += 1) {
-    await win.locator('[aria-label="添加图片节点"]').first().click()
+    await addCanvasNodeFromRail(win, 'image')
     await win.waitForTimeout(600)
     await win.keyboard.press('Escape')
     await win.waitForTimeout(300)

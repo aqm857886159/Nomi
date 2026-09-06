@@ -6,6 +6,7 @@
 //    上传一张参考后删掉底层文件 → chip 显示「图已失效」。
 // 截图人眼判断。用法：node scripts/i2i-reliability-walkthrough.mjs
 import { launchNomiApp } from '../tests/ux/_launchApp.mjs'
+import { addCanvasNodeFromRail } from '../tests/ux/_canvasRail.mjs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import fs from 'node:fs'
@@ -88,13 +89,8 @@ async function openBlankProjectWithImageNode(win) {
   await win.waitForTimeout(300)
   await win.getByText('生成', { exact: true }).first().click()
   await win.waitForTimeout(1500)
-  // 画布工具栏直加图片节点（菜单收着则先开菜单）。
-  const direct = win.locator('[aria-label="添加图片节点"]')
-  if ((await direct.count()) === 0 || !(await direct.first().isVisible().catch(() => false))) {
-    await win.locator('[aria-label="添加节点菜单"]').first().click()
-    await win.waitForTimeout(400)
-  }
-  await win.locator('[aria-label="添加图片节点"]').first().click()
+  // 左缘点法收口在 ../tests/ux/_canvasRail.mjs：结构锚点，不认走 i18n 的 aria-label，找不到当场抛。
+  await addCanvasNodeFromRail(win, 'image')
   await win.waitForTimeout(900)
   const node = win.locator('[data-kind="image"][data-node-id]').first()
   await node.waitFor({ timeout: 8000 })

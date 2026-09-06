@@ -9,6 +9,7 @@
 //
 // 用法：pnpm build 后 node scripts/poll-cadence-live-walkthrough.mjs
 import { launchNomiApp } from '../tests/ux/_launchApp.mjs'
+import { addCanvasNodeFromRail } from '../tests/ux/_canvasRail.mjs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { mkdirSync, copyFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
@@ -66,7 +67,7 @@ try {
   await win.waitForTimeout(2500)
   await win.locator('[aria-label="工作区切换"]').getByText('生成', { exact: true }).click()
   await win.waitForTimeout(1500)
-  await win.locator('[aria-label="添加视频节点"]').first().click()
+  await addCanvasNodeFromRail(win, 'video')
   await win.waitForTimeout(1500)
 
   // 底部时间轴压住 composer；画布覆盖层拦 Playwright 命中检测 → 原生 click 派发。

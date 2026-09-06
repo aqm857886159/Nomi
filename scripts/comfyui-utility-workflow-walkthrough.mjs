@@ -9,6 +9,7 @@
 //   ④ 一个字都不打，直接点生成 → **不再弹 prompt is required**，真跑出图
 // 用法：pnpm build && node scripts/comfyui-utility-workflow-walkthrough.mjs
 import { launchNomiApp } from '../tests/ux/_launchApp.mjs'
+import { addCanvasNodeFromRail } from '../tests/ux/_canvasRail.mjs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { mkdirSync, mkdtempSync, writeFileSync, readFileSync } from 'node:fs'
@@ -91,7 +92,7 @@ try {
   await win.waitForTimeout(2500)
   await win.locator('[aria-label="工作区切换"]').getByText('生成', { exact: true }).click()
   await win.waitForTimeout(1500)
-  await win.locator('[aria-label="添加图片节点"]').first().click()
+  await addCanvasNodeFromRail(win, 'image')
   await win.waitForTimeout(1500)
 
   // 底栏模型芯片 → 选「反色处理」

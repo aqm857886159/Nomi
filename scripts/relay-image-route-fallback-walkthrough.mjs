@@ -7,6 +7,7 @@
 // C：mock 全路由 403 → 节点错误卡必须是「中转分组未开通生图路由」新文案（不再误报 API Key 无效）。
 // 用法：node scripts/relay-image-route-fallback-walkthrough.mjs
 import { launchNomiApp } from '../tests/ux/_launchApp.mjs'
+import { addCanvasNodeFromRail } from '../tests/ux/_canvasRail.mjs'
 import http from 'node:http'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -137,12 +138,8 @@ async function launchApp() {
   await win.waitForTimeout(300)
   await win.getByText('生成', { exact: true }).first().click()
   await win.waitForTimeout(1500)
-  const direct = win.locator('[aria-label="添加图片节点"]')
-  if ((await direct.count()) === 0 || !(await direct.first().isVisible().catch(() => false))) {
-    await win.locator('[aria-label="添加节点菜单"]').first().click()
-    await win.waitForTimeout(400)
-  }
-  await win.locator('[aria-label="添加图片节点"]').first().click()
+  // 左缘点法收口在 ../tests/ux/_canvasRail.mjs：结构锚点，不认走 i18n 的 aria-label，找不到当场抛。
+  await addCanvasNodeFromRail(win, 'image')
   await win.waitForTimeout(900)
   const node = win.locator('[data-kind="image"][data-node-id]').first()
   await node.waitFor({ timeout: 8000 })

@@ -5,6 +5,7 @@
 // ② 点取消 → 定向 jobs cancel 被打 + 节点回 idle（无红错误卡）。
 // 用法：pnpm build && COMFY_PROGRESS_PORT=8190 node scripts/comfyui-progress-walkthrough.mjs
 import { launchNomiApp } from '../tests/ux/_launchApp.mjs'
+import { addCanvasNodeFromRail } from '../tests/ux/_canvasRail.mjs'
 import http from 'node:http'
 import crypto from 'node:crypto'
 import path from 'node:path'
@@ -144,7 +145,7 @@ try {
   await win.locator('[aria-label="工作区切换"]').getByText('生成', { exact: true }).click()
   await win.waitForTimeout(1500)
 
-  await win.locator('[aria-label="添加图片节点"]').first().click()
+  await addCanvasNodeFromRail(win, 'image')
   await win.waitForTimeout(1200)
   const editor = win.locator('div[contenteditable="true"]').last()
   await editor.click()

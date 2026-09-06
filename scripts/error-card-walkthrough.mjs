@@ -9,6 +9,7 @@
 //
 // 用法：pnpm build 后 node scripts/error-card-walkthrough.mjs
 import { launchNomiApp } from '../tests/ux/_launchApp.mjs'
+import { addCanvasNodeFromRail } from '../tests/ux/_canvasRail.mjs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { mkdirSync, existsSync, readFileSync, writeFileSync, readdirSync } from 'node:fs'
@@ -60,8 +61,9 @@ let failed = false
   await win.waitForTimeout(2500)
   await win.locator('[aria-label="工作区切换"]').getByText('生成', { exact: true }).click()
   await win.waitForTimeout(1500)
-  for (const label of ['添加视频节点', '添加图片节点']) {
-    await win.locator(`[aria-label="${label}"]`).first().click()
+  // 左缘点法收口在 ../tests/ux/_canvasRail.mjs：循环里拼中文 label 同样会在英文界面下落空。
+  for (const kind of ['video', 'image']) {
+    await addCanvasNodeFromRail(win, kind)
     await win.waitForTimeout(1000)
   }
   await shot(win, '01-seeded-nodes.png')

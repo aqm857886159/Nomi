@@ -10,6 +10,7 @@
 // Optional:
 //   COMFY_BASE=http://127.0.0.1:8188 node scripts/comfyui-real-user-journey.mjs
 import { launchNomiApp } from '../tests/ux/_launchApp.mjs'
+import { addCanvasNodeFromRail } from '../tests/ux/_canvasRail.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -502,12 +503,8 @@ async function runFirstSession() {
     await win.keyboard.press('Escape').catch(() => {})
     await win.locator('[aria-label="工作区切换"]').getByText('生成', { exact: true }).click()
     await win.waitForTimeout(1200)
-    const addImage = win.locator('[aria-label="添加图片节点"]').first()
-    if (!(await addImage.isVisible().catch(() => false))) {
-      await win.locator('[aria-label="添加节点菜单"]').first().click()
-      await win.waitForTimeout(300)
-    }
-    await win.locator('[aria-label="添加图片节点"]').first().click()
+    // 左缘点法收口在 ../tests/ux/_canvasRail.mjs：结构锚点，不认走 i18n 的 aria-label，找不到当场抛。
+    await addCanvasNodeFromRail(win, 'image')
     await win.waitForTimeout(1200)
     const node = win.locator('[data-kind="image"][data-node-id]').first()
     await node.waitFor({ timeout: 10_000 })

@@ -12,6 +12,7 @@
 //
 // 用法：pnpm build 后 node scripts/retired-model-walkthrough.mjs
 import { launchNomiApp } from '../tests/ux/_launchApp.mjs'
+import { addCanvasNodeFromRail } from '../tests/ux/_canvasRail.mjs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { mkdirSync, copyFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
@@ -97,7 +98,7 @@ async function readPickerRows(win) {
     const bw = await app.browserWindow(win)
     await bw.evaluate((w) => w.setBounds({ x: 0, y: 0, width: 1500, height: 1000 })).catch(() => {})
     await openCanvas(win, { fresh: true })
-    await win.locator('[aria-label="添加图片节点"]').first().click()
+    await addCanvasNodeFromRail(win, 'image')
     await win.waitForTimeout(1500)
     // 先把提示词打上：否则第二阶段点生成会卡在「prompt is required」的入参校验，
     // 根本走不到 findExecutableModel，测不到「模型已下线」那条路。

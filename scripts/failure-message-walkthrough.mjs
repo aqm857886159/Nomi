@@ -3,6 +3,7 @@
 // 截图 + 打印错误卡的**真实 DOM 文案**，核对用户看到的是上游原话而不是「模型任务执行失败 (taskId=…)」。
 // 失败不计费（apimart credits_cost: 0）。用法：pnpm build 后 node scripts/failure-message-walkthrough.mjs
 import { launchNomiApp } from '../tests/ux/_launchApp.mjs'
+import { addCanvasNodeFromRail } from '../tests/ux/_canvasRail.mjs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { mkdirSync, copyFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
@@ -58,7 +59,7 @@ try {
   await win.locator('[aria-label="工作区切换"]').getByText('生成', { exact: true }).click()
   await win.waitForTimeout(1500)
 
-  await win.locator('[aria-label="添加图片节点"]').first().click()
+  await addCanvasNodeFromRail(win, 'image')
   await win.waitForTimeout(1200)
   const editor = win.locator('div[contenteditable="true"]').last()
   await editor.click()

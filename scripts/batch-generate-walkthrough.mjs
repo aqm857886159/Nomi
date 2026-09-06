@@ -3,6 +3,7 @@
 // 回答「我们现在能不能批量产出」。真花额度（3 张图，默认模型=用户同款路径）。
 // 用法：pnpm build 后 node scripts/batch-generate-walkthrough.mjs
 import { launchNomiApp, repoRoot } from '../tests/ux/_launchApp.mjs'
+import { addCanvasNodeFromRail } from '../tests/ux/_canvasRail.mjs'
 import path from 'node:path'
 import { mkdirSync, copyFileSync, existsSync, readFileSync, writeFileSync, readdirSync, statSync } from 'node:fs'
 import os from 'node:os'
@@ -52,7 +53,7 @@ try {
 
   // 工具栏建 3 个图片节点，逐个在 composer 打提示词（用户同款操作）
   for (let i = 0; i < PROMPTS.length; i += 1) {
-    await win.locator('[aria-label="添加图片节点"]').first().click()
+    await addCanvasNodeFromRail(win, 'image')
     await win.waitForTimeout(1200)
     // 新建节点自动选中 → composer 浮层带唯一 contenteditable（生成区无文档编辑器）
     const editor = win.locator('div[contenteditable="true"]').last()
@@ -137,7 +138,7 @@ try {
   console.log('  [Phase2] 新建第 4 个节点验证默认避让…')
   await win.keyboard.press('Escape')
   await win.waitForTimeout(400)
-  await win.locator('[aria-label="添加图片节点"]').first().click()
+  await addCanvasNodeFromRail(win, 'image')
   await win.waitForTimeout(1500)
   const editor4 = win.locator('div[contenteditable="true"]').last()
   await editor4.click()

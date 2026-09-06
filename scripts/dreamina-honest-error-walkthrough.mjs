@@ -4,6 +4,7 @@
 // 而是很快落错误态、文案含「登录」指引。截图人眼判断。
 // 用法：node scripts/dreamina-honest-error-walkthrough.mjs
 import { launchNomiApp } from '../tests/ux/_launchApp.mjs'
+import { addCanvasNodeFromRail } from '../tests/ux/_canvasRail.mjs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import fs from 'node:fs'
@@ -39,12 +40,8 @@ try {
   await win.waitForTimeout(1500)
 
   // 加视频节点 → 打开 composer
-  const direct = win.locator('[aria-label="添加视频节点"]')
-  if ((await direct.count()) === 0 || !(await direct.first().isVisible().catch(() => false))) {
-    await win.locator('[aria-label="添加节点菜单"]').first().click()
-    await win.waitForTimeout(400)
-  }
-  await win.locator('[aria-label="添加视频节点"]').first().click()
+  // 左缘点法收口在 ../tests/ux/_canvasRail.mjs：结构锚点，不认走 i18n 的 aria-label，找不到当场抛。
+  await addCanvasNodeFromRail(win, 'video')
   await win.waitForTimeout(900)
   const node = win.locator('[data-kind="video"][data-node-id]').first()
   await node.waitFor({ timeout: 8000 })
