@@ -1040,13 +1040,13 @@
       "reason": "**附件上传**三态，生命周期归 composer 管，不进任务账本。"
     },
     {
-      "site": "src/workbench/ai/resident/ResidentUiPrimitives.tsx::type:ResidentApprovalState/type-union",
+      "site": "src/workbench/ai/v4/agentPanelV4Projection.ts::type:V4PendingTool/property:state/type-union",
       "members": [
         "approved",
         "denied",
         "pending"
       ],
-      "reason": "常驻 Agent 面板审批卡片的渲染态（pending 待用户裁决 / approved 已批 / denied 已拒）：它只驱动 ResidentApprovalCard 的三态外观（边框色/标签/是否 resolved），是 UI 呈现态，从 Host 投影的审批事实 derive 而来，服务渲染而非充当真相源；与后端 challenge/proposal 词表不同层，故作为该卡片的本地视图词表独立登记。"
+      "reason": "「活的工具调用」在渲染层的三态（pending 待用户裁决 / approved 已批 / denied 已拒）。它之所以必须存在于渲染层：宿主状态里根本没有「正在跑的工具调用」这条记录——ProjectAgentToolItem 只在回合结束时从 response.toolCalls 一次性生成，跑的过程中唯一的活记录是执行协调器内存里的 PendingToolDecision，而它从不进 ProjectAgentHostState（见 electron/projectAgentHost/projectAgentExecutionCoordinatorTypes.ts）。所以这是「宿主还没有话说」的那段时间里的本地视图词表，不是第二份真相：终态一到，agentPanelV4Projection.toolStatusOf 就以宿主快照为准（单测「宿主快照永远赢」钉死）。2026-09-06 v4 接线前它住在 ResidentUiPrimitives.tsx::ResidentApprovalState，随旧面板整件删除后原样迁到这里，成员与语义都没变。"
     },
     {
       "site": "src/workbench/ai/workbenchAiTypes.ts::type:WorkbenchAiMessage/property:status/type-union",

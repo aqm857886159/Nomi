@@ -86,12 +86,6 @@ export const DYNAMIC_KEY_PREFIXES: DynamicPrefix[] = [
   { prefix: 'runtime.capability.intent', why: '动态: 能力应用意图;枚举来源: capabilityApplyHandler 归一化后的 intent(capability.intent.* 词条)' },
   // ── agentResident ──
   {
-    prefix: 'agentResident.mode',
-    kind: 'concat',
-    suffixes: ['AskHint', 'EditSelectionHint', 'AgentHint'],
-    why: '动态-拼接: 模式菜单 `agentResident.mode${Ask|EditSelection|Agent}Hint` 逐模式提示;枚举来源: ProjectAgentRunMode 三态(ask/editSelection/agent)',
-  },
-  {
     prefix: 'agentResident.approvalMode',
     kind: 'concat',
     suffixes: ['SafeAuto', 'Project', 'Step'],

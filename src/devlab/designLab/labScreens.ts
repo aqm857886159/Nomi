@@ -1,4 +1,3 @@
-import { AGENT_PANEL_STATES, PANEL_HEIGHT, PANEL_WIDTH } from './agentPanelStates'
 import { EDITING_STATES } from './editing/editingStates'
 import { STORYBOARD_STATES } from './storyboard/storyboardStates'
 import { STAGE_HEIGHT, STAGE_WIDTH } from './storyboard/storyboardLabKit'
@@ -15,12 +14,6 @@ import type { LabScreen, LabState } from './labScreen'
  * 只改一处 = 那一屏要么截不出图、要么孤儿基线）。
  */
 export const LAB_SCREENS: readonly LabScreen[] = [
-  {
-    id: 'agent-panel',
-    label: 'Agent 面板',
-    states: AGENT_PANEL_STATES,
-    cell: { width: PANEL_WIDTH, height: PANEL_HEIGHT + 40 },
-  },
   {
     id: 'agent-panel-v4',
     label: 'Agent 面板 v4',
