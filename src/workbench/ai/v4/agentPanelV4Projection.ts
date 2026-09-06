@@ -245,12 +245,23 @@ function taskCardFor(
 // ── 对话流装配 ────────────────────────────────────────────────────────────────
 
 function sortedItems(items: readonly ProjectAgentItem[]): readonly ProjectAgentItem[] {
-  // `createdAt` 同毫秒的项在同一次 reduce 里很常见（一个回合的 tool + task 一起写入），
-  // 所以第二键是 itemId：稳定顺序比「哪个真的更早」重要——顺序抖动会让基线随机翻红。
+  // `createdAt` 同毫秒的项在同一次 reduce 里很常见（一个回合的 user + tool + assistant 一起写入），
+  // 所以必须有第二键。第二键是**宿主数组里的下标**，不是 itemId：
+  //
+  // itemId 排序看着也「稳定」（同样的输入给同样的顺序），但它稳定在一个**和因果无关**的轴上。
+  // 一个回合的四条记录叫 u1 / t1 / a1 / u2 时，按 itemId 排出来是 a1 → t1 → t2 → u1 → u2——
+  // 助手的回答排在引发它的那句用户话**上面**。2026-09-06 实验室 6 张 v4 接线格就是这么倒过来的：
+  // 夹具的时间戳是冻结字面量（基线要求），于是每一条都同毫秒，itemId 那一键 100% 生效。
+  // 真机上时间戳互不相同，所以这条 bug 在真机走查里看不见——但它一直都在，只要一个回合的
+  // 记录落在同一毫秒（宿主本来就是一次 reduce 批量写入的），真机也会翻。
+  //
+  // 宿主数组的顺序就是记录写入的顺序，也就是它们真实发生的顺序，所以它既稳定又是因果的。
+  // 兄弟投影 `projectAgentUiProjection.ts` 一直就是这么做的（第三键 `itemOrder`）；
+  // 这里跟上，两份投影对「同毫秒怎么排」不再有两个答案。
+  const order = new Map(items.map((item, index) => [item.itemId, index]))
   return [...items].sort((left, right) =>
-    left.createdAt === right.createdAt
-      ? left.itemId.localeCompare(right.itemId)
-      : left.createdAt.localeCompare(right.createdAt),
+    left.createdAt.localeCompare(right.createdAt)
+    || (order.get(left.itemId) ?? 0) - (order.get(right.itemId) ?? 0),
   )
 }
 
