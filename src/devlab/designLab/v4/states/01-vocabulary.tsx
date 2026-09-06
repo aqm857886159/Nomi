@@ -6,10 +6,13 @@
 // 顺序有意义：`labStates.mjs` 按本屏目录里 `NN-*.tsx` 的文件名排序解析，汇总口按同样顺序拼接，
 // 走查再拿活页面的 `window.__designLabStates` 与解析结果逐项比对——三者对不上当场红。
 import React from 'react'
+import { IconBrowser, IconSettings } from '../../../../vendor/tablerIcons'
 import { V4Intervention, V4Queue, V4TaskCard } from '../../../../workbench/ai/v4/AgentPanelV4Cards'
 import { V4ContextRing } from '../../../../workbench/ai/v4/AgentPanelV4Context'
-import { V4CollapsedLogoDock } from '../../../../workbench/ai/v4/AgentPanelV4Dock'
-import type { V4DockStatus } from '../../../../workbench/ai/v4/agentPanelV4DockStatus'
+import { AgentTopbarChip } from '../../../../ui/app-shell/AgentTopbarChip'
+import { agentTopbarChipBadge } from '../../../../ui/app-shell/agentTopbarChipBadge'
+import { TooltipProvider } from '../../../../design'
+import { dockStatusLabel, type V4DockStatus } from '../../../../workbench/ai/v4/agentPanelV4DockStatus'
 import { V4AssistantMessage, V4Thinking, V4UserBubble } from '../../../../workbench/ai/v4/AgentPanelV4Message'
 import { V4ErrorBar, V4ToolReceipt } from '../../../../workbench/ai/v4/AgentPanelV4Receipt'
 import { useV4Labels } from '../../../../workbench/ai/v4/agentPanelV4Labels'
@@ -113,21 +116,55 @@ function ContextCell({ expanded }: { expanded: boolean }): JSX.Element {
 }
 
 /**
- * ⑦ 收起坞 · 右上角那枚 Nomi logo 钮（2026-09-06 用户改）。
- *
- * logo 钮本身只有 32px 见方，裸着截会被走查的「舞台没渲染出来」判据（宽 < 40）误报成渲染失败，
- * 所以放进同一个 `Piece` 取景框里，底下垫一块它在真机里压着的内容区——那块灰底同时是证据：
- * 收起态的合同是「把屏幕还给内容」，logo 只该占右上角一个角，不是一整列。
+ * 角标的两个邻居（浏览器 / 设置）。取景框的视口是 1440，落在现役 `max-[1600px]` 断点里，
+ * 所以它们在真机上就是 30px 图标方块——照抄那一档，才比得出「角标和它们等高」这件事。
  */
-function DockCell({ status, pendingCount = 0 }: { status: V4DockStatus; pendingCount?: number }): JSX.Element {
+function NeighborGhostButton({ icon }: { icon: React.ReactNode }): JSX.Element {
+  return (
+    <span
+      className="grid size-[30px] place-items-center rounded-[var(--nomi-radius-sm)] border border-transparent text-[var(--nomi-ink-80)]"
+      aria-hidden="true"
+    >
+      {icon}
+    </span>
+  )
+}
+
+/**
+ * ⑦ 收起坞 · **顶栏那一格角标**（09-01 定稿 §11.2 收起态 · 样张「屏 E · B①」）。
+ *
+ * 取景框里垫一条顶栏色的横条并把角标放进去，是因为这颗钮的对错只有**在它的邻居旁边**才看得出来：
+ * 它必须和「浏览器 / 设置」同高（30px）、同圆角、同 ghost 底。裸着截一颗 logo，
+ * 高矮不一致这种最刺眼的毛病恰好是看不出来的那种。
+ *
+ * 五档状态各一格，但**长相只有两种**（点 / 数字）——这正是要被截下来钉住的事：
+ * 一格 8px 的角标分不出五种意思，分档的活儿归 tooltip 那句人话。
+ */
+function DockCell({ status, pendingCount = 0, unreadCount = 0 }: {
+  status: V4DockStatus
+  pendingCount?: number
+  unreadCount?: number
+}): JSX.Element {
   const labels = useV4Labels()
+  const tooltip = `${labels.dock.open} · ${dockStatusLabel(status, pendingCount, labels.dock)}`
   return (
     <Piece>
-      <div className="relative rounded-nomi-sm bg-nomi-ink-05" style={{ height: 120 }}>
-        <div className="absolute right-2 top-2">
-          <V4CollapsedLogoDock status={status} pendingCount={pendingCount} labels={labels.dock} />
+      <TooltipProvider delayDuration={250} disableHoverableContent>
+        <div className="flex items-center justify-end gap-2.5 rounded-nomi-sm border border-nomi-line-soft bg-nomi-paper px-2.5 py-1.5">
+          <NeighborGhostButton icon={<IconBrowser size={15} stroke={1.8} />} />
+          <span className="h-[18px] w-px bg-workbench-border" aria-hidden="true" />
+          <AgentTopbarChip
+            reason="resident-collapsed"
+            label="Nomi"
+            tooltip={tooltip}
+            status={status}
+            badge={agentTopbarChipBadge(unreadCount, pendingCount, status === 'failed')}
+            onOpen={() => undefined}
+          />
+          <span className="h-[18px] w-px bg-workbench-border" aria-hidden="true" />
+          <NeighborGhostButton icon={<IconSettings size={15} stroke={1.8} />} />
         </div>
-      </div>
+      </TooltipProvider>
     </Piece>
   )
 }
@@ -373,36 +410,36 @@ export const V4_VOCABULARY_STATES: readonly LabState[] = [
   },
   {
     id: 'v4-dock-logo',
-    name: '⑦ 收起坞 · Nomi logo 钮（空闲：什么都不叠）',
-    source: '2026-09-06-agent-panel-v4.md · Collapsed 板（2026-09-06 用户改：收起态回到 logo）',
+    name: '⑦ 收起角标 · 顶栏那一格（空闲：什么都不叠）',
+    source: '2026-09-01-agent-ui-final-redesign.md §11.2 · 样张屏 E · B① 收起态',
     coverage: 'component-only',
     render: () => <DockCell status="idle" />,
   },
   {
     id: 'v4-collapsed-running',
-    name: '⑦ 收起坞 · 运行中（呼吸点）',
-    source: '2026-09-06-agent-panel-v4.md · Collapsed 板（2026-09-06 用户改：收起态回到 logo）',
+    name: '⑦ 收起角标 · 运行中来了一条新动静（蓝点 8px）',
+    source: '2026-09-01-agent-ui-final-redesign.md §11.2 · 样张屏 E · B① 收起态',
     coverage: 'component-only',
-    render: () => <DockCell status="running" />,
+    render: () => <DockCell status="running" unreadCount={1} />,
   },
   {
     id: 'v4-collapsed-needs-confirm',
-    name: '⑦ 收起坞 · 待你确认（数字角标 = 介入槽条数）',
-    source: '2026-09-06-agent-panel-v4.md · Collapsed 板（2026-09-06 用户改：收起态回到 logo）',
+    name: '⑦ 收起角标 · 待你确认（数字徽标 = 未读条数，含那条待决）',
+    source: '2026-09-01-agent-ui-final-redesign.md §11.2 · 样张屏 E · B① 收起态',
     coverage: 'component-only',
-    render: () => <DockCell status="needs-confirm" pendingCount={2} />,
+    render: () => <DockCell status="needs-confirm" pendingCount={1} unreadCount={1} />,
   },
   {
     id: 'v4-collapsed-done',
-    name: '⑦ 收起坞 · 刚完成（短暂勾号，2.4s 后自己消失）',
-    source: '2026-09-06-agent-panel-v4.md · Collapsed 板（2026-09-06 用户改：收起态回到 logo）',
+    name: '⑦ 收起角标 · 刚做完，攒了 3 条未读（数字徽标）',
+    source: '2026-09-01-agent-ui-final-redesign.md §11.2 · 样张屏 E · B① 收起态',
     coverage: 'component-only',
-    render: () => <DockCell status="done" />,
+    render: () => <DockCell status="done" unreadCount={3} />,
   },
   {
     id: 'v4-collapsed-failed',
-    name: '⑦ 收起坞 · 失败（警示角标）',
-    source: '2026-09-06-agent-panel-v4.md · Collapsed 板（2026-09-06 用户改：收起态回到 logo）',
+    name: '⑦ 收起角标 · 有一步没成（没有新消息也保底冒一颗点，坏消息在 tooltip 里说清）',
+    source: '2026-09-01-agent-ui-final-redesign.md §11.2 · 样张屏 E · B① 收起态',
     coverage: 'component-only',
     render: () => <DockCell status="failed" />,
   },

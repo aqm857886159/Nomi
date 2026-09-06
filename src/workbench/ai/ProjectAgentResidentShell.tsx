@@ -19,7 +19,7 @@ import { useTimelinePlanPreview } from './resident/timelineAgentSurface'
 import type { ResidentSurface } from './resident/residentShellDisplay'
 import { AgentPanelV4Panel } from './v4/AgentPanelV4Panel'
 import { V4Intervention } from './v4/AgentPanelV4Cards'
-import { V4CollapsedDock, V4CollapsedLogoDock } from './v4/AgentPanelV4Dock'
+import { V4CollapsedDock } from './v4/AgentPanelV4Dock'
 import { useV4DockStatus } from './v4/agentPanelV4DockStatus'
 import { AgentPanelV4Composer, V4ModelPopover, V4PermissionPopover, V4SkillPopover, type V4CommandRow, type V4ModelRow } from './v4/AgentPanelV4Composer'
 import { useAgentPanelV4Data } from './v4/useAgentPanelV4Data'
@@ -135,6 +135,39 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
     pendingCount: dockPendingCount,
     failed: Boolean(actions.error) || data.flow[data.flow.length - 1]?.kind === 'error',
   })
+
+  /**
+   * 收起期间攒下的**未读条数**（定稿 §11.2：数字徽标 = 未读条数）。
+   *
+   * 「未读」只能从**收起那一刻**起算，所以要记一个锚：收起时流里已经有多少条。
+   * 锚在渲染中调整（React 官方那条「渲染期调整 state」的写法）而不是放进 effect——
+   * effect 晚一帧，那一帧里锚还是 0，未读会先闪一个「整段对话都是新的」的大数字。
+   *
+   * 只数**新回复**和**工具跑完**两种：用户自己在下沿 composer 里敲的那句不算未读（他刚写的），
+   * 思考条、任务卡这些是同一件事的过程，数进去只会把「有几件事等你」变成「界面动了几次」。
+   * 待决另算一份加上去——它不在流里，而它恰恰是最该被数出来的那种未读。
+   */
+  const [unreadAnchor, setUnreadAnchor] = React.useState({ collapsed, at: data.flow.length })
+  if (unreadAnchor.collapsed !== collapsed) setUnreadAnchor({ collapsed, at: data.flow.length })
+  const dockUnreadCount = collapsed
+    ? data.flow.slice(unreadAnchor.at).filter((item) => item.kind === 'assistant' || item.kind === 'tool').length + dockPendingCount
+    : 0
+
+  /**
+   * 把这三个数投到顶栏那格角标去（09-01 定稿 §11.2：收起态的家是顶栏右簇「浏览器 / 设置」之间）。
+   *
+   * 为什么要投而不是就地渲：顶栏不在这棵子树里。之前那一版把 logo 画在内容区右上角——
+   * 它跟着面板走，于是每换一个面落点就换一个地方，用户得重新找它。顶栏是唯一四个面都在的那条 chrome。
+   *
+   * 展开时报 `null`（不是报 `idle`）：`idle` 是「收着但没事」，`null` 是「压根没收起」——
+   * 顶栏据此决定那一格出不出角标，两者不能混。卸载时也报 `null`，否则关掉项目后
+   * 顶栏还挂着一颗指向已经不存在的面板的角标。
+   */
+  const publishDockBadge = useResidentActivityStore((state) => state.setResidentDockBadge)
+  React.useEffect(() => {
+    publishDockBadge(collapsed ? dockStatus : null, dockPendingCount, dockUnreadCount)
+  }, [collapsed, dockPendingCount, dockStatus, dockUnreadCount, publishDockBadge])
+  React.useEffect(() => () => useResidentActivityStore.getState().setResidentDockBadge(null, 0, 0), [])
 
   /**
    * 错误条 / 失败任务卡上那个动作钮。
@@ -260,8 +293,9 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
   // 居中，介入槽跟着它——这样一份编辑计划仍然读得到、批得下，不必把整列还给面板。
   // 把 composer 也收走，才是真的把对话中断了。
   //
-  // 叫回它的入口只有一个：右上角那枚 Nomi logo 钮（2026-09-06 用户改，血统见 `CollapsedAiChip`）。
-  // 之前是右侧一条满高 32px rail 上的两颗 icon——两颗指的是同一个动作，还占着一整列注意力。
+  // 叫回它的入口只有一个，而且**不在这里**：顶栏右簇「浏览器」与「设置」之间那一格
+  // （`src/ui/app-shell/CollapsedAiChip.tsx`，09-01 定稿 §11.2）。收起态的家跟着 chrome 走、
+  // 不跟着面板走——顶栏是唯一四个面都在的那条，切面时角标不挪窝。
   if (collapsed) {
     return (
       <section
@@ -300,14 +334,6 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
             skillSelected={Boolean(activeSkill || actions.selectedLibraryPrompt)}
           />
         </V4CollapsedDock>
-        <div className="pointer-events-auto absolute right-2 top-2 z-40">
-          <V4CollapsedLogoDock
-            status={dockStatus}
-            pendingCount={dockPendingCount}
-            labels={labels.dock}
-            onOpen={() => setCollapsed(false)}
-          />
-        </div>
       </section>
     )
   }

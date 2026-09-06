@@ -5,10 +5,14 @@
 // 没有可对账的界面件——它们的界面内容已经拆进 Vocabulary / Composer 两组的单件状态里，
 // 不为它们再造一个「整块面板」状态充数。
 import React from 'react'
+import { IconBrowser, IconSettings } from '../../../../vendor/tablerIcons'
 import { AgentPanelV4Panel } from '../../../../workbench/ai/v4/AgentPanelV4Panel'
 import { AgentPanelV4Composer } from '../../../../workbench/ai/v4/AgentPanelV4Composer'
 import { V4Intervention } from '../../../../workbench/ai/v4/AgentPanelV4Cards'
-import { V4CollapsedLogoDock } from '../../../../workbench/ai/v4/AgentPanelV4Dock'
+import { AgentTopbarChip } from '../../../../ui/app-shell/AgentTopbarChip'
+import { agentTopbarChipBadge } from '../../../../ui/app-shell/agentTopbarChipBadge'
+import { TooltipProvider } from '../../../../design'
+import { dockStatusLabel } from '../../../../workbench/ai/v4/agentPanelV4DockStatus'
 import { useV4Labels } from '../../../../workbench/ai/v4/agentPanelV4Labels'
 import { useV4Fixtures } from '../agentPanelV4LabKit'
 import type { LabState } from '../../labScreen'
@@ -70,31 +74,52 @@ function DarkPanel(): JSX.Element {
 }
 
 /**
- * 收起坞：右上角一枚 Nomi logo 钮 + 同一个 composer 和介入槽落到画面下沿（定稿 Collapsed 板，
- * 2026-09-06 用户改：右上角从两颗小 icon 换回 logo）。
+ * 收起整场景（定稿 Collapsed 板 + 09-01 定稿 §11.2 收起态）。
  *
- * 这一格挂着 `needs-confirm`：介入槽正浮在下沿等人点，logo 上就该冒同一件事的角标——
- * 两处说的是同一条待决，对不上就是收起态在撒谎。
+ * 两件事同屏才说得清收起是什么：**顶栏**那一格冒出角标（面板去哪儿了），
+ * **画面下沿**留着同一个 composer 和介入槽（对话并没有被中断）。中间那一大片是还给内容的屏幕。
+ *
+ * 角标挂 `needs-confirm` 且数字 = 1：下沿正浮着一条介入槽等人点，顶栏那格报的必须是同一条。
+ * 两处对不上，收起态就是在撒谎。
  */
 function CollapsedScene(): JSX.Element {
   const fx = useV4Fixtures()
   const labels = useV4Labels()
+  const tooltip = `${labels.dock.open} · ${dockStatusLabel('needs-confirm', 1, labels.dock)}`
   return (
-    <div className="relative bg-nomi-ink-05" style={{ width: 620, height: 360 }}>
-      <div className="flex h-full min-w-0 flex-col justify-end gap-2 p-3">
-        <V4Intervention data={fx.slots.reversible} labels={labels.intervention} />
-        <AgentPanelV4Composer
-          panelHeight={360}
-          dock
-          mode="running"
-          chips={[fx.chips.clip]}
-          value={fx.t('agentPanelV4.fixtureUserTrim')}
-        />
+    <TooltipProvider delayDuration={250} disableHoverableContent>
+      <div className="flex flex-col bg-nomi-ink-05" style={{ width: 620, height: 360 }}>
+        {/* 顶栏右簇的那一段：浏览器 │ 角标 │ 设置。落点就是这一格，四个面都一样。 */}
+        <div className="flex shrink-0 items-center justify-end gap-2.5 border-b border-nomi-line-soft bg-nomi-paper px-2.5 py-1.5">
+          <span className="grid size-[30px] place-items-center rounded-[var(--nomi-radius-sm)] text-[var(--nomi-ink-80)]" aria-hidden="true">
+            <IconBrowser size={15} stroke={1.8} />
+          </span>
+          <span className="h-[18px] w-px bg-workbench-border" aria-hidden="true" />
+          <AgentTopbarChip
+            reason="resident-collapsed"
+            label="Nomi"
+            tooltip={tooltip}
+            status="needs-confirm"
+            badge={agentTopbarChipBadge(1, 1)}
+            onOpen={() => undefined}
+          />
+          <span className="h-[18px] w-px bg-workbench-border" aria-hidden="true" />
+          <span className="grid size-[30px] place-items-center rounded-[var(--nomi-radius-sm)] text-[var(--nomi-ink-80)]" aria-hidden="true">
+            <IconSettings size={15} stroke={1.8} />
+          </span>
+        </div>
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col justify-end gap-2 p-3">
+          <V4Intervention data={fx.slots.reversible} labels={labels.intervention} />
+          <AgentPanelV4Composer
+            panelHeight={360}
+            dock
+            mode="idle"
+            permission="step"
+            value={fx.t('agentPanelV4.fixtureUserTrim')}
+          />
+        </div>
       </div>
-      <div className="absolute right-2 top-2">
-        <V4CollapsedLogoDock status="needs-confirm" pendingCount={1} labels={labels.dock} />
-      </div>
-    </div>
+    </TooltipProvider>
   )
 }
 
@@ -133,8 +158,8 @@ export const V4_FLOW_STATES: readonly LabState[] = [
   },
   {
     id: 'v4-collapsed',
-    name: 'Collapsed · 结果全屏（右上 logo 钮 + 下沿 composer / 介入槽）',
-    source: '2026-09-06-agent-panel-v4.md · Collapsed 板',
+    name: 'Collapsed · 结果全屏（顶栏角标 + 下沿 composer / 介入槽）',
+    source: '2026-09-06-agent-panel-v4.md · Collapsed 板 + 2026-09-01 §11.2 收起态',
     coverage: 'component-only',
     span: 2,
     render: () => <CollapsedScene />,

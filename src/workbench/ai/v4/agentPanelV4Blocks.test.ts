@@ -9,7 +9,6 @@ import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { V4Intervention, V4Queue, V4TaskCard } from './AgentPanelV4Cards'
 import { V4ContextRing } from './AgentPanelV4Context'
-import { V4CollapsedLogoDock } from './AgentPanelV4Dock'
 import { V4AssistantMessage, V4Thinking, V4UserBubble } from './AgentPanelV4Message'
 import { V4ToolReceipt } from './AgentPanelV4Receipt'
 import { AgentPanelV4Composer } from './AgentPanelV4Composer'
@@ -231,38 +230,10 @@ describe('⑥ 队列行', () => {
   })
 })
 
-const dockLabels = {
-  open: '展开 Nomi',
-  idle: 'Nomi 在这儿',
-  running: '正在做',
-  needsConfirm: (count: number) => `等你确认 ${count} 条`,
-  done: '刚做完',
-  failed: '有一步没成',
-}
-
-describe('⑦ 收起坞 · ⑧ Context 环', () => {
-  it('收起态是 Nomi logo 钮：运行中冒呼吸点，无障碍名里带着那句状态话', () => {
-    const markup = html(el(V4CollapsedLogoDock, { status: 'running', labels: dockLabels }))
-    expect(markup).toContain('data-v4-block="dock"')
-    expect(markup).toContain('data-agent-dock-status="running"')
-    expect(markup).toContain('nomi-logo-mark')
-    expect(markup).toContain('data-agent-dock-badge="running"')
-    expect(markup).toContain('展开 Nomi · 正在做')
-  })
-
-  it('待确认冒的是**条数**，不是一颗没有信息量的点', () => {
-    const markup = html(el(V4CollapsedLogoDock, { status: 'needs-confirm', pendingCount: 3, labels: dockLabels }))
-    expect(markup).toContain('data-agent-dock-badge="needs-confirm"')
-    expect(markup).toContain('>3<')
-    expect(markup).toContain('等你确认 3 条')
-  })
-
-  it('空闲什么都不叠——「没事」最好的表达是不说话', () => {
-    const markup = html(el(V4CollapsedLogoDock, { status: 'idle', labels: dockLabels }))
-    expect(markup).not.toContain('data-agent-dock-badge')
-    expect(markup).toContain('data-agent-dock-status="idle"')
-  })
-
+// ⑦ 收起坞的「叫回面板」那颗钮已搬到顶栏（09-01 定稿 §11.2），断言随它走进
+// `src/ui/app-shell/AgentTopbarChip.test.tsx`——它现在的邻居是浏览器/设置那两颗钮，
+// 断言该和它们放一起，不该留在面板积木这一叠里。本文件只剩画面下沿那一坞（无自有长相）。
+describe('⑧ Context 环', () => {
   it('缺分母时环写「—」而不是「0%」——0% 是一个我们没资格下的断言', () => {
     const markup = html(el(V4ContextRing, { usage: { used: 62400 }, labels: contextLabels, expanded: true }))
     expect(markup).toContain('—')

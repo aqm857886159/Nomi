@@ -10,6 +10,7 @@ import {
     useWorkbenchStore,
     type WorkspaceMode,
 } from "./workbenchStore";
+import { assistantWidthMaxFor } from "./assistantWidthBounds";
 import { cn } from "../utils/cn";
 import ProjectExplorerSidebar from "./explorer/ProjectExplorerSidebar";
 import DocumentListSidebar from "./creation/DocumentListSidebar";
@@ -210,6 +211,27 @@ export default function WorkbenchShell({
     React.useEffect(() => {
         writeWorkspaceModeToUrl(workspaceMode);
     }, [workspaceMode]);
+
+    /**
+     * 窗口变窄时把**超限的**面板宽度钳回来（09-01 定稿 §11.2 窄窗态）。
+     *
+     * 只收上限、不动没超限的宽度：用户拖出来的 340 在任何窗口下都还是 340，窗口变窄不是他改主意了。
+     * 超限的那份必须钳——不钳的话内容侧（探索栏 60 + 画布底线 700 = 760）会被面板吃掉，
+     * 画布窄到看不了，而用户看到的现象是「窗口一小画布就废了」，根本联想不到是面板宽度。
+     *
+     * 放在这里而不是某个面里：面板四个面共用同一个 `assistantWidth`，钳一次就够；
+     * 挂在某个面上，切到别的面再缩窗口就漏了。
+     */
+    React.useEffect(() => {
+        const clampToViewport = (): void => {
+            const store = useWorkbenchStore.getState();
+            const max = assistantWidthMaxFor(window.innerWidth);
+            if (store.assistantWidth > max) store.setAssistantWidth(max);
+        };
+        clampToViewport();
+        window.addEventListener("resize", clampToViewport);
+        return () => window.removeEventListener("resize", clampToViewport);
+    }, []);
 
     React.useEffect(() => {
         setMountedWorkspaceModes((current) =>

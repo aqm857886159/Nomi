@@ -1,116 +1,15 @@
-// Agent 面板 v4 · 积木 ⑦ 收起坞（我们独有，AI Elements / Beautiful UI 都没有对应件）
+// Agent 面板 v4 · 积木 ⑦ 收起坞 —— **画面下沿那一坞**（我们独有，AI Elements / Beautiful UI 都没有）。
 //
-// **2026-09-06 用户改**：收起态右上角不再是两颗小 icon，而是 Nomi 一直延续的那枚 **logo 钮**，
-// 状态叠在 logo 上（运行中 / 待你确认 N / 刚完成 / 失败），点它展开；底部的 composer 坞不动。
+// 收起藏的是**对话流**，不是对话：同一个 composer 掉到画面下沿居中，介入槽跟着它一起。
+// 这样一份编辑计划仍然读得到、批得下，不必把整列还给面板。
 //
-// 血统在 `src/ui/app-shell/CollapsedAiChip.tsx`（生成区让位时收进顶栏的那枚角标）：
-// 同一枚 `NomiLogoMark`、同一句「有动静就冒角标、纯空会话不冒」、同一个 ghost 钮形态。
-// 那枚角标只会「有 / 没有」，这里按宿主投影分出五档——但**不重画 logo**，形状仍由
-// `src/design/identity.tsx` 单点持有（P1）。
-//
-// 为什么是右上角而不是右侧一条 rail：收起的意思是「把屏幕还给内容」。一条贴着右边缘、
-// 满高的 32px 条仍然占着一整列的注意力，而且它上面那两颗 icon（对话 / 面板设置）指的是
-// **同一个动作**——都是「把面板叫回来」。一枚 logo 就够了，状态叠在它身上。
+// 「叫回面板」那颗钮**不在这个文件里**：它住顶栏右簇「浏览器」与「设置」之间那一格
+// （`src/ui/app-shell/CollapsedAiChip.tsx` + `AgentTopbarChip.tsx`，09-01 定稿 §11.2）。
+// 更早的两版都把它画在面板自己的地盘上——先是右侧一条满高 32px rail，后是内容区右上角一枚
+// logo——两版共同的毛病是**落点跟着面板走**：切一个面就换一个地方，用户每次都得重新找它。
+// 顶栏是唯一跨创作/分镜/生成/预览四个面常驻的 chrome，所以收起角标的家在那儿。
 import React from 'react'
-import { cn } from '../../../utils/cn'
-import { NomiLogoMark } from '../../../design'
-import { IconAlertTriangle, IconCheck } from './AgentPanelV4Icons'
 import { TRANSPORT_BAR_SELECTOR, transportClearanceFrom } from './agentPanelV4DockClearance'
-import { dockStatusLabel, type V4DockLabels, type V4DockStatus } from './agentPanelV4DockStatus'
-
-/** logo 上那一格叠加物。空闲什么都不叠——「没事」最好的表达方式是不说话。 */
-function DockStatusOverlay({ status, pendingCount }: { status: V4DockStatus; pendingCount: number }): JSX.Element | null {
-  if (status === 'idle') return null
-  const corner = 'absolute -right-1 -top-1 grid place-items-center rounded-pill'
-  if (status === 'running') {
-    // 呼吸点而不是转圈：定稿 ⑧ 明令禁用「纯转圈无文字」，而这里本来就没有位置写字。
-    return (
-      <span
-        className={cn(corner, 'size-2 animate-pulse bg-nomi-accent motion-reduce:animate-none')}
-        data-agent-dock-badge="running"
-        aria-hidden="true"
-      />
-    )
-  }
-  if (status === 'needs-confirm') {
-    return (
-      <span
-        className={cn(corner, 'h-4 min-w-4 bg-nomi-warning px-1 text-micro font-medium leading-none text-nomi-paper')}
-        data-agent-dock-badge="needs-confirm"
-        aria-hidden="true"
-      >
-        {pendingCount}
-      </span>
-    )
-  }
-  if (status === 'failed') {
-    return (
-      <span
-        className={cn(corner, 'size-4 bg-nomi-danger text-nomi-paper')}
-        data-agent-dock-badge="failed"
-        aria-hidden="true"
-      >
-        <IconAlertTriangle size={10} />
-      </span>
-    )
-  }
-  return (
-    <span
-      className={cn(corner, 'size-4 bg-nomi-success text-nomi-paper')}
-      data-agent-dock-badge="done"
-      aria-hidden="true"
-    >
-      <IconCheck size={10} />
-    </span>
-  )
-}
-
-/**
- * 收起态右上角的 Nomi logo 钮（2026-09-06 拍板改）。
- *
- * hover 才冒那一行状态字：收起态的合同是「把屏幕还给内容」，常驻一行字就是把它收回来一点。
- * 无障碍名里**始终**带着这句话，所以读屏用户不靠 hover 也听得到。
- */
-export function V4CollapsedLogoDock({
-  status,
-  pendingCount = 0,
-  labels,
-  onOpen,
-}: {
-  status: V4DockStatus
-  pendingCount?: number
-  labels: V4DockLabels
-  onOpen?: () => void
-}): JSX.Element {
-  const statusLabel = dockStatusLabel(status, pendingCount, labels)
-  return (
-    // `flex-row-reverse`：钮在 DOM 里排前面（`peer` 只作用于后面的兄弟），视觉上仍在最右。
-    <div
-      className="flex flex-row-reverse items-center gap-1.5"
-      data-v4-block="dock"
-      data-agent-dock-status={status}
-      data-agent-dock-pending={pendingCount}
-    >
-      <button
-        type="button"
-        className="peer relative grid size-8 place-items-center rounded-nomi-sm border border-nomi-line bg-nomi-paper shadow-nomi-sm transition-[background,box-shadow] duration-[var(--nomi-transition-fast)] hover:bg-nomi-ink-05 hover:shadow-nomi-md"
-        aria-label={`${labels.open} · ${statusLabel}`}
-        data-v4-control="dock-open"
-        onClick={onOpen}
-      >
-        <NomiLogoMark size={18} />
-        <DockStatusOverlay status={status} pendingCount={pendingCount} />
-      </button>
-      <span
-        className="pointer-events-none whitespace-nowrap rounded-pill border border-nomi-line bg-nomi-paper px-2 py-0.5 text-micro text-nomi-ink-60 opacity-0 shadow-nomi-sm transition-opacity duration-[var(--nomi-transition-fast)] peer-hover:opacity-100 peer-focus-visible:opacity-100"
-        data-agent-dock-hint="true"
-        aria-hidden="true"
-      >
-        {statusLabel}
-      </span>
-    </div>
-  )
-}
 
 /**
  * 收起后 composer 落到画面下沿要留出的空当。

@@ -184,6 +184,8 @@ export const zhCN = {
     generationCollapsedChip: '生成',
     generationCollapsedRestore: '展开生成 AI 栏（拆解占用右栏时暂收于此）',
     generationCollapsedUpdates: '有 {{count}} 条 Agent 新动静',
+    // 收起角标钮上那个词（窄窗隐藏，只剩 logo）。09-01 定稿 §11.2 收起态。
+    agentChip: 'Nomi',
   },
   window: {
     controls: '窗口控制',
@@ -592,6 +594,7 @@ export const en = {
     generationCollapsedChip: 'Generate',
     generationCollapsedRestore: 'Reopen the generation AI panel (tucked here while deconstruction uses the right dock)',
     generationCollapsedUpdates: '{{count}} new Agent updates',
+    agentChip: 'Nomi',
   },
   window: {
     controls: 'Window controls',
