@@ -29,6 +29,7 @@
     "scripts/outbound-policy-baseline.json",
     "src/desktop/bridge.ts",
     "src/ui/onboarding/NetworkSection.tsx",
+    "src/workbench/generationCanvas/runner/generationRunController.ts",
     "src/workbench/observability/narrate.ts",
     "src/workbench/observability/classifyError.ts",
     "src/workbench/ai/resident/residentShellDisplay.ts",
@@ -181,10 +182,20 @@
       "scripts/outbound-policy-baseline.json"
     ]
   },
+  "invariant_owner_layer": {
+    "layer": "electron/networkOutboundPolicy.ts",
+    "tests": [
+      "electron/networkOutboundPolicy.test.ts",
+      "electron/hardenedFetch.test.ts",
+      "src/workbench/generationCanvas/runner/outboundBlockedRecoverable.test.ts"
+    ],
+    "note": "One classifier owns 'may Nomi talk to this destination'; check:outbound-policy ratchets every appFetch/isPrivateHost importer so a second classifier is a red gate. The money half of the invariant - a destination we paid to reach must never cost the user twice to read - is owned by generationRunController's recoverable branch and pinned by outboundBlockedRecoverable.test.ts, which includes a positive control so 'everything is recoverable' cannot pass."
+  },
   "regression_tests": [
     "electron/networkOutboundPolicy.test.ts",
     "electron/hardenedFetch.test.ts",
-    "src/workbench/generationCanvas/runner/classifyGenerationError.test.ts"
+    "src/workbench/generationCanvas/runner/classifyGenerationError.test.ts",
+    "src/workbench/generationCanvas/runner/outboundBlockedRecoverable.test.ts"
   ],
   "class_regression_tests": [
     "electron/networkOutboundPolicy.test.ts",

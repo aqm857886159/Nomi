@@ -9,10 +9,17 @@
  * `198.18.0.0/15`（RFC 2544 基准测试段），POST 放行、GET 被自己拦下——10 条视频钱扣了、
  * 一帧都取不回来，界面只说「生成失败」。
  *
- * 本模块把那个决策收成**一处**：`assertOutboundDestinationAllowed` 是提交侧与取回侧共用的
- * 入口，`classifyOutboundAddresses` 是共用的判据，`readOutboundEnvironment` 是共用的环境事实。
+ * 本模块把那个决策收成**一处**：`classifyOutboundAddresses` 是唯一的判据，
+ * `readOutboundEnvironment` 是唯一的环境事实，`check:outbound-policy` 棘轮盯着所有
+ * `appFetch` / `isPrivateHost` 的引用点，谁再长出第二个分类器都会报红。
  * 环境事实**在进程内只探一次并缓存**——这正是「一处判定、结果带到取回」：提交那一刻算出的
  * 网络环境，取回时读到的是同一份，不可能中途翻脸。
+ *
+ * 说清楚现在到底是什么形状，别把它读成比实际更强的东西：**提交侧目前不调用本模块**。
+ * 它信任用户自己配的 vendor origin（那是用户显式填进模型设置的地址，不是任务返回的链接），
+ * 由 `runtime.ts` 把 `vendor.network` 事实传给 `projectAssetStore`，取回侧据此建同一条出站路由。
+ * 也就是说这一轮消灭的是「愿意付钱的目的地 ≠ 愿意读取的目的地」这个**不对称**，不是把两侧
+ * 都塞进同一个函数。反方向的不对称（提交侧目的地本身敌意）留在 root-cause 合同的 residual_risks。
  *
  * ── fake-ip 为什么可以放行（依据，不是宽容）────────────────────────────────────────────
  * `198.18.0.0/15` 由 RFC 2544 §C.2.2 分配给**网络互联设备基准测试**，RFC 5735/6890 把它列为

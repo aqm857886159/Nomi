@@ -107,6 +107,14 @@
       "scripts/model-radar.ts"
     ]
   },
+  "invariant_owner_layer": {
+    "layer": "electron/catalog/seedBuiltins.ts",
+    "tests": [
+      "electron/catalog/apimartTextMigration.test.ts",
+      "electron/catalog/seedBuiltins.test.ts"
+    ],
+    "note": "Curated seeds plus RETIRED_* keys are the one place that decides which relay models exist for a user, and apimartTextMigration.test.ts pins the both-sides rule (delist a curated row and it must land in RETIRED_*, or existing installs re-insert it on every start). The detection half - a listing is not liveness - is only half owned: scripts/model-radar.ts now diffs the chat listing (new 'unlisted' signal, covered by scripts/model-radar.test.ts) but nothing yet probes a listed model for a real 400. That gap is listed as an explicit open item in docs/plan/2026-09-07-model-generation-core-path.md rather than left implied."
+  },
   "regression_tests": [
     "electron/catalog/apimartTextMigration.test.ts",
     "electron/catalog/seedBuiltins.test.ts",
