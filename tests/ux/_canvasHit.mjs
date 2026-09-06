@@ -107,6 +107,63 @@ export async function findCanvasBlankPoint(page, { preference = 'default', inset
 }
 
 /**
+ * 找一块**真·空白的矩形**——画框工具要的不是一个点，是一整片没被任何东西盖住的地方。
+ *
+ * 判据与 `findCanvasBlankPoint` 是同一条（最顶层元素就是 pane），只是要对候选矩形的
+ * 四角 + 中心五点同时成立。为什么不复用「找一个点再往外撑」：撑出去的那一半没人验过，
+ * 于是框会从某个节点身上画过去——手势本身照常完成、断言照常绿，只是框里凭空多了个成员。
+ *
+ * `inset` 同 `findCanvasBlankPoint`：躲开 React Flow 的自动平移带（默认 40px），
+ * 否则起点落在带里、视口按帧率自己跑，画出来的框每次大小都不一样。
+ *
+ * @param {import('@playwright/test').Page} page
+ * @param {{ width: number, height: number, inset?: number }} options 期望的矩形尺寸（屏幕像素）
+ * @returns {Promise<{ x: number, y: number, width: number, height: number } | null>} 找不到返回 null（调用方须 fail-closed）
+ */
+export async function findCanvasBlankRect(page, { width, height, inset = 48 }) {
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+    throw new Error(`findCanvasBlankRect: width/height 必须是正有限数，收到 ${width}×${height}`)
+  }
+  return page.evaluate(
+    ({ stageSelector, paneSelector, want, insetPx }) => {
+      const stage = document.querySelector(stageSelector)
+      if (!stage) return null
+      const full = stage.getBoundingClientRect()
+      const rect = {
+        left: full.left + insetPx,
+        top: full.top + insetPx,
+        right: full.right - insetPx,
+        bottom: full.bottom - insetPx,
+      }
+      if (rect.right - rect.left < want.width || rect.bottom - rect.top < want.height) return null
+      const isBlank = (x, y) => {
+        const hit = document.elementFromPoint(x, y)
+        return Boolean(hit && stage.contains(hit) && hit.matches(paneSelector))
+      }
+      const fits = (x, y) =>
+        isBlank(x, y) &&
+        isBlank(x + want.width, y) &&
+        isBlank(x, y + want.height) &&
+        isBlank(x + want.width, y + want.height) &&
+        isBlank(x + want.width / 2, y + want.height / 2)
+      // 从下往上、从右往左扫：新建的节点默认落在画布左上偏中，下方与右侧最可能整片空着。
+      for (let y = rect.bottom - want.height; y >= rect.top; y -= 16) {
+        for (let x = rect.right - want.width; x >= rect.left; x -= 16) {
+          if (fits(x, y)) return { x, y, width: want.width, height: want.height }
+        }
+      }
+      return null
+    },
+    {
+      stageSelector: CANVAS_STAGE_SELECTOR,
+      paneSelector: CANVAS_PANE_SELECTOR,
+      want: { width, height },
+      insetPx: inset,
+    },
+  )
+}
+
+/**
  * 找连线上**真的点得到**的那个点：沿路径取样，返回第一个「最顶层元素就是这条命中路径」的屏幕点。
  *
  * 为什么不能直接 `locator.click()`：Playwright 点的是元素外接盒的中心，而贝塞尔曲线的

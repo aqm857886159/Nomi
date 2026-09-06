@@ -113,6 +113,22 @@ export function GroupFrameHeader({
     onEditingChange(true)
   }
 
+  /**
+   * 标题与说明这两段文字**不参与拖动**，它们自己吃掉 pointerdown。
+   *
+   * 不这么做双击就永远进不了编辑态：框体的拖动 handler 在 pointerdown 里 `preventDefault()`
+   * （它要拦住拖动时的文字选中），而浏览器一旦被取消 pointerdown 就**不再派发兼容鼠标事件**
+   * ——mousedown / click / dblclick 全没了。走查 canvas-frame.walk.mjs 的「双击标题进编辑态」
+   * 这条当场红，就是它。
+   *
+   * 代价是「按住标题拖框」不再生效。这个取舍是明的：框体其余部分整片都是把手，随便哪儿都能拖；
+   * 而一个改不了名字的标题没有别的入口（⋯ 菜单那一项走的也是这段编辑态）。
+   */
+  const claimPointer = (event: React.PointerEvent): void => {
+    if (!editable) return
+    event.stopPropagation()
+  }
+
   const countLabel = previewCount === null
     ? String(memberCount)
     : t('generationCommon.canvas.group.countPreview', { from: memberCount, to: previewCount })
@@ -145,6 +161,7 @@ export function GroupFrameHeader({
         <span
           className="min-w-0 truncate"
           data-frame-title="true"
+          onPointerDown={claimPointer}
           onDoubleClick={beginEditing('name')}
           title={editable ? t('generationCommon.canvas.group.renameAria', { name }) : undefined}
         >
@@ -167,6 +184,7 @@ export function GroupFrameHeader({
         <span
           className={cn('min-w-0 truncate font-normal', description ? 'text-nomi-ink-60' : 'text-nomi-ink-30')}
           data-frame-description="true"
+          onPointerDown={claimPointer}
           onDoubleClick={beginEditing('description')}
           title={editable ? t('generationCommon.canvas.group.describeAria', { name }) : undefined}
         >
