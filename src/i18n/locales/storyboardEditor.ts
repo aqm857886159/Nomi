@@ -57,7 +57,10 @@ export const zhStoryboardEditor = {
     rerunFreshRefs: '用新图重跑',
     missingRequired: '缺{{slot}}参考',
     missingRequiredHint: '这一镜的模型必须给参考图才能生成——换模型/模式，或给这一镜挂上参考卡',
-    noRefAccepted: '此模型不吃参考',
+    // 主语是**模式**，不是模型：同一个模型的图生视频档往往就能挂首帧。
+    noRefAccepted: '{{mode}} 不吃参考',
+    noRefAcceptedSwitch: '{{mode}} 不吃参考 · 切「{{other}}」可挂{{slot}}',
+    noRefAcceptedSwitchSame: '{{mode}} 不吃参考 · 切「{{other}}」模式可挂参考',
     slotAccepts: {
       image: '「{{label}}」只收图片',
       video: '「{{label}}」只收视频',
@@ -70,7 +73,7 @@ export const zhStoryboardEditor = {
     /** C1：参考区「@」入口（mention 触发按钮）。 */
     atRefAria: '输入 @ 选择参考',
     atRefTitle: '在提示词里插入参考（@ 符号弹出选择器）',
-    atRefDisabledTitle: '此模型不吃参考，无法用 @ 引用',
+    atRefUnavailableTitle: '这一行暂时无法用 @ 引用',
     copy: '复制镜头',
     delete: '删除镜头',
     selectAria: '选择镜 {{index}}',
@@ -353,7 +356,9 @@ export const enStoryboardEditor = {
     rerunFreshRefs: 'Rerun with new refs',
     missingRequired: 'Missing {{slot}}',
     missingRequiredHint: 'This model needs a reference image to generate. Switch the model/mode, or attach a reference card to this shot.',
-    noRefAccepted: 'This model takes no references',
+    noRefAccepted: '{{mode}} takes no references',
+    noRefAcceptedSwitch: '{{mode}} takes no references — switch to "{{other}}" to attach a {{slot}}',
+    noRefAcceptedSwitchSame: '{{mode}} takes no references — switch to the "{{other}}" mode to attach one',
     slotAccepts: {
       image: '"{{label}}" takes images only',
       video: '"{{label}}" takes videos only',
@@ -365,7 +370,7 @@ export const enStoryboardEditor = {
     stayHint: 'For image shots, duration = how long this frame holds on the timeline / in sequence playback',
     atRefAria: 'Type @ to select a reference',
     atRefTitle: 'Insert a reference into the prompt (@ opens the picker)',
-    atRefDisabledTitle: 'This model takes no references — @ is disabled',
+    atRefUnavailableTitle: '@ references are unavailable on this row',
     copy: 'Duplicate shot',
     delete: 'Delete shot',
     selectAria: 'Select shot {{index}}',

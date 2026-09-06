@@ -445,6 +445,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
       references={
         <ShotReferenceZone
           mode={resolvedMode}
+          archetype={resolved?.archetype ?? null}
           bindings={shot.referenceBindings}
           onChangeBindings={(next) => onUpdate({ referenceBindings: next })}
           anchors={anchors}

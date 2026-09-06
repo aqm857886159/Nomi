@@ -1,5 +1,5 @@
 import type { AssetSlot } from '../../../assets/AssetReference'
-import type { ArchetypeMode, ArchetypeReferenceSlot } from '../../../../config/modelArchetypes/types'
+import type { ArchetypeMode, ArchetypeReferenceSlot, ModelArchetype } from '../../../../config/modelArchetypes/types'
 import type { PlanReferenceBinding } from '../../../generationCanvas/agent/storyboardPlan'
 import { bindingsOf, storyboardAssetSlots, type ReferenceBindingMap } from './shotReferenceSlots'
 
@@ -37,8 +37,16 @@ export type ShotReferenceCell = {
 }
 
 export type ShotReferenceColumn =
-  /** 该 mode 不吃参考（`slots: []`，如 t2v）：一行灰字，`@` 仍可把锚写进提示词。 */
-  | { kind: 'none-accepted' }
+  /**
+   * 该 **mode** 不吃参考（`slots: []`，如 t2v）：一行灰字，`@` 仍可把锚写进提示词。
+   *
+   * 主语是**模式**不是模型。2026-09-06 用户在打包版上看到「此模型不吃参考」——
+   * 那句话是错的，而且错得有代价：同一个模型的图生视频档摆在那里能挂首帧，
+   * 用户读完这句话会以为得换模型。所以这里带着模式名，并且**当同一档案里真有
+   * 另一个吃参考的模式时**把它指出来。指不出来（档案只有一个模式）就只说模式名，
+   * 不编一个不存在的去处。
+   */
+  | { kind: 'none-accepted'; modeLabel: string; switchTo?: { modeLabel: string; slotLabel: string } }
   /** 声明了槽 → 逐槽出格。 */
   | { kind: 'cells'; cells: ShotReferenceCell[] }
   /** 默认模型（无档案）契约未知 → 退回通用「@ 加」格，不假装知道能收什么。 */
@@ -50,9 +58,17 @@ export type ShotReferenceColumn =
 export function referenceColumnOf(
   mode: ArchetypeMode | null | undefined,
   bindings: ReferenceBindingMap | undefined,
+  archetype?: ModelArchetype | null,
 ): ShotReferenceColumn {
   if (!mode) return { kind: 'unknown-contract' }
-  if (mode.slots.length === 0) return { kind: 'none-accepted' }
+  if (mode.slots.length === 0) {
+    const alternative = referenceCapableSibling(mode, archetype)
+    return {
+      kind: 'none-accepted',
+      modeLabel: modeDisplayLabel(mode),
+      ...(alternative ? { switchTo: alternative } : {}),
+    }
+  }
   const assetSlots = storyboardAssetSlots(mode)
   const cells = mode.slots.map((declared, index): ShotReferenceCell => ({
     key: declared.kind,
@@ -65,6 +81,27 @@ export function referenceColumnOf(
     declared,
   }))
   return { kind: 'cells', cells }
+}
+
+/** 模式的人话名字：模型自己的叫法（picker 上显示的也是它），缺了才退回 id。 */
+function modeDisplayLabel(mode: ArchetypeMode): string {
+  return mode.vendorTerm.trim() || mode.id
+}
+
+/**
+ * 同一档案里另一个**吃参考**的模式。优先挑能挂首帧的那个——「切过去能干什么」
+ * 要具体到槽，一句「换个模式」等于没说。
+ */
+function referenceCapableSibling(
+  mode: ArchetypeMode,
+  archetype: ModelArchetype | null | undefined,
+): { modeLabel: string; slotLabel: string } | undefined {
+  const candidates = (archetype?.modes ?? []).filter((entry) => entry.id !== mode.id && entry.slots.length > 0)
+  const preferred = candidates.find((entry) => entry.slots.some((slot) => slot.kind === 'first_frame')) ?? candidates[0]
+  if (!preferred) return undefined
+  const slot = preferred.slots.find((entry) => entry.kind === 'first_frame') ?? preferred.slots[0]
+  if (!slot) return undefined
+  return { modeLabel: modeDisplayLabel(preferred), slotLabel: slot.label }
 }
 
 /** 计数角标文案的数据（`max` 缺省时 total = null，UI 只显 N 不显分母）。 */
