@@ -561,3 +561,72 @@ toolProjection(registry, profile: "internal" | "mcp") → ModelFacingTool[]
 - 拍板 §7 三条后，按 §6 阶段推进；**阶段 0 的探针结果回写进 §7 岔路 1**。
 - 本方案拍板后，`docs/plan/2026-09-06-agent-architecture-master-plan.md` 与 `docs/plan/2026-09-06-agent-tool-layer-root-fix.md` 应标 **⛔ 被本文取代**——两份渐进方案与一份重做方案并存，下一个读的人一定会走错。
 - 远期项登记：**`skill.write`**（让 Agent 把学到的方法写成技能）。恢复它需要的不是把工具接回去，是先设计「Agent 写的技能怎么被用户看到、审批、撤销」——那是一件独立的活。
+
+---
+
+## 11. 阶段 1 实施记录（垂直切片 · 影子期）
+
+> 本节由阶段 1 的实施分支 `feat/agent-lane-vertical-slice-20260907` 写入（R4：多文件改动先写范围/不动项/回滚/验收门）。
+> 状态：**影子期**——新通路存在、跑得通、被 CI 逐项比对，但**用户走不到**。旧通路继续服务用户。
+
+### 11.0 先查别人（R29 增量。§0 那一节是方案级的，这里只记阶段 1 新读到的东西）
+
+动手前实读的三份出处，每条都指向本节某个具体决定：
+
+| 出处 | 实读到的东西 | 它决定了本切片的哪一件 |
+|---|---|---|
+| pi 0.85.1 的类型与实现（`node_modules/@earendil-works/pi-agent-core/dist/harness/agent-harness.d.ts`、`dist/harness/session/jsonl/types.d.ts`、`@earendil-works/pi-ai/dist/types.d.ts:410`） | `AgentHarnessOptions` 收 `session` / `models` / `model` / `tools` / `systemPrompt` / `entryProjectors`；`AgentHarnessTool.execute` 的签名是 `(toolCallId, params, onUpdate, toolContext, invocation, context)`；`AssistantMessageEvent` 的 `start` 成员**没有** `contentIndex`；`JsonlSessionRepoOptions.sessionsRoot` 是一个普通字符串参数 | ⑤⑥ 两层的分工：宿主只做 lane 生命周期 + 闸 + custom entry，转录/顺序/持久化全归 pi；以及 §11.5 的第 1 条岔路 |
+| [阶段 0 探针报告](../research/2026-09-07-pi-0.85.1-probe-report.md) | §3.3「`JsonlSessionRepo` 会在 `sessionsRoot` 下按 `cwd` 生成 slug 子目录」；§5.1「`lane.watch()` 故意剥掉 `message_update` 的 `event` 字段，要 `contentIndex` 必须走 `harness.events.on`」；§4.2 臂 A「schema 不合法的参数**根本走不到** `before_tool`」 | 分别决定了 `laneSession.mts` 传稳定常量 cwd、`laneHost.mts` 同时订阅 `harness.events`、容忍必须落在 `prepareArguments` 而不是闸层 |
+| [#547 工具层审计](../audit/2026-09-06-agent-tool-layer-audit.md) §3.2 与 [#549 成熟 Agent 产品调研](../research/2026-09-06-mature-agent-products.md) §2.3 | 真机 18 次失败 **100%** 是「结构化值被序列化成 JSON 字符串」那一族；所有单分支扁平 schema 的工具都是 100%；成熟产品把「够得着」与「批得动」分开 | `laneDocumentTools.ts` 的三条形状规则（一别名一工具、别名定死的字段不进 schema、容忍在 `prepareArguments`），以及闸独立于工具可见性 |
+
+**四列表增量（R29）**：本切片只往「我们用了」一列加东西，「我们另写了 / 我们拆散了」两列**不增**——`electron/agentLane/` 在写第一行代码**之前**就加进了 `docs/engineering/framework-boundaries.json` 里 pi 五项能力的 `scope`，所以新目录里再出现自研 session / retry / steering 会**当场报红**（R28：防线建在最早能拦住的那层）。债数不变，仍是 14 条。
+
+### 11.1 范围（做了什么）
+
+一条能力端到端跑通新通路：`document.read` + `document.write`（#547 实测今天 100%，所以任何失败都归因于新通路而不是模型）。
+
+```
+pi lane（AgentHarness + JsonlSessionRepo，落 <project>/.nomi/agent-sessions/）   laneSession.mts · laneTools.mts · laneToolSchema.mts
+  → laneHost（主进程，订阅 harness.events.on 拿带 contentIndex 的有序段）        laneHost.mts · laneProjection.mts
+  → laneIpc（有序 parts 过 IPC，每段带 sequence；**未注册进 main.ts**）          laneIpc.ts · laneCommandCodec.ts
+  → laneClient（渲染进程订阅，零状态机）                                        src/workbench/ai/lane/laneClient.ts
+  → laneViewModel（纯函数投影，按 sequence 走，永不按 createdAt）                src/workbench/ai/lane/laneViewModel.ts
+  → 现有 v4 组件（一行不改）
+```
+
+### 11.2 不动项（一行都没碰）
+
+- 旧通路：`electron/harness/runtime/pi/run.mts` 的回合语义、`electron/projectAgentHost/**`、`projectAgentIpc`、渲染层 `agentPanelV4Projection.ts` 与 `useAgentPanelV4Data.ts`。
+- v4 的 9 个组件与 57 张设计实验室基线（G8）。
+- `main.ts` 的 IPC 注册表：`laneIpc` **不注册**（§8.1 规则 O6 的「开发期不可达」就是这条）。用户走不到 = 回滚面积为零。这条由 `electron/agentLane/laneShadowStructure.test.ts` 钉成断言，手法同 `projectAgentCutoverStructure.test.ts:40`。
+
+**一处例外，必须明说**：`electron/harness/runtime/pi/model.mts` 里的 provider 装配被**原样提取**成 `createNomiProvider()`，老路的 `createNomiModelRuntime()` 改为调用它。理由是 P1：新旧两条通路都要造同一个 pi provider，复制一份就是并行版。行为不变由既有 151 条 `test:agent-runtime` 证明。
+
+### 11.3 回滚
+
+删掉 `electron/agentLane/`、`electron/shared/agentLane/`、`src/workbench/ai/lane/`、`tests/agent-runtime/lane-*` 四处，外加 revert `model.mts` 的提取与 `snapshot.mts` 的版本兼容两个 commit。用户可见行为零变化，因为影子期用户从来没走过它。
+
+### 11.4 验收门（实测结果）
+
+| 门 | 判据 | 证据 | 结果 |
+|---|---|---|---|
+| **G3**（本阶段主门） | 冷重启后这条能力的历史顺序与 pi transcript 的走序**逐项一致** | `tests/agent-runtime/lane-slice.test.mts`：真起 harness 跑一轮（两次工具调用）→ `close()` → 从盘上 `repo.open()` 重开 → 投影 → 断言段的类型/身份/顺序/编号逐项相等；附带断言盘上真有 jsonl 文件（否则「空 == 空」也会绿） | ✅ 7/7 |
+| **影子比对** | 新旧转录逐项一致（文字、工具调用与结果、顺序）+ 花费一致 + 文稿最终状态一致 | `tests/agent-runtime/lane-shadow-parity.test.mts`，同一份 loopback 剧本喂两条通路 | ✅ 4/4 |
+| **信息不丢** | zod → 模型可见 schema 的转换器不吃掉 `.describe()` / 枚举 / min/max / 字段名 / 必填；**每条配阳性对照** | `tests/agent-runtime/lane-tool-schema.test.mts` | ✅ 7/7 |
+| **R30** | 一次写对率 + 回合成功率 | `tests/agent-runtime/lane-tool-accuracy.test.mts` | 一次写对率 **8/8**（无容忍对照臂 **1/8**）；回合成功率 **8/8**（对照臂也 8/8） |
+| **G8** | 57 张 v4 基线一张不动 | `pnpm run check:design-lab` | ✅ |
+| **债不增** | `check:framework-boundary` 债条数只减不增；新目录进 scope | `pnpm run gates` | ✅ 14 → 14 |
+
+### 11.5 本阶段自己定的岔路（方案没写到的，按 D1–D6 选）
+
+1. **`defineTool` → `AgentHarnessTool`**。方案与任务书都写「工具接入用 `defineTool`」。实核：`defineTool` 住在 `pi-coding-agent` 的**扩展面**（`dist/core/extensions/types.d.ts:386`），它的 `execute(toolCallId, params, signal, onUpdate, ctx)` 与 `AgentHarness` 要的 `AgentHarnessTool.execute(toolCallId, params, onUpdate, toolContext, invocation, context)` **签名不兼容**——`defineTool` 是 `createAgentSession` 那条老路的工具工厂。岔路 1 既然取了 A，工具面就取 `AgentHarnessTool`；`prepareArguments` 两边同名同义，官方容忍钩子完整保留。
+2. **校验只发生一次 = pi 的 ajv 那次**。宿主不再用 zod 复验一遍（那正是 #547 §2.2③「8 行报错只有 1 行是真的」的成因）。安全性由「信息不丢门岗」承担：生成的 JSON Schema 不弱于 zod，所以 ajv 通过的输入 zod 也会通过。领域适配器的**输出**仍然校验——那是能力契约的收据形状（K1），与「模型输入校验几次」是两件事。
+3. **别名 = 独立扁平工具**。`read_full_text` / `read_selection` / `insert_at_cursor` / `replace_selection` / `append_to_end` 各是一个单分支扁平 schema 的工具，语义输入里由别名决定的字段（`scope` / `operation`）**不出现在模型可见 schema 里**——#547 的数据说 100% 的那批全长这样。
+4. **宿主领域记录 = `nomi.approval`**，按 `toolCallId` join，永不复制工具结果正文；且 `entryProjectors` 里注册成**不投给模型**——拒收的理由 pi 已经一字不改地做成了那次调用的 tool result，再投一遍就是同一句话说两遍、占两份上下文。注册点留着，因为阶段 3 的任务卡/失败卡要走同一个口子，那时它才真的需要投影。
+5. **G3 用机器断言证，不用截图证**。方案 §5 自己写的就是「**机器断言**，不是人眼」。影子期新通路对用户不可达，要拍到它的截图就必须先注册 IPC——那会直接违反规则 O6 并把回滚面积从零变成一整条链路。所以：G3 = `lane-slice.test.mts`；界面侧的证据是 **G8**（57 张基线一张不动，正是「影子切片没碰面板」的截图证明）。用户可见的走查留到阶段 4 切换时做，那时它才有东西可看。
+6. **跨层契约物化成一份夹具**。`LaneProjection` 的两侧住在两套编译世界里（主进程是 NodeNext 的 ESM 岛，渲染层是 vite），没有哪一条测试能一口气从 pi 跑到 v4 组件。硬塞进同一个 runner 只会得到一份互相 mock 的假闭环。所以 `tests/agent-runtime/__fixtures__/lane-projection.json` 由**真 pi 跑出来**，上游断言「真投影与它逐字相等」，下游断言「长这样的投影投出那 4 个积木」，谁先漂谁先红。
+7. **R30 的真实模型那一半没跑**。任务书同时写了「一次真实 DeepSeek V4 Flash ≤ ¥1」和「零密钥经手」两条硬规矩，而前者要求经手一把 key。按 D4（诚实交付）明着标出来而不是含糊过去：本阶段只有 loopback 的数字。复跑真实模型那一半的命令与口径见 §11.6。
+
+### 11.6 R30 真实模型那一半怎么补（留给有 key 的人，一条命令）
+
+阶段 1 的两个数是 loopback 的。要补真实模型那一半，用与 `lane-tool-accuracy.test.mts` **同一批**八条首调，把夹具换成真实端点即可：模型固定 DeepSeek V4 Flash、隔离 profile、介入槽一律拒绝、只花文本 token（探针报告 §1 实测同规模一轮约 ¥0.004，八条 × 两臂远低于 ¥1）。数字口径必须与本节一致——**一次写对率**分母是首调次数、**回合成功率**分母是回合数，且回合成功要求「收尾文字出现 **且** 文稿真的被改成预期的样子」。少了后半句，一个「说完成了但什么也没做」的回合会被记成成功。
