@@ -150,7 +150,9 @@ export function collectTokenDefinitions(contents) {
 
 /**
  * 把一个操作数解析成可能的 oklch 值列表。
- * - `transparent` → 返回 'transparent'（混色时不拖色相，实测：hue 恒等，只改 alpha）
+ * - `transparent` → 返回 'transparent'（这条**只管两个操作数之间的弧插值**：transparent 没有色相，
+ *   不会把对方往哪边拽。它**不代表** `color-mix(in oklch, X, transparent)` 整体安全——见下方
+ *   analyzeHueDrift 里那条 continue 的长注：低彩度的 X 会在转进 oklch 时被判 powerless、色相写成 `none`）
  * - `var(--x)` → 查表，最多跟一层别名（--nomi-track-text: var(--nomi-accent)）
  * - `oklch(...)` 字面量 → 直接解析
  * 解析不出（如该 token 本身就是 color-mix / 非 oklch 写法）→ 返回空数组 = 不下判断。
@@ -205,6 +207,58 @@ export function evaluateColorMixExpression(expr, defs) {
 }
 
 /**
+ * 把注释内容抹成空格（保留换行，行号不变），字符串字面量原样保留。
+ * 为什么必须区分这两者：**注释里写反例是有价值的**（tailwind.config.ts 顶部那段就逐行记着
+ * 「in oklch 出淡粉 / in oklab 出淡蓝」的实测值），门岗把文档也判红等于逼人删掉说明；
+ * 而**字符串里的那份是活的**（TimelinePreview 的内联 style 就是 JS 字符串，照样渲染），
+ * 一并跳过就成了假绿。所以：注释剔掉、字符串留下。
+ * CSS 只认 `/* *\/` 块注释——`//` 在 CSS 里不是注释，裸 url(https://…) 很常见，
+ * 按行注释剔会把同一行后面的真代码一起吃掉（那才是真假绿）。
+ */
+export function stripComments(content, { lineComments = true } = {}) {
+  let out = ''
+  let i = 0
+  let quote = null
+  while (i < content.length) {
+    const ch = content[i]
+    if (quote) {
+      out += ch
+      if (ch === '\\') {
+        out += content[i + 1] ?? ''
+        i += 2
+        continue
+      }
+      if (ch === quote) quote = null
+      i += 1
+      continue
+    }
+    if (ch === "'" || ch === '"' || ch === '`') {
+      quote = ch
+      out += ch
+      i += 1
+      continue
+    }
+    if (ch === '/' && content[i + 1] === '*') {
+      const end = content.indexOf('*/', i + 2)
+      const stop = end === -1 ? content.length : end + 2
+      out += content.slice(i, stop).replace(/[^\n]/g, ' ')
+      i = stop
+      continue
+    }
+    if (lineComments && ch === '/' && content[i + 1] === '/') {
+      let end = content.indexOf('\n', i)
+      if (end === -1) end = content.length
+      out += ' '.repeat(end - i)
+      i = end
+      continue
+    }
+    out += ch
+    i += 1
+  }
+  return out
+}
+
+/**
  * 找出内容里所有 `color-mix(in oklch, …)` 且任一操作数是 `transparent` 的写法（操作数顺序不限，
  * 百分比可以是 `36%` 或 `calc(<alpha-value> * 100%)`，嵌在 gradient / JS 字符串里也算）。
  * 按括号配平截出实参再按顶层逗号切分，不靠「第二个操作数是单词」那种巧合。
@@ -256,8 +310,12 @@ export function findTransparentOklchMixes(content) {
 export function analyzeTransparentOklchMixes(files) {
   const findings = []
   for (const { path: filePath, content } of files) {
-    for (const mix of findTransparentOklchMixes(content)) {
-      findings.push({ file: filePath, line: mix.line, text: mix.text, expression: mix.expression })
+    // 注释里的反例不算违规（见 stripComments）；字符串里的算，它是活的。
+    const code = stripComments(content, { lineComments: !filePath.endsWith('.css') })
+    const originalLines = content.split('\n')
+    for (const mix of findTransparentOklchMixes(code)) {
+      // 行号在 stripComments 下与原文一致（注释只被抹成空格），所以能直接取原文那行来报。
+      findings.push({ file: filePath, line: mix.line, text: (originalLines[mix.line - 1] ?? mix.text).trim(), expression: mix.expression })
     }
   }
   return findings
@@ -274,12 +332,15 @@ export const HUE_DRIFT_THRESHOLD = 15
 export function analyzeHueDrift(files, defs) {
   const findings = []
   for (const { path: filePath, content } of files) {
-    for (const mix of findOklchMixes(content)) {
+    // 与下面那条整族禁令同一口径：注释剔掉（写在注释里的反例渲染不出东西），字符串留下。
+    for (const mix of findOklchMixes(stripComments(content, { lineComments: !filePath.endsWith('.css') }))) {
       const a = resolveOperand(mix.a, defs)
       const b = resolveOperand(mix.b, defs)
-      // transparent 无色相，构不成**两操作数间**的弧插值，本判据管不着。但「混 transparent 安全」是假的
-      // （低彩度操作数会被判 powerless、色相写成 none，见文件头第二族）—— 这一整族由
-      // analyzeTransparentOklchMixes 整体禁掉，不在这里按彩度放行。
+      // 与 transparent 混不构成**两操作数间**的弧插值（transparent 无色相，拽不动谁），本判据管不着。
+      // ⚠️ 但这不等于「混 transparent 安全」——那句原注是错的，见文件头第二族（Chromium 把低彩度操作数的
+      // 色相判成 powerless 写成 `none`，落地当 h=0 → 淡蓝渲染成淡粉）。#534 当时的结论是「要机器化得先让
+      // resolveOperand 递归求值嵌套 color-mix、再按彩度阈值判」；实际不需要——运行时彩度门岗本来就算不准，
+      // 而且按「今天是中性的」放行等于把陷阱留在原地。这一整族改由 analyzeTransparentOklchMixes 整体禁掉。
       if (a === 'transparent' || b === 'transparent') continue
       if (!Array.isArray(a) || !Array.isArray(b) || a.length === 0 || b.length === 0) continue
       const pairs = []

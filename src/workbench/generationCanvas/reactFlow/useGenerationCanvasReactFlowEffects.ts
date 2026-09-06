@@ -16,6 +16,8 @@ import type { GenerationFlowEdge, GenerationFlowNode } from './generationCanvasR
 import { resolvePendingCanvasFocus, type PendingCanvasFocus } from './focusViewportRecovery'
 
 type HostEffectsArgs = {
+  animateViewportTo: (zoom: number, offset: { x: number; y: number }, duration?: number) => void
+  cancelViewportAnimation: () => void
   activeCategoryId: string
   flow: ReactFlowInstance<GenerationFlowNode, GenerationFlowEdge>
   hostRef: React.RefObject<HTMLDivElement>
@@ -29,6 +31,8 @@ type HostEffectsArgs = {
 
 export function useGenerationCanvasReactFlowHostEffects({
   activeCategoryId,
+  animateViewportTo,
+  cancelViewportAnimation,
   flow,
   hostRef,
   nodes,
@@ -82,7 +86,8 @@ export function useGenerationCanvasReactFlowHostEffects({
     pendingFocusRef.current = null
     if (decision.type === 'restore') {
       setLiveViewport(decision.viewport)
-      // duration=0 cancels an in-flight setCenter animation from the focus request.
+      // 直写前先取消在飞的自动让位（我们自己的 rAF 调度器），再以 duration=0 直写。
+      cancelViewportAnimation()
       void flow.setViewport(decision.viewport, { duration: 0 })
       return
     }
@@ -93,14 +98,24 @@ export function useGenerationCanvasReactFlowHostEffects({
       setFocusFlashNodeId((current) => current === decision.node.id ? null : current)
       focusFlashTimerRef.current = null
     }, 1_400)
-    void flow.setCenter(decision.node.position.x + size.width / 2, decision.node.position.y + size.height / 2, {
-      zoom: zoomRef.current,
-      duration: 220,
-    })
+    // 聚焦跳转也走我们自己的调度器：React Flow 的 setCenter({ duration }) 同样是 d3 过渡，
+    // 撞上 pane 那一帧 0×0 的 extent 缓存就会算出 NaN 视口，被打断时 promise 也永不结算。
+    const stage = hostRef.current?.getBoundingClientRect()
+    const focusZoom = zoomRef.current || 1
+    if (stage) {
+      animateViewportTo(
+        focusZoom,
+        {
+          x: stage.width / 2 - (decision.node.position.x + size.width / 2) * focusZoom,
+          y: stage.height / 2 - (decision.node.position.y + size.height / 2) * focusZoom,
+        },
+        220,
+      )
+    }
     // Keep the pre-focus viewport until the focused node is confirmed to be gone.
     // This covers Cmd/Ctrl+Z immediately after duplicating a variant.
     return
-  }, [activeCategoryId, allNodes, flow, nodes, setFocusFlashNodeId, setLiveViewport, zoomRef])
+  }, [activeCategoryId, allNodes, animateViewportTo, cancelViewportAnimation, flow, hostRef, nodes, setFocusFlashNodeId, setLiveViewport, zoomRef])
 
   React.useEffect(() => () => {
     if (focusFlashTimerRef.current !== null) window.clearTimeout(focusFlashTimerRef.current)
@@ -112,8 +127,10 @@ export function useGenerationCanvasReactFlowHostEffects({
     if (allNodes.some((node) => node.id === focused.nodeId)) return
     focusedRecoveryRef.current = null
     setLiveViewport(focused.viewport)
+    // 撤销可能落在聚焦动画（220ms）还没跑完的时候：不先取消调度器，下一帧就把还原盖回去。
+    cancelViewportAnimation()
     void flow.setViewport(focused.viewport, { duration: 0 })
-  }, [activeCategoryId, allNodes, flow, nodes, setLiveViewport])
+  }, [activeCategoryId, allNodes, cancelViewportAnimation, flow, nodes, setLiveViewport])
 
   React.useEffect(() => {
     const host = hostRef.current

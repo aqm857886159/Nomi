@@ -17,6 +17,7 @@ import { enGenerationCommon, zhGenerationCommon } from './locales/generationComm
 import { enRuntime, zhRuntime } from './locales/runtime'
 import { enAgentResident, zhAgentResident } from './locales/agentResident'
 import { enCommunity, zhCommunity } from './locales/community'
+import { enAgentPanelV4, zhAgentPanelV4 } from './locales/agentPanelV4'
 
 export const zhCN = {
   common: {
@@ -408,6 +409,7 @@ export const zhCN = {
   runtime: zhRuntime,
   agentResident: zhAgentResident,
   community: zhCommunity,
+  agentPanelV4: zhAgentPanelV4,
 } as const
 
 type TranslationShape<T> = {
@@ -810,6 +812,7 @@ export const en = {
   runtime: enRuntime,
   agentResident: enAgentResident,
   community: enCommunity,
+  agentPanelV4: enAgentPanelV4,
 } satisfies TranslationShape<typeof zhCN>
 
 export const resources = {

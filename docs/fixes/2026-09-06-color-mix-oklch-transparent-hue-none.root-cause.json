@@ -45,7 +45,7 @@
     }
   ],
   "invariants": [
-    "src / electron / tailwind.config.ts 里不存在任何一处 color-mix(in oklch, …) 且任一操作数为 transparent（操作数顺序、百分比写法、是否嵌在 gradient / JS 字符串里都不影响判定）。",
+    "src / electron / tailwind.config.ts 的**代码**里不存在任何一处 color-mix(in oklch, …) 且任一操作数为 transparent（操作数顺序、百分比写法、是否嵌在 gradient 或 JS 字符串里都不影响判定）；注释里写反例不算违规，字符串字面量里的算——它渲染得出来。",
     "混 transparent 的 color-mix 一律写 in oklab（直角坐标、无色相分量），对现有 token 渲染与旧写法逐 rgb 相等。",
     "门岗判据不按「操作数今天是中性的」放行：运行时彩度门岗算不出，放行等于把陷阱留在原地。"
   ],
@@ -55,7 +55,8 @@
   ],
   "residual_risks": [
     "门岗只扫 src / electron / tailwind.config.ts 的 .ts/.tsx/.css/.mjs；tests/ 与 docs/ 里的样张 HTML 不在扫描面（它们不进产品构建）。",
-    "in oklab 对有色相操作数的 alpha 混合不会漂色，但如果未来有人在 in oklab 里混两个不同色相的真颜色，走的是直角坐标插值（可能穿过灰轴变暗）——那是另一族，本契约不覆盖。"
+    "in oklab 对有色相操作数的 alpha 混合不会漂色，但如果未来有人在 in oklab 里混两个不同色相的真颜色，走的是直角坐标插值（可能穿过灰轴变暗）——那是另一族，本契约不覆盖。",
+    "stripComments 只做「注释 vs 字符串」两分：CSS 里不认 // 行注释（裸 url(https://…) 的假绿风险大于收益），所以 .css 里写在 // 后面的坏写法仍会被报——那是宁可多报的一侧。"
   ],
   "recurrence": {
     "classification": "recurring",
@@ -85,7 +86,7 @@
       "path": "tailwind.config.ts",
       "entry_point": "tokenColor",
       "disposition": "enforced",
-      "evidence": "origin/main 上仍是 in oklch（#534 未合入时新规则在这一行红）；本分支改 in oklab，与 #534 同一行同一内容，合并无冲突。"
+      "evidence": "#534 已合入 main，本分支合并后这一行是 in oklab（两边同一内容，仅注释段冲突，已按本 PR 版本解）。规则在合并前的树上对这一行报红，证明它拦得住。"
     },
     {
       "path": "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlow.css",
@@ -116,6 +117,7 @@
     "artifacts": [
       "scripts/lib/colorMixHue.mjs",
       "scripts/check-design-tokens.mjs",
+      "scripts/colorMixHue.test.mjs",
       "scripts/colorMixHue.test.mjs"
     ]
   },

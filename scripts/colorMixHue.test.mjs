@@ -12,6 +12,7 @@ import {
   analyzeTransparentOklchMixes,
   collectTokenDefinitions,
   findTransparentOklchMixes,
+  stripComments,
   evaluateColorMixExpression,
   hueDelta,
   mixInOklch,
@@ -199,6 +200,42 @@ describe('color-mix(in oklch, X, transparent) 整族禁令（R17：先证它在�
     const fixed = PRE_FIX.map((l) => l.replace('in oklch', 'in oklab'))
     expect(analyzeTransparentOklchMixes([{ path: 'fixed.css', content: fixed.join('\n') }])).toEqual([])
     expect(findTransparentOklchMixes('x: color-mix(in srgb, var(--nomi-ink) 32%, transparent);')).toEqual([])
+  })
+
+  it('注释里的反例放行（tailwind.config.ts 顶部那段就逐行写着 in oklch 的实测坏值，门岗不许逼人删文档）', () => {
+    const doc = [
+      '/**',
+      ' *   color-mix(in oklch, rgb(229 238 247) 100%, transparent) → oklch(0.945 0.0155 none) = 淡粉',
+      ' *   color-mix(in oklab, rgb(229 238 247) 100%, transparent) → oklab(0.945 -0.006 -0.013) = 淡蓝 ✓',
+      ' */',
+      'const tokenColor = (v) => `color-mix(in oklab, var(${v}) calc(<alpha-value> * 100%), transparent)`',
+    ].join('\n')
+    expect(analyzeTransparentOklchMixes([{ path: 'tailwind.config.ts', content: doc }])).toEqual([])
+    // 行注释同理（.ts/.tsx/.mjs）
+    expect(
+      analyzeTransparentOklchMixes([
+        { path: 'a.ts', content: 'const x = 1 // 旧写法 color-mix(in oklch, var(--nomi-ink) 32%, transparent)' },
+      ]),
+    ).toEqual([])
+  })
+
+  it('字符串字面量里的那份照抓不误（TimelinePreview 的内联 style 就是 JS 字符串，它是活的）', () => {
+    const live = "  background: box.hasBackdrop ? 'color-mix(in oklch, var(--nomi-paper) 86%, transparent)' : 'transparent',"
+    const found = analyzeTransparentOklchMixes([{ path: 'x.tsx', content: live }])
+    expect(found).toHaveLength(1)
+    expect(found[0].text).toBe(live.trim())
+  })
+
+  it('.css 不把 // 当行注释（裸 url(https://…) 后面的真代码不许被吃掉）', () => {
+    const css = '  background: url(https://cdn.example/a.png), color-mix(in oklch, var(--nomi-ink) 10%, transparent);'
+    expect(analyzeTransparentOklchMixes([{ path: 'a.css', content: css }])).toHaveLength(1)
+    expect(analyzeTransparentOklchMixes([{ path: 'a.css', content: '/* color-mix(in oklch, var(--nomi-ink) 10%, transparent) */' }])).toEqual([])
+  })
+
+  it('stripComments 保住行号（报错指的行要和文件里的行对得上）', () => {
+    const src = ['/* a\n   b */', 'const x = 1', '// c', 'const y = 2'].join('\n')
+    expect(stripComments(src).split('\n')).toHaveLength(src.split('\n').length)
+    expect(stripComments(src).split('\n')[2].trim()).toBe('const x = 1')
   })
 
   it('真仓库里一处都不剩（src / electron / tailwind.config.ts，与门岗同一扫描面）', () => {
