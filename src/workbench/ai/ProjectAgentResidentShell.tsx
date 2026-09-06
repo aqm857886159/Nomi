@@ -130,6 +130,28 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
     void actions.send(text)
   }, [actions, draft, setDraft])
 
+  /**
+   * 空态起手 chip：把那句话填进 composer 并把光标交给用户——**不发送**。
+   *
+   * 发送要花钱、要动项目，第一句话该由他自己按下去；chip 只负责替他省掉「不知道该说什么」。
+   * 聚焦走一个 token + effect，而不是在回调里直接 `focus()`：那一刻 `value` 还是旧的，
+   * 光标会落在字符串开头，用户接着打字就插在句首。effect 跑在同一次提交的 DOM 之后，
+   * 新句子已经在框里，才好把插入点放到末尾。
+   */
+  const composerInputRef = React.useRef<HTMLTextAreaElement>(null)
+  const [starterFocusToken, setStarterFocusToken] = React.useState(0)
+  React.useEffect(() => {
+    if (!starterFocusToken) return
+    const node = composerInputRef.current
+    if (!node) return
+    node.focus()
+    node.setSelectionRange(node.value.length, node.value.length)
+  }, [starterFocusToken])
+  const startFromStarter = React.useCallback((prompt: string) => {
+    setDraft(prompt)
+    setStarterFocusToken((token) => token + 1)
+  }, [setDraft])
+
   const modelRows: readonly V4ModelRow[] = React.useMemo(
     () => data.models.map((model) => ({
       slot: t('agentPanelV4.modelChat'),
@@ -291,6 +313,8 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
         width={size.width}
         height={actions.error ? size.height - 20 : size.height}
         flow={data.flow}
+        surface={surface}
+        onStarter={startFromStarter}
         slot={data.slot}
         queue={data.queue}
         context={data.context}
@@ -324,6 +348,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
           onSubmit: submit,
           onStop: actions.stop,
           onAddFile: () => attachmentApi.inputRef.current?.click(),
+          inputRef: composerInputRef,
           onRemoveChip: (chip) => {
             if (chip.kind === 'skill') setActiveSkill(null)
             else if (chip.kind === 'file') {

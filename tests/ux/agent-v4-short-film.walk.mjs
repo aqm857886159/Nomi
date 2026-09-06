@@ -25,6 +25,8 @@ import {
   CREATION_PANEL,
   COLLAPSE_BUTTON,
   DOCUMENT,
+  EMPTY_STARTER,
+  EMPTY_STATE,
   PERMISSION_POPOVER,
   TOOL_RECEIPT,
   USER_BUBBLE,
@@ -45,6 +47,9 @@ import {
   waitForV4TurnIdle,
 } from './agent-runtime-walk-support.mjs'
 
+// 空态第一条起手（创作面 = 写脚本）。它的字住 i18n（`agentPanelV4.starterWriteScriptPrompt`），
+// 这里抄一份是为了断言「chip 填进去的就是这句」；两边漂了这条走查会当场红。
+const STARTER_FIRST = '把我的想法写成一版脚本'
 const BRIEF = '我要做一条 20 秒的短片：咖啡馆推门那段。先把脚本写出来。'
 const SCRIPT = '清晨，她推开咖啡馆的门。红色杯子落在白色桌面上，侧光打在杯沿。她坐下，按下录制键。'
 const TIGHTEN = '把结尾收紧一点，别拖。'
@@ -74,7 +79,23 @@ try {
   await expect(panel.locator(`${CONTEXT_RING}[data-context-known="true"]`)).toHaveCount(0)
   // 空框的发送钮是真 disabled，不是「灰着但能按」。
   await expect(panel.locator(COMPOSER_SEND)).toBeDisabled()
+  // 面板主体不能是一片白：一句话说清这里能干什么 + 三条**这个面真做得到**的起手。
+  const empty = panel.locator(EMPTY_STATE)
+  await expect(empty).toBeVisible()
+  await expect(empty).toHaveAttribute('data-v4-empty-surface', 'creation')
+  await expect(empty.locator(EMPTY_STARTER)).toHaveCount(3)
   await walk.snap('01-cold-start')
+
+  // 点第一颗起手 = 把那句话交给 composer 并把光标给用户，**不替他发送**。
+  await clickOrFail(empty.locator(EMPTY_STARTER).first(), '空态第一条起手')
+  await expect(panel.locator(COMPOSER_INPUT)).toHaveValue(STARTER_FIRST)
+  await expect(panel.locator(COMPOSER_SEND)).toBeEnabled()
+  // 「没发出去」的正面证据：真发了就会多一条用户气泡、空态也就永远消失了。
+  // 这里断言空态**还在**，而不是断言气泡不存在——后者本来就是 0，采样恒真（假绿）。
+  await expect(empty).toBeVisible()
+  await expect(panel.locator(V4_FLOW).locator(USER_BUBBLE)).toHaveCount(0)
+  await walk.snap('01b-starter-filled')
+  await panel.locator(COMPOSER_INPUT).fill('')
 
   // ── 2. 写脚本：一条普通对话 ───────────────────────────────────────────────
   const briefTurn = walk.fixture.expectText({
