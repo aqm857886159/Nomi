@@ -36,7 +36,8 @@ test('mid-step overflow uses one SDK summary, retains its prompt/budget/usage, a
   assert.equal(http.requests[0].body.max_tokens, 30_000);
   assert.equal(result.text.includes('Summary:'), false, 'summary output is not normal user-visible text');
   assert.equal(events.some((event) => event.type === 'content-delta' && event.delta.includes('Summary:')), false);
-  assert.deepEqual(result.usage, { promptTokens: 80, completionTokens: 32, cachedPromptTokens: 0, totalTokens: 112 });
+  // 夹具报的 reasoning 是 0——**报了 0** 和「没报」是两件事，字段在就说明这家报过。
+  assert.deepEqual(result.usage, { promptTokens: 80, completionTokens: 32, cachedPromptTokens: 0, totalTokens: 112, reasoningTokens: 0 });
   assert.deepEqual(http.requests.map((call) => JSON.stringify(call.body).includes('TRANSIENT_WORK_NOT_A_SUMMARY')),
     [true, true, true, false, true, true, true, true, true]);
   assert.doesNotMatch(result.snapshot ?? '', /TRANSIENT_WORK_NOT_A_SUMMARY/);
