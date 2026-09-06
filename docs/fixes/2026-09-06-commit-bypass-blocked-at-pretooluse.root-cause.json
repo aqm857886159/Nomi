@@ -1,0 +1,122 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-06-commit-bypass-blocked-at-pretooluse",
+  "problem_type": "hook_bypass_silent_failure",
+  "symptom": "2026-09-06 同一天，两个子 agent 各自「习惯性」用 `git -c core.hooksPath=.git/hooks commit …` 提交，等于把版本化 pre-commit（敏感数据扫描 + R25 Ponytail 评审）换成了另一个钩子目录。两次都是 agent 自己发现并撤回的——全程没有任何机器拦过，也没有任何记录。",
+  "direct_cause": "commit 阶段根本没有绕口防线。scripts/claude-hooks/pre-push-check.sh 的绕口留痕块被 `[ -n \"$TARGETS\" ]` 守着，而 TARGETS 只收 push 行，commit 命令一行都不产生 → 整块不运行；scripts/check-push-bypass.mjs 审的是 push 记录，没记录就没得审。唯一碰 commit 的 scripts/claude-hooks/secret-guard.sh 只读命令分析层的**第 3 列（子命令选项）**，而 `-c core.hooksPath=` 是 git 全局选项、`HUSKY=0` 是前置环境赋值——两者都不出现在第 3 列，它对这两种写法不是漏判而是看不见（命令理解层当时直接丢弃了这两类信息：`-c k=v` 走 `j += 2` 消费掉、`FOO=bar` 走 `continue`）。",
+  "class_root": "「跳过钩子地产生一个提交」是一族写法，不是一条：git 全局选项（-c core.hooksPath=）、子命令选项（--no-verify / -n）、前置环境赋值（HUSKY=0、GIT_CONFIG_KEY_n=core.hooksPath）、底层管道（commit-tree，天生不跑 hook），而且产生提交的子命令也不止 commit（merge/cherry-pick/revert/rebase/am/pull）。任何只盯住其中一格的闸门都留着其余几格。上一版（2026-09-03-push-bypass-audit-trail）把处置定为「审计而非禁止」，理由是 push 有合法绕口场景（远落后分支追平 main 的巨型 diff 会撞 ponytail ENOBUFS）——这个理由只对 push 成立：commit 阶段拦错的代价是零（去掉几个字符重跑），放过的代价却不可逆（敏感数据永久进历史）。把 push 的结论整段搬到 commit，就是把「有合法例外所以只能审计」误读成「绕口这一类都只能审计」，等于给自己留逃生口。",
+  "migration": "无数据迁移。新增 PreToolUse(Bash) 闸门 commit-bypass-check.sh 并登记进 settings.hooks.json，postinstall 自动装进 .claude/hooks/；旧 worktree 跑一次 `pnpm install` 即生效。push 侧的留痕 + 审计机制原样保留（那条有合法场景，处置刻意不同），没有并行实现需要删除。",
+  "affected_population": [
+    "所有由 Claude Code / 子 agent 会话发起的、会产生提交的 git 命令（commit / merge / cherry-pick / revert / rebase / am / pull / commit-tree）",
+    "任何带 -c core.hooksPath= / --no-verify / -n / HUSKY=0 一类环境开关 / GIT_CONFIG_KEY_n=core.hooksPath 的提交命令",
+    "版本化 pre-commit 的两个消费者：scripts/check-no-secrets.mjs（敏感数据扫描）与 scripts/ponytail-review-hook.mjs（R25 评审）"
+  ],
+  "scope_paths": [
+    "scripts/claude-hooks/"
+  ],
+  "entry_points": [
+    "scripts/claude-hooks/commit-bypass-check.sh: PreToolUse(Bash) 闸门 —— 对任何会产生提交的 git 子命令 + 任一绕口写法 exit 2 拒绝",
+    "scripts/claude-hooks/secret-guard.sh: 既有 PreToolUse(Bash) 闸门 —— 只认子命令选项上的 commit --no-verify / add -f",
+    "scripts/claude-hooks/pre-push-check.sh: 既有 PreToolUse(Bash) 闸门 —— push 绕口留痕（刻意不拒绝）",
+    "scripts/claude-hooks/_bash-command-analysis.sh: analyse_bash_command —— 三个闸门共用的命令理解层，绕口写法藏在哪一列由它决定"
+  ],
+  "invariants": [
+    "任何会产生提交的 git 子命令（commit / merge / cherry-pick / revert / rebase / am / pull），只要带 -c core.hooksPath=、--no-verify、commit 的 -n、HUSKY=0 一类钩子管理器开关，或 core.hooksPath 的环境变量覆盖，PreToolUse 一律 exit 2 拒绝，且 stderr 说明为什么与正确做法。",
+    "git commit-tree 无条件拒绝——它是底层管道，天生不跑任何 hook。",
+    "命令理解层的每行输出恒为五列：子命令 / 目录 / 子命令选项 / git 全局 -c 配置 / 前置环境赋值；前三列语义与旧契约一致，既有消费者按 $1..$3 取值不受影响。",
+    "这些字样出现在**数据**里不算绕口：提交信息（-m/-F 等确定带值的选项，其值一律跳过）、`--` 之后的 pathspec、引号内的词组（echo/grep 里的命令文本）——一律放行。",
+    "-n 只在 commit 上等于 --no-verify；merge/pull 的 -n 是 --no-stat、cherry-pick 的 -n 是 --no-commit，不得误伤。",
+    "命令读不懂时（命令理解层缺失，或引号不配对导致词法失败）且原始命令里出现绕口痕迹 → fail-closed 拒绝，绝不在读不懂的情况下放行。",
+    "push 阶段维持现状：本闸门不拒绝任何 push 命令，绕口 push 仍由 pre-push-check.sh 留痕 + check:push-bypass 审计。",
+    "换行是命令分隔符：多行 Bash 命令的第二行起同样被解析（此前 `echo hi\\ngit commit --no-verify` 与 `echo hi\\ngit push origin HEAD` 都解析出零个 git 调用，三个闸门一起失明）；行尾 `#` 注释不得把后续行一并吞掉。",
+    "heredoc 正文是数据不是命令：正文整段不进命令流（markdown 表格里的 `|` 此前会把正文里的词推回命令位置，实测把 `gh pr create` 的 PR 正文误判成真的 `git commit --no-verify`），但正文结束之后的真命令仍须被看见。"
+  ],
+  "regression_tests": [
+    "scripts/claude-hooks/commit-bypass-check.node-test.mjs"
+  ],
+  "residual_risks": [
+    "本闸门是 Claude Code 的 PreToolUse 层，只在装了 .claude/hooks 的会话里生效。完全没装 hook 的会话（新 worktree 未 pnpm install、或非 Claude Code 宿主）仍可绕过——这与 2026-09-03 那份合同记录的残留风险同源，需要 git 层面的 wrapper 才能根除，本次不在范围内。`pnpm run check:claude-hooks` 只拦「装的与仓里不一致」，拦不住「压根没装」。",
+    "人手在终端里直接敲的 git 命令不经过 PreToolUse，本闸门看不见；那一层由版本化 git pre-commit hook 自己兜底（它正是本闸门保护的对象）。",
+    "绕口写法的枚举是白名单式的：将来出现新的钩子管理器开关（本次覆盖 HUSKY / HUSKY_SKIP_HOOKS / SKIP_SIMPLE_GIT_HOOKS / LEFTHOOK）需要补进正则。缓解是本仓只用原生 git hook，不装这些管理器，名单更多是防御性的。"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "纯内部问题：判据是本仓自己的 hook 基础设施（scripts/claude-hooks/ + .claude/hooks/）与 git 命令行语法，git 各子命令 -n/--no-verify 的含义直接用本机 `git <sub> -h` 核对，没有外部 API 或依赖控制这条不变量。",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "同一天两个互不相识的子 agent 各自独立写出同一条绕口命令——说明它是模型的默认习惯而不是个别失误，只要还有子 agent 编排就会继续发生。而且这一族有多种拼法（全局选项 / 子命令选项 / 环境赋值 / 底层管道）× 多个产生提交的子命令，只堵住实测那一条必然从别的格子回来。",
+    "same_class_scan": [
+      "扫 scripts/claude-hooks/ 全部 PreToolUse 闸门：pre-push-check.sh 的绕口块被 `[ -n \"$TARGETS\" ]` 限死在 push（TARGETS 由 `awk -F'\\t' '$1==\"push\"'` 产生），commit 命令不进入；secret-guard.sh 只消费第 3 列（COMMIT_FLAGS/ADD_FLAGS），对全局选项与环境赋值失明——两者都不覆盖本类。",
+      "扫 scripts/check-*.mjs：check-push-bypass.mjs 是唯一的绕口审计门岗，读的是 .claude/push-bypass.log，只有 push 会写入；无任何门岗覆盖 commit 阶段。",
+      "扫命令理解层 _bash-command-analysis.sh：`-c k=v` 在 GLOBAL_TAKES_ARG 里被 `j += 2` 直接消费、前置 `FOO=bar` 走 `continue` 丢弃——绕口信息在共用层就已经丢了，任何下游闸门都不可能看见。这是把第 4、5 列加进契约的原因。",
+      "逐个核对会产生提交的 git 子命令（commit / merge / cherry-pick / revert / rebase / am / pull / commit-tree），并用 `git <sub> -h` 核对 -n 的含义各不相同（commit=--no-verify、merge/pull=--no-stat、cherry-pick=--no-commit），据此限定 -n 只对 commit 判罚。",
+      "沿着「闸门的正确性 = 它对 shell 语法的理解的正确性」这条线实扫共用理解层，挖出两个比原问题更大的静默洞并同批修掉：① 换行未被当作命令分隔符（对照 `git show origin/main:scripts/claude-hooks/_bash-command-analysis.sh` 实测确认为既有缺陷，非本次引入）；② heredoc 正文进入命令流（由本 PR 自己的 `gh pr create --body-file - <<'BODY'` 被 secret-guard 误拦当场暴露）。两者都同时造成漏判与误伤，且都只有跑真 hook 看退出码才测得到。"
+    ]
+  },
+  "generality_proof": "拦截点落在**唯一**的命令理解层与**单一**的 PreToolUse 闸门上：绕口信息不再在共用层被丢弃（_bash-command-analysis.sh 现在把 git 全局 -c 配置与前置环境赋值分别输出为第 4、5 列），而拒绝判定按「子命令 ∈ 产生提交的集合」×「四类绕口写法」的**叉乘**表述，而不是按实测到的那一条命令字符串。因此换一个子命令（merge/cherry-pick/revert/rebase/am/pull）、换一种拼法（全局选项/子命令选项/环境赋值/底层管道）、换一个前缀（git -C、git --no-pager、env、&& 后的第二条命令）都落进同一个判定，测试里每一格各有一条用例。命令由 shlex 做真词法分析而非正则，所以引号内的词组与 -m 的值不会被误当成选项——这保证了闸门不会因误报而被绕过（会误报的闸门等于不存在）。",
+  "shared_boundaries": [
+    {
+      "path": "scripts/claude-hooks/commit-bypass-check.sh",
+      "symbol": "commit-producing × bypass-spelling 判定循环",
+      "responsibility": "在提交发生之前，对任何会产生提交的 git 子命令 + 任一绕口写法 exit 2 拒绝，并给出为什么与正确做法；读不懂命令时 fail-closed。"
+    },
+    {
+      "path": "scripts/claude-hooks/_bash-command-analysis.sh",
+      "symbol": "analyse_bash_command",
+      "responsibility": "三个 Bash 闸门共用的命令理解层：把 git 全局 -c 配置与前置环境赋值分别输出为第 4、5 列（此前直接丢弃）；按 `--` 与「确定带值的选项」跳过其值，使提交信息里的 --no-verify 不被误读成选项；并把「命令 vs 数据」的边界补齐——引号外的换行视为命令分隔符（关掉 `#` 注释以免吞掉后续行），heredoc 正文整段不进命令流。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "scripts/claude-hooks/commit-bypass-check.sh",
+      "entry_point": "PreToolUse(Bash) 提交闸门",
+      "disposition": "enforced",
+      "evidence": "commit-bypass-check.node-test.mjs 18 条全绿：五种绕口写法各一条被拒（-c core.hooksPath= / --no-verify / commit 的 -n / HUSKY=0 与 SKIP_SIMPLE_GIT_HOOKS / GIT_CONFIG_KEY_0=core.hooksPath），另有 merge/cherry-pick/revert/rebase/am/pull 与 commit-tree 各一条被拒，以及「换行分隔的第二行」「heredoc 正文之后的真命令」各一条被拒；反向覆盖正常提交、提交信息/pathspec/引号内出现这些字样、跨行提交信息、heredoc 正文（含 markdown 表格）、-n 在 merge/cherry-pick 上的另一层含义、push 维持放行——全部 allow。"
+    },
+    {
+      "path": "scripts/claude-hooks/_bash-command-analysis.sh",
+      "entry_point": "analyse_bash_command 输出契约",
+      "disposition": "enforced",
+      "evidence": "第 4、5 列新增后，`git -c core.hooksPath=/dev/null cherry-pick abc123` 与 `HUSKY=0 git commit -m x` 都被闸门读到并拒绝（此前信息在本层即丢失）；第 3 列的选项参数跳过让 `git commit -m \"--no-verify\"` / `git commit -am \"--no-verify\"` / `git commit -m \"-n\"` 恢复放行；换行分隔符与 heredoc 正文摘除让 `echo hi\\ngit commit --no-verify` 由 allow 变 deny、让带 markdown 表格的 `gh pr create` heredoc 正文由 deny 变 allow。既有消费者不受影响：check:claude-hooks（pre-push 14 条 + 提交闸 18 条 = 32 条）与 check:hook-behavior（8 条）全绿。"
+    },
+    {
+      "path": "scripts/claude-hooks/secret-guard.sh",
+      "entry_point": "COMMIT_FLAGS / ADD_FLAGS 判定",
+      "disposition": "not-affected",
+      "evidence": "它守的是另一个断面（git add -f 强制加入被 gitignore 保护的文件），且其 commit --no-verify 判定与新闸门重叠但不冲突（两者都 exit 2）。本次只让它的输入更准（提交信息里的 -n/--no-verify 不再被当成选项），判定逻辑一行未改；check:claude-hooks 与 check:hook-behavior 全绿证明行为未回退。"
+    },
+    {
+      "path": "scripts/claude-hooks/pre-push-check.sh",
+      "entry_point": "push 绕口留痕块",
+      "disposition": "not-affected",
+      "evidence": "刻意不改：push 阶段存在合法绕口场景（远落后分支追平 main 的 15-88MB diff 会撞 ponytail ENOBUFS），处置仍是留痕 + check:push-bypass 审计。新闸门对 `git push --no-verify` 与 `git -c core.hooksPath=/dev/null push` 显式放行，测试里各有一条用例钉住这条边界。"
+    }
+  ],
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/claude-hooks/commit-bypass-check.sh",
+    "invariant": "会产生提交的 git 命令一旦带上任一绕口写法，在提交发生之前就被 exit 2 拒绝；读不懂命令时 fail-closed。",
+    "failure_mode": "PreToolUse hook 以 exit 2 阻断该次 Bash 调用，stderr 给出「哪条写法、跳过了什么、正确做法是什么」；命令根本不会执行。逻辑本身回退时由 `pnpm run check:claude-hooks` 里的 commit-bypass-check.node-test.mjs 报红，装载漂移由 install-claude-hooks.cjs --check 报红。",
+    "exception_policy": "none",
+    "strategy": "把防线从 push 阶段（留痕 + 事后审计）前移到 commit 阶段（当场拒绝）——R28：能在最早、代价为零的那层拦住的，不留给后面靠人复核。绕口信息在共用命令理解层就被完整解析出来，闸门按「子命令 × 写法」叉乘判定而不是匹配某条命令字符串。",
+    "artifacts": [
+      "scripts/claude-hooks/commit-bypass-check.sh",
+      "scripts/claude-hooks/_bash-command-analysis.sh",
+      "scripts/claude-hooks/settings.hooks.json",
+      "scripts/claude-hooks/commit-bypass-check.node-test.mjs",
+      "package.json"
+    ]
+  },
+  "class_regression_tests": [
+    "scripts/claude-hooks/commit-bypass-check.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "commit 阶段此前**没有任何**绕口防线，本次是净新增，没有并行实现可删。push 侧的留痕 + 审计不是本闸门的旧版本而是另一个断面（那里有合法绕口场景），刻意保留，理由写在 docs/lessons/commit-bypass-must-be-blocked-not-audited.md 的对照表里。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "只依赖 bash、python3（共用命令理解层本来就跑的那一次）与 git 本身，没有第三方依赖控制这条不变量。",
+    "exit_criteria": []
+  }
+}
