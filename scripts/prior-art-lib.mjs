@@ -20,8 +20,43 @@
 
 /** 「先查别人」节的标题。允许 ## / ### 两级，允许标题后跟补充文字。 */
 const SECTION_HEADING = /^(#{2,3})\s*先查别人.*$/
-/** 出处 = 一条 http(s) 链接，或一处 file:line（含冒号行号的仓库路径）。 */
-const SOURCE_MARK = /https?:\/\/\S+|[\w@./+-]+\.[A-Za-z0-9]+:\d+/
+/**
+ * 出处认三种，前两种是文本判据，第三种要真去看文件在不在：
+ *   ① http(s) 链接；② file:line（带行号的仓库路径）；
+ *   ③ 指向仓库里**真实存在**的文件的链接（相对方案文档解析）。
+ * 第三种是 2026-09-07 第一次真跑时补的：一条指向 docs/audit/xxx.md 的链接当然是出处，
+ * 而且它比「含冒号数字」更强——门岗能自己去确认那个文件在不在，指不到就不算数。
+ */
+const SOURCE_URL = /https?:\/\/\S+/
+const SOURCE_FILE_LINE = /[\w@./+-]+\.[A-Za-z0-9]+:\d+/
+/** markdown 链接目标，以及裸写的仓库路径。 */
+const LINK_TARGET = /\]\(([^)\s]+)\)|(?:^|[\s`(])((?:\.{1,2}\/|docs\/|src\/|electron\/|scripts\/|tests\/)[\w@./+-]+\.[A-Za-z0-9]+)/g
+
+/** 把方案文档里的相对路径解析成仓库相对路径（不碰磁盘，纯字符串）。 */
+export function resolveFromPlan(planFile, target) {
+  const clean = String(target).split('#')[0].split('?')[0]
+  if (!clean || /^[a-z]+:/i.test(clean)) return null
+  const base = String(planFile).replaceAll('\\', '/').split('/').slice(0, -1)
+  const segments = clean.startsWith('/') ? clean.slice(1).split('/') : [...base, ...clean.split('/')]
+  const stack = []
+  for (const segment of segments) {
+    if (!segment || segment === '.') continue
+    if (segment === '..') stack.pop()
+    else stack.push(segment)
+  }
+  return stack.join('/') || null
+}
+
+/** 这一条目有没有出处。`fileExists` 拿仓库相对路径问「在不在」，不给就只认前两种。 */
+function hasSource(planFile, line, fileExists) {
+  if (SOURCE_URL.test(line) || SOURCE_FILE_LINE.test(line)) return true
+  if (typeof fileExists !== 'function') return false
+  for (const match of line.matchAll(LINK_TARGET)) {
+    const resolved = resolveFromPlan(planFile, match[1] ?? match[2])
+    if (resolved && fileExists(resolved)) return true
+  }
+  return false
+}
 const BULLET = /^\s*(?:[-*+]\s+|\d+[.)]\s+)/
 const PLAN_DATE = /(?:^|\/)(\d{4}-\d{2}-\d{2})-/
 const PLAN_REFERENCE = /docs\/plan\/[\w./+-]+\.md/g
@@ -52,7 +87,7 @@ export function planDate(file) {
  * entries = 节内的条目行，sourced = 其中带出处的那些。
  * 节的边界 = 下一个同级或更高级标题（更深的 #### 属于节内，允许分小标题）。
  */
-export function extractPriorArtSection(markdown) {
+export function extractPriorArtSection(markdown, { planFile = '', fileExists } = {}) {
   const lines = String(markdown ?? '').split('\n')
   let level = 0
   let start = -1
@@ -72,13 +107,13 @@ export function extractPriorArtSection(markdown) {
     body.push(lines[index])
   }
   const entries = body.filter((line) => BULLET.test(line) || /^\s*\|[^|]/.test(line))
-  const sourced = entries.filter((line) => SOURCE_MARK.test(line))
+  const sourced = entries.filter((line) => hasSource(planFile, line, fileExists))
   return { found: true, entries, sourced }
 }
 
 /** 一份计划文档合不合格。返回错误数组（空 = 通过）。 */
-export function evaluatePlan(file, markdown) {
-  const section = extractPriorArtSection(markdown)
+export function evaluatePlan(file, markdown, { fileExists } = {}) {
+  const section = extractPriorArtSection(markdown, { planFile: file, fileExists })
   if (!section.found) {
     return [`${file}: 缺少「## 先查别人」一节 —— 实施之前必须先有一份可复核的检索报告。`
       + `\n      模板四问：${PRIOR_ART_TEMPLATE_QUESTIONS.join(' / ')}`]
@@ -95,12 +130,12 @@ export function evaluatePlan(file, markdown) {
  * 计划文档侧的门岗。`plans` = Map<仓库相对路径, 正文>。
  * 只管日期 >= threshold 的文档；没有日期前缀的老文档不追溯。
  */
-export function evaluatePlans({ plans, threshold = PRIOR_ART_THRESHOLD_DATE }) {
+export function evaluatePlans({ plans, threshold = PRIOR_ART_THRESHOLD_DATE, fileExists }) {
   const errors = []
   for (const [file, markdown] of plans) {
     const date = planDate(file)
     if (!date || date < threshold) continue
-    errors.push(...evaluatePlan(file, markdown))
+    errors.push(...evaluatePlan(file, markdown, { fileExists }))
   }
   return errors
 }
@@ -116,7 +151,7 @@ export function referencedPlans(body) {
  * PR 侧的门岗：改动 src/ 或 electron/ 超过预算时，正文必须引用一份**合格的**计划文档。
  * `plans` 同上；`changedLines` = src/ + electron/ 的增删行合计。
  */
-export function evaluatePullRequest({ body, changedLines, plans, budget = PRIOR_ART_DIFF_BUDGET }) {
+export function evaluatePullRequest({ body, changedLines, plans, budget = PRIOR_ART_DIFF_BUDGET, fileExists }) {
   if (!Number.isFinite(changedLines) || changedLines <= budget) return []
   const referenced = referencedPlans(body)
   if (referenced.length === 0) {
@@ -130,13 +165,13 @@ export function evaluatePullRequest({ body, changedLines, plans, budget = PRIOR_
       errors.push(`PR 正文引用的方案不存在于本分支：${file}`)
       return false
     }
-    return evaluatePlan(file, markdown).length === 0
+    return evaluatePlan(file, markdown, { fileExists }).length === 0
   })
   if (passing.length > 0) return []
   for (const file of referenced) {
     const markdown = plans.get(file)
     if (markdown === undefined) continue
-    errors.push(...evaluatePlan(file, markdown).map((error) => `PR 引用的方案不合格 → ${error}`))
+    errors.push(...evaluatePlan(file, markdown, { fileExists }).map((error) => `PR 引用的方案不合格 → ${error}`))
   }
   if (errors.length === 0) errors.push('PR 正文引用的方案都不合格（缺「## 先查别人」节或出处不足）')
   return errors

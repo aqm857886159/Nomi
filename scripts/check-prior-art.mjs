@@ -102,7 +102,9 @@ function pullRequestBody() {
 }
 
 const plans = collectPlans()
-const errors = evaluatePlans({ plans, threshold: PRIOR_ART_THRESHOLD_DATE })
+/** 第三种出处（链接指向仓库里真实存在的文件）要真去看一眼——指不到的链接不算出处。 */
+const fileExists = (candidate) => fs.existsSync(path.join(repoRoot, candidate))
+const errors = evaluatePlans({ plans, threshold: PRIOR_ART_THRESHOLD_DATE, fileExists })
 const governed = [...plans.keys()].filter((file) => {
   const match = /(?:^|\/)(\d{4}-\d{2}-\d{2})-/.exec(file)
   return match && match[1] >= PRIOR_ART_THRESHOLD_DATE
@@ -118,7 +120,7 @@ if (!pr.available) {
     prNote = '⚠️ PR 侧无法计算改动行数（拿不到可信 base），本次不判 —— 不拿算不出来当通过'
   } else {
     prNote = `PR 侧：src/ + electron/ 改动 ${changedLines} 行（预算 ${PRIOR_ART_DIFF_BUDGET}）`
-    errors.push(...evaluatePullRequest({ body: pr.body, changedLines, plans }))
+    errors.push(...evaluatePullRequest({ body: pr.body, changedLines, plans, fileExists }))
   }
 }
 

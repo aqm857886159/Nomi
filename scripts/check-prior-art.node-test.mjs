@@ -11,6 +11,7 @@ import {
   extractPriorArtSection,
   planDate,
   referencedPlans,
+  resolveFromPlan,
 } from './prior-art-lib.mjs'
 
 const GOOD_SECTION = `# 方案
@@ -87,4 +88,34 @@ test('大改 PR 引用了合格方案 → 绿；引用不存在或不合格的 �
 test('正文里的方案路径去重保序', () => {
   const refs = referencedPlans('a docs/plan/b.md, docs/plan/a.md 再提一次 docs/plan/b.md')
   assert.deepEqual(refs, ['docs/plan/b.md', 'docs/plan/a.md'])
+})
+
+// —— 第三种出处：指向仓库里真实存在的文件的链接（2026-09-07 第一次真跑时补的判据）——
+// 起因：门岗上线第一跑就拦下 docs/plan/2026-09-07-agent-runtime-rebuild.md，而那份方案
+// 恰恰是全仓检索做得最足的之一——它引的是 docs/audit/*.md 与 docs/research/*.md，
+// 只是链接里没有冒号行号。「一条指向真实文件的链接不算出处」是判据错了，不是文档错了。
+// 这一条比「含冒号数字」更强：门岗能自己去确认那个文件在不在，指不到就不算。
+test('出处第三种：链接指向仓库里存在的文件算数，指不到的不算', () => {
+  const markdown = '## 先查别人\n'
+    + '- 依赖里已有？见 [评审](../audit/real-a.md)\n'
+    + '- 仓库里已有？见 [审计](../audit/real-b.md)\n'
+    + '- 生态里已有？见 [调研](../research/real-c.md)\n'
+  const exists = new Set(['docs/audit/real-a.md', 'docs/audit/real-b.md', 'docs/research/real-c.md'])
+  const plans = new Map([['docs/plan/2026-09-08-x.md', markdown]])
+  assert.deepEqual(evaluatePlans({ plans, fileExists: (file) => exists.has(file) }), [])
+
+  // 同一份文档，链接全部指不到 → 一条出处都不算
+  const ghost = evaluatePlans({ plans, fileExists: () => false })
+  assert.equal(ghost.length, 1)
+  assert.match(ghost[0], /只有 0 条带出处/)
+
+  // 不给 fileExists（纯文本判据）时只认 URL 与 file:line，链接不算
+  assert.match(evaluatePlans({ plans })[0], /只有 0 条带出处/)
+})
+
+test('相对路径解析：../ 与 ./ 都按方案文档所在目录算，外链不解析', () => {
+  assert.equal(resolveFromPlan('docs/plan/2026-09-08-x.md', '../audit/a.md'), 'docs/audit/a.md')
+  assert.equal(resolveFromPlan('docs/plan/2026-09-08-x.md', './sub/b.md'), 'docs/plan/sub/b.md')
+  assert.equal(resolveFromPlan('docs/plan/2026-09-08-x.md', 'c.md'), 'docs/plan/c.md')
+  assert.equal(resolveFromPlan('docs/plan/2026-09-08-x.md', 'https://example.com/a.md'), null)
 })
