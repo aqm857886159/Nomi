@@ -20,6 +20,7 @@ import type { TargetRef } from '../../../../electron/shared/capabilityTargeting'
 import { formatResidentToolElapsed, residentToolElapsedMs } from '../resident/residentToolTiming'
 import { readableToolName, readableToolPreview, readableToolSummary } from '../resident/residentToolDisplay'
 import type { ResidentToolProjection } from '../resident/residentToolProjection'
+import { stripVendorErrorMarker } from '../../generationCanvas/runner/vendorErrorIpc'
 import { actionFamilyForCapability } from './agentPanelV4ActionFamily'
 import type {
   ContextUsage,
@@ -130,7 +131,13 @@ export function toolStatusOf(
   if (hostStatus === 'stopped') return 'output-error'
   if (hostStatus === 'failed') return 'output-error'
   if (pending === 'pending') return 'approval-requested'
-  if (pending === 'approved' || pending === 'denied') return 'approval-responded'
+  // 「已答复」不是一个中立词：`approvalResponded` 印出来是**「已确认」**。把 `denied`
+  // 也折进它，等于在用户按下「不要 → 确认不要」的那一刻，把他的拒绝写成同意——
+  // 和上面 `stopped` 那条注释是同一条纪律的反面（不替用户承认他没做过的决定）。
+  // 宿主的终态还没回来之前，这一行归谁由**用户刚做的决定**说了算：
+  // 同意 → 「已确认」，拒绝 → 「已拒绝」。宿主到了照旧覆盖（上面四条先判）。
+  if (pending === 'approved') return 'approval-responded'
+  if (pending === 'denied') return 'output-denied'
   return 'input-available'
 }
 
@@ -338,7 +345,11 @@ export function projectV4Flow(input: V4FlowInput): readonly V4FlowItem[] {
     if (item.kind === 'failure') {
       flow.push({
         kind: 'error',
-        reason: item.message,
+        // `NOMI_VENDOR_ERR_B64::…::` 是厂商错误穿 IPC 的**传输标记**，不是给人看的字。
+        // 编码那一端（`electron/ai/agentError.ts`）的契约就是「展示串一字未变，标记段在渲染层
+        // 由 stripVendorErrorMarker 剥掉」——这条投影以前没剥，于是用户在失败卡上读到的
+        // 第一行是一串 base64。剥在这里：这是这个面把 failure 变成可读一行的唯一地方。
+        reason: stripVendorErrorMarker(item.message),
         ...(item.nextAction ? { action: item.nextAction } : {}),
       })
       continue
