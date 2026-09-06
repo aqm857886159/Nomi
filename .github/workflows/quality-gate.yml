@@ -77,6 +77,12 @@ jobs:
     env:
       VOCAB_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before || inputs.base_ref }}
       ROOT_CAUSE_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before || inputs.base_ref }}
+      # check:prior-art 的 PR 侧判据（R27，2026-09-07）：改 src/ 或 electron/ 超过 300 行的 PR，
+      # 正文必须引用一份带「## 先查别人」节的方案。正文只能从事件里拿——脚本自己去 gh 拿会
+      # 在 CI 里撞 token 权限，而拿不到就跳过等于「大改一律放行」。走 env 而不是拼进命令行：
+      # PR 正文是外人可写的文本，进命令行就是一条注入通道。
+      PRIOR_ART_PR_BODY: ${{ github.event.pull_request.body }}
+      PRIOR_ART_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before || inputs.base_ref }}
     steps:
       - uses: actions/checkout@v7
         with:

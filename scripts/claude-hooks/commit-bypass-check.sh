@@ -56,7 +56,8 @@ block() {
 
   正确做法：去掉绕过写法，正常提交。
     git commit -m "..."
-  钩子没装（新 worktree）→ \`pnpm install\`；钩子真的坏了 → 修钩子，不是绕开它。
+  钩子随 checkout 就在（.claude/settings.json 直指 scripts/claude-hooks/，2026-09-07 起不再需要
+  pnpm install）；钩子真的坏了 → 修钩子，不是绕开它。
 EOF
   exit 2
 }
@@ -64,7 +65,7 @@ EOF
 ANALYSIS_LIB="$(dirname "$0")/_bash-command-analysis.sh"
 # 共用层缺失 = 失去理解命令的能力。不猜：命令里有绕过痕迹就拦（fail-closed）。
 if [ ! -f "$ANALYSIS_LIB" ]; then
-  _smells && block "命令理解层 $ANALYSIS_LIB 缺失（跑 \`pnpm install\` 重装 hook），不允许在读不懂的情况下放行。"
+  _smells && block "命令理解层 $ANALYSIS_LIB 缺失（它随仓库走，缺了说明工作树不完整），不允许在读不懂的情况下放行。"
   exit 0
 fi
 # shellcheck source=/dev/null

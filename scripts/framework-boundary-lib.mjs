@@ -137,6 +137,46 @@ export function scanSources(sources, registry) {
   return hits
 }
 
+/**
+ * 启发式一条（2026-09-07 加，advisory 不阻断）：文件名或导出符号命中框架能力词 → 提醒。
+ *
+ * 为什么要它：上面的 forbidden 正则认的是**具体写法**（`SessionManager.inMemory(`），
+ * 换个符号名重写一份同样的能力它一个都抓不到。词表认的是**这件事本身**——
+ * 一个新文件叫 `sessionSnapshotStore.ts`、导出 `createRetryQueue`，不管它怎么写，
+ * 都该有人问一句「框架里是不是已经有了」。
+ *
+ * 为什么只出 warning：这类启发式的死因是误报，一道天天红的门岗等于不存在（R17 教训）。
+ * 升红的条件写死在登记表的 advisory.promotion 里，不靠谁记得。
+ *
+ * `files` = Map<相对路径, 源码>（只喂本次改动的文件）；`exemptions` = Set<相对路径>。
+ */
+export function advisoryCapabilityHits({ files, watchWords, exemptions = new Set() }) {
+  const words = (watchWords ?? []).map((word) => String(word).toLowerCase()).filter(Boolean)
+  if (words.length === 0) return []
+  const notices = []
+  for (const [file, raw] of files) {
+    if (exemptions.has(file)) continue
+    const source = stripComments(raw)
+    const basename = file.split('/').pop() ?? file
+    const symbols = new Set()
+    for (const match of source.matchAll(/\bexport\s+(?:declare\s+)?(?:async\s+)?(?:function|class|const|let|var|interface|type|enum)\s+([A-Za-z_$][\w$]*)/g)) {
+      symbols.add(match[1])
+    }
+    const haystacks = [{ kind: '文件名', text: basename }, ...[...symbols].map((symbol) => ({ kind: '导出符号', text: symbol }))]
+    const seen = new Set()
+    for (const word of words) {
+      for (const haystack of haystacks) {
+        if (!haystack.text.toLowerCase().includes(word)) continue
+        const key = `${word}::${haystack.text}`
+        if (seen.has(key)) continue
+        seen.add(key)
+        notices.push({ file, word, kind: haystack.kind, where: haystack.text })
+      }
+    }
+  }
+  return notices
+}
+
 const DATE_SHAPE = /^\d{4}-\d{2}-\d{2}$/
 
 /**

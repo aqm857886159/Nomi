@@ -326,6 +326,60 @@ function validateRecurringContract(contract, changed, existingFiles, label) {
   return errors;
 }
 
+/**
+ * `invariant_owner_layer` 从这天（含）起必填（2026-09-07）。日期取合同文件名前缀；
+ * 没有日期前缀的（fixture / 老命名）不追溯——追溯会把 200 多份历史合同一次性打红。
+ */
+export const INVARIANT_OWNER_LAYER_SINCE = "2026-09-07";
+
+function contractFileDate(file) {
+  const match = /(?:^|\/)(\d{4}-\d{2}-\d{2})-/.exec(normalized(file));
+  return match ? match[1] : null;
+}
+
+/**
+ * 「这条不变量归哪一层管、那一层有没有测试」——修完之后必须答的第三个问题（R21）。
+ *
+ * 为什么加它：合同已经逼你写清 symptom / direct_cause / class_root / prevention，
+ * 但**没有一处逼你说出「这条不变量从此由谁守」**。于是「修在最早共享边界」经常落成
+ * 一处补丁 + 一句承诺，而承诺没有 owner。填 `none` 是允许的诚实答案，代价是必须附一份
+ * 结构工单——即「我知道没人管，工单在这」，而不是让它无声地变成没人管。
+ */
+function validateInvariantOwnerLayer(contract, existingFiles, label) {
+  const errors = [];
+  const owner = contract?.invariant_owner_layer;
+  if (!record(owner)) {
+    errors.push(`${label}: invariant_owner_layer is required (which layer owns this invariant, and does that layer have tests); use layer "none" plus structural_ticket if nobody owns it yet`);
+    return errors;
+  }
+  if (!nonEmptyText(owner.layer)) {
+    errors.push(`${label}: invariant_owner_layer.layer must name the owning layer (a path or module), or the literal "none"`);
+  } else if (owner.layer !== "none" && !pathExists(owner.layer, existingFiles)) {
+    errors.push(`${label}: invariant_owner_layer.layer does not exist: ${owner.layer}`);
+  }
+  if (!Array.isArray(owner.tests)) {
+    errors.push(`${label}: invariant_owner_layer.tests must be an array (empty means that layer has no tests, which requires a structural_ticket)`);
+    return errors;
+  }
+  for (const testFile of owner.tests) {
+    if (!nonEmptyText(testFile) || !isTestFile(normalized(testFile))) {
+      errors.push(`${label}: invariant_owner_layer.tests entry is not a test file: ${testFile}`);
+      continue;
+    }
+    if (!fileExists(testFile, existingFiles)) {
+      errors.push(`${label}: invariant_owner_layer test does not exist: ${testFile}`);
+    }
+  }
+  const needsTicket = owner.layer === "none" || owner.tests.length === 0;
+  if (!needsTicket) return errors;
+  if (!nonEmptyText(owner.structural_ticket)) {
+    errors.push(`${label}: invariant_owner_layer requires structural_ticket when the owning layer is "none" or has no tests (an unowned invariant is a structural debt, not a detail)`);
+  } else if (!pathExists(owner.structural_ticket, existingFiles)) {
+    errors.push(`${label}: invariant_owner_layer.structural_ticket does not exist: ${owner.structural_ticket}`);
+  }
+  return errors;
+}
+
 function validateContract(contract, changed, existingFiles, index, fileContents) {
   const label = nonEmptyText(contract?.id) ? contract.id : `contract #${index + 1}`;
   const errors = [];
@@ -355,6 +409,10 @@ function validateContract(contract, changed, existingFiles, index, fileContents)
 
   for (const field of ["problem_type", "symptom", "direct_cause", "class_root", "migration"]) {
     if (!nonEmptyText(contract?.[field])) errors.push(`${label}: ${field} is required`);
+  }
+  const fileDate = contractFileDate(contract?.__file);
+  if (fileDate && fileDate >= INVARIANT_OWNER_LAYER_SINCE) {
+    errors.push(...validateInvariantOwnerLayer(contract, existingFiles, label));
   }
   for (const field of ["affected_population", "scope_paths", "entry_points", "invariants", "regression_tests", "residual_risks"]) {
     if (!nonEmptyTextArray(contract?.[field])) errors.push(`${label}: ${field} must be a non-empty string array`);
