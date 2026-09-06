@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import type { AgentChatRequest, AgentChatResponse } from "../harness/agentChatContracts";
 import type {
   ProjectAgentHostState,
+  ProjectAgentFailureItem,
   ProjectAgentItem,
   ProjectAgentTaskItem,
   ProjectAgentTurn,
@@ -219,4 +220,61 @@ export function productionRunTaskItems(
     }));
   }
   return items;
+}
+
+/**
+ * 一个回合收尾时该往流里放的**失败条目**。纯换算，因为它是一条容易被漏掉的对称性：
+ *
+ * - 工具级失败（`capabilityOutcome`）一直都会建条目；
+ * - **运行时自己**失败（供应商 4xx、空回复……）以前什么都不建：抛出那条路会建
+ *   `runtime_error`，而「正常返回但 status=error」这条路不会。于是同一种失败在两条路上
+ *   一条有原因、一条只剩一个状态字，用户那边就是一句没有信息量的「发送失败，请检查后重试。」
+ *
+ * 两者互斥：工具级的更具体，有它就不再补运行时那条。
+ */
+export function terminalFailureItemFor(input: Readonly<{
+  turn: Pick<ProjectAgentTurn, "threadId" | "turnId" | "executionToken">;
+  status: ProjectAgentStatus;
+  receivedAt: string;
+  capabilityOutcome?: Readonly<{
+    toolCallId: string;
+    code: string;
+    message: string;
+    nextAction?: string;
+    status: ProjectAgentStatus;
+    retryable: boolean;
+  }>;
+  /** 运行时 hooks 上说过的那句人话；没有就退到一句诚实的兜底。 */
+  runtimeDiagnostic?: string;
+}>): ProjectAgentFailureItem | undefined {
+  const { turn, status, receivedAt, capabilityOutcome, runtimeDiagnostic } = input;
+  const base = {
+    threadId: turn.threadId,
+    turnId: turn.turnId,
+    kind: "failure" as const,
+    deviated: false,
+    createdAt: receivedAt,
+    updatedAt: receivedAt,
+  };
+  if (capabilityOutcome) {
+    return Object.freeze({
+      ...base,
+      itemId: `failure-${digest([turn.executionToken, capabilityOutcome.toolCallId, capabilityOutcome.code])}`,
+      correlationId: capabilityOutcome.toolCallId,
+      code: capabilityOutcome.code,
+      message: capabilityOutcome.message,
+      nextAction: capabilityOutcome.nextAction,
+      status: capabilityOutcome.status,
+      retryable: capabilityOutcome.retryable,
+    });
+  }
+  if (status !== "failed") return undefined;
+  return Object.freeze({
+    ...base,
+    itemId: `failure-${digest([turn.executionToken, "runtime-response-failure"])}`,
+    code: "runtime_error",
+    message: runtimeDiagnostic ?? "Nomi runtime did not produce a response",
+    status: "failed" as const,
+    retryable: true,
+  });
 }
