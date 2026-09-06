@@ -36,11 +36,12 @@ describe('generation canvas React Flow adapter', () => {
       type: 'generation',
       position: { x: 10, y: 20 },
       selected: true,
-      draggable: true,
       connectable: true,
       data: { generationNode: source, readOnly: false },
     })
     expect(mapped.style).toMatchObject({ width: 240, height: 120 })
+    // 「能不能拖」只由 <ReactFlow nodesDraggable> 一处说了算（R29 §6.2），投影不再重复一份。
+    expect(mapped.draggable).toBeUndefined()
     expect(source).toEqual(node('source', 10, 20))
   })
 
@@ -56,11 +57,12 @@ describe('generation canvas React Flow adapter', () => {
 
   it('maps read-only nodes and selected state for a collection', () => {
     const mapped = toGenerationFlowNodes([node('a', 0), node('b', 200)], new Set(['b']), true)
-    expect(mapped.map((item) => [item.id, item.selected, item.draggable, item.connectable])).toEqual([
-      ['a', false, false, false],
-      ['b', true, false, false],
+    expect(mapped.map((item) => [item.id, item.selected, item.connectable])).toEqual([
+      ['a', false, false],
+      ['b', true, false],
     ])
     expect(mapped.every((item) => item.selectable === false && item.focusable === false)).toBe(true)
+    expect(mapped.every((item) => item.draggable === undefined)).toBe(true)
     expect(mapped.map((item) => item.data.primarySelection)).toEqual([false, true])
   })
 
@@ -218,5 +220,37 @@ describe('isFiniteFlowViewport', () => {
     expect(isFiniteFlowViewport({ x: 0, y: 0, zoom: 0 })).toBe(false)
     expect(isFiniteFlowViewport({ x: 0, y: 0, zoom: -1 })).toBe(false)
     expect(isFiniteFlowViewport({ x: 0, y: 0, zoom: Number.POSITIVE_INFINITY })).toBe(false)
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 结构不变量（2026-09-07 R29 §6.4 / §6.5）。两条断言钉的是同一个决定：
+// **框（Frame/NodeGroup）是与 nodes 平级的独立投影，永远不进 React Flow 的 nodes 数组。**
+//
+// 为什么要钉：今天「框不在 flowNodes 里」是实现碰巧如此，没有任何东西拦着下一个人
+// 顺手在 adapter 里 push 一个 type:'group' 的节点。一旦进去：
+//   · dependencyWaves.ts 只认 {nodes, edges}，会把框当成一个待生成的对象；
+//   · 节点会开始带 parentId → position 语义从绝对坐标分叉成「有父时相对」，
+//     而主进程 canvasNodeLayout / canvasNodeFactory 整条建立在绝对坐标上（R29 §4.3）。
+// 第二条断言同时是 canvasDragDraft 删掉 parentLookup 分支的前提：投影不产 parentId，
+// 内核的父子索引在本仓恒为空，那条分支恒 false。
+// 要迁到原生父子必须整条迁 + 改 docs/engineering/framework-boundaries.json 的登记，不许半迁。
+// ─────────────────────────────────────────────────────────────────────────────
+describe('框永不进 flowNodes（R29 结构不变量）', () => {
+  it('给定 N 个节点，投影长度恒为 N —— 组/框一个都不会被塞进来', () => {
+    const nodes = [node('n1', 0), node('n2', 200), node('n3', 400)]
+    const flowNodes = toGenerationFlowNodes(nodes, new Set(['n2']), false)
+    expect(flowNodes).toHaveLength(nodes.length)
+    expect(flowNodes.map((flowNode) => flowNode.id)).toEqual(['n1', 'n2', 'n3'])
+    expect(flowNodes.every((flowNode) => flowNode.type === 'generation')).toBe(true)
+  })
+
+  it('投影出来的节点一律不带 parentId / extent —— 我们不用 React Flow 的原生父子', () => {
+    const flowNodes = toGenerationFlowNodes([node('n1', 0), node('n2', 200)], new Set(), false)
+    for (const flowNode of flowNodes) {
+      expect(flowNode.parentId).toBeUndefined()
+      expect(flowNode.extent).toBeUndefined()
+    }
+    expect(toGenerationFlowNode(node('solo', 10), false, false).parentId).toBeUndefined()
   })
 })

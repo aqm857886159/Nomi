@@ -6,9 +6,17 @@
  * 用户对它的动作是「圈起来」而不是「新建一个」。所以它住在左下那簇画布工具里
  * （和缩放/适配同一族：都在调整你怎么看/怎么摆），不进加号（canvasToolbarModel 的意图表）。
  *
- * 手势为什么要在 capture 阶段抢：空白左键默认归平移（React Flow 自己的 panOnDrag），
- * 等到 bubble 阶段它已经开始拖画布了。工具就绪是用户刚做出的显式选择，此刻他要画框；
- * 平移随时还能用（空格 / 中键 / 右键都通），不会被这颗工具堵死。
+ * 手势归属**用声明式开关，不在 capture 阶段偷事件**（2026-09-07 R29 §6.2，
+ * docs/research/2026-09-07-react-flow-subflows-vs-frame.md）：工具就绪期间画布传
+ * `panOnDrag={false}` + `nodesDraggable={false}`，内核**知道**这次拖动不归它，
+ * 于是空白左键自然落到 bubble 阶段的本 hook 手里。
+ *
+ * 在此之前这里是 `onPointerDownCapture` + `stopPropagation()`——内核以为自己还在管平移，
+ * `onMoveStart/onMove/onMoveEnd` 与画框各活各的；React Flow 哪天改事件绑定阶段，
+ * 这里会**静默**失效（画不出框，没有任何报错）。R28：能让框架自己拦的，别留给偷袭。
+ *
+ * 就绪期间平移仍然可用：空格 / 中键 / 右键走的是 useGenerationCanvasReactFlowPointer 的
+ * 辅助平移，不经过 React Flow 的 panOnDrag，不会被这颗工具堵死。
  */
 import React from 'react'
 import i18n from '../../../i18n'
@@ -37,8 +45,11 @@ export type CanvasFrameTool = {
   toggle: () => void
   /** 正在拖出来的那个矩形（画布坐标），供画布叠一层预览。 */
   drawPreview: CanvasFrameRect | null
-  /** 返回 true = 这次 pointerdown 归画框，调用方不要再往下传。 */
-  handlePointerDownCapture: (event: React.PointerEvent<HTMLDivElement>) => boolean
+  /**
+   * 冒泡阶段的 pointerdown。返回 true = 这次手势归画框，调用方跳过自己的平移记账。
+   * **不 stopPropagation**：内核已被 `panOnDrag={false}` 明确停用，不需要瞒着它。
+   */
+  handlePointerDown: (event: React.PointerEvent<HTMLDivElement>) => boolean
 }
 
 export function useCanvasFrameTool({
@@ -138,7 +149,7 @@ export function useCanvasFrameTool({
     }
   }, [drawPreview, finishDraw, getCanvasPointFromClientPoint])
 
-  const handlePointerDownCapture = React.useCallback((event: React.PointerEvent<HTMLDivElement>): boolean => {
+  const handlePointerDown = React.useCallback((event: React.PointerEvent<HTMLDivElement>): boolean => {
     const action = resolveCanvasPointerDownAction({
       button: event.button,
       spaceHeld: false,
@@ -148,13 +159,14 @@ export function useCanvasFrameTool({
       frameToolArmed: armed,
     })
     if (action !== 'frame') return false
+    // preventDefault 只挡浏览器默认（选文本 / 拖图），不影响 React Flow——
+    // 它此刻的 panOnDrag 已经是 false，这次拖动本来就不归它。
     event.preventDefault()
-    event.stopPropagation()
     const start = getCanvasPointFromClientPoint(event.clientX, event.clientY)
     drawRef.current = { pointerId: event.pointerId, start }
     setDrawPreview({ x: start.x, y: start.y, w: 0, h: 0 })
     return true
   }, [armed, getCanvasPointFromClientPoint, readOnly])
 
-  return { armed, toggle, drawPreview, handlePointerDownCapture }
+  return { armed, toggle, drawPreview, handlePointerDown }
 }

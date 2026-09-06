@@ -1,9 +1,14 @@
 import { applyNodeChanges, type InternalNode, type NodeChange, type ReactFlowState } from '@xyflow/react'
 import type { GenerationFlowEdge, GenerationFlowNode } from './generationCanvasReactFlowAdapter'
 
+// 只取 nodeLookup，**不碰 parentLookup**：Nomi 的投影从不写 `parentId`
+// （`toGenerationFlowNode` 是唯一构造点，由 generationCanvasReactFlowAdapter.test.ts
+// 的结构断言钉死），所以内核的父子索引在本仓恒为空。2026-09-07 R29 §6.5 之前这里
+// 顺手维护了一份 parentLookup —— 一条永远为 false 的分支，却让「我们不用它的父子语义、
+// 却在写它的父子索引」这句话成立。删掉（P1）。
 type CanvasDragKernelState = Pick<
   ReactFlowState<GenerationFlowNode, GenerationFlowEdge>,
-  'nodes' | 'nodeLookup' | 'parentLookup' | 'hasDefaultNodes'
+  'nodes' | 'nodeLookup' | 'hasDefaultNodes'
 >
 type CanvasDragKernelStore = {
   getState: () => CanvasDragKernelState
@@ -72,7 +77,6 @@ export function applyCanvasDragKernelPositionChanges(
 
   const state = store.getState()
   const nodeLookup = new Map(state.nodeLookup)
-  const parentLookup = new Map(state.parentLookup)
   for (const change of positionChanges) {
     const node = nodeLookup.get(change.id) as InternalNode<GenerationFlowNode> | undefined
     if (!node || !change.position) continue
@@ -97,11 +101,6 @@ export function applyCanvasDragKernelPositionChanges(
       },
     }
     nodeLookup.set(change.id, nextNode)
-    if (node.parentId) {
-      const children = new Map(parentLookup.get(node.parentId) || [])
-      children.set(change.id, nextNode)
-      parentLookup.set(node.parentId, children)
-    }
   }
-  store.setState({ nodeLookup, parentLookup, hasDefaultNodes: false })
+  store.setState({ nodeLookup, hasDefaultNodes: false })
 }

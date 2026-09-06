@@ -50,15 +50,20 @@ type UseGenerationCanvasReactFlowMenusArgs = {
   pasteNodes: (position: { x: number; y: number }) => void
   groupSelectedNodes: () => void
   deleteSelectedNodes: () => void
-  /** 画布指针层（useGenerationCanvasReactFlowPointer）的三个原始回调，菜单层在它们之前插一脚。 */
+  /** 画布指针层（useGenerationCanvasReactFlowPointer）的原始回调，菜单层在它们之前插一脚。 */
   handleCanvasPointerDownCapture: (event: React.PointerEvent<HTMLDivElement>) => void
+  handleCanvasPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void
   handleCanvasPointerMove: (event: React.PointerEvent<HTMLDivElement>) => void
   handleCanvasPointerEnd: () => void
   shouldSuppressContextMenu: () => boolean
   /** 右键落在框体上时改开框菜单（与头部 ⋯ 同一份）；由 useCanvasFrameActions 拥有那份状态。 */
   onFrameMenu?: (frameId: string, point: { x: number; y: number }) => void
-  /** 框工具就绪时的画框手势要在 capture 阶段先过一手；返回 true = 这次 pointerdown 归画框。 */
-  onFrameToolPointerDownCapture?: (event: React.PointerEvent<HTMLDivElement>) => boolean
+  /**
+   * 框工具就绪时的画框手势（**冒泡阶段**）；返回 true = 这次 pointerdown 归画框，
+   * 画布自己的平移记账就不必再记。就绪期间 React Flow 已被 `panOnDrag={false}` 停用，
+   * 所以这里既不需要 capture 阶段，也不需要 stopPropagation（R29 §6.2）。
+   */
+  onFrameToolPointerDown?: (event: React.PointerEvent<HTMLDivElement>) => boolean
 }
 
 /**
@@ -91,17 +96,19 @@ export function useGenerationCanvasReactFlowMenus({
   groupSelectedNodes,
   deleteSelectedNodes,
   handleCanvasPointerDownCapture,
+  handleCanvasPointerDown,
   handleCanvasPointerMove,
   handleCanvasPointerEnd,
   shouldSuppressContextMenu,
   onFrameMenu,
-  onFrameToolPointerDownCapture,
+  onFrameToolPointerDown,
 }: UseGenerationCanvasReactFlowMenusArgs): {
   contextNodeMenu: CanvasContextNodeMenu | null
   connectionCreateMenu: CanvasConnectionCreateMenu | null
   handleStageContextMenu: (event: React.MouseEvent<HTMLDivElement>) => void
   handleFlowContextMenu: (event: MouseEvent | React.MouseEvent) => void
   handleStagePointerDownCapture: (event: React.PointerEvent<HTMLDivElement>) => void
+  handleStagePointerDown: (event: React.PointerEvent<HTMLDivElement>) => void
   handleStagePointerMove: (event: React.PointerEvent<HTMLDivElement>) => void
   handleStagePointerEnd: (event: React.PointerEvent<HTMLDivElement>) => void
   handlePendingGroupPointerUp: (
@@ -155,15 +162,20 @@ export function useGenerationCanvasReactFlowMenus({
   }, [handleStageContextMenu])
 
   const handleStagePointerDownCapture = React.useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    // 画框排在最前：它抢的是空白左键，而空白左键默认归 React Flow 的平移——
-    // 等到 bubble 阶段画布已经开始拖了（见 useCanvasFrameTool 的头注释）。
-    if (onFrameToolPointerDownCapture?.(event)) return
     if (prepareContextMenuPointerDown(event)) {
       event.stopPropagation()
       return
     }
     handleCanvasPointerDownCapture(event)
-  }, [handleCanvasPointerDownCapture, onFrameToolPointerDownCapture, prepareContextMenuPointerDown])
+  }, [handleCanvasPointerDownCapture, prepareContextMenuPointerDown])
+
+  // 冒泡阶段：画框先过一手。它只在工具就绪时认领空白左键，而那一刻 React Flow 的
+  // panOnDrag 已经是 false（GenerationCanvasReactFlowViewport），所以事件走到这里时
+  // 内核根本没打算平移——不需要 capture，也不需要 stopPropagation（R29 §6.2）。
+  const handleStagePointerDown = React.useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    if (onFrameToolPointerDown?.(event)) return
+    handleCanvasPointerDown(event)
+  }, [handleCanvasPointerDown, onFrameToolPointerDown])
 
   const handleStagePointerMove = React.useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     handleContextMenuPointerMove(event)
@@ -294,6 +306,7 @@ export function useGenerationCanvasReactFlowMenus({
     handleStageContextMenu,
     handleFlowContextMenu,
     handleStagePointerDownCapture,
+    handleStagePointerDown,
     handleStagePointerMove,
     handleStagePointerEnd,
     handlePendingGroupPointerUp,

@@ -22,7 +22,9 @@
           "id": "session-persistence",
           "provides": "SessionManager 负责会话的落盘、追加与恢复（含 CURRENT_SESSION_VERSION 迁移）",
           "evidence": "@earendil-works/pi-coding-agent@0.84.3 dist/core/session-manager.d.ts:184 `export declare class SessionManager`；dist/core/session-manager.d.ts:333 `static inMemory`",
-          "scope": ["electron/harness/runtime/pi/"],
+          "scope": [
+            "electron/harness/runtime/pi/"
+          ],
           "forbidden": [
             {
               "id": "opt-out-of-session-store",
@@ -40,7 +42,9 @@
           "id": "retry-policy",
           "provides": "RetryPolicy：模型请求的重试与退避策略，由 settings.retry 与 provider.maxRetries 驱动",
           "evidence": "@earendil-works/pi-ai@0.84.3 `RetryPolicy`（经 dist/core/compaction/compaction.d.ts:100 等处透出）；pi-coding-agent dist/core/settings-manager.d.ts 的 retry 设置",
-          "scope": ["electron/harness/runtime/pi/"],
+          "scope": [
+            "electron/harness/runtime/pi/"
+          ],
           "forbidden": [
             {
               "id": "retry-disabled-wholesale",
@@ -58,7 +62,9 @@
           "id": "steering",
           "provides": "AgentSession.steer() / followUp()：把用户的新指令按流式状态排进当前回合或下一回合",
           "evidence": "@earendil-works/pi-coding-agent@0.84.3 dist/core/agent-session.d.ts:377 `steer(text, images?)`、:385 `followUp(text, images?)`；pi-agent-core dist/agent.d.ts:84/86",
-          "scope": ["electron/projectAgentHost/"],
+          "scope": [
+            "electron/projectAgentHost/"
+          ],
           "forbidden": [
             {
               "id": "host-owned-steering-queue",
@@ -76,7 +82,9 @@
           "id": "resource-loading",
           "provides": "DefaultResourceLoader：扩展 / skills / prompts / themes / AGENTS 文件的发现、加载与系统提示词装配",
           "evidence": "@earendil-works/pi-coding-agent@0.84.3 dist/core/resource-loader.d.ts:120 `export declare class DefaultResourceLoader implements ResourceLoader`",
-          "scope": ["electron/harness/runtime/pi/"],
+          "scope": [
+            "electron/harness/runtime/pi/"
+          ],
           "forbidden": [
             {
               "id": "hand-rolled-resource-loader",
@@ -94,12 +102,106 @@
           "id": "ordered-transcript",
           "provides": "AgentSession 的有序事件流与会话条目：按段（文本 / 思考 / 工具调用 / 结果）保序，宿主订阅即可拿到结构",
           "evidence": "@earendil-works/pi-coding-agent@0.84.3 dist/core/agent-session.d.ts:40 `AgentSessionEvent`、:108 `AgentSessionEventListener`",
-          "scope": ["electron/harness/runtime/pi/"],
+          "scope": [
+            "electron/harness/runtime/pi/"
+          ],
           "forbidden": [
             {
               "id": "flatten-text-deltas-into-one-string",
               "pattern": "assistantMessageEvent\\.type === 'text_delta'",
               "why": "把 text_delta 拼成一条扁平字符串，就丢掉了 pi 已经保序的分段结构；UI 想还原「思考→工具→文本」的顺序时只能再猜一次。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "xyflow-react",
+      "packages": [
+        "@xyflow/react"
+      ],
+      "version": "12.11.5",
+      "fourColumnTable": "docs/research/2026-09-07-react-flow-subflows-vs-frame.md",
+      "why": "2026-09-07 R29 边界检查：React Flow 12 的 sub-flows 我们一层都没接。两件核心语义（extent:'parent' 禁止成员出框、expandParent 父追着子长大）与 Nomi 的框语义正面相反，故不是重造而是刻意不用；相交计算与手势归属两处原本绕开了内核公共 API（真·自研债），已在 PR #550 返工改回公共 API。",
+      "capabilities": [
+        {
+          "id": "subflow-parenting",
+          "provides": "parentId + extent:'parent' + expandParent + ParentLookup：节点父子、拖父动子、边界约束、父自动扩张",
+          "evidence": "@xyflow/system@0.0.81 dist/esm/types/nodes.d.ts:49-61（parentId/extent/expandParent）、:156（ParentLookup）；https://reactflow.dev/learn/layouting/sub-flows",
+          "scope": [
+            "src/workbench/generationCanvas/reactFlow/",
+            "src/workbench/generationCanvas/components/"
+          ],
+          "justifiedOwnImplementation": {
+            "reason": "extent:'parent' 与「拖出框=退组」正面冲突（它 clamp 位置，成员根本拖不出去）；expandParent 逐字就是 2026-09-06 实拍里那条 bug——框追着跑掉的成员长大。原生三件里两件必须关掉，第三件「拖父动子」我们的 moveGroupNodes 还额外带 categoryId 过滤，原生父子不认识 Nomi 的分类。所以这不是重造轮子，是这个轮子朝相反方向转。",
+            "ours": [
+              "src/workbench/generationCanvas/model/generationCanvasTypes.ts:188 NodeGroup.nodeIds（成员名单）",
+              "src/workbench/generationCanvas/store/canvasGraphActions.ts:392 moveGroupNodes（拖父动子 + 分类过滤）",
+              "src/workbench/generationCanvas/model/canvasFrameBounds.ts:68 unionFrameBounds（只长不缩，替 expandParent）"
+            ],
+            "reviewBy": "2026-12-07",
+            "reevaluateWhen": "出现「嵌套框」需求时重新评估 A 方案（改造成原生父子）——那是原生父子唯一能白拿收益的场景。"
+          },
+          "forbidden": [
+            {
+              "id": "half-migrated-native-parenting",
+              "pattern": "\\bparentId\\b",
+              "why": "投影层一旦写 parentId，成员 position 就从绝对坐标变成相对坐标，会穿透到主进程 canvasNodeLayout / canvasNodeFactory 的绝对坐标契约（R29 §4.3），而主进程根本看不见 React Flow。要迁必须整条迁（含 applyExternalGraph 边界的双向转换与契约测试）并改本登记，半迁比不迁危险得多。"
+            },
+            {
+              "id": "extent-parent-cages-members",
+              "pattern": "extent:\\s*['\"]parent['\"]",
+              "why": "extent:'parent' 会把成员 clamp 在框内——用户拖不出去，而「拖出框 = 退组」正是这一档要修的那条 bug 的修法。开了它，框就从「空间」退化成「牢笼」。"
+            }
+          ]
+        },
+        {
+          "id": "node-intersection",
+          "provides": "getIntersectingNodes / isNodeIntersecting / getInternalNode：基于内核 nodeLookup 的绝对坐标（拖动中逐帧更新）+ measured 真实渲染尺寸做命中计算",
+          "evidence": "@xyflow/react@12.11.5 dist/esm/types/instance.d.ts:113-115（getIntersectingNodes）、:126-128（isNodeIntersecting）、:50-55（getInternalNode）；@xyflow/system@0.0.81 dist/esm/types/nodes.d.ts:83-99（InternalNodeBase.measured / internals.positionAbsolute）",
+          "scope": [
+            "src/workbench/generationCanvas/components/"
+          ],
+          "forbidden": [
+            {
+              "id": "hand-rolled-node-rect-for-hit-testing",
+              "pattern": "getCanvasNodeVisualSize\\([^)]*\\)[\\s\\S]{0,200}?(contains|intersect|Overlap)",
+              "why": "从 Zustand 重算节点矩形做命中判定，用的是**声明**尺寸而非内核 measured 尺寸——判定线与用户看到的边会分叉（R14.1 同一语义两份定义），表现为「明明拖进去了却没入组」，是最难跟用户解释的一类 bug。中心点判据是我们的产品判据（Figma/Miro 同款），可以保留；矩形必须来自内核。"
+            }
+          ]
+        },
+        {
+          "id": "gesture-ownership",
+          "provides": "panOnDrag / selectionOnDrag / nodesDraggable / nodeDragThreshold：声明式地把一次拖动判给谁",
+          "evidence": "@xyflow/react@12.11.5 dist/esm/types/component-props.d.ts:399（panOnDrag）、:289（selectionOnDrag）、:338（nodesDraggable）、:620（nodeDragThreshold）",
+          "scope": [
+            "src/workbench/generationCanvas/"
+          ],
+          "forbidden": [
+            {
+              "id": "capture-phase-gesture-theft",
+              "pattern": "onPointerDownCapture[\\s\\S]{0,400}?stopPropagation",
+              "why": "在 capture 阶段抢 React Flow 的 pointerdown，内核不知道自己被停用，onMoveStart/onMove/onMoveEnd 与新手势各活各的；框架改事件绑定阶段时会**静默**失效（画不出框，没有任何报错）。用 panOnDrag={false} / nodesDraggable={false} 明说（R28：能让框架自己拦的，别留给偷袭）。"
+            }
+          ]
+        },
+        {
+          "id": "internal-store-lookups",
+          "provides": "nodeLookup / parentLookup 由 adoptUserNodes + updateAbsolutePositions 维护，是内核私有面",
+          "evidence": "@xyflow/system@0.0.81 dist/esm/utils/store.d.ts:4（updateAbsolutePositions）、:18（adoptUserNodes）；@xyflow/system dist/esm/types/nodes.d.ts:155-156（NodeLookup / ParentLookup）",
+          "scope": [
+            "src/workbench/generationCanvas/reactFlow/"
+          ],
+          "forbidden": [
+            {
+              "id": "write-internal-parent-lookup",
+              "pattern": "setState\\(\\{[^}]*parentLookup",
+              "why": "手改内核的 parentLookup 走的是私有面，升版无兼容承诺；而且我们并不使用它的父子语义，只是在写它的索引。2026-09-07 已证其为死路径（投影从不产 parentId）并删除，这条规则防的是它长回来。"
+            },
+            {
+              "id": "write-internal-node-lookup",
+              "pattern": "setState\\(\\{[^}]*nodeLookup",
+              "why": "拖动热路径直接改内核的 nodeLookup（并把 hasDefaultNodes 置 false），是画布性能战役压帧时间时留下的私有面写入：React Flow 升版改这两处内部形状不会有任何编译错误，只会在拖动时静默错位。"
             }
           ]
         }

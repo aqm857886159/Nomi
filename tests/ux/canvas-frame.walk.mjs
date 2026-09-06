@@ -150,6 +150,17 @@ async function readFrameState(win) {
 }
 
 /**
+ * 「节点在哪、画布在哪」的一次取样。两者都读 transform 字符串而不是 bounding box：
+ * box 会被亚像素与滚动条影响，transform 是 React Flow 自己写上去的那个值，动没动一目了然。
+ */
+async function readNodeAndViewport(win, nodeId) {
+  return win.evaluate((id) => ({
+    nodeTransform: document.querySelector(`.react-flow__node[data-id="${id}"]`)?.style.transform ?? null,
+    viewportTransform: document.querySelector('.react-flow__viewport')?.style.transform ?? null,
+  }), nodeId)
+}
+
+/**
  * 把一张卡拖到「它的**中心**落在 desiredCenter」的位置；`onMidflight` 在**松手前**跑
  * （那一刻才有归属反馈可读）。
  *
@@ -183,6 +194,30 @@ async function dragNodeTo(win, nodeId, desiredCenter, onMidflight) {
   if (onMidflight) await onMidflight()
   await win.mouse.up()
   await win.waitForTimeout(700)
+}
+
+/**
+ * 找一个「肯定在框外」的落点（屏幕坐标）。
+ *
+ * 必须**现量**框：装进成员之后框已经按「只长不缩」长大了（卡比框大，union 连上沿一起顶），
+ * 拿画完那会儿的小框算「上方 90px」，落点其实还在长大后的框里面——判定如实回答「没出去」，
+ * 看着却像退组坏了。这一条 2026-09-07 真踩过。
+ *
+ * 优先往上（截图里框与卡同屏，人眼才看得出「它正被拽出去」），上面挤不下就往左；
+ * 两边都挤不下就 fail-closed，不硬拖一个自己都不确定在框外的点。
+ */
+async function pickPointOutsideFrame(win) {
+  const frameBox = await frameLocator(win).boundingBox()
+  if (!frameBox) throw new Error('量不到框，找不出框外落点（fail-closed）')
+  const stageBox = await win.locator('.generation-canvas-v2__stage').first().boundingBox()
+  if (!stageBox) throw new Error('量不到画布 stage（fail-closed）')
+  const point = frameBox.y - 130 >= stageBox.y + 60
+    ? { x: frameBox.x + frameBox.width / 2, y: frameBox.y - 130 }
+    : { x: frameBox.x - 150, y: frameBox.y + frameBox.height / 2 }
+  if (point.x < stageBox.x + 40 || point.y < stageBox.y + 40) {
+    throw new Error(`框四周都没有地方把卡拖出去（fail-closed）：frame=${JSON.stringify(frameBox)}`)
+  }
+  return point
 }
 
 const { app, win } = await launchNomiApp({
@@ -258,8 +293,58 @@ try {
   check(await frameButton.getAttribute('aria-pressed') === 'true', '按 F 之后工具钮变成就绪态（键与钮是同一个状态）')
   await snap(win, 'frame-tool-armed')
 
+  // ── ②a 手势归属：就绪期间这次拖动不归内核（R29 §6.2） ──
+  // 以前是我们在 capture 阶段偷 pointerdown、内核以为自己还在管平移；现在是
+  // `panOnDrag={false}` + `nodesDraggable={false}` 明说。差别在真机上只有一处看得见：
+  // 就绪时压在一张卡上拖，卡**不能**跟着走——偷事件那版拦不住它（capture 只在 stage 上，
+  // 节点自己的 pointerdown 照常把拖动跑起来）。这两条断言钉的就是那处差别。
+  {
+    const guineaPig = nodeIds[0]
+    const before = await readNodeAndViewport(win, guineaPig)
+    const hit = await findNodeHitPoint(win, { nodeSelector: `.react-flow__node[data-id="${guineaPig}"]` })
+    if (!hit) throw new Error('框工具就绪校验：找不到这张卡上露着的可抓点（fail-closed）')
+    await win.mouse.move(hit.x, hit.y)
+    await win.mouse.down()
+    for (let step = 1; step <= 5; step += 1) {
+      await win.mouse.move(hit.x + step * 24, hit.y + step * 18, { steps: 3 })
+    }
+    await win.waitForTimeout(200)
+    await snapMidflight(win, 'armed-drag-on-node-does-nothing')
+    await win.mouse.up()
+    await win.waitForTimeout(500)
+    const after = await readNodeAndViewport(win, guineaPig)
+    check(
+      before.nodeTransform === after.nodeTransform,
+      '框工具就绪时，压在节点上拖 —— 节点不动（nodesDraggable=false）',
+      `${before.nodeTransform} → ${after.nodeTransform}`,
+    )
+    check(
+      before.viewportTransform === after.viewportTransform,
+      '框工具就绪时，同一次拖动也没有把画布平移走（panOnDrag=false）',
+      `${before.viewportTransform} → ${after.viewportTransform}`,
+    )
+    check(
+      await frameButton.getAttribute('aria-pressed') === 'true',
+      '这次拖动没有把工具弄丢（压在卡上不算画框，工具仍就绪）',
+    )
+    // 收工：刚才那一下把卡选中了，选中的卡会在下方展开提示词面板，把后面要找的那片空白吃掉。
+    // 点一下空白既清选中（onPaneClick → clearSelection）又收起工具——正是用户改主意时会做的动作。
+    const blank = await findCanvasBlankPoint(win)
+    if (!blank) throw new Error('找不到空白点来收起框工具（fail-closed，不猜坐标）')
+    await win.mouse.click(blank.x, blank.y)
+    await win.waitForTimeout(500)
+    check(
+      await frameButton.getAttribute('aria-pressed') === 'false',
+      '就绪后在空白上只点一下（没拖出矩形）= 什么都不建，工具收起',
+    )
+    await win.keyboard.press('f')
+    await win.waitForTimeout(400)
+    check(await frameButton.getAttribute('aria-pressed') === 'true', '再按一次 F 重新就绪，接着画')
+  }
+
   const blankRect = await findCanvasBlankRect(win, { width: 560, height: 300 })
   if (!blankRect) throw new Error('画布上找不到一整片空白来画框（fail-closed，不猜坐标）')
+  const viewportBeforeDraw = (await readNodeAndViewport(win, nodeIds[0])).viewportTransform
   await win.mouse.move(blankRect.x, blankRect.y)
   await win.mouse.down()
   await win.mouse.move(blankRect.x + blankRect.width / 2, blankRect.y + blankRect.height / 2, { steps: 6 })
@@ -277,6 +362,10 @@ try {
   check(drawn?.count === '0', '空框的计数如实显示 0，不藏起来', `count=${drawn?.count}`)
   check(drawn?.dashed === 'dashed', '空框画的是虚线', `borderStyle=${drawn?.dashed}`)
   check(await frameButton.getAttribute('aria-pressed') === 'false', '画完一次工具自动收起（不留一个出不去的模式）')
+  check(
+    viewportBeforeDraw === (await readNodeAndViewport(win, nodeIds[0])).viewportTransform,
+    '画框那一拖没有顺手把画布也拖走（内核的平移被声明式关掉了，不是被我们偷走事件）',
+  )
   await snap(win, 'empty-frame')
 
   const frameBox = await frameLocator(win).boundingBox()
@@ -349,7 +438,11 @@ try {
   // 落点选在框的**正上方一点点**，而不是画布另一头的空白处：这一步的产物是给人看的截图
   // （R13 走查是人眼判断的素材源），而框和卡片必须同框才看得出「它正被拽出去、框说了要走」。
   // 拖到视口外去，断言照样绿——但那张 midflight 截图上一个框都没有，等于没留下证据。
-  const outsidePoint = { x: frameBox.x + frameBox.width / 2, y: Math.max(90, frameBox.y - 90) }
+  //
+  // 框要**现量**，不能用画完那会儿量的 `frameBox`：装进三张卡之后框已经按「只长不缩」
+  // 长大了（卡比框大，union 会把上沿也顶上去）。照旧的小框算「上方 90px」，落点其实还在
+  // 长大后的框**里面**——判定如实回答「没出去」，看着却像退组坏了。
+  const outsidePoint = await pickPointOutsideFrame(win)
   let leaveMidflight = null
   await dragNodeTo(win, nodeIds[2], outsidePoint, async () => {
     leaveMidflight = await readFrameState(win)
@@ -371,6 +464,86 @@ try {
   }, nodeIds[2])
   check(stillInside === false, '被拖出去的那张卡确实在框外面（框没长过去）')
   await snap(win, 'after-leave')
+
+  // ── ⑤b 判定线必须落在用户看得见的那条边上（R29 §6.1） ──
+  //
+  // 验的是一件用户永远说不出口、但一定会当成 bug 的事：
+  // 「我明明看着这张卡进框里了，它却没进这一组。」
+  //
+  // 成因是尺寸有两份定义：判定用**声明**尺寸（节点类型的标称宽高），用户看的是浏览器
+  // **实际渲染**出来的那个盒子。平时两者一样，看不出来；一旦某张卡的实际高度和标称不符，
+  // 判定线就和视觉边分了家。所以这里造一张「渲染出来比声明矮一大截」的卡当夹具，
+  // 再把它拖到「**看得见的中心**刚进框、而**按声明尺寸算的中心**已在框外」的位置。
+  // 判定跟着看得见的那条边走 = 入组；跟着声明尺寸走 = 什么都不发生。
+  // 第 2 条断言先证明这两个判据此刻确实给出相反答案——没有它，这就是一条恒真的空断言。
+  const fixtureNodeId = nodeIds[2] // 刚被拖出去那张：此刻不是成员，正好用来验「进」
+  const fixtureBefore = await win.evaluate((id) => {
+    const el = document.querySelector(`.react-flow__node[data-id="${id}"]`)
+    const viewport = document.querySelector('.react-flow__viewport')
+    const scale = /scale\(([-0-9.]+)\)/.exec(viewport?.style.transform || '')
+    const rect = el?.getBoundingClientRect()
+    return {
+      declaredFlowHeight: el ? parseFloat(el.style.height) : Number.NaN,
+      zoom: scale ? Number(scale[1]) : 1,
+      screenHeight: rect ? rect.height : Number.NaN,
+    }
+  }, fixtureNodeId)
+  if (!Number.isFinite(fixtureBefore.declaredFlowHeight)) throw new Error('夹具节点读不到声明高度（fail-closed）')
+
+  // 截到声明高度的 45%：够拉开差距，又不至于短到抓不住。用可摘掉的 style 元素，
+  // 验完就摘——夹具留在页面上会污染后面每一条断言。
+  const shrunkFlowHeight = Math.round(fixtureBefore.declaredFlowHeight * 0.45)
+  await win.evaluate(({ id, height }) => {
+    const style = document.createElement('style')
+    style.id = 'nomi-frame-measured-fixture'
+    style.textContent = `.react-flow__node[data-id="${id}"] { max-height: ${height}px !important; overflow: hidden !important; }`
+    document.head.appendChild(style)
+  }, { id: fixtureNodeId, height: shrunkFlowHeight })
+  await win.waitForTimeout(900)
+  const shrunkScreenHeight = await win.evaluate((id) =>
+    document.querySelector(`.react-flow__node[data-id="${id}"]`)?.getBoundingClientRect().height ?? Number.NaN, fixtureNodeId)
+  check(
+    shrunkScreenHeight < fixtureBefore.screenHeight - 20,
+    '夹具生效：这张卡实际渲染出来比它的声明尺寸矮了一截',
+    `${Math.round(fixtureBefore.screenHeight)}px → ${Math.round(shrunkScreenHeight)}px`,
+  )
+
+  const frameBoxForMeasured = await frameLocator(win).boundingBox()
+  if (!frameBoxForMeasured) throw new Error('量不到框，没法算「刚进框」的落点（fail-closed）')
+  const visualCenter = {
+    x: frameBoxForMeasured.x + frameBoxForMeasured.width / 2,
+    y: frameBoxForMeasured.y + frameBoxForMeasured.height - 18,
+  }
+  // 卡被截短了，所以「按声明尺寸算的中心」比「看得见的中心」更靠下这么多。
+  const centerGap = (fixtureBefore.declaredFlowHeight * fixtureBefore.zoom - shrunkScreenHeight) / 2
+  const declaredCenterY = visualCenter.y + centerGap
+  const frameBottom = frameBoxForMeasured.y + frameBoxForMeasured.height
+  check(
+    declaredCenterY > frameBottom,
+    '这一拖的两个判据确实相反：看得见的中心在框内，按声明尺寸算的中心已经在框外',
+    `视觉中心 y=${Math.round(visualCenter.y)} · 声明中心 y=${Math.round(declaredCenterY)} · 框下沿 y=${Math.round(frameBottom)}`,
+  )
+
+  let measuredMidflight = null
+  await dragNodeTo(win, fixtureNodeId, visualCenter, async () => {
+    measuredMidflight = await readFrameState(win)
+    await snapMidflight(win, 'measured-size-join-midflight')
+  })
+  check(
+    measuredMidflight?.membership === 'join',
+    '判定跟着**看得见的那条边**走：卡的视觉中心进框，框就亮起「要进来了」',
+    `membership=${measuredMidflight?.membership}`,
+  )
+  const measuredSettled = await readFrameState(win)
+  check(measuredSettled?.count === '3', '松手后它真的进了这一组', `count=${measuredSettled?.count}`)
+  await snap(win, 'measured-size-membership')
+
+  // 复位：把它再拖出去、摘掉夹具。后面「框里就是 2 个」那几条才仍然说的是真话。
+  await dragNodeTo(win, fixtureNodeId, await pickPointOutsideFrame(win))
+  await win.evaluate(() => document.getElementById('nomi-frame-measured-fixture')?.remove())
+  await win.waitForTimeout(700)
+  const restored = await readFrameState(win)
+  check(restored?.count === '2', '夹具验完复位：框里回到 2 个，后面的断言接着说真话', `count=${restored?.count}`)
 
   // ── ⑥ 折叠腾地方，再展开 ──
   const collapseButton = frameLocator(win).locator('button[aria-label^="收起分组"]').first()
@@ -478,6 +651,7 @@ try {
   check(nodesAfter === nodesBefore, '解散不删节点', `${nodesBefore} → ${nodesAfter}`)
   check(edgesAfter === edgesBefore, '解散不撤边（解散的是组织方式，不是节点关系）', `${edgesBefore} → ${edgesAfter}`)
   await snap(win, 'dissolved')
+
 } finally {
   await app.close().catch(() => {})
   vendorServer.close()

@@ -1,8 +1,7 @@
 {
   "version": 2,
   "pendingApprovalScreens": {
-    "agent-panel-v4": "2026-09-06 · v4 接线：5 张接线证据格（宿主快照 → 真面板）是新增的，还没有基线；Skill 弹层按拍板 ⑤ 并进了提示词库、多出两段分段名；另加 3 张冷启动空态格（empty-creation / empty-generation / empty-preview）——定稿 57 态里从来没有这一格，面板主体一片白，起手 chip 按面从已注册能力表派生。三处都要用户亲眼看过接触表才录基线（UI 交付定义 = 设计实验室截图拍板）。拍板后跑 pnpm run design-lab:update，并**删掉本条登记**。",
-    "canvas-frame": "2026-09-06 · 画布框工具第一档的六态（空框 / 有内容 / 拖入反馈 / 拖出反馈 / 折叠 / ⋯ 菜单）刚登记进实验室，接触表还没给用户看过。其中「拖入 / 拖出反馈」是这一档最要紧的两格——实拍里那一刻完全没有反馈——必须用户亲眼看过才算数。拍板后跑 pnpm run design-lab:update 录基线，并**删掉本条登记**。"
+    "agent-panel-v4": "2026-09-06 · v4 接线：5 张接线证据格（宿主快照 → 真面板）是新增的，还没有基线；Skill 弹层按拍板 ⑤ 并进了提示词库、多出两段分段名；另加 3 张冷启动空态格（empty-creation / empty-generation / empty-preview）——定稿 57 态里从来没有这一格，面板主体一片白，起手 chip 按面从已注册能力表派生。三处都要用户亲眼看过接触表才录基线（UI 交付定义 = 设计实验室截图拍板）。拍板后跑 pnpm run design-lab:update，并**删掉本条登记**。"
   },
   "calibratedPlatform": "darwin",
   "viewport": {

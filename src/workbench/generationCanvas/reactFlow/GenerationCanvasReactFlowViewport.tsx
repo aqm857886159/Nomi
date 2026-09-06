@@ -56,6 +56,8 @@ type GenerationCanvasReactFlowViewportProps = {
   groupBoxes: readonly CanvasGroupBox[]
   frame?: CanvasFrameInteraction
   frameDrawPreview?: CanvasFrameRect | null
+  /** 框工具就绪：这次拖动归画框，声明式地把平移与节点拖动让给它（R29 §6.2）。 */
+  frameToolArmed?: boolean
   collapsedGroupCards: readonly CollapsedGroupCardProjection[]
   onGroupFramePointerDown: (event: React.PointerEvent<HTMLDivElement>, groupId: string, options?: { selectMembers?: boolean }) => void
   pendingConnection: boolean
@@ -122,6 +124,7 @@ export function GenerationCanvasReactFlowViewport({
   groupBoxes,
   frame,
   frameDrawPreview,
+  frameToolArmed = false,
   collapsedGroupCards,
   onGroupFramePointerDown,
   pendingConnection,
@@ -153,11 +156,15 @@ export function GenerationCanvasReactFlowViewport({
       nodeTypes={nodeTypes}
       edgeTypes={edgeTypes}
       defaultViewport={viewport}
-      nodesDraggable={!readOnly}
+      // 框工具就绪期间把这两颗开关关掉，内核**知道**这次拖动不归它——而不是我们在
+      // capture 阶段偷它的 pointerdown（R29 §6.2：偷法在框架改事件绑定阶段时会静默失效）。
+      // 空格 / 中键 / 右键平移不走 panOnDrag，由 useGenerationCanvasReactFlowPointer 的
+      // 辅助平移接管，所以就绪期间画布并没有被这颗工具锁死。
+      nodesDraggable={!readOnly && !frameToolArmed}
       nodesConnectable={!readOnly}
       elementsSelectable={!readOnly}
       elevateNodesOnSelect={false}
-      panOnDrag={[0, 1]}
+      panOnDrag={frameToolArmed ? false : [0, 1]}
       autoPanOnConnect={false}
       connectOnClick={false}
       selectionKeyCode="Shift"

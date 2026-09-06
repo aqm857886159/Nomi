@@ -25,6 +25,7 @@ import { useCollapsedGroupConnectionSource } from '../components/useCollapsedGro
 import { projectCollapsedGroups } from '../model/canvasCardStackModel'
 import { useCanvasSelectionDrag } from '../components/useCanvasSelectionDrag'
 import { useCanvasGroupActions } from '../components/useCanvasGroupActions'
+import { measuredRectFromInternalNode } from './canvasMeasuredNodeRect'
 import { useCanvasFrameTool } from '../components/useCanvasFrameTool'
 import { useCanvasFrameMembership } from '../components/useCanvasFrameMembership'
 import { useCanvasFrameActions } from '../components/useCanvasFrameActions'
@@ -306,7 +307,12 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
     frameBoxes: groupBoxes,
     getCanvasPointFromClientPoint: (clientX, clientY) => flow.screenToFlowPosition({ x: clientX, y: clientY }),
   })
-  const frameMembership = useCanvasFrameMembership({ readOnly, frameBoxes: groupBoxes })
+  // 命中判定的矩形只有一个来源：内核测量值（R29 §6.1，见 canvasMeasuredNodeRect.ts）。
+  const getMeasuredNodeRect = React.useCallback(
+    (nodeId: string) => measuredRectFromInternalNode(flow.getInternalNode(nodeId)),
+    [flow],
+  )
+  const frameMembership = useCanvasFrameMembership({ readOnly, frameBoxes: groupBoxes, getNodeRect: getMeasuredNodeRect })
   const frameActions = useCanvasFrameActions({ readOnly, stageRef: hostRef })
   const renameGroup = useGenerationCanvasStore((state) => state.renameGroup)
   const setGroupDescription = useGenerationCanvasStore((state) => state.setGroupDescription)
@@ -335,6 +341,7 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
     handleStageContextMenu,
     handleFlowContextMenu,
     handleStagePointerDownCapture,
+    handleStagePointerDown,
     handleStagePointerMove,
     handleStagePointerEnd,
     handlePendingGroupPointerUp,
@@ -366,11 +373,12 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
     groupSelectedNodes: handleGroupSelectedNodes,
     deleteSelectedNodes,
     handleCanvasPointerDownCapture,
+    handleCanvasPointerDown,
     handleCanvasPointerMove,
     handleCanvasPointerEnd,
     shouldSuppressContextMenu,
     onFrameMenu: frameActions.openFrameMenu,
-    onFrameToolPointerDownCapture: frameTool.handlePointerDownCapture,
+    onFrameToolPointerDown: frameTool.handlePointerDown,
   })
 
   useAutoFitOnLoad({
@@ -593,7 +601,7 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
       onWheelCapture={handleCanvasWheelCapture}
       onPointerUpCapture={handlePendingGroupPointerUp}
       onMouseUpCapture={handlePendingGroupPointerUp}
-      onPointerDown={handleCanvasPointerDown}
+      onPointerDown={handleStagePointerDown}
       onPointerMove={handleStagePointerMove}
       onPointerUp={handleStagePointerEnd}
       onPointerCancel={handleCanvasPointerEnd}
@@ -638,6 +646,7 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
         groupBoxes={groupBoxes}
         frame={frameInteraction}
         frameDrawPreview={frameTool.drawPreview}
+        frameToolArmed={frameTool.armed}
         collapsedGroupCards={collapsedProjection.cards}
         onGroupFramePointerDown={handleGroupFramePointerDown}
         pendingConnection={Boolean(pendingConnectionSourceId)}
