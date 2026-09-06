@@ -191,9 +191,9 @@
     "@ai-sdk/anthropic": "^1.2.12",
     "@ai-sdk/openai": "^1",
     "@ai-sdk/openai-compatible": "^0.2.16",
-    "@earendil-works/pi-agent-core": "0.84.3",
-    "@earendil-works/pi-ai": "0.84.3",
-    "@earendil-works/pi-coding-agent": "0.84.3",
+    "@earendil-works/pi-agent-core": "0.85.1",
+    "@earendil-works/pi-ai": "0.85.1",
+    "@earendil-works/pi-coding-agent": "0.85.1",
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "@ffprobe-installer/ffprobe": "^2.1.2",
     "@fontsource-variable/fraunces": "^5.2.9",
@@ -361,12 +361,12 @@
   },
   "pnpm": {
     "overrides": {
-      "@earendil-works/pi-agent-core": "0.84.3",
-      "@earendil-works/pi-ai": "0.84.3",
-      "@earendil-works/pi-client": "0.84.3",
-      "@earendil-works/pi-coding-agent": "0.84.3",
-      "@earendil-works/pi-protocol": "0.84.3",
-      "@earendil-works/pi-tui": "0.84.3"
+      "@earendil-works/chord": "0.85.1",
+      "@earendil-works/pi-agent-core": "0.85.1",
+      "@earendil-works/pi-ai": "0.85.1",
+      "@earendil-works/pi-coding-agent": "0.85.1",
+      "@earendil-works/pi-telemetry": "0.85.1",
+      "@earendil-works/pi-tui": "0.85.1"
     },
     "onlyBuiltDependencies": [
       "electron",
