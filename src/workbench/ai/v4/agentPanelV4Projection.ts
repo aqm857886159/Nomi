@@ -20,6 +20,7 @@ import type { TargetRef } from '../../../../electron/shared/capabilityTargeting'
 import { formatResidentToolElapsed, residentToolElapsedMs } from '../resident/residentToolTiming'
 import { readableToolName, readableToolPreview, readableToolSummary } from '../resident/residentToolDisplay'
 import type { ResidentToolProjection } from '../resident/residentToolProjection'
+import { stripVendorErrorMarker } from '../../generationCanvas/runner/vendorErrorIpc'
 import { actionFamilyForCapability } from './agentPanelV4ActionFamily'
 import type {
   ContextUsage,
@@ -327,7 +328,11 @@ export function projectV4Flow(input: V4FlowInput): readonly V4FlowItem[] {
     if (item.kind === 'failure') {
       flow.push({
         kind: 'error',
-        reason: item.message,
+        // `NOMI_VENDOR_ERR_B64::…::` 是厂商错误穿 IPC 的**传输标记**，不是给人看的字。
+        // 编码那一端（`electron/ai/agentError.ts`）的契约就是「展示串一字未变，标记段在渲染层
+        // 由 stripVendorErrorMarker 剥掉」——这条投影以前没剥，于是用户在失败卡上读到的
+        // 第一行是一串 base64。剥在这里：这是这个面把 failure 变成可读一行的唯一地方。
+        reason: stripVendorErrorMarker(item.message),
         ...(item.nextAction ? { action: item.nextAction } : {}),
       })
       continue
