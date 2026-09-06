@@ -142,7 +142,10 @@ describe('③ 一行收据 · 七态 join', () => {
   it('宿主还没说话时才看登记表', () => {
     expect(toolStatusOf(undefined, 'pending')).toBe('approval-requested')
     expect(toolStatusOf(undefined, 'approved')).toBe('approval-responded')
-    expect(toolStatusOf(undefined, 'denied')).toBe('approval-responded')
+    // 拒绝有自己的行尾字。折进 `approval-responded`（印出来是「已确认」）等于在用户
+    // 按下「不要」的那一刻把他的拒绝写成同意——真机上撞到过：宿主终态还没回来，
+    // 那一行就已经写着「已确认」，而且模型立刻又提了一次，这行「已确认」会一直挂着。
+    expect(toolStatusOf(undefined, 'denied')).toBe('output-denied')
     expect(toolStatusOf(undefined, undefined)).toBe('input-available')
   })
 
@@ -409,5 +412,32 @@ describe('对话流的时间顺序', () => {
     ]
     const flow = projectV4Flow(flowInput({ items }))
     expect(flow.map((entry) => entry.kind)).toEqual(['user', 'assistant'])
+  })
+})
+
+describe('失败卡上写的是给人看的话', () => {
+  // `NOMI_VENDOR_ERR_B64::…::` 是厂商错误穿 IPC 的传输标记，编码那一端的契约就是
+  // 「展示串一字未变，标记段在渲染层剥掉」。这条投影以前没剥，用户在失败卡上读到的
+  // 第一行是一串 base64——比没有原因更糟：它看起来像 Nomi 自己坏了。
+  const encoded =
+    'NOMI_VENDOR_ERR_B64::eyJodHRwU3RhdHVzIjo0MDB9:: （HTTP 400）官方算力限制，请等待一段时间后再进行使用'
+
+  it('剥掉传输标记，只留人读得懂的那半句', () => {
+    const flow = projectV4Flow(flowInput({
+      items: [baseItem({ itemId: 'failure-1', kind: 'failure', code: 'runtime_error', status: 'failed', message: encoded } as never)],
+    }))
+    const card = flow.find((entry) => entry.kind === 'error')
+    if (card?.kind !== 'error') throw new Error('失败卡没渲出来')
+    expect(card.reason).toBe('（HTTP 400）官方算力限制，请等待一段时间后再进行使用')
+    expect(card.reason).not.toContain('NOMI_VENDOR_ERR_B64')
+  })
+
+  it('阳性对照：没有标记的原因原样带出，不被误伤', () => {
+    const flow = projectV4Flow(flowInput({
+      items: [baseItem({ itemId: 'failure-2', kind: 'failure', code: 'runtime_error', status: 'failed', message: '模型没有返回结果' } as never)],
+    }))
+    const card = flow.find((entry) => entry.kind === 'error')
+    if (card?.kind !== 'error') throw new Error('失败卡没渲出来')
+    expect(card.reason).toBe('模型没有返回结果')
   })
 })

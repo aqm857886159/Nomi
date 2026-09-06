@@ -115,6 +115,13 @@ export type ActiveExecution = {
   canvasRead?: PiCanvasReadTransportAdapter;
   /** Latest user steering instruction, consumed before the next model request. */
   steering?: string;
+  /**
+   * 运行时对**这一回合为什么没成**给出的人话诊断（供应商 HTTP 事实、空回复原因……）。
+   * 它只在 runtime hooks 的 `error` 事件里出现一次，而 hooks 是即发即弃的——不latch 在这里，
+   * 到了收尾那一步就再也拿不到了，整条链路只剩一个「失败」状态字，
+   * 用户拿到的就是一句没有信息量的「发送失败，请检查后重试。」
+   */
+  runtimeDiagnostic?: string;
 };
 export function recordProposalSettlement(
   execution: ActiveExecution,
