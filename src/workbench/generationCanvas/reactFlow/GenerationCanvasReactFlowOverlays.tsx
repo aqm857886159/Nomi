@@ -85,7 +85,7 @@ export function GenerationCanvasReactFlowOverlays({
     <>
       {screenshotOverlay}
       {nodes.length === 0 ? <CanvasEmptyState activeCategoryId={activeCategoryId} onCreate={onCreateEmpty} /> : null}
-      {contextNodeMenu?.nodeId ? (
+      {contextNodeMenu && contextNodeMenu.target !== 'blank' ? (
         <NodeContextMenu
           className="generation-canvas-react-flow__node-context-menu generation-canvas-v2__node-context-menu z-[20]"
           style={{ left: contextNodeMenu.stageX, top: contextNodeMenu.stageY }}
