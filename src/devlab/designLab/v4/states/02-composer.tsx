@@ -43,7 +43,7 @@ function ComposerCell({
         focused={focused}
         skillSelected={skillSelected || withChips}
         chips={withChips ? [fx.chips.attachment, fx.chips.skill, fx.chips.clip] : undefined}
-        initialText={text ?? ''}
+        value={text ?? ''}
       />
     </Piece>
   )
@@ -82,22 +82,34 @@ export const V4_COMPOSER_STATES: readonly LabState[] = [
     name: 'composer · 模型弹层（对话 + 三类默认 + 单价）',
     source: '2026-09-06-agent-panel-v4.md · Composer 板',
     coverage: 'component-only',
-    render: () => (
-      <Piece>
-        <V4ModelPopover />
-      </Piece>
-    ),
+    render: () => {
+      const Cell = (): JSX.Element => {
+        const fx = useV4Fixtures()
+        return (
+          <Piece>
+            <V4ModelPopover rows={fx.modelRows} />
+          </Piece>
+        )
+      }
+      return <Cell />
+    },
   },
   {
     id: 'v4-composer-skill-popover',
     name: 'composer · Skill 弹层（搜索 + 分类 + 列表）',
     source: '2026-09-06-agent-panel-v4.md · Composer 板',
     coverage: 'component-only',
-    render: () => (
-      <Piece>
-        <V4SkillPopover />
-      </Piece>
-    ),
+    render: () => {
+      const Cell = (): JSX.Element => {
+        const fx = useV4Fixtures()
+        return (
+          <Piece>
+            <V4SkillPopover rows={fx.commandRows} categories={fx.commandCategories} query="" />
+          </Piece>
+        )
+      }
+      return <Cell />
+    },
   },
   {
     id: 'v4-composer-permission-popover',
@@ -192,7 +204,7 @@ export const V4_COMPOSER_STATES: readonly LabState[] = [
               dock
               mode="running"
               chips={[fx.chips.clip]}
-              initialText={fx.t('agentPanelV4.fixtureUserTrim')}
+              value={fx.t('agentPanelV4.fixtureUserTrim')}
             />
           </Piece>
         )

@@ -3,7 +3,7 @@
 > **怎么读这份文件（3 层）**：
 > - **L0 每轮** = `scripts/claude-hooks/self-check.sh`（hook，每条消息自动注入「三闸 + 核心原则 + 近期坑」）——salience 层，本文件**不再复述它**。
 > - **L1 always 加载** = 本文件：项目事实 + 命令 + **P1–P5** + **D1–D6** + 规则索引。**每次 session 读完再动手。** 保持精简（一屏左右）。
-> - **L2 触发才查** = `docs/engineering-rules.md`（R1–R27 详解）；`docs/coding-standards.md`（编码规范）；`docs/lessons/INDEX.md`（踩过的坑，按 A/B/C/D/E/F 场景分，走查/CI/分支/平台/产品/编排前各查一眼）；`docs/ARCHITECTURE-NOW.md`（各子系统现在真正跑的是什么，带 file:line，读方案前先过）；`docs/GLOSSARY.md`（同一东西的多个叫法）。
+> - **L2 触发才查** = `docs/engineering-rules.md`（R1–R30 详解）；`docs/coding-standards.md`（编码规范）；`docs/lessons/INDEX.md`（踩过的坑，按 A/B/C/D/E/F 场景分，走查/CI/分支/平台/产品/编排前各查一眼）；`docs/ARCHITECTURE-NOW.md`（各子系统现在真正跑的是什么，带 file:line，读方案前先过）；`docs/GLOSSARY.md`（同一东西的多个叫法）。
 >
 > **维护纪律**：本文件是**策展的，不是 append 的**。新踩的坑进 `docs/lessons/`（一条一个文件，挂 `INDEX.md`）或 hook 的 `violations.log`，**不塞这里**；只有「反复出现 + 永远相关」的原则才提升进 L1。Hook 真相源是 `scripts/claude-hooks/`，`pnpm install` postinstall 自动装进 `.claude/`；`check:claude-hooks` 验同步。**禁止手改 `AGENTS.md`**：改纪律只改本文件，再跑 `pnpm run gen:agents`；`check:agents-sync` 拦漂移。本文件已做过可机器化分诊，删减依据见 `docs/engineering/rule-enforcement-audit.md`。
 
@@ -34,6 +34,7 @@ Nomi：本地优先 AI 视频创作工作台。
 | `pnpm run check:heavy-path` | 重活门岗（同步图像编码 / base64 进 store / 尺寸双真相源；棘轮只减不增）|
 | `pnpm run check:vocabularies` | 单一语义 owner 门岗（AST 扫状态/阶段词表；新增、复制、成员/位置漂移、陈旧登记或 debt 增长都会红）|
 | `pnpm run check:i18n` | 可见文字国际化门岗（禁止新增硬编码 UI 文案；遗留基线只减不增）|
+| `pnpm run check:framework-boundary` | 框架边界门岗（框架已提供的能力不许再长一份自研版本；债只减不增、绑方案、到期即红）|
 | `pnpm run check:audit` | 审计节奏提醒（≥25 commit 提示） |
 | `npx skills experimental_install` | 从 `skills-lock.json` 还原 `.claude/skills/`（换机/协作者用） |
 
@@ -53,7 +54,7 @@ Nomi：本地优先 AI 视频创作工作台。
 
 **P4 通用第一** — 能力/组件/交互按「模型身份 / 通用场景」设计，与具体供应商/模型解耦。不为不同模型写两套 UI（那是并行版，违反 P1）。档案声明槽，通用系统负责填。
 
-**P5 想清楚再动手** — UI 改动先读设计系统 `docs/design/nomi-design-system.md`（token/组件/规范）再画，再出可视样张（HTML mockup）+ 用户拍板；**改/扩现有 UI 先看它真实样子**（读完整外壳组件或真实截图，样张是真实布局+改动、不是脑补）；**加/挪控件先过 §1.5 控件层级规则**（L1 常驻/L2–L4·一功能一个家·先分组→去重→归位→最后才收纳）；架构改动先查 Context7 + 读顶尖开源代码 + 6 角色评审；多文件改动先写 `docs/plan` 文档。
+**P5 想清楚再动手** — UI 改动先读设计系统 `docs/design/nomi-design-system.md`（token/组件/规范）再画，再出可视样张（HTML mockup）+ 用户拍板；**改/扩现有 UI 先看它真实样子**（读完整外壳组件或真实截图，样张是真实布局+改动、不是脑补）；**接线前先看真实数据**（实验室组件必须由真实宿主数据驱动＝ShellStage 手法；基线绿≠可接线）；**加/挪控件先过 §1.5 控件层级规则**（L1 常驻/L2–L4·一功能一个家·先分组→去重→归位→最后才收纳）；架构改动先查 Context7 + 读顶尖开源代码 + 6 角色评审；多文件改动先写 `docs/plan` 文档。
 
 ## 动手前/报完成前/push 前的三闸
 
@@ -82,20 +83,22 @@ Nomi：本地优先 AI 视频创作工作台。
 | R11 | 自动 commit/push | 按 R22 选定的验证档通过即自己 commit + push；小修本地收敛后一次推送 |
 | R12 | → R9 巨壳 | `check:filesize` 门岗；白名单基线只降不升 |
 | R13 | 体验走查 | Playwright 走真实用户旅程 J1-J5（创作目标，不是功能探索）；截图人眼判断 |
-| R14 | 周期审计 | ≥25 commit 或发版前：多维 subagent 审计 + 走查 + `docs/audit` 文档；固定含 R14.1「同一语义有几份定义」七维横扫与对偶路径检查，机器门岗只覆盖词表 owner |
+| R14 | 周期审计 | ≥25 commit 或发版前：多维 subagent 审计 + 走查 + `docs/audit` 文档；固定含 R14.1「同一语义有几份定义」七维横扫与对偶路径检查，机器门岗只覆盖词表 owner；**R14.2 固定再加三条：依赖框架四列表重跑 + 核心链路真实模型量数字 + 重造清单反向扫** |
 | R15 | 可见文字国际化 | 所有用户可见文字必须走 i18n；默认 `zh-CN`，当前仅支持 `zh-CN` / `en`；门禁基线只减不增 |
 | R16 | 真实任务测试系统=完成的一部分 | 功能交付（尤其用户可见/体感）必建几条「真实用户任务」端到端测试、带真实任务跑通使用闭环（用 R13 走查法）、把过程中冒出的体验/设计/UI/UX/产品感/功能问题**全修掉**——才算真完成，不留半成品（R16 = P3 完成标准的量化门）|
 | R17 | 重活门岗（本地看不出、线上/CI 才炸的一族） | 这族写法做成棘轮：`check:heavy-path`，基线只减不增；**加规则必须先验它会红**（规则清单以脚本 `RULES` 为准，别在文档里数条数）|
 | R18 | 测试等待门岗 | 测试禁私有墙钟 waitFor / `Date.now()` 截止轮询（单跑绿、并行翻红一族）：`check:test-waits` 硬零；等编排链用 `waitForProduction` |
 | R19 | 解决状态必须可交付 | 侧分支只能称"已实现"；验证通过且提交已进入远端目标分支后才能称"已解决" |
 | R20 | 造轮子前先过 build-vs-buy 闸 | 写任何**通用能力**前三问：① 通用问题？② 同类产品怎么做（Context7+web 实查）？③ 在护城河上？不在护城河上又碰钱碰信任的 → 用标准实现；在护城河上的 → 自研到底 |
-| R21 | 修复必须走根因流程；可复发/高风险交 v3 合同 | 所有纠正性改动强制走 `root-cause-remediation`；`recurring` 或高风险生产路径提交 schema-v3 `docs/fixes/*.root-cause.json`；`check:root-cause-contracts` 核验 |
+| R21 | 修复必须走根因流程；可复发/高风险交 v3 合同 | 所有纠正性改动强制走 `root-cause-remediation`；`recurring` 或高风险生产路径提交 schema-v3 `docs/fixes/*.root-cause.json`；`check:root-cause-contracts` 核验；**合同必答「这条不变量归哪层管、那层有没有测试」（`invariant_owner_layer`），同一层 7 天内第三份合同先出结构评审（`check:symptom-cluster`）** |
 | R22 | 验证分层与测试预算 | contracts 常跑；unit/desktop/journey/canvas/performance/package 按真实风险独立触发；不删安全/持久化/认证边界覆盖 |
 | R23 | React Flow 生成画布单内核与迁移等价 | 生产画布只允许 React Flow 一个交互/变换内核，Zustand 是业务与持久化真相源；迁移必须逐项保留既有几何、交互、视觉和反馈，并用 adapter/结构测试 + 真实 Electron 走查证明 |
 | R25 | 提交/推送前 Ponytail 评审 | pre-commit/pre-push 自动调用只读、限时 `/ponytail-review` 适配器；失败或缺少结果 fail-closed |
 | R26 | 分层边界不许反向/循环 | 渲染层禁直捅主进程（走 bridge/中立契约层）、主进程禁反向 import 渲染层、禁新增完全静态循环；`check:boundaries` 棘轮（基线只减不增），加规则先验会红（R17）|
-| R27 | 多智能体编排手册 | 派工/收货/接力机器化纪律：谁的方案谁实施·验收必跨池、任务书发行权独占+开工三行头、收货三查（behind 数/两点回滚/套件失败 delta=0）、等待用 sleep 轮询+哨兵法（禁 --watch/Monitor/交卷）。详见 L2 `docs/engineering/agent-orchestration-playbook.md` |
+| R27 | 多智能体编排手册 | 派工/收货/接力机器化纪律：谁的方案谁实施·验收必跨池、任务书发行权独占+开工三行头、收货三查（behind 数/两点回滚/套件失败 delta=0）、等待用 sleep 轮询+哨兵法（禁 --watch/Monitor/交卷）；**实施派工前先派反方出「先查别人」报告、任务书必须引用它（`check:prior-art`）**。详见 L2 `docs/engineering/agent-orchestration-playbook.md` |
 | R28 | 防线建在最早能拦住的那层 | 能让编译器拦的别留给门岗，能让门岗拦的别留给人；安全关键依赖不许「optional + 欠账登记」——登记是备忘录不是防线 |
+| R29 | 接框架先出四列表 | 引入/接入任何框架、SDK、运行时**或其新层**前，先在 `docs/research`/`docs/plan` 出「它提供 / 我们用了 / 我们另写了 / 我们拆散了」四列表（每格 file:line 或文档 URL），派工 brief 附表当硬约束；结论进 `check:framework-boundary` 登记表才算研究完成。R20 管「通用能力该不该自研」，R29 管「已选框架的边界画在哪」|
+| R30 | Agent 行为验收靠真实模型数字 | 任何 Agent/工具/契约改动，验收门必须含**工具写对率 + 回合成功率**：零额度 loopback 夹具进 CI，小额真实模型定期跑、数字写进 PR；设计实验室基线只证外观、走查截图只证界面，两者都不得单独判「接好了」|
 
 ## 决策自治
 

@@ -69,16 +69,40 @@ const fail = (message) => errors.push(message)
 // ── 1. 注册表 + 2. 设计文档覆盖 ────────────────────────────────────────────────
 //
 // 覆盖的真相源是**拍板文档的编号**，不是这份脚本里的一句 magic number：
-// - agent-panel：形态 1–21 出自 2026-09-01 定稿 §4；P0 件 1–16 出自 2026-09-03 走读附录索引
-//   （件 17 = 形态 18 与件 5 共用一张，文档明写「不独立画」，故是 16 不是 17）。
+// - agent-panel-v4：覆盖真相源不是一份编号清单，而是 `agentPanelV4Types.ts` 里的**词表本身**。
+//   一行收据七态、任务卡五态、介入槽八 kind、权限三档——每一个成员都必须在实验室里有一格。
+//   （旧 `agent-panel` 屏的「形态 1–21 + P0 件 1–16」随 v4 接线整屏删除：那 45 张画的是
+//   已经不存在的组件，留着只会让门岗守一个不存在的契约。）
+//   `input-streaming` 是唯一的例外：投影层永不产出它（`tool-call` 事件的 args 整包到达，
+//   没有流式片段），实验室那一格留作词表完整性的展示，不算进"必须可达"的那批。
 // - editing：剪辑面这一族形态出自「关闭剪辑面浮层被祖先 overflow 裁掉」那次根因修复
 //   （docs/lessons/overlay-clipped-by-ancestor-overflow.md）。它还没有编号化的覆盖真相源，
 //   所以这里只查注册表可解析 + 基线一一对应；等设计合同落定再补编号覆盖。
 // - storyboard：分镜表 v6 设计合同的章节号。合同里每一条**有形态的**章节都必须在实验室里
 //   至少有一个状态认领它（认领方式 = 该状态的 `source` 里写着这个章节号）。
 //   新加一节而实验室没跟上 = 红；这正是"设计改了但没人画出来"最容易漏掉的地方。
-const FORM_COUNT = 21
-const P0_PIECE_COUNT = 16
+/**
+ * v4 的覆盖清单 = 词表成员，逐条抄自 `src/workbench/ai/v4/agentPanelV4Types.ts`。
+ * 抄一份而不是运行时 import：门岗是 `.mjs`，而词表是 TS union（编译后不存在）。
+ * 抄漏一个的代价由下面那条断言兜住——它要求**每个** id 都能在注册表里找到。
+ */
+const V4_REQUIRED_STATES = [
+  // ③ 一行收据 · 七态
+  'v4-tool-input-streaming', 'v4-tool-input-available', 'v4-tool-approval-requested',
+  'v4-tool-approval-responded', 'v4-tool-output-available', 'v4-tool-output-denied',
+  'v4-tool-output-error',
+  // ④ 任务卡 · 五态
+  'v4-task-queued', 'v4-task-running', 'v4-task-complete', 'v4-task-failed', 'v4-task-stopped',
+  // ⑤ 介入槽 · 八 kind
+  'v4-intervention-irreversible', 'v4-intervention-reversible', 'v4-intervention-reject-reason',
+  'v4-intervention-spend', 'v4-intervention-question', 'v4-intervention-plan',
+  'v4-intervention-credential', 'v4-intervention-deviation',
+  // ⑧ composer · 权限三档（工作方式三档已于 2026-09-06 拍板 ① 删除，不再有对应格）
+  'v4-composer-permission-step', 'v4-composer-permission-safe-auto', 'v4-composer-permission-project',
+  // ② 助手文本三态 · ① 用户气泡 · ⑥ 队列 · ⑦ 收起坞 · ⑧ Context 环
+  'v4-assistant-streaming', 'v4-assistant-complete', 'v4-assistant-interrupted',
+  'v4-user-plain', 'v4-queue-mixed', 'v4-dock-rail', 'v4-context-ring',
+]
 const STORYBOARD_SECTIONS = [
   '§2.1', '§2.2', '§2.3', '§2.4', '§2.4.1', '§2.6', '§2.7',
   '§2.9', '§2.10', '§3.1', '§3.2', '§3.3', '§4.1', '§4.2', '§4.3', '§4.4',
@@ -86,17 +110,10 @@ const STORYBOARD_SECTIONS = [
 const statesByScreen = new Map()
 for (const screen of LAB_SCREEN_IDS) statesByScreen.set(screen, readLabStates(screen))
 
-const agentIds = new Set(statesByScreen.get('agent-panel').map((state) => state.id))
-for (let form = 1; form <= FORM_COUNT; form += 1) {
-  const prefix = `form-${String(form).padStart(2, '0')}`
-  if (![...agentIds].some((id) => id.startsWith(prefix))) {
-    fail(`设计定稿 §4 形态 ${form} 在实验室里没有对应状态（期待 id 以 ${prefix} 开头）`)
-  }
-}
-for (let piece = 1; piece <= P0_PIECE_COUNT; piece += 1) {
-  const prefix = `p0-${String(piece).padStart(2, '0')}`
-  if (![...agentIds].some((id) => id.startsWith(prefix))) {
-    fail(`P0 异常态件 ${piece} 在实验室里没有对应状态（期待 id 以 ${prefix} 开头）`)
+const v4Ids = new Set(statesByScreen.get('agent-panel-v4').map((state) => state.id))
+for (const required of V4_REQUIRED_STATES) {
+  if (!v4Ids.has(required)) {
+    fail(`Agent 面板 v4 词表成员「${required}」在实验室里没有对应状态 —— 加了一个状态词却没画它`)
   }
 }
 

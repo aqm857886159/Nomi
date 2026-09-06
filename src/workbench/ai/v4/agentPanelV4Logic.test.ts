@@ -7,7 +7,7 @@ import {
   COMPOSER_SIX_LINE_CAP,
   approvalPolicyForTier,
   composerHeight,
-  escalatePermission,
+  isNoWiderThan,
   maxComposerHeight,
   shouldSubmitComposer,
 } from './agentPanelV4Logic'
@@ -66,10 +66,24 @@ describe('权限三档映射仓库合同', () => {
     })
   })
 
-  it('「不再问 →」抬一档，到顶不再动', () => {
-    expect(escalatePermission('step')).toBe('safe-auto')
-    expect(escalatePermission('safe-auto')).toBe('project')
-    expect(escalatePermission('project')).toBe('project')
+  // 工作方式三档删掉之后，权限是面板上唯一的授权控件，所以合同那句
+  // 「never widens approval」整条落在这三档上。逐档核对，别靠人读表。
+  it('三档没有一档比它该有的更宽', () => {
+    expect(isNoWiderThan(approvalPolicyForTier('step'), { mode: 'step', spend: 'confirm' })).toBe(true)
+    expect(isNoWiderThan(approvalPolicyForTier('safe-auto'), { mode: 'safe-auto', spend: 'confirm' })).toBe(true)
+    expect(isNoWiderThan(approvalPolicyForTier('project'), { mode: 'project', spend: 'within-budget' })).toBe(true)
+  })
+
+  it('档位单调：低档永远不比高档宽', () => {
+    expect(isNoWiderThan(approvalPolicyForTier('step'), approvalPolicyForTier('safe-auto'))).toBe(true)
+    expect(isNoWiderThan(approvalPolicyForTier('safe-auto'), approvalPolicyForTier('project'))).toBe(true)
+    // 反向必须为假，否则这把尺子量什么都通过（阳性对照）。
+    expect(isNoWiderThan(approvalPolicyForTier('project'), approvalPolicyForTier('step'))).toBe(false)
+    expect(isNoWiderThan(approvalPolicyForTier('safe-auto'), approvalPolicyForTier('step'))).toBe(false)
+  })
+
+  it('默认档不比合同默认值宽——默认值变严时这条会先红', () => {
+    expect(isNoWiderThan(approvalPolicyForTier(DEFAULT_PERMISSION_TIER), DEFAULT_PROJECT_AGENT_APPROVAL_POLICY)).toBe(true)
   })
 })
 

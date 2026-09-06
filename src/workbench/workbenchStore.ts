@@ -48,9 +48,7 @@ import { useGenerationCanvasStore } from './generationCanvas/store/generationCan
 import type { AgentContextHandle } from '../../electron/shared/agentContextSnapshot'
 import {
   DEFAULT_PROJECT_AGENT_APPROVAL_POLICY,
-  DEFAULT_PROJECT_AGENT_WORK_MODE,
   type ProjectAgentApprovalPolicy,
-  type ProjectAgentWorkMode,
 } from '../../electron/shared/projectAgentContracts'
 import { createEditingPanelLayoutSlice, type EditingPanelLayoutSlice } from './preview/editingPanelLayoutSlice'
 import { createTimelineClipWritesSlice, type TimelineClipWritesSlice } from './timeline/timelineClipWritesSlice'
@@ -97,9 +95,6 @@ export type ProjectAgentReference = Readonly<{
   /** Immutable selection handle captured when the user added this reference. */
   contextHandle?: AgentContextHandle
 }>
-
-/** Renderer alias; the canonical work-mode vocabulary lives in shared contracts. */
-export type ProjectAgentRunMode = ProjectAgentWorkMode
 
 type WorkbenchState = WorkbenchDocumentSlice & EditingPanelLayoutSlice & TimelineClipWritesSlice & {
   persistRevision: number
@@ -188,13 +183,17 @@ type WorkbenchState = WorkbenchDocumentSlice & EditingPanelLayoutSlice & Timelin
   projectAgentAttachments: ComposerAttachment[]
   /** Composer-only references. Host remains the sole owner of durable context/history. */
   projectAgentReferences: ProjectAgentReference[]
-  projectAgentRunMode: ProjectAgentRunMode
-  /** Approval and spend are a separate axis from work mode; this snapshot is copied into each Host turn. */
+  /**
+   * 授权只有**一根**面板轴：审批与花费策略。工作方式三档（Ask / 编辑选中 / Agent）
+   * 于 2026-09-06 拍板 ① 从界面上删除——范围由 composer 的「选中」chip 决定，不再是一个模式。
+   * `ProjectAgentWorkMode` 这根轴仍在宿主合同里、仍被宿主执行（`projectAgentWorkModeDecision`），
+   * 只是渲染层不再挑它，一律走它自己的默认值 `agent`。所以合同那句
+   * 「Changing the work mode never widens approval」照旧成立：我们一根轴都没动。
+   */
   projectAgentApprovalPolicy: ProjectAgentApprovalPolicy
   setProjectAgentDraft: (draft: string) => void
   setProjectAgentAttachments: (attachments: ComposerAttachment[] | ((attachments: ComposerAttachment[]) => ComposerAttachment[])) => void
   setProjectAgentReferences: (references: ProjectAgentReference[] | ((references: ProjectAgentReference[]) => ProjectAgentReference[])) => void
-  setProjectAgentRunMode: (mode: ProjectAgentRunMode) => void
   setProjectAgentApprovalPolicy: (policy: ProjectAgentApprovalPolicy) => void
   setTimeline: (timeline: TimelineState) => void
   restoreProjectWorkbenchState: (payload: { workbenchDocument: WorkbenchDocument; timeline: TimelineState }) => void
@@ -331,7 +330,6 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
   projectAgentDraft: '',
   projectAgentAttachments: [],
   projectAgentReferences: [],
-  projectAgentRunMode: DEFAULT_PROJECT_AGENT_WORK_MODE,
   projectAgentApprovalPolicy: DEFAULT_PROJECT_AGENT_APPROVAL_POLICY,
   setProjectAgentDraft: (projectAgentDraft) => set({ projectAgentDraft }),
   setProjectAgentAttachments: (attachments) => set((state) => ({
@@ -340,7 +338,6 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
   setProjectAgentReferences: (references) => set((state) => ({
     projectAgentReferences: typeof references === 'function' ? references(state.projectAgentReferences) : references,
   })),
-  setProjectAgentRunMode: (projectAgentRunMode) => set({ projectAgentRunMode }),
   setProjectAgentApprovalPolicy: (projectAgentApprovalPolicy) => set({ projectAgentApprovalPolicy: Object.freeze({ mode: projectAgentApprovalPolicy.mode, spend: projectAgentApprovalPolicy.spend }) }),
   timeline: createDefaultTimeline(),
   timelinePlaying: false,

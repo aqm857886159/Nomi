@@ -366,16 +366,32 @@ export function handleCanvasStageDrop(event: DragEvent<HTMLDivElement>, ctx: Can
   }
 
   // 4) OS 文件拖入：复制进项目并上传，创建图片 / 视频素材节点（音频无可落节点，过滤）。
-  const files = Array.from(event.dataTransfer.files || []).filter((file) => {
-    const kind = dropKindFromFile(file)
-    return kind === 'image' || kind === 'video'
-  })
+  const files = filterCanvasImportableLocalFiles(Array.from(event.dataTransfer.files || []))
   if (!files.length) return
   event.preventDefault()
   event.stopPropagation()
-  void importLocalMediaFilesToGenerationCanvas(files, { basePosition, categoryId: ctx.activeCategoryId })
+  void importLocalFilesToGenerationCanvas(files, { basePosition, categoryId: ctx.activeCategoryId })
+}
+
+/** 画布能落成节点的本地文件：图片 / 视频。音频在画布上没有落点（它的家是素材库 → 时间轴）。 */
+export function filterCanvasImportableLocalFiles(files: readonly File[]): File[] {
+  return files.filter((file) => {
+    const kind = dropKindFromFile(file)
+    return kind === 'image' || kind === 'video'
+  })
+}
+
+/**
+ * 本地文件 → 画布素材节点的**唯一一条路**。拖进画布走它，左缘「导入」钮也走它——
+ * 不为按钮另造一条建 asset 节点的路径（P1：无并行版）。
+ * C5：超限截断 / 上传失败不再静默——聚合成一句人话提示（此前 >8 张悄悄丢、失败只在节点上红）。
+ */
+export function importLocalFilesToGenerationCanvas(
+  files: readonly File[],
+  options: { basePosition: { x: number; y: number }; categoryId?: string },
+): Promise<void> {
+  return importLocalMediaFilesToGenerationCanvas([...files], options)
     .then((result) => {
-      // C5：超限截断 / 上传失败不再静默——聚合成一句人话提示（此前 >8 张悄悄丢、失败只在节点上红）。
       const notes: string[] = []
       if (result.skippedOverLimitCount > 0) notes.push(`超过 8 个，已忽略 ${result.skippedOverLimitCount} 个`)
       if (result.skippedTooLargeCount > 0) notes.push(`${result.skippedTooLargeCount} 个文件过大`)

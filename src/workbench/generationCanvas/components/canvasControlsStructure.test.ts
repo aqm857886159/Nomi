@@ -162,6 +162,9 @@ describe('generation canvas control structure', () => {
 
   it('defers the blank-canvas menu without swallowing native menus inside controls', () => {
     const generationCanvas = source('../reactFlow/GenerationCanvasReactFlow.tsx')
+    // 菜单层（右键菜单 + 连线创建菜单的开合与 stage 指针链）住在 useGenerationCanvasReactFlowMenus，
+    // 画布壳只保留把它接到 stage/React Flow 上的那几个 prop。
+    const canvasMenus = source('../reactFlow/useGenerationCanvasReactFlowMenus.ts')
     const contextMenu = source('./useCanvasContextNodeMenu.ts')
 
     expect(contextMenu).toContain('isCanvasContextMenuPointer(event.button, event.ctrlKey, navigator.platform)')
@@ -180,12 +183,33 @@ describe('generation canvas control structure', () => {
     expect(contextMenu).toContain('active.suppressContextMenu = true')
     expect(contextMenu).toContain('!active?.suppressContextMenu')
     expect(contextMenu).toContain('event.preventDefault()')
-    expect(generationCanvas).toContain('useCanvasContextNodeMenu({')
-    expect(generationCanvas).toContain('if (prepareContextMenuPointerDown(event))')
-    expect(generationCanvas).toContain('finishContextMenuPointerUp(event, suppressContextMenu)')
+    expect(canvasMenus).toContain('useCanvasContextNodeMenu({')
+    expect(canvasMenus).toContain('if (prepareContextMenuPointerDown(event))')
+    expect(canvasMenus).toContain('finishContextMenuPointerUp(event, suppressContextMenu)')
+    expect(canvasMenus).toContain("if (event.key === 'Escape') closeMenus()")
+    expect(generationCanvas).toContain('useGenerationCanvasReactFlowMenus({')
     expect(generationCanvas).toContain('onContextMenu={handleStageContextMenu}')
     expect(generationCanvas).toContain('onPaneContextMenu={handleFlowContextMenu}')
-    expect(generationCanvas).toContain("if (event.key === 'Escape') closeMenus()")
+  })
+
+  it('routes the right-click landing through one three-way arbiter so a marquee selection survives it', () => {
+    // 2026-09-06 真机 bug：框选后 React Flow 铺的 nodesselection-rect 盖住节点，右键取不到
+    // data-node-id → 被「不是节点 = 空白」吞掉 → 清选择 + 弹添加菜单，「建组」当场不可达。
+    // 判据必须只有一份（模型层），且清选择只准发生在真空白这一支。
+    const contextMenu = source('./useCanvasContextNodeMenu.ts')
+    const overlays = source('../reactFlow/GenerationCanvasReactFlowOverlays.tsx')
+
+    expect(contextMenu).toContain('resolveCanvasContextMenuTarget({')
+    expect(contextMenu).toContain('selectionOverlay: isCanvasSelectionOverlayTarget(target)')
+    expect(contextMenu).toContain('target: menuTarget')
+    expect(contextMenu).toContain("else if (pending.menu.target === 'blank') clearSelection()")
+    // 落点判定不许在 hook 里再长第二份清单（模型层是唯一 owner）。
+    // 先剥注释再扫：不变量管的是代码行为，不该被记录这个 bug 的注释反噬。
+    const contextMenuCode = contextMenu.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+    expect(contextMenuCode).not.toContain('nodesselection')
+    // 菜单选型跟着落点走，不再拿 nodeId 当「是不是节点菜单」的替身。
+    expect(overlays).toContain("contextNodeMenu && contextNodeMenu.target !== 'blank'")
+    expect(overlays).not.toContain('contextNodeMenu?.nodeId ?')
   })
 
   it('cancels marquee when an explicit pan chord takes ownership after primary down', () => {

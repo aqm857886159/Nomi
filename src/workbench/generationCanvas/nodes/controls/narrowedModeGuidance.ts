@@ -64,7 +64,7 @@ export function hiddenModesForChannel(
  *
  * `candidates` 由调用方从 `modelOptions` 里筛出「同一档案身份、不同 (vendor, model)」的行。**实测确认过
  * `modelOptions` 只含已接入（enabled 且有 key / 免鉴权）的供应商**（src/config/modelCatalogCache.ts 的
- * getEnabledVendorKeys → getCatalogModelOptions 硬过滤），所以这里的候选天然都是「切过去立刻能用」的，
+ * getRunnableVendorKeys → keepRunnableVendorOptions 硬过滤），所以这里的候选天然都是「切过去立刻能用」的，
  * 不需要也**拿不到**凭证状态。样张 C（「别家有但那家还没接入」）因此在渲染层没有数据源可依据，**不做**，
  * 也绝不用猜的去谎称——见本次交付报告与根因合同。
  *

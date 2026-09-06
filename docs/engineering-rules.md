@@ -322,6 +322,18 @@ CSS 文件分工与「只可减不可增」规则详见 R1 最后一节。
 
 这类缺口不一定有第二份代码，静态词表门岗无法发现；所以不能因为 `check:vocabularies` 绿，就跳过七维 owner 审计和对偶路径走查。
 
+#### R14.2 每次审计固定加的三条（2026-09-07）
+
+七维横扫问的是「同一语义有几份定义」。下面三条问的是另一件事：**我们是不是又把别人已经做好的东西重造了一遍、又把「看起来对」当成了「真的对」**。它们固定进清单，不靠谁想起来。
+
+| # | 动作 | 判据（做没做，看得见的产物） |
+|---|---|---|
+| ① **依赖框架四列表重跑** | 对 `docs/engineering/framework-boundaries.json` 里登记的每个框架，重跑一遍 R29 四列表（它提供 / 我们用了 / 我们另写了 / 我们拆散了），每格带 `file:line` 或文档 URL | 审计文档里有这四列表；`pnpm run gen:dependency-capabilities` 的 diff 已人眼过过（新增的词 = 这段时间依赖多出来的能力）；`scripts/framework-boundary-baseline.json` 的债条目逐条对账（清了 / 还在 / 到期日要不要重定） |
+| ② **核心链路真实模型量数字** | 按 R30 用真实模型跑一次核心链路，量出**工具写对率**与**回合成功率** | 两个数字写进审计文档，带跑的日期、模型、任务集。**设计实验室基线绿、走查截图有画面都不算**——它们证明长相，不证明按下去会发生事 |
+| ③ **重造清单反向扫** | 拿 `docs/engineering/dependency-capabilities.generated.json` 的能力词表，反向扫这一轮新增的文件名与导出符号；命中的逐个问「框架里是不是已经有了」 | 命中清单 + 每条的处置（改用框架 / 确属无关并登记进 `scripts/framework-boundary-advisory-exemptions.json`）。`check:framework-boundary` 的 advisory 提醒是这条的自动化半成品，审计要把它跑成人读过的结论 |
+
+**为什么固定进清单**：这三条都是「不做也没人知道」的检查——不做的当天什么都不会红，代价要几周后以「我们又写了一份更差的」形式出现（2026-09-06 #546）。凡是这种延迟结算的检查，只能靠固定清单，不能靠判断力。
+
 ## R15 可见文字国际化
 
 **范围**：所有用户能看到或辅助技术能读到的产品文字，包括正文、按钮、菜单项、标签、占位符、`title`、`aria-label`、toast、确认框、空态、加载态与错误态。
@@ -508,6 +520,30 @@ pnpm run delivery:verify-merged -- --expected-sha <merge-commit-sha>
 
 本地 Agent hook 只负责提前提醒，可能不存在；已提交的 `CLAUDE.md`、生成的 `AGENTS.md`、skill 和 CI 才是跨 Agent 的执行链。合同字段和完整步骤不在本节重复，避免规则再次膨胀和分叉。
 
+### R21.1 修完之后必须答的第三个问题：这条不变量归哪层管（2026-09-07）
+
+合同已经逼你写清 symptom / direct_cause / class_root / prevention，却一直**没有一处**逼你说出「这条不变量从此归谁守、那一层有没有测试」。于是「修在最早共享边界」经常落成**一处补丁 + 一句无主的承诺**——承诺没有 owner，下一个人合法地绕过它。
+
+从 2026-09-07 起，日期在这天（含）之后的纠正型合同必须带 `invariant_owner_layer`：
+
+```json
+"invariant_owner_layer": {
+  "layer": "electron/catalog/assetLocalization.ts",   // 归属层；确实没人管就填 "none"
+  "tests": ["electron/catalog/assetLocalization.test.ts"],  // 那一层现有的测试；可以为空
+  "structural_ticket": "docs/plan/2026-09-08-owner.md"      // layer=none 或 tests 为空时必填且必须存在
+}
+```
+
+**填 `none` 是允许的、诚实的答案**——代价是必须附一份结构工单。这条的全部意义就是：让「没人管」变成一条**记在账上的债**，而不是无声地成为没人管。老合同按日期阈值豁免（`scripts/root-cause-contracts.mjs` 的 `INVARIANT_OWNER_LAYER_SINCE`），追溯只会把 200 多份历史合同一次性打红。
+
+### R21.2 同一层七天内第三份合同 = 先出结构评审，不是再修一次（2026-09-07）
+
+根因流程是**逐件**执行的：每份合同都诚实地问过「同类问题还能不能从别的入口回来」，但它问的范围是那一件事。「这个模块这周已经是第三份合同了」这个信号**此前没有 owner**——每个修的人只看得见自己那一件，而三件挨着出现恰恰是「这一层的结构不对」最便宜的证据。人不会去数，那是机器的活。
+
+**门岗**：`pnpm run check:symptom-cluster`（`scripts/check-symptom-cluster.mjs`，判据在 `scripts/symptom-cluster-lib.mjs`）。同一模块键（路径前两段，如 `electron/harness`）在 **7 天窗口**内累计 **≥3 份**根因合同 → 红，要求存在一份日期不早于该窗口最后一份合同、且正文点名该模块的 `docs/audit/*.md` 结构评审。整簇都在 2026-09-07 之后才受管；历史聚簇（当前 37 个）报出来但不追溯。
+
+**门岗只判做没做，不判做得好不好**——一道试图判质量的门岗会开始误判，然后被绕过（R17）。评审的分量是人的验收项。
+
 **派工/自验清单必须显式点名本闸（2026-09-01 教训）**：凡改动触及 electron/ 高风险 pattern（`*ipc.ts` / `*store.ts` / `runtime.ts` / catalog 核心 / validator 等），任务 brief 与自验清单必须写明「跑 `pnpm run check:root-cause-contracts`、改动作者自写契约」——不点名就会漏：曾有 4 个返工 PR 因 brief 验证档只列 typecheck/lint/focused，集体被本闸拦下返场补契约（同批次里自写了契约的 2 个 PR 一次过闸）。
 
 ## R22 验证分层与测试预算
@@ -624,3 +660,69 @@ pnpm run delivery:verify-merged -- --expected-sha <merge-commit-sha>
 - 当日新建的 `scripts/check-transport-assembly.mjs` 采用「欠账登记即放绿」，被外部评审指出**可在安全关键欠账存在时通过**（见 `docs/audit/2026-09-03-codex-agent-host-review.md`）。结构性修法不是记账，是把依赖改成必填。
 
 **自检**：写下 `foo?:` 或往基线里加一条时问——**漏了它会怎样？** 若答案是「运行时静默降级」且该能力碰钱/碰权限/碰数据完整性，就不该是可选的。
+
+## R29 接框架先出四列表
+
+**触发**：你要引入、接入、升级任何框架 / SDK / 运行时，**或者要用它一个此前没用过的层**（这条最容易漏：pi 已经在仓库里了，出事的是「我们只接了 agent loop 这一层」）。
+
+**规矩**：动手写码前，在 `docs/research/` 或 `docs/plan/` 出一张**四列表**，每格都要有 `file:line` 或文档 URL——没有出处的格子等于没查。
+
+| 它提供 | 我们用了 | 我们另写了 | 我们拆散了 |
+|---|---|---|---|
+| 框架已有的能力，带 API 出处 | 我们真的调了它，带调用点 | 我们自己又写了一份，带自研文件 + 为什么 | 我们把它一个完整能力拆开只用一半，带边界点 + 代价 |
+
+三条硬约束：
+
+1. **派工 brief 必须附这张表**，当硬约束写进任务书。少了它，每个实施 agent 只看得见自己那一块，谁都不知道「这块框架已经有了」——2026-09-06 #546 就是这么来的。
+2. **研究结论进门岗才算研究完成**：把「我们另写了 / 我们拆散了」两列翻译成 `docs/engineering/framework-boundaries.json` 的规则，跑 `pnpm run check:framework-boundary`。**只写在文档里的结论，在下一个 agent 眼里等于不存在**——它不会去读一份自己不知道存在的调研。
+3. **存量按债登记，不按豁免登记**：每条债绑一份收敛方案文档和一个到期日，到期不清零门岗就红（R28：登记是有时限的承诺，不是永久放行）。
+
+**门岗**：`check:framework-boundary`（`scripts/check-framework-boundary.mjs`，判据在 `scripts/framework-boundary-lib.mjs`，登记表 `docs/engineering/framework-boundaries.json`，债基线 `scripts/framework-boundary-baseline.json`）。位置在 `check:boundaries` 之后。加规则前**必须先验它会红**（R17）：在 scope 里造一处自研版本，确认报红且不在基线里；再验清掉一条债后基线不同步会红。
+
+**上游两件（2026-09-07 加）**：
+
+- **登记表是人手写的，所以它只包含已知的东西。** 补一条机器抽的：`pnpm run gen:dependency-capabilities` 从 `node_modules` 的 `.d.ts` 导出符号与 README 标题抽出每个依赖的「能力词表」，落 `docs/engineering/dependency-capabilities.generated.json`；`check:dependency-capabilities` 在版本或词表变化时逼你重生成——**依赖升级必然带来能力面变化，重生成一次才看得见**。写四列表前先看这份词表。抽哪些包看登记表的 `capabilityInventory.packages`（起步：pi 三包 + `@xyflow/react` + `ai` + `@mantine/core`）。
+- **forbidden 正则认的是具体写法，换个符号名就抓不到。** 于是加一条**启发式**：改动文件的文件名或导出符号命中能力词（`session` / `retry` / `steer` / `compaction` / `harness` …）且不在 `scripts/framework-boundary-advisory-exemptions.json` 里 → **warning，不阻断**。为什么先不阻断：这类启发式的死因是误报，一道天天红的门岗等于不存在。**升红条件与复核日期写死在登记表的 `advisory.promotion` 里**（一周内真阳性 ≥50% 且豁免 ≤8 条 → 升红；不满足则先收窄词表再观察一周，不许直接放弃）——写进合同的意思是：不靠谁记得。
+
+**已交的学费（2026-09-06 深夜）**：接 pi SDK 时只接了最底层的 agent loop。pi 已经提供的会话持久化（`SessionManager`）、有序转录（`AgentSessionEvent`）、重试（`RetryPolicy`）、价格和 `steer()/followUp()`，我们**各写了一套，而且更差**——`SessionManager.inMemory` + 自研快照信封替掉了落盘与版本迁移；`retry: { enabled: false }` + `maxRetries: 0` 两处开关关掉了 provider 级退避；宿主自己维护一张 `steering` Map 并把修正指令拼进下一次 prompt 文本，丢掉了「流式中插队 vs 排到下一回合」的区分。首批登记 14 条债。
+
+**与 R20 / R5 / R6 的分工**（三条常被搞混）：
+
+| 规则 | 管的那一步 | 问题长什么样 |
+|---|---|---|
+| R20 build-vs-buy | **该不该自己写**一个通用能力 | 「我要写个任务队列」→ 先问通用吗、别人怎么做、在不在护城河上 |
+| R5 / R6 查文档读近邻 | **写的时候**照着谁的语义写 | 「这个 API 参数怎么传」→ Context7 / 顶尖开源真实代码 |
+| **R29 框架边界** | **已经选了框架之后**，边界画在哪、有没有重造它已有的东西 | 「pi 已经在仓库里了，可我们又写了一套会话持久化」 |
+
+R20 拦的是「从零造轮子」，R29 拦的是**更隐蔽的那种**：轮子已经买回来了，我们却只用了轮毂，自己又削了一圈轮胎。
+
+## R30 Agent 行为验收靠真实模型数字
+
+**触发**：任何 Agent / 工具定义 / 工具契约 / 系统提示词 / 模型档案的改动，以及任何声称「Agent 面板接好了」的交付。
+
+**规矩**：验收门必须含**两个数字**，而且必须写进 PR 正文：
+
+| 数字 | 定义 | 怎么来 |
+|---|---|---|
+| **工具写对率** | 模型对每个工具产出的参数，有多少比例能通过该工具的运行时校验并成功执行 | 零额度 loopback 夹具跑全部工具，逐工具计数 |
+| **回合成功率** | 一条真实用户任务，从提问到拿到可用产物，有多少比例的回合不需要人接手 | 定期用小额真实模型跑固定任务集 |
+
+**两条分工**：
+- **零额度 loopback 夹具进 CI**：用录制/回放的模型响应驱动真实工具执行路径，每次 PR 都跑，挡住「工具签名改了但没人试过模型能不能填对」。
+- **小额真实模型定期跑**（阶段边界 / 发版前 / 工具面变动后），数字写进 PR。额度默认授权（见「决策自治」）。
+
+**夹具规范与落点**（脚本本体可后续 PR 落地，但落点先钉死，避免第二个人再选一个目录）：
+
+- 目录：`tests/agent-tools/`，与 `tests/agent-runtime/`（运行时契约）、`tests/agent-system/`（编排契约）平级，各管一层，不互相塞。
+- 一个工具一个 case 文件 `tests/agent-tools/<toolName>.case.json`：`{ tool, prompt, recordedModelOutput, expect: { accepted, argsInvariants } }`。
+- 断言只认**真实工具执行结果**，不认「参数长得像」：`accepted` 来自工具自己的运行时校验器，`argsInvariants` 是领域不变量（如「shotId 必须指向真实存在的分镜」）。
+- 汇总落 `tests/agent-tools/report.json`，含逐工具通过数与总写对率；R22 里挂在「Agent 工具面」风险面上，改 `electron/capabilityCore/` 或画布工具定义时触发。
+
+**红线：外观绿不等于接好了。** 设计实验室视觉基线只证**长相**，走查截图只证**界面在**，两者都不证明**按下去会发生事**——单独拿它们判「接好了」是无效验收。
+
+**已交的学费（2026-09-06 深夜，两起同日）**：
+
+- **#547 内部 Agent 工具审计**：给画布写节点的工具，真实模型 **0/18 通过**。所有单测绿着——单测喂的是人手写的合法参数，从来没有一个真实模型试过填它。
+- **Agent 面板 v4**：57 张设计实验室基线全绿、`check:design-lab` 104 passed、逐板对账 18 处出入写明，于是任务书写成「只要接到真实宿主状态」。实际 9 个组件**一个回调 prop 都没有**，composer 的「发送」是 `setValue('')`（清空输入框）。详见 `docs/lessons/design-lab-baselines-green-does-not-mean-wirable.md`。
+
+**与 R16 / P3 的关系**：P3 讲「全绿≠完成」，R16 讲「真实用户任务跑通才算完成」，**R30 是它们在 Agent 这条线上的量化形态**——真实任务闭环对 Agent 来说必须落成两个可比较的数字，否则「跑通了」永远是感觉。

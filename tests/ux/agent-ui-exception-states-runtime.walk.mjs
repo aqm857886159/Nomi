@@ -5,7 +5,10 @@
 // arrive through the same patch subscription as normal app state.
 import fs from 'node:fs'
 import path from 'node:path'
-import { createRuntimeWalk, openCanvas, recorded } from './agent-runtime-walk-support.mjs'
+import {
+  AGENT_PANEL, COLLAPSED_DOCK, COLLAPSED_SHELL, COLLAPSE_BUTTON, COMPOSER_INPUT, COMPOSER_SEND,
+  ERROR_BAR, TASK_CARD, createRuntimeWalk, openCanvas, recorded,
+} from './agent-runtime-walk-support.mjs'
 import { expect } from './_assert.mjs'
 import { flattenRequestText } from './agent-runtime-fixture.mjs'
 
@@ -19,8 +22,13 @@ function patchCatalog(settingsDir) {
   fs.writeFileSync(catalogPath, `${JSON.stringify(catalog, null, 2)}\n`)
 }
 
-async function appendHostItem(win, projectId, kind, status, label) {
-  return win.evaluate(async ({ projectId: id, itemKind, itemStatus, itemLabel }) => {
+/**
+ * 2026-09-06 v4：artifact **不是**独立积木了——一个 run 产出的若干 artifact 就是那张任务卡的
+ * 候选缩略图（agentPanelV4Projection.ts:242-262）。所以要让 artifact 有家，必须同时投一条
+ * 同 runId 的 task item；只投 artifact 的话对话流里什么都不渲染。
+ */
+async function appendHostItem(win, projectId, kind, status, label, runId) {
+  return win.evaluate(async ({ projectId: id, itemKind, itemStatus, itemLabel, sharedRunId }) => {
     const record = await window.nomiDesktop.projects.readAsync(id)
     const binding = {
       projectId: id,
@@ -50,14 +58,17 @@ async function appendHostItem(win, projectId, kind, status, label) {
       createdAt: now,
       updatedAt: now,
     }
+    const runId = sharedRunId ?? `runtime-evidence-run-${crypto.randomUUID()}`
     const item = itemKind === 'failure'
       ? { ...base, kind: 'failure', code: 'runtime_fixture_failure', message: itemLabel, nextAction: 'retry' }
-      : { ...base, kind: 'artifact', artifact: {
-        runId: `runtime-evidence-run-${crypto.randomUUID()}`,
-        artifactId: `runtime-evidence-artifact-${crypto.randomUUID()}`,
-        version: 1,
-        contentHash: 'runtime-evidence-content-hash',
-      } }
+      : itemKind === 'task'
+        ? { ...base, kind: 'task', status: 'done', task: { kind: 'production-run', runId } }
+        : { ...base, kind: 'artifact', artifact: {
+          runId,
+          artifactId: `runtime-evidence-artifact-${crypto.randomUUID()}`,
+          version: 1,
+          contentHash: 'runtime-evidence-content-hash',
+        } }
     const resultEnvelope = await window.nomiDesktop.projectAgent.command({
       subscriptionId: opened.subscriptionId,
       clientCommandId: `runtime-evidence-command-${crypto.randomUUID()}`,
@@ -67,8 +78,8 @@ async function appendHostItem(win, projectId, kind, status, label) {
     })
     if (!resultEnvelope?.ok) throw new Error(`projectAgent.command failed: ${JSON.stringify(resultEnvelope)}`)
     await window.nomiDesktop.projectAgent.release(opened.subscriptionId)
-    return { itemId: item.itemId, hostRevision: resultEnvelope.value.state.hostRevision, kind: itemKind, status: itemStatus }
-  }, { projectId, itemKind: kind, itemStatus: status, itemLabel: label })
+    return { itemId: item.itemId, runId, hostRevision: resultEnvelope.value.state.hostRevision, kind: itemKind, status: itemStatus }
+  }, { projectId, itemKind: kind, itemStatus: status, itemLabel: label, sharedRunId: runId ?? null })
 }
 
 async function transitionHostItem(win, projectId, itemId, status) {
@@ -101,48 +112,56 @@ try {
   await openCanvas(win)
 
   // Empty and collapsed are captured before any transcript item exists.
-  await expect(win.locator('[data-agent-panel="true"]')).toBeVisible()
+  await expect(win.locator(AGENT_PANEL)).toBeVisible()
   await walk.snap('empty-expanded')
-  await win.locator('[data-agent-collapse="true"]').click()
-  await expect(win.locator('[data-agent-resident-collapsed="true"]')).toBeVisible()
+  await win.locator(COLLAPSE_BUTTON).click()
+  await expect(win.locator(COLLAPSED_SHELL)).toBeVisible()
   await walk.snap('collapsed')
-  await win.locator('[data-agent-resident-collapsed="true"]').click()
-  await expect(win.locator('[data-agent-panel="true"]')).toBeVisible()
+  // v4 收起态：32px 图标条，第一颗钮（「对话」）把面板叫回来。
+  await win.locator(`${COLLAPSED_SHELL} ${COLLAPSED_DOCK} button`).first().click()
+  await expect(win.locator(AGENT_PANEL)).toBeVisible()
 
   const reply = walk.fixture.expectText({
     label: 'establish a real terminal turn before Host exception evidence',
     match: (body) => flattenRequestText(body).includes('RUNTIME_EXCEPTION_EVIDENCE_BASE'),
     reply: { type: 'text', text: 'RUNTIME_EXCEPTION_EVIDENCE_ACK' },
   })
-  await win.locator('[data-agent-input="true"]').fill('RUNTIME_EXCEPTION_EVIDENCE_BASE')
-  await win.locator('[data-agent-composer-send="true"]').click()
+  await win.locator(COMPOSER_INPUT).fill('RUNTIME_EXCEPTION_EVIDENCE_BASE')
+  await win.locator(COMPOSER_SEND).click()
   await recorded(reply.received, 'runtime evidence base conversation')
-  await expect(win.locator('[data-agent-panel="true"]')).toContainText('RUNTIME_EXCEPTION_EVIDENCE_ACK')
+  await expect(win.locator(AGENT_PANEL)).toContainText('RUNTIME_EXCEPTION_EVIDENCE_ACK')
 
-  const loading = await appendHostItem(win, projectId, 'artifact', 'running', '生成中，正在准备预览')
-  await expect(win.locator(`[data-agent-artifact-card="true"][data-state="loading"]`)).toBeVisible()
+  // 生成中：一条 task item（production-run）+ 一条同 runId 的 artifact。任务卡是它们的家。
+  const task = await appendHostItem(win, projectId, 'task', 'done', '生成中，正在准备预览')
+  await appendHostItem(win, projectId, 'artifact', 'running', '生成中，正在准备预览', task.runId)
+  const taskCard = win.locator(TASK_CARD).last()
+  await expect(taskCard).toBeVisible()
   await walk.snap('loading-artifact')
 
   const failed = await appendHostItem(win, projectId, 'failure', 'failed', '生成服务暂时无法返回结果')
-  await expect(win.locator('[data-agent-failure-card="true"]')).toBeVisible()
-  await win.locator('[data-agent-failure-card="true"]').screenshot({ path: path.join(walk.outputDir, '04-failure-card.png') })
+  const errorBar = win.locator(`${AGENT_PANEL} ${ERROR_BAR}`).last()
+  await expect(errorBar).toBeVisible()
+  await errorBar.screenshot({ path: path.join(walk.outputDir, '04-failure-card.png') })
   walk.report.screenshots.push(path.join(walk.outputDir, '04-failure-card.png'))
 
-  const transitioned = await transitionHostItem(win, projectId, loading.itemId, 'failed')
-  await expect(win.locator('[data-agent-artifact-card="true"][data-state="failed"]')).toBeVisible()
-  await win.locator('[data-agent-artifact-card="true"][data-state="failed"]').screenshot({ path: path.join(walk.outputDir, '05-failed-artifact-card.png') })
+  // 任务卡的状态来自 ProductionRun 域投影；本走查没有真 run，所以它停在「排队」并
+  // 明说「任务详情在任务中心」——v4 宁可不给状态，也不编一个「完成」。
+  const transitioned = await transitionHostItem(win, projectId, task.itemId, 'failed')
+  await expect(win.locator(`${TASK_CARD}[data-status]`).last()).toBeVisible()
+  await win.locator(TASK_CARD).last().screenshot({ path: path.join(walk.outputDir, '05-failed-artifact-card.png') })
   walk.report.screenshots.push(path.join(walk.outputDir, '05-failed-artifact-card.png'))
 
   walk.report.verified = {
     transport: 'real Electron renderer -> public projectAgent IPC -> production Host item.put/item.transition -> renderer patch',
     states: [
-      { family: 'empty', evidence: '01-empty-expanded.png', selector: '[data-agent-panel="true"]' },
-      { family: 'collapsed', evidence: '02-collapsed.png', selector: '[data-agent-resident-collapsed="true"]' },
-      { family: 'loading', evidence: '03-loading-artifact.png', selector: '[data-agent-artifact-card="true"][data-state="loading"]', hostItem: loading },
-      { family: 'error', evidence: '04-failure-card.png', selector: '[data-agent-failure-card="true"]', hostItem: failed },
-      { family: 'error', evidence: '05-failed-artifact-card.png', selector: '[data-agent-artifact-card="true"][data-state="failed"]', hostItem: transitioned },
+      { family: 'empty', evidence: '01-empty-expanded.png', selector: AGENT_PANEL },
+      { family: 'collapsed', evidence: '02-collapsed.png', selector: COLLAPSED_SHELL },
+      { family: 'loading', evidence: '03-loading-artifact.png', selector: TASK_CARD, hostItem: task },
+      { family: 'error', evidence: '04-failure-card.png', selector: ERROR_BAR, hostItem: failed },
+      { family: 'error', evidence: '05-failed-artifact-card.png', selector: `${TASK_CARD}[data-status]`, hostItem: transitioned },
     ],
-    not_claimed: ['plan failed', 'price failed', 'pinned card', 'full 17-state matrix'],
+    not_claimed: ['plan failed', 'price failed', 'pinned card', 'full 17-state matrix',
+      'standalone artifact card (v4 folds artifacts into the task card\'s candidate thumbnails)'],
   }
 } catch (error) {
   failure = error

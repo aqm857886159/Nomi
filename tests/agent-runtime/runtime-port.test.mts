@@ -32,7 +32,7 @@ test('compiled CommonJS loader invokes the real native ESM runtime and returns o
   assert.equal(events.some((event) => ['finish', 'done', 'result', 'error'].includes(event.type)), false);
   assert.deepEqual(result.toolCalls, [{ toolCallId: 'read-one', toolName: 'read_shot', args: { shot: 2 },
     status: 'ok', decision, result: decision.result }]);
-  assert.deepEqual(result.usage, { promptTokens: 20, completionTokens: 8, cachedPromptTokens: 0, totalTokens: 28 });
+  assert.deepEqual(result.usage, { promptTokens: 20, completionTokens: 8, cachedPromptTokens: 0, totalTokens: 28, reasoningTokens: 0 });
   assert.equal(result.context?.normalRequests, 2);
   assert.ok(result.snapshot);
   assert.match(result.snapshot, /Shot two is ready/);

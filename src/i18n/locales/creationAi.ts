@@ -28,25 +28,10 @@ export const zhCreationAi = {
     documentAria: '创作文档编辑区',
   },
   attachmentRail: {
-    remove: '移除附件',
-    uploadFailed: '上传失败',
-    aria: '已添加的附件',
   },
   conversationHistory: {
-    justNow: '刚刚',
-    minutesAgo: '{{count}} 分钟前',
-    hoursAgo: '{{count}} 小时前',
-    yesterday: '昨天',
-    newConversation: '新对话',
-    savedHint: '当前会存入历史',
-    delete: '删除这段对话',
-    stale: '以上对话 AI 已不再记得',
-    aria: '会话历史',
   },
   assistantMessage: {
-    processing: '处理中',
-    modelAria: '助手模型',
-    modelHint: '助手使用的模型（建议选 GPT / Claude / DeepSeek 系，以稳定执行画布操作）',
   },
   selection: {
     bold: '加粗',
@@ -74,10 +59,6 @@ export const zhCreationAi = {
     redo: '重做',
   },
   replyAction: {
-    pasted: '已粘贴到文档',
-    paste: '粘贴到文档',
-    copied: '已复制',
-    copy: '复制回复',
   },
   writeTool: { insert: '插入到光标', replace: '替换选区', append: '追加到文末' },
   attachmentsUploading: '附件还在上传，请等上传完成再发送。',
@@ -172,26 +153,10 @@ export const enCreationAi = {
     documentAria: 'Creation document editor',
   },
   attachmentRail: {
-    remove: 'Remove attachment',
-    uploadFailed: 'Upload failed',
-    aria: 'Added attachments',
   },
   conversationHistory: {
-    justNow: 'Just now',
-    minutesAgo: '{{count}} min ago',
-    hoursAgo: '{{count}} hr ago',
-    yesterday: 'Yesterday',
-    newConversation: 'New conversation',
-    savedHint: 'Current conversation will be saved to history',
-    delete: 'Delete this conversation',
-    stale: 'AI no longer remembers the conversation above',
-    aria: 'Conversation history',
   },
   assistantMessage: {
-    processing: 'Processing',
-    modelAria: 'Assistant model',
-    modelHint:
-      'Model used by the assistant. GPT, Claude, and DeepSeek families are recommended for reliable canvas actions.',
   },
   selection: {
     bold: 'Bold',
@@ -219,10 +184,6 @@ export const enCreationAi = {
     redo: 'Redo',
   },
   replyAction: {
-    pasted: 'Pasted into document',
-    paste: 'Paste into document',
-    copied: 'Copied',
-    copy: 'Copy response',
   },
   writeTool: { insert: 'Insert at cursor', replace: 'Replace selection', append: 'Append to document' },
   attachmentsUploading: 'Attachments are still uploading. Wait for them to finish before sending.',

@@ -34,7 +34,9 @@ const taskLabels = {
   undo: '撤销',
 }
 const slotLabels = { confirm: '确认', reject: '不要', escalate: '不再问 →', cancel: '取消', confirmReject: '确认不要', collapsePlan: '收起 ▴' }
-const contextLabels = { context: '上下文用量', input: '输入', output: '输出', reasoning: '推理', cache: '缓存命中', threadCost: '本线程花费' }
+// `unknown` 是「这个数我们没有」的那个字（环上写「—」而不是「0%」）。接线后它是必填的，
+// 因为缺字段是常态：目录没写 contextWindow、供应商不报推理 token，都会走到它。
+const contextLabels = { context: '上下文用量', input: '输入', output: '输出', reasoning: '推理', cache: '缓存命中', threadCost: '本线程花费', unknown: '—' }
 const usage = { used: 62400, max: 200000, input: '48.1K', output: '9.8K', reasoning: '2.1K', cache: '2.4K', cost: '¥0.83' }
 
 beforeAll(async () => {
@@ -165,8 +167,10 @@ describe('⑤ 介入槽 · 八种内容体', () => {
   })
 
   it('只有**可撤销的改动**显示「不再问 →」——不可逆和花钱的永远逐次问', () => {
+    // 接线后「不再问 →」还多一个条件：**调用方真的能执行它**（给了 `onEscalate`）。
+    // 没有去处的钮和有去处的钮长得一样，那就是在假装能按——空态发送钮那条同一个道理。
     const hasEscalate = (kind: V4InterventionKind) =>
-      html(el(V4Intervention, { data: of(kind), labels: slotLabels })).includes('不再问')
+      html(el(V4Intervention, { data: of(kind), labels: slotLabels, onEscalate: () => undefined })).includes('不再问')
     expect(hasEscalate('approval-reversible')).toBe(true)
     expect(hasEscalate('approval-irreversible')).toBe(false)
     expect(hasEscalate('spend')).toBe(false)
@@ -234,6 +238,14 @@ describe('⑦ 收起坞 · ⑧ Context 环', () => {
     expect(markup).toContain('data-v4-block="dock"')
   })
 
+  it('缺分母时环写「—」而不是「0%」——0% 是一个我们没资格下的断言', () => {
+    const markup = html(el(V4ContextRing, { usage: { used: 62400 }, labels: contextLabels, expanded: true }))
+    expect(markup).toContain('—')
+    expect(markup).not.toContain('0%')
+    // 分项一个都没有时那几行整行不渲染，不留 `0` 也不留占位。
+    expect(markup).not.toContain('缓存命中')
+  })
+
   it('环显示真实百分比，展开体给 token 分项与花费', () => {
     const markup = html(el(V4ContextRing, { usage, labels: contextLabels, expanded: true }))
     expect(markup).toContain('31%') // 62400 / 200000
@@ -280,8 +292,13 @@ describe('⑧ composer 底栏逐件', () => {
 
   it('高度写进 data-height，随面板高度和内容 derive', () => {
     expect(html(el(AgentPanelV4Composer, { panelHeight: 620 }))).toContain('data-height="86"')
-    expect(html(el(AgentPanelV4Composer, { panelHeight: 620, initialText: 'a\nb\nc\nd\ne\nf\ng\nh' }))).toContain('data-height="178"')
+    expect(html(el(AgentPanelV4Composer, { panelHeight: 620, value: 'a\nb\nc\nd\ne\nf\ng\nh' }))).toContain('data-height="178"')
     // 同一段 8 行文本：620 高的面板封在 6 行（178），900 高的面板还没到 40% 上限，长满 218。
-    expect(html(el(AgentPanelV4Composer, { panelHeight: 900, initialText: 'a\nb\nc\nd\ne\nf\ng\nh' }))).toContain('data-height="218"')
+    expect(html(el(AgentPanelV4Composer, { panelHeight: 900, value: 'a\nb\nc\nd\ne\nf\ng\nh' }))).toContain('data-height="218"')
+  })
+
+  it('没有 onValueChange 时 textarea 只读——受控件不假装自己能编辑', () => {
+    expect(html(el(AgentPanelV4Composer, { value: '只读' }))).toContain('readonly')
+    expect(html(el(AgentPanelV4Composer, { value: '可编辑', onValueChange: () => undefined }))).not.toContain('readonly')
   })
 })

@@ -32,7 +32,18 @@ for (const kind of ['openai-compatible', 'openai-responses', 'anthropic'] as con
     assert.equal(http.requests[0].body[kind === 'openai-responses' ? 'max_output_tokens' : 'max_tokens'], 40000);
     assert.equal(http.requests[0].body.temperature, 0.2);
     const promptTokens = kind === 'anthropic' ? 15 : 13;
-    assert.deepEqual(result.usage, { promptTokens, completionTokens: 7, cachedPromptTokens: 3, totalTokens: promptTokens + 7 });
+    // `reasoningTokens` 是 2026-09-06 新增的字段：供应商**报了**才有（哪怕报的是 0），
+    // 没报就整个字段不存在。面板据此决定「推理」那一行渲不渲染——`?? 0` 会把
+    // 「这家没说」印成「思考了 0 个 token」，两件完全不同的事。
+    // 三家里只有两家在报文里给了 reasoning 明细，anthropic 那条路没有——于是它那份 usage
+    // 里**根本没有这个字段**。这正是想要的语义，也是这条断言最值钱的地方：
+    // 面板据此决定「推理」那一行渲不渲染，`?? 0` 会把「这家没说」印成「思考了 0 个 token」。
+    const reportsReasoning = kind !== 'anthropic';
+    assert.deepEqual(result.usage, {
+      promptTokens, completionTokens: 7, cachedPromptTokens: 3, totalTokens: promptTokens + 7,
+      ...(reportsReasoning ? { reasoningTokens: 2 } : {}),
+    });
+    assert.equal('reasoningTokens' in result.usage, reportsReasoning);
     assert.equal('cost' in result.usage, false, 'the SDK placeholder cost zero is not an actual price');
   });
 }

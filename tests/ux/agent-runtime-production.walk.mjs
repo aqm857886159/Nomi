@@ -7,7 +7,8 @@ import { createHash } from 'node:crypto'
 import { clickOrFail, expect, expectAbsent, proveProbe } from './_assert.mjs'
 import { FIXTURE_IMAGE_MODEL, flattenRequestText } from './agent-runtime-fixture.mjs'
 import {
-  CANVAS_PANEL, CREATION_PANEL, DOCUMENT, createRuntimeWalk, hasToolResult,
+  APPROVAL_CARD, CANVAS_PANEL, COMPOSER_SEND, CREATION_PANEL, DOCUMENT, INTERVENTION_CONFIRM,
+  createRuntimeWalk, hasToolResult,
   openCanvas, readConversations, readNativeContexts, readProject, recorded, sendCreation,
   readCurrentProjectAgentHostSnapshot, snapshotMessages, toolNames,
 } from './agent-runtime-walk-support.mjs'
@@ -48,7 +49,7 @@ try {
   // The resident composer owns the send control; its accessible label is
   // localized and changed with the Agent shell copy, while this data contract
   // remains the stable user action.
-  await expect(win.locator(`${CREATION_PANEL} [data-agent-composer-send="true"]`)).toBeVisible()
+  await expect(win.locator(`${CREATION_PANEL} ${COMPOSER_SEND}`)).toBeVisible()
   const durableRoots = { settingsRoot, projectRoot }
   await expect.poll(async () => (await readConversations(win, projectId, durableRoots))?.creation.threads[0]?.messages
     .some((message) => message.content === PARENT), { timeout: 30_000 }).toBe(true)
@@ -91,21 +92,21 @@ try {
   expect(plannerWire.body.messages.some((message) => message.role === 'user'
     && flattenRequestText({ messages: [message] }).includes(PARENT)),
   'Planning must retain the parent thread context in the Host request').toBe(true)
-  const storyboardApproval = win.locator(`${CREATION_PANEL} [data-agent-approval="true"][data-agent-approval-state="pending"]`)
+  // v4：待批准的提议住在介入槽，确认钮是 [data-v4-control="confirm"]（文案「确认」）。
+  const storyboardApproval = win.locator(`${CREATION_PANEL} ${APPROVAL_CARD}`)
   const storyboardApprovalProof = await proveProbe(storyboardApproval,
     'Inline storyboard planning reaches the real Resident approval boundary')
-  await clickOrFail(storyboardApproval.getByRole('button', { name: '批准', exact: true }),
+  await clickOrFail(storyboardApproval.locator(INTERVENTION_CONFIRM),
     '批准内联分镜规划', { noWaitAfter: true })
-  await expectAbsent(storyboardApproval.getByRole('button', { name: '批准', exact: true }), {
+  await expectAbsent(storyboardApproval.locator(INTERVENTION_CONFIRM), {
     provenBy: storyboardApprovalProof,
     message: 'The applied storyboard approval is no longer actionable',
   })
   await recorded(plannerDone.received, 'inline planner result')
-  // 方案落成后，中列留一张摘要卡（完整编辑器只住分镜页）。这张卡如今是常驻 Agent 里的
-  // 分镜收据（ProjectAgentResidentShell 的 data-agent-storyboard-receipt）——旧的
-  // `[data-storyboard-card="draft"]` 早已不在 src 里的任何一处，这条走查于是长期红着，
-  // 报的还是「元素找不到」这种看不出根因的话（docs/lessons/dead-selector-lies-both-ways.md）。
-  await expect(win.locator('[data-agent-storyboard-receipt="true"]').first()).toBeVisible()
+  // 方案落成后，用户看得见的那条「有一个分镜方案在这」= 左侧栏的分镜条目。
+  // 2026-09-06 v4 接线删掉了 Agent 面板里的分镜收据行（data-agent-storyboard-receipt），
+  // 侧栏条目现在是它唯一的可见落点，也是进分镜页那条路的入口。
+  await expect(win.locator('[data-storyboard-id]').first()).toBeVisible()
   await expect(win.locator('[data-workspace-mode="creation"]')).toBeVisible()
   await expect.poll(async () => {
     const payload = (await readProject(win, projectId)).payload
@@ -129,8 +130,8 @@ try {
   await walk.snap('inline-plan-awaits-human')
 
   // v5 执行面：没有「确认落画布」——进分镜页，footer「生成未生成的 N 镜」按需 materialize + 批量。
-  // 方案卡 = 常驻 Agent 里的分镜收据行「分镜方案已生成 [打开]」；旧文案「打开分镜」已不存在。
-  await clickOrFail(win.locator('[data-agent-storyboard-receipt="true"]').first().getByRole('button', { name: '打开', exact: true }), '从方案卡进入分镜页')
+  // 入口是侧栏那条分镜条目（onClick 直接 setWorkspaceMode('storyboard')，DocumentListSidebar.tsx:110-114）。
+  await clickOrFail(win.locator('[data-storyboard-id]').first(), '从侧栏分镜条目进入分镜页')
   await expect(win.getByRole('textbox', { name: '方案标题', exact: true })).toHaveValue('F镜头')
   const beforeJudge = snapshots(projectRoot, settingsRoot)
   const judge = walk.fixture.expectText({

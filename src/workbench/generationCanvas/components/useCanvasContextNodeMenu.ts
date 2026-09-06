@@ -1,6 +1,12 @@
 import React from 'react'
 import { clampNumber } from './generationCanvasGeometry'
-import { canvasDragExceededThreshold, isCanvasContextMenuPointer } from './canvasPointerGestureModel'
+import {
+  canvasDragExceededThreshold,
+  isCanvasContextMenuPointer,
+  isCanvasSelectionOverlayTarget,
+  resolveCanvasContextMenuTarget,
+} from './canvasPointerGestureModel'
+import type { CanvasContextMenuTarget } from './canvasPointerGestureModel'
 
 type Offset = { x: number; y: number }
 
@@ -9,7 +15,12 @@ export type CanvasContextNodeMenu = {
   stageY: number
   canvasX: number
   canvasY: number
-  /** 右键落在某个节点上时带上它的 id → 弹「节点操作」菜单；空白处为 null → 弹「添加节点」菜单。 */
+  /**
+   * 右键落在什么上（唯一判据，见 canvasPointerGestureModel.resolveCanvasContextMenuTarget）：
+   * 'node' / 'selection' 都弹「节点操作」菜单，只有 'blank' 弹「添加节点」菜单并清选择。
+   */
+  target: CanvasContextMenuTarget
+  /** target === 'node' 时命中的节点 id；'selection' / 'blank' 为 null。 */
   nodeId: string | null
 }
 
@@ -98,8 +109,12 @@ export function useCanvasContextNodeMenu({
     const stageY = event.clientY - rect.top
     const zoom = zoomRef.current || 1
     const nodeId = target?.closest(NODE_SELECTOR)?.getAttribute('data-node-id') || null
+    const menuTarget = resolveCanvasContextMenuTarget({
+      nodeId,
+      selectionOverlay: isCanvasSelectionOverlayTarget(target),
+    })
     // 节点菜单比添加菜单矮：按各自高度夹边，免得贴着视口下缘弹出时被切掉。
-    const menuHeight = nodeId ? NODE_MENU_HEIGHT : MENU_HEIGHT
+    const menuHeight = menuTarget === 'blank' ? MENU_HEIGHT : NODE_MENU_HEIGHT
     pendingMenuRef.current = {
       pointerId: event.pointerId,
       button: event.button,
@@ -112,6 +127,7 @@ export function useCanvasContextNodeMenu({
         stageY: clampNumber(stageY, MENU_EDGE_GAP, Math.max(MENU_EDGE_GAP, rect.height - menuHeight - MENU_EDGE_GAP)),
         canvasX: Math.round((stageX - offsetRef.current.x) / zoom),
         canvasY: Math.round((stageY - offsetRef.current.y) / zoom),
+        target: menuTarget,
         nodeId,
       },
     }
@@ -156,9 +172,11 @@ export function useCanvasContextNodeMenu({
     )
     if (!suppressMenu && pendingMenuRef.current) {
       if (!pending.moved) {
-        // 节点上：先确保它选中（菜单动作都作用于选中项）；空白处：清掉选择再弹添加菜单。
-        if (pending.menu.nodeId) ensureNodeSelected(pending.menu.nodeId)
-        else clearSelection()
+        // 节点上：先确保它选中（菜单动作都作用于选中项）。
+        // 选中集罩子上：选择已经是对的，**碰都别碰**——清一下就等于把刚框好的一批扔掉。
+        // 只有真空白才清选择，再弹添加菜单。
+        if (pending.menu.target === 'node' && pending.menu.nodeId) ensureNodeSelected(pending.menu.nodeId)
+        else if (pending.menu.target === 'blank') clearSelection()
         setContextNodeMenu(pending.menu)
       }
     }

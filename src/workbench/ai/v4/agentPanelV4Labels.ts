@@ -52,6 +52,29 @@ export function useV4Labels() {
       reasoning: t('agentPanelV4.reasoning'),
       cache: t('agentPanelV4.cache'),
       threadCost: t('agentPanelV4.threadCost'),
+      // 「不知道」的那个字。它不是 `0%`——`0%` 是一个我们没资格下的断言。
+      unknown: t('agentPanelV4.contextUnknown'),
+    },
+    /** 介入槽里由**投影层**填的那些字（槽头徽章、缺凭证的标题与两个动作、范围说明）。 */
+    interventionCopy: {
+      irreversible: t('agentPanelV4.badgeIrreversible'),
+      reversible: t('agentPanelV4.badgeReversible'),
+      spendBadge: t('agentPanelV4.badgeSpend'),
+      credentialTitle: t('agentPanelV4.credentialTitle'),
+      credentialConfirm: t('agentPanelV4.credentialConfirm'),
+      credentialAlternate: t('agentPanelV4.credentialAlternate'),
+      questionTitle: t('agentPanelV4.questionTitle'),
+      planTitle: t('agentPanelV4.planTitle'),
+      more: t('agentPanelV4.interventionMore', { count: 1 }),
+      scopeOnce: t('agentPanelV4.scopeOnce'),
+      scopeCapability: t('agentPanelV4.scopeCapability'),
+    },
+    /** 队列行尾的动作词。投影层按它们产出 `actions`，写侧再按同一批字认回来。 */
+    queueActions: {
+      jumpAhead: t('agentPanelV4.queueJumpAhead'),
+      remove: t('agentPanelV4.queueDelete'),
+      interrupt: t('agentPanelV4.queueInterrupt'),
+      untitled: t('agentPanelV4.queueUntitled'),
     },
     dock: { conversation: t('agentPanelV4.dockConversation'), adjust: t('agentPanelV4.dockAdjust') },
   }

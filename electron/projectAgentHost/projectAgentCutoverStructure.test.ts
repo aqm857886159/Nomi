@@ -51,12 +51,18 @@ describe("Project Agent production cutover structure", () => {
     const app = source("src/workbench/NomiStudioApp.tsx");
     const workbenchStore = source("src/workbench/workbenchStore.ts");
     const residentShell = source("src/workbench/ai/ProjectAgentResidentShell.tsx");
+    const residentData = source("src/workbench/ai/v4/useAgentPanelV4Data.ts");
     const workbenchShell = source("src/workbench/WorkbenchShell.tsx");
 
     expect(app).not.toContain("installProjectAgentSnapshotToUi");
     expect(workbenchStore).not.toContain("creationAiMessages");
     expect(workbenchStore).not.toContain("setCreationAiMessages");
-    expect(residentShell).toContain("useProjectAgentSnapshot");
+    // 「宿主投影只有一个入口」这条不变量没变，位置变了：v4 接线把读侧收进
+    // `useAgentPanelV4Data`，容器只消费它。断言跟着真正读快照的那个模块走，
+    // 否则它就变成一条量不到东西的死断言（`dead-selector-lies-both-ways`）。
+    expect(residentData).toContain("useProjectAgentSnapshot");
+    expect(residentShell).toContain("useAgentPanelV4Data");
+    expect(residentShell).not.toContain("useProjectAgentSnapshot");
     expect(residentShell).toContain("projectAgentDraft");
     expect(workbenchShell).toContain("createPortal(<ProjectAgentResidentShell surface={agentSurface} />, agentDock)");
     expect(workbenchStore).not.toContain("creationAiDraft");

@@ -17,14 +17,17 @@
 import path from 'node:path'
 import { clickOrFail, expect, expectAbsent, proveProbe } from './_assert.mjs'
 import { flattenRequestText } from './agent-runtime-fixture.mjs'
+import { FIXTURE_TEXT_MODEL_LABEL } from './agent-runtime-fixture.mjs'
 import {
-  CANVAS_PANEL, CREATION_PANEL, DOCUMENT, chooseAssistantModel, createRuntimeWalk,
-  enableAgentHostThroughSettings, hasToolResult, newConversation, openCanvas,
+  APPROVAL_CARD, ASSISTANT_MESSAGE, CANVAS_PANEL, COMPOSER, COMPOSER_INPUT, COMPOSER_PERMISSION,
+  COMPOSER_SEND, CREATION_PANEL, DOCUMENT, HISTORY_BUTTON, INTERVENTION_CONFIRM,
+  INTERVENTION_ESCALATE, PERMISSION_POPOVER, PREVIEW_PANEL, QUEUE, QUEUE_ROW, THREAD_MENU,
+  TOOL_RECEIPT, USER_BUBBLE, chooseAssistantModel, createRuntimeWalk,
+  hasToolResult, newConversation, openCanvas,
   readCurrentProjectAgentHostSnapshot, recorded, sendCanvas, sendCreation, toolNames,
 } from './agent-runtime-walk-support.mjs'
 
-const PREVIEW_PANEL = '[data-agent-resident="true"][data-agent-panel="true"][data-agent-surface="preview"]'
-const INTERVENTION = '[data-agent-intervention-slot="true"]'
+const INTERVENTION = APPROVAL_CARD
 
 // 林秋真的会写在文稿里的东西。三段有明确长短差，第三轮才指得回第一轮读到的那一段。
 const SCRIPT = [
@@ -45,9 +48,9 @@ const T3_REPLY = 'K_T3_DONE：K_SEG_B 的开头改成「汤先到，人后到」
 // 一条真的很长的用户消息（> 360 字符），用来验用户气泡的折叠。
 const LONG_ASK = `K_LONG：${'我想把这段热气糊镜头的部分讲清楚一点，'.repeat(20)}你觉得该怎么剪？`
 const LONG_REPLY = 'K_LONG_DONE：抓住热气最浓的那两秒就够了。'
-// 一条真的很长的**助手回复**（> 360 字符）。`[data-agent-reply]` 只在过了这个门槛时才挂 title，
-// 所以两半都得有现场：没有长回复就只证得出「不挂」，没有短回复就只证得出「挂」——
-// 而「永远挂」和「永远不挂」各能骗过其中一条。
+// 一条真的很长的**助手回复**。v4 的助手文本超过面板高 60% 时折叠，尾巴上给「还有 N 行 · 展开」；
+// 短回复不折。两半都得有现场：只有长回复就只证得出「会折」，只有短回复就只证得出「不折」——
+// 而「永远折」和「永远不折」各能骗过其中一条。
 const LONG_ASK_2 = 'K_LONG2：这段到底该留几秒？把你的理由讲全。'
 const LONG_REPLY_FULL = `K_LONG2_DONE：${'先把热气最浓的那两秒单独切出来，再决定前后各留多少。'.repeat(15)}`
 
@@ -59,11 +62,6 @@ const REFILL_CALL = 'k-create-2'
 const REFILL_REPLY = 'K_CANVAS3_DONE：补上了收尾的那个镜头。'
 const FAIL_CALL = 'k-fail-1'
 const FAIL_REPLY = 'K_FAIL_DONE：这一步没成功，画布上什么都没加。'
-
-// 修复前 @ 选择器摆的四条样张里编出来的假提示。它们必须一条都不许再出现。
-const FABRICATED_AT_HINTS = ['镜头 03 · 雨夜巷口', '第三章第 4 段', '当前帧 · 00:08', '00:06–00:14']
-// 修复后由真实选中态推出来的四条。空项目 + 创作面 = 全是「没选中」那一支。
-const DERIVED_AT_HINTS = ['整块画布（没有选中画面）', '当前创作文档', '预览里的当前画面', '整条时间轴（没有选中片段）']
 
 const HOLD_ASK = 'K_HOLD：把刚才三个镜头的提示词都往「暖光、慢镜」上靠。'
 const QUEUE_B = 'K_QB：顺便把第一个镜头改成竖构图。'
@@ -120,10 +118,9 @@ walk.report.friction = friction
 let failure
 try {
   let { win } = await walk.start({ first: true })
-  await enableAgentHostThroughSettings(win)
   const project = await walk.newProject()
   const { projectId, projectRoot } = project
-  await chooseAssistantModel(win, 'agent-runtime-loopback/agent-runtime-text')
+  await chooseAssistantModel(win, FIXTURE_TEXT_MODEL_LABEL)
 
   /** 读回 app 自己持久化的项目记录（走它自己的项目 IPC，不是我们另开一把读盘）。 */
   const persisted = async () => win.evaluate((id) => window.nomiDesktop.projects.readAsync(id), projectId)
@@ -133,15 +130,8 @@ try {
     return (canvas.nodes ?? []).map((node) => node.id)
   }
   const hostState = () => readCurrentProjectAgentHostSnapshot(settingsRoot, projectRoot)
-  /** 工具行的折叠头默认是展开的（首次挂载时 items 为空）；断言前先把它拨到想要的那一档。 */
-  const setToolGroup = async (panel, open) => {
-    const header = panel.locator('[data-agent-tool-header="true"]')
-    await expect(header, '工具行必须给得出折叠头').toBeVisible()
-    if (await header.getAttribute('aria-expanded') !== String(open)) {
-      await clickOrFail(header, open ? '展开工具行' : '收起工具行')
-    }
-    await expect(header, `工具行必须真的${open ? '展开' : '收起'}`).toHaveAttribute('aria-expanded', String(open))
-  }
+  // v4 没有「工具调用组」这个折叠头：每条收据就是流里的一行（`data-v4-block="tool"`），
+  // 内联在它发生的位置、不置顶、不成组（2026-09-06 定稿 ③）。想看输入/输出就点那一行本身。
 
   // ── 幕一 · 创作面：三轮一条对话，第三轮指回第一轮的工具结果 ─────────────────────
   await win.locator(DOCUMENT).fill(SCRIPT)
@@ -150,6 +140,8 @@ try {
   await expect(creation, '创作面常驻 Agent 必须挂载').toBeVisible()
   await expect(creation, '默认审批档位是 safe-auto——后面「不出卡」的断言以它为前提')
     .toHaveAttribute('data-agent-approval-mode', 'safe-auto')
+  await expect(creation.locator(COMPOSER), 'composer 也必须自报同一档，两处不能各说各的')
+    .toHaveAttribute('data-permission', 'safe-auto')
 
   const t1Call = walk.fixture.expectText({
     label: 'turn 1 asks the document read tool',
@@ -173,11 +165,11 @@ try {
   // 读工具在 readableToolPreview 里从前没有自己的分支，于是「读一遍文稿」这一行落回通用的
   // 「查看细节」——和一个谁也认不出的工具说的是同一句话。修复后它走 isReadOnlyToolName，
   // 说出读的诚实效果：什么都不改。
-  await setToolGroup(creation, true)
-  const readToolLine = creation.locator('[data-agent-tool-line="true"]')
-  const readRowEffect = (await readToolLine.locator('[data-agent-tool-effect="true"]').first().innerText()).trim()
+  const readToolLine = creation.locator(TOOL_RECEIPT).first()
+  await expect(readToolLine, '读文稿必须留下一行收据').toBeVisible()
+  const readRowEffect = (await readToolLine.innerText()).replace(/\s+/g, ' ').trim()
   record('readToolRowEffect', readRowEffect)
-  expect(readRowEffect, '读文稿这一行必须说清「只是看一眼」').toBe('只是看一眼，不改动任何东西')
+  expect(readRowEffect, '读文稿这一行必须说清「只是看一眼」').toContain('只是看一眼，不改动任何东西')
   expect(readRowEffect, '读工具不许再落回通用的「查看细节」').not.toContain('查看细节')
   await expect(readToolLine, '这一行还得自报它是「读取文稿」').toContainText('读取文稿')
   note(`读工具行的效果说的是「${readRowEffect}」，不是通用的「查看细节」`)
@@ -207,7 +199,7 @@ try {
   expect(t3Text, '第三轮仍带着第二轮').toContain(T2_REPLY)
   expect(t3Text, '历史不许被转述成散文前缀').not.toContain('此前同一项目线程')
   await expect(creation).toContainText('K_T3_DONE')
-  await expect(creation.locator('[data-agent-item-kind="user"]'), '三轮用户消息都留在誊本里')
+  await expect(creation.locator(USER_BUBBLE), '三轮用户消息都留在誊本里')
     .toHaveCount(3)
   await walk.snap('02-creation-turn3-references-turn1')
   note('三轮同一条对话，第三轮的出站报文里仍有第一轮的 tool_call + tool result')
@@ -216,7 +208,7 @@ try {
   // 2026-09-06 修复后这个数组必须是**空的**：旧的 `h-5 overflow-hidden` + `whitespace-nowrap`
   // 单行夹一旦回来，短回复要么横向溢出、要么纵向被高度夹住——两个方向都在这里现形。
   // 只量 clippedPx 是不够的：只留 `h-5`、去掉 nowrap 的半吊子回退会横向干净、纵向照切。
-  const replyClipping = () => creation.locator('[data-agent-reply="true"]').evaluateAll((nodes) => nodes
+  const replyClipping = () => creation.locator(ASSISTANT_MESSAGE).evaluateAll((nodes) => nodes
     .map((node) => {
       const wrap = node.firstElementChild
       const body = wrap?.firstElementChild
@@ -229,7 +221,7 @@ try {
         head: (node.textContent || '').slice(0, 14),
         clippedPx: Math.max(outer.x, middle.x, inner.x),
         clippedHeightPx: Math.max(outer.y, middle.y, inner.y),
-        hasFoldLink: Boolean(node.querySelector('[data-fold-expand="true"]')),
+        hasFoldLink: Boolean(node.querySelector('[data-v4-markdown][data-folded="true"]')),
       }
     })
     .filter((item) => item.clippedPx > 0 || item.clippedHeightPx > 0))
@@ -239,7 +231,7 @@ try {
 
   // 「没被裁」本身可能是空洞的——一行就放得下的短句当然不会被裁。所以先证明这一条**必须**换行
   // 才放得下，再断言它没被夹住，最后断言它的**结尾**真的渲染出来了（旧夹子正是从中间切断的）。
-  const t2Reply = creation.locator('[data-agent-reply="true"]').filter({ hasText: 'K_T2_DONE' }).last()
+  const t2Reply = creation.locator(ASSISTANT_MESSAGE).filter({ hasText: 'K_T2_DONE' }).last()
   const t2Geometry = await t2Reply.evaluate((node) => {
     const body = node.firstElementChild?.firstElementChild ?? node
     const lineHeight = Number.parseFloat(getComputedStyle(body).lineHeight) || 20
@@ -258,25 +250,24 @@ try {
   expect(t2Geometry.rendered, '回复的最后一句必须真的看得见，而不是停在半截').toContain('最后 5 秒收在第一口。')
   note(`K_T2_DONE 渲染成 ${t2Geometry.lines} 行，横/纵裁切都是 0，句尾完整`)
 
-  // ── 幕二 · 模式弹层只承载「工作模式」一件事 ───────────────────────────────────
-  await clickOrFail(creation.locator('[data-agent-composer-mode="true"]'), '打开模式弹层')
-  const modeMenu = win.locator('[data-agent-menu]').filter({ has: win.locator('[role="radiogroup"]') }).last()
-  await expect(modeMenu, '模式弹层必须打开').toBeVisible()
-  const radiogroups = modeMenu.locator('[role="radiogroup"]')
-  await expect(radiogroups, '模式弹层只保留一个分段控件（工作模式）').toHaveCount(1)
-  const radiogroupProof = await proveProbe(radiogroups, '模式弹层里的工作模式分段控件')
-  for (const label of ['提问', '编辑选中', '自主']) {
-    await expect(radiogroups, `工作模式缺了「${label}」`).toContainText(label)
+  // ── 幕二 · 授权只有一个控件：权限三档 ───────────────────────────────────────
+  // 2026-09-06 拍板①：工作方式三档（Ask / 编辑选中 / Agent）已删——范围由 composer 上的
+  // 「选中」chip 决定，不再是一个模式。权限档因此是**唯一**的授权入口，这一幕验的就是它。
+  await clickOrFail(creation.locator(COMPOSER_PERMISSION), '打开权限弹层')
+  const permissionMenu = creation.locator(PERMISSION_POPOVER)
+  await expect(permissionMenu, '权限弹层必须打开').toBeVisible()
+  await expect(permissionMenu.locator('[data-tier]'), '授权只有三档，不多不少').toHaveCount(3)
+  for (const label of ['每步问', '自动改', '全自动']) {
+    await expect(permissionMenu, `权限档缺了「${label}」`).toContainText(label)
   }
-  await expectAbsent(modeMenu.locator('[data-agent-menu-item^="approval-mode-"]'),
-    { provenBy: radiogroupProof, message: '模式弹层不该再有审批档位入口' })
-  await expectAbsent(modeMenu.locator('[data-agent-menu-item^="spend-policy-"]'),
-    { provenBy: radiogroupProof, message: '模式弹层不该再有花费策略入口' })
-  await walk.snap('03-mode-popover-single-radiogroup')
+  await expect(permissionMenu.locator('[data-tier][data-active="true"]'), '当前档恰有一个').toHaveCount(1)
+  await expect(permissionMenu.locator('[data-tier="safe-auto"][data-active="true"]'), '出厂档就是「自动改」')
+    .toBeVisible()
+  await walk.snap('03-permission-popover-three-tiers')
   await win.keyboard.press('Escape')
-  await expect(modeMenu, '按 Esc 必须关掉弹层').toBeHidden()
+  await expect(permissionMenu, '按 Esc 必须关掉弹层').toBeHidden()
 
-  // ── 幕三 · 长消息折叠 + 空的 @ 选择器 ─────────────────────────────────────────
+  // ── 幕三 · 长消息与长回复：v4 只折**助手文本**，用户气泡照原样换行 ─────────────
   const long = walk.fixture.expectText({
     label: 'a very long user question still runs normally',
     match: (body) => flattenRequestText(body).includes('K_LONG：'),
@@ -285,23 +276,28 @@ try {
   await sendCreation(win, LONG_ASK)
   await recorded(long.received, 'long question request')
   await expect(creation).toContainText('K_LONG_DONE')
-  const longBubble = creation.locator('[data-agent-user-bubble="true"] [data-fold-text="true"]').last()
-  await expect(longBubble, '超长用户消息必须折叠，而不是把誊本撑爆').toBeVisible()
-  const foldLink = longBubble.locator('[data-fold-expand="true"]')
-  await expect(foldLink, '折叠的消息必须给得出展开入口').toBeVisible()
+  // 用户气泡在 v4 里**不折**（V4UserBubble 只是 max-w-86% 的一段文字）——旧的
+  // `data-fold-text` / `data-fold-expand` 挂点随旧面板一起删了。所以这里验的是它的现役承诺：
+  // 超长消息靠换行装下，既不被夹断、也不横向撑破面板。
+  const longBubble = creation.locator(USER_BUBBLE).filter({ hasText: 'K_LONG：' }).last()
+  await expect(longBubble, '超长用户消息必须留在誊本里').toBeVisible()
+  expect(LONG_ASK.length, '这条消息必须真的很长，否则下面的断言是空的').toBeGreaterThan(360)
+  const longBubbleGeometry = await longBubble.evaluate((node) => {
+    const panel = node.closest('[data-agent-panel="true"]')
+    return {
+      clippedX: Math.max(0, node.scrollWidth - node.clientWidth),
+      clippedY: Math.max(0, node.scrollHeight - node.clientHeight),
+      pastPanelEdge: Math.round(node.getBoundingClientRect().right - panel.getBoundingClientRect().right),
+    }
+  })
+  record('longUserBubbleGeometry', longBubbleGeometry)
+  expect(longBubbleGeometry.clippedX, '超长用户消息不许横向溢出').toBe(0)
+  expect(longBubbleGeometry.clippedY, '超长用户消息不许被高度夹断').toBe(0)
+  expect(longBubbleGeometry.pastPanelEdge, '超长用户消息不许伸出面板右缘').toBeLessThanOrEqual(0)
+  await expect(longBubble, '超长消息的结尾必须真的看得见').toContainText('你觉得该怎么剪？')
+  await walk.snap('04-long-message-wrapped')
 
-  // 折叠链接上的那个数必须是**全文字数**。修复前它喂的是 `text.length - 360`（折起来看不见的余量），
-  // 于是这条 395 字的消息在链接上写「约 35 字」——用户点开会看到十倍于承诺的东西。
-  const foldLinkText = (await foldLink.innerText()).replace(/\s+/g, ' ').trim()
-  record('foldLinkLabel', { text: foldLinkText, actualLength: LONG_ASK.length, oldRemainder: LONG_ASK.length - 360 })
-  expect(LONG_ASK.length, '这条消息必须真的过 360 字门槛，否则下面两条断言是空的').toBeGreaterThan(360)
-  expect(foldLinkText, `折叠链接必须报全文真实字数（${LONG_ASK.length}）`).toContain(String(LONG_ASK.length))
-  expect(foldLinkText, '不许再报「全文 - 360」的余数——那个数对不上任何东西')
-    .not.toContain(`约 ${LONG_ASK.length - 360} 字`)
-  note(`折叠链接写的是「${foldLinkText}」，全文确实 ${LONG_ASK.length} 字`)
-  await walk.snap('04-long-message-folded')
-
-  // 长回复挂 title（hover 能看全文），短回复不挂（挂了就是给每条短回复配一个和正文一字不差的 tooltip）。
+  // 长回复折到面板高 60% 并给出「还有 N 行 · 展开」；短回复不折（折了就是给一句话配一个展开钮）。
   const long2 = walk.fixture.expectText({
     label: 'a very long assistant reply still renders',
     match: (body) => flattenRequestText(body).includes('K_LONG2：'),
@@ -312,42 +308,20 @@ try {
   await expect(creation).toContainText('K_LONG2_DONE')
   expect(LONG_REPLY_FULL.length, '这条回复必须真的过 360 字门槛').toBeGreaterThan(360)
   expect(T2_REPLY.length, '这条回复必须真的在 360 字门槛之下').toBeLessThanOrEqual(360)
-  const longReplyBubble = creation.locator('[data-agent-reply="true"]').filter({ hasText: 'K_LONG2_DONE' }).last()
-  const shortReplyBubble = creation.locator('[data-agent-reply="true"]').filter({ hasText: 'K_T2_DONE' }).last()
-  record('replyTitleAttribute', {
-    longChars: LONG_REPLY_FULL.length,
-    longTitleChars: (await longReplyBubble.getAttribute('title'))?.length ?? null,
-    shortChars: T2_REPLY.length,
-    shortTitle: await shortReplyBubble.getAttribute('title'),
-  })
-  await expect(longReplyBubble, '超过 360 字的回复要挂 title，hover 才看得到全文')
-    .toHaveAttribute('title', LONG_REPLY_FULL)
-  expect(await shortReplyBubble.getAttribute('title'),
-    '360 字以内的回复不许挂 title——那是给正文配一个一模一样的 tooltip').toBe(null)
-  note('长回复挂 title、短回复不挂，两半都在同一个现场证过')
+  const longReplyBubble = creation.locator(ASSISTANT_MESSAGE).filter({ hasText: 'K_LONG2_DONE' }).last()
+  const shortReplyBubble = creation.locator(ASSISTANT_MESSAGE).filter({ hasText: 'K_T2_DONE' }).last()
+  const foldStateOf = async (bubble) => bubble.locator('[data-v4-markdown]').first()
+    .evaluate((node) => ({ folded: node.dataset.folded ?? null, expandLabel: (node.querySelector('button')?.textContent || '').trim() }))
+  const longFold = await foldStateOf(longReplyBubble)
+  const shortFold = await foldStateOf(shortReplyBubble)
+  record('assistantReplyFolding', { longChars: LONG_REPLY_FULL.length, longFold, shortChars: T2_REPLY.length, shortFold })
+  expect(longFold.folded, '超长回复必须折起来，而不是把誊本撑爆').toBe('true')
+  expect(longFold.expandLabel, '折起来的回复必须给得出「还有 N 行 · 展开」').toMatch(/还有 \d+ 行/)
+  expect(shortFold.folded, '短回复不许折——那是给一句话配一个展开钮').toBe(null)
+  note('长回复折到面板高 60% 并给出展开入口、短回复不折，两半都在同一个现场证过')
 
-  const input = creation.locator('[data-agent-input="true"]')
-  await input.click()
-  await input.type('@')
-  const atPicker = win.locator('[data-agent-at-picker="true"]')
-  await expect(atPicker, '打 @ 必须弹出素材选择器').toBeVisible()
-  await expect(atPicker, '空项目里的 @ 选择器必须自报「空」').toHaveAttribute('data-empty', 'true')
-  await expect(atPicker.locator('[data-at-empty-cta="true"]'), '空态必须给一个「去上传」的出口').toBeVisible()
-  // 提示语必须由**真实选中态**推出来。修复前这四行是样张里编的四条固定文案，
-  // 空项目里也照样写「镜头 03 · 雨夜巷口」「00:06–00:14」——用户会去找一个不存在的镜头。
-  const referenceMenu = win.locator('[data-agent-menu]').filter({ has: win.locator('[data-agent-at-picker="true"]') }).last()
-  const pickerText = await referenceMenu.evaluate((node) => node.textContent || '')
-  record('atPickerHints', pickerText.replace(/\s+/g, ' ').slice(0, 240))
-  for (const fabricated of FABRICATED_AT_HINTS) {
-    expect(pickerText, `@ 选择器不许再摆样张里编出来的「${fabricated}」`).not.toContain(fabricated)
-  }
-  for (const derived of DERIVED_AT_HINTS) {
-    expect(pickerText, `空项目 + 创作面必须说「${derived}」这一支`).toContain(derived)
-  }
-  await walk.snap('05-at-picker-empty')
-  note('@ 选择器的四条提示都来自真实选中态，四条编造文案零出现')
-  await win.keyboard.press('Escape')
-  await input.fill('')
+  // 2026-09-06 拍板③：@ 素材选择器随旧面板一起删了（技能与提示词并进 composer 的 `/` 命令菜单，
+  // 附件走 [+] 那颗加号）。这一段原本验的 `data-agent-at-picker` 在 src/ 里已零调用点。
 
   // ── 幕四 · 生成面：safe-auto 直接写 / 不可逆要卡 / 再写仍不出卡 ─────────────────
   await openCanvas(win)
@@ -409,29 +383,26 @@ try {
     .toContain('nomi_canvas_maintenance')
   const approval = win.locator(INTERVENTION)
   const approvalProof = await proveProbe(approval, '不可逆动作会浮出介入槽审批卡')
-  await expect(approval, '删节点是不可逆动作').toHaveAttribute('data-agent-effect-class', 'irreversible')
-  await expect(approval.locator('[data-agent-approval-scope="once"]'), '不可逆动作必须给「这次」').toBeVisible()
-  await expect(approval.locator('[data-agent-intervention-boundary="true"]'), '不可逆动作必须画出边界行')
-    .toBeVisible()
-  const onceOnlyProof = await proveProbe(approval.locator('[data-agent-approval-scope="once"]'),
-    '审批卡上的「这次」按钮')
-  await expectAbsent(approval.locator('[data-agent-approval-scope="session"]'),
-    { provenBy: onceOnlyProof, message: '不可逆动作不该给「本会话」' })
-  await expectAbsent(approval.locator('[data-agent-approval-scope="always"]'),
-    { provenBy: onceOnlyProof, message: '不可逆动作不该给「总是」' })
+  // v4：可逆 / 不可逆写在槽的 data-kind 上（认不出的能力 fail-closed 到不可逆）。
+  await expect(approval, '删节点是不可逆动作').toHaveAttribute('data-kind', 'approval-irreversible')
+  await expect(approval.locator(INTERVENTION_CONFIRM), '不可逆动作必须给「确认」（= 仅这一次）').toBeVisible()
+  await expect(approval, '不可逆动作必须把授权范围写在卡面上').toContainText('范围：仅这一次')
+  const onceOnlyProof = await proveProbe(approval.locator(INTERVENTION_CONFIRM), '审批卡上的「确认」按钮')
+  // v4 只剩两档：「确认」（仅这一次）与「不再问 →」（这一个能力以后不再问）。
+  // 旧的「本会话」那一档随 2026-09-06 收口一起删了，所以这里只断言不可逆动作**没有**「不再问」。
+  await expectAbsent(approval.locator(INTERVENTION_ESCALATE),
+    { provenBy: onceOnlyProof, message: '不可逆动作不该给「不再问 →」' })
   // 卡片必须自己说清「删几个」。修复前 readableToolPreview 的 delete 分支根本走不到——
   // `canvas_nodes` 是 `delete_canvas_nodes` 的子串，写分支先把它吃掉了，摘要退化成
   // 「查看细节」，和下面详情折叠的标题一字不差地在同一张卡上出现两次。
   const deleteCardText = await approval.evaluate((node) => node.textContent || '')
   // 抬头（title）和摘要（summary）是卡上唯二不用展开就读得到的两行。介入槽没给它们
   // 各自的挂点，所以按结构取：摘要是卡里第一个 <p>，抬头是它前面那个兄弟。
-  const deleteHeading = await approval.evaluate((node) => {
-    const summary = node.querySelector('p')
-    return {
-      title: (summary?.previousElementSibling?.textContent || '').trim(),
-      summary: (summary?.textContent || '').trim(),
-    }
-  })
+  // v4 的槽头是 <header>（icon + 标题 + 徽章），摘要是槽体里第一个 <p>。
+  const deleteHeading = await approval.evaluate((node) => ({
+    title: (node.querySelector('header')?.textContent || '').trim(),
+    summary: (node.querySelector('p')?.textContent || '').trim(),
+  }))
   record('deleteCardHeading', deleteHeading)
   record('deleteCardSummary', deleteCardText.slice(0, 200))
   // 修复前抬头恒是 `agentResident.approvalMode`（「执行确认」）——一句放之四海皆准的话，
@@ -445,10 +416,8 @@ try {
   // 字一并算进来，所以「不展开就读得到」这件事不能拿整卡文本证，必须拆成两半：
   //   ① 折叠确实是关的、里面的 <dl> 确实不可见；
   //   ② 要证的那句话在**摘要那一行本身**的可见文本里。
-  const deleteDisclosure = approval.locator('[data-agent-approval-details="true"]')
-  const deleteDetails = approval.locator('[data-agent-tool-details="true"]')
-  expect(await deleteDisclosure.evaluate((node) => node.open), '详情折叠必须默认关着——这才叫静息态').toBe(false)
-  await expect(deleteDetails, '折叠关着的时候，里面的详情不该是可见的').toBeHidden()
+  // 2026-09-06 拍板③：介入槽里的**详情折叠 / 内联提案编辑器**删掉了——槽只有「确认 / 不要 /
+  // 不再问 →」，要改内容去那个对象自己的家。所以「静息态」就是整张卡：没有任何东西折在下面。
   const summaryLine = approval.locator('p').first()
   await expect(summaryLine, '摘要那一行本身必须可见').toBeVisible()
   await expect(summaryLine, '摘要必须报出这次要删几个对象').toContainText('1 个对象')
@@ -457,21 +426,7 @@ try {
   await expect(summaryLine, '模型给的理由必须在静息态就读得到，而不是折叠一层之下')
     .toContainText('这个镜头用不上')
   const restingSummary = (await summaryLine.innerText()).trim()
-  const restingTitle = (await approval.locator('p').first()
-    .evaluate((node) => node.previousElementSibling?.textContent || '')).trim()
-  record('deleteCardAtRest', { title: restingTitle, summary: restingSummary })
-  // 折叠的收合箭头：修复前 <summary> 是一条没有任何 affordance 的灰条，读起来像装饰而不是可点的。
-  // 「有没有」和「会不会转」分开证——转不动的箭头和没有箭头一样骗人。
-  const deleteChevron = deleteDisclosure.locator('summary svg').first()
-  await expect(deleteChevron, '详情折叠必须有一个收合箭头，而不是一条不知道能不能点的灰条').toBeVisible()
-  const chevronRotation = async () => deleteChevron.evaluate((node) => {
-    const transform = getComputedStyle(node).transform
-    if (!transform || transform === 'none') return 0
-    const [a, b] = transform.slice(transform.indexOf('(') + 1, -1).split(',').map(Number)
-    return Math.round((Math.atan2(b, a) * 180) / Math.PI)
-  })
-  const chevronClosed = await chevronRotation()
-  expect(chevronClosed, '关着的时候箭头指向右边（0°）').toBe(0)
+  record('deleteCardAtRest', { title: deleteHeading.title, summary: restingSummary })
   expect(deleteCardText, '整张卡上必须读得到模型自己给的理由').toContain('这个镜头用不上')
   // 还剩的一处摩擦：卡上说得出「删 1 个」和「为什么删」，仍说不出**删的是哪一个**。
   // 这里只量、不断言——把现状写成断言等于把它钉成规范。数字进 report.json，结论留给人。
@@ -482,41 +437,21 @@ try {
   })
   await walk.snap('07-irreversible-once-only')
 
-  // 展开详情：箭头必须真的转过去（group-open:rotate-90），详情里的参数行必须叫对名字。
-  await clickOrFail(deleteDisclosure.locator('summary'), '展开这张删除卡的详情')
-  await expect.poll(chevronRotation, {
-    message: '展开后箭头必须真的转 90°，而不是画一个不动的装饰',
-    timeout: 5_000,
-  }).toBe(90)
-  record('deleteDetailsChevron', { closedDegrees: chevronClosed, openDegrees: await chevronRotation() })
-  await expect(deleteDetails, '展开后详情才可见').toBeVisible()
-  // 模型自己给的 reason 从前被折进匿名的「其他设置 2 项」——卡上带着它，人却读不出它是什么。
-  // 现在 `reason` 有了自己的标签，而 `operation`（本来就是抬头那行）不再被算成一项匿名设置。
-  await expect(deleteDetails, '模型给的删除理由必须带标签落在详情里，而不是被折进匿名的「其他设置」')
-    .toContainText('理由: 这个镜头用不上')
-  const deleteDetailsText = await deleteDetails.evaluate((node) => node.textContent || '')
-  expect(deleteDetailsText, 'reason 有了标签、operation 不再算一项，详情里就不该再剩匿名的「其他设置 N 项」')
-    .not.toContain('其他设置')
-  // 这张卡在删东西，不在生成东西。参数行的标签是从生成路径继承下来的，「生成设置」在这里就是错的。
-  await expect(deleteDetails.locator('dt').filter({ hasText: '这次的设置' }),
-    '删除卡的参数行必须叫「这次的设置」').toBeVisible()
-  const deleteCardTextOpen = await approval.evaluate((node) => node.textContent || '')
-  expect(deleteCardTextOpen, '整张卡上任何一处都不该出现「生成设置」——这张卡不生成任何东西')
+  // 参数以 chip 摊在卡面上（v4 槽体的 params），不再折在一个 <details> 之下。
+  // 这张卡在删东西，不在生成东西——「生成设置」这个从生成路径继承来的标签在这里就是错的。
+  expect(deleteCardText, '整张卡上任何一处都不该出现「生成设置」——这张卡不生成任何东西')
     .not.toContain('生成设置')
-  record('deleteCardDetails', deleteDetailsText.trim())
-  await walk.snap('07b-irreversible-details-open')
-  await clickOrFail(approval.locator('[data-agent-approval-scope="once"]'), '批准这一次删除', { noWaitAfter: true })
+  record('deleteCardParams', await approval.locator('span').allInnerTexts().then((rows) => rows.join(' | ').slice(0, 200)))
+  await clickOrFail(approval.locator(INTERVENTION_CONFIRM), '批准这一次删除', { noWaitAfter: true })
   const deleteWire = await recorded(deleteResult.received, 'canvas delete tool-result request')
   expect(toolResultText(deleteWire.body, DELETE_CALL), '批准后必须真的删掉，而不是被措辞盖过去')
     .toContain('"applied":true')
   await expect(canvas).toContainText('K_CANVAS2_DONE')
   await expect.poll(canvasNodeIds, { message: '批准后的删除必须真的落盘', timeout: 30_000 }).toHaveLength(2)
-  await setToolGroup(canvas, true)
-  await expect(canvas.locator('[data-agent-tool-line="true"]'), '工具行必须叫它「删除镜头卡」，而不是一句通用的「查看细节」')
+  await expect(canvas.locator(TOOL_RECEIPT).last(), '工具行必须叫它「删除镜头卡」，而不是一句通用的「查看细节」')
     .toContainText('删除镜头卡')
-  await setToolGroup(canvas, false)
   await walk.snap('08-irreversible-applied')
-  note('irreversible 只给「这次」+ 边界行；卡片报出「1 个对象」，工具行叫它「删除镜头卡」')
+  note('irreversible 只给「确认（仅这一次）」；卡片报出「1 个对象」，工具行叫它「删除镜头卡」')
 
   // safe-auto 的可逆本地写：不出卡，但写入必须真的发生。
   const refillCall = walk.fixture.expectText({
@@ -575,17 +510,15 @@ try {
   })
   await sendCanvas(win, 'K_FAIL：再补一个候补镜头。')
   await recorded(failCall.received, 'failing tool request')
-  const toolLine = canvas.locator('[data-agent-tool-line="true"]')
-  await expect(toolLine, '有一步失败了，整条工具行必须自己变成 failed')
-    .toHaveAttribute('data-state', 'failed', { timeout: 30_000 })
+  // v4：一行收据自己带七态，失败就地变红并在行尾写原因——不成组、不折叠、不弹窗，
+  // 所以「不展开就看得见」在 v4 里是**默认**：那一行本身就是可见的失败态。
+  const toolLine = canvas.locator(`${TOOL_RECEIPT}[data-status="output-error"]`)
+  await expect(toolLine, '有一步失败了，那一行收据必须自己变成失败态')
+    .toBeVisible({ timeout: 30_000 })
   record('failedToolItems', (hostState()?.items ?? [])
     .filter((item) => item.kind === 'tool')
     .map((item) => ({ capability: item.capability?.id ?? '?', status: item.status })))
-  // 「不展开就看得见」是这条修复的全部意义，所以先把折叠头按回收起，再看徽标。
-  await setToolGroup(canvas, false)
-  const failedBadge = canvas.locator('[data-agent-tool-failed="true"]')
-  await expect(failedBadge, '折叠着也必须看得见「有一步没成功」').toBeVisible()
-  await expect(failedBadge, '徽标要说清几步没成功').toContainText('1 步没成功')
+  await expect(toolLine, '失败的那一行必须自己说「失败」，而不是安静地留在流里').toContainText('失败')
   await recorded(failFollow.received, 'post-failure request')
   await expect(canvas).toContainText('K_FAIL_DONE')
   await expect.poll(canvasNodeIds, { message: '失败的那一步不许在画布上留下半个节点', timeout: 30_000 })
@@ -601,35 +534,38 @@ try {
   })
   await sendCanvas(win, HOLD_ASK)
   await recorded(held.received, 'held turn request')
-  const interrupt = win.locator('[data-agent-interrupt-actions="true"]')
-  await expect(interrupt, '有轮次在跑时必须给出「排队 / 插队 / 停止」三选一').toBeVisible()
-  await expect(canvas.locator('[data-agent-composer-send][data-agent-stop]'),
+  // v4：运行中不再有「排队 / 插队 / 停止」三选一的模式钮——继续打字就是排队
+  //（composer 占位文案「可继续输入，将排队发送」），插队与中断是**队列行自己的**行尾动作。
+  await expect(canvas.locator(`${COMPOSER}[data-mode="running"] ${COMPOSER_SEND}[aria-label="停止"]`),
     '运行中发送键变成停止键——这时候只能靠回车排队').toBeVisible()
 
-  const canvasInput = canvas.locator('[data-agent-input="true"]')
+  const canvasInput = canvas.locator(COMPOSER_INPUT)
   const enqueue = async (text) => {
     await canvasInput.fill(text)
     await canvasInput.press('Enter')
   }
   await enqueue(QUEUE_B)
   await enqueue(QUEUE_C)
-  const queue = win.locator('[data-agent-queue="true"]')
+  const queue = canvas.locator(QUEUE)
   await expect(queue, '排队的两句必须出现在队列里').toBeVisible()
-  await expect(queue.locator('[data-agent-queue-row="true"]'), '运行中 1 条 + 排队 2 条').toHaveCount(3)
+  await expect(canvas.locator(QUEUE_ROW), '运行中 1 条 + 排队 2 条').toHaveCount(3)
 
-  await clickOrFail(interrupt.locator('[data-agent-interrupt="insert"]'), '切到插队')
   await enqueue(INSERT_D)
-  await expect(queue.locator('[data-agent-queue-row="true"]'), '插队后共 4 条').toHaveCount(4)
-  await expect(win.locator('[data-queue-more-row="true"]'), '超过 3 条时必须给出折叠控件').toBeVisible()
-  await expect(queue.locator('[data-agent-queue-remove="true"]').first(), '排队项必须带一个取消入口')
-    .toHaveCount(1)
+  await expect(canvas.locator(QUEUE_ROW), '再排一条后共 4 条').toHaveCount(4)
+  await expect(canvas.locator(`${QUEUE_ROW}[data-status="queued"]`).first().getByRole('button', { name: '删', exact: true }),
+    '排队项必须带一个取消入口').toHaveCount(1)
+  // 「插队」是行自己的动作：把 K_QD 那一行往前挪，直到它排在 K_QB / K_QC 前面。
+  const insertedRow = canvas.locator(QUEUE_ROW).filter({ hasText: 'K_QD：' })
+  for (let step = 0; step < 2; step += 1) {
+    await clickOrFail(insertedRow.getByRole('button', { name: '插队', exact: true }), `把 K_QD 往前挪一位（第 ${step + 1} 次）`)
+  }
   // 人眼在 10 号截图里看到队列行的状态字和按钮被面板右缘切掉，回来量准它。
-  // 2026-09-06 起这是硬断言：`min-w-0` 一旦从 [data-agent-queue] 或队列行上丢掉，
+  // 2026-09-06 起这是硬断言：`min-w-0` 一旦从 [data-v4-block="queue"] 或队列行上丢掉，
   // 长任务文案会把 flex 行撑过面板右缘，取消/停止键整排推出视口——看得见但点不着。
   const queueOverflow = await queue.evaluate((node) => {
     const panel = node.closest('[data-agent-panel="true"]')
     const panelRight = panel.getBoundingClientRect().right
-    const controls = [...node.querySelectorAll('[data-agent-queue-row="true"] button')]
+    const controls = [...node.querySelectorAll(':scope > div[data-status] button')]
     return {
       panelRight: Math.round(panelRight),
       viewportWidth: window.innerWidth,
@@ -639,7 +575,8 @@ try {
     }
   })
   record('queueRowOverflow', queueOverflow)
-  expect(queueOverflow.rowButtons, '四条队列各带两个控件（更多 + 取消/停止）').toBe(8)
+  // 运行中那条只有「立即中断」一个；三条排队各有「插队 / 删」两个。
+  expect(queueOverflow.rowButtons, '一条运行（1 个控件）+ 三条排队（各 2 个）').toBe(7)
   expect(queueOverflow.buttonsPastPanelEdge, '队列行的按钮一个都不许被推出面板右缘').toBe(0)
   expect(queueOverflow.queueRight, '队列本身不许伸出面板')
     .toBeLessThanOrEqual(queueOverflow.panelRight)
@@ -673,7 +610,8 @@ try {
   void bTurn.received.then(() => arrivals.push('K_QB'))
   void cTurn.received.then(() => arrivals.push('K_QC'))
 
-  await clickOrFail(interrupt.locator('[data-agent-interrupt="stop"]'), '叫停正在跑的那一轮')
+  await clickOrFail(canvas.locator(`${QUEUE_ROW}[data-status="running"]`).getByRole('button', { name: '立即中断', exact: true }),
+    '叫停正在跑的那一轮')
   held.release({ type: 'text', text: '（这一轮已被用户叫停）' })
   await recorded(dTurn.received, 'inserted turn request')
   await recorded(bTurn.received, 'first queued turn request')
@@ -710,10 +648,10 @@ try {
     match: (body) => hasToolResult(body, TIMELINE_PLAN_CALL),
     reply: { type: 'text', text: TIMELINE_REPLY },
   })
-  const previewInput = preview.locator('[data-agent-input="true"]')
+  const previewInput = preview.locator(COMPOSER_INPUT)
   await expect(previewInput).toBeVisible()
   await previewInput.fill(TIMELINE_ASK)
-  await clickOrFail(preview.locator('[data-agent-composer-send="true"]'), '发送剪辑面指令')
+  await clickOrFail(preview.locator(COMPOSER_SEND), '发送剪辑面指令')
   const readWire = await recorded(readCall.received, 'timeline read request')
   note(`剪辑面工具目录：${toolNames(readWire.body).join(', ')}`)
   expect(toolNames(readWire.body), '剪辑面必须摆出时间轴读写链')
@@ -734,14 +672,15 @@ try {
 
   const planApproval = win.locator(INTERVENTION)
   await expect(planApproval, '需要读计划的改动必须先浮出审批卡').toBeVisible({ timeout: 30_000 })
-  await expect(planApproval, '这是可逆的本地改动').toHaveAttribute('data-agent-effect-class', 'reversible_local')
-  for (const scope of ['once', 'session', 'always']) {
-    await expect(planApproval.locator(`[data-agent-approval-scope="${scope}"]`),
-      `可逆本地改动必须给出「${scope}」这一档`).toBeVisible()
-  }
+  // 可逆的本地改动才有「不再问 →」；不可逆和花钱的永远逐次问（上面那张删除卡已证反面）。
+  await expect(planApproval, '这是可逆的本地改动').not.toHaveAttribute('data-kind', 'approval-irreversible')
+  await expect(planApproval.locator(INTERVENTION_CONFIRM), '必须给「确认」（= 仅这一次）').toBeVisible()
+  await expect(planApproval.locator(INTERVENTION_ESCALATE), '可逆本地改动必须给「不再问 →」').toBeVisible()
+  await expect(planApproval, '「不再问」的作用域必须写在卡面上，别让人以为是全项目放行')
+    .toContainText('只对这一个操作生效')
   await expect(planApproval, '审批卡要说人话，而不是甩一段 operation JSON').toContainText(CAPTION_TEXT)
-  await walk.snap('12-reversible-three-scopes')
-  await clickOrFail(planApproval.locator('[data-agent-approval-scope="once"]'), '应用这次', { noWaitAfter: true })
+  await walk.snap('12-reversible-confirm-and-stop-asking')
+  await clickOrFail(planApproval.locator(INTERVENTION_CONFIRM), '应用这次', { noWaitAfter: true })
   const planResultWire = await recorded(planResult.received, 'timeline plan tool-result request')
   expect(toolResultText(planResultWire.body, TIMELINE_PLAN_CALL), '批准后的计划必须真的应用')
     .toContain('"applied":true')
@@ -756,18 +695,20 @@ try {
 
   // ── 收尾 · 已知无调用点的例外卡在真实运行时确实一次都没出现 ─────────────────────
   const transcript = win.locator('[data-agent-resident="true"]')
-  const transcriptProof = await proveProbe(transcript.locator('[data-agent-item-kind]'), '誊本里有真实条目')
+  const transcriptProof = await proveProbe(transcript.locator('[data-v4-block]'), '誊本里有真实条目')
+  // v4 里这三件事都收进了介入槽的 kind（spend / question）与任务卡的候选缩略图。
+  // 「整条真实旅程里一次都没花过钱、也没被反问过」仍然是要证的，所以断言按 kind 走。
   for (const [selector, label] of [
-    ['[data-agent-spend-card]', 'ResidentSpendCard'],
-    ['[data-agent-candidates-card]', 'ResidentCandidatesCard'],
-    ['[data-agent-question-card]', 'ResidentQuestionCard'],
+    [`${APPROVAL_CARD}[data-kind="spend"]`, '付费介入槽'],
+    ['[data-v4-block="task"] [data-adopted]', '任务卡候选采用态'],
+    [`${APPROVAL_CARD}[data-kind="question"]`, '反问介入槽'],
   ]) {
     await expectAbsent(win.locator(selector), {
       provenBy: transcriptProof,
-      message: `${label} 在整条真实旅程里一次都没被渲染过（它在 src/ 里零调用点）`,
+      message: `${label} 在整条真实旅程里一次都没被渲染过`,
     })
   }
-  note('spend / candidates / question 三张卡在真实旅程里确实零出现')
+  note('付费槽 / 候选采用 / 反问槽在真实旅程里确实零出现')
 
   // ── 幕七 · 冷重启：把进程真的杀掉再起，做过的事必须还在 ─────────────────────────
   // 必须是真冷启（stopApp 会断言 exitCode/signalCode 非空），不许用 win.reload()：
@@ -813,8 +754,8 @@ try {
   }
 
   // ③ 这条对话在会话列表里还**选得回来**——不是「还看得见」。点它，誊本仍是这一条。
-  await clickOrFail(creationAfter.locator('[data-agent-history="true"]'), '重启后打开会话列表')
-  const threadRows = win.locator('[data-agent-thread-menu="true"] > div')
+  await clickOrFail(creationAfter.locator(HISTORY_BUTTON), '重启后打开会话列表')
+  const threadRows = win.locator(`${THREAD_MENU} > div`)
   await expect(threadRows, '表头 + 唯一那条幸存对话').toHaveCount(2)
   await clickOrFail(threadRows.nth(1).getByRole('button').first(), '重启后选回原来那条对话')
   await expect(creationAfter, '选回来之后誊本仍是那一条').toContainText('K_T3_DONE')
@@ -846,7 +787,7 @@ try {
   // ① 删「不是当前这条」的那条——它带着这一整条旅程的全部 turn。
   //    修复前这一删会让下一次冷启动整体验签失败：历史 patch 里仍指着这条已删线程，
   //    快照与备份双双读不出来，Host 抛 ProjectAgentRepositoryIntegrityError。
-  await clickOrFail(creationAfter.locator('[data-agent-history="true"]'), '打开会话列表准备删旧对话')
+  await clickOrFail(creationAfter.locator(HISTORY_BUTTON), '打开会话列表准备删旧对话')
   await expect(threadRows, '表头 + 两条对话').toHaveCount(3)
   const threadOrder = (hostState()?.threads ?? []).map((thread) => thread.threadId)
   const oldRowIndex = threadOrder.indexOf(oldThreadId)
@@ -914,11 +855,11 @@ try {
   // 没基线的「没看到」是空话。改用更强的正面证据——面板列得出线程、而且还能真的跑一轮，
   // 历史打不开的话这两条都过不去。报错条的数量只记录，不断言。
   record('agentErrorBannersAfterRestart',
-    await win.locator('[data-agent-composer="true"] [role="alert"]').count())
-  await clickOrFail(creationFinal.locator('[data-agent-history="true"]'), '删完对话冷启后打开会话列表')
-  await expect(win.locator('[data-agent-thread-menu="true"] > div'), '表头 + 唯一那条幸存对话')
+    await win.locator('[data-agent-error="true"]').count())
+  await clickOrFail(creationFinal.locator(HISTORY_BUTTON), '删完对话冷启后打开会话列表')
+  await expect(win.locator(`${THREAD_MENU} > div`), '表头 + 唯一那条幸存对话')
     .toHaveCount(2)
-  await clickOrFail(creationFinal.locator('[data-agent-history="true"]'), '收起会话列表')
+  await clickOrFail(creationFinal.locator(HISTORY_BUTTON), '收起会话列表')
 
   const afterDelete = walk.fixture.expectText({
     label: 'a fresh turn still runs after the deleted-thread cold restart',

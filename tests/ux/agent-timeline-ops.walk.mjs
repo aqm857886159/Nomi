@@ -9,10 +9,12 @@ import os from 'node:os'
 import path from 'node:path'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { clickOrFail, expect, expectAbsent, proveProbe, screenshotSettled, DEFAULT_TIMEOUT_MS } from './_assert.mjs'
-import { createAgentRuntimeFixture, FIXTURE_TEXT_MODEL, FIXTURE_VENDOR, flattenRequestText } from './agent-runtime-fixture.mjs'
-import { hasToolResult, recorded } from './agent-runtime-walk-support.mjs'
-
-const PREVIEW_PANEL = '[data-agent-resident="true"][data-agent-panel="true"][data-agent-surface="preview"]'
+import { createAgentRuntimeFixture, FIXTURE_TEXT_MODEL_LABEL, flattenRequestText } from './agent-runtime-fixture.mjs'
+import {
+  APPROVAL_CARD, COLLAPSED_DOCK, COLLAPSED_SHELL, COLLAPSE_BUTTON, COMPOSER, COMPOSER_INPUT,
+  COMPOSER_SEND, INTERVENTION_CONFIRM, INTERVENTION_ESCALATE, PREVIEW_PANEL,
+  chooseAssistantModel, hasToolResult, recorded,
+} from './agent-runtime-walk-support.mjs'
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/agent-timeline-ops')
 fs.rmSync(shotsDir, { recursive: true, force: true })
 fs.mkdirSync(shotsDir, { recursive: true })
@@ -121,10 +123,10 @@ async function proposePlan({ prompt, readToolId, planToolId, plan, doneText }) {
     match: (body) => hasToolResult(body, planToolId),
     reply: { type: 'text', text: doneText },
   })
-  const input = win.locator(`${PREVIEW_PANEL} [data-agent-input="true"]`)
+  const input = win.locator(`${PREVIEW_PANEL} ${COMPOSER_INPUT}`)
   await expect(input).toBeVisible()
   await input.fill(prompt)
-  await clickOrFail(win.locator(`${PREVIEW_PANEL} [data-agent-composer-send="true"]`), `发送剪辑指令：${prompt}`)
+  await clickOrFail(win.locator(`${PREVIEW_PANEL} ${COMPOSER_SEND}`), `发送剪辑指令：${prompt}`)
   const readWire = await recorded(readCall.received, `${planToolId} read_timeline request`)
   expect((readWire.body.tools ?? []).map((tool) => tool.function.name), 'The preview surface must advertise the timeline write chain')
     .toEqual(expect.arrayContaining(['read_timeline', 'propose_edit_plan', 'apply_edit_plan', 'undo_timeline_edit']))
@@ -165,18 +167,18 @@ try {
   const assistantRail = win.locator('[data-testid="editing-surface-assistant"] .workbench-panel-rail')
   if (await assistantRail.count()) await clickOrFail(assistantRail, '从图标条展开 Nomi')
   await expect(agent, '剪辑面常驻 Agent 未挂载').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
-  await clickOrFail(agent.locator('[data-agent-composer-model="true"]'), '剪辑面 Agent 模型选择器')
-  await clickOrFail(win.locator(`[data-agent-menu-item="${FIXTURE_VENDOR}/${FIXTURE_TEXT_MODEL}"]`), '选用 loopback 文本模型')
+  await chooseAssistantModel(win, FIXTURE_TEXT_MODEL_LABEL, PREVIEW_PANEL)
 
-  // ① 选中镜头 2 → 输入框出现可见 chip（片段 / 轨道 / 起止 / revision）
+  // ① 选中镜头 2 → 输入框出现可见 chip（v4：composer 自己的 [data-v4-chip="clip"]）
   const clipB = timelinePanel.locator('[data-testid="timeline-clip"]').filter({ hasText: '推门近景' }).first()
   await expect(clipB, '镜头 2 未渲染').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
   await clipB.click()
-  const chip = agent.locator('[data-agent-timeline-selection="true"]').first()
+  const chip = agent.locator(`${COMPOSER} [data-v4-chip="clip"]`).first()
   await expect(chip, '选中片段必须在输入框上出现可见 chip').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
-  await expect(chip).toHaveAttribute('data-clip-id', 'clip-b')
-  await expect(chip).toHaveAttribute('data-track-id', 'videoTrack')
-  await expect(chip).toHaveAttribute('data-revision', /.+/)
+  // v4 的 chip 上只有人话名字（clipId / trackId / revision 三个工程串已不再挂在 DOM 上）。
+  // 判据换成「它指的就是这一段」：名字对得上，且没有把内部 id 印给用户看。
+  await expect(chip, 'chip 必须写片段名，不是 clipId').toContainText('推门近景')
+  await expect(chip, 'chip 上不该出现内部 id').not.toContainText('clip-b')
   await screenshotSettled(win, { path: path.join(shotsDir, '01-selection-chip.png') })
 
   // ② 第一轮：修剪 —— 计划高亮 + 介入槽审批卡，两者同时可见且尚未落盘
@@ -187,12 +189,16 @@ try {
     plan: { planId: 'walk-plan-trim', summary: '把「推门近景」的结尾收紧 1 秒', operations: [{ kind: 'trim', clipId: 'clip-b', edge: 'right', deltaFrame: -30 }] },
     doneText: 'WALK_TRIM_DONE：已按计划把结尾收紧。',
   })
-  const approval = agent.locator('[data-agent-intervention-slot="true"]').first()
+  const approval = agent.locator(APPROVAL_CARD).first()
   const approvalProof = await proveProbe(approval, '剪辑计划的介入槽必须可见')
   await expect(approval, '介入槽必须逐条给出人话摘要，而不是一串 operation JSON').toContainText('收紧')
-  await expect(approval, '可逆的本地改动才给到「总是」这一档').toHaveAttribute('data-agent-effect-class', 'reversible_local')
-  await expect(approval.locator('[data-agent-approval-scope="session"]'), '「本会话」必须是真控件').toBeVisible()
-  await expect(approval.locator('[data-agent-approval-scope="always"]'), '「总是」必须是真控件').toBeVisible()
+  // v4：可逆 / 不可逆写在槽的 data-kind 上（时间轴计划带 planLines 时 kind 是 plan，
+  // 否则可逆改动是 approval-reversible）。两者都必须**不是** irreversible。
+  await expect(approval, '可逆的本地改动不该被判成不可逆').not.toHaveAttribute('data-kind', 'approval-irreversible')
+  // 授权范围在 v4 里只剩两档：「确认」（仅这一次）与「不再问 →」（这一个能力以后不再问，
+  // = 旧的 approvalScope 'always'）。旧的「本会话」那一档随 2026-09-06 收口一起删了，
+  // 所以这里不再断言它存在——那会变成一条钉住已删控件的死断言。
+  await expect(approval.locator(INTERVENTION_ESCALATE), '可撤销的改动才给到「不再问 →」').toBeVisible()
   const previewBands = win.locator('[data-timeline-plan-preview="true"] [data-plan-preview-band]')
   await expect(previewBands.first(), '待批准的计划必须先在时间轴上高亮').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
   const bandsProof = await proveProbe(previewBands.first(), '待批准的计划会在时间轴上画出高亮带')
@@ -201,7 +207,7 @@ try {
   await screenshotSettled(win, { path: path.join(shotsDir, '02-plan-highlight-and-approval.png') })
 
   // ③ 应用这次 → 收据 toast（含撤销）
-  await clickOrFail(approval.locator('[data-agent-approval-scope="once"]'), '应用这次', { noWaitAfter: true })
+  await clickOrFail(approval.locator(INTERVENTION_CONFIRM), '应用这次', { noWaitAfter: true })
   const trimWire = await recorded(trimmed.received, '已应用的剪辑结果回到模型')
   expect(toolResultText(trimWire.body, 'walk-trim-1'), '批准后的 apply_edit_plan 必须真的应用，而不是报错后被模型的措辞盖过去').toContain('"applied":true')
   await expect(win.locator(PREVIEW_PANEL)).toContainText('WALK_TRIM_DONE')
@@ -235,13 +241,13 @@ try {
     },
     doneText: 'WALK_OPS_DONE：转场、字幕、音量都按计划改好了。',
   })
-  const opsApproval = agent.locator('[data-agent-intervention-slot="true"]').first()
+  const opsApproval = agent.locator(APPROVAL_CARD).first()
   await expect(opsApproval, '三类 op 走同一个介入槽').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
   for (const sentence of ['加叠化', '改成', '音量']) {
     await expect(opsApproval, `介入槽必须逐条列出三类 op：缺了「${sentence}」`).toContainText(sentence)
   }
   await screenshotSettled(win, { path: path.join(shotsDir, '05-three-ops-approval.png') })
-  await clickOrFail(opsApproval.locator('[data-agent-approval-scope="once"]'), '应用三类 op', { noWaitAfter: true })
+  await clickOrFail(opsApproval.locator(INTERVENTION_CONFIRM), '应用三类 op', { noWaitAfter: true })
   const opsWire = await recorded(authored.received, '三类 op 的结果回到模型')
   expect(toolResultText(opsWire.body, 'walk-ops-2'), '三类 op 必须真的应用').toContain('"applied":true')
   await expect.poll(async () => {
@@ -260,13 +266,15 @@ try {
   await screenshotSettled(win, { path: path.join(shotsDir, '06-three-ops-applied.png') })
 
   // ⑥ Nomi 收起 = 结果全屏：输入框落到预览下沿居中，介入槽仍在其上，叫回的入口只有右侧图标条
-  await clickOrFail(agent.locator('[data-agent-collapse="true"]'), '收起 Nomi')
-  const collapsed = win.locator('[data-agent-resident="true"][data-agent-collapsed="true"]')
+  await clickOrFail(agent.locator(COLLAPSE_BUTTON), '收起 Nomi')
+  const collapsed = win.locator(COLLAPSED_SHELL)
   await expect(collapsed, '收起后常驻 Agent 仍在预览面上').toBeVisible({ timeout: DEFAULT_TIMEOUT_MS })
-  const dock = win.locator('[data-agent-collapsed-dock="true"]')
-  await expect(dock, '收起后输入框必须落到预览下沿').toBeVisible()
-  await expect(dock.locator('[data-agent-input="true"]'), '收起后仍然只有一个输入框').toHaveCount(1)
-  await expect(win.locator('[data-agent-input="true"]'), '收起不该多造一个 composer').toHaveCount(1)
+  // 定稿 Collapsed 板：右栏收成 32px 图标条，**同一个 composer 落到画面下沿居中、对话不中断**。
+  // composer 的 dock 形态（AgentPanelV4Composer 的 `dock` prop）已经存在，缺的是外壳把它挂上去。
+  const dock = win.locator(COLLAPSED_DOCK)
+  await expect(dock, '收起后仍留一根图标条').toBeVisible()
+  await expect(win.locator(`${COLLAPSED_SHELL} ${COMPOSER_INPUT}`), '收起后输入框必须落到预览下沿（对话不中断）').toHaveCount(1)
+  await expect(win.locator(COMPOSER_INPUT), '收起不该多造一个 composer').toHaveCount(1)
   // 一功能一个家：叫回 Nomi 只有右侧 32px 图标条这一个入口，且它带运行状态点。
   // 数的是「界面上有几个能把 Nomi 叫回来的控件」——这是个**计数**断言，多一个入口就红；
   // 写成「旧胶囊不存在」那种缺席断言只会恒真（旧选择器已随组件一起删）。

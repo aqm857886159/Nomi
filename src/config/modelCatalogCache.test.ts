@@ -11,7 +11,7 @@ vi.mock('../workbench/api/modelCatalogApi', () => ({
   listWorkbenchModelCatalogVendors: mocks.listVendors,
 }))
 
-import { notifyModelOptionsRefresh, preloadModelOptions } from './modelCatalogCache'
+import { keepRunnableVendorOptions, notifyModelOptionsRefresh, preloadModelOptions } from './modelCatalogCache'
 import { derivePublishedExecution } from '../../electron/shared/modelPublication'
 
 const row = (modelKey: string, publishedModes: string[] = ['text_to_image'], meta?: unknown) => ({
@@ -121,5 +121,43 @@ describe('normal picker verified-only projection', () => {
     await expect(preloadModelOptions('image')).resolves.toMatchObject([{ value: 'shared-image', vendor: 'survivor' }])
     notifyModelOptionsRefresh()
     await expect(preloadModelOptions('imageEdit')).resolves.toMatchObject([{ value: 'shared-image', vendor: 'source' }])
+  })
+})
+
+// 2026-09-06 用户拍板：没接入的供应商，它的模型**不显示**（不是灰显沉底）。
+// 闸只有这一道，开在 catalog 派生层——所以这里既测纯函数，也测它真的接在了取目录的链上。
+describe('未接入的供应商在 catalog 那层就没了', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    notifyModelOptionsRefresh()
+  })
+
+  it('keepRunnableVendorOptions 只放行接入了的家（大小写不敏感，vendor 缺失一律挡）', () => {
+    const kept = keepRunnableVendorOptions(
+      [
+        { value: 'a', label: 'A', vendor: 'APIMart' },
+        { value: 'b', label: 'B', vendor: 'runninghub' },
+        { value: 'c', label: 'C' },
+      ],
+      new Set(['apimart']),
+    )
+    expect(kept.map((option) => option.value)).toEqual(['a'])
+  })
+
+  it('空集 = 一家都没接入，不是「随便放行」', () => {
+    expect(keepRunnableVendorOptions([{ value: 'a', label: 'A', vendor: 'apimart' }], new Set())).toEqual([])
+  })
+
+  it('拔了 key 但 vendor 仍 enabled 的家，模型一行都不出现（选择器也拿不到）', async () => {
+    mocks.listModels.mockResolvedValue([
+      { ...row('with-key'), vendorKey: 'has-key' },
+      { ...row('no-key'), vendorKey: 'lost-key' },
+    ])
+    mocks.listVendors.mockResolvedValue([
+      { key: 'has-key', name: 'Has key', enabled: true, authType: 'bearer', hasApiKey: true },
+      { key: 'lost-key', name: 'Lost key', enabled: true, authType: 'bearer', hasApiKey: false },
+    ])
+
+    await expect(preloadModelOptions('image')).resolves.toMatchObject([{ value: 'with-key', vendor: 'has-key' }])
   })
 })

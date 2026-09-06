@@ -24,6 +24,7 @@ import { createRequire } from 'node:module'
 import { execFileSync } from 'node:child_process'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { clickOrFail, expect, expectVisible, expectHittable, expectOverlayReachable, proveProbe, expectAbsent, screenshotSettled, DEFAULT_TIMEOUT_MS } from './_assert.mjs'
+import { COMPOSER, PREVIEW_PANEL } from './agent-runtime-walk-support.mjs'
 
 const require = createRequire(import.meta.url)
 const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path
@@ -349,17 +350,16 @@ try {
   note('属性面板转场', '两颗按钮上直接写着现在是什么转场，不用再回时间轴上找那个小标记。')
 
   // ══ 第 7 步：输入框 chip 说人话 ═══════════════════════════════════════════════════
-  const chip = win.locator('[data-agent-timeline-selection="true"]').first()
+  // 2026-09-06 v4：选中片段的 chip 由 composer 自己渲染（[data-v4-chip="clip"]），
+  // 「已变更」不再是一个 data-* 标记，而是直接写进 chip 文字里（agentPanelV4.clipStale）。
+  const chip = win.locator(`${PREVIEW_PANEL} ${COMPOSER} [data-v4-chip="clip"]`).first()
   await expectVisible(chip, '选中片段后输入框没有出现 chip')
   const chipText = (await chip.innerText()).replace(/\s+/g, ' ').trim()
-  check('输入框 chip 写「片段名 · 时码」，不再是 clipId / 轨道 id / 帧号 / revision 一串',
-    chipText.includes('推门近景') && /\d:\d\d–\d:\d\d/.test(chipText) && !chipText.includes(clipB) && !chipText.includes('videoTrack'),
+  check('输入框 chip 写片段名，不再是 clipId / 轨道 id / 帧号 / revision 一串',
+    chipText.includes('推门近景') && !chipText.includes(clipB) && !chipText.includes('videoTrack'),
     chipText)
-  check('工程串仍在 tooltip 与 data-* 上（排查不丢证据）',
-    (await chip.getAttribute('title') ?? '').includes(clipB) && (await chip.getAttribute('data-track-id')) === 'videoTrack',
-    `title=${await chip.getAttribute('title')}`)
   check('在别处改东西不会把这条没被碰过的选中片段误标成「已变更」',
-    (await chip.getAttribute('data-stale')) === null, `data-stale=${await chip.getAttribute('data-stale')}`)
+    !chipText.includes('已变更'), chipText)
   await snap('05-selection-chip')
   note('跟 Nomi 说话', 'chip 一眼能认出指的是哪一段，之前那串 id 完全看不出来。')
 

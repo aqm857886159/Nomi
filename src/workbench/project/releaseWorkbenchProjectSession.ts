@@ -12,7 +12,7 @@ import { createDefaultWorkbenchDocument } from '../workbenchTypes'
 import { useShotVerifyStore } from '../generationCanvas/agent/shotVerifyStore'
 import { abandonPendingCanvasWrite } from '../generationCanvas/events/canvasWriteBoundary'
 import { invalidateAgentTurnStates } from '../ai/agentTurnLifecycle'
-import { DEFAULT_PROJECT_AGENT_APPROVAL_POLICY, DEFAULT_PROJECT_AGENT_WORK_MODE } from '../../../electron/shared/projectAgentContracts'
+import { DEFAULT_PROJECT_AGENT_APPROVAL_POLICY } from '../../../electron/shared/projectAgentContracts'
 import { cloneEditingPanelLayout, EDITING_PANEL_DEFAULTS } from '../preview/panelLayout'
 
 /**
@@ -67,7 +67,6 @@ export function releaseWorkbenchProjectRuntimeState(): void {
     projectAgentDraft: '',
     projectAgentAttachments: [],
     projectAgentReferences: [],
-    projectAgentRunMode: DEFAULT_PROJECT_AGENT_WORK_MODE,
     projectAgentApprovalPolicy: DEFAULT_PROJECT_AGENT_APPROVAL_POLICY,
     projectAgentDockCollapsed: false,
     storyboardDesignsByDocumentId: {},

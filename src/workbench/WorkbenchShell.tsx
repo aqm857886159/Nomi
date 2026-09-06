@@ -12,6 +12,8 @@ import {
 } from "./workbenchStore";
 import { cn } from "../utils/cn";
 import ProjectExplorerSidebar from "./explorer/ProjectExplorerSidebar";
+import DocumentListSidebar from "./creation/DocumentListSidebar";
+import { workspaceModeCarriesCreationResourceTree } from "./creation/creationResourceTreeModes";
 import { lazyWithChunkBoundary } from "../ui/chunkBoundary";
 import { WindowControls } from "../ui/app-shell/WindowControls";
 import { handleWindowTitlebarDoubleClick } from "../ui/app-shell/windowTitlebarDoubleClick";
@@ -28,7 +30,7 @@ const CreationWorkspace = lazyWithChunkBoundary(
     () => import("./creation/CreationWorkspace"),
 );
 // 分镜独立工作区（v5 C3）：storyboard 模式不再共用 CreationWorkspace，
-// 单独懒挂载全宽 StoryboardWorkspace（无文档侧栏、无 AI 栏）。
+// 单独懒挂载全宽 StoryboardWorkspace（表本身全宽；创作资源树由本 shell 统一挂，见下）。
 const StoryboardWorkspace = lazyWithChunkBoundary(
     "i18n:workspace.storyboard",
     () => import("./creation/storyboard/StoryboardWorkspace"),
@@ -148,9 +150,6 @@ export default function WorkbenchShell({
     const setWorkspaceMode = useWorkbenchStore(
         (state) => state.setWorkspaceMode,
     );
-    const setTimelineSelection = useWorkbenchStore(
-        (state) => state.setTimelineSelection,
-    );
     const categories = useWorkbenchStore((state) => state.categories);
     const agentDockCollapsed = useWorkbenchStore((state) => state.projectAgentDockCollapsed);
     // 常驻 Agent 无条件渲染（2026-09-05 开闸）：发布闸 agentHostPreference 已随开闸删除——
@@ -220,38 +219,10 @@ export default function WorkbenchShell({
         );
     }, [workspaceMode]);
 
-    React.useEffect(() => {
-        const onAgentContextFocus = (event: Event) => {
-            const detail = (event as CustomEvent<{ surface?: string; nodeIds?: unknown; clipIds?: unknown }>).detail;
-            const surface = detail?.surface;
-            if (surface !== "creation" && surface !== "generation" && surface !== "preview") return;
-            const nextMode: WorkspaceMode = surface === "creation" ? "creation" : surface;
-            const nodeIds = Array.isArray(detail?.nodeIds)
-                ? detail.nodeIds.filter((id): id is string => typeof id === "string" && id.length > 0)
-                : [];
-            const clipIds = Array.isArray(detail?.clipIds)
-                ? detail.clipIds.filter((id): id is string => typeof id === "string" && id.length > 0)
-                : [];
-            if (surface === "preview" && clipIds.length > 0) setTimelineSelection(clipIds);
-            if (workspaceMode !== nextMode) {
-                setWorkspaceMode(nextMode);
-                writeWorkspaceModeToUrl(nextMode);
-            }
-            requestAnimationFrame(() => {
-                document.querySelector<HTMLElement>(`.workbench-${surface}`)?.scrollIntoView({
-                    block: "nearest",
-                    inline: "nearest",
-                });
-                if (surface === "generation" && nodeIds.length > 0) {
-                    window.dispatchEvent(new CustomEvent("nomi-focus-generation-node", {
-                        detail: { nodeId: nodeIds[0] },
-                    }));
-                }
-            });
-        };
-        window.addEventListener("nomi-agent-context-focus", onAgentContextFocus);
-        return () => window.removeEventListener("nomi-agent-context-focus", onAgentContextFocus);
-    }, [setTimelineSelection, setWorkspaceMode, workspaceMode]);
+    // 「定位到它」这个入口随旧面板一起删了：v4 的八个积木里没有定位控件——
+    // icon 标的是**动的那个对象**，不是一个可以点的跳转。留着一个没人派发的监听，
+    // 正是 `customEventWiring` 那条不变量要抓的死码（有监听没派发 = 这个入口永远打不开）。
+    // 要恢复这条能力，得先在设计里给它一个控件，再同时补派发方与监听方。
 
     React.useEffect(() => {
         const onOpenSkillLibrary = () => {
@@ -362,6 +333,10 @@ export default function WorkbenchShell({
                 {workspaceMode === "generation" ? (
                     <ProjectExplorerSidebar projectId={projectId ?? null} categories={categories} />
                 ) : null}
+                {/* 创作资源树（原稿 + 各自的分镜方案）：写剧本和编分镜表是同一批资源的两个视图，
+                    所以树归 shell 所有、跨这两个模式常驻——挂在任一工作区里都会让另一个工作区
+                    没有树（2026-09-06 回归：点开一个方案就再也点不到别的剧本/分镜）。 */}
+                {workspaceModeCarriesCreationResourceTree(workspaceMode) ? <DocumentListSidebar /> : null}
                 <div className='flex-1 min-w-0 min-h-0 relative'>
                     {mountedWorkspaceModes.includes("creation") ? (
                         <WorkspaceSlot

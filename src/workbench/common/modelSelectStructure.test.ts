@@ -78,6 +78,44 @@ describe('model select structure — 选了模型就必须选得了供应商', (
     ).toEqual([])
   })
 
+  // 2026-09-06：这一轮返工的**类**根因是「共享边界长出第二个答案」，一次改动里犯了三回：
+  // 第二条供应商排序规则、同一行上两种「走哪家」的说法、以及把 catalog 的全局硬过滤放宽成
+  // 「每个选择器自己决定看不看得见没接入的家」。前两条各自删到只剩一份，这条把第三条钉死：
+  // 用户 2026-09-06 拍板「没接入的家不显示」之后，那道闸只剩 catalog 一处，**没有放宽口**。
+  it('「这家能不能跑」只有 catalog 一道闸，谁也不许自带取景开关', () => {
+    const cache = readCode('src/config/modelCatalogCache.ts')
+    expect(cache, '闸必须住在 catalog 派生层').toContain('export function keepRunnableVendorOptions')
+    expect(cache, '放宽口是被删掉的旧实现，不许复活（P1）').not.toContain('includeUnconfigured')
+
+    // 谁都不该再有第二个「取景」参数：有了它，「谁能看见没接入的家」就又变成一件可商量的事。
+    const survivors = listSourceFiles(SRC_ROOT)
+      .map((file) => path.relative(process.cwd(), file))
+      .filter((relative) => /MODEL_PICKER_CATALOG_SCOPE|CatalogOptionScope|includeUnconfigured/.test(readCode(relative)))
+      .sort()
+    expect(
+      survivors,
+      [
+        '有文件还带着 catalog 取景开关。2026-09-06 用户拍板：没接入的供应商，它的模型不显示——',
+        '既然任何界面都不再需要「连没配 key 的家也给我」那一份，这个开关就没有第二种取景可选，',
+        '留着只会让下一个人以为「看不看得见」是调用点的自由（P1 无并行版、无逃生口）。',
+      ].join('\n'),
+    ).toEqual([])
+  })
+
+  // 同一个问题只能有一个答案：「先走哪家」的排序规则全仓只许有 sortModelProviders 一份。
+  // 第一版留下了 resolveBestProvider（零生产调用方却还在），两份规则里活着的那份还悄悄
+  // 丢了供应商分级——默认家于是从官方漂到字母序第一家，没有人做过这个决定。
+  it('「先走哪家」只有一条排序规则', () => {
+    const identity = readCode('src/config/modelIdentity.ts')
+    expect(identity, '排序规则必须住在 sortModelProviders').toContain('export function sortModelProviders')
+    expect(identity, '分级这一级不许省：省了就退化成厂商名字母序').toContain('vendorTier(a.provider.vendor) - vendorTier(b.provider.vendor)')
+    const survivors = listSourceFiles(SRC_ROOT)
+      .map((file) => path.relative(process.cwd(), file))
+      .filter((relative) => readCode(relative).includes('resolveBestProvider'))
+      .sort()
+    expect(survivors, 'resolveBestProvider 是被 sortModelProviders 取代的旧规则，不许复活（P1）').toEqual([])
+  })
+
   it('批量选模型只有一份实现：所有批量调用点都走同一份 BulkModelPicker，不各写各的', () => {
     // 画布两个批量入口（框选工具条 + 底部「生成全部」坞）实现共同住进 CanvasBulkModelSelect —
     // 那份薄封装内部用 BulkModelPicker（PR #157：抽共享组件防两入口漂移）。分镜批量条直接用 BulkModelPicker。

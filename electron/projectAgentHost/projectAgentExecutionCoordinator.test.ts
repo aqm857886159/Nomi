@@ -953,6 +953,42 @@ describe("ProjectAgentExecutionCoordinator", () => {
     reopened.release(restored.subscriptionId);
   });
 
+  it("keeps the runtime's own reason for a failed turn, instead of a status word with nothing behind it", async () => {
+    // 运行时把「这一回合为什么没成」的人话只在 hooks 上说一次。宿主以前只认 content-delta，
+    // 那句话被原地丢掉：落盘只剩一个 `failed`，对话流里一条 failure 都没有，渲染层于是只能
+    // 印一句「发送失败，请检查后重试。」——真机上一次 400 就是这么变成「什么都没说」的。
+    root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-runtime-failure-"));
+    const reason = "（HTTP 400）Invalid JSON payload received. Unknown name \"const\"";
+    const coordinator = createProjectAgentExecutionCoordinator(
+      createProjectAgentRepositoryRouter({ rootDir: root }),
+      () => "subscription-runtime-failure",
+      {
+        runAgent: async (_request, hooks) => {
+          hooks.emit({ type: "error", message: reason });
+          return {
+            id: "runtime-failure-result",
+            status: "error",
+            text: "",
+            finishReason: "error",
+            artifacts: [],
+            toolCalls: [],
+            usage: { promptTokens: 0, completionTokens: 0, cachedPromptTokens: 0, totalTokens: 0 },
+          };
+        },
+      },
+    );
+    const input = executionInput("runtime-failure", 0);
+    const opened = await coordinator.open(input.mutation.binding);
+    await coordinator.enqueue(opened.subscriptionId, input);
+    await coordinator.waitForTurn(opened.subscriptionId, input.mutation.payload.turn.turnId);
+    const state = coordinator.snapshot(opened.subscriptionId);
+    expect(state.turns[0]?.status).toBe("failed");
+    const failure = state.items.find((item) => item.kind === "failure");
+    expect(failure, "失败的回合必须在对话流里留下一条能读的痕迹").toBeDefined();
+    expect(failure?.kind === "failure" ? failure.message : "").toBe(reason);
+    coordinator.release(opened.subscriptionId);
+  });
+
   it("reuses one approval for reversible edits while preserving a receipt per write", async () => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-safe-auto-"));
     const documentAdapter = documentWriteAdapter();
@@ -2115,7 +2151,9 @@ describe("ProjectAgentExecutionCoordinator", () => {
     expect(documentAdapter.prepare).toHaveBeenCalledOnce();
     expect(documentAdapter.execute).not.toHaveBeenCalled();
     expect(final.items.filter((item) => item.kind === "proposal")).toHaveLength(0);
-    expect(final.items.find((item) => item.kind === "tool")).toMatchObject({ status: "failed" });
+    // 用户拒绝 ≠ 工具坏了。`declined` 是它自己的终态，不并进 `failed`——面板要分得出
+    // 「Nomi 没做成」和「你说了不要」，收据行尾写的字完全不同。
+    expect(final.items.find((item) => item.kind === "tool")).toMatchObject({ status: "declined" });
   });
 
   it("executes an approved document.write through the Host and settles its frozen proposal", async () => {
@@ -2645,7 +2683,7 @@ describe("ProjectAgentExecutionCoordinator", () => {
     const final = await coordinator.waitForTurn(opened.subscriptionId, input.mutation.payload.turn.turnId);
     expect(adapter.execute).not.toHaveBeenCalled();
     expect(final.items.filter((item) => item.kind === "proposal")).toHaveLength(0);
-    expect(final.items.find((item) => item.kind === "tool")).toMatchObject({ status: "failed" });
+    expect(final.items.find((item) => item.kind === "tool")).toMatchObject({ status: "declined" });
     coordinator.release(opened.subscriptionId);
   });
 

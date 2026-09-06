@@ -87,6 +87,12 @@ test('contracts always run and unit alone chooses focused or full coverage', () 
     contracts.env.ROOT_CAUSE_BASE_REF,
     '${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before || inputs.base_ref }}',
   )
+  // check:prior-art 的 PR 侧判据靠这两个 env 才看得见 PR 正文与 base；少了它们，大改一律静默放行。
+  assert.equal(contracts.env.PRIOR_ART_PR_BODY, '${{ github.event.pull_request.body }}')
+  assert.equal(
+    contracts.env.PRIOR_ART_BASE_REF,
+    '${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before || inputs.base_ref }}',
+  )
 
   const unit = workflow.jobs.unit
   assert.equal(unit.needs, 'scope')
@@ -224,7 +230,8 @@ test('package scripts expose canonical separated profiles and classifier contrac
   assert.equal(scripts['test:system:canvas:full'], 'node scripts/test-system.mjs ci-canvas-full')
   assert.equal(scripts['test:system:performance'], 'node scripts/test-system.mjs ci-performance')
   assert.equal(scripts['test:canvas:performance'], 'node tests/ux/canvas-real-suite.mjs performance')
-  assert.equal(scripts['lint:ci'], 'eslint . --max-warnings=82')
+  // 棘轮只减不增：2026-09-06 v4 接线删掉旧面板后降到 81。调高需要理由，调低直接改这一行。
+  assert.equal(scripts['lint:ci'], 'eslint . --max-warnings=81')
   assert.match(scripts['check:quality-gate-workflow'], /validation-policy\.node-test\.mjs/)
   assert.match(scripts['check:quality-gate-workflow'], /real-user-test-gates\.node-test\.mjs/)
 })

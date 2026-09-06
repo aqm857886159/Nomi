@@ -15,6 +15,7 @@ import { describeEmptyAgentReply } from './agentError';
 import { describeRuntimeError } from './runtimeVendorError';
 import { sanitizeForBroadCompat } from './promptSanitize';
 import { trim, type JsonRecord } from '../jsonUtils';
+import { modelContextWindow } from '../shared/modelContextWindow';
 import { readNomiLocalAsset } from '../assets/localAssetFile';
 import { extractTextFromLocalAsset } from '../files/extractText';
 import { buildAgentUserContent, modelSupportsImageInput, modelSupportsPdfInput } from './agentUserContent';
@@ -87,13 +88,12 @@ export async function runAgentChatV2(input: AgentChatRequest, hooks: AgentChatV2
     const connection = vendorModelConnection(vendor, model, apiKey);
     selectedModel = { id: connection.modelId, label: model.labelZh || connection.modelId, vendorKey: vendor.key };
     const meta = model.meta as Record<string, unknown> | undefined;
-    const contextWindow = meta?.contextWindow;
+    const contextWindow = modelContextWindow(meta);
     const maxOutputTokens = meta?.maxOutputTokens;
     const modelConfig: NomiModelConfig = { ...connection, providerId: vendor.key,
       authType: vendor.authType === 'none' ? 'none' : 'api-key',
       temperature: typeof payload.temperature === 'number' && Number.isFinite(payload.temperature) ? payload.temperature : 0.7,
-      ...(typeof contextWindow === 'number' && Number.isInteger(contextWindow) && contextWindow > 0
-        ? { contextWindow } : {}),
+      ...(contextWindow !== undefined ? { contextWindow } : {}),
       ...(typeof maxOutputTokens === 'number' && Number.isFinite(maxOutputTokens) && maxOutputTokens >= 1
         ? { maxOutputTokens: Math.floor(maxOutputTokens) } : {}),
     };

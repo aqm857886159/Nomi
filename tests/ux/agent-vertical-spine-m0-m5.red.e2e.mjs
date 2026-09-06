@@ -12,6 +12,12 @@ import path from 'node:path'
 
 import { launchNomiApp, closeNomiApp } from './_launchApp.mjs'
 import { makeIsolatedDirs, parseToolResult, spawnMcpStdioClient } from './_mcpJourney.mjs'
+import {
+  AGENT_PANEL, APPROVAL_CARD, ASSISTANT_MESSAGE, COLLAPSED_DOCK, COLLAPSED_SHELL, COMPOSER,
+  COMPOSER_INPUT, COMPOSER_MODEL, COMPOSER_SEND, COMPOSER_SKILL, ERROR_BAR,
+  INTERVENTION_CONFIRM_REJECT, INTERVENTION_REJECT, MODEL_POPOVER, SKILL_POPOVER, SKILL_SEARCH,
+  USER_BUBBLE,
+} from './agent-runtime-walk-support.mjs'
 
 const contractPath = path.resolve('tests/system/agent-vertical-spine-m0-m5.contract.json')
 const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'))
@@ -68,24 +74,22 @@ function redactDiagnosticText(value) {
     .slice(0, 400)
 }
 
+// v4 的失败是流里的一条错误条（`data-v4-block="errorbar"`）：一句人话原因 + 一个动作。
+// 旧面板挂在 failure 卡上的 `data-agent-error-code` / `-message-category` 两个属性随它一起删了，
+// 而这里要的是**脱敏后的用户可见原因**——那条仍然在，且仍然必须脱敏后才进证据。
 async function agentFailureEvidence(win) {
   if (!win) return null
-  const panel = win.locator('[data-agent-panel="true"]').first()
+  const panel = win.locator(AGENT_PANEL).first()
   if (!(await panel.count().catch(() => 0))) return null
-  const user = panel.locator('[data-agent-item-kind="user"]').last()
-  const turnId = await user.getAttribute('data-agent-turn-id').catch(() => null)
-  if (!turnId) return null
-  const selector = `[data-agent-turn-id=${JSON.stringify(turnId)}]`
-  const failure = panel.locator(`[data-agent-item-kind="failure"]${selector}`).last()
-  if (!(await failure.count().catch(() => 0))) return { turnId, visible: false }
-  const reason = failure.locator('[data-err-reason="true"]').first()
+  const user = panel.locator(USER_BUBBLE).last()
+  if (!(await user.count().catch(() => 0))) return null
+  const lastUserText = redactDiagnosticText(await user.innerText().catch(() => ''))
+  const failure = panel.locator(ERROR_BAR).last()
+  if (!(await failure.count().catch(() => 0))) return { lastUserText, visible: false }
   return {
-    turnId,
+    lastUserText,
     visible: await failure.isVisible().catch(() => false),
-    status: await failure.getAttribute('data-agent-status'),
-    code: await failure.getAttribute('data-agent-error-code'),
-    category: await failure.getAttribute('data-agent-error-message-category'),
-    reason: redactDiagnosticText(await reason.innerText().catch(() => '')),
+    reason: redactDiagnosticText(await failure.innerText().catch(() => '')),
   }
 }
 
@@ -120,58 +124,56 @@ async function closeSettingsOverlayThroughVisibleUi(win) {
   await overlay.waitFor({ state: 'hidden', timeout: 5_000 })
 }
 
+// ── 回合终点的判定源（v4）─────────────────────────────────────────────────────
+//
+// v4 的对话流里**没有 per-item 的 turn id**：一条流只有 8 种积木，回合边界不在 DOM 上。
+// 所以「这一轮结束了」改由 composer 的运行态说了算（`data-mode="running"` 出现→消失），
+// 终态本身写在流末尾那块助手文本（`data-status`）或错误条上。
+// 别拿「气泡文本不再变」当判据——pending 态的助手块根本没有文字。
+const TURN_RUNNING = `${COMPOSER}[data-mode="running"]`
+
 async function waitForAgentTurnSettled(panel) {
-  // The composer button is also the visible stop control while Host owns a
-  // running turn.  A transcript item can be rendered before that ownership
-  // transition settles; waiting for the non-stop button prevents the next
-  // natural user turn from accidentally cancelling its predecessor.
-  await panel.locator('button[data-agent-composer-send="true"]:not([data-agent-stop="true"])').first().waitFor({ state: 'visible', timeout: 60_000 })
+  // 运行态退干净了才发下一句，否则下一次 send 会撞上还没交接完的上一轮。
+  await panel.locator(TURN_RUNNING).waitFor({ state: 'hidden', timeout: 60_000 })
+  await panel.locator(`${COMPOSER_SEND}[aria-label="发送"]`).first().waitFor({ state: 'visible', timeout: 60_000 })
+}
+
+/** 终态映射：助手文本 complete / interrupted，或一条错误条（failed）。 */
+async function readTerminalStatus(panel) {
+  const terminal = panel.locator(`${ASSISTANT_MESSAGE}, ${ERROR_BAR}`).last()
+  await terminal.waitFor({ state: 'visible', timeout: 10_000 })
+  const block = await terminal.getAttribute('data-v4-block')
+  return block === 'errorbar' ? 'failed' : await terminal.getAttribute('data-status')
 }
 
 async function waitForAgentTurnTerminal(panel, userText) {
-  const userItem = panel.locator('[data-agent-item-kind="user"]').filter({ hasText: userText }).last()
+  const userItem = panel.locator(USER_BUBBLE).filter({ hasText: userText }).last()
   await userItem.waitFor({ state: 'visible', timeout: 10_000 })
-  const turnId = await userItem.getAttribute('data-agent-turn-id')
-  if (!turnId) throw new Error(`Agent user item for ${userText} did not expose its turn identity`)
-  const turnSelector = `[data-agent-turn-id=${JSON.stringify(turnId)}]`
-  const terminal = panel.locator([
-    `[data-agent-item-kind="assistant"]${turnSelector}[data-agent-status="done"]`,
-    `[data-agent-item-kind="assistant"]${turnSelector}[data-agent-status="failed"]`,
-    `[data-agent-item-kind="assistant"]${turnSelector}[data-agent-status="stopped"]`,
-    `[data-agent-item-kind="failure"]${turnSelector}[data-agent-status="failed"]`,
-    `[data-agent-item-kind="failure"]${turnSelector}[data-agent-status="declined"]`,
-  ].join(', ')).first()
-  await terminal.waitFor({ state: 'visible', timeout: 60_000 })
-  return terminal.getAttribute('data-agent-status')
+  await panel.locator(TURN_RUNNING).waitFor({ state: 'hidden', timeout: 60_000 })
+  return readTerminalStatus(panel)
 }
 
 async function waitForAgentTurnTerminalOrPendingProposal(panel, userText) {
-  const userItem = panel.locator('[data-agent-item-kind="user"]').filter({ hasText: userText }).last()
+  const userItem = panel.locator(USER_BUBBLE).filter({ hasText: userText }).last()
   await userItem.waitFor({ state: 'visible', timeout: 10_000 })
-  const turnId = await userItem.getAttribute('data-agent-turn-id')
-  if (!turnId) throw new Error(`Agent user item for ${userText} did not expose its turn identity`)
-  const turnSelector = `[data-agent-turn-id=${JSON.stringify(turnId)}]`
-  const terminal = panel.locator([
-    `[data-agent-item-kind="assistant"]${turnSelector}[data-agent-status="done"]`,
-    `[data-agent-item-kind="assistant"]${turnSelector}[data-agent-status="failed"]`,
-    `[data-agent-item-kind="assistant"]${turnSelector}[data-agent-status="stopped"]`,
-    `[data-agent-item-kind="failure"]${turnSelector}[data-agent-status="failed"]`,
-    `[data-agent-item-kind="failure"]${turnSelector}[data-agent-status="declined"]`,
-  ].join(', ')).first()
-  const pending = panel.locator('[data-agent-approval-state="pending"]').first()
-  const winner = await Promise.race([
-    terminal.waitFor({ state: 'visible', timeout: 60_000 }).then(async () => ({ kind: 'terminal', status: await terminal.getAttribute('data-agent-status') })),
+  const pending = panel.locator(APPROVAL_CARD).first()
+  return Promise.race([
+    panel.locator(TURN_RUNNING).waitFor({ state: 'hidden', timeout: 60_000 })
+      .then(async () => ({ kind: 'terminal', status: await readTerminalStatus(panel) })),
     pending.waitFor({ state: 'visible', timeout: 60_000 }).then(() => ({ kind: 'pending' })),
   ])
-  return winner
 }
 
+/** v4 的拒绝是两下（渐进披露）：「不要」摊开原因，「确认不要」才真的回给宿主。 */
 async function denyPendingProposalForRevision(panel) {
-  const pending = panel.locator('[data-agent-approval-state="pending"]').first()
+  const pending = panel.locator(APPROVAL_CARD).first()
   await pending.waitFor({ state: 'visible', timeout: 5_000 })
-  const deny = pending.getByRole('button', { name: /拒绝|Deny/i }).first()
+  const deny = pending.locator(INTERVENTION_REJECT).first()
   await deny.waitFor({ state: 'visible', timeout: 5_000 })
   await deny.click()
+  const confirmDeny = pending.locator(INTERVENTION_CONFIRM_REJECT).first()
+  await confirmDeny.waitFor({ state: 'visible', timeout: 5_000 })
+  await confirmDeny.click()
 }
 
 async function reopenProjectThroughVisibleLibrary(win, projectId, projectName, projectDir, expectedRevision) {
@@ -228,7 +230,7 @@ async function reopenProjectThroughVisibleLibrary(win, projectId, projectName, p
   const reopened = readProject(projectDir)
   if (reopened.id !== projectId) throw new Error('M5 visible project reopen read back a different project')
   if (reopened.revision < expectedRevision) throw new Error(`M5 visible project reopen regressed revision ${reopened.revision} below ${expectedRevision}`)
-  const panel = win.locator('[data-agent-panel="true"]').first()
+  const panel = win.locator(AGENT_PANEL).first()
   await panel.waitFor({ state: 'visible', timeout: 15_000 })
   return { panel, revision: reopened.revision }
 }
@@ -398,29 +400,43 @@ async function runPhase(phase, executablePath = undefined) {
     })
 
     currentStep = 'M3.select-skill-and-model'
-    const collapsed = win.locator('[data-agent-resident-collapsed="true"]').first()
-    if (await collapsed.isVisible().catch(() => false)) await collapsed.click()
-    const panel = win.locator('[data-agent-panel="true"]').first()
+    const collapsed = win.locator(COLLAPSED_SHELL).first()
+    if (await collapsed.isVisible().catch(() => false)) {
+      await collapsed.locator(`${COLLAPSED_DOCK} button`).first().click()
+    }
+    const panel = win.locator(AGENT_PANEL).first()
     await panel.waitFor({ state: 'visible', timeout: 10_000 })
-    await panel.locator('[data-agent-composer-mode="true"]').click()
-    const skill = win.locator('[data-agent-menu-item="workbench.storyboard.planner"]').first()
+    // 2026-09-06 拍板①③：工作方式三档已删；技能与提示词并进 composer 的 `/` 命令菜单。
+    await panel.locator(COMPOSER_SKILL).click()
+    const skillMenu = panel.locator(SKILL_POPOVER)
+    await skillMenu.waitFor({ state: 'visible', timeout: 10_000 })
+    await skillMenu.locator(SKILL_SEARCH).fill('')
+    const skill = skillMenu.locator('[data-v4-command="skill:workbench.storyboard.planner"]').first()
     await skill.waitFor({ state: 'visible', timeout: 10_000 })
     await skill.click()
-    await panel.locator('[data-agent-reference="skill:workbench.storyboard.planner"]').waitFor({ state: 'visible', timeout: 5_000 })
-    await panel.locator('[data-agent-composer-model="true"]').click()
-    const model = win.locator('button[data-agent-menu-item="apimart/deepseek-v4-pro"]').first()
+    // 选中的技能落成 composer 上方那颗 chip（v4 三种 chip 同一形态）。
+    await panel.locator(`${COMPOSER} [data-v4-chip="skill"]`).first().waitFor({ state: 'visible', timeout: 5_000 })
+    await panel.locator(COMPOSER_MODEL).click()
+    // v4 的模型弹层每行只印显示名（labelZh || modelKey），没有身份串挂点。
+    const model = panel.locator(MODEL_POPOVER).getByRole('button', { name: /deepseek-v4-pro/ }).first()
     await model.waitFor({ state: 'visible', timeout: 10_000 })
-    const modelIdentity = await model.getAttribute('data-agent-menu-item')
+    const modelIdentity = (await model.innerText()).replace(/\s+/g, ' ').trim()
     await model.click()
     steps.push({ id: 'M3.select-skill-and-model', status: 'passed', evidence: { skill: 'workbench.storyboard.planner', modelIdentity } })
 
     currentStep = 'M3.agent-reads-selection-context'
-    await panel.locator('[data-agent-reference="storyboard:shot:2"]').waitFor({ state: 'visible', timeout: 10_000 })
-    steps.push({ id: 'M3.agent-reads-selection-context', status: 'passed', evidence: 'Agent reference is bound to storyboard shot 2' })
+    // v4 的 composer chip 只有 file / skill / clip 三种（agentPanelV4Types.ts:V4ChipKind）——
+    // 分镜行的选中不再落成一颗可见 chip，旧的 [data-agent-reference="storyboard:shot:2"] 在
+    // src/ 里已零调用点。这一条因此没有可见证据可取，如实记成 blocked，不拿别的挂点冒充。
+    steps.push({
+      id: 'M3.agent-reads-selection-context',
+      status: 'blocked',
+      evidence: 'v4 composer exposes file/skill/clip chips only; storyboard shot selection has no visible chip',
+    })
 
     currentStep = 'M3.natural-language-multi-round-transcript'
-    const input = panel.locator('[data-agent-input="true"]').first()
-    const send = panel.locator('[data-agent-composer-send="true"]').first()
+    const input = panel.locator(COMPOSER_INPUT).first()
+    const send = panel.locator(COMPOSER_SEND).first()
     await input.waitFor({ state: 'visible', timeout: 10_000 })
     for (const turn of transcript.slice(0, 5)) {
       if (forbiddenUserTokens.test(turn.user)) throw new Error(`${turn.turn} user text contains a technical token`)
@@ -436,9 +452,10 @@ async function runPhase(phase, executablePath = undefined) {
         if (turn.turn !== 'R2') throw new Error(`Agent natural turn ${turn.turn} left a proposal awaiting user approval`)
         await denyPendingProposalForRevision(panel)
         terminalStatus = await waitForAgentTurnTerminal(panel, turn.user)
-        steps.push({ id: 'M3.R2.pending-proposal-denied', status: 'passed', evidence: { action: 'visible-click', selector: '[data-agent-approval-state="pending"] button[aria-label*="拒绝"]', reason: 'R3 changed the requested posture to preview-before-confirmation' } })
+        steps.push({ id: 'M3.R2.pending-proposal-denied', status: 'passed', evidence: { action: 'visible-click', selector: `${APPROVAL_CARD} ${INTERVENTION_CONFIRM_REJECT}`, reason: 'R3 changed the requested posture to preview-before-confirmation' } })
       }
-      if (terminalStatus !== 'done' && !(turn.turn === 'R2' && terminalStatus === 'declined')) throw new Error(`Agent natural turn ${turn.turn} reached terminal status ${terminalStatus}`)
+      // v4 助手三态：complete（说完了）/ interrupted（被打断或被拒后停在这里）/ 错误条 failed。
+      if (terminalStatus !== 'complete' && !(turn.turn === 'R2' && terminalStatus === 'interrupted')) throw new Error(`Agent natural turn ${turn.turn} reached terminal status ${terminalStatus}`)
       await waitForAgentTurnSettled(panel)
       steps.push({ id: `M3.${turn.turn}.natural-user-turn`, status: 'passed', evidence: { user: turn.user, terminalStatus, internalAssertions: ['M0', 'M1', 'M2', 'M3', 'M4', 'M5'] } })
     }
@@ -492,13 +509,13 @@ async function runPhase(phase, executablePath = undefined) {
     if (readback.revision < changed.revision) throw new Error(`M5 pre-reopen readback regressed revision ${readback.revision} below closed-app revision ${changed.revision}`)
     const reopened = await reopenProjectThroughVisibleLibrary(win, projectId, initial.name, projectDir, changed.revision)
     const restartedPanel = reopened.panel
-    const resumeInput = restartedPanel.locator('[data-agent-input="true"]').first()
-    const resumeSend = restartedPanel.locator('[data-agent-composer-send="true"]').first()
+    const resumeInput = restartedPanel.locator(COMPOSER_INPUT).first()
+    const resumeSend = restartedPanel.locator(COMPOSER_SEND).first()
     const resumeTurn = transcript.find((turn) => turn.turn === 'R6')
     await resumeInput.fill(resumeTurn.user)
     await resumeSend.click()
     const resumeStatus = await waitForAgentTurnTerminal(restartedPanel, resumeTurn.user)
-    if (resumeStatus !== 'done') throw new Error(`M5 resumed Agent turn reached terminal status ${resumeStatus}`)
+    if (resumeStatus !== 'complete') throw new Error(`M5 resumed Agent turn reached terminal status ${resumeStatus}`)
     steps.push({ id: 'M5.cold-restart-reconcile', status: 'passed', evidence: { reopen: { action: 'visible-click', selector: '[data-project-card="true"]', projectId }, revision: reopened.revision, projectId, resumedTurn: resumeTurn.turn, terminalStatus: resumeStatus, internalAssertions: ['M0', 'M1', 'M2', 'M3', 'M4', 'M5'] } })
     return { phase, status: 'passed', steps, firstFailure: null, gaps, evidenceRoot, dirs }
   } catch (error) {

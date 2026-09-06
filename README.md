@@ -133,6 +133,8 @@ pnpm run typecheck
 pnpm run gates
 ```
 
+Research tooling: `scripts/research/tikhub-search.mjs` searches Chinese social platforms (Douyin / Xiaohongshu / Bilibili / X) for what creators are actually saying about a topic. It reads its credential **only** from the `TIKHUB_API_KEY` environment variable — set it in your shell profile (`export TIKHUB_API_KEY="..."`, obtained from <https://www.tikhub.io>), never in a repo file or on the command line; without it the script says so and exits non-zero rather than returning empty results. See [`docs/research/tikhub-api-notes.md`](docs/research/tikhub-api-notes.md).
+
 ## Contributing
 
 Bug reports, feature proposals, documentation, and code contributions are welcome. Contributors do not need to sign a CLA; contributions are accepted under AGPL-3.0-only.

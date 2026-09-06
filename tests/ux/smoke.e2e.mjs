@@ -4,6 +4,7 @@
 //
 // 用法：pnpm run build && pnpm run test:e2e
 import { launchNomiApp } from "./_launchApp.mjs";
+import { addCanvasNodeFromRail } from "./_canvasRail.mjs";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -161,8 +162,8 @@ try {
   // 「新建」handler 先 setTimelineOpen(true) 把 fiber 弄脏 → updater 推迟 → active 从未设置 →
   // 面板永远停在「请选择一条轨迹」，用户被迫再去时间轴点一次「轨迹1」行）。
   await win.evaluate(() => window.localStorage.setItem("nomi.onboarding.scene3dCoach.v1", "seen"));
-  await win.locator('button[aria-label="添加3D 场景节点"]').first().click()
-    .catch(() => win.getByRole("button", { name: /添加.*3D.*场景.*节点/ }).first().click());
+  // 3D 场景自 2026-09-06「第三档」起住在左缘的「更多」里；点法收口在 _canvasRail，找不到当场抛。
+  await addCanvasNodeFromRail(win, "scene3d");
   await win.waitForTimeout(1200);
   // 新节点落点不定（画布已被上一段平移过），Playwright actionability 可能够不着 → DOM click 兜底
   await win.locator('[aria-label="打开 3D 编辑器"]').first().click({ timeout: 3000 })

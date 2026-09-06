@@ -40,6 +40,7 @@
 - [走查取点只信真实光标到位后的那一次](walkthrough-geometry-must-reverify-under-the-real-cursor.md) — stage 一变窄「点空白被磁性 + 吃掉 / 框选 autoPan 永不安定 / 连线点中心被卡拦」一起来；判据是白名单（最顶层元素就是 pane），单一 owner `tests/ux/_canvasHit.mjs`
 - [expectAbsent 会通过得太早](expect-absent-passes-too-early.md) — 「元素不存在」断言在计数本来就是 0 时首次采样即过
 - [gates 全绿 ≠ 走查真的跑过](gates-green-does-not-mean-walkthrough-ran.md) — `check:walkthroughs` 是静态检查；旧截图不会自动失效
+- [设计实验室基线全绿 ≠ 那套组件能接线](design-lab-baselines-green-does-not-mean-wirable.md) — 接手「已落基线、只差接线」的组件前先查两条：有没有回调 props、`src/` 里有没有非 devlab 的 importer；顺带附「换 UI 先数 DOM 测试锚点」的量法
 - [修过期走查先打探针，别读源码猜选择器](walkthrough-repair-probe-first.md) — 附画布 composer 已验证锚点与三个坑
 - [走查里别用 `win.reload()`](walkthrough-no-win-reload.md) — 原地刷新后活动项目恒 null，面板静默空掉，像极了真 bug
 - [走查默认跑隔离 profile，不是真实资料库](walkthrough-default-profile-is-isolated.md) — 要写真库得 `isolate:false`
@@ -69,10 +70,12 @@
 - [harness 的 catch 会把自己的 bug 洗成产品结论](harness-catch-launders-bugs-into-verdicts.md) — 报某腿失败前先分清是断言红的还是 catch 编的
 - [A/B 两版提示词：确认关卡会污染两臂](prompt-ab-gating-question-confounds-arms.md) — 量到的是服从度不是质量
 - [探针测不到它命名的那件事，断言就永远绿](vacuous-probe-passes-forever.md) — 按路径过滤 fs 读 spy 恒空；四个会话判成「负载 flake」的那条其实恒真。变异测试是唯一判据，「永不发生」必配阳性对照
+- [迁移器被直接调用测了个遍，生产上却没人这么调它](migrator-tested-directly-is-never-tested.md) — 上一条的兼容层版本：`z.object` 默认剥未声明键，夹在原始数据和兼容读取之间就让迁移恒 no-op；老项目分镜因此打开即消失、下次自动保存永久抹掉
 - [硬链接复制 profile 会和运行中的 app 抢同一把 leveldb 锁](profile-copy-hardlink-shares-leveldb-lock.md) — 测启动性能前必读：`cp -Rl` 让副本共享 `Local Storage/leveldb/LOCK` 的 inode，凭空多出稳定可复现的 3.5s，伪装成"首屏渲染慢"；测前验 `lsof` 与两侧 inode；附冷/热文件缓存 10x 差异
 - [门岗断言不许手抄真相源的派生值，且必须与真相源同触发面](gate-assertions-must-not-copy-derived-values.md) — 看到 `>= N` 先问「N 是抄谁的」；决定落后与否的是触发面不是细心；死名字既造假红也造假绿
 - [有界性/复杂度不变量要用「计数」证，别用墙钟跑量](complexity-invariants-need-counters-not-wall-clock.md) — ✅ 已由 `check:test-waits` 第三条规则接管；留下的是门岗抓不到的那半：`fs.readFileSync(fd)` 让按路径过滤的 spy 断言恒真（实测 597 次重扫仍报 0）
 - [转发壳能让「命令一字不改」的复核纪律失真](compat-shim-keeps-command-text-changes-its-meaning.md) — 钉死的是命令文本不是它验的东西；复核前先 `git log --follow` 看它有没有被掏空成 `import './别的.test'`
+- [没进门岗的框架调研，在下一个 agent 眼里等于不存在](framework-research-must-become-gates.md) — 接框架/SDK/运行时（或它没用过的层）前必读：四列表模板 + 为什么结论必须翻译成 `check:framework-boundary` 规则；附 pi SDK 五处自研版本清单
 
 ## C. Git 交付、分支与文档改动
 
@@ -84,6 +87,7 @@
 - [下否定式结论前先证明你在哪个 checkout](prove-which-checkout-before-negative-claims.md) — 「仓库里没有 X」多半是你站在一个陈旧分支上
 - [改 baseline JSON 用文本级编辑，别整体重写](json-baselines-need-surgical-edits.md) — 短数组原文是单行，重写会炸出上千行假 diff
 - [方案讨论期别急着 commit/PR](discuss-before-committing-docs.md) — 聊透拍板再落 git；实施类不受限
+- [commit 阶段的绕口要拒绝，push 阶段才留痕审计](commit-bypass-must-be-blocked-not-audited.md) — 同一种绕过写法两阶段处置相反；判据是「拦错代价 / 放过代价 / 有无合法场景」，不是「哪个更严」
 - [闸门凭据要绑「哪棵树 + 哪个提交」](gate-stamps-must-be-keyed-to-tree-and-head.md) — 只认固定路径 + mtime 的 gates 戳会跨 worktree 互相顶用，同一天误放和误杀各栽一次
 - [合并后不立刻录交付收据，窗口就永久关闭](verify-merged-receipt-window-closes-fast.md) — `verify-merged` 要求 HEAD == `origin/main` == 目标 SHA；main 一前进就再也录不成，收据命令要自带重试
 
@@ -122,6 +126,7 @@
 > 编排纪律的主文档是 [`../engineering/agent-orchestration-playbook.md`](../engineering/agent-orchestration-playbook.md)（`CLAUDE.md` R27 的 L2 详解）。本区只放**执行体自身的工具怪癖**——那不是编排原则，是踩过的具体坑。
 
 - [`codex exec` 后台派工要关 stdin](codex-exec-background-needs-stdin-closed.md) — 缺 `</dev/null` 会永久挂起等输入；会话内后台工人全随 App 死
+- [查不查不能靠记性：先看别人做了没必须机器逼](prior-art-check-cannot-rely-on-memory.md) — 派实施前先派反方出 prior-art 报告；系统只奖励「做出来」，提醒在高负载下必漏（`check:prior-art` 已接管）
 - [子 agent 起不来时的探针法](subagent-startup-400-probe-method.md) — 一次 harness 侧 400 故障的定位法与两次误诊，别照抄已过期的结论
 - [长等待交给 shell 哨兵，别交给子 agent](long-waits-belong-to-shell-sentinels-not-agents.md) — 同一天三种死法（Monitor 交卷 / 零 commit 等到超时 / `--watch` 挂死）；附哨兵模板与「CI 不替你跑新入库走查」
 

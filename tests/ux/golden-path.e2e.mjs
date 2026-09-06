@@ -40,8 +40,8 @@ import path from 'node:path'
 import { clickOrFail, expect, expectAbsent, expectVisible, proveProbe, screenshotSettled } from './_assert.mjs'
 import { FIXTURE_IMAGE_MODEL, flattenRequestText } from './agent-runtime-fixture.mjs'
 import {
-  CREATION_PANEL, DOCUMENT, createRuntimeWalk,
-  hasToolResult, readProject, recorded,
+  APPROVAL_CARD, COMPOSER_INPUT, COMPOSER_SEND, CREATION_PANEL, DOCUMENT, INTERVENTION_CONFIRM,
+  STORYBOARD_PANEL, createRuntimeWalk, hasToolResult, readProject, recorded,
 } from './agent-runtime-walk-support.mjs'
 
 // ── 剧本常量。标记串（GOLDEN_*）让 fixture 的 match 钉死「这一条请求确实是这一步发出的」，
@@ -70,8 +70,6 @@ const PATCH_INSTRUCTION = '把选中的这一镜改成逆光侧脸、尘埃浮�
  */
 const TARGET_ASSERTION = '重启后盘上第 2 镜的提示词丢了'
 
-/** 分镜面的常驻 Agent 面板（WorkbenchShell 的 storyboard dock，见 WorkbenchShell.tsx agentSurface）。 */
-const STORYBOARD_PANEL = '[data-agent-resident="true"][data-agent-panel="true"][data-agent-surface="storyboard"]'
 const STORYBOARD_EDITOR = '[data-storyboard-editor="true"]'
 /**
  * 第 N 行。**必须**作用域到编辑器内：侧栏的分镜设计行用的是同一个 `data-storyboard-row`
@@ -213,10 +211,12 @@ async function stepSplitIntoThreeShots(win, projectId) {
   await clickOrFail(splitButton, '在创作区就地拆镜头')
   await recorded(planner.received, '分镜规划请求')
 
-  const approval = win.locator(`${CREATION_PANEL} [data-agent-approval="true"][data-agent-approval-state="pending"]`)
+  // v4：待批准的提议住在**介入槽**（composer 正上方那一格）。槽只在有待决时存在，
+  // 所以「还没批准」= 槽在，「批准了」= 槽消失——不再另有一个 approval-state 属性。
+  const approval = win.locator(`${CREATION_PANEL} ${APPROVAL_CARD}`)
   const approvalProof = await proveProbe(approval, '拆镜头提议停在真实的人工批准边界')
   await shot('plan-awaits-approval')
-  await clickOrFail(approval.locator('[data-agent-action="approve"]'), '批准分镜规划', { noWaitAfter: true })
+  await clickOrFail(approval.locator(INTERVENTION_CONFIRM), '批准分镜规划', { noWaitAfter: true })
   await expectAbsent(approval, { provenBy: approvalProof, message: '批准后这张提议卡应持续不再可操作' })
   await recorded(plannerDone.received, '分镜规划工具结果')
 
@@ -231,14 +231,11 @@ async function stepSplitIntoThreeShots(win, projectId) {
 
 /** 进分镜页，并断言表里就是 3 行。 */
 async function stepOpenStoryboard(win) {
-  // 方案卡就是常驻 Agent 里的分镜收据行「分镜方案已生成 [打开]」。按钮文案是「打开」，
-  // 不是「打开分镜」——这条走查钉的是早已改掉的旧文案，于是在 main 上一直红着，
-  // 报的是「元素找不到」，看不出根因（docs/lessons/dead-selector-lies-both-ways.md）。
-  // 作用域收到收据卡里，免得哪天别处也出现一个叫「打开」的按钮时指错。
-  await clickOrFail(
-    win.locator('[data-agent-storyboard-receipt="true"]').first().getByRole('button', { name: '打开', exact: true }),
-    '从方案卡进入分镜页',
-  )
+  // 2026-09-06 v4 接线删掉了 Agent 面板里那行「分镜方案已生成 [打开]」收据卡
+  // （旧 ProjectAgentResidentShell 的 data-agent-storyboard-receipt，v4 八个积木里没有它的位置）。
+  // 用户现在的路是左侧栏那条分镜条目——它的 onClick 直接 setWorkspaceMode('storyboard')
+  //（DocumentListSidebar.tsx:110-114），是同一件事的真实入口，不是绕路。
+  await clickOrFail(win.locator('[data-storyboard-id]').first(), '从侧栏分镜条目进入分镜页')
   await expectVisible(win.locator(STORYBOARD_EDITOR), '分镜编辑器没有渲染')
   await expect(win.locator(`${STORYBOARD_EDITOR} [data-storyboard-row]`), '分镜表不是 3 行').toHaveCount(3)
   await expectVisible(win.locator(STORYBOARD_PANEL), '分镜页没有出现常驻 Agent 面板')
@@ -282,19 +279,19 @@ async function stepAgentPatchShot2(win, projectId) {
     reply: { type: 'text', text: 'GOLDEN_PATCH_DONE：第 2 镜提示词已更新。' },
   })
 
-  const input = win.locator(`${STORYBOARD_PANEL} [data-agent-input="true"]`)
+  const input = win.locator(`${STORYBOARD_PANEL} ${COMPOSER_INPUT}`)
   await expectVisible(input, '分镜页 Agent 面板没有输入框')
   await input.fill(PATCH_INSTRUCTION)
-  await clickOrFail(win.locator(`${STORYBOARD_PANEL} [data-agent-composer-send="true"]`), '发送改提示词指令')
+  await clickOrFail(win.locator(`${STORYBOARD_PANEL} ${COMPOSER_SEND}`), '发送改提示词指令')
   const patchWire = await recorded(patch.received, 'patch_shots 提议请求')
   expect(flattenRequestText(patchWire.body), 'Agent 请求里没有带上用户这句指令').toContain(PATCH_INSTRUCTION)
 
-  const approval = win.locator(`${STORYBOARD_PANEL} [data-agent-approval="true"][data-agent-approval-state="pending"]`)
+  const approval = win.locator(`${STORYBOARD_PANEL} ${APPROVAL_CARD}`)
   const approvalProof = await proveProbe(approval, '改提示词停在真实的人工批准边界')
   const beforePrompts = shotPrompts((await readProject(win, projectId)).payload)
   expect(beforePrompts, '批准之前第 2 镜就已经被改了 —— 提议没有守住写入').toEqual(SHOT_PROMPTS)
   await shot('patch-awaits-approval')
-  await clickOrFail(approval.locator('[data-agent-action="approve"]'), '批准改第 2 镜提示词', { noWaitAfter: true })
+  await clickOrFail(approval.locator(INTERVENTION_CONFIRM), '批准改第 2 镜提示词', { noWaitAfter: true })
   await expectAbsent(approval, { provenBy: approvalProof, message: '批准后这张提议卡应持续不再可操作' })
   await recorded(patchDone.received, 'patch_shots 工具结果')
 
@@ -403,8 +400,8 @@ async function stepRestartAndVerify(projectRoot, projectId, { shotId, resultUrl 
 
   // 盘对了还不够：用户看得见的那一屏也得对。
   await clickOrFail(win.getByRole('button', { name: '创作', exact: true }), '切到创作页')
-  await clickOrFail(win.locator('[data-storyboard-id]').first(), '侧栏选中分镜方案')
-  await clickOrFail(win.locator('[data-agent-storyboard-receipt="true"]').first().getByRole('button', { name: '打开', exact: true }), '重启后进入分镜页')
+  // 侧栏条目本身就是进分镜页那条路（同上：v4 面板已无分镜收据卡）。
+  await clickOrFail(win.locator('[data-storyboard-id]').first(), '重启后从侧栏分镜条目进入分镜页')
   await expectVisible(win.locator(STORYBOARD_EDITOR), '重启后分镜编辑器没有渲染')
   await expect(win.locator(`${STORYBOARD_EDITOR} [data-storyboard-row]`), '重启后分镜表不是 3 行').toHaveCount(3)
   await expect(win.locator(row(2)), '重启后第 2 行没有显示改后的提示词').toContainText('逆光下的侧脸')

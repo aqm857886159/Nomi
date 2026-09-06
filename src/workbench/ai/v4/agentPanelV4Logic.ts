@@ -5,7 +5,7 @@
 import React from 'react'
 import type { ProjectAgentApprovalPolicy } from '../../../../electron/shared/projectAgentContracts'
 import type { ComposerMode, PermissionTier } from './agentPanelV4Types'
-import { PERMISSION_POLICIES, PERMISSION_TIERS } from './agentPanelV4Types'
+import { PERMISSION_POLICIES } from './agentPanelV4Types'
 
 /**
  * composer 的几何常量，逐项对着定稿样张的 `_agent.css` 抄：
@@ -75,10 +75,26 @@ export function approvalPolicyForTier(tier: PermissionTier): ProjectAgentApprova
   return PERMISSION_POLICIES[tier]
 }
 
-/** 介入槽里点「不再问 →」= 当场抬一档；已在最高档则原地不动。 */
-export function escalatePermission(tier: PermissionTier): PermissionTier {
-  const index = PERMISSION_TIERS.indexOf(tier)
-  return PERMISSION_TIERS[Math.min(index + 1, PERMISSION_TIERS.length - 1)]
+/**
+ * 三档「永不放宽」的机器证明。
+ *
+ * `ProjectAgentApprovalPolicy` 的两根轴在合同里明写「Changing the work mode never widens
+ * approval」。工作方式三档删掉之后（2026-09-06 拍板 ①），权限成了面板上唯一的授权控件，
+ * 那条不变量就全落在这三档身上：任何一档映射出来的策略都不能比它**该有的**更宽。
+ * 宽窄的定义就在这里，单测按它逐档核对——不靠人读表。
+ */
+export function approvalPolicyRank(policy: ProjectAgentApprovalPolicy): Readonly<{ mode: number; spend: number }> {
+  return {
+    mode: policy.mode === 'step' ? 0 : policy.mode === 'safe-auto' ? 1 : 2,
+    spend: policy.spend === 'confirm' ? 0 : 1,
+  }
+}
+
+/** left 是否**不比** right 宽（两根轴都不更宽）。 */
+export function isNoWiderThan(left: ProjectAgentApprovalPolicy, right: ProjectAgentApprovalPolicy): boolean {
+  const a = approvalPolicyRank(left)
+  const b = approvalPolicyRank(right)
+  return a.mode <= b.mode && a.spend <= b.spend
 }
 
 /**

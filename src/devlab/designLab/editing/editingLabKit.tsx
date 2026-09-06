@@ -26,12 +26,28 @@ export const INSPECTOR_WIDTH = EDITING_PANEL_DEFAULTS.inspectorWidth
 export const INSPECTOR_HEIGHT = 560
 
 /**
+ * 片段那一格**单独**的取景高。
+ *
+ * 为什么只有它不一样：属性面板的字段组数随选中对象走——整片三组、字幕两组，都装得进 560；
+ * 片段是四组（显示 / 时间 / 声音 / 转场），实测内容高 614，560 的框把最后一组「转场 · 入场」
+ * 齐腰切掉。而取景框外面是 `overflow-hidden`，切掉不留任何痕迹：拍板时看到的是
+ * 一张「转场这一组好像只有一行」的图——不是缺一块的图，是**读起来完全正常**的错图。
+ *
+ * 拉高的是取景框，不是面板：真机里这一段本来就滚，滚动条后面的东西照样存在。
+ * 实验室要拍的是「这一态有哪些字段」，所以框按内容开；只改这一态，其余三态维持 560，
+ * 免得给三张本来就装得下的图凭空垫一截空白。
+ */
+export const INSPECTOR_CLIP_HEIGHT = 614
+
+/**
  * 接触表一格的取景尺寸。这屏各状态取景框大小不一（浮层 300–420 宽、属性面板一条窄柱），
  * 按最宽/最高的那一格开格子，免得宽件被挤成两行。屏注册表（`labScreens.ts`）从这里取，
  * 不另抄一个数。
  */
 export const EDITING_CELL_WIDTH = 420
-export const EDITING_CELL_HEIGHT = 480
+// 最高的那一格是属性面板 · 片段（INSPECTOR_CLIP_HEIGHT）。它和上面那句承诺绑在一起：
+// 谁把最高那一格改高了，这里不跟就又回到「格子比内容矮、iframe 里被切一截」。
+export const EDITING_CELL_HEIGHT = INSPECTOR_CLIP_HEIGHT
 
 export const NOOP = (): void => {}
 
@@ -59,11 +75,18 @@ export function useLabTimeline(selectedClipId = '', selectedTextClipId = ''): Ti
 }
 
 /** 属性面板取景框：给 `h-full` 一个真实高度，其余按现役面板宽。 */
-export function InspectorStage({ children }: { children: React.ReactNode }): JSX.Element {
+export function InspectorStage({
+  children,
+  height = INSPECTOR_HEIGHT,
+}: {
+  children: React.ReactNode
+  /** 只有字段组多到装不下的那一态需要给（见 INSPECTOR_CLIP_HEIGHT）。 */
+  height?: number
+}): JSX.Element {
   return (
     <div
       className="overflow-hidden rounded-nomi border border-nomi-line bg-nomi-bg"
-      style={{ width: INSPECTOR_WIDTH, height: INSPECTOR_HEIGHT }}
+      style={{ width: INSPECTOR_WIDTH, height }}
       data-design-lab-stage="inspector"
     >
       {children}
