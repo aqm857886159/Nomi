@@ -16,6 +16,7 @@ import {
   triageLabRun,
 } from './failureTriage.mjs'
 import { LAB_ROLES, classifyPortHolder, labPortFor, portHolder } from './labServer.mjs'
+import { REPO_ROOT } from './labStates.mjs'
 import { FAILURE_TAIL_LINES } from '../../../scripts/run-gates-contracts.mjs'
 
 const CONNECTION_REFUSED_RUN = `
@@ -227,5 +228,28 @@ describe('实验室端口的 worktree 归属', () => {
     } finally {
       await new Promise((resolve) => server.close(resolve))
     }
+  })
+
+  // 立项根因（2026-09-06）：端口从写死改成 labPortFor(role) 派生后，两份走查入口
+  // （host-config、agent-panel-v4）还留着 `port: 5202` / `port: 5241`、都没传 `role`。
+  // 运行时 labPortFor(undefined) 会当场抛，但**走查本身不在 gates 里**——于是「这两条 npm
+  // script 一次都跑不起来」只能等有人手动跑才暴露，中间隔了好几个 PR。
+  // 这条测试是那道跑在 CI 里的防线：入口的声明对不对，静态读文本就能判，不用把浏览器拉起来。
+  it('每份走查入口都认领了一个登记过的角色，且不再写死端口', () => {
+    const uxDir = path.join(REPO_ROOT, 'tests/ux')
+    const entries = fs.readdirSync(uxDir).filter((name) => /^design-lab-.*\.walk\.mjs$/.test(name))
+    expect(entries.length).toBeGreaterThan(0)
+    for (const entry of entries) {
+      const source = fs.readFileSync(path.join(uxDir, entry), 'utf8')
+      const body = source.replace(/^\s*\/\/.*$/gm, '')
+      const role = body.match(/\brole:\s*'([^']+)'/)?.[1]
+      expect(role, `${entry} 没有认领角色`).toBeTruthy()
+      expect(LAB_ROLES, `${entry} 的角色 ${role} 没登记进 LAB_ROLES`).toContain(role)
+      expect(body, `${entry} 还在写死端口，端口该由 labPortFor(role) 派生`).not.toMatch(/\bport:\s*\d/)
+    }
+    // 每个角色只能被一份入口认领：两份共用一个角色 = 并行跑时又撞回同一口。
+    const claimed = entries.map((entry) => fs.readFileSync(path.join(uxDir, entry), 'utf8')
+      .replace(/^\s*\/\/.*$/gm, '').match(/\brole:\s*'([^']+)'/)?.[1])
+    expect(new Set(claimed).size).toBe(claimed.length)
   })
 })

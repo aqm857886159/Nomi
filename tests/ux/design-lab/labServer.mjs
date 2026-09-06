@@ -25,13 +25,15 @@ import { spawnSync } from 'node:child_process'
 import { REPO_ROOT } from './labStates.mjs'
 
 /**
- * 实验室要占端口的三个角色。**加角色就在这里加**——端口段的宽度随它走，
- * 不许在别处再写一个裸端口号（那就又造出一个全局单例）。
+ * 实验室要占端口的角色清单。**加一屏走查就在这里加一项**——端口段的宽度随它走，
+ * 不许在别处再写一个裸端口号（那就又造出一个全局单例）。走查入口传的 `role`
+ * 必须是这里登记过的一项，漏登记会被 labPortFor 当场抛，不会静默拿到一个端口。
  */
-export const LAB_ROLES = ['visual', 'walk-agent-panel', 'walk-editing']
+export const LAB_ROLES = ['visual', 'walk-agent-panel', 'walk-editing', 'walk-host-config', 'walk-agent-panel-v4']
 
 // 每棵 worktree 分到一段连续端口，段内按角色的下标取一口。
-// 5300–5491：避开 vite 默认的 5173、以及本仓历史上写死过的 5197/5198/5200。
+// 段起点 5300：避开 vite 默认的 5173、以及本仓历史上写死过的 5197/5198/5200/5202/5241。
+// 段宽随 LAB_ROLES 走，所以上界不写死在注释里（加角色时它自己变宽，别在这儿数）。
 const PORT_BLOCK_BASE = 5300
 const PORT_BLOCK_COUNT = 64
 const PORT_BLOCK_SIZE = LAB_ROLES.length

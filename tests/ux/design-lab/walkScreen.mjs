@@ -1,7 +1,8 @@
 // 设计实验室走查的**共用实现**（R13 人眼判断的素材源）。零额度：纯本地渲染，不碰任何生成 API。
 //
-// 两屏（agent-panel / editing）走的是同一套流程，所以流程只写一份；各屏的入口文件
-// （`tests/ux/design-lab-<屏>.walk.mjs`）只声明"哪一屏、截多宽、接触表排几列"。
+// 四屏（agent-panel / agent-panel-v4 / editing / host-config）走的是同一套流程，所以流程只写一份；
+// 各屏的入口文件（`tests/ux/design-lab-<屏>.walk.mjs`）只声明"哪一屏、占哪个端口角色、
+// 截多宽、接触表排几列"。
 // 把流程抄两份的代价不是多几行，是**两份会漂**——其中一份悄悄少了一条断言，没人看得出来。
 //
 // 它产出两样东西：
@@ -41,9 +42,24 @@ function waitForServer(url, timeoutMs = 60000) {
 }
 
 /**
+ * 入口文件传进来的取景参数，**只认这几个键**。
+ *
+ * 立项根因（2026-09-06）：端口写死那一版留下的 `port` 键，在改成 `labPortFor(role)` 派生之后
+ * 变成了没人读的死参数，而两份入口（host-config、agent-panel-v4）都还传着它、都没传 `role`。
+ * 少一个键有 labPortFor 兜底（当场抛「未知的实验室角色：undefined」），**多一个键以前没人管**——
+ * 于是「这两份入口从来没跑起来过」只能等到有人手动跑那条 npm script 才会暴露。
+ * 这里把多出来的键也变成当场抛：死参数不许安静地躺着（R28 防线建在最早能拦住的那层）。
+ */
+const CONFIG_KEYS = new Set(['screen', 'title', 'role', 'cellWidth', 'columns', 'viewport'])
+
+/**
  * @param {{screen: string, title: string, role: string, cellWidth: number, columns: number, viewport?: {width: number, height: number}}} config
  */
 export async function walkDesignLabScreen(config) {
+  const strayKeys = Object.keys(config).filter((key) => !CONFIG_KEYS.has(key))
+  if (strayKeys.length) {
+    throw new Error(`走查入口传了没人读的参数：${strayKeys.join(', ')}（已登记：${[...CONFIG_KEYS].join(', ')}）`)
+  }
   const OUT_DIR = path.join(REPO_ROOT, `tests/ux/shots/design-lab-${config.screen}`)
   const HOST = '127.0.0.1'
   // 端口按 worktree 派生，不再写死（labServer.mjs）：写死的端口是整台机器的全局单例，
@@ -104,14 +120,16 @@ export async function walkDesignLabScreen(config) {
       console.error('    只在解析里：', parsed.filter((id) => !(live || []).includes(id)).join(', '))
       // 两边**一个都不重叠** = 我们截的根本不是自己这棵 worktree 的页面：
       // `reuseExistingServer` 式的「端口上已经有人应答就用它」在这台机器上会连到
-      // 另一个 worktree 的 vite（20+ worktree 并行是常态，端口写死必然撞）。
-      // 这一条要**当场停**：继续跑下去只会截出一批别人家的 UI，而每一张看起来都很正常。
+      // 另一个 worktree 的 vite（20+ worktree 并行是常态）。上面两道 assertLabPortOwnership
+      // 已经拦掉能问出 cwd 的那些，这一条兜的是 `unknown`（这台机器上没有 lsof）那档。
+      // 它要**当场停**：继续跑下去只会截出一批别人家的 UI，而每一张看起来都很正常。
       const overlap = parsed.filter((id) => (live || []).includes(id)).length
       if (overlap === 0) {
         throw new Error(
-          `端口 ${config.port} 上应答的不是本 worktree 的实验室（活页面的状态和本仓一个都对不上）。`
-          + `\n先查是谁占着：lsof -nP -iTCP:${config.port} -sTCP:LISTEN`
-          + `\n别去 kill 别人的 dev server——给本屏换一个没人用的端口。`,
+          `端口 ${PORT} 上应答的不是本 worktree 的实验室（活页面的状态和本仓一个都对不上）。`
+          + `\n先查是谁占着：lsof -nP -iTCP:${PORT} -sTCP:LISTEN`
+          + `\n别去 kill 别人的 dev server，也别在入口里写死另一个端口`
+          + `——端口按 worktree + 角色派生（labServer.mjs），撞上就是那台机器问不出 cwd，等对方跑完。`,
         )
       }
     }

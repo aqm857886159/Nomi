@@ -9,8 +9,8 @@ import { walkDesignLabScreen } from './design-lab/walkScreen.mjs'
 await walkDesignLabScreen({
   screen: 'host-config',
   title: '宿主接入配置',
-  // 与另两屏（5198 / 5200）错开：三屏可能被并行跑，撞端口时 --strictPort 会直接失败。
-  port: 5202,
+  // 端口由 labServer.mjs 按 worktree + 角色派生，这里只认领角色（写死端口就是全局单例）。
+  role: 'walk-host-config',
   // 这一族是 toast，贴在视口右上角、按整屏取景，所以格子按视口宽开列。
   cellWidth: 720,
   columns: 2,
