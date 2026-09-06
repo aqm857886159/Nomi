@@ -74,8 +74,15 @@ const fail = (message) => errors.push(message)
 // - editing：剪辑面这一族形态出自「关闭剪辑面浮层被祖先 overflow 裁掉」那次根因修复
 //   （docs/lessons/overlay-clipped-by-ancestor-overflow.md）。它还没有编号化的覆盖真相源，
 //   所以这里只查注册表可解析 + 基线一一对应；等设计合同落定再补编号覆盖。
+// - storyboard：分镜表 v6 设计合同的章节号。合同里每一条**有形态的**章节都必须在实验室里
+//   至少有一个状态认领它（认领方式 = 该状态的 `source` 里写着这个章节号）。
+//   新加一节而实验室没跟上 = 红；这正是"设计改了但没人画出来"最容易漏掉的地方。
 const FORM_COUNT = 21
 const P0_PIECE_COUNT = 16
+const STORYBOARD_SECTIONS = [
+  '§2.1', '§2.2', '§2.3', '§2.4', '§2.4.1', '§2.6', '§2.7',
+  '§2.9', '§2.10', '§3.1', '§3.2', '§3.3', '§4.1', '§4.2', '§4.3', '§4.4',
+]
 const statesByScreen = new Map()
 for (const screen of LAB_SCREEN_IDS) statesByScreen.set(screen, readLabStates(screen))
 
@@ -90,6 +97,15 @@ for (let piece = 1; piece <= P0_PIECE_COUNT; piece += 1) {
   const prefix = `p0-${String(piece).padStart(2, '0')}`
   if (![...agentIds].some((id) => id.startsWith(prefix))) {
     fail(`P0 异常态件 ${piece} 在实验室里没有对应状态（期待 id 以 ${prefix} 开头）`)
+  }
+}
+
+const storyboardSources = statesByScreen.get('storyboard').map((state) => state.source).join(' | ')
+for (const section of STORYBOARD_SECTIONS) {
+  // 加边界：`§2.4` 不该被 `§2.4.1` 顶掉（前者讲几何、后者讲作用域，是两件事）。
+  const matcher = new RegExp(`${section.replace('.', '\\.')}(?![0-9.])`)
+  if (!matcher.test(storyboardSources)) {
+    fail(`分镜表 v6 合同 ${section} 在实验室里没有任何状态认领（在该状态的 source 里写上章节号）`)
   }
 }
 

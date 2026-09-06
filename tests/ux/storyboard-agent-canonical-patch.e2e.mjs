@@ -24,8 +24,8 @@ const initialPlan = {
   title: '雨夜追凶',
   anchors: [],
   shots: [
-    { index: 1, shotKind: 'image', durationSec: 5, anchorIds: ['hero'], prompt: '未选镜头：保持原样', subtitle: '不要改' },
-    { index: 2, shotKind: 'video', durationSec: 8, anchorIds: ['hero'], prompt: '选中镜头：跟拍', subtitle: '也保持原样', params: { aspect_ratio: '16:9', quality: 'high' } },
+    { index: 1, shotKind: 'image', durationSec: 5, anchorIds: ['hero'], prompt: '未选镜头：保持原样', motionDesc: '不要改' },
+    { index: 2, shotKind: 'video', durationSec: 8, anchorIds: ['hero'], prompt: '选中镜头：跟拍', motionDesc: '也保持原样', params: { aspect_ratio: '16:9', quality: 'high' } },
     { index: 3, shotKind: 'image', durationSec: 5, anchorIds: [], prompt: '另一未选镜头：保持原样' },
   ],
 }
@@ -151,9 +151,9 @@ try {
     return shots[1].prompt === '选中镜头：跟拍，雨天' && shots[1].params.aspect_ratio === '9:16'
   })
   const changedShots = changed.payload.storyboardDesignsByDocumentId['storyboard-doc'][0].plan.shots
-  check(changedShots[0].prompt === initialPlan.shots[0].prompt && changedShots[0].subtitle === initialPlan.shots[0].subtitle, 'unselected row 1 remains byte-equivalent in untouched fields')
+  check(changedShots[0].prompt === initialPlan.shots[0].prompt && changedShots[0].motionDesc === initialPlan.shots[0].motionDesc, 'unselected row 1 remains byte-equivalent in untouched fields')
   check(changedShots[2].prompt === initialPlan.shots[2].prompt, 'unselected row 3 remains unchanged')
-  check(changedShots[1].params.quality === 'high' && changedShots[1].subtitle === initialPlan.shots[1].subtitle, 'unmentioned selected-row fields remain unchanged')
+  check(changedShots[1].params.quality === 'high' && changedShots[1].motionDesc === initialPlan.shots[1].motionDesc, 'unmentioned selected-row fields remain unchanged')
 
   const receipt = await waitFor('committed proposal receipt', async () => readReceipt(), (value) => value.lifecycle === 'committed')
   const resultProposalId = result.json?.proposalId || result.outcome?.proposalId

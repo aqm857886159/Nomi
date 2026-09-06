@@ -35,6 +35,10 @@ export const LAB_SCREENS = {
     registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/editing/states'),
     baselineDir: path.join(BASELINE_ROOT, 'editing'),
   },
+  storyboard: {
+    registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/storyboard/states'),
+    baselineDir: path.join(BASELINE_ROOT, 'storyboard'),
+  },
   'host-config': {
     registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/hostConfig/states'),
     baselineDir: path.join(BASELINE_ROOT, 'host-config'),

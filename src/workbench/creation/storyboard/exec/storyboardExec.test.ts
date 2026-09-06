@@ -251,8 +251,8 @@ describe('deriveShotRowExec（行状态机）', () => {
 })
 
 describe('deriveStoryboardBatch（批量分桶 = footer 同一份）', () => {
-  const rowOf = (status: (typeof SHOT_ROW_STATUSES)[number], unlocked = false): StoryboardRowRuntime => ({
-    shot: shotOf(),
+  const rowOf = (status: (typeof SHOT_ROW_STATUSES)[number], unlocked = false, shotId = 'shot-a'): StoryboardRowRuntime => ({
+    shot: shotOf({ shotId }),
     mode: i2vMode,
     exec: {
       status,
@@ -276,9 +276,28 @@ describe('deriveStoryboardBatch（批量分桶 = footer 同一份）', () => {
       rowOf('generating'), rowOf('locked'), rowOf('done'), rowOf('ready', true),
     ])
     expect(view.runnable).toHaveLength(2)
-    expect(view.excluded).toEqual({ waitingRefs: 1, unlockedRefs: 1, missingRequired: 1, locked: 1, generating: 1 })
+    expect(view.excluded).toEqual({ waitingRefs: 1, unlockedRefs: 1, missingRequired: 1, locked: 1, generating: 1, skipped: 0 })
     expect(view.doneCount).toBe(1)
     expect(view.countByStatus.ready).toBe(2)
+  })
+
+  /**
+   * v6 §2.10「本次跳过」。合同 §9.3 写死：跳过必须进**这一份** derive，不许 footer 自己再减一次
+   * ——两处各减一次正是"数字对不上"的经典成因。
+   */
+  it('本次跳过的行从 runnable 里摘出去、进 excluded.skipped，但不改「这镜做完没有」的计数', () => {
+    const rows = [rowOf('ready', false, 'shot-a'), rowOf('ready', false, 'shot-b'), rowOf('failed', false, 'shot-c')]
+    const view = deriveStoryboardBatch(rows, new Set(['shot-b']))
+    expect(view.runnable.map((row) => row.shot.shotId)).toEqual(['shot-a', 'shot-c'])
+    expect(view.excluded.skipped).toBe(1)
+    // 跳过不是状态：ready 仍然是 2 个 ready。
+    expect(view.countByStatus.ready).toBe(2)
+  })
+
+  it('跳过一个已生成的行不会把它从「已完成」里减掉（跳过说的是这一批跑不跑，不是做没做完）', () => {
+    const view = deriveStoryboardBatch([rowOf('done', false, 'shot-a')], new Set(['shot-a']))
+    expect(view.doneCount).toBe(1)
+    expect(view.excluded.skipped).toBe(0)
   })
 })
 

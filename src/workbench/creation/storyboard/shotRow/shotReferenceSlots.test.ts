@@ -5,12 +5,12 @@ import { NANO_BANANA_2_ARCHETYPE } from '../../../../config/modelArchetypes/nano
 import type { ArchetypeMode, ModelArchetype } from '../../../../config/modelArchetypes/types'
 import type { PlanShot } from '../../../generationCanvas/agent/storyboardPlan'
 import { buildArchetypeInputParams } from '../../../generationCanvas/nodes/controls/archetypeMeta'
-import { missingRequiredSlots, referenceZoneView } from './shotRowModel'
+import { missingRequiredSlots } from './shotRowModel'
+import { referenceColumnOf } from './shotReferenceCells'
 import {
   appendShotBinding,
   removeShotBinding,
   reorderShotBinding,
-  shotBindingValues,
   shotReferenceMetaPatch,
   storyboardAssetSlots,
 } from './shotReferenceSlots'
@@ -169,21 +169,22 @@ describe('missingRequiredSlots — 按声明算，绑定能让它变绿', () => 
   })
 })
 
-describe('referenceZoneView — 三形态', () => {
-  it('无槽 → 不吃参考；无档案 → 契约未知；有槽 → 逐槽 + 当前值', () => {
-    expect(referenceZoneView(SEEDANCE_T2V, shotOf(), [])).toEqual({ kind: 'none-accepted' })
-    expect(referenceZoneView(null, shotOf(), [])).toEqual({ kind: 'unknown-contract', referencedAnchors: [] })
-    const view = referenceZoneView(SEEDANCE_OMNI, shotOf({ referenceBindings: { video_ref: [{ url: 'v.mp4' }] } }), [])
-    expect(view.kind).toBe('slots')
-    if (view.kind === 'slots') {
-      expect(view.slots.map((s) => s.key)).toEqual(['image_ref', 'video_ref', 'audio_ref'])
-      expect(view.valuesByKey).toEqual({ image_ref: [], video_ref: ['v.mp4'], audio_ref: [] })
+describe('shotReferenceColumn — 三形态（v6：一个槽一个格）', () => {
+  it('无槽 → 不吃参考；无档案 → 契约未知；有槽 → 逐槽一格 + 当前绑定', () => {
+    expect(referenceColumnOf(SEEDANCE_T2V, shotOf().referenceBindings)).toEqual({ kind: 'none-accepted' })
+    expect(referenceColumnOf(null, shotOf().referenceBindings)).toEqual({ kind: 'unknown-contract' })
+    const column = referenceColumnOf(SEEDANCE_OMNI, shotOf({ referenceBindings: { video_ref: [{ url: 'v.mp4' }] } }).referenceBindings)
+    expect(column.kind).toBe('cells')
+    if (column.kind === 'cells') {
+      expect(column.cells.map((cell) => cell.key)).toEqual(['image_ref', 'video_ref', 'audio_ref'])
+      expect(column.cells.map((cell) => cell.bindings.length)).toEqual([0, 1, 0])
     }
   })
 
-  it('单槽的当前值是 url 串（AssetReference 单槽契约）', () => {
-    expect(shotBindingValues(SEEDANCE_FIRSTLAST, shotOf({ referenceBindings: { first_frame: [{ url: 'a.png' }] } })))
-      .toEqual({ first_frame: 'a.png', last_frame: '' })
+  it('已知六种真实档案的槽数都 ≤ 3——参考列「固定单行三格」是按真实数据定的上限，不是拍脑袋', () => {
+    for (const mode of [SEEDANCE_T2V, SEEDANCE_FIRST, SEEDANCE_FIRSTLAST, SEEDANCE_OMNI, VEO_FRAME, NANO_EDIT]) {
+      expect(mode.slots.length).toBeLessThanOrEqual(3)
+    }
   })
 })
 
