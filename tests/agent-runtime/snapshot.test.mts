@@ -158,3 +158,28 @@ test('compaction cannot keep entries from an abandoned sibling branch', async (t
   }), { cwd: root, tempRoot: root }), /compaction|ancestor/i);
   assert.deepEqual(await readdir(root), []);
 });
+
+// PR-1 (pi 0.85.1) singled this out: the envelope's `piVersion` was a `z.literal`
+// on both sides, so upgrading pi without widening the reader would have made every
+// snapshot already sitting in a user's project unreadable — a silent history loss
+// that no other test would have caught (they all write and read in one process).
+test('writes the running pi version and still reads snapshots written by the previous one', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'nomi-pi-version-test-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const { manager } = transcript(root);
+  const serialized = serialize(manager);
+  assert.equal(JSON.parse(serialized).piVersion, '0.85.1', 'the writer emits the version this build runs');
+
+  const legacy = JSON.parse(serialized);
+  legacy.piVersion = '0.84.3';
+  // Only the envelope's version field changes; the checksum covers `data`, so a
+  // genuine 0.84.3 file differs from this one in nothing that the reader checks.
+  const restored = await importSnapshot(JSON.stringify(legacy), { cwd: root, tempRoot: root });
+  assert.deepEqual(restored.getEntries(), manager.getEntries());
+  assert.equal(restored.getLeafId(), manager.getLeafId());
+
+  const unknown = JSON.parse(serialized);
+  unknown.piVersion = '0.86.0';
+  await assert.rejects(() => importSnapshot(JSON.stringify(unknown), { cwd: root, tempRoot: root }),
+    'an unregistered pi version must fail closed, not be read on a guess');
+});
