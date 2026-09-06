@@ -14,6 +14,7 @@ import type { ProductionRunRepository } from './productionRunRepository'
 import { freezeGateId, hasApprovedFreezeGate, hasWaitingFreezeGate, hasWaitingSampleGate, isShotGate, sampleGateId, shotGateId, shouldSampleGate } from './productionRunGateIdentity'
 import { trustLevelOf, type ProductionRun } from './productionRunTypes'
 import { loadPlaybookStageEvidence } from '../skills/skillExecutionEvidence'
+import { logError } from '../logging/logger'
 
 /** Job ids intentionally contain a namespace separator (`job:run:node`), but artifact ids are
  * public deep-link identifiers. Keep the mapping stable, collision-resistant, and URL-safe. */
@@ -103,7 +104,7 @@ async function readUnfrozenAnchors(
       }))
       .filter((item): item is { nodeId: string; title?: string } => item.nodeId.length > 0)
   } catch (error) {
-    console.error('[nomi:production] freeze check failed (freeze gate skipped):', error instanceof Error ? error.message : String(error))
+    logError('production-run', 'freeze-check-failed-gate-skipped', error)
     return []
   }
 }
@@ -177,7 +178,7 @@ export function createDriverOps(deps: DriverOpsDeps): DriverOps {
         response = await requestRenderer('production.verify-shots', { projectId, runId, shotNodeIds }, 10 * 60_000) as QaVerifyResponse
       } catch (error) {
         verificationFailed = true
-        console.error('[nomi:production] shot verify failed (qa skipped):', error instanceof Error ? error.message : String(error))
+        logError('production-run', 'shot-verify-failed-qa-skipped', error)
         response = null
       }
     }
@@ -276,7 +277,7 @@ export function createDriverOps(deps: DriverOpsDeps): DriverOps {
       })
       executeInternal(run.projectId, run.runId, current, 'gate.set_candidates', { gateId: 'gate-direction-v1', candidates }, `driver-${run.runId}-direction-candidates`)
     } catch (error) {
-      console.error('[nomi:production] direction planning failed:', error instanceof Error ? error.message : String(error))
+      logError('production-run', 'direction-planning-failed', error)
     } finally {
       directionsInFlight.delete(run.runId)
       if (generationRerunRequested.delete(run.runId)) {
@@ -343,7 +344,7 @@ export function createDriverOps(deps: DriverOpsDeps): DriverOps {
           })
         } catch { /* Preserve the original planning failure; the run remains inspectable. */ }
       }
-      console.error('[nomi:production] script planning failed:', error instanceof Error ? error.message : String(error))
+      logError('production-run', 'script-planning-failed', error)
     } finally {
       inFlight.delete(run.runId)
       if (generationRerunRequested.delete(run.runId)) {
@@ -404,7 +405,7 @@ export function createDriverOps(deps: DriverOpsDeps): DriverOps {
         payload: { skillName: run.playbook.name, version: run.playbook.version, artifactId: `artifact-storyboard-v${version}`, stageId: 'storyboard', skillEvidence }, issuedAt: timestamp,
       })
     } catch (error) {
-      console.error('[nomi:production] storyboard planning failed:', error instanceof Error ? error.message : String(error))
+      logError('production-run', 'storyboard-planning-failed', error)
     } finally {
       inFlight.delete(run.runId)
       if (generationRerunRequested.delete(run.runId)) {
@@ -566,7 +567,7 @@ export function createDriverOps(deps: DriverOpsDeps): DriverOps {
             if (current.status !== 'needs_attention') {
               try { current = executeInternal(run.projectId, run.runId, current, 'run.status', { status: 'needs_attention' }, `driver-${run.runId}-generation-attention-${current.revision}`).run } catch { /* preserve unknown job state */ }
             }
-            console.error('[nomi:production] generation driver stopped:', error instanceof Error ? error.message : String(error))
+            logError('production-run', 'generation-driver-stopped', error)
             return
           }
         }
@@ -637,7 +638,7 @@ export function createDriverOps(deps: DriverOpsDeps): DriverOps {
       current = executeInternal(run.projectId, run.runId, current, 'stage.upsert', { stage: stageValue(current, 'assemble', { status: 'completed', completedAt: new Date().toISOString() }) }, `driver-${run.runId}-stage-assemble-complete`).run
       current = executeInternal(run.projectId, run.runId, current, 'run.status', { status: 'awaiting_rough_cut_review' }, `driver-${run.runId}-rough-cut`).run
     } catch (error) {
-      console.error('[nomi:production] generation/assembly driver failed:', error instanceof Error ? error.message : String(error))
+      logError('production-run', 'generation-assembly-driver-failed', error)
     } finally {
       inFlight.delete(run.runId)
       if (generationRerunRequested.delete(run.runId)) {
@@ -680,7 +681,7 @@ export function createDriverOps(deps: DriverOpsDeps): DriverOps {
       if (current && current.status === 'exporting') {
         try { executeInternal(run.projectId, run.runId, current, 'run.status', { status: 'needs_attention' }, `driver-${run.runId}-export-attention-${current.revision}`) } catch { /* preserve export error */ }
       }
-      console.error('[nomi:production] export driver failed:', error instanceof Error ? error.message : String(error))
+      logError('production-run', 'export-driver-failed', error)
     } finally {
       inFlight.delete(run.runId)
     }

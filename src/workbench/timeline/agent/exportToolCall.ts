@@ -1,6 +1,7 @@
 import type { ExportJobSnapshot, ExportJobVerification } from '../../../../electron/export/exportJobManager'
 import { EXPORT_STAGES, type ExportQuality, type ExportStage } from '../../../../electron/export/exportTypes'
 import { getDesktopActiveProjectId } from '../../../desktop/activeProject'
+import { resolveCapabilityProjectId } from '../../capability/capabilityProjectBinding'
 import { getDesktopBridge } from '../../../desktop/bridge'
 import { exportTimelineToMp4 } from '../../export/exportApi'
 import { useGenerationCanvasStore } from '../../generationCanvas/store/generationCanvasStore'
@@ -68,10 +69,16 @@ function exportProfile(input: Record<string, unknown>): ExportProfileInput {
   return { aspectRatio, resolution, quality, outputName }
 }
 
-function activeProjectId(runtime: ExportToolRuntime): string {
-  const projectId = runtime.activeProjectId().trim()
-  if (!projectId) throw new Error('project_scope_required: an active project is required')
-  return projectId
+/**
+ * 导出作业按 projectId 在主进程登记表里寻址——不需要项目正开着。所以已校验的 lease projectId
+ * 优先，没给才回退 GUI 当前项目（应用内调用者）。解析规则住在 capabilityProjectBinding.ts。
+ */
+function scopeProjectId(runtime: ExportToolRuntime, boundProjectId?: unknown): string {
+  return resolveCapabilityProjectId(
+    boundProjectId,
+    () => runtime.activeProjectId(),
+    'project_scope_required: an active project is required',
+  )
 }
 
 function failureCategory(snapshot: ExportJobSnapshot): string | null {
@@ -108,8 +115,8 @@ function compactJob(snapshot: ExportJobSnapshot): Record<string, unknown> {
   }
 }
 
-async function scopedJob(runtime: ExportToolRuntime, jobId: string): Promise<ExportJobSnapshot> {
-  const projectId = activeProjectId(runtime)
+async function scopedJob(runtime: ExportToolRuntime, jobId: string, boundProjectId?: unknown): Promise<ExportJobSnapshot> {
+  const projectId = scopeProjectId(runtime, boundProjectId)
   const snapshot = await runtime.getJob(jobId)
   if (snapshot.projectId !== projectId) throw new Error('export_job_not_found: the job is not available in the active project')
   return snapshot
@@ -175,7 +182,7 @@ export async function applyExportToolCall(
 ): Promise<unknown> {
   const input = asRecord(args)
   if (toolName === 'export_timeline') {
-    const projectId = activeProjectId(runtime)
+    const projectId = scopeProjectId(runtime, input.projectId)
     const expectedRevision = requiredString(input.expectedRevision, 'expectedRevision', 64)
     const timeline = normalizeKernelTimeline(runtime.readTimeline())
     const currentRevision = timelineRevision(timeline)
@@ -203,10 +210,12 @@ export async function applyExportToolCall(
 
   const jobId = requiredString(input.jobId, 'jobId', 160)
   if (toolName === 'verify_render') {
+    // 与 inspect/cancel 同族：作业归属必须先过项目闸，否则一条 lease 能验别的项目的渲染产物。
+    await scopedJob(runtime, jobId, input.projectId)
     const verification = await runtime.verifyJob(jobId)
     return { operation: toolName, ...verification }
   }
-  const snapshot = await scopedJob(runtime, jobId)
+  const snapshot = await scopedJob(runtime, jobId, input.projectId)
   if (toolName === 'inspect_export_job') return { operation: toolName, ...compactJob(snapshot) }
   if (toolName === 'cancel_export_job') {
     if (!isActiveStatus(snapshot.status)) {

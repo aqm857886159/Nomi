@@ -11,6 +11,7 @@ import type { DispatchContext } from './dispatcher'
 import { requestRenderer, rendererTargetIdentity } from './rendererBridge'
 import { createProductionProjectSessionRuntime } from './projectSessionRuntime'
 import { canvasReadSurfaceRuntime } from './canvasReadSurfaceRuntime'
+import { logError } from '../logging/logger'
 
 /**
  * Build the process-owned authorities used by the capability-core RPC server.
@@ -67,7 +68,7 @@ export function createDefaultAuthorities(generationPolicy: McpGenerationPolicy, 
         try {
           await hooks.onTrialFirst({ projectId: challenge.projectId, operationId: challenge.runId })
         } catch (error) {
-          console.error('[nomi:capability-core] trial-first narrow failed:', error instanceof Error ? error.message : String(error))
+          logError('capability', 'trial-first-narrow-failed', error)
         }
       }
       return {

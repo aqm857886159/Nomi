@@ -22,9 +22,9 @@ import { walkDesignLabScreen } from './design-lab/walkScreen.mjs'
 await walkDesignLabScreen({
   screen: 'vendor-order',
   title: '供应商偏好 ',
-  // 与其它屏走查错开端口（agent-panel 5198 / editing 5200）：并行跑时撞端口，
-  // --strictPort 会让我们的 vite 退出而连上别人那棵树（walkScreen 起飞前会拦）。
-  port: 5201,
+  // 端口按 worktree + 角色派生（design-lab/labServer.mjs）：写死端口在这台机器上是全局单例，
+  // 撞了就会连上别人那棵树的实验室，截回一份别人分支的 UI。
+  role: 'walk-vendor-order',
   // 舞台 460 宽（vendorOrderLabKit.STAGE_WIDTH）；三列一屏看完七格。
   cellWidth: 460,
   columns: 3,

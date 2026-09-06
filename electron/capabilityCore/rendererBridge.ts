@@ -10,6 +10,7 @@
 // - 付费确认走它时：confirmed=true 只可能来自渲染层那条 reply（真人点确认后由 preload 发），
 //   外部 MCP 进程够不到这条 IPC，故「真人确认才铸令牌」的信任边界不破（见 spendGrant.ts）。
 import { ipcMain, type WebContents } from 'electron'
+import { logWarn } from '../logging/logger'
 
 export const CAPABILITY_APPLY_CHANNEL = 'nomi:capability:apply'
 export const CAPABILITY_APPLY_REPLY_CHANNEL = 'nomi:capability:apply-reply'
@@ -88,10 +89,11 @@ function ensureReplyListener(): void {
     const frameRoutingId = event.senderFrame?.routingId
     const senderOrigin = frameOrigin(event.senderFrame?.url)
     if (senderId !== entry.webContentsId || frameRoutingId !== entry.frameRoutingId || senderOrigin !== entry.origin) {
-      console.warn(
-        `[nomi-capability] dropped apply-reply #${id} from unexpected sender `
-        + `(webContents ${senderId} frame ${frameRoutingId} origin ${senderOrigin}; expected ${entry.webContentsId}/${entry.frameRoutingId} ${entry.origin})`,
-      )
+      logWarn('capability', 'apply-reply-dropped-unexpected-sender', {
+        id,
+        sender: `${senderId}/${frameRoutingId}`,
+        expected: `${entry.webContentsId}/${entry.frameRoutingId}`,
+      })
       return
     }
     clearTimeout(entry.timer)

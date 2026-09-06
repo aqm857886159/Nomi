@@ -179,6 +179,7 @@ async function formOnlyArm(dirs, provider) {
     check(mcp.elicitationCount() === 0, 'B2 也没退化成 form 模式问密钥')
     check(opened.json?.credentialEntry?.mode === 'manual', 'B3 给出明确的手动路径而不是一个它打不开的链接')
     check(/设置|Settings/.test(String(opened.json?.credentialEntry?.instructions || '')), 'B3 手动路径写明「Nomi → 设置 → 模型」')
+    check(/Nomi 没在运行|Nomi is not running/.test(String(opened.json?.credentialEntry?.instructions || '')), 'B3 Nomi 未运行时明确提示先启动 Nomi')
     // baseUrl 在本走查里本就是回环的 mock 供应商，所以判据是「凭据页那条 URL」而不是「127.0.0.1」。
     check(!JSON.stringify(opened.json || {}).includes('/integration-credential'), 'B3 不把一次性凭据页 URL 交给拿不住它的宿主')
     check(!JSON.stringify(mcp.messages()).includes(FAKE_KEY), 'B4 这条通道同样没有 key')

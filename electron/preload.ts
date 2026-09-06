@@ -110,6 +110,9 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
       summary: () => ipcRenderer.invoke("nomi:settings:telemetry-summary"),
       deleteAll: () => ipcRenderer.invoke("nomi:settings:telemetry-delete"),
     },
+    diagnostics: {
+      exportBundle: () => ipcRenderer.invoke("nomi:diagnostics:export"),
+    },
   },
   telemetry: {
     track: (payload: unknown) => ipcRenderer.invoke("nomi:telemetry:track", payload),

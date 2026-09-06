@@ -219,6 +219,16 @@ export const zhSettings = {
       pending: '待发',
       sent: '已发',
     },
+    diagnostics: {
+      title: '导出诊断包',
+      description: '把本机日志、模型目录（密钥已抹）、当前项目的 Agent 记录与制作收据打成一个 zip，保存到你选的位置。不会自动上传任何东西。',
+      contentNotice: '⚠️ 包里的 Agent 记录含你的创作内容；日志本身不记提示词、密钥和文件路径。发给我们之前可以先打开看看。',
+      export: '导出诊断包',
+      exporting: '正在打包…',
+      saved: '已保存 {{count}} 项 · {{size}} MB',
+      canceled: '已取消',
+      failed: '导出失败，请再试一次',
+    },
   },
   file: {
     title: '文件与保存',
@@ -471,6 +481,16 @@ export const enSettings = {
       summary: '{{pending}} pending · {{sent}} sent',
       pending: 'pending',
       sent: 'sent',
+    },
+    diagnostics: {
+      title: 'Export a diagnostics bundle',
+      description: 'Packs local logs, your model catalog (keys removed), the current project\u2019s Agent record and production receipts into a zip saved wherever you choose. Nothing is uploaded automatically.',
+      contentNotice: '\u26a0\ufe0f The Agent record inside contains your creative content; the logs themselves never record prompts, keys, or file paths. Feel free to open the zip before sending it to us.',
+      export: 'Export bundle',
+      exporting: 'Packing\u2026',
+      saved: 'Saved {{count}} items · {{size}} MB',
+      canceled: 'Canceled',
+      failed: 'Export failed, please try again',
     },
   },
   file: {

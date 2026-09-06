@@ -1,7 +1,7 @@
 // 设计实验室走查的**共用实现**（R13 人眼判断的素材源）。零额度：纯本地渲染，不碰任何生成 API。
 //
-// 各屏走的是同一套流程，所以流程只写一份；各屏的入口文件
-// （`tests/ux/design-lab-<屏>.walk.mjs`）只声明"哪一屏、截多宽、接触表排几列、还要额外断言什么"。
+// 两屏（agent-panel / editing）走的是同一套流程，所以流程只写一份；各屏的入口文件
+// （`tests/ux/design-lab-<屏>.walk.mjs`）只声明"哪一屏、截多宽、接触表排几列"。
 // 把流程抄两份的代价不是多几行，是**两份会漂**——其中一份悄悄少了一条断言，没人看得出来。
 //
 // 它产出两样东西：
@@ -12,7 +12,6 @@
 //   - 活页面的注册表 === `labStates.mjs` 从源码解析出来的清单（那把正则的活性证据）；
 //   - 每个状态都真的渲染出了非空舞台（宽高 > 0，且舞台里不是只有两三个元素）；
 //   - 渲染期间零 pageerror。
-// 屏自己还能再加断言（`assertState`）——比如「下拉必须是展开的」这种只有那一屏才成立的承诺。
 //
 // 视觉基线的**比对**不在这里，在 `pnpm run check:design-lab`（Playwright toHaveScreenshot）。
 // 这里只负责「让人看得见」。
@@ -21,30 +20,10 @@ import { spawn, spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { readLabStates, REPO_ROOT } from './labStates.mjs'
+import { assertLabPortOwnership, labPortFor } from './labServer.mjs'
 
 const COVERAGE_TONE = { shell: '#2f7d4f', 'component-only': '#9a6a3c', missing: '#b23c3c', retired: '#6b6b6b' }
 const COVERAGE_TEXT = { shell: '整条通', 'component-only': '只有组件', missing: '没实现', retired: '已取消' }
-
-/**
- * 端口必须是**空的**才往下走。
- *
- * 这台机器上常有 20+ worktree，各自都可能在跑 vite。`--strictPort` 撞了端口只会让**我们这个**
- * vite 悄悄退出，而 `waitForServer` 照样连得上——连上的是**别人那棵树**的 design-lab.html。
- * 于是走查会兴高采烈地截一屏别人的界面回来（2026-09-06 实测：撞上另一棵树占着的 5199，
- * 拿回来的是那边 agent-panel 的 45 个状态）。这种假证据比失败危险得多，所以在起飞前就拦。
- */
-async function assertPortIsFree(port) {
-  try {
-    await fetch(`http://127.0.0.1:${port}/design-lab.html`, { signal: AbortSignal.timeout(2000) })
-  } catch {
-    return // 连不上 = 端口是空的，正是我们要的
-  }
-  throw new Error(
-    `端口 ${port} 上已经有别人的服务在跑（这台机器常有多个 worktree 并行）。\n`
-    + `  强行往下走会截到**别人那棵树**的界面，还看不出来。\n`
-    + `  换个端口重跑：DESIGN_LAB_PORT=<空闲端口> node tests/ux/design-lab-<屏>.walk.mjs`,
-  )
-}
 
 function waitForServer(url, timeoutMs = 60000) {
   const start = Date.now()
@@ -65,7 +44,7 @@ function waitForServer(url, timeoutMs = 60000) {
  * @param {{
  *   screen: string,
  *   title: string,
- *   port: number,
+ *   role: string,
  *   cellWidth: number,
  *   columns: number,
  *   viewport?: {width: number, height: number},
@@ -75,7 +54,10 @@ function waitForServer(url, timeoutMs = 60000) {
 export async function walkDesignLabScreen(config) {
   const OUT_DIR = path.join(REPO_ROOT, `tests/ux/shots/design-lab-${config.screen}`)
   const HOST = '127.0.0.1'
-  const PORT = Number(process.env.DESIGN_LAB_PORT || config.port)
+  // 端口按 worktree 派生，不再写死（labServer.mjs）：写死的端口是整台机器的全局单例，
+  // 而这台机器上常年挂着 20+ worktree。下面那道 waitForServer 只探「有没有人应答」——
+  // 端口被别的树占着时它会**照样成功**，然后整份走查截的是别人分支的 UI。
+  const PORT = labPortFor(config.role)
   const BASE = `http://${HOST}:${PORT}`
   const ONLY = (process.env.ONLY || '').split(',').map((value) => value.trim()).filter(Boolean)
 
@@ -93,13 +75,20 @@ export async function walkDesignLabScreen(config) {
   const tailwind = spawnSync('node', ['scripts/build-tailwind.mjs'], { cwd: REPO_ROOT, stdio: 'inherit' })
   if (tailwind.status !== 0) throw new Error('build-tailwind 失败：整页会没有样式，截图无意义')
 
-  await assertPortIsFree(PORT)
   console.log('▶ 启动 vite dev server…')
+  // 起之前先看这口是不是别人的；是就当场停，别把别人的服务器当自己的。
+  assertLabPortOwnership(config.role)
   const vite = spawn('npx', ['vite', '--host', HOST, '--port', String(PORT), '--strictPort'], {
     cwd: REPO_ROOT,
-    stdio: 'ignore',
+    // stderr 不再丢掉：--strictPort 撞口时 vite 是从这里喊的，
+    // 以前 'ignore' 把它咽掉，于是「没绑上」和「绑上了」在日志里长得一模一样。
+    stdio: ['ignore', 'ignore', 'pipe'],
   })
+  vite.stderr?.on('data', (chunk) => process.stderr.write(`[vite] ${chunk}`))
   await waitForServer(`${BASE}/design-lab.html`)
+  // 应答了不等于是我起的那一个：--strictPort 绑失败时应答的是原来占口的那个进程。
+  // 截图之前必须证明答话的就是本树（fail-closed）。
+  assertLabPortOwnership(config.role)
 
   const browser = await chromium.launch({ headless: true })
   const context = await browser.newContext({
@@ -121,9 +110,6 @@ export async function walkDesignLabScreen(config) {
       record(`注册表解析漂了：活页面 ${live?.length} 个 / 源码解析 ${parsed.length} 个`)
       console.error('    只在活页面：', (live || []).filter((id) => !parsed.includes(id)).join(', '))
       console.error('    只在解析里：', parsed.filter((id) => !(live || []).includes(id)).join(', '))
-      // 清单对不上 = 后面每一格都会截错或干等超时。**当场停**，别拿 30s×N 的超时去堆一份
-      // 谁也看不懂的失败——第一条错误就是真因。
-      throw new Error('活页面与源码注册表对不上，后续截图全部无意义，已中止')
     }
 
     // ② 逐状态截图 + 非空断言。
@@ -168,6 +154,7 @@ export async function walkDesignLabScreen(config) {
         }, state.id)
         if (distinct < 3) record(`${state.id} 这一格只有 ${distinct} 个元素，形态大概率没渲染出来`)
       }
+      // 屏自己还能再加断言——比如「下拉必须是展开的」这种只有那一屏才成立的承诺。
       if (config.assertState) await config.assertState(page, state, record)
       console.log(`  ✓ ${state.id.padEnd(34)} ${Math.round(box.width)}×${Math.round(box.height)}  ${state.name}`)
     }

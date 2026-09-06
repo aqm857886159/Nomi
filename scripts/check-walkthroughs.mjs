@@ -11,6 +11,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { collectAriaLabelLiterals, extractInterpolatedValues, isAriaLabelAlive } from './lib/ariaLabelLiterals.mjs'
+import { findPositionalProjectOpens } from './lib/positionalProjectOpen.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const BASELINE_FILE = path.join(repoRoot, 'scripts/walkthrough-baseline.json')
@@ -183,6 +184,20 @@ const RULES = [
         if (/readFileSync\(/.test(line)) hits.push({ line: i + 1, text: line.trim().slice(0, 120), file })
       })
       return hits
+    },
+  },
+  {
+    id: 'positional-project-open',
+    label: '库里不止一个项目，却按**位置**（.first()/nth）点项目卡——排序是「最近用过」派生量，同秒建的两个项目就是掷硬币',
+    appliesTo: (file) => file.includes(`${path.sep}tests${path.sep}ux${path.sep}`),
+    // 2026-09-06 实例：production-mcp 旅程自 c73db10ef 起在同一隔离库里有两个项目
+    // （GUI 建的制作项目 + MCP `nomi_project_create` 建的语义夹具），重启后仍 `.first()` 点卡。
+    // 两者 updatedAt 落在同一秒 → 一半概率点进语义项目 → 任务中心是空的，
+    // 报错却出现在下游「[data-production-task-card] 10s 超时」，把人一路引向「等太短/卡不渲染」。
+    // 门岗只盯**这个组合**（多项目 × 位置选择），单项目走查的 `.first()` 是正当的，不误伤。
+    // 判定逻辑住 scripts/lib/positionalProjectOpen.mjs（本文件一 import 就跑门岗，规则没法就地单测）。
+    scan(code, file) {
+      return findPositionalProjectOpens(code).map((hit) => ({ ...hit, file }))
     },
   },
 ]

@@ -11,6 +11,7 @@ import {
   isAriaLabelAlive,
   templateCanProduce,
 } from './lib/ariaLabelLiterals.mjs'
+import { findPositionalProjectOpens } from './lib/positionalProjectOpen.mjs'
 
 const SRC = `
   const a = <button aria-label="打开设置" />
@@ -68,5 +69,46 @@ describe('dead-aria-label：字面量采集', () => {
       win.locator('[aria-label$="丙丙丙"]')
     `
     assert.deepEqual(deadIn(code).sort(), ['丙丙丙', '乙乙乙', '甲甲甲'])
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// positional-project-open：「多项目 × 位置式项目卡选择」（2026-09-06，R17 先验它会红）
+//
+// 起因：production-mcp 旅程重启后用 `.first()` 点项目卡。自 2026-09-04 起同一隔离库里有两个项目，
+// 排序按「最近用过」派生，两者 updatedAt 同秒 → `.first()` 掷硬币 → 一半概率进错项目，
+// 任务中心开出来是空的，而报错落在下游的「[data-production-task-card] 10s 超时」。
+// 这条规则要在**写下那一行的 commit** 上就红，而不是等 CI 掷到反面。
+// ─────────────────────────────────────────────────────────────────────────────
+describe('positional-project-open：多项目下的位置式选择', () => {
+  const MULTI = `await callTool('nomi_project_create', { name: 'fixture' })`
+
+  it('阳性对照：建了第二个项目又按位置点卡 → 报出来', () => {
+    const code = `${MULTI}\nawait win.locator('[data-project-card="true"]').first().click()`
+    const hits = findPositionalProjectOpens(code)
+    assert.equal(hits.length, 1)
+    assert.equal(hits[0].line, 2)
+  })
+
+  it('单项目走查的 .first() 不报（位置即身份，不误伤）', () => {
+    const code = `await win.locator('[data-project-card]').first().click()`
+    assert.deepEqual(findPositionalProjectOpens(code), [])
+  })
+
+  it('按身份选中的写法不报：data-project-id', () => {
+    const code = `${MULTI}\nawait win.locator('[data-project-card="true"][data-project-id="p1"]').click()`
+    assert.deepEqual(findPositionalProjectOpens(code), [])
+  })
+
+  it('按身份选中的写法不报：hasText / filter', () => {
+    const byText = `${MULTI}\nconst c = win.locator('[data-project-card]', { hasText: name }).first()`
+    const byFilter = `${MULTI}\nconst c = win.locator('[data-project-card="true"]').filter({ hasText: name }).first()`
+    assert.deepEqual(findPositionalProjectOpens(byText), [])
+    assert.deepEqual(findPositionalProjectOpens(byFilter), [])
+  })
+
+  it('.nth()/.last() 同属位置式，一并抓', () => {
+    const code = `${MULTI}\nwin.locator('[data-project-card]').nth(1)\nwin.locator('[data-project-card]').last()`
+    assert.equal(findPositionalProjectOpens(code).length, 2)
   })
 })

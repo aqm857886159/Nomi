@@ -305,6 +305,7 @@ export const zhCN = {
     projectRepairMessage: '未找到可用的自动备份。可以打开项目文件夹检查 .nomi/project.json：{{path}}',
     openProjectFolder: '打开项目文件夹',
     migrationComplete: '项目已升级到目录树：{{count}} 个节点已归类',
+    hostConfigRepaired: '已修复 {{clients}} 的 Nomi 接入配置，重启 {{clients}} 后生效',
     initializeTitle: '初始化为 Nomi 项目',
     initializeMessage: '{{path}}\n\nNomi 会创建 .nomi/，并把生成的图片、视频保存到 assets/ 和 exports/。',
     folderUnsupported: '当前运行环境不支持打开项目文件夹',
@@ -703,6 +704,7 @@ export const en = {
     projectRepairMessage: 'No valid automatic backup was found. Open the project folder and inspect .nomi/project.json: {{path}}',
     openProjectFolder: 'Open project folder',
     migrationComplete: 'Project folder tree upgraded: {{count}} nodes categorized',
+    hostConfigRepaired: 'Repaired the Nomi connection for {{clients}}. Restart {{clients}} to apply it.',
     initializeTitle: 'Initialize as a Nomi project',
     initializeMessage:
       '{{path}}\n\nNomi will create .nomi/ and save generated images and videos in assets/ and exports/.',

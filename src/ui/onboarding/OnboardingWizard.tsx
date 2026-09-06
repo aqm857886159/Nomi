@@ -47,7 +47,6 @@ export function OnboardingWizard({
   onDirectScriptDraftCreated,
   initialScreen,
   integrationSessionId,
-  integrationHandoffRequestId,
   presentation = 'modal',
 }: {
   opened: boolean
@@ -66,7 +65,6 @@ export function OnboardingWizard({
   initialScreen?: 'form' | 'scriptDraft'
   /** Durable MCP handoff: save the credential through the trusted session IPC. */
   integrationSessionId?: string
-  integrationHandoffRequestId?: string
   presentation?: 'modal' | 'page'
 }): JSX.Element {
   const { t } = useTranslation()
@@ -332,7 +330,6 @@ export function OnboardingWizard({
           expectedRevision,
           apiKey: requestAuth.apiKey,
         })
-        if (integrationHandoffRequestId) await bridge.onboarding.integrationHandoffAck?.(integrationHandoffRequestId)
         onConnectionConfigured?.({
           vendorKey: '',
           vendorName: vendorName.trim(),
@@ -388,7 +385,6 @@ export function OnboardingWizard({
     proxyUrl,
     onConnectionConfigured,
     integrationSessionId,
-    integrationHandoffRequestId,
     onClose,
     t,
   ])

@@ -17,6 +17,10 @@ const repoRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), '
 const BASELINE_PAYLOAD_BYTES = JSON.parse(fs.readFileSync(path.join(repoRoot, 'scripts', 'mcp-payload-baseline.json'), 'utf8')).maxBytes
 const { MCP_TOOL_NAMES } = await import('../../dist-electron/capabilityCore/mcpProtocol.js')
 const { MCP_TOOL_RESOLVER } = await import('../../dist-electron/capabilityCore/mcpToolCatalog.js')
+// C5 的 stderr 锚也派生自真相源：这条诊断的事件名由两条启动路（Electron stdio server /
+// 裸 Node launcher）共用一个常量，手抄一句散文的结局是改了代码这里静默漂成假绿。
+const { MAX_MCP_LINE_BYTES } = await import('../../dist-electron/capabilityCore/mcpStdioLine.js')
+const { MCP_OVERSIZED_LINE_EVENT } = await import('../../dist-electron/capabilityCore/mcpStdioDiagnostics.js')
 const TOOL_NAMES = [...MCP_TOOL_NAMES]
 const READ_ONLY_TOOL_NAMES = MCP_TOOL_RESOLVER.list().filter((tool) => tool.annotations?.readOnlyHint === true).map((tool) => tool.name)
 
@@ -100,7 +104,10 @@ async function main() {
     mcp.child.stdin.write(`${oversized}\n`)
     mcp.child.stdin.write('not-json\n')
     await new Promise((resolve) => setTimeout(resolve, 150))
-    check(mcp.stderrText().includes('dropped an oversized stdin line'), 'C5 oversized line is dropped with a stderr log')
+    // stderr 是**宿主协议面**（stdout 整条给了 JSON-RPC），所以断言连字段一起钉：只查事件名的话，
+    // 一个把日志降级成「只落盘、stderr 静默」或把字段丢光的回归照样能过（那正是本轨差点犯的）。
+    const dropLine = mcp.stderrText().split('\n').find((line) => line.includes(MCP_OVERSIZED_LINE_EVENT)) || ''
+    check(dropLine.includes('[nomi:mcp]') && dropLine.includes(`limitBytes=${MAX_MCP_LINE_BYTES}`), 'C5 oversized line is dropped with a stderr log')
     check(mcp.messages().some((message) => message.error?.code === -32700), 'C5 malformed line returns -32700 parse error')
     check(!mcp.childExited(), 'C5 malformed input does not kill stdio server')
 

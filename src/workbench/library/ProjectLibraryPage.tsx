@@ -430,6 +430,10 @@ export default function ProjectLibraryPage({
                 <div
                   key={project.id}
                   data-project-card="true"
+                  // 卡片顺序是「最近用过」派生量（libraryDiscovery.sortByLibraryUsage），同一秒内
+                  // 建的两个项目排序就是掷硬币。走查必须按**身份**点项目，不能按位置（`.first()`），
+                  // 所以身份要在 DOM 上拿得到——这条 data 属性就是那个锚点。
+                  data-project-id={project.id}
                   className={cn(
                     'group relative bg-nomi-paper border border-nomi-line rounded-nomi-lg overflow-visible text-left',
                     'transition-[box-shadow,transform,border-color] duration-150',

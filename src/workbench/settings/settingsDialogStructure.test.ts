@@ -234,6 +234,17 @@ describe('settings dialog structure', () => {
     expect(settingsSource).toContain('[&>div:not([data-model-settings-page])>:first-child]:pr-14')
   })
 
+  it('only delegates Escape to the model drawer when a page above home is open', () => {
+    // The drill-down guard has to mean "there is a level to pop", not "the models tab is
+    // rendered". Model settings home carries the same data-model-settings-page marker, so a bare
+    // [data-model-settings-page] predicate makes the branch always true on that tab and Escape can
+    // never close an aria-modal dialog. Keep the home exclusion attached to the guard.
+    const guard = settingsSource.match(/if \(tab === 'models' && dialog\.querySelector\((.+?)\)\)/)
+    expect(guard?.[1]).toContain(':not([data-model-settings-page="home"])')
+    const homeSurface = fs.readFileSync(path.join(process.cwd(), 'src/ui/onboarding/ModelSettingsHome.tsx'), 'utf8')
+    expect(homeSurface).toContain('data-model-settings-page="home"')
+  })
+
   it('keeps the lazy model workspace mounted after its first visit', () => {
     expect(settingsSource).toContain('modelsMounted')
     expect(settingsSource).toContain("if (nextTab === 'models') setModelsMounted(true)")

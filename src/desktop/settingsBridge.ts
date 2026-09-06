@@ -48,4 +48,7 @@ export type DesktopSettingsBridge = {
     summary: () => Promise<import('../../electron/shared/contracts/telemetry').TelemetrySummary>
     deleteAll: () => Promise<{ deletedCount: number }>
   }
+  diagnostics?: {
+    exportBundle: () => Promise<import('../../electron/shared/contracts/diagnostics').DiagnosticsExportResult>
+  }
 }

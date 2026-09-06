@@ -153,3 +153,7 @@ ds-bundle/
 # 由 .design-sync/support/build-css.mjs 生成（~620KB 的样式压平产物）：
 # 生成脚本进库、产物不进库。改了样式源码后重跑那个脚本即可。
 .design-sync/support/styles.generated.css
+
+# Codex/agent 盘上现场文件——只住 worktree，不进树（09-06 曾经由 #524 漏进 main）
+.codex-heartbeat
+CODEX-REPORT.md

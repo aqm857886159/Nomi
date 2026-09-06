@@ -21,15 +21,28 @@
 //   所以：已校准平台上**硬跑**；未校准平台上**明说没跑**，既不假装绿也不制造假红。
 //   想让 CI 也拦住视觉回归，正解是在那个平台上录一套基线并加进 calibration.json，
 //   不是放宽容差（放宽容差 = 把门岗关掉还留个门框）。
+//
+// 关于第 4 条**失败了怎么说**（2026-09-06 重修）：
+//   在此之前，Playwright 只要非零退出，这里就一律说「视觉基线不符，差异图在 test-results/ 下」。
+//   那句话有两个没被验证过的断言。实测反例：46 条用例全体 ERR_CONNECTION_REFUSED、
+//   一张 -diff.png 都没有，门岗照旧那么说，于是人被指去找一批不存在的图。
+//   现在结论由证据定（tests/ux/design-lab/failureTriage.mjs）：
+//   有 -diff.png 才说像素不符；连接类错误单独、大声地报成基础设施失败。
 import fs from 'node:fs'
 import path from 'node:path'
-import { spawnSync } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const { readLabStates, readCalibration, baselineDirFor, pendingApprovalScreens, LAB_SCREEN_IDS, CALIBRATION_FILE } = await import(
   path.join(repoRoot, 'tests/ux/design-lab/labStates.mjs')
 )
+
+const { triageLabRun, collectDiffImages, formatLabFailure } = await import(
+  path.join(repoRoot, 'tests/ux/design-lab/failureTriage.mjs')
+)
+const { inspectLabPort, formatForeignHolder } = await import(path.join(repoRoot, 'tests/ux/design-lab/labServer.mjs'))
+const { LAB_ORIGIN, LAB_RESULTS_DIR } = await import(path.join(repoRoot, 'tests/ux/design-lab/playwright.config.mjs'))
 
 const UPDATE = process.argv.includes('--update')
 const SKIP_VISUAL = process.argv.includes('--structure-only')
@@ -170,20 +183,47 @@ if (!UPDATE && process.platform !== calibration.calibratedPlatform) {
   process.exit(0)
 }
 
-const args = ['playwright', 'test', '-c', 'tests/ux/design-lab/playwright.config.mjs']
-const result = spawnSync('npx', args, {
-  cwd: repoRoot,
-  stdio: 'inherit',
-  env: { ...process.env, ...(UPDATE ? { NOMI_DESIGN_LAB_UPDATE: '1' } : {}) },
+// 起跑前先问端口归属：这一口要是被别的 worktree 占着，跑出来的每一张图都是别人分支的 UI。
+// 放在这里（结构检查之后、Playwright 之前）是为了在花掉十几分钟之前就说清楚。
+const portVerdict = inspectLabPort('visual')
+if (portVerdict.status === 'foreign') {
+  console.error(`\n${formatForeignHolder(portVerdict)}`)
+  process.exit(1)
+}
+if (portVerdict.status === 'unknown') {
+  console.log(`↷ 端口 ${portVerdict.port} 的归属问不出来（${portVerdict.reason}）——继续跑，但这一趟没有归属证明。`)
+}
+
+// 之前留下的差异图会让「这一趟有没有产出图」这个判据失真——先清干净，判据才成立。
+fs.rmSync(LAB_RESULTS_DIR, { recursive: true, force: true })
+
+const playwrightArgs = ['playwright', 'test', '-c', 'tests/ux/design-lab/playwright.config.mjs']
+// 输出既要**实时给人看**（跑十几分钟总得看见进度），又要留一份给分诊读，所以是 pipe + 转发，
+// 不是 stdio:'inherit'。inherit 时脚本自己看不见任何输出，于是只剩一个退出码可判——
+// 「所有失败都说成视觉基线不符」正是这么来的。
+const transcript = []
+const runStatus = await new Promise((resolve) => {
+  const child = spawn('npx', playwrightArgs, {
+    cwd: repoRoot,
+    stdio: ['inherit', 'pipe', 'pipe'],
+    env: { ...process.env, ...(UPDATE ? { NOMI_DESIGN_LAB_UPDATE: '1' } : {}) },
+  })
+  const tee = (stream, sink) => stream.on('data', (chunk) => {
+    transcript[transcript.length] = String(chunk)
+    sink.write(chunk)
+  })
+  tee(child.stdout, process.stdout)
+  tee(child.stderr, process.stderr)
+  child.on('close', (code) => resolve(code ?? 1))
 })
-if (result.status !== 0) {
-  console.error(
-    UPDATE
-      ? '\n❌ 基线更新失败'
-      : '\n❌ 视觉基线不符。差异图在 test-results/ 下（-expected/-actual/-diff 三张）。\n' +
-        '   这是设计改动被拦住了，不是工具坏了：先看差异图确认改动是不是你要的，\n' +
-        '   要的话先给用户看接触表拍板，再跑 pnpm run design-lab:update 更新基线并在 PR 里附前后对比。',
-  )
+
+if (runStatus !== 0) {
+  const triage = triageLabRun({
+    output: transcript.join(''),
+    diffImages: collectDiffImages(LAB_RESULTS_DIR),
+    exitCode: runStatus,
+  })
+  console.error(formatLabFailure(triage, { resultsDir: LAB_RESULTS_DIR, origin: LAB_ORIGIN, updating: UPDATE }))
   process.exit(1)
 }
 console.log(UPDATE ? '\n✅ 基线已更新——记得在 PR 里附前后对比' : '\n✅ 视觉基线全绿')
