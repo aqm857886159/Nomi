@@ -158,8 +158,13 @@ test('共用理解层不再消费 git 全局选项 → 两个闸门同时报漏�
     mutateLib: (lib) => {
       // 拿掉「带参数的 git 全局选项」这一支，`git -c k=v <子命令>` 就退化成认不出子命令。
       // 这正是 2026-09-02 实测到的那类洞：git 与子命令之间隔了全局选项，闸门整个不运行。
+      // 这段字面量必须与 _bash-command-analysis.sh 里那一支**逐字相同**——下面
+      // `assert.notEqual` 就是它的守卫：改了库却没改这里，测试会当场喊「空转」而不是假绿。
       const next = lib.replace(
         `                if t in GLOBAL_TAKES_ARG and j + 1 < n:
+                    # \`-c k=v\` / \`--config-env k=ENVVAR\` 的**值**就是配置本身，别再丢掉。
+                    if t in ("-c", "--config-env"):
+                        configs.append(tokens[j + 1])
                     j += 2; continue
 `,
         '',
