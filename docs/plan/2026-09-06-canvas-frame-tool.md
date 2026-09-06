@@ -131,7 +131,7 @@
 | `src/devlab/designLab/labScreens.ts` | 注册 `canvas-frame` 屏 |
 | `tests/ux/design-lab/labStates.mjs` | 登记注册表目录 + 基线目录（与上一条**必须同时改**） |
 | `tests/ux/design-lab/labServer.mjs` | `LAB_ROLES` 加 `walk-canvas-frame` |
-| `tests/ux/design-lab/calibration.json` | `pendingApprovalScreens.canvas-frame` 登记一条 + `screens.canvas-frame` 容差；**本轨不录基线**（用户看图后再录） |
+| `tests/ux/design-lab/calibration.json` | `screens.canvas-frame` 容差；六态基线已录在 `tests/ux/design-lab/__baselines__/canvas-frame/`，不在 `pendingApprovalScreens` 里 |
 | `tests/ux/design-lab-canvas-frame.walk.mjs` **新增** + `package.json` 脚本 | 出接触表给用户拍板 |
 
 ### 4.7 测试
@@ -168,7 +168,7 @@
 
 1. **`frameBounds` 回填会落盘。** 回滚代码后，旧项目里多出来的 `frameBounds` 字段仍在磁盘上——但那正是回填前**画布本来就在渲染的**那个矩形，且旧代码根本不读这个字段，所以视觉与行为零变化。**不需要反向迁移。**
 2. **`description` 同理**：旧代码不读，schema 上是 optional，多一个字段不会让旧版本 parse 失败（`nodeGroupSchema` 用的是 zod object，非 strict）。
-3. **设计实验室基线**：本轨只登记 `pendingApprovalScreens`，**不录任何基线图**，回滚不会留下孤儿基线。
+3. **设计实验室基线**：六态基线图随本轨一起进仓（`tests/ux/design-lab/__baselines__/canvas-frame/`），revert 整个 PR 会连同 `labStates.mjs` 的登记一起撤掉，不留孤儿基线。
 
 ---
 
@@ -176,10 +176,10 @@
 
 | 门 | 判据 |
 |---|---|
-| `pnpm run gates` | 全绿。`check:filesize`（画布壳 663 → 不得越 800）、`check:tokens`、`check:i18n`（zh/en parity）、`check:walkthroughs`、`check:design-lab`（`canvas-frame` 走 pending 登记、不比像素）、`lint:ci`、`typecheck`、`check:test-types` |
+| `pnpm run gates` | 全绿。`check:filesize`（画布壳 663 → 不得越 800）、`check:tokens`、`check:i18n`（zh/en parity）、`check:walkthroughs`、`check:design-lab`（`canvas-frame` 六态逐格比对基线）、`lint:ci`、`typecheck`、`check:test-types` |
 | 单测 | 上面 §4.7 的 6 组全绿 |
 | 走查 | `node tests/ux/canvas-frame.walk.mjs` 全部断言通过；截图自己 Read 过一遍（P3：expect 绿 ≠ 体验对） |
-| 实验室 | `pnpm run design-lab:walk:canvas-frame` 出六态 + 接触表，交用户拍板；**不跑 `design-lab:update`** |
+| 实验室 | `pnpm run design-lab:walk:canvas-frame` 出六态 + 接触表；拍板后六态基线已录，`check:design-lab` 逐格比对 |
 | P1 | 无并行版：框只有一种（画的和 ⌘G 建的是同一个 `NodeGroup`）；生成整框复用现役批量路径；标签上无第二颗 ▶ |
 | P3 / R16 | 走查跑的是「真实用户任务」串（画框 → 装东西 → 改名 → 挪出去 → 折叠 → 生成 → 进轴 → 解散），不是功能点探索 |
 
