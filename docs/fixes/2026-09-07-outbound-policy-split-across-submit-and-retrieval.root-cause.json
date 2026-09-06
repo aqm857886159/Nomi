@@ -1,0 +1,214 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-07-outbound-policy-split-across-submit-and-retrieval",
+  "problem_type": "One generation's outbound destination is classified twice, by two owners, with different inputs",
+  "symptom": "On any machine running a fake-IP local proxy (Clash / Surge / sing-box TUN mode, the common setup for reaching overseas APIs from China), every generation was charged and then unreachable. The 2026-09-06 real-environment acceptance run submitted 10 MiniMax H3 videos through APIMart, all 10 succeeded upstream and were billed ($3.4272 total), and all 10 showed up in the app as a bare '生成失败'. The only text anywhere was the untranslated internal string 'Refusing to fetch private/loopback DNS address'; the user could not tell that the money was spent, that the results still existed, or what to do next. The run only completed because the operator set the lab-only LAB_ALLOW_LOCALHOST=1 escape hatch, which real users do not have.",
+  "direct_cause": "hardenedFetch's resolvePublicAddresses resolved the provider hostname locally and rejected the answer because a fake-IP resolver maps every domain into 198.18.0.0/15 (RFC 2544 benchmarking), which is on the private/reserved blocklist in electron/networkHostPolicy.ts. The existing relief in hardenedFetch only covered isApplicationProxyActive() -- an HTTP/SOCKS proxy Nomi itself committed -- and a TUN-mode proxy is transparent, so the app sees no proxy at all and takes the direct DNS-pinning path.",
+  "class_root": "The outbound destination decision for a single generation was made twice, independently, by two different owners. The submit and poll half (electron/vendor/vendorHttp.ts -> fetchVendorWithBaseFallback -> appFetch) applies NO destination policy: it trusts the vendor origin the user configured. The retrieval half (localizeTaskAsset -> importRemoteAsset -> hardenedFetch) re-derives a verdict from scratch out of a raw URL and a DNS answer, with no knowledge that we already transacted with this provider. Nothing made the two agree, so the system could be willing to pay through a destination it was then unwilling to read from. Widening the blocklist would only move that asymmetry; the missing invariant is that both halves consult one policy owner with one environment snapshot, and that the facts established at submit time (which vendor, which route) travel with the retrieval.",
+  "affected_population": [
+    "Every user running a fake-IP local proxy in TUN mode (Clash, Surge, sing-box and equivalents) -- the standard configuration for reaching overseas model providers from mainland China",
+    "Every asynchronous generation on every provider on those machines: images, video, audio and 3D all retrieve their artifact through the same localizeTaskAsset path",
+    "Users who configured a per-provider proxy (Vendor.network.proxyUrl): submission used that route while artifact download silently did not -- the same asymmetry with a different trigger, independent of fake-IP",
+    "Every packaged build, which shipped a LAB_ALLOW_LOCALHOST environment switch that disabled the private-host classifier wholesale, including the 169.254.169.254 cloud-metadata range"
+  ],
+  "scope_paths": [
+    "electron/networkOutboundPolicy.ts",
+    "electron/networkOutboundMessage.ts",
+    "electron/networkHostPolicy.ts",
+    "electron/hardenedFetch.ts",
+    "electron/runtime.ts",
+    "electron/assets/projectAssetStore.ts",
+    "electron/systemProxy.ts",
+    "electron/proxyIpc.ts",
+    "electron/main.ts",
+    "electron/i18n.ts",
+    "electron/shared/nomiErrorCodes.ts",
+    "electron/tasks/comfyCandidateTest.ts",
+    "electron/tasks/taskIpcHandlers.ts",
+    "scripts/check-outbound-policy.mjs",
+    "scripts/outbound-policy-baseline.json",
+    "src/desktop/bridge.ts",
+    "src/ui/onboarding/NetworkSection.tsx",
+    "src/workbench/observability/narrate.ts",
+    "src/workbench/observability/classifyError.ts",
+    "src/workbench/ai/resident/residentShellDisplay.ts",
+    "src/i18n/locales/generationCommon.ts",
+    "src/i18n/locales/onboardingProviders.ts"
+  ],
+  "entry_points": [
+    "Generation artifact retrieval after a paid provider task (localizeTaskAsset)",
+    "Async task result polling and stateless rebuild (electron/tasks/taskResultQuery.ts)",
+    "Manual and automatic download / save-as of a provider result (electron/assets/downloadAsset.ts)",
+    "Project asset healthcheck re-download of an expiring provider URL (importRemoteAsset)",
+    "External MCP host generation output materialization (electron/capabilityCore/generationOutputMaterializer.ts)",
+    "Video first-frame extraction, TikHub connector import, prompt-library and catalog document fetches"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://www.rfc-editor.org/rfc/rfc2544#appendix-C.2.2",
+      "checked_at": "2026-09-07",
+      "purpose": "Establish that 198.18.0.0/15 is assigned to network interconnect device benchmarking, not to private internal networks -- so refusing it protects nothing an attacker could otherwise reach, unlike RFC 1918 space."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://www.rfc-editor.org/rfc/rfc6890",
+      "checked_at": "2026-09-07",
+      "purpose": "Confirm the special-purpose registry classification of 198.18.0.0/15 alongside documentation ranges, distinct from the loopback, link-local and RFC 1918 ranges the gate must keep blocking."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://www.rfc-editor.org/rfc/rfc2606#section-2",
+      "checked_at": "2026-09-07",
+      "purpose": "Establish that .invalid is reserved and guaranteed never to resolve, which is what makes it a valid positive control for detecting a synthesizing resolver."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://wiki.metacubex.one/en/config/dns/",
+      "checked_at": "2026-09-07",
+      "purpose": "Confirm that fake-IP mode answers DNS queries from a synthetic pool defaulting to 198.18.0.1/16 and performs the real resolution on the proxy side, which is why such an answer is a routing marker rather than a reachable destination."
+    }
+  ],
+  "invariants": [
+    "Exactly one module classifies outbound destinations: electron/networkOutboundPolicy.ts. No caller re-derives private/public classification, and scripts/check-outbound-policy.mjs freezes the identity of every file that imports isPrivateHost or the unpoliced appFetch entry.",
+    "The outbound environment (is this machine's resolver synthesizing answers?) is probed at most once per process and cached. The submit half and the retrieval half of one generation therefore read the same verdict; it cannot flip between paying and fetching.",
+    "Relief for 198.18.0.0/15 requires positive evidence, never assumption. All three must hold: the .invalid probe proved the local resolver synthesizes, the target is a proxy-resolvable public domain (never an IP literal, never .local/.localhost), and the observed address is itself inside the benchmarking range. Probe failure, timeout or absence means no relief -- fail closed.",
+    "Loopback, RFC 1918 (10/8, 172.16/12, 192.168/16), link-local 169.254/16 including the cloud-metadata address, and CGNAT 100.64/10 stay refused under every environment, fake-IP included. The relief widened exactly one reserved range and nothing else.",
+    "An artifact download uses the same network route as the request that produced it: localizeTaskAsset resolves providerDispatcher(vendor) and hands it to importRemoteAsset, so a per-provider proxy applies to both halves.",
+    "A refusal by our own outbound policy is a structured OutboundDestinationRefusedError carrying a stable machine code (NOMI_ERR::outbound-blocked::), never a bare string. Classification reads the code, never the human sentence, so translating the copy cannot break the classification.",
+    "The user-visible text for such a refusal states three things: that this is our policy and not a provider outage, that the paid task is intact, and that the next step is to confirm the proxy and then re-fetch for free. Its primary action is never 'retry', because retrying a generation charges again for a result we already own.",
+    "The private-host classifier has no environment switch. Lab loopback fixtures name an exact origin through setLabTrustedPrivateOrigins, which main.ts seeds only when !app.isPackaged, so a packaged build has no hatch to read."
+  ],
+  "generality_proof": "Every remote-byte entry in the main process converges on hardenedFetch (verified by exhaustive grep: downloadAsset, projectAssetStore.importRemoteAsset, generationOutputMaterializer, extractVideoFrame, dreaminaInputFiles, tikhubConnector and tikhubRoute, promptLibraryStore, catalogCommit, docsDiscovery, certificationMedia, antigravityTask, localAiExternalProbe, integrationSession, audioTaskRunner). hardenedFetch now delegates its only destination verdict to networkOutboundPolicy, so fixing the policy fixes every one of those entries at once rather than the one that was reported. The other half of the asymmetry -- vendor submit and poll -- reaches the same owner through the shared cached environment snapshot and, for the artifact it produces, through the vendor route now carried into retrieval. What the shared boundary cannot prove statically (that a future module will not open a third outbound path) is covered by scripts/check-outbound-policy.mjs, whose ratchet freezes the identity of every appFetch and isPrivateHost importer so a new one is a red gate rather than a silent second policy.",
+  "shared_boundaries": [
+    {
+      "path": "electron/networkOutboundPolicy.ts",
+      "symbol": "classifyOutboundAddresses and readOutboundEnvironment",
+      "responsibility": "Sole owner of the outbound destination verdict and of the once-per-process environment fact both halves of a generation read. Owns fake-IP detection by positive control, the benchmarking-range relief and its three preconditions, and the structured refusal error."
+    },
+    {
+      "path": "electron/hardenedFetch.ts",
+      "symbol": "resolvePublicAddresses and assertSafeUrl",
+      "responsibility": "The single retrieval-side outbound gate for the whole main process. Asks the policy owner rather than classifying addresses itself, and raises the owner's structured refusal instead of a bare string."
+    },
+    {
+      "path": "electron/runtime.ts",
+      "symbol": "localizeTaskAsset",
+      "responsibility": "Carries the submit-time provider identity into retrieval: resolves the vendor's own dispatcher and its trusted private origin, so the artifact download takes the same road as the paid request that produced it."
+    },
+    {
+      "path": "electron/shared/nomiErrorCodes.ts",
+      "symbol": "NomiErrorCode 'outbound-blocked'",
+      "responsibility": "Stable cross-process identity for a refusal by our own policy, so the renderer classifies on a code rather than on a translatable sentence."
+    },
+    {
+      "path": "scripts/check-outbound-policy.mjs",
+      "symbol": "outbound policy ratchet",
+      "responsibility": "Makes 'only one owner classifies destinations' machine-checked: hard-zero on environment escape hatches in production files, identity ratchet on every appFetch and isPrivateHost importer."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/assets/projectAssetStore.ts",
+      "entry_point": "importRemoteAsset",
+      "disposition": "enforced",
+      "evidence": "The reported failure's own path. Calls hardenedFetch, which now asks the policy owner; additionally accepts providerRoute so the vendor's route reaches the download. Covered by electron/hardenedFetch.test.ts's fake-IP retrieval case and its negative control."
+    },
+    {
+      "path": "electron/assets/downloadAsset.ts",
+      "entry_point": "fetchAssetBytes",
+      "disposition": "enforced",
+      "evidence": "Manual save-as and auto-save of a provider result. Already routed through hardenedFetch by an earlier fix for exactly this asymmetry (its own comment records that splitting the two made a result downloadable in one path and unreachable in the other under a fake-IP proxy); it inherits the new verdict without change."
+    },
+    {
+      "path": "electron/capabilityCore/generationOutputMaterializer.ts",
+      "entry_point": "createGenerationOutputMaterializer.materialize",
+      "disposition": "enforced",
+      "evidence": "The external-MCP host's artifact retrieval. Independent caller, different process entry, same hardenedFetch boundary, so the same relief and the same refusals apply."
+    },
+    {
+      "path": "electron/video/extractVideoFrame.ts",
+      "entry_point": "hardenedFetch of a provider video URL",
+      "disposition": "enforced",
+      "evidence": "Thumbnail and first-frame retrieval of a generated video; a distinct consumer population from generation localization, reaching the same boundary."
+    },
+    {
+      "path": "electron/connectors/tikhubConnector.ts",
+      "entry_point": "hardenedFetch with allowedOrigins",
+      "disposition": "enforced",
+      "evidence": "Third-party connector import, an entirely different input population (user-supplied social URLs rather than provider results), verifying the boundary is not provider-specific."
+    },
+    {
+      "path": "electron/localRuntime/localTextEndpoints.ts",
+      "entry_point": "appFetch against 127.0.0.1",
+      "disposition": "not-affected",
+      "evidence": "Deliberately targets loopback for a local model server the user configured; it must bypass proxies rather than be classified as an untrusted destination. Registered in scripts/outbound-policy-baseline.json so the exemption is explicit and any new one is a red gate. The same reasoning covers the ComfyUI probes and the MCP loopback RPC."
+    },
+    {
+      "path": "electron/vendor/vendorHttp.ts",
+      "entry_point": "requestVendor submit and poll",
+      "disposition": "not-affected",
+      "evidence": "Deliberately keeps no destination classifier of its own: the vendor origin is trusted because the user configured it, and ComfyUI vendors legitimately live on 127.0.0.1. Adding a second classifier here is precisely the class root. It converges on the shared owner through the cached environment snapshot and by handing its vendor route to retrieval."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The mechanism is a property of the architecture, not of one machine. Two independent triggers already exist in the repository: fake-IP DNS (any TUN-mode proxy user, i.e. most users reaching overseas providers from China) and per-provider proxies (Vendor.network.proxyUrl applied on submit but not on download). Both arise from the same missing invariant, and every future outbound module can reintroduce it by opening its own path. It had also already recurred once before this fix: electron/assets/downloadAsset.ts carries a comment describing the identical split being repaired there for the save-as path, which shows the class outliving a point fix.",
+    "same_class_scan": [
+      "grep -rn 'hardenedFetch|hardenedFetchText' over electron/ and scripts/: 16 distinct production call sites enumerated and each dispositioned in same_class_entry_points.",
+      "grep -rn 'appFetch' over the repository: 22 production importers, frozen by identity in scripts/outbound-policy-baseline.json; the loopback and vendor-transport ones are dispositioned not-affected with reasons.",
+      "grep -rn 'isPrivateHost': 7 importers, of which integrationCertification/httpConnector.ts, integrationSession.ts, localAiExternalProbe.ts, systemProxy.ts and tasks/taskResultCertification.ts are pre-existing second-opinion classifiers now frozen so no new one can appear unnoticed.",
+      "grep -rn 'LAB_ALLOW_LOCALHOST': 3 sites (the classifier itself, scripts/lab-onboard.ts, tests/ux/project-asset-healthcheck.walk.mjs); all three converted to the exact-origin mechanism, and the switch is now hard-zero in the gate.",
+      "Independently checked entry points outside the reported provider: the external-MCP materializer (different process entry) and the TikHub connector (different input population) both reach the same boundary and therefore the same verdict."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/networkOutboundPolicy.ts",
+    "invariant": "Every outbound destination verdict in the main process is produced by classifyOutboundAddresses against a single per-process environment snapshot, and relief for the benchmarking range requires positive proof of a synthesizing resolver plus a proxy-resolvable public hostname.",
+    "failure_mode": "Fails closed in every direction. A probe that errors, times out or returns a non-benchmarking answer yields syntheticResolver=false and the destination stays refused. Missing addresses are a terminal 'unresolvable' refusal rather than an optimistic pass. A refusal raises a structured error whose code the renderer must handle, so a new failure mode cannot silently degrade into a generic message.",
+    "exception_policy": "none",
+    "strategy": "The verdict moves from two ad-hoc sites to one owner that both halves of a generation consult, and the facts established at submit time (environment snapshot, vendor route, trusted origin) are carried into retrieval instead of being re-derived. Because the callers already converge on hardenedFetch, one boundary covers every present entry; the static gate covers future ones by making a second outbound path or a second classifier a red build rather than a silent divergence.",
+    "artifacts": [
+      "electron/networkOutboundPolicy.ts",
+      "electron/networkOutboundMessage.ts",
+      "electron/hardenedFetch.ts",
+      "electron/networkHostPolicy.ts",
+      "electron/runtime.ts",
+      "electron/assets/projectAssetStore.ts",
+      "electron/shared/nomiErrorCodes.ts",
+      "scripts/check-outbound-policy.mjs",
+      "scripts/outbound-policy-baseline.json"
+    ]
+  },
+  "regression_tests": [
+    "electron/networkOutboundPolicy.test.ts",
+    "electron/hardenedFetch.test.ts",
+    "src/workbench/generationCanvas/runner/classifyGenerationError.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/networkOutboundPolicy.test.ts",
+    "electron/hardenedFetch.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/networkHostPolicy.ts",
+      "scripts/lab-onboard.ts",
+      "tests/ux/project-asset-healthcheck.walk.mjs"
+    ],
+    "rationale": "The LAB_ALLOW_LOCALHOST=1 branch that disabled the entire private-host classifier is deleted from electron/networkHostPolicy.ts, not left callable beside the new mechanism. Both consumers were converted in the same change to naming an exact origin, which main.ts seeds only on an unpackaged build. scripts/check-outbound-policy.mjs makes the old shape hard-zero in production files so it cannot come back. The bare-string refusals in hardenedFetch are replaced by the structured error rather than kept as a fallback, and the tests that asserted on the old English substring were retargeted to the typed error and stable code."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The invariant is entirely Nomi's own: which destinations we are willing to reach, and whether the two halves of one generation agree. undici and Node's DNS resolver are used unchanged and neither decides the policy; the fake-IP behaviour being accommodated belongs to the user's proxy software, which Nomi does not depend on or ship.",
+    "exit_criteria": []
+  },
+  "migration": "No stored data or schema changes. Behaviour changes for users only in the safe direction: destinations that were refused after payment now succeed when a fake-IP proxy is positively detected, and nothing that was reachable becomes unreachable. Machines with no local proxy keep the previous verdict exactly. Operators of the two lab flows must set NOMI_LAB_TRUSTED_PRIVATE_ORIGINS to the fixture origin instead of LAB_ALLOW_LOCALHOST=1; both in-repo callers were converted in this change, and a packaged build ignores the variable entirely.",
+  "residual_risks": [
+    "The synthetic-resolver probe is validated against injected DNS fixtures and against the reported machine's behaviour, but not against every proxy implementation. A fake-IP pool configured outside 198.18.0.0/15 (some users set a custom fake-ip-range) is still refused; that fails closed, and the error now names the address so the case is diagnosable rather than silent.",
+    "A public domain whose real A record legitimately points into 198.18.0.0/15 would be allowed when a synthesizing resolver is also present. Accepted: the range is reserved for benchmarking by RFC 2544/6890, no reachable internal service should live there, and every range that can actually reach a user's LAN or cloud metadata stays refused.",
+    "For an error-status node the secondary action on the error card is still 'retry', which for a generation costs money. The primary action and the copy both direct the user to the network settings and explicitly say not to regenerate, and the retrieval failure in practice lands the node in 'recoverable' (whose card offers only the free re-fetch), but a dedicated non-paying secondary action would need a new GenerationErrorAction and its UI wiring, which is outside this change.",
+    "The vendor submit path still performs no destination assertion of its own by design (see same_class_entry_points). This means a machine whose probe cannot detect its fake-IP proxy will still spend money before the retrieval refuses. The refusal is now free to recover from rather than lost, but detecting the environment before spending is not proven for proxy implementations outside the tested set."
+  ]
+}

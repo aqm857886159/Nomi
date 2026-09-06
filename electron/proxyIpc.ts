@@ -1,10 +1,11 @@
 // 应用内代理设置的 IPC（见 docs/plan/2026-08-01-in-app-proxy-setting.md）。
 // get 读状态、set 写偏好并**即时重装 dispatcher**（不用重启）、test 探连通。
-import { ipcMain, session } from "electron";
+import { app, ipcMain, session } from "electron";
 import { normalizeProxyPrefs, readProxyPrefs, writeProxyPrefs, type ProxyPrefs } from "./proxySettings";
 import { probeOutbound, probeTargets } from "./proxyProbe";
 import { assertTrustedSender } from "./ipcSenderGuard";
 import { applySystemProxy, getAppDispatcher, getProxyStatus } from "./systemProxy";
+import { invalidateOutboundEnvironment, readOutboundEnvironment, seedLabTrustedPrivateOrigins } from "./networkOutboundPolicy";
 
 /**
  * 启动时按已存偏好装一次代理。
@@ -13,6 +14,9 @@ import { applySystemProxy, getAppDispatcher, getProxyStatus } from "./systemProx
  * 所以"读盘 + 注入"这一步必须由本来就在 electron 里的模块干，这里正合适。
  */
 export async function applyProxyAtBoot(): Promise<void> {
+  // 实验室 loopback 夹具的精确 origin 与代理线路同属「启动时装网络配置」这一步，一并在这里落实；
+  // 打包版本里整体空操作（见 networkOutboundPolicy.seedLabTrustedPrivateOrigins）。
+  seedLabTrustedPrivateOrigins(app.isPackaged);
   await applySystemProxy(session.defaultSession, readProxyPrefs());
 }
 
@@ -23,6 +27,9 @@ export function registerProxyIpc(): void {
   ipcMain.handle("nomi:proxy:get", async (event) => {
     assertTrustedSender(event);
     await getAppDispatcher().catch(() => undefined); // status carries boot/application failure
+    // 面板要显示「检测到本地代理（fake-ip）」这一行，所以在这里把那次有界探测（≤1.5s、进程内
+    // 只跑一次）落实到位——生成路径读的是同一份缓存，不会因为面板没开过就判得不一样。
+    await readOutboundEnvironment().catch(() => undefined);
     return { ok: true, status: getProxyStatus(readProxyPrefs()) };
   });
 
@@ -31,6 +38,9 @@ export function registerProxyIpc(): void {
     const prefs = writeProxyPrefs(normalizeProxyPrefs(payload));
     // 即时重装：热切换是这个设置成立的前提，否则用户改完还得重启（那这设置就废了一半）。
     await applySystemProxy(session.defaultSession, prefs as ProxyPrefs);
+    // 线路换了，合成解析器的判定可能跟着换：作废旧快照并立刻重探，别让面板显示上一条线路的结论。
+    invalidateOutboundEnvironment();
+    await readOutboundEnvironment().catch(() => undefined);
     // A newer user preference may have arrived while this operation was
     // resolving. Return that latest committed state, never an obsolete pair.
     await getAppDispatcher().catch(() => undefined);
