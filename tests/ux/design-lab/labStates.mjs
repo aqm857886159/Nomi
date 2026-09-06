@@ -23,10 +23,6 @@ const BASELINE_ROOT = path.join(REPO_ROOT, 'tests/ux/design-lab/__baselines__')
  * 解析顺序 = 文件名排序，与汇总口的拼接顺序一一对应（文件名带数字前缀就是为了这个）。
  */
 export const LAB_SCREENS = {
-  'agent-panel': {
-    registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/states'),
-    baselineDir: path.join(BASELINE_ROOT, 'agent-panel'),
-  },
   'agent-panel-v4': {
     registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/v4/states'),
     baselineDir: path.join(BASELINE_ROOT, 'agent-panel-v4'),

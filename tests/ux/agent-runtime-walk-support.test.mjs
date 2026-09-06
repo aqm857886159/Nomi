@@ -139,38 +139,44 @@ test('vertical spine closes the visible settings dialog before opening Agent men
 test('vertical spine waits for each natural Agent turn terminal before sending the next turn', () => {
   const runner = fs.readFileSync(new URL('./agent-vertical-spine-m0-m5.red.e2e.mjs', import.meta.url), 'utf8')
   expect(runner).toMatch(/waitForAgentTurnTerminal\(panel, turn\.user\)/)
-  expect(runner).toMatch(/data-agent-status=\"done\"/)
-  expect(runner).toMatch(/data-agent-status=\"failed\"/)
-  expect(runner).toMatch(/data-agent-status=\"stopped\"/)
-  expect(runner).toMatch(/data-agent-status=\"declined\"/)
-  expect(runner).toMatch(/data-agent-turn-id/)
+  // v4 没有 per-item 的 turn id：回合终点由 composer 的运行态判定，终态写在助手文本 / 错误条上。
+  expect(runner).toMatch(/const TURN_RUNNING = `\$\{COMPOSER\}\[data-mode="running"\]`/)
+  expect(runner).toMatch(/TURN_RUNNING\)\.waitFor\(\{ state: 'hidden'/)
+  expect(runner).toMatch(/block === 'errorbar' \? 'failed' : await terminal\.getAttribute\('data-status'\)/)
   expect(runner).toMatch(/waitForAgentTurnSettled\(panel\)/)
   const terminalWait = runner.indexOf('waitForAgentTurnTerminalOrPendingProposal(panel, turn.user)')
-  expect(runner).toMatch(/terminalStatus !== 'done'.*throw new Error/)
+  expect(runner).toMatch(/terminalStatus !== 'complete'.*throw new Error/)
   const nextTurnEvidence = runner.indexOf('steps.push({ id: `M3.${turn.turn}.natural-user-turn`')
   expect(terminalWait).toBeGreaterThan(-1)
   expect(nextTurnEvidence).toBeGreaterThan(terminalWait)
-  expect(runner).not.toMatch(/data-agent-item-kind=\"assistant\"\], \[data-agent-item-kind=\"failure\"/)
+  // 旧面板的 per-item 挂点一个都不许留下——留着就是一条只报「元素找不到」的死选择器。
+  expect(runner).not.toMatch(/data-agent-item-kind=/)
+  expect(runner).not.toMatch(/data-agent-turn-id=/)
 })
 
 test('vertical spine handles R2 proposal pending by visibly denying before the R3 change of mind', () => {
   const runner = fs.readFileSync(new URL('./agent-vertical-spine-m0-m5.red.e2e.mjs', import.meta.url), 'utf8')
   expect(runner).toMatch(/waitForAgentTurnTerminalOrPendingProposal\(panel, turn\.user\)/)
-  expect(runner).toMatch(/data-agent-approval-state=\"pending\"/)
+  // v4：待决就是介入槽本身在不在（槽只在有 pending 时渲染），没有第二个 approval-state 属性。
+  expect(runner).toMatch(/const pending = panel\.locator\(APPROVAL_CARD\)/)
   expect(runner).toMatch(/denyPendingProposalForRevision\(panel\)/)
   expect(runner).toMatch(/turn\.turn !== 'R2'/)
   expect(runner).toMatch(/M3\.R2\.pending-proposal-denied/)
-  expect(runner).toMatch(/拒绝\|Deny/)
-  expect(runner).toMatch(/turn\.turn === 'R2' && terminalStatus === 'declined'/)
+  // 拒绝必须走完两下：先「不要」摊开原因，再「确认不要」才真的回给宿主。
+  expect(runner).toMatch(/INTERVENTION_REJECT/)
+  expect(runner).toMatch(/INTERVENTION_CONFIRM_REJECT/)
+  expect(runner).toMatch(/turn\.turn === 'R2' && terminalStatus === 'interrupted'/)
   expect(runner).not.toMatch(/if \(turn\.turn !== 'R2'\)[\s\S]{0,240}resolveTool\([^\n]+true/)
 })
 
 test('vertical spine captures only redacted Agent failure diagnostics', () => {
   const runner = fs.readFileSync(new URL('./agent-vertical-spine-m0-m5.red.e2e.mjs', import.meta.url), 'utf8')
   expect(runner).toMatch(/agentFailureEvidence\(win\)/)
-  expect(runner).toMatch(/data-agent-error-code/)
-  expect(runner).toMatch(/data-agent-error-message-category/)
-  expect(runner).toMatch(/redactDiagnosticText/)
+  // v4 的失败是一条错误条（人话原因 + 一个动作）；旧的 error-code / message-category 属性已随旧面板删除，
+  // 所以证据里剩下的每一段用户可见文本都必须先过脱敏。
+  expect(runner).toMatch(/panel\.locator\(ERROR_BAR\)/)
+  expect(runner).toMatch(/reason: redactDiagnosticText\(await failure\.innerText\(\)/)
+  expect(runner).toMatch(/const lastUserText = redactDiagnosticText\(/)
   expect(runner).toMatch(/api\[_ -\]\?key\|token\|secret\|authorization\|bearer/)
   expect(runner).not.toMatch(/agentFailure[\s\S]{0,220}item\.message/)
 })
@@ -196,15 +202,37 @@ test('vertical spine reopens the persisted project through the visible library a
   expect(runner).toMatch(/data-storyboard-row=\"2\"/)
   expect(runner).toMatch(/reopened\.revision/)
   expect(runner).toMatch(/waitForAgentTurnTerminal\(restartedPanel, resumeTurn\.user\)/)
-  expect(runner).not.toMatch(/const restartedPanel = win\.locator\('\[data-agent-panel=\"true\"\]'\)\.first\(\)\n    await restartedPanel\.waitFor/)
+  expect(runner).not.toMatch(/const restartedPanel = win\.locator\(AGENT_PANEL\)\.first\(\)\n    await restartedPanel\.waitFor/)
 })
 
-test('Agent empty state gives the user a clear first action instead of a blank dock', () => {
+test('the resident shell keeps the surface identity anchors every walkthrough scopes by', () => {
+  // 空态那两个挂点（data-agent-empty-state / -cta）随 v4 接线删了：v4 的空面板就是一条空对话流 +
+  // composer，没有第九个「空状态」积木。这里改钉**外壳身份**——它是所有走查作用域的根据，
+  // 丢一个就会让整批走查报「面板没渲染」而实际是选择器过期。
   const source = fs.readFileSync(new URL('../../src/workbench/ai/ProjectAgentResidentShell.tsx', import.meta.url), 'utf8')
-  expect(source).toMatch(/data-agent-empty-state="true"/)
-  expect(source).toMatch(/data-agent-empty-cta="true"/)
-  expect(source).toMatch(/emptyCta/)
-  expect(source).toMatch(/querySelector<HTMLTextAreaElement>\('\[data-agent-input=/)
+  for (const anchor of [
+    'data-agent-resident="true"',
+    'data-agent-panel="true"',
+    'data-agent-surface={surface}',
+    'data-agent-collapsed="true"',
+    'data-agent-approval-mode={actions.permission}',
+    'data-agent-thread-menu="true"',
+    'data-agent-error="true"',
+  ]) {
+    expect(source, `resident shell 必须继续发出 ${anchor}`).toContain(anchor)
+  }
+})
+
+test('every panel selector lives in the shared support module, not hand-copied into walks', async () => {
+  const support = await import('./agent-runtime-walk-support.mjs')
+  expect(support.APPROVAL_CARD).toBe('[data-v4-block="intervention"]')
+  expect(support.COMPOSER_INPUT).toBe('[data-v4-control="input"]')
+  expect(support.COMPOSER_SEND).toBe('[data-v4-control="send"]')
+  expect(support.INTERVENTION_CONFIRM).toBe('[data-v4-control="confirm"]')
+  expect(support.INTERVENTION_REJECT).toBe('[data-v4-control="reject"]')
+  expect(support.INTERVENTION_CONFIRM_REJECT).toBe('[data-v4-control="confirm-reject"]')
+  expect(support.COMPOSER_STOP).toContain('[data-mode="running"]')
+  expect(typeof support.waitForV4TurnIdle).toBe('function')
 })
 
 function ownedApp(close) {

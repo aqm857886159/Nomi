@@ -111,7 +111,11 @@ test('unchanged source and removed temporary credential permit a passed cleanup 
 test('the paid smoke also exercises the reported canvas task without approving media generation', () => {
   expect(source).toContain('创建两个图片节点并连接参考，只建节点，不生成')
   expect(source).toContain('await openCanvas(win)')
-  expect(source).toContain('data-plan-confirm-all')
+  // v4 接线（2026-09-06）：待批准的操作落在**介入槽**里，一次一个，
+  // 批准钮是 `INTERVENTION_CONFIRM`——旧面板那个「全部确认」的挂点
+  // （`data-plan-confirm-all`）随旧组件整件删除。这条断言守的是
+  // 「付费冒烟真的按下了批准」，锚点跟着契约走，不跟着已经不存在的 class 走。
+  expect(source).toContain('INTERVENTION_CONFIRM')
   expect(source).toContain('run_generation_batch')
   expect(source).toContain('nodes: 2, edges: 1')
   expect(source).toContain('data-proposal-undo-all')

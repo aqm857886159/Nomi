@@ -11,6 +11,10 @@ import path from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import {
+  ASSISTANT_MESSAGE, COLLAPSED_DOCK, COLLAPSED_SHELL, COMPOSER, COMPOSER_INPUT, COMPOSER_MODEL,
+  COMPOSER_SEND, COMPOSER_SKILL, ERROR_BAR, MODEL_POPOVER, SKILL_POPOVER, SKILL_SEARCH,
+} from './agent-runtime-walk-support.mjs'
+import {
   REAL_USER_LONG_VIDEO_MANIFEST,
   blockedLiveReport,
   liveCanaryReadiness,
@@ -20,6 +24,8 @@ import {
 const FIXTURE_VIDEO = path.join(repoRoot, REAL_USER_LONG_VIDEO_MANIFEST.sample.path)
 const FIXTURE_VENDOR = 'real-user-loopback-vision'
 const FIXTURE_MODEL = 'real-user-loopback-model'
+// v4 的模型弹层按**显示名**列行（没有 per-row 挂点），和下面 catalog 里的 labelZh 是同一个串。
+const FIXTURE_MODEL_LABEL = '本地长视频视觉 fixture'
 const FIXTURE_SKILL = 'workbench.storyboard.planner'
 const NOW = '2026-09-04T00:00:00.000Z'
 
@@ -95,7 +101,7 @@ function writeLoopbackCatalog(settingsDir, baseUrl) {
       createdAt: NOW, updatedAt: NOW,
     }],
     models: [{
-      vendorKey: FIXTURE_VENDOR, modelKey: FIXTURE_MODEL, labelZh: '本地长视频视觉 fixture',
+      vendorKey: FIXTURE_VENDOR, modelKey: FIXTURE_MODEL, labelZh: FIXTURE_MODEL_LABEL,
       kind: 'text', enabled: true, published: true,
       meta: { supportsImageInput: true, supportsToolCalls: true },
       createdAt: NOW, updatedAt: NOW,
@@ -142,14 +148,17 @@ async function enterProject(win) {
 }
 
 async function openAgent(win) {
-  const collapsed = win.locator('[data-agent-resident-collapsed="true"]').first()
-  if (await collapsed.isVisible().catch(() => false)) await collapsed.click()
+  // v4 收起态：一根 32px 图标条，第一颗钮把面板叫回来。
+  const expand = async () => {
+    const collapsed = win.locator(COLLAPSED_SHELL).first()
+    if (await collapsed.isVisible().catch(() => false)) {
+      await collapsed.locator(`${COLLAPSED_DOCK} button`).first().click()
+    }
+  }
+  await expand()
   let panel = win.locator('[data-agent-panel="true"][data-agent-surface="generation"]').first()
   if (!(await panel.isVisible().catch(() => false))) {
-    // Agent Host is product-level opt-in. Enable it through the visible Settings UI,
-    // never by mutating a workbench store or local storage preference.
-    const nextCollapsed = win.locator('[data-agent-resident-collapsed="true"]').first()
-    if (await nextCollapsed.isVisible().catch(() => false)) await nextCollapsed.click()
+    await expand()
     panel = win.locator('[data-agent-panel="true"][data-agent-surface="generation"]').first()
   }
   await panel.waitFor({ state: 'visible', timeout: 10_000 })
@@ -177,8 +186,12 @@ function buildUiDriver({ appRef, winRef, profile, samplePath, loopback }) {
 
     if (step.action === 'loadSkill') {
       const panel = await openAgent(win)
-      await panel.locator('[data-agent-composer-mode="true"]').click()
-      const item = win.locator(`[data-agent-menu-item="${FIXTURE_SKILL}"]`).first()
+      // 2026-09-06 拍板①③：工作方式三档已删；技能与提示词并进 composer 的 `/` 命令菜单。
+      await panel.locator(COMPOSER_SKILL).click()
+      const skillMenu = panel.locator(SKILL_POPOVER)
+      await skillMenu.waitFor({ state: 'visible', timeout: 10_000 })
+      await skillMenu.locator(SKILL_SEARCH).fill('')
+      const item = skillMenu.locator(`[data-v4-command="skill:${FIXTURE_SKILL}"]`).first()
       if (!(await item.isVisible().catch(() => false))) {
         return {
           status: 'blocked', evidenceState: 'blocked-live',
@@ -187,16 +200,19 @@ function buildUiDriver({ appRef, winRef, profile, samplePath, loopback }) {
         }
       }
       await item.click()
-      await win.locator(`[data-agent-reference="skill:${FIXTURE_SKILL}"]`).waitFor({ state: 'visible', timeout: 10_000 })
+      // 选中的技能落成 composer 上方那颗 chip（v4 三种 chip 同一形态）。
+      await panel.locator(`${COMPOSER} [data-v4-chip="skill"]`).first().waitFor({ state: 'visible', timeout: 10_000 })
       selectedSkill = FIXTURE_SKILL
       return { status: 'pass', evidenceState: 'loopback', detail: 'Skill selected from visible Agent menu', evidence: { skill: selectedSkill } }
     }
 
     if (step.action === 'selectModel') {
       const panel = await openAgent(win)
-      await panel.locator('[data-agent-composer-model="true"]').click()
+      await panel.locator(COMPOSER_MODEL).click()
       const identity = loopback ? `${FIXTURE_VENDOR}/${FIXTURE_MODEL}` : 'apimart/gemini-3.5-flash'
-      const item = win.locator(`[data-agent-menu-item="${identity}"]`).first()
+      // v4 的模型弹层每行只有显示名，没有身份串挂点——按名字点，身份仍记在 evidence 里。
+      const modelLabel = loopback ? FIXTURE_MODEL_LABEL : 'gemini-3.5-flash'
+      const item = panel.locator(MODEL_POPOVER).getByRole('button', { name: new RegExp(modelLabel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')) }).first()
       await item.waitFor({ state: 'visible', timeout: 10_000 })
       await item.click()
       selectedModel = identity
@@ -206,15 +222,16 @@ function buildUiDriver({ appRef, winRef, profile, samplePath, loopback }) {
     if (step.action === 'applySkill') {
       const panel = await openAgent(win)
       const beforeRequests = loopback?.requests.length || 0
-      await panel.locator('[data-agent-input="true"]').fill('请用当前选择的 Skill 做一次只读规划，只回复已加载。')
-      await panel.locator('[data-agent-composer-send="true"]').click()
+      await panel.locator(COMPOSER_INPUT).fill('请用当前选择的 Skill 做一次只读规划，只回复已加载。')
+      await panel.locator(COMPOSER_SEND).click()
       // A selected Skill is loaded as the canonical turn's prompt layer. It
       // does not necessarily produce a model `load_skill` tool item (and the
       // UI correctly reserves that row for actual Host skill.read calls).
       // Wait for the real turn result, then inspect the provider request.
-      const terminalItem = panel.locator('[data-agent-item-kind="assistant"][data-agent-status="done"], [data-agent-item-kind="failure"]').last()
+      // v4：说完了的助手文本是 data-status="complete"；失败落成一条错误条（errorbar 积木）。
+      const terminalItem = panel.locator(`${ASSISTANT_MESSAGE}[data-status="complete"], ${ERROR_BAR}`).last()
       await terminalItem.waitFor({ state: 'visible', timeout: 30_000 })
-      const terminalKind = await terminalItem.getAttribute('data-agent-item-kind')
+      const terminalKind = await terminalItem.getAttribute('data-v4-block')
       if (terminalKind !== 'assistant') {
         return { status: 'blocked', evidenceState: 'blocked-live', detail: 'selected_skill_turn_failed_before_provider_result', evidence: { requestedSkill: FIXTURE_SKILL, failure: await terminalItem.textContent(), requestCount: loopback?.requests.length || 0 } }
       }

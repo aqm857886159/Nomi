@@ -1,6 +1,8 @@
 /**
- * Agent UI A 段零额度真实 Electron 走查：composer 五按钮、模式弹层、Skill、运行反馈和 storyboard 入口。
- * 这条走查只使用本地 loopback fixture，不调用供应商。
+ * Agent UI A 段零额度真实 Electron 走查：composer 五按钮、权限弹层、`/` 命令菜单、运行反馈和
+ * storyboard 入口。这条走查只使用本地 loopback fixture，不调用供应商。
+ *
+ * 2026-09-06 面板换成 v4 积木：底栏定稿为 `[+] [模型名 ▾] ｜ [Skill] …… [权限 ▾] [↑/■]`。
  */
 import fs from 'node:fs'
 import os from 'node:os'
@@ -8,6 +10,11 @@ import path from 'node:path'
 import { launchNomiApp, closeNomiApp } from './_launchApp.mjs'
 import { createAgentRuntimeFixture } from './agent-runtime-fixture.mjs'
 import { expectAbsent, proveProbe } from './_assert.mjs'
+import {
+  AGENT_PANEL, COLLAPSED_DOCK, COLLAPSED_SHELL, COMPOSER, COMPOSER_ADD_FILE, COMPOSER_INPUT,
+  COMPOSER_MODEL, COMPOSER_PERMISSION, COMPOSER_SEND, COMPOSER_SKILL, PERMISSION_POPOVER,
+  SKILL_POPOVER,
+} from './agent-runtime-walk-support.mjs'
 
 const root = path.resolve(new URL('../..', import.meta.url).pathname)
 const outputDir = path.join(root, '.tmp', 'agent-ui-a')
@@ -35,55 +42,67 @@ try {
   await page.reload(); await page.waitForLoadState('domcontentloaded'); await page.waitForTimeout(1800)
   const blank = page.locator('button, [role=\"button\"]', { hasText: '新建空白项目' }).first()
   await blank.waitFor({ state: 'visible', timeout: 15000 }); await blank.click(); await page.waitForTimeout(2400)
-  const panel = page.locator('[data-agent-resident="true"][data-agent-panel="true"]').first()
+  const panel = page.locator(AGENT_PANEL).first()
   await panel.waitFor({ state: 'visible', timeout: 10000 })
-  const collapsed = page.locator('[data-agent-resident-collapsed="true"]').first()
-  if (await collapsed.isVisible().catch(() => false)) { await collapsed.click(); await page.waitForTimeout(400) }
-  const composer = panel.locator('[data-agent-composer]')
+  const collapsed = page.locator(COLLAPSED_SHELL).first()
+  if (await collapsed.isVisible().catch(() => false)) {
+    await collapsed.locator(`${COLLAPSED_DOCK} button`).first().click()
+    await page.waitForTimeout(400)
+  }
+  const composer = panel.locator(COMPOSER)
   const composerProof = await proveProbe(composer, 'composer 面板已渲染')
-  const order = await composer.locator('button[data-agent-composer-attach], button[data-agent-composer-model], button[data-agent-composer-skill], button[data-agent-composer-mode], button[data-agent-composer-send]').evaluateAll((buttons) => buttons.map((button) => button.dataset.agentComposerAttach !== undefined ? 'attach' : button.dataset.agentComposerModel !== undefined ? 'model' : button.dataset.agentComposerSkill !== undefined ? 'skill' : button.dataset.agentComposerMode !== undefined ? 'mode' : 'send'))
-  check(JSON.stringify(order) === JSON.stringify(['attach', 'model', 'skill', 'mode', 'send']), `composer 顺序 ${order.join(' → ')}`)
-  const spacing = await composer.locator('[data-agent-composer-skill]').evaluate((skill) => {
-    const mode = document.querySelector('[data-agent-composer-mode]')
-    const send = document.querySelector('[data-agent-composer-send]')
-    if (!mode || !send) return null
+  const order = await composer.locator([
+    `button${COMPOSER_ADD_FILE}`, `button${COMPOSER_MODEL}`, `button${COMPOSER_SKILL}`,
+    `button${COMPOSER_PERMISSION}`, `button${COMPOSER_SEND}`,
+  ].join(', ')).evaluateAll((buttons) => buttons.map((button) => button.dataset.v4Control))
+  check(JSON.stringify(order) === JSON.stringify(['add-file', 'model', 'skill', 'permission', 'send']), `composer 顺序 ${order.join(' → ')}`)
+  const spacing = await composer.locator(COMPOSER_SKILL).evaluate((skill, [permissionSel, sendSel]) => {
+    const permission = document.querySelector(permissionSel)
+    const send = document.querySelector(sendSel)
+    if (!permission || !send) return null
     const skillRect = skill.getBoundingClientRect()
-    const modeRect = mode.getBoundingClientRect()
+    const permissionRect = permission.getBoundingClientRect()
     const sendRect = send.getBoundingClientRect()
-    return { gap: modeRect.left - skillRect.right, modeToSend: sendRect.left - modeRect.right }
-  })
-  check(Boolean(spacing && spacing.gap > spacing.modeToSend), `composer 留白在左组三钮与右组之间（gap=${spacing?.gap ?? 'n/a'}，mode→send=${spacing?.modeToSend ?? 'n/a'}）`)
-  await expectAbsent(composer.locator('[data-agent-composer-prompt]'), { provenBy: composerProof, message: '提示词库没有第二个常驻按钮' })
+    return { gap: permissionRect.left - skillRect.right, permissionToSend: sendRect.left - permissionRect.right }
+  }, [COMPOSER_PERMISSION, COMPOSER_SEND])
+  check(Boolean(spacing && spacing.gap > spacing.permissionToSend), `composer 留白在左组三钮与右组之间（gap=${spacing?.gap ?? 'n/a'}，permission→send=${spacing?.permissionToSend ?? 'n/a'}）`)
   await page.screenshot({ path: path.join(outputDir, '01-composer-order.png') })
 
-  await composer.locator('[data-agent-composer-mode]').click()
-  const modeMenu = page.locator('[data-agent-menu="Mode"], [data-agent-menu="模式"]').last()
-  await modeMenu.waitFor({ state: 'visible', timeout: 3000 })
-  check(await modeMenu.locator('[role="radiogroup"]').count() === 1, '模式弹层只保留一个工作模式分段控件')
-  const modeProof = await proveProbe(modeMenu.locator('[role="radiogroup"]'), '模式弹层工作模式分段控件已渲染')
-  await expectAbsent(modeMenu.locator('[data-agent-menu-item^="approval-mode-"]'), { provenBy: modeProof, message: '模式弹层已删除审批档位入口' })
-  await expectAbsent(modeMenu.locator('[data-agent-menu-item^="spend-policy-"]'), { provenBy: modeProof, message: '模式弹层已删除花费策略入口' })
-  await page.screenshot({ path: path.join(outputDir, '02-mode-popover.png') })
+  // 2026-09-06 拍板①：工作方式三档（Ask / 编辑选中 / Agent）已删，权限是唯一的授权控件。
+  // 原来这里断言的「模式弹层只有一个 radiogroup、且不含审批/花费入口」随那个控件一起没了；
+  // 换成对现役唯一授权控件的同类断言：三档在同一个弹层里，且当前档恰有一个。
+  await composer.locator(COMPOSER_PERMISSION).click()
+  const permissionMenu = page.locator(PERMISSION_POPOVER).last()
+  await permissionMenu.waitFor({ state: 'visible', timeout: 3000 })
+  check(await permissionMenu.locator('[data-tier]').count() === 3, '权限弹层给出三档（每步问 / 自动改 / 全自动）')
+  check(await permissionMenu.locator('[data-tier][data-active="true"]').count() === 1, '三档里当前档恰有一个')
+  await page.screenshot({ path: path.join(outputDir, '02-permission-popover.png') })
   await page.keyboard.press('Escape')
 
-  await composer.locator('[data-agent-composer-skill]').click()
-  const skillMenu = page.locator('[data-agent-menu="技能"], [data-agent-menu="Skill"]').last()
+  // 2026-09-06 拍板③：提示词库并进同一个 `/` 命令菜单，底栏不再有第二颗「提示词」钮
+  //（上面的顺序断言已经钉死底栏恰是这五颗）。这里验它在菜单里有自己的一段。
+  await composer.locator(COMPOSER_SKILL).click()
+  const skillMenu = page.locator(SKILL_POPOVER).last()
   await skillMenu.waitFor({ state: 'visible', timeout: 3000 })
-  check(await skillMenu.locator('[data-agent-menu-item="prompt-library"]').count() === 1, 'Skill 菜单承载提示词库入口')
+  check(await skillMenu.getByRole('button', { name: '提示词', exact: true }).count() === 1, '`/` 命令菜单承载提示词那一段')
+  // 「底栏没有第二颗提示词钮」不另写缺席断言：上面的顺序断言已经钉死底栏**恰是**这五颗，
+  // 多一颗就红。对着一个源码里根本不存在的挂点写 expectAbsent 只会得到一条恒真的死断言。
   await page.screenshot({ path: path.join(outputDir, '03-skill-menu.png') })
   await page.keyboard.press('Escape')
 
   const hold = fixture.expectText({ label: 'composer-running', reply: { type: 'hold' } })
-  const input = composer.locator('[data-agent-input]')
+  const input = composer.locator(COMPOSER_INPUT)
   await input.fill('请保持运行状态用于反馈走查')
-  await composer.locator('[data-agent-composer-send]').click()
+  await composer.locator(COMPOSER_SEND).click()
   await hold.received
-  await composer.locator('[data-agent-running-feedback="true"]').waitFor({ state: 'visible', timeout: 5000 })
-  check(await composer.locator('[data-agent-stop="true"]').count() === 1, '运行中停止按钮同时可见')
+  // v4 的「正在跑」写在 composer 自己身上（data-mode），发送钮就地变成停止（aria-label「停止」）。
+  const running = panel.locator(`${COMPOSER}[data-mode="running"]`)
+  await running.waitFor({ state: 'visible', timeout: 5000 })
+  check(await running.locator(`${COMPOSER_SEND}[aria-label="停止"]`).count() === 1, '运行中停止按钮同时可见')
   await page.screenshot({ path: path.join(outputDir, '04-running-feedback.png') })
   hold.release({ type: 'text', text: '已完成' })
-  await composer.locator('[data-agent-running-feedback="true"]').waitFor({ state: 'detached', timeout: 10000 })
-  check(true, '本轮结束后呼吸光消失')
+  await running.waitFor({ state: 'detached', timeout: 10000 })
+  check(true, '本轮结束后运行态标记消失')
   await page.screenshot({ path: path.join(outputDir, '05-composer-settled.png') })
 
   await expectAbsent(page.locator('[data-storyboard-card]'), { provenBy: composerProof, message: '编辑器下方没有 StoryboardPlanCard' })

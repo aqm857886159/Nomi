@@ -277,9 +277,10 @@ try {
 
   // 打开右侧助手栏（launcher 用原生 DOM click，避免 actionability 抖动）
   // Host cutover：画布内旧助手已退役，Agent 现居 ResidentShell dock（默认常驻，2026-09-05 起无发布闸）；
-  // 折叠态 launcher 是 [data-agent-resident-collapsed] 药丸。
+  // 2026-09-06 v4：收起态是一根 32px 图标条（[data-agent-collapsed] 里的 [data-v4-block="dock"]），
+  // 第一颗钮就是「对话」。
   await getWin().evaluate(() => {
-    const btn = document.querySelector('[data-agent-resident-collapsed="true"]')
+    const btn = document.querySelector('[data-agent-resident="true"][data-agent-collapsed="true"] [data-v4-block="dock"] button')
     if (btn) btn.click()
   }).catch(() => {})
   await getWin().waitForTimeout(1200)
