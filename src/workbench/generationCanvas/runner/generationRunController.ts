@@ -12,7 +12,7 @@ import { narrateProgress } from '../../observability/narrate'
 import { LocalTaskCancelledError, clearTaskCancel, isTaskCancelRequested, isLocalTaskCancelledError } from './localTaskControl'
 import { useComfyuiPreviewStore } from '../store/comfyuiPreviewStore'
 import { isRecoverableTimeoutError } from './recoverableTimeout'
-import { matchNomiErrorCode } from '../../../../electron/shared/nomiErrorCodes'
+import { outboundBlockedRecoverableMessage } from './outboundBlockedRecovery'
 import { recordNodeModelFailure, recordNodeModelSuccess } from './nodeModelHealth'
 import {
   beginSingletonBatch,
@@ -383,25 +383,13 @@ export async function runGenerationNode(
       })
       throw error
     }
-    // 我们**自己**的出站策略拒下了取片：任务已经付过钱、上游多半已经出片，丢的只是那一次下载。
-    // 所以它和「上游判死」不是一回事，落 `error` 会把用户推到**付费重试**那颗按钮上——
-    // 而这条错误的文案（i18n `outbound.fakeIpBlocked` 等）明写着「用『重新拉取结果』免费取回，
-    // 不用重新生成」。文案指的那颗按钮只在 `recoverable` 态出现：不改这里，我们就是在
-    // 让用户为我们自己的网络策略再付一次钱。判据用稳定机器码，不认人话（会被 i18n 换语言）。
-    //
-    // 只有拿得到 taskId 才落 recoverable：免费续查靠 taskId 无状态重建查询（buildRecoverPayload），
-    // 没有它那颗按钮按下去也只会报「找不到任务」——那种情况下 `error` 才是诚实的。
-    const outboundBlocked = matchNomiErrorCode(error instanceof Error ? error.message : '') === 'outbound-blocked'
-    const recoverableTaskId = String(
-      useGenerationCanvasStore.getState().nodes.find((n) => n.id === id)?.runs?.[0]?.taskId || '',
-    ).trim()
-    if (outboundBlocked && recoverableTaskId) {
-      const message = (error as Error).message
-      useGenerationCanvasStore.getState().setNodeStatus(id, 'recoverable', message)
-      // 记账不算模型失败——挂的是本机网络，模型好好的。但**刹车照记**：出站被拦时后续每一条
-      // 都会在同一处失败，而提交侧照旧扣费；让队列停下来才是省钱的那一边（与超时找回相反，
-      // 那种情况下上游是健康的、继续跑没有额外风险）。
-      useGenerationQueueStore.getState().markSettled(batchId, id, 'error', { error: message })
+    // 出站被自家策略拒下 = 钱已花、只是没取回来 → recoverable（免费续查），不是 error（那会把
+    // 用户推到付费重试上）。判据、「找不找得回」与刹车方向为何与超时相反，都在 outboundBlockedRecovery。
+    const blocked = outboundBlockedRecoverableMessage(error, useGenerationCanvasStore.getState().nodes.find((n) => n.id === id))
+    if (blocked) {
+      // 不记模型失败（挂的是本机网络），但刹车照记：后续每条都会同样失败而提交侧照旧扣费。
+      useGenerationCanvasStore.getState().setNodeStatus(id, 'recoverable', blocked)
+      useGenerationQueueStore.getState().markSettled(batchId, id, 'error', { error: blocked })
       throw error
     }
     recordNodeModelFailure(id)

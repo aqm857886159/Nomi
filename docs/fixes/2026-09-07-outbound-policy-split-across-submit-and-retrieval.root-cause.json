@@ -30,6 +30,7 @@
     "src/desktop/bridge.ts",
     "src/ui/onboarding/NetworkSection.tsx",
     "src/workbench/generationCanvas/runner/generationRunController.ts",
+    "src/workbench/generationCanvas/runner/outboundBlockedRecovery.ts",
     "src/workbench/observability/narrate.ts",
     "src/workbench/observability/classifyError.ts",
     "src/workbench/ai/resident/residentShellDisplay.ts",
