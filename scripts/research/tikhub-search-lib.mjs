@@ -161,6 +161,26 @@ export function extractToolMentions(text) {
 
 // ───────────────────────── 平台适配 ─────────────────────────
 
+/**
+ * 小红书的筛选值是**中文枚举**，不是时间戳、也不是英文（spec 的 `time_filter` 描述逐字如此）。
+ *
+ * 这里必须是常量而不是散落的字面量，因为填错**不会报错**：2026-09-06 实测
+ * `time_filter=one_week` 和 `time_filter=<10 位时间戳>` 都照样返回 HTTP 200，只是筛选静默失效。
+ * 唯一能拦住打错的只有测试，所以映射表被夹具逐档钉死。
+ */
+export const XHS_NOTE_TYPE_ALL = '不限'
+export const XHS_TIME_FILTERS = { all: '不限', day: '一天内', week: '一周内', halfYear: '半年内' }
+
+/** `--since` → 小红书四档中文枚举（服务端只是省流量的近似，客户端仍按 `publishedAt` 精筛）。 */
+export function xhsTimeFilter(sinceMs, nowMs) {
+  if (!sinceMs) return XHS_TIME_FILTERS.all
+  const days = Math.ceil((nowMs - sinceMs) / 86_400_000)
+  if (days <= 1) return XHS_TIME_FILTERS.day
+  if (days <= 7) return XHS_TIME_FILTERS.week
+  if (days <= 180) return XHS_TIME_FILTERS.halfYear
+  return XHS_TIME_FILTERS.all
+}
+
 /** 抖音只认 0/1/7/180 四档发布时间；把 `--since` 折成最贴近的那一档（客户端仍会精筛）。 */
 function douyinPublishBucket(sinceMs, nowMs) {
   if (!sinceMs) return '0'
@@ -174,10 +194,10 @@ function douyinPublishBucket(sinceMs, nowMs) {
 /**
  * 每个平台一条适配：端点、翻页游标怎么传、条目从哪层取、字段怎么归一。
  *
- * 诚实标注：`douyin` 的 `items`/字段路径是拿免费 demo 端点
- * （`/api/v1/demo/douyin_search/app/general_search`）的**真实响应**核对过的；
- * 其余三家 spec 把 `data` 声明为无类型，路径按平台通用字段名写成多路候选，
- * 未经真实响应核对——所以归一必须容错，并把没取到的字段记进 `missingFields`。
+ * 诚实标注：spec 把每个端点的 `data` 都声明为无类型，所以字段路径只能靠真实响应核对。
+ * **四家已于 2026-09-06 各用真实 key 实抓一次并逐字段对账**（`verifiedOn`），
+ * 记录里因此标 `verified-against-live-response`。归一仍然保持容错：上游随时会改形状，
+ * 少字段要留空并记进 `missingFields`，**不许静默丢条目**。
  */
 export const PLATFORMS = {
   douyin: {
@@ -186,6 +206,7 @@ export const PLATFORMS = {
     method: 'POST',
     path: '/api/v1/douyin/search/fetch_video_search_v1',
     verified: true,
+    verifiedOn: '2026-09-06',
     buildRequest({ keyword, cursor, sinceMs, nowMs }) {
       return {
         body: {
@@ -200,7 +221,13 @@ export const PLATFORMS = {
         },
       }
     },
-    itemsOf: (payload) => pickFirst(payload, ['data.data', 'data.aweme_list', 'data']) ?? [],
+    itemsOf(payload) {
+      const items = pickFirst(payload, ['data.data', 'data.aweme_list']) ?? []
+      if (!Array.isArray(items)) return []
+      // 搜索流里混着非作品卡片（`type: 6` 是「相关搜索词」，只有 related_word_list）。
+      // 按「有没有 aweme_info」筛而不是按 type 码，上游加新卡片类型时不用回来改。
+      return items.filter((item) => item?.aweme_info ?? item?.aweme_list?.[0])
+    },
     nextCursorOf(payload) {
       const inner = payload?.data ?? {}
       if (!inner.has_more) return null
@@ -215,8 +242,11 @@ export const PLATFORMS = {
       const id = pickFirst(post, ['aweme_id', 'statistics.aweme_id'])
       return {
         id: id ? String(id) : null,
-        url: pickFirst(post, ['share_url', 'share_info.share_url'])
-          ?? (id ? `https://www.douyin.com/video/${id}` : null),
+        // 规范短链优先：`share_url` 里带着 TikHub 抓取账号的 did/iid 等追踪参数，
+        // 那些既没用又不该进调研产物；拿不到 id 时才退回原始 share_url。
+        url: id
+          ? `https://www.douyin.com/video/${id}`
+          : (pickFirst(post, ['share_url', 'share_info.share_url']) ?? null),
         author: pickFirst(post, ['author.nickname', 'author.unique_id']) ?? null,
         authorId: pickFirst(post, ['author.uid', 'author.sec_uid']) ?? null,
         publishedAt: toIsoTimestamp(pickFirst(post, ['create_time', 'createTime'])),
@@ -231,44 +261,61 @@ export const PLATFORMS = {
     label: '小红书',
     method: 'GET',
     path: '/api/v1/xiaohongshu/app_v2/search_notes',
-    verified: false,
+    verified: true,
+    verifiedOn: '2026-09-06',
     buildRequest({ keyword, cursor, sinceMs, nowMs }) {
-      const days = sinceMs ? Math.ceil((nowMs - sinceMs) / 86_400_000) : 0
-      const timeFilter = !sinceMs ? '不限' : days <= 1 ? '一天内' : days <= 7 ? '一周内' : days <= 180 ? '半年内' : '不限'
       return {
         query: {
           keyword,
           page: Number(cursor?.page ?? 1),
           sort_type: 'general',
-          note_type: '不限',
-          time_filter: timeFilter,
+          note_type: XHS_NOTE_TYPE_ALL,
+          time_filter: xhsTimeFilter(sinceMs, nowMs),
           search_id: String(cursor?.searchId ?? ''),
           search_session_id: String(cursor?.sessionId ?? ''),
         },
       }
     },
-    itemsOf: (payload) => pickFirst(payload, ['data.items', 'data.notes', 'data.data', 'data']) ?? [],
+    /**
+     * 条目在 `data.data.items[]`——**比其它三家多包一层**（外层 `data` 是小红书自己的
+     * 信封：`{ code, data, success, msg, search_id, search_session_id, page, next_page }`）。
+     * 原先写成 `data.items` 时 `pickFirst` 会退到 `data.data` 拿到一个**对象**，
+     * `Array.isArray` 判否 → 静默 0 条：HTTP 200、退出码 0、报告里和「今天没人聊」一模一样。
+     * 那是这份文件开头就点名要防的那种假绿，所以路径写死，不留会退化成静默的候选。
+     */
+    itemsOf(payload) {
+      const items = pickFirst(payload, ['data.data.items', 'data.items']) ?? []
+      if (!Array.isArray(items)) return []
+      // 结果流里除 note 外还会混入 `model_type` 为广告/用户卡片的条目，归一前先剔掉。
+      return items.filter((item) => (item?.model_type ?? 'note') === 'note')
+    },
     nextCursorOf(payload, { page }) {
       const inner = payload?.data ?? {}
-      if (inner.has_more === false) return null
+      // 服务端直接给 `next_page`（没有 `has_more`）；给不出就当到底了，别自己 +1 硬翻。
+      const nextPage = Number(inner.next_page ?? 0)
+      if (!Number.isFinite(nextPage) || nextPage <= page) return null
       return {
-        page: page + 1,
+        page: nextPage,
         searchId: String(pickFirst(inner, ['search_id', 'searchId']) ?? ''),
         sessionId: String(pickFirst(inner, ['search_session_id', 'sessionId']) ?? ''),
       }
     },
     normalize(item) {
-      const note = item?.note_card ?? item?.note ?? item ?? {}
-      const id = pickFirst(item ?? {}, ['id', 'note_id']) ?? pickFirst(note, ['note_id', 'id'])
+      const note = item?.note ?? item?.note_card ?? item ?? {}
+      const id = pickFirst(note, ['id', 'note_id']) ?? pickFirst(item ?? {}, ['id', 'note_id'])
+      // 小红书笔记链接现在要带 `xsec_token` 才打得开（不带的 /explore/<id> 对未登录访客 404）。
+      const xsecToken = pickFirst(note, ['xsec_token'])
+      const url = id
+        ? `https://www.xiaohongshu.com/explore/${id}${xsecToken ? `?xsec_token=${encodeURIComponent(String(xsecToken))}&xsec_source=pc_search` : ''}`
+        : null
       return {
         id: id ? String(id) : null,
-        url: pickFirst(note, ['share_info.link', 'url'])
-          ?? (id ? `https://www.xiaohongshu.com/explore/${id}` : null),
+        url,
         author: pickFirst(note, ['user.nickname', 'user.nick_name', 'user.name']) ?? null,
-        authorId: pickFirst(note, ['user.user_id', 'user.userid', 'user.id']) ?? null,
-        publishedAt: toIsoTimestamp(pickFirst(note, ['time', 'create_time', 'timestamp'])),
-        title: pickFirst(note, ['display_title', 'title']) ?? null,
-        body: pickFirst(note, ['desc', 'display_title', 'title']) ?? '',
+        authorId: pickFirst(note, ['user.userid', 'user.user_id', 'user.red_id']) ?? null,
+        publishedAt: toIsoTimestamp(pickFirst(note, ['timestamp', 'time', 'create_time'])),
+        title: pickFirst(note, ['title', 'display_title']) ?? null,
+        body: pickFirst(note, ['desc', 'title', 'display_title']) ?? '',
       }
     },
   },
@@ -278,7 +325,8 @@ export const PLATFORMS = {
     label: 'B站',
     method: 'GET',
     path: '/api/v1/bilibili/web/fetch_general_search',
-    verified: false,
+    verified: true,
+    verifiedOn: '2026-09-06',
     buildRequest({ keyword, cursor, sinceMs, nowMs }) {
       return {
         query: {
@@ -300,7 +348,9 @@ export const PLATFORMS = {
         const videos = result.find((group) => group?.result_type === 'video') ?? result[0]
         return Array.isArray(videos?.data) ? videos.data : []
       }
-      return result
+      // 扁平数组里混着 `type: 'ketang'`（付费课程投放）：那是商品不是创作者内容，
+      // 而且 `pubdate` 恒 0——留着只会在报告里堆一排「未解析出时间」的假缺字段。
+      return result.filter((item) => (item?.type ?? 'video') === 'video')
     },
     nextCursorOf(payload, { page, collected }) {
       const numPages = Number(pickFirst(payload, ['data.data.numPages', 'data.numPages']) ?? 0)
@@ -328,30 +378,37 @@ export const PLATFORMS = {
     label: 'X（Twitter）',
     method: 'GET',
     path: '/api/v1/twitter/web/fetch_search_timeline',
-    verified: false,
+    verified: true,
+    verifiedOn: '2026-09-06',
     buildRequest({ keyword, cursor }) {
       const query = { keyword, search_type: 'Top' }
       if (cursor?.cursor) query.cursor = String(cursor.cursor)
       return { query }
     },
-    itemsOf: (payload) => pickFirst(payload, ['data.timeline', 'data.tweets', 'data.data', 'data']) ?? [],
+    itemsOf(payload) {
+      const items = pickFirst(payload, ['data.timeline', 'data.tweets']) ?? []
+      if (!Array.isArray(items)) return []
+      // timeline 里除 tweet 外还会混 `type` 为提示/模块的条目，归一前先剔掉。
+      return items.filter((item) => (item?.type ?? 'tweet') === 'tweet')
+    },
     nextCursorOf(payload) {
-      const next = pickFirst(payload?.data ?? {}, ['cursor.bottom', 'next_cursor', 'cursor'])
+      const next = pickFirst(payload?.data ?? {}, ['next_cursor', 'cursor.bottom'])
       return next ? { cursor: String(next) } : null
     },
     normalize(item) {
       const tweet = item?.tweet ?? item ?? {}
-      const id = pickFirst(tweet, ['rest_id', 'id_str', 'id'])
-      const handle = pickFirst(tweet, ['user.screen_name', 'author.screen_name', 'screen_name'])
+      // 条目是**扁平**的：`tweet_id` / `screen_name` / `text` 都在顶层，作者名在 `user_info.name`。
+      // 之前按 `rest_id` / `user.screen_name` 取，两个都恒空 → 每条都缺 id 和 url。
+      const id = pickFirst(tweet, ['tweet_id', 'rest_id', 'id_str', 'id'])
+      const handle = pickFirst(tweet, ['screen_name', 'user_info.screen_name', 'user.screen_name'])
       return {
         id: id ? String(id) : null,
-        url: pickFirst(tweet, ['url'])
-          ?? (handle && id ? `https://x.com/${handle}/status/${id}` : null),
-        author: pickFirst(tweet, ['user.name', 'author.name']) ?? (handle ? String(handle) : null),
+        url: handle && id ? `https://x.com/${handle}/status/${id}` : (pickFirst(tweet, ['url']) ?? null),
+        author: pickFirst(tweet, ['user_info.name', 'user.name']) ?? (handle ? String(handle) : null),
         authorId: handle ? String(handle) : null,
         publishedAt: toIsoTimestamp(pickFirst(tweet, ['created_at', 'legacy.created_at', 'timestamp'])),
         title: null,
-        body: pickFirst(tweet, ['full_text', 'text', 'legacy.full_text']) ?? '',
+        body: pickFirst(tweet, ['text', 'full_text', 'legacy.full_text']) ?? '',
       }
     },
   },
@@ -374,9 +431,17 @@ export function resolvePlatforms(name) {
 
 // ───────────────────────── 传输：超时 + 有上限的重试退避 ─────────────────────────
 
-/** 哪些失败值得再试一次。401/403/404/422 是「你问错了」，重试只会白烧配额。 */
+/**
+ * 哪些失败值得再试一次。401/403/404/422 是「你问错了」，重试只会白烧配额。
+ *
+ * **400 属于可重试**——这条反直觉，所以写清依据（2026-09-06 实测，见 notes §5）：
+ * TikHub 是 FastAPI，参数校验失败返回的是 **422**（spec 里每个端点都只声明 200/422）；
+ * 而枚举值填错（`time_filter=one_week` / 传时间戳）**照样返回 200**，只是结果为空。
+ * 也就是说 400 在这套 API 上**不可能**是「参数不对」，只能是上游平台抓取层当时没抓到——
+ * 那正是重试能救的一类。把它当致命错会让一次抖动直接抹掉整个平台。
+ */
 export function isRetriableStatus(status) {
-  return status === 408 || status === 425 || status === 429 || status >= 500
+  return status === 400 || status === 408 || status === 425 || status === 429 || status >= 500
 }
 
 /** 第 attempt 次失败后等多久。服务端给了 Retry-After 就听它的，否则指数退避，无抖动。 */
@@ -498,6 +563,8 @@ export function toRecord(platform, rawItem) {
     excerpt: excerptOf(body),
     mentions: extractToolMentions(`${title ?? ''} ${body}`),
     fieldConfidence: platform.verified ? 'verified-against-live-response' : 'best-effort-unverified',
+    // 核对日期跟着记录走：上游改形状时，「这条证据是哪天对的账」比一个 boolean 有用得多。
+    fieldsVerifiedOn: platform.verifiedOn ?? null,
   }
   record.missingFields = REQUIRED_FIELDS.filter((field) => !record[field])
   return record
@@ -553,6 +620,49 @@ export async function searchPlatform({
   return { platform: platform.id, platformLabel: platform.label, records, pages }
 }
 
+// ───────────────────────── 汇总 ─────────────────────────
+
+/**
+ * 每平台一行的对账摘要。
+ *
+ * 为什么要单独一段：`results[].records` 是给下游消费的，但「这轮到底靠不靠谱」
+ * 得把整个数组读完才看得出来。三种状态在原始数组里长得太像——
+ * `failed`（打不通）、`empty`（打通了但没命中）、`ok` 且带一堆 `missingFields`
+ * （打通了、有条目、但我们没解析出字段）——最后一种最危险，因为它在报告里最像正常。
+ * 摘要把三者摊平，调用方一眼就能判断该不该信这轮数据。
+ */
+export function summarizeResults(results = []) {
+  const platforms = results.map((group) => {
+    const records = Array.isArray(group.records) ? group.records : []
+    const missingFields = {}
+    for (const record of records) {
+      for (const field of record.missingFields ?? []) {
+        missingFields[field] = (missingFields[field] ?? 0) + 1
+      }
+    }
+    return {
+      platform: group.platform,
+      platformLabel: group.platformLabel,
+      status: group.error ? 'failed' : records.length === 0 ? 'empty' : 'ok',
+      items: records.length,
+      pagesFetched: Array.isArray(group.pages) ? group.pages.length : 0,
+      missingFields,
+      fieldConfidence: records[0]?.fieldConfidence ?? (PLATFORMS[group.platform]?.verified
+        ? 'verified-against-live-response'
+        : 'best-effort-unverified'),
+      fieldsVerifiedOn: records[0]?.fieldsVerifiedOn ?? PLATFORMS[group.platform]?.verifiedOn ?? null,
+      error: group.error ?? null,
+    }
+  })
+  return {
+    totalRecords: platforms.reduce((sum, row) => sum + row.items, 0),
+    platformsOk: platforms.filter((row) => row.status === 'ok').length,
+    platformsEmpty: platforms.filter((row) => row.status === 'empty').length,
+    platformsFailed: platforms.filter((row) => row.status === 'failed').length,
+    platforms,
+  }
+}
+
 // ───────────────────────── 渲染 ─────────────────────────
 
 function mdEscape(text) {
@@ -573,7 +683,30 @@ export function renderMarkdown({ keyword, since, generatedAt, results }) {
     '> 摘要是**原文前 300 字**，没有任何 AI 改写；`framework/tool` 是正则抽取的提及，不是判断。',
     '> 标 `best-effort-unverified` 的平台字段路径未经真实响应核对，读结论时以 URL 原文为准。',
     '',
+    '## 本轮对账',
+    '',
+    '| 平台 | 状态 | 条数 | 页数 | 缺字段 | 字段路径 |',
+    '|---|---|---|---|---|---|',
   ]
+
+  const summary = summarizeResults(results)
+  for (const row of summary.platforms) {
+    const missing = Object.entries(row.missingFields)
+    lines.push([
+      '',
+      row.platformLabel,
+      // 三种状态必须在同一列里区分得开，否则「打不通」会被读成「没人聊」。
+      row.status === 'failed' ? `✗ 失败：${mdEscape(row.error ?? '')}` : row.status === 'empty' ? '⚠️ 没命中' : '✓',
+      String(row.items),
+      String(row.pagesFetched),
+      missing.length === 0 ? '（无）' : missing.map(([field, count]) => `${field}×${count}`).join('、'),
+      row.fieldConfidence === 'verified-against-live-response'
+        ? `已核对 ${row.fieldsVerifiedOn ?? ''}`.trim()
+        : '未核对',
+      '',
+    ].join(' | '))
+  }
+  lines.push('')
 
   for (const group of results) {
     lines.push(`## ${group.platformLabel}（${group.records.length} 条）`, '')
