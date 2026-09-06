@@ -23,14 +23,17 @@
     "scripts/framework-boundary-lib.mjs",
     "scripts/check-framework-boundary.mjs",
     ".claude/settings.json",
-    ".github/workflows/quality-gate.yml"
+    ".github/workflows/quality-gate.yml",
+    "scripts/claude-hooks/commit-bypass-check.sh",
+    "scripts/claude-hooks/pre-push-check.sh"
   ],
   "entry_points": [
     "pnpm run check:prior-art (plan documents on every contracts run; the PR-body rule additionally on the pull_request event, fed by PRIOR_ART_PR_BODY in .github/workflows/quality-gate.yml)",
     "pnpm run check:dependency-capabilities (the machine-extracted capability inventory must match the installed versions)",
     "pnpm run check:symptom-cluster (three root-cause contracts in one module inside seven days demand a structural review first)",
     "pnpm run check:claude-hooks, whose judgement now lives in scripts/claude-hooks-registry.cjs: every hook must be registered in the committed .claude/settings.json and point at scripts/claude-hooks/",
-    "scripts/root-cause-contracts.mjs, which from 2026-09-07 requires invariant_owner_layer on every dated corrective contract"
+    "scripts/root-cause-contracts.mjs, which from 2026-09-07 requires invariant_owner_layer on every dated corrective contract",
+    "The blocked-command messages in scripts/claude-hooks/commit-bypass-check.sh and pre-push-check.sh, which used to end with 'run pnpm install to reinstall the hook' - advice that is now false and would have sent the next person to fix a guard that is no longer missing"
   ],
   "external_sources": [
     {
