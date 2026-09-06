@@ -20,6 +20,9 @@ import {
   isRetriableStatus,
   PLATFORMS,
   readApiKey,
+  summarizeResults,
+  XHS_TIME_FILTERS,
+  xhsTimeFilter,
   renderMarkdown,
   requestJson,
   resolvePlatforms,
@@ -101,6 +104,12 @@ test('422 参数错同样不重试', () => {
   assert.equal(isRetriableStatus(401), false)
   assert.equal(isRetriableStatus(429), true)
   assert.equal(isRetriableStatus(503), true)
+})
+
+test('400 可重试：这套 API 的参数错是 422，400 只可能是上游抓取抖动', () => {
+  // 依据实测（notes §5）：枚举填错返回 200、schema 不合返回 422，
+  // 所以 400 不可能是「我们问错了」。把它当致命错，一次抖动就抹掉整个平台。
+  assert.equal(isRetriableStatus(400), true)
 })
 
 // ── 3. 限流退避 ────────────────────────────────────────────
@@ -303,8 +312,232 @@ test('Markdown 渲染：出处/平台/作者/时间/摘要/提及六件都在', 
     },
   })] }
   const md = renderMarkdown({ keyword: 'ComfyUI', since: null, generatedAt: '2026-09-06T00:00:00.000Z', results: [group] })
-  for (const needle of ['https://example.invalid/7', '抖音', '张三', 'ComfyUI 真香', '提到的框架/工具']) {
+  for (const needle of ['https://www.douyin.com/video/7', '抖音', '张三', 'ComfyUI 真香', '提到的框架/工具']) {
     assert.ok(md.includes(needle), `渲染结果里少了 ${needle}`)
   }
   assert.ok(md.includes('原文前 300 字'))
+})
+
+// ── 6. 真实响应形状回归 ────────────────────────────────────
+/**
+ * 下面四段夹具是 **2026-09-06 用真实 key 各抓一次**、逐字段对完账后按原样**结构**
+ * 缩写而成（值已脱敏：token/链接换成 fixture 值，嵌套层级一层不改）。
+ *
+ * 为什么必须钉结构而不是钉字段名：这四家翻车过的地方全在**外层包了几层**，
+ * 而包错的代价是 HTTP 200 + 退出码 0 + 0 条记录——报告里和「今天没人聊」一模一样。
+ * 所以每条都断言「条数」而不只是「不抛」。
+ */
+
+/** 小红书：条目在 `data.data.items[]`，比其它三家多包一层信封。 */
+function xhsPage({ items, page = 1, nextPage = 2 }) {
+  return {
+    code: 200,
+    data: {
+      code: 0,
+      success: true,
+      page,
+      next_page: nextPage,
+      search_id: `sid-${page}`,
+      search_session_id: `ssid-${page}`,
+      data: {
+        items: items.map((n) => ({
+          mix_track_id: `NOTE__${n}`,
+          model_type: 'note',
+          note: {
+            id: `note${n}`,
+            title: `第 ${n} 条：我用 ComfyUI 出片`,
+            desc: `正文 ${n}`,
+            timestamp: 1_788_000_000 + n,
+            type: 'normal',
+            xsec_token: `tok${n}`,
+            user: { nickname: `小红薯${n}`, userid: `uid${n}`, red_id: `red${n}` },
+          },
+        })),
+      },
+    },
+  }
+}
+
+test('小红书：条目在 data.data.items，不是 data.items（曾静默返回 0 条）', () => {
+  const items = PLATFORMS.xhs.itemsOf(xhsPage({ items: [1, 2, 3] }))
+  assert.equal(items.length, 3, 'itemsOf 没扒到 data.data.items —— 这正是那次「200 但 0 条」的形状')
+  const record = toRecord(PLATFORMS.xhs, items[0])
+  assert.deepEqual(record.missingFields, [])
+  assert.equal(record.id, 'note1')
+  assert.equal(record.author, '小红薯1')
+  assert.equal(record.authorId, 'uid1')
+  assert.equal(record.title, '第 1 条：我用 ComfyUI 出片')
+  assert.equal(record.publishedAt, new Date(1_788_000_001 * 1000).toISOString())
+  // 不带 xsec_token 的 /explore/<id> 对未登录访客打不开，链接必须带上。
+  assert.equal(record.url, 'https://www.xiaohongshu.com/explore/note1?xsec_token=tok1&xsec_source=pc_search')
+  assert.equal(record.fieldConfidence, 'verified-against-live-response')
+  assert.equal(record.fieldsVerifiedOn, '2026-09-06')
+})
+
+test('小红书：非 note 卡片（广告/用户）在归一前剔掉', () => {
+  const payload = xhsPage({ items: [1] })
+  payload.data.data.items.push({ model_type: 'user', user: { nickname: '某账号' } })
+  assert.equal(PLATFORMS.xhs.itemsOf(payload).length, 1)
+})
+
+test('小红书翻页：认服务端的 next_page，给不出就停（不自己 +1 硬翻）', async () => {
+  const { impl, calls } = stubFetch([
+    { json: xhsPage({ items: [1, 2], page: 1, nextPage: 2 }) },
+    { json: xhsPage({ items: [3], page: 2, nextPage: 0 }) },
+  ])
+  const { sleep } = recordingSleep()
+  const group = await searchPlatform({
+    platform: PLATFORMS.xhs, keyword: 'ComfyUI', limit: 10, apiKey: FAKE_KEY, fetchImpl: impl, sleep,
+  })
+  assert.equal(group.records.length, 3)
+  const secondUrl = new URL(calls[1].url)
+  assert.equal(secondUrl.searchParams.get('page'), '2')
+  assert.equal(secondUrl.searchParams.get('search_id'), 'sid-1', '翻页没回传首次搜索的 search_id')
+  assert.equal(secondUrl.searchParams.get('search_session_id'), 'ssid-1')
+  assert.equal(calls.length, 2, 'next_page 为 0 之后还在继续翻')
+})
+
+test('小红书筛选值是中文枚举，且 --since 按四档映射（填错不会报错，只有测试拦得住）', async () => {
+  const nowMs = Date.parse('2026-09-06T00:00:00.000Z')
+  const day = 86_400_000
+  assert.equal(xhsTimeFilter(null, nowMs), '不限')
+  assert.equal(xhsTimeFilter(nowMs - day, nowMs), '一天内')
+  assert.equal(xhsTimeFilter(nowMs - 5 * day, nowMs), '一周内')
+  assert.equal(xhsTimeFilter(nowMs - 30 * day, nowMs), '半年内')
+  assert.equal(xhsTimeFilter(nowMs - 400 * day, nowMs), '不限', '超出半年该回落到不限，不是继续传半年内')
+  // 边界：正好 1 天 / 7 天 / 180 天都落在本档内。
+  assert.equal(xhsTimeFilter(nowMs - 7 * day, nowMs), '一周内')
+  assert.equal(xhsTimeFilter(nowMs - 180 * day, nowMs), '半年内')
+  assert.deepEqual(Object.values(XHS_TIME_FILTERS), ['不限', '一天内', '一周内', '半年内'])
+
+  // 真发出去的那一条也得是中文，不能是时间戳/英文。
+  const { impl, calls } = stubFetch([{ json: xhsPage({ items: [1], nextPage: 0 }) }])
+  const { sleep } = recordingSleep()
+  await searchPlatform({
+    platform: PLATFORMS.xhs, keyword: 'x', limit: 1, sinceMs: nowMs - 5 * day, nowMs,
+    apiKey: FAKE_KEY, fetchImpl: impl, sleep,
+  })
+  const sent = new URL(calls[0].url)
+  assert.equal(sent.searchParams.get('time_filter'), '一周内')
+  assert.equal(sent.searchParams.get('note_type'), '不限')
+  assert.equal(sent.searchParams.get('sort_type'), 'general')
+})
+
+test('X：条目是扁平的 tweet_id/screen_name/user_info.name（曾整列缺 id 和 url）', () => {
+  const payload = {
+    code: 200,
+    data: {
+      status: 'ok',
+      next_cursor: 'CUR-2',
+      timeline: [
+        {
+          type: 'tweet',
+          tweet_id: '2089959315843039598',
+          screen_name: 'fixture_handle',
+          created_at: 'Wed Aug 19 06:15:05 +0000 2026',
+          text: 'This open-source AI video tool runs locally.',
+          user_info: { screen_name: 'fixture_handle', name: '夹具作者', rest_id: '1818918150504603648' },
+        },
+        { type: 'module', text: '这是非推文卡片' },
+      ],
+    },
+  }
+  const items = PLATFORMS.x.itemsOf(payload)
+  assert.equal(items.length, 1, '非 tweet 卡片没被剔掉')
+  const record = toRecord(PLATFORMS.x, items[0])
+  assert.deepEqual(record.missingFields, [])
+  assert.equal(record.id, '2089959315843039598')
+  assert.equal(record.url, 'https://x.com/fixture_handle/status/2089959315843039598')
+  assert.equal(record.author, '夹具作者')
+  assert.equal(record.authorId, 'fixture_handle')
+  assert.equal(record.publishedAt, '2026-08-19T06:15:05.000Z')
+  assert.deepEqual(PLATFORMS.x.nextCursorOf(payload, { page: 1, collected: 1 }), { cursor: 'CUR-2' })
+})
+
+test('抖音：搜索流里的非作品卡片（相关搜索词）剔掉，链接用规范短链', () => {
+  const payload = {
+    code: 200,
+    data: {
+      has_more: 1,
+      cursor: 8,
+      data: [
+        {
+          type: 1,
+          aweme_info: {
+            aweme_id: '7626746141451048299',
+            desc: '一分钟教你用 ComfyUI 生成视频',
+            create_time: 1_788_000_000,
+            // 真实响应的 share_url 带着抓取账号的 did/iid 追踪参数，不该进调研产物。
+            share_url: 'https://www.iesdouyin.com/share/video/7626746141451048299/?did=REDACTED&iid=REDACTED',
+            author: { uid: '913067793217818', nickname: '夹具作者' },
+          },
+        },
+        { type: 6, related_word_list: [{ word: '相关搜索' }] },
+      ],
+    },
+  }
+  const items = PLATFORMS.douyin.itemsOf(payload)
+  assert.equal(items.length, 1, 'type 6「相关搜索词」卡片没被剔掉')
+  const record = toRecord(PLATFORMS.douyin, items[0])
+  assert.deepEqual(record.missingFields, [])
+  assert.equal(record.url, 'https://www.douyin.com/video/7626746141451048299')
+  assert.ok(!record.url.includes('did='), 'URL 里不该带抓取账号的追踪参数')
+})
+
+test('B站：付费课程投放（type ketang，pubdate 恒 0）剔掉，只留创作者视频', () => {
+  const payload = {
+    code: 200,
+    data: {
+      data: {
+        numPages: 50,
+        result: [
+          { type: 'video', bvid: 'BV1yPtn6MExc', title: 'AI 接吻', author: 'UP主', mid: 37, pubdate: 1_788_000_000 },
+          { type: 'ketang', bvid: 'BV1course', title: '【限时优惠】玩转 AI 视频', author: '课堂', mid: 9, pubdate: 0 },
+        ],
+      },
+    },
+  }
+  const items = PLATFORMS.bilibili.itemsOf(payload)
+  assert.equal(items.length, 1, 'ketang 付费课程没被剔掉——它会在报告里堆一排假的「未解析出时间」')
+  assert.deepEqual(toRecord(PLATFORMS.bilibili, items[0]).missingFields, [])
+})
+
+// ── 7. 汇总段 ──────────────────────────────────────────────
+test('summary：打不通 / 没命中 / 有条目但缺字段，三种状态分得开', () => {
+  const ok = toRecord(PLATFORMS.douyin, {
+    aweme_info: { aweme_id: '1', desc: '正文', create_time: 1_788_000_000, author: { uid: 'u', nickname: '作者' } },
+  })
+  const lossy = toRecord(PLATFORMS.douyin, { aweme_info: { desc: '只有正文' } })
+  const summary = summarizeResults([
+    { platform: 'douyin', platformLabel: '抖音', records: [ok, lossy], pages: [{ page: 1, received: 2 }] },
+    { platform: 'xhs', platformLabel: '小红书', records: [], pages: [{ page: 1, received: 0 }] },
+    { platform: 'x', platformLabel: 'X（Twitter）', records: [], pages: [], error: 'HTTP 400: upstream' },
+  ])
+  assert.equal(summary.totalRecords, 2)
+  assert.deepEqual(
+    summary.platforms.map((row) => row.status),
+    ['ok', 'empty', 'failed'],
+    '「打不通」和「没命中」必须分得开，否则报告里长得一样',
+  )
+  assert.equal(summary.platformsOk, 1)
+  assert.equal(summary.platformsEmpty, 1)
+  assert.equal(summary.platformsFailed, 1)
+  assert.deepEqual(summary.platforms[0].missingFields, { url: 1, author: 1, publishedAt: 1 })
+  assert.equal(summary.platforms[0].fieldsVerifiedOn, '2026-09-06')
+  assert.equal(summary.platforms[2].error, 'HTTP 400: upstream')
+})
+
+test('Markdown 抬头带对账表：三种状态各自看得出来', () => {
+  const md = renderMarkdown({
+    keyword: 'ComfyUI',
+    since: null,
+    generatedAt: '2026-09-06T00:00:00.000Z',
+    results: [
+      { platform: 'xhs', platformLabel: '小红书', records: [], pages: [{ page: 1, received: 0 }] },
+      { platform: 'x', platformLabel: 'X（Twitter）', records: [], pages: [], error: 'HTTP 400: upstream' },
+    ],
+  })
+  assert.ok(md.includes('## 本轮对账'))
+  assert.ok(md.includes('⚠️ 没命中'))
+  assert.ok(md.includes('✗ 失败：HTTP 400: upstream'))
 })
