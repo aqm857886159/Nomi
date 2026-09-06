@@ -1,0 +1,108 @@
+{
+  "_comment": [
+    "框架边界棘轮基线（R29）：登记的是**债**，不是豁免。只减不增。",
+    "每条债必须绑一份收敛方案文档（plan）和一个到期日（due）——到期不清零就报红。",
+    "身份 = 框架/能力/规则::文件路径；带命中数，挡住「删一处、同 commit 加一处」。",
+    "新增命中不许追加到这里：先按 R29 出四列表，证明框架真的不提供这个能力。"
+  ],
+  "debt": [
+    {
+      "identity": "pi/ordered-transcript/flatten-text-deltas-into-one-string::electron/harness/runtime/pi/run.mts",
+      "hits": 1,
+      "note": "electron/harness/runtime/pi/run.mts:199 — 把 text_delta 拼成一条扁平字符串，就丢掉了 pi 已经保序的分段结构；UI 想还原「思考→工具→文本」的顺序时只能再猜一次。",
+      "plan": "docs/plan/2026-09-07-agent-runtime-rebuild.md",
+      "due": "2026-11-07"
+    },
+    {
+      "identity": "pi/resource-loading/hand-rolled-resource-loader::electron/harness/runtime/pi/resources.mts",
+      "hits": 1,
+      "note": "electron/harness/runtime/pi/resources.mts:13 — 手写一个全空的 ResourceLoader 是刻意的隔离决定（沙箱不许从磁盘拿指令），但它同时让我们失去 pi 后续在这一层加的一切；边界要被看见，不能默默漂。",
+      "plan": "docs/plan/2026-09-07-agent-runtime-rebuild.md",
+      "due": "2026-11-07"
+    },
+    {
+      "identity": "pi/resource-loading/hand-rolled-resource-loader::electron/harness/runtime/pi/session.mts",
+      "hits": 2,
+      "note": "electron/harness/runtime/pi/session.mts:4 — 手写一个全空的 ResourceLoader 是刻意的隔离决定（沙箱不许从磁盘拿指令），但它同时让我们失去 pi 后续在这一层加的一切；边界要被看见，不能默默漂。",
+      "plan": "docs/plan/2026-09-07-agent-runtime-rebuild.md",
+      "due": "2026-11-07"
+    },
+    {
+      "identity": "pi/resource-loading/private-skill-resource-catalog::electron/harness/runtime/pi/nomiSkillResources.mts",
+      "hits": 3,
+      "note": "electron/harness/runtime/pi/nomiSkillResources.mts:66 — 自研 skill 发现与目录装配，与 DefaultResourceLoader.getSkills() 同职责；两份发现逻辑迟早对同一目录给出不同答案。",
+      "plan": "docs/plan/2026-09-07-agent-runtime-rebuild.md",
+      "due": "2026-11-07"
+    },
+    {
+      "identity": "pi/retry-policy/max-retries-zero::electron/harness/runtime/pi/run.mts",
+      "hits": 1,
+      "note": "electron/harness/runtime/pi/run.mts:165 — 把 provider 重试压到 0 是同一件事的第二处开关；两处都在，说明宿主整条重试路径都自持，pi 的策略被架空。",
+      "plan": "docs/plan/2026-09-07-agent-runtime-rebuild.md",
+      "due": "2026-11-07"
+    },
+    {
+      "identity": "pi/retry-policy/max-retries-zero::electron/harness/runtime/pi/session.mts",
+      "hits": 1,
+      "note": "electron/harness/runtime/pi/session.mts:32 — 把 provider 重试压到 0 是同一件事的第二处开关；两处都在，说明宿主整条重试路径都自持，pi 的策略被架空。",
+      "plan": "docs/plan/2026-09-07-agent-runtime-rebuild.md",
+      "due": "2026-11-07"
+    },
+    {
+      "identity": "pi/retry-policy/retry-disabled-wholesale::electron/harness/runtime/pi/session.mts",
+      "hits": 1,
+      "note": "electron/harness/runtime/pi/session.mts:32 — 整条关掉 pi 的重试后，瞬时 5xx/超时的韧性只能由宿主自己补，而宿主那层没有 provider 级退避与错误分类。",
+      "plan": "docs/plan/2026-09-07-agent-runtime-rebuild.md",
+      "due": "2026-11-07"
+    },
+    {
+      "identity": "pi/session-persistence/opt-out-of-session-store::electron/harness/runtime/pi/contextCodec.mts",
+      "hits": 1,
+      "note": "electron/harness/runtime/pi/contextCodec.mts:6 — 选 inMemory 就等于放弃 pi 的落盘与恢复语义，宿主必须自己补一套持久化——那套是 2026-09-06 评审里「更差的自研版本」的源头。",
+      "plan": "docs/plan/2026-09-07-agent-runtime-rebuild.md",
+      "due": "2026-11-07"
+    },
+    {
+      "identity": "pi/session-persistence/opt-out-of-session-store::electron/harness/runtime/pi/session.mts",
+      "hits": 1,
+      "note": "electron/harness/runtime/pi/session.mts:27 — 选 inMemory 就等于放弃 pi 的落盘与恢复语义，宿主必须自己补一套持久化——那套是 2026-09-06 评审里「更差的自研版本」的源头。",
+      "plan": "docs/plan/2026-09-07-agent-runtime-rebuild.md",
+      "due": "2026-11-07"
+    },
+    {
+      "identity": "pi/session-persistence/opt-out-of-session-store::electron/harness/runtime/pi/snapshot.mts",
+      "hits": 1,
+      "note": "electron/harness/runtime/pi/snapshot.mts:81 — 选 inMemory 就等于放弃 pi 的落盘与恢复语义，宿主必须自己补一套持久化——那套是 2026-09-06 评审里「更差的自研版本」的源头。",
+      "plan": "docs/plan/2026-09-07-agent-runtime-rebuild.md",
+      "due": "2026-11-07"
+    },
+    {
+      "identity": "pi/session-persistence/private-session-snapshot-envelope::electron/harness/runtime/pi/snapshot.mts",
+      "hits": 2,
+      "note": "electron/harness/runtime/pi/snapshot.mts:11 — 自研快照信封（版本锁 + sha256）在复刻 SessionManager 已有的会话序列化与版本迁移，pi 升版时要我们自己跟。",
+      "plan": "docs/plan/2026-09-07-agent-runtime-rebuild.md",
+      "due": "2026-11-07"
+    },
+    {
+      "identity": "pi/steering/host-owned-steering-prompt-fold::electron/projectAgentHost/projectAgentExecutionHelpers.ts",
+      "hits": 1,
+      "note": "electron/projectAgentHost/projectAgentExecutionHelpers.ts:62 — 把修正指令拼进下一次 prompt 文本，是 steer 的字符串化仿制品：模型看到的是一段追加文字，不是一条被正确插队的用户消息。",
+      "plan": "docs/plan/2026-09-07-agent-runtime-rebuild.md",
+      "due": "2026-11-07"
+    },
+    {
+      "identity": "pi/steering/host-owned-steering-prompt-fold::electron/projectAgentHost/projectAgentTurnExecution.ts",
+      "hits": 2,
+      "note": "electron/projectAgentHost/projectAgentTurnExecution.ts:34 — 把修正指令拼进下一次 prompt 文本，是 steer 的字符串化仿制品：模型看到的是一段追加文字，不是一条被正确插队的用户消息。",
+      "plan": "docs/plan/2026-09-07-agent-runtime-rebuild.md",
+      "due": "2026-11-07"
+    },
+    {
+      "identity": "pi/steering/host-owned-steering-queue::electron/projectAgentHost/projectAgentExecutionCoordinator.ts",
+      "hits": 1,
+      "note": "electron/projectAgentHost/projectAgentExecutionCoordinator.ts:191 — 宿主自建一张 turnId→指令 的表，等于把 pi 的排队语义搬到外面重写；pi 的「流式中 steer、非流式 followUp」区分在这里丢失。",
+      "plan": "docs/plan/2026-09-07-agent-runtime-rebuild.md",
+      "due": "2026-11-07"
+    }
+  ]
+}
