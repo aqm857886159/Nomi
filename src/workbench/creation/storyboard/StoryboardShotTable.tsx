@@ -62,6 +62,11 @@ type Props = {
   onGenerateRow: (runtime: StoryboardRowRuntime) => void
   /** 浮条 ↻ 原地重生成。 */
   onRegenerateRow: (runtime: StoryboardRowRuntime) => void
+  /**
+   * 可找回行的**免费**续查（`recoverNodeResult`）。可选：设计实验室等只读取景不接执行通路，
+   * 缺省时那枚按钮就不出现——但绝不许拿 `onGenerateRow` 顶替（那是付费重跑）。
+   */
+  onRecoverRow?: ((runtime: StoryboardRowRuntime) => void) | undefined
   /** 「再出 3 版」：同镜连出三版，追加进变体抽屉。 */
   onVariantsRow: (runtime: StoryboardRowRuntime) => void
   /** 浮条 ×3 变体。 */
@@ -138,7 +143,7 @@ function ShotRowWithMention({
   )
 }
 
-export default function StoryboardShotTable({ plan, projectId, rows, anchorCards, imageModelOptions, videoModelOptions, emptyPromptShots, onChange, onStoryboardShotSelect, onSelectionChange, onGenerateRow, onRegenerateRow, onVariantsRow, onToggleLockRow, onOpenPreviewRow, onRerunFreshRefsRow, onJumpToAnchor, onSaveResultAsReference, onSetResultAsFirstFrame, onGenerateSelected, onDeleteSelected, filterAnchorId, skippedShotIds, onToggleSkip, variantsByShotId, adoptedVariantByShotId, outputTagByShotId, onAgentHandoff, onLockSelected, onPlayGroup, onAdoptVariant: props_onAdoptVariant, onDeleteVariant: props_onDeleteVariant }: Props): JSX.Element {
+export default function StoryboardShotTable({ plan, projectId, rows, anchorCards, imageModelOptions, videoModelOptions, emptyPromptShots, onChange, onStoryboardShotSelect, onSelectionChange, onGenerateRow, onRegenerateRow, onRecoverRow, onVariantsRow, onToggleLockRow, onOpenPreviewRow, onRerunFreshRefsRow, onJumpToAnchor, onSaveResultAsReference, onSetResultAsFirstFrame, onGenerateSelected, onDeleteSelected, filterAnchorId, skippedShotIds, onToggleSkip, variantsByShotId, adoptedVariantByShotId, outputTagByShotId, onAgentHandoff, onLockSelected, onPlayGroup, onAdoptVariant: props_onAdoptVariant, onDeleteVariant: props_onDeleteVariant }: Props): JSX.Element {
   const { t } = useTranslation()
   const [dragIndex, setDragIndex] = React.useState<number | null>(null)
   const [overIndex, setOverIndex] = React.useState<number | null>(null)
@@ -301,6 +306,7 @@ export default function StoryboardShotTable({ plan, projectId, rows, anchorCards
                     exec: runtime?.exec,
                     onGenerate: runtime ? () => onGenerateRow(runtime) : undefined,
                     onRegenerate: runtime ? () => onRegenerateRow(runtime) : undefined,
+                    onRecover: runtime && onRecoverRow ? () => onRecoverRow(runtime) : undefined,
                     onToggleLock: runtime ? () => onToggleLockRow(runtime) : undefined,
                     // 画幅（v6 §2.4.1）：生效值与"是不是覆盖"都从 storyboardAspectScope 单源读，
                     // 行自己不判"读哪一个"。

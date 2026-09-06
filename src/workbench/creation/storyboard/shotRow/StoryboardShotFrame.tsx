@@ -1,6 +1,6 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconLock } from '../../../../vendor/tablerIcons'
+import { IconClockSearch, IconLock } from '../../../../vendor/tablerIcons'
 import { cn } from '../../../../utils/cn'
 import { NomiImage } from '../../../../design/media'
 import type { PlanShot } from '../../../generationCanvas/agent/storyboardPlan'
@@ -23,7 +23,8 @@ import { FRAME_COLUMN_WIDTH, type FrameMediaBox } from './shotFrameGeometry'
  *
  * 状态（与 exec/storyboardRowStatus 同一份 derive，组头/footer 计数共用）：
  * ready 虚线空格 + 常驻「生成」/ waiting-refs ⏳ 可点直达 / missing-required 红虚线 /
- * generating 进度覆盖 / failed 红边 + 重试 / done 结果铺满 / locked 同 done + 🔒。
+ * generating 进度覆盖 / failed 红边 + 重试（重新花钱）/ recoverable 中性纸底 + 免费重新拉取 /
+ * done 结果铺满 / locked 同 done + 🔒。
  */
 
 type Props = {
@@ -165,6 +166,29 @@ export default function StoryboardShotFrame({
           title={exec.errorMessage ?? undefined}
         >
           {t('storyboardEditor.frame.failed')}
+        </span>
+      </div>,
+    )
+  }
+
+  // 可找回：**中性**纸底 + 细描边（与画布 NodeRecoverableReport 同一副长相），不进红色错误桶。
+  // 红色会让用户读成"白花了钱、得重来"，而这一镜恰恰是钱已经花了、片多半已经出了。
+  if (exec.status === 'recoverable') {
+    return column(
+      'recoverable',
+      <div
+        className="relative rounded-nomi overflow-hidden border border-nomi-line bg-nomi-paper flex flex-col items-center justify-center gap-1 p-1.5 text-center"
+        style={mediaStyle}
+        title={t('storyboardEditor.frame.recoverableHint')}
+        data-storyboard-frame-media={aspect || 'default'}
+      >
+        {indexBadge(true)}
+        <IconClockSearch size={14} stroke={1.6} className="text-nomi-ink-60" aria-hidden />
+        <span
+          className="text-micro text-nomi-ink-60 leading-tight line-clamp-2"
+          title={exec.recoverableNode?.error ?? undefined}
+        >
+          {t('storyboardEditor.frame.recoverable')}
         </span>
       </div>,
     )

@@ -21,11 +21,14 @@ import { findAnchorNode, findShotKeyframeNode, findShotNode } from './storyboard
  * - waiting-refs     引用的参考卡还没出图（⏳ 可点直达；不进批量）；
  * - missing-required 该行模型必填参考无来源（红态；不进批量）；
  * - generating       本体或首帧图节点在排队/生成（进度覆盖）；
- * - failed           生成失败/超时可找回（红边 + 人话错误；可重试、计入「未生成」批量）；
+ * - failed           生成真的失败了（节点 `status === 'error'`；红边 + 人话错误；重试要重新花钱、计入「未生成」批量）；
+ * - recoverable      本地轮询超时但**任务已提交、钱已花、上游多半已出片**（节点 `status === 'recoverable'`）：
+ *                    中性态，只给免费的「重新拉取结果」（query 不是 generate）；**绝不**进批量——
+ *                    进了批量就是把一次已付费的生成再付一次钱（画布 NodeRecoverableReport 同一语义）；
  * - done             有可用结果（画面格 = 结果图 + 悬停浮条）；
  * - locked           已锁定（结果满意，不进批量不被重跑；同参考卡锁语义）。
  */
-export const SHOT_ROW_STATUSES = ['ready', 'waiting-refs', 'missing-required', 'generating', 'failed', 'done', 'locked'] as const
+export const SHOT_ROW_STATUSES = ['ready', 'waiting-refs', 'missing-required', 'generating', 'failed', 'recoverable', 'done', 'locked'] as const
 export type ShotRowStatus = (typeof SHOT_ROW_STATUSES)[number]
 
 export type WaitingRef = {
@@ -40,6 +43,11 @@ export type ShotRowExec = {
   node: GenerationCanvasNode | null
   /** 图片+视频镜的首帧图节点。 */
   keyframeNode: GenerationCanvasNode | null
+  /**
+   * 处于「可找回」态的那个节点（本体或首帧图）。免费找回按钮要拿它的 id 调
+   * `recoverNodeResult`——它可能是首帧图节点，所以不能让消费方拿 `node` 猜。
+   */
+  recoverableNode: GenerationCanvasNode | null
   /** 未就绪的引用锚（等参考图）。 */
   waitingRefs: WaitingRef[]
   /** 已出图但未锁定的引用锚：单跑不拦（画布同一破锁语义）、批量要等锁。 */
@@ -66,7 +74,16 @@ function isNodeActive(node: GenerationCanvasNode | null): boolean {
 }
 
 function isNodeFailed(node: GenerationCanvasNode | null): boolean {
-  return node?.status === 'error' || node?.status === 'recoverable'
+  return node?.status === 'error'
+}
+
+/**
+ * 可找回 ≠ 失败：任务已提交、钱已扣、上游多半已出片，只是本地轮询超时没接住。
+ * 曾经这里和 `isNodeFailed` 折成一条，于是分镜表把它画成红色「生成失败」并放进批量重跑——
+ * 一次点击就是把已经付过的钱再付一遍（2026-09-06 验收：10 镜 × $0.34272 = $3.43 重复扣费）。
+ */
+function isNodeRecoverable(node: GenerationCanvasNode | null): boolean {
+  return node?.status === 'recoverable'
 }
 
 function resultDisplayUrl(node: GenerationCanvasNode | null): string | null {
@@ -113,21 +130,26 @@ export function deriveShotRowExec(input: {
   const locked = Boolean(node && isAnchorFrozen(node) && hasUsableResult(node))
   const generating = isNodeActive(node) || isNodeActive(keyframeNode)
   const failedNode = isNodeFailed(node) ? node : isNodeFailed(keyframeNode) ? keyframeNode : null
+  const recoverableNode = isNodeRecoverable(node) ? node : isNodeRecoverable(keyframeNode) ? keyframeNode : null
   const done = Boolean(node && hasUsableResult(node))
 
+  // 真失败排在可找回之前：两个节点一个 error 一个 recoverable 时，红态才是那一行的真相
+  // （error 那一步没出片，重跑它才是唯一出路）。
   const status: ShotRowStatus = generating
     ? 'generating'
     : failedNode
       ? 'failed'
-      : locked
-        ? 'locked'
-        : done
-          ? 'done'
-          : missingSlots.length > 0
-            ? 'missing-required'
-            : waitingRefs.length > 0
-              ? 'waiting-refs'
-              : 'ready'
+      : recoverableNode
+        ? 'recoverable'
+        : locked
+          ? 'locked'
+          : done
+            ? 'done'
+            : missingSlots.length > 0
+              ? 'missing-required'
+              : waitingRefs.length > 0
+                ? 'waiting-refs'
+                : 'ready'
 
   // 参考已变：diff「吃参考节点」（有首帧则锚边连在首帧图上）的提交时快照 vs 锚节点当前 result。
   // 快照里没这把锚（旧产物/后加的引用）不亮——只有确知「跑时用的是旧版」才报，不造假警报。
@@ -160,6 +182,7 @@ export function deriveShotRowExec(input: {
     status,
     node,
     keyframeNode,
+    recoverableNode,
     waitingRefs,
     unlockedRefs,
     missingSlots,
@@ -210,6 +233,8 @@ export type AnchorCardRuntime = {
   resultUrl: string | null
   generating: boolean
   failed: boolean
+  /** 同行状态的 `recoverable`：已付费、上游多半已出片，只给免费的「重新拉取结果」，绝不当失败重跑。 */
+  recoverable: boolean
   errorMessage: string | null
   progressPercent: number | null
   locked: boolean
@@ -232,6 +257,7 @@ export function deriveAnchorCardRuntimes(input: {
     const node = visual ? findAnchorNode(nodes, designId, anchor) : null
     const generating = isNodeActive(node)
     const failed = !generating && isNodeFailed(node)
+    const recoverable = !generating && !failed && isNodeRecoverable(node)
     const percent = node?.progress?.percent
     return {
       anchor,
@@ -240,7 +266,8 @@ export function deriveAnchorCardRuntimes(input: {
       resultUrl: resultDisplayUrl(node),
       generating,
       failed,
-      errorMessage: failed ? node?.error || null : null,
+      recoverable,
+      errorMessage: failed || recoverable ? node?.error || null : null,
       progressPercent: generating && typeof percent === 'number' && Number.isFinite(percent)
         ? Math.max(0, Math.min(100, percent))
         : null,
@@ -256,7 +283,7 @@ export function deriveAnchorCardRuntimes(input: {
 export type StoryboardRowWithExec = { shot: PlanShot; exec: ShotRowExec }
 
 export type StoryboardBatchView<T extends StoryboardRowWithExec = StoryboardRowRuntime> = {
-  /** 进批次的行（ready + failed 重试；镜序）。 */
+  /** 进批次的行（ready + failed 重试；镜序）。**不含 recoverable**——那一批已经付过钱了。 */
   runnable: T[]
   /** 不进批次的原因分桶（footer 写明原因）。 */
   excluded: {
@@ -266,6 +293,11 @@ export type StoryboardBatchView<T extends StoryboardRowWithExec = StoryboardRowR
     missingRequired: number
     locked: number
     generating: number
+    /**
+     * 可找回：**永远**不进批量。这一镜已经付过钱了，批量走的是 `confirmAndRunPlan`（铸新的付费令牌 +
+     * 重新提交），把它算进「未生成」就是让用户一键重复付费。它的出路是行内那枚免费的「重新拉取结果」。
+     */
+    recoverable: number
     /**
      * 「本次跳过」（v6 §2.10）：用户勾掉的行。**作用域是这一批**——跑完标记自动清，
      * 与 `locked`（持久、要显式解锁）语义不同、视觉不同、清除时机不同，不许混成一个。
@@ -286,7 +318,7 @@ export function deriveStoryboardBatch<T extends StoryboardRowWithExec>(
   const countByStatus = Object.fromEntries(SHOT_ROW_STATUSES.map((status) => [status, 0])) as Record<ShotRowStatus, number>
   const view: StoryboardBatchView<T> = {
     runnable: [],
-    excluded: { waitingRefs: 0, unlockedRefs: 0, missingRequired: 0, locked: 0, generating: 0, skipped: 0 },
+    excluded: { waitingRefs: 0, unlockedRefs: 0, missingRequired: 0, locked: 0, generating: 0, recoverable: 0, skipped: 0 },
     doneCount: 0,
     countByStatus,
   }
@@ -308,6 +340,10 @@ export function deriveStoryboardBatch<T extends StoryboardRowWithExec>(
         break
       case 'generating':
         view.excluded.generating += 1
+        break
+      case 'recoverable':
+        // 已付费、待找回：不进批量（免费找回是行内动作，不是批量生成）。
+        view.excluded.recoverable += 1
         break
       case 'waiting-refs':
         view.excluded.waitingRefs += 1
