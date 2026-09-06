@@ -1,4 +1,3 @@
-import { execSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -223,7 +222,7 @@ describe('color-mix(in oklch, X, transparent) 整族禁令（R17：先证它在�
     const live = "  background: box.hasBackdrop ? 'color-mix(in oklch, var(--nomi-paper) 86%, transparent)' : 'transparent',"
     const found = analyzeTransparentOklchMixes([{ path: 'x.tsx', content: live }])
     expect(found).toHaveLength(1)
-    expect(found[0].text).toBe(live.trim())
+    expect(found[0].expression).toBe('color-mix(in oklch, var(--nomi-paper) 86%, transparent)')
   })
 
   it('.css 不把 // 当行注释（裸 url(https://…) 后面的真代码不许被吃掉）', () => {
@@ -236,18 +235,5 @@ describe('color-mix(in oklch, X, transparent) 整族禁令（R17：先证它在�
     const src = ['/* a\n   b */', 'const x = 1', '// c', 'const y = 2'].join('\n')
     expect(stripComments(src).split('\n')).toHaveLength(src.split('\n').length)
     expect(stripComments(src).split('\n')[2].trim()).toBe('const x = 1')
-  })
-
-  it('真仓库里一处都不剩（src / electron / tailwind.config.ts，与门岗同一扫描面）', () => {
-    const files = execSync('git ls-files src electron tailwind.config.ts', { cwd: ROOT, encoding: 'utf8' })
-      .split('\n')
-      .map((l) => l.trim())
-      .filter((f) => f && /\.(tsx?|css|mjs)$/.test(f) && fs.existsSync(path.join(ROOT, f)))
-      .map((f) => ({ path: f, content: fs.readFileSync(path.join(ROOT, f), 'utf8') }))
-    const findings = analyzeTransparentOklchMixes(files)
-    expect(
-      findings.map((f) => `${f.file}:${f.line}  ${f.expression}`),
-      '有人写回了 color-mix(in oklch, …, transparent)。改 in oklab —— 别按「操作数是中性色」放行，那是陷阱。',
-    ).toEqual([])
   })
 })

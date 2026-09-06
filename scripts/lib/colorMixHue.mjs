@@ -298,7 +298,7 @@ export function findTransparentOklchMixes(content) {
     const hasTransparent = operands.some((op) => /^transparent(?:\s|$)/i.test(op.trim()))
     if (!hasTransparent) continue
     const line = content.slice(0, start).split('\n').length
-    found.push({ line, text: content.split('\n')[line - 1].trim(), expression: content.slice(start, end + 1) })
+    found.push({ line, expression: content.slice(start, end + 1) })
   }
   return found
 }
@@ -312,10 +312,8 @@ export function analyzeTransparentOklchMixes(files) {
   for (const { path: filePath, content } of files) {
     // 注释里的反例不算违规（见 stripComments）；字符串里的算，它是活的。
     const code = stripComments(content, { lineComments: !filePath.endsWith('.css') })
-    const originalLines = content.split('\n')
     for (const mix of findTransparentOklchMixes(code)) {
-      // 行号在 stripComments 下与原文一致（注释只被抹成空格），所以能直接取原文那行来报。
-      findings.push({ file: filePath, line: mix.line, text: (originalLines[mix.line - 1] ?? mix.text).trim(), expression: mix.expression })
+      findings.push({ file: filePath, line: mix.line, expression: mix.expression })
     }
   }
   return findings

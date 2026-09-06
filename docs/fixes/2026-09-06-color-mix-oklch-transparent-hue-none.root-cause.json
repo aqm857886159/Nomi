@@ -117,7 +117,6 @@
     "artifacts": [
       "scripts/lib/colorMixHue.mjs",
       "scripts/check-design-tokens.mjs",
-      "scripts/colorMixHue.test.mjs",
       "scripts/colorMixHue.test.mjs"
     ]
   },

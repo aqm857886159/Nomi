@@ -132,14 +132,9 @@ if (hueFindings.length > 0) {
 
 // ---- 第 5b 类：color-mix(in oklch, X, transparent) 整体禁止（非棘轮，零容忍）----
 //
-// 「混 transparent 安全」曾是本门岗的原话，是假的。2026-09-06 实锤（Chromium 140）：非 oklch 字面量的
-// 操作数（rgb/hex/嵌套 color-mix 的结果）转进 oklch 时，彩度 c < 0.02 左右的色相被判 powerless 写成
-// `none`、彩度却留着，`none` 落地当 h=0 → --nomi-accent-soft（in srgb 混出来的，c≈0.015）淡蓝全渲染成
-// 淡粉，tailwind.config.ts 的 tokenColor() 就是这么把全 App 染粉的。现存的 20 来处都在混
-// --nomi-ink / --nomi-paper（oklch 字面量且近中性，今天看不出），但写法本身是陷阱：指向任何一个
-// 非字面量的低彩度 token 就静默变粉，而门岗算不出运行时彩度（出事的 token 自己就是 color-mix）。
-// 所以不按彩度/写法放行，整族禁掉。触发条件与修法等价性的实测见 scripts/lib/colorMixHue.mjs 文件头。
-// 修法：`in oklab`（直角坐标、无色相分量；对现有 token 渲染恒等，已在真 Electron 逐式比对 rgb）。
+// 「混 transparent 安全」曾是本门岗的原话，是假的：低彩度操作数转进 oklch 时色相被判 powerless
+// 写成 `none`、落地当 h=0，淡蓝渲染成淡粉（tokenColor() 就这么把全 App 染粉过）。整族禁掉、
+// 不按「操作数今天是中性的」放行；触发条件实测、修法与等价性证据见 scripts/lib/colorMixHue.mjs 文件头。
 const transparentMixes = analyzeTransparentOklchMixes(mixFiles);
 
 if (transparentMixes.length > 0) {
