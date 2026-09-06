@@ -19,7 +19,7 @@ import { listWorkbenchModelCatalogModels, listWorkbenchModelCatalogVendors, type
 import { listWorkbenchSkills, type SkillListItemDto } from '../../api/skillApi'
 import { decodeModelIdentity, encodeModelIdentity, filterUsableAssistantTextModels, labelForModel } from '../assistantModelIdentity'
 import { getAssistantModelPref, setAssistantModelPref } from '../assistantModelPref'
-import { residentToolProjectionKey, residentToolProjectionScope, readResidentToolProjections, type ResidentToolProjection } from '../resident/residentToolProjection'
+import { residentToolProjectionKey, residentToolProjectionRevision, residentToolProjectionScope, readResidentToolProjections, subscribeResidentToolProjections, type ResidentToolProjection } from '../resident/residentToolProjection'
 import { useTimelinePlanRows, useTimelineSelectionChips } from '../resident/timelineAgentSurface'
 import { useVendorPreferenceOrder } from '../../common/useVendorPreference'
 import {
@@ -246,7 +246,18 @@ export function useAgentPanelV4Data(surface: ResidentSurface): AgentPanelV4Data 
   // 正文只在这一次运行里存在过，所以要从 localStorage 把上次的读回来，
   // 否则冷启动后每条收据展开都是空的。
   const toolProjectionScope = bindingKey && activeThreadId ? residentToolProjectionScope(bindingKey, activeThreadId) : ''
+  // 本次运行写进去的收据正文也要读得回来。只挂 scope 时它一次都读不回来——
+  // 写进的是 localStorage，React 不会因此重算，于是展开一条刚发生的收据是空的，
+  // 非要关掉重开才有内容（2026-09-06 真机走查抓到）。
+  const toolProjectionRevision = React.useSyncExternalStore(
+    subscribeResidentToolProjections,
+    residentToolProjectionRevision,
+    residentToolProjectionRevision,
+  )
   const toolProjections = React.useMemo(() => {
+    // `revision` 不出现在下面任何一行里，它是「localStorage 变了」这件事的**信号**：
+    // 读的是 store，触发重读的是它。显式提一下，省得被当成多余依赖删掉。
+    void toolProjectionRevision
     const map = new Map<string, ResidentToolProjection>()
     if (!toolProjectionScope) return map
     for (const [callKey, projection] of Object.entries(readResidentToolProjections(toolProjectionScope))) {
@@ -257,10 +268,10 @@ export function useAgentPanelV4Data(surface: ResidentSurface): AgentPanelV4Data 
     const rekeyed = new Map<string, ResidentToolProjection>()
     for (const [key, value] of map) rekeyed.set(key.slice(toolProjectionScope.length + 1), value)
     return rekeyed
-    // 依赖只有 scope：这份缓存是「上一次运行留下的收据正文」，它随线程/项目切换整批换，
-    // 不随本次对话新增了几条 item 变化。早先把 `items.length` 挂进依赖是想「有新东西就重读」，
-    // 但新收据的正文是**本次运行写进去的**，写完就已经在 store 里了，重读只是白读一遍 localStorage。
-  }, [toolProjectionScope])
+    // 依赖是 scope（切线程/项目整批换）+ revision（本次运行又写了一条）。
+    // 只挂 scope 不够：新收据的正文写进的是 localStorage，不重读就永远看不到。
+    // 挂 `items.length` 也不对——写入与 item 到达不是同一拍，那样会读早一步。
+  }, [toolProjectionScope, toolProjectionRevision])
 
   const timeline = useWorkbenchStore((state) => state.timeline)
   const selectedClipIds = useWorkbenchStore((state) => state.selectedTimelineClipIds)

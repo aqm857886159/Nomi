@@ -268,6 +268,44 @@ describe('② 助手文本三态', () => {
   })
 })
 
+describe('② 助手正文按调用偏移量切开——宿主把一个回合的话合并成了一条', () => {
+  // 宿主的 assistant item 是**整回合合并**的，而且创建得早，于是整段排在所有收据前面：
+  // 模型说给自己听的那几句和最后那句回答糊成一团，还站错了位置。
+  const projection = (textOffset?: number) => ({
+    effect: '', target: '', technicalDetails: '', input: '', output: '',
+    ...(textOffset !== undefined ? { textOffset } : {}),
+  })
+
+  it('偏移量之前是过程（留在收据前），之后是回答（挪到最后一次调用之后）', () => {
+    // 切点 = 那次调用到达时正文已经写了多少字，也就是「让我修正参数。」的长度。
+    const process = '让我修正参数。'
+    const flow = projectV4Flow(flowInput({
+      items: [assistantItem(`${process}已经改好了。`), toolItem('canvas.write', 'failed', 'call-1')],
+      toolProjections: new Map([['turn-1:call-1', projection(process.length)]]),
+    }))
+    expect(flow.map((entry) => entry.kind)).toEqual(['assistant', 'tool', 'assistant'])
+    const [head, , tail] = flow
+    expect(head!.kind === 'assistant' && head.text).toBe(process)
+    expect(tail!.kind === 'assistant' && tail.text).toBe('已经改好了。')
+  })
+
+  it('一条偏移量都没有就整段原样渲染——不猜一个切点', () => {
+    const flow = projectV4Flow(flowInput({
+      items: [assistantItem('一整段话'), toolItem('canvas.write', 'failed', 'call-1')],
+      toolProjections: new Map([['turn-1:call-1', projection()]]),
+    }))
+    expect(flow.map((entry) => entry.kind)).toEqual(['assistant', 'tool'])
+  })
+
+  it('偏移量落在正文两端时不切——切出一个空段等于凭空多一条', () => {
+    const flow = projectV4Flow(flowInput({
+      items: [assistantItem('全都是回答'), toolItem('canvas.write', 'done', 'call-1')],
+      toolProjections: new Map([['turn-1:call-1', projection(0)]]),
+    }))
+    expect(flow.filter((entry) => entry.kind === 'assistant')).toHaveLength(1)
+  })
+})
+
 describe('① 用户气泡 · chip 的三个来源', () => {
   it('附件来自 attachmentRefs、技能来自 turn.skillVersions、片段来自 target', () => {
     const chips = chipsForTurn(

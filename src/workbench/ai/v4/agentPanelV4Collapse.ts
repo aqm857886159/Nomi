@@ -88,7 +88,7 @@ export function collapseV4Flow(flow: readonly V4FlowItem[], t: Translate): reado
   let index = 0
   while (index < flow.length) {
     const item = flow[index]!
-    if (item.kind !== 'tool') {
+    if (!isWorkItem(item)) {
       out.push(item)
       index += 1
       continue
@@ -97,23 +97,39 @@ export function collapseV4Flow(flow: readonly V4FlowItem[], t: Translate): reado
     while (end < flow.length && isWorkItem(flow[end]!)) end += 1
     const stretch = flow.slice(index, end)
     const toolCount = stretch.filter((entry) => entry.kind === 'tool').length
+    // 一段可以**从助手文本起头**：模型常常先说一句「我先看看画布」再调工具，
+    // 那句话和后面几句自我纠正是同一类东西。只按工具起头会把它漏在外面，
+    // 于是过程行少了第一句、而那一句还占着满宽。
     if (toolCount < 2) {
       out.push(item)
       index += 1
       continue
     }
+    const firstToolAt = stretch.findIndex((entry) => entry.kind === 'tool')
     let lastToolAt = -1
     stretch.forEach((entry, at) => {
       if (entry.kind === 'tool') lastToolAt = at
     })
     const receipts = stretch.filter((entry): entry is Extract<V4FlowItem, { kind: 'tool' }> => entry.kind === 'tool')
       .map((entry) => entry.receipt)
+    const assistantsIn = (from: number, to: number): readonly string[] =>
+      stretch.slice(from, to)
+        .filter((entry): entry is Extract<V4FlowItem, { kind: 'assistant' }> => entry.kind === 'assistant')
+        .map((entry) => entry.text)
     // 「最终回答」= 最后一次工具调用**之后**还说的话。之前说的每一句都是过程——
     // 模型在读报错、在自我纠正，那不是给用户的答案。
-    const intermediate = stretch
-      .slice(0, lastToolAt)
-      .filter((entry): entry is Extract<V4FlowItem, { kind: 'assistant' }> => entry.kind === 'assistant')
-      .map((entry) => entry.text)
+    //
+    // 但**这一段里必须始终留着一条摊开的回答**。宿主把整回合的助手正文合并成一条，
+    // 投影层只有拿到调用偏移量才切得开；切不开时那一条会整段落在工具**前面**，
+    // 这时候把它也折进过程行，用户就一个字的回答都看不到了——比平铺更糟。
+    // 所以：后面真有回答时，前面那几句一起折；没有回答时，只折**夹在两次调用之间**的那几句。
+    const hasAnswer = stretch.slice(lastToolAt + 1).some((entry) => entry.kind === 'assistant')
+    const leading = assistantsIn(0, firstToolAt)
+    const between = assistantsIn(firstToolAt, lastToolAt)
+    const intermediate = hasAnswer ? [...leading, ...between] : between
+    if (!hasAnswer) {
+      for (const entry of stretch.slice(0, firstToolAt)) out.push(entry)
+    }
     emitTools(receipts, t, out)
     if (intermediate.length) {
       out.push({

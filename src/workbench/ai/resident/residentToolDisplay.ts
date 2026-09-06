@@ -452,9 +452,44 @@ export function readableToolResult(t: Translate, status: ProjectAgentStatus): st
  */
 export type ResidentToolOutcome = Readonly<{ result?: unknown; error?: string }>
 
+/**
+ * 校验回执（一串 zod issue 的 JSON）→ 人话。
+ *
+ * 2026-09-06 真机走查看到的原样是 `[{"code":"invalid_type","expected":"array","received":"string",…}]`，
+ * 而一行收据只塞得下六十个字——于是行内的「原因」变成了 `"code": "in…`，等于没说。
+ * 这里把它翻成「nodes：期望 array，收到 string」：**哪个字段、要什么、给了什么**，
+ * 一句话就能照着改。认不出的形状原样返回，不硬翻。
+ */
+function humanizeSchemaIssues(t: Translate, text: string): string | undefined {
+  const trimmed = text.trim()
+  if (!trimmed.startsWith('[') && !trimmed.startsWith('{')) return undefined
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(trimmed)
+  } catch {
+    return undefined
+  }
+  const issues = (Array.isArray(parsed) ? parsed : [parsed])
+    .map(asRecord)
+    .filter((issue): issue is Record<string, unknown> => Boolean(issue) && typeof issue?.code === 'string')
+  if (!issues.length) return undefined
+  const lines: string[] = []
+  for (const issue of issues) {
+    const field = Array.isArray(issue.path) && issue.path.length ? issue.path.join('.') : t('agentResident.issueRoot')
+    const line = typeof issue.expected === 'string' && typeof issue.received === 'string'
+      ? t('agentResident.issueType', { field, expected: issue.expected, received: issue.received })
+      : typeof issue.message === 'string' && issue.message.trim()
+        ? t('agentResident.issueMessage', { field, message: issue.message.trim() })
+        : ''
+    if (line && !lines.includes(line)) lines[lines.length] = line
+    if (lines.length >= 6) break
+  }
+  return lines.length ? lines.join('\n') : undefined
+}
+
 /** 结果 → 一行人话。对象/数组走 JSON（同一套脱敏），字符串原样，空的退回状态词。 */
 function readableToolOutcome(t: Translate, status: ProjectAgentStatus, outcome?: ResidentToolOutcome): string {
-  if (outcome?.error?.trim()) return outcome.error.trim()
+  if (outcome?.error?.trim()) return humanizeSchemaIssues(t, outcome.error) ?? outcome.error.trim()
   const value = outcome?.result
   if (typeof value === 'string' && value.trim()) return value.trim()
   if (value !== undefined && value !== null) {

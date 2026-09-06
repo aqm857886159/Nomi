@@ -148,7 +148,12 @@ export function toolStatusOf(
  * 后面几行是同一件事的旁支；行内塞不下，展开体里有全文。
  */
 function shortReason(text: string | undefined): string | undefined {
-  const first = (text ?? '').split('\n').map((line) => line.trim()).find(Boolean)
+  // 「有内容」不等于「说得出事」：多行错误的第一行常常只是一个 `[` 或 `{`（回执把整包入参
+  // 回显了）。挑第一条**读得出一句话**的行——太短的一律跳过，宁可不给原因也不给一个 `[`。
+  const first = (text ?? '')
+    .split('\n')
+    .map((line) => line.trim())
+    .find((line) => line.replace(/[\s[\]{}(),"']/g, '').length >= 4)
   if (!first) return undefined
   return first.length > 60 ? `${first.slice(0, 60)}…` : first
 }
@@ -311,6 +316,21 @@ export function projectV4Flow(input: V4FlowInput): readonly V4FlowItem[] {
     artifactsByRunId.set(item.artifact.runId, bucket)
   }
   const renderedRunIds = new Set<string>()
+  // 宿主把**一个回合的全部助手正文合并成一条** item，而且它创建得早，于是整段排在所有收据前面。
+  // 模型在工具之间的自我纠正和最后那句回答因此糊成一团，还站错了位置。
+  // 每次调用到达时记下的正文偏移量（`textOffset`）是唯一能把它切回原位的东西：
+  // 偏移量之前的是**过程**（留在收据前面），之后的是**回答**（挪到最后一次调用之后）。
+  // 一条偏移量都没有（冷启动前的旧数据、或这一轮没调工具）就整段原样渲染——降级成今天的样子，
+  // 不猜一个切点。
+  const splitAt = new Map<string, number>()
+  const lastToolItemIdOfTurn = new Map<string, string>()
+  for (const item of sortedItems(input.items)) {
+    if (item.kind !== 'tool') continue
+    lastToolItemIdOfTurn.set(item.turnId, item.itemId)
+    const offset = input.toolProjections.get(toolKey(item.turnId, item.toolCallId))?.textOffset
+    if (offset !== undefined) splitAt.set(item.turnId, Math.max(splitAt.get(item.turnId) ?? 0, offset))
+  }
+  const deferredAnswer = new Map<string, V4FlowItem>()
   const flow: V4FlowItem[] = []
   for (const item of sortedItems(input.items)) {
     if (item.kind === 'user') {
@@ -322,7 +342,17 @@ export function projectV4Flow(input: V4FlowInput): readonly V4FlowItem[] {
       // 空的助手条目是「回合刚开始、第一个 delta 还没到」。渲染一个空气泡等于在流里
       // 留一块跳动的空白；这一刻真正该出现的是思考行，由调用方按运行中的回合补。
       if (!item.text.trim()) continue
-      flow.push({ kind: 'assistant', text: item.text, status: assistantStatusOf(item.status) })
+      const status = assistantStatusOf(item.status)
+      const split = splitAt.get(item.turnId)
+      const lastToolItemId = lastToolItemIdOfTurn.get(item.turnId)
+      if (split !== undefined && split > 0 && split < item.text.length && lastToolItemId) {
+        const process = item.text.slice(0, split).trim()
+        const answer = item.text.slice(split).trim()
+        if (process) flow.push({ kind: 'assistant', text: process, status })
+        if (answer) deferredAnswer.set(lastToolItemId, { kind: 'assistant', text: answer, status })
+        continue
+      }
+      flow.push({ kind: 'assistant', text: item.text, status })
       continue
     }
     if (item.kind === 'tool') {
@@ -345,6 +375,9 @@ export function projectV4Flow(input: V4FlowInput): readonly V4FlowItem[] {
           t,
         }),
       })
+      // 这一回合最后一次调用之后，才轮到真正的回答（见上面 `splitAt` 的说明）。
+      const answer = deferredAnswer.get(item.itemId)
+      if (answer) flow.push(answer)
       continue
     }
     if (item.kind === 'task') {

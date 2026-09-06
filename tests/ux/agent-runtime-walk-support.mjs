@@ -358,15 +358,23 @@ export async function expandResidentPanel(win) {
 }
 
 /**
- * 选模型。v4 的模型弹层每行只有**可见文字**（`labelZh || modelKey`）——没有 per-row 挂点，
- * 所以按名字选，而不是按 `vendorKey/modelKey` 身份串。夹具的名字由
- * `FIXTURE_TEXT_MODEL_LABEL` 单点持有，别在走查里手写。
+ * 选模型。弹层是**每类一行**（对话 / 图片默认 / 视频默认），每行行尾一个 `NomiSelect`——
+ * 所以路径是「开弹层 → 开对话那一行的下拉 → 按名字挑」，不是直接点一行。
+ * 夹具的名字由 `FIXTURE_TEXT_MODEL_LABEL` 单点持有，别在走查里手写。
+ *
+ * （2026-09-06 之前这里点的是「一个模型一行」的 button——那一版把整个文本模型目录
+ * 摊成 17 行、行首标签全写「对话」，既不是拍板的形状也没有下拉。）
  */
 export async function chooseAssistantModel(win, modelLabel, panel = CREATION_PANEL) {
   await clickOrFail(win.locator(`${panel} ${COMPOSER_MODEL}`), '当前 Agent 模型选择器')
   const popover = win.locator(`${panel} ${MODEL_POPOVER}`)
   await expect(popover).toBeVisible()
-  await clickOrFail(popover.getByRole('button', { name: new RegExp(escapeForRegExp(modelLabel)) }).first(), `当前 Agent 文本模型 ${modelLabel}`)
+  const chatRow = popover.locator('[data-v4-model-row]').first()
+  await clickOrFail(chatRow.locator('button').first(), '对话那一行的模型下拉')
+  const option = win.locator('[data-nomi-select-dropdown] [data-nomi-select-option-label]')
+    .filter({ hasText: new RegExp(escapeForRegExp(modelLabel)) })
+    .first()
+  await clickOrFail(option, `当前 Agent 文本模型 ${modelLabel}`)
 }
 
 /** Playwright 的 name 正则要吃字面量文本，模型名里可能有 `.` `(` 之类。 */

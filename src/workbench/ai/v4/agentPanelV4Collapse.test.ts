@@ -85,6 +85,32 @@ describe('② 过程自述折起来，最终回答摊开', () => {
     expect(final.text).toContain('直接把分镜写进文稿')
   })
 
+  it('切不开正文时，开头那段话留在流里——绝不能一条摊开的回答都不剩', () => {
+    // 宿主把整回合的助手正文合并成一条，拿不到调用偏移量就切不开，那一条会整段落在
+    // 工具**前面**。这时候若把它也折进过程行，用户一个字的回答都看不到——比平铺更糟。
+    const flow = collapseV4Flow(
+      [
+        assistant('我先看看画布。已经按脚本排好了。'),
+        tool('创建或修改镜头卡', 'output-error'),
+        tool('创建或修改镜头卡', 'output-error'),
+      ],
+      t,
+    )
+    expect(flow.map((item) => item.kind)).toEqual(['assistant', 'tool-group'])
+  })
+
+  it('夹在两次调用之间的那几句照折——即便后面没有回答', () => {
+    const flow = collapseV4Flow(
+      [
+        tool('创建或修改镜头卡', 'output-error'),
+        assistant('让我修正。'),
+        tool('创建或修改镜头卡', 'output-error'),
+      ],
+      t,
+    )
+    expect(flow.map((item) => item.kind)).toEqual(['tool-group', 'process'])
+  })
+
   it('没有中间自述时不凭空造一条过程行', () => {
     const flow = collapseV4Flow(
       [tool('创建或修改镜头卡', 'output-error'), tool('创建或修改镜头卡', 'output-error'), assistant('失败了')],

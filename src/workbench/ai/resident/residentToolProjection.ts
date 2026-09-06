@@ -25,6 +25,16 @@ export type ResidentToolProjection = Readonly<{
   input: string
   /** 这次调用真实的结果摘要，失败时是**可行动的原因**。拿不到就空串。 */
   output: string
+  /**
+   * 这次调用发生时，本回合的助手正文已经写了多少字（宿主的 `assistantTextAnchor.textOffset`）。
+   *
+   * 为什么要存：宿主把**一个回合的全部助手正文合并成一条** item。模型在工具之间说的那几句
+   * （「让我修正…」）和最后那句真正的回答，落盘后是同一段文字，而且因为 item 创建得早，
+   * 它整段排在所有收据**前面**——既读不出先后，也分不出哪一段是给用户的答案。
+   * 偏移量是唯一能把这段文字切回原来位置的东西，而它只随**活的**事件到达一次
+   * （`ToolCallEvent.assistantTextAnchor`），宿主的终态记录里没有。存在这里，冷启动后仍然切得开。
+   */
+  textOffset?: number
 }>
 
 export type ResidentToolProjectionStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
@@ -94,6 +104,9 @@ export function normalizeResidentToolProjection(input: Partial<ResidentToolProje
     technicalDetails: redactResidentSensitiveText(trimDisplayText(input.technicalDetails)),
     input: redactResidentSensitiveText(trimDisplayText(input.input)),
     output: redactResidentSensitiveText(trimDisplayText(input.output)),
+    ...(typeof input.textOffset === 'number' && Number.isInteger(input.textOffset) && input.textOffset >= 0
+      ? { textOffset: input.textOffset }
+      : {}),
   })
 }
 
@@ -137,6 +150,29 @@ export function readResidentToolProjections(scope: string, storage?: ResidentToo
   }
 }
 
+/**
+ * 「这份缓存变了」的订阅口。
+ *
+ * 少了它，读侧那个 `useMemo` 只挂着 scope，而 scope 在一次对话里从不变——于是本次运行
+ * **刚写进去**的收据正文一次都读不回来，展开一条收据是空的，非要关掉重开才有内容。
+ * （早先那里有一句注释说「写完就已经在 store 里了」——写进的是 localStorage，
+ *  而 React 不会因为 localStorage 变了就重算。）
+ */
+const listeners = new Set<() => void>()
+let revision = 0
+
+export function subscribeResidentToolProjections(listener: () => void): () => void {
+  listeners.add(listener)
+  return () => {
+    listeners.delete(listener)
+  }
+}
+
+/** 快照值：内容变一次就换一个数，`useSyncExternalStore` 据此重算。 */
+export function residentToolProjectionRevision(): number {
+  return revision
+}
+
 /** Persist a bounded map of redacted display strings, never raw tool args. */
 export function writeResidentToolProjections(scope: string, projections: ReadonlyMap<string, ResidentToolProjection>, storage?: ResidentToolProjectionStorage): void {
   const target = storageOrNull(storage)
@@ -145,6 +181,8 @@ export function writeResidentToolProjections(scope: string, projections: Readonl
     const entries = Array.from(projections.entries()).slice(-MAX_ENTRIES)
     const payload = Object.fromEntries(entries.map(([key, value]) => [key, normalizeResidentToolProjection(value)]))
     target.setItem(storageKey(scope), JSON.stringify(payload))
+    revision += 1
+    for (const listener of [...listeners]) listener()
   } catch {
     // Storage can be disabled or full in a hardened Electron profile. The
     // current render still works from the in-memory projection.
