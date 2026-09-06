@@ -1306,9 +1306,10 @@
         "locked",
         "missing-required",
         "ready",
+        "recoverable",
         "waiting-refs"
       ],
-      "reason": "ShotRowStatus 是分镜表行的执行态投影词表（v5 B）：从「plan × 画布节点」实时 derive（不持久化），waiting-refs/missing-required 是表独有的前置就绪判定（参考卡未出图/必填槽无来源），与节点自身的 GenerationCanvasNode.status（queued/running/error…）不同源不同义——节点态只描述单节点生命周期，行态还要综合锚就绪度与锁定；组头/footer/批量判定必须从本 owner derive，禁止另写快照。"
+      "reason": "ShotRowStatus 是分镜表行的执行态投影词表（v5 B）：从「plan × 画布节点」实时 derive（不持久化），waiting-refs/missing-required 是表独有的前置就绪判定（参考卡未出图/必填槽无来源），与节点自身的 GenerationCanvasNode.status（queued/running/error…）不同源不同义——节点态只描述单节点生命周期，行态还要综合锚就绪度与锁定；recoverable 与 failed 是两条必须分开的钱路：recoverable 投影自节点 status='recoverable'（任务已提交、已扣费、上游多半已出片，只是本地轮询没接住），只配免费的 recoverNodeResult 续查且永不进批量，failed 只投影 status='error' 且重跑要重新付费；组头/footer/批量判定必须从本 owner derive，禁止另写快照。"
     },
     {
       "site": "electron/shared/workspaceSyncContracts.ts::type:WorkspaceSyncStatus/type-union",

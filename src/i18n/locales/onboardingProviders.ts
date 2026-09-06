@@ -340,12 +340,15 @@ export const zhOnboardingProviders = {
       pillCustom: '自定义',
       pillDirect: '直连',
       pillUnsupported: '代理地址无效 · 未生效',
+      pillLocalProxy: '检测到本地代理',
       hintSystem: '已探测到 {{url}} · 来自{{source}}',
       hintSystemNone: '没探测到系统代理，当前直连。境外服务商和免费图床可能连不上。',
       hintCustom: '只对 Nomi 生效，不改你的系统代理。支持 http:// https:// socks5://（也认 socks4://）',
       hintOff: '所有请求直连。境外服务商与免费图床可能连不上，本机参考图会送不出去。',
       hintUnsupported:
         '这个代理地址解析不了，已按直连跑。请在「自定义」里填一个有效地址，如 http://127.0.0.1:7897 或 socks5://127.0.0.1:7897。',
+      localProxyDetected:
+        '检测到本机跑着 fake-ip 本地代理（Clash / Surge / sing-box 的 TUN 模式）：域名被解析成 {{address}} 这类合成地址，真正的解析由代理在它那侧做。Nomi 看不到代理设置，但流量确实走了代理——所以上面显示「直连」是正常的。取回生成结果时 Nomi 会据此放行，不会把它当成内网地址拦下来。',
       sourceEnv: '环境变量',
       sourceSystem: '系统设置',
       sourceCustom: '你的设置',
@@ -1477,6 +1480,7 @@ export const enOnboardingProviders = {
       pillCustom: 'Custom',
       pillDirect: 'Direct',
       pillUnsupported: 'Invalid proxy address · not active',
+      pillLocalProxy: 'Local proxy detected',
       hintSystem: 'Detected {{url}} · from {{source}}',
       hintSystemNone:
         'No system proxy detected — connecting directly. Overseas providers and free image hosts may be unreachable.',
@@ -1486,6 +1490,8 @@ export const enOnboardingProviders = {
         'Everything connects directly. Overseas providers and free image hosts may be unreachable, and local reference images will fail to upload.',
       hintUnsupported:
         'That proxy address could not be parsed, so Nomi is connecting directly. Enter a valid address under Custom, e.g. http://127.0.0.1:7897 or socks5://127.0.0.1:7897.',
+      localProxyDetected:
+        'A local fake-IP proxy is running on this machine (Clash / Surge / sing-box in TUN mode): domain names resolve to synthetic addresses like {{address}}, and the real lookup happens on the proxy side. Nomi cannot see any proxy setting, but traffic does go through it, so "Direct" above is expected. Nomi takes this into account when downloading generated results instead of refusing them as private addresses.',
       sourceEnv: 'environment variables',
       sourceSystem: 'system settings',
       sourceCustom: 'your setting',

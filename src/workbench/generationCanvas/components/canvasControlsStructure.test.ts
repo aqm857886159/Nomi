@@ -271,7 +271,7 @@ describe('generation canvas control structure', () => {
     expect(marqueeRule).toContain('var(--nomi-ink)')
     expect(marqueeRule).not.toContain('var(--nomi-accent)')
     expect(flowStyles).toContain('.react-flow__nodesselection-rect')
-    expect(flowStyles).toContain('color-mix(in oklch, var(--nomi-ink) 32%, transparent)')
+    expect(flowStyles).toContain('color-mix(in oklab, var(--nomi-ink) 32%, transparent)')
     expect(flowStyles).toContain('--xy-connectionline-stroke: var(--nomi-accent)')
     expect(groupFrame).toContain('GROUP_VISUAL_CLASS.frame')
     expect(groupFrame).toContain('GROUP_VISUAL_CLASS.label')

@@ -67,6 +67,10 @@ export type DesktopProxyStatus = {
   /** 探到但本版用不了（SOCKS 等）的人话详情；否则空串。 */
   unsupported: string
   source: 'env' | 'system' | 'custom' | ''
+  /** 检测到本机跑着 fake-ip 本地代理（TUN 模式下 mode/activeUrl 会显示「直连」，但流量其实走代理）。 */
+  localProxyDetected?: boolean
+  /** 检测到的合成地址样本（如 `198.18.x.x`）；空串 = 未检测到。 */
+  localProxySample?: string
 }
 
 export type DesktopProxyProbeAttempt = { target: string; ok: boolean; ms: number; error: string }

@@ -15,6 +15,10 @@
 export type NomiErrorCode =
   | 'asset-too-large' // 素材超过所有上传通道的体积上限（HTTP 413 全挂）——确定性失败，得压缩不能重试
   | 'asset-upload-failed' // 所有上传通道都没成功（非 413）——失败在我们这侧，服务商没被请求到
+  // Nomi **自己的**出站安全策略拒绝了这次取片（私网/回环/fake-ip 未确证）。与上面两条同族：
+  // 失败在我们这侧、服务商根本没被请求到。但它还多一件事——任务**已经付过钱**且上游多半已完成，
+  // 所以正确的下一步是「修网络再免费重新拉取」，绝不是「重新生成」（那要再付一次）。
+  | 'outbound-blocked'
 
 const MARKER_PREFIX = 'NOMI_ERR::'
 const MARKER_SUFFIX = '::'

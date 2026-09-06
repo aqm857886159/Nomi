@@ -198,6 +198,41 @@ describe('deriveShotRowExec（行状态机）', () => {
     expect(derive([readyAnchor, locked]).status).toBe('locked')
   })
 
+  /**
+   * 钱闸（2026-09-06 验收现场）：`recoverable` 说的是「任务已提交、钱已扣、上游多半已出片，
+   * 只是本地轮询没接住」。它曾被折进 `failed`，于是表上是红色「生成失败」+ 会重新扣费的重试
+   * ——10 镜 × $0.34272 = $3.43 的重复付费只差一次点击。这三条断言就是那道闸。
+   */
+  it('节点 recoverable → 行是 recoverable（不是 failed），且拿得到要续查的那个节点', () => {
+    const base = { storyboardDesignId: DESIGN, shotId: 'shot-a' }
+    const stuck = nodeOf({ id: 'n1', status: 'recoverable', error: '任务仍在上游进行', meta: base })
+    const exec = derive([readyAnchor, stuck])
+    expect(exec.status).toBe('recoverable')
+    expect(exec.status).not.toBe('failed')
+    expect(exec.recoverableNode?.id).toBe('n1')
+  })
+
+  it('首帧图 recoverable：续查的是首帧图那个节点（不是本体）', () => {
+    const shot = shotOf({ keyframe: { enabled: true, prompt: '首帧' } })
+    const kfStuck = nodeOf({
+      id: 'n-kf', kind: 'image', status: 'recoverable',
+      meta: { storyboardDesignId: DESIGN, shotId: 'shot-a', storyboardKeyframe: true },
+    })
+    const exec = derive([readyAnchor, kfStuck], i2vMode, shot)
+    expect(exec.status).toBe('recoverable')
+    expect(exec.recoverableNode?.id).toBe('n-kf')
+  })
+
+  it('真失败排在可找回之前：一个 error 一个 recoverable → 行仍是 failed（那一步没出片，只能重跑）', () => {
+    const shot = shotOf({ keyframe: { enabled: true, prompt: '首帧' } })
+    const kfFailed = nodeOf({
+      id: 'n-kf', kind: 'image', status: 'error', error: '首帧挂了',
+      meta: { storyboardDesignId: DESIGN, shotId: 'shot-a', storyboardKeyframe: true },
+    })
+    const stuck = nodeOf({ id: 'n1', status: 'recoverable', meta: { storyboardDesignId: DESIGN, shotId: 'shot-a' } })
+    expect(derive([readyAnchor, kfFailed, stuck], i2vMode, shot).status).toBe('failed')
+  })
+
   it('图片+视频镜：首帧图在跑也算 generating', () => {
     const shot = shotOf({ keyframe: { enabled: true, prompt: '首帧' } })
     const kfRunning = nodeOf({
@@ -258,6 +293,7 @@ describe('deriveStoryboardBatch（批量分桶 = footer 同一份）', () => {
       status,
       node: null,
       keyframeNode: null,
+      recoverableNode: null,
       waitingRefs: [],
       unlockedRefs: unlocked ? [hero] : [],
       missingSlots: [],
@@ -276,9 +312,24 @@ describe('deriveStoryboardBatch（批量分桶 = footer 同一份）', () => {
       rowOf('generating'), rowOf('locked'), rowOf('done'), rowOf('ready', true),
     ])
     expect(view.runnable).toHaveLength(2)
-    expect(view.excluded).toEqual({ waitingRefs: 1, unlockedRefs: 1, missingRequired: 1, locked: 1, generating: 1, skipped: 0 })
+    expect(view.excluded).toEqual({ waitingRefs: 1, unlockedRefs: 1, missingRequired: 1, locked: 1, generating: 1, recoverable: 0, skipped: 0 })
     expect(view.doneCount).toBe(1)
     expect(view.countByStatus.ready).toBe(2)
+  })
+
+  /**
+   * 批量走 `confirmAndRunPlan`：铸新的付费令牌 + 重新提交。可找回的行钱已经花过一次，
+   * 进 runnable 就等于让「生成未生成的 N 镜」那一下把它再买一遍。
+   */
+  it('可找回的行不进 runnable，归 excluded.recoverable；真失败的行仍进 runnable', () => {
+    const view = deriveStoryboardBatch([
+      rowOf('recoverable', false, 'shot-a'),
+      rowOf('failed', false, 'shot-b'),
+    ])
+    expect(view.runnable.map((row) => row.shot.shotId)).toEqual(['shot-b'])
+    expect(view.excluded.recoverable).toBe(1)
+    expect(view.countByStatus.recoverable).toBe(1)
+    expect(view.countByStatus.failed).toBe(1)
   })
 
   /**
