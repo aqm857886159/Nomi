@@ -38,8 +38,8 @@ import { useNodeAppearTracking } from '../components/useNodeAppearTracking'
 import { useAutoFitOnLoad } from '../components/useAutoFitOnLoad'
 import { useComposerVisibilityPan } from '../components/useComposerVisibilityPan'
 import { useCreatedNodeVisibilityPan } from '../components/useCreatedNodeVisibilityPan'
+import { useReactFlowViewportAnimation } from './useReactFlowViewportAnimation'
 import { useCanvasContextNodeMenu } from '../components/useCanvasContextNodeMenu'
-import type { ViewportAnimationSettlementOutcome } from '../components/viewportAnimationSettlement'
 import { useBatchPlanPreviewStore } from '../components/batchPlanPreview'
 import { buildCanvasMenuActions } from '../components/useCanvasMenuActions'
 import { hasPendingScene3DCameraMoveCapture, hasPendingScene3DStagingCapture } from '../components/scene3dCaptureHostActivation'
@@ -234,13 +234,27 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
   zoomRef.current = liveViewport.zoom
   offsetRef.current = { x: liveViewport.x, y: liveViewport.y }
 
+  const {
+    animateViewportTo,
+    readViewportTarget,
+    readLastAutoTarget,
+    readLiveViewport,
+    cancelViewportAnimation,
+    healViewport,
+  } = useReactFlowViewportAnimation({ flow, zoomRef, offsetRef })
+
   React.useEffect(() => {
     const nextKey = `${activeCategoryId}:${viewport.x}:${viewport.y}:${viewport.zoom}`
     if (appliedViewportKeyRef.current === nextKey) return
     appliedViewportKeyRef.current = nextKey
     setLiveViewport(viewport)
+    // 只在 React Flow 与 store 真不一致时才直接写入（切分类 / 外部还原）。onMoveEnd 回写 store 后这里会再收到
+    // 同一份视口——那是回声不是新命令；零时长写入会打断在飞的自动让位（新建节点的横向露出就是这样被抹掉的）。
+    const current = flow.getViewport()
+    if (Math.abs(current.x - viewport.x) < 0.5 && Math.abs(current.y - viewport.y) < 0.5 && Math.abs(current.zoom - viewport.zoom) < 1e-3) return
+    cancelViewportAnimation()
     void flow.setViewport(viewport, { duration: 0 })
-  }, [activeCategoryId, flow, viewport])
+  }, [activeCategoryId, cancelViewportAnimation, flow, viewport])
 
   const {
     canvasPanMovedRef,
@@ -282,6 +296,8 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
   })
   useGenerationCanvasReactFlowHostEffects({
     activeCategoryId,
+    animateViewportTo,
+    cancelViewportAnimation,
     flow,
     hostRef,
     nodes,
@@ -359,25 +375,9 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
   // 事件从此无人接收 → 画布不再让位 → composer 只能溢出 stage（j5 composer-usable-at-min-window
   // 因此确定性变红：spaceAbove 140 / spaceBelow 132 都 < 150，卡片仍按 150 渲染，捅出底边 32px）。
   // 复用原 hook 而不是在这里另写一份监听：事件契约、delta 校验和 onSettled 回执它都已经处理好（P1）。
-  const animateViewportTo = React.useCallback(
-    (
-      zoom: number,
-      offset: { x: number; y: number },
-      duration = 160,
-      onSettled?: (outcome: ViewportAnimationSettlementOutcome) => void,
-    ) => {
-      // React Flow 的 setViewport 用 Promise<boolean> 表达「动画是否跑完」，正好对上结算契约的
-      // completed / cancelled；被新动画打断时要回 cancelled，否则请求闩会一直不释放。
-      void flow
-        .setViewport({ x: offset.x, y: offset.y, zoom }, { duration })
-        .then((completed) => onSettled?.(completed ? 'completed' : 'cancelled'))
-        .catch(() => onSettled?.('cancelled'))
-    },
-    [flow],
-  )
-  useComposerVisibilityPan({ animateViewportTo, offsetRef, zoomRef })
+  useComposerVisibilityPan({ animateViewportTo, readLiveViewport, readViewportTarget })
   // 「新建即可见」：避让把新卡推出视口时最小平移露出它（见 useCreatedNodeVisibilityPan 的头注释）。
-  useCreatedNodeVisibilityPan({ nodes, animateViewportTo, offsetRef, zoomRef, stageRef: hostRef })
+  useCreatedNodeVisibilityPan({ nodes, animateViewportTo, readViewportTarget, readLastAutoTarget, stageRef: hostRef })
   const { isTidying, tidy } = useTidyCanvas(activeCategoryId)
   const production = useCanvasProductionActions({ activeCategoryId, selectedNodeIds })
   const batchDock = useCanvasBatchDockVisibility({
@@ -726,6 +726,7 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
         setLiveViewport={setLiveViewport}
         activeCategoryId={activeCategoryId}
         rememberCategoryViewport={rememberCategoryViewport}
+        healViewport={healViewport}
         groupBoxes={groupBoxes}
         collapsedGroupCards={collapsedProjection.cards}
         onGroupFramePointerDown={handleGroupFramePointerDown}

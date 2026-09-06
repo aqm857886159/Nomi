@@ -1,6 +1,6 @@
 {
   "origin": "https://nomiaqm.com",
-  "publicPaths": ["/", "/en/", "/quickstart.html", "/handbook.html"],
+  "publicPaths": ["/", "/en/", "/quickstart", "/handbook"],
   "schedule": "weekly",
   "optionalSecrets": {
     "PAGESPEED_API_KEY": "Adds a mobile PageSpeed performance score and LCP/CLS/INP measurements."
