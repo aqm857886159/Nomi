@@ -6,6 +6,8 @@ import {
 import type { ProfileKind } from "../catalog/types";
 import { CertificationMediaError } from "../providerAdapter/certificationMedia";
 import type { TaskResult } from "../runtime";
+import { redactNetworkMessage } from "../networkErrorDetails";
+import { stripNomiErrorCode } from "../shared/nomiErrorCodes";
 
 export type ComfyCandidateTestResult =
   | { ok: true; revisionId: string; active: { vendorKey: string; modelKey: string }; remoteTaskId?: string }
@@ -57,10 +59,21 @@ function candidateIntent(payload: unknown): { payload: CandidatePayload; revisio
   return { payload: candidate, revisionId, modelKey, taskKind: candidate.request.kind };
 }
 
-export function failComfyCandidateEnvelope(payload: unknown, reasonCode = "provider_failed"): ComfyCandidateTestResult {
+/**
+ * `detail` 不是装饰：以前这条出口把**所有**失败压成裸码 `provider_failed`，界面照着渲染，
+ * 用户看到的就是一个没翻译的状态码，真因（上游 4xx/余额/我们自己的出站策略拒绝）当场蒸发。
+ * 由调用方把真实错误传进来，这里只负责脱敏与截断——出站报文里的 URL/密钥不许进 UI。
+ */
+export function failComfyCandidateEnvelope(
+  payload: unknown,
+  reasonCode = "provider_failed",
+  cause?: unknown,
+): ComfyCandidateTestResult {
   const envelope = candidateEnvelope(payload);
   if (envelope) failComfyCandidateRevision({ ...envelope, reasonCode });
-  return { ok: false, revisionId: envelope?.revisionId || "", reasonCode, params: {} };
+  const rawDetail = cause instanceof Error ? cause.message : typeof cause === "string" ? cause : "";
+  const detail = rawDetail ? redactNetworkMessage(stripNomiErrorCode(rawDetail), [], 200) : "";
+  return { ok: false, revisionId: envelope?.revisionId || "", reasonCode, params: detail ? { detail } : {} };
 }
 
 function wait(ms: number, signal: AbortSignal): Promise<void> {

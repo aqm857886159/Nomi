@@ -233,3 +233,200 @@ export function evaluate({ hits, baseline, today }) {
   }
   return errors
 }
+
+// ─── 第二份必交物：参考实现逐层对照（R29，2026-09-07 用户拍板）───────────────────
+//
+// 四列表回答的是「框架提供什么 / 我们用了没有」——它按**能力清单**走，而清单是我们自己列的，
+// 天生只包含已经想到的那些。参考实现（框架自带的 coding agent、官方 example、demo 应用）
+// 回答的是另一个问题：**一个把这套框架用对了的完整实现长什么样**。把它逐层拆开摆在旁边，
+// 「我们压根没想到还有这一层」才会显形——那一格四列表永远不会有，因为没人会给自己不知道的东西列一行。
+//
+// 目标不是一致：桌面创作、审批花钱、画布/分镜/时间轴这些领域约束本来就要求我们不同。
+// 目标是**每一处不同都是看过它的做法之后有理由地不同**，而不是没看过就自己长成了另一个样子。
+// 所以判定只有三档，且「有意不同」必须给出领域约束级别的理由，「没想到」进实施阶段的前置门。
+
+/** 九层。裁剪允许（不是每个框架都有全部九层），但只能从这九个里选，不许自造一层绕过。 */
+export const REFERENCE_CONFORMANCE_LAYERS = Object.freeze([
+  '工具',
+  '转录渲染',
+  '会话',
+  '上下文',
+  '模型与花费',
+  '控制流',
+  '扩展 API',
+  '观测与测试',
+  '安全',
+])
+
+/** 四列。少一列这张表就退化成读后感：没有「判定」就没有结论，没有「补在哪个阶段前」就没有下一步。 */
+export const REFERENCE_CONFORMANCE_COLUMNS = Object.freeze([
+  '它怎么做',
+  '我们怎么做',
+  '判定',
+  '若没想到补在哪个阶段前',
+])
+
+const CONFORMANCE_HEADING = '参考实现逐层对照'
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/
+
+function debtIndex(registry) {
+  const index = new Map()
+  const errors = []
+  const debt = registry?.referenceConformanceDebt
+  if (debt === undefined) return { index, errors }
+  if (!Array.isArray(debt)) return { index, errors: ['referenceConformanceDebt 必须是数组'] }
+  for (const entry of debt) {
+    const id = entry?.id
+    if (typeof id !== 'string' || !id.trim()) {
+      errors.push(`referenceConformanceDebt 条目缺 id：${JSON.stringify(entry)}`)
+      continue
+    }
+    if (index.has(id)) errors.push(`referenceConformanceDebt 条目重复：${id}`)
+    index.set(id, entry)
+  }
+  return { index, errors }
+}
+
+function checkDebtEntry(entry, today, errors) {
+  const id = entry.id
+  if (typeof entry.doc !== 'string' || !entry.doc.trim()) {
+    errors.push(`${id}: 债条目的 doc 必须指向那份对照文档将要落到的路径（欠账要指得出交付物）`)
+  }
+  if (typeof entry.why !== 'string' || !entry.why.trim()) {
+    errors.push(`${id}: 债条目的 why 必须写清「为什么现在还没出这张表」`)
+  }
+  if (typeof entry.due !== 'string' || !DATE_ONLY.test(entry.due)) {
+    errors.push(`${id}: 债条目的 due 必须是 YYYY-MM-DD 到期日（登记是有时限的承诺，不是永久豁免）`)
+  } else if (entry.due < today) {
+    errors.push(`${id}: 参考实现对照已于 ${entry.due} 到期仍未交（约定落点 ${entry.doc}）`
+      + '——要么把表交出来，要么带理由重定到期日')
+  }
+}
+
+/** 版本比较只做「数字段逐位比大小」，够用且不引依赖；比不动就当没落后（宁可漏报也不误报）。 */
+export function isVersionBehind(recorded, installed) {
+  if (typeof recorded !== 'string' || typeof installed !== 'string') return false
+  const parse = (value) => {
+    const core = value.trim().replace(/^[\^~>=<\s]+/, '').split(/[-+]/)[0]
+    const parts = core.split('.').map((part) => Number.parseInt(part, 10))
+    return parts.every((part) => Number.isInteger(part)) && parts.length > 0 ? parts : null
+  }
+  const a = parse(recorded)
+  const b = parse(installed)
+  if (!a || !b) return false
+  for (let i = 0; i < Math.max(a.length, b.length); i += 1) {
+    const left = a[i] ?? 0
+    const right = b[i] ?? 0
+    if (left !== right) return right > left
+  }
+  return false
+}
+
+/** 文档形状检查：标题在不在、声明的层在不在、四列在不在。判的是形式不是内容——内容归人验收。 */
+export function checkConformanceDoc({ id, doc, layers, source }) {
+  const errors = []
+  if (!source.includes(CONFORMANCE_HEADING)) {
+    errors.push(`${id}: ${doc} 里找不到「${CONFORMANCE_HEADING}」那一节（这张表就是本条登记的交付物）`)
+  }
+  for (const layer of layers) {
+    if (!source.includes(layer)) errors.push(`${id}: ${doc} 缺「${layer}」这一层`)
+  }
+  for (const column of REFERENCE_CONFORMANCE_COLUMNS) {
+    if (!source.includes(column)) {
+      errors.push(`${id}: ${doc} 缺「${column}」这一列——四列少一列，表就退化成读后感`)
+    }
+  }
+  return errors
+}
+
+/**
+ * 参考实现对照的登记校验。
+ *
+ * `docExists(path) -> boolean`、`readDoc(path) -> string`、`installedVersions` = { 包名: 已装版本 }。
+ * 全部由调用方注入，测试才能喂一个不存在的仓库跑完整判据（门岗自己的测试不许依赖真实存量）。
+ *
+ * 红：登记框架既没有 referenceConformance 又不在债里 / 债缺 doc·why·due 或已过期 /
+ *     两边同时登记 / 已交的那份缺字段、文档不存在、文档缺层或缺列 / 裁剪出了九层之外的层 /
+ *     capabilityInventory 里的包既没被任何框架覆盖又没登记成债。
+ * 黄（advisory）：登记的 upstreamVersion 落后于 node_modules 里实装的版本。
+ */
+export function evaluateReferenceConformance({ registry, today, docExists, readDoc, installedVersions = {} }) {
+  const errors = []
+  const warnings = []
+  const frameworks = Array.isArray(registry?.frameworks) ? registry.frameworks : []
+  const { index: debt, errors: debtErrors } = debtIndex(registry)
+  errors.push(...debtErrors)
+
+  const covered = new Set()
+  for (const framework of frameworks) {
+    const id = framework?.id
+    if (typeof id !== 'string' || !id.trim()) continue
+    for (const pkg of Array.isArray(framework.packages) ? framework.packages : []) covered.add(pkg)
+
+    const declared = framework.referenceConformance
+    const owed = debt.get(id)
+    if (owed && declared) {
+      errors.push(`${id}: 既登记成债又声称已交（referenceConformance 与 referenceConformanceDebt 只能有一边）`)
+      continue
+    }
+    if (owed) { checkDebtEntry(owed, today, errors); continue }
+    if (!declared || typeof declared !== 'object') {
+      errors.push(`${id}: 缺 referenceConformance —— 接框架的第二份必交物是「参考实现逐层对照」`
+        + '（把它自带的 coding agent / 官方 example 逐层拆开摆在旁边）。'
+        + '还没做就登记进 referenceConformanceDebt 并绑到期日，不许静默省掉')
+      continue
+    }
+    const layers = Array.isArray(declared.layers) && declared.layers.length > 0
+      ? declared.layers
+      : REFERENCE_CONFORMANCE_LAYERS
+    for (const layer of layers) {
+      if (!REFERENCE_CONFORMANCE_LAYERS.includes(layer)) {
+        errors.push(`${id}: layers 里的「${layer}」不在九层之内 —— 裁剪可以，自造一层绕过不行`)
+      }
+    }
+    if (typeof declared.verifiedAt !== 'string' || !DATE_ONLY.test(declared.verifiedAt)) {
+      errors.push(`${id}: referenceConformance.verifiedAt 必须是 YYYY-MM-DD（对照是有时效的：上游一发版就可能过期）`)
+    }
+    const recorded = declared.upstreamVersion
+    if (typeof recorded !== 'string' || !recorded.trim()) {
+      errors.push(`${id}: referenceConformance.upstreamVersion 必须写下对照时上游的版本号`)
+    }
+    const doc = declared.doc
+    if (typeof doc !== 'string' || !doc.trim()) {
+      errors.push(`${id}: referenceConformance.doc 必须指向那份对照文档`)
+    } else if (!docExists(doc)) {
+      errors.push(`${id}: referenceConformance.doc 指向的 ${doc} 不存在 —— 指不到的文档等于没写`)
+    } else {
+      errors.push(...checkConformanceDoc({ id, doc, layers, source: readDoc(doc) }))
+    }
+
+    for (const pkg of Array.isArray(framework.packages) ? framework.packages : []) {
+      const installed = installedVersions[pkg]
+      if (isVersionBehind(recorded, installed)) {
+        warnings.push(`${id}: 对照做在 ${pkg}@${recorded}，node_modules 里已是 ${installed}`
+          + ` —— 上游发版意味着参考实现可能变了，重跑一遍逐层对照并更新 verifiedAt/upstreamVersion`)
+      }
+    }
+  }
+
+  const inventory = registry?.capabilityInventory?.packages
+  for (const pkg of Array.isArray(inventory) ? inventory : []) {
+    if (covered.has(pkg)) continue
+    const owed = debt.get(pkg)
+    if (!owed) {
+      errors.push(`${pkg}: 已经在用（capabilityInventory 里有它）却既没有框架登记也没有参考实现对照登记`
+        + ' —— 出表或登记进 referenceConformanceDebt 绑到期日')
+      continue
+    }
+    checkDebtEntry(owed, today, errors)
+  }
+
+  const known = new Set([...frameworks.map((framework) => framework?.id), ...(Array.isArray(inventory) ? inventory : [])])
+  for (const id of debt.keys()) {
+    if (!known.has(id)) {
+      errors.push(`referenceConformanceDebt 里的 ${id} 既不是登记框架也不是 capabilityInventory 里的包`
+        + ' —— 债只能欠在真实存在的东西上（清掉的债要从这里删，棘轮只减不增）')
+    }
+  }
+  return { errors, warnings }
+}

@@ -122,10 +122,11 @@ async function main() {
       console.error(`Fixture not found: ${fullPath}`);
       process.exit(1);
     }
-    // Enable localhost in hardenedFetch ONLY for this trial
-    process.env.LAB_ALLOW_LOCALHOST = "1";
     fixtureServer = await startFixtureServer(fixturesDir);
     docsUrl = `http://127.0.0.1:${fixtureServer.port}/${fixtureFile}`;
+    // Name the exact fixture origin, never disable the private-host classifier. main.ts only
+    // honours this on an unpackaged build; see electron/networkOutboundPolicy.ts.
+    process.env.NOMI_LAB_TRUSTED_PRIVATE_ORIGINS = `http://127.0.0.1:${fixtureServer.port}`;
     console.log(`▶  Loaded fixture: ${fixtureFile} (served at ${docsUrl})`);
   }
 

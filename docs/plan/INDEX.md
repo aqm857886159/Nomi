@@ -11,6 +11,7 @@
 
 | 文件 | 一句话 | 状态 |
 |---|---|---|
+| [2026-09-07-model-generation-core-path.md](2026-09-07-model-generation-core-path.md) | **生成主干道**：fake-ip（198.18/15）下「钱扣了、片取不回」的类根因修——出站判据收成唯一 owner + `check:outbound-policy` 棘轮、fake-ip 凭阳性证据放行（探不到就 fail-closed）、删 `LAB_ALLOW_LOCALHOST` 逃生口、错误说人话、已付费落 `recoverable` 走免费重拉不再二次扣费、`deepseek-v3.2-think` 实测下架 + LLM 进模型雷达；文末列了 6 条未做（提交侧未接入 / 退役自动探测 / 零额度夹具 / 轮询活性 / 洗白点盘点） | 🚧 |
 | [2026-09-07-rules-round2-adversary-inventory.md](2026-09-07-rules-round2-adversary-inventory.md) | **规则第二轮：把「先查别人」做成机器强制**——反方 agent 机器强制进 R27 手册 §16 + `check:prior-art`、依赖能力清单自动生成 + 框架边界 advisory 启发式、钩子随 checkout 生效不再靠 install、根因流程三条（症状聚类 / `invariant_owner_layer` / R14.2 审计三条） | 🚧 |
 | [2026-09-06-agent-architecture-master-plan.md](2026-09-06-agent-architecture-master-plan.md) | **Agent 架构总体方案**（配套评审 [`docs/audit/2026-09-06-agent-architecture-review.md`](../audit/2026-09-06-agent-architecture-review.md)）：「我们接了 pi 但没在用 pi」——有序 parts 通道、工具契约不再对模型说谎、pi 关掉的重试/思考/价格三样各给归属；P0–P3 分阶段、三条 R3 岔路（转录真相源 / 工具收敛度 / MCP 对等）、六角色评审与在途分支合流顺序；**⛔ 2026-09-07 被 [2026-09-07-agent-runtime-rebuild.md](2026-09-07-agent-runtime-rebuild.md) 取代（用户改判重做）** | ⛔ |
 | [2026-09-05-gpt-discussion-consolidation.md](2026-09-05-gpt-discussion-consolidation.md) | GPT 讨论梳理：统一 Agent/画布/视频拆解表/Skill 聚合的现状对账、三项被推翻旧结论与待拍板入口 | 📋 |

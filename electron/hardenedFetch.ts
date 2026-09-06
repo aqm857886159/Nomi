@@ -15,6 +15,14 @@ import net from "node:net";
 import { lookup as dnsLookup } from "node:dns/promises";
 import { Agent, type Dispatcher } from "undici";
 import { isPrivateHost } from "./networkHostPolicy";
+import {
+  OutboundDestinationRefusedError,
+  classifyOutboundAddresses,
+  getLabTrustedPrivateOrigins,
+  readOutboundEnvironment,
+  type OutboundEnvironment,
+} from "./networkOutboundPolicy";
+import { describeOutboundRefusal } from "./networkOutboundMessage";
 import { appFetch } from "./appFetch";
 import { getAppDispatcher, isApplicationProxyActive } from "./systemProxy";
 export { isPrivateHost } from "./networkHostPolicy";
@@ -49,7 +57,8 @@ export type HardenedFetchOptions = {
   dispatcher?: Dispatcher;
 };
 
-export type ResolvedHostAddress = { address: string; family: 4 | 6 };
+export type { ResolvedHostAddress } from "./networkOutboundPolicy";
+import type { ResolvedHostAddress } from "./networkOutboundPolicy";
 
 export type HardenedFetchDependencies = {
   resolveHost?: (hostname: string) => Promise<ResolvedHostAddress[]>;
@@ -59,6 +68,8 @@ export type HardenedFetchDependencies = {
   isApplicationProxyActive?: () => boolean;
   /** Test seam for waiting until the application route has been committed. */
   waitForApplicationRoute?: (signal: AbortSignal, target: URL) => Promise<void>;
+  /** Test seam for the shared outbound environment (fake-IP resolver detection). */
+  readOutboundEnvironment?: () => Promise<OutboundEnvironment>;
 };
 
 const DEFAULT_TIMEOUT_MS = 20_000;
@@ -87,21 +98,48 @@ function assertSafeUrl(targetUrl: string, allowedPrivateOrigins: readonly string
     throw new Error(`Only http/https URLs are allowed (got ${url.protocol})`);
   }
   if (isPrivateHost(url.hostname) && !isExplicitlyAllowedPrivateOrigin(url, allowedPrivateOrigins)) {
-    throw new Error(`Refusing to fetch private/loopback host: ${url.hostname}`);
+    // Structured, not a bare string: the renderer has to tell "our own security policy refused
+    // this" apart from "the provider failed", because only the former means the paid task is
+    // still intact and can be re-fetched for free.
+    throw new OutboundDestinationRefusedError({
+      reason: "private-host",
+      hostname: url.hostname,
+      syntheticResolver: false,
+      message: describeOutboundRefusal({ reason: "private-host", hostname: url.hostname, observedAddress: "", syntheticResolver: false }),
+    });
   }
   return url;
 }
 
+/**
+ * The retrieval half of the shared outbound decision. Both halves - the vendor submit/poll calls
+ * in vendorHttp and this artifact download - now ask networkOutboundPolicy the same question with
+ * the same once-per-process environment snapshot, so a destination we were willing to pay through
+ * cannot be a destination we then refuse to read from.
+ */
 async function resolvePublicAddresses(
   hostname: string,
   resolveHost: NonNullable<HardenedFetchDependencies["resolveHost"]>,
+  environment: OutboundEnvironment,
 ): Promise<ResolvedHostAddress[]> {
   const literalFamily = net.isIP(hostname);
   const addresses = literalFamily
     ? [{ address: hostname, family: literalFamily as 4 | 6 }]
     : await resolveHost(hostname);
-  if (!addresses.length || addresses.some((entry) => isPrivateHost(entry.address))) {
-    throw new Error("Refusing to fetch private/loopback DNS address");
+  const verdict = classifyOutboundAddresses({ hostname, addresses, environment });
+  if (!verdict.allowed) {
+    throw new OutboundDestinationRefusedError({
+      reason: verdict.reason,
+      hostname,
+      observedAddress: verdict.observedAddress,
+      syntheticResolver: environment.syntheticResolver,
+      message: describeOutboundRefusal({
+        reason: verdict.reason,
+        hostname,
+        observedAddress: verdict.observedAddress,
+        syntheticResolver: environment.syntheticResolver,
+      }),
+    });
   }
   return addresses;
 }
@@ -162,7 +200,9 @@ export async function hardenedFetch(
   options: HardenedFetchOptions = {},
   dependencies: HardenedFetchDependencies = {},
 ): Promise<HardenedFetchResult> {
-  const allowedPrivateOrigins = options.allowedPrivateOrigins || [];
+  // Lab fixtures name their exact loopback origin; main.ts only seeds them on an unpackaged
+  // build, so a packaged app merges an always-empty list here.
+  const allowedPrivateOrigins = [...(options.allowedPrivateOrigins || []), ...getLabTrustedPrivateOrigins()];
   const url = assertSafeUrl(rawUrl, allowedPrivateOrigins);
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const maxBytes = options.maxBytes ?? DEFAULT_MAX_BYTES;
@@ -233,7 +273,8 @@ export async function hardenedFetch(
         }
         if (!privateAllowed && !applicationProxyActive()) {
           const hostname = connectionHostname(currentUrl.hostname);
-          const addresses = await resolvePublicAddresses(hostname, resolveHost);
+          const environment = await (dependencies.readOutboundEnvironment ?? readOutboundEnvironment)();
+          const addresses = await resolvePublicAddresses(hostname, resolveHost, environment);
           dispatcher = makeDispatcher(hostname, addresses);
           dispatchers.push(dispatcher);
         }

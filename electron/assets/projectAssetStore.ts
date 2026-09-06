@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { providerDispatcher, type ProviderNetworkConfig } from "../providerNetwork";
 import { hardenedFetch } from "../hardenedFetch";
 import { isJsonRecord, nowIso, type JsonRecord } from "../jsonUtils";
 import { projectDirById, sanitizeName } from "../projects/repository";
@@ -492,6 +493,15 @@ type RemoteAssetImportOptions = {
   /** 仅供 main 进程内部已配置的本地生成服务使用；renderer IPC 无法注入第二参数。 */
   trustedPrivateOrigin?: string;
   certificationEvidence?: CertificationMediaEvidence;
+  /**
+   * 产出这条 URL 的那家 vendor 的自有线路配置（`Vendor.network`）。
+   *
+   * 不带它就是 2026-09-06 验收那个不对称的另一半：给某家供应商单独配了代理时，提交走那条代理、
+   * 取回却走应用默认线路——同一次生成的两半在两条路上。谁产的 URL 就用谁的路。
+   * 传配置而不是传 dispatcher，是为了让连接池的生命周期收在本模块内（建了必关，只属于这一次下载），
+   * 不散给每一个调用方各记一遍。
+   */
+  providerNetwork?: ProviderNetworkConfig;
 };
 
 // 运行时白名单：从 connectorDefinition.ts 导入，单一真相源，不在此处重复成员列表。
@@ -621,12 +631,20 @@ export async function importRemoteAsset(payload: unknown, options: RemoteAssetIm
     );
   }
   if (!/^https?:\/\//i.test(url)) throw new Error("Only http(s), data, and nomi-local assets are supported");
-  const fetched = await hardenedFetch(url, {
-    timeoutMs: 60_000,
-    maxBytes: 200 * 1024 * 1024,
-    allowContentTypes: ["image/", "video/", "audio/", "application/octet-stream"],
-    ...(options.trustedPrivateOrigin ? { allowedPrivateOrigins: [options.trustedPrivateOrigin] } : {}),
-  });
+  const providerRoute = options.providerNetwork ? providerDispatcher({ network: options.providerNetwork }) : undefined;
+  let fetched;
+  try {
+    fetched = await hardenedFetch(url, {
+      timeoutMs: 60_000,
+      maxBytes: 200 * 1024 * 1024,
+      allowContentTypes: ["image/", "video/", "audio/", "application/octet-stream"],
+      ...(options.trustedPrivateOrigin ? { allowedPrivateOrigins: [options.trustedPrivateOrigin] } : {}),
+      ...(providerRoute ? { dispatcher: providerRoute } : {}),
+    });
+  } finally {
+    // per-download 连接池只属于这一次取回（与 vendorHttp 的同一条纪律）。
+    if (providerRoute) void providerRoute.close().catch(() => undefined);
+  }
   const bytes = fetched.bytes;
   const hintedContentType = fetched.contentType || "application/octet-stream";
   const rawFileName = String(raw.fileName || path.basename(new URL(url).pathname) || "").trim();
