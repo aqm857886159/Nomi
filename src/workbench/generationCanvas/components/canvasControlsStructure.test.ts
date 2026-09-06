@@ -256,6 +256,7 @@ describe('generation canvas control structure', () => {
     const viewport = source('../reactFlow/GenerationCanvasReactFlowViewport.tsx')
     const flowStyles = source('../reactFlow/generationCanvasReactFlow.css')
     const groupFrame = source('./GroupFrame.tsx')
+    const groupFrameHeader = source('./GroupFrameHeader.tsx')
     const groupContract = source('./groupVisualContract.ts')
     const collapsedGroup = source('./CollapsedGroupCard.tsx')
     const stackPeeks = source('./CardStackPeeks.tsx')
@@ -274,9 +275,17 @@ describe('generation canvas control structure', () => {
     expect(flowStyles).toContain('color-mix(in oklch, var(--nomi-ink) 32%, transparent)')
     expect(flowStyles).toContain('--xy-connectionline-stroke: var(--nomi-accent)')
     expect(groupFrame).toContain('GROUP_VISUAL_CLASS.frame')
-    expect(groupFrame).toContain('GROUP_VISUAL_CLASS.label')
+    // 头部胶囊 2026-09-06 抽进 GroupFrameHeader（框工具第一档：它自己带两个字段的编辑态）。
+    // 视觉合同跟着搬，不许在新文件里另配一套皮肤。
+    expect(groupFrameHeader).toContain('GROUP_VISUAL_CLASS.label')
+    expect(groupFrameHeader).toContain('GROUP_VISUAL_CLASS.marker')
     expect(groupFrame).not.toContain('groupColor')
     expect(groupFrame).not.toContain('box.group.color')
+    expect(groupFrameHeader).not.toContain('group.color')
+    // 框的常驻装饰仍然中性：accent 只允许出现在**拖动中的临时反馈**那一条分支上
+    // （groupVisualContract 的注释就是这么写的）。多一处就是把强调色变成了组的身份色。
+    expect(groupFrame.match(/workbench-accent/g) ?? []).toHaveLength(2)
+    expect(groupFrame).toMatch(/preview\.change === 'join'[\s\S]{0,120}workbench-accent/)
     expect(collapsedGroup).toContain('GROUP_VISUAL_CLASS.collapsedCard')
     expect(collapsedGroup).not.toContain('card.color')
     expect(stackPeeks).toContain('GROUP_VISUAL_CLASS.stackRear')
@@ -341,7 +350,9 @@ describe('generation canvas control structure', () => {
     const navigationStack = source('./CanvasNavigationStack.tsx')
     const tooltipButtons = navigationStack.match(/<CanvasNavigationTooltipButton/g) ?? []
 
-    expect(tooltipButtons).toHaveLength(4)
+    // 5 = 适配 / 重置 / 画框 / 整理 / 小地图开关（2026-09-06 加入「画框」——它和缩放适配同族：
+    // 都在回答「你怎么看、怎么摆这块画布」，而不是「往画布上加什么」）。
+    expect(tooltipButtons).toHaveLength(5)
     expect(navigationStack).not.toContain('title=')
   })
 

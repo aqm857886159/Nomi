@@ -55,6 +55,10 @@ type UseGenerationCanvasReactFlowMenusArgs = {
   handleCanvasPointerMove: (event: React.PointerEvent<HTMLDivElement>) => void
   handleCanvasPointerEnd: () => void
   shouldSuppressContextMenu: () => boolean
+  /** 右键落在框体上时改开框菜单（与头部 ⋯ 同一份）；由 useCanvasFrameActions 拥有那份状态。 */
+  onFrameMenu?: (frameId: string, point: { x: number; y: number }) => void
+  /** 框工具就绪时的画框手势要在 capture 阶段先过一手；返回 true = 这次 pointerdown 归画框。 */
+  onFrameToolPointerDownCapture?: (event: React.PointerEvent<HTMLDivElement>) => boolean
 }
 
 /**
@@ -90,6 +94,8 @@ export function useGenerationCanvasReactFlowMenus({
   handleCanvasPointerMove,
   handleCanvasPointerEnd,
   shouldSuppressContextMenu,
+  onFrameMenu,
+  onFrameToolPointerDownCapture,
 }: UseGenerationCanvasReactFlowMenusArgs): {
   contextNodeMenu: CanvasContextNodeMenu | null
   connectionCreateMenu: CanvasConnectionCreateMenu | null
@@ -131,6 +137,7 @@ export function useGenerationCanvasReactFlowMenus({
     pendingConnectionSourceId,
     clearSelection,
     ensureNodeSelected: ensureContextNodeSelected,
+    onFrameMenu,
   })
 
   const handleConnectToGroupFromFlow = React.useCallback((groupId: string) => {
@@ -148,12 +155,15 @@ export function useGenerationCanvasReactFlowMenus({
   }, [handleStageContextMenu])
 
   const handleStagePointerDownCapture = React.useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    // 画框排在最前：它抢的是空白左键，而空白左键默认归 React Flow 的平移——
+    // 等到 bubble 阶段画布已经开始拖了（见 useCanvasFrameTool 的头注释）。
+    if (onFrameToolPointerDownCapture?.(event)) return
     if (prepareContextMenuPointerDown(event)) {
       event.stopPropagation()
       return
     }
     handleCanvasPointerDownCapture(event)
-  }, [handleCanvasPointerDownCapture, prepareContextMenuPointerDown])
+  }, [handleCanvasPointerDownCapture, onFrameToolPointerDownCapture, prepareContextMenuPointerDown])
 
   const handleStagePointerMove = React.useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     handleContextMenuPointerMove(event)

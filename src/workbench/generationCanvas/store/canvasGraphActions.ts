@@ -7,6 +7,7 @@ import type { GenerationCanvasEdge, GenerationCanvasEdgeMode, GenerationCanvasNo
 import { groupMemberNodes, planGroupLinkEdges, removeGroupLinkEdgesForMember, upsertGroupInputLink, upsertGroupOutputLink } from '../model/groupInputLinks'
 import { createGroupId } from './canvasIds'
 import { frameBoundsFromMembers } from '../model/canvasFrameBounds'
+import { createCanvasFrameStoreActions } from './canvasFrameStoreActions'
 import { resolveNodeVisualSize } from '../nodes/nodeSizing'
 import { bumpPersistRevision, isCategoryId, shouldEmitCanvasMutation, shouldPersistCanvasMutation } from './canvasGuards'
 import { getHistoryFlags, pushUndoSnapshot } from '../events/canvasUndoJournal'
@@ -157,7 +158,9 @@ function materializeGroupOutputLink(
   return { edges, connected, skipped, alreadyConnected }
 }
 
-export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = (set, get) => ({
+export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = (set, get, store) => ({
+  // 框（Frame）自己的两个写口住在隔壁（R9 分层：本文件已顶到 800 行门岗）。
+  ...createCanvasFrameStoreActions(set, get, store),
   startConnection: (nodeId, side = 'right') => {
     set({ pendingConnectionSourceId: nodeId, pendingConnectionSourceSide: side, pendingConnectionSourceKind: 'node' })
   },
@@ -522,32 +525,6 @@ export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = 
       { type: 'canvas.group.created', payload: { group } },
     ])
     return group
-  },
-  /**
-   * 画一个空框。走的就是 `createGroup`——框只有一种，画出来的和 ⌘G 建出来的是同一个 `NodeGroup`，
-   * 差别只有「建的那一刻有没有成员」。这里不另开一条建组路径（P1 无并行版）。
-   */
-  createFrame: (categoryId, bounds, name) => {
-    return get().createGroup(categoryId, name, { frameBounds: bounds })
-  },
-  setGroupDescription: (groupId, description) => {
-    const next = String(description ?? '').trim()
-    const current = get()
-    const existing = current.groups.find((group) => group.id === groupId)
-    // 说明和名字不同：**可以是空的**，所以「清空」是合法编辑，判重只比值、不拦空串。
-    if (!existing || (existing.description ?? '') === next) return
-    pushUndoSnapshot(current)
-    set((state) => {
-      const group = state.groups.find((candidate) => candidate.id === groupId)
-      if (!group) return
-      if (next) group.description = next
-      else delete group.description
-      group.updatedAt = Date.now()
-      bumpPersistRevision(state)
-      Object.assign(state, getHistoryFlags())
-    })
-    const updated = get().groups.find((candidate) => candidate.id === groupId)
-    if (updated) emitCanvasGesture([{ type: 'canvas.group.updated', payload: { group: updated } }])
   },
   renameGroup: (groupId, name) => {
     const nextName = String(name || '').trim()

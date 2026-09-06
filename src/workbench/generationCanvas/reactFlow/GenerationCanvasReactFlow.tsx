@@ -25,6 +25,10 @@ import { useCollapsedGroupConnectionSource } from '../components/useCollapsedGro
 import { projectCollapsedGroups } from '../model/canvasCardStackModel'
 import { useCanvasSelectionDrag } from '../components/useCanvasSelectionDrag'
 import { useCanvasGroupActions } from '../components/useCanvasGroupActions'
+import { useCanvasFrameTool } from '../components/useCanvasFrameTool'
+import { useCanvasFrameMembership } from '../components/useCanvasFrameMembership'
+import { useCanvasFrameActions } from '../components/useCanvasFrameActions'
+import type { CanvasFrameInteraction } from '../components/GroupFrame'
 import { useCanvasShortcuts } from '../components/useCanvasShortcuts'
 import { useCanvasScreenshotCapture } from '../components/useCanvasScreenshotCapture'
 import { useCanvasProductionActions } from '../components/useCanvasProductionActions'
@@ -295,6 +299,18 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
     selectedNodeIds,
   })
 
+  // ── 框（Frame）这一族：画框工具 / 拖进拖出 / 框菜单与头部编辑 ──
+  const frameTool = useCanvasFrameTool({
+    readOnly,
+    activeCategoryId,
+    frameBoxes: groupBoxes,
+    getCanvasPointFromClientPoint: (clientX, clientY) => flow.screenToFlowPosition({ x: clientX, y: clientY }),
+  })
+  const frameMembership = useCanvasFrameMembership({ readOnly, frameBoxes: groupBoxes })
+  const frameActions = useCanvasFrameActions({ readOnly, stageRef: hostRef })
+  const renameGroup = useGenerationCanvasStore((state) => state.renameGroup)
+  const setGroupDescription = useGenerationCanvasStore((state) => state.setGroupDescription)
+
   const getInsertionPosition = React.useCallback(() => {
     const rect = hostRef.current?.getBoundingClientRect()
     if (!rect) return { x: 240, y: 240 }
@@ -353,6 +369,8 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
     handleCanvasPointerMove,
     handleCanvasPointerEnd,
     shouldSuppressContextMenu,
+    onFrameMenu: frameActions.openFrameMenu,
+    onFrameToolPointerDownCapture: frameTool.handlePointerDownCapture,
   })
 
   useAutoFitOnLoad({
@@ -377,6 +395,22 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
   useCreatedNodeVisibilityPan({ nodes, animateViewportTo, readViewportTarget, readLastAutoTarget, stageRef: hostRef })
   const { isTidying, tidy } = useTidyCanvas(activeCategoryId)
   const production = useCanvasProductionActions({ activeCategoryId, selectedNodeIds })
+  const frameInteraction: CanvasFrameInteraction = React.useMemo(() => ({
+    membershipPreview: frameMembership.membershipPreview,
+    editingGroupId: frameActions.editingFrameId,
+    onEditingChange: frameActions.setEditingFrameId,
+    onRename: renameGroup,
+    onDescribe: setGroupDescription,
+    onOpenMenu: frameActions.openFrameMenu,
+  }), [
+    frameActions.editingFrameId,
+    frameActions.openFrameMenu,
+    frameActions.setEditingFrameId,
+    frameMembership.membershipPreview,
+    renameGroup,
+    setGroupDescription,
+  ])
+
   const batchDock = useCanvasBatchDockVisibility({
     readOnly,
     selectedCount: selectedNodeIds.length,
@@ -463,8 +497,17 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
     )
   }, [captureHistory, flowNodes, flowStore, readOnly, selectedNodeIds, selectedSet])
 
+  // 拖动中算「松手会发生什么」——进框/出框的反馈就在这里产生（只写本地预览，不碰 store）。
+  const handleNodeDrag: OnNodeDrag<GenerationFlowNode> = React.useCallback((_event, draggedNode, draggedNodes) => {
+    if (readOnly) return
+    frameMembership.handleNodeDrag(draggedNodes.length ? draggedNodes : [draggedNode])
+  }, [frameMembership, readOnly])
+
   const handleNodeDragStop: OnNodeDrag<GenerationFlowNode> = React.useCallback((event, draggedNode, draggedNodes) => {
-    if (readOnly || !draggingRef.current) return
+    if (readOnly || !draggingRef.current) {
+      frameMembership.cancelPreview()
+      return
+    }
     setNodeDragActive(false) // #5：解冻 minimap（在所有退出路径之前，含时间轴投放早退；draggingRef 由 writeback 清）
     commitCanvasNodeDragStop({
       event,
@@ -479,9 +522,11 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
       moveNode,
       commitPersistedChange,
     })
+    // 位置写回之后才提交归属变更：先改成员再移动会让框在同一帧里既缩又长，看着像抖了一下。
+    frameMembership.commitMembership()
     // 还原拖动内核关掉的 hasDefaultNodes，恢复 RF 对选择/投影变更的自应用（机制见 helper JSDoc）。
     restoreCanvasDragKernelOwnership(flowStore)
-  }, [commitPersistedChange, flowStore, moveNode, readOnly, t])
+  }, [commitPersistedChange, flowStore, frameMembership, moveNode, readOnly, t])
 
   const handleConnect = React.useCallback((connection: { source: string | null; target: string | null; sourceHandle?: string | null }) => {
     if (readOnly || !connection.source || !connection.target) return
@@ -572,6 +617,7 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
         readOnly={readOnly}
         onNodesChange={handleNodesChange}
         onNodeDragStart={handleNodeDragStart}
+        onNodeDrag={handleNodeDrag}
         onNodeDragStop={handleNodeDragStop}
         onSelectionEnd={handleSelectionEnd}
         onEdgeClick={handleEdgeClick}
@@ -590,6 +636,8 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
         rememberCategoryViewport={rememberCategoryViewport}
         healViewport={healViewport}
         groupBoxes={groupBoxes}
+        frame={frameInteraction}
+        frameDrawPreview={frameTool.drawPreview}
         collapsedGroupCards={collapsedProjection.cards}
         onGroupFramePointerDown={handleGroupFramePointerDown}
         pendingConnection={Boolean(pendingConnectionSourceId)}
@@ -649,6 +697,10 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
         onResetView={() => void flow.setViewport({ x: 0, y: 0, zoom: 1 }, { duration: 200 })}
         onTidy={() => tidy(stageSize.width / Math.max(1, stageSize.height))}
         onZoomTo={zoomTo}
+        frameMenu={frameActions.frameMenu}
+        onFrameMenuAction={frameActions.handleFrameMenuAction}
+        frameToolArmed={frameTool.armed}
+        onToggleFrameTool={frameTool.toggle}
       />
     </section>
   )

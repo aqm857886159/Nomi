@@ -4,6 +4,8 @@ import { CanvasBatchGenerateDock } from '../components/CanvasBatchGenerateDock'
 import { CanvasEmptyState } from '../components/CanvasEmptyState'
 import { CanvasNavigationStack } from '../components/CanvasNavigationStack'
 import NodeContextMenu, { type NodeContextMenuAction } from '../components/NodeContextMenu'
+import FrameContextMenu, { type FrameContextMenuAction } from '../components/FrameContextMenu'
+import type { CanvasFrameMenuState } from '../components/useCanvasFrameActions'
 import { NodeAddMenu } from '../components/CanvasToolbar'
 import { SelectionPromptSaveController } from '../components/SelectionPromptSaveController'
 import { hasClipboardContent } from '../store/canvasClipboard'
@@ -48,6 +50,10 @@ type GenerationCanvasReactFlowOverlaysProps = {
   onResetView: () => void
   onTidy: () => void
   onZoomTo: (nextZoom: number) => void
+  frameMenu: CanvasFrameMenuState | null
+  onFrameMenuAction: (action: FrameContextMenuAction) => void
+  frameToolArmed: boolean
+  onToggleFrameTool: () => void
 }
 
 export function GenerationCanvasReactFlowOverlays({
@@ -80,6 +86,10 @@ export function GenerationCanvasReactFlowOverlays({
   onResetView,
   onTidy,
   onZoomTo,
+  frameMenu,
+  onFrameMenuAction,
+  frameToolArmed,
+  onToggleFrameTool,
 }: GenerationCanvasReactFlowOverlaysProps): JSX.Element {
   return (
     <>
@@ -103,6 +113,18 @@ export function GenerationCanvasReactFlowOverlays({
           onContextMenu={(event) => event.preventDefault()}
           onAddNode={onAddContextNode}
           onImportFiles={onImportContextFiles}
+        />
+      ) : null}
+      {frameMenu ? (
+        <FrameContextMenu
+          className="generation-canvas-react-flow__frame-menu generation-canvas-v2__frame-menu z-[20]"
+          style={{ left: frameMenu.stageX, top: frameMenu.stageY }}
+          frameName={frameMenu.frameName}
+          canGenerate={frameMenu.canGenerate}
+          canSendToTimeline={frameMenu.canSendToTimeline}
+          onPointerDown={(event) => event.stopPropagation()}
+          onContextMenu={(event) => event.preventDefault()}
+          onAction={onFrameMenuAction}
         />
       ) : null}
       {connectionCreateMenu ? (
@@ -137,6 +159,8 @@ export function GenerationCanvasReactFlowOverlays({
         onResetView={onResetView}
         onTidy={onTidy}
         onZoomTo={onZoomTo}
+        frameToolArmed={frameToolArmed}
+        onToggleFrameTool={onToggleFrameTool}
         batchPlanOverlay={
           hasBatchPlanPreview ? (
             <React.Suspense fallback={null}>

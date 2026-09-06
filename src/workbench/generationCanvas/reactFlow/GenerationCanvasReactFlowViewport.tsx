@@ -15,6 +15,8 @@ import { CanvasSelectionToolbar } from '../components/CanvasSelectionToolbar'
 import { CanvasGroupProjectionLayer } from '../components/CanvasGroupProjectionLayer'
 import type { CanvasGroupBox } from '../components/GroupFrame'
 import type { CollapsedGroupCardProjection } from '../model/canvasCardStackModel'
+import type { CanvasFrameInteraction } from '../components/GroupFrame'
+import type { CanvasFrameRect } from '../model/canvasFrameBounds'
 import type { ConnectionAnchorSide } from '../store/canvasStoreTypes'
 import type { getSelectedBounds } from '../components/generationCanvasGeometry'
 import type { useCanvasProductionActions } from '../components/useCanvasProductionActions'
@@ -33,6 +35,7 @@ type GenerationCanvasReactFlowViewportProps = {
   readOnly: boolean
   onNodesChange: OnNodesChange<GenerationFlowNode>
   onNodeDragStart: OnNodeDrag<GenerationFlowNode>
+  onNodeDrag: OnNodeDrag<GenerationFlowNode>
   onNodeDragStop: OnNodeDrag<GenerationFlowNode>
   onSelectionEnd: () => void
   onEdgeClick: (event: React.MouseEvent, edge: GenerationFlowEdge) => void
@@ -51,6 +54,8 @@ type GenerationCanvasReactFlowViewportProps = {
   rememberCategoryViewport: (categoryId: string, viewport: { zoom: number; offset: { x: number; y: number } }) => void
   healViewport: (broken: Viewport) => void
   groupBoxes: readonly CanvasGroupBox[]
+  frame?: CanvasFrameInteraction
+  frameDrawPreview?: CanvasFrameRect | null
   collapsedGroupCards: readonly CollapsedGroupCardProjection[]
   onGroupFramePointerDown: (event: React.PointerEvent<HTMLDivElement>, groupId: string, options?: { selectMembers?: boolean }) => void
   pendingConnection: boolean
@@ -96,6 +101,7 @@ export function GenerationCanvasReactFlowViewport({
   readOnly,
   onNodesChange,
   onNodeDragStart,
+  onNodeDrag,
   onNodeDragStop,
   onSelectionEnd,
   onEdgeClick,
@@ -114,6 +120,8 @@ export function GenerationCanvasReactFlowViewport({
   rememberCategoryViewport,
   healViewport,
   groupBoxes,
+  frame,
+  frameDrawPreview,
   collapsedGroupCards,
   onGroupFramePointerDown,
   pendingConnection,
@@ -160,6 +168,7 @@ export function GenerationCanvasReactFlowViewport({
       fitView={false}
       onNodesChange={onNodesChange}
       onNodeDragStart={onNodeDragStart}
+      onNodeDrag={onNodeDrag}
       onNodeDragStop={onNodeDragStop}
       onSelectionEnd={onSelectionEnd}
       onEdgeClick={onEdgeClick}
@@ -198,6 +207,8 @@ export function GenerationCanvasReactFlowViewport({
       <ViewportPortal>
         <CanvasGroupProjectionLayer
           boxes={groupBoxes}
+          frame={frame}
+          drawPreview={frameDrawPreview}
           cards={collapsedGroupCards}
           readOnly={readOnly}
           onPointerDown={onGroupFramePointerDown}
