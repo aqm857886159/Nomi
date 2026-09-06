@@ -27,6 +27,14 @@ export type NomiSelectOption = {
   /** 选项右侧附加文字（如价格、模板/通用），在对勾左边。 */
   trailing?: string
   trailingTone?: NomiSelectTone
+  /**
+   * 行尾供应商 chip：同名模型折成一行后，「这一行能走哪几家」就靠它表达（第一个=当前生效那家）。
+   *
+   * 与 `trailing` **互斥**：两者都在的话，同一件事（走哪家）会有两个说法，而且窄下拉里
+   * 它们会一起把模型名挤没——2026-09-06 真机实测，三行只剩「[图标] 3 家 (APIMart)(Kie)(RunningHub)」，
+   * 模型名一个字都不剩。调用方要 chips 就别给 trailing。
+   */
+  chips?: Array<{ value: string; label: string; active?: boolean }>
   disabled?: boolean
   /** 整行减淡（仍可点）——「能选但眼下不建议」，如近期连败的模型沉底后。 */
   dimmed?: boolean
@@ -36,6 +44,8 @@ export type NomiSelectProps = {
   value: string
   options: NomiSelectOption[]
   onChange: (value: string) => void
+  /** Optional click handler for row-end chips; chip clicks do not select the row itself. */
+  onChipChange?: (optionValue: string, chipValue: string) => void
   ariaLabel: string
   /** pill 内左侧小灰标签：比例 / 模式 / 画幅… */
   leadingLabel?: string
@@ -57,6 +67,15 @@ export type NomiSelectProps = {
 }
 
 const SURFACE_SHADOW = 'var(--workbench-shadow-pop)'
+/**
+ * 行尾最多摆几个 chip。超出的收成「+N」——不是为了好看，是为了**模型名优先**：
+ * chip 是 `shrink-0`，摆多少个就从名字那里扣多少宽，第 4 个之后扣掉的比它带来的信息多。
+ * 真要看全哪几家，选中该模型后第二段「供应商」下拉里一家不少。
+ */
+const MAX_ROW_CHIPS = 3
+/** 有 chip 的行更宽：默认 280 是给「名字 + 一个附注」算的，塞下 3 个 chip 后名字会被挤没。 */
+const DROPDOWN_MAX_WIDTH = 280
+const DROPDOWN_MAX_WIDTH_WITH_CHIPS = 380
 function toneClass(tone: NomiSelectTone | undefined, kind: 'badge' | 'trailing'): string {
   if (tone === 'accent') return 'bg-nomi-accent-soft text-nomi-accent'
   if (tone === 'danger') return 'text-workbench-danger'
@@ -68,6 +87,7 @@ export function NomiSelect({
   value,
   options,
   onChange,
+  onChipChange,
   ariaLabel,
   leadingLabel,
   placeholder,
@@ -102,6 +122,7 @@ export function NomiSelect({
   const heightClass = size === 'xs' ? 'h-6' : 'h-7'
   const query = search.trim().toLocaleLowerCase()
   const visibleOptions = searchable && query ? options.filter((option) => option.label.toLocaleLowerCase().includes(query)) : options
+  const hasChips = options.some((option) => (option.chips?.length ?? 0) > 0)
 
   return (
     <Combobox
@@ -124,7 +145,7 @@ export function NomiSelect({
       styles={{
         dropdown: {
           padding: 4,
-          maxWidth: 280,
+          maxWidth: hasChips ? DROPDOWN_MAX_WIDTH_WITH_CHIPS : DROPDOWN_MAX_WIDTH,
           border: '1px solid var(--nomi-line)',
           borderRadius: 'var(--nomi-radius-lg)',
           background: 'var(--nomi-paper)',
@@ -201,7 +222,15 @@ export function NomiSelect({
                     两种语义别混（近期连败的模型仍允许手动选，是拍板过的原则）。 */}
                 <span className={cn('flex min-w-0 items-center gap-2 w-full', option.dimmed ? 'opacity-45' : '')}>
                   {option.icon ? <NomiIdentityIcon icon={option.icon} size="md" /> : null}
-                  <span className={cn('min-w-0 text-caption', searchable ? 'whitespace-normal break-all py-1' : 'truncate', isSel ? 'text-nomi-ink font-semibold' : 'text-nomi-ink-80')}>
+                  {/* `flex-1` 而不是让附注 `ml-auto` 撑开：名字是这一行的主语，剩余宽度先归它，
+                      附注/chip/对勾都是 `shrink-0` 的附属物。没有 flex-1 时名字会被 chip 一路压到 0
+                      宽（2026-09-06 真机：三行只剩「3 家 + 三个 chip」，模型名一个字不剩）。 */}
+                  {/* data 锚点给走查用：「模型名被行尾 chip 挤到 0 宽」这条断言必须量到**这一个** span，
+                      按 class 形状猜会量到图标或对勾（都是十几 px），于是永远红——一条自己骗自己的断言。 */}
+                  <span
+                    data-nomi-select-option-label
+                    className={cn('min-w-0 flex-1 text-caption', searchable ? 'whitespace-normal break-all py-1' : 'truncate', isSel ? 'text-nomi-ink font-semibold' : 'text-nomi-ink-80')}
+                  >
                     {option.label}
                   </span>
                   {option.trailing ? (
@@ -209,12 +238,43 @@ export function NomiSelect({
                     //（曾被「即梦会员（本地 CLI）」10 字长名挤乱布局）；悬停 title 看全文。
                     <span
                       title={option.trailing}
-                      className={cn('ml-auto shrink-0 max-w-[96px] truncate text-micro leading-none px-1.5 py-[1px] rounded-pill', toneClass(option.trailingTone, 'trailing'))}
+                      className={cn('shrink-0 max-w-[96px] truncate text-micro leading-none px-1.5 py-[1px] rounded-pill', toneClass(option.trailingTone, 'trailing'))}
                     >
                       {option.trailing}
                     </span>
                   ) : null}
-                  <span className={cn('shrink-0 w-3.5 grid place-items-center', option.trailing ? '' : 'ml-auto', isSel ? '' : 'invisible')} aria-hidden>
+                  {option.chips?.length ? (
+                    <span className="flex shrink-0 items-center gap-1">
+                      {option.chips.slice(0, MAX_ROW_CHIPS).map((chip) => (
+                        <button
+                          key={chip.value}
+                          type="button"
+                          title={chip.label}
+                          aria-label={chip.label}
+                          aria-pressed={chip.active}
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={(event) => {
+                            event.preventDefault()
+                            event.stopPropagation()
+                            onChipChange?.(option.value, chip.value)
+                          }}
+                          className={cn(
+                            'max-w-[76px] truncate rounded-pill border px-1.5 py-[1px] text-micro leading-none transition-colors',
+                            chip.active ? 'border-nomi-accent bg-nomi-accent-soft text-nomi-accent' : 'border-nomi-line text-nomi-ink-40 hover:border-nomi-accent hover:text-nomi-accent',
+                            'cursor-pointer',
+                          )}
+                        >
+                          {chip.label}
+                        </button>
+                      ))}
+                      {option.chips.length > MAX_ROW_CHIPS ? (
+                        <span className="text-micro leading-none text-nomi-ink-40">
+                          {t('common.plusMore', { count: option.chips.length - MAX_ROW_CHIPS })}
+                        </span>
+                      ) : null}
+                    </span>
+                  ) : null}
+                  <span className={cn('shrink-0 w-3.5 grid place-items-center', isSel ? '' : 'invisible')} aria-hidden>
                     <IconCheck size={14} stroke={1.6} className="text-nomi-accent" aria-hidden />
                   </span>
                 </span>

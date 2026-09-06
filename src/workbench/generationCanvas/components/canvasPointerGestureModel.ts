@@ -94,3 +94,42 @@ export function isMacCanvasPlatform(platform: string): boolean {
 export function isCanvasContextMenuPointer(button: number, ctrlKey: boolean, platform: string): boolean {
   return button === 2 || (button === 0 && ctrlKey && isMacCanvasPlatform(platform))
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 右键落点判定（2026-09-06 真机取证：tests/ux/shots/group-frame-now/00b2、00b3）
+//
+// 「空白」原先是**反向定义**的：命中 `.generation-canvas-v2-node` 才算节点，其余一律当空白。
+// 可画布上还有第三种东西——**代表当前选中集的罩子**：shift 拖框选完成后，React Flow 会在整片
+// 选中节点之上铺一层 `nodesselection-rect`（本仓在 generationCanvasReactFlow.css 里给它上了中性皮肤，
+// 拖它 = 拖整批）。右键落在这层上取不到 data-node-id，于是被反向定义吞成「空白」→
+// 清掉刚框好的选择 + 弹「添加节点」菜单 →「建组」当场不可达（实测 nodeMenu 0 / addMenu 1）。
+//
+// 所以落点必须**正向**分三类，且这张表只此一份：谁想知道「这次右键点的是什么」都问它。
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** 框选完成后 React Flow 铺在选中节点之上的罩子。语义上它**就是当前选中集**，不是画布空白。 */
+export const CANVAS_SELECTION_OVERLAY_SELECTOR = '.react-flow__nodesselection, .react-flow__nodesselection-rect'
+
+export function isCanvasSelectionOverlayTarget(target: EventTarget | null): boolean {
+  return target instanceof Element ? Boolean(target.closest(CANVAS_SELECTION_OVERLAY_SELECTOR)) : false
+}
+
+/**
+ * 右键落在什么上：
+ *   · 'node'      某个节点 —— 先确保它在选中集里，再弹「节点操作」菜单
+ *   · 'selection' 当前选中集的罩子 —— 已经选好了，**原样保留**，同样弹「节点操作」菜单
+ *   · 'blank'     真空白 —— 清掉选择，弹「添加节点」菜单
+ */
+export type CanvasContextMenuTarget = 'node' | 'selection' | 'blank'
+
+/**
+ * 只有 'blank' 才允许清选择。命中罩子却判成 'blank' 就是本次修复的那个 bug，
+ * 真值表由 canvasPointerGestureModel.test.ts 钉死。
+ */
+export function resolveCanvasContextMenuTarget(input: {
+  nodeId: string | null
+  selectionOverlay: boolean
+}): CanvasContextMenuTarget {
+  if (input.nodeId) return 'node'
+  return input.selectionOverlay ? 'selection' : 'blank'
+}

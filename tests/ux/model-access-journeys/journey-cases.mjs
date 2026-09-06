@@ -3,6 +3,7 @@ import net from 'node:net'
 import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { JourneyBlocked, JourneyFailure } from './evidence.mjs'
+import { addCanvasNodeFromRail } from '../_canvasRail.mjs'
 
 async function requireVisible(locator, code, message, timeout = 5000) {
   try {
@@ -50,10 +51,15 @@ async function chooseNodeModel(composer, page, modelId) {
 
 async function runCanvasNode(ui, recorder, { kind, modelId, prompt }) {
   await ui.openCanvas()
-  const labels = { image: '图片', video: '视频', text: '文本', audio: '声音', model3d: '3D 模型' }
-  const add = ui.win.getByRole('button', { name: `添加${labels[kind]}节点`, exact: true }).first()
-  await requireVisible(add, 'node-entry-missing', `画布没有“添加${labels[kind]}节点”入口`)
-  await add.click()
+  const labels = { image: '图片', video: '视频', text: '文字', audio: '声音', model3d: '3D 模型' }
+  // 左缘加节点收口在 tests/ux/_canvasRail.mjs：自 2026-09-06「第三档」起只有 5 种是常驻钮，
+  // 文字 / 3D 模型等收进了「更多」，按 aria-label 直点左缘会点不到（而且是静默点不到）。
+  // 助手按 kind 自己判断该在常驻还是「更多」，找不到当场抛。
+  try {
+    await addCanvasNodeFromRail(ui.win, kind)
+  } catch (error) {
+    throw new JourneyFailure('node-entry-missing', `画布左缘没有“${labels[kind]}”的新建入口`, { kind, detail: String(error?.message || error) })
+  }
   const composer = ui.win.locator('.generation-canvas-v2-node__composer-card').last()
   await requireVisible(composer, 'composer-missing', `${labels[kind]}节点没有生成编辑器`)
   // Anchor the node by its stable data-node-id captured now: once generation
@@ -302,7 +308,8 @@ async function manualKindRepair(journey, ui, fixture, recorder) {
     // 「选择器有模型时填充态」视觉证明（裁决要求的截图）：3D 节点模型选择器不再是
     // 「模型目录配置不完整」空态，而是列出直连 3D 模型。
     await ui.openCanvas()
-    await ui.win.getByRole('button', { name: '添加3D 模型节点', exact: true }).first().click()
+    // 3D 模型自 2026-09-06「第三档」起住在左缘的「更多」里；点法收口在 tests/ux/_canvasRail.mjs。
+    await addCanvasNodeFromRail(ui.win, 'model3d')
     const composer = ui.win.locator('.generation-canvas-v2-node__composer-card').last()
     await requireVisible(composer, 'composer-missing', '3D 节点没有生成编辑器')
     const picker = composer.getByRole('button', { name: '模型', exact: true })

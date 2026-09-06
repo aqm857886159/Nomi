@@ -10,8 +10,10 @@ import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
-import { screenshotSettled } from './_assert.mjs'
+import { expectCount, screenshotSettled } from './_assert.mjs'
+import { addCanvasNodeFromRail } from './_canvasRail.mjs'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const outDir = path.join(repoRoot, 'docs/design/mockups/2026-08-02-real-ui')
 fs.mkdirSync(outDir, { recursive: true })
@@ -29,7 +31,9 @@ const results = []
 const note = (name, detail = '') => { results.push({ name, detail }); console.log(`  · ${name}${detail ? ` — ${detail}` : ''}`) }
 
 // —— 夹具：一张真 png + 一段真 mp4，喂给「最近项目 / 画布 / 时间轴」，全程零额度 ——
-const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path
+// ESM 里没有 require：Node 24 见到 `require` + top-level await 会以 ERR_AMBIGUOUS_MODULE_SYNTAX
+// 直接拒绝加载整个文件（这条走查因此在本机一行都跑不起来）。createRequire 是 .mjs 里的正解。
+const ffmpegPath = createRequire(import.meta.url)('@ffmpeg-installer/ffmpeg').path
 function ff(args, label) {
   const run = spawnSync(ffmpegPath, ['-v', 'error', '-y', ...args], { timeout: 120_000 })
   if (run.status !== 0) throw new Error(`${label} 夹具编码失败: ${run.stderr?.toString().slice(-400)}`)
@@ -313,18 +317,23 @@ try {
   await snap('03-preview.png')
 
   // ========== ④ 3D 导演台全屏态 ==========
-  // 回生成区 → 用工具栏加一个 3D 场景节点（aria-label「添加3D 场景节点」）→ 点卡上「进入 3D 编辑器」
-  // 启动器 → 等全屏导演台的任务页签 tablist 出现。（播种不到画布 store，故运行时建。）
+  // 回生成区 → 用左缘工具条加一个 3D 场景节点 → 点卡上「进入 3D 编辑器」启动器 →
+  // 等全屏导演台的任务页签 tablist 出现。（播种不到画布 store，故运行时建。）
   ;(await clickRole('生成', 1500)) || (await clickText('button, [role="button"], [role="tab"]', '生成', 1500))
   await getWin().waitForTimeout(1200)
   await dismissTour() // ← 先在进全屏前把引导清掉（dismissTour 会点「关闭」，进全屏后再跑会关掉导演台）
-  // 工具栏加 3D 场景节点：一律走 DOM click（proven，见 diag：Playwright 定位器偶发 count=0/点不实）
-  const addedScene3d = await getWin().evaluate(() => {
-    const b = Array.from(document.querySelectorAll('button')).find((x) => /添加.*3D ?场景.*节点/.test(x.getAttribute('aria-label') || ''))
-    if (b) { b.click(); return true }
-    return false
-  }).catch(() => false)
-  note('加 3D 场景节点', addedScene3d ? '已加' : '未找到添加按钮')
+  // 点法收口在 _canvasRail：3D 场景自 2026-09-06「第三档」起住在左缘的「更多」里，
+  // 按 aria-label 直点左缘的写法已经点不到了。原先那句还套着 `.catch(() => false)`，
+  // 点不到只记一行 note 就继续 → 后面每一步都在「没有 3D 节点」的画布上跑成假绿
+  //（docs/lessons/dead-selector-lies-both-ways）。这里改成真断言：节点必须真的多出来一个。
+  const nodeCountBefore = await getWin().locator('.generation-canvas-v2-node[data-node-id]').count()
+  await addCanvasNodeFromRail(getWin(), 'scene3d')
+  await expectCount(
+    getWin().locator('.generation-canvas-v2-node[data-node-id]'),
+    nodeCountBefore + 1,
+    `左缘「更多」→ 3D 场景后画布节点 +1（${nodeCountBefore} → ${nodeCountBefore + 1}）`,
+  )
+  note('加 3D 场景节点', `已加（_canvasRail，节点 ${nodeCountBefore} → ${nodeCountBefore + 1}）`)
   await getWin().waitForTimeout(3000)
   // 全屏导演台**唯一真标志**：Scene3DFullscreen 经 createPortal 挂到 body 的 `.workbench-shell.fixed.inset-0`
   // 满屏壳（Scene3DFullscreen.tsx:489）。role="tablist" 会误命中顶栏创作/生成/预览页签，不能用它判定。

@@ -5,6 +5,7 @@ import path from 'node:path'
 import os from 'node:os'
 import { mkdtempSync, mkdirSync } from 'node:fs'
 import { screenshotSettled } from './_assert.mjs'
+import { addCanvasNodeFromRail } from './_canvasRail.mjs'
 
 const outDir = path.join(repoRoot, '.scene3d-whitescreen-lab')
 mkdirSync(outDir, { recursive: true })
@@ -47,8 +48,9 @@ try {
   if ((await genTab.count()) > 0) await genTab.click()
   await win.waitForTimeout(1500)
 
-  const byName = win.getByRole('button', { name: '3D场景', exact: false })
-  if ((await byName.count()) > 0) await byName.first().click()
+  // 3D 场景自 2026-09-06「第三档」起住在左缘的「更多」里。（原来那个
+  // `name: '3D场景'` 的按名选择器少一个空格，本来就选不中——软守卫把它藏了很久。）
+  await addCanvasNodeFromRail(win, 'scene3d')
   await win.waitForTimeout(2000)
 
   const openEmpty = win.getByRole('button', { name: '打开 3D 编辑器', exact: false })

@@ -5,7 +5,7 @@
 ## 范围
 - P-01：在现役应用壳接入更新事件的极简弹层，展示版本号与 `NomiMarkdown` release notes；可用时提供「更新并重启」与「稍后」，下载中显示进度，失败显示重试；生成任务运行时不弹层，只保留角标提示。
 - C-01：把生成画布的节点空态收敛到共享 `NodeEmptyState`，由节点类型提供 Tabler 图标、用途说明与下一步动作，保留必要上传/编辑动作。
-  - **清单以左侧竖排工具栏为准（2026-09-06 用户拍板）**：用户点得出来的九种 —— 文本 / 图片 / 视频 / 剪辑 / 声音 / 3D 模型 / 画板 / 全景 / 3D 场景（真相源 `src/workbench/generationCanvas/components/canvasToolbarModel.ts` 的 `CANVAS_TOOLBAR_NODE_GROUPS`）。
+  - **清单以左侧竖排工具栏为准（2026-09-06 用户拍板）**：用户点得出来的九种 —— 文本 / 图片 / 视频 / 剪辑 / 声音 / 3D 模型 / 画板 / 全景 / 3D 场景（真相源 `src/workbench/generationCanvas/components/canvasToolbarModel.ts`；2026-09-06「第三档」收束后这九种从 `canvasToolbarNodeKinds()` 取，左缘只常驻其中四种 + 导入，其余住「更多」）。
   - 角色 / 场景 / 道具 **不进实验室清单**：它们没有工具栏入口，由 Agent、分镜流程与分类兜底产生。它们的生产空态文案（`nodeEmpty.character|scene|prop`）仍被 `CharacterCardNode` / `SceneCardNode` / `PropCardNode` 渲染，是活的，**不删**。「提示词 / 道具」这两个实验室状态则是凭空画的（registry 里根本没有 `prompt` kind），已删。
   - 图标不在实验室自造：走 `getGenerationNodeIcon(kind)`，与左侧栏那颗按钮同一个出口；键类型钉成 `Record<CanvasToolbarNodeKind, …>`，工具栏加按钮而实验室没跟上 = 编译错（R28）。
   - 补齐的两条生产文案：`nodeEmpty.clip`（由 `clipNode.empty` 迁入，同 commit 删旧键）与 `nodeEmpty.model3d`（新增）；`PendingGenerationPlaceholder` 增 `model3d` 分支——此前空的 3D 模型节点自称「图片节点」。

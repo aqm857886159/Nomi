@@ -39,9 +39,17 @@ export const LAB_SCREENS = {
     registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/hostConfig/states'),
     baselineDir: path.join(BASELINE_ROOT, 'host-config'),
   },
+  'canvas-add-menu': {
+    registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/canvasAddMenu/states'),
+    baselineDir: path.join(BASELINE_ROOT, 'canvas-add-menu'),
+  },
   settings: {
     registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/settings/states'),
     baselineDir: path.join(BASELINE_ROOT, 'settings'),
+  },
+  'vendor-order': {
+    registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/vendorOrder/states'),
+    baselineDir: path.join(BASELINE_ROOT, 'vendor-order'),
   },
 }
 

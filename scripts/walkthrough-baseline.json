@@ -1,7 +1,7 @@
 {
-  "absence-without-baseline": 64,
+  "absence-without-baseline": 63,
   "whole-page-text": 29,
-  "sleep-as-done-signal": 111,
+  "sleep-as-done-signal": 109,
   "dead-selector": 0,
   "dead-aria-label": 9,
   "source-scan-without-strip": 9,

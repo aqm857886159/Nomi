@@ -41,6 +41,10 @@ export type ModelOptionsState = {
   statusMessage: string
 }
 
+/**
+ * 拿到的永远是「现在就能跑」的那一份：没接入的供应商在 catalog 派生层就被
+ * `keepRunnableVendorOptions` 挡掉了（2026-09-06 用户拍板），这里没有放宽口，调用方也不需要自己再滤。
+ */
 export function useModelOptionsState(kind?: NodeKind, requiredMode?: ProfileKind): ModelOptionsState {
   const [options, setOptions] = useState<ModelOption[]>([])
   const [error, setError] = useState<Error | null>(null)

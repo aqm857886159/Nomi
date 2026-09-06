@@ -31,6 +31,7 @@ type GenerationCanvasReactFlowOverlaysProps = {
   onCreateEmpty: () => void
   onNodeContextAction: (action: NodeContextMenuAction) => void
   onAddContextNode: (kind: GenerationNodeKind) => void
+  onImportContextFiles: (files: File[]) => void
   onAddConnectedNode: (kind: GenerationNodeKind) => void
   batchDock: { visible: boolean; dismiss: () => void }
   production: ReturnType<typeof useCanvasProductionActions>
@@ -62,6 +63,7 @@ export function GenerationCanvasReactFlowOverlays({
   onCreateEmpty,
   onNodeContextAction,
   onAddContextNode,
+  onImportContextFiles,
   onAddConnectedNode,
   batchDock,
   production,
@@ -83,7 +85,7 @@ export function GenerationCanvasReactFlowOverlays({
     <>
       {screenshotOverlay}
       {nodes.length === 0 ? <CanvasEmptyState activeCategoryId={activeCategoryId} onCreate={onCreateEmpty} /> : null}
-      {contextNodeMenu?.nodeId ? (
+      {contextNodeMenu && contextNodeMenu.target !== 'blank' ? (
         <NodeContextMenu
           className="generation-canvas-react-flow__node-context-menu generation-canvas-v2__node-context-menu z-[20]"
           style={{ left: contextNodeMenu.stageX, top: contextNodeMenu.stageY }}
@@ -100,6 +102,7 @@ export function GenerationCanvasReactFlowOverlays({
           onPointerDown={(event) => event.stopPropagation()}
           onContextMenu={(event) => event.preventDefault()}
           onAddNode={onAddContextNode}
+          onImportFiles={onImportContextFiles}
         />
       ) : null}
       {connectionCreateMenu ? (

@@ -1,0 +1,136 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-06-download-stats-protected-main",
+  "problem_type": "机器人在 workflow 里把派生数据直推受保护的源码主线，分支保护一开就天天红",
+  "symptom": "每日 00:17 UTC 的 Download Stats Snapshot 工作流从 2026-09-02 起每次都失败（run 33591502377 / 33715611686 / 33837437131 / 33944829974 / 34012153754 连续 5 天，往前同因）。日志逐字是 `remote: error: GH006: Protected branch update failed for refs/heads/main` + `! [remote rejected] main -> main (protected branch hook declined)`。后果不是「一条红线」而是数据断档：下载量历史最后一份快照停在 2026-08-16，到 09-06 已断 20 天，增长曲线这段永久缺失（GitHub 的 download_count 只有累计值，补不回来）。",
+  "direct_cause": ".github/workflows/download-stats.yml 最后一步在源码 checkout 里 `git commit` 完执行裸 `git push` —— 没有 refspec，目的地就是当前 checkout 的分支，也就是 main。main 自 2026-08-16 起受保护（必须走 PR + Quality Gate / Mac Package 两个必需 check），机器人的直推被 GH006 拒绝。",
+  "class_root": "缺的不变量是「机器每天生成的派生数据不住在受保护的源码主线上」。scripts/stats-downloads.mjs 把历史文件的位置写死在源码树里（`path.join(ROOT, 'docs', 'stats', 'downloads-history.json')`），落点不可配置，于是「攒时间序列」这件事在结构上只有一种做法：在源码 checkout 里改文件、推源码分支。分支保护只是把这条早就错位的路径变成了每天可见的红——同一条路径上，任何一个定时任务把产物写回 main 都会同样失败，而没人盯 cron 的红，失败就以「数据静静断档」的形式存在。",
+  "affected_population": [
+    "看下载增长曲线的人：2026-08-17 → 09-06 这 20 天没有任何数据点，`pnpm stats:html` 画出来的趋势图在这段是空的",
+    "任何未来在 workflow 里把生成物写回 main 的定时任务（文档、报表、指标快照）——同一条路径、同一句 GH006",
+    "在本地跑 `pnpm stats` 的开发者：历史此前只存在于某一次 checkout 的工作树里，分支切走就读不到"
+  ],
+  "scope_paths": [
+    ".github/workflows/download-stats.yml",
+    "scripts/stats-downloads.mjs",
+    "scripts/check-workflow-protected-writes.mjs",
+    "package.json"
+  ],
+  "entry_points": [
+    ".github/workflows/download-stats.yml:44（修前）`git push` —— 报告的那一处，目的地隐式为 main",
+    "scripts/stats-downloads.mjs:23（修前）`const HISTORY_PATH = path.join(ROOT, 'docs', 'stats', 'downloads-history.json')` —— 把落点钉死在源码树里的那一行",
+    ".github/workflows/desktop-release.yml:93 `git push origin \"$RELEASE_TAG\"` —— workflow 里另一处 push",
+    ".github/workflows/docs-autosync.yml:64 peter-evans/create-pull-request —— 同族「机器人写回 main」，2026-09-05 撞过同一句 GH006 后已改走 PR",
+    ".github/workflows/seo-radar.yml:41 peter-evans/create-pull-request —— 同族「机器人写回 docs 生成物」"
+  ],
+  "invariants": [
+    "派生数据（每日快照）的落点必须由调用者显式给出；脚本自己不在源码树里挑一个地方写，没给落点就拒绝写。",
+    "快照数据只有一个真相源：非保护分支 stats-data 根目录的 downloads-history.json。main 上不留副本。",
+    ".github/workflows/ 里任何一处 push 都不许把写落到受保护分支：不写目的地（隐式推当前分支）与写死 main 都由门岗拦下。"
+  ],
+  "generality_proof": "拦在两道边界上，而不是把这一条 workflow 的最后一行改对。① 数据落点边界：scripts/stats-downloads.mjs 的 writeSnapshot 是全仓唯一写快照的函数（`--snapshot` 是它唯一的调用入口，package.json 的 stats:snapshot 与 download-stats.yml 都走它），它现在没有默认落点——不给 NOMI_STATS_HISTORY_PATH 就抛错，所以「悄悄写回源码树」这条路在代码层面已经不存在，不是靠谁记得配环境变量。② 流水线写入边界：check:workflow-protected-writes 扫的是 .github/workflows/ 全目录，不是 download-stats.yml 一个文件，所以下一个定时任务、下一个人写的裸 `git push` 或 `git push origin HEAD:main` 会在 PR 的 gates:contracts 上就红，而不是等它上线后每天在没人看的 cron 里红。两道边界都 fail-closed、无排除名单。",
+  "shared_boundaries": [
+    {
+      "path": "scripts/stats-downloads.mjs",
+      "symbol": "resolveHistoryPath / writeSnapshot",
+      "responsibility": "快照落点的唯一解析者与唯一写入者：落点必须显式给出（相对路径按调用者 cwd 解析，因为 CI 里数据分支 checkout 与脚本不在同一棵树），没给就抛错，不回落到源码树。"
+    },
+    {
+      "path": "scripts/check-workflow-protected-writes.mjs",
+      "symbol": "findProtectedWrites",
+      "responsibility": "全仓 workflow 的 push 目的地门岗：裸 push（隐式推当前分支）与显式写死受保护分支一律红，gates:contracts 里 fail-closed。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": ".github/workflows/download-stats.yml",
+      "entry_point": "snapshot job 的提交步骤",
+      "disposition": "enforced",
+      "evidence": "报告的那一处。改成两次 checkout（源码只读 + stats-data 落到 .stats-data/），用 NOMI_STATS_HISTORY_PATH 指向数据分支里的文件，末步 `git push origin HEAD:refs/heads/stats-data` 显式写分支名、无 `|| true`。新门岗对它修前的写法报红、修后放行，两条都写死在 scripts/check-workflow-protected-writes.node-test.mjs 的头两条用例里。"
+    },
+    {
+      "path": "scripts/stats-downloads.mjs",
+      "entry_point": "writeSnapshot",
+      "disposition": "enforced",
+      "evidence": "落点从 hardcode 改成 resolveHistoryPath({env,cwd})；没有 NOMI_STATS_HISTORY_PATH 时抛错而不是写 docs/stats/。scripts/stats-downloads.node-test.mjs 的「没有显式落点时 writeSnapshot 拒绝写」用例钉住这条，且断言此时一个文件都不写。"
+    },
+    {
+      "path": ".github/workflows/docs-autosync.yml",
+      "entry_point": "Open a docs repair pull request",
+      "disposition": "not-affected",
+      "evidence": "同族失败（它的 header 记着 2026-09-05 run 33967545325 三次直推 main 全收到 GH006），但已经先一步改走 peter-evans/create-pull-request，现在文件里没有任何 `git push`。新门岗扫过它，零命中。"
+    },
+    {
+      "path": ".github/workflows/desktop-release.yml",
+      "entry_point": "Create immutable tag",
+      "disposition": "not-affected",
+      "evidence": "`git push origin \"$RELEASE_TAG\"` 推的是刚建的 tag、不是分支，tag 不在分支保护规则里，这条发布线一直是绿的。门岗的判据「目的地不是受保护分支就放行」对它放行，并有专门用例（推 tag / 推 $RELEASE_TAG 不报红）防止后人把它误伤成红。"
+    },
+    {
+      "path": ".github/workflows/seo-radar.yml",
+      "entry_point": "Open report-only pull request if changed",
+      "disposition": "not-affected",
+      "evidence": "同样是「机器人每周写 docs/seo 生成物」，但从一开始就走 create-pull-request，文件里没有 push。门岗零命中。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "「机器人在 workflow 里把生成物写回受保护主线」在本仓已经发生过两次：download-stats.yml（09-02 起每天）与 docs-autosync.yml（09-05 run 33967545325 三次 GH006，它自己的注释记着）。两次都是同一句 GH006、同一种成因，只是一个改走了 PR、一个没人管。仓库里还有一整类「定时任务产出数据」的流水线（seo-radar 每周、未来的指标/报表任务），下一个人写下 `git commit && git push` 时没有任何东西会提醒他 main 是受保护的——除非门岗替他记住。",
+    "same_class_scan": [
+      "`grep -rn \"git push\" .github/workflows/`：全仓只有两处，download-stats.yml:44（本次修掉）与 desktop-release.yml:93（推 tag，逐行核查为不同族）。",
+      "`grep -rn \"contents: write\" .github/workflows/`：4 份 workflow 有写权限——download-stats（本次）、seo-radar、docs-autosync、desktop-release，逐份读完确认后三份分别走 create-pull-request / create-pull-request / tag push。",
+      "`grep -rn \"peter-evans/create-pull-request\" .github/workflows/`：2 处（docs-autosync:64、seo-radar:41），即同族里已经改对的那两条，用作「正确写法」的参照。",
+      "`grep -rn \"downloads-history\\|docs/stats\" --include='*.mjs' --include='*.json' --include='*.yml' .`：写快照的入口只有 scripts/stats-downloads.mjs 一个（package.json 的 stats / stats:snapshot / stats:html 三条命令全指它），确认落点边界只有一个 owner。",
+      "GitHub API 实查：`gh api repos/aqm857886159/Nomi/branches/stats-data --jq .protected` = false，确认数据分支不在保护规则里；`gh api .../git/ref/heads/stats-data` 建之前是 404，确认没有同名分支被覆盖。"
+    ]
+  },
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/check-workflow-protected-writes.mjs",
+    "invariant": ".github/workflows/ 里的每一处 push 都必须有显式目的地，且目的地不是受保护分支（当前：main）。",
+    "failure_mode": "check:workflow-protected-writes 退出码 1，逐条列出 file:line 与理由，并给两条正确写法（推自己的非保护数据分支 / 走 create-pull-request）。它在 gates:contracts 里 fail-closed，push 闸因此拦住，问题在 PR 阶段就红，而不是上线后每天在没人看的 cron 里红。",
+    "exception_policy": "none",
+    "strategy": "把「别推受保护分支」从人的记性挪到机器的判据（R28：能让门岗拦的别留给人），同时把数据落点从源码树挪到独立数据分支——前者拦住这一类的复发，后者让这条流水线根本不需要写主线。",
+    "artifacts": [
+      "scripts/check-workflow-protected-writes.mjs",
+      "scripts/check-workflow-protected-writes.node-test.mjs",
+      "scripts/stats-downloads.mjs",
+      ".github/workflows/download-stats.yml",
+      "package.json"
+    ]
+  },
+  "regression_tests": [
+    "scripts/check-workflow-protected-writes.node-test.mjs",
+    "scripts/stats-downloads.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/check-workflow-protected-writes.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "docs/stats/downloads-history.json"
+    ],
+    "rationale": "main 上那份历史快照已删除，52 份历史（2026-06-26 → 2026-08-16）原样迁到 stats-data 分支（同一个 blob 756616f6，内容零改动）。不留双真相源、不留回退路径：脚本没有指向 docs/stats/ 的默认落点了，想写回去必须显式配环境变量，而那样做会被新门岗在 workflow 层拦住。docs/stats/README.md 留一句指路。"
+    },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "没有第三方依赖参与这条不变量：改动只用 node 内置模块与 actions/checkout 的既有能力（第二次 checkout 指定 ref + path）。",
+    "exit_criteria": []
+  },
+  "migration": "历史数据用 GitHub Git Data API 以孤儿 commit（无 parent）建到 refs/heads/stats-data：tree 只含 downloads-history.json，blob 直接引用 main 上那一份的 sha 756616f660e0cbf41ec8c83274eadb921e1f390a，因此内容逐字节相同（本地 `diff <(git show origin/stats-data:downloads-history.json) <(git show origin/main:docs/stats/downloads-history.json)` 无差异）。首个 commit a1aadb28a63b0bb39648a76bdd98720e3bd72438。main 全程未被触碰。本地读法改为 `git fetch origin stats-data` 后从 origin/stats-data 读，写法只在 CI 里发生。",
+  "residual_risks": [
+    "门岗只能看见 push 命令的字面目的地：写成 shell 变量（`git push origin \"$BRANCH\"`）而 $BRANCH 运行时等于 main 这一种，它拦不住。仓库现状没有这种写法。",
+    "门岗的受保护分支清单是硬编码的 PROTECTED_BRANCHES = ['main']；将来给别的分支上保护规则时要手动同步进去，机器不会自己发现。",
+    "stats-data 分支本身没有保护，任何有写权限的人或 token 都能改历史数据——这是它能被机器人每天写的前提，代价是这份数据的可信度依赖仓库的写权限边界，不依赖 review。",
+    "本次修复合入后需要人手 `gh workflow run download-stats.yml` 跑一次真流水线确认端到端绿；PR 正文里写了验证步骤，本次只在本地验到了脚本层（显式落点写入成功、缺落点拒绝写、从 origin/stats-data 读历史算出 +1179）。"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://raw.githubusercontent.com/actions/checkout/v4/action.yml",
+      "checked_at": "2026-09-06",
+      "purpose": "逐字核对本次依赖的两个输入：path 是「Relative path under $GITHUB_WORKSPACE to place the repository」（第二次 checkout 落到 .stats-data/ 的依据），persist-credentials 默认 true（数据分支那棵树里 push 能直接用 GITHUB_TOKEN 的依据）。"
+    }
+  ]
+}

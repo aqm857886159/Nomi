@@ -1,3 +1,5 @@
+import { CANVAS_ADD_MENU_STATES } from './canvasAddMenu/canvasAddMenuStates'
+import { CANVAS_ADD_CELL_HEIGHT, CANVAS_ADD_CELL_WIDTH } from './canvasAddMenu/canvasAddMenuLabKit'
 import { EDITING_STATES } from './editing/editingStates'
 import { STORYBOARD_STATES } from './storyboard/storyboardStates'
 import { STAGE_HEIGHT, STAGE_WIDTH } from './storyboard/storyboardLabKit'
@@ -6,6 +8,8 @@ import { HOST_CONFIG_STATES } from './hostConfig/hostConfigStates'
 import { SETTINGS_STATES } from './settings/settingsStates'
 import { SETTINGS_CELL_HEIGHT, SETTINGS_CELL_WIDTH } from './settings/settingsLabKit'
 import { AGENT_PANEL_V4_STATES, V4_CELL_HEIGHT, V4_PANEL_WIDTH } from './v4/agentPanelV4States'
+import { VENDOR_ORDER_STATES } from './vendorOrder/vendorOrderStates'
+import { STAGE_HEIGHT as VENDOR_ORDER_STAGE_HEIGHT, STAGE_WIDTH as VENDOR_ORDER_STAGE_WIDTH } from './vendorOrder/vendorOrderLabKit'
 import type { LabScreen, LabState } from './labScreen'
 
 /**
@@ -45,11 +49,25 @@ export const LAB_SCREENS: readonly LabScreen[] = [
     states: HOST_CONFIG_STATES,
   },
   {
+    id: 'canvas-add-menu',
+    label: '画布 · 加号收束',
+    states: CANVAS_ADD_MENU_STATES,
+    // 三格取景一样大：左缘工具条 + 它右侧展开的菜单要同框，右键菜单也按同一格开列，
+    // 免得「常驻」与「展开」两格宽度不同、看不出是同一条工具条。
+    cell: { width: CANVAS_ADD_CELL_WIDTH, height: CANVAS_ADD_CELL_HEIGHT },
+  },
+  {
     id: 'settings',
     label: '设置 · 隐私与诊断',
     states: SETTINGS_STATES,
     // 这屏各状态取景框一样大（设置内容区实际可用宽），尺寸从取景台取，不另抄一个数。
     cell: { width: SETTINGS_CELL_WIDTH, height: SETTINGS_CELL_HEIGHT },
+  },
+  {
+    id: 'vendor-order',
+    label: '供应商偏好',
+    states: VENDOR_ORDER_STATES,
+    cell: { width: VENDOR_ORDER_STAGE_WIDTH, height: VENDOR_ORDER_STAGE_HEIGHT + 40 },
   },
 ]
 

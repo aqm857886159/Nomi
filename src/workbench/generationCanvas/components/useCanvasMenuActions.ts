@@ -1,4 +1,5 @@
 import type { GenerationNodeKind } from '../model/generationCanvasTypes'
+import { importLocalFilesToGenerationCanvas } from './canvasStageDrop'
 import { completeNodeConnection } from '../nodes/completeNodeConnection'
 import type { ConnectionAnchorSide } from '../store/canvasStoreTypes'
 import type { CanvasContextNodeMenu } from './useCanvasContextNodeMenu'
@@ -38,6 +39,7 @@ type CanvasMenuActionsInput = {
 
 export function buildCanvasMenuActions(input: CanvasMenuActionsInput): {
   handleAddContextNode: (kind: GenerationNodeKind) => void
+  handleImportContextFiles: (files: File[]) => void
   handleNodeContextAction: (action: NodeContextMenuAction) => void
   handleAddConnectedNode: (kind: GenerationNodeKind) => void
 } {
@@ -49,6 +51,15 @@ export function buildCanvasMenuActions(input: CanvasMenuActionsInput): {
       categoryId: input.activeCategoryId,
     })
     input.setContextNodeMenu(null)
+  }
+
+  // 右键菜单「导入 · 文件…」：落点与「右键空白 → 添加节点」同一点，走的是画布本地文件导入
+  // 那条现役路径（与拖文件进画布同一条），不另建 asset 节点。
+  const handleImportContextFiles = (files: File[]) => {
+    if (!input.contextNodeMenu) return
+    const basePosition = { x: input.contextNodeMenu.canvasX, y: input.contextNodeMenu.canvasY }
+    input.setContextNodeMenu(null)
+    void importLocalFilesToGenerationCanvas(files, { basePosition, categoryId: input.activeCategoryId })
   }
 
   // 节点右键菜单的五个动作。**复用快捷键那条路的同一批 store 动作**——
@@ -80,5 +91,5 @@ export function buildCanvasMenuActions(input: CanvasMenuActionsInput): {
     input.setConnectionCreateMenu(null)
   }
 
-  return { handleAddContextNode, handleNodeContextAction, handleAddConnectedNode }
+  return { handleAddContextNode, handleImportContextFiles, handleNodeContextAction, handleAddConnectedNode }
 }

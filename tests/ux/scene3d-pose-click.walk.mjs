@@ -7,6 +7,7 @@ import path from 'node:path'
 import os from 'node:os'
 import { mkdtempSync, mkdirSync } from 'node:fs'
 import { screenshotSettled } from './_assert.mjs'
+import { addCanvasNodeFromRail } from './_canvasRail.mjs'
 
 const outDir = path.join(repoRoot, '.pose-lab')
 mkdirSync(outDir, { recursive: true })
@@ -48,17 +49,14 @@ try {
   if ((await genTab.count()) > 0) await genTab.click()
   await win.waitForTimeout(1500)
 
-  // 加 3D 场景节点。
-  // 菜单真实文案是 runtime.scene3d.menu = 「3D 场景」(**中间有空格**);此处原先写的是无空格的
-  // 「3D场景」,匹配不上,于是落到下面 [title*="3D"] 兜底、**点中了「3D 模型」节点**——
-  // 编辑器压根没开,后面每一步都跟着假红。死选择器就是这么同时造假红和假绿的,故锚点写死到真实文案。
-  let added = false
-  const byName = win.getByRole('button', { name: '3D 场景', exact: false })
-  if ((await byName.count()) > 0) { await byName.first().click(); added = true }
-  if (!added) throw new Error('没找到「3D 场景」节点菜单项——锚点可能又漂了,别用模糊兜底掩盖')
+  // 加 3D 场景节点。锚点历史上按可见文案猜过两次(「3D场景」无空格 → 兜底点中了「3D 模型」),
+  // 都是死选择器同时造假红假绿。2026-09-06「第三档」之后它更进一步搬进了左缘的「更多」:
+  // 点法一律收口在 _canvasRail(按 data-add-intent / data-node-kind 结构锚点,不随文案与语言变),
+  // 该在常驻还是在「更多」由它自己判断,找不到当场抛。
+  const addedFrom = await addCanvasNodeFromRail(win, 'scene3d')
   await win.waitForTimeout(2000)
   await screenshotSettled(win, { path: path.join(outDir, 'walk-01-node-added.png') })
-  log(`  ✓ 3D 节点已添加 (added=${added})`)
+  log(`  ✓ 3D 节点已添加 (from=${addedFrom})`)
 
   // —— 验证 ①：点空态 body「打开 3D 编辑器」→ 编辑器开 ——
   const openEmpty = win.getByRole('button', { name: '打开 3D 编辑器', exact: false })

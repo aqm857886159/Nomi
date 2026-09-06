@@ -23,6 +23,9 @@
     "agent-panel-v4": {
       "tolerance": { "threshold": 0.2, "maxDiffPixels": 40 }
     },
+    "canvas-add-menu": {
+      "tolerance": { "threshold": 0.2, "maxDiffPixels": 40 }
+    },
     "editing": {
       "tolerance": { "threshold": 0.2, "maxDiffPixels": 40 }
     },
@@ -33,6 +36,9 @@
       "tolerance": { "threshold": 0.2, "maxDiffPixels": 40 }
     },
     "settings": {
+      "tolerance": { "threshold": 0.2, "maxDiffPixels": 40 }
+    },
+    "vendor-order": {
       "tolerance": { "threshold": 0.2, "maxDiffPixels": 40 }
     }
   },

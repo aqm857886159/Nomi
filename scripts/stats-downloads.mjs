@@ -4,10 +4,18 @@
 // 为什么是它：下载发生在 GitHub Releases，不在用户机器上 → 零隐私足迹、零代码侵入。
 // GitHub 为每个 release 资产记了 download_count（累计快照），本脚本把它聚合成人看得懂的表。
 //
-// 两种用法（一份代码，不开并行实现）：
+// 三种用法（一份代码，不开并行实现）：
 //   node ./scripts/stats-downloads.mjs            打印当前下载看板（总量/平台/分版本）
-//   node ./scripts/stats-downloads.mjs --snapshot 追加今日快照到 docs/stats/downloads-history.json
-//                                                 （供每日 Action 调用，攒出趋势曲线）
+//   node ./scripts/stats-downloads.mjs --html     生成 docs/stats/dashboard.html（本地看，不提交）
+//   NOMI_STATS_HISTORY_PATH=<file> node ./scripts/stats-downloads.mjs --snapshot
+//                                                 追加今日快照到数据分支上的 downloads-history.json
+//
+// 快照数据为什么不住在 main：main 受保护（必须走 PR + 两个必需 check），
+// 机器人每天直推必被 GH006 拒绝——2026-09-02 起这条每日流水线因此连红 20 天、快照断档。
+// 派生数据于是有了自己的家：非保护孤儿分支 `stats-data`，根目录只有 downloads-history.json。
+// 读写路径因此**显式配置**，不在源码树里 hardcode：
+//   · 写（CI）：把数据分支 checkout 到子目录，用 NOMI_STATS_HISTORY_PATH 指过来；没指就拒绝写（fail-closed）。
+//   · 读（本地）：不给路径就读 `origin/stats-data` 上那一份。main 上不再留第二份，无双真相源。
 //
 // 口径：只数真人下载的安装包（.dmg / .exe），剔除 .blockmap / latest*.yml / .zip
 //       —— 那些是 electron 自动更新机制拉的，不是人。
@@ -16,12 +24,33 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { execSync } from "node:child_process";
+import { execFileSync, execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const HISTORY_PATH = path.join(ROOT, "docs", "stats", "downloads-history.json");
 const HTML_PATH = path.join(ROOT, "docs", "stats", "dashboard.html");
+
+/** 数据分支上快照文件的名字（分支根目录就这一个文件）。 */
+export const HISTORY_FILENAME = "downloads-history.json";
+/** 本地只读时的默认来源：数据分支的远端跟踪 ref。 */
+export const DEFAULT_DATA_REF = "origin/stats-data";
+
+/**
+ * 快照文件的落点。显式给了 NOMI_STATS_HISTORY_PATH 才有落点——相对路径按调用者的 cwd 解析，
+ * 因为 CI 把数据分支 checkout 到 workspace 下的子目录，而脚本住在另一个 checkout 里。
+ * 没给返回 null：写路径据此 fail-closed，读路径据此改走数据分支 ref。
+ */
+export function resolveHistoryPath({ env = process.env, cwd = process.cwd() } = {}) {
+  const configured = typeof env.NOMI_STATS_HISTORY_PATH === "string" ? env.NOMI_STATS_HISTORY_PATH.trim() : "";
+  if (configured === "") return null;
+  return path.isAbsolute(configured) ? path.normalize(configured) : path.resolve(cwd, configured);
+}
+
+/** 本地只读时从哪个 ref 取历史（默认 origin/stats-data，可用 NOMI_STATS_DATA_REF 覆盖）。 */
+export function resolveHistoryRef({ env = process.env } = {}) {
+  const configured = typeof env.NOMI_STATS_DATA_REF === "string" ? env.NOMI_STATS_DATA_REF.trim() : "";
+  return configured === "" ? DEFAULT_DATA_REF : configured;
+}
 
 /** 从 GITHUB_REPOSITORY（Action 注入）或 git remote 推断 owner/repo。 */
 function resolveRepo() {
@@ -81,25 +110,63 @@ function aggregate(releases) {
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
-function readHistory() {
-  if (!fs.existsSync(HISTORY_PATH)) return { snapshots: [] };
-  return JSON.parse(fs.readFileSync(HISTORY_PATH, "utf8"));
+/** 默认读法：从数据分支的 ref 里取文件内容；ref 或文件不在就回 null（由调用者决定红不红）。 */
+function readFromDataBranch(ref) {
+  try {
+    return execFileSync("git", ["show", `${ref}:${HISTORY_FILENAME}`], {
+      cwd: ROOT,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+  } catch {
+    return null;
+  }
 }
 
-/** 写今日快照（同日幂等覆盖）。返回与上一份不同日快照的总量差，供打印「自上次 +N」。 */
-function writeSnapshot(agg) {
-  const hist = readHistory();
+/**
+ * 历史快照的唯一读法。给了文件路径读文件（CI 的数据分支 checkout），没给读数据分支 ref。
+ * 两条通向同一份数据，不是两个真相源；`missing` 让调用者自己决定「空历史」是否可接受。
+ */
+export function loadHistory({
+  env = process.env,
+  cwd = process.cwd(),
+  readFileAt = (file) => (fs.existsSync(file) ? fs.readFileSync(file, "utf8") : null),
+  readFromRef = readFromDataBranch,
+} = {}) {
+  const file = resolveHistoryPath({ env, cwd });
+  const source = file ?? `${resolveHistoryRef({ env })}:${HISTORY_FILENAME}`;
+  const raw = file ? readFileAt(file) : readFromRef(resolveHistoryRef({ env }));
+  if (raw === null || raw === undefined) return { history: { snapshots: [] }, source, missing: true };
+  return { history: JSON.parse(raw), source, missing: false };
+}
+
+/**
+ * 写今日快照（同日幂等覆盖）。返回与上一份不同日快照的总量差，供打印「自上次 +N」。
+ * 没有显式落点就抛——宁可流水线红，也不把数据默默写回受保护的源码主线。
+ */
+export function writeSnapshot(agg, { env = process.env, cwd = process.cwd(), writeFileAt, loadHistoryImpl = loadHistory } = {}) {
+  const file = resolveHistoryPath({ env, cwd });
+  if (!file) {
+    throw new Error(
+      "--snapshot 需要 NOMI_STATS_HISTORY_PATH 指向 stats-data 分支 checkout 里的 downloads-history.json（见 docs/stats/README.md）",
+    );
+  }
+  const { history } = loadHistoryImpl({ env, cwd });
   const date = todayISO();
   const flatVersions = Object.fromEntries(Object.entries(agg.byVersion).map(([k, v]) => [k, v.dl]));
   const snap = { date, total: agg.total, byPlatform: { ...agg.byPlatform }, byVersion: flatVersions };
 
-  const prior = hist.snapshots.filter((s) => s.date !== date);
+  const prior = history.snapshots.filter((s) => s.date !== date);
   const lastDifferentDay = prior[prior.length - 1];
-  hist.snapshots = [...prior, snap]; // 同日只留最新一份
+  const next = { ...history, snapshots: [...prior, snap] }; // 同日只留最新一份
 
-  fs.mkdirSync(path.dirname(HISTORY_PATH), { recursive: true });
-  fs.writeFileSync(HISTORY_PATH, JSON.stringify(hist, null, 2) + "\n");
-  return lastDifferentDay ? agg.total - lastDifferentDay.total : null;
+  const serialized = JSON.stringify(next, null, 2) + "\n";
+  if (writeFileAt) writeFileAt(file, serialized);
+  else {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, serialized);
+  }
+  return { file, sinceLast: lastDifferentDay ? agg.total - lastDifferentDay.total : null };
 }
 
 function pct(n, total) {
@@ -201,25 +268,37 @@ async function main() {
 
   let sinceLast = null;
   if (snapshot) {
-    sinceLast = writeSnapshot(agg);
-    console.log(`  已记录今日快照 → ${path.relative(ROOT, HISTORY_PATH)}`);
+    const written = writeSnapshot(agg);
+    sinceLast = written.sinceLast;
+    console.log(`  已记录今日快照 → ${written.file}`);
   } else {
-    const hist = readHistory();
-    const prior = hist.snapshots.filter((s) => s.date !== todayISO());
+    const { history } = loadHistory();
+    const prior = history.snapshots.filter((s) => s.date !== todayISO());
     const last = prior[prior.length - 1];
     if (last) sinceLast = agg.total - last.total;
   }
 
   if (html) {
+    // 趋势图就是历史快照本身：读不到历史就红，不画一条空曲线冒充「刚启用」。
+    const { history, source, missing } = loadHistory();
+    if (missing) {
+      throw new Error(
+        `趋势图需要历史快照，但读不到 ${source}。先 \`git fetch origin stats-data\`，` +
+          "或用 NOMI_STATS_HISTORY_PATH 指向本地快照文件（见 docs/stats/README.md）",
+      );
+    }
     fs.mkdirSync(path.dirname(HTML_PATH), { recursive: true });
-    fs.writeFileSync(HTML_PATH, generateHtml(agg, readHistory()));
+    fs.writeFileSync(HTML_PATH, generateHtml(agg, history));
     console.log(`  已生成可视化看板 → ${path.relative(ROOT, HTML_PATH)}（浏览器打开）`);
   }
 
   printDashboard(agg, sinceLast);
 }
 
-main().catch((err) => {
-  console.error(`\n  ✗ 拉取下载数据失败：${err.message}\n`);
-  process.exit(1);
-});
+// 只在被直接执行时跑；被单测 import 时不许有副作用。
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((err) => {
+    console.error(`\n  ✗ 拉取下载数据失败：${err.message}\n`);
+    process.exit(1);
+  });
+}
