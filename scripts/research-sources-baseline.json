@@ -1,0 +1,24 @@
+{
+  "_comment": [
+    "调研来源棘轮基线：只减不增。",
+    "扫描 docs/research/**/*.md 中标题含「调研 / research」的文档（*-radar.md 豁免）。",
+    "这些是本门岗立项之前就存在的历史文档；新增调研文档必须带「自媒体来源」一节并引用 tikhub 附件，",
+    "不能追加到本数组。补齐一篇就从这里删一行。"
+  ],
+  "documentsWithoutSocialSources": [
+    "docs/research/2026-07-06-beginner-guide-patterns.md",
+    "docs/research/2026-07-26-3d-director-stage-research-and-design.md",
+    "docs/research/2026-08-02-3d-director-stage-full-journey-research-and-redesign.md",
+    "docs/research/2026-08-15-creation-agent-modes.md",
+    "docs/research/2026-08-18-infinite-canvas-competitive-analysis.md",
+    "docs/research/2026-08-19-conversational-creation-ux.md",
+    "docs/research/2026-08-19-script-to-video-frameworks.md",
+    "docs/research/2026-08-19-short-drama-pipelines.md",
+    "docs/research/2026-08-20-libtv-infinite-canvas-first-draft-competitive-research.md",
+    "docs/research/2026-08-23-video-generation-parameter-selection.md",
+    "docs/research/2026-08-24-agent-conversation-vocabulary-survey.md",
+    "docs/research/2026-08-24-video-agent-architecture-survey.md",
+    "docs/research/2026-08-24-video-capability-shared-layer.md",
+    "docs/research/2026-08-29-browser-assets-pi-ecosystem-research.md"
+  ]
+}
