@@ -9,7 +9,7 @@
 //   pnpm run dev:renderer  →  http://127.0.0.1:5173/design-lab.html?screen=<屏>&state=<id>
 //   接触表（该屏所有状态平铺一图，拍板用）：        design-lab.html?screen=<屏>&contact=1
 //   单格无 chrome（接触表 iframe / 视觉基线用）：    design-lab.html?screen=<屏>&state=<id>&frame=1
-// 屏在 `designLab/labScreens.ts` 注册（agent-panel / editing）。
+// 屏在 `designLab/labScreens.ts` 注册（agent-panel / editing / host-config）。
 //
 // 生产包为什么进不来：`vite build` 只吃 `index.html`（vite.config.ts 没有覆盖 rollup input），
 // `design-lab.html` 是另一个根入口，**根本不参与打包**——不是运行时判旗、不是死代码分支，
@@ -22,6 +22,11 @@ import React from 'react'
 import { createRoot } from 'react-dom/client'
 import '@fontsource-variable/inter/wght.css'
 import '@fontsource-variable/fraunces/wght.css'
+import '@mantine/core/styles/UnstyledButton.css'
+import '@mantine/core/styles/CloseButton.css'
+import '@mantine/core/styles/Notification.css'
+import '@mantine/notifications/styles.css'
+import '../styles/index.css'
 import { NomiAppProviders } from '../NomiAppProviders'
 import { NomiColorSchemeProvider } from '../theme/NomiColorSchemeProvider'
 import { persistColorScheme, primeNomiColorScheme } from '../theme/colorScheme'

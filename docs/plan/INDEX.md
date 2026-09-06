@@ -11,12 +11,16 @@
 
 | 文件 | 一句话 | 状态 |
 |---|---|---|
+| [2026-09-05-gpt-discussion-consolidation.md](2026-09-05-gpt-discussion-consolidation.md) | GPT 讨论梳理：统一 Agent/画布/视频拆解表/Skill 聚合的现状对账、三项被推翻旧结论与待拍板入口 | 📋 |
+| [2026-09-05-nomi-unified-agent-canvas-skill-collection.md](2026-09-05-nomi-unified-agent-canvas-skill-collection.md) | 统一 Agent、画布与 Skill 聚合区的需求入口、母表和总体方案索引 | 📋 |
 | [2026-09-04-nomi-convergence-execution-plan.md](2026-09-04-nomi-convergence-execution-plan.md) | **Nomi 收敛总执行方案**：以 M0–M5 为主轴，统一 Agent/MCP/分镜表/画布/视频/TikHub/真实 Provider/持久化/重启/视觉和 PR 收敛门槛；current baseline `origin/main@8ff53610`，#471 UI 合同与 #474 Skill 修复已合入但主轴未毕业 | 🚧 |
 | [2026-09-05-m0-m5-vertical-spine-status.md](2026-09-05-m0-m5-vertical-spine-status.md) | **M0–M5 真实垂直脊梁状态台账**：同一自然用户任务的红测、真实 Electron、Codex Host/MCP、持久化/重启、视觉、packaged 与合入证据边界 | 🚧 |
 | [2026-09-05-m0-live-certification-audit.md](2026-09-05-m0-live-certification-audit.md) | M0 MCP live certification 审计：中转站文档/API key 接入边界与真实调用证据 | 🚧 |
 | [2026-09-05-real-video-export-restart.md](2026-09-05-real-video-export-restart.md) | 真实视频生成→剪辑→预览→导出→关闭重启恢复旅程与证据门 | 🚧 |
 | [2026-09-05-storyboard-two-state-generation-design.md](2026-09-05-storyboard-two-state-generation-design.md) | **分镜 v6 双状态生成设计**：编辑态能力槽、生成态结果卡、模型参考矩阵、自动引用、迁移与真实验收 | 📋 |
 | [2026-09-05-storyboard-table-v6-design-contract.md](../design/2026-09-05-storyboard-table-v6-design-contract.md) | **分镜表 v6 设计合同**（方向 A，用户已拍板）：信息架构、行/锚状态表、参考列规则+六档案槽矩阵、旧版 15 条功能对账、token/选择器契约草案、不做项与验收清单；样张 `docs/design/mockups/2026-09-05-storyboard-table-v6/` | 📋 |
+| [2026-09-05-gpt-discussion-consolidation.md](2026-09-05-gpt-discussion-consolidation.md) | GPT 讨论梳理：统一 Agent / 画布 / 视频拆解表 / Skill 站的现状对账与拍板记录 | 📋 |
+| [2026-09-05-editing-panel-design-contract.md](../design/2026-09-05-editing-panel-design-contract.md) | **剪辑面设计合同**：布局 C′ + 时间轴补齐 11 条（用户 09-05 拍板），四路实施任务书依据 | ⏳ |
 | [2026-09-04-main-convergence-follow-ups.md](2026-09-04-main-convergence-follow-ups.md) | Main 收敛后续明细；历史执行拆解，状态以总方案和 current-main 审计为准 | 📎 |
 | [2026-09-05-agent-host-gate-removal.md](2026-09-05-agent-host-gate-removal.md) | **常驻 Agent 拆发布闸**：删掉默认关的 `agentHostPreference` 与设置页开关，Agent 对所有用户无条件常驻，未完成处改用 header Beta 徽标明说；根因是「用户用的产品」与「测试跑的产品」分叉的并行版 | 🚧 |
 | [2026-09-05-agent-ui-a-composer.md](2026-09-05-agent-ui-a-composer.md) | Agent UI A 段：composer 五按钮调序、模式弹层收敛、运行呼吸光与分镜入口 | 🚧 |
@@ -57,6 +61,7 @@
 | [2026-09-01-pr258-derived-directions-eval.md](2026-09-01-pr258-derived-directions-eval.md) | #258 拆项评估定稿：①provider proxy 🟢（已随 #282 落地）②即梦 CLI 模型面 🟡（后被 v1.4.17 对齐 #291 取代其结论）③onboarding 加固 🟢（已随 #282 落地） | 📎 |
 | [2026-09-01-pr271-feedback-share-center-eval.md](2026-09-01-pr271-feedback-share-center-eval.md) | #271 反馈分享中心拆项评估：三方向全 🟢、外发面克制可辩护；按四步收口后已合入（provider 泄露路径证实并修复） | 📎 |
 | [2026-09-01-video-deconstruction-v1.md](2026-09-01-video-deconstruction-v1.md) | 拆解视频 v1 面板方案：一条参考视频→结构化分镜表→勾选镜头逐个落画布+自动编组→用这套结构起稿；含与 Agent 面板的右槽共存契约（③合流终局+过渡期互斥 R-C-1~7） | 🚧 |
+| [2026-09-06-video-deconstruction-table-node.md](2026-09-06-video-deconstruction-table-node.md) | **视频拆解表节点重做实施计划**：D-2=A，表是画布节点；行内关键帧、选行生成、Agent 投影、ProductionRun 接口与旧右槽/铺图同 commit 删除 | ⏳ |
 | [2026-09-02-canvas-media-derived-persistence-performance.md](2026-09-02-canvas-media-derived-persistence-performance.md) | 画布媒体派生尺寸回填性能回归修复：隔离运行时测量，避免视口揭示触发项目持久化 | ✅ |
 | [2026-09-01-tikhub-connector-v1.md](2026-09-01-tikhub-connector-v1.md) | TikHub 数据 connector v1：分享链接→无水印直链→喂现有拆解引擎（native-api / BYO-key / effect=spend / AssetSourceEvidence） | 🚧 |
 | [2026-06-07-apimart-curated-onboarding.md](2026-06-07-apimart-curated-onboarding.md) | 策展两家(kie+apimart)一键接入；战略从「通用接入」转向 | ✅ |
@@ -85,6 +90,7 @@
 
 | 文件 | 一句话 | 状态 |
 |---|---|---|
+| [2026-09-06-ui-shell-version-dialog-node-empty.md](2026-09-06-ui-shell-version-dialog-node-empty.md) | P-01 新版本弹窗与 C-01 生成画布节点共享空态（设计实验室先行） | ✅ |
 | [2026-09-03-narrowed-mode-guidance-dismiss.md](2026-09-03-narrowed-mode-guidance-dismiss.md) | 收窄模式指路提示的节点级关闭与项目持久化 | 🚧 |
 | [2026-08-13-video-deconstruction-storyboard-table.md](2026-08-13-video-deconstruction-storyboard-table.md) | **视频拆解→分镜表→复刻生成**（表格=节点组的视图，非新数据模型；含 gemini/whisper 实测契约） | 📋 |
 | [2026-08-09-canvas-ux-feedback-round.md](2026-08-09-canvas-ux-feedback-round.md) | 画布体验反馈第 1 轮迭代（Windows 顶栏/视频工具栏并排等，样张阶段） | |
@@ -122,6 +128,7 @@
 | 文件 | 一句话 | 状态 |
 |---|---|---|
 | [2026-09-04-mcp-semantic-operation-matrix.md](2026-09-04-mcp-semantic-operation-matrix.md) | MCP 语义操作矩阵：document/canvas 真实生产链路 H/B/E/T/N、scoped V8 收据与 timeline/media/export blocked evidence | ✅ |
+| [2026-09-05-resident-composer-receipt-fix.md](2026-09-05-resident-composer-receipt-fix.md) | main 红修复：Resident composer 收据旅程改走真实审批流（PR #507） | ✅ |
 | [agent-compaction-runtime-projection.md](agent-compaction-runtime-projection.md) | Agent compaction runtime 元数据的 Host 状态、持久化、恢复与 renderer 投影契约 | 🚧 |
 | [2026-09-04-agent-usage-ledger-rebaseline-followup.md](2026-09-04-agent-usage-ledger-rebaseline-followup.md) | #452 rebaseline follow-up：Host usage persistence/projection 与生成 approval receipt 的 projectRevision C9 防漂移 | ✅ |
 | [2026-09-02-mcp-testnet-l1-handshake.md](2026-09-02-mcp-testnet-l1-handshake.md) | MCP 测试网第 1 片：真实 stdio L1 握手六条回归、tools/list payload 棘轮与 listChanged A1 | 🚧 |
@@ -162,6 +169,7 @@
 | [2026-08-27-unified-tool-surface.md](2026-08-27-unified-tool-surface.md) | **内外工具面统一**：对外 22 个 `nomi_*` vs 内嵌 17 个，6 处同事两名、确认面两套——违反 master plan「不造第二套」北极星；三方案待拍板 | 📋 |
 | [2026-08-30-agent-canvas-interaction-expansion.md](2026-08-30-agent-canvas-interaction-expansion.md) | #194 补全画布引用、多媒体、双轴模式与结果回画布（方案与样张完成，待生产实现） | ✅ |
 | [2026-09-06-opt-in-frequency-telemetry.md](2026-09-06-opt-in-frequency-telemetry.md) | T-01/T-02 opt-in 频率遥测：默认关闭、事件白名单、本地可见可删，与 autoUpdater 解耦 | 📋 |
+| [2026-09-06-mcp-key-window-front-and-host-config-toast.md](2026-09-06-mcp-key-window-front-and-host-config-toast.md) | MCP 凭据请求自动前台打开模型接入页，宿主配置修复后提示重启 | ✅ |
 
 ## 时间轴 / 预览 / 导出
 
@@ -208,6 +216,7 @@
 
 | 文件 | 一句话 | 状态 |
 |---|---|---|
+| [2026-09-06-stack-upgrade-react19-aisdk-tailwind4.md](2026-09-06-stack-upgrade-react19-aisdk-tailwind4.md) | **技术栈升级立项**（React 19 · AI SDK · Tailwind 4）：实查纠正三个前提（我们没用 `useChat`，AI SDK 升级与 Agent 面板无因果；目标是 SDK 6 不是 5，7 是 ESM-only 进不来；React 19 捆着 Mantine 8 + R3F 9 两个次级迁移），逐条命中清单（`JSX.Element` 652 处 / AI SDK 仅 8 个生产文件 / Tailwind 132 处类名）、R3 三方案对比与四步执行门 | 📋 |
 | [2026-06-08-performance-foundation.md](2026-06-08-performance-foundation.md) | 性能地基改造立项 | ⛔ |
 | [2026-05-25-phase-e2-completion-and-tech-uplift.md](2026-05-25-phase-e2-completion-and-tech-uplift.md) | Phase E.2 完成 + 技术栈升级(v0.6) | ⛔ |
 | [2026-05-31-unify-request-pipeline.md](2026-05-31-unify-request-pipeline.md) | 统一请求构建管线（根治测试过/生产挂） | 📋 |
@@ -215,6 +224,7 @@
 | [2026-08-29-focused-validation-policy.md](2026-08-29-focused-validation-policy.md) | PR `fast/full` 两档验证历史基线（已被 08-30 独立风险面取代） | 📎 |
 | [2026-08-30-risk-scoped-validation-evidence.md](2026-08-30-risk-scoped-validation-evidence.md) | **按真实风险拆分 unit/desktop/journey/canvas/performance/package，并用 exact-SHA CI 证据替代合并后第三遍全量测试** | ✅ |
 | [2026-09-05-ci-gate-mechanics.md](2026-09-05-ci-gate-mechanics.md) | **CI 门岗机制修法**：三个文档/生成物门（docs-index / doc-status / ledger）降为 advisory 并由 main 上的 docs-autosync 自动补齐；`gates:contracts` 51 个 `&&` 改成「全跑完再汇总」 | ✅ |
+| [2026-09-06-logging-and-diagnostics-bundle.md](2026-09-06-logging-and-diagnostics-bundle.md) | **主进程统一落盘日志 + 导出诊断包**：按天滚动/大小上限/保留期的单一文件写手，99 处 console.* 收口到一个类型化出口（提示词/密钥/路径没有参数位），设置「隐私与诊断」里一键打 zip 交给用户自己保存 | 🚧 |
 | [2026-09-06-mcp-locale-and-tool-titles.md](2026-09-06-mcp-locale-and-tool-titles.md) | MCP 结果跟随 Nomi 语言，并为九个语义工具补齐中英文人话标题 | 🚧 |
 | [2026-08-29-root-cause-contract-v2.md](2026-08-29-root-cause-contract-v2.md) | 根因合同 v2、跨 AI 强制执行与规则收敛 | 🚧 |
 | [2026-08-29-git-delivery-integrity.md](2026-08-29-git-delivery-integrity.md) | Git 交付身份、有界远端刷新与 merged-main 单次验收 | ✅ |

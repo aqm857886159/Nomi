@@ -20,6 +20,7 @@ import { spawn, spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { readLabStates, REPO_ROOT } from './labStates.mjs'
+import { assertLabPortOwnership, labPortFor } from './labServer.mjs'
 
 const COVERAGE_TONE = { shell: '#2f7d4f', 'component-only': '#9a6a3c', missing: '#b23c3c', retired: '#6b6b6b' }
 const COVERAGE_TEXT = { shell: '整条通', 'component-only': '只有组件', missing: '没实现', retired: '已取消' }
@@ -40,12 +41,16 @@ function waitForServer(url, timeoutMs = 60000) {
 }
 
 /**
- * @param {{screen: string, title: string, port: number, cellWidth: number, columns: number, viewport?: {width: number, height: number}}} config
+ * @param {{screen: string, title: string, role: string, cellWidth: number, columns: number, viewport?: {width: number, height: number}}} config
  */
 export async function walkDesignLabScreen(config) {
   const OUT_DIR = path.join(REPO_ROOT, `tests/ux/shots/design-lab-${config.screen}`)
   const HOST = '127.0.0.1'
-  const BASE = `http://${HOST}:${config.port}`
+  // 端口按 worktree 派生，不再写死（labServer.mjs）：写死的端口是整台机器的全局单例，
+  // 而这台机器上常年挂着 20+ worktree。下面那道 waitForServer 只探「有没有人应答」——
+  // 端口被别的树占着时它会**照样成功**，然后整份走查截的是别人分支的 UI。
+  const PORT = labPortFor(config.role)
+  const BASE = `http://${HOST}:${PORT}`
   const ONLY = (process.env.ONLY || '').split(',').map((value) => value.trim()).filter(Boolean)
 
   const failures = []
@@ -63,11 +68,19 @@ export async function walkDesignLabScreen(config) {
   if (tailwind.status !== 0) throw new Error('build-tailwind 失败：整页会没有样式，截图无意义')
 
   console.log('▶ 启动 vite dev server…')
-  const vite = spawn('npx', ['vite', '--host', HOST, '--port', String(config.port), '--strictPort'], {
+  // 起之前先看这口是不是别人的；是就当场停，别把别人的服务器当自己的。
+  assertLabPortOwnership(config.role)
+  const vite = spawn('npx', ['vite', '--host', HOST, '--port', String(PORT), '--strictPort'], {
     cwd: REPO_ROOT,
-    stdio: 'ignore',
+    // stderr 不再丢掉：--strictPort 撞口时 vite 是从这里喊的，
+    // 以前 'ignore' 把它咽掉，于是「没绑上」和「绑上了」在日志里长得一模一样。
+    stdio: ['ignore', 'ignore', 'pipe'],
   })
+  vite.stderr?.on('data', (chunk) => process.stderr.write(`[vite] ${chunk}`))
   await waitForServer(`${BASE}/design-lab.html`)
+  // 应答了不等于是我起的那一个：--strictPort 绑失败时应答的是原来占口的那个进程。
+  // 截图之前必须证明答话的就是本树（fail-closed）。
+  assertLabPortOwnership(config.role)
 
   const browser = await chromium.launch({ headless: true })
   const context = await browser.newContext({

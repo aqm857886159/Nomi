@@ -1,0 +1,148 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-06-mcp-stdio-host-stderr-diagnostics",
+  "problem_type": "Main-process logging consolidation treated stderr as a dev-terminal convenience, silencing and renaming the MCP stdio server's host-facing diagnostics",
+  "symptom": "The MCP L1 handshake journey fails at `C5 oversized line is dropped with a stderr log`, and the L2 journey's `C10 stderr 留下断连取消日志` fails the same way: the stdio server no longer writes the wording those tests look for. In a packaged build the same two diagnostics reach no stderr at all, so a host (Claude Code / Codex) that launches Nomi as an MCP server sees an empty stderr while the process silently drops an oversized frame or cancels in-flight requests on disconnect.",
+  "direct_cause": "The logging consolidation replaced `console.warn` in electron/capabilityCore/mcpStdioServer.ts with `logWarn`. Inside that process `console.*` had been rewritten to an unconditional `process.stderr.write` (the `toErr` shim), whereas the new logger's `mirrorToStderr` returns early whenever `app.isPackaged !== false` — so the packaged stdio server writes only to disk. Independently, the event text moved from prose to a structured event id in the Electron path while the bare-Node launcher kept its own prose, and both E2E anchors were hand-copied third copies of that wording.",
+  "class_root": "The logger decided the meaning of stderr for the whole main process — a developer's terminal, therefore dev-only. But one process mode has a different meaning: launched with NOMI_MCP_STDIO=1, stdout is handed entirely to JSON-RPC and stderr is the host protocol surface, the only channel through which a host can see any diagnostic at all. Nothing in the logger let a process declare that, so every call site migrated into the logger silently lost its host-facing half. The same missing single owner produced the naming half of the defect: one diagnostic event had three spellings (Electron path, bare-Node launcher, hand-copied test anchor) with nothing tying them together.",
+  "affected_population": [
+    "Every MCP host that launches Nomi as a stdio server (Claude Code, Codex, any other MCP client) on a packaged build — the shipping configuration",
+    "Both stdio launch paths: the in-Electron server (NOMI_MCP_STDIO=1) and the packaged bare-Node launcher (mcpNodeLauncher under ELECTRON_RUN_AS_NODE)",
+    "Every main-process diagnostic reachable from the stdio process, not just the two the tests pin — the session header, vendor call summaries and crash breadcrumbs were equally invisible to the host"
+  ],
+  "scope_paths": [
+    "electron/logging/logger.ts",
+    "electron/mainProcessLifecycle.ts",
+    "electron/capabilityCore/mcpStdioDiagnostics.ts",
+    "electron/capabilityCore/mcpStdioServer.ts",
+    "electron/capabilityCore/mcpNodeLauncher.ts",
+    "tests/ux/mcp-l1-handshake.e2e.mjs",
+    "tests/ux/mcp-l2-journeys.e2e.mjs"
+  ],
+  "entry_points": [
+    "Electron main launched with NOMI_MCP_STDIO=1 (in-Electron stdio server, the dev/E2E and app-installed transport)",
+    "Packaged bare-Node launcher mcpNodeLauncher.js under ELECTRON_RUN_AS_NODE (the release launcher a host actually spawns)",
+    "Every logInfo / logWarn / logError / logVendorCall call site in the main process, all of which are reachable from the stdio process"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The MCP stdio framing, the process launch modes and the logger are all internal Nomi contracts. The MCP specification says nothing about the content of a server's stderr beyond it not being the message channel, so no third-party API shape constrains this repair.",
+  "invariants": [
+    "A process whose stderr is a host protocol surface declares it once at startup; from that moment every logger line is mirrored to stderr regardless of whether the build is packaged.",
+    "Disk logging never replaces the host-facing channel: the file lives on the user's machine and the host cannot read it, so a diagnostic that only lands on disk is a lost diagnostic.",
+    "The stderr mirror is a direct synchronous write with nothing queued in front of it — the lines worth having are the ones written just before the process is torn down.",
+    "One stdio diagnostic event has exactly one name, defined once and imported by both launch paths and by the regression tests; no test hand-copies the wording.",
+    "logDevDetail stays dev-only and is never promoted to the host surface: it carries free text (renderer console forwarding, local paths) and would turn the host channel into a privacy leak."
+  ],
+  "generality_proof": "The declaration is process-level, not call-site level: installMainProcessLifecycle marks the stdio process before it installs the logger, so every logger call in that process — the ones that exist today and the ones a later migration adds — is host-visible without touching a single call site. A future console.* → logger migration therefore cannot repeat the silencing, because there is no per-site switch to forget. The naming half is closed by the same shape: both launch paths and both journeys import the event names from one module, so a rename is a compile-time fan-out rather than a silent drift.",
+  "shared_boundaries": [
+    {
+      "path": "electron/logging/logger.ts",
+      "symbol": "markStderrAsDiagnosticSurface / mirrorToStderr",
+      "responsibility": "Single place that decides whether this process's stderr is a developer's terminal or a host protocol surface. One-way: the surface can be opened, never closed, so 'the logs vanished' has one fewer possible cause."
+    },
+    {
+      "path": "electron/capabilityCore/mcpStdioDiagnostics.ts",
+      "symbol": "MCP_OVERSIZED_LINE_EVENT / MCP_CANCELLED_IN_FLIGHT_EVENT",
+      "responsibility": "Single definition of the stdio diagnostic event names, shared by the in-Electron server, the bare-Node launcher and the L1/L2 regressions. Deliberately holds names only — the two paths keep their own line prefixes, so the logger does not have to make an exception for one caller."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/mainProcessLifecycle.ts",
+      "entry_point": "NOMI_MCP_STDIO=1 process startup (installMainProcessLifecycle)",
+      "disposition": "enforced",
+      "evidence": "The mark runs inside the one function that owns startup install order, before mainLoggerInstaller(), so the session header (version / Electron / platform) — the host's first evidence that the server started and on which build — reaches stderr instead of only the log file. mainProcessLifecycle.test.ts pins both the mark and its position relative to the logger install."
+    },
+    {
+      "path": "electron/capabilityCore/mcpStdioServer.ts",
+      "entry_point": "oversized stdin line and cancel-all-in-flight-on-disconnect",
+      "disposition": "enforced",
+      "evidence": "Both diagnostics now use the shared event names and reach stderr through the marked logger; L1 C5 and L2 C10 assert the line arrives on stderr with its field (limitBytes / count), not merely that the event name appears somewhere."
+    },
+    {
+      "path": "electron/capabilityCore/mcpNodeLauncher.ts",
+      "entry_point": "the same two diagnostics on the packaged bare-Node path",
+      "disposition": "enforced",
+      "evidence": "Kept as direct process.stderr.write — under ELECTRON_RUN_AS_NODE the logger is unreachable (it needs electron's app.getPath) — but both lines now emit the shared event name plus the same field, so a host sees one vocabulary across both launch paths."
+    },
+    {
+      "path": "electron/capabilityCore/mcpStdioServer.ts",
+      "entry_point": "the console.* → toErr rewrite for third-party dependencies",
+      "disposition": "not-affected",
+      "evidence": "That shim exists to keep dependency noise out of the JSON-RPC stdout channel, not to carry our own diagnostics; it was already an unconditional stderr write and stays one. Our own logging no longer depends on it."
+    },
+    {
+      "path": "electron/main.ts",
+      "entry_point": "the stdio startup-failure writer ([nomi:mcp-stdio] 启动失败)",
+      "disposition": "not-affected",
+      "evidence": "Still a direct process.stderr.write, deliberately: it runs when the logger itself may not be usable, so it must not route through it."
+    },
+    {
+      "path": "electron/logging/logger.ts",
+      "entry_point": "logDevDetail",
+      "disposition": "not-affected",
+      "evidence": "It carries free text that can include renderer console output and local paths, and is a no-op in packaged builds by design. Promoting it to the host surface would trade a lost-diagnostic bug for a privacy leak, so the mark deliberately does not reach it."
+    },
+    {
+      "path": "electron/capabilityCore/host.ts",
+      "entry_point": "seed reconcile failure writer",
+      "disposition": "not-affected",
+      "evidence": "Already an unconditional direct stderr write on a path the logging consolidation did not touch; nothing to lose or rename."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The consolidation moved 99 console.* call sites into the logger, and every one of them that a stdio host could reach lost its host-facing half the same way. Two of them were caught only because two journeys happened to pin their wording; the rest (session header, vendor call summaries, crash breadcrumbs) failed silently. Any future migration into the logger would have repeated it, and any future rename would have re-split the names.",
+    "same_class_scan": [
+      "Grepped every process.stderr.write in electron/ (excluding tests): the survivors are main.ts's stdio startup-failure writer, mcpStdioServer's third-party console shim, the launcher's two lines, host.ts's seed-reconcile writer and the logger's own two writers. Each is dispositioned above.",
+      "Grepped every logDevDetail call site: all are dev-terminal noise (renderer console forwarding, userData dir, renderer load failures) and must stay off the host surface.",
+      "Grepped the repository for both diagnostic wordings: exactly three copies of the oversized-line phrase (server, launcher, L1 anchor) and three of the cancel phrase (server, launcher, L2 anchor). Both families are now one constant plus derived assertions.",
+      "Reproduced C5 locally against the real in-Electron stdio process and probed the raw stderr text before changing anything, which is how the second instance (L2 C10, not mentioned in the failing CI job) was found rather than guessed."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/logging/logger.ts",
+    "invariant": "Once a process marks its stderr as a host diagnostic surface, mirrorToStderr writes every line synchronously regardless of app.isPackaged; the stdio process performs that mark before any logging is installed.",
+    "failure_mode": "Reverting the mark's effect makes electron/logging/logger.test.ts『被标记成宿主诊断面后，打包态也照样同步写 stderr』fail (verified: the assertion sees an empty stderr); moving the mark after the logger install makes electron/mainProcessLifecycle.test.ts『MCP stdio 进程在装日志之前就把 stderr 标成宿主诊断面』fail (verified); and renaming either event without going through mcpStdioDiagnostics.ts breaks the L1 C5 and L2 C10 anchors, which import the names rather than copying them.",
+    "exception_policy": "none",
+    "strategy": "Let the process declare what its stderr means, once, at the earliest point in startup; keep one name per diagnostic in one module that both launch paths and both journeys import.",
+    "artifacts": [
+      "electron/logging/logger.ts",
+      "electron/mainProcessLifecycle.ts",
+      "electron/capabilityCore/mcpStdioDiagnostics.ts",
+      "electron/logging/logger.test.ts",
+      "electron/mainProcessLifecycle.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/logging/logger.test.ts",
+    "electron/mainProcessLifecycle.test.ts",
+    "tests/ux/mcp-l1-handshake.e2e.mjs",
+    "tests/ux/mcp-l2-journeys.e2e.mjs"
+  ],
+  "class_regression_tests": [
+    "electron/logging/logger.test.ts",
+    "electron/mainProcessLifecycle.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/capabilityCore/mcpNodeLauncher.ts",
+      "tests/ux/mcp-l1-handshake.e2e.mjs",
+      "tests/ux/mcp-l2-journeys.e2e.mjs"
+    ],
+    "rationale": "The launcher's two hand-written prose diagnostics and both hand-copied test anchors are deleted in the same commit and replaced by the shared constants — no second spelling is kept as a fallback, and no assertion accepts the old wording."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency is added, upgraded or removed; the repair uses the existing logger and the existing stdio transport.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted data, schema or protocol change. Hosts see the same two diagnostics under stable structured names, and packaged hosts see them for the first time since the logging consolidation.",
+  "residual_risks": [
+    "The packaged bare-Node launcher path is not covered by an automated stderr assertion — the packaged MCP smoke test asserts protocol behaviour only. The shared constant keeps its wording aligned, but a silencing regression on that specific path would still have to be caught by hand.",
+    "process.stderr.write to a pipe is asynchronous at the libuv level on macOS, so a diagnostic emitted in the same tick as an immediate process exit can still be lost. That is a property of Node's stdio, not of this repair; the mark removes the only part we control.",
+    "Whether a given diagnostic belongs on the host surface at all remains a judgement call at the call site: everything routed through logWarn/logError in the stdio process is now host-visible, so a future call site that wants to record something host-irrelevant should use logDevDetail rather than assuming nobody is reading."
+  ]
+}

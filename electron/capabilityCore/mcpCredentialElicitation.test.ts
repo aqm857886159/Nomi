@@ -16,7 +16,7 @@ function makeInvoke(states: string[]) {
   const invoke = async (method: string, params: Record<string, unknown>) => {
     calls.push({ method, params })
     if (method === 'integration.open_credentials') {
-      return { id: TICKET.sessionId, revision: 2, stage: 'needs_credential', credentialStatus: 'missing', credentialEntry: TICKET }
+      return { id: TICKET.sessionId, revision: 2, stage: 'needs_credential', credentialStatus: 'missing', credentialEntry: TICKET, credentialUiOpened: false }
     }
     const status = states[Math.min(index++, states.length - 1)]
     return { id: TICKET.sessionId, revision: 3, stage: status === 'ready' ? 'draft' : 'needs_credential', credentialStatus: status }
@@ -98,6 +98,37 @@ describe('nomi_integration credential elicitation (MCP url mode)', () => {
     expect(outcome.result.stage).toBe('needs_credential')
     expect(outcome.result.credentialEntry).toEqual({ mode: 'manual', instructions: expect.stringMatching(/设置|Settings/) })
     expect(JSON.stringify(outcome.result)).not.toContain('127.0.0.1')
+  })
+
+  it('says to start Nomi when the owning process cannot reach a GUI', async () => {
+    const { invoke } = makeInvoke(['missing'])
+    const outcome = await runIntegrationCredentialElicitation({
+      built: { sessionId: TICKET.sessionId, expectedRevision: 1 },
+      invoke,
+      elicitation: { requestUrl: async () => ({ supported: false }), notifyComplete: vi.fn() },
+      locale: 'en',
+      wait: noWait,
+    })
+    expect(outcome.kind).toBe('result')
+    if (outcome.kind !== 'result') throw new Error('unreachable')
+    expect((outcome.result.credentialEntry as { instructions: string }).instructions).toMatch(/Nomi is not running/)
+  })
+
+  it('tells form-only clients that the Nomi window is already on the provider page', async () => {
+    const { invoke } = makeInvoke(['missing'])
+    const wrappedInvoke = async (method: string, params: Record<string, unknown>) => {
+      const value = await invoke(method, params) as Record<string, unknown>
+      return method === 'integration.open_credentials' ? { ...value, credentialUiOpened: true } : value
+    }
+    const outcome = await runIntegrationCredentialElicitation({
+      built: { sessionId: TICKET.sessionId, expectedRevision: 1 },
+      invoke: wrappedInvoke,
+      elicitation: { requestUrl: async () => ({ supported: false }), notifyComplete: vi.fn() },
+      wait: noWait,
+    })
+    expect(outcome.kind).toBe('result')
+    if (outcome.kind !== 'result') throw new Error('unreachable')
+    expect((outcome.result.credentialEntry as { instructions: string }).instructions).toMatch(/窗口已经打开|window is open/)
   })
 })
 

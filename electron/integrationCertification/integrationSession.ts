@@ -9,7 +9,7 @@ import { ConnectionCertificationService, getConnectionCertificationService } fro
 import type { AdapterAuthType, ProviderAdapterModelSelection, ProviderAdapterRun } from "../providerAdapter/types";
 import type { ApprovalReceiptAuthority, HumanApprovalReceiptV1 } from "../capabilityCore/approvalReceipt";
 import type { IntegrationHandoff } from "./handoffQueue";
-import { enqueueIntegrationHandoff } from "./handoffQueue";
+import { enqueueIntegrationHandoff, retireIntegrationHandoffs } from "./handoffQueue";
 import { mutateCatalog, readCatalog, normalizeProviderKind } from "../catalog/catalogStore";
 import { decryptApiKeyRecord } from "../catalog/secrets";
 import { deriveVendorKeyFromBaseUrl } from "../catalog/catalogCommit";
@@ -140,6 +140,7 @@ type Dependencies = {
     >;
   /** Durable UI handoff sink. The session service never emits an event-only handoff. */
   enqueueHandoff?: (input: Omit<IntegrationHandoff, "requestId" | "createdAt">) => unknown;
+  retireHandoff?: (sessionId: string, target: IntegrationHandoff["target"]) => unknown;
   now?: () => string;
   /** Durable reservation for native ComfyUI certification submissions. */
   comfyOperationLedger?: OperationLedger;
@@ -467,6 +468,7 @@ export function createRuntimeIntegrationSessionService(
     certification,
     approvalReceiptAuthority: authority,
     enqueueHandoff: input.enqueueHandoff || enqueueIntegrationHandoff,
+    retireHandoff: retireIntegrationHandoffs,
     save: input.save,
     now: input.now,
     credentialResolver: resolveCredential,
@@ -1100,20 +1102,21 @@ export class IntegrationSessionService {
     });
     return result;
   }
-  markCredentialReady(
-    sessionId: string,
-    credentialRef: string,
-    owner: CapabilityOriginHost,
-  ): IntegrationSessionProjection {
+  markCredentialReady(sessionId: string, credentialRef: string, owner: CapabilityOriginHost): IntegrationSessionProjection {
     const session = this.getOrThrow(sessionId);
     if (session.ownerClientId !== owner || owner === "external") throw new Error("Signed client identity is required");
     session.credentialRef = id(credentialRef, "credentialRef");
     session.credentialStatus = "ready";
     session.stage = "draft";
+    return this.commitCredentialReady(session);
+  }
+  /** Shared tail of both credential-ready writes. The "type a key" handoff is retired only after the write is on disk. */
+  private commitCredentialReady(session: IntegrationSession): IntegrationSessionProjection {
     session.revision += 1;
     session.updatedAt = (this.deps.now || (() => new Date().toISOString()))();
     this.state.revision += 1;
     this.persist();
+    this.deps.retireHandoff?.(session.id, "credential");
     return this.projection(session);
   }
 
@@ -1160,11 +1163,7 @@ export class IntegrationSessionService {
     session.credentialStatus = "ready";
     session.stage = "draft";
     session.blockingReason = undefined;
-    session.revision += 1;
-    session.updatedAt = (this.deps.now || (() => new Date().toISOString()))();
-    this.state.revision += 1;
-    this.persist();
-    return this.projection(session);
+    return this.commitCredentialReady(session);
   }
   async propose(
     sessionId: unknown,

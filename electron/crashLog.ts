@@ -8,62 +8,46 @@
 //      面包屑（logBreadcrumb）。原生 access violation 不是 JS 异常，①②都拦不到、进程直接消失，
 //      唯一线索是「日志最后一行停在哪」和 minidump 里的模块名。
 import { app, crashReporter } from "electron";
-import fs from "node:fs";
 import path from "node:path";
+import { CRASH_LOG_FILE_NAME, createLogFileSink, logsDir } from "./logging/logFiles";
+import { logError } from "./logging/logger";
+import { redactError, redactLogValue } from "./logging/redact";
 
 const MAX_BYTES = 2 * 1024 * 1024; // 2MB 简单滚动
 
-let sessionStamped = false;
-
-function logFilePath(): string {
-  const dir = app.getPath("logs"); // macOS: ~/Library/Logs/<app>
-  fs.mkdirSync(dir, { recursive: true });
-  return path.join(dir, "nomi-crash.log");
-}
-
-/** 每段日志自带「哪个构建、哪个平台」——否则拿到用户回报也对不上版本，等于没有证据。 */
-function sessionLine(): string {
-  let version = "unknown";
-  try {
-    version = app.getVersion();
-  } catch {
-    /* app 未就绪时不阻断落盘 */
-  }
-  const electronVersion = process.versions.electron ?? "?";
-  return `--- session nomi=${version} electron=${electronVersion} ${process.platform}-${process.arch} pid=${process.pid}`;
-}
+/**
+ * 崩溃道的写手。滚动/表头/吞异常这套机制**共用** `logging/logFiles.ts` 那一份
+ * （P1：仓库里只有一个文件写手），这里只声明本道特有的三件事：
+ *   · 独立文件 `nomi-crash.log`——崩溃证据要能一眼找到，不跟通用日志混在按天文件里；
+ *   · 2MB 到顶**就地清空**（不是改名留一代）：这条道要的是"最后发生了什么"，
+ *     旧的那一代对定位当前崩溃没有价值，留着只会在用户硬盘上白占一份；
+ *   · 同步 append——原生崩溃会把进程直接带走，异步写在那一刻就丢了（见文件顶部第 ③ 层）。
+ */
+const crashSink = createLogFileSink({
+  resolvePath: () => path.join(logsDir(), CRASH_LOG_FILE_NAME),
+  maxBytes: MAX_BYTES,
+  rotate: "truncate",
+});
 
 function append(line: string): void {
-  try {
-    const file = logFilePath();
-    let rotated = false;
-    try {
-      if (fs.statSync(file).size > MAX_BYTES) {
-        fs.writeFileSync(file, "");
-        rotated = true; // 滚动会把表头冲掉，补写一行，别让后半段日志无版本可归属
-      }
-    } catch {
-      /* 文件不存在，忽略 */
-    }
-    if (rotated || !sessionStamped) {
-      sessionStamped = true;
-      fs.appendFileSync(file, `[${new Date().toISOString()}] ${sessionLine()}\n`);
-    }
-    fs.appendFileSync(file, `[${new Date().toISOString()}] ${line}\n`);
-  } catch {
-    /* 落盘失败不应再抛，避免崩溃处理本身崩溃 */
-  }
+  crashSink.append(line);
 }
 
+/**
+ * 落盘前过一遍 `logging/redact`：栈里**全是**绝对路径
+ * （`/Users/<人名>/…` / `/Applications/Nomi.app/Contents/…`），而崩溃日志是要进诊断包、
+ * 由用户发给我们的。帧里真正指认崩点的是文件名与行号，不是它装在谁的硬盘哪个目录下。
+ * 2026-09-06 走查实测：不脱敏时，一次隔离实例的导出里出现了另一台 worktree 的完整路径。
+ */
 function recordCrash(scope: string, error: unknown): void {
-  const message =
-    error instanceof Error ? `${error.name}: ${error.message}\n${error.stack || ""}` : String(error);
-  append(`[${scope}] ${message}`);
+  append(`[${scope}] ${redactError(error)}`);
 }
 
 export function logCrash(scope: string, error: unknown): void {
   recordCrash(scope, error);
-  console.error(`[nomi:${scope}]`, error);
+  // 崩溃道之外再进一次通用日志：排查时想看的是「崩之前那几分钟发生了什么」，
+  // 而那条时间线在通用日志里。从前这里是 console.error，打包后没人接（P1 删旧）。
+  logError("crash", scope, error);
 }
 
 /**
@@ -74,7 +58,7 @@ export function logCrash(scope: string, error: unknown): void {
  * （append 用 appendFileSync），异步写在进程被带走的那一刻会丢。
  */
 export function logBreadcrumb(scope: string, detail: string): void {
-  append(`[${scope}] ${detail}`);
+  append(`[${scope}] ${redactLogValue(detail)}`);
 }
 
 export type ProcessGoneTarget = {

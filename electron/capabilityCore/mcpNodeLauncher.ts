@@ -13,6 +13,7 @@ import readline from 'node:readline'
 
 import { createMcpProtocol, MCP_REQUEST_SIGNAL, type McpInvokeOptions } from './mcpProtocol'
 import { MAX_MCP_LINE_BYTES, parseMcpStdioLine } from './mcpStdioLine'
+import { MCP_CANCELLED_IN_FLIGHT_EVENT, MCP_OVERSIZED_LINE_EVENT } from './mcpStdioDiagnostics'
 import { recordDetectedMcpClient } from './mcpDetectedClients'
 // 直接吃纯 locale 模块，不经 i18n.ts——后者顶层 `import { app } from 'electron'`，本 launcher 打包后跑在
 // 无 electron 的裸 Node 里，引 i18n 会 MODULE_NOT_FOUND。这条 electron-free 由 mcpLauncherClosure.test.ts 钉死。
@@ -348,7 +349,9 @@ input.on('line', (line) => {
   const parsed = parseMcpStdioLine(line)
   if (parsed.kind === 'blank') return
   if (parsed.kind === 'oversized') {
-    process.stderr.write(`[nomi-mcp] dropped an oversized stdin line (> ${MAX_MCP_LINE_BYTES} bytes)\n`)
+    // 裸 Node launcher 够不着 logger（它要 electron 的 app.getPath），所以这里直写 stderr，
+    // 但事件名与字段与 Electron 那条逐字一致（同一个常量），宿主两边看到的是同一件事。
+    process.stderr.write(`[nomi-mcp] ${MCP_OVERSIZED_LINE_EVENT} limitBytes=${MAX_MCP_LINE_BYTES}\n`)
     return
   }
   if (parsed.kind === 'parse-error') {
@@ -363,7 +366,7 @@ function close(): void {
   if (closing) return
   closing = true
   const cancelled = protocol.cancelAllInFlight('stdio disconnected')
-  if (cancelled > 0) process.stderr.write(`[nomi-mcp] cancelled ${cancelled} in-flight request(s) on disconnect\n`)
+  if (cancelled > 0) process.stderr.write(`[nomi-mcp] ${MCP_CANCELLED_IN_FLIGHT_EVENT} count=${cancelled}\n`)
   if (process.env.NOMI_MCP_EXIT_BOOTSTRAPPED_APP === '1' && bootedApp?.pid) {
     try { bootedApp.kill('SIGTERM') } catch { /* best effort test cleanup */ }
   }

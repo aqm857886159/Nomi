@@ -21,6 +21,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { appFetch } from "../appFetch";
+import { logError, logInfo, logWarn } from "../logging/logger";
 
 type VendorBaseFamily = {
   vendorKey: string;
@@ -96,7 +97,7 @@ function persist(): void {
     fs.mkdirSync(path.dirname(stateFilePath), { recursive: true });
     fs.writeFileSync(stateFilePath, JSON.stringify({ version: STATE_VERSION, overrides }, null, 2), "utf8");
   } catch (error) {
-    console.error("[nomi:vendor-base] 持久化 override 失败（忽略，内存态仍生效）:", error);
+    logError("vendor", "base-override-persist-failed", error);
   }
 }
 
@@ -168,16 +169,16 @@ async function runLadder(family: VendorBaseFamily, failedOrigin: string): Promis
     if (await probeCandidate(candidate, family.marker)) {
       if (candidate === normalizeOrigin(family.primary)) {
         delete overrides[family.vendorKey];
-        console.log(`[nomi:vendor-base] ${family.vendorKey} 主域可达，清除 override`);
+        logInfo("vendor", "base-primary-reachable-override-cleared", { vendor: family.vendorKey });
       } else {
         overrides[family.vendorKey] = candidate;
-        console.log(`[nomi:vendor-base] ${family.vendorKey} 主域不可达，已切官方备用域 ${candidate}`);
+        logWarn("vendor", "base-switched-to-official-alternate", { vendor: family.vendorKey, base: candidate });
       }
       persist();
       return;
     }
   }
-  console.log(`[nomi:vendor-base] ${family.vendorKey} 全部候选域不可达，维持现状`);
+  logWarn("vendor", "base-all-candidates-unreachable", { vendor: family.vendorKey });
 }
 
 /**
@@ -206,7 +207,7 @@ export async function restorePrimaryIfHealthy(vendorKey: string): Promise<void> 
   if (await probeCandidate(normalizeOrigin(family.primary), family.marker)) {
     delete overrides[vendorKey];
     persist();
-    console.log(`[nomi:vendor-base] ${vendorKey} 主域已恢复，回切主域`);
+    logInfo("vendor", "base-primary-restored", { vendor: vendorKey });
   }
 }
 

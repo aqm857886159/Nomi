@@ -1,4 +1,5 @@
 import type { Session } from "electron";
+import { logError } from "../../logging/logger";
 
 const BROWSER_ACCEPT_LANGUAGE = "zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7";
 const BROWSER_CHROME_MAJOR_VERSION = Math.max(120, Number.parseInt(process.versions.chrome?.split(".")[0] || "", 10) || 124);
@@ -34,7 +35,7 @@ function configureBrowserSessionProxy(viewSession: Session): Promise<void> {
     .then(({ applySystemProxy }) => applySystemProxy(viewSession))
     .then(() => undefined)
     .catch((error) => {
-      console.error("[nomi:browser] applySystemProxy for browser session failed:", error);
+      logError("browser", "apply-system-proxy-failed", error);
     });
   browserSessionProxyPromises.set(viewSession, next);
   return next;

@@ -45,6 +45,7 @@
 - [隔离实例的 key/设置组装三坑](iso-walkthrough-key-seeding-traps.md) — `hasApiKey=false` 不证解密失败；别手拷设置文件
 - [断言计算色：别比字面串、翻主题先等 transition](walkthrough-computed-color-asserts.md) — oklch 序列化 + 插值帧两坑
 - [一个死选择器同时造假红和假绿](dead-selector-lies-both-ways.md) — 找到一处失效锚点就 grep 它的全部用法
+- [按「位置」认对象的锚点，多一个兄弟就变成掷硬币](positional-anchor-breaks-when-a-sibling-appears.md) — `.first()` 不会报错，只会安静指错；失败顶着下游的名字出现，加超时永远修不好
 - [GitHub Windows runner 把窗口夹到下限](gh-windows-runner-clamps-window-to-minimum.md) — 「只有 Windows 红」的头号原因，先反推 stage 尺寸
 - [功能落地后要做体验测试并记情绪摩擦日志](experiential-qa-emotion-log.md) — 截图审查要问「舒服吗」，不只问「在不在」
 - [断言前先证明你在你以为的现场](assert-you-are-in-the-situation-you-claim.md) — 注入的 meta 会被归一，两种假绿看起来都和真绿一样
@@ -52,11 +53,13 @@
 - [弹层被祖先 overflow 裁掉时三样证据同时失明](overlay-clipped-by-ancestor-overflow.md) — 浮层走查必查：`toBeVisible` / rect / 「点得动」全绿也可能用户点不到，改用 `expectOverlayReachable`
 
 ## B. 测试与 CI 的红绿判读
+- [停掉一个 agent ≠ 现场清空：子 agent 还在写、哨兵还在跑](stopping-an-agent-leaves-children-and-sentinels.md) — B · TaskStop 只停一个；先 ListAgents 停子 agent，再 pgrep 杀 until 循环，证明无写入后才派接力写手
 
 - [管道跑测试会吞掉退出码](piped-test-runs-mask-exit-codes.md) — `| tail` 的 exit 0 是 tail 的；错的 reporter 名会「全绿」通过
 - [测试文件不进主 typecheck](tests-are-not-typechecked.md) — 已由 `check:test-types` 接管，但 `pnpm typecheck` 仍看不见测试
 - [判测试翻红前先查别的 worktree](flaky-test-check-other-worktrees-first.md) — 并行 suite 能把耗时放大 40x，和真 flake 长得一样
 - [并行会话各跑各的 gates 会把机器压进 swap](parallel-gates-thrash-the-machine.md) — ✅ 已由 `vitest-fair-share` 接管；判超时红灯前先看 load 与 `sys%`，sys>15% 时超时红灯不作数
+- [门岗只能下它真拿到证据的那个结论](gate-verdict-must-be-backed-by-evidence.md) — ✅ 已固化；门岗指的证据文件根本不存在（让你看差异图但一张都没有）= 红的是工具不是你的改动
 - [productionRun 这类 flake 的分腿处置](production-run-tests-are-flaky.md) — 验修复用 `git cat-file` 看代码，别看 PR 状态
 - [复现竞态必须有阳性对照](race-repro-needs-positive-control.md) — 没阳性对照的绿灯不作数；「换平台才能复现」多半是仪器没 power
 - [性能预算在 macOS 校准却在 Linux CI 执行 → 假回归](canvas-perf-budget-calibrated-on-macos-fails-on-linux.md) — 别改预算挤 PR，那是治症状
@@ -122,3 +125,7 @@
 - [长等待交给 shell 哨兵，别交给子 agent](long-waits-belong-to-shell-sentinels-not-agents.md) — 同一天三种死法（Monitor 交卷 / 零 commit 等到超时 / `--watch` 挂死）；附哨兵模板与「CI 不替你跑新入库走查」
 
 > 另见 playbook [§14 门岗验「没变坏」，不验「做到了」](../engineering/agent-orchestration-playbook.md#14-门岗验没变坏不验做到了把-p3-机器化进派工合同)——派下去的活「36 门全绿」不等于规格达成；派工要绑验收物、收货先验规格再看门岗。
+- [两个各自绿的 PR 合到一起会红](two-green-prs-merge-red.md) — 连合同一区域 PR 前先 update-branch 等 CI；分类器 skip 的门不算绿
+- [合并收据只认 main 的 tip](merge-receipts-need-exact-tip.md) — 合一个等 CI 记一个再合下一个；probe worktree 分离 HEAD 跑 verify-merged
+- [Docs Gate Autosync 往受保护 main 推必败](docs-autosync-cannot-push-protected-main.md) — GH006 三连 = 有文档没进索引/没状态，本地补即可
+- [样张两条硬纪律：真字形、真比例](mockups-need-real-glyphs-and-true-proportions.md) — 图标从 @tabler 包抽真实路径；布局线框按 1680×842 真比例并自己看过

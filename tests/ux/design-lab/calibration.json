@@ -1,7 +1,9 @@
 {
   "version": 2,
   "pendingApprovalScreens": {
-    "editing": "2026-09-06 · 剪辑面这一族浮层刚登记进实验室，接触表还没给用户看过；拍板后跑 pnpm run design-lab:update 录基线，并**删掉本条登记**。"
+    "editing": "2026-09-06 · 剪辑面这一族浮层刚登记进实验室，接触表还没给用户看过；拍板后跑 pnpm run design-lab:update 录基线，并**删掉本条登记**。",
+    "host-config": "2026-09-06 · 宿主接入配置修好后的重启提示刚登记进实验室，接触表还没给用户看过；拍板后跑 pnpm run design-lab:update 录基线，并**删掉本条登记**。",
+    "settings": "2026-09-06 · 设置「隐私与诊断」那一格（遥测 + 新增的导出诊断包）刚登记进实验室，接触表还没给用户看过；拍板后跑 pnpm run design-lab:update 录基线，并**删掉本条登记**。"
   },
   "calibratedPlatform": "darwin",
   "viewport": {
@@ -17,17 +19,17 @@
         "maxDiffPixelRatio": 0.002
       }
     },
-    "editing": {
-      "tolerance": {
-        "threshold": 0.2,
-        "maxDiffPixels": 40
-      }
-    },
     "agent-panel-v4": {
-      "tolerance": {
-        "threshold": 0.2,
-        "maxDiffPixels": 40
-      }
+      "tolerance": { "threshold": 0.2, "maxDiffPixels": 40 }
+    },
+    "editing": {
+      "tolerance": { "threshold": 0.2, "maxDiffPixels": 40 }
+    },
+    "host-config": {
+      "tolerance": { "threshold": 0.2, "maxDiffPixels": 40 }
+    },
+    "settings": {
+      "tolerance": { "threshold": 0.2, "maxDiffPixels": 40 }
     }
   },
   "why": {

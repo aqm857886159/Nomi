@@ -77,6 +77,8 @@ export type RpcServerOptions = {
   canvasReadExecutionRuntime?: CanvasReadExecutionRuntime
   /** Main-owned durable proposal receipt service resolved only after a verified project lease. */
   proposalReceiptFor?: (binding: ProjectBinding) => ProjectAgentProposalReceiptService | undefined | Promise<ProjectAgentProposalReceiptService | undefined>
+  /** After a durable credential handoff is queued, focus/show the GUI and open model settings. */
+  openCredentialsInNomi?: import('./dispatcher').DispatchContext['openCredentialsInNomi']
 }
 
 function readBody(req: http.IncomingMessage): Promise<string> {
@@ -364,6 +366,7 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
           generationContext: options.generationContext,
           generationPlanning: options.generationPlanning,
           projectRevisionResolver: options.projectRevisionResolver,
+          openCredentialsInNomi: options.openCredentialsInNomi,
           ...(options.projectSessionAuthority && projectSessionConnection
             ? { projectSession: { authority: options.projectSessionAuthority, connection: projectSessionConnection } }
             : {}),

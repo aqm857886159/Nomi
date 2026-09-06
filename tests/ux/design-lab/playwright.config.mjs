@@ -5,13 +5,23 @@
 // 自写一份等于重造一个更差的轮子（R20）。
 //
 // 只跑视觉道；结构/覆盖检查在 `scripts/check-design-lab.mjs` 里，不需要浏览器。
+import path from 'node:path'
 import { defineConfig } from '@playwright/test'
-import { readCalibration } from './labStates.mjs'
+import { readCalibration, REPO_ROOT } from './labStates.mjs'
+import { labOriginFor, labPortFor } from './labServer.mjs'
 
 const calibration = readCalibration()
 
-export const LAB_PORT = 5197
-export const LAB_ORIGIN = `http://127.0.0.1:${LAB_PORT}`
+// 端口按 worktree 派生（labServer.mjs）。以前这里写死 5197——那是整台机器的全局单例，
+// 而 `reuseExistingServer` 只探「有没有人应答」：2026-09-06 实测到 5197 上应答的是另一棵
+// worktree 的 vite，本树的基线会被拿去和别的分支的 UI 比。派生把争用消掉，
+// warmUp 里的归属断言再把「万一还是撞上了」fail-closed 掉。
+export const LAB_PORT = labPortFor('visual')
+export const LAB_ORIGIN = labOriginFor('visual')
+
+// 产物目录写死成绝对路径：默认值随 Playwright 的解析基准走（实测落在仓库根而不是配置目录），
+// 门岗要靠它去数 -diff.png，两边对不上就会数出「零张差异图」这种致命的假证据。
+export const LAB_RESULTS_DIR = path.join(REPO_ROOT, 'test-results')
 
 export default defineConfig({
   testDir: '.',
@@ -27,6 +37,7 @@ export default defineConfig({
   // check-design-lab.mjs 按 calibration.json 判定「不跑视觉道」，而不是让 Playwright
   // 去找一份根本不存在的 linux 基线然后报「snapshot missing」（那是假红，看不出真因）。
   snapshotPathTemplate: '{testDir}/__baselines__/{arg}{ext}',
+  outputDir: LAB_RESULTS_DIR,
   fullyParallel: false,
   workers: 1,
   reporter: [['list']],

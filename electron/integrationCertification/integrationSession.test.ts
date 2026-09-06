@@ -312,6 +312,52 @@ describe("IntegrationSessionService", () => {
     expect(payload).not.toContain("api.example/v1");
   });
 
+  it("retires the queued credential handoff once the key lands through the MCP loopback page", () => {
+    // The GUI wizard used to be the only thing that retired this request, by acking after its own
+    // save. A key typed into the loopback page in the user's AI client therefore left the "type a
+    // key" handoff queued forever, and the model settings drawer kept yanking the user onto a
+    // stale add-a-model page for a provider that is already connected.
+    const { filePath } = make();
+    const retireHandoff = vi.fn();
+    const service = new IntegrationSessionService({
+      filePath,
+      enqueueHandoff: vi.fn(),
+      retireHandoff,
+      save: (target, state) => fs.writeFileSync(target, JSON.stringify(state)),
+    });
+    const session = service.begin(
+      { kind: "http-api-provider", name: "Provider", baseUrl: "https://api.example/v1" },
+      "codex",
+    );
+    const opened = service.openCredentials(session.id, session.revision, "codex");
+    expect(retireHandoff).not.toHaveBeenCalled();
+    const ready = service.markCredentialReady(opened.id, "ref", "codex");
+    expect(ready.credentialStatus).toBe("ready");
+    expect(retireHandoff).toHaveBeenCalledWith(session.id, "credential");
+  });
+
+  it("keeps the credential handoff queued when the GUI credential write fails", () => {
+    // The retirement sits after the durable write on purpose. Retiring first would delete the
+    // user's only route back to the page on a save that then threw. Two real rejections, one per
+    // layer: a stale revision (validation) and an unavailable keychain (catalog write).
+    const { filePath } = make();
+    const retireHandoff = vi.fn();
+    const service = new IntegrationSessionService({
+      filePath,
+      enqueueHandoff: vi.fn(),
+      retireHandoff,
+      save: (target, state) => fs.writeFileSync(target, JSON.stringify(state)),
+    });
+    const session = service.begin(
+      { kind: "http-api-provider", name: "Provider", baseUrl: "https://api.example/v1" },
+      "codex",
+    );
+    const opened = service.openCredentials(session.id, session.revision, "codex");
+    expect(() => service.saveCredential(opened.id, opened.revision - 1, "nomi", "sk-stale")).toThrow(/stale/);
+    expect(() => service.saveCredential(opened.id, opened.revision, "nomi", "sk-no-keychain")).toThrow(/secure storage/);
+    expect(retireHandoff).not.toHaveBeenCalled();
+  });
+
   it("creates a safe verification request and queues a verification handoff without exposing its token", async () => {
     const { filePath } = make();
     const requestChallenge = vi.fn((input: Record<string, unknown>) => ({

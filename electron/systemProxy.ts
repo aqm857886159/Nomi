@@ -18,6 +18,7 @@ import { networkFailureDetails, redactNetworkMessage, safeNetworkUrl } from "./n
 // 没法在纯 Node 下单测（既有 systemProxy.test.ts 正是靠"不碰 electron 运行时"跑起来的）。
 // 故偏好由调用方（main.ts / proxyIpc.ts，它们本来就在 electron 里）读好了注入。
 import type { ProxyMode, ProxyPrefs } from "./proxySettings";
+import { logError } from "./logging/logger";
 
 /** 没有偏好文件时的行为 = 上线本设置前的唯一行为（跟随系统探测）。 */
 const FOLLOW_SYSTEM: ProxyPrefs = { mode: "system", customUrl: "" };
@@ -51,7 +52,6 @@ export type ProxyStatus = {
   source: ProxySource | "";
 };
 
-const LOG = "[nomi:proxy]";
 
 type CommittedRoute = {
   dispatcher: Dispatcher;
@@ -369,7 +369,9 @@ export function applySystemProxy(session: Session, prefs: ProxyPrefs = FOLLOW_SY
       }
       if (generation === requestedGeneration) {
         applicationError = error instanceof Error ? error : new Error(String(error));
-        console.error(`${LOG} 代理设置未能应用，保留已确认线路:`, redactNetworkMessage(applicationError.message));
+        logError("proxy", "apply-failed-kept-confirmed-route", undefined, {
+          reason: redactNetworkMessage(applicationError.message),
+        });
       }
       return previousResolution();
     }

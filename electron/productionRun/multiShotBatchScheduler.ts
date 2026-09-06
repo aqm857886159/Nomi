@@ -4,6 +4,7 @@ import type { ProductionRunRepository } from "./productionRunRepository";
 import type { ProductionGenerationSubmission } from "./productionGenerationSubmission";
 import type { ShotPrice } from "./shotPricing";
 import { anchorCheckpointGateId, buildAnchorCheckpointGate } from "./anchorCheckpoint";
+import { logWarn } from "../logging/logger";
 
 /**
  * P4 S4 — the durable batch scheduler orchestrator (plan §3.3). It has NO persistent state of its own:
@@ -139,7 +140,7 @@ export function createMultiShotBatchScheduler(deps: BatchSchedulerDependencies) 
           try {
             await deps.onShotMaterialized(task.shotId);
           } catch (error) {
-            console.warn("[nomi:production] onShotMaterialized failed:", error instanceof Error ? error.message : String(error));
+            logWarn("production-run", "on-shot-materialized-failed", undefined, error);
           }
         }
         return "settled";
@@ -147,7 +148,7 @@ export function createMultiShotBatchScheduler(deps: BatchSchedulerDependencies) 
       if (polled.nextAction === "attention") return "settled"; // provider failed → job is needs_attention, leave it
       return "pending";
     } catch (error) {
-      console.warn(`[nomi:production] batch observe failed for ${task.shotId}:`, error instanceof Error ? error.message : String(error));
+      logWarn("production-run", "batch-observe-failed", { shotId: task.shotId }, error);
       return "pending";
     }
   }
@@ -183,7 +184,7 @@ export function createMultiShotBatchScheduler(deps: BatchSchedulerDependencies) 
       // QA/assembly kick may be retried from the Run owner, so do not turn a
       // transient renderer/export handoff failure into a false scheduler
       // failure or another provider submission.
-      console.warn("[nomi:production] onBatchComplete failed:", error instanceof Error ? error.message : String(error));
+      logWarn("production-run", "on-batch-complete-failed", undefined, error);
     }
   }
 

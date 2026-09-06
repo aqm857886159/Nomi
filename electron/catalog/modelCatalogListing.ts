@@ -167,7 +167,7 @@ export function referenceModeForIntent(
  *
  * **解密探测按 vendorKey 记忆化（本次调用内）**：keyStatus 只取决于 vendorKey（同 vendor 的所有模型共享同一条
  * key 记录与 authType），旧实现却**逐模型**调 apiKeyDecryptStatus——单 vendor N 个模型就是 N 次 safeStorage
- * 钥匙串 IPC，且 locked vendor 每个模型都吐一行重复 console.error（N 行同样的解密失败日志）。改为每 vendor 探一次
+ * 钥匙串 IPC，且 locked vendor 每个模型都吐一行重复解密失败日志（N 行一模一样）。改为每 vendor 探一次
  * 存进小 Map，同 vendor 后续模型直接命中，钥匙串往返与错误日志都降到「每 vendor 一次」。
  *
  * @param deps.keyStatusProbe 解密探测缝（house DI，默认真 apiKeyDecryptStatus）；测试注入 spy 断言「每 vendor 只探一次」。

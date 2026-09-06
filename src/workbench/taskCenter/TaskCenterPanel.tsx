@@ -17,6 +17,7 @@ import { confirmAndRunNode } from '../generationCanvas/runner/generationRunContr
 import { confirmAndRunPlan } from '../generationCanvas/components/batchPlanPreview'
 import { buildDependencyWaves } from '../generationCanvas/runner/dependencyWaves'
 import { buildTaskCenterView, formatElapsed, type TaskCenterRow } from './taskCenterEntries'
+import { toast } from '../../ui/toast'
 import { currentWorkbenchFloatingTopOffset } from '../../ui/app-shell/windowChrome'
 import type { ProductionRunSummary } from '../../../electron/productionRun/productionRunTypes'
 import type { TaskCenterProjection } from './taskCenterProjection'
@@ -202,13 +203,23 @@ export function TaskCenterPanel({ opened, onClose, productionRuns, exportJobs, o
     return <TaskRow key={row.id} row={row} onReveal={reveal} onAction={() => void runAction(row)} />
   }
 
+  /**
+   * 行上那颗操作钮（取消 / 中断 / 重试 / 取消导出）里有两条通到主进程，会失败。
+   * 此前整个 Promise 被裸 `void` 丢掉：用户点「取消导出」，行还在跑、按钮还在那儿、
+   * 一个字的解释也没有（设计系统 §4.1 C1）。失败就说一句，别让人对着不动的行猜。
+   */
   const runAction = async (row: TaskCenterProjection): Promise<void> => {
     const action = row.action
     if (!action) return
-    if (action.kind === 'cancel_generation_queue') cancelQueued(row as TaskCenterRow)
-    else if (action.kind === 'interrupt_generation') interruptRunning(row as TaskCenterRow)
-    else if (action.kind === 'retry_generation') await confirmAndRunNode(action.nodeId)
-    else if (action.kind === 'cancel_export_job') await getDesktopBridge()?.exports.cancel(action.jobId)
+    try {
+      if (action.kind === 'cancel_generation_queue') cancelQueued(row as TaskCenterRow)
+      else if (action.kind === 'interrupt_generation') interruptRunning(row as TaskCenterRow)
+      else if (action.kind === 'retry_generation') await confirmAndRunNode(action.nodeId)
+      else if (action.kind === 'cancel_export_job') await getDesktopBridge()?.exports.cancel(action.jobId)
+    } catch (error) {
+      console.error('task center action failed', error)
+      toast(t('taskCenter.actionFailed'), 'error')
+    }
   }
 
   return (
