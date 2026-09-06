@@ -194,7 +194,11 @@ export function AgentPanelV4Panel({
   }, [flow.length, slot?.title, queue?.length])
   return (
     <section
-      className="flex flex-col overflow-hidden rounded-nomi border border-nomi-line bg-nomi-paper"
+      // `overflow-clip` 而不是 `overflow-hidden`：hidden 仍然是一个**可以被程序滚动**的
+      // 滚动容器，浏览器把新内容 scrollIntoView 时会把 scrollLeft 推走，而用户没有任何手段
+      // 拖回来——一次溢出就变成永久裁切。面板自身在两个方向上都不该滚（对话流有自己的
+      // `overflow-y-auto`），所以直接 clip：把「溢出」留在能看见的地方，不留一个静默的坏状态。
+      className="flex flex-col overflow-clip rounded-nomi border border-nomi-line bg-nomi-paper"
       style={{ width, height }}
       data-v4-panel="true"
     >
