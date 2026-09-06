@@ -16,6 +16,10 @@ import {
   APPROVAL_CARD,
   ASSISTANT_MESSAGE,
   CANVAS_PANEL,
+  COLLAPSED_DOCK,
+  COLLAPSED_DOCK_BADGE,
+  COLLAPSED_DOCK_HINT,
+  COLLAPSED_DOCK_OPEN,
   COLLAPSED_SHELL,
   COMPOSER,
   COMPOSER_INPUT,
@@ -31,6 +35,7 @@ import {
   TOOL_RECEIPT,
   USER_BUBBLE,
   V4_FLOW,
+  V4_PANEL,
   approvePendingIntervention,
   chooseAssistantModel,
   createRuntimeWalk,
@@ -97,6 +102,29 @@ try {
   await walk.snap('01b-starter-filled')
   await panel.locator(COMPOSER_INPUT).fill('')
 
+  // 收起坞的**空闲**档（2026-09-06 用户改：收起态是右上角一枚 Nomi logo 钮）。
+  // 什么都没发生时 logo 素着：一颗永远亮着的点等于没有状态。
+  await clickOrFail(panel.locator(COLLAPSE_BUTTON), '收起面板')
+  const coldCollapsed = win.locator(COLLAPSED_SHELL)
+  const coldDock = coldCollapsed.locator(COLLAPSED_DOCK)
+  await expect(coldDock, '收起后右上角必须有那枚 logo 钮').toBeVisible()
+  await expect(coldDock).toHaveAttribute('data-agent-dock-status', 'idle')
+  const coldDockProof = await proveProbe(coldDock, '空闲态的收起坞确实渲出来了')
+  await expectAbsent(coldDock.locator(COLLAPSED_DOCK_BADGE), {
+    provenBy: coldDockProof,
+    message: '空闲的 logo 上不该叠任何角标',
+  })
+  // 收起藏的是对话流，不是对话：同一个 composer 掉到画面下沿。
+  await expect(coldCollapsed.locator(COMPOSER)).toBeVisible()
+  await walk.snap('01c-collapsed-idle')
+  await clickOrFail(coldCollapsed.locator(COLLAPSED_DOCK_OPEN), '点 logo 展开面板')
+  // 展开回来的面板必须是**有身量的**：收起时面板挂点从文档里摘掉、浏览器报 0×0，
+  // 早先那版尺寸 hook 再也没重新量过它，于是展开后是一块 2×2 的空白面板（2026-09-06 实测）。
+  // 断言宽度而不是「flow 可见」：flow 在 0 高的面板里照样"可见"。
+  await expect(panel.locator(V4_FLOW)).toBeVisible()
+  await expect.poll(async () => (await win.locator(`${CREATION_PANEL} ${V4_PANEL}`).boundingBox())?.width ?? 0,
+    { message: '展开回来的面板不能是 0 宽——收起把尺寸量成 0 之后没人重新量它', timeout: 30_000 }).toBeGreaterThan(200)
+
   // ── 2. 写脚本：一条普通对话 ───────────────────────────────────────────────
   const briefTurn = walk.fixture.expectText({
     label: 'agent writes the 20s script',
@@ -149,6 +177,19 @@ try {
   await expect(slot).toHaveAttribute('data-kind', 'approval-reversible')
   await expect(slot).toContainText('只对这一个操作生效')
   await walk.snap('04-intervention-approval')
+  // 带着这条待决收起：logo 上的数字角标读的**就是**这批待决，不是一个自己会亮的装饰；
+  // 而介入槽跟着 composer 一起留在画面下沿——收起之后照样读得到、批得下。
+  await clickOrFail(panel.locator(COLLAPSE_BUTTON), '带着一条待确认收起面板')
+  const pendingCollapsed = win.locator(COLLAPSED_SHELL)
+  const pendingDock = pendingCollapsed.locator(COLLAPSED_DOCK)
+  await expect(pendingDock).toHaveAttribute('data-agent-dock-status', 'needs-confirm')
+  await expect(pendingDock).toHaveAttribute('data-agent-dock-pending', '1')
+  await expect(pendingDock.locator(COLLAPSED_DOCK_BADGE)).toContainText('1')
+  await expect(pendingDock.locator(COLLAPSED_DOCK_HINT)).toHaveText('等你确认 1 条')
+  await expect(pendingCollapsed.locator(APPROVAL_CARD), '收起态也读得到介入槽').toBeVisible()
+  await walk.snap('04b-collapsed-needs-confirm')
+  await clickOrFail(pendingCollapsed.locator(COLLAPSED_DOCK_OPEN), '点 logo 展开面板')
+  await expect(panel.locator(V4_FLOW)).toBeVisible()
   await approvePendingIntervention(win, CREATION_PANEL)
   await recorded(tightenFollowup.received, 'approved document tool result')
   await waitForV4TurnIdle(win, { panel: CREATION_PANEL, settledBy: panel.locator(TOOL_RECEIPT).last() })
@@ -226,15 +267,30 @@ try {
   await expect(running, '停止之后 composer 必须退出运行态').toBeHidden({ timeout: 60_000 })
   await walk.snap('10-stopped')
 
-  // ── 8. 收起：藏起对话流，不是藏起对话 ───────────────────────────────────
+  // ── 8. 收起：坏消息不会被收起吞掉 ─────────────────────────────────────────
+  //
+  // 2026-09-06 用户改：收起态不再是右侧那条满高 32px rail 上的两颗小 icon，
+  // 而是 Nomi 一直延续的那枚 logo 钮（血统 `src/ui/app-shell/CollapsedAiChip.tsx`）。
+  // 空闲档在 §1 已验、待确认档在 §4 已验（角标数字 = 那一刻真实的待决条数），这里验失败档。
   await clickOrFail(canvas.locator(COLLAPSE_BUTTON), '收起面板')
   const collapsed = win.locator(COLLAPSED_SHELL)
   await expect(collapsed).toBeVisible()
-  // 收起后 composer 仍在画面下沿：这是「结果全屏」的承诺——把屏幕还给内容，但对话不中断。
   await expect(collapsed.locator(COMPOSER)).toBeVisible()
-  await walk.snap('11-collapsed')
-  await expandResidentPanel(win)
+  const dock = collapsed.locator(COLLAPSED_DOCK)
+  await expect(dock, '收起后右上角必须有那枚 logo 钮').toBeVisible()
+  // 刚被停下的那一轮在面板上留了一条错误带。收起藏掉的是**面板**，不是那件事——
+  // 角标必须把它接住，否则「收起」就成了一个悄悄吞掉坏消息的动作。
+  await expect(dock).toHaveAttribute('data-agent-dock-status', 'failed')
+  await expect(dock.locator('[data-agent-dock-badge="failed"]')).toBeVisible()
+  // hover 那一行字与无障碍名说的是同一句话（同一件事两个说法就是要横扫的东西）。
+  await expect(dock.locator(COLLAPSED_DOCK_HINT)).toHaveText('有一步没成')
+  await expect(dock.locator(COLLAPSED_DOCK_OPEN)).toHaveAttribute('aria-label', '展开 Nomi · 有一步没成')
+  await walk.snap('11-collapsed-failed')
+
+  // 点 logo 展开：整条对话原样还在，收起从来没有中断过它。
+  await clickOrFail(collapsed.locator(COLLAPSED_DOCK_OPEN), '点 logo 展开面板')
   await expect(win.locator(`${CANVAS_PANEL} ${V4_FLOW}`)).toBeVisible()
+  await expect(canvas.locator(USER_BUBBLE).last(), '展开后最后一句话还是收起前发的那句').toContainText('整体节奏')
 
   // ── 9. 关掉重开：昨天的活儿还在 ────────────────────────────────────────
   //

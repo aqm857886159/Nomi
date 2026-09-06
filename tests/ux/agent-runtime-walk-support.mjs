@@ -21,9 +21,15 @@ export const CREATION_PANEL = `${AGENT_PANEL}[data-agent-surface="creation"]`
 export const CANVAS_PANEL = `${AGENT_PANEL}[data-agent-surface="generation"]`
 export const PREVIEW_PANEL = `${AGENT_PANEL}[data-agent-surface="preview"]`
 export const STORYBOARD_PANEL = `${AGENT_PANEL}[data-agent-surface="storyboard"]`
-/** 收起态：外壳仍在（`data-agent-resident`），但没有 `data-agent-panel`，只剩图标条。 */
+/** 收起态：外壳仍在（`data-agent-resident`），但没有 `data-agent-panel`，只剩右上角那枚 logo 钮。 */
 export const COLLAPSED_SHELL = '[data-agent-resident="true"][data-agent-collapsed="true"]'
+/** 收起坞 = 右上角的 Nomi logo 钮（2026-09-06 用户改，此前是右侧满高 32px rail）。 */
 export const COLLAPSED_DOCK = '[data-v4-block="dock"]'
+export const COLLAPSED_DOCK_OPEN = '[data-v4-control="dock-open"]'
+/** logo 上叠的那一格：`data-agent-dock-badge` = running / needs-confirm / done / failed。 */
+export const COLLAPSED_DOCK_BADGE = '[data-agent-dock-badge]'
+/** hover 才冒的那一行状态字（无障碍名里始终带着同一句话）。 */
+export const COLLAPSED_DOCK_HINT = '[data-agent-dock-hint="true"]'
 /** 面板级错误带（外壳渲染，不在 v4 积木里）。 */
 export const PANEL_ERROR = '[data-agent-error="true"]'
 export const THREAD_MENU = '[data-agent-thread-menu="true"]'
@@ -347,7 +353,7 @@ export async function waitForV4TurnIdle(win, { panel = AGENT_PANEL, startTimeout
 
 /**
  * 展开常驻面板。收起态是**真实的两态偏好**（持久化），不是加载中间态：
- * 收起时外壳只剩 32px 图标条（`COLLAPSED_SHELL` + `COLLAPSED_DOCK`），点「对话」那颗钮展开。
+ * 收起时外壳只剩右上角那枚 Nomi logo 钮（`COLLAPSED_SHELL` + `COLLAPSED_DOCK`），点它展开。
  */
 export async function expandResidentPanel(win) {
   const collapsed = win.locator(COLLAPSED_SHELL)

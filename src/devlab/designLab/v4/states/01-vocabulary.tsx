@@ -8,7 +8,8 @@
 import React from 'react'
 import { V4Intervention, V4Queue, V4TaskCard } from '../../../../workbench/ai/v4/AgentPanelV4Cards'
 import { V4ContextRing } from '../../../../workbench/ai/v4/AgentPanelV4Context'
-import { V4CollapsedRail } from '../../../../workbench/ai/v4/AgentPanelV4Dock'
+import { V4CollapsedLogoDock } from '../../../../workbench/ai/v4/AgentPanelV4Dock'
+import type { V4DockStatus } from '../../../../workbench/ai/v4/agentPanelV4DockStatus'
 import { V4AssistantMessage, V4Thinking, V4UserBubble } from '../../../../workbench/ai/v4/AgentPanelV4Message'
 import { V4ErrorBar, V4ToolReceipt } from '../../../../workbench/ai/v4/AgentPanelV4Receipt'
 import { useV4Labels } from '../../../../workbench/ai/v4/agentPanelV4Labels'
@@ -111,15 +112,21 @@ function ContextCell({ expanded }: { expanded: boolean }): JSX.Element {
   )
 }
 
-function DockCell(): JSX.Element {
+/**
+ * ⑦ 收起坞 · 右上角那枚 Nomi logo 钮（2026-09-06 用户改）。
+ *
+ * logo 钮本身只有 32px 见方，裸着截会被走查的「舞台没渲染出来」判据（宽 < 40）误报成渲染失败，
+ * 所以放进同一个 `Piece` 取景框里，底下垫一块它在真机里压着的内容区——那块灰底同时是证据：
+ * 收起态的合同是「把屏幕还给内容」，logo 只该占右上角一个角，不是一整列。
+ */
+function DockCell({ status, pendingCount = 0 }: { status: V4DockStatus; pendingCount?: number }): JSX.Element {
   const labels = useV4Labels()
-  // rail 本身**就是** 32px 宽（定稿 ⑦）。裸着截会被走查的「舞台没渲染出来」判据（宽 < 40）
-  // 误报成渲染失败，所以放进同一个 `Piece` 取景框里，左边留出它在真机里贴着的那块内容区。
   return (
     <Piece>
-      <div className="flex" style={{ height: 120 }}>
-        <div className="flex-1 rounded-nomi-sm bg-nomi-ink-05" aria-hidden="true" />
-        <V4CollapsedRail running labels={labels.dock} />
+      <div className="relative rounded-nomi-sm bg-nomi-ink-05" style={{ height: 120 }}>
+        <div className="absolute right-2 top-2">
+          <V4CollapsedLogoDock status={status} pendingCount={pendingCount} labels={labels.dock} />
+        </div>
       </div>
     </Piece>
   )
@@ -365,11 +372,39 @@ export const V4_VOCABULARY_STATES: readonly LabState[] = [
     render: () => <QueueCell pick="interrupt" />,
   },
   {
-    id: 'v4-dock-rail',
-    name: '⑦ 收起坞 · 32px rail（带运行状态点）',
-    source: '2026-09-06-agent-panel-v4.md · Vocabulary 板',
+    id: 'v4-dock-logo',
+    name: '⑦ 收起坞 · Nomi logo 钮（空闲：什么都不叠）',
+    source: '2026-09-06-agent-panel-v4.md · Collapsed 板（2026-09-06 用户改：收起态回到 logo）',
     coverage: 'component-only',
-    render: () => <DockCell />,
+    render: () => <DockCell status="idle" />,
+  },
+  {
+    id: 'v4-collapsed-running',
+    name: '⑦ 收起坞 · 运行中（呼吸点）',
+    source: '2026-09-06-agent-panel-v4.md · Collapsed 板（2026-09-06 用户改：收起态回到 logo）',
+    coverage: 'component-only',
+    render: () => <DockCell status="running" />,
+  },
+  {
+    id: 'v4-collapsed-needs-confirm',
+    name: '⑦ 收起坞 · 待你确认（数字角标 = 介入槽条数）',
+    source: '2026-09-06-agent-panel-v4.md · Collapsed 板（2026-09-06 用户改：收起态回到 logo）',
+    coverage: 'component-only',
+    render: () => <DockCell status="needs-confirm" pendingCount={2} />,
+  },
+  {
+    id: 'v4-collapsed-done',
+    name: '⑦ 收起坞 · 刚完成（短暂勾号，2.4s 后自己消失）',
+    source: '2026-09-06-agent-panel-v4.md · Collapsed 板（2026-09-06 用户改：收起态回到 logo）',
+    coverage: 'component-only',
+    render: () => <DockCell status="done" />,
+  },
+  {
+    id: 'v4-collapsed-failed',
+    name: '⑦ 收起坞 · 失败（警示角标）',
+    source: '2026-09-06-agent-panel-v4.md · Collapsed 板（2026-09-06 用户改：收起态回到 logo）',
+    coverage: 'component-only',
+    render: () => <DockCell status="failed" />,
   },
   {
     id: 'v4-context-ring',

@@ -177,6 +177,12 @@
 
 ### 2.7 ⑦ 收起坞 `V4CollapsedRail`
 
+> **2026-09-06 已被用户改掉**：收起态不再是右侧 32px rail 上的两颗 icon，而是右上角一枚 Nomi logo 钮
+> （`V4CollapsedLogoDock`），状态叠在 logo 上（词表 `agentPanelV4DockStatus.ts::V4DockStatus`）。
+> 本节下表描述的是被替换掉的那一版，留作接线来源的记录；现役合同看
+> `docs/design/2026-09-06-agent-panel-v4.md` 拍板 ⑪。
+
+
 | v4 字段 | 宿主来源 | 状态 |
 |---|---|---|
 | `running` 状态点 | `useResidentActivityStore` | ✅ |

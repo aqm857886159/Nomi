@@ -99,9 +99,14 @@ const V4_REQUIRED_STATES = [
   'v4-intervention-credential', 'v4-intervention-deviation',
   // ⑧ composer · 权限三档（工作方式三档已于 2026-09-06 拍板 ① 删除，不再有对应格）
   'v4-composer-permission-step', 'v4-composer-permission-safe-auto', 'v4-composer-permission-project',
-  // ② 助手文本三态 · ① 用户气泡 · ⑥ 队列 · ⑦ 收起坞 · ⑧ Context 环
+  // ⑦ 收起坞 · 五档状态（`agentPanelV4DockStatus.ts::V4DockStatus`）
+  // 2026-09-06 用户改：收起态从「右侧 32px rail 上的两颗 icon」换回「右上角 Nomi logo + 状态叠加」。
+  // 词表加一档就得画一格，正是这条断言的意义。
+  'v4-dock-logo', 'v4-collapsed-running', 'v4-collapsed-needs-confirm',
+  'v4-collapsed-done', 'v4-collapsed-failed',
+  // ② 助手文本三态 · ① 用户气泡 · ⑥ 队列 · ⑧ Context 环
   'v4-assistant-streaming', 'v4-assistant-complete', 'v4-assistant-interrupted',
-  'v4-user-plain', 'v4-queue-mixed', 'v4-dock-rail', 'v4-context-ring',
+  'v4-user-plain', 'v4-queue-mixed', 'v4-context-ring',
 ]
 const STORYBOARD_SECTIONS = [
   '§2.1', '§2.2', '§2.3', '§2.4', '§2.4.1', '§2.6', '§2.7',

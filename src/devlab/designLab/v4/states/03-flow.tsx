@@ -8,7 +8,7 @@ import React from 'react'
 import { AgentPanelV4Panel } from '../../../../workbench/ai/v4/AgentPanelV4Panel'
 import { AgentPanelV4Composer } from '../../../../workbench/ai/v4/AgentPanelV4Composer'
 import { V4Intervention } from '../../../../workbench/ai/v4/AgentPanelV4Cards'
-import { V4CollapsedRail } from '../../../../workbench/ai/v4/AgentPanelV4Dock'
+import { V4CollapsedLogoDock } from '../../../../workbench/ai/v4/AgentPanelV4Dock'
 import { useV4Labels } from '../../../../workbench/ai/v4/agentPanelV4Labels'
 import { useV4Fixtures } from '../agentPanelV4LabKit'
 import type { LabState } from '../../labScreen'
@@ -69,13 +69,19 @@ function DarkPanel(): JSX.Element {
   )
 }
 
-/** 收起坞：右侧 32px rail + 同一个 composer 和介入槽落到画面下沿（定稿 Collapsed 板）。 */
+/**
+ * 收起坞：右上角一枚 Nomi logo 钮 + 同一个 composer 和介入槽落到画面下沿（定稿 Collapsed 板，
+ * 2026-09-06 用户改：右上角从两颗小 icon 换回 logo）。
+ *
+ * 这一格挂着 `needs-confirm`：介入槽正浮在下沿等人点，logo 上就该冒同一件事的角标——
+ * 两处说的是同一条待决，对不上就是收起态在撒谎。
+ */
 function CollapsedScene(): JSX.Element {
   const fx = useV4Fixtures()
   const labels = useV4Labels()
   return (
-    <div className="flex bg-nomi-ink-05" style={{ width: 620, height: 360 }}>
-      <div className="flex min-w-0 flex-1 flex-col justify-end gap-2 p-3">
+    <div className="relative bg-nomi-ink-05" style={{ width: 620, height: 360 }}>
+      <div className="flex h-full min-w-0 flex-col justify-end gap-2 p-3">
         <V4Intervention data={fx.slots.reversible} labels={labels.intervention} />
         <AgentPanelV4Composer
           panelHeight={360}
@@ -85,7 +91,9 @@ function CollapsedScene(): JSX.Element {
           value={fx.t('agentPanelV4.fixtureUserTrim')}
         />
       </div>
-      <V4CollapsedRail running labels={labels.dock} />
+      <div className="absolute right-2 top-2">
+        <V4CollapsedLogoDock status="needs-confirm" pendingCount={1} labels={labels.dock} />
+      </div>
     </div>
   )
 }
@@ -125,7 +133,7 @@ export const V4_FLOW_STATES: readonly LabState[] = [
   },
   {
     id: 'v4-collapsed',
-    name: 'Collapsed · 结果全屏（rail + 下沿 composer / 介入槽）',
+    name: 'Collapsed · 结果全屏（右上 logo 钮 + 下沿 composer / 介入槽）',
     source: '2026-09-06-agent-panel-v4.md · Collapsed 板',
     coverage: 'component-only',
     span: 2,

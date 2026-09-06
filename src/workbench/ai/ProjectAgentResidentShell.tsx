@@ -19,7 +19,8 @@ import { useTimelinePlanPreview } from './resident/timelineAgentSurface'
 import type { ResidentSurface } from './resident/residentShellDisplay'
 import { AgentPanelV4Panel } from './v4/AgentPanelV4Panel'
 import { V4Intervention } from './v4/AgentPanelV4Cards'
-import { V4CollapsedDock, V4CollapsedRail } from './v4/AgentPanelV4Dock'
+import { V4CollapsedDock, V4CollapsedLogoDock } from './v4/AgentPanelV4Dock'
+import { useV4DockStatus } from './v4/agentPanelV4DockStatus'
 import { AgentPanelV4Composer, V4ModelPopover, V4PermissionPopover, V4SkillPopover, type V4CommandRow, type V4ModelRow } from './v4/AgentPanelV4Composer'
 import { useAgentPanelV4Data } from './v4/useAgentPanelV4Data'
 import { useAgentPanelV4Actions } from './v4/useAgentPanelV4Actions'
@@ -30,30 +31,44 @@ import { promptDisplayTitle } from '../promptLibrary/promptDisplay'
 import { filterPrompts } from '../api/promptLibraryApi'
 import type { ComposerPopover } from './v4/agentPanelV4Types'
 
-/** 面板尺寸只有真实 DOM 知道。v4 的积木按面板高度 derive composer 上限，所以必须量。 */
-function usePanelSize(ref: React.RefObject<HTMLElement>): Readonly<{ width: number; height: number }> {
+/**
+ * 面板尺寸只有真实 DOM 知道。v4 的积木按面板高度 derive composer 上限，所以必须量。
+ *
+ * 挂点是 **callback ref**，不是 `useRef` + `useEffect([ref])`。后者量的是「首次挂载时
+ * `ref.current` 指的那个节点」，而这个组件收起时整棵子树换成另一棵（收起态的外壳没有这个挂点），
+ * 展开时再换回来——ref 对象本身没变，effect 因此**永远不会重跑**，观察器一直盯着那个已经
+ * 从文档里摘掉的旧节点。摘掉的节点浏览器报 0×0，于是收起那一刻 size 被写成 `{0,0}`；
+ * 再展开时没有任何东西重新量它，面板就以 0×0 渲染——**一块空白的 Agent 面板**。
+ * （2026-09-06 真机走查实测：外壳 339×745，面板 2×2，只剩两条边框。）
+ *
+ * callback ref 在节点每次换人时都跑一遍，观察器跟着换到新节点上——这才是「量的是当下这个盒子」。
+ * 0×0 另外直接丢掉：一个真实布局里的面板不会是 0 宽 0 高，那个数只可能来自已经摘掉的节点。
+ */
+function usePanelSize(): Readonly<{ width: number; height: number; measure: (node: HTMLElement | null) => void }> {
   const [size, setSize] = React.useState({ width: 390, height: 620 })
-  React.useEffect(() => {
-    const node = ref.current
+  const observerRef = React.useRef<ResizeObserver | null>(null)
+  const measure = React.useCallback((node: HTMLElement | null) => {
+    observerRef.current?.disconnect()
+    observerRef.current = null
     if (!node || typeof ResizeObserver !== 'function') return
     const observer = new ResizeObserver((entries) => {
       const box = entries[0]?.contentRect
-      if (!box) return
+      if (!box || box.width === 0 || box.height === 0) return
       // 面板宽度是用户拖出来的，高度跟着工作区。两个数都取整：小数宽度会让
       // `data-height` 每一帧都不同，视觉基线因此随机翻红。
       setSize({ width: Math.round(box.width), height: Math.round(box.height) })
     })
     observer.observe(node)
-    return () => observer.disconnect()
-  }, [ref])
-  return size
+    observerRef.current = observer
+  }, [])
+  React.useEffect(() => () => observerRef.current?.disconnect(), [])
+  return { ...size, measure }
 }
 
 export default function ProjectAgentResidentShell({ surface }: { surface: ResidentSurface }): JSX.Element {
   const { t } = useTranslation()
   const labels = useV4Labels()
-  const rootRef = React.useRef<HTMLDivElement>(null)
-  const size = usePanelSize(rootRef)
+  const size = usePanelSize()
   const collapsed = useWorkbenchStore((state) => state.projectAgentDockCollapsed)
   const setCollapsed = useWorkbenchStore((state) => state.setProjectAgentDockCollapsed)
   const draft = useWorkbenchStore((state) => state.projectAgentDraft)
@@ -106,6 +121,20 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
   React.useEffect(() => {
     publishActivity(activityTone, activityLabel)
   }, [activityLabel, activityTone, publishActivity])
+
+  /**
+   * 收起后 logo 上叠的那一格（2026-09-06 用户改）。
+   *
+   * 三个事实都从**已有的宿主投影**取，不新开一条真相：等待条数就是介入槽读的那批待决，
+   * 失败看「最后一件事是不是坏的」——面板级错误带，或者流末尾那条 error。翻历史找旧失败
+   * 会让一个早就被绕过去的错误永远在 logo 上挂着，那是假报警。
+   */
+  const dockPendingCount = data.pendingRecords.filter((record) => record.state === 'pending').length
+  const dockStatus = useV4DockStatus({
+    running: data.running,
+    pendingCount: dockPendingCount,
+    failed: Boolean(actions.error) || data.flow[data.flow.length - 1]?.kind === 'error',
+  })
 
   /**
    * 错误条 / 失败任务卡上那个动作钮。
@@ -229,7 +258,10 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
 
   // 收起 = 藏起**对话流**，不是藏起对话（定稿 Collapsed 板）。同一个 composer 掉到画面下沿
   // 居中，介入槽跟着它——这样一份编辑计划仍然读得到、批得下，不必把整列还给面板。
-  // 只留一条图标条、把 composer 也收走，才是真的把对话中断了。
+  // 把 composer 也收走，才是真的把对话中断了。
+  //
+  // 叫回它的入口只有一个：右上角那枚 Nomi logo 钮（2026-09-06 用户改，血统见 `CollapsedAiChip`）。
+  // 之前是右侧一条满高 32px rail 上的两颗 icon——两颗指的是同一个动作，还占着一整列注意力。
   if (collapsed) {
     return (
       <section
@@ -268,8 +300,13 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
             skillSelected={Boolean(activeSkill || actions.selectedLibraryPrompt)}
           />
         </V4CollapsedDock>
-        <div className="pointer-events-auto absolute right-0 top-0 h-full">
-          <V4CollapsedRail running={data.running} labels={labels.dock} onOpen={() => setCollapsed(false)} onAdjust={() => setCollapsed(false)} />
+        <div className="pointer-events-auto absolute right-2 top-2 z-40">
+          <V4CollapsedLogoDock
+            status={dockStatus}
+            pendingCount={dockPendingCount}
+            labels={labels.dock}
+            onOpen={() => setCollapsed(false)}
+          />
         </div>
       </section>
     )
@@ -277,7 +314,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
 
   return (
     <div
-      ref={rootRef}
+      ref={size.measure}
       id="project-agent-resident"
       className="relative isolate flex h-full min-h-0 w-full min-w-0 flex-col bg-[var(--workbench-ai-panel-bg)] text-nomi-ink"
       aria-label={t('agentResident.aria')}

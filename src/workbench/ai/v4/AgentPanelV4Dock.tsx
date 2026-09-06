@@ -1,52 +1,112 @@
 // Agent 面板 v4 · 积木 ⑦ 收起坞（我们独有，AI Elements / Beautiful UI 都没有对应件）
 //
-// 定稿 Collapsed 板：结果全屏时右栏收成一根 **32px** 图标条，Nomi 图标带运行状态点；
-// 同一个 composer 和介入槽落到画面下沿居中，**对话不中断**。
-// 来源是 MiniMax「在画布中查看」的反向——内容优先时对话别消失。
+// **2026-09-06 用户改**：收起态右上角不再是两颗小 icon，而是 Nomi 一直延续的那枚 **logo 钮**，
+// 状态叠在 logo 上（运行中 / 待你确认 N / 刚完成 / 失败），点它展开；底部的 composer 坞不动。
+//
+// 血统在 `src/ui/app-shell/CollapsedAiChip.tsx`（生成区让位时收进顶栏的那枚角标）：
+// 同一枚 `NomiLogoMark`、同一句「有动静就冒角标、纯空会话不冒」、同一个 ghost 钮形态。
+// 那枚角标只会「有 / 没有」，这里按宿主投影分出五档——但**不重画 logo**，形状仍由
+// `src/design/identity.tsx` 单点持有（P1）。
+//
+// 为什么是右上角而不是右侧一条 rail：收起的意思是「把屏幕还给内容」。一条贴着右边缘、
+// 满高的 32px 条仍然占着一整列的注意力，而且它上面那两颗 icon（对话 / 面板设置）指的是
+// **同一个动作**——都是「把面板叫回来」。一枚 logo 就够了，状态叠在它身上。
 import React from 'react'
 import { cn } from '../../../utils/cn'
-import { IconLayoutSidebarRightCollapse, IconMessage } from './AgentPanelV4Icons'
+import { NomiLogoMark } from '../../../design'
+import { IconAlertTriangle, IconCheck } from './AgentPanelV4Icons'
+import { dockStatusLabel, type V4DockLabels, type V4DockStatus } from './agentPanelV4DockStatus'
 
-export function V4CollapsedRail({
-  running = false,
+/** logo 上那一格叠加物。空闲什么都不叠——「没事」最好的表达方式是不说话。 */
+function DockStatusOverlay({ status, pendingCount }: { status: V4DockStatus; pendingCount: number }): JSX.Element | null {
+  if (status === 'idle') return null
+  const corner = 'absolute -right-1 -top-1 grid place-items-center rounded-pill'
+  if (status === 'running') {
+    // 呼吸点而不是转圈：定稿 ⑧ 明令禁用「纯转圈无文字」，而这里本来就没有位置写字。
+    return (
+      <span
+        className={cn(corner, 'size-2 animate-pulse bg-nomi-accent motion-reduce:animate-none')}
+        data-agent-dock-badge="running"
+        aria-hidden="true"
+      />
+    )
+  }
+  if (status === 'needs-confirm') {
+    return (
+      <span
+        className={cn(corner, 'h-4 min-w-4 bg-nomi-warning px-1 text-micro font-medium leading-none text-nomi-paper')}
+        data-agent-dock-badge="needs-confirm"
+        aria-hidden="true"
+      >
+        {pendingCount}
+      </span>
+    )
+  }
+  if (status === 'failed') {
+    return (
+      <span
+        className={cn(corner, 'size-4 bg-nomi-danger text-nomi-paper')}
+        data-agent-dock-badge="failed"
+        aria-hidden="true"
+      >
+        <IconAlertTriangle size={10} />
+      </span>
+    )
+  }
+  return (
+    <span
+      className={cn(corner, 'size-4 bg-nomi-success text-nomi-paper')}
+      data-agent-dock-badge="done"
+      aria-hidden="true"
+    >
+      <IconCheck size={10} />
+    </span>
+  )
+}
+
+/**
+ * 收起态右上角的 Nomi logo 钮（2026-09-06 拍板改）。
+ *
+ * hover 才冒那一行状态字：收起态的合同是「把屏幕还给内容」，常驻一行字就是把它收回来一点。
+ * 无障碍名里**始终**带着这句话，所以读屏用户不靠 hover 也听得到。
+ */
+export function V4CollapsedLogoDock({
+  status,
+  pendingCount = 0,
   labels,
   onOpen,
-  onAdjust,
 }: {
-  running?: boolean
-  labels: { conversation: string; adjust: string }
+  status: V4DockStatus
+  pendingCount?: number
+  labels: V4DockLabels
   onOpen?: () => void
-  onAdjust?: () => void
 }): JSX.Element {
+  const statusLabel = dockStatusLabel(status, pendingCount, labels)
   return (
+    // `flex-row-reverse`：钮在 DOM 里排前面（`peer` 只作用于后面的兄弟），视觉上仍在最右。
     <div
-      className="flex h-full w-8 flex-col items-center gap-1.5 border-l border-nomi-line-soft bg-nomi-paper pt-2"
+      className="flex flex-row-reverse items-center gap-1.5"
       data-v4-block="dock"
+      data-agent-dock-status={status}
+      data-agent-dock-pending={pendingCount}
     >
       <button
         type="button"
-        aria-label={labels.conversation}
+        className="peer relative grid size-8 place-items-center rounded-nomi-sm border border-nomi-line bg-nomi-paper shadow-nomi-sm transition-[background,box-shadow] duration-[var(--nomi-transition-fast)] hover:bg-nomi-ink-05 hover:shadow-nomi-md"
+        aria-label={`${labels.open} · ${statusLabel}`}
+        data-v4-control="dock-open"
         onClick={onOpen}
-        className="relative grid size-6 place-items-center rounded-nomi-sm bg-nomi-accent-soft text-nomi-accent"
       >
-        <IconMessage size={14} />
-        {/* 运行状态点：收起了也要知道 Nomi 还在跑。 */}
-        <span
-          className={cn(
-            'absolute right-0.5 top-0.5 size-1.5 rounded-pill',
-            running ? 'bg-nomi-accent' : 'bg-transparent',
-          )}
-          aria-hidden="true"
-        />
+        <NomiLogoMark size={18} />
+        <DockStatusOverlay status={status} pendingCount={pendingCount} />
       </button>
-      <button
-        type="button"
-        aria-label={labels.adjust}
-        onClick={onAdjust}
-        className="grid size-6 place-items-center rounded-nomi-sm text-nomi-ink-60"
+      <span
+        className="pointer-events-none whitespace-nowrap rounded-pill border border-nomi-line bg-nomi-paper px-2 py-0.5 text-micro text-nomi-ink-60 opacity-0 shadow-nomi-sm transition-opacity duration-[var(--nomi-transition-fast)] peer-hover:opacity-100 peer-focus-visible:opacity-100"
+        data-agent-dock-hint="true"
+        aria-hidden="true"
       >
-        <IconLayoutSidebarRightCollapse size={14} />
-      </button>
+        {statusLabel}
+      </span>
     </div>
   )
 }
@@ -92,9 +152,9 @@ function useTransportClearance(dockRef: React.RefObject<HTMLDivElement | null>):
  * 收起藏的是**对话流**，不是对话：同一个 composer 掉到预览舞台的下边缘居中，
  * 介入槽跟着它一起——这样一份编辑计划仍然读得到、批得下，不必把整列还给面板。
  *
- * 这里**没有**「叫回 Nomi」按钮：收起后叫回它的入口只有一个，就是最右侧那条 32px 图标条
- * （状态点见 `residentActivity`）。上一版两个入口并存——图标条写「展开 Nomi」、画面右上角
- * 又浮一颗「叫回 Nomi」胶囊——同一个动作两个名字两个位置，还把画面右上角挡掉一块。
+ * 这里**没有**「叫回 Nomi」按钮：收起后叫回它的入口只有一个，就是右上角那枚 logo 钮
+ * （`V4CollapsedLogoDock`）。再更早的一版两个入口并存——rail 上写「展开 Nomi」、画面右上角
+ * 又浮一颗「叫回 Nomi」胶囊——同一个动作两个名字两个位置。
  */
 export function V4CollapsedDock({ children }: { children: React.ReactNode }): JSX.Element {
   const dockRef = React.useRef<HTMLDivElement>(null)

@@ -1369,6 +1369,17 @@
       "reason": "V4AssistantStatus 是面板助手消息的流式显示状态，interrupted 是用户可见中断结果；它不等同于运行时任务或供应商状态。"
     },
     {
+      "site": "src/workbench/ai/v4/agentPanelV4DockStatus.ts::type:V4DockStatus/type-union",
+      "members": [
+        "done",
+        "failed",
+        "idle",
+        "needs-confirm",
+        "running"
+      ],
+      "reason": "V4DockStatus 是 Agent 面板**收起后**右上角那枚 Nomi logo 上叠的那一格（2026-09-06 用户改：收起态从右侧 32px rail 上的两颗 icon 换回 logo + 状态叠加）。它与 DeconstructionEntry.status 五五重叠是同名不同物：那边是「拆解一条参考片的四段流水线」的进度（idle/running/ready/failed），terminal 成功叫 ready 因为拆出来的东西**还等着被采用**；这边是「Nomi 现在要不要你看一眼」的注意力档，terminal 成功叫 done 且只活 2.4 秒（V4_DOCK_DONE_HOLD_MS）就掉回 idle，还多一档 needs-confirm——那是拆解流水线里根本不存在的语义（介入槽等用户裁决）。复用那份词表会逼收起坞把「等你确认」塞进 running，而这两者在收起态下正是唯一需要被区分的两件事：一个不用管，一个不点就永远停着。派生只有一处（resolveDockStatus），单测钉死优先级。"
+    },
+    {
       "site": "src/workbench/ai/v4/agentPanelV4Types.ts::type:V4TaskStatus/type-union",
       "members": [
         "complete",

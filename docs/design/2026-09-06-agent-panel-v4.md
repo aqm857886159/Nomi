@@ -22,9 +22,10 @@
 | 8 | **icon 标动的对象**（文稿 / 时间轴 / 节点 / 图 / 视频 / 音频 / 剪辑 / 转场字幕音量 / 技能 / 起草 / 导出），状态只用 spinner ✓ ⚠；禁用：机器人头、闪光、芯片、沙漏、纯转圈 | 画布评论修正：读取时间轴用 timeline icon |
 | 9 | **Markdown 沿用 `NomiMarkdown` compact 档**，面板档显示决定：标题降粗体行、代码块加复制+超 12 行折叠、内外链区分、**图片不渲内联走任务卡**、超长折 60%、流式不预测闭合、不做数学/mermaid | |
 | 10 | 多候选 = 任务卡里点一张采用，不是介入槽；反问 = 介入槽一行文字 + 选项 chip；计划卡 = 介入槽可展开 | |
+| 11 | **收起态 = 右上角一枚 Nomi logo 钮 + 状态叠在 logo 上**（空闲不叠 / 运行中呼吸点 / 待确认数字角标（介入槽条数）/ 刚完成短暂勾号 2.4s / 失败警示角标）；点它展开，hover 冒一行状态字；底部 composer 坞保留 | **2026-09-06 用户改**（改的是本表原先那条「收起坞 = 右侧 32px rail + 两颗 icon」）。理由：收起的意思是把屏幕还给内容，一条满高的 rail 还占着一整列，而它上面「对话 / 面板设置」两颗 icon 指的是同一个动作。血统沿用 Nomi 一直延续的那枚角标（`src/ui/app-shell/CollapsedAiChip.tsx`：同一枚 `NomiLogoMark`、同一句「有动静才冒角标」），用 v4 的 token 与构件重做，不复活旧组件。状态词表单一 owner：`src/workbench/ai/v4/agentPanelV4DockStatus.ts::V4DockStatus`，优先级 待确认 > 失败 > 运行中 > 刚完成 > 空闲。历史/展开等动作留在**展开态**头部 |
 
 ## 可行性（实查 file）
-收据 ← 无损历史 message parts（#515）；任务卡 ← productionRun 投影 `nomi_get_run`；介入槽 ← `InterventionSlot`（#507/#514）+ `propose_edit_plan`；权限 ← `electron/shared/projectAgentContracts.ts`；撤销 ← `undo_timeline_edit`；token ← `src/workbench/ai/agentUsageStore.ts`；收起坞 ← `ResidentCollapsedDock`；Markdown ← `src/workbench/common/NomiMarkdown.tsx`。要补的四段：反问 kind、队列暴露 + 插队/删、代码块复制折叠、图片→chip。
+收据 ← 无损历史 message parts（#515）；任务卡 ← productionRun 投影 `nomi_get_run`；介入槽 ← `InterventionSlot`（#507/#514）+ `propose_edit_plan`；权限 ← `electron/shared/projectAgentContracts.ts`；撤销 ← `undo_timeline_edit`；token ← `src/workbench/ai/agentUsageStore.ts`；收起坞 ← `src/workbench/ai/v4/AgentPanelV4Dock.tsx`（下沿 composer 坞 `V4CollapsedDock` + 右上 logo 钮 `V4CollapsedLogoDock`，血统 `ResidentCollapsedDock` / `CollapsedAiChip`）；Markdown ← `src/workbench/common/NomiMarkdown.tsx`。要补的四段：反问 kind、队列暴露 + 插队/删、代码块复制折叠、图片→chip。
 
 ## 落地纪律
 - AI Elements **vendor 进仓改成 token**（它是 React 19 + Tailwind 4 + shadcn + AI SDK 5，我们 18 + 3 + Mantine + AI SDK 4），不装包、不并行两套样式；栈升级另立项（先 React 19 + AI SDK 5，Tailwind 4 最后；Mantine 7.13 对 React 19 支持未查）。

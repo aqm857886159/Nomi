@@ -1,7 +1,7 @@
 {
   "version": 2,
   "pendingApprovalScreens": {
-    "agent-panel-v4": "2026-09-06 · v4 接线：5 张接线证据格（宿主快照 → 真面板）是新增的，还没有基线；Skill 弹层按拍板 ⑤ 并进了提示词库、多出两段分段名；另加 3 张冷启动空态格（empty-creation / empty-generation / empty-preview）——定稿 57 态里从来没有这一格，面板主体一片白，起手 chip 按面从已注册能力表派生。三处都要用户亲眼看过接触表才录基线（UI 交付定义 = 设计实验室截图拍板）。拍板后跑 pnpm run design-lab:update，并**删掉本条登记**。",
+    "agent-panel-v4": "2026-09-06 · v4 接线：5 张接线证据格（宿主快照 → 真面板）是新增的，还没有基线；Skill 弹层按拍板 ⑤ 并进了提示词库、多出两段分段名；另加 3 张冷启动空态格（empty-creation / empty-generation / empty-preview）——定稿 57 态里从来没有这一格，面板主体一片白，起手 chip 按面从已注册能力表派生。三处都要用户亲眼看过接触表才录基线（UI 交付定义 = 设计实验室截图拍板）。另加收起坞的 5 格（2026-09-06 用户改：收起态从右侧 32px rail 上的两颗 icon 换回右上角 Nomi logo + 状态叠加；v4-dock-logo / v4-collapsed-running / -needs-confirm / -done / -failed，v4-collapsed 整场景同步改）。拍板后跑 pnpm run design-lab:update，并**删掉本条登记**。",
     "editing": "2026-09-06 · 剪辑面这一族浮层刚登记进实验室，接触表还没给用户看过；拍板后跑 pnpm run design-lab:update 录基线，并**删掉本条登记**。",
     "host-config": "2026-09-06 · 宿主接入配置修好后的重启提示刚登记进实验室，接触表还没给用户看过；拍板后跑 pnpm run design-lab:update 录基线，并**删掉本条登记**。",
     "settings": "2026-09-06 · 设置「隐私与诊断」那一格（遥测 + 新增的导出诊断包）刚登记进实验室，接触表还没给用户看过；拍板后跑 pnpm run design-lab:update 录基线，并**删掉本条登记**。"
