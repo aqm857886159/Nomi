@@ -15,6 +15,7 @@ import type {
   ProjectAgentStatus,
   ProjectAgentTurn,
 } from '../../../../electron/shared/projectAgentContracts'
+import { collapseV4Flow } from './agentPanelV4Collapse'
 import {
   assistantStatusOf,
   chipsForTurn,
@@ -540,5 +541,96 @@ describe('失败卡上写的是给人看的话', () => {
     const card = flow.find((entry) => entry.kind === 'error')
     if (card?.kind !== 'error') throw new Error('失败卡没渲出来')
     expect(card.reason).toBe('模型没有返回结果')
+  })
+})
+
+describe('失败收据行内那一句：机器话必须先翻成人话', () => {
+  // 2026-09-06 打包版真机截图 `01-01-collapsed-retry-row.png` 上的两行，逐条钉住：
+  //   「创建或修改镜头卡 ×3 [ · 全部失败」  ← 行内只剩一个 `[`
+  //   「读取画布 Validation failed for tool "no… · ⚠」← 行内是一整句英文
+  // 两行是同一个病的两种写法：**把失败正文的第一行当摘要**。正文是机器写给机器的，
+  // 第一行既可能是 JSON 的开括号，也可能是英文抬头，两种都说不出「哪个字段错了」。
+  const projectionFor = (output: string) => new Map([['turn-1:call-1', {
+    effect: '', target: '', technicalDetails: '', input: '{}', output,
+  }]])
+
+  const receiptOf = (output: string) => {
+    const flow = projectV4Flow(flowInput({
+      items: [toolItem('nomi_canvas_edit', 'failed')],
+      toolProjections: projectionFor(output),
+    }))
+    const entry = flow.find((item) => item.kind === 'tool')
+    if (entry?.kind !== 'tool') throw new Error('收据没渲出来')
+    return entry.receipt
+  }
+
+  // zod 那一路：`JSON.stringify(issues, null, 2)`，第一行就是一个裸 `[`。
+  const ZOD_ISSUES = JSON.stringify(
+    [{ code: 'invalid_type', expected: 'array', received: 'string', path: ['nodes'], message: 'Expected array, received string' }],
+    null,
+    2,
+  )
+  // pi 运行时那一路（`@earendil-works/pi-ai` 的 `validateToolCall`）：英文抬头 + 入参回显。
+  const PI_PROSE = [
+    'Validation failed for tool "nomi_canvas_edit":',
+    '  - nodes: Expected array',
+    '',
+    'Received arguments:',
+    '{',
+    '  "nodes": "[{\\"clientId\\":\\"s1\\""',
+    '}',
+  ].join('\n')
+
+  it('zod issue JSON → 哪个字段、要什么、给了什么', () => {
+    expect(receiptOf(ZOD_ISSUES).summary).toBe('agentResident.issueType(nodes,array,string)')
+  })
+
+  it('pi 的英文散文体回执走**同一条**翻译，不再把英文抬头当摘要', () => {
+    const receipt = receiptOf(PI_PROSE)
+    expect(receipt.summary).toBe('agentResident.issueExpected(nodes,array)')
+    expect(receipt.summary).not.toContain('Validation failed')
+  })
+
+  it('英文原文一字不少地留在展开区的「输出」——行内说人话，详情给原文', () => {
+    const receipt = receiptOf(PI_PROSE)
+    expect(receipt.output).toBe(PI_PROSE)
+  })
+
+  it('行内那一句永远不会退化成一个括号（那正是截图里的 `[`）', () => {
+    // 认得出的两种形状走翻译；认不出的形状退回启发式，而启发式也不许交出括号行。
+    for (const output of [ZOD_ISSUES, PI_PROSE, '[\n  {\n    "trace": "…"\n  }\n]']) {
+      const summary = receiptOf(output).summary ?? ''
+      expect(summary.replace(/[\s[\]{}(),"']/g, '').length).toBeGreaterThanOrEqual(4)
+    }
+  })
+
+  it('认不出的失败原文原样带出：只翻校验回执，不误伤供应商已经写好的中文', () => {
+    expect(receiptOf('余额不足，请先充值。').summary).toBe('余额不足，请先充值。')
+  })
+
+  it('端到端：投影 → 折叠，折起来那一行读出来是一句话，不是一个括号', () => {
+    // 用户真正看到的是这两层的**乘积**：投影拼出每条收据的摘要，折叠层把同名的三条压成一行、
+    // 取第一条的摘要当行内原因。截图里的 `创建或修改镜头卡 ×3 [` 就在这个乘积上，
+    // 所以证据也得跨这两层——单看任何一层都是绿的。
+    const calls = ['call-1', 'call-2', 'call-3']
+    const flow = collapseV4Flow(projectV4Flow(flowInput({
+      items: calls.map((callId) => toolItem('nomi_canvas_edit', 'failed', callId)),
+      toolProjections: new Map(calls.map((callId) => [`turn-1:${callId}`, {
+        effect: '', target: '', technicalDetails: '', input: '{}', output: PI_PROSE,
+      }])),
+    })), t)
+    const group = flow.find((item) => item.kind === 'tool-group')
+    if (group?.kind !== 'tool-group') throw new Error('三次同名调用没折成一行')
+    expect(group.count).toBe(3)
+    expect(group.reason).toBe('agentResident.issueExpected(nodes,array)')
+  })
+
+  it('回合级失败条走同一条翻译，但不砍成一行', () => {
+    const flow = projectV4Flow(flowInput({
+      items: [baseItem({ itemId: 'failure-3', kind: 'failure', code: 'runtime_error', status: 'failed', message: PI_PROSE } as never)],
+    }))
+    const card = flow.find((entry) => entry.kind === 'error')
+    if (card?.kind !== 'error') throw new Error('失败卡没渲出来')
+    expect(card.reason).toBe('agentResident.issueExpected(nodes,array)')
   })
 })

@@ -405,9 +405,6 @@ function buildFixtures(t: TFunction) {
       selectedValue: 'video',
       options: [{ value: '', label: t('agentPanelV4.modelAuto') }, { value: 'video', label: t('agentPanelV4.videoModel') }],
     },
-    // 音频那一行留的是**诚实空态**：仓库里没有 audio 的默认模型概念
-    // （`GENERATION_DEFAULT_TASK_KINDS` 只有图/视频四个 taskKind），所以不画下拉。
-    { slot: t('agentPanelV4.audioDefault'), name: t('agentPanelV4.modelAuto'), empty: t('agentPanelV4.modelNone') },
   ]
 
   /**

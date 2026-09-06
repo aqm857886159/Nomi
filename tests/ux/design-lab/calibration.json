@@ -1,7 +1,7 @@
 {
   "version": 2,
   "pendingApprovalScreens": {
-    "agent-panel-v4": "2026-09-06 · v4 接线：5 张接线证据格（宿主快照 → 真面板）是新增的，还没有基线；Skill 弹层按拍板 ⑤ 并进了提示词库、多出两段分段名；另加 3 张冷启动空态格（empty-creation / empty-generation / empty-preview）。**2026-09-06 晚补**：打包版真实使用（「从原稿重拆 10 镜」）暴露的一批问题改了四处外观相关的格——v4-tool-group-failed / v4-process-folded 两格是新增（同名工具连调六次折成一行、过程自述收起）；v4-context-window-unknown 是新增（窗口未知时不画环、改说「已用 62.4K」）；v4-composer-model-popover 与 v4-composer-skill-popover 两格的**内容**变了（模型弹层每行一个真下拉、Skill 行首白块换成封面/图标）。这几格都要用户亲眼看过接触表才录基线（UI 交付定义 = 设计实验室截图拍板）。拍板后跑 pnpm run design-lab:update，并**删掉本条登记**。"
+    "agent-panel-v4": "2026-09-06 · v4 接线：5 张接线证据格（宿主快照 → 真面板）是新增的，还没有基线；Skill 弹层按拍板 ⑤ 并进了提示词库、多出两段分段名；另加 3 张冷启动空态格（empty-creation / empty-generation / empty-preview）。**2026-09-06 晚补**：打包版真实使用（「从原稿重拆 10 镜」）暴露的一批问题改了四处外观相关的格——v4-tool-group-failed / v4-process-folded 两格是新增（同名工具连调六次折成一行、过程自述收起）；v4-context-window-unknown 是新增（窗口未知时不画环、改说「已用 62.4K」）；v4-composer-model-popover 与 v4-composer-skill-popover 两格的**内容**变了（模型弹层每行一个真下拉、Skill 行首白块换成封面/图标）。**2026-09-07 补**：模型弹层删掉第四行「音频默认」——仓库没有音频生成能力，不留空行（设计定稿决策 5）。这几格都要用户亲眼看过接触表才录基线（UI 交付定义 = 设计实验室截图拍板）。拍板后跑 pnpm run design-lab:update，并**删掉本条登记**。"
   },
   "calibratedPlatform": "darwin",
   "viewport": {

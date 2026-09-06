@@ -18,7 +18,7 @@ import type {
 } from '../../../../electron/shared/projectAgentContracts'
 import type { TargetRef } from '../../../../electron/shared/capabilityTargeting'
 import { formatResidentToolElapsed, residentToolElapsedMs } from '../resident/residentToolTiming'
-import { readableToolName, readableToolSummary } from '../resident/residentToolDisplay'
+import { humanizeToolFailure, readableToolName, readableToolSummary } from '../resident/residentToolDisplay'
 import { redactToolArguments, type ResidentToolProjection } from '../resident/residentToolProjection'
 import { stripVendorErrorMarker } from '../../generationCanvas/runner/vendorErrorIpc'
 import { actionFamilyForCapability } from './agentPanelV4ActionFamily'
@@ -158,6 +158,26 @@ function shortReason(text: string | undefined): string | undefined {
   return first.length > 60 ? `${first.slice(0, 60)}…` : first
 }
 
+/**
+ * 失败正文 → 行内那一句。
+ *
+ * 先过**唯一那条翻译**（`humanizeToolFailure`）：校验失败的原文是机器话，而且是英文——
+ * 2026-09-06 打包版真机上，用户在收据行上读到的是「Validation failed for tool "no…」，
+ * 一行里没有一个字告诉他哪个字段错了。翻得动就印译文；翻不动才退回 `shortReason`
+ * 的启发式，英文/JSON 全文一律只留在展开区的「输出」栏（那里是「详情」）。
+ */
+function failureReason(t: Translate, text: string): string | undefined {
+  return shortReason(humanizeToolFailure(t, text) ?? text)
+}
+
+/**
+ * 错误条上那一句。同一条翻译，但**不砍到一行**——错误条是整块，砍它只会把第二个字段的
+ * 问题藏掉；砍字是 28px 那一行才有的约束。
+ */
+function failureBar(t: Translate, text: string): string {
+  return humanizeToolFailure(t, text) ?? text
+}
+
 function receiptFor(input: {
   capabilityId: string
   args: unknown
@@ -182,7 +202,7 @@ function receiptFor(input: {
   const inputText = projection?.input || redactToolArguments(args)
   const output = projection?.output || ''
   const failed = input.status === 'output-error'
-  const reason = failed ? shortReason(output) : undefined
+  const reason = failed ? failureReason(t, output) : undefined
   // 失败行的摘要**不能**继续印「打算做什么」。`readableToolSummary` 那句
   // 「将内容写入当前文稿」在一次根本没写成的调用上是假的；这一刻用户要的是「为什么没成」。
   const summary = reason || projection?.effect || readableToolSummary(t, capabilityId, args) || input.text || ''
@@ -407,7 +427,8 @@ export function projectV4Flow(input: V4FlowInput): readonly V4FlowItem[] {
         // 编码那一端（`electron/ai/agentError.ts`）的契约就是「展示串一字未变，标记段在渲染层
         // 由 stripVendorErrorMarker 剥掉」——这条投影以前没剥，于是用户在失败卡上读到的
         // 第一行是一串 base64。剥在这里：这是这个面把 failure 变成可读一行的唯一地方。
-        reason: stripVendorErrorMarker(item.message),
+        // 回合级失败和一行收据的失败是同一类东西：校验回执走同一条翻译，翻不动才原样。
+        reason: failureBar(t, stripVendorErrorMarker(item.message)),
         ...(item.nextAction ? { action: item.nextAction } : {}),
       })
       continue
