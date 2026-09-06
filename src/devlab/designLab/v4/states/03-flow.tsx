@@ -82,7 +82,7 @@ function CollapsedScene(): JSX.Element {
           dock
           mode="running"
           chips={[fx.chips.clip]}
-          initialText={fx.t('agentPanelV4.fixtureUserTrim')}
+          value={fx.t('agentPanelV4.fixtureUserTrim')}
         />
       </div>
       <V4CollapsedRail running labels={labels.dock} />

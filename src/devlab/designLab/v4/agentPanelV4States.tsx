@@ -6,12 +6,14 @@
 import { V4_VOCABULARY_STATES } from './states/01-vocabulary'
 import { V4_COMPOSER_STATES } from './states/02-composer'
 import { V4_FLOW_STATES } from './states/03-flow'
+import { V4_WIRED_STATES } from './states/04-wired'
 import type { LabState } from '../labScreen'
 
 export const AGENT_PANEL_V4_STATES: readonly LabState[] = [
   ...V4_VOCABULARY_STATES,
   ...V4_COMPOSER_STATES,
   ...V4_FLOW_STATES,
+  ...V4_WIRED_STATES,
 ]
 
 export { V4_CELL_HEIGHT, V4_PANEL_WIDTH } from './agentPanelV4LabKit'

@@ -22,6 +22,7 @@ import type {
   V4Chip,
 } from '../../../workbench/ai/v4/agentPanelV4Types'
 import type { V4FlowItem } from '../../../workbench/ai/v4/AgentPanelV4Panel'
+import type { V4CommandRow, V4ModelRow } from '../../../workbench/ai/v4/AgentPanelV4Composer'
 
 /** 面板宽度 = 定稿的 390（可拖 320–520，< 320 收成 rail）。 */
 export const V4_PANEL_WIDTH = 390
@@ -378,5 +379,28 @@ function buildFixtures(t: TFunction) {
     ],
   }
 
-  return { context, receipts, tasks, slots, queues, chips, flows, t }
+  // 两个弹层接线后是**受控**的：清单由容器给（模型来自目录、命令来自技能 + 提示词库）。
+  // 实验室这两格照定稿画布逐行抄同一份清单，取的是「同样的数据长同样的样子」这件事。
+  const modelRows: readonly V4ModelRow[] = [
+    { slot: t('agentPanelV4.modelChat'), name: t('agentPanelV4.chatModel'), value: t('agentPanelV4.chatModel') },
+    { slot: t('agentPanelV4.imageDefault'), name: t('agentPanelV4.imageModel'), cost: t('agentPanelV4.imagePrice'), value: '2K' },
+    { slot: t('agentPanelV4.videoDefault'), name: t('agentPanelV4.videoModel'), cost: t('agentPanelV4.videoPrice'), value: 'std' },
+    { slot: t('agentPanelV4.audioDefault'), name: t('agentPanelV4.audioModel'), cost: t('agentPanelV4.audioPrice') },
+  ]
+
+  const commandCategories: readonly string[] = [
+    t('agentPanelV4.skillAll'),
+    t('agentPanelV4.sectionSkills'),
+    t('agentPanelV4.sectionPrompts'),
+  ]
+
+  /** `/` 菜单两段：技能 + 提示词（2026-09-06 拍板 ⑤ 把提示词库并进同一个菜单）。 */
+  const commandRows: readonly V4CommandRow[] = [
+    { id: 'skill:kasdan', name: t('agentPanelV4.skillKasdan'), command: '/kasdan', desc: t('agentPanelV4.skillKasdanDesc'), section: t('agentPanelV4.sectionSkills'), selected: true },
+    { id: 'skill:shots', name: t('agentPanelV4.skillShots'), command: '/shots', desc: t('agentPanelV4.skillShotsDesc'), section: t('agentPanelV4.sectionSkills') },
+    { id: 'skill:pace', name: t('agentPanelV4.skillPace'), command: '/pace', desc: t('agentPanelV4.skillPaceDesc'), section: t('agentPanelV4.sectionSkills') },
+    { id: 'prompt:ad', name: t('agentPanelV4.skillAd'), command: '/product-ad', desc: t('agentPanelV4.skillAdDesc'), section: t('agentPanelV4.sectionPrompts') },
+  ]
+
+  return { context, receipts, tasks, slots, queues, chips, flows, modelRows, commandRows, commandCategories, t }
 }

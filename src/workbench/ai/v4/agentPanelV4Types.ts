@@ -135,6 +135,23 @@ export type InterventionData = Readonly<{
   alternateLabel?: string
 }>
 
+/**
+ * 对话流里的一条 = 一个积木。壳不认识内容，只按 `kind` 派发。
+ *
+ * `suggestion` 是**缺参数**那一档的家（2026-09-06 拍板 ④）：它不是第九个积木，
+ * 而是「助手文本 + 一排选项 chip」两件已有件的组合——缺参数不该占用介入槽，
+ * 那个槽是给「要不要让我做」这类问题的，而缺参数只是 Nomi 少问了一句话。
+ * 用户点 chip 或直接在 composer 里回答，两条路都回填同一个参数。
+ */
+export type V4FlowItem =
+  | { kind: 'user'; text: string; chips?: readonly V4Chip[] }
+  | { kind: 'assistant'; text: string; status: V4AssistantStatus }
+  | { kind: 'thinking'; label: string; meta: string }
+  | { kind: 'tool'; receipt: ToolReceipt }
+  | { kind: 'task'; task: TaskCardData }
+  | { kind: 'suggestion'; text: string; options: readonly string[] }
+  | { kind: 'error'; reason: string; action?: string }
+
 export type QueueRowData = Readonly<{
   title: string
   status: 'queued' | 'running' | 'complete'
@@ -143,14 +160,25 @@ export type QueueRowData = Readonly<{
   destructiveAction?: string
 }>
 
+/**
+ * 上下文环的数据。**每一项都可缺**——这是本类型最重要的一条。
+ *
+ * 现役面板头上那句「还能聊 ~40 轮」是 `Math.max(1, 40 - sessionTurns)`，一个写死的常数
+ * 减法，不是任何真实用量。换掉它的意义就在于「印出来的数都是量出来的」，所以宿主没给的
+ * 分项一律 `undefined` = **那一行不渲染**，不是 `?? 0`：
+ *   - `max` 缺   → 环画灰、不给百分比（模型目录没写 contextWindow 就是没写）
+ *   - `reasoning` 缺 → 供应商没报推理 token（多数不报），整行不出现
+ *   - `cost` 缺  → 运行时对这个模型没有价目（中转/自建端点常见），不印 ¥0.00
+ * 组件侧 `undefined` 一律「不渲染那一件」，单测钉死这条，防止以后有人拿 `?? 0` 糊回去。
+ */
 export type ContextUsage = Readonly<{
-  used: number
-  max: number
-  input: string
-  output: string
-  reasoning: string
-  cache: string
-  cost: string
+  used?: number
+  max?: number
+  input?: string
+  output?: string
+  reasoning?: string
+  cache?: string
+  cost?: string
 }>
 
 /**

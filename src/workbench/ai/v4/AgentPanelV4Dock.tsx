@@ -10,9 +10,13 @@ import { IconLayoutSidebarRightCollapse, IconMessage } from './AgentPanelV4Icons
 export function V4CollapsedRail({
   running = false,
   labels,
+  onOpen,
+  onAdjust,
 }: {
   running?: boolean
   labels: { conversation: string; adjust: string }
+  onOpen?: () => void
+  onAdjust?: () => void
 }): JSX.Element {
   return (
     <div
@@ -22,6 +26,7 @@ export function V4CollapsedRail({
       <button
         type="button"
         aria-label={labels.conversation}
+        onClick={onOpen}
         className="relative grid size-6 place-items-center rounded-nomi-sm bg-nomi-accent-soft text-nomi-accent"
       >
         <IconMessage size={14} />
@@ -37,6 +42,7 @@ export function V4CollapsedRail({
       <button
         type="button"
         aria-label={labels.adjust}
+        onClick={onAdjust}
         className="grid size-6 place-items-center rounded-nomi-sm text-nomi-ink-60"
       >
         <IconLayoutSidebarRightCollapse size={14} />
