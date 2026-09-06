@@ -18,6 +18,7 @@ import { TimelineAgentReceiptEffect } from './resident/TimelineAgentReceiptEffec
 import { useTimelinePlanPreview } from './resident/timelineAgentSurface'
 import type { ResidentSurface } from './resident/residentShellDisplay'
 import { AgentPanelV4Panel } from './v4/AgentPanelV4Panel'
+import { flowScrollMemoryFor } from './v4/agentPanelV4ScrollMemory'
 import { V4Intervention } from './v4/AgentPanelV4Cards'
 import { V4CollapsedDock } from './v4/AgentPanelV4Dock'
 import { useV4DockStatus } from './v4/agentPanelV4DockStatus'
@@ -82,6 +83,14 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
 
   const data = useAgentPanelV4Data(surface)
   const actions = useAgentPanelV4Actions(surface, data)
+  /**
+   * 「他读到哪儿了」得活在这棵子树之外（定稿 §11.2：点角标 = 原宽**原状态**还原）。
+   *
+   * 不放 `useRef`：收起时面板换挂点，连这个常驻壳自己都跟着重新挂载，ref 一起归零
+   * （2026-09-06 真机走查实测：ref 版展开后 scrollTop 回到底 259.5，等于没记）。
+   * 按线程记：位置属于那条对话，换项目/换线程各记各的，切回来还在原处。
+   */
+  const flowScroll = flowScrollMemoryFor(surface, data.activeThreadId)
   const [popover, setPopover] = React.useState<ComposerPopover | null>(null)
   const [threadsOpen, setThreadsOpen] = React.useState(false)
   const [commandQuery, setCommandQuery] = React.useState('')
@@ -373,6 +382,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
         </div>
       ) : null}
       <AgentPanelV4Panel
+        scrollMemory={flowScroll}
         width={size.width}
         height={actions.error ? size.height - 20 : size.height}
         flow={data.flow}

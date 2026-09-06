@@ -68,6 +68,16 @@ const REFUSED_TEXT = 'HEAD_DELETED：不该出现在文稿里'
 const REFERENCE = '给这 4 镜生成参考图。'
 const REFERENCE_TOOL = 'v4-canvas-plan-1'
 const SLOW = '再想想整体节奏。'
+// 收起/展开要验「他读到哪儿了」，就得有一条**真的翻得动**的对话。收据的展开是 DOM 上的
+// `<details open>`，收起时随子树一起没了，撑不起溢出；只有落进流里的消息才留得下来。
+const RECAP = '把这 4 镜按顺序完整列一遍，我要打印出来贴墙上。'
+const RECAP_TEXT = [
+  '镜 1｜清晨的街，门牌与霓虹熄灭的余温；手持，轻微呼吸感；3 秒。',
+  '镜 2｜她推门，铜铃响；门缝里的光切进室内；侧光贴着侧脸；4 秒。',
+  '镜 3｜红色杯子落在白桌面上，热气斜着走；微距，焦点从杯沿滑到指节；5 秒。',
+  '镜 4｜她坐下，按下录制键；机身红点亮起，环境声压低；定格 3 秒。',
+  '整段 20 秒，节奏是「街—门—杯—人」，前两镜给环境，后两镜收到她身上。',
+].join('\n')
 
 const walk = await createRuntimeWalk('v4-short-film')
 let failure
@@ -283,6 +293,50 @@ try {
   await clickOrFail(panel.locator(COMPOSER_PERMISSION), 'composer 权限档')
   await clickOrFail(panel.locator(permissionTier('safe-auto')), '权限档「自动改」')
   await expect(panel.locator(COMPOSER)).toHaveAttribute('data-approval-mode', 'safe-auto')
+
+  // ── 5.5 最小窗 + 收起：藏的是面板，不是「我读到哪儿了」 ────────────────────
+  //
+  // 09-01 定稿 §11.2 最小窗态说的是 **1100×720**（`electron/main.ts:299-300` 锁死的那个数）：
+  // 面板**仍可停靠、不强制收起**，拖宽上限收到 min(600, 1100−760) = 340。所以先把窗口调到那个数，
+  // 在真实最小窗里验；顺带这也是唯一能让对话流真的溢出的地方——默认大窗里这几条消息装得下，
+  // scrollTop 恒 0，「收起前后相等」会是个恒真式（`race-repro-needs-positive-control`）。
+  // 先让这条对话真的长起来：一条镜头清单落进流里，收起再展开也还在。
+  const recapTurn = walk.fixture.expectText({
+    label: 'agent recaps the four shots',
+    match: (body) => flattenRequestText(body).includes(RECAP),
+    reply: { type: 'text', text: RECAP_TEXT },
+  })
+  await sendCreation(win, RECAP)
+  await recorded(recapTurn.received, 'recap request')
+  await waitForV4TurnIdle(win, { panel: CREATION_PANEL, settledBy: panel.locator(ASSISTANT_MESSAGE).last() })
+  await expect(panel.locator(ASSISTANT_MESSAGE).last()).toContainText('街—门—杯—人')
+
+  const roomyBounds = await walk.resizeWindow(1100, 720)
+  await expect(panel.locator(V4_PANEL), '最小窗下面板仍可停靠，不强制收起').toBeVisible()
+  await expect.poll(async () => Math.round((await panel.locator(V4_PANEL).boundingBox())?.width ?? 0),
+    { message: '最小窗下面板宽必须收在上限 340 之内（min(600, 1100−760)）', timeout: 30_000 })
+    .toBeLessThanOrEqual(340)
+
+  // 收起会把对话流那棵子树整个摘掉。展开时若一律跟到底，翻着历史顺手收起的人再点开
+  // 就被弹回最新一条——「收起」于是成了一个会悄悄弄丢阅读位置的动作（定稿 §11.2：原宽**原状态**还原）。
+  const creationFlow = win.locator(`${CREATION_PANEL} ${V4_FLOW}`)
+  const creationOverflow = await creationFlow.evaluate((node) => node.scrollHeight - node.clientHeight)
+  if (creationOverflow < 80) throw new Error(`最小窗下对话流只溢出 ${creationOverflow}px，滚动位置这条断言证不了任何东西`)
+  // 停在**半路**（这里取最顶）而不是底：跟到底那条逻辑本来就会把底还原成底，
+  // 只有翻在半路才分得出「把位置还回来」与「又跟了一次底」。
+  await creationFlow.evaluate((node) => { node.scrollTop = 0 })
+  await expect.poll(async () => await creationFlow.evaluate((node) => node.scrollTop),
+    { message: '把对话流翻到顶这一步没生效' }).toBe(0)
+  await clickOrFail(panel.locator(COLLAPSE_BUTTON), '翻在半路时收起面板')
+  await expect(win.locator(COLLAPSED_DOCK), '最小窗收起后顶栏同样是那一格角标').toBeVisible()
+  await clickOrFail(win.locator(COLLAPSED_DOCK), '点顶栏角标展开面板')
+  await expect(panel.locator(V4_FLOW)).toBeVisible()
+  await expect.poll(
+    async () => await win.locator(`${CREATION_PANEL} ${V4_FLOW}`).evaluate((node) => node.scrollTop),
+    { message: '展开必须停在收起前那个位置，不是把人弹回最新一条', timeout: 30_000 },
+  ).toBe(0)
+  await walk.snap('07b-min-window-collapse-restore')
+  await walk.resizeWindow(roomyBounds.width, roomyBounds.height)
 
   // ── 6. 去画布：同一条对话跨面继续 ───────────────────────────────────────
   await openCanvas(win)

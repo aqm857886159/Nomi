@@ -531,6 +531,23 @@ export async function createRuntimeWalk(name) {
     return file
   }
 
+  /**
+   * 把窗口调成指定尺寸，返回调之前那份 bounds（调回去用）。
+   *
+   * 有些事只有在**真实的小窗**里才发生：最小窗 1100×720（`electron/main.ts:299-300` 锁死的那个数）
+   * 下面板只剩 476 高，对话流这才真的溢出——「展开回来还停在原处」那条断言也才有信号可言。
+   * 在默认大窗里流根本装得下，滚动位置恒 0，前后相等是个恒真式。
+   */
+  async function resizeWindow(width, height) {
+    const browserWindow = await current.app.browserWindow(current.win)
+    return await browserWindow.evaluate((windowRef, bounds) => {
+      const previous = windowRef.getBounds()
+      windowRef.setBounds({ x: 0, y: 0, ...bounds })
+      windowRef.center()
+      return previous
+    }, { width, height })
+  }
+
   async function stopApp() {
     if (!current) return
     const closed = current
@@ -552,5 +569,5 @@ export async function createRuntimeWalk(name) {
     })
   }
 
-  return { fixture, report, outputDir, start, newProject, snap, stopApp, finish }
+  return { fixture, report, outputDir, start, newProject, snap, resizeWindow, stopApp, finish }
 }
