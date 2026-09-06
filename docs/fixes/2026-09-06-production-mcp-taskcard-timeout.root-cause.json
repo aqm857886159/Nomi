@@ -1,0 +1,128 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-06-production-mcp-taskcard-timeout",
+  "problem_type": "走查按**位置**认对象（.first()），而那个位置是派生排序——多了一个兄弟就变成掷硬币",
+  "symptom": "CI「Real user loopback journey gate」里 production-mcp 旅程在 2026-09-05 晚间两个不同 PR 上各红一次（run 33991470467 首跑红重跑绿、run 33993567585 首跑红），main 同一条恒绿。报错固定是 tests/ux/production-mcp-journey.e2e.mjs:109 `locator.waitFor: Timeout 10000ms exceeded. waiting for locator('[data-production-task-card]') to be visible`，位置是重启后那次 openRunFromTaskCenter（调用点 :315）；它前面 15 条断言（含「approved storyboard materializes through the external MCP seam with eight planned jobs」）全过。",
+  "direct_cause": "重启后那步用 `gui.window.locator('[data-project-card=\"true\"]').first().click()` 打开项目。自 c73db10ef（2026-09-04，test(mcp): cover semantic document and canvas journeys）起，这条旅程在同一个隔离项目库里有**两个**项目：GUI 建的制作项目，和 MCP `nomi_project_create` 建的语义夹具「MCP semantic production fixture」。库卡顺序由 src/workbench/library/libraryDiscovery.ts 的 sortByLibraryUsage 按最近使用/updatedAt 倒序派生，两者的时间戳落在同一秒内，`.first()` 于是在两个项目之间掷硬币。点中语义项目那次，任务中心正常打开但里面是空的（面板文案「没有在跑的任务」），制作卡自然永不出现，10s 后超时。",
+  "class_root": "走查用**位置**指认对象，而位置是别处推导出来的量（这里是「最近用过」排序）。这类锚点在只有一个候选时百分之百正确，等到某天多出一个兄弟，它既不会报错也不会变红，而是安静地指向另一个东西；失败随后出现在**下游**，以一条完全无关的名字（「制作卡 10s 没出现」）报出来，把排查一路引向「等太短 / 卡不渲染 / 机器慢」。加大超时永远修不好它——点错项目等一万秒也等不到那张卡。",
+  "migration": "旅程里那两行位置式打开（`.first().click()` + 只验 `hash.includes('projectId=')` 的宽松等待）在同 commit 删除，换成唯一的 openProjectFromLibrary(window, wantedProjectId)：按 `[data-project-id]` 选身份、并等 hash 里出现**那个具体的** projectId。不留并行版，旅程里再无位置式开项目的写法。",
+  "affected_population": [
+    "CI 上跑 production-mcp 旅程的每一个 PR：约一半概率在重启步骤假红，且报错名字指错方向（两次已实测：run 33991470467、run 33993567585）",
+    "任何未来在同一隔离库里建第二个项目、又沿用位置式项目卡锚点的走查",
+    "无用户影响：产品侧的项目库排序与任务中心行为都正确，缺的是 DOM 上一个可按身份选中的锚点"
+  ],
+  "scope_paths": [
+    "tests/ux/production-mcp-journey.e2e.mjs",
+    "src/workbench/library/ProjectLibraryPage.tsx",
+    "scripts/check-walkthroughs.mjs",
+    "scripts/check-walkthroughs.node-test.mjs",
+    "scripts/lib/positionalProjectOpen.mjs",
+    "scripts/walkthrough-baseline.json"
+  ],
+  "entry_points": [
+    "tests/ux/production-mcp-journey.e2e.mjs:312 重启后打开项目（多项目 × 位置选择 → 本次红）",
+    "tests/ux/scene3d-ux-shots.walk.mjs / scene3d-exit-flush-recording.walk.mjs / scene3d-camera-follow.walk.mjs / scene3d-pose-toggle-and-drive-keys.walk.mjs / smoke.e2e.mjs / golden-path.e2e.mjs / design-fidelity.e2e.mjs 的 `[data-project-card].first()`（库里只有一个项目，位置=身份，不在本族）",
+    "tests/ux/custom-prompt-realtask.walk.mjs / selection-toolbar-vendor.walk.mjs / library-cover-imported-video.walk.mjs / agent-ui-d-lossless-history.walk.mjs / rich-editor-p1.walk.mjs / canvas-card-stack.walk.mjs / agent-runtime-editing.walk.mjs 已经按 hasText/filter 选身份（正确写法，本仓既有习惯）"
+  ],
+  "invariants": [
+    "走查打开项目库里的某个项目时，必须按项目身份（data-project-id）选中，不得按位置（.first()/.nth()/.last()）。",
+    "打开之后必须证明进的就是那个项目：等 location.hash 里出现**具体的** projectId，而不是只等 `projectId=` 这个前缀。",
+    "项目库卡在 DOM 上始终带 data-project-id，使身份选择在结构上可用。"
+  ],
+  "regression_tests": [
+    "tests/ux/production-mcp-journey.e2e.mjs",
+    "scripts/check-walkthroughs.node-test.mjs"
+  ],
+  "residual_risks": [
+    "门岗判「库里不止一个项目」用的是「这份走查自己调了 nomi_project_create」这一个信号。若将来某条走查改从磁盘预置第二个项目、或经别的 IPC 建项目，同样的坏写法这条规则看不见——那时要把信号补上，而不是放宽规则。",
+    "本次只把项目卡这一族收干净。库里其它列表（素材、提示词、技能）同样按最近使用排序，它们的走查锚点没有逐个量过。"
+  ],
+  "internal_only_reason": "纯本仓走查锚点与库排序问题：排序规则、DOM 锚点、旅程脚本全在本仓，无第三方契约介入。",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "同一族在本仓已有两条教训：docs/lessons/dead-selector-lies-both-ways.md（失效锚点同时造假红与假绿）与 docs/lessons/assert-you-are-in-the-situation-you-claim.md（没证明自己在以为的现场）。本次是它的第三次变形——锚点本身没死，是「位置」这个坐标系被一个新兄弟改写了。只要走查还能按位置指认对象，任何一次新增兄弟都能再造一次。",
+    "same_class_scan": [
+      "实扫 tests/ evals/ scripts/ 下全部 `data-project-card` 用法（19 处）：7 处是单项目走查的正当 `.first()`；7 处已按 hasText/filter 选身份；1 处（production-mcp 旅程重启步）是「多项目 × 位置选择」的坏组合，即本次红。",
+      "阳性对照（本机 Electron 真跑）：不改任何等待时长，只在重启前对语义项目补一次 nomi_canvas_edit 让它成为最新 → 卡序翻转，`.first()` 点进 workspace-145046bd（语义项目），任务中心开出来是空的，`[data-production-task-card]` 10s 超时，报错与调用栈与 CI 逐字一致。",
+      "阴性对照：同一条旅程不加那次写入，本机跑 58/58 全绿，探针打出的卡序是「制作项目在前」且两张卡都显示「刚刚」——证实两者时间戳同秒、顺序本来就是掷硬币。",
+      "门岗反向验证：把旅程改回 `.first()` 那两行，check:walkthroughs 精确报出 tests/ux/production-mcp-journey.e2e.mjs:312 并以 exit 1 变红；改回修复版 exit 0。",
+      "规则单测阳性对照（scripts/check-walkthroughs.node-test.mjs）：建了第二个项目又 .first() → 命中并报出行号；单项目 .first()、data-project-id、hasText/filter 三种写法均不报，证明规则不误伤也不是恒绿。"
+    ]
+  },
+  "generality_proof": "防线落在两层，都在「写坏法的那一刻」而不是「CI 半年后掷到反面」：① 产品侧给项目卡加上 data-project-id，让身份选择在 DOM 上永远可用——没有这个锚点，走查只能退回按位置或按可变文案指认；② 门岗侧在既有 check:walkthroughs 棘轮里新增 positional-project-open 规则，专盯「这份走查自己建了第二个项目 × 却按位置点项目卡」这个组合，基线 0。c73db10ef 那天若有这条规则，加语义项目的那个 commit 当场就红，而不是两天后在别人的 PR 上以「制作卡超时」的名义炸两次。规则口径只覆盖坏组合，单项目走查的 `.first()` 不误伤，因此不会退化成噪音。",
+  "shared_boundaries": [
+    {
+      "path": "tests/ux/production-mcp-journey.e2e.mjs",
+      "symbol": "openProjectFromLibrary",
+      "responsibility": "本旅程唯一的「从项目库打开项目」边界：按 data-project-id 选身份，并用 hash 屏障证明真的进了那个项目。"
+    },
+    {
+      "path": "src/workbench/library/ProjectLibraryPage.tsx",
+      "symbol": "data-project-id",
+      "responsibility": "项目卡在 DOM 上的身份锚点，使「按身份选中」成为结构上可行的写法。"
+    },
+    {
+      "path": "scripts/lib/positionalProjectOpen.mjs",
+      "symbol": "findPositionalProjectOpens",
+      "responsibility": "「多项目 × 位置式项目卡选择」的唯一判定逻辑；check-walkthroughs 的 positional-project-open 规则与其阳性对照单测共用这一份。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "tests/ux/production-mcp-journey.e2e.mjs",
+      "entry_point": "重启后打开项目（原 .first()）",
+      "disposition": "enforced",
+      "evidence": "改为 openProjectFromLibrary(gui.window, projectId)，按 data-project-id 选中并等 hash 含该 projectId；门岗对旧写法报红（exit 1）、对新写法放行（exit 0）。"
+    },
+    {
+      "path": "tests/ux/smoke.e2e.mjs",
+      "entry_point": "[data-project-card].first()",
+      "disposition": "not-affected",
+      "evidence": "该走查的隔离库里只有它自己建的那一个项目，位置即身份；无 nomi_project_create，门岗规则不覆盖它，也不会误伤。"
+    },
+    {
+      "path": "tests/ux/golden-path.e2e.mjs",
+      "entry_point": "[data-project-card].first()",
+      "disposition": "not-affected",
+      "evidence": "同上：单项目隔离库，位置即身份。"
+    },
+    {
+      "path": "tests/ux/agent-runtime-editing.walk.mjs",
+      "entry_point": "冷重启后打开同一项目",
+      "disposition": "not-affected",
+      "evidence": "已经写成 `.filter({ hasText: project.name })`，本来就是按身份选，不在本族。"
+    }
+  ],
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/lib/positionalProjectOpen.mjs",
+    "invariant": "任何 tests/ux 走查，只要自己通过 nomi_project_create 建了第二个项目，就不得再用 .first()/.nth()/.last() 点 [data-project-card]；必须带 hasText / filter / data-project-id 的身份限定。",
+    "failure_mode": "违反时 check:walkthroughs 以 exit 1 报出文件与行号，并说明「排序是最近用过派生量，同秒建的两个项目就是掷硬币」——在写下那一行的 commit 上就红，而不是等 CI 掷到反面。",
+    "exception_policy": "none",
+    "strategy": "把「位置」这种派生坐标从走查里换成「身份」这种稳定坐标，并在产品 DOM 上补齐身份锚点让这条路走得通；再用既有的走查棘轮把坏组合钉死在 0。",
+    "artifacts": [
+      "scripts/lib/positionalProjectOpen.mjs",
+      "scripts/check-walkthroughs.mjs",
+      "scripts/check-walkthroughs.node-test.mjs",
+      "scripts/walkthrough-baseline.json",
+      "src/workbench/library/ProjectLibraryPage.tsx",
+      "tests/ux/production-mcp-journey.e2e.mjs"
+    ]
+  },
+  "class_regression_tests": [
+    "scripts/check-walkthroughs.node-test.mjs",
+    "tests/ux/production-mcp-journey.e2e.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "tests/ux/production-mcp-journey.e2e.mjs"
+    ],
+    "rationale": "位置式打开的那两行（`.first().click()` 与只等 `projectId=` 前缀的宽松 waitForFunction）在同 commit 删除，旅程里只剩 openProjectFromLibrary 一条路径，无并行版、无 fallback（P1）。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "本次修复不引入也不升级任何依赖：只动了一个 data 属性、一段旅程脚本和一条既有门岗规则。",
+    "exit_criteria": []
+  }
+}

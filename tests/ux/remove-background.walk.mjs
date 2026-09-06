@@ -36,7 +36,12 @@ function waitForUrl(url, timeoutMs) {
   })
 }
 console.log('  … 启动 vite dev server …')
-const vite = spawn('node', ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1', '--port', '5273'], { cwd: repoRoot, env: { ...process.env }, stdio: 'ignore' })
+const vite = spawn('node', ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1', '--port', '5273'], {
+  cwd: repoRoot,
+  // This journey asserts SharedArrayBuffer for the ONNX worker; opt into the Vite headers it needs.
+  env: { ...process.env, NOMI_DEV_CROSS_ORIGIN_ISOLATION: '1' },
+  stdio: 'ignore',
+})
 await waitForUrl('http://127.0.0.1:5273', 60000).catch((e) => { console.error('vite 启动失败', e); })
 
 const consoleErrors = []
@@ -132,7 +137,7 @@ try {
   await getWin().waitForTimeout(1200)
   await snap('node-added')
 
-  await getWin().locator('text=点击打开画板').first().click({ timeout: 4000 }).catch(() => {})
+  await getWin().locator('[data-testid="whiteboard-empty-action"]').first().click({ timeout: 4000 }).catch(() => {})
   await getWin().waitForTimeout(1000)
   const modal = getWin().locator('[data-nomi-whiteboard-modal="true"]').first()
   await modal.waitFor({ state: 'visible', timeout: 6000 }).catch(() => {})

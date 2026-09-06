@@ -1,5 +1,10 @@
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import { getActiveWorkbenchProjectId } from '../project/workbenchProjectSession'
+import {
+  MCP_PROJECT_ADDRESSABLE_CAPABILITY_OPS,
+  MCP_REALTIME_SURFACE_CAPABILITY_OPS,
+  capabilityProjectBindingError,
+} from './capabilityProjectBinding'
 import { useSpendConfirmStore } from '../generationCanvas/spend/spendConfirm'
 import { buildMultiShotContractView, type MultiShotGatePayload } from '../generationCanvas/spend/productionContractView'
 import { getDesktopBridge } from '../../desktop/bridge'
@@ -33,6 +38,7 @@ import { handleMultiShotCanvasLandingOp } from './multiShotCanvasLanding'
 import { executeTimelineReadTarget, executeTimelineWriteTarget } from '../timeline/agent/timelineCapabilityTarget'
 import { executeAssetReadTarget, executeExportReadTarget } from '../timeline/agent/phase4CapabilityTargets'
 import { executeCanonicalCanvasPlanPatch } from './canonicalCanvasPlanPatch'
+import { handleMcpHostSurfaceOp } from './mcpHostSurfaceOps'
 
 // 能力核 A 模式实时桥 · 渲染层处理器。
 // 主进程把外部 MCP 的画布读/写/付费确认转发到这里（只在该项目正打开时路由），处理后回结果。
@@ -340,8 +346,18 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
   // 画布读写**只能**作用于当前打开的项目（动 store → 必须是活动项目，否则串台）；目标≠活动 → 拒。
   // 确认门（spend.confirm / plan.confirm）不在此限：AI 想在「非当前项目」生成/落方案时也弹全局卡，
   // 卡里标明项目名，确认后走盘落地（不动非活动 store）。这正是治静默黑洞的关键放开。
-  if (op !== 'spend.confirm' && op !== 'plan.confirm' && projectId && activeId && projectId !== activeId) {
-    throw new Error(i18n.t('runtime.capability.projectChanged'))
+  //
+  // 项目身份按**面**分流（定义与理由住在 capabilityProjectBinding.ts）：
+  // · 可寻址面（asset.read / export.read）——底下按 projectId 直接寻址主进程 store，项目开不开着都能答，
+  //   所以完全豁免本闸，lease 的 projectId 一路往下传（这正是 MCP 宿主「改不了自己建的项目」的根因）。
+  // · 实时面（timeline.read / timeline.write）——真相在打开的那个项目的 store 里，
+  //   **没打开任何项目也算不匹配**（旧闸在这种情况放行，然后适配器抛没有下一步的 project_scope_required）。
+  // · 其余 op 维持原来的「目标≠活动 → 拒」，只是错误换成了会点名的那一句。
+  if (!MCP_PROJECT_ADDRESSABLE_CAPABILITY_OPS.has(op) && op !== 'spend.confirm' && op !== 'plan.confirm' && projectId) {
+    const mismatched = MCP_REALTIME_SURFACE_CAPABILITY_OPS.has(op)
+      ? projectId !== (activeId ?? '')
+      : Boolean(activeId) && projectId !== activeId
+    if (mismatched) throw capabilityProjectBindingError(projectId, activeId)
   }
   const plannerSnapshot =
     op === 'production.plan-storyboard'
@@ -366,6 +382,10 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
   // 落点住在 multiShotCanvasLanding（保持本 handler 精简）。未处理返回 null → 继续走下方 switch。
   const landed = await handleMultiShotCanvasLandingOp(op, data)
   if (landed !== null) return landed
+
+  // 外部 MCP 宿主触发的纯渲染层副作用（打开凭据页 / 宿主配置已修复提示），落点住在 mcpHostSurfaceOps。
+  const hostSurface = handleMcpHostSurfaceOp(op, data)
+  if (hostSurface !== null) return hostSurface
 
   switch (op) {
     case 'document.write': {
@@ -432,6 +452,7 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
         ? data.expectedRevision
         : typeof plan.baseRevision === 'string' ? plan.baseRevision : ''
       return executeTimelineWriteTarget({
+        ...(projectId ? { projectId } : {}),
         input: input as Parameters<typeof executeTimelineWriteTarget>[0]['input'],
         target: { kind: 'timeline', clipIds: [] },
         preconditions: { timeline: { revision } },
@@ -457,15 +478,37 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
       return { operation: 'write_layout', ok: true, layout: useWorkbenchStore.getState().editingPanelLayout, receipt: `布局已更新 · ⌘Z 可撤销`, undoToken: `layout:${Date.now()}:${previous.preset}` }
     }
     case 'asset.read': {
-      const operation = data.operation === 'list' ? 'search_media' : data.operation === 'get' ? 'get_media' : data.operation === 'inspect' ? 'inspect_media' : data.operation === 'source_range' ? 'inspect_source_range' : data.operation === 'waveform' ? 'read_waveform' : 'search_media'
+      // 载荷是**传输形状**（leaseHandle / projectId / operation:'list'…），语义 schema 是 strict 的：
+      // 整包 spread 会把 operation 覆盖回 'list'、还带进 leaseHandle/projectId，两条都直接
+      // capability_input_invalid（真宿主旅程当场撞出来的）。所以按面逐字段搭语义输入。
+      const assetId = typeof data.assetId === 'string' ? data.assetId : ''
+      const input = data.operation === 'get' || data.operation === 'inspect'
+        ? { operation: data.operation === 'get' ? 'get_media' : 'inspect_media', assetId }
+        : data.operation === 'source_range'
+          ? { operation: 'inspect_source_range', assetId, startFrame: data.startFrame, endFrame: data.endFrame }
+          : data.operation === 'waveform'
+            ? {
+                operation: 'read_waveform',
+                assetId,
+                ...(data.startSeconds === undefined ? {} : { startSeconds: data.startSeconds }),
+                ...(data.endSeconds === undefined ? {} : { endSeconds: data.endSeconds }),
+                ...(data.buckets === undefined ? {} : { buckets: data.buckets }),
+              }
+            : {
+                operation: 'search_media',
+                query: typeof data.query === 'string' ? data.query : '',
+                ...(Array.isArray(data.kinds) ? { kinds: data.kinds } : {}),
+                ...(data.limit === undefined ? {} : { limit: data.limit }),
+              }
       return executeAssetReadTarget({
-        input: { operation, ...data, ...(operation === 'search_media' && !data.query ? { query: '' } : {}) },
-        target: { kind: 'asset', assetIds: typeof data.assetId === 'string' ? [data.assetId] : [] },
+        ...(projectId ? { projectId } : {}),
+        input,
+        target: { kind: 'asset', assetIds: assetId ? [assetId] : [] },
       })
     }
     case 'export.read': {
       const operation = data.operation === 'verify' ? 'verify_render' : 'inspect_export_job'
-      return executeExportReadTarget({ input: { operation, jobId: data.jobId }, target: { kind: 'export', jobId: data.jobId } })
+      return executeExportReadTarget({ ...(projectId ? { projectId } : {}), input: { operation, jobId: data.jobId }, target: { kind: 'export', jobId: data.jobId } })
     }
     case 'production.plan-directions': {
       // B1 方向门：driver 停在 awaiting_direction 时让渲染层拟 2-3 个「创意方向」候选（三选一）。

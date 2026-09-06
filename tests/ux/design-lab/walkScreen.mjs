@@ -1,6 +1,6 @@
 // 设计实验室走查的**共用实现**（R13 人眼判断的素材源）。零额度：纯本地渲染，不碰任何生成 API。
 //
-// 各屏（agent-panel / editing / storyboard）走的是同一套流程，所以流程只写一份；各屏的入口文件
+// 各屏（agent-panel / editing / storyboard 等）走的是同一套流程，所以流程只写一份；各屏的入口文件
 // （`tests/ux/design-lab-<屏>.walk.mjs`）只声明"哪一屏、截多宽、接触表排几列"。
 // 把流程抄两份的代价不是多几行，是**两份会漂**——其中一份悄悄少了一条断言，没人看得出来。
 //
@@ -20,29 +20,15 @@ import { spawn, spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { readLabStates, REPO_ROOT } from './labStates.mjs'
+import { assertLabPortOwnership, labPortFor } from './labServer.mjs'
 
 const COVERAGE_TONE = { shell: '#2f7d4f', 'component-only': '#9a6a3c', missing: '#b23c3c', retired: '#6b6b6b' }
 const COVERAGE_TEXT = { shell: '整条通', 'component-only': '只有组件', missing: '没实现', retired: '已取消' }
 
-/**
- * 等**自己启的**那台 dev server 起来。
- *
- * 这台机器上常年并行着二十多个 worktree，端口写死就一定会撞。只 `fetch` 探活探不出撞没撞——
- * 别人的 vite 一样回 200，于是走查会安安静静地把**另一个 worktree 的应用**截 35 张、
- * 拼成接触表、和基线比对。2026-09-06 实测就撞上了：5199 被隔壁 worktree 占着，
- * 走查拿回来的是 Agent 面板的 45 个状态。所以这里以**子进程还活着**为前提：
- * `--strictPort` 撞端口会让 vite 立刻退出，那时必须当场炸，不能继续探别人的服务。
- */
-function waitForServer(url, child, timeoutMs = 60000) {
+function waitForServer(url, timeoutMs = 60000) {
   const start = Date.now()
   return new Promise((resolve, reject) => {
-    let exited = null
-    child.once('exit', (code) => { exited = code ?? 'signal' })
     const tick = async () => {
-      if (exited !== null) {
-        return reject(new Error(`vite 起不来（退出码 ${exited}）——${url} 多半被别的 worktree 占着；`
-          + '换个端口跑：DESIGN_LAB_PORT=<空闲端口> pnpm run design-lab:walk:<屏>'))
-      }
       try {
         const response = await fetch(url)
         if (response.ok || response.status === 404) return resolve()
@@ -55,13 +41,15 @@ function waitForServer(url, child, timeoutMs = 60000) {
 }
 
 /**
- * @param {{screen: string, title: string, port: number, cellWidth: number, columns: number, viewport?: {width: number, height: number}}} config
+ * @param {{screen: string, title: string, role: string, cellWidth: number, columns: number, viewport?: {width: number, height: number}}} config
  */
 export async function walkDesignLabScreen(config) {
   const OUT_DIR = path.join(REPO_ROOT, `tests/ux/shots/design-lab-${config.screen}`)
   const HOST = '127.0.0.1'
-  // 端口可覆盖：并行 worktree 撞端口时换一个跑，不必改源码（撞了会当场炸，见 waitForServer）。
-  const PORT = Number(process.env.DESIGN_LAB_PORT || config.port)
+  // 端口按 worktree 派生，不再写死（labServer.mjs）：写死的端口是整台机器的全局单例，
+  // 而这台机器上常年挂着 20+ worktree。下面那道 waitForServer 只探「有没有人应答」——
+  // 端口被别的树占着时它会**照样成功**，然后整份走查截的是别人分支的 UI。
+  const PORT = labPortFor(config.role)
   const BASE = `http://${HOST}:${PORT}`
   const ONLY = (process.env.ONLY || '').split(',').map((value) => value.trim()).filter(Boolean)
 
@@ -80,11 +68,19 @@ export async function walkDesignLabScreen(config) {
   if (tailwind.status !== 0) throw new Error('build-tailwind 失败：整页会没有样式，截图无意义')
 
   console.log('▶ 启动 vite dev server…')
+  // 起之前先看这口是不是别人的；是就当场停，别把别人的服务器当自己的。
+  assertLabPortOwnership(config.role)
   const vite = spawn('npx', ['vite', '--host', HOST, '--port', String(PORT), '--strictPort'], {
     cwd: REPO_ROOT,
-    stdio: 'ignore',
+    // stderr 不再丢掉：--strictPort 撞口时 vite 是从这里喊的，
+    // 以前 'ignore' 把它咽掉，于是「没绑上」和「绑上了」在日志里长得一模一样。
+    stdio: ['ignore', 'ignore', 'pipe'],
   })
-  await waitForServer(`${BASE}/design-lab.html`, vite)
+  vite.stderr?.on('data', (chunk) => process.stderr.write(`[vite] ${chunk}`))
+  await waitForServer(`${BASE}/design-lab.html`)
+  // 应答了不等于是我起的那一个：--strictPort 绑失败时应答的是原来占口的那个进程。
+  // 截图之前必须证明答话的就是本树（fail-closed）。
+  assertLabPortOwnership(config.role)
 
   const browser = await chromium.launch({ headless: true })
   const context = await browser.newContext({

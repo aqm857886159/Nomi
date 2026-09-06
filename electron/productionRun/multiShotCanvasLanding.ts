@@ -8,6 +8,7 @@
 // 幂等（§3.4）：materializationOperationId = `canvas-landing:{runId}`（每 Run 一个稳定 op），跑两次不重复建节点/组。
 import { createArtifactProjection } from "./artifactProjection";
 import type { ProductionRun, ProductionGenerationShot } from "./productionRunTypes";
+import { logWarn } from "../logging/logger";
 
 /** 渲染层 materialize-shots 载荷里的一镜（与渲染层 MaterializeShotInput 对齐，跨 RPC 序列化形状）。 */
 export type MaterializeShotWire = {
@@ -162,7 +163,7 @@ export async function landCanvasForRun(run: ProductionRun, deps: CanvasLandingDe
     return true;
   } catch (error) {
     // 渲染层不可用（项目没开 / 窗口关）或落地失败：只记 warn，生成照跑（§1 铁律）。
-    console.warn("[nomi:production] canvas landing skipped:", error instanceof Error ? error.message : String(error));
+    logWarn("production-run", "canvas-landing-skipped", undefined, error);
     return false;
   }
 }

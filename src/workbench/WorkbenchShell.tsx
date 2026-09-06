@@ -17,6 +17,10 @@ import { WindowControls } from "../ui/app-shell/WindowControls";
 import { handleWindowTitlebarDoubleClick } from "../ui/app-shell/windowTitlebarDoubleClick";
 import { OnboardingChecklist } from "./onboarding/OnboardingChecklist";
 import ProjectAgentResidentShell from './ai/ProjectAgentResidentShell';
+import { useUpdater } from '../ui/app-shell/useUpdater';
+import { UpdaterDialog } from '../ui/app-shell/UpdaterDialog';
+import { useGenerationCanvasStore } from './generationCanvas/store/generationCanvasStore';
+import { useProductionRunStore } from './production/productionRunStore';
 
 // 工作区懒加载走容错域（审计 A5）：单个工作区 chunk 失败不拖死其余工作区。
 const CreationWorkspace = lazyWithChunkBoundary(
@@ -173,6 +177,10 @@ export default function WorkbenchShell({
                 ? 'storyboard'
                 : 'creation';
     const agentDock = agentDockTargets[agentSurface];
+    const updater = useUpdater();
+    const hasRunningCanvasTask = useGenerationCanvasStore((state) => state.nodes.some((node) => node.status === 'running'));
+    const productionRun = useProductionRunStore((state) => state.projectId === projectId ? state.run : null);
+    const hasRunningTask = hasRunningCanvasTask || productionRun?.status === 'running' || productionRun?.status === 'pausing' || productionRun?.status === 'exporting';
     const [mountedWorkspaceModes, setMountedWorkspaceModes] = React.useState<
         WorkspaceMode[]
     >(() => [workspaceMode]);
@@ -341,6 +349,7 @@ export default function WorkbenchShell({
                 onOpenSettings={onOpenSettings}
                 onRenameProject={onRenameProject}
             />
+            <UpdaterDialog updater={updater} hasRunningTask={hasRunningTask} />
 
             {/* 左侧面板重做: 分类导航 + 文件树统一收进 ProjectExplorerSidebar 的双 Tab。
           创作模式是纯文稿写作，不挂项目资源树（仅生成/预览显示）。 */}

@@ -89,12 +89,22 @@ import { ensureWorkspaceProjectIdentity } from "./workspace/workspaceProjectIden
 import { resolveWorkspaceProjectDir } from "./workspace/workspaceRepository";
 import { installContentSecurityPolicy } from "./contentSecurityPolicy";
 import { registerSkillIpc } from "./skills/skillIpc";
-installMainProcessLifecycle(app);
+import { logError, logInfo, logWarn } from "./logging/logger";
+import { registerDevDiagnostics } from "./logging/devDiagnostics";
+// profile 重定向必须排在 installMainProcessLifecycle **之前**：崩溃处理与日志一装上就会写盘，
+// 晚一步重定向，这次会话的头几行（含会话表头）会落在被隔离掉的那个目录里。
 const configuredUserDataDir = String(process.env.NOMI_ELECTRON_USER_DATA_DIR || "").trim();
 if (configuredUserDataDir) {
   // dev-electron.mjs 按 renderer 端口隔离 profile，避免复用旧 Vite chunk/code cache。
   app.setPath("userData", configuredUserDataDir);
+  // 日志跟着 profile 走。macOS 的 `logs` 默认是 ~/Library/Logs/<app>，**不随 userData 变**——
+  // 于是同一台机器上的每个实例（正装的、dev 的、E2E 的、多 worktree 的）都往同一个文件里写，
+  // 日志互相交叉、诊断包也会把别人的会话打包进来（2026-09-06 走查实测：隔离实例的诊断包里
+  // 出现了另一个 worktree 的崩溃栈）。profile 被显式隔离时，它的日志也必须被隔离。
+  // 正常安装的用户没有这个 env，路径与从前逐字一致（仍是 ~/Library/Logs/Nomi）。
+  app.setPath("logs", path.join(configuredUserDataDir, "logs"));
 }
+installMainProcessLifecycle(app);
 // 单实例锁（能力核前提，docs/plan/2026-06-20）：保证同一 user-data 只有一个 app 实例 = 工程文件的
 // 唯一写者，外部 CLI/MCP 才能安全地「app 开着走 RPC、关着走 headless」。隔离实例（eval/promo 用独立
 // --user-data-dir）拿到的是各自的锁，不受影响。拿不到锁 = 已有实例在跑 → 让出（聚焦老窗后退出）。
@@ -217,34 +227,6 @@ if (lowMemoryMode || process.env.NOMI_DISABLE_V8_JIT === "1") {
   app.commandLine.appendSwitch("js-flags", process.env.NOMI_V8_FLAGS);
 }
 
-function registerDevDiagnostics(mainWindow: BrowserWindow, rendererUrl: string): void {
-  if (!isDev) return;
-
-  console.log(`[nomi:desktop] loading renderer: ${rendererUrl}`);
-  if (configuredUserDataDir) {
-    console.log(`[nomi:desktop] userData dir: ${configuredUserDataDir}`);
-  }
-
-  mainWindow.webContents.on("did-fail-load", (_event, errorCode, errorDescription, validatedURL) => {
-    console.error(`[nomi:desktop] renderer load failed (${errorCode}): ${errorDescription} ${validatedURL}`);
-  });
-  mainWindow.webContents.on("did-finish-load", () => {
-    console.log("[nomi:desktop] renderer did finish load");
-  });
-  mainWindow.webContents.on("dom-ready", () => {
-    console.log("[nomi:desktop] renderer dom ready");
-  });
-  // render-process-gone 不在这里挂：已由 installProcessGoneHandlers 装在 app 上（落盘 + console），
-  // 覆盖所有窗口而不只是主窗，且生产环境也留证。
-  mainWindow.webContents.on("preload-error", (_event, preloadPath, error) => {
-    console.error(`[nomi:desktop] preload failed: ${preloadPath}`, error);
-  });
-  mainWindow.webContents.on("console-message", (_event, level, message, line, sourceId) => {
-    const method = level >= 2 ? console.error : console.log;
-    method(`[nomi:renderer:${level}] ${message} (${sourceId}:${line})`);
-  });
-}
-
 function getRendererUrl(): string {
   const explicit = process.env.VITE_DEV_SERVER_URL || process.env.NOMI_RENDERER_URL;
   if (explicit) return explicit;
@@ -299,7 +281,7 @@ async function loadRendererWithRetry(mainWindow: BrowserWindow, rendererUrl: str
       lastError = error;
       if (!isDev || mainWindow.isDestroyed() || attempt === attempts) break;
       const message = error instanceof Error ? error.message : String(error);
-      console.warn(`[nomi:desktop] renderer load attempt ${attempt}/${attempts} failed: ${message}`);
+      logWarn("window", "renderer-load-retry", { attempt, attempts, reason: message });
       await wait(DEV_RENDERER_LOAD_RETRY_MS);
     }
   }
@@ -367,12 +349,12 @@ async function createWindow(
     if (!main || main === mainWindow || main.webContents === mainWindow.webContents) setRendererTarget(null);
   });
 
-  registerDevDiagnostics(mainWindow, rendererUrl);
+  registerDevDiagnostics(mainWindow, rendererUrl, { isDev, userDataDir: configuredUserDataDir });
   if (isDev) {
     try {
       await mainWindow.webContents.session.clearCache();
     } catch (error) {
-      console.warn("[nomi:desktop] failed to clear dev session cache:", error);
+      logWarn("window", "dev-cache-clear-failed", undefined, error);
     }
   }
   await loadRendererWithRetry(mainWindow, rendererUrl);
@@ -405,7 +387,7 @@ function recreateMainWindowFromSender(sender: WebContents, options: { preserveRo
     .then(() => createWindow({ bounds, maximize, rendererUrl }))
     .then((nextWindow) => nextWindow.focus())
     .catch((error) => {
-      console.error(`[nomi:desktop] failed to recreate window for ${options.reason}:`, error);
+      logError("window", "recreate-window-failed", error, { reason: options.reason });
     })
     .finally(() => {
       isRecreatingMainWindow = false;
@@ -788,13 +770,13 @@ if (hasSingleInstanceLock)
       void applyProxyAtBoot()
         .then(() => import("./vendor/vendorBaseFallbackBoot"))
         .then((m) => m.configureVendorBaseFallbackAtBoot())
-        .catch((error) => console.error("[nomi:desktop] network boot failed:", error));
+        .catch((error) => logError("main", "network-boot-failed", error));
       // 写入内置模型种子（Seedance 等主流模型档案）；幂等、存在即跳过，不覆盖用户已有记录。
       // sync 且渲染层一进库就读 catalog → 须在 createWindow 前完成。
       try {
         ensureBuiltinModelSeeds();
       } catch (error) {
-        console.error("[nomi:desktop] ensureBuiltinModelSeeds failed:", error);
+        logError("catalog", "builtin-model-seeds-failed", error);
       }
       registerIpc(); void import('./telemetry/telemetryLifecycle').then(({ recordAppStarted }) => recordAppStarted());
       await createWindow();
@@ -802,7 +784,7 @@ if (hasSingleInstanceLock)
       // 必须在窗口完成后才暴露；失败显式消化，不能反向拖垮已经可用的首窗。低内存模式仍默认跳过。
       if (!capabilityCoreDisabled) {
         void startDesktopCapabilityCore().catch((error) => {
-          console.error("[nomi:desktop] startCapabilityCore failed:", error);
+          logError("capability", "start-failed", error);
         });
       }
       flushPendingProductionDeepLink();
@@ -812,11 +794,11 @@ if (hasSingleInstanceLock)
           // 避免 OS Keychain 阻塞初始窗口或调试握手。动态导入/维护失败均显式消化，不反向拖垮首窗。
           void import("./catalog/relayNativeWireUpgrade")
             .then((m) => m.scheduleRelayNativeWireUpgrade())
-            .catch(() => console.warn("[nomi:desktop] post-window catalog maintenance unavailable"));
+            .catch(() => logWarn("catalog", "post-window-maintenance-unavailable"));
           // 全局截图热键：默认关，只有用户在设置里开过才会真注册（见 screenshot/screenshotHotkey.ts）。
           void import("./screenshot/screenshotHotkey")
             .then(({ applyScreenshotHotkey }) => applyScreenshotHotkey())
-            .catch((error) => console.error("[nomi:desktop] screenshot hotkey boot failed:", error));
+            .catch((error) => logError("screenshot", "hotkey-boot-failed", error));
         },
         lowMemoryMode ? 15000 : 3000,
       );
@@ -824,7 +806,7 @@ if (hasSingleInstanceLock)
       app.on("activate", () => void ensureMainWindow()); // macOS 关窗后进程不退，点 Dock 靠这条把窗口建回来
     })
     .catch((error) => {
-      console.error("[nomi:desktop] failed to start:", error);
+      logError("main", "start-failed", error);
       app.quit();
     });
 app.on("window-all-closed", () => {
@@ -839,8 +821,8 @@ app.on("before-quit", () => {
   try {
     const { abortAllActiveExports } = require("./export/exportJobs") as typeof import("./export/exportJobs");
     const aborted = abortAllActiveExports();
-    if (aborted > 0) console.log(`[nomi:desktop] aborted ${aborted} in-flight export(s) on quit`);
+    if (aborted > 0) logInfo("export", "aborted-on-quit", { count: aborted });
   } catch (error) {
-    console.error("[nomi:desktop] failed to abort exports on quit:", error);
+    logError("export", "abort-on-quit-failed", error);
   }
 });

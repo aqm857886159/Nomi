@@ -10,7 +10,7 @@ import { walkDesignLabScreen } from './design-lab/walkScreen.mjs'
 await walkDesignLabScreen({
   screen: 'agent-panel',
   title: 'Agent 面板',
-  port: 5198,
+  role: 'walk-agent-panel',
   // 面板固定 340px 宽（workbenchStore.assistantWidth 默认值）。
   cellWidth: 340,
   columns: 4,
