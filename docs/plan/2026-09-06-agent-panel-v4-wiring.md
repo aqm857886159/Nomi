@@ -402,3 +402,21 @@ v4 要把它换成真数字，正是这一条的意义；换不成的分项**宁
 （2026-08-01 拍板：不留半成品），而且当天就会红掉 `golden-path.e2e.mjs` 这道每日闸。
 
 建议按 §7 分段推进，**§6 五条拍板后再开第 2 段**。
+
+---
+
+## 先查别人（2026-09-07 补 · 收起态返工与滚动位置还原这一段）
+
+R27：动手之前先证明「别人做过没有」。这一段实施动的是收起角标（顶栏那一格）与「点角标原宽**原状态**还原」，四问逐条实查如下。
+
+| 问 | 实查到的 | 结论 |
+|---|---|---|
+| 依赖里已有？ | `ls node_modules \| grep -iE "stick\|scroll"` 只命中 `react-switch` / `react-tooltip`（名字里的字母误命中），**没有任何滚动粘底/位置记忆的库**；现役「跟到底」是自家 3 行（`src/workbench/ai/v4/AgentPanelV4Panel.tsx:210`） | 依赖里没有，不是「装个包就有」 |
+| 仓库里已有？ | 全仓 `scrollTop =` 的写点只有浏览器素材条的拖动滚动（`src/ui/browser/popover/useBrowserAssetMarquee.ts:117`）；**没有第二份**「收起/展开保位置」的实现。收起角标那一格本身**不新建**：现役 `src/ui/app-shell/CollapsedAiChip.tsx:29` 就是它的家，按定稿 §11.4 泛化（一个组件一条 if/else） | 角标复用已有；滚动记忆仓库里确实没有，要写 |
+| 生态里已有？ | `use-stick-to-bottom`（bolt.new 在用的那个 hook，https://github.com/stackblitz-labs/use-stick-to-bottom ）解决的是「新内容进来时粘底、上方内容 resize 时画面不跳」，**不解决**「组件卸载再挂载后回到原来读的位置」——它连自己的 `isAtBottom` 都活在组件里 | 引它要装包 + 换掉现役跟底逻辑，而我们要的那件事它不做：不引 |
+| 机制出处 | React 官方 `useLayoutEffect` 文档写明：「Before your component is removed from the DOM, React will run your cleanup function.」（https://react.dev/reference/react/useLayoutEffect ） | 这就是「在节点还挂在文档里时量 scrollTop」的依据——普通 effect 的清理跑在移除之后，量到的是 0 |
+| TikHub 自媒体怎么说？ | 本轮**没跑**：这是一段实现机制（卸载前把位置存哪儿），不是产品取舍，用户侧没有可检索的讨论面 | 诚实标注，未查 |
+
+**结论：用已有 + 自研一小块。** 角标用已有（`CollapsedAiChip` 泛化，不新建第二颗）；跟到底用已有（现役 3 行）；
+只自研「位置存哪儿、什么时候存」这 40 行（`src/workbench/ai/v4/agentPanelV4ScrollMemory.ts` + 面板里的布局 effect），
+因为生态里那个最接近的库恰好不做这件事，而这件事的难点全在**时机**（卸载前那一刻），不在算法。
