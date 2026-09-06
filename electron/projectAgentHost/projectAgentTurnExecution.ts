@@ -1,5 +1,5 @@
 import type { AgentChatToolDecision } from "../harness/agentChatContracts";
-import type { ProjectAgentExecutionEventPayload, ProjectAgentMutation, ProjectAgentFailureItem, ProjectAgentHostState, ProjectAgentQueueItem, ProjectAgentStatus, ProposalApprovalRef } from "../shared/projectAgentContracts";
+import type { ProjectAgentExecutionEventPayload, ProjectAgentMutation, ProjectAgentHostState, ProjectAgentQueueItem, ProjectAgentStatus, ProposalApprovalRef } from "../shared/projectAgentContracts";
 import type { PiCanvasReadTransportAdapter } from "../capabilityCore/canvasReadTransportAdapters";
 import type { PiDocumentReadTransportAdapter } from "../capabilityCore/documentReadTransportAdapters";
 import type { PiDocumentWriteTransportAdapter, PreparedDocumentWrite } from "../capabilityCore/documentWriteTransportAdapters";
@@ -31,7 +31,7 @@ import { EXPORT_READ_CAPABILITY, EXPORT_WRITE_CAPABILITY } from "../shared/agent
 import { SKILL_WRITE_CAPABILITY } from "../shared/agentCapabilities/skillWrite";
 import { SKILL_READ_CAPABILITY } from "../shared/agentCapabilities/skillRead";
 import { committedProjectAgentReceiptMatchesApproval } from "./projectAgentProposalReceiptCorrelation";
-import { digest, steeredExecutionPrompt, exportJobTaskItems, productionRunTaskItems, statusForResponse, toolItem, hostPromptLedgerForTurn } from "./projectAgentExecutionHelpers";
+import { digest, steeredExecutionPrompt, exportJobTaskItems, productionRunTaskItems, statusForResponse, terminalFailureItemFor, toolItem, hostPromptLedgerForTurn } from "./projectAgentExecutionHelpers";
 import { isPiGenerationToolName } from "../capabilityCore/generationTransportAdapters";
 import {
   abandonDocumentProposalReceipt,
@@ -167,6 +167,13 @@ export async function executeProjectAgentTurn(context: ProjectAgentTurnExecution
       abortSignal: execution.controller.signal,
       emit: (event) => {
         if (event.type === "content-delta") append(event.delta);
+        // 运行时把「这一回合为什么没成」的人话只在这儿说一次（`agentChatV2` 的
+        // `describeRuntimeError` / `describeEmptyAgentReply`）。以前这里只认 content-delta，
+        // 于是那句话被原地丢掉：宿主只落一个 `failed` 状态字，收尾那步又只在**工具级**
+        // 失败时才建 failure 条目，渲染层最后只好印一句「发送失败，请检查后重试。」——
+        // 落盘、日志、对话流三处**全都**没有原因，重启之后连那句话都没了。
+        // 第一条留住即可：它是根因，后面的多半是同一件事的派生说法。
+        else if (event.type === "error" && event.message) execution.runtimeDiagnostic ??= event.message;
       },
       awaitToolConfirmation: async (call, signal) => {
         const frozen = partition.requests.get(execution.turn.turnId);
@@ -633,23 +640,14 @@ export async function executeProjectAgentTurn(context: ProjectAgentTurnExecution
     );
     const productionTaskItems = productionRunTaskItems(partition.binding, execution.turn, response.toolCalls.filter((record) => record.status === "ok"), [...beforeResult.items, ...taskItems], receivedAt);
     const resultItems = [...toolItems, ...taskItems, ...productionTaskItems];
-    const outcomeFailure: ProjectAgentFailureItem | undefined = capabilityOutcome
-      ? Object.freeze({
-          itemId: `failure-${digest([execution.turn.executionToken, capabilityOutcome.toolCallId, capabilityOutcome.code])}`,
-          threadId: execution.turn.threadId,
-          turnId: execution.turn.turnId,
-          correlationId: capabilityOutcome.toolCallId,
-          kind: "failure" as const,
-          code: capabilityOutcome.code,
-          message: capabilityOutcome.message,
-          nextAction: capabilityOutcome.nextAction,
-          status: capabilityOutcome.status,
-          retryable: capabilityOutcome.retryable,
-          deviated: false,
-          createdAt: receivedAt,
-          updatedAt: receivedAt,
-        })
-      : undefined;
+    const terminalFailure = terminalFailureItemFor({
+      turn: execution.turn,
+      status,
+      receivedAt,
+      ...(capabilityOutcome ? { capabilityOutcome } : {}),
+      ...(execution.runtimeDiagnostic ? { runtimeDiagnostic: execution.runtimeDiagnostic } : {}),
+    });
+    const terminalItems = terminalFailure ? [...resultItems, terminalFailure] : resultItems;
     const currentStatus = beforeResult.turns.find((turn) => turn.turnId === execution.turn.turnId)?.status;
     if (!currentStatus || ["queued", "running", "proposed"].includes(currentStatus)) {
       await dispatchFresh(partition, (state) => ({
@@ -667,7 +665,7 @@ export async function executeProjectAgentTurn(context: ProjectAgentTurnExecution
           target: execution.queueItem.target,
           preconditions: execution.queueItem.preconditions,
           expectedRevision: state.hostRevision,
-          items: outcomeFailure ? [...resultItems, outcomeFailure] : resultItems,
+          items: terminalItems,
           turnStatus: status,
           usage: response.usage,
           ...(response.context ? { runtimeContext: response.context } : {}),
