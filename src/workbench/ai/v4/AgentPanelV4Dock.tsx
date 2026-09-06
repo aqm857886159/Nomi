@@ -62,6 +62,27 @@ export function V4CollapsedRail({
  * 面板系统之后，旧的 `.workbench-preview__stage` 选择器一个都不匹配了。死选择器在这里
  * 是**静默失败**——空当恒为 0，composer 又落回走带条上——所以锚点必须是结构性的。
  */
+export const TRANSPORT_BAR_SELECTOR = '.workbench-preview-player__control-bar'
+
+/**
+ * 从两个已量到的矩形算空当。抽成纯函数是为了让那条**不变量**能被单测钉住：
+ * 空当永远落在 `[0, 宿主高度]` 里，而且只有当走带条**真的被排版过**（有高度）才算。
+ *
+ * 2026-09-06 真机验收撞到的就是这条不变量破了：在创作面收起面板，composer 跑到了
+ * 画面**上方** y=-98，整条对话不见了——与定稿「收起藏的是对话流，不是对话」完全相反。
+ * 机制是：预览面即使没在前台也还挂在 DOM 里，它那条走带条 `display:none`、矩形全 0，
+ * 于是 `host.bottom - bar.top` = `854 - 0` = 854，`bottom: 854px` 把坞顶出了视口。
+ * 原注释担心的是死选择器让空当恒为 0（composer 压住播放键）；真出事的是反方向——
+ * 量到一个**比宿主还大**的数。所以判据不能只是「查得到条」，得是「这条真的在排版里」。
+ */
+export function transportClearanceFrom(
+  host: Readonly<{ bottom: number; height: number }>,
+  bar: Readonly<{ top: number; height: number }> | null,
+): number {
+  if (!bar || bar.height <= 0) return 0
+  return Math.min(Math.max(0, host.bottom - bar.top), Math.max(0, host.height))
+}
+
 function useTransportClearance(dockRef: React.RefObject<HTMLDivElement | null>): number {
   const [clearance, setClearance] = React.useState(0)
   React.useLayoutEffect(() => {
@@ -69,14 +90,17 @@ function useTransportClearance(dockRef: React.RefObject<HTMLDivElement | null>):
     if (!(host instanceof HTMLElement)) return undefined
     // 量的是「宿主底边到走带条顶边」的距离，不是走带条自己的高度：播放器在条下面还留了
     // 自己的内边距，只按高度算照样会落在播放键上。每次测量重新查一次条，晚挂载的播放器也能接上。
+    // 查询范围是**宿主自己**，不是整个文档：别的面（预览面常驻在 DOM 里）那条走带条
+    // 不是这个坞的邻居，量它只会量到一个没有意义的数。
+    const findBar = (): HTMLElement | null => host.querySelector<HTMLElement>(TRANSPORT_BAR_SELECTOR)
     const measure = (): void => {
-      const bar = document.querySelector<HTMLElement>('.workbench-preview-player__control-bar')
-      setClearance(bar ? Math.max(0, host.getBoundingClientRect().bottom - bar.getBoundingClientRect().top) : 0)
+      const bar = findBar()
+      setClearance(transportClearanceFrom(host.getBoundingClientRect(), bar?.getBoundingClientRect() ?? null))
     }
     measure()
     const observer = new ResizeObserver(measure)
     observer.observe(host)
-    const bar = document.querySelector<HTMLElement>('.workbench-preview-player__control-bar')
+    const bar = findBar()
     if (bar) observer.observe(bar)
     window.addEventListener('resize', measure)
     return () => { observer.disconnect(); window.removeEventListener('resize', measure) }
