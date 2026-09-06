@@ -8,6 +8,26 @@ function opt(over: Partial<ModelOption>): ModelOption {
 }
 
 describe("buildAgentModelEntries", () => {
+  // 2026-09-03 真实付费闭环走查的阻断根因回归：曾按 modelKey 去重（首家胜出），
+  // 两家供应商提供同名模型时身份坍缩——用户选 APIMart 却发去 code-newcli-com HTTP 400。
+  // 身份唯一键必须是 (vendor, modelKey)。
+  it("同名模型来自不同供应商 = 两个条目，不去重（身份唯一键含 vendor）", () => {
+    const entries = buildAgentModelEntries([
+      opt({ value: "nano-banana", label: "Nano Banana", vendor: "apimart", meta: { archetypeId: "nano-banana" } }),
+      opt({ value: "nano-banana", label: "Nano Banana", vendor: "code-newcli-com", meta: { archetypeId: "nano-banana" } }),
+    ]);
+    expect(entries).toHaveLength(2);
+    expect(entries.map((e) => e.vendor).sort()).toEqual(["apimart", "code-newcli-com"]);
+  });
+
+  it("同一供应商的同名模型仍然去重（image/video 两边重复的既有语义不变）", () => {
+    const entries = buildAgentModelEntries([
+      opt({ value: "nano-banana", label: "Nano Banana", vendor: "apimart", meta: { archetypeId: "nano-banana" } }),
+      opt({ value: "nano-banana", label: "Nano Banana", vendor: "apimart", meta: { archetypeId: "nano-banana" } }),
+    ]);
+    expect(entries).toHaveLength(1);
+  });
+
   it("命中档案的模型 join 出 modes + params", () => {
     const entries = buildAgentModelEntries([
       opt({ value: "seedance-2", label: "即梦 Seedance", vendor: "kie", meta: { archetypeId: "seedance-2" } }),

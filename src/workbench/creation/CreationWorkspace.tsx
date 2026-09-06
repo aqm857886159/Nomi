@@ -3,8 +3,6 @@ import { useTranslation } from 'react-i18next'
 import { cn } from '../../utils/cn'
 import WorkbenchEditor from './WorkbenchEditor'
 import DocumentListSidebar from './DocumentListSidebar'
-import StoryboardPlanCard from './storyboard/StoryboardPlanCard'
-import { useWorkbenchStore } from '../workbenchStore'
 
 type CreationWorkspaceProps = {
   aiCollapsed?: boolean
@@ -13,21 +11,9 @@ type CreationWorkspaceProps = {
 
 export default function CreationWorkspace({ aiCollapsed = false, agentDockRef }: CreationWorkspaceProps): JSX.Element {
   const { t } = useTranslation()
-  const activeStoryboardId = useWorkbenchStore((s) => s.activeStoryboardId)
-  const activeDocumentId = useWorkbenchStore((s) => s.activeDocumentId)
-  const activeStoryboard = useWorkbenchStore((s) => (
-    activeDocumentId && activeStoryboardId
-      ? s.storyboardDesignsByDocumentId[activeDocumentId]?.find((design) => design.id === activeStoryboardId)
-      : undefined
-  ))
-  const workspaceMode = useWorkbenchStore((s) => s.workspaceMode)
-  const designsForActiveDocument = useWorkbenchStore((s) => s.storyboardDesignsByDocumentId[s.activeDocumentId] ?? [])
-  const setActiveStoryboardId = useWorkbenchStore((s) => s.setActiveStoryboardId)
-  React.useEffect(() => {
-    if (workspaceMode === 'storyboard' && !activeStoryboardId && designsForActiveDocument[0]) {
-      setActiveStoryboardId(designsForActiveDocument[0].id, activeDocumentId)
-    }
-  }, [activeDocumentId, activeStoryboardId, designsForActiveDocument, setActiveStoryboardId, workspaceMode])
+  // Creation is the source of truth for the script. A blank structural
+  // storyboard starter must never redirect a fresh user away from the editor;
+  // storyboard mode is entered only by an explicit "open storyboard" action.
   return (
     <section
       className={cn(
@@ -44,18 +30,10 @@ export default function CreationWorkspace({ aiCollapsed = false, agentDockRef }:
     >
         <DocumentListSidebar />
       <div className="min-w-0 min-h-0 flex flex-col gap-2">
-        <div className="min-h-0 flex-1" data-creation-surface={activeStoryboard ? 'storyboard' : 'source'}>
-          {/* v5 C3：完整编辑器只住分镜页（§3.7 一个实现一个家）。中列 856px 塞不下全宽表，
-              激活方案时这里只给方案卡摘要，卡上「打开分镜」跳 storyboard 工作区。 */}
-          {activeStoryboard ? (
-            <div className="h-full min-h-0 overflow-y-auto grid place-items-center">
-              <div className="w-full max-w-[400px]">
-                <StoryboardPlanCard documentId={activeDocumentId} storyboardId={activeStoryboard.id} />
-              </div>
-            </div>
-          ) : (
-            <WorkbenchEditor />
-          )}
+        <div className="min-h-0 flex-1" data-creation-surface="source">
+          {/* The script remains visible in Creation; opening a storyboard is an
+              explicit navigation action so a starter row cannot hide the draft. */}
+          <WorkbenchEditor />
         </div>
       </div>
       {agentDockRef ? <aside className={cn(

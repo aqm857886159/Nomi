@@ -35,6 +35,7 @@ function model(modelKey: string, kind: Model["kind"] = "text"): Model {
     labelZh: modelKey,
     kind,
     enabled: true,
+    meta: { adapter: { state: "verified", activeRevision: "rev-1", modes: [{ taskKind: kind === "image" ? "text_to_image" : "chat", state: "verified" }] } },
     createdAt: "2026-08-15T00:00:00.000Z",
     updatedAt: "2026-08-15T00:00:00.000Z",
   };
@@ -136,6 +137,22 @@ describe("existing connection model discovery", () => {
 
     expect(JSON.stringify(result)).not.toContain(SECRET);
     expect(result).toMatchObject({ error: expect.stringContaining("[REDACTED]") });
+  });
+
+  it("does not mark an unverified seed as already added, leaving it selectable for certification", async () => {
+    const staged = {
+      ...model("deepseek-v4-pro"),
+      meta: { adapter: { state: "unverified", modes: [] } },
+    };
+    const { actions } = harness(catalog({ models: [staged] }));
+
+    const result = await actions.listModels({ vendorKey: "my-private-relay" });
+
+    expect(result).toMatchObject({
+      ok: true,
+      connection: { existingModels: [] },
+      models: ["already-there", "new-video"],
+    });
   });
 
   it("reports a recoverable credential action without trying the network", async () => {

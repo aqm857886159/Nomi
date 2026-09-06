@@ -15,6 +15,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { readJsonFile, renameSyncWithRetry, writeJsonFileAtomic } from '../jsonFile'
 import {
+  BUILTIN_MCP_CLIENTS,
   MCP_CLIENT_ENV,
   MCP_CLIENT_PROOF_ENV,
   isValidMcpClientKey,
@@ -25,6 +26,7 @@ import {
 } from './security'
 import { profilesPath } from './mcpDetectedClients'
 import { readAutomationPolicySettings } from '../settings/automationPolicySettings'
+import { getSettingsRoot } from '../settings/settingsRoot'
 
 const SERVER_NAME = 'nomi'
 export const MCP_CONFIG_VERSION_ENV = 'NOMI_MCP_CONFIG_VERSION'
@@ -202,6 +204,7 @@ function nodeLauncherEntry(appCommand: string, appArgs: string[], kind: McpLaunc
       ELECTRON_RUN_AS_NODE: '1',
       NOMI_MCP_APP_COMMAND: appCommand,
       NOMI_MCP_APP_ARGS: JSON.stringify(appArgs),
+      NOMI_SETTINGS_DIR: getSettingsRoot(),
     },
   }
 }
@@ -453,6 +456,50 @@ export function readMcpInfo(rpcPort: number | null): McpInfo {
     trustedHosts,
     clients,
   }
+}
+
+/**
+ * Re-point host configs Nomi itself wrote that have gone stale, at boot.
+ *
+ * The migration itself already existed — but only as a side effect of `clientInfo`, i.e. only when the
+ * user happened to open 模型接入. Someone whose `~/.claude.json` still names the retired
+ * `scripts/nomi-mcp.mjs` entry just sees `CONNECTION_CLOSED` in their coding assistant, with nothing in
+ * the message mentioning Nomi and no reason to suspect a Nomi panel would fix it. Running the same
+ * repair when Nomi starts means the next restart of their client simply works (R28: put the guard at
+ * the earliest layer that can catch it).
+ *
+ * Scope is unchanged from the panel path and stays deliberately narrow: only entries that classify as
+ * Nomi-owned historical shapes (`legacy-launcher` / `stale-development` / `auth-stale` /
+ * `launcher-stale`) are rewritten, only when a packaged launcher exists to point at, and every rewrite
+ * takes a `.nomi-backup` first. A `custom` entry — anything Nomi did not write — is never touched.
+ */
+/**
+ * A repaired entry carries the client's **display label** as well as its key, because the only thing
+ * anyone downstream does with this list is tell the user which assistant to restart. Deriving the
+ * label here keeps that name in the one place that already owns it (`CLIENT_SPECS` / custom profiles);
+ * re-deriving it in the renderer would be a second source of truth for the same string.
+ */
+export type McpConfigRepairResult = {
+  changed: boolean
+  repaired: readonly { client: McpClientKey; label: string; from: McpConfigState }[]
+}
+
+export function repairStaleMcpConfigs(): McpConfigRepairResult {
+  // 走查/E2E 起的是真 GUI，但 `~/.claude.json` 的路径来自 os.homedir()，**不在**隔离目录里——不挡住的话，
+  // 每跑一次走查就会把开发者真实的客户端配置改成指向那次测试的二进制。隔离得住的东西才可以自动改。
+  if (process.env.NOMI_E2E === '1') return { changed: false, repaired: [] }
+  const repaired: { client: McpClientKey; label: string; from: McpConfigState }[] = []
+  const keys: McpClientKey[] = [...BUILTIN_MCP_CLIENTS, ...listCustomMcpProfiles().map((profile) => profile.key)]
+  for (const client of keys) {
+    try {
+      const before = classifyMcpEntry(client, configuredMcpEntry(client))
+      // clientInfo() 是**修复本身**（migration 是它的副作用），label 住在 spec 里。
+      if (clientInfo(client).migration === 'upgraded') {
+        repaired.push({ client, label: resolveClientSpec(client)?.label ?? client, from: before })
+      }
+    } catch { /* an unreadable or non-existent client config is not a Nomi failure */ }
+  }
+  return { changed: repaired.length > 0, repaired }
 }
 
 function tomlUnescape(value: string): string {

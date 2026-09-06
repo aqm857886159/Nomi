@@ -4,6 +4,7 @@ import {
   installUncaughtExceptionNoiseFilter,
   startNativeCrashCapture,
 } from "./crashLog";
+import { installMainLogger, markStderrAsDiagnosticSurface } from "./logging/logger";
 import { installParentProcessWatchdog } from "./parentProcessWatchdog";
 import { installProcessStdioErrorGuards } from "./processStdio";
 
@@ -21,6 +22,8 @@ type MainProcessLifecycleDependencies = {
   startNativeCrashCapture?: typeof startNativeCrashCapture;
   installParentProcessWatchdog?: typeof installParentProcessWatchdog;
   installProcessStdioErrorGuards?: typeof installProcessStdioErrorGuards;
+  installMainLogger?: typeof installMainLogger;
+  markStderrAsDiagnosticSurface?: typeof markStderrAsDiagnosticSurface;
 };
 
 function readLauncherPid(env: NodeJS.ProcessEnv): number | undefined {
@@ -43,7 +46,19 @@ export function installMainProcessLifecycle(
     dependencies.startNativeCrashCapture ?? startNativeCrashCapture;
   const noiseFilterInstaller =
     dependencies.installUncaughtExceptionNoiseFilter ?? installUncaughtExceptionNoiseFilter;
+  const mainLoggerInstaller = dependencies.installMainLogger ?? installMainLogger;
+  const hostSurfaceMarker =
+    dependencies.markStderrAsDiagnosticSurface ?? markStderrAsDiagnosticSurface;
   stdioGuardInstaller();
+  // MCP stdio 进程（NOMI_MCP_STDIO=1）的 stderr 不是开发者的终端，而是**宿主协议面**：
+  // stdout 整条让给了 JSON-RPC，宿主（Claude Code / Codex）唯一看得见我们诊断的地方就是它，
+  // 打包版尤其——那正是真实宿主拉起我们的形态。所以这个进程里日志必须无条件镜像过去。
+  // 必须排在 mainLoggerInstaller 之前：会话表头是第一行日志，晚一步它就只落盘、进不了宿主视野，
+  // 而「这次到底起没起来、是哪个构建」正是宿主排查时要看的第一行。
+  if ((dependencies.env ?? process.env).NOMI_MCP_STDIO === "1") hostSurfaceMarker();
+  // 排在崩溃处理之前：日志的第一行就是会话表头（版本/平台/pid）。启动早期崩掉时，
+  // 「这次会话到底起没起来、是哪个构建」全靠它——晚装一步就正好丢掉最该有的那一行。
+  mainLoggerInstaller();
   crashHandlerInstaller();
   // 装在 crashHandlerInstaller 之后：uncaughtExceptionMonitor 与 uncaughtException 是两条独立通道，
   // monitor 永远先跑、永远落盘（留证不受影响），这条只决定「要不要弹那个原生崩溃框」。

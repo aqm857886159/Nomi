@@ -4,6 +4,7 @@ import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { makeIsolatedDirs, spawnMcpStdioClient, parseToolResult } from './_mcpJourney.mjs'
+import { measureMcpToolsListPayload, measureMcpToolsListPayloadByLocale } from '../../scripts/mcp-payload.mjs'
 
 // 面收敛（surface-16-collapse）：拉分支时存在的 42 个 API 镜像塌成 15 个按对象归并的工具。nomi_intake_brief 从
 // MCP 目录移除（无外部 MCP 消费者，内部 capability 保留）。并线 main 后 **+4 个 M2 语义编辑工具**
@@ -15,7 +16,11 @@ import { makeIsolatedDirs, spawnMcpStdioClient, parseToolResult } from './_mcpJo
 const repoRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..', '..')
 const BASELINE_PAYLOAD_BYTES = JSON.parse(fs.readFileSync(path.join(repoRoot, 'scripts', 'mcp-payload-baseline.json'), 'utf8')).maxBytes
 const { MCP_TOOL_NAMES } = await import('../../dist-electron/capabilityCore/mcpProtocol.js')
-const { MCP_TOOL_RESOLVER, SEMANTIC_EDITING_TOOL_NAMES } = await import('../../dist-electron/capabilityCore/mcpToolCatalog.js')
+const { MCP_TOOL_RESOLVER } = await import('../../dist-electron/capabilityCore/mcpToolCatalog.js')
+// C5 的 stderr 锚也派生自真相源：这条诊断的事件名由两条启动路（Electron stdio server /
+// 裸 Node launcher）共用一个常量，手抄一句散文的结局是改了代码这里静默漂成假绿。
+const { MAX_MCP_LINE_BYTES } = await import('../../dist-electron/capabilityCore/mcpStdioLine.js')
+const { MCP_OVERSIZED_LINE_EVENT } = await import('../../dist-electron/capabilityCore/mcpStdioDiagnostics.js')
 const TOOL_NAMES = [...MCP_TOOL_NAMES]
 const READ_ONLY_TOOL_NAMES = MCP_TOOL_RESOLVER.list().filter((tool) => tool.annotations?.readOnlyHint === true).map((tool) => tool.name)
 
@@ -52,28 +57,25 @@ async function main() {
     check(badVersion.error?.code === -32602, 'C1 unsupported version returns -32602')
     check(Array.isArray(badVersion.error?.data?.supported), 'C1 unsupported version includes supported array')
 
-    // C2 · exact current 19-tool snapshot (15 收敛 + 4 M2 语义编辑)、byte budget、title、read-only annotations。
+    // C2 · 工具名单/载荷/title/只读注解——三个锚全部派生自真相源，注释里**不写死个数**
+    //（手抄的个数三次撞红：#337 波、#360 slice-3，以及 2026-09-05 这行自己就已经陈旧了）。
     const listed = await mcp.rpc('tools/list', {}, 10_000)
     const tools = listed.result?.tools || []
     const names = tools.map((tool) => tool.name)
     check(names.length === TOOL_NAMES.length && JSON.stringify(names) === JSON.stringify(TOOL_NAMES), `C2 tools/list matches the ${TOOL_NAMES.length}-tool declared catalog`)
-    // 收敛族必须带人读 title；M2 语义编辑工具沿用 capability 层已发布形态（暂无 title，A 线统一补）——
-    // 范围从 catalog 导出的 SEMANTIC_EDITING_TOOL_NAMES 派生，不手抄排除规则（手抄漏项正是 slice-3 撞红的原因）。
-    const collapsedTitled = tools.filter((tool) => !SEMANTIC_EDITING_TOOL_NAMES.includes(tool.name))
-    check(collapsedTitled.every((tool) => typeof tool.title === 'string' && tool.title.length > 0), 'C2 every collapsed tool carries a human title')
+    check(tools.every((tool) => typeof tool.title === 'string' && tool.title.length > 0), 'C2 every MCP tool carries a human title')
     const readOnly = tools.filter((tool) => tool.annotations?.readOnlyHint === true).map((tool) => tool.name)
     check(JSON.stringify(readOnly) === JSON.stringify(READ_ONLY_TOOL_NAMES), 'C2 readOnlyHint is exactly nomi_read + nomi_operation_preview + M2 read tools')
-    const payloadBytes = Buffer.byteLength(JSON.stringify({
-      tools: tools.map(({ name, description, inputSchema }) => ({ name, description, inputSchema })),
-    }))
-    console.log(`  payload bytes=${payloadBytes} baseline=${BASELINE_PAYLOAD_BYTES}`)
+    const payloadBytesByLocale = measureMcpToolsListPayloadByLocale(MCP_TOOL_RESOLVER.list())
+    const payloadBytes = measureMcpToolsListPayload(MCP_TOOL_RESOLVER.list())
+    console.log(`  payload bytes=${payloadBytes} (zh-CN=${payloadBytesByLocale['zh-CN']}, en=${payloadBytesByLocale.en}) baseline=${BASELINE_PAYLOAD_BYTES}`)
     check(payloadBytes <= BASELINE_PAYLOAD_BYTES, 'C2 tools/list payload is within ratchet budget')
 
     // C3 · protocol error vs recoverable tool execution error.
     // unknown-tool-probe：故意调不存在的工具验 -32602，不是忘了跟进面收敛（见 check:mcp-tool-refs）。
     const unknown = await mcp.rpc('tools/call', { name: 'nomi_not_a_real_tool', arguments: {} }, 10_000)
     check(unknown.error?.code === -32602, 'C3 unknown tool returns -32602')
-    // nomi_canvas_edit(action=add_nodes)：空 nodes 仍触发 schema 校验拒绝。
+    // nomi_canvas_edit：不属于任何 operation 分支的参数仍触发 schema 校验拒绝。
     const badArgs = await mcp.rpc('tools/call', { name: 'nomi_canvas_edit', arguments: { action: 'add_nodes', nodes: [] } }, 10_000)
     check(badArgs.result?.isError === true, 'C3 invalid tool arguments return isError')
     check(badArgs.result?.structuredContent?.nomiOutcome?.errorCode === 'capability_input_invalid', 'C3 invalid arguments include diagnostic code')
@@ -102,7 +104,10 @@ async function main() {
     mcp.child.stdin.write(`${oversized}\n`)
     mcp.child.stdin.write('not-json\n')
     await new Promise((resolve) => setTimeout(resolve, 150))
-    check(mcp.stderrText().includes('dropped an oversized stdin line'), 'C5 oversized line is dropped with a stderr log')
+    // stderr 是**宿主协议面**（stdout 整条给了 JSON-RPC），所以断言连字段一起钉：只查事件名的话，
+    // 一个把日志降级成「只落盘、stderr 静默」或把字段丢光的回归照样能过（那正是本轨差点犯的）。
+    const dropLine = mcp.stderrText().split('\n').find((line) => line.includes(MCP_OVERSIZED_LINE_EVENT)) || ''
+    check(dropLine.includes('[nomi:mcp]') && dropLine.includes(`limitBytes=${MAX_MCP_LINE_BYTES}`), 'C5 oversized line is dropped with a stderr log')
     check(mcp.messages().some((message) => message.error?.code === -32700), 'C5 malformed line returns -32700 parse error')
     check(!mcp.childExited(), 'C5 malformed input does not kill stdio server')
 

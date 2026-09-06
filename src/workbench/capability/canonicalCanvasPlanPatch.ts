@@ -3,6 +3,10 @@ import { buildCanvasWriteAdmissionForOperation } from '../../../electron/shared/
 import { SurfacePortWireError } from '../../../electron/shared/surfacePortBinding'
 import { captureCanvasWriteRawEvidence, executeCanvasWriteTarget } from '../generationCanvas/agent/canvasWriteTarget'
 import { readGenerationCanvasSnapshot } from '../generationCanvas/agent/generationCanvasTools'
+import {
+  persistActiveWorkbenchProjectNow,
+  waitForActiveWorkbenchProjectSaveTarget,
+} from '../project/workbenchProjectSession'
 
 export type CanonicalCanvasPlanPatchRequest = Readonly<{
   projectId: string
@@ -38,13 +42,22 @@ export async function executeCanonicalCanvasPlanPatch(
     throw new SurfacePortWireError('capability_input_invalid')
   }
 
+  // Ensure the durable owner exists before preparing/committing the proposal
+  // receipt.  Waiting only after executeCanvasWriteTarget would allow an
+  // in-memory mutation and receipt to become orphaned if hydration never
+  // installs the save target.
+  const ownerReadyBeforeWrite = waitForActiveWorkbenchProjectSaveTarget(request.projectId)
+  if (ownerReadyBeforeWrite !== true && !(await ownerReadyBeforeWrite)) {
+    throw new SurfacePortWireError('capability_receipt_unresolved')
+  }
+
   const readSnapshot = readGenerationCanvasSnapshot
   const rawEvidence = captureCanvasWriteRawEvidence(readSnapshot(), {
     operation: input.operation,
     input,
   })
   const admission = buildCanvasWriteAdmissionForOperation(rawEvidence, input)
-  return executeCanvasWriteTarget(
+  const result = await executeCanvasWriteTarget(
     {
       input,
       target: admission.target,
@@ -61,4 +74,33 @@ export async function executeCanonicalCanvasPlanPatch(
     },
     readSnapshot,
   )
+
+  // The proposal receipt is an audit of the user-visible write, so it must
+  // never get ahead of the durable project owner.  Normal store persistence
+  // is debounced for editing ergonomics; canonical Host writes cross a
+  // process boundary and therefore flush the active project before returning
+  // the committed result to MCP.  A missing/mismatched save target is an
+  // unresolved receipt, not a successful in-memory mutation.
+  if (request.readActiveProjectId() !== request.projectId) {
+    throw new SurfacePortWireError('surface_port_stale')
+  }
+  // React can rebind the owner while the renderer mutation crosses IPC.  The
+  // second readiness check closes that cutover window before the durable save.
+  const ownerReady = waitForActiveWorkbenchProjectSaveTarget(request.projectId)
+  if (ownerReady !== true && !(await ownerReady)) {
+    throw new SurfacePortWireError('capability_receipt_unresolved')
+  }
+  let saved
+  try {
+    saved = await persistActiveWorkbenchProjectNow()
+  } catch {
+    throw new SurfacePortWireError('capability_receipt_unresolved')
+  }
+  if (!saved || saved.id !== request.projectId || !Number.isInteger(saved.revision)) {
+    throw new SurfacePortWireError('capability_receipt_unresolved')
+  }
+  if (request.readActiveProjectId() !== request.projectId) {
+    throw new SurfacePortWireError('surface_port_stale')
+  }
+  return result
 }

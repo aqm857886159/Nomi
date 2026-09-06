@@ -9,7 +9,6 @@ vi.mock("electron", () => ({
 
 import {
   appendEvents,
-  projectIdFromSessionKey,
   readEvents,
   resetEventLogStateForTests,
   setEventLogProjectDirResolverForTests,
@@ -110,20 +109,6 @@ describe("eventLogRepository", () => {
     expect(readEvents("missing")).toEqual([]);
   });
 
-  it("sessionKey 解析 projectId(local 与空返回 null)", () => {
-    expect(projectIdFromSessionKey("nomi:workbench:proj-42")).toBe("proj-42");
-    expect(projectIdFromSessionKey("nomi:workbench:local")).toBeNull();
-    expect(projectIdFromSessionKey(undefined)).toBeNull();
-  });
-
-  // 回归(cdc433c 起 sessionKey 带 :area 后缀): 贪婪正则曾把 `proj:creation` 整体当 projectId,
-  // 导致 trace 管线所有 agent.* 事件静默丢盘(I1/I2 破)。这里钉死「带 area 后缀必须剥离」。
-  it("剥离 :creation / :generation area 后缀", () => {
-    expect(projectIdFromSessionKey("nomi:workbench:proj-42:creation")).toBe("proj-42");
-    expect(projectIdFromSessionKey("nomi:workbench:proj-42:generation")).toBe("proj-42");
-    expect(projectIdFromSessionKey("nomi:workbench:local:creation")).toBeNull();
-    expect(projectIdFromSessionKey("nomi:workbench:local:generation")).toBeNull();
-  });
 });
 
 describe("redactDeep", () => {

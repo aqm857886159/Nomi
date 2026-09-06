@@ -7,6 +7,7 @@
 // 可选环境变量：NOMI_CANVAS_PERF_RUNS、NOMI_CANVAS_PERF_SCALES、NOMI_CANVAS_PERF_SCENARIOS。
 // 结果写入 tests/ux/perf-results/canvas-<label>.json。零额度、零网络媒体依赖。
 import { launchNomiApp } from './_launchApp.mjs'
+import { findCanvasBlankPoint } from './_canvasHit.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -31,6 +32,14 @@ import {
   OFF_CANVAS_RENDER_TARGETS,
 } from './canvas-perf/offCanvasRenderProbe.mjs'
 import { buildScenarioAdvisory } from './canvas-perf/advisoryMetrics.mjs'
+import {
+  AUTO_PAN_SAFE_MARGIN_PX,
+  MIN_NODE_BAND_COVERAGE,
+  clampIntoAutoPanSafeArea,
+  expectedFullySelected,
+  nodeBandCoverage,
+  sweptRect,
+} from './canvas-perf/gestureGeometry.mjs'
 import { startDevRendererServer } from './canvas-perf/devRendererServer.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -405,77 +414,17 @@ function getTargetWindow(app, fallback) {
   return live.find((candidate) => /projectId=/.test(candidate.url())) || live[live.length - 1] || fallback
 }
 
-async function findBlank(page, preference = 'default') {
-  return page.evaluate((mode) => {
-    const stage = document.querySelector('.generation-canvas-v2__stage')
-    if (!stage) return null
-    const rect = stage.getBoundingClientRect()
-    const preferred =
-      mode === 'top-left'
-        ? [0.03, 0.08, 0.14, 0.2, 0.28, 0.4, 0.56, 0.72, 0.88]
-        : [0.92, 0.84, 0.76, 0.68, 0.56, 0.44, 0.32, 0.2, 0.08, 0.03]
-    const xRatios = [...preferred]
-    const yRatios = [...preferred]
-    for (const ry of yRatios) {
-      for (const rx of xRatios) {
-        const x = Math.round(rect.left + rect.width * rx)
-        const y = Math.round(rect.top + rect.height * ry)
-        const hit = document.elementFromPoint(x, y)
-        if (!hit || !stage.contains(hit)) continue
-        if (
-          hit.tagName === 'IMG' ||
-          hit.tagName === 'VIDEO' ||
-          hit.closest(
-            '.generation-canvas-v2-node,button,input,textarea,[role="menu"],[role="toolbar"],.generation-canvas-v2__edge-hit,.generation-canvas-v2__edge-path,.generation-canvas-v2__minimap',
-          )
-        )
-          continue
-        return { x, y }
-      }
-    }
-    for (let y = Math.ceil(rect.top + 8); y < rect.bottom - 8; y += 24) {
-      for (let x = Math.ceil(rect.left + 8); x < rect.right - 8; x += 24) {
-        const hit = document.elementFromPoint(x, y)
-        if (!hit || !stage.contains(hit)) continue
-        if (
-          hit.tagName === 'IMG' ||
-          hit.tagName === 'VIDEO' ||
-          hit.closest(
-            '.generation-canvas-v2-node,button,input,textarea,[role="menu"],[role="toolbar"],.generation-canvas-v2__edge-hit,.generation-canvas-v2__edge-path,.generation-canvas-v2__minimap',
-          )
-        )
-          continue
-        return { x, y }
-      }
-    }
-    const nodeRects = Array.from(document.querySelectorAll('.generation-canvas-v2-node')).map((node) =>
-      node.getBoundingClientRect(),
-    )
-    for (let y = Math.ceil(rect.top + 8); y < rect.bottom - 8; y += 10) {
-      for (let x = Math.ceil(rect.left + 8); x < rect.right - 8; x += 10) {
-        if (
-          nodeRects.some(
-            (nodeRect) => x >= nodeRect.left && x <= nodeRect.right && y >= nodeRect.top && y <= nodeRect.bottom,
-          )
-        )
-          continue
-        const hit = document.elementFromPoint(x, y)
-        if (
-          hit &&
-          (hit.tagName === 'IMG' ||
-            hit.tagName === 'VIDEO' ||
-            hit.closest('button,input,textarea,select,[role="menu"],[role="toolbar"],[role="button"]'))
-        )
-          continue
-        return { x, y }
-      }
-    }
-    // The canvas event surface can sit under a full-stage SVG with pointer
-    // events disabled, so elementFromPoint may not expose the stage itself.
-    // The left/bottom inset is outside the fixture grid and remains a stable
-    // blank coordinate for the synthetic workloads.
-    return { x: Math.round(rect.left + 16), y: Math.round(rect.bottom - 16) }
-  }, preference)
+// Blank-point semantics live in `_canvasHit.mjs` (single owner): a point is
+// blank only when React Flow's own pane is the topmost element there. The old
+// local copy used a blocklist plus a hardcoded `left+16 / bottom-16` fallback —
+// with the resident agent panel narrowing the stage, both could hand back a
+// point sitting on a magnetic connect handle, which turns "pan the blank canvas"
+// into "drag a connection" and silently measures the wrong gesture.
+async function findBlank(page, preference = 'default', { inset = 0 } = {}) {
+  const point = await findCanvasBlankPoint(page, { preference, inset })
+  if (!point)
+    throw new Error(`findBlank: no blank point on the stage (preference=${preference}, inset=${inset})`)
+  return point
 }
 
 async function dragPath(page, start, end, steps = 60, interval = 16) {
@@ -514,34 +463,101 @@ async function visibleNodeBox(page, kind) {
   return null
 }
 
+// Node-identity guard. What it is here to catch: the node layer being REBUILT by
+// React during an interaction (every card unmounted and re-mounted, which is what a
+// broken memoisation boundary looks like from the DOM).
+//
+// What it must NOT flag: React Flow's own virtualization. `onlyRenderVisibleElements`
+// unmounts a node when it leaves the visible window and mounts a *fresh* element when
+// it comes back, so the element for that node id legitimately changes. That is product
+// behaviour, and it fires far more often now that the resident agent panel takes ~340px
+// off the stage: on the Linux runner (xvfb clamps the window to 1280 wide) the M-scale
+// wheel-zoom excursion carries 3 of 9 cards out of the window and back, deterministically
+// (CI runs 33945616926 and 33947462331 both report preserved 6 of 9; darwin at a wider
+// stage reports 9 of 9).
+//
+// The two are separated without any timing threshold: React commits synchronously, so a
+// rebuild's remove+add for one node id land in the SAME MutationObserver callback batch;
+// a virtualization round trip is a removal in one batch and an addition in a later one
+// (the node stays gone while it is off-window). So batch index is the discriminator.
 async function captureNodeIdentity(page) {
   await page.evaluate(() => {
+    const nodeId = (element) =>
+      element instanceof HTMLElement && element.matches('.react-flow__node[data-id]')
+        ? element.getAttribute('data-id')
+        : null
     window.__canvasPerformanceNodeIdentity = new Map(
       Array.from(document.querySelectorAll('.react-flow__node[data-id]')).map((element) => [
         element.getAttribute('data-id'),
         element,
       ]),
     )
+    window.__canvasPerformanceNodeChurn?.observer?.disconnect()
+    const container = document.querySelector('.react-flow__nodes')
+    const churn = new Map()
+    const entryFor = (id) => {
+      const existing = churn.get(id)
+      if (existing) return existing
+      const created = { removedBatch: null, readdedBatch: null, remountedInPlace: false }
+      churn.set(id, created)
+      return created
+    }
+    let batch = 0
+    const observer = new MutationObserver((records) => {
+      batch += 1
+      for (const record of records) {
+        for (const removed of record.removedNodes) {
+          const id = nodeId(removed)
+          if (id) entryFor(id).removedBatch = batch
+        }
+        for (const added of record.addedNodes) {
+          const id = nodeId(added)
+          if (!id) continue
+          const entry = entryFor(id)
+          if (entry.removedBatch === batch) entry.remountedInPlace = true
+          else if (entry.removedBatch !== null) entry.readdedBatch = batch
+        }
+      }
+    })
+    if (container) observer.observe(container, { childList: true })
+    window.__canvasPerformanceNodeChurn = { churn, observer }
   })
 }
 
 async function readNodeIdentity(page, targetNodeId = null) {
   return page.evaluate((targetId) => {
     const before = window.__canvasPerformanceNodeIdentity || new Map()
+    const tracker = window.__canvasPerformanceNodeChurn
+    tracker?.observer?.disconnect()
+    const churn = tracker?.churn || new Map()
     const current = new Map(
       Array.from(document.querySelectorAll('.react-flow__node[data-id]')).map((element) => [
         element.getAttribute('data-id'),
         element,
       ]),
     )
+    // Left the visible window and came back: a different element for the same id is
+    // exactly what React Flow's virtualization is supposed to produce.
+    const virtualizationChurn = [...churn.entries()]
+      .filter(([, entry]) => entry.removedBatch !== null && !entry.remountedInPlace)
+      .map(([id]) => id)
+    const remountedInPlace = [...churn.entries()]
+      .filter(([, entry]) => entry.remountedInPlace)
+      .map(([id]) => id)
+    const churned = new Set(virtualizationChurn)
     const commonIds = [...before.keys()].filter((id) => current.has(id))
-    const preservedIds = commonIds.filter((id) => before.get(id) === current.get(id))
+    // Only nodes that stayed mounted for the whole action carry the identity contract.
+    const trackedIds = commonIds.filter((id) => !churned.has(id))
+    const preservedIds = trackedIds.filter((id) => before.get(id) === current.get(id))
     return {
       before: before.size,
       after: current.size,
       common: commonIds.length,
+      tracked: trackedIds.length,
       preserved: preservedIds.length,
-      commonIdentityPreserved: preservedIds.length === commonIds.length,
+      virtualizationChurn,
+      remountedInPlace,
+      commonIdentityPreserved: preservedIds.length === trackedIds.length && remountedInPlace.length === 0,
       targetNodeId: targetId,
       targetIdentityPreserved: targetId ? before.get(targetId) === current.get(targetId) : null,
     }
@@ -679,7 +695,8 @@ async function runAction(page, scenario, fixture) {
   if (scenario === 'marquee-select') {
     const boxes = []
     const nodes = page.locator('.generation-canvas-v2-node')
-    for (let index = 0; index < Math.min(50, await nodes.count()); index += 1) {
+    const mountedNodeCount = await nodes.count()
+    for (let index = 0; index < Math.min(50, mountedNodeCount); index += 1) {
       const box = await nodes
         .nth(index)
         .boundingBox()
@@ -691,19 +708,24 @@ async function runAction(page, scenario, fixture) {
     const top = Math.min(...boxes.map((box) => box.y))
     const right = Math.max(...boxes.map((box) => box.x + box.width))
     const bottom = Math.max(...boxes.map((box) => box.y + box.height))
-    const start = await findBlank(page, 'top-left')
-    if (!start) throw new Error('找不到可用于框选的画布空白点')
+    // 起点和终点都必须留在自动平移安全区内。否则 React Flow 会按 requestAnimationFrame
+    // 自动平移视口，这一笔扫过的区域就变成「这台机器画了多少帧」的函数——同一份代码
+    // 在 darwin 上实测 9/12 跳变、在 Linux CI 上 8/12 跳变，全是这么来的。
+    const start = await findBlank(page, 'top-left', { inset: AUTO_PAN_SAFE_MARGIN_PX })
+    const end = clampIntoAutoPanSafeArea({ x: right + 30, y: bottom + 30 }, stage)
+    const swept = sweptRect(start, end)
+    // 期望值从**扫过的这块区域**derive，不再写死节点个数：节点个数随窗口尺寸变，
+    // 而窗口尺寸在 CI 和本机并不一样（这正是原来那个 12 在 Linux 上翻红的原因）。
+    const expectedSelection = expectedFullySelected(boxes, swept)
     await page.keyboard.down('Shift')
-    await dragPath(
-      page,
-      start,
-      { x: Math.min(stage.x + stage.width - 10, right + 30), y: Math.min(stage.y + stage.height - 10, bottom + 30) },
-      60,
-      12,
-    )
+    await dragPath(page, start, end, 60, 12)
     await page.keyboard.up('Shift')
     return {
       selected: await page.locator('.generation-canvas-v2-node[data-selected="true"]').count(),
+      mountedNodeCount,
+      expectedSelection,
+      nodeBandCoverage: Math.round(nodeBandCoverage(swept, boxes, stage) * 1000) / 1000,
+      swept,
       bounds: { left, top, right, bottom },
     }
   }
@@ -1243,12 +1265,29 @@ function sampleHardFailures(sample) {
     failures.push(`pan/zoom continuation error ${sample.actionDetails.stepErrorPx}px > 1.5px`)
   if (sample.actionDetails?.selectedAfterClear !== undefined && sample.actionDetails.selectedAfterClear !== 0)
     failures.push(`blank click left ${sample.actionDetails.selectedAfterClear} selected nodes`)
-  if (
-    sample.scenario === 'marquee-select' &&
-    Number.isFinite(sample.actionDetails?.selected) &&
-    sample.actionDetails.selected < 12
-  )
-    failures.push(`marquee selected only ${sample.actionDetails.selected} nodes`)
+  if (sample.scenario === 'marquee-select' && !sample.error && Number.isFinite(sample.actionDetails?.selected)) {
+    const { selected, expectedSelection, nodeBandCoverage: bandCoverage } = sample.actionDetails
+    // ① 框选正确性：框里的节点必须全被选中，框外的一个都不能进来。
+    //    区间的上下界差的只是压在框线上那几个节点（DOM 与 React Flow 的亚像素分歧），
+    //    真实的少选/多选回归依然会红。
+    if (Number.isFinite(expectedSelection?.definite) && Number.isFinite(expectedSelection?.possible)) {
+      if (selected < expectedSelection.definite || selected > expectedSelection.possible)
+        failures.push(
+          `marquee selected ${selected} nodes, expected ${expectedSelection.definite}–${expectedSelection.possible} `
+            + 'fully inside the swept rect',
+        )
+    } else {
+      failures.push('marquee sample did not record a derived selection expectation')
+    }
+    // ② 场景非退化：这一笔得真的把「够得着的那片节点」整个圈进去。用覆盖率代替原先写死的
+    //    「至少 12 个节点」——覆盖率是无量纲的，不随 stage 尺寸漂移，也不含任何时间量，
+    //    所以它既不会因为机器快慢翻红，也不会因为换了个窗口大小翻红。
+    if (Number.isFinite(bandCoverage) && bandCoverage < MIN_NODE_BAND_COVERAGE)
+      failures.push(
+        `marquee covered only ${Math.round(bandCoverage * 100)}% of the reachable node band `
+          + `(needs ≥ ${Math.round(MIN_NODE_BAND_COVERAGE * 100)}%)`,
+      )
+  }
   // eval v2 scenario integrity guards (correctness, not perf budgets): if a new
   // scenario silently degenerated (grabbed too few nodes / no dense band), the
   // sample would look "clean" for the wrong reason. Fail it explicitly so the
@@ -1267,7 +1306,14 @@ function sampleHardFailures(sample) {
     sample.actionDetails.connectedEdges < 1
   )
     failures.push('drag-over-dense-edges dragged a node with 0 connected edges')
-  if (sample.nodeIdentity?.commonIdentityPreserved === false) failures.push('mounted node DOM identity changed')
+  if (sample.nodeIdentity?.commonIdentityPreserved === false) {
+    const remounted = sample.nodeIdentity.remountedInPlace || []
+    failures.push(
+      remounted.length
+        ? `node layer rebuilt in place: ${remounted.join(', ')}`
+        : `continuously mounted node DOM identity changed (${sample.nodeIdentity.preserved}/${sample.nodeIdentity.tracked} preserved)`,
+    )
+  }
   if (sample.nodeIdentity?.targetIdentityPreserved === false)
     failures.push(`target node DOM identity changed: ${sample.nodeIdentity.targetNodeId}`)
   if (sample.probe?.maxLoadingImages > 4) failures.push(`image activation peak ${sample.probe.maxLoadingImages} > 4`)

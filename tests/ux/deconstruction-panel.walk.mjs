@@ -233,14 +233,14 @@ try {
   // 打开 AI 栏 = 占右槽 → 拆解让位（互斥）。
   await win.evaluate(() => window.__nomiCanvasStore.getState().setGenerationAiCollapsed(false))
   await win.waitForTimeout(600)
-  await proveProbe(win.locator(`[data-deconstruct-stub="${nodeId}"]`), '共存 07：拆解收成节点「拆解结果」浮条')
-  await expectVisible(win.locator(`[data-deconstruct-result-badge="${nodeId}"]`).first(), '共存 07：节点头挂「已拆解 · N 镜」角标')
+  await proveProbe(win.locator(`[data-decon-node-stub="${nodeId}"]`), '共存 07：拆解收成节点「拆解结果」浮条')
+  await expectVisible(win.locator(`[data-decon-node-badge="${nodeId}"]`).first(), '共存 07：节点头挂「已拆解 · N 镜」角标')
   // 面板已让位（不占右槽）——用打开态证过的同一个定位器断言它此刻确实不在（provenBy 排除「面板压根没渲染」的假绿）。
   await expectAbsent(panelLocator, { provenBy: panelProof, message: '共存 07：拆解面板应已让位给 Agent（不占右槽）' })
   await snap('05-coexist-07-decon-collapsed-stub')
 
   // 点浮条把面板叫回，状态不丢（勾选数与收起前一致）。
-  await clickOrFail(win.locator(`[data-deconstruct-stub="${nodeId}"]`), '拆解结果·浮条')
+  await clickOrFail(win.locator(`[data-decon-node-stub="${nodeId}"]`), '拆解结果·浮条')
   await win.waitForTimeout(500)
   await expectVisible(win.locator(`[data-deconstruct-panel="${nodeId}"]`).first(), '点浮条把面板叫回')
   check((await win.locator('[data-deconstruct-shot]').count()) === 5, '叫回后结果表仍是 5 行（状态不丢）')

@@ -11,8 +11,8 @@ import {
   readGenerationCanvasSnapshot,
   type CreateGenerationNodeToolInput,
 } from './generationCanvasTools'
-import { listAvailableModelsForAgent, type AgentModelEntry } from './availableModels'
-import { buildPlannedNodeMeta } from './plannedNodeMeta'
+import { listAvailableModelsForAgent } from './availableModels'
+import { buildModelEntryIndex, buildPlannedNodeMeta } from './plannedNodeMeta'
 import { withCanvasGestureContext, type CanvasGestureContext } from '../events/canvasGestureContext'
 import { layoutPlannedNodes, layoutStoryboardNodes } from './trajectoryLayout'
 import { FOCUS_GENERATION_NODE_EVENT } from '../nodes/nodeSizing'
@@ -244,8 +244,9 @@ export async function applyCanvasToolCall(
   if (toolName === 'nomi_canvas_plan' && operation === 'patch_shots') {
     const store = useWorkbenchStore.getState()
     const targetDocumentId = documentId ?? store.activeDocumentId
-    const entry = store.storyboardPlans[targetDocumentId]
-    if (!entry?.plan) {
+    const targetDesign = store.storyboardDesignsByDocumentId[targetDocumentId]?.find((item) => item.id === (storyboardId ?? store.activeStoryboardId))
+      ?? store.storyboardDesignsByDocumentId[targetDocumentId]?.[0]
+    if (!targetDesign?.plan) {
       throw Object.assign(new Error('当前原稿还没有分镜方案，先生成一份分镜方案再修改。'), {
         code: 'capability_target_stale',
       })
@@ -254,24 +255,24 @@ export async function applyCanvasToolCall(
     if (!parsed.success || parsed.data.operation !== 'patch_shots') {
       throw Object.assign(new Error('分镜修改参数无效。'), { code: 'capability_input_invalid' })
     }
-    const preview = previewStoryboardPatchShots(entry.plan, parsed.data)
+    const preview = previewStoryboardPatchShots(targetDesign.plan, parsed.data)
     const targetStoryboardId = storyboardId
       ?? store.activeStoryboardId
       ?? store.storyboardDesignsByDocumentId[targetDocumentId]?.[0]?.id
-    const design = store.setStoryboardPlan(
+    const updatedDesign = store.setStoryboardPlan(
       preview.nextPlan,
       targetDocumentId,
       targetStoryboardId,
       true,
       false,
     )
-    if (!design) {
+    if (!updatedDesign) {
       throw Object.assign(new Error('目标分镜方案已不存在，未应用修改。'), { code: 'capability_target_stale' })
     }
     return {
       status: 'applied',
       documentId: targetDocumentId,
-      storyboardDesignId: design.id,
+      storyboardDesignId: updatedDesign.id,
       changedShotIndexes: preview.changedShotIndexes,
       changedFields: preview.changedFields,
       message: `已修改第 ${preview.changedShotIndexes.join('、')} 镜：${preview.changedFields.join('、')}。`,
@@ -321,9 +322,7 @@ export async function applyCanvasToolCall(
     const needsModels = incoming.some(
       (raw) => raw && typeof raw === 'object' && typeof (raw as Record<string, unknown>).modelKey === 'string',
     )
-    const entryByKey = new Map<string, AgentModelEntry>(
-      needsModels ? (await listAvailableModelsForAgent()).map((entry) => [entry.modelKey, entry]) : [],
-    )
+    const entryByKey = buildModelEntryIndex(needsModels ? await listAvailableModelsForAgent() : [])
     const total = incoming.length
     // T4 轨迹分层布局：层由 kind 推导（参考/关键帧/视频三列），原点避让画布已有节点
     // 包围盒（修审计 bug D）；单层/不可推导退网格（同样避让）。忽略 LLM 像素坐标。

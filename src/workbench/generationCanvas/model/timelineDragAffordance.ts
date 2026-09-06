@@ -1,6 +1,5 @@
 import type { GenerationCanvasNode } from './generationCanvasTypes'
 
-export const TIMELINE_DRAG_HANDLE_LABEL = '拖拽到时间轴'
 
 export function canDragGenerationNodeToTimeline(
   node: GenerationCanvasNode,

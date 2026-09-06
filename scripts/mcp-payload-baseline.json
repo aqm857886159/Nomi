@@ -1,4 +1,4 @@
 {
-  "maxBytes": 20016,
-  "reason": "Merged surface: 15 collapsed tools (nomi_canvas_edit slot now backed by the M2 semantic canvas.write adapter) + 8 preserved M2 semantic editing tools (canvas_plan/maintenance, document read/edit, timeline read/edit, export_job, media_query); recalibrated to the measured tools/list payload on the merge of surface-16-collapse and the canvas/document semantic surface."
+  "maxBytes": 28047,
+  "reason": "25 tools: baseline is measured as the maximum UTF-8 JSON byte length across zh-CN and en tools/list projections, so CI and developer machine locales cannot change the ratchet result. The payload includes the 15 collapsed tools, 7 preserved M2 semantic editing tools, T1 layout.read/layout.write projections, and localized human titles for all nine semantic tools. Subsequent changes remain shrink-only."
 }

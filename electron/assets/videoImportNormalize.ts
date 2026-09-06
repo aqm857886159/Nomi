@@ -15,6 +15,7 @@ import { spawn } from "node:child_process";
 import { resolveFfmpegPath } from "../export/ffmpegRunner";
 import { ensureExecutable } from "../export/ensureExecutable";
 import { probeMediaMetadata, type MediaProbeMetadata } from "../export/mediaProbe";
+import { logWarn } from "../logging/logger";
 
 // Chromium 跨平台稳解的安全集（HEVC 刻意排除：macOS 部分硬解、Windows 默认不行——按最差平台归一，
 // 行为跨平台一致）。音频宽松列常见可播集；无音轨视为可播。
@@ -135,10 +136,7 @@ export async function ensurePlayableVideoBytes(
       playbackNormalizedFrom: transcoded.reason,
     };
   } catch (error) {
-    console.warn(
-      "[nomi-video-import] playability normalize failed, importing original bytes:",
-      error instanceof Error ? error.message : error,
-    );
+    logWarn("assets", "video-normalize-failed-import-original-bytes", undefined, error);
     return passthrough;
   } finally {
     if (tempDir) fs.rmSync(tempDir, { recursive: true, force: true });

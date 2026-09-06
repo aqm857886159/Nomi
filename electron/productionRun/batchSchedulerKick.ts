@@ -10,6 +10,8 @@
  * 定义处注册进来（与它自有的模块级 hook slot 同 idiom）。
  */
 
+import { logWarn } from "../logging/logger";
+
 type BatchSchedulerKicker = (projectId: string, runId: string) => void;
 
 let registered: BatchSchedulerKicker | null = null;
@@ -28,6 +30,6 @@ export function kickBatchSchedulerForRun(projectId: string, runId: string): void
   try {
     registered(projectId, runId);
   } catch (error) {
-    console.warn("[nomi:production] batch scheduler kick failed:", error instanceof Error ? error.message : String(error));
+    logWarn("production-run", "batch-scheduler-kick-failed", undefined, error);
   }
 }

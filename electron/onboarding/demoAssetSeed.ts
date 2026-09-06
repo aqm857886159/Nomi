@@ -13,6 +13,7 @@ import path from "node:path";
 
 import { listProjectAssets, writeAsset } from "../assets/projectAssetStore";
 import type { JsonRecord } from "../jsonUtils";
+import { logError } from "../logging/logger";
 
 /** sidecar kind：既标记来源，也是幂等复用的查找键（重看引导不堆副本）。 */
 export const DEMO_ASSET_KIND = "onboarding-demo";
@@ -100,7 +101,7 @@ export function seedOnboardingDemoAssets(payload: unknown): Record<string, strin
       urls[clientId] = url;
       byFileName.set(fileName, url);
     } catch (error) {
-      console.error(`[nomi:onboarding] demo asset seed failed (${fileName}):`, error);
+      logError("onboarding", "demo-asset-seed-failed", error, { asset: fileName });
     }
   }
 

@@ -18,6 +18,7 @@ import type {
 } from "../harness/agentChatContracts";
 import type { RuntimeToolCall } from "../harness/runtime/runtimePort";
 import { createProjectAgentContextBinding } from "./projectAgentContextBinding";
+import type { ProjectAgentExecutionRequest } from "../shared/contracts/agentChatContracts";
 import {
   createProjectAgentExecutionCoordinator,
   ProjectAgentSubscriptionError,
@@ -59,6 +60,25 @@ import {
   createProjectAgentProposalReceiptService,
   projectAgentProposalReceiptPath,
 } from "./projectAgentProposalReceiptStore";
+
+// 主进程诊断输出已收口到 electron/logging/logger（打包后 console.* 没人接住，见
+// docs/fixes/2026-09-06-main-process-logs-into-the-void.root-cause.json）。
+// 这里断言那个出口——比原来的「console.warn 被调过一次」更能说明发生了什么。
+const logged = vi.hoisted(() => [] as { level: string; scope: string; event: string; rest: unknown[] }[])
+vi.mock("../logging/logger", () => {
+  const record = (level: string) => (scope: string, event: string, ...rest: unknown[]) => {
+    logged.push({ level, scope, event, rest })
+  }
+  return {
+    logInfo: record("info"),
+    logWarn: record("warn"),
+    logError: record("error"),
+    logDevDetail: () => undefined,
+    logVendorCall: () => undefined,
+    installMainLogger: () => undefined,
+    currentLogFile: () => "",
+  }
+})
 
 function skillWriteAdapter(): PiSkillWriteTransportAdapter & {
   prepare: ReturnType<typeof vi.fn>;
@@ -160,6 +180,7 @@ function executionInput(
     threadId: thread.threadId,
     executionToken: `token-${id}`,
     model: { id: "model", version: 1 },
+    approvalPolicy: { mode: "step" as const, spend: "confirm" as const },
     skillVersions: [],
     capabilityVersions: [{ id: "creation-chat", version: 1 }],
     contextRef,
@@ -190,6 +211,7 @@ function executionInput(
     preconditions: {},
     contextRef,
     model: turn.model,
+    approvalPolicy: { mode: "step" as const, spend: "confirm" as const },
     skillVersions: [],
     capabilityVersions: turn.capabilityVersions,
     policyRevision: 1,
@@ -213,7 +235,6 @@ function executionInput(
     request: {
       prompt: options.prompt ?? id,
       capability: options.capability ?? "creation-chat",
-      history: { kind: "ephemeral" as const },
       projectId: projectBinding.projectId,
     },
   };
@@ -298,6 +319,7 @@ function canvasWriteAdapter(
   options: Readonly<{
     prepareError?: string;
     prepareErrors?: readonly (string | undefined)[];
+    includeRendererStoryboard?: boolean;
     result?: AgentChatToolDecision;
     executeError?: string;
   }> = {},
@@ -308,7 +330,13 @@ function canvasWriteAdapter(
 } {
   let prepareCallCount = 0;
   const prepare = vi.fn(async (call: RuntimeToolCall, _signal: AbortSignal): Promise<PreparedCanvasWrite | null> => {
-    if (call.toolName !== "set_node_prompt" && call.toolName !== "create_canvas_nodes") return null;
+    const rendererStoryboardCall = options.includeRendererStoryboard
+      && call.toolName === "nomi_canvas_plan"
+      && call.args
+      && typeof call.args === "object"
+      && !Array.isArray(call.args)
+      && ["propose_storyboard_plan", "patch_shots"].includes((call.args as Record<string, unknown>).operation as string);
+    if (!rendererStoryboardCall && call.toolName !== "set_node_prompt" && call.toolName !== "create_canvas_nodes") return null;
     const prepareError = options.prepareErrors?.[prepareCallCount++] ?? options.prepareError;
     if (prepareError) {
       throw Object.assign(new Error(prepareError), { code: prepareError });
@@ -677,7 +705,7 @@ describe("ProjectAgentExecutionCoordinator", () => {
     const onTurnCompleted = vi.fn(async () => {
       throw new Error("experience persistence unavailable");
     });
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    logged.length = 0;
     try {
       const coordinator = createProjectAgentExecutionCoordinator(
         createProjectAgentRepositoryRouter({ rootDir: root }),
@@ -700,13 +728,115 @@ describe("ProjectAgentExecutionCoordinator", () => {
 
       await coordinator.enqueue(opened.subscriptionId, input);
       const terminal = await coordinator.waitForTurn(opened.subscriptionId, input.mutation.payload.turn.turnId);
-      await vi.waitFor(() => expect(warn).toHaveBeenCalledOnce());
+      await vi.waitFor(() =>
+        expect(logged.filter((entry) => entry.event === "completion-side-effect-failed")).toHaveLength(1),
+      );
 
       expect(terminal.turns.find((turn) => turn.turnId === input.mutation.payload.turn.turnId)?.status).toBe("done");
       expect(onTurnCompleted).toHaveBeenCalledOnce();
     } finally {
-      warn.mockRestore();
     }
+  });
+
+  it("binds every resident turn of one thread to the same durable context, so later turns can cite earlier tool results", async () => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-thread-history-"));
+    const router = createProjectAgentRepositoryRouter({ rootDir: root });
+    const observed: AgentChatRequest[] = [];
+    const coordinator = createProjectAgentExecutionCoordinator(router, () => "subscription-thread-history", {
+      runAgent: async (request) => {
+        observed[observed.length] = request;
+        return {
+          id: `result-${observed.length}`,
+          status: "finished",
+          text: "done",
+          finishReason: "stop",
+          artifacts: [],
+          toolCalls: [],
+          usage: { promptTokens: 0, completionTokens: 1, cachedPromptTokens: 0, totalTokens: 1 },
+        } satisfies AgentChatResponse;
+      },
+    });
+    const opened = await coordinator.open(binding);
+    let revision = 0;
+    for (const [index, prompt] of ["\u68c0\u67e5\u65f6\u95f4\u8f74", "\u628a\u6700\u957f\u90a3\u6bb5\u5220\u6389", "\u6539\u56de\u53bb"].entries()) {
+      const input = executionInput(`history-${index}`, revision, binding, { threadId: "thread-resident", prompt });
+      await coordinator.enqueue(opened.subscriptionId, input);
+      await coordinator.waitForTurn(opened.subscriptionId, input.mutation.payload.turn.turnId);
+      revision = coordinator.snapshot(opened.subscriptionId).hostRevision;
+    }
+
+    const expected = createProjectAgentContextBinding(binding, "thread-resident");
+    expect(observed).toHaveLength(3);
+    for (const request of observed) {
+      expect(request.history).toEqual({ kind: "persistent", binding: expected });
+    }
+    // The prompt carries only this turn's request: prior turns live in the durable
+    // context as structured messages, never re-narrated as prose that drops tool results.
+    expect(observed[2].prompt).toBe("\u6539\u56de\u53bb");
+    expect(observed[2].prompt).not.toContain("\u68c0\u67e5\u65f6\u95f4\u8f74");
+    expect(observed[2].prompt).not.toContain("\u7528\u6237\uff1a");
+  });
+
+  it("gives a second thread of the same project its own context instead of one project-wide transcript", async () => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-thread-isolation-"));
+    const router = createProjectAgentRepositoryRouter({ rootDir: root });
+    const observed: AgentChatRequest[] = [];
+    const coordinator = createProjectAgentExecutionCoordinator(router, () => "subscription-thread-isolation", {
+      runAgent: async (request) => {
+        observed[observed.length] = request;
+        return {
+          id: `result-${observed.length}`,
+          status: "finished",
+          text: "done",
+          finishReason: "stop",
+          artifacts: [],
+          toolCalls: [],
+          usage: { promptTokens: 0, completionTokens: 1, cachedPromptTokens: 0, totalTokens: 1 },
+        } satisfies AgentChatResponse;
+      },
+    });
+    const opened = await coordinator.open(binding);
+    const first = executionInput("isolation-a", 0, binding, { threadId: "thread-a" });
+    await coordinator.enqueue(opened.subscriptionId, first);
+    await coordinator.waitForTurn(opened.subscriptionId, first.mutation.payload.turn.turnId);
+    const second = executionInput("isolation-b", coordinator.snapshot(opened.subscriptionId).hostRevision, binding, {
+      threadId: "thread-b",
+    });
+    await coordinator.enqueue(opened.subscriptionId, second);
+    await coordinator.waitForTurn(opened.subscriptionId, second.mutation.payload.turn.turnId);
+
+    expect(observed[0].history).toEqual({
+      kind: "persistent", binding: createProjectAgentContextBinding(binding, "thread-a"),
+    });
+    expect(observed[1].history).toEqual({
+      kind: "persistent", binding: createProjectAgentContextBinding(binding, "thread-b"),
+    });
+  });
+
+  it("keeps single-shot planning and judging ephemeral so they never inherit a resident transcript", async () => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-single-shot-history-"));
+    const router = createProjectAgentRepositoryRouter({ rootDir: root });
+    let observed: AgentChatRequest | undefined;
+    const coordinator = createProjectAgentExecutionCoordinator(router, () => "subscription-single-shot-history", {
+      runAgent: async (request) => {
+        observed = request;
+        return {
+          id: "result-single-shot-history",
+          status: "finished",
+          text: "done",
+          finishReason: "stop",
+          artifacts: [],
+          toolCalls: [],
+          usage: { promptTokens: 0, completionTokens: 1, cachedPromptTokens: 0, totalTokens: 1 },
+        } satisfies AgentChatResponse;
+      },
+    });
+    const opened = await coordinator.open(binding);
+    const input = executionInput("single-shot-history", 0, binding, { capability: "single-shot" });
+    await coordinator.enqueue(opened.subscriptionId, input);
+    await coordinator.waitForTurn(opened.subscriptionId, input.mutation.payload.turn.turnId);
+
+    expect(observed?.history).toEqual({ kind: "ephemeral" });
   });
 
   it("uses the Host turn work mode when freezing the runtime request", async () => {
@@ -743,7 +873,7 @@ describe("ProjectAgentExecutionCoordinator", () => {
         ...base.request,
         workMode: "agent",
         approvalPolicy: { mode: "project", spend: "within-budget" },
-      } as AgentChatRequest,
+      } as ProjectAgentExecutionRequest,
     };
 
     await coordinator.enqueue(opened.subscriptionId, input);
@@ -867,9 +997,9 @@ describe("ProjectAgentExecutionCoordinator", () => {
     };
     await coordinator.enqueue(opened.subscriptionId, input);
     const final = await coordinator.waitForTurn(opened.subscriptionId, input.mutation.payload.turn.turnId);
-    expect(toolEvents).toBe(1);
+    expect(toolEvents).toBe(0);
     expect(decisions).toHaveLength(2);
-    expect(decisions[0]).toMatchObject({ ok: true });
+    expect(decisions[0]).toMatchObject({ ok: true, silent: true });
     expect(decisions[1]).toMatchObject({ ok: true, silent: true });
     expect(documentAdapter.execute).toHaveBeenCalledTimes(2);
     expect(final.items.filter((item) => item.kind === "proposal")).toHaveLength(2);
@@ -1673,6 +1803,7 @@ describe("ProjectAgentExecutionCoordinator", () => {
       threadId: thread.threadId,
       executionToken: "execution-token",
       model: { id: "model", version: 1 },
+      approvalPolicy: { mode: "step" as const, spend: "confirm" as const },
       skillVersions: [],
       capabilityVersions: [{ id: "creation-chat", version: 1 }],
       contextRef,
@@ -1703,6 +1834,7 @@ describe("ProjectAgentExecutionCoordinator", () => {
       preconditions: {},
       contextRef,
       model: turn.model,
+      approvalPolicy: { mode: "step" as const, spend: "confirm" as const },
       skillVersions: [],
       capabilityVersions: turn.capabilityVersions,
       policyRevision: 1,
@@ -1722,10 +1854,9 @@ describe("ProjectAgentExecutionCoordinator", () => {
       type: "turn.enqueue",
       payload: { thread, turn, userItem, queueItem },
     };
-    const request: AgentChatRequest = {
+    const request: ProjectAgentExecutionRequest = {
       prompt: "hi",
       capability: "creation-chat",
-      history: { kind: "ephemeral" },
       projectId: binding.projectId,
     };
     void coordinator.enqueue(opened.subscriptionId, { mutation, request }).catch((error) => {
@@ -3405,6 +3536,66 @@ describe("ProjectAgentExecutionCoordinator", () => {
     coordinator.release(opened.subscriptionId);
   });
 
+  it("reproduces canonical storyboard approval from the creation document target", async () => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-project-agent-storyboard-document-target-"));
+    const canvasAdapter = canvasWriteAdapter({ includeRendererStoryboard: true });
+    let receipt: ProjectAgentProposalReceiptView | null = null;
+    canvasAdapter.execute.mockImplementation(
+      async (_prepared: PreparedCanvasWrite, approval: CanvasWriteApprovalAuthority) => {
+        receipt = committedCanvasReceipt(binding, approval);
+        return { ok: true, result: { applied: true, proposalId: approval.receiptProposalId }, silent: true };
+      },
+    );
+    const coordinator = createProjectAgentExecutionCoordinator(
+      createProjectAgentRepositoryRouter({ rootDir: root }),
+      () => "subscription-storyboard-document-target",
+      {
+        runAgent: async (_request, hooks) => {
+          const call = {
+            toolCallId: "tool-storyboard-document-target",
+            toolName: "nomi_canvas_plan",
+            args: {
+              operation: "propose_storyboard_plan",
+              title: "Creation plan",
+              anchors: [],
+              shots: [{ index: 1, shotKind: "image", durationSec: 1, anchorIds: [], prompt: "cup" }],
+            },
+          };
+          const decision = await hooks.awaitToolConfirmation(call, hooks.abortSignal!);
+          return {
+            id: "result-storyboard-document-target",
+            status: "finished",
+            text: "done",
+            finishReason: "stop",
+            artifacts: [],
+            toolCalls: [{ ...call, status: decision.ok ? "ok" as const : "denied" as const, decision }],
+            usage: { promptTokens: 0, completionTokens: 1, cachedPromptTokens: 0, totalTokens: 1 },
+          } satisfies AgentChatResponse;
+        },
+      },
+    );
+    const opened = await coordinator.open(binding, {
+      canvasWrite: canvasAdapter,
+      proposalReceipt: vi.fn(() => receipt),
+    });
+    coordinator.subscribe(opened.subscriptionId, (event) => {
+      if (event.type === "tool-call") {
+        void coordinator.resolveToolDecision(opened.subscriptionId, event.turnId, event.toolCallId, {
+          ok: true,
+          result: { approved: true },
+        });
+      }
+    });
+    const input = executionInput("storyboard-document-target", 0);
+    await coordinator.enqueue(opened.subscriptionId, input);
+    const final = await coordinator.waitForTurn(opened.subscriptionId, input.mutation.payload.turn.turnId);
+    expect(final.items.find((item) => item.kind === "tool" && item.toolCallId === "tool-storyboard-document-target")).toMatchObject({ status: "done" });
+    expect(final.proposalApprovals).toHaveLength(1);
+    expect(canvasAdapter.prepare).toHaveBeenCalledOnce();
+    expect(canvasAdapter.execute).toHaveBeenCalledOnce();
+    coordinator.release(opened.subscriptionId);
+  });
+
   it.each([
     {
       code: "capability_declined",
@@ -3743,8 +3934,7 @@ describe("ProjectAgentExecutionCoordinator", () => {
       request: {
         prompt: "hi",
         capability: "creation-chat",
-        history: { kind: "ephemeral" },
-        projectId: binding.projectId,
+          projectId: binding.projectId,
       },
     });
     const final = await Promise.race([
@@ -3885,8 +4075,7 @@ describe("ProjectAgentExecutionCoordinator", () => {
       request: {
         prompt: "hi",
         capability: "creation-chat",
-        history: { kind: "ephemeral" },
-        projectId: binding.projectId,
+          projectId: binding.projectId,
       },
     });
     await terminalAttempt;
@@ -4002,10 +4191,9 @@ describe("ProjectAgentExecutionCoordinator", () => {
       deviated: false,
       updatedAt: now,
     };
-    const request: AgentChatRequest = {
+    const request: ProjectAgentExecutionRequest = {
       prompt: "wait",
       capability: "creation-chat",
-      history: { kind: "ephemeral" },
       projectId: binding.projectId,
     };
     await coordinator.enqueue(opened.subscriptionId, {
@@ -4160,10 +4348,9 @@ describe("ProjectAgentExecutionCoordinator", () => {
       deviated: false,
       updatedAt: now,
     };
-    const request: AgentChatRequest = {
+    const request: ProjectAgentExecutionRequest = {
       prompt: "original",
       capability: "creation-chat",
-      history: { kind: "ephemeral" },
       projectId: binding.projectId,
     };
     await coordinator.enqueue(opened.subscriptionId, {
@@ -4295,8 +4482,7 @@ describe("ProjectAgentExecutionCoordinator", () => {
         request: {
           prompt: "forged",
           capability: "canvas-refine",
-          history: { kind: "ephemeral" },
-          projectId: "project-b",
+              projectId: "project-b",
           selectedNodeIds: ["forged-node"],
         },
       }),
@@ -4307,8 +4493,7 @@ describe("ProjectAgentExecutionCoordinator", () => {
       request: {
         prompt: "valid",
         capability: "canvas-refine",
-        history: { kind: "ephemeral" },
-        projectId: binding.projectId,
+          projectId: binding.projectId,
         selectedNodeIds: ["forged-node"],
       },
     });

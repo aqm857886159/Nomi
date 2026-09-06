@@ -27,6 +27,7 @@ import {
 } from "./workspaceTypes";
 import { workspaceProjectBackupFile, workspaceProjectFile } from "./workspacePaths";
 import { writeWorkspaceSyncBaseline } from "./workspaceSyncBaseline";
+import { logInfo } from "../logging/logger";
 
 export type WorkspaceRepositoryDeps = {
   settingsRoot: string;
@@ -467,7 +468,7 @@ export function gcEmptyDraftWorkspaceProjects(
     if (result.deleted) recycled.push(project.id);
   }
   if (recycled.length) {
-    console.info(`[gc] recycled ${recycled.length} empty draft project(s): ${recycled.join(", ")}`);
+    logInfo("workspace", "recycled-empty-drafts", { count: recycled.length });
   }
   return { recycled, scanned: projects.length };
 }

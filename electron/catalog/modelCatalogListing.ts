@@ -12,6 +12,7 @@ import { bodyReferencedParamKeys } from "./paramTranslate";
 import type { ModelModeBody } from "./taskParams";
 import { billingKindForTaskKind, type BillingModelKind, type CatalogState, type Mapping, type ProfileKind } from "./types";
 import { modelHasPublishedExecution } from "../shared/modelPublication";
+import { SINGLE_SHOT_GENERATION_MODULE_ID } from "../shared/generationModuleId";
 
 /** 一个模型跨其所有 mapping 汇总出的参考承载力 + 是哪些模式（taskKind）带得动。 */
 export type ModelReferenceSupport = BodyReferenceSupport & {
@@ -23,6 +24,13 @@ export type ModelListingEntry = {
   vendor: string;
   vendorName: string;
   modelKey: string;
+  /**
+   * 生成写工具（nomi_operation_plan）要的 `{moduleId, providerId, modelId}` 三元组里的第一项。
+   * 修复前它**不出现在任何读工具的输出里**，外部宿主只能猜（探针猜了 `image`，plan 通过、preview 立刻回
+   * `Unknown module: image`）。`providerId` = 本行的 `vendor`、`modelId` = 本行的 `modelKey`，
+   * 三项现在都从这一行读得到 —— 写工具接受的东西，读工具认得。
+   */
+  moduleId: string;
   kind: string;
   label: string;
   /** 这个模型此刻能不能真用：ok=key 在且解得开；missing=没配 key；locked=key 在但当前宿主身份解不开。 */
@@ -159,7 +167,7 @@ export function referenceModeForIntent(
  *
  * **解密探测按 vendorKey 记忆化（本次调用内）**：keyStatus 只取决于 vendorKey（同 vendor 的所有模型共享同一条
  * key 记录与 authType），旧实现却**逐模型**调 apiKeyDecryptStatus——单 vendor N 个模型就是 N 次 safeStorage
- * 钥匙串 IPC，且 locked vendor 每个模型都吐一行重复 console.error（N 行同样的解密失败日志）。改为每 vendor 探一次
+ * 钥匙串 IPC，且 locked vendor 每个模型都吐一行重复解密失败日志（N 行一模一样）。改为每 vendor 探一次
  * 存进小 Map，同 vendor 后续模型直接命中，钥匙串往返与错误日志都降到「每 vendor 一次」。
  *
  * @param deps.keyStatusProbe 解密探测缝（house DI，默认真 apiKeyDecryptStatus）；测试注入 spy 断言「每 vendor 只探一次」。
@@ -187,6 +195,7 @@ export function deriveModelListing(
         vendor: model.vendorKey,
         vendorName,
         modelKey: model.modelKey,
+        moduleId: SINGLE_SHOT_GENERATION_MODULE_ID,
         kind: model.kind,
         label: model.labelZh || model.modelKey,
         keyStatus,

@@ -11,6 +11,14 @@ import { createAgentRuntimeFixture } from './agent-runtime-fixture.mjs'
 export const CREATION_PANEL = '[data-agent-resident="true"][data-agent-panel="true"][data-agent-surface="creation"]'
 export const CANVAS_PANEL = '[data-agent-resident="true"][data-agent-panel="true"][data-agent-surface="generation"]'
 export const DOCUMENT = '[aria-label="创作文档编辑区"] .tiptap[contenteditable="true"]'
+/**
+ * 待批准的操作卡（介入槽）。**复合**选择器，不是后代选择器：自 2026-09-05 的介入槽收口
+ * （合同 §2.6）起，`data-agent-item-kind="approval"` 与 `data-agent-approval="true"` 落在
+ * **同一个** <aside> 上；旧的 `A B` 写法要求二者一父一子，于是一个都匹配不到，走查报
+ * 「面板没渲染」而实际是选择器过期（docs/lessons/dead-selector-lies-both-ways.md）。
+ * 这条串只此一份，别再在各走查里手抄。
+ */
+export const APPROVAL_CARD = '[data-agent-item-kind="approval"][data-agent-approval="true"]'
 
 export function toolNames(body) {
   return (body.tools ?? []).map((tool) => tool.function.name).sort()
@@ -106,39 +114,71 @@ export function requireCurrentPersistedWorkbenchDocument(record) {
   return readback.document
 }
 
-export async function enableAgentHostThroughSettings(win) {
-  const settings = win.getByRole('button', { name: '设置', exact: true }).first()
-  await clickOrFail(settings, '打开系统设置')
-  const settingsOverlay = win.locator('[data-settings-overlay]')
-  const settingsOverlayProof = await proveProbe(settingsOverlay, '系统设置打开后存在设置 overlay')
-  const dialog = win.getByRole('dialog', { name: '设置', exact: true })
-  await expect(dialog).toBeVisible()
-  await clickOrFail(dialog.locator('[data-settings-tab-id="general"]'), '打开通用设置')
-  const toggle = dialog.locator('[data-settings-section="agent-host"] [data-settings-agent-host-toggle]')
-  await expect(toggle).toBeAttached()
-  const toggleTrack = dialog.locator('[data-settings-section="agent-host"] .mantine-Switch-track')
-  await expect(toggleTrack).toBeVisible()
-  if (!(await toggle.isChecked())) await clickOrFail(toggleTrack, '开启常驻 Agent')
-  await expect(toggle).toBeChecked()
-  await clickOrFail(dialog.locator('[data-settings-close]'), '关闭系统设置')
-  await expectAbsent(settingsOverlay, {
-    provenBy: settingsOverlayProof,
-    message: '关闭系统设置后 overlay 应持续消失',
-  })
+function conversationsFromProjectAgentSnapshot(snapshot) {
+  const threads = (snapshot?.threads || []).map((thread) => ({
+    id: thread.threadId,
+    title: thread.title || '',
+    createdAt: thread.createdAt || 0,
+    updatedAt: thread.updatedAt || 0,
+    messages: (snapshot?.items || [])
+      .filter((item) => item.threadId === thread.threadId && (item.kind === 'user' || item.kind === 'assistant'))
+      .map((item) => ({ id: item.itemId, role: item.kind, content: item.text || '' })),
+  }))
+  return { creation: { activeId: snapshot?.activeThreadId || null, threads }, generation: { activeId: null, threads: [] } }
 }
 
-export async function readConversations(win, projectId) {
-  const result = await win.evaluate((id) => window.nomiDesktop.conversations.read(id), projectId)
-  expect(result.ok, 'The real conversations IPC must succeed').toBe(true)
-  return result.conversations
+export async function readConversations(win, projectId, durableRoots) {
+  // The old conversations IPC was retired by the Project Agent cutover. When
+  // a walk already owns the isolated profile, read the persisted Host snapshot
+  // directly. Calling projectAgent.open() here would release the resident
+  // renderer subscription on the same WebContents, making the next user turn
+  // fail with project_agent_subscription_invalid.
+  if (durableRoots?.settingsRoot && durableRoots?.projectRoot) {
+    return conversationsFromProjectAgentSnapshot(readCurrentProjectAgentHostSnapshot(durableRoots.settingsRoot, durableRoots.projectRoot))
+  }
+  const snapshot = await win.evaluate(async (id) => {
+    const record = await window.nomiDesktop.projects.readAsync(id)
+    const opened = await window.nomiDesktop.projectAgent.open({
+      projectId: id,
+      immutableProjectUuid: record?.immutableProjectUuid,
+      projectGeneration: record?.projectGeneration,
+    })
+    if (!opened?.ok) throw new Error('projectAgent.open failed')
+    return opened.value.snapshot
+  }, projectId)
+  return conversationsFromProjectAgentSnapshot(snapshot)
 }
 
-export function readNativeContexts(projectRoot) {
-  const file = path.join(projectRoot, '.nomi', 'agent-session.json')
-  if (!fs.existsSync(file)) return null
-  const container = JSON.parse(fs.readFileSync(file, 'utf8'))
-  expect(container.version, 'Product entry must persist the v3 pi working-context store').toBe(3)
-  return Object.values(container.records)
+export function readNativeContexts(projectRoot, settingsRoot) {
+  if (!settingsRoot) return null
+  const state = readCurrentProjectAgentHostSnapshot(settingsRoot, projectRoot)
+  if (!state) return null
+  const byThread = new Map()
+  for (const item of state.items || []) {
+    const threadId = item.threadId
+    if (typeof threadId !== 'string' || !threadId) continue
+    const entries = byThread.get(threadId) || []
+    if (item.kind === 'tool' && typeof item.toolCallId === 'string') {
+      entries.push({ type: 'message', message: {
+        role: 'toolResult',
+        toolCallId: item.toolCallId,
+        content: item.resultRef || '',
+      } })
+    } else if (item.kind === 'user' || item.kind === 'assistant') {
+      entries.push({ type: 'message', message: { role: item.kind, content: item.text || '' } })
+    }
+    byThread.set(threadId, entries)
+  }
+  const projectId = state.binding?.projectId
+  return [...byThread.entries()].map(([threadId, entries]) => ({
+    sessionKey: typeof projectId === 'string' ? `nomi:workbench:${projectId}:creation` : undefined,
+    threadId,
+    snapshot: JSON.stringify({
+      format: 'nomi.pi-work-context',
+      piVersion: '0.84.3',
+      data: { entries },
+    }),
+  }))
 }
 
 export function snapshotMessages(record) {
@@ -175,6 +215,19 @@ export function readCurrentProjectAgentHostSnapshot(settingsRoot, projectRoot) {
   return envelope.state
 }
 
+/**
+ * The durable per-thread conversation context production actually writes today:
+ * one project-scoped container keyed by the Host's canonical context binding.
+ * Unlike readNativeContexts above, nothing here is reconstructed from Host items.
+ */
+export function readDurableThreadContexts(projectRoot) {
+  const file = path.join(projectRoot, '.nomi', 'agent-thread-context-v1.json')
+  if (!fs.existsSync(file)) return null
+  const container = JSON.parse(fs.readFileSync(file, 'utf8'))
+  expect(container.version, 'Durable Agent context container schema').toBe(4)
+  return Object.values(container.records ?? {})
+}
+
 export function readProjectAgentProposalReceipt(projectRoot) {
   const receiptFile = path.join(projectRoot, '.nomi', 'project-agent-proposal-receipt.json')
   if (!fs.existsSync(receiptFile)) return null
@@ -196,11 +249,6 @@ export function readCurrentProjectAgentToolEvidence(settingsRoot, projectRoot, c
   return { state, tool, proposal, receipt }
 }
 
-export async function chooseCreationMode(win, mode) {
-  await clickOrFail(win.locator(`${CREATION_PANEL} [data-agent-composer-prompt="true"]`), '当前 Agent 提示词选择器')
-  await clickOrFail(win.locator(`[data-agent-menu-item="${mode}"]`), `当前 Agent 提示词 ${mode}`)
-}
-
 export async function chooseAssistantModel(win, modelIdentity) {
   await clickOrFail(win.locator(`${CREATION_PANEL} [data-agent-composer-model="true"]`), '当前 Agent 模型选择器')
   await clickOrFail(win.locator(`[data-agent-menu-item="${modelIdentity}"]`), `当前 Agent 文本模型 ${modelIdentity}`)
@@ -210,7 +258,7 @@ export async function openCanvas(win) {
   await clickOrFail(win.getByRole('button', { name: '生成', exact: true }), '生成工作区')
   await expect(win.locator('.generation-canvas-v2__stage')).toBeVisible()
   // Host cutover retired the in-canvas assistant panel; the project Agent now lives in the
-  // ResidentShell dock (gated by the default-off agentHost flag, #194). Its collapsed launcher is
+  // ResidentShell dock, resident by default since 2026-09-05. Its collapsed launcher is
   // the pill with [data-agent-resident-collapsed]; expanding it reveals [data-agent-composer].
   const launcher = win.locator('[data-agent-resident-collapsed="true"]')
   // This is a genuine two-state UI (persisted expanded/collapsed preference).

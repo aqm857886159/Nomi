@@ -203,10 +203,10 @@ describe('applyCanvasToolCall canonical nomi_canvas_plan patch_shots', () => {
       [{ id: 'doc-1', version: 1, title: '', contentJson: { type: 'doc', content: [] }, updatedAt: 1 }],
       'doc-1',
     )
-    useWorkbenchStore.getState().hydrateStoryboardPlans({ 'doc-1': { plan, committed: false } })
+    useWorkbenchStore.getState().hydrateStoryboardDesigns({ 'doc-1': [{ id: 'test-doc-1', documentId: 'doc-1', title: plan.title, plan, committed: false, status: 'draft', sourceDocumentUpdatedAt: 1, createdAt: 1, updatedAt: 1 }] })
   })
 
-  const shots = () => useWorkbenchStore.getState().storyboardPlans['doc-1']?.plan.shots ?? []
+  const shots = () => useWorkbenchStore.getState().storyboardDesignsByDocumentId['doc-1']?.[0]?.plan.shots ?? []
   const patch = (input: Record<string, unknown>) => applyCanvasToolCall('nomi_canvas_plan', { operation: 'patch_shots', ...input }, undefined, undefined, 'doc-1')
 
   it('applies promptAppend to the selected rows and returns a canonical receipt payload', async () => {
@@ -231,7 +231,7 @@ describe('applyCanvasToolCall canonical nomi_canvas_plan patch_shots', () => {
   })
 
   it('fails closed when there is no storyboard plan', async () => {
-    useWorkbenchStore.getState().hydrateStoryboardPlans({})
+    useWorkbenchStore.getState().hydrateStoryboardDesigns({})
     await expect(patch({ select: { kind: 'all' }, patch: { prompt: 'x' } })).rejects.toMatchObject({ code: 'capability_target_stale' })
   })
 })
@@ -310,14 +310,14 @@ describe('applyCanvasToolCall propose_storyboard_plan', () => {
       [{ id: 'doc-1', version: 1, title: '', contentJson: { type: 'doc', content: [] }, updatedAt: 1 }],
       'doc-1',
     )
-    useWorkbenchStore.getState().hydrateStoryboardPlans({})
+    useWorkbenchStore.getState().hydrateStoryboardDesigns({})
     useWorkbenchStore.getState().setWorkspaceMode('creation')
   })
 
   it('合法方案 → 落统一创作页 + 不动画布,回执含计数', async () => {
     const ack = await applyCanvasToolCall('propose_storyboard_plan', PLAN)
     const ws = useWorkbenchStore.getState()
-    expect(ws.storyboardPlans['doc-1'].plan).toEqual(PLAN)
+    expect(ws.storyboardDesignsByDocumentId['doc-1']?.[0]?.plan).toEqual(PLAN)
     expect(ws.workspaceMode).toBe('creation')
     expect(useGenerationCanvasStore.getState().nodes).toHaveLength(0) // 规划不碰画布
     expect(ack).toMatchObject({ status: 'applied', documentId: 'doc-1', storyboardDesignId: expect.any(String) })
@@ -329,7 +329,7 @@ describe('applyCanvasToolCall propose_storyboard_plan', () => {
     await expect(
       applyCanvasToolCall('propose_storyboard_plan', { title: 't', anchors: [{ id: 'x', kind: 'bad' }], shots: [] }),
     ).rejects.toThrow()
-    expect(useWorkbenchStore.getState().storyboardPlans['doc-1']).toBeUndefined()
+    expect(useWorkbenchStore.getState().storyboardDesignsByDocumentId['doc-1']).toBeUndefined()
   })
 
   it('规划期间用户切走后不抢回工作区，结果仍落原文稿', async () => {

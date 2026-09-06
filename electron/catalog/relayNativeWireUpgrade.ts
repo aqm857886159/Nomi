@@ -12,6 +12,7 @@ import {
   upsertModelCatalogMapping,
   upsertModelCatalogModel,
 } from "./catalogStore";
+import { logInfo } from "../logging/logger";
 
 // ---------------------------------------------------------------------------
 // 存量自愈：已经接进来的中转模型，如果这家其实提供了该模型档案的**原生端点**，就把 mapping
@@ -104,7 +105,12 @@ export function scheduleRelayNativeWireUpgrade(): void {
   void upgradeRelayModelsToNativeWire()
     .then((results) => {
       const upgraded = results.filter((r) => r.upgraded);
-      if (upgraded.length) console.log(`[catalog] 中转模型升级到原生报文：${upgraded.map((r) => r.modelKey).join(", ")}`);
+      if (upgraded.length) {
+        logInfo("catalog", "relay-models-upgraded-to-native-wire", {
+          count: upgraded.length,
+          models: upgraded.map((r) => r.modelKey).join(","),
+        });
+      }
     })
     .catch(() => { /* 体检失败不影响使用，保持通用模板 */ });
 }

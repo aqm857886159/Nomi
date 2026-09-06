@@ -47,6 +47,7 @@ export type {
   ProductionArtifactProjection,
   MaterializeStoryboardResult,
 } from './productionRunProjections'
+import { logError } from '../logging/logger'
 
 
 type ServiceDeps = {
@@ -437,7 +438,7 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
             issuedAt: new Date().toISOString(),
           })
         } catch (error) {
-          console.error('[nomi:production] freeze gate reject pause failed:', error instanceof Error ? error.message : String(error))
+          logError('production-run', 'freeze-gate-reject-pause-failed', error)
         }
       }
     }
@@ -456,7 +457,7 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
           })
         } catch (error) {
           // 暂停失败不掩盖否决本身（门已落 rejected）；run 状态仍可查、可手动暂停。
-          console.error('[nomi:production] sample gate reject pause failed:', error instanceof Error ? error.message : String(error))
+          logError('production-run', 'sample-gate-reject-pause-failed', error)
         }
       }
     }
@@ -476,7 +477,7 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
             issuedAt: new Date().toISOString(),
           })
         } catch (error) {
-          console.error('[nomi:production] shot gate reject pause failed:', error instanceof Error ? error.message : String(error))
+          logError('production-run', 'shot-gate-reject-pause-failed', error)
         }
       }
     }
@@ -511,7 +512,7 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
       })
     } catch (error) {
       // 自动批准失败不掩盖 run：门仍 waiting、可手动批。
-      console.error('[nomi:production] auto-approve gate failed:', error instanceof Error ? error.message : String(error))
+      logError('production-run', 'auto-approve-gate-failed', error)
     }
   }
 
@@ -567,7 +568,7 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
         }
       }
     } catch (error) {
-      console.error('[nomi:production] recovery scan failed:', error instanceof Error ? error.message : String(error))
+      logError('production-run', 'recovery-scan-failed', error)
     } finally {
       recoveryInFlight.delete(safeProjectId)
     }

@@ -1,0 +1,134 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-05-proposal-transition-table",
+  "problem_type": "Agent Host proposal state machine diagnosability and extension boundary",
+  "symptom": "A rejected Host proposal reports only the opaque code proposal_transition_invalid. The 2026-09-05 canonical storyboard failure (document-target queue vs canvas-target verified ref) surfaced as an approval that silently did nothing, and the investigation cost was spent identifying which of six unrelated concerns inside one 30-line boolean expression had turned false.",
+  "direct_cause": "projectAgentReducer.ts proposal.put fused payload shape, identity uniqueness, timestamp monotonicity, card consistency, lifecycle legality, and cross-domain admission into a single || chain, and proposal.transition discriminated its action by comparing the payload lifecycle string inline. Neither branch could name the (source domain, target domain, state, action) cell it rejected.",
+  "class_root": "The Host proposal machine had no explicit state table. Its admissible moves existed only as the negation of an if-expression, so every new domain, action, or admission rule had to be woven into that expression, and every rejection collapsed to one code regardless of which axis failed. A machine whose transitions are implicit cannot report its own coordinates and cannot be extended without re-reading the whole expression.",
+  "affected_population": [
+    "Every Host proposal registration and settlement across all capability domains (document, canvas, canvas-result, asset, timeline, export, artifact, production)",
+    "Anyone diagnosing a proposal_transition_invalid from logs, receipts, or an Agent failure card",
+    "Any future capability target kind added to TargetRef, which previously fell into an unnamed default rejection"
+  ],
+  "scope_paths": [
+    "electron/projectAgentHost/projectAgentProposalTransitions.ts",
+    "electron/projectAgentHost/projectAgentProposalTransitions.test.ts",
+    "electron/projectAgentHost/projectAgentProposalReduction.ts",
+    "electron/projectAgentHost/projectAgentRecordReduction.ts",
+    "electron/projectAgentHost/projectAgentReducer.ts",
+    "electron/projectAgentHost/projectAgentReducerContract.ts",
+    "electron/projectAgentHost/projectAgentProposalReducer.test.ts",
+    "docs/plan/2026-09-05-proposal-transition-table.md",
+    "docs/fixes/2026-09-05-proposal-transition-table.root-cause.json"
+  ],
+  "entry_points": [
+    "projectAgentReducer proposal.put admits a durable approval against the frozen queue item",
+    "projectAgentReducer proposal.transition settles a recorded approval to claimed or expired",
+    "ProjectAgentReducerError carries the rejected cell to every consumer that reads a Host failure"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The proposal ledger, its capability target domains, and its admission rules are entirely Nomi's own Host contract; no provider or third-party specification defines which cell may be admitted.",
+  "invariants": [
+    "Every admissible proposal move is a named cell of (source domain, target domain, current state, action); the reducer performs exactly one table lookup and never re-derives a transition from a chain of conditions.",
+    "A move with no cell is rejected, and the thrown ProjectAgentReducerError carries { sourceDomain, targetDomain, fromState, action, reason } for that exact cell.",
+    "Admission semantics are unchanged by this refactor: document -> canvas remains closed at the reducer and must be re-anchored to the queue target upstream, and canvas -> canvas keeps its deferred edge-precondition admission."
+  ],
+  "generality_proof": "The domain axis is typed as TargetRef[\"kind\"], and a compile-time UncoveredProposalDomain check fails the build when a new capability target kind is not tabled. The lifecycle axis composes PROJECT_AGENT_PROPOSAL_LIFECYCLES with one absent coordinate rather than declaring a second state vocabulary. Both reducer proposal branches call the same resolveTransition, so no caller can reach a transition that bypassed the table.",
+  "shared_boundaries": [
+    {
+      "path": "electron/projectAgentHost/projectAgentProposalTransitions.ts",
+      "symbol": "resolveTransition",
+      "responsibility": "The single lookup that decides whether a proposal move exists, what state it lands in, which admission rules the caller must still satisfy, and which coordinate to report when the cell is missing."
+    },
+    {
+      "path": "electron/projectAgentHost/projectAgentProposalTransitions.ts",
+      "symbol": "ADMISSION_TABLE",
+      "responsibility": "Names every admissible (source domain, target domain) pair, including document -> canvas as an explicitly closed host-anchored-upstream cell instead of an unnamed default rejection."
+    },
+    {
+      "path": "electron/projectAgentHost/projectAgentReducerContract.ts",
+      "symbol": "ProjectAgentReducerError.transition",
+      "responsibility": "Carries the rejected cell coordinate out of the reducer so failure receipts and logs name the cell rather than only the error code."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/projectAgentHost/projectAgentReducer.ts",
+      "entry_point": "proposal.put",
+      "disposition": "enforced",
+      "evidence": "The approvalId-collision check, the canvas target-kind halves of deferredCanvasAdmission, and the implicit cross-domain rejection were deleted from the || chain and replaced by one resolveTransition call whose rejection is thrown via failTransition."
+    },
+    {
+      "path": "electron/projectAgentHost/projectAgentReducer.ts",
+      "entry_point": "proposal.transition",
+      "disposition": "enforced",
+      "evidence": "The private isProposalTransition helper was deleted and the three inline lifecycle string comparisons now derive from resolveProposalTransitionAction and settlement.toState, so an unmapped lifecycle has no action and therefore no cell."
+    },
+    {
+      "path": "electron/projectAgentHost/projectAgentProposalReduction.ts",
+      "entry_point": "reduceProjectAgentProposalPut / reduceProjectAgentProposalTransition",
+      "disposition": "enforced",
+      "evidence": "Both proposal ledger commands were lifted out of the reducer switch into one module that performs a single resolveTransition lookup each, matching the existing reduceProjectAgentQueueMutation extraction pattern and returning projectAgentReducer.ts to 636 lines (check:filesize)."
+    },
+    {
+      "path": "electron/projectAgentHost/projectAgentReducer.ts",
+      "entry_point": "turn.transition and execution.recover approval disposal",
+      "disposition": "not-affected",
+      "evidence": "These remove or terminalize approvals as part of the turn state machine rather than performing a proposal lifecycle action. They are registered as adjacent guards in docs/plan/2026-09-05-proposal-transition-table.md and deliberately stay outside the proposal table so two state machines are not conflated."
+    },
+    {
+      "path": "electron/projectAgentHost/projectAgentProposalPersistence.ts",
+      "entry_point": "persistApprovedProposal re-anchoring",
+      "disposition": "not-affected",
+      "evidence": "The upstream renderer-owned storyboard re-anchor from 2026-09-05-canonical-storyboard-proposal-transition remains the admission path; the table records document -> canvas as closed at the reducer, which is that contract's proposal.put invariant restated as data."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every new capability target kind, renderer-owned operation, or approval action would previously have been woven into the same boolean expression, reproducing both the unnamed rejection and the risk of an unintended admission. The failure is structural in the reducer's shape, not specific to storyboard writes.",
+    "same_class_scan": [
+      "Grepped electron/ for every proposal_transition_invalid raise site: proposal.put, proposal.transition, and the turn.transition approval guard. The first two are now table-driven; the third is registered as an adjacent turn-state guard with its reason recorded in the plan document.",
+      "Grepped for deferredCanvasAdmission: the only occurrence was projectAgentReducer.ts proposal.put; its target-kind halves became the canvas>canvas cell rules and its precondition-shape half stayed in the reducer as an admission-rule condition.",
+      "Traced every TargetRef kind in electron/shared/capabilityTargeting.ts into PROPOSAL_TRANSITION_DOMAINS and added a compile-time exhaustiveness check so a ninth kind cannot skip the table."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/projectAgentHost/projectAgentProposalTransitions.ts",
+    "invariant": "The Host proposal machine's admissible moves live in two data tables that the reducer only reads; a move without a cell is rejected with its coordinate.",
+    "failure_mode": "A move with no cell is rejected fail-closed with the same error codes as before the refactor (proposal_transition_invalid, record_exists, record_not_found), plus the cell coordinate on the error object.",
+    "exception_policy": "none",
+    "strategy": "Move the transition truth out of control flow and into data, give the domain axis a compile-time exhaustiveness proof, and make the rejection self-describing so the next cross-surface mismatch is diagnosed from the error rather than from re-reading the expression.",
+    "artifacts": [
+      "electron/projectAgentHost/projectAgentProposalTransitions.ts",
+      "electron/projectAgentHost/projectAgentReducerContract.ts",
+      "docs/plan/2026-09-05-proposal-transition-table.md"
+    ]
+  },
+  "regression_tests": [
+    "electron/projectAgentHost/projectAgentProposalReducer.test.ts",
+    "electron/projectAgentHost/projectAgentProposalTransitions.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/projectAgentHost/projectAgentProposalTransitions.test.ts",
+    "electron/projectAgentHost/projectAgentProposalReducer.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/projectAgentHost/projectAgentReducer.ts",
+      "electron/projectAgentHost/projectAgentProposalReduction.ts"
+    ],
+    "rationale": "Add-new-delete-old in one commit: projectAgentReducer.ts lost the private isProposalTransition helper, the proposal.put approvalId-collision clause, the target-kind halves of deferredCanvasAdmission, and the three inline lifecycle string comparisons in proposal.transition. No condition decides a proposal transition alongside the table."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party dependency participates in the Host proposal transition boundary.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted schema or data migration. The tables encode the pre-refactor admission semantics exactly; existing durable approvals, receipts, and snapshots reduce identically, and the only observable difference is the extra coordinate carried on rejection errors.",
+  "residual_risks": [
+    "Only three of the sixty-four domain pairs (canvas->canvas, document->document, document->canvas) are exercised through the reducer itself; the remaining pairs have table-level coverage only, since they share one resolveTransition call with no branch difference. This is registered in the plan document's coverage-gap section.",
+    "Turn-state approval disposal (turn.transition abort, execution.recover) remains outside the table by design; if a future action needs to settle an approval without going through the turn state machine it must be added as a table action rather than a new reducer branch."
+  ]
+}

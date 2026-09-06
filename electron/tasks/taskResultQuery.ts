@@ -25,6 +25,7 @@ import {
   localizeTaskAsset,
   taskCache,
 } from "../runtime";
+import { logWarn } from "../logging/logger";
 
 // ── 未登记状态动词的有界容忍（根因修复，见 docs/plan/2026-08-11-unrecognized-task-status-root-fix.md）──
 //
@@ -51,11 +52,13 @@ function reportUnrecognizedStatus(cached: CachedTask, taskId: string, verb: stri
   const dedupeKey = `${cached.vendor}::${verb.toLowerCase()}`;
   if (reportedUnrecognizedStatuses.has(dedupeKey)) return;
   reportedUnrecognizedStatuses.add(dedupeKey);
-  console.warn(
-    `[nomi:task] 上游返回了未登记的任务状态动词 "${verb}" —— 已按「未知」处理（暂继续轮询）。` +
-      ` vendor=${cached.vendor} model=${cached.model?.modelKey || "?"} kind=${cached.request.kind} taskId=${taskId}。` +
-      ` 若它其实是终态，请补进该 vendor 的 statusMapping。`,
-  );
+  logWarn("tasks", "unregistered-status-verb", {
+    verb,
+    vendor: cached.vendor,
+    model: cached.model?.modelKey || "?",
+    kind: cached.request.kind,
+    taskId,
+  });
 }
 
 /**

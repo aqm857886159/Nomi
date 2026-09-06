@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>分镜表 v6 · 参考列随模型 × 模式变化（六种真实档案）</title>
+<style>
+body{margin:0;background:#fbfaf8;font-family:Inter,-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB",system-ui,sans-serif;color:#1d1a15;-webkit-font-smoothing:antialiased;}
+a{color:#2a75ba}a:hover{color:#1d1a15}
+*{box-sizing:border-box}
+svg{flex:0 0 auto}
+.pill{display:inline-flex;align-items:center;gap:4px;height:24px;padding:0 8px 0 10px;border:1px solid #e3e1de;border-radius:999px;background:#fff;white-space:nowrap}
+.pill .k{font-size:11px;line-height:1;color:#9b9891}
+.pill .v{font-size:12px;color:#36322d}
+.pill.on{border-color:#2a75ba}
+.tag{display:inline-flex;align-items:center;gap:3px;height:20px;padding:0 8px;border-radius:999px;background:#e5eef7;color:#2a75ba;font-size:11px;white-space:nowrap}
+.tag.g{background:rgba(52,199,89,.12);color:#248a3d}
+.tag.r{background:rgba(255,59,48,.1);color:#ff3b30}
+.tag.n{background:#ecebe9;color:#66635d}
+.tile{position:relative;display:grid;place-items:center;width:56px;height:56px;border-radius:6px;border:1px dashed #d9d7d4;background:#f6f5f3;color:#bbb7b0;font-size:11px;line-height:1.25;text-align:center}
+.tile.req{border-color:#ff3b30;background:rgba(255,59,48,.1);color:#ff3b30}
+.tile.filled{border:1px solid #e3e1de;background:#ecebe9;color:#66635d;font-size:16px}
+.tile.img{border:1px solid #e3e1de;overflow:hidden;position:relative}
+.slot{display:flex;flex-direction:column;align-items:center;gap:2px}
+.slot .lab{font-size:11px;color:#9b9891;max-width:68px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.slot .lab.r{color:#ff3b30}
+.ibtn{display:grid;place-items:center;width:24px;height:24px;border:0;border-radius:6px;background:transparent;color:#9b9891}
+.ibtn:hover{background:#ecebe9;color:#66635d}
+.prim{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:24px;padding:0 10px;border:0;border-radius:6px;background:#1d1a15;color:#fff;font-size:11px;font-weight:500;white-space:nowrap}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:28px;padding:0 12px;border:1px solid #efeeec;border-radius:7px;background:#fff;color:#1d1a15;font-size:12px;font-weight:500;white-space:nowrap}
+.btn.md{height:32px;font-size:13px}
+.btn.primary{border:0;background:#1d1a15;color:#fff}
+.row{position:relative;display:grid;grid-template-columns:14px 136px 200px minmax(0,1fr);gap:12px;padding:12px 12px 12px 6px;align-items:start;background:#fff;border-top:1px solid #efeeec}
+.composer{display:flex;flex-direction:column;border:1px solid #e3e1de;border-radius:10px;background:#fff;min-width:0}
+.composer .txt{padding:10px 12px 6px;font-size:13px;line-height:1.5;color:#1d1a15;min-height:60px}
+.composer .bar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:6px 8px 8px 10px;border-top:1px solid #efeeec}
+.composer .bar .sp{flex:1 1 auto}
+.men{display:inline-flex;align-items:center;gap:2px;padding:1px 5px;border-radius:4px;background:#e5eef7;color:#2a75ba;font-size:12px}
+.men.stale{background:rgba(255,59,48,.1);color:#ff3b30;text-decoration:line-through}
+.media{position:relative;border-radius:10px;overflow:hidden;background:#f6f5f3;border:1px solid #e3e1de}
+.badge{position:absolute;top:4px;left:4px;z-index:4;padding:0 4px;border-radius:6px;font-size:11px;line-height:16px;color:#fff;font-variant-numeric:tabular-nums;background:rgba(20,17,13,.64)}
+.badge.q{background:#ecebe9;color:#66635d}
+.dur{position:absolute;bottom:4px;right:4px;z-index:2;padding:0 4px;border-radius:6px;background:rgba(20,17,13,.64);color:#fff;font-size:11px;line-height:16px;font-variant-numeric:tabular-nums}
+.acts{display:flex;align-items:center;gap:1px;margin-top:6px}
+.acts button{display:grid;place-items:center;width:26px;height:26px;border:0;border-radius:6px;background:transparent;color:#9b9891}
+.acts button:hover{background:#ecebe9;color:#36322d}
+.sub{font-size:11px;color:#9b9891}
+.link{font-size:11px;color:#66635d;text-decoration:underline;text-underline-offset:2px}
+.ghead{display:flex;align-items:center;gap:8px;padding:6px 12px;background:#f6f5f3;border-top:1px solid #efeeec}
+.ghead .t{font-size:12px;font-weight:500;color:#36322d}
+.ghead .s{margin-left:auto;display:flex;align-items:center;gap:10px;font-size:11px;color:#9b9891}
+.card{width:108px;height:144px;border-radius:10px;border:1px dashed #d9d7d4;background:#f6f5f3;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:8px;text-align:center;position:relative;overflow:hidden}
+.card.done{border:1px solid #e3e1de}
+.nm{display:flex;align-items:center;gap:4px;font-size:12px;font-weight:500;color:#36322d}
+.nmi{display:flex;align-items:center;gap:6px}
+.mini{width:40px;height:40px;border-radius:6px;border:1px solid #e3e1de;background:#ecebe9;display:grid;place-items:center;font-size:13px;color:#66635d;position:relative;overflow:hidden}
+.seg{align-self:flex-start;display:inline-flex;gap:2px;padding:2px;border-radius:6px;background:#f6f5f3}
+.seg span{min-height:28px;padding:4px 12px;border-radius:6px;font-size:12px;line-height:1;color:#66635d;display:inline-flex;align-items:center}
+.seg span.on{background:#fff;color:#1d1a15;font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.04),0 1px 1px rgba(0,0,0,.03)}
+.stack{position:relative;width:80px;height:62px}
+.stack .t1,.stack .t2,.stack .t3{position:absolute;left:0;bottom:0;width:44px;height:56px;border-radius:6px;border:1px solid #e3e1de;background:#ecebe9;transform-origin:20% 100%}
+.stack .t1{z-index:3}
+.stack .t2{z-index:2;transform:rotate(13deg)}
+.stack .t3{z-index:1;transform:rotate(26deg)}
+.stack .cnt{position:absolute;left:30px;bottom:-2px;z-index:4;padding:0 5px;border-radius:6px;background:#1d1a15;color:#fff;font-size:11px;line-height:14px}
+
+.grip{align-self:center;justify-self:center;color:#d9d7d4;display:flex;flex-direction:column;align-items:center;gap:4px}
+.grip .more{display:grid;place-items:center;width:16px;height:16px;border-radius:6px;color:#9b9891}
+.warn{display:flex;align-items:center;gap:8px;font-size:11px;color:#ff3b30}
+.warn .re{height:24px;padding:0 8px;border-radius:6px;border:1px solid #e3e1de;background:#fff;font-size:11px;color:#36322d;display:inline-flex;align-items:center}
+
+.menu{position:absolute;z-index:20;min-width:160px;display:flex;flex-direction:column;gap:2px;padding:6px;border-radius:6px;border:1px solid #e3e1de;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.04),0 8px 24px rgba(0,0,0,.06)}
+.menu span{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:6px;font-size:12px;color:#36322d}
+.menu span.hov{background:#f6f5f3}
+.menu span.danger{color:#ff3b30}
+.menu .sep{height:1px;background:#efeeec;margin:2px 0;padding:0}
+.kbd{display:inline-flex;align-items:center;height:18px;padding:0 5px;border:1px solid #e3e1de;border-bottom-width:2px;border-radius:4px;background:#fff;font-size:11px;color:#36322d;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+</style>
+</head>
+<body>
+<div style="width:900px;min-height:720px;background:#fbfaf8;padding:24px;"><div style="border:1px solid #e3e1de;border-radius:10px;background:#fff;overflow:hidden;">
+<div class="ghead" style="border-top:0;"><span class="t">参考区随模型 × 模式变化 · 同一行，只换中间那一列</span><span class="s">槽种类、数量、必填度全部从档案声明推导</span></div>
+<div style="display:grid;grid-template-columns:150px 200px minmax(0,1fr);gap:12px;align-items:center;padding:12px;border-top:1px solid #efeeec;">
+  <div><div style="font-size:12px;font-weight:500;color:#36322d;">Seedance 2.5 · 文生视频</div><div class="sub" style="margin-top:2px;">slots: []</div></div>
+  <div style="display:flex;flex-wrap:wrap;gap:8px;"><span class="sub" style="line-height:1.6;color:#bbb7b0;">此模式不吃参考<br>@ 仍可引用锚写进提示词</span></div>
+  <div class="composer"><div class="bar" style="border-top:0;padding:6px 8px;"><span class="pill"><span class="k">模型</span><span class="v">Seedance 2.5</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9b9891" stroke-width="1.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span><span class="pill on"><span class="k">模式</span><span class="v">文生视频</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9b9891" stroke-width="1.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span><span class="pill"><span class="k">画幅</span><span class="v">9:16</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9b9891" stroke-width="1.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span><span class="sp"></span><span class="prim">生成</span></div></div>
+</div>
+<div style="display:grid;grid-template-columns:150px 200px minmax(0,1fr);gap:12px;align-items:center;padding:12px;border-top:1px solid #efeeec;">
+  <div><div style="font-size:12px;font-weight:500;color:#36322d;">Seedance 2.5 · 首帧</div><div class="sub" style="margin-top:2px;">first_frame 1–1</div></div>
+  <div style="display:flex;flex-wrap:wrap;gap:8px;"><span class="slot"><span class="tile req">必填</span><span class="lab r">首帧</span></span></div>
+  <div class="composer"><div class="bar" style="border-top:0;padding:6px 8px;"><span class="pill"><span class="k">模型</span><span class="v">Seedance 2.5</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9b9891" stroke-width="1.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span><span class="pill on"><span class="k">模式</span><span class="v">首帧</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9b9891" stroke-width="1.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span><span class="pill"><span class="k">画幅</span><span class="v">9:16</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9b9891" stroke-width="1.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span><span class="sp"></span><span class="prim">生成</span></div></div>
+</div>
+<div style="display:grid;grid-template-columns:150px 200px minmax(0,1fr);gap:12px;align-items:center;padding:12px;border-top:1px solid #efeeec;">
+  <div><div style="font-size:12px;font-weight:500;color:#36322d;">Seedance 2.5 · 首尾帧</div><div class="sub" style="margin-top:2px;">first_frame 1–1 · last_frame 1–1</div></div>
+  <div style="display:flex;flex-wrap:wrap;gap:8px;"><span class="slot"><span class="tile req">必填</span><span class="lab r">首帧</span></span><span class="slot"><span class="tile req">必填</span><span class="lab r">尾帧</span></span></div>
+  <div class="composer"><div class="bar" style="border-top:0;padding:6px 8px;"><span class="pill"><span class="k">模型</span><span class="v">Seedance 2.5</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9b9891" stroke-width="1.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span><span class="pill on"><span class="k">模式</span><span class="v">首尾帧</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9b9891" stroke-width="1.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span><span class="pill"><span class="k">画幅</span><span class="v">9:16</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9b9891" stroke-width="1.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span><span class="sp"></span><span class="prim">生成</span></div></div>
+</div>
+<div style="display:grid;grid-template-columns:150px 200px minmax(0,1fr);gap:12px;align-items:center;padding:12px;border-top:1px solid #efeeec;">
+  <div><div style="font-size:12px;font-weight:500;color:#36322d;">Seedance 2.5 · 全能参考</div><div class="sub" style="margin-top:2px;">image_ref 0–30（角色编号）· video_ref 0–10 · audio_ref 0–10</div></div>
+  <div style="display:flex;flex-wrap:wrap;gap:8px;"><span class="slot"><span class="tile"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 15l5-4 4 3 4-5 5 6"/></svg><span style="position:absolute;right:-1px;bottom:-1px;padding:0 5px;border-radius:6px 0 6px 0;background:#ecebe9;color:#66635d;font-size:11px;line-height:14px;">0/30</span></span><span class="lab">图片 ①②③</span></span><span class="slot"><span class="tile"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3z"/></svg><span style="position:absolute;right:-1px;bottom:-1px;padding:0 5px;border-radius:6px 0 6px 0;background:#ecebe9;color:#66635d;font-size:11px;line-height:14px;">0/10</span></span><span class="lab">视频</span></span><span class="slot"><span class="tile"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 12h2l2-5 3 10 3-14 3 12 2-6h3"/></svg><span style="position:absolute;right:-1px;bottom:-1px;padding:0 5px;border-radius:6px 0 6px 0;background:#ecebe9;color:#66635d;font-size:11px;line-height:14px;">0/10</span></span><span class="lab">音频</span></span></div>
+  <div class="composer"><div class="bar" style="border-top:0;padding:6px 8px;"><span class="pill"><span class="k">模型</span><span class="v">Seedance 2.5</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9b9891" stroke-width="1.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span><span class="pill on"><span class="k">模式</span><span class="v">全能参考</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9b9891" stroke-width="1.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span><span class="pill"><span class="k">画幅</span><span class="v">9:16</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9b9891" stroke-width="1.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span><span class="sp"></span><span class="prim">生成</span></div></div>
+</div>
+<div style="display:grid;grid-template-columns:150px 200px minmax(0,1fr);gap:12px;align-items:center;padding:12px;border-top:1px solid #efeeec;">
+  <div><div style="font-size:12px;font-weight:500;color:#36322d;">Veo 3.1 · 帧</div><div class="sub" style="margin-top:2px;">first_frame 1–1 · last_frame 0–1（同模式内必填度不同）</div></div>
+  <div style="display:flex;flex-wrap:wrap;gap:8px;"><span class="slot"><span class="tile req">必填</span><span class="lab r">首帧</span></span><span class="slot"><span class="tile">可选</span><span class="lab">尾帧</span></span></div>
+  <div class="composer"><div class="bar" style="border-top:0;padding:6px 8px;"><span class="pill"><span class="k">模型</span><span class="v">Veo 3.1</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9b9891" stroke-width="1.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span><span class="pill on"><span class="k">模式</span><span class="v">帧</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9b9891" stroke-width="1.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span><span class="pill"><span class="k">画幅</span><span class="v">9:16</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9b9891" stroke-width="1.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span><span class="sp"></span><span class="prim">生成</span></div></div>
+</div>
+<div style="display:grid;grid-template-columns:150px 200px minmax(0,1fr);gap:12px;align-items:center;padding:12px;border-top:1px solid #efeeec;">
+  <div><div style="font-size:12px;font-weight:500;color:#36322d;">Nano Banana 2 · 编辑</div><div class="sub" style="margin-top:2px;">image_ref 1–14（图片模型，同一套槽）</div></div>
+  <div style="display:flex;flex-wrap:wrap;gap:8px;"><span class="slot"><span class="tile img" style="background:linear-gradient(160deg,#c9a27a,#6d4a33);"></span><span class="lab">林薇</span></span><span class="slot"><span class="tile"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span style="position:absolute;right:-1px;bottom:-1px;padding:0 5px;border-radius:6px 0 6px 0;background:#ecebe9;color:#66635d;font-size:11px;line-height:14px;">1/14</span></span><span class="lab">@ 加</span></span></div>
+  <div class="composer"><div class="bar" style="border-top:0;padding:6px 8px;"><span class="pill"><span class="k">模型</span><span class="v">Nano Banana 2</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9b9891" stroke-width="1.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span><span class="pill on"><span class="k">模式</span><span class="v">编辑</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9b9891" stroke-width="1.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span><span class="pill"><span class="k">画幅</span><span class="v">9:16</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9b9891" stroke-width="1.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span><span class="sp"></span><span class="prim">生成</span></div></div>
+</div>
+</div></div>
+</body>
+</html>

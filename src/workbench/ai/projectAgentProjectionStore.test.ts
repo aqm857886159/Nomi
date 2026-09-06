@@ -148,7 +148,7 @@ describe('ProjectAgent shared projection', () => {
 
     expect(projectAgentThreadMessages(snapshot)).toMatchObject([
       { id: 'user-a', turnId: 'turn-a', attachments: [{ assetId: 'asset-a', fileName: 'reference.png' }] },
-      { id: 'assistant-a', turnId: 'turn-a', storyboardPlan: true },
+      { id: 'assistant-a', turnId: 'turn-a', storyboardArtifact: true },
     ])
   })
 

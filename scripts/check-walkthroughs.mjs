@@ -10,6 +10,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { collectAriaLabelLiterals, extractInterpolatedValues, isAriaLabelAlive } from './lib/ariaLabelLiterals.mjs'
+import { findPositionalProjectOpens } from './lib/positionalProjectOpen.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const BASELINE_FILE = path.join(repoRoot, 'scripts/walkthrough-baseline.json')
@@ -66,6 +68,9 @@ const SRC_TEXT = (() => {
   walk(path.join(repoRoot, 'src'))
   return chunks.join('\n')
 })()
+
+/** src/ 里带 `{{插值}}` 的字符串值（i18n 模板）——「添加视频节点」这类拼出来的 label 靠它判活。 */
+const SRC_INTERPOLATED = extractInterpolatedValues(SRC_TEXT)
 
 const RULES = [
   {
@@ -153,6 +158,21 @@ const RULES = [
     },
   },
   {
+    id: 'dead-aria-label',
+    label: '走查在等一个源码里已无人渲染的 aria-label 文案（同一个死锚点同时造假红与假绿）',
+    appliesTo: (file) => file.includes(`${path.sep}tests${path.sep}ux${path.sep}`),
+    // 与上面的 dead-selector 同源,但盯的是**文案锚点**:aria-label 多半来自 i18n,
+    // 组件退役或文案改写后字面量就悬空。2026-09-05 实例:`[aria-label="生成区 AI 助手"]`
+    // 的渲染者随 Agent Host cutover 被删,字面量却在两份走查里各留一处——一处假红、一处假绿。
+    // 判活口径**故意宽**(整串命中 src 全文,或能由某条 i18n 模板拼出),宁可漏报也不误报:
+    // 误报会让人把还在用的好断言删掉。
+    scan(code, file) {
+      return collectAriaLabelLiterals(code)
+        .filter(({ literal }) => !isAriaLabelAlive(literal, { srcText: SRC_TEXT, templates: SRC_INTERPOLATED }))
+        .map(({ literal, line }) => ({ line, text: `[aria-label="${literal}"] —— src/ 里零命中（含 i18n 译文与模板）`, file }))
+    },
+  },
+  {
     id: 'source-scan-without-strip',
     label: '扫源码的结构测试没剥注释（会反噬文档：记录该 bug 的注释本身把门岗打红）',
     appliesTo: (file) => file.endsWith('.ts'),
@@ -164,6 +184,20 @@ const RULES = [
         if (/readFileSync\(/.test(line)) hits.push({ line: i + 1, text: line.trim().slice(0, 120), file })
       })
       return hits
+    },
+  },
+  {
+    id: 'positional-project-open',
+    label: '库里不止一个项目，却按**位置**（.first()/nth）点项目卡——排序是「最近用过」派生量，同秒建的两个项目就是掷硬币',
+    appliesTo: (file) => file.includes(`${path.sep}tests${path.sep}ux${path.sep}`),
+    // 2026-09-06 实例：production-mcp 旅程自 c73db10ef 起在同一隔离库里有两个项目
+    // （GUI 建的制作项目 + MCP `nomi_project_create` 建的语义夹具），重启后仍 `.first()` 点卡。
+    // 两者 updatedAt 落在同一秒 → 一半概率点进语义项目 → 任务中心是空的，
+    // 报错却出现在下游「[data-production-task-card] 10s 超时」，把人一路引向「等太短/卡不渲染」。
+    // 门岗只盯**这个组合**（多项目 × 位置选择），单项目走查的 `.first()` 是正当的，不误伤。
+    // 判定逻辑住 scripts/lib/positionalProjectOpen.mjs（本文件一 import 就跑门岗，规则没法就地单测）。
+    scan(code, file) {
+      return findPositionalProjectOpens(code).map((hit) => ({ ...hit, file }))
     },
   },
 ]

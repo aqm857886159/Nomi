@@ -6,6 +6,7 @@
 // 目录读取不触碰钥匙串，只有明确的凭据写操作才尝试加密。
 import { safeStorage } from "electron";
 import type { ApiKeyDecryptStatus } from "../shared/contracts/apiKeyStatus";
+import { logError, logWarn } from "../logging/logger";
 
 export type ApiKeyRecord = {
   vendorKey: string;
@@ -57,7 +58,7 @@ export function isSafeStorageAvailable(): boolean {
   }
   if (!__safeStorageUnavailableWarned) {
     __safeStorageUnavailableWarned = true;
-    console.warn("[catalog] safeStorage unavailable; API credential write rejected");
+    logWarn("catalog", "safe-storage-unavailable-write-rejected");
   }
   return false;
 }
@@ -97,9 +98,7 @@ export function decryptCustomSecretValue(record: EncryptedSecretValue | undefine
   try {
     return safeStorage.decryptString(Buffer.from(record.value, "base64"));
   } catch (error) {
-    console.error(
-      `[catalog] failed to decrypt custom configuration: ${error instanceof Error ? error.message : error}`,
-    );
+    logError("catalog", "custom-config-decrypt-failed", error);
     return "";
   }
 }
@@ -146,9 +145,7 @@ export function decryptApiKeyRecord(rec: ApiKeyRecord | undefined): string {
   try {
     return safeStorage.decryptString(Buffer.from(rec.apiKey, "base64"));
   } catch (e) {
-    console.error(
-      `[catalog] failed to decrypt API key for vendor ${rec.vendorKey}: ${e instanceof Error ? e.message : e}`,
-    );
+    logError("catalog", "api-key-decrypt-failed", e, { vendor: rec.vendorKey });
     return "";
   }
 }

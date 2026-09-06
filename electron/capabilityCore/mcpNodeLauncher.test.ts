@@ -161,16 +161,18 @@ function spawnSleeper(): ChildProcessWithoutNullStreams {
  * 起一个假 RPC HTTP server：project.list 返回带 marker 的项目列表；写一个 v2 广告到指定文件名指向它。
  * 用来证明「若 launcher 连了它，就会拿到 marker 项目」——从而反证隔离/快速失败时**从未**连它。
  */
-async function startFakeRpc(marker: string): Promise<{ port: number; requests: Array<Record<string, string | string[] | undefined>> }> {
+async function startFakeRpc(marker: string): Promise<{ port: number; requests: Array<Record<string, string | string[] | undefined>>; methods: string[] }> {
   const http = await import('node:http')
   const requests: Array<Record<string, string | string[] | undefined>> = []
+  const methods: string[] = []
   const server = http.createServer((request, response) => {
-    requests.push({ ...request.headers })
     let body = ''
     request.setEncoding('utf8')
     request.on('data', (chunk) => { body += chunk })
     request.on('end', () => {
       const frame = JSON.parse(body || '{}')
+      methods.push(String(frame.method || ''))
+      requests.push({ ...request.headers })
       const result = frame.method === 'project.list' ? { projects: [{ id: marker }] } : {}
       const payload = JSON.stringify({ ok: true, result })
       response.writeHead(200, { 'content-type': 'application/json', 'content-length': Buffer.byteLength(payload) })
@@ -180,7 +182,7 @@ async function startFakeRpc(marker: string): Promise<{ port: number; requests: A
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', () => resolve()))
   const port = (server.address() as { port: number }).port
   fakeServers.push(server)
-  return { port, requests }
+  return { port, requests, methods }
 }
 
 async function startFakeRpcFailure(error: Record<string, unknown>): Promise<{ port: number }> {
@@ -310,7 +312,7 @@ describe('mcpNodeLauncher library fingerprint handshake', () => {
 
     const response = await launcher.rpc('tools/call', { name: 'nomi_read', arguments: { target: 'projects' } })
 
-    expect(redirect.sourceRequests).toHaveLength(1)
+    expect(redirect.sourceRequests).toHaveLength(2)
     expect(redirect.targetRequests).toEqual([])
     expect(redirect.targetRequests.flatMap((headers) => [
       headers['x-nomi-mcp-client-proof'],
@@ -397,7 +399,8 @@ describe('mcpNodeLauncher library fingerprint handshake', () => {
     await first.rpc('tools/call', { name: 'nomi_read', arguments: { target: 'projects' } })
     await second.rpc('tools/call', { name: 'nomi_read', arguments: { target: 'projects' } })
 
-    const [firstCall, firstAgain, secondCall] = fake.requests
+    const projectRequests = fake.requests.filter((_headers, index) => fake.methods[index] === 'project.list')
+    const [firstCall, firstAgain, secondCall] = projectRequests
     expect(firstCall?.['x-nomi-mcp-connection-attestation']).toBe(firstAgain?.['x-nomi-mcp-connection-attestation'])
     expect(firstCall?.['x-nomi-mcp-connection-attestation']).not.toBe(secondCall?.['x-nomi-mcp-connection-attestation'])
     expect(firstCall?.['x-nomi-mcp-session-id']).toBeUndefined()

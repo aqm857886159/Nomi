@@ -1,0 +1,91 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-05-storyboard-hydration-active-selection",
+  "problem_type": "cold-start storyboard editor reentry",
+  "symptom": "After a project with an existing storyboard design is rehydrated, Creation can show the storyboard plan card and 新建分镜方案 while the dedicated storyboard editor remains unreachable until a second user action.",
+  "direct_cause": "hydrateStoryboardPlans and hydrateStoryboardDesigns restored the design maps but unconditionally reset activeStoryboardId to null, so a valid restored design had no active editor target after a cold restart.",
+  "class_root": "The shared workbench hydration boundary restored storyboard data and active-document state independently, without deriving the active storyboard selection from the restored designs for the active document.",
+  "affected_population": [
+    "Users reopening a project that already contains one or more storyboard designs",
+    "The M0-M5 real Electron journey after its first canonical storyboard patch and restart"
+  ],
+  "scope_paths": [
+    "src/workbench/workbenchDocumentSlice.ts",
+    "src/workbench/creation/storyboard/storyboardPlanLifecycle.test.ts"
+  ],
+  "entry_points": [
+    "Project payload hydration through restoreWorkbenchProjectPayload",
+    "Direct storyboard plan/design hydration used by project and workspace restore"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Storyboard design selection and workbench hydration are internal Nomi state contracts; no external provider controls the active editor target.",
+  "invariants": [
+    "Hydrating an active document with existing storyboard designs selects the first restored design as the active storyboard target.",
+    "Hydrating a document with no storyboard designs leaves activeStoryboardId null so the existing 新建分镜方案 entry remains available.",
+    "Hydration derives selection from restored data at the shared boundary and does not invent authored storyboard content or alter persisted plan fields."
+  ],
+  "generality_proof": "Both project-session restore and direct workbench hydration converge on the two shared hydration helpers; deriving the active target there covers desktop cold start, browser fallback restore, and any future caller without a caller-specific reentry workaround.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/workbenchDocumentSlice.ts",
+      "symbol": "hydrateStoryboardPlans and hydrateStoryboardDesigns",
+      "responsibility": "Restore storyboard projections and derive activeStoryboardId from the active document's restored designs while preserving the empty-state null selection."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/project/workbenchProjectSession.ts",
+      "entry_point": "restoreWorkbenchProjectPayload",
+      "disposition": "enforced",
+      "evidence": "Project restore passes persisted storyboard designs and plans through the shared hydration helpers; it does not maintain a second active-selection policy."
+    },
+    {
+      "path": "src/workbench/workbenchDocumentSlice.ts",
+      "entry_point": "hydrateStoryboardPlans and hydrateStoryboardDesigns",
+      "disposition": "enforced",
+      "evidence": "Both public hydration entry points now derive the active target from the same active-document design map."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any project rehydrated with valid storyboard data can reproduce the null active-selection seam, and there are multiple hydration callers that must share the same selection rule.",
+    "same_class_scan": [
+      "Searched hydrateStoryboardPlans, hydrateStoryboardDesigns, restoreWorkbenchProjectPayload, activeStoryboardId setters, storyboardDesignsByDocumentId readers, and StoryboardWorkspace mounts.",
+      "Checked project-session restore and direct lifecycle hydration tests as separate callers of the shared workbench boundary.",
+      "Checked the empty-project starter route to preserve its null-selection 新建分镜方案 behavior."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/workbenchDocumentSlice.ts",
+    "invariant": "Every storyboard hydration call derives activeStoryboardId from the active document's restored designs, or null when that document has none.",
+    "failure_mode": "A restored non-empty design map cannot silently leave the dedicated editor without an active target, while an empty map remains an explicit create state.",
+    "exception_policy": "none",
+    "strategy": "Compute the selection immediately before the shared hydration state update from the same normalized design map that is persisted in the workbench store.",
+    "artifacts": [
+      "src/workbench/workbenchDocumentSlice.ts",
+      "src/workbench/creation/storyboard/storyboardPlanLifecycle.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/creation/storyboard/storyboardPlanLifecycle.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/creation/storyboard/storyboardPlanLifecycle.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "No second hydration or editor implementation is introduced; the existing workbench hydration boundary remains the sole selection owner."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The invariant is internal workbench persistence and hydration behavior and does not depend on a third-party runtime.",
+    "exit_criteria": []
+  },
+  "migration": "Existing persisted storyboard plans and designs are read unchanged. On restore, projects with designs select their first design for editor reentry; documents without designs retain the existing null selection and creation entry.",
+  "residual_risks": [
+    "The real M4-to-M5 runner still needs a fresh run to prove the canonical patch is durably written before restart; this contract covers the hydration selection seam after data is present.",
+    "Full M5 visual, packaged, and independent review evidence remains pending."
+  ]
+}

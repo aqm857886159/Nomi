@@ -275,6 +275,28 @@ const cameraMoveActionPiInputSchema = cameraMoveActionInputSchema
 export type CanvasWriteInput = z.infer<typeof canvasWriteSemanticInputSchema>;
 export type CanvasWriteOperation = CanvasWriteInput["operation"];
 
+/**
+ * 全部合法 canvas.write operation —— **派生自上面这个 union 的分支**，不另抄一份名单。
+ * 用途：给调用方在拒绝时列出「合法动作有哪些」（MCP 规范要求模型能自纠），以及让传输层
+ * 按「主进程能落账 / 需要创作区」分档。手抄一份名单就是第二个真相源，新增 operation 时必漂移。
+ */
+export const CANVAS_WRITE_OPERATIONS: readonly CanvasWriteOperation[] = Object.freeze(
+  canvasWriteSemanticInputUnion.options.map((option) => option.shape.operation.value as CanvasWriteOperation),
+);
+
+/**
+ * Storyboard writes are semantically canvas capabilities but their durable
+ * owner is the renderer's creation/storyboard store.  Keep this predicate at
+ * the capability boundary so Host proposal registration and turn execution
+ * agree on the same canonical operation set.
+ */
+export function isRendererOwnedStoryboardProposal(toolName: string, args: unknown): boolean {
+  if (toolName === "propose_storyboard_plan") return true;
+  if (toolName !== "nomi_canvas_plan" || !args || typeof args !== "object" || Array.isArray(args)) return false;
+  const operation = (args as Record<string, unknown>).operation;
+  return operation === "propose_storyboard_plan" || operation === "patch_shots";
+}
+
 export function canvasWritePiInputSchemaForAlias(alias: string): z.ZodTypeAny | undefined {
   switch (alias) {
     case "set_node_prompt":
@@ -463,6 +485,7 @@ export const CANVAS_WRITE_CAPABILITY = {
   aliases: {
     pi: CANVAS_WRITE_ALIASES.setNodePrompt,
     mcp: "nomi_canvas_edit",
+    ui: "nomi_canvas_plan",
   },
   additionalAliases: {
     pi: Object.freeze(Object.values(CANVAS_WRITE_OPERATION_ALIASES)),
@@ -470,6 +493,18 @@ export const CANVAS_WRITE_CAPABILITY = {
   inputSchema: canvasWriteSemanticInputSchema,
   outputSchema: canvasWriteResultSchema,
   effect: "reversible_write",
+  effectClass: "reversible_local",
+  operationEffectClasses: Object.freeze({
+    create_canvas_nodes: "reversible_local",
+    connect_canvas_edges: "reversible_local",
+    tidy_canvas: "reversible_local",
+    propose_storyboard_plan: "reversible_local",
+    patch_shots: "reversible_local",
+    arrange_storyboard_to_timeline: "reversible_local",
+    create_staging_reference: "reversible_local",
+    create_camera_move: "reversible_local",
+    set_node_prompt: "reversible_local",
+  }),
   execution: {
     port: "canvas",
     availability: "renderer_required",
@@ -477,7 +512,6 @@ export const CANVAS_WRITE_CAPABILITY = {
   exposure: "mcp_safe",
   requiredScope: "canvas:write",
   targetKind: "canvas",
-  approval: "proposal",
   projections: {
     pi: {
       description: "Propose an exact, reversible prompt update to one generation canvas node.",

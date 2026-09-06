@@ -43,7 +43,7 @@ export const REAL_USER_TEST_MANIFEST = Object.freeze({
       'storyboard-agent.canonical-patch',
       'tests/ux/storyboard-agent-canonical-patch.e2e.mjs',
       {
-        H: ready('nomi_canvas_plan(operation=patch_shots) changes only the selected storyboard row'),
+        H: ready('nomi_canvas_edit(operation=patch_shots) changes only the selected storyboard row'),
         B: ready('untouched rows and unmentioned selected-row fields remain unchanged'),
         E: ready('real MCP elicitation and canonical receipt path reject unsafe writes'),
         T: ready('the persisted canonical operation survives a cold Electron restart'),

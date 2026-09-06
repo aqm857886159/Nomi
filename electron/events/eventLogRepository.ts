@@ -6,13 +6,14 @@
 //  - 单事件 ≤4KB:超限的 payload 字段截断为 {truncated, head, sha256, sidecarRef};
 //  - 分段:每段 5000 事件或 5MB rotation;
 //  - 落盘前 redactDeep(评测安全铁律)。
-// 失败策略:事件落盘是旁路观察,任何 IO 失败只 console.error,绝不打断产品主流程。
+// 失败策略:事件落盘是旁路观察,任何 IO 失败只记一条日志(logging/logger),绝不打断产品主流程。
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { getWorkspaceRepositoryDeps } from "../runtimePaths";
 import { resolveWorkspaceProjectDir } from "../workspace/workspaceRepository";
 import { redactDeep } from "./redact";
+import { logError } from "../logging/logger";
 import type { NewNomiEvent, NomiEvent, TruncatedPayloadField } from "./types";
 
 const MAX_EVENT_BYTES = 4096;
@@ -65,13 +66,6 @@ export function setEventLogSecretsProvider(provider: () => readonly string[]): v
  * 必须先剥 area 后缀再取 projectId——否则贪婪匹配会把 `proj:creation` 整体当 id,致 trace 全线丢盘(I1/I2)。
  * 全仓唯一的 sessionKey→projectId 解析点（Agent context 等消费者 import 此函数，不另写正则）。
  */
-export function projectIdFromSessionKey(sessionKey: string | undefined): string | null {
-  const key = String(sessionKey || "").trim();
-  const withArea = /^nomi:workbench:(.+):(?:creation|generation)$/.exec(key);
-  const id = (withArea ? withArea[1] : /^nomi:workbench:(.+)$/.exec(key)?.[1])?.trim() || "";
-  return id && id !== "local" ? id : null;
-}
-
 function segmentPath(dir: string, segIndex: number): string {
   return path.join(dir, `log-${segIndex}.jsonl`);
 }
@@ -97,7 +91,7 @@ function parseLines(filePath: string): NomiEvent[] {
       events.push(JSON.parse(line) as NomiEvent);
     } catch {
       // 撕裂尾行容忍:只允许最后一个非空行损坏;中间行损坏也跳过但记录告警。
-      if (i < lines.length - 2) console.error(`[events] 损坏行被跳过: ${filePath}:${i + 1}`);
+      if (i < lines.length - 2) logError("events", "corrupt-line-skipped", undefined, { line: i + 1 });
     }
   }
   return events;
@@ -208,7 +202,7 @@ function capPayload(dir: string, seq: number, payload: Record<string, unknown>):
       fs.writeFileSync(path.join(dir, ref), text, "utf8");
       field.sidecarRef = ref;
     } catch (error) {
-      console.error(`[events] sidecar 写入失败(只截断): ${error instanceof Error ? error.message : String(error)}`);
+      logError("events", "sidecar-write-failed", error);
     }
     out[key] = field;
   }
@@ -244,7 +238,7 @@ export function appendEvents(projectId: string, newEvents: readonly NewNomiEvent
     if (buffer) fs.appendFileSync(segmentPath(state.dir, state.segIndex), buffer, "utf8");
     return written;
   } catch (error) {
-    console.error(`[events] append 失败(旁路忽略): ${error instanceof Error ? error.message : String(error)}`);
+    logError("events", "append-failed", error);
     return [];
   }
 }

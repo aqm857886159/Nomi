@@ -127,4 +127,15 @@ describe('project-scoped media Agent tools', () => {
     setDesktopActiveProjectId('project-2')
     await expect(applyMediaToolCall('get_media', { assetId: 'stable-video-id' }, runtime())).rejects.toThrow('media_not_found')
   })
+
+  // 2026-09-06 根因回归：素材库按 projectId 寻址，跟 GUI 打开哪个项目无关。已校验的 lease
+  // projectId 必须压过 GUI 当前项目——旧代码只读 GUI，外部宿主查不到自己刚建的项目的素材。
+  it('addresses the media library by the verified lease project, not by what the GUI has open', async () => {
+    setDesktopActiveProjectId('')
+    await expect(applyMediaToolCall('search_media', { projectId: 'project-1' }, runtime()))
+      .resolves.toMatchObject({ operation: 'search_media', total: 2 })
+    setDesktopActiveProjectId('project-2')
+    await expect(applyMediaToolCall('get_media', { assetId: 'stable-video-id', projectId: 'project-1' }, runtime()))
+      .resolves.toMatchObject({ operation: 'get_media', media: { id: 'stable-video-id' } })
+  })
 })

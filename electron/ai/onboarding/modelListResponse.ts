@@ -3,8 +3,20 @@ import { isJsonRecord, pickUpstreamMessage } from "../../jsonUtils";
 export type ModelListFailureKind = "unsupported" | "auth" | "rate_limit" | "network" | "invalid_response" | "upstream";
 
 export type ModelListPage =
-  | { ok: true; models: string[]; next?: string; afterId?: string }
+  | { ok: true; models: string[]; descriptors?: ModelListDescriptor[]; next?: string; afterId?: string }
   | { ok: false; failureKind: ModelListFailureKind; error?: string };
+
+/** Optional metadata carried by OpenRouter-style model records. Bare `{id}`
+ * responses intentionally have no descriptor and must use the catalog match
+ * or plain-text fallback at the integration boundary. */
+export type ModelListDescriptor = {
+  id: string;
+  architecture?: {
+    inputModalities?: string[];
+    outputModalities?: string[];
+    supportedParameters?: string[];
+  };
+};
 
 function text(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
@@ -49,6 +61,32 @@ export function parseModelListPage(bodyText: string, sanitize?: (message: string
   const nativeResults = Array.isArray(record.results) && !Array.isArray(record.data);
   const list = Array.isArray(json) ? json : Array.isArray(record.data) ? record.data : nativeResults ? record.results as unknown[] : null;
   if (!list) return { ok: false, failureKind: "invalid_response" };
+  const descriptors = list.map((item): ModelListDescriptor | null => {
+    if (!isJsonRecord(item)) return null;
+    const id = nativeResults ? (() => {
+      const owner = text(item.owner); const name = text(item.name);
+      return owner && name ? `${owner}/${name}` : "";
+    })() : text(item.id);
+    if (!id) return null;
+    const architecture = isJsonRecord(item.architecture) ? item.architecture : undefined;
+    if (!architecture) return null;
+    const arrayOfText = (value: unknown): string[] | undefined => {
+      if (!Array.isArray(value)) return undefined;
+      const values = value.map(text).filter(Boolean);
+      return values.length ? values : undefined;
+    };
+    const inputModalities = arrayOfText(architecture.input_modalities);
+    const outputModalities = arrayOfText(architecture.output_modalities);
+    const supportedParameters = arrayOfText(architecture.supported_parameters);
+    return {
+      id,
+      architecture: {
+        ...(inputModalities ? { inputModalities } : {}),
+        ...(outputModalities ? { outputModalities } : {}),
+        ...(supportedParameters ? { supportedParameters } : {}),
+      },
+    };
+  }).filter((item): item is ModelListDescriptor => Boolean(item));
   const ids = list.map((item) => {
     if (typeof item === "string") return item.trim();
     if (!isJsonRecord(item)) return "";
@@ -63,9 +101,11 @@ export function parseModelListPage(bodyText: string, sanitize?: (message: string
   const models = [...new Set(ids)];
   // Replicate official HTTP API /models + SDK paginate(): results and next URL.
   // https://replicate.com/docs/reference/http/#models.list (checked 2026-08-27)
+  const uniqueDescriptors = [...new Map(descriptors.map((descriptor) => [descriptor.id, descriptor])).values()];
+  const detail = uniqueDescriptors.length ? { descriptors: uniqueDescriptors } : {};
   if (record.next !== undefined && record.next !== null) {
     if (!text(record.next)) return { ok: false, failureKind: "invalid_response", error: "Invalid model-list pagination link" };
-    return { ok: true, models, next: text(record.next) };
+    return { ok: true, models, ...detail, next: text(record.next) };
   }
   // Anthropic's official list protocol uses last_id as the after_id query cursor.
   // https://platform.claude.com/docs/en/api/models/list (checked 2026-08-27)
@@ -75,9 +115,9 @@ export function parseModelListPage(bodyText: string, sanitize?: (message: string
   if (record.has_more === true) {
     const afterId = text(record.last_id);
     if (!afterId) return { ok: false, failureKind: "invalid_response", error: "Missing model-list pagination cursor" };
-    return { ok: true, models, afterId };
+    return { ok: true, models, ...detail, afterId };
   }
-  return { ok: true, models };
+  return { ok: true, models, ...detail };
 }
 
 /** null is malformed/not a list; [] is a genuinely empty list. No ID coercion. */

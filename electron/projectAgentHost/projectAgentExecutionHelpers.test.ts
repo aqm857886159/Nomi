@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import type { RuntimeToolCallRecord } from "../harness/runtime/runtimePort";
 import type { ProjectAgentTaskItem, ProjectAgentTurn } from "../shared/projectAgentContracts";
-import { exportJobTaskItems, toolItem } from "./projectAgentExecutionHelpers";
+import type { AgentChatRequest } from "../harness/agentChatContracts";
+import { exportJobTaskItems, steeredExecutionPrompt, toolItem } from "./projectAgentExecutionHelpers";
 
 const binding = Object.freeze({
   projectId: "project-a",
@@ -81,25 +82,16 @@ describe("ExportJob TaskRef projection", () => {
   });
 });
 
-describe("Provenance ledger projection", () => {
-  it("persists the source and taint summary without duplicating AssetSourceEvidence", () => {
-    const item = toolItem(binding, turn, {
-      toolCallId: "tool-provenance",
-      toolName: "nomi_document_edit",
-      args: { content: "generated text" },
-      status: "ok",
-      result: { accepted: true },
-    }, "2026-09-03T00:00:00.000Z", [{
-      source: "web_fetched",
-      sourceRef: "https://example.test/page",
-      trust: "untrusted",
-      tainted: true,
-    }]);
+describe("execution prompt authorship", () => {
+  const request = { capability: "canvas-agent", prompt: "continue canvas task" } as AgentChatRequest;
 
-    expect(item).toMatchObject({
-      kind: "tool",
-      provenance: [{ source: "web_fetched", sourceRef: "https://example.test/page", tainted: true }],
-    });
-    expect(JSON.stringify(item)).not.toContain("licenseSnapshot");
+  it("carries only this turn's request; prior turns are the durable Pi context, not prose", () => {
+    expect(steeredExecutionPrompt(request, undefined)).toBe("continue canvas task");
+  });
+
+  it("appends the user's latest steering instruction without rewriting the request", () => {
+    const steered = steeredExecutionPrompt(request, "改成夜景");
+    expect(steered.startsWith("continue canvas task")).toBe(true);
+    expect(steered).toContain("改成夜景");
   });
 });

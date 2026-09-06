@@ -14,7 +14,7 @@ import {
   type MakeVerifyDeps,
   type RunTaskFn,
 } from './core'
-import { canvasWriteSemanticInputSchema } from '../shared/agentCapabilities/canvasWrite'
+import { CANVAS_WRITE_OPERATIONS, canvasWriteSemanticInputSchema, type CanvasWriteOperation } from '../shared/agentCapabilities/canvasWrite'
 import { canvasDeleteSemanticInputSchema } from '../shared/agentCapabilities/canvasDelete'
 import { documentWriteSemanticInputSchema } from '../shared/agentCapabilities/documentWrite'
 import { readProjectDocument, writeProjectDocument } from './documentSurface'
@@ -39,6 +39,7 @@ import {
   getIntegrationSessionService,
   type IntegrationSessionService,
 } from '../integrationCertification/integrationSession'
+import { withCredentialElicitationTicket } from '../integrationCertification/credentialElicitation'
 import { manageModelCatalogConnection } from '../catalog/catalogManagement'
 
 export function projectIdOf(params: Record<string, unknown>): string {
@@ -104,6 +105,8 @@ export type DispatchContext = {
   makeVerifyDeps?: MakeVerifyDeps
   /** Conversational model-integration session authority. External MCP clients drive begin→…→start here. */
   integrationSessions?: IntegrationSessionService
+  /** GUI-owned credential handoff effect. Called after the durable handoff is queued. */
+  openCredentialsInNomi?: (input: { sessionId: string; vendorName: string }) => { opened: boolean } | void | Promise<{ opened: boolean } | void>
 }
 
 const PROJECT_SESSION_RETRY = 'Open a new project session and retry'
@@ -329,6 +332,15 @@ function productionStartInput(params: Record<string, unknown>, authority: Dispat
   }
 }
 
+/**
+ * 主进程（无头 stdio / 磁盘网关）自己就能落账的画布操作。
+ * 补集（分镜/站位/运镜/时间轴落地/整理布局）的耐久 owner 在渲染层创作区，主进程只能诚实地说「需要 GUI」，
+ * 不再假装那是一次生成计划。
+ */
+const HEADLESS_CANVAS_OPERATIONS: ReadonlySet<CanvasWriteOperation> = new Set<CanvasWriteOperation>([
+  'set_node_prompt', 'create_canvas_nodes', 'connect_canvas_edges',
+])
+
 export async function dispatch(method: string, params: Record<string, unknown>, ctx: DispatchContext): Promise<unknown> {
   if (method === 'nomi_session_open') {
     if (!ctx.projectSession) throw projectSessionOpenPublicError(undefined)
@@ -357,8 +369,25 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
   switch (method) {
     case 'ping':
       return { ok: true }
-    case 'project.list':
-      return { projects: listAllProjects() }
+    case 'project.list': {
+      const projects = listAllProjects()
+      // 每一行都带上可直接喂给 nomi_session_open 的 projectSelectionHandle。
+      // 修复前只有 project.create 会签发 handle（同一个 issueProjectSelection，此处不复制第二份签发逻辑），
+      // 于是没开 GUI 的外部宿主只能在「本次连接里刚建的项目」里干活：重启即失忆，用户已有的项目一个也接不上。
+      // 单个项目的身份校验失败（工程目录被移走/权限没了）只让**那一行**没有 handle，不连累整份列表 ——
+      // 列表本身是只读投影，宿主至少还能看见项目在。
+      if (!ctx.projectSession) return { projects }
+      const projectSession = ctx.projectSession
+      const withHandles = await Promise.all(projects.map(async (project) => {
+        try {
+          const selection = await projectSession.authority.issueProjectSelection('listed_project', project.id, projectSession.connection)
+          return { ...project, projectSelectionHandle: selection.token }
+        } catch {
+          return project
+        }
+      }))
+      return { projects: withHandles }
+    }
     case 'project.create': {
       const created = createNamedProject(typeof params.name === 'string' ? params.name : undefined)
       if (!ctx.projectSession) return created
@@ -525,6 +554,15 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
       const raw = { ...params }
       delete raw.leaseHandle
       delete raw.projectId
+      // 未知 operation 必须当场说清「合法的有哪些」：Zod 的 discriminator 错误只会说
+      // "Invalid discriminator value"，模型据此没法自纠（MCP spec 要求输入错误可恢复）。
+      if (!CANVAS_WRITE_OPERATIONS.includes(raw.operation as CanvasWriteOperation)) {
+        throw new RpcError(`未知的画布操作：${JSON.stringify(raw.operation ?? null)}`, 400, {
+          code: 'capability_input_invalid',
+          nextAction: `Use one of: ${CANVAS_WRITE_OPERATIONS.join(', ')}`,
+          capability: 'canvas.write' as never,
+        })
+      }
       const input = canvasWriteSemanticInputSchema.parse(raw)
       const base = ctx.makeGateway(lease.projectId)
       if (input.operation === 'set_node_prompt') {
@@ -563,9 +601,25 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
         const skippedEdges = connected.skipped.map((item) => ({ source: item.connection.source, target: item.connection.target, reason: item.reason }))
         return { applied: true, proposalId: proposalId(), operation: input.operation, affectedNodeIds: [], affectedEdgeIds: connected.edgeIds, connectedCount: connected.edgeIds.length, skippedEdges, reconciliation: canvasRecovery(skippedEdges.length) }
       }
-      if (typeof ctx.generationPlanning !== 'function') throw new RpcError('Canvas planning is unavailable', 501, { code: 'capability_unsupported', nextAction: 'Open the Nomi creation surface and retry', capability: 'canvas.write' as never })
-      const planned = await ctx.generationPlanning({ capability: input.operation, params: input as unknown as Record<string, unknown>, lease, origin: ctx.origin })
-      return { applied: true, proposalId: proposalId(), operation: input.operation, result: planned, reconciliation: canvasRecovery() }
+      // ── 剩下的 6 个 operation 是**渲染层拥有**的（分镜/站位/运镜/时间轴落地/整理布局）：
+      // 它们的耐久 owner 是创作区 store，主进程这条路没有实现。
+      //
+      // 曾经这里的兜底是 `ctx.generationPlanning({ capability: input.operation, ... })` —— 把画布动作
+      // 当成一次**生成计划**递进去。generationPlanning 只认 create/preview/gate_request/start… 这套
+      // 生成词表，收到 `tidy_canvas` 会先铸一个 `op-<uuid>` 再去查一个根本不存在的 production run，
+      // 于是宿主看到的是 `Production run not found: op-…` —— 一句像内部崩溃的话，而不是「这条路需要 GUI」。
+      // 更糟的是它**吞掉了未知 operation**：任何将来新增却没接上的动作都会变成同一句假崩溃。
+      //
+      // 现在按 MCP 规范办：结构性不可用 = isError 的工具错误 + **列全部合法 operation**，让模型能自纠。
+      throw new RpcError(
+        `画布操作 ${input.operation} 需要 Nomi 创作区正在运行（它的耐久 owner 是创作区，不是主进程）`,
+        501,
+        {
+          code: 'capability_unsupported',
+          nextAction: `Open the Nomi creation surface and retry. Operations available on this transport right now: ${[...HEADLESS_CANVAS_OPERATIONS].join(', ')}`,
+          capability: 'canvas.write' as never,
+        },
+      )
     }
     case 'canvas.delete': {
       const lease = await leasedProject(ctx, params, 'canvas:write')
@@ -684,12 +738,23 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
         ctx.origin?.host || 'external',
       )
     }
-    case 'integration.open_credentials':
-      return (ctx.integrationSessions || getIntegrationSessionService()).openCredentials(
+    case 'integration.open_credentials': {
+      const opened = (ctx.integrationSessions || getIntegrationSessionService()).openCredentials(
         params.sessionId,
         params.expectedRevision,
         ctx.origin?.host || 'external',
       )
+      let ui: { opened: boolean } | void
+      try {
+        ui = await ctx.openCredentialsInNomi?.({ sessionId: opened.id, vendorName: opened.config.name })
+      } catch {
+        // A window can disappear between durable enqueue and the renderer request. Keep the MCP
+        // contract usable; the queued handoff will replay when Nomi is opened next time.
+        ui = { opened: false }
+      }
+      // 附上一次性凭据页（MCP URL 模式 elicitation）。铸在这一层 = 铸在真正持有会话的那个进程里。
+      return withCredentialElicitationTicket({ ...opened, credentialUiOpened: ui?.opened === true })
+    }
     case 'integration.propose':
       return (ctx.integrationSessions || getIntegrationSessionService()).propose(
         params.sessionId,

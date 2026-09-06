@@ -1,0 +1,119 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-05-agent-composer-mode-popover",
+  "problem_type": "Agent composer mixed work mode, approval/spend policy, Skill, and prompt-library controls in one resident menu",
+  "symptom": "Users could not predict where to change the Agent work posture or load a Skill because the mode popover contained four unrelated groups, while the creation surface also repeated storyboard-plan output in a card below the editor.",
+  "direct_cause": "ProjectAgentResidentShell rendered work mode, approval policy, spend policy, Skill rows, and prompt entry as one menu, and CreationWorkspace mounted StoryboardPlanCard as a second storyboard entry point.",
+  "class_root": "The resident composer had no enforced one-function-one-home boundary: capability selection, execution policy, and navigation were allowed to accumulate in a single always-visible control path.",
+  "affected_population": [
+    "All Agent surfaces using the resident composer",
+    "Users selecting a Skill or prompt preset",
+    "Creation users opening a generated storyboard plan",
+    "Keyboard and screen-reader users relying on stable composer order"
+  ],
+  "scope_paths": [
+    "src/workbench/ai/ProjectAgentResidentShell.tsx",
+    "src/workbench/ai/resident/ResidentMenus.tsx",
+    "src/workbench/creation/CreationWorkspace.tsx",
+    "src/workbench/creation/DocumentListSidebar.tsx",
+    "src/i18n/locales/agentResident.ts",
+    "tests/ux/agent-ui-conformance.walk.mjs",
+    "tests/ux/agent-ui-a-composer.walk.mjs"
+  ],
+  "entry_points": [
+    "Resident composer buttons on creation, storyboard, generation, and preview surfaces",
+    "DocumentListSidebar storyboard resource rows",
+    "CreationWorkspace middle-column storyboard output"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "This remediation enforces Nomi's approved §1.5 one-function-one-home and 2026-09-05 Agent UI decision; no third-party behavior determines the invariant.",
+  "invariants": [
+    "The composer DOM order is attachments, model, Skill, spacer, work mode, send/stop.",
+    "The mode popover contains only the work-mode segmented control; approval and spend remain readable request state in the store with a TODO for the B-segment介入槽.",
+    "Prompt-library selection is reachable from the Skill capability menu without a second resident composer button.",
+    "A completed storyboard plan has one Creation navigation home: its document-list row opens storyboard directly; Agent shows a compact receipt affordance.",
+    "Running feedback is visible around the prompt field until the active turn ends and reduces to a static token outline under prefers-reduced-motion."
+  ],
+  "generality_proof": "All four Agent surfaces mount the same ProjectAgentResidentShell, so the single composer implementation governs every caller. Both storyboard navigation paths converge on useWorkbenchStore workspace mode and storyboard selection; removing the middle-column card eliminates the duplicate creation entry while the Agent receipt reuses the existing task/artifact receipt interaction shape.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "symbol": "ProjectAgentResidentShell composer render",
+      "responsibility": "Own composer order, capability/menu ownership, mode-only popover, running feedback, and storyboard receipt projection."
+    },
+    {
+      "path": "src/workbench/creation/DocumentListSidebar.tsx",
+      "symbol": "selectStoryboard",
+      "responsibility": "Make the canonical storyboard resource row select its design and enter storyboard workspace in one action."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "entry_point": "mode / Skill / prompt composer controls",
+      "disposition": "enforced",
+      "evidence": "The same resident shell is portaled into each workspace surface and is the only production composer implementation."
+    },
+    {
+      "path": "src/workbench/creation/CreationWorkspace.tsx",
+      "entry_point": "middle-column StoryboardPlanCard",
+      "disposition": "enforced",
+      "evidence": "The card is removed; storyboard plans remain owned by StoryboardWorkspace and the document-list row/Agent receipt provide the approved entries."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx",
+      "entry_point": "node-local generation composer",
+      "disposition": "not-affected",
+      "evidence": "It edits a generation node's media parameters, not the resident Agent capability or execution-policy menu."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any new resident capability or policy can recreate the same mixed-menu problem, and every creation plan could regain a duplicate navigation card unless shared ownership is explicit.",
+    "same_class_scan": [
+      "rg ProjectAgentResidentShell across WorkbenchShell confirmed one shared resident implementation mounted at four surfaces.",
+      "rg StoryboardPlanCard confirmed CreationWorkspace was its only production mount; the file is removed with the duplicate entry.",
+      "rg setActiveStoryboardId and setWorkspaceMode confirmed DocumentListSidebar and StoryboardWorkspace are the shared storyboard navigation boundary."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+    "invariant": "Only capability selection lives under Skill, only work posture lives under Mode, and execution policy fields are never rendered as composer menu rows.",
+    "failure_mode": "A future policy addition has no composer entry until the B-segment介入槽 owns it; the existing store values continue to travel with every request.",
+    "exception_policy": "none",
+    "strategy": "Keep one resident shell as the sole composer owner, derive the visible order from its JSX, and route storyboard opening through the shared workspace store boundary.",
+    "artifacts": [
+      "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "src/workbench/ai/resident/ResidentMenus.tsx",
+      "src/workbench/creation/DocumentListSidebar.tsx"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/ai/ProjectAgentResidentShell.structure.test.ts",
+    "src/workbench/creation/CreationWorkspace.structure.test.ts",
+    "tests/ux/agent-ui-conformance.walk.mjs",
+    "tests/ux/agent-ui-a-composer.walk.mjs"
+  ],
+  "class_regression_tests": [
+    "src/workbench/ai/ProjectAgentResidentShell.structure.test.ts",
+    "tests/ux/agent-ui-a-composer.walk.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/creation/storyboard/StoryboardPlanCard.tsx"
+    ],
+    "rationale": "The middle-column summary card was the duplicate storyboard navigation path and is deleted in the same change as the canonical row/receipt flow."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The change uses existing React, Tabler, Nomi design primitives, and browser media-query behavior; no third-party runtime controls the invariant.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted schema changes. Existing approval/spend store values remain readable and continue through run requests; existing storyboard designs remain addressable through the document list and StoryboardWorkspace.",
+  "residual_risks": [
+    "The B-segment介入槽 that will expose approval and spend choices is intentionally deferred and remains a visible TODO in the resident shell.",
+    "The conformance geometry contract may require updated composer anchors because the approved order removes the prompt button and adds Skill."
+  ]
+}

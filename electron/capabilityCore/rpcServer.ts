@@ -20,6 +20,7 @@ import { resolveMcpOrigin, verifyToken } from './security'
 import { getProductionRunService } from '../productionRun/productionRunRuntime'
 import { handleArtifactPreviewHttpRequest, withAssetPreview } from '../productionRun/artifactPreviewHttpServer'
 import { setArtifactPreviewHttpOrigin } from '../productionRun/artifactProjection'
+import { startCredentialElicitationServer } from '../integrationCertification/credentialElicitationServer'
 import { resolveWorkspaceProjectDir } from '../workspace/workspaceRepository'
 import { getWorkspaceRepositoryDeps } from '../runtimePaths'
 import { dispatchAndEnrich } from './mcpResultEnrichLive'
@@ -44,6 +45,7 @@ import { isMcpEditingMethod } from './mcpCapabilityProjection'
 import type { ProjectBinding } from '../shared/projectBinding'
 import type { ProjectAgentProposalReceiptService } from '../projectAgentHost/projectAgentProposalReceiptStore'
 import { executeMcpDocumentWriteWithReceipt } from './mcpDocumentWriteReceipt'
+import { getDesktopLocale } from '../desktopLocale'
 
 export type RpcServerOptions = {
   /** 真实生成入口（runtime.runTask）。注入式：headless host 与 app 各自传同一份。 */
@@ -75,6 +77,8 @@ export type RpcServerOptions = {
   canvasReadExecutionRuntime?: CanvasReadExecutionRuntime
   /** Main-owned durable proposal receipt service resolved only after a verified project lease. */
   proposalReceiptFor?: (binding: ProjectBinding) => ProjectAgentProposalReceiptService | undefined | Promise<ProjectAgentProposalReceiptService | undefined>
+  /** After a durable credential handoff is queued, focus/show the GUI and open model settings. */
+  openCredentialsInNomi?: import('./dispatcher').DispatchContext['openCredentialsInNomi']
 }
 
 function readBody(req: http.IncomingMessage): Promise<string> {
@@ -207,6 +211,11 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
           send(200, { ok: true, result })
           return
         }
+        if (method === 'nomi_get_locale') {
+          if (origin === 'external' || origin === 'nomi') throw new RpcError('Registered MCP client proof is required', 403)
+          send(200, { ok: true, result: { locale: getDesktopLocale() } })
+          return
+        }
         if (isCanvasRead) {
           try {
             let result: unknown
@@ -252,8 +261,10 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
             ? 'canvas:write'
               : method === 'timeline.write' && (operation === 'apply' || operation === 'undo')
                 ? 'timeline:write'
-                : method === 'timeline.write' ? 'timeline:read'
-                  : method === 'document.write' ? 'document:write'
+            : method === 'timeline.write' ? 'timeline:read'
+                : method === 'layout.write' ? 'layout:write'
+                : method === 'layout.read' ? 'layout:read'
+                : method === 'document.write' ? 'document:write'
                 : method === 'asset.read' ? 'asset:read' : 'export:read'
           const lease = await options.projectSessionAuthority.verifyLease(leaseHandle, {
             connection: projectSessionConnection,
@@ -278,6 +289,8 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
                 ? 'timeline.write'
                 : method === 'document.write'
                   ? 'document.write'
+                  : method === 'layout.read' ? 'layout.read'
+                  : method === 'layout.write' ? 'layout.write'
                   : method === 'asset.read' ? 'asset.read' : 'export.read'
           const rendererPayload = isCanonicalCanvasPlanPatch
             ? (() => {
@@ -353,6 +366,7 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
           generationContext: options.generationContext,
           generationPlanning: options.generationPlanning,
           projectRevisionResolver: options.projectRevisionResolver,
+          openCredentialsInNomi: options.openCredentialsInNomi,
           ...(options.projectSessionAuthority && projectSessionConnection
             ? { projectSession: { authority: options.projectSessionAuthority, connection: projectSessionConnection } }
             : {}),
@@ -390,10 +404,13 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
       const address = server.address() as AddressInfo
       const previewOrigin = `http://127.0.0.1:${address.port}`
       setArtifactPreviewHttpOrigin(previewOrigin)
+      // MCP URL 模式 elicitation 的凭据页自带一个严格 CSP 的回环 listener（见 credentialElicitationServer.ts）。
+      const credentialServer = startCredentialElicitationServer()
       resolve({
         port: address.port,
         close: () =>
           new Promise<void>((resolveClose) => {
+            void credentialServer.then((started) => started.close()).catch(() => undefined)
             server.close(() => {
               setArtifactPreviewHttpOrigin(null)
               resolveClose()

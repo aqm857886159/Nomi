@@ -20,4 +20,29 @@
 - **同一批文案存了两份时，先用「哪棵整棵都没人引用」定 owner**，别靠命名直觉。实测：`runtime.browser` 10 个叶子全死、`browserAssets` 163 个叶子只死 15——前者才是该删的副本。
 - 判「能不能翻译」看的是**有没有人拿这个值做比较**（`includes` / `===` / `startsWith` / `indexOf`），不是「它像不像标签」。那批里最可疑的 3 个 tag 追下去只进搜索 haystack、从不渲染也从不比对 → 可翻。
 
-**出处**：2026-09-01 / 2026-09-02 i18n 清理实测。相关：[走查断言必须有真信号](walkthrough-assertions-need-a-real-signal.md)、[一个死选择器同时造假红和假绿](dead-selector-lies-both-ways.md)。
+**存整键，别存相对片段（2026-09-05，这条让门岗整片瞎掉）**：上面那条「常量只存键」还差半句——**存的必须是整键**。把**相对片段**存进视图模型、渲染处再拼命名空间（`labelKey: 'composer.append'` + `t(`generationCommon.${labelKey}`)`）会同时坏两件事：① 片段是普通 string，编译器管不着；② 死键门岗把**源码里出现过的模板 head** 也当动态前缀（注册表之外自动生效），于是 head `generationCommon.` 覆盖整棵命名空间，该命名空间下的死键一律只报 B 档、永不报死。
+
+实测有多硬：删掉注册表里那条 `{ prefix: 'generationCommon' }`，输出**一个字都没变**（4965 键 / 0 死键 / 184 B 档，前后一致）——源码 head 顶上了。所以这类失明**只能在调用点治**：常量存整键并 `satisfies TranslationKey`（`src/i18n/translationKey.ts`），拼接消失，编译器顺手接管键的存在性（R28 防线建在最早那层）。四个调用点改完，A 档死键当场 0 → 180：39 条是 `assistant.toolCall.*` 的**真动态**（键存进 const 再 `` `${T}.${key}` ``，模板 head 为空、两道门岗都看不见 → 注册精确前缀），4 条是上面第 2 类（`BaseGenerationNode` 把「独立副本（来自 …）」写死，英文界面一直显中文 → 接线），其余 137 条真遗留 → 删。
+
+**清完三个命名空间后的账（2026-09-05 当天做完）**：`generationCommon` 137 条、`agentResident` 57 条、
+`antigravity` 3 条，全部是组件退役/改版后没跟着删的真遗留；`OVERBROAD_NAMESPACE_DEBT` 归零，
+B 档存疑从 184 降到 44。**收窄的写法有个坑**：`TranslationKey` 只能做**约束**，
+写成值类型标注（`const M: Record<K, TranslationKey> = {…}`）会把字面量擦掉、`t()` 收不了（TS2345）；
+正解是 `as const satisfies Record<K, TranslationKey>`。另外结构测试可能钉着旧实现的源码文本
+（`status === 'declined' ? 'declined'`），改成查表后要把断言搬到查表项上，别顺手删掉。
+
+**门岗第二处失明：长得像键的模板都被当成前缀（2026-09-05 同日修）**：反向门岗把源码里**任何**模板 head
+当动态前缀，而一个前缀会让它覆盖的整片叶子免于判死。于是时间轴测试里的夹具文件名 `media.${ext}`
+——跟 i18n 毫无关系——让真实的 `media.*`（5 叶）整片豁免。修法不是去改夹具名（治标，且是 whack-a-mole：
+改完一个文件另一个文件的同名夹具又顶上），而是**要求模板有「它是翻译键」的出处**：t() 实参 / 存进的
+变量在本文件被传进过 t() / 名字自称是 key / 由函数返回。四选一的宽口径——因为误判成死键是这道门
+**最贵**的错（删掉 = 线上渲染出原始 key）。收窄时先量再改：live 前缀 98→96、A 档 0→0，只掉了两个
+真没出处的（夹具文件名 + 一个测试里的断言串）。中途有一版忘了穿过三目，把 canvasBatchModelLabel
+返回的 13 个活键判成死键——**新规则先跑一遍全量、看有没有新增 A 档**，比补测试更早发现这类误伤。
+
+**别拿「门岗绿」当「没有死键」**：种一个谁都不引用的键进目标命名空间，改前门岗照样绿、改后当场点名——这个前后对照才是它真的看得见的证据。
+
+**出处**：2026-09-01 / 2026-09-02 i18n 清理实测；2026-09-05 `generationCommon` 整命名空间前缀收窄。相关：[走查断言必须有真信号](walkthrough-assertions-need-a-real-signal.md)、[一个死选择器同时造假红和假绿](dead-selector-lies-both-ways.md)。
+**死键门岗看不见的第三种（2026-09-05）**：`check:i18n-dead-keys` 对**整命名空间动态前缀**（`scripts/lib/i18nDynamicKeyPrefixes.ts` 里的 `generationCommon` 一整棵）下的键一律降为 B 档不报。所以 Agent Host cutover（d270d34ec）删掉 `CanvasAssistantPanel` / `CanvasAssistantEntry` 后，`generationCommon.assistant.*` 留下 44 条死键、零报警，直到走查按其中一条的译文值 `[aria-label="生成区 AI 助手"]` 找元素才暴露。组件退役时顺手 `git show <sha> --diff-filter=D --name-only` 列出删掉的消费者，对它们用过的整棵键做一次零引用扫描；扫描要把模板前缀（`t(\`ns.${id}.x\`)`）也算引用，否则会把 `creationAi.mode.*` 这种活键误判成死。
+
+**出处**：2026-09-01 / 2026-09-02 i18n 清理实测；2026-09-05 `generationCommon.assistant.*` 清理。相关：[走查断言必须有真信号](walkthrough-assertions-need-a-real-signal.md)、[一个死选择器同时造假红和假绿](dead-selector-lies-both-ways.md)。

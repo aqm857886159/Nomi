@@ -2,6 +2,16 @@
 /**
  * Piece 2: 规格表自动导出 —— 从样张 HTML 扫出视觉元素，导出机器可读规格表。
  *
+ * ⚠️ 2026-09-06 起本脚本**降级为历史层**。Agent 界面的真相源已换成设计实验室
+ *    （`design-lab.html?screen=agent-panel`，注册表 `src/devlab/designLab/agentPanelStates.tsx`）：
+ *    那里渲染的是**现役 React 组件**，不需要「样张 HTML → 实现」这一层人脑翻译，
+ *    几何真相由 `tests/ux/design-lab/__baselines__/agent-panel/*.png` 逐像素钉住，
+ *    门岗是 `pnpm run check:design-lab`（见 `docs/design/2026-09-02-agent-ui-conformance-testspec.md` §0.5）。
+ *    本脚本保留的唯一职责：把**已有** `agent-ui-conformance.walk.mjs` 还在用的
+ *    `data-agent-*` 锚点与容差留在原地，别让那条走查因为真相源搬家而集体失锚。
+ *    新形态、新几何、新容差**一律进实验室**，不要再往这里加映射——
+ *    两处都维护 = 又造了一个会漂移的第二真相源，正是本次要消灭的东西。
+ *
  * 背景（关键事实）：
  *   样张 `2026-09-01-agent-ui-final-redesign.html` 用 CSS class 表达结构（.asst-head, .usage-pill…），
  *   而 conformance testspec 约定的 data-agent-* 挂点是**实现必须提供**的锚点。
@@ -129,12 +139,12 @@ const CLASS_TO_ANCHOR = [
     desc: '@ 引用 token（变黄态）', tolerances: { h: 2 } },
   { cssSelector: '.cbtn.ico[data-tip="附件"]', anchor: 'data-agent-composer-attach', specRef: 'A-19', screen: 'A',
     desc: '底排附件钮', tolerances: { w: 2, h: 2 } },
-  { cssSelector: '.cbtn.ico[data-tip^="Agent"]', anchor: 'data-agent-composer-mode', specRef: 'A-19', screen: 'A',
-    desc: '底排执行方式钮', tolerances: { w: 2, h: 2 } },
   { cssSelector: '.cbtn.ico[data-tip^="去选"]', anchor: 'data-agent-composer-model', specRef: 'A-19', screen: 'A',
     desc: '底排模型钮', tolerances: { w: 2, h: 2 } },
-  { cssSelector: '.cbtn.ico[data-tip="提示词模板"]', anchor: 'data-agent-composer-prompt', specRef: 'A-19', screen: 'A',
-    desc: '底排提示词钮', tolerances: { w: 2, h: 2 } },
+  { cssSelector: '.cbtn.ico[data-tip="技能"]', anchor: 'data-agent-composer-skill', specRef: 'A-19', screen: 'A',
+    desc: '底排技能钮', tolerances: { w: 2, h: 2 } },
+  { cssSelector: '.cbtn.ico[data-tip="模式"]', anchor: 'data-agent-composer-mode', specRef: 'A-19', screen: 'A',
+    desc: '底排执行方式钮', tolerances: { w: 2, h: 2 } },
   { cssSelector: '.send', anchor: 'data-agent-composer-send', specRef: 'A-19', screen: 'A',
     desc: '发送钮', tolerances: { w: 2, h: 2 } },
   { cssSelector: '.reddot', anchor: 'data-agent-model-alert', specRef: 'A-20', screen: 'A',
@@ -166,7 +176,7 @@ const BEAUTIFUL_UI_ANCHORS = new Set([
   'data-agent-tool-detail', 'data-agent-skill-event', 'data-agent-task-row',
   'data-agent-approval-card', 'data-agent-composer', 'data-agent-input',
   'data-agent-composer-attach', 'data-agent-composer-mode',
-  'data-agent-composer-model', 'data-agent-composer-prompt', 'data-agent-composer-send',
+  'data-agent-composer-model', 'data-agent-composer-skill', 'data-agent-composer-send',
 ])
 const AI_ELEMENTS_ANCHORS = new Set([
   'data-agent-header', 'data-agent-usage-pill', 'data-agent-usage-popover',
@@ -319,7 +329,7 @@ const specAnchors = [
   'data-agent-receipt-undo', 'data-agent-lost-edits-card', 'data-agent-landing-chip',
   'data-agent-queue-row', 'data-agent-queue-remove', 'data-agent-composer', 'data-agent-input',
   'data-agent-at-picker', 'data-agent-at-token', 'data-agent-composer-attach',
-  'data-agent-composer-mode', 'data-agent-composer-model', 'data-agent-composer-prompt',
+  'data-agent-composer-model', 'data-agent-composer-skill', 'data-agent-composer-mode',
   'data-agent-composer-send', 'data-agent-model-alert', 'data-agent-plan-card',
   'data-agent-spend-card', 'data-agent-deviation-card', 'data-agent-question-card',
   'data-agent-candidates-card', 'data-agent-artifact-card', 'data-agent-failure-card',

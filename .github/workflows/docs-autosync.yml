@@ -1,0 +1,76 @@
+name: Docs Gate Autosync
+
+# 三个文档/生成物门（check:docs-index / check:doc-status / check:ledger）在 PR 上只出 warning
+# 注解、不阻断（判据没放松，见 scripts/run-gates-contracts.mjs 的文件头）；**补齐的活在这里**：
+# main 每前进一次就跑一遍确定性补齐，有 diff 就以 bot 身份写回 main。
+#
+# 依据（2026-08-22 → 09-05 Quality Gate 全量失败审计）：226 次红里 63 次是这三个门，占 28%。
+# 它们结构上拦不住任何生产 bug——只查 Markdown 链接、开头有没有状态 emoji、生成物新不新鲜；
+# 而且没在守覆盖率（596 篇里 323 篇未收录、533 篇里 425 篇缺状态早被冻进基线）。
+# 代价却是真的：main 上 30 个纯粹为过这三个门而存在的 commit，一个分支为一篇 md 连红 15 轮。
+# ledger 更是并行开发的直接税：21 次红里 10 次那个分支一篇文档都没加，纯粹是 main 前进了。
+#
+# 为什么不装依赖：补齐脚本与三个门岗脚本只 import node 内置模块，`pnpm run` 不需要 node_modules
+# 也能执行。这条链跑在 main 的关键路径上，省掉 install 让它从分钟级变成秒级，
+# 越轻越不容易在合并高峰堵住下一次补齐。
+
+on:
+  push:
+    branches:
+      - main
+  # 补齐脚本自己改坏了、或者要手动追一次账时用。
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+# 不取消在途：每个 merge 都要补自己那一份，取消上一班会漏账（补齐是幂等的，串行跑最省心）。
+concurrency:
+  group: docs-autosync
+  cancel-in-progress: false
+
+jobs:
+  autosync:
+    name: Docs Gate Autosync
+    runs-on: ubuntu-latest
+    steps:
+      # ref: main 保证修复基于触发时的受保护主线快照；提交由 create-pull-request 创建独立分支。
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.8.1
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Repair docs index / status / ledger
+        run: node scripts/repair-doc-gates.mjs
+
+      # 补齐完必须由**门岗本人**判绿。门岗直接跑仍然 fail-closed（advisory 只存在于
+      # gates:contracts 汇总层），所以这里红 = 补齐没做到，需要人来看，不是记账噪音。
+      - name: Verify the three gates are green on the repaired tree
+        run: |
+          pnpm run check:docs-index
+          pnpm run check:doc-status
+          pnpm run check:ledger
+
+      # R17 证据：run 33967545325（2026-09-05）三次直推均收到 GH006，
+      # 明确要求通过 pull request 且缺少 2 个 required checks。受保护 main 只能走 PR。
+      # [skip ci] 放在 bot commit message 中，避免合并回 main 后再次触发门岗链。
+      - name: Open a docs repair pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          base: main
+          branch: docs/autosync-${{ github.sha }}
+          delete-branch: true
+          add-paths: docs
+          commit-message: "chore(docs-gates): auto-sync 索引/状态/账本 [skip ci]"
+          title: "chore(docs-gates): auto-sync 索引/状态/账本"
+          body: |
+            Automated repair for the three advisory docs gates after `${{ github.sha }}`.
+
+            [skip ci]

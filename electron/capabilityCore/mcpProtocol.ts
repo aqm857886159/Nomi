@@ -10,6 +10,7 @@ import {
 import { buildToolErrorOutcome, buildProgressStartMessage, sanitizeArtifactResource, type ResultLocale } from './mcpToolResults'
 import { buildCanonicalMcpToolResult } from './mcpCanonicalToolResult'
 import { canvasReadResultSchema } from '../shared/agentCapabilities/canvasRead'
+import { CANVAS_WRITE_CAPABILITY } from '../shared/agentCapabilities/canvasWrite' // 画布写只此一个 method
 import { assembleToolResultContent } from './mcpResultPayload'
 import { stripInternalEnrichFields } from './mcpResultEnrich'
 import { createProgressReporter } from './mcpProgress'
@@ -21,6 +22,7 @@ import { isAnchorCheckpointGate } from '../productionRun/anchorCheckpoint'
 import type { AuthenticatedMcpClient } from './security'
 import { subscribeMcpToolCatalogChanges } from './mcpToolCatalogChanges'
 import { handleDocumentEditConfirmation } from './mcpDocumentConfirmation'
+import { handleTimelineEditConfirmation } from './mcpTimelineConfirmation'
 
 export type McpInvokeOptions = {
   spendConfirmed?: boolean
@@ -43,6 +45,8 @@ function withRequestSignal(params: Record<string, unknown>, signal?: AbortSignal
 }
 
 import { createGenerationGateConfirmation } from './mcpGateConfirmation'
+import { createElicitationClient, readElicitationCapability } from './mcpElicitation'
+import { runIntegrationCredentialElicitation } from './mcpCredentialElicitation'
 import type { GenerationGateChallengeProjection, GenerationGateVerificationResult } from './mcpGateConfirmation'
 export type { GenerationGateChallengeProjection, GenerationGateConfirmation, GenerationGateVerificationResult } from './mcpGateConfirmation'
 
@@ -109,6 +113,8 @@ type SkillContentFrame = SkillSummaryFrame & { body: string }
 export function createMcpProtocol(transport: McpTransport) {
   // 客户端能力（initialize 时捕获）。elicitation = 客户端能代我们向真人弹确认对话框（MCP 规范 2025-06-18）。
   let clientSupportsElicitation = false
+  // url 模式单独一位：规范禁止向未声明该模式的客户端发 mode:'url'（空 {} = 只支持 form）。
+  let clientSupportsUrlElicitation = false
   let clientHost = 'external'
   let initialized = false
   const unsubscribeCatalogChanges = subscribeMcpToolCatalogChanges(() => {
@@ -207,37 +213,14 @@ export function createMcpProtocol(transport: McpTransport) {
     })
   }
 
-  async function elicitBooleanConfirm(input: {
-    message: string
-    title: string
-    description: string
-  }, signal?: AbortSignal): Promise<{ supported: boolean; confirmed?: boolean; action?: 'accept' | 'decline' | 'cancel' | 'timeout'; attestation?: unknown }> {
-    if (!clientSupportsElicitation) return { supported: false }
-    try {
-      const res = (await sendServerRequest('elicitation/create', {
-        message: input.message,
-        requestedSchema: {
-          type: 'object',
-          properties: {
-            confirm: { type: 'boolean', title: input.title, description: input.description },
-          },
-          required: ['confirm'],
-        },
-      }, 300000, signal)) as { action?: string; content?: { confirm?: boolean; attestation?: unknown; confirmationAttestation?: unknown } } | null
-      // 三态：accept / decline / cancel。只有明确 accept + confirm=true 才能跨过服务端边界。
-      const confirmed = res?.action === 'accept' && res?.content?.confirm === true
-      return {
-        supported: true,
-        confirmed,
-        action: res?.action === 'accept' || res?.action === 'decline' || res?.action === 'cancel' ? res.action : 'cancel',
-        attestation: res?.content?.attestation ?? res?.content?.confirmationAttestation,
-      }
-    } catch (error) {
-      if (signal?.aborted) throw error
-      // 超时/异常 → 当作未确认（不死等、不偷偷花钱）。
-      return { supported: true, confirmed: false, action: 'timeout' }
-    }
-  }
+  // elicitation 线协议（form + url 两模式）住 mcpElicitation.ts；这里只喂 getter（能力在 initialize 才定）。
+  const elicitation = createElicitationClient({
+    sendServerRequest,
+    send,
+    supportsElicitation: () => clientSupportsElicitation,
+    supportsUrlElicitation: () => clientSupportsUrlElicitation,
+  })
+  const elicitBooleanConfirm = elicitation.booleanConfirm
 
   // 生成门确认（challenge → 恰好一个确认面，同 challengeId 并发去重）：逻辑住 mcpGateConfirmation.ts，
   // 这里只喂依赖。elicitation 能力在 initialize 时才定 → 传 getter 不传快照。
@@ -332,7 +315,9 @@ export function createMcpProtocol(transport: McpTransport) {
     }
 
     if (method === 'initialize') {
-      clientSupportsElicitation = Boolean(params?.capabilities && (params.capabilities as Record<string, unknown>).elicitation)
+      const declaredElicitation = readElicitationCapability(params?.capabilities)
+      clientSupportsElicitation = declaredElicitation.form
+      clientSupportsUrlElicitation = declaredElicitation.url
       const rawName = String((params?.clientInfo as Record<string, unknown> | undefined)?.name || '').trim()
       const clientName = rawName.toLowerCase()
       clientHost = ['codex', 'claude', 'cursor'].find((host) => clientName.includes(host)) ?? 'external'
@@ -372,8 +357,9 @@ export function createMcpProtocol(transport: McpTransport) {
       reply(id, {
         tools: MCP_TOOL_RESOLVER.list().map((tool) => {
           const { name, description, inputSchema } = tool
-          // title（MCP tools spec 2025-06-18；宿主 UI 优先显示）——面收敛后每个工具带一句人读 title。
-          const title = typeof (tool as { title?: unknown }).title === 'string' ? { title: (tool as { title: string }).title } : {}
+          const localizedTitles = (tool as { titleByLocale?: { 'zh-CN': string; en: string } }).titleByLocale
+          const selectedTitle = localizedTitles?.[locale()] ?? ((tool as { title?: unknown }).title as string | undefined)
+          const title = typeof selectedTitle === 'string' && selectedTitle.length > 0 ? { title: selectedTitle } : {}
           // 挂活 widget 的工具：预声明 _meta.ui.resourceUri（MCP Apps 标准）+ openai/outputTemplate（ChatGPT 别名）
           // + 调用状态文案。always 广告（宿主不支持则忽略 _meta，spec 设计）→ 跨 Claude/ChatGPT 通用（P4）。
           // nomi_read 整体预声明（运行时按 target 决定是否真挂 widget frame，见 widgetUriFor）。
@@ -494,7 +480,7 @@ export function createMcpProtocol(transport: McpTransport) {
         // verified lease/renderer path. The renderer receipt must not be given
         // Host correlation unless a Host turn actually claimed that approval.
         if (
-          tool.name === 'nomi_canvas_plan'
+          tool.method === CANVAS_WRITE_CAPABILITY.id
           && built.operation === 'patch_shots'
           && clientSupportsElicitation
           && transport.isAppOpen()
@@ -525,6 +511,8 @@ export function createMcpProtocol(transport: McpTransport) {
             return
           }
         }
+        // 名字先同步判掉再 await：多一个 microtask 会改变**其它**工具的并发派发次序（无 await 的分支不该被牵连）。
+        if (tool.name === 'nomi_timeline_edit' && await handleTimelineEditConfirmation({ id, toolName: tool.name, args, routedMethod, built, requestSignal }, { elicitBooleanConfirm, invokeForRequest, reply, buildToolResultPayload, locale })) return
         if (tool.name === 'nomi_document_edit') {
           await handleDocumentEditConfirmation(
             { id, args, routedMethod, built, requestSignal },
@@ -541,10 +529,9 @@ export function createMcpProtocol(transport: McpTransport) {
         // Nomi 边上」（错的，已改判据）；这里它问的是「不这么做的话，会不会弹出一张应用内方案卡」——
         // 本分支的价值就是把那张卡搬进聊天。App 关着时 confirmPlan 恒 true（免费可撤、无人值守自动放行，
         // 见 createDiskGateway），没有卡可替代，去掉这个条件只会凭空多问一次 → 与「少让用户点」正相反。
-        // 面收敛：批量加节点并入 nomi_canvas_edit（operation=create_canvas_nodes，M2 语义面）——只有加节点走
-        // elicitation-first 方案确认，其余 operation（set_node_prompt/connect_canvas_edges/tidy_canvas）走下面原样 invoke。
+        // 只有 create_canvas_nodes 走 elicitation-first 方案确认；其余 operation 走下面原样 invoke。
         if (
-          tool.name === 'nomi_canvas_edit'
+          tool.method === CANVAS_WRITE_CAPABILITY.id
           && clientSupportsElicitation
           && transport.isAppOpen()
           && built.operation === 'create_canvas_nodes'
@@ -579,6 +566,19 @@ export function createMcpProtocol(transport: McpTransport) {
             reply,
             locale,
           }, requestSignal)
+          return
+        }
+        // 接模型要 key：规范 2025-11-25 要求走 URL 模式 elicitation（密钥不得经 form / 客户端 / 模型上下文）。
+        if (tool.name === 'nomi_integration' && args.action === 'open_credentials') {
+          const outcome = await runIntegrationCredentialElicitation({
+            built,
+            invoke: (method, params) => invokeForRequest(method, params),
+            elicitation,
+            locale: locale(),
+            ...(requestSignal ? { signal: requestSignal } : {}),
+          })
+          if (outcome.kind === 'error') throw new Error(outcome.message)
+          reply(id, buildToolResultPayload(tool.name, args, outcome.result))
           return
         }
         const result = await invokeForRequest(routedMethod, built)

@@ -11,10 +11,25 @@
 
 | 文件 | 一句话 | 状态 |
 |---|---|---|
+| [2026-09-05-gpt-discussion-consolidation.md](2026-09-05-gpt-discussion-consolidation.md) | GPT 讨论梳理：统一 Agent/画布/视频拆解表/Skill 聚合的现状对账、三项被推翻旧结论与待拍板入口 | 📋 |
+| [2026-09-05-nomi-unified-agent-canvas-skill-collection.md](2026-09-05-nomi-unified-agent-canvas-skill-collection.md) | 统一 Agent、画布与 Skill 聚合区的需求入口、母表和总体方案索引 | 📋 |
 | [2026-09-04-nomi-convergence-execution-plan.md](2026-09-04-nomi-convergence-execution-plan.md) | **Nomi 收敛总执行方案**：以 M0–M5 为主轴，统一 Agent/MCP/分镜表/画布/视频/TikHub/真实 Provider/持久化/重启/视觉和 PR 收敛门槛；current baseline `origin/main@8ff53610`，#471 UI 合同与 #474 Skill 修复已合入但主轴未毕业 | 🚧 |
+| [2026-09-05-m0-m5-vertical-spine-status.md](2026-09-05-m0-m5-vertical-spine-status.md) | **M0–M5 真实垂直脊梁状态台账**：同一自然用户任务的红测、真实 Electron、Codex Host/MCP、持久化/重启、视觉、packaged 与合入证据边界 | 🚧 |
+| [2026-09-05-m0-live-certification-audit.md](2026-09-05-m0-live-certification-audit.md) | M0 MCP live certification 审计：中转站文档/API key 接入边界与真实调用证据 | 🚧 |
+| [2026-09-05-real-video-export-restart.md](2026-09-05-real-video-export-restart.md) | 真实视频生成→剪辑→预览→导出→关闭重启恢复旅程与证据门 | 🚧 |
+| [2026-09-05-storyboard-two-state-generation-design.md](2026-09-05-storyboard-two-state-generation-design.md) | **分镜 v6 双状态生成设计**：编辑态能力槽、生成态结果卡、模型参考矩阵、自动引用、迁移与真实验收 | 📋 |
+| [2026-09-05-storyboard-table-v6-design-contract.md](../design/2026-09-05-storyboard-table-v6-design-contract.md) | **分镜表 v6 设计合同**（方向 A，用户已拍板）：信息架构、行/锚状态表、参考列规则+六档案槽矩阵、旧版 15 条功能对账、token/选择器契约草案、不做项与验收清单；样张 `docs/design/mockups/2026-09-05-storyboard-table-v6/` | 📋 |
+| [2026-09-05-gpt-discussion-consolidation.md](2026-09-05-gpt-discussion-consolidation.md) | GPT 讨论梳理：统一 Agent / 画布 / 视频拆解表 / Skill 站的现状对账与拍板记录 | 📋 |
+| [2026-09-05-editing-panel-design-contract.md](../design/2026-09-05-editing-panel-design-contract.md) | **剪辑面设计合同**：布局 C′ + 时间轴补齐 11 条（用户 09-05 拍板），四路实施任务书依据 | ⏳ |
 | [2026-09-04-main-convergence-follow-ups.md](2026-09-04-main-convergence-follow-ups.md) | Main 收敛后续明细；历史执行拆解，状态以总方案和 current-main 审计为准 | 📎 |
+| [2026-09-05-agent-host-gate-removal.md](2026-09-05-agent-host-gate-removal.md) | **常驻 Agent 拆发布闸**：删掉默认关的 `agentHostPreference` 与设置页开关，Agent 对所有用户无条件常驻，未完成处改用 header Beta 徽标明说；根因是「用户用的产品」与「测试跑的产品」分叉的并行版 | 🚧 |
+| [2026-09-05-agent-ui-a-composer.md](2026-09-05-agent-ui-a-composer.md) | Agent UI A 段：composer 五按钮调序、模式弹层收敛、运行呼吸光与分镜入口 | 🚧 |
+| [2026-09-05-editing-panel-t1.md](2026-09-05-editing-panel-t1.md) | T1 面板系统、属性面板、transport 与 layout capability | 🚧 |
+| [2026-09-05-resident-composer-receipt-fix.md](2026-09-05-resident-composer-receipt-fix.md) | 常驻 Agent 收据旅程修复：删掉旅程对模式弹层审批入口的依赖，改用真实审批卡/拒绝/收据断言 | ✅ |
+| [2026-09-05-proposal-transition-table.md](2026-09-05-proposal-transition-table.md) | **Agent Host proposal 转换表**：(来源域×目标域×状态×动作) 做成显式数据表，reducer 只查表，拒绝带格子坐标；`document→canvas` 是显式关闭格 | ✅ |
 | [2026-09-04-workbench-skill-picker-fix.md](2026-09-04-workbench-skill-picker-fix.md) | Workbench Agent Skill 选择器共享可选性边界修复：恢复 storyboard planner 的真实菜单选择与 Host 请求链路 | ✅ |
 | [2026-09-03-open-work-ledger.md](2026-09-03-open-work-ledger.md) | 全量开工账本历史快照；只用于追溯，不覆盖总方案的当前状态 | 📎 |
+| [../architecture-review/2026-09-05-agent-mcp-architecture-review.md](../architecture-review/2026-09-05-agent-mcp-architecture-review.md) | **Agent 与 MCP 架构评审**：五个质疑（两张嘴 / 审批过度通用 / MCP 按内部机制命名 / 每轮失忆 / 接模型主路径顺序）逐条 file:line 证实或推翻，含 6 角色评审与 R3 决策对比表；docs-only 待拍板 | 📋 |
 
 ## 模型接入 / Onboarding（最大簇）
 
@@ -24,6 +39,7 @@
 | [2026-08-30-runway-seedance25-onboarding.md](2026-08-30-runway-seedance25-onboarding.md) | Runway Seedance 2.5 接入与分镜设置（源分支只含文档、未合并；配套指南带「未发布」横幅）| 📋 |
 | [2026-08-15-model-integration-no-dead-end-master-plan.md](2026-08-15-model-integration-no-dead-end-master-plan.md) | 模型接入「不留死路」总纲：事实源 manifest + 能力契约 + 旅程矩阵 | 🚧 |
 | [2026-09-03-self-hosted-relay-conformance-harness.md](2026-09-03-self-hosted-relay-conformance-harness.md) | **自建中转一致性台架**：CI 里起一个**严格的**假中转，驱动真实接入→认证→生成全链路。严格度锚定 2026-09-03 真机实测（用错端点/无图/图太小/multipart 无字节 四条拒绝规则），把「用户接入」这条唯一没有反馈回路的路径接上回路 | 📋 |
+| [2026-09-06-vendor-preference-auto-fallback.md](2026-09-06-vendor-preference-auto-fallback.md) | S-01/S-02 供应商偏好与自动切换：能力槽下的模型身份候选链、有限回退、费用与收据闸门 | 📋 |
 | [2026-09-02-docaudit-kie-apimart.md](2026-09-02-docaudit-kie-apimart.md) | KIE + APIMart 官方文档全量对账、映射合同覆盖与未封印模型验收 | ✅ |
 | [2026-09-02-runway-model-identity-workflow.md](2026-09-02-runway-model-identity-workflow.md) | **一个模型一个档案主人**（PR #310 挂起的「单独立项裁决」）：删平台档案 runway-video，10 个 Runway 模型改挂真模型档案；补齐供应商特化三轴（参数/transport/模式可见性）；selectTaskMapping 停止借用别的模式的线缆 | ✅ |
 | [2026-09-03-veo31-panel-crash.md](2026-09-03-veo31-panel-crash.md) | Runway Veo 3.1 节点生成面板 React #185 无限渲染循环：自动元数据写回边界与零额度 Electron 回归走查 | ✅ |
@@ -44,6 +60,7 @@
 | [2026-09-01-pr258-derived-directions-eval.md](2026-09-01-pr258-derived-directions-eval.md) | #258 拆项评估定稿：①provider proxy 🟢（已随 #282 落地）②即梦 CLI 模型面 🟡（后被 v1.4.17 对齐 #291 取代其结论）③onboarding 加固 🟢（已随 #282 落地） | 📎 |
 | [2026-09-01-pr271-feedback-share-center-eval.md](2026-09-01-pr271-feedback-share-center-eval.md) | #271 反馈分享中心拆项评估：三方向全 🟢、外发面克制可辩护；按四步收口后已合入（provider 泄露路径证实并修复） | 📎 |
 | [2026-09-01-video-deconstruction-v1.md](2026-09-01-video-deconstruction-v1.md) | 拆解视频 v1 面板方案：一条参考视频→结构化分镜表→勾选镜头逐个落画布+自动编组→用这套结构起稿；含与 Agent 面板的右槽共存契约（③合流终局+过渡期互斥 R-C-1~7） | 🚧 |
+| [2026-09-06-video-deconstruction-table-node.md](2026-09-06-video-deconstruction-table-node.md) | **视频拆解表节点重做实施计划**：D-2=A，表是画布节点；行内关键帧、选行生成、Agent 投影、ProductionRun 接口与旧右槽/铺图同 commit 删除 | ⏳ |
 | [2026-09-02-canvas-media-derived-persistence-performance.md](2026-09-02-canvas-media-derived-persistence-performance.md) | 画布媒体派生尺寸回填性能回归修复：隔离运行时测量，避免视口揭示触发项目持久化 | ✅ |
 | [2026-09-01-tikhub-connector-v1.md](2026-09-01-tikhub-connector-v1.md) | TikHub 数据 connector v1：分享链接→无水印直链→喂现有拆解引擎（native-api / BYO-key / effect=spend / AssetSourceEvidence） | 🚧 |
 | [2026-06-07-apimart-curated-onboarding.md](2026-06-07-apimart-curated-onboarding.md) | 策展两家(kie+apimart)一键接入；战略从「通用接入」转向 | ✅ |
@@ -72,6 +89,7 @@
 
 | 文件 | 一句话 | 状态 |
 |---|---|---|
+| [2026-09-06-ui-shell-version-dialog-node-empty.md](2026-09-06-ui-shell-version-dialog-node-empty.md) | P-01 新版本弹窗与 C-01 生成画布节点共享空态（设计实验室先行） | ✅ |
 | [2026-09-03-narrowed-mode-guidance-dismiss.md](2026-09-03-narrowed-mode-guidance-dismiss.md) | 收窄模式指路提示的节点级关闭与项目持久化 | 🚧 |
 | [2026-08-13-video-deconstruction-storyboard-table.md](2026-08-13-video-deconstruction-storyboard-table.md) | **视频拆解→分镜表→复刻生成**（表格=节点组的视图，非新数据模型；含 gemini/whisper 实测契约） | 📋 |
 | [2026-08-09-canvas-ux-feedback-round.md](2026-08-09-canvas-ux-feedback-round.md) | 画布体验反馈第 1 轮迭代（Windows 顶栏/视频工具栏并排等，样张阶段） | |
@@ -109,8 +127,11 @@
 | 文件 | 一句话 | 状态 |
 |---|---|---|
 | [2026-09-04-mcp-semantic-operation-matrix.md](2026-09-04-mcp-semantic-operation-matrix.md) | MCP 语义操作矩阵：document/canvas 真实生产链路 H/B/E/T/N、scoped V8 收据与 timeline/media/export blocked evidence | ✅ |
+| [2026-09-05-resident-composer-receipt-fix.md](2026-09-05-resident-composer-receipt-fix.md) | main 红修复：Resident composer 收据旅程改走真实审批流（PR #507） | ✅ |
+| [agent-compaction-runtime-projection.md](agent-compaction-runtime-projection.md) | Agent compaction runtime 元数据的 Host 状态、持久化、恢复与 renderer 投影契约 | 🚧 |
 | [2026-09-04-agent-usage-ledger-rebaseline-followup.md](2026-09-04-agent-usage-ledger-rebaseline-followup.md) | #452 rebaseline follow-up：Host usage persistence/projection 与生成 approval receipt 的 projectRevision C9 防漂移 | ✅ |
 | [2026-09-02-mcp-testnet-l1-handshake.md](2026-09-02-mcp-testnet-l1-handshake.md) | MCP 测试网第 1 片：真实 stdio L1 握手六条回归、tools/list payload 棘轮与 listChanged A1 | 🚧 |
+| [2026-09-05-mcp-tool-refs-blindspot.md](2026-09-05-mcp-tool-refs-blindspot.md) | `check:mcp-tool-refs` 扩展调用形态与 docs 可执行示例扫描，清理无 runner 的退役生成走查 | ✅ |
 | [2026-09-02-mcp-l2-journeys.md](2026-09-02-mcp-l2-journeys.md) | MCP 测试网第 2 片：C7-C12 真实语义生成、断连回收、产物审片与导出对账 | ✅ |
 | [2026-08-25-p4-anchor-checkpoint-approval-card.md](2026-08-25-p4-anchor-checkpoint-approval-card.md) | P4 锚定妆照检查点的渲染层审批卡（#155 §8.5 两条腿之二；样张已拍板、方案未入库）| 📋 |
 | [2026-09-01-agent-m0-baseline-freeze.md](2026-09-01-agent-m0-baseline-freeze.md) | M0 基线冻结：owner map、50 项工具映射、旧路径、schema-v3 草案、红灯与 PR 切片 | ⏳ |
@@ -146,6 +167,8 @@
 | [2026-08-27-skills-knowledge-distribution.md](2026-08-27-skills-knowledge-distribution.md) | **Skills 知识分发**：导入对齐 Agent Skills 标准（Phase 0 已交付）+ 渐进披露从「只给外部」接给内嵌 agent；实测每轮固定开销 ≈9,000 tokens 且不参与预算 | 🚧 |
 | [2026-08-27-unified-tool-surface.md](2026-08-27-unified-tool-surface.md) | **内外工具面统一**：对外 22 个 `nomi_*` vs 内嵌 17 个，6 处同事两名、确认面两套——违反 master plan「不造第二套」北极星；三方案待拍板 | 📋 |
 | [2026-08-30-agent-canvas-interaction-expansion.md](2026-08-30-agent-canvas-interaction-expansion.md) | #194 补全画布引用、多媒体、双轴模式与结果回画布（方案与样张完成，待生产实现） | ✅ |
+| [2026-09-06-opt-in-frequency-telemetry.md](2026-09-06-opt-in-frequency-telemetry.md) | T-01/T-02 opt-in 频率遥测：默认关闭、事件白名单、本地可见可删，与 autoUpdater 解耦 | 📋 |
+| [2026-09-06-mcp-key-window-front-and-host-config-toast.md](2026-09-06-mcp-key-window-front-and-host-config-toast.md) | MCP 凭据请求自动前台打开模型接入页，宿主配置修复后提示重启 | ✅ |
 
 ## 时间轴 / 预览 / 导出
 
@@ -158,6 +181,7 @@
 | [2026-08-28-editing-engine-review.md](2026-08-28-editing-engine-review.md) | Editing engine build-vs-buy review and open-source research | 🚧 |
 | [2026-08-28-editing-engine-uplift.md](2026-08-28-editing-engine-uplift.md) | P0 timeline kernel and Agent editing control plane | 🚧 |
 | [2026-08-28-timeline-visual-feedback.md](2026-08-28-timeline-visual-feedback.md) | Timeline source-window and transition support feedback | 🚧 |
+| [2026-09-05-timeline-placement-strategy.md](2026-09-05-timeline-placement-strategy.md) | 时间轴 P0 落位、默认 fit、轨道滚动与字幕不重叠 | 🚧 |
 
 ## 项目库 / 素材库 / Workspace / 左面板
 
@@ -180,6 +204,7 @@
 |---|---|---|
 | [2026-09-01-feedback-share-center.md](2026-09-01-feedback-share-center.md) | v0.21 低摩擦反馈与分享中心：私密 Tally 表单、公开 GitHub、自动带入安全运行时上下文 | 🚧 |
 | [2026-09-01-storyboard-table-genre-profile.md](2026-09-01-storyboard-table-genre-profile.md) | **分镜表 v5**：场分组+图优先行+结构化提示词（@/骨架段）+行内执行；A 段已合（#330），B-D 分阶段交付；样张 docs/design/mockups/2026-09-01-storyboard-table-image-first.html | 🚧 |
+| [storyboard-table-coverage.md](storyboard-table-coverage.md) | 分镜表状态/模型能力/参考素材/比例与批量生成覆盖矩阵及真实验收缺口 | 🚧 |
 | [2026-09-02-walkthrough-catalog-seed-version.md](2026-09-02-walkthrough-catalog-seed-version.md) | 隔离走查 catalog 种子按被测 app 版本校验：future seed quarantine + 版本真源单一化，终结「切模型静默失效」假绿 | ✅ |
 | [2026-09-03-walkthrough-findings.md](2026-09-03-walkthrough-findings.md) | R13 走查暴露的五项缺陷修复：i18n、历史 ETA、供应商切换 toast 与 ComfyUI/H3 验证 | 🚧 |
 | [2026-09-03-m5-packaged-graduation.md](2026-09-03-m5-packaged-graduation.md) | M5 打包真机毕业：零额度 MCP 全链、M0-M4 证据清单与发版前人工 runbook | 🚧 |
@@ -190,12 +215,16 @@
 
 | 文件 | 一句话 | 状态 |
 |---|---|---|
+| [2026-09-06-stack-upgrade-react19-aisdk-tailwind4.md](2026-09-06-stack-upgrade-react19-aisdk-tailwind4.md) | **技术栈升级立项**（React 19 · AI SDK · Tailwind 4）：实查纠正三个前提（我们没用 `useChat`，AI SDK 升级与 Agent 面板无因果；目标是 SDK 6 不是 5，7 是 ESM-only 进不来；React 19 捆着 Mantine 8 + R3F 9 两个次级迁移），逐条命中清单（`JSX.Element` 652 处 / AI SDK 仅 8 个生产文件 / Tailwind 132 处类名）、R3 三方案对比与四步执行门 | 📋 |
 | [2026-06-08-performance-foundation.md](2026-06-08-performance-foundation.md) | 性能地基改造立项 | ⛔ |
 | [2026-05-25-phase-e2-completion-and-tech-uplift.md](2026-05-25-phase-e2-completion-and-tech-uplift.md) | Phase E.2 完成 + 技术栈升级(v0.6) | ⛔ |
 | [2026-05-31-unify-request-pipeline.md](2026-05-31-unify-request-pipeline.md) | 统一请求构建管线（根治测试过/生产挂） | 📋 |
 | [2026-06-04-runtime-split-execution.md](2026-06-04-runtime-split-execution.md) | 增量拆分 electron/runtime.ts（strangler） | 🚧 |
 | [2026-08-29-focused-validation-policy.md](2026-08-29-focused-validation-policy.md) | PR `fast/full` 两档验证历史基线（已被 08-30 独立风险面取代） | 📎 |
 | [2026-08-30-risk-scoped-validation-evidence.md](2026-08-30-risk-scoped-validation-evidence.md) | **按真实风险拆分 unit/desktop/journey/canvas/performance/package，并用 exact-SHA CI 证据替代合并后第三遍全量测试** | ✅ |
+| [2026-09-05-ci-gate-mechanics.md](2026-09-05-ci-gate-mechanics.md) | **CI 门岗机制修法**：三个文档/生成物门（docs-index / doc-status / ledger）降为 advisory 并由 main 上的 docs-autosync 自动补齐；`gates:contracts` 51 个 `&&` 改成「全跑完再汇总」 | ✅ |
+| [2026-09-06-logging-and-diagnostics-bundle.md](2026-09-06-logging-and-diagnostics-bundle.md) | **主进程统一落盘日志 + 导出诊断包**：按天滚动/大小上限/保留期的单一文件写手，99 处 console.* 收口到一个类型化出口（提示词/密钥/路径没有参数位），设置「隐私与诊断」里一键打 zip 交给用户自己保存 | 🚧 |
+| [2026-09-06-mcp-locale-and-tool-titles.md](2026-09-06-mcp-locale-and-tool-titles.md) | MCP 结果跟随 Nomi 语言，并为九个语义工具补齐中英文人话标题 | 🚧 |
 | [2026-08-29-root-cause-contract-v2.md](2026-08-29-root-cause-contract-v2.md) | 根因合同 v2、跨 AI 强制执行与规则收敛 | 🚧 |
 | [2026-08-29-git-delivery-integrity.md](2026-08-29-git-delivery-integrity.md) | Git 交付身份、有界远端刷新与 merged-main 单次验收 | ✅ |
 | [2026-06-03-styles-css-teardown.md](2026-06-03-styles-css-teardown.md) | styles.css 拆除（死 CSS 清理） | 🚧 |
@@ -224,3 +253,5 @@
 | [2026-09-01-tail-batch.md](2026-09-01-tail-batch.md) | 尾巴批三件：i18n electron 存量烧批（≥60 处走 desktopT）+ pre-push 缺 Ponytail 脚本安全退出 + 手动 `check:handoff` 分支收货工具（不进 gates 链） | ✅ |
 | [2026-09-03-open-work-ledger.md](2026-09-03-open-work-ledger.md) | 全量开工账本（2026-09-03）：四档盘点（在飞/待排期/僵尸/已完成）+ 架构线三问详答 | ✅ |
 - [2026-09-03 画布连线回归调查与修复](2026-09-03-canvas-connect-regression.md)
+
+- [2026-09-05] [第三刀·投影清零方案](2026-09-05-storyboard-projection-cleanup.md) — 分镜唯一 owner、旧字段一次迁移后丢弃、取证 runner 读 Host snapshot。

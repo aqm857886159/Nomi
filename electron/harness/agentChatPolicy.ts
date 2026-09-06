@@ -6,8 +6,7 @@ import {
   type AgentToolProfile,
 } from "./agentChatContracts";
 import { PROJECT_AGENT_WORK_MODES } from "../shared/projectAgentContracts";
-import { assertAgentContextBinding } from "./context/contextBinding";
-import { projectIdFromSessionKey } from "../events/eventLogRepository";
+import { captureAgentContextBinding } from "./context/contextBinding";
 import {
   agentToolCatalog,
   agentToolNames,
@@ -23,8 +22,7 @@ export function captureAgentHistory(history: AgentChatHistory): AgentChatHistory
   if (!history || typeof history !== "object") throw new Error("Explicit Agent history scope is required");
   if (history.kind === "ephemeral") return { kind: "ephemeral" };
   if (history.kind !== "persistent") throw new Error("Invalid Agent history scope");
-  assertAgentContextBinding(history.binding);
-  return { kind: "persistent", binding: { ...history.binding } };
+  return { kind: "persistent", binding: captureAgentContextBinding(history.binding) };
 }
 
 /** Validate and capture before any asynchronous catalog, context or attachment preparation. */
@@ -52,7 +50,7 @@ export function captureAgentChatRequest(input: AgentChatRequest): AgentChatReque
   if (knownProjects.some((id) => id !== knownProjects[0])) throw new Error("Agent project bindings disagree");
   if (
     history.kind === "persistent" &&
-    knownProjects.some((id) => id !== projectIdFromSessionKey(history.binding.sessionKey))
+    knownProjects.some((id) => id !== history.binding.project.projectId)
   ) {
     throw new Error("Agent project does not match its persistent history binding");
   }

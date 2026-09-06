@@ -15,7 +15,6 @@ import { getAppLocale, setAppLocale, SUPPORTED_LOCALES, type AppLocale } from '.
 import { ThemeToggleButton } from '../../ui/theme/ThemeToggleButton'
 import { ScreenshotHotkeySection } from './ScreenshotHotkeySection'
 import { CanvasGestureSection } from './CanvasGestureSection'
-import { AgentHostSection } from './AgentHostSection'
 import { AboutSection } from './AboutSection'
 import { ProjectLocationSection } from './ProjectLocationSection'
 import { AiModelsSection } from './AiModelsSection'
@@ -26,6 +25,8 @@ import { defaultAutomationPolicySettings } from './settingsAutomationView'
 import type { AutomationPolicySettings } from '../../../electron/settings/automationPolicyContract'
 import type { ProductionPolicyRequirement } from '../production/productionPolicyRecovery'
 import { hasSettingsUnsavedChanges } from './settingsUnsavedChanges'
+import { TelemetrySection } from './TelemetrySection'
+import { DiagnosticsBundleSection } from './DiagnosticsBundleSection'
 
 // ⚠️ 必须懒加载：SettingsDialog 本身是 NomiStudioApp 里**同步 import** 的，而接入面整棵树
 // （OnboardingWizard / 各家 VendorCard / ComfyUI 那套）是个 160KB+ 的独立 chunk。直接 import
@@ -201,7 +202,11 @@ export function SettingsDialog({
       }
 
       event.stopPropagation()
-      if (tab === 'models' && dialog.querySelector('[data-model-settings-page]')) {
+      // 模型抽屉是下钻式的：站在子页上时 Esc 先退一层。判据必须是「上面确实还有一层可退」——
+      // 模型首页后来也带上了同一个 data-model-settings-page 标记，于是这个条件在整个「模型」tab 上
+      // 恒真，Esc 永远只在首页原地发一次 back，设置对话框再也关不掉（aria-modal 对话框的无障碍基本项）。
+      // 所以这里排掉首页，而不是让每个消费方各自去猜栈深。
+      if (tab === 'models' && dialog.querySelector('[data-model-settings-page]:not([data-model-settings-page="home"])')) {
         event.preventDefault()
         window.dispatchEvent(new CustomEvent('nomi-model-settings-back'))
         return
@@ -353,7 +358,6 @@ export function SettingsDialog({
                 <div className="mb-4 text-body font-medium text-nomi-ink">{t('settings.general.title')}</div>
                 <ScreenshotHotkeySection />
                 <CanvasGestureSection />
-                <AgentHostSection />
                 {/* 语言 / 外观归位到这里（§1.5「归位」）：它们过去挤在 studio 顶栏右簇 + 项目库顶栏，
                     外观还另有一份藏在品牌钮弹窗里——纯偏好项本来就该住设置，且这里是唯一一份（P1）。
                     ⚠️ 这一步等于改写 PR#50 的判断（当时把语言从「关于」弹窗第三层提到顶栏常驻图标，
@@ -392,6 +396,10 @@ export function SettingsDialog({
                     <ThemeToggleButton className="shrink-0 border-nomi-line bg-nomi-paper" />
                   </div>
                 </div>
+                {/* 「隐私与诊断」是一格两半：TelemetrySection 管「发不发匿名计数」，
+                    DiagnosticsBundleSection 管「出事时怎么把本机证据交出来」。同块相邻，不另起 tab。 */}
+                <TelemetrySection />
+                <DiagnosticsBundleSection />
               </div>
             ) : tab === 'about' ? (
               <AboutSection onClose={() => { void requestClose() }} onReplaySplash={onReplaySplash} />

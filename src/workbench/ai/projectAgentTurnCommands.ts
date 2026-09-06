@@ -1,4 +1,4 @@
-import type { AgentChatRequest, AgentChatToolDecision } from '../../../electron/shared/contracts/agentChatContracts'
+import type { AgentChatToolDecision, ProjectAgentExecutionRequest } from '../../../electron/shared/contracts/agentChatContracts'
 import type {
   ProjectAgentExecutionEvent,
   ProjectAgentAttachmentClaim,
@@ -33,7 +33,7 @@ export type ProjectAgentTurnTarget = Readonly<{
 
 export type ProjectAgentTurnCommandInput = ProjectAgentTurnTarget &
   Readonly<{
-    request: AgentChatRequest
+    request: ProjectAgentExecutionRequest
     displayPrompt: string
     threadTitle?: string
     turnId?: string
@@ -73,7 +73,7 @@ function activeWritableThread(snapshot: ProjectAgentHostState, now: string): Pro
   return Object.freeze({ ...active, ...(active.title ? { title: active.title } : {}), updatedAt: now })
 }
 
-function modelRef(request: AgentChatRequest): ProjectAgentTurn['model'] {
+function modelRef(request: ProjectAgentExecutionRequest): ProjectAgentTurn['model'] {
   const vendor =
     typeof request.agentVendorKey === 'string' && request.agentVendorKey.trim()
       ? request.agentVendorKey.trim()
@@ -176,7 +176,7 @@ export async function enqueueProjectAgentTurn(
   // Approval/spend belongs to the Host turn/queue snapshot.  Keep the
   // renderer request projection incapable of carrying a second authority
   // field, even when a stale caller sends one at runtime.
-  const { approvalPolicy: _ignoredApprovalPolicy, ...requestWithoutHostPolicy } = input.request as AgentChatRequest & {
+  const { approvalPolicy: _ignoredApprovalPolicy, ...requestWithoutHostPolicy } = input.request as ProjectAgentExecutionRequest & {
     approvalPolicy?: unknown
   }
   const result = await projectAgentClient.command({
@@ -188,7 +188,6 @@ export async function enqueueProjectAgentTurn(
       ...records,
       request: {
         ...requestWithoutHostPolicy,
-        history: { kind: 'ephemeral' as const },
         workMode: records.turn.workMode,
       },
       ...(input.capturedCanvasReadSnapshot

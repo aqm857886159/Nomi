@@ -247,7 +247,7 @@ describe("ProjectAgentHost queue mutation seam", () => {
         queue: [
           {
             ...queued.queue[0]!,
-            approvalPolicy: { mode: "safe-auto", spend: "confirm" },
+            approvalPolicy: { mode: "step", spend: "confirm" },
           },
         ],
       }),

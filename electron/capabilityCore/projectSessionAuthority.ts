@@ -11,7 +11,14 @@ import type {
   ProjectSelectionInput,
 } from './projectLease'
 
-export type ProjectSelectionSource = 'current_project' | 'created_project' | 'server_allowlist'
+/**
+ * 服务端认可的项目选择来源。
+ * `listed_project` 是 2026-09-05 补的：此前**只有** `created_project` 会签发 selection handle，
+ * 于是没开 GUI 的外部宿主只能在「本次连接里自己新建的项目」里干活 —— 断线即失忆，
+ * 用户在 Nomi 里已经建好的项目一个也接不上（24 个工具里 14 个是租约门控的）。
+ * 项目 id 本来就由服务端自己的 project.list 列出（不是客户端猜的），签发路径与 created_project 逐字节相同。
+ */
+export type ProjectSelectionSource = 'current_project' | 'created_project' | 'listed_project' | 'server_allowlist'
 
 export type ProjectSelectionResolution = Readonly<Omit<ProjectSelectionInput, 'scopeSet' | 'ttlMs'>>
 
@@ -72,16 +79,27 @@ export function scopeForGenerationCapability(capability: McpGenerationCapability
 
 /** The session bootstrap can only grant server-owned, non-submit scopes. */
 export function deriveProjectSessionScopes(policy: McpGenerationPolicy): readonly string[] {
-  // The same project session also authorizes the registered read-only editing
-  // ports and the current document/canvas session capabilities. Generation
-  // submit remains excluded; timeline/export writes still use their own
-  // approval paths.
+  // The same project session also authorizes the registered editing ports for the reversible project
+  // surfaces: canvas, document and timeline. Each of those still has its own human gate one layer in
+  // (canvas → plan confirm, document → `documentConfirmed`, timeline → `planConfirmed`, all minted
+  // only after a real elicitation accept), so the scope is the transport capability, not the approval.
+  //
+  // `timeline:write` and the two `layout:*` scopes used to be missing here on the theory that those
+  // surfaces "use their own approval path". They do — but the scope check runs first, so leaving them
+  // out did not add a gate, it removed the tools: `nomi_timeline_edit` could preview a plan and never
+  // apply it, and `nomi_layout_read` / `nomi_layout_write` were published in tools/list while being
+  // unreachable from any client. `check:mcp-scope-reachable` now holds the whole set, so this list and
+  // the adapters' `authority.requiredScope` cannot drift apart again. Generation submit and export
+  // writes stay out on purpose; those are spend/irreversible boundaries, and the gate records that.
   const scopes = new Set<string>([
     CANVAS_READ_CAPABILITY.requiredScope,
     CANVAS_WRITE_CAPABILITY.requiredScope,
     DOCUMENT_READ_CAPABILITY.requiredScope,
     DOCUMENT_WRITE_CAPABILITY.requiredScope,
     'timeline:read',
+    'timeline:write',
+    'layout:read',
+    'layout:write',
     'export:read',
     'asset:read',
   ])

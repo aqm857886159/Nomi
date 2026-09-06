@@ -1,6 +1,7 @@
 // Real Electron canonical storyboard user task.
 // The journey starts the app, opens a persisted project, starts the real MCP stdio
-// server, calls nomi_canvas_plan(operation=patch_shots), and checks disk + restart
+// server, calls nomi_canvas_edit(operation=patch_shots), and checks disk + restart
+// （2026-09-05：画布语义写在 MCP 上收敛成一个工具名，operation 语义一个字没变）
 // readback. It deliberately uses no provider, UI selector, static projection, or
 // legacy direct patch_shots tool name.
 import fs from 'node:fs'
@@ -36,8 +37,7 @@ const initialPayload = {
   activeDocumentId: 'storyboard-doc',
   timeline: null,
   generationCanvas: { nodes: [], edges: [], selectedNodeIds: [], groups: [] },
-  storyboardPlans: { 'storyboard-doc': { plan: initialPlan, committed: false } },
-  storyboardDesignsByDocumentId: {},
+  storyboardDesignsByDocumentId: { 'storyboard-doc': [{ id: 'storyboard-design', documentId: 'storyboard-doc', title: initialPlan.title, plan: initialPlan, committed: false, status: 'draft', sourceDocumentUpdatedAt: 1, createdAt: 1, updatedAt: 1 }] },
 }
 const initialProject = {
   id: projectId,
@@ -86,7 +86,7 @@ async function openProject(instance) {
   // This is a real preload project read after app hydration, not a static DOM probe.
   await instance.win.waitForFunction(async (id) => {
     const record = await window.nomiDesktop.projects.readAsync(id)
-    return record?.id === id && record?.payload?.storyboardPlans?.['storyboard-doc']?.plan?.shots?.length === 3
+    return record?.id === id && record?.payload?.storyboardDesignsByDocumentId?.['storyboard-doc']?.[0]?.plan?.shots?.length === 3
   }, projectId, { timeout: 15_000 })
 }
 
@@ -140,17 +140,17 @@ try {
     select: { kind: 'indexes', indexes: [2] },
     patch: { promptAppend: '雨天', aspectRatio: '9:16' },
   }
-  const result = parseToolResult(await mcp.callToolOrThrow('nomi_canvas_plan', selectedArgs))
+  const result = parseToolResult(await mcp.callToolOrThrow('nomi_canvas_edit', selectedArgs))
   check(mcp.elicitationCount() === 1, 'real MCP user task was explicitly approved through elicitation before the write')
   check(result.json?.operation === 'patch_shots' || result.outcome?.operation === 'patch_shots', 'MCP result identifies the canonical patch_shots operation')
   check((result.json?.changedShotIndexes || result.outcome?.changedShotIndexes || []).join(',') === '2', 'selection injection reaches only row 2')
   check((result.json?.changedFields || result.outcome?.changedFields || []).includes('prompt'), 'canonical result reports the changed prompt field')
 
   const changed = await waitFor('persisted canonical patch', async () => readPersistedProject(), (record) => {
-    const shots = record.payload.storyboardPlans['storyboard-doc'].plan.shots
+    const shots = record.payload.storyboardDesignsByDocumentId['storyboard-doc'][0].plan.shots
     return shots[1].prompt === '选中镜头：跟拍，雨天' && shots[1].params.aspect_ratio === '9:16'
   })
-  const changedShots = changed.payload.storyboardPlans['storyboard-doc'].plan.shots
+  const changedShots = changed.payload.storyboardDesignsByDocumentId['storyboard-doc'][0].plan.shots
   check(changedShots[0].prompt === initialPlan.shots[0].prompt && changedShots[0].subtitle === initialPlan.shots[0].subtitle, 'unselected row 1 remains byte-equivalent in untouched fields')
   check(changedShots[2].prompt === initialPlan.shots[2].prompt, 'unselected row 3 remains unchanged')
   check(changedShots[1].params.quality === 'high' && changedShots[1].subtitle === initialPlan.shots[1].subtitle, 'unmentioned selected-row fields remain unchanged')
@@ -182,7 +182,7 @@ try {
     hasProjectAgentBridge: Boolean(window.nomiDesktop?.projectAgent),
   })))
   const restartReadback = await gui.win.evaluate(async (id) => window.nomiDesktop.projects.readAsync(id), projectId)
-  const restartShots = restartReadback.payload.storyboardPlans['storyboard-doc'].plan.shots
+  const restartShots = restartReadback.payload.storyboardDesignsByDocumentId['storyboard-doc'][0].plan.shots
   check(restartShots[1].prompt === '选中镜头：跟拍，雨天' && restartShots[1].params.aspect_ratio === '9:16', 'cold Electron restart reads back the persisted canonical patch')
   check(readReceipt().lifecycle === 'committed' && readReceipt().proposalId === resultProposalId, 'cold restart keeps the same committed receipt')
   console.log(`\nSTORYBOARD CANONICAL PATCH PASS: ${passed} assertions — MCP canonical entry → Electron bridge → real store/persistence → receipt → restart readback.`)

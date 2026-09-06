@@ -49,11 +49,11 @@ export const SKILL_WRITE_CAPABILITY = {
   inputSchema: skillWriteSemanticInputSchema,
   outputSchema: skillWriteResultSchema,
   effect: "reversible_write",
+  effectClass: "reversible_local",
   execution: { port: "skills", availability: "main_only" },
   exposure: "internal_only",
   requiredScope: "skills:write",
   targetKind: "project",
-  approval: "proposal",
   projections: {
     pi: {
       description: "Save a validated Nomi Skill package to the user's Skill library.",

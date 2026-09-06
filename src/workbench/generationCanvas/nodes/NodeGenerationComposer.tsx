@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { IconFileText } from '../../../vendor/tablerIcons'
 import { NomiLoadingMark, NomiSelect } from '../../../design'
+import type { TranslationKey } from '../../../i18n/translationKey'
 import { cn } from '../../../utils/cn'
 import { fetchUserPrompts, type PromptMediaType, type PromptReferenceImage } from '../../api/promptLibraryApi'
 import PromptEditor from '../../assets/PromptEditor'
@@ -54,17 +55,19 @@ import {
 import { nodeSelectedModelAddress } from './controls/parameterControlModel'
 import { comfyWorkflowTakesPrompt } from '../runner/promptRequirement'
 
-// C5 P2：文本节点的三种生成模式（label 由 composer.append/rewrite/replace 在渲染处翻译）。
-const TEXT_GEN_MODES: { value: TextGenMode; labelKey: string }[] = [
-  { value: 'append', labelKey: 'composer.append' },
-  { value: 'rewrite', labelKey: 'composer.rewrite' },
-  { value: 'replace', labelKey: 'composer.replace' },
-]
-const TEXT_MODE_PLACEHOLDER_KEY: Record<TextGenMode, string> = {
-  append: 'composer.appendPlaceholder',
-  rewrite: 'composer.rewritePlaceholder',
-  replace: 'composer.replacePlaceholder',
-}
+// C5 P2：文本节点的三种生成模式（label 在渲染处翻译）。
+// 存**整键**而非相对片段：编译器替我们校验键存在（satisfies TranslationKey），
+// 且不给死键门岗留下 `generationCommon.` 这种覆盖整命名空间的模板 head（见 i18n/translationKey.ts）。
+const TEXT_GEN_MODES = [
+  { value: 'append', labelKey: 'generationCommon.composer.append' },
+  { value: 'rewrite', labelKey: 'generationCommon.composer.rewrite' },
+  { value: 'replace', labelKey: 'generationCommon.composer.replace' },
+] as const satisfies readonly { value: TextGenMode; labelKey: TranslationKey }[]
+const TEXT_MODE_PLACEHOLDER_KEY = {
+  append: 'generationCommon.composer.appendPlaceholder',
+  rewrite: 'generationCommon.composer.rewritePlaceholder',
+  replace: 'generationCommon.composer.replacePlaceholder',
+} as const satisfies Record<TextGenMode, TranslationKey>
 
 const PROMPT_PICKER_WIDTH = 245
 const PROMPT_PICKER_MIN_WIDTH = 240
@@ -643,7 +646,7 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
               type="button"
               aria-pressed={textGenMode === option.value}
               data-active={textGenMode === option.value ? 'true' : 'false'}
-              title={t(`generationCommon.${option.labelKey}`)}
+              title={t(option.labelKey)}
               onClick={(event) => {
                 event.stopPropagation()
                 updateNode(node.id, { meta: { ...(node.meta || {}), textGenMode: option.value } })
@@ -654,7 +657,7 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
                 'data-[active=true]:bg-nomi-paper data-[active=true]:text-nomi-ink data-[active=true]:shadow-nomi-sm',
               )}
             >
-              {t(`generationCommon.${option.labelKey}`)}
+              {t(option.labelKey)}
             </button>
           ))}
         </div>
@@ -677,7 +680,7 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
           <PromptEditor
             className={cn('min-h-[72px]')}
             value={node.prompt || ''}
-            placeholder={appendMentionHint(isTextKind ? t(`generationCommon.${TEXT_MODE_PLACEHOLDER_KEY[textGenMode]}`) : getGenerationNodePromptPlaceholder(node.kind))}
+            placeholder={appendMentionHint(isTextKind ? t(TEXT_MODE_PLACEHOLDER_KEY[textGenMode]) : getGenerationNodePromptPlaceholder(node.kind))}
             editable={!node.locked}
             onChange={(next) => updateNode(node.id, { prompt: next })}
             onBlur={() => { void persistActiveWorkbenchProjectNow().catch(() => {}) }}

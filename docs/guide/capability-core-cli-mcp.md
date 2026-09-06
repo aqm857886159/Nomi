@@ -130,10 +130,10 @@ node scripts/nomi.mjs generate workspace-xxxx modelscope "Tongyi-MAI/Z-Image-Tur
 
 **② 完成两侧权限并重启对应客户端**：
 
-- Claude Code / Codex：卡片真实握手成功后，确认 `nomi` 的 24 个工具出现。
+- Claude Code / Codex：卡片真实握手成功后，确认 `nomi` 的工具出现（数量以 `tools/list` 为准）。
 - Cursor：先在 Nomi「设置 → 自动化与权限」允许 Cursor 发起草稿；首次在 Cursor 调用 Nomi 时，Cursor 自己仍可能要求你批准本地 MCP。Nomi 不会代替你静默批准 Cursor。
 
-24 个工具（实际总数以 `tools/list` 为准）。15 个按对象归并：`nomi_read`（读侧统一入口，整体只读）、`nomi_canvas_edit`（画布语义写，`operation`=set_node_prompt/create_canvas_nodes/connect_canvas_edges/tidy_canvas，须持项目租约）、`nomi_asset_import`、`nomi_project_create`、`nomi_session_open`、`nomi_run_start` / `nomi_run_control` / `nomi_run_gate`（持久制作 Run）、`nomi_artifact_review`（剧本/分镜审阅+修订）、`nomi_integration`（模型/ComfyUI 接入状态机）、`nomi_integration_manage`（改供应商配置、删供应商/模型、切换单 API 代理）。单次生成的可编辑流程是 `nomi_operation_plan` → `nomi_operation_preview` → `nomi_operation_gate`（付费两相）→ `nomi_operation_execute` → `nomi_operation_control`：先展示/编辑计划，再由 rollout policy 决定何时可提交；未通过阶段检查时会明确返回下一步，不会回退到旧生成器。另外 8 个 M2 语义编辑工具：`nomi_canvas_plan`、`nomi_canvas_maintenance`、`nomi_document_read`、`nomi_document_edit`、`nomi_timeline_read`、`nomi_timeline_edit`、`nomi_export_job`、`nomi_media_query`。
+工具总数**以 `tools/list` 为准**；写在这里的数字由 `nomiMcpProductionRuns.test.ts` 钉住目录派生值（没有测试盯着的地方就别写数字——`docs/integrate-with-your-agent.md` 曾经写着「47 个工具」）。当前是 25 个工具。15 个按对象归并：`nomi_read`（读侧统一入口，整体只读）、`nomi_canvas_edit`（画布语义写，唯一的画布写工具；`operation` 枚举即全部合法动作，须持项目租约。传输 schema 由 canvasWrite.ts 的 Zod 校验器派生，不再手写第二份）、`nomi_asset_import`、`nomi_project_create`、`nomi_session_open`、`nomi_run_start` / `nomi_run_control` / `nomi_run_gate`（持久制作 Run）、`nomi_artifact_review`（剧本/分镜审阅+修订）、`nomi_integration`（模型/ComfyUI 接入状态机）、`nomi_integration_manage`（改供应商配置、删供应商/模型、切换单 API 代理）。单次生成的可编辑流程是 `nomi_operation_plan` → `nomi_operation_preview` → `nomi_operation_gate`（付费两相）→ `nomi_operation_execute` → `nomi_operation_control`：先展示/编辑计划，再由 rollout policy 决定何时可提交；未通过阶段检查时会明确返回下一步，不会回退到旧生成器。另外 9 个 M2 语义编辑工具：`nomi_canvas_maintenance`、`nomi_document_read`、`nomi_document_edit`、`nomi_timeline_read`、`nomi_timeline_edit`、`nomi_export_job`、`nomi_media_query`、`nomi_layout_read` / `nomi_layout_write`（剪辑面五块面板的开关 / 尺寸 / 预设，effectClass = reversible_local：自动放行、一行收据、⌘Z 可撤销）。（`nomi_canvas_plan` 已于 2026-09-05 退役：它与 `nomi_canvas_edit` 在 `tools/list` 里 description / inputSchema / method 字节级相同，宿主没有依据选哪个。）
 
 **③ 直接说人话**，它自己挑工具完成：
 
@@ -195,8 +195,7 @@ Claude Code 会依次调 `nomi_project_create` → `nomi_read`（target=models�
 |---|---|
 | `nomi_session_open` | 打开当前项目的安全会话，拿一个短期项目句柄（写副作用） |
 | `nomi_read` | 读任意只读投影（`target`=canvas/projects/models/generation_context/operation/run/run_events/artifact/artifact_content/integration）；整体只读、免确认 |
-| `nomi_canvas_edit` | 画布语义写（`operation`=set_node_prompt/create_canvas_nodes/connect_canvas_edges/tidy_canvas；须持项目租约，一批一个 undo） |
-| `nomi_canvas_plan` | 画布规划写（分镜方案/排布/站位参考/运镜等 `operation`；须持项目租约） |
+| `nomi_canvas_edit` | 画布语义写，唯一的画布写工具（`operation` 枚举即全部合法动作；须持项目租约，一批一个 undo；渲染层拥有的动作在无 GUI 时回 `capability_unsupported` 并说明下一步） |
 | `nomi_canvas_maintenance` | 删除节点或撤销删除（破坏性操作需确认，undoToken 可撤销） |
 | `nomi_document_read` | 读项目创作文档（只读） |
 | `nomi_document_edit` | 编辑项目创作文档（`operation`=insert/replace/append） |
@@ -230,6 +229,7 @@ Claude Code 会依次调 `nomi_project_create` → `nomi_read`（target=models�
 | `vendor and request are required` | 命令参数不全 | 对照 §5 补齐 vendor / modelKey / intent / 提示词 |
 | `旧配置缺少客户端身份凭据` | 升级前配置只有 stdio 开关，没有本机客户端签名 | 在 Nomi 接入卡对该客户端点「重新接入」 |
 | `untrusted-host` | 当前客户端没有有效签名，或尚未在 Nomi 设置中获准发起草稿 | 重新接入对应客户端，再到「自动化与权限」开启该客户端 |
+| `CONNECTION_CLOSED`（客户端里 nomi 直接连不上，日志无一字提到 Nomi） | 宿主配置还指着旧入口 `scripts/nomi-mcp.mjs`。旧入口在换成「Nomi 二进制 + `NOMI_MCP_STDIO=1`」时被删净，老配置于是启动即退出 | 在 Nomi →「模型接入」→「接入 AI 编程助手」对该客户端重新接一次，再重启客户端。（旧路径现在会在 stderr 打一行中英迁移提示并以退出码 2 结束，不再静默死掉） |
 | `找不到 Nomi 的钥匙串` | 当前启动的是另一份应用身份、隔离测试配置或搬动后的 app，系统钥匙串不会把原凭据交给它 | 关闭该实例并从 `/Applications/Nomi.app` 打开平时使用的 Nomi；除非你明确要新建独立配置，否则不要重新录入或删除原钥匙 |
 
 ---

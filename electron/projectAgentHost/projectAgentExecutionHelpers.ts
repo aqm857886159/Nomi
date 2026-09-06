@@ -49,28 +49,18 @@ export function statusForResponse(response: AgentChatResponse): ProjectAgentStat
   return "done";
 }
 
-export function executionPrompt(snapshot: ProjectAgentHostState, turnId: string, request: AgentChatRequest): string {
-  const prior = snapshot.items
-    .filter((item) => item.threadId === snapshot.activeThreadId && item.turnId !== turnId)
-    .flatMap((item) => {
-      if (item.kind === "user") return [`用户：${item.text}`];
-      if (item.kind === "assistant") return [`Nomi：${item.text}`];
-      return [];
-    })
-    .join("\n");
-  if (!prior) return request.prompt;
-  return `此前同一项目线程：\n${prior}\n\n本轮请求：\n${request.prompt}`;
-}
-
-/** Fold the user's latest steering instruction into the execution prompt (appended, never rewriting a committed effect). */
-export function steeredExecutionPrompt(
-  snapshot: ProjectAgentHostState,
-  turnId: string,
-  request: AgentChatRequest,
-  steering: string | undefined,
-): string {
-  const base = executionPrompt(snapshot, turnId, request);
-  return steering ? `${base}\n用户对当前任务的最新修正：${steering}` : base;
+/**
+ * Fold the user's latest steering instruction into this turn's prompt (appended,
+ * never rewriting a committed effect).
+ *
+ * Prior turns are NOT re-narrated here. A thread's history is the durable Pi
+ * context bound by the Host (`AgentChatRequest.history`), which keeps user
+ * messages, assistant replies, tool calls and their results as structured
+ * messages. Flattening them back into prose lost every tool result, collapsed
+ * the role boundary, and grew without bound.
+ */
+export function steeredExecutionPrompt(request: AgentChatRequest, steering: string | undefined): string {
+  return steering ? `${request.prompt}\n用户对当前任务的最新修正：${steering}` : request.prompt;
 }
 
 /** Steerable turn statuses: only an in-flight or pending turn may take a direction change. */

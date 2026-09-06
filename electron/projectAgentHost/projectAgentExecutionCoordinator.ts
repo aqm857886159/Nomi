@@ -9,9 +9,9 @@ import type {
   ProjectAgentPatch,
   ProjectBinding,
   ProjectAgentExecutionEventPayload,
-  ProposalApprovalRef,
 } from "../shared/projectAgentContracts";
 import { projectAgentPartitionKey, sameProjectAgentBinding } from "./projectAgentIdentity";
+import { createProjectAgentContextBinding } from "./projectAgentContextBinding";
 import type { OfflineProjectAgentHost } from "./projectAgentHost";
 import type { ProjectAgentRepositoryRouter } from "./projectAgentRepositoryRouter";
 import type { PiCanvasReadTransportAdapter } from "../capabilityCore/canvasReadTransportAdapters";
@@ -33,11 +33,11 @@ import type {
 import type { PiSkillReadTransportAdapter } from "../capabilityCore/skillReadTransportAdapters";
 import type { PiProductionRunTransportAdapter } from "../capabilityCore/productionRunTransportAdapters";
 import type { PiGenerationTransportAdapter } from "../capabilityCore/generationTransportAdapters";
+import { isRendererOwnedStoryboardProposal } from "../shared/agentCapabilities/canvasWrite";
 import {
   digest,
   validateSteering,
   turnIsInterruptible,
-  stableJson,
 } from "./projectAgentExecutionHelpers";
 import { projectAgentWorkModeOf } from "../shared/projectAgentContracts";
 import { projectAgentExecutionRisk, projectAgentMayReuseSafeApproval, projectAgentWorkModeDecision } from "./projectAgentExecutionPolicy";
@@ -64,6 +64,11 @@ import { executeProjectAgentTurn, type ProjectAgentTurnExecutionContext } from "
 import { recoverOrphanedExecutions } from "./projectAgentExecutionRecovery";
 import { completeProjectAgentExperience } from "../experience/projectAgentExperience";
 
+import {
+  persistApprovedProposal as persistApprovedProposalIn,
+  persistPreparedProposal as persistPreparedProposalIn,
+  type ProjectAgentProposalPersistenceContext,
+} from "./projectAgentProposalPersistence";
 import { createProjectAgentAdapterResolvers } from "./projectAgentAdapterResolvers";
 export type {
   ProjectAgentSubscription,
@@ -73,6 +78,7 @@ export type {
   ProjectAgentExecutionCoordinatorDeps,
   ProjectAgentExecutionCoordinator,
 } from "./projectAgentExecutionCoordinatorTypes";
+import { logError } from "../logging/logger";
 export { ProjectAgentSubscriptionError } from "./projectAgentExecutionCoordinatorTypes";
 export function createProjectAgentExecutionCoordinator(
   router: ProjectAgentRepositoryRouter,
@@ -103,7 +109,11 @@ export function createProjectAgentExecutionCoordinator(
   const reportInternalError =
     deps.reportInternalError ??
     ((error: unknown, context: Readonly<{ phase: string; turnId: string; message: string }>) => {
-      console.error(`[nomi:project-agent] ${context.phase} failed for ${context.turnId}: ${context.message}`, error);
+      logError("agent", "execution-phase-failed", error, {
+        phase: context.phase,
+        turnId: context.turnId,
+        reason: context.message,
+      });
     });
   const onTurnCompleted = deps.onTurnCompleted ?? completeProjectAgentExperience;
 
@@ -302,7 +312,15 @@ export function createProjectAgentExecutionCoordinator(
       // record; approval/spend remains Host-only and is never copied here.
       workMode: projectAgentWorkModeOf(input.mutation.payload.turn.workMode),
       toolProfile: stickyProfile,
-      history: { kind: "ephemeral" },
+      // The Host owns the thread, so it owns the thread's model-visible history.
+      // Resident capabilities bind the durable per-thread context; single-shot
+      // planning/judging must never inherit a resident transcript.
+      history: input.request.capability === "single-shot"
+        ? { kind: "ephemeral" as const }
+        : {
+          kind: "persistent" as const,
+          binding: createProjectAgentContextBinding(record.binding, input.mutation.payload.turn.threadId),
+        },
       projectId: record.binding.projectId,
       ...(target.kind === "canvas"
         ? { canvasProjectId: record.binding.projectId, selectedNodeIds: [...target.nodeIds] }
@@ -370,102 +388,20 @@ export function createProjectAgentExecutionCoordinator(
     }
     throw lastError ?? new ProjectAgentSubscriptionError("Project Agent mutation could not be committed");
   }
-  async function persistApprovedProposal(
+  const proposalPersistence: ProjectAgentProposalPersistenceContext = { now, queueExecutionMutation, dispatchFresh };
+  const persistApprovedProposal = (
     partition: ExecutionPartition,
     execution: ActiveExecution,
     call: { toolCallId: string; toolName: string; args: unknown },
     decision: AgentChatToolDecision,
-    verified?: Readonly<{
-      approvalId: string;
-      receiptProposalId: string;
-      target: ProjectAgentQueueItem["target"];
-      preconditions: ProjectAgentQueueItem["preconditions"];
-      policyRevision: number;
-      inputHash: string;
-      actionHash: string;
-    }>,
-  ): Promise<ProposalApprovalRef | undefined> {
-    // A silent decision means the current Host-turn policy reused a prior
-    // explicit approval. It still needs its own durable receipt/action hash;
-    // only the renderer prompt is skipped. Persist it as an ordinary
-    // proposal so recovery and audit never lose the write.
-    if (!decision.ok) return;
-    const occurredAt = now();
-    const expiresAt = new Date(new Date(occurredAt).getTime() + 10 * 60_000).toISOString();
-    const approvalId = verified?.approvalId
-      ?? decision.proposalId?.trim()
-      ?? `approval-${digest([execution.turn.executionToken, call.toolCallId])}`;
-    const target = verified?.target ?? execution.queueItem.target;
-    const preconditions = verified?.preconditions ?? execution.queueItem.preconditions;
-    const fallbackActionHash = digest({
-      toolName: call.toolName,
-      args: call.args,
-      target,
-      preconditions,
-    });
-    const ref = Object.freeze({
-      approvalId,
-      receiptProposalId: verified?.receiptProposalId ?? approvalId,
-      threadId: execution.turn.threadId,
-      turnId: execution.turn.turnId,
-      toolCallId: call.toolCallId,
-      policyRevision: verified?.policyRevision ?? execution.queueItem.policyRevision,
-      inputHash: verified?.inputHash ?? digest({ toolName: call.toolName, args: call.args }),
-      actionHash: verified?.actionHash ?? fallbackActionHash,
-      target,
-      preconditions,
-      expiresAt,
-    });
-    const item = Object.freeze({
-      itemId: `proposal-${digest([execution.turn.executionToken, call.toolCallId])}`,
-      threadId: execution.turn.threadId,
-      turnId: execution.turn.turnId,
-      kind: "proposal" as const,
-      approval: ref,
-      status: "proposed" as const,
-      retryable: false,
-      deviated: false,
-      createdAt: occurredAt,
-      updatedAt: occurredAt,
-    });
-    await queueExecutionMutation(execution, async () => {
-      await dispatchFresh(partition, (current) => ({
-        commandId: `proposal-put-${digest([execution.turn.executionToken, call.toolCallId])}`,
-        expectedRevision: current.hostRevision,
-        binding: partition.binding,
-        sender: { kind: "internal", senderId: execution.turn.executionToken },
-        type: "proposal.put",
-        payload: { approval: { ref, lifecycle: "pending" }, item, occurredAt },
-      }));
-      await dispatchFresh(partition, (claimed) => ({
-        commandId: `proposal-claim-${digest([execution.turn.executionToken, call.toolCallId])}`,
-        expectedRevision: claimed.hostRevision,
-        binding: partition.binding,
-        sender: { kind: "internal", senderId: execution.turn.executionToken },
-        type: "proposal.transition",
-        payload: { approvalId, lifecycle: "claimed", occurredAt: now() },
-      }));
-    });
-    const persisted = partition.host
-      .getSnapshot(partition.binding)
-      .proposalApprovals.find((approval) => approval.ref.approvalId === approvalId);
-    if (!persisted || persisted.lifecycle !== "claimed" || stableJson(persisted.ref) !== stableJson(ref)) {
-      throw new Error("approval_persistence_failed");
-    }
-    const committedQueue = partition.host.getSnapshot(partition.binding).queue.find((queueItem) => queueItem.turnId === execution.turn.turnId);
-    if (committedQueue) execution.queueItem = committedQueue;
-    execution.approvedProposalIds ??= [];
-    execution.approvedProposalIds.push(approvalId);
-    return persisted.ref;
-  }
-  async function persistPreparedProposal(partition: ExecutionPartition, execution: ActiveExecution, call: { toolCallId: string; toolName: string; args: unknown }, decision: AgentChatToolDecision, prepared: { invocation: { target: ProjectAgentQueueItem["target"]; preconditions: ProjectAgentQueueItem["preconditions"]; policyRevision: number; inputHash: string; actionHash: string } }): Promise<ProposalApprovalRef> {
-    const persisted = await persistApprovedProposal(partition, execution, call, decision, {
-      approvalId: `approval-${digest([execution.turn.executionToken, call.toolCallId])}`,
-      receiptProposalId: `receipt-${digest([execution.turn.executionToken, call.toolCallId, "receipt"])}`,
-      ...prepared.invocation,
-    });
-    if (!persisted) throw new Error("approval_persistence_failed"); return persisted;
-  }
+  ) => persistApprovedProposalIn(proposalPersistence, partition, execution, call, decision);
+  const persistPreparedProposal = (
+    partition: ExecutionPartition,
+    execution: ActiveExecution,
+    call: { toolCallId: string; toolName: string; args: unknown },
+    decision: AgentChatToolDecision,
+    prepared: { invocation: { target: ProjectAgentQueueItem["target"]; preconditions: ProjectAgentQueueItem["preconditions"]; policyRevision: number; inputHash: string; actionHash: string } },
+  ) => persistPreparedProposalIn(proposalPersistence, partition, execution, call, decision, prepared);
   function cleanupExecution(partition: ExecutionPartition, execution: ActiveExecution, keepRequest: boolean): void {
     execution.pending.clear();
     partition.active.delete(execution.turn.turnId);
@@ -495,7 +431,12 @@ export function createProjectAgentExecutionCoordinator(
       return { ok: false, denied: true, message: workModeDecision.reason ?? "Agent work mode denied this action" };
     }
     const policy = execution.turn.approvalPolicy;
-    if (projectAgentMayReuseSafeApproval(policy, call.toolName, call.args, execution.safeApprovalGranted === true)) {
+    // Renderer-owned storyboard proposals still need the renderer callback to
+    // capture the parsed plan, even though their descriptor effect is a local
+    // reversible write. A silent safe-auto decision would otherwise let the
+    // model continue without populating the planner's returned plan.
+    if (!isRendererOwnedStoryboardProposal(call.toolName, call.args)
+      && projectAgentMayReuseSafeApproval(policy, call.toolName, call.args, execution.safeApprovalGranted === true)) {
       return { ok: true, silent: true };
     }
     const safeReversible = projectAgentExecutionRisk(call.toolName, call.args) === "safe-reversible";
@@ -511,7 +452,7 @@ export function createProjectAgentExecutionCoordinator(
         if (execution.pending.get(call.toolCallId)?.resolve !== settleResolve) return;
         execution.pending.delete(call.toolCallId);
         signal.removeEventListener("abort", abort);
-        if (decision.ok && !decision.silent && safeReversible) execution.safeApprovalGranted = true;
+        if (decision.ok && !decision.silent && safeReversible && decision.approvalScope !== "once") execution.safeApprovalGranted = true;
         resolve(decision);
       };
       const settleResolve = (decision: AgentChatToolDecision): void => {

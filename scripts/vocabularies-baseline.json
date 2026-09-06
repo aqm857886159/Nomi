@@ -1325,6 +1325,21 @@
       "site": "electron/experience/experienceTypes.ts::variable:experienceStatusSchema/z.enum",
       "members": ["active", "demoted", "expired", "quarantined", "shadow", "superseded"],
       "reason": "experienceStatusSchema 是经验候选的唯一生命周期词表：quarantined/shadow/active 表示证据闸门，demoted/expired/superseded 表示不可再用于提示词的终态；策略、投影和回放都必须从此 owner 派生，不能与 Agent turn 或任务状态混用。"
+    },
+    {
+      "site": "electron/shared/contracts/diagnostics.ts::type:DiagnosticsExportResult/property:reason/type-union",
+      "members": ["canceled", "failed"],
+      "reason": "诊断包导出失败时的两种收场，只服务设置页那一格的文案分岔：canceled = 用户在系统保存对话框里点了取消（不是错误，界面上说「已取消」就好），failed = 写盘真的没成（界面上要说「请再试一次」）。它描述的是一次本机保存对话框的结果，不是任务/作业/运行的生命周期，所以不能复用 GenerationProviderTaskState、ProductionJobStatus 或 TelemetryResult——那几个词表一旦被借来表达「用户点了取消」，业务状态机的成员含义就被稀释了。成员由 Electron showSaveDialog 的返回形状决定（canceled 布尔 + 写盘是否抛），不由我们扩展。"
+    },
+    {
+      "site": "electron/shared/contracts/telemetry.ts::type:TelemetryStatus/type-union",
+      "members": ["configured", "disabled", "unconfigured"],
+      "reason": "TelemetryStatus 是本地隐私设置视图的三态投影，描述 endpoint 配置与用户同意后的展示状态；它不是任务或连接生命周期，复用已有状态词表会把设置页的可见合同与业务状态混淆。"
+    },
+    {
+      "site": "electron/shared/contracts/telemetry.ts::variable:TELEMETRY_RESULT_VALUES/as-const",
+      "members": ["cancel", "failure", "success"],
+      "reason": "TelemetryResult 是遥测出站协议唯一允许的结果维度，跨主进程更新、生成与导出入口共用同一中立合同；它描述一次遥测事件结算，不等同于供应商任务、导出作业或 UI 状态。"
     }
   ],
   "debt": [

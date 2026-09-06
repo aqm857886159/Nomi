@@ -25,6 +25,8 @@ function exactTarget(actual: unknown, expected: Record<string, unknown>): void {
 }
 
 export async function executeAssetReadTarget(request: Readonly<{
+  /** 已校验的 lease 项目（MCP 路）。缺省 = 应用内调用者，落回 GUI 当前项目。 */
+  projectId?: string
   input: unknown
   target: unknown
 }>): Promise<AssetReadResult> {
@@ -35,17 +37,25 @@ export async function executeAssetReadTarget(request: Readonly<{
     kind: 'asset',
     assetIds: 'assetId' in input ? [input.assetId] : [],
   })
-  return applyMediaToolCall(input.operation, input) as Promise<AssetReadResult>
+  return applyMediaToolCall(
+    input.operation,
+    request.projectId ? { ...input, projectId: request.projectId } : input,
+  ) as Promise<AssetReadResult>
 }
 
 export async function executeExportReadTarget(request: Readonly<{
+  /** 已校验的 lease 项目（MCP 路）。缺省 = 应用内调用者，落回 GUI 当前项目。 */
+  projectId?: string
   input: unknown
   target: unknown
 }>): Promise<ExportReadResult> {
   const parsed = exportReadSemanticInputSchema.safeParse(request.input)
   if (!parsed.success) throw new SurfacePortWireError('capability_input_invalid')
   exactTarget(request.target, { kind: 'export', jobId: parsed.data.jobId })
-  return applyExportToolCall(parsed.data.operation, parsed.data) as Promise<ExportReadResult>
+  return applyExportToolCall(
+    parsed.data.operation,
+    request.projectId ? { ...parsed.data, projectId: request.projectId } : parsed.data,
+  ) as Promise<ExportReadResult>
 }
 
 export async function executeExportWriteTarget(request: Readonly<{

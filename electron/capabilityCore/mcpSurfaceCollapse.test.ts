@@ -33,9 +33,13 @@ const COLLAPSED_TOOL_NAMES = [
 // M2 语义编辑（非本次 42→15 收敛的一员；此处只断言「原样保留、不被误删」）。并线裁定（2026-09-02）：
 // M2 canvas/document 语义面 4 个透传工具随并线加入（canvas_read 收进 nomi_read target=canvas、canvas 写即 T3 本体，
 // 均不在透传里，见 mcpToolCatalog.ts）。
+// nomi_canvas_plan 于 2026-09-05 退役：它与 nomi_canvas_edit 在 tools/list 里 description/inputSchema/
+// method 字节级相同，只有名字不同（P1 并行版发生在公开面上）；画布语义写只剩 T3 一个名字，operation 枚举
+// 即全部合法动作（含原先只在 plan 上放行的 5 个分镜/站位/运镜动作）。
 const M2_EDITING_TOOL_NAMES = [
-  'nomi_canvas_plan', 'nomi_canvas_maintenance', 'nomi_document_read', 'nomi_document_edit',
+  'nomi_canvas_maintenance', 'nomi_document_read', 'nomi_document_edit',
   'nomi_timeline_read', 'nomi_timeline_edit', 'nomi_export_job', 'nomi_media_query',
+  'nomi_layout_read', 'nomi_layout_write',
 ]
 const NEW_TOOL_NAMES = [...COLLAPSED_TOOL_NAMES, ...M2_EDITING_TOOL_NAMES]
 
@@ -66,12 +70,13 @@ describe('MCP surface collapse 42→15 · P1 retirement', () => {
     expect(MCP_TOOL_RESOLVER.resolve('nomi_generate')).toBeUndefined()
   })
 
-  it('exposes exactly the 15 collapsed tools + 4 preserved M2 editing tools', () => {
+  it('exposes exactly the 15 collapsed tools + the preserved M2 editing tools', () => {
     const listed = MCP_TOOL_RESOLVER.list()
     expect(listed.map((t) => t.name)).toEqual(NEW_TOOL_NAMES)
-    // 收敛的 15 个带人读 title；M2 语义工具（含 T3 槽位的语义 canvas_edit）沿用已发布形态（暂无 title，续裁时补）。
-    for (const t of listed.filter((t) => COLLAPSED_TOOL_NAMES.includes(t.name) && t.name !== 'nomi_canvas_edit')) {
+    // 所有公开工具都必须带人读 title；M2 语义工具的中英文标题由目录层补齐。
+    for (const t of listed) {
       expect(typeof (t as { title?: unknown }).title, `${t.name} carries a title`).toBe('string')
+      expect((t as { title: string }).title.length, `${t.name} title is non-empty`).toBeGreaterThan(0)
     }
   })
 

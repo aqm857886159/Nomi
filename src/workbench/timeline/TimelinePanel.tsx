@@ -2,23 +2,20 @@ import React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   IconArrowBackUp,
-  IconArrowLeft,
-  IconArrowRight,
   IconArrowForwardUp,
-  IconChevronDown,
   IconCopy,
-  IconCut,
-  IconMinus,
-  IconPlus,
-  IconRefresh,
-  IconSparkles,
   IconTrash,
   IconWand,
+  IconMagnet,
+  IconZoomOut,
+  IconViewportWide,
+  IconZoomIn,
+  IconScissors,
 } from '@tabler/icons-react'
 import { useWorkbenchStore } from '../workbenchStore'
-import { WorkbenchButton, WorkbenchIconButton } from '../../design'
+import { WorkbenchIconButton } from '../../design'
 import { cn } from '../../utils/cn'
-import { computeTimelineDuration } from './timelineMath'
+import { computeTimelineDuration, resolveTimelineFitScale } from './timelineMath'
 import TimelineTrack from './TimelineTrack'
 import TimelineTextTrack from './TimelineTextTrack'
 import { TimelineSecondaryAddRow } from './TimelineSecondaryAddRow'
@@ -28,6 +25,10 @@ import { toast } from '../../ui/toast'
 import { reportAdoptionOutcome } from '../adoption/adoptionReceipt'
 import { dispatchTimelineShortcut } from './timelineShortcuts'
 import { groupTimelineTransitionFeedbackByTrack } from './timelineVisualFeedback'
+import { TimelineContextMenu, type TimelineContextTarget } from './TimelineContextMenu'
+import { TimelineShortcutsDialog } from './TimelineShortcutsDialog'
+import { openTimelineTransitionPicker } from './openTransitionPicker'
+import { ControlGroup } from '../preview/PreviewControlBar'
 
 const WHEEL_ZOOM_FACTOR = 1.24
 
@@ -52,13 +53,7 @@ function resolveTimelineRulerEndFrame(params: {
   fps: number
 }): number {
   const fps = Math.max(1, params.fps)
-  const minEditableFrame = fps * 120
-  const trailingFrame = fps * 60
-  return Math.max(
-    minEditableFrame,
-    params.durationFrame + trailingFrame,
-    params.playheadFrame + trailingFrame,
-  )
+  return Math.max(fps * 10, params.durationFrame, params.playheadFrame)
 }
 
 function buildTimelineRulerTicks(endFrame: number, fps: number, scale: number): Array<{ frame: number; label: string }> {
@@ -83,7 +78,7 @@ type TimelinePanelProps = {
 const CLIP_TOOL_CLASS =
   'workbench-timeline__tool w-auto min-w-[30px] h-[var(--workbench-control-size)] px-2 inline-grid place-items-center border-0 rounded-[var(--workbench-control-radius)] bg-transparent text-[var(--workbench-muted)] shadow-none cursor-pointer enabled:hover:bg-[var(--workbench-hover)] disabled:opacity-40'
 
-export default function TimelinePanel({ density = 'compact', regionLabel, actionLabelPrefix, showTextTrack = false, onCollapse }: TimelinePanelProps): JSX.Element {
+export default function TimelinePanel({ density = 'compact', regionLabel, actionLabelPrefix, showTextTrack = false, onCollapse: _onCollapse }: TimelinePanelProps): JSX.Element {
   const { t } = useTranslation()
   const timeline = useWorkbenchStore((state) => state.timeline)
   const selectedClipIds = useWorkbenchStore((state) => state.selectedTimelineClipIds)
@@ -104,15 +99,12 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
   const primaryClipId = selectedClipIds.length > 0 ? selectedClipIds[selectedClipIds.length - 1] : ''
   const hasSelection = selectedClipIds.length > 0
   const activeStoryboardId = useWorkbenchStore((state) => state.activeStoryboardId)
-  // 选中单个媒体 clip（有源节点）→ 可「就地重生成」。文字 clip 在 textClips、不在 tracks，天然不命中。
-  const primaryMediaClip = React.useMemo(() => {
-    if (selectedClipIds.length !== 1 || !primaryClipId) return null
-    for (const track of timeline.tracks) {
-      const found = track.clips.find((clip) => clip.id === primaryClipId)
-      if (found) return found.sourceNodeId ? found : null
-    }
-    return null
-  }, [selectedClipIds, primaryClipId, timeline.tracks])
+  // 吸附归 store（见 editingPanelLayoutSlice 里的说明）：两个 TimelinePanel 同时挂载，
+  // 局部 state 会让键盘和工具条各翻各的。
+  const snapEnabled = useWorkbenchStore((state) => state.timelineSnapEnabled)
+  const setSnapEnabled = useWorkbenchStore((state) => state.setTimelineSnapEnabled)
+  const [contextMenu, setContextMenu] = React.useState<{ target: TimelineContextTarget; x: number; y: number } | null>(null)
+  const [shortcutsOpen, setShortcutsOpen] = React.useState(false)
 
   // AI 拼片仍保留在时间轴工具栏；移除空态里的大号「一键拼成初稿」促销条，
   // 避免在用户尚未准备好时抢占工作区。Agent 后续可在对话中按状态给出建议。
@@ -155,8 +147,28 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
     () => buildTimelineRulerTicks(rulerEndFrame, timeline.fps, timeline.scale),
     [rulerEndFrame, timeline.fps, timeline.scale],
   )
-  const minScrollableWidth = 2400
-  const rulerWidth = Math.max(frameToPixel(rulerEndFrame, timeline.scale), minScrollableWidth)
+  const tracksRef = React.useRef<HTMLDivElement | null>(null)
+  const [tracksViewportWidth, setTracksViewportWidth] = React.useState(0)
+  const contentViewportWidth = tracksViewportWidth
+  const rulerWidth = Math.max(frameToPixel(rulerEndFrame, timeline.scale), contentViewportWidth)
+  React.useEffect(() => {
+    const element = tracksRef.current
+    if (!element) return
+    const update = () => {
+      const labelWidth = Number.parseFloat(getComputedStyle(element).getPropertyValue('--workbench-timeline-label-width')) || 0
+      setTracksViewportWidth(Math.max(0, element.clientWidth - labelWidth))
+    }
+    update()
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(update)
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [])
+  React.useEffect(() => {
+    if (durationFrame <= 0 || contentViewportWidth <= 0) return
+    const fittedScale = resolveTimelineFitScale(durationFrame, contentViewportWidth)
+    if (Math.abs(fittedScale - timeline.scale) > 0.001) setTimelineZoom(fittedScale)
+  }, [contentViewportWidth, durationFrame, setTimelineZoom, timeline.scale])
   React.useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       // 预览(full)与生成(compact)两个 TimelinePanel 因 keep-alive 同时挂载，各注册一个 window keydown。
@@ -178,6 +190,23 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
           case 'split-primary': if (primaryClipId) splitTimelineClip(primaryClipId, timeline.playheadFrame); break
           case 'duplicate-primary': if (primaryClipId) duplicateTimelineClip(primaryClipId); break
           case 'nudge-primary': if (primaryClipId) nudgeTimelineClip(primaryClipId, action.delta); break
+          case 'toggle-snap': setSnapEnabled((enabled) => !enabled); break
+          case 'zoom':
+            setTimelineZoom(action.direction === 'fit'
+              ? resolveTimelineFitScale(durationFrame, contentViewportWidth)
+              : action.direction === 'in' ? timeline.scale * 1.25 : timeline.scale / 1.25)
+            break
+          case 'ripple-remove': if (primaryClipId) useWorkbenchStore.getState().removeTimelineClips([primaryClipId], true); break
+          case 'remove-left': {
+            const track = timeline.tracks.find((item) => item.clips.some((clip) => clip.id === primaryClipId))
+            useWorkbenchStore.getState().removeTimelineClips((track?.clips ?? []).filter((clip) => clip.endFrame <= timeline.playheadFrame).map((clip) => clip.id), true)
+            break
+          }
+          case 'remove-right': {
+            const track = timeline.tracks.find((item) => item.clips.some((clip) => clip.id === primaryClipId))
+            useWorkbenchStore.getState().removeTimelineClips((track?.clips ?? []).filter((clip) => clip.startFrame >= timeline.playheadFrame).map((clip) => clip.id), true)
+            break
+          }
         }
       })
     }
@@ -195,6 +224,12 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
     setTimelinePlayhead,
     splitMode,
     splitTimelineClip,
+    setSnapEnabled,
+    setTimelineZoom,
+    contentViewportWidth,
+    durationFrame,
+    timeline.scale,
+    timeline.tracks,
     timeline.playheadFrame,
   ])
 
@@ -219,7 +254,7 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
     const applyAt = (clientX: number, shiftKey: boolean) => {
       const store = useWorkbenchStore.getState()
       let frame = frameFromClientX(clientX)
-      if (!shiftKey) {
+      if (!shiftKey && snapEnabled) {
         const points = buildSnapPoints(store.timeline, { includePlayhead: false })
         const snap = resolveSnap(frame, points, pixelThresholdToFrames(store.timeline.scale))
         if (snap) {
@@ -244,15 +279,54 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
     }
     window.addEventListener('pointermove', handlePointerMove)
     window.addEventListener('pointerup', handlePointerUp)
-  }, [frameFromClientX])
+  }, [frameFromClientX, snapEnabled])
+
+  React.useEffect(() => {
+    const onHelp = (event: KeyboardEvent) => {
+      if (event.key === '?' || (event.key === '/' && event.shiftKey)) {
+        event.preventDefault()
+        setShortcutsOpen((open) => !open)
+      }
+      if (event.key === 'Escape') { setContextMenu(null); setShortcutsOpen(false) }
+    }
+    window.addEventListener('keydown', onHelp)
+    return () => window.removeEventListener('keydown', onHelp)
+  }, [])
+
+  const handleContextMenu = React.useCallback((event: React.MouseEvent<HTMLElement>) => {
+    event.preventDefault()
+    const element = event.target as HTMLElement
+    const clip = element.closest<HTMLElement>('[data-clip-id]')
+    const text = element.closest<HTMLElement>('[data-text-clip-id]')
+    const transition = element.closest<HTMLElement>('[data-timeline-transition]')
+    const track = element.closest<HTMLElement>('[data-track-id]')
+    const target: TimelineContextTarget | null = clip && track
+      ? { kind: 'clip', clipId: clip.dataset.clipId ?? '', trackId: track.dataset.trackId ?? '' }
+      : text
+        ? { kind: 'text', textClipId: text.dataset.textClipId ?? '' }
+        : transition
+          ? { kind: 'transition', fromClipId: transition.dataset.transitionFrom ?? '', toClipId: transition.dataset.transitionTo ?? '' }
+          : track
+            ? { kind: 'track', trackId: track.dataset.trackId ?? '' }
+            : null
+    if (target) setContextMenu({ target, x: event.clientX, y: event.clientY })
+  }, [])
+  const handleRegenerate = React.useCallback((clipId: string) => {
+    const clip = useWorkbenchStore.getState().timeline.tracks.flatMap((track) => track.clips).find((item) => item.id === clipId)
+    if (!clip?.sourceNodeId) return
+    void import('../generationCanvas/runner/generationRunController').then(({ regenerateNodeInPlace }) => regenerateNodeInPlace(clip.sourceNodeId))
+  }, [])
+  const handleChangeTransition = React.useCallback((fromClipId: string, toClipId: string) => {
+    openTimelineTransitionPicker(fromClipId, toClipId)
+  }, [])
 
   return (
     <section
       className={cn(
         'workbench-timeline',
-        'relative min-w-0 min-h-0 grid grid-rows-[minmax(0,1fr)]',
+        'relative min-w-0 min-h-0 h-full grid grid-rows-[minmax(0,1fr)]',
         'bg-[var(--workbench-surface-solid)] border-t border-[var(--workbench-border)]',
-        'shadow-[0_-1px_0_var(--workbench-bevel)]',
+        'shadow-[0_-1px_0_var(--workbench-bevel)] overflow-hidden',
         density === 'full' ? 'px-[18px] pt-[10px] pb-5' : 'px-4 pt-3 pb-4',
       )}
       data-density={density}
@@ -261,89 +335,52 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
     >
       <div className={cn(
         'workbench-timeline__controls',
-        'absolute top-[10px] right-4 z-[8] inline-flex items-center gap-0.5',
-        'bg-[color-mix(in_oklch,var(--nomi-paper)_84%,transparent)]',
-        'rounded-full backdrop-blur-[10px]',
-      )}>
-        <div className={cn(
-          'workbench-timeline__right',
-          'inline-flex items-center gap-0.5 min-w-0 p-0',
-        )}>
-          {/* 单片工具（重新生成 / 前后微调 / 复制）：**恒常渲染**，没选中片段时禁用并说明原因。
-              改之前是 `hasSelection ? … : null`——一选中整条 pill 就变长、右侧按钮全体位移，布局抖一下
-              （设计系统 §1.5 硬规则③：情境控件不许挤常驻条）。
-              想过搬到片段自己头上做浮条，实测走不通：轨道为了横向滚动用了 overflow-x:auto，
-              按 CSS 规范这会把 overflow-y 也算成 auto，浮在片段上方的东西会被整条裁掉、点不到；
-              而塞进片段内部又违反「动作不许压在内容上」。恒常渲染 + 禁用带原因同样消掉抖动，
-              还顺带满足 §1.6 契约 C1/C4，且和旁边那颗「删除选中」的既有做法一致。 */}
-          <span title={hasSelection ? undefined : t('timelineEditor.clipToolsHint')} style={{ display: 'contents' }}>
-            <div className={cn('workbench-timeline__clip-tools', 'inline-flex items-center gap-0.5')} aria-label={t('timelineEditor.selectedClipActions')}>
-              <WorkbenchIconButton
-                className={cn('workbench-timeline__tool', 'w-auto min-w-[30px] h-[var(--workbench-control-size)] px-2 inline-grid place-items-center border-0 rounded-[var(--workbench-control-radius)] bg-transparent text-[var(--workbench-accent)] shadow-none cursor-pointer enabled:hover:bg-[var(--workbench-accent-soft)] disabled:opacity-40')}
-                label={t('timelineEditor.regenerate')}
-                icon={<IconSparkles size={14} />}
-                disabled={!primaryMediaClip}
-                onClick={() => {
-                  if (!primaryMediaClip) return
-                  void import('../generationCanvas/runner/generationRunController')
-                    .then(({ regenerateNodeInPlace }) => regenerateNodeInPlace(primaryMediaClip.sourceNodeId))
-                }}
-              />
-              <WorkbenchIconButton className={CLIP_TOOL_CLASS} label={t('timelineEditor.nudgeEarlier')} icon={<IconArrowLeft size={14} />} disabled={!primaryClipId} onClick={() => nudgeTimelineClip(primaryClipId, -1)} />
-              <WorkbenchIconButton className={CLIP_TOOL_CLASS} label={t('timelineEditor.duplicateClip')} icon={<IconCopy size={14} />} disabled={!primaryClipId} onClick={() => duplicateTimelineClip(primaryClipId)} />
-              <WorkbenchIconButton className={CLIP_TOOL_CLASS} label={t('timelineEditor.nudgeLater')} icon={<IconArrowRight size={14} />} disabled={!primaryClipId} onClick={() => nudgeTimelineClip(primaryClipId, 1)} />
-            </div>
-          </span>
-          {/* C2 一键拼片：把画布镜头按镜序排进时间轴（accent，主操作权重）。 */}
-          <WorkbenchIconButton
-            className={cn('workbench-timeline__tool', 'w-auto min-w-[30px] h-[var(--workbench-control-size)] px-2 inline-grid place-items-center border-0 rounded-[var(--workbench-control-radius)] bg-transparent text-[var(--workbench-accent)] shadow-none cursor-pointer hover:bg-[var(--workbench-accent-soft)]')}
-            label={t('timelineEditor.aiArrange')}
-            title={t('timelineEditor.aiArrangeHint')}
-            icon={<IconWand size={14} />}
-            onClick={handleAiArrange}
-          />
-          {/* 剪刀模式：常驻切换。进入后悬停片段出切点线、点击在光标处分割（TimelineClip 处理）；再点 / Esc 退出。 */}
-          <WorkbenchIconButton
-            className={cn(
-              'workbench-timeline__tool', 'w-auto min-w-[30px] h-[var(--workbench-control-size)] px-2 inline-grid place-items-center border-0 rounded-[var(--workbench-control-radius)] shadow-none cursor-pointer',
-              splitMode
-                ? 'bg-[var(--workbench-accent-soft)] text-[var(--workbench-accent)] hover:bg-[var(--workbench-accent-soft)]'
-                : 'bg-transparent text-[var(--workbench-muted)] hover:bg-[var(--workbench-hover)]',
-            )}
-            label={splitMode ? t('timelineEditor.exitSplitMode') : t('timelineEditor.splitMode')}
-            title={splitMode ? t('timelineEditor.splitModeActiveHint') : t('timelineEditor.splitModeHint')}
-            icon={<IconCut size={14} />}
-            onClick={() => setTimelineSplitMode(!splitMode)}
-          />
-          {canRedo ? (
-            <WorkbenchIconButton className={cn('workbench-timeline__tool', 'w-auto min-w-[30px] h-[var(--workbench-control-size)] px-2 inline-grid place-items-center border-0 rounded-[var(--workbench-control-radius)] bg-transparent text-[var(--workbench-muted)] shadow-none cursor-pointer hover:bg-[var(--workbench-hover)]')} label={t('timelineEditor.redo')} title={t('timelineEditor.redoShortcut')} icon={<IconArrowForwardUp size={14} />} onClick={() => redoTimeline()} />
-          ) : null}
-          {canUndo ? (
-            <WorkbenchIconButton className={cn('workbench-timeline__tool', 'w-auto min-w-[30px] h-[var(--workbench-control-size)] px-2 inline-grid place-items-center border-0 rounded-[var(--workbench-control-radius)] bg-transparent text-[var(--workbench-muted)] shadow-none cursor-pointer hover:bg-[var(--workbench-hover)]')} label={t('timelineEditor.undo')} title={t('timelineEditor.undoShortcut')} icon={<IconArrowBackUp size={14} />} onClick={() => undoTimeline()} />
-          ) : null}
-          <WorkbenchIconButton className={cn('workbench-timeline__tool', 'w-auto min-w-[30px] h-[var(--workbench-control-size)] px-2 inline-grid place-items-center border-0 rounded-[var(--workbench-control-radius)] bg-transparent text-[var(--workbench-muted)] shadow-none cursor-pointer hover:bg-[var(--workbench-hover)]')} label={t('timelineEditor.zoomOut', { prefix: actionLabelPrefix })} icon={<IconMinus size={14} />} onClick={() => setTimelineZoom(timeline.scale / 1.25)} />
-          <span className="text-micro opacity-60 min-w-[32px] text-center">{Math.round(timeline.scale * 100)}%</span>
-          <WorkbenchIconButton className={cn('workbench-timeline__tool', 'w-auto min-w-[30px] h-[var(--workbench-control-size)] px-2 inline-grid place-items-center border-0 rounded-[var(--workbench-control-radius)] bg-transparent text-[var(--workbench-muted)] shadow-none cursor-pointer hover:bg-[var(--workbench-hover)]')} label={t('timelineEditor.resetZoom')} icon={<IconRefresh size={14} />} onClick={() => setTimelineZoom(1)} />
-          <WorkbenchIconButton className={cn('workbench-timeline__tool', 'w-auto min-w-[30px] h-[var(--workbench-control-size)] px-2 inline-grid place-items-center border-0 rounded-[var(--workbench-control-radius)] bg-transparent text-[var(--workbench-muted)] shadow-none cursor-pointer hover:bg-[var(--workbench-hover)]')} label={t('timelineEditor.zoomIn', { prefix: actionLabelPrefix })} icon={<IconPlus size={14} />} onClick={() => setTimelineZoom(timeline.scale * 1.25)} />
-          <WorkbenchIconButton className={cn('workbench-timeline__tool', 'w-auto min-w-[30px] h-[var(--workbench-control-size)] px-2 inline-grid place-items-center border-0 rounded-[var(--workbench-control-radius)] bg-transparent text-[var(--workbench-muted)] shadow-none cursor-pointer hover:bg-[var(--workbench-hover)]')} label={t('timelineEditor.deleteSelected', { prefix: actionLabelPrefix })} icon={<IconTrash size={14} />} disabled={!hasSelection} onClick={() => removeSelectedTimelineClips()} />
-          {onCollapse ? (
-            <WorkbenchIconButton
-              className={cn('workbench-timeline__tool', 'w-auto min-w-[30px] h-[var(--workbench-control-size)] px-2 inline-grid place-items-center border-0 rounded-[var(--workbench-control-radius)] bg-transparent text-[var(--workbench-muted)] shadow-none cursor-pointer hover:bg-[var(--workbench-hover)]')}
-              label={t('timelineEditor.collapse', { prefix: actionLabelPrefix })}
-              icon={<IconChevronDown size={14} />}
-              onClick={onCollapse}
-            />
-          ) : null}
+        'absolute top-[10px] right-4 z-[8] inline-flex items-center gap-2',
+        'bg-[color-mix(in_oklch,var(--nomi-paper)_84%,transparent)] rounded-[var(--nomi-radius-lg)] p-1 backdrop-blur-[10px]',
+      )} role="toolbar" aria-label={t('timelineEditor.toolbarLabel')}>
+        <div className="workbench-timeline__clip-tools">
+        <ControlGroup label={t('timelineEditor.toolbar.thisSegment')} tone="clip" disabled={!hasSelection} disabledReason={t('timelineEditor.clipToolsHint')}>
+          <WorkbenchIconButton className={CLIP_TOOL_CLASS} label={t('timelineEditor.context.split')} title={t('timelineEditor.context.splitShortcut')} icon={<IconScissors size={14} />} disabled={!primaryClipId} onClick={() => primaryClipId && splitTimelineClip(primaryClipId, timeline.playheadFrame)} />
+          <WorkbenchIconButton className={CLIP_TOOL_CLASS} label={t('timelineEditor.context.duplicate')} title={t('timelineEditor.context.duplicateShortcut')} icon={<IconCopy size={14} />} disabled={!primaryClipId} onClick={() => duplicateTimelineClip(primaryClipId)} />
+          <WorkbenchIconButton className={CLIP_TOOL_CLASS} label={t('timelineEditor.context.delete')} title={t('timelineEditor.context.deleteShortcut')} icon={<IconTrash size={14} />} disabled={!hasSelection} onClick={() => removeSelectedTimelineClips()} />
+        </ControlGroup>
         </div>
+        <ControlGroup label={t('timelineEditor.toolbar.wholeFilm')}>
+          <WorkbenchIconButton className={CLIP_TOOL_CLASS} label={t('timelineEditor.aiArrange')} title={t('timelineEditor.aiArrangeShortcut')} icon={<IconWand size={14} />} onClick={handleAiArrange} />
+          <WorkbenchIconButton className={CLIP_TOOL_CLASS} label={t('timelineEditor.undo')} title={t('timelineEditor.undoShortcut')} icon={<IconArrowBackUp size={14} />} disabled={!canUndo} onClick={() => undoTimeline()} />
+          <WorkbenchIconButton className={CLIP_TOOL_CLASS} label={t('timelineEditor.redo')} title={t('timelineEditor.redoShortcut')} icon={<IconArrowForwardUp size={14} />} disabled={!canRedo} onClick={() => redoTimeline()} />
+        </ControlGroup>
+        <ControlGroup label={t('timelineEditor.toolbar.view')}>
+          <WorkbenchIconButton className={cn(CLIP_TOOL_CLASS, snapEnabled && 'bg-[var(--workbench-accent-soft)] text-[var(--workbench-accent)]')} label={t('timelineEditor.snapToggle')} title={t('timelineEditor.snapShortcut')} icon={<IconMagnet size={14} />} onClick={() => setSnapEnabled((value) => !value)} />
+          <WorkbenchIconButton className={CLIP_TOOL_CLASS} label={t('timelineEditor.zoomOut', { prefix: actionLabelPrefix })} title={t('timelineEditor.zoomOutShortcut')} icon={<IconZoomOut size={14} />} onClick={() => setTimelineZoom(timeline.scale / 1.25)} />
+          <WorkbenchIconButton className={CLIP_TOOL_CLASS} label={t('timelineEditor.resetZoom')} title={t('timelineEditor.fitShortcut')} icon={<IconViewportWide size={14} />} onClick={() => setTimelineZoom(resolveTimelineFitScale(durationFrame, contentViewportWidth))} />
+          <WorkbenchIconButton className={CLIP_TOOL_CLASS} label={t('timelineEditor.zoomIn', { prefix: actionLabelPrefix })} title={t('timelineEditor.zoomInShortcut')} icon={<IconZoomIn size={14} />} onClick={() => setTimelineZoom(timeline.scale * 1.25)} />
+          <span className="min-w-8 text-center text-micro tabular-nums opacity-60">{Math.round(timeline.scale * 100)}%</span>
+        </ControlGroup>
+        <button type="button" className="grid h-7 w-7 place-items-center rounded-[var(--nomi-radius-sm)] text-micro text-[var(--workbench-muted)] hover:bg-[var(--workbench-hover)]" aria-label={t('timelineEditor.shortcuts.open')} title={t('timelineEditor.shortcuts.open')} onClick={() => setShortcutsOpen(true)}>?</button>
       </div>
       <div
         className={cn(
           'workbench-timeline__tracks',
           'relative min-w-0 min-h-0 block bg-transparent',
-          'overflow-x-auto overflow-y-hidden pb-2',
+          'overflow-x-auto overflow-y-auto pb-2',
           'scrollbar-thin scrollbar-color-transparent',
           'hover:scrollbar-color-[color-mix(in_srgb,var(--nomi-ink)_22%,transparent)]',
         )}
+        ref={tracksRef}
+        onContextMenu={handleContextMenu}
+        /*
+         * 点轨道区空白处取消选中 —— 全站唯一一条「回到整片属性」的路。
+         * 在这之前，一旦选中过任何片段，属性面板就永远停在那一段上：画幅、导出分辨率、
+         * 配乐音量（合同 §2.3 的整片态）再也回不去了，除非把片段删掉或重开项目。
+         * 这是所有 NLE 的通用手势，不需要额外的「取消选中」按钮。
+         */
+        onPointerDown={(event) => {
+          const target = event.target as HTMLElement
+          if (target.closest('[data-clip-id], [data-text-clip-id], [data-timeline-transition], button, [role="menuitem"], [role="dialog"], .workbench-timeline__ruler-content')) return
+          useWorkbenchStore.getState().setTimelineSelection([])
+          useWorkbenchStore.getState().selectTimelineTextClip('')
+        }}
         onWheel={(e) => {
           if (!e.ctrlKey && !e.metaKey) return
           e.preventDefault()
@@ -461,17 +498,18 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
         {(() => {
           const audioTrack = timeline.tracks.find((t) => t.type === 'audio')
           const audioHasClips = (audioTrack?.clips.length ?? 0) > 0
-          const textHasClips = (timeline.textClips?.length ?? 0) > 0
           const showAudioChip = Boolean(audioTrack) && !audioHasClips
-          const showTextChip = showTextTrack && !textHasClips
+          const showTextChip = showTextTrack
           return (
             <>
               {audioTrack && audioHasClips ? <TimelineTrack key={audioTrack.id} track={audioTrack} transitionFeedback={transitionFeedbackByTrack.get(audioTrack.id)} variant="secondary" /> : null}
-              {showTextTrack && textHasClips ? <TimelineTextTrack /> : null}
+              {showTextTrack ? <TimelineTextTrack /> : null}
               {showAudioChip || showTextChip ? <TimelineSecondaryAddRow showAudio={showAudioChip} showText={showTextChip} /> : null}
             </>
           )
         })()}
+        {contextMenu ? <TimelineContextMenu target={contextMenu.target} x={contextMenu.x} y={contextMenu.y} onClose={() => setContextMenu(null)} onRegenerate={handleRegenerate} onChangeTransition={handleChangeTransition} onArrange={handleAiArrange} /> : null}
+        {shortcutsOpen ? <TimelineShortcutsDialog onClose={() => setShortcutsOpen(false)} /> : null}
       </div>
     </section>
   )

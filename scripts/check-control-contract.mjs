@@ -22,6 +22,17 @@
 //      另一个模式自有它的处理，不是静默失效
 //   5. 同一元素上没有 disabled / aria-disabled
 //
+// 规则二（2026-09-06 加）：**空 handler**。`onClick={() => undefined}` / `() => {}` / `() => null`
+// 画得像能点、点下去恒定什么都不做，比规则一那种「有时不做」还直白。加这条的由头是剪辑面属性
+// 面板的「转场 · 入 / 出」两颗按钮——它们带着「转场选择器将在下一阶段打开」的 title 上线了，
+// 用户点半天以为坏了。判据只有一条、零解释空间：handler 是箭头函数，body 是空块或
+// undefined/null 字面量。真要占位就别渲染这个控件，或者 disabled + 说明为什么。
+//
+// 规则三（2026-09-06 加）：**被静默丢弃的命令**。前两条看的是「handler 没做事」，这条看的是
+// 「做了事、事失败了、用户什么都看不到」——`onClick={() => void someHostCommand(id)}`，命令被
+// Host 拒绝，裸 `void` 把拒绝丢进 unhandled rejection，界面一个字都不说。判据和它是怎么从
+// 121 处 `void` 收窄到个位数真问题的，都写在 control-contract-discarded-commands.mjs 里。
+//
 // 抓不到的（诚实标注，别把它当万能）：
 //   · 守卫藏在具名函数里、JSX 上只写 onClick={handler} → 需要跨函数数据流，留给 R13 走查断言
 //   · disabled 了但没说明原因（契约 C4）→ 全仓 100+ 处 disabled={readOnly} 语境自明，做成硬门必成噪音
@@ -30,6 +41,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
+import { discardedCommandOffenders } from './control-contract-discarded-commands.mjs'
 
 const require = createRequire(import.meta.url)
 const ts = require('typescript')
@@ -41,13 +53,9 @@ const SRC = path.join(ROOT, 'src')
 const HANDLERS = new Set(['onClick', 'onChange', 'onPointerDown', 'onSubmit'])
 
 /** 例外必须写清理由；不写理由不许加。 */
-const ALLOWLIST = new Map([
-  [
-    'src/workbench/preview/TextClipStyleControls.tsx:字体下拉',
-    '整个组件在 `if (!selectedTextClip) return null`（TextClipStyleControls.tsx:55）之后才渲染，' +
-      '控件出现时 selectedTextClipId 必非空——守卫恒真，不存在静默失效。',
-  ],
-])
+// 2026-09-05：唯一一条例外（TextClipStyleControls 的字体下拉）随该组件一起删除——
+// 字号/字体已迁进属性面板的 TextClipFields，那里拿到的是一个必然存在的 clip，无守卫可言。
+const ALLOWLIST = new Map([])
 
 function sourceFiles(dir, out = []) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -154,8 +162,19 @@ function isTargetGuard(condition, action) {
   return hit
 }
 
+/** 空 handler：`() => undefined` / `() => null` / `() => {}` / `() => { }`。 */
+function isEmptyHandler(fn) {
+  const body = fn.body
+  if (!body) return false
+  if (ts.isBlock(body)) return body.statements.length === 0
+  return body.kind === ts.SyntaxKind.NullKeyword
+    || (ts.isIdentifier(body) && body.text === 'undefined')
+    || (ts.isVoidExpression(body) && ts.isNumericLiteral(body.expression))
+}
+
+const SCANNED = sourceFiles(SRC)
 const offenders = []
-for (const file of sourceFiles(SRC)) {
+for (const file of SCANNED) {
   const text = fs.readFileSync(file, 'utf8')
   const sf = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
   const rel = path.relative(ROOT, file)
@@ -166,27 +185,30 @@ for (const file of sourceFiles(SRC)) {
       const hasDisabled = attrs.some(
         (a) => ts.isJsxAttribute(a) && (a.name.getText() === 'disabled' || a.name.getText() === 'aria-disabled'),
       )
-      if (!hasDisabled) {
-        for (const attr of attrs) {
-          if (!ts.isJsxAttribute(attr) || !HANDLERS.has(attr.name.getText())) continue
-          const init = attr.initializer
-          if (!init || !ts.isJsxExpression(init) || !init.expression) continue
-          const fn = init.expression
-          if (!ts.isArrowFunction(fn) && !ts.isFunctionExpression(fn)) continue
-          const guard = wholeBodyGuard(fn)
-          if (!guard) continue
-          const { condition, action } = guard
-          if (referencesParams(condition, parameterNames(fn))) continue // 事件判定，不是目标守卫
-          if (!isTargetGuard(condition, action)) continue // 模式守卫，不是「拿不到目标」
-          const line = sf.getLineAndCharacterOfPosition(attr.getStart(sf)).line + 1
-          const key = [...ALLOWLIST.keys()].find((k) => k.startsWith(`${rel}:`))
-          if (key) continue
-          offenders.push({
-            where: `${rel}:${line}`,
-            handler: attr.name.getText(),
-            guard: condition.getText(sf).replace(/\s+/g, ' ').slice(0, 70),
-          })
+      for (const attr of attrs) {
+        if (!ts.isJsxAttribute(attr) || !HANDLERS.has(attr.name.getText())) continue
+        const init = attr.initializer
+        if (!init || !ts.isJsxExpression(init) || !init.expression) continue
+        const fn = init.expression
+        if (!ts.isArrowFunction(fn) && !ts.isFunctionExpression(fn)) continue
+        const line = sf.getLineAndCharacterOfPosition(attr.getStart(sf)).line + 1
+        if ([...ALLOWLIST.keys()].some((k) => k.startsWith(`${rel}:`))) continue
+        // 规则二不看 disabled：一个「有时能点、点了永远不做事」的控件，disabled 也救不了它。
+        if (isEmptyHandler(fn)) {
+          offenders.push({ where: `${rel}:${line}`, handler: attr.name.getText(), guard: '空 handler（恒定什么都不做）' })
+          continue
         }
+        if (hasDisabled) continue
+        const guard = wholeBodyGuard(fn)
+        if (!guard) continue
+        const { condition, action } = guard
+        if (referencesParams(condition, parameterNames(fn))) continue // 事件判定，不是目标守卫
+        if (!isTargetGuard(condition, action)) continue // 模式守卫，不是「拿不到目标」
+        offenders.push({
+          where: `${rel}:${line}`,
+          handler: attr.name.getText(),
+          guard: condition.getText(sf).replace(/\s+/g, ' ').slice(0, 70),
+        })
       }
     }
     node.forEachChild(visit)
@@ -194,14 +216,30 @@ for (const file of sourceFiles(SRC)) {
   visit(sf)
 }
 
-if (offenders.length > 0) {
+// 规则三：被静默丢弃的命令。判据和缘起住在 control-contract-discarded-commands.mjs，
+// 那份分析要走模块图和 Promise 数据流，塞进本文件会把两种完全不同的判断搅在一起。
+const discarded = discardedCommandOffenders({ root: ROOT, files: SCANNED })
+
+if (offenders.length > 0 || discarded.length > 0) {
   console.error('✗ 控件交互契约门岗未通过（设计系统 §4.1 C1）：')
-  console.error('  下面这些控件的 handler 里有目标守卫，控件本身却没有 disabled —— 用户点了会静默失效。')
-  console.error('  修法：守卫为假时给控件 disabled，并用 title 说清「为什么现在点不了」。')
-  console.error('  禁用的 <button> 自身不触发 title，要用外层 <span title={原因} style={{display:"contents"}}> 包住')
-  console.error('  （既有范式见 NodeGenerationComposer.tsx 的生成钮）。\n')
-  for (const o of offenders) console.error(`  · ${o.where}  ${o.handler} 守卫: ${o.guard}`)
+  if (offenders.length > 0) {
+    console.error('\n【点了不做事】handler 里有目标守卫、或 handler 根本是空的，控件却没有 disabled。')
+    console.error('  修法：守卫为假时给控件 disabled，并用 title 说清「为什么现在点不了」。')
+    console.error('  禁用的 <button> 自身不触发 title，要用外层 <span title={原因} style={{display:"contents"}}> 包住')
+    console.error('  （既有范式见 NodeGenerationComposer.tsx 的生成钮）。\n')
+    for (const o of offenders) console.error(`  · ${o.where}  ${o.handler} 守卫: ${o.guard}`)
+  }
+  if (discarded.length > 0) {
+    console.error('\n【点了失败但用户看不到】handler 丢掉了一个会被拒绝的跨进程命令的 Promise，')
+    console.error('  拒绝变成 unhandled rejection：控件像是生效了，实际什么都没发生，界面也不解释。')
+    console.error('  修法二选一：① 在这里接住并告诉用户（`.catch(…)` 走本面板既有的错误条／toast，')
+    console.error('  范式见 ProjectAgentResidentShell.tsx 的 runThreadCommand）；② 让命令自己把失败')
+    console.error('  报给用户（像 recoverTaskActions.ts 那样 catch 完写回节点状态），此时它就不再 reject。\n')
+    for (const d of discarded) console.error(`  · ${d.where}  ${d.handler}={() => void ${d.discarded}}  → ${d.command}（${d.module}）`)
+  }
   process.exit(1)
 }
 
-console.log(`✓ 控件交互契约门岗通过：无「点了没反应」的控件（例外 ${ALLOWLIST.size} 条，均已写明理由）。`)
+console.log(
+  `✓ 控件交互契约门岗通过：无「点了没反应」「点了失败没人说」的控件（例外 ${ALLOWLIST.size} 条，均已写明理由）。`,
+)

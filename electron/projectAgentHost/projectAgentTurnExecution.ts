@@ -23,6 +23,7 @@ import { projectAgentWorkModeDecision } from "./projectAgentExecutionPolicy";
 import { DOCUMENT_READ_CAPABILITY } from "../shared/agentCapabilities/documentRead";
 import { CANVAS_DELETE_CAPABILITY } from "../shared/agentCapabilities/canvasDelete";
 import { CANVAS_WRITE_CAPABILITY } from "../shared/agentCapabilities/canvasWrite";
+import { isRendererOwnedStoryboardProposal } from "../shared/agentCapabilities/canvasWrite";
 import { TIMELINE_READ_CAPABILITY } from "../shared/agentCapabilities/timelineRead";
 import { TIMELINE_WRITE_CAPABILITY } from "../shared/agentCapabilities/timelineWrite";
 import { ASSET_READ_CAPABILITY } from "../shared/agentCapabilities/assetRead";
@@ -157,10 +158,10 @@ export async function executeProjectAgentTurn(context: ProjectAgentTurnExecution
   try {
     const request = {
       ...execution.request,
-      history: { kind: "ephemeral" as const },
       projectId: execution.request.projectId ?? partition.binding.projectId,
       canvasProjectId: execution.request.canvasProjectId ?? partition.binding.projectId,
-      prompt: steeredExecutionPrompt(partition.host.getSnapshot(partition.binding), execution.turn.turnId, execution.request, execution.steering), hostPromptLedger: hostPromptLedgerForTurn(partition.host.getSnapshot(partition.binding), execution.turn.threadId),
+      prompt: steeredExecutionPrompt(execution.request, execution.steering),
+      hostPromptLedger: hostPromptLedgerForTurn(partition.host.getSnapshot(partition.binding), execution.turn.threadId),
     };
     const response = await runAgent(request, {
       abortSignal: execution.controller.signal,
@@ -180,18 +181,9 @@ export async function executeProjectAgentTurn(context: ProjectAgentTurnExecution
           };
         }
         const isCanvasMutation = canonicalCapability?.id === CANVAS_WRITE_CAPABILITY.id || canonicalCapability?.id === CANVAS_DELETE_CAPABILITY.id || ["nomi_canvas_plan", "nomi_canvas_edit", "nomi_canvas_maintenance"].includes(call.toolName);
-        const canvasOperation = call.args && typeof call.args === "object" && !Array.isArray(call.args)
-          ? (call.args as Record<string, unknown>).operation
-          : undefined;
         const isRendererHandledStoryboardProposal =
           (canonicalCapability?.id === CANVAS_WRITE_CAPABILITY.id || call.toolName === "nomi_canvas_plan")
-          && (
-            call.toolName === "propose_storyboard_plan"
-            || (
-              call.toolName === "nomi_canvas_plan"
-              && (canvasOperation === "propose_storyboard_plan" || canvasOperation === "patch_shots")
-            )
-          );
+          && isRendererOwnedStoryboardProposal(call.toolName, call.args);
         if (isCanvasMutation && execution.blockedCanvasWriteDecision) {
           return execution.blockedCanvasWriteDecision;
         }
@@ -678,6 +670,7 @@ export async function executeProjectAgentTurn(context: ProjectAgentTurnExecution
           items: outcomeFailure ? [...resultItems, outcomeFailure] : resultItems,
           turnStatus: status,
           usage: response.usage,
+          ...(response.context ? { runtimeContext: response.context } : {}),
           ...(capabilityOutcome ? { retryable: capabilityOutcome.retryable } : {}),
           ...(proposalSettlements.length > 0
             ? { proposalSettlements }

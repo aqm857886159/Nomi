@@ -16,32 +16,32 @@ describe('modelHealthMemory', () => {
   beforeEach(() => resetModelHealthMemory())
 
   it('连败 1 次不避让，2 次进入避让期', () => {
-    recordModelFailure('m-a')
-    expect(isModelRecentlyAiling('m-a')).toBe(false)
-    recordModelFailure('m-a')
-    expect(isModelRecentlyAiling('m-a')).toBe(true)
+    recordModelFailure({ modelKey: 'm-a', vendor: null })
+    expect(isModelRecentlyAiling({ modelKey: 'm-a', vendor: null })).toBe(false)
+    recordModelFailure({ modelKey: 'm-a', vendor: null })
+    expect(isModelRecentlyAiling({ modelKey: 'm-a', vendor: null })).toBe(true)
   })
 
   it('成功清零：恢复默认资格', () => {
-    recordModelFailure('m-a')
-    recordModelFailure('m-a')
-    recordModelSuccess('m-a')
-    expect(isModelRecentlyAiling('m-a')).toBe(false)
+    recordModelFailure({ modelKey: 'm-a', vendor: null })
+    recordModelFailure({ modelKey: 'm-a', vendor: null })
+    recordModelSuccess({ modelKey: 'm-a', vendor: null })
+    expect(isModelRecentlyAiling({ modelKey: 'm-a', vendor: null })).toBe(false)
   })
 
   it('24h 过期自动回流（上游修好无需手动洗白）', () => {
     const now = 1_700_000_000_000
-    recordModelFailure('m-a', now)
-    recordModelFailure('m-a', now)
-    expect(isModelRecentlyAiling('m-a', now + HOUR)).toBe(true)
-    expect(isModelRecentlyAiling('m-a', now + 25 * HOUR)).toBe(false)
+    recordModelFailure({ modelKey: 'm-a', vendor: null }, now)
+    recordModelFailure({ modelKey: 'm-a', vendor: null }, now)
+    expect(isModelRecentlyAiling({ modelKey: 'm-a', vendor: null }, now + HOUR)).toBe(true)
+    expect(isModelRecentlyAiling({ modelKey: 'm-a', vendor: null }, now + 25 * HOUR)).toBe(false)
   })
 
   it('空/非法 modelKey 全程静默跳过', () => {
-    recordModelFailure('')
+    recordModelFailure({ modelKey: '', vendor: null })
     recordModelFailure(undefined)
     recordModelSuccess(null)
-    expect(isModelRecentlyAiling('')).toBe(false)
+    expect(isModelRecentlyAiling({ modelKey: '', vendor: null })).toBe(false)
     expect(isModelRecentlyAiling(undefined)).toBe(false)
   })
 })
@@ -61,23 +61,38 @@ describe('chooseDefaultModelOption 健康避让', () => {
 
   it('默认位第一名连败 ≥2 → 自动让位给下一个健康模型', () => {
     expect(chooseDefaultModelOption([imagen, seedream], true, false)?.value).toBe('imagen-4.0-apimart')
-    recordModelFailure('imagen-4.0-apimart')
-    recordModelFailure('imagen-4.0-apimart')
+    // 记账主体是 (vendor, modelKey)：必须用这个候选自己那家记，否则记的是另一个桶。
+    const failing = { modelKey: imagen.modelKey, vendor: imagen.vendor }
+    recordModelFailure(failing)
+    recordModelFailure(failing)
     expect(chooseDefaultModelOption([imagen, seedream], true, false)?.value).toBe('doubao-seedream-4.5')
   })
 
+  it('别家同名模型的连败不该殃及这一家（身份键含 vendor 的直接回归）', () => {
+    // 2026-09-03 走查实测的那个摩擦：Kie 的 gpt-image-2 连连失败，APIMart 的同名模型跟着背锅，
+    // 于是默认永远选不到能用的那家。这里用同一个 modelKey、不同 vendor 钉住「互不牵连」。
+    const otherVendor = { modelKey: imagen.modelKey, vendor: 'some-other-relay' }
+    recordModelFailure(otherVendor)
+    recordModelFailure(otherVendor)
+    expect(isModelRecentlyAiling(otherVendor)).toBe(true)
+    expect(isModelRecentlyAiling({ modelKey: imagen.modelKey, vendor: imagen.vendor })).toBe(false)
+    expect(chooseDefaultModelOption([imagen, seedream], true, false)?.value).toBe('imagen-4.0-apimart')
+  })
+
   it('全部候选都在避让期 → 回退原序，绝不空选', () => {
-    for (const key of ['imagen-4.0-apimart', 'doubao-seedream-4.5']) {
-      recordModelFailure(key)
-      recordModelFailure(key)
+    // 两个候选都是 apimart 家：记账主体是 (vendor, modelKey)，得按各自那家记。
+    for (const option of [imagen, seedream]) {
+      const identity = { modelKey: option.modelKey, vendor: option.vendor }
+      recordModelFailure(identity)
+      recordModelFailure(identity)
     }
     expect(chooseDefaultModelOption([imagen, seedream], true, false)?.value).toBe('imagen-4.0-apimart')
   })
 
   it('成功清零后重新回到默认位', () => {
-    recordModelFailure('imagen-4.0-apimart')
-    recordModelFailure('imagen-4.0-apimart')
-    recordModelSuccess('imagen-4.0-apimart')
+    recordModelFailure({ modelKey: 'imagen-4.0-apimart', vendor: null })
+    recordModelFailure({ modelKey: 'imagen-4.0-apimart', vendor: null })
+    recordModelSuccess({ modelKey: 'imagen-4.0-apimart', vendor: null })
     expect(chooseDefaultModelOption([imagen, seedream], true, false)?.value).toBe('imagen-4.0-apimart')
   })
 })

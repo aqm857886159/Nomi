@@ -1,0 +1,89 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-05-mcp-receipt-hydration-ownership",
+  "problem_type": "Shared proposal receipt recovery ownership race",
+  "symptom": "During project hydration, a renderer recovery pass can transition an MCP transport-owned preparing receipt to undone before the MCP write commits, causing the real canvas effect to fail its receipt CAS and the user task to stop without landing the planned nodes.",
+  "direct_cause": "recoverPendingProposalReceipt treated every non-terminal receipt as a renderer-owned proposal and applied compensation plus an undone transition without checking Host approval/action correlation.",
+  "class_root": "The shared proposal journal has multiple owners, but the recovery boundary lacked an ownership predicate, so asynchronous hydration could mutate a transport-owned receipt while its writer still held the commit revision.",
+  "affected_population": [
+    "MCP canvas or document writes routed through an open Electron renderer during project hydration",
+    "Any transport-owned preparing receipt stored in the shared project-agent proposal journal"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/agent/proposalUndo.ts",
+    "src/workbench/generationCanvas/agent/proposalUndoReceiptLifecycle.test.ts"
+  ],
+  "entry_points": [
+    "NomiStudioApp project hydration invokes recoverPendingProposalReceipt after opening the Project Agent Host",
+    "Project Agent recovery can be called directly by the renderer lifecycle after a reload"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Receipt ownership is an internal Nomi Host versus MCP transport invariant; no external source defines which local owner may recover this journal.",
+  "invariants": [
+    "Renderer recovery may compensate and transition a receipt only when the proposal carries both Host approval id and Host action hash.",
+    "A transport-owned preparing receipt remains untouched so its MCP writer can complete or classify the effect using the original CAS revision.",
+    "Recovery of a Host-owned preparing or undoing receipt keeps the existing idempotent compensation behavior."
+  ],
+  "generality_proof": "The ownership check is enforced inside the sole recovery function that reads and transitions shared proposal receipts, so every current hydration caller and future renderer recovery caller fails closed for transport-owned records without relying on a caller-specific flag.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/agent/proposalUndo.ts",
+      "symbol": "recoverPendingProposalReceipt",
+      "responsibility": "Gate compensation and completion transitions on immutable Host approval/action correlation before taking the recovery window."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/NomiStudioApp.tsx",
+      "entry_point": "Project hydration recovery after projectAgentClient.open",
+      "disposition": "enforced",
+      "evidence": "The app calls recoverPendingProposalReceipt immediately after installing the Host projection, which is the observed race window."
+    },
+    {
+      "path": "src/workbench/generationCanvas/agent/proposalUndo.ts",
+      "entry_point": "Direct recoverPendingProposalReceipt callers",
+      "disposition": "enforced",
+      "evidence": "The shared recovery function now rejects transport-owned receipts regardless of which renderer lifecycle caller invokes it."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The receipt journal is intentionally shared by Host and transport writers, and hydration is asynchronous; another transport write or recovery caller can reproduce the same CAS race without a centralized ownership predicate.",
+    "same_class_scan": [
+      "Searched all calls and definitions of recoverPendingProposalReceipt, hydrateCommittedProposalReceipt, receipt transitions, and shared proposal receipt readers under src/workbench and electron/.",
+      "Checked MCP document/canvas receipt writers and the NomiStudioApp hydration caller as separate owners of the same journal."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/agent/proposalUndo.ts",
+    "invariant": "Only Host-correlated proposals may be compensated by renderer recovery.",
+    "failure_mode": "Transport-owned receipts return without mutation, preserving the preparing evidence and commit CAS for the transport owner.",
+    "exception_policy": "none",
+    "strategy": "Check immutable Host approval and action correlation at the earliest shared recovery boundary before compensation or any durable transition.",
+    "artifacts": [
+      "src/workbench/generationCanvas/agent/proposalUndo.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/agent/proposalUndoReceiptLifecycle.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/agent/proposalUndoReceiptLifecycle.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "No obsolete receipt path is removed; the existing shared journal remains the sole persistence path and gains an ownership gate."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The invariant is internal lifecycle ownership and does not depend on a third-party runtime.",
+    "exit_criteria": []
+  },
+  "migration": "Existing receipts remain readable. Host-correlated records retain their current recovery behavior; transport-owned records are left in their durable lifecycle for the MCP owner to reconcile.",
+  "residual_risks": [
+    "The #476 canonical patch_shots path still has a separate potential dual-owner receipt prepare race that this ownership guard does not resolve.",
+    "Effect_unknown, partial, and commit_failed lifecycle handling introduced by #476 requires a follow-up test on the merged PR head to ensure hydration never downgrades those states."
+  ]
+}
