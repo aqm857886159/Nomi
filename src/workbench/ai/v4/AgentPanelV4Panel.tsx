@@ -21,8 +21,10 @@ import { V4ContextRing } from './AgentPanelV4Context'
 import { V4Intervention, V4Queue, V4TaskCard } from './AgentPanelV4Cards'
 import { V4AssistantMessage, V4Suggestion, V4Thinking, V4UserBubble } from './AgentPanelV4Message'
 import { V4ErrorBar, V4ToolReceipt } from './AgentPanelV4Receipt'
+import { V4EmptyState } from './AgentPanelV4Empty'
 import { IconHistory, IconLayoutSidebarRightCollapse } from './AgentPanelV4Icons'
 import { useV4Labels } from './agentPanelV4Labels'
+import type { ResidentSurface } from '../resident/residentShellDisplay'
 import type {
   ContextUsage,
   InterventionData,
@@ -64,6 +66,10 @@ export type V4QueueHandlers = Readonly<{
 
 export type AgentPanelV4PanelProps = {
   flow: readonly V4FlowItem[]
+  /** 空态从这里派生它那三条起手（哪个面能做什么）。 */
+  surface?: ResidentSurface
+  /** 点空态起手 chip：把那句话填进 composer 并聚焦，**不发送**。 */
+  onStarter?: (prompt: string) => void
   slot?: InterventionData
   queue?: readonly QueueRowData[]
   context: ContextUsage
@@ -148,6 +154,8 @@ export function V4FlowRow({
 
 export function AgentPanelV4Panel({
   flow,
+  surface = 'creation',
+  onStarter,
   slot,
   queue,
   context,
@@ -206,6 +214,9 @@ export function AgentPanelV4Panel({
         </span>
       </header>
       <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto px-3 py-2.5" data-v4-flow="true">
+        {/* 空态只在**流为空**时占这块地方：来了第一条消息它就永远不再出现，
+            所以它不是常驻件、不参与控件预算（设计系统 §1.5）。 */}
+        {flow.length === 0 ? <V4EmptyState surface={surface} onStarter={onStarter} /> : null}
         {flow.map((item, index) => (
           <V4FlowRow
             key={`${item.kind}-${index}`}

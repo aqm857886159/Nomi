@@ -45,6 +45,9 @@ export const ERROR_BAR = '[data-v4-block="errorbar"]'
 export const QUEUE = '[data-v4-block="queue"]'
 export const QUEUE_ROW = `${QUEUE} > div[data-status]`
 export const CONTEXT_RING = '[data-v4-block="context"]'
+/** 空态：只在对话流为空时存在；`data-v4-starter` 是它那三颗起手 chip。 */
+export const EMPTY_STATE = '[data-v4-block="empty"]'
+export const EMPTY_STARTER = '[data-v4-starter]'
 
 /**
  * 待批准的操作卡 = 介入槽。v4 里它**只有一个**（`primaryPending`），永远在 composer 正上方；
