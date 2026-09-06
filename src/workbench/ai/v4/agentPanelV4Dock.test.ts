@@ -1,7 +1,7 @@
 // 收起坞的空当算法。这一条是**位置**不变量，不是长相：算错了 composer 会离开画面，
 // 而「收起藏的是对话流，不是对话」这句承诺就当场作废——2026-09-06 真机验收正是这么撞上的。
 import { describe, expect, it } from 'vitest'
-import { transportClearanceFrom } from './AgentPanelV4Dock'
+import { transportClearanceFrom } from './agentPanelV4DockClearance'
 
 const HOST = { bottom: 854, height: 798 } as const
 
