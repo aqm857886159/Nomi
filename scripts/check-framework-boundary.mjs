@@ -12,10 +12,11 @@
 // 用法：
 //   node scripts/check-framework-boundary.mjs                  跑门岗
 //   node scripts/check-framework-boundary.mjs --update-baseline 重写债基线（只在登记新框架时用，且必须人工复核 diff）
+import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { evaluate, scanSources, validateRegistry } from './framework-boundary-lib.mjs'
+import { advisoryCapabilityHits, evaluate, scanSources, validateRegistry } from './framework-boundary-lib.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const REGISTRY_FILE = path.join(repoRoot, 'docs/engineering/framework-boundaries.json')
@@ -105,6 +106,53 @@ for (const entry of Array.isArray(baseline.debt) ? baseline.debt : []) {
 }
 for (const [plan, count] of missingPlans) {
   console.warn(`⚠️ ${count} 条债的收敛方案尚未落到本分支：${plan}`)
+}
+
+// —— 启发式一条（advisory，2026-09-07）：改动文件的文件名/导出符号命中能力词就提醒 ——
+// 只扫本次改动的文件，不扫全仓：全仓扫出来的几百条提醒等于零条（heavy-path 教训）。
+function changedSourceFiles() {
+  const files = new Map()
+  const explicit = process.env.FRAMEWORK_BOUNDARY_BASE_REF?.trim() || process.env.ROOT_CAUSE_BASE_REF?.trim()
+  let base = null
+  const git = (args) => execFileSync('git', args, { cwd: repoRoot, encoding: 'utf8' }).trim()
+  if (explicit && !/^0+$/.test(explicit)) {
+    try { git(['rev-parse', '--verify', `${explicit}^{commit}`]); base = explicit } catch { base = null }
+  }
+  if (!base) {
+    try { base = git(['merge-base', 'HEAD', 'origin/main']) } catch { return files }
+  }
+  let names = []
+  try {
+    names = [...git(['diff', '--name-only', '--diff-filter=ACMR', base, '--', 'src', 'electron']).split('\n'),
+      ...git(['ls-files', '--others', '--exclude-standard', '--', 'src', 'electron']).split('\n')]
+  } catch {
+    return files
+  }
+  for (const name of names) {
+    if (!name || !SOURCE_EXTENSIONS.test(name) || TEST_FILE.test(name)) continue
+    const full = path.join(repoRoot, name)
+    if (fs.existsSync(full)) files.set(name, fs.readFileSync(full, 'utf8'))
+  }
+  return files
+}
+
+const advisory = registry.advisory
+if (advisory && Array.isArray(advisory.watchWords)) {
+  const exemptionFile = path.join(repoRoot, advisory.exemptions ?? '')
+  const exemptions = new Set(
+    (advisory.exemptions && fs.existsSync(exemptionFile) ? readJson(exemptionFile).exempt ?? [] : [])
+      .map((entry) => (typeof entry === 'string' ? entry : entry?.path))
+      .filter(Boolean),
+  )
+  const notices = advisoryCapabilityHits({ files: changedSourceFiles(), watchWords: advisory.watchWords, exemptions })
+  for (const notice of notices) {
+    console.warn(`⚠️ [advisory] ${notice.file}：${notice.kind} \`${notice.where}\` 命中框架能力词「${notice.word}」`
+      + ' —— 先确认框架里是不是已经有了（查 docs/engineering/dependency-capabilities.generated.json），'
+      + `确属无关就登记进 ${advisory.exemptions}`)
+  }
+  if (notices.length > 0) {
+    console.warn(`⚠️ 共 ${notices.length} 条能力词提醒（advisory，不阻断；升红条件与复核日期见登记表 advisory.promotion）`)
+  }
 }
 
 if (errors.length > 0) {
