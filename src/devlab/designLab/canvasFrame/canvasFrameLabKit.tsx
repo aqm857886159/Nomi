@@ -47,8 +47,15 @@ export function makeFrameMember(
   } as GenerationCanvasNode
 }
 
-export function makeFrame(partial: Partial<NodeGroup> & Pick<NodeGroup, 'id' | 'name' | 'nodeIds'>): NodeGroup {
+/**
+ * id 走**位置参数**，不写在对象里——写成 `{ id: 'x', name: 'y' }` 会被
+ * `labStates.mjs` 的注册项签名（`id: '<kebab>',` 紧跟 `name: '`）当成一条状态注册项，
+ * 于是门岗抱怨「这条状态没有 source」。NodeGroup 天生就有 id + name 两个字段，
+ * 与那把正则的入口签名逐字撞上，所以这里从形状上避开，而不是靠人记得别那么写。
+ */
+export function makeFrame(id: string, partial: Omit<Partial<NodeGroup>, 'id'> & Pick<NodeGroup, 'name' | 'nodeIds'>): NodeGroup {
   return {
+    id,
     categoryId: 'shots',
     createdAt: 1,
     updatedAt: 1,

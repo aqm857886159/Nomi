@@ -25,8 +25,7 @@ const MEMBERS = [
 
 const FRAME_BOUNDS = { x: 24, y: 56, w: 552, h: 348 }
 
-const FILLED_FRAME = makeFrame({
-  id: 'frame-filled',
+const FILLED_FRAME = makeFrame('frame-filled', {
   name: '第二幕 · 咖啡馆',
   description: '林夏推门那一段',
   nodeIds: MEMBERS.map((member) => member.id),
@@ -45,8 +44,7 @@ export const CANVAS_FRAME_STATES: readonly LabState[] = [
     // 用户画完一个空框会看不见它。这一格钉住「空框存在，并且长得像还没装东西的样子」。
     render: () => (
       <CanvasFrameStage
-        frame={makeFrame({
-          id: 'frame-empty',
+        frame={makeFrame('frame-empty', {
           name: '未命名框',
           nodeIds: [],
           frameBounds: FRAME_BOUNDS,
@@ -99,7 +97,7 @@ export const CANVAS_FRAME_STATES: readonly LabState[] = [
     source: '现役 CollapsedGroupCard.tsx（第一档不改折叠态，这一格是防回归的基线）',
     coverage: 'shell',
     render: () => (
-      <CanvasFrameStage frame={makeFrame({ id: 'frame-collapsed', name: '第二幕 · 咖啡馆', nodeIds: [] })}>
+      <CanvasFrameStage frame={makeFrame('frame-collapsed', { name: '第二幕 · 咖啡馆', nodeIds: [] })}>
         <CollapsedGroupCard
           card={{ groupId: 'frame-collapsed', name: '第二幕 · 咖啡馆', memberCount: 3, position: { x: 160, y: 92 } }}
           readOnly={false}
