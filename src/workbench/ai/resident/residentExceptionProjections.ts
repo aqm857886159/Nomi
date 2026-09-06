@@ -1,5 +1,23 @@
 import { asGenerationProposalArgs, asSemanticGenerationProposalArgs } from './generationProposalEditing'
-import type { ResidentCandidate, ResidentPlanShot, ResidentQuestionOption } from './ResidentExceptionStates'
+
+// 这三个形状原本住在 `ResidentExceptionStates.tsx` 里——那是旧面板的**长相**文件，
+// 随 v4 接线整件删除。形状本身不是长相：它们描述的是「一次工具调用的 args 里能读出什么」，
+// v4 的介入槽投影照样要用。所以跟着**读它们的那一层**走，别跟着渲染它们的那一层走。
+export type ResidentPlanShot = Readonly<{
+  id: string
+  title: string
+  description: string
+  selected?: boolean
+  edited?: boolean
+}>
+
+export type ResidentCandidate = Readonly<{
+  id: string
+  label: string
+  imageUrl?: string
+}>
+
+export type ResidentQuestionOption = Readonly<{ id: string; label: string }>
 
 export function residentVisibleCandidates(candidates: readonly ResidentCandidate[], expanded: boolean): readonly ResidentCandidate[] {
   return candidates.slice(0, expanded ? 6 : 3)

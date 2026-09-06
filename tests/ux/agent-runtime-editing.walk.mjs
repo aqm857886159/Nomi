@@ -3,9 +3,10 @@
 // No adapter call, renderer module import, seeded project or production fixture.
 import { clickOrFail, expect, expectAbsent, proveProbe } from './_assert.mjs'
 import path from 'node:path'
-import { FIXTURE_IMAGE_MODEL, flattenRequestText } from './agent-runtime-fixture.mjs'
+import { FIXTURE_IMAGE_MODEL, FIXTURE_TEXT_MODEL_LABEL, flattenRequestText } from './agent-runtime-fixture.mjs'
 import {
-  CANVAS_PANEL, CREATION_PANEL, DOCUMENT, chooseAssistantModel, createRuntimeWalk, hasToolResult,
+  ASSISTANT_MESSAGE, CANVAS_PANEL, COMPOSER, COMPOSER_SEND, CREATION_PANEL, DOCUMENT, TOOL_RECEIPT,
+  USER_BUBBLE, chooseAssistantModel, createRuntimeWalk, hasToolResult,
   newConversation, openCanvas, readCurrentProjectAgentHostSnapshot, readCurrentProjectAgentToolEvidence, readProject,
   recorded, requireCurrentPersistedWorkbenchDocument,
   selectConversationAt, sendCanvas, sendCreation, toolNames,
@@ -57,7 +58,7 @@ try {
   const project = await walk.newProject()
   const { projectId, projectRoot } = project
   const settingsRoot = path.join(walk.report.tempRoot, 'settings')
-  await chooseAssistantModel(win, 'agent-runtime-loopback/agent-runtime-text')
+  await chooseAssistantModel(win, FIXTURE_TEXT_MODEL_LABEL)
   const document = win.locator(DOCUMENT)
   await document.fill(ORIGINAL)
   await expect(document).toHaveText(ORIGINAL)
@@ -85,7 +86,7 @@ try {
   // 现在验的是**产品真正的承诺**：可逆本地写自动落，落完仍然有完整证据链（下面那段 evidence）。
   await recorded(appendFollowup.received, 'auto-applied document tool result')
   await expect(win.locator(CREATION_PANEL)).toContainText('F_DOC_DONE')
-  await expect(win.locator(`${CREATION_PANEL} [data-agent-composer-send="true"][data-agent-stop="true"]`)).toHaveCount(0)
+  await expect(win.locator(`${CREATION_PANEL} ${COMPOSER}[data-mode="running"]`)).toHaveCount(0)
   await expect(document).toContainText(APPEND)
   expect((await document.innerText()).split(APPEND), '自动落也只能落一次，不许重放成两段').toHaveLength(2)
   await expect.poll(async () => JSON.stringify(requireCurrentPersistedWorkbenchDocument(await readProject(win, projectId))),
@@ -150,12 +151,11 @@ try {
   // 「用户能读到它做了什么」这条承诺没变——两个镜头的标题必须出现在面板的工具明细里。
   expect(walk.fixture.images, '落画布不许顺手触发生成').toHaveLength(0)
   await recorded(canvasFollowup.received, 'canvas tool result')
-  const canvasToolLine = win.locator(`${CANVAS_PANEL} [data-agent-tool-line="true"]`).last()
+  const canvasToolLine = win.locator(`${CANVAS_PANEL} ${TOOL_RECEIPT}`).last()
   await proveProbe(canvasToolLine, '落画布之后，面板上有这次工具调用的那一行')
-  // 自动落之后，用户能读到的那句话就是这一行的无障碍名。它必须说清「建了卡、没有去生成」
-  // ——safe-auto 不问自答，这一行就是唯一的交代。
-  await expect(canvasToolLine.locator('button[aria-expanded]').last(),
-    '落画布那一行要说清它做了什么').toHaveAttribute('aria-label', /只建卡.*不生成/)
+  // 自动落之后，用户能读到的那句话就写在这一行上（v4 一行收据：动作名 + 摘要 + 状态）。
+  // 它必须说清「建了卡、没有去生成」——safe-auto 不问自答，这一行就是唯一的交代。
+  await expect(canvasToolLine, '落画布那一行要说清它做了什么').toContainText(/只建卡/)
   await walk.snap('canvas-auto-applied')
   await expect(win.locator(CANVAS_PANEL)).toContainText('F_CANVAS_DONE')
   await expect.poll(async () => {
@@ -166,7 +166,9 @@ try {
   const sourceId = landed.nodes.find((node) => node.title === 'F_SOURCE').id
   const targetId = landed.nodes.find((node) => node.title === 'F_TARGET').id
   expect(landed.edges[0]).toMatchObject({ source: sourceId, target: targetId })
-  const receipt = win.locator(`${CANVAS_PANEL} [data-agent-proposal-receipt="true"]`).last()
+  // v4：提案收据就是那条一行收据本身（`data-v4-block="tool"`），整笔撤销是它行尾的「撤销」钮
+  // （`ToolReceipt.undoable` 渲染出来的那颗）。
+  const receipt = win.locator(`${CANVAS_PANEL} ${TOOL_RECEIPT}`).last()
   await proveProbe(receipt, 'A committed canvas proposal has an Undo receipt')
   await expect.poll(() => {
     const evidence = readCurrentProjectAgentToolEvidence(settingsRoot, projectRoot, 'canvas.write')
@@ -181,8 +183,9 @@ try {
   expect(proposalId).toBeTruthy()
   await walk.snap('canvas-committed')
   // 先证明这颗撤销钮真的能被探针找到，下面两处「撤销过就不该再有撤销钮」才不是空话。
-  const undoButtonProof = await proveProbe(receipt.locator('[data-agent-receipt-undo="true"]'), '收据上的整笔撤销钮可见')
-  await clickOrFail(receipt.locator('[data-agent-receipt-undo="true"]'), '整笔撤销画布提案')
+  const undoButton = receipt.getByRole('button', { name: '撤销', exact: true })
+  const undoButtonProof = await proveProbe(undoButton, '收据上的整笔撤销钮可见')
+  await clickOrFail(undoButton, '整笔撤销画布提案')
   await expect.poll(async () => {
     const canvas = (await readProject(win, projectId)).payload.generationCanvas
     const evidence = readCurrentProjectAgentToolEvidence(settingsRoot, projectRoot, 'canvas.write')
@@ -203,8 +206,8 @@ try {
     receiptProposalId: proposalId,
   })
   await expect(receipt, 'Undo keeps the immutable audit receipt visible').toHaveCount(1)
-  await expect(receipt).toHaveAttribute('data-agent-proposal-receipt', 'true')
-  await expectAbsent(receipt.locator('[data-agent-receipt-undo="true"]'),
+  await expect(receipt).toHaveAttribute('data-v4-block', 'tool')
+  await expectAbsent(receipt.getByRole('button', { name: '撤销', exact: true }),
     { provenBy: undoButtonProof, message: 'An undone receipt cannot trigger Undo again' })
   expect(walk.fixture.images).toHaveLength(0)
 
@@ -218,11 +221,14 @@ try {
   await sendCreation(win, 'F_STOP_REQUEST：先检查原稿，等我决定再改。')
   await recorded(stoppedRequest.received, 'streaming request before Stop')
   await expect(win.locator(CREATION_PANEL)).toContainText('F_STOP_PARTIAL')
-  await clickOrFail(win.locator(`${CREATION_PANEL} [data-agent-composer-send="true"][data-agent-stop="true"]`), '停止在途模型请求')
-  await expect(win.locator(`${CREATION_PANEL} [data-agent-composer-send="true"]:not([data-agent-stop])`)).toBeVisible()
-  const stoppedAssistant = win.locator(`${CREATION_PANEL} [data-agent-item-kind="assistant"][data-agent-status="stopped"]`).last()
+  // v4：发送与停止是同一颗钮，运行中由 composer 的 data-mode="running" 标记。
+  await clickOrFail(win.locator(`${CREATION_PANEL} ${COMPOSER}[data-mode="running"] ${COMPOSER_SEND}`), '停止在途模型请求')
+  await expect(win.locator(`${CREATION_PANEL} ${COMPOSER}:not([data-mode="running"]) ${COMPOSER_SEND}`)).toBeVisible()
+  // 助手文本三态里，被打断的那一态是 `interrupted`（灰字 + 一个「继续」出口）。
+  const stoppedAssistant = win.locator(`${CREATION_PANEL} ${ASSISTANT_MESSAGE}[data-status="interrupted"]`).last()
   await expect(stoppedAssistant, 'A stopped assistant item remains visible with its terminal status').toBeVisible()
-  await expect(stoppedAssistant.locator('[data-agent-status-label="stopped"]'), 'The retained stopped turn has an explicit user-facing marker').toHaveText('已停止')
+  await expect(stoppedAssistant.getByRole('button', { name: '继续', exact: true }),
+    'The retained stopped turn has an explicit user-facing marker').toBeVisible()
   stoppedRequest.release({ type: 'tool', id: 'f-late-write', name: 'nomi_document_edit', args: { operation: 'append', content: 'F_FORBIDDEN_LATE_WRITE' } })
   // 「晚到的写入不许落」这条以前是靠「审批卡没冒出来」来证的。safe-auto 档下可逆写本来就
   // 不弹卡，那条缺席断言于是恒真——换成直接查**文稿本身**：晚到的写入真落了，这段文字就会
@@ -293,14 +299,14 @@ try {
   expect(new Set(provenanceKeys).size).toBe(provenanceKeys.length)
   expect(resumedEvidence.receipt).toMatchObject({ lifecycle: 'undone', proposalId })
   await expect(win.locator(CREATION_PANEL)).toContainText('F_RESTORED')
-  await expect(win.locator(`${CREATION_PANEL} [data-agent-composer-send="true"][data-agent-stop="true"]`)).toHaveCount(0)
-  const assistantBubbles = win.locator(`${CREATION_PANEL} [data-agent-reply="true"]`)
+  await expect(win.locator(`${CREATION_PANEL} ${COMPOSER}[data-mode="running"]`)).toHaveCount(0)
+  const assistantBubbles = win.locator(`${CREATION_PANEL} ${ASSISTANT_MESSAGE}`)
   await expect(assistantBubbles).toHaveCount(4)
   await expect(assistantBubbles.nth(0), 'A resumed reply must not overwrite an older bubble with the same ID').toContainText('F_DOC_DONE')
   await expect(assistantBubbles.nth(1)).toContainText('F_CANVAS_DONE')
   await expect(assistantBubbles.nth(2)).toContainText('F_STOP_PARTIAL')
   await expect(assistantBubbles.last(), 'The new reply belongs at the end of the resumed conversation').toContainText('F_RESTORED')
-  await expect(win.locator(`${CREATION_PANEL} [data-agent-user-bubble="true"]`)).toHaveCount(4)
+  await expect(win.locator(`${CREATION_PANEL} ${USER_BUBBLE}`)).toHaveCount(4)
   await expect.poll(async () => {
     const saved = readCurrentAgentConversations(settingsRoot, projectRoot)
     return { activeId: saved.creation.activeId,
@@ -318,9 +324,9 @@ try {
   await expect(win.locator(DOCUMENT)).toHaveText(ORIGINAL)
   await clickOrFail(win.getByRole('button', { name: '生成', exact: true }), '冷重启后生成工作区')
   await expect(win.locator(CANVAS_PANEL)).toBeVisible()
-  const coldCanvasReceipt = win.locator(`${CANVAS_PANEL} [data-agent-proposal-receipt="true"]`).last()
+  const coldCanvasReceipt = win.locator(`${CANVAS_PANEL} ${TOOL_RECEIPT}`).last()
   await expect(coldCanvasReceipt, 'Cold start keeps the undone audit receipt').toHaveCount(1)
-  await expectAbsent(coldCanvasReceipt.locator('[data-agent-receipt-undo="true"]'),
+  await expectAbsent(coldCanvasReceipt.getByRole('button', { name: '撤销', exact: true }),
     { provenBy: undoButtonProof, message: 'Cold start must not restore an undone action' })
   const coldCanvas = (await readProject(win, projectId)).payload.generationCanvas
   expect({ nodes: coldCanvas.nodes.length, edges: coldCanvas.edges.length }).toEqual({ nodes: 0, edges: 0 })

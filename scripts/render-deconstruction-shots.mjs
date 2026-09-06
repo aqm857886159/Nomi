@@ -1,7 +1,7 @@
 // One-shot renderer for the video-deconstruction v1 mockup.
 // Runs from the main repo's playwright (this worktree has no node_modules).
 // Usage: node scripts/render-deconstruction-shots.mjs [absolute-html-path] [absolute-out-dir]
-import { chromium } from '/Users/aoqimin/Desktop/Nomi/node_modules/playwright/index.mjs'
+import { chromium } from 'playwright'
 import { pathToFileURL } from 'node:url'
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'

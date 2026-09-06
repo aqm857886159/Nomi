@@ -9,7 +9,11 @@ import path from 'node:path'
 import { clickOrFail, expect, expectAbsent, proveProbe } from './_assert.mjs'
 import { parseToolResult, spawnMcpStdioClient } from './_mcpJourney.mjs'
 import { flattenRequestText } from './agent-runtime-fixture.mjs'
-import { DOCUMENT, createRuntimeWalk, hasToolResult, openCanvas, readProject, recorded } from './agent-runtime-walk-support.mjs'
+import {
+  APPROVAL_CARD, DOCUMENT, INTERVENTION_CONFIRM, INTERVENTION_CONFIRM_REJECT, INTERVENTION_ESCALATE,
+  INTERVENTION_REJECT, INTERVENTION_REJECT_REASON, createRuntimeWalk, hasToolResult, openCanvas,
+  readProject, recorded,
+} from './agent-runtime-walk-support.mjs'
 
 const ORIGINAL = '真实用户任务基线：创作者准备在文末补充收尾。'
 const RESIDENT_INTENT = '请在文末补一句收尾，保留原文并等待我确认。'
@@ -86,7 +90,8 @@ try {
   })
   await sendResidentIntent(win, RESIDENT_INTENT)
   await recorded(proposalRequest.received, 'the real Agent planning request')
-  const approval = win.locator(`${CREATION_PANEL} [data-agent-approval="true"][data-agent-approval-state="pending"]`)
+  // v4：待批准的操作只住在介入槽里，槽在 = 还没批，槽不在 = 不需要批（或已批）。
+  const approval = win.locator(`${CREATION_PANEL} ${APPROVAL_CARD}`)
   const composerProof = await proveProbe(win.locator(CREATION_PANEL), 'Resident Composer renders the real planning surface')
   await expectAbsent(approval, {
     provenBy: composerProof,
@@ -180,18 +185,23 @@ try {
   })
   await sendResidentIntent(win, '请提出一个需要拒绝的删除动作，不要自行删除。')
   await recorded(rejectedRequest.received, 'the real gated-action proposal')
-  const rejectedApprovalCard = win.locator(`${CREATION_PANEL} [data-agent-intervention-slot="true"]`).last()
-  await expect(rejectedApprovalCard).toHaveAttribute('data-agent-approval-state', 'pending')
+  const rejectedApprovalCard = win.locator(`${CREATION_PANEL} ${APPROVAL_CARD}`).last()
+  // 删节点是不可逆的：v4 把这件事写在槽的 data-kind 上（fail-closed 到 irreversible）。
+  await expect(rejectedApprovalCard).toHaveAttribute('data-kind', 'approval-irreversible')
   await proveProbe(rejectedApprovalCard, 'Resident Composer shows a real irreversible approval')
-  await expect(rejectedApprovalCard.locator('[data-agent-approval-scope="once"]')).toHaveCount(1)
-  await expect(rejectedApprovalCard.locator('[data-agent-approval-scope="session"]')).toHaveCount(0)
-  await expect(rejectedApprovalCard.locator('[data-agent-approval-scope="always"]')).toHaveCount(0)
-  await expect(rejectedApprovalCard.locator('[data-agent-intervention-boundary="true"]')).toBeVisible()
-  await rejectedApprovalCard.locator('[data-agent-reject-reason]').fill('这次先不删，保留镜头待复核。')
+  // 授权范围只有「仅这一次」：不可逆的动作永远逐次问，所以「不再问 →」这颗钮不该存在
+  // （旧 data-agent-approval-scope=session/always 两档在 v4 里连按钮都没有）。
+  await expect(rejectedApprovalCard).toContainText('范围：仅这一次')
+  await expect(rejectedApprovalCard.locator(INTERVENTION_ESCALATE)).toHaveCount(0)
+  // 人工批准边界 = 槽底那两颗钮真的在（能确认、也能拒绝），不是一张只读卡。
+  await expect(rejectedApprovalCard.locator(INTERVENTION_CONFIRM)).toBeVisible()
+  // v4 的拒绝是**两下**（渐进披露）：先「不要」摊开原因，填完再「确认不要」才回给宿主。
+  await clickOrFail(rejectedApprovalCard.locator(INTERVENTION_REJECT), '摊开拒绝原因')
+  await rejectedApprovalCard.locator(INTERVENTION_REJECT_REASON).fill('这次先不删，保留镜头待复核。')
   await walk.snap('irreversible-approval-with-reason')
-  await clickOrFail(rejectedApprovalCard.getByRole('button', { name: '拒绝', exact: true }), '用户拒绝 Resident 删除提案')
+  await clickOrFail(rejectedApprovalCard.locator(INTERVENTION_CONFIRM_REJECT), '用户拒绝 Resident 删除提案')
   await recorded(rejectedFollowup.received, 'the denied gated-action result')
-  await expect(win.locator(`${CREATION_PANEL} [data-agent-approval="true"][data-agent-approval-state="pending"]`)).toHaveCount(0)
+  await expect(win.locator(`${CREATION_PANEL} ${APPROVAL_CARD}`)).toHaveCount(0)
   await walk.snap('irreversible-rejection-receipt')
   expect((await readProject(win, projectId)).payload.generationCanvas.nodes.map((node) => node.id)).toContain(fixtureNodeId)
   walk.report.matrix.E = { status: 'passed', evidence: ['irreversible action -> real approval card -> refusal -> no project mutation'] }

@@ -8,8 +8,9 @@ import { createHash } from 'node:crypto'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { clickOrFail, expect, expectAbsent, proveProbe, screenshotSettled } from './_assert.mjs'
 import {
-  CANVAS_PANEL, CREATION_PANEL, DOCUMENT, readNativeContexts, readProject,
-  finalizeRuntimeWalk, openCanvas, sendCanvas, sendCreation, snapshotMessages, stopRuntimeApp,
+  APPROVAL_CARD, CANVAS_PANEL, COMPOSER, CREATION_PANEL, DOCUMENT, INTERVENTION_CONFIRM,
+  readNativeContexts, readProject, finalizeRuntimeWalk, openCanvas, sendCanvas, sendCreation,
+  snapshotMessages, stopRuntimeApp,
 } from './agent-runtime-walk-support.mjs'
 
 if (process.env.NOMI_AGENT_LIVE !== '1') throw new Error('Explicit paid evaluation requires NOMI_AGENT_LIVE=1')
@@ -109,12 +110,13 @@ try {
   expect(finishedTurns()[0].payload.usage.totalTokens).toBeGreaterThan(0)
 
   await sendCreation(win, `请只调用一次 append_to_end，把这句原样追加到文末：${APPEND}。不要调用其他工具，不要扩写。`)
-  const approval = win.locator(`${CREATION_PANEL} [data-tool-call-id]`).filter({ hasText: APPEND })
+  // v4：待批准的操作落在**介入槽**里（composer 正上方那一格），一次一个。
+  const approval = win.locator(`${CREATION_PANEL} ${APPROVAL_CARD}`).filter({ hasText: APPEND })
   const proof = await proveProbe(approval, 'The real model must propose an actual append for human approval', 120_000)
   await expect(win.locator(DOCUMENT)).toHaveText(ORIGINAL)
   expect(JSON.stringify((await readProject(win, projectId)).payload.workbenchDocument)).not.toContain(APPEND)
   await screenshotSettled(win, { path: path.join(outputDir, '01-live-approval.png') })
-  await clickOrFail(approval.getByRole('button', { name: '应用', exact: true }), '批准真模型追加')
+  await clickOrFail(approval.locator(INTERVENTION_CONFIRM), '批准真模型追加')
   await expect.poll(() => finishedTurns().length, { timeout: 120_000 }).toBe(2)
   expect(finishedTurns()[1].payload.status).toBe('finished')
   await expect(win.locator(DOCUMENT)).toContainText(APPEND)
@@ -134,19 +136,20 @@ try {
 
   await openCanvas(win)
   await sendCanvas(win, '创建两个图片节点并连接参考，只建节点，不生成。两个节点分别命名 NOMILIVESOURCE 和 NOMILIVETARGET；请只用一次 create_canvas_nodes 同时创建两个节点及从前者到后者的 reference 连线。请选择支持图片参考的已接入图片模型，不要运行任何媒体生成。')
-  const plan = win.locator('[data-agent-plan-card="true"]')
+  // v4：节点计划也走同一个介入槽，`data-kind="plan"` 时槽体是一排可勾选的计划行。
+  const plan = win.locator(`${CANVAS_PANEL} ${APPROVAL_CARD}`)
   // A real provider may spend most of the runtime's first-response budget thinking.
   // Playwright's locator expectation has its own 5s default and ignores page.setDefaultTimeout,
   // so use the same explicit 120s bound as the durable turn checks above.
   await expect(plan).toBeVisible({ timeout: 120_000 })
-  await expect(plan.locator('[data-plan-node-id]')).toHaveCount(2)
+  await expect(plan.locator('input[type="checkbox"]')).toHaveCount(2)
   const untouched = (await readProject(win, projectId)).payload.generationCanvas
   expect(untouched.nodes).toHaveLength(0)
   expect(untouched.edges).toHaveLength(0)
   await screenshotSettled(win, { path: path.join(outputDir, '04-live-canvas-proposal.png') })
   // Only the node-plan control is approved; generic generation approvals are
   // never clicked, even if a model ignores the explicit no-generation request.
-  await clickOrFail(plan.locator('[data-plan-confirm-all="true"]'), '批准真模型建两个节点及参考连线')
+  await clickOrFail(plan.locator(INTERVENTION_CONFIRM), '批准真模型建两个节点及参考连线')
   await expect.poll(() => finishedTurns().length, { timeout: 120_000 }).toBe(3)
   expect(finishedTurns()[2].payload.status).toBe('finished')
   await expect.poll(async () => {
@@ -180,7 +183,8 @@ try {
     const canvas = (await readProject(win, projectId)).payload.generationCanvas
     return { nodes: canvas.nodes.length, edges: canvas.edges.length }
   }, { timeout: 30_000 }).toEqual({ nodes: 0, edges: 0 })
-  await expect(win.locator(CANVAS_PANEL).getByRole('button', { name: '停止生成', exact: true })).toBeHidden()
+  // v4 里发送与停止是同一颗钮：运行态由 composer 的 data-mode 标记，回合落地后它必须不在。
+  await expect(win.locator(`${CANVAS_PANEL} ${COMPOSER}[data-mode="running"]`)).toBeHidden()
   await screenshotSettled(win, { path: path.join(outputDir, '06-live-canvas-undone.png') })
   report.modelResponses = allMessages.filter((message) => message.role === 'assistant').length
   report.mediaToolRequests = mediaCalls.length

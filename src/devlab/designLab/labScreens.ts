@@ -1,4 +1,3 @@
-import { AGENT_PANEL_STATES, PANEL_HEIGHT, PANEL_WIDTH } from './agentPanelStates'
 import { CANVAS_ADD_MENU_STATES } from './canvasAddMenu/canvasAddMenuStates'
 import { CANVAS_ADD_CELL_HEIGHT, CANVAS_ADD_CELL_WIDTH } from './canvasAddMenu/canvasAddMenuLabKit'
 import { EDITING_STATES } from './editing/editingStates'
@@ -19,12 +18,6 @@ import type { LabScreen, LabState } from './labScreen'
  * 只改一处 = 那一屏要么截不出图、要么孤儿基线）。
  */
 export const LAB_SCREENS: readonly LabScreen[] = [
-  {
-    id: 'agent-panel',
-    label: 'Agent 面板',
-    states: AGENT_PANEL_STATES,
-    cell: { width: PANEL_WIDTH, height: PANEL_HEIGHT + 40 },
-  },
   {
     id: 'agent-panel-v4',
     label: 'Agent 面板 v4',

@@ -7,6 +7,7 @@
 //
 // 用法:pnpm run build && node tests/ux/design-fidelity.e2e.mjs
 import { launchNomiApp } from "./_launchApp.mjs";
+import { CANVAS_PANEL, COLLAPSED_DOCK, COLLAPSED_SHELL } from "./agent-runtime-walk-support.mjs";
 
 let passed = 0;
 const fails = [];
@@ -276,31 +277,28 @@ try {
   // ── 本会话回归点 #C(生成区)：常驻 Agent 面板的结构锁 ──
   // 2026-09-05 重定向：旧画布助手（aria-label「生成区 AI 助手」/「生成区 AI 启动器」）已随 Agent Host cutover
   // 退役，这两个 aria-label 在 src/ 里已无人渲染（原先这里「aside 未挂载」一条恒真=假绿，随后的
-  // waitForSelector 恒超时=假红）。常驻壳是真实两态 UI（展开/收起偏好持久化），且模型控件只剩图标
-  //（具体模型名在 title），故「默认折叠」「模型选择器显具体名」两条旧断言的前提已不在；
-  // 保留仍成立的两条结构锁：收起药丸整圆角（cn twMerge）+ 面板 display:flex（非 grid）。锚点来自真机探针。
-  const PANEL = '[data-agent-resident="true"][data-agent-panel="true"][data-agent-surface="generation"]';
-  const PILL = '[data-agent-resident-collapsed="true"]';
-  const residentState = await win.evaluate(([panelSel, pillSel]) => {
-    const pill = Array.from(document.querySelectorAll(pillSel)).find((el) => el.getClientRects().length > 0);
+  // waitForSelector 恒超时=假红）。常驻壳是真实两态 UI（展开/收起偏好持久化）。
+  // 2026-09-06 v4：收起态不再是「药丸」而是一根 32px 图标条（定稿 Collapsed 板），
+  // 所以「整圆角」那条断言的对象已不存在——换成同样二值、同样来自定稿的那条：轨宽 32px。
+  const PANEL = `${CANVAS_PANEL}`;
+  const RAIL = `${COLLAPSED_SHELL} ${COLLAPSED_DOCK}`;
+  const residentState = await win.evaluate(([panelSel, railSel]) => {
+    const rail = Array.from(document.querySelectorAll(railSel)).find((el) => el.getClientRects().length > 0);
     const panel = Array.from(document.querySelectorAll(panelSel)).find((el) => el.getClientRects().length > 0);
-    const r = pill ? pill.getBoundingClientRect() : null;
-    const radius = pill ? parseFloat(getComputedStyle(pill).borderTopLeftRadius) : 0;
     return {
-      pill: Boolean(pill),
+      rail: Boolean(rail),
       panel: Boolean(panel),
-      // 收起胶囊应为整圆角（半径 ≥ 半高）；这锁住 cn() twMerge 让 rounded-full 压过组件基类
-      // rounded-workbench-control 的修复——否则创作/生成胶囊外圆角会不一致。
-      pillFullRound: r ? radius >= r.height / 2 - 1 : null,
+      // 定稿 Collapsed 板：结果全屏时右栏收成一根 32px 图标条。宽度是这块唯一的形态承诺。
+      railWidth: rail ? Math.round(rail.getBoundingClientRect().width) : null,
     };
-  }, [PANEL, PILL]);
-  console.log("\n── 生成区常驻 Agent(#C：药丸或面板恰有其一；收起药丸整圆角) ──");
+  }, [PANEL, RAIL]);
+  console.log("\n── 生成区常驻 Agent(#C：图标条或面板恰有其一；收起图标条宽 32px) ──");
   // 「恰有其一」同时是活性证明：两者都没有 = 根本没站在生成区（或 dock 没挂上），不能拿「没有」当过。
-  assert(residentState.pill !== residentState.panel, "常驻 Agent 在生成区恰处于收起药丸 / 展开面板之一", JSON.stringify(residentState));
-  if (residentState.pill) {
-    assert(residentState.pillFullRound === true, "收起胶囊为整圆角 rounded-full（cn twMerge 压过基类圆角）", `fullRound=${residentState.pillFullRound}`);
-    await win.locator(PILL).click();
-  } else console.log("  ⊘ 收起胶囊圆角 — 跳过（本次面板默认展开，没有药丸可量）");
+  assert(residentState.rail !== residentState.panel, "常驻 Agent 在生成区恰处于收起图标条 / 展开面板之一", JSON.stringify(residentState));
+  if (residentState.rail) {
+    assert(residentState.railWidth === 32, "收起图标条宽 32px（定稿 Collapsed 板）", `width=${residentState.railWidth}`);
+    await win.locator(`${RAIL} button`).first().click();
+  } else console.log("  ⊘ 收起图标条宽度 — 跳过（本次面板默认展开，没有图标条可量）");
   await win.waitForSelector(PANEL, { state: "visible", timeout: 5_000 });
   const panelDisplay = await win.evaluate((panelSel) => getComputedStyle(document.querySelector(panelSel)).display, PANEL);
   console.log("\n── 生成区常驻 Agent 展开(#C：面板 flex 非 grid) ──");

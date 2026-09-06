@@ -11,8 +11,9 @@
 //
 // **没有语音钮**——我们没有语音输入，AI Elements 的 PromptInputSpeechButton 明确不用。
 //
-// 高度全部由 `useComposerHeight(panelHeight, mode)` derive（定稿「上限怎么定」表），
-// 组件自己不写死行数；封顶后 textarea 内部滚动，滚轮到边界不外泄（`overscroll-contain`）。
+// 接线后这个组件是**受控**的：文本、chip、弹层开关、权限档全部由宿主容器持有。
+// 早先它自己 `useState` 一个 value，`submit` 就是 `setValue('')`——长得像能发，
+// 按下去只是把框清空。受控之后「有东西可发」和「真的发出去了」是同一条路。
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../../../utils/cn'
@@ -26,9 +27,9 @@ import {
 } from './AgentPanelV4Icons'
 import { approvalPolicyForTier, maxComposerHeight, useComposerHeight, shouldSubmitComposer } from './agentPanelV4Logic'
 import type { ComposerMode, ComposerPopover, PermissionTier, V4Chip } from './agentPanelV4Types'
-import { DEFAULT_PERMISSION_TIER } from './agentPanelV4Types'
+import { DEFAULT_PERMISSION_TIER, PERMISSION_TIERS } from './agentPanelV4Types'
 
-function ComposerChip({ chip, removeLabel }: { chip: V4Chip; removeLabel: string }): JSX.Element {
+function ComposerChip({ chip, removeLabel, onRemove }: { chip: V4Chip; removeLabel: string; onRemove?: () => void }): JSX.Element {
   return (
     <span
       className={cn(
@@ -48,11 +49,36 @@ function ComposerChip({ chip, removeLabel }: { chip: V4Chip; removeLabel: string
         />
       )}
       <span className="max-w-[150px] truncate">{chip.label}</span>
-      <button type="button" aria-label={`${removeLabel} ${chip.label}`} className="text-nomi-ink-40">
+      <button type="button" aria-label={`${removeLabel} ${chip.label}`} className="text-nomi-ink-40" onClick={onRemove}>
         <IconX size={11} />
       </button>
     </span>
   )
+}
+
+export type AgentPanelV4ComposerProps = {
+  panelHeight?: number
+  mode?: ComposerMode
+  permission?: PermissionTier
+  chips?: readonly V4Chip[]
+  /** 受控文本。没有 `onValueChange` 时框是只读的展示件（设计实验室取景用）。 */
+  value?: string
+  onValueChange?: (value: string) => void
+  onSubmit?: () => void
+  onStop?: () => void
+  onRemoveChip?: (chip: V4Chip, index: number) => void
+  onAddFile?: () => void
+  /** 模型钮上显示的文字。没选模型时由调用方给「去选模型」一类的实话，不写死型号。 */
+  modelLabel?: string
+  /** 当前打开的弹层；一次只开一个（定稿）。 */
+  openPopover?: ComposerPopover | null
+  onTogglePopover?: (popover: ComposerPopover) => void
+  /** 弹层本体。由容器渲染（它才知道模型/技能清单），composer 只负责定位。 */
+  popover?: React.ReactNode
+  /** 收起坞（结果全屏）：同一个 composer 落到画面下沿，上限 6 行。 */
+  dock?: boolean
+  skillSelected?: boolean
+  focused?: boolean
 }
 
 export function AgentPanelV4Composer({
@@ -60,23 +86,21 @@ export function AgentPanelV4Composer({
   mode = 'idle',
   permission = DEFAULT_PERMISSION_TIER,
   chips,
-  initialText = '',
+  value = '',
+  onValueChange,
+  onSubmit,
+  onStop,
+  onRemoveChip,
+  onAddFile,
+  modelLabel,
+  openPopover = null,
+  onTogglePopover,
+  popover,
   dock = false,
   skillSelected = false,
   focused = false,
-}: {
-  panelHeight?: number
-  mode?: ComposerMode
-  permission?: PermissionTier
-  chips?: readonly V4Chip[]
-  initialText?: string
-  /** 收起坞（结果全屏）：同一个 composer 落到画面下沿，上限 6 行。 */
-  dock?: boolean
-  skillSelected?: boolean
-  focused?: boolean
-}): JSX.Element {
+}: AgentPanelV4ComposerProps): JSX.Element {
   const { t } = useTranslation()
-  const [value, setValue] = React.useState(initialText)
   const rows = Math.max(1, value.split('\n').length)
   const chipRows = chips?.length ? 1 : 0
   const height = useComposerHeight(panelHeight, dock ? 'dock' : mode, rows, chipRows)
@@ -89,11 +113,10 @@ export function AgentPanelV4Composer({
   // 「有东西可发」是**一个**判据，发送钮的长相、它的 disabled、以及 Enter 那条路都从这里取，
   // 免得三处各判一次、以后有人只改了其中一处（长相灰着但 Enter 还能发＝还是在假装能发）。
   const canSend = Boolean(value.trim() || chips?.length)
-  const submit = React.useCallback(() => setValue(''), [])
   return (
     <form
       className={cn(
-        'flex shrink-0 flex-col overflow-hidden rounded-nomi border border-nomi-line bg-nomi-paper',
+        'relative flex shrink-0 flex-col overflow-visible rounded-nomi border border-nomi-line bg-nomi-paper',
         focused && 'border-nomi-accent shadow-[0_0_0_3px_var(--nomi-accent-soft)]',
         running && 'shadow-[0_0_0_1px_var(--nomi-accent-soft)]',
         dock && 'shadow-nomi-lg',
@@ -101,7 +124,7 @@ export function AgentPanelV4Composer({
       style={{ minHeight: height, maxHeight: cap }}
       onSubmit={(event) => {
         event.preventDefault()
-        submit()
+        if (canSend) onSubmit?.()
       }}
       data-v4-block="composer"
       data-mode={mode}
@@ -110,16 +133,29 @@ export function AgentPanelV4Composer({
       data-approval-mode={policy.mode}
       data-spend-policy={policy.spend}
     >
+      {/* 弹层挂在 composer 上沿：它必须能盖出框外，所以这一层不能 `overflow-hidden`。
+          内部滚动由 textarea 自己的 `overflow-y-auto` 管，两者不冲突。 */}
+      {popover ? (
+        <div className="absolute bottom-full left-0 z-30 mb-1.5" data-v4-popover-anchor="true">
+          {popover}
+        </div>
+      ) : null}
       {chips?.length ? (
         <div className="flex shrink-0 flex-wrap gap-1.5 px-2.5 pt-2">
-          {chips.map((chip) => (
-            <ComposerChip key={chip.label} chip={chip} removeLabel={t('agentPanelV4.removeChip')} />
+          {chips.map((chip, index) => (
+            <ComposerChip
+              key={`${chip.kind}-${chip.label}`}
+              chip={chip}
+              removeLabel={t('agentPanelV4.removeChip')}
+              onRemove={() => onRemoveChip?.(chip, index)}
+            />
           ))}
         </div>
       ) : null}
       <textarea
         value={value}
-        onChange={(event) => setValue(event.target.value)}
+        readOnly={!onValueChange}
+        onChange={(event) => onValueChange?.(event.target.value)}
         onKeyDown={(event) => {
           if (
             shouldSubmitComposer({
@@ -129,12 +165,13 @@ export function AgentPanelV4Composer({
             })
           ) {
             event.preventDefault()
-            if (canSend) submit()
+            if (canSend) onSubmit?.()
           }
         }}
         placeholder={running ? t('agentPanelV4.placeholderRunning') : t('agentPanelV4.placeholder')}
         aria-label={t('agentPanelV4.message')}
         rows={1}
+        data-v4-control="input"
         // 封顶后内部滚动；`overscroll-contain` 让滚轮到边界不外泄到画布 / 时间轴
         // （2026-08-13 提示词滚轮那条坑同一根因）。
         className="min-h-0 w-full flex-1 resize-none overflow-y-auto overscroll-contain bg-transparent px-3 pb-1.5 pt-2.5 text-body-sm leading-normal text-nomi-ink outline-none placeholder:text-nomi-ink-40"
@@ -143,21 +180,27 @@ export function AgentPanelV4Composer({
         <button
           type="button"
           aria-label={t('agentPanelV4.addAnyFile')}
+          onClick={onAddFile}
+          data-v4-control="add-file"
           className="grid size-7 shrink-0 place-items-center rounded-nomi-sm text-nomi-ink-80 hover:bg-nomi-ink-05"
         >
           <IconPlus size={16} />
         </button>
         <button
           type="button"
+          onClick={() => onTogglePopover?.('model')}
+          aria-expanded={openPopover === 'model'}
           className="inline-flex h-7 shrink-0 items-center gap-[5px] whitespace-nowrap rounded-nomi-sm px-2 text-caption text-nomi-ink-80 hover:bg-nomi-ink-05"
           data-v4-control="model"
         >
-          {t('agentPanelV4.model')}
+          {modelLabel ?? t('agentPanelV4.model')}
           <IconChevronDown size={12} />
         </button>
         <span className="mx-0.5 h-4 w-px shrink-0 bg-nomi-line" aria-hidden="true" />
         <button
           type="button"
+          onClick={() => onTogglePopover?.('skill')}
+          aria-expanded={openPopover === 'skill'}
           className={cn(
             'inline-flex h-7 shrink-0 items-center gap-[5px] whitespace-nowrap rounded-nomi-sm px-2 text-caption text-nomi-ink-80 hover:bg-nomi-ink-05',
             skillSelected && 'bg-nomi-ink-05',
@@ -172,6 +215,8 @@ export function AgentPanelV4Composer({
         <span className="flex-1" />
         <button
           type="button"
+          onClick={() => onTogglePopover?.('permission')}
+          aria-expanded={openPopover === 'permission'}
           className="inline-flex h-7 shrink-0 items-center gap-[5px] whitespace-nowrap rounded-nomi-sm px-2 text-caption text-nomi-ink-80 hover:bg-nomi-ink-05"
           data-v4-control="permission"
         >
@@ -187,6 +232,7 @@ export function AgentPanelV4Composer({
         <button
           type={running ? 'button' : 'submit'}
           disabled={!running && !canSend}
+          onClick={running ? onStop : undefined}
           aria-label={running ? t('agentPanelV4.stop') : t('agentPanelV4.send')}
           className={cn(
             'grid size-[30px] shrink-0 place-items-center rounded-pill',
@@ -209,15 +255,20 @@ export function AgentPanelV4Composer({
   )
 }
 
+export type V4ModelRow = Readonly<{
+  /** 行首那个小标签：「对话」「图片默认」…… */
+  slot: string
+  name: string
+  /** 预计单价。目录没写价就没有——不印 `≈¥0.00`。 */
+  cost?: string
+  /** 行尾胶囊里的规格（2K / std / …）。没有规格的行不画胶囊。 */
+  value?: string
+  onSelect?: () => void
+}>
+
 /** 模型弹层：四行一个层，替换现役「去选文本模型 / 去模型库添加」两级冗余。每行带**预计单价**。 */
-export function V4ModelPopover(): JSX.Element {
+export function V4ModelPopover({ rows, onOpenLibrary }: { rows: readonly V4ModelRow[]; onOpenLibrary?: () => void }): JSX.Element {
   const { t } = useTranslation()
-  const rows: readonly { key: string; name: string; cost?: string; value: string }[] = [
-    { key: t('agentPanelV4.modelChat'), name: t('agentPanelV4.chatModel'), value: t('agentPanelV4.chatModel') },
-    { key: t('agentPanelV4.imageDefault'), name: t('agentPanelV4.imageModel'), cost: t('agentPanelV4.imagePrice'), value: '2K' },
-    { key: t('agentPanelV4.videoDefault'), name: t('agentPanelV4.videoModel'), cost: t('agentPanelV4.videoPrice'), value: 'std' },
-    { key: t('agentPanelV4.audioDefault'), name: t('agentPanelV4.audioModel'), cost: t('agentPanelV4.audioPrice'), value: '' },
-  ]
   return (
     <aside
       className="w-[300px] overflow-hidden rounded-nomi border border-nomi-line bg-nomi-paper shadow-nomi-md"
@@ -229,108 +280,174 @@ export function V4ModelPopover(): JSX.Element {
         <span>{t('agentPanelV4.modelHint')}</span>
       </div>
       {rows.map((row) => (
-        <div key={row.key} className="flex min-h-9 items-center gap-2 px-2.5 text-caption text-nomi-ink hover:bg-nomi-ink-05">
-          <span className="w-16 shrink-0 text-micro text-nomi-ink-60">{row.key}</span>
+        <button
+          type="button"
+          key={row.slot}
+          onClick={row.onSelect}
+          className="flex min-h-9 w-full items-center gap-2 px-2.5 text-left text-caption text-nomi-ink hover:bg-nomi-ink-05"
+        >
+          <span className="w-16 shrink-0 text-micro text-nomi-ink-60">{row.slot}</span>
           <span className="truncate">{row.name}</span>
           {row.cost ? <span className="shrink-0 text-micro text-nomi-ink-40">{row.cost}</span> : null}
-          <span className="ml-auto inline-flex h-6 shrink-0 items-center gap-1 rounded-nomi-sm border border-nomi-line px-2 text-caption">
-            {row.value}
-            <IconChevronDown size={11} />
-          </span>
-        </div>
+          {row.value ? (
+            <span className="ml-auto inline-flex h-6 shrink-0 items-center gap-1 rounded-nomi-sm border border-nomi-line px-2 text-caption">
+              {row.value}
+              <IconChevronDown size={11} />
+            </span>
+          ) : null}
+        </button>
       ))}
-      <div className="flex items-center gap-2 border-t border-nomi-line-soft px-2.5 py-2 text-caption text-nomi-ink-60">
+      <button
+        type="button"
+        onClick={onOpenLibrary}
+        className="flex w-full items-center gap-2 border-t border-nomi-line-soft px-2.5 py-2 text-left text-caption text-nomi-ink-60 hover:bg-nomi-ink-05"
+      >
         <span>{t('agentPanelV4.modelLibrary')}</span>
         <span className="flex-1" />
         <IconChevronRight size={12} />
-      </div>
+      </button>
     </aside>
   )
 }
 
-/** Skill 弹层：搜索 + 分类 chip + 列表（名称 + /命令 + 一句描述），hover 行的封面换预览视频。 */
-export function V4SkillPopover(): JSX.Element {
+export type V4CommandRow = Readonly<{
+  id: string
+  name: string
+  /** `/命令`。提示词库那一段也有，它就是把提示词当命令用的那个名字。 */
+  command: string
+  desc: string
+  /** 分段名：技能 / 提示词。同一个菜单两段，各自有名字（2026-09-06 拍板 ⑤）。 */
+  section: string
+  selected?: boolean
+}>
+
+/**
+ * `/` 命令弹层：搜索 + 分类 chip + 列表（名称 + /命令 + 一句描述）。
+ *
+ * **提示词库并进了这里**（拍板 ⑤）。理由是同一个问题：现役底栏有「Skill」和「提示词」
+ * 两个钮，而用户那一刻想的是同一件事——「给这次对话装一套说法」。两个入口意味着
+ * 用户得先学会我们对「技能」和「提示词」的区分，才能开始干活。合成一个菜单、两段有名字，
+ * 分不清的人照样能用搜索找到，分得清的人一眼看到分段。
+ */
+export function V4SkillPopover({
+  rows,
+  categories,
+  activeCategory,
+  query,
+  onQueryChange,
+  onSelectCategory,
+  onSelect,
+  onManage,
+}: {
+  rows: readonly V4CommandRow[]
+  categories: readonly string[]
+  activeCategory?: string
+  query?: string
+  onQueryChange?: (value: string) => void
+  onSelectCategory?: (category: string) => void
+  onSelect?: (row: V4CommandRow) => void
+  onManage?: () => void
+}): JSX.Element {
   const { t } = useTranslation()
-  const categories = [
-    t('agentPanelV4.skillAll'),
-    t('agentPanelV4.skillMine'),
-    t('agentPanelV4.skillScript'),
-    t('agentPanelV4.skillShotCat'),
-    t('agentPanelV4.skillEditCat'),
-  ]
-  const skills: readonly { name: string; command: string; desc: string }[] = [
-    { name: t('agentPanelV4.skillKasdan'), command: '/kasdan', desc: t('agentPanelV4.skillKasdanDesc') },
-    { name: t('agentPanelV4.skillShots'), command: '/shots', desc: t('agentPanelV4.skillShotsDesc') },
-    { name: t('agentPanelV4.skillPace'), command: '/pace', desc: t('agentPanelV4.skillPaceDesc') },
-    { name: t('agentPanelV4.skillAd'), command: '/product-ad', desc: t('agentPanelV4.skillAdDesc') },
-  ]
+  let lastSection = ''
   return (
     <aside
       className="w-[330px] overflow-hidden rounded-nomi border border-nomi-line bg-nomi-paper shadow-nomi-md"
       data-v4-popover="skill"
     >
-      <div className="mx-2.5 mb-1.5 mt-2 flex h-7 items-center gap-1.5 rounded-nomi-sm border border-nomi-line px-2 text-caption text-nomi-ink-40">
-        {t('agentPanelV4.skillSearch')}
-      </div>
+      <input
+        value={query ?? ''}
+        readOnly={!onQueryChange}
+        onChange={(event) => onQueryChange?.(event.target.value)}
+        placeholder={t('agentPanelV4.skillSearch')}
+        aria-label={t('agentPanelV4.skillSearch')}
+        data-v4-control="skill-search"
+        className="mx-2.5 mb-1.5 mt-2 flex h-7 w-[calc(100%-20px)] items-center gap-1.5 rounded-nomi-sm border border-nomi-line bg-transparent px-2 text-caption text-nomi-ink outline-none placeholder:text-nomi-ink-40"
+      />
       <div className="flex gap-1 overflow-hidden px-2.5 pb-1.5">
         {categories.map((category, index) => (
-          <span
+          <button
+            type="button"
             key={category}
+            onClick={() => onSelectCategory?.(category)}
             className={cn(
               'inline-flex h-[22px] shrink-0 items-center whitespace-nowrap rounded-pill px-2 text-micro',
-              index === 0 ? 'bg-nomi-ink text-nomi-paper' : 'bg-nomi-ink-05 text-nomi-ink-60',
+              (activeCategory ?? categories[0]) === category || (activeCategory === undefined && index === 0)
+                ? 'bg-nomi-ink text-nomi-paper'
+                : 'bg-nomi-ink-05 text-nomi-ink-60',
             )}
           >
             {category}
-          </span>
+          </button>
         ))}
       </div>
-      {skills.map((skill, index) => (
-        <div
-          key={skill.command}
-          className={cn('flex items-start gap-2.5 px-2.5 py-2', index === 0 && 'bg-nomi-ink-05')}
-        >
-          <span
-            className={cn(
-              'h-9 w-14 shrink-0 rounded-sm',
-              index === 0 ? 'bg-nomi-accent-soft' : 'bg-nomi-ink-10',
-            )}
-            aria-hidden="true"
-          />
-          <div className="min-w-0">
-            <div className="truncate text-caption font-medium text-nomi-ink">
-              {skill.name}
-              <code className="ml-1 font-nomi-mono text-micro font-normal text-nomi-ink-40">{skill.command}</code>
-            </div>
-            <div className="truncate text-micro text-nomi-ink-60">{skill.desc}</div>
-          </div>
-        </div>
-      ))}
-      <div className="flex items-center gap-2 border-t border-nomi-line-soft px-2.5 py-2 text-caption text-nomi-ink-60">
+      <div className="max-h-[260px] overflow-y-auto overscroll-contain">
+        {rows.map((row) => {
+          const header = row.section !== lastSection ? row.section : ''
+          lastSection = row.section
+          return (
+            <React.Fragment key={row.id}>
+              {header ? (
+                <div className="px-2.5 pb-0.5 pt-1.5 text-micro text-nomi-ink-40">{header}</div>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => onSelect?.(row)}
+                data-v4-command={row.id}
+                className={cn('flex w-full items-start gap-2.5 px-2.5 py-2 text-left', row.selected && 'bg-nomi-ink-05')}
+              >
+                <span
+                  className={cn('h-9 w-14 shrink-0 rounded-sm', row.selected ? 'bg-nomi-accent-soft' : 'bg-nomi-ink-10')}
+                  aria-hidden="true"
+                />
+                <span className="min-w-0">
+                  <span className="block truncate text-caption font-medium text-nomi-ink">
+                    {row.name}
+                    <code className="ml-1 font-nomi-mono text-micro font-normal text-nomi-ink-40">{row.command}</code>
+                  </span>
+                  <span className="block truncate text-micro text-nomi-ink-60">{row.desc}</span>
+                </span>
+              </button>
+            </React.Fragment>
+          )
+        })}
+      </div>
+      <button
+        type="button"
+        onClick={onManage}
+        className="flex w-full items-center gap-2 border-t border-nomi-line-soft px-2.5 py-2 text-left text-caption text-nomi-ink-60 hover:bg-nomi-ink-05"
+      >
         <span>{t('agentPanelV4.skillExplore')}</span>
         <span className="flex-1" />
         <IconPlus size={12} />
         {t('agentPanelV4.skillManage')}
-      </div>
+      </button>
     </aside>
   )
 }
 
 /** 权限弹层：三档 segmented control（定稿 Composer 板中列下半张）。 */
-export function V4PermissionPopover({ permission }: { permission: PermissionTier }): JSX.Element {
+export function V4PermissionPopover({
+  permission,
+  onSelect,
+}: {
+  permission: PermissionTier
+  onSelect?: (tier: PermissionTier) => void
+}): JSX.Element {
   const { t } = useTranslation()
-  const tiers: readonly PermissionTier[] = ['step', 'safe-auto', 'project']
   return (
     <aside
       className="w-[300px] overflow-hidden rounded-nomi border border-nomi-line bg-nomi-paper p-2.5 shadow-nomi-md"
       data-v4-popover="permission"
     >
       <div className="inline-flex gap-0.5 rounded-nomi-sm bg-nomi-ink-05 p-0.5">
-        {tiers.map((tier) => (
-          <span
+        {PERMISSION_TIERS.map((tier) => (
+          <button
+            type="button"
             key={tier}
             data-tier={tier}
             data-active={tier === permission ? 'true' : undefined}
+            onClick={() => onSelect?.(tier)}
             className={cn(
               'inline-flex min-h-6 items-center whitespace-nowrap rounded-nomi-sm px-2.5 text-caption',
               tier === permission
@@ -339,7 +456,7 @@ export function V4PermissionPopover({ permission }: { permission: PermissionTier
             )}
           >
             {t(`agentPanelV4.permission.${tier}`)}
-          </span>
+          </button>
         ))}
       </div>
       <p className="mb-0 mt-2 text-micro leading-relaxed text-nomi-ink-60">
@@ -347,10 +464,4 @@ export function V4PermissionPopover({ permission }: { permission: PermissionTier
       </p>
     </aside>
   )
-}
-
-export function V4ComposerPopover({ kind, permission }: { kind: ComposerPopover; permission: PermissionTier }): JSX.Element {
-  if (kind === 'model') return <V4ModelPopover />
-  if (kind === 'skill') return <V4SkillPopover />
-  return <V4PermissionPopover permission={permission} />
 }

@@ -70,12 +70,20 @@ export function V4AssistantMessage({
   status,
   labels,
   panelHeight,
+  onCopy,
+  onRetry,
+  onContinue,
 }: {
   text: string
   status: V4AssistantStatus
   labels: { copy: string; retry: string; continue: string }
   /** 折叠阈值由它 derive（定稿：超过面板高 60% 折起来）。单件取景时不给 = 不折。 */
   panelHeight?: number
+  /** 三个动作都可缺：设计实验室单件取景时没有宿主可调，钮仍在，只是按下去没有去处。 */
+  onCopy?: (text: string) => void
+  onRetry?: () => void
+  /** 「继续」= 给这个还活着的回合追加一句指令（`turn.steer`），不是重发。 */
+  onContinue?: () => void
 }): JSX.Element {
   return (
     <div className="group" data-v4-block="assistant" data-status={status}>
@@ -93,6 +101,7 @@ export function V4AssistantMessage({
             <button
               type="button"
               aria-label={labels.copy}
+              onClick={() => onCopy?.(text)}
               className="grid size-[22px] place-items-center rounded-nomi-sm hover:bg-nomi-ink-05"
             >
               <IconCopy size={14} />
@@ -100,6 +109,7 @@ export function V4AssistantMessage({
             <button
               type="button"
               aria-label={labels.retry}
+              onClick={onRetry}
               className="grid size-[22px] place-items-center rounded-nomi-sm hover:bg-nomi-ink-05"
             >
               <IconRefresh size={14} />
@@ -109,6 +119,7 @@ export function V4AssistantMessage({
         {status === 'interrupted' ? (
           <button
             type="button"
+            onClick={onContinue}
             className="mt-1 inline-flex items-center gap-1 text-caption text-nomi-ink-60"
           >
             {labels.continue}
@@ -116,6 +127,73 @@ export function V4AssistantMessage({
           </button>
         ) : null}
       </Message>
+    </div>
+  )
+}
+
+/**
+ * 一排选项 chip。**一份**长相，两个用处：介入槽的「反问」和对话流里的「缺参数」。
+ * 早先它只长在介入槽里；缺参数改走对话流（2026-09-06 拍板 ④）时如果照抄一遍，
+ * 同一种 chip 就有了两份 className，改一次圆角要改两处——那正是 R14.1 横扫的东西。
+ */
+export function V4OptionChips({
+  options,
+  selectedOption,
+  onSelect,
+}: {
+  options: readonly string[]
+  selectedOption?: number
+  onSelect?: (option: string, index: number) => void
+}): JSX.Element {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {options.map((option, index) => (
+        <button
+          type="button"
+          key={option}
+          aria-pressed={index === selectedOption}
+          onClick={() => onSelect?.(option, index)}
+          className={cn(
+            'inline-flex h-[26px] items-center rounded-pill border px-2.5 text-caption',
+            index === selectedOption
+              ? 'border-nomi-accent bg-nomi-accent-soft text-nomi-accent'
+              : 'border-nomi-line text-nomi-ink-80',
+          )}
+        >
+          {option}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+/**
+ * 缺参数（`missing_param`）的家：**一条助手提问 + 一排建议 chip**，就地长在对话流里。
+ *
+ * 为什么不进介入槽：那个槽问的是「要不要让我做这件事」——它有确认/不要两个出口，
+ * 出现时压在 composer 上方、挡住输入。而缺参数根本不是审批，是 Nomi 少问了一句话；
+ * 把「你想要几秒？」放进一个带「不要」按钮的框里，用户得先想明白「不要」是什么意思。
+ * 放回对话流，它就长得跟任何一次追问一样：点 chip 是快捷答案，直接打字也一样能答。
+ */
+export function V4Suggestion({
+  text,
+  options,
+  onSelect,
+  panelHeight,
+}: {
+  text: string
+  options: readonly string[]
+  onSelect?: (option: string) => void
+  panelHeight?: number
+}): JSX.Element {
+  return (
+    <div className="flex flex-col gap-1.5" data-v4-block="suggestion">
+      <Message role="assistant">
+        <MessageResponse>
+          <AgentPanelV4Markdown text={text} panelHeight={panelHeight} />
+        </MessageResponse>
+      </Message>
+      <V4OptionChips options={options} onSelect={(option) => onSelect?.(option)} />
     </div>
   )
 }

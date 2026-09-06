@@ -5,20 +5,85 @@ import os from 'node:os'
 import path from 'node:path'
 import { once } from 'node:events'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
-import { clickOrFail, expect, expectAbsent, proveProbe, screenshotSettled } from './_assert.mjs'
+import { clickOrFail, expect, screenshotSettled } from './_assert.mjs'
 import { createAgentRuntimeFixture } from './agent-runtime-fixture.mjs'
 
-export const CREATION_PANEL = '[data-agent-resident="true"][data-agent-panel="true"][data-agent-surface="creation"]'
-export const CANVAS_PANEL = '[data-agent-resident="true"][data-agent-panel="true"][data-agent-surface="generation"]'
+// ── 面板选择器：v4 契约的**唯一**一份 ────────────────────────────────────────
+//
+// 2026-09-06 常驻面板换成 v4 积木（`src/workbench/ai/v4/`）之后，面板内部一律 `data-v4-*`；
+// 只有外壳那几个 `data-agent-*` 留着（它们标的是「哪一面的常驻面板」，不是长相）。
+// 走查里**禁止再手抄这些串**——2026-09-05 那次「面板没渲染」其实是选择器过期
+// （docs/lessons/dead-selector-lies-both-ways.md），一处失效同时造假红和假绿。
+
+/** 外壳：仍然由 ProjectAgentResidentShell 自己发的三个身份属性。 */
+export const AGENT_PANEL = '[data-agent-resident="true"][data-agent-panel="true"]'
+export const CREATION_PANEL = `${AGENT_PANEL}[data-agent-surface="creation"]`
+export const CANVAS_PANEL = `${AGENT_PANEL}[data-agent-surface="generation"]`
+export const PREVIEW_PANEL = `${AGENT_PANEL}[data-agent-surface="preview"]`
+export const STORYBOARD_PANEL = `${AGENT_PANEL}[data-agent-surface="storyboard"]`
+/** 收起态：外壳仍在（`data-agent-resident`），但没有 `data-agent-panel`，只剩图标条。 */
+export const COLLAPSED_SHELL = '[data-agent-resident="true"][data-agent-collapsed="true"]'
+export const COLLAPSED_DOCK = '[data-v4-block="dock"]'
+/** 面板级错误带（外壳渲染，不在 v4 积木里）。 */
+export const PANEL_ERROR = '[data-agent-error="true"]'
+export const THREAD_MENU = '[data-agent-thread-menu="true"]'
+
 export const DOCUMENT = '[aria-label="创作文档编辑区"] .tiptap[contenteditable="true"]'
+
+/** v4 面板本体与对话流。 */
+export const V4_PANEL = '[data-v4-panel="true"]'
+export const V4_FLOW = '[data-v4-flow="true"]'
+
+/** 对话流里的 8 个积木（`data-v4-block`）。 */
+export const USER_BUBBLE = '[data-v4-block="user"]'
+export const ASSISTANT_MESSAGE = '[data-v4-block="assistant"]'
+export const THINKING_LINE = '[data-v4-block="thinking"]'
+export const SUGGESTION = '[data-v4-block="suggestion"]'
+export const TOOL_RECEIPT = '[data-v4-block="tool"]'
+export const TASK_CARD = '[data-v4-block="task"]'
+export const ERROR_BAR = '[data-v4-block="errorbar"]'
+export const QUEUE = '[data-v4-block="queue"]'
+export const QUEUE_ROW = `${QUEUE} > div[data-status]`
+export const CONTEXT_RING = '[data-v4-block="context"]'
+
 /**
- * 待批准的操作卡（介入槽）。**复合**选择器，不是后代选择器：自 2026-09-05 的介入槽收口
- * （合同 §2.6）起，`data-agent-item-kind="approval"` 与 `data-agent-approval="true"` 落在
- * **同一个** <aside> 上；旧的 `A B` 写法要求二者一父一子，于是一个都匹配不到，走查报
- * 「面板没渲染」而实际是选择器过期（docs/lessons/dead-selector-lies-both-ways.md）。
- * 这条串只此一份，别再在各走查里手抄。
+ * 待批准的操作卡 = 介入槽。v4 里它**只有一个**（`primaryPending`），永远在 composer 正上方；
+ * 「还有 N 条」写在槽头，不再是一叠卡。`data-kind` 分档：
+ * `approval-reversible` / `approval-irreversible` / `spend` / `question` / `plan` / `credential`。
  */
-export const APPROVAL_CARD = '[data-agent-item-kind="approval"][data-agent-approval="true"]'
+export const APPROVAL_CARD = '[data-v4-block="intervention"]'
+export const INTERVENTION_SLOT = APPROVAL_CARD
+export const INTERVENTION_CONFIRM = '[data-v4-control="confirm"]'
+export const INTERVENTION_REJECT = '[data-v4-control="reject"]'
+export const INTERVENTION_CONFIRM_REJECT = '[data-v4-control="confirm-reject"]'
+export const INTERVENTION_CANCEL_REJECT = '[data-v4-control="cancel-reject"]'
+export const INTERVENTION_ESCALATE = '[data-v4-control="escalate"]'
+export const INTERVENTION_ALTERNATE = '[data-v4-control="alternate"]'
+export const INTERVENTION_REJECT_REASON = '[data-v4-control="reject-reason"]'
+
+/** composer 与它底栏的五个控件。发送与停止是**同一颗钮**（`send`），由 aria-label 区分。 */
+export const COMPOSER = '[data-v4-block="composer"]'
+export const COMPOSER_INPUT = '[data-v4-control="input"]'
+export const COMPOSER_SEND = '[data-v4-control="send"]'
+/** 运行中那颗钮就是 `send`：`data-mode="running"` 时它是停止。别再找第二个 `stop` 挂点。 */
+export const COMPOSER_STOP = `${COMPOSER}[data-mode="running"] ${COMPOSER_SEND}`
+export const COMPOSER_ADD_FILE = '[data-v4-control="add-file"]'
+export const COMPOSER_MODEL = '[data-v4-control="model"]'
+export const COMPOSER_SKILL = '[data-v4-control="skill"]'
+export const COMPOSER_PERMISSION = '[data-v4-control="permission"]'
+export const COMPOSER_CHIP = '[data-v4-chip]'
+
+/** 弹层：一次只开一个。权限档在 `permission` 弹层里，`[data-tier][data-active]`。 */
+export const MODEL_POPOVER = '[data-v4-popover="model"]'
+export const SKILL_POPOVER = '[data-v4-popover="skill"]'
+export const SKILL_SEARCH = '[data-v4-control="skill-search"]'
+export const PERMISSION_POPOVER = '[data-v4-popover="permission"]'
+export const permissionTier = (tier) => `${PERMISSION_POPOVER} [data-tier="${tier}"]`
+export const ACTIVE_PERMISSION_TIER = `${PERMISSION_POPOVER} [data-tier][data-active="true"]`
+
+/** 头部两个图标钮。 */
+export const HISTORY_BUTTON = '[data-v4-control="history"]'
+export const COLLAPSE_BUTTON = '[data-v4-control="collapse"]'
 
 export function toolNames(body) {
   return (body.tools ?? []).map((tool) => tool.function.name).sort()
@@ -249,55 +314,128 @@ export function readCurrentProjectAgentToolEvidence(settingsRoot, projectRoot, c
   return { state, tool, proposal, receipt }
 }
 
-export async function chooseAssistantModel(win, modelIdentity) {
-  await clickOrFail(win.locator(`${CREATION_PANEL} [data-agent-composer-model="true"]`), '当前 Agent 模型选择器')
-  await clickOrFail(win.locator(`[data-agent-menu-item="${modelIdentity}"]`), `当前 Agent 文本模型 ${modelIdentity}`)
+/**
+ * 「这一轮说完了」的判定源（v4）。
+ *
+ * ⚠️ `_assert.mjs` 的 `waitForTurnIdle` 找的是 aria-label 为「停止生成」的钮——那是**旧面板**
+ * 的字；v4 那颗钮叫「停止」（`agentPanelV4.stop`），两者对不上。所以这里不按可见文字判，
+ * 按 composer 的 `data-mode` 判：`running` 出现（起飞）→ 消失（落地）。文案改了判定源不该失效。
+ *
+ * 别再用「气泡文本连续几次不变」——pending 态的助手块本来就没有文字，
+ * 模型还没吐第一个字判据就满足了（2026-08-18 那次栽的坑）。
+ */
+export async function waitForV4TurnIdle(win, { panel = AGENT_PANEL, startTimeout = 20_000, doneTimeout = 240_000, settledBy } = {}) {
+  const running = win.locator(`${panel} ${COMPOSER}[data-mode="running"]`).first()
+  if (settledBy) {
+    // 起飞已经由**别的**判据证明过了（通常是「出站请求到了 loopback」），这里只等落地。
+    //
+    // 为什么要这条分支：loopback 回得比一次断言轮询还快，回合可能在 Playwright 采到
+    // 第一帧之前就已经结束——那时 `data-mode="running"` 从头到尾没被观测到，
+    // 「没起飞」这条报红说的是仪器没跟上，不是产品没跑。
+    // 而这时**不能**只 `toBeHidden`：它本来就是 hidden，会立刻通过（`expectAbsent` 那类假绿）。
+    // 所以落地必须由调用方给一个**阳性**信号：这一轮真正产出的那个东西。
+    await expect(settledBy, '这一轮没落地：产出迟迟没出现').toBeVisible({ timeout: doneTimeout })
+    await expect(running, '这一轮没落地：composer 迟迟不退出运行态').toBeHidden({ timeout: doneTimeout })
+    return
+  }
+  await expect(running, '这一轮没起飞：点了发送但 composer 始终没进入运行态').toBeVisible({ timeout: startTimeout })
+  await expect(running, '这一轮没落地：composer 迟迟不退出运行态').toBeHidden({ timeout: doneTimeout })
+}
+
+/**
+ * 展开常驻面板。收起态是**真实的两态偏好**（持久化），不是加载中间态：
+ * 收起时外壳只剩 32px 图标条（`COLLAPSED_SHELL` + `COLLAPSED_DOCK`），点「对话」那颗钮展开。
+ */
+export async function expandResidentPanel(win) {
+  const collapsed = win.locator(COLLAPSED_SHELL)
+  if (await collapsed.isVisible().catch(() => false)) {
+    await clickOrFail(collapsed.locator(`${COLLAPSED_DOCK} button`).first(), '展开常驻 Agent 面板')
+  }
+  await expect(win.locator(`${AGENT_PANEL} ${COMPOSER}`).first()).toBeVisible()
+}
+
+/**
+ * 选模型。v4 的模型弹层每行只有**可见文字**（`labelZh || modelKey`）——没有 per-row 挂点，
+ * 所以按名字选，而不是按 `vendorKey/modelKey` 身份串。夹具的名字由
+ * `FIXTURE_TEXT_MODEL_LABEL` 单点持有，别在走查里手写。
+ */
+export async function chooseAssistantModel(win, modelLabel, panel = CREATION_PANEL) {
+  await clickOrFail(win.locator(`${panel} ${COMPOSER_MODEL}`), '当前 Agent 模型选择器')
+  const popover = win.locator(`${panel} ${MODEL_POPOVER}`)
+  await expect(popover).toBeVisible()
+  await clickOrFail(popover.getByRole('button', { name: new RegExp(escapeForRegExp(modelLabel)) }).first(), `当前 Agent 文本模型 ${modelLabel}`)
+}
+
+/** Playwright 的 name 正则要吃字面量文本，模型名里可能有 `.` `(` 之类。 */
+export function escapeForRegExp(text) {
+  return String(text).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
 export async function openCanvas(win) {
   await clickOrFail(win.getByRole('button', { name: '生成', exact: true }), '生成工作区')
   await expect(win.locator('.generation-canvas-v2__stage')).toBeVisible()
   // Host cutover retired the in-canvas assistant panel; the project Agent now lives in the
-  // ResidentShell dock, resident by default since 2026-09-05. Its collapsed launcher is
-  // the pill with [data-agent-resident-collapsed]; expanding it reveals [data-agent-composer].
-  const launcher = win.locator('[data-agent-resident-collapsed="true"]')
-  // This is a genuine two-state UI (persisted expanded/collapsed preference).
-  if (await launcher.isVisible()) await clickOrFail(launcher, '展开常驻助手')
-  await expect(win.locator('[data-agent-resident="true"] [data-agent-composer="true"]')).toBeVisible()
+  // ResidentShell dock, resident by default since 2026-09-05.
+  await expandResidentPanel(win)
+  await expect(win.locator(`${CANVAS_PANEL} ${COMPOSER}`)).toBeVisible()
+}
+
+async function sendThrough(win, panel, text, label) {
+  const input = win.locator(`${panel} ${COMPOSER_INPUT}`)
+  await expect(input).toBeVisible()
+  await input.fill(text)
+  // 发送钮空态是真 `disabled`（2026-09-06 拍板）：填完再点，别在空框上点。
+  await clickOrFail(win.locator(`${panel} ${COMPOSER_SEND}`), label)
 }
 
 export async function sendCreation(win, text) {
-  const input = win.locator(`${CREATION_PANEL} [data-agent-input="true"]`)
-  await expect(input).toBeVisible()
-  await input.fill(text)
-  await clickOrFail(win.locator(`${CREATION_PANEL} [data-agent-composer-send="true"]`), '发送当前 Agent 指令')
+  await sendThrough(win, CREATION_PANEL, text, '发送当前 Agent 指令')
 }
 
 export async function sendCanvas(win, text) {
-  const input = win.locator(`${CANVAS_PANEL} [data-agent-input="true"]`)
-  await expect(input).toBeVisible()
-  await input.fill(text)
-  await clickOrFail(win.locator(`${CANVAS_PANEL} [data-agent-composer-send="true"]`), '发送当前 Agent 画布指令')
+  await sendThrough(win, CANVAS_PANEL, text, '发送当前 Agent 画布指令')
+}
+
+export async function sendPreview(win, text) {
+  await sendThrough(win, PREVIEW_PANEL, text, '发送当前 Agent 剪辑指令')
 }
 
 export async function newConversation(win, panel) {
-  const resident = win.locator(panel)
-  await clickOrFail(resident.locator('[data-agent-history="true"]'), '当前 Agent 会话列表')
-  await clickOrFail(win.locator('[data-agent-thread-menu="true"]').getByRole('button', { name: '新对话', exact: true }), '当前 Agent 新对话')
+  await clickOrFail(win.locator(`${panel} ${HISTORY_BUTTON}`), '当前 Agent 会话列表')
+  await clickOrFail(win.locator(THREAD_MENU).getByRole('button', { name: '新对话', exact: true }), '当前 Agent 新对话')
 }
 
 export async function selectConversation(win, panel, title) {
-  const resident = win.locator(panel)
-  await clickOrFail(resident.locator('[data-agent-history="true"]'), '当前 Agent 会话列表')
-  await clickOrFail(win.locator('[data-agent-thread-menu="true"]').getByRole('button', { name: title, exact: true }), `恢复当前 Agent 会话 ${title}`)
+  await clickOrFail(win.locator(`${panel} ${HISTORY_BUTTON}`), '当前 Agent 会话列表')
+  await clickOrFail(win.locator(THREAD_MENU).getByRole('button', { name: title, exact: true }), `恢复当前 Agent 会话 ${title}`)
 }
 
 /** Current Host threads may intentionally have no title; select by persisted order in that case. */
 export async function selectConversationAt(win, panel, index) {
-  const resident = win.locator(panel)
-  await clickOrFail(resident.locator('[data-agent-history="true"]'), '当前 Agent 会话列表')
-  const rows = win.locator('[data-agent-thread-menu="true"] > div')
+  await clickOrFail(win.locator(`${panel} ${HISTORY_BUTTON}`), '当前 Agent 会话列表')
+  // 菜单第一行是「历史会话 / 新对话」那条头，线程行从第二个 div 起。
+  const rows = win.locator(`${THREAD_MENU} > div`)
   await clickOrFail(rows.nth(index + 1).getByRole('button').first(), `恢复当前 Agent 第 ${index + 1} 个会话`)
+}
+
+/**
+ * 介入槽的「不要」是**两下**（渐进披露）：第一下摊开拒绝原因，第二下「确认不要」才回给宿主。
+ * 一次点击就否掉一个提案，手滑的成本是整回合重来——所以走查也必须走这两下。
+ */
+export async function rejectPendingIntervention(win, panel, reason) {
+  const slot = win.locator(`${panel} ${APPROVAL_CARD}`)
+  await expect(slot).toBeVisible()
+  await clickOrFail(slot.locator(INTERVENTION_REJECT), '介入槽「不要」')
+  const reasonInput = slot.locator(INTERVENTION_REJECT_REASON)
+  await expect(reasonInput).toBeVisible()
+  if (reason) await reasonInput.fill(reason)
+  await clickOrFail(slot.locator(INTERVENTION_CONFIRM_REJECT), '介入槽「确认不要」')
+}
+
+export async function approvePendingIntervention(win, panel) {
+  const slot = win.locator(`${panel} ${APPROVAL_CARD}`)
+  await expect(slot).toBeVisible()
+  await clickOrFail(slot.locator(INTERVENTION_CONFIRM), '介入槽「确认」')
 }
 
 export async function createRuntimeWalk(name) {

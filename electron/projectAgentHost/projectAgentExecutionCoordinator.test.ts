@@ -2115,7 +2115,9 @@ describe("ProjectAgentExecutionCoordinator", () => {
     expect(documentAdapter.prepare).toHaveBeenCalledOnce();
     expect(documentAdapter.execute).not.toHaveBeenCalled();
     expect(final.items.filter((item) => item.kind === "proposal")).toHaveLength(0);
-    expect(final.items.find((item) => item.kind === "tool")).toMatchObject({ status: "failed" });
+    // 用户拒绝 ≠ 工具坏了。`declined` 是它自己的终态，不并进 `failed`——面板要分得出
+    // 「Nomi 没做成」和「你说了不要」，收据行尾写的字完全不同。
+    expect(final.items.find((item) => item.kind === "tool")).toMatchObject({ status: "declined" });
   });
 
   it("executes an approved document.write through the Host and settles its frozen proposal", async () => {
@@ -2645,7 +2647,7 @@ describe("ProjectAgentExecutionCoordinator", () => {
     const final = await coordinator.waitForTurn(opened.subscriptionId, input.mutation.payload.turn.turnId);
     expect(adapter.execute).not.toHaveBeenCalled();
     expect(final.items.filter((item) => item.kind === "proposal")).toHaveLength(0);
-    expect(final.items.find((item) => item.kind === "tool")).toMatchObject({ status: "failed" });
+    expect(final.items.find((item) => item.kind === "tool")).toMatchObject({ status: "declined" });
     coordinator.release(opened.subscriptionId);
   });
 

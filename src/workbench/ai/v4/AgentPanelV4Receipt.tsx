@@ -21,10 +21,12 @@ export function V4ToolReceipt({
   receipt,
   statusLabel,
   undoLabel,
+  onUndo,
 }: {
   receipt: ToolReceipt
   statusLabel: string
   undoLabel?: string
+  onUndo?: () => void
 }): JSX.Element {
   const expandable = Boolean(receipt.input || receipt.output)
   const tone = STATUS_TONE[receipt.status] ?? 'text-nomi-accent'
@@ -39,7 +41,19 @@ export function V4ToolReceipt({
         <ToolStatusIcon status={receipt.status} />
         {receipt.trailing ?? statusLabel}
         {receipt.undoable && undoLabel ? (
-          <span className="text-nomi-accent">{undoLabel}</span>
+          // `<details>` 的 summary 里点这个钮会连带把展开体折起来——那是浏览器默认行为，
+          // 不是 bug，但用户按的是「撤销」不是「收起」。stopPropagation 把两件事分开。
+          <button
+            type="button"
+            className="text-nomi-accent"
+            onClick={(event) => {
+              event.preventDefault()
+              event.stopPropagation()
+              onUndo?.()
+            }}
+          >
+            {undoLabel}
+          </button>
         ) : null}
         {/* › 只在有展开体时出现：没有内容可看的行不该给用户一个空按钮。 */}
         {expandable ? (
@@ -101,7 +115,7 @@ function ReceiptBlock({ labelKey, value }: { labelKey: string; value: string }):
  * 失败行下方的一句话原因 + 一个动作（`.errbar`）。付费任务必须标「未扣费」。
  * 它跟着收据或任务卡走，不是独立积木。
  */
-export function V4ErrorBar({ reason, action }: { reason: string; action?: string }): JSX.Element {
+export function V4ErrorBar({ reason, action, onAction }: { reason: string; action?: string; onAction?: () => void }): JSX.Element {
   return (
     <div
       className="flex items-center gap-2 rounded-nomi-sm bg-nomi-danger-soft px-2.5 py-1.5 text-caption text-nomi-danger"
@@ -109,7 +123,11 @@ export function V4ErrorBar({ reason, action }: { reason: string; action?: string
     >
       <IconAlertTriangle size={13} aria-hidden="true" />
       <span className="flex-1">{reason}</span>
-      {action ? <span className="font-medium text-nomi-ink-80">{action}</span> : null}
+      {action ? (
+        <button type="button" className="font-medium text-nomi-ink-80" onClick={onAction}>
+          {action}
+        </button>
+      ) : null}
     </div>
   )
 }

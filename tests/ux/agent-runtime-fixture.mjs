@@ -6,6 +6,10 @@ import path from 'node:path'
 export const FIXTURE_VENDOR = 'agent-runtime-loopback'
 export const FIXTURE_TEXT_MODEL = 'agent-runtime-text'
 export const FIXTURE_IMAGE_MODEL = 'agent-runtime-image'
+// v4 的模型弹层每行只印**显示名**（`labelZh || modelKey`），没有 per-row 挂点，
+// 所以走查按名字选模型。名字与下面的 catalog 共用同一个常量，两边不会各写一份。
+export const FIXTURE_TEXT_MODEL_LABEL = 'Fixture 文本'
+export const FIXTURE_IMAGE_MODEL_LABEL = 'Fixture 图片'
 export const FIXTURE_API_KEY = 'sk-agent-runtime-fixture'
 export const FIXTURE_USAGE = Object.freeze({
   prompt_tokens: 11, completion_tokens: 7, total_tokens: 18,
@@ -55,8 +59,8 @@ function modelCatalog(baseURL) {
       createdAt: NOW, updatedAt: NOW,
     }],
     models: [
-      { ...common, modelKey: FIXTURE_TEXT_MODEL, labelZh: 'Fixture 文本', kind: 'text', published: true, meta: { supportsImageInput: true } },
-      { ...common, modelKey: FIXTURE_IMAGE_MODEL, labelZh: 'Fixture 图片', kind: 'image', published: true, meta: { archetypeId: 'agnes-image' } },
+      { ...common, modelKey: FIXTURE_TEXT_MODEL, labelZh: FIXTURE_TEXT_MODEL_LABEL, kind: 'text', published: true, meta: { supportsImageInput: true } },
+      { ...common, modelKey: FIXTURE_IMAGE_MODEL, labelZh: FIXTURE_IMAGE_MODEL_LABEL, kind: 'image', published: true, meta: { archetypeId: 'agnes-image' } },
     ],
     mappings: ['text_to_image', 'image_edit'].map(imageMapping),
     apiKeysByVendor: {

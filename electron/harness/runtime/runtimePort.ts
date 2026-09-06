@@ -43,6 +43,20 @@ export interface RuntimeUsage {
   completionTokens: number
   cachedPromptTokens: number
   totalTokens: number
+  /**
+   * Reasoning/thinking tokens, and only when the provider actually reports a
+   * breakdown. A subset of `completionTokens`, never added on top of it.
+   * Absent means "this provider did not say" — never coerce it to 0, or the
+   * panel prints a confident zero for a number nobody measured.
+   */
+  reasoningTokens?: number
+  /**
+   * Provider-priced cost of this one turn, in USD, straight from the runtime's
+   * own price table. Absent when the runtime has no price for the model.
+   * This is the only cost source; nothing downstream multiplies tokens by a
+   * rate of its own.
+   */
+  costUsd?: number
 }
 
 export type RuntimeFinishReason = 'stop' | 'length' | 'toolUse' | 'error' | 'aborted'

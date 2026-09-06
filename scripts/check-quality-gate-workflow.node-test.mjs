@@ -224,7 +224,8 @@ test('package scripts expose canonical separated profiles and classifier contrac
   assert.equal(scripts['test:system:canvas:full'], 'node scripts/test-system.mjs ci-canvas-full')
   assert.equal(scripts['test:system:performance'], 'node scripts/test-system.mjs ci-performance')
   assert.equal(scripts['test:canvas:performance'], 'node tests/ux/canvas-real-suite.mjs performance')
-  assert.equal(scripts['lint:ci'], 'eslint . --max-warnings=82')
+  // 棘轮只减不增：2026-09-06 v4 接线删掉旧面板后降到 81。调高需要理由，调低直接改这一行。
+  assert.equal(scripts['lint:ci'], 'eslint . --max-warnings=81')
   assert.match(scripts['check:quality-gate-workflow'], /validation-policy\.node-test\.mjs/)
   assert.match(scripts['check:quality-gate-workflow'], /real-user-test-gates\.node-test\.mjs/)
 })
