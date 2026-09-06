@@ -94,6 +94,9 @@ tests/system/runs/
 # 下载量可视化看板：派生产物（pnpm stats:html 按需生成），数据每次都变故不提交
 docs/stats/dashboard.html
 
+# 快照数据分支（stats-data）的本地/CI checkout：数据住那条分支，不住源码树
+.stats-data/
+
 # 本机跑评测/走查/调研攒下的媒体产物。2026-09-02 实测主仓这一坨 966MB / 793 个文件
 # （platform-research 234M · research-20260824-agent-workbench 341M · promo-runs 180M ·
 # reference-libTV 158M · generated-clips-review 3M · release-0.19.0-screenshots 156K），
