@@ -5,7 +5,7 @@
 // 就空了。这里证的是新通路里顺序**根本不需要被算出来**——它落在盘上，关掉进程、重开、
 // 从盘上读回来，段与段的相对位置一个字都不变。
 import assert from 'node:assert/strict';
-import { readdir } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { test } from 'node:test';
 
@@ -157,4 +157,26 @@ test('reopening a session id that is not on disk fails loudly instead of silentl
   const fixture = await createLaneFixture(t, []);
   await assert.rejects(() => openLane({ ...fixture.options, sessionId: 'nope-not-a-session' }),
     /not on disk/, 'a missing history is an error, not an empty panel that looks normal');
+});
+
+// —— 跨层契约：真 pi 转录 → 一份落盘的投影夹具 → 渲染层的 v4 积木 ——
+//
+// 新旧两条通路的接缝是 `LaneProjection`。它的两侧住在两套不同的编译世界里
+// （主进程是 NodeNext 的 ESM 岛，渲染层是 vite/vitest），所以没有一条测试能一口气
+// 从 pi 跑到 v4 组件。硬把它们塞进同一个 runner 只会得到一份互相 mock 的假闭环。
+//
+// 于是把接缝**物化**成一份夹具：这条测试证明「真 pi 产出的投影长这样」，
+// `src/workbench/ai/lane/laneViewModel.fixture.test.ts` 证明「长这样的投影投出那些积木」。
+// 两条测试共用同一个文件，谁先漂谁先红——比一个互相 mock 的端到端强。
+test('the live projection matches the checked-in fixture the renderer layer is tested against', async (t) => {
+  const fixture = await createLaneFixture(t, [...READ_THEN_WRITE]);
+  const lane = await openLane(fixture.options);
+  t.after(() => lane.close());
+  await lane.execute({ kind: 'prompt', text: 'Append one paragraph to the document.' });
+
+  // 从仓库根解析，不从 `import.meta.url`：编译产物住在 `.tmp/` 下，夹具 JSON 不跟着搬。
+  const expected = JSON.parse(await readFile(
+    join(process.cwd(), 'tests/agent-runtime/__fixtures__/lane-projection.json'), 'utf8')) as unknown;
+  assert.deepEqual(JSON.parse(JSON.stringify(lane.projection())), expected,
+    'regenerate tests/agent-runtime/__fixtures__/lane-projection.json when the wire shape changes on purpose');
 });
