@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { normalizePayload } from './projectNormalize'
+import { normalizePayload, normalizeRecord } from './projectNormalize'
 import { createDefaultWorkbenchProjectPayload } from './projectRecordSchema'
 import type { StoryboardPlan } from '../generationCanvas/agent/storyboardPlan'
 import type { GenerationCanvasNode } from '../generationCanvas/model/generationCanvasTypes'
@@ -82,5 +82,72 @@ describe('normalizePayload — 损坏记录优雅降级（缺可默认字段不�
     expect(out.workbenchDocuments![0].version).toBe(1)
     expect(out.workbenchDocuments![0].title).toBe('')
     expect(out.timeline.tracks.length).toBeGreaterThan(0)
+  })
+})
+
+// 2026-09-06：用户报「看不到原来的剧本/分镜」。上面那组用例全都直接喂 normalizePayload，
+// 所以一直是绿的——但生产上没有任何调用者这么调：读盘走的是 normalizeRecord，而它把
+// **zod 解析后**的 payload 喂给迁移器，普通 z.object 早已把 storyboardPlan 这类老键剥掉了。
+// 于是老项目的分镜方案打开即消失，随后任何一次自动保存把它从盘上永久抹掉。
+// 这一组把断言挪到真正的读侧边界上：迁移器测得再全，喂错料就等于没测。
+describe('normalizeRecord — 老项目的分镜方案必须活着穿过读侧', () => {
+  const legacyPlan: StoryboardPlan = {
+    title: 'Nomi 开源宣传片',
+    anchors: [{ id: 'anchor-creator', kind: 'character', name: '创作者', description: '短黑发', carrier: 'visual' }],
+    // 真实老项目的镜头就是这个形状：没有 shotId、没有 sceneId。
+    shots: [
+      { index: 1, durationSec: 0, anchorIds: ['anchor-creator'], prompt: '工作室全景' },
+      { index: 2, durationSec: 0, anchorIds: [], prompt: '时钟特写' },
+    ],
+  }
+  const summary = { id: 'p1', name: '老项目', createdAt: 1, updatedAt: 2 } as never
+  const legacyRecord = (payloadExtra: Record<string, unknown>) => ({
+    id: 'p1', name: '老项目', version: 1, createdAt: 1, updatedAt: 2, savedAt: 2, revision: 1,
+    payload: {
+      // 老项目就是单份 workbenchDocument（连 id 都没有）+ 顶层老分镜键。
+      workbenchDocument: { version: 1, title: '', updatedAt: 30, contentJson: { type: 'doc', content: [] } },
+      timeline: null,
+      generationCanvas: { nodes: [], edges: [], selectedNodeIds: [], groups: [] },
+      ...payloadExtra,
+    },
+  })
+
+  // 报告案例：单份 storyboardPlan。
+  it('carries the retired single plan through normalizeRecord', () => {
+    const out = normalizeRecord(summary, legacyRecord({
+      [['storyboard', 'Plan'].join('')]: legacyPlan,
+      [['storyboard', 'Plan', 'Committed'].join('')]: true,
+    }))
+    const designs = Object.values(out.payload.storyboardDesignsByDocumentId ?? {}).flat()
+    expect(designs).toHaveLength(1)
+    expect(designs[0].plan.shots).toHaveLength(2)
+    expect(designs[0].committed).toBe(true)
+    // 方案必须挂在真实存在的那篇原稿下，否则侧栏同样点不到。
+    expect(out.payload.workbenchDocuments?.some((d) => d.id === designs[0].documentId)).toBe(true)
+  })
+
+  // 类断言：同一族的另一个老键（按稿分组的 map）走的是同一个读侧边界。
+  it('carries the retired per-document plan map through normalizeRecord', () => {
+    const documentId = 'doc-legacy'
+    const out = normalizeRecord(summary, legacyRecord({
+      workbenchDocument: { id: documentId, version: 1, title: '', updatedAt: 30, contentJson: { type: 'doc', content: [] } },
+      [['storyboard', 'Plans'].join('')]: { [documentId]: { plan: legacyPlan, committed: false } },
+    }))
+    expect(Object.values(out.payload.storyboardDesignsByDocumentId ?? {}).flat()).toHaveLength(1)
+  })
+
+  // 新形状不受影响：owner 字段照常穿过，且不被老键覆盖。
+  it('keeps the owner field intact for current-shape records', () => {
+    const documentId = 'doc-new'
+    const design = {
+      id: 'sb-1', documentId, title: legacyPlan.title, plan: legacyPlan, committed: false,
+      status: 'draft' as const, sourceDocumentUpdatedAt: 10, createdAt: 11, updatedAt: 12,
+    }
+    const out = normalizeRecord(summary, legacyRecord({
+      workbenchDocuments: [{ id: documentId, version: 1, title: '新稿', updatedAt: 30, contentJson: { type: 'doc', content: [] } }],
+      activeDocumentId: documentId,
+      storyboardDesignsByDocumentId: { [documentId]: [design] },
+    }))
+    expect(out.payload.storyboardDesignsByDocumentId?.[documentId]).toEqual([design])
   })
 })

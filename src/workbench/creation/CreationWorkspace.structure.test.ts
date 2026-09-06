@@ -12,5 +12,7 @@ describe('Creation workspace script entry', () => {
     expect(source).not.toContain('StoryboardPlanCard')
     expect(source).toContain('data-creation-surface="source"')
     expect(source).not.toContain('setWorkspaceMode(\'storyboard\')')
+    // 资源树归 WorkbenchShell（跨 creation/storyboard 常驻），创作区不再自带一棵。
+    expect(source).not.toContain('DocumentListSidebar')
   })
 })

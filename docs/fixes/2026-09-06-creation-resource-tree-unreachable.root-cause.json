@@ -1,0 +1,134 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-06-creation-resource-tree-unreachable",
+  "problem_type": "a cross-surface resource tree is owned by one of the surfaces that consume it",
+  "symptom": "After opening a storyboard plan from the creation sidebar, the user could no longer reach any of their other scripts or storyboard plans: the storyboard page rendered the single opened plan full width with no resource tree at all. User report 2026-09-06: 'we used to have both scripts and storyboards clickable on the left; now there is only this one plan and I cannot click through to the others'.",
+  "direct_cause": "805096d41 added setWorkspaceMode('storyboard') to DocumentListSidebar.selectStoryboard in the same commit that deleted StoryboardPlanCard, the in-creation landing spot that had previously kept the click inside the creation surface. The destination, StoryboardWorkspace, is a separate WorkspaceSlot that deliberately renders no document sidebar (1e21bd9cc), so the tree that used to survive the click no longer existed at the destination.",
+  "class_root": "The creation resource tree lists documents and their storyboard plans, which are edited across two workspaces (creation writes the script, storyboard edits the shot table), but the tree was mounted by only one of them. Any navigation that lands in the other workspace therefore strands the user, no matter which entry point performed it.",
+  "affected_population": [
+    "Every user with more than one script, or more than one storyboard plan on a script",
+    "Every entry point that can put the workbench into storyboard mode: the sidebar plan rows, the top stepper, the ?step=storyboard URL restore, and StoryboardWorkspace's own auto-select effect",
+    "Legacy single-document projects, whose one migrated plan became the only reachable resource"
+  ],
+  "scope_paths": [
+    "src/workbench/creation/creationResourceTreeModes.ts",
+    "src/workbench/WorkbenchShell.tsx",
+    "src/workbench/creation/CreationWorkspace.tsx",
+    "src/workbench/creation/DocumentListSidebar.tsx",
+    "src/workbench/creation/storyboard/StoryboardWorkspace.tsx"
+  ],
+  "entry_points": [
+    "Creation sidebar storyboard plan row",
+    "Creation sidebar document row",
+    "Top stepper workspace switch",
+    "Workspace mode restored from the URL step parameter",
+    "StoryboardWorkspace auto-select of the first plan"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Workspace mounting and the creation resource tree are internal Nomi layout contracts; no third-party documentation decides them.",
+  "invariants": [
+    "While the workbench is on a surface that edits a document or one of its storyboard plans, the creation resource tree is mounted and lists every document and every plan.",
+    "The set of workspace modes that carry the tree has exactly one owner, CREATION_RESOURCE_TREE_MODES; neither workspace decides for itself.",
+    "The tree has exactly one mount point, WorkbenchShell. A workspace that renders its own copy would let the two drift apart again.",
+    "Picking a document row returns to the script surface: it clears the active storyboard and switches the mode back to creation. Clearing the id alone is not enough, because StoryboardWorkspace's 'no active plan, select the first one' effect would immediately throw the user back into a plan.",
+    "The v6 storyboard table itself is untouched: the fix adds the left rail beside it and changes no row anatomy, control, or spacing inside the table."
+  ],
+  "generality_proof": "Mounting is decided in WorkbenchShell, the single component that already owns which workspace is visible, and is keyed off the workspace mode rather than off any particular navigation action. Every listed entry point ultimately sets that mode, so a future entry point that switches into storyboard mode inherits the tree without its author having to remember; there is no per-caller conditional left to forget.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/creation/creationResourceTreeModes.ts",
+      "symbol": "CREATION_RESOURCE_TREE_MODES and workspaceModeCarriesCreationResourceTree",
+      "responsibility": "Own the single answer to 'which workspaces carry the creation resource tree', so the two surfaces that share the tree cannot disagree."
+    },
+    {
+      "path": "src/workbench/WorkbenchShell.tsx",
+      "symbol": "WorkbenchShell main region",
+      "responsibility": "Own the tree's only mount point, mounting it for exactly the modes the constant names, next to the existing ProjectExplorerSidebar mount for generation mode."
+    },
+    {
+      "path": "src/workbench/creation/DocumentListSidebar.tsx",
+      "symbol": "selectDocument",
+      "responsibility": "Own the 'back to the script' transition as one atomic act: clear the active storyboard and return the workspace to creation mode."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/creation/DocumentListSidebar.tsx",
+      "entry_point": "selectStoryboard",
+      "disposition": "enforced",
+      "evidence": "The reported entry. It still switches to storyboard mode, but the destination now carries the tree because WorkbenchShell mounts it for that mode; tests/ux/creation-sidebar-multi-doc.walk.mjs clicks it and then asserts all 2 documents and all 4 plans remain reachable, and switches to a plan under the other document from inside the storyboard page."
+    },
+    {
+      "path": "src/workbench/WorkbenchShell.tsx",
+      "entry_point": "handleWorkspaceModeChange and the ?step=storyboard URL restore",
+      "disposition": "enforced",
+      "evidence": "Both funnel through the same workspaceMode state that the new mount condition reads, so entering storyboard mode from the top stepper or from a restored URL cannot produce a treeless storyboard page either."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/StoryboardWorkspace.tsx",
+      "entry_point": "auto-select of the first design when storyboard mode has no active plan",
+      "disposition": "enforced",
+      "evidence": "This effect can enter a plan without any user click. It is covered by the same mount condition; the workspace no longer renders or suppresses the tree itself, and the file is asserted not to reference DocumentListSidebar."
+    },
+    {
+      "path": "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts",
+      "entry_point": "agent tool call that switches to creation mode",
+      "disposition": "not-affected",
+      "evidence": "It only ever sets creation mode, which already carried the tree before and after this change; it cannot produce the stranded state."
+    },
+    {
+      "path": "src/workbench/explorer/ProjectExplorerSidebar.tsx",
+      "entry_point": "generation-mode project file tree",
+      "disposition": "not-affected",
+      "evidence": "A different tree for a different resource population (canvas assets), already mounted at the shell for generation mode only; the creation tree deliberately does not appear there."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Four independent entry points can put the workbench into storyboard mode, and more will be added (the design contract already plans agent-driven navigation into a plan). As long as the tree belongs to one workspace, every such entry point is one forgotten line away from stranding the user again; the same class already recurred once when the plan card was deleted.",
+    "same_class_scan": [
+      "grep for setWorkspaceMode('storyboard') across src/ and electron/: the only production caller is DocumentListSidebar.selectStoryboard; mode is otherwise reached through WorkbenchShell.handleWorkspaceModeChange and the URL step parameter.",
+      "grep for DocumentListSidebar across src/ and electron/: before the fix the single importer was CreationWorkspace; after the fix the single importer is WorkbenchShell, asserted by creationResourceTreeModes.test.ts.",
+      "Read WorkbenchShell's WorkspaceSlot block to confirm creation and storyboard are sibling slots under one parent, so a shell-level rail is shared by both rather than duplicated per slot."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/WorkbenchShell.tsx",
+    "invariant": "The creation resource tree is mounted once, at the shell, for exactly the workspace modes named by CREATION_RESOURCE_TREE_MODES, and no workspace mounts its own.",
+    "failure_mode": "A workspace mode that is not in the constant simply has no creation tree, which is the intended state for generation and preview; a workspace that tries to render its own copy fails the structural assertion in creationResourceTreeModes.test.ts.",
+    "exception_policy": "none",
+    "strategy": "Move the mount decision up to the only component that already owns which workspace is visible, and key it off workspace mode rather than off navigation actions, so new entry points inherit the tree instead of having to opt in.",
+    "artifacts": [
+      "src/workbench/creation/creationResourceTreeModes.ts",
+      "src/workbench/WorkbenchShell.tsx",
+      "src/workbench/creation/CreationWorkspace.tsx",
+      "src/workbench/creation/DocumentListSidebar.tsx"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/creation/creationResourceTreeModes.test.ts",
+    "src/workbench/creation/CreationWorkspace.structure.test.ts",
+    "tests/ux/creation-sidebar-multi-doc.walk.mjs"
+  ],
+  "class_regression_tests": [
+    "src/workbench/creation/creationResourceTreeModes.test.ts",
+    "tests/ux/creation-sidebar-multi-doc.walk.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/creation/CreationWorkspace.tsx"
+    ],
+    "rationale": "CreationWorkspace's own DocumentListSidebar mount and its 240px sidebar grid column are deleted in the same change, so there is no second home for the tree to drift from. StoryboardWorkspace's stale 'no document sidebar' doc comment is corrected to point at the new owner."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Layout ownership inside the renderer; no third-party runtime decides where the tree mounts.",
+    "exit_criteria": []
+  },
+  "migration": "No data migration. The only user-visible change beside the restored reachability is that the rail now sits flush against the left edge of the workbench body, matching how the generation-mode project tree already mounts, instead of being inset inside the creation page's centered grid.",
+  "residual_risks": [
+    "Verified on macOS in a real Electron build at the walkthrough's default window size. Narrow windows below 980px, where the creation grid drops the assistant column, were not exercised on a real device."
+  ]
+}
