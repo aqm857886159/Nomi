@@ -7,6 +7,7 @@
 //
 // 用法:pnpm run build && node tests/ux/design-fidelity.e2e.mjs
 import { launchNomiApp } from "./_launchApp.mjs";
+import { addCanvasNodeFromRail } from "./_canvasRail.mjs";
 import { CANVAS_PANEL, COLLAPSED_DOCK, COLLAPSED_SHELL } from "./agent-runtime-walk-support.mjs";
 
 let passed = 0;
@@ -98,7 +99,7 @@ try {
   // 用户实时目录不一定有该模型 → 整段 try 包住：缺模型时跳过这些断言，不拖垮后面与目录无关的回归项
   // （生成助手/左栏/素材库/预览控制条 = 本会话真正要锁的点）。
   try {
-  await win.getByRole("button", { name: "添加视频节点", exact: false }).first().click();
+  await addCanvasNodeFromRail(win, "video");
   await win.waitForTimeout(1500);
   // 模型控件已从原生 <select> 迁到 NomiSelect（Mantine Combobox：触发 button + withinPortal 下拉）。
   // 故不再用 selectOption，改：点触发 pill → 在下拉里点目标选项（role=option）。

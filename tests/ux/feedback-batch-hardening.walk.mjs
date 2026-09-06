@@ -1,6 +1,7 @@
 // 2026-08-06 feedback batch: real Electron journey for edge semantics, multi-result lifecycle,
 // critical canvas text surfaces in both themes, and corrupt-manifest recovery.
 import { launchNomiApp } from './_launchApp.mjs'
+import { addCanvasNodeFromRail } from './_canvasRail.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -45,7 +46,7 @@ const shot = async (win, name) => {
   await win.keyboard.press('Escape').catch(() => {})
   await win.locator('[aria-label="工作区切换"]').getByText('生成', { exact: true }).click()
   await win.waitForTimeout(700)
-  await win.locator('[aria-label="添加图片节点"]').click()
+  await addCanvasNodeFromRail(win, 'image')
   await win.waitForTimeout(900)
   await app.close()
 }

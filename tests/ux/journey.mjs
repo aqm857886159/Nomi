@@ -1,6 +1,7 @@
 // 真·用户旅程穿透走查（规则 13）—— 我以真实用户视角把核心创作流程点一遍，每步截图（全窗 + 节点特写），
 // 零额度（不真生成、不导出）。产出 tests/ux/shots/journey-*.png 供多模态体感判断。
 import { launchNomiApp } from "./_launchApp.mjs";
+import { addCanvasNodeFromRail } from "./_canvasRail.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -37,7 +38,8 @@ try {
   await snap(win, "canvas");
 
   // 4) 加一个视频节点 → 第一眼看到节点 composer
-  await win.getByRole("button", { name: "添加视频节点", exact: false }).first().click();
+  // 左缘加节点收口在 _canvasRail（结构锚点，不认走 i18n 的 aria-label）。
+  await addCanvasNodeFromRail(win, "video");
   await win.waitForTimeout(1500);
   await snap(win, "video-node-added", { composer: true });
 

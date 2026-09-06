@@ -4,6 +4,7 @@
 // 这一项最要命的不是「弹层里多了几行」，而是**选中之后有没有真的建立引用**。
 // 所以核心断言是：@ 一个画布节点 → 画布上**真的多一条边** + chip 编号对得上，不是只在文本里留一句话。
 import { launchNomiApp } from './_launchApp.mjs'
+import { addCanvasNodeFromRail } from './_canvasRail.mjs'
 import { spawn } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -90,8 +91,7 @@ await win.waitForTimeout(6000)
 await snap(win, 'assets-imported')
 
 // 再加一个空图片节点当「目标」（要在它的提示词框里打 @）
-const addImage = win.locator('[aria-label="添加图片节点"]').first()
-await addImage.click({ timeout: 4000 })
+await addCanvasNodeFromRail(win, 'image', { timeout: 4000 })
 await win.waitForTimeout(1500)
 const ids = await win.evaluate(() =>
   Array.from(document.querySelectorAll('[data-node-id]')).map((el) => el.getAttribute('data-node-id')))

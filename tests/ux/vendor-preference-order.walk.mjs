@@ -10,6 +10,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
+import { addCanvasNodeFromRail } from './_canvasRail.mjs'
 import { expectAbsent, proveProbe, screenshotSettled } from './_assert.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -120,7 +121,7 @@ try {
   check(moved !== first, `调整偏好顺序后设置已更新（${first} → ${moved}）`)
   await win.locator('[data-settings-close]').first().click().catch(() => win.keyboard.press('Escape'))
   await win.waitForTimeout(500)
-  await win.locator('[aria-label="添加图片节点"]').first().click({ timeout: 5000 }); await win.waitForTimeout(800)
+  await addCanvasNodeFromRail(win, 'image'); await win.waitForTimeout(800)
   const node = win.locator('[data-kind="image"][data-node-id]').last(); await node.waitFor({ timeout: 5000 }); const nodeId = await node.getAttribute('data-node-id')
   const promptEditor = node.locator('div[contenteditable="true"]').last(); await promptEditor.click(); await promptEditor.fill('供应商偏好真实生成验收图')
   await node.locator('button[aria-label="模型"]').first().click({ timeout: 5000 })

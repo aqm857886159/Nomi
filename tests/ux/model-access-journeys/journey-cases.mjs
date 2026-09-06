@@ -689,7 +689,12 @@ async function referenceModes(journey, ui, fixture, recorder) {
     await assertRenderedNode(ui, recorder, { kind: 'image', node: imageRun.node })
     // ② 视频节点：@ 引用已出图节点 → 建立真实参考边（不是文本装饰）。
     await ui.openCanvas()
-    await ui.win.getByRole('button', { name: '添加视频节点', exact: true }).click()
+    // 与 runCanvasNode 同一个口：左缘点法收口在 ../_canvasRail.mjs，找不到当场抛。
+    try {
+      await addCanvasNodeFromRail(ui.win, 'video')
+    } catch (error) {
+      throw new JourneyFailure('node-entry-missing', '画布左缘没有“视频”的新建入口', { kind: 'video', detail: String(error?.message || error) })
+    }
     const composer = ui.win.locator('.generation-canvas-v2-node__composer-card').last()
     await requireVisible(composer, 'video-composer-missing', '视频节点没有生成编辑器')
     const nodeId = await composer.evaluate((element) =>

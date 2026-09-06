@@ -6,6 +6,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { launchNomiApp } from './_launchApp.mjs'
+import { addCanvasNodeFromRail } from './_canvasRail.mjs'
 import { expect, screenshotSettled } from './_assert.mjs'
 
 const repoRoot = process.cwd()
@@ -130,8 +131,9 @@ try {
   await win.locator('[aria-label="工作区切换"]').getByText('生成', { exact: true }).click({ timeout: 5000 })
   await win.waitForTimeout(1200)
 
-  // Add one video node through the visible canvas toolbar and fill its prompt.
-  await win.locator('[aria-label="添加视频节点"]').first().click({ timeout: 5000 })
+  // Add one video node through the visible canvas rail and fill its prompt.
+  // Clicking goes through _canvasRail: it anchors on structure, not on the i18n aria-label.
+  await addCanvasNodeFromRail(win, 'video')
   await win.waitForTimeout(800)
   const node = win.locator('[data-kind="video"][data-node-id]').last()
   await node.waitFor({ timeout: 5000 })

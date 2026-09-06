@@ -87,7 +87,8 @@ try {
   await win.getByRole("button", { name: "生成", exact: false }).first().click();
   await win.waitForTimeout(800);
   const flowNodeCountBeforeAdd = await win.locator('.react-flow__node[data-id]').count();
-  await win.locator('button[aria-label="添加图片节点"]').first().click();
+  // 左缘加节点收口在 _canvasRail：按结构锚点点，不认走 i18n 的 aria-label。
+  await addCanvasNodeFromRail(win, "image");
   const flowNode = win.locator('.react-flow__node[data-id]').last();
   await flowNode.waitFor({ timeout: 5000 });
   const flowNodeCountAfterAdd = await win.locator('.react-flow__node[data-id]').count();

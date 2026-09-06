@@ -1,6 +1,7 @@
 // Real Electron journey for canvas batch production. The UI, spend gate, IPC, queue, HTTP transport,
 // persistence, retry, and screenshots are real; only the remote vendor is replaced by a loopback fixture.
 import { launchNomiApp } from './_launchApp.mjs'
+import { addCanvasNodeFromRail } from './_canvasRail.mjs'
 import fs from 'node:fs'
 import http from 'node:http'
 import os from 'node:os'
@@ -182,10 +183,11 @@ async function dismissFirstRun(win) {
   }
 }
 
+/** kind 是**节点种类**（'image' / 'video'…），不是中文标签——左缘点法收口在 _canvasRail。 */
 async function addNodeWithPrompt(win, kind, prompt) {
-  await win.locator(`[aria-label="添加${kind}节点"]`).first().click({ timeout: 5000 })
+  await addCanvasNodeFromRail(win, kind)
   await win.waitForTimeout(900)
-  const nodes = win.locator(`[data-kind="${kind === '图片' ? 'image' : 'video'}"][data-node-id]`)
+  const nodes = win.locator(`[data-kind="${kind}"][data-node-id]`)
   const target = nodes.last()
   await target.waitFor({ timeout: 5000 })
   const id = await target.getAttribute('data-node-id')
@@ -275,9 +277,9 @@ try {
   await modelPanel.getByRole('button', { name: '关闭', exact: true }).click()
   await win.waitForTimeout(400)
 
-  const sourceId = await addNodeWithPrompt(win, '图片', '依赖波次源图')
+  const sourceId = await addNodeWithPrompt(win, 'image', '依赖波次源图')
   await clearSelection(win)
-  const targetId = await addNodeWithPrompt(win, '图片', '依赖波次下游图')
+  const targetId = await addNodeWithPrompt(win, 'image', '依赖波次下游图')
   await win.waitForTimeout(1400)
   await clearSelection(win)
 
@@ -338,9 +340,9 @@ try {
   check(targetCall.hasImage, '下游请求收到上游图片参考')
 
   await clearSelection(win)
-  const retryImageId = await addNodeWithPrompt(win, '图片', '批量生成失败后重试')
+  const retryImageId = await addNodeWithPrompt(win, 'image', '批量生成失败后重试')
   await clearSelection(win)
-  const videoId = await addNodeWithPrompt(win, '视频', '批量视频模型切换验证')
+  const videoId = await addNodeWithPrompt(win, 'video', '批量视频模型切换验证')
   check(Boolean(retryImageId && videoId), '真实点击新增图片和视频节点')
   await clearSelection(win)
   await win.locator('.generation-canvas-v2__stage').click({ position: { x: 900, y: 100 } }).catch(() => {})

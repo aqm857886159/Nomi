@@ -4,6 +4,7 @@
 // 修：overflow-auto 挂到 flex-1 有界伸缩区（被卡片 maxHeight 卡住 → 有界 → 真滚动），底栏 shrink-0 恒贴底。
 // DEV 模式（真 import /src 造节点 + 注入长 prompt）。用法: node tests/ux/composer-long-prompt.walk.mjs
 import { launchNomiApp } from './_launchApp.mjs'
+import { addCanvasNodeFromRail } from './_canvasRail.mjs'
 import { spawn } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -121,16 +122,10 @@ try {
   await getWin().locator('button, [role="button"], [role="tab"]', { hasText: /^生成$/ }).first().click({ timeout: 5000 }).catch(() => {})
   await getWin().waitForTimeout(900); await dismiss(); await getWin().waitForTimeout(400)
 
-  // UI 驱动加图片节点（进真实渲染 store，避开 dev 动态 import 的双 store 实例问题；也更贴 R13）
-  async function addNode(label) {
-    await getWin().getByRole('button', { name: `添加${label}节点`, exact: false }).first().click({ timeout: 3000 }).catch(async () => {
-      await getWin().getByRole('button', { name: '添加节点菜单', exact: false }).first().click({ timeout: 3000 }).catch(() => {})
-      await getWin().waitForTimeout(300)
-      await getWin().getByRole('button', { name: `添加${label}节点`, exact: false }).first().click({ timeout: 3000 }).catch(() => {})
-    })
-    await getWin().waitForTimeout(1400)
-  }
-  await addNode('图片')
+  // UI 驱动加图片节点（进真实渲染 store，避开 dev 动态 import 的双 store 实例问题；也更贴 R13）。
+  // 点法收口在 _canvasRail：结构锚点，不认走 i18n 的 aria-label，找不到当场抛。
+  await addCanvasNodeFromRail(getWin(), 'image', { timeout: 3000 })
+  await getWin().waitForTimeout(1400)
   // 锚点必须是 [data-node-id]（BaseGenerationNode.tsx:283 / ClipNode.tsx:475 / LightweightGenerationNode.tsx:41）。
   // 原来写的 .react-flow__node 在 src/ 里**零命中**——计数恒为 0，只是被 console.log 掉了没人看，
   // 于是「节点加上了没有」这件事从来没被验证过（2026-08-18 走查框架体检发现）。

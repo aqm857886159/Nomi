@@ -10,6 +10,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
+import { addCanvasNodeFromRail } from './_canvasRail.mjs'
 import { screenshotSettled } from './_assert.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -100,11 +101,10 @@ const genTab = win.locator('button,[role="tab"],[role="button"]').filter({ hasTe
 if (await genTab.count()) { await genTab.click({ timeout: 5000 }).catch(() => {}); await win.waitForTimeout(2500) }
 await snap(win, 'canvas')
 
-const addVideo = win.locator('[aria-label="添加视频节点"]').first()
-if (await addVideo.count()) {
-  await addVideo.click({ timeout: 6000 }).catch(() => {})
-  await win.waitForTimeout(1500)
-}
+// 左缘加节点收口在 _canvasRail：软守卫 + .catch(() => {}) 在按钮找不到时会静默什么都不做，
+// 后面每一步都在空画布上「通过」。助手找不到当场抛。
+await addCanvasNodeFromRail(win, 'video', { timeout: 6000 })
+await win.waitForTimeout(1500)
 await snap(win, 'video-node')
 
 // 模型按钮在节点下方的 composer 里（不在节点内），默认显示当前模型名（如 Vidu Q3）。

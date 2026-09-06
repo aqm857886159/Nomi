@@ -6,6 +6,7 @@
 // 队列状态经 window.__nomiQueueStore（仅 localStorage.__nomiE2E==='1' 暴露）用**真 store 的真 action**摆出来，
 // 渲染的是真组件读真状态；「runner 会不会把状态填成这样」由 generationQueue.test.ts 那几条不变量单测把关。
 import { launchNomiApp } from './_launchApp.mjs'
+import { addCanvasNodeFromRail } from './_canvasRail.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -79,17 +80,17 @@ if (await genTab.count()) await genTab.click({ timeout: 5000 }).catch(() => {})
 await win.waitForTimeout(2500)
 await snap(win, 'generation-area-empty-canvas')
 
-// 用真 UI 加 8 个图片节点（画布左侧工具栏「添加图片节点」）。不走 store 后门——画布 store 的 E2E 桥
-// 只在运镜捕获时才挂，且真点按钮本来就更忠实。
-const addImage = win.locator('[aria-label="添加图片节点"]').first()
-if (!(await addImage.count())) {
-  console.error('❌ 找不到画布「添加图片节点」按钮——停。')
+// 用真 UI 加 8 个图片节点（画布左缘工具条）。不走 store 后门——画布 store 的 E2E 桥
+// 只在运镜捕获时才挂，且真点按钮本来就更忠实。点法收口在 _canvasRail（结构锚点，不认 i18n 文案）。
+try {
+  for (let i = 0; i < 8; i += 1) {
+    await addCanvasNodeFromRail(win, 'image', { timeout: 4000 })
+    await win.waitForTimeout(260)
+  }
+} catch (error) {
+  console.error('❌ 画布左缘加不出图片节点——停。', error?.message || error)
   await app.close()
   process.exit(1)
-}
-for (let i = 0; i < 8; i += 1) {
-  await addImage.click({ timeout: 4000 })
-  await win.waitForTimeout(260)
 }
 await win.waitForTimeout(900)
 

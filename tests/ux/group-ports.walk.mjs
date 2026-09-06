@@ -4,6 +4,7 @@
 // 验的是**用户真会做的那串动作**：编组 → 组标签上点运行 → 从一个节点拉线 → 落到组框上 → 组内每个成员各得一根边。
 // 断言不只看 DOM 有没有：边数、组框高亮的 computed 颜色、按钮几何（会不会把标签挤爆）都对账。
 import { launchNomiApp } from './_launchApp.mjs'
+import { addCanvasNodeFromRail } from './_canvasRail.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -74,9 +75,10 @@ const genTab = win.locator('button', { hasText: /^生成$/ }).first()
 if (await genTab.count()) await genTab.click({ timeout: 5000 }).catch(() => {})
 await win.waitForTimeout(2500)
 
-const addImage = win.locator('[aria-label="添加图片节点"]').first()
-if (!(await addImage.count())) { console.error('❌ 找不到「添加图片节点」'); await app.close(); process.exit(1) }
-for (let i = 0; i < 4; i += 1) { await addImage.click({ timeout: 4000 }); await win.waitForTimeout(300) }
+// 左缘加节点收口在 _canvasRail（结构锚点，不认走 i18n 的 aria-label），找不到当场抛。
+try {
+  for (let i = 0; i < 4; i += 1) { await addCanvasNodeFromRail(win, 'image', { timeout: 4000 }); await win.waitForTimeout(300) }
+} catch (error) { console.error('❌ 画布左缘加不出图片节点', error?.message || error); await app.close(); process.exit(1) }
 await win.waitForTimeout(900)
 
 const nodeIds = await win.evaluate(() =>
@@ -166,7 +168,7 @@ check('取消后确认卡收掉', veilGone)
 
 // ③ 连到组：加一个组外节点 → 从它拉线 → 组框应变成可落点（虚线 + 加深底色）
 await win.waitForTimeout(800)
-await addImage.click({ timeout: 4000 })
+await addCanvasNodeFromRail(win, 'image', { timeout: 4000 })
 await win.waitForTimeout(900)
 const allIds = await win.evaluate(() =>
   Array.from(document.querySelectorAll('[data-node-id]')).map((el) => el.getAttribute('data-node-id')))

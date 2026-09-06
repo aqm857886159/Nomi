@@ -2,6 +2,7 @@
 // 不发生成请求、不消耗额度；fixture 使用已知 provider 的模型 id（DeepSeek V4 Pro / GPT-5.2 /
 // GPT Image 2 / Nano Banana），只验证 catalog 身份、退役项清理、选择和持久化。
 import { launchNomiApp } from './_launchApp.mjs'
+import { addCanvasNodeFromRail } from './_canvasRail.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -134,7 +135,7 @@ try {
 
   await win.getByRole('button', { name: '生成', exact: false }).first().click()
   await win.waitForTimeout(800)
-  await win.locator('button[aria-label="添加图片节点"]').first().click()
+  await addCanvasNodeFromRail(win, 'image')
   const composer = win.locator('.generation-canvas-v2-node__composer-card').last()
   await composer.waitFor({ timeout: 5000 })
   const modelButton = composer.locator('button[aria-label="模型"]').first()
