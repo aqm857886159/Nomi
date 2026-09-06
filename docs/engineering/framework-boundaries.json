@@ -14,17 +14,15 @@
         "@earendil-works/pi-agent-core",
         "@earendil-works/pi-ai"
       ],
-      "version": "0.84.3",
+      "version": "0.85.1",
       "fourColumnTable": "docs/plan/2026-09-07-agent-runtime-rebuild.md",
       "why": "2026-09-06 #546 架构评审：接入时只接了最底层的 agent loop，pi 已提供的会话持久化、有序转录、重试、价格与 steer/followUp 各被我们重写了一份，而且更差。这张表把那次评审的结论钉成机器判据。",
       "capabilities": [
         {
           "id": "session-persistence",
           "provides": "SessionManager 负责会话的落盘、追加与恢复（含 CURRENT_SESSION_VERSION 迁移）",
-          "evidence": "@earendil-works/pi-coding-agent@0.84.3 dist/core/session-manager.d.ts:184 `export declare class SessionManager`；dist/core/session-manager.d.ts:333 `static inMemory`",
-          "scope": [
-            "electron/harness/runtime/pi/"
-          ],
+          "evidence": "@earendil-works/pi-coding-agent@0.85.1 dist/core/session-manager.d.ts:184 `export declare class SessionManager`；dist/core/session-manager.d.ts:334 `static inMemory`",
+          "scope": ["electron/harness/runtime/pi/"],
           "forbidden": [
             {
               "id": "opt-out-of-session-store",
@@ -41,10 +39,8 @@
         {
           "id": "retry-policy",
           "provides": "RetryPolicy：模型请求的重试与退避策略，由 settings.retry 与 provider.maxRetries 驱动",
-          "evidence": "@earendil-works/pi-ai@0.84.3 `RetryPolicy`（经 dist/core/compaction/compaction.d.ts:100 等处透出）；pi-coding-agent dist/core/settings-manager.d.ts 的 retry 设置",
-          "scope": [
-            "electron/harness/runtime/pi/"
-          ],
+          "evidence": "@earendil-works/pi-ai@0.85.1 `RetryPolicy`（经 pi-coding-agent dist/core/compaction/compaction.d.ts:8 import、:105 `completeSummarization(..., retry?: RetryPolicy, ...)` 透出）；pi-coding-agent dist/core/settings-manager.d.ts:81 `retry?: RetrySettings`",
+          "scope": ["electron/harness/runtime/pi/"],
           "forbidden": [
             {
               "id": "retry-disabled-wholesale",
@@ -61,10 +57,8 @@
         {
           "id": "steering",
           "provides": "AgentSession.steer() / followUp()：把用户的新指令按流式状态排进当前回合或下一回合",
-          "evidence": "@earendil-works/pi-coding-agent@0.84.3 dist/core/agent-session.d.ts:377 `steer(text, images?)`、:385 `followUp(text, images?)`；pi-agent-core dist/agent.d.ts:84/86",
-          "scope": [
-            "electron/projectAgentHost/"
-          ],
+          "evidence": "@earendil-works/pi-coding-agent@0.85.1 dist/core/agent-session.d.ts:375 `steer(text, images?)`、:383 `followUp(text, images?)`；pi-agent-core dist/agent.d.ts:84/86",
+          "scope": ["electron/projectAgentHost/"],
           "forbidden": [
             {
               "id": "host-owned-steering-queue",
@@ -81,10 +75,8 @@
         {
           "id": "resource-loading",
           "provides": "DefaultResourceLoader：扩展 / skills / prompts / themes / AGENTS 文件的发现、加载与系统提示词装配",
-          "evidence": "@earendil-works/pi-coding-agent@0.84.3 dist/core/resource-loader.d.ts:120 `export declare class DefaultResourceLoader implements ResourceLoader`",
-          "scope": [
-            "electron/harness/runtime/pi/"
-          ],
+          "evidence": "@earendil-works/pi-coding-agent@0.85.1 dist/core/resource-loader.d.ts:120 `export declare class DefaultResourceLoader implements ResourceLoader`",
+          "scope": ["electron/harness/runtime/pi/"],
           "forbidden": [
             {
               "id": "hand-rolled-resource-loader",
@@ -101,10 +93,8 @@
         {
           "id": "ordered-transcript",
           "provides": "AgentSession 的有序事件流与会话条目：按段（文本 / 思考 / 工具调用 / 结果）保序，宿主订阅即可拿到结构",
-          "evidence": "@earendil-works/pi-coding-agent@0.84.3 dist/core/agent-session.d.ts:40 `AgentSessionEvent`、:108 `AgentSessionEventListener`",
-          "scope": [
-            "electron/harness/runtime/pi/"
-          ],
+          "evidence": "@earendil-works/pi-coding-agent@0.85.1 dist/core/agent-session.d.ts:40 `AgentSessionEvent`、:103 `AgentSessionEventListener`",
+          "scope": ["electron/harness/runtime/pi/"],
           "forbidden": [
             {
               "id": "flatten-text-deltas-into-one-string",
@@ -117,9 +107,7 @@
     },
     {
       "id": "xyflow-react",
-      "packages": [
-        "@xyflow/react"
-      ],
+      "packages": ["@xyflow/react"],
       "version": "12.11.5",
       "fourColumnTable": "docs/research/2026-09-07-react-flow-subflows-vs-frame.md",
       "why": "2026-09-07 R29 边界检查：React Flow 12 的 sub-flows 我们一层都没接。两件核心语义（extent:'parent' 禁止成员出框、expandParent 父追着子长大）与 Nomi 的框语义正面相反，故不是重造而是刻意不用；相交计算与手势归属两处原本绕开了内核公共 API（真·自研债），已在 PR #550 返工改回公共 API。",
@@ -128,10 +116,7 @@
           "id": "subflow-parenting",
           "provides": "parentId + extent:'parent' + expandParent + ParentLookup：节点父子、拖父动子、边界约束、父自动扩张",
           "evidence": "@xyflow/system@0.0.81 dist/esm/types/nodes.d.ts:49-61（parentId/extent/expandParent）、:156（ParentLookup）；https://reactflow.dev/learn/layouting/sub-flows",
-          "scope": [
-            "src/workbench/generationCanvas/reactFlow/",
-            "src/workbench/generationCanvas/components/"
-          ],
+          "scope": ["src/workbench/generationCanvas/reactFlow/", "src/workbench/generationCanvas/components/"],
           "justifiedOwnImplementation": {
             "reason": "extent:'parent' 与「拖出框=退组」正面冲突（它 clamp 位置，成员根本拖不出去）；expandParent 逐字就是 2026-09-06 实拍里那条 bug——框追着跑掉的成员长大。原生三件里两件必须关掉，第三件「拖父动子」我们的 moveGroupNodes 还额外带 categoryId 过滤，原生父子不认识 Nomi 的分类。所以这不是重造轮子，是这个轮子朝相反方向转。",
             "ours": [
@@ -159,9 +144,7 @@
           "id": "node-intersection",
           "provides": "getIntersectingNodes / isNodeIntersecting / getInternalNode：基于内核 nodeLookup 的绝对坐标（拖动中逐帧更新）+ measured 真实渲染尺寸做命中计算",
           "evidence": "@xyflow/react@12.11.5 dist/esm/types/instance.d.ts:113-115（getIntersectingNodes）、:126-128（isNodeIntersecting）、:50-55（getInternalNode）；@xyflow/system@0.0.81 dist/esm/types/nodes.d.ts:83-99（InternalNodeBase.measured / internals.positionAbsolute）",
-          "scope": [
-            "src/workbench/generationCanvas/components/"
-          ],
+          "scope": ["src/workbench/generationCanvas/components/"],
           "forbidden": [
             {
               "id": "hand-rolled-node-rect-for-hit-testing",
@@ -174,9 +157,7 @@
           "id": "gesture-ownership",
           "provides": "panOnDrag / selectionOnDrag / nodesDraggable / nodeDragThreshold：声明式地把一次拖动判给谁",
           "evidence": "@xyflow/react@12.11.5 dist/esm/types/component-props.d.ts:399（panOnDrag）、:289（selectionOnDrag）、:338（nodesDraggable）、:620（nodeDragThreshold）",
-          "scope": [
-            "src/workbench/generationCanvas/"
-          ],
+          "scope": ["src/workbench/generationCanvas/"],
           "forbidden": [
             {
               "id": "capture-phase-gesture-theft",
@@ -189,9 +170,7 @@
           "id": "internal-store-lookups",
           "provides": "nodeLookup / parentLookup 由 adoptUserNodes + updateAbsolutePositions 维护，是内核私有面",
           "evidence": "@xyflow/system@0.0.81 dist/esm/utils/store.d.ts:4（updateAbsolutePositions）、:18（adoptUserNodes）；@xyflow/system dist/esm/types/nodes.d.ts:155-156（NodeLookup / ParentLookup）",
-          "scope": [
-            "src/workbench/generationCanvas/reactFlow/"
-          ],
+          "scope": ["src/workbench/generationCanvas/reactFlow/"],
           "forbidden": [
             {
               "id": "write-internal-parent-lookup",
