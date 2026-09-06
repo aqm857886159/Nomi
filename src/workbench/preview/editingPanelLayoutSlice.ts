@@ -18,6 +18,7 @@ import {
  * 一条必须一起维护的不变式：Nomi 栏在全站共用 `projectAgentDockCollapsed`（创作/分镜/生成
  * 三页也读它），所以 `visibility.assistant` 不是第二个开关，而是它的投影——凡是动到
  * assistant 可见性的 action，都在**同一次 set** 里把两边一起写，别让它们各自漂。
+ * 正因为这条不变式，开关本身（状态 + setter）就住在这个 slice 里，不在 workbenchStore 的外壳上。
  */
 /** 左栏两个 tab。住在 store 而不是 PreviewSourcePanel 的局部 state：时间轴空轨右键的
  *  「从素材库添加…」要能把它切过去，两处够不着彼此就只能各留一份真相。不落盘。 */
@@ -25,6 +26,12 @@ export type PreviewSourceTab = 'shots' | 'assets'
 
 export type EditingPanelLayoutSlice = {
   editingPanelLayout: EditingPanelLayout
+  /**
+   * 常驻 Nomi 栏收起没有。2026-09-06 用户拍板：**默认展开**，并**记住用户上次的开合**——
+   * 后者不新造存储，就是 `editingPanelLayout.visibility.assistant` 随项目落盘的那一份，本字段是它的投影。
+   */
+  projectAgentDockCollapsed: boolean
+  setProjectAgentDockCollapsed: (collapsed: boolean) => void
   previewSourceTab: PreviewSourceTab
   /** 切 tab；顺带保证左栏是展开的——收起状态下切 tab 等于什么都没发生。 */
   openPreviewSourceTab: (tab: PreviewSourceTab) => void
@@ -55,18 +62,27 @@ export type EditingPanelLayoutSlice = {
   markEditingPanelLayoutCustom: () => void
 }
 
-type LayoutHostState = { projectAgentDockCollapsed: boolean } & EditingPanelLayoutSlice
+type LayoutHostState = { persistRevision: number } & EditingPanelLayoutSlice
 
 const UNDO_LIMIT = 20
 
 const pushUndo = (stack: EditingPanelLayout[], entry: EditingPanelLayout): EditingPanelLayout[] =>
   [...stack, entry].slice(-UNDO_LIMIT)
 
-/** 换上一整份布局：撤销栈、Nomi 栏开关一起对齐，避免三个 action 各写一遍写漏。 */
+/**
+ * 布局是 per-project 落盘物（`readCurrentWorkbenchProjectPayload` 把它写进 projectRecord），
+ * 但落盘只由 `persistRevision` 变化触发。改了布局却不 bump = 用户收起的 Nomi 栏、拖出来的
+ * 栏宽下次开项目全丢——除非碰巧有别的改动顺手把它捎带存了。所以**凡是真改到这份布局的
+ * action，都在同一次 set 里 bump**，别再让「记住上次状态」依赖别处的副作用。
+ */
+const bumpPersist = (state: LayoutHostState) => ({ persistRevision: state.persistRevision + 1 })
+
+/** 换上一整份布局：撤销栈、Nomi 栏开关、落盘游标一起对齐，避免几个 action 各写一遍写漏。 */
 const replaceLayout = (state: LayoutHostState, next: EditingPanelLayout) => ({
   editingPanelUndoStack: pushUndo(state.editingPanelUndoStack, state.editingPanelLayout),
   editingPanelLayout: next,
   projectAgentDockCollapsed: !next.visibility.assistant,
+  ...bumpPersist(state),
 })
 
 export const createEditingPanelLayoutSlice: StateCreator<
@@ -76,6 +92,18 @@ export const createEditingPanelLayoutSlice: StateCreator<
   EditingPanelLayoutSlice
 > = (set, get) => ({
   editingPanelLayout: cloneEditingPanelLayout(EDITING_PANEL_DEFAULTS),
+  // 默认展开，因为 EDITING_PANEL_DEFAULTS.visibility.assistant 是 true——两处不许各写一个默认。
+  projectAgentDockCollapsed: !EDITING_PANEL_DEFAULTS.visibility.assistant,
+  setProjectAgentDockCollapsed: (collapsed) => set((state) => {
+    const changed = state.editingPanelLayout.visibility.assistant === Boolean(collapsed)
+    if (!changed) return { projectAgentDockCollapsed: Boolean(collapsed) }
+    const visibility = { ...state.editingPanelLayout.visibility, assistant: !collapsed }
+    return {
+      projectAgentDockCollapsed: Boolean(collapsed),
+      editingPanelLayout: { ...state.editingPanelLayout, visibility },
+      ...bumpPersist(state),
+    }
+  }),
   editingPanelUndoStack: [],
   previewSourceTab: 'shots',
   timelineSnapEnabled: true,
@@ -109,6 +137,7 @@ export const createEditingPanelLayoutSlice: StateCreator<
       editingPanelLayout: next,
       editingPanelUndoStack: recordUndo && changed ? pushUndo(state.editingPanelUndoStack, state.editingPanelLayout) : state.editingPanelUndoStack,
       projectAgentDockCollapsed: !next.visibility.assistant,
+      persistRevision: changed ? state.persistRevision + 1 : state.persistRevision,
     }
   }),
 
@@ -126,7 +155,12 @@ export const createEditingPanelLayoutSlice: StateCreator<
     const stack = get().editingPanelUndoStack
     if (stack.length === 0) return false
     const next = cloneEditingPanelLayout(stack[stack.length - 1])
-    set({ editingPanelLayout: next, editingPanelUndoStack: stack.slice(0, -1), projectAgentDockCollapsed: !next.visibility.assistant })
+    set((state) => ({
+      editingPanelLayout: next,
+      editingPanelUndoStack: stack.slice(0, -1),
+      projectAgentDockCollapsed: !next.visibility.assistant,
+      ...bumpPersist(state),
+    }))
     return true
   },
 
@@ -136,10 +170,12 @@ export const createEditingPanelLayoutSlice: StateCreator<
       && next.inspectorWidth === state.editingPanelLayout.inspectorWidth
       && next.assistantWidth === state.editingPanelLayout.assistantWidth
       && next.timelineHeight === state.editingPanelLayout.timelineHeight
-    return same ? state : { editingPanelLayout: next }
+    return same ? state : { editingPanelLayout: next, ...bumpPersist(state) }
   }),
 
   markEditingPanelLayoutCustom: () => set((state) => (
-    state.editingPanelLayout.preset === 'custom' ? state : { editingPanelLayout: { ...state.editingPanelLayout, preset: 'custom' } }
+    state.editingPanelLayout.preset === 'custom'
+      ? state
+      : { editingPanelLayout: { ...state.editingPanelLayout, preset: 'custom' }, ...bumpPersist(state) }
   )),
 })

@@ -50,6 +50,31 @@ export function revealPanDelta(
   return { x: dx, y: dy }
 }
 
+type Viewport = { zoom: number; offset: Offset }
+export type CreatedNodeRevealRecord = { id: string; before: Viewport }
+
+const RESTORE_TOLERANCE_PX = 2
+
+/**
+ * 露出过的那张卡被撤销/删除后，视口该不该回到露出前的位置？
+ * 只在「视口还停在最近一次自动让位的落点上」时回去：用户手动平移/缩放不经过自动让位入口，
+ * 所以视口一旦偏离那个落点，就说明用户此后自己动过画布，别抢。
+ * （露出之后 composer 还会再让位一次，所以比较对象是「最近一次自动落点」而不是露出自己的落点。）
+ */
+export function shouldRestoreAfterReveal(
+  record: CreatedNodeRevealRecord | null,
+  currentIds: ReadonlySet<string>,
+  live: Viewport,
+  lastAutoTarget: Viewport | null,
+): boolean {
+  if (!record || currentIds.has(record.id) || !lastAutoTarget) return false
+  return (
+    Math.abs(live.offset.x - lastAutoTarget.offset.x) <= RESTORE_TOLERANCE_PX
+    && Math.abs(live.offset.y - lastAutoTarget.offset.y) <= RESTORE_TOLERANCE_PX
+    && Math.abs(live.zoom - lastAutoTarget.zoom) < 1e-3
+  )
+}
+
 /**
  * 「新建即可见」不变量：交互式建出的那张卡，建完必须在视口里。
  *
@@ -64,30 +89,56 @@ export function useCreatedNodeVisibilityPan(input: {
     duration?: number,
     onSettled?: (outcome: ViewportAnimationSettlementOutcome) => void,
   ) => void
-  offsetRef: React.MutableRefObject<Offset>
-  zoomRef: React.MutableRefObject<number>
+  /** 视口「正在去的目标」（没有动画在跑就是当前视口）：增量从它出发算，才不会抹掉同时在飞的 composer 让位。 */
+  readViewportTarget: () => { zoom: number; offset: Offset }
+  /** 最近一次自动让位登记的目标；用于判断撤销时用户有没有自己动过画布。 */
+  readLastAutoTarget: () => { zoom: number; offset: Offset } | null
   stageRef: React.RefObject<HTMLDivElement | null>
 }): void {
-  const { nodes, animateViewportTo, offsetRef, zoomRef, stageRef } = input
+  const { nodes, animateViewportTo, readViewportTarget, readLastAutoTarget, stageRef } = input
   const knownIdsRef = React.useRef<ReadonlySet<string> | null>(null)
+  // 待执行的露出：跨渲染保活。建卡后 store 会在几十毫秒内再改一次 nodes（量到尺寸后回写 size、
+  // 选中态等），如果把定时器挂在 effect 的 cleanup 上，那一次重渲染就把露出取消了——
+  // 视口纹丝不动，新卡照样卡在常驻 Agent 面板底下（2026-09-05 真机探针：video 卡 x 越界 200+px，视口 x 恒 0）。
+  const pendingRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+  // 最近一次露出的「出发点 / 落点」：那张卡被撤销时，视口若还停在落点上就回到出发点（撤销应对称）。
+  const lastRevealRef = React.useRef<CreatedNodeRevealRecord | null>(null)
 
   React.useEffect(() => {
     const currentIds = new Set(nodes.map((node) => node.id))
     const known = knownIdsRef.current
     knownIdsRef.current = currentIds
     if (!known) return // 首帧只登记，不动视口（首屏归 useAutoFitOnLoad）
+    const lastReveal = lastRevealRef.current
+    if (lastReveal && !currentIds.has(lastReveal.id)) {
+      lastRevealRef.current = null
+      if (shouldRestoreAfterReveal(lastReveal, currentIds, readViewportTarget(), readLastAutoTarget())) {
+        animateViewportTo(lastReveal.before.zoom, lastReveal.before.offset, 200)
+      }
+    }
     const added = nodes.filter((node) => !known.has(node.id))
     if (added.length !== 1) return
     const created = added[0]
+    if (pendingRef.current !== null) clearTimeout(pendingRef.current)
     // 等 React Flow 把新卡量好一帧再算几何，否则读到的是上一帧的 offset。
-    const tid = setTimeout(() => {
+    pendingRef.current = setTimeout(() => {
+      pendingRef.current = null
       const rect = stageRef.current?.getBoundingClientRect()
       if (!rect) return
-      const delta = revealPanDelta(created, zoomRef.current, offsetRef.current, rect.width, rect.height)
+      const target = readViewportTarget()
+      const delta = revealPanDelta(created, target.zoom, target.offset, rect.width, rect.height)
       if (!delta) return
-      const offset = offsetRef.current
-      animateViewportTo(zoomRef.current || 1, { x: offset.x + delta.x, y: offset.y + delta.y }, 200)
+      lastRevealRef.current = { id: created.id, before: { zoom: target.zoom || 1, offset: { ...target.offset } } }
+      animateViewportTo(target.zoom || 1, { x: target.offset.x + delta.x, y: target.offset.y + delta.y }, 200)
     }, 60)
-    return () => clearTimeout(tid)
-  }, [nodes, animateViewportTo, offsetRef, zoomRef, stageRef])
+  }, [nodes, animateViewportTo, readViewportTarget, readLastAutoTarget, stageRef])
+
+  // 只有卸载才作废待执行的露出；nodes 的后续变化不许取消它。
+  React.useEffect(
+    () => () => {
+      if (pendingRef.current !== null) clearTimeout(pendingRef.current)
+      pendingRef.current = null
+    },
+    [],
+  )
 }

@@ -19,7 +19,7 @@ import type { ConnectionAnchorSide } from '../store/canvasStoreTypes'
 import type { getSelectedBounds } from '../components/generationCanvasGeometry'
 import type { useCanvasProductionActions } from '../components/useCanvasProductionActions'
 import type { GenerationFlowEdge, GenerationFlowNode } from './generationCanvasReactFlowAdapter'
-import { canvasViewportFromFlow } from './generationCanvasReactFlowAdapter'
+import { canvasViewportFromFlow, isFiniteFlowViewport } from './generationCanvasReactFlowAdapter'
 import { edgeTypes, nodeTypes } from './GenerationCanvasReactFlowNodes'
 import { resolveSelectionToolbarPlacement } from './selectionToolbarPlacement'
 import { CANVAS_DRAGGING_OWNER, setCanvasDragging } from '../components/canvasDraggingFlag'
@@ -49,6 +49,7 @@ type GenerationCanvasReactFlowViewportProps = {
   setLiveViewport: React.Dispatch<React.SetStateAction<Viewport>>
   activeCategoryId: string
   rememberCategoryViewport: (categoryId: string, viewport: { zoom: number; offset: { x: number; y: number } }) => void
+  healViewport: (broken: Viewport) => void
   groupBoxes: readonly CanvasGroupBox[]
   collapsedGroupCards: readonly CollapsedGroupCardProjection[]
   onGroupFramePointerDown: (event: React.PointerEvent<HTMLDivElement>, groupId: string, options?: { selectMembers?: boolean }) => void
@@ -111,6 +112,7 @@ export function GenerationCanvasReactFlowViewport({
   setLiveViewport,
   activeCategoryId,
   rememberCategoryViewport,
+  healViewport,
   groupBoxes,
   collapsedGroupCards,
   onGroupFramePointerDown,
@@ -180,6 +182,13 @@ export function GenerationCanvasReactFlowViewport({
           setCanvasDragging(hostRef.current, false, CANVAS_DRAGGING_OWNER.reactFlowViewport)
         }
         canvasPanMovedRef.current = false
+        if (!isFiniteFlowViewport(nextViewport)) {
+          // React Flow 自己的 d3 过渡撞上 0×0 的 extent 缓存会吐出 NaN 视口（见 GenerationCanvasReactFlow
+          // 的 animateViewportTo 头注释）。NaN 一旦被记进分类视口，同步 effect 会把它写回去，画布永久空白。
+          // 这里不记、不信，交给外层用最后一份好视口把 React Flow 拉回来。
+          healViewport(nextViewport)
+          return
+        }
         setLiveViewport(nextViewport)
         rememberCategoryViewport(activeCategoryId, canvasViewportFromFlow(nextViewport))
       }}
