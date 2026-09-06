@@ -87,6 +87,7 @@
   ],
   "regression_tests": [
     "src/config/modelIdentity.test.ts",
+    "src/config/modelCatalogCache.test.ts",
     "src/workbench/common/useDedupedModelSelect.test.ts",
     "src/workbench/common/modelSelectStructure.test.ts",
     "src/workbench/settings/vendorPreferenceOrder.test.ts",
