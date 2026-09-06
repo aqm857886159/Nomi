@@ -575,3 +575,73 @@ test("an exact bootstrap legacy hash covers its original diff without becoming a
   assert.equal(future.ok, false);
   assert.match(future.errors.join("\n"), /not covered/i);
 });
+
+// —— invariant_owner_layer（2026-09-07 起必填）——
+// 加它的理由：合同已经逼你写清 symptom / direct_cause / class_root / prevention，却**没有一处**
+// 逼你说出「这条不变量从此归谁守、那一层有没有测试」。于是「修在最早共享边界」经常落成
+// 一处补丁 + 一句无主的承诺。填 none 是允许的诚实答案，代价是必须附结构工单。
+const DATED_FILE = "docs/fixes/2026-09-08-fixture.root-cause.json";
+const datedFiles = new Set([
+  DATED_FILE,
+  "electron/catalog/assetLocalization.ts",
+  "electron/catalog/assetLocalization.test.ts",
+  "docs/plan/2026-09-08-owner.md",
+]);
+
+function validateDated(ownerLayer) {
+  const contract = { ...completeContract, __file: DATED_FILE };
+  if (ownerLayer === undefined) delete contract.invariant_owner_layer;
+  else contract.invariant_owner_layer = ownerLayer;
+  return validateRootCauseChange({
+    changedFiles: [DATED_FILE, "electron/catalog/assetLocalization.ts", "electron/catalog/assetLocalization.test.ts"],
+    contracts: [contract],
+    existingFiles: datedFiles,
+  });
+}
+
+test("invariant_owner_layer: 阈值之后的合同缺这一节就红", () => {
+  const result = validateDated(undefined);
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join("\n"), /invariant_owner_layer is required/);
+});
+
+test("invariant_owner_layer: 指名了归属层且那层有真实测试 → 绿", () => {
+  const result = validateDated({
+    layer: "electron/catalog/assetLocalization.ts",
+    tests: ["electron/catalog/assetLocalization.test.ts"],
+  });
+  assert.equal(result.ok, true, result.errors.join("\n"));
+});
+
+test("invariant_owner_layer: 填 none 或那层没测试，都必须附一份存在的结构工单", () => {
+  const noneWithoutTicket = validateDated({ layer: "none", tests: [] });
+  assert.match(noneWithoutTicket.errors.join("\n"), /requires structural_ticket/);
+
+  const noTestsWithoutTicket = validateDated({ layer: "electron/catalog/assetLocalization.ts", tests: [] });
+  assert.match(noTestsWithoutTicket.errors.join("\n"), /requires structural_ticket/);
+
+  const ghostTicket = validateDated({ layer: "none", tests: [], structural_ticket: "docs/plan/ghost.md" });
+  assert.match(ghostTicket.errors.join("\n"), /structural_ticket does not exist/);
+
+  const good = validateDated({ layer: "none", tests: [], structural_ticket: "docs/plan/2026-09-08-owner.md" });
+  assert.equal(good.ok, true, good.errors.join("\n"));
+});
+
+test("invariant_owner_layer: 归属层不存在、测试不是测试文件，都红", () => {
+  const ghostLayer = validateDated({ layer: "electron/ghost.ts", tests: ["electron/catalog/assetLocalization.test.ts"] });
+  assert.match(ghostLayer.errors.join("\n"), /invariant_owner_layer\.layer does not exist/);
+
+  const notATest = validateDated({ layer: "electron/catalog/assetLocalization.ts", tests: ["electron/catalog/assetLocalization.ts"] });
+  assert.match(notATest.errors.join("\n"), /is not a test file/);
+});
+
+test("invariant_owner_layer: 阈值之前 / 没有日期前缀的合同不追溯", () => {
+  const legacyDated = { ...completeContract, __file: "docs/fixes/2026-09-06-fixture.root-cause.json" };
+  delete legacyDated.invariant_owner_layer;
+  const older = validateRootCauseChange({
+    changedFiles: ["docs/fixes/2026-09-06-fixture.root-cause.json", "electron/catalog/assetLocalization.ts", "electron/catalog/assetLocalization.test.ts"],
+    contracts: [legacyDated],
+    existingFiles: new Set(["docs/fixes/2026-09-06-fixture.root-cause.json", "electron/catalog/assetLocalization.ts", "electron/catalog/assetLocalization.test.ts"]),
+  });
+  assert.equal(older.ok, true, older.errors.join("\n"));
+});

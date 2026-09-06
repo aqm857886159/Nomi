@@ -4,7 +4,7 @@
 // 证明不了「明天新增一条会不会被拦」——而后者才是这道门岗存在的全部理由（R17：加规则先验它会红）。
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { evaluate, scanSources, stripComments, validateRegistry } from './framework-boundary-lib.mjs'
+import { advisoryCapabilityHits, evaluate, scanSources, stripComments, validateRegistry } from './framework-boundary-lib.mjs'
 
 const registry = {
   frameworks: [{
@@ -89,4 +89,34 @@ test('抹注释保持行号等高（报出来的 file:line 必须点得开）', 
   const stripped = stripComments('/* a\nb */\nconst x = 1\n')
   assert.equal(stripped.split('\n').length, 4)
   assert.ok(stripped.split('\n')[2].includes('const x = 1'))
+})
+
+// —— 启发式一条（advisory，2026-09-07）——
+// 它抓的是 forbidden 正则抓不到的那半边：换个符号名重写一份框架已有的能力。
+// 三件要证明的事：文件名命中会叫、导出符号命中会叫、豁免登记会闭嘴。
+test('能力词启发式：文件名与导出符号命中都会提醒', () => {
+  const files = new Map([
+    ['electron/foo/sessionSnapshotStore.ts', 'export const x = 1\n'],
+    ['electron/foo/queue.ts', 'export function createRetryQueue() {}\n'],
+    ['electron/foo/unrelated.ts', 'export function renderThumbnail() {}\n'],
+  ])
+  const notices = advisoryCapabilityHits({ files, watchWords: ['session', 'retry'] })
+  assert.deepEqual(notices.map((notice) => `${notice.file}:${notice.kind}:${notice.word}`), [
+    'electron/foo/sessionSnapshotStore.ts:文件名:session',
+    'electron/foo/queue.ts:导出符号:retry',
+  ])
+})
+
+test('能力词启发式：豁免登记会闭嘴，注释里的同名词不算', () => {
+  const files = new Map([
+    ['electron/foo/sessionSnapshotStore.ts', 'export const x = 1\n'],
+    ['electron/foo/note.ts', '// export function createSessionThing() {}\nexport const y = 2\n'],
+  ])
+  const exemptions = new Set(['electron/foo/sessionSnapshotStore.ts'])
+  assert.deepEqual(advisoryCapabilityHits({ files, watchWords: ['session'], exemptions }), [])
+})
+
+test('能力词启发式：词表为空时一句话都不说（不许靠空词表假装在守）', () => {
+  const files = new Map([['electron/foo/sessionStore.ts', 'export const x = 1\n']])
+  assert.deepEqual(advisoryCapabilityHits({ files, watchWords: [] }), [])
 })
