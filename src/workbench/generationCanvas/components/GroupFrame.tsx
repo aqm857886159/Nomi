@@ -20,6 +20,8 @@ export type CanvasGroupBox = {
   width: number
   height: number
   memberCount: number
+  /** 零成员的框（用户刚画完、还没往里放东西）：画虚线，放进第一个东西才变实线。 */
+  empty: boolean
 }
 
 export type GroupFrameProps = {

@@ -192,7 +192,15 @@ export type NodeGroup = {
   nodeIds: string[]
   /** @deprecated Kept only for persisted-project compatibility; group chrome is design-system neutral. */
   color?: string
+  /**
+   * 框（Frame）的边界——**用户画出来的那个矩形**，2026-09-06 起是真相之一。
+   * 画布渲染的框 = `union(frameBounds, 成员外接矩形 + padding)`：只长不缩，永不小于用户画的那个。
+   * 几何算式的唯一 owner 是 `model/canvasFrameBounds.ts`；旧快照缺此字段的组在
+   * `store/canvasSnapshotNormalizer.ts` 载入时按成员包围盒回填一次（幂等）。
+   */
   frameBounds?: { x: number; y: number; w: number; h: number }
+  /** 框头部那一句灰字说明（可空，画布上双击改）。旧快照无此字段 → optional。 */
+  description?: string
   collapsed?: boolean
   /**
    * 组入参：连到这个组上的来源节点。**只是声明**——真边仍是普通 node→node 边（见 model/groupInputLinks.ts）。

@@ -6,6 +6,8 @@ import { applyArchetypeModeSwitch } from '../nodes/controls/archetypeMeta'
 import type { GenerationCanvasEdge, GenerationCanvasEdgeMode, GenerationCanvasNode, NodeGroup } from '../model/generationCanvasTypes'
 import { groupMemberNodes, planGroupLinkEdges, removeGroupLinkEdgesForMember, upsertGroupInputLink, upsertGroupOutputLink } from '../model/groupInputLinks'
 import { createGroupId } from './canvasIds'
+import { frameBoundsFromMembers } from '../model/canvasFrameBounds'
+import { resolveNodeVisualSize } from '../nodes/nodeSizing'
 import { bumpPersistRevision, isCategoryId, shouldEmitCanvasMutation, shouldPersistCanvasMutation } from './canvasGuards'
 import { getHistoryFlags, pushUndoSnapshot } from '../events/canvasUndoJournal'
 import { emitCanvasGesture } from '../events/canvasEventEmitter'
@@ -436,11 +438,19 @@ export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = 
       ? get().nodes.filter((node) => options!.nodeIds!.includes(node.id) && (node.categoryId || 'shots') === id).map((node) => node.id)
       : []
     const stamp = options?.materializationOperationId?.trim()
+    // 框的边界（2026-09-06 起是真相之一）：调用方给了就用它；没给就按成员包围盒算一次——
+    // 建组当下算好，画布不必再靠「成员包围盒」这层皮反推（那正是拖出去框会追着长大的成因）。
+    const frameBounds = options?.frameBounds ?? frameBoundsFromMembers(
+      get().nodes
+        .filter((node) => explicitNodeIds.includes(node.id))
+        .map((node) => ({ x: node.position.x, y: node.position.y, ...resolveNodeVisualSize(node) })),
+    )
     const group: NodeGroup = {
       id: createGroupId(id),
       name: (name || '').trim() || `组 ${existingCount + 1}`,
       categoryId: id,
       nodeIds: explicitNodeIds,
+      ...(frameBounds ? { frameBounds } : {}),
       ...(stamp ? { materializationOperationId: stamp } : {}),
       createdAt: now,
       updatedAt: now,
@@ -474,11 +484,19 @@ export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = 
     if (nodeIds.length < 2) return null
     const now = Date.now()
     const existingCount = current.groups.filter((group) => group.categoryId === id).length
+    // 先选后组（⌘G）得到的和画出来的是**同一种框**（P1：框只有一种），
+    // 只是它的初始边界由当时的成员包围盒决定，而不是由用户拖出来。
+    const frameBounds = frameBoundsFromMembers(
+      current.nodes
+        .filter((node) => nodeIds.includes(node.id))
+        .map((node) => ({ x: node.position.x, y: node.position.y, ...resolveNodeVisualSize(node) })),
+    )
     const group: NodeGroup = {
       id: createGroupId(id),
       name: (name || '').trim() || `组 ${existingCount + 1}`,
       categoryId: id,
       nodeIds,
+      ...(frameBounds ? { frameBounds } : {}),
       createdAt: now,
       updatedAt: now,
     }
@@ -504,6 +522,32 @@ export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = 
       { type: 'canvas.group.created', payload: { group } },
     ])
     return group
+  },
+  /**
+   * 画一个空框。走的就是 `createGroup`——框只有一种，画出来的和 ⌘G 建出来的是同一个 `NodeGroup`，
+   * 差别只有「建的那一刻有没有成员」。这里不另开一条建组路径（P1 无并行版）。
+   */
+  createFrame: (categoryId, bounds, name) => {
+    return get().createGroup(categoryId, name, { frameBounds: bounds })
+  },
+  setGroupDescription: (groupId, description) => {
+    const next = String(description ?? '').trim()
+    const current = get()
+    const existing = current.groups.find((group) => group.id === groupId)
+    // 说明和名字不同：**可以是空的**，所以「清空」是合法编辑，判重只比值、不拦空串。
+    if (!existing || (existing.description ?? '') === next) return
+    pushUndoSnapshot(current)
+    set((state) => {
+      const group = state.groups.find((candidate) => candidate.id === groupId)
+      if (!group) return
+      if (next) group.description = next
+      else delete group.description
+      group.updatedAt = Date.now()
+      bumpPersistRevision(state)
+      Object.assign(state, getHistoryFlags())
+    })
+    const updated = get().groups.find((candidate) => candidate.id === groupId)
+    if (updated) emitCanvasGesture([{ type: 'canvas.group.updated', payload: { group: updated } }])
   },
   renameGroup: (groupId, name) => {
     const nextName = String(name || '').trim()

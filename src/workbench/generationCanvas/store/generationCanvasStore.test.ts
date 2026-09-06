@@ -320,6 +320,55 @@ describe('generationCanvasStore sidebar grouping actions', () => {
     expect(state.nodes.some((candidate) => candidate.id === 'cast-1')).toBe(true)
   })
 
+  it('解散框：节点留下，**边一根都不撤**（解散的是组织方式，不是节点关系）', () => {
+    // 框工具第一档的 ⋯ 菜单里「解散」走的就是这条路。它必须与既有 ungroup 逐字同义——
+    // 一旦顺手把成员之间的边也撤了，用户失去的是接线，而他以为自己只是拆了个框。
+    useGenerationCanvasStore.getState().restoreSnapshot({
+      nodes: [node('m1', 'cast', 'frame-1'), node('m2', 'cast', 'frame-1')],
+      edges: [{ id: 'm1->m2', source: 'm1', target: 'm2' }],
+      selectedNodeIds: [],
+      groups: [{ ...group('frame-1', 'cast', ['m1', 'm2']), frameBounds: { x: 0, y: 0, w: 600, h: 400 } }],
+    })
+    useGenerationCanvasStore.getState().ungroup('frame-1')
+
+    const state = useGenerationCanvasStore.getState()
+    expect(state.groups.some((candidate) => candidate.id === 'frame-1')).toBe(false)
+    expect(state.edges.map((edge) => edge.id)).toEqual(['m1->m2'])
+    expect(state.nodes.map((candidate) => candidate.id).sort()).toEqual(['m1', 'm2'])
+  })
+
+  it('createFrame：画出来的空框可用，边界就是用户拖的那个矩形', () => {
+    const bounds = { x: 120, y: 80, w: 640, h: 420 }
+    const frame = useGenerationCanvasStore.getState().createFrame('shots', bounds, '未命名框')
+    expect(frame?.frameBounds).toEqual(bounds)
+    expect(frame?.nodeIds).toEqual([])
+    // 画出来的和 ⌘G 建出来的是同一种东西（P1：框只有一种），所以照样进 groups。
+    expect(useGenerationCanvasStore.getState().groups.some((candidate) => candidate.id === frame?.id)).toBe(true)
+  })
+
+  it('groupSelectedNodes 顺手写下 frameBounds——⌘G 建的也是框', () => {
+    useGenerationCanvasStore.getState().restoreSnapshot({
+      nodes: [node('g1', 'shots'), node('g2', 'shots')],
+      edges: [],
+      selectedNodeIds: [],
+      groups: [],
+    })
+    useGenerationCanvasStore.getState().selectNodes(['g1', 'g2'])
+    const created = useGenerationCanvasStore.getState().groupSelectedNodes('shots')
+    expect(created).toBeTruthy()
+    expect(created?.frameBounds).toBeTruthy()
+    expect(created?.frameBounds?.w).toBeGreaterThan(0)
+  })
+
+  it('setGroupDescription：说明可以被清空（与改名不同，说明本来就可以没有）', () => {
+    const frame = useGenerationCanvasStore.getState().createFrame('shots', { x: 0, y: 0, w: 400, h: 300 })
+    const frameId = frame?.id || ''
+    useGenerationCanvasStore.getState().setGroupDescription(frameId, '  第二幕 · 咖啡馆  ')
+    expect(useGenerationCanvasStore.getState().groups.find((g) => g.id === frameId)?.description).toBe('第二幕 · 咖啡馆')
+    useGenerationCanvasStore.getState().setGroupDescription(frameId, '')
+    expect(useGenerationCanvasStore.getState().groups.find((g) => g.id === frameId)?.description).toBeUndefined()
+  })
+
   it('deletes a group with its member nodes when requested', () => {
     useGenerationCanvasStore.getState().deleteGroup('cast-group', true)
 
