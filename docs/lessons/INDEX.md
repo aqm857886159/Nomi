@@ -127,6 +127,7 @@
 > 编排纪律的主文档是 [`../engineering/agent-orchestration-playbook.md`](../engineering/agent-orchestration-playbook.md)（`CLAUDE.md` R27 的 L2 详解）。本区只放**执行体自身的工具怪癖**——那不是编排原则，是踩过的具体坑。
 
 - [`codex exec` 后台派工要关 stdin](codex-exec-background-needs-stdin-closed.md) — 缺 `</dev/null` 会永久挂起等输入；会话内后台工人全随 App 死
+- [查不查不能靠记性：先看别人做了没必须机器逼](prior-art-check-cannot-rely-on-memory.md) — 派实施前先派反方出 prior-art 报告；系统只奖励「做出来」，提醒在高负载下必漏（`check:prior-art` 已接管）
 - [子 agent 起不来时的探针法](subagent-startup-400-probe-method.md) — 一次 harness 侧 400 故障的定位法与两次误诊，别照抄已过期的结论
 - [长等待交给 shell 哨兵，别交给子 agent](long-waits-belong-to-shell-sentinels-not-agents.md) — 同一天三种死法（Monitor 交卷 / 零 commit 等到超时 / `--watch` 挂死）；附哨兵模板与「CI 不替你跑新入库走查」
 

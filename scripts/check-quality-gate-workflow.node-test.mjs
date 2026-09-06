@@ -87,6 +87,12 @@ test('contracts always run and unit alone chooses focused or full coverage', () 
     contracts.env.ROOT_CAUSE_BASE_REF,
     '${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before || inputs.base_ref }}',
   )
+  // check:prior-art 的 PR 侧判据靠这两个 env 才看得见 PR 正文与 base；少了它们，大改一律静默放行。
+  assert.equal(contracts.env.PRIOR_ART_PR_BODY, '${{ github.event.pull_request.body }}')
+  assert.equal(
+    contracts.env.PRIOR_ART_BASE_REF,
+    '${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before || inputs.base_ref }}',
+  )
 
   const unit = workflow.jobs.unit
   assert.equal(unit.needs, 'scope')

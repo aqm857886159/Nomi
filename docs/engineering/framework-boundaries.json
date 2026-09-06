@@ -6,6 +6,43 @@
     "把「我们另写了」那一列翻译成这里的 forbidden 规则 → 跑 --update-baseline 把存量登记成债 → 给每条债绑方案和到期日。",
     "provides/evidence 不是注释，是门岗校验的必填项：没有可复核出处的规则，等于没做过研究。"
   ],
+  "capabilityInventory": {
+    "_comment": [
+      "机器抽取的能力词表要覆盖哪些依赖（2026-09-07 加）。上面的 frameworks 是**人手写**的，",
+      "只覆盖已经出过四列表的那几项能力——它天生只包含已知的东西。这里换一条腿：",
+      "scripts/gen-dependency-capabilities.mjs 从 node_modules 的 .d.ts 导出符号与 README 标题",
+      "机器抽出词表，落到 docs/engineering/dependency-capabilities.generated.json，",
+      "给「还不知道自己不知道」的人当原料。加一个包 = 往这个数组里加一行，然后重跑生成器。"
+    ],
+    "packages": [
+      "@earendil-works/pi-coding-agent",
+      "@earendil-works/pi-agent-core",
+      "@earendil-works/pi-ai",
+      "@xyflow/react",
+      "ai",
+      "@mantine/core"
+    ]
+  },
+  "advisory": {
+    "_comment": [
+      "启发式一条（2026-09-07 加，**先 advisory 不阻断**）：新增/改动文件的文件名或导出符号命中",
+      "下面的能力词，且该文件不在豁免登记里 → 出 warning。它抓的是 forbidden 正则抓不到的那半边：",
+      "换个符号名重写一份框架已有的能力。正则认的是具体写法，词表认的是**这件事本身**。",
+      "为什么先不阻断：这类启发式的死因是误报——一道天天红的门岗等于不存在（R17）。",
+      "先跑一周量误报率，按 promotion 里写死的条件再决定升不升红。"
+    ],
+    "watchWords": ["session", "retry", "steer", "steering", "parent", "compaction", "harness", "transcript", "persistence", "resume"],
+    "exemptions": "scripts/framework-boundary-advisory-exemptions.json",
+    "promotion": {
+      "reviewDue": "2026-09-14",
+      "criteria": [
+        "一周内累计 warning 中，真阳性（确实是重造了框架能力）占比 ≥ 50%",
+        "豁免登记条目 ≤ 8 条，且每条都写得出「为什么这个词在这里不是重造」",
+        "两条都满足 → 把 advisory 改成 exit 1，并把当时的存量写进 scripts/framework-boundary-baseline.json 同款棘轮基线；",
+        "任一条不满足 → 先收窄 watchWords（删掉误报最多的那个词），再观察一周，不许直接放弃这条"
+      ]
+    }
+  },
   "frameworks": [
     {
       "id": "pi",

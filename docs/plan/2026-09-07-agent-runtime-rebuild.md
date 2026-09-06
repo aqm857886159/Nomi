@@ -10,6 +10,23 @@
 
 ---
 
+## 先查别人
+
+> 本节 2026-09-07 随 `check:prior-art` 门岗补入（R27 §16）。**内容不是新查的**——这份方案本来就
+> 做足了检索，只是散在正文里没有一个固定的标题；这里把它按四问归拢，每格给出可复核的出处。
+
+| 问 | 答 | 出处 |
+|---|---|---|
+| 依赖里已有？ | 有，而且比我们写的全。pi 已提供会话持久化（`SessionManager`）、有序转录（`AgentSessionEvent`）、重试（`RetryPolicy`）、steer/followUp、资源加载（`DefaultResourceLoader`）——我们各写了一份更差的，共 14 处已登记成债 | `@earendil-works/pi-coding-agent@0.84.3` dist/core/session-manager.d.ts:184、dist/core/agent-session.d.ts:377/385、dist/core/resource-loader.d.ts:120、dist/core/agent-session.d.ts:40；登记表 [`docs/engineering/framework-boundaries.json`](../engineering/framework-boundaries.json)、债基线 `scripts/framework-boundary-baseline.json` |
+| 依赖的**新版**里已有？ | 有。0.85.1 的 `AgentHarness` 是真实现，不是 0.84.3 那个空壳——这条直接推翻了 #546 §1.5 的前提，决定了整份方案的形状 | 本文 §0.2 的双版本 tarball 逐字比对（`dist/harness/agent-harness.js` 7883B/5 次 `HarnessNotImplemented` → 558B/0 次）；独立第二次实核见 [`docs/research/2026-09-06-mature-agent-products.md`](../research/2026-09-06-mature-agent-products.md) §1.9 |
+| 仓库里已有？ | 有，且正是问题所在：`electron/harness/runtime/pi/`（session/snapshot/contextCodec/run/resources/nomiSkillResources）与 `electron/projectAgentHost/`（executionCoordinator/executionHelpers/turnExecution）就是那 14 处自研版本的所在地 | [`docs/audit/2026-09-06-agent-architecture-review.md`](../audit/2026-09-06-agent-architecture-review.md)、[`docs/audit/2026-09-06-agent-tool-layer-audit.md`](../audit/2026-09-06-agent-tool-layer-audit.md)（`canvas.write` 真实模型 0/18） |
+| 生态里已有？ | 有。成熟 Agent 产品的运行时分层、工具契约与容忍策略已成行业惯例，本方案的 §3 工具契约规范直接对着它们写 | [`docs/research/2026-09-06-mature-agent-products.md`](../research/2026-09-06-mature-agent-products.md)（PR #549 已合入 main） |
+| TikHub 自媒体里怎么说？ | 本轮未查。这一层是运行时架构，不是面向用户的产品能力，自媒体侧没有可比的一手经验——**明着标出来，不冒充覆盖** | 无 |
+
+**结论**：用已有（换用 pi 0.85.1 的 `AgentHarness` 与它已提供的五项能力），自研只保留 Nomi 独有的那部分（工具契约、画布语义、投影层）。理由：14 处自研版本每一处都比上游的差，且升级 pi 时要我们自己跟——这笔成本是结构性的，不是一次性的。
+
+---
+
 ## 0. 先说清楚：这份方案在解决哪个真实摩擦，以及为什么是「重做」而不是「修」
 
 ### 0.1 摩擦（用户自己撞到的，不是我们推测的）

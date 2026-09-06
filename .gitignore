@@ -28,7 +28,13 @@ project-data/
 .data/
 **/.data/
 .agents/
-.claude/
+# .claude/ 整体不进 git（handoff / violations.log / skills / 本机 settings.local.json 都是本机数据），
+# 唯独 settings.json 例外：它是 Claude Code 官方约定里**该提交**的「共享项目设置」
+# （https://code.claude.com/docs/en/settings：Shared project = .claude/settings.json，
+# 「In a git repository, commit it so teammates get it」；个人覆盖走 .claude/settings.local.json）。
+# 提交它 = 三闸 hook 随 checkout 就存在，不再依赖谁跑过 pnpm install（2026-09-07）。
+.claude/*
+!.claude/settings.json
 !.agents/
 .agents/*
 !.agents/skills/
