@@ -1,6 +1,6 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { CANVAS_TOOLBAR_NODE_GROUPS, type CanvasToolbarNodeKind } from '../workbench/generationCanvas/components/canvasToolbarModel'
+import { canvasToolbarNodeKinds, type CanvasToolbarNodeKind } from '../workbench/generationCanvas/components/canvasToolbarModel'
 import { getGenerationNodeIcon } from '../workbench/generationCanvas/nodes/renderRegistry'
 import { NodeEmptyState } from '../workbench/generationCanvas/nodes/render/NodeEmptyState'
 import { UpdaterDialog } from '../ui/app-shell/UpdaterDialog'
@@ -87,7 +87,7 @@ function NodeEmptyLabCell({ kind }: { kind: CanvasToolbarNodeKind }): JSX.Elemen
   )
 }
 
-const nodeStates: readonly UiShellLabState[] = CANVAS_TOOLBAR_NODE_GROUPS.flat().map((kind) => ({
+const nodeStates: readonly UiShellLabState[] = (canvasToolbarNodeKinds() as CanvasToolbarNodeKind[]).map((kind) => ({
   id: `node-empty-${kind}`,
   name: NODE_EMPTY_COPY[kind].name,
   render: () => <NodeEmptyLabCell kind={kind} />,

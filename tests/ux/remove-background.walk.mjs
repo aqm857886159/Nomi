@@ -11,6 +11,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import http from 'node:http'
 import { screenshotSettled } from './_assert.mjs'
+import { addCanvasNodeFromRail } from './_canvasRail.mjs'
 const repoRoot = process.cwd()
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/remove-background')
 fs.mkdirSync(shotsDir, { recursive: true })
@@ -130,10 +131,9 @@ try {
   await getWin().waitForTimeout(500)
   await snap('canvas-tab')
 
-  const addMenu = getWin().locator('[aria-label="添加节点菜单"]').first()
-  if (await addMenu.count()) { await addMenu.click({ timeout: 3000 }).catch(() => {}); await getWin().waitForTimeout(500) }
-  const addWb = getWin().locator('[aria-label="添加画板节点"]').first()
-  await addWb.click({ timeout: 4000 }).catch(() => {})
+  // 画板自 2026-09-06「第三档」起住在左缘的「更多」里；点法收口在 _canvasRail，找不到当场抛
+  //（原来那句 `.catch(() => {})` 会静默不建节点，后面每一步都在空画布上跑成假绿）。
+  await addCanvasNodeFromRail(getWin(), 'whiteboard')
   await getWin().waitForTimeout(1200)
   await snap('node-added')
 
