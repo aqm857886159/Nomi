@@ -165,6 +165,22 @@ describe('③ 一行收据 · 七态 join', () => {
     expect(receipt.receipt.trailing).toBe('agentPanelV4.toolStopped')
   })
 
+  it('只有还撤得回来的那一条带「撤销」——别给撤不了的行挂一个按不动的钮', () => {
+    const flow = projectV4Flow(flowInput({
+      items: [toolItem('document.write', 'done', 'call-1'), toolItem('canvas.write', 'done', 'call-2')],
+      undoableToolKey: 'turn-1:call-2',
+    }))
+    const undoable = flow.flatMap((item) => (item.kind === 'tool' ? [Boolean(item.receipt.undoable)] : []))
+    expect(undoable).toEqual([false, true])
+  })
+
+  it('没有撤销记录时一条都不带', () => {
+    const flow = projectV4Flow(flowInput({ items: [toolItem('document.write', 'done')] }))
+    const receipt = flow[0]
+    if (receipt.kind !== 'tool') throw new Error('收据没渲出来')
+    expect(receipt.receipt.undoable).toBeUndefined()
+  })
+
   it('icon 家族按契约 id 取，不按工具别名', () => {
     const flow = projectV4Flow(flowInput({ items: [toolItem('timeline.read', 'done'), toolItem('canvas.delete', 'done', 'call-2')] }))
     const families = flow.flatMap((item) => (item.kind === 'tool' ? [item.receipt.action] : []))
@@ -284,6 +300,15 @@ describe('⑥ 队列行', () => {
     })
     expect(rows).toHaveLength(2)
     expect(rows[0].title).toBe(rows[1].title)
+  })
+
+  it('只有一条正在跑时不渲染队列——那句话的气泡就在上面，别说两遍', () => {
+    const rows = projectV4Queue({
+      queue: [queueItem({ status: 'running' })],
+      items: [userItem('再想想整体节奏', 'turn-1')],
+      labels,
+    })
+    expect(rows).toHaveLength(0)
   })
 
   it('运行中的那条给「立即中断」，排队的给插队/删', () => {

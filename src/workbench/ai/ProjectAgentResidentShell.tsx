@@ -18,8 +18,9 @@ import { TimelineAgentReceiptEffect } from './resident/TimelineAgentReceiptEffec
 import { useTimelinePlanPreview } from './resident/timelineAgentSurface'
 import type { ResidentSurface } from './resident/residentShellDisplay'
 import { AgentPanelV4Panel } from './v4/AgentPanelV4Panel'
-import { V4CollapsedRail } from './v4/AgentPanelV4Dock'
-import { V4ModelPopover, V4PermissionPopover, V4SkillPopover, type V4CommandRow, type V4ModelRow } from './v4/AgentPanelV4Composer'
+import { V4Intervention } from './v4/AgentPanelV4Cards'
+import { V4CollapsedDock, V4CollapsedRail } from './v4/AgentPanelV4Dock'
+import { AgentPanelV4Composer, V4ModelPopover, V4PermissionPopover, V4SkillPopover, type V4CommandRow, type V4ModelRow } from './v4/AgentPanelV4Composer'
 import { useAgentPanelV4Data } from './v4/useAgentPanelV4Data'
 import { useAgentPanelV4Actions } from './v4/useAgentPanelV4Actions'
 import { useV4Labels } from './v4/agentPanelV4Labels'
@@ -204,11 +205,14 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
         ? <V4PermissionPopover permission={actions.permission} onSelect={(tier) => { actions.setPermission(tier); setPopover(null) }} />
         : undefined
 
+  // 收起 = 藏起**对话流**，不是藏起对话（定稿 Collapsed 板）。同一个 composer 掉到画面下沿
+  // 居中，介入槽跟着它——这样一份编辑计划仍然读得到、批得下，不必把整列还给面板。
+  // 只留一条图标条、把 composer 也收走，才是真的把对话中断了。
   if (collapsed) {
     return (
       <section
         id="project-agent-resident"
-        className="relative h-full w-full overflow-visible"
+        className="pointer-events-none relative h-full w-full overflow-visible"
         aria-label={t('agentResident.aria')}
         data-agent-resident="true"
         data-agent-surface={surface}
@@ -216,7 +220,35 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
       >
         <TimelineAgentReceiptEffect />
         {timelinePlanPreviewPortal}
-        <V4CollapsedRail running={data.running} labels={labels.dock} onOpen={() => setCollapsed(false)} onAdjust={() => setCollapsed(false)} />
+        <V4CollapsedDock>
+          {data.slot ? (
+            <V4Intervention
+              data={data.slot}
+              labels={labels.intervention}
+              onConfirm={actions.approve}
+              onReject={actions.reject}
+              onEscalate={actions.stopAsking}
+              onOption={(option) => actions.answerOption(option)}
+            />
+          ) : null}
+          <AgentPanelV4Composer
+            dock
+            panelHeight={size.height}
+            mode={data.running ? 'running' : data.liveChips.length ? 'reference' : 'idle'}
+            permission={actions.permission}
+            chips={data.liveChips}
+            value={draft}
+            onValueChange={setDraft}
+            onSubmit={submit}
+            onStop={actions.stop}
+            onAddFile={() => attachmentApi.inputRef.current?.click()}
+            modelLabel={data.modelLabel}
+            skillSelected={Boolean(activeSkill || actions.selectedLibraryPrompt)}
+          />
+        </V4CollapsedDock>
+        <div className="pointer-events-auto absolute right-0 top-0 h-full">
+          <V4CollapsedRail running={data.running} labels={labels.dock} onOpen={() => setCollapsed(false)} onAdjust={() => setCollapsed(false)} />
+        </div>
       </section>
     )
   }

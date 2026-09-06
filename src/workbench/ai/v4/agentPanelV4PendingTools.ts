@@ -26,6 +26,21 @@ const records = new Map<string, V4PendingToolRecord>()
 const resolving = new Set<string>()
 const listeners = new Set<() => void>()
 
+/**
+ * `listFor` 的**缓存**，以及它为什么必须存在。
+ *
+ * 这张表是 `useSyncExternalStore` 的数据源，而 React 用 `Object.is` 比较相邻两次
+ * `getSnapshot()` 的返回值。每次都 `[...records.values()].filter(...)` 会返回一个新数组，
+ * 于是「变了」永远成立——组件进入无限重渲染，被错误边界兜住，整个工作台变成
+ * 「工作台加载失败」。空态共用一个冻结数组只挡住了一半：**有待决的时候**才是它真正
+ * 出现的时刻，也正是审批卡该浮出来的那一刻。
+ *
+ * 所以缓存按 (version, bindingKey) 记：任何一次改动 bump version，同一版本同一绑定
+ * 反复问只算一次。2026-09-06 由 `agent-v4-short-film.walk.mjs` 抓到。
+ */
+let version = 0
+let cache: { version: number; bindingKey: string | null; value: readonly V4PendingToolRecord[] } | null = null
+
 export const pendingToolKey = (call: Pick<ToolCallEvent, 'turnId' | 'toolCallId'>): string =>
   `${call.turnId}:${call.toolCallId}`
 
@@ -33,6 +48,8 @@ export const projectBindingKey = (binding: { immutableProjectUuid: string; proje
   `${binding.immutableProjectUuid}:${binding.projectGeneration}`
 
 function emit(): void {
+  version += 1
+  cache = null
   for (const listener of listeners) listener()
 }
 
@@ -81,11 +98,17 @@ export const agentPanelV4PendingTools = Object.freeze({
     }
     if (changed) emit()
   },
-  /** 当前项目绑定下的待决，按登记顺序。介入槽取其中第一条 `pending`。 */
+  /**
+   * 当前项目绑定下的待决，按登记顺序。介入槽取其中第一条 `pending`。
+   * 返回值**必须**在两次改动之间保持同一个引用——见上面 `cache` 那段注释。
+   */
   listFor(bindingKey: string | null): readonly V4PendingToolRecord[] {
     if (!bindingKey) return EMPTY
+    if (cache && cache.version === version && cache.bindingKey === bindingKey) return cache.value
     const out = [...records.values()].filter((record) => record.bindingKey === bindingKey)
-    return out.length ? Object.freeze(out) : EMPTY
+    const value = out.length ? Object.freeze(out) : EMPTY
+    cache = { version, bindingKey, value }
+    return value
   },
   /** 测试用：清空一切。生产路径永远只清某个回合。 */
   reset(): void {

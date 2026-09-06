@@ -50,3 +50,64 @@ export function V4CollapsedRail({
     </div>
   )
 }
+
+/**
+ * 收起后 composer 落到画面下沿要留出的空当。
+ *
+ * 坞挂在常驻面板所在的那个框的底边上，而播放器的走带条又挂在它里面的底边上——
+ * 直接 `bottom: 0` 会把 composer 压在播放/暂停和时间码上，也就是盖住「结果全屏」
+ * 本来要还给用户的那几个控件。走带条在窄宽度下会折行，所以高度是**量**出来的不是猜的。
+ *
+ * 宿主框从坞自己的 `offsetParent` 读，不用一个写死的舞台 class：剪辑面 2026-09-05 搬到
+ * 面板系统之后，旧的 `.workbench-preview__stage` 选择器一个都不匹配了。死选择器在这里
+ * 是**静默失败**——空当恒为 0，composer 又落回走带条上——所以锚点必须是结构性的。
+ */
+function useTransportClearance(dockRef: React.RefObject<HTMLDivElement | null>): number {
+  const [clearance, setClearance] = React.useState(0)
+  React.useLayoutEffect(() => {
+    const host = dockRef.current?.offsetParent
+    if (!(host instanceof HTMLElement)) return undefined
+    // 量的是「宿主底边到走带条顶边」的距离，不是走带条自己的高度：播放器在条下面还留了
+    // 自己的内边距，只按高度算照样会落在播放键上。每次测量重新查一次条，晚挂载的播放器也能接上。
+    const measure = (): void => {
+      const bar = document.querySelector<HTMLElement>('.workbench-preview-player__control-bar')
+      setClearance(bar ? Math.max(0, host.getBoundingClientRect().bottom - bar.getBoundingClientRect().top) : 0)
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(host)
+    const bar = document.querySelector<HTMLElement>('.workbench-preview-player__control-bar')
+    if (bar) observer.observe(bar)
+    window.addEventListener('resize', measure)
+    return () => { observer.disconnect(); window.removeEventListener('resize', measure) }
+    // composer 每敲一个键都会重渲；那么频繁地重建观察器是浪费。宿主 resize（拖面板、
+    // 走带条折行）本来就会重新测量，而 `measure` 每次都重查条，晚到的播放器也接得上。
+  }, [dockRef])
+  return clearance
+}
+
+/**
+ * 收起后的画面下沿坞（定稿 Collapsed 板）。
+ *
+ * 收起藏的是**对话流**，不是对话：同一个 composer 掉到预览舞台的下边缘居中，
+ * 介入槽跟着它一起——这样一份编辑计划仍然读得到、批得下，不必把整列还给面板。
+ *
+ * 这里**没有**「叫回 Nomi」按钮：收起后叫回它的入口只有一个，就是最右侧那条 32px 图标条
+ * （状态点见 `residentActivity`）。上一版两个入口并存——图标条写「展开 Nomi」、画面右上角
+ * 又浮一颗「叫回 Nomi」胶囊——同一个动作两个名字两个位置，还把画面右上角挡掉一块。
+ */
+export function V4CollapsedDock({ children }: { children: React.ReactNode }): JSX.Element {
+  const dockRef = React.useRef<HTMLDivElement>(null)
+  const transportClearance = useTransportClearance(dockRef)
+  return (
+    <div
+      ref={dockRef}
+      className="pointer-events-none absolute inset-x-0 z-40 flex justify-center px-4 pb-3"
+      style={{ bottom: transportClearance }}
+    >
+      <div className="pointer-events-auto grid w-full max-w-[560px] gap-1.5" data-agent-collapsed-dock="true">
+        {children}
+      </div>
+    </div>
+  )
+}

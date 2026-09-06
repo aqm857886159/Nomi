@@ -73,6 +73,25 @@ export function missingParamSuggestion(args: unknown, t: Translate): Readonly<{ 
   return Object.freeze({ text, options: residentQuestionOptions(record).map((option) => option.label) })
 }
 
+/**
+ * 这次操作**要写进去的那段话**，截断成一行。
+ * 字段名按常见顺序找：文稿写 `content`、时间轴/画布的提案写 `text` 或 `prompt`。
+ * 一个都没有就返回 `undefined`——不编，也不用「（无内容）」占位。
+ */
+const EXCERPT_FIELDS = ['content', 'text', 'prompt'] as const
+const EXCERPT_MAX = 60
+
+function contentExcerpt(record: Readonly<Record<string, unknown>>): string | undefined {
+  for (const field of EXCERPT_FIELDS) {
+    const value = record[field]
+    if (typeof value !== 'string') continue
+    const normalized = value.replace(/\s+/g, ' ').trim()
+    if (!normalized) continue
+    return normalized.length > EXCERPT_MAX ? `${normalized.slice(0, EXCERPT_MAX)}…` : normalized
+  }
+  return undefined
+}
+
 /** 这次待决属于八个 kind 里的哪一个；缺参数在这里返回 `undefined`（它不进槽）。 */
 export function interventionKindOf(args: unknown, effectClass: CapabilityEffectClass | undefined, isPlan: boolean): V4InterventionKind | undefined {
   const record = asRecord(args)
@@ -109,6 +128,10 @@ export function projectV4Intervention(
   const more = source.pendingCount > 1 ? t('agentPanelV4.interventionMore', { count: source.pendingCount - 1 }) : ''
   const summaryParts = [
     kind === 'question' ? stringField(record, 'question') : readableToolPreview(t, source.toolName, source.args),
+    // 「1 条内容」不足以让人决定要不要——用户在这一刻要判断的是**那句话该不该进文稿**。
+    // 摘一段真正要写的内容出来。摘录不是全文：槽在 composer 上方那一格里，
+    // 长文会把它撑成一堵墙；要看全文去对象自己的家（§1.5.2 一功能一个家）。
+    contentExcerpt(record),
     kind === 'credential' ? t('agentPanelV4.credentialSummary') : '',
     stringField(record, 'reason'),
     more,

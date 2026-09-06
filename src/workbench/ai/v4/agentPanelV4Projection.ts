@@ -75,6 +75,16 @@ export type V4FlowInput = Readonly<{
   clipLabels: ReadonlyMap<string, string>
   /** skill key → 人话名字。 */
   skillNames: ReadonlyMap<string, string>
+  /**
+   * 「这一条改动还撤得回来」——`turnId:toolCallId`。
+   *
+   * 撤销是这套设计的招牌之一（介入槽的「可撤销」徽章、任务卡的「2 处改动 · 同一个 ⌘Z」），
+   * 但**哪一条**能撤不是 UI 能猜的：撤销记录（committed proposal）里只有 `hostApprovalId`，
+   * 要拿它去宿主的 `proposalApprovals` 里换出 `toolCallId` 才知道对应哪一行收据。
+   * 那个 join 在调用方做（它拿得到快照），这里只接结果——猜错了就会给一条撤不了的行
+   * 挂一个「撤销」按钮，那比没有按钮更糟。
+   */
+  undoableToolKey?: string
   t: Translate
 }>
 
@@ -286,6 +296,9 @@ export function projectV4Flow(input: V4FlowInput): readonly V4FlowItem[] {
           projection: input.toolProjections.get(key),
           ...(item.text ? { text: item.text } : {}),
           elapsedMs: residentToolElapsedMs(item.status, item.createdAt, item.updatedAt),
+          // 只有真的还撤得回来的那一条才带「撤销」；给撤不了的行挂一个按钮
+          // 比没有按钮更糟——按下去什么都不会发生。
+          undoable: key === input.undoableToolKey,
           t,
         }),
       })
@@ -354,6 +367,13 @@ export function projectV4Queue(input: {
   items: readonly ProjectAgentItem[]
   labels: Readonly<{ jumpAhead: string; remove: string; interrupt: string; untitled: string }>
 }): readonly QueueRowData[] {
+  // 队列只在**真的排了队**的时候出现（定稿 ⑥：「只在运行中还继续输入时」）。
+  // 只有一条正在跑的项时不渲染：那条消息的气泡就在上面几十像素处，再列一遍
+  // 等于在最窄的一列里把同一句话说两遍，而「立即中断」它自己在 composer 上已经有了
+  // （运行中那颗钮就是停止）。空队列不渲染的同一条理由——一个只会复述的框比没有框更吵。
+  // 2026-09-06 真机走查截图 09 记下的摩擦。
+  const queuedBehind = input.queue.filter((entry) => entry.status !== 'running').length
+  if (queuedBehind === 0) return EMPTY_QUEUE
   const rows: QueueRowData[] = []
   for (const entry of input.queue) {
     const user = input.items.find((item) => item.kind === 'user' && item.turnId === entry.turnId)
@@ -382,6 +402,8 @@ export function contextPercent(usage: ContextUsage): number | undefined {
   if (usage.used === undefined || usage.max === undefined || usage.max <= 0) return undefined
   return Math.min(100, Math.round((usage.used / usage.max) * 100))
 }
+
+const EMPTY_QUEUE: readonly QueueRowData[] = Object.freeze([])
 
 const kilo = (value: number): string => `${(value / 1000).toFixed(value % 1000 === 0 ? 0 : 1)}K`
 

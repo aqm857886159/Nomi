@@ -102,6 +102,37 @@ describe('④ 缺参数走对话流的提问 + 建议 chip', () => {
   })
 })
 
+describe('要写进去的那段话，摘一行给用户看', () => {
+  it('文稿写把 content 摘进摘要——「1 条内容」不足以让人决定要不要', () => {
+    const slot = projectV4Intervention(
+      { toolName: 'nomi_document_edit', args: { operation: 'append', content: '她按下录制键，画面定格。' }, effectClass: 'reversible_local', pendingCount: 1 },
+      labels,
+      t,
+    )
+    expect(slot?.summary).toContain('她按下录制键，画面定格。')
+  })
+
+  it('长文截断，不把槽撑成一堵墙', () => {
+    const long = '一'.repeat(200)
+    const slot = projectV4Intervention(
+      { toolName: 'nomi_document_edit', args: { content: long }, effectClass: 'reversible_local', pendingCount: 1 },
+      labels,
+      t,
+    )
+    expect(slot?.summary).toContain('…')
+    expect(slot!.summary!.length).toBeLessThan(long.length)
+  })
+
+  it('没有内容字段就不摘——不编，也不留占位', () => {
+    const slot = projectV4Intervention(
+      { toolName: 'nomi_canvas_read', args: {}, effectClass: 'reversible_local', pendingCount: 1 },
+      labels,
+      t,
+    )
+    expect(slot?.summary ?? '').not.toContain('…')
+  })
+})
+
 describe('③ 槽里没有可编辑的东西', () => {
   it('投影只产出只读的清单行与参数 chip——编辑去对象自己的家', () => {
     const slot = projectV4Intervention(

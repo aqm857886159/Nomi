@@ -14,6 +14,7 @@ import { resolveCapabilityEffectClass } from '../../../../electron/shared/agentC
 import { useProjectAgentSnapshot } from '../useProjectAgentThreadMessages'
 import { useWorkbenchStore } from '../../workbenchStore'
 import { useProductionRunStore } from '../../production/productionRunStore'
+import { useCommittedProposal } from '../../generationCanvas/agent/proposalUndo'
 import { listWorkbenchModelCatalogModels, listWorkbenchModelCatalogVendors, type ModelCatalogModelDto, type ModelCatalogVendorDto } from '../../api/modelCatalogApi'
 import { listWorkbenchSkills, type SkillListItemDto } from '../../api/skillApi'
 import { decodeModelIdentity, encodeModelIdentity, filterUsableAssistantTextModels, labelForModel } from '../assistantModelIdentity'
@@ -22,7 +23,7 @@ import { residentToolProjectionKey, residentToolProjectionScope, readResidentToo
 import { useTimelinePlanRows, useTimelineSelectionChips } from '../resident/timelineAgentSurface'
 import type { ResidentSurface } from '../resident/residentShellDisplay'
 import { agentPanelV4PendingTools, projectBindingKey, toProjectionPendingTools, type V4PendingToolRecord } from './agentPanelV4PendingTools'
-import { projectV4Context, projectV4Flow, projectV4Queue, type V4TaskFacts } from './agentPanelV4Projection'
+import { projectV4Context, projectV4Flow, projectV4Queue, toolKey, type V4TaskFacts } from './agentPanelV4Projection'
 import { missingParamSuggestion, projectV4Intervention } from './agentPanelV4Intervention'
 import { useV4Labels } from './agentPanelV4Labels'
 import type { ContextUsage, InterventionData, QueueRowData, V4Chip, V4FlowItem, V4TaskStatus } from './agentPanelV4Types'
@@ -51,6 +52,28 @@ export type AgentPanelV4Data = Readonly<{
   reloadModels: () => void
   selectModel: (model: ModelCatalogModelDto) => void
 }>
+
+/**
+ * 「已经等了几秒」。**只在真的有东西在跑时**才每秒跳一下——
+ * 一个恒定的 setInterval 会让整块面板每秒重渲一次，包括没人在等的时候。
+ * 它是定稿里那一行「4s · esc 打断」的数据源：转圈没有时间感，秒数才说明「没死」。
+ */
+function useElapsedSeconds(startedAt: string | undefined): number {
+  const [seconds, setSeconds] = React.useState(0)
+  React.useEffect(() => {
+    if (!startedAt) {
+      setSeconds(0)
+      return
+    }
+    const started = Date.parse(startedAt)
+    if (!Number.isFinite(started)) return
+    const tick = (): void => setSeconds(Math.max(0, Math.round((Date.now() - started) / 1000)))
+    tick()
+    const timer = setInterval(tick, 1000)
+    return () => clearInterval(timer)
+  }, [startedAt])
+  return seconds
+}
 
 /** 「这个 job 还在动」的那批状态。列举而不是取反：新增一个状态时宁可它落进「排队」，
  *  也不要因为不认识就被当成「在跑」——一个永远转圈的卡比一个安静的卡更难解释。 */
@@ -223,6 +246,17 @@ export function useAgentPanelV4Data(surface: ResidentSurface): AgentPanelV4Data 
     return map
   }, [activeSkill, skills])
 
+  // 撤销记录 → 宿主审批 → 那一次工具调用。三跳都在这里做完，投影层只接结果。
+  // 少了中间那一跳（`hostApprovalId` → `proposalApprovals[].ref.toolCallId`）就只能靠猜，
+  // 而猜错的代价是一个按下去没反应的「撤销」。
+  const committedProposal = useCommittedProposal()
+  const undoableToolKey = React.useMemo(() => {
+    const approvalId = committedProposal?.hostApprovalId
+    if (!approvalId || !snapshot) return undefined
+    const approval = snapshot.proposalApprovals.find((candidate) => candidate.ref.approvalId === approvalId)
+    return approval ? toolKey(approval.ref.turnId, approval.ref.toolCallId) : undefined
+  }, [committedProposal?.hostApprovalId, snapshot])
+
   const taskFacts = useTaskFacts(t)
   const pendingTools = React.useMemo(() => toProjectionPendingTools(pendingRecords), [pendingRecords])
   const toolArgs = React.useMemo(() => {
@@ -234,6 +268,7 @@ export function useAgentPanelV4Data(surface: ResidentSurface): AgentPanelV4Data 
   const primaryPending = pendingRecords.find((record) => record.state === 'pending')
   const suggestion = primaryPending ? missingParamSuggestion(primaryPending.call.args, t) : undefined
   const planRows = useTimelinePlanRows(primaryPending?.call.toolName, primaryPending?.call.args, timeline, t)
+  const thinkingSeconds = useElapsedSeconds(liveTurn && !primaryPending ? liveTurn.createdAt : undefined)
 
   const flow = React.useMemo(() => {
     const base = projectV4Flow({
@@ -246,18 +281,34 @@ export function useAgentPanelV4Data(surface: ResidentSurface): AgentPanelV4Data 
       taskFacts,
       clipLabels,
       skillNames,
+      ...(undoableToolKey ? { undoableToolKey } : {}),
       t,
     })
     const extra: V4FlowItem[] = []
     // 回合活着、还没有任何助手文字时，流末尾放一行「正在想…」。
     // 这一行是**唯一**在没有宿主记录时也会出现的东西，因为它表达的就是「宿主还没说话」。
-    if (liveTurn && !items.some((item) => item.kind === 'assistant' && item.turnId === liveTurn.turnId && item.text.trim())) {
-      extra.push({ kind: 'thinking', label: t('agentPanelV4.thinkingLabel'), meta: t('agentPanelV4.thinkingMeta') })
+    //
+    // 但**等你确认的时候它不该出现**：那一刻在等的是用户，不是模型。
+    // 一边浮着审批卡一边写「正在想…」，是在替 Nomi 撒一个很小但很讨厌的谎——
+    // 用户会以为再等等它自己就好了。（2026-09-06 真机走查截图 04 抓到。）
+    //
+    // 秒数是这一行的**论点**：定稿写死了「4s · esc 打断」，理由是"转圈没有时间感，
+    // 秒数才告诉用户没死"。只印「esc 打断」就把这一行的意义丢了。
+    if (
+      liveTurn
+      && !primaryPending
+      && !items.some((item) => item.kind === 'assistant' && item.turnId === liveTurn.turnId && item.text.trim())
+    ) {
+      extra.push({
+        kind: 'thinking',
+        label: t('agentPanelV4.thinkingLabel'),
+        meta: `${thinkingSeconds}s · ${t('agentPanelV4.thinkingMeta')}`,
+      })
     }
     // ④ 缺参数：一条提问 + 建议 chip，长在流里，不占介入槽。
     if (suggestion) extra.push({ kind: 'suggestion', text: suggestion.text, options: suggestion.options })
     return extra.length ? Object.freeze([...base, ...extra]) : base
-  }, [clipLabels, items, liveTurn, pendingTools, queueItems, skillNames, suggestion, t, taskFacts, toolArgs, toolProjections, turns])
+  }, [clipLabels, items, liveTurn, pendingTools, primaryPending, queueItems, skillNames, suggestion, t, taskFacts, thinkingSeconds, toolArgs, toolProjections, turns, undoableToolKey])
 
   const slot = React.useMemo(() => {
     if (!primaryPending) return undefined

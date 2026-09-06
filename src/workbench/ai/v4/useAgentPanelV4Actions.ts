@@ -33,6 +33,7 @@ import { friendlyError, surfaceLabel, type ResidentSurface } from '../resident/r
 import { residentToolProjectionScope, readResidentToolProjections, writeResidentToolProjections } from '../resident/residentToolProjection'
 import { residentToolProjectionForCall as toolProjectionForCall } from '../resident/residentToolDisplay'
 import { buildStaticAgentSystemPrompt } from '../../generationCanvas/agent/generationCanvasAgentClient'
+import { getCreationAiMode } from '../../creation/creationAiModes'
 import { runProposalUndo, useCommittedProposal } from '../../generationCanvas/agent/proposalUndo'
 import { agentPanelV4PendingTools, pendingToolKey, projectBindingKey } from './agentPanelV4PendingTools'
 import { canStopAskingFor } from './agentPanelV4Intervention'
@@ -127,6 +128,7 @@ export function useAgentPanelV4Actions(surface: ResidentSurface, data: AgentPane
   const setApprovalPolicy = useWorkbenchStore((state) => state.setProjectAgentApprovalPolicy)
   const creationDocumentTools = useWorkbenchStore((state) => state.creationDocumentTools)
   const activeSkill = useWorkbenchStore((state) => state.creationActiveSkill)
+  const creationAiModeId = useWorkbenchStore((state) => state.creationAiModeId)
   const committedProposal = useCommittedProposal()
   const { snapshot, primaryPending, runningTurnId, queue } = data
 
@@ -188,11 +190,17 @@ export function useAgentPanelV4Actions(surface: ResidentSurface, data: AgentPane
       // 范围由 composer 的「选中」chip 决定，不再是一个模式。回合一律按 `auto` 跑，
       // 而 `workMode` 在宿主侧保持它的默认值 `agent`——合同那句
       // 「Changing the work mode never widens approval」仍然成立，因为我们一根轴都没动。
+      // 创作面**必须**带上它那一档的方法论提示词。旧面板从 `PROMPT_PRESETS`（随旧菜单删除）
+      // 或 `getCreationAiMode()` 取；后者还在，是这条的正主。少了它，创作面的 Agent
+      // 会从「按创作方法论干活」退化成一个通用聊天——界面上看不出来，产出会明显变差。
+      const creationMode = getCreationAiMode(creationAiModeId)
       const surfaceSystemPrompt = surface === 'generation'
         ? buildStaticAgentSystemPrompt('agent')
         : surface === 'preview'
           ? buildStaticAgentSystemPrompt('agent', 'timeline')
-          : undefined
+          : isDocumentSurface(surface) && !activeSkill
+            ? creationMode.prompt
+            : undefined
       const systemPrompt = composeResidentSystemPrompt(surfaceSystemPrompt, activeSkill ? null : selectedLibraryPrompt)
       const response = await runWorkbenchAgent({
         turnId,
@@ -212,7 +220,9 @@ export function useAgentPanelV4Actions(surface: ResidentSurface, data: AgentPane
         mode: 'auto',
         approvalPolicy,
         skillKey,
-        skillName: activeSkill?.name ?? (selectedLibraryPrompt ? promptDisplayTitle(selectedLibraryPrompt) : skillKey),
+        // 人话名字，不是 key：它会进提示词（`buildSkillSystemPrompt` 的 `skillName:` 那行），
+        // 印一个 `workbench.creation.general` 给模型看没有任何信息量。
+        skillName: activeSkill?.name ?? (selectedLibraryPrompt ? promptDisplayTitle(selectedLibraryPrompt) : creationMode.title),
         contextSnapshot,
         attachmentClaims: projectAgentAttachmentClaims(attachments.filter((item) => item.status === 'ready')),
         attachments: attachmentPayloads(attachments),
@@ -235,7 +245,7 @@ export function useAgentPanelV4Actions(surface: ResidentSurface, data: AgentPane
     } finally {
       agentPanelV4PendingTools.clearTurn(turnId)
     }
-  }, [activeSkill, approvalPolicy, attachments, creationDocumentTools, selectedLibraryPrompt, setAttachments, snapshot, surface, t])
+  }, [activeSkill, approvalPolicy, attachments, creationAiModeId, creationDocumentTools, selectedLibraryPrompt, setAttachments, snapshot, surface, t])
 
   const decide = React.useCallback((ok: boolean, extra?: Record<string, unknown>) => {
     const pending = primaryPending
@@ -244,7 +254,15 @@ export function useAgentPanelV4Actions(surface: ResidentSurface, data: AgentPane
     if (!agentPanelV4PendingTools.beginResolving(key)) return
     void (async () => {
       try {
-        await pending.call.confirm({ ok, ...(ok ? {} : { message: t('agentPanelV4.reject') }), ...extra })
+        // `denied: true` 不是可选的礼貌用词：运行时按它把这次调用记成 `denied`，
+        // 宿主再把 `denied` 落成 `declined`（本轮同 PR 的契约改动），收据行尾才写得出
+        // 「已拒绝 ×」而不是「失败 ⚠」。少这一个字段，用户点的「不要」就会在历史里
+        // 变成「它自己坏了」——那是把用户的决定记成了系统故障。
+        await pending.call.confirm({
+          ok,
+          ...(ok ? {} : { denied: true, message: t('agentPanelV4.reject') }),
+          ...extra,
+        })
         agentPanelV4PendingTools.settle(key, ok ? 'approved' : 'denied')
       } catch (caught) {
         setError(friendlyError(caught, t))
