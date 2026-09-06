@@ -29,20 +29,20 @@
 }
 
 .generation-canvas-react-flow .react-flow__selection {
-  border: 1px solid color-mix(in oklch, var(--nomi-ink) 36%, transparent);
-  background: color-mix(in oklch, var(--nomi-ink) 7%, transparent);
+  border: 1px solid color-mix(in oklab, var(--nomi-ink) 36%, transparent);
+  background: color-mix(in oklab, var(--nomi-ink) 7%, transparent);
 }
 
 /* A completed selection is a stable canvas object, not an in-progress action.
  * Keep the old neutral Nomi treatment instead of React Flow's blue default. */
 .generation-canvas-react-flow .react-flow__nodesselection-rect {
   box-sizing: border-box;
-  border: 1px solid color-mix(in oklch, var(--nomi-ink) 32%, transparent);
+  border: 1px solid color-mix(in oklab, var(--nomi-ink) 32%, transparent);
   border-radius: 14px;
-  background: color-mix(in oklch, var(--nomi-paper) 5%, transparent);
+  background: color-mix(in oklab, var(--nomi-paper) 5%, transparent);
   box-shadow:
-    0 0 0 1px color-mix(in oklch, var(--nomi-paper) 22%, transparent) inset,
-    0 14px 34px color-mix(in oklch, var(--nomi-ink) 10%, transparent);
+    0 0 0 1px color-mix(in oklab, var(--nomi-paper) 22%, transparent) inset,
+    0 14px 34px color-mix(in oklab, var(--nomi-ink) 10%, transparent);
 }
 
 .generation-canvas-react-flow .react-flow__resize-control {
@@ -182,7 +182,7 @@
   transform: translate(calc(-50% + var(--connection-handle-reveal-x)), -50%) scale(0.86);
   border: 2px solid color-mix(in srgb, var(--workbench-muted-soft) 72%, transparent);
   border-radius: 999px;
-  background: color-mix(in oklch, var(--nomi-paper) 82%, transparent);
+  background: color-mix(in oklab, var(--nomi-paper) 82%, transparent);
   color: var(--workbench-muted);
   box-shadow:
     0 10px 26px rgba(18, 24, 38, 0.18),

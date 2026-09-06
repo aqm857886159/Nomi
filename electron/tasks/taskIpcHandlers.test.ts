@@ -101,7 +101,14 @@ describe("task IPC local operation lifecycle", () => {
       request: {},
     };
     await expect(call("comfy-candidate-test", owner, payload)).resolves.toEqual(failure);
-    expect(mocks.failCandidateEnvelope).toHaveBeenCalledWith(payload, "provider_failed");
+    // 真因必须随失败信封一起交出去。这里曾是一个空 catch（`} catch {`），把上游 4xx、余额不足、
+    // 乃至我们自己的出站策略拒绝**全部**压成裸码 `provider_failed`，界面照着渲染那个未翻译的码，
+    // 用户看不到任何可据以行动的事实。断言绑住第三个参数，空 catch 回来就翻红。
+    expect(mocks.failCandidateEnvelope).toHaveBeenCalledWith(
+      payload,
+      "provider_failed",
+      expect.objectContaining({ message: "runtime load failed" }),
+    );
   });
   it("cancels and cleans the exact in-flight candidate when its renderer is destroyed", async () => {
     let loaded!: (runtime: Runtime) => void;

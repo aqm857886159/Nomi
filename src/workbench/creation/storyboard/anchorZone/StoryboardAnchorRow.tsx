@@ -58,6 +58,8 @@ type Props = {
   onRemove: () => void
   onGenerate: () => void
   onRegenerate: () => void
+  /** 可找回态的**免费**续查（`recoverNodeResult`）；缺省时那枚按钮不出现，绝不退回付费的「重试」。 */
+  onRecover?: (() => void) | undefined
   onToggleLock: () => void
   onOpenPreview?: (() => void) | undefined
   onFilterByAnchor?: (() => void) | undefined
@@ -87,6 +89,7 @@ export default function StoryboardAnchorRow({
   onRemove,
   onGenerate,
   onRegenerate,
+  onRecover,
   onToggleLock,
   onOpenPreview,
   onFilterByAnchor,
@@ -154,11 +157,39 @@ export default function StoryboardAnchorRow({
           <button
             type="button"
             onClick={onGenerate}
+            title={t('storyboardEditor.frame.retryHint')}
+            aria-label={t('storyboardEditor.frame.retryHint')}
             className="inline-flex h-6 items-center gap-0.5 rounded-nomi-sm border border-workbench-danger bg-nomi-paper px-2 text-micro text-workbench-danger"
           >
             <IconRefresh size={11} stroke={1.8} />
             {t('storyboardEditor.frame.retry')}
           </button>
+        </div>
+      )
+    }
+    // 可找回：中性纸底 + **免费**续查。这张卡已经付过钱了，落回下面那枚「生成」就是重复付费。
+    if (runtime.recoverable) {
+      return (
+        <div
+          className="relative flex flex-col items-center justify-center gap-1.5 rounded-nomi border border-nomi-line bg-nomi-paper p-2 text-center"
+          style={style}
+          title={t('storyboardEditor.frame.recoverableHint')}
+          data-anchor-face="recoverable"
+        >
+          <span className="line-clamp-2 text-micro leading-tight text-nomi-ink-60" title={runtime.errorMessage ?? undefined}>
+            {t('storyboardEditor.frame.recoverable')}
+          </span>
+          {onRecover ? (
+            <button
+              type="button"
+              onClick={onRecover}
+              title={t('storyboardEditor.frame.recoverableHint')}
+              className="inline-flex h-6 items-center gap-0.5 rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2 text-micro text-nomi-ink-80 hover:border-nomi-accent hover:text-nomi-accent"
+            >
+              <IconRefresh size={11} stroke={1.8} />
+              {t('storyboardEditor.frame.recoverableRefetch')}
+            </button>
+          ) : null}
         </div>
       )
     }

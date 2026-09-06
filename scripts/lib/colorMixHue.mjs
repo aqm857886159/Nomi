@@ -16,6 +16,19 @@
 // 修法结论：改用 `in srgb`（无色相分量，不存在弧插值）。这也是仓库既有做法 —— --nomi-focus
 // 与滚动条色早就写的 in srgb。`oklch(1 0 none)` 让色相 powerless 的路子已实测否决：暗色 paper
 // 的 chroma 非 0（0.007 @ h80，是刻意的暖灰），改成 none 会把整个暗色纸面从暖灰(h≈85)变成粉灰(h≈0.6)。
+//
+// 第二族（2026-09-06 实锤，Chromium 140 / Electron 40）：`color-mix(in oklch, X, transparent)`。
+//   这里没有两个色相之间的弧插值（transparent 无色相），却照样跑色：Chromium 把 X **转进** oklch 时，
+//   彩度 c < 0.02 左右的色相会被判 powerless 写成 `none`、彩度却**保留**；`none` 落地当 h=0，
+//   一个淡蓝（--nomi-accent-soft）就被渲染成淡粉。触发条件已在真 Electron 逐档量过（2026-09-06）：
+//   只咬**不是 oklch 字面量**的操作数 —— rgb()/hex/嵌套 color-mix(in srgb) 的结果转进 oklch 时才做
+//   powerless 判定（c=0.02 丢、0.025 保）；直接写成 oklch(L C H) 的操作数不经转换，色相原样保留。
+//   tailwind.config.ts 的 tokenColor() 曾用这一式包住每一个 token 色，accent-soft 是 in srgb 混出来的
+//   （c≈0.015）正中靶心，全 App 80+ 个消费点因此显粉；--nomi-ink / --nomi-paper 是 oklch 字面量
+//   且近中性，所以今天看不出来 —— 但写法本身就是陷阱：把它指向任何一个非字面量的低彩度 token
+//   就静默变粉。所以这一族**整体禁止**（analyzeTransparentOklchMixes），不按彩度/写法放行：
+//   门岗算不出运行时彩度（出事的 token 自己就是 color-mix 写的，resolveOperand 解析不出），
+//   而 `in oklab` 是直角坐标、没有色相分量，对现有 token 渲染恒等（已在真 Electron 逐式比对 rgb）。
 
 // ── 颜色数学（oklch ↔ sRGB）────────────────────────────────────────────────
 // 参考 Björn Ottosson 的 Oklab 矩阵。只用于算色相/校验，不追求 gamut mapping 精度。
@@ -193,6 +206,119 @@ export function evaluateColorMixExpression(expr, defs) {
   return space.toLowerCase() === 'oklch' ? mixInOklch(a[0], b[0], ratio) : mixInSrgb(a[0], b[0], ratio)
 }
 
+/**
+ * 把注释内容抹成空格（保留换行，行号不变），字符串字面量原样保留。
+ * 为什么必须区分这两者：**注释里写反例是有价值的**（tailwind.config.ts 顶部那段就逐行记着
+ * 「in oklch 出淡粉 / in oklab 出淡蓝」的实测值），门岗把文档也判红等于逼人删掉说明；
+ * 而**字符串里的那份是活的**（TimelinePreview 的内联 style 就是 JS 字符串，照样渲染），
+ * 一并跳过就成了假绿。所以：注释剔掉、字符串留下。
+ * CSS 只认 `/* *\/` 块注释——`//` 在 CSS 里不是注释，裸 url(https://…) 很常见，
+ * 按行注释剔会把同一行后面的真代码一起吃掉（那才是真假绿）。
+ */
+export function stripComments(content, { lineComments = true } = {}) {
+  let out = ''
+  let i = 0
+  let quote = null
+  while (i < content.length) {
+    const ch = content[i]
+    if (quote) {
+      out += ch
+      if (ch === '\\') {
+        out += content[i + 1] ?? ''
+        i += 2
+        continue
+      }
+      if (ch === quote) quote = null
+      i += 1
+      continue
+    }
+    if (ch === "'" || ch === '"' || ch === '`') {
+      quote = ch
+      out += ch
+      i += 1
+      continue
+    }
+    if (ch === '/' && content[i + 1] === '*') {
+      const end = content.indexOf('*/', i + 2)
+      const stop = end === -1 ? content.length : end + 2
+      out += content.slice(i, stop).replace(/[^\n]/g, ' ')
+      i = stop
+      continue
+    }
+    if (lineComments && ch === '/' && content[i + 1] === '/') {
+      let end = content.indexOf('\n', i)
+      if (end === -1) end = content.length
+      out += ' '.repeat(end - i)
+      i = end
+      continue
+    }
+    out += ch
+    i += 1
+  }
+  return out
+}
+
+/**
+ * 找出内容里所有 `color-mix(in oklch, …)` 且任一操作数是 `transparent` 的写法（操作数顺序不限，
+ * 百分比可以是 `36%` 或 `calc(<alpha-value> * 100%)`，嵌在 gradient / JS 字符串里也算）。
+ * 按括号配平截出实参再按顶层逗号切分，不靠「第二个操作数是单词」那种巧合。
+ */
+export function findTransparentOklchMixes(content) {
+  const found = []
+  const re = /color-mix\(\s*in\s+oklch\s*,/gi
+  for (const m of content.matchAll(re)) {
+    const start = m.index
+    let depth = 0
+    let end = -1
+    for (let i = start; i < content.length; i++) {
+      const ch = content[i]
+      if (ch === '(') depth += 1
+      else if (ch === ')') {
+        depth -= 1
+        if (depth === 0) {
+          end = i
+          break
+        }
+      }
+    }
+    if (end < 0) continue
+    const args = content.slice(start + m[0].length, end)
+    const operands = []
+    let buf = ''
+    let d = 0
+    for (const ch of args) {
+      if (ch === '(') d += 1
+      else if (ch === ')') d -= 1
+      if (ch === ',' && d === 0) {
+        operands.push(buf)
+        buf = ''
+      } else buf += ch
+    }
+    operands.push(buf)
+    const hasTransparent = operands.some((op) => /^transparent(?:\s|$)/i.test(op.trim()))
+    if (!hasTransparent) continue
+    const line = content.slice(0, start).split('\n').length
+    found.push({ line, expression: content.slice(start, end + 1) })
+  }
+  return found
+}
+
+/**
+ * 分析一批文件，返回所有 `color-mix(in oklch, X, transparent)`。零容忍：修法固定为 `in oklab`
+ * （直角坐标、无色相分量；对当前中性 token 渲染恒等，对有色相 token 才是正确答案）。
+ */
+export function analyzeTransparentOklchMixes(files) {
+  const findings = []
+  for (const { path: filePath, content } of files) {
+    // 注释里的反例不算违规（见 stripComments）；字符串里的算，它是活的。
+    const code = stripComments(content, { lineComments: !filePath.endsWith('.css') })
+    for (const mix of findTransparentOklchMixes(code)) {
+      findings.push({ file: filePath, line: mix.line, expression: mix.expression })
+    }
+  }
+  return findings
+}
+
 /** 色相漂移判定阈值（度）。低于它人眼看不出色相变化。 */
 export const HUE_DRIFT_THRESHOLD = 15
 
@@ -204,16 +330,15 @@ export const HUE_DRIFT_THRESHOLD = 15
 export function analyzeHueDrift(files, defs) {
   const findings = []
   for (const { path: filePath, content } of files) {
-    for (const mix of findOklchMixes(content)) {
+    // 与下面那条整族禁令同一口径：注释剔掉（写在注释里的反例渲染不出东西），字符串留下。
+    for (const mix of findOklchMixes(stripComments(content, { lineComments: !filePath.endsWith('.css') }))) {
       const a = resolveOperand(mix.a, defs)
       const b = resolveOperand(mix.b, defs)
-      // 与 transparent 混不构成**两操作数间**的弧插值（transparent 无色相，拽不动谁），本判据管不着，放行。
-      // ⚠️ 但这不等于「混 transparent 安全」——原注写的「实测色相恒等」只在**高彩度**操作数上成立。
-      // 2026-09-06 实锤（Chromium 140）：低彩度色转进 oklch 时色相被判 powerless 写成 `none`、彩度却留着，
-      // `none` 落地当 h=0 → 淡蓝渲染成淡粉。tailwind.config.ts 的 tokenColor() 曾用 in oklch 包住每一个
-      // token 色，--nomi-accent-soft（c≈0.015）因此全 App 显粉；改成 in oklab（直角坐标、没有色相分量）根治。
-      // 本判据靠不到那一层：出事的 token 自己就是 color-mix 写的，resolveOperand 解析不出彩度、只能返回 []。
-      // 要把这一族也机器化，得先让 resolveOperand 能递归求值嵌套 color-mix，再按彩度阈值判。
+      // 与 transparent 混不构成**两操作数间**的弧插值（transparent 无色相，拽不动谁），本判据管不着。
+      // ⚠️ 但这不等于「混 transparent 安全」——那句原注是错的，见文件头第二族（Chromium 把低彩度操作数的
+      // 色相判成 powerless 写成 `none`，落地当 h=0 → 淡蓝渲染成淡粉）。#534 当时的结论是「要机器化得先让
+      // resolveOperand 递归求值嵌套 color-mix、再按彩度阈值判」；实际不需要——运行时彩度门岗本来就算不准，
+      // 而且按「今天是中性的」放行等于把陷阱留在原地。这一整族改由 analyzeTransparentOklchMixes 整体禁掉。
       if (a === 'transparent' || b === 'transparent') continue
       if (!Array.isArray(a) || !Array.isArray(b) || a.length === 0 || b.length === 0) continue
       const pairs = []

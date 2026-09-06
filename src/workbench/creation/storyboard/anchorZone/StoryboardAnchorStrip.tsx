@@ -41,14 +41,17 @@ export default function StoryboardAnchorStrip({ cards, filterAnchorId, onFilterB
             ? t('storyboardEditor.frame.generating')
             : card.failed
               ? t('storyboardEditor.frame.failed')
-              : card.waitingShotCount > 0
-                ? t('storyboardEditor.anchor.stat.waitedBy', { count: card.waitingShotCount })
-                : card.resultUrl
-                  // 已出图但没锁：批量为保一致性等锁，所以"未锁定"是行动信号，不是装饰。
-                  ? card.locked
-                    ? t('storyboardEditor.anchor.stat.referenced', { count: card.referencedByCount })
-                    : t('storyboardEditor.anchor.stat.unlockedHint')
-                  : t('storyboardEditor.anchor.stat.ungenerated')
+              // 可找回是中性态：不进红、也不写「失败」——钱已经花了，只是还没拉回来。
+              : card.recoverable
+                ? t('storyboardEditor.frame.recoverable')
+                : card.waitingShotCount > 0
+                  ? t('storyboardEditor.anchor.stat.waitedBy', { count: card.waitingShotCount })
+                  : card.resultUrl
+                    // 已出图但没锁：批量为保一致性等锁，所以"未锁定"是行动信号，不是装饰。
+                    ? card.locked
+                      ? t('storyboardEditor.anchor.stat.referenced', { count: card.referencedByCount })
+                      : t('storyboardEditor.anchor.stat.unlockedHint')
+                    : t('storyboardEditor.anchor.stat.ungenerated')
         return (
           <button
             key={card.anchor.id}
