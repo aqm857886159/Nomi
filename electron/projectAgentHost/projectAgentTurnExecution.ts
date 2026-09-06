@@ -167,6 +167,13 @@ export async function executeProjectAgentTurn(context: ProjectAgentTurnExecution
       abortSignal: execution.controller.signal,
       emit: (event) => {
         if (event.type === "content-delta") append(event.delta);
+        // 运行时把「这一回合为什么没成」的人话只在这儿说一次（`agentChatV2` 的
+        // `describeRuntimeError` / `describeEmptyAgentReply`）。以前这里只认 content-delta，
+        // 于是那句话被原地丢掉：宿主只落一个 `failed` 状态字，收尾那步又只在**工具级**
+        // 失败时才建 failure 条目，渲染层最后只好印一句「发送失败，请检查后重试。」——
+        // 落盘、日志、对话流三处**全都**没有原因，重启之后连那句话都没了。
+        // 第一条留住即可：它是根因，后面的多半是同一件事的派生说法。
+        else if (event.type === "error" && event.message) execution.runtimeDiagnostic ??= event.message;
       },
       awaitToolConfirmation: async (call, signal) => {
         const frozen = partition.requests.get(execution.turn.turnId);
@@ -650,6 +657,27 @@ export async function executeProjectAgentTurn(context: ProjectAgentTurnExecution
           updatedAt: receivedAt,
         })
       : undefined;
+    // 运行时（而非某一次工具调用）自己失败时也必须留下**一条能读的**痕迹。
+    // 抛出那条路早就会建 `runtime_error` failure 条目；「正常返回但 status=error」这条路
+    // 以前什么都不建，于是同一种失败在两条路上一条有原因、一条只有一个状态字。
+    const runtimeFailure: ProjectAgentFailureItem | undefined = !outcomeFailure && status === "failed"
+      ? Object.freeze({
+          itemId: `failure-${digest([execution.turn.executionToken, "runtime-response-failure"])}`,
+          threadId: execution.turn.threadId,
+          turnId: execution.turn.turnId,
+          kind: "failure" as const,
+          code: "runtime_error",
+          message: execution.runtimeDiagnostic ?? "Nomi runtime did not produce a response",
+          status: "failed" as const,
+          retryable: true,
+          deviated: false,
+          createdAt: receivedAt,
+          updatedAt: receivedAt,
+        })
+      : undefined;
+    const terminalItems = outcomeFailure
+      ? [...resultItems, outcomeFailure]
+      : runtimeFailure ? [...resultItems, runtimeFailure] : resultItems;
     const currentStatus = beforeResult.turns.find((turn) => turn.turnId === execution.turn.turnId)?.status;
     if (!currentStatus || ["queued", "running", "proposed"].includes(currentStatus)) {
       await dispatchFresh(partition, (state) => ({
@@ -667,7 +695,7 @@ export async function executeProjectAgentTurn(context: ProjectAgentTurnExecution
           target: execution.queueItem.target,
           preconditions: execution.queueItem.preconditions,
           expectedRevision: state.hostRevision,
-          items: outcomeFailure ? [...resultItems, outcomeFailure] : resultItems,
+          items: terminalItems,
           turnStatus: status,
           usage: response.usage,
           ...(response.context ? { runtimeContext: response.context } : {}),
