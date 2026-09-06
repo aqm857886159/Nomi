@@ -12,7 +12,7 @@
   ],
   "scope_paths": [
     "electron/logging/logger.ts",
-    "electron/main.ts",
+    "electron/mainProcessLifecycle.ts",
     "electron/capabilityCore/mcpStdioDiagnostics.ts",
     "electron/capabilityCore/mcpStdioServer.ts",
     "electron/capabilityCore/mcpNodeLauncher.ts",
@@ -33,7 +33,7 @@
     "One stdio diagnostic event has exactly one name, defined once and imported by both launch paths and by the regression tests; no test hand-copies the wording.",
     "logDevDetail stays dev-only and is never promoted to the host surface: it carries free text (renderer console forwarding, local paths) and would turn the host channel into a privacy leak."
   ],
-  "generality_proof": "The declaration is process-level, not call-site level: main.ts marks the stdio process before installMainProcessLifecycle, so every logger call in that process — the ones that exist today and the ones a later migration adds — is host-visible without touching a single call site. A future console.* → logger migration therefore cannot repeat the silencing, because there is no per-site switch to forget. The naming half is closed by the same shape: both launch paths and both journeys import the event names from one module, so a rename is a compile-time fan-out rather than a silent drift.",
+  "generality_proof": "The declaration is process-level, not call-site level: installMainProcessLifecycle marks the stdio process before it installs the logger, so every logger call in that process — the ones that exist today and the ones a later migration adds — is host-visible without touching a single call site. A future console.* → logger migration therefore cannot repeat the silencing, because there is no per-site switch to forget. The naming half is closed by the same shape: both launch paths and both journeys import the event names from one module, so a rename is a compile-time fan-out rather than a silent drift.",
   "shared_boundaries": [
     {
       "path": "electron/logging/logger.ts",
@@ -48,10 +48,10 @@
   ],
   "same_class_entry_points": [
     {
-      "path": "electron/main.ts",
-      "entry_point": "NOMI_MCP_STDIO=1 process startup",
+      "path": "electron/mainProcessLifecycle.ts",
+      "entry_point": "NOMI_MCP_STDIO=1 process startup (installMainProcessLifecycle)",
       "disposition": "enforced",
-      "evidence": "markStderrAsDiagnosticSurface() runs before installMainProcessLifecycle, so the session header (version / Electron / platform) — the host's first piece of evidence that the server started at all, and on which build — reaches stderr instead of only the log file."
+      "evidence": "The mark runs inside the one function that owns startup install order, before mainLoggerInstaller(), so the session header (version / Electron / platform) — the host's first evidence that the server started and on which build — reaches stderr instead of only the log file. mainProcessLifecycle.test.ts pins both the mark and its position relative to the logger install."
     },
     {
       "path": "electron/capabilityCore/mcpStdioServer.ts",
@@ -104,23 +104,26 @@
     "kind": "centralized-boundary",
     "enforcement_path": "electron/logging/logger.ts",
     "invariant": "Once a process marks its stderr as a host diagnostic surface, mirrorToStderr writes every line synchronously regardless of app.isPackaged; the stdio process performs that mark before any logging is installed.",
-    "failure_mode": "Reverting the mark's effect makes electron/logging/logger.test.ts『被标记成宿主诊断面后，打包态也照样同步写 stderr』fail (verified: the assertion sees an empty stderr), and renaming either event without going through mcpStdioDiagnostics.ts breaks the L1 C5 and L2 C10 anchors, which import the names rather than copying them.",
+    "failure_mode": "Reverting the mark's effect makes electron/logging/logger.test.ts『被标记成宿主诊断面后，打包态也照样同步写 stderr』fail (verified: the assertion sees an empty stderr); moving the mark after the logger install makes electron/mainProcessLifecycle.test.ts『MCP stdio 进程在装日志之前就把 stderr 标成宿主诊断面』fail (verified); and renaming either event without going through mcpStdioDiagnostics.ts breaks the L1 C5 and L2 C10 anchors, which import the names rather than copying them.",
     "exception_policy": "none",
     "strategy": "Let the process declare what its stderr means, once, at the earliest point in startup; keep one name per diagnostic in one module that both launch paths and both journeys import.",
     "artifacts": [
       "electron/logging/logger.ts",
-      "electron/main.ts",
+      "electron/mainProcessLifecycle.ts",
       "electron/capabilityCore/mcpStdioDiagnostics.ts",
-      "electron/logging/logger.test.ts"
+      "electron/logging/logger.test.ts",
+      "electron/mainProcessLifecycle.test.ts"
     ]
   },
   "regression_tests": [
     "electron/logging/logger.test.ts",
+    "electron/mainProcessLifecycle.test.ts",
     "tests/ux/mcp-l1-handshake.e2e.mjs",
     "tests/ux/mcp-l2-journeys.e2e.mjs"
   ],
   "class_regression_tests": [
-    "electron/logging/logger.test.ts"
+    "electron/logging/logger.test.ts",
+    "electron/mainProcessLifecycle.test.ts"
   ],
   "legacy_paths": {
     "status": "removed",

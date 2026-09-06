@@ -89,7 +89,7 @@ import { ensureWorkspaceProjectIdentity } from "./workspace/workspaceProjectIden
 import { resolveWorkspaceProjectDir } from "./workspace/workspaceRepository";
 import { installContentSecurityPolicy } from "./contentSecurityPolicy";
 import { registerSkillIpc } from "./skills/skillIpc";
-import { logError, logInfo, logWarn, markStderrAsDiagnosticSurface } from "./logging/logger";
+import { logError, logInfo, logWarn } from "./logging/logger";
 import { registerDevDiagnostics } from "./logging/devDiagnostics";
 // profile 重定向必须排在 installMainProcessLifecycle **之前**：崩溃处理与日志一装上就会写盘，
 // 晚一步重定向，这次会话的头几行（含会话表头）会落在被隔离掉的那个目录里。
@@ -104,13 +104,6 @@ if (configuredUserDataDir) {
   // 正常安装的用户没有这个 env，路径与从前逐字一致（仍是 ~/Library/Logs/Nomi）。
   app.setPath("logs", path.join(configuredUserDataDir, "logs"));
 }
-// MCP stdio 模式（下面单实例锁那段解释了它是什么）。这里先读一次，是因为这个进程的 stderr
-// 不是开发者的终端而是**宿主协议面**：stdout 整条让给了 JSON-RPC，宿主（Claude Code / Codex）
-// 唯一看得见我们诊断的地方就是 stderr，打包版尤其——那正是真实宿主拉起我们的形态。
-// 必须排在 installMainProcessLifecycle **之前**：会话表头是第一行日志，晚一步它就只落盘、
-// 进不了宿主视野，而「这次到底起没起来、是哪个构建」正是宿主排查时的第一行证据。
-const isMcpStdio = process.env.NOMI_MCP_STDIO === "1";
-if (isMcpStdio) markStderrAsDiagnosticSurface();
 installMainProcessLifecycle(app);
 // 单实例锁（能力核前提，docs/plan/2026-06-20）：保证同一 user-data 只有一个 app 实例 = 工程文件的
 // 唯一写者，外部 CLI/MCP 才能安全地「app 开着走 RPC、关着走 headless」。隔离实例（eval/promo 用独立
@@ -118,7 +111,8 @@ installMainProcessLifecycle(app);
 // MCP stdio 模式：Claude Code / Codex 用 Nomi 自身二进制 + env NOMI_MCP_STDIO=1 把它拉起当 MCP server
 //（见 docs/plan/2026-06-24-packaged-mcp-stdio-server.md）。此模式**绝不抢单实例锁**——否则 GUI 在跑时
 // 它会被判第二实例而自杀；也不开窗、不起 IPC，只跑进程内 stdio JSON-RPC（下方 GUI whenReady 由
-// hasSingleInstanceLock=false 自动跳过）。常量本身在上面（日志 stderr 面那段）就已声明。
+// hasSingleInstanceLock=false 自动跳过）。
+const isMcpStdio = process.env.NOMI_MCP_STDIO === "1";
 // Dev/test MCP may load dist-electron/main.js directly, so Electron cannot read
 // package.json and otherwise identifies as "Electron". Match the GUI identity
 // before app ready or safeStorage ciphertext written by Nomi cannot be opened.
