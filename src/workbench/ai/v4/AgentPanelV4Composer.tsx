@@ -79,6 +79,8 @@ export type AgentPanelV4ComposerProps = {
   dock?: boolean
   skillSelected?: boolean
   focused?: boolean
+  /** 输入框本体。容器要能把光标交给它（空态起手 chip 填完那句话就聚焦）。 */
+  inputRef?: React.Ref<HTMLTextAreaElement>
 }
 
 export function AgentPanelV4Composer({
@@ -99,6 +101,7 @@ export function AgentPanelV4Composer({
   dock = false,
   skillSelected = false,
   focused = false,
+  inputRef,
 }: AgentPanelV4ComposerProps): JSX.Element {
   const { t } = useTranslation()
   const rows = Math.max(1, value.split('\n').length)
@@ -153,6 +156,7 @@ export function AgentPanelV4Composer({
         </div>
       ) : null}
       <textarea
+        ref={inputRef}
         value={value}
         readOnly={!onValueChange}
         onChange={(event) => onValueChange?.(event.target.value)}
