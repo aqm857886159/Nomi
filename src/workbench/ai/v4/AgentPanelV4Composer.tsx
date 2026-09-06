@@ -176,7 +176,14 @@ export function AgentPanelV4Composer({
         // （2026-08-13 提示词滚轮那条坑同一根因）。
         className="min-h-0 w-full flex-1 resize-none overflow-y-auto overscroll-contain bg-transparent px-3 pb-1.5 pt-2.5 text-body-sm leading-normal text-nomi-ink outline-none placeholder:text-nomi-ink-40"
       />
-      <div className="flex h-10 shrink-0 items-center gap-1 px-2 pb-2 pt-1">
+      {/* 底栏是 composer 唯一**宽度随内容变**的一行：模型钮印的是真实模型名，
+          从「选择模型」到 `moonshot-v1-128k-vision-preview` 差了三倍。原来这一行
+          每个控件都是 `shrink-0` + `whitespace-nowrap`，唯一能伸缩的是一个宽度本来就是 0
+          的 spacer——于是名字一长这行必然超宽，把发送钮顶出面板；面板的 `overflow-hidden`
+          又允许浏览器把 scrollLeft 推到 17px 且用户拖不回来，助手正文、工具收据、
+          头部头像左边全被**永久**裁掉。让模型钮成为那个会缩的（`min-w-0` + 名字 truncate），
+          这一行就再也宽不过面板。 */}
+      <div className="flex h-10 min-w-0 shrink-0 items-center gap-1 px-2 pb-2 pt-1">
         <button
           type="button"
           aria-label={t('agentPanelV4.addAnyFile')}
@@ -190,11 +197,12 @@ export function AgentPanelV4Composer({
           type="button"
           onClick={() => onTogglePopover?.('model')}
           aria-expanded={openPopover === 'model'}
-          className="inline-flex h-7 shrink-0 items-center gap-[5px] whitespace-nowrap rounded-nomi-sm px-2 text-caption text-nomi-ink-80 hover:bg-nomi-ink-05"
+          title={modelLabel ?? undefined}
+          className="inline-flex h-7 min-w-0 shrink items-center gap-[5px] whitespace-nowrap rounded-nomi-sm px-2 text-caption text-nomi-ink-80 hover:bg-nomi-ink-05"
           data-v4-control="model"
         >
-          {modelLabel ?? t('agentPanelV4.model')}
-          <IconChevronDown size={12} />
+          <span className="min-w-0 truncate">{modelLabel ?? t('agentPanelV4.model')}</span>
+          <IconChevronDown size={12} className="shrink-0" />
         </button>
         <span className="mx-0.5 h-4 w-px shrink-0 bg-nomi-line" aria-hidden="true" />
         <button
