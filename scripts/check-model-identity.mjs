@@ -25,7 +25,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { execSync } from "node:child_process";
+import { gitPaths } from "./lib/gitPaths.mjs";
 import ts from "typescript";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -43,10 +43,7 @@ const VENDOR_FIELDS = new Set([
 ]);
 
 function listFiles() {
-  return execSync(`git ls-files ${SCAN_DIRS.join(" ")}`, { cwd: ROOT, encoding: "utf8" })
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
+  return gitPaths(["ls-files", ...SCAN_DIRS], { cwd: ROOT })
     .filter((file) => /\.tsx?$/.test(file))
     .filter((file) => !/\.test\.tsx?$/.test(file))
     .filter((file) => !/\.d\.ts$/.test(file))

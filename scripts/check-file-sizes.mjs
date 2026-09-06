@@ -13,10 +13,10 @@
 //
 // 用法：node ./scripts/check-file-sizes.mjs
 
-import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { gitPaths } from "./lib/gitPaths.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const MAX_LINES = 800;
@@ -66,11 +66,7 @@ const ALLOWLIST = {
 
 function listFiles() {
   // 用 git 列出受跟踪文件，天然排除 node_modules / dist / 未跟踪草稿。
-  const out = execSync("git ls-files " + SCAN_DIRS.join(" "), { cwd: ROOT, encoding: "utf8" });
-  return out
-    .split("\n")
-    .map((l) => l.trim())
-    .filter(Boolean)
+  return gitPaths(["ls-files", ...SCAN_DIRS], { cwd: ROOT })
     .filter((f) => /\.(?:tsx?|[mc]ts)$/.test(f))
     .filter((f) => !/\.test\.(?:tsx?|[mc]ts)$/.test(f))
     .filter((f) => !/\.d\.(?:ts|[mc]ts)$/.test(f))

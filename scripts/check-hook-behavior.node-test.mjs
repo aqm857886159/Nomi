@@ -200,3 +200,53 @@ test('读戳方推荐了不存在的补盖脚本 → 门岗报红（报告到的
     '应指出 hook 让人运行一个不存在的脚本',
   )
 })
+
+// —— 轴 C：doc-only 判据 vs 非 ASCII 路径（2026-09-07 论文雷达工人报到的那一例）——
+//
+// 报告到的形状：`docs/中文附件说明.md` 这类纯文档改动被 pre-push 闸判成「有代码改动」，
+// 于是 docs-only 的推送白等一遍五门。根因是按行读了 `git diff --name-only`——
+// git 默认 `core.quotePath=true`，非 ASCII 路径会被输出成 `"docs/\344\270\255…"`：
+// 首尾各一个引号、中间八进制转义，闸门那把尺（`^docs/` / `\.md$`）两头都被引号挡掉。
+//
+// 下面两条是这一轴的阳性对照：把 hook 退回按行读 → 门岗必须报红（否则轴 C 是摆设），
+// 等价改写（`-z` → `-c core.quotePath=false`）→ 必须照样绿（不许假红）。
+
+test('doc-only 判据退回按行读 --name-only → 非 ASCII 路径被误判，门岗报红', (t) => {
+  const dir = makeContractFixture(t, {
+    mutateHook: (hook) => {
+      // 精确还原修复前那一版：函数体按行 grep，调用点不带 -z。
+      const next = hook
+        .replace(
+          /is_docs_only\(\) \{[\s\S]*?\n\}/,
+          `is_docs_only() {\n  ARGV_LIST="$(cat)"\n  [ -n "$ARGV_LIST" ] || return 1\n  printf '%s\\n' "$ARGV_LIST" | grep -Ev '(\\.md$|\\.txt$|^docs/|^\\.claude/)' | grep -q . && return 1\n  return 0\n}`,
+        )
+        .replaceAll('git diff -z --name-only', 'git diff --name-only')
+      assert.ok(next.includes("grep -Ev '(\\.md$"), '替换必须真的命中，否则这条测试是空转')
+      assert.ok(!next.includes('git diff -z --name-only'), '调用点必须真的退回不带 -z，否则这条测试是空转')
+      return next
+    },
+  })
+  const problems = checkHookBehavior(dir, { only: ['docs-only'] })
+  assert.ok(
+    problems.some((p) => p.includes('doc-only 误判') && p.includes('非 ASCII')),
+    `退回按行读之后，非 ASCII 文档名必须被门岗抓到误判；实际报出：${JSON.stringify(problems)}`,
+  )
+  // 反面对照同时必须还在：混了 .ts 的那条不许因为「放宽」而漏判。
+  assert.ok(!problems.some((p) => p.includes('doc-only 漏判')), '按行读只会误判，不该同时出现漏判')
+})
+
+test('doc-only 判据换成 -c core.quotePath=false（等价写法）→ 必须照样绿', (t) => {
+  const dir = makeContractFixture(t, {
+    mutateHook: (hook) => {
+      const next = hook.replaceAll('git diff -z --name-only', 'git -c core.quotePath=false diff --name-only')
+      assert.notEqual(next, hook, '替换必须真的命中，否则这条测试是空转')
+      // 函数体还是按 NUL 读，所以这里得把分隔符补回去——等价性验的是「路径不再被转义」这件事。
+      return next.replaceAll('git -c core.quotePath=false diff --name-only', 'git -c core.quotePath=false diff --name-only -z')
+    },
+  })
+  assert.deepEqual(
+    checkHookBehavior(dir, { only: ['docs-only'] }),
+    [],
+    '关掉 quotePath 的等价写法必须被接受——会误报的门岗三次之后就会被人绕过',
+  )
+})

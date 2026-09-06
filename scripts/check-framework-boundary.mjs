@@ -163,8 +163,9 @@ function changedSourceFiles() {
   }
   let names = []
   try {
-    names = [...git(['diff', '--name-only', '--diff-filter=ACMR', base, '--', 'src', 'electron']).split('\n'),
-      ...git(['ls-files', '--others', '--exclude-standard', '--', 'src', 'electron']).split('\n')]
+    // `-z`：默认 quotePath 转义非 ASCII 路径 → `fs.existsSync` 恒 false → 门岗静默漏扫那些文件。
+    names = [...gitPaths(['diff', '--name-only', '--diff-filter=ACMR', base, '--', 'src', 'electron'], { cwd: repoRoot }),
+      ...gitPaths(['ls-files', '--others', '--exclude-standard', '--', 'src', 'electron'], { cwd: repoRoot })]
   } catch {
     return files
   }

@@ -1,17 +1,12 @@
 import fs from 'node:fs'
-import { execFileSync } from 'node:child_process'
 import { classifyValidationPolicy, VALIDATION_POLICY_OUTPUTS } from './validation-policy.mjs'
+import { gitNameStatus } from './lib/gitPaths.mjs'
 
 function changedEntries({ cwd = process.cwd(), base, head } = {}) {
   if (!base || !head) return []
-  const output = execFileSync('git', ['diff', '--name-status', base, head], { cwd, encoding: 'utf8' })
-  return output
-    .split(/\r?\n/)
-    .filter(Boolean)
-    .map((line) => {
-      const [status, ...pathParts] = line.split('\t')
-      return { status, path: pathParts.at(-1) || '' }
-    })
+  // 路径一律经 gitNameStatus 读（`-z`）：默认 quotePath 会把非 ASCII 路径转义并加引号，
+  // 分类器于是把 `docs/中文.md` 当成不认识的路径，整条 PR 的验证档被选错。
+  return gitNameStatus(['diff', '--name-status', base, head], { cwd })
 }
 
 export function resolveProfileFromEnvironment(env = process.env, cwd = process.cwd()) {

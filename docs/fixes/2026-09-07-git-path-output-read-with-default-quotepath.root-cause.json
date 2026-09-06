@@ -1,0 +1,165 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-07-git-path-output-read-with-default-quotepath",
+  "problem_type": "gates and hooks parse git's path listings under the default core.quotePath, so every path containing a non-ASCII character reaches them octal-escaped and wrapped in quotes",
+  "symptom": "The pre-push gate's is_docs_only() classified a docs-only push as a code change whenever any changed file had a Chinese name. Reproduced in a worktree off origin/main: staging docs/中文附件说明.md makes `git diff --name-only` emit \"docs/tmp-quotepath-repro/\\344\\270\\255\\346\\226\\207\\351\\231\\204\\344\\273\\266\\350\\257\\264\\346\\230\\216.md\" - a leading quote defeats the ^docs/ test and a trailing quote defeats the \\.md$ test - so the function returned false and the push was told to run all five gates. Direction was safe (more gates, not fewer), but docs-only PRs waited for a full gate run for no reason, and the branch looked healthy the whole time.",
+  "direct_cause": "scripts/claude-hooks/pre-push-check.sh read `git diff --name-only` line by line and matched prefixes and suffixes against the raw text. git quotes and octal-escapes any path with a byte outside printable ASCII unless core.quotePath is disabled or -z is passed, and the docs/ tree of this repository is full of Chinese filenames.",
+  "class_root": "The repository has no single place where git's path output is read. Every gate that needs a file list calls `git diff --name-only` or `git ls-files` itself and splits on newlines, so each one independently inherits git's default quoting - a default that is invisible on this machine's ASCII source tree and only fires on the docs tree. The failure is therefore not one wrong regex; it is a decoding step that was never owned by anybody, duplicated across a dozen call sites, each of which fails differently: classifiers judge wrongly, while the gates that list paths and then read them get a path that does not exist, swallow the read failure in an existing try/catch, and silently scan fewer files than they report.",
+  "affected_population": [
+    "Every push whose outgoing diff touches a file with a non-ASCII name - i.e. most documentation changes in this repository, since docs/ filenames are routinely Chinese",
+    "Every gate that lists paths from git and then classifies them by prefix or suffix: the push gate, the validation-profile selector, focused test selection, root-cause contracts, framework boundary, eval cadence",
+    "Every gate that lists paths from git and then reads those files: secrets, file sizes, design tokens, dangling tokens, model identity, machine symlinks - where the failure is a silent under-scan rather than a visible misjudgement",
+    "Paths containing spaces or newlines, which the same default breaks in the same way"
+  ],
+  "scope_paths": [
+    "scripts/lib/gitPaths.mjs",
+    "scripts/check-git-path-quoting.mjs",
+    "scripts/claude-hooks/pre-push-check.sh",
+    "scripts/check-hook-behavior.mjs",
+    "scripts/check-root-cause-contracts.mjs",
+    "scripts/check-no-secrets.mjs",
+    "scripts/check-framework-boundary.mjs",
+    "scripts/select-quality-gate-profile.mjs"
+  ],
+  "entry_points": [
+    "pnpm run check:git-path-quoting",
+    "pnpm run check:hook-behavior (axis docs-only)",
+    "pnpm run gates:contracts (both gates are registered in the contracts chain)",
+    "the PreToolUse Bash hook scripts/claude-hooks/pre-push-check.sh, on every push"
+  ],
+  "internal_only_reason": "The behaviour being corrected is git's own documented core.quotePath default, and it was established by running git in a real repository rather than by reading about it; the fix is entirely internal repository plumbing. scripts/lib/gitPaths.node-test.mjs asserts the escaped output directly, so the premise stays checked by CI rather than by memory.",
+  "invariants": [
+    "No script in scripts/ or .github/ reads a git path listing (--name-only, --name-status, ls-files, ls-tree --name-only) without disabling quoting, via -z or core.quotePath=false; check:git-path-quoting is hard zero with no baseline.",
+    "The push gate's docs-only classification is decided on NUL-delimited records, so quoting, spaces and newlines in paths cannot change the verdict.",
+    "check:hook-behavior runs the real hook against real repositories whose outgoing commits carry a Chinese filename and a spaced filename, and refuses both a wrong allow and a wrong block.",
+    "The single deliberate exception - the test that proves git escapes by default - must carry an inline git-path-quoting:intentional-default marker, so the exception is visible at the call site rather than hidden in a path allowlist."
+  ],
+  "generality_proof": "The gate does not look for the reported symptom. It looks for the decoding step itself: any invocation of git's path-listing commands on which quoting has not been disabled, anywhere under scripts/ or .github/, in JavaScript or shell. A call site added tomorrow in a file that does not exist today is caught by the same rule, because the rule is keyed on the command rather than on the file. scripts/check-git-path-quoting.node-test.mjs proves both directions against synthetic sources and against a fixture repository built by regressing the real hook, so the guarantee does not depend on today's call sites staying where they are. Separately, scripts/check-hook-behavior.mjs axis docs-only proves the outcome rather than the writing style, by executing the real hook against a repository containing docs/中文附件说明.md; any future rewrite of the classifier that reintroduces the misjudgement fails there even if it satisfies the static gate.",
+  "shared_boundaries": [
+    {
+      "path": "scripts/check-git-path-quoting.mjs",
+      "symbol": "scanSource",
+      "responsibility": "Own the only moment at which a new raw reader of git's path output can enter the repository: every contracts run scans scripts/ and .github/ and refuses any path listing that has not disabled quoting."
+    },
+    {
+      "path": "scripts/lib/gitPaths.mjs",
+      "symbol": "gitPaths / gitNameStatus / splitNulPaths",
+      "responsibility": "Own the decoding itself for the JavaScript side - insert -z after the subcommand, split on NUL, and hand back real paths - so that no gate has to remember a flag in order to be correct."
+    },
+    {
+      "path": "scripts/claude-hooks/pre-push-check.sh",
+      "symbol": "is_docs_only",
+      "responsibility": "Own the docs-only verdict on the shell side, reading NUL-delimited records from stdin rather than newline-splitting a quoted string."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "scripts/check-no-secrets.mjs",
+      "entry_point": "listStaged / listAllTracked, and the git show read-back",
+      "disposition": "enforced",
+      "evidence": "The most damaging member of the silent-under-scan half of the class: it listed staged paths, then read each one back. Under default quoting a Chinese-named staged file yields a path that git show cannot resolve, the surrounding try/catch turns it into an empty string, and the secret scanner reports success having never looked at that file. Now routed through gitPaths, and the read-back changed from a shell-interpolated `git show :\"${f}\"` to execFileSync so the path is not re-parsed by a shell either."
+    },
+    {
+      "path": "scripts/select-quality-gate-profile.mjs",
+      "entry_point": "changedEntries",
+      "disposition": "enforced",
+      "evidence": "A different subsystem from the push hook, reached from CI rather than from a local push, and it fails differently: it picks which validation lane a PR runs. It also parsed --name-status by splitting on tab, which drops the status letter for renames once the path is escaped, so it now uses gitNameStatus, whose -z record handling takes the destination path of an R/C record."
+    },
+    {
+      "path": "scripts/check-framework-boundary.mjs",
+      "entry_point": "the changed-source collector (diff --name-only plus ls-files --others)",
+      "disposition": "enforced",
+      "evidence": "Third independent subsystem, and an instance of the read-型 failure inside src/electron rather than docs: it lists names then calls fs.existsSync before reading, so an escaped path is skipped without any error - the gate stays green while scanning fewer files than it claims. Now routed through gitPaths."
+    },
+    {
+      "path": "scripts/git-delivery.mjs",
+      "entry_point": "the `status --porcelain` dirty-path read",
+      "disposition": "not-affected",
+      "evidence": "git status --porcelain quotes the same way, but this call site only tests whether the output is empty, and quoting cannot turn a non-empty listing into an empty one. It is deliberately outside the gate's remit, which is limited to the path-listing commands whose output is classified or dereferenced; widening the rule to every porcelain read would produce reds that change no behaviour, and a gate that reds without a behavioural reason is the kind that gets bypassed. The same reasoning covers scripts/agent-worktree-janitor.mjs and scripts/check-vocabularies.mjs."
+    },
+    {
+      "path": "scripts/test-focused.mjs",
+      "entry_point": "changedFiles, which feeds focused unit-test selection",
+      "disposition": "enforced",
+      "evidence": "Fourth independent subsystem and a fourth failure shape: it classifies changed paths by extension to decide which tests run, so an escaped path is silently unclassifiable and the tests belonging to that file are simply not selected - a green run that never executed the relevant test. Now reads with -z via splitNulPaths."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Not a one-off. The same decoding step is performed independently at a dozen call sites and will be performed again by the next gate that needs a file list, because writing `git diff --name-only` and splitting on newlines is the obvious thing to write and is correct on an ASCII tree. It only fails on the docs tree, which the author of a gate rarely tests against, and half of the call sites fail silently rather than loudly.",
+    "same_class_scan": [
+      "Reproduced first: staged docs/tmp-quotepath-repro/中文附件说明.md in a worktree off origin/main and ran the unmodified is_docs_only() against `git diff --cached --name-only` (false, misjudged) and against `-c core.quotePath=false` (true), so the premise is measured rather than assumed.",
+      "Swept every call site: `grep -rn 'name-only|name-status|--porcelain|diff-filter|ls-files|diff-tree' scripts/ .githooks .husky .github/workflows`. 21 hits. 14 are path listings that classify or dereference and are now routed through gitPaths / -z; 4 are `status --porcelain` emptiness tests, judged not-affected with the reasoning recorded above; 2 were already correct (check-source-nul-bytes.mjs already used -z); 1 is `worktree list --porcelain`, a different format that does not quote paths.",
+      "Checked .github/workflows for raw path listings in YAML shell steps: none.",
+      "Checked the untracked .claude/hooks/ copy of the hook and confirmed it is gitignored and not the hook that runs.",
+      "Proved the new rule reddens before trusting it (R17): the gate reported four call sites on first run and was then run against a fixture repository holding a deliberately regressed copy of the push hook, exiting 1 and naming both call sites.",
+      "Proved the new behaviour axis reddens: reverting the hook's is_docs_only to the line-based version inside a contract fixture makes check-hook-behavior report a doc-only misjudgement naming the non-ASCII case, while an equivalent rewrite using core.quotePath=false stays green."
+    ]
+  },
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/check-git-path-quoting.mjs",
+    "invariant": "A git path listing cannot be read under default quoting anywhere in scripts/ or .github/: the call must pass -z or set core.quotePath=false, or go through scripts/lib/gitPaths.mjs.",
+    "failure_mode": "Fail-closed and loud, hard zero with no baseline. Every offending call site is printed as path:line with the source text and the gate exits 1. The single escape hatch is an inline git-path-quoting:intentional-default marker that must sit within two lines of the call, so an exception is visible in the diff at the point of use.",
+    "exception_policy": "none",
+    "strategy": "Two layers, because the two halves of the class fail differently. The static gate closes the writing - it is the earliest layer that can see a raw reader at all, and it sees the ones that fail silently, which no behavioural test would ever notice. The behaviour axis in check-hook-behavior closes the outcome for the specific gate the user waits on, by running the real hook against a real repository with a Chinese filename, so a future rewrite that satisfies the static rule but still misjudges is caught. Fixing only the reported call site, or documenting the flag, would leave eleven other call sites decoding git's output by hand.",
+    "artifacts": [
+      "scripts/check-git-path-quoting.mjs",
+      "scripts/check-git-path-quoting.node-test.mjs",
+      "scripts/lib/gitPaths.mjs",
+      "scripts/lib/gitPaths.node-test.mjs",
+      "scripts/claude-hooks/pre-push-check.sh",
+      "scripts/check-hook-behavior.mjs",
+      "scripts/check-hook-behavior.node-test.mjs",
+      "package.json"
+    ]
+  },
+  "invariant_owner_layer": {
+    "layer": "scripts/lib/gitPaths.mjs",
+    "tests": [
+      "scripts/lib/gitPaths.node-test.mjs",
+      "scripts/check-git-path-quoting.node-test.mjs",
+      "scripts/check-hook-behavior.node-test.mjs"
+    ]
+  },
+  "regression_tests": [
+    "scripts/lib/gitPaths.node-test.mjs",
+    "scripts/check-git-path-quoting.node-test.mjs",
+    "scripts/check-hook-behavior.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/check-git-path-quoting.node-test.mjs",
+    "scripts/check-hook-behavior.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "scripts/claude-hooks/pre-push-check.sh",
+      "scripts/check-no-secrets.mjs",
+      "scripts/check-file-sizes.mjs",
+      "scripts/check-design-tokens.mjs",
+      "scripts/check-dangling-tokens.mjs",
+      "scripts/check-model-identity.mjs",
+      "scripts/check-root-cause-contracts.mjs",
+      "scripts/check-framework-boundary.mjs",
+      "scripts/check-eval-cadence.mjs",
+      "scripts/check-no-machine-symlinks.mjs",
+      "scripts/select-quality-gate-profile.mjs",
+      "scripts/test-focused.mjs"
+    ],
+    "rationale": "P1: each listed file carried its own newline-splitting decoder of git's path output, and every one of them is deleted in the same commit that introduces the shared decoder (scripts/lib/gitPaths.mjs) or the -z form. pre-push-check.sh loses its line-based is_docs_only() body the same way. Leaving any of them would keep the class alive at exactly the sites that fail silently, and the new hard-zero gate would have to grow an allowlist to tolerate them - which is how a hard-zero gate turns into a baseline nobody lowers."
+  },
+  "migration": "No runtime migration; nothing in the shipped application changes. Call sites keep their signatures - gitPaths returns the same array of relative paths the newline split used to return, minus the quoting - so their downstream filters are untouched. scripts/select-quality-gate-profile.mjs is the one behavioural improvement beyond decoding: renames now report their destination path, which the tab-split could not do reliably. check:git-path-quoting joins gates:contracts after check:hook-behavior. Existing branches see both gates as green unless they add a raw reader.",
+  "residual_risks": [
+    "The static gate is line-window based: a call assembled across more than four lines, or one whose command string is built from variables (`const cmd = flag + ' --name-only'`), is not detected. This is the deliberate low-noise trade; the behaviour axis in check-hook-behavior is what covers the push gate regardless of how its call is written, and no such indirect construction exists in the tree today.",
+    "The gate covers scripts/ and .github/ only. A git path listing added inside electron/ or src/ at runtime would not be seen. No such call exists today, and widening the walk is one line if one appears.",
+    "git status --porcelain readers are deliberately out of scope. If one of them ever starts classifying paths rather than testing for emptiness, it will inherit the same bug and the gate will not say so; the reasoning is recorded in same_class_entry_points so the next reader of this contract knows it was a decision rather than an oversight.",
+    "The stale untracked .claude/hooks/pre-push-check.sh on this machine still contains the defective function. It is not the hook that runs and cannot be fixed from the repository, but anyone who resurrects the old install mechanism would resurrect the bug with it.",
+    "The untracked, gitignored .claude/hooks/pre-push-check.sh on this machine still holds the defective function. It is a leftover from an older install mechanism - .claude/settings.json points the PreToolUse hook at scripts/claude-hooks/ directly, and pnpm install reports the hooks take effect from the checkout - so it is not the hook that runs and cannot be reached from the repository. Anyone reviving that install mechanism would revive the bug with it."
+  ],
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency is involved. The behaviour being corrected is git's own core.quotePath default, and git is not a package this repository pins or can upgrade; the fix is entirely in how this repository's own scripts invoke it.",
+    "exit_criteria": []
+  }
+}

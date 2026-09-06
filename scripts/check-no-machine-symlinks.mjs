@@ -21,18 +21,18 @@
 // 命中 → 打印详情 + 修复命令 + exit 1。干净 → exit 0。
 // ============================================================================
 import { execSync } from "node:child_process";
+import { splitNulPaths } from "./lib/gitPaths.mjs";
 import path from "node:path";
 
 const SYMLINK_MODE = "120000"; // git 里符号链接的 mode
 
 function listTrackedSymlinks() {
   // -s 给出 mode，据此筛出符号链接；object id 拿来读链接目标（blob 内容就是目标路径）
-  const out = execSync("git ls-files -s", { encoding: "utf8" });
-  return out
-    .split("\n")
-    .filter(Boolean)
-    .map((line) => {
-      const [meta, file] = line.split("\t");
+  // `-z`：记录用 NUL 分隔，路径原样输出。默认 quotePath 下非 ASCII 路径会被转义并加引号，
+  // 后面 `git cat-file` / 报错行拿到的都不是真路径。
+  return splitNulPaths(execSync("git ls-files -s -z", { encoding: "utf8" }))
+    .map((record) => {
+      const [meta, file] = record.split("\t");
       const [mode, oid] = meta.split(" ");
       return { mode, oid, file };
     })

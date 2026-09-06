@@ -17,6 +17,11 @@ function check(files) {
   temporaryRoots.push(root)
   fs.mkdirSync(path.join(root, 'scripts'), { recursive: true })
   fs.copyFileSync(path.join(repoRoot, 'scripts/check-file-sizes.mjs'), path.join(root, 'scripts/check-file-sizes.mjs'))
+  // 门岗从 scripts/lib/gitPaths.mjs 取受跟踪文件列表（`-z`，见 2026-09-07 的 quotePath 修复），
+  // fixture 必须把它一起带上——否则跑出来的是 ERR_MODULE_NOT_FOUND，而断言只看 stderr 里有没有
+  // 那一行，红得像「门岗没抓到超长文件」，其实门岗根本没启动。
+  fs.mkdirSync(path.join(root, 'scripts/lib'), { recursive: true })
+  fs.copyFileSync(path.join(repoRoot, 'scripts/lib/gitPaths.mjs'), path.join(root, 'scripts/lib/gitPaths.mjs'))
   execFileSync('git', ['init', '--quiet', root])
   for (const [relative, lines] of Object.entries(files)) {
     const file = path.join(root, relative)
