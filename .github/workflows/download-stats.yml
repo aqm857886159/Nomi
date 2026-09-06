@@ -1,8 +1,16 @@
 name: Download Stats Snapshot
 
-# 每日抓一次 GitHub Releases 的累计下载数，append 到 docs/stats/downloads-history.json。
-# 为什么需要它：GitHub 的 download_count 是累计快照、没有时间序列 —— 不每天存一份做差，
-# 就永远只有「总量」看不到「每天新增多少」的增长曲线。零隐私足迹（数据来自 Releases，不碰用户端）。
+# 每日抓一次 GitHub Releases 的累计下载数，append 到**数据分支** `stats-data` 根目录的
+# downloads-history.json。为什么需要它：GitHub 的 download_count 是累计快照、没有时间序列 ——
+# 不每天存一份做差，就永远只有「总量」看不到「每天新增多少」的增长曲线。
+# 零隐私足迹（数据来自 Releases，不碰用户端）。
+#
+# 为什么写数据分支而不是 main（2026-09-06 根因修，
+# 见 docs/fixes/2026-09-06-download-stats-protected-main.root-cause.json）：
+# main 自 2026-08-16 起受保护（必须走 PR + 2 个必需 check）。机器人每天直推 main
+# 从 09-02 起每次都被 `GH006 protected branch hook declined` 拒绝，流水线连红 20 天、快照断档。
+# 派生数据不该住在受保护的源码主线上：它有自己的家 —— 非保护孤儿分支 `stats-data`，
+# 分支根目录只有 downloads-history.json，与源码零耦合、不触发任何门岗链。
 
 on:
   schedule:
@@ -20,7 +28,16 @@ jobs:
   snapshot:
     runs-on: ubuntu-latest
     steps:
+      # 源码 checkout：只为拿到 scripts/stats-downloads.mjs，这棵树全程只读。
       - uses: actions/checkout@v4
+
+      # 数据 checkout：快照的唯一落点。分支不存在就在这里红（fail-closed），
+      # 而不是退回去写 main —— 那正是本次要根除的失败类。
+      - name: Check out the stats data branch
+        uses: actions/checkout@v4
+        with:
+          ref: stats-data
+          path: .stats-data
 
       - uses: actions/setup-node@v4
         with:
@@ -29,16 +46,20 @@ jobs:
       - name: Record today's download snapshot
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # 显式落点。不给这个变量脚本会拒绝写（见 scripts/stats-downloads.mjs 的 writeSnapshot）。
+          NOMI_STATS_HISTORY_PATH: ${{ github.workspace }}/.stats-data/downloads-history.json
         run: node ./scripts/stats-downloads.mjs --snapshot
 
-      - name: Commit if changed
+      # 显式写分支名，不靠当前分支的推断；失败就红（无 `|| true`），断档要看得见。
+      - name: Commit the snapshot onto the data branch
+        working-directory: .stats-data
         run: |
-          if git diff --quiet -- docs/stats/downloads-history.json; then
+          if git diff --quiet -- downloads-history.json; then
             echo "今日快照无变化，跳过提交。"
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add docs/stats/downloads-history.json
+          git add downloads-history.json
           git commit -m "chore(stats): 下载量每日快照 $(date -u +%Y-%m-%d)"
-          git push
+          git push origin HEAD:refs/heads/stats-data
