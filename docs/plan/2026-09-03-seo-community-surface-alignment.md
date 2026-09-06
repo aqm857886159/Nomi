@@ -1,5 +1,7 @@
 # SEO community surface alignment
 
+> 状态：✅ 已交付（PR #403；社区入口指向 Discussions，落地页改用无 .html 干净路由）
+
 ## Scope
 
 Align the marketing source and generated public pages with the current GitHub repository state: Discussions is enabled and reachable, so questions, ideas, and workflow sharing should point to the Discussions surface. Extend the SEO contract test to verify the canonical destination without encoding the former disabled state.
