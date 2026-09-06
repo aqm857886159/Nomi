@@ -52,7 +52,7 @@ ANALYSIS_LIB="$(dirname "$0")/_bash-command-analysis.sh"
 # 共用层缺失 = 我们失去了理解命令的能力。不猜：只要命令里出现 push 就拦（fail-closed）。
 if [ ! -f "$ANALYSIS_LIB" ]; then
   printf '%s' "$INPUT" | grep -q 'push' && {
-    printf '⛔ push 闸门：命令理解层 %s 缺失（跑 `pnpm install` 重装 hook），不允许在读不懂的情况下放行。\n' \
+    printf '⛔ push 闸门：命令理解层 %s 缺失（它随仓库走，缺了说明工作树不完整），不允许在读不懂的情况下放行。\n' \
       "$ANALYSIS_LIB" >&2
     exit 2
   }

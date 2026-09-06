@@ -1,0 +1,146 @@
+{
+  "_comment": [
+    "框架边界登记表（R29）。每个框架回答一句话：「它已经提供了什么，仓库里出现什么就说明我们又自己写了一份」。",
+    "门岗 = pnpm run check:framework-boundary（scripts/check-framework-boundary.mjs），债基线 = scripts/framework-boundary-baseline.json。",
+    "登记一个新框架的顺序：先出四列表（它提供 / 我们用了 / 我们另写了 / 我们拆散了，每格 file:line 或文档 URL）→",
+    "把「我们另写了」那一列翻译成这里的 forbidden 规则 → 跑 --update-baseline 把存量登记成债 → 给每条债绑方案和到期日。",
+    "provides/evidence 不是注释，是门岗校验的必填项：没有可复核出处的规则，等于没做过研究。"
+  ],
+  "capabilityInventory": {
+    "_comment": [
+      "机器抽取的能力词表要覆盖哪些依赖（2026-09-07 加）。上面的 frameworks 是**人手写**的，",
+      "只覆盖已经出过四列表的那几项能力——它天生只包含已知的东西。这里换一条腿：",
+      "scripts/gen-dependency-capabilities.mjs 从 node_modules 的 .d.ts 导出符号与 README 标题",
+      "机器抽出词表，落到 docs/engineering/dependency-capabilities.generated.json，",
+      "给「还不知道自己不知道」的人当原料。加一个包 = 往这个数组里加一行，然后重跑生成器。"
+    ],
+    "packages": [
+      "@earendil-works/pi-coding-agent",
+      "@earendil-works/pi-agent-core",
+      "@earendil-works/pi-ai",
+      "@xyflow/react",
+      "ai",
+      "@mantine/core"
+    ]
+  },
+  "advisory": {
+    "_comment": [
+      "启发式一条（2026-09-07 加，**先 advisory 不阻断**）：新增/改动文件的文件名或导出符号命中",
+      "下面的能力词，且该文件不在豁免登记里 → 出 warning。它抓的是 forbidden 正则抓不到的那半边：",
+      "换个符号名重写一份框架已有的能力。正则认的是具体写法，词表认的是**这件事本身**。",
+      "为什么先不阻断：这类启发式的死因是误报——一道天天红的门岗等于不存在（R17）。",
+      "先跑一周量误报率，按 promotion 里写死的条件再决定升不升红。"
+    ],
+    "watchWords": ["session", "retry", "steer", "steering", "parent", "compaction", "harness", "transcript", "persistence", "resume"],
+    "exemptions": "scripts/framework-boundary-advisory-exemptions.json",
+    "promotion": {
+      "reviewDue": "2026-09-14",
+      "criteria": [
+        "一周内累计 warning 中，真阳性（确实是重造了框架能力）占比 ≥ 50%",
+        "豁免登记条目 ≤ 8 条，且每条都写得出「为什么这个词在这里不是重造」",
+        "两条都满足 → 把 advisory 改成 exit 1，并把当时的存量写进 scripts/framework-boundary-baseline.json 同款棘轮基线；",
+        "任一条不满足 → 先收窄 watchWords（删掉误报最多的那个词），再观察一周，不许直接放弃这条"
+      ]
+    }
+  },
+  "frameworks": [
+    {
+      "id": "pi",
+      "packages": [
+        "@earendil-works/pi-coding-agent",
+        "@earendil-works/pi-agent-core",
+        "@earendil-works/pi-ai"
+      ],
+      "version": "0.85.1",
+      "fourColumnTable": "docs/plan/2026-09-07-agent-runtime-rebuild.md",
+      "why": "2026-09-06 #546 架构评审：接入时只接了最底层的 agent loop，pi 已提供的会话持久化、有序转录、重试、价格与 steer/followUp 各被我们重写了一份，而且更差。这张表把那次评审的结论钉成机器判据。",
+      "capabilities": [
+        {
+          "id": "session-persistence",
+          "provides": "SessionManager 负责会话的落盘、追加与恢复（含 CURRENT_SESSION_VERSION 迁移）",
+          "evidence": "@earendil-works/pi-coding-agent@0.85.1 dist/core/session-manager.d.ts:184 `export declare class SessionManager`；dist/core/session-manager.d.ts:334 `static inMemory`",
+          "scope": ["electron/harness/runtime/pi/"],
+          "forbidden": [
+            {
+              "id": "opt-out-of-session-store",
+              "pattern": "SessionManager\\.inMemory\\(",
+              "why": "选 inMemory 就等于放弃 pi 的落盘与恢复语义，宿主必须自己补一套持久化——那套是 2026-09-06 评审里「更差的自研版本」的源头。"
+            },
+            {
+              "id": "private-session-snapshot-envelope",
+              "pattern": "nomi\\.pi-work-context",
+              "why": "自研快照信封（版本锁 + sha256）在复刻 SessionManager 已有的会话序列化与版本迁移，pi 升版时要我们自己跟。"
+            }
+          ]
+        },
+        {
+          "id": "retry-policy",
+          "provides": "RetryPolicy：模型请求的重试与退避策略，由 settings.retry 与 provider.maxRetries 驱动",
+          "evidence": "@earendil-works/pi-ai@0.85.1 `RetryPolicy`（经 pi-coding-agent dist/core/compaction/compaction.d.ts:8 import、:105 `completeSummarization(..., retry?: RetryPolicy, ...)` 透出）；pi-coding-agent dist/core/settings-manager.d.ts:81 `retry?: RetrySettings`",
+          "scope": ["electron/harness/runtime/pi/"],
+          "forbidden": [
+            {
+              "id": "retry-disabled-wholesale",
+              "pattern": "retry:\\s*\\{\\s*enabled:\\s*false",
+              "why": "整条关掉 pi 的重试后，瞬时 5xx/超时的韧性只能由宿主自己补，而宿主那层没有 provider 级退避与错误分类。"
+            },
+            {
+              "id": "max-retries-zero",
+              "pattern": "maxRetries:\\s*0",
+              "why": "把 provider 重试压到 0 是同一件事的第二处开关；两处都在，说明宿主整条重试路径都自持，pi 的策略被架空。"
+            }
+          ]
+        },
+        {
+          "id": "steering",
+          "provides": "AgentSession.steer() / followUp()：把用户的新指令按流式状态排进当前回合或下一回合",
+          "evidence": "@earendil-works/pi-coding-agent@0.85.1 dist/core/agent-session.d.ts:375 `steer(text, images?)`、:383 `followUp(text, images?)`；pi-agent-core dist/agent.d.ts:84/86",
+          "scope": ["electron/projectAgentHost/"],
+          "forbidden": [
+            {
+              "id": "host-owned-steering-queue",
+              "pattern": "steering:\\s*new Map\\(",
+              "why": "宿主自建一张 turnId→指令 的表，等于把 pi 的排队语义搬到外面重写；pi 的「流式中 steer、非流式 followUp」区分在这里丢失。"
+            },
+            {
+              "id": "host-owned-steering-prompt-fold",
+              "pattern": "steeredExecutionPrompt",
+              "why": "把修正指令拼进下一次 prompt 文本，是 steer 的字符串化仿制品：模型看到的是一段追加文字，不是一条被正确插队的用户消息。"
+            }
+          ]
+        },
+        {
+          "id": "resource-loading",
+          "provides": "DefaultResourceLoader：扩展 / skills / prompts / themes / AGENTS 文件的发现、加载与系统提示词装配",
+          "evidence": "@earendil-works/pi-coding-agent@0.85.1 dist/core/resource-loader.d.ts:120 `export declare class DefaultResourceLoader implements ResourceLoader`",
+          "scope": ["electron/harness/runtime/pi/"],
+          "forbidden": [
+            {
+              "id": "hand-rolled-resource-loader",
+              "pattern": "createNomiResourceLoader",
+              "why": "手写一个全空的 ResourceLoader 是刻意的隔离决定（沙箱不许从磁盘拿指令），但它同时让我们失去 pi 后续在这一层加的一切；边界要被看见，不能默默漂。"
+            },
+            {
+              "id": "private-skill-resource-catalog",
+              "pattern": "createNomiSkillResourceCatalog|getNomiSkillRoots",
+              "why": "自研 skill 发现与目录装配，与 DefaultResourceLoader.getSkills() 同职责；两份发现逻辑迟早对同一目录给出不同答案。"
+            }
+          ]
+        },
+        {
+          "id": "ordered-transcript",
+          "provides": "AgentSession 的有序事件流与会话条目：按段（文本 / 思考 / 工具调用 / 结果）保序，宿主订阅即可拿到结构",
+          "evidence": "@earendil-works/pi-coding-agent@0.85.1 dist/core/agent-session.d.ts:40 `AgentSessionEvent`、:103 `AgentSessionEventListener`",
+          "scope": ["electron/harness/runtime/pi/"],
+          "forbidden": [
+            {
+              "id": "flatten-text-deltas-into-one-string",
+              "pattern": "assistantMessageEvent\\.type === 'text_delta'",
+              "why": "把 text_delta 拼成一条扁平字符串，就丢掉了 pi 已经保序的分段结构；UI 想还原「思考→工具→文本」的顺序时只能再猜一次。"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

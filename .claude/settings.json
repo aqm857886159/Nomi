@@ -1,11 +1,12 @@
 {
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "hooks": {
     "UserPromptSubmit": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/self-check.sh\""
+            "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/claude-hooks/self-check.sh\""
           }
         ]
       }
@@ -16,15 +17,15 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/pre-push-check.sh\""
+            "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/claude-hooks/pre-push-check.sh\""
           },
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/commit-bypass-check.sh\""
+            "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/claude-hooks/commit-bypass-check.sh\""
           },
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/secret-guard.sh\""
+            "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/claude-hooks/secret-guard.sh\""
           }
         ]
       },
@@ -33,11 +34,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/stack-currency-check.sh\""
+            "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/claude-hooks/stack-currency-check.sh\""
           },
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/model-doc-check.sh\""
+            "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/claude-hooks/model-doc-check.sh\""
           }
         ]
       }
@@ -47,7 +48,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/completion-check.sh\""
+            "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/claude-hooks/completion-check.sh\""
           }
         ]
       }
@@ -57,7 +58,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/handoff-write.sh\""
+            "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/claude-hooks/handoff-write.sh\""
           }
         ]
       }
@@ -67,7 +68,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/handoff-read.sh\""
+            "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/claude-hooks/handoff-read.sh\""
           }
         ]
       }

@@ -1,0 +1,134 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-07-framework-boundary-not-enforced",
+  "problem_type": "framework research is delivered as a document instead of a gate, so every later implementer re-implements capabilities the adopted framework already provides",
+  "symptom": "The 2026-09-06 pi SDK architecture review (#546) found that Nomi adopted only the lowest layer of @earendil-works/pi-coding-agent 0.84.3 and hand-wrote worse replacements for five capabilities pi already ships: session persistence (SessionManager.inMemory plus a private nomi.pi-work-context snapshot envelope), retry (settings retry.enabled=false plus provider maxRetries=0 in two places), steering (a host-owned steering Map plus a prompt-text fold instead of AgentSession.steer/followUp), resource loading (a hand-rolled empty ResourceLoader plus a private skill catalog instead of DefaultResourceLoader), and ordered transcripts (text_delta concatenated into one flat string instead of pi's ordered segments). The research that would have prevented this had been done; it lived only in documents, so no implementer saw it.",
+  "direct_cause": "The conclusions of framework research were stored only in prose documents. Nothing in the repository could observe a newly written duplicate of a framework capability, so each implementation agent, seeing only its own slice of the work, wrote the piece it needed without knowing pi already provided it. No gate, type, or test could fail on this class of change.",
+  "class_root": "A conclusion that lives only in a document is invisible to the next agent, because nobody greps a study they do not know exists. Knowledge that must constrain future changes has to be stored where the machine reads it on every change - a gate - not where a human reads it once. The same mechanism produced the two sibling failures the same night: acceptance signals that only measure appearance (57 green design-lab baselines, all-green unit tests fed hand-written tool arguments) certify nothing about behaviour, so #547 shipped canvas-writing tools that a real model passed 0 of 18 times.",
+  "affected_population": [
+    "Every framework, SDK or runtime adopted by this repository, and every previously unused layer of an already-adopted one - pi 0.84.3 today, any future adoption tomorrow",
+    "Concretely today: 14 self-written duplicates across five pi capabilities, in electron/harness/runtime/pi/ (session.mts, snapshot.mts, contextCodec.mts, run.mts, resources.mts, nomiSkillResources.mts) and electron/projectAgentHost/ (projectAgentExecutionCoordinator.ts, projectAgentExecutionHelpers.ts, projectAgentTurnExecution.ts)",
+    "Every dispatch brief that asks an agent to implement a capability without telling it where the framework boundary is"
+  ],
+  "scope_paths": [
+    "scripts/check-framework-boundary.mjs",
+    "scripts/framework-boundary-lib.mjs",
+    "docs/engineering/framework-boundaries.json",
+    "scripts/framework-boundary-baseline.json"
+  ],
+  "entry_points": [
+    "pnpm run check:framework-boundary",
+    "pnpm run gates:contracts (the gate is registered in the contracts chain, after check:boundaries)",
+    "scripts/claude-hooks/self-check.sh gate 1, which injects the R29 four-column-table prompt before any framework work starts"
+  ],
+  "external_sources": [
+    {
+      "kind": "source-code",
+      "url": "https://www.npmjs.com/package/@earendil-works/pi-coding-agent/v/0.84.3",
+      "checked_at": "2026-09-06",
+      "purpose": "Read the installed 0.84.3 type declarations to confirm each capability the registry claims pi provides: SessionManager (dist/core/session-manager.d.ts:184, static inMemory at :333), AgentSession.steer/followUp (dist/core/agent-session.d.ts:377/385), DefaultResourceLoader (dist/core/resource-loader.d.ts:120), AgentSessionEvent (dist/core/agent-session.d.ts:40), and RetryPolicy as re-exported from @earendil-works/pi-ai."
+    }
+  ],
+  "internal_only_reason": "The gate mechanics, registry format and debt ratchet are internal repository conventions; only the pi capability claims are external, and those were read from the installed package source rather than from memory.",
+  "invariants": [
+    "Every capability the registry says a framework provides carries a machine-checkable evidence pointer (file:line or documentation URL); a rule without provides/evidence fails registry validation, so an unresearched rule cannot be added.",
+    "A new occurrence of a forbidden pattern inside a declared scope fails the gate. Making it pass requires either deleting it or registering it as debt with a convergence plan and a due date.",
+    "Registered debt only decreases: a higher hit count in the same file fails, and a lower one fails until the baseline is lowered to match, so 'fix one, add one in the same commit' cannot pass.",
+    "Debt is time-boxed, not exempt: a due date in the past fails the gate and names the plan document, so a registration cannot quietly become a permanent waiver."
+  ],
+  "generality_proof": "The gate does not enumerate pi-specific bugs; it enumerates, per framework, the capabilities that framework provides and the symbol patterns that indicate a self-written version. Registering a second framework is adding one object to docs/engineering/framework-boundaries.json - no new code path - so the same prevention covers every future adoption. The check runs over declared scopes on every contracts run, i.e. on every push, which is the only moment at which a new duplicate can enter the repository. scripts/check-framework-boundary.node-test.mjs proves the three cases that matter (a new hit reddens, an out-of-scope or commented occurrence stays green, expired debt reddens) against a synthetic registry, so the guarantee does not depend on today's pi code staying the way it is.",
+  "shared_boundaries": [
+    {
+      "path": "scripts/check-framework-boundary.mjs",
+      "symbol": "collectSources plus the registry/baseline comparison",
+      "responsibility": "Own the single moment at which a self-written version of a framework capability can enter the repository: every contracts run scans the declared scopes and refuses anything that is not registered debt."
+    },
+    {
+      "path": "scripts/framework-boundary-lib.mjs",
+      "symbol": "validateRegistry, scanSources, evaluate",
+      "responsibility": "Own the judgement itself - registry validity, pattern matching with comments stripped, and the two-directional debt ratchet - as pure functions so the gate's own behaviour is testable without real violations in the tree."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/harness/runtime/pi/session.mts",
+      "entry_point": "createControlledSession (session persistence, retry policy and resource loading all opted out here)",
+      "disposition": "enforced",
+      "evidence": "Three registry rules hit this file (opt-out-of-session-store, retry-disabled-wholesale plus max-retries-zero, hand-rolled-resource-loader). All are registered as debt against docs/plan/2026-09-07-agent-runtime-rebuild.md with a 2026-11-07 due date; adding a fourth opt-out here fails the gate rather than passing silently."
+    },
+    {
+      "path": "electron/projectAgentHost/projectAgentExecutionCoordinator.ts",
+      "entry_point": "the turn coordinator's steering queue",
+      "disposition": "enforced",
+      "evidence": "The host-owned steering Map and the prompt-text fold in projectAgentExecutionHelpers.ts / projectAgentTurnExecution.ts are registered debt under pi/steering. This is a separate subsystem from electron/harness/runtime/pi/, reached by a separate scope entry, which is what proves the rule is about the framework boundary rather than about one directory."
+    },
+    {
+      "path": "scripts/claude-hooks/self-check.sh",
+      "entry_point": "gate 1 (before writing code) and gate 2 (before reporting completion)",
+      "disposition": "enforced",
+      "evidence": "Gate 1 now asks for the four-column table whenever framework/SDK/runtime work starts, and gate 2 asks for the two real-model numbers on any agent/tool change, so the discipline fires before the code exists rather than only after it is written. The static gate remains the fail-closed backstop for anything the prompt does not catch."
+    },
+    {
+      "path": "electron/providerAdapter/compiler.ts",
+      "entry_point": "the provider request compiler's maxRetries: 0",
+      "disposition": "not-affected",
+      "evidence": "It matches the max-retries-zero pattern textually but is not inside any declared pi scope: it configures a Nomi provider HTTP call, not the pi model runtime, so it is neither a duplicate of pi's RetryPolicy nor registered as debt. Scoping per capability, rather than scanning the whole repository, is what keeps the gate quiet enough to be believed."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Not a one-off. The mechanism fires on every framework adoption and on every first use of a new layer of an already-adopted one, for any agent, on any machine: research lands in a document, the document is not read by the next implementer, and a parallel implementation appears. It recurred five times inside a single SDK adoption, and the same night produced two sibling failures of the same shape (appearance-only acceptance signals) in #547 and the Agent panel v4 wiring brief.",
+    "same_class_scan": [
+      "Read the installed @earendil-works/pi-coding-agent 0.84.3 declarations for the five capabilities named in the #546 review, and confirmed each has a real exported symbol (SessionManager:184, steer:377, followUp:385, DefaultResourceLoader:120, AgentSessionEvent:40).",
+      "Ran the new gate against origin/main with an empty baseline: 14 hits across 5 capabilities and 9 files, matching the review's findings one for one and adding contextCodec.mts, which the review had not listed.",
+      "Probed the new-violation direction on the real tree: added electron/harness/runtime/pi/__r17probe.mts calling SessionManager.inMemory, gate exited 1 naming the probe file, removed it, gate returned to green (R17: prove a new rule reddens before trusting it).",
+      "Checked the other direction for noise: electron/providerAdapter/compiler.ts:225 also writes maxRetries: 0 and is correctly not reported, because retry-policy scope is limited to electron/harness/runtime/pi/.",
+      "Grepped for the sibling class - acceptance signals that only measure appearance - and found it already documented for the design lab in docs/lessons/design-lab-baselines-green-does-not-mean-wirable.md; R30 generalises it to agent/tool changes and names the two numbers that replace it."
+    ]
+  },
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/check-framework-boundary.mjs",
+    "invariant": "A capability the registry says a framework provides cannot acquire a new self-written version in the repository: any unregistered hit fails the contracts chain, and registered hits are time-boxed debt that only decreases.",
+    "failure_mode": "Fail-closed and loud. An unparsable or incomplete registry, an invalid regex, a missing plan or due date, an expired due date, a new hit, a grown hit count, or a shrunk hit count with a stale baseline all exit non-zero with the offending identity named. A convergence plan document that has not yet landed on the current branch only warns, because a gate must not pretend to enforce something it cannot see.",
+    "exception_policy": "none",
+    "strategy": "Move the research conclusion from prose into the one artefact that is read on every change. Documenting the boundary again - or writing a checklist - would fail exactly the way the original research failed, because the failure was never a lack of knowledge, it was the storage location. Registering existing duplicates as dated debt rather than as exemptions keeps the ratchet honest (R28: a registration is a time-boxed commitment, not a defence).",
+    "artifacts": [
+      "scripts/check-framework-boundary.mjs",
+      "scripts/framework-boundary-lib.mjs",
+      "docs/engineering/framework-boundaries.json",
+      "scripts/framework-boundary-baseline.json",
+      "package.json",
+      "scripts/claude-hooks/self-check.sh"
+    ]
+  },
+  "regression_tests": [
+    "scripts/check-framework-boundary.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/check-framework-boundary.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "Nothing is superseded by this change. The 14 self-written duplicates are deliberately left in place and registered as dated debt, because removing them is the agent runtime rebuild (docs/plan/2026-09-07-agent-runtime-rebuild.md), not this gate; deleting them here would be an unreviewed rewrite of the live agent runtime. This change adds the mechanism that makes their removal verifiable and their growth impossible."
+  },
+  "dependency_lifecycle": {
+    "decision": "retain-with-exit",
+    "rationale": "pi 0.84.3 stays pinned and stays adopted; what is retained with an exit is not the dependency version but the five shadow implementations standing between us and pi's own capabilities. Ripping them out inside this change would be an unreviewed rewrite of the live agent runtime, so they are held as dated debt with a written exit instead.",
+    "current": "@earendil-works/pi-coding-agent, pi-agent-core and pi-ai pinned at 0.84.3, with five of its capabilities shadowed by Nomi-owned implementations",
+    "target": "The same pinned pi version with its own SessionManager persistence, RetryPolicy, steer/followUp, resource loading and ordered transcript in use, and the 14 debt entries at zero",
+    "exit_criteria": [
+      "docs/plan/2026-09-07-agent-runtime-rebuild.md lands and converges each of the five capabilities onto pi's own implementation",
+      "scripts/framework-boundary-baseline.json reaches an empty debt array, which the ratchet forces to happen by deletion rather than by editing hit counts",
+      "Any capability that cannot converge is re-registered with a fresh due date and a written reason, rather than having its due date silently extended"
+    ]
+  },
+  "migration": "No runtime migration. The gate is additive: docs/engineering/framework-boundaries.json declares pi's five capabilities, scripts/framework-boundary-baseline.json registers the 14 existing duplicates as debt due 2026-11-07 against docs/plan/2026-09-07-agent-runtime-rebuild.md, and check:framework-boundary joins gates:contracts after check:boundaries. Existing branches see the gate as green unless they add a new duplicate. The next framework adoption starts at the four-column table (R29) and ends by adding one object to the registry.",
+  "residual_risks": [
+    "The gate matches symbol patterns, not semantics: a duplicate written with different symbol names inside a declared scope is not detected until someone adds a rule for it. This is the deliberate low-noise trade (a pattern set that tried to guess intent would produce the false reds that get gates disabled), and it is why R29 puts the four-column table before the code rather than relying on the gate alone.",
+    "Capabilities of pi that nobody has looked at yet are simply absent from the registry; the registry is only as complete as the last four-column table. Adding a framework layer therefore has to re-run R29 rather than assume the existing registry covers it.",
+    "docs/plan/2026-09-07-agent-runtime-rebuild.md is still on an in-flight branch, so the plan-document existence check only warns on this branch. If that plan never lands, the debt entries still expire on 2026-11-07 and redden the gate, which is the intended backstop.",
+    "R30's zero-quota loopback fixture is specified here (tests/agent-tools/ layout, per-tool case files, real-validator assertions) but not implemented in this change, so the tool-write-rate number is currently produced by hand rather than by CI."
+  ]
+}
