@@ -1,0 +1,98 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-06-legacy-storyboard-stripped-before-migration",
+  "problem_type": "a compatibility migrator is fed schema-parsed input, so the legacy keys it exists to read are already gone",
+  "symptom": "Opening a pre-multi-design project shows no storyboard plan at all: the creation resource tree lists the script with zero plans, and the storyboard page falls back to its empty state. The plan is still on disk, so the app looks like it silently deleted the user's storyboard. Verified on the real project 'Nomi 宣传片｜09_00 前交片': 12 shots and 5 anchors on disk, 0 designs after the read path.",
+  "direct_cause": "normalizeRecord parsed the raw record with workbenchProjectRecordSchema and then passed legacyParsed.data.payload to normalizePayload. workbenchProjectPayloadSchema is a plain z.object, which strips keys it does not declare, and it does not declare the retired storyboardPlan / storyboardPlans / storyboardPlanCommitted keys. normalizePayload's legacy readers therefore saw a payload with those keys already removed and migrated nothing.",
+  "class_root": "A compatibility migrator only works if it is handed the bytes it is meant to interpret. Routing it through a strict schema first makes it structurally unable to see any key that is legacy by definition, so the migration silently no-ops for exactly the population it was written for.",
+  "affected_population": [
+    "Every project saved before storyboard plans moved to storyboardDesignsByDocumentId, i.e. every project carrying a top-level payload.storyboardPlan, payload.storyboardPlans, or payload.storyboardPlanCommitted",
+    "Confirmed on this machine: 'Nomi 宣传片｜09_00 前交片' (12 shots, 5 anchors) lost its plan on open"
+  ],
+  "scope_paths": [
+    "src/workbench/project/projectNormalize.ts"
+  ],
+  "entry_points": [
+    "readLocalProject",
+    "readLocalProjectAsync",
+    "hydrateProject in projectPersistenceService"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The project record and payload shapes are internal Nomi persistence contracts; zod's documented object behaviour (strip unknown keys by default) is the only external fact and is already relied on elsewhere in this file.",
+  "invariants": [
+    "normalizePayload receives the raw, unparsed payload so that every legacy key it reads is still present. It re-validates internally, so feeding it raw input relaxes no check.",
+    "A legacy plan that exists on disk is either migrated into storyboardDesignsByDocumentId and attached to a document that actually exists, or the record fails loudly; it is never silently dropped.",
+    "Any future retired payload key follows the same rule: the migrator reads it off the raw record, never off the schema-parsed copy."
+  ],
+  "generality_proof": "normalizeRecord is the only place in the repository that hands normalizePayload a schema-parsed payload, and every disk read (readLocalProject, readLocalProjectAsync, and through them hydrateProject) goes through normalizeRecord. Fixing the input at that one call site restores every retired key for every reader at once, including keys retired in the future, because the fix removes the stripping step rather than re-listing the keys that were being stripped.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/project/projectNormalize.ts",
+      "symbol": "normalizeRecord and readRawPayload",
+      "responsibility": "Own what the compatibility migrator is allowed to see: the raw payload off the record, never the schema-parsed copy."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/project/projectRepository.ts",
+      "entry_point": "readLocalProject and readLocalProjectAsync",
+      "disposition": "enforced",
+      "evidence": "Both call normalizeRecord for the desktop-bridge branch and the local-storage branch, so both now hand the migrator the raw payload. projectNormalize.test.ts asserts the recovery at the normalizeRecord boundary rather than at normalizePayload, which is where the old tests were all passing vacuously."
+    },
+    {
+      "path": "src/workbench/project/projectBackup.ts",
+      "entry_point": "rememberProjectBackup",
+      "disposition": "not-affected",
+      "evidence": "It safeParses the record only to read parsed.data.revision, and writes the untouched rawRecord to both backup keys, so a legacy plan is preserved byte for byte in backups regardless of this defect."
+    },
+    {
+      "path": "src/workbench/project/projectRepository.ts",
+      "entry_point": "saveLocalProject's existingRevision lookup",
+      "disposition": "not-affected",
+      "evidence": "It safeParses the existing record only to read parsed.data.revision; the parsed copy is never used as a payload source, so nothing is written back from it."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Not a one-off: the mechanism fires for every legacy project on every open, on every machine, and the same shape recurs for any key retired in the future, because the payload schema strips unknown keys by construction. It is also destructive rather than merely cosmetic: the in-memory payload no longer carries the plan, so the next autosave writes a payload without it and the plan is permanently erased from disk, violating the never-wipe-user-data rule this repository states in renameLocalProject.",
+    "same_class_scan": [
+      "grep for normalizeRecord across src/ and electron/: defined once in projectNormalize.ts, called only from projectRepository.ts lines 187, 195 and 204.",
+      "grep for workbenchProjectRecordSchema across src/ and electron/: the other two safeParse sites (projectBackup.rememberProjectBackup, projectRepository.saveLocalProject) use only parsed.data.revision and write the raw record, so neither can strip a payload.",
+      "Read workbenchProjectPayloadSchema in projectRecordSchema.ts to confirm it is a plain z.object with no passthrough and no declaration of the retired storyboard keys, which is what makes the strip silent.",
+      "Ran normalizeRecord against the two real legacy projects in ~/Documents/Nomi Projects: 0 designs before the fix, 12 shots and 5 anchors recovered after, attached to a real document id."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/project/projectNormalize.ts",
+    "invariant": "normalizeRecord hands normalizePayload the raw payload read off the record, so no key can be stripped before the compatibility migration runs.",
+    "failure_mode": "A record whose raw payload is missing or malformed reaches normalizePayload's own safeParse and takes the existing corrupt-payload path, which throws a localized error instead of opening a project with silently emptied content.",
+    "exception_policy": "none",
+    "strategy": "Remove the stripping step at the single call site that fed the migrator, rather than teaching the strict schema about each retired key one at a time; the latter would have to be repeated for every future retirement and would fail the same way when someone forgets.",
+    "artifacts": [
+      "src/workbench/project/projectNormalize.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/project/projectNormalize.test.ts",
+    "tests/ux/creation-sidebar-multi-doc.walk.mjs"
+  ],
+  "class_regression_tests": [
+    "src/workbench/project/projectNormalize.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The legacy readers in normalizePayload are the migration itself and must stay until no project on disk carries the retired keys; nothing here becomes obsolete, the migration merely starts being reachable. The old tests that exercised normalizePayload directly are kept, with the new tests added at the normalizeRecord boundary that production actually uses."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "zod's strip-by-default object behaviour is depended on deliberately elsewhere in this schema; no version change is involved or wanted.",
+    "exit_criteria": []
+  },
+  "migration": "No new migration step. Legacy plans were never removed from the project files themselves, so opening an affected project on a build carrying this fix restores its storyboard on the spot. Projects that were opened and autosaved on an affected build lost the plan from disk at that moment and can only be recovered from the per-revision backups written by rememberProjectBackup, which store the untouched raw record.",
+  "residual_risks": [
+    "Projects already autosaved by an affected build cannot be repaired by this change; recovery depends on a retained revision backup, which was not exercised here.",
+    "The end-to-end walkthrough covers the legacy payload shape through a fixture project. The two real legacy projects were verified at the normalizeRecord boundary rather than end to end, because neither would open in an isolated profile: the workbench reports project_agent_unavailable during hydration when no agent model is configured, which is unrelated to this fix but blocked the real-data UI leg."
+  ]
+}

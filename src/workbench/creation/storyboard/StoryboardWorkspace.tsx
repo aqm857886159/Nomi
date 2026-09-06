@@ -7,8 +7,10 @@ import { useWorkbenchStore } from '../../workbenchStore'
 import StoryboardPlanEditor from './StoryboardPlanEditor'
 
 /**
- * 分镜独立工作区（v5 C3）：storyboard 模式的唯一挂载点，全宽（§3.7 删 1264 上限）、
- * 无文档侧栏无 AI 栏——完整编辑器只住这里（P1 一个实现一个家）。
+ * 分镜独立工作区（v5 C3）：storyboard 模式的唯一挂载点，分镜表全宽（§3.7 删 1264 上限）、
+ * 无 AI 栏以外的自有装饰——完整编辑器只住这里（P1 一个实现一个家）。
+ * 左侧创作资源树**不由本组件挂**：它跨 creation / storyboard 常驻，唯一挂载点是
+ * WorkbenchShell（见 ../creationResourceTreeModes.ts）。本组件只负责剩下的那块宽度。
  * 有方案 → StoryboardPlanEditor；无方案 → 空态引导回创作页拆镜头。返回原稿 = 切回 creation。
  */
 export default function StoryboardWorkspace({ projectId, aiCollapsed = false, agentDockRef }: { projectId?: string | null; aiCollapsed?: boolean; agentDockRef?: React.Ref<HTMLDivElement> }): JSX.Element {

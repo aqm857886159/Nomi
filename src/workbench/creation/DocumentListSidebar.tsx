@@ -102,9 +102,12 @@ export default function DocumentListSidebar(): JSX.Element {
     if (confirmed) deleteStoryboardDesign(id, documentId)
   }, [deleteStoryboardDesign, t])
 
+  // 点原稿 = 回到剧本编辑器。模式必须一起切回 creation：在分镜页只清 activeStoryboardId
+  // 的话，StoryboardWorkspace 的「没有激活方案就自动选第一个」会立刻把用户弹回方案里。
   const selectDocument = (id: string) => {
     setActiveDocumentId(id)
     setActiveStoryboardId(null)
+    setWorkspaceMode('creation')
   }
 
   const selectStoryboard = (id: string, documentId: string) => {
@@ -216,7 +219,7 @@ export default function DocumentListSidebar(): JSX.Element {
 
   return (
     <aside
-      className="flex h-full w-[240px] shrink-0 flex-col border-r border-nomi-line-soft bg-nomi-paper max-[1320px]:row-span-2 max-[1180px]:w-[200px]"
+      className="flex h-full w-[240px] shrink-0 flex-col border-r border-nomi-line-soft bg-nomi-paper max-[1180px]:w-[200px]"
       aria-label={t('creationAi.documentList.aria')}
       data-creation-resource-tree="true"
     >

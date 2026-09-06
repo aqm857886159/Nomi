@@ -70,6 +70,7 @@
 - [harness 的 catch 会把自己的 bug 洗成产品结论](harness-catch-launders-bugs-into-verdicts.md) — 报某腿失败前先分清是断言红的还是 catch 编的
 - [A/B 两版提示词：确认关卡会污染两臂](prompt-ab-gating-question-confounds-arms.md) — 量到的是服从度不是质量
 - [探针测不到它命名的那件事，断言就永远绿](vacuous-probe-passes-forever.md) — 按路径过滤 fs 读 spy 恒空；四个会话判成「负载 flake」的那条其实恒真。变异测试是唯一判据，「永不发生」必配阳性对照
+- [迁移器被直接调用测了个遍，生产上却没人这么调它](migrator-tested-directly-is-never-tested.md) — 上一条的兼容层版本：`z.object` 默认剥未声明键，夹在原始数据和兼容读取之间就让迁移恒 no-op；老项目分镜因此打开即消失、下次自动保存永久抹掉
 - [硬链接复制 profile 会和运行中的 app 抢同一把 leveldb 锁](profile-copy-hardlink-shares-leveldb-lock.md) — 测启动性能前必读：`cp -Rl` 让副本共享 `Local Storage/leveldb/LOCK` 的 inode，凭空多出稳定可复现的 3.5s，伪装成"首屏渲染慢"；测前验 `lsof` 与两侧 inode；附冷/热文件缓存 10x 差异
 - [门岗断言不许手抄真相源的派生值，且必须与真相源同触发面](gate-assertions-must-not-copy-derived-values.md) — 看到 `>= N` 先问「N 是抄谁的」；决定落后与否的是触发面不是细心；死名字既造假红也造假绿
 - [有界性/复杂度不变量要用「计数」证，别用墙钟跑量](complexity-invariants-need-counters-not-wall-clock.md) — ✅ 已由 `check:test-waits` 第三条规则接管；留下的是门岗抓不到的那半：`fs.readFileSync(fd)` 让按路径过滤的 spy 断言恒真（实测 597 次重扫仍报 0）
