@@ -390,6 +390,31 @@ describe('活的工具调用接在流末尾', () => {
   })
 })
 
+describe('对话流的时间顺序', () => {
+  // 2026-09-06：实验室 6 张 v4 接线格把用户气泡渲在了它引发的助手文本**下面**。
+  // 根因不在夹具——夹具的时间戳是冻结字面量（基线不能随 `new Date()` 漂），于是一个回合的
+  // 记录全部同毫秒，投影层「同毫秒按 itemId 排」那一键 100% 生效，而 itemId 和因果毫无关系。
+  // 真机上时间戳互不相同所以看不见，但宿主本来就是一次 reduce 批量写入的：只要落在同一毫秒，
+  // 真机也会翻。所以这两条钉的是**因果**，不是「今天碰巧的顺序」。
+  it('同毫秒时保持宿主给的顺序：用户回合永远在它引发的助手回合之前', () => {
+    // itemId 按字典序排是 assistant-1 → tool-call-1 → user-turn-1，正好把因果倒过来。
+    const items = [userItem('把这段改短'), toolItem('timeline.read', 'done'), assistantItem('好，我先读一下时间轴')]
+    const flow = projectV4Flow(flowInput({ items }))
+    expect(flow.map((entry) => entry.kind)).toEqual(['user', 'tool', 'assistant'])
+  })
+
+  it('时间戳不同时仍按时间戳排，宿主数组的顺序不能盖过它', () => {
+    const later = { createdAt: '2026-09-06T09:00:05.000Z', updatedAt: '2026-09-06T09:00:05.000Z' }
+    // 宿主数组把晚发生的那条放在前面（乱序快照），时间戳必须赢。
+    const items = [
+      { ...assistantItem('这是后说的'), ...later } as ProjectAgentItem,
+      userItem('这是先说的'),
+    ]
+    const flow = projectV4Flow(flowInput({ items }))
+    expect(flow.map((entry) => entry.kind)).toEqual(['user', 'assistant'])
+  })
+})
+
 describe('失败卡上写的是给人看的话', () => {
   // `NOMI_VENDOR_ERR_B64::…::` 是厂商错误穿 IPC 的传输标记，编码那一端的契约就是
   // 「展示串一字未变，标记段在渲染层剥掉」。这条投影以前没剥，用户在失败卡上读到的

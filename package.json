@@ -74,7 +74,7 @@
     "check:ipc-sender-binding": "node ./scripts/check-ipc-sender-binding.mjs",
     "check:skill-ipc-coverage": "node ./scripts/check-skill-ipc-coverage.mjs",
     "check:agents-sync": "node ./scripts/gen-agents-md.mjs --check",
-    "check:claude-hooks": "node --test ./scripts/pre-push-check.node-test.mjs && node ./scripts/install-claude-hooks.cjs --check",
+    "check:claude-hooks": "node --test ./scripts/pre-push-check.node-test.mjs ./scripts/claude-hooks/commit-bypass-check.node-test.mjs && node ./scripts/install-claude-hooks.cjs --check",
     "check:push-bypass": "node ./scripts/check-push-bypass.mjs",
     "check:vocabularies": "node --test ./scripts/check-vocabularies*.node-test.mjs && node ./scripts/check-vocabularies.mjs",
     "gen:agents": "node ./scripts/gen-agents-md.mjs",
@@ -183,7 +183,8 @@
     "design-lab:walk:storyboard": "node ./tests/ux/design-lab-storyboard.walk.mjs",
     "design-lab:walk:host-config": "node ./tests/ux/design-lab-host-config.walk.mjs",
     "design-lab:walk:vendor-order": "node ./tests/ux/design-lab-vendor-order.walk.mjs",
-    "design-lab:walk:canvas-add-menu": "node ./tests/ux/design-lab-canvas-add-menu.walk.mjs"
+    "design-lab:walk:canvas-add-menu": "node ./tests/ux/design-lab-canvas-add-menu.walk.mjs",
+    "design-lab:walk:settings": "node ./tests/ux/design-lab-settings.walk.mjs"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^1.2.12",

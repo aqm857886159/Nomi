@@ -16,16 +16,41 @@
 # 输出契约（行式，避免在 bash 3.2 上依赖 mapfile）：
 #   第 1 行：ok | unparsable
 #   第 2 行：hook 报的 cwd
-#   第 3 行起：每个 git 调用一行，制表符分隔三列——
+#   第 3 行起：每个 git 调用一行，制表符分隔五列——
 #       <子命令>\t<该调用发生的目录，`?` = 无法可靠还原>\t<该子命令的选项，逗号分隔>
+#       \t<git 全局 `-c k=v` / `--config-env=` 配置，逗号分隔>\t<命令前置的环境赋值，逗号分隔>
 #
-# 消费方按需过滤：pre-push 只看 push 行取目录；secret-guard 只看 commit/add 行取选项。
+# 消费方按需过滤：pre-push 只看 push 行取目录；secret-guard 只看 commit/add 行取选项；
+# commit-bypass-check 还要看第 4、5 列（`-c core.hooksPath=` 与 `HUSKY=0` 这类**藏在
+# 子命令之外**的绕过写法——它们不出现在选项列里，只看第 3 列的闸门对它们完全失明）。
+#
+# 2026-09-06 补第 4、5 列 + 选项参数跳过（第 3 列）：
+#   · 第 3 列此前把「所有以 `-` 开头的 token」都当选项，于是 `git commit -m "--no-verify"`
+#     （提交信息里恰好写了这个词）被读成带 `--no-verify` 的提交——**误伤**。现在 `-m` 这类
+#     确定带值的选项，其后一个 token 一律跳过；`--` 之后全是 pathspec，也不再进选项列。
+#     只跳「确定带值」的那几个：`-s` 在 commit 是 --short（不带值）、在 merge 是 --strategy
+#     （带值），一律跳会把 `git commit -s --no-verify` 的 `--no-verify` 吞掉——那是**漏放**，
+#     比误伤更糟。所以 `-s` 不在名单里，`--strategy` 在。
+#   · 第 4、5 列此前被直接丢弃（`-c k=v` 走 `j += 2` 消费掉、`FOO=bar` 走 `continue`）。
+#
+# 2026-09-06 同批修掉的两个「命令 vs 数据」边界洞（都是**静默**的，三个闸门一起中招）：
+#   · **换行不是分隔符** —— 此前只有 `&& || ; |` 会把「命令位置」拨回来，于是多行命令
+#     **从第二行起整条隐身**：`echo hi\ngit push origin HEAD` 与
+#     `echo hi\ngit commit --no-verify` 都解析出**零个** git 调用（实测对照 origin/main 确认）。
+#     而 agent 写多行 bash 是常态——这个洞比 `-c core.hooksPath=` 那个更大。
+#     修法：词法分析前把**引号外**的换行换成 `;`，并关掉 `#` 注释（否则一个行尾 `#`
+#     会连着把后面所有行一起吞掉）。
+#   · **heredoc 正文被当成命令** —— shlex 不懂 heredoc，正文每行都进命令流；而 `|` 是
+#     分隔符，**markdown 表格**正好把表格里的词推回命令位置。实测：给 `gh pr create`
+#     用 heredoc 传一段带表格的 PR 正文（正文里在讲这些绕过写法），被 secret-guard
+#     当成真的 `git commit --no-verify` 拦下——**会误报的闸门用不了几次就会被人绕过**。
+#     修法：词法分析前整段摘掉 heredoc 正文，标记行本身保留。
 
 # 用法：ANALYSIS="$(printf '%s' "$INPUT" | analyse_bash_command)"
 # 注意：下面的 python 被单引号包住，代码里**不能出现单引号**。
 analyse_bash_command() {
   python3 -c '
-import sys, json, shlex, os
+import sys, json, shlex, os, re
 
 GLOBAL_TAKES_ARG = ("-C", "-c", "--config-env", "--exec-path", "--namespace")
 OPAQUE_TAKES_ARG = ("--git-dir", "--work-tree")
@@ -34,6 +59,64 @@ GLOBAL_FLAGS = ("--no-pager", "-p", "--paginate", "--bare", "--literal-pathspecs
                 "--no-replace-objects", "--no-optional-locks", "--no-lazy-fetch", "--no-advice")
 WRAPPERS = ("sudo", "nohup", "env", "time", "command", "stdbuf", "nice", "then", "do", "else")
 OPERATORS = ("&&", "||", ";", "|", "(", ")", "&", "{", "}")
+# 子命令层面**确定带一个独立值**的选项：其后一个 token 是数据不是选项。
+# 只收确定的——宁可漏跳（多出一个误伤面）也不能错跳（会把真选项吞掉 = 漏放）。
+SUB_TAKES_ARG = ("-m", "--message", "-F", "--file", "-t", "--template",
+                 "-C", "--reuse-message", "-c", "--reedit-message",
+                 "--author", "--date", "--fixup", "--squash", "--cleanup",
+                 "--trailer", "--pathspec-from-file", "--strategy",
+                 "--strategy-option", "-X")
+# 短选项簇（`-am "msg"`）：簇里带值的那个必须排在最后，所以只看末位字母。
+SHORT_TAKES_ARG = "mFtCcX"
+
+# heredoc 的**正文是数据，不是命令**。shlex 只做词法、不懂 heredoc，于是正文里的每一行
+# 都被当命令读——而 `|` 是 OPERATORS 之一，**markdown 表格**里的
+# `| \`git commit --no-verify\` |` 正好把后面的词推回命令位置。实测：给 `gh pr create`
+# 用 heredoc 传一段带表格的 PR 正文，被 secret-guard 当成真的 `git commit --no-verify` 拦下。
+# 所以在词法分析之前先把 heredoc 正文整段摘掉；标记行本身是真命令，保留。
+# `<<<`（here-string）不匹配（`<` 不是标识符首字符），普通命令不含 `<<` 时本函数无副作用。
+HEREDOC_RE = re.compile("<<-?[ \\t]*([\\\"\\x27]?)([A-Za-z_][A-Za-z0-9_]*)\\1")
+
+def strip_heredoc_bodies(command):
+    lines = command.split("\n")
+    kept = []
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        kept.append(line)
+        delims = [m.group(2) for m in HEREDOC_RE.finditer(line)]
+        i += 1
+        for d in delims:
+            while i < len(lines) and lines[i].strip() != d:
+                i += 1
+            if i < len(lines):
+                i += 1      # 结束标记行本身也不是命令
+    return "\n".join(kept)
+
+# **换行也是命令分隔符**。此前只有 OPERATORS 里那几个符号会把「命令位置」拨回来，
+# 于是多行命令**从第二行起整个隐身**：`echo hi\ngit commit --no-verify` 与
+# `echo hi\ngit push origin HEAD` 在旧版里都解析出零个 git 调用——三个闸门一起失明，
+# 而 agent 写多行 bash 是常态。这个洞比 `-c core.hooksPath=` 那个更大，实测确认。
+# 修法：词法分析前把**引号外**的换行换成 `;`（引号内的换行属于同一个 token，比如
+# 跨行的提交信息，必须原样留着）。只跟踪引号与反斜杠，不做完整 shell 解析——
+# 判「这个换行在不在引号里」只需要这点信息。
+def newlines_to_separators(command):
+    out = []
+    quote = None
+    esc = False
+    for ch in command:
+        if esc:
+            out.append(ch); esc = False; continue
+        if ch == "\\" and quote != "\x27":   # 单引号内反斜杠不转义
+            out.append(ch); esc = True; continue
+        if quote is not None:
+            if ch == quote:
+                quote = None
+            out.append(ch); continue
+        if ch == "\x22" or ch == "\x27":
+            quote = ch; out.append(ch); continue
+        out.append(";" if ch == "\n" else ch)
+    return "".join(out)
 
 def resolve(base, p):
     p = os.path.expanduser(p)
@@ -42,18 +125,25 @@ def resolve(base, p):
     return os.path.normpath(os.path.join(base, p))
 
 def analyse(command, cwd):
+    command = newlines_to_separators(strip_heredoc_bodies(command))
     lex = shlex.shlex(command, posix=True, punctuation_chars=True)
     lex.whitespace_split = True
+    # 关掉 `#` 注释：换行已变成 `;`，若还认注释，一个行尾 `#` 会把**后面所有行**
+    # 一起吞掉（`echo a # 备注\ngit commit --no-verify` 将整条隐身）。关掉后 `#`
+    # 只是个普通 token，落在命令位置上顶多让那一段被跳过，不会遮住后面的分隔符。
+    lex.commenters = ""
     tokens = list(lex)
     calls = []
     cur = cwd
     at_cmd = True
+    pending_env = []
     i = 0
     n = len(tokens)
     while i < n:
         tok = tokens[i].strip("`")
         if tok in OPERATORS:
             at_cmd = True
+            pending_env = []
             i += 1
             continue
         if not at_cmd:
@@ -64,7 +154,8 @@ def analyse(command, cwd):
             continue
         head = tok.split("=")[0]
         if "=" in tok and head and head.replace("_", "").isalnum() and not head[0].isdigit():
-            i += 1          # FOO=bar git ... 这类前置赋值，命令位置保持不变
+            pending_env.append(tok)   # FOO=bar git ... 这类前置赋值，命令位置保持不变
+            i += 1
             continue
         base = os.path.basename(tok)
         if base in ("cd", "pushd"):
@@ -80,6 +171,7 @@ def analyse(command, cwd):
             j = i + 1
             dash_c = None
             opaque = False
+            configs = []
             while j < n:
                 t = tokens[j]
                 if t == "-C" and j + 1 < n:
@@ -87,6 +179,9 @@ def analyse(command, cwd):
                 if t in OPAQUE_TAKES_ARG and j + 1 < n:
                     opaque = True; j += 2; continue
                 if t in GLOBAL_TAKES_ARG and j + 1 < n:
+                    # `-c k=v` / `--config-env k=ENVVAR` 的**值**就是配置本身，别再丢掉。
+                    if t in ("-c", "--config-env"):
+                        configs.append(tokens[j + 1])
                     j += 2; continue
                 if t in GLOBAL_FLAGS:
                     j += 1; continue
@@ -98,24 +193,41 @@ def analyse(command, cwd):
                 if t.startswith("--") and "=" in t:
                     if t.split("=")[0] in OPAQUE_TAKES_ARG:
                         opaque = True
+                    if t.split("=")[0] == "--config-env":
+                        configs.append(t.split("=", 1)[1])
                     j += 1; continue
                 break
             if j < n and not tokens[j].startswith("-"):
                 sub = tokens[j]
                 flags = []
                 k = j + 1
+                end_of_options = False
                 while k < n and tokens[k] not in OPERATORS:
-                    if tokens[k].startswith("-"):
-                        flags.append(tokens[k])
+                    t = tokens[k]
+                    if end_of_options:
+                        k += 1; continue
+                    if t == "--":
+                        end_of_options = True   # 之后全是 pathspec，不是选项
+                        k += 1; continue
+                    if t.startswith("-"):
+                        flags.append(t)
+                        takes = t in SUB_TAKES_ARG
+                        if not takes and not t.startswith("--") and len(t) > 1 and t[-1] in SHORT_TAKES_ARG:
+                            takes = True        # `-am "msg"`：簇末位才是带值的那个
+                        if takes and k + 1 < n:
+                            k += 2              # 跳过它的值（提交信息等数据，不是选项）
+                            continue
                     k += 1
                 where = "?" if opaque else (resolve(cur, dash_c) if dash_c else cur)
-                calls.append((sub, where, ",".join(flags)))
+                calls.append((sub, where, ",".join(flags), ",".join(configs), ",".join(pending_env)))
                 i = k
             else:
                 i = j + 1 if j < n else n
             at_cmd = False
+            pending_env = []
             continue
         at_cmd = False
+        pending_env = []
         i += 1
     return calls
 
@@ -134,8 +246,8 @@ except Exception:
 
 print("ok")
 print(cwd)
-for sub, where, flags in calls:
-    sys.stdout.write(sub + "\t" + where + "\t" + flags + "\n")
+for sub, where, flags, configs, envs in calls:
+    sys.stdout.write(sub + "\t" + where + "\t" + flags + "\t" + configs + "\t" + envs + "\n")
 ' 2>/dev/null
 }
 

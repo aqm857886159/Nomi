@@ -11,13 +11,13 @@
 import React from 'react'
 import PreviewInspector from '../../../../workbench/preview/inspector/PreviewInspector'
 import { LAB_AUDIO_ID, LAB_TEXT_ID, LAB_VIDEO_A_ID } from '../editingFixtures'
-import { InspectorStage, NOOP, useLabTimeline } from '../editingLabKit'
+import { INSPECTOR_CLIP_HEIGHT, InspectorStage, NOOP, useLabTimeline } from '../editingLabKit'
 import type { LabState } from '../../labScreen'
 
-function InspectorCell({ clipId, textClipId }: { clipId?: string; textClipId?: string }): JSX.Element {
+function InspectorCell({ clipId, textClipId, height }: { clipId?: string; textClipId?: string; height?: number }): JSX.Element {
   const timeline = useLabTimeline(clipId ?? '', textClipId ?? '')
   return (
-    <InspectorStage>
+    <InspectorStage height={height}>
       <PreviewInspector timeline={timeline} collapsed={false} onToggleCollapsed={NOOP} />
     </InspectorStage>
   )
@@ -36,7 +36,9 @@ export const INSPECTOR_STATES: readonly LabState[] = [
     name: '属性面板 · 片段（选中一段视频）',
     source: '现役 PreviewInspector.tsx：clip.type="video" → 显示 / 时间 / 声音 / 转场四组',
     coverage: 'shell',
-    render: () => <InspectorCell clipId={LAB_VIDEO_A_ID} />,
+    // 四组字段（显示 / 时间 / 声音 / 转场）是全屏最高的一格，560 的默认框会把
+    // 「转场 · 入场」齐腰切掉，而且切得不留痕迹。取景高按实测内容走。
+    render: () => <InspectorCell clipId={LAB_VIDEO_A_ID} height={INSPECTOR_CLIP_HEIGHT} />,
   },
   {
     id: 'inspector-03-text',
