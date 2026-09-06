@@ -43,6 +43,50 @@
       ]
     }
   },
+  "referenceConformanceAdvisory": {
+    "_comment": [
+      "上游对齐（2026-09-07 加，**advisory 不阻断**）：登记的 upstreamVersion 落后于 node_modules 里",
+      "实装的版本 → warning。为什么不直接红：上游发一个补丁版不等于参考实现变了，一道天天红的",
+      "门岗等于不存在（R17）。为什么也不能不管：参考实现对照是有时效的——框架自己重构了一层，",
+      "我们那张表就还停在旧的分层上，而它读起来和新的一模一样。",
+      "升红条件写在 promotion 里，到期由 R14 周期审计接手复核，不靠谁记得。"
+    ],
+    "promotion": {
+      "reviewDue": "2026-11-07",
+      "criteria": [
+        "两条同时满足才升红：① 所有登记框架都已交出参考实现对照（referenceConformanceDebt 清空）；② 复核期内出现过至少一次「上游发版确实改了分层」的真阳性",
+        "满足 → 把 minor 及以上的版本落后改成 exit 1，patch 版落后仍只出 warning",
+        "不满足 → 保持 advisory，并在下一次周期审计重定 reviewDue，不许静默取消这条"
+      ]
+    }
+  },
+  "referenceConformanceDebt": [
+    {
+      "_comment": "参考实现逐层对照的**债**（R29 第二份必交物）。登记的是欠账不是豁免：每条绑一个到期日，到期不交门岗就红。清掉一条 = 从这里删一行并在框架条目上写 referenceConformance。id = 框架 id 或 capabilityInventory 里的包名。",
+      "id": "pi",
+      "doc": "docs/research/2026-09-07-pi-reference-implementation-conformance.md",
+      "due": "2026-09-14",
+      "why": "四列表（docs/plan/2026-09-07-agent-runtime-rebuild.md）已出，但它按我们自己列的能力清单走，只覆盖已经想到的那五项。pi 自带的 coding agent 是一个把这套框架用对了的完整实现，逐层拆开对照才照得出「压根没想到还有这一层」。这份对照正在 docs/pi-reference-conformance-20260907 分支上写。"
+    },
+    {
+      "id": "@xyflow/react",
+      "doc": "docs/research/2026-10-07-xyflow-reference-implementation-conformance.md",
+      "due": "2026-10-07",
+      "why": "生成画布的交互内核（R23 单内核）。React Flow 官方 examples 是同一套 API 的参考实现，我们的画布已经在 sub-flows、受控视口、节点类型注册这些层上各走了自己的路（2026-09-07 已就 sub-flows 单独查过一轮，见 docs/research/2026-09-07-react-flow-subflows-vs-frame-tool.md），但九层从没并排摆过。"
+    },
+    {
+      "id": "ai",
+      "doc": "docs/research/2026-10-07-vercel-ai-sdk-reference-implementation-conformance.md",
+      "due": "2026-10-07",
+      "why": "Vercel AI SDK 是模型调用与流式转录那条线的底座，AI Elements demo 是它的参考实现。工具、转录渲染、控制流三层我们各写了一份宿主侧的版本，没有对照过它的分层。"
+    },
+    {
+      "id": "@mantine/core",
+      "doc": "docs/research/2026-10-31-mantine-reference-implementation-conformance.md",
+      "due": "2026-10-31",
+      "why": "组件层。排在最后是因为它离「重造框架能力」最远（我们的设计系统是 token-only 自持的，D2 意义上的护城河在别处），但扩展 API 与安全两层仍值得并排看一次，尤其是 Mantine 官方 demo 怎么处理受控/非受控与可访问性。"
+    }
+  ],
   "frameworks": [
     {
       "id": "pi",

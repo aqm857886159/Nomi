@@ -4,7 +4,16 @@
 // 证明不了「明天新增一条会不会被拦」——而后者才是这道门岗存在的全部理由（R17：加规则先验它会红）。
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { advisoryCapabilityHits, evaluate, scanSources, stripComments, validateRegistry } from './framework-boundary-lib.mjs'
+import {
+  REFERENCE_CONFORMANCE_LAYERS,
+  advisoryCapabilityHits,
+  evaluate,
+  evaluateReferenceConformance,
+  isVersionBehind,
+  scanSources,
+  stripComments,
+  validateRegistry,
+} from './framework-boundary-lib.mjs'
 
 const registry = {
   frameworks: [{
@@ -119,4 +128,129 @@ test('能力词启发式：豁免登记会闭嘴，注释里的同名词不算',
 test('能力词启发式：词表为空时一句话都不说（不许靠空词表假装在守）', () => {
   const files = new Map([['electron/foo/sessionStore.ts', 'export const x = 1\n']])
   assert.deepEqual(advisoryCapabilityHits({ files, watchWords: [] }), [])
+})
+
+// —— 第二份必交物：参考实现逐层对照（R29，2026-09-07）——
+// 四件必须证明的事：**缺字段会红、文档指不到会红、文档缺层缺列会红、债到期会红**；
+// 外加一件必须证明「不会红」的事：版本落后只出 warning（advisory 若也算红，就没人敢升依赖了）。
+
+const conformanceRegistry = {
+  capabilityInventory: { packages: ['@demo/sdk', '@other/ui'] },
+  frameworks: [{ id: 'demo', packages: ['@demo/sdk'], fourColumnTable: 'docs/plan/demo.md', capabilities: [] }],
+}
+
+const goodDoc = ['## 参考实现逐层对照', ...REFERENCE_CONFORMANCE_LAYERS,
+  '它怎么做', '我们怎么做', '判定', '若没想到补在哪个阶段前'].join('\n')
+
+const runConformance = (registry, options = {}) => evaluateReferenceConformance({
+  registry,
+  today: options.today ?? '2026-09-07',
+  docExists: options.docExists ?? (() => true),
+  readDoc: options.readDoc ?? (() => goodDoc),
+  installedVersions: options.installedVersions ?? {},
+})
+
+test('缺字段：登记框架没有 referenceConformance、在用的包没登记 → 都红', () => {
+  const { errors } = runConformance(conformanceRegistry)
+  assert.ok(errors.some((error) => error.includes('demo: 缺 referenceConformance')))
+  assert.ok(errors.some((error) => error.includes('@other/ui') && error.includes('既没有框架登记')))
+  // pi 那种「框架自己的包」由框架条目覆盖，不该再被要求单独登记一遍
+  assert.ok(!errors.some((error) => error.startsWith('@demo/sdk:')))
+})
+
+test('登记成债：绑了 doc/why/未过期的 due → 绿；到期未交 → 红并点名落点', () => {
+  const owed = { id: 'demo', doc: 'docs/research/demo-conformance.md', due: '2026-12-31', why: '正在写' }
+  const other = { id: '@other/ui', doc: 'docs/research/ui.md', due: '2026-12-31', why: '排在后面' }
+  const registry = { ...conformanceRegistry, referenceConformanceDebt: [owed, other] }
+  assert.deepEqual(runConformance(registry).errors, [])
+
+  const expired = runConformance({ ...registry, referenceConformanceDebt: [{ ...owed, due: '2026-09-01' }, other] })
+  assert.ok(expired.errors.some((error) => error.includes('已于 2026-09-01 到期仍未交')
+    && error.includes('docs/research/demo-conformance.md')))
+
+  const noDue = runConformance({ ...registry, referenceConformanceDebt: [{ id: 'demo', doc: 'd.md', why: 'x' }, other] })
+  assert.ok(noDue.errors.some((error) => error.includes('due 必须是 YYYY-MM-DD')))
+})
+
+test('文档路径不存在 → 红（指不到的文档等于没写）', () => {
+  const registry = { ...conformanceRegistry, frameworks: [{
+    ...conformanceRegistry.frameworks[0],
+    referenceConformance: { doc: 'docs/research/gone.md', verifiedAt: '2026-09-07', upstreamVersion: '1.0.0' },
+  }], referenceConformanceDebt: [{ id: '@other/ui', doc: 'x.md', due: '2026-12-31', why: 'x' }] }
+  const { errors } = runConformance(registry, { docExists: () => false })
+  assert.ok(errors.some((error) => error.includes('docs/research/gone.md 不存在')))
+})
+
+test('文档缺层或缺列 → 红；裁剪只能从九层里选，自造一层也红', () => {
+  const base = { doc: 'docs/research/demo.md', verifiedAt: '2026-09-07', upstreamVersion: '1.0.0' }
+  const debt = [{ id: '@other/ui', doc: 'x.md', due: '2026-12-31', why: 'x' }]
+  const withConformance = (referenceConformance) => ({
+    ...conformanceRegistry,
+    frameworks: [{ ...conformanceRegistry.frameworks[0], referenceConformance }],
+    referenceConformanceDebt: debt,
+  })
+
+  const thin = runConformance(withConformance(base), { readDoc: () => '## 参考实现逐层对照\n工具\n它怎么做\n我们怎么做\n' })
+  assert.ok(thin.errors.some((error) => error.includes('缺「安全」这一层')))
+  assert.ok(thin.errors.some((error) => error.includes('缺「判定」这一列')))
+
+  // 裁剪：只声明两层，文档只要覆盖这两层就绿——不是每个框架都有全部九层
+  const tailored = runConformance(withConformance({ ...base, layers: ['工具', '安全'] }), {
+    readDoc: () => '## 参考实现逐层对照\n工具\n安全\n它怎么做\n我们怎么做\n判定\n若没想到补在哪个阶段前\n',
+  })
+  assert.deepEqual(tailored.errors, [])
+
+  const invented = runConformance(withConformance({ ...base, layers: ['随便一层'] }))
+  assert.ok(invented.errors.some((error) => error.includes('不在九层之内')))
+})
+
+test('两边同时登记 → 红（不许既欠着债又声称已交）', () => {
+  const registry = {
+    ...conformanceRegistry,
+    frameworks: [{ ...conformanceRegistry.frameworks[0], referenceConformance: {
+      doc: 'docs/research/demo.md', verifiedAt: '2026-09-07', upstreamVersion: '1.0.0',
+    } }],
+    referenceConformanceDebt: [
+      { id: 'demo', doc: 'docs/research/demo.md', due: '2026-12-31', why: 'x' },
+      { id: '@other/ui', doc: 'x.md', due: '2026-12-31', why: 'x' },
+    ],
+  }
+  assert.ok(runConformance(registry).errors.some((error) => error.includes('既登记成债又声称已交')))
+})
+
+test('债只能欠在真实存在的东西上；清掉的债留在表里也红（棘轮只减不增）', () => {
+  const registry = { ...conformanceRegistry, referenceConformanceDebt: [
+    { id: 'demo', doc: 'd.md', due: '2026-12-31', why: 'x' },
+    { id: '@other/ui', doc: 'x.md', due: '2026-12-31', why: 'x' },
+    { id: '@gone/pkg', doc: 'g.md', due: '2026-12-31', why: 'x' },
+  ] }
+  assert.ok(runConformance(registry).errors.some((error) => error.includes('@gone/pkg')
+    && error.includes('既不是登记框架也不是 capabilityInventory 里的包')))
+})
+
+test('版本落后只出 warning，不进 errors —— advisory 若也算红，就没人敢升依赖了', () => {
+  const registry = {
+    ...conformanceRegistry,
+    frameworks: [{ ...conformanceRegistry.frameworks[0], referenceConformance: {
+      doc: 'docs/research/demo.md', verifiedAt: '2026-09-07', upstreamVersion: '0.84.3',
+    } }],
+    referenceConformanceDebt: [{ id: '@other/ui', doc: 'x.md', due: '2026-12-31', why: 'x' }],
+  }
+  const { errors, warnings } = runConformance(registry, { installedVersions: { '@demo/sdk': '0.85.1' } })
+  assert.deepEqual(errors, [])
+  assert.equal(warnings.length, 1)
+  assert.ok(warnings[0].includes('0.84.3') && warnings[0].includes('0.85.1'))
+
+  const level = runConformance(registry, { installedVersions: { '@demo/sdk': '0.84.3' } })
+  assert.deepEqual(level.warnings, [])
+})
+
+test('版本比较：只按数字段比大小，比不动就当没落后（宁可漏报也不误报）', () => {
+  assert.equal(isVersionBehind('0.84.3', '0.85.1'), true)
+  assert.equal(isVersionBehind('1.2.3', '1.2.10'), true)
+  assert.equal(isVersionBehind('12.11.5', '12.11.5'), false)
+  assert.equal(isVersionBehind('2.0.0', '1.9.9'), false)
+  assert.equal(isVersionBehind('7.17.8', '7.18.0-beta.1'), true)
+  assert.equal(isVersionBehind('next', '1.0.0'), false)
+  assert.equal(isVersionBehind('1.0.0', undefined), false)
 })
