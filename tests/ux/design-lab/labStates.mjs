@@ -27,6 +27,10 @@ export const LAB_SCREENS = {
     registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/states'),
     baselineDir: path.join(BASELINE_ROOT, 'agent-panel'),
   },
+  'agent-panel-v4': {
+    registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/v4/states'),
+    baselineDir: path.join(BASELINE_ROOT, 'agent-panel-v4'),
+  },
   editing: {
     registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/editing/states'),
     baselineDir: path.join(BASELINE_ROOT, 'editing'),
