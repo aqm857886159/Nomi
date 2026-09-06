@@ -5,7 +5,7 @@
 > **怎么读这份文件（3 层）**：
 > - **L0 每轮** = `scripts/claude-hooks/self-check.sh`（hook，每条消息自动注入「三闸 + 核心原则 + 近期坑」）——salience 层，本文件**不再复述它**。
 > - **L1 always 加载** = 本文件：项目事实 + 命令 + **P1–P5** + **D1–D6** + 规则索引。**每次 session 读完再动手。** 保持精简（一屏左右）。
-> - **L2 触发才查** = `docs/engineering-rules.md`（R1–R27 详解）；`docs/coding-standards.md`（编码规范）；`docs/lessons/INDEX.md`（踩过的坑，按 A/B/C/D/E/F 场景分，走查/CI/分支/平台/产品/编排前各查一眼）；`docs/ARCHITECTURE-NOW.md`（各子系统现在真正跑的是什么，带 file:line，读方案前先过）；`docs/GLOSSARY.md`（同一东西的多个叫法）。
+> - **L2 触发才查** = `docs/engineering-rules.md`（R1–R30 详解）；`docs/coding-standards.md`（编码规范）；`docs/lessons/INDEX.md`（踩过的坑，按 A/B/C/D/E/F 场景分，走查/CI/分支/平台/产品/编排前各查一眼）；`docs/ARCHITECTURE-NOW.md`（各子系统现在真正跑的是什么，带 file:line，读方案前先过）；`docs/GLOSSARY.md`（同一东西的多个叫法）。
 >
 > **维护纪律**：本文件是**策展的，不是 append 的**。新踩的坑进 `docs/lessons/`（一条一个文件，挂 `INDEX.md`）或 hook 的 `violations.log`，**不塞这里**；只有「反复出现 + 永远相关」的原则才提升进 L1。Hook 真相源是 `scripts/claude-hooks/`，`pnpm install` postinstall 自动装进 `.Codex/`；`check:claude-hooks` 验同步。**禁止手改 `AGENTS.md`**：改纪律只改本文件，再跑 `pnpm run gen:agents`；`check:agents-sync` 拦漂移。本文件已做过可机器化分诊，删减依据见 `docs/engineering/rule-enforcement-audit.md`。
 
@@ -36,6 +36,7 @@ Nomi：本地优先 AI 视频创作工作台。
 | `pnpm run check:heavy-path` | 重活门岗（同步图像编码 / base64 进 store / 尺寸双真相源；棘轮只减不增）|
 | `pnpm run check:vocabularies` | 单一语义 owner 门岗（AST 扫状态/阶段词表；新增、复制、成员/位置漂移、陈旧登记或 debt 增长都会红）|
 | `pnpm run check:i18n` | 可见文字国际化门岗（禁止新增硬编码 UI 文案；遗留基线只减不增）|
+| `pnpm run check:framework-boundary` | 框架边界门岗（框架已提供的能力不许再长一份自研版本；债只减不增、绑方案、到期即红）|
 | `pnpm run check:audit` | 审计节奏提醒（≥25 commit 提示） |
 | `npx skills experimental_install` | 从 `skills-lock.json` 还原 `.Codex/skills/`（换机/协作者用） |
 
@@ -55,7 +56,7 @@ Nomi：本地优先 AI 视频创作工作台。
 
 **P4 通用第一** — 能力/组件/交互按「模型身份 / 通用场景」设计，与具体供应商/模型解耦。不为不同模型写两套 UI（那是并行版，违反 P1）。档案声明槽，通用系统负责填。
 
-**P5 想清楚再动手** — UI 改动先读设计系统 `docs/design/nomi-design-system.md`（token/组件/规范）再画，再出可视样张（HTML mockup）+ 用户拍板；**改/扩现有 UI 先看它真实样子**（读完整外壳组件或真实截图，样张是真实布局+改动、不是脑补）；**加/挪控件先过 §1.5 控件层级规则**（L1 常驻/L2–L4·一功能一个家·先分组→去重→归位→最后才收纳）；架构改动先查 Context7 + 读顶尖开源代码 + 6 角色评审；多文件改动先写 `docs/plan` 文档。
+**P5 想清楚再动手** — UI 改动先读设计系统 `docs/design/nomi-design-system.md`（token/组件/规范）再画，再出可视样张（HTML mockup）+ 用户拍板；**改/扩现有 UI 先看它真实样子**（读完整外壳组件或真实截图，样张是真实布局+改动、不是脑补）；**接线前先看真实数据**（实验室组件必须由真实宿主数据驱动＝ShellStage 手法；基线绿≠可接线）；**加/挪控件先过 §1.5 控件层级规则**（L1 常驻/L2–L4·一功能一个家·先分组→去重→归位→最后才收纳）；架构改动先查 Context7 + 读顶尖开源代码 + 6 角色评审；多文件改动先写 `docs/plan` 文档。
 
 ## 动手前/报完成前/push 前的三闸
 
@@ -98,6 +99,8 @@ Nomi：本地优先 AI 视频创作工作台。
 | R26 | 分层边界不许反向/循环 | 渲染层禁直捅主进程（走 bridge/中立契约层）、主进程禁反向 import 渲染层、禁新增完全静态循环；`check:boundaries` 棘轮（基线只减不增），加规则先验会红（R17）|
 | R27 | 多智能体编排手册 | 派工/收货/接力机器化纪律：谁的方案谁实施·验收必跨池、任务书发行权独占+开工三行头、收货三查（behind 数/两点回滚/套件失败 delta=0）、等待用 sleep 轮询+哨兵法（禁 --watch/Monitor/交卷）。详见 L2 `docs/engineering/agent-orchestration-playbook.md` |
 | R28 | 防线建在最早能拦住的那层 | 能让编译器拦的别留给门岗，能让门岗拦的别留给人；安全关键依赖不许「optional + 欠账登记」——登记是备忘录不是防线 |
+| R29 | 接框架先出四列表 | 引入/接入任何框架、SDK、运行时**或其新层**前，先在 `docs/research`/`docs/plan` 出「它提供 / 我们用了 / 我们另写了 / 我们拆散了」四列表（每格 file:line 或文档 URL），派工 brief 附表当硬约束；结论进 `check:framework-boundary` 登记表才算研究完成。R20 管「通用能力该不该自研」，R29 管「已选框架的边界画在哪」|
+| R30 | Agent 行为验收靠真实模型数字 | 任何 Agent/工具/契约改动，验收门必须含**工具写对率 + 回合成功率**：零额度 loopback 夹具进 CI，小额真实模型定期跑、数字写进 PR；设计实验室基线只证外观、走查截图只证界面，两者都不得单独判「接好了」|
 
 ## 决策自治
 
