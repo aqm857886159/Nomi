@@ -7,6 +7,27 @@
 
 ---
 
+## 先查别人
+
+> 本节 2026-09-07 随 `check:prior-art` 门岗补入（R27 §16）。**内容不是新查的**——PR #555 的
+> R29 边界检查就是这份检索本身，报告在
+> [`docs/research/2026-09-07-react-flow-subflows-vs-frame.md`](../research/2026-09-07-react-flow-subflows-vs-frame.md)（已在 main）；
+> 这里按四问归拢，每格给出可复核的出处。
+
+| 问 | 答 | 出处 |
+|---|---|---|
+| 依赖里已有？ | **一半有、一半必须自己写。** React Flow 12 自带 sub-flows：`parentId`（父子）、`extent:'parent'`（成员不许出框）、`expandParent`（父追着子长大）。前一件我们不需要，**后两件与本轨的产品语义正面相反**——`extent:'parent'` 会 clamp 住成员，「拖出框 = 退组」根本发生不了；`expandParent` 逐字就是我们要修的那条 bug。这不是重造轮子，是这个轮子朝相反方向转 | `@xyflow/system@0.0.81` `dist/esm/types/nodes.d.ts:49-61`（parentId / extent / expandParent）、`:156`（ParentLookup）；官方文档 https://reactflow.dev/learn/layouting/sub-flows |
+| 依赖里已有（第二问，**这一问查出了返工**）？ | **有，而且我们第一版绕开了它。** 「拖进拖出认父」官方没有内建，给的是配方：`onNodeDrag` 里用 `getIntersectingNodes` / `getInternalNode` 读内核的 `positionAbsolute` + `measured`。第一版自己从 Zustand 用**声明**尺寸算了一份矩形——判定线与用户看到的边会分叉。已按 #555 返工改回内核公共 API | `@xyflow/react@12.11.5` `dist/esm/types/instance.d.ts:113`（getIntersectingNodes）、`:55`（getInternalNode）；`@xyflow/system` `types/nodes.d.ts:83-99`（InternalNodeBase.measured / internals.positionAbsolute）；返工后的读口 `src/workbench/generationCanvas/reactFlow/canvasMeasuredNodeRect.ts:25` |
+| 依赖里已有（第三问，同上）？ | **有。** 「这次拖动归谁」React Flow 有声明式开关 `panOnDrag` / `nodesDraggable`。第一版在 capture 阶段截 pointerdown + `stopPropagation` 把手势偷过来——内核不知道自己被停用，框架哪天改事件绑定阶段就**静默**失效。已改成声明式停用（R28：能让框架自己拦的别留给偷袭） | `@xyflow/react@12.11.5` `dist/esm/types/component-props.d.ts:399`（panOnDrag）、`:338`（nodesDraggable）；接线处 `src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx:163,167` |
+| 仓库里已有？ | **有，而且本轨就是「让它进化」而不是「另起一个」。** 成员名单 `NodeGroup.nodeIds`、写口 `moveNodeToGroup` / `removeNodeFromGroup`、折叠卡 `CollapsedGroupCard`、批量生产路径 `resolveCanvasGenerationScope → buildDependencyWaves → confirmAndRunPlan` 全部照原样复用——「生成整框」不是第二套生成，只是把 scope 换成框内成员 | `src/workbench/generationCanvas/model/generationCanvasTypes.ts:192`（nodeIds）、`src/workbench/generationCanvas/store/canvasGraphActions.ts:397`（moveGroupNodes）、`src/workbench/generationCanvas/components/CollapsedGroupCard.tsx`；本文 §4 的改动清单逐行对应 |
+| 生态里已有？ | 「中心点进框即入组」是画布类产品的通行判据（Figma / Miro 同款），本轨照抄这条判据，只把矩形换成内核测量值；而「框追着成员长大」不是任何一家的行为——它是我们独有的 bug | 判据与代价逐格对照见 [`docs/research/2026-09-07-react-flow-subflows-vs-frame.md`](../research/2026-09-07-react-flow-subflows-vs-frame.md) §1.3–§1.5、§4 |
+| TikHub 自媒体里怎么说？ | 本轮未查。这一层是画布内的交互边界（手势归属、相交判定），不是面向用户的产品选型，自媒体侧没有可比的一手经验——**明着标出来，不冒充覆盖** | 无 |
+
+**结论**：**用已有 + 自研，边界画在语义上。** 内核已提供且语义一致的两件（相交判定的矩形来源、手势归属）全部改用公共 API；语义相反的三件（`parentId` 父子、`extent:'parent'`、`expandParent`）刻意不用，并连同理由、替代实现和复评日期登记进
+[`docs/engineering/framework-boundaries.json`](../engineering/framework-boundaries.json)（`xyflow-react` 一节，4 项能力 + 5 条 forbidden 规则），`check:framework-boundary` 保证它长不回来。
+
+---
+
 ## 1. 先说用户要解决的摩擦（D6）
 
 **背后逻辑。** 今天画布上的「组」不是一个用户能画出来的东西，是一层**自动包围盒**：位置和大小完全由成员算出来（`generationCanvasGeometry.ts:65`，`minXY - 24`，顶部再留 28px 给标签），用户既画不了它、拖不动它的边、也定不了它多大。`NodeGroup.frameBounds` 这个字段在类型里躺了很久，**画布一行都不读**。
