@@ -192,9 +192,10 @@ type ProjectAgentItemBase = ProjectAgentRecordBase & Readonly<{
 
 #### ① 两个工具**字节级相同**，模型分不清 —— 而且真机上它就在两者之间来回抖
 
-`electron/harness/tools/modelToolSurfaceManifest.ts:195-208`：
+`electron/harness/tools/modelToolSurfaceManifest.ts:195-208` 逐字摘录（**应用内 Agent 工具面**，不是 MCP `tools/list` 目录——
+`nomi_canvas_plan` 已于 2026-09-05 从 MCP 目录退役，但在应用内工具面仍然并列存在，这正是本节要说的问题）：
 
-```ts
+```text
 { name: "nomi_canvas_plan", intent: "Propose storyboard, staging, camera, or timeline landing intent for review before changing the canvas.",
   capabilityRefs: ["canvas.write"], inputSchema: canvasWriteSemanticInputSchema, outputSchema: canvasWriteResultSchema, ... },
 { name: "nomi_canvas_edit", intent: "Propose a validated reversible edit to canvas nodes or reference edges.",
