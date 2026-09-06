@@ -27,6 +27,7 @@
 | [2026-09-05-agent-ui-a-composer.md](2026-09-05-agent-ui-a-composer.md) | Agent UI A 段：composer 五按钮调序、模式弹层收敛、运行呼吸光与分镜入口 | 🚧 |
 | [2026-09-06-agent-panel-v4-lab.md](2026-09-06-agent-panel-v4-lab.md) | Agent 面板 v4 设计实验室阶段一：真实组件、44 个夹具状态、逐板截图对账，不接线 | ✅ |
 | [2026-09-06-agent-panel-v4-wiring.md](2026-09-06-agent-panel-v4-wiring.md) | Agent 面板 v4 阶段二·接线：v4 每构件 ← 宿主字段映射表、8 条宿主缺字段、47 文件 4880 行删除清单、20+ 走查迁移面，含**待拍板 5 条** | 📋 |
+| [2026-09-07-agent-runtime-rebuild.md](2026-09-07-agent-runtime-rebuild.md) | **Agent 运行时重做方案**（用户 09-06 拍板「整体错了就重做」）：重做/保留七对七边界、以 pi lane 为运行时与转录真相源的九层目标架构、模型优先工具契约规范、切换同 commit 删旧与旧数据分档迁移、8 条验收门、6 阶段与在途分支处置、**3 条待拍板岔路**、两条重做期门岗草案 | 📋 |
 | [2026-09-05-editing-panel-t1.md](2026-09-05-editing-panel-t1.md) | T1 面板系统、属性面板、transport 与 layout capability | 🚧 |
 | [2026-09-05-resident-composer-receipt-fix.md](2026-09-05-resident-composer-receipt-fix.md) | 常驻 Agent 收据旅程修复：删掉旅程对模式弹层审批入口的依赖，改用真实审批卡/拒绝/收据断言 | ✅ |
 | [2026-09-05-proposal-transition-table.md](2026-09-05-proposal-transition-table.md) | **Agent Host proposal 转换表**：(来源域×目标域×状态×动作) 做成显式数据表，reducer 只查表，拒绝带格子坐标；`document→canvas` 是显式关闭格 | ✅ |
