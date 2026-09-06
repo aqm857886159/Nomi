@@ -3,12 +3,12 @@
 // 前面 redact.test.ts 钉的是脱敏函数本身；这里钉的是「一条真实调用走完整条路之后，
 // 盘上那个文件里到底有什么」——两者缺一不可：函数对了但 logger 忘了调它，
 // 只有这一层能发现。
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import { app } from "electron";
 import { dailyLogFileName } from "./logFiles";
-import { currentLogFile, logError, logInfo, logVendorCall, logWarn } from "./logger";
+import { currentLogFile, logError, logInfo, logVendorCall, logWarn, markStderrAsDiagnosticSurface } from "./logger";
 
 function readLog(): string {
   const file = path.join(app.getPath("logs"), dailyLogFileName(new Date()));
@@ -67,5 +67,27 @@ describe("落盘出口", () => {
     logVendorCall({ vendor: "api.kie.ai", model: "veo-3", status: 200, ms: 12 });
     const line = readLog().split("\n").find((l) => l.includes("api.kie.ai")) || "";
     expect(line).toContain("INFO ");
+  });
+});
+
+// MCP stdio 进程里 stderr 不是「开发时的终端」，而是**宿主协议面**：stdout 整条让给了 JSON-RPC，
+// 宿主（Claude Code / Codex）唯一能看见我们诊断的地方就是 stderr。日志收口那次差点把它当成
+// dev 便利关掉（打包版 mirrorToStderr 直接 return）——那样一来真实宿主拉起的打包版会彻底哑掉，
+// 而 L1 回归跑的是未打包实例，看不见这个洞。这条测试就是那个洞的锁：
+// 单测环境里 electron stub 没有 isPackaged（→ 按已打包处理），点了开关仍必须写出去。
+describe("宿主协议面（stderr）", () => {
+  it("被标记成宿主诊断面后，打包态也照样同步写 stderr", () => {
+    const written: string[] = [];
+    const spy = vi.spyOn(process.stderr, "write").mockImplementation((chunk: unknown) => {
+      written.push(String(chunk));
+      return true;
+    });
+    try {
+      markStderrAsDiagnosticSurface();
+      logWarn("mcp", "probe-host-surface", { limitBytes: 4194304 });
+    } finally {
+      spy.mockRestore();
+    }
+    expect(written.join("")).toContain("[nomi:mcp] probe-host-surface limitBytes=4194304");
   });
 });

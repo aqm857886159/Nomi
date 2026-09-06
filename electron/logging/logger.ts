@@ -116,12 +116,32 @@ function isPackaged(): boolean {
 }
 
 /**
+ * 有些进程的 stderr **不是**「开发时的终端」，而是产品面的一部分：MCP stdio 服务器把 stdout
+ * 整条让给了 JSON-RPC，宿主（Claude Code / Codex）唯一能看见我们诊断的地方就是 stderr——
+ * 它按行读、写进自己的 MCP 日志，用户报「Nomi 这个工具调不通」时我们要的就是那几行。
+ *
+ * 所以这类进程要在启动时点一次这个开关：它们的 stderr 在**打包版里也必须照写**（真实宿主
+ * 拉起的正是打包版）。落盘那条道不能替代它——盘上的文件在用户机器里，宿主看不到。
+ *
+ * 单向、进程级：诊断面只会被打开，不会被关掉（一个能关的开关等于给「日志怎么又没了」
+ * 留了第二种成因）。
+ */
+let stderrIsHostDiagnosticSurface = false;
+
+export function markStderrAsDiagnosticSurface(): void {
+  stderrIsHostDiagnosticSurface = true;
+}
+
+/**
  * 开发态把日志同时喷到 stderr —— 收口 console.* 不该让开发时的终端变哑。
  * 用 `process.stderr.write` 而不是 `console.*`：后者被 `check:main-console` 硬零拦着，
  * 而这里正是那条规则唯一该有的例外（它就是那个出口本身）。
+ *
+ * 同步直写、不排队：宿主要的是「进程被拖死/退出之前那几行已经出去了」，缓冲一层就正好
+ * 丢掉最该看的那几行。
  */
 function mirrorToStderr(line: string): void {
-  if (isPackaged() && process.env.NOMI_LOG_STDERR !== "1") return;
+  if (!stderrIsHostDiagnosticSurface && isPackaged() && process.env.NOMI_LOG_STDERR !== "1") return;
   try {
     process.stderr.write(`${line}\n`);
   } catch {

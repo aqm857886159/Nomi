@@ -10,6 +10,7 @@ import readline from 'node:readline'
 import { app, safeStorage, session } from 'electron'
 import { createMcpProtocol, MCP_REQUEST_SIGNAL, type McpInvokeOptions } from './mcpProtocol'
 import { MAX_MCP_LINE_BYTES, parseMcpStdioLine } from './mcpStdioLine'
+import { MCP_CANCELLED_IN_FLIGHT_EVENT, MCP_OVERSIZED_LINE_EVENT } from './mcpStdioDiagnostics'
 import { getDesktopLocale, setDesktopLocale } from '../i18n'
 import { createDiskGateway, withPreApprovedSpend, type ProjectGateway } from './gateway'
 import { readLiveInstance, type InstanceAdvertisement } from './lockfile'
@@ -547,7 +548,7 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
     if (parsed.kind === 'blank') return
     if (parsed.kind === 'oversized') {
       // 超长行整条丢弃。无从可靠取 id（正是因为它可能根本不是一条完整 JSON）→ 按规范只记日志。
-      logWarn('mcp', 'dropped-oversized-stdin-line', { limitBytes: MAX_MCP_LINE_BYTES })
+      logWarn('mcp', MCP_OVERSIZED_LINE_EVENT, { limitBytes: MAX_MCP_LINE_BYTES })
       return
     }
     if (parsed.kind === 'parse-error') {
@@ -567,7 +568,7 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
     if (closing) return
     closing = true
     const cancelled = protocol.cancelAllInFlight('stdio disconnected')
-    if (cancelled > 0) logWarn('mcp', 'cancelled-in-flight-on-disconnect', { count: cancelled })
+    if (cancelled > 0) logWarn('mcp', MCP_CANCELLED_IN_FLIGHT_EVENT, { count: cancelled })
     protocol.dispose()
     void previewServer.close().finally(() => app.exit(0))
   }
