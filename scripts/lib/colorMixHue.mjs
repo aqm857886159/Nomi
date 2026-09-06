@@ -137,7 +137,9 @@ export function collectTokenDefinitions(contents) {
 
 /**
  * 把一个操作数解析成可能的 oklch 值列表。
- * - `transparent` → 返回 'transparent'（混色时不拖色相，实测：hue 恒等，只改 alpha）
+ * - `transparent` → 返回 'transparent'（这条**只管两个操作数之间的弧插值**：transparent 没有色相，
+ *   不会把对方往哪边拽。它**不代表** `color-mix(in oklch, X, transparent)` 整体安全——见下方
+ *   analyzeHueDrift 里那条 continue 的长注：低彩度的 X 会在转进 oklch 时被判 powerless、色相写成 `none`）
  * - `var(--x)` → 查表，最多跟一层别名（--nomi-track-text: var(--nomi-accent)）
  * - `oklch(...)` 字面量 → 直接解析
  * 解析不出（如该 token 本身就是 color-mix / 非 oklch 写法）→ 返回空数组 = 不下判断。
@@ -205,7 +207,14 @@ export function analyzeHueDrift(files, defs) {
     for (const mix of findOklchMixes(content)) {
       const a = resolveOperand(mix.a, defs)
       const b = resolveOperand(mix.b, defs)
-      if (a === 'transparent' || b === 'transparent') continue // 实测不拖色相，放行
+      // 与 transparent 混不构成**两操作数间**的弧插值（transparent 无色相，拽不动谁），本判据管不着，放行。
+      // ⚠️ 但这不等于「混 transparent 安全」——原注写的「实测色相恒等」只在**高彩度**操作数上成立。
+      // 2026-09-06 实锤（Chromium 140）：低彩度色转进 oklch 时色相被判 powerless 写成 `none`、彩度却留着，
+      // `none` 落地当 h=0 → 淡蓝渲染成淡粉。tailwind.config.ts 的 tokenColor() 曾用 in oklch 包住每一个
+      // token 色，--nomi-accent-soft（c≈0.015）因此全 App 显粉；改成 in oklab（直角坐标、没有色相分量）根治。
+      // 本判据靠不到那一层：出事的 token 自己就是 color-mix 写的，resolveOperand 解析不出彩度、只能返回 []。
+      // 要把这一族也机器化，得先让 resolveOperand 能递归求值嵌套 color-mix，再按彩度阈值判。
+      if (a === 'transparent' || b === 'transparent') continue
       if (!Array.isArray(a) || !Array.isArray(b) || a.length === 0 || b.length === 0) continue
       const pairs = []
       for (const ca of a) for (const cb of b) if (ca.h != null && cb.h != null) pairs.push([ca, cb])
