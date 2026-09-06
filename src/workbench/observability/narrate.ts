@@ -100,6 +100,11 @@ export type GenerationErrorKind =
   | 'input-image-blocked'
   | 'asset-upload-failed'
   | 'asset-too-large'
+  // Nomi 自己的出站安全策略把取片拦下了（私网/回环/fake-ip 未确证）。与 network 分开，因为
+  // 它的**真相和下一步都不同**：network = 上游或线路偶发，等一等重试可能就好；这条是**确定性**
+  // 的自我拒绝（同一个 URL 重试一万次都是同一堵墙），而且任务**已经付过钱**——正确的动作是去
+  // 网络设置确认代理，然后**免费重新拉取**，不是再生成一次再付一次钱。
+  | 'outbound-blocked'
   | 'server'
   | 'input'
   | 'output-truncated'
@@ -122,6 +127,7 @@ const ERROR_KEY_BY_KIND: Record<GenerationErrorKind, string> = {
   'input-image-blocked': 'inputImageBlocked',
   'asset-upload-failed': 'assetUploadFailed',
   'asset-too-large': 'assetTooLarge',
+  'outbound-blocked': 'outboundBlocked',
   server: 'server',
   input: 'input',
   'output-truncated': 'outputTruncated',
@@ -192,6 +198,9 @@ const ACTION_BY_KIND: Record<GenerationErrorKind, GenerationErrorAction> = {
   // 文件传上去再被拒）。用户真正的路是「换/压缩这个素材」——素材就在画布上连着，不需要按钮，
   // 所以主动作给「换个模型」（换一家上限更高的通道也确实可能过），重试退到次动作。
   'asset-too-large': 'switch-model',
+  // 「去模型接入」正是网络那一行的家（NetworkSection 就住在模型设置抽屉里）。绝不给 retry：
+  // 重试 = 再生成 = 再扣一次钱，而这次的钱根本没丢，只是产物还没取回来。
+  'outbound-blocked': 'open-model-access',
   quota: 'retry',
   'poll-timeout': 'retry',
   network: 'retry',

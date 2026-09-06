@@ -1,0 +1,35 @@
+{
+  "appFetchImporters": [
+    "electron/ai/buildAiSdkModel.ts",
+    "electron/ai/onboarding/modelListProbe.ts",
+    "electron/ai/onboarding/onboardingIpc.ts",
+    "electron/assets/localAssetFile.ts",
+    "electron/audioTaskRunner.ts",
+    "electron/capabilityCore/apimartGenerationProvider.ts",
+    "electron/capabilityCore/mcpLoopbackRpcRequest.test.ts",
+    "electron/capabilityCore/mcpStdioServer.ts",
+    "electron/catalog/imageEditProbe.ts",
+    "electron/catalog/multipartOperation.ts",
+    "electron/catalog/nativeEndpointProbe.ts",
+    "electron/comfyui/capabilityStore.ts",
+    "electron/comfyuiObjectInfo.ts",
+    "electron/comfyuiProbe.ts",
+    "electron/comfyuiProgressSocket.ts",
+    "electron/comfyuiTemplates.ts",
+    "electron/harness/context/agentContextHost.ts",
+    "electron/localRuntime/localTextCapabilityProbe.ts",
+    "electron/localRuntime/localTextEndpoints.ts",
+    "electron/proxyProbe.ts",
+    "electron/telemetry/aptabaseAdapter.ts",
+    "electron/vendor/vendorBaseFallback.ts"
+  ],
+  "privateHostImporters": [
+    "electron/integrationCertification/httpConnector.ts",
+    "electron/integrationCertification/integrationSession.ts",
+    "electron/localRuntime/localAiExternalProbe.ts",
+    "electron/networkHostPolicy.test.ts",
+    "electron/networkOutboundPolicy.test.ts",
+    "electron/systemProxy.ts",
+    "electron/tasks/taskResultCertification.ts"
+  ]
+}

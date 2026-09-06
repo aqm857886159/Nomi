@@ -39,6 +39,7 @@ import {
   runStoryboardBatch,
   toggleNodeLock,
 } from './exec/storyboardRowActions'
+import { recoverNodeResult } from '../../generationCanvas/runner/recoverTaskActions'
 import { canvasNodeToAssetRefs } from '../../assets/assetTypes'
 import { AssetPreviewDialog, type AssetPreviewSequenceItem } from '../../assets/AssetPreviewDialog'
 import type { AssetRef } from '../../assets/assetTypes'
@@ -272,6 +273,15 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
     const node = runtime.exec.node
     if (node) void runAction(() => regenerateShotRow(execCtx, runtime.shot, node, runtime.mode))
   }
+  /**
+   * 可找回行的**免费**续查：走画布同一条 `recoverNodeResult`（query IPC，不铸付费令牌、不弹花费确认）。
+   * 刻意**不**包进 `runAction`——那一层是给付费执行用的（busy 闸 + 失败 toast），而找回要轮询到十分钟，
+   * 把整张表锁住十分钟是另一个 bug；节点自己会翻 running / 出片 / 退回可找回，行状态跟着 derive 回来。
+   */
+  const onRecoverRow = (runtime: StoryboardRowRuntime): void => {
+    const node = runtime.exec.recoverableNode
+    if (node) void recoverNodeResult(node.id)
+  }
   const onVariantsRow = (runtime: StoryboardRowRuntime): void => {
     const node = runtime.exec.node
     if (node) void runAction(() => generateShotRowVariants(execCtx, runtime.shot, node, runtime.mode))
@@ -292,6 +302,9 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
     const node = runtime.node
     if (node) void runAction(() => regenerateAnchorCard(execCtx, runtime.anchor, node))
     else void runAction(() => generateAnchorCard(execCtx, runtime.anchor))
+  }
+  const onRecoverAnchor = (runtime: AnchorCardRuntime): void => {
+    if (runtime.node) void recoverNodeResult(runtime.node.id)
   }
   const onToggleLockAnchor = (runtime: AnchorCardRuntime): void => {
     if (runtime.node) toggleNodeLock(runtime.node.id)
@@ -350,6 +363,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
   if (batch.excluded.unlockedRefs > 0) excludedReasons.push(t('storyboardEditor.footer.reasonUnlocked', { count: batch.excluded.unlockedRefs }))
   if (batch.excluded.missingRequired > 0) excludedReasons.push(t('storyboardEditor.footer.reasonMissing', { count: batch.excluded.missingRequired }))
   if (batch.excluded.generating > 0) excludedReasons.push(t('storyboardEditor.footer.reasonGenerating', { count: batch.excluded.generating }))
+  if (batch.excluded.recoverable > 0) excludedReasons.push(t('storyboardEditor.footer.reasonRecoverable', { count: batch.excluded.recoverable }))
   if (batch.excluded.locked > 0) excludedReasons.push(t('storyboardEditor.footer.reasonLocked', { count: batch.excluded.locked }))
 
   return (
@@ -419,6 +433,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
           onRemoveAnchor={(anchorId) => setStoryboardPlan(removeAnchor(plan, anchorId))}
           onGenerateAnchor={onGenerateAnchor}
           onRegenerateAnchor={onRegenerateAnchor}
+          onRecoverAnchor={onRecoverAnchor}
           onToggleLockAnchor={onToggleLockAnchor}
           onOpenPreviewAnchor={onOpenPreviewAnchor}
           onFilterByAnchor={setFilterAnchorId}
@@ -472,6 +487,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
               onLockSelected={onLockSelected}
               onGenerateRow={onGenerateRow}
               onRegenerateRow={onRegenerateRow}
+              onRecoverRow={onRecoverRow}
               onVariantsRow={onVariantsRow}
               onToggleLockRow={onToggleLockRow}
               onOpenPreviewRow={onOpenPreviewRow}

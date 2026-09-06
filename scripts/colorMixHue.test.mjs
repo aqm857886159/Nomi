@@ -8,7 +8,10 @@ import tailwindConfig from '../tailwind.config.ts'
 import {
   HUE_DRIFT_THRESHOLD,
   analyzeHueDrift,
+  analyzeTransparentOklchMixes,
   collectTokenDefinitions,
+  findTransparentOklchMixes,
+  stripComments,
   evaluateColorMixExpression,
   hueDelta,
   mixInOklch,
@@ -140,7 +143,7 @@ describe('色相漂移门岗本身有效（守住门岗，别让它变成空转�
     expect(findings[0].pairs[0].resultHue).toBeCloseTo(346.8, 1)
   })
 
-  it('放行混 transparent（实测色相恒等，只改 alpha —— tokenColor() 那一大类安全）', () => {
+  it('混 transparent 不归色相漂移判据管（transparent 无色相、拽不动谁）—— 那一族由下面的整族禁令拦', () => {
     const findings = analyzeHueDrift(
       [
         {
@@ -161,5 +164,76 @@ describe('色相漂移门岗本身有效（守住门岗，别让它变成空转�
       defs,
     )
     expect(findings).toEqual([])
+  })
+})
+
+describe('color-mix(in oklch, X, transparent) 整族禁令（R17：先证它在修复前的写法上红）', () => {
+  // 这几行是 2026-09-06 修复前仓库里的原文（tailwind.config.ts tokenColor() / 画布 CSS / 时间轴预览 /
+  // 骨架屏 gradient / 结构测试里的硬编码断言）。tokenColor() 那一行把全 App 的 --nomi-accent-soft 染粉了。
+  const PRE_FIX = [
+    '  `color-mix(in oklch, var(${cssVar}) calc(<alpha-value> * 100%), transparent)`',
+    '  border: 1px solid color-mix(in oklch, var(--nomi-ink) 36%, transparent);',
+    '    0 0 0 1px color-mix(in oklch, var(--nomi-paper) 22%, transparent) inset,',
+    '  background: linear-gradient(90deg, transparent, color-mix(in oklch, var(--nomi-ink) 10%, transparent), transparent);',
+    "                background: box.hasBackdrop ? 'color-mix(in oklch, var(--nomi-paper) 86%, transparent)' : 'transparent',",
+    "    expect(flowStyles).toContain('color-mix(in oklch, var(--nomi-ink) 32%, transparent)')",
+  ]
+
+  it('修复前的每一种写法都抓得住（含 calc(<alpha-value>) 百分比、嵌在 gradient / JS 字符串里的）', () => {
+    const findings = analyzeTransparentOklchMixes([{ path: 'prefix.css', content: PRE_FIX.join('\n') }])
+    expect(findings.map((f) => f.line)).toEqual(PRE_FIX.map((_, i) => i + 1))
+    expect(findings[0].expression).toBe('color-mix(in oklch, var(${cssVar}) calc(<alpha-value> * 100%), transparent)')
+  })
+
+  it('操作数顺序不限：transparent 写在前面一样抓', () => {
+    expect(findTransparentOklchMixes('x: color-mix(in oklch, transparent, var(--nomi-paper) 5%);')).toHaveLength(1)
+    expect(findTransparentOklchMixes('x: color-mix(in oklch, transparent 30%, oklch(0.5 0.1 250));')).toHaveLength(1)
+  })
+
+  it('只认 transparent 这个操作数：oklch 里混两个真颜色归色相漂移判据管，这里不重复报', () => {
+    expect(findTransparentOklchMixes('x: color-mix(in oklch, var(--nomi-accent) 12%, var(--nomi-paper));')).toEqual([])
+    expect(findTransparentOklchMixes('x: color-mix(in oklch, var(--transparent-ish) 12%, var(--nomi-paper));')).toEqual([])
+  })
+
+  it('修好之后的 in oklab（和既有的 in srgb）写法一律放行', () => {
+    const fixed = PRE_FIX.map((l) => l.replace('in oklch', 'in oklab'))
+    expect(analyzeTransparentOklchMixes([{ path: 'fixed.css', content: fixed.join('\n') }])).toEqual([])
+    expect(findTransparentOklchMixes('x: color-mix(in srgb, var(--nomi-ink) 32%, transparent);')).toEqual([])
+  })
+
+  it('注释里的反例放行（tailwind.config.ts 顶部那段就逐行写着 in oklch 的实测坏值，门岗不许逼人删文档）', () => {
+    const doc = [
+      '/**',
+      ' *   color-mix(in oklch, rgb(229 238 247) 100%, transparent) → oklch(0.945 0.0155 none) = 淡粉',
+      ' *   color-mix(in oklab, rgb(229 238 247) 100%, transparent) → oklab(0.945 -0.006 -0.013) = 淡蓝 ✓',
+      ' */',
+      'const tokenColor = (v) => `color-mix(in oklab, var(${v}) calc(<alpha-value> * 100%), transparent)`',
+    ].join('\n')
+    expect(analyzeTransparentOklchMixes([{ path: 'tailwind.config.ts', content: doc }])).toEqual([])
+    // 行注释同理（.ts/.tsx/.mjs）
+    expect(
+      analyzeTransparentOklchMixes([
+        { path: 'a.ts', content: 'const x = 1 // 旧写法 color-mix(in oklch, var(--nomi-ink) 32%, transparent)' },
+      ]),
+    ).toEqual([])
+  })
+
+  it('字符串字面量里的那份照抓不误（TimelinePreview 的内联 style 就是 JS 字符串，它是活的）', () => {
+    const live = "  background: box.hasBackdrop ? 'color-mix(in oklch, var(--nomi-paper) 86%, transparent)' : 'transparent',"
+    const found = analyzeTransparentOklchMixes([{ path: 'x.tsx', content: live }])
+    expect(found).toHaveLength(1)
+    expect(found[0].expression).toBe('color-mix(in oklch, var(--nomi-paper) 86%, transparent)')
+  })
+
+  it('.css 不把 // 当行注释（裸 url(https://…) 后面的真代码不许被吃掉）', () => {
+    const css = '  background: url(https://cdn.example/a.png), color-mix(in oklch, var(--nomi-ink) 10%, transparent);'
+    expect(analyzeTransparentOklchMixes([{ path: 'a.css', content: css }])).toHaveLength(1)
+    expect(analyzeTransparentOklchMixes([{ path: 'a.css', content: '/* color-mix(in oklch, var(--nomi-ink) 10%, transparent) */' }])).toEqual([])
+  })
+
+  it('stripComments 保住行号（报错指的行要和文件里的行对得上）', () => {
+    const src = ['/* a\n   b */', 'const x = 1', '// c', 'const y = 2'].join('\n')
+    expect(stripComments(src).split('\n')).toHaveLength(src.split('\n').length)
+    expect(stripComments(src).split('\n')[2].trim()).toBe('const x = 1')
   })
 })

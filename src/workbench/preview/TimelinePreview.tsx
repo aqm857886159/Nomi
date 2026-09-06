@@ -506,7 +506,7 @@ export default function TimelinePreview({ activeClips, aspectRatio, fps, playhea
                 textAlign: 'center',
                 color: 'var(--nomi-ink)',
                 padding: box.hasBackdrop ? '0.32em 0.7em' : 0,
-                background: box.hasBackdrop ? 'color-mix(in oklch, var(--nomi-paper) 86%, transparent)' : 'transparent',
+                background: box.hasBackdrop ? 'color-mix(in oklab, var(--nomi-paper) 86%, transparent)' : 'transparent',
                 border: box.hasBackdrop ? '1px solid var(--nomi-line-soft)' : 'none',
                 borderRadius: 'var(--nomi-radius)',
                 // 折行契约：预览用 CSS 原生折行，导出 canvas 用 textLayout.wrapTextToWidth 复刻同一语义

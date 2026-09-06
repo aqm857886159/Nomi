@@ -43,6 +43,10 @@ const translations = {
     // ⚠️ 长度纪律：错误卡大标题走 classifyError.truncateLine，**超 100 字会被截尾**（那正是
     // 「该怎么办」那半句）。这两条 key 因此写得短，完整上下文留在 raw / 上游原话里。
     "tasks.noQueryOperation": "这个模型没有配置「查询结果」接口，而本次创建也没有返回任何产物——没有第二次查询可发，已按失败处理。请检查该模型的接入配置。",
+    "outbound.fakeIpBlocked": "取片被安全策略拦下：{{host}} 解析到 {{address}}（RFC 2544 段，本地代理 fake-ip 常用它做合成地址），Nomi 无法确认这是代理而不是内网，于是拒绝了下载。**已付费的任务没有丢**，上游多半已经生成好了——请到「模型设置 → 网络」确认本地代理已开启，再用「重新拉取结果」免费取回，不用重新生成。",
+    "outbound.privateAddress": "取片被安全策略拦下：{{host}} 解析到内网地址 {{address}}，Nomi 不会向内网下载产物（防止被诱导去探测你的路由器/NAS）。已付费的任务没有丢，修好 DNS 或代理后可用「重新拉取结果」免费取回。",
+    "outbound.privateHost": "这个地址指向本机或内网（{{host}}），Nomi 不会从这里下载产物。若这是你自己的本地生成后端，请在模型设置里把它配置成供应商，而不是直接填链接。",
+    "outbound.unresolvable": "找不到 {{host}} 的服务器地址（DNS 没有返回任何结果）。请检查网络或代理是否正常，然后用「重新拉取结果」免费重试。",
     "tasks.completedWithoutOutput": "供应商报告任务完成，但没有返回可用产物；已按失败处理。请检查该模型的结果接口。",
     "tasks.missingTaskId": "供应商没有返回任务编号，无法安全查询结果；已按失败处理。请检查该模型的创建接口。",
     "tasks.upstreamSaid": "（上游原话：{{detail}}）",
@@ -204,6 +208,10 @@ const translations = {
     "tasks.unrecognizedStatus": "The provider returned an unrecognized task status: “{{status}}”. It stayed that way for {{polls}} polls over {{seconds}}s, so Nomi is treating the task as failed. It may still be running on the provider side — check your provider dashboard.",
     "tasks.pollTimedOut": "Timed out waiting for the result (waited {{seconds}}s, last status: {{status}}). The task may still be running on the provider side — check your provider dashboard or fetch the result again later.",
     "tasks.noQueryOperation": "This model has no result-query operation and the create call returned nothing. Check its setup.",
+    "outbound.fakeIpBlocked": "The download was blocked by Nomi's own network policy: {{host}} resolved to {{address}} (the RFC 2544 range that local fake-IP proxies use for synthetic addresses). Nomi could not confirm a proxy is running, so it refused the download. **Your paid task is not lost** - confirm your local proxy under Model settings > Network, then use \"Re-fetch result\" to retrieve it for free. Do not regenerate.",
+    "outbound.privateAddress": "The download was blocked by Nomi's own network policy: {{host}} resolved to the private address {{address}}, and Nomi never downloads results from private networks. Your paid task is not lost - fix DNS or the proxy, then use \"Re-fetch result\" to retrieve it for free.",
+    "outbound.privateHost": "This address points at your own machine or private network ({{host}}), so Nomi will not download results from it. If it is your own local backend, configure it as a provider in model settings instead of pasting the link.",
+    "outbound.unresolvable": "No server address found for {{host}} (DNS returned nothing). Check your network or proxy, then use \"Re-fetch result\" to retry for free.",
     "tasks.completedWithoutOutput": "The provider reported completion but returned no usable output. Check this model's result endpoint.",
     "tasks.missingTaskId": "The provider did not return a task ID, so Nomi cannot safely query the result. Check this model's create endpoint.",
     "tasks.upstreamSaid": " (Upstream said: {{detail}})",

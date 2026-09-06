@@ -24,6 +24,7 @@ function row(position: number, status: StoryboardRowRuntime['exec']['status'], u
       status,
       node: url ? { id: `node-${position}`, status: 'succeeded', result: { id: `result-${position}`, type: plan.shots[position].shotKind === 'image' ? 'image' : 'video', url, createdAt: 1 }, ...(audioUrl ? { history: [{ id: `audio-${position}`, type: 'audio', url: audioUrl, createdAt: 2 }] } : {}) } as never : null,
       keyframeNode: null,
+      recoverableNode: null,
       waitingRefs: [],
       unlockedRefs: [],
       missingSlots: [],

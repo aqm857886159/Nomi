@@ -36,6 +36,11 @@ type Props = {
    */
   outputTag?: string | undefined
   onRegenerate?: (() => void) | undefined
+  /**
+   * 可找回态的**免费**动作：续查上游结果（query 不是 generate，不铸付费令牌）。
+   * 它和 `onGenerate`/`onRegenerate` 是两回事——那两条都会重新扣费，绝不能拿来当"重试"顶替它。
+   */
+  onRecover?: (() => void) | undefined
   onOpenPreview?: (() => void) | undefined
   onToggleLock?: (() => void) | undefined
   onOpenVariants?: (() => void) | undefined
@@ -154,6 +159,7 @@ export default function StoryboardFrameActions({
   variants,
   outputTag,
   onRegenerate,
+  onRecover,
   onOpenPreview,
   onToggleLock,
   onOpenVariants,
@@ -165,9 +171,11 @@ export default function StoryboardFrameActions({
   onSetAsFirstFrame,
 }: Props): JSX.Element | null {
   const { t } = useTranslation()
+  const [recovering, setRecovering] = React.useState(false)
   const hasResult = Boolean(exec.resultUrl) && (exec.status === 'done' || exec.status === 'locked')
   const failed = exec.status === 'failed'
-  if (!hasResult && !failed && variants.length === 0) return null
+  const recoverable = exec.status === 'recoverable'
+  if (!hasResult && !failed && !recoverable && variants.length === 0) return null
   const locked = exec.status === 'locked'
 
   return (
@@ -176,13 +184,33 @@ export default function StoryboardFrameActions({
         给了 gap 就会挤到第二行——第二行会让"这镜做完没有"的竖向节奏错开，正是 v6 要修的那种噪音。 */}
     <div className="flex items-center">
       {failed && onGenerate ? (
+        // 真失败的重试 = 重新生成 = 重新扣费。按钮小得只放得下两个字，所以代价写在 title/aria 上——
+        // 让"这一下要花钱"在点之前就说得出口（P3/D4：缺口明着标）。
         <button
           type="button"
           onClick={onGenerate}
+          title={t('storyboardEditor.frame.retryHint')}
+          aria-label={t('storyboardEditor.frame.retryHint')}
           className="h-6 px-2 rounded-nomi-sm border border-workbench-danger text-micro text-workbench-danger inline-flex items-center gap-1 hover:bg-workbench-danger-soft"
         >
           <IconRefresh size={12} stroke={1.8} />
           {t('storyboardEditor.frame.retry')}
+        </button>
+      ) : null}
+      {recoverable && onRecover ? (
+        // 免费续查（`recoverNodeResult` → query IPC）。中性描边、不写「重试」——写「重试」就等于
+        // 把一次免费的找回说成一次要重新付费的重跑。
+        <button
+          type="button"
+          onClick={() => { if (recovering) return; setRecovering(true); onRecover() }}
+          disabled={recovering}
+          title={t('storyboardEditor.frame.recoverableHint')}
+          aria-label={t('storyboardEditor.frame.recoverableRefetch')}
+          data-storyboard-recover="true"
+          className="h-6 px-2 rounded-nomi-sm border border-nomi-line text-micro text-nomi-ink-80 inline-flex items-center gap-1 hover:border-nomi-accent hover:text-nomi-accent disabled:opacity-50"
+        >
+          <IconRefresh size={12} stroke={1.8} className={cn(recovering && 'animate-spin')} />
+          {recovering ? t('storyboardEditor.frame.recoverableRefetching') : t('storyboardEditor.frame.recoverableRefetch')}
         </button>
       ) : null}
       {hasResult && !locked ? (
