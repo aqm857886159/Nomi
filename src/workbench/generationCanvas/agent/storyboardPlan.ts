@@ -79,6 +79,12 @@ export type PlanAnchor = {
   modelVendor?: string
   modeId?: string
   params?: Record<string, unknown>
+  /**
+   * 这张锚**自己生成时**要吃的参考（v6 §2.2：锚展开态与镜头行同一套解剖，参考列自然也同一套）。
+   * 键与 `PlanShot.referenceBindings` 同为 `ArchetypeReferenceSlotKind`。
+   * ⚠️ 本轮（实验室优先）只到形态与编辑；落画布时的 meta 投影是下一刀（见合同 §9.3 的债）。
+   */
+  referenceBindings?: Record<string, PlanReferenceBinding[]>
 }
 
 /** 一条参考绑定：url 是发送真相，其余是来源事实（供 tile 显示与「从哪来的」溯源）。 */
@@ -88,6 +94,15 @@ export type PlanReferenceBinding = {
   name?: string
   /** 引用某镜结果 / 某张参考卡时的来源节点（结果 hash 变了要能查回去）。参考卡本身也是画布节点。 */
   sourceNodeId?: string
+  /** 这条绑定来自哪张锚（有则槽 caption 用锚名，浮层里能看到锚的描述）。 */
+  anchorId?: string
+  /**
+   * **这一次引用**要模型忽略的特征（v6 §4.4，如"这镜别跟那件风衣"）。
+   * 锚自己的「描述 / 要忽略的特征」住锚上（同一张锚被 5 镜引用只写一次）；这里只存**行内临时**的那份，
+   * 不回写锚。参考图永远"多带了东西"——没有显式的忽略通道，用户唯一能做的是去 P 图或重拍一张更干净的参考，
+   * 那是把工具的缺口转嫁成用户的活。
+   */
+  ignore?: string
 }
 
 export type PlanShot = {
@@ -148,14 +163,6 @@ export type PlanShot = {
   ffDesc?: string
   /** Explicit motion description (kept separate from the rendered prompt for downstream QA/binding). */
   motionDesc?: string
-  /** Optional caption/dialogue text carried to timeline assembly without reparsing the prompt. */
-  subtitle?: string
-  dialogue?: string
-  /** Explicit editorial transition into the next shot; omitted means no authored transition metadata. */
-  transition?: {
-    type: 'cut' | 'dissolve' | 'fade' | 'match_cut' | 'whip_pan'
-    durationFrames?: number
-  }
   /**
    * 镜头内变化幅度（ViMax variation_type，W4）：**审片与生成策略的路由键**——
    * large=构图与焦点剧变（重点审转场/几何崩塌）；medium=有人进出场或转身面向镜头；
@@ -201,6 +208,13 @@ export type StoryboardPlan = {
    * 缺省 = 无分场（表按单一隐式场渲染，不显组头）。
    */
   scenes?: { id: string; title: string }[]
+  /**
+   * **整片默认画幅**（v6 §2.4.1，2026-09-05 用户拍板）。一部片子 95% 的镜头共享同一个画幅，
+   * 所以它住在方案上、不住在每一行；行级只在"这一镜真的不一样"时写 `PlanShot.params.aspect_ratio`
+   * 覆盖它。读写一律走 `storyboardAspectScope.ts`（单一 owner），缺省时那层从全镜共同值 derive，
+   * 旧 plan 因此不需要迁移脚本。
+   */
+  aspectRatio?: string
   /** 片种模板 key（如 'genre.short-drama'）；缺省 = 自由格式。骨架段/画幅默认按它 derive（C 阶段接管）。 */
   profileKey?: string
   /** skill.json 声明的片种 profile 快照；缺省时按 profileKey/自由文本 derive。 */
@@ -397,9 +411,6 @@ function storyboardShotMetadata(
   }
   if (typeof shot.ffDesc === 'string' && shot.ffDesc.trim()) metadata.ffDesc = shot.ffDesc.trim()
   if (typeof shot.motionDesc === 'string' && shot.motionDesc.trim()) metadata.motionDesc = shot.motionDesc.trim()
-  if (typeof shot.subtitle === 'string' && shot.subtitle.trim()) metadata.subtitle = shot.subtitle.trim()
-  if (typeof shot.dialogue === 'string' && shot.dialogue.trim()) metadata.dialogue = shot.dialogue.trim()
-  if (shot.transition?.type) metadata.transition = { ...shot.transition }
   if (typeof shot.lfDesc === 'string' && shot.lfDesc.trim()) metadata.lfDesc = shot.lfDesc.trim()
   if (shot.variationType) metadata.variationType = shot.variationType
   if (typeof shot.camIdx === 'number' && Number.isInteger(shot.camIdx) && shot.camIdx >= 0) metadata.camIdx = shot.camIdx

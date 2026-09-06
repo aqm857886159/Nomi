@@ -9,7 +9,8 @@ import { walkDesignLabScreen } from './design-lab/walkScreen.mjs'
 await walkDesignLabScreen({
   screen: 'host-config',
   title: '宿主接入配置',
-  // 端口由 labServer.mjs 按 worktree + 角色派生，这里只认领角色（写死端口就是全局单例）。
+  // 端口按 worktree + 角色派生（design-lab/labServer.mjs）：写死端口在这台常年 20+ worktree
+  // 的机器上一定会撞，撞了截回来的是别人分支的 UI。
   role: 'walk-host-config',
   // 这一族是 toast，贴在视口右上角、按整屏取景，所以格子按视口宽开列。
   cellWidth: 720,

@@ -1,8 +1,8 @@
 // 设计实验室走查的**共用实现**（R13 人眼判断的素材源）。零额度：纯本地渲染，不碰任何生成 API。
 //
-// 四屏（agent-panel / agent-panel-v4 / editing / host-config）走的是同一套流程，所以流程只写一份；
-// 各屏的入口文件（`tests/ux/design-lab-<屏>.walk.mjs`）只声明"哪一屏、占哪个端口角色、
-// 截多宽、接触表排几列"。
+// 各屏（agent-panel / agent-panel-v4 / editing / storyboard / host-config …）走的是同一套流程，
+// 所以流程只写一份；各屏的入口文件（`tests/ux/design-lab-<屏>.walk.mjs`）只声明
+// "哪一屏、占哪个端口角色（LAB_ROLES 里登记过的那一项）、截多宽、接触表排几列"。
 // 把流程抄两份的代价不是多几行，是**两份会漂**——其中一份悄悄少了一条断言，没人看得出来。
 //
 // 它产出两样东西：

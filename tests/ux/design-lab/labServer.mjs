@@ -29,7 +29,14 @@ import { REPO_ROOT } from './labStates.mjs'
  * 不许在别处再写一个裸端口号（那就又造出一个全局单例）。走查入口传的 `role`
  * 必须是这里登记过的一项，漏登记会被 labPortFor 当场抛，不会静默拿到一个端口。
  */
-export const LAB_ROLES = ['visual', 'walk-agent-panel', 'walk-editing', 'walk-host-config', 'walk-agent-panel-v4']
+export const LAB_ROLES = [
+  'visual',
+  'walk-agent-panel',
+  'walk-agent-panel-v4',
+  'walk-editing',
+  'walk-storyboard',
+  'walk-host-config',
+]
 
 // 每棵 worktree 分到一段连续端口，段内按角色的下标取一口。
 // 段起点 5300：避开 vite 默认的 5173、以及本仓历史上写死过的 5197/5198/5200/5202/5241。
