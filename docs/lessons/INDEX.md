@@ -75,6 +75,7 @@
 - [门岗断言不许手抄真相源的派生值，且必须与真相源同触发面](gate-assertions-must-not-copy-derived-values.md) — 看到 `>= N` 先问「N 是抄谁的」；决定落后与否的是触发面不是细心；死名字既造假红也造假绿
 - [有界性/复杂度不变量要用「计数」证，别用墙钟跑量](complexity-invariants-need-counters-not-wall-clock.md) — ✅ 已由 `check:test-waits` 第三条规则接管；留下的是门岗抓不到的那半：`fs.readFileSync(fd)` 让按路径过滤的 spy 断言恒真（实测 597 次重扫仍报 0）
 - [转发壳能让「命令一字不改」的复核纪律失真](compat-shim-keeps-command-text-changes-its-meaning.md) — 钉死的是命令文本不是它验的东西；复核前先 `git log --follow` 看它有没有被掏空成 `import './别的.test'`
+- [没进门岗的框架调研，在下一个 agent 眼里等于不存在](framework-research-must-become-gates.md) — 接框架/SDK/运行时（或它没用过的层）前必读：四列表模板 + 为什么结论必须翻译成 `check:framework-boundary` 规则；附 pi SDK 五处自研版本清单
 
 ## C. Git 交付、分支与文档改动
 

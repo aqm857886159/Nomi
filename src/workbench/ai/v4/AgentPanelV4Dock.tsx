@@ -6,6 +6,7 @@
 import React from 'react'
 import { cn } from '../../../utils/cn'
 import { IconLayoutSidebarRightCollapse, IconMessage } from './AgentPanelV4Icons'
+import { TRANSPORT_BAR_SELECTOR, transportClearanceFrom } from './agentPanelV4DockClearance'
 
 export function V4CollapsedRail({
   running = false,
@@ -69,14 +70,17 @@ function useTransportClearance(dockRef: React.RefObject<HTMLDivElement | null>):
     if (!(host instanceof HTMLElement)) return undefined
     // 量的是「宿主底边到走带条顶边」的距离，不是走带条自己的高度：播放器在条下面还留了
     // 自己的内边距，只按高度算照样会落在播放键上。每次测量重新查一次条，晚挂载的播放器也能接上。
+    // 查询范围是**宿主自己**，不是整个文档：别的面（预览面常驻在 DOM 里）那条走带条
+    // 不是这个坞的邻居，量它只会量到一个没有意义的数。
+    const findBar = (): HTMLElement | null => host.querySelector<HTMLElement>(TRANSPORT_BAR_SELECTOR)
     const measure = (): void => {
-      const bar = document.querySelector<HTMLElement>('.workbench-preview-player__control-bar')
-      setClearance(bar ? Math.max(0, host.getBoundingClientRect().bottom - bar.getBoundingClientRect().top) : 0)
+      const bar = findBar()
+      setClearance(transportClearanceFrom(host.getBoundingClientRect(), bar?.getBoundingClientRect() ?? null))
     }
     measure()
     const observer = new ResizeObserver(measure)
     observer.observe(host)
-    const bar = document.querySelector<HTMLElement>('.workbench-preview-player__control-bar')
+    const bar = findBar()
     if (bar) observer.observe(bar)
     window.addEventListener('resize', measure)
     return () => { observer.disconnect(); window.removeEventListener('resize', measure) }
