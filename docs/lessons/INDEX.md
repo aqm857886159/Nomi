@@ -93,6 +93,7 @@
 ## D. 排查与平台故障
 
 - [`ERR_INVALID_STATE` 其实是 `ReadableStream.from`](err-invalid-state-is-readablestreamfrom.md) — 栈里有 `undici:NNNN` 就别去升 Electron
+- [探测本机解析器要用真实 TLD，`.invalid` 探不到代理](reserved-tlds-cannot-probe-the-resolver.md) — 写「这台机器是不是被本地代理接管」的探针前必读：RFC 保留 TLD 被解析器就地答成 NXDOMAIN，查询根本不出门，真机上恒失效而单测全绿
 - [grep 静默跳过含 NUL 字节的文件](grep-silently-skips-files-with-nul-bytes.md) — 搜不到已知存在的符号时先 `file` / `grep -a`
 - [查重别按报错串 grep](dedupe-grep-misses-silent-copy.md) — 不抛异常的那份正好隐身，而它才是真 bug
 - [死 i18n 词条有两种成因，处置相反](dead-i18n-keys-two-causes.md) — 删之前先做「译文值 × 源码硬编码」交叉比对
