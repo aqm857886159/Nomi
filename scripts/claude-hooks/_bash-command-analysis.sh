@@ -32,12 +32,25 @@
 #     （带值），一律跳会把 `git commit -s --no-verify` 的 `--no-verify` 吞掉——那是**漏放**，
 #     比误伤更糟。所以 `-s` 不在名单里，`--strategy` 在。
 #   · 第 4、5 列此前被直接丢弃（`-c k=v` 走 `j += 2` 消费掉、`FOO=bar` 走 `continue`）。
+#
+# 2026-09-06 同批修掉的两个「命令 vs 数据」边界洞（都是**静默**的，三个闸门一起中招）：
+#   · **换行不是分隔符** —— 此前只有 `&& || ; |` 会把「命令位置」拨回来，于是多行命令
+#     **从第二行起整条隐身**：`echo hi\ngit push origin HEAD` 与
+#     `echo hi\ngit commit --no-verify` 都解析出**零个** git 调用（实测对照 origin/main 确认）。
+#     而 agent 写多行 bash 是常态——这个洞比 `-c core.hooksPath=` 那个更大。
+#     修法：词法分析前把**引号外**的换行换成 `;`，并关掉 `#` 注释（否则一个行尾 `#`
+#     会连着把后面所有行一起吞掉）。
+#   · **heredoc 正文被当成命令** —— shlex 不懂 heredoc，正文每行都进命令流；而 `|` 是
+#     分隔符，**markdown 表格**正好把表格里的词推回命令位置。实测：给 `gh pr create`
+#     用 heredoc 传一段带表格的 PR 正文（正文里在讲这些绕过写法），被 secret-guard
+#     当成真的 `git commit --no-verify` 拦下——**会误报的闸门用不了几次就会被人绕过**。
+#     修法：词法分析前整段摘掉 heredoc 正文，标记行本身保留。
 
 # 用法：ANALYSIS="$(printf '%s' "$INPUT" | analyse_bash_command)"
 # 注意：下面的 python 被单引号包住，代码里**不能出现单引号**。
 analyse_bash_command() {
   python3 -c '
-import sys, json, shlex, os
+import sys, json, shlex, os, re
 
 GLOBAL_TAKES_ARG = ("-C", "-c", "--config-env", "--exec-path", "--namespace")
 OPAQUE_TAKES_ARG = ("--git-dir", "--work-tree")
@@ -56,6 +69,55 @@ SUB_TAKES_ARG = ("-m", "--message", "-F", "--file", "-t", "--template",
 # 短选项簇（`-am "msg"`）：簇里带值的那个必须排在最后，所以只看末位字母。
 SHORT_TAKES_ARG = "mFtCcX"
 
+# heredoc 的**正文是数据，不是命令**。shlex 只做词法、不懂 heredoc，于是正文里的每一行
+# 都被当命令读——而 `|` 是 OPERATORS 之一，**markdown 表格**里的
+# `| \`git commit --no-verify\` |` 正好把后面的词推回命令位置。实测：给 `gh pr create`
+# 用 heredoc 传一段带表格的 PR 正文，被 secret-guard 当成真的 `git commit --no-verify` 拦下。
+# 所以在词法分析之前先把 heredoc 正文整段摘掉；标记行本身是真命令，保留。
+# `<<<`（here-string）不匹配（`<` 不是标识符首字符），普通命令不含 `<<` 时本函数无副作用。
+HEREDOC_RE = re.compile("<<-?[ \\t]*([\\\"\\x27]?)([A-Za-z_][A-Za-z0-9_]*)\\1")
+
+def strip_heredoc_bodies(command):
+    lines = command.split("\n")
+    kept = []
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        kept.append(line)
+        delims = [m.group(2) for m in HEREDOC_RE.finditer(line)]
+        i += 1
+        for d in delims:
+            while i < len(lines) and lines[i].strip() != d:
+                i += 1
+            if i < len(lines):
+                i += 1      # 结束标记行本身也不是命令
+    return "\n".join(kept)
+
+# **换行也是命令分隔符**。此前只有 OPERATORS 里那几个符号会把「命令位置」拨回来，
+# 于是多行命令**从第二行起整个隐身**：`echo hi\ngit commit --no-verify` 与
+# `echo hi\ngit push origin HEAD` 在旧版里都解析出零个 git 调用——三个闸门一起失明，
+# 而 agent 写多行 bash 是常态。这个洞比 `-c core.hooksPath=` 那个更大，实测确认。
+# 修法：词法分析前把**引号外**的换行换成 `;`（引号内的换行属于同一个 token，比如
+# 跨行的提交信息，必须原样留着）。只跟踪引号与反斜杠，不做完整 shell 解析——
+# 判「这个换行在不在引号里」只需要这点信息。
+def newlines_to_separators(command):
+    out = []
+    quote = None
+    esc = False
+    for ch in command:
+        if esc:
+            out.append(ch); esc = False; continue
+        if ch == "\\" and quote != "\x27":   # 单引号内反斜杠不转义
+            out.append(ch); esc = True; continue
+        if quote is not None:
+            if ch == quote:
+                quote = None
+            out.append(ch); continue
+        if ch == "\x22" or ch == "\x27":
+            quote = ch; out.append(ch); continue
+        out.append(";" if ch == "\n" else ch)
+    return "".join(out)
+
 def resolve(base, p):
     p = os.path.expanduser(p)
     if os.path.isabs(p):
@@ -63,8 +125,13 @@ def resolve(base, p):
     return os.path.normpath(os.path.join(base, p))
 
 def analyse(command, cwd):
+    command = newlines_to_separators(strip_heredoc_bodies(command))
     lex = shlex.shlex(command, posix=True, punctuation_chars=True)
     lex.whitespace_split = True
+    # 关掉 `#` 注释：换行已变成 `;`，若还认注释，一个行尾 `#` 会把**后面所有行**
+    # 一起吞掉（`echo a # 备注\ngit commit --no-verify` 将整条隐身）。关掉后 `#`
+    # 只是个普通 token，落在命令位置上顶多让那一段被跳过，不会遮住后面的分隔符。
+    lex.commenters = ""
     tokens = list(lex)
     calls = []
     cur = cwd

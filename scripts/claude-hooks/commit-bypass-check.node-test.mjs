@@ -132,6 +132,29 @@ describe('提交闸：边界——这些字样出现在**提交信息或数据�
   })
 })
 
+describe('提交闸：命令 / 数据的边界（共用理解层的两个洞，实测中各栽一次）', () => {
+  test('换行也是命令分隔符 —— 第二行起不许隐身', () => {
+    // 旧共用层只把 && || ; | 当分隔符，多行命令**从第二行起整条看不见**（三个闸门一起失明）。
+    denied('echo hi\ngit commit --no-verify -m "wip"')
+    denied('git add -A\ngit -c core.hooksPath=/dev/null commit -m "wip"')
+    // 行尾注释不许把后面的行一起吞掉。
+    denied('echo a # 备注\ngit commit --no-verify -m "wip"')
+  })
+
+  test('heredoc 正文是数据不是命令 —— 但正文之后的真命令照样要看见', () => {
+    // 实测：给 `gh pr create` 用 heredoc 传带 markdown 表格的正文时，`|` 把表格里的
+    // 词推回命令位置，secret-guard 把它当成真的 `git commit --no-verify` 拦下了。
+    allowed("gh pr create --body-file - <<'BODY'\n| 写法 | 用例 |\n|---|---|\n| `--no-verify` | `git commit --no-verify` |\nBODY")
+    allowed("cat > /tmp/note.md <<'EOF'\n禁止 git -c core.hooksPath=/dev/null commit\nEOF")
+    allowed('cat <<-EOF\n\tgit commit --no-verify\nEOF')
+    denied("cat > /tmp/note.md <<'EOF'\n| `git commit --no-verify` |\nEOF\ngit commit --no-verify -m \"wip\"")
+  })
+
+  test('跨行的提交信息仍是一个 token，不被拆成命令', () => {
+    allowed('git commit -m "第一行\n第二行提到 --no-verify"')
+  })
+})
+
 describe('提交闸：读不懂命令时 fail-closed', () => {
   test('引号不配对 + 出现绕过痕迹 → 拦（不猜）', () => {
     denied('git commit -m "未闭合 --no-verify')
