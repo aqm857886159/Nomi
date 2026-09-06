@@ -19,6 +19,7 @@
 | [2026-09-05-real-video-export-restart.md](2026-09-05-real-video-export-restart.md) | 真实视频生成→剪辑→预览→导出→关闭重启恢复旅程与证据门 | 🚧 |
 | [2026-09-05-storyboard-two-state-generation-design.md](2026-09-05-storyboard-two-state-generation-design.md) | **分镜 v6 双状态生成设计**：编辑态能力槽、生成态结果卡、模型参考矩阵、自动引用、迁移与真实验收 | 📋 |
 | [2026-09-05-storyboard-table-v6-design-contract.md](../design/2026-09-05-storyboard-table-v6-design-contract.md) | **分镜表 v6 设计合同**（方向 A，用户已拍板）：信息架构、行/锚状态表、参考列规则+六档案槽矩阵、旧版 15 条功能对账、token/选择器契约草案、不做项与验收清单；样张 `docs/design/mockups/2026-09-05-storyboard-table-v6/` | 📋 |
+| [2026-09-06-storyboard-v6-feedback-rework.md](2026-09-06-storyboard-v6-feedback-rework.md) | 分镜表 v6 五条用户反馈返工：删展开与编辑字段、参数网格、参考堆、播放旅程、剧本来源设计 | 🚧 |
 | [2026-09-05-gpt-discussion-consolidation.md](2026-09-05-gpt-discussion-consolidation.md) | GPT 讨论梳理：统一 Agent / 画布 / 视频拆解表 / Skill 站的现状对账与拍板记录 | 📋 |
 | [2026-09-05-editing-panel-design-contract.md](../design/2026-09-05-editing-panel-design-contract.md) | **剪辑面设计合同**：布局 C′ + 时间轴补齐 11 条（用户 09-05 拍板），四路实施任务书依据 | ⏳ |
 | [2026-09-04-main-convergence-follow-ups.md](2026-09-04-main-convergence-follow-ups.md) | Main 收敛后续明细；历史执行拆解，状态以总方案和 current-main 审计为准 | 📎 |

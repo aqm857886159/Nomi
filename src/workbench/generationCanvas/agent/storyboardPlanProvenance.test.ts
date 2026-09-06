@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { parseStoryboardPlan } from './storyboardPlanSchema'
 
 import {
   storyboardPlanToCreateNodesArgs,
@@ -20,17 +21,24 @@ const PLAN: StoryboardPlan = {
     prompt: '镜头缓慢推近',
     ffDesc: '首帧：雨夜窗边，中近景',
     motionDesc: '缓慢推近到主角侧脸',
-    subtitle: '你终于来了。',
-    dialogue: '你终于来了。',
     lfDesc: '尾帧：主角抬头看向窗外',
     variationType: 'small',
     camIdx: 2,
     continuity: '沿用上一镜的雨夜窗边与冷蓝光',
-    transition: { type: 'dissolve', durationFrames: 6 },
   }],
 }
 
 describe('StoryboardPlan provenance', () => {
+  it('does not project legacy editorial fields into generation or accept them as shot fields', () => {
+    const legacy = { ...PLAN, shots: [{ ...PLAN.shots[0], subtitle: '旧字幕', dialogue: '旧台词', transition: { type: 'fade' } }] }
+    const parsed = parseStoryboardPlan(legacy)
+    const metadata = storyboardPlanToCreateNodesArgs(legacy).nodes.find((node) => node.clientId === 'shot-stable-1')?.metadata
+    for (const key of ['subtitle', 'dialogue', 'transition']) {
+      expect(parsed.shots[0]).not.toHaveProperty(key)
+      expect(metadata).not.toHaveProperty(key)
+    }
+  })
+
   it('preserves source script version and hash in storyboard artifact', () => {
     const args = storyboardPlanToCreateNodesArgs(PLAN)
 
@@ -49,14 +57,11 @@ describe('StoryboardPlan provenance', () => {
       sourceScriptHash: 'script-hash-v3',
       ffDesc: '首帧：雨夜窗边，中近景',
       motionDesc: '缓慢推近到主角侧脸',
-      subtitle: '你终于来了。',
-      dialogue: '你终于来了。',
-      lfDesc: '尾帧：主角抬头看向窗外',
+          lfDesc: '尾帧：主角抬头看向窗外',
       variationType: 'small',
       camIdx: 2,
       continuity: '沿用上一镜的雨夜窗边与冷蓝光',
-      transition: { type: 'dissolve', durationFrames: 6 },
-    })
+      })
   })
 
   it('derives a stable shot id for legacy plans that do not have one', () => {
