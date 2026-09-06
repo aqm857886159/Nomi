@@ -101,7 +101,7 @@ async function runProductionTextPlanner(input: {
       ? [
           '你是分镜规划师。请根据下面的原分镜方案和修改要求，输出一份完整、可执行的 StoryboardPlan JSON。',
           '只输出 JSON，不要 Markdown、解释或代码围栏。必须包含 title、anchors、shots；每个 shot 必须包含 index、durationSec、anchorIds、prompt。',
-          '允许的 shot 字段：shotId、shotKind(image|video)、durationSec、anchorIds、prompt、modelKey、modeId、params、ffDesc、motionDesc、lfDesc、subtitle、dialogue、variationType(large|medium|small)、camIdx、continuity、transition({type:cut|dissolve|fade|match_cut|whip_pan,durationFrames?})、keyframe。',
+          '允许的 shot 字段：shotId、shotKind(image|video)、durationSec、anchorIds、prompt、modelKey、modeId、params、ffDesc、motionDesc、variationType(large|medium|small)、camIdx、continuity、keyframe。',
           `修改要求：${input.instruction || '保持原方案，只修正明显问题。'}`,
           '原分镜方案：',
           input.source || '',

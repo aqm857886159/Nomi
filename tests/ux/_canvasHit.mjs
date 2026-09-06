@@ -154,3 +154,44 @@ export async function findEdgeHitPoint(
     },
   )
 }
+
+/**
+ * 找这张卡上**真的点得到**的那一点：在卡的外接盒里按比例取样，返回第一个
+ * 「最顶层元素就在这张卡里、且不是卡上的按钮」的屏幕点。
+ *
+ * 为什么不能 `locator.click({ position: { x: 20, y: 10 } })`：角上的固定偏移是拿某个
+ * 窗口宽度校准出来的。常驻 Agent 面板把 stage 压到 ~880 宽之后（CI 的 Linux runner 会把
+ * 窗口夹到 1280，走查里的 resize(1600, 1000) 静默不生效），平移过的卡片左上角会滑到
+ * 左侧竖排工具条底下或干脆出了 stage 裁切——Playwright 只会报
+ * "html intercepts pointer events"，看着像「点不动」，其实是舞台没那么宽。
+ * 用户点的是卡片本体，所以走查也该找卡片本体上还露着的那一点。
+ *
+ * @param {import('@playwright/test').Page} page
+ * @param {{ nodeSelector: string, withinSelector?: string | null }} options
+ * @returns {Promise<{ x: number, y: number } | null>} 找不到返回 null（调用方须 fail-closed）
+ */
+export async function findNodeHitPoint(page, { nodeSelector, withinSelector = CANVAS_STAGE_SELECTOR }) {
+  return page.evaluate(
+    ({ selector, within }) => {
+      const node = document.querySelector(selector)
+      const bounds = within ? document.querySelector(within)?.getBoundingClientRect() : null
+      if (!node || (within && !bounds)) return null
+      const rect = node.getBoundingClientRect()
+      const ratios = [0.12, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.88]
+      for (const ratioY of ratios) {
+        for (const ratioX of ratios) {
+          const x = rect.left + rect.width * ratioX
+          const y = rect.top + rect.height * ratioY
+          if (bounds && (x < bounds.left + 1 || x > bounds.right - 1 || y < bounds.top + 1 || y > bounds.bottom - 1)) continue
+          const hit = document.elementFromPoint(x, y)
+          if (!hit || !node.contains(hit)) continue
+          // 卡上的控件（生成、复制、句柄…）点下去是别的意思，不能拿来当「选中这张卡」。
+          if (hit.closest('button, a, input, textarea, [role="button"]')) continue
+          return { x, y }
+        }
+      }
+      return null
+    },
+    { selector: nodeSelector, within: withinSelector },
+  )
+}

@@ -17,6 +17,7 @@ import { mkdirSync, mkdtempSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { findCanvasBlankPoint } from '../tests/ux/_canvasHit.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/canvas-image-sharpness')
@@ -83,22 +84,8 @@ const measure = () => getWin().evaluate(() => {
 })
 
 async function findBlankPoint() {
-  return getWin().evaluate(() => {
-    const stage = document.querySelector('.generation-canvas-v2__stage')
-    if (!stage) return null
-    const rect = stage.getBoundingClientRect()
-    for (const ry of [0.35, 0.5, 0.65, 0.8]) {
-      for (const rx of [0.6, 0.7, 0.8, 0.5, 0.4]) {
-        const x = rect.left + rect.width * rx
-        const y = rect.top + rect.height * ry
-        const hit = document.elementFromPoint(x, y)
-        if (!hit || !stage.contains(hit)) continue
-        if (hit.closest('.generation-canvas-v2-node, .generation-canvas-v2-toolbar, .generation-canvas-v2__zoom-bar, .generation-canvas-v2__selection-toolbar, .generation-canvas-v2__minimap, .generation-canvas-v2__navigation-stack, button, input, textarea, [role="menu"]')) continue
-        return { x: Math.round(x), y: Math.round(y) }
-      }
-    }
-    return null
-  })
+  // 空白判据住在 tests/ux/_canvasHit.mjs（单一 owner）：最顶层元素就是 React Flow pane。
+  return findCanvasBlankPoint(getWin())
 }
 
 try {

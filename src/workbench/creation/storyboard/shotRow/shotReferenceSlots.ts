@@ -38,21 +38,31 @@ export function storyboardAssetSlots(mode: ArchetypeMode | null | undefined): As
   }))
 }
 
+/**
+ * 绑定桶的**记录级**类型。镜头行与（v6 §2.2 展开态的）锚行共用同一套参考列解剖，
+ * 所以这一层的纯函数按**绑定记录**写，不按 PlanShot 写——PlanShot 版是它薄薄的一层包装。
+ */
+export type ReferenceBindingMap = Record<string, PlanReferenceBinding[]>
+
 /** 某槽当前的有序绑定（未知/缺省 → 空）。 */
-export function shotBindingsOf(shot: PlanShot, slotKey: string): PlanReferenceBinding[] {
-  const bucket = shot.referenceBindings?.[slotKey]
+export function bindingsOf(bindings: ReferenceBindingMap | undefined, slotKey: string): PlanReferenceBinding[] {
+  const bucket = bindings?.[slotKey]
   return Array.isArray(bucket) ? bucket.filter((item) => Boolean(item?.url)) : []
 }
 
-/** AssetReference 的 valuesByKey：单槽 → url 串（空串=空），数组槽 → url 列表。 */
-export function shotBindingValues(mode: ArchetypeMode | null | undefined, shot: PlanShot): Record<string, string | string[]> {
-  const out: Record<string, string | string[]> = {}
-  for (const slot of mode?.slots ?? []) {
-    const urls = shotBindingsOf(shot, slot.kind).map((binding) => binding.url)
-    out[slot.kind] = slotAsArray(slot) ? urls : urls[0] ?? ''
-  }
-  return out
+export function shotBindingsOf(shot: PlanShot, slotKey: string): PlanReferenceBinding[] {
+  return bindingsOf(shot.referenceBindings, slotKey)
 }
+
+// `shotBindingValues`（v5 给 AssetReference 的 valuesByKey）已随 v6 参考列改版删除：
+// 那是画布节点渲染器的输入形状（数组槽合并成一排 tile），与 v6 的「一个槽一个格」不是同一件事。
+// 分镜行现在直接读 `shotBindingsOf`（见 shotReferenceCells.ts）。
+
+export type BindingAppend =
+  | { status: 'added'; next: ReferenceBindingMap }
+  | { status: 'wrong-kind'; accept: 'image' | 'video' | 'audio' }
+  | { status: 'duplicate' }
+  | { status: 'full'; max: number }
 
 export type ShotBindingAppend =
   | { status: 'added'; patch: Pick<PlanShot, 'referenceBindings'> }
@@ -61,8 +71,8 @@ export type ShotBindingAppend =
   | { status: 'full'; max: number }
 
 /** 写回一个 bucket（保留未知键：只覆盖这一个槽，别的原样带过去）。 */
-function withBucket(shot: PlanShot, slotKey: string, next: PlanReferenceBinding[]): Pick<PlanShot, 'referenceBindings'> {
-  return { referenceBindings: { ...(shot.referenceBindings ?? {}), [slotKey]: next } }
+function withBucket(bindings: ReferenceBindingMap | undefined, slotKey: string, next: PlanReferenceBinding[]): ReferenceBindingMap {
+  return { ...(bindings ?? {}), [slotKey]: next }
 }
 
 /**
@@ -72,46 +82,71 @@ function withBucket(shot: PlanShot, slotKey: string, next: PlanReferenceBinding[
  * - `full`：到声明上限（`max` 缺省 = 供应商没公布上限 → 不拦）。
  * 单槽（asArray=false）语义是**替换**，不是「满了」——首帧就一张，再选一张就是换掉它。
  */
+export function appendBinding(
+  bindings: ReferenceBindingMap | undefined,
+  slot: ArchetypeReferenceSlot,
+  binding: PlanReferenceBinding,
+  bindingKind: AssetKind,
+): BindingAppend {
+  const accept = referenceSlotAccept(slot.kind)
+  if (bindingKind !== accept) return { status: 'wrong-kind', accept }
+  const url = binding.url.trim()
+  if (!url) return { status: 'duplicate' }
+  const current = bindingsOf(bindings, slot.kind)
+  if (!slotAsArray(slot)) {
+    return { status: 'added', next: withBucket(bindings, slot.kind, [{ ...binding, url }]) }
+  }
+  if (current.some((item) => item.url === url)) return { status: 'duplicate' }
+  if (slot.max !== undefined && current.length >= slot.max) return { status: 'full', max: slot.max }
+  return { status: 'added', next: withBucket(bindings, slot.kind, [...current, { ...binding, url }]) }
+}
+
 export function appendShotBinding(
   shot: PlanShot,
   slot: ArchetypeReferenceSlot,
   binding: PlanReferenceBinding,
   bindingKind: AssetKind,
 ): ShotBindingAppend {
-  const accept = referenceSlotAccept(slot.kind)
-  if (bindingKind !== accept) return { status: 'wrong-kind', accept }
-  const url = binding.url.trim()
-  if (!url) return { status: 'duplicate' }
-  const current = shotBindingsOf(shot, slot.kind)
-  if (!slotAsArray(slot)) {
-    return { status: 'added', patch: withBucket(shot, slot.kind, [{ ...binding, url }]) }
-  }
-  if (current.some((item) => item.url === url)) return { status: 'duplicate' }
-  if (slot.max !== undefined && current.length >= slot.max) return { status: 'full', max: slot.max }
-  return { status: 'added', patch: withBucket(shot, slot.kind, [...current, { ...binding, url }]) }
+  const result = appendBinding(shot.referenceBindings, slot, binding, bindingKind)
+  return result.status === 'added' ? { status: 'added', patch: { referenceBindings: result.next } } : result
 }
 
 /** 删一条（index 越界 → 原样不动，返回 null 让调用方跳过写入）。 */
-export function removeShotBinding(shot: PlanShot, slotKey: string, index: number): Pick<PlanShot, 'referenceBindings'> | null {
-  const current = shotBindingsOf(shot, slotKey)
+export function removeBinding(bindings: ReferenceBindingMap | undefined, slotKey: string, index: number): ReferenceBindingMap | null {
+  const current = bindingsOf(bindings, slotKey)
   if (index < 0 || index >= current.length) return null
-  return withBucket(shot, slotKey, current.filter((_, position) => position !== index))
+  return withBucket(bindings, slotKey, current.filter((_, position) => position !== index))
 }
 
 /** 同槽内重排（characterIndexed 槽的 ①②③ = 发送顺序，所以顺序是语义不是装饰）。 */
+export function reorderBinding(
+  bindings: ReferenceBindingMap | undefined,
+  slotKey: string,
+  from: number,
+  to: number,
+): ReferenceBindingMap | null {
+  const current = bindingsOf(bindings, slotKey)
+  if (from === to || from < 0 || to < 0 || from >= current.length || to >= current.length) return null
+  const next = [...current]
+  const [moved] = next.splice(from, 1)
+  if (!moved) return null
+  next.splice(to, 0, moved)
+  return withBucket(bindings, slotKey, next)
+}
+
+export function removeShotBinding(shot: PlanShot, slotKey: string, index: number): Pick<PlanShot, 'referenceBindings'> | null {
+  const next = removeBinding(shot.referenceBindings, slotKey, index)
+  return next ? { referenceBindings: next } : null
+}
+
 export function reorderShotBinding(
   shot: PlanShot,
   slotKey: string,
   from: number,
   to: number,
 ): Pick<PlanShot, 'referenceBindings'> | null {
-  const current = shotBindingsOf(shot, slotKey)
-  if (from === to || from < 0 || to < 0 || from >= current.length || to >= current.length) return null
-  const next = [...current]
-  const [moved] = next.splice(from, 1)
-  if (!moved) return null
-  next.splice(to, 0, moved)
-  return withBucket(shot, slotKey, next)
+  const next = reorderBinding(shot.referenceBindings, slotKey, from, to)
+  return next ? { referenceBindings: next } : null
 }
 
 /**

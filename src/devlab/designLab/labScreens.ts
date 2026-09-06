@@ -1,12 +1,14 @@
 import { AGENT_PANEL_STATES, PANEL_HEIGHT, PANEL_WIDTH } from './agentPanelStates'
 import { EDITING_STATES } from './editing/editingStates'
+import { STORYBOARD_STATES } from './storyboard/storyboardStates'
+import { STAGE_HEIGHT, STAGE_WIDTH } from './storyboard/storyboardLabKit'
 import { EDITING_CELL_HEIGHT, EDITING_CELL_WIDTH } from './editing/editingLabKit'
 import { HOST_CONFIG_STATES } from './hostConfig/hostConfigStates'
 import { SETTINGS_STATES } from './settings/settingsStates'
 import { SETTINGS_CELL_HEIGHT, SETTINGS_CELL_WIDTH } from './settings/settingsLabKit'
 import { AGENT_PANEL_V4_STATES, V4_CELL_HEIGHT, V4_PANEL_WIDTH } from './v4/agentPanelV4States'
 import { VENDOR_ORDER_STATES } from './vendorOrder/vendorOrderStates'
-import { STAGE_HEIGHT, STAGE_WIDTH } from './vendorOrder/vendorOrderLabKit'
+import { STAGE_HEIGHT as VENDOR_ORDER_STAGE_HEIGHT, STAGE_WIDTH as VENDOR_ORDER_STAGE_WIDTH } from './vendorOrder/vendorOrderLabKit'
 import type { LabScreen, LabState } from './labScreen'
 
 /**
@@ -38,6 +40,12 @@ export const LAB_SCREENS: readonly LabScreen[] = [
     cell: { width: EDITING_CELL_WIDTH, height: EDITING_CELL_HEIGHT },
   },
   {
+    id: 'storyboard',
+    label: '分镜表 v6',
+    states: STORYBOARD_STATES,
+    cell: { width: STAGE_WIDTH, height: STAGE_HEIGHT + 120 },
+  },
+  {
     id: 'host-config',
     label: '宿主接入配置',
     // 这一族是 toast：走 Mantine 单容器 Portal 到 body、fixed 贴在视口右上角，
@@ -56,7 +64,7 @@ export const LAB_SCREENS: readonly LabScreen[] = [
     id: 'vendor-order',
     label: '供应商偏好',
     states: VENDOR_ORDER_STATES,
-    cell: { width: STAGE_WIDTH, height: STAGE_HEIGHT + 40 },
+    cell: { width: VENDOR_ORDER_STAGE_WIDTH, height: VENDOR_ORDER_STAGE_HEIGHT + 40 },
   },
 ]
 

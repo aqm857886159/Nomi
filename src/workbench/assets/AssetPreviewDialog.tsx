@@ -16,7 +16,15 @@ const Model3DViewer = React.lazy(() => import('../generationCanvas/nodes/model3d
 // 不复用 NodeMediaPreviewDialog——它 portal 到画布区、且创作页画布 hidden 时预览会挂到隐藏画布上
 // 看不到（强耦合 `.workbench-generation__canvas`）。素材库在侧边栏、跨创作/生成/预览页，必须 body
 // 全屏。只复用其视频自愈核心 useVideoPlaybackHeal（点开大图播不了时探测+转码，不再纯黑无提示）。
-export type AssetPreviewSequenceItem = { asset: AssetRef; durationSec?: number }
+export type AssetPreviewSequenceItem = {
+  asset?: AssetRef
+  durationSec?: number
+  /** Optional audio that starts with the visual result and stops with the shot. */
+  audio?: AssetRef
+  /** Empty storyboard rows remain visible as gray progress segments. */
+  playable?: boolean
+  label?: string
+}
 
 export function AssetPreviewDialog({ asset, onClose, sequence, initialIndex = 0 }: {
   asset: AssetRef
@@ -27,7 +35,10 @@ export function AssetPreviewDialog({ asset, onClose, sequence, initialIndex = 0 
 }): JSX.Element {
   const { t } = useTranslation()
   const [sequenceIndex, setSequenceIndex] = React.useState(() => Math.max(0, Math.min(initialIndex, (sequence?.length ?? 1) - 1)))
-  const current = sequence?.[sequenceIndex]?.asset ?? asset
+  const currentItem = sequence?.[sequenceIndex]
+  const current = currentItem?.asset ?? asset
+  const currentPlayable = currentItem?.playable ?? true
+  const currentAudio = currentItem?.audio
   const currentDuration = sequence?.[sequenceIndex]?.durationSec ?? 0
   const heal = useVideoPlaybackHeal({ rawUrl: current.renderUrl })
   const title = current.name || ''
@@ -61,21 +72,42 @@ export function AssetPreviewDialog({ asset, onClose, sequence, initialIndex = 0 
   }, [onClose])
 
   React.useEffect(() => {
-    if (!sequence || sequence.length === 0 || current.kind !== 'image' || currentDuration <= 0) return
+    if (!sequence || sequence.length === 0) return
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault()
+        setSequenceIndex((index) => Math.max(0, index - 1))
+      } else if (event.key === 'ArrowRight') {
+        event.preventDefault()
+        setSequenceIndex((index) => Math.min(sequence.length - 1, index + 1))
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [sequence])
+
+  React.useEffect(() => {
+    if (!sequence || sequence.length === 0 || !currentPlayable || current.kind !== 'image' || currentDuration <= 0) return
     const timer = window.setTimeout(() => {
       if (sequenceIndex + 1 < sequence.length) setSequenceIndex((index) => index + 1)
       else onClose()
     }, currentDuration * 1000)
     return () => window.clearTimeout(timer)
-  }, [current.kind, currentDuration, onClose, sequence, sequenceIndex])
+  }, [current.kind, currentDuration, currentPlayable, onClose, sequence, sequenceIndex])
 
-  const advance = (): void => {
+  const advance = React.useCallback((): void => {
     if (!sequence || sequenceIndex + 1 >= sequence.length) {
       onClose()
       return
     }
     setSequenceIndex((index) => index + 1)
-  }
+  }, [onClose, sequence, sequenceIndex])
+
+  React.useEffect(() => {
+    if (!sequence || sequence.length === 0 || currentPlayable || !sequence.some((item) => item.playable)) return
+    const timer = window.setTimeout(() => advance(), 180)
+    return () => window.clearTimeout(timer)
+  }, [advance, currentPlayable, sequence])
 
   return createPortal(
     <div
@@ -83,6 +115,7 @@ export function AssetPreviewDialog({ asset, onClose, sequence, initialIndex = 0 
       role="dialog"
       aria-modal="true"
       aria-label={t('assetLibrary.previewAria', { name: title })}
+      {...(sequence ? { 'data-storyboard-player': 'true' } : {})}
       onPointerDown={(event) => {
         if (event.target === event.currentTarget) onClose()
       }}
@@ -103,6 +136,18 @@ export function AssetPreviewDialog({ asset, onClose, sequence, initialIndex = 0 
         <IconX size={18} stroke={1.8} />
       </button>
 
+      {sequence && sequence.length > 0 ? (
+        <div className="absolute left-1/2 top-4 z-[3] flex -translate-x-1/2 items-center gap-2 rounded-full border border-nomi-paper/20 bg-nomi-overlay-chip-strong px-3 py-1.5 text-caption text-nomi-paper shadow-nomi-sm backdrop-blur-sm">
+          <button type="button" className="px-1 text-nomi-paper/80 hover:text-nomi-paper disabled:opacity-40" disabled={sequenceIndex <= 0} onClick={() => setSequenceIndex((index) => Math.max(0, index - 1))} aria-label={t('storyboardEditor.playback.previous')}>
+            ←
+          </button>
+          <span aria-live="polite">{t('storyboardEditor.playback.position', { index: sequenceIndex + 1, total: sequence.length })}</span>
+          <button type="button" className="px-1 text-nomi-paper/80 hover:text-nomi-paper disabled:opacity-40" disabled={sequenceIndex >= sequence.length - 1} onClick={() => setSequenceIndex((index) => Math.min(sequence.length - 1, index + 1))} aria-label={t('storyboardEditor.playback.next')}>
+            →
+          </button>
+        </div>
+      ) : null}
+
       {current.kind !== 'audio' ? (
         <span
           className={cn(
@@ -116,7 +161,7 @@ export function AssetPreviewDialog({ asset, onClose, sequence, initialIndex = 0 
         </span>
       ) : null}
 
-      {current.kind === 'model3d' ? (
+      {currentPlayable && current.kind === 'model3d' ? (
         <button
           type="button"
           className={cn(
@@ -149,7 +194,7 @@ export function AssetPreviewDialog({ asset, onClose, sequence, initialIndex = 0 
             <Model3DViewer url={current.renderUrl} />
           </React.Suspense>
         </div>
-      ) : current.kind === 'video' ? (
+      ) : currentPlayable && current.kind === 'video' ? (
         <div className="relative flex max-h-full max-w-full" onPointerDown={(event) => event.stopPropagation()}>
           <video
             src={heal.playbackUrl}
@@ -166,7 +211,7 @@ export function AssetPreviewDialog({ asset, onClose, sequence, initialIndex = 0 
           />
           <VideoPlaybackStatusOverlay healingText={heal.healingText} failureText={heal.failureText} className="rounded-nomi" />
         </div>
-      ) : current.kind === 'audio' ? (
+      ) : currentPlayable && current.kind === 'audio' ? (
         <div
           className="rounded-nomi bg-nomi-paper px-6 py-5 shadow-nomi-lg"
           onPointerDown={(event) => event.stopPropagation()}
@@ -175,7 +220,7 @@ export function AssetPreviewDialog({ asset, onClose, sequence, initialIndex = 0 
           {sourceName ? <div className="mb-3 max-w-[60vw] truncate text-micro text-nomi-ink-60">{t('assetLibrary.previewSource', { name: sourceName })}</div> : null}
           <audio src={current.renderUrl} controls autoPlay aria-label={title} style={{ width: 'min(60vw, 520px)' }} />
         </div>
-      ) : (
+      ) : currentPlayable ? (
         <NomiImage
           src={current.renderUrl}
           eager
@@ -183,11 +228,18 @@ export function AssetPreviewDialog({ asset, onClose, sequence, initialIndex = 0 
           className="max-h-full max-w-full rounded-nomi object-contain shadow-nomi-lg select-none"
           onPointerDown={(event) => event.stopPropagation()}
         />
+      ) : (
+        <div className="flex h-40 w-[min(70vw,560px)] items-center justify-center rounded-nomi border border-dashed border-nomi-paper/30 bg-nomi-overlay-chip-strong px-6 text-body-sm text-nomi-paper/70" data-storyboard-playback-empty-row="true">
+          {!sequence?.some((item) => item.playable) ? t('storyboardEditor.playback.allNotGenerated') : currentItem?.label || t('storyboardEditor.playback.notGenerated')}
+        </div>
       )}
-      {sequence && sequence.length > 1 ? (
-        <span className="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full border border-nomi-paper/20 bg-nomi-overlay-chip-strong px-3 py-1 text-micro text-nomi-paper shadow-nomi-sm" aria-live="polite">
-          {sequenceIndex + 1} / {sequence.length}
-        </span>
+      {currentAudio && currentPlayable ? <audio key={`${currentAudio.id}:${sequenceIndex}`} src={currentAudio.renderUrl} autoPlay aria-label={t('storyboardEditor.playback.audio')} /> : null}
+      {sequence && sequence.length > 0 ? (
+        <div className="absolute bottom-5 left-1/2 flex w-[min(86vw,760px)] -translate-x-1/2 gap-1" data-storyboard-playback-progress="true" aria-label={t('storyboardEditor.playback.progressAria')}>
+          {sequence.map((item, index) => (
+            <span key={`${item.asset?.id || item.label || 'empty'}-${index}`} className={cn('h-1 flex-1 rounded-full', !item.playable ? 'bg-nomi-paper/25' : index === sequenceIndex ? 'bg-nomi-paper' : index < sequenceIndex ? 'bg-nomi-paper/65' : 'bg-nomi-paper/40')} />
+          ))}
+        </div>
       ) : null}
     </div>,
     document.body,

@@ -1,11 +1,10 @@
-import type { AssetSlot } from '../../../assets/AssetReference'
 import type { ModelOption } from '../../../../config/models'
 import { resolveArchetypeForModel } from '../../../../config/modelArchetypes'
 import type { ArchetypeMode, ArchetypeReferenceSlot, ModelArchetype } from '../../../../config/modelArchetypes/types'
 import type { ModelParameterControl } from '../../../../config/modelCatalogMeta'
 import type { PlanAnchor, PlanShot } from '../../../generationCanvas/agent/storyboardPlan'
 import { defaultCarrierForKind } from '../../../generationCanvas/agent/storyboardPlanEdits'
-import { shotBindingValues, shotBindingsOf, storyboardAssetSlots } from './shotReferenceSlots'
+import { shotBindingsOf } from './shotReferenceSlots'
 
 /**
  * 分镜行的**纯 derive 层**（v5 表形态）：画面格红态与参考区三形态都从「该行模型的档案 mode」
@@ -70,29 +69,6 @@ export function missingRequiredSlots(
   })
 }
 
-/**
- * 参考区（第三列）的视图模型。**按档案声明逐槽出**，不再把所有数组槽压成一个匿名「@」格。
- * - `none-accepted`：该 mode 不吃参考；
- * - `slots`：声明了槽 → 画布同款 AssetSlot 描述符 + 当前值（AssetReference 渲染，上传/素材库/引用同一套）；
- * - `unknown-contract`：默认模型（无档案）契约未知 → 退回通用「@」入口，不假装知道能收什么。
- */
-export type ReferenceZoneView =
-  | { kind: 'none-accepted' }
-  | { kind: 'slots'; slots: AssetSlot[]; valuesByKey: Record<string, string | string[]>; referencedAnchors: PlanAnchor[] }
-  | { kind: 'unknown-contract'; referencedAnchors: PlanAnchor[] }
-
-export function referenceZoneView(
-  mode: ArchetypeMode | null | undefined,
-  shot: PlanShot,
-  anchors: readonly PlanAnchor[],
-): ReferenceZoneView {
-  const referencedAnchors = referencedVisualAnchors(shot, anchors)
-  if (!mode) return { kind: 'unknown-contract', referencedAnchors }
-  if (mode.slots.length === 0) return { kind: 'none-accepted' }
-  return {
-    kind: 'slots',
-    slots: storyboardAssetSlots(mode),
-    valuesByKey: shotBindingValues(mode, shot),
-    referencedAnchors,
-  }
-}
+// 参考列的视图模型**不在这一层**：v6 改成「一个槽一个格」之后它由 `shotReferenceCells.ts` 拥有
+// （v5 的 `referenceZoneView` / `ReferenceZoneView` 已随本次改版删除——它把数组槽的每一张素材
+// 都摊成一个 tile，正是行高被撑爆的成因，见合同 §4.1 规则①）。

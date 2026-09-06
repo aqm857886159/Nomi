@@ -28,6 +28,14 @@
 
 **新真相源在哪。**
 
+> **2026-09-06 补**：实验室已是**多屏**的——`agent-panel` 与 `storyboard`（分镜表 v6）。
+> 屏在 `src/devlab/designLab/labScreens.ts` 注册，取景/基线/门岗那一侧在
+> `tests/ux/design-lab/labStates.mjs` 的 `LAB_SCREENS` 登记（两处必须同时改）。
+> 下表写的是 agent-panel 那一屏；storyboard 屏的对应物是
+> `src/devlab/designLab/storyboard/storyboardStates.tsx`、
+> `tests/ux/design-lab/__baselines__/storyboard/`、`pnpm run design-lab:walk:storyboard`，
+> 覆盖判据是**分镜表 v6 设计合同的章节号**（每一节至少有一个状态在 `source` 里认领它）。
+
 | 东西 | 位置 |
 |---|---|
 | 状态注册表（21 形态 × P0 异常态 × 现役独有形态） | `src/devlab/designLab/agentPanelStates.tsx` |
