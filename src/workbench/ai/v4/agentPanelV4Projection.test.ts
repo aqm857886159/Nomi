@@ -142,7 +142,10 @@ describe('③ 一行收据 · 七态 join', () => {
   it('宿主还没说话时才看登记表', () => {
     expect(toolStatusOf(undefined, 'pending')).toBe('approval-requested')
     expect(toolStatusOf(undefined, 'approved')).toBe('approval-responded')
-    expect(toolStatusOf(undefined, 'denied')).toBe('approval-responded')
+    // 拒绝有自己的行尾字。折进 `approval-responded`（印出来是「已确认」）等于在用户
+    // 按下「不要」的那一刻把他的拒绝写成同意——真机上撞到过：宿主终态还没回来，
+    // 那一行就已经写着「已确认」，而且模型立刻又提了一次，这行「已确认」会一直挂着。
+    expect(toolStatusOf(undefined, 'denied')).toBe('output-denied')
     expect(toolStatusOf(undefined, undefined)).toBe('input-available')
   })
 
