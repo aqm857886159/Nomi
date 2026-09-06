@@ -11,7 +11,7 @@
 
 | 文件 | 一句话 | 状态 |
 |---|---|---|
-| [2026-09-06-agent-architecture-master-plan.md](2026-09-06-agent-architecture-master-plan.md) | **Agent 架构总体方案**（配套评审 [`docs/audit/2026-09-06-agent-architecture-review.md`](../audit/2026-09-06-agent-architecture-review.md)）：「我们接了 pi 但没在用 pi」——有序 parts 通道、工具契约不再对模型说谎、pi 关掉的重试/思考/价格三样各给归属；P0–P3 分阶段、三条 R3 岔路（转录真相源 / 工具收敛度 / MCP 对等）、六角色评审与在途分支合流顺序 | 📋 |
+| [2026-09-06-agent-architecture-master-plan.md](2026-09-06-agent-architecture-master-plan.md) | **Agent 架构总体方案**（配套评审 [`docs/audit/2026-09-06-agent-architecture-review.md`](../audit/2026-09-06-agent-architecture-review.md)）：「我们接了 pi 但没在用 pi」——有序 parts 通道、工具契约不再对模型说谎、pi 关掉的重试/思考/价格三样各给归属；P0–P3 分阶段、三条 R3 岔路（转录真相源 / 工具收敛度 / MCP 对等）、六角色评审与在途分支合流顺序；**⛔ 2026-09-07 被 [2026-09-07-agent-runtime-rebuild.md](2026-09-07-agent-runtime-rebuild.md) 取代（用户改判重做）** | ⛔ |
 | [2026-09-05-gpt-discussion-consolidation.md](2026-09-05-gpt-discussion-consolidation.md) | GPT 讨论梳理：统一 Agent/画布/视频拆解表/Skill 聚合的现状对账、三项被推翻旧结论与待拍板入口 | 📋 |
 | [2026-09-05-nomi-unified-agent-canvas-skill-collection.md](2026-09-05-nomi-unified-agent-canvas-skill-collection.md) | 统一 Agent、画布与 Skill 聚合区的需求入口、母表和总体方案索引 | 📋 |
 | [2026-09-04-nomi-convergence-execution-plan.md](2026-09-04-nomi-convergence-execution-plan.md) | **Nomi 收敛总执行方案**：以 M0–M5 为主轴，统一 Agent/MCP/分镜表/画布/视频/TikHub/真实 Provider/持久化/重启/视觉和 PR 收敛门槛；current baseline `origin/main@8ff53610`，#471 UI 合同与 #474 Skill 修复已合入但主轴未毕业 | 🚧 |
@@ -28,7 +28,8 @@
 | [2026-09-05-agent-ui-a-composer.md](2026-09-05-agent-ui-a-composer.md) | Agent UI A 段：composer 五按钮调序、模式弹层收敛、运行呼吸光与分镜入口 | 🚧 |
 | [2026-09-06-agent-panel-v4-lab.md](2026-09-06-agent-panel-v4-lab.md) | Agent 面板 v4 设计实验室阶段一：真实组件、44 个夹具状态、逐板截图对账，不接线 | ✅ |
 | [2026-09-06-agent-panel-v4-wiring.md](2026-09-06-agent-panel-v4-wiring.md) | Agent 面板 v4 阶段二·接线：v4 每构件 ← 宿主字段映射表、8 条宿主缺字段、47 文件 4880 行删除清单、20+ 走查迁移面，含**待拍板 5 条** | 📋 |
-| [2026-09-06-agent-tool-layer-root-fix.md](2026-09-06-agent-tool-layer-root-fix.md) | **Agent 工具层根修**：回合有序 parts 流（`turnSeq`）、可行动工具错误 + 边界容忍、工具契约收敛（合并同 schema 的 `nomi_canvas_plan`/`edit`、拆 9 分支 union、补描述/示例/枚举）、一次写对率评测；上游证据 `docs/audit/2026-09-06-agent-tool-layer-audit.md`（真机 `canvas.write` 18 次调用 0 次通过） | 📋 |
+| [2026-09-06-agent-tool-layer-root-fix.md](2026-09-06-agent-tool-layer-root-fix.md) | **Agent 工具层根修**：回合有序 parts 流（`turnSeq`）、可行动工具错误 + 边界容忍、工具契约收敛（合并同 schema 的 `nomi_canvas_plan`/`edit`、拆 9 分支 union、补描述/示例/枚举）、一次写对率评测；上游证据 `docs/audit/2026-09-06-agent-tool-layer-audit.md`（真机 `canvas.write` 18 次调用 0 次通过）；**⛔ 2026-09-07 被 [2026-09-07-agent-runtime-rebuild.md](2026-09-07-agent-runtime-rebuild.md) 取代（用户改判重做）** | ⛔ |
+| [2026-09-07-agent-runtime-rebuild.md](2026-09-07-agent-runtime-rebuild.md) | **Agent 运行时重做方案**（用户 09-06 拍板「整体错了就重做」）：重做/保留七对七边界、以 pi lane 为运行时与转录真相源的九层目标架构、模型优先工具契约规范、切换同 commit 删旧与旧数据分档迁移、8 条验收门、6 阶段与在途分支处置、**3 条待拍板岔路**、两条重做期门岗草案 | 📋 |
 | [2026-09-05-editing-panel-t1.md](2026-09-05-editing-panel-t1.md) | T1 面板系统、属性面板、transport 与 layout capability | 🚧 |
 | [2026-09-05-resident-composer-receipt-fix.md](2026-09-05-resident-composer-receipt-fix.md) | 常驻 Agent 收据旅程修复：删掉旅程对模式弹层审批入口的依赖，改用真实审批卡/拒绝/收据断言 | ✅ |
 | [2026-09-05-proposal-transition-table.md](2026-09-05-proposal-transition-table.md) | **Agent Host proposal 转换表**：(来源域×目标域×状态×动作) 做成显式数据表，reducer 只查表，拒绝带格子坐标；`document→canvas` 是显式关闭格 | ✅ |
