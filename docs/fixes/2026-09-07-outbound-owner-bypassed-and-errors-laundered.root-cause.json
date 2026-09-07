@@ -1,0 +1,213 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-07-outbound-owner-bypassed-and-errors-laundered",
+  "problem_type": "A declared policy owner is consulted by only some callers and bypassed by the rest, and the refusal it does produce is laundered into a contentless string before it reaches the user",
+  "symptom": "After the first round (PR #563) the retrieval half of a generation asks networkOutboundPolicy before downloading an artifact, but two holes remain and both are user-visible. (1) The submit/poll half -- the half that spends money -- still applies no destination policy at all, so on a fake-IP machine Nomi will happily send a credential-bearing POST to a destination it would refuse to read back from; the asymmetry the first round removed simply runs in the opposite direction. (2) On the retrieval side the name-layer verdict (is this host private) lived inside hardenedFetch's own assertSafeUrl rather than in the policy owner, and the `if (!applicationProxyActive())` condition that skipped the address layer was written at the call site. Skipping the address layer under a proxy is itself correct -- the proxy resolves, so the local answer never participates in the connection -- but with both the verdict and the condition owned by the caller, the next outbound path copies them and the owner splits in two again. The caller's own origin exception also treated 169.254 like any other private address, so declaring a metadata endpoint as a provider bought access to it. Separately, whatever refusal did get produced could be erased before display: the generation path carried eight independent `error.message ? error.message : '生成失败'` / `|| 'Generation failed'` fallbacks, so a message that said 'your money is safe, go confirm your proxy, then re-fetch for free' could reach the error card as the two characters '生成失败' -- identical to the status badge directly above it.",
+  "direct_cause": "vendorHttp.requestVendor went straight from URL assembly to fetchVendorWithBaseFallback with no policy call. In hardenedFetch the address-layer classification was guarded by `if (!privateAllowed && !applicationProxyActive())` and the name-layer verdict was inlined in assertSafeUrl via a local isPrivateHost call plus a local origin-exception helper, so both the rule and the route condition were owned by the caller. And every place that had to turn an `unknown` into a string for node.error wrote its own literal fallback, each of which discards the error's message, class name, and any NOMI_ERR machine code it carried.",
+  "class_root": "A policy owner only owns what it is asked. Two shapes let a caller stop asking: not calling it at all (submit), and re-deriving the verdict locally while interpreting the route itself (`isPrivateHost` inline plus `if (proxyActive) skip the address layer`). Both re-create the split the owner exists to remove, because the condition lives in the caller and the next outbound path copies it. The parallel invariant on the reporting side: an error is a carrier of a machine code plus an actionable sentence, and any site that may replace it with a generic literal is an unowned decision point that silently destroys both. The missing invariant in both halves is the same -- one owner, asked unconditionally, with the judged object (address vs name, message vs class name) varying instead of the judging itself being switched off.",
+  "affected_population": [
+    "Every user on a fake-IP / TUN local proxy whose submit request now leaves the machine unchecked, including toward link-local 169.254 metadata endpoints reachable via a mistyped or hostile baseUrl -- and the submit request carries the user's API key",
+    "Every user with an application-level system proxy or a per-provider Vendor.network.proxyUrl: on that route the retrieval half performed no destination check whatsoever, so a private or metadata destination was reachable through the proxy",
+    "Every user of every generation kind (image, video, audio, 3D, text stream) on any failure whose error object lacked a message or was not an Error: the error card showed a phrase identical to the status badge and no next step",
+    "Every future outbound call site, which is the reason this is a boundary fix and not three call-site fixes"
+  ],
+  "scope_paths": [
+    "electron/networkOutboundPolicy.ts",
+    "electron/networkOutboundMessage.ts",
+    "electron/hardenedFetch.ts",
+    "electron/vendor/vendorHttp.ts",
+    "electron/vendor/vendorOutboundGuard.ts",
+    "electron/shared/nomiErrorCodes.ts",
+    "electron/ai/aiSdkVendorError.ts",
+    "electron/i18n.ts",
+    "src/workbench/observability/opaqueFailure.ts",
+    "src/workbench/observability/classifyError.ts",
+    "src/workbench/observability/narrate.ts",
+    "src/workbench/api/taskApi.ts",
+    "src/workbench/generationCanvas/runner/generationRunController.ts",
+    "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
+    "src/workbench/generationCanvas/store/canvasRunActions.ts",
+    "src/i18n/locales/generationCommon.ts",
+    "scripts/check-outbound-policy.mjs"
+  ],
+  "entry_points": [
+    "Submit and poll: vendorHttp.requestVendor, reached by every catalog task creation and every status poll on every provider",
+    "Retrieval: hardenedFetch, reached by artifact localization, remote asset import and web media download",
+    "Display: every site that converts an unknown thrown value into the string stored in node.error and read by classifyGenerationError"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://gitlab.com/gitlab-org/gitlab/-/work_items/378267",
+      "checked_at": "2026-09-07",
+      "purpose": "Same class in another product: GitLab disables DNS-rebinding protection outright when HTTP_PROXY/HTTPS_PROXY is set, because a proxy-only host cannot resolve names locally. Checked to confirm the failure mode is real and that the default industry reaction is exactly the escape hatch this fix refuses; the finding is a warning, not a design to copy."
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/stripe/smokescreen/blob/master/README.md",
+      "checked_at": "2026-09-07",
+      "purpose": "The alternative same-class solution: push classification down into a CONNECT proxy that resolves and filters centrally. Checked to establish why it is not available to us -- on the desktop the proxy is the user's own Clash/Surge, outside our control, so the name layer must stay self-judged."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://curl.se/docs/manpage.html#--socks5-hostname",
+      "checked_at": "2026-09-07",
+      "purpose": "Primary evidence for the route-dependent judged object: with --socks5 the client resolves, with --socks5-hostname/socks5h the proxy resolves. Under a proxy route the local DNS answer does not participate in the connection, so classifying it would judge a destination that does not exist -- hence classify the name, not skip the check."
+    }
+  ],
+  "invariants": [
+    "Every outbound request in the main process is authorized by exactly one function, authorizeOutboundDestination, before any byte leaves the machine",
+    "That function is called on every route; the route selects what is judged (resolved address plus pinning for direct, hostname for proxy) and never whether judging happens",
+    "Link-local and metadata ranges (169.254.0.0/16, fe80::/10) are refused even when an origin is explicitly declared by the user",
+    "A refusal raised before the transport call means the provider was never contacted, therefore was never billed, and must be reported with a distinct machine code from a refusal raised during retrieval",
+    "No production code substitutes a generic failure phrase for an error it failed to understand; describeOpaqueFailure is the single owner of that decision and preserves message, machine code, or class name",
+    "A cancellation that arrives while outbound authorization is in flight aborts the request before the paid call is made; authorization is a new await window and cancellation must be honoured inside it, not swallowed."
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/networkOutboundPolicy.ts",
+    "tests": [
+      "electron/vendor/vendorOutboundGuard.test.ts",
+      "electron/hardenedFetch.test.ts",
+      "electron/networkOutboundPolicy.test.ts",
+      "src/workbench/generationCanvas/runner/outboundBlockedRecoverable.test.ts"
+    ],
+    "note": "authorizeOutboundDestination owns 'may this request leave the machine, and judged how'. Both halves call it: vendorOutboundGuard before the paid transport, hardenedFetch on every redirect hop. The proxy route is covered by mutation - restoring the old early return turns the guard and hardenedFetch suites red. The reporting half of the invariant (an error must carry its machine code and an actionable sentence) is owned by src/workbench/observability/opaqueFailure.ts, pinned by opaqueFailure.test.ts and enforced statically by check-outbound-policy rule 4."
+  },
+  "generality_proof": "Both holes were caller-side conditions over a shared owner, so the fix is to remove the condition rather than to widen the owner. authorizeOutboundDestination is now the only outbound authorization entry: hardenedFetch calls it on every redirect hop with route direct or proxy, and vendorOutboundGuard calls it before fetchVendorWithBaseFallback. Because the route only selects the judged object, no caller can reach a state where nothing is judged; check:check-outbound-policy freezes the 22 appFetch importers and 7 isPrivateHost importers so a third classification site cannot appear unnoticed. On the reporting side the invariant is enforced by a hard-zero gate rule over the fallback syntax positions (||, ??, ternary) across the whole production tree rather than over the specific files that happened to be wrong, so a new call site written next month is caught by the same rule. Both halves are proved by mutation: restoring `if (route === 'proxy') return allowed` turns the guard and hardenedFetch suites red, un-splitting the two outbound codes turns the submit suite red, and restoring a literal fallback turns the gate red.",
+  "shared_boundaries": [
+    {
+      "path": "electron/networkOutboundPolicy.ts",
+      "symbol": "authorizeOutboundDestination",
+      "responsibility": "The only place an outbound destination is authorized. Applies the name layer on every route (private literals, localhost, link-local, declared-origin exceptions) and the address layer plus DNS pinning on the direct route, reading one process-wide environment snapshot so submit and retrieval cannot disagree."
+    },
+    {
+      "path": "electron/vendor/vendorOutboundGuard.ts",
+      "symbol": "authorizeSubmitDestination",
+      "responsibility": "The submit half of that owner. Runs before any transport call so a refusal provably precedes billing, translates the verdict into the submit-stage machine code and sentence, and declines to convert DNS resolution failures into security refusals."
+    },
+    {
+      "path": "electron/networkOutboundMessage.ts",
+      "symbol": "describeOutboundRefusal",
+      "responsibility": "Owns the stage split between outbound-blocked and outbound-blocked-submit, so that the sentence about what happened to the user's money is derived from where the refusal occurred rather than written by hand at each call site."
+    },
+    {
+      "path": "src/workbench/observability/opaqueFailure.ts",
+      "symbol": "describeOpaqueFailure",
+      "responsibility": "The only permitted way to turn an unknown thrown value into a stored error string. Preserves an existing message verbatim (machine codes and upstream wording depend on it), falls back to the error's declared or constructor name, and only then to an i18n sentence that is deliberately different from the status badge."
+    },
+    {
+      "path": "scripts/check-outbound-policy.mjs",
+      "symbol": "ERROR_LAUNDERING",
+      "responsibility": "Static hard-zero enforcement of the reporting invariant across the whole production tree, with message catalogs and comment lines exempt because the phrase itself is legitimate there."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/vendor/vendorHttp.ts",
+      "entry_point": "requestVendor",
+      "disposition": "enforced",
+      "evidence": "Every catalog task creation and status poll on every provider funnels through this one function; it now calls authorizeSubmitDestination before providerDispatcher's transport is used, and throws a non-retryable VendorRequestError carrying the submit-stage code."
+    },
+    {
+      "path": "electron/hardenedFetch.ts",
+      "entry_point": "hardenedFetch",
+      "disposition": "enforced",
+      "evidence": "The `!applicationProxyActive()` guard around classification is gone; the owner is now asked on every hop with an explicit route, and the returned pinned addresses drive the dispatcher only on the direct route. Tested with an active application proxy and with an explicit per-provider dispatcher, both of which still refuse private literals."
+    },
+    {
+      "path": "electron/catalog/customCallRunner.ts",
+      "entry_point": "runCustomCall",
+      "disposition": "enforced",
+      "evidence": "Custom provider calls reach the network through requestJson/requestMultipart in vendorHttp, so they inherit the submit authorization without a second call site; the file's own header records that it deliberately performs no independent SSRF check, which is now correct rather than a gap."
+    },
+    {
+      "path": "electron/comfyuiProbe.ts",
+      "entry_point": "probeComfyuiSystemStats",
+      "disposition": "not-affected",
+      "evidence": "A user-configured local backend, addressed as an explicitly declared origin rather than as an unchecked exemption. The name layer grants it through matchesDeclaredOrigin, and the vendorOutboundGuard suite asserts that the same loopback address on a different port is still refused, so the exception cannot widen into 'loopback is fine'."
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
+      "entry_point": "recoverNodeResult",
+      "disposition": "enforced",
+      "evidence": "The free re-fetch path is where an outbound refusal most often lands, and its catch previously replaced the message with the literal '拉取结果失败', destroying the machine code the error card classifies on. It now routes through describeOpaqueFailure."
+    },
+    {
+      "path": "electron/ai/aiSdkVendorError.ts",
+      "entry_point": "vendorErrorFromAiSdkError",
+      "disposition": "enforced",
+      "evidence": "The provider-response end of the chain: with no HTTP status the whole error collapsed into the literal '请求失败'. It now reports the AI SDK error's own class name, which is a real clue; the file must stay electron-free so it cannot use desktopT, and the gate accepts a class name because the rule targets contentless literals, not all fallbacks."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Both shapes recur by construction. A caller-side `if (route/proxy/env) skip` is the cheapest way to make a policy stop complaining, and it was copied once already within this very module between the first and second round. A per-call-site literal fallback is the cheapest way to satisfy a string-typed field, and repository search found eight of them written independently by different changes over months. Neither is prevented by review attention, so both need a structural owner plus a machine judge.",
+    "same_class_scan": [
+      "git grep -n 'isApplicationProxyActive' -- electron : found the retrieval-side skip in hardenedFetch and the proxy fact source in systemProxy; no third consumer conditioning policy on it after the fix",
+      "node scripts/check-outbound-policy.mjs : freezes 22 appFetch importers and 7 isPrivateHost importers, so a new classification site or a new raw-fetch site fails the gate",
+      "grep -rnE \"(\\|\\||\\?\\?|\\?[^?:]{0,120}:)\\s*['\\\"`](生成失败|未知错误|拉取结果失败|请求失败|Generation failed|Unknown error)['\\\"`]\" --include='*.ts' --include='*.tsx' src electron : 8 production hits before the fix across api/, runner/, store/ and electron/ai/, 0 after",
+      "grep -rnE 'catch\\s*(\\([^)]*\\))?\\s*\\{\\s*\\}' over electron/vendor, electron/ai, electron/tasks, runner/, api/, observability/ : no remaining silent swallow on the generation path (the first round removed comfyCandidateTest's)",
+      "grep -rn 'String(error)' over the same roots : 5 hits, all reviewed and kept -- they preserve the original value rather than replacing it with a generic phrase, so they are outside the class"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/networkOutboundPolicy.ts",
+    "invariant": "Every outbound request is authorized by authorizeOutboundDestination before any byte leaves the machine, on every route, with the route selecting the judged object rather than whether judging occurs; and no production site substitutes a generic failure phrase for an error it failed to understand.",
+    "failure_mode": "Unknown or unresolvable state fails closed at the network boundary: an address layer with no positive fake-IP evidence refuses, link-local refuses regardless of declared origins, and a refusal is raised before the transport call so nothing is spent. On the reporting side an error with no usable content degrades to a class name plus an honest sentence rather than to a phrase that duplicates the status badge.",
+    "exception_policy": "none",
+    "strategy": "Move the condition out of the callers and into the owner. Callers may say which route they are on; only the owner decides what that implies. The reporting half is enforced statically instead of structurally because the decision points are string literals scattered across two runtimes, and a hard-zero gate over fallback syntax positions catches a new one on the day it is written.",
+    "artifacts": [
+      "electron/networkOutboundPolicy.ts",
+      "electron/vendor/vendorOutboundGuard.ts",
+      "electron/vendor/vendorHttp.ts",
+      "electron/hardenedFetch.ts",
+      "electron/networkOutboundMessage.ts",
+      "electron/shared/nomiErrorCodes.ts",
+      "src/workbench/observability/opaqueFailure.ts",
+      "scripts/check-outbound-policy.mjs"
+    ]
+  },
+  "regression_tests": [
+    "electron/vendor/vendorOutboundGuard.test.ts",
+    "electron/vendor/vendorHttp.test.ts",
+    "electron/hardenedFetch.test.ts",
+    "src/workbench/observability/opaqueFailure.test.ts",
+    "src/workbench/generationCanvas/runner/outboundBlockedRecoverable.test.ts",
+    "src/workbench/generationCanvas/runner/classifyGenerationError.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/vendor/vendorOutboundGuard.test.ts",
+    "electron/hardenedFetch.test.ts",
+    "src/workbench/observability/opaqueFailure.test.ts",
+    "src/workbench/generationCanvas/runner/outboundBlockedRecoverable.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/hardenedFetch.ts",
+      "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "src/workbench/generationCanvas/runner/recoverTaskActions.ts",
+      "src/workbench/generationCanvas/store/canvasRunActions.ts",
+      "src/workbench/api/taskApi.ts",
+      "electron/ai/aiSdkVendorError.ts"
+    ],
+    "rationale": "hardenedFetch's private-host verdict, its own isExplicitlyAllowedPrivateOrigin helper, its resolvePublicAddresses wrapper and the applicationProxyActive classification skip are deleted, not left callable beside the new path. All eight literal error fallbacks are replaced in the same change, so no old reporting path survives for the gate to grandfather."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The invariant is entirely application-level. Address classification uses node:net's BlockList, already in use in electron/networkHostPolicy.ts, and no third-party package participates in the decision; undici only carries the request after authorization.",
+    "exit_criteria": []
+  },
+  "migration": "None. node.error remains a plain string, so no persisted project file changes shape and existing error strings still classify through the same matcher. Users who previously configured a private vendor origin keep working through the declared-origin exception, with the single deliberate exception of link-local addresses, which are now refused; that is the intended behaviour change and is stated in the error sentence.",
+  "residual_risks": [
+    "The submit half authorizes but does not pin DNS. A destination that resolves public at authorization time and rebinds to private before the transport connects is not prevented here, because inserting a pinned dispatcher would take over the vendorBaseFallback and per-provider proxy transport chain -- a parallel implementation. The exposure is bounded to origins the user explicitly configured in model settings.",
+    "vendorBaseFallback's official backup domain is not re-authorized. Authorization runs once against the assembled primary URL; if that destination is allowed but the connection fails at the transport layer, the fallback re-sends to a hardcoded first-party backup host without a second policy call. The exposure is bounded because the backup list is ours and not derived from user or response data, and the common fake-IP case never reaches the fallback (the primary is refused first). Threading authorization into the fallback would require passing the policy through the transport chain and is deferred.",
+    "On the proxy route only the name is judged; a hostile public name resolved by the user's own proxy to a private address inside their network is not detectable from our side, because the resolution happens where we cannot see it. Documented rather than papered over.",
+    "The fake-IP probe establishes the environment once per process. A user who starts Nomi without a proxy and enables TUN mode afterwards keeps the old snapshot until restart; the settings Network row shows which snapshot is in force.",
+    "The error-laundering gate is lexical. A fallback written through a helper or a variable holding the generic phrase would pass it; the structural owner (describeOpaqueFailure) is what actually prevents that, and the gate only guarantees the literal shape stays extinct.",
+    "Polling liveness and automatic retired-model probing remain unimplemented and are recorded in docs/plan/2026-09-07-model-generation-core-path.md with their blocking preconditions.",
+    "The 169.254 hardening is a deliberate behaviour change: an installation that had declared a link-local address as a provider origin will now be refused at both submit and retrieval. That is intended, is stated in the refusal sentence, and has no migration because the configuration was never legitimate.",
+    "Any future unit test that reaches requestVendor and does not seed setSubmitOutboundDepsForTests will perform a real DNS lookup, and will take a different branch on a fake-IP developer machine than on CI. The guard header states the requirement and vendorHttp.test.ts carries the reference beforeEach; there is no machine gate for it yet."
+  ]
+}

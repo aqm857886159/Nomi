@@ -1,12 +1,33 @@
 import assert from "node:assert/strict";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { VendorRequestError, categorizeVendorFailure, requestBinary, requestJson } from "./vendorHttp";
+import { setSubmitOutboundDepsForTests } from "./vendorOutboundGuard";
 import type { Vendor } from "../catalog/types";
 import { buildHttpRequest, buildTemplateContext } from "../ai/requestPipeline";
 
 const vendor = { key: "kie", authType: "bearer", baseUrlHint: "https://api.kie.ai" } as unknown as Vendor;
 
-afterEach(() => { delete process.env.NOMI_VENDOR_HTTP_TIMEOUT_MS; vi.useRealTimers(); vi.unstubAllGlobals(); });
+/**
+ * 提交侧出站授权跑在每一次 requestVendor 之前，所以**本文件的每个用例都得先把网络事实钉死**。
+ * 不钉死会怎样：这里的 vendor 指向真实域名 `api.kie.ai`，授权会去做真 DNS——开发机开着 fake-ip
+ * 时解析成 198.18.x 被拦（8 条用例一起红），CI 上根本解析不出来走 unresolvable 分支放行（全绿）。
+ * 同一份断言在两台机器上走两条路，正是「本地红、线上绿」那一族。钉成「公网、无代理」这一格，
+ * 让本文件只测它该测的东西：传输层的错误分类。
+ */
+beforeEach(() => {
+  setSubmitOutboundDepsForTests({
+    resolve: async () => [{ address: "93.184.216.34", family: 4 as const }],
+    readEnvironment: async () => ({ syntheticResolver: false, syntheticSample: "" }),
+    isApplicationProxyActive: () => false,
+  });
+});
+
+afterEach(() => {
+  setSubmitOutboundDepsForTests(null);
+  delete process.env.NOMI_VENDOR_HTTP_TIMEOUT_MS;
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
 
 const stubFetch = (impl: () => Promise<Response> | Response) => vi.stubGlobal("fetch", vi.fn(async () => impl()));
 
@@ -217,6 +238,30 @@ describe("requestJson 结构化错误(S4-0,修压扁根因)", () => {
 
     await expect(pending).rejects.toThrow("cancel vendor request");
     await expect(pending).rejects.not.toBeInstanceOf(VendorRequestError);
+  });
+
+  // 出站授权是一段真的会 await（要做 DNS）的窗口，取消正好可以落在里面。这条钉的是钱：
+  // 窗口里取消 → 付费请求**一次都没发出去**，而且抛的是调用方给的取消原因，不是伪装的网络超时。
+  it("授权窗口内取消 → 原样抛取消原因，且付费请求从未发出", async () => {
+    let releaseResolve: () => void = () => {};
+    setSubmitOutboundDepsForTests({
+      resolve: () => new Promise<readonly { address: string; family: 4 | 6 }[]>((resolve) => {
+        releaseResolve = () => resolve([{ address: "93.184.216.34", family: 4 }]);
+      }),
+      readEnvironment: async () => ({ syntheticResolver: false, syntheticSample: "" }),
+      isApplicationProxyActive: () => false,
+    });
+    const fetchSpy = vi.fn(async () => new Response("{}", { status: 200 }));
+    vi.stubGlobal("fetch", fetchSpy);
+
+    const controller = new AbortController();
+    const pending = requestJson(vendor, "k", "GET", "https://x", {}, {}, null, controller.signal);
+    await Promise.resolve();
+    controller.abort(new Error("cancel during authorization"));
+    releaseResolve();
+
+    await expect(pending).rejects.toThrow("cancel during authorization");
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it("成功路径原样回 JSON", async () => {

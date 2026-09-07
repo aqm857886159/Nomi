@@ -1,0 +1,1128 @@
+{
+  "source": "tikhub",
+  "baseUrl": "https://api.tikhub.io",
+  "keyword": "动作参考 视频 深度图 骨架 AI视频生成",
+  "since": "2026-03-01",
+  "limitPerPlatform": 20,
+  "generatedAt": "2026-09-07T02:54:32.861Z",
+  "failures": [
+    {
+      "platform": "xhs",
+      "reason": "HTTP 400: {\"detail\":{\"code\":400,\"request_id\":\"b5d13e5f-f822-4b45-abf0-f0cb98057722\",\"message\":\"Request failed. Please retry. Check the docs below to verify your parameters, test with the default demo parameters, and send the response JSON to support. You won't be charged for this request.\",\"message_zh\":\"请求失败，请重试。请查看下方文档核对参数，使用默认演示参数测试，并将响应 JSON 提交给支持团队。本次请求不会被扣费。\",\"docs\":\"https://api.tikhub.io/#/Xiaohongshu"
+    }
+  ],
+  "summary": {
+    "totalRecords": 60,
+    "platformsOk": 3,
+    "platformsEmpty": 0,
+    "platformsFailed": 1,
+    "platforms": [
+      {
+        "platform": "douyin",
+        "platformLabel": "抖音",
+        "status": "ok",
+        "items": 20,
+        "pagesFetched": 4,
+        "missingFields": {},
+        "fieldConfidence": "verified-against-live-response",
+        "fieldsVerifiedOn": "2026-09-06",
+        "error": null
+      },
+      {
+        "platform": "xhs",
+        "platformLabel": "小红书",
+        "status": "failed",
+        "items": 0,
+        "pagesFetched": 0,
+        "missingFields": {},
+        "fieldConfidence": "verified-against-live-response",
+        "fieldsVerifiedOn": "2026-09-06",
+        "error": "HTTP 400: {\"detail\":{\"code\":400,\"request_id\":\"b5d13e5f-f822-4b45-abf0-f0cb98057722\",\"message\":\"Request failed. Please retry. Check the docs below to verify your parameters, test with the default demo parameters, and send the response JSON to support. You won't be charged for this request.\",\"message_zh\":\"请求失败，请重试。请查看下方文档核对参数，使用默认演示参数测试，并将响应 JSON 提交给支持团队。本次请求不会被扣费。\",\"docs\":\"https://api.tikhub.io/#/Xiaohongshu"
+      },
+      {
+        "platform": "bilibili",
+        "platformLabel": "B站",
+        "status": "ok",
+        "items": 20,
+        "pagesFetched": 1,
+        "missingFields": {},
+        "fieldConfidence": "verified-against-live-response",
+        "fieldsVerifiedOn": "2026-09-06",
+        "error": null
+      },
+      {
+        "platform": "x",
+        "platformLabel": "X（Twitter）",
+        "status": "ok",
+        "items": 20,
+        "pagesFetched": 2,
+        "missingFields": {},
+        "fieldConfidence": "verified-against-live-response",
+        "fieldsVerifiedOn": "2026-09-06",
+        "error": null
+      }
+    ]
+  },
+  "results": [
+    {
+      "platform": "douyin",
+      "platformLabel": "抖音",
+      "records": [
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7667879742560914740",
+          "url": "https://www.douyin.com/video/7667879742560914740",
+          "author": "白无常C4D",
+          "authorId": "95596188322",
+          "publishedAt": "2026-07-29T09:29:41.000Z",
+          "title": "做了一个视频转深度图skill 使用这个skill ，你只要把视频丢个agent 然后使用我这个skill 就可以转深度图与带人物动作骨骼。",
+          "excerpt": "做了一个视频转深度图skill 使用这个skill ，你只要把视频丢个agent 然后使用我这个skill 就可以转深度图与带人物动作骨骼。",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7667078251226942763",
+          "url": "https://www.douyin.com/video/7667078251226942763",
+          "author": "诺皮克NovaPix",
+          "authorId": "3815758593003018",
+          "publishedAt": "2026-07-27T05:39:32.000Z",
+          "title": "seedance2.0 稳定动作迁移新玩法，适合小白 参考视频来源：@鱼肉肉ɞ \n用K3做了一个视频转深度视频+骨骼绑定的skill，用来做动作迁移。\n告诉kimi，帮我做一个把普通视频转换成带骨骼绑定的深度视频的Skill。\n只需要以下提示词+内容描述就能完成动作迁移\n【@video1 为动作与空间参考：骨骼轨迹定义动作与时序，须严格还原，不得增删动作或改变节奏；深度图仅表达空间纵深与运镜，禁止模仿其颜色与质感。在此约束下生成——（你需要生成的内容）】\n优点：\n1. 动作保真度更高——模型不必同时做\"姿态估计+生成\"两件事，骨骼轨迹直接钉死关节时序，快动作、旋转、大幅度舞蹈这类容易丢动作的场景收益最大（你那条舞者素材就是典型）。\n2. 杜绝风格串味——原片的色调、光影、胶片感极易被当成目标风格迁移过去；深度骨骼里没有这些信号，提示词里的风格描述独占解释权。\n3. 背景不粘连——原视频的街景、观众、杂物会污染生成场景；深度图只保留\"哪近哪远\"，不保留\"那是什么\"。\n4. 弱光/低质素材可用——夜拍、噪点多的素材直接参考会让模型学到脏画质；转成深度骨骼后噪声被抹平，只剩干净结构。5. 规避肖像与版权——参考里没有人脸和可辨识形象，商业使用更干净。\n缺点：\n丢失手指细节、面部表情、衣物飘动这些骨骼和深度都不承载的信息（Seedance 对这部分只能自由发挥）；\n人与物体交互（踢球、持剑）的关系变弱——深度图里有物体轮廓但没有语义。\n\n #aigc应用 #即梦ai生成视频 #kimi #k3 #AI教学",
+          "excerpt": "seedance2.0 稳定动作迁移新玩法，适合小白 参考视频来源：@鱼肉肉ɞ 用K3做了一个视频转深度视频+骨骼绑定的skill，用来做动作迁移。 告诉kimi，帮我做一个把普通视频转换成带骨骼绑定的深度视频的Skill。 只需要以下提示词+内容描述就能完成动作迁移 【@video1 为动作与空间参考：骨骼轨迹定义动作与时序，须严格还原，不得增删动作或改变节奏；深度图仅表达空间纵深与运镜，禁止模仿其颜色与质感。在此约束下生成——（你需要生成的内容）】 优点： 1. 动作保真度更高——模型不必同时做\"姿态估计+生成\"两件事，骨骼轨迹直接钉死关节时序，快动作、旋转、大幅度舞蹈这类容易丢动作的场景…",
+          "mentions": [
+            "aigc",
+            "kimi",
+            "Seedance",
+            "即梦"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7668245610935837376",
+          "url": "https://www.douyin.com/video/7668245610935837376",
+          "author": "三水AIGC",
+          "authorId": "7647825233370580005",
+          "publishedAt": "2026-07-30T09:09:21.000Z",
+          "title": "测试一下最近很火的深度视频参考的玩法 #ai教程分享 #ai实用技巧 #ai #ai视频",
+          "excerpt": "测试一下最近很火的深度视频参考的玩法 #ai教程分享 #ai实用技巧 #ai #ai视频",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7680915189902965477",
+          "url": "https://www.douyin.com/video/7680915189902965477",
+          "author": "刘量AI",
+          "authorId": "4006239764493652",
+          "publishedAt": "2026-09-02T12:33:48.000Z",
+          "title": "一段深度视频，AI就能精准复刻所有动作\n#AI视频#深度视频#动作迁移#动作复刻 #AI",
+          "excerpt": "一段深度视频，AI就能精准复刻所有动作 #AI视频#深度视频#动作迁移#动作复刻 #AI",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7638643743138123062",
+          "url": "https://www.douyin.com/video/7638643743138123062",
+          "author": "青橙Lab",
+          "authorId": "92789561745",
+          "publishedAt": "2026-05-11T14:39:09.000Z",
+          "title": "最强动作迁移，再复杂的视频也能完美复刻 #comfyui  #AI  #ai创作者计划  #ai创作浪潮计划  #comfyui教程",
+          "excerpt": "最强动作迁移，再复杂的视频也能完美复刻 #comfyui #AI #ai创作者计划 #ai创作浪潮计划 #comfyui教程",
+          "mentions": [
+            "comfyui",
+            "ComfyUI"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7667061918489660722",
+          "url": "https://www.douyin.com/video/7667061918489660722",
+          "author": "治愈君小剧场",
+          "authorId": "72452687474",
+          "publishedAt": "2026-07-27T04:36:05.000Z",
+          "title": "震撼！百分百完美复刻你的参考视频动作 seedance2.0新玩法，平时提示词很难完全生成自己想要的动作，现在好啦，你要的表演这里都有，剩下的就好好摆好你的镜头拍起来吧#教程#seedance #动画 #aigc",
+          "excerpt": "震撼！百分百完美复刻你的参考视频动作 seedance2.0新玩法，平时提示词很难完全生成自己想要的动作，现在好啦，你要的表演这里都有，剩下的就好好摆好你的镜头拍起来吧#教程#seedance #动画 #aigc",
+          "mentions": [
+            "aigc",
+            "seedance",
+            "Seedance"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7659663214187789477",
+          "url": "https://www.douyin.com/video/7659663214187789477",
+          "author": "SecretSky",
+          "authorId": "3049378596793236",
+          "publishedAt": "2026-07-07T06:05:17.000Z",
+          "title": "还在为AI运镜、打斗戏发愁？？ 我直接从从参考片抽取运镜，动作 合成灰模+骨架 喂给seedance 完美解决\n#超燃战斗瞬间 #seedance #ai短片 #ai运镜",
+          "excerpt": "还在为AI运镜、打斗戏发愁？？ 我直接从从参考片抽取运镜，动作 合成灰模+骨架 喂给seedance 完美解决 #超燃战斗瞬间 #seedance #ai短片 #ai运镜",
+          "mentions": [
+            "seedance",
+            "Seedance"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7665298660867001638",
+          "url": "https://www.douyin.com/video/7665298660867001638",
+          "author": "大象学长",
+          "authorId": "1436435828446204",
+          "publishedAt": "2026-07-22T10:33:48.000Z",
+          "title": "Seedance新玩法！百分百动作完美复刻 最近关于 Seedance 2.0 有一个非常有用的玩法：\n一段普通的舞蹈视频或者武打动作，先转成深度视频，然后再丢给 Seedance 2.0 做参考。\n今天这个视频，学长就来教会你，怎么利用Codex和Seedance2.0来做到这种效果。#深度视频 #Codex#AI视频 #青年创作者成长计划 #AI新星计划",
+          "excerpt": "Seedance新玩法！百分百动作完美复刻 最近关于 Seedance 2.0 有一个非常有用的玩法： 一段普通的舞蹈视频或者武打动作，先转成深度视频，然后再丢给 Seedance 2.0 做参考。 今天这个视频，学长就来教会你，怎么利用Codex和Seedance2.0来做到这种效果。#深度视频 #Codex#AI视频 #青年创作者成长计划 #AI新星计划",
+          "mentions": [
+            "Codex",
+            "Seedance",
+            "Seedance 2.0",
+            "Seedance2.0"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7681254809151862374",
+          "url": "https://www.douyin.com/video/7681254809151862374",
+          "author": "菜菜猪AI",
+          "authorId": "7668238112552223802",
+          "publishedAt": "2026-09-03T10:31:42.000Z",
+          "title": "用AI复刻电影动作镜头并且逐帧替换角色，生成新的动画短片~ #真实生活分享计划 #AI动画教程 #深度动作捕捉 #玩具总动员 #AI创作浪潮",
+          "excerpt": "用AI复刻电影动作镜头并且逐帧替换角色，生成新的动画短片~ #真实生活分享计划 #AI动画教程 #深度动作捕捉 #玩具总动员 #AI创作浪潮",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7673535130534694182",
+          "url": "https://www.douyin.com/video/7673535130534694182",
+          "author": "北岛Travis",
+          "authorId": "487792949608131",
+          "publishedAt": "2026-08-13T15:15:29.000Z",
+          "title": "测试一下深度图复刻人物动作的效果 步骤：\n1、找到需要复刻的人物动作原视频\n2、将视频转换为深度图\n3、输入自己的角色参考，一起合成。\n视频中用的seedance mini模型已经有很好的效果了。不过提示词需要详细写清楚。 \n#AI动画 #AI视频  #AI玩法 #AI技巧#AI教程",
+          "excerpt": "测试一下深度图复刻人物动作的效果 步骤： 1、找到需要复刻的人物动作原视频 2、将视频转换为深度图 3、输入自己的角色参考，一起合成。 视频中用的seedance mini模型已经有很好的效果了。不过提示词需要详细写清楚。 #AI动画 #AI视频 #AI玩法 #AI技巧#AI教程",
+          "mentions": [
+            "Seedance"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7671266635391215988",
+          "url": "https://www.douyin.com/video/7671266635391215988",
+          "author": "小小凡",
+          "authorId": "7532493674942235706",
+          "publishedAt": "2026-08-07T12:32:29.000Z",
+          "title": "人体骨骼memeAI生成指令 器官骨骼meme教程 人体骨骼meme视频制作教程 #骨骼特效  器官分布meme手书 骨骼动画教程#骨骼meme手书 #骨骼动画meme 人体骨骼图meme素材#骨骼动画  骨骼红线透视特效教程 器官骨骼meme千空 人体器官meme模板 人体骨骼meme怎么做 骨骼卡点视频教程  器官骨骼meme原神角色 人体骨骼模型图片ai生成 器官meme素材 骨骼线条动画制作教程 器官骨骼 meme死侍 meme手书怎么制作 /?冻物星紋海浪個人討論地典 人体骨骼图meme歌曲 剪辑人体骨骼效果怎么做 红线骨骼图片教程剪辑 人物骨骼视频教程剪辑 meme手书教程 器官分布meme怎么做 器官解剖meme二创 骨骼内 meme模板 骨骼meme剪辑教程 骨骼meme慢镜头卡点 meme骨骼动画素材 五脏六腑meme 器官 meme 人体骨骼meme#骨骼特效教程",
+          "excerpt": "人体骨骼memeAI生成指令 器官骨骼meme教程 人体骨骼meme视频制作教程 #骨骼特效 器官分布meme手书 骨骼动画教程#骨骼meme手书 #骨骼动画meme 人体骨骼图meme素材#骨骼动画 骨骼红线透视特效教程 器官骨骼meme千空 人体器官meme模板 人体骨骼meme怎么做 骨骼卡点视频教程 器官骨骼meme原神角色 人体骨骼模型图片ai生成 器官meme素材 骨骼线条动画制作教程 器官骨骼 meme死侍 meme手书怎么制作 /?冻物星紋海浪個人討論地典 人体骨骼图meme歌曲 剪辑人体骨骼效果怎么做 红线骨骼图片教程剪辑 人物骨骼视频教程剪辑 meme手书教程 器官分布me…",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7671266635391215988",
+          "url": "https://www.douyin.com/video/7671266635391215988",
+          "author": "小小凡",
+          "authorId": "7532493674942235706",
+          "publishedAt": "2026-08-07T12:32:29.000Z",
+          "title": "人体骨骼memeAI生成指令 器官骨骼meme教程 人体骨骼meme视频制作教程 #骨骼特效  器官分布meme手书 骨骼动画教程#骨骼meme手书 #骨骼动画meme 人体骨骼图meme素材#骨骼动画  骨骼红线透视特效教程 器官骨骼meme千空 人体器官meme模板 人体骨骼meme怎么做 骨骼卡点视频教程  器官骨骼meme原神角色 人体骨骼模型图片ai生成 器官meme素材 骨骼线条动画制作教程 器官骨骼 meme死侍 meme手书怎么制作 /?冻物星紋海浪個人討論地典 人体骨骼图meme歌曲 剪辑人体骨骼效果怎么做 红线骨骼图片教程剪辑 人物骨骼视频教程剪辑 meme手书教程 器官分布meme怎么做 器官解剖meme二创 骨骼内 meme模板 骨骼meme剪辑教程 骨骼meme慢镜头卡点 meme骨骼动画素材 五脏六腑meme 器官 meme 人体骨骼meme#骨骼特效教程",
+          "excerpt": "人体骨骼memeAI生成指令 器官骨骼meme教程 人体骨骼meme视频制作教程 #骨骼特效 器官分布meme手书 骨骼动画教程#骨骼meme手书 #骨骼动画meme 人体骨骼图meme素材#骨骼动画 骨骼红线透视特效教程 器官骨骼meme千空 人体器官meme模板 人体骨骼meme怎么做 骨骼卡点视频教程 器官骨骼meme原神角色 人体骨骼模型图片ai生成 器官meme素材 骨骼线条动画制作教程 器官骨骼 meme死侍 meme手书怎么制作 /?冻物星紋海浪個人討論地典 人体骨骼图meme歌曲 剪辑人体骨骼效果怎么做 红线骨骼图片教程剪辑 人物骨骼视频教程剪辑 meme手书教程 器官分布me…",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7676121693992349690",
+          "url": "https://www.douyin.com/video/7676121693992349690",
+          "author": "火乐（AI成长版）",
+          "authorId": "656842432452832",
+          "publishedAt": "2026-08-20T23:54:00.000Z",
+          "title": "一招解决图声视频最容易翻车的问题 #每天学点ai #ai技巧分享 #短视频干货分享 #AI提示词 #提示词",
+          "excerpt": "一招解决图声视频最容易翻车的问题 #每天学点ai #ai技巧分享 #短视频干货分享 #AI提示词 #提示词",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7681265168864660751",
+          "url": "https://www.douyin.com/video/7681265168864660751",
+          "author": "天也聊AI电商",
+          "authorId": "79564836983",
+          "publishedAt": "2026-09-03T11:12:04.000Z",
+          "title": "用AI制作高级感拉满的kpop大片居然这么简单？！ 谁能想到这条富有质感的kpop大片居然是用ai制作的？ \n*本条最重要知识点：骨架图\n之前用参考图复刻人物动作效果都不尽人意\n要么衣服被污染要么姿势不对\n每回都得抽好几次卡\n有了骨架图之后再也不用担心这种问题了\n每个动作都能一次成功🕶️\n#ai #ai制作 #ai视频 #ai大片 #ai服装",
+          "excerpt": "用AI制作高级感拉满的kpop大片居然这么简单？！ 谁能想到这条富有质感的kpop大片居然是用ai制作的？ *本条最重要知识点：骨架图 之前用参考图复刻人物动作效果都不尽人意 要么衣服被污染要么姿势不对 每回都得抽好几次卡 有了骨架图之后再也不用担心这种问题了 每个动作都能一次成功🕶️ #ai #ai制作 #ai视频 #ai大片 #ai服装",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7668646040047815945",
+          "url": "https://www.douyin.com/video/7668646040047815945",
+          "author": "翻身韭菜",
+          "authorId": "3634356052306364",
+          "publishedAt": "2026-07-31T11:03:19.000Z",
+          "title": "深度视频替换完整焚绝 舞蹈视频都可以用这个方法做到完美替换#教程#复刻#小技巧#运镜#一键复刻",
+          "excerpt": "深度视频替换完整焚绝 舞蹈视频都可以用这个方法做到完美替换#教程#复刻#小技巧#运镜#一键复刻",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7672643673024433555",
+          "url": "https://www.douyin.com/video/7672643673024433555",
+          "author": "超哥｜AI商业实验室",
+          "authorId": "103646227032",
+          "publishedAt": "2026-08-11T05:36:05.000Z",
+          "title": "口哨舞不用重拍：3步拆解AI换装视频 #ai人工智能视频制作 #创作者中心 #AI视频制作#电商短视频#口哨舞",
+          "excerpt": "口哨舞不用重拍：3步拆解AI换装视频 #ai人工智能视频制作 #创作者中心 #AI视频制作#电商短视频#口哨舞",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7680881624820567331",
+          "url": "https://www.douyin.com/video/7680881624820567331",
+          "author": "VibePaper",
+          "authorId": "3578248841136915",
+          "publishedAt": "2026-09-02T10:23:40.000Z",
+          "title": "神之八秒AI舞蹈教程，高级视频效果复刻 （舞蹈参考：@凌镜尘Jing）\n #AI教程 #神之八秒 #AI舞蹈 #VibePaper",
+          "excerpt": "神之八秒AI舞蹈教程，高级视频效果复刻 （舞蹈参考：@凌镜尘Jing） #AI教程 #神之八秒 #AI舞蹈 #VibePaper",
+          "mentions": [
+            "VibePaper"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7667590139812080787",
+          "url": "https://www.douyin.com/video/7667590139812080787",
+          "author": "动不动就饿",
+          "authorId": "4015881139523288",
+          "publishedAt": "2026-07-28T14:45:48.000Z",
+          "title": "🫰🏻2种深度故事板玩法教程 踏踏实实发个教程太难了！#ai教程 #故事板 #ai工作流 #libtv",
+          "excerpt": "🫰🏻2种深度故事板玩法教程 踏踏实实发个教程太难了！#ai教程 #故事板 #ai工作流 #libtv",
+          "mentions": [
+            "libtv"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7670106621410837113",
+          "url": "https://www.douyin.com/video/7670106621410837113",
+          "author": "cortis",
+          "authorId": "7667906964856833081",
+          "publishedAt": "2026-08-04T09:31:02.000Z",
+          "title": "骨骼meme制作ai特效教程来了 骨骼卡点教程 骨骼卡点视频教程 人体骨架剪辑教程 骨骼视频教程剪辑 骨头剪辑教程 骨骼构成meme教程 am怎么做骨骼动画 人体骨骼模型拼图 骨骼教程 左腹meme教程 骨骼特效剪辑 人体骨骼剪辑 人体骨骼图素材 骨骼剪辑软件 骨骼美学教程 红色骨骼素材 骨骼美学怎么拍 器官分布meme怎么做 #小云雀AI #小云雀seedance#骨骼特效#骨骼meme教程#骨骼动画教程 骨骼动画剪辑教程 骨骼动画 骨骼动画剪辑 人体骨盆骨骼结构图 骨骼视频带软骨 骨骼图剪辑 张子墨骨骼剪辑 骨骼图朱自清 高超高越骨骼剪辑 骨盆meme 骨骼meme素材 骨骼meme教程剪辑 剪辑人体骨骼效果怎么做",
+          "excerpt": "骨骼meme制作ai特效教程来了 骨骼卡点教程 骨骼卡点视频教程 人体骨架剪辑教程 骨骼视频教程剪辑 骨头剪辑教程 骨骼构成meme教程 am怎么做骨骼动画 人体骨骼模型拼图 骨骼教程 左腹meme教程 骨骼特效剪辑 人体骨骼剪辑 人体骨骼图素材 骨骼剪辑软件 骨骼美学教程 红色骨骼素材 骨骼美学怎么拍 器官分布meme怎么做 #小云雀AI #小云雀seedance#骨骼特效#骨骼meme教程#骨骼动画教程 骨骼动画剪辑教程 骨骼动画 骨骼动画剪辑 人体骨盆骨骼结构图 骨骼视频带软骨 骨骼图剪辑 张子墨骨骼剪辑 骨骼图朱自清 高超高越骨骼剪辑 骨盆meme 骨骼meme素材 骨骼meme教程剪…",
+          "mentions": [
+            "Seedance"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7666678976483608291",
+          "url": "https://www.douyin.com/video/7666678976483608291",
+          "author": "大星派",
+          "authorId": "924021086493596",
+          "publishedAt": "2026-07-26T03:50:01.000Z",
+          "title": "AI视频新玩法，用「深度视频」实现动作复刻 #普通人学ai #创作者中心 #创作灵感 #ai视频#自媒体",
+          "excerpt": "AI视频新玩法，用「深度视频」实现动作复刻 #普通人学ai #创作者中心 #创作灵感 #ai视频#自媒体",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        }
+      ],
+      "pages": [
+        {
+          "page": 1,
+          "received": 7
+        },
+        {
+          "page": 2,
+          "received": 7
+        },
+        {
+          "page": 3,
+          "received": 7
+        },
+        {
+          "page": 4,
+          "received": 7
+        }
+      ]
+    },
+    {
+      "platform": "xhs",
+      "platformLabel": "小红书",
+      "records": [],
+      "pages": [],
+      "error": "HTTP 400: {\"detail\":{\"code\":400,\"request_id\":\"b5d13e5f-f822-4b45-abf0-f0cb98057722\",\"message\":\"Request failed. Please retry. Check the docs below to verify your parameters, test with the default demo parameters, and send the response JSON to support. You won't be charged for this request.\",\"message_zh\":\"请求失败，请重试。请查看下方文档核对参数，使用默认演示参数测试，并将响应 JSON 提交给支持团队。本次请求不会被扣费。\",\"docs\":\"https://api.tikhub.io/#/Xiaohongshu"
+    },
+    {
+      "platform": "bilibili",
+      "platformLabel": "B站",
+      "records": [
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1xft66AEKy",
+          "url": "https://www.bilibili.com/video/BV1xft66AEKy",
+          "author": "淘淘会淘_TAOT",
+          "authorId": "3546823859898419",
+          "publishedAt": "2026-09-04T13:54:01.000Z",
+          "title": "nodevideo8.9.2深度图【pursuit】skibidi toilet",
+          "excerpt": "nodevideo8.9.2深度图【pursuit】skibidi toilet nv这个深度图不要轻易尝试，效果不好调还非常卡",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1P5bH65EbF",
+          "url": "https://www.bilibili.com/video/BV1P5bH65EbF",
+          "author": "FoTo色和尚Prod",
+          "authorId": "241244126",
+          "publishedAt": "2026-09-07T00:00:00.000Z",
+          "title": "修图必备 9月 DxO PhotoLab 10.0.1 中文直装版 深度优化您的照片",
+          "excerpt": "修图必备 9月 DxO PhotoLab 10.0.1 中文直装版 深度优化您的照片 寻找资源不易 充电三连是对我最大的支持 手机转存网盘 送 1T空间 !!!随时下架 尽快转存收藏!!! 一键安装 「 DxO PhotoLab 10.0.1.153 Elite_Setup.exe」 链接：https://pan.quark.cn/s/4b7e84a61117 【本月更新 Photoshop2026 27.10中文学习版 插件大全 ACR18.6+注册机+1000调预设 一键安装 永久免费】 链接：https://b23.tv/VuWhu2f 【9月更新 LightRoom Cla",
+          "mentions": [
+            "ACR18.6",
+            "PhotoLab 10.0",
+            "Photoshop2026"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1o6tJ69EDC",
+          "url": "https://www.bilibili.com/video/BV1o6tJ69EDC",
+          "author": "跑步的青蛙",
+          "authorId": "400821477",
+          "publishedAt": "2026-09-02T09:27:23.000Z",
+          "title": "Kiwi一键AI生成，Krea-2模型姿势控制文生图，多人姿势编辑器效果演示",
+          "excerpt": "Kiwi一键AI生成，Krea-2模型姿势控制文生图，多人姿势编辑器效果演示 Kiwi自推出到现在历经两年多的发展，现在已经拥有多个业内唯一： 》唯一同时支持换脸+AI创作： 同时支持换脸，图像生成，视频生成，声音克隆，图像编辑，视频编辑，声音合成，文字生成，人像克隆； 》唯一同时支持全系列的开源AI模型： 支持自2023年以来几乎所有开源模型：图像生成，视频生成，声音生成以及大语言模型。 》唯一实现全本地化生成： 与操作系统深度集成，所有素材无须上传下载，与资源管理器一样方便的文件读取与保存，真正实现边浏览边换脸，边浏览边生成； 》唯一实现打通图像，视频，声音的组合式生成",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV12vbs64EDM",
+          "url": "https://www.bilibili.com/video/BV12vbs64EDM",
+          "author": "AIGC_茄子",
+          "authorId": "3493074902714941",
+          "publishedAt": "2026-09-06T11:31:50.000Z",
+          "title": "深度动作捕捉 喂饭教程",
+          "excerpt": "深度动作捕捉 喂饭教程",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1bK8z6qEuX",
+          "url": "https://www.bilibili.com/video/BV1bK8z6qEuX",
+          "author": "爱玩游戏的牢雨",
+          "authorId": "3546660483369705",
+          "publishedAt": "2026-08-21T14:11:18.000Z",
+          "title": "[代发]混合骨架404跳枪   【帝藏】",
+          "excerpt": "[代发]混合骨架404跳枪 【帝藏】 -",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1RNG36QEM4",
+          "url": "https://www.bilibili.com/video/BV1RNG36QEM4",
+          "author": "小星野酱紫",
+          "authorId": "3706927521467294",
+          "publishedAt": "2026-08-01T08:32:38.000Z",
+          "title": "优质 超可动骨架moc",
+          "excerpt": "优质 超可动骨架moc 大家给点建议",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1mh4k6KEB5",
+          "url": "https://www.bilibili.com/video/BV1mh4k6KEB5",
+          "author": "MoQiangShou",
+          "authorId": "17154807",
+          "publishedAt": "2026-08-29T04:39:50.000Z",
+          "title": "HY Motion Blender 插件来啦！一键部署，一键生成动画动作应用到你的模型上",
+          "excerpt": "HY Motion Blender 插件来啦！一键部署，一键生成动画动作应用到你的模型上 直接点击视频右下角“Up主新玩法”按钮下载该插件！！！ 我们特别制作了这款 blender HYMotion 插件，一键部署所有模型和环境，输入提示词就能生成动画并应用到你自己的角色模型上。 从演示视频可以看到，插件支持中文提示词自动翻译成英文。 如果内存足够，还可以开启生成时自动官方优化。（需要70GB内存） 调节动画时长，即可点击生成并导入动画来生成动画啦。 如果你有自己的模型想应用生成的动画，记得在选中你模型骨骼后勾选生成后应用到选中骨架按钮。再点击生成并导入动画。",
+          "mentions": [
+            "Blender"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1yKta6iEn3",
+          "url": "https://www.bilibili.com/video/BV1yKta6iEn3",
+          "author": "设计门外憨",
+          "authorId": "672397532",
+          "publishedAt": "2026-09-01T07:55:00.000Z",
+          "title": "ComfyUI 构图控制：OpenPose 与深度图的选型逻辑与实操对比",
+          "excerpt": "ComfyUI 构图控制：OpenPose 与深度图的选型逻辑与实操对比 【视频简介】 本期视频探讨了在 ComfyUI 中使用 ControlNet 进行构图控制的实用方法。重点分析了 OpenPose 骨架控制与深度图在处理空间几何关系时的不同侧重点，并演示了如何根据创作目标选择合适的控制信号，以及如何通过调整参数实现精准的图像生成。 【你将看到】 1. OpenPose 骨架控制在人体姿态与动作保持方面的应用。 2. 深度图在处理近大远小空间几何关系时的优势。 3. ControlNet 节点连接逻辑及强度、起始与结束参数的调试技巧。 (测试环境：Stability",
+          "mentions": [
+            "ComfyUI",
+            "ControlNet"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1Z3Vq6qEMj",
+          "url": "https://www.bilibili.com/video/BV1Z3Vq6qEMj",
+          "author": "CGgoat",
+          "authorId": "1323887515",
+          "publishedAt": "2026-06-02T06:30:56.000Z",
+          "title": "ZBrush人体骨骼人类骨架IMM笔刷骷髅头骨身体骨骼细节雕刻zb笔刷",
+          "excerpt": "ZBrush人体骨骼人类骨架IMM笔刷骷髅头骨身体骨骼细节雕刻zb笔刷 https://www.cggoat.com/archives/38880 ---资产详情及免费下载地址--- 26款ZBrush人体骨骼人类骨架IMM笔刷 ZBP、OBJ、STL格式白模 支持ZB 2021 及以上版本 安装：笔刷放到软件根目录下的ZBrushes文件夹里 大小833MB（RAR压缩包） 下载网盘：百度网盘链接",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1E1t26KEQP",
+          "url": "https://www.bilibili.com/video/BV1E1t26KEQP",
+          "author": "BkCreation",
+          "authorId": "3745021564030857",
+          "publishedAt": "2026-09-05T10:30:37.000Z",
+          "title": "#AI艺术 #骨架 #火鸡骨架 #AI动物 #AI生成 #动物骨骼 #创意AI #3D #火鸡 #Skeleton #Turkey",
+          "excerpt": "#AI艺术 #骨架 #火鸡骨架 #AI动物 #AI生成 #动物骨骼 #创意AI #3D #火鸡 #Skeleton #Turkey -",
+          "mentions": [
+            "Skeleton",
+            "Turkey"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1G2Na6fEwZ",
+          "url": "https://www.bilibili.com/video/BV1G2Na6fEwZ",
+          "author": "-225-",
+          "authorId": "1265500328",
+          "publishedAt": "2026-07-14T19:28:58.000Z",
+          "title": "自制骨架教程 | 01导入",
+          "excerpt": "自制骨架教程 | 01导入 自制骨架教程：其实是自制火影忍者手游的忍者的教程！当然你也可以用其它的素材。什么乱七八糟的都能做的！ 引擎是Godot4.6.3，不要用错了。 数据记得把文件名及后缀删了！",
+          "mentions": [
+            "Godot4.6"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1rNbp6uEXC",
+          "url": "https://www.bilibili.com/video/BV1rNbp6uEXC",
+          "author": "XingDafei",
+          "authorId": "608842271",
+          "publishedAt": "2026-09-06T09:04:51.000Z",
+          "title": "旅游攻略没时间写？AI 搭骨架",
+          "excerpt": "旅游攻略没时间写？AI 搭骨架 攻略、行程、文案没时间组织？AI 帮你搭骨架，真实体验你来填。完整方法在《旅游从业者AI实战》，B站搜「旅游AI」即可找到，评论区置顶直达。",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1XTbA6KEES",
+          "url": "https://www.bilibili.com/video/BV1XTbA6KEES",
+          "author": "模型爱好者-T",
+          "authorId": "101695388",
+          "publishedAt": "2026-09-07T00:36:30.000Z",
+          "title": "两版本骨架对比",
+          "excerpt": "两版本骨架对比 -",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV13jtc6bEDy",
+          "url": "https://www.bilibili.com/video/BV13jtc6bEDy",
+          "author": "豆绘AI",
+          "authorId": "3537106169235970",
+          "publishedAt": "2026-08-31T11:34:00.000Z",
+          "title": "爆款带货视频怎么复刻？ins同款万能骨架",
+          "excerpt": "爆款带货视频怎么复刻？ins同款万能骨架 爆款带货视频怎么复刻？ins同款万能骨架 + 画布工作流，只换产品 / 全要素换两种玩法一次讲清。",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1FXbw62ENV",
+          "url": "https://www.bilibili.com/video/BV1FXbw62ENV",
+          "author": "李一帆AIGC",
+          "authorId": "3706967931488370",
+          "publishedAt": "2026-09-07T02:26:51.000Z",
+          "title": "AI视频的邪修大法—深度视频控制文字提示词已经OUT了！快来学习新的AI视频邪修技巧——深度视频控制！人物站位、动作节奏、运镜轨迹，全部可以精准复刻。",
+          "excerpt": "AI视频的邪修大法—深度视频控制文字提示词已经OUT了！快来学习新的AI视频邪修技巧——深度视频控制！人物站位、动作节奏、运镜轨迹，全部可以精准复刻。 -",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1twto6jE9z",
+          "url": "https://www.bilibili.com/video/BV1twto6jE9z",
+          "author": "OiiOii_AI",
+          "authorId": "3690972269513234",
+          "publishedAt": "2026-09-03T13:03:59.000Z",
+          "title": "OiiOii上线深度提取能力丨复杂动作参考，这次稳了！",
+          "excerpt": "OiiOii上线深度提取能力丨复杂动作参考，这次稳了！ ✅ 动作全保留： 打斗招式、舞蹈走位、运镜节奏，一键完整还原 ✅ 冗余全过滤： 原片人脸、服装、背景、画风彻底剥离 ✅ 角色随便换： 骨架锁定不动，人物场景随心改 快来oiioii.tv体验吧",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1EXbp6MEvQ",
+          "url": "https://www.bilibili.com/video/BV1EXbp6MEvQ",
+          "author": "大胡子有模法",
+          "authorId": "377474278",
+          "publishedAt": "2026-09-06T06:53:15.000Z",
+          "title": "都在骂，我偏要夸它夯爆的骨架",
+          "excerpt": "都在骂，我偏要夸它夯爆的骨架 -",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1pZ4D6SEYM",
+          "url": "https://www.bilibili.com/video/BV1pZ4D6SEYM",
+          "author": "bili_62261737199",
+          "authorId": "3546837917108746",
+          "publishedAt": "2026-08-30T02:40:44.000Z",
+          "title": "史上最好记的碳骨架记忆方法，有错误欢迎大家指出",
+          "excerpt": "史上最好记的碳骨架记忆方法，有错误欢迎大家指出",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1uY8Y6RESY",
+          "url": "https://www.bilibili.com/video/BV1uY8Y6RESY",
+          "author": "王凤年1",
+          "authorId": "782332",
+          "publishedAt": "2026-08-24T02:01:04.000Z",
+          "title": "全送骨架之会撒娇的女友最好命！#悦互动娃友创作季#",
+          "excerpt": "全送骨架之会撒娇的女友最好命！#悦互动娃友创作季# @悦互动-YUEDOLL",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV19Nt66uEVX",
+          "url": "https://www.bilibili.com/video/BV19Nt66uEVX",
+          "author": "BkCreation",
+          "authorId": "3745021564030857",
+          "publishedAt": "2026-09-04T15:13:42.000Z",
+          "title": "#AI艺术 #骨架 #驴骨架 #AI动物 #AI生成 #动物骨骼 #创意AI #3D #AIArt #Skeleton #Donkey",
+          "excerpt": "#AI艺术 #骨架 #驴骨架 #AI动物 #AI生成 #动物骨骼 #创意AI #3D #AIArt #Skeleton #Donkey -",
+          "mentions": [
+            "AIArt",
+            "Donkey",
+            "Skeleton"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        }
+      ],
+      "pages": [
+        {
+          "page": 1,
+          "received": 20
+        }
+      ]
+    },
+    {
+      "platform": "x",
+      "platformLabel": "X（Twitter）",
+      "records": [
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2096530480548172245",
+          "url": "https://x.com/Magncsans/status/2096530480548172245",
+          "author": "Foyege",
+          "authorId": "Magncsans",
+          "publishedAt": "2026-09-06T09:26:32.000Z",
+          "title": "随着GPT 6 Astra的发布，建模能力和速度更上一层楼，我非常建议aigc创作在有复杂运镜、特定动作、长镜头的情况下",
+          "excerpt": "随着GPT 6 Astra的发布，建模能力和速度更上一层楼，我非常建议aigc创作在有复杂运镜、特定动作、长镜头的情况下使用白模辅助来生成 但是，值得注意的是，白模的精细度最好不要太精致，否则会大大约束了模型的发挥空间，那就会导致两种结果 1.模型会1:1完全复刻你的白模视频，但是你的白模又是一个“粗模”的预演参考，最后生成出来就会四不像 2.要么你就非常细致的完成这个白模的细节，只留下材质让ai模型完成，这就有点悖论了，你建模都弄得这么完美还要ai生成干啥？ 所以除了你必须要求的一些特定动作或者运镜，其他一律生成粗模，连丧尸或者某个物体都可以用圆柱代替，然后提示词补强，这才是最佳用法",
+          "mentions": [
+            "GPT",
+            "GPT 6"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2096239975725400532",
+          "url": "https://x.com/johnAGI168/status/2096239975725400532",
+          "author": "John",
+          "authorId": "johnAGI168",
+          "publishedAt": "2026-09-05T14:12:11.000Z",
+          "title": "现在的 AI 太疯狂了，杂技表演都能这么完美🤩 你也想要来一段这么精彩的杂技表演吗？输入自己的图片，然后加上下面的提示",
+          "excerpt": "现在的 AI 太疯狂了，杂技表演都能这么完美🤩 你也想要来一段这么精彩的杂技表演吗？输入自己的图片，然后加上下面的提示词，就能够生成这么完美的杂技表演视频😂 SEEDANCE 2.5 PROMPT Duration：15秒 Aspect ratio：9:16 类型：马戏场连续杂技，惊险、流畅、落点配合精准。 人物参考： ​ @ 为表演者的唯一人物身份参考，后文统一称“表演者”。保持参考人物身份与外貌，穿着和软底运动鞋。参考图只负责人物，不继承背景或原有姿势。 Overall style： 真人现场录像质感，暖色聚光灯照亮金黄色沙地，环形看台较暗，观众坐满上下两层座席。 像观众席拍摄的一段连…",
+          "mentions": [
+            "Seedance",
+            "SEEDANCE 2.5",
+            "SHOT 1",
+            "SHOT 2",
+            "SHOT 3",
+            "SHOT 4",
+            "SHOT 5"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2095042332089368692",
+          "url": "https://x.com/joshesye/status/2095042332089368692",
+          "author": "行者AI视频",
+          "authorId": "joshesye",
+          "publishedAt": "2026-09-02T06:53:10.000Z",
+          "title": "最近在用 LibTV 做视频，发现它上线了「深度动作捕捉」功能，把这个流程直接做进去了。 一键提取视频里的深度动态信息，",
+          "excerpt": "最近在用 LibTV 做视频，发现它上线了「深度动作捕捉」功能，把这个流程直接做进去了。 一键提取视频里的深度动态信息，动作、走位、运镜和空间关系全部转成干净的参考，原视频的人物、服装、场景、画风都不会带进来。对我这种经常复刻复杂动作的人来说，正好解决了痛点。 一键生成深度图视频，不需要使用codex，不需要做视频转换。 如果你也经常做复杂的视频运镜，可以来体验下。 #AI视频 #牛来 #libtv",
+          "mentions": [
+            "libtv"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2094940870147559891",
+          "url": "https://x.com/liyue_ai/status/2094940870147559891",
+          "author": "李岳",
+          "authorId": "liyue_ai",
+          "publishedAt": "2026-09-02T00:10:00.000Z",
+          "title": "昨天这个用Codex本地生成深度视频火了， 有兄弟的电脑没办法使用Codex，或者显卡不支持， 可以使用LibTV的在线",
+          "excerpt": "昨天这个用Codex本地生成深度视频火了， 有兄弟的电脑没办法使用Codex，或者显卡不支持， 可以使用LibTV的在线【深度动作捕捉】， 也可以生成类似的深度视频，关键是免费。 不过我对比了一下在线生成的精度没有我本地的高，当然如果只是捕捉动作的话够用了。 具体步骤很简单： https://t.co/Fq0EQ7IRJx",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2094334471755755823",
+          "url": "https://x.com/Magncsans/status/2094334471755755823",
+          "author": "Foyege",
+          "authorId": "Magncsans",
+          "publishedAt": "2026-08-31T08:00:23.000Z",
+          "title": "AI视频不需要白模就能控制二维场景图的运镜！ 不过这张《拿破仑加冕》图生成效果最好的目前还是 抖音：Myelc老师 ht",
+          "excerpt": "AI视频不需要白模就能控制二维场景图的运镜！ 不过这张《拿破仑加冕》图生成效果最好的目前还是 抖音：Myelc老师 https://t.co/UIGYAPQIRU",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2095068964367847608",
+          "url": "https://x.com/goan999999/status/2095068964367847608",
+          "author": "govin.eth | G哥",
+          "authorId": "goan999999",
+          "publishedAt": "2026-09-02T08:39:00.000Z",
+          "title": "Codex + ComfyUI，你也能在 AI 短剧领域分一杯羹 现在还有很多团队做 AI 短剧，在手动写剧本、做分镜、",
+          "excerpt": "Codex + ComfyUI，你也能在 AI 短剧领域分一杯羹 现在还有很多团队做 AI 短剧，在手动写剧本、做分镜、生成角色、反复抽卡、剪视频，一条片子折腾几个小时。 真正高效的做法，是让 Codex 负责“脑子”，ComfyUI 负责“画面”： Codex：批量写剧本、拆分镜、生成提示词、管理角色设定、自动调用工作流 ComfyUI：固定人物一致性、批量出图、图生视频、换脸换装、风格统一 把两者串起来之后，打通完整条短剧制作流程： 选题 → 剧本 → 分镜 → 角色 → 场景 → 视频 → 配音 → 批量成片 (记下来，面试官要问的，哈！) 以前做短剧拼的是团队和预算，现在拼的是谁先把工…",
+          "mentions": [
+            "ComfyUI"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2095318275391709436",
+          "url": "https://x.com/laowangbabababa/status/2095318275391709436",
+          "author": "产品经理老王霸",
+          "authorId": "laowangbabababa",
+          "publishedAt": "2026-09-03T01:09:40.000Z",
+          "title": "复杂动作的复刻只用提示词是很难完整还原的，所以需要到白模做参考复刻。 白模是一套没有任何材质贴图的三维灰模。人物是胶囊体",
+          "excerpt": "复杂动作的复刻只用提示词是很难完整还原的，所以需要到白模做参考复刻。 白模是一套没有任何材质贴图的三维灰模。人物是胶囊体和方块，场景是简单几何体，不打光，不上色，不贴图。 画面上剩下的只有三样。人物在空间里的位置，人物的运动轨迹，机位的运动轨迹。 白模生成需要提供一段原素材，这个视频我给的是迈克尔杰克逊的舞蹈。你使用LibTV也好，Codex也好，都能生成白模。 内容太长，完整流程看评论：",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2096248357060551126",
+          "url": "https://x.com/john87445528/status/2096248357060551126",
+          "author": "John",
+          "authorId": "john87445528",
+          "publishedAt": "2026-09-05T14:45:29.000Z",
+          "title": "墙上那一排，我都要了 多余的男3号在提示词里已经修改掉了 seedance prompt: ｜15秒（完整单段＋海妖风＋",
+          "excerpt": "墙上那一排，我都要了 多余的男3号在提示词里已经修改掉了 seedance prompt: ｜15秒（完整单段＋海妖风＋唯一#3锁定） 【参考锁定】 参考图1只锁定成年老板娘#1的腿脚比例、薄袜质感、黑色高跟鞋及修长身体线条。彻底忽略参考图中的宾馆走廊、豪华沙发、暖色装潢和原始背景。 参考视频锁定男#2、顾客#3的脸、身形、发型、服装气质和真实反应节奏。不得换脸、融合或复制。 三名角色均为成年人： - 老板娘#1：唯一一名成年女性； - 男#2：唯一一名左侧成年男性； - 顾客#3：唯一一名右侧成年男性。 【人物数量最高优先级】 全片画面内严格只有#1、#2、#3三名可见角色。 顾客#3从0秒…",
+          "mentions": [
+            "Seedance"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2095772519672504379",
+          "url": "https://x.com/AYi_AInotes/status/2095772519672504379",
+          "author": "AYi",
+          "authorId": "AYi_AInotes",
+          "publishedAt": "2026-09-04T07:14:40.000Z",
+          "title": "这绝逼是目前我用过最能打的 AI 视频工具，没有之一！！！ 纯纯的解放生产力，简直就是抖音、微信视频号起号的神器！！ 兄",
+          "excerpt": "这绝逼是目前我用过最能打的 AI 视频工具，没有之一！！！ 纯纯的解放生产力，简直就是抖音、微信视频号起号的神器！！ 兄弟们，你们敢相信视频里这个 1 分钟的水循环科普动画，是我几句提示词直接跑出来的吗？ 没给任何素材，没有抽卡碰运气，喵个咪，真的是把短视频的制作门槛彻底砸穿了。 以前这种信息型 MG动画视频，基本只能交给会 AE 的人一帧一帧做，贵、慢、学习成本还高。 这样一条外包通常要 3000 到 8000 块、制作周期一两周的 60 秒科普动画，我用 Fotor Video Agent 实测跑出来，大概只花了 10 分钟，全程只点了一次方案确认，剩下的它全部搞定，真的牛逼！！ 脚本、中…",
+          "mentions": [
+            "fotorai",
+            "fotorvideoagent",
+            "剪映"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2094404919667089668",
+          "url": "https://x.com/john87445528/status/2094404919667089668",
+          "author": "John",
+          "authorId": "john87445528",
+          "publishedAt": "2026-08-31T12:40:19.000Z",
+          "title": "感谢@Strength04_X 的提示词。稍微改编了一下试试真实系提示词效果。 seedance 2 prompt; 1",
+          "excerpt": "感谢@Strength04_X 的提示词。稍微改编了一下试试真实系提示词效果。 seedance 2 prompt; 15秒｜16:9｜4K｜24fps】 真人实拍短视频风格。女性全程严格使用角色@3 穿着 68b6f8a8-d18c-468e-889f-d14a6d4762a1 和黑色兔耳，不换装、不变色、不丢失配件。服装和兔耳牢固固定，强风只产生真实抖动、贴体和头发后飘，不走光。整体俏皮60%＋克制自信40%，动作轻快干净，使用隐藏式安全系留。 【飞机】 飞机1严格参考@1 HQ48hg0bQAA74og 的Cirrus SR22：单引擎四座低翼飞机，白色机身配银黑装饰，注册号始终为N52…",
+          "mentions": [
+            "Seedance"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2094710250469314941",
+          "url": "https://x.com/johnAGI168/status/2094710250469314941",
+          "author": "John",
+          "authorId": "johnAGI168",
+          "publishedAt": "2026-09-01T08:53:36.000Z",
+          "title": "出发吧，奥德赛🚢 Seedance 2.5 prompt 👇 神话史诗巨人镜头 时长：10秒 比例：9:16 人物参",
+          "excerpt": "出发吧，奥德赛🚢 Seedance 2.5 prompt 👇 神话史诗巨人镜头 时长：10秒 比例：9:16 人物参考： 语言：无对白 字幕：无字幕、无旁白、无文字 镜头：全程一镜到底，禁止切镜 人物参考规则： 仅参考锁定成年女主的五官、脸型、肤色和人物身份，不参考图片中的服装、发型与背景。女主从首帧开始就是百米高的巨人，整个过程中身体尺寸保持不变，只通过镜头后撤逐渐揭示真实比例。 人物造型： 黑色长直发、整齐刘海，白色蕾丝兜帽覆盖头顶，蕾丝边缘轻微磨损。身穿古典神话风白色长裙：修身束腰上身、交叉绑带、贴身长袖、层叠蕾丝裙摆、白色绑带长靴、银色旧式项链。服装带有风沙与岁月痕迹，不能像现代婚…",
+          "mentions": [
+            "Seedance",
+            "Seedance 2.5"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2094788953186689068",
+          "url": "https://x.com/nopinduoduo/status/2094788953186689068",
+          "author": "我真的没有拼多多",
+          "authorId": "nopinduoduo",
+          "publishedAt": "2026-09-01T14:06:20.000Z",
+          "title": "MiniMax H3 @Hailuo_AI 直出 ！ 是谁在偷看? ! 提示词： 5 秒短视频提示词： 基于参考图中的年",
+          "excerpt": "MiniMax H3 @Hailuo_AI 直出 ！ 是谁在偷看? ! 提示词： 5 秒短视频提示词： 基于参考图中的年轻成年东方女性、湿发、浅灰紫色吊带修身短裙、肩上搭着浅色毛巾、浴室门口与卧室走廊环境，保持人物长相、身材比例、服装、湿发状态和室内布局高度一致。 真实 iPhone 手机随手拍摄质感，像洗完澡后被身边的人随手记录下来的生活瞬间。 0–2 秒： 她刚从浴室走出来，停在门框旁，头发湿润凌乱，发梢仍有少量水珠。她微微侧头看向画面左侧，一只手自然抬起，从耳后轻轻拨开湿发。肩上的毛巾随着动作轻微滑动，胸口和锁骨附近残留的细小水珠在室内暖光下自然反光。 2–4 秒： 她像听见镜头这边有人…",
+          "mentions": [
+            "MiniMaxH3"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2095798366567530772",
+          "url": "https://x.com/MANISH1027512/status/2095798366567530772",
+          "author": "古一",
+          "authorId": "MANISH1027512",
+          "publishedAt": "2026-09-04T08:57:23.000Z",
+          "title": "沃日雀氏好用！继续测试！ 深度视频同时轻松解决了两件事：动作迁移和运镜 grok bot已经帮我把过去半年爆火的五十个舞",
+          "excerpt": "沃日雀氏好用！继续测试！ 深度视频同时轻松解决了两件事：动作迁移和运镜 grok bot已经帮我把过去半年爆火的五十个舞蹈捋出来了，晚上通宵全部转深度，上到VSC动作库！ https://t.co/VAWx2k6LFp",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2095487205129220332",
+          "url": "https://x.com/7998l201/status/2095487205129220332",
+          "author": "Ryan",
+          "authorId": "7998l201",
+          "publishedAt": "2026-09-03T12:20:56.000Z",
+          "title": "今天尝试Omni生成炒菜：子姜炒牛肉；按以下提示词一次生成视频，无需任何改动；我觉得Omni又行了，针对菜品制作不复杂，",
+          "excerpt": "今天尝试Omni生成炒菜：子姜炒牛肉；按以下提示词一次生成视频，无需任何改动；我觉得Omni又行了，针对菜品制作不复杂，文生视频还是毫无压力，可以直接商用； 子姜炒牛肉｜40秒 Omni 美食广告提示词 一、广告短片主体 菜品名称：子姜炒牛肉 视频比例：9:16竖屏 总时长：40秒 生成方式：分成4段，每段10秒单独生成 参考风格：真实中式厨房、高端粤式美食广告、电影级食物摄影 核心食材：吊龙牛肉薄片、鲜嫩子姜薄片、红色小米椒、翠绿芹菜段 成品标准：牛肉薄嫩湿润、肉纹清晰；子姜淡黄透亮；芹菜翠绿；小米椒鲜红；只有轻薄油光，不出现浓稠酱汁 全片禁止字幕、文字、标志、水印、包装、人物正脸和旁白 二…",
+          "mentions": [
+            "Omni 1.1"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2096566492041269341",
+          "url": "https://x.com/acupofai/status/2096566492041269341",
+          "author": "Lc造片实验室",
+          "authorId": "acupofai",
+          "publishedAt": "2026-09-06T11:49:38.000Z",
+          "title": "据说这种地铁换装视频很火？我也来试一下吧！附上提示词： 生成一段15秒、9:16竖屏、1080×1920、超写实真人视频",
+          "excerpt": "据说这种地铁换装视频很火？我也来试一下吧！附上提示词： 生成一段15秒、9:16竖屏、1080×1920、超写实真人视频。全片为一个连续镜头，无切镜、无硬转场、无突然闪变。整体像真实手机随手拍到的地铁车厢短视频，带轻微奇幻科技感。核心叙事：前景手机浏览并点击一套服装，触发对面女生从脚部开始，由下至上完成“蛛丝编织→收紧→材质化”的渐进式换装。 【1. 主体控制】 主角为22–25岁明确成年的年轻东亚女性，气质清冷自然，漂亮但不过度网红化，真实肤质与细微毛孔。浅棕色微卷长发，发丝柔顺有光泽，一侧别白色小花。全片保持同一张脸、五官、肤色、发型、发饰、身材比例与身份，不变脸、不忽胖忽瘦。 首帧参考@…",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2096128599614947590",
+          "url": "https://x.com/johnAGI168/status/2096128599614947590",
+          "author": "John",
+          "authorId": "johnAGI168",
+          "publishedAt": "2026-09-05T06:49:36.000Z",
+          "title": "咱就说有这样的金牌导师能不好好学习吗😄 抽象搞笑的金牌导师招生宣传片🎬 现在 ChatGPT GPT‑6 Astra",
+          "excerpt": "咱就说有这样的金牌导师能不好好学习吗😄 抽象搞笑的金牌导师招生宣传片🎬 现在 ChatGPT GPT‑6 Astra 就是真正金牌导师了，基本上啥都能干了，人就只负责创意想法审核这些就行了✅ SEEDANCE 2.5 PROMPT👇 Duration：24秒 Aspect ratio：9:16 类型：六人群像，抽象搞笑的金牌导师招生宣传片。 整体风格： 一本正经、用力过猛的导师团队宣传短视频。六位导师依次抱胸亮相，大声说出各自的学科宣言，随后由激情澎湃的男声旁白接管，配合团队群像、金色粒子和层层叠加的励志文案。 人物越认真，宣传包装越夸张，反差越好笑。真人实拍质感，手机直闪般的正面强补光…",
+          "mentions": [
+            "GPT",
+            "Seedance",
+            "SEEDANCE 2.5",
+            "SHOT 1",
+            "SHOT 2",
+            "SHOT 3"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2095857024798183720",
+          "url": "https://x.com/AYi_AInotes/status/2095857024798183720",
+          "author": "AYi",
+          "authorId": "AYi_AInotes",
+          "publishedAt": "2026-09-04T12:50:28.000Z",
+          "title": "这个视频绝对是近期把擦边和拟真生活流做到极致的爆款范本了！ 看了 @nopinduoduo 搓的这个第一人称女友视频，流",
+          "excerpt": "这个视频绝对是近期把擦边和拟真生活流做到极致的爆款范本了！ 看了 @nopinduoduo 搓的这个第一人称女友视频，流量直接炸穿，跑到两百万播放应该也问题不大， > 以前全网做情感和美女起号，最大的死穴就是生图生视频那股挥之不去的 AI 假人味，画面塑料不说，质量还极不稳定。 > 但这个视频挺牛逼的，没有一丝一毫的抽卡廉价感，完全就是下班回家用手机随手拍出来的生活质感。 > 这种第一人称沉浸式内容在小红书和视频号是纯纯的起号神器，黏性和完播率肯定高到离谱，之前就了解到小红书有专门的色粉赛道，流量和变现能力都超强， > 核心全在这个把控极细的提示词结构里，把镜头晃动、光影和情绪层层焊死了，可直…",
+          "mentions": [
+            "Image1"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2096648993799630980",
+          "url": "https://x.com/yyyole/status/2096648993799630980",
+          "author": "沐阳",
+          "authorId": "yyyole",
+          "publishedAt": "2026-09-06T17:17:28.000Z",
+          "title": "其实一直在考虑一件事情！ 到现在也没有想的很清楚！ 中小团队所面对的真实的视频项目制作场景，真正需要纯AI制作的项目可能",
+          "excerpt": "其实一直在考虑一件事情！ 到现在也没有想的很清楚！ 中小团队所面对的真实的视频项目制作场景，真正需要纯AI制作的项目可能不到20%，更多的需求，依然是以实拍为主！ 那么，一个真正适用于专业视频制作团队的Agent应该是什么样子呢？ 不仅仅是一个视频生成工具，而是一个围绕项目资产、制作流程、拍摄执行、素材生成、版本管理和多人协作建立的“影视制作 Agent OS”。 市面上绝大部分的AI视频Agent工具，看起来已经足够专业，基本上都是按照“角色、场景、资产、脚本、参考、分镜”这样的工作流逻辑。 很多工具还添加了导演工作台、深度参考、灯光控制等等这些看起来很专业的功能。 但对于专业的影视团队来说…",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2033054826662130092",
+          "url": "https://x.com/john87445528/status/2033054826662130092",
+          "author": "John",
+          "authorId": "john87445528",
+          "publishedAt": "2026-03-15T05:36:57.000Z",
+          "title": "最近@grok更新了全局功能，本来想应该可以模拟首尾帧的效果了吧，结果是。。。。不行，我用一张建筑风景图试验了一下，先用",
+          "excerpt": "最近@grok更新了全局功能，本来想应该可以模拟首尾帧的效果了吧，结果是。。。。不行，我用一张建筑风景图试验了一下，先用香蕉把这张图恢复到原始地貌，然后用提示词生成延时摄影效果，到修建完成，结果gork 的全局参考功能在生成时并不响应，只好还原到原来从成品拆卸到原始地貌后再用剪映倒放功能来展现修建的过程，我又试验了一下seedance 2.0, 嗯。。结果完美。只能祝福GORK加油了，当然gork 的好处仍然是。。便宜。我把拆卸的提示词和由原始地貌修建到完成的提示词都放下面了。视频1是gork 视频2是 seedance 2.o 那个好大家自己评论。👇👇👇👇👇👇👇👇👇 🐻\ud83d…",
+          "mentions": [
+            "Phase 0",
+            "Phase 1",
+            "Phase 10",
+            "Phase 2",
+            "Phase 3",
+            "Phase 4",
+            "Phase 5",
+            "Phase 6",
+            "Phase 7",
+            "Phase 8",
+            "Phase 9",
+            "Seedance",
+            "剪映"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2096754069574439040",
+          "url": "https://x.com/john87445528/status/2096754069574439040",
+          "author": "John",
+          "authorId": "john87445528",
+          "publishedAt": "2026-09-07T00:15:00.000Z",
+          "title": "我也想有人--手把手，慢慢教我打台球。 SEEDANCE PROMPT: PART A: # 手把手，慢慢教｜15秒（台",
+          "excerpt": "我也想有人--手把手，慢慢教我打台球。 SEEDANCE PROMPT: PART A: # 手把手，慢慢教｜15秒（台球厅暧昧反转＋海妖风＋角色唯一锁定） 【参考与人物锁定】 老板娘@1 穿着 HRQQU6dbQAAC34l 和丝袜 的腿脚比例、薄袜质感、身体线条及黑色高跟鞋造型的最高优先级；保持@1预设的脸部、发型、妆容和服装。参考视频锁定男#2 、顾客#3 的脸、身形、发型、服装和真实表演节奏。三人均为成年人，不得换脸、融合或复制。 全片画面内严格只有三人：唯一老板娘#1、唯一男#2、唯一顾客#3。除三人外，不出现其他顾客、店员、路人、摄影者、人物海报、电视人物、人体模型或人形倒影。掌镜…",
+          "mentions": [
+            "Seedance"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        }
+      ],
+      "pages": [
+        {
+          "page": 1,
+          "received": 19
+        },
+        {
+          "page": 2,
+          "received": 20
+        }
+      ]
+    }
+  ]
+}
