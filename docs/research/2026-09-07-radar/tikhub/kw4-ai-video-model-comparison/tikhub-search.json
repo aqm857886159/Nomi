@@ -1,0 +1,974 @@
+{
+  "source": "tikhub",
+  "baseUrl": "https://api.tikhub.io",
+  "keyword": "AI视频生成模型对比",
+  "since": null,
+  "limitPerPlatform": 12,
+  "generatedAt": "2026-09-07T01:06:36.957Z",
+  "failures": [],
+  "summary": {
+    "totalRecords": 48,
+    "platformsOk": 4,
+    "platformsEmpty": 0,
+    "platformsFailed": 0,
+    "platforms": [
+      {
+        "platform": "douyin",
+        "platformLabel": "抖音",
+        "status": "ok",
+        "items": 12,
+        "pagesFetched": 2,
+        "missingFields": {},
+        "fieldConfidence": "verified-against-live-response",
+        "fieldsVerifiedOn": "2026-09-06",
+        "error": null
+      },
+      {
+        "platform": "xhs",
+        "platformLabel": "小红书",
+        "status": "ok",
+        "items": 12,
+        "pagesFetched": 1,
+        "missingFields": {},
+        "fieldConfidence": "verified-against-live-response",
+        "fieldsVerifiedOn": "2026-09-06",
+        "error": null
+      },
+      {
+        "platform": "bilibili",
+        "platformLabel": "B站",
+        "status": "ok",
+        "items": 12,
+        "pagesFetched": 1,
+        "missingFields": {},
+        "fieldConfidence": "verified-against-live-response",
+        "fieldsVerifiedOn": "2026-09-06",
+        "error": null
+      },
+      {
+        "platform": "x",
+        "platformLabel": "X（Twitter）",
+        "status": "ok",
+        "items": 12,
+        "pagesFetched": 1,
+        "missingFields": {},
+        "fieldConfidence": "verified-against-live-response",
+        "fieldsVerifiedOn": "2026-09-06",
+        "error": null
+      }
+    ]
+  },
+  "results": [
+    {
+      "platform": "douyin",
+      "platformLabel": "抖音",
+      "records": [
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7673071108161097003",
+          "url": "https://www.douyin.com/video/7673071108161097003",
+          "author": "捏捏番茄",
+          "authorId": "775572829261035",
+          "publishedAt": "2026-08-12T09:14:50.000Z",
+          "title": "同一提示词 3 个视频模型效果对比，你喜欢哪一个？ #AI视频 #MiniMaxH3 #Seedance25 #wan3 #大模型",
+          "excerpt": "同一提示词 3 个视频模型效果对比，你喜欢哪一个？ #AI视频 #MiniMaxH3 #Seedance25 #wan3 #大模型",
+          "mentions": [
+            "MiniMaxH3",
+            "Seedance25",
+            "wan3"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7673386754019249454",
+          "url": "https://www.douyin.com/video/7673386754019249454",
+          "author": "柱子哥TzFilm",
+          "authorId": "7425882531418965049",
+          "publishedAt": "2026-08-13T05:39:40.000Z",
+          "title": "我花了三天三夜，终于帮你们把所有主流的视频模型都测了一遍 锐评环节开始！！\n#Aigc #抖音前沿科技首发计划",
+          "excerpt": "我花了三天三夜，终于帮你们把所有主流的视频模型都测了一遍 锐评环节开始！！ #Aigc #抖音前沿科技首发计划",
+          "mentions": [
+            "Aigc"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7649245986774158628",
+          "url": "https://www.douyin.com/video/7649245986774158628",
+          "author": "AI真用法",
+          "authorId": "1220887117564603",
+          "publishedAt": "2026-06-09T04:21:14.000Z",
+          "title": "AI 视频卷到这份上，结果还是全翻车 Kling、Gemini、Grok、Seedance，到底谁最强？我替你测出来了。我用一个最难的镜头，测了 4 个最火的 AI 视频模型",
+          "excerpt": "AI 视频卷到这份上，结果还是全翻车 Kling、Gemini、Grok、Seedance，到底谁最强？我替你测出来了。我用一个最难的镜头，测了 4 个最火的 AI 视频模型",
+          "mentions": [
+            "Gemini",
+            "Kling",
+            "Seedance"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7676358529837721061",
+          "url": "https://www.douyin.com/video/7676358529837721061",
+          "author": "叁雯鱼设计",
+          "authorId": "74911619508",
+          "publishedAt": "2026-08-21T05:51:38.000Z",
+          "title": "AI演技比拼！两款AI视频模型生成同一段情绪戏，实测分享 最近拿同一张参考图、同一段提示词，实测了 Seedance 2.0 Fast 和海螺 H3。\n这次做的是一段15秒怼脸情绪戏🎥，说实话，结果有点惊艳到我了。\n大家喜欢哪个版本？可以一起讨论下～#AI电影 #古装虐心片段 #AI视频 #视频模型 #AI短剧",
+          "excerpt": "AI演技比拼！两款AI视频模型生成同一段情绪戏，实测分享 最近拿同一张参考图、同一段提示词，实测了 Seedance 2.0 Fast 和海螺 H3。 这次做的是一段15秒怼脸情绪戏🎥，说实话，结果有点惊艳到我了。 大家喜欢哪个版本？可以一起讨论下～#AI电影 #古装虐心片段 #AI视频 #视频模型 #AI短剧",
+          "mentions": [
+            "Seedance",
+            "Seedance 2.0",
+            "海螺"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7665603549796104165",
+          "url": "https://www.douyin.com/video/7665603549796104165",
+          "author": "AIGC何.sir",
+          "authorId": "1937819064078412",
+          "publishedAt": "2026-07-23T06:16:49.000Z",
+          "title": "seedance 2.0 fast 对比 可灵AI 3.0 同一个提示词，两个模型的对比，你站谁？\n#seedance #可灵 #ai视频 #评测",
+          "excerpt": "seedance 2.0 fast 对比 可灵AI 3.0 同一个提示词，两个模型的对比，你站谁？ #seedance #可灵 #ai视频 #评测",
+          "mentions": [
+            "seedance",
+            "Seedance",
+            "可灵"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7677495037333255163",
+          "url": "https://www.douyin.com/video/7677495037333255163",
+          "author": "八月的云☁️",
+          "authorId": "95117751036",
+          "publishedAt": "2026-08-24T07:21:52.000Z",
+          "title": "新模型wan3.0实测 AI演技比拼！今天中午发现新出了一款视频模型，于是赶紧用两款Al视频模型生成同一段戏份，视频提示词取自之前跑的漫剧片段，实测分享最近拿同一份参考图、同一段提示词实测了 Seedance2.5和Wan3.0。提示词特意没有奔着成片效果去描述详尽，给了一些留白让模型自己发挥，目的就是更好地观测模型特点和问题不是为了出成片，这次做的是一段30秒的校园戏，说实话，结果有点出乎预期。\n大家喜欢哪个版本？可以一起讨论下~#青春课堂 #Wan3.0 #seedance2.5 #aigc #vlog日常",
+          "excerpt": "新模型wan3.0实测 AI演技比拼！今天中午发现新出了一款视频模型，于是赶紧用两款Al视频模型生成同一段戏份，视频提示词取自之前跑的漫剧片段，实测分享最近拿同一份参考图、同一段提示词实测了 Seedance2.5和Wan3.0。提示词特意没有奔着成片效果去描述详尽，给了一些留白让模型自己发挥，目的就是更好地观测模型特点和问题不是为了出成片，这次做的是一段30秒的校园戏，说实话，结果有点出乎预期。 大家喜欢哪个版本？可以一起讨论下~#青春课堂 #Wan3.0 #seedance2.5 #aigc #vlog日常",
+          "mentions": [
+            "aigc",
+            "seedance2.5",
+            "Seedance2.5",
+            "vlog",
+            "Wan3.0"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7679766449140927796",
+          "url": "https://www.douyin.com/video/7679766449140927796",
+          "author": "AI驯化师鸟鸟酱",
+          "authorId": "60417498815",
+          "publishedAt": "2026-08-30T10:16:15.000Z",
+          "title": "两大AI视频模型演技大PK！ 💡 在相同资产和相同的提示词下，SD2.5和H3本地部署的直出视频，谁更胜一筹？\n1️⃣面部表情与情绪表现\nH3情绪张力更强；SD2.5 情绪相对克制\n2️⃣角色一致性与面部稳定性\nSD2.5整体更稳定，面部细节统一；H3五官比例有轻微波动\n3️⃣ 动作与镜头流畅度\nSD2.5生成较长视频的镜头切换和头部微动更平滑；H3部分帧之间过渡略生硬\n4️⃣画面质感与细节\nSD2.5的光影更柔和自然，皮肤质感自然，整体更“电影感”；H3对比度更高，泪水反光更明显，有轻微“油感” \n所以你们更喜欢哪个呢？欢迎评论区交流讨论~\n#AIGC #AI演技 #ai #韩剧 #AI视频",
+          "excerpt": "两大AI视频模型演技大PK！ 💡 在相同资产和相同的提示词下，SD2.5和H3本地部署的直出视频，谁更胜一筹？ 1️⃣面部表情与情绪表现 H3情绪张力更强；SD2.5 情绪相对克制 2️⃣角色一致性与面部稳定性 SD2.5整体更稳定，面部细节统一；H3五官比例有轻微波动 3️⃣ 动作与镜头流畅度 SD2.5生成较长视频的镜头切换和头部微动更平滑；H3部分帧之间过渡略生硬 4️⃣画面质感与细节 SD2.5的光影更柔和自然，皮肤质感自然，整体更“电影感”；H3对比度更高，泪水反光更明显，有轻微“油感” 所以你们更喜欢哪个呢？欢迎评论区交流讨论~ #AIGC #AI演技 #ai #韩剧 #AI视频",
+          "mentions": [
+            "AIGC"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7673454218727918848",
+          "url": "https://www.douyin.com/video/7673454218727918848",
+          "author": "海洋AIAI",
+          "authorId": "77210474365",
+          "publishedAt": "2026-08-13T10:01:29.000Z",
+          "title": "同样的提示词，不同视频模型AI打戏对比 #seedance  #minimaxh3  #AI视频  #AI打戏  #AIGC",
+          "excerpt": "同样的提示词，不同视频模型AI打戏对比 #seedance #minimaxh3 #AI视频 #AI打戏 #AIGC",
+          "mentions": [
+            "AIGC",
+            "minimaxh3",
+            "seedance",
+            "Seedance"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7662273215624545201",
+          "url": "https://www.douyin.com/video/7662273215624545201",
+          "author": "MarkC1D",
+          "authorId": "97399517194",
+          "publishedAt": "2026-07-14T06:53:25.000Z",
+          "title": "再次尝试了不同视频生成模型文生视频功能 都在同一套提示词情况下生成的 提示词不到200字 虽然Omni有明显穿帮 但在Gemini的帮助下还是很好的理解了情绪 Kling的表现也很不错 Seedance因为即梦排队时间过长 所以使用豆包生成 效果不尽人意 做一个横向对比更清晰直观些 #Gemini #Seedance #Kling",
+          "excerpt": "再次尝试了不同视频生成模型文生视频功能 都在同一套提示词情况下生成的 提示词不到200字 虽然Omni有明显穿帮 但在Gemini的帮助下还是很好的理解了情绪 Kling的表现也很不错 Seedance因为即梦排队时间过长 所以使用豆包生成 效果不尽人意 做一个横向对比更清晰直观些 #Gemini #Seedance #Kling",
+          "mentions": [
+            "Gemini",
+            "Kling",
+            "Seedance",
+            "即梦"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7670487964178287926",
+          "url": "https://www.douyin.com/video/7670487964178287926",
+          "author": "天赐teddy",
+          "authorId": "101688066426",
+          "publishedAt": "2026-08-05T10:10:53.000Z",
+          "title": "Minimax H3真香，性价比高。 同一个角色同一段提示词，跟seedance2.0对比一下，这类视频的效果也不差。 #minimaxh3 #即梦ai #seedance20",
+          "excerpt": "Minimax H3真香，性价比高。 同一个角色同一段提示词，跟seedance2.0对比一下，这类视频的效果也不差。 #minimaxh3 #即梦ai #seedance20",
+          "mentions": [
+            "minimaxh3",
+            "seedance20",
+            "即梦"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7669801527292616699",
+          "url": "https://www.douyin.com/video/7669801527292616699",
+          "author": "AI大佬",
+          "authorId": "1470527180379111",
+          "publishedAt": "2026-08-03T13:47:07.000Z",
+          "title": "同样提示词、同一个人物，四款主流 AI 视频模型实测从夯到拉排名🔥\n参赛选手：Seedance2.0、Seedance2.5、MiniMax H3、可灵 3.0！附上每秒成本、画质、音画同步、运镜、提示词精准度全维度打分！\n#AI #视频生成 #Seedance   #MiniMaxH3 #AIGC",
+          "excerpt": "同样提示词、同一个人物，四款主流 AI 视频模型实测从夯到拉排名🔥 参赛选手：Seedance2.0、Seedance2.5、MiniMax H3、可灵 3.0！附上每秒成本、画质、音画同步、运镜、提示词精准度全维度打分！ #AI #视频生成 #Seedance #MiniMaxH3 #AIGC",
+          "mentions": [
+            "AIGC",
+            "MiniMaxH3",
+            "Seedance",
+            "Seedance2.0",
+            "Seedance2.5",
+            "可灵"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7602639514825215295",
+          "url": "https://www.douyin.com/video/7602639514825215295",
+          "author": "七木_Simone",
+          "authorId": "124725337261818",
+          "publishedAt": "2026-02-03T14:04:28.000Z",
+          "title": "6大AI视频模型生成打斗对比 测一测目前不同模型的打斗场面表现。同样的图同样的提示词。\nPS.好视频都得抽...抽...再抽...任何一个模型都会给你惊喜...\n#AIGC #超燃 #AI测评 #科幻 #流量小助手",
+          "excerpt": "6大AI视频模型生成打斗对比 测一测目前不同模型的打斗场面表现。同样的图同样的提示词。 PS.好视频都得抽...抽...再抽...任何一个模型都会给你惊喜... #AIGC #超燃 #AI测评 #科幻 #流量小助手",
+          "mentions": [
+            "AIGC"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        }
+      ],
+      "pages": [
+        {
+          "page": 1,
+          "received": 7
+        },
+        {
+          "page": 2,
+          "received": 7
+        }
+      ]
+    },
+    {
+      "platform": "xhs",
+      "platformLabel": "小红书",
+      "records": [
+        {
+          "platform": "xhs",
+          "platformLabel": "小红书",
+          "id": "6a82da01000000002202f50e",
+          "url": "https://www.xiaohongshu.com/explore/6a82da01000000002202f50e?xsec_token=YBzpu06XDqaBg6s4E-Buj_EzvsDcBuMoeZ4Mmcb7-YfLo%3D&xsec_source=pc_search",
+          "author": "EXC智领视听",
+          "authorId": "6629e9d100000000030303fa",
+          "publishedAt": "2026-08-17T09:53:05.000Z",
+          "title": "2026年Ai视频大模型对比",
+          "excerpt": "2026年Ai视频大模型对比",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "xhs",
+          "platformLabel": "小红书",
+          "id": "6a7bf43600000000280315ed",
+          "url": "https://www.xiaohongshu.com/explore/6a7bf43600000000280315ed?xsec_token=YBdDptdmvHmw_i34iQgKy1b8afbQ93SCdZTc7udIngyGk%3D&xsec_source=pc_search",
+          "author": "捏捏番茄",
+          "authorId": "67952aba000000000e01356a",
+          "publishedAt": "2026-08-12T04:19:02.000Z",
+          "title": "同一组提示词视频模型效果对比！你喜欢哪个？",
+          "excerpt": "同一组 prompt，分别丢进 Seedance 2.0 fast、MiniMax H3、Wan 3.0，效果差距还是蛮",
+          "mentions": [
+            "Seedance",
+            "Seedance 2.0",
+            "Wan",
+            "Wan 3.0"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "xhs",
+          "platformLabel": "小红书",
+          "id": "6a4fbcba000000001603c48d",
+          "url": "https://www.xiaohongshu.com/explore/6a4fbcba000000001603c48d?xsec_token=YBvKUjUzrWFk0XMRZg70xuaAlwrjAlij6eaptzQAVauJk%3D&xsec_source=pc_search",
+          "author": "AIGC小枫",
+          "authorId": "6a2d80e3000000000f039400",
+          "publishedAt": "2026-07-09T15:22:34.000Z",
+          "title": "AI视频模型对比",
+          "excerpt": "#好视频扶持计划 #让照片动起来 #可灵 #happyhorse #电影感ai #AI视频 #ai关键词",
+          "mentions": [
+            "happyhorse",
+            "可灵"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "xhs",
+          "platformLabel": "小红书",
+          "id": "693bd1e5000000000d03b538",
+          "url": "https://www.xiaohongshu.com/explore/693bd1e5000000000d03b538?xsec_token=YB0zQq56bPlQ8FoTjv9mY4s7-T-nLfxt_eE1FeOytR5MI%3D&xsec_source=pc_search",
+          "author": "PixelHacker",
+          "authorId": "667297d4000000000700694f",
+          "publishedAt": "2025-12-12T08:27:17.000Z",
+          "title": "给不同的AI模型喂相同的提示词（特效篇）",
+          "excerpt": "谁更厉害？#海螺ai #ai动画 #ai视频 #ai测评 ##ai工具 #ai特效 #特效 #AIChan",
+          "mentions": [
+            "AIChan",
+            "海螺"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "xhs",
+          "platformLabel": "小红书",
+          "id": "6a7c9a1c000000002c0068ff",
+          "url": "https://www.xiaohongshu.com/explore/6a7c9a1c000000002c0068ff?xsec_token=YBp6D9WdVyFuxHzluJO5t9TxxrJWuXS9WaygnDJhL3-Dc%3D&xsec_source=pc_search",
+          "author": "天梦君",
+          "authorId": "60f2393100000000010038a1",
+          "publishedAt": "2026-08-12T16:06:52.000Z",
+          "title": "三大AI视频模型演技对决",
+          "excerpt": "看舞 2.5、Wan 3.0、MiniMax H3 正面对决！🔥 这次用同一组“情绪＋表演”测试，直接比较三款热门 A",
+          "mentions": [
+            "Wan",
+            "Wan 3.0"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "xhs",
+          "platformLabel": "小红书",
+          "id": "6a6f484f0000000025014b38",
+          "url": "https://www.xiaohongshu.com/explore/6a6f484f0000000025014b38?xsec_token=YBaMFRTSt1W0nZFLa4a0ZWsG_ji_ijrlbvjmrgf_vxMeM%3D&xsec_source=pc_search",
+          "author": "小黄的AI日记",
+          "authorId": "5cfd3dfa00000000050004d0",
+          "publishedAt": "2026-08-02T13:38:23.000Z",
+          "title": "seedance2.5模型对比，你选哪个？",
+          "excerpt": "视频素材由jimeng AI生成，无不良引导，仅供学习交流 #一站式AI创作工作台 #AI视频生产级时代 #aigc",
+          "mentions": [
+            "aigc"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "xhs",
+          "platformLabel": "小红书",
+          "id": "6a6f66710000000032023123",
+          "url": "https://www.xiaohongshu.com/explore/6a6f66710000000032023123?xsec_token=YBaMFRTSt1W0nZFLa4a0ZWsH-apotCHQCucNAlZklI45s%3D&xsec_source=pc_search",
+          "author": "AI驯兽师Lynn",
+          "authorId": "5d3044c80000000010033773",
+          "publishedAt": "2026-08-02T15:46:57.000Z",
+          "title": "SD2.0对比SD2.5，情绪表演差距有多大？",
+          "excerpt": "同一首帧、同一套提示词实测，SD2.0可以完成基础情绪变化，但表情衔接和后半段爆发仍有一定“执行感”。SD2.5在情绪递",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "xhs",
+          "platformLabel": "小红书",
+          "id": "69366de6000000001e02eb61",
+          "url": "https://www.xiaohongshu.com/explore/69366de6000000001e02eb61?xsec_token=YBaexAZU-nKtOCrns6QHSZt84vDV40iewy4Wnf79dt5YE%3D&xsec_source=pc_search",
+          "author": "赛博AI",
+          "authorId": "66a731e2000000001d023061",
+          "publishedAt": "2025-12-08T06:19:18.000Z",
+          "title": "AI视频能直出人物台词声音了！三大模型对比",
+          "excerpt": "最近可灵发布了2.6新模型，视频就能音画同出，不用单独再给视频配音了。实测对比下可灵2.6、Veo3.1、Wan2.5三",
+          "mentions": [
+            "Veo3.1",
+            "Wan2.5",
+            "可灵"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "xhs",
+          "platformLabel": "小红书",
+          "id": "6a73f1ec000000002800bd5e",
+          "url": "https://www.xiaohongshu.com/explore/6a73f1ec000000002800bd5e?xsec_token=YB-T9Ty7J4yhF6m-JMbSNAgUQmDJptX7UyXiRwi7p4zEk%3D&xsec_source=pc_search",
+          "author": "小白鸽子",
+          "authorId": "626126cf000000001000a3ac",
+          "publishedAt": "2026-08-06T02:31:08.000Z",
+          "title": "两款AI 生成视频工具横测",
+          "excerpt": "最近做视频素材，把这两款AI视频工具各跑了一周，同样的提示词、同样的参考图，纯个人记录。 【人物质感】真人电影感两款都能",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "xhs",
+          "platformLabel": "小红书",
+          "id": "6a8aaecf000000003302b528",
+          "url": "https://www.xiaohongshu.com/explore/6a8aaecf000000003302b528?xsec_token=YByEYtb4pOxW4Lj4Mj2K3tY9cKYAW_IhEBb0nH_kwxPn4%3D&xsec_source=pc_search",
+          "author": "汇灵Ai",
+          "authorId": "601d04c4000000000101ce3b",
+          "publishedAt": "2026-08-23T08:26:55.000Z",
+          "title": "主流视频生成模型综合对比，看谁是王者?",
+          "excerpt": "这些你用过了嘛？ 视频生成模型的赛道，已经开始最终要分出胜负的了。Sora已经退出，谷歌的Veo3转换新的赛道 Omni",
+          "mentions": [
+            "Sora",
+            "Veo3"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "xhs",
+          "platformLabel": "小红书",
+          "id": "6a8d3287000000001a02836f",
+          "url": "https://www.xiaohongshu.com/explore/6a8d3287000000001a02836f?xsec_token=YBZIK4m-Qrj-SDcQ8y_3gQuh4kEXLZEaCNB632ZLbfduQ%3D&xsec_source=pc_search",
+          "author": "AI产品杂货铺",
+          "authorId": "61c3fc1b0000000010006b17",
+          "publishedAt": "2026-08-25T06:13:27.000Z",
+          "title": "三个视频模型跑同一段武侠对戏，逐帧对比",
+          "excerpt": "同一条提示词，同一个 15 秒，同一场竹林夜战双人对戏。 SD 2.0 fast / MiniMax H3 / Wan",
+          "mentions": [
+            "Wan"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "xhs",
+          "platformLabel": "小红书",
+          "id": "6a76b9a10000000035017f18",
+          "url": "https://www.xiaohongshu.com/explore/6a76b9a10000000035017f18?xsec_token=YB-DYXtKHTbmX9Bk1uUQrDsEnqugVk3rwRqTEwOj-va_c%3D&xsec_source=pc_search",
+          "author": "布斯D",
+          "authorId": "5efd8a2d000000000100125d",
+          "publishedAt": "2026-08-08T05:07:45.000Z",
+          "title": "Wan3.0对比即梦2.5，两者差距到底多大",
+          "excerpt": "wan3.0和既梦2.5都可以支持30s视频，我使用同一段提示词直接生成视频对比。 #AI视频生成 #Wan",
+          "mentions": [
+            "Wan",
+            "Wan3.0",
+            "即梦"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        }
+      ],
+      "pages": [
+        {
+          "page": 1,
+          "received": 20
+        }
+      ]
+    },
+    {
+      "platform": "bilibili",
+      "platformLabel": "B站",
+      "records": [
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1M1t167Exz",
+          "url": "https://www.bilibili.com/video/BV1M1t167Exz",
+          "author": "非酋不想变非酋",
+          "authorId": "444266588",
+          "publishedAt": "2026-09-05T03:05:13.000Z",
+          "title": "以防你不知道纯AI生成mc模型到底有多强",
+          "excerpt": "以防你不知道纯AI生成mc模型到底有多强 模型用Astra，思考程度极高 花费10分钟，不超过五元大概",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV19EuAzgEQY",
+          "url": "https://www.bilibili.com/video/BV19EuAzgEQY",
+          "author": "蓝小狐_",
+          "authorId": "53157430",
+          "publishedAt": "2025-07-13T10:25:38.000Z",
+          "title": "【AI建模】用豆包和腾讯混元AI实现AI建模",
+          "excerpt": "【AI建模】用豆包和腾讯混元AI实现AI建模 链接https://3d.hunyuan.tencent.com/",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1cGtC6wEjX",
+          "url": "https://www.bilibili.com/video/BV1cGtC6wEjX",
+          "author": "月亮说他想学编程",
+          "authorId": "1377485207",
+          "publishedAt": "2026-09-05T02:12:01.000Z",
+          "title": "我让4个AI模型生成了这个逼真的扳手动画",
+          "excerpt": "我让4个AI模型生成了这个逼真的扳手动画 -",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1Xutk65E18",
+          "url": "https://www.bilibili.com/video/BV1Xutk65E18",
+          "author": "中国有个安卓党",
+          "authorId": "10208262",
+          "publishedAt": "2026-09-04T18:51:58.000Z",
+          "title": "GPT6 建模渲染3D场景 | 模型横向对比",
+          "excerpt": "GPT6 建模渲染3D场景 | 模型横向对比 X 作者称使用 Kimi K3 效果不错，花费$2.3，感觉 Fable 5.1 的表现有点降智/偷懒",
+          "mentions": [
+            "Fable 5.1",
+            "GPT6"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV12dbH6LEL4",
+          "url": "https://www.bilibili.com/video/BV12dbH6LEL4",
+          "author": "AI指挥官Felix",
+          "authorId": "1254308585",
+          "publishedAt": "2026-09-06T08:40:47.000Z",
+          "title": "不会建模也能玩 Blender！拍张照片，自动生成 3D 模型",
+          "excerpt": "不会建模也能玩 Blender！拍张照片，自动生成 3D 模型 -",
+          "mentions": [
+            "Blender"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1yXtV6HE3D",
+          "url": "https://www.bilibili.com/video/BV1yXtV6HE3D",
+          "author": "栗噔噔",
+          "authorId": "1636207",
+          "publishedAt": "2026-09-01T13:08:48.000Z",
+          "title": "视频模型大PK！谁能兼顾价格、速度、效果？",
+          "excerpt": "视频模型大PK！谁能兼顾价格、速度、效果？ Seedance 2.0 fast 、MiniMax H3、Wan 3.0全面横测来了！现阶段到底谁是性价比之王？",
+          "mentions": [
+            "Seedance",
+            "Seedance 2.0",
+            "Wan",
+            "Wan 3.0"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1WNjq6pE3i",
+          "url": "https://www.bilibili.com/video/BV1WNjq6pE3i",
+          "author": "赛马娘广铁HXD1D-0533",
+          "authorId": "3546940054702143",
+          "publishedAt": "2026-06-19T05:36:50.000Z",
+          "title": "豆包AI生成CR400AF复兴号列车模型",
+          "excerpt": "豆包AI生成CR400AF复兴号列车模型 -",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1hxbs6YEz2",
+          "url": "https://www.bilibili.com/video/BV1hxbs6YEz2",
+          "author": "StarAiri",
+          "authorId": "437268141",
+          "publishedAt": "2026-09-06T10:36:33.000Z",
+          "title": "Qwen3.8-flash黑洞模型生成",
+          "excerpt": "Qwen3.8-flash黑洞模型生成 两轮生成（其实也可以说是一轮，第二轮是因为页面被遮挡导致看不到渲染所以修了一下） 好看是真好看，但用时是真长（6小时）",
+          "mentions": [
+            "Qwen3.8"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1a6bH64E6W",
+          "url": "https://www.bilibili.com/video/BV1a6bH64E6W",
+          "author": "灵智Ai",
+          "authorId": "3706974541712232",
+          "publishedAt": "2026-09-06T10:13:24.000Z",
+          "title": "Seedance2.5 登场！各大 AI 视频模型的名场面来了#Seedance25 #AIGC短片 #AI视频生成 #脑洞AI创作",
+          "excerpt": "Seedance2.5 登场！各大 AI 视频模型的名场面来了#Seedance25 #AIGC短片 #AI视频生成 #脑洞AI创作 灵智AIGC网址：witai.top",
+          "mentions": [
+            "AIGC",
+            "Seedance2.5",
+            "Seedance25"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1Gjtc6bEBV",
+          "url": "https://www.bilibili.com/video/BV1Gjtc6bEBV",
+          "author": "科技包工头",
+          "authorId": "3745007928347453",
+          "publishedAt": "2026-08-28T07:44:55.000Z",
+          "title": "三大视频模型效果对比：文戏篇｜Seedance 2.5、Wan 3.0、MiniMax H3、Seedance 2.0",
+          "excerpt": "三大视频模型效果对比：文戏篇｜Seedance 2.5、Wan 3.0、MiniMax H3、Seedance 2.0 做 AI 视频的朋友，是不是总在纠结选什么模型？ 主包用同一提示词和素材，分别用以下3种模型生成了视频供大家对比，这次先做的文戏对比，下次做一下打戏~ ① Seedance 2.5 ② Seedance 2.0 ③ Wan 3.0 ④ MiniMax H3 你觉得哪个效果更好？",
+          "mentions": [
+            "Seedance",
+            "Seedance 2.0",
+            "Seedance 2.5",
+            "Wan",
+            "Wan 3.0"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1YTNozkE7T",
+          "url": "https://www.bilibili.com/video/BV1YTNozkE7T",
+          "author": "与AI同行1996",
+          "authorId": "60542591",
+          "publishedAt": "2025-06-19T12:44:18.000Z",
+          "title": "最强免费AI生成3D模型，Hunyuan3D V2.1，支持生成模型+纹理+材质，效果超级强大，8G显存可用! | Hunyuan3D | Trellis",
+          "excerpt": "最强免费AI生成3D模型，Hunyuan3D V2.1，支持生成模型+纹理+材质，效果超级强大，8G显存可用! | Hunyuan3D | Trellis 整合包和视频教程制作不易，如果您觉得内容有帮助，欢迎订阅频道🤎，我会持续分享好用、好玩的AI项目🤗🤗！感谢您的支持🙏！ ————AI模型信息———— Hunyuan3D-2.1：https://github.com/Tencent-Hunyuan/Hunyuan3D-2.1 Paper：https://arxiv.org/abs/2501.12202",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1rzt26gEW1",
+          "url": "https://www.bilibili.com/video/BV1rzt26gEW1",
+          "author": "房大发的AI实践",
+          "authorId": "3706974212459019",
+          "publishedAt": "2026-09-05T10:30:00.000Z",
+          "title": "无限AI视频和AI世界模型，你喜欢哪一个？",
+          "excerpt": "无限AI视频和AI世界模型，你喜欢哪一个？ 大家好，我是大发，这期讲一周之内 AI 连干四件事之后，「无限视频」和「世界模型」到底差在哪。 这期给你盘了四件事：📺《后西游记》上湖南卫视黄金档，AI 直接扛长剧生产；⚡ 5 秒视频 3 秒生成，看和生成第一次追平；📈 芒果超媒两天两个 20cm 涨停；♾️ 一个永远播不完、打字就能改剧情的直播。 剧晚上八点才播，板白天就封了——涨的是预期本身。而 Infinite Slop 的作者自己写了定义：infinite video ≠ world model。无限视频手里只有一条时间轴，快和多不等于真；世界模",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        }
+      ],
+      "pages": [
+        {
+          "page": 1,
+          "received": 19
+        }
+      ]
+    },
+    {
+      "platform": "x",
+      "platformLabel": "X（Twitter）",
+      "records": [
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2094723798679400808",
+          "url": "https://x.com/joshesye/status/2094723798679400808",
+          "author": "行者AI视频",
+          "authorId": "joshesye",
+          "publishedAt": "2026-09-01T09:47:26.000Z",
+          "title": "东京旅拍Vlog 这次使用Wan 3.0生成。 这段时间评测多个视频模型，总体来说。 个人觉得：H3 和 Wan 3.0",
+          "excerpt": "东京旅拍Vlog 这次使用Wan 3.0生成。 这段时间评测多个视频模型，总体来说。 个人觉得：H3 和 Wan 3.0 基本上已经可以作为Seedance 平替了，除了短漫剧场景。 这是好事啊，不能让被字节一家独大。 视频提示词在评论区。 https://t.co/RjvGXKoCZX",
+          "mentions": [
+            "Seedance",
+            "Wan",
+            "Wan 3.0"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2095739568528232538",
+          "url": "https://x.com/NFT_Chen/status/2095739568528232538",
+          "author": "SuSu_酥酥👅",
+          "authorId": "NFT_Chen",
+          "publishedAt": "2026-09-04T05:03:44.000Z",
+          "title": "🚨震撼：Astra不是在生成视频，是在抢导演的饭碗！ GPT-6-Astra vs Fable 5.1 别再单一对比清",
+          "excerpt": "🚨震撼：Astra不是在生成视频，是在抢导演的饭碗！ GPT-6-Astra vs Fable 5.1 别再单一对比清晰度了 🔹Fable 5.1 画质一般并且要贵上一倍，满满的AI生成味道 🔹Astra 更像在导戏，主体常被放在引导线交叉处，前景遮挡、中景动作、远景空间一层层推开；镜头不是平移糊过去，而是先跟、再绕、再切近，运动轨迹跟着情绪走。转场也不硬切，而是用视线、动作和光影把节奏往前顶。 选哪一个看你要的是成片，还是一组镜头、一段情绪、一个完整场景。 如果这种时间感能拉到长视频，GPT-6 改的可能不是“视频生成”，而是导演这个职业本身。 看完站哪边？ #GPT6 #Astra …",
+          "mentions": [
+            "AIGC",
+            "Astra",
+            "Fable 5.1",
+            "Fable51",
+            "GPT",
+            "GPT6"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2094291089310281996",
+          "url": "https://x.com/skavenps1/status/2094291089310281996",
+          "author": "平凡的蛙里奥",
+          "authorId": "skavenps1",
+          "publishedAt": "2026-08-31T05:08:00.000Z",
+          "title": "观众发弹幕就能改直播画面 MiniMax H3 Max把视频生成干到了实时 昨天刷到一个Twitch直播 聊天室里有人用",
+          "excerpt": "观众发弹幕就能改直播画面 MiniMax H3 Max把视频生成干到了实时 昨天刷到一个Twitch直播 聊天室里有人用英语说\"切到街头\"，画面就真的从动画场景跳到了城市街景 下一条弹幕是西班牙语的\"60年代木偶广告\"，紧接着画面变成了复古定格动画风格 再然后有人用日语要求\"机器人脸上缠满电线\"，AI居然也接住了，生成了一张荒诞但视觉冲击力很强的画面 这不是预录好的演示视频是实时直播 支撑这个玩法的是MiniMax H3 Max，一个视频生成模型。我查了一下数据：生成5秒768p视频不到3秒，15秒视频大约15秒完成。这个速度意味着什么？ 上一段视频还在播，下一段已经生成好了，中间几乎没有等待…",
+          "mentions": [
+            "Blackwell 14",
+            "FastH3"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2094590425319510428",
+          "url": "https://x.com/mnmn94253156337/status/2094590425319510428",
+          "author": "撸毛吃猪脚饭| 美股合约首选Gate",
+          "authorId": "mnmn94253156337",
+          "publishedAt": "2026-09-01T00:57:27.000Z",
+          "title": "京东开源了一个实时AI视频编辑器 视频一边播放，AI一边修改： • 一句话更换视频背景 • 给人物换衣服、换造型 • 删",
+          "excerpt": "京东开源了一个实时AI视频编辑器 视频一边播放，AI一边修改： • 一句话更换视频背景 • 给人物换衣服、换造型 • 删除或替换指定物体 • 真人视频变成水彩、动画风格 • 参考一张图片完成视频换装 • 长视频也能持续处理，不必等待全部生成 项目叫 JoyAI-Video-Edit，已经开源模型和部署代码。 目前对硬件要求较高，RTX 5090 需要32GB显存，官方测试为840×480下24FPS，更适合开发者和专业团队尝鲜。 开源地址： https://t.co/uHLRWFVeiD",
+          "mentions": [
+            "RTX 5090"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2095071044663148599",
+          "url": "https://x.com/0xmomonifty/status/2095071044663148599",
+          "author": "0xMomo",
+          "authorId": "0xmomonifty",
+          "publishedAt": "2026-09-02T08:47:16.000Z",
+          "title": "最近在折腾 AI 视频的时候，发现 HitPaw VikPea 这个工具挺顺手的 它把 AI 影片生成和画质修复整合在一",
+          "excerpt": "最近在折腾 AI 视频的时候，发现 HitPaw VikPea 这个工具挺顺手的 它把 AI 影片生成和画质修复整合在一起了。平时抽卡、或者跑加速工作流的时候直接用低分辨率先出结果，这样速度快、成本也低，等有满意的片子再去 VikPea 上一键做画质升级、锐化、去噪（无限次数），可以直接拉到高清甚至 4K 连接直达：https://t.co/1Pn8xJYK5J HitPaw VikPea 自带文生视频、图生视频，几个主流模型都能用，包括最近很火的Seedance 2.5也是不用排队就能生成，生成完不用切软件就能继续修 对经常大量测试提示词的人来说，这个流程确实省事不少，一次订阅就能无限提升视…",
+          "mentions": [
+            "HitPaw",
+            "HitPawVikPea",
+            "Seedance",
+            "Seedance 2.5"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2095362706316685648",
+          "url": "https://x.com/xiaomovps/status/2095362706316685648",
+          "author": "小墨同学",
+          "authorId": "xiaomovps",
+          "publishedAt": "2026-09-03T04:06:13.000Z",
+          "title": "国内 AI 视频的价格，已经被打到几十块一分钟了🔥 我简单对比了一下现在几家主流视频模型， 生成一分钟AI视频所需要的",
+          "excerpt": "国内 AI 视频的价格，已经被打到几十块一分钟了🔥 我简单对比了一下现在几家主流视频模型， 生成一分钟AI视频所需要的花费： 1、MiniMax H3 原生音频：约 30 元/分钟 2、百度 MuseSteamer：约 25 元/分钟 3、阿里 Wan 3.0：约 25 元/分钟 4、Vidu Q3 Turbo：约 30 元/分钟 5、可灵 Kling V3：约 54 元/分钟 6、Seedance 2.5：约 91 元/分钟 7、PixVerse V6：约 21 元/分钟 上面只是我简单搜集计算的结果，而且还是一次性生成成功所需要花费的成本，但是真正的生产过程中还会存在很多废案。 本质上A…",
+          "mentions": [
+            "Kling",
+            "Seedance",
+            "Seedance 2.5",
+            "Vidu",
+            "Wan",
+            "Wan 3.0",
+            "可灵"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2091343629503918444",
+          "url": "https://x.com/ChenshuoAI/status/2091343629503918444",
+          "author": "陈硕KAI",
+          "authorId": "ChenshuoAI",
+          "publishedAt": "2026-08-23T01:55:51.000Z",
+          "title": "之前开源的 11 种风格 AI 手绘视频自动化系统，又被我往前推了一步，一天时间已经100stars了，同时已经有推友靠",
+          "excerpt": "之前开源的 11 种风格 AI 手绘视频自动化系统，又被我往前推了一步，一天时间已经100stars了，同时已经有推友靠这个跑出demo啦 https://t.co/2twgUcSutq 同时用一个新号一条视频跑数据已经获得了18000浏览，私域转化20人 这次不是单纯再加一个画面风格 而是给这条 AI 视频生产线，新增了第三种制作方式： 动态信息图 先放项目： GitHub：https://t.co/L8cVbBkAiz 之前的版本已经可以做到： · 上传 10–30 秒参考声音 · 粘贴一段文案 · 选择 11 种画面风格，或者上传自定义画风和人物参考 然后自动完成： 声音克隆 → 分镜拆…",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2095900359881535811",
+          "url": "https://x.com/0xmomonifty/status/2095900359881535811",
+          "author": "0xMomo",
+          "authorId": "0xmomonifty",
+          "publishedAt": "2026-09-04T15:42:40.000Z",
+          "title": "尝试了一下 Minimax H3，也能够一口气生成 15 秒的 vlog 视频 试了一下就一张人物的多方位参考图，直接一",
+          "excerpt": "尝试了一下 Minimax H3，也能够一口气生成 15 秒的 vlog 视频 试了一下就一张人物的多方位参考图，直接一口气拉满 15 秒： 东京铁塔打卡 ➡️ 涉谷十字路口 ➡️ 7-11饭团 ➡️ 居酒屋烫嘴吃章鱼烧 ➡️ 坐电车 ➡️ 沉浸式光影展 ➡️ 奈良喂小鹿 整段视频的人物一致性、光影流动、手持自拍的真实晃动感，甚至吹气吃东西的微表情都极其自然，完全没有传统 AI 视频的塑料僵硬感 单次生成就能剪出一支完整饱满的旅行 Vlog，现在视频模型的能力实力还是太强了 而且现在社区大佬有各种的 Lora，不管是文戏、武戏还是人物写实 Vlog 各方面的表现都能特别的突出",
+          "mentions": [
+            "LoRA"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2096084530079924370",
+          "url": "https://x.com/op7418/status/2096084530079924370",
+          "author": "歸藏(guizang.ai)",
+          "authorId": "op7418",
+          "publishedAt": "2026-09-05T03:54:29.000Z",
+          "title": "做一个实验，用 GPT-6 操纵 Blender 生成的动画，和现在最强的视频模型 Seedance 2.5 1080P",
+          "excerpt": "做一个实验，用 GPT-6 操纵 Blender 生成的动画，和现在最强的视频模型 Seedance 2.5 1080P 生成的动画进行对比。 同时对比一下它们目前的成本： 在即梦里边，这样一条视频的成本大概是 384 积分，也就是 35 块钱人民币左右。 GPT-6 的 token 成本如果是按照 Codex 的套餐优惠来算，可能是在 8 块钱人民币左右。",
+          "mentions": [
+            "Blender",
+            "GPT",
+            "Seedance",
+            "Seedance 2.5",
+            "即梦"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2095088342064898423",
+          "url": "https://x.com/huoshan007/status/2095088342064898423",
+          "author": "火山哥🕊️",
+          "authorId": "huoshan007",
+          "publishedAt": "2026-09-02T09:56:00.000Z",
+          "title": "兄弟们，给你们说一个朋友案例。 我朋友妹四川的女大学生，用AI捏了个虚拟AI分身视频，一个月收了大概两万块。 操作流程简",
+          "excerpt": "兄弟们，给你们说一个朋友案例。 我朋友妹四川的女大学生，用AI捏了个虚拟AI分身视频，一个月收了大概两万块。 操作流程简单到怀疑人生： Kling生成跳舞视频。 小红书批量发她跳舞视频。 两周涨粉六万多。 然后直接挂会员付费社群。 小红书管获客，微信群管收钱。 二千多个人付费，每人9块9。 最骚的是什么？ 她连真人出镜都没有，就用自己照片建了一个AI模型每天发三条动态，配上音乐和舞蹈轮换，评论区一堆人喊老婆。 很多人还在说AI是消费品不好学。 会的人都在用它躺着赚钱了，你还在傻傻的问。 但说实话，内容行业本质就是情绪买卖，AI只是把成本打下来了而已。 赛博美女，已经开始抢真人的饭碗了。",
+          "mentions": [
+            "Kling"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2094929779241976204",
+          "url": "https://x.com/PixelAigc/status/2094929779241976204",
+          "author": "PixelAIGC",
+          "authorId": "PixelAigc",
+          "publishedAt": "2026-09-01T23:25:55.000Z",
+          "title": "太厉害了！ H3的演技越来越全面了！ 这是中国传统武侠电影之港式新派武侠电影风格的人物对话 AI演出来的25秒视频竟然非",
+          "excerpt": "太厉害了！ H3的演技越来越全面了！ 这是中国传统武侠电影之港式新派武侠电影风格的人物对话 AI演出来的25秒视频竟然非常自然！ 这仅仅是用提示词在本地部署的大模型生成的，突破15秒限制 不需要花费token prompt 视频提示词如下： https://t.co/IycsrWt1MU",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2094661924525052266",
+          "url": "https://x.com/Saccc_c/status/2094661924525052266",
+          "author": "Sac",
+          "authorId": "Saccc_c",
+          "publishedAt": "2026-09-01T05:41:34.000Z",
+          "title": "H3 Max不愧是最快的视频生成模型，有人直接基于其做了一个实时互动游戏 先是无限AI直播，这会又是无限AI游戏，难道H",
+          "excerpt": "H3 Max不愧是最快的视频生成模型，有人直接基于其做了一个实时互动游戏 先是无限AI直播，这会又是无限AI游戏，难道H3 Max将带起新的娱乐范式？ 想尝试的朋友可以去官方免费体验，3s一个视频，简直恐怖如斯 （下面是生成过程，毫无倍速，相关地址见评论区） https://t.co/lPLMWtOufi",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        }
+      ],
+      "pages": [
+        {
+          "page": 1,
+          "received": 19
+        }
+      ]
+    }
+  ]
+}
