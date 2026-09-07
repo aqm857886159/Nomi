@@ -340,6 +340,67 @@ describe("semantic MCP generation tools", () => {
     expect(start).not.toHaveBeenCalled();
   });
 
+  it("resolve runs a stateless plan pass: clamps out-of-range durations and never touches the operation store", async () => {
+    const operations = createInMemoryGenerationOperationStore();
+    const handler = createGenerationPlanningHandler({
+      registry: videoRegistry,
+      operations,
+      videoModelCandidates: [{ provider: "apimart", modelKey: "doubao-seedance-2.5", label: "Seedance 2.5", archetype: SEEDANCE_2_5_APIMART_ARCHETYPE }],
+      now: () => "2026-08-23T00:00:00.000Z",
+    });
+
+    const resolution = await handler({
+      capability: "resolve",
+      params: {
+        shots: [
+          { id: "s1", durationSec: 999, modelKey: "doubao-seedance-2.5", sceneAnchorId: "hall" },
+          { id: "s2", durationSec: 5, sceneAnchorId: "hall" },
+        ],
+        goals: { allowAdvisoryMerge: true },
+      },
+      lease,
+    }) as {
+      nextAction: string;
+      resolvedShots: Array<{ id: string; modelKey: string | null; issues: Array<{ code: string }> }>;
+      mergeProposals: unknown[];
+      splitProposals: unknown[];
+      planIssues: Array<{ code: string }>;
+    };
+
+    expect(resolution.nextAction).toBe("create");
+    expect(resolution.resolvedShots).toHaveLength(2);
+    expect(resolution.resolvedShots[0]).toMatchObject({ id: "s1", modelKey: "doubao-seedance-2.5" });
+    expect(Array.isArray(resolution.mergeProposals)).toBe(true);
+    expect(Array.isArray(resolution.splitProposals)).toBe(true);
+    // 999s 必然触发钳值/超限（任何真实单条上限都小于它）→ planIssues 至少一条不合法记录
+    expect(resolution.planIssues.length).toBeGreaterThan(0);
+    expect(resolution.planIssues.some((issue) => issue.code === "duration.overflow" || issue.code === "duration.clamped")).toBe(true);
+    // stateless：resolve 不落任何 durable operation
+    expect(await operations.read("project-1", "resolve-op")).toBeNull();
+  });
+
+  it("resolve is lease-free (GUI narrow IPC path): same advisory output with no lease, while other capabilities still fail-closed", async () => {
+    const operations = createInMemoryGenerationOperationStore();
+    const handler = createGenerationPlanningHandler({
+      registry: videoRegistry,
+      operations,
+      videoModelCandidates: [{ provider: "apimart", modelKey: "doubao-seedance-2.5", label: "Seedance 2.5", archetype: SEEDANCE_2_5_APIMART_ARCHETYPE }],
+      now: () => "2026-08-23T00:00:00.000Z",
+    });
+
+    // resolve 不传 lease（stateless advisory，无项目侧写）也走通。
+    const leaseFree = await handler({
+      capability: "resolve",
+      params: { shots: [{ id: "s1", durationSec: 5, sceneAnchorId: "hall" }] },
+    }) as { resolvedShots: unknown[]; mergeProposals: unknown[]; splitProposals: unknown[]; planIssues: unknown[]; nextAction: string };
+    expect(leaseFree.nextAction).toBe("create");
+    expect(leaseFree.resolvedShots).toHaveLength(1);
+
+    // 其它 capability 没有 lease 仍必须 fail-closed（改 resolve 豁免不许放宽整把闸）。
+    await expect(handler({ capability: "context", params: {} })).rejects.toThrow("A verified project lease is required");
+    await expect(handler({ capability: "create", params: { prompt: "x" } })).rejects.toThrow("A verified project lease is required");
+  });
+
   it("uses the shared source-backed registry for a real preview path without starting a provider", async () => {
     const operations = createInMemoryGenerationOperationStore();
     const start = vi.fn(async () => { throw new Error("shared preview must not start a provider"); });

@@ -2,20 +2,6 @@
   "debtCap": 77,
   "registered": [
     {
-        "site": "src/media/videoPlaybackTelemetry.ts::type:VideoPlaybackTelemetryInput/property:phase/type-union",
-        "members": [
-            "canplay",
-            "error",
-            "metadata"
-        ],
-        "reason": "HTML media element 的播放生命周期观测点（对应 onCanPlay / onError / onLoadedMetadata 三个原生事件），是 J09「全屏预览短暂无法播放」的取证埋点专用维度。它描述的是浏览器媒体元素状态，不是 Nomi 的业务阶段（generation stage / run status / gate status），故不复用任何既有业务词表；成员集由 HTML 规范的事件名决定，不由我们扩展。"
-    },
-    {
-      "site": "electron/connectors/connectorDefinition.ts::type:UsageStatus/type-union",
-      "members": ["cleared", "reference_only", "requires_attribution", "restricted", "rights_unknown"],
-      "reason": "UsageStatus 是 P0-1 来源取证的五态操作性枚举（代表「系统该怎么对待这份素材」，不是法律结论）：reference_only 浏览器/本地来源的诚实默认，rights_unknown connector 抓取平台内容的默认，requires_attribution CC BY 族等必须署名的来源，cleared 已核实可用（仅 Pixabay API 等明确授权来源才设），restricted 在当前用途下受限。与 M4 taint 系统对齐：usageStatus 是 content trust level 维度，M4 output projection 直接读取。projectAssetStore.ts 的 VALID_USAGE_STATUSES 运行时 Set 从此类型 derive，不另立成员列表。"
-    },
-    {
       "site": "electron/ai/antigravityProtocol.ts::type:AntigravityToolStep/property:state/type-union",
       "members": [
         "ACTIVE",
@@ -178,11 +164,6 @@
       "reason": "模型目录/供应商调用域的结果词表（ / fail / querying / success），成员由该供应商或调用协议定义。"
     },
     {
-      "site": "electron/shared/contracts/apiKeyStatus.ts::variable:API_KEY_DECRYPT_STATUSES/as-const",
-      "members": ["locked", "missing", "needs_resave", "ok"],
-      "reason": "ApiKeyDecryptStatus 是首次真实执行时的凭据可解密性合同：missing 表示没有可用记录，needs_resave 表示 legacy plaintext 仅可用于迁移提示且不可执行，locked 表示 safeStorage 密文存在但宿主无法解密，ok 表示取得可用明文；它会触碰解密能力，与零解密的 textBrain metadata readiness 正交。owner 已上移到中立契约层 electron/shared/contracts/apiKeyStatus.ts（renderer connector DTO 与主进程凭据层都从此 derive，跨进程不各写一份）；secrets.ts 只再导出，成员唯一定义在此 as-const tuple。"
-    },
-    {
       "site": "electron/catalog/seedBuiltins.ts::type:CatalogLifecycle/type-union",
       "members": [
         "companion",
@@ -191,6 +172,29 @@
         "value"
       ],
       "reason": "seedBuiltins 的 CatalogLifecycle 是主进程内置目录的产品分层标签：flagship、companion、legacy 与 value 决定种子发布和兼容策略，和 renderer 的排序投影保持边界分离。"
+    },
+    {
+      "site": "electron/connectors/connectorDefinition.ts::type:UsageStatus/type-union",
+      "members": [
+        "cleared",
+        "reference_only",
+        "requires_attribution",
+        "restricted",
+        "rights_unknown"
+      ],
+      "reason": "UsageStatus 是 P0-1 来源取证的五态操作性枚举（代表「系统该怎么对待这份素材」，不是法律结论）：reference_only 浏览器/本地来源的诚实默认，rights_unknown connector 抓取平台内容的默认，requires_attribution CC BY 族等必须署名的来源，cleared 已核实可用（仅 Pixabay API 等明确授权来源才设），restricted 在当前用途下受限。与 M4 taint 系统对齐：usageStatus 是 content trust level 维度，M4 output projection 直接读取。projectAssetStore.ts 的 VALID_USAGE_STATUSES 运行时 Set 从此类型 derive，不另立成员列表。"
+    },
+    {
+      "site": "electron/experience/experienceTypes.ts::variable:experienceStatusSchema/z.enum",
+      "members": [
+        "active",
+        "demoted",
+        "expired",
+        "quarantined",
+        "shadow",
+        "superseded"
+      ],
+      "reason": "experienceStatusSchema 是经验候选的唯一生命周期词表：quarantined/shadow/active 表示证据闸门，demoted/expired/superseded 表示不可再用于提示词的终态；策略、投影和回放都必须从此 owner 派生，不能与 Agent turn 或任务状态混用。"
     },
     {
       "site": "electron/harness/context/contextStore.ts::interface:StoredAgentContext/property:state/type-union",
@@ -651,6 +655,24 @@
       "reason": "画布节点状态的唯一领域词表（idle / queued / running / success / error / recoverable）。收进 electron/shared/canvas/generationNodeStatus.ts 作 as-const 单源，generationNodeStatusSchema=z.enum(它)、GenerationNodeStatus=其 z.infer、generationNodeRunStatusSchema 也从它 exclude/or 派生；渲染层与持久化/IPC 校验共用这一份，故独立且集中。"
     },
     {
+      "site": "electron/shared/contracts/apiKeyStatus.ts::variable:API_KEY_DECRYPT_STATUSES/as-const",
+      "members": [
+        "locked",
+        "missing",
+        "needs_resave",
+        "ok"
+      ],
+      "reason": "ApiKeyDecryptStatus 是首次真实执行时的凭据可解密性合同：missing 表示没有可用记录，needs_resave 表示 legacy plaintext 仅可用于迁移提示且不可执行，locked 表示 safeStorage 密文存在但宿主无法解密，ok 表示取得可用明文；它会触碰解密能力，与零解密的 textBrain metadata readiness 正交。owner 已上移到中立契约层 electron/shared/contracts/apiKeyStatus.ts（renderer connector DTO 与主进程凭据层都从此 derive，跨进程不各写一份）；secrets.ts 只再导出，成员唯一定义在此 as-const tuple。"
+    },
+    {
+      "site": "electron/shared/contracts/diagnostics.ts::type:DiagnosticsExportResult/property:reason/type-union",
+      "members": [
+        "canceled",
+        "failed"
+      ],
+      "reason": "诊断包导出失败时的两种收场，只服务设置页那一格的文案分岔：canceled = 用户在系统保存对话框里点了取消（不是错误，界面上说「已取消」就好），failed = 写盘真的没成（界面上要说「请再试一次」）。它描述的是一次本机保存对话框的结果，不是任务/作业/运行的生命周期，所以不能复用 GenerationProviderTaskState、ProductionJobStatus 或 TelemetryResult——那几个词表一旦被借来表达「用户点了取消」，业务状态机的成员含义就被稀释了。成员由 Electron showSaveDialog 的返回形状决定（canceled 布尔 + 写盘是否抛），不由我们扩展。"
+    },
+    {
       "site": "electron/shared/contracts/exportTypes.ts::variable:EXPORT_JOB_STATUSES/as-const",
       "members": [
         "cancelled",
@@ -680,6 +702,24 @@
         "sync-json"
       ],
       "reason": "MODEL_ACCESS_LIFECYCLES 是模型接入「不留死路」旅程门岗的传输生命周期覆盖面（sync-json / sse / create-poll / create-status-result / multipart / binary / ndjson / process / http-websocket），描述接入协议的响应形态而非生成任务状态；manifest.test 用它保证每种传输形态都有真实 UI 往返，禁止在旅程矩阵外另立平行集合。"
+    },
+    {
+      "site": "electron/shared/contracts/telemetry.ts::type:TelemetryStatus/type-union",
+      "members": [
+        "configured",
+        "disabled",
+        "unconfigured"
+      ],
+      "reason": "TelemetryStatus 是本地隐私设置视图的三态投影，描述 endpoint 配置与用户同意后的展示状态；它不是任务或连接生命周期，复用已有状态词表会把设置页的可见合同与业务状态混淆。"
+    },
+    {
+      "site": "electron/shared/contracts/telemetry.ts::variable:TELEMETRY_RESULT_VALUES/as-const",
+      "members": [
+        "cancel",
+        "failure",
+        "success"
+      ],
+      "reason": "TelemetryResult 是遥测出站协议唯一允许的结果维度，跨主进程更新、生成与导出入口共用同一中立合同；它描述一次遥测事件结算，不等同于供应商任务、导出作业或 UI 状态。"
     },
     {
       "site": "electron/shared/integrationContract.ts::variable:INTEGRATION_CREDENTIAL_STATUSES/as-const",
@@ -779,6 +819,17 @@
       "reason": "ArchetypeExpressionChannel.status 描述视频能力证据的覆盖度：documented 有来源证据，unsupported 明确不支持，unknown 尚无结论；它驱动规划时是否采用表达通道，不是任务执行状态。"
     },
     {
+      "site": "electron/shared/workspaceSyncContracts.ts::type:WorkspaceSyncStatus/type-union",
+      "members": [
+        "conflict",
+        "corrupt-manifest",
+        "external-change",
+        "missing-assets",
+        "ready"
+      ],
+      "reason": "WorkspaceSyncStatus 是跨设备同步检查的唯一生命周期词表：ready 表示项目完整可在另一台电脑继续，external-change 表示检测到来自另一台设备的新版本，missing-assets 表示素材未同步，conflict 和 corrupt-manifest 表示需要人工干预的异常态；UI、IPC 和策略层必须从此 owner derive，禁止在其他层另立平行字面量集合。"
+    },
+    {
       "site": "electron/skills/playbookOrchestrator.ts::type:PlaybookStatus/type-union",
       "members": [
         "awaiting-confirm",
@@ -839,6 +890,15 @@
         "ok"
       ],
       "reason": "textBrain.status 是 catalog metadata readiness 合同：enabled 候选配免鉴权 vendor 或 enabled/nonempty credential record 时为 ok，否则 missing；该只读入口零解密且不触碰 safeStorage，execution 阶段的 locked 另由 ApiKeyDecryptStatus 表达。"
+    },
+    {
+      "site": "src/media/videoPlaybackTelemetry.ts::type:VideoPlaybackTelemetryInput/property:phase/type-union",
+      "members": [
+        "canplay",
+        "error",
+        "metadata"
+      ],
+      "reason": "HTML media element 的播放生命周期观测点（对应 onCanPlay / onError / onLoadedMetadata 三个原生事件），是 J09「全屏预览短暂无法播放」的取证埋点专用维度。它描述的是浏览器媒体元素状态，不是 Nomi 的业务阶段（generation stage / run status / gate status），故不复用任何既有业务词表；成员集由 HTML 规范的事件名决定，不由我们扩展。"
     },
     {
       "site": "src/ui/app-shell/useUpdater.ts::type:UpdaterPhase/type-union",
@@ -1049,6 +1109,70 @@
       "reason": "「活的工具调用」在渲染层的三态（pending 待用户裁决 / approved 已批 / denied 已拒）。它之所以必须存在于渲染层：宿主状态里根本没有「正在跑的工具调用」这条记录——ProjectAgentToolItem 只在回合结束时从 response.toolCalls 一次性生成，跑的过程中唯一的活记录是执行协调器内存里的 PendingToolDecision，而它从不进 ProjectAgentHostState（见 electron/projectAgentHost/projectAgentExecutionCoordinatorTypes.ts）。所以这是「宿主还没有话说」的那段时间里的本地视图词表，不是第二份真相：终态一到，agentPanelV4Projection.toolStatusOf 就以宿主快照为准（单测「宿主快照永远赢」钉死）。2026-09-06 v4 接线前它住在 ResidentUiPrimitives.tsx::ResidentApprovalState，随旧面板整件删除后原样迁到这里，成员与语义都没变。"
     },
     {
+      "site": "src/workbench/ai/v4/agentPanelV4Types.ts::type:ComposerMode/type-union",
+      "members": [
+        "idle",
+        "reference",
+        "running"
+      ],
+      "reason": "ComposerMode 是设计实验室 composer 的三种视图模式；它描述输入框展示上下文，不是任务或供应商生命周期，故保持局部 UI 词表。"
+    },
+    {
+      "site": "src/workbench/ai/v4/agentPanelV4Types.ts::type:QueueRowData/property:status/type-union",
+      "members": [
+        "complete",
+        "queued",
+        "running"
+      ],
+      "reason": "QueueRowData.status 是 Agent 面板队列行的展示投影，complete 表示行已收束；它与生产任务的 succeeded 语义不同，保持面板词表隔离。"
+    },
+    {
+      "site": "src/workbench/ai/v4/agentPanelV4Types.ts::type:V4AssistantStatus/type-union",
+      "members": [
+        "complete",
+        "interrupted",
+        "streaming"
+      ],
+      "reason": "V4AssistantStatus 是面板助手消息的流式显示状态，interrupted 是用户可见中断结果；它不等同于运行时任务或供应商状态。"
+    },
+    {
+      "site": "src/workbench/ai/v4/agentPanelV4Types.ts::type:V4TaskStatus/type-union",
+      "members": [
+        "complete",
+        "failed",
+        "queued",
+        "running",
+        "stopped"
+      ],
+      "reason": "V4TaskStatus 是 AI Elements Task 卡片的面板状态，stopped 与 failed 需要分别表达用户停止和执行失败，不能复用生产任务终态。"
+    },
+    {
+      "site": "src/workbench/ai/v4/agentPanelV4Types.ts::type:V4ToolStatus/type-union",
+      "members": [
+        "approval-requested",
+        "approval-responded",
+        "input-available",
+        "input-streaming",
+        "output-available",
+        "output-denied",
+        "output-error"
+      ],
+      "reason": "V4ToolStatus 保留 AI Elements 七态协议词面，供 Tool 收据把审批与输入输出阶段逐项映射；它不是供应商任务状态。"
+    },
+    {
+      "site": "src/workbench/ai/v4/vendor/aiElementsContract.ts::variable:AI_ELEMENTS_TOOL_STATUSES/as-const",
+      "members": [
+        "approval-requested",
+        "approval-responded",
+        "input-available",
+        "input-streaming",
+        "output-available",
+        "output-denied",
+        "output-error"
+      ],
+      "reason": "AI_ELEMENTS_TOOL_STATUSES 是 vendor 解剖报告对应的七态协议常量，作为 V4ToolStatus 的外部契约参照，不能由 Nomi 运行时任务词表替代。"
+    },
+    {
       "site": "src/workbench/ai/workbenchAiTypes.ts::type:WorkbenchAiMessage/property:status/type-union",
       "members": [
         "cancelled",
@@ -1070,6 +1194,30 @@
         "vendor_disabled"
       ],
       "reason": "ModelCatalogHealthIssueCode 是模型目录健康 DTO 的结构化问题码，区分目录为空、供应商禁用、缺 API key、safeStorage 密文锁定、legacy plaintext 需重存与缺模型映射；renderer 据此定位安全且可执行的配置缺口，它不是连接探测或任务状态。"
+    },
+    {
+      "site": "src/workbench/creation/storyboard/StoryboardPlanStrategyPanel.tsx::function:StatusBar/parameter:0/property:stateKey/type-union",
+      "members": [
+        "clear",
+        "error",
+        "loading",
+        "unavailable"
+      ],
+      "reason": "执行计划审阅条（Generation Strategy Resolver GUI 面）对 resolve 通道结果的呈现状态机：loading 检查中 / unavailable 能力核未装配 / error 检查失败 / clear 合规无需调整。它描述「主进程 resolve 对当前方案给出的呈现结论」，不是任务/审批/素材生命周期；clear 与 unavailable 是本面板独有结论，无现有词表可复用（browserAssetData.status 是素材数据状态，语义不同）。"
+    },
+    {
+      "site": "src/workbench/creation/storyboard/exec/storyboardRowStatus.ts::variable:SHOT_ROW_STATUSES/as-const",
+      "members": [
+        "done",
+        "failed",
+        "generating",
+        "locked",
+        "missing-required",
+        "ready",
+        "recoverable",
+        "waiting-refs"
+      ],
+      "reason": "ShotRowStatus 是分镜表行的执行态投影词表（v5 B）：从「plan × 画布节点」实时 derive（不持久化），waiting-refs/missing-required 是表独有的前置就绪判定（参考卡未出图/必填槽无来源），与节点自身的 GenerationCanvasNode.status（queued/running/error…）不同源不同义——节点态只描述单节点生命周期，行态还要综合锚就绪度与锁定；recoverable 与 failed 是两条必须分开的钱路：recoverable 投影自节点 status='recoverable'（任务已提交、已扣费、上游多半已出片，只是本地轮询没接住），只配免费的 recoverNodeResult 续查且永不进批量，failed 只投影 status='error' 且重跑要重新付费；组头/footer/批量判定必须从本 owner derive，禁止另写快照。"
     },
     {
       "site": "src/workbench/export/exportApi.ts::type:ExportTimelineToMp4Options/property:onProgress/parameter:progress/property:status/type-union",
@@ -1296,115 +1444,6 @@
         "stale"
       ],
       "reason": "Storyboard design status is the persisted lifecycle of a draft-owned creative asset: draft is proposed, committed is placed on canvas, and stale needs synchronization after its source draft changes."
-    },
-    {
-      "site": "src/workbench/creation/storyboard/exec/storyboardRowStatus.ts::variable:SHOT_ROW_STATUSES/as-const",
-      "members": [
-        "done",
-        "failed",
-        "generating",
-        "locked",
-        "missing-required",
-        "ready",
-        "recoverable",
-        "waiting-refs"
-      ],
-      "reason": "ShotRowStatus 是分镜表行的执行态投影词表（v5 B）：从「plan × 画布节点」实时 derive（不持久化），waiting-refs/missing-required 是表独有的前置就绪判定（参考卡未出图/必填槽无来源），与节点自身的 GenerationCanvasNode.status（queued/running/error…）不同源不同义——节点态只描述单节点生命周期，行态还要综合锚就绪度与锁定；recoverable 与 failed 是两条必须分开的钱路：recoverable 投影自节点 status='recoverable'（任务已提交、已扣费、上游多半已出片，只是本地轮询没接住），只配免费的 recoverNodeResult 续查且永不进批量，failed 只投影 status='error' 且重跑要重新付费；组头/footer/批量判定必须从本 owner derive，禁止另写快照。"
-    },
-    {
-      "site": "electron/shared/workspaceSyncContracts.ts::type:WorkspaceSyncStatus/type-union",
-      "members": [
-        "conflict",
-        "corrupt-manifest",
-        "external-change",
-        "missing-assets",
-        "ready"
-      ],
-      "reason": "WorkspaceSyncStatus 是跨设备同步检查的唯一生命周期词表：ready 表示项目完整可在另一台电脑继续，external-change 表示检测到来自另一台设备的新版本，missing-assets 表示素材未同步，conflict 和 corrupt-manifest 表示需要人工干预的异常态；UI、IPC 和策略层必须从此 owner derive，禁止在其他层另立平行字面量集合。"
-    },
-    {
-      "site": "electron/experience/experienceTypes.ts::variable:experienceStatusSchema/z.enum",
-      "members": ["active", "demoted", "expired", "quarantined", "shadow", "superseded"],
-      "reason": "experienceStatusSchema 是经验候选的唯一生命周期词表：quarantined/shadow/active 表示证据闸门，demoted/expired/superseded 表示不可再用于提示词的终态；策略、投影和回放都必须从此 owner 派生，不能与 Agent turn 或任务状态混用。"
-    },
-    {
-      "site": "electron/shared/contracts/diagnostics.ts::type:DiagnosticsExportResult/property:reason/type-union",
-      "members": ["canceled", "failed"],
-      "reason": "诊断包导出失败时的两种收场，只服务设置页那一格的文案分岔：canceled = 用户在系统保存对话框里点了取消（不是错误，界面上说「已取消」就好），failed = 写盘真的没成（界面上要说「请再试一次」）。它描述的是一次本机保存对话框的结果，不是任务/作业/运行的生命周期，所以不能复用 GenerationProviderTaskState、ProductionJobStatus 或 TelemetryResult——那几个词表一旦被借来表达「用户点了取消」，业务状态机的成员含义就被稀释了。成员由 Electron showSaveDialog 的返回形状决定（canceled 布尔 + 写盘是否抛），不由我们扩展。"
-    },
-    {
-      "site": "electron/shared/contracts/telemetry.ts::type:TelemetryStatus/type-union",
-      "members": ["configured", "disabled", "unconfigured"],
-      "reason": "TelemetryStatus 是本地隐私设置视图的三态投影，描述 endpoint 配置与用户同意后的展示状态；它不是任务或连接生命周期，复用已有状态词表会把设置页的可见合同与业务状态混淆。"
-    },
-    {
-      "site": "electron/shared/contracts/telemetry.ts::variable:TELEMETRY_RESULT_VALUES/as-const",
-      "members": ["cancel", "failure", "success"],
-      "reason": "TelemetryResult 是遥测出站协议唯一允许的结果维度，跨主进程更新、生成与导出入口共用同一中立合同；它描述一次遥测事件结算，不等同于供应商任务、导出作业或 UI 状态。"
-    },
-    {
-      "site": "src/workbench/ai/v4/agentPanelV4Types.ts::type:ComposerMode/type-union",
-      "members": [
-        "idle",
-        "reference",
-        "running"
-      ],
-      "reason": "ComposerMode 是设计实验室 composer 的三种视图模式；它描述输入框展示上下文，不是任务或供应商生命周期，故保持局部 UI 词表。"
-    },
-    {
-      "site": "src/workbench/ai/v4/agentPanelV4Types.ts::type:QueueRowData/property:status/type-union",
-      "members": [
-        "complete",
-        "queued",
-        "running"
-],
-      "reason": "QueueRowData.status 是 Agent 面板队列行的展示投影，complete 表示行已收束；它与生产任务的 succeeded 语义不同，保持面板词表隔离。"
-    },
-    {
-      "site": "src/workbench/ai/v4/agentPanelV4Types.ts::type:V4AssistantStatus/type-union",
-      "members": [
-        "complete",
-        "interrupted",
-        "streaming"
-      ],
-      "reason": "V4AssistantStatus 是面板助手消息的流式显示状态，interrupted 是用户可见中断结果；它不等同于运行时任务或供应商状态。"
-    },
-    {
-      "site": "src/workbench/ai/v4/agentPanelV4Types.ts::type:V4TaskStatus/type-union",
-      "members": [
-        "complete",
-        "failed",
-        "queued",
-        "running",
-        "stopped"
-      ],
-      "reason": "V4TaskStatus 是 AI Elements Task 卡片的面板状态，stopped 与 failed 需要分别表达用户停止和执行失败，不能复用生产任务终态。"
-    },
-    {
-      "site": "src/workbench/ai/v4/agentPanelV4Types.ts::type:V4ToolStatus/type-union",
-      "members": [
-        "approval-requested",
-        "approval-responded",
-        "input-available",
-        "input-streaming",
-        "output-available",
-        "output-denied",
-        "output-error"
-      ],
-      "reason": "V4ToolStatus 保留 AI Elements 七态协议词面，供 Tool 收据把审批与输入输出阶段逐项映射；它不是供应商任务状态。"
-    },
-    {
-      "site": "src/workbench/ai/v4/vendor/aiElementsContract.ts::variable:AI_ELEMENTS_TOOL_STATUSES/as-const",
-      "members": [
-        "approval-requested",
-        "approval-responded",
-        "input-available",
-        "input-streaming",
-        "output-available",
-        "output-denied",
-        "output-error"
-],
-      "reason": "AI_ELEMENTS_TOOL_STATUSES 是 vendor 解剖报告对应的七态协议常量，作为 V4ToolStatus 的外部契约参照，不能由 Nomi 运行时任务词表替代。"
     }
   ],
   "debt": [

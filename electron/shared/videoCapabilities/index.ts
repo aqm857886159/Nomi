@@ -37,6 +37,8 @@ export { WAN_3_0_ARCHETYPE } from "./wan30";
 export { WAN_3_0_APIMART_ARCHETYPE } from "./wan30Apimart";
 
 export { modeTransportFor } from "./modeTransport";
+export { applyMergeProposal, applySplitProposal, resolveGenerationPlan } from "./planResolver";
+export { GenerationResolveErrorCode } from "./planResolutionContracts";
 export { canonicalVideoVariantId, effectiveVideoModes, recommendVideoGeneration } from "./recommendation";
 export type {
   VideoCatalogModel,
@@ -52,6 +54,21 @@ export type {
   ModelArchetypeVariant,
   ModelParameterControl,
 } from "./types";
+export type {
+  GenerationResolutionInput,
+  GenerationResolutionResult,
+  MergeProposal,
+  PlanIssue,
+  PlanShotInput,
+  PlanShotOutput,
+  SplitProposal,
+} from "./planResolver";
+export type {
+  GenerationResolvePlanEnvelope,
+  GenerationResolvePlanRequest,
+  GenerationResolvePlanValue,
+  GenerationResolveShotView,
+} from "./planResolutionContracts";
 export type {
   VideoGenerationRecommendation,
   VideoGenerationRecommendationInput,

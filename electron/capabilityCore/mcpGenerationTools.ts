@@ -45,6 +45,7 @@ import type {
   VideoModelCandidate,
 } from "../shared/videoCapabilities/recommendation";
 import { effectiveVideoModes } from "../shared/videoCapabilities/recommendation";
+import { resolveGenerationPlan, type PlanShotInput } from "../shared/videoCapabilities/planResolver";
 import type { GenerationDefaultTaskKind } from "../settings/generationModelDefaultsContract";
 import { semanticCandidateFromParams } from "./semanticGenerationCandidate";
 import { projectGenerationOperationPreview } from "./mcpGenerationPreview";
@@ -412,9 +413,74 @@ export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerD
     });
   };
 
+  const resolvePlanAdvisory = (params: Record<string, unknown>): unknown => {
+    // Generation Strategy Resolver — stateless advisory pass (no durable
+    // operation, no seal, no gate): validate/clamp every shot's model/mode/
+    // params against real capability facts and propose merge/split/duration
+    // structure before any plan is formed (2026-09-06 planResolver).
+    const rawShots = params.shots;
+    if (!Array.isArray(rawShots) || rawShots.length === 0) {
+      throw Object.assign(new Error("resolve requires a non-empty shots array"), { code: "generation_input_invalid" });
+    }
+    const candidates = deps.videoModelCandidates ?? [];
+    const shots: PlanShotInput[] = rawShots.map((rawShot, index) => {
+      const shot = record(rawShot, `resolve shot ${index}`);
+      const durationSec = typeof shot.durationSec === "number" && Number.isFinite(shot.durationSec)
+        ? shot.durationSec
+        : Number.NaN;
+      if (!Number.isFinite(durationSec)) {
+        throw Object.assign(new Error(`resolve shot ${index} requires a finite durationSec`), { code: "generation_input_invalid" });
+      }
+      return {
+        id: typeof shot.id === "string" && shot.id.trim() ? shot.id.trim() : `shot-${index + 1}`,
+        durationSec,
+        ...(typeof shot.sceneAnchorId === "string" && shot.sceneAnchorId.trim() ? { sceneAnchorId: shot.sceneAnchorId.trim() } : {}),
+        ...(Array.isArray(shot.anchorIds)
+          ? { anchorIds: shot.anchorIds.filter((value): value is string => typeof value === "string" && value.trim().length > 0).map((value) => value.trim()) }
+          : {}),
+        ...(typeof shot.modelKey === "string" && shot.modelKey.trim() ? { modelKey: shot.modelKey.trim() } : {}),
+        ...(typeof shot.modeId === "string" && shot.modeId.trim() ? { modeId: shot.modeId.trim() } : {}),
+        ...(shot.params && typeof shot.params === "object" && !Array.isArray(shot.params)
+          ? { params: shot.params as Record<string, unknown> }
+          : {}),
+        ...(typeof shot.beatNote === "string" ? { beatNote: shot.beatNote } : {}),
+      };
+    });
+    const rawGoals = params.goals && typeof params.goals === "object" && !Array.isArray(params.goals)
+      ? params.goals as Record<string, unknown>
+      : undefined;
+    const planResolution = resolveGenerationPlan({
+      shots,
+      candidates,
+      ...(rawGoals && typeof rawGoals.allowAdvisoryMerge === "boolean"
+        ? { goals: { allowAdvisoryMerge: rawGoals.allowAdvisoryMerge } }
+        : {}),
+    });
+    return {
+      resolvedShots: planResolution.shots.map((shot) => ({
+        id: shot.id,
+        modelKey: shot.candidate?.modelKey ?? null,
+        modeId: shot.modeId,
+        modeLabel: shot.modeLabel,
+        durationMin: shot.durationMin,
+        durationMax: shot.durationMax,
+        params: shot.params,
+        issues: shot.issues,
+      })),
+      mergeProposals: planResolution.mergeProposals,
+      splitProposals: planResolution.splitProposals,
+      planIssues: planResolution.issues,
+      nextAction: "create",
+    };
+  };
+
   return async (input: { capability: string; params: Record<string, unknown>; lease?: ProjectLeaseV2; origin?: { host: string; actorId?: string } }): Promise<unknown> => {
-    if (!input.lease) throw new Error("A verified project lease is required");
     const params = input.params;
+    // resolve = stateless advisory pass（generation strategy resolver）：纯计算、不落 durable
+    // operation、不触生成，本就不需要项目租赁凭证（GUI 窄 IPC 也是无 lease 进来）→ 提前返回。
+    // 其余 capability（context/create/preview/gate_*/start…）一律要求已核验 lease。
+    if (input.capability === "resolve") return resolvePlanAdvisory(params);
+    if (!input.lease) throw new Error("A verified project lease is required");
     if (input.capability === "context") {
       if (deps.context) return deps.context({ projectId: input.lease.projectId, lease: input.lease });
       const providerProfiles = (deps.registry.snapshot?.() ?? []).flatMap((manifest) => manifest.providers.map((provider) => ({
@@ -661,3 +727,12 @@ export function createGenerationPlanningHandler(deps: GenerationPlanningHandlerD
     throw new Error(`Unsupported semantic generation capability: ${input.capability}`);
   };
 }
+
+/** 已装配的 planning seam 可调用面（agent/MCP 与 GUI 窄 IPC 共用同一实例 → 候选集/决策天然同源）。
+ *  返回类型取松散版（unknown | Promise）以兼容 authorities 注入的 DispatchContext 版 seam。 */
+export type GenerationPlanningHandler = (input: {
+  capability: string;
+  params: Record<string, unknown>;
+  lease?: ProjectLeaseV2;
+  origin?: { host: string; actorId?: string };
+}) => unknown | Promise<unknown>;

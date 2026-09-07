@@ -309,6 +309,12 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
     deconstruct: (payload: unknown) =>
       ipcRenderer.invoke("nomi:video:deconstruct", payload) as Promise<unknown>,
   },
+  // Generation strategy resolver：GUI 分镜表审阅的 stateless resolve。主进程 planning seam 计算，
+  // 返回与 agent/MCP 完全同源的执行计划建议（候选只在 main，渲染层不自构）。信封 ok=false 带 code。
+  generationStrategy: {
+    resolvePlan: (payload: unknown) =>
+      ipcRenderer.invoke("nomi:generation:resolve-plan", payload) as Promise<unknown>,
+  },
   connector: {
     tikhub: {
       keyStatus: () => ipcRenderer.invoke("nomi:connector:tikhub:key-status") as Promise<unknown>,
