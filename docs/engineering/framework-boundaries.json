@@ -69,10 +69,10 @@
       "why": "四列表（docs/plan/2026-09-07-agent-runtime-rebuild.md）已出，但它按我们自己列的能力清单走，只覆盖已经想到的那五项。pi 自带的 coding agent 是一个把这套框架用对了的完整实现，逐层拆开对照才照得出「压根没想到还有这一层」。这份对照正在 docs/pi-reference-conformance-20260907 分支上写。"
     },
     {
-      "id": "@xyflow/react",
+      "id": "xyflow-react",
       "doc": "docs/research/2026-10-07-xyflow-reference-implementation-conformance.md",
       "due": "2026-10-07",
-      "why": "生成画布的交互内核（R23 单内核）。React Flow 官方 examples 是同一套 API 的参考实现，我们的画布已经在 sub-flows、受控视口、节点类型注册这些层上各走了自己的路（2026-09-07 已就 sub-flows 单独查过一轮，见 docs/research/2026-09-07-react-flow-subflows-vs-frame-tool.md），但九层从没并排摆过。"
+      "why": "生成画布的交互内核（R23 单内核）。React Flow 官方 examples 是同一套 API 的参考实现，我们的画布已经在 sub-flows、受控视口、节点类型注册这些层上各走了自己的路（2026-09-07 已就 sub-flows 单独查过一轮，见 docs/research/2026-09-07-react-flow-subflows-vs-frame.md），但九层从没并排摆过。id 从包名 @xyflow/react 改成框架 id xyflow-react：PR #550 把它从「只在 capabilityInventory 里的包」升成了登记框架，债要挂在框架 id 上才认得出（同一笔债，没有新增）。"
     },
     {
       "id": "ai",
