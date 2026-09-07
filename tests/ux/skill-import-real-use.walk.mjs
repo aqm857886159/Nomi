@@ -11,8 +11,9 @@
 //   ① hermes / workbuddy 风格 zip：外面套一层文件夹 + `references/` 附件 + 一个二进制。
 //   ② pi / bigpowers 生态的**技能文件夹**（`audit-code/SKILL.md`）——系统文件对话框根本选不中，
 //      今天用户只能自己先压成 zip。松手拖进来是它唯一顺手的路。
-//   ③ 只有 `skill.json` 的旧包（我们自己 v1 的形状）：必须**报得出人话 + 说得出下一步**，
-//      不能只甩一句「没找到 SKILL.md」。
+//   ③ 没有 SKILL.md 的旧包（我们自己 v1 的形状，正文不在包里）：必须**报得出人话 + 说得出下一步**，
+//      不能只甩一句「没找到 SKILL.md」，更不能反过来教用户去补一份清单文件——
+//      标准格式（Claude Code / pi / Codex 已收敛）里技能正文只有 SKILL.md 一个家。
 //
 // 零额度：文本模型走 `agent-runtime-fixture` 的 loopback，不打任何真供应商。
 //
@@ -53,7 +54,7 @@ fs.writeFileSync(zipPath, Buffer.from(zipSync({
   'walk-hermes-zip-main/logo.png': strToU8('pretend-binary'),
 })))
 
-// ③ 旧 v1 包：只有 skill.json，没有正文。
+// ③ 旧 v1 包：包里只剩一个清单文件，没有 SKILL.md 正文。
 const legacyZipPath = path.join(dropDir, 'walk-legacy-manifest.zip')
 fs.writeFileSync(legacyZipPath, Buffer.from(zipSync({
   'walk-legacy/skill.json': strToU8(JSON.stringify({ name: 'walk-legacy', description: '旧格式：只有清单' })),
@@ -163,7 +164,7 @@ try {
   ).toBeVisible()
   await shot(win, '02-two-skills-imported')
 
-  // ── ③ 只有 skill.json 的旧包：报得出人话，也说得出下一步 ─────────────────────
+  // ── ③ 没有 SKILL.md 的旧包：报得出人话，也说得出下一步 ─────────────────────
   // 先等前两条成功回执散掉。toast 容器 `limit={2}`（NomiAppProviders.tsx），前面挤着两条时
   // 第三条只会排队——真实用户是一次导一个，这里不制造一个不真实的拥挤现场。
   const toasts = win.locator('.mantine-Notification-root')
@@ -172,8 +173,8 @@ try {
   // 断言必须钉在**这条失败回执**上：早先写成全页 getByText('SKILL.md') 时它命中的是空态
   // 里那句导入提示——一条恒真的假绿（docs/lessons/dead-selector-lies-both-ways.md）。
   await expect(
-    toasts.getByText('技能的正文就住在 SKILL.md 里', { exact: false }).first(),
-    '旧 skill.json 包导入失败时，用户没有看到一条说得出下一步的失败回执',
+    toasts.getByText('技能正文必须放在 SKILL.md 里', { exact: false }).first(),
+    '没有 SKILL.md 的旧包导入失败时，用户没有看到一条说得出下一步的失败回执',
   ).toBeVisible()
   expect(skillDirs(), '没有正文的包不该落盘').toEqual(['walk-hermes-zip', 'walk-pi-folder'])
   await shot(win, '03-legacy-manifest-rejected')
