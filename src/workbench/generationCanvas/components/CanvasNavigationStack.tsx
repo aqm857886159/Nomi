@@ -61,6 +61,8 @@ export function CanvasNavigationStack({
         'generation-canvas-v2__navigation-stack',
         'absolute left-4 bottom-3 z-[8] flex flex-col items-start gap-2 pointer-events-none',
       )}
+      // 常驻底部：选择浮条得让开这一块（量法见 reactFlow/useCanvasBottomDockRects.ts）。
+      data-canvas-bottom-dock="true"
       aria-label={t('generationCommon.navigation.aria')}
     >
       {showMinimap ? (

@@ -1,6 +1,8 @@
 import React from 'react'
 import {
   ReactFlowProvider,
+  getNodesBounds,
+  getViewportForBounds,
   useStoreApi,
   useReactFlow,
   type OnNodeDrag,
@@ -21,6 +23,7 @@ import { getActiveWorkbenchProjectId } from '../../project/workbenchProjectSessi
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { useStableCategoryNodes } from './useStableCategoryNodes'
 import { getCanvasGroupBoxes, getSelectedBounds } from '../components/generationCanvasGeometry'
+import { unionCanvasFitBounds } from '../model/canvasFitBounds'
 import { useCollapsedGroupConnectionSource } from '../components/useCollapsedGroupConnectionSource'
 import { projectCollapsedGroups } from '../model/canvasCardStackModel'
 import { useCanvasSelectionDrag } from '../components/useCanvasSelectionDrag'
@@ -324,10 +327,28 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
     if (!rect) return { x: 240, y: 240 }
     return flow.screenToFlowPosition({ x: rect.left + rect.width * 0.38, y: rect.top + rect.height * 0.28 })
   }, [flow])
+  // 「适应视图」框住的是**节点 ∪ 框**，不只是节点：框的标签带比成员外接盒高 52px，
+  // 只按节点 fit 会把用户刚起的框名切在舞台外（裁决与理由见 model/canvasFitBounds.ts）。
+  // 缩放上下限（0.2 / 3）与留白（0.12）逐字沿用 flow.fitView 那一版，这次只换了外接盒。
   const fitView = React.useCallback((animate = false) => {
     if (!nodes.length) return
-    void flow.fitView({ padding: 0.12, duration: animate ? 200 : 0, minZoom: 0.2, maxZoom: 3 })
-  }, [flow, nodes.length])
+    const stage = hostRef.current?.getBoundingClientRect()
+    if (!stage || stage.width <= 0 || stage.height <= 0) return
+    const bounds = unionCanvasFitBounds([
+      getNodesBounds(flow.getNodes(), { nodeLookup: flowStore.getState().nodeLookup }),
+      ...groupBoxes.map((box) => ({ x: box.left, y: box.top, width: box.width, height: box.height })),
+    ])
+    if (!bounds) return
+    const next = getViewportForBounds(bounds, stage.width, stage.height, 0.2, 3, 0.12)
+    if (![next.x, next.y, next.zoom].every((value) => Number.isFinite(value))) return
+    if (animate) {
+      animateViewportTo(next.zoom, { x: next.x, y: next.y }, 200)
+      return
+    }
+    // 零时长这条得先把在飞的自动让位停掉，否则下一帧它会把 fit 的结果盖回去（#503 同款）。
+    cancelViewportAnimation()
+    void flow.setViewport(next, { duration: 0 })
+  }, [animateViewportTo, cancelViewportAnimation, flow, flowStore, groupBoxes, hostRef, nodes.length])
   const zoomTo = React.useCallback((nextZoom: number) => {
     void flow.zoomTo(Math.min(3, Math.max(0.2, nextZoom)), { duration: 120 })
   }, [flow])

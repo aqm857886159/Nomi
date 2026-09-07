@@ -87,6 +87,81 @@ async function fitView(win) {
   await win.waitForTimeout(1200)
 }
 
+/** 底部停靠区自己挂的标记（真相在 reactFlow/useCanvasBottomDockRects.ts，这里不另抄一份名单）。 */
+const BOTTOM_DOCK_SELECTOR = '[data-canvas-bottom-dock]'
+const TIMELINE_CAPSULE_SELECTOR = '.workbench-generation__timeline-handle'
+
+/**
+ * 量「选择浮条」此刻有没有和底部那排常驻控件叠在一起。
+ *
+ * `selfCheck` 是这把尺子的**阳性对照**：拿浮条和它自己比，必须判成「相交」。
+ * 判不出来说明相交判据本身写错了——那么后面那句「它们没相交」就是一句空话
+ * （`_assert.mjs` 里 expectAbsent 要 provenBy 是同一个道理）。
+ */
+async function measureToolbarDockOverlap(win, dockSelector, capsuleSelector) {
+  return win.evaluate(({ dock, capsule }) => {
+    const intersects = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
+    const box = (element) => {
+      const rect = element.getBoundingClientRect()
+      return { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom, w: rect.width, h: rect.height }
+    }
+    const toolbarElement = document.querySelector('.generation-canvas-v2__selection-toolbar')
+    if (!toolbarElement) return null
+    const toolbar = box(toolbarElement)
+    const docks = Array.from(document.querySelectorAll(dock))
+      .map((element) => ({
+        label: element.getAttribute('aria-label') || element.className.split(' ')[0] || '(无名)',
+        isTimelineCapsule: element.matches(capsule),
+        ...box(element),
+      }))
+      .filter((entry) => entry.w > 0 && entry.h > 0)
+    return {
+      toolbar,
+      docks,
+      overlaps: docks.filter((entry) => intersects(toolbar, entry)),
+      selfCheck: intersects(toolbar, toolbar),
+    }
+  }, { dock: dockSelector, capsule: capsuleSelector })
+}
+
+/**
+ * 「适应视图」之后，框的名字那条标签带**整条**还在舞台里吗。
+ *
+ * 负数 = 还在里面，正数 = 被切掉了这么多像素。fit 只按节点外接盒算时，
+ * 上沿会切掉 52px（留白 24 + 标签带 28）——一个以「让我看全」为全部意义的按钮交出缺的画面。
+ */
+async function measureFrameLabelClip(win, frameSelector) {
+  return win.evaluate((selector) => {
+    const stage = document.querySelector('.generation-canvas-v2__stage')
+    const label = document.querySelector(`${selector} .generation-canvas-v2__group-box-label`)
+    if (!stage || !label) return null
+    const s = stage.getBoundingClientRect()
+    const l = label.getBoundingClientRect()
+    return {
+      top: Math.round(s.top - l.top),
+      left: Math.round(s.left - l.left),
+      right: Math.round(l.right - s.right),
+      bottom: Math.round(l.bottom - s.bottom),
+      text: label.textContent?.trim() ?? '',
+    }
+  }, frameSelector)
+}
+
+/**
+ * 「适应视图」= 让我看全。框是用户画出来的内容，它的名字被舞台上沿切掉一条就是没看全。
+ * 允许 1px 取整误差；超出就把切掉了几像素一并报出来（「切掉了」和「差一点」得分得开）。
+ */
+async function checkFitViewKeepsFrameLabel(win, when) {
+  const clip = await measureFrameLabelClip(win, CANVAS_FRAME_SELECTOR)
+  if (!clip) throw new Error(`量不到框的标签带（fail-closed）：${when}`)
+  const worst = Math.max(clip.top, clip.left, clip.right, clip.bottom)
+  check(
+    worst <= 1,
+    `★ 适应视图之后框的名字整条都在舞台里（${when}）`,
+    `「${clip.text}」超出 上${clip.top} 左${clip.left} 右${clip.right} 下${clip.bottom}（正数=被切掉这么多像素）`,
+  )
+}
+
 /**
  * 缩一点，好在东西**外面**下笔。走的是缩放条那条现役路径（用户会做的动作），
  * 不是 `setCanvasZoom` 走后门——后门改的是 store，改不出用户手上那一下。
@@ -353,6 +428,7 @@ try {
   const extraNodeId = afterAdd.find((id) => id && !nodeIds.includes(id))
   if (!extraNodeId) throw new Error('第四个节点没建出来')
   await fitView(win)
+  await checkFitViewKeepsFrameLabel(win, '补完镜头')
   await win.mouse.click(blankPoint.x, blankPoint.y)
   await win.waitForTimeout(400)
 
@@ -475,6 +551,27 @@ try {
     frameLocator(win).locator('.generation-canvas-v2__group-box-label').first(),
     '框的名字与计数（选择浮条不该盖住你刚抓住的那个框的身份牌）',
   )
+
+  // ⑥c 浮条自己有没有被**底部那排常驻控件**压住？
+  // 上一条把浮条从框的标签带上挪开了，它落到了选区下方——真机实拍（2026-09-07 修前的
+  // 10-frame-moved.png）里正好压在底部居中的「时间轴 0 段 · 0:00」胶囊上，
+  // 「生成选中 3 个」被挡掉半截：用户点下去要么点到时间轴、要么点了个看不全的按钮。
+  // 判据就是最朴素的那条——**浮条矩形不许和任何一块停靠区矩形相交**。
+  const overlap = await measureToolbarDockOverlap(win, BOTTOM_DOCK_SELECTOR, TIMELINE_CAPSULE_SELECTOR)
+  if (!overlap) throw new Error('量不到选择浮条（fail-closed，不把「量不到」说成「没叠压」）')
+  check(overlap.selfCheck === true, '相交判据本身是活的（拿浮条和它自己比必须判成相交）')
+  // 这一屏里必须真的有那个时间轴胶囊，否则「没和它相交」是句废话。
+  const capsule = overlap.docks.find((dock) => dock.isTimelineCapsule)
+  if (!capsule) {
+    throw new Error(
+      `这一屏没有时间轴胶囊，「浮条没压住它」证明不了什么（fail-closed）：docks=${JSON.stringify(overlap.docks.map((d) => d.label))}`,
+    )
+  }
+  check(
+    overlap.overlaps.length === 0,
+    '★ 选择浮条没有压在底部停靠区上（时间轴胶囊 / 画布工具簇 / 批量生成条）',
+    `toolbar=${JSON.stringify(overlap.toolbar)} 压住了 ${JSON.stringify(overlap.overlaps.map((d) => d.label))}`,
+  )
   await snap(win, 'frame-moved')
 
   // ── ⑦ 挪错了，⌘Z 撤销一次 ──
@@ -508,6 +605,7 @@ try {
   // 先把框整个拉回视口、松开选择：这两张是给人看「这个框长什么样」的，
   // 留着半截露在屏幕外、再压一条浮条，看的人分不清哪些是设计、哪些是这一屏的巧合。
   await fitView(win)
+  await checkFitViewKeepsFrameLabel(win, '走完整条任务')
   const themeBlank = await findCanvasBlankPoint(win, { preference: 'bottom', inset: 48 })
   if (themeBlank) {
     await win.mouse.click(themeBlank.x, themeBlank.y)

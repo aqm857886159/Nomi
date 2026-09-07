@@ -64,3 +64,72 @@ describe('selection bounds expanded to the owning frame', () => {
     expect(after.y).toBe(before.y - 52)
   })
 })
+
+describe('selection toolbar vs the bottom dock', () => {
+  // 真机实拍 10-frame-moved.png 那一屏的复刻：一个几乎占满这一屏的框被整个选中，
+  // 浮条被排到选区下方，正好压在底部居中的「时间轴」胶囊上（「生成选中 3 个」被挡半截）。
+  const stage = { width: 1540, height: 1010 }
+  const viewport = { x: 0, y: 0, zoom: 1 }
+  // 选区上方只剩 39px（塞不下 52px 高的浮条），下方看起来还有 78px——但那 78px 里
+  // 有 48px 是底部停靠区的地盘。
+  const bounds = { minX: 300, minY: 63, width: 900, height: 862 }
+  // 底部居中的时间轴胶囊：离底 12px、高 30px（真机量到的量级）。
+  const timelineCapsule = { left: 700, top: 968, right: 900, bottom: 998 }
+  const TOOLBAR_HEIGHT = 52
+
+  /** 浮条此刻占的那个矩形（`transform` 里 y 的语义随 placement 翻转，所以在这里算清楚）。 */
+  function toolbarRect(placement: ReturnType<typeof resolveSelectionToolbarPlacement>) {
+    const top = placement.placement === 'above' ? placement.y - TOOLBAR_HEIGHT : placement.y
+    return {
+      left: placement.x - placement.maxWidth / 2,
+      right: placement.x + placement.maxWidth / 2,
+      top,
+      bottom: top + TOOLBAR_HEIGHT,
+    }
+  }
+
+  function intersects(a: ReturnType<typeof toolbarRect>, b: typeof timelineCapsule) {
+    return a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
+  }
+
+  it('阳性对照：不告诉它底部有东西，浮条就压在时间轴胶囊上', () => {
+    // 这条是上一条的量具校准：避让关掉（不传 dock）必须红——否则下一条的绿说明不了任何事。
+    const placed = resolveSelectionToolbarPlacement(bounds, viewport, stage)
+    expect(placed.placement).toBe('below')
+    expect(intersects(toolbarRect(placed), timelineCapsule)).toBe(true)
+  })
+
+  it('把底部停靠区告诉它，浮条就翻到选区上方，不再叠压', () => {
+    const placed = resolveSelectionToolbarPlacement(bounds, viewport, stage, [timelineCapsule])
+    expect(placed.placement).toBe('above')
+    expect(intersects(toolbarRect(placed), timelineCapsule)).toBe(false)
+  })
+
+  it('横向压不上的那块不参与——左下角的缩略图不该把靠右的浮条往上顶', () => {
+    // 选区靠右：浮条居中在 x=1100、宽 760，左沿 720；左下工具簇（含展开的缩略图）在 [16, 280]。
+    // 两者横向差着 440px，不可能撞上——这块不该逼浮条改位置。
+    const rightBounds = { minX: 950, minY: 63, width: 300, height: 862 }
+    const leftDock = { left: 16, top: 800, right: 280, bottom: 998 }
+    const withDock = resolveSelectionToolbarPlacement(rightBounds, viewport, stage, [leftDock])
+    const withoutDock = resolveSelectionToolbarPlacement(rightBounds, viewport, stage)
+    expect(leftDock.right).toBeLessThan(withDock.x - withDock.maxWidth / 2)
+    expect(withDock).toEqual(withoutDock)
+  })
+
+  it('上下都塞不下时贴到视口内侧的上边，而不是叠在停靠区上', () => {
+    const squashed = { width: 800, height: 200 }
+    const fullBounds = { minX: 0, minY: 10, width: 700, height: 180 }
+    const dock = { left: 0, top: 120, right: 800, bottom: 200 }
+    const placed = resolveSelectionToolbarPlacement(fullBounds, viewport, squashed, [dock])
+    expect(placed.placement).toBe('above')
+    // clamp 的 min 大于 max 时返回 min：浮条贴在视口内侧上边（y 是下沿，8 + 52）。
+    expect(placed.y).toBe(60)
+    expect(toolbarRect(placed).top).toBe(8)
+  })
+
+  it('不在这一屏里的停靠区不参与（时间轴展开后胶囊被顶出去）', () => {
+    const gone = { left: 700, top: 1100, right: 900, bottom: 1130 }
+    expect(resolveSelectionToolbarPlacement(bounds, viewport, stage, [gone]))
+      .toEqual(resolveSelectionToolbarPlacement(bounds, viewport, stage))
+  })
+})

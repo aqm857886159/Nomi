@@ -24,6 +24,7 @@ import type { GenerationFlowEdge, GenerationFlowNode } from './generationCanvasR
 import { canvasViewportFromFlow, isFiniteFlowViewport } from './generationCanvasReactFlowAdapter'
 import { edgeTypes, nodeTypes } from './GenerationCanvasReactFlowNodes'
 import { expandSelectionBoundsToOwningFrame, resolveSelectionToolbarPlacement } from './selectionToolbarPlacement'
+import { useCanvasBottomDockRects } from './useCanvasBottomDockRects'
 import { CANVAS_DRAGGING_OWNER, setCanvasDragging } from '../components/canvasDraggingFlag'
 import { syncCanvasNodeProjection } from './canvasNodeProjectionSync'
 
@@ -146,6 +147,8 @@ export function GenerationCanvasReactFlowViewport({
   onClearSelection,
   isNodeDragging,
 }: GenerationCanvasReactFlowViewportProps): JSX.Element {
+  // 底部那一排常驻控件此刻占了哪几块——浮条不许排到它们身上（现量，不写常数）。
+  const bottomDockRects = useCanvasBottomDockRects(hostRef, Boolean(selectedBounds) && selectedNodeIds.length > 1)
   // 浮条让开的是「你选中的那个东西」的上沿：选中的卡全在一个框里时，那就是框的上沿
   // ——框的名字/计数写在那条标签带上，浮条压上去等于把你刚抓住的东西的身份牌盖掉。
   const selectionToolbarPlacement = selectedBounds
@@ -157,6 +160,7 @@ export function GenerationCanvasReactFlowViewport({
         ),
         viewport,
         stageSize,
+        bottomDockRects,
       )
     : null
   return (
