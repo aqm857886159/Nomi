@@ -39,6 +39,14 @@ const settingsDirectory = path.join(process.cwd(), 'src/workbench/settings')
 //             「已接好的几家里默认走哪家」是策略，和紧邻的「新建卡片默认模型」同族）。原实现挂在
 //             「模型」tab 的 ModelSettingsHome 里，那是第二个「默认用什么」的家。故更新
 //             AiModelsSection 基线；对应正向断言见下方 hosts the vendor preference order。
+// 2026-09-08：动效 token 拆包——`--nomi-transition-fast` 把「140ms + 缓动」打包成一个值，
+//             而 `transition-duration` 只吃时长，整条声明非法被丢弃、计算值是 `0s`（全 App 77 处
+//             写了过渡却完全没有过渡）。拆成 `--nomi-duration-fast` + `--nomi-ease-fast` 后，
+//             本文件那颗手势选项钮的 className 从旧的打包写法（`duration-[…]` 里塞整个
+//             `--nomi-transition-fast`）改成 `duration-nomi-fast ease-nomi-fast`，故更新其基线。
+//             **这次只有这一行变**，
+//             对应正向断言见下方 uses the split motion tokens on the gesture options——锁住它不许
+//             退回打包写法（退回=按钮 hover 又变回硬切，而所有快照仍然全绿）。
 const MAIN_NON_MODEL_SECTION_SHA256 = {
   // 2026-09-04：检查反馈 tone 改为从公共 toast 函数参数推导，避免重复词表 owner。
   'ProjectLocationSection.tsx': 'c0b2350bda45c5126b69296a0b526fda521feb210a1f6908c5d8ac187a7a0c3a',
@@ -47,7 +55,7 @@ const MAIN_NON_MODEL_SECTION_SHA256 = {
   // 2026-09-03：toggleHost 参数类型从 SettingsHostKey（四值联合）泛化为 string（支持自定义 profile key）；
   // 新增 CustomMcpClientCard UI TODO 注释（底层能力已就绪，UI 面另排样张拍板）。
   'AutomationPermissionsSection.tsx': '07b3790752d0a64fffdf814e4febcfc5eadebf469332d797c1754a5bce1851ff',
-  'CanvasGestureSection.tsx': '3cf19ee35f686e76b54497ff668bb91245b00a6593bc5d5d6162a0d30c476c95',
+  'CanvasGestureSection.tsx': '9968732470ea89e6b0f123cf7442cb969385361dbaafea29189e5ceb62cd18bd',
   'AboutSection.tsx': 'b38e0e2265f29ca56da53595e4bb5886bd14799ea3a7f7f36797b33d46eda57f',
 } as const
 
@@ -200,6 +208,16 @@ describe('settings dialog structure', () => {
     expect(aiModelsSource).toContain("provider.state !== 'needs-key' && provider.state !== 'disabled'")
     const modelHome = readCode(path.join(process.cwd(), 'src/ui/onboarding/ModelSettingsHome.tsx'))
     expect(modelHome, '优先供应商不该在「模型」tab 再有一个家').not.toContain('VendorPreference')
+  })
+
+  // 2026-09-08：哈希只证明「变了/没变」，证不了「变成对的」。这条锁住动效 token 的拆包形态：
+  // 旧的打包写法（把 140ms 与缓动塞进 `--nomi-transition-fast` 一个值再喂给 duration）
+  // 计算值是 0s（非法声明被丢弃），
+  // 退回它不会让任何快照变红，但按钮会重新变成硬切。
+  it('uses the split motion tokens on the gesture options', () => {
+    const gestureSource = fs.readFileSync(path.join(settingsDirectory, 'CanvasGestureSection.tsx'), 'utf8')
+    expect(gestureSource).toContain('duration-nomi-fast ease-nomi-fast')
+    expect(gestureSource, '打包成一个值的旧 token 会让 transition-duration 非法、计算值 0s').not.toContain('--nomi-transition-fast')
   })
 
   it('keeps all five non-model sections byte-for-byte at the origin/main baseline', () => {
