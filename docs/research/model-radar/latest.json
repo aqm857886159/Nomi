@@ -538,12 +538,21 @@
           "title": "Gemini 3.1 Flash Text to speech",
           "url": "https://docs.kie.ai/market/google/gemini-3-1-flash-tts.md"
         }
-      ]
+      ],
+      "unlisted": []
     },
     {
       "vendor": "apimart",
-      "total": 128,
-      "added": [],
+      "total": 129,
+      "added": [
+        {
+          "vendor": "apimart",
+          "category": "video",
+          "slug": "gemini-omni-1.1-flash",
+          "title": "Gemini Omni 1.1 Flash Video Generation",
+          "url": "https://docs.apimart.ai/en/api-reference/videos/gemini-omni-1.1-flash/generation.md"
+        }
+      ],
       "removed": [],
       "uncovered": [
         {
@@ -853,6 +862,13 @@
           "slug": "pixverse-v6",
           "title": "Pixverse v6 Video Generation",
           "url": "https://docs.apimart.ai/en/api-reference/videos/pixverse-v6/generation.md"
+        },
+        {
+          "vendor": "apimart",
+          "category": "video",
+          "slug": "gemini-omni-1.1-flash",
+          "title": "Gemini Omni 1.1 Flash Video Generation",
+          "url": "https://docs.apimart.ai/en/api-reference/videos/gemini-omni-1.1-flash/generation.md"
         },
         {
           "vendor": "apimart",
@@ -1166,11 +1182,17 @@
           "vendor": "apimart",
           "category": "audio",
           "slug": "suno/wav",
-          "title": "Export WAV",
+          "title": "Download Audio Files",
           "url": "https://docs.apimart.ai/en/api-reference/audios/suno/wav.md"
         }
-      ]
+      ],
+      "unlisted": []
     }
   ],
-  "failures": []
+  "failures": [
+    {
+      "vendor": "apimart-llm",
+      "error": "拿不到 apimart 凭据：本机记录是 safeStorage 密文（要 Electron 才解得开）。给这条车道设 APIMART_API_KEY 环境变量后重跑。"
+    }
+  ]
 }
