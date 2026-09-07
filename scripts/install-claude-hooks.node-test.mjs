@@ -6,19 +6,32 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import registry from './claude-hooks-registry.cjs'
 
-const { referencedScript, validateRegistration } = registry
+const { BLOCKING, guardedCommand, hookKind, referencedScript, validateRegistration } = registry
 
-const GOOD = {
-  settings: {
+/** 拦截型脚本的最小正文：把 `exit 2` 当拒绝通道（分型由正文推出，不另立名单）。 */
+const BLOCKING_SRC = '#!/usr/bin/env bash\n# 抬头注释里也写 block(exit 2)，注释不算实现\nexit 2\n'
+/** 提示型脚本的最小正文：从不 exit 2。 */
+const ADVISORY_SRC = '#!/usr/bin/env bash\nexit 0\n'
+
+const BYPASS = 'scripts/claude-hooks/commit-bypass-check.sh'
+const GUARD = 'scripts/claude-hooks/handoff-read.sh'
+
+function settingsWith(...commands) {
+  return {
     hooks: {
       PreToolUse: [{
         matcher: 'Bash',
-        hooks: [{ type: 'command', command: 'bash "$CLAUDE_PROJECT_DIR/scripts/claude-hooks/commit-bypass-check.sh"' }],
+        hooks: commands.map((command) => ({ type: 'command', command })),
       }],
     },
-  },
+  }
+}
+
+const GOOD = {
+  settings: settingsWith(guardedCommand(BYPASS, 'blocking')),
   requiredScripts: ['commit-bypass-check.sh'],
-  existingScripts: ['scripts/claude-hooks/commit-bypass-check.sh'],
+  existingScripts: [BYPASS],
+  scriptSources: { [BYPASS]: BLOCKING_SRC },
   legacyCopies: 0,
 }
 
@@ -33,14 +46,7 @@ test('settings.json 缺失 → 红（现在它进 git，checkout 就该有）', 
 })
 
 test('指向 .claude/hooks/ 那种「装了才有」的路径 → 红', () => {
-  const settings = {
-    hooks: {
-      PreToolUse: [{
-        matcher: 'Bash',
-        hooks: [{ type: 'command', command: 'bash "$CLAUDE_PROJECT_DIR/.claude/hooks/commit-bypass-check.sh"' }],
-      }],
-    },
-  }
+  const settings = settingsWith('bash "$CLAUDE_PROJECT_DIR/.claude/hooks/commit-bypass-check.sh"')
   const problems = validateRegistration({ ...GOOD, settings })
   assert.ok(problems.some((problem) => /装了才有的闸门不是闸门/.test(problem)))
   assert.ok(problems.some((problem) => /没有被 \.claude\/settings\.json 注册/.test(problem)))
@@ -82,4 +88,52 @@ test('命令里的脚本路径认 $CLAUDE_PROJECT_DIR 与 ${CLAUDE_PROJECT_DIR} 
   assert.equal(referencedScript('bash "$CLAUDE_PROJECT_DIR/scripts/claude-hooks/a.sh"'), 'scripts/claude-hooks/a.sh')
   assert.equal(referencedScript('bash "${CLAUDE_PROJECT_DIR}/scripts/claude-hooks/a.sh"'), 'scripts/claude-hooks/a.sh')
   assert.equal(referencedScript('bash /absolute/elsewhere/a.sh'), null)
+})
+
+// —— 文件缺失守卫（2026-09-07）——
+//
+// 今天实测：落后的 worktree 上登记的脚本压根不存在，裸 `bash <文件>` 退 127，
+// Claude Code 只认 exit 2 是阻断 → 闸门静默放行，零句红。判据从此要求每条命令
+// 自带「脚本不在就明确退出」的守卫，退出码按分型（拦截型 2 / 提示型 1）。
+
+test('裸 `bash <脚本>`（今天出事的那一版）→ 红，并把期望的守卫串给出来', () => {
+  const problems = validateRegistration({ ...GOOD, settings: settingsWith(`bash "$CLAUDE_PROJECT_DIR/${BYPASS}"`) })
+  assert.equal(problems.length, 1)
+  assert.match(problems[0], /没有带「文件缺失守卫」/)
+  assert.match(problems[0], /127/)
+  assert.ok(problems[0].includes(guardedCommand(BYPASS, 'blocking')), '报红必须把期望的命令串抄给人，否则没法照着改')
+})
+
+test('拦截型挂了提示型守卫（exit 1）→ 红：1 不是阻断码', () => {
+  const problems = validateRegistration({ ...GOOD, settings: settingsWith(guardedCommand(BYPASS, 'advisory')) })
+  assert.equal(problems.length, 1)
+  assert.match(problems[0], /没有带「文件缺失守卫」/)
+})
+
+test('提示型 hook 用提示型守卫 → 绿；被写成拦截型守卫 → 红', () => {
+  const base = {
+    settings: settingsWith(guardedCommand(GUARD, 'advisory')),
+    requiredScripts: ['handoff-read.sh'],
+    existingScripts: [GUARD],
+    scriptSources: { [GUARD]: ADVISORY_SRC },
+    legacyCopies: 0,
+  }
+  assert.deepEqual(validateRegistration(base), [])
+  const wrong = validateRegistration({ ...base, settings: settingsWith(guardedCommand(GUARD, 'blocking')) })
+  assert.equal(wrong.length, 1)
+  assert.match(wrong[0], /没有带「文件缺失守卫」/)
+})
+
+test('拿不到脚本正文 → 红（分不出型就校验不了守卫；「校验不了」必须是红，不是跳过）', () => {
+  const problems = validateRegistration({ ...GOOD, scriptSources: {} })
+  assert.equal(problems.length, 1)
+  assert.match(problems[0], /分不出拦截型 \/ 提示型/)
+})
+
+test('分型只看可执行行：注释里的 exit 2 不算，脚本自己 exit 2 才算', () => {
+  assert.equal(hookKind('#!/usr/bin/env bash\n# 否则 → block(exit 2)\nexit 0\n'), 'advisory')
+  assert.equal(hookKind('#!/usr/bin/env bash\nif [ x ]; then exit 2; fi\n'), BLOCKING)
+  assert.equal(hookKind('#!/usr/bin/env bash\n  exit 2\n'), BLOCKING)
+  // python 堆里的 sys.exit(2) 不是 shell 的拒绝通道，不该被误认
+  assert.equal(hookKind('#!/usr/bin/env bash\npython3 -c "import sys; sys.exit(2)"\nexit 0\n'), 'advisory')
 })

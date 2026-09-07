@@ -65,6 +65,15 @@ function existingScripts() {
   return fs.readdirSync(sourceDir).filter((name) => name.endsWith('.sh')).map((name) => `scripts/claude-hooks/${name}`)
 }
 
+/** 脚本正文，喂给判据分型（拦截型 exit 2 / 提示型）。判断本身在 registry，这里只负责读盘。 */
+function scriptSources() {
+  const sources = {}
+  for (const rel of existingScripts()) {
+    sources[rel] = fs.readFileSync(path.join(repoRoot, rel), 'utf8')
+  }
+  return sources
+}
+
 /** 磁盘 → 判据（scripts/claude-hooks-registry.cjs）。判断本身不在这里，为的是能被 node-test 喂假树。 */
 function validate() {
   let settings = null
@@ -79,6 +88,7 @@ function validate() {
     settings,
     requiredScripts: hookScripts(),
     existingScripts: existingScripts(),
+    scriptSources: scriptSources(),
     legacyCopies: legacyCopyCount(),
   })
 }

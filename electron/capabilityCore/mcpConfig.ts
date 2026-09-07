@@ -57,6 +57,16 @@ const CLIENTS: Record<string, ClientSpec> = {
   claude: { label: 'Claude Code', format: 'json', configPath: () => path.join(os.homedir(), '.claude.json') },
   cursor: { label: 'Cursor', format: 'json', configPath: () => path.join(os.homedir(), '.cursor', 'mcp.json') },
   codex: { label: 'Codex', format: 'toml', configPath: () => path.join(os.homedir(), '.codex', 'config.toml') },
+  // pi coding agent 自己**不带 MCP**（官方 usage.md 明写「intentionally does not include built-in MCP」），
+  // 生态里补这一块的是 `pi-mcp-adapter`。实读它 2.32.1 的 README：适配器首启自动读**标准共享**
+  // MCP 文件——用户全局 `~/.config/mcp/mcp.json` 与项目级 `.mcp.json`，条目格式就是 `mcpServers.<name>`，
+  // 和 Claude Code / Cursor 完全同一份（所以下面走同一个 jsonInstall，不写第二份投影）。
+  // 为什么落用户全局那份而不是项目级 `.mcp.json`：项目级要有「当前项目」概念，而 Nomi 不知道用户
+  // 会在哪个仓库里开 pi——桌面端一键接入只能给「所有项目都生效」的那份。
+  // 为什么不写 `~/.pi/agent/mcp.json`：同一份 README 把 Pi 自有文件定义成 adapter 的 override 与
+  // 兼容导入层，"not additional normal setup choices"，且优先级更高——第三方应用往那里塞条目会盖住
+  // 用户自己的覆盖层。我们只写标准共享文件，不碰用户的 ~/.pi。
+  pi: { label: 'Pi', format: 'json', configPath: () => path.join(os.homedir(), '.config', 'mcp', 'mcp.json') },
 }
 
 // ── 自定义 MCP 客户端 profile（方案 A：把客户端身份从三值泛化成可注册）──────────
@@ -438,11 +448,10 @@ function clientInfo(client: McpClientKey): McpClientInfo {
 export function readMcpInfo(rpcPort: number | null): McpInfo {
   const server = mcpServerEntry()
   const trustedHosts = readAutomationPolicySettings().trustedHosts
-  const clients: Record<McpClientKey, McpClientInfo> = {
-    claude: clientInfo('claude'),
-    codex: clientInfo('codex'),
-    cursor: clientInfo('cursor'),
-  }
+  // 内置客户端列表的唯一 owner 是 security.ts 的 BUILTIN_MCP_CLIENTS——此前这里手抄了第二份，
+  // 加一个客户端要改两处，漏一处就是「档在，但面板里看不见」。
+  const clients: Record<McpClientKey, McpClientInfo> = {}
+  for (const key of BUILTIN_MCP_CLIENTS) clients[key] = clientInfo(key)
   // 自定义 profile 与内置三客户端同权：同样经 clientInfo 拿 installed / snippet（签名条目）。
   for (const profile of listCustomMcpProfiles()) {
     if (!profile.detected && profile.configPath) {

@@ -100,9 +100,9 @@ export function buildProductionRunView(
     run.gates.flatMap((gate) => gate.contract?.skills ?? [])
       .map((skill) => [`${skill.name}\u0000${skill.version}`, skill]),
   ).values()]
-  const originHost = ['nomi', 'claude', 'codex', 'cursor'].includes(run.origin.host)
+  const originHost = ['nomi', 'claude', 'codex', 'cursor', 'pi'].includes(run.origin.host)
     ? run.origin.host
-    : (['claude', 'codex', 'cursor'].includes(run.origin.actorId || '') ? run.origin.actorId! : 'external')
+    : (['claude', 'codex', 'cursor', 'pi'].includes(run.origin.actorId || '') ? run.origin.actorId! : 'external')
   // Older durable Runs could reach the terminal status before direction/build stage bookkeeping
   // was completed. The terminal Run status is authoritative for presentation; new Runs also write
   // every stage transition in the reducer.
