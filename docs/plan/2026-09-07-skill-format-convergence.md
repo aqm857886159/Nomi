@@ -283,10 +283,33 @@ $ node scripts/check-skills-format.mjs   # exit 1
 | **A1** | 现有走查基线不变 | `tests/ux/skill-import-formats.walk.mjs` 三条导入形状（裸 `SKILL.md` / zip / `.nomiskill.json`）全绿，卡片描述仍取自 frontmatter | 跑走查 |
 | **A2** | 技能引用 chip 行为不变 | 面板 payload 的 `label` / `description` / `stageLabels` / `isPlaybook` / `needs` 逐字段与改前一致 | `skillIpc` 单测按改前快照断言 |
 | **A3** | `requestedCapabilities` 的 fail-closed 不松 | 坏 `metadata.nomi` ⇒ `manifestError` ⇒ 工具集为空（`agentChatV2.ts:55-58` 语义） | 单测：喂一份写坏的 frontmatter，断言零工具 |
-| **A4** | pi 能直接读我们的 `SKILL.md` | ① 门岗 F6（33/33、0 diagnostics）② 把一个内置技能目录软链进临时 `~/.pi/agent/skills` 跑一次 pi 的发现 | 见 §11「已验/未验」 |
+| **A4** | pi 能直接读我们的 `SKILL.md` | ① 门岗 F6（33/33、0 diagnostics）② 把内置技能目录软链进临时 `~/.pi/agent/skills` 跑一次 pi 的**宿主侧**发现 | **两条都已实跑**，见 §8.1 |
 | **A5** | 用户目录迁移只发生一次且可回看 | 临时 HOME 下：造一个带 `skill.json` 的用户技能 → 加载 → 断言 `SKILL.md` 含 `metadata.nomi`、`skill.json` 变成 `.bak`、第二次加载无动作 | 单测 |
 | **A6** | 五门 | `pnpm run gates` 全绿（含新门岗） | CI |
 | **A7** | i18n 不新增硬编码 | 本轮不新增任何用户可见文案（迁移无 UI，见 §6.2） | `check:i18n` |
+
+---
+
+### 8.1 A4 实跑收据（2026-09-07）
+
+把 `skills/brand-promo` 与 `skills/director-art-design`（**收敛前 pi 整包读不出来的那一个**）软链进一个临时 `~/.pi/agent/skills`，调 pi 的宿主侧发现 `loadSkills({cwd, agentDir, skillPaths:[], includeDefaults:true})`：
+
+```
+pi discovered: brand-promo, director-art-design
+diagnostics: 0 []
+--- 模型会看到的 ---
+<available_skills>
+  <skill>
+    <name>brand-promo</name>
+    <description>做产品/品牌宣传片。当用户要把产品文案、卖点或品牌介绍做成一条短宣传视频…时用我。</description>
+    …
+  <skill>
+    <name>director-art-design</name>
+    <description>服化道——…Nomi 为角色/场景等视觉 anchor（`carrier: visual`）生成参考图…时参考。</description>
+```
+
+两件事同时得到证实：① 那条曾经让整个技能消失的 `` `carrier: visual` `` 现在原样进了模型上下文；② 模型在 pi 里听到的自我介绍，与它在 Nomi 里听到的**是同一句**。
+pi 的 CLI 本身跑一个真实回合需要 API key（`No API key found for the selected model.`），所以验的是发现与提示词装配这一段——那正是「别人读不读得动我们」的全部。
 
 ---
 
