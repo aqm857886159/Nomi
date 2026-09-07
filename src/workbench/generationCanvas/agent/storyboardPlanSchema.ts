@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import type { StoryboardPlan } from './storyboardPlan'
+import { jsonTolerantArray } from '../../../../electron/shared/agentCapabilities/jsonArgTolerance'
 
 // schema 与手写类型分层，避免方案转换器继续膨胀；编译期守卫仍固定在同一份 schema owner。
 const planAnchorSchema = z.object({
@@ -69,22 +70,13 @@ const planShotSchema = z.object({
   }).optional(),
 })
 
-function parseJsonArrayString(value: unknown): unknown {
-  if (typeof value !== 'string') return value
-  const trimmed = value.trim()
-  if (!trimmed.startsWith('[') || !trimmed.endsWith(']')) return value
-  try {
-    const parsed = JSON.parse(trimmed)
-    return Array.isArray(parsed) ? parsed : value
-  } catch {
-    return value
-  }
-}
-
 export const storyboardPlanSchema = z.object({
   title: z.string(),
-  anchors: z.array(planAnchorSchema),
-  shots: z.preprocess(parseJsonArrayString, z.array(planShotSchema)),
+  // 容错的 owner 在 `electron/shared/agentCapabilities/jsonArgTolerance.ts`。
+  // 这里以前有一份逐字重复的 `parseJsonArrayString`，而且只包了 `shots`——
+  // 两份实现意味着两次要记得同时改，一次漏掉就是「主进程收得下、渲染层解不开」。
+  anchors: jsonTolerantArray(z.array(planAnchorSchema)),
+  shots: jsonTolerantArray(z.array(planShotSchema)),
   scenes: z.array(z.object({ id: z.string().min(1), title: z.string() })).optional(),
   profileKey: z.string().min(1).optional(),
   storyboardProfile: storyboardProfileSchema.optional(),

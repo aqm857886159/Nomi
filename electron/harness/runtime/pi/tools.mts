@@ -32,6 +32,33 @@ function awaitHost<T>(operation: () => Promise<T>, signal: AbortSignal): Promise
   });
 }
 
+/**
+ * 校验失败 → 模型能照着改的一句话。
+ *
+ * zod 原本的 `error.message` 是整包 issue 的 JSON dump；pi 自己那套更糟——
+ * 联合类型会把 9 个分支的诉求一起吐出来，再把整包入参原样回显。2026-09-06 打包版实测：
+ * 模型连吃 6 次这种回执，自己都猜对了病因（「参数需要是数组」）仍然改不回来。
+ *
+ * 这里只留模型真正用得上的三样：**哪个字段、期望什么、收到了什么**。一行一条，
+ * 不回显入参（模型手上就有），不泄露联合分支的内部结构。
+ */
+export function readableSchemaFailure(toolName: string, error: z.ZodError): string {
+  const seen = new Set<string>();
+  const lines: string[] = [];
+  for (const issue of error.issues) {
+    const path = issue.path.length ? issue.path.join('.') : '(root)';
+    const detail = issue.code === 'invalid_type'
+      ? `expected ${issue.expected}, received ${issue.received}`
+      : issue.message;
+    const line = `  - ${path}: ${detail}`;
+    if (seen.has(line)) continue;
+    seen.add(line);
+    lines.push(line);
+    if (lines.length >= 6) break;
+  }
+  return `Invalid arguments for "${toolName}":\n${lines.join('\n')}`;
+}
+
 export function createHostTools(tools: readonly HostToolDefinition[]) {
   const names = new Set<string>();
   const validated = new Map<string, unknown>();
@@ -71,7 +98,12 @@ export function createHostTools(tools: readonly HostToolDefinition[]) {
       const signal = optionalSignal ?? new AbortController().signal;
       // pi's validator coerces numbers and optional nulls. Validate the original
       // JSON with Nomi's Zod contract, and retain its transformed result once.
-      const args = await awaitHost(() => tool.schema.parseAsync(toolCall.arguments), signal);
+      const args = await awaitHost(
+        () => tool.schema.parseAsync(toolCall.arguments).catch((error: unknown) => {
+          throw error instanceof z.ZodError ? new Error(readableSchemaFailure(tool.name, error)) : error;
+        }),
+        signal,
+      );
       signal.throwIfAborted();
       validated.set(toolCall.id, args);
     },

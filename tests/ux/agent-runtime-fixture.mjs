@@ -73,7 +73,8 @@ function validateReply(reply, allowHold = true) {
   if (reply?.type === 'text' && typeof reply.text === 'string') return
   if (allowHold && reply?.type === 'hold' && (reply.text === undefined || typeof reply.text === 'string')) return
   if (reply?.type === 'tool' && typeof reply.id === 'string' && reply.id
-    && typeof reply.name === 'string' && reply.name && reply.args !== undefined) {
+    && typeof reply.name === 'string' && reply.name && reply.args !== undefined
+    && (reply.text === undefined || typeof reply.text === 'string')) {
     if (JSON.stringify(reply.args) !== undefined) return
   }
   throw new TypeError('Expected a text/tool reply, or a hold with optional text')
@@ -114,10 +115,16 @@ function sendReply(state, reply) {
     return
   }
   if (reply.type === 'text') wire += frame(state, { content: reply.text })
-  else wire += frame(state, { tool_calls: [{
-    index: 0, id: reply.id, type: 'function',
-    function: { name: reply.name, arguments: JSON.stringify(reply.args) },
-  }] })
+  else {
+    // 真实模型常在**同一条消息**里既说话又调工具（「让我修正…」+ 下一次调用）。
+    // 少了这一路，走查就复现不出「工具失败之间夹着模型自言自语」那个形状——
+    // 而那正是 2026-09-06 打包版上用户看到的东西。
+    if (reply.text) wire += frame(state, { content: reply.text })
+    wire += frame(state, { tool_calls: [{
+      index: 0, id: reply.id, type: 'function',
+      function: { name: reply.name, arguments: JSON.stringify(reply.args) },
+    }] })
+  }
   wire += frame(state, {}, reply.type === 'tool' ? 'tool_calls' : 'stop')
   wire += frame(state, {}, null, FIXTURE_USAGE)
   state.response.end(`${wire}data: [DONE]\n\n`)
@@ -125,7 +132,7 @@ function sendReply(state, reply) {
 
 /**
  * @typedef {{path:string, body:unknown, authorization:string, headers:object}} RequestRecord
- * @typedef {{type:'text', text:string}|{type:'tool', id:string, name:string, args:unknown}
+ * @typedef {{type:'text', text:string}|{type:'tool', id:string, name:string, args:unknown, text?:string}
  *   |{type:'hold', text?:string}} Reply
  *
  * Seed only a new, caller-isolated settings directory. Existing catalogs are never overwritten.

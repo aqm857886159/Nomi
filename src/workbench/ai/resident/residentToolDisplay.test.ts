@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  humanizeToolFailure,
   proposalForTool,
   readableToolDetailRows,
   isReadOnlyToolName,
@@ -118,5 +119,51 @@ describe('resident tool display projection', () => {
     expect(projection.effect).toBe('agentResident.toolGenerationSummary')
     expect(projection.target).toBe('agentResident.targetCanvas')
     expect(projection.technicalDetails).not.toContain('sk-secret-value')
+  })
+})
+
+describe('失败正文 → 人话：只有这一条门', () => {
+  // 校验失败在这套系统里有两种写法，消费它的地方有三处（收据行内、收据展开体、失败条）。
+  // 两种写法各翻各的，就会像 2026-09-06 那样：同一次失败在一处是「nodes：期望 array」、
+  // 在另一处是一整段英文。
+  const PI_PROSE = [
+    'Validation failed for tool "nomi_canvas_edit":',
+    '  - nodes: Expected array',
+    '',
+    'Received arguments:',
+    '{',
+    '  "nodes": "[{\\"clientId\\":\\"s1\\""',
+    '}',
+  ].join('\n')
+
+  it('zod issue JSON：哪个字段、要什么、给了什么', () => {
+    const issues = JSON.stringify([{ code: 'invalid_type', expected: 'array', received: 'string', path: ['nodes'] }])
+    expect(humanizeToolFailure(translate, issues)).toBe('agentResident.issueType(field=nodes,expected=array,received=string)')
+  })
+
+  it('pi 的英文散文体回执：抬头丢掉、入参回显丢掉，只留说得出事的那句', () => {
+    const humanized = humanizeToolFailure(translate, PI_PROSE)
+    expect(humanized).toBe('agentResident.issueExpected(field=nodes,expected=array)')
+    expect(humanized).not.toContain('Received arguments')
+  })
+
+  it('缺必填字段有自己的说法', () => {
+    const text = 'Validation failed for tool "nomi_canvas_edit":\n  - nodes: Expected required property'
+    expect(humanizeToolFailure(translate, text)).toBe('agentResident.issueRequired(field=nodes)')
+  })
+
+  it('认出了这条回执就再也不放英文出去：一句都翻不动时给通用的那句', () => {
+    const text = 'Validation failed for tool "nomi_canvas_edit":\n  - Unknown validation error'
+    expect(humanizeToolFailure(translate, text)).toBe('agentResident.issueInvalidArgs')
+  })
+
+  it('不是校验回执就不硬翻——供应商已经写好的中文原样交回调用方', () => {
+    expect(humanizeToolFailure(translate, '余额不足，请先充值。')).toBeUndefined()
+    expect(humanizeToolFailure(translate, '')).toBeUndefined()
+  })
+
+  it('展开区的「输出」留原文：行内说人话，详情给英文', () => {
+    const projection = residentToolProjectionForCall(translate, 'nomi_canvas_edit', { operation: 'create_canvas_nodes' }, 'failed', { error: PI_PROSE })
+    expect(projection.output).toBe(PI_PROSE)
   })
 })
