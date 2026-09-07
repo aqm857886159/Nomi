@@ -1,6 +1,6 @@
-# 用户指南：用 Claude Code / Codex / Cursor 在本地驱动 Nomi（CLI + MCP）
+# 用户指南：用 Claude Code / Codex / Cursor / Pi 在本地驱动 Nomi（CLI + MCP）
 
-> 让你电脑上的 AI 编程助手（Claude Code、Codex、Cursor…）直接操作你的 Nomi：建项目、往画布加镜头、改提示词、用你配好的模型**真生成图 / 视频 / 文本**，结果落进 Nomi 项目，打开就能看。
+> 让你电脑上的 AI 编程助手（Claude Code、Codex、Cursor、Pi…）直接操作你的 Nomi：建项目、往画布加镜头、改提示词、用你配好的模型**真生成图 / 视频 / 文本**，结果落进 Nomi 项目，打开就能看。
 >
 > 这份是「照着走得通」的完整使用指南。实现原理见 `docs/plan/2026-06-20-capability-core-headless-exposure.md`。
 
@@ -118,9 +118,9 @@ node scripts/nomi.mjs generate workspace-xxxx modelscope "Tongyi-MAI/Z-Image-Tur
 
 **① 一键接入（推荐）**
 
-打开 Nomi 的「模型接入」→「接入 AI 编程助手」，选择 Claude Code、Codex 或 Cursor，点击接入。Nomi 会只合并自己的 `nomi` 条目、保留其它 MCP server，并在改写前留下 `.nomi-backup`。接入卡会真正启动配置中的命令做握手，不会只凭“配置里有一行”显示成功。
+打开 Nomi 的「模型接入」→「接入 AI 编程助手」，选择 Claude Code、Codex、Cursor 或 Pi，点击接入。Nomi 会只合并自己的 `nomi` 条目、保留其它 MCP server，并在改写前留下 `.nomi-backup`。接入卡会真正启动配置中的命令做握手，不会只凭“配置里有一行”显示成功。
 
-不要照文档手写一份只有 `NOMI_MCP_STDIO=1` 的配置。当前版本还会为 Claude Code、Codex、Cursor 分别生成本机签名的 `NOMI_MCP_CLIENT` 与 `NOMI_MCP_CLIENT_PROOF`；证明绑定当前电脑和具体客户端，不能写死在公开文档，也不能跨客户端复用。缺少证明的配置可以列工具，但正式 Production Run 会被安全地视为 `external`，无法越过 Nomi 的可信宿主门。
+不要照文档手写一份只有 `NOMI_MCP_STDIO=1` 的配置。当前版本还会为 Claude Code、Codex、Cursor、Pi 分别生成本机签名的 `NOMI_MCP_CLIENT` 与 `NOMI_MCP_CLIENT_PROOF`；证明绑定当前电脑和具体客户端，不能写死在公开文档，也不能跨客户端复用。缺少证明的配置可以列工具，但正式 Production Run 会被安全地视为 `external`，无法越过 Nomi 的可信宿主门。
 
 需要手工接入时，先在卡片里选择目标客户端，再点「复制配置」，把 **Nomi 当机生成的完整片段** 合并到对应客户端。不要使用旧版 `scripts/nomi-mcp.mjs`，也不要从另一个客户端复制 proof。Codex 的生成片段已经包含 Electron 冷启动、长视频任务和写操作审批所需的超时与审批配置。
 
@@ -132,6 +132,7 @@ node scripts/nomi.mjs generate workspace-xxxx modelscope "Tongyi-MAI/Z-Image-Tur
 
 - Claude Code / Codex：卡片真实握手成功后，确认 `nomi` 的工具出现（数量以 `tools/list` 为准）。
 - Cursor：先在 Nomi「设置 → 自动化与权限」允许 Cursor 发起草稿；首次在 Cursor 调用 Nomi 时，Cursor 自己仍可能要求你批准本地 MCP。Nomi 不会代替你静默批准 Cursor。
+- Pi：pi coding agent **自己不带 MCP**（官方 usage.md 明写）。Nomi 把 `nomi` 条目写进 pi 生态通用的标准共享配置 `~/.config/mcp/mcp.json`；pi 侧还需装一次社区适配器 `pi install npm:pi-mcp-adapter`（接入卡上给了可复制命令，Nomi **不代跑**），装完重开 pi，用 `/mcp` 即可看到 `nomi` 的工具。Nomi 不会写 `~/.pi/agent/mcp.json`——那是适配器自己的覆盖层。同样要先在「设置 → 自动化与权限」允许 Pi 发起草稿。
 
 工具总数**以 `tools/list` 为准**；写在这里的数字由 `nomiMcpProductionRuns.test.ts` 钉住目录派生值（没有测试盯着的地方就别写数字——`docs/integrate-with-your-agent.md` 曾经写着「47 个工具」）。当前是 25 个工具。15 个按对象归并：`nomi_read`（读侧统一入口，整体只读）、`nomi_canvas_edit`（画布语义写，唯一的画布写工具；`operation` 枚举即全部合法动作，须持项目租约。传输 schema 由 canvasWrite.ts 的 Zod 校验器派生，不再手写第二份）、`nomi_asset_import`、`nomi_project_create`、`nomi_session_open`、`nomi_run_start` / `nomi_run_control` / `nomi_run_gate`（持久制作 Run）、`nomi_artifact_review`（剧本/分镜审阅+修订）、`nomi_integration`（模型/ComfyUI 接入状态机）、`nomi_integration_manage`（改供应商配置、删供应商/模型、切换单 API 代理）。单次生成的可编辑流程是 `nomi_operation_plan` → `nomi_operation_preview` → `nomi_operation_gate`（付费两相）→ `nomi_operation_execute` → `nomi_operation_control`：先展示/编辑计划，再由 rollout policy 决定何时可提交；未通过阶段检查时会明确返回下一步，不会回退到旧生成器。另外 9 个 M2 语义编辑工具：`nomi_canvas_maintenance`、`nomi_document_read`、`nomi_document_edit`、`nomi_timeline_read`、`nomi_timeline_edit`、`nomi_export_job`、`nomi_media_query`、`nomi_layout_read` / `nomi_layout_write`（剪辑面五块面板的开关 / 尺寸 / 预设，effectClass = reversible_local：自动放行、一行收据、⌘Z 可撤销）。（`nomi_canvas_plan` 已于 2026-09-05 退役：它与 `nomi_canvas_edit` 在 `tools/list` 里 description / inputSchema / method 字节级相同，宿主没有依据选哪个。）
 
@@ -237,7 +238,7 @@ Claude Code 会依次调 `nomi_project_create` → `nomi_read`（target=models�
 ## 7. 安全
 
 - 本地服务**只监听 `127.0.0.1`**（外网 / 局域网够不着）+ **token 校验**。
-- Nomi 生成的 MCP 客户端证明按 Claude Code / Codex / Cursor 隔离；自报客户端名、伪造证明和跨客户端复用都只获得 `external` 权限。
+- Nomi 生成的 MCP 客户端证明按 Claude Code / Codex / Cursor / Pi 隔离；自报客户端名、伪造证明和跨客户端复用都只获得 `external` 权限。
 - **付费生成不能只凭 token 启动**——方向/样片可由 Nomi 服务端向支持 elicitation 的客户端再次询问真人；预算、逐镜头提交、粗剪采用和导出仍在 Nomi。支出上限、模型和任务集合绑定本次授权，外部 MCP 客户端不能伪造批准。
 - 外部调用只能做 Nomi 的领域操作（建工程 / 改画布 / 生成），**不是**任意文件读写。
 - 项目、素材、提示词、密钥和编排状态保存在本机。使用外部模型 API 时，完成任务所需的输入仍会发送给你配置的供应商；“本地优先”不等于“所有推理都离线”。
