@@ -18,19 +18,18 @@
 //
 // 用法：node ./scripts/check-dangling-tokens.mjs
 
-import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { gitPaths } from "./lib/gitPaths.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 // 外部/工具链运行时注入的 token，视为已定义。
 const WHITELIST_PREFIXES = ["--mantine-", "--tw-"];
 
-function gitFiles(globs) {
-  const out = execSync(`git ls-files ${globs}`, { cwd: ROOT, encoding: "utf8" });
-  return out.split("\n").map((l) => l.trim()).filter(Boolean);
+function gitFiles(...globs) {
+  return gitPaths(["ls-files", ...globs], { cwd: ROOT });
 }
 
 // 扫描范围：src 下的 ts/tsx/css + 仓库根的 tailwind.config.ts。

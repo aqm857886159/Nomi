@@ -60,7 +60,7 @@ describe('裸 NUL 字节门岗', () => {
   // 门岗第一版就是栽在这一条上：只扫已跟踪文件，新文件完全免检。
   it('**未 git add 的新文件**同样受管（门岗曾因此扫不到自己）', () => {
     const file = writeProbe('nul-probe-untracked', `const k = "x${NUL}y"\n`)
-    const tracked = execFileSync('git', ['ls-files', path.relative(repoRoot, file)], { cwd: repoRoot, encoding: 'utf8' })
+    const tracked = execFileSync('git', ['ls-files', '-z', path.relative(repoRoot, file)], { cwd: repoRoot, encoding: 'utf8' })
     expect(tracked.trim(), '这条测试的前提是该文件未被跟踪').toBe('')
     const { code, output } = runGate()
     expect(code).not.toBe(0)

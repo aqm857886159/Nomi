@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
+import { splitNulPaths } from './lib/gitPaths.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -10,12 +11,10 @@ export function changedFiles({
   base = process.env.NOMI_CHANGED_BASE || 'origin/main',
   head = process.env.NOMI_CHANGED_HEAD || 'HEAD',
 } = {}) {
-  const result = spawnSync('git', ['diff', '--name-only', base, head], { cwd, encoding: 'utf8' })
+  const result = spawnSync('git', ['diff', '-z', '--name-only', base, head], { cwd, encoding: 'utf8' })
   if (result.status !== 0) throw new Error(result.stderr || `cannot inspect ${base}..${head}`)
-  return result.stdout
-    .split(/\r?\n/)
-    .filter(Boolean)
-    .map((file) => file.replaceAll('\\', '/'))
+  // `-z`：默认 quotePath 会把非 ASCII 路径转义成 `"src/\344..."`，选测的后缀/前缀判断全落空。
+  return splitNulPaths(result.stdout).map((file) => file.replaceAll('\\', '/'))
 }
 
 export function isVitestFile(file) {

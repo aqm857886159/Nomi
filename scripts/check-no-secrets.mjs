@@ -16,7 +16,8 @@
 //   node scripts/check-no-secrets.mjs <file...>  扫指定文件
 // 命中 → 打印详情 + exit 1（拦住）。干净 → exit 0。
 // ============================================================================
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
+import { gitPaths } from "./lib/gitPaths.mjs";
 import fs from "node:fs";
 
 // ── 路径黑名单：这些文件本身绝不该进 git ──
@@ -198,15 +199,16 @@ const isAllowed = (f) => ALLOWLIST.some((re) => re.test(normalizeScanPath(f)));
 
 function listStaged() {
   try {
-    return execSync("git diff --cached --name-only --diff-filter=AM", { encoding: "utf8" })
-      .split("\n").map((s) => s.trim()).filter(Boolean);
+    // `-z`：默认 quotePath 把非 ASCII 路径转义成 `"docs/\\344..."`，按该串读文件必然失败，
+    // 而读失败被下面的 catch 吞掉 —— 敏感数据扫描会**静默跳过**中文名的文件。
+    return gitPaths(["diff", "--cached", "--name-only", "--diff-filter=AM"]);
   } catch {
     return [];
   }
 }
 function listAllTracked() {
   try {
-    return execSync("git ls-files", { encoding: "utf8" }).split("\n").map((s) => s.trim()).filter(Boolean);
+    return gitPaths(["ls-files"]);
   } catch {
     return [];
   }
@@ -215,7 +217,8 @@ function listAllTracked() {
 function readContent(f, staged) {
   let raw;
   if (staged) {
-    try { raw = execSync(`git show :"${f}"`, { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 }); }
+    // execFileSync 而非拼 shell 串：路径里的引号/空格/中文都不该由 shell 再解析一次。
+    try { raw = execFileSync("git", ["show", `:${f}`], { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 }); }
     catch { raw = ""; }
   } else {
     try { raw = fs.readFileSync(f, "utf8"); } catch { raw = ""; }

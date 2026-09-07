@@ -92,6 +92,7 @@
 - [commit 阶段的绕口要拒绝，push 阶段才留痕审计](commit-bypass-must-be-blocked-not-audited.md) — 同一种绕过写法两阶段处置相反；判据是「拦错代价 / 放过代价 / 有无合法场景」，不是「哪个更严」
 - [防线文件缺失 = 静默放行](missing-guard-file-defaults-to-allow.md) — 登记了却不在树上的 hook 退 127，Claude Code 当「继续」；主会话/子 agent 开工先并 main，闸门自 2026-09-06 起随 checkout 生效
 - [闸门凭据要绑「哪棵树 + 哪个提交」](gate-stamps-must-be-keyed-to-tree-and-head.md) — 只认固定路径 + mtime 的 gates 戳会跨 worktree 互相顶用，同一天误放和误杀各栽一次
+- [git 的文件列表默认是转义过的，中文名一律「不像 docs/」](git-path-output-is-quoted-by-default.md) — ✅ 已由 `check:git-path-quoting` + `check:hook-behavior` 轴 C 接管；纯文档 PR 白等五门 / 门岗静默少扫文件，都是它；读 git 路径一律 `-z`
 - [合并后不立刻录交付收据，窗口就永久关闭](verify-merged-receipt-window-closes-fast.md) — `verify-merged` 要求 HEAD == `origin/main` == 目标 SHA；main 一前进就再也录不成，收据命令要自带重试
 
 ## D. 排查与平台故障

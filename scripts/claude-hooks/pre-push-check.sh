@@ -113,11 +113,24 @@ fi
 # 没检测到推送 → 放行。引号里的词组不算（`echo \"git push\"` 不会走到这里）。
 [ -n "$TARGETS" ] || exit 0
 
-# 一组文件是否**全是** doc/hook（这类不需五门）。空列表 → 判不了 → 不放行。
+# 一组文件是否**全是** doc/hook（这类不需五门）。从 stdin 读 **NUL 分隔**的路径；空列表 → 判不了 → 不放行。
+#
+# 为什么必须是 NUL 而不是按行读 `git diff --name-only`（2026-09-07 实测踩到）：
+# git 默认 `core.quotePath=true`，非 ASCII 路径会被输出成 `"docs/\344\270\255\346\226\207.md"`——
+# 外面裹一对引号、里面是八进制转义。于是 `^docs/` 被开头那个引号挡掉、`\.md$` 被结尾那个引号挡掉，
+# **纯中文文件名的文档改动被判成「有代码改动」**，docs-only 的推送白等一遍五门。
+# `-z` 一并关掉引号转义与「路径含空格/换行」两族问题，且不依赖任何 git 配置项。
 is_docs_only() {
-  [ -n "$1" ] || return 1
-  printf '%s\n' "$1" | grep -Ev '(\.md$|\.txt$|^docs/|^\.claude/)' | grep -q . && return 1
-  return 0
+  ANY=0
+  while IFS= read -r -d '' CHANGED_PATH; do
+    [ -n "$CHANGED_PATH" ] || continue
+    ANY=1
+    case "$CHANGED_PATH" in
+      *.md|*.txt|docs/*|.claude/*) ;;
+      *) return 1 ;;
+    esac
+  done
+  [ "$ANY" = 1 ]
 }
 
 block() {
@@ -165,7 +178,7 @@ while IFS= read -r TARGET; do
   fi
 
   # outgoing 改动全是 doc/hook → 放行这棵。拿不到文件列表就继续往下验戳（不放行也不误杀）。
-  is_docs_only "$(git diff --name-only origin/main...HEAD 2>/dev/null)" && continue
+  is_docs_only < <(git diff -z --name-only origin/main...HEAD 2>/dev/null) && continue
 
   # —— 到这里 = 这棵树有代码改动，开始验戳：三项全对才放行 ——
   [ -f "$MARKER" ] || block "本次有代码改动，但**这棵 worktree** 没有「五门刚过」的戳。"
@@ -183,10 +196,14 @@ while IFS= read -r TARGET; do
   # ③ 认提交：盖完戳又提交了代码 = 那份代码没过门
   HEAD_SHA="$(git rev-parse HEAD 2>/dev/null)"
   if [ "$STAMP_SHA" != "$HEAD_SHA" ]; then
-    DELTA=""
-    git merge-base --is-ancestor "$STAMP_SHA" HEAD 2>/dev/null && DELTA="$(git diff --name-only "$STAMP_SHA"..HEAD 2>/dev/null)"
-    # 盖戳后只补了 doc/hook → 用与上面同一把尺放行；只要沾代码就得重新过门。
-    is_docs_only "$DELTA" || block "戳盖在 ${STAMP_SHA:0:12}，现在的 HEAD 是 ${HEAD_SHA:0:12} —— 盖戳之后又动了代码，这份没过门。"
+    DELTA_ONLY_DOCS=1
+    if git merge-base --is-ancestor "$STAMP_SHA" HEAD 2>/dev/null; then
+      # 盖戳后只补了 doc/hook → 用与上面同一把尺放行；只要沾代码就得重新过门。
+      is_docs_only < <(git diff -z --name-only "$STAMP_SHA"..HEAD 2>/dev/null) || DELTA_ONLY_DOCS=0
+    else
+      DELTA_ONLY_DOCS=0   # 戳不是 HEAD 的祖先 → 拿不到可信 delta → 不放行
+    fi
+    [ "$DELTA_ONLY_DOCS" = 1 ] || block "戳盖在 ${STAMP_SHA:0:12}，现在的 HEAD 是 ${HEAD_SHA:0:12} —— 盖戳之后又动了代码，这份没过门。"
   fi
 done <<EOF
 $TARGETS

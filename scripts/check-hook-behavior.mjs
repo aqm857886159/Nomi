@@ -94,6 +94,29 @@ function makeProbeRepo() {
   return dir
 }
 
+/**
+ * 造一棵 outgoing 只有**文档**的临时仓库，文件名由调用方给（含非 ASCII 的那一路是重点）。
+ * `extraPaths` 里塞一个代码文件，就成了「文档 + 代码」的反面用例。
+ */
+function makeDocsProbeRepo({ docPath, extraPaths = [] }) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-docs-probe-'))
+  git(['init', '-q', '-b', 'main'], dir)
+  git(['config', 'user.email', 'probe@example.com'], dir)
+  git(['config', 'user.name', 'probe'], dir)
+  fs.writeFileSync(path.join(dir, 'seed.txt'), 'seed\n')
+  git(['add', '-A'], dir)
+  git(['commit', '-q', '--no-verify', '-m', 'base'], dir)
+  git(['update-ref', 'refs/remotes/origin/main', 'HEAD'], dir)
+  for (const rel of [docPath, ...extraPaths]) {
+    const full = path.join(dir, rel)
+    fs.mkdirSync(path.dirname(full), { recursive: true })
+    fs.writeFileSync(full, 'x\n')
+  }
+  git(['add', '-A'], dir)
+  git(['commit', '-q', '--no-verify', '-m', 'outgoing docs change'], dir)
+  return dir
+}
+
 /** 把真实的 PreToolUse 载荷喂给真实的 hook，返回它的退出码。 */
 function runHook(hookPath, cwd, command = 'git push -u origin HEAD') {
   const payload = JSON.stringify({ tool_input: { command }, cwd })
@@ -178,6 +201,48 @@ function checkReaderBehaviour(root, problems) {
     }
   } finally {
     fs.rmSync(dir, { recursive: true, force: true })
+  }
+}
+
+/**
+ * 轴 D：doc-only 放行的判据必须**认得非 ASCII 路径**（2026-09-07 实测栽过）。
+ *
+ * git 默认 `core.quotePath=true`：`--name-only` 把 `docs/中文附件.md` 输出成
+ * `"docs/\\344\\270\\255\\346\\226\\207\\351\\231\\204\\344\\273\\266.md"`——首尾各一个引号，中间八进制转义。
+ * 闸门那把尺（`^docs/` / `\\.md$`）两头都被引号挡掉，于是纯中文文档改动被判成「有代码改动」，
+ * docs-only 的推送白等一遍五门。方向上是多跑门岗不是绕过，所以本地一路绿、只有人在等。
+ *
+ * 两条都必须在：只验「中文 → 放行」会被一个「永远放行」的实现骗过（假绿），
+ * 所以配一条「中文文档 + 一个 .ts → 必须拦」的反面对照钉住尺子还在量。
+ */
+const DOCS_ONLY_MATRIX = [
+  { label: 'ASCII 文档：基线', docPath: 'docs/plain-note.md', extraPaths: [], expect: 'allow' },
+  { label: '非 ASCII 文档名（quotePath 转义那一族）', docPath: 'docs/中文附件说明.md', extraPaths: [], expect: 'allow' },
+  { label: '路径含空格', docPath: 'docs/note with space.md', extraPaths: [], expect: 'allow' },
+  { label: '非 ASCII 文档 + 一个 .ts —— 反面对照，必须拦', docPath: 'docs/中文附件说明.md', extraPaths: ['src/a.ts'], expect: 'block' },
+]
+
+function checkDocsOnlyDetection(root, problems) {
+  const hookPath = path.join(root, HOOK_REL)
+  if (!fs.existsSync(hookPath)) return
+  for (const { label, docPath, extraPaths, expect } of DOCS_ONLY_MATRIX) {
+    const dir = makeDocsProbeRepo({ docPath, extraPaths })
+    try {
+      // 一枚戳都不盖：doc-only 判真才会放行，判假就一定撞「没有戳」而被拦。
+      const blocked = runHook(hookPath, dir) !== 0
+      if (expect === 'allow' && blocked) {
+        problems.push(
+          `doc-only 误判：${label} —— outgoing 全是文档却被要求过五门。` +
+            `多半是按行读了 \`git diff --name-only\`（默认 quotePath 会把非 ASCII 路径转义并加引号），` +
+            `应当用 \`-z\` 按 NUL 读。`,
+        )
+      }
+      if (expect === 'block' && !blocked) {
+        problems.push(`doc-only 漏判：${label} —— 混着代码改动却按 doc-only 放行了，闸门等于不存在。`)
+      }
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
   }
 }
 
@@ -389,7 +454,7 @@ function checkSettingsGuards(root, problems) {
 }
 
 /** 全部轴。门岗跑全套；单元测试按 `only` 只跑它要验的那一轴（每轴都要实跑 hook，很贵）。 */
-export const AXES = ['writer', 'stamp', 'push-commands', 'secret-guard', 'suggestion', 'settings-guard']
+export const AXES = ['writer', 'stamp', 'push-commands', 'docs-only', 'secret-guard', 'suggestion', 'settings-guard']
 
 export function checkHookBehavior(root = repoRoot, { only = AXES } = {}) {
   const problems = []
@@ -412,6 +477,7 @@ export function checkHookBehavior(root = repoRoot, { only = AXES } = {}) {
 
   if (run('stamp')) checkReaderBehaviour(root, problems)
   if (run('push-commands')) checkCommandDetection(root, problems)
+  if (run('docs-only')) checkDocsOnlyDetection(root, problems)
   if (run('secret-guard')) checkSecretGuard(root, problems)
   if (run('settings-guard')) checkSettingsGuards(root, problems)
 
@@ -437,7 +503,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   if (problems.length === 0) {
     console.log(
       `✓ Bash 闸门行为契约通过：戳契约（gates 写、hook 读，同一个 ${MARKER_BASENAME}）` +
-        ` + pre-push 与 secret-guard 的命令识别矩阵` +
+        ` + pre-push 与 secret-guard 的命令识别矩阵 + doc-only 判据（含非 ASCII 路径）` +
         ` + 登记表每条命令在脚本被挪走时的退出码（拦截型必 2，提示型必有 stderr），均已实跑验证。`,
     )
     process.exit(0)
