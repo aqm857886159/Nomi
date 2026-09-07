@@ -7,5 +7,10 @@
     "本文件的每一条都要重新过一遍并绑到期日（R28：登记是有时限的承诺）。",
     "条目形状：{ path, why }。开局为空——先让它叫，再决定谁该闭嘴。"
   ],
-  "exempt": []
+  "exempt": [
+    {
+      "path": "electron/agentLane/laneSession.mts",
+      "why": "反过来了：这个文件命中「session」正是因为它**用**的就是 pi 的 session（`JsonlSessionRepo` + `Session`），整份文件只回答「写到哪儿」与「叫什么名字」两个 pi 不管的问题——落盘、追加、恢复、分支、版本迁移一件都没自己写。它长这么短本身就是证据（57 行）。"
+    }
+  ]
 }

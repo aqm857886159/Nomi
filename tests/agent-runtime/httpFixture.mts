@@ -19,7 +19,13 @@ interface FixtureOutput {
 }
 
 export type FixtureReply =
-  | ({ type: 'text'; text: string } & FixtureOutput)
+  /**
+   * `chunks` 把同一条 `text` 拆成多个流式 delta 发出去（只走 openai-compatible 那条路）。
+   * 缺省时行为一个字节都不变：一条 delta 装完整条文字——182 条既有测试依赖这个默认。
+   * 它存在的唯一理由是「一条消息里有第二个 delta」这件事**只能这样制造**，而 0.84.0 的
+   * delta-only 改动（上游 #7290）恰恰只在第二个 delta 到达时才分得出对错。
+   */
+  | ({ type: 'text'; text: string; chunks?: readonly string[] } & FixtureOutput)
   | ({ type: 'tool'; calls: Array<{ id: string; name: string; arguments: unknown }> } & FixtureOutput)
   | { type: 'error'; status: number; message: string }
   | { type: 'deferred'; beforeReply: () => Promise<FixtureReply> };
@@ -104,14 +110,16 @@ export async function createHttpFixture(initialReplies: FixtureReply[] = []) {
       response.end();
       return;
     }
-    const delta = reply.type === 'text'
-      ? { role: 'assistant', content: reply.text }
-      : { role: 'assistant', tool_calls: reply.calls.map((call, index) => ({
+    const deltas = reply.type === 'text'
+      ? (reply.chunks ?? [reply.text]).map((content) => ({ role: 'assistant', content }))
+      : [{ role: 'assistant', tool_calls: reply.calls.map((call, index) => ({
           index, id: call.id, type: 'function',
           function: { name: call.name, arguments: JSON.stringify(call.arguments) },
-        })) };
-    send({ id: 'chatcmpl-fixture', object: 'chat.completion.chunk', created: 1,
-      model: body.model, choices: [{ index: 0, delta, finish_reason: null }] });
+        })) }];
+    for (const delta of deltas) {
+      send({ id: 'chatcmpl-fixture', object: 'chat.completion.chunk', created: 1,
+        model: body.model, choices: [{ index: 0, delta, finish_reason: null }] });
+    }
     await reply.beforeFinish?.();
     send({ id: 'chatcmpl-fixture', object: 'chat.completion.chunk', created: 1,
       model: body.model, choices: [{ index: 0, delta: {},

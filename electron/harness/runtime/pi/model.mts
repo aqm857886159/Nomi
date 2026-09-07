@@ -55,15 +55,21 @@ function anthropicFetch(baseURL: string, fetchRequest: NonNullable<StreamOptions
   return send;
 }
 
-/** Literal configuration only; never use registerProvider's command/env-valued config surface. */
-export async function createNomiModelRuntime(input: NomiModelConfig) {
+/**
+ * Provider assembly, extracted so the two Nomi call sites build **one** pi provider
+ * instead of two lookalikes: the legacy `createAgentSession` path (below) and the
+ * `AgentHarness` lane (`electron/agentLane/`), which needs a `Models` rather than a
+ * `ModelRuntime`. P1: a second copy of this would be a parallel version, and the
+ * copy that drifts is always the one nobody is looking at.
+ *
+ * Literal configuration only; never use registerProvider's command/env-valued config surface.
+ */
+export async function createNomiProvider(input: NomiModelConfig) {
   const config = configCompatibility.parse(input);
   const credentials = new InMemoryCredentialStore();
   if (config.authType === 'api-key') {
     await credentials.modify(config.providerId, async () => ({ type: 'api_key', key: config.apiKey }));
   }
-  const modelRuntime = await ModelRuntime.create({ credentials, modelsPath: null,
-    allowModelNetwork: false, refreshOnCreate: false });
   const protocol = protocols[config.kind];
   const baseUrl = config.baseURL.replace(/\/+$/, '');
   const model: Model<Api> = {
@@ -109,7 +115,7 @@ export async function createNomiModelRuntime(input: NomiModelConfig) {
     stream: (chosen, context, options) => native.stream(chosen, context, requestOptions(options)),
     streamSimple: (chosen, context, options) => native.streamSimple(chosen, context, requestOptions(options)),
   };
-  modelRuntime.registerNativeProvider(createProvider({
+  const provider = createProvider({
     id: config.providerId, baseUrl, models: [model], api: streams,
     auth: { apiKey: {
       name: 'Nomi-owned credentials',
@@ -117,6 +123,15 @@ export async function createNomiModelRuntime(input: NomiModelConfig) {
         ? { auth: { headers }, source: 'Nomi auth:none' }
         : credential?.key ? { auth: { apiKey: credential.key, headers }, source: 'Nomi memory credential' } : undefined,
     } },
-  }));
+  });
+  return { provider, model, credentials };
+}
+
+/** The legacy `createAgentSession` seam. Unchanged behaviour; it just no longer owns the assembly. */
+export async function createNomiModelRuntime(input: NomiModelConfig) {
+  const { provider, model, credentials } = await createNomiProvider(input);
+  const modelRuntime = await ModelRuntime.create({ credentials, modelsPath: null,
+    allowModelNetwork: false, refreshOnCreate: false });
+  modelRuntime.registerNativeProvider(provider);
   return { modelRuntime, model };
 }
