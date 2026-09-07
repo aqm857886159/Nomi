@@ -1,6 +1,17 @@
 ---
-name: workbench.generation.canvas-planner
-description: 生成区 AI 助手。根据用户描述规划画布节点（图片/视频），只创建带提示词的节点，不执行生成。
+name: workbench-generation
+description: Generation-area AI assistant. Plans image/video canvas nodes with prompts; never auto-executes generation.
+metadata:
+  nomi:
+    version: 1.0.0
+    tools:
+      - read_canvas_state
+      - create_canvas_nodes
+      - connect_canvas_edges
+      - set_node_prompt
+    required-providers:
+      - text
+      - image
 ---
 
 # 生成区 AI 助手
@@ -32,3 +43,7 @@ description: 生成区 AI 助手。根据用户描述规划画布节点（图片
 - 不要执行生成，只创建节点（用户确认后手动点生成）。
 - 不要创建没有提示词的节点。
 - 不要假装调用了不存在的协议或标签。
+
+## 示例
+
+- **Three landscape shots**：Plan three wide-angle landscape image nodes with linked prompts.

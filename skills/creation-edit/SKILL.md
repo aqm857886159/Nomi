@@ -1,6 +1,14 @@
 ---
 name: creation-edit
-description: 编辑创作区文档：读取当前内容，追加或替换文本，维护分镜描述格式。
+description: "Direct creation-area document editing: read current content, append or replace text, and maintain the shot-list format."
+metadata:
+  nomi:
+    version: 1.0.0
+    tools:
+      - creation_read
+      - creation_write
+    required-providers:
+      - text
 ---
 
 # Creation Edit
@@ -33,3 +41,7 @@ description: 编辑创作区文档：读取当前内容，追加或替换文本�
 - 必须先读取再写入，禁止盲目覆盖。
 - `content` 只放正文，不加使用说明或标注。
 - 不确定写入位置时，先向用户确认，不要猜测。
+
+## 示例
+
+- **Append shot list**：Read the document, then append a formatted shot list to the end.

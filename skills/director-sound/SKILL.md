@@ -1,5 +1,5 @@
 ---
-name: director.sound
+name: director-sound
 description: 声音设计知识——环境音/音效/配乐情绪/沉默设计/听觉记号（leitmotif）/声画对位，仅供叙事规划与后期剪辑参考；⚠️视频生成提示词不含音频，这些内容不写进 shot 的 prompt，是给 Nomi 时间轴后期配音/配乐用的。
 ---
 

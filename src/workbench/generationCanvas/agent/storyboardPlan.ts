@@ -217,7 +217,7 @@ export type StoryboardPlan = {
   aspectRatio?: string
   /** 片种模板 key（如 'genre.short-drama'）；缺省 = 自由格式。骨架段/画幅默认按它 derive（C 阶段接管）。 */
   profileKey?: string
-  /** skill.json 声明的片种 profile 快照；缺省时按 profileKey/自由文本 derive。 */
+  /** 片种 profile 快照（来自 storyboardProfiles.ts 的模板表）；缺省时按 profileKey/自由文本 derive。 */
   storyboardProfile?: StoryboardProfile
   /** The exact approved script this plan was derived from. */
   sourceScriptArtifactId?: string

@@ -11,6 +11,32 @@ import {
   deleteUserSkill,
 } from "./skillPackage";
 
+export type SkillImportOutcome =
+  | {
+      ok: true;
+      dirName: string;
+      skillName: string;
+      /**
+       * Provider modalities the freshly saved Skill declares.  The creation panel
+       * uses it to say "this one needs video, go connect one" the moment the save
+       * lands.  It is derived here, from the record that actually hit disk —
+       * before the format converged the renderer read it off the `author_skill`
+       * tool arguments, which made the tool call a second owner of the same fact.
+       */
+      neededProviders: SkillProviderKind[];
+    }
+  | { ok: false; error: string };
+
+function importSkillAndDeriveNeeds(raw: unknown): SkillImportOutcome {
+  const result = importSkillPackageToUserDir(raw);
+  if (!result.ok) return result;
+  const saved = readSkillRecords().find(
+    (record) => record.origin === "user" && record.directoryName === result.dirName,
+  );
+  const needs = saved?.manifest ? deriveSkillNeeds(saved.manifest) : null;
+  return { ...result, neededProviders: needs?.providers ?? [] };
+}
+
 export type SkillListItem = {
   directoryName: string;
   name: string;
@@ -46,11 +72,11 @@ export function listSkillsForRenderer(): SkillListItem[] {
       directoryName: r.directoryName,
       name: r.name,
       label: r.manifest?.label || r.name,
-      // r.description 已是「manifest 的 ∥ SKILL.md frontmatter 的」（skillStore 算好的单一真相源）。
-      // 此前这里只取 manifest → 没有 skill.json 的技能一律显示「暂无说明」，哪怕 frontmatter 里
-      // 写着标准的 description（31 本内置只有 7 本带 manifest；用户从生态导入的标准技能全中招）。
-      // 2026-08-27 真机走查抓出：导入一个标准 SKILL.md → 落盘成功、卡片却是「暂无说明」。
-      description: r.description || r.manifest?.description || null,
+      // description 只有一个 owner：SKILL.md frontmatter 的必填字段（skillStore 读好的）。
+      // 2026-08-27 真机走查抓出过这里的旧形状：那时只取 manifest → 没有 skill.json 的技能
+      // 一律显示「暂无说明」，哪怕 frontmatter 里写着标准的 description。清单退场后
+      // 「两处取值」这个形状本身没了，回归也就不可能再来一次。
+      description: r.description || null,
       author: r.manifest?.author ?? null,
       stageLabels: (r.manifest?.stages ?? []).map((s) => s.goal),
       isPlaybook: (r.manifest?.stages ?? []).length > 0,
@@ -75,9 +101,7 @@ export function registerSkillIpc(registerSyncIpc: RegisterSyncIpc): void {
   // 三个写操作 handler —— 渲染层用 invokeSync 调，返回值结构与 skillPackage.ts 里的函数一致。
   // 2026-09-03: PR #279 合入了渲染层解析逻辑和主进程落地函数，但忘了在这里注册，
   // 导致渲染层一直收到 "No handler registered" 且 UI 静默（P0 回归）。
-  registerSyncIpc("nomi:skill:import", (raw: unknown) =>
-    importSkillPackageToUserDir(raw),
-  );
+  registerSyncIpc("nomi:skill:import", (raw: unknown) => importSkillAndDeriveNeeds(raw));
   registerSyncIpc("nomi:skill:export", (dirName: unknown) =>
     exportSkillPackageByName(String(dirName ?? ""), Date.now()),
   );

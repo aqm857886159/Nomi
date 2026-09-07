@@ -1,5 +1,5 @@
 ---
-name: writer.review
+name: writer-review
 description: 剧本审查·导演视角——用视觉叙事/节奏把控/镜头语言/空间调度/情绪曲线等导演维度审一份剧本，找出「读着顺但拍不出/立不住」的问题。Nomi 创作区写完剧本回头检查时用。
 ---
 

@@ -39,7 +39,7 @@ try {
         capability: "canvas-agent",
         history: { kind: "ephemeral" },
         featureKey: "probe-agent-eval",
-        skillKey: "workbench.generation.canvas-planner",
+        skillKey: "workbench-generation",
         mode: "auto",
         agentModelKey: MODEL_KEY,
         agentVendorKey: "apimart",

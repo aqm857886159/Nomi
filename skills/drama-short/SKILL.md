@@ -1,6 +1,88 @@
 ---
-name: drama.short
-description: 短剧 playbook。把故事梗概/小说片段做成一条有人物、有转折的剧情短片，分阶段执行（剧本审阅 → 立圣经+拆镜 → 落画布冻结定妆 → 参考图生视频 → 排时间轴），每阶段暂停让用户审阅。跨镜不换脸靠「先冻结角色卡、再从它生成」。
+name: drama-short
+description: 做剧情类短剧/短片。当用户要把一个故事、梗概、小说片段或「深夜便利店发生了什么」这类情境做成有人物、有转折的短剧，或提到「短剧 / 微短剧 / 剧情短片 / 小说改编」时用我。
+metadata:
+  nomi:
+    version: 1.0.0
+    label: 短剧
+    author: "@nomi"
+    tools:
+      - read_full_text
+      - read_selection
+      - read_canvas_state
+      - propose_storyboard_plan
+      - create_canvas_nodes
+      - connect_canvas_edges
+      - set_node_prompt
+      - run_generation_batch
+      - arrange_storyboard_to_timeline
+    required-providers:
+      - text
+      - image
+      - video
+    stages:
+      - id: script
+        goal: 先生成一份可拍摄的编号短剧剧本和角色/场景事实，交用户在创作区或外部 Agent 审阅；确认前不落画布、不调用付费模型。
+        tools:
+          - read_full_text
+          - read_selection
+        pause: true
+        skill-refs:
+          - writer-screenwriter
+          - writer-structure
+          - writer-dialogue
+          - writer-review
+        model-prefs:
+          - kind: text
+      - id: storyboard
+        goal: 把故事拆成一份短剧分镜方案：先立角色圣经（每个主要角色的静态特征/动态服装/禁改项），再按「钩子 → 升级 → 反转」切镜。交用户在创作区审阅修改。
+        tools:
+          - read_canvas_state
+          - propose_storyboard_plan
+        depends-on:
+          - script
+        pause: true
+        skill-refs:
+          - director-shot-translation
+          - director-cinematography
+          - director-consistency
+          - director-staging
+        model-prefs:
+          - kind: text
+      - id: build
+        goal: 把方案落成画布：角色/场景定妆卡在前、镜头在后，每镜连上它引用的角色卡（character_ref）。定妆卡出图后请用户冻结，冻结后整批镜头才放行——这是跨镜不换脸的地基。
+        tools:
+          - read_canvas_state
+          - create_canvas_nodes
+          - connect_canvas_edges
+          - set_node_prompt
+        depends-on:
+          - storyboard
+        pause: true
+        model-prefs:
+          - kind: image
+      - id: generate
+        goal: 按波次生成：先出并冻结角色/场景定妆卡，再逐镜从冻结参考图走图生视频。生成后每镜自动审片，身份/构图不达标的会定向重滚。
+        tools:
+          - read_canvas_state
+          - run_generation_batch
+        depends-on:
+          - build
+        pause: true
+        model-prefs:
+          - kind: image
+          - kind: video
+            family: seedance
+      - id: assemble
+        goal: 按镜序排到时间轴：开场 3 秒留钩子、结尾留悬念，准备预览导出。
+        tools:
+          - read_canvas_state
+          - arrange_storyboard_to_timeline
+        depends-on:
+          - generate
+        pause: true
+        model-prefs:
+          - kind: video
 ---
 
 # 短剧 (Short Drama)
@@ -65,3 +147,11 @@ description: 短剧 playbook。把故事梗概/小说片段做成一条有人物
 - 故事里人物关系不清楚（谁是谁的什么人）——猜错了整条情感线都错。
 - 年代/地域不明确（现代都市？民国？）——影响服化道全套。
 - 定妆卡出来了——**必须让用户看过并冻结**，这是唯一一次「多问一句省下十几个镜头返工」的机会。
+
+## 输入
+
+- **brief**（必填）：故事梗概 / 情境 / 小说片段（一段话即可；可附角色参考图）。
+
+## 示例
+
+- **《2:17 的男人》60 秒悬疑短剧**：深夜便利店收银员发现每晚 2:17 同一个男人来买同一瓶水——钩子、升级、反转三段式。

@@ -153,16 +153,10 @@ export function createPiSkillWriteTransportAdapter(
         throw Object.assign(new Error("capability_input_invalid"), { code: "capability_input_invalid" });
       }
 
-      const pkg = buildSkillPackage(
-        args.dirName,
-        {
-          "SKILL.md": args.skillMarkdown,
-          "skill.json": stableJson(args.manifest),
-        },
-        now(),
-      );
+      // A skill is one file: SKILL.md, whose frontmatter is the whole manifest.
+      const pkg = buildSkillPackage(args.dirName, { "SKILL.md": args.skillMarkdown }, now());
       const validated = validateSkillPackage(pkg);
-      if (!validated.ok || !validated.manifest) {
+      if (!validated.ok) {
         throw Object.assign(new Error("capability_input_invalid"), { code: "capability_input_invalid" });
       }
       const inputHash = digest("input", { operation: args.operation, dirName: args.dirName, files: pkg.files });

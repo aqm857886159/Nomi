@@ -1,5 +1,5 @@
 ---
-name: director.cinematography
+name: director-cinematography
 description: 镜头语言与摄影技法方法论——统一景别体系/构图规则/运镜的情绪语言/打光方案/景深控制/色温光源/镜头特性，以及这些怎么翻译成视频提示词该怎么写。Nomi 拆镜头或写视频 shot 的 prompt 时参考。
 ---
 

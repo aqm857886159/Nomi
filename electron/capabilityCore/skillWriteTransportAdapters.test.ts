@@ -15,14 +15,28 @@ import { createPiSkillWriteTransportAdapter } from "./skillWriteTransportAdapter
 const target = { kind: "document" as const, documentId: "doc-a", anchor: { kind: "whole-document" as const } };
 const preconditions = { document: { revision: 2, contentHash: "before" } } as const;
 
+const SKILL_NAME = "creative-avatar";
+const SKILL_DESCRIPTION = "Create a consistent avatar.";
+/** A skill is one file; the frontmatter is the whole manifest. */
+const SKILL_MARKDOWN = [
+  "---",
+  `name: ${SKILL_NAME}`,
+  `description: ${SKILL_DESCRIPTION}`,
+  "metadata:",
+  "  nomi:",
+  '    version: "1.0.0"',
+  "    tools: [read_canvas_state, create_canvas_nodes]",
+  "    required-providers: [image]",
+  "---",
+  "",
+  "Use a clean avatar workflow.",
+].join("\n");
+
 function manifest(): SkillManifest {
   return {
-    name: "creative.avatar",
     version: "1.0.0",
-    description: "Create a consistent avatar.",
     tools: ["read_canvas_state", "create_canvas_nodes"],
     requiredProviders: ["image"],
-    permissions: ["read-only", "create"],
   };
 }
 
@@ -30,17 +44,17 @@ function call(overrides: Partial<RuntimeToolCall> = {}): RuntimeToolCall {
   return {
     toolCallId: "tool-skill-1",
     toolName: SKILL_WRITE_CAPABILITY.aliases.pi,
-    args: { dirName: "creative-avatar", manifest: manifest(), skillMarkdown: "Use a clean avatar workflow." },
+    args: { dirName: "creative-avatar", skillMarkdown: SKILL_MARKDOWN },
     ...overrides,
   };
 }
 
 function recordFor(pkg: SkillPackage, directoryName = pkg.dirName): SkillRecord {
   return {
-    name: manifest().name,
+    name: SKILL_NAME,
     directoryName,
     filePath: `/tmp/${directoryName}/SKILL.md`,
-    description: manifest().description,
+    description: SKILL_DESCRIPTION,
     body: pkg.files["SKILL.md"],
     manifest: manifest(),
     origin: "user",
@@ -59,7 +73,7 @@ describe("skill.write transport adapter", () => {
     let records: SkillRecord[] = [];
     const importer = vi.fn((pkg: SkillPackage): ImportSkillResult => {
       records = [recordFor(pkg)];
-      return { ok: true, dirName: pkg.dirName, skillName: manifest().name, manifest: manifest() };
+      return { ok: true, dirName: pkg.dirName, skillName: SKILL_NAME };
     });
     const adapter = createPiSkillWriteTransportAdapter({
       readRecords: () => records,
@@ -82,7 +96,7 @@ describe("skill.write transport adapter", () => {
     let records: SkillRecord[] = [];
     const importer = vi.fn((pkg: SkillPackage): ImportSkillResult => {
       records = [recordFor(pkg)];
-      return { ok: true, dirName: pkg.dirName, skillName: manifest().name, manifest: manifest() };
+      return { ok: true, dirName: pkg.dirName, skillName: SKILL_NAME };
     });
     const adapter = createPiSkillWriteTransportAdapter({ readRecords: () => records, importPackage: importer });
     const prepared = await adapter.prepare(call(), { target, preconditions }, signal());
@@ -94,10 +108,12 @@ describe("skill.write transport adapter", () => {
     expect(second).toMatchObject({ ok: true, result: { created: false } });
   });
 
-  it("fails closed for malformed manifests, forged approval hashes, and cancelled calls", async () => {
+  it("fails closed for unreadable frontmatter, forged approval hashes, and cancelled calls", async () => {
     const importer = vi.fn<(_pkg: SkillPackage) => ImportSkillResult>();
     const adapter = createPiSkillWriteTransportAdapter({ readRecords: () => [], importPackage: importer });
-    const malformed = await expect(adapter.prepare(call({ args: { dirName: "bad", manifest: { name: "missing-fields" }, skillMarkdown: "body" } }), { target, preconditions }, signal())).rejects;
+    // 未加引号的值里带 ": " —— 真 YAML 解析器读不动，别的宿主会整包丢掉它，所以不许落盘。
+    const brokenFrontmatter = "---\nname: bad\ndescription: 为 anchor（`carrier: visual`）写提示词\n---\n\nbody";
+    const malformed = await expect(adapter.prepare(call({ args: { dirName: "bad", skillMarkdown: brokenFrontmatter } }), { target, preconditions }, signal())).rejects;
     await malformed.toThrow("capability_input_invalid");
     const prepared = await adapter.prepare(call(), { target, preconditions }, signal());
     const forged = await adapter.execute(prepared!, {
@@ -121,8 +137,7 @@ describe("skill.write transport adapter", () => {
     const importer = vi.fn((_pkg: SkillPackage): ImportSkillResult => ({
       ok: true,
       dirName: "creative-avatar",
-      skillName: manifest().name,
-      manifest: manifest(),
+      skillName: SKILL_NAME,
     }));
     const adapter = createPiSkillWriteTransportAdapter({ readRecords: () => [], importPackage: importer });
     const prepared = await adapter.prepare(call(), { target, preconditions }, signal());

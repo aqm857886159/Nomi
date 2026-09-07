@@ -27,7 +27,7 @@ const SOURCE_OPTIONS: { value: Source; labelKey: 'libraries.skill.source.mine' |
   { value: 'builtin', labelKey: 'libraries.skill.source.builtin' },
 ]
 
-const SKILL_AUTHOR_KEY = 'workbench.creation.skill-author'
+const SKILL_AUTHOR_KEY = 'skill-author'
 
 type SkillLibraryContentProps = {
   active: boolean

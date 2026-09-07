@@ -1,5 +1,5 @@
 ---
-name: director.guzhuang
+name: director-guzhuang
 description: 中国古装题材形制知识——服饰造型(朝代/身份/发冠/妆容/色彩等级)、建筑形制(屋顶等级/开间/斗拱/院落/衙门公堂)、礼仪调度、穿帮自检，以及古装参考图/视频提示词要点(古匾汉字放开、现代穿帮 avoid)；Nomi 做古装短片/微短剧时参考。
 ---
 

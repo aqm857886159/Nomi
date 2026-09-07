@@ -1,5 +1,5 @@
 // Skill 分享 = 异步文件交换（无后端）。导出一个 skill 为自描述包 → 发给人 → 对方导入到可写
-// 用户目录。安全：skill 只声明（SKILL.md + skill.json 文本），不跑外部代码；导入校验 manifest、
+// 用户目录。安全：skill 只声明（SKILL.md 文本），不跑外部代码；导入校验 frontmatter、
 // 拒路径穿越、不覆盖内置（docs/plan/2026-06-19-skill-playbook-system.md §6 + §0.5.d）。
 // 纯函数（打包/校验/冲突命名）与 FS 函数（显式目录，便于单测，不碰 electron app）分离；
 // runtimePaths 薄包装见末尾。
@@ -8,7 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { getSkillsRoots, getUserSkillsRoot } from "../runtimePaths";
-import { parseSkillManifest, type SkillManifest } from "./skillManifestSchema";
+import { readSkillFrontmatterIdentity } from "./skillFrontmatter";
 
 export const SKILL_PACKAGE_VERSION = "nomi-skill-v1";
 
@@ -91,7 +91,7 @@ export function computeSkillContentHash(files: Record<string, string>): string {
 }
 
 export type ValidatedSkillPackage =
-  | { ok: true; pkg: SkillPackage; manifest: SkillManifest | null }
+  | { ok: true; pkg: SkillPackage; skillName: string }
   | { ok: false; error: string };
 
 /**
@@ -110,9 +110,9 @@ export function normalizeSkillImportInput(raw: unknown): unknown {
 }
 
 /**
- * 校验一个外来包（纯）：版本兼容 + 形状 + 文件名安全 + 必含 SKILL.md + manifest 合法。
- * 三态对齐 Dify：版本不符 → 拒（人话）；skill.json 存在但非法 → 拒（不落坏 skill）；
- * skill.json 缺失 → 允许（legacy markdown-only，manifest=null）。
+ * 校验一个外来包（纯）：版本兼容 + 形状 + 文件名安全 + 必含 SKILL.md + frontmatter 可解析。
+ * 版本不符 → 拒（人话）；frontmatter 写坏 → 拒（不落一个别的宿主读不出来的 skill）；
+ * 没有 Nomi 扩展块 → 允许（纯知识层技能，生态里绝大多数长这样）。
  */
 export function validateSkillPackage(raw: unknown): ValidatedSkillPackage {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
@@ -140,20 +140,14 @@ export function validateSkillPackage(raw: unknown): ValidatedSkillPackage {
   if (!fileMap["SKILL.md"] || !fileMap["SKILL.md"].trim()) {
     return { ok: false, error: "skill 包缺少 SKILL.md 正文" };
   }
-  let manifest: SkillManifest | null = null;
-  if (fileMap["skill.json"]) {
-    let json: unknown;
-    try {
-      json = JSON.parse(fileMap["skill.json"]);
-    } catch (err) {
-      return { ok: false, error: `skill.json 不是合法 JSON：${(err as Error).message}` };
-    }
-    const parsed = parseSkillManifest(json);
-    if (!parsed.ok) return { ok: false, error: `skill.json 校验失败：${parsed.error}` };
-    manifest = parsed.manifest;
-  }
+  const identity = readSkillFrontmatterIdentity(fileMap["SKILL.md"]);
+  if (identity.error) return { ok: false, error: identity.error };
   const exportedAt = typeof obj.exportedAt === "number" ? obj.exportedAt : 0;
-  return { ok: true, pkg: { version: SKILL_PACKAGE_VERSION, exportedAt, dirName, files: fileMap }, manifest };
+  return {
+    ok: true,
+    pkg: { version: SKILL_PACKAGE_VERSION, exportedAt, dirName, files: fileMap },
+    skillName: identity.name || dirName,
+  };
 }
 
 /** 目标目录名清洗 + 冲突避让（纯）：非法字符→-，已存在→加 -2/-3…（不覆盖现有/内置）。 */
@@ -223,7 +217,7 @@ export function writeSkillImport(userRoot: string, pkg: SkillPackage): { dirName
 // --- runtimePaths 薄包装（生产用；FS 副作用，真机/IPC 走这里，不进单测） ---
 
 export type ImportSkillResult =
-  | { ok: true; dirName: string; skillName: string; manifest: SkillManifest | null }
+  | { ok: true; dirName: string; skillName: string }
   | { ok: false; error: string };
 
 /** 按目录名在所有 skills 根里找到该 skill 并打包导出（exportedAt 由调用方盖戳）。 */
@@ -274,10 +268,5 @@ export function importSkillPackageToUserDir(raw: unknown): ImportSkillResult {
   const validated = validateSkillPackage(normalizeSkillImportInput(raw));
   if (!validated.ok) return validated;
   const { dirName } = writeSkillImport(getUserSkillsRoot(), validated.pkg);
-  return {
-    ok: true,
-    dirName,
-    skillName: validated.manifest?.name || dirName,
-    manifest: validated.manifest,
-  };
+  return { ok: true, dirName, skillName: validated.skillName || dirName };
 }

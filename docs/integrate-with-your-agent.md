@@ -101,10 +101,11 @@ git clone https://github.com/aqm857886159/Nomi.git
 
 **适用**：给 Nomi 的 Agent 加一块方法论 / 能力（如某种分镜规划、某种剪辑套路）。格式规范见 `docs/skill-pack-format.md`。
 
-一个 skill 就是 `skills/<skill-key>/` 下的一个目录，核心两个文件：
+一个 skill 就是 `skills/<skill-key>/` 下的一个目录，**只有一个必需文件**：
 
-- **`SKILL.md`**：写给 LLM 的方法论 / 系统提示正文（YAML frontmatter 同步 `name` / `description`；正文建议 ≤200 行）。
-- **`skill.json`**：写给 runtime 的 manifest——`name`（点号分段的全局唯一 key）、`version`（SemVer）、`description`、`tools`（工具白名单，最小授权）、`requiredProviders`、`permissions`。
+- **`SKILL.md`**：开头是 YAML frontmatter（写给 runtime 的元数据：必填 `name`（小写 kebab，且等于目录名）与 `description`；Nomi 独有的工具白名单 / 模态声明 / playbook 放 `metadata.nomi`），后面是写给 LLM 的方法论正文（建议 ≤200 行）。
+
+这就是 [Agent Skills 标准](https://agentskills.io/specification)的形状，pi / Claude Code / Codex 读的都是它——所以**别人的技能目录拖进来能用，我们的拖出去也能用**。
 
 **带用户这样做：**
 
@@ -112,7 +113,9 @@ git clone https://github.com/aqm857886159/Nomi.git
 2. 把整个 `<skill-key>/` 目录**拷贝到仓库的 `skills/` 下**（zip 就先解压）。
 3. 启动 / 重启 Nomi（开发态用 `pnpm dev`）。AI 面板里这个 skill 会**自动被发现**。
 
-> 仅有 `SKILL.md`、没有 `skill.json` 的旧 skill 也能加载，只是拿不到工具白名单 / 权限边界（所有工具都会暴露给 LLM）。runtime 加载失败会在主进程日志打印 Zod 校验错误。
+> 只写 `name` + `description`、不带 `metadata.nomi` 的纯知识层技能照样加载——生态里绝大多数技能就是这样。
+> `metadata.nomi` 写坏时 runtime **fail closed**（该技能拿到零工具），并在面板上给出人话原因；主进程日志同时打印 Zod 校验错误。
+> 2026-09-07 之前的第二份清单 `skill.json` 已退场；用户目录里的存量由加载器一次性迁移进 frontmatter，原文件留 `.bak` 备份。
 
 **✅ 验证成功的标志：**
 - Nomi 的 AI 面板里能看到 / 选到这个 skill。

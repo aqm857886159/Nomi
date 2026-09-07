@@ -1,6 +1,17 @@
 ---
 name: model-integration
 description: Connect HTTP models or a native ComfyUI workflow through Nomi's verified certification path.
+metadata:
+  nomi:
+    version: 1.0.0
+    tools:
+      - nomi_integration
+      - nomi_integration_manage
+      - nomi_read
+    required-providers:
+      - text
+      - image
+      - video
 ---
 
 # Nomi model integration
@@ -72,3 +83,8 @@ Keep one evidence row per mapping in the ledger. The row must make the cost and 
 ```
 
 Never promote a whole model from a neighboring mode's receipt. Each mode is independently `documented`, `simulated`, `live-certified`, or `blocked`.
+
+## 示例
+
+- **Connect a provider**：Bring an official API origin and choose verified text, image, or video models.
+- **Connect ComfyUI**：Normalize an API or ordinary UI-saved workflow, submit one proposal, and repair field-level rejections.

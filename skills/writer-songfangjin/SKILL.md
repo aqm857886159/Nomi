@@ -1,5 +1,5 @@
 ---
-name: writer.songfangjin
+name: writer-songfangjin
 description: 宋方金编剧方法论（中国编剧《手机》《给青年编剧的信》）——人物先于情节 / 生活质感 / 关系即戏剧 / 对白零废话。Nomi 创作区写剧本时参考，尤其中式现实题材。
 ---
 

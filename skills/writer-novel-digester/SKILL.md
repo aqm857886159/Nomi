@@ -1,5 +1,5 @@
 ---
-name: writer.novel-digester
+name: writer-novel-digester
 description: 小说消化——把原著文本按 Truby/Mamet/McKee/Gilroy 方法论拆解，输出结构分析/对白范例/场景范例/叙事技法/本剧对标映射。Nomi 创作区改编或从原著取养分时参考，分层读取不必一次读完全本。
 ---
 

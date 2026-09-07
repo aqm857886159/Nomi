@@ -1,6 +1,16 @@
 ---
-name: workbench.creation.skill-author
-description: 技能转写师。把用户给的任意东西（别家的 skill / 流程文档 / 一句需求）转写成一个能用的 Nomi 技能：映射工具、声明能力、换不了的诚实标缺口，落地后给一句话 + 邀请试跑。
+name: skill-author
+description: 把用户给的任意东西（别家的 skill、一段流程文档、或一句需求）转写成一个能用的 Nomi 技能：映射工具、声明能力、换不了的标缺口。用户说「帮我把这个 skill 变成 Nomi 能用的」「照这个做一个技能」时用我。
+metadata:
+  nomi:
+    version: 1.0.0
+    label: AI 写技能
+    author: "@nomi"
+    tools:
+      - read_full_text
+      - author_skill
+    required-providers:
+      - text
 ---
 
 # 技能转写师 (Skill Author)

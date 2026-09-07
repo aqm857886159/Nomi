@@ -1,0 +1,199 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-07-skill-manifest-two-owners",
+  "problem_type": "one fact with two file-level owners: a Skill declared itself in SKILL.md frontmatter AND in a second file skill.json, and the loader silently picked one",
+  "symptom": "Pointing pi's own Skill loader at this repository's skills/ returns 32 skills for 33 directories plus 31 diagnostics. skills/director-art-design/SKILL.md:2 carried an unquoted `carrier: visual` inside its description; a real YAML parser rejects the mapping and drops the whole skill, so that skill does not exist in pi, Claude Code or Codex — while Nomi's own four line-regexes read it happily and nothing went red. The other 30 diagnostics are dotted names (`director.art-design`) that the Agent Skills spec forbids. Separately, skills/brand-promo introduced itself to the model with one sentence inside Nomi and a different sentence inside every other host, because skillStore.ts:206 preferred the manifest's description and every other host only ever sees the frontmatter's.",
+  "direct_cause": "electron/skills/skillStore.ts read two sources and ranked them: readSkillManifest() parsed files['skill.json'] through the zod schema, and the record assembly at :203/:206/:213 spelled out `manifest?.name || parseSkillName(body)`, `manifest?.description || parseSkillDescription(body)`, `manifest?.audience ?? parseSkillAudience(body)`. The fallback reader was four hand-written line regexes (:89-111) that match `^key:\\s*(.+)$` per line, so any YAML that a real parser rejects still produced a value here. Two owners plus a lenient reader means the divergence has no observer.",
+  "class_root": "The class is 'one semantic fact, two file-level owners, resolved by precedence rather than by structure'. Precedence hides drift instead of preventing it: whichever source loses is free to say something else, and nobody finds out until a third party reads the losing one. Two structural amplifiers were present here. (1) Our reader was more lenient than the ecosystem's, so the strict side's failures were invisible to us — leniency asymmetry always makes the lenient side blind, never safe. (2) The second owner had no schema discipline of its own: skills/workbench-storyboard-planner/skill.json declared a `storyboardProfile` block that is not in the zod schema, so parseSkillManifest silently stripped it, and it had already drifted from the renderer's hand-maintained copy in src/workbench/generationCanvas/agent/storyboardProfiles.ts (literal Chinese labels there, i18n keys here) while that file's comment claimed the value came from skill.json.",
+  "migration": "Same commit, no parallel version, no fallback (P1). The nine built-in skill.json files are deleted and their live fields folded into `metadata.nomi` inside each SKILL.md; all 33 names become the directory name; director-art-design's description is quoted. Existing skillKeys keep resolving because normalizeSkillLookupKey maps `.` to `-`, so `workbench.storyboard.planner` still finds workbench-storyboard-planner — the two keys that do not normalise onto their directory (`workbench.generation.canvas-planner`, `workbench.creation.skill-author`) are renamed in the same commit and pinned by a test. User directories are migrated on load by electron/skills/skillManifestMigration.ts: it folds the legacy manifest into the frontmatter, renames the original to skill.json.migrated-<ts>.bak, and never runs twice because the file it looks for is gone afterwards; failure is non-blocking and the skill still loads from its frontmatter.",
+  "affected_population": [
+    "Every Nomi Skill, built-in or user-imported: 33 built-ins shipped with dotted names the spec forbids, and 1 of them was unreadable to every other Agent Skills host",
+    "Every user who keeps skills in ~/.claude/skills or ~/.codex/skills and wants them in Nomi, or the reverse: the extra skill.json meant a repackaging step in both directions",
+    "Every model turn that loaded a built-in skill with a manifest: the self-description the model received differed from the one any other host would have shown it",
+    "Every agent-authored skill: the author_skill tool carried a third, narrower copy of the manifest shape (electron/harness/tools/documentDescriptors.ts) that omitted audience, requestedCapabilities, inputs, examples and skillRefs, so an agent could never declare them"
+  ],
+  "scope_paths": [
+    "electron/skills/",
+    "electron/harness/tools/documentDescriptors.ts",
+    "electron/shared/agentCapabilities/skillWrite.ts",
+    "electron/capabilityCore/skillWriteTransportAdapters.ts",
+    "src/workbench/creation/creationToolCalls.ts",
+    "scripts/check-skills-format.mjs",
+    "scripts/skills-format-lib.mjs",
+    "skills/"
+  ],
+  "entry_points": [
+    "electron/skills/skillStore.ts:123 readSkillManifest — the skill.json read that made a second owner possible",
+    "electron/skills/skillStore.ts:89-111 — the four hand-rolled frontmatter regexes that were more lenient than every other host's parser",
+    "electron/skills/skillStore.ts:203/:206/:213 — the three precedence expressions that chose between the two owners",
+    "electron/skills/skillPackage.ts:143-154 — the import path that accepted, validated and persisted a second manifest into the user directory",
+    "electron/capabilityCore/skillWriteTransportAdapters.ts:157-161 — the author_skill write path that serialised a manifest object into skill.json on save",
+    "electron/harness/tools/documentDescriptors.ts:20-32 — the third manifest definition, the one the model saw",
+    "src/workbench/creation/creationToolCalls.ts:24 — the renderer copy that stringified the tool argument into skill.json"
+  ],
+  "invariants": [
+    "A Skill package has exactly one manifest: the YAML frontmatter of its SKILL.md. No skill.json may exist anywhere under skills/, in any subdirectory.",
+    "Every skills/<dir>/SKILL.md frontmatter parses with a real YAML parser, carries a non-empty description of at most 1024 characters, and carries a name that is at most 64 characters, matches ^[a-z0-9]+(-[a-z0-9]+)*$, and equals its directory name.",
+    "No frontmatter key outside the Agent Skills closed set {name, description, license, compatibility, metadata, allowed-tools} plus the deliberate exception disable-model-invocation. Nomi-specific declarations live under metadata.nomi and nowhere else.",
+    "pi's own loader, run over skills/, returns exactly as many skills as there are SKILL.md files and emits zero diagnostics — the judge of 'can another host read this' is that host's parser, not a rule we wrote.",
+    "name and description are read from the frontmatter alone. No code path may reintroduce a second source for either, so the precedence expression that hid the drift cannot be rewritten.",
+    "A metadata.nomi block that exists but fails validation yields manifest=null with an error, which electron/ai/agentChatV2.ts:55-58 turns into an empty capability list — a broken manifest grants zero tools, never the full host set."
+  ],
+  "regression_tests": [
+    "scripts/check-skills-format.node-test.mjs",
+    "electron/skills/builtinSkills.test.ts",
+    "electron/skills/skillManifestMigration.test.ts",
+    "electron/skills/skillPackage.test.ts",
+    "electron/skills/skillManifestSchema.test.ts",
+    "electron/skills/skillIpc.test.ts",
+    "electron/harness/runtime/pi/nomiSkillResources.test.ts",
+    "electron/capabilityCore/skillWriteTransportAdapters.test.ts"
+  ],
+  "residual_risks": [
+    "The gate judges the repository's skills/ tree. A user-imported skill lands in the user directory, where the import validator only checks that the frontmatter parses — it does not enforce the name/directory match, because rejecting an otherwise fine ecosystem skill over a naming rule would be a worse outcome than accepting it. pi itself makes the same deliberate relaxation for shared skill directories.",
+    "Nesting under metadata.nomi is one documented step past the spec's own wording, which describes metadata as a map from string keys to string values. The reference validator does not enforce that (skills-ref validator.py:118-147 never inspects metadata) and pi and Claude Code both ignore its contents, so the F6 assertion — pi loads all 33 with zero diagnostics — is what actually holds the line. If a future host starts validating metadata values as strings, F6 goes red before any user notices.",
+    "The user-directory migration rewrites SKILL.md in place and is not reversible; the original is kept as a .bak next to it, but a user who deletes that file cannot recover the exact original frontmatter.",
+    "Field-level coverage inside metadata.nomi remains uneven: tools, stages[].goal, stages[].dependsOn and stages[].pause still have no production consumer (the playbook orchestrator has none), so they are carried, not exercised. That is recorded as a separate structural ticket rather than deleted here, because removing them is a product decision about the playbook line."
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://agentskills.io/specification",
+      "checked_at": "2026-09-07",
+      "purpose": "The authoritative frontmatter field table and its closed top-level key set: required name (max 64, lowercase a-z/0-9/hyphens, no leading/trailing or consecutive hyphens, must match the parent directory) and description (max 1024); optional license, compatibility, metadata, allowed-tools. This is where the name rules and the 'extensions go in metadata, not in new top-level keys' decision come from."
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/agentskills/agentskills/tree/main/skills-ref",
+      "checked_at": "2026-09-07",
+      "purpose": "The reference validator settles whether nested data under metadata is legal in practice: validator.py:104-115 closes the top-level key set (an extra key is an error), while validate_metadata at :118-147 never inspects metadata's contents — only models.py:27's type hint says dict[str, str], and nothing enforces it. That asymmetry is the basis for putting Nomi's structured fields under metadata.nomi and for recording it as a documented deviation rather than a silent one."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://code.claude.com/docs/en/skills",
+      "checked_at": "2026-09-07",
+      "purpose": "Confirms Claude Code uses only SKILL.md with no second manifest file, treats metadata as free-form data it ignores, and accepts-and-ignores unknown top-level keys locally while rejecting them when packaging for distribution. Establishes that Nomi was the only one of the three with a second file."
+    },
+    {
+      "kind": "source-code",
+      "url": "https://www.npmjs.com/package/@earendil-works/pi-coding-agent",
+      "checked_at": "2026-09-07",
+      "purpose": "The installed 0.85.1 loader is the gate's judge: dist/core/skills.js:35 loadSkillsFromDir, :208-264 loadSkillFromFile (frontmatter via the yaml package, name/description validation, disable-model-invocation), :113-122 the discovery rule. Also the reason we do not import its parseFrontmatter (dist/utils/frontmatter.js:18-25): the package's exports map does not expose that subpath, so depending on it in the main process would hang skill loading off an unexported internal file."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The mechanism is 'two owners resolved by precedence', not a typo. It has produced separate incidents in this same subsystem within weeks: 2026-08-27, a walkthrough found imported standard skills showing 「暂无说明」 because the panel read only the manifest's description; 2026-09-07, the same pair of owners is why one built-in skill is invisible to every other host and why brand-promo says two different things about itself. The same shape is live one layer over in the renderer's storyboardProfiles.ts, whose comment claims its values come from skill.json while the manifest block it names is stripped by zod and has already drifted. As long as a second file may declare the same fact, the next drift is a matter of time rather than of care.",
+    "same_class_scan": [
+      "Ran pi's own loader (node_modules/@earendil-works/pi-coding-agent/dist/core/skills.js loadSkillsFromDir) over skills/ on origin/main@35d444a7b: 32 skills for 33 directories, 31 diagnostics. This is the measurement, not an estimate.",
+      "git grep for skill.json across src/, electron/, scripts/ and tests/: seven production read/write sites (listed in entry_points), plus the LLM-facing schema in documentDescriptors.ts and the renderer serialiser in creationToolCalls.ts. All seven are removed in this diff.",
+      "Traced every manifest field to its consumers before deciding what to keep: permissions has no production reader at all (SkillPermission is never imported) and is deleted; inputs and examples have none either and move into the body as prose; storyboardProfile is stripped by zod before it reaches SkillRecord and is deleted along with the two comments that claimed it was live.",
+      "Checked whether the manifest shape crosses MCP: skill.write and skill.read are exposure: internal_only (electron/shared/agentCapabilities/skillWrite.ts:54) and are dropped by electron/capabilityCore/mcpCapabilityProjection.ts:111; only skills.list / skills.read cross, carrying SkillSummary (skillStore.ts:277-284). No manifest structure leaves the process, so no external contract breaks.",
+      "Verified the lookup path before renaming 33 skills: normalizeSkillLookupKey (skillStore.ts:113-121) maps '.' to '-', so pre-convergence dotted keys in persisted data still resolve. The two keys that do not normalise onto their directory were found by enumerating every dotted literal in src/, electron/ and tests/ and are now pinned by an assertion rather than by memory."
+    ]
+  },
+  "generality_proof": "The gate encodes the Agent Skills specification and the installed host's own loader, not this incident. F1 through F4 scan every directory under skills/ and would fire on a skill added next month with a dotted name, a private top-level key, an unquoted colon, or a resurrected skill.json — none of those rules mentions director-art-design or brand-promo. F6 delegates the hardest judgement to a third party: it hands skills/ to pi's loader and demands the full count with zero diagnostics, so any future divergence between our reader and the ecosystem's shows up as red without anyone predicting its shape. The judgement itself lives in scripts/skills-format-lib.mjs as pure functions over a file map, and scripts/check-skills-format.node-test.mjs proves the red direction against synthetic packages rather than against today's tree, so the guarantee does not depend on the tree staying as it is (R17). On the reading side the class is closed structurally rather than by rule: name and description now have a single source, so there is no precedence expression left to drift.",
+  "shared_boundaries": [
+    {
+      "path": "electron/skills/skillFrontmatter.ts",
+      "symbol": "parseSkillFrontmatter",
+      "responsibility": "Own the one and only parse of a Skill's declarations, at the same strictness as every other Agent Skills host. Both the loader and the package importer call it, so a header that another host would reject cannot be read as valid here."
+    },
+    {
+      "path": "electron/skills/skillStore.ts",
+      "symbol": "discoverSkillRecordsFromRoots",
+      "responsibility": "Own record assembly with a single source per field: name and description come from the frontmatter, the Nomi extension block comes from metadata.nomi, and no precedence expression chooses between two files."
+    },
+    {
+      "path": "scripts/skills-format-lib.mjs",
+      "symbol": "checkSkillDirectory and checkPiLoader",
+      "responsibility": "Own the machine judgement that the repository's skills stay readable by other hosts: no second manifest, valid YAML, spec-conformant required fields, a closed top-level key set, and pi's loader returning every skill with zero diagnostics."
+    },
+    {
+      "path": "electron/skills/skillManifestMigration.ts",
+      "symbol": "migrateLegacySkillManifest",
+      "responsibility": "Own the one-way move of any surviving second manifest in a user directory into the frontmatter, keeping the original as a .bak, so deleting the read path cannot silently discard what a user declared."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/skills/skillPackage.ts",
+      "entry_point": "validateSkillPackage",
+      "disposition": "enforced",
+      "evidence": "The import path was the second way a skill.json could enter a user directory. It no longer parses or persists one; it reads the frontmatter through the shared owner and rejects a package whose header a real YAML parser cannot read, so an import can no longer land a skill that is invisible to other hosts. Pinned by electron/skills/skillPackage.test.ts, whose new case feeds the exact unquoted `carrier: visual` shape from director-art-design and asserts the package is refused."
+    },
+    {
+      "path": "electron/capabilityCore/skillWriteTransportAdapters.ts",
+      "entry_point": "createPiSkillWriteTransportAdapter prepare",
+      "disposition": "enforced",
+      "evidence": "The author_skill write path used to build a two-file package, serialising the model's manifest argument into skill.json. It now writes SKILL.md alone and validates the frontmatter through the same owner; the manifest field is gone from the wire schema (electron/shared/agentCapabilities/skillWrite.ts) and from the model-facing tool (documentDescriptors.ts), so an agent cannot recreate the second file. skillWriteTransportAdapters.test.ts asserts the fail-closed direction with a broken frontmatter."
+    },
+    {
+      "path": "src/workbench/generationCanvas/agent/storyboardProfiles.ts",
+      "entry_point": "STORYBOARD_PROFILES",
+      "disposition": "enforced",
+      "evidence": "The same class one layer over: a comment asserted these values came from skill.json, and skills/workbench-storyboard-planner/skill.json:18-37 did carry a matching block — but it is not in the zod schema, so parseSkillManifest stripped it before it reached SkillRecord, and the two copies had already drifted (literal Chinese labels in the manifest, i18n keys in the TypeScript). The manifest block is deleted and the comment now states what is actually true, leaving one owner. Nothing reads the removed block, so no behaviour changes; what changes is that the next reader is not misled into maintaining a dead second copy."
+    },
+    {
+      "path": "electron/harness/runtime/pi/nomiSkillResources.mts",
+      "entry_point": "createNomiSkillResourceCatalog",
+      "disposition": "not-affected",
+      "evidence": "The pi-facing catalog only ever projected name, description, disableModelInvocation and contentHash out of the canonical record, and it obtains all four from discoverSkillRecordsFromRoots rather than reading files itself — it never had a second owner. Its test previously fixed the old precedence in place by asserting 'Manifest description is authoritative'; that assertion is updated to the single-owner shape, but no production line in this file changes."
+    }
+  ],
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/skills-format-lib.mjs",
+    "invariant": "Every skill in this repository is declared by exactly one file that every other Agent Skills host can read: no skill.json anywhere under skills/, frontmatter that parses as YAML, spec-conformant name and description with the name equal to the directory, no top-level key outside the closed set, and pi's own loader returning every skill with zero diagnostics.",
+    "failure_mode": "Fail-closed and specific. pnpm run check:skills-format exits 1 and prints one line per violation as [rule] skills/<dir>: <reason>, so the offending directory and rule are named rather than a count. If the pi loader is absent it says so and still exits 1 rather than reporting a pass it did not verify. On this tree before the fix it reported 102 violations (F1 x9, F2 x1, F3 x60, F6 x32) — the gate was red on arrival by construction, which is its own positive control (R17).",
+    "exception_policy": "none",
+    "strategy": "Delete the second owner rather than reconcile the two, and hand the hardest judgement to a third party. A rule we write can only catch divergences we imagined; running the ecosystem's own loader over our tree catches the ones we did not — which is exactly the category that produced this incident, since our lenient regexes could not see what a strict parser rejected.",
+    "artifacts": [
+      "scripts/skills-format-lib.mjs",
+      "scripts/check-skills-format.mjs",
+      "scripts/check-skills-format.node-test.mjs",
+      "electron/skills/skillFrontmatter.ts",
+      "electron/skills/skillManifestMigration.ts",
+      "electron/skills/skillStore.ts",
+      "electron/skills/skillManifestSchema.ts",
+      "package.json",
+      "docs/skill-pack-format.md"
+    ]
+  },
+  "class_regression_tests": [
+    "scripts/check-skills-format.node-test.mjs",
+    "electron/skills/builtinSkills.test.ts",
+    "electron/skills/skillManifestMigration.test.ts",
+    "electron/skills/skillPackage.test.ts"
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/skills/skillFrontmatter.ts",
+    "tests": [
+      "electron/skills/skillManifestMigration.test.ts",
+      "electron/skills/skillPackage.test.ts",
+      "electron/skills/builtinSkills.test.ts",
+      "scripts/check-skills-format.node-test.mjs"
+    ],
+    "structural_ticket": "docs/plan/2026-09-07-skill-format-convergence.md"
+  },
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "skills/brand-promo/skill.json",
+      "skills/creation-edit/skill.json",
+      "skills/drama-short/skill.json",
+      "skills/model-integration/skill.json",
+      "skills/release-media-pack/skill.json",
+      "skills/skill-author/skill.json",
+      "skills/workbench-creation/skill.json",
+      "skills/workbench-generation/skill.json",
+      "skills/workbench-storyboard-planner/skill.json"
+    ],
+    "rationale": "P1: the nine second manifests are deleted in this commit, together with every code path that read or wrote one (skillStore.readSkillManifest's JSON branch, skillPackage's skill.json validation, the author_skill write path's second file, the model-facing manifest schema and the renderer serialiser). No fallback, no feature flag, no dual-read window. The only thing that still knows the old shape is electron/skills/skillManifestMigration.ts, whose single job is to move a user's surviving file into the frontmatter and rename it away."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency version governs this. js-yaml 4.1.1 was already in the repository and moves from devDependencies to dependencies because the main process now parses frontmatter with it instead of with four hand-written regexes — a promotion of an existing pin, not a new dependency or a version decision. The pi package is read by the gate only, at its installed version, and nothing here asks for a different one.",
+    "exit_criteria": []
+  }
+}

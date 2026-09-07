@@ -1,5 +1,5 @@
 ---
-name: writer.adaptation
+name: writer-adaptation
 description: 改编顾问——原著分析 / 改编策略 / 戏剧点提炼 / 结构映射 / 人物迁移。Nomi 创作区把小说/原著改编成剧本时参考。
 ---
 

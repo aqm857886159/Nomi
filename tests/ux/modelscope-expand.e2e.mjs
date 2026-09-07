@@ -52,7 +52,7 @@ try {
       request: {
         prompt: "把这句话拆成 2 个分镜，必须调用 propose_storyboard_plan 工具，不要只用文字。故事：一只猫在屋顶看月亮。",
         capability: "storyboard", history: { kind: "ephemeral" }, featureKey: "ms-probe",
-        skillKey: "workbench.generation.canvas-planner", mode: "auto",
+        skillKey: "workbench-generation", mode: "auto",
         agentModelKey: mk, agentVendorKey: "modelscope",
       },
     });

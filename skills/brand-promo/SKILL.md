@@ -1,6 +1,88 @@
 ---
-name: brand.promo
-description: 品牌宣传片 playbook。把产品文案/卖点做成一条「3 秒钩子 → 卖点 → 使用场景 → 行动号召」的短宣传片，分阶段执行（剧本审阅 → 拆镜 → 落画布 → 生成 → 排时间轴），每阶段暂停让用户审阅。
+name: brand-promo
+description: 做产品/品牌宣传片。当用户要把产品文案、卖点或品牌介绍做成一条短宣传视频，或提到「宣传片 / 产品视频 / 品牌短片 / promo / 广告片」时用我。
+metadata:
+  nomi:
+    version: 1.0.0
+    label: 品牌宣传片
+    author: "@nomi"
+    tools:
+      - read_full_text
+      - read_selection
+      - read_canvas_state
+      - propose_storyboard_plan
+      - create_canvas_nodes
+      - connect_canvas_edges
+      - set_node_prompt
+      - run_generation_batch
+      - arrange_storyboard_to_timeline
+    required-providers:
+      - text
+      - image
+      - video
+    stages:
+      - id: script
+        goal: 先生成一份可审阅的编号剧本和产品/场景事实，不落画布、不调用付费模型；用户确认或提出定点修改后才进入视觉规划。
+        tools:
+          - read_full_text
+          - read_selection
+        pause: true
+        skill-refs:
+          - writer-screenwriter
+          - writer-structure
+          - writer-dialogue
+          - writer-review
+        model-prefs:
+          - kind: text
+      - id: storyboard
+        goal: 把产品文案拆成一份宣传片分镜方案（3 秒钩子 → 每个卖点一镜 → 使用场景 → 行动号召），交用户在创作区审阅修改。
+        tools:
+          - read_canvas_state
+          - propose_storyboard_plan
+        depends-on:
+          - script
+        pause: true
+        skill-refs:
+          - director-shot-translation
+          - director-cinematography
+          - director-consistency
+          - director-staging
+        model-prefs:
+          - kind: text
+      - id: build
+        goal: 把确认后的分镜方案落成画布节点，建好产品/风格锚的参考边。
+        tools:
+          - read_canvas_state
+          - create_canvas_nodes
+          - connect_canvas_edges
+          - set_node_prompt
+        depends-on:
+          - storyboard
+        pause: true
+        model-prefs:
+          - kind: image
+      - id: generate
+        goal: 按波次生成关键帧与镜头视频（先锁产品参考，再出各镜）。
+        tools:
+          - read_canvas_state
+          - run_generation_batch
+        depends-on:
+          - build
+        pause: true
+        model-prefs:
+          - kind: image
+          - kind: video
+            family: seedance
+      - id: assemble
+        goal: 把生成好的镜头按镜序排到时间轴，节奏收紧、CTA 收尾，准备预览导出。
+        tools:
+          - read_canvas_state
+          - arrange_storyboard_to_timeline
+        depends-on:
+          - generate
+        pause: true
+        model-prefs:
+          - kind: video
 ---
 
 # 品牌宣传片 (Brand Promo)
@@ -71,3 +153,11 @@ anchors（跨镜头一致）：
 - 钩子镜留足（别被切短），卖点镜可快切，CTA 尾镜给足停留让人记住品牌。
 - 音乐/节拍若有，卡点对齐镜头切换（本阶段先排片占位，配乐是后续）。
 - 排完提示用户去预览区看流，确认后进导出。
+
+## 输入
+
+- **brief**（必填）：产品文案 / 卖点 / 品牌介绍（一段话即可；可附产品图作参考）。
+
+## 示例
+
+- **便携榨汁杯 30 秒宣传片**：把一段卖点文案做成钩子→卖点→使用场景→行动号召的竖屏短宣传片。

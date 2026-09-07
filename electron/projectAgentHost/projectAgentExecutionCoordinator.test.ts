@@ -98,7 +98,7 @@ function skillWriteAdapter(): PiSkillWriteTransportAdapter & {
         version: "nomi-skill-v1",
         exportedAt: 1,
         dirName: "test-skill",
-        files: { "SKILL.md": "body", "skill.json": "{}" },
+        files: { "SKILL.md": "---\nname: test-skill\ndescription: body\n---\n\nbody" },
       },
       invocation: {
         target: context.target,

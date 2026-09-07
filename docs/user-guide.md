@@ -128,6 +128,6 @@ Agent 的工具调用通过 UI 卡片让用户确认后才执行，画布会实�
 | `delete_canvas_nodes` | 删除节点（需用户确认） |
 | `creation_read` / `creation_write` | 读取/修改创作区文档 |
 
-每个 skill（`skills/<name>/skill.json`）声明自己允许调用的工具白名单。
+每个 skill 在自己 `SKILL.md` 的 frontmatter（`metadata.nomi.tools`）里声明允许调用的工具白名单。
 详见 `docs/skill-pack-format.md`。
 | `creation_read` | 读取文稿 |

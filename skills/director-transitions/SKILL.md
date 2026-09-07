@@ -1,5 +1,5 @@
 ---
-name: director.transitions
+name: director-transitions
 description: 创意转场方法论。AI 视频逐条生成、帧天然对不齐，硬切会露缝——用遮挡/甩镜/入暗/匹配剪辑/物体擦过镜头等创意转场把相邻两条缝合成一气呵成，同时把转场当叙事工具用（场景切换/时间跳转/角色替换/情绪转折）。Nomi 里设计跨镜衔接、给相邻 shot 写首尾帧提示词时参考。
 ---
 

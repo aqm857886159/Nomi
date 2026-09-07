@@ -59,7 +59,7 @@ try {
       capability: "storyboard",
       history: { kind: "ephemeral" },
       featureKey: "probe-text-brain",
-      skillKey: "workbench.generation.canvas-planner",
+      skillKey: "workbench-generation",
       mode: "auto",
       agentModelKey: MODEL_KEY,
       agentVendorKey: "apimart",

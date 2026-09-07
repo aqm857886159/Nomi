@@ -150,12 +150,12 @@ try {
   if (fs.existsSync(path.join(zipDir, 'walk-zipped-main'))) throw new Error('外层文件夹前缀没剥掉')
 
   // ③ 技能真的出现在面板里（落盘 ≠ 用户看得见），且**描述取自标准 frontmatter**。
-  // 这两条是本轮走查抓出真 bug 的那条：此前 skillIpc 只读 skill.json 的 description，
+  // 这两条是本轮走查抓出真 bug 的那条：此前 skillIpc 只读第二份清单 skill.json 的 description，
   // 没有 manifest 的技能一律显示「暂无说明」——导入成功却像张废卡。
   // 断言用作用域 locator 而不是全页 innerText：后者会把 toast 文案也算进去，等于自证。
   await expectVisible(
     win.getByText('走查用·zip 包', { exact: false }).first(),
-    'zip 技能卡片没显示 frontmatter 的 description（多半又退回只读 skill.json 了）',
+    'zip 技能卡片没显示 frontmatter 的 description（frontmatter 是唯一清单，显示不出来就是加载器坏了）',
   )
   await expectVisible(
     win.getByText('走查用·裸 SKILL.md', { exact: false }).first(),

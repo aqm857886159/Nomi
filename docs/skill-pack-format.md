@@ -1,23 +1,23 @@
-# Skill Pack v2 格式规范
+# 技能包格式规范
 
-版本：v2（从 v0.4.0 起生效）
+版本：v3（从 2026-09-07 起生效；v2 的 `skill.json` 已退场）
 位置：`skills/<skill-key>/`
 
 ---
 
 ## 1. 总览
 
-Skill Pack v2 是 Nomi Agent 的能力扩展单元。每个 skill 是一个目录，包含**方法论文档**（markdown）与**机器可读 manifest**（JSON）。
+一个技能就是**一个目录 + 一个 `SKILL.md`**。没有第二份清单文件。
 
-- **SKILL.md**：写给 LLM 的知识、方法论、输出约束
-- **skill.json**：写给 runtime 的元数据 — 名称、版本、依赖、工具白名单、权限边界
+`SKILL.md` 开头是 YAML frontmatter（写给 runtime 的元数据），后面是 markdown 正文（写给模型的方法论）。这是 [Agent Skills 标准](https://agentskills.io/specification)的形状——pi、Claude Code、Codex 读的都是它，所以**别人的技能目录拖进 Nomi 能用，Nomi 的技能拖出去也能用**。
 
-Runtime 加载 skill 时：
-1. 读取 `skill.json` 验证 schema（`electron/skills/skillManifestSchema.ts` 中的 Zod schema）
-2. 把 `SKILL.md` 内容注入到 Agent 的 system prompt
-3. 按 manifest 的 `tools` 字段过滤 Agent 可调用的工具集
+> **v2 → v3 变了什么**：`skill.json` 删除，它承载的 Nomi 独有字段搬进 frontmatter 的 `metadata.nomi`。为什么这么做、逐字段怎么落，见 [`docs/plan/2026-09-07-skill-format-convergence.md`](plan/2026-09-07-skill-format-convergence.md)。用户目录里的存量 `skill.json` 由加载器一次性迁移并留 `.bak` 备份。
 
-**向后兼容**：仅有 `SKILL.md` 没有 `skill.json` 的旧 skill 仍能加载，但不会得到工具白名单 / 权限边界，所有可用工具都暴露给 LLM。
+Runtime 加载技能时：
+
+1. 用真 YAML 解析器读 frontmatter（`electron/skills/skillFrontmatter.ts`）；解析不了就当损坏，不加载。
+2. 校验 `metadata.nomi`（`electron/skills/skillManifestSchema.ts` 的 zod schema）；块存在但不合法 ⇒ **fail closed**（该技能拿到零工具）。
+3. 把 `SKILL.md` 正文按需注入模型上下文。
 
 ---
 
@@ -26,130 +26,111 @@ Runtime 加载 skill 时：
 ```
 skills/
   <skill-key>/                 e.g. workbench-storyboard-planner
-    skill.json                 manifest (required for v2)
-    SKILL.md                   methodology / system prompt body
-    README.md                  (optional) user-facing docs
-    examples/                  (optional) sample inputs/outputs
+    SKILL.md                   唯一必需文件：frontmatter + 方法论正文
+    references/                (可选) 按需加载的参考资料
+    assets/                    (可选) 模板、查找表
 ```
 
----
-
-## 3. `skill.json` 字段
-
-```jsonc
-{
-  // 必填
-  "name": "workbench.storyboard-planner",   // 全局唯一 key（点号分段）
-  "version": "1.0.0",                       // SemVer
-  "description": "把一段故事文本拆成 6-12 个镜头节点 + 时序连边",
-
-  // 可选：允许内置单阶段 Skill 出现在 Workbench Agent Skill 选择器。
-  // 不填时，内置多阶段流程包仍按兼容规则显示；内部 routing Skill 默认隐藏。
-  "selectableInWorkbench": true,
-
-  // 工具白名单：LLM 仅能调用这里列出的工具
-  // 如果省略或为空数组，等同于"允许所有内置工具"
-  "tools": [
-    "create_canvas_nodes",
-    "connect_canvas_edges"
-  ],
-
-  // 必需的 provider 能力。runtime 会检查模型目录里是否至少有一个
-  // enabled 的对应 kind 模型；缺少时选择器保留该 Skill，但标出能力缺口。
-  "requiredProviders": ["text"],            // 子集: "text" | "image" | "video"
-
-  // 权限边界。Agent 调用受限工具前 UI 会做对应确认。
-  "permissions": [
-    "create"                                // 子集: "read-only" | "create" | "delete" | "export"
-  ],
-
-  // 可选：声明该 skill 期望接收的结构化输入字段，便于宿主在 UI 里
-  // 提供输入模板或表单
-  "inputs": [
-    { "name": "storyText", "type": "string", "required": true }
-  ],
-
-  // 可选：声明示例
-  "examples": [
-    { "title": "三幕短剧", "file": "examples/three-act.md" }
-  ]
-}
-```
+`scripts/` `bin/` `hooks/` **不收**：Nomi 只吃知识层，导入器会显式跳过并告诉用户原因（`electron/skills/skillPackage.ts`）。这比 pi 严，是有意的——pi 是信任本机用户的 CLI，Nomi 是握着用户密钥、会花用户钱的桌面应用。
 
 ---
 
-## 4. `SKILL.md` 写作约定
+## 3. frontmatter 顶层字段（Agent Skills 规范）
 
-第一行用 YAML frontmatter 同步关键字段（与 `skill.json` 不冲突，但 runtime 以 `skill.json` 为准）：
-
-```markdown
----
-name: workbench.storyboard-planner
-description: 把一段故事文本拆成 6-12 个镜头节点
----
-
-# 镜头规划方法论
-
-## 你能做的
-- ...
-
-## 你不能做的
-- ...
-
-## 输出协议
-- ...
-```
-
-正文是给 LLM 看的领域知识。**保持 ≤ 200 行**，避免占用上下文。
-
----
-
-## 5. 工具白名单语义
-
-`skill.json.tools` 中允许的字符串与 `electron/ai/canvasTools.ts` 中的 `canvasToolNames` 对齐：
-
-- `read_canvas_state` — 读画布快照
-- `create_canvas_nodes` — 创建一批待确认节点
-- `connect_canvas_edges` — 连接节点引用边
-- `set_node_prompt` — 改写已有节点的 prompt
-- `delete_canvas_nodes` — 删除节点（破坏性）
-
-未列入白名单的工具，即使 LLM 试图调用 runtime 也会拒绝。
-
----
-
-## 6. 内置 skill 列表
-
-| Skill key | 用途 | 主要工具 |
+| 字段 | 必填 | 约束 |
 |---|---|---|
-| `workbench.storyboard-planner` | 故事→故事板 | `create_canvas_nodes`, `connect_canvas_edges` |
-| `workbench.creation-edit` | 创作区文档增改写 | (无画布工具) |
-| `workbench.generation` | 生成区节点规划助手 | `create_canvas_nodes`, `connect_canvas_edges`, `set_node_prompt` |
-| `creation.edit` | 创作区行内编辑 | (无画布工具) |
+| `name` | ✅ | ≤64 字符；只允许小写 `a-z` / `0-9` / 连字符；不得首尾连字符、不得连续连字符；**必须与目录名一致** |
+| `description` | ✅ | ≤1024 字符。写清楚**做什么** + **什么时候用**（触发词写在这里，模型靠它决定要不要加载） |
+| `license` | | 许可证名或随包文件名 |
+| `compatibility` | | ≤500 字符的环境要求 |
+| `allowed-tools` | | 空格分隔的预授权工具（规范里仍是实验字段，Nomi 不读） |
+| `metadata` | | 任意键值映射，见 §4 |
+| `disable-model-invocation` | | `true` 时不进系统提示词，只能由用户显式选中。**规范闭集之外的一处有意偏离**——pi 与 Claude Code 都原生支持它，挪进 `metadata` 反而会让那两家读不到 |
 
-历史 `tapcanvas-*` 等 22+ skill 已归档至 `skills/legacy/`，不再随 runtime 加载。
-
----
-
-## 7. 编写自己的 skill
-
-1. 创建 `skills/<your-key>/SKILL.md` + `skill.json`
-2. 在 `skill.json.tools` 里列出你的 skill 真正需要的工具（最小授权原则）
-3. SKILL.md 写清楚方法论 + 输出约束
-4. 用 `pnpm dev` 启动 Nomi，AI 面板里你的 skill 会自动被发现
-5. 想发布给别人？把整个目录 zip / git 化即可分发；用户拷贝到 `skills/` 下就能用
+**顶层不许出现别的键。** 官方参考校验器 `skills-ref` 对顶层做闭集校验，多一个就是 error；Nomi 的 `check:skills-format` 门岗同样硬拦。Nomi 独有的东西一律住 `metadata.nomi.*`。
 
 ---
 
-## 8. 验证
+## 4. `metadata.nomi` 字段（Nomi 扩展块）
 
-Runtime 加载失败时会在 main process 日志中打印 Zod 校验错误。`pnpm test` 会跑 `skillManifestSchema.test.ts` 确保 schema 本身向后兼容。
+线上用 kebab-case，与 frontmatter 的既有习惯一致。
+
+```yaml
+---
+name: workbench-storyboard-planner
+description: 把一段故事文本拆成 6-12 个镜头节点 + 时序连边。用户给一段故事、要分镜时用我。
+metadata:
+  nomi:
+    version: "1.0.0"                 # 必填，SemVer；会落进生产运行的产物证据
+    label: 分镜规划师                 # 可选，卡片/选择器上的显示名（缺省用 name）
+    author: "@nomi"                  # 可选
+    audience: mcp                    # 可选，internal（默认）| mcp。用户导入的技能一律强制 internal
+    selectable-in-workbench: true    # 可选，让单段内置技能出现在 Workbench 选择器
+    requested-capabilities: []       # 可选，**只能收窄** Host 的能力天花板，见下
+    tools: [create_canvas_nodes, connect_canvas_edges]   # 必填，工作流元数据
+    required-providers: [text, image]                    # 必填，text | image | video 的子集
+    stages: []                       # 可选，多段 playbook 骨架，见 §5
+---
+```
+
+### `requested-capabilities`：唯一参与运行时授权的字段
+
+它只做减法：从 Host 已经授予的能力里再收窄一层，永远不能扩权（`electron/skills/skillCapability.ts` 的 `restrictToolsToSkillCapabilities`）。值必须是 Capability Registry 的规范 id，写错一个直接校验失败。
+
+**校验失败 = 零工具**，不是「放行」。`electron/ai/agentChatV2.ts` 把 `manifestError` 变成空能力表——这是有意的 fail-closed。
+
+### `tools` / `required-providers`
+
+`required-providers` 驱动技能卡上的 ✓/⚠ 模态芯片（缺哪个模态就提示去接入）。`tools` 是工作流元数据，**不授权任何东西**——真正的授权只看 `requested-capabilities`。
 
 ---
 
-## 9. 相关代码
+## 5. `stages`：多段 playbook（可选）
 
-- Schema：`electron/skills/skillManifestSchema.ts`
-- Loader：`electron/runtime.ts` 中的 `buildSkillSystemPrompt` / `findSkillRecord`
-- 工具定义：`electron/ai/canvasTools.ts`
-- 设计背景：`docs/product/nomi-agent-tech-audit-2026-05-23.md` §3.3
+无 `stages` = 单段技能，绝大多数技能长这样。
+
+```yaml
+    stages:
+      - id: script                       # 必填，阶段稳定 id
+        goal: 先出一份可审阅的编号剧本      # 必填
+        tools: [read_full_text]          # 必填，本阶段工具白名单（空 = 纯规划）
+        depends-on: []                   # 可选，DAG 依赖
+        pause: true                      # 可选，完成后暂停让用户确认
+        skill-refs: [writer-screenwriter] # 可选，本阶段按需注入的方法论技能
+        model-prefs: [{ kind: text }]     # 可选，**只声明 kind + family**
+```
+
+`model-prefs` 用 `.strict()` 从结构上拒绝 `archetypeId` / `params` 等 vendor 专属键——技能分享出去不该绑死某个供应商（P4）。
+
+---
+
+## 6. 写一个自己的技能
+
+1. 建 `skills/<your-key>/SKILL.md`，frontmatter 至少写 `name`（= 目录名）与 `description`。
+2. 需要工具白名单 / 模态声明 / playbook 的，加 `metadata.nomi`。
+3. 正文按「何时使用 → 操作步骤 → 常见坑 → 验收清单」写；控制在 500 行内，细节挪进 `references/`。
+4. 跑 `pnpm run check:skills-format` 自检。
+
+---
+
+## 7. 验证
+
+```bash
+pnpm run check:skills-format   # 格式门岗：没有 skill.json、frontmatter 合法、必填齐全、pi 读得动
+pnpm run test -- electron/skills   # 内置技能的扩展块回归
+```
+
+门岗的第六条判据是**让 pi 自己的加载器给我们判分**：把 `skills/` 交给 `@earendil-works/pi-coding-agent` 的 `loadSkillsFromDir`，要求「一个不少、零 diagnostics」。别的宿主读不动的技能，在我们自己的 CI 里就红。
+
+---
+
+## 8. 相关代码
+
+| 文件 | 职责 |
+|---|---|
+| `electron/skills/skillFrontmatter.ts` | frontmatter 解析（唯一 owner） |
+| `electron/skills/skillManifestSchema.ts` | `metadata.nomi` 的 zod schema |
+| `electron/skills/skillStore.ts` | 目录发现、记录组装、可见性 |
+| `electron/skills/skillPackage.ts` | 导出 / 导入 / 删除、路径安全 |
+| `electron/skills/skillCapability.ts` | 能力派生与授权收窄 |
+| `scripts/check-skills-format.mjs` | 格式门岗 |

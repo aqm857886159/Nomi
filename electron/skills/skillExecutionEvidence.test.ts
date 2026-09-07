@@ -4,12 +4,9 @@ import { buildSkillExecutionEvidence, skillRefsForStage } from "./skillExecution
 import type { SkillManifest } from "./skillManifestSchema";
 
 const manifest: SkillManifest = {
-  name: "drama.short",
   version: "1.0.0",
-  description: "short drama",
   tools: [],
   requiredProviders: ["text", "image", "video"],
-  permissions: ["create"],
   stages: [
     { id: "script", goal: "write", tools: [], skillRefs: ["writer-screenwriter", "writer-dialogue"] },
     { id: "storyboard", goal: "shots", tools: [], skillRefs: ["director-shot-translation"] },
