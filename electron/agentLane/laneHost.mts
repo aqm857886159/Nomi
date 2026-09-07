@@ -49,7 +49,19 @@ const PART_TYPE_BY_EVENT: Readonly<Record<string, string>> = {
 export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<LaneHandleWithObservations> => {
   const context: Context = BACKGROUND_CONTEXT;
   const laneName = options.laneName ?? 'main';
-  const { repo, session, sessionId } = await openLaneSession(options, context);
+  const { session, sessionId, release } = await openLaneSession(options, context);
+  // 会话一旦打开，这个进程就是它**唯一**的持有者。装配到一半失败（模型配置写错、
+  // 工具名重复、schema 门岗报红）而不交还持有权，用户下一次打开同一条历史会撞上
+  // 「已经有人开着」——而那个人是一个早就失败退出的调用。
+  try {
+    return await assemble();
+  } catch (cause) {
+    await session.close(context).catch(() => undefined);
+    await release(context);
+    throw cause;
+  }
+
+  async function assemble(): Promise<LaneHandleWithObservations> {
   const { provider, model, credentials } = await createNomiProvider(options.model);
   const models = createModels({ credentials });
   models.setProvider(provider);
@@ -131,7 +143,10 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
       watch.unsubscribe();
       listeners.clear();
       await harness.close(context);
-      await repo.close(context);
+      // repo 是**按项目共享的**（`laneSession.mts`：pi 的单打开者名单只有一张才拦得住 #8852），
+      // 所以这里交还持有权，而不是替别的 lane 把它关掉。
+      await release(context);
     })(),
   };
+  }
 };
