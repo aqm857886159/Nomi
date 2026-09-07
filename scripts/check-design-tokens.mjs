@@ -13,10 +13,10 @@
 //
 // 用法：node ./scripts/check-design-tokens.mjs
 
-import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { gitPaths } from "./lib/gitPaths.mjs";
 
 import {
   HUE_DRIFT_THRESHOLD,
@@ -53,11 +53,7 @@ const RULES = [
 ];
 
 function listFiles() {
-  const out = execSync("git ls-files src", { cwd: ROOT, encoding: "utf8" });
-  return out
-    .split("\n")
-    .map((l) => l.trim())
-    .filter(Boolean)
+  return gitPaths(["ls-files", "src"], { cwd: ROOT })
     .filter((f) => /\.tsx?$/.test(f))
     .filter((f) => !/\.test\.tsx?$/.test(f))
     // 3D 预设动作校准台：仅 dev 工具（独立 Three.js 渲染页，非产品 UI），不纳入设计 token 门禁。
@@ -97,11 +93,8 @@ RULES.forEach((rule, i) => {
 // 而 --nomi-accent 本身一直是对的 —— 所以肉眼查 token 定义查不出来，必须靠算。
 // 修法：改 `in srgb`（无色相分量，仓库既有做法：--nomi-focus、滚动条色）。
 // 混 transparent 的那一族不归本类判（transparent 无色相、拽不动谁），由下面第 5b 类整体禁止。
-const MIX_SCAN_GLOBS = "src electron tailwind.config.ts";
-const mixFiles = execSync(`git ls-files ${MIX_SCAN_GLOBS}`, { cwd: ROOT, encoding: "utf8" })
-  .split("\n")
-  .map((l) => l.trim())
-  .filter(Boolean)
+const MIX_SCAN_GLOBS = ["src", "electron", "tailwind.config.ts"];
+const mixFiles = gitPaths(["ls-files", ...MIX_SCAN_GLOBS], { cwd: ROOT })
   .filter((f) => /\.(tsx?|css|mjs)$/.test(f))
   .filter((f) => fs.existsSync(path.join(ROOT, f)))
   .map((f) => ({ path: f, content: fs.readFileSync(path.join(ROOT, f), "utf8") }));

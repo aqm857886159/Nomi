@@ -5,6 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { inheritLegacyContractHashes, validateRootCauseChange, validateRootCauseHistory } from "./root-cause-contracts.mjs";
+import { gitPaths } from "./lib/gitPaths.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -53,9 +54,9 @@ try {
   console.error(`✖ 根因合同门禁无法确定可信基线：${error instanceof Error ? error.message : String(error)}`);
   process.exit(1);
 }
-const changedFiles = new Set(lines(git(["diff", "--name-only", baseRef, "--"])));
-for (const file of lines(git(["ls-files", "--others", "--exclude-standard"]))) changedFiles.add(file);
-const existingFiles = new Set(lines(git(["ls-files", "--cached", "--others", "--exclude-standard"])));
+const changedFiles = new Set(gitPaths(["diff", "--name-only", baseRef, "--"], { cwd: repoRoot }));
+for (const file of gitPaths(["ls-files", "--others", "--exclude-standard"], { cwd: repoRoot })) changedFiles.add(file);
+const existingFiles = new Set(gitPaths(["ls-files", "--cached", "--others", "--exclude-standard"], { cwd: repoRoot }));
 
 const fixesDir = path.join(repoRoot, "docs", "fixes");
 const contractFiles = fs.existsSync(fixesDir)
@@ -89,7 +90,7 @@ try {
   }
   legacyHashes = new Map(Object.entries(JSON.parse(baselineRaw)));
 
-  const baseContractFiles = lines(git(["ls-tree", "-r", "--name-only", baseRef, "--", "docs/fixes"]))
+  const baseContractFiles = gitPaths(["ls-tree", "-r", "--name-only", baseRef, "--", "docs/fixes"], { cwd: repoRoot })
     .filter((file) => file.endsWith(".root-cause.json"));
   const baseContracts = baseContractFiles.map((file) => {
     const raw = gitRaw(["show", `${baseRef}:${file}`]);

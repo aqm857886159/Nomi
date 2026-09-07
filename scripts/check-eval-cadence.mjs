@@ -5,8 +5,8 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { gitPaths } from "./lib/gitPaths.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const TURN_THRESHOLD = 50;
@@ -84,7 +84,7 @@ function lastEvalRunCommit() {
 
 function agentFilesChangedSince(commit) {
   try {
-    const out = execSync(`git diff --name-only ${commit}..HEAD`, { cwd: repoRoot, encoding: "utf8" });
+    const out = gitPaths(["diff", "--name-only", `${commit}..HEAD`], { cwd: repoRoot }).join("\n");
     return out.split("\n").filter((f) => AGENT_PATHS.some((p) => f.startsWith(p)));
   } catch {
     return [];

@@ -92,11 +92,11 @@ test('阳性对照：账本 renderer 含聚合量，必须被判为不可合并'
 
 test('committed 产物进 git；local 产物被 gitignore 挡在 git 之外', () => {
   for (const artifact of COMMITTED_ARTIFACTS) {
-    assert.notEqual(git('ls-files', '--', artifact.label), '', `${artifact.label} 应当被 git 跟踪`)
+    assert.notEqual(git('ls-files', '-z', '--', artifact.label), '', `${artifact.label} 应当被 git 跟踪`)
   }
   for (const artifact of LOCAL_ARTIFACTS) {
     assert.equal(
-      git('ls-files', '--', artifact.label),
+      git('ls-files', '-z', '--', artifact.label),
       '',
       `${artifact.label} 是本地视图，不该进 git——它一旦被 commit，合并潮期 main 会反复变红`,
     )
