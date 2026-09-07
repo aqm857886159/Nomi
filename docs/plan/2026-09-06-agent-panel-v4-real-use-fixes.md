@@ -62,6 +62,23 @@ DeepSeek）「从原稿重拆 10 镜」。屏幕上发生的是：
 - **自研（有理由）**：JSON 文本容忍写在参数契约上，而不是 pi 的 `prepareArguments`，也不是 AI SDK 的
   `repairToolCall`——因为 Nomi 的同一份契约要同时喂 pi 和 MCP 两个发布口，只有契约层同时罩得住三路。
 
+### 与《pi 参考实现一致性核对》（#566）工具层逐项对照
+
+> 这份核对 2026-09-07 才进 main（`docs/research/2026-09-07-pi-reference-implementation-conformance.md`），
+> 比本批修复晚。**回头拿它对了一遍**，不是补一句「读过了」——五条里两条一致、一条有意不同、
+> 两条如实登记成「本轮没修」。判定仍是三种：一致 / 有意不同（附理由）/ 后续要改（附去处）。
+
+| 核对项 | 他们怎么做 → 我们这批怎么做 → 判定 | 出处 |
+|---|---|---|
+| **G-08 / 1.6**「校验只发生一次，而且那一次必须是**会强转的**那一次」 | **他们**：pi 在 `Check` 之前有**四道**容忍，顺序写死——`structuredClone` → `normalizeOptionalNulls`（可选字段收到 `null` 就**删掉该键**）→ `Value.Convert`（`"5"`→`5`）→ 非 TypeBox 再走 `coerceWithJsonSchema`。核对结论：唯一校验点必须复用 `validateToolArguments`，**不要在后面再接一个严格的 `.parse()`**。**我们**：`tools.mts:100-105` 的 `beforeToolCall` 拿**原始的** `toolCall.arguments` 再跑一次 Zod —— 也就是核对里点名的那种「第二道、且更严的」校验。**判定：后续要改（本轮有意保留）**。本轮的理由：Zod 契约是 Nomi 唯一的能力真相源，pi 的 TypeBox 面是它的投影，删掉这一道等于把能力语义交给投影；而本轮修的 JSON 文本一族恰恰要在 Zod 这层解。**代价如实写**：pi 已经替我们兜掉的两族——可选字段填 `null`、数字写成 `"5"`——在 Nomi 的 Zod 面前会**重新开始失败**，因为 Zod 看的是强转**之前**的那份。这一族本轮没有复现报告，但结构上就在那儿。去处：阶段 2 收敛唯一校验点 | `docs/research/2026-09-07-pi-reference-implementation-conformance.md` §2 层 1 行 1.6 与 §G-08；实核 `node_modules/@earendil-works/pi-ai/dist/utils/validation.js:280`、`:222`；我们的落点 `electron/harness/runtime/pi/tools.mts:100` |
+| **G-02 / 1.8**「失败必须 `throw`，`return` 一个错误对象会被记成成功」 | **他们**：文档原文 *"Returning a value never sets the error flag regardless of what properties you include in the return object."*；实现只有 `catch` 分支才置 `isError: true`。**我们**：`tools.mts:88` 宿主回执非 `ok` 一律 `throw new Error('[status] message')`，`beforeToolCall` 的校验失败也是 `throw`（带 `readableSchemaFailure`）。**判定：一致** —— 本轮收据能显红、能带出原因，正是因为走的是 throw 那条。**但登记一个缺口**：Host adapter 那一路把 `ZodError` 收成**返回**的 `capability_input_invalid`（§1.2 不动项已列），按这条核对它就是「会被记成成功」的形状，本轮只修了 pi 那一侧 | 同上 §2 层 1 行 1.8 与 §G-02（引 `pi-agent-core/dist/harness/execution/tools.js:61-73`）；我们的落点 `electron/harness/runtime/pi/tools.mts:88`、缺口在 `electron/capabilityCore/canvasWriteTransportAdapters.ts` |
+| **G-01 + G-05**「根级 `anyOf` 会被适配器静默丢弃；枚举必须降成 `StringEnum`」 | **他们**：pi 8 个内建工具**没有一个**是根级 union，全是扁平 `Type.Object`；Google 的 legacy `parameters` 路径是 OpenAPI 3.03，不支持 `anyOf`/`const`；Anthropic 适配器已知会**静默丢掉**自定义工具 schema 的根级 `anyOf`（pi issue #9134）。**我们**：本轮只让九个数组参数吃得下「同一个值的 JSON 文本」，`canvasWrite.ts` 仍是根级 `z.discriminatedUnion('operation', …)`，全仓 `StringEnum` **0 次使用**（实核 `git grep StringEnum electron/ src/` 无命中）。**判定：后续要改（本轮没碰）** —— 直说要害：**D 的根因可能不止一条**。本轮证的是「模型把数组写成了 JSON 文本」这一支（有阳性对照）；「模型可能压根没看见那 9 个分支」那一支本轮既没证也没修，别把 D 当成已经关死 | 同上 §2 层 1 行 1.4 / 1.3 与 §G-01、§G-05；https://github.com/earendil-works/pi/issues/9134 ；实核 `electron/shared/agentCapabilities/canvasWrite.ts:225` |
+| **G-04 / 1.9**「工具输出 **MUST** 自截断（50KB / 2000 行），截断时给可执行的下一步，全文落盘走 `details`」 | **他们**：文档级硬规则，`truncateHead`/`truncateTail` 随包导出，`read.js:128` 的正文直接写 `Use offset=2001 to continue.`，超长全文落临时文件经 `details.fullOutputPath` 给渲染器。**我们**：本轮确实加了截断，但**加在投影层**（`residentToolProjection.ts` 把长串截短、绝对路径缩成文件名——那是给**用户眼睛**看的两段）。**模型可见的工具输出本轮零截断**。**判定：后续要改（本轮没修，且不拿 UI 截断充数）** —— 两者连方向都不同：一个省用户的屏幕，一个省模型的上下文 | 同上 §2 层 1 行 1.9 与 §G-04（引 `pi-coding-agent/dist/core/tools/truncate.js:10-11`、`read.js:128`）；我们的落点只在 `src/workbench/ai/resident/residentToolProjection.ts` |
+| **G-03 / 1.1**「描述三通道：`description` / `promptSnippet` / `promptGuidelines`，跨工具消歧只写一次」 | **他们**：「该用它还是用隔壁那个」住在系统提示词的 Guidelines 段、去重且按实际工具集条件化，**不在每个工具的 description 里复制**。**我们**：本轮把「怎么改」写进**运行时回执**（`readableSchemaFailure`），不是写进 description，也没有动 `promptSnippet`/`promptGuidelines`（全仓 0 次使用）。**判定：有意不同（本轮这一步）** —— 回执与描述管的是两件事：描述是「事前说明书」，回执是「你这次写错在哪一格」，Codex 的 `RespondToModel` 同样把可行动信息放回执。**后续要改**：跨工具消歧仍全塞在 description 里（S4 与 S7 数学上互斥那条），归阶段 2 | 同上 §2 层 1 行 1.1 与 §G-03（引 `pi-coding-agent/dist/core/system-prompt.js:42-76`）；我们的落点 `electron/harness/runtime/pi/tools.mts:45` |
+
+**这一轮对照改变了什么**：没有改一行代码（本批已经在 CI 上、且核对本身晚于它）。它改的是**登记**——
+D 从「已修」降级成「修掉了其中一支，另一支未证」，并给过渡补丁表补了第三条。
+
 ### 过渡补丁清单（阶段 2「工具契约重做」时删掉）
 
 > 这两处是**框架已提供、我们这轮另写了一份**。如实写出来，不改代码去迎合门岗。
@@ -71,6 +88,7 @@ DeepSeek）「从原稿重拆 10 镜」。屏幕上发生的是：
 |---|---|---|---|---|
 | T1 | `electron/shared/agentCapabilities/jsonArgTolerance.ts` 的 `jsonTextBranch` —— 在 Zod 契约里加一条「同一个值的 JSON 文本」运输分支 | pi 的 `ToolDefinition.prepareArguments`（`node_modules/@earendil-works/pi-coding-agent/dist/core/extensions/types.d.ts:362`），官方的「校验前先捏合」钩子 | 钩子只罩 pi 那一路；MCP `tools/list` 与传输超集两个发布口罩不到，而外部宿主同样会二次序列化 | 阶段 2 把 MCP 与 pi 收敛到同一份契约投影之后：容忍上移到 `prepareArguments`，契约回到干净的 `z.array(...)` |
 | T2 | `src/workbench/ai/resident/residentToolDisplay.ts:553` 的 `humanizeToolFailure` + `src/workbench/ai/v4/agentPanelV4Collapse.ts` 的折叠层 —— 渲染层把两种机器写的校验回执翻成人话、并决定怎么折 | pi 的 `renderCall` / `renderResult`：**「这次调用怎么画」跟工具住在一起**（#549 §1.2） | 工具定义在主进程、渲染在渲染进程，render 函数跨不过 IPC；且本轮不该动运行时 | 阶段 2 工具契约重做把「渲染归工具」这条落地之后 |
+| T3 | `electron/harness/runtime/pi/tools.mts:100` 的 `beforeToolCall` 再跑一次 Zod —— pi 校验之后的**第二道、且更严的**校验（本轮没有新增它，但本轮的 JSON 文本容忍写在它上面，一起登记） | pi 的 `validateToolArguments`（`node_modules/@earendil-works/pi-ai/dist/utils/validation.js:280`），自带 `normalizeOptionalNulls` + `Value.Convert` 两道容忍 | Zod 契约是 Nomi 能力的唯一真相源、且同时喂 MCP 两个发布口；本轮删不掉它，删了等于把能力语义交给 TypeBox 投影 | 阶段 2 唯一校验点收敛到 pi 的容忍梯之后（核对 §G-08）；收敛前 `null` / `"5"` 两族仍会在 Zod 面前重新失败 |
 
 ---
 
@@ -143,3 +161,6 @@ E/F/H 是局部组件与文案改动，单文件 revert 即可。
 - **同一回合的收据顺序**：main 这一轮独立修了同一件事（第二排序键改成数组原序），合并时取了 main 那版。
 - **[2026-09-07 重做方案](2026-09-07-agent-runtime-rebuild.md)**：本文的两处过渡补丁（T1/T2）在它的阶段 2 删除。
   两者不冲突——本轮一行运行时代码未改。
+- **[pi 参考实现一致性核对（#566）](../research/2026-09-07-pi-reference-implementation-conformance.md)**：晚于本批进 main。
+  已回头逐项对过（见「先查别人」的对照小节），结论是**本批不返工**——两条一致、一条有意不同，
+  两条未修的（根级 `anyOf`、模型可见输出截断）都归阶段 2，且已把 D 的登记从「已修」降成「修掉一支」。
