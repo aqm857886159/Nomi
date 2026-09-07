@@ -236,6 +236,9 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
     const query = commandQuery.trim()
     const skillRows: V4CommandRow[] = data.skills
       .filter((skill) => !query || `${skill.label} ${skill.name}`.toLowerCase().includes(query.toLowerCase()))
+      // 自己导进来的排在内置前面。用户刚把一个技能弄进 Nomi，下一秒来这里找它——
+      // 让他先滚过四个他没装过的内置技能才看见自己那个，是把「我刚做的事」排在最后。
+      .sort((a, b) => (a.origin === b.origin ? 0 : a.origin === 'user' ? -1 : 1))
       .map((skill) => ({
         id: `skill:${skill.name}`,
         name: skill.label,

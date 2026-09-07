@@ -11,6 +11,7 @@ import {
   type SkillListItemDto,
   type SkillProviderKind,
 } from '../api/skillApi'
+import { notifySkillLibraryChanged, onSkillLibraryChanged } from './skillLibraryChanged'
 
 export type UseWorkbenchSkills = {
   items: SkillListItemDto[]
@@ -45,25 +46,32 @@ export function useWorkbenchSkills(opened: boolean): UseWorkbenchSkills {
         .catch(() => setAvailable(new Set()))
     }
     window.addEventListener('nomi-model-catalog-changed', onCatalogChanged)
-    return () => window.removeEventListener('nomi-model-catalog-changed', onCatalogChanged)
+    // 别的面板（或本面板的另一个实例）写了技能盘就重读——列表只有一个真相源在盘上。
+    const offSkills = onSkillLibraryChanged(reload)
+    return () => {
+      window.removeEventListener('nomi-model-catalog-changed', onCatalogChanged)
+      offSkills()
+    }
   }, [opened, reload])
 
   const remove = React.useCallback(
     (dirName: string) => {
       const res = deleteWorkbenchSkill(dirName)
-      if (res.ok) reload()
+      if (res.ok) notifySkillLibraryChanged()
       return { ok: res.ok, error: res.error }
     },
-    [reload],
+    [],
   )
 
   const importPackage = React.useCallback(
     (payload: unknown) => {
       const res = importWorkbenchSkill(payload)
-      if (res.ok) reload()
+      // 派信号而不是只 reload 自己：Agent 面板的 `/` 技能菜单是同一份盘的另一个读者，
+      // 它读不到这次写入就等于「导进来了却用不上」（本轮走查抓到的那一幕）。
+      if (res.ok) notifySkillLibraryChanged()
       return { ok: res.ok, skillName: res.skillName, error: res.error }
     },
-    [reload],
+    [],
   )
 
   const exportPackage = React.useCallback((dirName: string) => exportWorkbenchSkill(dirName), [])

@@ -17,6 +17,7 @@ import { useProductionRunStore } from '../../production/productionRunStore'
 import { useCommittedProposal } from '../../generationCanvas/agent/proposalUndo'
 import { listWorkbenchModelCatalogModels, listWorkbenchModelCatalogVendors, type ModelCatalogModelDto, type ModelCatalogVendorDto } from '../../api/modelCatalogApi'
 import { listWorkbenchSkills, type SkillListItemDto } from '../../api/skillApi'
+import { onSkillLibraryChanged } from '../../skillLibrary/skillLibraryChanged'
 import { decodeModelIdentity, encodeModelIdentity, filterUsableAssistantTextModels, labelForModel } from '../assistantModelIdentity'
 import { getAssistantModelPref, setAssistantModelPref } from '../assistantModelPref'
 import { residentToolProjectionKey, residentToolProjectionRevision, residentToolProjectionScope, readResidentToolProjections, subscribeResidentToolProjections, type ResidentToolProjection } from '../resident/residentToolProjection'
@@ -213,13 +214,20 @@ export function useAgentPanelV4Data(surface: ResidentSurface): AgentPanelV4Data 
     }
   }, [reloadModels])
 
-  React.useEffect(() => {
+  const reloadSkills = React.useCallback(() => {
     try {
       setSkills(listWorkbenchSkills())
     } catch {
       setSkills([])
     }
   }, [])
+
+  React.useEffect(() => {
+    reloadSkills()
+    // 技能库是**盘上**的共享状态，这个面板只是它的第二个读者。没有这条失效信号时，
+    // 用户在左边技能库里刚导进来的技能，右边 `/` 菜单里一个字都没有——导进来了却用不上。
+    return onSkillLibraryChanged(reloadSkills)
+  }, [reloadSkills])
 
   const selectedModel = models.find((model) => encodeModelIdentity(model) === selectedModelId)
   const modelLabel = selectedModel
