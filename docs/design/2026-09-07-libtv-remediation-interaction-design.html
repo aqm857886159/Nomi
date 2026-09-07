@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LibTV 补齐功能 · 交互设计说明书</title>
+<style>
+  :root {
+    --bg:#f7f7f5; --surface:#fff; --border:#e4e4e0; --text:#1f2328; --text2:#57606a; --text3:#8b949e;
+    --teal:#0f6e56; --teal-bg:#e1f5ee; --blue:#185fa5; --blue-bg:#e6f1fb; --green:#3b6d11; --green-bg:#eaf3de;
+    --amber:#854f0b; --amber-bg:#faeeda; --purple:#534ab7; --purple-bg:#eeedfe; --red:#a32d2d; --red-bg:#fcebeb; --gray:#6e7781; --gray-bg:#eff1f3;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI","Microsoft YaHei",sans-serif; background:var(--bg); color:var(--text); font-size:13px; line-height:1.6; padding:28px 20px 60px; }
+  .wrap { max-width:1080px; margin:0 auto; }
+  h1 { font-size:20px; font-weight:700; letter-spacing:-.01em; }
+  .sub { color:var(--text2); margin:6px 0 4px; font-size:12.5px; }
+  .pillars { display:flex; gap:8px; flex-wrap:wrap; margin:14px 0 8px; }
+  .pillar { font-size:11.5px; padding:4px 10px; border-radius:999px; font-weight:600; }
+  .p1{background:var(--teal-bg);color:var(--teal)} .p2{background:var(--blue-bg);color:var(--blue)} .p3{background:var(--green-bg);color:var(--green)} .p4{background:var(--amber-bg);color:var(--amber)} .p5{background:var(--purple-bg);color:var(--purple)}
+  .legend-note { color:var(--text3); font-size:11.5px; margin-bottom:20px; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:18px 20px; margin-bottom:16px; }
+  .card-head { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:4px; }
+  .card-head h2 { font-size:15px; font-weight:700; }
+  .badge { font-size:10.5px; font-weight:600; padding:2px 8px; border-radius:999px; white-space:nowrap; }
+  .b-p0{background:var(--red-bg);color:var(--red)} .b-p1{background:var(--amber-bg);color:var(--amber)}
+  .b-l2{background:var(--teal-bg);color:var(--teal)} .b-l3{background:var(--amber-bg);color:var(--amber)} .b-l1{background:var(--blue-bg);color:var(--blue)} .b-l0{background:var(--green-bg);color:var(--green)}
+  .task { color:var(--text2); font-size:12.5px; margin-bottom:12px; }
+  .task b { color:var(--text); font-weight:600; }
+  .flow { display:flex; align-items:stretch; gap:0; flex-wrap:wrap; margin:10px 0 14px; }
+  .step { flex:1; min-width:130px; border:1px solid var(--border); border-radius:10px; padding:9px 11px; background:#fbfbfa; position:relative; }
+  .step.start { background:var(--gray-bg); }
+  .step.result { background:var(--purple-bg); border-color:#c7c3f0; }
+  .step + .step { margin-left:26px; }
+  .step + .step::before { content:""; position:absolute; left:-19px; top:50%; width:12px; height:1.5px; background:var(--text3); }
+  .step + .step::after { content:""; position:absolute; left:-11px; top:50%; transform:translateY(-50%) rotate(45deg); width:6px; height:6px; border-top:1.5px solid var(--text3); border-right:1.5px solid var(--text3); }
+  .step .n { font-size:10px; color:var(--text3); font-weight:600; letter-spacing:.04em; }
+  .step .t { font-weight:600; font-size:12.5px; margin:1px 0; }
+  .step .d { font-size:11.5px; color:var(--text2); line-height:1.5; }
+  .step .d em { font-style:normal; color:var(--teal); }
+  .row { display:flex; gap:14px; flex-wrap:wrap; border-top:1px dashed var(--border); padding-top:10px; }
+  .row .cell { flex:1; min-width:220px; }
+  .cell .h { font-size:10.5px; font-weight:700; color:var(--text3); letter-spacing:.05em; margin-bottom:3px; }
+  .cell .v { font-size:12px; color:var(--text2); line-height:1.55; }
+  .cell .v b { color:var(--text); font-weight:600; }
+  .audit { margin-top:10px; border-top:1px dashed var(--border); padding-top:10px; display:flex; gap:8px; flex-wrap:wrap; }
+  .ok { font-size:11px; padding:3px 9px; border-radius:6px; background:var(--green-bg); color:var(--green); font-weight:600; }
+  .warn { font-size:11px; padding:3px 9px; border-radius:6px; background:var(--amber-bg); color:var(--amber); font-weight:600; }
+  .foot { color:var(--text3); font-size:11.5px; margin-top:18px; line-height:1.7; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>LibTV 补齐功能 · 交互设计说明书</h1>
+  <div class="sub">2026-09-07 · 每项功能：入口住哪一层（§1.5 判定）→ 用户逐步路径（每步看到什么）→ 爽点 → 原则审计。</div>
+  <div class="pillars">
+    <span class="pillar p1">1 不挪窝</span><span class="pillar p2">2 路径短 ≤3 步</span><span class="pillar p3">3 即时有反应</span><span class="pillar p4">4 反悔免费</span><span class="pillar p5">5 产物有着落</span>
+  </div>
+  <div class="legend-note">五层机制缺一层就不爽（判定标准见对话内图表）。路径步数 = 从「起意」到「拿到结果」的用户动作数，不含等待。</div>
+
+  <!-- R1 扩图 -->
+  <div class="card">
+    <div class="card-head"><h2>扩图（outpaint）</h2><span class="badge b-p0">P0</span><span class="badge b-l2">入口 L2 · 图片节点编辑工具条</span><span class="badge" style="background:var(--gray-bg);color:var(--gray)">路径 3 步</span></div>
+    <div class="task"><b>真实任务</b>：「这张 3:4 角色图要当 16:9 视频首帧，把画面补全。」</div>
+    <div class="flow">
+      <div class="step start"><div class="n">起点</div><div class="t">选中图片节点</div><div class="d">编辑工具条已在（<em>零新位置</em>，与裁剪/抠图同家）</div></div>
+      <div class="step"><div class="n">步 1</div><div class="t">点「扩图」</div><div class="d">弹出画幅 chips：16:9 / 21:9 / 1:1 …，<em>底图实时合成预览</em>（原图居中、四周镜像羽化）</div></div>
+      <div class="step"><div class="n">步 2</div><div class="t">选目标画幅 + 补充描述（可选）</div><div class="d">预览随选择即时刷新；不改画幅直接点生成也行</div></div>
+      <div class="step result"><div class="n">结果</div><div class="t">生成</div><div class="d">新图进结果堆叠（原图保留可对比切换）</div></div>
+    </div>
+    <div class="row">
+      <div class="cell"><div class="h">爽点</div><div class="v"><b>即时有反应</b>（选画幅即见合成效果，不是盲选）＋ <b>反悔免费</b>（堆叠并排，不满意再点一次）</div></div>
+      <div class="cell"><div class="h">审计</div><div class="v">§1.5：图像编辑家族内的 L2 项，不进常驻条 ✓　一功能一个家：与裁剪同条 ✓　产物自动落节点 ✓</div></div>
+    </div>
+  </div>
+
+  <!-- R2 重绘 -->
+  <div class="card">
+    <div class="card-head"><h2>重绘 / 擦除（inpaint）</h2><span class="badge b-p0">P0</span><span class="badge b-l2">入口 L2 · 编辑工具条「涂抹」</span><span class="badge" style="background:var(--gray-bg);color:var(--gray)">路径 3 步</span></div>
+    <div class="task"><b>真实任务</b>：「角色手部崩了，涂一下那只手，说『改成握剑』，别的地方别动。」</div>
+    <div class="flow">
+      <div class="step start"><div class="n">起点</div><div class="t">点工具条「涂抹」</div><div class="d">画布进入沉浸模式，复用画板 Leafer 笔刷（<em>不自研涂抹组件</em>）</div></div>
+      <div class="step"><div class="n">步 1</div><div class="t">涂抹要改的区域</div><div class="d">高亮半透明覆盖；顶部常驻一句承诺：「<em>只修改高亮区域，其余像素保持不变</em>」</div></div>
+      <div class="step"><div class="n">步 2</div><div class="t">就近输入一句话指令</div><div class="d">高亮区旁浮出输入框；「擦除」= 预填指令「移除该区域并自然补背景」，同一链路</div></div>
+      <div class="step result"><div class="n">结果</div><div class="t">生成</div><div class="d">新图与原图并排堆叠；mask 保留，改指令重跑零成本</div></div>
+    </div>
+    <div class="row">
+      <div class="cell"><div class="h">爽点</div><div class="v"><b>不挪窝</b>（涂、写、生成全在图上）＋ <b>反悔免费</b>（mask 和指令都留着，改一个词重跑）</div></div>
+      <div class="cell"><div class="h">审计</div><div class="v">C1：未涂抹时「生成」禁用 + title「先涂抹要修改的区域」✓　R17：mask 走临时文件不进 store ✓　无并行版：擦除是重绘特例 ✓</div></div>
+    </div>
+  </div>
+
+  <!-- R3 续写 -->
+  <div class="card">
+    <div class="card-head"><h2>智能续写</h2><span class="badge b-p0">P0</span><span class="badge b-l2">入口 L2 · 视频节点浮条「续写」</span><span class="badge" style="background:var(--gray-bg);color:var(--gray)">路径 3 步</span></div>
+    <div class="task"><b>真实任务</b>：「8 秒视频第 5 秒后的走向不满意，从 5 秒接着拍，人物场景别变。」</div>
+    <div class="flow">
+      <div class="step start"><div class="n">起点</div><div class="t">视频节点浮条「续写」</div><div class="d">节点底部展开一条起点游标</div></div>
+      <div class="step"><div class="n">步 1</div><div class="t">拖动起点游标</div><div class="d"><em>预览帧随游标实时刷新</em>（本地抽帧，100ms 级），松手即定</div></div>
+      <div class="step"><div class="n">步 2</div><div class="t">确认，写续写描述</div><div class="d">确认后<em>关键帧 + i2v 节点自动建好并连好线</em>，prompt 预填上游描述，用户只补「接下来发生什么」</div></div>
+      <div class="step result"><div class="n">结果</div><div class="t">生成</div><div class="d">续写段落为独立节点挂在旁边，可再续（成链）、可删、可直进时间轴</div></div>
+    </div>
+    <div class="row">
+      <div class="cell"><div class="h">爽点</div><div class="v"><b>即时有反应</b>（帧随游标刷）＋ <b>产物有着落</b>（连线都替用户连好了，只写一句话）</div></div>
+      <div class="cell"><div class="h">审计</div><div class="v">§1.5：不新增常驻控件 ✓　P4：按钮只对档案声明 supportsContinue 的模型亮起（C4 禁用有理由）✓　新节点可删 = 全程可反悔 ✓</div></div>
+    </div>
+  </div>
+
+  <!-- R4 音频三件套 -->
+  <div class="card">
+    <div class="card-head"><h2>音频三件套（截取 / 变速 / 切分）</h2><span class="badge b-p0">P0</span><span class="badge b-l2">入口 L2 · 音频节点浮条三钮</span><span class="badge" style="background:var(--gray-bg);color:var(--gray)">路径 2 步</span></div>
+    <div class="task"><b>真实任务</b>：「BGM 只要副歌 15 秒，加速 1.2 倍卡视频节奏。」</div>
+    <div class="flow">
+      <div class="step start"><div class="n">起点</div><div class="t">选中音频节点</div><div class="d">浮条出现：截取 ｜ 变速 ｜ 切分（三钮一组，一个心智：修这段音频）</div></div>
+      <div class="step"><div class="n">步 1</div><div class="t">截取：拉选区（←→ 移动 / ↑↓ 伸缩 / I·O 打点）</div><div class="d">与时间轴同一套键盘习惯，<em>零学习成本</em></div></div>
+      <div class="step"><div class="n">步 2</div><div class="t">变速：拉滑杆</div><div class="d"><em>原速 / 新速 A/B 试听即时切换</em>；两档：节奏变速（保音高，默认）/ 磁带变速（变音高）</div></div>
+      <div class="step result"><div class="n">结果</div><div class="t">应用 / 切分确认</div><div class="d">结果为新的音频节点排在源节点旁；源永远不动</div></div>
+    </div>
+    <div class="row">
+      <div class="cell"><div class="h">爽点</div><div class="v"><b>即时有反应</b>（变速试听零等待，本地 ffmpeg 秒出）＋ <b>反悔免费</b>（源节点不动，产物另立）</div></div>
+      <div class="cell"><div class="h">审计</div><div class="v">§1.5：三钮是一个功能簇算 1 ✓　键盘习惯与时间轴一致（一致性）✓　切分结果多节点自动整齐排列 ✓</div></div>
+    </div>
+  </div>
+
+  <!-- R5 分离 -->
+  <div class="card">
+    <div class="card-head"><h2>分离音视频 / 人声 / 背景音</h2><span class="badge b-p0">P0</span><span class="badge b-l3">入口 L3 · 视频节点「音频▾」</span><span class="badge" style="background:var(--gray-bg);color:var(--gray)">路径 1 步</span></div>
+    <div class="task"><b>真实任务</b>：「参考视频的口播不错，抽出人声当配音参考，BGM 也留着。」</div>
+    <div class="flow">
+      <div class="step start"><div class="n">起点</div><div class="t">视频节点「音频▾」</div><div class="d">四项：分离人声 ｜ 分离背景音 ｜ 仅画面 ｜ 仅声音（<em>一个菜单说清四种拆法</em>）</div></div>
+      <div class="step result"><div class="n">结果</div><div class="t">点完即走</div><div class="d">后台任务（任务中心可见进度）；完成后<em>源视频 + 拆出节点自动并排摆好</em>，零下载零上传</div></div>
+    </div>
+    <div class="row">
+      <div class="cell"><div class="h">爽点</div><div class="v"><b>路径最短</b>（1 步）＋ <b>产物有着落</b>（落画布并排，接线都省了）</div></div>
+      <div class="cell"><div class="h">审计</div><div class="v">§1.5：中低频 → L3 一键二级 ✓　C1：纯音乐无人声时明确报「未检测到人声」而非静默空文件 ✓　云/本地档走同一入口（档案声明）✓</div></div>
+    </div>
+  </div>
+
+  <!-- R6 片段重拍 -->
+  <div class="card">
+    <div class="card-head"><h2>片段重拍</h2><span class="badge b-p1">P1</span><span class="badge b-l2">入口 L2 · 视频节点浮条「重拍」</span><span class="badge" style="background:var(--gray-bg);color:var(--gray)">路径 4 步（复杂度花在决定上）</span></div>
+    <div class="task"><b>真实任务</b>：「30 秒片子里 12–15s 和 22–24s 动作不对，只重拍这两段。」</div>
+    <div class="flow">
+      <div class="step start"><div class="n">起点</div><div class="t">浮条「重拍」</div><div class="d">底部弹出选段时间轨（复用时间轴组件）</div></div>
+      <div class="step"><div class="n">步 1</div><div class="t">拉出若干段 + 每段写一句改法</div><div class="d">每段一个输入框浮在段上方；<em>段可增删改</em></div></div>
+      <div class="step"><div class="n">步 2</div><div class="t">「生成重拍」</div><div class="d">每段进队列（成本前置明示）；完成段落亮起，<em>原段 vs 新段并排预览</em></div></div>
+      <div class="step result"><div class="n">结果</div><div class="t">逐段「采纳」</div><div class="d">采纳才替换时间轴区间（可撤销）；不采纳的段留着或删掉——<em>拍十次都不伤原片</em></div></div>
+    </div>
+    <div class="row">
+      <div class="cell"><div class="h">爽点</div><div class="v"><b>反悔免费</b>是主爽点（采纳制 + 撤销栈）＋ <b>即时有反应</b>（逐段完成逐段亮，不用全等）</div></div>
+      <div class="cell"><div class="h">审计</div><div class="v">§1.5：复用时间轴组件不造第二套选段 UI ✓　C3：选段层作用域写明「这一段 · 12.0–15.0s」✓　衔接提示：采纳时提示可对相邻段续写（复用续写链路）✓</div></div>
+    </div>
+  </div>
+
+  <!-- R7 超分 -->
+  <div class="card">
+    <div class="card-head"><h2>视频高清 / 超分</h2><span class="badge b-p1">P1</span><span class="badge b-l3">入口 L3 · 视频节点「高清▾」</span><span class="badge" style="background:var(--gray-bg);color:var(--gray)">路径 2 步</span></div>
+    <div class="task"><b>真实任务</b>：「720p 生成片段要进 4K 成片，放大别糊。」</div>
+    <div class="flow">
+      <div class="step start"><div class="n">起点</div><div class="t">「高清▾」</div><div class="d">三项：2× ｜ 4× ｜ 提帧率（60fps）；<em>每项旁标预估耗时与花费</em>（点之前就知道）</div></div>
+      <div class="step result"><div class="n">结果</div><div class="t">选中即入队</div><div class="d">任务中心进度；完成后原/新结果堆叠切换；>10min 明确告知需分轨并给切分入口</div></div>
+    </div>
+    <div class="row">
+      <div class="cell"><div class="h">爽点</div><div class="v"><b>反悔免费/零焦虑</b>（成本耗时前置，点了不心疼）＋ 产物落节点</div></div>
+      <div class="cell"><div class="h">审计</div><div class="v">No fake progress：队列真实进度 ✓　模型三档（快/高质/本地）同槽声明，用户只看到「速度/质量」选项（P4 声明翻译成人话）✓</div></div>
+    </div>
+  </div>
+
+  <!-- R8 音色克隆 -->
+  <div class="card">
+    <div class="card-head"><h2>音色克隆</h2><span class="badge b-p1">P1</span><span class="badge b-l3">入口 L3 · TTS 音色下拉「我的音色」</span><span class="badge" style="background:var(--gray-bg);color:var(--gray)">首期 4 步 · 之后 0 步</span></div>
+    <div class="task"><b>真实任务</b>：「录一段我自己的声音，以后旁白都用我的音色。」</div>
+    <div class="flow">
+      <div class="step start"><div class="n">起点</div><div class="t">TTS 模式 → 音色下拉 → 我的音色</div><div class="d">与 LibTV 同路径，用户跨产品零学习</div></div>
+      <div class="step"><div class="n">步 1</div><div class="t">录音或上传（10s–5min）</div><div class="d">录音面板带电平表；<b>强制朗读屏幕上的随机校验句</b>（合规硬门：证明是本人）</div></div>
+      <div class="step"><div class="n">步 2</div><div class="t">试听 + 命名入库</div><div class="d">生成一句试听，四个维度自查：像不像 / 糊不糊 / 稳不稳 / 自然不自然（对齐 LibTV 心智）</div></div>
+      <div class="step result"><div class="n">结果</div><div class="t">下拉即可选</div><div class="d">之后所有 TTS = 0 额外步骤；国内版音色标有效期提示（7 天），解锁费走消费确认前置提示</div></div>
+    </div>
+    <div class="row">
+      <div class="cell"><div class="h">爽点</div><div class="v">一次投入终身 0 步（爽的复利）＋ 合规校验嵌在流程内不做事后拦截（<b>不打断</b>）</div></div>
+      <div class="cell"><div class="h">审计</div><div class="v">三供应商克隆参数收敛为一个音色来源声明，UI 一套（P4）✓　C4：失效音色报因明确 ✓</div></div>
+    </div>
+  </div>
+
+  <!-- R9 预设 -->
+  <div class="card">
+    <div class="card-head"><h2>提示词预设大礼包</h2><span class="badge b-p1">P1</span><span class="badge b-l0">入口 零新控件 · 提示词库新分组</span><span class="badge" style="background:var(--gray-bg);color:var(--gray)">路径 1 步</span></div>
+    <div class="task"><b>真实任务</b>：「这张图出一组多机位」「把 AI 味去掉」「这个人改成愤怒。」</div>
+    <div class="flow">
+      <div class="step start"><div class="n">起点</div><div class="t">生成器 prompt 编辑区 → 提示词库</div><div class="d">新分组「分镜预演 / 质感修复 / 表情 / 构图」，<em>老入口老交互</em></div></div>
+      <div class="step result"><div class="n">结果</div><div class="t">点预设 = 注入 prompt</div><div class="d"><b>可编辑草稿形态</b>，不静默追加、不直接生成——AI 建议不盖过用户决定</div></div>
+    </div>
+    <div class="row">
+      <div class="cell"><div class="h">爽点</div><div class="v"><b>零学习</b>（一次点选，词进框还能改）＋ 一个动作覆盖 10 项能力</div></div>
+      <div class="cell"><div class="h">审计</div><div class="v">预设是数据不是代码（可热更）✓　未达标预设不上线（宁缺毋滥，R2）✓</div></div>
+    </div>
+  </div>
+
+  <!-- R10 历史 -->
+  <div class="card">
+    <div class="card-head"><h2>全局生成历史</h2><span class="badge b-p2">P2</span><span class="badge b-l1">入口 L1 · 左侧栏「历史」tab</span><span class="badge" style="background:var(--gray-bg);color:var(--gray)">路径 2 步</span></div>
+    <div class="task"><b>真实任务</b>：「上周生成过一张角度特别好的图，找出来用到新项目。」</div>
+    <div class="flow">
+      <div class="step start"><div class="n">起点</div><div class="t">左侧栏「历史」</div><div class="d">时间线缩略图墙 + 按类型/时间过滤（虚拟滚动扛万级）</div></div>
+      <div class="step result"><div class="n">结果</div><div class="t">悬浮 → 「发送到画布」</div><div class="d">支持多选批量；数据来自节点 runs[]，<em>不建独立持久层</em>（无双真相源）</div></div>
+    </div>
+    <div class="row">
+      <div class="cell"><div class="h">爽点</div><div class="v"><b>不挪窝</b>（找历史和用历史同一处完成）</div></div>
+      <div class="cell"><div class="h">审计</div><div class="v">§1.5.2：左侧栏 +1 簇——历史为高频刚需，预算判定通过；上线时实测簇数 ✓</div></div>
+    </div>
+  </div>
+
+  <!-- R11 AutoLink -->
+  <div class="card">
+    <div class="card-head"><h2>AutoLink 实时引用</h2><span class="badge b-p2">P2</span><span class="badge b-l0">入口 零新控件 · 输入时自动浮现</span><span class="badge" style="background:var(--gray-bg);color:var(--gray)">0 新交互</span></div>
+    <div class="task"><b>真实任务</b>：「prompt 里写了女主，画布里正好有女主定妆图，自动帮我挂上。」</div>
+    <div class="flow">
+      <div class="step start"><div class="n">起点</div><div class="t">正常打字</div><div class="d">命中画布素材名/别名时，光标处<em>浮出建议 chip</em>（最近使用加权）</div></div>
+      <div class="step result"><div class="n">结果</div><div class="t">Tab 单收 / Shift+Tab 全收</div><div class="d">继续打字 = 忽略；chip 与手动 @ 同一体系（一个家）；设置里可一键关</div></div>
+    </div>
+    <div class="row">
+      <div class="cell"><div class="h">爽点</div><div class="v">被猜中心思的爽——但选择权永远在用户（chip 可收可无视）</div></div>
+      <div class="cell"><div class="h">审计</div><div class="v">不打断输入流（浮层不抢焦点）✓　误匹配有逃生口 ✓</div></div>
+    </div>
+  </div>
+
+  <!-- R12 拉片→参考 -->
+  <div class="card">
+    <div class="card-head"><h2>逐帧拉片 → 多参考</h2><span class="badge b-p2">P2</span><span class="badge b-l2">入口 L2 · 拉片结果行内按钮</span><span class="badge" style="background:var(--gray-bg);color:var(--gray)">路径 2 步</span></div>
+    <div class="task"><b>真实任务</b>：「拉片拆出的这个运镜很妙，下条视频照这个拍。」</div>
+    <div class="flow">
+      <div class="step start"><div class="n">起点</div><div class="t">拉片结果面板</div><div class="d">每个镜头行加「用作参考」</div></div>
+      <div class="step result"><div class="n">结果</div><div class="t">选目标（或新建）视频节点</div><div class="d">首帧落关键帧节点自动连线；<b>运镜/画面描述以可编辑草稿注入 prompt</b>，不静默追加</div></div>
+    </div>
+    <div class="row">
+      <div class="cell"><div class="h">爽点</div><div class="v"><b>产物有着落</b>（拆解结果直接变成下一条片子的输入，分析-创作闭环）</div></div>
+      <div class="cell"><div class="h">审计</div><div class="v">注入内容可见可改（Creator control explicit）✓　原子能力全复用，只新增一条动线 ✓</div></div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <b>设计原则符合性总审</b>：12 项中 7 项入口在 L2 情境层（贴目标就近浮现，不占常驻预算）、3 项 L3 一键二级、2 项零新控件、1 项 L1 侧栏（有预算判定）；全部复用既有交互模式（结果堆叠 / 时间轴选区 / 提示词库 / @chip / 任务队列），<b>零套新交互范式、零学习成本增量</b>。每项的禁用态、成本提示、失败报错均按 C1–C4 契约设计。
+    <br>关联：构建调研与对抗评测 docs/product/2026-09-07-libtv-gap-remediation-research-and-adversarial-review.md · 设计系统 docs/design/nomi-design-system.md §1.5/§1.6
+  </div>
+</div>
+</body>
+</html>

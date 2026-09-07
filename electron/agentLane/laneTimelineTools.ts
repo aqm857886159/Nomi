@@ -19,6 +19,7 @@ import { z } from "zod";
 
 import {
   TIMELINE_READ_ALIASES,
+  TIMELINE_READ_CAPABILITY,
   timelineReadPiInputSchemaForAlias,
   projectTimelineReadResult,
   type TimelineReadInput,
@@ -86,6 +87,7 @@ export function timelineLaneToolSpecs(): LaneToolSpec[] {
     if (!schema) throw new Error(`Unregistered timeline.read alias: ${tool.alias}`);
     return {
       name: tool.alias,
+      capabilityId: TIMELINE_READ_CAPABILITY.id,
       description: tool.description,
       promptSnippet: tool.promptSnippet,
       promptGuidelines: TIMELINE_GUIDELINES,

@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LibTV vs Nomi 全量逐项功能对比</title>
+<style>
+  :root {
+    --bg: #f7f7f5; --surface: #ffffff; --border: #e4e4e0; --border-strong: #d4d4cf;
+    --text: #1f2328; --text-2: #57606a; --text-3: #8b949e;
+    --green: #1a7f37; --green-bg: #e6f4ea;
+    --blue: #0969da; --blue-bg: #eaf2fc;
+    --amber: #9a6700; --amber-bg: #fdf3d8;
+    --red: #cf222e; --red-bg: #fdebec;
+    --gray: #6e7781; --gray-bg: #eff1f3;
+    --accent: #0969da;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Segoe UI", "Microsoft YaHei", sans-serif;
+    background: var(--bg); color: var(--text); font-size: 13px; line-height: 1.55;
+    padding: 24px 20px 60px;
+  }
+  .wrap { max-width: 1400px; margin: 0 auto; }
+  h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.01em; }
+  .sub { color: var(--text-2); margin: 6px 0 18px; font-size: 12.5px; }
+  .stats { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+  .stat {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 10px 16px; min-width: 108px; cursor: pointer; user-select: none; transition: border-color .15s;
+  }
+  .stat:hover { border-color: var(--border-strong); }
+  .stat.active { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(9,105,218,.12); }
+  .stat .num { font-size: 22px; font-weight: 700; }
+  .stat .lbl { font-size: 11.5px; color: var(--text-2); }
+  .stat .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: 1px; }
+  .toolbar { display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; align-items: center; }
+  .toolbar select, .toolbar input {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    padding: 7px 12px; font-size: 13px; color: var(--text); outline: none;
+  }
+  .toolbar input { flex: 1; min-width: 220px; }
+  .toolbar input:focus, .toolbar select:focus { border-color: var(--accent); }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+  .chip {
+    font-size: 11.5px; padding: 3px 10px; border-radius: 999px; cursor: pointer;
+    background: var(--surface); border: 1px solid var(--border); color: var(--text-2); user-select: none;
+  }
+  .chip.active { background: var(--text); color: #fff; border-color: var(--text); }
+  table { width: 100%; border-collapse: separate; border-spacing: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  thead th {
+    text-align: left; font-size: 11.5px; color: var(--text-2); font-weight: 600;
+    padding: 10px 12px; background: #fafaf8; border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 2; white-space: nowrap;
+  }
+  tbody td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: #fbfbfa; }
+  tr.section-row td {
+    background: #f2f2ef; font-weight: 700; font-size: 13px; color: var(--text);
+    border-bottom: 1px solid var(--border-strong); cursor: pointer; user-select: none;
+  }
+  tr.section-row td .cnt { font-weight: 400; color: var(--text-3); font-size: 11.5px; margin-left: 8px; }
+  .id { color: var(--text-3); font-size: 11px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .feat { font-weight: 600; }
+  .detail { color: var(--text-2); }
+  .evi { font-size: 11.5px; color: var(--text-2); }
+  .evi code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 10.5px; background: #f0f1f2; padding: 1px 4px; border-radius: 4px; word-break: break-all; }
+  .badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 9px; border-radius: 999px; white-space: nowrap; }
+  .b-lead { color: var(--green); background: var(--green-bg); }
+  .b-par  { color: var(--blue);  background: var(--blue-bg); }
+  .b-part { color: var(--amber); background: var(--amber-bg); }
+  .b-miss { color: var(--red);   background: var(--red-bg); }
+  .b-na   { color: var(--gray);  background: var(--gray-bg); }
+  .fix { color: var(--text-2); }
+  .fix b { color: var(--text); }
+  .empty { text-align: center; padding: 48px 0; color: var(--text-3); }
+  .foot { margin-top: 14px; color: var(--text-3); font-size: 11.5px; }
+  @media (max-width: 900px) { .hide-sm { display: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>LibTV vs Nomi · 全量逐项功能对比</h1>
+  <div class="sub">2026-09-07 · 按《LibTV使用指南》章节逐节对照，共 <span id="totalCount"></span> 个功能点。Nomi 侧判定全部来自真实代码证据（code 标注 = file:line）。点击章节行可折叠。</div>
+
+  <div class="stats" id="stats"></div>
+  <div class="toolbar">
+    <select id="chapterFilter"><option value="">全部章节</option></select>
+    <input id="search" type="text" placeholder="搜索功能名 / 细节 / 证据 / 补法…">
+  </div>
+  <div class="chips" id="fixChips"></div>
+
+  <table>
+    <thead><tr>
+      <th style="width:56px">编号</th><th style="width:150px">功能</th>
+      <th class="hide-sm" style="width:280px">LibTV 细节</th>
+      <th style="width:330px">Nomi 现状（证据）</th>
+      <th style="width:64px">判定</th>
+      <th>差距与补法</th>
+    </tr></thead>
+    <tbody id="tbody"></tbody>
+  </table>
+  <div class="foot">关联文档：docs/product/2026-09-07-libtv-full-feature-by-feature-comparison.md（完整表格版） · docs/product/2026-09-07-libtv-competitor-gap-analysis.md（总览与排期方案）</div>
+</div>
+
+<script>
+const DATA = [
+ {s:"1. 无限画布"},
+ {id:"1.1.1",c:"1. 无限画布",f:"项目库",lt:"首页最新项目/全部项目入口",nm:"项目库页 + 主进程项目仓库 + 项目自动备份",ev:"ProjectLibraryPage.tsx · electron/projects/repository.ts",j:"par",fx:"无差距"},
+ {id:"1.1.2",c:"1. 无限画布",f:"新建/删除/重命名画布",lt:"项目菜单栏内完成全套管理",nm:"多项目创建/删除齐备",ev:"electron/projects/",j:"par",fx:"无差距"},
+ {id:"1.1.3",c:"1. 无限画布",f:"积分/会员中心",lt:"积分余额、会员、单独购买算力",nm:"本地 API key + 消费确认/花费授权体系",ev:"src/workbench/spend/",j:"na",fx:"架构不同：本地优先无会员制，等价物是花费授权"},
+ {id:"1.1.4",c:"1. 无限画布",f:"分享/发布到社区",lt:"画布分享链接、作品发布社区曝光",nm:"无协作分享（community 仅用户反馈）",ev:"src/ui/community/",j:"miss",fx:"不跟：本地优先阶段非目标，仅记录"},
+ {id:"1.2.1",c:"1. 无限画布",f:"节点类型数",lt:"5 种：文本/图片/视频/音频/脚本",nm:"14 种：另多出角色/场景卡、关键帧、镜头、剪辑、画板、全景、3D 场景、3D 模型、素材",ev:"nodes/registry.ts:61-276",j:"lead",fx:"结构性领先"},
+ {id:"1.2.2",c:"1. 无限画布",f:"双击新建节点",lt:"画布空白处双击",nm:"同样支持画布交互新建",ev:"generationCanvas 交互层",j:"par",fx:"无差距"},
+ {id:"1.2.3",c:"1. 无限画布",f:"拖入文件建节点",lt:"图片/视频/音频拖入画布",nm:"素材拖入 + asset 导入节点 + 贴链接无水印导入",ev:"assets/pasteShareLinkImport.ts",j:"lead",fx:"多 TikHub 链接导入"},
+ {id:"1.2.4",c:"1. 无限画布",f:"文本节点·LLM 生成",lt:"三大 LLM 生成/完善文本",nm:"text 节点可执行（文本模型档案）+ Canvas Agent",ev:"registry.ts:62-75",j:"par",fx:"无差距"},
+ {id:"1.2.5",c:"1. 无限画布",f:"图片节点",lt:"上传 + 图像模型生成",nm:"image 节点 + 20+ 图像模型档案",ev:"registry.ts:107-120",j:"par",fx:"无差距"},
+ {id:"1.2.6",c:"1. 无限画布",f:"视频节点",lt:"上传 + 视频模型生成",nm:"video 节点 + 35 个对账视频档案",ev:"registry.ts:136-148",j:"par",fx:"无差距"},
+ {id:"1.2.7",c:"1. 无限画布",f:"音频节点",lt:"上传 + TTS/音乐/音效",nm:"audio 节点三模式（TTS/Whisper 转写/上传）+ Suno/Lyria/MiniMax/Eleven",ev:"registry.ts:150-164",j:"par",fx:"无差距"},
+ {id:"1.2.8",c:"1. 无限画布",f:"脚本节点（新版）",lt:"剧本拆 shot→资产化（角色/场景/道具卡）→提示词合成→批量生图/生视频；行级编辑/排序/增删/标色/@唤起",nm:"IR→资产锚（身份 DNA/服装/变体）→分镜表→批量条→冻结门一致性→失败返工",ev:"agent/storyboardPlan.ts:12-80 · StoryboardShotTable.tsx",j:"par",fx:"持平。LibTV 小差异：shot 颜色标记（低价值）、生成器组打包形态（Nomi 用波次调度实现同类语义）"},
+ {id:"1.2.9",c:"1. 无限画布",f:"脚本节点（旧版）",lt:"角色图/参考视频生成分镜脚本、全屏表格、卡片视图、自定义字段可见性",nm:"分镜表支持全屏表格编辑 + 字段管理",ev:"creation/storyboard/",j:"par",fx:"无差距"},
+ {id:"1.2.10",c:"1. 无限画布",f:"节点右键操作",lt:"复制（不带连线）/副本（带连线）/删除/创建资产",nm:"复制/删除齐备；跨画布剪贴板带连线",ev:"store/canvasNodeActions.ts · canvasClipboard.ts",j:"par",fx:"『节点另存为资产』显式入口待补（半天）"},
+ {id:"1.2.11",c:"1. 无限画布",f:"撤销",lt:"Cmd+Z 撤销删除",nm:"时间轴撤销历史 + 画布快照机制",ev:"timelineUndoHistory.ts · canvasSnapshotNormalizer.ts",j:"par",fx:"无差距"},
+ {id:"1.3.1",c:"1. 无限画布",f:"连线工作流",lt:"参考生图→图转视频等自由搭建",nm:"有序参考槽（character1..N）+ 连边能力校验",ev:"runner/referenceSlots.ts · completeNodeConnection.ts",j:"par",fx:"无差距"},
+ {id:"1.3.2",c:"1. 无限画布",f:"打组/整体拖动",lt:"框选打组 Cmd+G",nm:"画布分组模型",ev:"model/generationCanvasSchema.ts",j:"par",fx:"无差距"},
+ {id:"1.3.3",c:"1. 无限画布",f:"保存/复用工作流",lt:"打组→创建工作流→左侧栏发送到画布",nm:"应用级工作流模板库（收藏/标签）",ev:"library/workflowLibrary.ts:6-22,90",j:"lead",fx:"Nomi 是一等公民库，LibTV 是附属功能"},
+ {id:"1.3.4",c:"1. 无限画布",f:"整组执行",lt:"组内全链路重跑",nm:"依赖波次执行 + 常驻队列 + 任务中心",ev:"runner/dependencyWaves.ts:1-47 · generationQueueStore.ts",j:"lead",fx:"按依赖自动分波，比整组全跑更细"},
+ {id:"1.3.5",c:"1. 无限画布",f:"批量执行",lt:"脚本节点批量生图/生视频",nm:"批量执行 + 批量条（统一模型/时长/景别/比例）",ev:"runner/generationRunController.ts · StoryboardBulkBar.tsx",j:"par",fx:"无差距"},
+ {id:"1.4.1",c:"1. 无限画布",f:"画布左侧栏",lt:"添加/工作流/资产/历史记录/教程",nm:"素材库面板（分类/文件夹/筛选/拖拽）+ 技能/提示词/流程库",ev:"assets/AssetLibraryPanel.tsx",j:"par",fx:"无差距"},
+ {id:"1.4.2",c:"1. 无限画布",f:"生成历史记录",lt:"画布级全局历史：批量下载/删除/使用（≤10）、记忆浏览位置",nm:"节点级历史堆叠（切换/下载/删除）+ 变体",ev:"nodes/NodeResultStack.tsx:1-22",j:"part",fx:"可补：全局『生成历史』面板——数据都在 runs[]，纯 UI 聚合，1–2 天"},
+ {id:"1.4.3",c:"1. 无限画布",f:"小地图",lt:"全局分布 + 高亮框拖动聚焦 + 缩放百分比",nm:"画布小地图（含 zoom 显示）",ev:"components/CanvasMinimap.tsx",j:"par",fx:"无差距"},
+ {id:"1.4.4",c:"1. 无限画布",f:"快捷键面板",lt:"菜单栏打开快捷键面板",nm:"画布帮助弹层 + 时间轴快捷键对话框",ev:"CanvasControlsHelpPopover.tsx · TimelineShortcutsDialog.tsx",j:"par",fx:"无差距"},
+ {id:"1.4.5",c:"1. 无限画布",f:"跨画布复制",lt:"复制粘贴带连线",nm:"画布剪贴板（store 内）",ev:"store/canvasClipboard.ts",j:"par",fx:"无差距"},
+ {id:"1.4.6",c:"1. 无限画布",f:"智能引用 AutoLink",lt:"打字时识别提示词与素材名匹配→自动预置引用标签，Tab 确认/Shift+Tab 全收",nm:"@mention 体系（手动 @），无『边打字边推荐』",ev:"AssetMentionChip.tsx · AssetMentionSuggestion.ts",j:"part",fx:"可补：输入时模糊匹配素材名弹建议 chip，复用现有基建，1–2 天"},
+ {id:"1.4.7",c:"1. 无限画布",f:"主体文件夹组整体调用",lt:"人物/物体图按文件夹管理，整体加载画布保一致性",nm:"角色/场景/道具定妆卡 + 资产锚绑定生成（模型无关）",ev:"project/projectCategories.ts",j:"par",fx:"语义等价，Nomi 架构更强（P4 通用槽）"},
+
+ {s:"2.1 Slash 快捷功能"},
+ {id:"2.1.0",c:"2.1 Slash",f:"Slash 入口",lt:"输入『/』调起预设菜单（升级版支持文本/图片组合输入）",nm:"提示词库 + Canvas Agent 工具，无『/』唤起习惯",ev:"promptLibrary/",j:"part",fx:"低优先：等价物存在，交互习惯可后补"},
+ {id:"2.1.1",c:"2.1 Slash",f:"多机位九宫格",lt:"一图生成 9 个机位视角",nm:"3D 场景多机位 take 采样（真实 3D 视角）；图像侧无宫格生成预设",ev:"Scene3DTakeSampler.tsx · useNodeImageEditing.ts:100",j:"part",fx:"补图像侧 prompt 预设 + 已有九宫格切分，半天"},
+ {id:"2.1.2",c:"2.1 Slash",f:"剧情推演四宫格",lt:"推演剧情走向 4 格",nm:"无预设",ev:"",j:"miss",fx:"提示词库官方预设分组覆盖（D 档礼包）"},
+ {id:"2.1.3",c:"2.1 Slash",f:"25宫格连贯分镜",lt:"25 格连续分镜",nm:"无预设",ev:"",j:"miss",fx:"同上"},
+ {id:"2.1.4",c:"2.1 Slash",f:"电影级光影矫正",lt:"一键矫正光影",nm:"无预设",ev:"",j:"miss",fx:"同上"},
+ {id:"2.1.5",c:"2.1 Slash",f:"角色三视图生成",lt:"正/侧/背三视图",nm:"定妆卡体系可产角色图，无三视图专用预设",ev:"定妆卡体系",j:"part",fx:"prompt 预设 + 定妆卡挂载，半天"},
+ {id:"2.1.6",c:"2.1 Slash",f:"角色设定图",lt:"标准角色设定图（服饰细节分解）",nm:"同上",ev:"",j:"part",fx:"同上"},
+ {id:"2.1.7",c:"2.1 Slash",f:"画面推演（3秒后/5秒前）",lt:"时间轴前后推演帧",nm:"关键帧节点 + 首尾帧链路可手动达成",ev:"keyframe 节点",j:"part",fx:"prompt 预设即可"},
+ {id:"2.1.8",c:"2.1 Slash",f:"故事板",lt:"10–15s 剧情→连续分镜规划（怎么演/怎么拍/怎么衔接）",nm:"分镜方案 Agent 工具 + 分镜工作台",ev:"agent/storyboardPlan.ts",j:"par",fx:"无差距"},
+ {id:"2.1.9",c:"2.1 Slash",f:"调度故事板",lt:"带动作线/走位/机位的中文手绘分镜",nm:"画板节点（Leafer 手绘）+ 3D 构图，缺一键生成预设",ev:"whiteboard/ 节点",j:"part",fx:"prompt 预设可试"},
+ {id:"2.1.10",c:"2.1 Slash",f:"人像调节",lt:"去 AI 塑料感/肤质/人景融合/光影融合",nm:"无",ev:"",j:"miss",fx:"prompt 预设 + 图像编辑模型，半天"},
+ {id:"2.1.11",c:"2.1 Slash",f:"情绪调节",lt:"多人图指定单人改表情，25 种表情，身份/构图不变",nm:"无",ev:"",j:"miss",fx:"prompt 预设（表情词表）+ 指令式编辑模型（Nano Banana 2/Seedream 5 Pro），1 天"},
+
+ {s:"2.2 图像工具"},
+ {id:"2.2.1",c:"2.2 图像",f:"全景 720°",lt:"文本/参考图生成全景 + 实时预览 + 4/12 视角截图 + 构图参考线",nm:"全景节点查看器 + 比例截图；无生成",ev:"nodes/PanoramaViewer.tsx",j:"part",fx:"图像节点加『等距柱状全景』预设→落全景节点，边际成本≈0；质量预期要管住（LibTV 自己承认户外场景失败率高）"},
+ {id:"2.2.2",c:"2.2 图像",f:"多角度",lt:"三维坐标球选机位（8 水平+4 俯仰+3 景别）重渲 + 6 预设",nm:"3D 场景多机位构图导出；对已有 2D 图改机位重渲缺",ev:"Scene3DEditor.tsx",j:"part",fx:"prompt 预设（同场景 XX 角度重渲）+ 图生图覆盖八成；真 3D 路线 Nomi 已有且更准"},
+ {id:"2.2.3",c:"2.2 图像",f:"打光",lt:"26 主光点位 + 9 轮廓光 + 亮度/颜色 + 智能模式 + 6 预设",nm:"无",ev:"",j:"miss",fx:"智能模式=prompt 预设（立即做）；点位 UI=花活，不跟（R2 极简）"},
+ {id:"2.2.4",c:"2.2 图像",f:"九宫格聚合入口",lt:"宫格类功能聚合",nm:"四/九宫格切分已有",ev:"useNodeImageEditing.ts:100",j:"part",fx:"切分有、生成无（见 Slash 组）"},
+ {id:"2.2.5a",c:"2.2 图像",f:"高清放大",lt:"2/4/6 倍，5 种模式",nm:"即梦 image_upscale 档案",ev:"modelArchetypes/dreaminaUpscale.ts",j:"par",fx:"无差距"},
+ {id:"2.2.5b",c:"2.2 图像",f:"扩图 outpaint",lt:"6 画幅比外扩，1K/2K/6K",nm:"无",ev:"",j:"miss",fx:"贴画布合成基准图 + 图生图（Nano Banana 2/Seedream 5 Pro），1–2 天"},
+ {id:"2.2.5c",c:"2.2 图像",f:"重绘 inpaint",lt:"画笔涂抹 + 提示词修改",nm:"无画笔（AI 元素拆解编辑覆盖部分场景）",ev:"electron/image/decomposeLayers.ts",j:"miss",fx:"mask + 指令式编辑；画笔 UI 复用画板节点，1–2 天"},
+ {id:"2.2.5d",c:"2.2 图像",f:"擦除",lt:"画笔框选擦除",nm:"无",ev:"",j:"miss",fx:"与重绘同链路，顺带"},
+ {id:"2.2.5e",c:"2.2 图像",f:"抠图",lt:"自动去背景",nm:"本地 WASM 抠图（isnet 模型按需拉取）",ev:"lib/removeBackground.worker.ts:1-14",j:"lead",fx:"Nomi 本地跑：零 API 成本、零上传"},
+ {id:"2.2.5f",c:"2.2 图像",f:"裁剪",lt:"自由/比例裁切",nm:"图像编辑工具条",ev:"useNodeImageEditing.ts:15-22",j:"par",fx:"无差距"},
+ {id:"2.2.6",c:"2.2 图像",f:"宫格切分",lt:"多宫格拆片→选片→重渲/高清，分割线可拖",nm:"四宫格/九宫格切图",ev:"useNodeImageEditing.ts:100-102",j:"par",fx:"拖动分割线属边缘体验，不跟"},
+ {id:"2.2.7",c:"2.2 图像",f:"标注重生成",lt:"涂鸦/框选 + 文字，标注参与重生成",nm:"图内文字编辑入口 + 画板节点",ev:"textEdit/buildTextEditNode.ts",j:"part",fx:"『框选+指令→重生成』与重绘同链路，合并补"},
+ {id:"2.2.8",c:"2.2 图像",f:"旋转与镜像",lt:"90/180/270/任意角度、水平/垂直镜像",nm:"变换工具",ev:"NodeImageEditToolbar.tsx:16",j:"par",fx:"无差距"},
+ {id:"2.2.9",c:"2.2 图像",f:"分镜组",lt:"多图整合宫格布局、智能排序、比例/行列可调、拼接 2K/4K 大图、序号",nm:"联系表拼图（选中成图拼一张交付图）",ev:"nodes/buildContactSheetNode.ts",j:"par",fx:"核心语义已覆盖；行列自定义可后补（低优）"},
+
+ {s:"2.3 视频工具"},
+ {id:"2.3.1",c:"2.3 视频",f:"视频高清",lt:"2/4/6 倍 + 30/60/90fps 补帧 + 慢动作参数",nm:"无视频超分",ev:"",j:"miss",fx:"Replicate real-esrgan-video + ffmpeg 补帧/慢放，3–5 天含任务队列接入"},
+ {id:"2.3.2",c:"2.3 视频",f:"视频解析",lt:"分镜拆解表格：画面/景别/提示词/运镜/起始点/时长/音乐节奏/人声",nm:"本地切点检测 + 每镜多帧 VLM + Whisper 合流→结构化分镜表→勾选落画布",ev:"electron/video/deconstructVideo.ts:1-13",j:"par",fx:"持平；『音乐节奏』维度未显式输出（低优）"},
+ {id:"2.3.3",c:"2.3 视频",f:"视频剪辑",lt:"单段裁取、I/O 打点、0.01s 精度、≤10min/1080P",nm:"ClipNode 多素材 trim + 时间轴拖拽手柄",ev:"clipNodeModel.ts:3-24",j:"par",fx:"无差距"},
+ {id:"2.3.4",c:"2.3 视频",f:"视频合成",lt:"多段拼接 + 原声/独立音轨混合 + 时间轴编辑 + 实时预览 + 20min",nm:"多轨时间轴（剪刀/磁吸/转场/字幕/文本轨/撤销）+ ffmpeg/Remotion 多后端导出",ev:"timeline/TimelinePanel.tsx:1-40 · export/exportPlanner.ts:3-9",j:"lead",fx:"多轨+转场+字幕更强"},
+ {id:"2.3.5",c:"2.3 视频",f:"人声/背景音分离",lt:"分离干净人声或 BGM",nm:"无",ev:"",j:"miss",fx:"ElevenLabs /v1/audio-isolation（已在供应商栈）或本地 Demucs/MossFormer，1–2 天"},
+ {id:"2.3.6",c:"2.3 视频",f:"分离音视频",lt:"画面/音频分离",nm:"无独立入口",ev:"",j:"miss",fx:"ffmpeg -vn/-an，半天"},
+ {id:"2.3.7",c:"2.3 视频",f:"智能剪辑",lt:"口播去口水词/画中画/字幕动效、批量广告变体、卡点混剪、无人解说直出",nm:"无人化编排；但 Canvas Agent + 时间轴 Agent 有地基",ev:"timeline/agent/",j:"part",fx:"建议独立大功能立项（非小补齐）：价值高、工程量大"},
+ {id:"2.3.8",c:"2.3 视频",f:"逐帧拉片",lt:"叙事/运镜/动作/音频多维分析，结果供 Seedance 多参考复用",nm:"拉片已有；『结果→多参考』闭环待打通",ev:"detectShotCuts.ts:1-20",j:"part",fx:"补『选中镜头/运镜描述注入生成器』动线，1 天"},
+ {id:"2.3.9",c:"2.3 视频",f:"智能续写",lt:"任意时间点续写，延续人物/场景/风格，可加新参考",nm:"return_last_frame + 抽尾帧落节点，原子能力齐",ev:"seedance25.ts:4-45 · extractVideoFrameToNode.ts",j:"miss",fx:"易补：选起点→抽帧→自动建 i2v 节点连线，1–2 天"},
+ {id:"2.3.10",c:"2.3 视频",f:"片段重拍",lt:"时间轴选段（毫秒级）→逐段文字描述重拍",nm:"手动切镜 + 重新生成，无选段重拍 UX",ev:"NodeShotCutPanel.tsx",j:"miss",fx:"时间轴选区（已有）+ 逐段重拍任务编排，2–3 天"},
+ {id:"2.3.11",c:"2.3 视频",f:"深度动作捕捉",lt:"视频提深度（480P/720P），风格无关运镜参考",nm:"无",ev:"",j:"miss",fx:"Depth Anything V2 / DepthCrafter；先验证 Seedance 多参考对深度视频的收益再立项"},
+
+ {s:"2.4 导演台"},
+ {id:"2.4.1",c:"2.4 导演台",f:"3D 白模构图",lt:"人体素模/几何体/群众阵列/本地上传，V/R/S 操作",nm:"R3F 场景编辑器 + model3d 节点（混元/HiTem/Meshy 生成 .glb）",ev:"nodes/Scene3DEditor.tsx · registry.ts:245-260",j:"lead",fx:"Nomi 还能 AI 生成 3D 模型"},
+ {id:"2.4.2",c:"2.4 导演台",f:"机位管理",lt:"多机位、机位视角预览、一键建机位+截图、FOV、注视跟随",nm:"多机位数组 + 机位记录器",ev:"CameraStateRecorder.tsx",j:"par",fx:"无差距"},
+ {id:"2.4.3",c:"2.4 导演台",f:"角色姿势控制",lt:"右侧栏调整人物姿势",nm:"WASD 键盘驾驶角色（步态/跳跃/朝向）",ev:"scene3dCharacterDriveController.tsx:1-27",j:"par",fx:"交互范式不同（摆姿势 vs 开角色），各有优劣"},
+ {id:"2.4.4",c:"2.4 导演台",f:"全景图背景",lt:"导演台贴全景图（上传/历史/一键转换）",nm:"3D 环境面板",ev:"scene3d/scene3dEnvironment.tsx",j:"par",fx:"『普通图一键转全景』依赖全景生成，随 C1 顺带"},
+ {id:"2.4.5",c:"2.4 导演台",f:"角色运动轨迹",lt:"路径模板（直线/圆/矩形）、XYZ 关键帧、播放",nm:"轨迹捕捉 + 轨迹渲染器",ev:"Scene3DTrajectoryCapture.tsx · trajectory/TrajectoryRenderer.tsx",j:"par",fx:"无差距"},
+ {id:"2.4.6",c:"2.4 导演台",f:"摄像机运镜轨迹",lt:"推/拉/横移/环绕/升降/俯冲模板 + 一键跟随拍摄",nm:"12 种运镜预设（含希区柯克变焦）+ 轨迹→参考视频",ev:"scene3d/cameraMovePreset.ts:160-216 · electron/video/framesToVideo.ts",j:"lead",fx:"Nomi 直接产出可用的运镜参考视频"},
+ {id:"2.4.7",c:"2.4 导演台",f:"Blender 插件",lt:"白模录屏直传 LibTV",nm:"无插件；有 ComfyUI 工作流导入/内置浏览器抓素材/.glb 导入",ev:"electron/comfyui* · ui/browser/",j:"na",fx:"插件生态属长尾，不跟"},
+
+ {s:"2.5 音频工具"},
+ {id:"2.5.1",c:"2.5 音频",f:"音频截取",lt:"精准裁剪",nm:"ClipNode trim 仅画面素材语义",ev:"clipNodeModel.ts",j:"miss",fx:"ffmpeg atrim，半天"},
+ {id:"2.5.2",c:"2.5 音频",f:"音频变速",lt:"快慢调节",nm:"无",ev:"",j:"miss",fx:"ffmpeg atempo（0.5–2.0，超范围级联），半天"},
+ {id:"2.5.3",c:"2.5 音频",f:"自定义切分",lt:"按时间点切多段",nm:"无",ev:"",j:"miss",fx:"ffmpeg asplit+atrim，半天"},
+
+ {s:"3. 图像生成器"},
+ {id:"3.1",c:"3. 图像生成器",f:"风格库",lt:"官方风格模板库 + 自定义风格（5–20 张图固化模板）",nm:"提示词库 + 多参考图（风格图作参考，最多 14 图）",ev:"nanoBanana2.ts:117,170",j:"part",fx:"多参考可达同效；『风格预设收藏』可后补（低优）"},
+ {id:"3.2",c:"3. 图像生成器",f:"焦点编辑",lt:"沉浸模式从画布任意图点选提取元素组合",nm:"多参考槽 + AI 元素拆解（一张图拆可编辑图层）",ev:"electron/image/decomposeLayers.ts",j:"lead",fx:"拆图层比点选提取更彻底"},
+ {id:"3.3",c:"3. 图像生成器",f:"镜头聚焦",lt:"框选→特写分镜直出（自带意图推理）",nm:"无显式入口",ev:"",j:"miss",fx:"裁剪+图生图二连 + prompt 预设，半天"},
+ {id:"3.4",c:"3. 图像生成器",f:"摄像机控制",lt:"相机型号/镜头/焦距/光圈参数化生图",nm:"无",ev:"",j:"miss",fx:"本质是 prompt 片段库，进提示词库参数预设，半天"},
+
+ {s:"4. 视频生成器"},
+ {id:"4.1",c:"4. 视频生成器",f:"视频主体库",lt:"多图/视频建主体（Kling O1/O3），主体描述参与 prompt，可挂音色",nm:"角色/场景/道具资产锚 + 身份 DNA + 冻结门一致性；供应商侧由档案声明承接（H3 characterIndexed）",ev:"storyboardPlan.ts:43-80 · minimaxH3.ts:105-109",j:"par",fx:"架构不同：Nomi 锚是模型无关通用槽（P4），LibTV 绑定可灵特定功能"},
+ {id:"4.2",c:"4. 视频生成器",f:"运镜预设",lt:"20+ 运镜预设 + 收藏 + 自定义运镜词",nm:"12 种 3D 运镜预设；视频生成器内 prompt 运镜词无预设面板",ev:"cameraMovePreset.ts:160-216",j:"part",fx:"运镜词表进提示词库『运镜』分组，半天；3D 侧更强"},
+
+ {s:"5. 模型清单"},
+ {id:"5.1",c:"5. 模型",f:"图像模型",lt:"约 12 个（Seedream 全系/LibNavo/Qwen/Z-Image/Style Image…）",nm:"20+ 档案（Seedream 5 Pro/Nano Banana 1·2·Lite/FLUX.2/Qwen-Image/Imagen 4/即梦/魔搭/Runway…）",ev:"config/modelArchetypes/index.ts:73-76",j:"lead",fx:"数量与广度领先"},
+ {id:"5.2",c:"5. 模型",f:"视频模型",lt:"约 8 个；招牌=Seedance 2.5 超长 5min 一键直出",nm:"35 个对账档案（Seedance 五条线/可灵 3/Sora 2/Veo 3.1/Runway/Wan/海螺/Vidu/H3…）",ev:"electron/shared/videoCapabilities/registry.ts:61-96",j:"lead",fx:"广度领先；5min 直出依赖供应商开放度，Nomi 走分段+时间轴合成自控路线，可控性反而更强"},
+ {id:"5.3",c:"5. 模型",f:"语言大模型",lt:"CVLM/GVLM/Qwen3-VL（20min 视频理解）",nm:"文本模型档案 + Canvas Agent（多模态档案可接）",ev:"modelArchetypes/",j:"par",fx:"无差距"},
+ {id:"5.4",c:"5. 模型",f:"音频模型",lt:"Eleven V3/Mureka V8/Minimax 2.8（300+ 音色）",nm:"TTS 豆包/Seed/MiniMax/Eleven；音乐 Suno v5.5（可续写）/Lyria 等；音效双通道",ev:"modelArchetypes/index.ts:34-41",j:"par",fx:"持平"},
+ {id:"5.5",c:"5. 模型",f:"音色克隆",lt:"录音样本→专属音色→持续配音（克隆后 7 天须用一次）",nm:"仅 Runway Seed Audio 一条克隆参考通道",ev:"runwaySeedAudio.ts:68-70",j:"part",fx:"补：MiniMax Voice Clone API 面板（上传→克隆→存 voice_id→下拉可选），调研已确认官方可用，1–2 天"},
+
+ {s:"6. 全局体验"},
+ {id:"6.1",c:"6. 全局",f:"运行形态",lt:"云端 SaaS，浏览器使用，算力积分",nm:"本地优先 Electron；本地推理（Whisper/抠图/ComfyUI）+ 云 API 混合",ev:"electron/comfyui*",j:"na",fx:"定位差异：本地=隐私/离线/零上传，云端=免装机"},
+ {id:"6.2",c:"6. 全局",f:"Agent 入口",lt:"CLI + Skill 接口（『为 Agent 设计』是主打卖点）",nm:"Canvas Agent + 时间轴 Agent + 技能库 + Vercel AI SDK",ev:"agent/applyCanvasToolCall.ts · timeline/agent/",j:"par",fx:"同一战略，Nomi 的 Agent 直接操作画布/时间轴更深"},
+ {id:"6.3",c:"6. 全局",f:"消费透明",lt:"积分制，单独购买算力",nm:"消费确认/花费授权 + 按 key 计费",ev:"spend/",j:"na",fx:"范式不同"},
+ {id:"6.4",c:"6. 全局",f:"快捷键体系",lt:"全套画布快捷键 + 组合 + 跨画布复制",nm:"画布帮助面板 + 时间轴快捷键 + 跨画布剪贴板",ev:"CanvasControlsHelpPopover.tsx · canvasClipboard.ts",j:"par",fx:"无差距"},
+];
+
+const J = {
+  lead:{t:"领先",cls:"b-lead",color:"var(--green)"},
+  par:{t:"持平",cls:"b-par",color:"var(--blue)"},
+  part:{t:"部分",cls:"b-part",color:"var(--amber)"},
+  miss:{t:"缺失",cls:"b-miss",color:"var(--red)"},
+  na:{t:"不跟",cls:"b-na",color:"var(--gray)"},
+};
+
+let state = { judge:null, chapter:"", q:"", collapsed:new Set() };
+
+function render(){
+  const tbody = document.getElementById("tbody");
+  const rows = [];
+  let cur = null, shown = 0;
+  const matches = (d) => {
+    if (d.s) return null;
+    if (state.judge && d.j !== state.judge) return false;
+    if (state.chapter && d.c !== state.chapter) return false;
+    if (state.q) {
+      const q = state.q.toLowerCase();
+      const hay = [d.f,d.lt,d.nm,d.fx,d.ev||"",d.id].join(" ").toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  };
+  for (const d of DATA){
+    if (d.s){
+      cur = { s:d.s, items:[], all:[] };
+      rows.push(cur);
+      continue;
+    }
+    cur.all.push(d);
+    const m = matches(d);
+    if (m) cur.items.push(d);
+  }
+  tbody.innerHTML = "";
+  for (const grp of rows){
+    const items = grp.items;
+    const isCollapsed = state.collapsed.has(grp.s);
+    const tr = document.createElement("tr");
+    tr.className = "section-row";
+    tr.innerHTML = `<td colspan="6">${grp.s}<span class="cnt">${state.judge||state.chapter||state.q ? items.length+" / "+grp.all.length+" 项" : grp.all.length+" 项"}</span></td>`;
+    tr.onclick = () => { isCollapsed ? state.collapsed.delete(grp.s) : state.collapsed.add(grp.s); render(); };
+    tbody.appendChild(tr);
+    if (isCollapsed) continue;
+    if (!items.length){
+      const tr2 = document.createElement("tr");
+      tr2.innerHTML = `<td colspan="6" style="color:var(--text-3)">本节无匹配项</td>`;
+      tbody.appendChild(tr2);
+      continue;
+    }
+    for (const d of items){
+      shown++;
+      const j = J[d.j];
+      const evi = d.ev ? d.ev.split(" · ").map(e=>`<code>${e}</code>`).join(" ") : "—";
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="id">${d.id}</td>
+        <td class="feat">${d.f}</td>
+        <td class="detail hide-sm">${d.lt}</td>
+        <td class="detail">${d.nm}<div class="evi">${evi}</div></td>
+        <td><span class="badge ${j.cls}">${j.t}</span></td>
+        <td class="fix">${d.fx}</td>`;
+      tbody.appendChild(tr);
+    }
+  }
+  if (!shown){
+    tbody.innerHTML = `<tr><td colspan="6" class="empty">没有匹配的功能点，试试清除筛选</td></tr>`;
+  }
+}
+
+// stats
+const counts = {};
+DATA.filter(d=>!d.s).forEach(d=>{ counts[d.j]=(counts[d.j]||0)+1; });
+const statsEl = document.getElementById("stats");
+Object.entries(J).forEach(([k,v])=>{
+  const el = document.createElement("div");
+  el.className = "stat"; el.dataset.j = k;
+  el.innerHTML = `<div class="num" style="color:${v.color}">${counts[k]||0}</div><div class="lbl"><span class="dot" style="background:${v.color}"></span>${v.t}</div>`;
+  el.onclick = () => {
+    state.judge = state.judge === k ? null : k;
+    document.querySelectorAll(".stat").forEach(s=>s.classList.toggle("active", s.dataset.j===state.judge));
+    render();
+  };
+  statsEl.appendChild(el);
+});
+document.getElementById("totalCount").textContent = DATA.filter(d=>!d.s).length;
+
+// chapters
+const chapters = [...new Set(DATA.filter(d=>!d.s).map(d=>d.c))];
+const chSel = document.getElementById("chapterFilter");
+chapters.forEach(c=>{ const o=document.createElement("option"); o.value=c; o.textContent=c; chSel.appendChild(o); });
+chSel.onchange = () => { state.chapter = chSel.value; render(); };
+
+// search
+document.getElementById("search").oninput = (e)=>{ state.q = e.target.value.trim(); render(); };
+
+render();
+</script>
+</body>
+</html>

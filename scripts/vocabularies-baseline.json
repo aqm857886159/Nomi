@@ -1482,6 +1482,18 @@
         "failed"
       ],
       "reason": "上一条阶段表的终态子集，用于让迟到事件被吸收（取消后仍在途的那一批不许把界面拽回处理中）。它是同一张表的投影而不是第二份词表，成员必须逐字取自 VIDEO_DEPTH_PHASES。"
+    },
+    {
+      "site": "electron/shared/agentLane/laneContracts.ts::variable:LANE_APPROVAL_DECISIONS/as-const",
+      "members": [
+        "auto-granted",
+        "cancelled",
+        "denied",
+        "denied-by-policy",
+        "granted-once",
+        "granted-session"
+      ],
+      "reason": "一次工具调用的审批**结局**（方案 2026-09-07-agent-rebuild-stage3-5-deep-plan §1.2）。它不是任务状态、不是工具七态、也不是 ProjectAgentStatus：那三个说的是「这件事做到哪一步了」，这一个说的是「用户对这一次调用给了什么答复，以及没给答复的话是被什么打断的」。不能复用现有 owner 的具体理由：projectAgentContracts 的 approvalScope/approvalPolicy 是**用户选的档位**不是**某一次的结局**；V4ToolStatus 只分得出 approval-requested / approval-responded，把「你说了不要」「你按了停」「你关了窗」「重启前没答完」四件事折成同一个词，而它们的用户文案必须不同（G6-④ 那族的成因）。等待态**故意不在这张表里**：它不是发生了的事，只活在 laneHost 内存与 LaneProjection.pending。"
     }
   ],
   "debt": [

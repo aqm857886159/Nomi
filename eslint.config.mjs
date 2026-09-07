@@ -43,6 +43,8 @@ export default tseslint.config(
       '.claude/**',
       '.hermes/**',
       'skills/**',
+      // 研究产物中的原型脚本（可独立运行的 ESM 采集/校验器）——非产品源码，不 lint。
+      'docs/research/**/prototype/**',
       // design-sync（组件库同步）：.ds-sync 是外部技能暂存的转换器脚本、ds-bundle 是它的构建产物、
       // .design-sync/support 是本地构建脚本+压平后的 CSS——三者都 gitignored，是构建工具不是产品源码，不 lint。
       // （.design-sync/previews/ 是手写的预览组合，走 tsx，保持被 lint。）

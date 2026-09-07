@@ -1,11 +1,15 @@
+// 旧宿主侧的审批**名字解析**那一半。判据本体住在
+// `../shared/agentCapabilities/capabilityApprovalPolicy.ts`——两个宿主共用一份，
+// 免得阶段 4 删掉本目录时新 lane 跟着断，或者反过来长出第二份判据（P1）。
 import { capabilityRequiresPlanReview, resolveCapabilityAlias, resolveCapabilityEffectClass } from "../shared/agentCapabilities/registry";
 import type { CapabilityEffectClass } from "../shared/agentCapabilities/capabilityContract";
 import {
-  projectAgentApprovalPolicyOf,
-  projectAgentWorkModeOf,
-  type ProjectAgentApprovalPolicy,
-  type ProjectAgentWorkMode,
-} from "../shared/projectAgentContracts";
+  capabilityIsHardGated,
+  capabilityMayReuseSafeApproval,
+  capabilityWorkModeDecision,
+  type CapabilityApprovalSubject,
+} from "../shared/agentCapabilities/capabilityApprovalPolicy";
+import type { ProjectAgentApprovalPolicy, ProjectAgentWorkMode } from "../shared/projectAgentContracts";
 
 export type ProjectAgentExecutionRisk = "safe-reversible" | "hard-gate";
 
@@ -13,6 +17,17 @@ export type ProjectAgentWorkModeDecision = Readonly<{
   allowed: boolean;
   reason?: string;
 }>;
+
+/** pi 别名 → 审批需要的那三个契约事实。旧宿主的工具名就是 pi 别名，所以解析只有这一步。 */
+function subjectOf(toolName: string, args?: unknown): CapabilityApprovalSubject {
+  return {
+    effect: resolveCapabilityAlias(toolName)?.contract.effect,
+    effectClass: resolveCapabilityEffectClass(toolName, args),
+    requiresPlanReview: capabilityRequiresPlanReview(toolName),
+    // 旧宿主这条路上的工具全是原生能力，没有外部 MCP 服务器的 hint 可读。
+    destructiveHint: false,
+  };
+}
 
 /** Resolve the descriptor-owned side-effect class before any adapter can write. */
 export function projectAgentExecutionEffectClass(toolName: string, args?: unknown): CapabilityEffectClass | undefined {
@@ -25,55 +40,26 @@ export function projectAgentExecutionEffectClass(toolName: string, args?: unknow
  * unknown aliases fail closed.
  */
 export function projectAgentExecutionRisk(toolName: string, args?: unknown): ProjectAgentExecutionRisk {
-  return projectAgentExecutionEffectClass(toolName, args) === "reversible_local"
-    ? "safe-reversible"
-    : "hard-gate";
+  return capabilityIsHardGated(subjectOf(toolName, args)) ? "hard-gate" : "safe-reversible";
 }
 
 /**
  * Apply the renderer-selected work posture at the Host boundary. The model
  * prompt is guidance only; this decision is the enforcement point before a
- * tool call can reach an adapter. Unknown aliases fail closed for the narrow
- * modes because the Host cannot prove that they are read-only or selection
- * scoped.
+ * tool call can reach an adapter.
  */
 export function projectAgentWorkModeDecision(
   mode: ProjectAgentWorkMode | undefined,
   toolName: string,
   args?: unknown,
 ): ProjectAgentWorkModeDecision {
-  const workMode = projectAgentWorkModeOf(mode);
-  if (workMode === "agent") return { allowed: true };
-
-  const capability = resolveCapabilityAlias(toolName)?.contract;
-  const effect = capability?.effect;
-  if (workMode === "ask") {
-    return effect === "read"
-      ? { allowed: true }
-      : { allowed: false, reason: "Ask mode only permits read-only Agent actions" };
-  }
-
-  // Edit-selection may inspect the project and propose reversible edits, but
-  // it must not start paid/destructive work. The existing target/precondition
-  // gate remains the owner of the exact frozen selection scope.
-  if (effect === "read" || projectAgentExecutionEffectClass(toolName, args) === "reversible_local") {
-    return { allowed: true };
-  }
-  return { allowed: false, reason: "Edit-selection mode only permits read or reversible selection edits" };
+  return capabilityWorkModeDecision(mode, subjectOf(toolName, args));
 }
 
 /**
  * `safe-auto` and `project` allow descriptor-marked local reversible actions
- * without a confirmation card. Spend, irreversible, and unknown actions keep
- * the per-action gate in every mode. `step` always asks for local writes too.
- *
- * One exception, declared by the capability rather than decided here: a
- * descriptor that sets `requiresPlanReview` carries a payload the user has to
- * read (a timeline edit plan is a multi-operation transaction whose effect is
- * invisible from the call). Those ask once per execution under `safe-auto`, and
- * the reuse is granted only by the user's own "this session"/"always" answer —
- * otherwise the plan would commit before its highlight was ever drawn and the
- * intervention slot's escalating choices would have nothing left to change.
+ * without a confirmation card; spend, irreversible and unknown actions keep the
+ * per-action gate in every mode. See the shared policy for the full reasoning.
  */
 export function projectAgentMayReuseSafeApproval(
   policy: ProjectAgentApprovalPolicy | undefined,
@@ -81,9 +67,5 @@ export function projectAgentMayReuseSafeApproval(
   args: unknown,
   safeApprovalGranted: boolean,
 ): boolean {
-  const normalized = projectAgentApprovalPolicyOf(policy);
-  if (normalized.mode === "step") return false;
-  if (projectAgentExecutionEffectClass(toolName, args) !== "reversible_local") return false;
-  if (normalized.mode === "project") return true;
-  return !capabilityRequiresPlanReview(toolName) || safeApprovalGranted;
+  return capabilityMayReuseSafeApproval(policy, subjectOf(toolName, args), safeApprovalGranted);
 }

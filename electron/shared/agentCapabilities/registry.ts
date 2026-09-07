@@ -86,9 +86,39 @@ export function resolveCapabilityAlias(
   return CAPABILITY_ALIAS_ENTRIES.find((entry) => entry.alias === alias);
 }
 
+/**
+ * Look a contract up by its canonical id.
+ *
+ * The alias table answers "which capability is this *name*", which is the right
+ * question for a surface whose tool names are the capability aliases. The Agent
+ * lane is not such a surface: its tool names (`nomi_storyboard_write`) are that
+ * surface's own projection of a capability, so it carries the contract id and
+ * looks the contract up here. One registry, two ways in — not two registries.
+ */
+export function capabilityContractById(contractId: string): AnyCapabilityContract | undefined {
+  return CAPABILITY_CONTRACTS.find((contract) => contract.id === contractId);
+}
+
 /** True when the descriptor says its payload is a plan the user must read first. */
 export function capabilityRequiresPlanReview(toolName: string): boolean {
   return (resolveCapabilityAlias(toolName)?.contract as AnyCapabilityContract | undefined)?.requiresPlanReview === true;
+}
+
+/** The single place that reads a contract's effect class, honouring its per-operation map. */
+export function capabilityEffectClassOf(
+  contract: AnyCapabilityContract | undefined,
+  args?: unknown,
+): CapabilityEffectClass | undefined {
+  if (!contract) return undefined;
+  const operation = args && typeof args === "object" && !Array.isArray(args)
+    ? (args as Record<string, unknown>).operation
+    : undefined;
+  if (typeof operation === "string") {
+    return contract.operationEffectClasses
+      ? contract.operationEffectClasses[operation]
+      : contract.effectClass;
+  }
+  return contract.effectClass;
 }
 
 /** Resolve side-effect policy from the descriptor and its explicit operation map. */
@@ -96,18 +126,7 @@ export function resolveCapabilityEffectClass(
   toolName: string,
   args?: unknown,
 ): CapabilityEffectClass | undefined {
-  const resolved = resolveCapabilityAlias(toolName);
-  if (!resolved) return undefined;
-  const operation = args && typeof args === "object" && !Array.isArray(args)
-    ? (args as Record<string, unknown>).operation
-    : undefined;
-  if (typeof operation === "string") {
-    const contract = resolved.contract as AnyCapabilityContract;
-    return contract.operationEffectClasses
-      ? contract.operationEffectClasses[operation]
-      : contract.effectClass;
-  }
-  return resolved.contract.effectClass;
+  return capabilityEffectClassOf(resolveCapabilityAlias(toolName)?.contract, args);
 }
 
 export function capabilityAliasesFor(contractId: string, surface: string): readonly string[] {

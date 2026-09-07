@@ -102,4 +102,34 @@ describe('laneClient', () => {
     expect(spy).not.toHaveBeenCalled()
     spy.mockRestore()
   })
+
+  it('四个动作里的三个走同一条命令，第四个是 abort——「停」停的是整轮，不是这一次', async () => {
+    const sent: unknown[] = []
+    const client = createLaneClient({
+      onProjection: () => () => {},
+      send: async (command) => { sent.push(command); return { ok: true } },
+    })
+    await client.approve('call-1')
+    await client.approveForSession('call-1')
+    await client.deny('call-1', '不对，横屏')
+    await client.deny('call-1', '   ')
+    await client.abort()
+    expect(sent).toEqual([
+      { kind: 'approval', toolCallId: 'call-1', action: 'allow-once' },
+      { kind: 'approval', toolCallId: 'call-1', action: 'allow-session' },
+      { kind: 'approval', toolCallId: 'call-1', action: 'deny', reason: '不对，横屏' },
+      // 空白理由不过桥：默认文案由主进程决定，不由一串空格决定。
+      { kind: 'approval', toolCallId: 'call-1', action: 'deny' },
+      { kind: 'abort' },
+    ])
+  })
+
+  it('按停止时没送出去的话原样交回调用方——它要回到输入框，不是被丢掉', async () => {
+    const client = createLaneClient({
+      onProjection: () => () => {},
+      send: async () => ({ ok: true, restoredInput: ['不对，横屏'] }),
+    })
+    const result = await client.abort()
+    expect(result).toEqual({ ok: true, restoredInput: ['不对，横屏'] })
+  })
 })

@@ -18,6 +18,7 @@ import { z } from "zod";
 
 import {
   DOCUMENT_READ_ALIASES,
+  DOCUMENT_READ_CAPABILITY,
   documentReadScopeForAlias,
   projectDocumentRead,
   type DocumentReadInput,
@@ -25,6 +26,7 @@ import {
 } from "../shared/agentCapabilities/documentRead";
 import {
   DOCUMENT_WRITE_ALIASES,
+  DOCUMENT_WRITE_CAPABILITY,
   documentWriteOperationForAlias,
   documentWriteResultSchema,
   type DocumentWriteInput,
@@ -161,6 +163,7 @@ export function documentLaneToolSpecs(): LaneToolSpec[] {
     if (!scope) throw new Error(`Unregistered document.read alias: ${alias}`);
     return {
       name: alias,
+      capabilityId: DOCUMENT_READ_CAPABILITY.id,
       description: READ_SPECS[scope].description,
       promptSnippet: READ_SPECS[scope].snippet,
       promptGuidelines: DOCUMENT_GUIDELINES,
@@ -175,6 +178,7 @@ export function documentLaneToolSpecs(): LaneToolSpec[] {
     if (!operation) throw new Error(`Unregistered document.write alias: ${alias}`);
     return {
       name: alias,
+      capabilityId: DOCUMENT_WRITE_CAPABILITY.id,
       description: WRITE_SPECS[operation].description,
       promptSnippet: WRITE_SPECS[operation].snippet,
       promptGuidelines: DOCUMENT_GUIDELINES,

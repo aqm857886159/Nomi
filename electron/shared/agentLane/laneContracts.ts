@@ -167,26 +167,111 @@ export interface LaneProjection {
   /** 这条 lane 现在有没有在跑（`LaneSnapshot.operation !== null`）。 */
   readonly running: boolean
   readonly usage: LaneUsage
+  /** 有一张卡在等用户。**这一段不在 pi 的快照里**，见 `LanePendingApproval`。 */
+  readonly pending?: LanePendingApproval
   readonly thinking: LaneThinking
 }
 
+/**
+ * 宿主记录的两个命名空间（方案 §1.4 规则二）。**分界只有一条：模型该不该看见。**
+ *
+ * · `nomi.ui.*` —— 只给面板画。projector 恒 `() => undefined`，一个 token 都不进模型上下文。
+ *   审批卡是最典型的一条：拒收的理由 pi 已经一字不改地做成了那次调用的 tool result
+ *   （探针 §4.2 臂 B），再投一遍就是同一句话说两遍、买两份上下文。
+ * · `nomi.ctx.*` —— 是模型下一步的依据（用户在卡上改过的提示词那类），逐类型注册 projector。
+ *
+ * 做成**前缀**而不是一张登记表，是因为登记表会漏：新加一个 `nomi.ui.task` 忘了登记，
+ * 症状不是报错，而是它悄悄进了模型上下文。前缀让「进不进」由名字本身决定。
+ */
+export const LANE_UI_NOTE_PREFIX = 'nomi.ui.' as const
+
+/** 见 `LANE_UI_NOTE_PREFIX`。这一族**进**模型上下文。 */
+export const LANE_CTX_NOTE_PREFIX = 'nomi.ctx.' as const
+
+/** 这条宿主记录进不进模型上下文。两个命名空间之外的类型名 fail-closed 到「不进」。 */
+export function laneNoteEntersModelContext(noteType: string): boolean {
+  return noteType.startsWith(LANE_CTX_NOTE_PREFIX)
+}
+
 /** 宿主审批记录的 custom entry 类型名。渲染层按它认出「这是策略拒收，不是工具坏了」。 */
-export const LANE_APPROVAL_NOTE_TYPE = 'nomi.approval' as const
+export const LANE_APPROVAL_NOTE_TYPE = `${LANE_UI_NOTE_PREFIX}approval` as const
+
+/**
+ * 一次工具调用的审批**结局**。等待本身不在这张表里——它不是「发生了的事」，
+ * 只活在 laneHost 内存与 `LaneProjection.pending`（方案 §1.2）。
+ *
+ * 六个值都有各自的用户文案，不许折成一个「没批准」：
+ * 「你关掉了窗口」和「你说了不要」在用户那里是两件完全不同的事（G6-④ 那族）。
+ */
+export const LANE_APPROVAL_DECISIONS = [
+  /** 策略判定直接放行，没有弹过卡。 */
+  'auto-granted',
+  /** 用户点了「允许这次」。 */
+  'granted-once',
+  /** 用户点了「本会话允许这类」，同能力后续直接 `auto-granted`。 */
+  'granted-session',
+  /** 用户点了「不要」，`reason` 是他自己那句话（或默认文案）。 */
+  'denied',
+  /** 预检就拒了：工作模式不允许、无 UI 可问、或硬清单。用户从没被问过。 */
+  'denied-by-policy',
+  /** 等待期被打断：按了停、关了窗、切了项目、或重启前没答完。 */
+  'cancelled',
+] as const
+
+export type LaneApprovalDecision = (typeof LANE_APPROVAL_DECISIONS)[number]
+
+/** `cancelled` 是被什么打断的。文案不同，所以它不是一个可省的细节。 */
+export const LANE_APPROVAL_CANCEL_CAUSES = ['stopped', 'window-closed', 'restart'] as const
+export type LaneApprovalCancelCause = (typeof LANE_APPROVAL_CANCEL_CAUSES)[number]
 
 export interface LaneApprovalNote {
   readonly toolCallId: string
   readonly toolName: string
-  readonly decision: 'granted' | 'denied'
-  /** 拒收时给模型看的那句可行动的话。与工具结果里的那句是同一句，**不是第二份**。 */
+  readonly decision: LaneApprovalDecision
+  /** 拒收/取消时给模型看的那句可行动的话。与工具结果里的那句是同一句，**不是第二份**。 */
   readonly reason?: string
+  readonly cause?: LaneApprovalCancelCause
 }
+
+const APPROVAL_DECISIONS: ReadonlySet<string> = new Set(LANE_APPROVAL_DECISIONS)
 
 export function isLaneApprovalNote(value: unknown): value is LaneApprovalNote {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false
   const note = value as Record<string, unknown>
   return typeof note.toolCallId === 'string' && typeof note.toolName === 'string'
-    && (note.decision === 'granted' || note.decision === 'denied')
+    && typeof note.decision === 'string' && APPROVAL_DECISIONS.has(note.decision)
 }
+
+/** 一条被拒的记录（含策略拒和取消）——面板据此把那一行从「坏了」改成「被拒了」。 */
+export function laneApprovalWasRefused(note: LaneApprovalNote): boolean {
+  return note.decision === 'denied' || note.decision === 'denied-by-policy' || note.decision === 'cancelled'
+}
+
+/**
+ * 「它在等你」。
+ *
+ * **必须由宿主投影，不能从 pi 快照推**：停在预检里的调用 `execute` 还没开始，
+ * 它不在 `runningTools` 里、`operation.status` 只会写 `open`——pi 眼里「在等人」
+ * 和「在等模型回话」是同一个字（探针 §2.1 实核）。
+ */
+export interface LanePendingApproval {
+  readonly toolCallId: string
+  readonly toolName: string
+  readonly args: unknown
+  /** 这次调用的效果类，面板据此选介入槽的 kind 与徽标。解不出就是 `undefined`（fail-closed 到不可逆）。 */
+  readonly effectClass?: 'reversible_local' | 'spend' | 'irreversible'
+  /**
+   * 「本会话允许这类」这个按钮该不该出现。只有本地可撤销的改动有它；
+   * 花钱的、不可逆的、`step` 档下的永远逐次问——门槛与现役介入槽逐字一致，不加宽。
+   */
+  readonly grantable: boolean
+  /** 同时待决的条数。串行执行下恒为 1，留着是因为并行读那一批可能同时进预检。 */
+  readonly pendingCount: number
+}
+
+/** 用户在审批卡上能做的四件事。「停」不在这里——它是 `abort`，停的是整轮不是这一次。 */
+export const LANE_APPROVAL_ACTIONS = ['allow-once', 'allow-session', 'deny'] as const
+export type LaneApprovalAction = (typeof LANE_APPROVAL_ACTIONS)[number]
 
 /**
  * 模型可见的工具结果上限。**两个都是 pi 自己内建工具用的那两个数**
@@ -211,6 +296,28 @@ export const LANE_MODEL_OUTPUT_MAX_BYTES = 50 * 1024
 export type LaneCommand =
   | { readonly kind: 'prompt'; readonly text: string }
   | { readonly kind: 'abort' }
+  /**
+   * 对某一张审批卡的答复。`toolCallId` 是 pi 铸的，渲染层只是把它原样送回来——
+   * 它证明「用户答的是这一张卡」，而不是答完之后又来了一张、答案落到了新的那张上。
+   */
+  | {
+      readonly kind: 'approval'
+      readonly toolCallId: string
+      readonly action: LaneApprovalAction
+      /** 「不要」时用户那句话。空 = 用默认文案；它会一字不改成为模型看到的拒收理由。 */
+      readonly reason?: string
+    }
+
+/**
+ * 一条命令执行完之后，主进程有没有东西要交还给用户。
+ *
+ * 今天只有一样：`abort` 从 pi 的 `AbortResult` 里拿回**没送出去的插话**
+ * （`lane.js:799-808`）。用户按停止的那一刻，他刚打的字不能丢——TUI 的
+ * `restoreQueuedMessagesToEditor` 就是这么做的，我们抄它。
+ */
+export interface LaneCommandOutcome {
+  readonly restoredInput?: readonly string[]
+}
 
 /**
  * 阶段 1 的两条通道名。**它们此刻没有注册进 `main.ts`**——影子期用户走不到新通路，
@@ -229,6 +336,6 @@ export interface LaneHandle {
   readonly sessionId: string
   projection(): LaneProjection
   subscribe(listener: (projection: LaneProjection) => void): () => void
-  execute(command: LaneCommand): Promise<void>
+  execute(command: LaneCommand): Promise<LaneCommandOutcome>
   close(): Promise<void>
 }

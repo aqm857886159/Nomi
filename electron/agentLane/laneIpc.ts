@@ -46,7 +46,10 @@ export function registerAgentLaneIpc(dependencies: LaneIpcDependencies): LaneIpc
     const lane = dependencies.lane()
     if (!lane) return { ok: false as const, code: 'agent_lane_closed', message: 'No agent lane is open for this project.' }
     try {
-      await lane.execute(parseLaneCommand(wire))
+      // 命令的**回值**只有一样东西：用户按停止时没送出去的话（`LaneCommandOutcome`）。
+      // 不是「结果」——转录永远走投影那条通道，请求-响应这条只回「你刚说的话我还给你」。
+      const outcome = await lane.execute(parseLaneCommand(wire))
+      return { ok: true as const, ...outcome }
     } catch (error) {
       // 解不出来的命令是**渲染层的**错，跑不动的命令是**运行时的**错。两者都回一句人话，
       // 不回错误码字符串——「回给调用方一个 code 就算交代了」正是 #547 §2.2⑤ 记的那条
@@ -54,7 +57,6 @@ export function registerAgentLaneIpc(dependencies: LaneIpcDependencies): LaneIpc
       const code = error instanceof LaneCommandError ? error.code : 'agent_lane_execute_failed'
       return { ok: false as const, code, message: error instanceof Error ? error.message : String(error) }
     }
-    return { ok: true as const }
   })
 
   const lane = dependencies.lane()

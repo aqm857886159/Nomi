@@ -1,0 +1,71 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-07-agent-lane-stage3a-approval-gate",
+  "change_kind": "structural",
+  "problem_type": "the approval decision has two owners and the shadow Agent lane has none, so the rebuilt path could ship a second, quietly different answer to 'should this stop and ask the user'",
+  "symptom": "The root-cause gate flags electron/agentLane/laneIpc.ts as a high-risk production file (it matches electron/**ipc.ts) because this change adds a third command kind to that bridge and gives it a return value. This is not a repair of a broken channel: it is stage 3a of the agent runtime rebuild (docs/plan/2026-09-07-agent-rebuild-stage3-5-deep-plan.md §1.1-§1.5), which puts the approval gate on the new path. The failure mode worth a written contract is not the channel — it is that the new path could grow its own copy of the approval policy, and a second copy of 'may this write happen without asking' is exactly the kind of divergence nobody notices until it silently approves something.",
+  "migration": "No runtime migration. The lane bridge stays unreachable: electron/main.ts still does not call registerAgentLaneIpc, preload exposes no nomi:agent-lane:* channel, and resolveLaneBridge() returns undefined in every shipped build (electron/agentLane/laneShadowStructure.test.ts still asserts all three). Users keep walking electron/projectAgentHost, and its behaviour is unchanged: projectAgentExecutionPolicy.ts keeps its four exported functions with identical signatures and identical answers, now delegating to the shared decision module instead of holding the rule bodies itself. Its own test file was not touched and still passes.",
+  "scope_paths": [
+    "electron/agentLane/",
+    "electron/shared/agentLane/",
+    "electron/shared/agentCapabilities/",
+    "electron/projectAgentHost/projectAgentExecutionPolicy.ts",
+    "src/workbench/ai/lane/"
+  ],
+  "structural_evidence": {
+    "affected_paths": [
+      "electron/agentLane/laneIpc.ts",
+      "electron/agentLane/laneHost.mts",
+      "electron/agentLane/laneApprovalGate.ts",
+      "electron/agentLane/laneCommandCodec.ts",
+      "electron/agentLane/laneProjection.mts",
+      "electron/agentLane/laneRuntimePort.ts",
+      "electron/agentLane/laneTools.mts",
+      "electron/shared/agentLane/laneApproval.ts",
+      "electron/shared/agentLane/laneContracts.ts",
+      "electron/shared/agentCapabilities/capabilityApprovalPolicy.ts",
+      "electron/shared/agentCapabilities/registry.ts",
+      "electron/projectAgentHost/projectAgentExecutionPolicy.ts",
+      "src/workbench/ai/lane/laneClient.ts",
+      "src/workbench/ai/lane/laneViewModel.ts"
+    ],
+    "preserved_exports": [
+      { "path": "electron/projectAgentHost/projectAgentExecutionPolicy.ts", "name": "projectAgentExecutionEffectClass" },
+      { "path": "electron/projectAgentHost/projectAgentExecutionPolicy.ts", "name": "projectAgentExecutionRisk" },
+      { "path": "electron/projectAgentHost/projectAgentExecutionPolicy.ts", "name": "projectAgentWorkModeDecision" },
+      { "path": "electron/projectAgentHost/projectAgentExecutionPolicy.ts", "name": "projectAgentMayReuseSafeApproval" },
+      { "path": "electron/shared/agentCapabilities/registry.ts", "name": "resolveCapabilityEffectClass" },
+      { "path": "electron/shared/agentCapabilities/registry.ts", "name": "capabilityRequiresPlanReview" }
+    ],
+    "behavior_preservation": "Two separate claims, each with its own evidence. (1) The live path answers exactly what it answered before: the four exported functions of projectAgentExecutionPolicy.ts keep their names and signatures and now call electron/shared/agentCapabilities/capabilityApprovalPolicy.ts, which is the same rule bodies moved verbatim (step never reuses; non-reversible_local never reuses; project always reuses; safe-auto reuses unless requiresPlanReview and not yet granted; ask permits only effect=read; editSelection permits read or reversible_local). Its untouched test file electron/projectAgentHost/projectAgentExecutionPolicy.test.ts still passes, and it is the file that would go red if any of those answers moved. The one addition, destructiveHint, is wired to a constant false on that path, so it cannot change any existing answer. (2) The new path is still unreachable and the panel is untouched: laneShadowStructure.test.ts is unchanged and still green, and the 62 design-lab baselines are byte-identical (no PNG in tests/ux/design-lab/__baselines__ appears in this diff). What is new on the lane — the wait, the four actions, the cancel causes, the restart refusal — has no counterpart on the live path and is therefore verified by its own tests rather than by parity.",
+    "verification_limits": "Stated plainly. (a) The abort path returns the words the user had queued but not sent (LaneCommandOutcome.restoredInput, read from pi's AbortResult.steer). That plumbing is asserted end to end only for the empty case, because the lane surface has no steer command yet — queueing a message while a card waits is §1.3 of the plan and lands with the queue gate G3e, not here. That AbortResult.steer really carries the unsent text was measured on 0.85.1 by the stage-3 probe (docs/research/2026-09-07-agent-lane-stage3-probes.md §2.2), not by a test in this change. (b) No UI walkthrough or screenshot exists for the waiting card, and cannot: photographing it would require registering the lane IPC, which would break the unreachability this and the stage-1 contract both assert. The renderer side of this change is data only — laneViewModel exposes the pending card and maps it onto the existing intervention projector; no v4 component was edited. (c) Per-tool executionMode is now derived from the declared side effects, but AgentHarness does not read that field today (it dispatches on the run-level toolExecution setting, harness/runtime/drive/tools.js:445), so no real batch changes shape in this commit; the derivation is the declaration upstream's own type asks for, and the lane still runs sequential. (d) The R30 fixture now carries a third arm (with-approval: every first call is refused with a sentence, the rest allowed), and it asserts that turn success does not drop below the stage-2 baseline. It is a loopback fixture, so those are fixture numbers, not real-model numbers: what it can prove is that a refusal keeps the turn finishable, not that a real model reads the user's sentence well. Real-model R30 for the approval arm is not measured in this change.",
+    "structural_tests": [
+      "electron/shared/agentLane/laneApproval.test.ts",
+      "tests/agent-runtime/lane-approval-gate.test.mts"
+    ]
+  },
+  "regression_tests": [
+    "electron/shared/agentLane/laneApproval.test.ts",
+    "tests/agent-runtime/lane-approval-gate.test.mts",
+    "tests/agent-runtime/lane-slice.test.mts",
+    "electron/agentLane/laneCommandCodec.test.ts",
+    "src/workbench/ai/lane/laneViewModel.test.ts",
+    "src/workbench/ai/lane/laneClient.test.ts"
+  ],
+  "residual_risks": [
+    "The session grant table lives in laneHost memory and is deliberately never written to disk, so 'allow this kind for the session' cannot leak past the process. The cost of that choice is that a crash loses it and the user is asked again — which is the direction we want an approval store to fail in, but it is a real friction and it is not measured anywhere.",
+    "A restart cancels any call that was waiting for confirmation, using the set of tool calls that have no result in the reopened transcript. If a future pi version starts committing results before the assistant frame, that set would be computed from a transcript shaped differently than the one it was written against; the test that would notice is the crash arm of lane-approval-gate.test.mts, which kills a real child process rather than simulating one.",
+    "destructiveHint is wired through the decision as 'raise friction only', but nothing sets it to true yet — MCP tools reach the lane in stage 5. Until then that branch is covered by unit tests over fixture subjects, not by a real external server.",
+    "The lane still has no spend-class or irreversible tool, so the hard list is exercised by fixture subjects rather than by a real paid capability. The first genuinely paid tool arrives with the generation capabilities later in stage 3, and it is the first time that branch will be measured against real money."
+  ],
+  "internal_only_reason": "Every fact this contract turns on is a property of this repository or of the installed pi package read at file:line — which decision function answers a question, whether an IPC channel is registered, and what before_tool does when a hook awaits. The upstream behaviours it depends on (abort does not interrupt a pending hook promise; a thrown hook becomes a block; resume re-asks before_tool for a call that never published its intent) were measured on 0.85.1 and are written down with file:line in docs/research/2026-09-07-agent-lane-stage3-probes.md, so there is no external source to cite beyond the package itself.",
+  "invariant_owner_layer": {
+    "layer": "electron/shared/agentCapabilities/capabilityApprovalPolicy.ts",
+    "tests": [
+      "electron/shared/agentLane/laneApproval.test.ts",
+      "electron/projectAgentHost/projectAgentExecutionPolicy.test.ts",
+      "tests/agent-runtime/lane-approval-gate.test.mts"
+    ],
+    "why": "这条不变量是「『这次写入要不要先问用户』只有一个答案」。它归**共享判定层** `capabilityApprovalPolicy.ts` 管，不归任何一条 lane、任何一个宿主管——两条宿主（现役 projectAgentHost、重建中的 agentLane）都从这里取答案，所以两边答得不一样这件事在这一层表达不出来。选这一层而不是 laneApprovalGate.ts 是 R28：闸是「问了之后怎么办」，判定是「要不要问」；把判定留在闸里，第二条宿主接进来的那天就必然抄第二份。\n这一层有三侧测试，各证一件不同的事：`laneApproval.test.ts` 证判定表本身（三档 × 效果类 × 硬清单 × destructiveHint 只能抬高摩擦，纯函数，不需要跑 lane）；`projectAgentExecutionPolicy.test.ts` 是**没被这次改动碰过**的现役路径测试，它证「搬进共享层之后现役答案一个字都没变」——它红就是行为漂移，不是重构；`lane-approval-gate.test.mts` 证判定之后那一段（fail-closed、等待期不花钱、按停、崩溃重启）在真 lane 上真的这么走。三份分开是因为「判定对了」和「闸照判定做了」可以同时不成立。"
+  }
+}

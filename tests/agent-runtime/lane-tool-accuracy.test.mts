@@ -44,7 +44,17 @@ interface Measurement {
   total: number
 }
 
-async function measure(t: TestContext, arm: 'with-tolerance' | 'without-tolerance'): Promise<Measurement> {
+/**
+ * 三条臂。
+ *
+ * `with-approval` 是阶段 3a 加的那一条（R30 的「审批介入臂」）：闸开在「每步问」上，
+ * 用户对**第一次**调用一律答「不要 + 一句话」，之后的照常允许。它问的不是写对率
+ * （那一臂 0/8 是构造出来的），而是**审批会不会把回合成功率打下来**——一次被拒必须
+ * 让模型读到那句话、自己改、把这一轮做完，而不是把整条 lane 卡在那里。
+ */
+type MeasurementArm = 'with-tolerance' | 'without-tolerance' | 'with-approval';
+
+async function measure(t: TestContext, arm: MeasurementArm): Promise<Measurement> {
   let firstCallHits = 0;
   let turnsFinished = 0;
   for (const attempt of FIRST_CALLS) {
@@ -59,9 +69,26 @@ async function measure(t: TestContext, arm: 'with-tolerance' | 'without-toleranc
     const fixture = await createLaneFixture(t, replies);
     const tools = createDocumentLaneTools(document);
     const lane = await openLane({
-      ...fixture.options, tools: arm === 'with-tolerance' ? tools : withoutTolerance(tools),
+      ...fixture.options, tools: arm === 'without-tolerance' ? withoutTolerance(tools) : tools,
+      ...(arm === 'with-approval'
+        ? { approval: { hasUserInterface: true, policy: () => ({ mode: 'step' as const, spend: 'confirm' as const }) } }
+        : {}),
     });
+    // 介入臂：第一张卡答「不要 + 一句话」，之后的允许。用户那句话会一字不改成为
+    // 模型看到的 tool result——这一轮能不能收尾，靠的就是它。
+    const answered = new Set<string>();
+    const stopWatching = arm === 'with-approval'
+      ? lane.subscribe((projection) => {
+        const card = projection.pending;
+        if (!card || answered.has(card.toolCallId)) return;
+        answered.add(card.toolCallId);
+        void lane.execute(answered.size === 1
+          ? { kind: 'approval', toolCallId: card.toolCallId, action: 'deny', reason: '别用这个说法，换一句更平的。' }
+          : { kind: 'approval', toolCallId: card.toolCallId, action: 'allow-once' });
+      })
+      : () => {};
     await lane.execute({ kind: 'prompt', text: 'Append the closing line.' });
+    stopWatching();
     const parts = lane.projection().parts;
     await lane.close();
 
@@ -79,6 +106,9 @@ async function measure(t: TestContext, arm: 'with-tolerance' | 'without-toleranc
 test('R30 · first-call accuracy and turn success, with a no-tolerance control arm', async (t) => {
   const treated = await measure(t, 'with-tolerance');
   const control = await measure(t, 'without-tolerance');
+  const approval = await measure(t, 'with-approval');
+  console.log(`[R30] turn success rate    with approval (first call always refused): `
+    + `${approval.turnsFinished}/${approval.total}`);
 
   // 数字打进日志，PR 正文直接引用它，不用谁去心算。
   console.log(`[R30] first-call accuracy  with tolerance: ${treated.firstCallHits}/${treated.total}`
@@ -101,6 +131,13 @@ test('R30 · first-call accuracy and turn success, with a no-tolerance control a
   //    而在有重试的世界里它本来就不会涨。
   assert.equal(treated.turnsFinished, treated.total);
   assert.equal(control.turnsFinished, control.total);
+
+  // ④ **审批不能把回合成功率打下来**（R30 的阶段 3a 那一条）。被拒一次之后，模型读到
+  //    用户那句话、改、把这一轮做完——闸买的是「用户说了算」，不是「做不完了」。
+  assert.ok(approval.turnsFinished >= treated.turnsFinished,
+    `approval must not lower turn success; got approval=${approval.turnsFinished} baseline=${treated.turnsFinished}`);
+  // 而第一次确实被拒了：不写这条，一个「闸根本没生效」的实现也会拿到满分。
+  assert.equal(approval.firstCallHits, 0, 'the first call really was refused in every task');
 });
 
 test('R30 · tolerance is a hug, not a loosened schema', async (t) => {

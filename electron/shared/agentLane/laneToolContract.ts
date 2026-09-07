@@ -70,6 +70,19 @@ export interface LaneToolEffects {
 export interface LaneToolSpec {
   readonly name: string;
   /**
+   * 这个工具投影的那个能力契约 id（`canvas.write`）。**必填。**
+   *
+   * 为什么不用工具名去查：lane 上的工具名是**这个面自己的名字**
+   * （`nomi_storyboard_write` 不在 `CANVAS_WRITE_CAPABILITY.aliases` 里，也不该在——
+   * 三个 lane 工具投影的是同一个能力）。审批要的 `effectClass` / `requiresPlanReview`
+   * 只有契约知道，所以工具**自己说**它是谁的投影，通用系统按 id 去 registry 取
+   * （P4：档案声明槽，通用系统负责填）。
+   *
+   * 「本会话允许这类」的 grant 也按这个 id 记：用户点的是「这类改动」，
+   * 而不是「这个名字」——同一个能力的三个投影不该让他答三遍。
+   */
+  readonly capabilityId: string;
+  /**
    * 通道①。**只说这个工具自己的事**：干什么、有什么限制、输出会不会被截断。
    * 「该用它还是用隔壁那个」不写在这里——那是通道③ 的活，写在这里就是买 N 遍。
    */

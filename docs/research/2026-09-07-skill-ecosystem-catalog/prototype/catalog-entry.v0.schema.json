@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nomi.app/catalog/entry.v0.schema.json",
+  "title": "Nomi Catalog Entry v0",
+  "description": "创作资产 Registry 目录条目。三类资产（skill/effect-pack/lora）共用统一外层，分型接入。对应 docs/research/2026-09-07-skill-ecosystem-catalog/collection-schema.md",
+  "type": "object",
+  "required": ["id", "kind", "owner", "name", "description", "domain", "source", "validation", "security", "curation"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^[^:]+::[^:]+$", "description": "owner/repo::name 唯一键" },
+    "kind": { "enum": ["skill", "effect-pack", "lora"], "description": "资产类型：skill=SKILL.md 方法论；effect-pack=素材+提示词+参考；lora=模型权重" },
+    "owner": { "type": "string" },
+    "repo": { "type": "string" },
+    "name": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$", "description": "kebab-case 唯一名，与目录同名" },
+    "title": { "type": "string", "description": "拟人化展示名（不进 SKILL.md，仅展示层）" },
+    "version": { "type": "string" },
+    "skillPath": { "type": "string", "description": "仓内相对路径（lora 为权重路径）" },
+    "description": { "type": "string", "maxLength": 1024 },
+    "license": { "type": "string", "enum": ["apache-2.0", "mit", "gpl-2.0", "other", "none", ""] },
+    "compatibility": { "type": "string", "maxLength": 500 },
+    "tags": { "type": "array", "items": { "type": "string" } },
+    "domain": { "type": "string", "enum": ["prompt-engineering", "scriptwriting", "storyboard", "short-video", "ugc-advertising", "voice-music", "editing-subtitles", "character-consistency", "collection"] },
+    "craft": { "type": "string", "enum": ["writer", "director", "producer", "editor", "audio", ""] },
+    "modality": { "type": "string", "enum": ["character", "voice", "style", "motion", ""], "description": "lora/effect-pack 常用" },
+    "preview": {
+      "type": "object",
+      "description": "效果橱窗核心：无样张不上首屏",
+      "properties": {
+        "kind": { "enum": ["demo-video", "author-gallery", "local-probe", "none"] },
+        "url": { "type": "string" },
+        "gallery": { "type": "array", "items": { "type": "string" } },
+        "caption": { "type": "string" },
+        "requiredForFeatured": { "type": "boolean" }
+      }
+    },
+    "source": {
+      "type": "object",
+      "required": ["type", "url"],
+      "properties": {
+        "type": { "enum": ["github", "huggingface", "local", "site"] },
+        "url": { "type": "string" },
+        "repoId": { "type": "string" },
+        "ref": { "type": "string" },
+        "publishedVia": { "type": "string" },
+        "collectedAt": { "type": "string" },
+        "verified": { "type": ["boolean", "string"] }
+      }
+    },
+    "validation": {
+      "type": "object",
+      "properties": {
+        "status": { "enum": ["pass", "invalid", "unknown"] },
+        "checkedBy": { "type": "string" },
+        "nameLenOk": { "type": "boolean" },
+        "descLenOk": { "type": "boolean" },
+        "reservedWordOk": { "type": "boolean" },
+        "dirNameMatches": { "type": "boolean" }
+      }
+    },
+    "security": {
+      "type": "object",
+      "properties": {
+        "auditStatus": { "enum": ["scanned-pass", "scanned-fail", "unscanned"] },
+        "auditReportUrl": { "type": "string" },
+        "verified": { "enum": ["official", "partner", "community"] }
+      }
+    },
+    "stats": {
+      "type": "object",
+      "properties": {
+        "installs": { "type": "number" },
+        "stars": { "type": "number" },
+        "updatedAt": { "type": "string" }
+      }
+    },
+    "adapterForNomi": {
+      "type": "object",
+      "properties": {
+        "needs": { "enum": ["direct", "tools-mapping", "rewrite", "reference-only", "comfyui-install", ""] },
+        "mappedTools": { "type": "array", "items": { "type": "string" } },
+        "requiredProviders": { "type": "array", "items": { "type": "string" } },
+        "notes": { "type": "string" }
+      }
+    },
+    "curation": {
+      "type": "object",
+      "required": ["status"],
+      "properties": {
+        "status": { "enum": ["official", "curated", "candidate", "open-directory", "rejected"] },
+        "rejectedReason": { "type": "string" }
+      }
+    }
+  }
+}

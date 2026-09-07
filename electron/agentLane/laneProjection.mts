@@ -11,8 +11,9 @@ import type { LaneSnapshot } from '@earendil-works/pi-agent-core';
 import { getSupportedThinkingLevels } from '@earendil-works/pi-ai';
 import type { Api, AssistantMessage, Model, Usage } from '@earendil-works/pi-ai';
 import type { NomiPricingBasis } from '../harness/runtime/pi/model.mjs';
-import type { LaneMetric, LanePart, LaneProjection, LaneThinking, LaneThinkingLevel }
-  from '../shared/agentLane/laneContracts.js';
+import type {
+  LaneMetric, LanePart, LanePendingApproval, LaneProjection, LaneThinking, LaneThinkingLevel,
+} from '../shared/agentLane/laneContracts.js';
 
 function textOf(content: unknown): string {
   if (typeof content === 'string') return content;
@@ -136,7 +137,16 @@ function projectThinking(snapshot: LaneSnapshot, model: Model<Api>): LaneThinkin
   };
 }
 
-export function projectLaneSnapshot(snapshot: LaneSnapshot, facts: LaneModelFacts): LaneProjection {
+export function projectLaneSnapshot(
+  snapshot: LaneSnapshot,
+  facts: LaneModelFacts,
+  /**
+   * 「它在等你」。**它不在快照里，所以它只能当参数进来**：停在预检里的调用 `execute`
+   * 还没开始，pi 眼里它不存在（`runningTools` 空、`operation.status` 恒 `open`——
+   * 探针 §2.1）。想从快照里把它推出来，只能靠猜。
+   */
+  pending?: LanePendingApproval,
+): LaneProjection {
   const parts: LanePart[] = [];
   const running = snapshot.operation?.runningTools ?? [];
   const runningToolCallIds = new Set(running.filter((tool) => tool.status === 'running').map((tool) => tool.toolCallId));
@@ -176,6 +186,7 @@ export function projectLaneSnapshot(snapshot: LaneSnapshot, facts: LaneModelFact
     lane: snapshot.lane,
     parts,
     running: snapshot.operation !== null,
+    ...(pending ? { pending } : {}),
     usage: {
       inputTokens: usage.input,
       outputTokens: usage.output,

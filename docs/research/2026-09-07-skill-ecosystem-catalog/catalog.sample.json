@@ -1,0 +1,2396 @@
+{
+  "$schema": "https://nomi.app/catalog/collection.v0.schema.json",
+  "collectionNote": "首版采集样例。summary 为采集时的一句话用途（中文，暂代 description 展示态）；description 原文需 P0 采集管线从 SKILL.md frontmatter 抓取后回填。GitHub 源已经 API 存活核验（200=存在，301=改名重定向）。validation/security/stats 均未跑正式审计，首版全为占位。",
+  "collectedAt": "2026-09-07",
+  "entries": [
+    {
+      "id": "anthropics/skills::canvas-design",
+      "owner": "anthropics",
+      "repo": "skills",
+      "name": "canvas-design",
+      "skillPath": "",
+      "version": "",
+      "summary": "静态画面设计哲学+生成规范（官方）",
+      "domain": "prompt-engineering",
+      "craft": "director",
+      "license": "",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/anthropics/skills",
+        "ref": "main",
+        "publishedVia": "claude-plugin",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "official"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 174982,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "official"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "canvas-design"
+    },
+    {
+      "id": "smixs/visual-skills::video",
+      "owner": "smixs",
+      "repo": "visual-skills",
+      "name": "video",
+      "skillPath": "",
+      "version": "",
+      "summary": "AI导演+剧作+镜头一体（需适配 Nomi 工具）",
+      "domain": "prompt-engineering",
+      "craft": "director",
+      "license": "",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/smixs/visual-skills",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 311,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "adapterForNomi": {
+        "needs": "tools-mapping",
+        "notes": "映射到 Nomi 画布工具"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "video"
+    },
+    {
+      "id": "jnMetaCode/ai-shortfilm-prompts::main",
+      "owner": "jnMetaCode",
+      "repo": "ai-shortfilm-prompts",
+      "name": "ai-shortfilm-prompts",
+      "skillPath": "",
+      "version": "",
+      "summary": "五段式电影感视频提示词",
+      "domain": "prompt-engineering",
+      "craft": "writer",
+      "license": "",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/jnMetaCode/ai-shortfilm-prompts",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 399,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "ai-shortfilm-prompts"
+    },
+    {
+      "id": "samuraigpt/generative-media-skills::muapi-cinema-director",
+      "owner": "samuraigpt",
+      "repo": "generative-media-skills",
+      "name": "muapi-cinema-director",
+      "skillPath": "",
+      "version": "",
+      "summary": "Seedance/Veo 电影级导演提示（60 技能聚合池）",
+      "domain": "prompt-engineering",
+      "craft": "director",
+      "license": "",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/samuraigpt/generative-media-skills",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 4234,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "adapterForNomi": {
+        "needs": "tools-mapping",
+        "notes": "绑定 muapi API"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "muapi-cinema-director"
+    },
+    {
+      "id": "majiayu000/claude-skill-registry::video-generation",
+      "owner": "majiayu000",
+      "repo": "claude-skill-registry",
+      "name": "video-generation",
+      "skillPath": "",
+      "version": "",
+      "summary": "Veo/Sora/Kling 配方快查",
+      "domain": "prompt-engineering",
+      "craft": "writer",
+      "license": "",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/majiayu000/claude-skill-registry",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 596,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "video-generation"
+    },
+    {
+      "id": "YouMind-OpenLab/ai-image-prompts-skill::main",
+      "owner": "YouMind-OpenLab",
+      "repo": "ai-image-prompts-skill",
+      "name": "ai-image-prompts-skill",
+      "skillPath": "",
+      "version": "",
+      "summary": "1万+ 带样张提示词库（纯资料可直接收）",
+      "domain": "prompt-engineering",
+      "craft": "writer",
+      "license": "",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/YouMind-OpenLab/ai-image-prompts-skill",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 973,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "ai-image-prompts-skill"
+    },
+    {
+      "id": "manzxiao/text-to-image-prompt-optimizer::main",
+      "owner": "manzxiao",
+      "repo": "text-to-image-prompt-optimizer",
+      "name": "text-to-image-prompt-optimizer",
+      "skillPath": "",
+      "version": "",
+      "summary": "中英双语图像提示词优化",
+      "domain": "prompt-engineering",
+      "craft": "writer",
+      "license": "",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/manzxiao/text-to-image-prompt-optimizer",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 2,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "text-to-image-prompt-optimizer"
+    },
+    {
+      "id": "claudskills.com::video-prompt",
+      "owner": "claudskills.com",
+      "repo": "",
+      "name": "video-prompt",
+      "skillPath": "",
+      "version": "",
+      "summary": "20+ 模型分渠道视频提示词（社区站，仅参考）",
+      "domain": "prompt-engineering",
+      "craft": "writer",
+      "license": "",
+      "source": {
+        "type": "site",
+        "url": "https://claudskills.com/skills/video-prompt",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": false
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 0,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "video-prompt"
+    },
+    {
+      "id": "Coconah/AI-Short-Drama-Agent-Skill::main",
+      "owner": "Coconah",
+      "repo": "AI-Short-Drama-Agent-Skill",
+      "name": "AI-Short-Drama-Agent-Skill",
+      "skillPath": "",
+      "version": "",
+      "summary": "中文爆款短剧 5 步 SOP（重点适配）",
+      "domain": "scriptwriting",
+      "craft": "writer",
+      "license": "",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/Coconah/AI-Short-Drama-Agent-Skill",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 14,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "adapterForNomi": {
+        "needs": "tools-mapping"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "AI-Short-Drama-Agent-Skill"
+    },
+    {
+      "id": "Anusd6703/writers-room-story-engine::main",
+      "owner": "Anusd6703",
+      "repo": "writers-room-story-engine",
+      "name": "writers-room-story-engine",
+      "skillPath": "",
+      "version": "",
+      "summary": "皮克斯 22 法则故事引擎（仅参考）",
+      "domain": "scriptwriting",
+      "craft": "writer",
+      "license": "",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/Anusd6703/writers-room-story-engine",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 3,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "writers-room-story-engine"
+    },
+    {
+      "id": "danjdewhurst/story-skills::main",
+      "owner": "danjdewhurst",
+      "repo": "story-skills",
+      "name": "story-skills",
+      "skillPath": "",
+      "version": "",
+      "summary": "分技能端到端小说写作（仅参考）",
+      "domain": "scriptwriting",
+      "craft": "writer",
+      "license": "",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/danjdewhurst/story-skills",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 207,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "story-skills"
+    },
+    {
+      "id": "Zzzeen2552/storytelling-mastery-skill::main",
+      "owner": "Zzzeen2552",
+      "repo": "storytelling-mastery-skill",
+      "name": "storytelling-mastery-skill",
+      "skillPath": "",
+      "version": "",
+      "summary": "六大师叙事七支柱框架（可直接收）",
+      "domain": "scriptwriting",
+      "craft": "writer",
+      "license": "",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/Zzzeen2552/storytelling-mastery-skill",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 2,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "storytelling-mastery-skill"
+    },
+    {
+      "id": "KartikSharma4448/aegiscare::storyboard",
+      "owner": "KartikSharma4448",
+      "repo": "aegiscare",
+      "name": "storyboard",
+      "skillPath": "",
+      "version": "",
+      "summary": "社媒分镜+留存物理钩子（需适配）",
+      "domain": "storyboard",
+      "craft": "director",
+      "license": "",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/KartikSharma4448/aegiscare",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 0,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "storyboard"
+    },
+    {
+      "id": "inference-sh/skills::storyboard-creation",
+      "owner": "inference-sh",
+      "repo": "skills",
+      "name": "storyboard-creation",
+      "skillPath": "",
+      "version": "",
+      "summary": "镜头语言 + 180 度规则（需适配）",
+      "domain": "storyboard",
+      "craft": "director",
+      "license": "",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/inference-sh/skills",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 729,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "storyboard-creation"
+    },
+    {
+      "id": "zephyrwang6/myskill::storyboard-generator",
+      "owner": "zephyrwang6",
+      "repo": "myskill",
+      "name": "storyboard-generator",
+      "skillPath": "",
+      "version": "",
+      "summary": "中文分镜批量出图（需适配）",
+      "domain": "storyboard",
+      "craft": "director",
+      "license": "",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/zephyrwang6/myskill",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": "redirect"
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 337,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "storyboard-generator"
+    },
+    {
+      "id": "majiayu000/claude-skill-registry::film-storyboard-skill",
+      "owner": "majiayu000",
+      "repo": "claude-skill-registry",
+      "name": "film-storyboard-skill",
+      "skillPath": "",
+      "version": "",
+      "summary": "4C 中文电影分镜方法论（可直接收）",
+      "domain": "storyboard",
+      "craft": "director",
+      "license": "",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/majiayu000/claude-skill-registry",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 596,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "film-storyboard-skill"
+    },
+    {
+      "id": "majiayu000/claude-skill-registry::create-storyboard",
+      "owner": "majiayu000",
+      "repo": "claude-skill-registry",
+      "name": "create-storyboard",
+      "skillPath": "",
+      "version": "",
+      "summary": "剧本转动态分镜/animatic（需适配）",
+      "domain": "storyboard",
+      "craft": "director",
+      "license": "",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/majiayu000/claude-skill-registry",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 596,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "create-storyboard"
+    },
+    {
+      "id": "tylerprogramming/claude-skills::youtube-pipeline",
+      "owner": "tylerprogramming",
+      "repo": "claude-skills",
+      "name": "youtube-pipeline",
+      "skillPath": "",
+      "version": "",
+      "summary": "YouTube 选题到上传全流程（重点适配）",
+      "domain": "short-video",
+      "craft": "producer",
+      "license": "",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/tylerprogramming/claude-skills",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 0,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "adapterForNomi": {
+        "needs": "tools-mapping"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "youtube-pipeline"
+    },
+    {
+      "id": "mohitagw15856/pm-claude-skills::short-form-script",
+      "owner": "mohitagw15856",
+      "repo": "pm-claude-skills",
+      "name": "short-form-script",
+      "skillPath": "",
+      "version": "",
+      "summary": "3 秒钩子定时短脚本模板（需适配）",
+      "domain": "short-video",
+      "craft": "writer",
+      "license": "",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/mohitagw15856/pm-claude-skills",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 1341,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "short-form-script"
+    },
+    {
+      "id": "minhnv0807/fullstack-mkt-skills::04-script-video",
+      "owner": "minhnv0807",
+      "repo": "fullstack-mkt-skills",
+      "name": "04-script-video",
+      "skillPath": "",
+      "version": "",
+      "summary": "A/B 短视频脚本+拍摄指引（需适配）",
+      "domain": "short-video",
+      "craft": "writer",
+      "license": "",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/minhnv0807/fullstack-mkt-skills",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": "redirect"
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 571,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "04-script-video"
+    },
+    {
+      "id": "roeea2/faceless-youtube-video-creation::main",
+      "owner": "roeea2",
+      "repo": "faceless-youtube-video-creation",
+      "name": "faceless-youtube-video-creation",
+      "skillPath": "",
+      "version": "",
+      "summary": "无脸纪录片式全自动流水线（重点参考）",
+      "domain": "short-video",
+      "craft": "producer",
+      "license": "",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/roeea2/faceless-youtube-video-creation",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 1,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "adapterForNomi": {
+        "needs": "rewrite",
+        "notes": "参考其流水线结构"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "faceless-youtube-video-creation"
+    },
+    {
+      "id": "Alexander-Kz/video-layer-skill::main",
+      "owner": "Alexander-Kz",
+      "repo": "video-layer-skill",
+      "name": "video-layer-skill",
+      "skillPath": "",
+      "version": "",
+      "summary": "旁白 MP3 转白板讲解视频（仅参考，多 agent 编排）",
+      "domain": "short-video",
+      "craft": "producer",
+      "license": "",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/Alexander-Kz/video-layer-skill",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 5,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "video-layer-skill"
+    },
+    {
+      "id": "oyi77/1ai-skills::faceless-youtube",
+      "owner": "oyi77",
+      "repo": "1ai-skills",
+      "name": "faceless-youtube",
+      "skillPath": "",
+      "version": "",
+      "summary": "无脸频道运营+变现（仅参考）",
+      "domain": "short-video",
+      "craft": "producer",
+      "license": "",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/oyi77/1ai-skills",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 12,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "faceless-youtube"
+    },
+    {
+      "id": "vamsi-kodimela/maagpi-youtube-workflow-skill::main",
+      "owner": "vamsi-kodimela",
+      "repo": "maagpi-youtube-workflow-skill",
+      "name": "maagpi-youtube-workflow-skill",
+      "skillPath": "",
+      "version": "",
+      "summary": "Notion 排期到 YouTube 排播（MCP 重，需适配）",
+      "domain": "short-video",
+      "craft": "producer",
+      "license": "",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/vamsi-kodimela/maagpi-youtube-workflow-skill",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 0,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "maagpi-youtube-workflow-skill"
+    },
+    {
+      "id": "coreyhaines31/marketingskills::ad-creative",
+      "owner": "coreyhaines31",
+      "repo": "marketingskills",
+      "name": "ad-creative",
+      "skillPath": "",
+      "version": "",
+      "summary": "4 模式广告创意量产（可直接收）",
+      "domain": "ugc-advertising",
+      "craft": "producer",
+      "license": "",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/coreyhaines31/marketingskills",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 47911,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "ad-creative"
+    },
+    {
+      "id": "nickyc1/ad-creative::main",
+      "owner": "nickyc1",
+      "repo": "ad-creative",
+      "name": "ad-creative",
+      "skillPath": "",
+      "version": "",
+      "summary": "UGC 脚本 + 15 条 RSA 批量（可直接收）",
+      "domain": "ugc-advertising",
+      "craft": "writer",
+      "license": "",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/nickyc1/ad-creative",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 1,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "ad-creative"
+    },
+    {
+      "id": "samuraigpt/generative-media-skills::muapi-ugc-video-factory",
+      "owner": "samuraigpt",
+      "repo": "generative-media-skills",
+      "name": "muapi-ugc-video-factory",
+      "skillPath": "",
+      "version": "",
+      "summary": "真人照+产品图合成 UGC 视频（需适配）",
+      "domain": "ugc-advertising",
+      "craft": "producer",
+      "license": "",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/samuraigpt/generative-media-skills",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 4234,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "adapterForNomi": {
+        "needs": "tools-mapping",
+        "notes": "绑定 muapi"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "muapi-ugc-video-factory"
+    },
+    {
+      "id": "samuraigpt/generative-media-skills::muapi-product-video-ad-maker",
+      "owner": "samuraigpt",
+      "repo": "generative-media-skills",
+      "name": "muapi-product-video-ad-maker",
+      "skillPath": "",
+      "version": "",
+      "summary": "产品照片变电影感广告（需适配）",
+      "domain": "ugc-advertising",
+      "craft": "producer",
+      "license": "",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/samuraigpt/generative-media-skills",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 4234,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "adapterForNomi": {
+        "needs": "tools-mapping"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "muapi-product-video-ad-maker"
+    },
+    {
+      "id": "higgsfield-ai/skills::main",
+      "owner": "higgsfield-ai",
+      "repo": "skills",
+      "name": "higgsfield-skills",
+      "skillPath": "",
+      "version": "",
+      "summary": "官方商品图/摄影棚/多模型（官方厂商）",
+      "domain": "ugc-advertising",
+      "craft": "producer",
+      "license": "",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/higgsfield-ai/skills",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 888,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "higgsfield-skills"
+    },
+    {
+      "id": "beshuaxian/higgsfield-seedance2-jineng::main",
+      "owner": "beshuaxian",
+      "repo": "higgsfield-seedance2-jineng",
+      "name": "higgsfield-seedance2-jineng",
+      "skillPath": "",
+      "version": "",
+      "summary": "电商/产品 360 度提示词组（需适配）",
+      "domain": "ugc-advertising",
+      "craft": "writer",
+      "license": "",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/beshuaxian/higgsfield-seedance2-jineng",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 810,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "higgsfield-seedance2-jineng"
+    },
+    {
+      "id": "elevenlabs/skills::main",
+      "owner": "elevenlabs",
+      "repo": "skills",
+      "name": "elevenlabs-skills",
+      "skillPath": "",
+      "version": "",
+      "summary": "TTS/克隆/音乐/音效 官方 6 技能（配音首选）",
+      "domain": "voice-music",
+      "craft": "audio",
+      "license": "",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/elevenlabs/skills",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "official"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 441,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "official"
+      },
+      "adapterForNomi": {
+        "needs": "tools-mapping",
+        "notes": "替换为 Nomi 媒体后端"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "elevenlabs-skills"
+    },
+    {
+      "id": "digitalsamba/claude-code-video-toolkit::elevenlabs",
+      "owner": "digitalsamba",
+      "repo": "claude-code-video-toolkit",
+      "name": "elevenlabs",
+      "skillPath": "",
+      "version": "",
+      "summary": "场景级配音+时长清单（11 技能视频包）",
+      "domain": "voice-music",
+      "craft": "audio",
+      "license": "",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/digitalsamba/claude-code-video-toolkit",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 2053,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "adapterForNomi": {
+        "needs": "tools-mapping"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "elevenlabs"
+    },
+    {
+      "id": "calesthio/OpenMontage::elevenlabs",
+      "owner": "calesthio",
+      "repo": "OpenMontage",
+      "name": "elevenlabs",
+      "skillPath": "",
+      "version": "",
+      "summary": "视频配音选型与调参表（需适配）",
+      "domain": "voice-music",
+      "craft": "audio",
+      "license": "",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/calesthio/OpenMontage",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 56516,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "elevenlabs"
+    },
+    {
+      "id": "RooikeCAO/suno-music-skill::main",
+      "owner": "RooikeCAO",
+      "repo": "suno-music-skill",
+      "name": "suno-music-skill",
+      "skillPath": "",
+      "version": "",
+      "summary": "GMIV 公式音乐生产全流程（需适配）",
+      "domain": "voice-music",
+      "craft": "audio",
+      "license": "",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/RooikeCAO/suno-music-skill",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 1,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "adapterForNomi": {
+        "needs": "tools-mapping"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "suno-music-skill"
+    },
+    {
+      "id": "idanbeck/claude-skills::suno",
+      "owner": "idanbeck",
+      "repo": "claude-skills",
+      "name": "suno",
+      "skillPath": "",
+      "version": "",
+      "summary": "Suno 双技能（API/浏览器）（需适配）",
+      "domain": "voice-music",
+      "craft": "audio",
+      "license": "",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/idanbeck/claude-skills",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 13,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "suno"
+    },
+    {
+      "id": "ComeOnOliver/skillshub::music-generation",
+      "owner": "ComeOnOliver",
+      "repo": "skillshub",
+      "name": "music-generation",
+      "skillPath": "",
+      "version": "",
+      "summary": "Suno/Udio/Lyria 按需路由（需适配）",
+      "domain": "voice-music",
+      "craft": "audio",
+      "license": "",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/ComeOnOliver/skillshub",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 63,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "music-generation"
+    },
+    {
+      "id": "remotion-dev/skills::main",
+      "owner": "remotion-dev",
+      "repo": "skills",
+      "name": "remotion-skills",
+      "skillPath": "",
+      "version": "",
+      "summary": "代码化视频+字幕技能包（官方，字幕规范可借鉴）",
+      "domain": "editing-subtitles",
+      "craft": "editor",
+      "license": "",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/remotion-dev/skills",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "official"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 4500,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "official"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "remotion-skills"
+    },
+    {
+      "id": "curiositech/some_claude_skills::video-processing-editing",
+      "owner": "curiositech",
+      "repo": "some_claude_skills",
+      "name": "video-processing-editing",
+      "skillPath": "",
+      "version": "",
+      "summary": "FFmpeg 剪辑/转场/调色专家（可直接启发）",
+      "domain": "editing-subtitles",
+      "craft": "editor",
+      "license": "",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/curiositech/some_claude_skills",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 214,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "adapterForNomi": {
+        "needs": "rewrite",
+        "notes": "FFmpeg 外部调用"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "video-processing-editing"
+    },
+    {
+      "id": "AnonymousXIVV/Chain3::video-editing",
+      "owner": "AnonymousXIVV",
+      "repo": "Chain3",
+      "name": "video-editing",
+      "skillPath": "",
+      "version": "",
+      "summary": "FFmpeg 全流程剪辑技能（需适配）",
+      "domain": "editing-subtitles",
+      "craft": "editor",
+      "license": "",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/AnonymousXIVV/Chain3",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 0,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "video-editing"
+    },
+    {
+      "id": "aaaaqwq/agi-super-team::video-subtitles",
+      "owner": "aaaaqwq",
+      "repo": "agi-super-team",
+      "name": "video-subtitles",
+      "skillPath": "",
+      "version": "",
+      "summary": "Whisper 字幕+样式烧录（需适配）",
+      "domain": "editing-subtitles",
+      "craft": "editor",
+      "license": "",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/aaaaqwq/agi-super-team",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 91,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "video-subtitles"
+    },
+    {
+      "id": "Mikefluff/skills::transcribe-maker",
+      "owner": "Mikefluff",
+      "repo": "skills",
+      "name": "transcribe-maker",
+      "skillPath": "",
+      "version": "",
+      "summary": "转 SRT/VTT/JSON 转写链（需适配）",
+      "domain": "editing-subtitles",
+      "craft": "editor",
+      "license": "",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/Mikefluff/skills",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 19,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "transcribe-maker"
+    },
+    {
+      "id": "danielrosehill/claude-code-plugins::burn-subtitles",
+      "owner": "danielrosehill",
+      "repo": "claude-code-plugins",
+      "name": "burn-subtitles",
+      "skillPath": "",
+      "version": "",
+      "summary": "whisper.cpp 字幕烧录插件（需适配）",
+      "domain": "editing-subtitles",
+      "craft": "editor",
+      "license": "",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/danielrosehill/claude-code-plugins",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 29,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "burn-subtitles"
+    },
+    {
+      "id": "samuraigpt/generative-media-skills::muapi-ai-clipping",
+      "owner": "samuraigpt",
+      "repo": "generative-media-skills",
+      "name": "muapi-ai-clipping",
+      "skillPath": "",
+      "version": "",
+      "summary": "长视频自动切爆款竖屏（需适配）",
+      "domain": "editing-subtitles",
+      "craft": "editor",
+      "license": "",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/samuraigpt/generative-media-skills",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 4234,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "adapterForNomi": {
+        "needs": "tools-mapping"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "muapi-ai-clipping"
+    },
+    {
+      "id": "beermanzz/character-consistency-workflow::main",
+      "owner": "beermanzz",
+      "repo": "character-consistency-workflow",
+      "name": "character-consistency-workflow",
+      "skillPath": "",
+      "version": "",
+      "summary": "中文短剧防漂移工作流（需适配）",
+      "domain": "character-consistency",
+      "craft": "director",
+      "license": "",
+      "source": {
+        "type": "clawhub",
+        "url": "https://clawhub.ai/beermanzz/character-consistency-workflow",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 0,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "adapterForNomi": {
+        "needs": "tools-mapping"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "character-consistency-workflow"
+    },
+    {
+      "id": "event4u-app-agent-config::character-consistency",
+      "owner": "event4u-app-agent-config",
+      "repo": "",
+      "name": "character-consistency",
+      "skillPath": "",
+      "version": "",
+      "summary": "JSON 锁角色身份 token 防漂移（需适配）",
+      "domain": "character-consistency",
+      "craft": "director",
+      "license": "",
+      "source": {
+        "type": "lobehub",
+        "url": "https://lobehub.com/skills/event4u-app-agent-config-character-consistency",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 0,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "character-consistency"
+    },
+    {
+      "id": "michailbul-laniameda-skills::character-consistency-character-sheet",
+      "owner": "michailbul-laniameda-skills",
+      "repo": "",
+      "name": "character-consistency-character-sheet",
+      "skillPath": "",
+      "version": "",
+      "summary": "七视角角色参考表法（方法论可直接收）",
+      "domain": "character-consistency",
+      "craft": "director",
+      "license": "",
+      "source": {
+        "type": "lobehub",
+        "url": "https://lobehub.com/skills/michailbul-laniameda-skills-character-consistency-character-sheet",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 0,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "character-consistency-character-sheet"
+    },
+    {
+      "id": "exiao/skills::character-creation",
+      "owner": "exiao",
+      "repo": "skills",
+      "name": "character-creation",
+      "skillPath": "",
+      "version": "",
+      "summary": "角色定义跨集复用（需适配）",
+      "domain": "character-consistency",
+      "craft": "director",
+      "license": "",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/exiao/skills",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 38,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "character-creation"
+    },
+    {
+      "id": "higgsfield-ai/skills::soul-id",
+      "owner": "higgsfield-ai",
+      "repo": "skills",
+      "name": "soul-id",
+      "skillPath": "",
+      "version": "",
+      "summary": "数张照片训练恒定人脸（需适配）",
+      "domain": "character-consistency",
+      "craft": "director",
+      "license": "",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/higgsfield-ai/skills",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 888,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "soul-id"
+    },
+    {
+      "id": "anthropics/skills::collection",
+      "owner": "anthropics",
+      "repo": "skills",
+      "name": "anthropics-skills-collection",
+      "skillPath": "",
+      "version": "",
+      "summary": "官方 17 技能范例（规范+样例，可直接收）",
+      "domain": "collection",
+      "craft": "producer",
+      "license": "Apache-2.0/source-available",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/anthropics/skills",
+        "ref": "main",
+        "publishedVia": "claude-plugin",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "official"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 174982,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "official"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "anthropics-skills-collection"
+    },
+    {
+      "id": "digitalsamba/claude-code-video-toolkit::collection",
+      "owner": "digitalsamba",
+      "repo": "claude-code-video-toolkit",
+      "name": "video-toolkit",
+      "skillPath": "",
+      "version": "",
+      "summary": "11 技能一体化视频制作包（整体架构参考）",
+      "domain": "collection",
+      "craft": "producer",
+      "license": "",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/digitalsamba/claude-code-video-toolkit",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 2053,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "adapterForNomi": {
+        "needs": "rewrite",
+        "notes": "整体架构参考"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "video-toolkit"
+    },
+    {
+      "id": "samuraigpt/generative-media-skills::collection",
+      "owner": "samuraigpt",
+      "repo": "generative-media-skills",
+      "name": "generative-media-skills",
+      "skillPath": "",
+      "version": "",
+      "summary": "60 媒体生成技能大池（聚合池优先抓取）",
+      "domain": "collection",
+      "craft": "producer",
+      "license": "",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/samuraigpt/generative-media-skills",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 4234,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "adapterForNomi": {
+        "needs": "rewrite"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "generative-media-skills"
+    },
+    {
+      "id": "coreyhaines31/marketingskills::collection",
+      "owner": "coreyhaines31",
+      "repo": "marketingskills",
+      "name": "marketing-skills",
+      "skillPath": "",
+      "version": "",
+      "summary": "20+ 营销增长技能合集（需适配）",
+      "domain": "collection",
+      "craft": "producer",
+      "license": "",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/coreyhaines31/marketingskills",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 47911,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "marketing-skills"
+    },
+    {
+      "id": "obra/superpowers::collection",
+      "owner": "obra",
+      "repo": "superpowers",
+      "name": "superpowers",
+      "skillPath": "",
+      "version": "",
+      "summary": "工程化技能组织方法论（SKILL 结构参考）",
+      "domain": "collection",
+      "craft": "producer",
+      "license": "",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/obra/superpowers",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 282710,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "superpowers"
+    },
+    {
+      "id": "wshobson/agents::collection",
+      "owner": "wshobson",
+      "repo": "agents",
+      "name": "agents",
+      "skillPath": "",
+      "version": "",
+      "summary": "93 插件跨 harness 市场（仅参考）",
+      "domain": "collection",
+      "craft": "producer",
+      "license": "",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/wshobson/agents",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 39470,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "agents"
+    },
+    {
+      "id": "travisvn/awesome-claude-skills::index",
+      "owner": "travisvn",
+      "repo": "awesome-claude-skills",
+      "name": "awesome-claude-skills",
+      "skillPath": "",
+      "version": "",
+      "summary": "社区技能索引榜（方法论 md，仅参考）",
+      "domain": "collection",
+      "craft": "producer",
+      "license": "",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/travisvn/awesome-claude-skills",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 14988,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "awesome-claude-skills"
+    },
+    {
+      "id": "happytalkman/awesome-claude-skills::index",
+      "owner": "happytalkman",
+      "repo": "awesome-claude-skills",
+      "name": "awesome-claude-skills",
+      "skillPath": "",
+      "version": "",
+      "summary": "写作/媒体类技能清单（仅参考）",
+      "domain": "collection",
+      "craft": "producer",
+      "license": "",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/happytalkman/awesome-claude-skills",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 0,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "awesome-claude-skills"
+    },
+    {
+      "id": "vercel-labs/skills::cli",
+      "owner": "vercel-labs",
+      "repo": "skills",
+      "name": "skills-cli",
+      "skillPath": "",
+      "version": "1.5.x",
+      "summary": "npx skills 安装 CLI（本生态分发工具）",
+      "domain": "collection",
+      "craft": "producer",
+      "license": "MIT",
+      "source": {
+        "type": "github",
+        "url": "https://github.com/vercel-labs/skills",
+        "ref": "",
+        "publishedVia": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "unknown"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "official"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 30604,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "official"
+      },
+      "kind": "skill",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "title": "skills-cli"
+    }
+  ]
+}

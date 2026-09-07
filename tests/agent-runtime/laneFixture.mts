@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import type { TestContext } from 'node:test';
 
 import { createDocumentLaneTools, type DocumentLanePort } from '../../electron/agentLane/laneDocumentTools.js';
-import type { LaneToolGateDecision, LaneToolGateRequest, OpenLaneOptions } from '../../electron/agentLane/laneRuntimePort.js';
+import type { LaneApprovalOptions, OpenLaneOptions } from '../../electron/agentLane/laneRuntimePort.js';
 import type { DocumentWriteInput, DocumentWriteResult } from '../../electron/shared/agentCapabilities/documentWrite.js';
 import { createHttpFixture, type FixtureReply } from './httpFixture.mjs';
 
@@ -37,21 +37,19 @@ export interface LaneFixture {
   options: OpenLaneOptions;
   projectDir: string;
   document: ReturnType<typeof createDocumentPort>;
-  gateCalls: LaneToolGateRequest[];
   http: Awaited<ReturnType<typeof createHttpFixture>>;
 }
 
 export async function createLaneFixture(
   t: TestContext,
   replies: FixtureReply[],
-  gate?: (request: LaneToolGateRequest) => LaneToolGateDecision,
+  approval?: LaneApprovalOptions,
 ): Promise<LaneFixture> {
   const projectDir = await mkdtemp(join(tmpdir(), 'nomi-lane-'));
   t.after(() => rm(projectDir, { recursive: true, force: true }));
   const http = await createHttpFixture(replies);
   t.after(http.close);
   const document = createDocumentPort();
-  const gateCalls: LaneToolGateRequest[] = [];
   const options: OpenLaneOptions = {
     projectDir,
     systemPrompt: LANE_SYSTEM_PROMPT,
@@ -60,7 +58,7 @@ export async function createLaneFixture(
       baseURL: http.baseURL, authType: 'api-key', apiKey: 'fixture-key',
     },
     tools: createDocumentLaneTools(document),
-    ...(gate ? { gate: (request: LaneToolGateRequest) => { gateCalls.push(request); return gate(request); } } : {}),
+    ...(approval ? { approval } : {}),
   };
-  return { options, projectDir, document, gateCalls, http };
+  return { options, projectDir, document, http };
 }

@@ -8,7 +8,7 @@ import type {
   LaneMetric, LaneMetricUnknownReason, LanePart, LaneProjection, LaneUsage,
 } from '../../../../electron/shared/agentLane/laneContracts'
 import { LANE_APPROVAL_NOTE_TYPE } from '../../../../electron/shared/agentLane/laneContracts'
-import { laneViewModel, type LaneViewModelLabels } from './laneViewModel'
+import { laneInterventionSource, laneViewModel, type LaneViewModelLabels } from './laneViewModel'
 
 const labels: LaneViewModelLabels = {
   toolLabel: (name) => `[${name}]`,
@@ -235,5 +235,55 @@ describe('laneViewModel', () => {
       part({ kind: 'assistant-text', text: 'Half a sen', streaming: true }),
     ], { running: true }), labels)
     expect(model.items[0].kind === 'assistant' && model.items[0].status).toBe('streaming')
+  })
+})
+
+describe('审批（阶段 3a）', () => {
+  const NOTE = (decision: string, reason?: string) => ({
+    sequence: 0, entrySeq: 1, contentIndex: 0, kind: 'host-note' as const,
+    noteType: LANE_APPROVAL_NOTE_TYPE,
+    data: { toolCallId: 'call-1', toolName: 'append_to_end', decision, ...(reason ? { reason } : {}) },
+  })
+  const CALL = {
+    sequence: 1, entrySeq: 2, contentIndex: 0, kind: 'tool-call' as const,
+    toolCallId: 'call-1', toolName: 'append_to_end', args: {}, running: false,
+  }
+  const RESULT = {
+    sequence: 2, entrySeq: 3, contentIndex: 0, kind: 'tool-result' as const,
+    toolCallId: 'call-1', toolName: 'append_to_end', text: 'no', isError: true,
+  }
+
+  it.each(['denied', 'denied-by-policy', 'cancelled'])(
+    '%s 的收据画成「被拒了」，不是「坏了」——三种拒收在用户那里都不是工具故障',
+    (decision) => {
+      const model = laneViewModel(
+        projection([NOTE(decision, 'nope'), CALL, RESULT]),
+        labels,
+      )
+      const tool = model.items.find((item) => item.kind === 'tool')
+      expect(tool?.kind === 'tool' && tool.receipt.status).toBe('output-denied')
+    },
+  )
+
+  it('放行的记录不改收据的状态：它没被拒，它只是被批准了', () => {
+    const model = laneViewModel(
+      projection([NOTE('granted-once'), CALL, { ...RESULT, text: 'ok', isError: false }]),
+      labels,
+    )
+    const tool = model.items.find((item) => item.kind === 'tool')
+    expect(tool?.kind === 'tool' && tool.receipt.status).toBe('output-available')
+  })
+
+  it('等待中的卡不进流里的任何一行——它住在介入槽，滚上去就没了那才是 bug', () => {
+    const pending = {
+      toolCallId: 'call-1', toolName: 'append_to_end', args: { content: 'x' },
+      effectClass: 'reversible_local' as const, grantable: true, pendingCount: 1,
+    }
+    const model = laneViewModel(projection([CALL], { pending }), labels)
+    expect(model.items.filter((item) => item.kind === 'tool')).toHaveLength(1)
+    expect(model.pending).toBe(pending)
+    expect(laneInterventionSource(pending)).toEqual({
+      toolName: 'append_to_end', args: { content: 'x' }, effectClass: 'reversible_local', pendingCount: 1,
+    })
   })
 })

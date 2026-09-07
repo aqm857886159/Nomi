@@ -172,7 +172,18 @@ export function createLaneTools(descriptors: readonly LaneToolDescriptor[]): Age
       // #547 的数据说零示例的工具在复杂参数上就是填不对（35/35 零示例）。
       description: laneToolModelDescription(descriptor),
       parameters: toModelVisibleSchema(descriptor.schema, { toolName: descriptor.name }),
-      executionMode: 'sequential',
+      // 并行/串行**从同一个副作用声明派生**，和 `replay` 同一个派生点：写操作必须一个一个来
+      // （两次并发写同一张画布必冲突），而读没有理由串行——「读画布 + 读时间轴 + 读文稿」
+      // 这类扇出串起来就是白等三倍。上一版对**每一个**工具硬写 `'sequential'`，那是
+      // 框架边界登记表上到期的那笔债（一致性核对 §1.10）。
+      //
+      // ⚠️ 实核一条要写死的事：**`AgentHarness` 今天不读这个字段**——它按 run 级的
+      // `AgentHarnessOptions.toolExecution` 分派（`harness/runtime/drive/tools.js:445`），
+      // 逐工具的 `executionMode` 只有老路 `agent-loop.js:287` 在看。所以这行今天改变不了
+      // 一次真实批次的行为；它是**声明**，按上游自己的契约填对（`pi-agent-core/dist/types.d.ts:353-359`
+      // 的原话就是「这个工具必须一次一个」）。哪天上游让 harness 也读它，我们不用再动一行。
+      // `lane-tool-contract` 里那条断言把这个「今天由谁决定」钉住，上游改了它先红。
+      executionMode: effects.mutates ? 'sequential' : 'parallel',
       // 崩溃恢复时敢不敢替我们再跑一次。**从工具自己声明的副作用派生，唯一的派生点**：
       // 一次文稿写入重放两遍就是写了两遍（`'never'`），而重放一次 `nomi_canvas_read`
       // 只是多读一次画布（`'safe'`）。上一版对**每一个**工具硬写 `'never'`，包括纯读的

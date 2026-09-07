@@ -22,13 +22,14 @@
 // 覆盖掉契约上那两个 `z.record(z.unknown())` 字段。**不是重写，是替换掉弱的那一份。**
 import { z } from "zod";
 
-import { canvasReadResultSchema, type CanvasReadResult } from "../shared/agentCapabilities/canvasRead";
+import { CANVAS_READ_CAPABILITY, canvasReadResultSchema, type CanvasReadResult } from "../shared/agentCapabilities/canvasRead";
 import {
   cameraMoveParamsObjectSchema,
   stagingReferenceParamsSchema,
   storyboardPlanParamsSchema,
 } from "../shared/agentCapabilities/canvasModelShapes";
 import {
+  CANVAS_WRITE_CAPABILITY,
   canvasNodeWriteInputSchema,
   canvasWriteCrossFieldRefine,
   canvasWriteSemanticInputSchema,
@@ -238,6 +239,7 @@ const CANVAS_READ_DESCRIPTION = [
 export function canvasLaneToolSpecs(): LaneToolSpec[] {
   const read: LaneToolSpec = {
     name: "nomi_canvas_read",
+    capabilityId: CANVAS_READ_CAPABILITY.id,
     description: CANVAS_READ_DESCRIPTION,
     promptSnippet: "read every node, edge and group currently on the generation canvas.",
     promptGuidelines: CANVAS_GUIDELINES,
@@ -248,6 +250,7 @@ export function canvasLaneToolSpecs(): LaneToolSpec[] {
   };
   const writes = CANVAS_WRITE_TOOLS.map((tool): LaneToolSpec => ({
     name: tool.name,
+    capabilityId: CANVAS_WRITE_CAPABILITY.id,
     description: tool.description,
     promptSnippet: tool.promptSnippet,
     promptGuidelines: CANVAS_GUIDELINES,

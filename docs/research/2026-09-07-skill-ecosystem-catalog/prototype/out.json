@@ -1,0 +1,278 @@
+{
+  "$schema": "https://nomi.app/catalog/collection.v0.schema.json",
+  "collectedAt": "2026-09-07",
+  "scoring": {
+    "formula": "0.6*log1p(installs|stars)+0.4*log1p(likes)",
+    "p15": 4.13,
+    "p85": 10.61,
+    "poolSize": 5
+  },
+  "entries": [
+    {
+      "id": "anthropics/skills::canvas-design",
+      "kind": "skill",
+      "owner": "anthropics",
+      "repo": "skills",
+      "name": "canvas-design",
+      "version": "",
+      "skillPath": "skills/canvas-design/SKILL.md",
+      "description": "Create beautiful visual art in .png and .pdf documents using design philosophy. You should use this skill when the user asks to create a poster, piece of art, design, or other static piece. Create original visual designs, never copying existing artists' work to avoid copyright violations.",
+      "license": "other",
+      "domain": "collection",
+      "craft": "",
+      "modality": "",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "source": {
+        "type": "github",
+        "url": "https://github.com/anthropics/skills",
+        "ref": "main",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "pass",
+        "checkedBy": "prototype-validate",
+        "nameLenOk": true,
+        "descLenOk": true,
+        "reservedWordOk": true,
+        "dirNameMatches": true
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 174982,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "open-directory"
+      },
+      "scoring": {
+        "formula": "0.6*log1p(downloads|stars)+0.4*log1p(likes)",
+        "score": 7.24,
+        "tier": "A"
+      }
+    },
+    {
+      "id": "coreyhaines31/marketingskills::ad-creative",
+      "kind": "skill",
+      "owner": "coreyhaines31",
+      "repo": "marketingskills",
+      "name": "ad-creative",
+      "version": "",
+      "skillPath": "skills/ad-creative/SKILL.md",
+      "description": "When the user wants to generate, iterate, or scale ad creative — headlines, descriptions, primary text, or full ad variations — for any paid advertising platform. Also use when the user mentions 'ad copy variations,' 'ad creative,' 'generate headlines,' 'RSA headlines,' 'bulk ad copy,' 'ad iterations,' 'creative testing,' 'write me some ads,' 'Facebook ad copy,' 'Google ad headlines,' 'LinkedIn ad text,' 'static ads,' 'ad templates,' 'iMessage ad,' 'chat reveal ad,' 'ChatGPT ad,' 'Apple Notes ad,' 'AirDrop ad,' 'creative strategy,' 'creative roadmap,' 'creative retro,' 'hook writing,' 'creative review page,' 'present ad creative for approval,' 'motion video ad,' 'faceless video ad,' 'UGC ad,' 'greenscreen ad,' 'TikTok/Reels ad format,' 'which ad format to make,' 'Meta ad format tier list,' or 'creative format taxonomy.' Use this whenever someone needs to produce ad copy at scale or iterate on existing ads. For campaign strategy and targeting, see ads. For landing page copy, see copywriting.",
+      "license": "",
+      "domain": "collection",
+      "craft": "",
+      "modality": "",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "source": {
+        "type": "github",
+        "url": "https://github.com/coreyhaines31/marketingskills",
+        "ref": "main",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "pass",
+        "checkedBy": "prototype-validate",
+        "nameLenOk": true,
+        "descLenOk": true,
+        "reservedWordOk": true,
+        "dirNameMatches": true
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 47911,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "scoring": {
+        "formula": "0.6*log1p(downloads|stars)+0.4*log1p(likes)",
+        "score": 6.47,
+        "tier": "A"
+      }
+    },
+    {
+      "id": "YouMind-OpenLab/ai-image-prompts-skill::ai-image-prompts-skill",
+      "kind": "skill",
+      "owner": "YouMind-OpenLab",
+      "repo": "ai-image-prompts-skill",
+      "name": "ai-image-prompts-skill",
+      "version": "",
+      "skillPath": "SKILL.md",
+      "description": "|",
+      "license": "",
+      "domain": "collection",
+      "craft": "",
+      "modality": "",
+      "preview": {
+        "kind": "none",
+        "requiredForFeatured": false
+      },
+      "source": {
+        "type": "github",
+        "url": "https://github.com/YouMind-OpenLab/ai-image-prompts-skill",
+        "ref": "main",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "pass",
+        "checkedBy": "prototype-validate",
+        "nameLenOk": true,
+        "descLenOk": true,
+        "reservedWordOk": true,
+        "dirNameMatches": false
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 973,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "scoring": {
+        "formula": "0.6*log1p(downloads|stars)+0.4*log1p(likes)",
+        "score": 4.13,
+        "tier": "A"
+      }
+    },
+    {
+      "id": "hf::larryvrh/MiniMax-H3-Turbo-Lora",
+      "kind": "lora",
+      "owner": "larryvrh",
+      "repo": "larryvrh/MiniMax-H3-Turbo-Lora",
+      "name": "MiniMax-H3-Turbo-Lora",
+      "version": "",
+      "skillPath": "experimental_step_149.bin",
+      "description": "HuggingFace 模型：larryvrh/MiniMax-H3-Turbo-Lora",
+      "license": "apache-2.0",
+      "domain": "character-consistency",
+      "craft": "",
+      "modality": "style",
+      "preview": {
+        "kind": "author-gallery",
+        "gallery": [],
+        "caption": "",
+        "requiredForFeatured": false
+      },
+      "source": {
+        "type": "huggingface",
+        "url": "https://huggingface.co/larryvrh/MiniMax-H3-Turbo-Lora",
+        "repoId": "larryvrh/MiniMax-H3-Turbo-Lora",
+        "ref": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "pass",
+        "checkedBy": "prototype-hf",
+        "nameLenOk": true,
+        "descLenOk": true,
+        "reservedWordOk": true,
+        "dirNameMatches": true
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 501552,
+        "stars": 0,
+        "likes": 933,
+        "updatedAt": "2026-08-08T20:07:30.000Z"
+      },
+      "curation": {
+        "status": "curated"
+      },
+      "adapterForNomi": {
+        "needs": "comfyui-install",
+        "notes": "底座: Comfy-Org/MiniMax-H3 · 文件 18 个"
+      },
+      "scoring": {
+        "formula": "0.6*log1p(downloads|stars)+0.4*log1p(likes)",
+        "score": 10.61,
+        "tier": "S"
+      }
+    },
+    {
+      "id": "hf::fal/MiniMax-H3-Realism-People-LoRA",
+      "kind": "lora",
+      "owner": "fal",
+      "repo": "fal/MiniMax-H3-Realism-People-LoRA",
+      "name": "MiniMax-H3-Realism-People-LoRA",
+      "version": "",
+      "skillPath": "h3-realism-people-t2v-i2v-r2v.safetensors",
+      "description": "HuggingFace 模型：fal/MiniMax-H3-Realism-People-LoRA",
+      "license": "other",
+      "domain": "character-consistency",
+      "craft": "",
+      "modality": "style",
+      "preview": {
+        "kind": "author-gallery",
+        "gallery": [],
+        "caption": "",
+        "requiredForFeatured": false
+      },
+      "source": {
+        "type": "huggingface",
+        "url": "https://huggingface.co/fal/MiniMax-H3-Realism-People-LoRA",
+        "repoId": "fal/MiniMax-H3-Realism-People-LoRA",
+        "ref": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "pass",
+        "checkedBy": "prototype-hf",
+        "nameLenOk": true,
+        "descLenOk": true,
+        "reservedWordOk": true,
+        "dirNameMatches": true
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 59465,
+        "stars": 0,
+        "likes": 359,
+        "updatedAt": "2026-08-12T20:46:37.000Z"
+      },
+      "curation": {
+        "status": "open-directory"
+      },
+      "adapterForNomi": {
+        "needs": "comfyui-install",
+        "notes": "底座: MiniMaxAI/MiniMax-H3 · 文件 1 个"
+      },
+      "scoring": {
+        "formula": "0.6*log1p(downloads|stars)+0.4*log1p(likes)",
+        "score": 8.95,
+        "tier": "A"
+      }
+    }
+  ]
+}

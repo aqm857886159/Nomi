@@ -12,11 +12,13 @@
 // `undefined`：preload 没有暴露 `agentLane`，`main.ts` 也没注册那两条通道
 // （方案 §8.1 规则 O6「开发期不可达」）。用户走不到 = 回滚面积为零。
 // 桥以参数形式注入而不是在模块里直接摸 `window`，所以这一层今天就能被真正测到。
-import type { LaneCommand, LaneProjection } from '../../../../electron/shared/agentLane/laneContracts'
+import type {
+  LaneApprovalAction, LaneCommand, LaneCommandOutcome, LaneProjection,
+} from '../../../../electron/shared/agentLane/laneContracts'
 import { LANE_IPC_CHANNELS } from '../../../../electron/shared/agentLane/laneContracts'
 
 export type LaneCommandResult =
-  | { ok: true }
+  | ({ ok: true } & LaneCommandOutcome)
   | { ok: false; code: string; message: string }
 
 /** 桥的形状。渲染层只认识这两个动作——它发不出宿主记录，因为它造不出宿主记录。 */
@@ -61,6 +63,18 @@ export interface LaneClient {
   projection(): LaneProjection
   subscribe(listener: (projection: LaneProjection) => void): () => void
   prompt(text: string): Promise<LaneCommandResult>
+  /**
+   * 审批卡上的三个动作。第四个是 `abort()`——「停」停的是整轮，不是这一次，
+   * 所以它不该长成第四个 action（那会让它看起来像「拒绝得更用力一点」）。
+   *
+   * `toolCallId` 必须由调用方从 `projection().pending` 取：它证明用户答的是**那一张卡**。
+   * 「答当前那张」这种写法在用户点得慢、卡已经翻篇时会把答案落到下一张上。
+   */
+  approve(toolCallId: string): Promise<LaneCommandResult>
+  approveForSession(toolCallId: string): Promise<LaneCommandResult>
+  /** 「不要」+ 可选的一句话。那句话会一字不改成为模型看到的 tool result。 */
+  deny(toolCallId: string, reason?: string): Promise<LaneCommandResult>
+  /** 停。回值里可能带着用户没送出去的话——调用方**必须**把它放回输入框。 */
   abort(): Promise<LaneCommandResult>
   dispose(): void
 }
@@ -85,6 +99,9 @@ export function createLaneClient(bridge: LaneBridge | undefined = resolveLaneBri
   const send = async (command: LaneCommand): Promise<LaneCommandResult> =>
     bridge ? bridge.send(command) : NO_BRIDGE
 
+  const approval = (toolCallId: string, action: LaneApprovalAction, reason?: string) =>
+    send({ kind: 'approval', toolCallId, action, ...(reason?.trim() ? { reason } : {}) })
+
   return {
     projection: () => latest,
     subscribe: (listener) => {
@@ -92,6 +109,9 @@ export function createLaneClient(bridge: LaneBridge | undefined = resolveLaneBri
       return () => { listeners.delete(listener) }
     },
     prompt: (text: string) => send({ kind: 'prompt', text }),
+    approve: (toolCallId: string) => approval(toolCallId, 'allow-once'),
+    approveForSession: (toolCallId: string) => approval(toolCallId, 'allow-session'),
+    deny: (toolCallId: string, reason?: string) => approval(toolCallId, 'deny', reason),
     abort: () => send({ kind: 'abort' }),
     dispose: () => {
       unsubscribe?.()

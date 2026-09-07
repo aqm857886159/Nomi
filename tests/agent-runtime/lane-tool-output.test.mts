@@ -41,6 +41,7 @@ test('a document tool’s description names the same cap the transport actually 
 function echoTool(name: string, text: string): LaneToolDescriptor {
   return {
     name,
+    capabilityId: 'document.read',
     description: `Returns a fixed body of text, used to prove the transport truncates what the model sees.`,
     promptSnippet: 'return a fixed body of text.',
     effects: { mutates: false, billable: false, reversal: 'none' },

@@ -132,10 +132,8 @@
                     "at": "electron/agentLane/laneTools.mts:180"
                   },
                   "executionMode": {
-                    "verdict": "debt",
-                    "due": "2026-09-10",
-                    "owner": "阶段 3a · lane 工具契约",
-                    "why": "pi 逐工具可选（node_modules/@earendil-works/pi-agent-core/dist/types.d.ts:351-359），我们对全部 lane 工具硬写 'sequential'（laneTools.mts:175）；同一个对象字面量里 replay 已经改成从 effects.mutates 派生，这一格漏了。本 PR 只装门岗、不动 laneTools.mts（那个文件另有在途分支），所以先记债——这条债就是本门岗的存在理由。"
+                    "verdict": "derived",
+                    "at": "electron/agentLane/laneTools.mts:186"
                   },
                   "name": {
                     "verdict": "derived",
@@ -305,11 +303,11 @@
                   },
                   "before_tool.event": {
                     "verdict": "derived",
-                    "at": "electron/agentLane/laneHost.mts:90"
+                    "at": "electron/agentLane/laneHost.mts:182"
                   },
                   "before_tool.result": {
                     "verdict": "derived",
-                    "at": "electron/agentLane/laneHost.mts:99"
+                    "at": "electron/agentLane/laneHost.mts:199"
                   },
                   "before_tool.result.args": {
                     "verdict": "unused",
@@ -317,7 +315,7 @@
                   },
                   "before_tool.result.block": {
                     "verdict": "derived",
-                    "at": "electron/agentLane/laneHost.mts:99"
+                    "at": "electron/agentLane/laneHost.mts:209"
                   }
                 }
               }

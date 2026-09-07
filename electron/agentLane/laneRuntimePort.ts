@@ -8,10 +8,11 @@
 // 把一轮回复压成 `text: string` + `toolCalls[]` 两堆（`runtimePort.ts:122-133`），
 // 「先说什么后做什么」在数据里就不存在了；这道门送出去的是 `LaneProjection`，
 // 一串**有序的段**，顺序是记下来的不是推出来的。
-import type { LaneHandle, LaneProjection } from '../shared/agentLane/laneContracts'
+import type { LaneHandle, LanePendingApproval, LaneProjection } from '../shared/agentLane/laneContracts'
 import { LaneDomainFailure } from '../shared/agentLane/laneToolContract'
 import type { LaneToolEffects, LaneToolFailureShape, LaneToolSpec } from '../shared/agentLane/laneToolContract'
 import type { NomiModelConfig } from '../harness/runtime/runtimePort'
+import type { ProjectAgentApprovalPolicy, ProjectAgentWorkMode } from '../shared/projectAgentContracts'
 
 export type { LaneHandle, LaneProjection }
 export type { LaneToolEffects, LaneToolFailureShape, LaneToolSpec }
@@ -81,20 +82,24 @@ export function bindLaneTool(
   }
 }
 
-export interface LaneToolGateRequest {
-  toolCallId: string
-  toolName: string
-  args: Record<string, unknown>
-}
-
 /**
- * 闸的结果。拒收必须带一句**可行动**的话——它会一个字不改地成为模型看到的 tool result
- * （探针报告 §4.2 臂 B 实测 `needleReachedModelVerbatim: true`），所以这句话的质量
- * 直接决定模型下一步能不能自己改对。
+ * 审批闸要知道的三件事。**判据本身不在这里**——它住在
+ * `../shared/agentLane/laneApproval.ts`（纯函数）与 `laneApprovalGate.ts`（运行时）。
+ *
+ * 档位与工作模式给的是**函数**不是快照：用户在一张卡等着的时候把档位从「每步问」调到
+ * 「自动改」是允许的，下一次预检就该按新档位走。传快照等于把用户刚做的选择冻在开 lane 那一刻。
  */
-export type LaneToolGateDecision =
-  | { allow: true }
-  | { allow: false; reason: string }
+export interface LaneApprovalOptions {
+  policy?(): ProjectAgentApprovalPolicy | undefined
+  workMode?(): ProjectAgentWorkMode | undefined
+  /**
+   * 这条 lane 有没有一个能问的人。**必填、且没有默认值**：
+   * 「忘了传就当有人」正是那种在 MCP stdio 上悄悄替用户点头的默认值。
+   */
+  hasUserInterface: boolean
+  /** 「在等你」变了，宿主据此重发投影。由 `openLane` 内部接上，调用方通常不传。 */
+  onPendingChange?(pending: LanePendingApproval | undefined): void
+}
 
 export interface OpenLaneOptions {
   /** 项目目录。会话落在 `<project>/.nomi/agent-sessions/` 下。 */
@@ -107,7 +112,8 @@ export interface OpenLaneOptions {
   /** 宿主的身份提示词。`Available tools` / `Guidelines` 两段由 `openLane` 按 `tools` 自己拼，别在这里手写。 */
   systemPrompt: string
   tools: readonly LaneToolDescriptor[]
-  gate?(request: LaneToolGateRequest): Promise<LaneToolGateDecision> | LaneToolGateDecision
+  /** 审批闸。**不传 = 不装闸**（阶段 1 的影子夹具就是这样跑的）；装了就是 fail-closed 的那一套。 */
+  approval?: LaneApprovalOptions
 }
 
 export type OpenLane = (options: OpenLaneOptions) => Promise<LaneHandle>

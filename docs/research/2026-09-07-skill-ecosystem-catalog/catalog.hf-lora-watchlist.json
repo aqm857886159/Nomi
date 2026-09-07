@@ -1,0 +1,1340 @@
+{
+  "collectedAt": "2026-09-07",
+  "note": "市场认可度低于 P15 或 0 下载——不进 catalog，月更观察是否升温",
+  "entries": [
+    {
+      "id": "hf::greenslime/MiniMax-H3-Turbo-Lora-ComfyUI",
+      "kind": "lora",
+      "owner": "greenslime",
+      "repo": "greenslime/MiniMax-H3-Turbo-Lora-ComfyUI",
+      "name": "MiniMax-H3-Turbo-Lora-ComfyUI",
+      "version": "",
+      "description": "HuggingFace 模型：greenslime/MiniMax-H3-Turbo-Lora-ComfyUI",
+      "license": "apache-2.0",
+      "domain": "collection",
+      "craft": "",
+      "modality": "style",
+      "preview": {
+        "kind": "author-gallery",
+        "gallery": [],
+        "caption": "",
+        "requiredForFeatured": false
+      },
+      "source": {
+        "type": "huggingface",
+        "url": "https://huggingface.co/greenslime/MiniMax-H3-Turbo-Lora-ComfyUI",
+        "repoId": "greenslime/MiniMax-H3-Turbo-Lora-ComfyUI",
+        "ref": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "pass",
+        "checkedBy": "hf-sweep-v1"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 0,
+        "likes": 0,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "adapterForNomi": {
+        "needs": "comfyui-install",
+        "notes": "底座: Comfy-Org/MiniMax-H3 ·  · 权重文件 0 个"
+      },
+      "contentRisk": {
+        "nsfw": false,
+        "likeness": false,
+        "adult": false
+      },
+      "scoring": {
+        "formula": "0.6*log1p(downloads)+0.4*log1p(likes)",
+        "score": 0,
+        "tier": "watch"
+      }
+    },
+    {
+      "id": "hf::amirjan122222/MiniMax-H3-Turbo-Lora",
+      "kind": "lora",
+      "owner": "amirjan122222",
+      "repo": "amirjan122222/MiniMax-H3-Turbo-Lora",
+      "name": "MiniMax-H3-Turbo-Lora",
+      "version": "",
+      "description": "HuggingFace 模型：amirjan122222/MiniMax-H3-Turbo-Lora",
+      "license": "apache-2.0",
+      "domain": "collection",
+      "craft": "",
+      "modality": "style",
+      "preview": {
+        "kind": "author-gallery",
+        "gallery": [],
+        "caption": "",
+        "requiredForFeatured": false
+      },
+      "source": {
+        "type": "huggingface",
+        "url": "https://huggingface.co/amirjan122222/MiniMax-H3-Turbo-Lora",
+        "repoId": "amirjan122222/MiniMax-H3-Turbo-Lora",
+        "ref": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "pass",
+        "checkedBy": "hf-sweep-v1"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 0,
+        "likes": 0,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "adapterForNomi": {
+        "needs": "comfyui-install",
+        "notes": "底座: Comfy-Org/MiniMax-H3 ·  · 权重文件 0 个"
+      },
+      "contentRisk": {
+        "nsfw": false,
+        "likeness": false,
+        "adult": false
+      },
+      "scoring": {
+        "formula": "0.6*log1p(downloads)+0.4*log1p(likes)",
+        "score": 0,
+        "tier": "watch"
+      }
+    },
+    {
+      "id": "hf::inflected111/MiniMax-H3-Turbo-Lora",
+      "kind": "lora",
+      "owner": "inflected111",
+      "repo": "inflected111/MiniMax-H3-Turbo-Lora",
+      "name": "MiniMax-H3-Turbo-Lora",
+      "version": "",
+      "description": "HuggingFace 模型：inflected111/MiniMax-H3-Turbo-Lora",
+      "license": "apache-2.0",
+      "domain": "collection",
+      "craft": "",
+      "modality": "style",
+      "preview": {
+        "kind": "author-gallery",
+        "gallery": [],
+        "caption": "",
+        "requiredForFeatured": false
+      },
+      "source": {
+        "type": "huggingface",
+        "url": "https://huggingface.co/inflected111/MiniMax-H3-Turbo-Lora",
+        "repoId": "inflected111/MiniMax-H3-Turbo-Lora",
+        "ref": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "pass",
+        "checkedBy": "hf-sweep-v1"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 0,
+        "likes": 0,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "adapterForNomi": {
+        "needs": "comfyui-install",
+        "notes": "底座: Comfy-Org/MiniMax-H3 ·  · 权重文件 0 个"
+      },
+      "contentRisk": {
+        "nsfw": false,
+        "likeness": false,
+        "adult": false
+      },
+      "scoring": {
+        "formula": "0.6*log1p(downloads)+0.4*log1p(likes)",
+        "score": 0,
+        "tier": "watch"
+      }
+    },
+    {
+      "id": "hf::yitongl/minimax-h3-nvfp4-lora-recovery",
+      "kind": "lora",
+      "owner": "yitongl",
+      "repo": "yitongl/minimax-h3-nvfp4-lora-recovery",
+      "name": "minimax-h3-nvfp4-lora-recovery",
+      "version": "",
+      "description": "HuggingFace 模型：yitongl/minimax-h3-nvfp4-lora-recovery",
+      "license": "other",
+      "domain": "collection",
+      "craft": "",
+      "modality": "style",
+      "preview": {
+        "kind": "author-gallery",
+        "gallery": [],
+        "caption": "",
+        "requiredForFeatured": false
+      },
+      "source": {
+        "type": "huggingface",
+        "url": "https://huggingface.co/yitongl/minimax-h3-nvfp4-lora-recovery",
+        "repoId": "yitongl/minimax-h3-nvfp4-lora-recovery",
+        "ref": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "pass",
+        "checkedBy": "hf-sweep-v1"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 0,
+        "likes": 0,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "open-directory"
+      },
+      "adapterForNomi": {
+        "needs": "reference-only",
+        "notes": "底座: 未知 ·  · 权重文件 0 个"
+      },
+      "contentRisk": {
+        "nsfw": false,
+        "likeness": false,
+        "adult": false
+      },
+      "scoring": {
+        "formula": "0.6*log1p(downloads)+0.4*log1p(likes)",
+        "score": 0,
+        "tier": "watch"
+      }
+    },
+    {
+      "id": "hf::dadix4e/minimax_h3_turbo_lora_rank256_needs_training",
+      "kind": "lora",
+      "owner": "dadix4e",
+      "repo": "dadix4e/minimax_h3_turbo_lora_rank256_needs_training",
+      "name": "minimax_h3_turbo_lora_rank256_needs_training",
+      "version": "",
+      "description": "HuggingFace 模型：dadix4e/minimax_h3_turbo_lora_rank256_needs_training",
+      "license": "gpl-2.0",
+      "domain": "collection",
+      "craft": "",
+      "modality": "style",
+      "preview": {
+        "kind": "author-gallery",
+        "gallery": [],
+        "caption": "",
+        "requiredForFeatured": false
+      },
+      "source": {
+        "type": "huggingface",
+        "url": "https://huggingface.co/dadix4e/minimax_h3_turbo_lora_rank256_needs_training",
+        "repoId": "dadix4e/minimax_h3_turbo_lora_rank256_needs_training",
+        "ref": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "pass",
+        "checkedBy": "hf-sweep-v1"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 0,
+        "likes": 0,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "adapterForNomi": {
+        "needs": "reference-only",
+        "notes": "底座: 未知 ·  · 权重文件 0 个"
+      },
+      "contentRisk": {
+        "nsfw": false,
+        "likeness": false,
+        "adult": false
+      },
+      "scoring": {
+        "formula": "0.6*log1p(downloads)+0.4*log1p(likes)",
+        "score": 0,
+        "tier": "watch"
+      }
+    },
+    {
+      "id": "hf::lasdkjf/MiniMax-H3-Turbo-Lora",
+      "kind": "lora",
+      "owner": "lasdkjf",
+      "repo": "lasdkjf/MiniMax-H3-Turbo-Lora",
+      "name": "MiniMax-H3-Turbo-Lora",
+      "version": "",
+      "description": "HuggingFace 模型：lasdkjf/MiniMax-H3-Turbo-Lora",
+      "license": "apache-2.0",
+      "domain": "collection",
+      "craft": "",
+      "modality": "style",
+      "preview": {
+        "kind": "author-gallery",
+        "gallery": [],
+        "caption": "",
+        "requiredForFeatured": false
+      },
+      "source": {
+        "type": "huggingface",
+        "url": "https://huggingface.co/lasdkjf/MiniMax-H3-Turbo-Lora",
+        "repoId": "lasdkjf/MiniMax-H3-Turbo-Lora",
+        "ref": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "pass",
+        "checkedBy": "hf-sweep-v1"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 0,
+        "likes": 0,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "adapterForNomi": {
+        "needs": "comfyui-install",
+        "notes": "底座: Comfy-Org/MiniMax-H3 ·  · 权重文件 0 个"
+      },
+      "contentRisk": {
+        "nsfw": false,
+        "likeness": false,
+        "adult": false
+      },
+      "scoring": {
+        "formula": "0.6*log1p(downloads)+0.4*log1p(likes)",
+        "score": 0,
+        "tier": "watch"
+      }
+    },
+    {
+      "id": "hf::Alberto454/MiniMax-H3-Turbo-Lora-ComfyUI",
+      "kind": "lora",
+      "owner": "Alberto454",
+      "repo": "Alberto454/MiniMax-H3-Turbo-Lora-ComfyUI",
+      "name": "MiniMax-H3-Turbo-Lora-ComfyUI",
+      "version": "",
+      "description": "HuggingFace 模型：Alberto454/MiniMax-H3-Turbo-Lora-ComfyUI",
+      "license": "apache-2.0",
+      "domain": "collection",
+      "craft": "",
+      "modality": "style",
+      "preview": {
+        "kind": "author-gallery",
+        "gallery": [],
+        "caption": "",
+        "requiredForFeatured": false
+      },
+      "source": {
+        "type": "huggingface",
+        "url": "https://huggingface.co/Alberto454/MiniMax-H3-Turbo-Lora-ComfyUI",
+        "repoId": "Alberto454/MiniMax-H3-Turbo-Lora-ComfyUI",
+        "ref": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "pass",
+        "checkedBy": "hf-sweep-v1"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 0,
+        "likes": 1,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "adapterForNomi": {
+        "needs": "comfyui-install",
+        "notes": "底座: Comfy-Org/MiniMax-H3 ·  · 权重文件 0 个"
+      },
+      "contentRisk": {
+        "nsfw": false,
+        "likeness": false,
+        "adult": false
+      },
+      "scoring": {
+        "formula": "0.6*log1p(downloads)+0.4*log1p(likes)",
+        "score": 0.28,
+        "tier": "watch"
+      }
+    },
+    {
+      "id": "hf::seahorse12/MiniMax-H3-Turbo-Lora",
+      "kind": "lora",
+      "owner": "seahorse12",
+      "repo": "seahorse12/MiniMax-H3-Turbo-Lora",
+      "name": "MiniMax-H3-Turbo-Lora",
+      "version": "",
+      "description": "HuggingFace 模型：seahorse12/MiniMax-H3-Turbo-Lora",
+      "license": "apache-2.0",
+      "domain": "collection",
+      "craft": "",
+      "modality": "style",
+      "preview": {
+        "kind": "author-gallery",
+        "gallery": [],
+        "caption": "",
+        "requiredForFeatured": false
+      },
+      "source": {
+        "type": "huggingface",
+        "url": "https://huggingface.co/seahorse12/MiniMax-H3-Turbo-Lora",
+        "repoId": "seahorse12/MiniMax-H3-Turbo-Lora",
+        "ref": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "pass",
+        "checkedBy": "hf-sweep-v1"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 0,
+        "likes": 0,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "adapterForNomi": {
+        "needs": "comfyui-install",
+        "notes": "底座: Comfy-Org/MiniMax-H3 ·  · 权重文件 0 个"
+      },
+      "contentRisk": {
+        "nsfw": false,
+        "likeness": false,
+        "adult": false
+      },
+      "scoring": {
+        "formula": "0.6*log1p(downloads)+0.4*log1p(likes)",
+        "score": 0,
+        "tier": "watch"
+      }
+    },
+    {
+      "id": "hf::SimpleTuner/minimaxmusic-reggae-test-lora-comfyui-v1-4k",
+      "kind": "lora",
+      "owner": "SimpleTuner",
+      "repo": "SimpleTuner/minimaxmusic-reggae-test-lora-comfyui-v1-4k",
+      "name": "minimaxmusic-reggae-test-lora-comfyui-v1-4k",
+      "version": "",
+      "description": "HuggingFace 模型：SimpleTuner/minimaxmusic-reggae-test-lora-comfyui-v1-4k",
+      "license": "none",
+      "domain": "collection",
+      "craft": "",
+      "modality": "style",
+      "preview": {
+        "kind": "author-gallery",
+        "gallery": [],
+        "caption": "",
+        "requiredForFeatured": false
+      },
+      "source": {
+        "type": "huggingface",
+        "url": "https://huggingface.co/SimpleTuner/minimaxmusic-reggae-test-lora-comfyui-v1-4k",
+        "repoId": "SimpleTuner/minimaxmusic-reggae-test-lora-comfyui-v1-4k",
+        "ref": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "pass",
+        "checkedBy": "hf-sweep-v1"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 0,
+        "likes": 0,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "open-directory"
+      },
+      "adapterForNomi": {
+        "needs": "reference-only",
+        "notes": "底座: 未知 ·  · 权重文件 0 个"
+      },
+      "contentRisk": {
+        "nsfw": false,
+        "likeness": false,
+        "adult": false
+      },
+      "scoring": {
+        "formula": "0.6*log1p(downloads)+0.4*log1p(likes)",
+        "score": 0,
+        "tier": "watch"
+      }
+    },
+    {
+      "id": "hf::terminusresearch/minimax-music3-lm-lora-fiona-crapple",
+      "kind": "lora",
+      "owner": "terminusresearch",
+      "repo": "terminusresearch/minimax-music3-lm-lora-fiona-crapple",
+      "name": "minimax-music3-lm-lora-fiona-crapple",
+      "version": "",
+      "description": "HuggingFace 模型：terminusresearch/minimax-music3-lm-lora-fiona-crapple",
+      "license": "apache-2.0",
+      "domain": "collection",
+      "craft": "",
+      "modality": "style",
+      "preview": {
+        "kind": "author-gallery",
+        "gallery": [],
+        "caption": "",
+        "requiredForFeatured": false
+      },
+      "source": {
+        "type": "huggingface",
+        "url": "https://huggingface.co/terminusresearch/minimax-music3-lm-lora-fiona-crapple",
+        "repoId": "terminusresearch/minimax-music3-lm-lora-fiona-crapple",
+        "ref": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "pass",
+        "checkedBy": "hf-sweep-v1"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 0,
+        "likes": 1,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "adapterForNomi": {
+        "needs": "reference-only",
+        "notes": "底座: MiniMaxAI/MiniMax-Music3 ·  · 权重文件 0 个"
+      },
+      "contentRisk": {
+        "nsfw": false,
+        "likeness": false,
+        "adult": false
+      },
+      "scoring": {
+        "formula": "0.6*log1p(downloads)+0.4*log1p(likes)",
+        "score": 0.28,
+        "tier": "watch"
+      }
+    },
+    {
+      "id": "hf::OpenMOSS-Team/EasyWAM-Hidden-Wan22-LoRA-128",
+      "kind": "lora",
+      "owner": "OpenMOSS-Team",
+      "repo": "OpenMOSS-Team/EasyWAM-Hidden-Wan22-LoRA-128",
+      "name": "EasyWAM-Hidden-Wan22-LoRA-128",
+      "version": "",
+      "description": "HuggingFace 模型：OpenMOSS-Team/EasyWAM-Hidden-Wan22-LoRA-128",
+      "license": "cc-by-nc-4.0",
+      "domain": "collection",
+      "craft": "",
+      "modality": "style",
+      "preview": {
+        "kind": "author-gallery",
+        "gallery": [],
+        "caption": "",
+        "requiredForFeatured": false
+      },
+      "source": {
+        "type": "huggingface",
+        "url": "https://huggingface.co/OpenMOSS-Team/EasyWAM-Hidden-Wan22-LoRA-128",
+        "repoId": "OpenMOSS-Team/EasyWAM-Hidden-Wan22-LoRA-128",
+        "ref": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "pass",
+        "checkedBy": "hf-sweep-v1"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 0,
+        "likes": 1,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "adapterForNomi": {
+        "needs": "reference-only",
+        "notes": "底座: Wan-AI/Wan2.2-TI2V-5B ·  · 权重文件 0 个"
+      },
+      "contentRisk": {
+        "nsfw": false,
+        "likeness": false,
+        "adult": false
+      },
+      "scoring": {
+        "formula": "0.6*log1p(downloads)+0.4*log1p(likes)",
+        "score": 0.28,
+        "tier": "watch"
+      }
+    },
+    {
+      "id": "hf::OpenMOSS-Team/EasyWAM-MoT-Wan22-LoRA-128",
+      "kind": "lora",
+      "owner": "OpenMOSS-Team",
+      "repo": "OpenMOSS-Team/EasyWAM-MoT-Wan22-LoRA-128",
+      "name": "EasyWAM-MoT-Wan22-LoRA-128",
+      "version": "",
+      "description": "HuggingFace 模型：OpenMOSS-Team/EasyWAM-MoT-Wan22-LoRA-128",
+      "license": "cc-by-nc-4.0",
+      "domain": "collection",
+      "craft": "",
+      "modality": "style",
+      "preview": {
+        "kind": "author-gallery",
+        "gallery": [],
+        "caption": "",
+        "requiredForFeatured": false
+      },
+      "source": {
+        "type": "huggingface",
+        "url": "https://huggingface.co/OpenMOSS-Team/EasyWAM-MoT-Wan22-LoRA-128",
+        "repoId": "OpenMOSS-Team/EasyWAM-MoT-Wan22-LoRA-128",
+        "ref": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "pass",
+        "checkedBy": "hf-sweep-v1"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 0,
+        "likes": 1,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "adapterForNomi": {
+        "needs": "reference-only",
+        "notes": "底座: Wan-AI/Wan2.2-TI2V-5B ·  · 权重文件 0 个"
+      },
+      "contentRisk": {
+        "nsfw": false,
+        "likeness": false,
+        "adult": false
+      },
+      "scoring": {
+        "formula": "0.6*log1p(downloads)+0.4*log1p(likes)",
+        "score": 0.28,
+        "tier": "watch"
+      }
+    },
+    {
+      "id": "hf::OpenMOSS-Team/EasyWAM-Unified-Wan22-LoRA-128",
+      "kind": "lora",
+      "owner": "OpenMOSS-Team",
+      "repo": "OpenMOSS-Team/EasyWAM-Unified-Wan22-LoRA-128",
+      "name": "EasyWAM-Unified-Wan22-LoRA-128",
+      "version": "",
+      "description": "HuggingFace 模型：OpenMOSS-Team/EasyWAM-Unified-Wan22-LoRA-128",
+      "license": "cc-by-nc-4.0",
+      "domain": "collection",
+      "craft": "",
+      "modality": "style",
+      "preview": {
+        "kind": "author-gallery",
+        "gallery": [],
+        "caption": "",
+        "requiredForFeatured": false
+      },
+      "source": {
+        "type": "huggingface",
+        "url": "https://huggingface.co/OpenMOSS-Team/EasyWAM-Unified-Wan22-LoRA-128",
+        "repoId": "OpenMOSS-Team/EasyWAM-Unified-Wan22-LoRA-128",
+        "ref": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "pass",
+        "checkedBy": "hf-sweep-v1"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 0,
+        "likes": 1,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "adapterForNomi": {
+        "needs": "reference-only",
+        "notes": "底座: Wan-AI/Wan2.2-TI2V-5B ·  · 权重文件 0 个"
+      },
+      "contentRisk": {
+        "nsfw": false,
+        "likeness": false,
+        "adult": false
+      },
+      "scoring": {
+        "formula": "0.6*log1p(downloads)+0.4*log1p(likes)",
+        "score": 0.28,
+        "tier": "watch"
+      }
+    },
+    {
+      "id": "hf::Rob1221rib/wan21-fp8-loras-nsfw",
+      "kind": "lora",
+      "owner": "Rob1221rib",
+      "repo": "Rob1221rib/wan21-fp8-loras-nsfw",
+      "name": "wan21-fp8-loras-nsfw",
+      "version": "",
+      "description": "HuggingFace 模型：Rob1221rib/wan21-fp8-loras-nsfw",
+      "license": "other",
+      "domain": "collection",
+      "craft": "",
+      "modality": "style",
+      "preview": {
+        "kind": "author-gallery",
+        "gallery": [],
+        "caption": "",
+        "requiredForFeatured": false
+      },
+      "source": {
+        "type": "huggingface",
+        "url": "https://huggingface.co/Rob1221rib/wan21-fp8-loras-nsfw",
+        "repoId": "Rob1221rib/wan21-fp8-loras-nsfw",
+        "ref": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "pass",
+        "checkedBy": "hf-sweep-v1"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 0,
+        "likes": 1,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "open-directory"
+      },
+      "adapterForNomi": {
+        "needs": "reference-only",
+        "notes": "底座: 未知 · NSFW · 权重文件 0 个"
+      },
+      "contentRisk": {
+        "nsfw": true,
+        "likeness": false,
+        "adult": true
+      },
+      "scoring": {
+        "formula": "0.6*log1p(downloads)+0.4*log1p(likes)",
+        "score": 0.28,
+        "tier": "watch"
+      }
+    },
+    {
+      "id": "hf::Shen-Wang/rash_img_LoRA",
+      "kind": "lora",
+      "owner": "Shen-Wang",
+      "repo": "Shen-Wang/rash_img_LoRA",
+      "name": "rash_img_LoRA",
+      "version": "",
+      "description": "HuggingFace 模型：Shen-Wang/rash_img_LoRA",
+      "license": "openrail++",
+      "domain": "collection",
+      "craft": "",
+      "modality": "style",
+      "preview": {
+        "kind": "author-gallery",
+        "gallery": [],
+        "caption": "",
+        "requiredForFeatured": false
+      },
+      "source": {
+        "type": "huggingface",
+        "url": "https://huggingface.co/Shen-Wang/rash_img_LoRA",
+        "repoId": "Shen-Wang/rash_img_LoRA",
+        "ref": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "pass",
+        "checkedBy": "hf-sweep-v1"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 0,
+        "likes": 0,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "adapterForNomi": {
+        "needs": "reference-only",
+        "notes": "底座: stabilityai/stable-diffusion-xl-base-1.0 ·  · 权重文件 0 个"
+      },
+      "contentRisk": {
+        "nsfw": false,
+        "likeness": false,
+        "adult": false
+      },
+      "scoring": {
+        "formula": "0.6*log1p(downloads)+0.4*log1p(likes)",
+        "score": 0,
+        "tier": "watch"
+      }
+    },
+    {
+      "id": "hf::AlekseyCalvin/HSToricColorT2V_Wan_14B_rank256_LoRA_bySilverAgePoets",
+      "kind": "lora",
+      "owner": "AlekseyCalvin",
+      "repo": "AlekseyCalvin/HSToricColorT2V_Wan_14B_rank256_LoRA_bySilverAgePoets",
+      "name": "HSToricColorT2V_Wan_14B_rank256_LoRA_bySilverAgePoets",
+      "version": "",
+      "description": "HuggingFace 模型：AlekseyCalvin/HSToricColorT2V_Wan_14B_rank256_LoRA_bySilverAgePoets",
+      "license": "apache-2.0",
+      "domain": "collection",
+      "craft": "",
+      "modality": "style",
+      "preview": {
+        "kind": "author-gallery",
+        "gallery": [],
+        "caption": "",
+        "requiredForFeatured": false
+      },
+      "source": {
+        "type": "huggingface",
+        "url": "https://huggingface.co/AlekseyCalvin/HSToricColorT2V_Wan_14B_rank256_LoRA_bySilverAgePoets",
+        "repoId": "AlekseyCalvin/HSToricColorT2V_Wan_14B_rank256_LoRA_bySilverAgePoets",
+        "ref": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "pass",
+        "checkedBy": "hf-sweep-v1"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 0,
+        "likes": 1,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "adapterForNomi": {
+        "needs": "reference-only",
+        "notes": "底座: Wan-AI/Wan2.1-T2V-14B-Diffusers ·  · 权重文件 0 个"
+      },
+      "contentRisk": {
+        "nsfw": false,
+        "likeness": false,
+        "adult": false
+      },
+      "scoring": {
+        "formula": "0.6*log1p(downloads)+0.4*log1p(likes)",
+        "score": 0.28,
+        "tier": "watch"
+      }
+    },
+    {
+      "id": "hf::HotHams/Claydoh-LoRA-Wan2.1-14B",
+      "kind": "lora",
+      "owner": "HotHams",
+      "repo": "HotHams/Claydoh-LoRA-Wan2.1-14B",
+      "name": "Claydoh-LoRA-Wan2.1-14B",
+      "version": "",
+      "description": "HuggingFace 模型：HotHams/Claydoh-LoRA-Wan2.1-14B",
+      "license": "apache-2.0",
+      "domain": "collection",
+      "craft": "",
+      "modality": "style",
+      "preview": {
+        "kind": "author-gallery",
+        "gallery": [],
+        "caption": "",
+        "requiredForFeatured": false
+      },
+      "source": {
+        "type": "huggingface",
+        "url": "https://huggingface.co/HotHams/Claydoh-LoRA-Wan2.1-14B",
+        "repoId": "HotHams/Claydoh-LoRA-Wan2.1-14B",
+        "ref": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "pass",
+        "checkedBy": "hf-sweep-v1"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 0,
+        "likes": 1,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "candidate"
+      },
+      "adapterForNomi": {
+        "needs": "reference-only",
+        "notes": "底座: 未知 ·  · 权重文件 0 个"
+      },
+      "contentRisk": {
+        "nsfw": false,
+        "likeness": false,
+        "adult": false
+      },
+      "scoring": {
+        "formula": "0.6*log1p(downloads)+0.4*log1p(likes)",
+        "score": 0.28,
+        "tier": "watch"
+      }
+    },
+    {
+      "id": "hf::lucataco/hunyuan-lora-heygen-man-8",
+      "kind": "lora",
+      "owner": "lucataco",
+      "repo": "lucataco/hunyuan-lora-heygen-man-8",
+      "name": "hunyuan-lora-heygen-man-8",
+      "version": "",
+      "description": "HuggingFace 模型：lucataco/hunyuan-lora-heygen-man-8",
+      "license": "other",
+      "domain": "collection",
+      "craft": "",
+      "modality": "style",
+      "preview": {
+        "kind": "author-gallery",
+        "gallery": [],
+        "caption": "",
+        "requiredForFeatured": false
+      },
+      "source": {
+        "type": "huggingface",
+        "url": "https://huggingface.co/lucataco/hunyuan-lora-heygen-man-8",
+        "repoId": "lucataco/hunyuan-lora-heygen-man-8",
+        "ref": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "pass",
+        "checkedBy": "hf-sweep-v1"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 0,
+        "likes": 1,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "open-directory"
+      },
+      "adapterForNomi": {
+        "needs": "reference-only",
+        "notes": "底座: tencent/HunyuanVideo ·  · 权重文件 0 个"
+      },
+      "contentRisk": {
+        "nsfw": false,
+        "likeness": false,
+        "adult": false
+      },
+      "scoring": {
+        "formula": "0.6*log1p(downloads)+0.4*log1p(likes)",
+        "score": 0.28,
+        "tier": "watch"
+      }
+    },
+    {
+      "id": "hf::pablerdo/hunyuan-lora-f50cleat",
+      "kind": "lora",
+      "owner": "pablerdo",
+      "repo": "pablerdo/hunyuan-lora-f50cleat",
+      "name": "hunyuan-lora-f50cleat",
+      "version": "",
+      "description": "HuggingFace 模型：pablerdo/hunyuan-lora-f50cleat",
+      "license": "other",
+      "domain": "collection",
+      "craft": "",
+      "modality": "style",
+      "preview": {
+        "kind": "author-gallery",
+        "gallery": [],
+        "caption": "",
+        "requiredForFeatured": false
+      },
+      "source": {
+        "type": "huggingface",
+        "url": "https://huggingface.co/pablerdo/hunyuan-lora-f50cleat",
+        "repoId": "pablerdo/hunyuan-lora-f50cleat",
+        "ref": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "pass",
+        "checkedBy": "hf-sweep-v1"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 0,
+        "likes": 0,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "open-directory"
+      },
+      "adapterForNomi": {
+        "needs": "reference-only",
+        "notes": "底座: tencent/HunyuanVideo ·  · 权重文件 0 个"
+      },
+      "contentRisk": {
+        "nsfw": false,
+        "likeness": false,
+        "adult": false
+      },
+      "scoring": {
+        "formula": "0.6*log1p(downloads)+0.4*log1p(likes)",
+        "score": 0,
+        "tier": "watch"
+      }
+    },
+    {
+      "id": "hf::CCRss/hunyuan_lora_anime_akame",
+      "kind": "lora",
+      "owner": "CCRss",
+      "repo": "CCRss/hunyuan_lora_anime_akame",
+      "name": "hunyuan_lora_anime_akame",
+      "version": "",
+      "description": "HuggingFace 模型：CCRss/hunyuan_lora_anime_akame",
+      "license": "none",
+      "domain": "collection",
+      "craft": "",
+      "modality": "style",
+      "preview": {
+        "kind": "author-gallery",
+        "gallery": [],
+        "caption": "",
+        "requiredForFeatured": false
+      },
+      "source": {
+        "type": "huggingface",
+        "url": "https://huggingface.co/CCRss/hunyuan_lora_anime_akame",
+        "repoId": "CCRss/hunyuan_lora_anime_akame",
+        "ref": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "pass",
+        "checkedBy": "hf-sweep-v1"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 0,
+        "likes": 0,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "open-directory"
+      },
+      "adapterForNomi": {
+        "needs": "reference-only",
+        "notes": "底座: tencent/HunyuanVideo ·  · 权重文件 0 个"
+      },
+      "contentRisk": {
+        "nsfw": false,
+        "likeness": false,
+        "adult": false
+      },
+      "scoring": {
+        "formula": "0.6*log1p(downloads)+0.4*log1p(likes)",
+        "score": 0,
+        "tier": "watch"
+      }
+    },
+    {
+      "id": "hf::neph1/50s_scifi_hunyuan_video_lora",
+      "kind": "lora",
+      "owner": "neph1",
+      "repo": "neph1/50s_scifi_hunyuan_video_lora",
+      "name": "50s_scifi_hunyuan_video_lora",
+      "version": "",
+      "description": "HuggingFace 模型：neph1/50s_scifi_hunyuan_video_lora",
+      "license": "none",
+      "domain": "collection",
+      "craft": "",
+      "modality": "style",
+      "preview": {
+        "kind": "author-gallery",
+        "gallery": [],
+        "caption": "",
+        "requiredForFeatured": false
+      },
+      "source": {
+        "type": "huggingface",
+        "url": "https://huggingface.co/neph1/50s_scifi_hunyuan_video_lora",
+        "repoId": "neph1/50s_scifi_hunyuan_video_lora",
+        "ref": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "pass",
+        "checkedBy": "hf-sweep-v1"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 0,
+        "likes": 1,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "open-directory"
+      },
+      "adapterForNomi": {
+        "needs": "reference-only",
+        "notes": "底座: tencent/HunyuanVideo ·  · 权重文件 0 个"
+      },
+      "contentRisk": {
+        "nsfw": false,
+        "likeness": false,
+        "adult": false
+      },
+      "scoring": {
+        "formula": "0.6*log1p(downloads)+0.4*log1p(likes)",
+        "score": 0.28,
+        "tier": "watch"
+      }
+    },
+    {
+      "id": "hf::neph1/1980s_scifi_hunyuan_video_lora",
+      "kind": "lora",
+      "owner": "neph1",
+      "repo": "neph1/1980s_scifi_hunyuan_video_lora",
+      "name": "1980s_scifi_hunyuan_video_lora",
+      "version": "",
+      "description": "HuggingFace 模型：neph1/1980s_scifi_hunyuan_video_lora",
+      "license": "none",
+      "domain": "collection",
+      "craft": "",
+      "modality": "style",
+      "preview": {
+        "kind": "author-gallery",
+        "gallery": [],
+        "caption": "",
+        "requiredForFeatured": false
+      },
+      "source": {
+        "type": "huggingface",
+        "url": "https://huggingface.co/neph1/1980s_scifi_hunyuan_video_lora",
+        "repoId": "neph1/1980s_scifi_hunyuan_video_lora",
+        "ref": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "pass",
+        "checkedBy": "hf-sweep-v1"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 0,
+        "likes": 0,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "open-directory"
+      },
+      "adapterForNomi": {
+        "needs": "reference-only",
+        "notes": "底座: tencent/HunyuanVideo ·  · 权重文件 0 个"
+      },
+      "contentRisk": {
+        "nsfw": false,
+        "likeness": false,
+        "adult": false
+      },
+      "scoring": {
+        "formula": "0.6*log1p(downloads)+0.4*log1p(likes)",
+        "score": 0,
+        "tier": "watch"
+      }
+    },
+    {
+      "id": "hf::RoMALab/hunyuanvideo-1.5-robotwin15-i2v-lora",
+      "kind": "lora",
+      "owner": "RoMALab",
+      "repo": "RoMALab/hunyuanvideo-1.5-robotwin15-i2v-lora",
+      "name": "hunyuanvideo-1.5-robotwin15-i2v-lora",
+      "version": "",
+      "description": "HuggingFace 模型：RoMALab/hunyuanvideo-1.5-robotwin15-i2v-lora",
+      "license": "other",
+      "domain": "collection",
+      "craft": "",
+      "modality": "style",
+      "preview": {
+        "kind": "author-gallery",
+        "gallery": [],
+        "caption": "",
+        "requiredForFeatured": false
+      },
+      "source": {
+        "type": "huggingface",
+        "url": "https://huggingface.co/RoMALab/hunyuanvideo-1.5-robotwin15-i2v-lora",
+        "repoId": "RoMALab/hunyuanvideo-1.5-robotwin15-i2v-lora",
+        "ref": "",
+        "collectedAt": "2026-09-07",
+        "verified": true
+      },
+      "validation": {
+        "status": "pass",
+        "checkedBy": "hf-sweep-v1"
+      },
+      "security": {
+        "auditStatus": "unscanned",
+        "verified": "community"
+      },
+      "stats": {
+        "installs": 0,
+        "stars": 0,
+        "likes": 0,
+        "updatedAt": ""
+      },
+      "curation": {
+        "status": "open-directory"
+      },
+      "adapterForNomi": {
+        "needs": "reference-only",
+        "notes": "底座: hunyuanvideo-community/HunyuanVideo-1.5-Diffusers-480p_i2v_step_distilled ·  · 权重文件 0 个"
+      },
+      "contentRisk": {
+        "nsfw": false,
+        "likeness": false,
+        "adult": false
+      },
+      "scoring": {
+        "formula": "0.6*log1p(downloads)+0.4*log1p(likes)",
+        "score": 0,
+        "tier": "watch"
+      }
+    }
+  ]
+}

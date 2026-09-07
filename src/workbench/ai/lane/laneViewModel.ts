@@ -19,12 +19,15 @@ import type {
   LaneApprovalNote,
   LaneMetric,
   LanePart,
+  LanePendingApproval,
   LaneProjection,
 } from '../../../../electron/shared/agentLane/laneContracts'
 import {
   LANE_APPROVAL_NOTE_TYPE,
   isLaneApprovalNote,
+  laneApprovalWasRefused,
 } from '../../../../electron/shared/agentLane/laneContracts'
+import type { V4InterventionSource } from '../v4/agentPanelV4Intervention'
 import { resolveCapabilityAlias } from '../../../../electron/shared/agentCapabilities/registry'
 import { actionFamilyForCapability } from '../v4/agentPanelV4ActionFamily'
 import type {
@@ -84,6 +87,27 @@ export interface LaneViewModel {
   items: readonly V4FlowItem[]
   usage: ContextUsage
   running: boolean
+  /**
+   * 有一张审批卡在等用户。**它不是流里的一行**——它住在 composer 上方那个介入槽里
+   * （v4 定稿的积木 ⑤），所以它不进 `items`；进了就会在滚上去之后消失，而用户正等着答它。
+   */
+  pending?: LanePendingApproval
+}
+
+/**
+ * 待决的卡 → 现役介入槽要的那份数据源。
+ *
+ * 槽的**投影**（kind / 徽标 / 摘要 / 范围那一行）已经有唯一 owner
+ * （`agentPanelV4Intervention.ts`），这里只做「把 lane 的词表换成它的词表」这一步——
+ * 再写一份 kind 判定就是 R14.1 要横扫的「同一语义两份定义」。
+ */
+export function laneInterventionSource(pending: LanePendingApproval): V4InterventionSource {
+  return {
+    toolName: pending.toolName,
+    args: pending.args,
+    ...(pending.effectClass ? { effectClass: pending.effectClass } : { effectClass: undefined }),
+    pendingCount: pending.pendingCount,
+  }
 }
 
 /** 一次工具调用在流里的落点，用来把结果并回它的那一行（按 id join，不复制正文）。 */
@@ -151,7 +175,7 @@ export function laneViewModel(projection: LaneProjection, labels: LaneViewModelL
       // 宿主记录不占流里的一行。审批拒收的那句话 pi 已经一字不改地做成了那次调用的
       // tool result（探针 §4.2 臂 B），所以这里只用它把那一行的状态从「坏了」改成
       // 「被拒了」——同一句话说两遍是在骗用户，让他以为发生了两件事。
-      if (part.noteType === LANE_APPROVAL_NOTE_TYPE && isLaneApprovalNote(part.data) && part.data.decision === 'denied') {
+      if (part.noteType === LANE_APPROVAL_NOTE_TYPE && isLaneApprovalNote(part.data) && laneApprovalWasRefused(part.data)) {
         denials.set(part.data.toolCallId, part.data)
       }
       continue
@@ -199,6 +223,7 @@ export function laneViewModel(projection: LaneProjection, labels: LaneViewModelL
   return {
     items,
     running: projection.running,
+    ...(projection.pending ? { pending: projection.pending } : {}),
     usage: {
       // 环的分子是「现在上下文里装了多少」，不是累计用量——累计会画出一个 300% 的环。
       // 三态里只有 `known` 能当分子；`unknown` 时**连 `used` 都不给**，钮上退回 `—`。

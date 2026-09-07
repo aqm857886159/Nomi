@@ -145,6 +145,7 @@ test('G-02 · a tool failure throws, so pi records an errored result instead of 
   const message = 'The document is locked by another window; ask the user to close it and try again.';
   const failing: LaneToolDescriptor = {
     name: 'always_fails',
+    capabilityId: 'document.read',
     description: 'A tool that always reports a failure, used to prove failures are not recorded as successes.',
     promptSnippet: 'always report a failure.',
     effects: { mutates: false, billable: false, reversal: 'none' },

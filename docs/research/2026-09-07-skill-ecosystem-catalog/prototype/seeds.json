@@ -1,0 +1,7 @@
+[
+  "anthropics/skills#skills/canvas-design",
+  "coreyhaines31/marketingskills#skills/ad-creative",
+  "YouMind-OpenLab/ai-image-prompts-skill",
+  "huggingface:larryvrh/MiniMax-H3-Turbo-Lora",
+  "huggingface:fal/MiniMax-H3-Realism-People-LoRA"
+]
