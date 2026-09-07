@@ -9,7 +9,6 @@ import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { V4Intervention, V4Queue, V4TaskCard } from './AgentPanelV4Cards'
 import { V4ContextRing } from './AgentPanelV4Context'
-import { V4CollapsedRail } from './AgentPanelV4Dock'
 import { V4AssistantMessage, V4Thinking, V4UserBubble } from './AgentPanelV4Message'
 import { V4ToolReceipt } from './AgentPanelV4Receipt'
 import { AgentPanelV4Composer } from './AgentPanelV4Composer'
@@ -231,13 +230,12 @@ describe('⑥ 队列行', () => {
   })
 })
 
-describe('⑦ 收起坞 · ⑧ Context 环', () => {
-  it('rail 是 32px 宽、带运行状态点', () => {
-    const markup = html(el(V4CollapsedRail, { running: true, labels: { conversation: '对话', adjust: '面板设置' } }))
-    expect(markup).toContain('w-8')
-    expect(markup).toContain('data-v4-block="dock"')
-  })
-
+// ⑦ 收起坞的「叫回面板」那颗钮已搬到顶栏（09-01 定稿 §11.2），断言随它走进
+// `src/ui/app-shell/AgentTopbarChip.test.tsx`——它现在的邻居是浏览器/设置那两颗钮，
+// 断言该和它们放一起，不该留在面板积木这一叠里。本文件只剩画面下沿那一坞（无自有长相）。
+// （合并 origin/main 时这里冲突过：main 那侧还留着 `V4CollapsedRail` 的 32px 断言，
+//  而那个组件已在本分支随收起态返工删掉——保留删除，只取 main 对 Context 环的新说法。）
+describe('⑧ Context 环', () => {
   it('缺分母时不画环，改说一句真的知道的话——0% 是一个我们没资格下的断言', () => {
     const markup = html(el(V4ContextRing, { usage: { used: 62400 }, labels: contextLabels, expanded: true }))
     expect(markup).not.toContain('0%')

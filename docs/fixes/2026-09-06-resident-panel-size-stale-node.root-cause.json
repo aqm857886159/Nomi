@@ -1,0 +1,101 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-06-resident-panel-size-stale-node",
+  "problem_type": "A ResizeObserver bound once to ref.current cannot follow a node swap inside a component that keeps rendering, so the last box it saw — 0x0 from the detached node — is latched as the live layout.",
+  "symptom": "Collapse the resident Agent panel and expand it again and the panel comes back blank: the outer shell measures 339x745 while the v4 panel inside it measures 2x2 (only its two borders). Reproduced 2026-09-06 in tests/ux/agent-v4-short-film.walk.mjs on darwin; the probe printed `panel box {\"width\":2,\"height\":2}` next to `root box {\"width\":339,\"height\":745}`. Every control inside the panel is unclickable because the section has no area.",
+  "direct_cause": "usePanelSize took a React.RefObject and observed ref.current inside useEffect(..., [ref]). ProjectAgentResidentShell renders two different trees — the collapsed shell carries no measuring node — so collapsing detaches the observed element. A detached element reports contentRect 0x0, which the callback wrote into state; the effect never re-ran on expand (the ref object identity is stable), so nothing ever observed the new node and the panel kept rendering at width 0 / height 0.",
+  "class_root": "A layout measurement must be bound to the node that is mounted right now, and a zero-area box is never a real layout for a panel. Binding through a ref object plus an effect whose dependency list cannot change breaks the first half; accepting every contentRect breaks the second. Either alone is enough to latch a dead measurement.",
+  "affected_population": [
+    "Every user of the resident Agent panel on every platform: collapsing and re-expanding the panel in one workspace session leaves it blank until the workspace remounts (switching surfaces or restarting the app).",
+    "Both entry points into the collapsed state — the panel header's collapse control and the new top-right Nomi logo dock that expands it again."
+  ],
+  "scope_paths": [
+    "src/workbench/ai/ProjectAgentResidentShell.tsx"
+  ],
+  "entry_points": [
+    "ProjectAgentResidentShell renders a measuring root only in the expanded branch; the collapsed branch returns a different section, so the measured node is swapped out and back within one mounted component."
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The invariant is ours: which DOM node a hook observes, and whether a zero-area box counts as a layout. ResizeObserver behaves exactly as specified — a detached element has a 0x0 content box — so no vendor documentation decides this.",
+  "invariants": [
+    "The panel size hook observes the element currently mounted at its attachment point, re-binding whenever that element changes or goes away.",
+    "A zero-width or zero-height content box is discarded rather than written into panel size: a live panel always has area, so a zero can only come from a node that is no longer in the document."
+  ],
+  "generality_proof": "The measurement now enters through a single callback ref returned by usePanelSize. React invokes it with the new node on every attach and with null on every detach, so the observer follows the node by construction rather than by a dependency list that has to be kept correct. Because there is exactly one attachment point and one observer instance behind it, no caller can reintroduce the split between 'the node the ref pointed at when the effect ran' and 'the node that is mounted'. The zero guard makes the second half unconditional: even a future branch that detaches the node in some other way cannot write a dead 0x0 into the size the panel renders at.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "symbol": "usePanelSize",
+      "responsibility": "Owns both halves of the invariant: it re-binds its ResizeObserver through a callback ref every time the measured node changes, and it refuses zero-area content boxes so a detached node cannot become the panel's size."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "entry_point": "ProjectAgentResidentShell collapsed/expanded branch swap",
+      "disposition": "enforced",
+      "evidence": "This is the reported entry and both of its controls — the panel header's collapse control and the logo dock's expand button — now attach through usePanelSize's callback ref. There is no other attachment point in the component, so the branch swap it performs re-binds the observer instead of orphaning it."
+    },
+    {
+      "path": "src/workbench/promptLibrary/PromptLibraryPanel.tsx",
+      "entry_point": "useVirtualizedGrid scroll element observer",
+      "disposition": "not-affected",
+      "evidence": "It holds the measured element in state (`scrollEl`) and lists it in the dependency array, so the effect already re-runs when the node changes. That is the same shape as the callback ref: the observer follows the node instead of a stable ref object."
+    },
+    {
+      "path": "src/workbench/timeline/TimelinePanel.tsx",
+      "entry_point": "tracksRef content-viewport observer",
+      "disposition": "not-affected",
+      "evidence": "The observed node lives in the component's only tree; TimelinePanel has no branch that renders a different subtree while staying mounted, so `tracksRef.current` cannot be swapped out from under the observer. Checked by reading the component's returns — there is no early return that skips the tracks element."
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/useCanvasViewport.ts",
+      "entry_point": "stageRef stage-size observer",
+      "disposition": "not-affected",
+      "evidence": "The stage element is rendered unconditionally by the canvas shell; when the canvas is not shown the whole component unmounts, which tears the observer down through the effect cleanup rather than leaving it on a detached node."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The mechanism is not tied to this panel. Any component that keeps a hook alive while swapping the subtree containing the measured node reproduces it, and the resident shell alone reaches this state from two different controls (the header collapse control and the logo dock). It also survives across sessions: the collapsed preference is persisted, so the next launch that starts expanded and is then collapsed hits the same path.",
+    "same_class_scan": [
+      "grep -rln \"new ResizeObserver\" src/ — 15 files; each one's dependency array and attachment point read individually.",
+      "Independently checked src/workbench/promptLibrary/PromptLibraryPanel.tsx (state-held node, already correct), src/workbench/timeline/TimelinePanel.tsx and src/workbench/generationCanvas/components/useCanvasViewport.ts (single unconditional tree, unmount tears the observer down).",
+      "Searched ProjectAgentResidentShell for branches that return a tree without the measuring node: the collapsed branch is the only one, and it is exactly the reproduction."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+    "invariant": "usePanelSize returns the attachment point itself, so measuring is impossible without going through the hook that re-binds on node change and rejects zero-area boxes.",
+    "failure_mode": "A detached or missing node disconnects the observer and leaves the last real measurement standing; a zero-area report is dropped instead of being rendered, so the panel keeps its previous size rather than collapsing to nothing.",
+    "exception_policy": "none",
+    "strategy": "The hook no longer accepts a caller-owned ref. It hands back a callback ref, which React drives on every attach and detach, so 'which node is measured' stops being a fact the caller has to keep in sync with a dependency array. The zero guard sits inside the same observer callback, so it covers every future attachment point too.",
+    "artifacts": [
+      "src/workbench/ai/ProjectAgentResidentShell.tsx"
+    ]
+  },
+  "regression_tests": [
+    "tests/ux/agent-v4-short-film.walk.mjs"
+  ],
+  "class_regression_tests": [
+    "tests/ux/agent-v4-short-film.walk.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/ai/ProjectAgentResidentShell.tsx"
+    ],
+    "rationale": "The old ref-object signature is gone, not left beside the new one: usePanelSize no longer takes a RefObject parameter and the shell's rootRef was deleted, so there is no way to attach the panel to an observer that will not follow it."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "ResizeObserver is a platform API behaving to spec — a detached element genuinely has a 0x0 content box. The defect was our binding and our acceptance of that value, so no dependency version changes the outcome.",
+    "exit_criteria": []
+  },
+  "migration": "No migration. The stored collapsed preference and its schema are untouched; only the runtime measurement path changed, and the first real ResizeObserver callback after this change reinstates the correct size on any session that was left with a stale one.",
+  "residual_risks": [
+    "The reported case is proven on darwin by the short-film walkthrough; the same collapse/expand round trip is not separately exercised on win32 or linux runners, so those platforms inherit the fix without their own evidence.",
+    "The remaining ResizeObserver call sites were cleared by reading their attachment points rather than by a machine-checked rule, so a future component that swaps a measured node while staying mounted would not be caught by a gate."
+  ]
+}

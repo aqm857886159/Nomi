@@ -18,8 +18,10 @@ import { TimelineAgentReceiptEffect } from './resident/TimelineAgentReceiptEffec
 import { useTimelinePlanPreview } from './resident/timelineAgentSurface'
 import type { ResidentSurface } from './resident/residentShellDisplay'
 import { AgentPanelV4Panel } from './v4/AgentPanelV4Panel'
+import { flowScrollMemoryFor } from './v4/agentPanelV4ScrollMemory'
 import { V4Intervention } from './v4/AgentPanelV4Cards'
-import { V4CollapsedDock, V4CollapsedRail } from './v4/AgentPanelV4Dock'
+import { V4CollapsedDock } from './v4/AgentPanelV4Dock'
+import { useV4DockStatus } from './v4/agentPanelV4DockStatus'
 import { AgentPanelV4Composer, V4ModelPopover, V4PermissionPopover, V4SkillPopover, type V4CommandRow, type V4ModelRow } from './v4/AgentPanelV4Composer'
 import { useAgentPanelV4Data } from './v4/useAgentPanelV4Data'
 import { useAgentPanelV4Actions } from './v4/useAgentPanelV4Actions'
@@ -33,30 +35,44 @@ import { chatModelChoices } from './v4/agentPanelV4ModelRows'
 import { encodeModelIdentity } from './assistantModelIdentity'
 import { buildDefaultModelOptions } from '../settings/defaultGenerationModelOptions'
 
-/** 面板尺寸只有真实 DOM 知道。v4 的积木按面板高度 derive composer 上限，所以必须量。 */
-function usePanelSize(ref: React.RefObject<HTMLElement>): Readonly<{ width: number; height: number }> {
+/**
+ * 面板尺寸只有真实 DOM 知道。v4 的积木按面板高度 derive composer 上限，所以必须量。
+ *
+ * 挂点是 **callback ref**，不是 `useRef` + `useEffect([ref])`。后者量的是「首次挂载时
+ * `ref.current` 指的那个节点」，而这个组件收起时整棵子树换成另一棵（收起态的外壳没有这个挂点），
+ * 展开时再换回来——ref 对象本身没变，effect 因此**永远不会重跑**，观察器一直盯着那个已经
+ * 从文档里摘掉的旧节点。摘掉的节点浏览器报 0×0，于是收起那一刻 size 被写成 `{0,0}`；
+ * 再展开时没有任何东西重新量它，面板就以 0×0 渲染——**一块空白的 Agent 面板**。
+ * （2026-09-06 真机走查实测：外壳 339×745，面板 2×2，只剩两条边框。）
+ *
+ * callback ref 在节点每次换人时都跑一遍，观察器跟着换到新节点上——这才是「量的是当下这个盒子」。
+ * 0×0 另外直接丢掉：一个真实布局里的面板不会是 0 宽 0 高，那个数只可能来自已经摘掉的节点。
+ */
+function usePanelSize(): Readonly<{ width: number; height: number; measure: (node: HTMLElement | null) => void }> {
   const [size, setSize] = React.useState({ width: 390, height: 620 })
-  React.useEffect(() => {
-    const node = ref.current
+  const observerRef = React.useRef<ResizeObserver | null>(null)
+  const measure = React.useCallback((node: HTMLElement | null) => {
+    observerRef.current?.disconnect()
+    observerRef.current = null
     if (!node || typeof ResizeObserver !== 'function') return
     const observer = new ResizeObserver((entries) => {
       const box = entries[0]?.contentRect
-      if (!box) return
+      if (!box || box.width === 0 || box.height === 0) return
       // 面板宽度是用户拖出来的，高度跟着工作区。两个数都取整：小数宽度会让
       // `data-height` 每一帧都不同，视觉基线因此随机翻红。
       setSize({ width: Math.round(box.width), height: Math.round(box.height) })
     })
     observer.observe(node)
-    return () => observer.disconnect()
-  }, [ref])
-  return size
+    observerRef.current = observer
+  }, [])
+  React.useEffect(() => () => observerRef.current?.disconnect(), [])
+  return { ...size, measure }
 }
 
 export default function ProjectAgentResidentShell({ surface }: { surface: ResidentSurface }): JSX.Element {
   const { t } = useTranslation()
   const labels = useV4Labels()
-  const rootRef = React.useRef<HTMLDivElement>(null)
-  const size = usePanelSize(rootRef)
+  const size = usePanelSize()
   const collapsed = useWorkbenchStore((state) => state.projectAgentDockCollapsed)
   const setCollapsed = useWorkbenchStore((state) => state.setProjectAgentDockCollapsed)
   const draft = useWorkbenchStore((state) => state.projectAgentDraft)
@@ -70,6 +86,14 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
 
   const data = useAgentPanelV4Data(surface)
   const actions = useAgentPanelV4Actions(surface, data)
+  /**
+   * 「他读到哪儿了」得活在这棵子树之外（定稿 §11.2：点角标 = 原宽**原状态**还原）。
+   *
+   * 不放 `useRef`：收起时面板换挂点，连这个常驻壳自己都跟着重新挂载，ref 一起归零
+   * （2026-09-06 真机走查实测：ref 版展开后 scrollTop 回到底 259.5，等于没记）。
+   * 按线程记：位置属于那条对话，换项目/换线程各记各的，切回来还在原处。
+   */
+  const flowScroll = flowScrollMemoryFor(surface, data.activeThreadId)
   const [popover, setPopover] = React.useState<ComposerPopover | null>(null)
   const [threadsOpen, setThreadsOpen] = React.useState(false)
   const [commandQuery, setCommandQuery] = React.useState('')
@@ -109,6 +133,53 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
   React.useEffect(() => {
     publishActivity(activityTone, activityLabel)
   }, [activityLabel, activityTone, publishActivity])
+
+  /**
+   * 收起后 logo 上叠的那一格（2026-09-06 用户改）。
+   *
+   * 三个事实都从**已有的宿主投影**取，不新开一条真相：等待条数就是介入槽读的那批待决，
+   * 失败看「最后一件事是不是坏的」——面板级错误带，或者流末尾那条 error。翻历史找旧失败
+   * 会让一个早就被绕过去的错误永远在 logo 上挂着，那是假报警。
+   */
+  const dockPendingCount = data.pendingRecords.filter((record) => record.state === 'pending').length
+  const dockStatus = useV4DockStatus({
+    running: data.running,
+    pendingCount: dockPendingCount,
+    failed: Boolean(actions.error) || data.flow[data.flow.length - 1]?.kind === 'error',
+  })
+
+  /**
+   * 收起期间攒下的**未读条数**（定稿 §11.2：数字徽标 = 未读条数）。
+   *
+   * 「未读」只能从**收起那一刻**起算，所以要记一个锚：收起时流里已经有多少条。
+   * 锚在渲染中调整（React 官方那条「渲染期调整 state」的写法）而不是放进 effect——
+   * effect 晚一帧，那一帧里锚还是 0，未读会先闪一个「整段对话都是新的」的大数字。
+   *
+   * 只数**新回复**和**工具跑完**两种：用户自己在下沿 composer 里敲的那句不算未读（他刚写的），
+   * 思考条、任务卡这些是同一件事的过程，数进去只会把「有几件事等你」变成「界面动了几次」。
+   * 待决另算一份加上去——它不在流里，而它恰恰是最该被数出来的那种未读。
+   */
+  const [unreadAnchor, setUnreadAnchor] = React.useState({ collapsed, at: data.flow.length })
+  if (unreadAnchor.collapsed !== collapsed) setUnreadAnchor({ collapsed, at: data.flow.length })
+  const dockUnreadCount = collapsed
+    ? data.flow.slice(unreadAnchor.at).filter((item) => item.kind === 'assistant' || item.kind === 'tool').length + dockPendingCount
+    : 0
+
+  /**
+   * 把这三个数投到顶栏那格角标去（09-01 定稿 §11.2：收起态的家是顶栏右簇「浏览器 / 设置」之间）。
+   *
+   * 为什么要投而不是就地渲：顶栏不在这棵子树里。之前那一版把 logo 画在内容区右上角——
+   * 它跟着面板走，于是每换一个面落点就换一个地方，用户得重新找它。顶栏是唯一四个面都在的那条 chrome。
+   *
+   * 展开时报 `null`（不是报 `idle`）：`idle` 是「收着但没事」，`null` 是「压根没收起」——
+   * 顶栏据此决定那一格出不出角标，两者不能混。卸载时也报 `null`，否则关掉项目后
+   * 顶栏还挂着一颗指向已经不存在的面板的角标。
+   */
+  const publishDockBadge = useResidentActivityStore((state) => state.setResidentDockBadge)
+  React.useEffect(() => {
+    publishDockBadge(collapsed ? dockStatus : null, dockPendingCount, dockUnreadCount)
+  }, [collapsed, dockPendingCount, dockStatus, dockUnreadCount, publishDockBadge])
+  React.useEffect(() => () => useResidentActivityStore.getState().setResidentDockBadge(null, 0, 0), [])
 
   /**
    * 错误条 / 失败任务卡上那个动作钮。
@@ -295,7 +366,11 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
 
   // 收起 = 藏起**对话流**，不是藏起对话（定稿 Collapsed 板）。同一个 composer 掉到画面下沿
   // 居中，介入槽跟着它——这样一份编辑计划仍然读得到、批得下，不必把整列还给面板。
-  // 只留一条图标条、把 composer 也收走，才是真的把对话中断了。
+  // 把 composer 也收走，才是真的把对话中断了。
+  //
+  // 叫回它的入口只有一个，而且**不在这里**：顶栏右簇「浏览器」与「设置」之间那一格
+  // （`src/ui/app-shell/CollapsedAiChip.tsx`，09-01 定稿 §11.2）。收起态的家跟着 chrome 走、
+  // 不跟着面板走——顶栏是唯一四个面都在的那条，切面时角标不挪窝。
   if (collapsed) {
     return (
       <section
@@ -334,16 +409,13 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
             skillSelected={Boolean(activeSkill || actions.selectedLibraryPrompt)}
           />
         </V4CollapsedDock>
-        <div className="pointer-events-auto absolute right-0 top-0 h-full">
-          <V4CollapsedRail running={data.running} labels={labels.dock} onOpen={() => setCollapsed(false)} onAdjust={() => setCollapsed(false)} />
-        </div>
       </section>
     )
   }
 
   return (
     <div
-      ref={rootRef}
+      ref={size.measure}
       id="project-agent-resident"
       className="relative isolate flex h-full min-h-0 w-full min-w-0 flex-col bg-[var(--workbench-ai-panel-bg)] text-nomi-ink"
       aria-label={t('agentResident.aria')}
@@ -376,6 +448,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
         </div>
       ) : null}
       <AgentPanelV4Panel
+        scrollMemory={flowScroll}
         width={size.width}
         height={actions.error ? size.height - 20 : size.height}
         flow={data.flow}
