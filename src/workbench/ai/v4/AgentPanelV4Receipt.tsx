@@ -9,7 +9,7 @@ import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../../../utils/cn'
 import { ActionIcon, IconAlertTriangle, IconChevronRight, ToolStatusIcon } from './AgentPanelV4Icons'
-import type { ToolReceipt } from './agentPanelV4Types'
+import type { ToolReceipt, V4FlowItem } from './agentPanelV4Types'
 
 const STATUS_TONE: Record<string, string> = {
   'output-available': 'text-nomi-success',
@@ -108,6 +108,87 @@ function ReceiptBlock({ labelKey, value }: { labelKey: string; value: string }):
         {value}
       </pre>
     </div>
+  )
+}
+
+/**
+ * 同一个工具连着调 N 次时的那一行（积木 ③ 的容器态）。
+ *
+ * 长相与一行收据同构——icon + 动作名 + 摘要 + 右侧状态 + ›——只多一个 `×N` 计数。
+ * 展开体里逐条渲染的就是普通的 `V4ToolReceipt`，所以这里没有第二套收据样式。
+ *
+ * 行内必须带**原因**（`reason`）：2026-09-06 用户在打包版上连吃六条
+ * 「创建或修改镜头卡 · ⚠ <1s」，一个字的原因都没有，只能靠模型自己在正文里猜。
+ * 一行收据的意义就是「不展开也知道发生了什么」，没有原因的失败行做不到这件事。
+ */
+export function V4ToolGroup({
+  group,
+  statusLabel,
+}: {
+  group: Extract<V4FlowItem, { kind: 'tool-group' }>
+  statusLabel: string
+}): JSX.Element {
+  const { t } = useTranslation()
+  const tone = STATUS_TONE[group.status] ?? 'text-nomi-accent'
+  return (
+    <details className="group" data-v4-block="tool-group" data-status={group.status} data-count={group.count}>
+      <summary
+        className={cn(
+          'flex min-h-7 cursor-pointer list-none items-center gap-[7px] rounded-nomi-sm px-2 text-caption text-nomi-ink-60 hover:bg-nomi-ink-05',
+          'group-open:bg-nomi-ink-05',
+        )}
+      >
+        <span className="shrink-0 text-nomi-ink-60">
+          <ActionIcon action={group.action} />
+        </span>
+        <span className="shrink-0 font-medium text-nomi-ink-80">{group.label}</span>
+        <span className="shrink-0 font-nomi-mono text-micro text-nomi-ink-40">
+          {t('agentPanelV4.toolGroupCount', { count: group.count })}
+        </span>
+        {group.reason ? <span className="truncate text-micro text-nomi-ink-40">{group.reason}</span> : null}
+        <span className={cn('ml-auto flex shrink-0 items-center gap-1 text-micro', tone)}>
+          <ToolStatusIcon status={group.status} />
+          {group.trailing || statusLabel}
+          <IconChevronRight size={12} className="text-nomi-ink-40 transition-transform group-open:rotate-90" />
+        </span>
+      </summary>
+      <div className="mt-1 flex flex-col gap-0.5 border-l border-nomi-line-soft pl-1.5">
+        {group.receipts.map((receipt, index) => (
+          <V4ToolReceipt key={`${receipt.label}-${index}`} receipt={receipt} statusLabel={statusLabel} />
+        ))}
+      </div>
+    </details>
+  )
+}
+
+/**
+ * 反复试的过程里，模型说给自己听的那几段（积木 ② 的收起态）。
+ *
+ * 定稿 ⑦「过程反馈按 Claude Code」：过程默认收起，只有**最终回答**摊开。
+ * 平铺的时候它和最终回答一样宽、一样黑，用户得逐段读完才知道哪一段是给他的。
+ */
+export function V4Process({ label, segments }: { label: string; segments: readonly string[] }): JSX.Element {
+  const { t } = useTranslation()
+  return (
+    <details className="group" data-v4-block="process" data-count={segments.length}>
+      <summary className="flex min-h-7 cursor-pointer list-none items-center gap-[7px] rounded-nomi-sm px-2 text-caption text-nomi-ink-40 hover:bg-nomi-ink-05">
+        <span className="shrink-0">
+          <ActionIcon action="think" />
+        </span>
+        <span className="truncate">{label}</span>
+        <span className="ml-auto flex shrink-0 items-center gap-1 text-micro">
+          {t('agentPanelV4.processExpand')}
+          <IconChevronRight size={12} className="transition-transform group-open:rotate-90" />
+        </span>
+      </summary>
+      <div className="mt-1 flex flex-col gap-1.5 border-l border-nomi-line-soft py-1 pl-2.5">
+        {segments.map((segment, index) => (
+          <p key={index} className="m-0 whitespace-pre-wrap text-caption text-nomi-ink-60">
+            {segment}
+          </p>
+        ))}
+      </div>
+    </details>
   )
 }
 

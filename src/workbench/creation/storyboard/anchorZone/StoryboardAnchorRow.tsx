@@ -100,7 +100,8 @@ export default function StoryboardAnchorRow({
   const KindIcon = KIND_ICON[anchor.kind]
   const box = frameMediaBox(aspect)
   const modelOption = modelOptions.find((option) => option.value === anchor.modelKey) ?? null
-  const resolvedMode = resolveShotArchetypeMode(modelOption, anchor.modeId)?.mode ?? null
+  const resolvedArchetype = resolveShotArchetypeMode(modelOption, anchor.modeId)
+  const resolvedMode = resolvedArchetype?.mode ?? null
 
   const face = ((): JSX.Element => {
     if (!runtime.visual) {
@@ -239,6 +240,7 @@ export default function StoryboardAnchorRow({
         runtime.visual ? (
           <ShotReferenceZone
             mode={resolvedMode}
+            archetype={resolvedArchetype?.archetype ?? null}
             bindings={anchor.referenceBindings}
             onChangeBindings={(next) => onUpdate({ referenceBindings: next })}
             anchors={[]}

@@ -79,7 +79,7 @@ export const V4_COMPOSER_STATES: readonly LabState[] = [
   },
   {
     id: 'v4-composer-model-popover',
-    name: 'composer · 模型弹层（对话 + 三类默认 + 单价）',
+    name: 'composer · 模型弹层（对话 + 图片/视频两类默认 + 单价）',
     source: '2026-09-06-agent-panel-v4.md · Composer 板',
     coverage: 'component-only',
     render: () => {

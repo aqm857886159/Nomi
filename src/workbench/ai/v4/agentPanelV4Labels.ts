@@ -54,6 +54,8 @@ export function useV4Labels() {
       threadCost: t('agentPanelV4.threadCost'),
       // 「不知道」的那个字。它不是 `0%`——`0%` 是一个我们没资格下的断言。
       unknown: t('agentPanelV4.contextUnknown'),
+      // 有用量、没分母时钮上那句。`{{amount}}` 由组件替换（`t` 在这里已经把词条取好了）。
+      usedOnly: t('agentPanelV4.contextUsedOnly', { amount: '{{amount}}' }),
     },
     /** 介入槽里由**投影层**填的那些字（槽头徽章、缺凭证的标题与两个动作、范围说明）。 */
     interventionCopy: {

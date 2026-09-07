@@ -19,6 +19,11 @@ import {
 
 export type GenerationModelDefaultMap = Partial<Record<GenerationDefaultTaskKind, GenerationModelDefault>>
 
+// 渲染层要用这两个类型时**从这里取**，别各自去 import `electron/settings/…`：
+// 那是主进程的家，渲染层直连它是 `check:boundaries` 的 `src-no-import-electron`。
+// 本模块已经是渲染侧读写这份偏好的唯一入口，类型跟着它走是同一条边界。
+export type { GenerationDefaultTaskKind, GenerationModelDefault }
+
 const EMPTY: GenerationModelDefaultMap = {}
 
 let snapshot: GenerationModelDefaultMap = EMPTY

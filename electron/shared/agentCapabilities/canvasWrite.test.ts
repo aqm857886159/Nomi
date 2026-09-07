@@ -178,13 +178,20 @@ describe("canvas.write canonical contract", () => {
       }).success,
     ).toBe(false);
 
-    const wire = JSON.parse(JSON.stringify(zodToJsonSchema(createSchema!, { $refStrategy: "none" }))) as {
+    const wire = JSON.parse(JSON.stringify(zodToJsonSchema(createSchema!, { $refStrategy: "none", effectStrategy: "input" }))) as {
       required?: string[];
-      properties?: Record<string, { description?: string }>;
+      properties?: Record<string, { description?: string; anyOf?: Array<{ type?: string; description?: string }> }>;
     };
     expect(wire.required).toEqual(expect.arrayContaining(["summary", "nodes"]));
     expect(wire.properties?.summary?.description).toContain("shown to the user before confirmation");
-    expect(wire.properties?.edges?.description).toContain("same call");
+    // `nodes` / `edges` 现在是「数组 ∪ 同一个数组的 JSON 文本」（`jsonArgTolerance`）。
+    // 结构化那一支必须**排在前面**：模型是按顺序读 anyOf 的，把字符串那支排前面
+    // 等于在教它二次序列化——正是这次要修的那个 bug。原本写给模型的边说明留在数组那支上。
+    const edges = wire.properties?.edges?.anyOf ?? [];
+    expect(edges[0]?.type).toBe("array");
+    expect(edges[0]?.description).toContain("same call");
+    expect(edges[1]?.type).toBe("string");
+    expect(edges[1]?.description).toContain("not a string containing it");
   });
 
   it("projects a strict safe receipt without Canvas store objects", () => {
