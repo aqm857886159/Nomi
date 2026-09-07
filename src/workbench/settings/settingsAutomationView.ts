@@ -39,7 +39,7 @@ export type ProviderHealthRow = {
 /** 能力摘要的展示序（与抽屉能力条同序，两处读起来是一件事）。 */
 const CAPABILITY_KIND_ORDER = ['text', 'image', 'video', 'audio', 'model3d']
 
-const HOSTS: SettingsHostKey[] = ['nomi', 'claude', 'codex', 'cursor']
+const HOSTS: SettingsHostKey[] = ['nomi', 'claude', 'codex', 'cursor', 'pi']
 
 export function defaultAutomationPolicySettings(): AutomationPolicySettings {
   return {

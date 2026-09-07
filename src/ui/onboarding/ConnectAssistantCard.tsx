@@ -22,8 +22,11 @@ import { resolveAssistantActivationState, type AssistantClientKey } from './assi
 const GUIDE_URL = 'https://github.com/aqm857886159/Nomi/blob/main/docs/guide/capability-core-cli-mcp.md'
 const CURSOR_CONNECTED_TOAST_ID = 'mcp:cursor-connected'
 type ClientKey = AssistantClientKey
-const CLIENT_LABEL: Record<ClientKey, string> = { claude: 'Claude Code', codex: 'Codex', cursor: 'Cursor' }
-const CLIENT_ORDER: ClientKey[] = ['claude', 'codex', 'cursor']
+const CLIENT_LABEL: Record<ClientKey, string> = { claude: 'Claude Code', codex: 'Codex', cursor: 'Cursor', pi: 'Pi' }
+const CLIENT_ORDER: ClientKey[] = ['claude', 'codex', 'cursor', 'pi']
+// pi 是唯一一个「写完配置还差一步」的客户端：它自己不带 MCP，得先装社区适配器（pi-mcp-adapter）。
+// 这条命令我们只给、不代跑——装第三方包是用户自己机器上的决定（R20/R28）。
+const PI_ADAPTER_COMMAND = 'pi install npm:pi-mcp-adapter'
 
 // 本卡只管一个方向：**让 AI 助手来用 Nomi**（MCP）。
 // 反方向的「Nomi 去用 Codex 出图」已拆成独立的 CodexLocalImageCard，各开各的——此前接入 MCP 会
@@ -77,6 +80,7 @@ export function ConnectAssistantCard({
   const pickedDefault = React.useRef(false)
   const [busy, setBusy] = React.useState(false)
   const [copied, setCopied] = React.useState(false)
+  const [adapterCopied, setAdapterCopied] = React.useState(false)
   const [error, setError] = React.useState('')
   const [verify, setVerify] = React.useState<VerifyState | null>(null)
   const [checkNonce, setCheckNonce] = React.useState(0)
@@ -178,6 +182,14 @@ export function ConnectAssistantCard({
     })
   }
 
+  const handleCopyAdapterCommand = () => {
+    void navigator.clipboard.writeText(PI_ADAPTER_COMMAND).then(() => {
+      setAdapterCopied(true)
+      toast(t('onboardingProviders.assistant.copiedToast'), 'success')
+      window.setTimeout(() => setAdapterCopied(false), 1600)
+    })
+  }
+
   const openAutomationPermissions = () => {
     useToastStore.getState().remove(CURSOR_CONNECTED_TOAST_ID)
     if (onOpenAutomationPermissions) {
@@ -240,6 +252,35 @@ export function ConnectAssistantCard({
             onChange={(value) => setTarget(value as ClientKey)}
             data={CLIENT_ORDER.map((key) => ({ label: CLIENT_LABEL[key], value: key }))}
           />
+
+          {/* pi 前置步骤：写配置解决的是「抄一段 JSON」，但 pi 侧还得有个能读它的适配器。
+              这一条对接入前后都成立（撤销接入不会卸载适配器），所以放在分段控件下、状态分支之上。 */}
+          {target === 'pi' ? (
+            <div className="rounded-nomi-sm border border-nomi-line bg-nomi-ink-05 px-3 py-2.5">
+              <div className="text-body-sm font-semibold text-nomi-ink">
+                {t('onboardingProviders.assistant.piAdapterTitle')}
+              </div>
+              <div className="mt-0.5 text-caption leading-relaxed text-nomi-ink-60">
+                {t('onboardingProviders.assistant.piAdapterBody')}
+              </div>
+              <button
+                type="button"
+                onClick={handleCopyAdapterCommand}
+                className={cn(
+                  'mt-2 flex h-8 w-full items-center justify-between gap-2 rounded-nomi-sm',
+                  'border border-nomi-line bg-nomi-paper px-2.5 text-caption text-nomi-ink-80 hover:border-nomi-ink-20',
+                )}
+              >
+                <code className="min-w-0 truncate font-mono">{PI_ADAPTER_COMMAND}</code>
+                <span className="inline-flex shrink-0 items-center gap-1 text-nomi-ink-60">
+                  {adapterCopied ? <IconCheck size={14} stroke={1.8} /> : <IconCopy size={14} stroke={1.6} />}
+                  {adapterCopied
+                    ? t('onboardingProviders.assistant.copied')
+                    : t('onboardingProviders.assistant.piAdapterCopy')}
+                </span>
+              </button>
+            </div>
+          ) : null}
 
           {client.installed && broken ? (
             <>

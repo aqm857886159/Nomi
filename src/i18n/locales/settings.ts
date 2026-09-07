@@ -179,6 +179,7 @@ export const zhSettings = {
       claude: { name: 'Claude Code', hint: '只可发起草稿、查看状态和打开安全深链。' },
       codex: { name: 'Codex', hint: '只可发起草稿、查看状态和打开安全深链。' },
       cursor: { name: 'Cursor', hint: '只可发起草稿、查看状态和打开安全深链。' },
+      pi: { name: 'Pi', hint: '只可发起草稿、查看状态和打开安全深链。' },
     },
     notifications: {
       title: '任务通知',
@@ -442,6 +443,7 @@ export const enSettings = {
       claude: { name: 'Claude Code', hint: 'May only start drafts, read status, and open safe deep links.' },
       codex: { name: 'Codex', hint: 'May only start drafts, read status, and open safe deep links.' },
       cursor: { name: 'Cursor', hint: 'May only start drafts, read status, and open safe deep links.' },
+      pi: { name: 'Pi', hint: 'May only start drafts, read status, and open safe deep links.' },
     },
     notifications: {
       title: 'Task notifications',

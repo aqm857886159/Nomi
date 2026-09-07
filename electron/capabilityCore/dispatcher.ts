@@ -25,6 +25,7 @@ import type { ProductionBrief } from '../productionRun/productionRunTypes'
 import { isAnchorCheckpointGate } from '../productionRun/anchorCheckpoint'
 import { withPreApprovedPlan, type ProjectGateway } from './gateway'
 import { INTAKE_MAX_QUESTIONS, buildIntakeMessage, buildIntakeQuestions } from './mcpBriefIntake'
+import { isBuiltinMcpClient } from './security'
 import type { CapabilityOriginHost } from './security'
 import { createMcpGenerationPolicy, type McpGenerationPolicy } from './mcpGenerationPolicy'
 import { dispatchSemanticGeneration, guardLegacyGenerationRoute, isSemanticGenerationRoute } from './generationDispatcher'
@@ -115,9 +116,7 @@ function mcpSkillAccess(origin: DispatchContext['origin']): SkillMcpAccess {
   // `origin.host` is populated only after the MCP client proof has been
   // verified by the transport.  Treat every other caller as public; never
   // trust an audience field supplied in tool params.
-  return origin?.host === 'claude' || origin?.host === 'codex' || origin?.host === 'cursor'
-    ? 'local-authenticated'
-    : 'public'
+  return isBuiltinMcpClient(origin?.host) ? 'local-authenticated' : 'public'
 }
 
 function errorCodeOf(error: unknown): string | undefined {
