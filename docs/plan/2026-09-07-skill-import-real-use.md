@@ -1,5 +1,7 @@
 # 方案：把「导进来的技能」一路接到 Agent 里能真用上（2026-09-07）
 
+> 📋 方案待拍板 · 状态由 docs-autosync 自动登记，作者请按实修改
+
 - 状态：实施中（分支 `fix/skill-import-real-use-20260907`，PR #582）
 - 「先查别人」报告：[`docs/research/2026-09-07-skill-import-real-use/prior-art.md`](../research/2026-09-07-skill-import-real-use/prior-art.md)
 
