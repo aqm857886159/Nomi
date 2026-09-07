@@ -16,6 +16,7 @@ import type { Vendor } from "../catalog/types";
 import { networkFailureDetails, redactNetworkMessage, safeNetworkUrl } from "../networkErrorDetails";
 import { BoundedResponseError, readBoundedResponseBytes } from "./boundedResponse";
 import { providerDispatcher } from "../providerNetwork";
+import { authorizeSubmitDestination } from "./vendorOutboundGuard";
 
 export type VendorErrorCategory = "auth" | "balance" | "quota" | "input" | "server" | "network" | "timeout" | "unknown";
 
@@ -167,6 +168,25 @@ async function requestVendor(
   else signal?.addEventListener("abort", relayAbort, { once: true });
   const timer = setTimeout(() => controller.abort(new DOMException("Provider response timeout", "TimeoutError")), timeoutMs);
   const dispatcher = providerDispatcher(vendor);
+  // ── 出站策略：提交侧与取回侧问**同一个** owner、读同一份进程内环境事实 ────────────────
+  // 判据跑在这里而不是更下面，是因为「不扣费」这条承诺就是靠位置成立的：refusal 抛在
+  // fetchVendorWithBaseFallback 之前，请求一个字节都没离开本机，供应商不可能计费
+  // （与 vendorBaseFallback 文件头第 3 条同一个道理：连接未建立 ⇒ 不可能已计费）。
+  const submitRefusal = await authorizeSubmitDestination({ vendor, url: finalUrl, routedThroughProviderProxy: Boolean(dispatcher) });
+  if (submitRefusal) {
+    clearTimeout(timer);
+    signal?.removeEventListener("abort", relayAbort);
+    if (dispatcher) void dispatcher.close().catch(() => undefined);
+    throw new VendorRequestError(`Provider request refused by outbound policy at ${vendor.key} ${upperMethod} ${diagnosticUrl}: ${submitRefusal}`, {
+      vendorKey: vendor.key,
+      method: upperMethod,
+      url: diagnosticUrl,
+      upstreamMsg: submitRefusal,
+      // network 类但**不可重试**：同一个目的地重试一万次都是同一堵墙，而这堵墙在本机。
+      category: "network",
+      retryable: false,
+    });
+  }
   let response: Response;
   try {
     // 经 vendorBaseFallback：主域被墙（连接从未建立）→ 零额度探测官方备用域 → 换线重发一次。

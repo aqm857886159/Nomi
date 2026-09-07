@@ -10,13 +10,21 @@
  */
 import { desktopT } from "./i18n";
 import { tagNomiError } from "./shared/nomiErrorCodes";
-import { coarseAddressLabel, type OutboundRefusalReason } from "./networkOutboundPolicy";
+import { coarseAddressLabel, type OutboundRefusalReason, type OutboundStage } from "./networkOutboundPolicy";
 
 export type OutboundRefusalDescription = {
   reason: OutboundRefusalReason;
   hostname: string;
   observedAddress: string;
   syntheticResolver: boolean;
+  /**
+   * 哪一步被拦的。**这不是措辞差别，是钱的差别**：
+   *  · `retrieval` = 提交已经成功、上游多半已出片、**钱已经付过**，丢的只是那一次下载 → 免费重取。
+   *  · `submit`    = 请求**从未离开本机**（判据在 fetch 之前），供应商没被请求到、**没有计费**
+   *                  → 修好网络后重新生成即可，不存在「找回」这回事（连 taskId 都还没有）。
+   * 两者给同一句「已付费的任务没有丢」就是在骗人，且骗的方向相反：提交侧会让用户以为有东西可捞。
+   */
+  stage: OutboundStage;
 };
 
 /** RFC 2544 段落被 fake-ip 代理占用是既定事实；判「像不像 fake-ip」只看地址前缀。 */
@@ -30,10 +38,16 @@ function looksLikeFakeIp(address: string): boolean {
  * nomiErrorCodes.ts 存在的理由）。展示端 stripNomiErrorCode 把标记剥掉，用户只看到人话。
  */
 export function describeOutboundRefusal(input: OutboundRefusalDescription): string {
-  return tagNomiError("outbound-blocked", outboundRefusalSentence(input));
+  // 码也按阶段分家：渲染层的 `outboundBlockedRecoverableMessage` 只把 `outbound-blocked` 判成
+  // recoverable（有 taskId 就给「重新拉取结果」）。提交侧压根没有 taskId，共用一个码就会走到
+  // 一颗按不动的按钮上，或者更糟——一句「钱已经付过」的假话。
+  return input.stage === "submit"
+    ? tagNomiError("outbound-blocked-submit", outboundRefusalSentence(input))
+    : tagNomiError("outbound-blocked", outboundRefusalSentence(input));
 }
 
 function outboundRefusalSentence(input: OutboundRefusalDescription): string {
+  if (input.stage === "submit") return submitRefusalSentence(input);
   if (input.reason === "unresolvable") {
     return desktopT("outbound.unresolvable", { host: input.hostname });
   }
@@ -50,6 +64,29 @@ function outboundRefusalSentence(input: OutboundRefusalDescription): string {
     });
   }
   return desktopT("outbound.privateAddress", {
+    host: input.hostname,
+    address: coarseAddressLabel(input.observedAddress),
+  });
+}
+
+/**
+ * 提交侧的人话。三段式的第二段（「钱怎么样了」）在这里是**确定事实**而不是推测：
+ * 判据跑在 `fetchVendorWithBaseFallback` 之前，请求一个字节都没发出去。
+ */
+function submitRefusalSentence(input: OutboundRefusalDescription): string {
+  if (input.reason === "unresolvable") {
+    return desktopT("outbound.submitUnresolvable", { host: input.hostname });
+  }
+  if (input.reason === "private-host") {
+    return desktopT("outbound.submitPrivateHost", { host: input.hostname });
+  }
+  if (looksLikeFakeIp(input.observedAddress)) {
+    return desktopT("outbound.submitFakeIpBlocked", {
+      host: input.hostname,
+      address: coarseAddressLabel(input.observedAddress),
+    });
+  }
+  return desktopT("outbound.submitPrivateAddress", {
     host: input.hostname,
     address: coarseAddressLabel(input.observedAddress),
   });
