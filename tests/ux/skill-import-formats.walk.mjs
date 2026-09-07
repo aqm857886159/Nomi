@@ -80,7 +80,9 @@ const skillDirs = () =>
 async function waitForSkillDir(win, dirName, label) {
   const deadline = Date.now() + 10000
   while (Date.now() < deadline) {
-    if (skillDirs().includes(dirName)) return
+    // 等的是 **SKILL.md 落到位**，不是目录出现：`mkdirSync` 一跑目录就存在了，
+    // 此时读 `SKILL.md` 会 ENOENT——只等目录名会时不时红成一次假故障。
+    if (skillDirs().includes(dirName) && fs.existsSync(path.join(userSkillsRoot, dirName, 'SKILL.md'))) return
     await win.waitForTimeout(200)
   }
   throw new Error(`${label}：等了 10s，${userSkillsRoot} 里没出现 ${dirName}（现有：${skillDirs().join(', ') || '空'}）`)
@@ -121,8 +123,11 @@ try {
   // 打开技能库（侧栏 rail 按钮 aria-label = 技能库）
   await clickOrFail(win.getByRole('button', { name: '技能库', exact: true }).first(), '侧栏「技能库」')
 
-  // 隐藏的 file input 就是导入入口（用户点「导入文件」触发它）
-  const fileInput = win.locator('input[type="file"]').first()
+  // 隐藏的 file input 就是导入入口（用户点「导入文件」触发它）。
+  // 必须钉在技能库面板内部：这一屏上画布工具栏和 Agent composer 各有一个
+  // `input[type="file"]`，全页 `.first()` 谁先挂载就选谁——这条走查曾因此
+  // 拿到画布那个 `image/*,video/*` 的 input，报出「accept 未放开 .md」的误导性红。
+  const fileInput = win.locator('[data-skill-drop-zone] input[type="file"]').first()
   await fileInput.waitFor({ state: 'attached', timeout: 8000 })
 
   // accept 必须真的放开了，否则用户在系统对话框里根本选不到 .md / .zip —— 这正是用户遇到的那一幕

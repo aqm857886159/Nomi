@@ -99,7 +99,9 @@ async function dropFolder(win, { folderName, files }) {
 async function waitForSkillDir(win, dirName, label) {
   const deadline = Date.now() + 15_000
   for (;;) {
-    if (skillDirs().includes(dirName)) return
+    // 等的是 **SKILL.md 落到位**，不是目录出现：`mkdirSync` 一跑目录就存在了，
+    // 此时读包里的文件会 ENOENT——只等目录名会时不时红成一次假故障。
+    if (skillDirs().includes(dirName) && fs.existsSync(path.join(userSkillsRoot, dirName, 'SKILL.md'))) return
     if (Date.now() > deadline) {
       throw new Error(`${label}：等满 15s，${userSkillsRoot} 里没出现 ${dirName}（现有：${skillDirs().join(', ') || '空'}）`)
     }
@@ -140,7 +142,10 @@ try {
   expect(skillDirs(), '走查开始时用户技能目录应为空').toEqual([])
 
   // ── ① hermes 风格 zip：走用户真实路径（点导入 → 选文件） ─────────────────────
-  const fileInput = win.locator('input[type="file"]').first()
+  // input 必须钉在**技能库面板内部**。这一屏上还有画布工具栏和 composer 各自的
+  // `input[type="file"]`，全页 `.first()` 是个竞态选择器：谁先挂载就选谁
+  // （既有 skill-import-formats 走查正栽在这上面，本 PR 一并修）。
+  const fileInput = panel.locator('input[type="file"]').first()
   await fileInput.waitFor({ state: 'attached' })
   await fileInput.setInputFiles(zipPath)
   await waitForSkillDir(win, 'walk-hermes-zip', 'hermes 风格 zip 导入')
