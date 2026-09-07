@@ -224,6 +224,43 @@ describe('capabilityCore/mcpConfig', () => {
     expect(readMcpInfo(0).clients.claude.installed).toBe(false) // 各客户端独立
   })
 
+  // pi coding agent 自己不带 MCP；社区适配器 pi-mcp-adapter 自动读**标准共享**配置
+  // `~/.config/mcp/mcp.json`（README 2.32.1）。落点写错 = 用户点了「一键接入」但 pi 里什么都没有。
+  it('pi：install 写 ~/.config/mcp/mcp.json 的 mcpServers.nomi，不碰用户的 ~/.pi', () => {
+    const piPath = path.join(homeDir, '.config', 'mcp', 'mcp.json')
+    expect(fs.existsSync(piPath)).toBe(false)
+    installMcp('pi')
+    const after = JSON.parse(fs.readFileSync(piPath, 'utf8'))
+    expect(after.mcpServers.nomi.env.NOMI_MCP_STDIO).toBe('1')
+    expect(verifyMcpClient(
+      after.mcpServers.nomi.env[MCP_CLIENT_ENV],
+      after.mcpServers.nomi.env[MCP_CLIENT_PROOF_ENV],
+    )).toBe('pi')
+    expect(readMcpInfo(0).clients.pi.installed).toBe(true)
+    expect(readMcpInfo(0).clients.claude.installed).toBe(false) // 各客户端独立
+    // Pi 自有的 override 层是 adapter 的地盘，一键接入不许往那儿写。
+    expect(fs.existsSync(path.join(homeDir, '.pi'))).toBe(false)
+  })
+
+  // 「同源」是这条档的全部价值：pi 拿到的启动条目必须就是 Claude Code 那一份的投影，
+  // 只有客户端身份不同。哪天有人给 pi 手写第二份条目，这条会红。
+  it('pi 与 Claude Code 的启动条目同源，只有客户端身份不同', () => {
+    installMcp('pi')
+    installMcp('claude')
+    const piEntry = JSON.parse(fs.readFileSync(path.join(homeDir, '.config', 'mcp', 'mcp.json'), 'utf8')).mcpServers.nomi
+    const claudeEntry = JSON.parse(fs.readFileSync(claudeJson(), 'utf8')).mcpServers.nomi
+    expect(piEntry.command).toBe(claudeEntry.command)
+    expect(piEntry.args).toEqual(claudeEntry.args)
+    const identityKeys = [MCP_CLIENT_ENV, MCP_CLIENT_PROOF_ENV]
+    const withoutIdentity = (env: Record<string, string>) =>
+      Object.fromEntries(Object.entries(env).filter(([key]) => !identityKeys.includes(key)))
+    expect(withoutIdentity(piEntry.env)).toEqual(withoutIdentity(claudeEntry.env))
+    expect(piEntry.env[MCP_CLIENT_ENV]).toBe('pi')
+    expect(claudeEntry.env[MCP_CLIENT_ENV]).toBe('claude')
+    // 身份是绑死的：pi 的 proof 不能冒充 claude。
+    expect(verifyMcpClient('claude', piEntry.env[MCP_CLIENT_PROOF_ENV])).toBeNull()
+  })
+
   it('binds each installed entry to its client instead of trusting a renamed label', () => {
     installMcp('cursor')
     const cursorPath = path.join(homeDir, '.cursor', 'mcp.json')

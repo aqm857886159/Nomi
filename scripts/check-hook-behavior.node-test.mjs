@@ -200,3 +200,83 @@ test('读戳方推荐了不存在的补盖脚本 → 门岗报红（报告到的
     '应指出 hook 让人运行一个不存在的脚本',
   )
 })
+
+// —— 轴 C：登记表里的命令在「脚本被挪走」时的行为（2026-09-07）——
+//
+// 报告到的那一例是「落后的 worktree 上 commit-bypass-check.sh 不存在」，但真正的类是
+// **防线依赖一个可能不存在的文件，缺失时默认放行**。缺失的成因换了好几茬（没跑 pnpm install、
+// 分支停在旧提交、文件被删），「缺失 = 127 = 放行」这一条一次都没被拦过。
+
+/** 造一棵只有 hook 契约面的假项目根：脚本齐、settings 可按需改写。 */
+function makeSettingsFixture(t, rewriteCommand) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-hook-settings-'))
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }))
+  fs.mkdirSync(path.join(dir, 'scripts', 'claude-hooks'), { recursive: true })
+  fs.mkdirSync(path.join(dir, '.claude'), { recursive: true })
+  for (const name of fs.readdirSync(path.join(repoRoot, 'scripts/claude-hooks'))) {
+    if (!name.endsWith('.sh')) continue
+    fs.copyFileSync(path.join(repoRoot, 'scripts/claude-hooks', name), path.join(dir, 'scripts/claude-hooks', name))
+  }
+  const settings = JSON.parse(fs.readFileSync(path.join(repoRoot, '.claude/settings.json'), 'utf8'))
+  if (rewriteCommand) {
+    for (const groups of Object.values(settings.hooks)) {
+      for (const group of groups) for (const hook of group.hooks) hook.command = rewriteCommand(hook.command)
+    }
+  }
+  fs.writeFileSync(path.join(dir, '.claude/settings.json'), JSON.stringify(settings, null, 2))
+  return dir
+}
+
+test('登记表退回裸 `bash <脚本>` → 三个拦截型闸门全部报「缺失时 127 不是 2」（今天实测的那一例）', (t) => {
+  const dir = makeSettingsFixture(t, (command) => {
+    const script = /CLAUDE_PROJECT_DIR\/([\w./-]+\.sh)/.exec(command)[1]
+    return `bash "$CLAUDE_PROJECT_DIR/${script}"`
+  })
+  const problems = checkHookBehavior(dir, { only: ['settings-guard'] })
+  for (const script of ['pre-push-check.sh', 'commit-bypass-check.sh', 'secret-guard.sh']) {
+    assert.ok(
+      problems.some((p) => p.includes(script) && p.includes('退出码是 127')),
+      `${script} 的缺失行为必须被拦下——裸 bash 缺文件退 127，Claude Code 当「继续」`,
+    )
+  }
+})
+
+test('把拦截型守卫的退出码从 2 改成 1 → 报红（1 是非阻断错误，不拦人）', (t) => {
+  const dir = makeSettingsFixture(t, (command) => command.replace('exit 2;', 'exit 1;'))
+  const problems = checkHookBehavior(dir, { only: ['settings-guard'] })
+  assert.ok(
+    problems.some((p) => p.includes('commit-bypass-check.sh') && p.includes('退出码是 1')),
+    '退出码不是 2 就不是阻断，必须报红',
+  )
+})
+
+test('提示型守卫被写成 exit 2 → 报红（Stop 上会锁成想修都停不下来的死循环）', (t) => {
+  const dir = makeSettingsFixture(t, (command) =>
+    command.includes('completion-check.sh') ? command.replace('exit 1;', 'exit 2;') : command,
+  )
+  const problems = checkHookBehavior(dir, { only: ['settings-guard'] })
+  assert.ok(
+    problems.some((p) => p.includes('completion-check.sh') && p.includes('不该把人锁死')),
+    '提示型 hook 缺失时不该阻断',
+  )
+})
+
+test('提示型守卫一声不吭地放行 → 报红（可以 fail-open，不可以 fail-silent）', (t) => {
+  const dir = makeSettingsFixture(t, (command) =>
+    command.includes('handoff-read.sh') ? `sh -c 'h="$CLAUDE_PROJECT_DIR/scripts/claude-hooks/handoff-read.sh"; [ -f "$h" ] || exit 0; exec bash "$h"'` : command,
+  )
+  const problems = checkHookBehavior(dir, { only: ['settings-guard'] })
+  assert.ok(
+    problems.some((p) => p.includes('handoff-read.sh') && p.includes('fail-silent')),
+    '缺失却既不报错也不出声 = 和正常放行长得一模一样，必须报红',
+  )
+})
+
+test('仓库当前的登记表：脚本挪走必拦、脚本在场必放行（不许假红）', (t) => {
+  const dir = makeSettingsFixture(t)
+  assert.deepEqual(
+    checkHookBehavior(dir, { only: ['settings-guard'] }),
+    [],
+    '守卫不许退化成「拦一切」——会误报的闸门用不了几次就会被人绕过',
+  )
+})
