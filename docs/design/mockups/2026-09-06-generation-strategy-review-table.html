@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="zh-CN" data-mantine-color-scheme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Generation Strategy Review · 分镜表紧凑版（nomi token）</title>
+<style>
+  :root {
+    --nomi-bg: oklch(0.985 0.003 90);
+    --nomi-paper: oklch(1 0 0);
+    --nomi-ink: oklch(0.22 0.01 80);
+    --nomi-ink-80: oklch(0.32 0.01 80);
+    --nomi-ink-60: oklch(0.50 0.01 80);
+    --nomi-ink-40: oklch(0.68 0.01 80);
+    --nomi-ink-30: oklch(0.78 0.01 80);
+    --nomi-ink-20: oklch(0.88 0.005 80);
+    --nomi-ink-10: oklch(0.94 0.003 80);
+    --nomi-ink-05: oklch(0.97 0.003 80);
+    --nomi-line: oklch(0.91 0.004 80);
+    --nomi-line-soft: oklch(0.95 0.003 80);
+    --nomi-accent: oklch(0.55 0.13 250);
+    --nomi-accent-soft: color-mix(in srgb, var(--nomi-accent) 12%, var(--nomi-paper));
+    --nomi-danger: oklch(0.55 0.20 27);
+    --nomi-warning: oklch(0.62 0.14 75);
+    --nomi-track-video: oklch(0.65 0.13 150);
+    --nomi-radius-sm: 6px;
+    --nomi-radius: 10px;
+    --nomi-font-sans: "Inter Variable", Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", system-ui, sans-serif;
+    --teal-soft: color-mix(in srgb, var(--nomi-track-video) 14%, var(--nomi-paper));
+    --amber-soft: color-mix(in srgb, var(--nomi-warning) 16%, var(--nomi-paper));
+    --red-soft: color-mix(in srgb, var(--nomi-danger) 12%, var(--nomi-paper));
+    --blue-soft: var(--nomi-accent-soft);
+  }
+  :root[data-mantine-color-scheme="dark"] {
+    color-scheme: dark;
+    --nomi-bg: oklch(0.18 0.006 80); --nomi-paper: oklch(0.235 0.007 80);
+    --nomi-ink: oklch(0.93 0.006 85); --nomi-ink-80: oklch(0.84 0.006 85);
+    --nomi-ink-60: oklch(0.70 0.006 85); --nomi-ink-40: oklch(0.62 0.006 85);
+    --nomi-ink-30: oklch(0.50 0.006 85); --nomi-ink-20: oklch(0.42 0.006 85);
+    --nomi-ink-10: oklch(0.34 0.006 85); --nomi-ink-05: oklch(0.30 0.006 85);
+    --nomi-line: oklch(0.36 0.007 80); --nomi-line-soft: oklch(0.31 0.007 80);
+    --nomi-accent: oklch(0.70 0.13 250); --nomi-accent-soft: color-mix(in srgb, var(--nomi-accent) 26%, var(--nomi-paper));
+    --nomi-danger: oklch(0.72 0.16 25); --nomi-warning: oklch(0.78 0.13 75);
+    --nomi-track-video: oklch(0.70 0.13 150);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--nomi-bg); color: var(--nomi-ink); font-family: var(--nomi-font-sans); font-size: 13px; line-height: 1.45; padding: 24px; }
+  .wrap { max-width: 860px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+  .bar { display: flex; align-items: center; justify-content: space-between; }
+  .kicker { color: var(--nomi-ink-40); font-size: 12px; }
+  h1 { font-size: 15px; font-weight: 500; margin: 2px 0; letter-spacing: -0.01em; }
+  button { font: inherit; border: 0; border-radius: var(--nomi-radius-sm); cursor: pointer; }
+  .btn { padding: 6px 12px; background: var(--nomi-paper); border: 1px solid var(--nomi-line); color: var(--nomi-ink); }
+  .btn-primary { background: var(--nomi-accent); border-color: var(--nomi-accent); color: var(--nomi-paper); }
+  .btn-ghost { background: transparent; border: 1px solid var(--nomi-line); color: var(--nomi-ink-60); }
+  .card { background: var(--nomi-paper); border: 1px solid var(--nomi-line); border-radius: var(--nomi-radius); padding: 12px 14px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { font-size: 12px; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--nomi-line); background: var(--nomi-ink-05); color: var(--nomi-ink-60); }
+  .chip.teal { background: var(--teal-soft); border-color: var(--nomi-track-video); }
+  .chip.amber { background: var(--amber-soft); border-color: var(--nomi-warning); }
+  .chip.blue { background: var(--blue-soft); border-color: var(--nomi-accent); }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { text-align: left; font-weight: 500; color: var(--nomi-ink-40); padding: 6px 10px; border-bottom: 1px solid var(--nomi-line); white-space: nowrap; }
+  td { padding: 7px 10px; border-bottom: 1px solid var(--nomi-line-soft); vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  td.no { color: var(--nomi-ink-40); white-space: nowrap; }
+  .cell-title { font-weight: 500; }
+  .cell-sub { color: var(--nomi-ink-40); font-size: 11px; margin-top: 1px; }
+  .dur-old { color: var(--nomi-ink-40); text-decoration: line-through; }
+  .dur-new { color: var(--nomi-ink-80); font-weight: 500; }
+  .mdl { color: var(--nomi-ink-60); white-space: nowrap; }
+  .badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--nomi-line); white-space: nowrap; }
+  .badge.teal { background: var(--teal-soft); border-color: var(--nomi-track-video); color: var(--nomi-ink-80); }
+  .badge.amber { background: var(--amber-soft); border-color: var(--nomi-warning); color: var(--nomi-ink-80); }
+  .badge.blue { background: var(--blue-soft); border-color: var(--nomi-accent); color: var(--nomi-ink-80); }
+  .badge.gray { color: var(--nomi-ink-40); }
+  tr.merged td { background: var(--teal-soft); }
+  tr.merged:not(.adopted) { outline: 1px solid var(--nomi-track-video); outline-offset: -1px; }
+  .adopt { border: 1px solid var(--nomi-track-video); background: transparent; color: var(--nomi-ink-80); padding: 1px 10px; font-size: 11px; border-radius: 999px; }
+  .adopt.on { background: var(--nomi-track-video); color: var(--nomi-paper); }
+  .expand { background: transparent; color: var(--nomi-ink-40); font-size: 11px; padding: 1px 4px; }
+  details.reason { margin-top: 4px; }
+  details.reason summary { cursor: pointer; color: var(--nomi-ink-40); font-size: 11px; list-style: none; display: inline-flex; align-items: center; gap: 4px; }
+  details.reason summary::-webkit-details-marker { display: none; }
+  details.reason .body { margin-top: 4px; color: var(--nomi-ink-60); background: var(--nomi-ink-05); border-radius: var(--nomi-radius-sm); padding: 6px 8px; font-size: 11px; max-width: 420px; }
+  .note { color: var(--nomi-ink-40); font-size: 12px; display: flex; gap: 8px; align-items: flex-start; }
+  .actions { display: flex; gap: 8px; justify-content: flex-end; align-items: center; }
+  .toggle { font-size: 12px; color: var(--nomi-ink-60); background: transparent; border: 1px solid var(--nomi-line); padding: 4px 10px; border-radius: 999px; }
+  .muted { color: var(--nomi-ink-40); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="bar">
+    <div>
+      <div class="kicker">方案审阅 · propose_storyboard_plan · Rainy Night Chase</div>
+      <h1>分镜与生成计划（紧凑表）</h1>
+    </div>
+    <button class="toggle" id="themeBtn" type="button">切换暗色</button>
+  </div>
+
+  <div class="card">
+    <div class="chips">
+      <span class="chip teal" id="chipMerge">1 条合并建议</span>
+      <span class="chip amber">2 项需修正</span>
+      <span class="chip blue">模型统一 MiniMax H3 · 参考生视频（上限 15s）</span>
+    </div>
+  </div>
+
+  <div class="card" style="padding:6px 8px">
+    <table>
+      <thead>
+        <tr><th style="width:52px">#</th><th>拍 / 内容</th><th style="width:150px">时长</th><th style="width:120px">模型·模式</th><th style="width:150px">机器处置</th></tr>
+      </thead>
+      <tbody id="body"></tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="actions">
+      <button class="btn-ghost btn" id="adoptAll" type="button">全部采纳建议</button>
+      <button class="btn btn-primary" type="button">按当前方案落画布</button>
+    </div>
+    <div class="note" style="margin-top:8px">落画布前再跑一次 resolve：超上限/未知参数/低于下限会被拦下并提示修正（fail-closed）。表格 = 分镜 + 生成计划一屏；策略已在列内，无需额外卡片。</div>
+  </div>
+</div>
+
+<script>
+  const adoptAll = document.getElementById("adoptAll");
+  const adoptStates = {};
+  const mergeRows = ["m1"];
+  const setAdopt = (id, on) => {
+    adoptStates[id] = on;
+    const btn = document.getElementById(id);
+    if (btn) { btn.classList.toggle("on", on); btn.textContent = on ? "已采纳" : "采纳"; }
+    const row = document.getElementById(id + "-row");
+    if (row) row.classList.add("adopted");
+    const chip = document.getElementById("chipMerge");
+    const pending = Object.keys(adoptStates).filter((k) => !adoptStates[k]).length;
+    chip.textContent = pending ? pending + " 条合并建议" : "合并建议已全部采纳";
+    adoptAll.textContent = Object.keys(adoptStates).every((k) => adoptStates[k]) ? "已全部采纳" : "全部采纳建议";
+  };
+  adoptAll.addEventListener("click", () => {
+    const allOn = Object.keys(adoptStates).every((k) => adoptStates[k]);
+    Object.keys(adoptStates).forEach((k) => setAdopt(k, !allOn));
+  });
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest(".adopt"); if (b) setAdopt(b.dataset.id, !adoptStates[b.dataset.id]);
+  });
+  document.getElementById("themeBtn").addEventListener("click", () => {
+    const r = document.documentElement;
+    const next = r.dataset.mantineColorScheme === "light" ? "dark" : "light";
+    r.dataset.mantineColorScheme = next;
+    document.getElementById("themeBtn").textContent = next === "dark" ? "切换亮色" : "切换暗色";
+  });
+
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const dur = (oldT, newT) => (oldT === newT ? '<span class="dur-new">' + esc(newT) + "</span>" : '<span class="dur-old">' + esc(oldT) + '</span> → <span class="dur-new">' + esc(newT) + "</span>");
+  const badge = (txt, cls) => '<span class="badge ' + (cls || "gray") + '">' + esc(txt) + "</span>";
+  const reason = (txt) => "<details class='reason'><summary>为什么</summary><div class='body'>" + esc(txt) + "</div></details>";
+
+  const rows = [
+    { kind: "merge", id: "m1", no: "1+2", title: "便利店门口 → 抬头，雨水沿帽檐滴", sub: "同场 · 同一角色卡参考", durOld: "6s+4s", durNew: "10s", mdl: "MiniMax H3 · 参考生视频", badge: "并入一次生成", badgeCls: "teal", why: "同场同角色短拍，合计 10s ≤ H3 上限 15s —— 并入一次生成，动作与光线更连续、少一次抽卡。不采纳则两镜分别生成。", adoptable: true },
+    { kind: "plain", no: "3", title: "他摸出打火机，点燃", sub: "中等拍 · 不并入", durOld: "8s", durNew: "8s", mdl: "MiniMax H3 · 参考生视频" },
+    { kind: "issue", no: "4", title: "雷声，他顿住", sub: "碎镜", durOld: "2s", durNew: "并入 5", mdl: "—", badge: "低于下限 4s", badgeCls: "amber", why: "2s 低于 H3 下限 4s，无法单独生成 → 已并入邻镜 5（合计 6s）。" },
+    { kind: "plain", no: "5", title: "转身冲进雨里", sub: "含并入镜头 4", durOld: "4s+2s", durNew: "6s", mdl: "MiniMax H3 · 参考生视频", badge: "含并入", badgeCls: "amber" },
+    { kind: "issue", no: "6", title: "追车长镜：横摇跟到车尾灯消失", sub: "", durOld: "40s", durNew: "15+15+10", mdl: "MiniMax H3 · 首尾帧承接", badge: "超上限拆 3 条", badgeCls: "blue", why: "40s 超过单条上限 15s → 拆 15+15+10 连续生成，同锚复用 + 段间首尾帧承接；不拆会被截断。" },
+  ];
+
+  const body = document.getElementById("body");
+  for (const r of rows) {
+    const tr = document.createElement("tr");
+    tr.id = r.id + "-row";
+    if (r.kind === "merge") tr.className = "merged";
+    let handling = "";
+    if (r.kind === "merge") {
+      handling = badge(r.badge, r.badgeCls) + ' <button class="adopt" id="' + r.id + '" data-id="' + r.id + '" type="button">采纳</button>' + reason(r.why);
+    } else if (r.badge) {
+      handling = badge(r.badge, r.badgeCls) + (r.why ? reason(r.why) : "");
+    } else handling = '<span class="muted">按建议生成</span>';
+    tr.innerHTML =
+      '<td class="no">' + esc(r.no) + "</td>" +
+      "<td><div class='cell-title'>" + esc(r.title) + "</div>" + (r.sub ? "<div class='cell-sub'>" + esc(r.sub) + "</div>" : "") + "</td>" +
+      "<td>" + dur(r.durOld, r.durNew) + "</td>" +
+      "<td class='mdl'>" + esc(r.mdl) + "</td>" +
+      "<td>" + handling + "</td>";
+    body.appendChild(tr);
+    if (r.adoptable) adoptStates[r.id] = false;
+  }
+  setAdopt("m1", false);
+</script>
+</body>
+</html>
