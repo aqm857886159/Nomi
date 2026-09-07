@@ -88,7 +88,7 @@ export async function runAgentChatV2(input: AgentChatRequest, hooks: AgentChatV2
     const connection = vendorModelConnection(vendor, model, apiKey);
     selectedModel = { id: connection.modelId, label: model.labelZh || connection.modelId, vendorKey: vendor.key };
     const meta = model.meta as Record<string, unknown> | undefined;
-    const contextWindow = modelContextWindow(meta);
+    const contextWindow = modelContextWindow(meta, connection.modelId);
     const maxOutputTokens = meta?.maxOutputTokens;
     const modelConfig: NomiModelConfig = { ...connection, providerId: vendor.key,
       authType: vendor.authType === 'none' ? 'none' : 'api-key',

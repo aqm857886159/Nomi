@@ -171,7 +171,16 @@ describe('missingRequiredSlots — 按声明算，绑定能让它变绿', () => 
 
 describe('shotReferenceColumn — 三形态（v6：一个槽一个格）', () => {
   it('无槽 → 不吃参考；无档案 → 契约未知；有槽 → 逐槽一格 + 当前绑定', () => {
-    expect(referenceColumnOf(SEEDANCE_T2V, shotOf().referenceBindings)).toEqual({ kind: 'none-accepted' })
+    // 不吃参考的是**这个模式**，不是这个模型（2026-09-06 用户在打包版上读到「此模型不吃参考」）。
+    // 不给档案 = 指不出去处，只说模式名——不编一个不存在的替代模式。
+    expect(referenceColumnOf(SEEDANCE_T2V, shotOf().referenceBindings))
+      .toEqual({ kind: 'none-accepted', modeLabel: SEEDANCE_T2V.vendorTerm })
+    // 给了档案，而这个档案里确实有吃参考的模式 → 把去处和能挂什么一起说清。
+    const withArchetype = referenceColumnOf(SEEDANCE_T2V, shotOf().referenceBindings, SEEDANCE_2_5_ARCHETYPE)
+    if (withArchetype.kind !== 'none-accepted') throw new Error('t2v 应当是不吃参考那一态')
+    expect(withArchetype.switchTo?.modeLabel).toBeTruthy()
+    expect(withArchetype.switchTo?.slotLabel).toBeTruthy()
+    expect(withArchetype.switchTo?.modeLabel).not.toBe(SEEDANCE_T2V.vendorTerm)
     expect(referenceColumnOf(null, shotOf().referenceBindings)).toEqual({ kind: 'unknown-contract' })
     const column = referenceColumnOf(SEEDANCE_OMNI, shotOf({ referenceBindings: { video_ref: [{ url: 'v.mp4' }] } }).referenceBindings)
     expect(column.kind).toBe('cells')

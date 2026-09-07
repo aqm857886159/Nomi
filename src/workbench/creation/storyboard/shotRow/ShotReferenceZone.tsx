@@ -8,7 +8,7 @@ import { getDesktopActiveProjectId } from '../../../../desktop/activeProject'
 import type { AssetKind, AssetRef } from '../../../assets/assetTypes'
 import { importWorkbenchLocalAssetFile } from '../../../api/assetUploadApi'
 import { assetUrl } from '../../../generationCanvas/nodes/controls/parameterControlModel'
-import type { ArchetypeMode } from '../../../../config/modelArchetypes/types'
+import type { ModelArchetype, ArchetypeMode } from '../../../../config/modelArchetypes/types'
 import type { PlanAnchor } from '../../../generationCanvas/agent/storyboardPlan'
 import { appendBinding, bindingsOf, removeBinding, reorderBinding, type ReferenceBindingMap } from './shotReferenceSlots'
 import { cellCount, referenceColumnOf, type ShotReferenceCell } from './shotReferenceCells'
@@ -39,6 +39,9 @@ import {
 
 type Props = {
   mode: ArchetypeMode | null
+  /** 该行模型的整份档案。只用来回答一个问题：**这个模型还有别的模式吃参考吗**
+   *  （不吃参考那一行要不要指出去处）。缺省 = 不指去处，不编。 */
+  archetype?: ModelArchetype | null
   /** 这一行的绑定桶。镜头行传 `shot.referenceBindings`，锚展开行传 `anchor.referenceBindings`——
    *  两者共用同一套参考列解剖（合同 §2.2），所以这里收的是绑定记录而不是某一种行的实体。 */
   bindings: ReferenceBindingMap | undefined
@@ -117,12 +120,12 @@ function SlotStack({ cell }: { cell: ShotReferenceCell }): JSX.Element {
   )
 }
 
-export default function ShotReferenceZone({ mode, bindings, onChangeBindings, anchors, onTriggerMention, mentionEnabled }: Props): JSX.Element {
+export default function ShotReferenceZone({ mode, archetype, bindings, onChangeBindings, anchors, onTriggerMention, mentionEnabled }: Props): JSX.Element {
   const { t } = useTranslation()
   const [openSlotKey, setOpenSlotKey] = React.useState('')
   const [uploadingSlotKey, setUploadingSlotKey] = React.useState('')
   const [uploadError, setUploadError] = React.useState('')
-  const column = referenceColumnOf(mode, bindings)
+  const column = referenceColumnOf(mode, bindings, archetype)
   const anchorsById = React.useMemo(() => new Map(anchors.map((anchor) => [anchor.id, anchor])), [anchors])
 
   // 拒绝理由都用人话说清「为什么不行」，不做沉默失败（§1.6：禁用不做沟通死路）。
@@ -205,7 +208,22 @@ export default function ShotReferenceZone({ mode, bindings, onChangeBindings, an
       data-storyboard-refzone="true"
     >
       {column.kind === 'none-accepted' ? (
-        <span className="text-micro leading-relaxed text-nomi-ink-30">{t('storyboardEditor.row.noRefAccepted')}</span>
+        <span className="text-micro leading-relaxed text-nomi-ink-30">
+          {/* 模式名和槽名撞词时（「首帧」模式的槽也叫「首帧」）换一句说法——
+              「切「首帧」可挂首帧」读起来像卡带了。 */}
+          {!column.switchTo
+            ? t('storyboardEditor.row.noRefAccepted', { mode: column.modeLabel })
+            : column.switchTo.modeLabel === column.switchTo.slotLabel
+              ? t('storyboardEditor.row.noRefAcceptedSwitchSame', {
+                  mode: column.modeLabel,
+                  other: column.switchTo.modeLabel,
+                })
+              : t('storyboardEditor.row.noRefAcceptedSwitch', {
+                  mode: column.modeLabel,
+                  other: column.switchTo.modeLabel,
+                  slot: column.switchTo.slotLabel,
+                })}
+        </span>
       ) : column.kind === 'unknown-contract' ? (
         // 契约未知（默认模型无档案）：不假装知道能收什么，退回通用「@」入口。
         <span className="flex flex-col items-center gap-0.5 self-start" data-storyboard-ref-slot="__mention__">
@@ -214,7 +232,7 @@ export default function ShotReferenceZone({ mode, bindings, onChangeBindings, an
             onClick={mentionEnabled ? onTriggerMention : undefined}
             disabled={!mentionEnabled}
             aria-label={t('storyboardEditor.row.atRefAria')}
-            title={mentionEnabled ? t('storyboardEditor.row.atRefTitle') : t('storyboardEditor.row.atRefDisabledTitle')}
+            title={mentionEnabled ? t('storyboardEditor.row.atRefTitle') : t('storyboardEditor.row.atRefUnavailableTitle')}
             className={cn(
               'grid size-14 place-items-center rounded-nomi-sm border border-dashed text-title',
               mentionEnabled

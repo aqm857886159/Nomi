@@ -5,6 +5,7 @@
 // 也没有任何提示。`run()` 是那条统一的出口。
 import React from 'react'
 import { useTranslation } from 'react-i18next'
+import type { AgentsChatResponseDto } from '../../../api/desktopClient'
 import type { AgentToolProfile } from '../../../../electron/shared/projectAgentContracts'
 import { isProjectAgentLiveStatus } from '../../../../electron/shared/projectAgentContracts'
 import type { DocumentAnchorRef, PreconditionSet, TargetRef } from '../../../../electron/shared/capabilityTargeting'
@@ -13,6 +14,7 @@ import { useGenerationCanvasStore } from '../../generationCanvas/store/generatio
 import { timelineRevision } from '../../timeline/kernel/timelineKernel'
 import type { CreationDocumentTools } from '../../workbenchTypes'
 import { runWorkbenchAgent, type ToolCallEvent } from '../workbenchAgentRunner'
+import { projectAgentProjectionStore } from '../projectAgentProjectionStore'
 import {
   interruptProjectAgentTurn,
   steerProjectAgentTurn,
@@ -184,6 +186,44 @@ export function useAgentPanelV4Actions(surface: ResidentSurface, data: AgentPane
     }
     const contextSnapshot = mergeResidentContextHandles(sendContext.snapshot, [])
     const bindingKey = projectBindingKey(snapshot.binding)
+    /**
+     * 收据正文缓存的作用域**要在写的那一刻读**，不能用发送前捕获的那份快照。
+     *
+     * 2026-09-06 真机走查抓到：一条对话的第一次发送发生在线程建好之前，
+     * 那一刻 `snapshot.activeThreadId` 还是 null，于是 scope 是空串、
+     * `cacheProjection` 直接 return——整个会话的收据正文一条都没落盘。
+     * 界面上看不出来：旧版收据的「输入/输出」读的是按入参重算的**工具描述**，
+     * 缓存空不空长得一模一样。用户 2026-09-06 展开「修改文稿」看到两遍
+     * 「将内容写入当前文稿」，根子有一半在这里。
+     */
+    const activeThreadId = (): string =>
+      projectAgentProjectionStore.getState().snapshot?.activeThreadId ?? snapshot.activeThreadId ?? ''
+    /**
+     * 终态到达：把每条调用的展示投影落盘。收据的正文在宿主那边是 ref-only，
+     * 不在这里存一份，下次打开面板展开收据就是空的。
+     *
+     * **结果和错误一起落**（2026-09-06 真机使用抓到）：这里以前只传 `(toolName, args, status)`，
+     * 于是投影是按入参重算的一段描述——收据「输出」栏印的是「这次打算做什么」，
+     * 而失败那一路一个字的原因都没有。`record.error` / `record.result` 本来就在回执里，白丢。
+     */
+    const cacheTerminalProjections = (response: AgentsChatResponseDto): void => {
+      const threadId = activeThreadId()
+      for (const record of response.toolCalls) {
+        const status = record.status === 'ok' ? 'done' as const
+          : record.status === 'cancelled' ? 'stopped' as const
+            : record.status === 'denied' ? 'declined' as const
+              : 'failed' as const
+        // 终态重写这一条时别把开头存下的正文偏移量抹掉——它只到达过一次。
+        const offset = previousOffset(bindingKey, threadId, turnId, record.toolCallId)
+        cacheProjection(bindingKey, threadId, turnId, record.toolCallId, {
+          ...toolProjectionForCall(t, record.toolName, record.args, status, {
+            ...(record.result !== undefined ? { result: record.result } : {}),
+            ...(record.error ? { error: record.error } : {}),
+          }),
+          ...(offset !== undefined ? { textOffset: offset } : {}),
+        })
+      }
+    }
     setAttachments([])
     try {
       // 工作方式三档（Ask / 编辑选中 / Agent）已删（2026-09-06 拍板 ①）：
@@ -228,19 +268,24 @@ export function useAgentPanelV4Actions(surface: ResidentSurface, data: AgentPane
         attachments: attachmentPayloads(attachments),
         onToolCall: (call: ToolCallEvent) => {
           agentPanelV4PendingTools.register(call, bindingKey)
-          cacheProjection(bindingKey, snapshot.activeThreadId ?? '', call.turnId, call.toolCallId, toolProjectionForCall(t, call.toolName, call.args, 'proposed'))
+          // 「这次调用发生时，本回合的正文已经写到哪儿了」——把整回合合并成一条的助手正文
+          // 切回原位就靠它。宿主只在**要审批**的那条路上算这个锚（`assistantTextAnchor`），
+          // 「自动改」档下的安全改动是 silent 放行的，一个锚都没有；而用户日常就在那一档。
+          // 所以拿不到锚时自己量一次：这一刻的快照里，本回合的助手正文有多长。
+          // 宿主的锚优先——它是权威，只是不总在。
+          const anchoredOffset = call.assistantTextAnchor?.textOffset ?? liveAssistantTextLength(call.turnId)
+          cacheProjection(bindingKey, activeThreadId(), call.turnId, call.toolCallId, {
+            ...toolProjectionForCall(t, call.toolName, call.args, 'proposed'),
+            ...(anchoredOffset !== undefined ? { textOffset: anchoredOffset } : {}),
+          })
         },
       })
-      // 终态到达：把每条调用的展示投影落盘。收据的正文在宿主那边是 ref-only，
-      // 不在这里存一份，下次打开面板展开收据就是空的。
-      for (const record of response.toolCalls) {
-        const status = record.status === 'ok' ? 'done' as const
-          : record.status === 'cancelled' ? 'stopped' as const
-            : record.status === 'denied' ? 'declined' as const
-              : 'failed' as const
-        cacheProjection(bindingKey, snapshot.activeThreadId ?? '', turnId, record.toolCallId, toolProjectionForCall(t, record.toolName, record.args, status))
-      }
+      cacheTerminalProjections(response)
     } catch (caught) {
+      // **失败的回合更要落收据正文**：那一路上「为什么失败」是用户唯一想知道的事。
+      // 运行时在抛错时把回执挂在 error 上（`agentResponse`），正是为了这一步。
+      const carried = (caught as { agentResponse?: AgentsChatResponseDto }).agentResponse
+      if (carried) cacheTerminalProjections(carried)
       setError(friendlyError(caught, t))
     } finally {
       agentPanelV4PendingTools.clearTurn(turnId)
@@ -339,6 +384,28 @@ export function useAgentPanelV4Actions(surface: ResidentSurface, data: AgentPane
     // 所以行序换得回队列项。两边的过滤条件必须是同一条，否则「删第 2 条」会删错人。
     return rowIndex < live.length && rowIndex < queue.length ? live[rowIndex] : undefined
   }
+}
+
+/**
+ * 这一刻本回合的助手正文有多长。
+ *
+ * 与宿主 `assistantTextAnchor` 同一个量，只是宿主只在审批那条路上算它——
+ * 「自动改」档的安全改动是 silent 放行的，走不到那段代码。渲染层这边读的是同一份投影快照，
+ * 量的是同一件事；拿不到（回合还没写过一个字）就返回 undefined，不填 0。
+ * 填 0 会被下游当成「切在开头」，把整段回答折进过程行——那比不切更糟。
+ */
+function liveAssistantTextLength(turnId: string): number | undefined {
+  const item = projectAgentProjectionStore.getState().snapshot?.items
+    .find((candidate) => candidate.kind === 'assistant' && candidate.turnId === turnId)
+  if (item?.kind !== 'assistant') return undefined
+  return item.text.length || undefined
+}
+
+/** 上一次为这条调用存过的正文偏移量（终态改写时要保住它）。 */
+function previousOffset(bindingKey: string, threadId: string, turnId: string, toolCallId: string): number | undefined {
+  const scope = residentToolProjectionScope(bindingKey, threadId)
+  if (!scope) return undefined
+  return readResidentToolProjections(scope)[`${turnId}:${toolCallId}`]?.textOffset
 }
 
 function cacheProjection(

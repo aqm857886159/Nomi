@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { CANVAS_READ_CAPABILITY } from "../../shared/agentCapabilities/canvasRead";
 import { plannedEdgeSchema, plannedNodeSchema } from "../../shared/agentCapabilities/canvasWrite";
+import { jsonTolerantArray } from "../../shared/agentCapabilities/jsonArgTolerance";
 
 /** Pure Nomi-owned canvas metadata; confirmation and effects belong to the runtime adapter. */
 export { canvasNodeKindSchema, plannedEdgeSchema, plannedNodeSchema } from "../../shared/agentCapabilities/canvasWrite";
@@ -136,22 +137,13 @@ const storyboardShotSchema = z.object({
     ),
 });
 
-function parseJsonArrayString(value: unknown): unknown {
-  if (typeof value !== "string") return value;
-  const trimmed = value.trim();
-  if (!trimmed.startsWith("[") || !trimmed.endsWith("]")) return value;
-  try {
-    const parsed = JSON.parse(trimmed);
-    return Array.isArray(parsed) ? parsed : value;
-  } catch {
-    return value;
-  }
-}
-
 export const storyboardPlanParamsSchema = z.object({
   title: z.string().describe("Short plan title in the user's language."),
-  anchors: z.array(storyboardAnchorSchema).max(24),
-  shots: z.preprocess(parseJsonArrayString, z.array(storyboardShotSchema).min(1).max(24)),
+  // 这两条以前一个有容错、一个没有：`shots` 包了本地的 `parseJsonArrayString`，
+  // `anchors` 是裸数组。同一次调用里模型不会只把其中一个字段字符串化——
+  // 容错必须覆盖整类，否则它只是把失败点从一个字段挪到另一个字段。
+  anchors: jsonTolerantArray(z.array(storyboardAnchorSchema).max(24)),
+  shots: jsonTolerantArray(z.array(storyboardShotSchema).min(1).max(24)),
 });
 
 // ── 站位参考 schema（create_staging_reference 的参数；镜像渲染层 stagingBuilder 的 StagingSpec，
