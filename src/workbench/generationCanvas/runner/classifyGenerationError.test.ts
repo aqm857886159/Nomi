@@ -693,6 +693,7 @@ describe('出站被我们自己的安全策略拦下（2026-09-06 真实验收�
       hostname: 'api.apimart.ai',
       observedAddress: '198.18.0.140',
       syntheticResolver: false,
+      stage: 'retrieval',
     })
 
   it('归成 outbound-blocked，不再掉进 unknown 的「稍等重试」', () => {
