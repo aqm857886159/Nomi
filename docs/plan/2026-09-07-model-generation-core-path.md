@@ -120,6 +120,12 @@
 vs `outbound-blocked-submit`（提交侧，没扣费、修好网络重新生成）。共用一个码的代价不是措辞不精准，
 是给用户一句方向完全相反的假话，外加一颗根本按不动的「重新拉取结果」。
 
+**授权是一段新的 await 窗口，取消要在里面接住。** 授权要做 DNS，于是取消多了一个落点：
+调用方在这段窗口里 abort 时 signal 已经 aborted 而 fetch 还没被调用过——不接住就会被无声吞掉，
+付费请求照旧发出去。`vendorHttp.ts` 在授权之后立刻查一次 `callerCancellation` 并原样抛出，
+`vendorHttp.test.ts` 有专门一条钉住「窗口内取消 → fetch 零调用」。这条是本轮**自己引入又自己
+修掉**的回归，写在这里不藏（发现方式：全量 gates 里 8 条 vendorHttp 用例翻红）。
+
 私网的 vendor 地址（本地 ComfyUI、局域网 LM Studio）走**声明式精确 origin 例外**——判据照跑，
 只是这个 origin 有用户配置作为证据。`169.254`/`fe80::` 不在例外里：那一段没有供应商，
 唯一用途是读云主机凭证，而提交请求正带着用户的 API Key。

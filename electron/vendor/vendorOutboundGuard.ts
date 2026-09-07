@@ -48,9 +48,13 @@ export function declaredVendorOrigins(vendor: Pick<Vendor, "baseUrlHint">): stri
 }
 
 /**
- * 注入面（测试用 + 唯一的真实实现）。**单测绝不许碰真 DNS**：这台开发机开着 fake-ip，
- * `https://x` 这种夹具 URL 会被解析成 198.18.x.x，而 CI 上它压根解析不出来——同一份断言
- * 在两台机器上走两条分支，正是「本地绿、线上红」那一族。
+ * 注入面（测试用 + 唯一的真实实现）。
+ *
+ * **任何会走到 `requestVendor` 的单测都必须先 seed 这三样**，绝不许碰真 DNS：夹具 vendor 常常
+ * 指着真实域名（`api.kie.ai`），开着 fake-ip 的开发机把它解析成 198.18.x.x 走「被拦」分支，
+ * CI 上同一个名字解析得出公网地址走「放行」分支——同一份断言两台机器两条路，正是「本地红、
+ * 线上绿」那一族（2026-09-07 实红过 8 条）。抄 `vendorHttp.test.ts` 的 `beforeEach` 那一格：
+ * 公网地址 + 无合成解析器 + 无应用代理，让被测文件只测它该测的东西。
  */
 export type SubmitOutboundDeps = {
   resolve: (hostname: string) => Promise<readonly { address: string; family: 4 | 6 }[]>;

@@ -60,7 +60,8 @@
     "That function is called on every route; the route selects what is judged (resolved address plus pinning for direct, hostname for proxy) and never whether judging happens",
     "Link-local and metadata ranges (169.254.0.0/16, fe80::/10) are refused even when an origin is explicitly declared by the user",
     "A refusal raised before the transport call means the provider was never contacted, therefore was never billed, and must be reported with a distinct machine code from a refusal raised during retrieval",
-    "No production code substitutes a generic failure phrase for an error it failed to understand; describeOpaqueFailure is the single owner of that decision and preserves message, machine code, or class name"
+    "No production code substitutes a generic failure phrase for an error it failed to understand; describeOpaqueFailure is the single owner of that decision and preserves message, machine code, or class name",
+    "A cancellation that arrives while outbound authorization is in flight aborts the request before the paid call is made; authorization is a new await window and cancellation must be honoured inside it, not swallowed."
   ],
   "invariant_owner_layer": {
     "layer": "electron/networkOutboundPolicy.ts",
@@ -169,6 +170,7 @@
   },
   "regression_tests": [
     "electron/vendor/vendorOutboundGuard.test.ts",
+    "electron/vendor/vendorHttp.test.ts",
     "electron/hardenedFetch.test.ts",
     "src/workbench/observability/opaqueFailure.test.ts",
     "src/workbench/generationCanvas/runner/outboundBlockedRecoverable.test.ts",
@@ -205,6 +207,7 @@
     "The fake-IP probe establishes the environment once per process. A user who starts Nomi without a proxy and enables TUN mode afterwards keeps the old snapshot until restart; the settings Network row shows which snapshot is in force.",
     "The error-laundering gate is lexical. A fallback written through a helper or a variable holding the generic phrase would pass it; the structural owner (describeOpaqueFailure) is what actually prevents that, and the gate only guarantees the literal shape stays extinct.",
     "Polling liveness and automatic retired-model probing remain unimplemented and are recorded in docs/plan/2026-09-07-model-generation-core-path.md with their blocking preconditions.",
-    "The 169.254 hardening is a deliberate behaviour change: an installation that had declared a link-local address as a provider origin will now be refused at both submit and retrieval. That is intended, is stated in the refusal sentence, and has no migration because the configuration was never legitimate."
+    "The 169.254 hardening is a deliberate behaviour change: an installation that had declared a link-local address as a provider origin will now be refused at both submit and retrieval. That is intended, is stated in the refusal sentence, and has no migration because the configuration was never legitimate.",
+    "Any future unit test that reaches requestVendor and does not seed setSubmitOutboundDepsForTests will perform a real DNS lookup, and will take a different branch on a fake-IP developer machine than on CI. The guard header states the requirement and vendorHttp.test.ts carries the reference beforeEach; there is no machine gate for it yet."
   ]
 }
