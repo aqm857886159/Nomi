@@ -283,8 +283,10 @@ export default function NomiAppBar({
           <span className={cn('nomi-appbar__divider', 'w-px h-[18px] bg-workbench-border')} aria-hidden="true" />
         </span>
 
-        {/* 右槽互斥（视图 06）：拆解面板占槽时，让位的「生成」AI 栏收成此角标；点它还原右栏。
-            只在生成区 + 拆解占槽 + AI 收起时出现，其余情况自返 null（不常驻）。 */}
+        {/* 收起角标的家（09-01 定稿 §11.2）：右簇「浏览器」与「设置」之间这一格。两个理由共用一格、
+            同格只出一颗——① 常驻 Agent 面板被收起（四个面通用，这是主路）；② 过渡期互斥（视图 06）：
+            拆解面板占住生成区右槽时，让位的「生成」AI 栏收成此角标。两者都不成立时自返 null（不常驻）。
+            判断住在 CollapsedAiChip 的那条 if/else 里，别在这儿再加一层条件。 */}
         <CollapsedAiChip workspaceMode={workspaceMode} />
 
         {/* 配置：系统设置与模型快捷入口归在一起；二者最终落到同一张设置对话框。 */}

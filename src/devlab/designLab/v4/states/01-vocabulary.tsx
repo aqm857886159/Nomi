@@ -152,6 +152,9 @@ function DockCell({ status, pendingCount = 0, unreadCount = 0 }: {
       <TooltipProvider delayDuration={250} disableHoverableContent>
         <div className="flex items-center justify-end gap-2.5 rounded-nomi-sm border border-nomi-line-soft bg-nomi-paper px-2.5 py-1.5">
           <NeighborGhostButton icon={<IconBrowser size={15} stroke={1.8} />} />
+          {/* 分隔线**只有左边这一条**，右边没有——真机就是这样：分隔线是「创作辅助」那一组
+              自己的收尾（`NomiAppBar.tsx` 的 assist 组末尾），而「配置」组开头不带分隔线。
+              摆两条会在接触表上凭空造出一条真机没有的竖线，拍板人看到的就不是他将来看到的那个顶栏。 */}
           <span className="h-[18px] w-px bg-workbench-border" aria-hidden="true" />
           <AgentTopbarChip
             reason="resident-collapsed"
@@ -161,7 +164,6 @@ function DockCell({ status, pendingCount = 0, unreadCount = 0 }: {
             badge={agentTopbarChipBadge(unreadCount, pendingCount, status === 'failed')}
             onOpen={() => undefined}
           />
-          <span className="h-[18px] w-px bg-workbench-border" aria-hidden="true" />
           <NeighborGhostButton icon={<IconSettings size={15} stroke={1.8} />} />
         </div>
       </TooltipProvider>
@@ -442,6 +444,17 @@ export const V4_VOCABULARY_STATES: readonly LabState[] = [
     source: '2026-09-01-agent-ui-final-redesign.md §11.2 · 样张屏 E · B① 收起态',
     coverage: 'component-only',
     render: () => <DockCell status="failed" />,
+  },
+  {
+    id: 'v4-collapsed-dark',
+    name: '⑦ 收起角标 · 暗色（token 翻转后，蓝点与数字仍要从纸面上跳出来）',
+    source: '2026-09-01-agent-ui-final-redesign.md §11.2 · 样张屏 E · B① 收起态',
+    coverage: 'component-only',
+    // 暗色只能由这里钉（`LabState.scheme`）：暗色 token 挂在 `:root[data-mantine-color-scheme="dark"]`
+    // 上，组件自己套个 class 翻不动它。这一格要看的正是**对比度**：accent 蓝点 8px 与
+    // 纸色数字落在暗色顶栏上还认不认得出来——浅色那五格证明不了这件事。
+    scheme: 'dark',
+    render: () => <DockCell status="needs-confirm" pendingCount={2} unreadCount={2} />,
   },
   {
     id: 'v4-context-ring',

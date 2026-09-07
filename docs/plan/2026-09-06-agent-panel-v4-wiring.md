@@ -177,10 +177,16 @@
 
 ### 2.7 ⑦ 收起坞 `V4CollapsedRail`
 
-> **2026-09-06 已被用户改掉**：收起态不再是右侧 32px rail 上的两颗 icon，而是右上角一枚 Nomi logo 钮
-> （`V4CollapsedLogoDock`），状态叠在 logo 上（词表 `agentPanelV4DockStatus.ts::V4DockStatus`）。
-> 本节下表描述的是被替换掉的那一版，留作接线来源的记录；现役合同看
-> `docs/design/2026-09-06-agent-panel-v4.md` 拍板 ⑪。
+> **2026-09-06 已被用户改掉**：收起态不再是右侧 32px rail 上的两颗 icon，而是 Nomi 一直延续的那枚
+> logo 钮，状态叠在 logo 上（词表 `agentPanelV4DockStatus.ts::V4DockStatus`）。
+>
+> **2026-09-07 再返工**：09-06 那版把 logo 画在**内容区右上角**，跟着面板走——切一个面就换一个落点。
+> 现役落点回到 2026-09-01 定稿 §11.2 写死的那一格：**顶栏右簇「浏览器」与「设置」之间**
+> （`src/ui/app-shell/CollapsedAiChip.tsx` 判断 + `AgentTopbarChip.tsx` 长相）。顶栏是唯一跨四个面
+> 常驻的 chrome，角标落这儿才切面不挪窝。`V4CollapsedLogoDock` 那个组件已随之删除（P1 无并行版）。
+>
+> 本节下表描述的是最早那版 rail，留作接线来源的记录；现役合同看
+> `docs/design/2026-09-01-agent-ui-final-redesign.md` §11.2 + `docs/design/2026-09-06-agent-panel-v4.md` 拍板 ⑪。
 
 
 | v4 字段 | 宿主来源 | 状态 |

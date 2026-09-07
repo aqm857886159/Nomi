@@ -407,6 +407,14 @@ try {
   await expect.poll(async () => Math.round((await win.locator(`${CANVAS_PANEL} ${V4_PANEL}`).boundingBox())?.width ?? 0),
     { message: '点角标必须**原宽**还原，不是重置成默认宽', timeout: 30_000 }).toBe(widthBeforeCollapse)
   await expect(canvas.locator(USER_BUBBLE).last(), '展开后最后一句话还是收起前发的那句').toContainText('整体节奏')
+  // 展开**动画结束之后**再截：还原是不是「原宽原状态」这件事，只有停下来的那一帧看得出来
+  // （动画中途的任何一帧宽度都不是最终宽，截到它等于给拍板人看一张过程图）。
+  // 上面那条 `expect.poll` 已经把宽度轮询到了收起前那个数，所以到这里布局必然已经落定。
+  await expect(
+    win.locator('[data-agent-dock-reason="resident-collapsed"]'),
+    '展开后顶栏那一格必须让出来——角标和面板不能同时在（collapse≠unmount 说的是面板留着，不是角标留着）',
+  ).toHaveCount(0)
+  await walk.snap('11b-expanded-restored')
 
   // ── 9. 关掉重开：昨天的活儿还在 ────────────────────────────────────────
   //
