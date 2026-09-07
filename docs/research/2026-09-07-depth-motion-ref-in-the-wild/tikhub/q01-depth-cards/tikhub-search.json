@@ -1,0 +1,61 @@
+{
+  "source": "tikhub",
+  "baseUrl": "https://api.tikhub.io",
+  "keyword": "depth.cards",
+  "since": null,
+  "limitPerPlatform": 20,
+  "generatedAt": "2026-09-07T02:49:37.307Z",
+  "failures": [],
+  "summary": {
+    "totalRecords": 1,
+    "platformsOk": 1,
+    "platformsEmpty": 0,
+    "platformsFailed": 0,
+    "platforms": [
+      {
+        "platform": "x",
+        "platformLabel": "X（Twitter）",
+        "status": "ok",
+        "items": 1,
+        "pagesFetched": 2,
+        "missingFields": {},
+        "fieldConfidence": "verified-against-live-response",
+        "fieldsVerifiedOn": "2026-09-06",
+        "error": null
+      }
+    ]
+  },
+  "results": [
+    {
+      "platform": "x",
+      "platformLabel": "X（Twitter）",
+      "records": [
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2094827521456099381",
+          "url": "https://x.com/0xToshio_O/status/2094827521456099381",
+          "author": "Toshi",
+          "authorId": "0xToshio_O",
+          "publishedAt": "2026-09-01T16:39:35.000Z",
+          "title": "https://t.co/BVGqsvxcMy 这个挺好用的嘛 https://t.co/4fVUPOMIMu",
+          "excerpt": "https://t.co/BVGqsvxcMy 这个挺好用的嘛 https://t.co/4fVUPOMIMu",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        }
+      ],
+      "pages": [
+        {
+          "page": 1,
+          "received": 1
+        },
+        {
+          "page": 2,
+          "received": 0
+        }
+      ]
+    }
+  ]
+}
