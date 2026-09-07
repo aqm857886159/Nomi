@@ -20,7 +20,7 @@ import { AgentPanelV4Composer, type AgentPanelV4ComposerProps } from './AgentPan
 import { V4ContextRing } from './AgentPanelV4Context'
 import { V4Intervention, V4Queue, V4TaskCard } from './AgentPanelV4Cards'
 import { V4AssistantMessage, V4Suggestion, V4Thinking, V4UserBubble } from './AgentPanelV4Message'
-import { V4ErrorBar, V4ToolReceipt } from './AgentPanelV4Receipt'
+import { V4ErrorBar, V4Process, V4ToolGroup, V4ToolReceipt } from './AgentPanelV4Receipt'
 import { V4EmptyState } from './AgentPanelV4Empty'
 import { IconHistory, IconLayoutSidebarRightCollapse } from './AgentPanelV4Icons'
 import { useV4Labels } from './agentPanelV4Labels'
@@ -146,6 +146,10 @@ export function V4FlowRow({
       />
     )
   }
+  if (item.kind === 'tool-group') {
+    return <V4ToolGroup group={item} statusLabel={labels.toolStatus[item.status]} />
+  }
+  if (item.kind === 'process') return <V4Process label={item.label} segments={item.segments} />
   if (item.kind === 'task') {
     return (
       <V4TaskCard

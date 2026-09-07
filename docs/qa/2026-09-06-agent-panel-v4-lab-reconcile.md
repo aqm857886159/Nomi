@@ -51,7 +51,7 @@ Flow 三板 + Rendering + Dark + Collapsed 画的是整块面板 → 才渲整�
 | 底栏 `[+] [模型名 ▾] ｜ [Skill] …… [权限 ▾] [↑]` | `v4-composer-idle` | **出入 7（本轮最大一处）** | 原来是：回形针图标当「+」、没有 Skill 钮、发送用纸飞机 `IconSend2`。改成：`IconPlus`（一个加号收任意文件）、模型名纯文字无 icon、竖分隔、`IconPackage` + 「Skill」（选中带 accent 小点）、右侧权限文字胶囊、圆形 `IconArrowUp` 发送 |
 | 运行中（■ 停止 + 排队占位） | `v4-composer-running` | 一致 | 占位改「可继续输入，将排队发送…」|
 | 带引用（附件 / 技能 / 片段三种 chip） | `v4-composer-reference` | **出入 8** | ① 高度原来是**定值**，三个 chip 一换行就把 textarea 挤掉半行 → 改成 `minHeight = 规则算的自然高 / maxHeight = 面板 derive 的上限`；② 片段 chip 色块原来用 accent，画布用 `--nomi-track-video` → 改用 `bg-nomi-track-video` |
-| 模型弹层（对话 + 三类默认 + **预计单价**） | `v4-composer-model-popover` | 一致 | 四行一层，每行带单价 |
+| 模型弹层（对话 + 图片/视频两类默认 + **预计单价**） | `v4-composer-model-popover` | 一致 | 三行一层，每行带单价（原第四行「音频默认」2026-09-07 删，见设计定稿决策 5） |
 | Skill 弹层（搜索 + 分类 + 列表 + hover 预览位） | `v4-composer-skill-popover` | 一致 | 图标 `IconPackage`，底部「新建 · 管理」退成小链接 |
 | 权限三档 segmented | `v4-composer-permission-popover` | 一致 | 默认「自动改」|
 | 权限三档落到合同 | `v4-composer-permission-step` / `-safe-auto` / `-project` | **出入 9** | 三档原来是中文字面量 union（`'每步问' | '自动改' | '全自动'`）——既违反 R15，又是第二份要跟合同对齐的词表。改成 `PermissionTier = ProjectAgentApprovalPolicy['mode']`，文案走 i18n；`data-approval-mode` / `data-spend-policy` 单测钉死 step→confirm、safe-auto→confirm、project→within-budget |

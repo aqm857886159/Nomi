@@ -31,6 +31,9 @@ import { useUserPrompts } from '../promptLibrary/useUserPrompts'
 import { promptDisplayTitle } from '../promptLibrary/promptDisplay'
 import { filterPrompts } from '../api/promptLibraryApi'
 import type { ComposerPopover } from './v4/agentPanelV4Types'
+import { chatModelChoices } from './v4/agentPanelV4ModelRows'
+import { encodeModelIdentity } from './assistantModelIdentity'
+import { buildDefaultModelOptions } from '../settings/defaultGenerationModelOptions'
 
 /**
  * 面板尺寸只有真实 DOM 知道。v4 的积木按面板高度 derive composer 上限，所以必须量。
@@ -223,22 +226,82 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
     setStarterFocusToken((token) => token + 1)
   }, [setDraft])
 
-  const modelRows: readonly V4ModelRow[] = React.useMemo(
-    () => data.models.map((model) => ({
-      slot: t('agentPanelV4.modelChat'),
-      name: model.labelZh || model.modelKey,
-      // 单价只有目录写了才显示。`pricing.cost` 是**积分**不是 token 单价，
-      // 所以这里给的是「一次调用大概多少积分」，不是编出来的 ≈¥/张。
-      ...(model.pricing?.enabled && model.pricing.cost > 0
-        ? { cost: t('agentPanelV4.modelCredits', { cost: model.pricing.cost }) }
-        : {}),
-      onSelect: () => {
-        data.selectModel(model)
-        setPopover(null)
-      },
-    })),
-    [data, t],
+  /**
+   * 模型弹层 = **每类一行**，不是「每个型号一行」（2026-09-06 定稿 ⑤ + 打包版实测）。
+   *
+   * 生产版此前把整个文本模型目录摊成 17 行、每行标签都写「对话」、一个下拉都没有，
+   * 也没有图片/视频那两行——等于把「选型」这件事整个推回给用户，还顺手把
+   * `key={row.slot}` 全撞在一起。
+   *
+   * 三行各接**已有的** owner，不新开偏好：
+   *   对话 → `assistantModelPref`（`data.selectModel`）
+   *   图片 → `generationModelDefaults.text_to_image`
+   *   视频 → `generationModelDefaults.text_to_video`
+   * 「音频默认」定稿里有、仓库里没有：`GENERATION_DEFAULT_TASK_KINDS` 只有图/视频四个 taskKind，
+   * 也没有任何 audio 生成节点或解析器。画一个存不下去的下拉，比少画一行更糟——
+   * 这一格待用户拍板（PR 正文里单独标出）。
+   */
+  const generationOptions = React.useMemo(
+    () => buildDefaultModelOptions(
+      data.generationModels,
+      (vendorKey) => data.vendors[vendorKey] ?? vendorKey,
+      t('agentPanelV4.modelAuto'),
+    ),
+    [data.generationModels, data.vendors, t],
   )
+
+  const modelRows: readonly V4ModelRow[] = React.useMemo(() => {
+    const rows: V4ModelRow[] = []
+    const chatChoices = chatModelChoices(
+      data.models,
+      data.vendors,
+      data.orderedVendorKeys,
+      encodeModelIdentity,
+      (cost) => t('agentPanelV4.modelCredits', { cost }),
+    )
+    const selectedChat = data.selectedModel ? encodeModelIdentity(data.selectedModel) : ''
+    rows.push({
+      slot: t('agentPanelV4.modelChat'),
+      name: data.modelLabel,
+      ...(chatChoices.length
+        ? {
+            options: chatChoices.map((choice) => ({
+              value: choice.value,
+              label: choice.label,
+              ...(choice.trailing ? { trailing: choice.trailing } : {}),
+            })),
+            selectedValue: selectedChat,
+            onChange: (value: string) => {
+              const model = data.models.find((candidate) => encodeModelIdentity(candidate) === value)
+              if (model) data.selectModel(model)
+            },
+          }
+        : { empty: t('agentPanelV4.modelNone') }),
+    })
+    for (const [slot, taskKind] of [
+      [t('agentPanelV4.imageDefault'), 'text_to_image'],
+      [t('agentPanelV4.videoDefault'), 'text_to_video'],
+    ] as const) {
+      const options = generationOptions.optionsByKind[taskKind]
+      const current = data.generationDefaults[taskKind]
+      const selectedValue = current ? generationOptions.encode(current) : ''
+      const label = options.find((option) => option.value === selectedValue)?.label
+      rows.push({
+        slot,
+        // 目录里已经没有这个模型了：说「已不可用」，别继续印一个按不动的名字。
+        name: label ?? (current ? t('agentPanelV4.modelGone') : t('agentPanelV4.modelAuto')),
+        // options[0] 恒为「自动选」那一条，所以 >1 才叫「有得选」。
+        ...(options.length > 1
+          ? {
+              options,
+              selectedValue: selectedValue ?? '',
+              onChange: (value: string) => data.setGenerationDefault(taskKind, generationOptions.decode(value)),
+            }
+          : { empty: t('agentPanelV4.modelNone') }),
+      })
+    }
+    return Object.freeze(rows)
+  }, [data, generationOptions, t])
 
   const commandRows: readonly V4CommandRow[] = React.useMemo(() => {
     const query = commandQuery.trim()
@@ -262,6 +325,9 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
         command: `/${prompt.id}`,
         desc: prompt.prompt.slice(0, 60),
         section: t('agentPanelV4.sectionPrompts'),
+        // 提示词库本来就有封面（`mediaUrl` = 首图），此前在这里被整包丢掉，
+        // 于是每一行都退化成同一个白块。有图就把图给它。
+        ...(prompt.mediaUrl ? { cover: prompt.mediaUrl } : {}),
         selected: actions.selectedLibraryPrompt?.id === prompt.id,
       }))
     return Object.freeze([...skillRows, ...promptRows])

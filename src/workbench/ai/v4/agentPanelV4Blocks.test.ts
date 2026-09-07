@@ -35,7 +35,7 @@ const taskLabels = {
 const slotLabels = { confirm: '确认', reject: '不要', escalate: '不再问 →', cancel: '取消', confirmReject: '确认不要', collapsePlan: '收起 ▴' }
 // `unknown` 是「这个数我们没有」的那个字（环上写「—」而不是「0%」）。接线后它是必填的，
 // 因为缺字段是常态：目录没写 contextWindow、供应商不报推理 token，都会走到它。
-const contextLabels = { context: '上下文用量', input: '输入', output: '输出', reasoning: '推理', cache: '缓存命中', threadCost: '本线程花费', unknown: '—' }
+const contextLabels = { context: '上下文用量', input: '输入', output: '输出', reasoning: '推理', cache: '缓存命中', threadCost: '本线程花费', unknown: '—', usedOnly: '已用 {{amount}}' }
 const usage = { used: 62400, max: 200000, input: '48.1K', output: '9.8K', reasoning: '2.1K', cache: '2.4K', cost: '¥0.83' }
 
 beforeAll(async () => {
@@ -233,13 +233,32 @@ describe('⑥ 队列行', () => {
 // ⑦ 收起坞的「叫回面板」那颗钮已搬到顶栏（09-01 定稿 §11.2），断言随它走进
 // `src/ui/app-shell/AgentTopbarChip.test.tsx`——它现在的邻居是浏览器/设置那两颗钮，
 // 断言该和它们放一起，不该留在面板积木这一叠里。本文件只剩画面下沿那一坞（无自有长相）。
+// （合并 origin/main 时这里冲突过：main 那侧还留着 `V4CollapsedRail` 的 32px 断言，
+//  而那个组件已在本分支随收起态返工删掉——保留删除，只取 main 对 Context 环的新说法。）
 describe('⑧ Context 环', () => {
-  it('缺分母时环写「—」而不是「0%」——0% 是一个我们没资格下的断言', () => {
+  it('缺分母时不画环，改说一句真的知道的话——0% 是一个我们没资格下的断言', () => {
     const markup = html(el(V4ContextRing, { usage: { used: 62400 }, labels: contextLabels, expanded: true }))
-    expect(markup).toContain('—')
     expect(markup).not.toContain('0%')
+    // 环是个仪表：没有分母时画一个恒定的灰圈，长得和「用量为 0」一模一样。
+    // 2026-09-06 打包版实测——真实目录里的对话模型全都没写 contextWindow，
+    // 整排空圈 + 「—」，一个能读的数都没有。有用量就把用量说出来。
+    expect(markup).not.toContain('conic-gradient')
+    expect(markup).toContain('已用 62.4K')
     // 分项一个都没有时那几行整行不渲染，不留 `0` 也不留占位。
     expect(markup).not.toContain('缓存命中')
+  })
+
+  it('连用量都没有（一个回合都还没结算）才退回「—」', () => {
+    const markup = html(el(V4ContextRing, { usage: {}, labels: contextLabels, expanded: true }))
+    expect(markup).toContain('—')
+    expect(markup).not.toContain('已用')
+    expect(markup).not.toContain('conic-gradient')
+  })
+
+  it('分母有了就画环，百分比是算出来的', () => {
+    const markup = html(el(V4ContextRing, { usage: { used: 62400, max: 200000 }, labels: contextLabels, expanded: true }))
+    expect(markup).toContain('conic-gradient')
+    expect(markup).toContain('31%')
   })
 
   it('环显示真实百分比，展开体给 token 分项与花费', () => {

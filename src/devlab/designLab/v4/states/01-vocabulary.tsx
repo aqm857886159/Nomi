@@ -15,6 +15,7 @@ import { TooltipProvider } from '../../../../design'
 import { dockStatusLabel, type V4DockStatus } from '../../../../workbench/ai/v4/agentPanelV4DockStatus'
 import { V4AssistantMessage, V4Thinking, V4UserBubble } from '../../../../workbench/ai/v4/AgentPanelV4Message'
 import { V4ErrorBar, V4ToolReceipt } from '../../../../workbench/ai/v4/AgentPanelV4Receipt'
+import { V4FlowRow } from '../../../../workbench/ai/v4/AgentPanelV4Panel'
 import { useV4Labels } from '../../../../workbench/ai/v4/agentPanelV4Labels'
 import type { ToolReceipt, V4AssistantStatus } from '../../../../workbench/ai/v4/agentPanelV4Types'
 import { Piece, useV4Fixtures } from '../agentPanelV4LabKit'
@@ -54,6 +55,20 @@ function ThinkingCell(): JSX.Element {
   return (
     <Piece>
       <V4Thinking label={fx.t('agentPanelV4.fixtureThinking')} meta={fx.t('agentPanelV4.fixtureThinkingMeta')} />
+    </Piece>
+  )
+}
+
+/**
+ * 折叠层的两条产出（`agentPanelV4Collapse.ts`）：一行 `tool-group` + 一条 `process`。
+ * 渲的是**生产组件**——实验室这一格与真面板走同一个 `V4FlowRow` 派发。
+ */
+function RetryStretchCell({ only }: { only: 'group' | 'process' }): JSX.Element {
+  const fx = useV4Fixtures()
+  const item = fx.retryStretch[only === 'group' ? 0 : 1]
+  return (
+    <Piece>
+      <V4FlowRow item={item} darkMode={false} />
     </Piece>
   )
 }
@@ -102,14 +117,16 @@ function QueueCell({ pick }: { pick: keyof ReturnType<typeof useV4Fixtures>['que
   )
 }
 
-function ContextCell({ expanded }: { expanded: boolean }): JSX.Element {
+function ContextCell({ expanded, unknownWindow }: { expanded: boolean; unknownWindow?: boolean }): JSX.Element {
   const fx = useV4Fixtures()
   const labels = useV4Labels()
+  // 分母未知那一格：真实目录里的对话模型多半没写 contextWindow（2026-09-06 打包版实测 21/21 都没有）。
+  const usage = unknownWindow ? { ...fx.context, max: undefined } : fx.context
   return (
     <Piece>
       {/* 展开态的卡是绝对定位的，给它留出下方空间才截得到整张。 */}
       <div style={{ height: expanded ? 260 : 24 }}>
-        <V4ContextRing usage={fx.context} labels={labels.context} expanded={expanded} />
+        <V4ContextRing usage={usage} labels={labels.context} expanded={expanded} />
       </div>
     </Piece>
   )
@@ -255,6 +272,20 @@ export const V4_VOCABULARY_STATES: readonly LabState[] = [
     source: '2026-09-06-agent-panel-v4.md · Vocabulary 板',
     coverage: 'component-only',
     render: () => <ReceiptCell pick="expanded" />,
+  },
+  {
+    id: 'v4-tool-group-failed',
+    name: '③ 收据 · 同名连调六次折成一行（含失败原因）',
+    source: '2026-09-06 打包版真实使用 · 「从原稿重拆 10 镜」',
+    coverage: 'component-only',
+    render: () => <RetryStretchCell only="group" />,
+  },
+  {
+    id: 'v4-process-folded',
+    name: '② 助手文本 · 过程自述收起（只有最终回答摊开）',
+    source: '2026-09-06-agent-panel-v4.md · 拍板 ⑦ 过程反馈按 Claude Code',
+    coverage: 'component-only',
+    render: () => <RetryStretchCell only="process" />,
   },
   {
     id: 'v4-tool-output-denied',
@@ -462,6 +493,13 @@ export const V4_VOCABULARY_STATES: readonly LabState[] = [
     source: '2026-09-06-agent-panel-v4.md · Vocabulary 板',
     coverage: 'component-only',
     render: () => <ContextCell expanded={false} />,
+  },
+  {
+    id: 'v4-context-window-unknown',
+    name: '⑧ Context · 窗口未知时不画环，改说「已用 62.4K」',
+    source: '2026-09-06 打包版真实使用 · 目录里 21 个对话模型全都没写 contextWindow',
+    coverage: 'component-only',
+    render: () => <ContextCell expanded={false} unknownWindow />,
   },
   {
     id: 'v4-context-expanded',
