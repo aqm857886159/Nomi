@@ -180,3 +180,42 @@ test('the live projection matches the checked-in fixture the renderer layer is t
   assert.deepEqual(JSON.parse(JSON.stringify(lane.projection())), expected,
     'regenerate tests/agent-runtime/__fixtures__/lane-projection.json when the wire shape changes on purpose');
 });
+
+// —— 流式中途：0.84.0 delta-only（上游 #7290）在这条通路上是什么形状 ——
+//
+// 那次破坏性变更把 JSON/RPC 流的 `message_update` 改成**只带增量**，移除了累积的 `message`。
+// 一个靠读 `event.message` 画字的宿主不会崩、不会报错——它只是**什么都不画**或者只画最后
+// 那一小段，而 `message_end` 照常到达，所以**最终转录完全正确**。教科书式的「最终态全绿、
+// 中间过程死掉」，也就是说：上面每一条断言对这个 bug 都是绿的。
+//
+// 我们这条通路把累积交给 pi 自己的归约器（`reduceLaneSnapshot` 的 `message_update` 分支：
+// `operation.streamingMessage = event.message`），投影只读 `snapshot.operation.streamingMessage`。
+// 这条测试钉的就是那个选择的**可观察后果**：中途每一帧都是最终文字的前缀。
+// 一个直接画 delta 的实现会在第二帧画出 `the document.`——它不是前缀，当场红。
+test('every mid-stream frame is a prefix of the final text — deltas are accumulated by pi, not re-rendered by us', async (t) => {
+  const chunks = ['I read ', 'the document', ' and left it alone.'];
+  const full = chunks.join('');
+  const fixture = await createLaneFixture(t, [{ type: 'text', text: full, chunks }]);
+  const lane = await openLane(fixture.options);
+  t.after(() => lane.close());
+
+  const streamed: string[] = [];
+  lane.subscribe((projection) => {
+    for (const part of projection.parts) {
+      if (part.kind === 'assistant-text' && part.streaming) streamed.push(part.text);
+    }
+  });
+  await lane.execute({ kind: 'prompt', text: 'Read the document.' });
+
+  const seen = [...new Set(streamed)];
+  // 先证明这条断言不是空转：只采到一帧的话，「每帧都是前缀」自动为真而我们什么也没证。
+  assert.ok(seen.length >= 2, `expected to observe several mid-stream frames, saw ${JSON.stringify(seen)}`);
+  for (const frame of seen) {
+    assert.ok(full.startsWith(frame), `mid-stream frame ${JSON.stringify(frame)} is not a prefix of ${JSON.stringify(full)}`);
+  }
+  assert.equal(seen.at(-1), full, 'the last frame before the message lands is the whole text');
+
+  // 落定之后那一段不再是 streaming，且文字一字不差——中途的帧没有污染最终转录。
+  const settled = lane.projection().parts.filter((part) => part.kind === 'assistant-text');
+  assert.deepEqual(settled.map((part) => [part.text, part.streaming]), [[full, false]]);
+});
