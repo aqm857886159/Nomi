@@ -370,8 +370,8 @@ export function connectionHostname(hostname: string): string {
  * 先查别人（详见 docs/plan/2026-09-07-model-generation-core-path.md「先查别人（第二轮）」）：
  *   · GitLab 撞过一模一样的题（<https://gitlab.com/gitlab-org/gitlab/-/work_items/378267>：不能解析
  *     域名的自建实例配了代理后，GitHub Import 全挂）。他们的处置是**整段关掉** DNS 重绑保护：
- *     `Gitlab.http_proxy_env?` 为真就跳过检查。我们取它把「判目的地」和「选路由」合成一次决策的
- *     方向，**不取**它的整段关闭——整段关闭正是本轮要拆掉的那种逃生口。
+ *     `Gitlab.http_proxy_env?` 为真就跳过检查。这条查出来的是「别人也栽在这里，而且默认反应就是
+ *     开逃生口」——不是可抄的做法。我们反着做：条件收进 owner，判据的对象随路由换。
  *   · Stripe smokescreen 是另一种同族解法：把分类**下沉到代理层**，由那台 CONNECT 代理统一解析并
  *     拒绝内网地址（<https://github.com/stripe/smokescreen/blob/master/README.md>）。桌面端没有那
  *     一层可下沉——代理是用户自己的 Clash/Surge，我们管不着，所以名字层必须自己判。

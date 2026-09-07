@@ -40,7 +40,7 @@
       "kind": "official-doc",
       "url": "https://gitlab.com/gitlab-org/gitlab/-/work_items/378267",
       "checked_at": "2026-09-07",
-      "purpose": "Same class in another product: GitLab disables DNS-rebinding protection outright when HTTP_PROXY/HTTPS_PROXY is set. Confirms the failure mode is real and that the industry default reaction is the escape hatch this fix deliberately refuses; we keep their convergence of routing and destination into one decision without keeping the blanket skip."
+      "purpose": "Same class in another product: GitLab disables DNS-rebinding protection outright when HTTP_PROXY/HTTPS_PROXY is set, because a proxy-only host cannot resolve names locally. Checked to confirm the failure mode is real and that the default industry reaction is exactly the escape hatch this fix refuses; the finding is a warning, not a design to copy."
     },
     {
       "kind": "source-code",

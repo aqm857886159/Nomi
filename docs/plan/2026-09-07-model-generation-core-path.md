@@ -89,8 +89,8 @@
 
 - **代理生效时该不该跳过目的地检查？** GitLab 撞过一模一样的题——自建实例配了代理、本机不解析域名，
   GitHub Import 全挂（<https://gitlab.com/gitlab-org/gitlab/-/work_items/378267>）。他们的处置是
-  `Gitlab.http_proxy_env?` 为真就**整段跳过** DNS 重绑保护。**结论：取方向，不取做法。** 值得取的是
-  「判目的地」和「选路由」合成一次决策；不能取的是整段跳过——那正是我们这轮要拆的逃生口形状。
+  `Gitlab.http_proxy_env?` 为真就**整段跳过** DNS 重绑保护。**结论：这条查出来的是「别人也栽在这里，
+  而且默认反应就是开逃生口」，不是可抄的做法。** 我们反着做：条件收进 owner，判据的对象随路由换。
 - **有没有「不跳过」的同类做法？** 有，而且是把分类**下沉到代理层**：Stripe 的 smokescreen 是一台
   CONNECT 代理，自己解析每个域名并拒绝内网地址（<https://github.com/stripe/smokescreen/blob/master/README.md>）。
   **结论：桌面端没有那一层可下沉**——代理是用户自己的 Clash/Surge，我们管不着它，所以名字层必须自判。
