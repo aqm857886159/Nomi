@@ -100,10 +100,11 @@ Full reference: `docs/guide/capability-core-cli-mcp.md`. **Walk the user through
 
 **For**: adding a piece of methodology / capability to Nomi's Agent (a storyboarding approach, an editing pattern, etc.). Format spec: `docs/skill-pack-format.md`.
 
-A skill is a directory under `skills/<skill-key>/`, with two core files:
+A skill is a directory under `skills/<skill-key>/` with **exactly one required file**:
 
-- **`SKILL.md`**: the methodology / system-prompt body for the LLM (YAML frontmatter mirrors `name` / `description`; keep the body ≤200 lines).
-- **`skill.json`**: the runtime manifest — `name` (globally unique dotted key), `version` (SemVer), `description`, `tools` (allowlist, least privilege), `requiredProviders`, `permissions`.
+- **`SKILL.md`**: opens with YAML frontmatter (the runtime manifest: required `name` — lowercase kebab, matching the directory name — and `description`; Nomi's own tool allowlist / modality declarations / playbook stages go under `metadata.nomi`), followed by the methodology body for the LLM (keep it ≤200 lines).
+
+That is the [Agent Skills standard](https://agentskills.io/specification) shape, which pi, Claude Code and Codex all read — so **someone else's skill directory works here, and ours works there**.
 
 **Walk the user through it:**
 
@@ -111,7 +112,9 @@ A skill is a directory under `skills/<skill-key>/`, with two core files:
 2. Copy the whole `<skill-key>/` directory **into the repo's `skills/`** (unzip first if needed).
 3. Start / restart Nomi (in dev, `pnpm dev`). The skill is **auto-discovered** in the AI panel.
 
-> A legacy skill with only `SKILL.md` and no `skill.json` still loads — it just gets no tool allowlist / permission boundary (all tools are exposed to the LLM). A failed load prints a Zod validation error in the main-process log.
+> A pure knowledge skill with only `name` + `description` and no `metadata.nomi` loads fine — most of the ecosystem looks like that.
+> A malformed `metadata.nomi` **fails closed** (that skill gets zero tools) and surfaces a plain-language reason in the panel; the main-process log also prints the Zod validation error.
+> The second manifest file `skill.json` was retired on 2026-09-07; anything left in the user directory is migrated into the frontmatter on load, with the original kept as a `.bak`.
 
 **✅ Success signal:**
 - The skill shows up / is selectable in Nomi's AI panel.

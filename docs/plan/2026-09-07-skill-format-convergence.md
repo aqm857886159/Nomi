@@ -109,6 +109,7 @@ diagnostics:   31
 - **仓库里已有**：`js-yaml@4.1.1` 已在 `package.json` 的 devDependencies（`scripts/release-contract.mjs:7` 等 4 处在用）。本方案把它提到 dependencies，不引新库、不手写 YAML 解析（R20：解析器是通用能力，不在护城河上）。
 - **自媒体怎么说（TikHub 实检，2026-09-07，关键词「Agent Skills SKILL.md 技能格式」，抖音/小红书/B站/X 各 8 条）**：社区教程里对格式的表述高度一致——「[核心就一个文件：SKILL.md，frontmatter 必填两个字段 name（小写+连字符，限 64 字符）/ description（限 1024 字符）](https://www.douyin.com/video/7680378376628047131)」（抖音 @AI训练，2026-09-01）；[另一条同题教程](https://www.douyin.com/video/7674851329126732651)（抖音 @程序员R哥，2026-08-17）同样只讲 SKILL.md 单文件结构。**没有任何一条提到第二份清单文件。** 原始检索产物：`/tmp/tikhub-skillfmt/tikhub-search.md`（32 条，不入库）。
 - **结论：用已有格式，删自研的第二份。** 我们唯一需要自己造的是「Nomi 独有字段住在 `metadata.nomi.*` 下」这条命名约定，以及校验它的门岗。
+- **一条 R29 边界要说清楚：为什么不直接 import pi 的 `parseFrontmatter`。** 它确实存在（`dist/utils/frontmatter.js:18-25`），但 ① 包的 `exports` 没有暴露这个子路径（`import ".../dist/core/skills.js"` 会被 Node 以 `ERR_PACKAGE_PATH_NOT_EXPORTED` 拒掉，只有绕过 exports 写死物理路径才拿得到）；② 它本身就是 `yaml` 包 `parse` 的 20 行包装。**把主进程的技能加载路径挂在一个未导出的内部文件上，是给自己埋一颗随 pi 小版本升级而炸的雷**（0.85.0 上游误发布内部实验代码已经炸过一次）。所以解析器用仓库里已有的 `js-yaml`，而**判分**用 pi 的加载器（门岗 F6 里写死物理路径是可接受的：门岗炸了只是 CI 红，不是用户的技能加载不出来）。
 
 ---
 
@@ -233,7 +234,7 @@ metadata:
 
 - **触发点**：`discoverSkillRecordsFromRoots`（`skillStore.ts:143-220`）扫到 `origin === "user"` 且目录下同时有 `SKILL.md` 与 `skill.json` 时。
 - **动作**：读 `skill.json` → 按 §4 表映射进 frontmatter `metadata.nomi` → 原子重写 `SKILL.md` → 把原 `skill.json` 改名为 `skill.json.migrated-<ts>.bak`（**不删**）→ 记一条 diagnostic。
-- **不可逆性明说**：备份文件留在原目录，用户看得见；面板给一条一次性提示说明发生了什么。内置目录只读，永远不走这条路。
+- **不可逆性明说**：备份文件留在原目录，用户打开目录就看得见发生过什么；主进程记一条诊断。**不加新 UI**——一条一次性面板提示是新的可见控件，按 P5/R8 得先出样张拍板，不该夹在格式收敛里顺手加；盘上那个 `.bak` 已经是用户可查的痕迹。内置目录只读，永远不走这条路。
 - **只迁一次**：迁完目录里没有 `skill.json` 了，下次扫描自然跳过。
 - **测试只在临时 HOME 下跑**（`NOMI_SETTINGS_DIR` / `NOMI_ELECTRON_USER_DATA_DIR` 指向 tmpdir），**不碰用户真实技能目录**。
 
@@ -285,7 +286,7 @@ $ node scripts/check-skills-format.mjs   # exit 1
 | **A4** | pi 能直接读我们的 `SKILL.md` | ① 门岗 F6（33/33、0 diagnostics）② 把一个内置技能目录软链进临时 `~/.pi/agent/skills` 跑一次 pi 的发现 | 见 §11「已验/未验」 |
 | **A5** | 用户目录迁移只发生一次且可回看 | 临时 HOME 下：造一个带 `skill.json` 的用户技能 → 加载 → 断言 `SKILL.md` 含 `metadata.nomi`、`skill.json` 变成 `.bak`、第二次加载无动作 | 单测 |
 | **A6** | 五门 | `pnpm run gates` 全绿（含新门岗） | CI |
-| **A7** | i18n 不新增硬编码 | 迁移提示文案走 i18n（`zh-CN` / `en` 双语） | `check:i18n` |
+| **A7** | i18n 不新增硬编码 | 本轮不新增任何用户可见文案（迁移无 UI，见 §6.2） | `check:i18n` |
 
 ---
 
