@@ -1,6 +1,7 @@
 import { getDesktopActiveProjectId } from '../../desktop/activeProject'
 import { getDesktopBridge, type DesktopBridge } from '../../desktop/bridge'
 import type { TelemetryResult } from '../../../electron/shared/contracts/telemetry'
+import { describeOpaqueFailure } from '../observability/opaqueFailure'
 
 export type TaskKind =
   | 'chat'
@@ -219,7 +220,7 @@ export async function runWorkbenchTextTaskStream(
       } else if (evt?.type === 'done') {
         finish(() => resolve(evt.result as TaskResultDto))
       } else if (evt?.type === 'error') {
-        finish(() => reject(new Error(evt.message || '文本流式生成失败')))
+        finish(() => reject(new Error(evt.message || describeOpaqueFailure(null))))
       }
     })
     // 外部取消：通知主进程真中断流 + 兜底 reject。

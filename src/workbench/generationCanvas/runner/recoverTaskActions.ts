@@ -7,6 +7,7 @@ import { resolveGenerationReferences } from './generationReferenceResolver'
 import { asTrimmedString, resolveTaskKind, selectedModelKey, selectedVendor } from './catalogTaskResolve'
 import { normalizeCatalogTaskResult } from './catalogTaskResultParse'
 import i18n from '../../../i18n'
+import { describeOpaqueFailure } from '../../observability/opaqueFailure'
 
 const TERMINAL_STATUSES = new Set(['succeeded', 'failed'])
 const RECOVER_POLL_INTERVAL_MS = 3000
@@ -115,7 +116,7 @@ export async function recoverNodeResult(nodeId: string): Promise<void> {
     await persistActiveWorkbenchProjectNow().catch(() => {})
   } catch (error) {
     // 终态是 failed（normalizeCatalogTaskResult 对 failed 抛错）→ 这才是真失败，落 error 桶。
-    const message = error instanceof Error && error.message ? error.message : '生成失败'
+    const message = describeOpaqueFailure(error)
     useGenerationCanvasStore.getState().setNodeStatus(id, 'error', message)
   }
 }

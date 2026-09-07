@@ -5,6 +5,7 @@ import { bumpPersistRevision } from './canvasGuards'
 import { createProgress, getResultTaskKind, getRunDurationSeconds, mergeRunRecord } from './runRecordHelpers'
 import { emitCanvasGesture } from '../events/canvasEventEmitter'
 import type { CanvasRunActions, CanvasSliceCreator } from './canvasStoreTypes'
+import { describeOpaqueFailure } from '../../observability/opaqueFailure'
 
 function mergeResultHistory(
   nextResult: GenerationNodeResult,
@@ -39,7 +40,7 @@ export const createCanvasRunActions: CanvasSliceCreator<CanvasRunActions> = (set
     set((state) => {
       const node = state.nodes.find((candidate) => candidate.id === nodeId)
       if (!node) return
-      const nextError = status === 'error' ? error || node.error || 'Generation failed' : undefined
+      const nextError = status === 'error' ? error || node.error || describeOpaqueFailure(null) : undefined
       const latestRun = node.runs?.[0]
       const runs = latestRun && latestRun.status !== 'success' && latestRun.status !== 'error' && latestRun.status !== 'cancelled'
         ? [mergeRunRecord(latestRun, { status: status === 'idle' ? 'cancelled' : status, error: nextError }), ...(node.runs || []).slice(1)]
@@ -111,7 +112,7 @@ export const createCanvasRunActions: CanvasSliceCreator<CanvasRunActions> = (set
       const node = state.nodes.find((candidate) => candidate.id === nodeId)
       if (!node) return
       node.status = normalizedRun.status === 'cancelled' ? 'idle' : normalizedRun.status
-      node.error = normalizedRun.status === 'error' ? normalizedRun.error || node.error || 'Generation failed' : undefined
+      node.error = normalizedRun.status === 'error' ? normalizedRun.error || node.error || describeOpaqueFailure(null) : undefined
       node.progress = normalizedRun.progress
       node.runs = [normalizedRun, ...(node.runs || []).filter((entry) => entry.id !== normalizedRun.id)]
       bumpPersistRevision(state)
@@ -130,7 +131,7 @@ export const createCanvasRunActions: CanvasSliceCreator<CanvasRunActions> = (set
       nextRuns[runIndex] = nextRun
       const isLatestRun = runIndex === 0
       node.status = isLatestRun ? (nextRun.status === 'cancelled' ? 'idle' : nextRun.status) : node.status
-      node.error = isLatestRun && nextRun.status === 'error' ? nextRun.error || 'Generation failed' : undefined
+      node.error = isLatestRun && nextRun.status === 'error' ? nextRun.error || describeOpaqueFailure(null) : undefined
       node.progress = isLatestRun ? nextRun.progress : node.progress
       node.runs = nextRuns
       bumpPersistRevision(state)
