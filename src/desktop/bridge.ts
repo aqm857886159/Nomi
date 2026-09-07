@@ -12,6 +12,7 @@ import type { CustomCallBridge } from './modelCatalogBridgeTypes'
 import type { ComfyCandidateTestPayload, ComfyCandidateTestResult, ComfyWorkflowMutationResult } from './comfyCandidateContracts'
 import type { CanvasReadSurfaceBridge } from '../../electron/shared/surfacePortBinding'
 import type { ProjectAgentBridge } from './projectAgentBridgeTypes'
+import type { GenerationResolvePlanEnvelope, GenerationResolvePlanRequest } from '../../electron/shared/videoCapabilities/planResolutionContracts'
 export type { ProjectAgentBridge, ProjectAgentCommandWire } from './projectAgentBridgeTypes'
 export type { ProviderKind }
 export type { DesktopAdapterModeResult, DesktopProviderAdapterRun, DesktopProviderRegistration } from './onboardingBridgeTypes'
@@ -542,6 +543,11 @@ export type DesktopBridge = DesktopMediaBridge & DesktopConnectorBridge & {
       fps: number
       frames: string[]
     }) => Promise<{ url: string; assetId?: string }>
+  }
+  /** Generation strategy resolver GUI 窄 IPC：planning seam 在 main（候选/决策与 agent/MCP 同源），
+    渲染层不自构候选。可选（`?`）：旧 preload 没有此口，调用方须兜住 undefined。 */
+  generationStrategy?: {
+    resolvePlan: (payload: GenerationResolvePlanRequest) => Promise<GenerationResolvePlanEnvelope>
   }
   exports: {
     startJob: (payload: DesktopExportJobStartPayload) => Promise<DesktopExportJobStartResult>

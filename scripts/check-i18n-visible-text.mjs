@@ -84,6 +84,11 @@ const EXCLUDED_FILES = new Set([
   'electron/harness/tools/canvasDescriptors.ts', // tool schemas and multilingual examples are agent-facing protocol text
   'electron/harness/tools/generationDescriptors.ts', // agent-facing generation tool schemas/descriptions (LLM protocol text, not UI copy)
   'electron/promptLibrary/promptSources.ts', // external curated source names
+  // 生成策略解析器的执行计划理由（planResolver 的 issue.message / merge / split reason）：机器按真实
+  // 模型档案算出的精细中文理由（带镜头 id 与数值），随 resolve value 一道供 GUI 面板「为什么」/闸 toast
+  // 与 agent 结果直接展示——与 capabilityCore 的 recoveryNotice 同类 result prose，非 UI 字面量
+  // （renderer 面板不重复翻译引擎理由；若未来要全语言化，走「引擎只产 code+参数、显示边界模板化」另立任务）。
+  'electron/shared/videoCapabilities/planResolver.ts',
 ])
 
 // 模型档案规格目录:这里的 label/hint/placeholder 等展示属性**全部走 translateModelDisplayText

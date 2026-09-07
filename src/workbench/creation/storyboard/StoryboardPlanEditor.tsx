@@ -45,6 +45,9 @@ import { AssetPreviewDialog, type AssetPreviewSequenceItem } from '../../assets/
 import type { AssetRef } from '../../assets/assetTypes'
 import { buildStoryboardPlaybackQueue, hiddenGeneratingCount, positionsForAnchorFilter } from './storyboardDInteractions'
 import { buildStoryboardReference } from '../../ai/resident/residentReferences'
+import StoryboardPlanStrategyPanel from './StoryboardPlanStrategyPanel'
+import { resolveGeneratableGate, type StoryboardResolveClient } from './strategyGate'
+import { getDesktopBridge } from '../../../desktop/bridge'
 
 /**
  * 分镜方案编辑器（v5 B：执行面）。表 = 画布节点的表格表示版——行内/批量直接生成，
@@ -218,6 +221,22 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
     }
   }
 
+  /**
+   * 落画布/生成前的执行计划闸（D3 B 段，切片 4）：真正会 materialize 新节点的动作（单镜生成 / 整批）
+   * 先过 resolve——存在「原样生成即截断/无模型」的阻断（超上限未拆、低于下限未并、模型缺失）就拦下，
+   * 给出第一条机器理由；效率合并（建议式）不拦。resolve 通道不可用（无 bridge/能力核未起）→ fail-open 放行
+   * （生成合法性另有 main 侧契约钳值兜底；本闸是建议级拦截，不是安全边界）。
+   */
+  const resolveClient = (): StoryboardResolveClient | null => getDesktopBridge()?.generationStrategy ?? null
+  const guardMaterialize = async (action: () => Promise<void>): Promise<void> => {
+    const blocker = await resolveGeneratableGate(plan, projectId, resolveClient())
+    if (blocker) {
+      toast(blocker, 'error')
+      return
+    }
+    await runAction(action)
+  }
+
   const execCtx = { documentId: activeDocumentId, designId, plan }
   const onStoryboardShotSelect = (shot: StoryboardPlan['shots'][number]): void => {
     const reference = buildStoryboardReference('shot', shot.index, t('storyboardEditor.row.selectAria', { index: shot.index }), 'selected shot')
@@ -227,13 +246,18 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
     ])
   }
   const onGenerateRow = (runtime: StoryboardRowRuntime): void => {
-    void runAction(() => generateShotRow(execCtx, runtime.shot, runtime.mode))
+    void guardMaterialize(() => generateShotRow(execCtx, runtime.shot, runtime.mode))
   }
   const onRunBatch = (): void => {
     const running = batch.runnable
     // 「本次跳过」的作用域就是这一批：批次一发出去，标记立刻清空（§2.10）。
     setSkippedShotIds(new Set())
-    void runAction(() => runStoryboardBatch(execCtx, running))
+    void guardMaterialize(() => runStoryboardBatch(execCtx, running))
+  }
+  const onRunSelected = (selected: StoryboardRowRuntime[]): void => {
+    if (selected.length === 0) return
+    setSkippedShotIds(new Set())
+    void guardMaterialize(() => runStoryboardBatch(execCtx, selected))
   }
   const onToggleSkip = (shotId: string): void => {
     setSkippedShotIds((previous) => {
@@ -420,6 +444,8 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
       />
 
       <div className="overflow-y-auto px-4 py-4 flex flex-col gap-4">
+        {/* 执行计划审阅条（切片 3）：主进程同源 resolve 的合并/拆条建议 + 阻断问题，逐条采纳即改方案。 */}
+        <StoryboardPlanStrategyPanel projectId={projectId} plan={plan} onChange={setStoryboardPlan} />
         <StoryboardAnchorZone
           cards={anchorCards}
           aspect={planDefaultAspect(plan)}
@@ -495,7 +521,7 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
               onJumpToAnchor={onJumpToAnchor}
               onSaveResultAsReference={onSaveResultAsReference}
               onSetResultAsFirstFrame={onSetResultAsFirstFrame}
-              onGenerateSelected={(selected) => void runAction(() => runStoryboardBatch(execCtx, selected))}
+              onGenerateSelected={(selected) => onRunSelected(selected)}
               onDeleteSelected={(selected) => {
                 const ids = selected.flatMap((runtime) => [runtime.exec.node?.id, runtime.exec.keyframeNode?.id]).filter((id): id is string => Boolean(id))
                 deletedPlanUndoRef.current = { plan, canvasSteps: ids.length }

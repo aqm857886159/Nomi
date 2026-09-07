@@ -85,6 +85,24 @@ export const generationPlanInputSchema = z.discriminatedUnion("operation", [
   z.object({ operation: z.literal("create"), ...createFields }).strict(),
   z.object({ operation: z.literal("patch"), operationId, patch: candidatePatch }).strict(),
   z.object({ operation: z.literal("preview"), operationId }).strict(),
+  z.object({
+    operation: z.literal("resolve"),
+    // Generation Strategy Resolver input: logical shots (narrative durations +
+    // optional per-shot model/mode/params) whose structure the machine validates,
+    // clamps and optimizes (merge/split) before any plan is formed. Field names
+    // mirror planResolver.PlanShotInput; unknown keys fail closed via .strict().
+    shots: z.array(z.object({
+      id: z.string().trim().min(1),
+      durationSec: z.number().finite().nonnegative(),
+      sceneAnchorId: z.string().trim().min(1).optional(),
+      anchorIds: z.array(z.string().trim().min(1)).optional(),
+      modelKey: z.string().trim().min(1).optional(),
+      modeId: z.string().trim().min(1).optional(),
+      params: z.record(z.unknown()).optional(),
+      beatNote: z.string().max(300).optional(),
+    }).strict()).min(1).max(40),
+    goals: z.object({ allowAdvisoryMerge: z.boolean().optional() }).strict().optional(),
+  }).strict(),
 ]);
 
 export const generationStatusInputSchema = z.discriminatedUnion("operation", [

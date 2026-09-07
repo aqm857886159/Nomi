@@ -133,4 +133,20 @@ describe("resident semantic generation transport", () => {
     expect(rejectGeneration).toHaveBeenCalledTimes(1);
     expect(planning).not.toHaveBeenCalled();
   });
+
+  it("routes generation_plan resolve to the stateless resolver seam without an operationId", async () => {
+    const planning = vi.fn(async ({ capability, params }: { capability: string; params: Record<string, unknown> }) => ({ capability, params }));
+    const adapter = createPiGenerationTransportAdapter(binding, { planning, leaseFor: () => lease });
+
+    const result = await adapter.tryExecute(
+      call("nomi_generation_plan", { operation: "resolve", shots: [{ id: "s1", durationSec: 6, sceneAnchorId: "hall" }] }),
+      new AbortController().signal,
+    );
+
+    expect(result).toMatchObject({ ok: true, result: { capability: "resolve" } });
+    expect(planning).toHaveBeenCalledWith(expect.objectContaining({
+      capability: "resolve",
+      params: expect.objectContaining({ shots: [{ id: "s1", durationSec: 6, sceneAnchorId: "hall" }] }),
+    }));
+  });
 });

@@ -42,6 +42,7 @@ const INTERNAL_GENERATION_TOOL_NAMES = new Set([
   "nomi_operation_create",
   "nomi_submit_generation_plan",
   "nomi_preview_execution",
+  "nomi_resolve_generation_plan",
   "nomi_request_generation_gate",
   "nomi_start_generation",
   "nomi_operation_read",
@@ -98,6 +99,10 @@ function canonicalGenerationCall(call: RuntimeToolCall, args: Record<string, unk
     if (operation === "patch") {
       const { operation: _operation, ...patchArgs } = args;
       return { ...call, toolName: "nomi_submit_generation_plan", args: patchArgs };
+    }
+    if (operation === "resolve") {
+      const { operation: _operation, ...resolveArgs } = args;
+      return { ...call, toolName: "nomi_resolve_generation_plan", args: resolveArgs };
     }
     const { operation: _operation, ...previewArgs } = args;
     return { ...call, toolName: "nomi_preview_execution", args: previewArgs };
@@ -285,14 +290,18 @@ export function createPiGenerationTransportAdapter(
                 ? "plan"
                 : canonicalCall.toolName === "nomi_preview_execution"
                   ? "preview"
-                  : canonicalCall.toolName === "nomi_operation_read"
-                    ? "read"
-                    : canonicalCall.toolName === "nomi_cancel_generation"
-                      ? "cancel"
-                      : "reconcile";
+                  : canonicalCall.toolName === "nomi_resolve_generation_plan"
+                    ? "resolve"
+                    : canonicalCall.toolName === "nomi_operation_read"
+                      ? "read"
+                      : canonicalCall.toolName === "nomi_cancel_generation"
+                        ? "cancel"
+                        : "reconcile";
         // operationId is required by every non-create descriptor. Parsing it
         // here keeps malformed model calls out of the durable operation store.
-        if (capability !== "context" && capability !== "create") operationId(args);
+        // resolve is stateless plan computation (no durable operation) and is
+        // exempt together with context/create.
+        if (capability !== "context" && capability !== "create" && capability !== "resolve") operationId(args);
         const result = await plan(capability, args, currentLease, signal);
         return { ok: true, result, silent: capability === "context" || capability === "read" };
       } catch (error) {
