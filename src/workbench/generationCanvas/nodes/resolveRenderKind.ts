@@ -3,7 +3,7 @@
 import type { GenerationCanvasNode } from "../model/generationCanvasTypes";
 
 /** 走「卡片」式 body（非纯图片预览）的 renderKind 集合。 */
-export const CARD_RENDER_KINDS = ["character-card", "scene-card", "prop-card", "audio-strip", "whiteboard-card"] as const;
+export const CARD_RENDER_KINDS = ["character-card", "scene-card", "prop-card", "audio-strip", "whiteboard-card", "video-depth-card"] as const;
 
 /** kind 自带专属卡 body 的节点：这些 kind 的 body 就是功能本体，任何分类默认值都不该顶掉它。 */
 const RENDER_KIND_BY_NODE_KIND: Record<string, string> = {
@@ -11,6 +11,7 @@ const RENDER_KIND_BY_NODE_KIND: Record<string, string> = {
   audio: "audio-strip",
   character: "character-card",
   scene: "scene-card",
+  video_depth_process: "video-depth-card",
 };
 
 /**

@@ -46,6 +46,7 @@ export const zhRuntime = {
     whiteboard: { menu: '画板', title: '画板', placeholder: '在画板里绘制参考，再描述要生成的画面...' },
     model3d: { menu: '3D 模型', title: '3D 模型', placeholder: '描述要生成的 3D 模型（外形、材质、风格）...' },
     asset: { menu: '素材', title: '素材', placeholder: '描述素材内容...' },
+    videoDepthProcess: { menu: '深度视频', title: '深度视频', placeholder: '把视频处理成深度 / 骨架动作参考，供生成模型使用...' },
   },
   project: {
     untitled: '未命名项目',
@@ -197,6 +198,7 @@ export const enRuntime = {
       placeholder: 'Describe the 3D model, including shape, material, and style...',
     },
     asset: { menu: 'Asset', title: 'Asset', placeholder: 'Describe the asset...' },
+    videoDepthProcess: { menu: 'Depth Video', title: 'Depth Video', placeholder: 'Turn a video into a depth / skeleton motion reference for generation...' },
     clip: { menu: 'Clip', title: 'Clip', placeholder: 'Add image or video to start editing...' },
   },
   project: {

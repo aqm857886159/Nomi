@@ -37,4 +37,10 @@ describe("resolveNodeRenderKind — 渲染分发优先级（kind > categoryId）
     expect(resolveNodeRenderKind(node({ kind: "image", categoryId: "shots" }))).toBeUndefined();
     expect(isCardRenderKind(resolveNodeRenderKind(node({ kind: "video", categoryId: "shots" })))).toBe(false);
   });
+
+  it("深度视频处理节点按 kind 走专属卡，任何分类/脏 renderKind 都不顶掉", () => {
+    expect(resolveNodeRenderKind(node({ kind: "video_depth_process", categoryId: "shots" }))).toBe("video-depth-card");
+    expect(resolveNodeRenderKind(node({ kind: "video_depth_process", renderKind: "shot-frame" }))).toBe("video-depth-card");
+    expect(isCardRenderKind(resolveNodeRenderKind(node({ kind: "video_depth_process" })))).toBe(true);
+  });
 });

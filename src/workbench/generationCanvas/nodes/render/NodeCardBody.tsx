@@ -6,6 +6,8 @@ import PropCardNode from './PropCardNode'
 import AudioStripNode from './AudioStripNode'
 // 画板 body 懒加载：它链到 WhiteboardModal→Leafer 画布(重)，只在画布真有画板节点时才拉。
 const WhiteboardCardBody = React.lazy(() => import('../whiteboard/WhiteboardCardBody'))
+// 深度视频处理节点 body 懒加载（功能本体在 videoDepth/ 域，见 resolveRenderKind）。
+const VideoDepthNodeBody = React.lazy(() => import('../../videoDepth/VideoDepthNodeBody'))
 
 /**
  * 卡片式 body 分发（从 BaseGenerationNode 抽出，R9 治巨壳 + 收口）。
@@ -30,6 +32,11 @@ export function NodeCardBody({
       {renderKind === 'whiteboard-card' && (
         <React.Suspense fallback={<div className='h-full w-full bg-nomi-paper' />}>
           <WhiteboardCardBody node={node} readOnly={readOnly} />
+        </React.Suspense>
+      )}
+      {renderKind === 'video-depth-card' && (
+        <React.Suspense fallback={<div className='h-full w-full bg-nomi-paper' />}>
+          <VideoDepthNodeBody node={node} readOnly={readOnly} />
         </React.Suspense>
       )}
     </div>

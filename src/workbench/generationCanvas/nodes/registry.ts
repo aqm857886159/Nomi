@@ -147,6 +147,22 @@ export const GENERATION_NODE_PLUGINS = defineGenerationNodePlugins([
     promptPlaceholder: 'Describe the video...',
   },
   {
+    // 深度视频处理：本地（WebGPU ONNX Depth Anything V2 + MediaPipe Pose）把源视频逐帧转成
+    // 深度/深度+骨架/原+骨架 输出视频（可选 poses.json）。不是生成节点：无 executionKind → 不进
+    // provider/canRun 路径；无 agentCreatable → v1 不暴露给 Agent。body 走专属卡
+    // (renderKind 'video-depth-card' → videoDepth/VideoDepthNodeBody)。
+    kind: 'video_depth_process',
+    label: 'Depth Video',
+    menuLabel: 'Depth Video',
+    component: loadBaseGenerationNode,
+    icon: 'video',
+    defaultTitle: '深度视频',
+    defaultSize: { width: 380, height: 440 },
+    catalogKind: 'video',
+    quickAdd: true,
+    agentCreatable: false,
+  },
+  {
     // 声音：配音生成（TTS，文→音）/ 转写（Whisper，音→文）/ 上传音频。渲染走 audio-strip（按 kind 强制，
     // 见 BaseGenerationNode renderKind 分发），生成类挂 composer（模式切换在 NodeGenerationComposer）。
     kind: 'audio',
