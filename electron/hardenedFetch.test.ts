@@ -131,9 +131,10 @@ describe("hardenedFetch 私网边界", () => {
     expect(dispatcher.close).not.toHaveBeenCalled();
   });
 
-  // 上面那条证明的是「代理生效时不拿本机解析结果当判据」。下面两条钉住它**不等于「不判」**：
-  // 上一轮的形状是调用点自己写 `if (proxyActive) { 整段跳过分类 }`，策略 owner 被绕过而不是被咨询
-  // ——那是逃生口（P1/R28）。现在代理路由照样每一跳问 owner，只是判据的对象换成名字。
+  // 上面那条证明的是「代理生效时不拿本机解析结果当判据」。下面两条钉住它**不等于「不判」**。
+  // 说准一点：上一轮名字层也是判的，只是判据长在 hardenedFetch 自己身上（第二个 owner），
+  // 而「代理生效」这个条件写在调用点。判据搬进 policy 之后，这两条守的是**搬家没搬丢**——
+  // 谁要是把 `if (route === "proxy") return allowed` 写进 owner，这里就该红。
   it("应用代理生效时**仍然**问策略：私网字面量照拦（代理不是绕过分类的通行证）", async () => {
     const resolveHost = vi.fn();
     const fetchImpl = vi.fn();
