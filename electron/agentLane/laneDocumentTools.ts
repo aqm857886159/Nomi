@@ -27,6 +27,10 @@ import {
   type DocumentWriteInput,
   type DocumentWriteResult,
 } from "../shared/agentCapabilities/documentWrite";
+import {
+  LANE_MODEL_OUTPUT_MAX_BYTES,
+  LANE_MODEL_OUTPUT_MAX_LINES,
+} from "../shared/agentLane/laneContracts";
 import type { LaneToolDescriptor } from "./laneRuntimePort";
 
 /** 领域侧。lane 不认识编辑器，只认识这两个动作——K4/K5 的「按 id 引用，永不复制」同一条纪律。 */
@@ -35,16 +39,28 @@ export interface DocumentLanePort {
   write(input: DocumentWriteInput): Promise<DocumentWriteResult>;
 }
 
+/**
+ * 说明书和执行必须是同一个数（G-04）。这句话里的两个上限**不是抄的**，是从
+ * `laneContracts.ts` 的同一对常量插出来的——截断真正发生的地方（`laneTools.mts`）
+ * 读的也是它们。原来这里写的是 "with no truncation"，那句话在截断落地的那一刻
+ * 就变成了一句谎：模型会把半截原稿当成全文，而它读到的说明书告诉它「不会被截」。
+ */
+const OUTPUT_LIMIT_SENTENCE = `Long text is truncated to the first ${LANE_MODEL_OUTPUT_MAX_LINES} lines or ${
+  LANE_MODEL_OUTPUT_MAX_BYTES / 1024
+}KB, whichever comes first; when that happens the result says so and tells you what to do next.`;
+
 const READ_DESCRIPTIONS: Readonly<Record<DocumentReadInput["scope"], string>> = {
   full: [
     "Read the entire creation document as plain text.",
     "Call this before writing anything, so your edit lands in the document that actually exists rather than the one you assume.",
-    "Takes no arguments; the returned text is the document exactly as the user sees it, with no truncation.",
+    "Takes no arguments; the returned text is the document exactly as the user sees it.",
+    OUTPUT_LIMIT_SENTENCE,
   ].join(" "),
   selection: [
     "Read only the text the user currently has selected in the creation document.",
     "Use this when the user says \"this\", \"here\" or \"the selected part\" — it is the only way to know what they pointed at.",
     "Takes no arguments; returns an empty string when nothing is selected, which means you should ask rather than guess.",
+    OUTPUT_LIMIT_SENTENCE,
   ].join(" "),
 };
 

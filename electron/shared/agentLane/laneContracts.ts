@@ -94,6 +94,25 @@ export function isLaneApprovalNote(value: unknown): value is LaneApprovalNote {
     && (note.decision === 'granted' || note.decision === 'denied')
 }
 
+/**
+ * 模型可见的工具结果上限。**两个都是 pi 自己内建工具用的那两个数**
+ * （`pi-agent-core/dist/harness/utils/truncate.js:10-11` 的 `DEFAULT_MAX_LINES` / `DEFAULT_MAX_BYTES`），
+ * 上游把「工具必须自截断」写成 MUST：*"Tools MUST truncate their output"*
+ * （`pi-coding-agent/docs/extensions.md:2172`），理由是超限的工具结果会撑爆上下文、
+ * 让压缩失败，而这三件事都**不报错**——只是这一轮突然变笨。
+ *
+ * 为什么这两个数字住在中立契约层而不是 pi 那侧的岛：**说明书和执行必须同一个数**。
+ * 截断发生在 `laneTools.mts`（ESM 岛，能 import pi），而向模型宣布上限的
+ * 工具 description 写在 `laneDocumentTools.ts`（CJS 侧，`require()` 不到 pi 的 ESM 包）。
+ * 两侧唯一都看得见的地方就是这里。抄来的数字会漂，所以
+ * `tests/agent-runtime/lane-tool-output.test.mts` 把它和 pi 的常量钉成相等——
+ * 上游改了默认值，那条测试先红，而不是等模型某天被喂了 100KB。
+ */
+export const LANE_MODEL_OUTPUT_MAX_LINES = 2000
+
+/** 见上。50KB —— 与 pi 的 `DEFAULT_MAX_BYTES` 同一个数。 */
+export const LANE_MODEL_OUTPUT_MAX_BYTES = 50 * 1024
+
 /** 渲染层能发给主进程的命令。**渲染层不铸造任何宿主记录**（方案 B6）：只说要做什么。 */
 export type LaneCommand =
   | { readonly kind: 'prompt'; readonly text: string }
