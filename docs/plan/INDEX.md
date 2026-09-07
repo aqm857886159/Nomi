@@ -273,6 +273,10 @@
 
 - [2026-09-05] [第三刀·投影清零方案](2026-09-05-storyboard-projection-cleanup.md) — 分镜唯一 owner、旧字段一次迁移后丢弃、取证 runner 读 Host snapshot。
 
+- [2026-09-07 设计系统优化](2026-09-07-design-system-optimization.md) — 三路体检后的 A 卫生 / B 补洞 / C 加门岗三档实施，D（组件权威）只出方案。
+
+- [2026-09-07 设计系统：从值的字典升级为组件的权威](2026-09-07-design-system-component-authority.md) — 上游 D 档方案：Menu(77 处/20 文件手写) / Dialog(32 文件) / Spinner 三个缺失原语的 R20 build-vs-buy 判断（结论：**买 Radix，别自研**）、Mantine 与 Radix 的 R29 四列表（最刺眼一格：`nomiTheme.ts:221` 配好了 `Menu` defaultProps 却零调用）、primitive 实验室新抓到的 `DesignPagination` 无选中态与 Mantine 色板旁路、刀 0-4 分阶段路线与影响面、R3 三条路对比、**七条「不做什么」**。
+
 ## 🤖 自动收录（待人工归位）
 
 > 这些链接由 `.github/workflows/docs-autosync.yml` 在 main 上自动补登，只保证「能被搜到」，

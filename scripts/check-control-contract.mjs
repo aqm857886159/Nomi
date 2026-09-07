@@ -172,6 +172,9 @@ function isEmptyHandler(fn) {
     || (ts.isVoidExpression(body) && ts.isNumericLiteral(body.expression))
 }
 
+/** 规则二的守卫描述。判定与报错文案共用一个常量——两处各写一份字符串就会漂。 */
+const EMPTY_HANDLER_GUARD = '空 handler（恒定什么都不做）'
+
 const SCANNED = sourceFiles(SRC)
 const offenders = []
 for (const file of SCANNED) {
@@ -195,7 +198,7 @@ for (const file of SCANNED) {
         if ([...ALLOWLIST.keys()].some((k) => k.startsWith(`${rel}:`))) continue
         // 规则二不看 disabled：一个「有时能点、点了永远不做事」的控件，disabled 也救不了它。
         if (isEmptyHandler(fn)) {
-          offenders.push({ where: `${rel}:${line}`, handler: attr.name.getText(), guard: '空 handler（恒定什么都不做）' })
+          offenders.push({ where: `${rel}:${line}`, handler: attr.name.getText(), guard: EMPTY_HANDLER_GUARD })
           continue
         }
         if (hasDisabled) continue
@@ -222,12 +225,24 @@ const discarded = discardedCommandOffenders({ root: ROOT, files: SCANNED })
 
 if (offenders.length > 0 || discarded.length > 0) {
   console.error('✗ 控件交互契约门岗未通过（设计系统 §4.1 C1）：')
-  if (offenders.length > 0) {
-    console.error('\n【点了不做事】handler 里有目标守卫、或 handler 根本是空的，控件却没有 disabled。')
+  // 两条规则的修法完全不同，别合成一段说。规则二在上面明写「不看 disabled」——
+  // 对空 handler 说「去加 disabled」会把人指去加一个多半已经在那儿的属性（2026-09-07 实际踩到）。
+  const guarded = offenders.filter((o) => o.guard !== EMPTY_HANDLER_GUARD)
+  const empty = offenders.filter((o) => o.guard === EMPTY_HANDLER_GUARD)
+  if (guarded.length > 0) {
+    console.error('\n【点了不做事 · 有守卫】handler 里有目标守卫，拿不到目标就不做事，控件却没有 disabled。')
     console.error('  修法：守卫为假时给控件 disabled，并用 title 说清「为什么现在点不了」。')
     console.error('  禁用的 <button> 自身不触发 title，要用外层 <span title={原因} style={{display:"contents"}}> 包住')
     console.error('  （既有范式见 NodeGenerationComposer.tsx 的生成钮）。\n')
-    for (const o of offenders) console.error(`  · ${o.where}  ${o.handler} 守卫: ${o.guard}`)
+    for (const o of guarded) console.error(`  · ${o.where}  ${o.handler} 守卫: ${o.guard}`)
+  }
+  if (empty.length > 0) {
+    console.error('\n【点了不做事 · 空 handler】handler 恒定什么都不做（空块 / undefined / null）。')
+    console.error('  ⚠️ 加 disabled 救不了这条：一个「画得像能点、点下去永远没反应」的控件，')
+    console.error('  禁用它只是把没反应换成不能点，用户依然不知道这里本该发生什么。')
+    console.error('  修法二选一：① 把它接上真实行为（实验室/陈列场景用有状态的宿主驱动它）；')
+    console.error('  ② 干脆别渲染这个控件——占位控件就是承诺了做不到的事。\n')
+    for (const o of empty) console.error(`  · ${o.where}  ${o.handler}: ${o.guard}`)
   }
   if (discarded.length > 0) {
     console.error('\n【点了失败但用户看不到】handler 丢掉了一个会被拒绝的跨进程命令的 Promise，')
