@@ -467,11 +467,17 @@ export async function createRuntimeWalk(name) {
   let current
 
   async function start({ first = false } = {}) {
+    // 受限 shell/CI 注入额外 chromium 参数用（如 --no-sandbox --disable-gpu-sandbox）：
+    // 逗号分隔，默认空 → 正常桌面/CI 行为不变；仅在需要关 sandbox/gpu 的环境显式设置。
+    const extraArgs = (process.env.NOMI_E2E_CHROMIUM_ARGS || '')
+      .split(',')
+      .map((arg) => arg.trim())
+      .filter(Boolean)
     current = await launchNomiApp({
       name: `pi-${name}`, tempRoot, settingsDir, settleMs: 0,
       ...(executablePath ? { executablePath } : {}),
       env: { NOMI_RENDERER_URL: '', VITE_DEV_SERVER_URL: '', NOMI_DESKTOP_DEV: '', NOMI_E2E_PRODUCTION_FIXTURE: '0', NOMI_DISABLE_AUTO_UPDATE: '1' },
-      args: ['--no-proxy-server'],
+      args: ['--no-proxy-server', ...extraArgs],
     })
     const { win, app } = current
     win.setDefaultTimeout(30_000)

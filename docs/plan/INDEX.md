@@ -98,6 +98,7 @@
 
 | 文件 | 一句话 | 状态 |
 |---|---|---|
+| [2026-09-06-agent-artifact-node.md](2026-09-06-agent-artifact-node.md) | **AI 手艺产物节点（agent-artifact）**：承载 SVG / 动态 HTML / 表格 / Markdown / 3D 摆位等不调模型的产物；meta.artifact 不扩 result 闭集、HTML 沙箱 allow-scripts、动作复用 FloatingToolbarShell；v1 核心已落地（渲染/下载/复制），参考图/截图/deliver skill = P1 | 🚧 |
 | [2026-09-06-ui-shell-version-dialog-node-empty.md](2026-09-06-ui-shell-version-dialog-node-empty.md) | P-01 新版本弹窗与 C-01 生成画布节点共享空态（设计实验室先行） | ✅ |
 | [2026-09-05-canvas-walkthrough-stage-width.md](2026-09-05-canvas-walkthrough-stage-width.md) | 常驻 Agent 面板压窄画布后：自动让位改走自家调度器并合成目标、懒加载节点就地 Suspense、NaN 视口拒收（#488 走查挖出的新卡被面板遮住 + 画布随机整片空白）；走查层由同分支 `_canvasHit.mjs` 收口 | ✅ |
 | [2026-09-03-narrowed-mode-guidance-dismiss.md](2026-09-03-narrowed-mode-guidance-dismiss.md) | 收窄模式指路提示的节点级关闭与项目持久化 | 🚧 |
