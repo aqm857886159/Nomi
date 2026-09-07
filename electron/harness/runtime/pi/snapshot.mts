@@ -7,10 +7,19 @@ import { snapshotEntrySchema } from './snapshotSchema.mjs';
 
 export type SnapshotSource = Pick<AgentSession, 'sessionManager' | 'isIdle' | 'isCompacting'>;
 
+// The envelope is a private, version-locked cache, so its pi version is a
+// closed set — never a free string. 0.84.3 stays readable because snapshots
+// written before the 0.85.1 upgrade are sitting in real users' projects; the
+// writer only ever emits the version this build actually runs. Widening the
+// reader and narrowing the writer are two different decisions, so they are two
+// different constants (`snapshotEntrySchema` re-verified against 0.85.1's
+// public `SessionEntry` union: same 9 variants, same 7 `StopReason` values).
+const READABLE_PI_VERSIONS = ['0.84.3', '0.85.1'] as const;
+const WRITTEN_PI_VERSION: (typeof READABLE_PI_VERSIONS)[number] = '0.85.1';
 const envelopeSchema = z.object({
   format: z.literal('nomi.pi-work-context'),
   version: z.literal(1),
-  piVersion: z.literal('0.84.3'),
+  piVersion: z.enum(READABLE_PI_VERSIONS),
   data: z.unknown(),
   sha256: z.string().regex(/^[a-f0-9]{64}$/),
 }).strict();
@@ -61,10 +70,11 @@ export function exportSnapshot(source: SnapshotSource): string {
     leafId: source.sessionManager.getLeafId(),
   };
   validateData(data);
-  return JSON.stringify({ format: 'nomi.pi-work-context', version: 1, piVersion: '0.84.3', data, sha256: digest(data) });
+  return JSON.stringify({ format: 'nomi.pi-work-context', version: 1, piVersion: WRITTEN_PI_VERSION, data, sha256: digest(data) });
 }
 
-// pi 0.84.3 has no fromSnapshot/storage-adapter API. Use its public in-memory
+// pi (0.84.3 and 0.85.1 alike) has no fromSnapshot/storage-adapter API on this
+// legacy seam. Use its public in-memory
 // manager + file loader, then restore the separate leaf pointer. Never replay tools.
 export async function importSnapshot(
   serialized: string,

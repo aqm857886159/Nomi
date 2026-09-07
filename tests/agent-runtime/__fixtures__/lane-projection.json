@@ -1,0 +1,68 @@
+{
+  "lane": "main",
+  "parts": [
+    {
+      "sequence": 0,
+      "entrySeq": 4,
+      "contentIndex": 0,
+      "kind": "user",
+      "text": "Append one paragraph to the document."
+    },
+    {
+      "sequence": 1,
+      "entrySeq": 17,
+      "contentIndex": 0,
+      "kind": "tool-call",
+      "toolCallId": "call-read",
+      "toolName": "read_full_text",
+      "args": {},
+      "running": false
+    },
+    {
+      "sequence": 2,
+      "entrySeq": 27,
+      "contentIndex": 0,
+      "kind": "tool-result",
+      "toolCallId": "call-read",
+      "toolName": "read_full_text",
+      "text": "The opening scene.",
+      "isError": false
+    },
+    {
+      "sequence": 3,
+      "entrySeq": 39,
+      "contentIndex": 0,
+      "kind": "tool-call",
+      "toolCallId": "call-write",
+      "toolName": "append_to_end",
+      "args": {
+        "content": "\n\nAnd then the door opened."
+      },
+      "running": false
+    },
+    {
+      "sequence": 4,
+      "entrySeq": 49,
+      "contentIndex": 0,
+      "kind": "tool-result",
+      "toolCallId": "call-write",
+      "toolName": "append_to_end",
+      "text": "Applied append to the document. New revision 1.",
+      "isError": false
+    },
+    {
+      "sequence": 5,
+      "entrySeq": 60,
+      "contentIndex": 0,
+      "kind": "assistant-text",
+      "text": "I read the document and appended one paragraph.",
+      "streaming": false
+    }
+  ],
+  "running": false,
+  "usage": {
+    "inputTokens": 30,
+    "outputTokens": 12,
+    "totalTokens": 42
+  }
+}
