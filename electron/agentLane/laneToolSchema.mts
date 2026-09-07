@@ -181,6 +181,53 @@ function collectFacts(node: unknown, facts: JsonFacts): void {
 }
 
 /**
+ * 供应商底线（G-01 / G-05，来自 `docs/research/2026-09-07-pi-reference-implementation-conformance.md` §1.3-1.4）。
+ *
+ * 它在解决哪个真实摩擦：**「信息没丢」和「模型看得见」是两件事**，而门岗到这里为止只证了前一件。
+ *   ① **根级 `anyOf`**：Anthropic 的适配器会把自定义工具 schema 的根级 `anyOf` **静默丢掉**
+ *      （上游 pi #9134），Google 的 legacy `parameters` 路径是 OpenAPI 3.03、压根不支持
+ *      `anyOf`/`oneOf`/`const`（`pi-ai/dist/api/google-shared.js:278-281`）。在那两条路上，
+ *      一个根级 union 的工具**等于没有 schema**——也就是 0/18 的第三个成因。
+ *      pi 自己 8 个内建工具没有一个是根级 union，全是扁平 `Type.Object`。
+ *   ② **`const`**：`z.literal()` 直译成 `{"const":"x"}`。信息一个字没丢，但 Google 系不认。
+ *      上游的处方是 `StringEnum()`（`pi-ai/dist/utils/typebox-helpers.js:2-20` 注释原文：
+ *      *"compatible with Google's API and other providers that don't support anyOf/const patterns"*），
+ *      落到 JSON Schema 就是 `{"type":"string","enum":[…]}`。
+ *
+ * 判别式 union 的正确写法不是「分支少一点」，是**根必须扁平**：`operation` 降成一个
+ * `z.enum` 判别字段，分支专属字段设为 optional，跨字段约束在 `execute` / `before_tool` 里做。
+ *
+ * 为什么这条规则长在生成点里而不是做成一条扫源码的 CI 规则：`z.discriminatedUnion` 在源码里
+ * 看得见，但「它最后生成成了什么」只有运行时知道——而后者才是模型真正看到的东西（R28：
+ * 防线建在最早能拦住的那一层）。
+ */
+function collectVendorCompatibilityFailures(json: Record<string, unknown>, path: string, out: string[]): void {
+  for (const keyword of ['anyOf', 'oneOf', 'allOf']) {
+    if (json[keyword] === undefined) continue;
+    out.push(`${path} 的根是一个 ${keyword}（Anthropic 适配器会静默丢弃它，Google legacy 路径不支持它——`
+      + '模型会看到一个没有 schema 的工具。把判别字段降成 z.enum，分支专属字段设为 optional）');
+  }
+  collectConstFailures(json, path, out);
+}
+
+function collectConstFailures(node: unknown, path: string, out: string[]): void {
+  if (Array.isArray(node)) {
+    node.forEach((item, index) => collectConstFailures(item, `${path}[${index}]`, out));
+    return;
+  }
+  if (!node || typeof node !== 'object') return;
+  const record = node as Record<string, unknown>;
+  if ('const' in record) {
+    out.push(`${path} 用了 const（Google 的 OpenAPI 3.03 路径不认它）——改成 z.enum([…])，`
+      + '生成 {"type":"string","enum":[…]}，那是上游 StringEnum() 的等价物');
+  }
+  for (const [key, value] of Object.entries(record)) {
+    if (key === 'enum' || key === 'required') continue;
+    collectConstFailures(value, `${path}.${key}`, out);
+  }
+}
+
+/**
  * 结构底线：模型可见 schema 里不许出现「什么都没说」的节点。
  * 一个**显式的空对象**（`{type:'object', properties:{}, additionalProperties:false}`）是合法的——
  * 它说的是「这个工具不收参数」，那是一句真话；`{}` 说的是「随便你」，那是 0/18 的来历。
@@ -264,5 +311,6 @@ export function assertModelVisibleSchemaLossless(
   collectExpectations(schema, options.toolName, expectations, new Set());
   const missing = expectations.filter((expectation) => !expectation.satisfied(facts)).map((e) => e.label);
   collectStructuralFailures(json, options.toolName, missing);
+  collectVendorCompatibilityFailures(json, options.toolName, missing);
   if (missing.length > 0) throw new ModelSchemaInformationLoss(options.toolName, missing);
 }
