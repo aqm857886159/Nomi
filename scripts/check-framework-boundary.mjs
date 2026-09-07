@@ -16,7 +16,13 @@ import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { advisoryCapabilityHits, evaluate, scanSources, validateRegistry } from './framework-boundary-lib.mjs'
+import {
+  advisoryCapabilityHits,
+  evaluate,
+  evaluateReferenceConformance,
+  scanSources,
+  validateRegistry,
+} from './framework-boundary-lib.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const REGISTRY_FILE = path.join(repoRoot, 'docs/engineering/framework-boundaries.json')
@@ -68,6 +74,36 @@ if (registryErrors.length > 0) {
   process.exit(1)
 }
 
+// —— 第二份必交物：参考实现逐层对照（R29，2026-09-07）——
+// 四列表按我们自己列的能力清单走，只覆盖已经想到的；参考实现（框架自带的 coding agent、
+// 官方 example）拆开逐层摆，才照得出「压根没想到还有这一层」。所以它是独立的一格登记，
+// 不是四列表的附注：缺了就红，除非登记成带到期日的债。
+function installedVersionsOf(registry) {
+  const versions = {}
+  const names = new Set()
+  for (const framework of registry.frameworks) {
+    for (const pkg of framework.packages ?? []) names.add(pkg)
+  }
+  for (const pkg of registry.capabilityInventory?.packages ?? []) names.add(pkg)
+  for (const pkg of names) {
+    const manifest = path.join(repoRoot, 'node_modules', pkg, 'package.json')
+    if (!fs.existsSync(manifest)) continue
+    try {
+      const version = JSON.parse(fs.readFileSync(manifest, 'utf8')).version
+      if (typeof version === 'string') versions[pkg] = version
+    } catch { /* 装机残缺不该让门岗红：版本落后本来就只是 advisory */ }
+  }
+  return versions
+}
+
+const conformance = evaluateReferenceConformance({
+  registry,
+  today: new Date().toISOString().slice(0, 10),
+  docExists: (doc) => fs.existsSync(path.join(repoRoot, doc)),
+  readDoc: (doc) => fs.readFileSync(path.join(repoRoot, doc), 'utf8'),
+  installedVersions: installedVersionsOf(registry),
+})
+
 const hits = scanSources(collectSources(registry), registry)
 
 if (process.argv.includes('--update-baseline')) {
@@ -95,7 +131,11 @@ if (process.argv.includes('--update-baseline')) {
 
 const baseline = readJson(BASELINE_FILE)
 const today = new Date().toISOString().slice(0, 10)
-const errors = evaluate({ hits, baseline, today })
+const errors = [...evaluate({ hits, baseline, today }), ...conformance.errors]
+
+// 上游对齐（advisory，不阻断）：上游发版 ≠ 我们的对照就错了，但它确实可能过期。
+// 升红条件写死在登记表 referenceConformanceAdvisory.promotion 里，不靠谁记得。
+for (const warning of conformance.warnings) console.warn(`⚠️ [上游对齐] ${warning}`)
 
 // 方案文档缺失只出提醒不阻断：收敛方案常常还在在途分支上，而门岗拦不住的东西不该假装拦得住。
 const missingPlans = new Map()
@@ -163,4 +203,6 @@ if (errors.length > 0) {
 
 const frameworks = registry.frameworks.length
 const capabilities = registry.frameworks.reduce((sum, framework) => sum + framework.capabilities.length, 0)
-console.log(`✅ 框架边界门岗：${frameworks} 个框架 / ${capabilities} 项能力，${baseline.debt.length} 条债在册且未过期`)
+const conformanceDebt = (registry.referenceConformanceDebt ?? []).length
+console.log(`✅ 框架边界门岗：${frameworks} 个框架 / ${capabilities} 项能力，${baseline.debt.length} 条自研债在册且未过期；`
+  + `参考实现逐层对照 ${conformanceDebt} 条债在册且未过期`)

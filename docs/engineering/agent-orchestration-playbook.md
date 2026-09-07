@@ -204,7 +204,11 @@
 4. **TikHub 自媒体检索（必用）** —— 命令与产物路径见 §15.3；产出要进调研文档的「自媒体来源」一节。
 5. **反方视角** —— 见 §15.2。
 6. **诚实记分** —— 真跑了的 / 只读没跑的 / 没覆盖到的，分开写。「没查成」必须说出口（§15.4）。
-7. **输出落 `docs/research/<date>-<topic>.md`**，模板 `docs/research/TEMPLATE.md`，附件放 `docs/research/<date>-<topic>/`。
+7. **R29 · 参考实现逐层对照的路径槽** —— 题目碰任何框架/SDK/运行时时，任务书必须写死那份对照文档的路径：
+   `docs/research/<date>-<框架>-reference-implementation-conformance.md`（模板 `docs/research/TEMPLATE-reference-conformance.md`）。
+   **槽先写死再派工**：不写路径，班组交回来的就是一段散文；写死路径，收货时才有东西可以点开。
+   已有的对照文档同样要在任务书里点名——不点名等于没有（§16 那条反例讲的就是这个）。
+8. **输出落 `docs/research/<date>-<topic>.md`**，模板 `docs/research/TEMPLATE.md`，附件放 `docs/research/<date>-<topic>/`。
 
 ### 15.2 反方 agent · 「先查别人」清单
 
@@ -218,6 +222,13 @@
       推荐框架 = 他们实际在推荐/在用的工具链（脚本会正则抽出提及的框架与工具名）；
       踩坑贴 = 「我用了三天发现不行」那种，**这类帖子的信息密度最高，也最不可能出现在论文和官方文档里**。
       命令与产物路径见 §15.3。
+- [ ] **参考实现逐层对照已出、「没想到」清单已清零**（R29 第二份必交物，题目碰框架/SDK/运行时时必查）——
+      光有四列表不算：四列表按我们自己列的能力清单走，只覆盖已经想到的那些。要看到的是那份把框架自带的
+      参考实现（pi 的 coding agent / React Flow 官方 examples / AI Elements demo / Mantine demo）**按九层拆开**
+      摆在我们旁边的表，每层判定 `一致` / `有意不同(理由)` / `没想到`。收货时抽查两件：
+      ① **`有意不同` 的理由是不是领域约束**——「我们这样更简单」是偏好不是理由，按 `没想到` 处理；
+      ② **`没想到` 清单清零没有**——没清零就还没交付，那几格是对应实施阶段的**前置门**，不是待办。
+      登记落 `docs/engineering/framework-boundaries.json` 的 `referenceConformance`，`check:framework-boundary` 盯着。
 - [ ] **本仓历史**：`docs/lessons/INDEX.md` + `docs/research/` 里同题旧文（防止重复调研已有结论）。
 
 **收货判据**：反方报告里每条「别人怎么做」都要指得到出处，且**至少一条出处来自自媒体**。全是论文和官方文档 = 只查到了「宣称」，没查到「实况」，退回补。
@@ -277,6 +288,11 @@ node scripts/research/tikhub-search.mjs \
 - PR 改 `src/` 或 `electron/` **超过 300 行**，正文必须引用一份合格的方案文档。这一条在 CI 的
   contracts job 上跑，PR 正文经 `PRIOR_ART_PR_BODY` 注入（走 env 不走命令行：PR 正文是外人可写的文本）。
 - 老方案按日期阈值豁免——**追溯会让门岗一上线就一片红，而一片红的门岗等于不存在**（R17）。
+
+**框架题另加一道**：题目碰框架/SDK/运行时时，`check:framework-boundary` 同时管**两份必交物**——四列表
+（`fourColumnTable`）和参考实现逐层对照（`referenceConformance`）。缺后者就红，除非登记成带到期日的债。
+所以派框架题时，反方清单里那条「参考实现对照是否已出、没想到清单是否清零」不是人肉抽查的加分项：
+**清单没清零 = 对应实施阶段不许开工**，这一条要当硬约束抄进任务书。
 
 **和 §15 那道门岗的分工**：`check:research-sources` 管 `docs/research/` 的调研文档有没有自媒体那一层
 （advisory，因为「该不该查自媒体」是判断题）；`check:prior-art` 管 `docs/plan/` 的实施方案有没有做过检索
