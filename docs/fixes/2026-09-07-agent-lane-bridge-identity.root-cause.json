@@ -1,0 +1,51 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-07-agent-lane-bridge-identity",
+  "change_kind": "structural",
+  "problem_type": "a new Agent IPC boundary is added while the live one keeps serving users, so the repository briefly holds two paths to the same thing",
+  "symptom": "The root-cause gate flags electron/agentLane/laneIpc.ts as a high-risk production file (it matches the electron/**ipc.ts pattern). This is not a repair of a broken IPC channel: it is the first stage of the agent runtime rebuild (docs/plan/2026-09-07-agent-runtime-rebuild.md §6 stage 1), which adds a second, deliberately unreachable path so the first one can be compared against the live one before anyone switches. The gate is right to demand a written contract for it, because the failure mode of a second IPC surface is exactly the one nobody notices: it quietly becomes reachable.",
+  "migration": "No runtime migration. Nothing is switched over: electron/main.ts does not call registerAgentLaneIpc, electron/preload.ts exposes no nomi:agent-lane:* channel, and src/desktop/bridge.ts has no agentLane field, so resolveLaneBridge() returns undefined in every shipped build. Users keep walking the existing electron/projectAgentHost path, unchanged. The cutover (with same-commit deletion of the old path) is stage 4 of the plan, not this change.",
+  "scope_paths": [
+    "electron/agentLane/",
+    "electron/shared/agentLane/",
+    "src/workbench/ai/lane/",
+    "electron/harness/runtime/pi/model.mts"
+  ],
+  "structural_evidence": {
+    "affected_paths": [
+      "electron/agentLane/laneIpc.ts",
+      "electron/agentLane/laneCommandCodec.ts",
+      "electron/agentLane/laneHost.mts",
+      "electron/agentLane/laneProjection.mts",
+      "electron/shared/agentLane/laneContracts.ts",
+      "src/workbench/ai/lane/laneClient.ts",
+      "src/workbench/ai/lane/laneViewModel.ts"
+    ],
+    "behavior_preservation": "Preserved in two independent ways, because 'nothing changed for the user' and 'the new path agrees with the old one' are two different claims and this change makes both. (1) Nothing the user reaches changed: electron/agentLane/laneShadowStructure.test.ts asserts main.ts contains no registerAgentLaneIpc, preload.ts no nomi:agent-lane: channel, and bridge.ts no agentLane field, and additionally that the three owner files of the live path (projectAgentIpc.ts, harness/runtime/pi/run.mts, useAgentPanelV4Data.ts) mention neither agentLane nor laneViewModel — so the shadow slice adds files rather than editing the live one. The single exception is stated openly: electron/harness/runtime/pi/model.mts had its provider assembly extracted verbatim into createNomiProvider(), which both paths now call; behaviour there is held by the pre-existing 151-test test:agent-runtime suite, which still passes. (2) The new path agrees with the live one: tests/agent-runtime/lane-shadow-parity.test.mts replays one loopback script through both paths and asserts the assistant text, the tool calls with their arguments, the tool results, their order, the input/output token counts, whether a cost figure exists at all, and the final document state are identical. Its first assertion is a positive control (the control arm really produced beats), because comparing two empty transcripts looks exactly like a passing comparison.",
+    "verification_limits": "Stated plainly rather than implied. (a) No UI walkthrough or screenshot of the new path exists, and cannot: photographing it would require registering its IPC, which would violate the very unreachability this contract asserts. The interface-side evidence is therefore G8 — the 57 agent-panel-v4 design-lab baselines are byte-identical, which is what 'the shadow slice did not touch the panel' looks like. (b) The R30 numbers (first-call accuracy 8/8 with tolerance vs 1/8 without; turn success 8/8 both arms) come from a zero-quota loopback fixture only; the real-model half was not run because this task forbids handling API keys, and its method and units are written down in the plan §11.6 instead of being quietly skipped. (c) The parity comparison covers only what both paths claim to have; the new path's thinking segments, host domain notes and running-tool state have no counterpart on the live path and are therefore verified by lane-slice.test.mts alone. (d) Only document.read and document.write run through the new path; canvas, timeline and production capabilities are untouched by this stage.",
+    "preserved_exports": [
+      {
+        "path": "electron/harness/runtime/pi/model.mts",
+        "name": "createNomiModelRuntime"
+      }
+    ]
+  },
+  "regression_tests": [
+    "electron/agentLane/laneShadowStructure.test.ts",
+    "electron/agentLane/laneCommandCodec.test.ts",
+    "tests/agent-runtime/lane-slice.test.mts",
+    "tests/agent-runtime/lane-shadow-parity.test.mts",
+    "tests/agent-runtime/lane-tool-schema.test.mts",
+    "tests/agent-runtime/lane-tool-accuracy.test.mts",
+    "src/workbench/ai/lane/laneViewModel.test.ts",
+    "src/workbench/ai/lane/laneClient.test.ts",
+    "src/workbench/ai/lane/laneViewModel.fixture.test.ts"
+  ],
+  "residual_risks": [
+    "Unreachability is asserted by a source-text test, not by the type system: someone could still register the channel and delete the assertion in the same commit. That is the accepted ceiling of this technique, and it is the same one projectAgentCutoverStructure.test.ts:40 has held successfully since the chatV2 cutover. The deeper guarantee arrives at stage 4, when the old path is deleted and there is only one path again.",
+    "The live path still mints host records on the untrusted side of the bridge (src/workbench/ai/projectAgentTurnCommands.ts builds thread/turn/item/executionToken and sends them across). This change does not fix that — it builds the boundary that will replace it, where the renderer can only say 'run this prompt' or 'stop' and every identity is minted in the main process. Until stage 4 lands, that exposure is unchanged, neither better nor worse.",
+    "The parity fixture is one script (read → write → closing sentence). It covers ordering, arguments, results and spend, but not compaction, retries, steering or multi-lane behaviour — those arrive in stages 3 and 4 and need their own comparisons.",
+    "electron/agentLane/laneIpc.ts is written but never executed in any build, so its sender guard and error shape are covered by review and by the codec's unit tests rather than by an end-to-end run. It gets its first real execution at cutover, which is when its own walkthrough becomes possible."
+  ],
+  "internal_only_reason": "The pi-facing facts this change depends on were read from the installed package rather than from memory, and are recorded with file:line in docs/research/2026-09-07-pi-0.85.1-probe-report.md and docs/plan/2026-09-07-agent-runtime-rebuild.md §11.0. What this contract itself is about — whether a second IPC surface is reachable, and whether two internal paths agree — is entirely a property of this repository, so it has no external source to cite."
+}
