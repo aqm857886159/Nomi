@@ -105,6 +105,10 @@ export type GenerationErrorKind =
   // 的自我拒绝（同一个 URL 重试一万次都是同一堵墙），而且任务**已经付过钱**——正确的动作是去
   // 网络设置确认代理，然后**免费重新拉取**，不是再生成一次再付一次钱。
   | 'outbound-blocked'
+  // 同族的**提交侧**：策略在付费请求发出**之前**拒了它。与上面一条分家的理由是「钱怎么样了」相反：
+  // 请求从未离开本机 → 没有计费、也没有可找回的 taskId，所以下一步是「修网络后重新生成」（免费），
+  // 而不是「免费重新拉取」（那需要一个已经存在的任务）。
+  | 'outbound-blocked-submit'
   | 'server'
   | 'input'
   | 'output-truncated'
@@ -128,6 +132,7 @@ const ERROR_KEY_BY_KIND: Record<GenerationErrorKind, string> = {
   'asset-upload-failed': 'assetUploadFailed',
   'asset-too-large': 'assetTooLarge',
   'outbound-blocked': 'outboundBlocked',
+  'outbound-blocked-submit': 'outboundBlockedSubmit',
   server: 'server',
   input: 'input',
   'output-truncated': 'outputTruncated',
@@ -201,6 +206,9 @@ const ACTION_BY_KIND: Record<GenerationErrorKind, GenerationErrorAction> = {
   // 「去模型接入」正是网络那一行的家（NetworkSection 就住在模型设置抽屉里）。绝不给 retry：
   // 重试 = 再生成 = 再扣一次钱，而这次的钱根本没丢，只是产物还没取回来。
   'outbound-blocked': 'open-model-access',
+  // 同样把用户送去网络那一行（NetworkSection 就住在模型接入抽屉里）。这一条的次动作是 retry，
+  // 而且这次的 retry 是**诚实的**：请求从未发出、没有计费，修好网络后重来一次不多花一分钱。
+  'outbound-blocked-submit': 'open-model-access',
   quota: 'retry',
   'poll-timeout': 'retry',
   network: 'retry',

@@ -15,11 +15,12 @@
  * 环境事实**在进程内只探一次并缓存**——这正是「一处判定、结果带到取回」：提交那一刻算出的
  * 网络环境，取回时读到的是同一份，不可能中途翻脸。
  *
- * 说清楚现在到底是什么形状，别把它读成比实际更强的东西：**提交侧目前不调用本模块**。
- * 它信任用户自己配的 vendor origin（那是用户显式填进模型设置的地址，不是任务返回的链接），
- * 由 `runtime.ts` 把 `vendor.network` 事实传给 `projectAssetStore`，取回侧据此建同一条出站路由。
- * 也就是说这一轮消灭的是「愿意付钱的目的地 ≠ 愿意读取的目的地」这个**不对称**，不是把两侧
- * 都塞进同一个函数。反方向的不对称（提交侧目的地本身敌意）留在 root-cause 合同的 residual_risks。
+ * 2026-09-07 第二轮起，**提交侧也走这里**：`vendorHttp.requestVendor` 在发出付费请求之前调
+ * `authorizeOutboundDestination`，与取回侧同一个函数、同一份环境事实。用户显式配在模型设置里的
+ * vendor origin 仍然可以是私网（本地 ComfyUI / 局域网自建中转是正当配置），但它走的是**声明式
+ * 精确 origin 例外**，不是「提交侧不判」——两者的区别是后者对任何目的地都放行。
+ * 提交被拦时请求**从未离开本机**，所以供应商没被请求到、不可能计费；文案据此与取回侧分家
+ * （取回侧是「钱已付、免费重取」，提交侧是「没扣费、修好网络重新生成」）。
  *
  * ── fake-ip 为什么可以放行（依据，不是宽容）────────────────────────────────────────────
  * `198.18.0.0/15` 由 RFC 2544 §C.2.2 分配给**网络互联设备基准测试**，RFC 5735/6890 把它列为
@@ -288,4 +289,139 @@ export function coarseAddressLabel(address: string): string {
   if (!net.isIPv4(address)) return address;
   const octets = address.split(".");
   return octets.length === 4 ? `${octets[0]}.${octets[1]}.x.x` : address;
+}
+
+// ── 单一入口：任何出站在**发出之前**都问这一次 ──────────────────────────────────────
+
+/**
+ * 这次出站的 TCP 连接由谁去开。
+ *  · `direct` = Nomi 自己开连接，所以**本机解析出的地址就是这次连接会用的地址**，可判、可 pin。
+ *  · `proxy`  = 应用级或单供应商的 HTTP/SOCKS 代理替我们开连接，**DNS 在代理那侧做**，
+ *               本机解析出的东西不是这次连接会用的那份，拿它判等于判了一个不存在的目的地。
+ */
+export type OutboundRouteKind = "direct" | "proxy";
+
+/** 这次出站是「花钱那一步」还是「拿东西那一步」——两者被拦时用户该做的事完全不同。 */
+export type OutboundStage = "submit" | "retrieval";
+
+export type OutboundAuthorization =
+  | { allowed: true; route: OutboundRouteKind; pinnedAddresses: readonly ResolvedHostAddress[] | null }
+  | {
+      allowed: false;
+      reason: OutboundRefusalReason;
+      hostname: string;
+      observedAddress: string;
+      syntheticResolver: boolean;
+    };
+
+/**
+ * 链路本地段（IPv4 169.254/16、IPv6 fe80::/10）。**任何显式声明的 origin 都买不通它。**
+ *
+ * 为什么单独拎出来：其余私网段（127/8、10/8、192.168/16）是用户真会自己跑服务的地方——
+ * 本地 ComfyUI、局域网里的 LM Studio、自建中转，声明成供应商是完全正当的配置。而 169.254.169.254
+ * 是云主机的**元数据通道**，没有任何供应商住在那儿，它唯一的用途是把凭证读出来。出站请求带着
+ * 用户的 API Key，声明式白名单一旦覆盖到这一段，就等于给「把 Key 发去元数据端点」发了张许可证。
+ */
+export function isLinkLocalHost(hostname: string): boolean {
+  const host = hostname.trim().toLowerCase();
+  const bare = host.startsWith("[") && host.endsWith("]") ? host.slice(1, -1) : host;
+  if (net.isIPv4(bare)) return bare.startsWith("169.254.");
+  if (net.isIPv6(bare)) return /^fe[89ab][0-9a-f]:/.test(bare);
+  return false;
+}
+
+/** 声明式例外只认**完全同源**（`http://127.0.0.1:8188` 这种），不认前缀、不认子域。 */
+export function matchesDeclaredOrigin(url: URL, declaredOrigins: readonly string[]): boolean {
+  return declaredOrigins.some((raw) => {
+    try {
+      const declared = new URL(String(raw).trim());
+      return (declared.protocol === "http:" || declared.protocol === "https:") && declared.origin === url.origin;
+    } catch {
+      return false;
+    }
+  });
+}
+
+/** URL 里的主机名去掉 IPv6 的方括号，得到可以直接解析/判定的形态。 */
+export function connectionHostname(hostname: string): string {
+  return hostname.startsWith("[") && hostname.endsWith("]") ? hostname.slice(1, -1) : hostname;
+}
+
+/**
+ * **出站授权的唯一入口**（提交侧与取回侧都走这一个函数，这就是「同一个分类器、同一份环境事实」）。
+ *
+ * ── 为什么「代理生效」这个条件必须住在这里，而不是住在调用点（P1 逃生口，R28）──────
+ * 先把上一轮的形状说准，别把它讲得比实际更糟：hardenedFetch 的 `assertSafeUrl` 在**每条路由上**
+ * 都判过名字（`isPrivateHost`），代理生效时跳过的是**地址层**（解析 + 地址分类）。跳过地址层本身
+ * 是对的（见下），真正的毛病是另外两条：
+ *   ① 名字层的判据长在调用点自己身上——`isPrivateHost` + 它自己那份 origin 例外，
+ *      于是「哪些目的地能出站」有了第二个 owner（这正是 check:outbound-policy 规则 3 在数的东西）；
+ *   ② `if (!applicationProxyActive())` 这个条件写在调用点，代理语义就散在调用点上。
+ *      下一条出站路径照抄这个 if，owner 就又分裂成两份，也就是下一次「提交放行、取回拒绝」。
+ *   ③ 副作用：调用点那份 origin 例外对 `169.254` 一视同仁——用户（或一条恶意配置）把元数据地址
+ *      声明进来就能买通它。判据收进来之后 `isLinkLocalHost` 让它买不通。
+ *
+ * 正确的形状是：owner 每一跳都被问到，条件住在 owner 里，**判据的对象随路由换**——
+ *   · direct：判「本机解析出的地址」，并把地址交回去 pin 住（防解析后重绑）。
+ *   · proxy ：判「名字」。代理在它那侧解析，本机解析结果不是这次连接会用的那份；
+ *             拿它当判据正是 2026-09-06 的病根（fake-ip 合成地址被当成内网目的地）。
+ *             名字层仍然是真判据：IP 字面量私网、localhost/.local 一律拒——**不是不判，是判名字**。
+ *
+ * 先查别人（详见 docs/plan/2026-09-07-model-generation-core-path.md「先查别人（第二轮）」）：
+ *   · GitLab 撞过一模一样的题（<https://gitlab.com/gitlab-org/gitlab/-/work_items/378267>：不能解析
+ *     域名的自建实例配了代理后，GitHub Import 全挂）。他们的处置是**整段关掉** DNS 重绑保护：
+ *     `Gitlab.http_proxy_env?` 为真就跳过检查。这条查出来的是「别人也栽在这里，而且默认反应就是
+ *     开逃生口」——不是可抄的做法。我们反着做：条件收进 owner，判据的对象随路由换。
+ *   · Stripe smokescreen 是另一种同族解法：把分类**下沉到代理层**，由那台 CONNECT 代理统一解析并
+ *     拒绝内网地址（<https://github.com/stripe/smokescreen/blob/master/README.md>）。桌面端没有那
+ *     一层可下沉——代理是用户自己的 Clash/Surge，我们管不着，所以名字层必须自己判。
+ *   · 「代理路由下该判名字」不是我们的发明，是 SOCKS5 的既定语义：curl 的 `--socks5` 本机解析、
+ *     `--socks5h`/`--socks5-hostname` 交给代理解析（<https://curl.se/docs/manpage.html#--socks5-hostname>）。
+ *     代理解析时本机那份答案根本不参与连接——拿它当判据，判的就是一个不存在的目的地。
+ */
+export async function authorizeOutboundDestination(input: {
+  url: URL;
+  route: OutboundRouteKind;
+  /** 懒读：名字层就能定案时不触发 DNS 探针（本地 ComfyUI 那种回环取片不该为它等 1.5s）。 */
+  readEnvironment: () => Promise<OutboundEnvironment>;
+  resolve: (hostname: string) => Promise<readonly ResolvedHostAddress[]>;
+  /** 用户**显式声明**的私网 origin（供应商 baseUrl / 已配置的本地 ComfyUI / 实验室夹具）。 */
+  declaredOrigins?: readonly string[];
+}): Promise<OutboundAuthorization> {
+  const { url, route, readEnvironment, resolve } = input;
+  const hostname = connectionHostname(url.hostname);
+  const declared = [...(input.declaredOrigins || []), ...labTrustedPrivateOrigins];
+  // 名字层（两条路由都判）。声明式例外只对**非链路本地**的私网生效，理由见 isLinkLocalHost。
+  if (isPrivateHost(url.hostname)) {
+    if (isLinkLocalHost(hostname) || !matchesDeclaredOrigin(url, declared)) {
+      return {
+        allowed: false,
+        reason: "private-host",
+        hostname,
+        observedAddress: "",
+        syntheticResolver: lastKnownEnvironment.syntheticResolver,
+      };
+    }
+    // 声明过的私网服务：单跳直连，不 pin（没有第三方能改这个 origin 的解析结果）。
+    return { allowed: true, route, pinnedAddresses: null };
+  }
+  // 代理路由到此为止：地址层的判据在代理那侧，我们手上没有它，**如实承认**比拿错的地址装作判过了强。
+  if (route === "proxy") return { allowed: true, route, pinnedAddresses: null };
+  // 地址层（只有 direct 路由有意义）。
+  const environment = await readEnvironment();
+  const literalFamily = net.isIP(hostname);
+  const addresses = literalFamily
+    ? [{ address: hostname, family: literalFamily as 4 | 6 }]
+    : await resolve(hostname);
+  const verdict = classifyOutboundAddresses({ hostname, addresses, environment });
+  if (!verdict.allowed) {
+    return {
+      allowed: false,
+      reason: verdict.reason,
+      hostname,
+      observedAddress: verdict.observedAddress,
+      syntheticResolver: environment.syntheticResolver,
+    };
+  }
+  return { allowed: true, route, pinnedAddresses: addresses };
 }

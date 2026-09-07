@@ -88,9 +88,12 @@ export function vendorErrorFromAiSdkError(error: unknown, ctx: AiSdkErrorContext
   // 分类只认 vendorHttp 那张表（单一真相）——APICallError 自带的 isRetryable 不另开一路，
   // 免得同一个 429 在图像侧和文本侧给出两个不同的「要不要重试」。
   const { category, retryable } = categorizeVendorFailure(httpStatus);
-  // 展示串保持文本侧既有措辞（用户今天看到的就是这句），只是外面多包一层结构化标记。
-  const statusLabel = httpStatus != null ? `HTTP ${httpStatus}` : "请求失败";
-  const message = upstreamMsg ? `（${statusLabel}）${upstreamMsg}` : statusLabel;
+  // 展示串：有状态码就报状态码，没有就报**错误类名**（AI SDK 的 `AI_APICallError` 这种名字本身
+  // 就是线索）。刻意不再用「请求失败」当兜底——那句话与顶部状态徽标同义，用户读完不知道下一步是
+  // 什么，还盖掉了本可展示的类名；它正是 check:outbound-policy 规则 4 盯的那一族（本文件必须保持
+  // electron-free，用不了 desktopT，所以这一侧的「有信息的替代品」是类名而不是一句 i18n 文案）。
+  const statusLabel = httpStatus != null ? `HTTP ${httpStatus}` : (unwrapped.name || "").trim();
+  const message = [statusLabel ? `（${statusLabel}）` : "", upstreamMsg].join("") || String(unwrapped);
 
   return new VendorRequestError(message, {
     vendorKey: ctx.vendorKey || "",

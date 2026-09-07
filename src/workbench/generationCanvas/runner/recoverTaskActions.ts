@@ -7,6 +7,7 @@ import { resolveGenerationReferences } from './generationReferenceResolver'
 import { asTrimmedString, resolveTaskKind, selectedModelKey, selectedVendor } from './catalogTaskResolve'
 import { normalizeCatalogTaskResult } from './catalogTaskResultParse'
 import i18n from '../../../i18n'
+import { describeOpaqueFailure } from '../../observability/opaqueFailure'
 
 const TERMINAL_STATUSES = new Set(['succeeded', 'failed'])
 const RECOVER_POLL_INTERVAL_MS = 3000
@@ -100,7 +101,9 @@ export async function recoverNodeResult(nodeId: string): Promise<void> {
     }
   } catch (error) {
     // 网络/查询本身报错 → 退回可找回态（不是真失败），让用户能再点。
-    const message = error instanceof Error && error.message ? error.message : '拉取结果失败'
+    // 走 describeOpaqueFailure 而不是自己写一句「拉取结果失败」：这条路径正是出站被拦最常落地的地方，
+    // 而那条错误的价值全在它的机器码和「钱没丢、去确认代理」那句人话上——一句同义反复会把它盖掉。
+    const message = describeOpaqueFailure(error)
     useGenerationCanvasStore.getState().setNodeStatus(id, 'recoverable', message)
     return
   }
@@ -115,7 +118,7 @@ export async function recoverNodeResult(nodeId: string): Promise<void> {
     await persistActiveWorkbenchProjectNow().catch(() => {})
   } catch (error) {
     // 终态是 failed（normalizeCatalogTaskResult 对 failed 抛错）→ 这才是真失败，落 error 桶。
-    const message = error instanceof Error && error.message ? error.message : '生成失败'
+    const message = describeOpaqueFailure(error)
     useGenerationCanvasStore.getState().setNodeStatus(id, 'error', message)
   }
 }

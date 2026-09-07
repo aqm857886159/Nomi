@@ -13,6 +13,7 @@ import { LocalTaskCancelledError, clearTaskCancel, isTaskCancelRequested, isLoca
 import { useComfyuiPreviewStore } from '../store/comfyuiPreviewStore'
 import { isRecoverableTimeoutError } from './recoverableTimeout'
 import { outboundBlockedRecoverableMessage } from './outboundBlockedRecovery'
+import { describeOpaqueFailure } from '../../observability/opaqueFailure'
 import { recordNodeModelFailure, recordNodeModelSuccess } from './nodeModelHealth'
 import {
   beginSingletonBatch,
@@ -341,7 +342,7 @@ export async function runGenerationNode(
         await waitForRetry(attempt, baseDelayMs)
       }
     }
-    if (!result) throw new Error('生成失败')
+    if (!result) throw new Error(describeOpaqueFailure(null))
     useGenerationCanvasStore.getState().addNodeResult(id, result)
     // 自动另存（集中设置页开启时）：新生成的图/视频静默复制一份到用户目录。fire-and-forget——不 await
     // （不拖慢生成收尾）、失败不冒泡（best-effort 全在主进程侧，关着/没设目录/失败都静默）。只对新生成，
@@ -393,10 +394,9 @@ export async function runGenerationNode(
       throw error
     }
     recordNodeModelFailure(id)
-    // Store the RAW message; the UI (NodeErrorReport) runs classifyGenerationError
-    // to show a human reason + hint + the raw detail. Keeping node.error a plain
-    // string avoids a persisted-shape migration for existing project files.
-    const rawMessage = error instanceof Error && error.message ? error.message : '生成失败'
+    // Store the RAW message (describeOpaqueFailure only fills in when there is none): NodeErrorReport
+    // runs classifyGenerationError over it, and a plain string needs no persisted-shape migration.
+    const rawMessage = describeOpaqueFailure(error)
     useGenerationCanvasStore.getState().setNodeStatus(id, 'error', rawMessage)
     // 真执行失败 → 计入刹车（连续 3 个即暂停队列，防上游整体挂掉时把剩下的额度一路烧完）。
     useGenerationQueueStore.getState().markSettled(batchId, id, 'error', { error: rawMessage })
