@@ -362,13 +362,16 @@ export function connectionHostname(hostname: string): string {
  *             名字层仍然是真判据：IP 字面量私网、localhost/.local 一律拒——**不是不判，是判名字**。
  *
  * 先查别人（详见 docs/plan/2026-09-07-model-generation-core-path.md「先查别人（第二轮）」）：
- *   · GitLab 的做法是代理存在时**整段关掉** DNS 重绑保护（omnibus 文档明写 "DNS rebind protection
- *     is disabled when either the HTTP_PROXY or the HTTPS_PROXY environment variable is set"），
- *     而他们自己的 MR !120412 把 `use_proxy` 收回 UrlBlocker 里，让「判目的地」和「选路由」变成
- *     同一次决策——那正是本函数的形状（我们取它的收敛方向，不取它的整段关闭）。
- *   · Stripe smokescreen / Dropbox 的 Envoy RBAC 是另一种同族解法：把分类**下沉到代理层**由代理
- *     统一判。桌面端没有那一层可下沉（代理是用户自己的 Clash/Surge），所以我们保留名字层自判。
- *   · Python advocate 干脆声明不支持代理。桌面端做不到——用户的梯子就是他上网的方式。
+ *   · GitLab 撞过一模一样的题（<https://gitlab.com/gitlab-org/gitlab/-/work_items/378267>：不能解析
+ *     域名的自建实例配了代理后，GitHub Import 全挂）。他们的处置是**整段关掉** DNS 重绑保护：
+ *     `Gitlab.http_proxy_env?` 为真就跳过检查。我们取它把「判目的地」和「选路由」合成一次决策的
+ *     方向，**不取**它的整段关闭——整段关闭正是本轮要拆掉的那种逃生口。
+ *   · Stripe smokescreen 是另一种同族解法：把分类**下沉到代理层**，由那台 CONNECT 代理统一解析并
+ *     拒绝内网地址（<https://github.com/stripe/smokescreen/blob/master/README.md>）。桌面端没有那
+ *     一层可下沉——代理是用户自己的 Clash/Surge，我们管不着，所以名字层必须自己判。
+ *   · 「代理路由下该判名字」不是我们的发明，是 SOCKS5 的既定语义：curl 的 `--socks5` 本机解析、
+ *     `--socks5h`/`--socks5-hostname` 交给代理解析（<https://curl.se/docs/manpage.html#--socks5-hostname>）。
+ *     代理解析时本机那份答案根本不参与连接——拿它当判据，判的就是一个不存在的目的地。
  */
 export async function authorizeOutboundDestination(input: {
   url: URL;

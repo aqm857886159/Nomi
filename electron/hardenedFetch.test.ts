@@ -131,6 +131,33 @@ describe("hardenedFetch 私网边界", () => {
     expect(dispatcher.close).not.toHaveBeenCalled();
   });
 
+  // 上面那条证明的是「代理生效时不拿本机解析结果当判据」。下面两条钉住它**不等于「不判」**：
+  // 上一轮的形状是调用点自己写 `if (proxyActive) { 整段跳过分类 }`，策略 owner 被绕过而不是被咨询
+  // ——那是逃生口（P1/R28）。现在代理路由照样每一跳问 owner，只是判据的对象换成名字。
+  it("应用代理生效时**仍然**问策略：私网字面量照拦（代理不是绕过分类的通行证）", async () => {
+    const resolveHost = vi.fn();
+    const fetchImpl = vi.fn();
+    await expectOutboundRefusal(hardenedFetch("http://169.254.169.254/latest/meta-data/", {}, {
+      resolveHost: resolveHost as never,
+      fetch: fetchImpl,
+      isApplicationProxyActive: () => true,
+    }), "private-host");
+    // 名字层就定案了：既没有解析，也没有发请求。
+    expect(resolveHost).not.toHaveBeenCalled();
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("单供应商显式 dispatcher 同样不是通行证：私网字面量照拦", async () => {
+    const fetchImpl = vi.fn();
+    await expectOutboundRefusal(hardenedFetch("http://10.0.0.5/result.mp4", {
+      dispatcher: { close: async () => {} } as never,
+    }, {
+      fetch: fetchImpl,
+      isApplicationProxyActive: () => false,
+    }), "private-host");
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
   it("等待应用代理提交完成后才决定 DNS 路径，避免启动竞态把代理 fake-IP 当私网", async () => {
     let routeReady = false;
     const waitForApplicationRoute = vi.fn(async () => { routeReady = true; });

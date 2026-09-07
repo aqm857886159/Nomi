@@ -58,7 +58,10 @@ const ENV_ESCAPE_HATCH = /process\.env\.[A-Z0-9_]*(?:ALLOW_LOCALHOST|ALLOW_PRIVA
  * 只认 `||` / `??` / 三元 `:` 这三种「兜底」语法位，所以 i18n 词表里的 `reason: '生成失败'`
  * （那是词表条目本身，不是兜底）不会被误伤——徽标当然要有一句「生成失败」，错误详情才不许是它。
  */
-const GENERIC_FAILURE_TEXT = '生成失败|未知错误|出错了|失败了|Generation failed|Unknown error|Something went wrong'
+// 词表按「这句话对用户有没有下一步」收：`拉取结果失败` 也在内——它比「生成失败」多两个字，
+// 信息量仍然是零，而它守着的恰恰是出站被拦最常落地的那条找回路径（那条错误的全部价值在机器码上）。
+const GENERIC_FAILURE_TEXT =
+  '生成失败|未知错误|出错了|失败了|拉取结果失败|请求失败|操作失败|Generation failed|Unknown error|Something went wrong|Request failed'
 const ERROR_LAUNDERING = new RegExp(
   String.raw`(?:\|\||\?\?|(?<!\w)\?[^?:\n]{0,120}:)\s*(['"\`])\s*(?:` + GENERIC_FAILURE_TEXT + String.raw`)\s*\1`,
 )

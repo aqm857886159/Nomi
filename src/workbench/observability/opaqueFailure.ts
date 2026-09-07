@@ -35,16 +35,26 @@ function readableNonError(value: unknown): string {
 }
 
 /**
+ * 这个错误值得报出来的名字。**先 name 后构造函数名**，而不是只看 `error.name`：
+ * `class RelayFrameError extends Error {}` 忘了写 `this.name`（仓库里多数子类都是这样）时，
+ * `error.name` 沿原型链拿到的是字面量 `'Error'`——正是这一族洗白的最后一手：连「哪个类抛的」
+ * 都丢掉。构造函数名是运行时保留的事实，拿它兜住。两个都退化成 `Error` 时返回空串（没有线索
+ * 就别硬造一个），交给上面的兜底句。
+ */
+function errorLabel(error: Error): string {
+  if (error.name && error.name !== 'Error') return error.name
+  const constructed = error.constructor?.name
+  return constructed && constructed !== 'Error' ? constructed : ''
+}
+
+/**
  * 任何「要把 unknown 变成一句存进 node.error 的话」的地方都调它，**不许再写自己的字面量兜底**
  * （`scripts/check-outbound-policy.mjs` 规则 4 是这条纪律的机器判据，硬零）。
  */
 export function describeOpaqueFailure(error: unknown): string {
   if (error instanceof Error && error.message) return error.message
   const fallback = i18n.t('generationCommon.observability.error.opaque.detail')
-  if (error instanceof Error) {
-    const name = error.name && error.name !== 'Error' ? error.name : ''
-    return name ? `${name}: ${fallback}` : fallback
-  }
+  if (error instanceof Error) return errorLabel(error) ? `${errorLabel(error)}: ${fallback}` : fallback
   const readable = readableNonError(error)
   return readable ? `${readable} — ${fallback}` : fallback
 }
