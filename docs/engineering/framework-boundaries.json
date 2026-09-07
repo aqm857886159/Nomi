@@ -4,7 +4,9 @@
     "门岗 = pnpm run check:framework-boundary（scripts/check-framework-boundary.mjs），债基线 = scripts/framework-boundary-baseline.json。",
     "登记一个新框架的顺序：先出四列表（它提供 / 我们用了 / 我们另写了 / 我们拆散了，每格 file:line 或文档 URL）→",
     "把「我们另写了」那一列翻译成这里的 forbidden 规则 → 跑 --update-baseline 把存量登记成债 → 给每条债绑方案和到期日。",
-    "provides/evidence 不是注释，是门岗校验的必填项：没有可复核出处的规则，等于没做过研究。"
+    "provides/evidence 不是注释，是门岗校验的必填项：没有可复核出处的规则，等于没做过研究。",
+    "2026-09-07：五条 scope 都加了 electron/agentLane/（阶段 1 垂直切片的新目录）。加在写第一行代码之前，",
+    "不是写完再补——否则门岗只能证明「今天的存量」，证明不了「新目录里再长一份自研版本会当场红」（R28）。"
   ],
   "capabilityInventory": {
     "_comment": [
@@ -103,7 +105,7 @@
           "id": "session-persistence",
           "provides": "SessionManager 负责会话的落盘、追加与恢复（含 CURRENT_SESSION_VERSION 迁移）",
           "evidence": "@earendil-works/pi-coding-agent@0.85.1 dist/core/session-manager.d.ts:184 `export declare class SessionManager`；dist/core/session-manager.d.ts:334 `static inMemory`",
-          "scope": ["electron/harness/runtime/pi/"],
+          "scope": ["electron/harness/runtime/pi/", "electron/agentLane/"],
           "forbidden": [
             {
               "id": "opt-out-of-session-store",
@@ -121,7 +123,7 @@
           "id": "retry-policy",
           "provides": "RetryPolicy：模型请求的重试与退避策略，由 settings.retry 与 provider.maxRetries 驱动",
           "evidence": "@earendil-works/pi-ai@0.85.1 `RetryPolicy`（经 pi-coding-agent dist/core/compaction/compaction.d.ts:8 import、:105 `completeSummarization(..., retry?: RetryPolicy, ...)` 透出）；pi-coding-agent dist/core/settings-manager.d.ts:81 `retry?: RetrySettings`",
-          "scope": ["electron/harness/runtime/pi/"],
+          "scope": ["electron/harness/runtime/pi/", "electron/agentLane/"],
           "forbidden": [
             {
               "id": "retry-disabled-wholesale",
@@ -139,7 +141,7 @@
           "id": "steering",
           "provides": "AgentSession.steer() / followUp()：把用户的新指令按流式状态排进当前回合或下一回合",
           "evidence": "@earendil-works/pi-coding-agent@0.85.1 dist/core/agent-session.d.ts:375 `steer(text, images?)`、:383 `followUp(text, images?)`；pi-agent-core dist/agent.d.ts:84/86",
-          "scope": ["electron/projectAgentHost/"],
+          "scope": ["electron/projectAgentHost/", "electron/agentLane/"],
           "forbidden": [
             {
               "id": "host-owned-steering-queue",
@@ -157,7 +159,7 @@
           "id": "resource-loading",
           "provides": "DefaultResourceLoader：扩展 / skills / prompts / themes / AGENTS 文件的发现、加载与系统提示词装配",
           "evidence": "@earendil-works/pi-coding-agent@0.85.1 dist/core/resource-loader.d.ts:120 `export declare class DefaultResourceLoader implements ResourceLoader`",
-          "scope": ["electron/harness/runtime/pi/"],
+          "scope": ["electron/harness/runtime/pi/", "electron/agentLane/"],
           "forbidden": [
             {
               "id": "hand-rolled-resource-loader",
@@ -175,7 +177,7 @@
           "id": "ordered-transcript",
           "provides": "AgentSession 的有序事件流与会话条目：按段（文本 / 思考 / 工具调用 / 结果）保序，宿主订阅即可拿到结构",
           "evidence": "@earendil-works/pi-coding-agent@0.85.1 dist/core/agent-session.d.ts:40 `AgentSessionEvent`、:103 `AgentSessionEventListener`",
-          "scope": ["electron/harness/runtime/pi/"],
+          "scope": ["electron/harness/runtime/pi/", "electron/agentLane/"],
           "forbidden": [
             {
               "id": "flatten-text-deltas-into-one-string",

@@ -333,7 +333,13 @@ export async function runWorkbenchAgent(input: RunWorkbenchAgentInput): Promise<
       ...(status === 'stopped' ? { raw: { cancelled: true } as const } : {}),
     } satisfies AgentsChatResponseDto
     if (execution.result) useAgentUsageStore.getState().addUsage(execution.result.usage)
-    if (response.status === 'error') throw executionError ?? new Error('project_agent_execution_failed')
+    if (response.status === 'error') {
+      // 回合失败时**也要把回执交出去**。抛一个光秃秃的 Error，调用方就拿不到
+      // `toolCalls[].args / result / error`——而那正是失败那一路最该显示的东西。
+      // 2026-09-06 打包版实测：用户的六条失败收据一个字的原因都没有，根子就在这里：
+      // 落盘收据正文的那段代码在 `throw` 之后，从来没跑过。
+      throw Object.assign(executionError ?? new Error('project_agent_execution_failed'), { agentResponse: response })
+    }
     return response
   } finally {
     settled = true

@@ -18,8 +18,8 @@ import type {
 } from '../../../../electron/shared/projectAgentContracts'
 import type { TargetRef } from '../../../../electron/shared/capabilityTargeting'
 import { formatResidentToolElapsed, residentToolElapsedMs } from '../resident/residentToolTiming'
-import { readableToolName, readableToolPreview, readableToolSummary } from '../resident/residentToolDisplay'
-import type { ResidentToolProjection } from '../resident/residentToolProjection'
+import { humanizeToolFailure, readableToolName, readableToolSummary } from '../resident/residentToolDisplay'
+import { redactToolArguments, type ResidentToolProjection } from '../resident/residentToolProjection'
 import { stripVendorErrorMarker } from '../../generationCanvas/runner/vendorErrorIpc'
 import { actionFamilyForCapability } from './agentPanelV4ActionFamily'
 import type {
@@ -141,6 +141,43 @@ export function toolStatusOf(
   return 'input-available'
 }
 
+/**
+ * 一行原因：把结果/错误正文压成能塞进 28px 那一行的一句短句。
+ *
+ * 取第一行、砍到 60 字。多行错误（pi 的校验回执是 8 行 anyOf 分支）里第一行才是主诉，
+ * 后面几行是同一件事的旁支；行内塞不下，展开体里有全文。
+ */
+function shortReason(text: string | undefined): string | undefined {
+  // 「有内容」不等于「说得出事」：多行错误的第一行常常只是一个 `[` 或 `{`（回执把整包入参
+  // 回显了）。挑第一条**读得出一句话**的行——太短的一律跳过，宁可不给原因也不给一个 `[`。
+  const first = (text ?? '')
+    .split('\n')
+    .map((line) => line.trim())
+    .find((line) => line.replace(/[\s[\]{}(),"']/g, '').length >= 4)
+  if (!first) return undefined
+  return first.length > 60 ? `${first.slice(0, 60)}…` : first
+}
+
+/**
+ * 失败正文 → 行内那一句。
+ *
+ * 先过**唯一那条翻译**（`humanizeToolFailure`）：校验失败的原文是机器话，而且是英文——
+ * 2026-09-06 打包版真机上，用户在收据行上读到的是「Validation failed for tool "no…」，
+ * 一行里没有一个字告诉他哪个字段错了。翻得动就印译文；翻不动才退回 `shortReason`
+ * 的启发式，英文/JSON 全文一律只留在展开区的「输出」栏（那里是「详情」）。
+ */
+function failureReason(t: Translate, text: string): string | undefined {
+  return shortReason(humanizeToolFailure(t, text) ?? text)
+}
+
+/**
+ * 错误条上那一句。同一条翻译，但**不砍到一行**——错误条是整块，砍它只会把第二个字段的
+ * 问题藏掉；砍字是 28px 那一行才有的约束。
+ */
+function failureBar(t: Translate, text: string): string {
+  return humanizeToolFailure(t, text) ?? text
+}
+
 function receiptFor(input: {
   capabilityId: string
   args: unknown
@@ -153,9 +190,22 @@ function receiptFor(input: {
   t: Translate
 }): ToolReceipt {
   const { t, capabilityId, args, projection } = input
-  const summary = projection?.effect || readableToolSummary(t, capabilityId, args) || input.text || ''
-  const output = projection?.technicalDetails || ''
-  const inputText = readableToolPreview(t, capabilityId, args)
+  // 展开体的两段读**这一次调用**的入参与结果，不是工具描述。
+  //
+  // 2026-09-06 打包版实测：展开「修改文稿」，输入和输出都写「将内容写入当前文稿」——
+  // 那是 `readableToolPreview` / `readableToolSummary` 在认不出细节时的同一句兜底描述。
+  // 两栏读同一个描述串，等于告诉用户「这次调用的入参就是这句话」，而它连一个字段名都没有。
+  // 拍板基线 `v4-tool-expanded.png` 要的是：输入 = 真实入参 JSON（脱敏），输出 = 结果摘要。
+  //
+  // 活的调用有 `args`（待决登记表带着它），历史调用只剩缓存投影——所以两个来源都要，
+  // 顺序是「手上有真参数就用真参数」。
+  const inputText = projection?.input || redactToolArguments(args)
+  const output = projection?.output || ''
+  const failed = input.status === 'output-error'
+  const reason = failed ? failureReason(t, output) : undefined
+  // 失败行的摘要**不能**继续印「打算做什么」。`readableToolSummary` 那句
+  // 「将内容写入当前文稿」在一次根本没写成的调用上是假的；这一刻用户要的是「为什么没成」。
+  const summary = reason || projection?.effect || readableToolSummary(t, capabilityId, args) || input.text || ''
   const elapsed = formatResidentToolElapsed(input.elapsedMs)
   // 行尾的字：停止有自己的说法，其余交给状态词表（组件侧的 `statusLabel`）。
   const trailing = input.hostStatus === 'stopped'
@@ -286,6 +336,21 @@ export function projectV4Flow(input: V4FlowInput): readonly V4FlowItem[] {
     artifactsByRunId.set(item.artifact.runId, bucket)
   }
   const renderedRunIds = new Set<string>()
+  // 宿主把**一个回合的全部助手正文合并成一条** item，而且它创建得早，于是整段排在所有收据前面。
+  // 模型在工具之间的自我纠正和最后那句回答因此糊成一团，还站错了位置。
+  // 每次调用到达时记下的正文偏移量（`textOffset`）是唯一能把它切回原位的东西：
+  // 偏移量之前的是**过程**（留在收据前面），之后的是**回答**（挪到最后一次调用之后）。
+  // 一条偏移量都没有（冷启动前的旧数据、或这一轮没调工具）就整段原样渲染——降级成今天的样子，
+  // 不猜一个切点。
+  const splitAt = new Map<string, number>()
+  const lastToolItemIdOfTurn = new Map<string, string>()
+  for (const item of sortedItems(input.items)) {
+    if (item.kind !== 'tool') continue
+    lastToolItemIdOfTurn.set(item.turnId, item.itemId)
+    const offset = input.toolProjections.get(toolKey(item.turnId, item.toolCallId))?.textOffset
+    if (offset !== undefined) splitAt.set(item.turnId, Math.max(splitAt.get(item.turnId) ?? 0, offset))
+  }
+  const deferredAnswer = new Map<string, V4FlowItem>()
   const flow: V4FlowItem[] = []
   for (const item of sortedItems(input.items)) {
     if (item.kind === 'user') {
@@ -297,7 +362,17 @@ export function projectV4Flow(input: V4FlowInput): readonly V4FlowItem[] {
       // 空的助手条目是「回合刚开始、第一个 delta 还没到」。渲染一个空气泡等于在流里
       // 留一块跳动的空白；这一刻真正该出现的是思考行，由调用方按运行中的回合补。
       if (!item.text.trim()) continue
-      flow.push({ kind: 'assistant', text: item.text, status: assistantStatusOf(item.status) })
+      const status = assistantStatusOf(item.status)
+      const split = splitAt.get(item.turnId)
+      const lastToolItemId = lastToolItemIdOfTurn.get(item.turnId)
+      if (split !== undefined && split > 0 && split < item.text.length && lastToolItemId) {
+        const process = item.text.slice(0, split).trim()
+        const answer = item.text.slice(split).trim()
+        if (process) flow.push({ kind: 'assistant', text: process, status })
+        if (answer) deferredAnswer.set(lastToolItemId, { kind: 'assistant', text: answer, status })
+        continue
+      }
+      flow.push({ kind: 'assistant', text: item.text, status })
       continue
     }
     if (item.kind === 'tool') {
@@ -320,6 +395,9 @@ export function projectV4Flow(input: V4FlowInput): readonly V4FlowItem[] {
           t,
         }),
       })
+      // 这一回合最后一次调用之后，才轮到真正的回答（见上面 `splitAt` 的说明）。
+      const answer = deferredAnswer.get(item.itemId)
+      if (answer) flow.push(answer)
       continue
     }
     if (item.kind === 'task') {
@@ -349,7 +427,8 @@ export function projectV4Flow(input: V4FlowInput): readonly V4FlowItem[] {
         // 编码那一端（`electron/ai/agentError.ts`）的契约就是「展示串一字未变，标记段在渲染层
         // 由 stripVendorErrorMarker 剥掉」——这条投影以前没剥，于是用户在失败卡上读到的
         // 第一行是一串 base64。剥在这里：这是这个面把 failure 变成可读一行的唯一地方。
-        reason: stripVendorErrorMarker(item.message),
+        // 回合级失败和一行收据的失败是同一类东西：校验回执走同一条翻译，翻不动才原样。
+        reason: failureBar(t, stripVendorErrorMarker(item.message)),
         ...(item.nextAction ? { action: item.nextAction } : {}),
       })
       continue

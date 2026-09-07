@@ -18,8 +18,8 @@ const IMAGES = [STILL_ROOFTOP, STILL_NEON, STILL_PORTRAIT, STILL_PROP, STILL_WID
 export const SLOT_STATES: readonly LabState[] = [
   {
     id: 'sb-slot-01-no-references',
-    name: '槽矩阵 · 文生视频（此模型不吃参考）',
-    source: '合同 §4.2 不吃参考 / §4.3 Seedance 2.5 · t2v',
+    name: '槽矩阵 · 文生视频（该模式不吃参考）',
+    source: '合同 §4.2 不吃参考 / §4.3 Seedance 2.5 · t2v（主语是模式不是模型，2026-09-06 用户实测）',
     coverage: 'shell',
     render: () => SlotMatrixRow('seedance-2-5', 't2v'),
   },

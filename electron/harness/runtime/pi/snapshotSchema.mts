@@ -1,7 +1,10 @@
 import { z } from 'zod';
 
-// Version-locked to pi 0.84.3's public SessionEntry / Message contracts. Validate
+// Version-locked to pi's public SessionEntry / Message contracts. Validate
 // payloads before the permissive JSONL loader; preserve provider metadata whole.
+// Re-verified against 0.85.1 (2026-09-07): `SessionEntry` is still the same 9
+// variants (session-manager.d.ts:105) and `StopReason` the same 7 values
+// (pi-ai types.d.ts:287), so the union below needs no member change.
 const number = z.number().finite();
 const text = z.object({ type: z.literal('text'), text: z.string(), textSignature: z.string().optional() }).passthrough();
 const image = z.object({ type: z.literal('image'), data: z.string(), mimeType: z.string() }).passthrough();
