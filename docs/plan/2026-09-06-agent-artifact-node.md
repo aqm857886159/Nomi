@@ -133,9 +133,11 @@
 - [x] `meta.artifact`（`model/artifactMeta.ts`：fileType 词表 + reader + copy/参考谓词）+ `resolveNodeRenderKind` 强制 undefined（防 cast/scene 误判卡）+ BaseGenerationNode **kind 专属分支** → ArtifactBody。
 - [x] ArtifactBody 子视图：svg（img）/ html（沙箱 iframe allow-scripts，无 same-origin）/ markdown / table / text / glb（Model3DViewer）。
 - [x] HTML 沙箱纵深核对：窗口 `nodeIntegration:false + contextIsolation:true` + 无 nodeIntegrationInSubFrames + `setWindowOpenHandler` deny + `will-navigate` 只放行本地入口 → 无需新增 main 代码。
-- [x] 浮条动作 `ArtifactNodeToolbar`：下载（bridge.assets.download）+ 复制（text/markdown/html）。放大 / 固化参考图 / 3D 截图 = P1。
-- [x] i18n zh+en（`runtime.nodeRegistry.'agent-artifact'.*`）；check:i18n 全绿（5036 keys parity）。
-- [x] vitest：artifactMeta 6 用例 + generationCanvas 2743 passed 零回归 + electron equivalence 6 用例。
+- [x] 浮条动作 `ArtifactNodeToolbar`：下载（bridge.assets.download）+ 复制（text/markdown/html）+ **固化为参考图**（SVG→PNG→asset 节点，下游消费入口）。放大 / 3D 截图 = P1。
+- [x] i18n zh+en（`runtime.nodeRegistry.'agent-artifact'.*`）；check:i18n 全绿（5039 keys parity）。
+- [x] **Agent 交付落盘（deliver）**：electron `canvasWrite` kind 白名单 + `artifact:{fileType,content}` 字段（superRefine 条件校验）；渲染层 `applyCanvasToolCall` create 分支先落盘内容为 nomi-local 资产、再建 `meta.artifact.url` 节点（整批失败即中止）；prompt 对 agent-artifact 免除（其它 kind 仍必填）；agent client 提示文案加入艺产物指引。
+- [x] vitest：artifactMeta 6 + **deliver 契约 10 + 栅格化参考 5 + ArtifactBody 契约 6** + applyCanvasToolCall 39 + canvasWrite 7；generationCanvas 全量零回归；electron equivalence 6 用例。
+- [x] GUI 走查脚本 `tests/ux/agent-artifact.walk.mjs` 就绪；本机实测卡点=项目库只列已注册 record 项目（不扫目录种子），非节点功能问题——标 P1 待 deliver_craft 真机会话后全链路启用。
 - [ ] 交付纪律：sibling worktree `Nomi-agent-artifact-node` + preflight ✅ + 分支 PR（进行中）。
 
-**P1（不在本轮，文档待办）：** SVG→PNG 栅格化"固化为参考图"（derivedRef + asset 落库）、3D 视口截图参考化、HTML 放大/截图当画面素材、表格参考化、手艺选择 skill 落库（先核对 skills 体系）、设计实验室接入、node 专属 icon。
+**P1（不在本轮，文档待办）：** Agent deliver_craft 真机对话走查（项目库注册 + resident agent 会话）、3D 视口截图参考化、HTML 放大/截图当画面素材、表格参考化、手艺选择 skill 落库（先核对 skills 体系）、设计实验室接入、node 专属 icon。

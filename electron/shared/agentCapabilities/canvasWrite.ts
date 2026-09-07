@@ -21,6 +21,7 @@ export const canvasNodeKindSchema = z.enum([
   "shot",
   "output",
   "panorama",
+  "agent-artifact",
 ]);
 
 export const plannedNodeSchema = z
@@ -31,12 +32,13 @@ export const plannedNodeSchema = z
     prompt: z
       .string()
       .max(CANVAS_WRITE_MAX_PROMPT_CHARS)
+      .optional()
       .describe(
         "High-quality generation prompt, in the SAME language as the user (Chinese user → Chinese prompt). Write it as a STRUCTURED skeleton, not a run-on sentence:\n" +
           "- character/scene reference card: stable appearance/environment description + unified style keywords (neutral full-body pose for a character, empty wide establishing shot for a scene; no plot action).\n" +
           "- image / keyframe shot: scene·time·light → subject·action·expression → shot language (wide / close-up / low-angle…) → style keywords.\n" +
           "- video shot: camera move (push / pull / pan / track…) → on-screen action progression → rhythm & duration feel; do NOT restate the static keyframe description.\n" +
-          "Keep the same subject's appearance description consistent across shots.",
+          "Keep the same subject's appearance description consistent across shots. Required for every node kind except agent-artifact (which hand-writes files, not prompts).",
       ),
     position: z.object({ x: z.number().finite(), y: z.number().finite() }).optional(),
     categoryId: z.string().trim().min(1).optional(),
@@ -69,6 +71,16 @@ export const plannedNodeSchema = z
     staticFeatures: z.string().optional(),
     dynamicFeatures: z.string().optional(),
     metadata: z.record(z.unknown()).optional(),
+    // agent-artifact（AI 手艺产物）专用：Agent 直接把文件内容交给画布，不调模型生成。
+    // 渲染层负责把 content 落盘为项目资产并回填 meta.artifact.url。仅 kind=agent-artifact 可用
+    //（superRefine 强制）；fileType 限定文本类（glb 二进制不走文本通道）。
+    artifact: z
+      .object({
+        fileType: z.enum(["svg", "html", "markdown", "table", "text"]),
+        content: z.string().max(CANVAS_WRITE_MAX_PROMPT_CHARS),
+      })
+      .strict()
+      .optional(),
   })
   .strict()
   .superRefine((node, context) => {
@@ -77,6 +89,27 @@ export const plannedNodeSchema = z
         code: z.ZodIssueCode.custom,
         path: ["modelVendor"],
         message: "vendor and modelVendor must match when both are provided",
+      });
+    }
+    if (node.kind === "agent-artifact" && (!node.artifact || !node.artifact.content.trim())) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["artifact"],
+        message: "agent-artifact nodes must carry artifact.content (the file body the agent hand-wrote)",
+      });
+    }
+    if (node.kind !== "agent-artifact" && node.artifact) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["artifact"],
+        message: "artifact content is only valid for agent-artifact nodes",
+      });
+    }
+    if (node.kind !== "agent-artifact" && !node.prompt?.trim()) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["prompt"],
+        message: "prompt is required for generated node kinds (everything except agent-artifact)",
       });
     }
   });

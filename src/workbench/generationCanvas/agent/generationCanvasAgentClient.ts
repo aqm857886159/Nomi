@@ -109,6 +109,7 @@ export function buildStaticAgentSystemPrompt(
     `- ${CANVAS_READ_CAPABILITY.aliases.pi}：读取当前画布（紧凑行格式：id | 类型 | 标题 | 状态 | prompt 摘要，附引用边与选中）。`,
     '- propose_storyboard_plan：把一段故事规划成结构化「分镜方案」（跨镜头一致的锚 + 镜头），先给用户在创作区审阅/修改，不碰画布、不花钱（分镜规划师技能用；确认后才由系统落画布）。',
     `- create_canvas_nodes：在画布上创建一批待用户确认的节点，并用 edges 字段一并提交这些节点之间的引用边（每个节点必须给定 clientId、kind=${creatableKinds} 之一、title、prompt；建议再给 modelKey + 可选 modeId + params 以指定模型和比例/清晰度等参数，取值见下方「可用模型」清单）。`,
+    '- create_canvas_nodes 交付手艺产物（kind=agent-artifact）：当用户要的是「你直接做出来、不调模型的表达物」（构图线稿 SVG / 会动的讲解 HTML / 分镜草表 / Markdown 要点 / 文本）时，在同一 create_canvas_nodes 里建 kind=agent-artifact 节点并带 artifact={fileType, content}——content 是文件正文（如 SVG/HTML/Markdown 源码），title 是用户会看到的节点名；系统落盘成画布产物节点（可下载/复制；SVG 可固化为参考图喂下游）。它不需要 modelKey/prompt（不是生成）。要真实画面/动态影像成片时不要用这个，走对应生成模型。',
     '- connect_canvas_edges：仅用于给画布上已有节点补连引用边（后续编辑场景）；新计划的边必须放在 create_canvas_nodes 的 edges 字段里，不要拆成两次调用。',
     '- set_node_prompt：改写一个已有节点的 prompt（润色模式专用）。',
     '- delete_canvas_nodes：删除一个或多个已有节点（破坏性，需要用户确认）。',

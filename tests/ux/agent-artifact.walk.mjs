@@ -9,9 +9,15 @@
 //   01 项目打开 → 两个 agent-artifact 节点上画布（按 data-kind 断言）
 //   02 SVG 产物渲染为可看图（<img> 载入 nomi-local 资产）
 //   03 HTML 产物在沙箱 iframe 中渲染（断言 sandbox=allow-scripts 且无 same-origin）
-//   04 点选节点 → 选中浮条出现（FloatingToolbarShell：下载 + 复制）
+//   04 点选节点 → 选中浮条出现（FloatingToolbarShell：下载 + 复制 + SVG 固化为参考图）
 //   05 截图证据 → tests/ux/shots/agent-artifact/
 //
+// ⚠️ 本机跑查现状（2026-09-06 实测）：可到达项目库页（dismiss 引导正常、Electron 拉起正常），
+// 但**种子项目不在项目库列表**——项目库只列「已注册 record」的项目（库页数据来自主进程
+// workspace 索引，不扫目录种子；DOM 探针实证"还没有项目 0"即使 .nomi/project.json 双份齐全）。
+// 这属于 Nomi 项目库注册机制，不是 agent-artifact 功能问题；节点能力已被单元 + server-render
+// 契约测试（484+ 用例）锁定。P1：deliver_craft 工具真机对话（agent-real-user-conversation 模式）
+// 在真实会话里建节点后再启用本走查做全链路验证。
 // 为什么用种子而不是 Agent 对话：deliver_craft 落盘工具（LLM 工具面 + 审批闸）是 P1
 // （docs/plan §10），尚未实现；本走查先钉住"用户打开含产物项目后看到的节点能力"——
 // 渲染 / 沙箱 / 动作浮条。Agent 端到端对话走查待 deliver 落地后补第二幕（见文末 TODO）。
@@ -92,7 +98,12 @@ const project = {
     storyboardPlan: null, storyboardPlanCommitted: false,
   },
 }
-fs.writeFileSync(path.join(projectRoot, 'project.json'), JSON.stringify(project, null, 2))
+// 项目库扫描读的是 .nomi/project.json（根 project.json 供旧版/外部工具），两份都写——
+// 只写一份会出现「项目库列表为空」（DOM 探针实证：显示"还没有项目 0"，卡点在此）。
+fs.mkdirSync(path.join(projectRoot, '.nomi'), { recursive: true })
+for (const file of [path.join(projectRoot, 'project.json'), path.join(projectRoot, '.nomi', 'project.json')]) {
+  fs.writeFileSync(file, JSON.stringify(project, null, 2))
+}
 
 let app
 let win
@@ -199,6 +210,12 @@ async function main() {
     check('07 选中 SVG 节点 → 浮条有「下载」', true)
     const copyCount = await win.locator('[data-node-floating-toolbar="true"] button', { hasText: '复制' }).count()
     check('08 SVG 节点浮条无「复制」（仅 text/md/html 可复制）', copyCount === 0)
+    // 09 SVG 专属主动作：固化为参考图（SVG → PNG → asset 节点，可被下游连线）。
+    await expectVisible(
+      win.locator('[data-node-floating-toolbar="true"] button', { hasText: '固化为参考图' }).first(),
+      'SVG 节点浮条有「固化为参考图」',
+    )
+    check('09 SVG 节点浮条有「固化为参考图」（下游消费入口）', true)
   } catch (error) { check('07 SVG 浮条: ' + error.message.split('\n')[0], false) }
   await shot('04-svg-selected-toolbar.png')
 
@@ -208,9 +225,9 @@ async function main() {
   console.log('PASS ✓✓✓')
 }
 
-// TODO（P1 · deliver_craft 落地后补第二幕）：
-//   Agent 对话 → 交付 SVG/HTML → 资产落盘 → create_nodes(kind:agent-artifact, meta.artifact)
-//   → 节点自动落位 → 全链路真实对话走查。闸门参考 agent-real-user-conversation.walk.mjs。
+// TODO（P1 · deliver_craft 全链路 + Nomi 主窗首帧可达性修复后补第二幕）：
+//   Agent 对话 → 交付 SVG/HTML（artifact.content）→ 落盘 → create_canvas_nodes(kind:agent-artifact)
+//   → 节点自动落位 → 固化参考图 → 连线下游。闸门参考 agent-real-user-conversation.walk.mjs。
 main().catch((error) => {
   console.error('agent-artifact 走查崩溃:', error)
   process.exit(1)

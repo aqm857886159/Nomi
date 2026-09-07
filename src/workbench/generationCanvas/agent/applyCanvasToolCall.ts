@@ -29,6 +29,7 @@ import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { canvasWriteSemanticInputSchema } from '../../../../electron/shared/agentCapabilities/canvasWrite'
 import { registerCanvasToolClientId, resolveCanvasToolNodeId } from './clientIdRegistry'
 import { previewStoryboardPatchShots } from './storyboardPatchShots'
+import { deliverAgentArtifactToAsset, isTextDeliverableFileType } from './deliverAgentArtifact'
 export { resetClientIdRegistry, resolveCanvasToolNodeId } from './clientIdRegistry'
 
 // 批量创建节点的布局由渲染层 derive，而不是信任 LLM 发来的像素坐标。
@@ -345,6 +346,27 @@ export async function applyCanvasToolCall(
       typeof record.groupCategoryId === 'string' && (CATEGORY_IDS as readonly string[]).includes(record.groupCategoryId)
         ? (record.groupCategoryId as BuiltinCanvasCategoryId)
         : null
+    // agent-artifact 交付：Agent 手写的内容必须先落盘为项目资产（nomi-local://）才能建节点——
+    // 节点不塞内联源码（meta.artifact.url 引用资产文件）。落盘是纯 IO，先全部完成再进 store 事务，
+    // 任一失败即整批中止（一个计划一次意志；不建「指向不存在文件」的半截节点）。
+    const artifactUrlByClientId = new Map<string, { fileType: string; url: string }>()
+    for (const raw of incoming) {
+      const node = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
+      if (node.kind !== 'agent-artifact') continue
+      const artifact = node.artifact && typeof node.artifact === 'object' ? (node.artifact as Record<string, unknown>) : {}
+      const fileType = typeof artifact.fileType === 'string' ? artifact.fileType : ''
+      const content = typeof artifact.content === 'string' ? artifact.content : ''
+      const clientId = typeof node.clientId === 'string' ? node.clientId : ''
+      const title = typeof node.title === 'string' ? node.title : ''
+      if (!isTextDeliverableFileType(fileType) || !content.trim()) {
+        throw new Error(`agent-artifact 节点「${title || clientId || '未命名'}」需要带文本内容（artifact.content），不支持的类型: ${fileType || '(空)'}`)
+      }
+      const delivered = await deliverAgentArtifactToAsset({ fileType, content, title })
+      if (!delivered.ok) {
+        throw new Error(`agent-artifact 落盘失败（${title || clientId}）: ${delivered.reason}`)
+      }
+      artifactUrlByClientId.set(clientId, { fileType, url: delivered.url })
+    }
     const inputs: CreateGenerationNodeToolInput[] = incoming.map((raw, index) => {
       const node = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
       const kind = plannedKinds[index]
@@ -385,6 +407,22 @@ export async function applyCanvasToolCall(
               x: typeof positionRecord?.x === 'number' ? positionRecord.x : layout[index].x,
               y: typeof positionRecord?.y === 'number' ? positionRecord.y : layout[index].y,
             }
+      // agent-artifact：不走模型/生成 meta，meta.artifact = 落盘资产引用（内容已在上面 deliver 阶段落盘）。
+      // 标题由 agent 给（手艺产物的名字就是用户在画布上看到的）；无 prompt（不调模型）。
+      if (kind === 'agent-artifact') {
+        const clientId = typeof node.clientId === 'string' ? node.clientId : ''
+        const artifact = artifactUrlByClientId.get(clientId)
+        if (!artifact) {
+          throw new Error(`agent-artifact 节点缺少已落盘产物（clientId=${clientId || '(空)'}）`)
+        }
+        return {
+          kind,
+          categoryId: groupCategoryId ?? getDefaultCategoryForNodeKind(kind),
+          title: typeof node.title === 'string' && node.title.trim() ? node.title.trim() : `产物 ${index + 1}`,
+          position,
+          meta: { artifact: { fileType: artifact.fileType, url: artifact.url } },
+        }
+      }
       return {
         kind,
         // groupCategoryId 在则整批落同一分类（分镜方案：角色/场景/镜头落在一起）；否则按 kind

@@ -56,6 +56,9 @@ export const zhRuntime = {
       copy: '复制',
       copied: '已复制',
       copyFailed: '复制失败',
+      referenceAction: '固化为参考图',
+      referenceCreated: '已生成参考图（素材节点，可连线给下游）',
+      referenceFailed: '固化为参考图失败',
     },
   },
   project: {
@@ -219,6 +222,9 @@ export const enRuntime = {
       copy: 'Copy',
       copied: 'Copied',
       copyFailed: 'Copy failed',
+      referenceAction: 'Rasterize as reference',
+      referenceCreated: 'Reference image created (asset node, connectable downstream)',
+      referenceFailed: 'Failed to rasterize as reference',
     },
   },
   project: {
