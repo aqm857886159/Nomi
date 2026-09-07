@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/claude-hooks/self-check.sh\""
+            "command": "sh -c 'h=\"$CLAUDE_PROJECT_DIR/scripts/claude-hooks/self-check.sh\"; [ -f \"$h\" ] || { echo \"[nomi-hooks] 提示型 hook 缺失（本次不阻断，但你少了一层提醒）：scripts/claude-hooks/self-check.sh（分支停在没有它的旧提交？先并上 origin/main）\" >&2; exit 1; }; exec bash \"$h\"'"
           }
         ]
       }
@@ -17,15 +17,15 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/claude-hooks/pre-push-check.sh\""
+            "command": "sh -c 'h=\"$CLAUDE_PROJECT_DIR/scripts/claude-hooks/pre-push-check.sh\"; [ -f \"$h\" ] || { echo \"[nomi-hooks] 拦截型 hook 缺失，fail-closed 拒绝本次调用：scripts/claude-hooks/pre-push-check.sh（分支停在没有它的旧提交？先并上 origin/main 再重试）\" >&2; exit 2; }; exec bash \"$h\"'"
           },
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/claude-hooks/commit-bypass-check.sh\""
+            "command": "sh -c 'h=\"$CLAUDE_PROJECT_DIR/scripts/claude-hooks/commit-bypass-check.sh\"; [ -f \"$h\" ] || { echo \"[nomi-hooks] 拦截型 hook 缺失，fail-closed 拒绝本次调用：scripts/claude-hooks/commit-bypass-check.sh（分支停在没有它的旧提交？先并上 origin/main 再重试）\" >&2; exit 2; }; exec bash \"$h\"'"
           },
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/claude-hooks/secret-guard.sh\""
+            "command": "sh -c 'h=\"$CLAUDE_PROJECT_DIR/scripts/claude-hooks/secret-guard.sh\"; [ -f \"$h\" ] || { echo \"[nomi-hooks] 拦截型 hook 缺失，fail-closed 拒绝本次调用：scripts/claude-hooks/secret-guard.sh（分支停在没有它的旧提交？先并上 origin/main 再重试）\" >&2; exit 2; }; exec bash \"$h\"'"
           }
         ]
       },
@@ -34,11 +34,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/claude-hooks/stack-currency-check.sh\""
+            "command": "sh -c 'h=\"$CLAUDE_PROJECT_DIR/scripts/claude-hooks/stack-currency-check.sh\"; [ -f \"$h\" ] || { echo \"[nomi-hooks] 提示型 hook 缺失（本次不阻断，但你少了一层提醒）：scripts/claude-hooks/stack-currency-check.sh（分支停在没有它的旧提交？先并上 origin/main）\" >&2; exit 1; }; exec bash \"$h\"'"
           },
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/claude-hooks/model-doc-check.sh\""
+            "command": "sh -c 'h=\"$CLAUDE_PROJECT_DIR/scripts/claude-hooks/model-doc-check.sh\"; [ -f \"$h\" ] || { echo \"[nomi-hooks] 提示型 hook 缺失（本次不阻断，但你少了一层提醒）：scripts/claude-hooks/model-doc-check.sh（分支停在没有它的旧提交？先并上 origin/main）\" >&2; exit 1; }; exec bash \"$h\"'"
           }
         ]
       }
@@ -48,7 +48,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/claude-hooks/completion-check.sh\""
+            "command": "sh -c 'h=\"$CLAUDE_PROJECT_DIR/scripts/claude-hooks/completion-check.sh\"; [ -f \"$h\" ] || { echo \"[nomi-hooks] 提示型 hook 缺失（本次不阻断，但你少了一层提醒）：scripts/claude-hooks/completion-check.sh（分支停在没有它的旧提交？先并上 origin/main）\" >&2; exit 1; }; exec bash \"$h\"'"
           }
         ]
       }
@@ -58,7 +58,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/claude-hooks/handoff-write.sh\""
+            "command": "sh -c 'h=\"$CLAUDE_PROJECT_DIR/scripts/claude-hooks/handoff-write.sh\"; [ -f \"$h\" ] || { echo \"[nomi-hooks] 提示型 hook 缺失（本次不阻断，但你少了一层提醒）：scripts/claude-hooks/handoff-write.sh（分支停在没有它的旧提交？先并上 origin/main）\" >&2; exit 1; }; exec bash \"$h\"'"
           }
         ]
       }
@@ -68,7 +68,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/claude-hooks/handoff-read.sh\""
+            "command": "sh -c 'h=\"$CLAUDE_PROJECT_DIR/scripts/claude-hooks/handoff-read.sh\"; [ -f \"$h\" ] || { echo \"[nomi-hooks] 提示型 hook 缺失（本次不阻断，但你少了一层提醒）：scripts/claude-hooks/handoff-read.sh（分支停在没有它的旧提交？先并上 origin/main）\" >&2; exit 1; }; exec bash \"$h\"'"
           }
         ]
       }
