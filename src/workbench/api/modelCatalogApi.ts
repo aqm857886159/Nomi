@@ -122,7 +122,7 @@ export async function listWorkbenchModelCatalogModels(params?: {
   // 目录的 `meta` 过 IPC 时还是 `unknown`。在**进入渲染层的第一处**把窗口解出来，
   // 而不是让每个读它的组件各解一遍（那正是「同一语义几份定义」的起点）。
   return rows.map((row) => {
-    const contextWindow = modelContextWindow(row.meta)
+    const contextWindow = modelContextWindow(row.meta, row.modelKey)
     return contextWindow === undefined ? row : { ...row, contextWindow }
   })
 }

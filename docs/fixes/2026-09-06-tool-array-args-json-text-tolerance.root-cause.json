@@ -1,0 +1,132 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-06-tool-array-args-json-text-tolerance",
+  "problem_type": "A model serializes a structured tool argument twice, and the array/object parameter is rejected at the transport validator before Nomi's own contract ever sees it",
+  "symptom": "2026-09-06, packaged build, storyboard v6: the user asked the Agent (DeepSeek chat model) to re-split the draft into 10 shots. The panel showed six consecutive '创建或修改镜头卡 · 只建卡·不生成 · ⚠ <1s' receipts with no reason, interleaved with the model's own commentary ('the parameter needs to be an array, not a string', 'I stringified the JSON twice'). The model finally abandoned the tool and edited the document directly.",
+  "direct_cause": "nomi_canvas_edit(create_canvas_nodes) declared nodes/edges as bare z.array(...). pi validates the published JSON Schema with TypeBox BEFORE beforeToolCall runs Nomi's Zod, so a JSON-text array was rejected with an 8-line anyOf error smeared across all nine union branches plus the whole payload echoed back — unusable for self-correction.",
+  "class_root": "Every structured array/object argument on the model-facing surface assumed the model would send the structured form, and no shared boundary translated the one transport encoding models actually get wrong (a JSON string holding the same value) into the declared shape. A local parseJsonArrayString existed twice in the repository but was wired only to a test-only descriptor set and covered only `shots`, so the invariant was neither shared nor complete.",
+  "affected_population": [
+    "Any chat model that fills tool `arguments` as text and double-serializes nested values (observed with DeepSeek; the same shape is common on Qwen/Moonshot and reseller endpoints)",
+    "Every array parameter of canvas.write: nodes, edges, anchors, shots, indexes, nodeIds, characters, props",
+    "Both model surfaces: the in-app pi tool table and the external MCP tools/list host"
+  ],
+  "scope_paths": [
+    "electron/shared/agentCapabilities/jsonArgTolerance.ts",
+    "electron/shared/agentCapabilities/canvasWrite.ts",
+    "electron/capabilityCore/mcpTransportSchemaFromZod.ts",
+    "electron/harness/runtime/pi/tools.mts",
+    "electron/harness/tools/canvasDescriptors.ts",
+    "src/workbench/generationCanvas/agent/storyboardPlanSchema.ts"
+  ],
+  "entry_points": [
+    "pi in-app agent → nomi_canvas_edit (args.operation discriminates nine branches)",
+    "external MCP host → tools/list projection of the same capability",
+    "renderer storyboard plan parser re-reading the same plan payload"
+  ],
+  "external_sources": [
+    {
+      "kind": "source-code",
+      "url": "https://github.com/StefanTerdell/zod-to-json-schema",
+      "checked_at": "2026-09-06",
+      "purpose": "Confirm that effectStrategy 'input' publishes a ZodEffects transform as its input schema, while pipeStrategy would have to be set separately at every publisher for a .pipe() based helper."
+    }
+  ],
+  "invariants": [
+    "A declared array/object tool argument accepts either the structured value or the identical value encoded as JSON text, and both converge on the same validated structured value.",
+    "Tolerance never widens validation: a JSON text that does not parse, or parses into the wrong shape, still fails closed with the same issues as the structured form.",
+    "The JSON-text branch is a transport accommodation, not a second public shape: it is never advertised on the MCP transport schema, and it is absent from the declared TypeScript input type."
+  ],
+  "generality_proof": "The tolerance is expressed once, in jsonTolerantArray/jsonTolerantObject, and applied to every array parameter of the capability contract that the model can reach. Because the wrapper lives in the Zod contract itself, every consumer of that contract inherits it: the pi tool table, the MCP execution boundary, the Host adapter re-parse in canvasWriteTransportAdapters, and the renderer's own plan parser all call the same schema. The string branch is a ZodEffects transform, so all three JSON-Schema publishers — which already pass effectStrategy 'input' — emit it correctly without any publisher-local option; a .pipe() based implementation would have silently degraded at any publisher that forgot pipeStrategy, which is exactly the class of forgettable defence R28 forbids.",
+  "shared_boundaries": [
+    {
+      "path": "electron/shared/agentCapabilities/jsonArgTolerance.ts",
+      "symbol": "jsonTolerantArray",
+      "responsibility": "Owns the single definition of 'structured value, or the same value as JSON text', including the fail-closed re-validation of the parsed result against the original item schema."
+    },
+    {
+      "path": "electron/capabilityCore/mcpTransportSchemaFromZod.ts",
+      "symbol": "branchesOf",
+      "responsibility": "Drops the JSON-text branch from the broadcast transport schema, so the MCP validator subset (which does not implement anyOf) keeps a well-typed array contract instead of a type-less hybrid."
+    },
+    {
+      "path": "electron/harness/runtime/pi/tools.mts",
+      "symbol": "readableSchemaFailure",
+      "responsibility": "Turns any remaining Zod rejection into field/expected/received lines, so a genuinely wrong argument is correctable by the model instead of an eight-line union dump."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/shared/agentCapabilities/canvasWrite.ts",
+      "entry_point": "createCanvasNodesInputSchema.nodes",
+      "disposition": "enforced",
+      "evidence": "The reported failure. Now wrapped by jsonTolerantArray; jsonArgTolerance.test.ts parses a ten-shot payload in both the structured and the double-serialized form and asserts they are equivalent."
+    },
+    {
+      "path": "electron/shared/agentCapabilities/canvasWrite.ts",
+      "entry_point": "storyboardPlanActionInputSchema.anchors",
+      "disposition": "enforced",
+      "evidence": "Independently checked second entry: `anchors` was a bare array while its sibling `shots` had a local preprocess in a different file, so the same call could fail on whichever field the model happened to stringify. Both are now wrapped and covered by the class test."
+    },
+    {
+      "path": "electron/shared/agentCapabilities/documentWrite.ts",
+      "entry_point": "document write input",
+      "disposition": "not-affected",
+      "evidence": "Its parameters are scalars (documentId, content, anchor); there is no array or nested object for a model to serialize twice, so the class cannot enter here."
+    },
+    {
+      "path": "electron/capabilityCore/mcpArgValidation.ts",
+      "entry_point": "validateToolArguments array branch",
+      "disposition": "enforced",
+      "evidence": "The external host path already produced an actionable '必须是数组（收到 字符串）'; it now validates against a transport schema that still declares `type: array` because branchesOf drops the JSON-text branch. jsonArgTolerance.test.ts asserts the broadcast schema keeps type/items and never leaks the marker."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Double-serializing a nested tool argument is a property of how models emit JSON tool calls, not of one model or one field. Any array parameter, any capability, any vendor endpoint can reproduce it, and the panel evidence shows a model can diagnose it correctly and still fail to recover six times in a row.",
+    "same_class_scan": [
+      "grep for `z.array(` inside electron/shared/agentCapabilities: every array parameter reachable from canvasWriteSemanticInputSchema was enumerated (nodes, edges x2, anchors, shots, indexes, nodeIds, characters, props x2) and wrapped.",
+      "grep for `parseJsonArrayString` across the repository found two byte-identical private copies (electron/harness/tools/canvasDescriptors.ts, src/workbench/generationCanvas/agent/storyboardPlanSchema.ts); both covered only `shots`, and canvasToolDescriptors is referenced by tests only, so neither ran on the live model surface.",
+      "grep for `zodToJsonSchema` found the three publishers (pi tools.mts, mcpCapabilityProjection.ts, mcpTransportSchemaFromZod.ts); all three already pass effectStrategy 'input', which is what makes the transform-based branch publish correctly everywhere."
+    ]
+  },
+  "prevention": {
+    "kind": "schema-validation",
+    "enforcement_path": "electron/shared/agentCapabilities/jsonArgTolerance.ts",
+    "invariant": "A tolerant array/object parameter accepts the structured value or its JSON text, and both are validated by the identical item schema before anything downstream sees them.",
+    "failure_mode": "Unparseable text, or text that parses into the wrong shape, raises the same Zod issues as the structured form; nothing is silently coerced or dropped.",
+    "exception_policy": "none",
+    "strategy": "The tolerance is part of the parameter contract itself rather than a caller-side repair, so every present and future consumer of that contract inherits it, and the two private copies were deleted in the same change so no second definition can drift.",
+    "artifacts": [
+      "electron/shared/agentCapabilities/jsonArgTolerance.ts",
+      "electron/shared/agentCapabilities/canvasWrite.ts",
+      "electron/capabilityCore/mcpTransportSchemaFromZod.ts",
+      "electron/harness/tools/canvasDescriptors.ts",
+      "src/workbench/generationCanvas/agent/storyboardPlanSchema.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/shared/agentCapabilities/jsonArgTolerance.test.ts",
+    "electron/shared/agentCapabilities/canvasWrite.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/shared/agentCapabilities/jsonArgTolerance.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/harness/tools/canvasDescriptors.ts",
+      "src/workbench/generationCanvas/agent/storyboardPlanSchema.ts"
+    ],
+    "rationale": "Both files carried a private parseJsonArrayString applied to `shots` only. Both copies are deleted and the two files now call the shared owner, so there is no fallback path left that could drift from it."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The invariant is owned by Nomi's own parameter contract. zod-to-json-schema and pi's TypeBox validator behave correctly once the branch is expressed as a ZodEffects transform; no version of either controls whether the invariant holds.",
+    "exit_criteria": []
+  },
+  "migration": "No migration. The change only widens what an incoming tool call may look like; every previously valid call still parses to the identical value, and no stored data encodes the old shape.",
+  "residual_risks": [
+    "The improved model-facing error text from readableSchemaFailure is only reached when Nomi's Zod rejects. The Host adapter path (canvasWriteTransportAdapters.ts) still collapses its own Zod issues into the bare code `capability_input_invalid`, and projectAgentExecutionCoordinatorTypes.ts sets message = code, so a rejection at that later boundary still reaches the model as an opaque code. Out of scope here and recorded in the PR body.",
+    "A real DeepSeek call proving first-attempt success was not run in this change; the evidence is the contract-level test that the double-serialized ten-shot payload now parses, plus the published-schema test proving pi's validator accepts it before Zod runs."
+  ]
+}

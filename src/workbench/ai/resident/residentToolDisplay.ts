@@ -1,7 +1,7 @@
 import { resolveCapabilityAlias } from '../../../../electron/shared/agentCapabilities/registry'
 import type { TranslationKey } from '../../../i18n/translationKey'
 import type { ProjectAgentStatus } from '../../../../electron/shared/projectAgentContracts'
-import { normalizeResidentToolProjection, type ResidentToolProjection } from './residentToolProjection'
+import { normalizeResidentToolProjection, redactToolArguments, type ResidentToolProjection } from './residentToolProjection'
 import type { ResidentApprovalDetail, ResidentProposalData } from './residentProposalDisplay'
 
 type Translate = (key: string, options?: Record<string, unknown>) => string
@@ -443,10 +443,151 @@ export function readableToolResult(t: Translate, status: ProjectAgentStatus): st
   return t('agentResident.toolPendingSummary')
 }
 
-export function residentToolProjectionForCall(t: Translate, name: string, args: unknown, status: ProjectAgentStatus): ResidentToolProjection {
+/**
+ * 一次调用的**结果**，由运行时终态回执给出（`AgentsChatResponseDto.toolCalls[]`）。
+ *
+ * 这两个字段此前在 `useAgentPanelV4Actions` 里被整包丢掉：缓存投影只按「工具名 + 入参」
+ * 重算一遍描述串，于是收据的「输出」栏印的是**这次调用打算做什么**，而不是它做成了没有。
+ * 失败那一路后果更重——用户连着看到六条「⚠ <1s」，一个字的原因都没有。
+ */
+export type ResidentToolOutcome = Readonly<{ result?: unknown; error?: string }>
+
+/**
+ * 校验回执（一串 zod issue 的 JSON）→ 人话。
+ *
+ * 2026-09-06 真机走查看到的原样是 `[{"code":"invalid_type","expected":"array","received":"string",…}]`，
+ * 而一行收据只塞得下六十个字——于是行内的「原因」变成了 `"code": "in…`，等于没说。
+ * 这里把它翻成「nodes：期望 array，收到 string」：**哪个字段、要什么、给了什么**，
+ * 一句话就能照着改。认不出的形状原样返回，不硬翻。
+ */
+function humanizeSchemaIssues(t: Translate, text: string): string | undefined {
+  const trimmed = text.trim()
+  if (!trimmed.startsWith('[') && !trimmed.startsWith('{')) return undefined
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(trimmed)
+  } catch {
+    return undefined
+  }
+  const issues = (Array.isArray(parsed) ? parsed : [parsed])
+    .map(asRecord)
+    .filter((issue): issue is Record<string, unknown> => Boolean(issue) && typeof issue?.code === 'string')
+  if (!issues.length) return undefined
+  const lines: string[] = []
+  for (const issue of issues) {
+    const field = Array.isArray(issue.path) && issue.path.length ? issue.path.join('.') : t('agentResident.issueRoot')
+    const line = typeof issue.expected === 'string' && typeof issue.received === 'string'
+      ? t('agentResident.issueType', { field, expected: issue.expected, received: issue.received })
+      : typeof issue.message === 'string' && issue.message.trim()
+        ? t('agentResident.issueMessage', { field, message: issue.message.trim() })
+        : ''
+    if (line && !lines.includes(line)) lines[lines.length] = line
+    if (lines.length >= 6) break
+  }
+  return lines.length ? lines.join('\n') : undefined
+}
+
+/** 校验回执行里那句 `Expected array` 里的类型词。只认 JSON 的七个类型，别的不硬翻。 */
+const JSON_TYPE_WORDS = new Set(['string', 'number', 'integer', 'boolean', 'object', 'array', 'null'])
+const VALIDATION_PROSE_HEAD = /^Validation failed for tool\s+"[^"]*"\s*:$/
+const VALIDATION_ISSUE_LINE = /^-\s*([^\s:][^:]*)\s*:\s*(.+)$/
+const VALIDATION_ARGS_ECHO = /^Received arguments:/
+
+/**
+ * 运行时的**散文体**校验回执 → 人话。
+ *
+ * pi 的 `validateToolCall` 抛的是一段英文（`@earendil-works/pi-ai/dist/utils/validation.js`）：
+ *
+ * ```
+ * Validation failed for tool "nomi_canvas_edit":
+ *   - nodes: Expected array
+ *
+ * Received arguments:
+ * { …模型这次发过去的整包入参… }
+ * ```
+ *
+ * 它和上面那串 zod issue JSON 是**同一类东西的另一种写法**，所以必须走同一条翻译：
+ * 2026-09-06 打包版真实使用里，用户在 28px 的收据行上读到的是
+ * 「读取画布 · Validation failed for tool "no…」——一行英文机器话，说不出哪个字段错了。
+ *
+ * 两条纪律写在这里：
+ *   · 尾巴那段 `Received arguments:` 是**入参回显**，收据的「输入」栏已经有它。
+ *     行内再印一遍就是 2026-09-06 那行只剩一个 `[` 的来路（回显的第一行正是 `[`），所以到此为止。
+ *   · 认出了这条回执就**再也不把英文原文放进行内**：一条都翻不出来时给一句通用的
+ *     「参数不合法」，英文全文只留在展开区的「输出」。
+ */
+function humanizeValidationProse(t: Translate, text: string): string | undefined {
+  const lines = text.trim().split('\n')
+  if (!VALIDATION_PROSE_HEAD.test((lines[0] ?? '').trim())) return undefined
+  const humanized: string[] = []
+  for (const raw of lines.slice(1)) {
+    const line = raw.trim()
+    if (!line) continue
+    if (VALIDATION_ARGS_ECHO.test(line)) break
+    const match = VALIDATION_ISSUE_LINE.exec(line)
+    if (!match) continue
+    const path = match[1]!.trim()
+    const field = !path || path === 'root' ? t('agentResident.issueRoot') : path
+    const message = match[2]!.trim()
+    const expected = /^Expected\s+(\S+)$/.exec(message)?.[1] ?? ''
+    const humanizedLine = /required/i.test(message)
+      ? t('agentResident.issueRequired', { field })
+      : JSON_TYPE_WORDS.has(expected.toLowerCase())
+        ? t('agentResident.issueExpected', { field, expected })
+        : ''
+    if (humanizedLine && !humanized.includes(humanizedLine)) humanized.push(humanizedLine)
+    if (humanized.length >= 6) break
+  }
+  return humanized.length ? humanized.join('\n') : t('agentResident.issueInvalidArgs')
+}
+
+/**
+ * 失败正文 → 人话，**唯一那条门**。
+ *
+ * 校验失败在这套系统里有两种写法（运行时的散文体、宿主/适配层的 zod issue JSON），
+ * 而消费它的地方有三处（收据行内摘要、收据展开体、回合失败的错误条）。
+ * 两种写法 × 三处消费如果各翻各的，就会像 2026-09-06 那样：同一次失败在一处是
+ * 「nodes：期望 array」、在另一处是一整段英文。翻译只有这一条门，认不出就返回
+ * `undefined`——由调用方决定退回什么，不在这里编。
+ */
+export function humanizeToolFailure(t: Translate, text: string | undefined): string | undefined {
+  const trimmed = (text ?? '').trim()
+  if (!trimmed) return undefined
+  return humanizeSchemaIssues(t, trimmed) ?? humanizeValidationProse(t, trimmed)
+}
+
+/**
+ * 结果 → 一行人话。对象/数组走 JSON（同一套脱敏），字符串原样，空的退回状态词。
+ *
+ * 失败正文在这里**一字不改**：这一段是收据展开区的「输出」，也就是「详情」。
+ * 英文原文只住在这里；行内那句由 `humanizeToolFailure` 翻（见 `agentPanelV4Projection`）。
+ * 两边分工反过来的后果 2026-09-06 见过：行内是英文机器话，详情里反而是被压过的摘要，
+ * 想照着改的人两处都拿不到原文。
+ */
+function readableToolOutcome(t: Translate, status: ProjectAgentStatus, outcome?: ResidentToolOutcome): string {
+  if (outcome?.error?.trim()) return outcome.error.trim()
+  const value = outcome?.result
+  if (typeof value === 'string' && value.trim()) return value.trim()
+  if (value !== undefined && value !== null) {
+    const text = redactToolArguments(value)
+    if (text) return text
+  }
+  return readableToolResult(t, status)
+}
+
+export function residentToolProjectionForCall(
+  t: Translate,
+  name: string,
+  args: unknown,
+  status: ProjectAgentStatus,
+  outcome?: ResidentToolOutcome,
+): ResidentToolProjection {
   return normalizeResidentToolProjection({
     effect: readableToolPreview(t, name, args) || readableToolResult(t, status),
     target: readableToolTarget(t, name, args),
     technicalDetails: readableToolSummary(t, name, args) || readableToolResult(t, status),
+    // 收据展开后的两段读的是**这一次调用**的入参与结果，不是工具描述（拍板基线 v4-tool-expanded）。
+    input: redactToolArguments(args),
+    output: readableToolOutcome(t, status, outcome),
   })
 }

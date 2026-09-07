@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import type { CapabilityContract } from "./capabilityContract";
+import { jsonTolerantArray } from "./jsonArgTolerance";
 
 const canonicalIdSchema = z.string().trim().min(1);
 export const CANVAS_WRITE_MAX_PROMPT_CHARS = 262_144;
@@ -102,14 +103,8 @@ const createCanvasNodesInputSchema = z
       .trim()
       .min(1)
       .describe("One-sentence summary of the plan, shown to the user before confirmation."),
-    nodes: z.array(plannedNodeSchema).min(1).max(24),
-    edges: z
-      .array(plannedEdgeSchema)
-      .max(48)
-      .optional()
-      .describe(
-        "Reference edges between this plan's nodes (use their clientId) and/or existing real node ids. Submit together with nodes in this same call.",
-      ),
+    nodes: jsonTolerantArray(z.array(plannedNodeSchema).min(1).max(24)),
+    edges: jsonTolerantArray(z.array(plannedEdgeSchema).max(48), "Reference edges between this plan's nodes (use their clientId) and/or existing real node ids. Submit together with nodes in this same call.").optional(),
     anchorCount: z.number().int().nonnegative().max(24).optional(),
     groupCategoryId: z.string().trim().min(1).optional(),
   })
@@ -118,7 +113,7 @@ const createCanvasNodesInputSchema = z
 const connectCanvasEdgesInputSchema = z
   .object({
     operation: z.literal("connect_canvas_edges"),
-    edges: z.array(plannedEdgeSchema).min(1).max(48),
+    edges: jsonTolerantArray(z.array(plannedEdgeSchema).min(1).max(48)),
   })
   .strict();
 
@@ -140,8 +135,8 @@ const storyboardPlanActionInputSchema = z
   .object({
     operation: z.literal("propose_storyboard_plan"),
     title: z.string().trim().min(1),
-    anchors: z.array(z.record(z.unknown())).max(24),
-    shots: z.array(z.record(z.unknown())).min(1).max(24),
+    anchors: jsonTolerantArray(z.array(z.record(z.unknown())).max(24)),
+    shots: jsonTolerantArray(z.array(z.record(z.unknown())).min(1).max(24)),
   })
   .strict();
 
@@ -159,7 +154,7 @@ const storyboardPatchShotsInputSchema = z
       z
         .object({
           kind: z.literal("indexes"),
-          indexes: z.array(z.number().int().min(1).max(24)).min(1).max(24),
+          indexes: jsonTolerantArray(z.array(z.number().int().min(1).max(24)).min(1).max(24)),
         })
         .strict(),
     ]),
@@ -189,7 +184,7 @@ const storyboardPatchShotsInputSchema = z
 const arrangeStoryboardActionInputSchema = z
   .object({
     operation: z.literal("arrange_storyboard_to_timeline"),
-    nodeIds: z.array(canonicalIdSchema).min(1).max(48),
+    nodeIds: jsonTolerantArray(z.array(canonicalIdSchema).min(1).max(48)),
   })
   .strict();
 
@@ -197,13 +192,13 @@ const stagingReferenceActionInputSchema = z
   .object({
     operation: z.literal("create_staging_reference"),
     shotClientId: canonicalIdSchema.optional(),
-    characters: z.array(z.record(z.unknown())).max(6).optional(),
+    characters: jsonTolerantArray(z.array(z.record(z.unknown())).max(6)).optional(),
     layout: z.string().trim().min(1).optional(),
     camera: z.record(z.unknown()).optional(),
     environment: z.string().trim().min(1).optional(),
     crowd: z.record(z.unknown()).optional(),
     sceneTemplate: z.string().trim().min(1).optional(),
-    props: z.array(z.record(z.unknown())).max(12).optional(),
+    props: jsonTolerantArray(z.array(z.record(z.unknown())).max(12)).optional(),
     customBlocking: z.string().trim().min(1).optional(),
   })
   .strict();
@@ -218,7 +213,7 @@ const cameraMoveActionInputSchema = z
     shot: z.string().trim().min(1).optional(),
     subjectPose: z.string().trim().min(1).optional(),
     sceneTemplate: z.string().trim().min(1).optional(),
-    props: z.array(z.record(z.unknown())).max(12).optional(),
+    props: jsonTolerantArray(z.array(z.record(z.unknown())).max(12)).optional(),
   })
   .strict();
 

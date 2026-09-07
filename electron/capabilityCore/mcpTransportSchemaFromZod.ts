@@ -20,6 +20,7 @@
 // Zod 的 `.strict()` + discriminated union 仍是唯一权威边界；这里放宽的只是「传输层看不看得见这个字段」。
 import { zodToJsonSchema } from "zod-to-json-schema";
 
+import { JSON_TEXT_BRANCH_MARKER } from "../shared/agentCapabilities/jsonArgTolerance";
 import { SUPPORTED_SCHEMA_KEYWORDS, findUnsupportedSchemaFeatures, type SchemaLike } from "./mcpArgValidation";
 
 type JsonRecord = Record<string, unknown>;
@@ -36,7 +37,16 @@ function isRecord(value: unknown): value is JsonRecord {
 function branchesOf(node: JsonRecord): JsonRecord[] | null {
   for (const key of UNION_KEYS) {
     const value = node[key];
-    if (Array.isArray(value) && value.length > 0) return value.filter(isRecord);
+    if (!Array.isArray(value) || value.length === 0) continue;
+    const branches = value.filter(isRecord);
+    // `jsonTolerantArray` 给的「同一个数组的 JSON 文本」那一支**不进传输层**。
+    // 这个校验器不实现 anyOf，扁平化会把「数组 ∪ 字符串」并成一个没有 `type`、
+    // 描述被拼成两段的四不像——广播出去是一份「像在校验其实没有」的 schema，
+    // 而 `check:mcp-operation-constructible` 会照着它造出一个字符串样本当场红。
+    // 丢掉它不削弱容错：执行边界仍是同一份 Zod，二次序列化的写法照样收得下，
+    // 只是**不对外宣传**那种写法——外部宿主看到的是干净的数组契约。
+    const structured = branches.filter((branch) => typeof branch.description !== "string" || !branch.description.startsWith(JSON_TEXT_BRANCH_MARKER));
+    return structured.length ? structured : branches;
   }
   return null;
 }
