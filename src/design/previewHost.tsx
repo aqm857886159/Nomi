@@ -20,7 +20,7 @@ import { I18nextProvider } from 'react-i18next'
 import i18next, { type i18n as I18nInstance } from 'i18next'
 import { initReactI18next } from 'react-i18next'
 import { resources } from '../i18n/resources'
-import { buildNomiTheme } from '../theme/nomiTheme'
+import { buildNomiTheme, nomiCssVariablesResolver } from '../theme/nomiTheme'
 
 const nomiTheme = buildNomiTheme()
 
@@ -76,7 +76,7 @@ export function NomiPreviewHost({
 
   return (
     <I18nextProvider i18n={i18n}>
-      <MantineProvider theme={nomiTheme} forceColorScheme={colorScheme} defaultColorScheme={colorScheme}>
+      <MantineProvider theme={nomiTheme} cssVariablesResolver={nomiCssVariablesResolver} forceColorScheme={colorScheme} defaultColorScheme={colorScheme}>
         {children}
       </MantineProvider>
     </I18nextProvider>

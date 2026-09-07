@@ -116,7 +116,18 @@ describe('两个 token 真相源不许漂移（运行时真源 = tailwind addBas
   ]) {
     it(`${mode} 模式：accent / paper / accent-soft 两处定义一致`, () => {
       const live = defsFor(mode)
-      for (const token of ['--nomi-accent', '--nomi-paper', '--nomi-accent-soft']) {
+      // 状态色四语义 × 四档一并纳入：2026-09-07 把它们从「工作区 hex + 根层 oklch」两份真相源
+      // 收成一份后，镜像若漏抄就又是两份，这条断言是那次收口的锁。
+      // 明暗两块都要写全四档 —— soft/edge 是色阶上独立的一档（不是 base 的 alpha），
+      // 暗色不会靠 var() 自动翻，漏抄一档就是「浅色近白底漏进暗色」的刺眼白块。
+      // 唯一例外：`--nomi-info` 的 base 是 `var(--nomi-accent)` 的别名，只在浅色块定义一次。
+      const statusTokens = ['danger', 'warning', 'success', 'info'].flatMap((s) => [
+        ...(mode === 'dark' && s === 'info' ? [] : [`--nomi-${s}`]),
+        `--nomi-${s}-ink`,
+        `--nomi-${s}-soft`,
+        `--nomi-${s}-edge`,
+      ])
+      for (const token of ['--nomi-accent', '--nomi-paper', '--nomi-accent-soft', ...statusTokens]) {
         const mirrored = mirror.get(token)
         expect(mirrored, `nomi-tokens.css 的 ${mode} 块缺 ${token}`).toBeTruthy()
         expect(

@@ -61,6 +61,8 @@
 | D2 | 素材库名实不符（能筛音频但传不了/删除拖出 v1.1 未做）| ⬜ |
 | D3 | 无设置页 + 「关于」实为更新器占品牌位 | ⬜（待定是否要设置页）|
 | D4 | 画布「添加节点」三处同源入口（共享数据源=良性）+ 单/批量生成两套编排 | ⬜（良性，低优先）|
+| D5 | `DesignBadge` 与 `StatusBadge` 近重复（`src/design/status.tsx`）：2026-09-07 给 `DesignBadge` 收上封闭 tone 词表后，两件只剩 `radius`（sm vs md）、`className`（`tc-design-badge` vs `tc-status-badge` + `tracking`）与默认 `size` 的差别，其余完全一致。两件都是**全仓零调用**（唯一消费者是设计实验室）。合并要先定「留哪一个名字、tc-* 类名谁在用」，属大重构，本轮只登记不做 | ⬜ |
+| D6 | `DesignAlert` / `DesignProgress` 仍透传裸 Mantine `color`（`src/design/status.tsx`）：同 D5 那次只收了 `DesignBadge`。现有 `cssVariablesResolver` 把 12 个 Mantine 色板名全映到四语义，泄漏后果已封住；但类型层还没拦住「随手写第五种色」。与 D5 一起处理 | ⬜ |
 
 ---
 

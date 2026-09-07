@@ -36,12 +36,26 @@ export function StatusBadge({
   )
 }
 
-export type DesignBadgeProps = BadgeProps
+/**
+ * `DesignBadge` 与 `StatusBadge` 共用同一套 tone 词表——语义只有这五个，
+ * 谁也不许再引第六种色。曾经 `DesignBadge` 直接透传 Mantine 的 `color`，
+ * 于是 `color="grape"` 能绕过整套 token 上一块 Mantine 自带的紫（设计实验室的
+ * PRO 徽章因此在四套候选配色下岿然不变）。收敛成封闭词表后，类型层就拦住了。
+ */
+export type DesignBadgeProps = Omit<BadgeProps, 'color'> & {
+  tone?: StatusBadgeTone
+}
 
-export function DesignBadge({ className, radius = 'sm', variant = 'light', ...props }: DesignBadgeProps): JSX.Element {
+export function DesignBadge({
+  tone = 'neutral',
+  className,
+  radius = 'sm',
+  variant = 'light',
+  ...props
+}: DesignBadgeProps): JSX.Element {
   const rootClassName = cn('tc-design-badge', className)
 
-  return <Badge {...props} className={rootClassName} radius={radius} variant={variant} />
+  return <Badge {...props} className={rootClassName} color={toneColorMap[tone]} radius={radius} variant={variant} />
 }
 
 export type DesignAlertProps = AlertProps

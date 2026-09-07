@@ -53,22 +53,23 @@ export const STATUS_STATES: readonly LabState[] = [
   },
   {
     id: 'ps-02-design-badge',
-    name: 'DesignBadge · 裸 Mantine 徽标（全仓零调用）',
+    name: 'DesignBadge · 封闭 tone 词表（全仓零调用）',
     source: SOURCE_STATUS,
     coverage: 'component-only',
-    // 与上一格并排看：`DesignBadge` 没有 tone 词表，颜色靠 Mantine 的 `color`——
-    // 这正是优化方案 D-2「variant / tone / kind / color 四个词表达同一根轴」的活标本。
+    // 2026-09-07 前这一格是色泄漏的活标本：`DesignBadge` 没有 tone 词表、直接透传 Mantine
+    // 的 `color`，于是这里的 PRO 徽章（color="grape"）在四套候选配色下都岿然不动地保持紫色。
+    // 现已收敛成与 `StatusBadge` 同一套 tone（neutral|info|success|warning|danger），类型层就拦住。
     render: () => (
       <PrimitiveStage>
         <Specimen label="variant=light（默认）">
           <DesignBadge>草稿</DesignBadge>
-          <DesignBadge color="blue">图生视频</DesignBadge>
-          <DesignBadge color="green">已导出</DesignBadge>
+          <DesignBadge tone="info">图生视频</DesignBadge>
+          <DesignBadge tone="success">已导出</DesignBadge>
         </Specimen>
         <Specimen label="variant=filled / outline / dot">
-          <DesignBadge variant="filled" color="grape">Pro</DesignBadge>
-          <DesignBadge variant="outline" color="gray">v0.21.0</DesignBadge>
-          <DesignBadge variant="dot" color="red">离线</DesignBadge>
+          <DesignBadge variant="filled" tone="info">Pro</DesignBadge>
+          <DesignBadge variant="outline">v0.21.0</DesignBadge>
+          <DesignBadge variant="dot" tone="danger">离线</DesignBadge>
         </Specimen>
       </PrimitiveStage>
     ),

@@ -5,7 +5,7 @@ import { Notifications } from '@mantine/notifications'
 import { I18nextProvider } from 'react-i18next'
 import { RootErrorBoundary } from './ui/ErrorBoundary'
 import { FEEDBACK_LAYER_Z_INDEX } from './ui/feedbackLayer'
-import { buildNomiTheme } from './theme/nomiTheme'
+import { buildNomiTheme, nomiCssVariablesResolver } from './theme/nomiTheme'
 import { useNomiColorScheme } from './theme/colorScheme'
 import i18n from './i18n'
 import { currentWorkbenchFloatingTopOffset } from './ui/app-shell/windowChrome'
@@ -18,7 +18,7 @@ export function NomiAppProviders({ children }: { children: React.ReactNode }): J
 
   return (
     <I18nextProvider i18n={i18n}>
-      <MantineProvider theme={nomiTheme} forceColorScheme={colorScheme} defaultColorScheme={colorScheme}>
+      <MantineProvider theme={nomiTheme} cssVariablesResolver={nomiCssVariablesResolver} forceColorScheme={colorScheme} defaultColorScheme={colorScheme}>
         <ModalsProvider>
           <Notifications
             className="pointer-events-none [&[data-position=top-right]]:!right-3 [&[data-position=top-right]]:grid [&[data-position=top-right]]:gap-2 [body:has([data-nomi-right-panel=model])_&]:!right-[344px] [body:has([data-nomi-right-panel=tasks])_&]:!right-[404px]"

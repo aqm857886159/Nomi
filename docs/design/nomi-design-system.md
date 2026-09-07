@@ -288,7 +288,47 @@ DaVinci Resolve 确实有「选中跟随播放头」，但它是 **opt-in 且默
 |---|---|---|---|
 | `--nomi-accent` | `oklch(0.55 0.13 250)` | 中等饱和的蓝紫 | 选中态描边、链接、主操作 hover、字标中间的 m、logo loading |
 | `--nomi-accent-soft` | `color-mix(accent 12%, paper)` | 极浅蓝紫 | 选中态背景、accent 浅底 |
-| `--nomi-warning` | `oklch(0.62 0.14 75)` | 克制的琥珀 | 通知 warning 图标；暗色主题提亮到 `0.78 0.13 75` |
+
+##### 2.1.2b 状态色（四语义 × 四档，2026-09-07 用户拍板「候选 C」）
+
+三条约束（抄 Primer / Geist / Linear 的克制）：
+
+1. **base 亮度平台对齐 accent**（浅 `0.55` / 暗 `0.70–0.72`）——语义靠**色相**区分，不靠「谁更亮更艳」。
+2. **彩度 ≤ accent 的 0.13**（warning/success 压到 `0.085–0.09`）——状态色不许抢 accent 的戏。
+3. **`-soft` / `-edge` 是色阶上独立的一档，不是 base 的 alpha**。
+
+> ⚠️ 第 3 条是 2026-09-07 修掉的一次**错规格**。初版写成 `color-mix(base 18%, transparent)`，把 L0.55 的暗 base 摊薄成浅底，实测落在 **L≈0.92** —— 比成熟系统的浅底档暗 4 个点，看上去发灰发土（警告条从奶油变米灰、错误条从淡粉变脏粉）。那是 GitHub 的**暗色 chip** 配方，套到浅色上不成立。
+>
+> 实测参照：Geist `red-200` `#FFEBEB` = `L0.960 C0.022`；Mantine 浅底 `L 0.959–0.977 / C 0.017–0.024`。都是独立一档，且**贴着 sRGB 色域天花板**——L≥0.955 时红/蓝色相的最大彩度只有 `0.020–0.023`，所以浅底不可能「又浅又艳」，只能取到天花板的九成。暗色底则走低亮度路线（`L≈0.29 / C≤0.05`），两套值必须分别写，不能靠 alpha 自动翻。
+
+| Token | 浅色 | 暗色 | 用途 |
+|---|---|---|---|
+| `--nomi-danger` | `oklch(0.55 0.13 25)` | `oklch(0.72 0.13 25)` | 失败、破坏性操作 |
+| `--nomi-danger-ink` | `oklch(0.45 0.13 25)` | `oklch(0.82 0.13 25)` | danger chip 上的小字 |
+| `--nomi-danger-soft` | `oklch(0.955 0.021 25)` | `oklch(0.3 0.048 25)` | danger chip / 行底 |
+| `--nomi-danger-edge` | `oklch(0.895 0.052 25)` | `oklch(0.4 0.07 25)` | danger chip 描边 |
+| `--nomi-warning` | `oklch(0.55 0.085 72)` | `oklch(0.72 0.085 72)` | 需确认、能力缺口提示 |
+| `--nomi-warning-ink` | `oklch(0.45 0.085 72)` | `oklch(0.82 0.085 72)` | warning 小字 |
+| `--nomi-warning-soft` | `oklch(0.968 0.024 72)` | `oklch(0.295 0.04 72)` | warning 底 |
+| `--nomi-warning-edge` | `oklch(0.905 0.07 72)` | `oklch(0.395 0.058 72)` | warning 描边 |
+| `--nomi-success` | `oklch(0.55 0.09 145)` | `oklch(0.72 0.09 145)` | 完成、已导出 |
+| `--nomi-success-ink` | `oklch(0.45 0.09 145)` | `oklch(0.82 0.09 145)` | success 小字 |
+| `--nomi-success-soft` | `oklch(0.962 0.033 145)` | `oklch(0.295 0.042 145)` | success 底 |
+| `--nomi-success-edge` | `oklch(0.905 0.07 145)` | `oklch(0.395 0.06 145)` | success 描边 |
+| `--nomi-info` | `var(--nomi-accent)` | 同左（accent 自己翻） | 中性提示、排队中 |
+| `--nomi-info-ink` | `oklch(0.45 0.13 250)` | `oklch(0.82 0.13 250)` | info 小字 |
+| `--nomi-info-soft` | `oklch(0.957 0.021 250)` | `oklch(0.295 0.045 250)` | info 底 |
+| `--nomi-info-edge` | `oklch(0.9 0.048 250)` | `oklch(0.395 0.065 250)` | info 描边 |
+
+> ⚠️ **`-ink` 不是可选装饰**。base 压在自己的 soft 底上对比只有 **4.25–4.51**（真机 Chromium canvas 采样，非推算），够不到 WCAG AA 小字的 4.5。用 `-ink` 后实测 **6.48–6.90**（浅）/ **7.19–8.09**（暗），四语义 × 明暗八格全部 ≥4.5。写 chip 小字一律 `text-nomi-<语义>-ink`，不要直接用 base。
+>
+> ⚠️ **`info` 就是 `accent` 本身（别名，不是第二个蓝）**。2026-09-07 修：初版给 info 单写 `oklch(0.55 0.09 250)` —— 与 accent 同色相、同亮度、只差 `ΔC 0.04`，小 chip 上「提示」和「主操作」根本分不开，等于一份并行版（P1）。成熟系统本来就用品牌蓝当 info（Primer 的 accent 兼任 info、Geist 用 blue 表 info/production），故收成别名。`-ink` / `-soft` / `-edge` 三档按上面的规则从 accent 的色相彩度派生。
+
+##### 2.1.2c Mantine 色板重映射（第三个出口）
+
+Mantine 组件的 `color` prop 收的是**色板名**（`red` / `grape` / `teal`…），不是我们的语义 token。`tailwind.config.ts` 的 `mantineSemanticPalette()` 把 12 个色板名全部收进四个语义（`red|pink→danger`、`yellow|orange→warning`、`green|teal|lime→success`、`blue|cyan|indigo|violet|grape→info`），中性的 `gray`/`dark` 不动。
+
+这层是**第二道防线**；根因防线在组件层：`StatusBadge` / `DesignBadge` 都只收封闭的 `tone` 词表（`neutral|info|success|warning|danger`），不透传裸 `color`。
 
 #### 2.1.3 时间轴轨道色（媒体类型区分，定义在 `tailwind.config.ts` addBase，镜像在 `nomi-tokens.css`）
 
@@ -301,15 +341,17 @@ DaVinci Resolve 确实有「选中跟随播放头」，但它是 **opt-in 且默
 | `--nomi-snap-tag` | `oklch(0.45 0.18 30)` | 深橙 | 吸附标签 |
 | `--workbench-text` | `oklch(0.56 0.17 305)` | 紫 | 预览时间轴文字轨（字幕/标题卡），与图片轨蓝、视频轨青区分 |
 
-#### 2.1.4 工作区语义色（定义在 tailwind.config.ts addBase `:root`，⚠️ 这几个是 hex/rgba 落在 ② 层）
+#### 2.1.4 工作区语义色（定义在 tailwind.config.ts addBase `:root`，② 层）
 
-> 注：这层语义色是 **hex/rgba 直写**（历史原因），不是 oklch token。消费方**只用类名**（`text-workbench-danger` 等），不要把这些 hex 抄进组件。理想态应回收进 ① 层 oklch，见 §14 漂移。定义在 `:root` 而非 `.workbench-shell` 作用域——CSS 变量沿 DOM 继承，作用域定义会让 portal / 库页浮层静默退灰（2026-08-24 收口，docs/plan/2026-08-24-workbench-token-root-scope.md）。
+> 注：**状态色三族（success / danger / warning）已在 2026-09-07 收口成 ① 层 `--nomi-*` 的别名**，不再各写一份 iOS hex。那份 hex 曾是与根层 oklch 并行的第二真相源：两边各自漂移，明暗切换只有一边跟着动。现在 `--workbench-danger: var(--nomi-danger)`，全仓 240 处消费点零改动跟着变；暗色块也不再重定义它们（`--nomi-*` 自己翻，工作区层自动跟）。
+>
+> 剩下的 hex/rgba（video / hover / pressed / backdrop 等）是**非状态语义**（轨道色、交互底），仍在 ② 层直写——它们不参与状态语义体系，本轮不动。消费方**只用类名**（`text-workbench-danger` 等），不要把值抄进组件。定义在 `:root` 而非 `.workbench-shell` 作用域——CSS 变量沿 DOM 继承，作用域定义会让 portal / 库页浮层静默退灰（2026-08-24 收口，docs/plan/2026-08-24-workbench-token-root-scope.md）。
 
 | Token | 实际值 | 用途 |
 |---|---|---|
-| `--workbench-success` / `-soft` | `#34c759` / `rgba(52,199,89,.12)` | 成功语义 |
-| `--workbench-success-ink` | `#248a3d` | 成功态深字 |
-| `--workbench-danger` / `-soft` | `#ff3b30` / `rgba(255,59,48,.1)` | 错误语义 |
+| `--workbench-success` / `-soft` / `-ink` | `var(--nomi-success)` / `-soft` / `-ink` | 成功语义（① 层别名）|
+| `--workbench-danger` / `-soft` / `-ink` | `var(--nomi-danger)` / `-soft` / `-ink` | 错误语义（① 层别名）|
+| `--workbench-warning` / `-soft` / `-ink` | `var(--nomi-warning)` / `-soft` / `-ink` | 警示语义（① 层别名）|
 | `--workbench-video` / `-soft` | `#00a886` / `rgba(0,168,134,.11)` | 视频轨青 |
 | `--workbench-hover` | `rgba(60,60,67,.06)` | 通用 hover 底 |
 | `--workbench-pressed` | `rgba(60,60,67,.09)` | 通用按下底 |
@@ -1036,7 +1078,6 @@ CSS 不会报错、不会回退到默认值，而是**静默作废整条声明**
 | ~~S2~~ ✅ 已清 | `color-scheme: light dark` | 与 light-only 矛盾 | 已改 `color-scheme: light` |
 | ~~S3~~ ✅ 已清 | Inter / Fraunces 未打包 | 品牌字干净机器回退 | 已装 `@fontsource-variable/{inter,fraunces}` 自托管，字栈首位置 `"Inter Variable"`/`"Fraunces Variable"`（§2.6）|
 | ~~S4~~ ✅ 已清 | `--handle-color-*` 0 消费点死 token | 死代码 | 已随 S1 删除（连线另有取色路径，确认 0 悬空引用）|
-| S5 | 语义色 `--workbench-success/danger/video` 等是 hex/rgba（② 层，tailwind.config.ts addBase；2026-08-24 已收口到 `:root` 并入 check:tokens 第 6 类），非 oklch | 与「颜色只写 oklch」不齐（§2.1.4）| 回收进 `--nomi-*` oklch 体系（**未做**，留 backlog；值本身未动）|
 
 ### 14.2 组件级（用户可见面 vs 文档不一致 · 2026-06-21 建表，**2026-09-07 逐条重跑**）
 
@@ -1079,7 +1120,8 @@ CSS 不会报错、不会回退到默认值，而是**静默作废整条声明**
 
 ## 13. 维护
 
-- 本文档版本 **v2.1**（真实色值 + Logo 解剖/调用点地图 + §0.5 真相源全景 + §14 漂移诚实标注），对应代码 **v0.21.0**
+- 本文档版本 **v2.2**（真实色值 + Logo 解剖/调用点地图 + §0.5 真相源全景 + §14 漂移诚实标注），对应代码 **v0.21.0**
+- **v2.2（2026-09-07）状态色收口**：四语义（danger/warning/success/info）× 四档（base/-ink/-soft/-edge）落地候选 C，见 §2.1.2b；`--workbench-success/danger/warning` 三族从 iOS hex 改为 ① 层别名（§14.1 S5 因此清掉）；新增 Mantine 色板重映射 + `DesignBadge` 封闭 tone 词表（§2.1.2c）。同日修两处规格错误：`-soft`/`-edge` 从「base 的 alpha」改为色阶上独立的一档（alpha 版浅底 L≈0.92 发灰），`info` 从近重复的独立蓝收成 `accent` 的别名
 - **重审记录**：v0.10.x（2026-06-21 建表）→ **v0.21.0（2026-09-07 重审）**：统一 §0.5 真相源（删掉 §14.1 里那段与它相反的「更正」）、§14.2 漂移清单逐条重跑（17 条中 13 条判已修删除、1 条更新、新增 3 条文档主张与现实背离）、§2.7 动效拆成 duration + ease 两个 token。中间 11 个 minor 未重跑，是这次删掉 13 条的原因
 - **下次重审的触发条件**：跨 ≥5 个 minor，或任一次 §14.2 条目数反向增长
 - 每次新增 §4 / §5 entry 时 bump 一次小版本
