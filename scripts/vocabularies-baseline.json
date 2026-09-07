@@ -183,6 +183,11 @@
       "reason": "ApiKeyDecryptStatus 是首次真实执行时的凭据可解密性合同：missing 表示没有可用记录，needs_resave 表示 legacy plaintext 仅可用于迁移提示且不可执行，locked 表示 safeStorage 密文存在但宿主无法解密，ok 表示取得可用明文；它会触碰解密能力，与零解密的 textBrain metadata readiness 正交。owner 已上移到中立契约层 electron/shared/contracts/apiKeyStatus.ts（renderer connector DTO 与主进程凭据层都从此 derive，跨进程不各写一份）；secrets.ts 只再导出，成员唯一定义在此 as-const tuple。"
     },
     {
+      "site": "electron/networkOutboundPolicy.ts::type:OutboundStage/type-union",
+      "members": ["retrieval", "submit"],
+      "reason": "OutboundStage 回答的是「这次出站被拦时，用户的钱怎么样了」——不是任务状态，也不是流程阶段，所以不复用 GenerationProviderTaskState / McpGenerationPhase 那些既有词表（它们描述上游任务走到哪一步，而这里上游根本没被请求到）。submit 表示判据跑在 fetchVendorWithBaseFallback 之前、连接一次都没建立，故供应商必然未计费、也不存在可找回的 taskId，用户的下一步是修好网络重新生成；retrieval 表示提交已成功、上游多半已出片、钱已经付过，丢的只是那一次下载，下一步是免费重新拉取。两者共用一句话就会说反方向，因此成员集只此一处定义，networkOutboundMessage 的文案分支与 nomiErrorCodes 的 outbound-blocked / outbound-blocked-submit 两个码都从它 derive。"
+    },
+    {
       "site": "electron/catalog/seedBuiltins.ts::type:CatalogLifecycle/type-union",
       "members": [
         "companion",
