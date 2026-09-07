@@ -1,5 +1,5 @@
 ---
-name: director.style-otomo-wright
+name: director-style-otomo-wright
 description: 导演风格融合招式·大友启史 × 埃德加·赖特（时尚动作怪盗 DNA）——按情节类型（飙车/打斗/跑酷/盗窃潜入/文戏温情/时尚换装登场）分别配运镜 + 剪辑节奏 + 声画卡点；Nomi 做高燃动作 / 时尚怪盗戏、想要这种质感时套用。运镜写进镜头 prompt，卡点节奏当时间轴剪辑参考，经应用内 Seedance / 可灵生成。
 ---
 

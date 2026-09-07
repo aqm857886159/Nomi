@@ -172,7 +172,7 @@ export function useAgentPanelV4Actions(surface: ResidentSurface, data: AgentPane
       ?? (surface === 'storyboard' ? 'workbench.storyboard.planner'
         : surface === 'creation' ? 'workbench.creation.general'
           : surface === 'preview' ? 'workbench.timeline.editor'
-            : 'workbench.generation.canvas-planner')
+            : 'workbench-generation')
     let target: TargetRef
     let preconditions: PreconditionSet | undefined
     if (isDocumentSurface(surface)) {

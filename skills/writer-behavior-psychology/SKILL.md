@@ -1,5 +1,5 @@
 ---
-name: writer.behavior-psychology
+name: writer-behavior-psychology
 description: 行为心理学编剧工具——把认知失调 / 依恋理论 / 防御机制 / 微表情等心理学工具转化为角色行为设计与观众心理操控。Nomi 创作区设计角色行为/心理转折时参考。
 ---
 

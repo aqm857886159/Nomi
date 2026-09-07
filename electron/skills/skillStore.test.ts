@@ -6,12 +6,9 @@ import { findSkillRecord, isSkillSelectableInWorkbench, normalizeSkillLookupKey,
 
 function manifest(partial: Partial<SkillManifest>): SkillManifest {
   return {
-    name: "test.skill",
     version: "1.0.0",
-    description: "Test skill",
     tools: [],
     requiredProviders: [],
-    permissions: [],
     ...partial,
   };
 }
@@ -50,7 +47,7 @@ describe("findSkillRecord", () => {
   });
 
   it("matches by prefix (e.g. creation mode key under a base skill name)", () => {
-    expect(findSkillRecord("workbench.generation.canvas-planner", "", records)?.name).toBe(
+    expect(findSkillRecord("workbench-generation", "", records)?.name).toBe(
       "workbench.generation",
     );
   });
@@ -71,7 +68,7 @@ describe("isSkillSelectableInWorkbench", () => {
       manifest: manifest({ selectableInWorkbench: true }),
     })).toBe(true);
     expect(isSkillSelectableInWorkbench({
-      ...record("workbench.generation.canvas-planner", "workbench-generation"),
+      ...record("workbench-generation", "workbench-generation"),
       manifest: manifest({ selectableInWorkbench: false }),
     })).toBe(false);
   });

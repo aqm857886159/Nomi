@@ -140,12 +140,9 @@ describe('Agent facade delegates exactly one turn to pi + bound context', () => 
       description: 'Camera craft',
       body: 'Camera body',
       manifest: {
-        name: 'craft.camera',
         version: '1.0.0',
-        description: 'Camera craft',
         tools: [],
         requiredProviders: [],
-        permissions: [],
         requestedCapabilities: ['canvas.read'],
       },
       origin: 'builtin',

@@ -1,6 +1,16 @@
 import type { StoryboardProfile } from './storyboardPlan'
 
-/** skill.json 的两个内置片种模板；profile 只声明文本骨架，不另存结构化列。 */
+/**
+ * 两个内置片种模板 —— 这份 TS 表就是唯一真相源。
+ *
+ * 2026-09-07 更正一条说了很久的谎：这里原本写着「skill.json 的两个内置片种模板」，
+ * 而 `skills/workbench-storyboard-planner/skill.json` 里确实有过一个同名的
+ * `storyboardProfile` 块——但它从来没有被读过。它不在 manifest 的 zod schema 里，
+ * 解析时被静默剥掉，从未进入 SkillRecord。两份甚至已经漂了（那边写中文字面量
+ * 「景别·运镜」，这边是 i18n key）。清单退场时那个块一并删掉，这里补上实情。
+ *
+ * profile 只声明文本骨架，不另存结构化列。
+ */
 export const STORYBOARD_PROFILES: Record<string, StoryboardProfile> = {
   'genre.short-drama': {
     aspect: '9:16',

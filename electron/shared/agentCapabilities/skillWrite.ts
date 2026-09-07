@@ -3,13 +3,12 @@ import { z } from "zod";
 import type { CapabilityContract } from "./capabilityContract";
 
 /**
- * Skill authoring is a project-scoped, reversible package write.  The
- * authoritative manifest parser lives in electron/skills; this shared schema
- * intentionally validates only the wire envelope so the capability boundary
- * does not import the skill loader (which would create a registry cycle).
+ * Skill authoring is a project-scoped, reversible package write.  A skill is one
+ * file — SKILL.md, whose YAML frontmatter is the only manifest — so this wire
+ * envelope carries the markdown and nothing else; the authoritative frontmatter
+ * parser lives in electron/skills and is not imported here (that would create a
+ * registry cycle).  See docs/plan/2026-09-07-skill-format-convergence.md.
  */
-const skillManifestWireSchema = z.record(z.unknown());
-
 export const skillWriteSemanticInputSchema = z
   .object({
     operation: z.literal("author_skill"),
@@ -19,7 +18,6 @@ export const skillWriteSemanticInputSchema = z
       .min(1)
       .max(160)
       .regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/, "dirName must be a safe ASCII slug"),
-    manifest: skillManifestWireSchema,
     skillMarkdown: z.string().trim().min(1).max(1024 * 1024),
   })
   .strict();

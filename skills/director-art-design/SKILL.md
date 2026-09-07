@@ -1,6 +1,6 @@
 ---
-name: director.art-design
-description: 服化道——设计「人物设定图」与「场景环境图」的生图提示词，含顶部「风格前缀块」（摄影机/胶片/调色/画幅等烧进画面的统一风格）+ 生图 avoid（多指/文字水印/穿帮等）+ identity DNA（角色跨图一致的关键特征锁定）。Nomi 为角色/场景等视觉 anchor（`carrier: visual`）生成参考图、写它的生图 prompt 时参考。
+name: director-art-design
+description: "服化道——设计「人物设定图」与「场景环境图」的生图提示词，含顶部「风格前缀块」（摄影机/胶片/调色/画幅等烧进画面的统一风格）+ 生图 avoid（多指/文字水印/穿帮等）+ identity DNA（角色跨图一致的关键特征锁定）。Nomi 为角色/场景等视觉 anchor（`carrier: visual`）生成参考图、写它的生图 prompt 时参考。"
 ---
 
 # 服化道（视觉 anchor 生图提示词）

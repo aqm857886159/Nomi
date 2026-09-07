@@ -139,6 +139,9 @@ importers:
       immer:
         specifier: ^11.1.8
         version: 11.1.8
+      js-yaml:
+        specifier: 4.1.1
+        version: 4.1.1
       leafer-ui:
         specifier: ^2.1.0
         version: 2.1.7
@@ -218,6 +221,9 @@ importers:
       '@playwright/test':
         specifier: 1.60.0
         version: 1.60.0
+      '@types/js-yaml':
+        specifier: ^4.0.9
+        version: 4.0.9
       '@types/node':
         specifier: 22.19.17
         version: 22.19.17
@@ -266,9 +272,6 @@ importers:
       globals:
         specifier: ^17.6.0
         version: 17.6.0
-      js-yaml:
-        specifier: 4.1.1
-        version: 4.1.1
       playwright:
         specifier: ^1.60.0
         version: 1.60.0
@@ -2609,6 +2612,9 @@ packages:
   '@types/http-cache-semantics@4.2.0':
     resolution: {integrity: sha512-L3LgimLHXtGkWikKnsPg0/VFx9OGZaC+eN1u4r+OB1XRqH3meBIAVC2zr1WdMH+RHmnRkqliQAOHNJ/E0j/e0Q==}
 
+  '@types/js-yaml@4.0.9':
+    resolution: {integrity: sha512-k4MGaQl5TGo/iipqb2UDG2UwjXziSWkh0uysQelTlJpX1qGlpUZYm8PnO4DxG1qBomtJUdYJ6qR6xdIah10JLg==}
+
   '@types/json-schema@7.0.15':
     resolution: {integrity: sha512-5+fP8P8MFNC+AyZCDxrB2pkZFPGzqQWUzpSeuuVLvm8VMcorNYavBqoFcxK8bQz4Qsbn4oUEEem4wDLfcysGHA==}
 
@@ -2793,6 +2799,7 @@ packages:
   '@xmldom/xmldom@0.8.13':
     resolution: {integrity: sha512-KRYzxepc14G/CEpEGc3Yn+JKaAeT63smlDr+vjB8jRfgTBBI9wRj/nkQEO+ucV8p8I9bfKLWp37uHgFrbntPvw==}
     engines: {node: '>=10.0.0'}
+    deprecated: this version has critical issues, please update to the latest version
 
   '@xmldom/xmldom@0.9.10':
     resolution: {integrity: sha512-A9gOqLdi6cV4ibazAjcQufGj0B1y/vDqYrcuP6d/6x8P27gRS8643Dj9o1dEKtB6O7fwxb2FgBmJS2mX7gpvdw==}
@@ -8891,6 +8898,8 @@ snapshots:
       '@types/unist': 3.0.3
 
   '@types/http-cache-semantics@4.2.0': {}
+
+  '@types/js-yaml@4.0.9': {}
 
   '@types/json-schema@7.0.15': {}
 

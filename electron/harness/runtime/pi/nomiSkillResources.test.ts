@@ -92,22 +92,19 @@ describe('Nomi skill resource catalog', () => {
     await Promise.all([
       writeFile(join(packageDir, 'SKILL.md'), [
         '---',
-        'name: markdown.camera',
-        'description: Markdown description must lose to the manifest',
+        'name: camera',
+        'description: Frontmatter is the only manifest',
         'disable-model-invocation: true',
+        'metadata:',
+        '  nomi:',
+        '    version: "1.0.0"',
+        '    tools: []',
+        '    required-providers: []',
         '---',
         'Use the camera method.',
       ].join('\n')),
-      writeFile(join(packageDir, 'skill.json'), JSON.stringify({
-        name: 'manifest.camera',
-        version: '1.0.0',
-        description: 'Manifest description is authoritative',
-        tools: [],
-        requiredProviders: [],
-        permissions: [],
-      })),
-      writeFile(join(nested, 'SKILL.md'), '---\nname: nested.camera\ndescription: Nested\n---\nIgnore me.'),
-      writeFile(join(repository, 'loose.md'), '---\nname: loose.camera\ndescription: Loose\n---\nIgnore me.'),
+      writeFile(join(nested, 'SKILL.md'), '---\nname: nested-camera\ndescription: Nested\n---\nIgnore me.'),
+      writeFile(join(repository, 'loose.md'), '---\nname: loose-camera\ndescription: Loose\n---\nIgnore me.'),
     ]);
     try {
       const roots = [{ path: repository, source: 'repository' as const }];
@@ -127,11 +124,8 @@ describe('Nomi skill resource catalog', () => {
         name: canonical[0].name,
         body: expect.stringContaining('Use the camera method.'),
       });
-      await expect(catalog.read('manifest-camera', canonical[0].contentHash)).resolves.toMatchObject({
-        name: canonical[0].name,
-      });
-      expect(listed[0].name).toBe('manifest.camera');
-      expect(listed[0].description).toBe('Manifest description is authoritative');
+      expect(listed[0].name).toBe('camera');
+      expect(listed[0].description).toBe('Frontmatter is the only manifest');
     } finally {
       await rm(root, { recursive: true, force: true });
     }

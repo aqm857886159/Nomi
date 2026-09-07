@@ -6,12 +6,9 @@ import type { SkillRecord } from "./skillStore";
 import { listSkillsForRenderer } from "./skillIpc";
 
 const manifest = (partial: Partial<SkillManifest>): SkillManifest => ({
-  name: "test.skill",
   version: "1.0.0",
-  description: "Test skill",
   tools: [],
   requiredProviders: [],
-  permissions: [],
   ...partial,
 });
 
@@ -21,7 +18,7 @@ const record = (partial: Partial<SkillRecord>): SkillRecord => ({
   filePath: "/tmp/test-skill/SKILL.md",
   description: "Test skill",
   body: "Use the test skill.",
-  manifest: manifest({ name: "test.skill" }),
+  manifest: manifest({}),
   origin: "builtin",
   audience: "internal",
   packageVersion: SKILL_PACKAGE_VERSION,
@@ -39,39 +36,39 @@ describe("listSkillsForRenderer", () => {
     const { readSkillRecords } = await import("./skillStore");
     vi.mocked(readSkillRecords).mockReturnValue([
       record({
-        name: "workbench.storyboard.planner",
+        name: "workbench-storyboard-planner",
         directoryName: "workbench-storyboard-planner",
-        manifest: manifest({ name: "workbench.storyboard.planner", selectableInWorkbench: true }),
+        manifest: manifest({ selectableInWorkbench: true }),
       }),
       record({
-        name: "workbench.generation.canvas-planner",
+        name: "workbench-generation",
         directoryName: "workbench-generation",
-        manifest: manifest({ name: "workbench.generation.canvas-planner" }),
+        manifest: manifest({}),
       }),
     ]);
 
     expect(listSkillsForRenderer().map((skill) => skill.name)).toEqual([
-      "workbench.storyboard.planner",
+      "workbench-storyboard-planner",
     ]);
   });
 
   it("keeps user Skills and existing playbooks visible while excluding malformed or routing-only built-ins", async () => {
     const { readSkillRecords } = await import("./skillStore");
     vi.mocked(readSkillRecords).mockReturnValue([
-      record({ name: "brand.promo", manifest: manifest({ name: "brand.promo", stages: [{ id: "script", goal: "Write", tools: [] }] }) }),
-      record({ name: "workbench.broken", manifest: null, manifestError: "invalid manifest" }),
-      record({ name: "workbench.routing", manifest: manifest({ name: "workbench.routing" }) }),
-      record({ name: "user.skill", origin: "user", manifest: null, manifestError: "invalid manifest" }),
-      record({ name: "wrong.scope", manifest: manifest({ name: "wrong.scope", audience: "mcp" }) }),
+      record({ name: "brand-promo", manifest: manifest({ stages: [{ id: "script", goal: "Write", tools: [] }] }) }),
+      record({ name: "workbench-broken", manifest: null, manifestError: "invalid metadata.nomi" }),
+      record({ name: "workbench-routing", manifest: manifest({}) }),
+      record({ name: "user-skill", origin: "user", manifest: null, manifestError: "invalid metadata.nomi" }),
+      record({ name: "wrong-scope", manifest: manifest({ audience: "mcp" }) }),
     ]);
 
     expect(listSkillsForRenderer().map((skill) => skill.name)).toEqual([
-      "brand.promo",
-      "user.skill",
+      "brand-promo",
+      "user-skill",
     ]);
-    expect(listSkillsForRenderer().find((skill) => skill.name === "user.skill")).toMatchObject({
+    expect(listSkillsForRenderer().find((skill) => skill.name === "user-skill")).toMatchObject({
       origin: "user",
-      manifestError: "invalid manifest",
+      manifestError: "invalid metadata.nomi",
     });
   });
 });

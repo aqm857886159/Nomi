@@ -1,5 +1,5 @@
 ---
-name: workbench.fixation.planner
+name: workbench-fixation-planner
 description: 定妆/定景规划师。从一段剧本里识别主要角色与关键场景，为每个建一张卡节点，并注入「身份板/场景板」提示词（剧本驱动、逐字标注、身份锁定），写入生成画布。
 ---
 

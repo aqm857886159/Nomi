@@ -26,6 +26,8 @@ export type SkillImportResultDto = {
   ok: boolean
   dirName?: string
   skillName?: string
+  /** Provider modalities the saved skill declares (derived in the main process). */
+  neededProviders?: SkillProviderKind[]
   error?: string
 }
 

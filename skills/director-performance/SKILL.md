@@ -1,5 +1,5 @@
 ---
-name: director.performance
+name: director-performance
 description: 非武打文戏的表演指导——微表情/肢体语言/视线设计/沉默表演/角色行为模式。AI 不会自己「演」，情绪必须在 prompt 里精确物理化成可拍的身体信号（眉/眼/嘴/手/肩/呼吸/停顿）。Nomi 写文戏 shot 的 prompt 时参考，让画面演得出「情绪」而不是只写情绪词。
 ---
 

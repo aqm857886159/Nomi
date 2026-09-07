@@ -1,5 +1,5 @@
 ---
-name: director.keyframe-review
+name: director-keyframe-review
 description: 参考图（角色/场景设定图）的 Go/No-Go 审图清单——逐项检查 + 判定规则 + 反馈模板，帮用户快速识别设定图是否合格、不合格时怎么反馈调整重抽；Nomi 生成参考图后审核时用。
 ---
 

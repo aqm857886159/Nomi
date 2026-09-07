@@ -1,6 +1,14 @@
 ---
-name: workbench.creation
-description: 创作区 AI 助手。支持普通写作、剧本创作、提示词生成、分镜描述。通过 documentAction 协议返回修改建议，用户确认后才写入。
+name: workbench-creation
+description: Creation-area AI assistant for writing, rewriting, screenwriting, prompt generation, and shot-list drafting. Returns documentAction proposals for user confirmation before any write.
+metadata:
+  nomi:
+    version: 1.0.0
+    tools:
+      - creation_read
+      - creation_write
+    required-providers:
+      - text
 ---
 
 # 创作区 AI 助手
@@ -88,3 +96,8 @@ Act 3: peaceful resolution at dawn, soft watercolor style, diffused morning ligh
 
 - 不要直接写入，必须通过 JSON action 让用户确认
 - 不要在 content 里加使用说明，只放正文
+
+## 示例
+
+- **Polish current selection**：Improve clarity and rhythm of the selected paragraph.
+- **Three-act script**：Draft a three-act structure from a one-line premise.

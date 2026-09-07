@@ -1,5 +1,5 @@
 ---
-name: director.staging
+name: director-staging
 description: 多角色调度方法论——3 人以上同框的站位设计/视线网络/注意力引导/前后景分层/AI 生成中的多角色一致性控制；Nomi 写多人 shot 的 prompt（谁站哪/朝向/视线/谁是焦点）时参考，走应用内 Seedance/可灵生成。
 ---
 

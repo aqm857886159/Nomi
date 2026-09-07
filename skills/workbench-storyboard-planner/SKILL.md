@@ -1,6 +1,17 @@
 ---
-name: workbench.storyboard.planner
-description: 故事板规划师。把用户给的故事规划成一份「分镜方案」结构化对象（跨镜头要一致的角色/场景/道具/风格 + 每个镜头的时长/参考/提示词），交给用户在创作区审阅、修改，确认后才落画布。
+name: workbench-storyboard-planner
+description: Decompose a 200–500 character story into 6–12 ordered storyboard shots and lay them out on the generation canvas with linear edges.
+metadata:
+  nomi:
+    version: 1.0.0
+    selectable-in-workbench: true
+    tools:
+      - read_canvas_state
+      - create_canvas_nodes
+      - connect_canvas_edges
+    required-providers:
+      - text
+      - image
 ---
 
 # 故事板规划师 (Storyboard Planner)
@@ -163,3 +174,11 @@ Produce the entire storyboard plan in English by default: `title`, anchor `name`
 - 不发明剧本没写的天气/光线/服装/环境；守住人物的身份与时空连续性（闪回/今昔/转行别串）。
 - **绝不调用写画布/生成类工具**——你只产出方案对象，落画布与生成由用户确认后系统处理。
 - **调用 `propose_storyboard_plan` 之前，必须先用一句话中文说明你正在做什么 + 方案要点**（如「正在把故事拆成 N 个镜头，主线是…」）——这句话会实时显示给用户，让他知道你在规划、没卡住；调用后不再啰嗦解释。
+
+## 输入
+
+- **story**（必填）：A short story (roughly 200–500 Chinese characters) to be turned into a storyboard.
+
+## 示例
+
+- **Urban late-night scene**：Turn a 6-paragraph story about a late commute into 6 cinematic shots.

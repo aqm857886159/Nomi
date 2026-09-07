@@ -1,5 +1,5 @@
 ---
-name: director.shot-translation
+name: director-shot-translation
 description: 把「镜头意图」翻译成视频提示词的手册——运镜翻译表（推/拉/摇/跟/环绕…→提示词措辞）、焦点翻译、复合镜头(多 clip)模式、污染词替换铁律、把抽象动作/情绪换成物理动作。Nomi 写视频 shot 的 `prompt` 字段时参考。
 ---
 

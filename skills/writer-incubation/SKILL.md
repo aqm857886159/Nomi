@@ -1,5 +1,5 @@
 ---
-name: writer.incubation
+name: writer-incubation
 description: 创意孵化——在有故事骨架之前，基于 Truby 有机结构 + 宋方金人物先于情节 + Kasdan 核心信念检验，通过多轮追问帮用户从碎片里长出故事的根系（主题/人物内核/核心信念/世界）。Nomi 创作区立项初期、还没想清楚要写什么时用。
 ---
 

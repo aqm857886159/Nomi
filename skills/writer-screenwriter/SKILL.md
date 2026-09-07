@@ -1,5 +1,5 @@
 ---
-name: writer.screenwriter
+name: writer-screenwriter
 description: 专业编剧（Lawrence Kasdan《星战》《肖申克》× Tony Gilroy《谍影重重》方法论）——故事结构/场景写作/对白/质量审查，含格式变体（长片/剧集/短片/超短）与严肃叙事风格。Nomi 创作区写剧本时参考。
 ---
 

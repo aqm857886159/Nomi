@@ -1,5 +1,5 @@
 ---
-name: writer.dialogue
+name: writer-dialogue
 description: 对白专家（David Mamet 方法论）——台词创作 / 潜台词设计 / 角色语言个性化 / 对白节拍分析 / 沉默设计。Nomi 创作区写剧本/对白时参考。
 ---
 

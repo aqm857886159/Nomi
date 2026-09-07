@@ -17,11 +17,12 @@ export function createCreationToolHandler(input: {
     }
     if (event.toolName === 'author_skill') {
       const args = event.args && typeof event.args === 'object' ? event.args as Record<string, unknown> : {}
-      const manifest = args.manifest
+      // A skill is one file. Everything the model declares lives in the SKILL.md
+      // frontmatter, so there is nothing to serialise alongside it.
       const result = await importWorkbenchSkill({
         version: 'nomi-skill-v1', exportedAt: Date.now(),
         dirName: typeof args.dirName === 'string' && args.dirName.trim() ? args.dirName : 'imported-skill',
-        files: { 'SKILL.md': typeof args.skillMarkdown === 'string' ? args.skillMarkdown : '', 'skill.json': JSON.stringify(manifest ?? {}, null, 2) },
+        files: { 'SKILL.md': typeof args.skillMarkdown === 'string' ? args.skillMarkdown : '' },
       })
       if (!result.ok) {
         await event.confirm({ ok: false, message: result.error ?? input.skillSaveFailed() })
@@ -31,8 +32,8 @@ export function createCreationToolHandler(input: {
         await event.confirm({ ok: false, denied: true, message: 'creation turn ended after skill save' })
         return
       }
-      const needed = manifest && typeof manifest === 'object' && Array.isArray((manifest as Record<string, unknown>).requiredProviders)
-        ? (manifest as { requiredProviders: SkillProviderKind[] }).requiredProviders : []
+      // The main process derives this from the record that actually landed on disk.
+      const needed = result.neededProviders ?? []
       const saved = { saved: true, skillName: result.skillName, dirName: result.dirName }
       let capability: { missingProviders: SkillProviderKind[]; satisfied: boolean } | undefined
       try {

@@ -1,6 +1,122 @@
 ---
-name: release.media-pack
-description: Nomi 桌面端发版素材包 playbook。先核版本事实和公开样片，再用故事串起核心更新，在 Nomi 中规划/生成/排片，最后诚实交接双语成片、更新图文、社交文案与本地 QA。
+name: release-media-pack
+description: 为 Nomi 桌面端发版制作故事先行的双语宣传片、更新图文与发布文案，并把版本事实、TikHub 样片研究、Nomi 生成和本地后期串成可回溯的素材包。
+metadata:
+  nomi:
+    version: 1.0.0
+    label: 发版素材包
+    author: "@nomi"
+    tools:
+      - read_full_text
+      - read_selection
+      - read_canvas_state
+      - propose_storyboard_plan
+      - create_canvas_nodes
+      - connect_canvas_edges
+      - set_node_prompt
+      - run_generation_batch
+      - arrange_storyboard_to_timeline
+    required-providers:
+      - text
+      - image
+      - video
+    stages:
+      - id: evidence
+        goal: 先冻结当前/上版身份、安装包证据、用户可见变化、限制与官方网址；未验证内容不得写成公开事实。
+        tools:
+          - read_full_text
+          - read_selection
+        pause: true
+        skill-refs:
+          - writer-review
+        model-prefs:
+          - kind: text
+      - id: research
+        goal: 读取已提供的 TikHub 公开样片研究包，提炼钩子、节奏、转场、声音和 CTA 机制；Nomi 当前无 TikHub 工具时必须输出外部研究交接，不得假装已检索。
+        tools:
+          - read_full_text
+          - read_selection
+        depends-on:
+          - evidence
+        pause: true
+        skill-refs:
+          - writer-review
+          - director-transitions
+          - director-sound
+        model-prefs:
+          - kind: text
+      - id: story
+        goal: 让故事先成立，再把核心版本变化作为剧情转折写入 3–4 段、60 秒内的分镜与声音/转场方案，交用户审阅。
+        tools:
+          - read_canvas_state
+          - propose_storyboard_plan
+        depends-on:
+          - research
+        pause: true
+        skill-refs:
+          - writer-screenwriter
+          - writer-structure
+          - writer-review
+          - director-shot-translation
+          - director-cinematography
+          - director-consistency
+          - director-transitions
+          - director-sound
+        model-prefs:
+          - kind: text
+      - id: build
+        goal: 把获批分镜落成画布节点，连接角色、道具和风格锚，写入可直接生成且包含连续性出入点的提示词。
+        tools:
+          - read_canvas_state
+          - create_canvas_nodes
+          - connect_canvas_edges
+          - set_node_prompt
+        depends-on:
+          - story
+        pause: true
+        skill-refs:
+          - director-staging
+          - director-consistency
+          - director-cinematography
+        model-prefs:
+          - kind: image
+          - kind: video
+      - id: generate
+        goal: 用户确认花费后按波次生成：先验证锚点和代表镜头，再扩到关键帧与全部视频；失败只重跑受影响镜头。
+        tools:
+          - read_canvas_state
+          - run_generation_batch
+        depends-on:
+          - build
+        pause: true
+        skill-refs:
+          - director-keyframe-review
+          - director-consistency
+        model-prefs:
+          - kind: image
+          - kind: video
+      - id: assemble
+        goal: 把已生成镜头按故事顺序排入时间轴，保留中央安全区、语义转场和声音提示，分别准备中文与英文后期版本。
+        tools:
+          - read_canvas_state
+          - arrange_storyboard_to_timeline
+        depends-on:
+          - generate
+        pause: true
+        skill-refs:
+          - director-transitions
+          - director-sound
+          - director-keyframe-review
+        model-prefs:
+          - kind: video
+      - id: handoff
+        goal: 输出版本化素材包清单与真实状态；把 TikHub、音乐/音效、HyperFrames/FFmpeg、成片 QA 和发布列为外部后期动作，未完成就降级而非假报。
+        tools: []
+        depends-on:
+          - assemble
+        pause: true
+        model-prefs:
+          - kind: text
 ---
 
 # Nomi 发版素材包
@@ -103,3 +219,13 @@ Nomi 当前没有 TikHub 工具。若用户已提供研究包，就读取并提�
 - `blocked`：缺关键事实、素材、凭据或可用生成/编辑路线，继续只能伪造、越权或盲目花费。
 
 总体状态取必需产物中的最低状态。最终回答必须链接真实文件；任务 ID、节点、静态卡、时间轴预览和编码成功都不能单独证明成片完成。
+
+## 输入
+
+- **releaseEvidence**（必填）：当前版本、上一个版本、PR/提交/发布说明、安装包身份与公开链接；不完整时先标缺口，不猜。
+- **sourceAssets**：已有 AI 视频、品牌素材与参考图；没有时提供要生成的故事 brief。
+- **distribution**：发布平台、画幅、时长和语言；默认 60 秒内、中文和英文两支独立版本。
+
+## 示例
+
+- **Nomi 桌面端版本更新素材包**：从合入 PR 和安装包证据出发，完成公开样片研究、故事分镜、Nomi 生成、双语后期交接、更新图文与社交文案。

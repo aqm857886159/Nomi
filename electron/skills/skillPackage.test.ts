@@ -25,20 +25,26 @@ afterEach(() => {
   while (tmpDirs.length) fs.rmSync(tmpDirs.pop() as string, { recursive: true, force: true });
 });
 
-const validManifest = JSON.stringify({
-  name: "brand.promo",
-  version: "1.0.0",
-  description: "做品牌宣传片",
-  tools: ["propose_storyboard_plan"],
-  requiredProviders: ["text", "image", "video"],
-  permissions: ["create"],
-  stages: [{ id: "s", goal: "g", tools: [], modelPrefs: [{ kind: "video", family: "seedance" }] }],
-});
+/** 一个技能包就是一个 SKILL.md：frontmatter 是唯一清单，正文是方法论。 */
+const validSkillMarkdown = [
+  "---",
+  "name: brand-promo",
+  "description: 做品牌宣传片",
+  "metadata:",
+  "  nomi:",
+  '    version: "1.0.0"',
+  "    tools: [propose_storyboard_plan]",
+  "    required-providers: [text, image, video]",
+  "---",
+  "",
+  "# 正文",
+].join("\n");
 
 describe("isSafeSkillFilePath", () => {
   it("accepts root files and standard knowledge subdirs", () => {
     expect(isSafeSkillFilePath("SKILL.md")).toBe(true);
-    expect(isSafeSkillFilePath("skill.json")).toBe(true);
+    // `.json` 仍是合法的知识层扩展名（references/lookup.json）；它只是不再是清单。
+    expect(isSafeSkillFilePath("references/lookup.json")).toBe(true);
     expect(isSafeSkillFilePath("REFERENCE.txt")).toBe(true);
     // 2026-08-27：这三条以前是 false（禁一切子目录），正是「别人的技能进不来」的根因
     expect(isSafeSkillFilePath("references/shot-list.md")).toBe(true);
@@ -73,16 +79,24 @@ describe("validateSkillPackage", () => {
   const pkg = (files: Record<string, string>) =>
     buildSkillPackage("brand-promo", files, 1700000000000);
 
-  it("accepts a valid package with manifest", () => {
-    const result = validateSkillPackage(pkg({ "SKILL.md": "# body", "skill.json": validManifest }));
+  it("takes the skill name from the frontmatter", () => {
+    const result = validateSkillPackage(pkg({ "SKILL.md": validSkillMarkdown }));
     expect(result.ok).toBe(true);
-    if (result.ok) expect(result.manifest?.name).toBe("brand.promo");
+    if (result.ok) expect(result.skillName).toBe("brand-promo");
   });
 
-  it("accepts a legacy package (SKILL.md only, no manifest)", () => {
+  it("accepts a pure knowledge pack with no Nomi extension block", () => {
+    const result = validateSkillPackage(
+      pkg({ "SKILL.md": "---\nname: notes\ndescription: 只有方法论\n---\n\n# body only" }),
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.skillName).toBe("notes");
+  });
+
+  it("falls back to the directory name when the frontmatter names nothing", () => {
     const result = validateSkillPackage(pkg({ "SKILL.md": "# body only" }));
     expect(result.ok).toBe(true);
-    if (result.ok) expect(result.manifest).toBeNull();
+    if (result.ok) expect(result.skillName).toBe("brand-promo");
   });
 
   it("rejects an incompatible version", () => {
@@ -91,7 +105,7 @@ describe("validateSkillPackage", () => {
   });
 
   it("rejects a package missing SKILL.md", () => {
-    const result = validateSkillPackage(pkg({ "skill.json": validManifest }));
+    const result = validateSkillPackage(pkg({ "references/notes.md": "x" }));
     expect(result.ok).toBe(false);
   });
 
@@ -114,17 +128,11 @@ describe("validateSkillPackage", () => {
     if (!result.ok) expect(result.error).toContain("知识层");
   });
 
-  it("rejects a package whose skill.json fails manifest validation (e.g. archetypeId)", () => {
-    const bad = JSON.stringify({
-      name: "bad",
-      version: "1.0.0",
-      description: "d",
-      tools: [],
-      requiredProviders: ["video"],
-      permissions: ["create"],
-      stages: [{ id: "s", goal: "g", tools: [], modelPrefs: [{ kind: "video", archetypeId: "seedance-2" }] }],
-    });
-    const result = validateSkillPackage(pkg({ "SKILL.md": "b", "skill.json": bad }));
+  it("rejects a SKILL.md whose frontmatter a real YAML parser cannot read", () => {
+    // 未加引号的值里带 ": " —— 我们自己的正则以前读得下去，pi / Claude Code / Codex 直接
+    // 丢掉整个技能。收下它等于把一个「在别的宿主里不存在」的技能落进用户目录。
+    const broken = "---\nname: bad\ndescription: 为 anchor（`carrier: visual`）写提示词\n---\n\n# body";
+    const result = validateSkillPackage(pkg({ "SKILL.md": broken }));
     expect(result.ok).toBe(false);
   });
 });
@@ -144,12 +152,12 @@ describe("FS round-trip (export dir → package → import dir)", () => {
     const srcRoot = mkTmp();
     const srcDir = path.join(srcRoot, "brand-promo");
     fs.mkdirSync(srcDir);
-    fs.writeFileSync(path.join(srcDir, "SKILL.md"), "# brand promo body");
-    fs.writeFileSync(path.join(srcDir, "skill.json"), validManifest);
+    fs.writeFileSync(path.join(srcDir, "SKILL.md"), `${validSkillMarkdown}\n\n# brand promo body`);
+    fs.writeFileSync(path.join(srcDir, "references/../notes.md"), "shot notes");
     fs.writeFileSync(path.join(srcDir, "ignore.bin"), "not shareable"); // 非白名单，应被忽略
 
     const files = readSkillDirFiles(srcDir);
-    expect(Object.keys(files).sort()).toEqual(["SKILL.md", "skill.json"]);
+    expect(Object.keys(files).sort()).toEqual(["SKILL.md", "notes.md"]);
 
     const built = buildSkillPackage("brand-promo", files, 1700000000000);
     const validated = validateSkillPackage(built);

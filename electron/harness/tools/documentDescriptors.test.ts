@@ -41,10 +41,11 @@ describe("Nomi document descriptors", () => {
   });
 
   it("preserves every active description byte", () => {
-    // Captured from documentTools at b4a3f466 before extraction.
+    // 描述是模型看到的东西，改一个字节这里就红——逼人有意识地改，而不是顺手改。
+    // 2026-09-07 重设：author_skill 的描述随格式收敛改写（不再要 skill.json manifest）。
     const descriptions = Object.fromEntries(Object.entries(documentToolDescriptors).map(([name, value]) => [name, value.description]));
     expect(createHash("sha256").update(JSON.stringify(descriptions)).digest("hex"))
-      .toBe("be3e674cf57c9cfd100d46af2313f6764a42913d46ed22ddf4de5e2aec9a04cb");
+      .toBe("15e5c98fafbe47c379d740f034c1f8cef513ff36395854f9648b3dd7a7cecedc");
   });
 
   it("accepts parameterless reads", () => {
@@ -59,20 +60,31 @@ describe("Nomi document descriptors", () => {
     expect(schema.safeParse({}).success).toBe(false);
   });
 
-  it("preserves author_skill manifest and generic model preference contracts", () => {
+  it("asks the model for one file, not a file plus a parallel manifest", () => {
+    // 2026-09-07：author_skill 以前带一份 30 行的 manifest schema，那是同一份清单在模型面前的
+    // 第三份定义（另两份是 skill.json 与它的 zod schema），而且它漏声明了 audience /
+    // requestedCapabilities / skillRefs —— agent 写出来的技能永远声明不了那几样。
+    // 现在只有 dirName + skillMarkdown：frontmatter 就是清单。
+    const schema = documentToolDescriptors.author_skill.parameters;
     const payload = {
       dirName: "story-plan",
-      skillMarkdown: "# Story plan\nPlan then review.",
-      manifest: {
-        name: "story.plan", version: "1.0.0", label: "Story plan", description: "Plan a story",
-        tools: ["read_full_text", "propose_storyboard_plan"], requiredProviders: ["text", "image"], permissions: ["read-only", "create"],
-        stages: [{ id: "plan", goal: "Draft", tools: ["read_full_text"], modelPrefs: [{ kind: "text", family: "reasoning" }] }],
-      },
+      skillMarkdown: [
+        "---",
+        "name: story-plan",
+        "description: Plan a story, then review it.",
+        "metadata:",
+        "  nomi:",
+        '    version: "1.0.0"',
+        "---",
+        "",
+        "# Story plan",
+      ].join("\n"),
     };
-    const schema = documentToolDescriptors.author_skill.parameters;
     expect(schema.parse(payload)).toEqual(payload);
-    expect(schema.safeParse({ ...payload, manifest: { ...payload.manifest, requiredProviders: ["audio"] } }).success).toBe(false);
-    expect(schema.safeParse({ ...payload, manifest: { ...payload.manifest, permissions: ["admin"] } }).success).toBe(false);
     expect(schema.safeParse({ ...payload, skillMarkdown: "" }).success).toBe(false);
+    expect(schema.safeParse({ ...payload, dirName: "" }).success).toBe(false);
+    // 模型必须被告知 frontmatter 的形状，否则它只会写正文。
+    expect(documentToolDescriptors.author_skill.description).toContain("SKILL.md");
+    expect(JSON.stringify(schema.shape.skillMarkdown.description)).toContain("frontmatter");
   });
 });

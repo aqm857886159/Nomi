@@ -200,7 +200,7 @@ export async function sendGenerationCanvasAgentMessage(
     featureKey: input.featureKey,
     selectedNodeIds,
     mode: input.mode === 'chat' ? 'chat' : 'auto',
-    skillKey: input.skill?.key || 'workbench.generation.canvas-planner',
+    skillKey: input.skill?.key || 'workbench-generation',
     skillName: input.skill?.name || '生成区节点规划',
     ...(input.attachments?.length ? { attachments: input.attachments } : {}),
     ...(input.attachmentClaims?.length ? { attachmentClaims: input.attachmentClaims } : {}),
