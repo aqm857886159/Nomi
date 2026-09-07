@@ -128,6 +128,9 @@ export default function GenerationWorkspace({
               'text-body-sm font-medium text-nomi-ink',
               'transition-colors hover:bg-nomi-ink-05',
             )}
+            // 常驻底部：画布上的选择浮条得让开这一块（量法见
+            // generationCanvas/reactFlow/useCanvasBottomDockRects.ts）。
+            data-canvas-bottom-dock="true"
             aria-label={t('generationCommon.workspace.expandTimeline')}
             onClick={() => setTimelineCollapsed(false)}
           >

@@ -136,6 +136,8 @@ export const nodeGroupSchema = z.object({
     w: z.number(),
     h: z.number(),
   }).optional(),
+  // 框头部的一句灰字说明（2026-09-06 框工具第一档）；旧快照无 → undefined。
+  description: z.string().optional(),
   collapsed: z.boolean().optional(),
   // 组入参声明（真边仍是普通 node→node 边）；旧快照无 → undefined。
   inputLinks: z.array(z.object({

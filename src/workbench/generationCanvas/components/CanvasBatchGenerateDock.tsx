@@ -27,6 +27,8 @@ export function CanvasBatchGenerateDock(props: {
         'rounded-full border border-nomi-line bg-nomi-paper/[0.96] shadow-nomi-md pointer-events-auto',
       )}
       data-batch-dock="true"
+      // 常驻底部：选择浮条得让开这一块（量法见 reactFlow/useCanvasBottomDockRects.ts）。
+      data-canvas-bottom-dock="true"
       role="toolbar"
       aria-label={t('generationCommon.production.aria')}
       onPointerDown={(event) => event.stopPropagation()}

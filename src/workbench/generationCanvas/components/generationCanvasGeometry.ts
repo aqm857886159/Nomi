@@ -2,6 +2,7 @@
 // 全是无副作用纯函数（不碰 React / store / DOM），可单测、可复用；行为与抽出前逐字一致。
 
 import type { GenerationCanvasNode, NodeGroup } from '../model/generationCanvasTypes'
+import { frameBoundsFromMembers, unionFrameBounds } from '../model/canvasFrameBounds'
 import { resolveNodeVisualSize } from '../nodes/nodeSizing'
 import type { CanvasGroupBox } from './GroupFrame'
 
@@ -9,9 +10,6 @@ import type { CanvasGroupBox } from './GroupFrame'
 export function getCanvasNodeVisualSize(node: GenerationCanvasNode): { width: number; height: number } {
   return resolveNodeVisualSize(node)
 }
-
-const GROUP_BOX_PADDING = 24
-const GROUP_BOX_LABEL_HEIGHT = 28
 
 export { getWheelZoomFactor, type WheelZoomEvent } from '../../../utils/wheelZoom'
 
@@ -62,6 +60,17 @@ export function centerNodeOffset(node: GenerationCanvasNode, stageSize: { width:
   }
 }
 
+/**
+ * 画布上要画出来的框。
+ *
+ * 2026-09-06 起框的边界是 `union(用户画的矩形, 成员外接矩形 + padding)`——**只长不缩**，
+ * 几何算式住 `model/canvasFrameBounds.ts`（旧组回填与这里共用同一份，不许各算各的）。
+ *
+ * 与改动前的两处差别：
+ *  · **空框照样出框**（以前 `if (!members.length) return []`）——用户画完一个空框总得看得见它；
+ *    真的既没成员又没 frameBounds 时仍然不画，不凭空冒出幽灵框。
+ *  · `empty` 标志随框返回，供 GroupFrame 决定画虚线还是实线（放进第一个东西才变实线）。
+ */
 export function getCanvasGroupBoxes(groups: readonly NodeGroup[], nodes: readonly GenerationCanvasNode[]): CanvasGroupBox[] {
   const nodeById = new Map(nodes.map((node) => [node.id, node]))
   return groups.flatMap((group) => {
@@ -69,19 +78,20 @@ export function getCanvasGroupBoxes(groups: readonly NodeGroup[], nodes: readonl
       const node = nodeById.get(nodeId)
       return node && (node.categoryId || 'shots') === group.categoryId ? [node] : []
     })
-    if (!members.length) return []
-    const minX = Math.min(...members.map((node) => node.position.x))
-    const minY = Math.min(...members.map((node) => node.position.y))
-    const memberSizes = members.map((node) => ({ node, size: getCanvasNodeVisualSize(node) }))
-    const maxX = Math.max(...memberSizes.map(({ node, size }) => node.position.x + size.width))
-    const maxY = Math.max(...memberSizes.map(({ node, size }) => node.position.y + size.height))
+    const contentBounds = frameBoundsFromMembers(members.map((node) => {
+      const size = getCanvasNodeVisualSize(node)
+      return { x: node.position.x, y: node.position.y, width: size.width, height: size.height }
+    }))
+    const bounds = unionFrameBounds(group.frameBounds, contentBounds)
+    if (!bounds) return []
     return [{
       group,
-      left: minX - GROUP_BOX_PADDING,
-      top: minY - GROUP_BOX_PADDING - GROUP_BOX_LABEL_HEIGHT,
-      width: maxX - minX + GROUP_BOX_PADDING * 2,
-      height: maxY - minY + GROUP_BOX_PADDING * 2 + GROUP_BOX_LABEL_HEIGHT,
+      left: bounds.x,
+      top: bounds.y,
+      width: bounds.w,
+      height: bounds.h,
       memberCount: members.length,
+      empty: members.length === 0,
     }]
   })
 }

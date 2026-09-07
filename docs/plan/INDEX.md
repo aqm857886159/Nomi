@@ -99,6 +99,7 @@
 
 | 文件 | 一句话 | 状态 |
 |---|---|---|
+| [2026-09-06-canvas-frame-tool.md](2026-09-06-canvas-frame-tool.md) | **框工具（Frame）第一档**：现役 Group 进化成 Frame——`frameBounds` 从没人读变成真相之一（框只长不缩）、左下工具簇加「框」钮 + F 画框、拖进=入组拖出=退组（拖动中就给计数预览）、头部带说明与 ⋯ 菜单（生成整框 / 整框进时间轴 / 折叠 / 解散）；旧组按包围盒回填一次 | 🚧 |
 | [2026-09-06-ui-shell-version-dialog-node-empty.md](2026-09-06-ui-shell-version-dialog-node-empty.md) | P-01 新版本弹窗与 C-01 生成画布节点共享空态（设计实验室先行） | ✅ |
 | [2026-09-05-canvas-walkthrough-stage-width.md](2026-09-05-canvas-walkthrough-stage-width.md) | 常驻 Agent 面板压窄画布后：自动让位改走自家调度器并合成目标、懒加载节点就地 Suspense、NaN 视口拒收（#488 走查挖出的新卡被面板遮住 + 画布随机整片空白）；走查层由同分支 `_canvasHit.mjs` 收口 | ✅ |
 | [2026-09-03-narrowed-mode-guidance-dismiss.md](2026-09-03-narrowed-mode-guidance-dismiss.md) | 收窄模式指路提示的节点级关闭与项目持久化 | 🚧 |

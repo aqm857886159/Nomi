@@ -86,9 +86,8 @@ describe('canvas drag draft', () => {
     const state = {
       nodes: storeNodes,
       nodeLookup: new Map(storeNodes.map((node) => [node.id, internal(node)])),
-      parentLookup: new Map(),
       hasDefaultNodes: false,
-    } as unknown as Pick<ReactFlowState<GenerationFlowNode>, 'nodes' | 'nodeLookup' | 'parentLookup' | 'hasDefaultNodes'>
+    } as unknown as Pick<ReactFlowState<GenerationFlowNode>, 'nodes' | 'nodeLookup' | 'hasDefaultNodes'>
     const setState = vi.fn((partial: Partial<typeof state>) => Object.assign(state, partial))
 
     applyCanvasDragKernelPositionChanges({ getState: () => state, setState }, [{

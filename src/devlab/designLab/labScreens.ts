@@ -1,4 +1,6 @@
 import { CANVAS_ADD_MENU_STATES } from './canvasAddMenu/canvasAddMenuStates'
+import { CANVAS_FRAME_STATES } from './canvasFrame/canvasFrameStates'
+import { CANVAS_FRAME_CELL_HEIGHT, CANVAS_FRAME_CELL_WIDTH } from './canvasFrame/canvasFrameLabKit'
 import { CANVAS_ADD_CELL_HEIGHT, CANVAS_ADD_CELL_WIDTH } from './canvasAddMenu/canvasAddMenuLabKit'
 import { EDITING_STATES } from './editing/editingStates'
 import { STORYBOARD_STATES } from './storyboard/storyboardStates'
@@ -55,6 +57,14 @@ export const LAB_SCREENS: readonly LabScreen[] = [
     // 三格取景一样大：左缘工具条 + 它右侧展开的菜单要同框，右键菜单也按同一格开列，
     // 免得「常驻」与「展开」两格宽度不同、看不出是同一条工具条。
     cell: { width: CANVAS_ADD_CELL_WIDTH, height: CANVAS_ADD_CELL_HEIGHT },
+  },
+  {
+    id: 'canvas-frame',
+    label: '画布 · 框工具',
+    states: CANVAS_FRAME_STATES,
+    // 六格取景一样大：框的几何是这一屏要看的东西，格子不同宽就没法一眼比出
+    // 「空框 / 有内容 / 拖入 / 拖出」四态里框的边界有没有变。
+    cell: { width: CANVAS_FRAME_CELL_WIDTH, height: CANVAS_FRAME_CELL_HEIGHT },
   },
   {
     id: 'settings',

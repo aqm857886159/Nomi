@@ -71,6 +71,9 @@ export default function TimelineMiniPreview(): JSX.Element | null {
           'text-micro font-medium text-nomi-ink-60 shadow-workbench-pop cursor-pointer',
           'hover:bg-nomi-ink-05 hover:text-nomi-ink',
         )}
+        // 常驻底部：画布上的选择浮条得让开这一块（量法见
+        // generationCanvas/reactFlow/useCanvasBottomDockRects.ts）。
+        data-canvas-bottom-dock="true"
         aria-label={t('timelineEditor.miniPreview.expand')}
         onClick={() => setCollapsedPersist(false)}
       >
@@ -88,6 +91,9 @@ export default function TimelineMiniPreview(): JSX.Element | null {
         'rounded-nomi border border-[var(--workbench-border)]',
         'bg-nomi-paper shadow-workbench-pop',
       )}
+      // 常驻底部：画布上的选择浮条得让开这一块（量法见
+      // generationCanvas/reactFlow/useCanvasBottomDockRects.ts）。
+      data-canvas-bottom-dock="true"
       aria-label={t('timelineEditor.miniPreview.title')}
     >
       <div className={cn('flex items-center justify-between gap-2 px-2.5 py-1.5')}>

@@ -1,6 +1,9 @@
 import React from 'react'
 import type { ConnectionAnchorSide } from '../store/canvasStoreTypes'
-import type { CanvasGroupBox } from './GroupFrame'
+import type { CanvasFrameInteraction, CanvasGroupBox } from './GroupFrame'
+import type { CanvasFrameRect } from '../model/canvasFrameBounds'
+import { GROUP_VISUAL_CLASS } from './groupVisualContract'
+import { cn } from '../../../utils/cn'
 import type { CollapsedGroupCardProjection } from '../model/canvasCardStackModel'
 import { GroupFrameList } from './GroupFrame'
 import { CollapsedGroupCard } from './CollapsedGroupCard'
@@ -23,6 +26,8 @@ export function CanvasGroupProjectionLayer({
   onConnectToGroup,
   onStartGroupConnection,
   onSetCollapsed,
+  frame,
+  drawPreview,
 }: {
   boxes: readonly CanvasGroupBox[]
   cards: readonly CollapsedGroupCardProjection[]
@@ -35,11 +40,27 @@ export function CanvasGroupProjectionLayer({
   onConnectToGroup: (groupId: string) => void
   onStartGroupConnection: (event: React.PointerEvent<HTMLElement>, groupId: string, side: ConnectionAnchorSide) => void
   onSetCollapsed: (groupId: string, collapsed: boolean) => void
+  frame?: CanvasFrameInteraction
+  /** 正在拖出来的那个框（画布坐标）。和框体同一层渲染，所以缩放/平移天然对齐。 */
+  drawPreview?: CanvasFrameRect | null
 }): JSX.Element {
   return (
     <>
+      {drawPreview ? (
+        <div
+          className={cn(
+            'generation-canvas-v2__frame-draw-preview',
+            'pointer-events-none absolute rounded-nomi-lg border-[1.5px] border-dashed',
+            GROUP_VISUAL_CLASS.dropTarget,
+          )}
+          style={{ left: drawPreview.x, top: drawPreview.y, width: drawPreview.w, height: drawPreview.h }}
+          data-frame-draw-preview="true"
+          aria-hidden="true"
+        />
+      ) : null}
       <GroupFrameList
         boxes={boxes}
+        frame={frame}
         onPointerDown={onPointerDown}
         pendingConnection={pendingConnection && pendingConnectionSourceKind === 'node'}
         pendingConnectionSide={pendingConnectionSide}

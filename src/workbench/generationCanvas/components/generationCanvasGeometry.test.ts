@@ -80,3 +80,35 @@ describe('几何调用点使用真实渲染尺寸', () => {
     expect(box.height).toBe(visualSize.height + 48 + 28)
   })
 })
+
+describe('getCanvasGroupBoxes — 框的边界是 union(用户画的矩形, 成员矩形)', () => {
+  function frameGroup(partial: Partial<NodeGroup> & Pick<NodeGroup, 'id' | 'nodeIds'>): NodeGroup {
+    return { name: partial.id, categoryId: 'shots', createdAt: 1, updatedAt: 1, ...partial } as NodeGroup
+  }
+
+  it('空框（有画的矩形、零成员）照样出框，并标成 empty', () => {
+    // 2026-09-06 之前这里是 `if (!members.length) return []`——用户画完一个空框会看不见它。
+    const bounds = { x: 40, y: 60, w: 600, h: 400 }
+    const boxes = getCanvasGroupBoxes([frameGroup({ id: 'f', nodeIds: [], frameBounds: bounds })], [])
+    expect(boxes).toHaveLength(1)
+    expect(boxes[0]).toMatchObject({ left: 40, top: 60, width: 600, height: 400, memberCount: 0, empty: true })
+  })
+
+  it('成员都在框内时框保持用户画的大小；探出去时框跟着长', () => {
+    const bounds = { x: 0, y: 0, w: 900, h: 700 }
+    const inside = makeNode({ id: 'in', kind: 'image', position: { x: 200, y: 200 }, size: { width: 200, height: 160 } })
+    const outside = makeNode({ id: 'out', kind: 'image', position: { x: 1200, y: 200 }, size: { width: 200, height: 160 } })
+    const group = frameGroup({ id: 'f', nodeIds: ['in', 'out'], frameBounds: bounds })
+
+    const [snug] = getCanvasGroupBoxes([{ ...group, nodeIds: ['in'] }], [inside])
+    expect(snug).toMatchObject({ left: 0, top: 0, width: 900, height: 700, empty: false })
+
+    const [grown] = getCanvasGroupBoxes([group], [inside, outside])
+    expect(grown.left).toBe(0)
+    expect(grown.width).toBeGreaterThan(900)
+  })
+
+  it('既没画过也没成员 → 不画（旧数据里成员全被删光的空组不该留下幽灵框）', () => {
+    expect(getCanvasGroupBoxes([frameGroup({ id: 'ghost', nodeIds: [] })], [])).toEqual([])
+  })
+})

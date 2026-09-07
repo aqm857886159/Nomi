@@ -69,7 +69,9 @@ export function toGenerationFlowNode(
       focusFlash: Boolean(visualState.focusFlash),
     },
     selected,
-    draggable: !readOnly,
+    // **不写 `draggable`**：节点上的这颗开关会覆盖 `<ReactFlow nodesDraggable>`，
+    // 于是「能不能拖」有了两份定义，而画布外壳那一份还要额外表达「框工具就绪时不许拖」
+    // （R29 §6.2）。它原本的值恒等于 `!readOnly`，与外壳传的一模一样，删掉即可（P1）。
     selectable: !readOnly,
     connectable: !readOnly,
     focusable: !readOnly,

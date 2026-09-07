@@ -23,6 +23,9 @@
     "canvas-add-menu": {
       "tolerance": { "threshold": 0.2, "maxDiffPixels": 40 }
     },
+    "canvas-frame": {
+      "tolerance": { "threshold": 0.2, "maxDiffPixels": 40 }
+    },
     "editing": {
       "tolerance": { "threshold": 0.2, "maxDiffPixels": 40 }
     },

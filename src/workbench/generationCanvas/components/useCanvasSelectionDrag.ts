@@ -48,29 +48,50 @@ export function useCanvasSelectionDrag({
   const pendingGroupDeltaRef = React.useRef<(Delta & { groupId: string }) | null>(null)
   const pendingSelectionDeltaRef = React.useRef<Delta | null>(null)
 
+  /**
+   * 每帧只往下发**整数**位移，余数留在待发账上给下一帧——不是洁癖，是拖动会「跟不上手」。
+   *
+   * 下游两个写口都写 `Math.round(position + delta)`（canvasNodeActions.moveSelectedNodes /
+   * canvasGraphActions.moveGroupNodes）：位置是整数、delta 带小数，于是每帧那点小数被
+   * **就地丢掉**。而一次匀速拖动里每帧的小数部分几乎是同一个值（鼠标步长 ÷ 缩放），
+   * 丢弃就不是抖动而是**系统性缺斤少两**——实测 2026-09-07：屏幕上拖 150px、缩放 0.963，
+   * 框只走了 144，越拖差得越多，缩得越小差得越狠。
+   *
+   * 更坏的一半是它**不是等量地**发生在两个真相上：框的矩形是小数、成员位置是整数，
+   * 同一次拖动里两者被截掉的量不同，于是框和它装的东西会慢慢错位（框只长不缩 → 框变大）。
+   * 所以余数必须在**发出去之前**留下来，而不是让每个下游各自去猜。
+   */
   const flushPendingDragMove = React.useCallback(() => {
     dragMoveFrameRef.current = null
     const groupDelta = pendingGroupDeltaRef.current
     const selectionDelta = pendingSelectionDeltaRef.current
-    pendingGroupDeltaRef.current = null
-    pendingSelectionDeltaRef.current = null
-    if (groupDelta && (groupDelta.x !== 0 || groupDelta.y !== 0)) {
-      moveGroupNodes(groupDelta.groupId, { x: groupDelta.x, y: groupDelta.y }, { persist: false, emit: false })
+    if (groupDelta) {
+      const whole = { x: Math.trunc(groupDelta.x), y: Math.trunc(groupDelta.y) }
+      pendingGroupDeltaRef.current = { groupId: groupDelta.groupId, x: groupDelta.x - whole.x, y: groupDelta.y - whole.y }
+      if (whole.x !== 0 || whole.y !== 0) {
+        moveGroupNodes(groupDelta.groupId, whole, { persist: false, emit: false })
+      }
     }
-    if (selectionDelta && (selectionDelta.x !== 0 || selectionDelta.y !== 0)) {
-      moveSelectedNodes(selectionDelta, { persist: false, emit: false })
+    if (selectionDelta) {
+      const whole = { x: Math.trunc(selectionDelta.x), y: Math.trunc(selectionDelta.y) }
+      pendingSelectionDeltaRef.current = { x: selectionDelta.x - whole.x, y: selectionDelta.y - whole.y }
+      if (whole.x !== 0 || whole.y !== 0) {
+        moveSelectedNodes(whole, { persist: false, emit: false })
+      }
     }
   }, [moveGroupNodes, moveSelectedNodes])
 
   const emitGroupDragSettled = React.useCallback((groupId: string) => {
     const state = useGenerationCanvasStore.getState()
     const group = state.groups.find((candidate) => candidate.id === groupId)
-    if (!group?.nodeIds.length) return
+    if (!group) return
     const nodeIds = new Set(group.nodeIds)
     const movedEvents = state.nodes
       .filter((node) => nodeIds.has(node.id) && (node.categoryId || 'shots') === group.categoryId)
       .map((node) => ({ type: 'canvas.node.moved' as const, payload: { nodeId: node.id, position: node.position } }))
-    if (!movedEvents.length) return
+    // 空框搬家一个节点都没动，但**框自己动了**（frameBounds 跟着 delta 走，见 moveGroupNodes）。
+    // 以前这里按「没有 movedEvents 就当没发生」提前返回，于是空框的位移不进事件账。
+    if (!movedEvents.length && !group.frameBounds) return
     emitCanvasGesture([...movedEvents, { type: 'canvas.group.updated', payload: { group } }])
   }, [])
 
@@ -205,6 +226,8 @@ export function useCanvasSelectionDrag({
         .map((node) => node.id)
       if (memberIds.length) selectNodes(memberIds)
     }
+    // 新的一次拖动从零起账：上一次留下的亚像素余数不该跟着走（同一个框连拖两次时会）。
+    pendingGroupDeltaRef.current = null
     draggingGroupRef.current = { groupId, clientX: event.clientX, clientY: event.clientY, moved: false, historyCaptured: false }
   }, [readOnly, selectNodes])
 
@@ -212,6 +235,7 @@ export function useCanvasSelectionDrag({
     if (readOnly || event.button !== 0 || selectedNodeCount < 2) return
     event.preventDefault()
     event.stopPropagation()
+    pendingSelectionDeltaRef.current = null
     draggingSelectionRef.current = { clientX: event.clientX, clientY: event.clientY, moved: false, historyCaptured: false }
   }, [readOnly, selectedNodeCount])
 

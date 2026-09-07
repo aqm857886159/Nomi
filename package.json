@@ -194,7 +194,8 @@
     "design-lab:walk:host-config": "node ./tests/ux/design-lab-host-config.walk.mjs",
     "design-lab:walk:vendor-order": "node ./tests/ux/design-lab-vendor-order.walk.mjs",
     "design-lab:walk:canvas-add-menu": "node ./tests/ux/design-lab-canvas-add-menu.walk.mjs",
-    "design-lab:walk:settings": "node ./tests/ux/design-lab-settings.walk.mjs"
+    "design-lab:walk:settings": "node ./tests/ux/design-lab-settings.walk.mjs",
+    "design-lab:walk:canvas-frame": "node ./tests/ux/design-lab-canvas-frame.walk.mjs"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^1.2.12",

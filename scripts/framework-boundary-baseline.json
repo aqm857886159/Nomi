@@ -103,6 +103,13 @@
       "note": "electron/projectAgentHost/projectAgentExecutionCoordinator.ts:191 — 宿主自建一张 turnId→指令 的表，等于把 pi 的排队语义搬到外面重写；pi 的「流式中 steer、非流式 followUp」区分在这里丢失。",
       "plan": "docs/plan/2026-09-07-agent-runtime-rebuild.md",
       "due": "2026-11-07"
+    },
+    {
+      "identity": "xyflow-react/internal-store-lookups/write-internal-node-lookup::src/workbench/generationCanvas/reactFlow/canvasDragDraft.ts",
+      "hits": 1,
+      "note": "src/workbench/generationCanvas/reactFlow/canvasDragDraft.ts:105 — 拖动热路径直接改内核 nodeLookup（并把 hasDefaultNodes 置 false）。这是画布性能战役把拖图从 49.3ms 压到 12.9ms 时留下的私有面写入，去掉会把帧时间还回去，所以按债登记而不是当场删；同一处的 parentLookup 分支已于 2026-09-07 证死并删除。",
+      "plan": "docs/research/2026-09-07-react-flow-subflows-vs-frame.md",
+      "due": "2026-12-07"
     }
   ]
 }

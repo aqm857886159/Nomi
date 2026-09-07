@@ -2,7 +2,7 @@
 // 以守住外壳 ≤800 行（R9）。容器负责定位（absolute left-4 bottom-3），minimap 改 relative 靠它定位。
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconEyeOff, IconFocusCentered, IconLayoutGrid, IconMap, IconRotate } from '@tabler/icons-react'
+import { IconEyeOff, IconFocusCentered, IconFrame, IconLayoutGrid, IconMap, IconRotate } from '@tabler/icons-react'
 import { TooltipProvider } from '../../../design'
 import { cn } from '../../../utils/cn'
 import { CanvasMinimap, MINIMAP_MIN_NODES } from './CanvasMinimap'
@@ -25,6 +25,9 @@ type CanvasNavigationStackProps = {
   onResetView: () => void
   onTidy: () => void
   onZoomTo: (nextZoom: number) => void
+  /** 框工具就绪中（左下这簇里唯一有开关态的一颗）。 */
+  frameToolArmed?: boolean
+  onToggleFrameTool?: () => void
   batchPlanOverlay?: React.ReactNode
 }
 
@@ -43,6 +46,8 @@ export function CanvasNavigationStack({
   onResetView,
   onTidy,
   onZoomTo,
+  frameToolArmed = false,
+  onToggleFrameTool,
   batchPlanOverlay,
 }: CanvasNavigationStackProps): JSX.Element {
   const { t } = useTranslation()
@@ -56,6 +61,8 @@ export function CanvasNavigationStack({
         'generation-canvas-v2__navigation-stack',
         'absolute left-4 bottom-3 z-[8] flex flex-col items-start gap-2 pointer-events-none',
       )}
+      // 常驻底部：选择浮条得让开这一块（量法见 reactFlow/useCanvasBottomDockRects.ts）。
+      data-canvas-bottom-dock="true"
       aria-label={t('generationCommon.navigation.aria')}
     >
       {showMinimap ? (
@@ -101,6 +108,23 @@ export function CanvasNavigationStack({
             aria-label={t('generationCommon.navigation.zoomRatio')}
             onChange={(event) => onZoomTo(Number(event.target.value) / 100)}
           />
+          {/*
+            「框」和缩放/适配/整理同族：它们都在回答「你怎么看、怎么摆这块画布」，
+            而不是「往画布上加什么」（那是加号那一族，见 canvasToolbarModel 的意图表）。
+            这也是这簇里唯一一颗有开关态的按钮，所以给 aria-pressed。
+          */}
+          {!readOnly && onToggleFrameTool ? (
+            <CanvasNavigationTooltipButton
+              label={t('generationCommon.canvas.group.frameTool')}
+              tooltip={frameToolArmed
+                ? t('generationCommon.canvas.group.frameToolArmed')
+                : t('generationCommon.canvas.group.frameToolHint')}
+              aria-pressed={frameToolArmed}
+              onClick={onToggleFrameTool}
+            >
+              <IconFrame size={15} stroke={1.8} aria-hidden="true" />
+            </CanvasNavigationTooltipButton>
+          ) : null}
           {!readOnly ? (
             <CanvasNavigationTooltipButton
               label={t('generationCommon.navigation.tidy')}

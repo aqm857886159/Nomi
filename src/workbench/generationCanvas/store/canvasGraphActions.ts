@@ -6,7 +6,11 @@ import { applyArchetypeModeSwitch } from '../nodes/controls/archetypeMeta'
 import type { GenerationCanvasEdge, GenerationCanvasEdgeMode, GenerationCanvasNode, NodeGroup } from '../model/generationCanvasTypes'
 import { groupMemberNodes, planGroupLinkEdges, removeGroupLinkEdgesForMember, upsertGroupInputLink, upsertGroupOutputLink } from '../model/groupInputLinks'
 import { createGroupId } from './canvasIds'
-import { bumpPersistRevision, isCategoryId, shouldEmitCanvasMutation, shouldPersistCanvasMutation } from './canvasGuards'
+import { frameBoundsFromMembers } from '../model/canvasFrameBounds'
+import { createCanvasFrameStoreActions } from './canvasFrameStoreActions'
+import { createCanvasGroupMoveActions } from './canvasGroupMoveActions'
+import { resolveNodeVisualSize } from '../nodes/nodeSizing'
+import { bumpPersistRevision, isCategoryId } from './canvasGuards'
 import { getHistoryFlags, pushUndoSnapshot } from '../events/canvasUndoJournal'
 import { emitCanvasGesture } from '../events/canvasEventEmitter'
 import type { CanvasGraphActions, CanvasSliceCreator } from './canvasStoreTypes'
@@ -155,7 +159,10 @@ function materializeGroupOutputLink(
   return { edges, connected, skipped, alreadyConnected }
 }
 
-export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = (set, get) => ({
+export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = (set, get, store) => ({
+  // 框（Frame）自己的两个写口住在隔壁（R9 分层：本文件已顶到 800 行门岗）。
+  ...createCanvasFrameStoreActions(set, get, store),
+  ...createCanvasGroupMoveActions(set, get, store),
   startConnection: (nodeId, side = 'right') => {
     set({ pendingConnectionSourceId: nodeId, pendingConnectionSourceSide: side, pendingConnectionSourceKind: 'node' })
   },
@@ -389,42 +396,6 @@ export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = 
         ]
       : [{ type: 'canvas.edge.disconnected', payload: { edgeId } }])
   },
-  moveGroupNodes: (groupId, delta, options) => {
-    // 预判"会不会真的动"(与内嵌守卫同条件),动了才发事件
-    const shouldEmit = shouldEmitCanvasMutation(options)
-    const pre = shouldEmit ? get() : null
-    const preGroup = pre?.groups.find((candidate) => candidate.id === groupId)
-    const preNodeIds = preGroup?.nodeIds.length ? new Set(preGroup.nodeIds) : null
-    const willMoveIds = pre && preGroup && preNodeIds && (delta.x !== 0 || delta.y !== 0)
-      ? pre.nodes.filter((node) => preNodeIds.has(node.id) && (node.categoryId || 'shots') === preGroup.categoryId).map((node) => node.id)
-      : []
-    set((state) => {
-      if (delta.x === 0 && delta.y === 0) return
-      const group = state.groups.find((candidate) => candidate.id === groupId)
-      if (!group?.nodeIds.length) return
-      const nodeIds = new Set(group.nodeIds)
-      let moved = false
-      for (const node of state.nodes) {
-        if (!nodeIds.has(node.id) || (node.categoryId || 'shots') !== group.categoryId) continue
-        node.position = {
-          x: Math.round(node.position.x + delta.x),
-          y: Math.round(node.position.y + delta.y),
-        }
-        moved = true
-      }
-      if (!moved) return
-      group.updatedAt = Date.now()
-      if (shouldPersistCanvasMutation(options)) bumpPersistRevision(state)
-    })
-    if (shouldEmit && willMoveIds.length) {
-      const post = get()
-      const postGroup = post.groups.find((candidate) => candidate.id === groupId)
-      emitCanvasGesture([
-        ...post.nodes.filter((node) => willMoveIds.includes(node.id)).map((node) => ({ type: 'canvas.node.moved', payload: { nodeId: node.id, position: node.position } })),
-        ...(postGroup ? [{ type: 'canvas.group.updated', payload: { group: postGroup } }] : []),
-      ])
-    }
-  },
   createGroup: (categoryId, name, options) => {
     const id = String(categoryId || '').trim()
     if (!isCategoryId(id)) return null
@@ -436,11 +407,19 @@ export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = 
       ? get().nodes.filter((node) => options!.nodeIds!.includes(node.id) && (node.categoryId || 'shots') === id).map((node) => node.id)
       : []
     const stamp = options?.materializationOperationId?.trim()
+    // 框的边界（2026-09-06 起是真相之一）：调用方给了就用它；没给就按成员包围盒算一次——
+    // 建组当下算好，画布不必再靠「成员包围盒」这层皮反推（那正是拖出去框会追着长大的成因）。
+    const frameBounds = options?.frameBounds ?? frameBoundsFromMembers(
+      get().nodes
+        .filter((node) => explicitNodeIds.includes(node.id))
+        .map((node) => ({ x: node.position.x, y: node.position.y, ...resolveNodeVisualSize(node) })),
+    )
     const group: NodeGroup = {
       id: createGroupId(id),
       name: (name || '').trim() || `组 ${existingCount + 1}`,
       categoryId: id,
       nodeIds: explicitNodeIds,
+      ...(frameBounds ? { frameBounds } : {}),
       ...(stamp ? { materializationOperationId: stamp } : {}),
       createdAt: now,
       updatedAt: now,
@@ -474,11 +453,19 @@ export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = 
     if (nodeIds.length < 2) return null
     const now = Date.now()
     const existingCount = current.groups.filter((group) => group.categoryId === id).length
+    // 先选后组（⌘G）得到的和画出来的是**同一种框**（P1：框只有一种），
+    // 只是它的初始边界由当时的成员包围盒决定，而不是由用户拖出来。
+    const frameBounds = frameBoundsFromMembers(
+      current.nodes
+        .filter((node) => nodeIds.includes(node.id))
+        .map((node) => ({ x: node.position.x, y: node.position.y, ...resolveNodeVisualSize(node) })),
+    )
     const group: NodeGroup = {
       id: createGroupId(id),
       name: (name || '').trim() || `组 ${existingCount + 1}`,
       categoryId: id,
       nodeIds,
+      ...(frameBounds ? { frameBounds } : {}),
       createdAt: now,
       updatedAt: now,
     }

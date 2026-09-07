@@ -4,6 +4,8 @@
 import { isGenerationNodeKind } from '../model/generationNodeKinds'
 import { normalizeParameterEdges } from '../model/parameterReferenceSlots'
 import { nodeGroupSchema } from '../model/generationCanvasSchema'
+import { backfillGroupFrameBounds } from '../model/canvasFrameBounds'
+import { resolveNodeVisualSize } from '../nodes/nodeSizing'
 import { isCategoryId } from './canvasGuards'
 import { createDefaultGenerationCanvasSnapshot } from './generationCanvasDefaults'
 import type {
@@ -97,7 +99,7 @@ export function normalizeStoreSnapshot(input: unknown): GenerationCanvasSnapshot
   const selectedNodeIds = Array.isArray(raw.selectedNodeIds)
     ? raw.selectedNodeIds.filter((id): id is string => typeof id === 'string' && nodeIds.has(id))
     : []
-  const groups = Array.isArray(raw.groups)
+  const parsedGroups = Array.isArray(raw.groups)
     ? raw.groups.flatMap((group): NodeGroup[] => {
         const parsed = nodeGroupSchema.safeParse(group)
         if (!parsed.success) return []
@@ -107,6 +109,16 @@ export function normalizeStoreSnapshot(input: unknown): GenerationCanvasSnapshot
         }]
       })
     : []
+  // 旧组原地升级（2026-09-06 框工具第一档）：2026-09-06 之前建的组没有 `frameBounds`——
+  // 那时框是成员包围盒算出来的一层皮，字段没人写也没人读。现在框的边界是真相之一，
+  // 缺这个字段的组要按它**当时画布上本来就长的那个样子**补一次（同一份算式，见
+  // model/canvasFrameBounds），否则升级当天所有旧组会集体跳一下。
+  // 幂等：已有 bounds 的原样返回；成员一个都取不到的空组不硬造。补出的值随下次持久化落盘。
+  const nodeRectById = new Map(nodes.map((node) => {
+    const size = resolveNodeVisualSize(node)
+    return [node.id, { x: node.position.x, y: node.position.y, width: size.width, height: size.height }] as const
+  }))
+  const groups = backfillGroupFrameBounds(parsedGroups, (nodeId) => nodeRectById.get(nodeId) ?? null)
   const workflowTemplates = Array.isArray(raw.workflowTemplates)
     ? raw.workflowTemplates.filter(isCanvasWorkflowTemplate)
     : []
