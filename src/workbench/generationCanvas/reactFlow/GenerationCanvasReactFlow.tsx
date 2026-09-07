@@ -301,17 +301,19 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
   })
 
   // ── 框（Frame）这一族：画框工具 / 拖进拖出 / 框菜单与头部编辑 ──
+  // 命中判定的矩形只有一个来源：内核测量值（R29 §6.1，见 canvasMeasuredNodeRect.ts）。
+  // 画框（圈住了谁）和拖动（拖进了谁）**共用这一个探针**，两条入口的判定线才是同一条。
+  const getMeasuredNodeRect = React.useCallback(
+    (nodeId: string) => measuredRectFromInternalNode(flow.getInternalNode(nodeId)),
+    [flow],
+  )
   const frameTool = useCanvasFrameTool({
     readOnly,
     activeCategoryId,
     frameBoxes: groupBoxes,
     getCanvasPointFromClientPoint: (clientX, clientY) => flow.screenToFlowPosition({ x: clientX, y: clientY }),
+    getNodeRect: getMeasuredNodeRect,
   })
-  // 命中判定的矩形只有一个来源：内核测量值（R29 §6.1，见 canvasMeasuredNodeRect.ts）。
-  const getMeasuredNodeRect = React.useCallback(
-    (nodeId: string) => measuredRectFromInternalNode(flow.getInternalNode(nodeId)),
-    [flow],
-  )
   const frameMembership = useCanvasFrameMembership({ readOnly, frameBoxes: groupBoxes, getNodeRect: getMeasuredNodeRect })
   const frameActions = useCanvasFrameActions({ readOnly, stageRef: hostRef })
   const renameGroup = useGenerationCanvasStore((state) => state.renameGroup)

@@ -346,6 +346,39 @@ describe('generationCanvasStore sidebar grouping actions', () => {
     expect(useGenerationCanvasStore.getState().groups.some((candidate) => candidate.id === frame?.id)).toBe(true)
   })
 
+  it('createFrame：圈住的东西当场就是这个框的成员', () => {
+    // 用户在三张卡外面拖一圈，画布回他一个写着「0」的空框——他看见的和框说的是相反的两件事。
+    // 判定谁被圈住归 useCanvasFrameTool（和拖进拖出同一条中心点判据），这里钉的是
+    // 「名单真的落进了这个组、旧组也真的把人交出来了」。
+    useGenerationCanvasStore.getState().restoreSnapshot({
+      nodes: [node('in-1', 'shots'), node('in-2', 'shots')],
+      edges: [],
+      selectedNodeIds: [],
+      groups: [group('old-group', 'shots', ['in-2'])],
+    })
+    const bounds = { x: 0, y: 0, w: 900, h: 700 }
+    const frame = useGenerationCanvasStore.getState().createFrame('shots', bounds, '第三幕 · 雨夜', ['in-1', 'in-2'])
+    expect(frame?.nodeIds).toEqual(['in-1', 'in-2'])
+    // 边界仍然是用户拖的那个矩形，不被成员包围盒改写。
+    expect(frame?.frameBounds).toEqual(bounds)
+    const state = useGenerationCanvasStore.getState()
+    // 一个节点只属一个框：旧组要把人交出来（与 ⌘G 同语义，不是第二套）。
+    expect(state.groups.find((candidate) => candidate.id === 'old-group')?.nodeIds).toEqual([])
+    expect(state.nodes.find((candidate) => candidate.id === 'in-2')?.groupId).toBe(frame?.id)
+  })
+
+  it('createFrame：在空地上画的仍然是空框（不硬塞成员）', () => {
+    useGenerationCanvasStore.getState().restoreSnapshot({
+      nodes: [node('far-away', 'shots')],
+      edges: [],
+      selectedNodeIds: [],
+      groups: [],
+    })
+    const frame = useGenerationCanvasStore.getState().createFrame('shots', { x: 0, y: 0, w: 300, h: 200 }, '空框', [])
+    expect(frame?.nodeIds).toEqual([])
+    expect(useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === 'far-away')?.groupId).toBeFalsy()
+  })
+
   it('groupSelectedNodes 顺手写下 frameBounds——⌘G 建的也是框', () => {
     useGenerationCanvasStore.getState().restoreSnapshot({
       nodes: [node('g1', 'shots'), node('g2', 'shots')],
@@ -534,6 +567,45 @@ describe('generationCanvasStore sidebar grouping actions', () => {
     } finally {
       setCanvasEventSinkForTests(null)
     }
+  })
+
+  it('carries the frame rectangle along when the whole frame is dragged', () => {
+    // 框的位置有两份真相：用户画的那个矩形（frameBounds）和成员各自的位置。渲染出来的框是
+    // 两者的**并集**且只长不缩——只搬成员、把矩形钉在原地，框不会跟着走，它会被**拉长**
+    // （左上角留在出发地、右下角被成员拽走）。2026-09-07 真机走查逼出来的那条。
+    useGenerationCanvasStore.getState().restoreSnapshot({
+      nodes: [
+        { ...node('cast-1', 'cast', 'cast-group'), position: { x: 100, y: 100 } },
+        { ...node('cast-2', 'cast', 'cast-group'), position: { x: 200, y: 160 } },
+      ],
+      edges: [],
+      selectedNodeIds: [],
+      groups: [{ ...group('cast-group', 'cast', ['cast-1', 'cast-2']), frameBounds: { x: 60.5, y: 40.5, w: 400, h: 300 } }],
+    })
+
+    useGenerationCanvasStore.getState().moveGroupNodes('cast-group', { x: 30, y: -20 })
+
+    const moved = useGenerationCanvasStore.getState().groups.find((candidate) => candidate.id === 'cast-group')
+    // 位移和成员一模一样；尺寸一个像素都不变（变了就是被拉长了）。
+    expect(moved?.frameBounds).toEqual({ x: 90.5, y: 20.5, w: 400, h: 300 })
+    expect(useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === 'cast-1')?.position)
+      .toEqual({ x: 130, y: 80 })
+  })
+
+  it('moves an empty frame that has no members at all', () => {
+    // 空框是「先圈一块地方，再往里放东西」这条路的第一步。以前守卫写在 nodeIds.length 上，
+    // 于是刚画出来的空框**压根拖不动**——手在动，框纹丝不动，没有任何提示。
+    useGenerationCanvasStore.getState().restoreSnapshot({
+      nodes: [],
+      edges: [],
+      selectedNodeIds: [],
+      groups: [{ ...group('empty-frame', 'shots', []), frameBounds: { x: 10, y: 20, w: 300, h: 200 } }],
+    })
+
+    useGenerationCanvasStore.getState().moveGroupNodes('empty-frame', { x: 25, y: 15 })
+
+    expect(useGenerationCanvasStore.getState().groups.find((candidate) => candidate.id === 'empty-frame')?.frameBounds)
+      .toEqual({ x: 35, y: 35, w: 300, h: 200 })
   })
 
   it('moves legacy shots nodes without explicit category when grouped', () => {

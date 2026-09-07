@@ -99,7 +99,7 @@ export type CanvasGraphActions = {
    * 画一个**空框**（框工具第一档）：边界就是用户拖出来的那个矩形，成员为空。
    * 与 `createGroup` 的差别只有「有没有成员」，走的是同一条建组路径——框只有一种。
    */
-  createFrame: (categoryId: string, bounds: CanvasFrameRect, name?: string) => NodeGroup | null
+  createFrame: (categoryId: string, bounds: CanvasFrameRect, name?: string, nodeIds?: readonly string[]) => NodeGroup | null
   groupSelectedNodes: (categoryId: string, name?: string) => NodeGroup | null
   renameGroup: (groupId: string, name: string) => void
   /** 框头部那一句灰字说明。传空串 = 清空（与改名不同：说明本来就可以没有）。 */

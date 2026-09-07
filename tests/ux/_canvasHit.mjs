@@ -21,6 +21,8 @@
 export const CANVAS_STAGE_SELECTOR = '.generation-canvas-v2__stage'
 export const CANVAS_PANE_SELECTOR = '.react-flow__pane'
 export const CANVAS_EDGE_HIT_SELECTOR = '.generation-canvas-v2__edge-hit'
+/** 画布上那个框（Frame）的框体本身——`GroupFrame` 渲染出来的那个绝对定位 div。 */
+export const CANVAS_FRAME_SELECTOR = '.generation-canvas-v2__group-box[data-group-id]'
 
 // 扫描顺序按用途分档：三档只影响「先试哪儿」，判据是同一个。
 const SCAN_RATIOS = {
@@ -250,5 +252,92 @@ export async function findNodeHitPoint(page, { nodeSelector, withinSelector = CA
       return null
     },
     { selector: nodeSelector, within: withinSelector },
+  )
+}
+
+/**
+ * 找框体上**真的抓得住**的那一点——「把整个框搬走」这个手势的起点。
+ *
+ * 判据和本文件其它两个一样是**白名单**：那一点的最顶层元素**就是框体那个 div 本身**
+ * （`hit === frameEl`），不是它的后代、也不是盖在它上面的东西。为什么必须这么严：
+ *  · 框的头部胶囊（标题 / 说明 / 折叠 / ⋯）是框体的**后代**，但它们各自吃掉 pointerdown
+ *    ——抓在标题上拖，框一动不动，而 `frameEl.contains(hit)` 会放它过；
+ *  · 节点卡渲染在框这层 overlay **之上**，且常常比框还宽（框里塞满时框面会被盖光），
+ *    抓在卡上拖动的是那张卡，不是框——量到的会是「框没动」，看着像功能坏了。
+ * 两种都在观测上和「框拖不动」一模一样，所以宁可返回 null 让调用方 fail-closed。
+ *
+ * @param {import('@playwright/test').Page} page
+ * @param {{ frameSelector?: string }} [options]
+ * @returns {Promise<{ x: number, y: number } | null>} 屏幕坐标；找不到返回 null（调用方须 fail-closed）
+ */
+export async function findFrameDragHandlePoint(page, { frameSelector = CANVAS_FRAME_SELECTOR } = {}) {
+  return page.evaluate(
+    ({ selector, stageSelector }) => {
+      const frame = document.querySelector(selector)
+      const stage = document.querySelector(stageSelector)
+      if (!frame || !stage) return null
+      const rect = frame.getBoundingClientRect()
+      const stageRect = stage.getBoundingClientRect()
+      // 先沿四条边往里一点扫（框里塞满卡时，只有边缘那一圈还露着），再扫内部。
+      const ratios = [0.04, 0.08, 0.5, 0.92, 0.96, 0.2, 0.35, 0.65, 0.8]
+      for (const ratioY of ratios) {
+        for (const ratioX of ratios) {
+          const x = Math.round(rect.left + rect.width * ratioX)
+          const y = Math.round(rect.top + rect.height * ratioY)
+          if (x < stageRect.left + 1 || x > stageRect.right - 1) continue
+          if (y < stageRect.top + 1 || y > stageRect.bottom - 1) continue
+          if (document.elementFromPoint(x, y) === frame) return { x, y }
+        }
+      }
+      return null
+    },
+    { selector: frameSelector, stageSelector: CANVAS_STAGE_SELECTOR },
+  )
+}
+
+/**
+ * 算出「把这几张卡整个圈进去」要拖的那个矩形——画框工具的真实用法之一：
+ * 东西已经摆在画布上了，用户在它们**外面**起手、拖一圈把它们围起来。
+ *
+ * 只保证**起手点**落在真空白（pointerdown 必须打在 pane 上，落在卡上那一下压根不算画框），
+ * 矩形内部当然不空白——里面正是要被圈住的那些卡。终点同样要求落在空白：
+ * 松手那一下若压在别的浮层上，手势仍然完成（监听在 window 上），但截图里会多一层遮挡。
+ *
+ * 四周各留 `margin` 像素，让框的边和卡的边分得开——这既是用户的画法，
+ * 也让后面「框有没有被拉长」量得出来（框边贴着卡边时，差几像素肉眼与断言都分不清）。
+ *
+ * @param {import('@playwright/test').Page} page
+ * @param {{ nodeSelectors: readonly string[], margin?: number }} options
+ * @returns {Promise<{ x: number, y: number, width: number, height: number } | null>} 找不到返回 null（调用方须 fail-closed）
+ */
+export async function findFrameDrawRectAround(page, { nodeSelectors, margin = 56 }) {
+  if (!Array.isArray(nodeSelectors) || !nodeSelectors.length) {
+    throw new Error('findFrameDrawRectAround: nodeSelectors 必填且非空（要圈住谁得说清楚）')
+  }
+  return page.evaluate(
+    ({ selectors, marginPx, stageSelector, paneSelector }) => {
+      const stage = document.querySelector(stageSelector)
+      if (!stage) return null
+      const stageRect = stage.getBoundingClientRect()
+      const rects = selectors
+        .map((selector) => document.querySelector(selector)?.getBoundingClientRect())
+        .filter((rect) => rect && rect.width > 0 && rect.height > 0)
+      if (rects.length !== selectors.length) return null
+      const left = Math.min(...rects.map((rect) => rect.left)) - marginPx
+      const top = Math.min(...rects.map((rect) => rect.top)) - marginPx
+      const right = Math.max(...rects.map((rect) => rect.right)) + marginPx
+      const bottom = Math.max(...rects.map((rect) => rect.bottom)) + marginPx
+      // 越出舞台就是「这一屏圈不下」，返回 null 让调用方 fail-closed——
+      // 硬夹进舞台会画出一个圈不全的框，然后「少了一个成员」看着像入组判定坏了。
+      if (left < stageRect.left + 2 || top < stageRect.top + 2) return null
+      if (right > stageRect.right - 2 || bottom > stageRect.bottom - 2) return null
+      const isBlank = (x, y) => {
+        const hit = document.elementFromPoint(x, y)
+        return Boolean(hit && stage.contains(hit) && hit.matches(paneSelector))
+      }
+      if (!isBlank(left, top) || !isBlank(right, bottom)) return null
+      return { x: Math.round(left), y: Math.round(top), width: Math.round(right - left), height: Math.round(bottom - top) }
+    },
+    { selectors: [...nodeSelectors], marginPx: margin, stageSelector: CANVAS_STAGE_SELECTOR, paneSelector: CANVAS_PANE_SELECTOR },
   )
 }

@@ -29,7 +29,12 @@ import {
   type CanvasFrameRect,
 } from '../model/canvasFrameBounds'
 import { MIN_NODE_HEIGHT, MIN_NODE_WIDTH } from '../nodes/nodeSizing'
-import { isCanvasInteractiveTarget, resolveCanvasPointerDownAction } from './canvasPointerGestureModel'
+import {
+  frameContainsNodeCenter,
+  isCanvasInteractiveTarget,
+  resolveCanvasPointerDownAction,
+} from './canvasPointerGestureModel'
+import type { CanvasNodeRectProbe } from './useCanvasFrameMembership'
 import type { CanvasGroupBox } from './GroupFrame'
 
 type UseCanvasFrameToolArgs = {
@@ -38,6 +43,12 @@ type UseCanvasFrameToolArgs = {
   /** 现有的框，用来判「在框里起画」（第一档不做嵌套框）。 */
   frameBoxes: readonly CanvasGroupBox[]
   getCanvasPointFromClientPoint: (clientX: number, clientY: number) => { x: number; y: number }
+  /**
+   * 「这个节点此刻占的那个矩形」——**和拖进拖出用的是同一个探针**（内核测量值，
+   * 见 reactFlow/canvasMeasuredNodeRect.ts）。圈住谁和拖进谁必须由同一条线判定，
+   * 否则同一个中心点会得出两种答案（R14.1 同一语义两份定义）。
+   */
+  getNodeRect: CanvasNodeRectProbe
 }
 
 export type CanvasFrameTool = {
@@ -57,6 +68,7 @@ export function useCanvasFrameTool({
   activeCategoryId,
   frameBoxes,
   getCanvasPointFromClientPoint,
+  getNodeRect,
 }: UseCanvasFrameToolArgs): CanvasFrameTool {
   const [armed, setArmed] = React.useState(false)
   const [drawPreview, setDrawPreview] = React.useState<CanvasFrameRect | null>(null)
@@ -65,6 +77,8 @@ export function useCanvasFrameTool({
   // 让手势中途换掉判据会得出一个「起画时不在框里、松手时在」的诡异结论。
   const frameBoxesRef = React.useRef(frameBoxes)
   frameBoxesRef.current = frameBoxes
+  const getNodeRectRef = React.useRef(getNodeRect)
+  getNodeRectRef.current = getNodeRect
 
   const toggle = React.useCallback(() => {
     if (readOnly) return
@@ -116,9 +130,21 @@ export function useCanvasFrameTool({
       showInfoToast(i18n.t('generationCommon.canvas.group.nestedNotSupported'))
       return
     }
-    useGenerationCanvasStore
-      .getState()
-      .createFrame(activeCategoryId, bounds, i18n.t('generationCommon.canvas.group.untitledFrame'))
+    const state = useGenerationCanvasStore.getState()
+    // 圈住的东西**就是**这个框的成员（2026-09-07 真机走查逼出来的）。
+    // 在此之前画框只存那个矩形、成员名单恒为空：用户在三张卡外面拖了一圈，
+    // 画布回他一个写着「0」的虚线空框——他看见的和框说的是相反的两件事。
+    // 根因不是漏了一行，是「中心点在框里 = 属于这个框」这条语义**只有拖动那条入口实现了**，
+    // 画框这条入口压根没问过。所以这里复用同一个判据和同一个矩形探针，不另写第二套。
+    const enclosedNodeIds = state.nodes
+      .filter((node) => (node.categoryId || 'shots') === activeCategoryId)
+      .filter((node) => {
+        const rect = getNodeRectRef.current(node.id)
+        // 量不到就不收：宁可这一张没进框（用户拖一下就能补），也不拿声明尺寸凑一个假的判定。
+        return rect ? frameContainsNodeCenter(bounds, rect) : false
+      })
+      .map((node) => node.id)
+    state.createFrame(activeCategoryId, bounds, i18n.t('generationCommon.canvas.group.untitledFrame'), enclosedNodeIds)
   }, [activeCategoryId, getCanvasPointFromClientPoint])
 
   React.useEffect(() => {

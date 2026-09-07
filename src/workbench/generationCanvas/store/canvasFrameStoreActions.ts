@@ -18,8 +18,10 @@ export const createCanvasFrameStoreActions: CanvasSliceCreator<CanvasFrameStoreA
    * 画一个空框。走的就是 `createGroup`——框只有一种，画出来的和 ⌘G 建出来的是同一个 `NodeGroup`，
    * 差别只有「建的那一刻有没有成员」。这里不另开一条建组路径（P1 无并行版）。
    */
-  createFrame: (categoryId, bounds, name) => {
-    return get().createGroup(categoryId, name, { frameBounds: bounds })
+  createFrame: (categoryId, bounds, name, nodeIds) => {
+    // `nodeIds` = 这一圈**当场圈住**的那些节点（判定在 useCanvasFrameTool，用的是拖进拖出
+    // 那同一条中心点判据）。空数组 = 在空地上画的空框，仍然是合法的第一步。
+    return get().createGroup(categoryId, name, { frameBounds: bounds, ...(nodeIds?.length ? { nodeIds: [...nodeIds] } : {}) })
   },
   setGroupDescription: (groupId, description) => {
     const next = String(description ?? '').trim()

@@ -23,7 +23,7 @@ import type { useCanvasProductionActions } from '../components/useCanvasProducti
 import type { GenerationFlowEdge, GenerationFlowNode } from './generationCanvasReactFlowAdapter'
 import { canvasViewportFromFlow, isFiniteFlowViewport } from './generationCanvasReactFlowAdapter'
 import { edgeTypes, nodeTypes } from './GenerationCanvasReactFlowNodes'
-import { resolveSelectionToolbarPlacement } from './selectionToolbarPlacement'
+import { expandSelectionBoundsToOwningFrame, resolveSelectionToolbarPlacement } from './selectionToolbarPlacement'
 import { CANVAS_DRAGGING_OWNER, setCanvasDragging } from '../components/canvasDraggingFlag'
 import { syncCanvasNodeProjection } from './canvasNodeProjectionSync'
 
@@ -146,8 +146,18 @@ export function GenerationCanvasReactFlowViewport({
   onClearSelection,
   isNodeDragging,
 }: GenerationCanvasReactFlowViewportProps): JSX.Element {
+  // 浮条让开的是「你选中的那个东西」的上沿：选中的卡全在一个框里时，那就是框的上沿
+  // ——框的名字/计数写在那条标签带上，浮条压上去等于把你刚抓住的东西的身份牌盖掉。
   const selectionToolbarPlacement = selectedBounds
-    ? resolveSelectionToolbarPlacement(selectedBounds, viewport, stageSize)
+    ? resolveSelectionToolbarPlacement(
+        expandSelectionBoundsToOwningFrame(
+          selectedBounds,
+          groupBoxes.map((box) => ({ top: box.top, nodeIds: box.group.nodeIds })),
+          selectedNodeIds,
+        ),
+        viewport,
+        stageSize,
+      )
     : null
   return (
     <ReactFlow

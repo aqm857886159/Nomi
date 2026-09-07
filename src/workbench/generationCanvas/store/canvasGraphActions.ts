@@ -8,8 +8,9 @@ import { groupMemberNodes, planGroupLinkEdges, removeGroupLinkEdgesForMember, up
 import { createGroupId } from './canvasIds'
 import { frameBoundsFromMembers } from '../model/canvasFrameBounds'
 import { createCanvasFrameStoreActions } from './canvasFrameStoreActions'
+import { createCanvasGroupMoveActions } from './canvasGroupMoveActions'
 import { resolveNodeVisualSize } from '../nodes/nodeSizing'
-import { bumpPersistRevision, isCategoryId, shouldEmitCanvasMutation, shouldPersistCanvasMutation } from './canvasGuards'
+import { bumpPersistRevision, isCategoryId } from './canvasGuards'
 import { getHistoryFlags, pushUndoSnapshot } from '../events/canvasUndoJournal'
 import { emitCanvasGesture } from '../events/canvasEventEmitter'
 import type { CanvasGraphActions, CanvasSliceCreator } from './canvasStoreTypes'
@@ -161,6 +162,7 @@ function materializeGroupOutputLink(
 export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = (set, get, store) => ({
   // 框（Frame）自己的两个写口住在隔壁（R9 分层：本文件已顶到 800 行门岗）。
   ...createCanvasFrameStoreActions(set, get, store),
+  ...createCanvasGroupMoveActions(set, get, store),
   startConnection: (nodeId, side = 'right') => {
     set({ pendingConnectionSourceId: nodeId, pendingConnectionSourceSide: side, pendingConnectionSourceKind: 'node' })
   },
@@ -393,42 +395,6 @@ export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = 
             .map((group) => ({ type: 'canvas.group.updated' as const, payload: { group } })),
         ]
       : [{ type: 'canvas.edge.disconnected', payload: { edgeId } }])
-  },
-  moveGroupNodes: (groupId, delta, options) => {
-    // 预判"会不会真的动"(与内嵌守卫同条件),动了才发事件
-    const shouldEmit = shouldEmitCanvasMutation(options)
-    const pre = shouldEmit ? get() : null
-    const preGroup = pre?.groups.find((candidate) => candidate.id === groupId)
-    const preNodeIds = preGroup?.nodeIds.length ? new Set(preGroup.nodeIds) : null
-    const willMoveIds = pre && preGroup && preNodeIds && (delta.x !== 0 || delta.y !== 0)
-      ? pre.nodes.filter((node) => preNodeIds.has(node.id) && (node.categoryId || 'shots') === preGroup.categoryId).map((node) => node.id)
-      : []
-    set((state) => {
-      if (delta.x === 0 && delta.y === 0) return
-      const group = state.groups.find((candidate) => candidate.id === groupId)
-      if (!group?.nodeIds.length) return
-      const nodeIds = new Set(group.nodeIds)
-      let moved = false
-      for (const node of state.nodes) {
-        if (!nodeIds.has(node.id) || (node.categoryId || 'shots') !== group.categoryId) continue
-        node.position = {
-          x: Math.round(node.position.x + delta.x),
-          y: Math.round(node.position.y + delta.y),
-        }
-        moved = true
-      }
-      if (!moved) return
-      group.updatedAt = Date.now()
-      if (shouldPersistCanvasMutation(options)) bumpPersistRevision(state)
-    })
-    if (shouldEmit && willMoveIds.length) {
-      const post = get()
-      const postGroup = post.groups.find((candidate) => candidate.id === groupId)
-      emitCanvasGesture([
-        ...post.nodes.filter((node) => willMoveIds.includes(node.id)).map((node) => ({ type: 'canvas.node.moved', payload: { nodeId: node.id, position: node.position } })),
-        ...(postGroup ? [{ type: 'canvas.group.updated', payload: { group: postGroup } }] : []),
-      ])
-    }
   },
   createGroup: (categoryId, name, options) => {
     const id = String(categoryId || '').trim()
