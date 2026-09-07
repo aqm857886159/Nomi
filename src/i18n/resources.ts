@@ -241,6 +241,8 @@ export const zhCN = {
     syncDetailsCorrupt: '项目文件无法读取',
     syncDetailsCorruptHint: '项目清单不完整。先打开项目文件夹检查同步结果。',
     syncRecheck: '重新检查',
+    // 「检查这一下自己失败了」≠「检查跑完发现还没就绪」——不出声的话两者在界面上完全一样。
+    syncRecheckFailed: '这次没检查成——文件夹可能暂时读不到，稍后再试一次。',
     syncOpenFolder: '打开文件夹',
     searchPlaceholder: '搜索项目',
     continueCreating: '继续创作',
@@ -258,6 +260,12 @@ export const zhCN = {
     noMatchNamed: '没有匹配「{{query}}」的项目',
     // 首次空库（无搜索、来源=全部、零项目）：给行动指引，别用系统腔（2026-08-25 走查 F1）。
     firstEmpty: '还没有项目——从上方「新建空白项目」开始',
+    // 读取失败态：必须排在空态前面，否则「读不到」会被冒充成「你一个项目都没有」（B2）。
+    loadFailedTitle: '读不到本地项目',
+    loadFailedDescription: '项目文件还在硬盘上，只是这次没读出来。重试一次通常就好了。',
+    loadFailedReason: '原因：{{reason}}',
+    retryLoad: '重新读取',
+    loadingProjects: '正在读取项目…',
     // 有项目、但当前来源筛选下为空：措辞跟「来源」走，不叫「分类」（首屏没有分类概念）。
     noProjectsInSource: '这个来源下还没有项目',
     clearSearch: '清除搜索',
@@ -650,6 +658,7 @@ export const en = {
     syncDetailsCorrupt: 'Project file cannot be read',
     syncDetailsCorruptHint: 'The project manifest is incomplete. Open the project folder to inspect the sync result.',
     syncRecheck: 'Check again',
+    syncRecheckFailed: 'The check itself failed — the folder may be temporarily unreadable. Try again in a moment.',
     syncOpenFolder: 'Open folder',
     searchPlaceholder: 'Search projects',
     continueCreating: 'Continue creating',
@@ -667,6 +676,11 @@ export const en = {
     sourceFilter: 'Filter project sources',
     noMatchNamed: 'No projects match “{{query}}”',
     firstEmpty: 'No projects yet — start with “New blank project” above',
+    loadFailedTitle: 'Could not read your local projects',
+    loadFailedDescription: 'Your project files are still on disk — this read just failed. Retrying usually fixes it.',
+    loadFailedReason: 'Reason: {{reason}}',
+    retryLoad: 'Try again',
+    loadingProjects: 'Loading projects…',
     noProjectsInSource: 'No projects from this source yet',
     clearSearch: 'Clear search',
     deleteNamedProject: 'Delete project {{name}}',

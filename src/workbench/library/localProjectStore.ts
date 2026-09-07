@@ -75,11 +75,27 @@ export function listLocalProjects(): LocalProjectSummary[] {
   return listProjectRecords()
 }
 
-export function useLocalProjects(): {
+export type UseLocalProjectsResult = {
   projects: LocalProjectSummary[]
+  /**
+   * 读取失败（fetcher 抛，桌面端 `desktop.projects.list()` 是会抛的）。非 null 时 `projects`
+   * 是 fallback `[]`——那是「读不到」不是「一个都没有」，调用方必须先看这个字段再决定渲染空态，
+   * 否则读取失败会被冒充成首启空库引导屏（用户以为项目全没了）。
+   */
+  projectsError: Error | null
+  /** 首屏读取中（缓存里还没有数据）。SWR 的 isLoading 只看缓存、不看 fallbackData，所以这里可用。 */
+  projectsLoading: boolean
+  /** 重读列表（走 SWR revalidate，所以失败会落进 projectsError 而不是抛到调用栈上）。 */
   refreshProjects: () => void
-} {
-  const { data, mutate: mutateProjects } = useSWR<LocalProjectSummary[]>(
+}
+
+function toLoadError(error: unknown): Error | null {
+  if (!error) return null
+  return error instanceof Error ? error : new Error(String(error))
+}
+
+export function useLocalProjects(): UseLocalProjectsResult {
+  const { data, error, isLoading, mutate: mutateProjects } = useSWR<LocalProjectSummary[]>(
     LOCAL_PROJECTS_SWR_KEY,
     () => listProjectRecords(),
     {
@@ -92,10 +108,17 @@ export function useLocalProjects(): {
     },
   )
   const refreshProjects = React.useCallback(() => {
-    void mutateProjects(listProjectRecords(), { revalidate: false })
+    // 不再 `mutate(listProjectRecords(), { revalidate: false })`：那条路在 SWR 之外同步调 fetcher，
+    // 抛出来的错谁也接不住（重试按钮会直接炸），且成功也不会清掉上一次的 error。
+    // 无参 mutate() = 删掉 dedupe 标记后重跑 fetcher，成功清 error、失败落 error。
+    void mutateProjects().catch(() => {
+      // 失败已由 SWR 记进 error 状态并渲染成错误态；这里只是不让 unhandled rejection 冒出去。
+    })
   }, [mutateProjects])
   return {
     projects: data ?? [],
+    projectsError: toLoadError(error),
+    projectsLoading: isLoading,
     refreshProjects,
   }
 }
