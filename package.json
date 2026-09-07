@@ -198,6 +198,9 @@
     "design-lab:walk:canvas-add-menu": "node ./tests/ux/design-lab-canvas-add-menu.walk.mjs",
     "design-lab:walk:settings": "node ./tests/ux/design-lab-settings.walk.mjs",
     "design-lab:walk:canvas-frame": "node ./tests/ux/design-lab-canvas-frame.walk.mjs",
+    "design-lab:walk:primitives-actions": "node ./tests/ux/design-lab-primitives-actions.walk.mjs",
+    "design-lab:walk:primitives-forms": "node ./tests/ux/design-lab-primitives-forms.walk.mjs",
+    "design-lab:walk:primitives-surfaces": "node ./tests/ux/design-lab-primitives-surfaces.walk.mjs",
     "check:skills-format": "node --test ./scripts/check-skills-format.node-test.mjs && node ./scripts/check-skills-format.mjs"
   },
   "dependencies": {

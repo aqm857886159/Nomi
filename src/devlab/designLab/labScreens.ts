@@ -7,6 +7,10 @@ import { STORYBOARD_STATES } from './storyboard/storyboardStates'
 import { STAGE_HEIGHT, STAGE_WIDTH } from './storyboard/storyboardLabKit'
 import { EDITING_CELL_HEIGHT, EDITING_CELL_WIDTH } from './editing/editingLabKit'
 import { HOST_CONFIG_STATES } from './hostConfig/hostConfigStates'
+import { PRIMITIVE_CELL_HEIGHT, PRIMITIVE_STAGE_WIDTH } from './primitives/primitivesLabKit'
+import { PRIMITIVES_ACTIONS_STATES } from './primitivesActions/primitivesActionsStates'
+import { PRIMITIVES_FORMS_STATES } from './primitivesForms/primitivesFormsStates'
+import { PRIMITIVES_SURFACES_STATES } from './primitivesSurfaces/primitivesSurfacesStates'
 import { SETTINGS_STATES } from './settings/settingsStates'
 import { SETTINGS_CELL_HEIGHT, SETTINGS_CELL_WIDTH } from './settings/settingsLabKit'
 import { AGENT_PANEL_V4_STATES, V4_CELL_HEIGHT, V4_PANEL_WIDTH } from './v4/agentPanelV4States'
@@ -72,6 +76,33 @@ export const LAB_SCREENS: readonly LabScreen[] = [
     states: SETTINGS_STATES,
     // 这屏各状态取景框一样大（设置内容区实际可用宽），尺寸从取景台取，不另抄一个数。
     cell: { width: SETTINGS_CELL_WIDTH, height: SETTINGS_CELL_HEIGHT },
+  },
+  // ── primitive 陈列三屏 ────────────────────────────────────────────────────
+  //
+  // 上面每一屏画的都是**某个功能界面**；这三屏画的是 `src/design/` 那套共用积木本身。
+  // 为什么拆三屏而不是一屏：接触表是按屏平铺的一张图，34 个格子挤在一屏里读不动；
+  // 而且取景框是**按屏**给的一个尺寸——动作族一格 480 宽就够，浮层族要整屏、结构族要
+  // 装得下一张表，硬塞进同一个 cell 会让一半格子留大片空白、另一半被截。按族分屏，
+  // 每族拿自己合适的取景框，接触表也各自读得完。
+  {
+    id: 'primitives-actions',
+    label: '积木 · 动作',
+    states: PRIMITIVES_ACTIONS_STATES,
+    cell: { width: PRIMITIVE_STAGE_WIDTH, height: PRIMITIVE_CELL_HEIGHT },
+  },
+  {
+    id: 'primitives-forms',
+    label: '积木 · 表单与选择',
+    states: PRIMITIVES_FORMS_STATES,
+    // 表单格比动作格高一档（四态竖排 + 展开的下拉都在这一屏）。
+    cell: { width: PRIMITIVE_STAGE_WIDTH, height: PRIMITIVE_CELL_HEIGHT + 120 },
+  },
+  {
+    id: 'primitives-surfaces',
+    label: '积木 · 状态 / 浮层 / 结构',
+    states: PRIMITIVES_SURFACES_STATES,
+    // 这屏混着元素格与整屏格（浮层族 Portal 到 body，只能截整屏），取景框按整屏那一族开列。
+    cell: { width: 900, height: 560 },
   },
   {
     id: 'vendor-order',
