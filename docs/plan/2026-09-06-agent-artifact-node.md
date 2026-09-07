@@ -137,7 +137,7 @@
 - [x] i18n zh+en（`runtime.nodeRegistry.'agent-artifact'.*`）；check:i18n 全绿（5039 keys parity）。
 - [x] **Agent 交付落盘（deliver）**：electron `canvasWrite` kind 白名单 + `artifact:{fileType,content}` 字段（superRefine 条件校验）；渲染层 `applyCanvasToolCall` create 分支先落盘内容为 nomi-local 资产、再建 `meta.artifact.url` 节点（整批失败即中止）；prompt 对 agent-artifact 免除（其它 kind 仍必填）；agent client 提示文案加入艺产物指引。
 - [x] vitest：artifactMeta 6 + **deliver 契约 10 + 栅格化参考 5 + ArtifactBody 契约 6** + applyCanvasToolCall 39 + canvasWrite 7；generationCanvas 全量零回归；electron equivalence 6 用例。
-- [x] GUI 走查脚本 `tests/ux/agent-artifact.walk.mjs` 就绪；本机实测卡点=项目库只列已注册 record 项目（不扫目录种子），非节点功能问题——标 P1 待 deliver_craft 真机会话后全链路启用。
+- [x] **GUI 真机走查转绿**（commit 615f7516）：改 resident Agent 对话驱动——UI 新建项目（解决 record 注册卡点）+ loopback 供应商 fixture 回放 `nomi_canvas_plan(operation=create_canvas_nodes, kind=agent-artifact, artifact.content=SVG 源码）→ 宿主 proposalTxn → applyCanvasToolCall deliver 分支**真实执行落盘**（磁盘已验证：SVG 写到 `<project>/assets/imported/<date>/开场构图线稿.svg`）→ 节点上屏、SVG 渲染、浮条「下载/固化为参考图」出现。2 张截图证据 + report.json（textRequests=2 fixture 声明，paidCalls=0）。
 - [ ] 交付纪律：sibling worktree `Nomi-agent-artifact-node` + preflight ✅ + 分支 PR（进行中）。
 
-**P1（不在本轮，文档待办）：** Agent deliver_craft 真机对话走查（项目库注册 + resident agent 会话）、3D 视口截图参考化、HTML 放大/截图当画面素材、表格参考化、手艺选择 skill 落库（先核对 skills 体系）、设计实验室接入、node 专属 icon。
+**P1（不在本轮，文档待办）：** 3D 视口截图参考化、HTML 放大/截图当画面素材、表格参考化、手艺选择 skill 落库（先核对 skills 体系）、设计实验室接入、node 专属 icon。
