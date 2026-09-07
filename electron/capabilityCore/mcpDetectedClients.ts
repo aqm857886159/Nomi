@@ -9,7 +9,7 @@
 // 单一真相源。
 import fs from 'node:fs'
 import path from 'node:path'
-import { capabilityCoreDir } from './security'
+import { capabilityCoreDir, isBuiltinMcpClient } from './security'
 
 const PROFILES_FILE = 'mcp-client-profiles.json'
 
@@ -38,9 +38,10 @@ export function recordDetectedMcpClient(name: string): void {
   if (!label) return
   let key = deriveClientKeyFromName(label)
   if (key === 'nomi-verify') return
-  // 避开保留 key：claude/codex/cursor 是内置客户端；nomi 是本机工作台的 trusted host（默认信任、不可取消）。
-  // 外部工具常自报 server 名 'nomi'，直接当 key 会撞上 trustedHosts 的 'nomi'，导致信任开关「默认信任且改不了」。
-  if (key === 'claude' || key === 'codex' || key === 'cursor' || key === 'nomi') key = `${key}-client`
+  // 避开保留 key：内置客户端（BUILTIN_MCP_CLIENTS）各自有内置配置路径；nomi 是本机工作台的 trusted host
+  //（默认信任、不可取消）。外部工具常自报 server 名 'nomi'，直接当 key 会撞上 trustedHosts 的 'nomi'，
+  // 导致信任开关「默认信任且改不了」。内置名单在 security.ts，这里跟着它走，别再抄第二份。
+  if (isBuiltinMcpClient(key) || key === 'nomi') key = `${key}-client`
 
   const filePath = profilesPath()
   // 读现有列表（文件不存在当 []）。
