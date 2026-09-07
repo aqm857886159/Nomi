@@ -93,9 +93,11 @@ async function main() {
       (resource) => String(resource.uri).startsWith(`${SKILL_URI_PREFIX}director-cinematography/`),
     )
     check(Boolean(cinematography), '含 director-cinematography 资源（内容寻址 uri）')
+    // name 从 2026-09-07 起就是目录名（Agent Skills 规范要求 name == 父目录名），所以这里
+    // 按目录名断言而不是抄一个字面量——抄字面量正是上一次改名时这条断言变红的原因。
     check(
-      cinematography.name === 'director.cinematography' && (cinematography.description || '').length > 5,
-      '资源带 name + 非空 description',
+      cinematography.name === 'director-cinematography' && (cinematography.description || '').length > 5,
+      '资源带 name（= 目录名）+ 非空 description',
     )
     // 渐进披露：list 只给索引，正文要另外 read。
     check(cinematography.text === undefined && cinematography.body === undefined, 'resources/list 不含正文（渐进披露）')
