@@ -2,7 +2,7 @@ import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconAlertTriangle, IconDownload, IconRefresh, IconX } from '@tabler/icons-react'
 import { NomiMarkdown } from '../../workbench/common/NomiMarkdown'
-import { DesignProgress, WorkbenchButton } from '../../design'
+import { DesignProgress, useOverlayEscape, WorkbenchButton } from '../../design'
 import type { Updater } from './useUpdater'
 import { shouldShowUpdaterDialog } from './useUpdater'
 import { cn } from '../../utils/cn'
@@ -11,6 +11,9 @@ export function UpdaterDialog({ updater, hasRunningTask }: { updater: Updater; h
   const { t } = useTranslation()
   const [dismissed, setDismissed] = React.useState(false)
   const visible = shouldShowUpdaterDialog({ phase: updater.phase, hasRunningTask }) && !dismissed
+  // Esc = 右上角「关闭」（更新提示是可推迟的，不是不可逆动作），让位规则走共用原语。
+  const dialogRef = React.useRef<HTMLElement | null>(null)
+  useOverlayEscape(dialogRef, visible, () => setDismissed(true))
   React.useEffect(() => {
     if (updater.phase === 'available' || updater.phase === 'downloaded') setDismissed(false)
   }, [updater.phase])
@@ -37,6 +40,7 @@ export function UpdaterDialog({ updater, hasRunningTask }: { updater: Updater; h
       {visible ? (
         <div className="fixed inset-0 z-[130] grid place-items-center bg-nomi-ink/20 p-4" role="presentation" data-updater-dialog="true">
           <section
+            ref={dialogRef}
             role="dialog"
             aria-modal="true"
             aria-labelledby="updater-dialog-title"

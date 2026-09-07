@@ -1,9 +1,10 @@
 import React from 'react'
+import { FocusTrap } from '@mantine/core'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../../../utils/cn'
 import { IconCloud, IconCoin, IconFileText, IconRobot, IconMovie, IconPhoto, IconUser } from '@tabler/icons-react'
-import { BodyPortal, NOMI_OVERLAY_Z_INDEX, WorkbenchButton } from '../../../design'
-import { useSpendConfirmStore } from './spendConfirm'
+import { BodyPortal, NOMI_OVERLAY_Z_INDEX, useOverlayEscape, WorkbenchButton } from '../../../design'
+import { useSpendConfirmStore, type SpendConfirmState } from './spendConfirm'
 import { ProductionContractSummary } from './ProductionContractSummary'
 import { MultiShotContractSummary } from './MultiShotContractSummary'
 import { AnchorCheckpointCard } from './AnchorCheckpointCard'
@@ -27,6 +28,44 @@ export function SpendConfirmDialog() {
   // B1：方向门单选（默认选第一个候选）。换 pending 时重置到第一个。
   const directionCandidates = pending?.directionCandidates ?? []
   const [choiceKey, setChoiceKey] = React.useState<string | null>(null)
+  // B3 无障碍保障（花钱确认比破坏性删除更重，此前 Esc/焦点/语义三样全缺）：
+  // 手写壳保留（倒计时 / 三种宽度 / 滚动内容区 + 固定 footer 是 Mantine Modal 结构给不了的），
+  // 只补齐模态该有的四件事：Esc 可关、焦点陷阱、返回焦点、role/aria-modal/aria-labelledby。
+  const cardRef = React.useRef<HTMLDivElement | null>(null)
+  const titleId = React.useId()
+  const open = Boolean(pending)
+
+  // 返回焦点：记住打开这张卡之前的焦点元素，关闭时还回去（队列里换 pending 不重置，只在整卡开/关时动）。
+  React.useEffect(() => {
+    if (!open) return
+    const previous = document.activeElement
+    const trigger = previous instanceof HTMLElement ? previous : null
+    return () => {
+      if (!trigger || !trigger.isConnected) return
+      // 等这一帧的卸载走完再还焦点，否则会被 React 拆 DOM 时的 blur 抹掉。
+      window.setTimeout(() => {
+        if (trigger.isConnected) trigger.focus({ preventScroll: true })
+      }, 0)
+    }
+  }, [open])
+
+  // Esc 关闭 = 取消/忽略。让位规则（本卡之上还叠着更高层对话框时不接管）住在共用原语里。
+  useOverlayEscape(cardRef, open, () => resolvePending(false))
+
+  // E2E 专用桥（照 ConfirmDialogHost 既有写法）：仅当 localStorage['__nomiE2E']==='1' 时把**真实**
+  // requestConfirm 挂到 window，供 R13 走查在真 app 里驱动同一条渲染管线取证键盘/无障碍保障
+  // （见 tests/ux/spend-confirm-a11y.walk.mjs）。生产从不置该标志 → 永不暴露，非并行实现。
+  React.useEffect(() => {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage?.getItem('__nomiE2E') === '1') {
+        ;(window as unknown as { __nomiSpendConfirmE2E?: SpendConfirmState['requestConfirm'] }).__nomiSpendConfirmE2E =
+          useSpendConfirmStore.getState().requestConfirm
+      }
+    } catch {
+      // localStorage 不可用 → 跳过
+    }
+  }, [])
+
 
   const isMultiShot = pending?.kind === 'contract' && Boolean(pending.contract?.shotList)
   // P4 §3.2 形象确认卡：与多镜卡同款「滚动内容区 + 固定 footer」布局（~560px），自渲染 footer（先不拍/开拍/重拍）。
@@ -92,6 +131,9 @@ export function SpendConfirmDialog() {
     // （门确认卡多半从任务中心 run 卡点开，680px 合同卡 / 560px 形象卡尤其明显，2026-08-25 走查抓出）。
     // 用 dialog(9100)：高过任务中心，低过破坏性 confirmation(9300) 好让它能叠在本卡之上。
     <BodyPortal>
+    {/* 焦点陷阱挂在遮罩上：Mantine 的 useFocusTrap 会在其中找 [data-autofocus]（= 下面的卡本体），
+        并把 Tab 圈在遮罩内 —— 遮罩内除了卡没有别的可聚焦物，所以 Tab 出不去这张卡。 */}
+    <FocusTrap>
     <div
       // 全屏固定模态：付费/确认是全局阻断性动作，要盖住整窗（含顶栏/侧栏/任务中心），任意视图（库/studio）都能弹。
       className={cn('fixed inset-0 flex items-center justify-center bg-nomi-ink/20 pointer-events-auto')}
@@ -101,7 +143,18 @@ export function SpendConfirmDialog() {
       }}
     >
       <div
+        ref={cardRef}
+        role="dialog"
+        aria-modal="true"
+        // 走查/工具的稳定锚点（此前只能靠 `div.fixed.inset-0` + 文案过滤这种易碎选择器认这张卡）。
+        data-spend-confirm-dialog={pending.kind ?? 'generation'}
+        aria-labelledby={titleId}
+        // tabIndex + data-autofocus：打开时焦点落在对话框本体（读屏会念标题），
+        // **刻意不落在「确认花钱」上** —— 那是不可逆动作，不该被一个回车顺手按掉。
+        tabIndex={-1}
+        data-autofocus
         className={cn(
+          'outline-none',
           pending.kind === 'contract' ? 'w-[680px]' : isAnchorCheckpoint ? 'w-[560px]' : 'w-[380px]',
           'max-h-[88vh] max-w-[88%] rounded-nomi-lg border border-nomi-line bg-nomi-paper p-4 shadow-nomi-md',
           // 多镜卡 / 形象卡：flex 列 + footer shrink-0，内容区滚动、footer 恒在（清单/网格另有内滚）。
@@ -126,7 +179,7 @@ export function SpendConfirmDialog() {
             <Icon size={18} aria-hidden />
           </span>
           <div className={cn('min-w-0')}>
-            <p className={cn('text-title font-medium text-nomi-ink truncate')}>{pending.title}</p>
+            <p id={titleId} className={cn('text-title font-medium text-nomi-ink truncate')}>{pending.title}</p>
             {isAgent ? (
               <p className={cn('text-micro text-nomi-ink-60')}>
                 {/* 方案门免费 → 副标不提「花费」（否则与「不花额度」正文自相矛盾，2026-08-02 走查抓出）。 */}
@@ -333,6 +386,7 @@ export function SpendConfirmDialog() {
         )}
       </div>
     </div>
+    </FocusTrap>
     </BodyPortal>
   )
 }
