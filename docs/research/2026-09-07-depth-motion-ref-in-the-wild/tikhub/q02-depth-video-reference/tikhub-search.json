@@ -1,0 +1,402 @@
+{
+  "source": "tikhub",
+  "baseUrl": "https://api.tikhub.io",
+  "keyword": "depth video reference video model",
+  "since": null,
+  "limitPerPlatform": 20,
+  "generatedAt": "2026-09-07T02:49:41.128Z",
+  "failures": [],
+  "summary": {
+    "totalRecords": 20,
+    "platformsOk": 1,
+    "platformsEmpty": 0,
+    "platformsFailed": 0,
+    "platforms": [
+      {
+        "platform": "x",
+        "platformLabel": "X（Twitter）",
+        "status": "ok",
+        "items": 20,
+        "pagesFetched": 1,
+        "missingFields": {},
+        "fieldConfidence": "verified-against-live-response",
+        "fieldsVerifiedOn": "2026-09-06",
+        "error": null
+      }
+    ]
+  },
+  "results": [
+    {
+      "platform": "x",
+      "platformLabel": "X（Twitter）",
+      "records": [
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2083219185250038169",
+          "url": "https://x.com/QCXINT_/status/2083219185250038169",
+          "author": "QCXINT",
+          "authorId": "QCXINT_",
+          "publishedAt": "2026-07-31T15:52:12.000Z",
+          "title": "🚨 This AI workflow is making viral fashion videos at almost",
+          "excerpt": "🚨 This AI workflow is making viral fashion videos at almost zero cost. 👗🎥 Instead of reverse-engineering complicated prompts, this method focuses on separating motion from character identity. Here's the workflow: 1️⃣ Convert a reference video into a black-and-white depth (motion) video. You can g…",
+          "mentions": [
+            "Image 1",
+            "Seedance",
+            "Wan"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2082486773062775032",
+          "url": "https://x.com/im_shahid7/status/2082486773062775032",
+          "author": "Al-Shamus",
+          "authorId": "im_shahid7",
+          "publishedAt": "2026-07-29T15:21:52.000Z",
+          "title": "The motion Made with Seedance 2.0 Prompt: Create a cinematic",
+          "excerpt": "The motion Made with Seedance 2.0 Prompt: Create a cinematic luxury fashion advertisement video using the female model image as reference. The camera performs a smooth 360-degree horizontal orbit around the woman sitting on the metal folding chair and the suspended matcha splash. The camera moves sl…",
+          "mentions": [
+            "Seedance",
+            "Seedance 2.0"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2064695037875683547",
+          "url": "https://x.com/twoshados/status/2064695037875683547",
+          "author": "Shade",
+          "authorId": "twoshados",
+          "publishedAt": "2026-06-10T13:03:51.000Z",
+          "title": "Brands pay this guy $2,800 a video for a fitness blonde who ",
+          "excerpt": "Brands pay this guy $2,800 a video for a fitness blonde who never existed and her gym clips bring in $38,000 a month while he sleeps. He got tired of watching brands burn $4K on a single shoot with a real model, so he built a video-to-video system where he is the puppet and the girl is just a swappa…",
+          "mentions": [
+            "ComfyUI"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2096540617010561152",
+          "url": "https://x.com/0xmafa/status/2096540617010561152",
+          "author": "Mafa",
+          "authorId": "0xmafa",
+          "publishedAt": "2026-09-06T10:06:49.000Z",
+          "title": "𝗦𝗢𝗠𝗘𝗢𝗡𝗘 𝗦𝗧𝗢𝗟𝗘 𝗛𝗜𝗦 𝗔𝗜 𝗚𝗜𝗥𝗟'𝗦 𝗙𝗔𝗖𝗘 \ud835",
+          "excerpt": "𝗦𝗢𝗠𝗘𝗢𝗡𝗘 𝗦𝗧𝗢𝗟𝗘 𝗛𝗜𝗦 𝗔𝗜 𝗚𝗜𝗥𝗟'𝗦 𝗙𝗔𝗖𝗘 𝗔𝗡𝗗 𝗥𝗔𝗡 𝗧𝗛𝗘 𝗘𝗫𝗔𝗖𝗧 𝗦𝗔𝗠𝗘 𝗕𝗥𝗔𝗡𝗗 𝗗𝗘𝗔𝗟𝗦 𝗔 𝗪𝗘𝗘𝗞 𝗕𝗘𝗙𝗢𝗥𝗘 𝗛𝗘 𝗖𝗢𝗨𝗟𝗗 𝗣𝗢𝗦𝗧 𝗧𝗛𝗘𝗠 He'd spent two months building her - the reference set, the voice, the posting rhythm brands had come to expect. Then a…",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2096246828769423798",
+          "url": "https://x.com/Yarilo7brigada/status/2096246828769423798",
+          "author": "Ackerman",
+          "authorId": "Yarilo7brigada",
+          "publishedAt": "2026-09-05T14:39:25.000Z",
+          "title": "8k, photorealistic, and masterpiece do not build the shot. T",
+          "excerpt": "8k, photorealistic, and masterpiece do not build the shot. The model searches its training data for images with those labels. Those images more often have glossy skin and heavy retouching. Below: a stop-list, three lenses, and what to write instead. Delete that list. Write the shot. Stop-list: 8k 4k…",
+          "mentions": [
+            "CapCut",
+            "DaVinci",
+            "Flux",
+            "Kling",
+            "Luma",
+            "Unreal"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2095605130770956382",
+          "url": "https://x.com/klyrAaX/status/2095605130770956382",
+          "author": "KlyraA",
+          "authorId": "klyrAaX",
+          "publishedAt": "2026-09-03T20:09:32.000Z",
+          "title": "PINK BIKINI. BACKYARD POOL. $36,800 IN 30 DAYS. No fake Duba",
+          "excerpt": "PINK BIKINI. BACKYARD POOL. $36,800 IN 30 DAYS. No fake Dubai penthouses or rented yachts. Just raw motion physics, precise lighting, and absolute algorithmic retention. 0:00 to 0:04 — She holds a low squat facing the illuminated pool, her back to the camera, establishing frame stability as green an…",
+          "mentions": [
+            "CapCut",
+            "Claude",
+            "ComfyUI",
+            "ControlNet",
+            "Day 12",
+            "Day 21",
+            "Day 30",
+            "Day 4",
+            "Flux",
+            "Kling",
+            "Kling 3.0",
+            "LoRA"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2094468568431874236",
+          "url": "https://x.com/Alacritic_Super/status/2094468568431874236",
+          "author": "Praveen Kumar Verma",
+          "authorId": "Alacritic_Super",
+          "publishedAt": "2026-08-31T16:53:14.000Z",
+          "title": "What If AI Could Turn a Normal Video Into a 4D World? Meet D",
+          "excerpt": "What If AI Could Turn a Normal Video Into a 4D World? Meet D4RT, a new AI model from Google DeepMind, UCL, and the University of Oxford. Give it a single video, and it can jointly understand depth, motion, 3D point correspondences, and camera parameters across space and time. The clever part is its …",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2094968319854170429",
+          "url": "https://x.com/cco_ol/status/2094968319854170429",
+          "author": "MҽҽɾαႦ_AI",
+          "authorId": "cco_ol",
+          "publishedAt": "2026-09-02T01:59:04.000Z",
+          "title": "Create a 10-second vertical 9:16 luxury fashion watch commer",
+          "excerpt": "Create a 10-second vertical 9:16 luxury fashion watch commercial using the provided watch image as the exact product reference. Keep the watch’s dial design, silver metal bracelet, colors, proportions, branding, hands, sub-dials, and overall appearance perfectly consistent throughout the video. Scen…",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2096616939254866410",
+          "url": "https://x.com/hanifproduktif/status/2096616939254866410",
+          "author": "Hanif | AI For Productivity",
+          "authorId": "hanifproduktif",
+          "publishedAt": "2026-09-06T15:10:06.000Z",
+          "title": "WTF I just asked ChatGPT-6 Astra to jailbreak Seedance and i",
+          "excerpt": "WTF I just asked ChatGPT-6 Astra to jailbreak Seedance and it works! Here is the prompt from Astra: First-person boyfriend POV, nighttime apartment entryway. Overall style is authentic iPhone phone life snapshot, quiet, relaxed, with a building sense of intimacy, evoking an intimate story feel of \"s…",
+          "mentions": [
+            "Image1",
+            "Seedance",
+            "Whisper"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2077796149617139742",
+          "url": "https://x.com/NexlowX/status/2077796149617139742",
+          "author": "Nexlow",
+          "authorId": "NexlowX",
+          "publishedAt": "2026-07-16T16:43:00.000Z",
+          "title": "THE DEPTH MAP TRICK THAT FIXED DANCE ACCURACY IN SEEDANCE 2.",
+          "excerpt": "THE DEPTH MAP TRICK THAT FIXED DANCE ACCURACY IN SEEDANCE 2.0 Feed the model a video of someone dancing and it tries to interpret everything- the person, the clothes, the lighting, the room, and somewhere in there, the movement. Feed it a depth map and there's nothing left to interpret but the motio…",
+          "mentions": [
+            "GPT",
+            "Image 2",
+            "Seedance",
+            "SEEDANCE 2",
+            "SEEDANCE 2.0"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2094494202587398616",
+          "url": "https://x.com/NexlowX/status/2094494202587398616",
+          "author": "Nexlow",
+          "authorId": "NexlowX",
+          "publishedAt": "2026-08-31T18:35:06.000Z",
+          "title": "THE DEPTH MAP TRICK THAT FIXED DANCE ACCURACY IN SEEDANCE 2.",
+          "excerpt": "THE DEPTH MAP TRICK THAT FIXED DANCE ACCURACY IN SEEDANCE 2.0 Feed the model a video of someone dancing and it tries to interpret everything- the person, the clothes, the lighting, the room, and somewhere in there, the movement. Feed it a depth map and there's nothing left to interpret but the motio…",
+          "mentions": [
+            "GPT",
+            "Image 2",
+            "Seedance",
+            "SEEDANCE 2",
+            "SEEDANCE 2.0"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2078941698214809645",
+          "url": "https://x.com/Primee32/status/2078941698214809645",
+          "author": "Primee32",
+          "authorId": "Primee32",
+          "publishedAt": "2026-07-19T20:35:00.000Z",
+          "title": "THE DEPTH MAP TRICK THAT ALSO WORKS ON EXPRESSION, NOT JUST ",
+          "excerpt": "THE DEPTH MAP TRICK THAT ALSO WORKS ON EXPRESSION, NOT JUST DANCE — GPT IMAGE 2 × SEEDANCE 2.0 Feed the model raw footage of someone gesturing, reacting, moving through a scene, and it tries to interpret everything at once - the face, the outfit, the alley, the light, and somewhere in there, the act…",
+          "mentions": [
+            "GPT",
+            "Image 2",
+            "IMAGE 2",
+            "Seedance",
+            "SEEDANCE 2.0"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2095769782557737180",
+          "url": "https://x.com/manishkumar_dev/status/2095769782557737180",
+          "author": "Manish Kumar Shah",
+          "authorId": "manishkumar_dev",
+          "publishedAt": "2026-09-04T07:03:48.000Z",
+          "title": "Every time an AI video goes viral, someone asks the same thi",
+          "excerpt": "Every time an AI video goes viral, someone asks the same thing: what was the prompt? Usually nobody knows. So I built a tool that finds out: https://t.co/YpWw8bMF6M It runs on MOSS-VL, https://t.co/daxTqeaVbC's open-weight 11B model (open source on GitHub: https://t.co/9RXJhHiZJA). Upload a referenc…",
+          "mentions": [
+            "RTX 4090"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2095787207294427562",
+          "url": "https://x.com/hanifproduktif/status/2095787207294427562",
+          "author": "Hanif | AI For Productivity",
+          "authorId": "hanifproduktif",
+          "publishedAt": "2026-09-04T08:13:02.000Z",
+          "title": "If this was your gf waiting for you at home, what time are y",
+          "excerpt": "If this was your gf waiting for you at home, what time are you coming back? ---- Istg, if ai video keeps getting this realistic, incels are cooked and they’re going to die alone. First-person boyfriend POV entering a warm apartment late at night. Authentic handheld iPhone footage, not cinematic comm…",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2095344138304561159",
+          "url": "https://x.com/om_patel5/status/2095344138304561159",
+          "author": "Om Patel",
+          "authorId": "om_patel5",
+          "publishedAt": "2026-09-03T02:52:26.000Z",
+          "title": "THIS GUY VIBE CODED A LIVE AI TRY ON THAT SWAPS YOUR CLOTHES",
+          "excerpt": "THIS GUY VIBE CODED A LIVE AI TRY ON THAT SWAPS YOUR CLOTHES IN REAL TIME ON A WEBCAM what you see is not a rendered result hes standing there moving and the outfit tracks him frame by frame live how it works: > every other video try on tool needs 3d assets, sku prep and a full augmented reality set…",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2095455152052338819",
+          "url": "https://x.com/genuenci/status/2095455152052338819",
+          "author": "genuenci",
+          "authorId": "genuenci",
+          "publishedAt": "2026-09-03T10:13:34.000Z",
+          "title": "THIS 3D WEBSITE LOOKS LIKE A $15,000 AGENCY PROJECT. ONE CRE",
+          "excerpt": "THIS 3D WEBSITE LOOKS LIKE A $15,000 AGENCY PROJECT. ONE CREATOR REBUILT THE EXPERIENCE WITH AI - AND TURNED IT INTO A WORKING SITE. The original website earned an Awwwards Site of the Month recognition, and it is easy to understand why. Products float through a three-dimensional environment, object…",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2086668137198678351",
+          "url": "https://x.com/AIwithkhan/status/2086668137198678351",
+          "author": "Smiling Khan",
+          "authorId": "AIwithkhan",
+          "publishedAt": "2026-08-10T04:17:06.000Z",
+          "title": "Show me a model better than Seedance 2.5 and I will wait Pro",
+          "excerpt": "Show me a model better than Seedance 2.5 and I will wait Prompt 👇 Use the uploaded reference image as the exact character reference. Preserve her facial identity, hairstyle, eye color, makeup, skin tone, body proportions, white sleeveless fitted top, light blue wide-leg jeans, pearl choker, rings, …",
+          "mentions": [
+            "Seedance",
+            "Seedance 2.5"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2094801839707324459",
+          "url": "https://x.com/sixugc/status/2094801839707324459",
+          "author": "joana",
+          "authorId": "sixugc",
+          "publishedAt": "2026-09-01T14:57:32.000Z",
+          "title": "5 things that decide whether ai ugc reads as a person or rea",
+          "excerpt": "5 things that decide whether ai ugc reads as a person or reads as an ad 1. write the flaws in. pores, uneven tone, a healing blemish, baby hairs at the hairline. left alone every model gives you retouched skin and that is the tell 2. put the camera below eye level. flattering angles look shot. unfla…",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2095950261567254953",
+          "url": "https://x.com/itsKfrost/status/2095950261567254953",
+          "author": "KillerFrost",
+          "authorId": "itsKfrost",
+          "publishedAt": "2026-09-04T19:00:57.000Z",
+          "title": "This 12second wave clip pulled $27,400 in 30 days because 99",
+          "excerpt": "This 12second wave clip pulled $27,400 in 30 days because 99% of people couldn't spot the fluid physics glitches. No $15k production crew in Bali. No model contracts. No camera rigs. 0:00–0:01 — Low-angle static framing on the rock ledge to lock scene depth. 0:02–0:05 — Board drops into the wave fac…",
+          "mentions": [
+            "LoRA"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2095848167011233974",
+          "url": "https://x.com/simplifyinAI/status/2095848167011233974",
+          "author": "Simplifying AI",
+          "authorId": "simplifyinAI",
+          "publishedAt": "2026-09-04T12:15:16.000Z",
+          "title": "one photo of a loot chest goes in. real, animatable three.js",
+          "excerpt": "one photo of a loot chest goes in. real, animatable three.js code comes out, gold trim, bevels, emissive emblem and all. img2threejs is a free claude code skill that rebuilds a reference image as fully procedural three.js code, not a downloaded mesh or a photogrammetry scan. > builds the model in lo…",
+          "mentions": [
+            "Claude"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        }
+      ],
+      "pages": [
+        {
+          "page": 1,
+          "received": 20
+        }
+      ]
+    }
+  ]
+}

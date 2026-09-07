@@ -1,0 +1,787 @@
+{
+  "source": "tikhub",
+  "baseUrl": "https://api.tikhub.io",
+  "keyword": "即梦 动作参考 视频",
+  "since": null,
+  "limitPerPlatform": 20,
+  "generatedAt": "2026-09-07T02:52:01.717Z",
+  "failures": [
+    {
+      "platform": "xhs",
+      "reason": "HTTP 400: {\"detail\":{\"code\":400,\"request_id\":\"8c3d92d3-f2c0-4140-9d0d-5ddef9844f34\",\"message\":\"Request failed. Please retry. Check the docs below to verify your parameters, test with the default demo parameters, and send the response JSON to support. You won't be charged for this request.\",\"message_zh\":\"请求失败，请重试。请查看下方文档核对参数，使用默认演示参数测试，并将响应 JSON 提交给支持团队。本次请求不会被扣费。\",\"docs\":\"https://api.tikhub.io/#/Xiaohongshu"
+    }
+  ],
+  "summary": {
+    "totalRecords": 40,
+    "platformsOk": 2,
+    "platformsEmpty": 0,
+    "platformsFailed": 1,
+    "platforms": [
+      {
+        "platform": "douyin",
+        "platformLabel": "抖音",
+        "status": "ok",
+        "items": 20,
+        "pagesFetched": 3,
+        "missingFields": {},
+        "fieldConfidence": "verified-against-live-response",
+        "fieldsVerifiedOn": "2026-09-06",
+        "error": null
+      },
+      {
+        "platform": "bilibili",
+        "platformLabel": "B站",
+        "status": "ok",
+        "items": 20,
+        "pagesFetched": 2,
+        "missingFields": {},
+        "fieldConfidence": "verified-against-live-response",
+        "fieldsVerifiedOn": "2026-09-06",
+        "error": null
+      },
+      {
+        "platform": "xhs",
+        "platformLabel": "小红书",
+        "status": "failed",
+        "items": 0,
+        "pagesFetched": 0,
+        "missingFields": {},
+        "fieldConfidence": "verified-against-live-response",
+        "fieldsVerifiedOn": "2026-09-06",
+        "error": "HTTP 400: {\"detail\":{\"code\":400,\"request_id\":\"8c3d92d3-f2c0-4140-9d0d-5ddef9844f34\",\"message\":\"Request failed. Please retry. Check the docs below to verify your parameters, test with the default demo parameters, and send the response JSON to support. You won't be charged for this request.\",\"message_zh\":\"请求失败，请重试。请查看下方文档核对参数，使用默认演示参数测试，并将响应 JSON 提交给支持团队。本次请求不会被扣费。\",\"docs\":\"https://api.tikhub.io/#/Xiaohongshu"
+      }
+    ]
+  },
+  "results": [
+    {
+      "platform": "douyin",
+      "platformLabel": "抖音",
+      "records": [
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7660133036176002313",
+          "url": "https://www.douyin.com/video/7660133036176002313",
+          "author": "AIGC百晓生",
+          "authorId": "1496860892595388",
+          "publishedAt": "2026-07-08T12:28:36.000Z",
+          "title": "及梦AI 实现二创动作参考舞蹈视频教程 #ai #ai视频 #ai教程 #凡尘一跃 #ai应用学习生态圈",
+          "excerpt": "及梦AI 实现二创动作参考舞蹈视频教程 #ai #ai视频 #ai教程 #凡尘一跃 #ai应用学习生态圈",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7678201739505437995",
+          "url": "https://www.douyin.com/video/7678201739505437995",
+          "author": "像素诗人·公子慕辰",
+          "authorId": "2388582898862067",
+          "publishedAt": "2026-08-26T05:04:21.000Z",
+          "title": "Codex+即梦强强联合，精准的动作迁移。 seedance 2.5的参考能力相信大家已经有目共睹，codex也是大名鼎鼎，网上也有很多用黑白深度视频参考和动作迁移的教程（基本都是单一角色），我今天主要解决群角参考的问题，希望对大家有帮助。#抖音AI创作大赛#AI短片#漫剧#seedance25 #即梦AI",
+          "excerpt": "Codex+即梦强强联合，精准的动作迁移。 seedance 2.5的参考能力相信大家已经有目共睹，codex也是大名鼎鼎，网上也有很多用黑白深度视频参考和动作迁移的教程（基本都是单一角色），我今天主要解决群角参考的问题，希望对大家有帮助。#抖音AI创作大赛#AI短片#漫剧#seedance25 #即梦AI",
+          "mentions": [
+            "Seedance",
+            "seedance25",
+            "即梦"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7623092658549820691",
+          "url": "https://www.douyin.com/video/7623092658549820691",
+          "author": "AI 办公室",
+          "authorId": "378691923486888",
+          "publishedAt": "2026-03-31T00:00:00.000Z",
+          "title": "即梦AI教学——动作运镜复刻 即梦AI系列教学第三期——动作运镜复刻#即梦ai  #seedance #动作运镜复刻",
+          "excerpt": "即梦AI教学——动作运镜复刻 即梦AI系列教学第三期——动作运镜复刻#即梦ai #seedance #动作运镜复刻",
+          "mentions": [
+            "seedance",
+            "Seedance",
+            "即梦"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7651066495103414437",
+          "url": "https://www.douyin.com/video/7651066495103414437",
+          "author": "尔东哥",
+          "authorId": "3432044885718219",
+          "publishedAt": "2026-06-14T02:05:38.000Z",
+          "title": "即梦AI里动作模仿的玩法 #萌娃跳舞视频 #创作者中心 #创作灵感 #AI短视频制作",
+          "excerpt": "即梦AI里动作模仿的玩法 #萌娃跳舞视频 #创作者中心 #创作灵感 #AI短视频制作",
+          "mentions": [
+            "即梦"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7537966853881105714",
+          "url": "https://www.douyin.com/video/7537966853881105714",
+          "author": "DeepAI数字产品",
+          "authorId": "92960358177",
+          "publishedAt": "2025-08-14T10:00:00.000Z",
+          "title": "2分钟教你用即梦AI动作模仿#即梦 #AI #洛阳迪普 #动作模仿 #2分钟教你用",
+          "excerpt": "2分钟教你用即梦AI动作模仿#即梦 #AI #洛阳迪普 #动作模仿 #2分钟教你用",
+          "mentions": [
+            "即梦"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7565610310510562619",
+          "url": "https://www.douyin.com/video/7565610310510562619",
+          "author": "新新宝贝（二胎宝妈）",
+          "authorId": "3019690765216970",
+          "publishedAt": "2025-10-26T19:12:16.000Z",
+          "title": "三分钟学会利用ai制作跳舞视频#ai教程 #干货分享 #自媒体 #剪辑",
+          "excerpt": "三分钟学会利用ai制作跳舞视频#ai教程 #干货分享 #自媒体 #剪辑",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7677613760596430131",
+          "url": "https://www.douyin.com/video/7677613760596430131",
+          "author": "蓝犀AIGC",
+          "authorId": "7576796825455297594",
+          "publishedAt": "2026-08-24T15:02:40.000Z",
+          "title": "🔥30秒教你复刻口哨舞视频 | 保姆级教程 别再到处找口哨舞素材了🤫\nAI 复刻完整舞蹈！可批量定制！\n最近超火的口哨舞视频，不用自己跳舞拍摄 靠梦~~同学的\n2.5视频模型+深度参考视频就能完美还原人物动作、运镜! \n#一站式AI创作工作台 #口哨舞 [话题]# #口哨舞挑战 #口哨舞蹈教程",
+          "excerpt": "🔥30秒教你复刻口哨舞视频 | 保姆级教程 别再到处找口哨舞素材了🤫 AI 复刻完整舞蹈！可批量定制！ 最近超火的口哨舞视频，不用自己跳舞拍摄 靠梦~~同学的 2.5视频模型+深度参考视频就能完美还原人物动作、运镜! #一站式AI创作工作台 #口哨舞 [话题]# #口哨舞挑战 #口哨舞蹈教程",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7546691001335811380",
+          "url": "https://www.douyin.com/video/7546691001335811380",
+          "author": "柠趣",
+          "authorId": "113984841460515",
+          "publishedAt": "2025-09-06T00:30:00.000Z",
+          "title": "1分钟学会AI动作捕捉做视频 解锁动作捕捉新玩儿法 #AI动作捕捉 #AI生成 #ai视频 #即梦 #青年创作者成长计划",
+          "excerpt": "1分钟学会AI动作捕捉做视频 解锁动作捕捉新玩儿法 #AI动作捕捉 #AI生成 #ai视频 #即梦 #青年创作者成长计划",
+          "mentions": [
+            "即梦"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7614114692122304646",
+          "url": "https://www.douyin.com/video/7614114692122304646",
+          "author": "快乐就完事儿了",
+          "authorId": "92679383761",
+          "publishedAt": "2026-03-06T12:13:45.000Z",
+          "title": "#自学ai 第三天啦，玩玩即梦的动作模仿，闪电五连鞭！",
+          "excerpt": "#自学ai 第三天啦，玩玩即梦的动作模仿，闪电五连鞭！",
+          "mentions": [
+            "即梦"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7664970250013892815",
+          "url": "https://www.douyin.com/video/7664970250013892815",
+          "author": "✨鳌太线不生存选手✨",
+          "authorId": "1890793207377735",
+          "publishedAt": "2026-07-21T13:19:17.000Z",
+          "title": "一键制作 #ggez #即梦ai",
+          "excerpt": "一键制作 #ggez #即梦ai",
+          "mentions": [
+            "ggez",
+            "即梦"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7623092658549820691",
+          "url": "https://www.douyin.com/video/7623092658549820691",
+          "author": "AI 办公室",
+          "authorId": "378691923486888",
+          "publishedAt": "2026-03-31T00:00:00.000Z",
+          "title": "即梦AI教学——动作运镜复刻 即梦AI系列教学第三期——动作运镜复刻#即梦ai  #seedance #动作运镜复刻",
+          "excerpt": "即梦AI教学——动作运镜复刻 即梦AI系列教学第三期——动作运镜复刻#即梦ai #seedance #动作运镜复刻",
+          "mentions": [
+            "seedance",
+            "Seedance",
+            "即梦"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7574425726508133369",
+          "url": "https://www.douyin.com/video/7574425726508133369",
+          "author": "晓玥清风",
+          "authorId": "95900337493",
+          "publishedAt": "2025-11-19T13:20:22.000Z",
+          "title": "即梦版动作模仿操作步骤#舞蹈视频 #边学边做边玩Ai",
+          "excerpt": "即梦版动作模仿操作步骤#舞蹈视频 #边学边做边玩Ai",
+          "mentions": [
+            "即梦"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7532398386986765628",
+          "url": "https://www.douyin.com/video/7532398386986765628",
+          "author": "木子李叔",
+          "authorId": "96791712971",
+          "publishedAt": "2025-07-29T10:48:00.000Z",
+          "title": "厉害了！ 即梦AI动作模仿，丝滑逼真#即梦AI",
+          "excerpt": "厉害了！ 即梦AI动作模仿，丝滑逼真#即梦AI",
+          "mentions": [
+            "即梦"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7609276608843209339",
+          "url": "https://www.douyin.com/video/7609276608843209339",
+          "author": "不等AI离子",
+          "authorId": "7477597312342295610",
+          "publishedAt": "2026-02-21T11:19:31.000Z",
+          "title": "即梦 Seedance 2.0 视频参考功能比传统的动作迁移强好几倍，色调和画风还能完美保持住，非常适合美学博主使用，  即梦AI 下一次更新到底会强到什么地步？  #AI六边形战士 #一句话P视频 #即梦AI  #seedance2 #叉子摇",
+          "excerpt": "即梦 Seedance 2.0 视频参考功能比传统的动作迁移强好几倍，色调和画风还能完美保持住，非常适合美学博主使用， 即梦AI 下一次更新到底会强到什么地步？ #AI六边形战士 #一句话P视频 #即梦AI #seedance2 #叉子摇",
+          "mentions": [
+            "Seedance",
+            "Seedance 2.0",
+            "seedance2",
+            "即梦"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7532398386986765628",
+          "url": "https://www.douyin.com/video/7532398386986765628",
+          "author": "木子李叔",
+          "authorId": "96791712971",
+          "publishedAt": "2025-07-29T10:48:00.000Z",
+          "title": "厉害了！ 即梦AI动作模仿，丝滑逼真#即梦AI",
+          "excerpt": "厉害了！ 即梦AI动作模仿，丝滑逼真#即梦AI",
+          "mentions": [
+            "即梦"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7504276109270748454",
+          "url": "https://www.douyin.com/video/7504276109270748454",
+          "author": "阿娇",
+          "authorId": "81349923036",
+          "publishedAt": "2025-05-14T12:24:07.000Z",
+          "title": "即梦AI动作模仿详细教程 点开视频左下角即梦AI上传一张照片即可做同款跳舞视#即梦 #即梦AI #动作模仿 #剪映制作 #制作教程",
+          "excerpt": "即梦AI动作模仿详细教程 点开视频左下角即梦AI上传一张照片即可做同款跳舞视#即梦 #即梦AI #动作模仿 #剪映制作 #制作教程",
+          "mentions": [
+            "剪映",
+            "即梦"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7609276608843209339",
+          "url": "https://www.douyin.com/video/7609276608843209339",
+          "author": "不等AI离子",
+          "authorId": "7477597312342295610",
+          "publishedAt": "2026-02-21T11:19:31.000Z",
+          "title": "即梦 Seedance 2.0 视频参考功能比传统的动作迁移强好几倍，色调和画风还能完美保持住，非常适合美学博主使用，  即梦AI 下一次更新到底会强到什么地步？  #AI六边形战士 #一句话P视频 #即梦AI  #seedance2 #叉子摇",
+          "excerpt": "即梦 Seedance 2.0 视频参考功能比传统的动作迁移强好几倍，色调和画风还能完美保持住，非常适合美学博主使用， 即梦AI 下一次更新到底会强到什么地步？ #AI六边形战士 #一句话P视频 #即梦AI #seedance2 #叉子摇",
+          "mentions": [
+            "Seedance",
+            "Seedance 2.0",
+            "seedance2",
+            "即梦"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7524709180557741348",
+          "url": "https://www.douyin.com/video/7524709180557741348",
+          "author": "蒹葭倚玉",
+          "authorId": "2465549921560320",
+          "publishedAt": "2025-07-08T13:54:44.000Z",
+          "title": "即梦动作模仿秀教程来啦，点左下角链接，上传一张照片，就可以模仿任何一个你想要模仿的动作了，快来试试看吧#即梦ai #ai舞蹈 #动作模仿 #即梦ai短片挑战赛 #我要上热门🔥",
+          "excerpt": "即梦动作模仿秀教程来啦，点左下角链接，上传一张照片，就可以模仿任何一个你想要模仿的动作了，快来试试看吧#即梦ai #ai舞蹈 #动作模仿 #即梦ai短片挑战赛 #我要上热门🔥",
+          "mentions": [
+            "即梦"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7507133178424216892",
+          "url": "https://www.douyin.com/video/7507133178424216892",
+          "author": "小白鼠（教程首页置顶）",
+          "authorId": "3375928756410812",
+          "publishedAt": "2025-05-22T05:10:52.000Z",
+          "title": "这样子的武打动作没想到集梦也可以#即梦ai #拍同款 #即梦教程 #AI动作模仿",
+          "excerpt": "这样子的武打动作没想到集梦也可以#即梦ai #拍同款 #即梦教程 #AI动作模仿",
+          "mentions": [
+            "即梦"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7541403833756290363",
+          "url": "https://www.douyin.com/video/7541403833756290363",
+          "author": "瑶瑶剪辑",
+          "authorId": "2843773037198841",
+          "publishedAt": "2025-08-22T13:38:31.000Z",
+          "title": "教你用即梦AI让照片跳舞 #剪辑#原创#视频剪辑#ai",
+          "excerpt": "教你用即梦AI让照片跳舞 #剪辑#原创#视频剪辑#ai",
+          "mentions": [
+            "即梦"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        }
+      ],
+      "pages": [
+        {
+          "page": 1,
+          "received": 7
+        },
+        {
+          "page": 2,
+          "received": 7
+        },
+        {
+          "page": 3,
+          "received": 7
+        }
+      ]
+    },
+    {
+      "platform": "bilibili",
+      "platformLabel": "B站",
+      "records": [
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1BrUGBXEg9",
+          "url": "https://www.bilibili.com/video/BV1BrUGBXEg9",
+          "author": "三郎会声会影",
+          "authorId": "496411421",
+          "publishedAt": "2025-11-24T03:38:54.000Z",
+          "title": "即梦图生视频之一张图生成视频",
+          "excerpt": "即梦图生视频之一张图生成视频",
+          "mentions": [
+            "即梦"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1skuA6CEC3",
+          "url": "https://www.bilibili.com/video/BV1skuA6CEC3",
+          "author": "学AI的曹同学",
+          "authorId": "237602907",
+          "publishedAt": "2026-08-04T12:16:44.000Z",
+          "title": "MiniMax H3全能参考教程！图片+视频+音频一起控，动作复刻与带货口播实测",
+          "excerpt": "MiniMax H3全能参考教程！图片+视频+音频一起控，动作复刻与带货口播实测 MiniMax H3全能参考生视频（动作迁移）工作流体验地址： https://www.runninghub.cn/post/2084473001717878785/?inviteCode=rh-v1025 MiniMax H3全能参考生视频工作流体验地址： https://www.runninghub.cn/post/2084114253300199425/?inviteCode=rh-v1025 MiniMax H3文生视频+首尾帧生视频工作流体验地址： https://www.runninghu",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1jsLd6tEdF",
+          "url": "https://www.bilibili.com/video/BV1jsLd6tEdF",
+          "author": "张百川AI",
+          "authorId": "528285",
+          "publishedAt": "2026-06-18T02:00:00.000Z",
+          "title": "21集-seedance2参考视频不能乱用！复杂动作到底如何稳住",
+          "excerpt": "21集-seedance2参考视频不能乱用！复杂动作到底如何稳住",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1raFZz2EEs",
+          "url": "https://www.bilibili.com/video/BV1raFZz2EEs",
+          "author": "UES1_布林",
+          "authorId": "152383265",
+          "publishedAt": "2026-02-08T06:24:47.000Z",
+          "title": "确定进步了！即梦Seedance 2.0动作模仿",
+          "excerpt": "确定进步了！即梦Seedance 2.0动作模仿 即梦Seedance 2.0让图片角色模仿视频角色的动作",
+          "mentions": [
+            "Seedance",
+            "Seedance 2.0",
+            "即梦"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV131ctzJEDi",
+          "url": "https://www.bilibili.com/video/BV131ctzJEDi",
+          "author": "UES1_布林",
+          "authorId": "152383265",
+          "publishedAt": "2026-02-11T15:51:59.000Z",
+          "title": "即梦Seedance 2.0四足角色动作迁移实测效果",
+          "excerpt": "即梦Seedance 2.0四足角色动作迁移实测效果 Seedance 2.0的四足测试效果，效果如何可以在评论区讨论，还想看怎么样的类型测试也欢迎在评论区讨论",
+          "mentions": [
+            "Seedance",
+            "Seedance 2.0",
+            "即梦"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1Sz6qBXEQu",
+          "url": "https://www.bilibili.com/video/BV1Sz6qBXEQu",
+          "author": "居鲁仕",
+          "authorId": "3546908274460694",
+          "publishedAt": "2026-01-31T03:05:00.000Z",
+          "title": "动作模仿全攻略！！一次讲透玩法与细节！",
+          "excerpt": "动作模仿全攻略！！一次讲透玩法与细节！ 最近收到大家不少反馈，大多都是细节上的问题，这条视频就来帮大家整体梳理一遍，希望大家都能做出自己满意的效果，有任何问题，欢迎随时来交流～",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV12rb46cEy1",
+          "url": "https://www.bilibili.com/video/BV12rb46cEy1",
+          "author": "西兰花の懒羊羊",
+          "authorId": "661353526",
+          "publishedAt": "2026-09-06T23:34:35.000Z",
+          "title": "持剑动作姿势绘画素材参考",
+          "excerpt": "持剑动作姿势绘画素材参考 -",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV18W2VBTEot",
+          "url": "https://www.bilibili.com/video/BV18W2VBTEot",
+          "author": "飓风轻创日记",
+          "authorId": "3546376004700368",
+          "publishedAt": "2025-12-05T05:52:15.000Z",
+          "title": "【即梦AI教程】目前B站最全最细的即梦AI5.0新手入门必看系列手机版教程!基础软件+实用技巧+实操案例教程!最适合小白学习的AI视频制作教程!少走99%的弯路",
+          "excerpt": "【即梦AI教程】目前B站最全最细的即梦AI5.0新手入门必看系列手机版教程!基础软件+实用技巧+实操案例教程!最适合小白学习的AI视频制作教程!少走99%的弯路 视频制作不易~麻烦各位观众老爷给个免费的三联！！感谢观看!! 更多“ai工具+教程”~~~拿“自媒体工具箱”学习",
+          "mentions": [
+            "即梦"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1Ethw6DE2h",
+          "url": "https://www.bilibili.com/video/BV1Ethw6DE2h",
+          "author": "像素诗人-公子慕辰",
+          "authorId": "1921928620",
+          "publishedAt": "2026-08-27T07:05:30.000Z",
+          "title": "Codex+即梦强强联合，精准的动作迁移。",
+          "excerpt": "Codex+即梦强强联合，精准的动作迁移。",
+          "mentions": [
+            "即梦"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1zgcMzrEQL",
+          "url": "https://www.bilibili.com/video/BV1zgcMzrEQL",
+          "author": "越月学习空间",
+          "authorId": "3493134535232305",
+          "publishedAt": "2026-02-09T09:21:32.000Z",
+          "title": "即梦ai——seedance2.0动作迁移教程",
+          "excerpt": "即梦ai——seedance2.0动作迁移教程",
+          "mentions": [
+            "即梦"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1VNLazPEiJ",
+          "url": "https://www.bilibili.com/video/BV1VNLazPEiJ",
+          "author": "bjsir",
+          "authorId": "395383291",
+          "publishedAt": "2025-04-23T16:59:45.000Z",
+          "title": "分享 即梦AI数字人-动作模仿 使用经验",
+          "excerpt": "分享 即梦AI数字人-动作模仿 使用经验 分享AI使用经验",
+          "mentions": [
+            "即梦"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1JRYgzwEa3",
+          "url": "https://www.bilibili.com/video/BV1JRYgzwEa3",
+          "author": "AI产品狙击手",
+          "authorId": "596541619",
+          "publishedAt": "2025-09-07T03:09:27.000Z",
+          "title": "姿势参考从未如此简单！即梦实战第42集！",
+          "excerpt": "姿势参考从未如此简单！即梦实战第42集！ 问答题，给你一张杨贵妃的图片和一张李隆基的图片，怎么生成这样的一张自拍图片？画一张或者找一张这样的线框图，然后用stable diffusion controlnet？没错，但估计你很难找到可以上传多个参考图的。《即梦实战》第42集，今天教大家一个最简单的方法，那就是用即梦最新上线的图片4.0多参考图功能。废话不多说，赶紧Demo",
+          "mentions": [
+            "ControlNet",
+            "Stable Diffusion",
+            "即梦"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1s49FBVEeM",
+          "url": "https://www.bilibili.com/video/BV1s49FBVEeM",
+          "author": "大邓聊组织管理",
+          "authorId": "146947648",
+          "publishedAt": "2026-04-02T13:26:13.000Z",
+          "title": "每周三共学沙龙：即梦出镜功能注意事项",
+          "excerpt": "每周三共学沙龙：即梦出镜功能注意事项 即梦出镜功能注意事项：1.目前免费；2.每个账号每天封顶10条创作，同时最高5条视频同步制作；3.最多艾2个好友一起出镜；4.视频如果生成效果不好，就接着抽卡或优化提示词描述；5.生成的视频下载保存都有即梦水印等12条注意事项#即梦教程#AI短视频制作",
+          "mentions": [
+            "即梦"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1be8h6LEZS",
+          "url": "https://www.bilibili.com/video/BV1be8h6LEZS",
+          "author": "捌柒八",
+          "authorId": "189087977",
+          "publishedAt": "2026-08-23T22:42:52.000Z",
+          "title": "AI生图别再抽卡了！从动作、构图到灯光，教你控制人物姿势的完整工作流",
+          "excerpt": "AI生图别再抽卡了！从动作、构图到灯光，教你控制人物姿势的完整工作流",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1Z8sHzBEro",
+          "url": "https://www.bilibili.com/video/BV1Z8sHzBEro",
+          "author": "AI视频教程学习",
+          "authorId": "3546880474614341",
+          "publishedAt": "2025-10-24T09:58:43.000Z",
+          "title": "【即梦AI教程】即梦ai如何生成同一模特多种pose进阶版",
+          "excerpt": "【即梦AI教程】即梦ai如何生成同一模特多种pose进阶版 配套学习资料/AIGC变现手册/系统学习aigc请戳：https://www.bilibili.com/read/cv41297544/?jump_opus=1",
+          "mentions": [
+            "即梦"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1Y49nYWEEB",
+          "url": "https://www.bilibili.com/video/BV1Y49nYWEEB",
+          "author": "木子教育技术",
+          "authorId": "249662341",
+          "publishedAt": "2025-03-04T09:57:51.000Z",
+          "title": "即梦AI之动作模仿",
+          "excerpt": "即梦AI之动作模仿 即梦AI又更新了，支持动作模仿了，人物动作更加可控，赶紧试起来！",
+          "mentions": [
+            "即梦"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV19KcazaE5s",
+          "url": "https://www.bilibili.com/video/BV19KcazaE5s",
+          "author": "青木动漫",
+          "authorId": "411451308",
+          "publishedAt": "2026-02-12T01:02:59.000Z",
+          "title": "给大家分享一个即梦seedance2.0出镜玩法",
+          "excerpt": "给大家分享一个即梦seedance2.0出镜玩法 -",
+          "mentions": [
+            "即梦"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1wiMR62Eii",
+          "url": "https://www.bilibili.com/video/BV1wiMR62Eii",
+          "author": "喵同学AIGC",
+          "authorId": "3546599542229868",
+          "publishedAt": "2026-08-03T13:00:43.000Z",
+          "title": "终于能P视频了！即梦Seedance 2.5 视频精准编辑。",
+          "excerpt": "终于能P视频了！即梦Seedance 2.5 视频精准编辑。 Seedance2.5官方满血体验。我觉得最实用的就是可以根据时间戳来对具体画面进行精细化修改。",
+          "mentions": [
+            "Seedance",
+            "Seedance 2.5",
+            "Seedance2.5",
+            "即梦"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1jtAmznEHS",
+          "url": "https://www.bilibili.com/video/BV1jtAmznEHS",
+          "author": "YANBINGSKY",
+          "authorId": "480413498",
+          "publishedAt": "2026-02-27T03:51:57.000Z",
+          "title": "测试下即梦seedance2.0的动画参考视频的效果",
+          "excerpt": "测试下即梦seedance2.0的动画参考视频的效果 看了很多AI和seedance2.0做的真人或3D写实类型的视频，觉得真的没啥问题了，视觉的东西已经越来越廉价，我测试了一下2D风格化的内容，同样惊艳，虽然细节还是有些问题，即便AI解决不了，把错误的帧自己画一下就可以了，参考风格图片是：Marcos Mateu-Mestre",
+          "mentions": [
+            "即梦"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1RyFUz2Eau",
+          "url": "https://www.bilibili.com/video/BV1RyFUz2Eau",
+          "author": "小兔存钱罐",
+          "authorId": "3546857804401310",
+          "publishedAt": "2026-02-10T09:07:07.000Z",
+          "title": "即梦AI出镜-做同款  是能赚米米的！！！",
+          "excerpt": "即梦AI出镜-做同款 是能赚米米的！！！",
+          "mentions": [
+            "即梦"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        }
+      ],
+      "pages": [
+        {
+          "page": 1,
+          "received": 18
+        },
+        {
+          "page": 2,
+          "received": 20
+        }
+      ]
+    },
+    {
+      "platform": "xhs",
+      "platformLabel": "小红书",
+      "records": [],
+      "pages": [],
+      "error": "HTTP 400: {\"detail\":{\"code\":400,\"request_id\":\"8c3d92d3-f2c0-4140-9d0d-5ddef9844f34\",\"message\":\"Request failed. Please retry. Check the docs below to verify your parameters, test with the default demo parameters, and send the response JSON to support. You won't be charged for this request.\",\"message_zh\":\"请求失败，请重试。请查看下方文档核对参数，使用默认演示参数测试，并将响应 JSON 提交给支持团队。本次请求不会被扣费。\",\"docs\":\"https://api.tikhub.io/#/Xiaohongshu"
+    }
+  ]
+}

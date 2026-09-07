@@ -21,7 +21,7 @@ import {
   mcpServerEntry,
   type McpClientKey,
 } from './mcpConfig'
-import { MCP_CLIENT_ENV, MCP_CLIENT_PROOF_ENV, verifyMcpClient } from './security'
+import { MCP_CLIENT_ENV, MCP_CLIENT_PROOF_ENV, isBuiltinMcpClient, verifyMcpClient } from './security'
 
 /** 失败原因（UI 文案按它走 i18n，不从主进程回中文——R15）。 */
 export type McpVerifyReason =
@@ -58,7 +58,9 @@ function fail(reason: McpVerifyReason, stale: boolean, detail = ''): McpVerifyRe
  * 用户点开接入面板就跑（打包版实测 ~0.5s），失败时 UI 直接给「配置已失效 · 重新接入」。
  */
 export async function verifyMcp(client?: string): Promise<McpVerifyResult> {
-  const key: McpClientKey = client && (client === 'codex' || client === 'cursor' || listCustomMcpProfiles().some((p) => p.key === client))
+  // 认得的身份才用，其余回落 claude。内置名单读 security.ts（此前这里抄了一份「codex|cursor」，
+  // 加第四个内置客户端时会静默把它验成 claude——看起来「没接入」，其实是验错了对象）。
+  const key: McpClientKey = client && (isBuiltinMcpClient(client) || listCustomMcpProfiles().some((p) => p.key === client))
     ? client
     : 'claude'
   const entry = configuredMcpEntry(key)
