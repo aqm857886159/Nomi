@@ -251,7 +251,7 @@ export function TaskCenterPanel({ opened, onClose, productionRuns, exportJobs, o
             type="button"
             aria-label={t('taskCenter.close')}
             onClick={onClose}
-            className="inline-flex items-center justify-center size-6 rounded-nomi-sm text-nomi-ink-60 hover:bg-nomi-ink-05 hover:text-nomi-ink transition-[background,color] duration-[var(--nomi-transition-fast)]"
+            className="inline-flex items-center justify-center size-6 rounded-nomi-sm text-nomi-ink-60 hover:bg-nomi-ink-05 hover:text-nomi-ink transition-[background,color] duration-nomi-fast ease-nomi-fast"
           >
             <IconX size={15} stroke={1.8} />
           </button>
@@ -371,7 +371,7 @@ function SummaryAction({ label, onClick }: { label: string; onClick: () => void 
     <button
       type="button"
       onClick={onClick}
-      className="shrink-0 text-micro text-nomi-ink-60 border border-nomi-line rounded-full px-2 py-0.5 hover:text-nomi-ink hover:border-nomi-ink-40 transition-[color,border-color] duration-[var(--nomi-transition-fast)]"
+      className="shrink-0 text-micro text-nomi-ink-60 border border-nomi-line rounded-full px-2 py-0.5 hover:text-nomi-ink hover:border-nomi-ink-40 transition-[color,border-color] duration-nomi-fast ease-nomi-fast"
     >
       {label}
     </button>
@@ -398,7 +398,7 @@ function TaskRow({
       onKeyDown={(event) => {
         if (revealable && (event.key === 'Enter' || event.key === ' ')) onReveal?.(row)
       }}
-      className={`flex gap-2.5 px-3.5 py-2 items-start transition-[background] duration-[var(--nomi-transition-fast)] ${revealable ? 'cursor-pointer hover:bg-nomi-ink-05' : ''}`}
+      className={`flex gap-2.5 px-3.5 py-2 items-start transition-[background] duration-nomi-fast ease-nomi-fast ${revealable ? 'cursor-pointer hover:bg-nomi-ink-05' : ''}`}
     >
       <div className="flex-1 min-w-0">
         <div className={['text-body-sm truncate', failed ? 'text-nomi-ink' : 'text-nomi-ink-80'].join(' ')}>{row.title}</div>
@@ -427,7 +427,7 @@ function TaskRow({
             也是在假装知道进度。没数就不画，靠区段标题 + 已跑时长表达「在跑」。 */}
         {row.group === 'running' && typeof row.percent === 'number' ? (
           <div className="h-[3px] bg-nomi-ink-10 rounded-full mt-1.5 overflow-hidden">
-            <div className="h-full bg-nomi-accent rounded-full transition-[width] duration-[var(--nomi-transition-fast)]" style={{ width: `${row.percent}%` }} />
+            <div className="h-full bg-nomi-accent rounded-full transition-[width] duration-nomi-fast ease-nomi-fast" style={{ width: `${row.percent}%` }} />
           </div>
         ) : null}
         {row.kind === 'generation' && row.cancel === 'none' && row.group === 'running' ? (
@@ -445,7 +445,7 @@ function TaskRow({
             event.stopPropagation()
             onAction()
           }}
-          className="shrink-0 text-micro text-nomi-ink-60 border border-nomi-line rounded-full px-2 py-0.5 hover:text-nomi-ink hover:border-nomi-ink-40 transition-[color,border-color] duration-[var(--nomi-transition-fast)]"
+          className="shrink-0 text-micro text-nomi-ink-60 border border-nomi-line rounded-full px-2 py-0.5 hover:text-nomi-ink hover:border-nomi-ink-40 transition-[color,border-color] duration-nomi-fast ease-nomi-fast"
         >
           {row.action.kind === 'retry_generation'
             ? t('taskCenter.row.retry')

@@ -32,7 +32,7 @@
       --nomi-radius-sm: 6px;
       --nomi-radius: 10px;
       --nomi-radius-lg: 14px;
-      --nomi-transition-fast: 140ms cubic-bezier(.2, .7, .3, 1);
+      --nomi-duration-fast: 140ms; --nomi-ease-fast: cubic-bezier(.2, .7, .3, 1);
       --nomi-font-sans: "Inter Variable", Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", system-ui, sans-serif;
       --nomi-font-display: "Fraunces Variable", Fraunces, Georgia, serif;
       --backdrop: oklch(0.12 0.005 80 / 0.56);
@@ -168,7 +168,7 @@
       border-radius: var(--nomi-radius-lg);
       background: var(--nomi-paper);
       box-shadow: var(--nomi-shadow-lg);
-      transition: width var(--nomi-transition-fast), height var(--nomi-transition-fast);
+      transition: width var(--nomi-duration-fast) var(--nomi-ease-fast), height var(--nomi-duration-fast) var(--nomi-ease-fast);
     }
     .demo[data-preview="narrow"] .settings-shell {
       width: 390px;
@@ -348,7 +348,7 @@
     .field-input[aria-invalid="true"] { border-color: var(--nomi-danger); outline-color: color-mix(in srgb, var(--nomi-danger) 35%, transparent); }
 
     .disclosure-button { grid-template-columns: 32px minmax(0, 1fr) auto; }
-    .disclosure-button .chevron { transition: transform var(--nomi-transition-fast); }
+    .disclosure-button .chevron { transition: transform var(--nomi-duration-fast) var(--nomi-ease-fast); }
     .disclosure-button[aria-expanded="true"] .chevron { transform: rotate(180deg); }
     .disclosure-content { display: none; }
     .disclosure-content[data-open="true"] { display: block; }

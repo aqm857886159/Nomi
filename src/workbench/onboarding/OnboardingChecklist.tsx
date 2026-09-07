@@ -213,7 +213,7 @@ export function OnboardingChecklist(): JSX.Element | null {
         className={cn(
           'inline-flex items-center gap-1.5 h-7 px-2.5 cursor-pointer font-inherit',
           'rounded-nomi-sm border border-transparent bg-transparent',
-          'text-body-sm text-nomi-ink-80 transition-[background,color] duration-[var(--nomi-transition-fast)]',
+          'text-body-sm text-nomi-ink-80 transition-[background,color] duration-nomi-fast ease-nomi-fast',
           'hover:bg-nomi-ink-05 hover:text-nomi-ink',
           open && 'bg-nomi-ink-05 text-nomi-ink',
         )}

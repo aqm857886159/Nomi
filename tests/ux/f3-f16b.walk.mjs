@@ -247,7 +247,7 @@ try {
   //    （src/theme/colorScheme.ts:54）写**四个**：dataset.theme / dataset.nomiColorScheme /
   //    data-mantine-color-scheme / style.colorScheme。少写 = 截的不是用户会看到的那一屏
   //    （验证物必须等于用户所见物）。改成照抄那四行。
-  // ② 没等过渡收敛就截图。token 是 --nomi-transition-fast=140ms 的 transition-colors，
+  // ② 没等过渡收敛就截图。token 是 --nomi-duration-fast=140ms 的 transition-colors，
   //    截到的是**插值中间帧**：正文已经变色、而取消/生成两个按钮的文字被洗成一片灰白方块，
   //    肉眼看像按钮没有标签。这正是本次要修的假证据。
   //

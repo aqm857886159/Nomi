@@ -250,7 +250,7 @@ export function NomiBrowserDialogView({
                 type="button"
                 className={cn(
                   'grid size-6 shrink-0 place-items-center rounded-pill border-0 bg-transparent',
-                  'cursor-pointer text-nomi-ink-40 transition-colors duration-[var(--nomi-transition-fast)] hover:bg-nomi-ink-05 hover:text-nomi-ink',
+                  'cursor-pointer text-nomi-ink-40 transition-colors duration-nomi-fast ease-nomi-fast hover:bg-nomi-ink-05 hover:text-nomi-ink',
                   activeBookmarked && 'text-nomi-accent hover:text-nomi-accent',
                   (!activeTab?.url || activeBookmarked) && 'cursor-default',
                 )}
@@ -272,7 +272,7 @@ export function NomiBrowserDialogView({
                   type="button"
                   className={cn(
                     'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-nomi-sm border-0 bg-transparent px-2',
-                    'cursor-pointer text-caption font-semibold text-nomi-ink-60 transition-[background,color] duration-[var(--nomi-transition-fast)]',
+                    'cursor-pointer text-caption font-semibold text-nomi-ink-60 transition-[background,color] duration-nomi-fast ease-nomi-fast',
                     'hover:bg-nomi-ink-05 hover:text-nomi-ink',
                     materialSitesOpen && 'bg-nomi-ink-05 text-nomi-ink',
                   )}
@@ -325,7 +325,7 @@ export function NomiBrowserDialogView({
                 type="button"
                 className={cn(
                   'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-nomi-sm border-0 bg-transparent px-2',
-                  'cursor-pointer text-caption font-semibold text-nomi-ink-60 transition-[background,color] duration-[var(--nomi-transition-fast)]',
+                  'cursor-pointer text-caption font-semibold text-nomi-ink-60 transition-[background,color] duration-nomi-fast ease-nomi-fast',
                   'hover:bg-nomi-ink-05 hover:text-nomi-ink',
                   browserAssetPopoverOpen && 'bg-nomi-ink-05 text-nomi-ink',
                 )}
@@ -436,7 +436,7 @@ export function NomiBrowserDialogView({
                             type="button"
                             className={cn(
                               'group flex items-center gap-2.5 rounded-nomi border border-nomi-line bg-nomi-paper p-2.5 text-left',
-                              'cursor-pointer transition-[background,border-color,transform,box-shadow] duration-[var(--nomi-transition-fast)]',
+                              'cursor-pointer transition-[background,border-color,transform,box-shadow] duration-nomi-fast ease-nomi-fast',
                               'hover:-translate-y-px hover:border-nomi-accent hover:shadow-nomi-md',
                             )}
                             onClick={() => {

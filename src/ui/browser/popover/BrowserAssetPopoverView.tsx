@@ -272,12 +272,12 @@ export function BrowserAssetPopoverView(props: BrowserAssetPopoverViewProps): JS
           {assetContextMenu && selectedIds.size > 0 ? (
             <div ref={assetContextMenuRef} className="absolute z-[9] rounded-nomi border border-nomi-line bg-nomi-paper p-1 shadow-nomi-lg" style={{ left: assetContextMenu.x, top: assetContextMenu.y, width: ASSET_CONTEXT_MENU_WIDTH }} role="menu" aria-label={t('browserAssets.assetActions')} onContextMenu={(event) => event.preventDefault()} onMouseDown={(event) => event.stopPropagation()}>
               {canImportSelectedAssetsToCanvas ? (
-                <button type="button" className={cn('flex h-8 w-full items-center gap-2 rounded-nomi-sm border-0 bg-transparent px-2 text-left', 'cursor-pointer text-caption text-nomi-ink-80 transition-colors duration-[var(--nomi-transition-fast)]', 'hover:bg-nomi-ink-05 hover:text-nomi-ink focus-visible:bg-nomi-ink-05 focus-visible:outline-none')} role="menuitem" onClick={importSelectedAssetsToCanvas}>
+                <button type="button" className={cn('flex h-8 w-full items-center gap-2 rounded-nomi-sm border-0 bg-transparent px-2 text-left', 'cursor-pointer text-caption text-nomi-ink-80 transition-colors duration-nomi-fast ease-nomi-fast', 'hover:bg-nomi-ink-05 hover:text-nomi-ink focus-visible:bg-nomi-ink-05 focus-visible:outline-none')} role="menuitem" onClick={importSelectedAssetsToCanvas}>
                   <IconArrowForwardUp size={15} stroke={1.8} aria-hidden="true" className="shrink-0" />
                   <span className="min-w-0 flex-1 truncate">{t('browserAssets.importToCanvas')}</span>
                 </button>
               ) : null}
-              <button type="button" className={cn('flex h-8 w-full items-center gap-2 rounded-nomi-sm border-0 bg-transparent px-2 text-left', 'cursor-pointer text-caption text-workbench-danger transition-colors duration-[var(--nomi-transition-fast)]', 'hover:bg-workbench-danger-soft focus-visible:bg-workbench-danger-soft focus-visible:outline-none')} role="menuitem" onClick={deleteSelectedAssets}>
+              <button type="button" className={cn('flex h-8 w-full items-center gap-2 rounded-nomi-sm border-0 bg-transparent px-2 text-left', 'cursor-pointer text-caption text-workbench-danger transition-colors duration-nomi-fast ease-nomi-fast', 'hover:bg-workbench-danger-soft focus-visible:bg-workbench-danger-soft focus-visible:outline-none')} role="menuitem" onClick={deleteSelectedAssets}>
                 <IconTrash size={15} stroke={1.8} aria-hidden="true" className="shrink-0" />
                 <span className="min-w-0 flex-1 truncate">{t('browserAssets.delete')}</span>
               </button>

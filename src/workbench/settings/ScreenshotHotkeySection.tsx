@@ -69,7 +69,7 @@ export function ScreenshotHotkeySection(): JSX.Element {
               onClick={() => apply(enabled, option)}
               className={cn(
                 'rounded-nomi-sm border px-2.5 py-1.5 font-mono text-caption cursor-pointer',
-                'transition-colors duration-[var(--nomi-transition-fast)]',
+                'transition-colors duration-nomi-fast ease-nomi-fast',
                 option === accelerator
                   ? 'border-nomi-accent bg-nomi-accent-soft text-nomi-accent'
                   : 'border-nomi-line bg-nomi-paper text-nomi-ink-60 hover:bg-nomi-ink-05',

@@ -163,7 +163,7 @@ export function ScreenshotCropOverlay({ capture, basePosition, categoryId, onClo
           className={cn(
             'inline-flex h-9 items-center rounded-full border-0 px-4 cursor-pointer',
             'bg-nomi-paper text-body font-medium text-nomi-ink hover:bg-nomi-accent hover:text-nomi-paper',
-            'transition-colors duration-[var(--nomi-transition-fast)] disabled:opacity-50',
+            'transition-colors duration-nomi-fast ease-nomi-fast disabled:opacity-50',
           )}
           onClick={() => void commit()}
         >

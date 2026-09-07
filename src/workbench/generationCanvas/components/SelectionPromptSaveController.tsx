@@ -164,7 +164,7 @@ export function SelectionPromptSaveController({ nodes, disabled = false }: Props
           className={cn(
             'fixed z-[100] inline-flex h-9 -translate-x-1/2 items-center gap-2 rounded-full border border-nomi-line px-3',
             'bg-nomi-paper text-nomi-ink shadow-nomi-lg cursor-pointer',
-            'transition-[background,color,transform] duration-[var(--nomi-transition-fast)] hover:-translate-y-0.5 hover:text-nomi-accent',
+            'transition-[background,color,transform] duration-nomi-fast ease-nomi-fast hover:-translate-y-0.5 hover:text-nomi-accent',
           )}
           style={{ left: toolbar.left, top: toolbar.top }}
           onPointerDown={(event) => event.stopPropagation()}

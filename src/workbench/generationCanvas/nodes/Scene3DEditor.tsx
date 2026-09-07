@@ -353,7 +353,7 @@ function Scene3DEditor({ node, width, height, readOnly = false }: Scene3DEditorP
             <div
               className={cn(
                 'pointer-events-none absolute inset-0 grid place-items-center',
-                'bg-nomi-ink/0 transition-colors duration-[var(--nomi-transition-fast)] group-hover:bg-nomi-ink/[0.32]',
+                'bg-nomi-ink/0 transition-colors duration-nomi-fast ease-nomi-fast group-hover:bg-nomi-ink/[0.32]',
               )}
             >
               <button
@@ -362,7 +362,7 @@ function Scene3DEditor({ node, width, height, readOnly = false }: Scene3DEditorP
                 className={cn(
                   'pointer-events-auto inline-flex items-center gap-1.5 rounded-nomi px-3 py-1.5 border-0 cursor-pointer',
                   'bg-nomi-paper/[0.92] text-body-sm font-semibold text-nomi-ink shadow-nomi-sm backdrop-blur-[10px]',
-                  'opacity-0 transition-opacity duration-[var(--nomi-transition-fast)] group-hover:opacity-100',
+                  'opacity-0 transition-opacity duration-nomi-fast ease-nomi-fast group-hover:opacity-100',
                   'focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-nomi-accent focus-visible:outline-offset-2',
                 )}
                 onFocus={preloadFullscreenEditor}

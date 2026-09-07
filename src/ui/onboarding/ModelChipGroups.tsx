@@ -129,7 +129,7 @@ export function ModelChipGroups({ models, connected, onToggle, onDelete, onOpenM
                     }}
                     className={cn(
                       'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-caption cursor-pointer',
-                      'transition-colors duration-[var(--nomi-transition-fast)]',
+                      'transition-colors duration-nomi-fast ease-nomi-fast',
                       m.enabled
                         ? 'border-nomi-accent-soft bg-nomi-accent-soft text-nomi-ink hover:border-nomi-accent'
                         : 'border-nomi-line text-nomi-ink-40 hover:border-nomi-ink-20 hover:text-nomi-ink-60',

@@ -133,7 +133,7 @@ export default function NomiAppBar({
                   'border-none bg-transparent font-inherit text-body-sm',
                   'cursor-pointer whitespace-nowrap',
                   'text-[var(--nomi-ink-40)]',
-                  'transition-[background,color] duration-[var(--nomi-transition-fast)]',
+                  'transition-[background,color] duration-nomi-fast ease-nomi-fast',
                   'hover:bg-[var(--nomi-ink-05)] hover:text-[var(--nomi-ink)]',
                   'max-[700px]:hidden',
                 )}
@@ -186,7 +186,7 @@ export default function NomiAppBar({
                 'border-none bg-transparent font-inherit text-body-sm',
                 'cursor-pointer whitespace-nowrap',
                 'text-[var(--nomi-ink-80)] max-w-[200px] overflow-hidden text-ellipsis',
-                'transition-[background,color] duration-[var(--nomi-transition-fast)]',
+                'transition-[background,color] duration-nomi-fast ease-nomi-fast',
                 'hover:bg-[var(--nomi-ink-05)] hover:text-[var(--nomi-ink)]',
               )}
               // 见上:项目名是用户内容(持久化的项目名),不是 UI 文案。文本与 title 都可能非当前界面语言,
@@ -266,7 +266,7 @@ export default function NomiAppBar({
                     'inline-flex items-center gap-1.5 h-[30px] px-2.5',
                     'border border-transparent rounded-[var(--nomi-radius-sm)]',
                     'bg-transparent text-[var(--nomi-ink-80)] font-inherit text-body-sm',
-                    'transition-[background,color] duration-[var(--nomi-transition-fast)]',
+                    'transition-[background,color] duration-nomi-fast ease-nomi-fast',
                     'hover:bg-[var(--nomi-ink-05)] hover:text-[var(--nomi-ink)]',
                     'max-[1600px]:w-[30px] max-[1600px]:h-[30px] max-[1600px]:justify-center max-[1600px]:p-0',
                   )}
@@ -308,7 +308,7 @@ export default function NomiAppBar({
                     'inline-flex items-center gap-1.5 h-[30px] px-2.5',
                     'border border-transparent rounded-[var(--nomi-radius-sm)]',
                     'bg-transparent text-[var(--nomi-ink-80)] font-inherit text-body-sm',
-                    'transition-[background,color] duration-[var(--nomi-transition-fast)]',
+                    'transition-[background,color] duration-nomi-fast ease-nomi-fast',
                     'hover:bg-[var(--nomi-ink-05)] hover:text-[var(--nomi-ink)]',
                     'max-[1600px]:w-[30px] max-[1600px]:h-[30px] max-[1600px]:justify-center max-[1600px]:p-0',
                   )}
@@ -328,7 +328,7 @@ export default function NomiAppBar({
                   'inline-flex items-center gap-1.5 h-[30px] px-2.5',
                   'border border-transparent rounded-[var(--nomi-radius-sm)]',
                   'bg-transparent text-[var(--nomi-ink-80)] font-inherit text-body-sm',
-                  'transition-[background,color] duration-[var(--nomi-transition-fast)]',
+                  'transition-[background,color] duration-nomi-fast ease-nomi-fast',
                   'hover:bg-[var(--nomi-ink-05)] hover:text-[var(--nomi-ink)]',
                   'max-[1600px]:w-[30px] max-[1600px]:h-[30px] max-[1600px]:justify-center max-[1600px]:p-0',
                 )}
@@ -361,7 +361,7 @@ export default function NomiAppBar({
                   'inline-flex items-center gap-1.5 h-[30px] px-2.5',
                   'border border-transparent rounded-[var(--nomi-radius-sm)]',
                   'bg-[var(--nomi-ink)] text-[var(--nomi-paper)] font-inherit text-body-sm',
-                  'transition-[background,color] duration-[var(--nomi-transition-fast)]',
+                  'transition-[background,color] duration-nomi-fast ease-nomi-fast',
                   'hover:bg-[var(--nomi-ink-80)]',
                   'max-[1600px]:w-[30px] max-[1600px]:h-[30px] max-[1600px]:justify-center max-[1600px]:p-0',
                 )}
@@ -381,7 +381,7 @@ export default function NomiAppBar({
                   'inline-flex items-center gap-1.5 h-[30px] px-2.5',
                   'border border-transparent rounded-[var(--nomi-radius-sm)]',
                   'bg-[var(--nomi-ink)] text-[var(--nomi-paper)] font-inherit text-body-sm',
-                  'transition-[background,color] duration-[var(--nomi-transition-fast)]',
+                  'transition-[background,color] duration-nomi-fast ease-nomi-fast',
                   'hover:bg-[var(--nomi-ink-80)]',
                   'max-[1600px]:w-[30px] max-[1600px]:h-[30px] max-[1600px]:justify-center max-[1600px]:p-0',
                 )}

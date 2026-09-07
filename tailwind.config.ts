@@ -105,7 +105,8 @@ const workbenchBasePlugin = plugin(({ addBase, addUtilities }) => {
       '--nomi-radius-sm': '6px',
       '--nomi-radius': '10px',
       '--nomi-radius-lg': '16px',
-      '--nomi-transition-fast': '140ms cubic-bezier(.2, .7, .3, 1)',
+      '--nomi-duration-fast': '140ms',
+      '--nomi-ease-fast': 'cubic-bezier(.2, .7, .3, 1)',
       '--nomi-font-sans': 'Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", system-ui, sans-serif',
       '--nomi-font-display': 'Fraunces, Inter, serif',
       '--nomi-font-mono': 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace',
@@ -747,13 +748,26 @@ export default {
           '55%': { transform: 'scale(1.28)', opacity: '1' },
           '100%': { transform: 'scale(1)', opacity: '1' },
         },
+        // 局部图像操作（抠背景/局部重绘）待处理时的呼吸。原先手写在 src/styles/index.css，
+        // 靠「index.css 是 tailwind 入口、原样透传」才出现在产物里——keyframes 有两个家。
+        // 收进这里当唯一真相源；Tailwind 只在有 animation utility 引用时才吐 @keyframes，
+        // 所以下面 animation 里必须同时登记（1.2s / 1.5s 两个既有时长各一条）。
+        'remove-bg-pulse': {
+          '0%, 100%': { opacity: '0.5' },
+          '50%': { opacity: '0.8' },
+        },
       },
       animation: {
         'generation-focus-pulse': 'generation-focus-pulse 1.35s ease-out',
         'nomi-badge-settle': 'nomi-badge-settle 420ms ease-out 1',
+        'remove-bg-pulse': 'remove-bg-pulse 1.2s ease-in-out infinite',
+        'remove-bg-pulse-slow': 'remove-bg-pulse 1.5s ease-in-out infinite',
+      },
+      transitionDuration: {
+        'nomi-fast': 'var(--nomi-duration-fast)',
       },
       transitionTimingFunction: {
-        'nomi-fast': 'var(--nomi-transition-fast)',
+        'nomi-fast': 'var(--nomi-ease-fast)',
       },
     },
   },

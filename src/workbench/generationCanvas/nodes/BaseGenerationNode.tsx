@@ -529,7 +529,7 @@ function BaseGenerationNodeImpl({
           !hasResult && STRIPED_BG_CLASS,
           isGenerating &&
             node.progress?.phase === 'clipboard-import' &&
-            'ring-nomi-accent/50 [animation:_remove-bg-pulse_1.2s_ease-in-out_infinite]',
+            'ring-nomi-accent/50 animate-remove-bg-pulse',
           // [DESIGN-CARDS-07] 卡片模式隐藏 preview div；C5 文本节点同理。
           (isCardKind || isTextKind) && 'hidden',
         )}
@@ -588,7 +588,7 @@ function BaseGenerationNodeImpl({
                 'w-full h-full min-h-0 object-contain pointer-events-none',
                 'select-none',
                 localImageOpPending && 'blur-sm scale-[1.02] transition-[filter,opacity]',
-                localImageOpPending && '[animation:_remove-bg-pulse_1.5s_ease-in-out_infinite]',
+                localImageOpPending && 'animate-remove-bg-pulse-slow',
               )}
               src={node.result.url}
               priority={mediaPreviewPriority}

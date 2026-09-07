@@ -152,7 +152,7 @@
       inset: 0;
       background: var(--mock-overlay);
       opacity: 0;
-      transition: opacity var(--nomi-transition-fast);
+      transition: opacity var(--nomi-duration-fast) var(--nomi-ease-fast);
     }
 
     .project-card:hover .thumb::after {
@@ -173,7 +173,7 @@
       background: var(--mock-float);
       color: var(--nomi-ink-60);
       opacity: 0;
-      transition: opacity var(--nomi-transition-fast), color var(--nomi-transition-fast);
+      transition: opacity var(--nomi-duration-fast) var(--nomi-ease-fast), color var(--nomi-duration-fast) var(--nomi-ease-fast);
     }
 
     .project-card:hover .delete {
@@ -196,7 +196,7 @@
       font-weight: 700;
       opacity: 0;
       box-shadow: var(--nomi-shadow-sm);
-      transition: opacity var(--nomi-transition-fast);
+      transition: opacity var(--nomi-duration-fast) var(--nomi-ease-fast);
     }
 
     .project-card:hover .continue {

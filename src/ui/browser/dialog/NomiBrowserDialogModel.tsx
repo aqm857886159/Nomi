@@ -126,7 +126,7 @@ export const BROWSER_START_SHORTCUTS: readonly BrowserStartShortcut[] = [
 
 export const TOOL_BUTTON_CLASS = cn(
   'inline-grid size-8 shrink-0 place-items-center rounded-nomi-sm border-0 bg-transparent',
-  'cursor-pointer text-nomi-ink-60 transition-[background,color] duration-[var(--nomi-transition-fast)]',
+  'cursor-pointer text-nomi-ink-60 transition-[background,color] duration-nomi-fast ease-nomi-fast',
   'hover:bg-nomi-ink-05 hover:text-nomi-ink disabled:cursor-default disabled:text-nomi-ink-20 disabled:hover:bg-transparent',
 )
 
@@ -134,7 +134,7 @@ export const TAB_CONTEXT_MENU_WIDTH = 176
 export const TAB_CONTEXT_MENU_MARGIN = 8
 export const TAB_CONTEXT_MENU_ITEM_CLASS = cn(
   'flex h-9 w-full items-center gap-2 rounded-nomi-sm border-0 bg-transparent px-2.5 text-left',
-  'cursor-pointer text-body-sm text-nomi-ink transition-[background,color] duration-[var(--nomi-transition-fast)]',
+  'cursor-pointer text-body-sm text-nomi-ink transition-[background,color] duration-nomi-fast ease-nomi-fast',
   'hover:bg-nomi-ink-05 disabled:cursor-default disabled:text-nomi-ink-30 disabled:hover:bg-transparent',
 )
 

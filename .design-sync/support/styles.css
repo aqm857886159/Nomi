@@ -9,10 +9,18 @@
  *   2. src/theme/nomi-tokens.css — the design tokens (--nomi-*, --workbench-*)
  *   3. public/tailwind.generated.css — the compiled Tailwind utility layer that
  *      every component's className strings resolve against, plus the addBase
- *      token definitions from tailwind.config.ts
- *   4. src/styles/*.css          — app-level globals/animations/vendor overrides
+ *      globals / vendor overrides from tailwind.config.ts
  *
- * src/styles/index.css is deliberately NOT imported: it starts with
+ * That is the WHOLE runtime CSS surface. The app's only stylesheet entry is
+ * `src/main.tsx:16 -> src/styles/index.css`, and index.css imports nothing but
+ * the three `tailwindcss/*` layers (plus a couple of overlay rules and the
+ * remove-bg keyframes, all of which are already compiled into
+ * tailwind.generated.css). There are no other `src/styles/*.css` files: the old
+ * globals.css / animations.css / vendor-overrides.css were never in the import
+ * graph and have been deleted — their live equivalents live in the
+ * `addBase` block of tailwind.config.ts, which arrives via item 3 above.
+ *
+ * src/styles/index.css itself is deliberately NOT imported here: it starts with
  * `@import 'tailwindcss/base'` which only resolves inside the Vite/PostCSS
  * pipeline. The compiled equivalent is already in tailwind.generated.css.
  */
@@ -22,9 +30,6 @@
 @import "../../node_modules/@mantine/core/styles.css";
 @import "../../src/theme/nomi-tokens.css";
 @import "../../public/tailwind.generated.css";
-@import "../../src/styles/globals.css";
-@import "../../src/styles/animations.css";
-@import "../../src/styles/vendor-overrides.css";
 
 /*
  * Brand-font alias — makes the cards render in the REAL brand faces.
@@ -77,8 +82,8 @@ body {
 /*
  * Undo the app-shell sizing for preview cards.
  *
- * src/styles/globals.css sets `html, body, #root { width:100%; height:100% }`
- * so the Electron window is fully painted. A component card is not an app
+ * tailwind.config.ts's addBase sets `html, body, #root { width:100%; height:100% }`
+ * (compiled into tailwind.generated.css) so the Electron window is fully painted. A component card is not an app
  * shell: with height:100% the body always fills the capture viewport, so a
  * 208px row of buttons screenshots as 800px of empty background and every
  * card reads as "mostly blank" (and the tiled contact sheets become unusable).

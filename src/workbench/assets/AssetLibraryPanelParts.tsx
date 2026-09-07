@@ -83,7 +83,7 @@ export function AssetKindFilterMenu({
               aria-selected={selected}
               className={cn(
                 'grid h-8 items-center gap-2 rounded-nomi-sm border-0 px-1.5',
-                'bg-transparent text-left text-caption transition-colors duration-[var(--nomi-transition-fast)]',
+                'bg-transparent text-left text-caption transition-colors duration-nomi-fast ease-nomi-fast',
                 'cursor-pointer text-nomi-ink-60 hover:bg-nomi-ink-05 hover:text-nomi-ink',
                 muted && 'text-nomi-ink-40',
                 selected && 'bg-nomi-accent-soft font-semibold text-nomi-accent',
@@ -142,7 +142,7 @@ export function FolderGridCell({
       aria-label={t('assetLibrary.openFolder', { label })}
       className={cn(
         'group relative flex flex-col items-center justify-center gap-1 overflow-hidden rounded-nomi-sm border bg-nomi-paper',
-        'cursor-pointer transition-[border-color,background,box-shadow] duration-[var(--nomi-transition-fast)]',
+        'cursor-pointer transition-[border-color,background,box-shadow] duration-nomi-fast ease-nomi-fast',
         compact ? 'mb-2.5 h-[92px] w-full' : 'aspect-square',
         dragOver ? 'border-nomi-accent bg-nomi-accent-soft shadow-nomi-md' : 'border-nomi-line hover:border-nomi-ink-20 hover:bg-nomi-ink-05',
       )}
@@ -171,7 +171,7 @@ export function FolderGridCell({
         type="button"
         className={cn(
           'absolute right-1.5 top-1.5 grid size-6 place-items-center rounded-nomi-sm border-0 bg-transparent',
-          'cursor-pointer text-transparent transition-colors duration-[var(--nomi-transition-fast)]',
+          'cursor-pointer text-transparent transition-colors duration-nomi-fast ease-nomi-fast',
           'hover:bg-workbench-danger-soft hover:text-workbench-danger group-hover:text-nomi-ink-40',
         )}
         aria-label={t('assetLibrary.deleteFolder', { label })}
@@ -295,7 +295,7 @@ export const AssetGridCell = React.memo(function AssetGridCell({
       type="button"
       className={cn(
         'absolute right-1.5 top-1.5 z-[2] grid size-6 place-items-center rounded-nomi-sm border border-workbench-danger/20',
-        'bg-nomi-paper text-workbench-danger shadow-nomi-sm opacity-0 transition-[opacity,background] duration-[var(--nomi-transition-fast)]',
+        'bg-nomi-paper text-workbench-danger shadow-nomi-sm opacity-0 transition-[opacity,background] duration-nomi-fast ease-nomi-fast',
         'hover:bg-workbench-danger-soft focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-workbench-danger/25',
         'group-hover:opacity-100',
       )}
@@ -323,7 +323,7 @@ export const AssetGridCell = React.memo(function AssetGridCell({
             onDragStart={handleDragStart}
             className={cn(
               'group relative mb-2.5 inline-block w-full overflow-hidden rounded-nomi border border-nomi-line bg-nomi-paper align-top',
-              'shadow-nomi-sm transition-[border-color,box-shadow,transform] duration-[var(--nomi-transition-fast)]',
+              'shadow-nomi-sm transition-[border-color,box-shadow,transform] duration-nomi-fast ease-nomi-fast',
               'hover:border-nomi-ink-20 hover:shadow-nomi-md',
               canDrag ? 'cursor-grab active:cursor-grabbing' : onPreview || selectable ? 'cursor-pointer' : 'cursor-default',
               selected && 'border-nomi-accent shadow-nomi-md ring-2 ring-nomi-accent ring-offset-1 ring-offset-nomi-paper',

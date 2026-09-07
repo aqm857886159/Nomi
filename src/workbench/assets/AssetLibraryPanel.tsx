@@ -560,7 +560,7 @@ export function AssetLibraryContent({
                 className={cn(
                   'w-7 h-7 grid place-items-center rounded-nomi-sm cursor-pointer border-0 bg-transparent',
                   'text-nomi-ink-40 hover:text-nomi-ink hover:bg-nomi-ink-05',
-                  'transition-[background,color] duration-[var(--nomi-transition-fast)]',
+                  'transition-[background,color] duration-nomi-fast ease-nomi-fast',
                 )}
                 aria-label={t('assetLibrary.close')}
                 onClick={onClose}

@@ -55,7 +55,7 @@ export default function EditingLayoutMenu(): JSX.Element {
           'inline-flex items-center gap-1.5 h-[30px] px-2.5',
           'border border-transparent rounded-[var(--nomi-radius-sm)]',
           'bg-transparent text-[var(--nomi-ink-80)] font-inherit text-body-sm',
-          'transition-[background,color] duration-[var(--nomi-transition-fast)]',
+          'transition-[background,color] duration-nomi-fast ease-nomi-fast',
           'hover:bg-[var(--nomi-ink-05)] hover:text-[var(--nomi-ink)]',
         )}
         aria-haspopup="menu"

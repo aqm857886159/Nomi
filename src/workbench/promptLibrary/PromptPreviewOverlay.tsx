@@ -172,7 +172,7 @@ export function PromptPreviewOverlay({ prompt, originRect, onClose, onSendToCanv
               className={cn(
                 'inline-flex items-center gap-1.5 h-9 px-4 rounded-full cursor-pointer border-0',
                 'bg-nomi-ink text-nomi-paper text-body-sm font-semibold hover:bg-nomi-accent',
-                'transition-[background] duration-[var(--nomi-transition-fast)]',
+                'transition-[background] duration-nomi-fast ease-nomi-fast',
               )}
             >
               {sent ? <IconCheck size={16} stroke={2} /> : <IconLayoutBoard size={16} stroke={1.8} />}

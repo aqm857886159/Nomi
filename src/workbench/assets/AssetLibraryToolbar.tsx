@@ -100,7 +100,7 @@ export function AssetLibraryToolbar({
       className={cn(
         'inline-flex items-center justify-center gap-1.5 rounded-full cursor-pointer',
         'bg-nomi-ink text-nomi-paper text-caption font-semibold border-0',
-        'transition-[background] duration-[var(--nomi-transition-fast)] hover:bg-nomi-ink-80',
+        'transition-[background] duration-nomi-fast ease-nomi-fast hover:bg-nomi-ink-80',
         compact ? 'h-[30px] px-2.5 shrink-0' : 'h-7 px-3',
       )}
       aria-label={t('assetLibrary.uploadAssets')}
@@ -116,7 +116,7 @@ export function AssetLibraryToolbar({
       type="button"
       className={cn(
         'inline-flex shrink-0 items-center justify-center rounded-full border border-nomi-line bg-nomi-paper',
-        'cursor-pointer text-nomi-ink-60 transition-[background,color,border-color] duration-[var(--nomi-transition-fast)]',
+        'cursor-pointer text-nomi-ink-60 transition-[background,color,border-color] duration-nomi-fast ease-nomi-fast',
         'hover:border-nomi-ink-20 hover:bg-nomi-ink-05 hover:text-nomi-ink',
         compact ? 'h-[30px] w-[30px]' : 'h-7 w-7',
       )}
@@ -133,7 +133,7 @@ export function AssetLibraryToolbar({
       type="button"
       className={cn(
         'inline-flex h-8 min-w-10 shrink-0 items-center justify-center gap-1.5 rounded-nomi-sm border text-caption font-semibold tabular-nums',
-        'transition-[background,color,border-color] duration-[var(--nomi-transition-fast)]',
+        'transition-[background,color,border-color] duration-nomi-fast ease-nomi-fast',
         selectedProjectAssetCount > 0
           ? 'cursor-pointer border-workbench-danger/20 bg-workbench-danger-soft px-2 text-workbench-danger hover:bg-workbench-danger-soft/80'
           : 'cursor-default border-nomi-line bg-nomi-ink-05 px-2 text-nomi-ink-30',
@@ -169,7 +169,7 @@ export function AssetLibraryToolbar({
             aria-selected={active}
             className={cn(
               'rounded-full text-caption cursor-pointer border-0 bg-transparent whitespace-nowrap',
-              'transition-[background,color] duration-[var(--nomi-transition-fast)]',
+              'transition-[background,color] duration-nomi-fast ease-nomi-fast',
               compact ? 'min-w-0 flex-1 px-1.5 py-1' : 'px-2.5 py-1',
               active
                 ? 'bg-nomi-paper text-nomi-ink font-semibold shadow-nomi-sm'
@@ -198,7 +198,7 @@ export function AssetLibraryToolbar({
         type="button"
         className={cn(
           'inline-flex items-center justify-center gap-1.5 rounded-nomi-sm border border-nomi-line bg-nomi-paper',
-          'cursor-pointer text-caption text-nomi-ink-60 transition-[background,color,border-color] duration-[var(--nomi-transition-fast)]',
+          'cursor-pointer text-caption text-nomi-ink-60 transition-[background,color,border-color] duration-nomi-fast ease-nomi-fast',
           'hover:border-nomi-ink-20 hover:bg-nomi-ink-05 hover:text-nomi-ink',
           compact ? 'h-8 px-2.5' : 'h-8 px-3',
           (filterOpen || filterActive) && 'border-nomi-ink-20 bg-nomi-ink-05 text-nomi-ink',
@@ -245,7 +245,7 @@ export function AssetLibraryToolbar({
               type="button"
               className={cn(
                 'inline-flex h-8 shrink-0 items-center justify-center rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2.5',
-                'cursor-pointer text-nomi-ink-60 transition-[background,color,border-color] duration-[var(--nomi-transition-fast)]',
+                'cursor-pointer text-nomi-ink-60 transition-[background,color,border-color] duration-nomi-fast ease-nomi-fast',
                 'hover:border-nomi-ink-20 hover:bg-nomi-ink-05 hover:text-nomi-ink',
               )}
               aria-label={t('assetLibrary.newFolder')}
@@ -264,7 +264,7 @@ export function AssetLibraryToolbar({
             type="button"
             className={cn(
               'inline-flex shrink-0 items-center gap-0.5 rounded-nomi-sm border-0 bg-transparent px-1.5 py-1',
-              'cursor-pointer text-caption text-nomi-accent transition-colors duration-[var(--nomi-transition-fast)] hover:bg-nomi-ink-05',
+              'cursor-pointer text-caption text-nomi-accent transition-colors duration-nomi-fast ease-nomi-fast hover:bg-nomi-ink-05',
             )}
             aria-label={t('assetLibrary.backToAllAssets')}
             title={t(folderManagementEnabled ? 'assetLibrary.backDropToRemove' : 'assetLibrary.backToAllAssets')}

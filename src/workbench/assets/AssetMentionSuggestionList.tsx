@@ -95,7 +95,7 @@ const AssetMentionSuggestionList = React.forwardRef<MentionSuggestionListRef, Pr
               onClick={() => command(item)}
               className={cn(
                 'flex w-full items-center gap-[8px] rounded-nomi-sm border-0 bg-transparent px-[6px] py-[4px] text-left cursor-pointer',
-                'transition-colors duration-[var(--nomi-transition-fast)]',
+                'transition-colors duration-nomi-fast ease-nomi-fast',
                 i === selected ? 'bg-nomi-accent-soft' : 'hover:bg-nomi-ink-05',
               )}
             >

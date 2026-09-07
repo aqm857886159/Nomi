@@ -255,7 +255,7 @@ export default function NodeShotCutPanel({ node, onClose }: Props): JSX.Element 
                     data-selected={isOn ? 'true' : 'false'}
                     className={cn(
                       'overflow-hidden rounded-nomi-sm border p-0 text-left cursor-pointer',
-                      'transition-colors duration-[var(--nomi-transition-fast)]',
+                      'transition-colors duration-nomi-fast ease-nomi-fast',
                       isOn ? 'border-nomi-accent bg-nomi-accent-soft' : 'border-nomi-line bg-nomi-paper opacity-60',
                     )}
                     aria-pressed={isOn}
@@ -315,7 +315,7 @@ export default function NodeShotCutPanel({ node, onClose }: Props): JSX.Element 
               className={cn(
                 'inline-flex h-9 items-center rounded-full border-0 px-4 cursor-pointer',
                 'bg-nomi-ink text-body font-medium text-nomi-paper hover:bg-nomi-accent',
-                'transition-colors duration-[var(--nomi-transition-fast)] disabled:opacity-40 disabled:cursor-not-allowed',
+                'transition-colors duration-nomi-fast ease-nomi-fast disabled:opacity-40 disabled:cursor-not-allowed',
               )}
               disabled={(isOneShot ? durationSeconds <= 0 : !selected.length) || Boolean(committing)}
               onClick={() => {

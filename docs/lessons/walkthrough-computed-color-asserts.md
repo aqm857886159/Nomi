@@ -9,7 +9,7 @@
 
 1. **别拿字面 rgb 串比**：Chromium 对 oklch 定义的颜色，`getComputedStyle().backgroundColor` 直接回 `oklch(1 0 0)`，不是 `rgb(255, 255, 255)`。
 
-2. **transition 抢读**：翻暗色后立刻读，`transition-colors`（Nomi `--nomi-transition-fast` = 140ms）正在插值，读到 `oklab(1 0 0)` 中间帧——它和浅色值**字符串不等**，`!==` 断言会侥幸假绿。翻主题后先等（约 400ms）再读色 / 截图。
+2. **transition 抢读**：翻暗色后立刻读，`transition-colors`（Nomi `--nomi-duration-fast` = 140ms）正在插值，读到 `oklab(1 0 0)` 中间帧——它和浅色值**字符串不等**，`!==` 断言会侥幸假绿。翻主题后先等（约 400ms）再读色 / 截图。
 
 ## 怎么用
 

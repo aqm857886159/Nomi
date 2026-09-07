@@ -12,7 +12,7 @@ import type { CreationAiMode } from '../creation/creationAiModes'
 
 const CHIP_BASE = cn(
   'rounded-full px-2.5 py-1 text-caption font-medium cursor-pointer',
-  'transition-colors duration-[var(--nomi-transition-fast)]',
+  'transition-colors duration-nomi-fast ease-nomi-fast',
 )
 
 const CHIP_IDLE = 'bg-nomi-ink-05 text-nomi-ink-60 hover:bg-nomi-ink-10'

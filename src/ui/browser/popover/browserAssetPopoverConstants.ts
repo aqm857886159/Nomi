@@ -26,7 +26,7 @@ export const MARQUEE_AUTO_SCROLL_MAX_SPEED = 22
 
 export const TOOL_BUTTON_CLASS = cn(
   'inline-grid size-8 place-items-center rounded-nomi-sm border-0 bg-transparent',
-  'cursor-pointer text-nomi-ink-60 transition-[background,color] duration-[var(--nomi-transition-fast)]',
+  'cursor-pointer text-nomi-ink-60 transition-[background,color] duration-nomi-fast ease-nomi-fast',
   'hover:bg-nomi-ink-05 hover:text-nomi-ink',
 )
 

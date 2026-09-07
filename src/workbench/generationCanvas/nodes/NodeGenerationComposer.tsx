@@ -195,7 +195,7 @@ function BrowserPromptPickerPopover({
                 role="menuitem"
                 className={cn(
                   'grid w-full min-w-0 grid-cols-[32px_minmax(0,1fr)] items-center gap-2 border-0 bg-transparent px-2.5 py-1.5 text-left',
-                  'cursor-pointer transition-colors duration-[var(--nomi-transition-fast)]',
+                  'cursor-pointer transition-colors duration-nomi-fast ease-nomi-fast',
                   'text-nomi-ink-60 hover:bg-nomi-ink-05 hover:text-nomi-ink',
                 )}
                 onMouseEnter={(event) => showHoveredPrompt(item.id, event.currentTarget)}
@@ -597,7 +597,7 @@ export default function NodeGenerationComposer({ node, visualSize }: Props): JSX
               type="button"
               className={cn(
                 'inline-flex h-7 shrink-0 items-center gap-1.5 rounded-nomi-sm border-0 bg-transparent px-2',
-                'cursor-pointer text-nomi-ink-40 transition-[background,color,transform] duration-[var(--nomi-transition-fast)]',
+                'cursor-pointer text-nomi-ink-40 transition-[background,color,transform] duration-nomi-fast ease-nomi-fast',
                 'hover:-translate-y-0.5 hover:bg-nomi-ink-05 hover:text-nomi-accent',
                 promptPickerOpen && 'bg-nomi-ink-05 text-nomi-accent',
                 node.locked && 'cursor-not-allowed opacity-45 hover:translate-y-0 hover:bg-transparent hover:text-nomi-ink-40',

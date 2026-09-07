@@ -16,9 +16,9 @@
 - 旧的有点价值 → 把价值合并进新代码，再删旧
 - **CSS（R10 = R1 的 CSS 实例）**：新样式一律用 Tailwind utility 写在组件 `className` 上；不用 `@apply`；CSS 文件分工固定只可减不可增
   - `src/theme/nomi-tokens.css` — 设计 token
-  - `src/styles/index.css` — 全局 reset/keyframes
-  - `src/styles/vendor-overrides.css` — Mantine 等第三方 DOM 覆盖
-  - `src/styles/globals.css` — 只准删，不准加组件样式
+  - `src/styles/index.css` — App 唯一 CSS 入口（`src/main.tsx` 只 import 它）：三层 `tailwindcss/*` + browserAsset 浮层的两条 `html[data-nomi-overlay]` 规则。只可减不可增
+  - `tailwind.config.ts` 的 `workbenchBasePlugin` addBase — 全局 reset / body / `#root` / keyframes / Mantine 等第三方 DOM 覆盖的**唯一真相源**（编译进 `public/tailwind.generated.css`）
+  - ~~`src/styles/globals.css` / `animations.css` / `vendor-overrides.css`~~ — 2026-09-07 删除：从不在 import 图里（`index.css` 不 import 它们），259 行全是 addBase 已有等价物或死码
 
 ## R2 用户视角 + 极简
 
