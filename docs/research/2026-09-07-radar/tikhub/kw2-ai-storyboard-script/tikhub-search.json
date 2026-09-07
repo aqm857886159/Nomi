@@ -1,0 +1,889 @@
+{
+  "source": "tikhub",
+  "baseUrl": "https://api.tikhub.io",
+  "keyword": "AI分镜脚本",
+  "since": null,
+  "limitPerPlatform": 12,
+  "generatedAt": "2026-09-07T01:05:26.155Z",
+  "failures": [],
+  "summary": {
+    "totalRecords": 48,
+    "platformsOk": 4,
+    "platformsEmpty": 0,
+    "platformsFailed": 0,
+    "platforms": [
+      {
+        "platform": "douyin",
+        "platformLabel": "抖音",
+        "status": "ok",
+        "items": 12,
+        "pagesFetched": 2,
+        "missingFields": {},
+        "fieldConfidence": "verified-against-live-response",
+        "fieldsVerifiedOn": "2026-09-06",
+        "error": null
+      },
+      {
+        "platform": "xhs",
+        "platformLabel": "小红书",
+        "status": "ok",
+        "items": 12,
+        "pagesFetched": 1,
+        "missingFields": {},
+        "fieldConfidence": "verified-against-live-response",
+        "fieldsVerifiedOn": "2026-09-06",
+        "error": null
+      },
+      {
+        "platform": "bilibili",
+        "platformLabel": "B站",
+        "status": "ok",
+        "items": 12,
+        "pagesFetched": 1,
+        "missingFields": {},
+        "fieldConfidence": "verified-against-live-response",
+        "fieldsVerifiedOn": "2026-09-06",
+        "error": null
+      },
+      {
+        "platform": "x",
+        "platformLabel": "X（Twitter）",
+        "status": "ok",
+        "items": 12,
+        "pagesFetched": 1,
+        "missingFields": {},
+        "fieldConfidence": "verified-against-live-response",
+        "fieldsVerifiedOn": "2026-09-06",
+        "error": null
+      }
+    ]
+  },
+  "results": [
+    {
+      "platform": "douyin",
+      "platformLabel": "抖音",
+      "records": [
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7662637309292023083",
+          "url": "https://www.douyin.com/video/7662637309292023083",
+          "author": "YIQI玩AI",
+          "authorId": "102179107754",
+          "publishedAt": "2026-07-17T08:30:00.000Z",
+          "title": "小白AI短剧第三课：【剧本转爆款分镜脚本】提示词 刷到赶快去用，谁用谁爆！\n#AI教程 #AI短剧 #AI #分镜 #YIQI玩AI",
+          "excerpt": "小白AI短剧第三课：【剧本转爆款分镜脚本】提示词 刷到赶快去用，谁用谁爆！ #AI教程 #AI短剧 #AI #分镜 #YIQI玩AI",
+          "mentions": [
+            "YIQI"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7681915748607872283",
+          "url": "https://www.douyin.com/video/7681915748607872283",
+          "author": "小墨的AI工坊",
+          "authorId": "611780393706076",
+          "publishedAt": "2026-09-05T10:00:00.000Z",
+          "title": "影视级Skill我做出来了！ #ai教程#ai创作#分镜脚本#焚决#AI天团已经卷到创大门口了",
+          "excerpt": "影视级Skill我做出来了！ #ai教程#ai创作#分镜脚本#焚决#AI天团已经卷到创大门口了",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7664920212981992739",
+          "url": "https://www.douyin.com/video/7664920212981992739",
+          "author": "小陈AIGC",
+          "authorId": "7661889353626813477",
+          "publishedAt": "2026-07-21T10:05:12.000Z",
+          "title": "为什么AI生成了20个分镜，成片还是很僵硬？ 很多人做AI漫剧，最大的问题不是画面不够精致，而是分镜节奏出了问题。AI最常犯的错误，就是把每句话平均切成一个镜头，结果整部片子没有轻重、没有停顿、没有情绪爆点。这条视频教你先拆剧情节拍，再按冲突、反转和情绪去设计镜头，让AI漫剧真正有节奏感和电影感。\n#AI漫剧  #AIGC教程  #分镜脚本  #AI短剧  #镜头语言",
+          "excerpt": "为什么AI生成了20个分镜，成片还是很僵硬？ 很多人做AI漫剧，最大的问题不是画面不够精致，而是分镜节奏出了问题。AI最常犯的错误，就是把每句话平均切成一个镜头，结果整部片子没有轻重、没有停顿、没有情绪爆点。这条视频教你先拆剧情节拍，再按冲突、反转和情绪去设计镜头，让AI漫剧真正有节奏感和电影感。 #AI漫剧 #AIGC教程 #分镜脚本 #AI短剧 #镜头语言",
+          "mentions": [
+            "AIGC"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7644564668171177337",
+          "url": "https://www.douyin.com/video/7644564668171177337",
+          "author": "Jac.key",
+          "authorId": "1092240220368778",
+          "publishedAt": "2026-05-27T13:35:12.000Z",
+          "title": "Skill只用10分钟就能生成一部短剧！ #ai短剧制作 #ai工具 #古风 #ai干货",
+          "excerpt": "Skill只用10分钟就能生成一部短剧！ #ai短剧制作 #ai工具 #古风 #ai干货",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7648912535667625259",
+          "url": "https://www.douyin.com/video/7648912535667625259",
+          "author": "天锋教你玩Ai",
+          "authorId": "3246180965291454",
+          "publishedAt": "2026-06-08T06:47:14.000Z",
+          "title": "独家揭秘！一键提取剧本分镜指令公开，视频批量生成 #skill #天锋教你玩ai #ai教程 #ai短剧 #ai创作浪潮计划",
+          "excerpt": "独家揭秘！一键提取剧本分镜指令公开，视频批量生成 #skill #天锋教你玩ai #ai教程 #ai短剧 #ai创作浪潮计划",
+          "mentions": [
+            "skill"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7632277854339730698",
+          "url": "https://www.douyin.com/video/7632277854339730698",
+          "author": "分多小鹿(AI版)",
+          "authorId": "212673085848633",
+          "publishedAt": "2026-04-24T10:56:11.000Z",
+          "title": "学会了！用AI做分镜，百万字小说也能秒生成！ #AI视频  #AI教学  #AI提示词  #零基础学AI  #AIGC",
+          "excerpt": "学会了！用AI做分镜，百万字小说也能秒生成！ #AI视频 #AI教学 #AI提示词 #零基础学AI #AIGC",
+          "mentions": [
+            "AIGC"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7670563205420272942",
+          "url": "https://www.douyin.com/video/7670563205420272942",
+          "author": "Dou Bao Agent博士",
+          "authorId": "81247585572",
+          "publishedAt": "2026-08-05T15:02:54.000Z",
+          "title": "豆包AI反推视频分镜脚本提示词，快去试试吧 #豆包 #AI视频 #反推视频提示词 #分镜提示词 #视频脚本",
+          "excerpt": "豆包AI反推视频分镜脚本提示词，快去试试吧 #豆包 #AI视频 #反推视频提示词 #分镜提示词 #视频脚本",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7661161690469338377",
+          "url": "https://www.douyin.com/video/7661161690469338377",
+          "author": "编导路飞杰",
+          "authorId": "715145481033354",
+          "publishedAt": "2026-07-11T07:00:14.000Z",
+          "title": "AI漫剧短剧分镜脚本技术拆解#AI漫剧短剧 #AI分镜 #ai漫剧制作 #ai教程技巧 #分镜脚本",
+          "excerpt": "AI漫剧短剧分镜脚本技术拆解#AI漫剧短剧 #AI分镜 #ai漫剧制作 #ai教程技巧 #分镜脚本",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7657939746429177140",
+          "url": "https://www.douyin.com/video/7657939746429177140",
+          "author": "梵糕AI",
+          "authorId": "3207690723273387",
+          "publishedAt": "2026-07-02T14:37:38.000Z",
+          "title": "一条视频教会你拆分镜 #ai漫剧制作 #分镜脚本 #ai漫剧分镜 #ai漫剧",
+          "excerpt": "一条视频教会你拆分镜 #ai漫剧制作 #分镜脚本 #ai漫剧分镜 #ai漫剧",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7646439377584868660",
+          "url": "https://www.douyin.com/video/7646439377584868660",
+          "author": "逐帧拉片-专注AI视频",
+          "authorId": "7421092250459030585",
+          "publishedAt": "2026-06-01T14:50:13.000Z",
+          "title": "分镜头脚本学习|爆款ai视频制作逻辑分析#分镜 #ai漫剧 #AI视频 #ai短片 #导演 ",
+          "excerpt": "分镜头脚本学习|爆款ai视频制作逻辑分析#分镜 #ai漫剧 #AI视频 #ai短片 #导演",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7643972777070928127",
+          "url": "https://www.douyin.com/video/7643972777070928127",
+          "author": "C.C的AI学习之旅",
+          "authorId": "80680203330794",
+          "publishedAt": "2026-05-25T23:18:23.000Z",
+          "title": "分镜设计实战：如何把剧本拆成镜头语言，写出AI能精准理解的提示词 #分镜头脚本",
+          "excerpt": "分镜设计实战：如何把剧本拆成镜头语言，写出AI能精准理解的提示词 #分镜头脚本",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7670104144191612788",
+          "url": "https://www.douyin.com/video/7670104144191612788",
+          "author": "朱朱AI",
+          "authorId": "133494392766215",
+          "publishedAt": "2026-08-04T09:21:25.000Z",
+          "title": "AI漫剧的高级分镜脚整套提示词，收藏起来 #ai效率工具 #每天学点ai #ai提示词 #AI工具",
+          "excerpt": "AI漫剧的高级分镜脚整套提示词，收藏起来 #ai效率工具 #每天学点ai #ai提示词 #AI工具",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        }
+      ],
+      "pages": [
+        {
+          "page": 1,
+          "received": 7
+        },
+        {
+          "page": 2,
+          "received": 7
+        }
+      ]
+    },
+    {
+      "platform": "xhs",
+      "platformLabel": "小红书",
+      "records": [
+        {
+          "platform": "xhs",
+          "platformLabel": "小红书",
+          "id": "6a6053c4000000000401ebb8",
+          "url": "https://www.xiaohongshu.com/explore/6a6053c4000000000401ebb8?xsec_token=YB-cTz_RwNkOP_EMuqw9_TpcJek-DVSOVa39lVLXGfEFA%3D&xsec_source=pc_search",
+          "author": "都说了是牛马",
+          "authorId": "5e0ad7e00000000001008765",
+          "publishedAt": "2026-07-22T05:23:16.000Z",
+          "title": "影视级分镜脚本Skill，拿走不谢",
+          "excerpt": "你是专业影视分镜导演、广告片导演、短剧导演、AI视频提示词工程师。你的任务不是简单把文字拆成几个镜头,而是把剧情、文案",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "xhs",
+          "platformLabel": "小红书",
+          "id": "6a0059720000000038023851",
+          "url": "https://www.xiaohongshu.com/explore/6a0059720000000038023851?xsec_token=YBpNLcbcDknwLWTwBRH9clRIWr1a4vl29bz6u7gwFAhcs%3D&xsec_source=pc_search",
+          "author": "PlusOk",
+          "authorId": "6277b9d80000000021028812",
+          "publishedAt": "2026-05-10T10:09:54.000Z",
+          "title": "Ai分镜脚本",
+          "excerpt": "使用故事版做这种1分钟的小短剧，可控性很强。 先在Gemini中调试好剧情，使用gpt-image2生成所有的分镜图 再",
+          "mentions": [
+            "Gemini",
+            "GPT"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "xhs",
+          "platformLabel": "小红书",
+          "id": "69cf86d7000000001f0059f5",
+          "url": "https://www.xiaohongshu.com/explore/69cf86d7000000001f0059f5?xsec_token=YBFhNW6dMSFguOaClx7gHqz1N_lwyPdUi85I76lvnj82U%3D&xsec_source=pc_search",
+          "author": "刺猬冬青",
+          "authorId": "641db2ff0000000029016051",
+          "publishedAt": "2026-04-03T09:22:32.000Z",
+          "title": "分镜到头秃",
+          "excerpt": "提示词分享: ●请你，仔细阅读剧本，提取盘点剧本中，所有的角色、配角路人、场景(室内、室外、不同空间)、道具，分别汇总到",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "xhs",
+          "platformLabel": "小红书",
+          "id": "69eb912e00000000380215b9",
+          "url": "https://www.xiaohongshu.com/explore/69eb912e00000000380215b9?xsec_token=YBwo6tJ27y-ZHbYXTPjFnxmAYq3epEN7ezgUzkmjdTCx0%3D&xsec_source=pc_search",
+          "author": "西西玩AI",
+          "authorId": "69bb49660000000033029e3a",
+          "publishedAt": "2026-04-24T15:50:06.000Z",
+          "title": "GPT image2！AI 电影分镜 Prompt 万能公式",
+          "excerpt": "新手也能直接抄作业！亲测零翻车！ 模型：gpt image 2.0 我用同一套公式，生成了两种完全不同风格的分镜稿 一个",
+          "mentions": [
+            "GPT"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "xhs",
+          "platformLabel": "小红书",
+          "id": "6962962c000000000d00a712",
+          "url": "https://www.xiaohongshu.com/explore/6962962c000000000d00a712?xsec_token=YBiM0CaeI3bDjZhf2YBZJTBXuPqbgREeWRoEItOe7YGj8%3D&xsec_source=pc_search",
+          "author": "gjycjyxtxjytxx",
+          "authorId": "5e20862800000000010021b7",
+          "publishedAt": "2026-01-10T18:10:52.000Z",
+          "title": "推荐一个Ai自动生成分镜的网页onestory",
+          "excerpt": "测试了一下《肖申克的救赎》第2-5场的剧本分镜，用ai自动生成分镜脚本。支持自己上传图片，但是不能超过10mb，而且必须",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "xhs",
+          "platformLabel": "小红书",
+          "id": "6a99433b000000002700aa70",
+          "url": "https://www.xiaohongshu.com/explore/6a99433b000000002700aa70?xsec_token=YB2Uu8NtpFcduRnKy8GUaCGacFuIQ3QNCB9NpLzNknj0Y%3D&xsec_source=pc_search",
+          "author": "念象 VibeVision",
+          "authorId": "6458d56200000000140126eb",
+          "publishedAt": "2026-09-03T09:51:55.000Z",
+          "title": "一张产品图，4步做出商业感AI分镜",
+          "excerpt": "一张随手拍产品图，怎么变成一组调性统一的商业感分镜？ 这次用Aesop护手霜做示范，把我的完整流程整理成了4步",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "xhs",
+          "platformLabel": "小红书",
+          "id": "6a743b08000000002402f853",
+          "url": "https://www.xiaohongshu.com/explore/6a743b08000000002402f853?xsec_token=YBxmS4eKxRLE9owTg1vQRRp6y62hlDaH-ucP9FeeI0IuM%3D&xsec_source=pc_search",
+          "author": "悲伤汤姆猫",
+          "authorId": "6726629d000000001c01a3c6",
+          "publishedAt": "2026-08-06T07:43:04.000Z",
+          "title": "AI漫剧分镜万能公式",
+          "excerpt": "#分镜 #ai关键词 #干货 #AIGC #AIGC培训 #AIGC学习 #ai漫剧",
+          "mentions": [
+            "AIGC"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "xhs",
+          "platformLabel": "小红书",
+          "id": "6a4a0efc000000000603458b",
+          "url": "https://www.xiaohongshu.com/explore/6a4a0efc000000000603458b?xsec_token=YBI0N-BY6AHXOwcRkCT8ncFWO9NR-5D-p6x_Eb7Wb_5C0%3D&xsec_source=pc_search",
+          "author": "阿林重启中（AIGC版）",
+          "authorId": "5b089dd74eacab0c66d8b107",
+          "publishedAt": "2026-07-05T07:59:56.000Z",
+          "title": "AI生成电影短剧情分镜脚本，车站迷路重逢",
+          "excerpt": "提示词：为⼀个15秒的电影剧情短⽚创建分镜脚本，包含⼈物表情、情绪变化。故事梗概：⼥孩在⼈群中迷路，焦急寻找，最终与朋友",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "xhs",
+          "platformLabel": "小红书",
+          "id": "6a92de8a0000000026035cc7",
+          "url": "https://www.xiaohongshu.com/explore/6a92de8a0000000026035cc7?xsec_token=YBfBei9lQR0fYTbIG_8mkiCvvrCCfBcRNAEsOr4yYHAA4%3D&xsec_source=pc_search",
+          "author": "木航同学（AI+IP)",
+          "authorId": "66914a010000000003030395",
+          "publishedAt": "2026-08-29T13:28:42.000Z",
+          "title": "谁还手动拉片啊😭AI批量拆爆款出分镜太爽了",
+          "excerpt": "做编导、做内容、做自媒体的，一定要试试我最近做的这个AI批量拉片skill❗️ (🛍️这条笔记👇⬇️就可以自取啦",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "xhs",
+          "platformLabel": "小红书",
+          "id": "6a5a079e000000000301ed98",
+          "url": "https://www.xiaohongshu.com/explore/6a5a079e000000000301ed98?xsec_token=YB4FGT9YoXThhTomiKS6LZL1bGMJoFukjRPu9V6dHTsfg%3D&xsec_source=pc_search",
+          "author": "都说了是牛马",
+          "authorId": "5e0ad7e00000000001008765",
+          "publishedAt": "2026-07-17T10:44:46.000Z",
+          "title": "Gemini分镜提示词 拿走不谢",
+          "excerpt": "你是一名专业 AI 短剧分镜导演、影视预演导演、AI 视频提示词工程师、电影摄影指导和影视灯光设计师。 任务：根据用户提",
+          "mentions": [
+            "Gemini"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "xhs",
+          "platformLabel": "小红书",
+          "id": "6932c70d000000001b027323",
+          "url": "https://www.xiaohongshu.com/explore/6932c70d000000001b027323?xsec_token=YBexAyy_aMaFxhOSOvdsdj2LcA1CbND7CO1IccN_kDERo%3D&xsec_source=pc_search",
+          "author": "起跑线_",
+          "authorId": "5b2bc6766b58b7295e944d25",
+          "publishedAt": "2025-12-05T11:50:37.000Z",
+          "title": "Gemini3生成分镜及视频一站式服务？",
+          "excerpt": "简单讲，StoryGen Atelier = AI 分镜 + AI 视频 + 一键拼接 的开源工具 只需要输入一句话",
+          "mentions": [
+            "Gemini3"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "xhs",
+          "platformLabel": "小红书",
+          "id": "6a46475f000000001702e94b",
+          "url": "https://www.xiaohongshu.com/explore/6a46475f000000001702e94b?xsec_token=YBp147UX0Foh7ErPPqOGP6kI5m5qNi_3ldIi9MiS9QtkM%3D&xsec_source=pc_search",
+          "author": "众人行66",
+          "authorId": "5fe2c0c30000000001009703",
+          "publishedAt": "2026-07-02T11:11:27.000Z",
+          "title": "我用gemini来做视频拉片，一键拆解视频分镜",
+          "excerpt": "视频反推拉片，生成分镜这块，试了不少 AI 工具，综合体验下来还是选择Gemini，还原度比我想象中高很多。 主要是他支",
+          "mentions": [
+            "Gemini"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        }
+      ],
+      "pages": [
+        {
+          "page": 1,
+          "received": 20
+        }
+      ]
+    },
+    {
+      "platform": "bilibili",
+      "platformLabel": "B站",
+      "records": [
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV16aRmBMEwb",
+          "url": "https://www.bilibili.com/video/BV16aRmBMEwb",
+          "author": "Ai_随风",
+          "authorId": "3546731499228115",
+          "publishedAt": "2026-05-08T23:46:53.000Z",
+          "title": "剧本转工业级分镜脚本seedance2.0专用（一个想法或者剧本在Runninghub无限画布完成视频生成的全流程）",
+          "excerpt": "剧本转工业级分镜脚本seedance2.0专用（一个想法或者剧本在Runninghub无限画布完成视频生成的全流程） 在线使用：https://www.runninghub.cn/?inviteCode=rh-v1083 （邀请码：rh-v1083 ，填写邀请码可以获得1000rh币可以免费体验） 云端镜像:https://www.xiangongyun.com/register/H4V8MX(通过这个注册送8元体验直接到你的账号） 动漫教程文档：https://ncn23j3mkzrg.feishu.cn/wiki/NCHZwTP8xiQakfkW0s1cpFWLnqh",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1tKgs6rE5w",
+          "url": "https://www.bilibili.com/video/BV1tKgs6rE5w",
+          "author": "游戏魂AI工坊",
+          "authorId": "98960774",
+          "publishedAt": "2026-08-13T16:01:01.000Z",
+          "title": "旧脚本 VS 新脚本：LibTV 这波更新，直接省了一半制作时间",
+          "excerpt": "旧脚本 VS 新脚本：LibTV 这波更新，直接省了一半制作时间 这次更新把鸡肋脚本功能变成肌肉了：自动拆解剧本结构、锁定角色场景资产、支持局部片段重拍、批量生成一键搞定。 这期视频完整对比了新旧脚本的核心差异，附真实制作时长数据，创作者必看。 评论区聊聊你用旧脚本最崩溃的是什么？",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1RsNc6kE6F",
+          "url": "https://www.bilibili.com/video/BV1RsNc6kE6F",
+          "author": "AI_Tutori漫剧教程",
+          "authorId": "3706958909540516",
+          "publishedAt": "2026-07-11T11:17:24.000Z",
+          "title": "第二集：【保姆级教程】用小说制作分镜脚本，如何才能让分镜脚本按照小说剧情制作？",
+          "excerpt": "第二集：【保姆级教程】用小说制作分镜脚本，如何才能让分镜脚本按照小说剧情制作？",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV14u4y1U7eA",
+          "url": "https://www.bilibili.com/video/BV14u4y1U7eA",
+          "author": "商学院赵",
+          "authorId": "3494367855642641",
+          "publishedAt": "2023-07-24T13:15:11.000Z",
+          "title": "AI生成短视频分镜脚本",
+          "excerpt": "AI生成短视频分镜脚本 -",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1gU4C6CEnW",
+          "url": "https://www.bilibili.com/video/BV1gU4C6CEnW",
+          "author": "无限画布工作流",
+          "authorId": "3546606827735086",
+          "publishedAt": "2026-08-30T02:20:00.000Z",
+          "title": "如何让 AI 写脚本和分镜头",
+          "excerpt": "如何让 AI 写脚本和分镜头 学会使用无限画布，来生成需要的脚本和分镜头，全部详细流程教学视频。#无限画布 #工作流 #分镜头教学",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1GT421D7FP",
+          "url": "https://www.bilibili.com/video/BV1GT421D7FP",
+          "author": "废才俱乐部Club",
+          "authorId": "3546566589679687",
+          "publishedAt": "2024-05-16T10:30:00.000Z",
+          "title": "利用AI高效产出短视频脚本及分镜，一天搞定10个！制作短视频文案及分镜脚本工作流程教学",
+          "excerpt": "利用AI高效产出短视频脚本及分镜，一天搞定10个！制作短视频文案及分镜脚本工作流程教学 ✨ 干货分享： 大家好，今天我要分享的是一套爆款的提示词框架，适用于自媒体、短视频制作、市场营销以及影视行业。它可以根据你的需求为你量身定制脚本内容，特别适合自媒体创作者、短视频制作人以及市场营销人员。 🚀 功能亮点： 视频定位与类型选择：AI在这套框架中扮演经验丰富的创意策划师，提供量身定制的选题和视频类型建议，确保内容精准对接目标观众。 文案撰写与分镜脚本制作：通过结构化的脚本制作流程，AI帮助撰写视频文案，并生成详细的分镜脚本，提升视频脚本制作效率。 参考图生成：利用大型语言模型和绘画AI技术，为",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1A5tm6jES5",
+          "url": "https://www.bilibili.com/video/BV1A5tm6jES5",
+          "author": "Lias讲AI-零基础",
+          "authorId": "3707037278014306",
+          "publishedAt": "2026-09-05T10:30:00.000Z",
+          "title": "把分镜规则做成Skill：Codex批量拆剧本与分镜，一个人做AI漫剧实战",
+          "excerpt": "把分镜规则做成Skill：Codex批量拆剧本与分镜，一个人做AI漫剧实战 本套教程从零开始讲解，手把手教学，无论是新手小白，还是有一定经验的选手，皆可学习～ 配套工具软件 | 素材 | 资料包 分享给各位还在寻找资料宝子们！一键三联抱走吖 视频制作不易，同学们觉得对你有帮助的话记得点点关注，一键三连感谢支持！！",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1J6bX6oEVi",
+          "url": "https://www.bilibili.com/video/BV1J6bX6oEVi",
+          "author": "椒-椒er",
+          "authorId": "402660436",
+          "publishedAt": "2026-08-16T12:21:06.000Z",
+          "title": "不用写复杂分镜脚本 AI 自动完成镜头调度",
+          "excerpt": "不用写复杂分镜脚本 AI 自动完成镜头调度",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1D67V6PEGs",
+          "url": "https://www.bilibili.com/video/BV1D67V6PEGs",
+          "author": "Yuuhann99",
+          "authorId": "12035559",
+          "publishedAt": "2026-06-26T11:42:14.000Z",
+          "title": "我给Codex做了一个分镜台，Codex秒变视频分镜脚本工作台",
+          "excerpt": "我给Codex做了一个分镜台，Codex秒变视频分镜脚本工作台 Codex秒变视频分镜脚本工作台 除了一键创建脚本以外，还支持用Codex创建image2/Remotion/Hyperframe等图片/视频素材，并自动回传至工作台，你的下一个脚本工具何必是脚本工具，一个Codex搞定所有，已开源",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1UCP9z4EGq",
+          "url": "https://www.bilibili.com/video/BV1UCP9z4EGq",
+          "author": "千寻AI部落",
+          "authorId": "19514475",
+          "publishedAt": "2026-03-09T13:39:18.000Z",
+          "title": "小说&amp;剧本如何转分镜脚本？",
+          "excerpt": "小说&amp;剧本如何转分镜脚本？ 小说&amp;剧本转分镜提示词： 1.请以经验丰富的动画导演视角，基于剧本生成分镜脚本。 2.整集时长严格控制在3分钟左右、分镜总量设定为60个镜头左右（可根据章节核心内容详略灵活增减镜头数量，增减幅度为3到5个镜头内）。 3.采用列项为镜号、场景、人物、动作描述、主画面描述、运镜、台词的标准，生成可下载的Excel表格格式。 4.创作需严格遵循原著剧情，不修改、不删减核心情节、台词及旁白，完整保留章节核心故事线与情感内核，人物动作设计细腻生动且贴合角色性格与剧情情绪，运镜手法灵活适配氛围，合理运用推、拉、摇、移",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1f4tm6TE9J",
+          "url": "https://www.bilibili.com/video/BV1f4tm6TE9J",
+          "author": "嘉沅AIGC",
+          "authorId": "3706949524785877",
+          "publishedAt": "2026-09-05T07:10:19.000Z",
+          "title": "【带货视频大片教学】seedance配合无限画布从视频策划到脚本分镜一键生成。",
+          "excerpt": "【带货视频大片教学】seedance配合无限画布从视频策划到脚本分镜一键生成。 画布工作流地址：https://jiayuan.quantv.com/ 工作流提示词，代码;S 信 整理不易，感谢大家的支持",
+          "mentions": [
+            "Seedance"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1PAhN6vEAh",
+          "url": "https://www.bilibili.com/video/BV1PAhN6vEAh",
+          "author": "will的拉片分享",
+          "authorId": "3690986062481424",
+          "publishedAt": "2026-09-06T09:00:00.000Z",
+          "title": "分镜脚本学习｜秋天女生情绪短片💯｜D13",
+          "excerpt": "分镜脚本学习｜秋天女生情绪短片💯｜D13 本期是秋天女生情绪短片拉片分享，拆解分镜脚本、镜头语言和视频拍摄思路。喜欢拉片教程和视频拍摄分享，欢迎点赞、关注。",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        }
+      ],
+      "pages": [
+        {
+          "page": 1,
+          "received": 18
+        }
+      ]
+    },
+    {
+      "platform": "x",
+      "platformLabel": "X（Twitter）",
+      "records": [
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2084949023979426292",
+          "url": "https://x.com/gkxspace/status/2084949023979426292",
+          "author": "余温",
+          "authorId": "gkxspace",
+          "publishedAt": "2026-08-05T10:25:58.000Z",
+          "title": "爽了！打死我都不敢信，有公司愿意把这种东西开源！ AI 视频圈最没用的就是“只放成片”，但 Higgsfield 把 9",
+          "excerpt": "爽了！打死我都不敢信，有公司愿意把这种东西开源！ AI 视频圈最没用的就是“只放成片”，但 Higgsfield 把 95 分钟的 AI 长片《Hell Grind》完全开源了，每条提示词、每份素材，全部公开。 这部片子成本 50 万美元，上过戛纳电影市场，几乎看不出 AI 感，说是实拍我都信。 我翻了一圈，做 AI 视频一定要把这几条都用到自己的工作流里： 1、prompt 别写短句碎片，人家平均一条 3000 个词，等于把分镜脚本直接写成 prompt 2、画面发飘就把物理规则写进提示词：遵守重力和惯性、不要漂浮的道具，一条条明确写 3、去 AI 感靠自然光描述，专门压那种过亮过假的质感 …",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2081971340744294638",
+          "url": "https://x.com/superwang/status/2081971340744294638",
+          "author": "邪恶大薯条",
+          "authorId": "superwang",
+          "publishedAt": "2026-07-28T05:13:43.000Z",
+          "title": "全程用Codex和Seedance以及豆包语音完成的一部小宣传片。 从开始写脚本，到后来的成片，全部由AI完成。总共24",
+          "excerpt": "全程用Codex和Seedance以及豆包语音完成的一部小宣传片。 从开始写脚本，到后来的成片，全部由AI完成。总共24个分镜。180秒左右。大概成本400元人民币。 最让我震惊的是，前期生成关键帧时。Codex可以全程不需要我上传任何资料。他自己在全网搜索关于我内容的实际资料，比如建筑高度、城市规划、相对位置、主体结构等等。然后进行统一调色，确定质感。 具体的工作流就是先确定生产内容。然后ChatGPT来安排脚本和分镜。让Collage根据脚本和分镜生成关键帧。以及主要建筑，和主要视觉。再通过Seedance的图生视频功能。把参考图、提示词及镜头和运镜的质感 我刻意地选了一部分没有那么真实的…",
+          "mentions": [
+            "Seedance"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2087183686953562184",
+          "url": "https://x.com/gkxspace/status/2087183686953562184",
+          "author": "余温",
+          "authorId": "gkxspace",
+          "publishedAt": "2026-08-11T14:25:43.000Z",
+          "title": "牛逼！打死我都不敢信，有公司愿意把这种东西开源！ AI 视频圈最没用的就是“只放成片”，但 Higgsfield 把花了",
+          "excerpt": "牛逼！打死我都不敢信，有公司愿意把这种东西开源！ AI 视频圈最没用的就是“只放成片”，但 Higgsfield 把花了 200 万美元做的 110 分钟的 AI 长片《The Cully Hill Boys》完全开源了，每条提示词、每份素材，全部公开。 另外，这也是AI电影行业非常大的突破，它是全球首部由名人形象授权主演的 AI 长片，并且上周刚在纽约办完全球首映。 然后老规矩，整个项目全开源：提示词、参考图、资产，全都摆在项目页里随便翻。 我翻了一圈，最惊到我的是这几个点： 1、真人授权比想象中轻太多：N3on 本人就录了 2 分钟语音、给了几张照片，片子里那个活灵活现的他就是这么来的 2…",
+          "mentions": [
+            "Seedance",
+            "Seedance 2.5"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2096137438452170851",
+          "url": "https://x.com/rey99eth/status/2096137438452170851",
+          "author": "Reynolds-小影马",
+          "authorId": "rey99eth",
+          "publishedAt": "2026-09-05T07:24:44.000Z",
+          "title": "简直太快太爽了！全程录屏手把手免费教学，欧美英文漫剧全自动量产教程：从剧本到成片一键落地，一镜到底，保姆级教程！ 真正的",
+          "excerpt": "简直太快太爽了！全程录屏手把手免费教学，欧美英文漫剧全自动量产教程：从剧本到成片一键落地，一镜到底，保姆级教程！ 真正的用一句话做一部剧！ 剧情：欧美英文原声剧 工具: 小影马流水线Agent 做剧时长：10分钟 Token费用: 300*0.039=11.7元 影片时长：33 秒 视频模型：Seedance 2.0 720P mini 做海外英文漫剧最大的痛点，一直是剧本翻译生硬、人物跨集变脸、风格不统一、制作流程繁琐、人工成本高。传统方式需要逐集写脚本、手动分镜、逐帧调色、单独配音剪辑，效率极低。 今天分享一套小影马全自动英文漫剧生产工作流，无需逐集操作，依靠AI智能体流水线，可一次性完成…",
+          "mentions": [
+            "Seedance",
+            "Seedance 2.0"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2037001847530213512",
+          "url": "https://x.com/xiaohu/status/2037001847530213512",
+          "author": "小互",
+          "authorId": "xiaohu",
+          "publishedAt": "2026-03-26T03:01:00.000Z",
+          "title": "国际版剪影CapCut 上了两个重磅功能： Video Studio：无时间线的画布式 AI 制片工作台 抛弃了传统的时",
+          "excerpt": "国际版剪影CapCut 上了两个重磅功能： Video Studio：无时间线的画布式 AI 制片工作台 抛弃了传统的时间线剪辑模式，内置 AI 编剧 Agent + 分镜板 + Seedance 2.0 视频生成 从想法到成片全部再一个画布内搞定 AI Video：嵌在编辑器里的生成能力，剪辑时随时调用 Seedance 2.0 补一段素材， 告别到处找素材的烦恼 传统剪辑软件的核心是时间线，所有素材按时间顺序排列，你一帧一帧往前推。 Video Studio 换了个思路，用画布取代时间线。你可以把它理解成一个 AI 版的 Miro（在线白板工具），但专门用来做视频。 打开 Video St…",
+          "mentions": [
+            "CapCut",
+            "Seedance",
+            "Seedance 2.0"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2076912758298485096",
+          "url": "https://x.com/Kejijun6666/status/2076912758298485096",
+          "author": "科技俊 | Tech Jun",
+          "authorId": "Kejijun6666",
+          "publishedAt": "2026-07-14T06:12:43.000Z",
+          "title": "前两天用了ChatCut我以为它已经很牛了至少在某些程度上能替代剪映，没想到今天部署的这个开源项目OpenMontage",
+          "excerpt": "前两天用了ChatCut我以为它已经很牛了至少在某些程度上能替代剪映，没想到今天部署的这个开源项目OpenMontage更厉害，只需要接入大模型它就能直接帮你写好提示词分镜脚本，有哪里不对的还可以让它改，我刚就说了一句“帮我生成一个15秒的猫和老鼠的视频”，它就给我做了一个这样的视频出来，自从有了AI各行业的压力是越来越大了，以后动画设计那些我感觉越来越多人要失业了。",
+          "mentions": [
+            "剪映"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2094305702475129237",
+          "url": "https://x.com/lansenai/status/2094305702475129237",
+          "author": "澜森",
+          "authorId": "lansenai",
+          "publishedAt": "2026-08-31T06:06:04.000Z",
+          "title": "使用 Seedance 2.5，提示词如下 @HiWscreator @wavespeed_ai 【基础总设定】 30秒",
+          "excerpt": "使用 Seedance 2.5，提示词如下 @HiWscreator @wavespeed_ai 【基础总设定】 30秒，16:9，电影感半写实动态质感，1v1成年精英徒手近身格斗，全程一镜到底。场景固定为深夜地下停车场狭长通道，冷白顶灯与远处红色警示灯交错，潮湿地面形成清晰倒影；两侧有混凝土立柱、护栏、一辆停靠轿车及少量塑料路障。第一秒立即开打，全程保持0.5–1.5米贴身距离，以高速持续压迫、短暂空档爆发、关键重击压实、立刻继续追击的节奏推进。攻守权多次转换，最后6秒进入最高速连续互拆，结尾胜负将分未分。 【角色与场景锁定】 角色A：约30岁成年男性，冷峻窄脸，黑色利落短发，精瘦敏捷体型；…",
+          "mentions": [
+            "Seedance",
+            "Seedance 2.5"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2095068964367847608",
+          "url": "https://x.com/goan999999/status/2095068964367847608",
+          "author": "govin.eth | G哥",
+          "authorId": "goan999999",
+          "publishedAt": "2026-09-02T08:39:00.000Z",
+          "title": "Codex + ComfyUI，你也能在 AI 短剧领域分一杯羹 现在还有很多团队做 AI 短剧，在手动写剧本、做分镜、",
+          "excerpt": "Codex + ComfyUI，你也能在 AI 短剧领域分一杯羹 现在还有很多团队做 AI 短剧，在手动写剧本、做分镜、生成角色、反复抽卡、剪视频，一条片子折腾几个小时。 真正高效的做法，是让 Codex 负责“脑子”，ComfyUI 负责“画面”： Codex：批量写剧本、拆分镜、生成提示词、管理角色设定、自动调用工作流 ComfyUI：固定人物一致性、批量出图、图生视频、换脸换装、风格统一 把两者串起来之后，打通完整条短剧制作流程： 选题 → 剧本 → 分镜 → 角色 → 场景 → 视频 → 配音 → 批量成片 (记下来，面试官要问的，哈！) 以前做短剧拼的是团队和预算，现在拼的是谁先把工…",
+          "mentions": [
+            "ComfyUI"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2095753860723753452",
+          "url": "https://x.com/ekcheungAI/status/2095753860723753452",
+          "author": "EK",
+          "authorId": "ekcheungAI",
+          "publishedAt": "2026-09-04T06:00:32.000Z",
+          "title": "一段视频里连穿七个房间、零切镜。GPT-6 Astra 先把空间和走位映射清楚，镜头调度没离开过同一个 viewport",
+          "excerpt": "一段视频里连穿七个房间、零切镜。GPT-6 Astra 先把空间和走位映射清楚，镜头调度没离开过同一个 viewport，最后 Higgsfield Seedance 2.5 把整段一次渲染出来。😱 这不是逐帧抠图，是把“场景理解 + 运镜规则”打包进同一条 model 链路。以前这种连续调度要分镜、预演、合成三步走，现在一条管线直接出结果。做 AI 工具的人该盯的不是单一跑分，是哪天这个流程能被稳定复现并接进自己的 agent。",
+          "mentions": [
+            "GPT",
+            "Seedance",
+            "Seedance 2.5"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2058520861788033508",
+          "url": "https://x.com/ChatGptAstra/status/2058520861788033508",
+          "author": "摸鱼巨匠🔨",
+          "authorId": "ChatGptAstra",
+          "publishedAt": "2026-05-24T12:09:53.000Z",
+          "title": "如何 3 天学会 AI 视频创作，迅速拥抱火爆的 AI 视频赛道？ 这个教程，包含所有内容干货和全流程制作教学！ 整个教",
+          "excerpt": "如何 3 天学会 AI 视频创作，迅速拥抱火爆的 AI 视频赛道？ 这个教程，包含所有内容干货和全流程制作教学！ 整个教程按照 “快速上手 → 生图生视频 → 脚本分镜 → 全流程提速 → 多场景案例” 五个模块展开，把 AI 视频的完整创作链路都讲到了 我用了 3 天时间看完，视频创作能力大大提升，过 2 天给大家发个小技巧总结 这个视频是我在油管看到的，但是我不知道原作者是谁 原视频出处标注在评论区",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2096086036342288764",
+          "url": "https://x.com/ekcheungAI/status/2096086036342288764",
+          "author": "EK",
+          "authorId": "ekcheungAI",
+          "publishedAt": "2026-09-05T04:00:29.000Z",
+          "title": "一段视频里连穿七个房间、零切镜。GPT-6 Astra 先把空间和走位映射清楚，镜头调度没离开过同一个 viewport",
+          "excerpt": "一段视频里连穿七个房间、零切镜。GPT-6 Astra 先把空间和走位映射清楚，镜头调度没离开过同一个 viewport，最后 Higgsfield Seedance 2.5 把整段一次渲染出来。😱 这不是逐帧抠图，是把“场景理解 + 运镜规则”打包进同一条 model 链路。以前这种连续调度要分镜、预演、合成三步走，现在一条管线直接出结果。做 AI 工具的人该盯的不是单一跑分，是哪天这个流程能被稳定复现并接进自己的 agent。",
+          "mentions": [
+            "GPT",
+            "Seedance",
+            "Seedance 2.5"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2095772519672504379",
+          "url": "https://x.com/AYi_AInotes/status/2095772519672504379",
+          "author": "AYi",
+          "authorId": "AYi_AInotes",
+          "publishedAt": "2026-09-04T07:14:40.000Z",
+          "title": "这绝逼是目前我用过最能打的 AI 视频工具，没有之一！！！ 纯纯的解放生产力，简直就是抖音、微信视频号起号的神器！！ 兄",
+          "excerpt": "这绝逼是目前我用过最能打的 AI 视频工具，没有之一！！！ 纯纯的解放生产力，简直就是抖音、微信视频号起号的神器！！ 兄弟们，你们敢相信视频里这个 1 分钟的水循环科普动画，是我几句提示词直接跑出来的吗？ 没给任何素材，没有抽卡碰运气，喵个咪，真的是把短视频的制作门槛彻底砸穿了。 以前这种信息型 MG动画视频，基本只能交给会 AE 的人一帧一帧做，贵、慢、学习成本还高。 这样一条外包通常要 3000 到 8000 块、制作周期一两周的 60 秒科普动画，我用 Fotor Video Agent 实测跑出来，大概只花了 10 分钟，全程只点了一次方案确认，剩下的它全部搞定，真的牛逼！！ 脚本、中…",
+          "mentions": [
+            "fotorai",
+            "fotorvideoagent",
+            "剪映"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        }
+      ],
+      "pages": [
+        {
+          "page": 1,
+          "received": 20
+        }
+      ]
+    }
+  ]
+}
