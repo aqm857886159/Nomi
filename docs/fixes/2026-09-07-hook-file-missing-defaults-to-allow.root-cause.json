@@ -1,0 +1,141 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-07-hook-file-missing-defaults-to-allow",
+  "problem_type": "hook_bypass_silent_failure",
+  "symptom": "2026-09-07 实测：一个主会话的 worktree 落后 main，`.claude/settings.json` 里登记着 PreToolUse 命令 `bash \"$CLAUDE_PROJECT_DIR/scripts/claude-hooks/commit-bypass-check.sh\"`，而那棵树上根本没有这个文件（它是 a436d63ec 才进 main 的）。bash 报 file-not-found、退出码 127，Claude Code 只把 exit 2 当阻断、其余非零码归为「hook 出错，继续」——于是子 agent 一条 `git -c core.hooksPath=… commit` 畅通无阻。闸门在登记表里活着、在现实里不存在，全程没有一个字的红。",
+  "direct_cause": "`.claude/settings.json` 里每条 hook 命令都是裸的 `bash \"$CLAUDE_PROJECT_DIR/<脚本>\"`。bash 在目标文件不存在时以 127 退出，而 Claude Code 的 PreToolUse 只认 exit 2 为阻断码；127 与 0 在「这次工具调用放不放行」这件事上等价。命令串自己不判文件在不在，也没有任何一层替它判。",
+  "class_root": "**防线依赖一个可能不存在的文件，缺失时默认放行**（R28：登记是备忘录不是防线）。缺失在这台机器上不是意外而是常态，而且成因换过好几茬、每次都只修成因没修「缺失即放行」：① 旧形状把 hook 靠 postinstall 拷进 gitignore 的 `.claude/hooks/`，没跑 `pnpm install` 的 worktree 一个拦截都没有；② b60f708b4 改成 `.claude/settings.json` 进 git、直指仓内 `scripts/claude-hooks/*.sh`，「装了才有」变成「checkout 就有」——但同时把缺失的成因换成了「分支停在没有该脚本的旧提交」，在 20+ worktree 的机器上更常见。两次都把注意力放在「怎么让文件在场」，没有人处理「文件不在场时这条命令怎么退出」。同理，`.claude/hooks/` 下的每个副本、以及任何「抽一个 _guard.sh 统一分发」的方案，都是同一族的新实例：分发器自己就是一个可能不存在的文件。",
+  "migration": "无数据迁移。`.claude/settings.json`（2026-09-06 起是版本化的共享项目设置，随 checkout 生效）里 9 条 hook 命令全部改写为带缺失守卫的 `sh -c` 形状；老 worktree 只要把分支并上 origin/main 即生效。没有并行实现需要删除——守卫是对同一条命令串的重写，不是第二条通路。",
+  "affected_population": [
+    "`.claude/settings.json` 登记的全部 9 条 hook 命令（UserPromptSubmit / PreToolUse(Bash) ×3 / PreToolUse(Write|Edit) ×2 / Stop / PreCompact / SessionStart）",
+    "任何在落后分支、或脚本被删/改名之后开工的 Claude Code 会话与子 agent —— 这台机器常有 20+ 棵 worktree，各停在不同提交",
+    "被这些闸门保护的对象：版本化 git pre-commit（scripts/check-no-secrets.mjs 敏感数据扫描、scripts/ponytail-review-hook.mjs 的 R25 评审）与 R11 五门戳"
+  ],
+  "scope_paths": [
+    ".claude/settings.json",
+    "scripts/claude-hooks-registry.cjs",
+    "scripts/install-claude-hooks.cjs",
+    "scripts/check-hook-behavior.mjs"
+  ],
+  "entry_points": [
+    ".claude/settings.json: hooks 注册表 —— 每条命令就是闸门在运行期的**唯一**入口，缺失守卫必须写在这里",
+    "scripts/claude-hooks-registry.cjs: validateRegistration —— 结构面判据（每条命令是不是规范守卫串）",
+    "scripts/claude-hooks-registry.cjs: hookKind —— 拦截型 / 提示型的分型，由脚本正文自己推出，不另立名单",
+    "scripts/claude-hooks-registry.cjs: guardedCommand —— 规范守卫串的唯一书写者，报红时把期望串抄给人",
+    "scripts/check-hook-behavior.mjs: settings-guard 轴 —— 行为面阳性对照，真把脚本挪走跑那条命令看退出码"
+  ],
+  "invariants": [
+    "`.claude/settings.json` 里每条 hook 命令都必须自带文件缺失守卫：由命令串里的 shell 自己 `[ -f \"$h\" ]` 判存在，缺失时明确退出并在 stderr 说明原因与做法（先并上 origin/main）。裸 `bash \"$CLAUDE_PROJECT_DIR/<脚本>\"` 一律判红。",
+    "拦截型 hook（脚本把 `exit 2` 当拒绝通道：pre-push-check.sh / commit-bypass-check.sh / secret-guard.sh）缺失时 fail-closed —— 守卫必须 `exit 2`，因为 Claude Code 只认这一个阻断码。",
+    "提示型 hook（其余，含 Stop 的 completion-check.sh —— 它的拒绝走 stdout 的 `decision: block` 而不是 exit 2）缺失时 fail-open 但不 fail-silent —— 守卫 `exit 1` 且 stderr 非空。在 Stop 上 fail-closed 会把会话锁进「想修都停不下来」的死循环，而漏一条提醒是可恢复、用户当场看得见的。",
+    "分型不另立名单：拦截型 / 提示型由脚本正文的可执行行里有没有 `exit 2` 推出（注释行不算——pre-push-check.sh 的抬头注释里就写着「block(exit 2)」）。新增一个闸门不需要再去别处登记一次分型。",
+    "拿不到脚本正文（分不出型）必须报红，不许跳过：在这道判据里「校验不了」等于「没校验」。",
+    "守卫不许退化成「拦一切」：脚本正常在场 + 无害载荷时，每条命令都必须原样 exit 0（会误报的闸门用不了几次就会被人绕过）。",
+    "缺失守卫必须由命令串本身执行，不得抽成 `scripts/claude-hooks/_guard.sh` 一类的分发文件——分发器自己就是一个可能不存在的文件，`bash _guard.sh` 缺失时同样 127 同样放行，等于把这个 bug 原样搬了个家。"
+  ],
+  "regression_tests": [
+    "scripts/check-hook-behavior.node-test.mjs",
+    "scripts/install-claude-hooks.node-test.mjs"
+  ],
+  "residual_risks": [
+    "`.claude/settings.json` **整份**缺失（被删、或在非 Claude Code 宿主里）时，本次修复无从生效——守卫住在登记表里，登记表没了就没有守卫。缓解是该文件自 b60f708b4 起进 git（`.gitignore` 对它开了口子），checkout 就有；`check:claude-hooks` 对「settings.json 缺失」本来就报红。真正根除需要 git 层面的 wrapper，与 2026-09-06 那份合同记录的残留风险同源，仍不在范围内。",
+    "人手在终端里直接敲的 git 命令不经过 PreToolUse，任何 hook 都看不见；那一层由版本化 git pre-commit 自己兜底。",
+    "守卫用 `[ -f \"$h\" ]` 判存在，判不出「文件在、但没有读权限 / 是坏的符号链接指向存在的目标」这类罕见形状。这些情况仍会落回旧行为（脚本自己起不来 → 非 2 退出 → 放行）。选 `-f` 而不是 `-x` 是刻意的：命令用 `bash \"$h\"` 显式解释器执行，可执行位不是前提，用 `-x` 会在 checkout 丢权限位时误伤。",
+    "`CLAUDE_PROJECT_DIR` 未设置时，拦截型守卫会对每一条 Bash 调用 exit 2。这是刻意的 fail-closed（旧行为同样起不来，只是静默），代价是环境异常时会很吵——但吵是这次要的，静默正是本条合同的病因。"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://code.claude.com/docs/en/hooks",
+      "checked_at": "2026-09-07",
+      "purpose": "核对 PreToolUse hook 的退出码语义：exit 2 = 阻断该次工具调用并把 stderr 交给 Claude；其余非零退出码 = 非阻断错误，stderr 只给用户看、工具调用照常进行。这正是裸 `bash <不存在的文件>` 的 127 被当成放行的依据，也是守卫必须退 2 而不是退 1 的依据。本机实跑复核：把 settings 里的命令串喂真实 PreToolUse 载荷并把脚本挪走，裸 bash 形状退 127、守卫形状退 2。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "这是同一族的第三次：① 2026-09-03 push 绕口只留痕不拒绝；② 2026-09-06 commit 绕口没有任何防线；③ 本次防线登记了却文件不在。每次都换了成因、没换「缺失/不覆盖时默认放行」这条默认值。而缺失的触发条件在这台机器上是结构性的——20+ 棵 worktree 各停在不同提交，闸门的执行体又刻意跟着分支走，只要还这么并行开工就会继续发生。",
+    "same_class_scan": [
+      "逐条实扫 `.claude/settings.json` 的全部 9 条命令，按脚本正文分型：拦截型 3 条（pre-push-check.sh / commit-bypass-check.sh / secret-guard.sh，都以 exit 2 拒绝）、提示型 6 条（self-check.sh 注入三闸、stack-currency-check.sh 与 model-doc-check.sh 的 additionalContext、completion-check.sh 的 stdout decision:block、handoff-write.sh / handoff-read.sh）。9 条**全部**是裸 `bash`，即 9 条全部在文件缺失时静默降级——不是只有报告到的那一条。",
+      "核对 Claude Code 的退出码语义（见 external_sources）：只有 exit 2 阻断，127 与 0 在放行与否上等价。这解释了为什么现场「没有一个字的红」。",
+      "回看同族两份前作（docs/fixes/2026-09-03-push-bypass-audit-trail、2026-09-06-commit-bypass-blocked-at-pretooluse）：后者的 residual_risks 里已经写着「完全没装 hook 的会话仍可绕过……`check:claude-hooks` 只拦『装的与仓里不一致』，拦不住『压根没装』」。b60f708b4 修的是「没装」，本次修的是同一句话的另一半「登记了但文件不在」。",
+      "扫其余「靠一个文件在场」的闸门入口：git 侧的 pre-commit/pre-push 由 scripts/install-git-hooks.cjs 装进 .git/hooks，缺失时 git **本来就是**放行——那一层的对策是 pre-push-check.sh 与 commit-bypass-check.sh（即本条保护的对象），处置不同，未纳入本次改动。",
+      "验证「抽 _guard.sh 分发器」这个看起来更整洁的方案属于同一族而非解法：分发器自身缺失时 `bash _guard.sh` 同样 127 同样放行。据此把守卫钉在命令串里（唯一一定在场的是 harness 起的 shell）。"
+    ]
+  },
+  "generality_proof": "判定不针对报告到的那条命令，而是对**登记表里的每一条**逐条施加同一条不变量：命令串必须逐字等于 `guardedCommand(脚本路径, 分型)` 的输出，而分型由脚本正文自己推（`hookKind`），不是一份要人维护的名单。因此换一个脚本、换一个事件、新增一道闸门，都落进同一个判定而无需改门岗；忘记给新脚本挂守卫会被 `check:claude-hooks` 当场报红并把期望串抄出来。行为面另有阳性对照：`check:hook-behavior` 的 settings-guard 轴对每条命令真的把脚本挪走（拿一个空目录当 CLAUDE_PROJECT_DIR）、真的喂 PreToolUse 载荷、看退出码——拦截型必须 2、提示型必须非 0 且 stderr 非空，并且脚本在场时必须放行。结构对了行为不对是本仓栽过多次的假绿，所以两道都留。",
+  "invariant_owner_layer": {
+    "layer": "scripts/claude-hooks-registry.cjs",
+    "tests": [
+      "scripts/install-claude-hooks.node-test.mjs",
+      "scripts/check-hook-behavior.node-test.mjs"
+    ]
+  },
+  "shared_boundaries": [
+    {
+      "path": "scripts/claude-hooks-registry.cjs",
+      "symbol": "guardedCommand / hookKind / validateRegistration",
+      "responsibility": "hook 注册的判据本体：规范守卫串的唯一书写者、拦截型/提示型的唯一分型来源，以及「登记表里每条命令是否合法」的唯一判定。纯函数、不碰磁盘，为的是能被 node-test 喂假树——这道闸门的失效形状是静默放行，只有断言能把「没挂上」和「放行」分开。"
+    },
+    {
+      "path": ".claude/settings.json",
+      "symbol": "hooks 注册表",
+      "responsibility": "闸门在运行期的唯一入口。自 b60f708b4 起它本身进 git（共享项目设置，随 checkout 生效），因此也是缺失守卫唯一能落脚的地方——它是这条链上唯一一定在场的文件。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": ".claude/settings.json",
+      "entry_point": "PreToolUse(Bash) 的三条拦截型命令（pre-push-check.sh / commit-bypass-check.sh / secret-guard.sh）",
+      "disposition": "enforced",
+      "evidence": "改为守卫形状后，把脚本挪走跑同一条命令，三条全部 exit 2（此前全部 127）；脚本在场 + 无害载荷全部 exit 0。check-hook-behavior.node-test.mjs 的「登记表退回裸 `bash <脚本>`」一条把三条同时钉住，「退出码改成 1」一条证明只有 2 算通过。"
+    },
+    {
+      "path": ".claude/settings.json",
+      "entry_point": "其余六条提示型命令（UserPromptSubmit / Write|Edit ×2 / Stop / PreCompact / SessionStart）",
+      "disposition": "enforced",
+      "evidence": "同样改为守卫形状但退 1：缺失时不阻断、stderr 必有话。check-hook-behavior.node-test.mjs 两条反向用例——把 completion-check 的守卫写成 exit 2 报红（Stop 上 fail-closed 会锁死会话），把 handoff-read 的守卫写成静默 exit 0 报红（可以 fail-open，不可以 fail-silent）。"
+    },
+    {
+      "path": "scripts/install-claude-hooks.cjs",
+      "entry_point": "--check（pnpm run check:claude-hooks）",
+      "disposition": "enforced",
+      "evidence": "新增 scriptSources 入参把脚本正文喂给判据，validateRegistration 逐条比对守卫串；install-claude-hooks.node-test.mjs 新增 5 条：裸 bash 报红并抄出期望串、拦截型挂提示型守卫报红、提示型两个方向、拿不到正文报红、分型只看可执行行（注释里的「block(exit 2)」与 python 的 sys.exit(2) 都不算）。"
+    },
+    {
+      "path": "scripts/claude-hooks/",
+      "entry_point": "hook 脚本自身的内部 fail-open 分支（如 secret-guard.sh 的 `[ -f \"$ANALYSIS_LIB\" ] || exit 0`）",
+      "disposition": "not-affected",
+      "evidence": "刻意不改：那是脚本**在场**时自己做出的策略决定（核心扫描在 pre-commit，理由写在它抬头），与「脚本压根不在场、没有任何策略被咨询过」是两回事。本次只补后者。"
+    }
+  ],
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/claude-hooks-registry.cjs",
+    "invariant": "`.claude/settings.json` 里每条 hook 命令都逐字等于 `guardedCommand(脚本路径, hookKind(脚本正文))`：脚本不在场时由命令串里的 shell 自己明确退出——拦截型 exit 2，提示型 exit 1 且 stderr 非空。",
+    "failure_mode": "结构面回退（谁把守卫删了、退出码写错、新脚本忘了挂守卫）→ `pnpm run check:claude-hooks` 报红并把期望的命令串抄出来；行为面回退（串还在但实际不拦）→ `pnpm run check:hook-behavior` 的 settings-guard 轴把脚本挪走实跑，退出码不对即红。运行期真的遇到脚本缺失 → stderr 打印 `[nomi-hooks] 拦截型 hook 缺失，fail-closed 拒绝本次调用：<脚本>（先并上 origin/main 再重试）`，该次 Bash 调用被拒。",
+    "exception_policy": "none",
+    "strategy": "把「文件在不在」的判断从**可能缺席的那一层**（hook 脚本）挪到**一定在场的那一层**（harness 起的 shell），并让缺席时的默认值从「放行」翻成按代价不对称分型的明确退出——R28：防线建在最早能拦住的那层，而能拦住的前提是它自己一定在场。刻意不抽 `_guard.sh` 分发器：那只是把同一个「文件可能不存在」搬了个家。",
+    "artifacts": [
+      ".claude/settings.json",
+      "scripts/claude-hooks-registry.cjs",
+      "scripts/install-claude-hooks.cjs",
+      "scripts/install-claude-hooks.node-test.mjs",
+      "scripts/check-hook-behavior.mjs",
+      "scripts/check-hook-behavior.node-test.mjs"
+    ]
+  },
+  "class_regression_tests": [
+    "scripts/check-hook-behavior.node-test.mjs",
+    "scripts/install-claude-hooks.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "守卫是对同一条命令串的重写，不是新增的第二条通路——旧的裸 `bash` 形状在同一次改动里一条不剩地消失了（`check:claude-hooks` 逐条比对，留一条就红）。`.claude/hooks/` 下的旧安装副本早在 b60f708b4 就由 install-claude-hooks.cjs 清掉并由判据持续拦。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "只依赖 POSIX sh 的 `[ -f ]` 与 Claude Code 的 hook 退出码语义（已在 external_sources 核对并实跑验证），没有第三方依赖控制这条不变量。",
+    "exit_criteria": []
+  }
+}
