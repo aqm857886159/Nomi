@@ -84,8 +84,3 @@ export function skillCapabilityFor(
   const missing = item.neededProviders.filter((p) => !available.has(p))
   return { needs: item.neededProviders, missing, satisfied: missing.length === 0 }
 }
-
-const PROVIDER_LABEL: Record<SkillProviderKind, string> = { text: '文本', image: '图像', video: '视频' }
-export function providerLabel(kind: SkillProviderKind): string {
-  return PROVIDER_LABEL[kind] ?? kind
-}

@@ -9,12 +9,14 @@ import { useTranslation } from 'react-i18next'
 import { IconBooks, IconUpload, IconWand, IconX } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
 import { DesignEmptyState, NomiSegmented, NomiWordmark, TooltipProvider } from '../../design'
+import { toast } from '../../ui/toast'
 import { showInfoToast } from '../../utils/showInfoToast'
 import { showUndoToast } from '../../utils/showUndoToast'
 import { useWorkbenchStore } from '../workbenchStore'
 import type { SkillListItemDto } from '../api/skillApi'
 import { useWorkbenchSkills } from './useWorkbenchSkills'
-import { parseSkillImportFile } from './parseSkillImport'
+import { parseSkillImportFile, type SkillImportParse } from './parseSkillImport'
+import { parseSkillDrop } from './skillDropIntake'
 import { SkillCard } from './SkillCard'
 import { markLibraryUsed, sortByLibraryUsage, useLibraryUsageVersion } from '../library/libraryDiscovery'
 import { filterSkillLibraryItems, type SkillLibraryCategory } from '../library/libraryAdapters'
@@ -49,6 +51,7 @@ export function SkillLibraryContent({
   const [category, setCategory] = React.useState<SkillLibraryCategory>('all')
   const [query, setQuery] = React.useState('')
   const fileInputRef = React.useRef<HTMLInputElement>(null)
+  const [dragActive, setDragActive] = React.useState(false)
   const usageVersion = useLibraryUsageVersion()
 
   const { items, available, remove, importPackage, exportPackage } = useWorkbenchSkills(active)
@@ -136,16 +139,20 @@ export function SkillLibraryContent({
 
   // 导入：渲染层把 SKILL.md / zip / .nomiskill.json 归一成 {dirName, files} → 落用户目录
   // （版本戳与真正的安全校验都在主进程 skillPackage.ts，渲染层的判断一律不可信）。
-  const handleImportFile = React.useCallback(
-    async (file: File) => {
-      const parsed = await parseSkillImportFile(file)
+  // 一次导入尝试的落地：解析结果 → 落用户目录 → 给回执。选文件与拖进来共用它，
+  // 两条路只是「怎么把包递过来」不同，落地与回执必须是同一份（否则两条路的行为会各自漂移）。
+  const landImport = React.useCallback(
+    (parsed: SkillImportParse) => {
+      // 失败走 error 档，不走 info。这不是措辞问题：info 是灰色 ⓘ、3 秒自动消失、没有关闭钮，
+      // 和成功回执**长得一模一样**——用户会把「导入失败」看成「导入成功」然后去找那张不存在的卡片。
+      // error 档是红色、6 秒、带关闭钮，且这条失败文案本身要说得出下一步（见 importReason.*）。
       if (!parsed.ok) {
-        showInfoToast(t(`libraries.skill.importReason.${parsed.reason}`))
+        toast(t(`libraries.skill.importReason.${parsed.reason}`), 'error')
         return
       }
       const res = importPackage(parsed.payload)
       if (!res.ok) {
-        showInfoToast(t('libraries.skill.importFailed', { message: res.error ?? t('libraries.skill.unknownError') }))
+        toast(t('libraries.skill.importFailed', { message: res.error ?? t('libraries.skill.unknownError') }), 'error')
         return
       }
       const name = res.skillName ?? t('libraries.skill.newSkill')
@@ -155,6 +162,40 @@ export function SkillLibraryContent({
         : t('libraries.skill.imported', { name }))
     },
     [importPackage, t],
+  )
+
+  const handleImportFile = React.useCallback(
+    async (file: File) => landImport(await parseSkillImportFile(file)),
+    [landImport],
+  )
+
+  // 拖拽是加速器不是新入口（设计系统 §1.5.2）：不加按钮，只让面板认得「松手」。
+  // 它同时补上了系统对话框根本选不中的那一类输入——**技能文件夹**（pi / bigpowers 生态就是文件夹发的）。
+  const dragCarriesFiles = (event: React.DragEvent): boolean =>
+    Array.from(event.dataTransfer?.types ?? []).includes('Files')
+
+  const handleDragOver = React.useCallback((event: React.DragEvent) => {
+    if (!dragCarriesFiles(event)) return
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'copy'
+    setDragActive(true)
+  }, [])
+
+  const handleDragLeave = React.useCallback((event: React.DragEvent) => {
+    // 只有真的离开了整块面板才熄灭：子元素之间移动也会冒 dragleave，不判会闪。
+    if (event.currentTarget.contains(event.relatedTarget as Node | null)) return
+    setDragActive(false)
+  }, [])
+
+  const handleDrop = React.useCallback(
+    async (event: React.DragEvent) => {
+      if (!dragCarriesFiles(event)) return
+      event.preventDefault()
+      setDragActive(false)
+      // 一次拖多个各自成败：一个坏包不该把同批的好包一起否掉。
+      for (const parsed of await parseSkillDrop(event.dataTransfer)) landImport(parsed)
+    },
+    [landImport],
   )
 
   const showNewTile = source === 'mine' && category === 'all' && !query.trim()
@@ -237,7 +278,14 @@ export function SkillLibraryContent({
 
   return (
     <TooltipProvider delayDuration={180} skipDelayDuration={80}>
-      <div className={cn('flex min-h-0 flex-1 flex-col overflow-hidden', className)}>
+      <div
+        className={cn('relative flex min-h-0 flex-1 flex-col overflow-hidden', className)}
+        onDragEnter={handleDragOver}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        data-skill-drop-zone={dragActive ? 'active' : 'idle'}
+      >
         {/* 头部 */}
         {showHeader ? (
           <div className={cn('flex items-center gap-2 px-5 pt-4 pb-3 border-b border-nomi-line')}>
@@ -327,7 +375,29 @@ export function SkillLibraryContent({
               ))}
             </div>
           )}
+          {source === 'mine' && !query.trim() ? (
+            <p className={cn('mt-3 mb-0 px-0.5 text-micro leading-relaxed text-nomi-ink-40')}>
+              {t('libraries.skill.importHint')}
+            </p>
+          ) : null}
         </div>
+
+        {/* 松手区提示：只在真的拖着文件时出现，盖住整块面板，让「能不能松手」没有歧义。 */}
+        {dragActive ? (
+          <div
+            className={cn(
+              'pointer-events-none absolute inset-2 z-20 grid place-items-center gap-1 rounded-nomi',
+              'border-2 border-dashed border-nomi-accent bg-nomi-paper/90 text-center',
+            )}
+            aria-hidden="true"
+          >
+            <span className={cn('flex flex-col items-center gap-1.5')}>
+              <IconUpload size={22} stroke={1.6} className={cn('text-nomi-accent')} />
+              <span className={cn('text-body-sm font-semibold text-nomi-ink')}>{t('libraries.skill.dropHint')}</span>
+              <span className={cn('text-micro text-nomi-ink-60')}>{t('libraries.skill.dropFormats')}</span>
+            </span>
+          </div>
+        ) : null}
       </div>
     </TooltipProvider>
   )
