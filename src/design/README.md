@@ -9,12 +9,12 @@ Use this folder for:
 - other UI atoms that should stay consistent across workbench, project pages, canvas, and stats surfaces
 
 Current primitives:
-- `PanelCard` / `InlinePanel`: shared bounded surfaces.
 - `DesignButton` / `DesignBadge`: Mantine-backed shared controls for legacy admin/share surfaces that need Mantine props such as `loading`, `component`, or table/modal integration.
 - `IconActionButton`: Mantine-backed icon action for legacy Mantine surfaces.
 - `WorkbenchButton` / `WorkbenchIconButton`: native workbench actions for dense canvas, timeline, preview, and creation controls.
 - `StatusBadge`: shared semantic status badge.
-- `DesignCheckbox` / `DesignTextInput` / `DesignTextarea` / `DesignSelect` / `DesignNumberInput` / `DesignSegmentedControl`: shared Mantine-backed form controls.
+- `DesignCheckbox` / `DesignTextInput` / `DesignTextarea` / `DesignNumberInput` / `DesignSegmentedControl`: shared Mantine-backed form controls.
+- `NomiSelect`: the native select primitive (there is no `DesignSelect` — use this one).
 - `DesignModal` / `DesignDrawer`: shared overlay entry points.
 - `DesignTable`: shared table entry point for admin and management surfaces.
 - `DesignPageShell`: shared top-level page wrapper.

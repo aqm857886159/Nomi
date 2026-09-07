@@ -186,7 +186,7 @@ export function useCanvasViewportGestures({
     setViewport({ zoom: nextZoom, offset: nextOffset })
   }, [offsetRef, setViewport, zoomRef])
 
-  // 离散跳转（适应视图 / 重置 / 聚焦节点）的平滑过渡：rAF 在 ~140ms（--nomi-transition-fast）
+  // 离散跳转（适应视图 / 重置 / 聚焦节点）的平滑过渡：rAF 在 ~140ms（--nomi-duration-fast）
   // 内 easeOutCubic 插值 zoom+offset。连续控件（缩放条/捏合）不走这里，保持即时跟手。
   const animateViewportTo = React.useCallback((
     targetZoom: number,
