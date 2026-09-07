@@ -57,7 +57,7 @@ let failure
 try {
   let { win } = await walk.start({ first: true })
   const project = await walk.newProject()
-  const { projectId } = project
+  const { projectId, projectRoot } = project
 
   // 创作面先选好文本模型（常驻 Agent 模型全局，画布沿用）。
   await chooseAssistantModel(win, FIXTURE_TEXT_MODEL_LABEL)
@@ -116,8 +116,90 @@ try {
   await expectVisible(win.locator('[data-node-floating-toolbar="true"] button', { hasText: '固化为参考图' }).first(), '浮条「固化为参考图」（SVG 下游消费入口）')
   await walk.snap('02-selected-toolbar-actions')
 
+  // ── 幕二 · Agent 对话交付 HTML 讲解卡（会动会交互的产物）────────────────
+  const HTML_ASK = '再做一张开场节奏讲解卡放到画布上，HTML 的：三段情绪爬升条会动。'
+  const HTML_CALL = 'artifact-deliver-html'
+  const HTML_TITLE = '开场节奏讲解'
+  const HTML_BODY = [
+    '<!doctype html><html><head><meta charset="utf-8"><style>',
+    'body{font-family:system-ui;margin:24px;background:#fdf8f0;color:#2b2b2b}',
+    '.bar{height:14px;border-radius:7px;background:#185fa5;',
+    'animation:grow 1.2s ease-in-out infinite alternate;transform-origin:left}',
+    '@keyframes grow{from{transform:scaleX(.35)}to{transform:scaleX(1)}}',
+    '</style></head><body><h3>第一幕 · 情绪爬升</h3>',
+    '<div class="bar" style="width:96%"></div>',
+    '<div class="bar" style="width:78%;background:#d85a30"></div>',
+    '<p>旁白先入 · 第三拍给特写 · 转场用声音扛</p></body></html>',
+  ].join('')
+  const htmlRequest = walk.fixture.expectText({
+    label: 'agent delivers the HTML artifact through create_canvas_nodes',
+    match: (body) => flattenRequestText(body).includes('讲解卡') && !hasToolResult(body, HTML_CALL),
+    reply: {
+      type: 'tool', id: HTML_CALL, name: 'nomi_canvas_plan',
+      args: {
+        operation: 'create_canvas_nodes', summary: '交付开场节奏讲解卡（HTML）',
+        nodes: [{ clientId: 'art-2', kind: 'agent-artifact', title: HTML_TITLE, artifact: { fileType: 'html', content: HTML_BODY } }],
+        edges: [],
+      },
+    },
+  })
+  const htmlFollowup = walk.fixture.expectText({
+    label: 'host returns the html deliver receipt',
+    match: (body) => hasToolResult(body, HTML_CALL),
+    reply: { type: 'text', text: '开场节奏讲解卡已放到画布上。' },
+  })
+  await sendCanvas(win, HTML_ASK)
+  await recorded(htmlRequest.received, 'html deliver request')
+  await recorded(htmlFollowup.received, 'html deliver receipt')
+  await waitForV4TurnIdle(win, { panel: CANVAS_PANEL, settledBy: canvas.locator(TOOL_RECEIPT).last() })
+
+  // HTML 产物渲染在沙箱 iframe 中：sandbox=allow-scripts，且不含 allow-same-origin。
+  // 隔离的铁证 = iframe 的 origin 是 opaque（'null'）：无 allow-same-origin 的 sandbox iframe
+  // 拿不到宿主 origin/存储/顶层 DOM，脚本只能在自己的笼子里跑动画。跨源 contentDocument
+  // 读取行为随 Chromium 对 standard custom scheme 的处理有差异（实测 READABLE），但那不构成
+  // 提权——「产物碰不到宿主」由 opaque origin + Electron 无 nodeIntegration/contextIsolation 保证。
+  const htmlIframe = win.locator('.generation-canvas-v2-node[data-kind="agent-artifact"] iframe').first()
+  await htmlIframe.waitFor({ timeout: 15_000 })
+  const sandbox = await htmlIframe.evaluate((el) => el.getAttribute('sandbox'))
+  expect(sandbox, 'HTML iframe sandbox 属性存在').toBe('allow-scripts')
+  const frameOrigin = await htmlIframe.evaluate((el) => {
+    try { return el.contentWindow ? el.contentWindow.origin : 'NO-WINDOW' } catch { return 'BLOCKED' }
+  })
+  expect(frameOrigin, '沙箱隔离：iframe origin 是 opaque(null)——产物脚本拿不到宿主 origin/存储/顶层 DOM').toBe('null')
+  await walk.snap('03-delivered-html-sandbox')
+
+  // ── 幕三 · SVG 固化为参考图：真实点击浮条按钮 → canvas 栅格化 → PNG 落盘 → asset 节点 ──
+  const svgRefNode = win.locator('.generation-canvas-v2-node[data-kind="agent-artifact"]').filter({
+    has: win.locator('img[src*=".svg"]'),
+  }).first()
+  await svgRefNode.click({ timeout: 10_000 })
+  await expectVisible(win.locator('[data-node-floating-toolbar="true"] button', { hasText: '固化为参考图' }).first(), 'SVG 节点浮条「固化为参考图」')
+  // 浮条固定定位在节点上沿，若 SVG 节点落在画布视口上缘之外，按钮 y 坐标为负——
+  // Playwright 视口判定（含 force）一律拒点。按钮已 expectVisible 证明在 DOM/可交互；
+  // dispatchEvent 走 React 合成事件（onClick 真实触发 rasterize 管线），是此刻语义最准的驱动。
+  const rasterizeButton = win.locator('[data-node-floating-toolbar="true"] button', { hasText: '固化为参考图' }).first()
+  await rasterizeButton.dispatchEvent('click')
+  // rasterizeArtifactToReferenceAsset 真实执行：读 SVG → canvas 栅格化 PNG → importFile 落盘 → asset 节点。
+  // asset 节点有 result.type=image（referenceUrl 可读、可被连线）——等它在画布出现。
+  const assetRefNode = win.locator('.generation-canvas-v2-node[data-kind="asset"]').first()
+  await assetRefNode.waitFor({ timeout: 20_000 })
+  const assetImg = assetRefNode.locator('img').first()
+  await assetImg.waitFor({ timeout: 15_000 })
+  const assetComplete = await assetImg.evaluate((el) => el.complete)
+  expect(assetComplete, '固化的参考图（PNG）以 <img> 渲染完成').toBe(true)
+  // asset 节点 img 的 src = result.url 的渲染：nomi-local + PNG（referenceUrl 链路可读、可被连线）。
+  const assetImgSrc = await assetImg.getAttribute('src')
+  expect(String(assetImgSrc || '').startsWith('nomi-local://asset/'), '固化资产以 nomi-local 渲染（可被下游连线）').toBe(true)
+  await walk.snap('04-rasterized-reference-asset')
+  // 磁盘证据：栅格化出的 PNG 文件真实落在项目 assets/imported 下（存在 = canvas 真的画了并落盘）。
+  const fs = await import('node:fs')
+  const pathMod = await import('node:path')
+  const diskPngs = fs.readdirSync(pathMod.join(projectRoot, 'assets', 'imported')).flatMap((day) =>
+    fs.readdirSync(pathMod.join(projectRoot, 'assets', 'imported', day)).filter((name) => name.endsWith('.png')))
+  expect(diskPngs.length >= 1, '栅格化 PNG 真实落盘到项目 assets/imported').toBe(true)
+
   // 面板有对话流痕迹（用户真的在对话里交付，不是旁路注入）。
-  await expect(canvas.locator(USER_BUBBLE).last(), '交付指令出现在对话流').toContainText('构图线稿')
+  await expect(canvas.locator(USER_BUBBLE).last(), '交付指令出现在对话流').toContainText('讲解卡')
   console.log(`\nagent-artifact 走查通过（project=${projectId}）✓✓✓`)
 } catch (error) {
   failure = error
