@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { subscribeWithSelector } from 'zustand/middleware'
+import { clampAssistantWidth } from './assistantWidthBounds'
 import {
   addClipAtFrame,
   applyClipStartFrames,
@@ -362,7 +363,11 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
     if (!isWorkspaceMode(mode)) return
     set({ workspaceMode: mode })
   },
-  setAssistantWidth: (width) => set({ assistantWidth: Math.max(300, Math.min(600, Math.round(width))) }),
+  // 上限按**当下的视口**算，不是一个写死的 600（定稿 §11.2 窄窗态）。视口从 store 里读不到，
+  // 只能问 window；非 DOM 环境（单测、node）落回 0 → `assistantWidthMaxFor` 报满上限。
+  setAssistantWidth: (width) => set({
+    assistantWidth: clampAssistantWidth(width, typeof window === 'undefined' ? 0 : window.innerWidth),
+  }),
   setProjectSidebarWidth: (width) => set({ projectSidebarWidth: Math.max(240, Math.min(720, Math.round(width))) }),
   setCreationDocumentTools: (creationDocumentTools) => {
     set({ creationDocumentTools })

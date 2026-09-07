@@ -24,6 +24,7 @@ import { V4ErrorBar, V4Process, V4ToolGroup, V4ToolReceipt } from './AgentPanelV
 import { V4EmptyState } from './AgentPanelV4Empty'
 import { IconHistory, IconLayoutSidebarRightCollapse } from './AgentPanelV4Icons'
 import { useV4Labels } from './agentPanelV4Labels'
+import type { V4FlowScrollMemoryBox } from './agentPanelV4ScrollMemory'
 import type { ResidentSurface } from '../resident/residentShellDisplay'
 import type {
   ContextUsage,
@@ -85,6 +86,13 @@ export type AgentPanelV4PanelProps = {
   queueHandlers?: V4QueueHandlers
   onHistory?: () => void
   onCollapse?: () => void
+  /**
+   * 「用户读到哪儿了」的存放处（09-01 定稿 §11.2：点角标 = 原宽**原状态**还原）。
+   * 收起会把对话流这棵子树整个摘掉，`scrollTop` 跟着 DOM 一起没了；本组件自己存不住，
+   * 所以让宿主给一个活得比它久的盒子（`agentPanelV4ScrollMemory.ts`）。
+   * 不给（设计实验室、单测）就是每次挂载都跟到底，与从前一样。
+   */
+  scrollMemory?: V4FlowScrollMemoryBox
 }
 
 /** 对话流里的一条 = 一个积木；哪个积木由 kind 决定，壳不认识内容。 */
@@ -172,13 +180,41 @@ export function AgentPanelV4Panel({
   queueHandlers,
   onHistory,
   onCollapse,
+  scrollMemory,
 }: AgentPanelV4PanelProps): JSX.Element {
   const { t } = useTranslation()
   const labels = useV4Labels()
   const scrollRef = React.useRef<HTMLDivElement>(null)
   // 跟到底：只有用户本来就在底部时才跟。他往上翻着看历史的时候把他拽回来，
   // 比不跟更糟——那是把「我在读」当成「我想看新的」。
-  const atBottomRef = React.useRef(true)
+  // 初值取自宿主记下的那次：展开回来时先恢复「他当时在不在底」，再决定跟不跟。
+  const atBottomRef = React.useRef(scrollMemory?.current.atBottom ?? true)
+  /**
+   * 展开那一刻把位置还回去，用 layout effect（跟到底那条是普通 effect，跑在它之后，
+   * 而 `atBottomRef` 已经是收起前的值——他当时翻在半路，就不会被新一轮「跟到底」拽走）。
+   * 在 paint 之前还原：放进普通 effect 会先画一帧在顶部，看起来像内容闪了一下。
+   */
+  React.useLayoutEffect(() => {
+    const node = scrollRef.current
+    if (!node) return undefined
+    const remembered = scrollMemory?.current
+    // 记的是底就跟到**当下**这个底：收起期间来的那几条也要看得见，回到旧的那个像素反而是错的。
+    if (remembered) node.scrollTop = remembered.atBottom ? node.scrollHeight : remembered.top
+    return () => {
+      // 位置在**这里**记：布局 effect 的清理跑在节点还挂在文档里的那一刻（提交的 mutation 阶段）。
+      //
+      // 另外两种写法都记到假话，而且长得跟真的一样：① 靠 scroll 事件记——一个从没被滚过的位置
+      // （内容长出来把人留在顶上）压根不发事件，记下的是上一次滚到的地方；② 放普通 effect 的清理——
+      // 那时节点已经被摘掉，`scrollTop`/`scrollHeight` 全读成 0，于是「他在顶上」被记成「他在底部」。
+      // 2026-09-06 真机走查两次都是同一个现象：收起前明明停在 0，展开弹回 259.5 的底。
+      if (scrollMemory) {
+        scrollMemory.current = {
+          top: node.scrollTop,
+          atBottom: node.scrollHeight - node.scrollTop - node.clientHeight < 24,
+        }
+      }
+    }
+  }, [scrollMemory])
   React.useEffect(() => {
     const node = scrollRef.current
     if (!node) return

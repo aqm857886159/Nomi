@@ -1,56 +1,15 @@
-// Agent 面板 v4 · 积木 ⑦ 收起坞（我们独有，AI Elements / Beautiful UI 都没有对应件）
+// Agent 面板 v4 · 积木 ⑦ 收起坞 —— **画面下沿那一坞**（我们独有，AI Elements / Beautiful UI 都没有）。
 //
-// 定稿 Collapsed 板：结果全屏时右栏收成一根 **32px** 图标条，Nomi 图标带运行状态点；
-// 同一个 composer 和介入槽落到画面下沿居中，**对话不中断**。
-// 来源是 MiniMax「在画布中查看」的反向——内容优先时对话别消失。
+// 收起藏的是**对话流**，不是对话：同一个 composer 掉到画面下沿居中，介入槽跟着它一起。
+// 这样一份编辑计划仍然读得到、批得下，不必把整列还给面板。
+//
+// 「叫回面板」那颗钮**不在这个文件里**：它住顶栏右簇「浏览器」与「设置」之间那一格
+// （`src/ui/app-shell/CollapsedAiChip.tsx` + `AgentTopbarChip.tsx`，09-01 定稿 §11.2）。
+// 更早的两版都把它画在面板自己的地盘上——先是右侧一条满高 32px rail，后是内容区右上角一枚
+// logo——两版共同的毛病是**落点跟着面板走**：切一个面就换一个地方，用户每次都得重新找它。
+// 顶栏是唯一跨创作/分镜/生成/预览四个面常驻的 chrome，所以收起角标的家在那儿。
 import React from 'react'
-import { cn } from '../../../utils/cn'
-import { IconLayoutSidebarRightCollapse, IconMessage } from './AgentPanelV4Icons'
 import { TRANSPORT_BAR_SELECTOR, transportClearanceFrom } from './agentPanelV4DockClearance'
-
-export function V4CollapsedRail({
-  running = false,
-  labels,
-  onOpen,
-  onAdjust,
-}: {
-  running?: boolean
-  labels: { conversation: string; adjust: string }
-  onOpen?: () => void
-  onAdjust?: () => void
-}): JSX.Element {
-  return (
-    <div
-      className="flex h-full w-8 flex-col items-center gap-1.5 border-l border-nomi-line-soft bg-nomi-paper pt-2"
-      data-v4-block="dock"
-    >
-      <button
-        type="button"
-        aria-label={labels.conversation}
-        onClick={onOpen}
-        className="relative grid size-6 place-items-center rounded-nomi-sm bg-nomi-accent-soft text-nomi-accent"
-      >
-        <IconMessage size={14} />
-        {/* 运行状态点：收起了也要知道 Nomi 还在跑。 */}
-        <span
-          className={cn(
-            'absolute right-0.5 top-0.5 size-1.5 rounded-pill',
-            running ? 'bg-nomi-accent' : 'bg-transparent',
-          )}
-          aria-hidden="true"
-        />
-      </button>
-      <button
-        type="button"
-        aria-label={labels.adjust}
-        onClick={onAdjust}
-        className="grid size-6 place-items-center rounded-nomi-sm text-nomi-ink-60"
-      >
-        <IconLayoutSidebarRightCollapse size={14} />
-      </button>
-    </div>
-  )
-}
 
 /**
  * 收起后 composer 落到画面下沿要留出的空当。
@@ -96,9 +55,9 @@ function useTransportClearance(dockRef: React.RefObject<HTMLDivElement | null>):
  * 收起藏的是**对话流**，不是对话：同一个 composer 掉到预览舞台的下边缘居中，
  * 介入槽跟着它一起——这样一份编辑计划仍然读得到、批得下，不必把整列还给面板。
  *
- * 这里**没有**「叫回 Nomi」按钮：收起后叫回它的入口只有一个，就是最右侧那条 32px 图标条
- * （状态点见 `residentActivity`）。上一版两个入口并存——图标条写「展开 Nomi」、画面右上角
- * 又浮一颗「叫回 Nomi」胶囊——同一个动作两个名字两个位置，还把画面右上角挡掉一块。
+ * 这里**没有**「叫回 Nomi」按钮：收起后叫回它的入口只有一个，就是右上角那枚 logo 钮
+ * （`V4CollapsedLogoDock`）。再更早的一版两个入口并存——rail 上写「展开 Nomi」、画面右上角
+ * 又浮一颗「叫回 Nomi」胶囊——同一个动作两个名字两个位置。
  */
 export function V4CollapsedDock({ children }: { children: React.ReactNode }): JSX.Element {
   const dockRef = React.useRef<HTMLDivElement>(null)

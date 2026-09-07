@@ -3,6 +3,7 @@
 // 为什么集中：同一个词（「完成」「撤销」「不要」）会出现在收据、任务卡、介入槽三个积木上。
 // 每个组件各 `t()` 一次，改文案要改三处，漏一处就是两个说法——那正是 R14.1 要横扫的东西。
 import { useTranslation } from 'react-i18next'
+import type { V4DockLabels } from './agentPanelV4DockStatus'
 import type { QueueRowData, V4TaskStatus, V4ToolStatus } from './agentPanelV4Types'
 
 export function useV4Labels() {
@@ -78,6 +79,14 @@ export function useV4Labels() {
       interrupt: t('agentPanelV4.queueInterrupt'),
       untitled: t('agentPanelV4.queueUntitled'),
     },
-    dock: { conversation: t('agentPanelV4.dockConversation'), adjust: t('agentPanelV4.dockAdjust') },
+    /** ⑦ 收起坞：logo 钮的动作名 + 五档状态各一句话（词表在 `agentPanelV4DockStatus.ts`）。 */
+    dock: {
+      open: t('agentPanelV4.dockOpen'),
+      idle: t('agentPanelV4.dockIdle'),
+      running: t('agentPanelV4.dockRunning'),
+      needsConfirm: (count: number) => t('agentPanelV4.dockNeedsConfirm', { count }),
+      done: t('agentPanelV4.dockDone'),
+      failed: t('agentPanelV4.dockFailed'),
+    } satisfies V4DockLabels,
   }
 }
