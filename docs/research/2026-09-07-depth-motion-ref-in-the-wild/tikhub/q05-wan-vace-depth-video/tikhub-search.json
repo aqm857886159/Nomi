@@ -1,0 +1,422 @@
+{
+  "source": "tikhub",
+  "baseUrl": "https://api.tikhub.io",
+  "keyword": "Wan VACE depth video",
+  "since": null,
+  "limitPerPlatform": 20,
+  "generatedAt": "2026-09-07T02:50:08.870Z",
+  "failures": [],
+  "summary": {
+    "totalRecords": 20,
+    "platformsOk": 1,
+    "platformsEmpty": 0,
+    "platformsFailed": 0,
+    "platforms": [
+      {
+        "platform": "x",
+        "platformLabel": "X（Twitter）",
+        "status": "ok",
+        "items": 20,
+        "pagesFetched": 1,
+        "missingFields": {},
+        "fieldConfidence": "verified-against-live-response",
+        "fieldsVerifiedOn": "2026-09-06",
+        "error": null
+      }
+    ]
+  },
+  "results": [
+    {
+      "platform": "x",
+      "platformLabel": "X（Twitter）",
+      "records": [
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2094723798679400808",
+          "url": "https://x.com/joshesye/status/2094723798679400808",
+          "author": "行者AI视频",
+          "authorId": "joshesye",
+          "publishedAt": "2026-09-01T09:47:26.000Z",
+          "title": "东京旅拍Vlog 这次使用Wan 3.0生成。 这段时间评测多个视频模型，总体来说。 个人觉得：H3 和 Wan 3.0",
+          "excerpt": "东京旅拍Vlog 这次使用Wan 3.0生成。 这段时间评测多个视频模型，总体来说。 个人觉得：H3 和 Wan 3.0 基本上已经可以作为Seedance 平替了，除了短漫剧场景。 这是好事啊，不能让被字节一家独大。 视频提示词在评论区。 https://t.co/RjvGXKoCZX",
+          "mentions": [
+            "Seedance",
+            "Wan",
+            "Wan 3.0"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2094403581092786625",
+          "url": "https://x.com/wavespeed_ai/status/2094403581092786625",
+          "author": "WaveSpeedAI",
+          "authorId": "wavespeed_ai",
+          "publishedAt": "2026-08-31T12:35:00.000Z",
+          "title": "At 15s, she was ready to fight him. ⚔️ Good thing Wan3.0 gav",
+          "excerpt": "At 15s, she was ready to fight him. ⚔️ Good thing Wan3.0 gave them another 15 seconds. More time. More story. Better plot twists. Wan3.0 · Native 30s Now on WaveSpeed. https://t.co/1Cf86Lwhwv",
+          "mentions": [
+            "Wan3.0"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2021958994206577086",
+          "url": "https://x.com/RyanOnTheInside/status/2021958994206577086",
+          "author": "RyanOnTheInside",
+          "authorId": "RyanOnTheInside",
+          "publishedAt": "2026-02-12T14:46:05.000Z",
+          "title": "YO, I adapted VACE to work with real-time autoregressive vid",
+          "excerpt": "YO, I adapted VACE to work with real-time autoregressive video generation. Here's what it can do right now in real time: - Depth, pose, optical flow, scribble, edge maps — all the v2v control stuff - First frame animation / last frame lead-in / keyframe interpolation - Inpainting with static or dyna…",
+          "mentions": [
+            "ComfyUI",
+            "LoRA",
+            "Wan"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2000556846424150434",
+          "url": "https://x.com/thenomadevel/status/2000556846424150434",
+          "author": "Sarthak Bhardwaj",
+          "authorId": "thenomadevel",
+          "publishedAt": "2025-12-15T13:21:35.000Z",
+          "title": "Imagine pointing at a movie scene and asking your model \"ok,",
+          "excerpt": "Imagine pointing at a movie scene and asking your model \"ok, now show me what this looks like from the actor’s eyes\" and only having that one third person clip as input. That is exactly the gap exo-to-ego video generation is stuck in today: > camera pose jumps are extreme, so most of the ego view is…",
+          "mentions": [
+            "LoRA",
+            "Wan",
+            "Wan 2.1"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "1944845772073398299",
+          "url": "https://x.com/ChetiArt/status/1944845772073398299",
+          "author": "Tamas Cseh (Cseti)",
+          "authorId": "ChetiArt",
+          "publishedAt": "2025-07-14T19:45:40.000Z",
+          "title": "When I made this video I intentionally saved it in this form",
+          "excerpt": "When I made this video I intentionally saved it in this format too. To showcase how it was done: - I masked out the main character - applied a depth map to the masked figure - then used the WAN VACE method with the Wallace and Gromit LoRA I hope some people find it useful. https://t.co/dnxRZknEr1",
+          "mentions": [
+            "LoRA",
+            "Wan"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2096103896553001298",
+          "url": "https://x.com/ZaraIrahh/status/2096103896553001298",
+          "author": "Zara",
+          "authorId": "ZaraIrahh",
+          "publishedAt": "2026-09-05T05:11:27.000Z",
+          "title": "Wan 3.0 absolutely cooked with this one, fluid fight choreog",
+          "excerpt": "Wan 3.0 absolutely cooked with this one, fluid fight choreography, believable physics, natural movement. This barely looks AI-generated. Created with Wan 3.0 on @openart_ai Prompt: A single continuous 20-second cinematic long take set inside a lavish luxury hotel ballroom at night. Massive floor-to-…",
+          "mentions": [
+            "Wan",
+            "Wan 3.0"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "1936342542104338702",
+          "url": "https://x.com/gokayfem/status/1936342542104338702",
+          "author": "gokaygokay",
+          "authorId": "gokayfem",
+          "publishedAt": "2025-06-21T08:36:52.000Z",
+          "title": "Incredible news! Wan 2.1 VACE is now running under a minute ",
+          "excerpt": "Incredible news! Wan 2.1 VACE is now running under a minute on @FAL Here is an example of Reframe feature of VACE. (9:16 video to 16:9) It also has Inpainting, Depth, Pose, Outpainting. https://t.co/tgrQ64yg1z",
+          "mentions": [
+            "Wan",
+            "Wan 2.1"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "1978514991574573384",
+          "url": "https://x.com/ComfyUI/status/1978514991574573384",
+          "author": "ComfyUI",
+          "authorId": "ComfyUI",
+          "publishedAt": "2025-10-15T17:35:07.000Z",
+          "title": "Incredible Bullet Time re-creation — by @CorridorDigital All",
+          "excerpt": "Incredible Bullet Time re-creation — by @CorridorDigital All you need: 1 PC, phone cameras, and ComfyUI. Wan 2.1 + VACE workflow with multi-control videos for z-depth, pose &amp; camera motion. Workflow + Full Video 👇 https://t.co/lBz3VbacVR",
+          "mentions": [
+            "ComfyUI",
+            "Wan",
+            "Wan 2.1"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2096789670227300649",
+          "url": "https://x.com/eva_morgan_ai/status/2096789670227300649",
+          "author": "Eva Morgan",
+          "authorId": "eva_morgan_ai",
+          "publishedAt": "2026-09-07T02:36:28.000Z",
+          "title": "Can he reach her before it’s too late? ❤️‍🔥🏍️ A 30-second ",
+          "excerpt": "Can he reach her before it’s too late? ❤️‍🔥🏍️ A 30-second ultra-realistic cinematic chase — motorcycle crash, futuristic skating shoes, web-swinging through skyscrapers, and one final wedding rescue. 🎬 Made with WAN 3.0 🎥 4K • Hollywood Cinematic • Realistic VFX • AI Filmmaking One mission. One …",
+          "mentions": [
+            "AIVIDEO",
+            "Wan",
+            "WAN 3.0",
+            "WAN_30"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "1912128570438152488",
+          "url": "https://x.com/deepbeepmeep/status/1912128570438152488",
+          "author": "deepbeepmeep",
+          "authorId": "deepbeepmeep",
+          "publishedAt": "2025-04-15T12:59:11.000Z",
+          "title": "WanGP 4 aka “Revenge of the GPU Poor” : 20s motion controlle",
+          "excerpt": "WanGP 4 aka “Revenge of the GPU Poor” : 20s motion controlled video generated with a RTX 2080Ti, max VRAM consumption of only 4GB ! https://t.co/5MQjylADRk With WanGP optimized for older GPUs and support for WAN VACE model you can now generate controlled Video : for instance the app will extract aut…",
+          "mentions": [
+            "Wan",
+            "WanGP 4"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2095095644608221498",
+          "url": "https://x.com/mojeskoqq/status/2095095644608221498",
+          "author": "mojesko",
+          "authorId": "mojeskoqq",
+          "publishedAt": "2026-09-02T10:25:01.000Z",
+          "title": "HBO's legal team woke up to a nightmare: a 14-second cinemat",
+          "excerpt": "HBO's legal team woke up to a nightmare: a 14-second cinematic clip of a female knight reading a book on a cliff edge above a medieval valley. Except she never flew to Europe. The steel armor doesn’t exist. And the whole thing was rendered on a $25 AI setup by a kid sitting in his bedroom. 74 millio…",
+          "mentions": [
+            "CapCut",
+            "Gemini",
+            "Season 3",
+            "Seedance",
+            "Seedance 2.5",
+            "Wan",
+            "Wan 2.6"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2094805789194047583",
+          "url": "https://x.com/JacobyoungAI/status/2094805789194047583",
+          "author": "Jacob Young | AI",
+          "authorId": "JacobyoungAI",
+          "publishedAt": "2026-09-01T15:13:14.000Z",
+          "title": "Wan 3.0 on Magnific handled this scene way better than I exp",
+          "excerpt": "Wan 3.0 on Magnific handled this scene way better than I expected. Two characters sitting in a dark room sounds simple, but the tiny eye movements, posture changes and awkward tension are exactly the kind of details that usually break first. https://t.co/UIP02NtU3A https://t.co/2DciPFLTz0",
+          "mentions": [
+            "Wan",
+            "Wan 3.0"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2072033393731338685",
+          "url": "https://x.com/kwangmoo_yi/status/2072033393731338685",
+          "author": "Kwang Moo Yi",
+          "authorId": "kwangmoo_yi",
+          "publishedAt": "2026-06-30T19:03:52.000Z",
+          "title": "Qian et al., \"Semantic-Aware, Physics-Informed, Geometry-Gro",
+          "excerpt": "Qian et al., \"Semantic-Aware, Physics-Informed, Geometry-Grounded Weather Video Synthesis\" GPT4.1 + Simulated Gaussian Particles + Depth Anything v3 + Flux Kontext + Wan 2.1-VACE = some nice cool weather edits in videos. Composed of mostly existing methods, but tightly knit. https://t.co/dQW7d7nuEc",
+          "mentions": [
+            "Flux",
+            "GPT4.1",
+            "Wan",
+            "Wan 2.1"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2095007196258124056",
+          "url": "https://x.com/iam_mian7/status/2095007196258124056",
+          "author": "Ai Arainz",
+          "authorId": "iam_mian7",
+          "publishedAt": "2026-09-02T04:33:33.000Z",
+          "title": "When the only way forward is through the fire. 🔥🐎 AI-gener",
+          "excerpt": "When the only way forward is through the fire. 🔥🐎 AI-generated cinematic stunt with Wan 3.0 prime on @budgetpixel with pure adrenaline Prompt A cinematic live circus performance inside a massive dark arena packed with an excited audience. A highly skilled female acrobat with long blonde hair, wear…",
+          "mentions": [
+            "Wan",
+            "Wan 3.0"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2095157905414865209",
+          "url": "https://x.com/axiatechie/status/2095157905414865209",
+          "author": "Axia",
+          "authorId": "axiatechie",
+          "publishedAt": "2026-09-02T14:32:25.000Z",
+          "title": "Wan 3.0 vs Seedance 2.5 - same viral video There is only one",
+          "excerpt": "Wan 3.0 vs Seedance 2.5 - same viral video There is only one ruler and it's clear who prompt: Raw vertical phone video (UGC), handheld throughout, filmed by a friend who walks with the group, casual sway, natural night lighting, wide-angle lens, deep focus. Characters The hero is a young woman with …",
+          "mentions": [
+            "Seedance",
+            "Seedance 2.5",
+            "Wan",
+            "Wan 3.0"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2095154321436647844",
+          "url": "https://x.com/TechWith_Nova/status/2095154321436647844",
+          "author": "NOVA",
+          "authorId": "TechWith_Nova",
+          "publishedAt": "2026-09-02T14:18:10.000Z",
+          "title": "HBO's legal team woke up to a nightmare: a 14-second cinemat",
+          "excerpt": "HBO's legal team woke up to a nightmare: a 14-second cinematic clip of a female knight reading a book on a cliff edge above a medieval valley. Except she never flew to Europe. The steel armor doesn’t exist. And the whole thing was rendered on a $25 AI setup by a kid sitting in his bedroom. 74 millio…",
+          "mentions": [
+            "CapCut",
+            "Gemini",
+            "Season 3",
+            "Seedance",
+            "Seedance 2.5",
+            "Wan",
+            "Wan 2.6"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2094811302778601809",
+          "url": "https://x.com/TheoBuildsAI/status/2094811302778601809",
+          "author": "Theo Builds AI",
+          "authorId": "TheoBuildsAI",
+          "publishedAt": "2026-09-01T15:35:08.000Z",
+          "title": "I was not expecting an underwater octopus chef to be one of ",
+          "excerpt": "I was not expecting an underwater octopus chef to be one of my favorite Wan 3.0 clips on Magnific 😭 There’s so much going on here: tentacles, food, fish, tableware, coral… but the scene somehow stays ridiculously readable. https://t.co/T5RDJEkrx6 https://t.co/h6olbUJIrl",
+          "mentions": [
+            "Wan",
+            "Wan 3.0"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2096659045323333759",
+          "url": "https://x.com/DeCat2025/status/2096659045323333759",
+          "author": "DeCat",
+          "authorId": "DeCat2025",
+          "publishedAt": "2026-09-06T17:57:25.000Z",
+          "title": "Still Sunday. Still dropping prompts. The reflection - Wan 3",
+          "excerpt": "Still Sunday. Still dropping prompts. The reflection - Wan 3.0 A hyper-realistic cinematic psychological suspense scene inside a dim apartment bathroom at night. A woman stands at the sink beneath a flickering light, splashes water on her face, and bends down. As she remains bent over, her reflectio…",
+          "mentions": [
+            "Wan",
+            "Wan 3",
+            "Wan 3.0"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2096702211740893600",
+          "url": "https://x.com/DeCat2025/status/2096702211740893600",
+          "author": "DeCat",
+          "authorId": "DeCat2025",
+          "publishedAt": "2026-09-06T20:48:56.000Z",
+          "title": "Under Alien Ice - Wan 3.0 @openart_ai 15-second hyper-realis",
+          "excerpt": "Under Alien Ice - Wan 3.0 @openart_ai 15-second hyper-realistic cinematic sci-fi suspense video. ONE astronaut only, wearing a sealed white EVA spacesuit with a completely opaque reflective gold visor so no human face is visible, walks alone across a vast frozen alien moon. No other astronauts or pe…",
+          "mentions": [
+            "Wan",
+            "Wan 3.0"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "x",
+          "platformLabel": "X（Twitter）",
+          "id": "2094817692691919016",
+          "url": "https://x.com/IronSage_/status/2094817692691919016",
+          "author": "Akshay Dawra",
+          "authorId": "IronSage_",
+          "publishedAt": "2026-09-01T16:00:32.000Z",
+          "title": "This Wan 3.0 clip on Magnific is such a weird combination th",
+          "excerpt": "This Wan 3.0 clip on Magnific is such a weird combination that I had to watch it twice. A rusty mechanical character carefully interacting with bright flowers in a greenhouse… and somehow the whole thing stays visually coherent. https://t.co/OrzH4yDLaI https://t.co/IPskP6BDLG",
+          "mentions": [
+            "Wan",
+            "Wan 3.0"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        }
+      ],
+      "pages": [
+        {
+          "page": 1,
+          "received": 20
+        }
+      ]
+    }
+  ]
+}

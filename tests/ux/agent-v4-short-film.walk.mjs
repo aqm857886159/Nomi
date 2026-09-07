@@ -16,6 +16,12 @@ import {
   APPROVAL_CARD,
   ASSISTANT_MESSAGE,
   CANVAS_PANEL,
+  APP_BAR_RIGHT,
+  COLLAPSED_DOCK,
+  COLLAPSED_DOCK_BADGE,
+  COLLAPSED_DOCK_HINT,
+  COLLAPSED_DOCK_OPEN,
+  COLLAPSED_DOCK_SETTLE,
   COLLAPSED_SHELL,
   COMPOSER,
   COMPOSER_INPUT,
@@ -31,6 +37,7 @@ import {
   TOOL_RECEIPT,
   USER_BUBBLE,
   V4_FLOW,
+  V4_PANEL,
   approvePendingIntervention,
   chooseAssistantModel,
   createRuntimeWalk,
@@ -61,6 +68,16 @@ const REFUSED_TEXT = 'HEAD_DELETED：不该出现在文稿里'
 const REFERENCE = '给这 4 镜生成参考图。'
 const REFERENCE_TOOL = 'v4-canvas-plan-1'
 const SLOW = '再想想整体节奏。'
+// 收起/展开要验「他读到哪儿了」，就得有一条**真的翻得动**的对话。收据的展开是 DOM 上的
+// `<details open>`，收起时随子树一起没了，撑不起溢出；只有落进流里的消息才留得下来。
+const RECAP = '把这 4 镜按顺序完整列一遍，我要打印出来贴墙上。'
+const RECAP_TEXT = [
+  '镜 1｜清晨的街，门牌与霓虹熄灭的余温；手持，轻微呼吸感；3 秒。',
+  '镜 2｜她推门，铜铃响；门缝里的光切进室内；侧光贴着侧脸；4 秒。',
+  '镜 3｜红色杯子落在白桌面上，热气斜着走；微距，焦点从杯沿滑到指节；5 秒。',
+  '镜 4｜她坐下，按下录制键；机身红点亮起，环境声压低；定格 3 秒。',
+  '整段 20 秒，节奏是「街—门—杯—人」，前两镜给环境，后两镜收到她身上。',
+].join('\n')
 
 const walk = await createRuntimeWalk('v4-short-film')
 let failure
@@ -96,6 +113,37 @@ try {
   await expect(panel.locator(V4_FLOW).locator(USER_BUBBLE)).toHaveCount(0)
   await walk.snap('01b-starter-filled')
   await panel.locator(COMPOSER_INPUT).fill('')
+
+  // 收起角标的**空闲**档（09-01 定稿 §11.2：收起态 = 顶栏右簇「浏览器」与「设置」之间那一格）。
+  // 什么都没发生时角标素着：一颗永远亮着的点等于没有状态。
+  await clickOrFail(panel.locator(COLLAPSE_BUTTON), '收起面板')
+  const coldCollapsed = win.locator(COLLAPSED_SHELL)
+  const coldDock = win.locator(COLLAPSED_DOCK)
+  await expect(coldDock, '收起后顶栏必须有那一格角标').toBeVisible()
+  // **落位**：它必须住顶栏右簇里，不是画在面板自己的地盘上（那样切一个面就换一个落点）。
+  await expect(win.locator(`${APP_BAR_RIGHT} ${COLLAPSED_DOCK}`), '角标必须在顶栏右簇').toBeVisible()
+  const collapsedShellDockCount = await coldCollapsed.locator(COLLAPSED_DOCK).count()
+  if (collapsedShellDockCount !== 0) throw new Error('收起角标不该再画在面板的地盘上（09-01 §11.2：家在顶栏）')
+  // 同格只出一颗：互斥角标与收起角标共用这一个组件，全窗口任何时候都只该有一颗。
+  const dockCount = await win.locator(COLLAPSED_DOCK).count()
+  if (dockCount !== 1) throw new Error(`同格只出一颗角标，实测 ${dockCount} 颗`)
+  await expect(coldDock).toHaveAttribute('data-agent-dock-status', 'idle')
+  await expect(coldDock).toHaveAttribute('data-agent-dock-badge-kind', 'none')
+  const coldDockProof = await proveProbe(coldDock, '空闲态的收起角标确实渲出来了')
+  await expectAbsent(coldDock.locator(COLLAPSED_DOCK_BADGE), {
+    provenBy: coldDockProof,
+    message: '空闲的角标上不该叠任何东西',
+  })
+  // 收起藏的是对话流，不是对话：同一个 composer 掉到画面下沿。
+  await expect(coldCollapsed.locator(COMPOSER)).toBeVisible()
+  await walk.snap('01c-collapsed-idle')
+  await clickOrFail(coldDock, '点顶栏角标展开面板')
+  // 展开回来的面板必须是**有身量的**：收起时面板挂点从文档里摘掉、浏览器报 0×0，
+  // 早先那版尺寸 hook 再也没重新量过它，于是展开后是一块 2×2 的空白面板（2026-09-06 实测）。
+  // 断言宽度而不是「flow 可见」：flow 在 0 高的面板里照样"可见"。
+  await expect(panel.locator(V4_FLOW)).toBeVisible()
+  await expect.poll(async () => (await win.locator(`${CREATION_PANEL} ${V4_PANEL}`).boundingBox())?.width ?? 0,
+    { message: '展开回来的面板不能是 0 宽——收起把尺寸量成 0 之后没人重新量它', timeout: 30_000 }).toBeGreaterThan(200)
 
   // ── 2. 写脚本：一条普通对话 ───────────────────────────────────────────────
   const briefTurn = walk.fixture.expectText({
@@ -149,7 +197,65 @@ try {
   await expect(slot).toHaveAttribute('data-kind', 'approval-reversible')
   await expect(slot).toContainText('只对这一个操作生效')
   await walk.snap('04-intervention-approval')
-  await approvePendingIntervention(win, CREATION_PANEL)
+  // 带着这条待决收起：logo 上的数字角标读的**就是**这批待决，不是一个自己会亮的装饰；
+  // 而介入槽跟着 composer 一起留在画面下沿——收起之后照样读得到、批得下。
+  await clickOrFail(panel.locator(COLLAPSE_BUTTON), '带着一条待确认收起面板')
+  const pendingCollapsed = win.locator(COLLAPSED_SHELL)
+  const pendingDock = win.locator(COLLAPSED_DOCK)
+  await expect(pendingDock).toHaveAttribute('data-agent-dock-status', 'needs-confirm')
+  // 数字徽标 = 未读条数，而这一刻的未读**就是**那条待决——两处对不上，收起态就是在撒谎。
+  await expect(pendingDock).toHaveAttribute('data-agent-dock-count', '1')
+  await expect(pendingDock.locator(COLLAPSED_DOCK_BADGE)).toHaveAttribute('data-agent-dock-badge', 'count')
+  await expect(pendingDock.locator(COLLAPSED_DOCK_BADGE)).toContainText('1')
+  // 「刚变过」是一段 420ms 的时间，不是一个常挂的属性：等它自己停，别把常闪当成状态。
+  await expect(pendingDock.locator(COLLAPSED_DOCK_SETTLE), 'settle 脉冲必须自己停下来').toHaveCount(0, { timeout: 5_000 })
+  // tooltip 用人话点名那条待决（角标本身只有点与数字两种长相，五档靠这句话分）。
+  await pendingDock.hover()
+  // Radix 的 tooltip 内容里那句话有两份（看得见的一份 + 给读屏的一份），所以判包含不判全等。
+  await expect(win.locator(COLLAPSED_DOCK_HINT)).toContainText('等你确认 1 条')
+  await expect(pendingDock).toHaveAttribute('aria-label', '展开 Nomi · 等你确认 1 条')
+  await expect(pendingCollapsed.locator(APPROVAL_CARD), '收起态也读得到介入槽').toBeVisible()
+  await walk.snap('04b-collapsed-needs-confirm')
+
+  // 「有新动静」这件事只有在**收起期间**真的来了东西时才验得到，所以就在收起态里把这条待决批掉：
+  // 介入槽本来就跟着 composer 留在下沿，批得下才是「收起没有中断对话」的证据。
+  //
+  // 脉冲用 MutationObserver 数**开关次数**，不用截图或 sleep 去撞那 420ms：
+  // 定稿说的是「settle 420ms **单次**」——要证的是「只闪一次然后停」，
+  // 而「某一帧看见它亮着」既证不了单次也证不了会停（`race-repro-needs-positive-control` 那族坑）。
+  await win.evaluate(() => {
+    const chip = document.querySelector('[data-agent-topbar-badge="true"]')
+    if (!chip) throw new Error('顶栏角标不在，装不了脉冲观察器')
+    window.__nomiSettlePulses = 0
+    const seen = new WeakSet()
+    const scan = () => {
+      for (const node of chip.querySelectorAll('[data-agent-dock-settle="true"]')) {
+        if (seen.has(node)) continue
+        seen.add(node)
+        window.__nomiSettlePulses += 1
+      }
+    }
+    scan()
+    window.__nomiSettleObserver = new MutationObserver(scan)
+    window.__nomiSettleObserver.observe(chip, { subtree: true, attributes: true, childList: true })
+  })
+  await approvePendingIntervention(win, COLLAPSED_SHELL)
+  // 待决批掉了 → 角标不再是那条待决；工具跑完 / 新回复落进流里 → 未读接上，角标改口。
+  await expect.poll(async () => await pendingDock.getAttribute('data-agent-dock-badge-kind'),
+    { message: '收起期间来了新动静，顶栏那格必须接住', timeout: 60_000 }).not.toBe('none')
+  await expect(pendingDock).not.toHaveAttribute('data-agent-dock-status', 'needs-confirm')
+  await walk.snap('04c-collapsed-new-activity')
+  // 脉冲必须自己停：420ms 之后属性不再挂在任何一格上。
+  await expect(pendingDock.locator(COLLAPSED_DOCK_SETTLE), 'settle 脉冲必须自己停下来').toHaveCount(0, { timeout: 5_000 })
+  const pulses = await win.evaluate(() => {
+    window.__nomiSettleObserver?.disconnect()
+    return window.__nomiSettlePulses
+  })
+  if (pulses < 1) throw new Error('收起期间来了新动静，角标一次脉冲都没有')
+  if (pulses > 3) throw new Error(`settle 应当是每次变化**单次**脉冲，实测 ${pulses} 次——那是常闪不是落定`)
+
+  await clickOrFail(pendingDock, '点顶栏角标展开面板')
+  await expect(panel.locator(V4_FLOW)).toBeVisible()
   await recorded(tightenFollowup.received, 'approved document tool result')
   await waitForV4TurnIdle(win, { panel: CREATION_PANEL, settledBy: panel.locator(TOOL_RECEIPT).last() })
   await expect(doc).toContainText(TIGHTEN_APPLIED)
@@ -187,6 +293,50 @@ try {
   await clickOrFail(panel.locator(COMPOSER_PERMISSION), 'composer 权限档')
   await clickOrFail(panel.locator(permissionTier('safe-auto')), '权限档「自动改」')
   await expect(panel.locator(COMPOSER)).toHaveAttribute('data-approval-mode', 'safe-auto')
+
+  // ── 5.5 最小窗 + 收起：藏的是面板，不是「我读到哪儿了」 ────────────────────
+  //
+  // 09-01 定稿 §11.2 最小窗态说的是 **1100×720**（`electron/main.ts:299-300` 锁死的那个数）：
+  // 面板**仍可停靠、不强制收起**，拖宽上限收到 min(600, 1100−760) = 340。所以先把窗口调到那个数，
+  // 在真实最小窗里验；顺带这也是唯一能让对话流真的溢出的地方——默认大窗里这几条消息装得下，
+  // scrollTop 恒 0，「收起前后相等」会是个恒真式（`race-repro-needs-positive-control`）。
+  // 先让这条对话真的长起来：一条镜头清单落进流里，收起再展开也还在。
+  const recapTurn = walk.fixture.expectText({
+    label: 'agent recaps the four shots',
+    match: (body) => flattenRequestText(body).includes(RECAP),
+    reply: { type: 'text', text: RECAP_TEXT },
+  })
+  await sendCreation(win, RECAP)
+  await recorded(recapTurn.received, 'recap request')
+  await waitForV4TurnIdle(win, { panel: CREATION_PANEL, settledBy: panel.locator(ASSISTANT_MESSAGE).last() })
+  await expect(panel.locator(ASSISTANT_MESSAGE).last()).toContainText('街—门—杯—人')
+
+  const roomyBounds = await walk.resizeWindow(1100, 720)
+  await expect(panel.locator(V4_PANEL), '最小窗下面板仍可停靠，不强制收起').toBeVisible()
+  await expect.poll(async () => Math.round((await panel.locator(V4_PANEL).boundingBox())?.width ?? 0),
+    { message: '最小窗下面板宽必须收在上限 340 之内（min(600, 1100−760)）', timeout: 30_000 })
+    .toBeLessThanOrEqual(340)
+
+  // 收起会把对话流那棵子树整个摘掉。展开时若一律跟到底，翻着历史顺手收起的人再点开
+  // 就被弹回最新一条——「收起」于是成了一个会悄悄弄丢阅读位置的动作（定稿 §11.2：原宽**原状态**还原）。
+  const creationFlow = win.locator(`${CREATION_PANEL} ${V4_FLOW}`)
+  const creationOverflow = await creationFlow.evaluate((node) => node.scrollHeight - node.clientHeight)
+  if (creationOverflow < 80) throw new Error(`最小窗下对话流只溢出 ${creationOverflow}px，滚动位置这条断言证不了任何东西`)
+  // 停在**半路**（这里取最顶）而不是底：跟到底那条逻辑本来就会把底还原成底，
+  // 只有翻在半路才分得出「把位置还回来」与「又跟了一次底」。
+  await creationFlow.evaluate((node) => { node.scrollTop = 0 })
+  await expect.poll(async () => await creationFlow.evaluate((node) => node.scrollTop),
+    { message: '把对话流翻到顶这一步没生效' }).toBe(0)
+  await clickOrFail(panel.locator(COLLAPSE_BUTTON), '翻在半路时收起面板')
+  await expect(win.locator(COLLAPSED_DOCK), '最小窗收起后顶栏同样是那一格角标').toBeVisible()
+  await clickOrFail(win.locator(COLLAPSED_DOCK), '点顶栏角标展开面板')
+  await expect(panel.locator(V4_FLOW)).toBeVisible()
+  await expect.poll(
+    async () => await win.locator(`${CREATION_PANEL} ${V4_FLOW}`).evaluate((node) => node.scrollTop),
+    { message: '展开必须停在收起前那个位置，不是把人弹回最新一条', timeout: 30_000 },
+  ).toBe(0)
+  await walk.snap('07b-min-window-collapse-restore')
+  await walk.resizeWindow(roomyBounds.width, roomyBounds.height)
 
   // ── 6. 去画布：同一条对话跨面继续 ───────────────────────────────────────
   await openCanvas(win)
@@ -226,15 +376,45 @@ try {
   await expect(running, '停止之后 composer 必须退出运行态').toBeHidden({ timeout: 60_000 })
   await walk.snap('10-stopped')
 
-  // ── 8. 收起：藏起对话流，不是藏起对话 ───────────────────────────────────
+  // ── 8. 收起：坏消息不会被收起吞掉 ─────────────────────────────────────────
+  //
+  // 2026-09-06 用户改：收起态不再是右侧那条满高 32px rail 上的两颗小 icon，
+  // 而是 Nomi 一直延续的那枚 logo 钮（血统 `src/ui/app-shell/CollapsedAiChip.tsx`）。
+  // 空闲档在 §1 已验、待确认档在 §4 已验（角标数字 = 那一刻真实的待决条数），这里验失败档。
+  // 收起前先量一下面板宽：定稿说「点角标 = **原宽**原状态还原」（collapse≠unmount），
+  // 所以还原之后这个数必须一模一样，不是「又一个默认 340」。
+  const beforeCollapseWidth = Math.round((await win.locator(`${CANVAS_PANEL} ${V4_PANEL}`).boundingBox())?.width ?? 0)
   await clickOrFail(canvas.locator(COLLAPSE_BUTTON), '收起面板')
   const collapsed = win.locator(COLLAPSED_SHELL)
   await expect(collapsed).toBeVisible()
-  // 收起后 composer 仍在画面下沿：这是「结果全屏」的承诺——把屏幕还给内容，但对话不中断。
   await expect(collapsed.locator(COMPOSER)).toBeVisible()
-  await walk.snap('11-collapsed')
-  await expandResidentPanel(win)
+  const dock = win.locator(COLLAPSED_DOCK)
+  await expect(dock, '收起后顶栏必须有那一格角标').toBeVisible()
+  await expect(win.locator(`${APP_BAR_RIGHT} ${COLLAPSED_DOCK}`), '生成面收起，角标还在顶栏同一格').toBeVisible()
+  // 刚被停下的那一轮在面板上留了一条错误带。收起藏掉的是**面板**，不是那件事——
+  // 角标必须把它接住，否则「收起」就成了一个悄悄吞掉坏消息的动作。
+  // 失败不另画第五种图形（8px 里画不出「失败」）：保底一颗蓝点，坏消息由无障碍名/tooltip 说清。
+  await expect(dock).toHaveAttribute('data-agent-dock-status', 'failed')
+  await expect(dock).toHaveAttribute('data-agent-dock-badge-kind', 'dot')
+  await expect(dock.locator(COLLAPSED_DOCK_BADGE)).toHaveAttribute('data-agent-dock-badge', 'dot')
+  await expect(dock).toHaveAttribute('aria-label', '展开 Nomi · 有一步没成')
+  await walk.snap('11-collapsed-failed')
+
+  // 点顶栏角标展开：整条对话原样还在，收起从来没有中断过它。
+  const widthBeforeCollapse = beforeCollapseWidth
+  await clickOrFail(dock, '点顶栏角标展开面板')
   await expect(win.locator(`${CANVAS_PANEL} ${V4_FLOW}`)).toBeVisible()
+  await expect.poll(async () => Math.round((await win.locator(`${CANVAS_PANEL} ${V4_PANEL}`).boundingBox())?.width ?? 0),
+    { message: '点角标必须**原宽**还原，不是重置成默认宽', timeout: 30_000 }).toBe(widthBeforeCollapse)
+  await expect(canvas.locator(USER_BUBBLE).last(), '展开后最后一句话还是收起前发的那句').toContainText('整体节奏')
+  // 展开**动画结束之后**再截：还原是不是「原宽原状态」这件事，只有停下来的那一帧看得出来
+  // （动画中途的任何一帧宽度都不是最终宽，截到它等于给拍板人看一张过程图）。
+  // 上面那条 `expect.poll` 已经把宽度轮询到了收起前那个数，所以到这里布局必然已经落定。
+  await expect(
+    win.locator('[data-agent-dock-reason="resident-collapsed"]'),
+    '展开后顶栏那一格必须让出来——角标和面板不能同时在（collapse≠unmount 说的是面板留着，不是角标留着）',
+  ).toHaveCount(0)
+  await walk.snap('11b-expanded-restored')
 
   // ── 9. 关掉重开：昨天的活儿还在 ────────────────────────────────────────
   //

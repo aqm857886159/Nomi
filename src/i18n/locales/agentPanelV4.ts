@@ -8,8 +8,13 @@ export const zhAgentPanelV4 = {
   logo: 'N',
   history: '历史会话',
   collapsePanel: '收起面板',
-  dockConversation: '对话',
-  dockAdjust: '面板设置',
+  // 收起坞 · 右上角那枚 Nomi logo 钮（2026-09-06 用户改：收起态回到 logo + 状态叠加）
+  dockOpen: '展开 Nomi',
+  dockIdle: 'Nomi 在这儿',
+  dockRunning: 'Nomi 正在做',
+  dockNeedsConfirm: '等你确认 {{count}} 条',
+  dockDone: '刚做完',
+  dockFailed: '有一步没成',
 
   // composer
   placeholder: '继续告诉 Nomi 要改什么… @ 引用素材或技能',
@@ -333,8 +338,12 @@ export const enAgentPanelV4 = {
   logo: 'N',
   history: 'Conversation history',
   collapsePanel: 'Collapse panel',
-  dockConversation: 'Conversation',
-  dockAdjust: 'Panel settings',
+  dockOpen: 'Open Nomi',
+  dockIdle: 'Nomi is here',
+  dockRunning: 'Nomi is working',
+  dockNeedsConfirm: '{{count}} waiting for you',
+  dockDone: 'Just finished',
+  dockFailed: 'One step failed',
 
   placeholder: 'Tell Nomi what to change… @ to reference assets or skills',
   placeholderRunning: 'Keep typing — it will be queued…',

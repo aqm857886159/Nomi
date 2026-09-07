@@ -21,9 +21,24 @@ export const CREATION_PANEL = `${AGENT_PANEL}[data-agent-surface="creation"]`
 export const CANVAS_PANEL = `${AGENT_PANEL}[data-agent-surface="generation"]`
 export const PREVIEW_PANEL = `${AGENT_PANEL}[data-agent-surface="preview"]`
 export const STORYBOARD_PANEL = `${AGENT_PANEL}[data-agent-surface="storyboard"]`
-/** 收起态：外壳仍在（`data-agent-resident`），但没有 `data-agent-panel`，只剩图标条。 */
+/** 收起态：外壳仍在（`data-agent-resident`），但没有 `data-agent-panel`，只剩画面下沿那一坞。 */
 export const COLLAPSED_SHELL = '[data-agent-resident="true"][data-agent-collapsed="true"]'
-export const COLLAPSED_DOCK = '[data-v4-block="dock"]'
+/**
+ * 收起角标 = **顶栏**右簇「浏览器」与「设置」之间那一格（09-01 定稿 §11.2）。
+ *
+ * 注意它**不在** `COLLAPSED_SHELL` 里面：顶栏在整个工作区外面。从收起外壳里找它永远找不到——
+ * 那正是这一版返工要修的事（此前它画在面板自己的地盘上，切面就换落点）。
+ */
+export const COLLAPSED_DOCK = '[data-agent-topbar-badge="true"]'
+export const COLLAPSED_DOCK_OPEN = '[data-v4-control="dock-open"]'
+/** 角标上那一格：`data-agent-dock-badge` = dot（蓝点 8px）/ count（数字徽标）。 */
+export const COLLAPSED_DOCK_BADGE = '[data-agent-dock-badge]'
+/** 「刚变过」那 420ms 里才挂的属性（单次 settle 脉冲）。 */
+export const COLLAPSED_DOCK_SETTLE = '[data-agent-dock-settle="true"]'
+/** hover 才冒的 tooltip。它落在 portal 里，**从窗口根找**，不要从角标的子树里找。 */
+export const COLLAPSED_DOCK_HINT = '[data-agent-dock-hint="true"]'
+/** 顶栏右簇（判角标落位用）。 */
+export const APP_BAR_RIGHT = '.nomi-appbar__right'
 /** 面板级错误带（外壳渲染，不在 v4 积木里）。 */
 export const PANEL_ERROR = '[data-agent-error="true"]'
 export const THREAD_MENU = '[data-agent-thread-menu="true"]'
@@ -347,12 +362,13 @@ export async function waitForV4TurnIdle(win, { panel = AGENT_PANEL, startTimeout
 
 /**
  * 展开常驻面板。收起态是**真实的两态偏好**（持久化），不是加载中间态：
- * 收起时外壳只剩 32px 图标条（`COLLAPSED_SHELL` + `COLLAPSED_DOCK`），点「对话」那颗钮展开。
+ * 收起时工作区里只剩画面下沿那一坞（`COLLAPSED_SHELL`），叫回面板的钮在**顶栏**那一格
+ * （`COLLAPSED_DOCK`，09-01 定稿 §11.2）——所以点的是它，不是从收起外壳里找。
  */
 export async function expandResidentPanel(win) {
   const collapsed = win.locator(COLLAPSED_SHELL)
   if (await collapsed.isVisible().catch(() => false)) {
-    await clickOrFail(collapsed.locator(`${COLLAPSED_DOCK} button`).first(), '展开常驻 Agent 面板')
+    await clickOrFail(win.locator(COLLAPSED_DOCK_OPEN).first(), '展开常驻 Agent 面板')
   }
   await expect(win.locator(`${AGENT_PANEL} ${COMPOSER}`).first()).toBeVisible()
 }
@@ -523,6 +539,23 @@ export async function createRuntimeWalk(name) {
     return file
   }
 
+  /**
+   * 把窗口调成指定尺寸，返回调之前那份 bounds（调回去用）。
+   *
+   * 有些事只有在**真实的小窗**里才发生：最小窗 1100×720（`electron/main.ts:299-300` 锁死的那个数）
+   * 下面板只剩 476 高，对话流这才真的溢出——「展开回来还停在原处」那条断言也才有信号可言。
+   * 在默认大窗里流根本装得下，滚动位置恒 0，前后相等是个恒真式。
+   */
+  async function resizeWindow(width, height) {
+    const browserWindow = await current.app.browserWindow(current.win)
+    return await browserWindow.evaluate((windowRef, bounds) => {
+      const previous = windowRef.getBounds()
+      windowRef.setBounds({ x: 0, y: 0, ...bounds })
+      windowRef.center()
+      return previous
+    }, { width, height })
+  }
+
   async function stopApp() {
     if (!current) return
     const closed = current
@@ -544,5 +577,5 @@ export async function createRuntimeWalk(name) {
     })
   }
 
-  return { fixture, report, outputDir, start, newProject, snap, stopApp, finish }
+  return { fixture, report, outputDir, start, newProject, snap, resizeWindow, stopApp, finish }
 }
