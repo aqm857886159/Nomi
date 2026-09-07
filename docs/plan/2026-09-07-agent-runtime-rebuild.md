@@ -379,6 +379,7 @@ toolProjection(registry, profile: "internal" | "mcp") → ModelFacingTool[]
 - **不动项**：能力的 id / 别名 / 权限链；transport adapter；MCP 执行边界；`tools/list` 的确定性顺序（`agentToolCatalog.ts:31-35` 已合规，是 prompt/KV-cache 合同）。
 - **回滚**：`toolProjection` 是新文件，可整体 revert；工具改名会同时动**对外 MCP 面**，PR 描述必须列改名前后对照。
 - **验收门**：G2（一次写对率）+ `check:model-schema` 从红到绿。
+- **带进来的一条债（§11.7 登记）**：会话的单持有者今天只覆盖**进程内**。把 lane 接到 MCP 对外面之前必须先有**跨进程**的锁——`electron/main.ts:121` 里 MCP stdio 模式刻意不抢单实例锁，所以「GUI + 一个 MCP stdio 进程」同时活着是设计内的，而 [#8852](https://github.com/earendil-works/pi/issues/8852) 的后果是转录损坏、不是报错。
 - **体量**：改 `agentCapabilities` ~8 文件；新增 2 文件；删 4 个死文件（1 001 行）+ 3 处症状级补丁；2 PR。
 
 ### 阶段 3 · 闸与三行
@@ -561,3 +562,110 @@ toolProjection(registry, profile: "internal" | "mcp") → ModelFacingTool[]
 - 拍板 §7 三条后，按 §6 阶段推进；**阶段 0 的探针结果回写进 §7 岔路 1**。
 - 本方案拍板后，`docs/plan/2026-09-06-agent-architecture-master-plan.md` 与 `docs/plan/2026-09-06-agent-tool-layer-root-fix.md` 应标 **⛔ 被本文取代**——两份渐进方案与一份重做方案并存，下一个读的人一定会走错。
 - 远期项登记：**`skill.write`**（让 Agent 把学到的方法写成技能）。恢复它需要的不是把工具接回去，是先设计「Agent 写的技能怎么被用户看到、审批、撤销」——那是一件独立的活。
+
+---
+
+## 11. 阶段 1 实施记录（垂直切片 · 影子期）
+
+> 本节由阶段 1 的实施分支 `feat/agent-lane-vertical-slice-20260907` 写入（R4：多文件改动先写范围/不动项/回滚/验收门）。
+> 状态：**影子期**——新通路存在、跑得通、被 CI 逐项比对，但**用户走不到**。旧通路继续服务用户。
+
+### 11.0 先查别人（R29 增量。§0 那一节是方案级的，这里只记阶段 1 新读到的东西）
+
+动手前实读的三份出处，每条都指向本节某个具体决定：
+
+| 出处 | 实读到的东西 | 它决定了本切片的哪一件 |
+|---|---|---|
+| pi 0.85.1 的类型与实现（`node_modules/@earendil-works/pi-agent-core/dist/harness/agent-harness.d.ts`、`dist/harness/session/jsonl/types.d.ts`、`@earendil-works/pi-ai/dist/types.d.ts:410`） | `AgentHarnessOptions` 收 `session` / `models` / `model` / `tools` / `systemPrompt` / `entryProjectors`；`AgentHarnessTool.execute` 的签名是 `(toolCallId, params, onUpdate, toolContext, invocation, context)`；`AssistantMessageEvent` 的 `start` 成员**没有** `contentIndex`；`JsonlSessionRepoOptions.sessionsRoot` 是一个普通字符串参数 | ⑤⑥ 两层的分工：宿主只做 lane 生命周期 + 闸 + custom entry，转录/顺序/持久化全归 pi；以及 §11.5 的第 1 条岔路 |
+| [阶段 0 探针报告](../research/2026-09-07-pi-0.85.1-probe-report.md) | §3.3「`JsonlSessionRepo` 会在 `sessionsRoot` 下按 `cwd` 生成 slug 子目录」；§5.1「`lane.watch()` 故意剥掉 `message_update` 的 `event` 字段，要 `contentIndex` 必须走 `harness.events.on`」；§4.2 臂 A「schema 不合法的参数**根本走不到** `before_tool`」 | 分别决定了 `laneSession.mts` 传稳定常量 cwd、`laneHost.mts` 同时订阅 `harness.events`、容忍必须落在 `prepareArguments` 而不是闸层 |
+| [#547 工具层审计](../audit/2026-09-06-agent-tool-layer-audit.md) §3.2 与 [#549 成熟 Agent 产品调研](../research/2026-09-06-mature-agent-products.md) §2.3 | 真机 18 次失败 **100%** 是「结构化值被序列化成 JSON 字符串」那一族；所有单分支扁平 schema 的工具都是 100%；成熟产品把「够得着」与「批得动」分开 | `laneDocumentTools.ts` 的三条形状规则（一别名一工具、别名定死的字段不进 schema、容忍在 `prepareArguments`），以及闸独立于工具可见性 |
+
+**四列表增量（R29）**：本切片只往「我们用了」一列加东西，「我们另写了 / 我们拆散了」两列**不增**——`electron/agentLane/` 在写第一行代码**之前**就加进了 `docs/engineering/framework-boundaries.json` 里 pi 五项能力的 `scope`，所以新目录里再出现自研 session / retry / steering 会**当场报红**（R28：防线建在最早能拦住的那层）。债数不变，仍是 14 条。
+
+### 11.1 范围（做了什么）
+
+一条能力端到端跑通新通路：`document.read` + `document.write`（#547 实测今天 100%，所以任何失败都归因于新通路而不是模型）。
+
+```
+pi lane（AgentHarness + JsonlSessionRepo，落 <project>/.nomi/agent-sessions/）   laneSession.mts · laneTools.mts · laneToolSchema.mts
+  → laneHost（主进程，订阅 harness.events.on 拿带 contentIndex 的有序段）        laneHost.mts · laneProjection.mts
+  → laneIpc（有序 parts 过 IPC，每段带 sequence；**未注册进 main.ts**）          laneIpc.ts · laneCommandCodec.ts
+  → laneClient（渲染进程订阅，零状态机）                                        src/workbench/ai/lane/laneClient.ts
+  → laneViewModel（纯函数投影，按 sequence 走，永不按 createdAt）                src/workbench/ai/lane/laneViewModel.ts
+  → 现有 v4 组件（一行不改）
+```
+
+### 11.2 不动项（一行都没碰）
+
+- 旧通路：`electron/harness/runtime/pi/run.mts` 的回合语义、`electron/projectAgentHost/**`、`projectAgentIpc`、渲染层 `agentPanelV4Projection.ts` 与 `useAgentPanelV4Data.ts`。
+- v4 的 9 个组件与 57 张设计实验室基线（G8）。
+- `main.ts` 的 IPC 注册表：`laneIpc` **不注册**（§8.1 规则 O6 的「开发期不可达」就是这条）。用户走不到 = 回滚面积为零。这条由 `electron/agentLane/laneShadowStructure.test.ts` 钉成断言，手法同 `projectAgentCutoverStructure.test.ts:40`。
+
+**一处例外，必须明说**：`electron/harness/runtime/pi/model.mts` 里的 provider 装配被**原样提取**成 `createNomiProvider()`，老路的 `createNomiModelRuntime()` 改为调用它。理由是 P1：新旧两条通路都要造同一个 pi provider，复制一份就是并行版。行为不变由既有 151 条 `test:agent-runtime` 证明。
+
+### 11.3 回滚
+
+删掉 `electron/agentLane/`、`electron/shared/agentLane/`、`src/workbench/ai/lane/`、`tests/agent-runtime/lane-*` 四处，外加 revert `model.mts` 的提取与 `snapshot.mts` 的版本兼容两个 commit。用户可见行为零变化，因为影子期用户从来没走过它。
+
+### 11.4 验收门（实测结果）
+
+| 门 | 判据 | 证据 | 结果 |
+|---|---|---|---|
+| **G3**（本阶段主门） | 冷重启后这条能力的历史顺序与 pi transcript 的走序**逐项一致** | `tests/agent-runtime/lane-slice.test.mts`：真起 harness 跑一轮（两次工具调用）→ `close()` → 从盘上 `repo.open()` 重开 → 投影 → 断言段的类型/身份/顺序/编号逐项相等；附带断言盘上真有 jsonl 文件（否则「空 == 空」也会绿） | ✅ 7/7 |
+| **影子比对** | 新旧转录逐项一致（文字、工具调用与结果、顺序）+ 花费一致 + 文稿最终状态一致 | `tests/agent-runtime/lane-shadow-parity.test.mts`，同一份 loopback 剧本喂两条通路 | ✅ 4/4 |
+| **信息不丢** | zod → 模型可见 schema 的转换器不吃掉 `.describe()` / 枚举 / min/max / 字段名 / 必填；**每条配阳性对照** | `tests/agent-runtime/lane-tool-schema.test.mts` | ✅ 7/7 |
+| **R30** | 一次写对率 + 回合成功率 | `tests/agent-runtime/lane-tool-accuracy.test.mts` | 一次写对率 **8/8**（无容忍对照臂 **1/8**）；回合成功率 **8/8**（对照臂也 8/8） |
+| **G8** | 57 张 v4 基线一张不动 | `pnpm run check:design-lab` | ✅ |
+| **债不增** | `check:framework-boundary` 债条数只减不增；新目录进 scope | `pnpm run gates` | ✅ 14 → 14 |
+
+### 11.5 本阶段自己定的岔路（方案没写到的，按 D1–D6 选）
+
+1. **`defineTool` → `AgentHarnessTool`**。方案与任务书都写「工具接入用 `defineTool`」。实核：`defineTool` 住在 `pi-coding-agent` 的**扩展面**（`dist/core/extensions/types.d.ts:386`），它的 `execute(toolCallId, params, signal, onUpdate, ctx)` 与 `AgentHarness` 要的 `AgentHarnessTool.execute(toolCallId, params, onUpdate, toolContext, invocation, context)` **签名不兼容**——`defineTool` 是 `createAgentSession` 那条老路的工具工厂。岔路 1 既然取了 A，工具面就取 `AgentHarnessTool`；`prepareArguments` 两边同名同义，官方容忍钩子完整保留。
+2. **校验只发生一次 = pi 的 ajv 那次**。宿主不再用 zod 复验一遍（那正是 #547 §2.2③「8 行报错只有 1 行是真的」的成因）。安全性由「信息不丢门岗」承担：生成的 JSON Schema 不弱于 zod，所以 ajv 通过的输入 zod 也会通过。领域适配器的**输出**仍然校验——那是能力契约的收据形状（K1），与「模型输入校验几次」是两件事。
+3. **别名 = 独立扁平工具**。`read_full_text` / `read_selection` / `insert_at_cursor` / `replace_selection` / `append_to_end` 各是一个单分支扁平 schema 的工具，语义输入里由别名决定的字段（`scope` / `operation`）**不出现在模型可见 schema 里**——#547 的数据说 100% 的那批全长这样。
+4. **宿主领域记录 = `nomi.approval`**，按 `toolCallId` join，永不复制工具结果正文；且 `entryProjectors` 里注册成**不投给模型**——拒收的理由 pi 已经一字不改地做成了那次调用的 tool result，再投一遍就是同一句话说两遍、占两份上下文。注册点留着，因为阶段 3 的任务卡/失败卡要走同一个口子，那时它才真的需要投影。
+5. **G3 用机器断言证，不用截图证**。方案 §5 自己写的就是「**机器断言**，不是人眼」。影子期新通路对用户不可达，要拍到它的截图就必须先注册 IPC——那会直接违反规则 O6 并把回滚面积从零变成一整条链路。所以：G3 = `lane-slice.test.mts`；界面侧的证据是 **G8**（57 张基线一张不动，正是「影子切片没碰面板」的截图证明）。用户可见的走查留到阶段 4 切换时做，那时它才有东西可看。
+6. **跨层契约物化成一份夹具**。`LaneProjection` 的两侧住在两套编译世界里（主进程是 NodeNext 的 ESM 岛，渲染层是 vite），没有哪一条测试能一口气从 pi 跑到 v4 组件。硬塞进同一个 runner 只会得到一份互相 mock 的假闭环。所以 `tests/agent-runtime/__fixtures__/lane-projection.json` 由**真 pi 跑出来**，上游断言「真投影与它逐字相等」，下游断言「长这样的投影投出那 4 个积木」，谁先漂谁先红。
+7. **R30 的真实模型那一半，2026-09-07 补上了**。当时按 D4 明着标成「没跑」，理由是「零密钥经手」——后来发现这两条并不冲突：走主进程自己的设置读取路径，key 从 safeStorage 解出来后**只在那个进程的内存里**，不打印、不落盘、不进 argv、不进 commit。数字与做法见 §11.6。
+
+### 11.6 R30 真实模型那一半（2026-09-07 实跑）
+
+阶段 1 那两个 8/8 是 loopback 的：畸形参数是**我们注入的**，模型没有参与。真实模型那一半问的是另一件事——**这套工具面交到一个真模型手里，它自己填得对吗、事情做完了吗**。
+
+**做法**（口径与 loopback 那半完全一致，只换端点）：`document.read` / `document.write` 五个工具原样，八条真实用户指令（追加一句一字不改的话 / 先读全文再追加 / 光标处插标题 / 按顺序加两句 / 读完把最后一句再抄一遍到末尾 / 只读不改 / 追加一句带引号的话 / 开头插一行），每条起一条全新 lane + 全新文稿，跑完看两件事：
+
+- **一次写对率**：这一轮的**第一次**工具调用有没有拿到非错结果（分母 = 首调次数）。
+- **回合成功率**：收尾文字出现 **且** 文稿真的被改成预期的样子（分母 = 回合数）。少了后半句，一个「说完成了但什么也没做」的回合会被记成成功。
+
+**结果**（APIMart · `deepseek-v4-flash`，2026-09-07）：
+
+| 指标 | 真实模型 | 同口径 loopback（`lane-tool-accuracy.test.mts`） |
+|---|---|---|
+| 一次写对率 | **8/8** | 8/8（无容忍对照臂 1/8） |
+| 回合成功率 | **8/8** | 8/8（对照臂也 8/8） |
+
+**花费**：两次运行（第一次输出被我截断了没看全，重跑了一次），合计约 5 万 token。按一个**明显偏高**的假价（$2/M 输入、$8/M 输出）估上限是 **$0.11 ≈ ¥0.8**，真实单价远低于此。脚本里硬编码了 $0.14（≈¥1）的闸：估出来的钱过线就停，宁可少跑几条。
+
+**一条顺带的观察，值得记下来**：八条里有六条模型的**第一个**动作是 `read_full_text`，插标题那条是 `read_selection`——没有人在系统提示词里要求它「先读再写」，那句话写在 `read_full_text` 的 description 里（*"Call this before writing anything…"*）。这是描述通道真的在起作用的一次实证，也是 G-03（描述三通道）值得在阶段 2 补齐的理由。
+
+**怎么再跑一次**：脚本没有进仓库（它会经手一把真 key，而仓库里不该有任何一条「顺手就能花钱」的路径）。要复现的话，一个 Electron 脚本三步就够——① `app.setName('nomi')` 并把 `userData` 指到 `<appData>/nomi`（**这一步是坑**：dev 下 Electron 从仓库 `package.json` 拿到的名字是小写 `nomi`，safeStorage 的钥匙串条目按它找；写成 `Nomi` 会去找一条不存在的条目，Chromium 于是用一把临时密钥，症状是「密文解不开」而不是「拿不到钥匙」）；② 走主进程自己的那条读取路径拿连接参数：`readCatalog()` → `decryptApiKeyRecord(state.apiKeysByVendor.apimart)` → `vendorModelConnection(vendor, model, apiKey)`（`electron/ai/vendorModelConnection.ts:20`，`/v1` 后缀就是它补的）；③ 把结果原样交给 `openLane({ projectDir, systemPrompt, model, tools: createDocumentLaneTools(port) })`。key 全程只在这个进程的内存里。
+
+
+### 11.7 参考实现一致性核对：阶段 1 逐条判定
+
+> 出处：[`docs/research/2026-09-07-pi-reference-implementation-conformance.md`](../research/2026-09-07-pi-reference-implementation-conformance.md)。
+> 那份核对给的是**方案级**的九层对照与 24 条「没想到」。这一节只回答一件事：**其中落在阶段 1 切片射程内的那几条，今天到底满足没有**，
+> 每条给 `file:line`。判定分三种：**已满足**（有断言钉住）· **本 PR 修**（原来不满足，这次改了）· **阶段 2 前债**（切片没触及，明着登记，不假装做过）。
+
+| 核对项 | 判定 | 判据（file:line） |
+|---|---|---|
+| **坑 2 · 0.84.0 `message_update` delta-only**（[#7290](https://github.com/earendil-works/pi/issues/7290)）：靠 `event.message` 渲染的宿主会**静默什么都不画**，而最终转录完全正确 | **已满足**，本 PR 补了回归钉 | 我们从不读 harness 事件上的累积 `message`：`laneHost.mts:99-106` 只取 `event.event`（为了 `contentIndex`），累积交给 pi 自己的归约器（`pi-agent-core/dist/harness/runtime/reducer.js` 的 `message_update` 分支 `operation.streamingMessage = event.message`），投影只读 `snapshot.operation.streamingMessage`（`laneProjection.mts:82-86`）。#7290 改的是**对外 JSON/RPC 流**，不是进程内的 harness 事件——而我们压根没订阅前者。新钉：`tests/agent-runtime/lane-slice.test.mts` 的「every mid-stream frame is a prefix of the final text」（配 `httpFixture.mts` 的 `chunks`，把一条消息拆成三个 delta；单 delta 时该断言自己会红，已验） |
+| **G-19 / 坑 1 · `FileSystem.renameFile` 必须是同文件系统原子替换**（用户项目可能在 iCloud 目录） | **已满足**（结构性，不是承诺） | `laneFileSystem.mts:68-91` 只改写 `writeFile` / `appendFile` 两个方法的**后置动作**，`renameFile` 由 `Object.create(base)` 从 `NodeExecutionEnv` 原样继承（`pi-agent-core/dist/harness/env/nodejs.js:662-669`，底层就是 `node:fs/promises` 的 `rename`，要么原子替换要么 `EXDEV`，从不退化成 copy+delete）。而 pi 的临时文件是目标的**同目录兄弟**（`session/jsonl/storage.js:71` `${destinationPath}.tmp`），所以「同文件系统」是结构事实、与用户把项目放在哪无关。三条断言在 `tests/agent-runtime/lane-session-durability.test.mts`：没有自己实现 `renameFile`、目标已存在时一次 rename 换掉它、发布完不留 `.tmp` |
+| **G-20 / 9.5 · 转录落盘 mode**（上游裸写 = `0o644` 世界可读，而里面装着用户原稿正文） | **本 PR 修** | `laneFileSystem.mts:26-28,51-91`：文件 `0o600`、目录 `0o700`，`ensureLaneSessionsRoot` 先把会话根建成 `0o700`（pi 的 `mkdir(recursive)` 会顺手把整条父链建成 `0o755`，装饰器只看得见文件的直接父目录）。chmod 失败 = 写入失败（fail-closed），不静默降级。**阳性对照**在测试里：同一个目录里一次不经过我们这层的写入落地就是 `0o644`（`lane-session-durability.test.mts`，并按住 umask，不拿运气当对照） |
+| **G-18 / 3.2 · 同一会话被打开两次会写重复 `seq` 并损坏文件**（[#8852](https://github.com/earendil-works/pi/issues/8852)） | **进程内已满足；跨进程登记为阶段 2 债** | 修法不是我们再写一把锁（那会当场撞 `check:framework-boundary`），而是**让 pi 的名单只有一张**：一个项目一个 `JsonlSessionRepo`、进程内共享、引用计数（`laneSession.mts:47-70`），这样 pi 自己的 `openSessions` 表（`session/jsonl/repo.js:86-87`）才真的拦得住第二个打开者；拦下时补一句「为什么这件事致命」（`laneSession.mts:98-107`）。**Electron 多窗口 = 一个主进程**，所以多窗口这一半是覆盖住的，断言含两条阳性对照：拦的是**这一条会话**不是这个项目、以及装配失败会交还持有权不留幽灵持有者。**没覆盖的是跨进程**：`electron/main.ts:121` 里 MCP stdio 模式**刻意不抢单实例锁**（否则 GUI 在跑时它会被判第二实例而自杀），所以「GUI + 一个 MCP stdio 进程」同时活着是设计内的。今天不可达（`laneIpc` 未注册、MCP 那条路不开 lane），但阶段 2 把 lane 接进 MCP 对外面之前，必须先有一把**跨进程**的锁（pi 自己给 `auth.json` 用的是 `proper-lockfile`，那是现成的参考） |
+| **G-01 · 根级 `anyOf` 在部分供应商上被静默丢弃**（Anthropic 适配器丢它，Google legacy 路径不支持它） | **已满足**（上一位工人改的，本 PR 复核） | `laneToolSchema.mts:183-206` 把「根是 `anyOf`/`oneOf`/`allOf`」列为拒收，理由与处方写在同一处（判别字段降成 `z.enum`、分支专属字段设 optional）。规则长在**生成点**而不是一条扫源码的 CI 规则，因为 `z.discriminatedUnion` 在源码里看得见、但「它最后生成成了什么」只有运行时知道。测试带阳性对照：同样语义写成扁平对象就通过（`lane-tool-schema.test.mts`） |
+| **G-05 · 枚举直译成 `const`，Google 的 OpenAPI 3.03 路径不认** | **已满足**（同上） | `laneToolSchema.mts:208-223` 递归拒收 `const`。测试先证明这属于「信息一个字没丢」那一类（产物里 `const` 就在那儿、既有的「信息不丢」断言全绿），再证明门岗仍然拒收——**这两条恰恰是「不丢」证明不了「看得见」的实证**；阳性对照是 `z.enum` 生成 `{"type":"string","enum":[…]}`，上游 `StringEnum()` 的等价物 |
+| **G-02 · 工具失败必须 `throw`，`return` 一个错误对象会被记成成功** | **已满足**，本 PR 补了断言 | `laneTools.mts` 的 `execute`：`if (!outcome.ok) throw new LaneToolFailure(outcome.message)`。断言在 `lane-session-durability.test.mts`：失败落成 `isError` 的结果、那句可行动的话逐字到模型；**阳性对照**是**逐字相同的文本**走成功路径时 `isError === false`——少了它，一个把每条结果都标成错误的实现也能通过 |
+| **G-04 · 工具输出零截断，而上游把它写成 MUST** | **本 PR 修** | 切片确实触到了：`read_full_text` 返回的是**用户的整份原稿**。截断落在**唯一出口**（`laneTools.mts` 的传输层），用的是 pi 自己的 `truncateHead` 和它自己的两个数（`DEFAULT_MAX_LINES` / `DEFAULT_MAX_BYTES`），不是我们发明的截断器；上限镜像在 `laneContracts.ts` 是因为写说明书的 `laneDocumentTools.ts` 在 CJS 侧 `require()` 不到 pi 的 ESM 包，而**说明书和执行必须同一个数**——`lane-tool-output.test.mts` 把镜像钉在上游常量上。原来 `read_full_text` 的描述写着 "with no truncation"，那句话在截断落地的一刻就成了谎，同 PR 改成从同一对常量插值。**不抄上游示例的那句 `Full output saved to: …`**：我们这一族的全文是用户自己的原稿，再往临时目录抄一份，等于刚把转录收紧到 `0o600` 又在旁边留一份世界可读的副本；所以正文里给的是**下一步怎么做**。阳性对照：没超限的结果一个字节不动（把截断摘掉，该测试当场红，已验） |
+
+**没在本 PR 动、且明确留给后面的**（不是遗漏，是排期）：G-03（描述三通道 + 系统提示词里重建 `Available tools`）、G-06（`prepareArguments` 折旧形状）、G-07（路径包容 `containPath()`）、G-08（唯一校验点复用 pi 的 `validateToolArguments`）、G-09（`addedToolNames` 动态装载）——五条都要等阶段 2 的 22 个能力搬进来才有落点；G-10 至 G-17 归阶段 3。

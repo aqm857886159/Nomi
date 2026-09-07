@@ -1,4 +1,8 @@
 {
+  "//": "pi 的包是 ESM-only（require() 恒 ERR_PACKAGE_PATH_NOT_EXPORTED），所以凡是直接摸 pi 的",
+  "//2": "文件都住在这个 NodeNext 岛里，外面那半仍是 CommonJS。agentLane/**/*.mts 是阶段 1 新加的",
+  "//3": "第二块岛地：它 import @earendil-works/pi-agent-core 的 AgentHarness，和 harness/runtime/pi/ 同类。",
+  "//4": "跨岛只走 type-only import（../shared/agentLane/laneContracts.js），值不过这道门。",
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
     "target": "ES2022",
@@ -12,6 +16,6 @@
     "noEmitOnError": true,
     "sourceMap": true
   },
-  "include": ["harness/runtime/pi/**/*.mts", "harness/runtime/pi/**/*.cts"],
+  "include": ["harness/runtime/pi/**/*.mts", "harness/runtime/pi/**/*.cts", "agentLane/**/*.mts"],
   "exclude": ["**/*.test.mts", "**/*.test.cts"]
 }

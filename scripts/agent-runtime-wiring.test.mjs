@@ -69,12 +69,19 @@ describe('private pi build and test wiring', () => {
     const config = json('electron/tsconfig.pi.json')
     expect(config.compilerOptions).toMatchObject({ module: 'NodeNext', moduleResolution: 'NodeNext',
       rootDir: '.', outDir: '../dist-electron', strict: true, noEmitOnError: true })
-    expect(config.include).toEqual(['harness/runtime/pi/**/*.mts', 'harness/runtime/pi/**/*.cts'])
+    // 岛地有两块，因为直接摸 pi 的文件有两处：老 seam（harness/runtime/pi/）和阶段 1 的
+    // agent lane（agentLane/，方案 2026-09-07 §6）。两块共用同一个 NodeNext 工程，
+    // 而不是各起一个——两个 ESM 工程写同一个 outDir 迟早给同一个文件写出两份不同的产物。
+    expect(config.include).toEqual(['harness/runtime/pi/**/*.mts', 'harness/runtime/pi/**/*.cts',
+      'agentLane/**/*.mts'])
     const parsed = ts.getParsedCommandLineOfConfigFile(path.join(repoRoot, 'electron/tsconfig.json'), {}, {
       ...ts.sys, onUnRecoverableConfigFileDiagnostic: (diagnostic) => { throw new Error(String(diagnostic.messageText)) },
     })
     const program = ts.createProgram(parsed.fileNames, parsed.options)
-    expect(program.getSourceFiles().filter((file) => /harness\/runtime\/pi\/.*\.[mc]ts$/.test(file.fileName))).toEqual([])
+    // CommonJS 那半**看不见**任何一块岛地的 .mts/.cts。断言两块而不只是老那块：
+    // 只钉一块的话，新岛地哪天漏进 CJS 工程也是静默的——而那正是这条断言存在的意义。
+    expect(program.getSourceFiles().filter((file) =>
+      /(?:harness\/runtime\/pi|agentLane)\/.*\.[mc]ts$/.test(file.fileName))).toEqual([])
     const host = read('electron/ai/agentChatV2.ts')
     expect(host).toContain("../harness/skillIndex.js")
     expect(host).not.toMatch(/harness\/runtime\/pi\/.*\.(?:m|c)?js/)
