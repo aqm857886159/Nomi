@@ -1,0 +1,162 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-07-reference-conformance-not-required",
+  "problem_type": "framework adoption is reviewed against a self-authored capability checklist, so the repository can only detect duplicated capabilities it already knew about and is structurally blind to layers of the framework nobody ever considered",
+  "symptom": "R29 requires a four-column table (it provides / we use / we rewrote / we split) before adopting a framework or a new layer of one. Both of the columns that find problems - 'we rewrote' and 'we split' - presuppose that we can name the capability: to judge that we rewrote something you must first know the framework offers it. The 2026-09-06 #546 pi review therefore found exactly the five capabilities we happened to list (session persistence, retry, steering, resource loading, ordered transcripts) and registered 14 debt entries, while pi's own bundled coding agent - a complete application that uses the SDK correctly - was never taken apart and laid beside ours. Whole layers of it (context management, observability, extension API, spend approval, security) have no entry in any Nomi document saying whether our difference is deliberate or accidental. The gate added the same day enforces the four-column table only, so a framework can be fully registered, fully green, and still never have been compared against its own reference implementation.",
+  "direct_cause": "The registry docs/engineering/framework-boundaries.json had exactly one required research artefact per framework: fourColumnTable. Nothing in the registry, the gate, the self-check hook or the dispatch playbook asked whether the framework's own reference implementation had been dissected layer by layer, so the answer 'we never looked at it' was indistinguishable from 'we looked and deliberately differ'.",
+  "class_root": "A checklist can only detect items on the checklist. Any review whose input is a list we authored inherits our blind spots exactly, so it finds duplication of known capabilities and never finds absence of unknown ones. Catching the second class requires an input we did not author - the framework's own complete, working implementation - taken apart along its own seams rather than sampled against our seams. This is the same shape as R30's lesson from the same week (design-lab baselines certify appearance, not behaviour, because the baseline is generated from the thing being judged) and as R14.1's dual-path check: an artefact derived from the subject cannot be evidence about the subject.",
+  "affected_population": [
+    "Every framework, SDK or runtime this repository adopts that ships a reference implementation or official examples - today pi (its bundled coding agent), @xyflow/react (official examples), ai (AI Elements demo) and @mantine/core (official demo)",
+    "Every future adoption, and every first use of a previously unused layer of an already-adopted framework",
+    "Every research dispatch brief for a framework topic: without a named artefact path the brief cannot ask for a comparison it does not know how to name"
+  ],
+  "scope_paths": [
+    "scripts/framework-boundary-lib.mjs",
+    "scripts/check-framework-boundary.mjs",
+    "docs/engineering/framework-boundaries.json",
+    "docs/research/TEMPLATE-reference-conformance.md",
+    "docs/engineering-rules.md",
+    "docs/engineering/agent-orchestration-playbook.md",
+    "scripts/claude-hooks/self-check.sh"
+  ],
+  "entry_points": [
+    "pnpm run check:framework-boundary",
+    "pnpm run gates:contracts (registered in the contracts chain after check:boundaries)",
+    "scripts/claude-hooks/self-check.sh gate 1, which now asks for both deliverables before any framework work starts",
+    "docs/engineering/agent-orchestration-playbook.md 15.1 (brief slot for the document path) and 15.2 (adversary-agent checklist item)"
+  ],
+  "external_sources": [
+    {
+      "kind": "source-code",
+      "url": "https://www.npmjs.com/package/@earendil-works/pi-coding-agent/v/0.85.1",
+      "checked_at": "2026-09-07",
+      "purpose": "Confirmed the installed version is 0.85.1 while the existing registry evidence was read at 0.84.3, which is exactly the drift the new upstreamVersion advisory is meant to surface: a reference implementation that changed its own layering reads identically to the old one, and only the version number shows it."
+    }
+  ],
+  "internal_only_reason": "The nine layers, the three-valued verdict and the debt ratchet are internal conventions extending an internal gate; the only external claims are the installed package versions, which were read from node_modules rather than from memory.",
+  "invariants": [
+    "Every framework registered in docs/engineering/framework-boundaries.json carries a second research artefact - referenceConformance { doc, verifiedAt, upstreamVersion } - or is registered in referenceConformanceDebt with a document path, a reason and an unexpired due date. Silently having neither fails the gate.",
+    "Every package listed in capabilityInventory.packages that no registered framework covers must itself appear in referenceConformanceDebt, so adopting a dependency cannot dodge the requirement by never opening a framework entry for it.",
+    "A settled referenceConformance must point at a file that exists and that contains the '参考实现逐层对照' section, every declared layer, and all four column headers; layers may be tailored only by selecting from the nine canonical ones, so a thin table cannot pass by inventing its own layering.",
+    "Reference conformance debt is time-boxed, not exempt: a past due date fails the gate and names the agreed document path; a debt id that matches neither a registered framework nor an inventoried package also fails, which forces cleared debt to be deleted rather than left behind.",
+    "A framework cannot be registered as both settled and owed at once, so 'we already did it' and 'we still owe it' can never both be true in the registry."
+  ],
+  "generality_proof": "The gate encodes no pi-specific knowledge. It asks a structural question of every entry in the registry - is there a second artefact comparing this framework's own reference implementation layer by layer, and is it still current with the installed version - so registering a second, third or tenth framework inherits the same requirement by adding one object, with no new code path. The nine layers are framework-agnostic decomposition axes (tools, transcript rendering, session, context, model and spend, control flow, extension API, observability and testing, security), and tailoring is constrained to that closed set precisely so a future adopter cannot dodge the comparison by renaming the layers. The judgement lives in evaluateReferenceConformance as a pure function taking injected docExists / readDoc / installedVersions, so scripts/check-framework-boundary.node-test.mjs proves each red and the one deliberate non-red against a synthetic registry rather than against today's tree.",
+  "shared_boundaries": [
+    {
+      "path": "scripts/check-framework-boundary.mjs",
+      "symbol": "evaluateReferenceConformance call site plus installedVersionsOf",
+      "responsibility": "Own the one moment at which the requirement is applied: every contracts run reads the registry, resolves each declared package's installed version from node_modules, and refuses any framework or adopted dependency that has neither a comparison nor unexpired debt. Errors join the existing self-written-duplicate errors so a single gate speaks for both R29 deliverables."
+    },
+    {
+      "path": "scripts/framework-boundary-lib.mjs",
+      "symbol": "evaluateReferenceConformance",
+      "responsibility": "Own the single judgement of whether a framework's reference implementation has been dissected: settled-vs-owed exclusivity, debt time-boxing, document shape (section, layers, columns), canonical layer set, inventory coverage, and the version-lag advisory. Pure, with filesystem and node_modules access injected, so the gate's own behaviour is testable without a real violation in the tree."
+    },
+    {
+      "path": "docs/engineering/framework-boundaries.json",
+      "symbol": "referenceConformance / referenceConformanceDebt / referenceConformanceAdvisory",
+      "responsibility": "Own the record of which frameworks have been compared against their own reference implementation, when, against which upstream version, and - for the ones that have not - by when they must be."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "docs/engineering/framework-boundaries.json",
+      "entry_point": "frameworks[] (registered frameworks with a four-column table)",
+      "disposition": "enforced",
+      "evidence": "pi is the only registered framework today and it has no reference conformance document, so it is registered as debt due 2026-09-14 bound to docs/research/2026-09-07-pi-reference-implementation-conformance.md, which is being written on branch docs/pi-reference-conformance-20260907. Before the debt was registered the gate exited 1 naming pi (R17 red proof)."
+    },
+    {
+      "path": "docs/engineering/framework-boundaries.json",
+      "entry_point": "capabilityInventory.packages (adopted dependencies with no framework entry yet)",
+      "disposition": "enforced",
+      "evidence": "@xyflow/react, ai and @mantine/core were all reported red by the same first run and are now registered as debt due 2026-10-07, 2026-10-07 and 2026-10-31. This is the entry point that proves the rule is about adoption rather than about having opened a framework entry: a dependency cannot escape by never being registered as a framework."
+    },
+    {
+      "path": "scripts/claude-hooks/self-check.sh",
+      "entry_point": "gate 1 (before writing code)",
+      "disposition": "enforced",
+      "evidence": "The framework clause now asks for both deliverables, naming the nine layers and the three verdicts, so the discipline fires before the code exists. check:claude-hooks and check:hook-behavior both pass with the edited script registered from the versioned .claude/settings.json."
+    },
+    {
+      "path": "docs/engineering/agent-orchestration-playbook.md",
+      "entry_point": "15.1 research brief template and 15.2 adversary-agent checklist",
+      "disposition": "enforced",
+      "evidence": "The brief now has a written slot for the conformance document path and the adversary checklist has an item asking whether the comparison exists and whether the 没想到 list is empty, with the two acceptance probes (is the 有意不同 reason a domain constraint; is the 没想到 list cleared). #546 failed because research existed and no brief referenced it, so a gate on the registry alone would leave the dispatch path unguarded."
+    },
+    {
+      "path": "docs/engineering/dependency-capabilities.generated.json",
+      "entry_point": "the machine-extracted capability word list",
+      "disposition": "not-affected",
+      "evidence": "It answers a neighbouring question - which capability words a dependency's type declarations expose - and is already owned by check:dependency-capabilities. It samples symbol names, not the reference implementation's layering, so it cannot substitute for the comparison; naming it here records that the overlap was checked and that no second owner of version drift was created (the version-lag signal stays in one place, this gate's advisory)."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The mechanism fires on every framework adoption and on every first use of a new layer of an adopted one, for any agent on any machine: the reviewer authors the capability list, the list carries the reviewer's blind spots, and the review reports completeness. It already fired once inside a single SDK adoption (#546 found the five capabilities we listed and none of the layers we had not), and it will fire again for @xyflow/react, ai and @mantine/core, all three of which are adopted today with no comparison on record.",
+    "same_class_scan": [
+      "Read docs/engineering/framework-boundaries.json and confirmed the only per-framework research requirement was fourColumnTable, with no field of any kind pointing at the framework's own reference implementation.",
+      "Ran the new gate against the unmodified registry: exit 1 with four findings - pi missing referenceConformance, and @xyflow/react, ai, @mantine/core adopted with no registration at all (R17: prove it reddens before trusting it).",
+      "Probed each remaining red on the real tree and restored: a settled entry alongside a debt entry (exclusivity red), a settled entry pointing at docs/research/TEMPLATE.md (missing section, eight missing layers, two missing columns), and a past due date (expired debt red, naming the agreed document path).",
+      "Probed the one case that must NOT redden: the same settled entry recorded at 0.84.3 against installed 0.85.1 produced three ⚠️ upstream-alignment warnings and no error, confirming a dependency upgrade cannot be blocked by this advisory.",
+      "Checked for a second owner of the version-drift signal before adding one: scripts/model-radar.ts fetches vendor model catalogues over the network and shares no structure with dependency version reading, and check:dependency-capabilities already watches installed versions, so no radar:frameworks script was added - the advisory in this gate is the single owner (P1).",
+      "Grepped the sibling class: docs/lessons/design-lab-baselines-green-does-not-mean-wirable.md records the same shape on the UI side (an artefact derived from the subject certifying the subject), which is why R30 exists; this contract records the framework-research side of it."
+    ]
+  },
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/check-framework-boundary.mjs",
+    "invariant": "No framework or adopted dependency can sit in the registry without either a layer-by-layer comparison against its own reference implementation, or a dated, documented debt entry saying when that comparison will exist.",
+    "failure_mode": "Fail-closed and loud. A missing referenceConformance, an uncovered inventory package, a debt entry without doc/why/due, an expired due date, a debt id pointing at nothing, an entry registered as both settled and owed, a document path that does not exist, a document missing the section, a declared layer or a column, or a layer outside the canonical nine all exit non-zero naming the framework. Only version lag warns, deliberately: an advisory that blocked dependency upgrades would be disabled within a week, and its promotion criteria and review date are written into referenceConformanceAdvisory.promotion rather than left to memory.",
+    "exception_policy": "none",
+    "strategy": "Add the missing input rather than sharpen the existing review. Making the four-column table stricter cannot help, because its blind spot is structural: it is generated from our own capability list. The fix is to require a second artefact whose input we did not author - the framework's own working implementation - decomposed along nine framework-agnostic layers, with a three-valued verdict that forces the honest third answer (没想到) to be written down instead of silently absent, and with 有意不同 constrained to domain reasons so that preference cannot be laundered into justification. Existing gaps are registered as dated debt rather than exemptions, and there is no exemption path at all: a debt entry expires and reddens the gate, which is why the policy is none rather than documented-waiver (R28: a registration is a time-boxed commitment, not a defence).",
+    "artifacts": [
+      "scripts/framework-boundary-lib.mjs",
+      "scripts/check-framework-boundary.mjs",
+      "scripts/check-framework-boundary.node-test.mjs",
+      "docs/engineering/framework-boundaries.json",
+      "docs/research/TEMPLATE-reference-conformance.md",
+      "docs/engineering-rules.md",
+      "docs/engineering/agent-orchestration-playbook.md",
+      "docs/lessons/reference-implementation-not-dissected-is-not-research.md",
+      "scripts/claude-hooks/self-check.sh",
+      "CLAUDE.md",
+      "AGENTS.md"
+    ]
+  },
+  "invariant_owner_layer": {
+    "layer": "scripts/framework-boundary-lib.mjs",
+    "tests": [
+      "scripts/check-framework-boundary.node-test.mjs"
+    ]
+  },
+  "regression_tests": [
+    "scripts/check-framework-boundary.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/check-framework-boundary.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "Nothing is superseded. The four-column table keeps its job (which known capabilities did we duplicate); the reference conformance table answers the question the four-column table structurally cannot (which layers did we never consider). Replacing one with the other would trade one blind spot for another, so both are required and the rule text states the division explicitly."
+  },
+  "dependency_lifecycle": {
+    "decision": "retain-with-exit",
+    "rationale": "All four adopted frameworks stay. What is retained with a written exit is the absence of a reference comparison for each of them: producing four comparisons inside this change would be four separate research tasks, so each is held as dated debt with an agreed document path instead of being waved through.",
+    "current": "pi 0.85.1, @xyflow/react 12.11.5, ai 4.3.19 and @mantine/core 7.17.8 adopted, none of them compared layer by layer against its own reference implementation",
+    "target": "Each of the four carries referenceConformance { doc, verifiedAt, upstreamVersion } pointing at a comparison whose 没想到 list is empty, and referenceConformanceDebt is an empty array",
+    "exit_criteria": [
+      "docs/research/2026-09-07-pi-reference-implementation-conformance.md lands by 2026-09-14 and pi moves from debt to a settled referenceConformance",
+      "@xyflow/react and ai land their comparisons by 2026-10-07 and @mantine/core by 2026-10-31",
+      "Any framework that cannot make its date is re-registered with a fresh due date and a written reason, never silently extended; a cleared debt must be deleted from referenceConformanceDebt, which the unknown-id check forces"
+    ]
+  },
+  "migration": "No runtime migration; nothing in src/ or electron/ changes. The registry gains referenceConformanceAdvisory and referenceConformanceDebt with four entries, the gate gains one judgement pass, R29 gains a '第二份必交物' section plus the upstream-alignment rule, docs/research/TEMPLATE-reference-conformance.md is the artefact template, the self-check hook's gate 1 asks for both deliverables, and the orchestration playbook gains a brief slot (15.1) and an adversary checklist item (15.2, referenced from 16). Existing branches see the gate green unless they add a framework or a dependency to capabilityInventory.packages without registering it.",
+  "residual_risks": [
+    "The document check is structural, not semantic: a table with all nine layers and all four columns filled with 一致 passes the gate while proving nothing. This is deliberate - a gate cannot judge whether research was honest - which is why the rule text names the two failure shapes (all 一致 means we copied it, all 有意不同 means we never looked) and why the adversary-agent checklist keeps the two acceptance probes with a human. The gate guarantees the artefact exists and is shaped right; a person still has to open one cell.",
+    "The 没想到 list being empty is not machine-checked, because 'this layer has been addressed' is a judgement about code that does not yet exist. It is enforced as a dispatch-time hard constraint in the playbook instead, which is weaker than a gate and is recorded here as such (R28: a reminder is not a defence).",
+    "Version lag is compared only against numeric version segments, and only against the version installed in node_modules. A framework that reworks its reference application without publishing a version bump, or a lockfile that has not been refreshed, produces no warning at all.",
+    "Registering the three inventory packages as debt means the gate is green today while nothing has actually been compared. The dates are the only thing making that temporary, and they redden the contracts chain on 2026-10-07 if nothing lands."
+  ]
+}
