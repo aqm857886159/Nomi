@@ -20,6 +20,7 @@ import { authorizeOutboundDestination } from '../../../../electron/networkOutbou
 import { classifyGenerationError } from '../../observability/classifyError'
 import { recoverNodeResult } from './recoverTaskActions'
 import { fetchWorkbenchTaskResultByVendor, mintSpendGrant } from '../../api/taskApi'
+import { VendorRequestError, encodeVendorErrorMessage } from '../../../../electron/vendor/vendorHttp'
 import { RecoverableTimeoutError } from './recoverableTimeout'
 
 vi.mock('../../api/taskApi', () => ({
@@ -262,5 +263,30 @@ describe('提交侧被拦 = 没扣费（与取回侧刻意分家）', () => {
     const retrieval = classifyGenerationError((await outboundBlockedError()).message)
     expect(retrieval.kind).toBe('outbound-blocked')
     expect(retrieval.hint).not.toBe(report.hint)
+  })
+
+  // 上一条喂的是**裸**拒绝串，而生产里到达渲染层的从来不是它：vendorHttp 先包一层
+  // `Provider request refused by outbound policy at …`，taskIpcGuard 再前缀
+  // `NOMI_VENDOR_ERR_B64::<base64>::`，Electron 的 invoke 还会外套一层 remote method 壳。
+  // 机器码活不活得过这三层包装，是整条链唯一真正脆的地方——所以按生产形状再断一次。
+  it('穿过 vendorHttp 包装 + IPC base64 标记后，码仍然被认出来', async () => {
+    const refusal = (await submitBlockedError()).message
+    const wrapped = encodeVendorErrorMessage(
+      new VendorRequestError(`Provider request refused by outbound policy at apimart POST https://api.apimart.ai/v1/tasks: ${refusal}`, {
+        vendorKey: 'apimart',
+        method: 'POST',
+        url: 'https://api.apimart.ai/v1/tasks',
+        upstreamMsg: refusal,
+        category: 'network',
+        retryable: false,
+      }),
+    )
+    const report = classifyGenerationError(`Error invoking remote method 'nomi:tasks:run': Error: ${wrapped}`)
+    expect(report.kind).toBe('outbound-blocked-submit')
+    // structured.category 是 network（传输层这么记账没错），但它**不能**赢过机器码——
+    // 赢了用户就会拿到「稍等重试」，而重试是确定性再撞同一堵墙。
+    expect(report.primary).toBe('open-model-access')
+    // 也不许把我们自己的拒绝塞进「服务商说：」那个框——那家根本没被请求到。
+    expect(report.providerMessage || '').toBe('')
   })
 })
