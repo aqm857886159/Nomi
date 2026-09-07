@@ -82,8 +82,8 @@ import { getInstalledProductionProjectAgentHost, installProductionProjectAgentHo
 import { createProjectAgentRepositoryRouter } from "./projectAgentHost/projectAgentRepositoryRouter";
 import { registerProjectAgentIpc } from "./projectAgentHost/projectAgentIpc";
 import { migrateProjectAgentLegacy } from "./projectAgentHost/projectAgentMigration";
-import { createProjectAgentProposalReceiptService } from "./projectAgentHost/projectAgentProposalReceiptStore";
-import { createDesktopProposalReceiptResolver } from "./projectAgentHost/projectAgentReceiptResolver";
+import { createProjectAgentProposalReceiptService } from "./capabilityCore/projectAgentProposalReceiptStore";
+import { createDesktopProposalReceiptResolver } from "./capabilityCore/projectAgentReceiptResolver";
 import { resolveProjectAgentAttachmentClaims } from "./assets/projectAssetStore";
 import { ensureWorkspaceProjectIdentity } from "./workspace/workspaceProjectIdentity";
 import { resolveWorkspaceProjectDir } from "./workspace/workspaceRepository";

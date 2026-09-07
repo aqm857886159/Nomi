@@ -4,7 +4,7 @@ import type {
   ProjectAgentCommittedProposalRecord,
   ProjectAgentProposalReceiptView,
 } from '../shared/projectAgentProposalReceipt'
-import type { ProjectAgentProposalReceiptWriter } from './projectAgentExecutionCoordinatorTypes'
+import type { ProjectAgentProposalReceiptWriter } from '../projectAgentHost/projectAgentExecutionCoordinatorTypes'
 
 type ProjectAgentDocumentReceiptCall = Readonly<{ toolName: string; args: unknown }>
 type PreparedDocumentReceipt = Readonly<{

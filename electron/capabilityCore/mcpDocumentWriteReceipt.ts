@@ -1,7 +1,7 @@
 import crypto from 'node:crypto'
 
 import type { ProjectAgentCommittedProposalRecord } from '../shared/projectAgentProposalReceipt'
-import type { ProjectAgentProposalReceiptService } from '../projectAgentHost/projectAgentProposalReceiptStore'
+import type { ProjectAgentProposalReceiptService } from './projectAgentProposalReceiptStore'
 
 function proposalFor(input: Readonly<{
   proposalId: string

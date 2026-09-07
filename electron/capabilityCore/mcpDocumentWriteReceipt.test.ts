@@ -3,10 +3,10 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { ProjectAgentProposalReceiptService } from "../projectAgentHost/projectAgentProposalReceiptStore";
+import type { ProjectAgentProposalReceiptService } from "./projectAgentProposalReceiptStore";
 import {
   createProjectAgentProposalReceiptService,
-} from "../projectAgentHost/projectAgentProposalReceiptStore";
+} from "./projectAgentProposalReceiptStore";
 import { executeMcpDocumentWriteWithReceipt } from "./mcpDocumentWriteReceipt";
 
 const binding = {

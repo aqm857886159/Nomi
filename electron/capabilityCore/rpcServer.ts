@@ -43,7 +43,7 @@ import { createVerifiedProjectSessionBindingFromAuthority } from './projectSessi
 import { canvasReadLeaseRequiredRpcError, canvasReadRpcError } from './canvasReadPublicError'
 import { isMcpEditingMethod } from './mcpCapabilityProjection'
 import type { ProjectBinding } from '../shared/projectBinding'
-import type { ProjectAgentProposalReceiptService } from '../projectAgentHost/projectAgentProposalReceiptStore'
+import type { ProjectAgentProposalReceiptService } from './projectAgentProposalReceiptStore'
 import { executeMcpDocumentWriteWithReceipt } from './mcpDocumentWriteReceipt'
 import { getDesktopLocale } from '../desktopLocale'
 

@@ -26,7 +26,7 @@ import type { PiGenerationTransportAdapter } from "../capabilityCore/generationT
 import type {
   ProjectAgentProposalReceiptView,
 } from "../shared/projectAgentProposalReceipt";
-import type { ProjectAgentProposalReceiptService } from "./projectAgentProposalReceiptStore";
+import type { ProjectAgentProposalReceiptService } from "../capabilityCore/projectAgentProposalReceiptStore";
 
 export type ProjectAgentSubscription = Readonly<{
   subscriptionId: string;

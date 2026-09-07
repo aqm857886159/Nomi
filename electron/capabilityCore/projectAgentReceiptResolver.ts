@@ -2,7 +2,7 @@ import type { WorkspaceRepositoryDeps } from "../workspace/workspaceRepository";
 import type { ProjectBinding } from "../shared/projectBinding";
 import { getWorkspaceRepositoryDeps } from "../runtimePaths";
 import { resolveWorkspaceProjectDir } from "../workspace/workspaceRepository";
-import { assertProjectAgentBinding } from "./projectAgentIdentity";
+import { assertProjectAgentBinding } from "../projectAgentHost/projectAgentIdentity";
 import {
   createProjectAgentProposalReceiptService,
   type ProjectAgentProposalReceiptService,

@@ -14,7 +14,7 @@ import {
   type ProjectAgentProposalReceiptView,
   type ProjectAgentProposalReceiptWrite,
 } from "../shared/projectAgentProposalReceipt";
-import { assertProjectAgentBinding, sameProjectAgentBinding } from "./projectAgentIdentity";
+import { assertProjectAgentBinding, sameProjectAgentBinding } from "../projectAgentHost/projectAgentIdentity";
 
 type ReceiptOperation = Readonly<{
   operationId: string;

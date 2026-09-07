@@ -30,7 +30,7 @@ import { ASSET_READ_CAPABILITY } from "../shared/agentCapabilities/assetRead";
 import { EXPORT_READ_CAPABILITY, EXPORT_WRITE_CAPABILITY } from "../shared/agentCapabilities/exportCapabilities";
 import { SKILL_WRITE_CAPABILITY } from "../shared/agentCapabilities/skillWrite";
 import { SKILL_READ_CAPABILITY } from "../shared/agentCapabilities/skillRead";
-import { committedProjectAgentReceiptMatchesApproval } from "./projectAgentProposalReceiptCorrelation";
+import { committedProjectAgentReceiptMatchesApproval } from "../capabilityCore/projectAgentProposalReceiptCorrelation";
 import { digest, steeredExecutionPrompt, exportJobTaskItems, productionRunTaskItems, statusForResponse, terminalFailureItemFor, toolItem, hostPromptLedgerForTurn } from "./projectAgentExecutionHelpers";
 import { isPiGenerationToolName } from "../capabilityCore/generationTransportAdapters";
 import {
@@ -38,7 +38,7 @@ import {
   commitDocumentProposalReceipt,
   documentProposalReceiptFor,
   prepareDocumentProposalReceipt,
-} from "./projectAgentDocumentReceipt";
+} from "../capabilityCore/projectAgentDocumentReceipt";
 import { notifyProjectAgentCompletion } from "../experience/projectAgentExperience";
 type ToolCall = { toolCallId: string; toolName: string; args: unknown };
 type PreparedInvocation = { target: ProjectAgentQueueItem["target"]; preconditions: ProjectAgentQueueItem["preconditions"]; policyRevision: number; inputHash: string; actionHash: string };

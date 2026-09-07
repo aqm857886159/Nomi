@@ -1,0 +1,62 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-07-agent-stage4-pre2-receipt-move",
+  "change_kind": "structural",
+  "scope_paths": [
+    "electron/capabilityCore/projectAgentProposalReceiptStore.ts",
+    "electron/capabilityCore/projectAgentProposalReceiptCorrelation.ts",
+    "electron/capabilityCore/projectAgentReceiptResolver.ts",
+    "electron/capabilityCore/projectAgentDocumentReceipt.ts",
+    "electron/capabilityCore/mcpStdioServer.ts",
+    "electron/capabilityCore/mcpDocumentWriteReceipt.ts",
+    "electron/capabilityCore/rpcServer.ts",
+    "electron/main.ts",
+    "electron/projectAgentHost/projectAgentIpc.ts",
+    "electron/projectAgentHost/projectAgentTurnExecution.ts",
+    "electron/projectAgentHost/projectAgentExecutionRecovery.ts",
+    "electron/projectAgentHost/projectAgentExecutionCoordinatorTypes.ts",
+    "electron/projectAgentHost/projectAgentMigration.ts"
+  ],
+  "regression_tests": [
+    "electron/capabilityCore/projectAgentProposalReceiptFormat.test.ts",
+    "electron/capabilityCore/projectAgentProposalReceiptStore.test.ts",
+    "electron/capabilityCore/projectAgentDocumentReceipt.test.ts",
+    "electron/capabilityCore/projectAgentReceiptResolver.test.ts",
+    "electron/capabilityCore/mcpStdioDocumentReceipt.test.ts",
+    "electron/capabilityCore/mcpDocumentWriteReceipt.test.ts",
+    "electron/capabilityCore/rpcServer.test.ts",
+    "electron/projectAgentHost/projectAgentIpc.test.ts",
+    "electron/projectAgentHost/projectAgentMigration.test.ts"
+  ],
+  "structural_evidence": {
+    "affected_paths": [
+      "electron/capabilityCore/projectAgentProposalReceiptStore.ts",
+      "electron/capabilityCore/projectAgentProposalReceiptCorrelation.ts",
+      "electron/capabilityCore/projectAgentReceiptResolver.ts",
+      "electron/capabilityCore/projectAgentDocumentReceipt.ts",
+      "electron/capabilityCore/mcpStdioServer.ts",
+      "electron/capabilityCore/rpcServer.ts",
+      "electron/main.ts",
+      "electron/projectAgentHost/projectAgentIpc.ts",
+      "electron/projectAgentHost/projectAgentTurnExecution.ts",
+      "electron/projectAgentHost/projectAgentExecutionRecovery.ts",
+      "electron/projectAgentHost/projectAgentMigration.ts"
+    ],
+    "preserved_exports": [
+      { "path": "electron/capabilityCore/projectAgentProposalReceiptStore.ts", "name": "createProjectAgentProposalReceiptService" },
+      { "path": "electron/capabilityCore/projectAgentProposalReceiptStore.ts", "name": "createProjectAgentProposalReceiptStore" },
+      { "path": "electron/capabilityCore/projectAgentProposalReceiptStore.ts", "name": "projectAgentProposalReceiptPath" },
+      { "path": "electron/capabilityCore/projectAgentProposalReceiptStore.ts", "name": "hashProjectAgentCommittedProposal" },
+      { "path": "electron/capabilityCore/projectAgentProposalReceiptStore.ts", "name": "ProjectAgentProposalReceiptError" },
+      { "path": "electron/capabilityCore/projectAgentProposalReceiptCorrelation.ts", "name": "projectAgentProposalMatchesApproval" },
+      { "path": "electron/capabilityCore/projectAgentProposalReceiptCorrelation.ts", "name": "committedProjectAgentReceiptMatchesApproval" },
+      { "path": "electron/capabilityCore/projectAgentReceiptResolver.ts", "name": "createDesktopProposalReceiptResolver" },
+      { "path": "electron/capabilityCore/projectAgentDocumentReceipt.ts", "name": "documentProposalReceiptFor" },
+      { "path": "electron/capabilityCore/projectAgentDocumentReceipt.ts", "name": "prepareDocumentProposalReceipt" },
+      { "path": "electron/capabilityCore/projectAgentDocumentReceipt.ts", "name": "commitDocumentProposalReceipt" },
+      { "path": "electron/capabilityCore/projectAgentDocumentReceipt.ts", "name": "abandonDocumentProposalReceipt" }
+    ],
+    "behavior_preservation": "纯搬家（git mv），不是纠正性改动：四个领域收据模块从 electron/projectAgentHost/ 移到 electron/capabilityCore/，文件内容除 import 路径外一字未改（整个 diff 26 增 / 26 删，全部是 import 行）。保持不变的可观察行为：① 落盘路径仍是 <project>/.nomi/project-agent-proposal-receipt.json；② 文件字节格式（schemaVersion 2、键顺序、两空格缩进、结尾换行、proposalHash / journalHash / requestHash 的域串与 sha256 算法）不变；③ 上面列出的具名导出全部保留、签名不变；④ MCP stdio、RPC、Host IPC 与 main.ts 的装配顺序与调用点不变，只有 import 说明符换了目录。搬家理由见 docs/plan/2026-09-07-agent-rebuild-stage3-5-deep-plan.md §2.2 G5：这四件是领域收据（撤销程序 + 崩溃后核对证据）且有活的非 Agent 调用者，阶段 4 删 projectAgentHost/ 时必须活下来。",
+    "verification_limits": "checker 只验证了：affected_paths 存在且在本次 diff 中变化、preserved_exports 的具名导出仍在新文件里、regression_tests 是真实且变化的测试文件。它证明不了「字节格式没漂」——那一条由新增的 electron/capabilityCore/projectAgentProposalReceiptFormat.test.ts 金样本测试承担：假时钟 + 固定输入产出的整份文件与内联金样本逐字节相等，同一个金样本在搬家前（commit 461d82c1e，文件还在 projectAgentHost/）与搬家后都绿。仍依赖测试与 typecheck 的部分：全量 vitest（171 文件 / 1442 用例）、pnpm run typecheck、check:test-types、check:boundaries（80 处基线零变化）、check:filesize（白名单零变化）。仍依赖人工判断的部分：electron/capabilityCore/ 下三个文件仍反向 import ../projectAgentHost/projectAgentIdentity（值）与 ../projectAgentHost/projectAgentExecutionCoordinatorTypes（纯类型）——projectAgentIdentity 与它依赖的 projectAgentStateError 分别有 12 / 9 个引用者、属 G9/G1 范围，本 PR 不动，留给前置 PR ③ 或阶段 4 原子 PR 一并搬；这两条残留在 PR 正文里明标。"
+  }
+}

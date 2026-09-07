@@ -59,7 +59,7 @@ import { getExperienceRepository, resetExperienceRepositoryForTests, setExperien
 import {
   createProjectAgentProposalReceiptService,
   projectAgentProposalReceiptPath,
-} from "./projectAgentProposalReceiptStore";
+} from "../capabilityCore/projectAgentProposalReceiptStore";
 
 // 主进程诊断输出已收口到 electron/logging/logger（打包后 console.* 没人接住，见
 // docs/fixes/2026-09-06-main-process-logs-into-the-void.root-cause.json）。

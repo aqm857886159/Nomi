@@ -292,6 +292,17 @@ export default defineConfig(async ({ command, mode }: ConfigEnv): Promise<UserCo
         '@tiptap/pm/state',
         '@tiptap/pm/model',
         '@xmldom/xmldom',
+        // 设计实验室的 lane 夹具（`laneDrivenFixtures.ts`）把主进程的 `laneProjection.mjs` 拉进了
+        // 浏览器，而它 `import { getSupportedThinkingLevels } from '@earendil-works/pi-ai'` 是
+        // **运行时**导入；pi-ai 内部 `import { parse } from 'partial-json'`，而 partial-json@0.1.7
+        // 是 CJS。`noDiscovery: true` 下它不进预打包，浏览器拿到的是 `.pnpm` 里的原始 CJS，
+        // 报「does not provide an export named 'parse'」，整张实验室页面挂掉（`__designLabReady`
+        // 永远不翻，视觉门岗只看得见「预热超时」）。用与 @react-three/fiber 同款的嵌套写法，
+        // 让这条 CJS 依赖也进同一次 esbuild 预打包。
+        '@earendil-works/pi-ai',
+        '@earendil-works/pi-ai > partial-json',
+        '@earendil-works/pi-agent-core',
+        '@earendil-works/pi-agent-core > @earendil-works/pi-ai',
         'clsx',
         'framer-motion',
         'i18next',

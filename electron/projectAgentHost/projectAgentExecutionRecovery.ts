@@ -9,7 +9,7 @@ import {
   type ExecutionPartition,
   type ProjectAgentProposalReceiptReader,
 } from "./projectAgentExecutionCoordinatorTypes";
-import { committedProjectAgentReceiptMatchesApproval } from "./projectAgentProposalReceiptCorrelation";
+import { committedProjectAgentReceiptMatchesApproval } from "../capabilityCore/projectAgentProposalReceiptCorrelation";
 import { digest } from "./projectAgentExecutionHelpers";
 import { desktopT } from "../i18n";
 

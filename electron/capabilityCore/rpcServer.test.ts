@@ -12,8 +12,8 @@ import { getWorkspaceRepositoryDeps } from "../runtimePaths";
 import { readWorkspaceProject, resolveWorkspaceProjectDir } from "../workspace/workspaceRepository";
 import { ensureWorkspaceProjectIdentity } from "../workspace/workspaceProjectIdentity";
 import { createMainCapabilityExecutorRegistry } from "./capabilityExecutorRegistry";
-import { createProjectAgentProposalReceiptService } from "../projectAgentHost/projectAgentProposalReceiptStore";
-import { projectAgentProposalReceiptPath } from "../projectAgentHost/projectAgentProposalReceiptStore";
+import { createProjectAgentProposalReceiptService } from "./projectAgentProposalReceiptStore";
+import { projectAgentProposalReceiptPath } from "./projectAgentProposalReceiptStore";
 
 function canvasReadRuntime(nodeId: string) {
   return Object.freeze({

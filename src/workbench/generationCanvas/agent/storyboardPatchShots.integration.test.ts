@@ -11,7 +11,7 @@ import type { CanvasWriteInput } from '../../../../electron/shared/agentCapabili
 import {
   createProjectAgentProposalReceiptService,
   type ProjectAgentProposalReceiptService,
-} from '../../../../electron/projectAgentHost/projectAgentProposalReceiptStore'
+} from '../../../../electron/capabilityCore/projectAgentProposalReceiptStore'
 import { applyProposalBatch } from './proposalTxn'
 import type { ProposalReceiptCoordinator } from './proposalUndo'
 import { abandonPendingCanvasWrite } from '../events/canvasWriteBoundary'

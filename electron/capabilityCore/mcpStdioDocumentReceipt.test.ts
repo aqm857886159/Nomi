@@ -26,7 +26,7 @@ vi.mock('./canvasReadTransportAdapters', () => ({
   }),
 }))
 
-import { createProjectAgentProposalReceiptService, projectAgentProposalReceiptPath } from '../projectAgentHost/projectAgentProposalReceiptStore'
+import { createProjectAgentProposalReceiptService, projectAgentProposalReceiptPath } from './projectAgentProposalReceiptStore'
 import type { WorkspaceProjectIdentity } from '../workspace/workspaceProjectIdentity'
 import { createDefaultMcpProposalReceiptResolver, createMcpStdioDirectInvoker } from './mcpStdioServer'
 

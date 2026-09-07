@@ -19,7 +19,7 @@ import {
 } from "../shared/projectAgentProposalReceipt";
 import { assertProjectAgentBinding, sameProjectAgentBinding } from "./projectAgentIdentity";
 import type { ProjectAgentProductionRuntime } from "./projectAgentProductionRuntime";
-import type { ProjectAgentProposalReceiptService } from "./projectAgentProposalReceiptStore";
+import type { ProjectAgentProposalReceiptService } from "../capabilityCore/projectAgentProposalReceiptStore";
 import type { CanvasReadSurfaceIpcCapture } from "../capabilityCore/canvasReadSurfaceIpc";
 import type { PiCanvasReadTransportAdapter } from "../capabilityCore/canvasReadTransportAdapters";
 import type { PiDocumentReadTransportAdapter } from "../capabilityCore/documentReadTransportAdapters";
@@ -34,7 +34,7 @@ import type { PiSkillWriteTransportAdapter } from "../capabilityCore/skillWriteT
 import type { PiSkillReadTransportAdapter } from "../capabilityCore/skillReadTransportAdapters";
 import type { CapturedCanvasReadSnapshotHandleWire } from "../shared/surfacePortBinding";
 import { ProjectAgentSubscriptionError } from "./projectAgentExecutionCoordinator";
-import { projectAgentProposalMatchesApproval } from "./projectAgentProposalReceiptCorrelation";
+import { projectAgentProposalMatchesApproval } from "../capabilityCore/projectAgentProposalReceiptCorrelation";
 
 export const PROJECT_AGENT_OPEN_CHANNEL = "nomi:projectAgent:open";
 export const PROJECT_AGENT_SNAPSHOT_CHANNEL = "nomi:projectAgent:snapshot";

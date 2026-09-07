@@ -29,7 +29,7 @@ import {
   PROJECT_AGENT_RELEASE_CHANNEL,
   registerProjectAgentIpc,
 } from "./projectAgentIpc";
-import { createProjectAgentProposalReceiptService } from "./projectAgentProposalReceiptStore";
+import { createProjectAgentProposalReceiptService } from "../capabilityCore/projectAgentProposalReceiptStore";
 import type { ProjectBinding } from "../shared/projectAgentContracts";
 
 const binding = {

@@ -61,7 +61,7 @@ import { startSemanticMultiShotBatch } from './mcpSemanticBatchStart'
 import { hasGenerationOperationProviderReadiness } from './generationOperationProviderReadiness'
 import { recordDetectedMcpClient } from './mcpDetectedClients'
 import { createDefaultAuthorities } from './appIntegrationAuthorities'
-import { createProjectAgentProposalReceiptService } from '../projectAgentHost/projectAgentProposalReceiptStore'
+import { createProjectAgentProposalReceiptService } from './projectAgentProposalReceiptStore'
 import { executeMcpDocumentWriteWithReceipt } from './mcpDocumentWriteReceipt'
 import { logWarn } from '../logging/logger'
 

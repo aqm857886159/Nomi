@@ -15,7 +15,7 @@ import {
   withProjectAgentCutoverLock,
   writeProjectAgentCutoverManifest,
 } from "./projectAgentCutoverManifest";
-import { projectAgentProposalReceiptPath } from "./projectAgentProposalReceiptStore";
+import { projectAgentProposalReceiptPath } from "../capabilityCore/projectAgentProposalReceiptStore";
 import type { ProjectAgentRepositoryRouter } from "./projectAgentRepositoryRouter";
 import { createInitialProjectAgentState } from "./projectAgentState";
 

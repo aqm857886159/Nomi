@@ -4,7 +4,7 @@ import type {
   ProjectAgentProposalReceiptView,
 } from "../shared/projectAgentProposalReceipt";
 import type { ProjectBinding } from "../shared/projectBinding";
-import { sameProjectAgentBinding } from "./projectAgentIdentity";
+import { sameProjectAgentBinding } from "../projectAgentHost/projectAgentIdentity";
 
 export function projectAgentProposalMatchesApproval(
   proposalId: string,

@@ -13,7 +13,7 @@ import { migrateProjectAgentLegacy } from "./projectAgentMigration";
 import {
   createProjectAgentProposalReceiptService,
   projectAgentProposalReceiptPath,
-} from "./projectAgentProposalReceiptStore";
+} from "../capabilityCore/projectAgentProposalReceiptStore";
 import { createProjectAgentRepositoryRouter } from "./projectAgentRepositoryRouter";
 
 const binding = {

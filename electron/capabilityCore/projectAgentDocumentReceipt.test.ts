@@ -7,7 +7,7 @@ import type {
   ProjectAgentProposalReceiptView,
   ProjectAgentProposalReceiptWrite,
 } from "../shared/projectAgentProposalReceipt";
-import type { ProjectAgentProposalReceiptWriter } from "./projectAgentExecutionCoordinatorTypes";
+import type { ProjectAgentProposalReceiptWriter } from "../projectAgentHost/projectAgentExecutionCoordinatorTypes";
 import {
   abandonDocumentProposalReceipt,
   commitDocumentProposalReceipt,
