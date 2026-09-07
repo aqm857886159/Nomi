@@ -18,6 +18,8 @@ const labels: LaneViewModelLabels = {
   thinkingLabel: '[thinking]',
   formatTokens: (value) => `${value}t`,
   formatCost: (usd) => `$${usd.toFixed(4)}`,
+  unknown: '[unknown]',
+  free: '[free]',
 }
 
 describe('laneViewModel against a projection a real pi lane produced', () => {
@@ -48,8 +50,15 @@ describe('laneViewModel against a projection a real pi lane produced', () => {
     const model = laneViewModel(fixture as unknown as LaneProjection, labels)
     expect(model.usage.input).toBe('30t')
     expect(model.usage.output).toBe('12t')
-    // 这个夹具的模型没有价目，所以花费那一行**不渲染**——不是印一个 ¥0.00。
-    expect(model.usage.cost).toBeUndefined()
+    // 这个夹具的模型没有价目（真 pi 跑出来的那一份就是 `unknown / model-has-no-pricing`），
+    // 所以花费那一行印占位符——**不是** ¥0.00。这条断言的价值在于夹具是上游产的：
+    // 哪天投影又开始把那个 0 当金额发下来，这里会立刻变成 '$0.0000'。
+    expect(model.usage.cost).toBe('[unknown]')
+    expect(model.usage.cost).not.toBe('$0.0000')
+    // 这个模型不会思考 → 推理那一行整行不画。
+    expect(model.usage.reasoning).toBeUndefined()
+    // 分母没量过就不画环；分子来自那一轮真实的 prompt（10），不是累计的 42。
     expect(model.usage.max).toBeUndefined()
+    expect(model.usage.used).toBe(10)
   })
 })

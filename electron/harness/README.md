@@ -19,8 +19,8 @@ electron/harness/
 │   ├── contextStore.ts     原子落盘、版本检查、旧档原件备份
 │   └── legacyBubbles.ts    旧聊天气泡的有限导入，不伪造历史工具执行
 ├── tools/
-│   ├── documentDescriptors.ts  文稿工具的唯一说明与 Zod 参数定义
-│   └── canvasDescriptors.ts    画布工具的唯一说明与领域规范化
+│   ├── modelToolSurfaceManifest.ts  画布/文稿/生成/剪辑的模型可见工具清单（唯一 owner）
+│   └── agentToolCatalog.ts     把上面那份清单投影成 pi 工具表
 └── runtime/
     ├── runtimePort.ts       Nomi 自有端口，不向外暴露 SDK 类型
     └── pi/                  唯一 pi SDK 适配目录
@@ -44,7 +44,7 @@ electron/harness/
 ```text
 现有界面/制作入口
   → 共用客户端（先订阅，固定请求 ID 和任务归属）
-  → electron/ai/agentChatV2Ipc.ts（窗口/frame 归属、确认、取消）
+  → electron/projectAgentHost/projectAgentIpc.ts（窗口/frame 归属、审批、取消）
   → electron/ai/agentChatV2.ts（模型、Skill、作品上下文的薄接线）
   → contextService（恢复该 thread 或创建临时上下文）
   → runtimePort → pi AgentSession（模型/工具循环与压缩）

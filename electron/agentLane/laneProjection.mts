@@ -8,8 +8,11 @@
 // 对照今天：`agentPanelV4Projection.sortedItems()` 拿 `createdAt` 加数组下标排一遍，
 // 是因为宿主那边的记录本来就没有可信顺序。那个 `sort` 在阶段 4 会被整个删掉。
 import type { LaneSnapshot } from '@earendil-works/pi-agent-core';
-import type { AssistantMessage } from '@earendil-works/pi-ai';
-import type { LanePart, LaneProjection } from '../shared/agentLane/laneContracts.js';
+import { getSupportedThinkingLevels } from '@earendil-works/pi-ai';
+import type { Api, AssistantMessage, Model, Usage } from '@earendil-works/pi-ai';
+import type { NomiPricingBasis } from '../harness/runtime/pi/model.mjs';
+import type { LaneMetric, LanePart, LaneProjection, LaneThinking, LaneThinkingLevel }
+  from '../shared/agentLane/laneContracts.js';
 
 function textOf(content: unknown): string {
   if (typeof content === 'string') return content;
@@ -50,7 +53,90 @@ function pushAssistantParts(
  * `residentToolProjection` 把工具正文写进 localStorage 的那条路（清浏览器存储 =
  * 历史收据静默清空）。
  */
-export function projectLaneSnapshot(snapshot: LaneSnapshot): LaneProjection {
+export interface LaneModelFacts {
+  /** pi 的模型定义（`createNomiProvider` 造的那一份）。推理档从它 derive，不另列表。 */
+  readonly model: Model<Api>;
+  /** 目录声明的计费三态。**不从 `model.cost` 反推**——那份全零同时长得像三件事。 */
+  readonly pricing: NomiPricingBasis;
+  /**
+   * 上下文窗口。只收**显式声明**的那个：`createNomiProvider` 为了满足 pi 的类型给了 128k 兜底，
+   * 拿它当分母会画出一个我们没量过的百分比（2026-09-06 打包版实测：真实目录里的对话模型
+   * 一个都没写 contextWindow）。
+   */
+  readonly contextWindow?: number;
+}
+
+const KNOWN = (value: number): LaneMetric => ({ state: 'known', value });
+
+/**
+ * 上下文占用 + 推理 token，从**转录本身**取。
+ *
+ * 为什么不能用 `snapshot.stats.usage`：那是**会话累计**（`SessionStats.usage`），累加会随聊天
+ * 次数一路涨到超过窗口；而且它在并的时候把 `reasoning` 丢掉了（pi `core/usage-totals.js`）。
+ * 每条助手消息自己带着那次请求的 `usage`（`pi-ai` `AssistantMessage.usage`），走一遍转录就都有了。
+ *
+ * 「刚压缩完」的判据是**位置**不是内容：压缩条目出现在最后一条结算助手消息之后，就说明那条消息
+ * 的 prompt 描述的是压缩前的上下文——数字还在，但它已经不回答「现在装了多少」这个问题了。
+ */
+function walkUsage(snapshot: LaneSnapshot): {
+  lastPrompt?: number; compactedAfterLastTurn: boolean; reasoning?: number; sawSettledTurn: boolean;
+} {
+  let lastPrompt: number | undefined;
+  let compactedAfterLastTurn = false;
+  let reasoning: number | undefined;
+  let sawSettledTurn = false;
+  for (const entry of snapshot.transcript) {
+    if (entry.type === 'compaction') { compactedAfterLastTurn = true; continue; }
+    if (entry.type !== 'message' || entry.message.role !== 'assistant') continue;
+    const usage: Usage = entry.message.usage;
+    sawSettledTurn = true;
+    compactedAfterLastTurn = false;
+    // pi 自己对「输入」的定义就是这三列之和（`calculateCost` 第一行），照抄，不另立一份。
+    lastPrompt = usage.input + usage.cacheRead + usage.cacheWrite;
+    if (typeof usage.reasoning === 'number' && Number.isFinite(usage.reasoning)) {
+      reasoning = (reasoning ?? 0) + usage.reasoning;
+    }
+  }
+  return { ...(lastPrompt === undefined ? {} : { lastPrompt }), compactedAfterLastTurn,
+    ...(reasoning === undefined ? {} : { reasoning }), sawSettledTurn };
+}
+
+function costMetric(snapshot: LaneSnapshot, pricing: NomiPricingBasis, sawSettledTurn: boolean): LaneMetric {
+  if (pricing === 'free') return { state: 'not-applicable', reason: 'model-is-free' };
+  if (pricing === 'unpriced') return { state: 'unknown', reason: 'model-has-no-pricing' };
+  // 有价目、但一条回合都还没结算：那个 0 是「还没开始」，不是「花了 0 块」。
+  if (!sawSettledTurn) return { state: 'unknown', reason: 'no-settled-turn' };
+  const total = snapshot.stats.usage.cost?.total;
+  return typeof total === 'number' && Number.isFinite(total)
+    ? KNOWN(total) : { state: 'unknown', reason: 'no-settled-turn' };
+}
+
+function reasoningMetric(model: Model<Api>, walk: ReturnType<typeof walkUsage>): LaneMetric {
+  // 「这个模型有没有推理这回事」由 pi 判，我们不看名字也不看档位表。
+  const levels = getSupportedThinkingLevels(model);
+  if (levels.length <= 1) return { state: 'not-applicable', reason: 'model-has-no-reasoning' };
+  if (!walk.sawSettledTurn) return { state: 'unknown', reason: 'no-settled-turn' };
+  // 会思考，但供应商这一轮一个 reasoning 字段都没报——那是「没告诉我们」，不是「思考了 0 个 token」。
+  return walk.reasoning === undefined
+    ? { state: 'unknown', reason: 'provider-omits-reasoning' } : KNOWN(walk.reasoning);
+}
+
+function contextMetric(walk: ReturnType<typeof walkUsage>): LaneMetric {
+  if (!walk.sawSettledTurn) return { state: 'unknown', reason: 'no-settled-turn' };
+  if (walk.compactedAfterLastTurn) return { state: 'unknown', reason: 'just-compacted' };
+  return walk.lastPrompt === undefined ? { state: 'unknown', reason: 'no-settled-turn' } : KNOWN(walk.lastPrompt);
+}
+
+function projectThinking(snapshot: LaneSnapshot, model: Model<Api>): LaneThinking {
+  const supportedLevels = getSupportedThinkingLevels(model) as readonly LaneThinkingLevel[];
+  return {
+    supportedLevels,
+    level: snapshot.configuration.thinkingLevel as LaneThinkingLevel,
+    canTurnOff: supportedLevels.includes('off'),
+  };
+}
+
+export function projectLaneSnapshot(snapshot: LaneSnapshot, facts: LaneModelFacts): LaneProjection {
   const parts: LanePart[] = [];
   const running = snapshot.operation?.runningTools ?? [];
   const runningToolCallIds = new Set(running.filter((tool) => tool.status === 'running').map((tool) => tool.toolCallId));
@@ -85,7 +171,7 @@ export function projectLaneSnapshot(snapshot: LaneSnapshot): LaneProjection {
     pushAssistantParts(streaming, nextSeq, true, runningToolCallIds, parts);
   }
   const usage = snapshot.stats.usage;
-  const cost = usage.cost?.total;
+  const walk = walkUsage(snapshot);
   return {
     lane: snapshot.lane,
     parts,
@@ -97,9 +183,11 @@ export function projectLaneSnapshot(snapshot: LaneSnapshot): LaneProjection {
       cacheReadTokens: usage.cacheRead,
       cacheWriteTokens: usage.cacheWrite,
       totalTokens: usage.totalTokens,
-      // 0 不是「免费」，是「运行时对这个模型没有价目」。把它当数字印出去就是一个
-      // 我们没资格下的断言（同 `run.mts:20-30` 的判断，一字不差地保持一致）。
-      ...(typeof cost === 'number' && Number.isFinite(cost) && cost > 0 ? { costUsd: cost } : {}),
+      cost: costMetric(snapshot, facts.pricing, walk.sawSettledTurn),
+      contextTokens: contextMetric(walk),
+      reasoningTokens: reasoningMetric(facts.model, walk),
+      ...(facts.contextWindow === undefined ? {} : { contextWindow: facts.contextWindow }),
     },
+    thinking: projectThinking(snapshot, facts.model),
   };
 }

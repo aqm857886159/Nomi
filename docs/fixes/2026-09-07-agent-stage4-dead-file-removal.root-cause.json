@@ -1,0 +1,36 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-07-agent-stage4-dead-file-removal",
+  "change_kind": "structural",
+  "scope_paths": [
+    "electron/ai/agentChatV2Ipc.ts",
+    "electron/ai/textStreamIpc.ts",
+    "electron/skills/skillStore.ts",
+    "electron/harness/tools/canvasDescriptors.ts",
+    "electron/harness/tools/documentDescriptors.ts",
+    "electron/harness/runtime/pi/nomiSkillResources.mts",
+    "electron/harness/agentChatPolicy.ts",
+    "electron/harness/skillIndex.test.ts",
+    "electron/skills/skillStore.test.ts",
+    "electron/harness/agentChatPolicy.test.ts",
+    "electron/capabilityCore/canvasReadCapturedSnapshotFlow.test.ts"
+  ],
+  "regression_tests": [
+    "electron/harness/skillIndex.test.ts",
+    "electron/skills/skillStore.test.ts",
+    "electron/harness/agentChatPolicy.test.ts",
+    "electron/capabilityCore/canvasReadCapturedSnapshotFlow.test.ts"
+  ],
+  "structural_evidence": {
+    "affected_paths": [
+      "electron/ai/textStreamIpc.ts",
+      "electron/skills/skillStore.ts"
+    ],
+    "preserved_exports": [
+      { "path": "electron/ai/textStreamIpc.ts", "name": "registerTextStreamIpc" },
+      { "path": "electron/skills/skillStore.ts", "name": "discoverSkillRecordsFromRoots" }
+    ],
+    "behavior_preservation": "纯删除 + 测试改家，零行为变化。四个被删的文件在生产代码里引用者为空，已逐个 git grep 实核：canvasDescriptors.ts 与 documentDescriptors.ts 自阶段 2 起只是 re-export 壳，唯一 importer 是它们自己的测试与另外两个把它们当源码文本读的测试；agentChatV2Ipc.ts 注册的 nomi:agents:chatV2:* 通道既不在 main.ts 注册（projectAgentCutoverStructure.test.ts:40 正是断言它不在），preload.ts 也不暴露（同测试 :41），renderer 侧 chatV2Start/confirmTool/cancelChatV2/onChatV2Event 零命中，所以那条传输用户走不到；nomiSkillResources.mts 的唯一 importer 是它自己的测试。这两个高风险文件本次只改注释：textStreamIpc.ts:1 与 skillStore.ts:181 的注释里指向被删文件的旧名，改成指向仍然存在的 owner，两个文件的可执行语句一行未动（git diff 可逐行核对）。agentChatPolicy.ts 删掉的是 :85-87 那条 `documentAll.find(name === 'author_skill')` 分支：documentAll 由 modelToolSurfaceManifest.document 派生，那份清单只有 nomi_document_read 与 nomi_document_edit，所以 find 恒为 undefined、concat 恒为空数组——删的是恒空表达式，creation-chat 的工具集逐字不变。",
+    "verification_limits": "checker 机器校验的是：change_kind 与 structural_evidence 必填项、affected_paths 两项真实存在且在本次 diff 中变化且被 scope_paths 覆盖、preserved_exports 两项的具名导出确实还在文件里（保守语法扫描，不是模块解析）、四个 regression_tests 真实存在且本次有改动。checker 证明不了的是「被删的四件真的没有生产引用者」——那一条靠的是 git grep 全仓（含 scripts/、tests/、baselines、preload）逐个列引用者，以及 tsc 三个 project 全绿（删掉的 export 若还有人 import，tsc 当场红）。也证明不了「测试改家后断言语义没变」——那一条靠两次变异测试实证：把 agentChatPolicy.test.ts 的 modelFacingToolNames() 断言改指一个真实存在的工具名，它报红并列出 35 个名字（证明列表非空、断言活着）；把 canvasReadCapturedSnapshotFlow.test.ts 的重放断言翻成 not.toThrow，它报红并抛出 SurfacePortError: surface_port_stale（证明单次消费语义仍被钉住）。仍然只能靠人工判断的是：作者是否诚实地把一次真实行为变更归类成了 structural。"
+  }
+}

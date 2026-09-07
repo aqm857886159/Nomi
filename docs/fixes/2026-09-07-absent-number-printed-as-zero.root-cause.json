@@ -1,0 +1,180 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-07-absent-number-printed-as-zero",
+  "problem_type": "「我们没有这个数」被编码成 0，于是屏幕上印出一个我们没资格下的断言",
+  "symptom": "Agent 面板顶部的花费 / 上下文 / 推理三行，在真实目录的对话模型上永远是空白或 0，而没有任何一层报错：单测全绿、门岗全绿、typecheck 全绿，只有用户看到一整排读不出东西的位置。花费那一行最刺眼——一个 $0.00 看起来像「这次没花钱」，而实际含义是「运行时对这个模型没有价目」。",
+  "direct_cause": "electron/agentLane/laneProjection.mts 里 `...(typeof cost === 'number' && Number.isFinite(cost) && cost > 0 ? { costUsd: cost } : {})` 拿「算出来的金额大于零」当「有没有价目」的判据。而它的上游 electron/harness/runtime/pi/model.mts:createNomiProvider 给每个模型无条件填 `cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }`（pi 的 `Model.cost` 不可选，见 pi-ai/dist/types.d.ts:729），于是 pi 的 `calculateCost` 老老实实算出 0，判据恒假，字段恒缺席。",
+  "class_root": "**用一个 in-band 的数值（0 / undefined）同时编码「量到了」「没量到」「对这里不适用」三种状态。** 三态挤进一个数值位之后，每个下游只能靠猜把它拆回来——而每种猜法都在某一态上是错的。这次的三行是同一个形状的三个实例：花费的 0 同时是「免费 / 还没花钱 / 没有价目」；上下文的 0 同时是「上下文是空的 / 刚压缩完还没重新结算 / 首轮」；推理的 0 同时是「没有思考 / 这个模型不会思考 / 供应商没报」。真正让它可能发生的结构缺口是：目录里**根本没有放 per-token 价的地方**（`Model.pricing` 是「生成一次图/一段视频扣多少点」，不是 per-token），所以连「有价目」这一态都无处声明，下游除了看那个算出来的 0 别无判据。",
+  "migration": "① `electron/catalog/types.ts` 新增 `Model.tokenPricing`（USD / 每百万 token，带结构化出处）与显式 `Model.free`，与 per-generation 的 `pricing` 语义分开并存；② `createNomiProvider` 由它派生 pi 的 `Model.cost`，并**另行返回** `NomiPricingBasis`（priced / free / unpriced）——判据来自配置，不从算出来的 0 反推；③ 契约层 `LaneUsage.costUsd?: number` 整体换成 `LaneMetric` 三态（known / unknown+reason / not-applicable+reason），上下文与推理两行同期改成同一个类型；④ `laneProjection.mts` 里那条 `cost > 0` 判断**同 commit 删除**（P1），没有留 fallback；⑤ 渲染层 `laneViewModel` 成为「绝不画 0」这条规则的唯一执行点：unknown → 占位符、not-applicable → 整行不渲染（花费行例外，它有「免费」这句更好的话）。旧的 `costUsd` 字段在契约里已不存在，不是并存。",
+  "affected_population": [
+    "所有用 Agent 主控（lane 通路）的用户：DeepSeek V3.2 / V3.1-terminus 这类目录里没有价目的模型，花费行原本印不出任何可读内容",
+    "魔搭三个免费 Qwen3 模型的用户：原本「免费」和「我们不知道」在屏幕上长得一模一样，看不出自己在不在花钱",
+    "刚触发过一次自动压缩的会话：上下文那一行会继续显示压缩前的 prompt 数字，那个数已经不回答「现在装了多少」",
+    "会思考的模型（推理档 > 1）：供应商没报 reasoning token 时，原本与「没有思考」不可区分"
+  ],
+  "scope_paths": [
+    "electron/agentLane/",
+    "electron/shared/agentLane/",
+    "electron/catalog/",
+    "electron/harness/runtime/",
+    "src/workbench/ai/lane/",
+    "scripts/check-archetype-sources.mjs"
+  ],
+  "entry_points": [
+    "electron/agentLane/laneProjection.mts:174（旧）—— `cost > 0 ? { costUsd: cost } : {}`，本次删除；花费三态的唯一决定点现为 `costMetric`",
+    "electron/agentLane/laneProjection.mts:139 `contextMetric` —— 上下文那一行的同形状缺口（累计 vs 末轮 prompt、刚压缩完）",
+    "electron/agentLane/laneProjection.mts:129 `reasoningMetric` —— 推理那一行的同形状缺口（不会思考 vs 供应商没报）",
+    "electron/harness/runtime/pi/model.mts:87 `modelCost` —— 把「没有价目」填成一份全零 `Model.cost` 的那一处（pi 类型不给「不填」这个选项），配套的 `pricingBasis` 就是为了让那份零不再被当作判据",
+    "electron/harness/runtime/pi/run.mts:24 `nomiUsage` —— 影子期仍在的旧通路的同类判断（`total > 0 ? total : undefined`）",
+    "electron/productionRun/shotPricing.ts:113 `deriveShotPrice` —— 另一个子系统里同一个类问题的既有解（`{ known: false }`，从不返回 0）"
+  ],
+  "invariants": [
+    "屏幕上的每个数字都是量到的：没有量到的位置显示占位符或整行不渲染，**任何情况下都不显示一个未经测量的 0**",
+    "「不可知」与「不适用」是两个可区分的态，各自带得出理由；两者都不得坍缩成同一个 `undefined`",
+    "`known` 的 0 照常显示——三态不是「把所有 0 都藏起来」，而是把编出来的 0 和量到的 0 分开",
+    "花费判据来自目录声明（`NomiPricingBasis`），永远不从 pi 算出来的金额反推",
+    "上下文占用的分子是末条已结算助手消息那次请求的 prompt（input + cacheRead + cacheWrite），不是会话累计；没有分母就不画环",
+    "推理档由 `getSupportedThinkingLevels(model)` derive，本仓不另列第二张档位表",
+    "每个 Agent 可选文本模型要么声明带官方出处的 `tokenPricing`，要么显式 `free: true`，两者互斥"
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/shared/agentLane/laneContracts.ts",
+    "tests": [
+      "tests/agent-runtime/lane-cost.test.mts",
+      "src/workbench/ai/lane/laneViewModel.test.ts",
+      "src/workbench/ai/lane/laneViewModel.fixture.test.ts"
+    ],
+    "why": "「屏幕上的每个数字都是量到的」这条不变量归**契约类型层**管，不归任何一处判断管。`LaneMetric` 是可辨识联合：没量到的那两个分支上不存在 value 属性，所以违反它的写法在这一层根本表达不出来（R28：能让编译器拦的别留给门岗）。这一层有两侧的真实测试——lane-cost.test.mts 证明「投影在各种处境下产出哪一态」（含刚压缩完、首轮、无价目、免费四个夹具，每条都配阳性对照），laneViewModel*.test.ts 证明「拿到那一态时屏幕上出现什么」（unknown → 占位符、not-applicable → 整行不画或说「免费」、known 的 0 照印）。两侧分开是因为「投影说 unknown」和「面板印了一个 0」可以同时成立，中间这一层就是它们分家的地方。"
+  },
+  "regression_tests": [
+    "tests/agent-runtime/lane-cost.test.mts",
+    "tests/agent-runtime/lane-shadow-parity.test.mts",
+    "src/workbench/ai/lane/laneViewModel.test.ts",
+    "src/workbench/ai/lane/laneViewModel.fixture.test.ts",
+    "src/workbench/ai/lane/laneClient.test.ts"
+  ],
+  "residual_risks": [
+    "APIMart 是中转，用户实际付的是中转价；其公开文档不列单价，所以目录里记的是模型一手厂商的官网价——量级对得上，逐分未必对得上。面板上那个金额是估算，不是账单，这条限制写在 electron/catalog/apimartTexts.ts 的注释里。",
+    "DeepSeek 自 2026-08-16 起分时计价（峰/谷两价），而 pi 的 `Model.cost` 只有一个平价、没有时间维度。目录取峰价：谷时段会高估，宁可高估不低估。",
+    "Agnes 两条 flash 官网当前促销到 $0/M（划线价 $0.03 / $0.15）。目录记划线价，所以促销期间会高估；记成 `free: true` 是错的——那个字段说的是「不按 token 计费」，而它们是按 token 计费、只是眼下打折。",
+    "`NomiModelConfig.reasoning` 今天目录还没有一处声明，生产路径恒为 `false`，于是真实模型上推理那一行会落到「不适用」。填它需要逐个模型抓官方文档（R5），不在本阶段范围——这是**已知遗留**，不是设计。",
+    "`contextWindow` 同样没有一个对话模型声明（2026-09-06 打包版实测），所以环仍不画，钮上退回「已用 N」。这是本次三态**正确表达**出来的缺口，不是本次引入的。",
+    "价目会过期。门岗只检查「有没有出处 + 出处格式对不对」，检查不了「这个价今天还准不准」；`checkedAt` 是给下一次模型雷达复核用的锚点。"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://api-docs.deepseek.com/quick_start/pricing/",
+      "checked_at": "2026-09-07",
+      "purpose": "取 DeepSeek v4-flash / v4-pro 的峰谷两档 per-1M-token 价；同时证明 V3.2 与 V3.1-terminus 已不在定价表里——那两条因此留白并登记进棘轮，而不是编一个数字"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://ai.google.dev/gemini-api/docs/pricing",
+      "checked_at": "2026-09-07",
+      "purpose": "取 Gemini 3.5 Flash 付费档输入 $1.50 / 输出 $9.00（页面明写 including thinking tokens）/ 缓存读 $0.15"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://agnes-ai.com/zh-Hans/docs/pricing",
+      "checked_at": "2026-09-07",
+      "purpose": "取 Agnes 五条模型的 list price 与缓存命中价；同时确认 flash 两条的 $0/M 是促销而非「不按 token 计费」，所以记划线价而不是 free"
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/earendil-works/pi/blob/main/packages/pi-ai/src/models.ts",
+      "checked_at": "2026-09-07",
+      "purpose": "核实 `calculateCost` 写死 `rates.input / 1_000_000 * tokens`（dist/models.js:543-547），据此把 `tokenPricing` 的单位钉死为「每百万 token」；并核实 `getSupportedThinkingLevels` 会剔掉 `thinkingLevelMap[level] === null` 的档（dist/models.js:551-562），据此不在本仓另列档位表"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "同一个形状在这一次改动里就出现了三个实例（花费 / 上下文 / 推理），而且它们是各自独立写出来的——说明产生它的不是某一次手滑，而是「类型允许一个数值位承载三种含义」这个结构条件。只要那个条件还在，下一个用量字段（缓存写入、工具耗时、预算余额）会以同样的方式再长一个出来。全仓实扫还在 `electron/harness/runtime/pi/run.mts:24` 与 `electron/productionRun/shotPricing.ts:113` 各找到一个同类现场，一个用 `> 0` 判据、一个已经用 `{ known: false }` 解决——同一个类问题在两个子系统里各被处理过一次，这就是复发的直接证据。",
+    "same_class_scan": [
+      "electron/harness/runtime/pi/run.mts:24-26 `nomiUsage` —— `total > 0 ? total : undefined`，与本次删掉的那条判据逐字同形",
+      "electron/productionRun/shotPricing.ts:113-127 `deriveShotPrice` —— 同一个类问题的既有解：返回 `{ known: false }`，注释明写 never 0",
+      "src/workbench/ai/v4/agentPanelV4Projection.ts:543-549 `projectV4Context` —— 影子期旧投影，用「字段缺席」表达不可知（不印 0），但表达不了「免费」",
+      "src/workbench/ai/v4/AgentPanelV4Context.tsx:70-82 `V4ContextRing` —— 渲染侧同一条纪律的既有落点：没有分母就不画环，因为一个恒定的灰圈和「用量为 0」长得一样",
+      "electron/projectAgentHost/projectAgentStateValidationPrimitives.ts:64-75 —— 持久化侧对 `costUsd` 只校验「有就必须是有限非负数」，不把缺席补成 0，与本次方向一致"
+    ]
+  },
+  "generality_proof": "修在类型上，而不是修在三处判断上。`LaneMetric` 是一个可辨识联合：`known` 才带 `value`，`unknown` / `not-applicable` 各自带 reason 而**没有** `value` 字段。于是「拿一个没量到的位置去当数字用」在这一层不再是一个会算错的表达式，而是一个取不到的属性——编译器在写下去的那一刻就拦住（R28：能让编译器拦的别留给门岗）。三行共用同一个类型，第四个用量字段接进来时只能沿用它，不存在「这一行忘了做三态」这条路。类型只管「表达得出来」，管不了「有没有人去填价目」，所以配一道静态门岗（`check:archetype-sources` 的文本模型价目段）守住另一半：每个 Agent 可选文本模型要么有带官方出处的价目、要么显式 free，查不到价的存量条目登记进只减不增的棘轮。两道防线各自覆盖类根因的一半——类型让「不可知」表达得出来，门岗让「有价目」这一态真的有人填。",
+  "shared_boundaries": [
+    {
+      "path": "electron/shared/agentLane/laneContracts.ts",
+      "symbol": "LaneMetric",
+      "responsibility": "让「没量到」与「不适用」成为可表达、可辨识、且**取不出数字**的状态。三行共用它，所以任何一行想印一个未经测量的数，都得先绕过类型系统"
+    },
+    {
+      "path": "electron/agentLane/laneProjection.mts",
+      "symbol": "projectLaneSnapshot",
+      "responsibility": "三个状态在这里被决定一次。判据来自目录声明与转录事实，不从算出来的 0 反推；下游（含渲染层）不再有第二处做这个判断"
+    },
+    {
+      "path": "scripts/check-archetype-sources.mjs",
+      "symbol": "文本模型价目段",
+      "responsibility": "拦住「类型加了但没人填」：每个 curated 文本模型必须声明带 https 官方出处 + ISO 日期的 tokenPricing，或显式 free；两者互斥，查不到价的存量条目走只减不增的棘轮"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/agentLane/laneProjection.mts",
+      "entry_point": "costMetric",
+      "disposition": "enforced",
+      "evidence": "旧的 `cost > 0` 判断已在同 commit 删除（P1，无 fallback）；现在读 `NomiPricingBasis` 返回三态，返回类型是 `LaneMetric`，`unknown` / `not-applicable` 分支上根本没有 value 可填。tests/agent-runtime/lane-cost.test.mts 的三条 G3d 各自 deepEqual 到具体的 state+reason，其中「无价目」那条另配阳性对照（同一轮的 contextTokens 必须 > 0），所以一个「什么都报不可知」的实现过不了。"
+    },
+    {
+      "path": "electron/catalog/apimartTexts.ts",
+      "entry_point": "APIMART_TEXT_MODELS",
+      "disposition": "enforced",
+      "evidence": "`check:archetype-sources` 的价目段逐条 AST 扫这个数组：缺 tokenPricing 且不在棘轮里 → 红；tokenPricing 与 free 同时出现 → 红；出处非 https 或 checkedAt 非 YYYY-MM-DD → 红。七次变异实测（去价目 / 改 http / 价目+free 并存 / 删 free / 棘轮陈旧 / promptRefineOnly 声明价目 / checkedAt 写成 'Sept 2026'）逐个先红后绿，还原后 exit 0。"
+    },
+    {
+      "path": "electron/harness/runtime/pi/run.mts",
+      "entry_point": "nomiUsage",
+      "disposition": "not-affected",
+      "evidence": "逐行读过：它把 `total === 0` 映射成 `undefined`，而消费方 src/workbench/ai/v4/agentPanelV4Projection.ts:548 在 cost 为 undefined 时整个字段不产出，V4ContextRing:112 再据此整行不渲染。所以这条旧通路**从不印一个未经测量的数字**——本合同的不变量它满足，只是用的是更粗的办法（把三态压成两态）。它表达不了「免费」，那是保真度缺口而非不变量违反，已记进 residual_risks；这条通路整体由阶段 4 删除（tests/agent-runtime/lane-shadow-parity.test.mts 正是为此对照两条通路），在此之前不动它，避免与并行任务改同一批文件。"
+    },
+    {
+      "path": "electron/productionRun/shotPricing.ts",
+      "entry_point": "deriveShotPrice",
+      "disposition": "not-affected",
+      "evidence": "另一个子系统里同一个类问题的既有解，方向与本次一致且更早：函数签名注释明写 `Returns { known: false } (never 0) when the price cannot be honestly established`，第 115 行在价目缺席/未启用/非有限非负时直接返回 `{ known: false }`，不经过任何数值位。它不需要接入 LaneMetric——那是 lane 投影的契约类型，跨子系统共用会把生成侧的点数语义和对话侧的 per-token 语义并进一个类型（正是本次要分开的那两件事）。它在这里的作用是**先例**：同一个 known/unknown 可辨识形状在本仓已被独立采用过一次，这是 generality_proof 的经验依据。"
+    }
+  ],
+  "prevention": {
+    "kind": "type-system",
+    "enforcement_path": "electron/shared/agentLane/laneContracts.ts",
+    "invariant": "一个没有被测量的用量位取不出数字：`LaneMetric` 的 `unknown` / `not-applicable` 分支上不存在 `value` 属性，所以「把缺失当成 0 印出去」在这一层写不出来，只能在 `state === 'known'` 的窄化之后才拿得到数",
+    "failure_mode": "编译期失败：`pnpm run typecheck` 与 `pnpm run check:test-types` 在访问未窄化的 `.value` 处报 TS2339 / 在遗漏三态字段处报 TS2739，红在写代码的那一刻，不用等门岗、更不用等用户截图。本次改动落地时这道防线已经真实触发过一次——三个渲染层测试文件因为 `LaneUsage` 少了 cost/contextTokens/reasoningTokens 而当场 TS2739。",
+    "exception_policy": "none",
+    "strategy": "把三态搬进类型系统，让「没有数」不可能被当成数用；再配一道静态门岗守住「有没有人去填价目」这另一半（R28：能让编译器拦的别留给门岗，能让门岗拦的别留给人）",
+    "artifacts": [
+      "electron/shared/agentLane/laneContracts.ts",
+      "electron/agentLane/laneProjection.mts",
+      "electron/catalog/types.ts",
+      "electron/harness/runtime/pi/model.mts",
+      "scripts/check-archetype-sources.mjs",
+      "scripts/archetype-sources-baseline.json"
+    ]
+  },
+  "class_regression_tests": [
+    "tests/agent-runtime/lane-cost.test.mts",
+    "src/workbench/ai/lane/laneViewModel.test.ts",
+    "src/workbench/ai/lane/laneViewModel.fixture.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/agentLane/laneProjection.mts",
+      "electron/shared/agentLane/laneContracts.ts",
+      "src/workbench/ai/lane/laneViewModel.ts"
+    ],
+    "rationale": "P1 加新必删旧：三态是替代品不是补充品。三处删掉的具体旧写法——laneProjection.mts 里 `cost > 0 ? { costUsd: cost } : {}`（用「金额大于零」当「有没有价目」判据）；laneContracts.ts 里 `LaneUsage.costUsd?: number`（用「字段缺席」编码不可知的旧表达）；laneViewModel.ts 里 `usage.costUsd === undefined ? {} : { cost: format(...) }`（渲染侧读旧字段的那一条）。旧的 `costUsd?: number` 若与新的 `cost: LaneMetric` 并存，两个字段会在某个时刻给出不同答案，而下游没有判据决定信哪个——那正是本次要消除的那种含糊。契约层字段直接改名换型（而不是 deprecate 后保留），是为了让所有读旧字段的地方在编译期一次性暴露：本次它确实一次性暴露了三个渲染层测试文件与一条影子对照测试。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "本次不引入、不升级、不保留任何第三方依赖。pi 0.85.1 是既有依赖，改动只是**更完整地使用它已经提供的能力**（`Model.cost` 与 `getSupportedThinkingLevels`），没有另写一份等价实现，也没有绕过它的任何版本约束（R29 框架边界）。",
+    "exit_criteria": []
+  }
+}

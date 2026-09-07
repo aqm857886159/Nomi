@@ -1,3 +1,4 @@
+import type { VideoDepthMainOwnedPhase } from '../../electron/shared/canvas/videoDepthRun'
 /**
  * 媒体类桥口（抽帧 / 胶片条 / 按镜头拆 / 全局截图）的类型。
  * 从 bridge.ts 摘出来：那个文件已经顶到 800 行上限（R9），而这几口本来就自成一族（都走 electron/video、
@@ -93,5 +94,42 @@ export type DesktopMediaBridge = {
     onCaptured: (cb: (payload: { url: string; width: number; height: number }) => void) => () => void
     onDenied: (cb: (payload: { screenAccess: string }) => void) => () => void
     onFailed: (cb: (payload: { reason: string }) => void) => () => void
+  }
+}
+
+/**
+ * 「提取深度」的主进程原语。
+ *
+ * 编排在渲染层（推理必须在 WebGPU 所在的渲染进程里跑），所以这五个方法都是渲染层
+ * 主动调的单向 invoke；主进程只在 prepare 期间往回推「下载/抽帧」两段进度——那两段
+ * 渲染层看不见，其余阶段的进度它自己就有。契约见 electron/video/depthVideoJob.ts。
+ */
+export type DesktopVideoDepthBridge = {
+  videoDepth: {
+    prepare: (payload: {
+      projectId: string
+      nodeId: string
+      sourceUrl: string
+    }) => Promise<{
+      jobId: string
+      totalFrames: number
+      outWidth: number
+      outHeight: number
+      depthModelUrl: string
+      ortWasmBaseUrl: string
+    }>
+    readFrames: (payload: { jobId: string; firstIndex: number; count: number }) => Promise<{ frames: Uint8Array[] }>
+    writeFrames: (payload: { jobId: string; frames: Uint8Array[] }) => Promise<{ ok: true }>
+    finish: (payload: { jobId: string }) => Promise<{ url: string; assetId?: string; frames: number }>
+    cancel: (payload: { jobId: string }) => Promise<{ ok: true }>
+    onEvent: (
+      callback: (event: {
+        jobId: string
+        nodeId: string
+        phase: VideoDepthMainOwnedPhase
+        doneBytes?: number
+        totalBytes?: number
+      }) => void,
+    ) => () => void
   }
 }

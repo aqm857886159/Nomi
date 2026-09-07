@@ -1,13 +1,21 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
-import { canvasToolDescriptors } from '../../../../electron/harness/tools/canvasDescriptors'
+import { modelToolSurfaceManifest } from '../../../../electron/harness/tools/modelToolSurfaceManifest'
 import { applyCanvasToolCall } from './applyCanvasToolCall'
 import { evaluateGate } from './gate'
 
 describe('retired renderer generation writer', () => {
   it('is neither advertised nor accepted by the renderer gate', () => {
-    expect(canvasToolDescriptors).not.toHaveProperty('run_generation_batch')
+    // 2026-09-07: this used to read the retired `canvasDescriptors` tool table.
+    // The live owner of the model-facing surface is the manifest, so assert there.
+    const modelFacingToolNames: string[] = [
+      ...modelToolSurfaceManifest.generation,
+      ...modelToolSurfaceManifest.editing,
+      ...modelToolSurfaceManifest.canvas,
+      ...modelToolSurfaceManifest.document,
+    ].map(({ name }) => name)
+    expect(modelFacingToolNames).not.toContain('run_generation_batch')
     expect(evaluateGate({
       kind: 'tool-call',
       toolName: 'run_generation_batch',

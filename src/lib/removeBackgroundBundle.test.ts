@@ -43,3 +43,39 @@ describe('@imgly/background-removal 打包前提', () => {
     expect(source).toContain('loadAsUrl(`${baseFilePath}.wasm`')
   })
 })
+
+// ── 第二个 ort 入口：深度视频节点的推理 worker ──────────────────────────────────
+//
+// 插件的前提不是「抠图是唯一入口」，而是「**每一个** ort 入口都在 create 之前设了
+// wasmPaths」。深度节点在 2026-09-07 加进来时把前提升级成了两个受控入口，这里对第二个
+// 逐条断言——否则新增入口会静默把插件从「删死代码」变成「删活代码」，而单测全绿。
+describe('深度视频 worker 的 ort 入口', () => {
+  // 注释里也会写 "InferenceSession.create"（文件头就解释了这条顺序），先剥注释再看下标，
+  // 否则测的是文档而不是代码。
+  const workerSource = readFileSync(
+    new URL('../workbench/generationCanvas/videoDepth/videoDepth.worker.ts', import.meta.url),
+    'utf8',
+  )
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/^\s*\/\/.*$/gm, '')
+
+  it('在 InferenceSession.create 之前设 wasmPaths', () => {
+    const assignedAt = workerSource.indexOf('env.wasm.wasmPaths =')
+    const createdAt = workerSource.indexOf('InferenceSession.create')
+    expect(assignedAt).toBeGreaterThan(-1)
+    expect(createdAt).toBeGreaterThan(-1)
+    expect(assignedAt).toBeLessThan(createdAt)
+  })
+
+  it('wasmPaths 指向随包资产的 nomi-local 通道，不是 CDN', () => {
+    // 打包态渲染层是 file://，对 file: 的 fetch 会被跨源拒绝；走 CDN 则等于每次用节点都联网。
+    expect(workerSource).toContain('ortWasmBaseUrl')
+    expect(workerSource).not.toMatch(/wasmPaths\s*=\s*['"`]https?:/)
+  })
+
+  it('只用 webgpu 执行器，没有静默的 wasm 回退', () => {
+    // 退 CPU 会把 4 秒的处理变成十几分钟，用户读成「这功能真慢」而不是「我这台机器不支持」。
+    expect(workerSource).toContain("executionProviders: [\"webgpu\"]")
+    expect(workerSource).not.toContain('executionProviders: ["wasm"]')
+  })
+})

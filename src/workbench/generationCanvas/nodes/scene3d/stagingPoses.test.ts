@@ -54,9 +54,10 @@ describe('staging pose presets', () => {
 
   it('工具 schema 的 pose 枚举与预设 id 不漂移', () => {
     // 2026-09-07（阶段 2）起这条不再读源码文本：站位/运镜的模型可见形状搬进了能力契约层
-    // （`electron/shared/agentCapabilities/canvasModelShapes.ts`）成为**唯一** owner，
-    // `canvasDescriptors.ts` 只 re-export。原来那份「主进程手抄一遍避免拉 THREE 进主进程」的
-    // 镜像没有了，所以「镜像同步」这条断言的前提也没有了——正则扫源码于是恒 null 报红，
+    // （`electron/shared/agentCapabilities/canvasModelShapes.ts`）成为**唯一** owner。
+    // 原来那份「主进程手抄一遍避免拉 THREE 进主进程」的镜像没有了（2026-09-07 连同
+    // 只做 re-export 的 `canvasDescriptors.ts` 一起删掉），所以「镜像同步」这条断言的
+    // 前提也没有了——正则扫源码于是恒 null 报红，
     // 而它报的是**测试自己过期**，不是姿势漂移。
     //
     // 换成直接读 schema 的枚举值：判据从「源码文本里有这几个字」升级成「契约里真的是这几个值」，

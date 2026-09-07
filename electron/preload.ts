@@ -364,6 +364,22 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
     framesToVideo: (payload: unknown) =>
       ipcRenderer.invoke("nomi:scene3d:frames-to-video", payload) as Promise<{ url: string; assetId?: string }>,
   },
+  videoDepth: {
+    prepare: (payload: unknown) => ipcRenderer.invoke("nomi:video-depth:prepare", payload) as Promise<unknown>,
+    readFrames: (payload: unknown) =>
+      ipcRenderer.invoke("nomi:video-depth:read-frames", payload) as Promise<{ frames: Uint8Array[] }>,
+    writeFrames: (payload: unknown) => ipcRenderer.invoke("nomi:video-depth:write-frames", payload) as Promise<{ ok: true }>,
+    finish: (payload: unknown) =>
+      ipcRenderer.invoke("nomi:video-depth:finish", payload) as Promise<{ url: string; assetId?: string; frames: number }>,
+    cancel: (payload: unknown) => ipcRenderer.invoke("nomi:video-depth:cancel", payload) as Promise<{ ok: true }>,
+    onEvent: (callback: (event: unknown) => void) => {
+      const listener = (_event: unknown, payload: unknown) => callback(payload);
+      ipcRenderer.on("nomi:video-depth:event", listener as never);
+      return () => {
+        ipcRenderer.removeListener("nomi:video-depth:event", listener as never);
+      };
+    },
+  },
   exports: {
     startJob: (payload: unknown) => ipcRenderer.invoke("nomi:exports:start-job", payload),
     list: () => ipcRenderer.invoke("nomi:exports:list"),

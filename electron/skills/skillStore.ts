@@ -178,7 +178,7 @@ export function discoverSkillRecordsFromRoots(
       if (!body) continue;
       // 损坏包（正文含 NUL 等 C0 控制字符 = 二进制/截断/写坏）不许「占坑遮蔽」：若它优先级更高，
       // 加进 seenDirs 就会把同目录名下一个合法包（如 user 覆盖）挡掉。故这里当损坏处理——记一条 warning
-      // 且**不**加 seenDirs，让后续 root 里同名的合法包顶上（nomiSkillResources 的 shadow 优先级测试钉死）。
+      // 且**不**加 seenDirs，让后续 root 里同名的合法包顶上（skillStore.test.ts 的 shadow 优先级测试钉死）。
       // 只拦真正的控制字符（放行 \t\n\r，它们在 markdown 里合法）。字符类里的控制字符是刻意的。
       // eslint-disable-next-line no-control-regex
       if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(body)) {

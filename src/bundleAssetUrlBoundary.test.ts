@@ -26,6 +26,8 @@ const RENDER_ONLY_ALLOWLIST: Record<string, string> = {
   'workbench/generationCanvas/nodes/scene3d/ueSpike/ue4MannequinRig.ts':
     'UE 人偶 GLB（3d-director-desk 收编 spike）：只喂 useGLTF 渲染，不进节点结果，也不落项目。',
   'lib/removeBackground.ts': 'Worker 脚本地址：new Worker 当场消费，不是资产 URL。',
+  'workbench/generationCanvas/videoDepth/videoDepthClient.ts':
+    '深度推理 worker 的脚本地址：new Worker 当场消费，随这次运行结束即弃，不进节点结果也不落项目。',
 }
 
 const BUNDLE_ASSET_URL = /new URL\(\s*['"`][^'"`\n]+['"`]\s*,\s*import\.meta\.url\s*\)/

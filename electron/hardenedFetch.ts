@@ -57,6 +57,15 @@ export type HardenedFetchOptions = {
   allowedPrivateOrigins?: readonly string[];
   /** Optional explicit provider route. Destination SSRF checks remain active. */
   dispatcher?: Dispatcher;
+  /**
+   * 流式消费每一块响应体。**给了它就不在内存里攒**（返回的 `bytes` 为空 Buffer）。
+   *
+   * 为什么这条住在这里、而不是让调用方自己开一条下载路：目的地策略只该有一个 owner
+   * （`check:outbound-policy` 规则 2/3 盯着这件事）。模型权重这类「大到不该整段进内存、
+   * 且必须有进度」的下载如果自己 new 一条 fetch，就是第二个判据，也就是下一次不对称。
+   * 回调抛错即中断本次下载（reader 会被 cancel），所以校验失败可以就地叫停。
+   */
+  onChunk?: (chunk: Uint8Array, doneBytes: number, totalBytes: number | null) => void | Promise<void>;
 };
 
 export type { ResolvedHostAddress } from "./networkOutboundPolicy";
@@ -300,6 +309,8 @@ export async function hardenedFetch(
     if (!response.body) {
       throw new Error("Response has no body");
     }
+    const sink = options.onChunk;
+    const declaredTotal = Number.isFinite(declaredLength) && declaredLength > 0 ? declaredLength : null;
     const chunks: Uint8Array[] = [];
     let total = 0;
     const reader = response.body.getReader();
@@ -314,11 +325,20 @@ export async function hardenedFetch(
         try { await reader.cancel(); } catch { /* ignore */ }
         throw new Error(`Response exceeded ${maxBytes} bytes`);
       }
-      chunks.push(value);
+      if (sink) {
+        try {
+          await sink(value, total, declaredTotal);
+        } catch (sinkError) {
+          try { await reader.cancel(); } catch { /* ignore */ }
+          throw sinkError;
+        }
+      } else {
+        chunks.push(value);
+      }
     }
 
     return {
-      bytes: Buffer.concat(chunks.map((c) => Buffer.from(c.buffer, c.byteOffset, c.byteLength)), total),
+      bytes: sink ? Buffer.alloc(0) : Buffer.concat(chunks.map((c) => Buffer.from(c.buffer, c.byteOffset, c.byteLength)), total),
       contentType,
       status: response.status,
       finalUrl: currentUrl.toString(),

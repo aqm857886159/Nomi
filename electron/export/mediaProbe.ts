@@ -407,7 +407,11 @@ function bundledFfprobePath(): string {
   }
 }
 
-function resolveFfprobePath(explicitFfprobePath?: string, explicitFfmpegPath?: string): string {
+/**
+ * ffprobe 可执行文件的**唯一**解析口（导出给同样需要探测源视频的主进程模块用，
+ * 例如深度视频节点的 prepare —— 第二份解析顺序就是第二个「为什么这台机器上找不到 ffprobe」）。
+ */
+export function resolveFfprobePath(explicitFfprobePath?: string, explicitFfmpegPath?: string): string {
   if (typeof explicitFfprobePath === "string" && explicitFfprobePath.trim()) return explicitFfprobePath.trim();
   const envProbePath = String(process.env.NOMI_FFPROBE_PATH || "").trim();
   if (envProbePath) return envProbePath;

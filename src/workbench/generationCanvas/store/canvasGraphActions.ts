@@ -21,10 +21,16 @@ import type { CanvasGraphActions, CanvasSliceCreator } from './canvasStoreTypes'
  * 杜绝「拉图进新图片节点却停在文生图」这类 bug 从任一入口复发(P2)。**幂等**：当前模式已能落该参考则
  * resolveTargetModeForEdge 返回 null → no-op，故对「已正确规划模式」的 agent 路径零影响。走 updateNode
  * 单一写路径(与手动切 ModeBar 同)。须在边已确认建上之后调用。
+ *
+ * **`history: false` 不是可选项**（2026-09-07 真机走查测出来的）：这次切模式是**连线这一个手势的
+ * 后果**，不是用户另做的一件事。updateNode 默认会给 `meta` patch 打一个自己的 undo barrier，
+ * 于是连完一条线后日志里叠了两个 barrier——第一下 ⌘Z 只把模式切回去（用户眼里画布毫无变化），
+ * 得按第二下才撤掉那条边。用户按一下没反应就不会再按第二下，他得到的结论是「连线撤不了」。
+ * 关掉的只是 barrier：这条 meta 变更照常入日志、照常落盘，所以撤到连线那个 barrier 时它跟着回退。
  */
 type ModeSwitchStore = {
   nodes: GenerationCanvasNode[]
-  updateNode: (nodeId: string, patch: { meta: Record<string, unknown> }) => void
+  updateNode: (nodeId: string, patch: { meta: Record<string, unknown> }, options?: { history?: boolean }) => void
 }
 function autoPromoteTargetModeForEdge(
   store: ModeSwitchStore,
@@ -39,7 +45,11 @@ function autoPromoteTargetModeForEdge(
   if (!nextModeId) return
   const archetype = archetypeForNode(target)
   if (!archetype) return
-  store.updateNode(targetNodeId, { meta: applyArchetypeModeSwitch((target.meta || {}) as Record<string, unknown>, archetype, nextModeId) })
+  store.updateNode(
+    targetNodeId,
+    { meta: applyArchetypeModeSwitch((target.meta || {}) as Record<string, unknown>, archetype, nextModeId) },
+    { history: false },
+  )
 }
 
 /**
@@ -230,7 +240,17 @@ export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = 
     const afterEdges = get().edges
     if (afterEdges !== beforeEdges) {
       const addedEdge = afterEdges.find((candidate) => !beforeEdges.some((edge) => edge.id === candidate.id))
-      if (addedEdge) emitCanvasGesture([{ type: 'canvas.edge.added', payload: { edge: addedEdge } }])
+      if (addedEdge) {
+        // 手拖出来的这一条边**必须能撤销**。barrier 存的是日志位置，所以要在这条边的
+        // `canvas.edge.added` 事件**之前**打——打在 emit 之后就等于 undo 停在它后面，
+        // Cmd+Z 会去撤上一笔（用户眼里是「撤销把别的东西弄没了」）。
+        // 2026-09-07 真机走查发现这里一直没打 barrier：连错一条线按 Cmd+Z 毫无反应，
+        // 而同族的 connectToGroup（同文件 275 行）一直是打的——这不是设计，是漏了一处。
+        // 只补这一处还不够：紧跟着的 autoPromoteTargetModeForEdge 会再打一个自己的 barrier，
+        // 于是要按两下才撤掉边。那一半修在它自己身上（history: false，见该函数的 JSDoc）。
+        pushUndoSnapshot(pre)
+        emitCanvasGesture([{ type: 'canvas.edge.added', payload: { edge: addedEdge } }])
+      }
       // 边真建上了才切模式(重复连线等空操作不写 meta)。
       autoPromoteTargetModeForEdge(get(), sourceNodeId, targetNodeId, mode)
     }

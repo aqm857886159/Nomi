@@ -17,7 +17,15 @@ function fakeBridge() {
 const projection = (text: string): LaneProjection => ({
   lane: 'main', running: false,
   parts: [{ sequence: 0, entrySeq: 0, contentIndex: 0, kind: 'user', text }],
-  usage: { inputTokens: 1, outputTokens: 1, cacheReadTokens: 0, cacheWriteTokens: 0, totalTokens: 2 },
+  usage: {
+    inputTokens: 1, outputTokens: 1, cacheReadTokens: 0, cacheWriteTokens: 0, totalTokens: 2,
+    // 三行三态。这份夹具只关心「订阅有没有偷偷记账」，所以三行都停在「还没结算」那一态——
+    // 但它们**必须存在**：`LaneUsage` 里没有「省略即 0」这条路了。
+    cost: { state: 'unknown', reason: 'no-settled-turn' },
+    contextTokens: { state: 'unknown', reason: 'no-settled-turn' },
+    reasoningTokens: { state: 'unknown', reason: 'no-settled-turn' },
+  },
+  thinking: { supportedLevels: ['off'], level: 'off', canTurnOff: true },
 })
 
 describe('laneClient', () => {

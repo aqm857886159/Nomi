@@ -68,6 +68,23 @@ describe('connectToNode — 连一张图进图片节点自动切到「参考图/
     expect((dst?.meta?.archetype as { modeId?: string } | undefined)?.modeId).toBe('edit')
   })
 
+  it('手拖出来的边能被 Cmd+Z 撤掉（2026-09-07 真机走查：这里一直没打 undo barrier）', () => {
+    useGenerationCanvasStore.getState().restoreSnapshot({
+      nodes: [node('src', 'shots'), archImageNode('dst', 't2i')],
+      edges: [],
+      selectedNodeIds: [],
+      groups: [],
+    })
+    useGenerationCanvasStore.getState().startConnection('src')
+    useGenerationCanvasStore.getState().connectToNode('dst')
+    expect(useGenerationCanvasStore.getState().edges).toHaveLength(1)
+
+    useGenerationCanvasStore.getState().undo()
+    // 撤销后这条边没了。此前 connectToNode 不打 barrier，Cmd+Z 要么毫无反应、
+    // 要么去撤上一笔——两种都是「撤销把别的东西弄没了」。
+    expect(useGenerationCanvasStore.getState().edges).toHaveLength(0)
+  })
+
   it('从目标左侧输入端起拖到源图 → 真边仍是源图→目标，并自动切到改图', () => {
     useGenerationCanvasStore.getState().restoreSnapshot({
       nodes: [node('src', 'shots'), archImageNode('dst', 't2i')],

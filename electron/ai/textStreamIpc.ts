@@ -1,4 +1,4 @@
-// 文本任务流式 IPC（镜像 agentChatV2Ipc 的 per-session 通道）。
+// 文本任务流式 IPC（per-session 通道，与 Agent 对话 IPC 同形状）。
 //
 // runTask 是请求/响应式（一次性返回 TaskResult），没法推 delta。这里另开一条单向
 // 事件通道：handle 立即返回 streamId，逐 token 经 webContents.send 推到渲染层。

@@ -10,8 +10,8 @@
 // （方案 §3.6 的 S9：信任方向反了）。而 #547 实测 `canvas.write` 真实成功率 **0/18**，
 // 模型在写 24 行分镜时，25 个字段名一个都没被告诉过。
 //
-// 搬到能力契约层之后只有**一个** owner：旧通路的 `canvasDescriptors.ts` 从这里 re-export
-// （同 commit 删掉本地副本，P1），新通路的 lane 工具直接 import 同一份。
+// 搬到能力契约层之后只有**一个** owner，新通路的 lane 工具直接 import 同一份。
+// （旧通路的 `canvasDescriptors.ts` 阶段 2 起只是 re-export 壳，2026-09-07 已整份删除。）
 //
 // ⚠️ 一条明着标的欠账（不是遗漏，是排期）：`canvasWrite.ts` 里对外 MCP 那一份仍然是
 // `z.record(z.unknown())`。理由是 `check:mcp-payload` 是 shrink-only 棘轮，而 main

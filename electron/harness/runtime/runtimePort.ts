@@ -13,6 +13,32 @@ export interface NomiModelConfig {
   contextWindow?: number
   maxOutputTokens?: number
   temperature?: number
+  /**
+   * 按 token 计费的价目，**单位一律「美元 / 每百万 token」**（与 `Model.tokenPricing` 同一个单位）。
+   * 缺席 = 我们没有这个模型的价目 → 运行时把花费那一行渲染成「不可知」，**不是 0**。
+   * 出处（url/checkedAt）留在目录里，不过这道门：wire 配置只需要数字。
+   */
+  tokenPricing?: {
+    inputPerMTokUsd: number
+    outputPerMTokUsd: number
+    /** 缺省 = 与 `inputPerMTokUsd` 同价。 */
+    cacheReadPerMTokUsd?: number
+    /** 缺省 = 与 `inputPerMTokUsd` 同价。 */
+    cacheWritePerMTokUsd?: number
+  }
+  /** 显式「这个模型不按 token 计费」。与 `tokenPricing` 互斥；面板据此印「免费」而不是「不可知」。 */
+  free?: true
+  /**
+   * 这个模型会不会思考。pi 的 `getSupportedThinkingLevels(model)` 直接读它：`false` → 只有 `off`
+   * 一档（推理那一行「不适用」）。今天目录还没有一处声明它，所以生产路径恒为 `false`——
+   * 这是**已知遗留**，不是设计：填它需要逐个模型抓官方文档（R5），不在阶段 3b 的范围里。
+   */
+  reasoning?: boolean
+  /**
+   * 各思考档到供应商原生取值的映射。`null` = 这一档这个模型不支持，pi 会把它从
+   * `getSupportedThinkingLevels` 里剔掉；`off: null` 就是「关不掉思考」。
+   */
+  thinkingLevelMap?: Record<string, string | null>
 }
 
 export interface RuntimeToolDescriptor {

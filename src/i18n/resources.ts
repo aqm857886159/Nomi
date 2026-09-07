@@ -15,6 +15,7 @@ import { enCreationAi, zhCreationAi } from './locales/creationAi'
 import { enStoryboardEditor, zhStoryboardEditor } from './locales/storyboardEditor'
 import { enGenerationCommon, zhGenerationCommon } from './locales/generationCommon'
 import { enRuntime, zhRuntime } from './locales/runtime'
+import { enVideoDepth, zhVideoDepth } from './locales/videoDepth'
 import { enAgentResident, zhAgentResident } from './locales/agentResident'
 import { enCommunity, zhCommunity } from './locales/community'
 import { enAgentPanelV4, zhAgentPanelV4 } from './locales/agentPanelV4'
@@ -427,6 +428,7 @@ export const zhCN = {
   storyboardEditor: zhStoryboardEditor,
   generationCommon: zhGenerationCommon,
   runtime: zhRuntime,
+  videoDepth: zhVideoDepth,
   agentResident: zhAgentResident,
   community: zhCommunity,
   agentPanelV4: zhAgentPanelV4,
@@ -847,6 +849,7 @@ export const en = {
   storyboardEditor: enStoryboardEditor,
   generationCommon: enGenerationCommon,
   runtime: enRuntime,
+  videoDepth: enVideoDepth,
   agentResident: enAgentResident,
   community: enCommunity,
   agentPanelV4: enAgentPanelV4,

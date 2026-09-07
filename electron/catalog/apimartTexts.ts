@@ -1,4 +1,4 @@
-import type { HttpOperation, ProfileKind } from "./types";
+import type { HttpOperation, Model, ProfileKind } from "./types";
 import { APIMART_CREATE_TASK_ID_PATH, APIMART_STATUS_MAPPING } from "./apimartVendor";
 
 // apimart 文本模型（创作助手 / 拆镜头的「大脑」）的 curated 种子。
@@ -25,7 +25,25 @@ export type ApimartTextModel = {
   labelZh: string;
   /** 合并进 Model.meta；`supportsImageInput` 供 chooseTextModel 的 imageInputRank 选型（显式声明优先于名字正则）。 */
   meta?: Record<string, unknown>;
+  /** 按 token 计费的价目（USD / 每百万 token）。见 `Model.tokenPricing`。 */
+  tokenPricing?: Model["tokenPricing"];
+  /** 显式不按 token 计费。 */
+  free?: true;
 };
+
+/**
+ * 价目取值的两条纪律（2026-09-07 定，落成注释是因为下一个填价的人会碰到同样的岔路）：
+ *
+ * ① **峰谷两价取高的那个。** DeepSeek 自 2026-08-16 起分时计价（峰：UTC 周一至周五
+ *    01:00–04:00 与 06:00–10:00；其余为谷），而 pi 的 `Model.cost` 只有一个平价、没有时间维度
+ *    （`pi-ai/dist/types.d.ts:712-715` 的 tiers 是按输入量分档，不是按时段）。二选一时取峰价：
+ *    宁可高估也不低估——面板上一个偏高的金额只是保守，一个偏低的金额会让用户按它做决定。
+ * ② **中转价查不到就记一手价。** APIMart 是中转，用户实际付的是 APIMart 的价，但它的公开文档
+ *    （`https://docs.apimart.ai/en/api-reference/texts/general/chat-completions`，2026-09-07 实查）
+ *    只列模型名、不列单价。所以这里记的是**模型一手厂商**的官网价，量级对得上、逐分未必对得上——
+ *    这条限制写在这里，不许把它当成账单。
+ */
+const DEEPSEEK_PRICING_SOURCE = { url: "https://api-docs.deepseek.com/quick_start/pricing/", checkedAt: "2026-09-07" } as const;
 
 /**
  * apimart 的 curated 文本模型（单源）。DeepSeek IDs 来自 2026-08-21
@@ -51,11 +69,33 @@ export type ApimartTextModel = {
  *      单镜分镜提取实测：1178 token 进（图片占 1058）/ 1160 出 / 10.4s。
  */
 export const APIMART_TEXT_MODELS: ApimartTextModel[] = [
-  { modelKey: "deepseek-v4-pro", labelZh: "DeepSeek V4 Pro" },
-  { modelKey: "deepseek-v4-flash", labelZh: "DeepSeek V4 Flash" },
+  {
+    modelKey: "deepseek-v4-pro", labelZh: "DeepSeek V4 Pro",
+    // 峰价：cache miss 输入 $1.32 / 输出 $3.96 / cache hit $0.044（谷价为其一半）。
+    tokenPricing: { inputPerMTokUsd: 1.32, outputPerMTokUsd: 3.96, cacheReadPerMTokUsd: 0.044,
+      source: DEEPSEEK_PRICING_SOURCE },
+  },
+  {
+    modelKey: "deepseek-v4-flash", labelZh: "DeepSeek V4 Flash",
+    // 峰价：cache miss 输入 $0.44 / 输出 $1.32 / cache hit $0.014（谷价为其一半）。
+    tokenPricing: { inputPerMTokUsd: 0.44, outputPerMTokUsd: 1.32, cacheReadPerMTokUsd: 0.014,
+      source: DEEPSEEK_PRICING_SOURCE },
+  },
+  // V3 两条**故意留白**：2026-09-07 实查 DeepSeek 官方定价页，表里只有 v4-flash / v4-pro /
+  // v4-flash-vision-exp 三行，V3.2 与 V3.1-terminus 一个字都没有。查不到就不填——
+  // 编一个「大概和 flash 差不多」的数字，面板上会印出一个看起来很确定的金额。
+  // 它们在运行时落到「花费不可知」那一态，并登记在 scripts/archetype-sources-baseline.json 的棘轮里。
   { modelKey: "deepseek-v3.2", labelZh: "DeepSeek V3.2" },
   { modelKey: "deepseek-v3.1-terminus", labelZh: "DeepSeek V3.1 Terminus" },
-  { modelKey: "gemini-3.5-flash", labelZh: "Gemini 3.5 Flash", meta: { supportsImageInput: true } },
+  {
+    modelKey: "gemini-3.5-flash", labelZh: "Gemini 3.5 Flash", meta: { supportsImageInput: true },
+    // Google 付费档：输入 $1.50 / 输出 $9.00（含 thinking token）/ 上下文缓存读 $0.15。
+    tokenPricing: { inputPerMTokUsd: 1.5, outputPerMTokUsd: 9, cacheReadPerMTokUsd: 0.15,
+      source: { url: "https://ai.google.dev/gemini-api/docs/pricing", checkedAt: "2026-09-07" } },
+  },
+  // Context-IR 不是 chat 模型：它走 /v1/videos/generations 的异步任务，`textBrainResolver`
+  // 的 `isPromptRefineOnlyModel` 明确把它挡在 Agent 主控之外（electron/ai/textBrainResolver.ts:26-31）。
+  // 不按 token 计费也不是「免费」，所以两个字段都不声明——价目门岗按同一个生产判据豁免它。
   { modelKey: "MiniMax-H3-Context-IR", labelZh: "MiniMax H3 · Context-IR 提示词增强", meta: { promptRefineOnly: true } },
 ];
 

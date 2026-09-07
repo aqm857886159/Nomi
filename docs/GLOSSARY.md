@@ -36,7 +36,7 @@
 |---|---|---|
 | agent 引擎 · runAgentChatV2 · streamText 循环 | **pi runtime**（pi SDK 0.85.1）。`runAgentChatV2` 是**已被取代**的旧名 | `electron/harness/runtime/pi/` |
 | 工具组 · toolset · skillKey 选工具 | **capability**（工具组按 capability 选，**不按 skillKey**） | `electron/harness/agentChatPolicy.ts:35` |
-| 工具定义 · tool schema · descriptor | **descriptors**（`canvasDescriptors.ts` / `documentDescriptors.ts`） | `electron/harness/tools/` |
+| 工具定义 · tool schema · descriptor | **模型可见工具清单**（`modelToolSurfaceManifest.ts`；`canvasDescriptors.ts` / `documentDescriptors.ts` 是**已删**的旧名） | `electron/harness/tools/` |
 | 统一 agent · 跨区 agent · 常驻助手 | **R2-U1 项目级统一 Agent**（未交付） | `docs/plan/2026-08-26-pi-agent-loop-file-migration.md` §7 |
 | 会话 · 线程 · session · thread | **`{sessionKey, threadId}` 二元组**；area 仅 `creation \| generation` | `src/workbench/ai/agentSessionKey.ts:3` |
 | 幻影工具 · phantom tool | 后端有 schema、前端未实现的工具（历史问题，已修） | `docs/plan/agent-merge-architecture.md`（⛔ 已过期） |
@@ -47,7 +47,7 @@
 |---|---|---|
 | 画布 · canvas · 节点图 · 流程图 | **生成画布 GenerationCanvas**（`@xyflow/react` 单内核，R21） | `src/workbench/generationCanvas/` |
 | 拆镜头 · 分镜 · storyboard · 镜头表 | **分镜 / storyboard**；产物是 **StoryboardPlan** | `src/workbench/generationCanvas/agent/storyboardPlan.ts` |
-| 锚 · 参考图 · 角色圣经 · 定妆 | **视觉锚 anchor**（character/scene/prop/style），**冻结**=frozen | `canvasDescriptors.ts` storyboardAnchorSchema |
+| 锚 · 参考图 · 角色圣经 · 定妆 | **视觉锚 anchor**（character/scene/prop/style），**冻结**=frozen | `electron/shared/agentCapabilities/canvasModelShapes.ts` storyboardAnchorSchema |
 | 镜号 · shot number · 顺序 | **`shotIndex`**（存储身份，拖动不变，排片唯一排序信号） | `src/workbench/generationCanvas/model/shotNumbering.ts` |
 | 手艺产物 · Agent 画的图 · Agent 做的表 | **agent-artifact 节点**（Agent 不调模型、用代码/标记语言直接做出来的表达物：SVG/HTML/Markdown/表格/3D） | `src/workbench/generationCanvas/nodes/artifact/`，方案 `docs/plan/2026-09-06-agent-artifact-node.md` |
 

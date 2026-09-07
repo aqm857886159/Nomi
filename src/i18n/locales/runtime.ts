@@ -45,6 +45,11 @@ export const zhRuntime = {
     scene3d: { menu: '3D 场景', title: '3D 场景', placeholder: '在 3D 场景中摆放模型并截图...' },
     whiteboard: { menu: '画板', title: '画板', placeholder: '在画板里绘制参考，再描述要生成的画面...' },
     model3d: { menu: '3D 模型', title: '3D 模型', placeholder: '描述要生成的 3D 模型（外形、材质、风格）...' },
+    video_depth_process: {
+      menu: '深度视频',
+      title: '深度视频',
+      placeholder: '选一段画布上的视频，本机跑出深度视频当动作参考...',
+    },
     asset: { menu: '素材', title: '素材', placeholder: '描述素材内容...' },
     'agent-artifact': {
       menu: 'Agent 产物',
@@ -221,6 +226,11 @@ export const enRuntime = {
       menu: '3D Model',
       title: '3D Model',
       placeholder: 'Describe the 3D model, including shape, material, and style...',
+    },
+    video_depth_process: {
+      menu: 'Depth Video',
+      title: 'Depth Video',
+      placeholder: 'Pick a video already on the canvas and turn it into a local depth pass...',
     },
     asset: { menu: 'Asset', title: 'Asset', placeholder: 'Describe the asset...' },
     clip: { menu: 'Clip', title: 'Clip', placeholder: 'Add image or video to start editing...' },

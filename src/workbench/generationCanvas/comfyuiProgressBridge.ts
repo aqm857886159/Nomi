@@ -3,7 +3,7 @@
 // setNodeProgress（文案必经 narrate 注册表，S2 纪律）+ 预览帧写会话级瞬态 store（绝不持久化）。
 import { getDesktopBridge } from '../../desktop/bridge'
 import { useGenerationCanvasStore } from './store/generationCanvasStore'
-import { useComfyuiPreviewStore } from './store/comfyuiPreviewStore'
+import { useNodeLivePreviewStore } from './store/nodeLivePreviewStore'
 import { narrateProgress } from '../observability/narrate'
 
 type ComfyuiProgressEventLike = {
@@ -28,7 +28,7 @@ export function initComfyuiProgressBridge(): void {
     const event = raw as ComfyuiProgressEventLike
     const nodeId = (event?.nodeId || '').trim()
     if (!nodeId) return
-    const previews = useComfyuiPreviewStore.getState()
+    const previews = useNodeLivePreviewStore.getState()
     if (event.kind === 'preview' && event.previewDataUrl) {
       previews.setPreview(nodeId, event.previewDataUrl)
       return

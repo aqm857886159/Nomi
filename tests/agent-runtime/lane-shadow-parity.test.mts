@@ -113,8 +113,11 @@ async function runNewPath(t: TestContext): Promise<{ beats: Beat[]; promptTokens
     if (part.kind === 'tool-call') { beats.push(`call:${part.toolName}:${JSON.stringify(part.args)}`); continue; }
     if (part.kind === 'tool-result') { beats.push(`result:${part.toolName}:${part.isError ? 'error' : 'ok'}`); }
   }
+  // 花费在新通路上是**三态**（`LaneMetric`），不是一个可选数字：这条影子对照只关心
+  // 「两边都拿不到金额」这件事对不对得上，所以只在 `known` 时才给出数字。
+  const cost = projection.usage.cost;
   return { beats, promptTokens: projection.usage.inputTokens, completionTokens: projection.usage.outputTokens,
-    ...(projection.usage.costUsd === undefined ? {} : { costUsd: projection.usage.costUsd }), text: texts.join('') };
+    ...(cost.state === 'known' ? { costUsd: cost.value } : {}), text: texts.join('') };
 }
 
 test('shadow parity · the two paths see the same beats, in the same order', async (t) => {

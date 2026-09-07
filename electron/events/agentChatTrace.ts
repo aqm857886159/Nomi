@@ -1,5 +1,5 @@
 // 对话流事件 → NomiEvent 旁路翻译器(harness S3:结构化轨迹最小版)。
-// 挂在 agentChatV2Ipc 的事件出口上:只观察、只追加,任何失败不影响对话主流程。
+// 挂在 Agent 对话的事件出口上:只观察、只追加,任何失败不影响对话主流程。
 // 因果链:tool.completed / proposal.approved|rejected 的 causeId 指回 tool.proposed 事件 id。
 import crypto from "node:crypto";
 import { appendEvents } from "./eventLogRepository";

@@ -1,7 +1,8 @@
 {
   "version": 2,
   "pendingApprovalScreens": {
-    "agent-panel-v4": "2026-09-06 · v4 接线：5 张接线证据格（宿主快照 → 真面板）是新增的，还没有基线；Skill 弹层按拍板 ⑤ 并进了提示词库、多出两段分段名；另加 3 张冷启动空态格（empty-creation / empty-generation / empty-preview）。**2026-09-06 晚补**：打包版真实使用（「从原稿重拆 10 镜」）暴露的一批问题改了四处外观相关的格——v4-tool-group-failed / v4-process-folded 两格是新增（同名工具连调六次折成一行、过程自述收起）；v4-context-window-unknown 是新增（窗口未知时不画环、改说「已用 62.4K」）；v4-composer-model-popover 与 v4-composer-skill-popover 两格的**内容**变了（模型弹层每行一个真下拉、Skill 行首白块换成封面/图标）。**2026-09-07 补**：模型弹层删掉第四行「音频默认」——仓库没有音频生成能力，不留空行（设计定稿决策 5）。收起角标那 6 格（v4-dock-logo / v4-collapsed-running / -needs-confirm / -done / -failed / -dark）已于 2026-09-07 经用户看图拍板并录入基线，已从本登记移除；v4-collapsed 整场景同步加了顶栏那一条，该格基线还没重录，仍归本登记管。上面剩下的格都要用户亲眼看过接触表才录基线（UI 交付定义 = 设计实验室截图拍板）。拍板后跑 pnpm run design-lab:update，并**删掉本条登记**。"
+    "agent-panel-v4": "2026-09-06 · v4 接线：5 张接线证据格（宿主快照 → 真面板）是新增的，还没有基线；Skill 弹层按拍板 ⑤ 并进了提示词库、多出两段分段名；另加 3 张冷启动空态格（empty-creation / empty-generation / empty-preview）。**2026-09-06 晚补**：打包版真实使用（「从原稿重拆 10 镜」）暴露的一批问题改了四处外观相关的格——v4-tool-group-failed / v4-process-folded 两格是新增（同名工具连调六次折成一行、过程自述收起）；v4-context-window-unknown 是新增（窗口未知时不画环、改说「已用 62.4K」）；v4-composer-model-popover 与 v4-composer-skill-popover 两格的**内容**变了（模型弹层每行一个真下拉、Skill 行首白块换成封面/图标）。**2026-09-07 补**：模型弹层删掉第四行「音频默认」——仓库没有音频生成能力，不留空行（设计定稿决策 5）。收起角标那 6 格（v4-dock-logo / v4-collapsed-running / -needs-confirm / -done / -failed / -dark）已于 2026-09-07 经用户看图拍板并录入基线，已从本登记移除；v4-collapsed 整场景同步加了顶栏那一条，该格基线还没重录，仍归本登记管。上面剩下的格都要用户亲眼看过接触表才录基线（UI 交付定义 = 设计实验室截图拍板）。拍板后跑 pnpm run design-lab:update，并**删掉本条登记**。",
+    "depth-action": "2026-09-07 · 用户看过第一版接触表后连着拍了两下：①「没啥问题 就改一点点 把那个放到上面 别遮挡视频」②「关于你说的砍 没有问题 其实如果这么砍了之后 也没啥设计的 只要保持一致 能挂入参考被模型使用就行」。于是这一屏从十格（五态）变成八格（四态）：小面板那两格随面板一起删了（点动作就跑，没有面板/输出三选一/「高级」），下载那两格从「按钮里的进度」搬到派生卡顶那一条，处理中那两格的进度环 + 预计剩余 + 取消也从画面中央收到卡顶，深度帧整幅露出来。**改后的八格用户都还没看过**，所以本轮仍不录基线：给没人看过的样子录基线，等于把「今天碰巧长这样」钉成「应该长这样」。用户点头新接触表后跑 pnpm run design-lab:update，并**删掉本条登记**。"
   },
   "calibratedPlatform": "darwin",
   "viewport": {
@@ -18,25 +19,46 @@
       }
     },
     "agent-panel-v4": {
-      "tolerance": { "threshold": 0.2, "maxDiffPixels": 40 }
+      "tolerance": {
+        "threshold": 0.2,
+        "maxDiffPixels": 40
+      }
     },
     "canvas-add-menu": {
-      "tolerance": { "threshold": 0.2, "maxDiffPixels": 40 }
+      "tolerance": {
+        "threshold": 0.2,
+        "maxDiffPixels": 40
+      }
     },
     "canvas-frame": {
-      "tolerance": { "threshold": 0.2, "maxDiffPixels": 40 }
+      "tolerance": {
+        "threshold": 0.2,
+        "maxDiffPixels": 40
+      }
     },
     "editing": {
-      "tolerance": { "threshold": 0.2, "maxDiffPixels": 40 }
+      "tolerance": {
+        "threshold": 0.2,
+        "maxDiffPixels": 40
+      }
     },
     "storyboard": {
-      "tolerance": { "threshold": 0.2, "maxDiffPixels": 40 }
+      "tolerance": {
+        "threshold": 0.2,
+        "maxDiffPixels": 40
+      }
     },
     "host-config": {
-      "tolerance": { "threshold": 0.2, "maxDiffPixels": 40 }
+      "tolerance": {
+        "threshold": 0.2,
+        "maxDiffPixels": 40
+      }
     },
     "settings": {
-      "tolerance": { "threshold": 0.2, "maxDiffPixels": 40 }
+      "tolerance": {
+        "threshold": 0.2,
+        "maxDiffPixels": 40
+      }
     },
     "primitives-actions": {
       "tolerance": { "threshold": 0.2, "maxDiffPixels": 40 }
@@ -48,7 +70,16 @@
       "tolerance": { "threshold": 0.2, "maxDiffPixels": 40 }
     },
     "vendor-order": {
-      "tolerance": { "threshold": 0.2, "maxDiffPixels": 40 }
+      "tolerance": {
+        "threshold": 0.2,
+        "maxDiffPixels": 40
+      }
+    },
+    "depth-action": {
+      "tolerance": {
+        "threshold": 0.2,
+        "maxDiffPixels": 40
+      }
     }
   },
   "why": {

@@ -17,7 +17,7 @@
 //
 // 外加一条 #547 点名、而拆分与扁平化都治不了的：**分镜的 `anchors`/`shots` 是
 // 「由任意对象组成的数组」**。模型要写 24 行、25 个字段，而 schema 一个字段名都没说。
-// 那份 typed 形状其实一直存在，只是住在旧通路的工具表里（`canvasDescriptors.ts`）——
+// 那份 typed 形状其实一直存在，只是曾经住在旧通路的工具表里（`canvasDescriptors.ts`，已删）——
 // 阶段 2 把它搬进能力契约层（`canvasModelShapes.ts`）成为唯一 owner，这里 `.extend()`
 // 覆盖掉契约上那两个 `z.record(z.unknown())` 字段。**不是重写，是替换掉弱的那一份。**
 import { z } from "zod";

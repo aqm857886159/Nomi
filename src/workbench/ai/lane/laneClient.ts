@@ -37,12 +37,24 @@ export function resolveLaneBridge(host: LaneBridgeHost | undefined = globalThis 
   return host?.nomiDesktop?.agentLane
 }
 
-/** 桥没接上时订阅者看到的东西。空投影不是「出错了」，是「这条 lane 还没有内容」。 */
+/**
+ * 桥没接上时订阅者看到的东西。空投影不是「出错了」，是「这条 lane 还没有内容」。
+ *
+ * 三行**全部是「不可知」**，不是 0：桥没接上时我们连模型是谁都不知道，更不知道花了多少钱。
+ * token 那四列留 0 是因为它们说的是「这条 lane 到此为止累计用了多少」，而答案确实是零——
+ * 一件事都还没发生过。两者的区别就是「量到的 0」和「没量」，这一层不许把后者写成前者。
+ */
 export const EMPTY_LANE_PROJECTION: LaneProjection = Object.freeze({
   lane: 'main',
   parts: Object.freeze([]),
   running: false,
-  usage: Object.freeze({ inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0, totalTokens: 0 }),
+  usage: Object.freeze({
+    inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0, totalTokens: 0,
+    cost: Object.freeze({ state: 'unknown', reason: 'no-settled-turn' }),
+    contextTokens: Object.freeze({ state: 'unknown', reason: 'no-settled-turn' }),
+    reasoningTokens: Object.freeze({ state: 'unknown', reason: 'no-settled-turn' }),
+  }),
+  thinking: Object.freeze({ supportedLevels: Object.freeze(['off' as const]), level: 'off', canTurnOff: true }),
 })
 
 export interface LaneClient {

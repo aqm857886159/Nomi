@@ -1,0 +1,79 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-07-video-depth-node-outbound-and-ipc",
+  "change_kind": "structural",
+  "problem_type": "a new local-processing subsystem adds an outbound download path, a new local-serving protocol host, and a new IPC surface, all of which the root-cause gate correctly treats as high-risk production files",
+  "symptom": "check:root-cause-contracts flags five files as high-risk: electron/hardenedFetch.ts (outbound), electron/protocol/localProtocol.ts and electron/protocol/localRuntimeAssets.ts (a protocol host serving files to the renderer), electron/video/depthVideoIpc.ts and electron/video/videoIpc.ts (a new IPC surface). This is not a repair of a broken path — it is the depth video canvas node (docs/plan/2026-09-06-depth-video-canvas-node.md §12), which downloads ~50MB of model weights on first use and serves them plus the bundled onnxruntime wasm back to the renderer. The gate is right to demand a written contract, because the failure modes here are exactly the ones nobody notices: a second outbound path that skips destination policy, and a local host that serves more than it meant to.",
+  "migration": "No runtime migration and no data migration: the node kind is new, nothing existing writes it, and no existing field is rewritten. Rolling back is deleting the files; a stale snapshot carrying the kind takes the loader's existing unknown-kind rejection path rather than degrading into a plain image node. Weights live under userData and deleting that directory returns to the not-yet-downloaded state.",
+  "scope_paths": [
+    "electron/hardenedFetch.ts",
+    "electron/protocol/localProtocol.ts",
+    "electron/protocol/localRuntimeAssets.ts",
+    "electron/video/depthVideoIpc.ts",
+    "electron/video/depthVideoJob.ts",
+    "electron/video/depthVideoModelCache.ts",
+    "electron/video/videoIpc.ts",
+    "electron/shared/canvas/videoDepth.ts",
+    "electron/shared/canvas/videoDepthModels.ts",
+    "electron/shared/canvas/videoDepthRun.ts",
+    "src/workbench/generationCanvas/videoDepth/",
+    "src/workbench/generationCanvas/runner/localTaskControl.ts",
+    "src/workbench/generationCanvas/runner/generationRunController.ts",
+    "src/workbench/generationCanvas/store/nodeLivePreviewStore.ts",
+    "src/workbench/generationCanvas/model/taskCancellation.ts",
+    "src/workbench/generationCanvas/nodes/NodeGeneratingOverlay.tsx",
+    "src/workbench/generationCanvas/nodes/NodeVideoFrameToolbar.tsx"
+  ],
+  "structural_evidence": {
+    "affected_paths": [
+      "electron/hardenedFetch.ts",
+      "electron/protocol/localProtocol.ts",
+      "electron/protocol/localRuntimeAssets.ts",
+      "electron/video/depthVideoIpc.ts",
+      "electron/video/depthVideoJob.ts",
+      "electron/video/depthVideoModelCache.ts",
+      "electron/video/videoIpc.ts",
+      "src/workbench/generationCanvas/runner/localTaskControl.ts",
+      "src/workbench/generationCanvas/runner/generationRunController.ts"
+    ],
+    "preserved_exports": [
+      {
+        "path": "electron/hardenedFetch.ts",
+        "name": "hardenedFetch"
+      },
+      {
+        "path": "electron/protocol/localProtocol.ts",
+        "name": "handleNomiLocalRequest"
+      },
+      {
+        "path": "electron/video/videoIpc.ts",
+        "name": "registerVideoIpc"
+      },
+      {
+        "path": "src/workbench/generationCanvas/runner/localTaskControl.ts",
+        "name": "requestTaskCancel"
+      }
+    ],
+    "behavior_preservation": "Three separate claims, because 'nothing existing changed' and 'the new path is bounded' are different things. (1) hardenedFetch keeps its signature and its default behaviour byte for byte: the streaming sink is an optional field, and when it is absent the function still accumulates chunks and returns the same Buffer it always did. Every existing caller passes no onChunk and is therefore on the unchanged branch. Crucially the sink runs INSIDE hardenedFetch, after the destination has already been classified by networkOutboundPolicy — the weight download does not get a second outbound path, which is the entire point (check:outbound-policy rules 2 and 3 keep appFetch and isPrivateHost importers frozen, and this change adds neither). (2) localProtocol keeps serving project assets exactly as before: the two new hosts are matched by exact hostname ('runtime' and 'model') ahead of the existing parse, and anything that is not one of those two falls through untouched, so no project URL changes meaning. Both new hosts are whitelists rather than paths — the model host resolves only filenames that appear verbatim in the compiled-in manifest, so there is no traversal surface to filter, and the runtime host additionally re-checks that the resolved path stays inside the package directory. CSP grants script-src to the exact nomi-local://runtime host rather than the whole nomi-local scheme, so user-imported project media did not become executable. (3) registerVideoIpc keeps its five existing handlers and gains a call to registerVideoDepthIpc; every new handler opens with assertTrustedSender and loads its heavy module through a dynamic import, matching the convention already in that file. (4) 2026-09-07, second pass — the renderer side changed shape (the depth pass stopped being a node kind and became an action on video nodes, per the user's own review of the first version), which pulled in two files under src/workbench/generationCanvas/runner/. localTaskControl.requestTaskCancel keeps its signature and every existing branch untouched; it gains one early branch, guarded by isVideoDepthProgressPhase, that only registers the cancel and clears the live preview, then returns before any of the ComfyUI or local-task code runs. No existing node can enter that branch, because nothing else writes a video-depth-* progress phase. generationRunController changed by exactly one symbol: the live-preview store was renamed from useComfyuiPreviewStore to useNodeLivePreviewStore (same file moved, same shape, same behaviour) because the depth pass now writes into it too and a second store of the same shape would be a parallel version. No control flow in that file changed. (5) 2026-09-07, third pass — the user cut the action down to one click (no panel, no output choice, no advanced), which deleted the whole skeleton/pose branch: skeletonRenderUtils and its suite, the MediaPipe loader inside the worker, the @mediapipe/tasks-vision dependency, its manifest entry and its bundled-wasm runtime host, and the rgb24 half of the raw pixel format. None of that widens this contract's surface — it narrows it: the outbound whitelist drops from two origins to one (HuggingFace only), the runtime host drops from two bundles to one (ort only), and the model manifest drops from two files to one. The three claims above hold a fortiori. Nothing was added; the settings schema that used to cross the IPC boundary was removed outright and replaced by a compiled-in VIDEO_DEPTH_RECIPE constant, so prepareVideoDepthJob no longer parses caller-supplied parameters at all.",
+    "verification_limits": "Stated plainly. The checker machine-verifies only that the contract's shape is complete, that the regression tests exist and changed in this diff, and that affected_paths are real, changed and covered by scope_paths. It does not and cannot verify behavioural equivalence. What is actually verified elsewhere: pnpm typecheck passes across both tsconfigs, so the hardenedFetch signature change is type-compatible with all existing callers; the depth unit suites cover the processing plan and budget, the run reducer, the ffmpeg argv builders, the model manifest and the batch orchestration. What is NOT verified by any automated test: the real download of the weight file (that would spend bandwidth and depends on network reachability, so the sha256 value was produced by downloading the file once by hand on 2026-09-07 and is pinned in the manifest); and the packaged-build behaviour of the nomi-local runtime host, which needs a real Electron run because the file:// fetch restriction it exists to work around does not reproduce in dev. Both of those are covered by the real-machine walkthrough required before this ships, not by CI. Since 2026-09-07 the real-machine walkthrough (tests/ux/video-depth-real-task.walk.mjs) does run that download and the packaged-path serving for real, end to end, on demand — it is not in CI because it costs bandwidth and a GPU."
+  },
+  "regression_tests": [
+    "electron/shared/canvas/videoDepth.test.ts",
+    "electron/shared/canvas/videoDepthModels.test.ts",
+    "electron/shared/canvas/videoDepthRun.test.ts",
+    "electron/video/depthVideoPipeline.test.ts",
+    "src/lib/removeBackgroundBundle.test.ts",
+    "src/workbench/generationCanvas/videoDepth/videoDepthClient.test.ts",
+    "src/workbench/generationCanvas/videoDepth/videoDepthBatchRunner.test.ts",
+    "src/workbench/generationCanvas/videoDepth/depthRenderUtils.test.ts",
+    "src/workbench/generationCanvas/videoDepth/videoDepthDerivation.test.ts",
+    "src/workbench/generationCanvas/videoDepth/videoDepthPreviewFrame.test.ts",
+    "src/workbench/generationCanvas/videoDepth/videoDepthNodeModel.test.ts"
+  ],
+  "residual_risks": [
+    "The weight sha256 value was measured by hand once. If HuggingFace ever re-serves different bytes at that pinned immutable revision, every download fails closed rather than installing something unverified — which is the intended direction, but it means the failure would look like 'this feature stopped working' and needs the error text to say checksum mismatch. It does.",
+    "The runtime host resolves onnxruntime-web through require.resolve, so an asar layout change upstream (or a bundler that stops shipping that directory) would turn into a 404 at model load time rather than a build error. The worker surfaces that as model-unavailable rather than a silent hang.",
+    "Only WebGPU is supported and there is no wasm fallback, by design. On a machine without a usable adapter the node cannot run at all; the honest failure is preferable to a silent fifteen-minute CPU run, but it does mean the feature's reach is narrower than the rest of the canvas."
+  ],
+  "internal_only_reason": "The external facts this change depends on — the pinned HuggingFace revision and the licence of that weight — are recorded inline in electron/shared/canvas/videoDepthModels.ts with their source pages, and the product-side evidence for the feature itself is in docs/research/2026-09-07-motion-ref-raw-vs-depth.md and docs/research/2026-09-07-depth-motion-ref-in-the-wild.md. What this contract is about — whether an outbound path skips our own policy owner, and whether a local protocol host serves more than its whitelist — is entirely a property of this repository."
+}

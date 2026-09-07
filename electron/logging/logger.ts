@@ -55,6 +55,7 @@ export type LogScope =
   | "onboarding"
   | "proxy"
   | "crash"
+  | "video-depth"
   | "diagnostics";
 
 /**

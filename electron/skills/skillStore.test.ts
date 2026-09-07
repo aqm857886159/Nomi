@@ -1,8 +1,18 @@
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import type { SkillManifest } from "./skillManifestSchema";
 import { SKILL_PACKAGE_VERSION } from "./skillPackage";
-import { findSkillRecord, isSkillSelectableInWorkbench, normalizeSkillLookupKey, type SkillRecord } from "./skillStore";
+import {
+  discoverSkillRecordsFromRoots,
+  findSkillRecord,
+  isSkillSelectableInWorkbench,
+  normalizeSkillLookupKey,
+  type SkillRecord,
+} from "./skillStore";
 
 function manifest(partial: Partial<SkillManifest>): SkillManifest {
   return {
@@ -87,5 +97,33 @@ describe("isSkillSelectableInWorkbench", () => {
       ...record("mcp.only", "mcp-only"),
       manifest: manifest({ audience: "mcp" }),
     })).toBe(false);
+  });
+});
+
+describe("discoverSkillRecordsFromRoots", () => {
+  // 2026-09-07：这条断言原来住在 `harness/runtime/pi/nomiSkillResources.test.ts`，
+  // 但它测的一直是本文件的 owner（`skillStore.ts:181` 那条「损坏包不许占坑遮蔽」的注释就指它）。
+  // 死模块删掉后断言搬到活 owner 旁边，内容逐字不变。
+  it("does not let an invalid higher-priority package shadow a valid same-directory package", async () => {
+    const root = await mkdtemp(join(tmpdir(), "nomi-skill-precedence-"));
+    const broken = join(root, "broken");
+    const valid = join(root, "valid");
+    await mkdir(join(broken, "shared"), { recursive: true });
+    await mkdir(join(valid, "shared"), { recursive: true });
+    await writeFile(join(broken, "shared", "SKILL.md"), "---\nname: shared\ndescription: Broken\n---\n\0");
+    await writeFile(join(valid, "shared", "SKILL.md"), "---\nname: shared\ndescription: Valid\n---\nUse me.");
+    try {
+      const discovered = discoverSkillRecordsFromRoots([
+        { path: broken, origin: "builtin" },
+        { path: valid, origin: "user" },
+      ]);
+      expect(discovered.records).toHaveLength(1);
+      expect(discovered.records[0]).toMatchObject({ origin: "user", description: "Valid" });
+      expect(discovered.diagnostics).toEqual([
+        expect.objectContaining({ type: "warning", path: join(broken, "shared") }),
+      ]);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
   });
 });

@@ -81,10 +81,13 @@ export function agentToolsForCapability(capability: AgentChatRequest["capability
   const descriptors: readonly RuntimeToolDescriptor[] =
     capability === "creation-editor"
       ? agentToolProjection.documentAll
+      // `author_skill` is not on the model surface (`modelToolSurfaceManifest.document`
+      // owns it and declares only read/edit), so the old `.find("author_skill")`
+      // concat here was always empty. `skill.write` reaching the model again is a
+      // product decision, not a projection accident; it must come back through the
+      // manifest, not through a private branch in this file.
       : capability === "creation-chat"
-        ? agentToolProjection.documentRead.concat(agentToolProjection.documentAll.find(({ name }) => name === "author_skill")
-          ? [agentToolProjection.documentAll.find(({ name }) => name === "author_skill")!]
-          : [])
+        ? agentToolProjection.documentRead
       : capability === "canvas-agent"
           ? [...agentToolProjection.canvasAll, ...agentToolProjection.timelineAll, ...agentToolProjection.generationAll]
           : capability === "canvas-refine"

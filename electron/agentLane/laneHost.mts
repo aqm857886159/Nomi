@@ -21,7 +21,7 @@ import type { OpenLane, OpenLaneOptions } from './laneRuntimePort.js';
 import { composeLaneSystemPrompt } from './lanePromptSections.js';
 import { openLaneSession } from './laneSession.mjs';
 import { createLaneTools } from './laneTools.mjs';
-import { projectLaneSnapshot } from './laneProjection.mjs';
+import { projectLaneSnapshot, type LaneModelFacts } from './laneProjection.mjs';
 
 /** 阶段 1 的观测：pi 每个 delta 自报的 `contentIndex`，与我们从 content 数组下标推出来的那个。 */
 export interface LaneOrderObservation {
@@ -63,7 +63,11 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
   }
 
   async function assemble(): Promise<LaneHandleWithObservations> {
-  const { provider, model, credentials } = await createNomiProvider(options.model);
+  const { provider, model, credentials, pricingBasis } = await createNomiProvider(options.model);
+  // 三行（花费/上下文/推理）需要的**模型侧事实**，在这里定死一次，投影层不再回头问任何人。
+  // `contextWindow` 只收显式声明的那个：provider 内部的 128k 兜底是给 pi 的类型用的，不是分母。
+  const modelFacts: LaneModelFacts = { model, pricing: pricingBasis,
+    ...(options.model.contextWindow === undefined ? {} : { contextWindow: options.model.contextWindow }) };
   const models = createModels({ credentials });
   models.setProvider(provider);
   const tools = createLaneTools(options.tools);
@@ -112,10 +116,10 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
 
   const watch = await lane.watch(context);
   let snapshot: LaneSnapshot = watch.snapshot;
-  let projection: LaneProjection = projectLaneSnapshot(snapshot);
+  let projection: LaneProjection = projectLaneSnapshot(snapshot, modelFacts);
   const listeners = new Set<(next: LaneProjection) => void>();
   const publish = () => {
-    projection = projectLaneSnapshot(snapshot);
+    projection = projectLaneSnapshot(snapshot, modelFacts);
     for (const listener of listeners) listener(projection);
   };
   watch.start((event, eventContext) => {

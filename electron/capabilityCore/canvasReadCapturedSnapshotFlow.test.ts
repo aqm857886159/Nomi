@@ -15,7 +15,6 @@ const state = vi.hoisted(() => ({
   landing: vi.fn(),
   captureSurface: vi.fn(),
   sealSurfaceSnapshot: vi.fn(),
-  listeners: new Map<string, (event: unknown) => void>(),
   rendererEvent: null as IpcMainInvokeEvent | null,
   surfaceBinding: null as unknown,
   desktopBridge: null as unknown,
@@ -72,7 +71,6 @@ vi.mock("../../src/desktop/bridge", () => ({
   getDesktopBridge: () => state.desktopBridge,
 }));
 
-import { registerAgentChatV2Ipc } from "../ai/agentChatV2Ipc";
 import { canvasReadResultSchema } from "../shared/agentCapabilities/canvasRead";
 import { formatCanvasForAgent } from "../shared/agentCapabilities/canvasReadCompact";
 import { createMainCapabilityExecutorRegistry } from "./capabilityExecutorRegistry";
@@ -122,10 +120,6 @@ function source() {
     detached: false,
     isDestroyed: () => false,
     send: vi.fn((channel: string, packet: { sessionId?: string; event?: unknown }) => {
-      if (channel === "nomi:agents:chatV2:event" && packet?.sessionId) {
-        state.listeners.get(packet.sessionId)?.(packet.event);
-        return;
-      }
       if (channel === PROJECT_AGENT_EVENT_CHANNEL) {
         state.projectAgentEventListener?.(packet);
         return;
@@ -165,16 +159,6 @@ function invoke(channel: string, event: IpcMainInvokeEvent, payload: unknown) {
 function connectDesktopBridge(renderer: ReturnType<typeof source>): void {
   state.rendererEvent = renderer.event;
   state.desktopBridge = {
-    agents: {
-      chatV2Start: (input: unknown) => invoke("nomi:agents:chatV2:start", renderer.event, input),
-      confirmTool: (sessionId: string, toolCallId: string, decision: unknown) =>
-        invoke("nomi:agents:chatV2:confirmTool", renderer.event, { sessionId, toolCallId, decision }),
-      cancelChatV2: (sessionId: string) => invoke("nomi:agents:chatV2:cancel", renderer.event, { sessionId }),
-      onChatV2Event: (sessionId: string, listener: (event: unknown) => void) => {
-        state.listeners.set(sessionId, listener);
-        return () => state.listeners.delete(sessionId);
-      },
-    },
     projectAgent: {
       open: (binding: unknown) => invoke(PROJECT_AGENT_OPEN_CHANNEL, renderer.event, { binding }),
       snapshot: (subscriptionId: string) => invoke(PROJECT_AGENT_SNAPSHOT_CHANNEL, renderer.event, { subscriptionId }),
@@ -249,7 +233,6 @@ async function installProjectAgentHost(
 beforeEach(() => {
   vi.clearAllMocks();
   state.handlers.clear();
-  state.listeners.clear();
   state.rendererEvent = null;
   state.surfaceBinding = null;
   state.desktopBridge = null;
@@ -340,8 +323,6 @@ describe("production captured canvas read through real main interception", () =>
       capturedSnapshots,
       executor,
     });
-    registerAgentChatV2Ipc({ canvasRead });
-
     const suspendedA = (await invoke("nomi:surface:suspend", renderer.event, {
       surfaceInstanceId: "surface-a",
     })) as { ok: true; value: { suspension: unknown } };
@@ -534,8 +515,6 @@ describe("production captured canvas read through real main interception", () =>
       capturedSnapshots,
       executor,
     });
-    registerAgentChatV2Ipc({ canvasRead });
-
     const suspendedA = (await invoke("nomi:surface:suspend", renderer.event, {
       surfaceInstanceId: "surface-a",
     })) as { ok: true; value: { suspension: unknown } };
@@ -565,48 +544,37 @@ describe("production captured canvas read through real main interception", () =>
       suspension: structuredClone(suspendedB.value.suspension),
     });
 
+    // 2026-09-07: this leg used to drive `nomi:agents:chatV2:start`. Nothing in
+    // production registered that channel (preload never exposed it), so the leg was
+    // proving a transport no user could reach. It now claims the sealed handle
+    // through the seam `registerProjectAgentIpc` actually calls in production —
+    // `canvasRead.capture(..., { capturedCanvasReadSnapshot })` — so the same three
+    // invariants (canonical A wins over live B, no disk read, no renderer round trip)
+    // are asserted on the live path.
     const prompt = formatCanvasForAgent(canvasReadResultSchema.parse(SNAPSHOT_A));
-    let toolDecision: unknown;
-    state.run.mockImplementationOnce(async (request, hooks: AgentChatV2Hooks) => {
-      expect(request.prompt).toBe(prompt);
-      toolDecision = await hooks.awaitToolConfirmation(
-        {
-          toolCallId: "read-captured-a",
-          toolName: "read_canvas_state",
-          args: {},
-        },
-        hooks.abortSignal!,
-      );
-      return response();
-    });
-    const start = {
-      requestId: "production-a-1",
-      request: {
-        prompt,
-        capability: "storyboard",
-        projectId: "project-a",
-        history: { kind: "ephemeral" },
-      },
-      capturedCanvasReadSnapshot: structuredClone(sealedA.value.handle),
-    };
-
-    await expect(invoke("nomi:agents:chatV2:start", renderer.event, start)).resolves.toEqual({
-      sessionId: "production-a-1",
-    });
-    await vi.waitFor(() => expect(toolDecision).toEqual({ ok: true, result: prompt, silent: true }));
-    await vi.waitFor(() => expect(state.run).toHaveBeenCalledOnce());
+    const capturedAdapter = canvasRead.capture(
+      renderer.event,
+      { capturedCanvasReadSnapshot: structuredClone(sealedA.value.handle), projectId: "project-a" },
+      "production-a-1",
+    );
+    await expect(
+      capturedAdapter.tryExecute(
+        { toolCallId: "read-captured-a", toolName: "read_canvas_state", args: {} },
+        new AbortController().signal,
+      ),
+    ).resolves.toEqual({ ok: true, result: prompt, silent: true });
     expect(readDisk).not.toHaveBeenCalled();
     expect(renderer.frame.send.mock.calls.some(([channel]) => channel === "nomi:surface:canvasRead:request")).toBe(
       false,
     );
 
-    await expect(
-      invoke("nomi:agents:chatV2:start", renderer.event, {
-        ...start,
-        requestId: "production-a-replay",
-        capturedCanvasReadSnapshot: structuredClone(sealedA.value.handle),
-      }),
-    ).rejects.toMatchObject({ code: "surface_port_stale" });
-    expect(state.run).toHaveBeenCalledOnce();
+    // A sealed handle is single use: replaying the same bytes is refused, it does not
+    // silently fall back to whatever the live Surface holds now.
+    expect(() => canvasRead.capture(
+      renderer.event,
+      { capturedCanvasReadSnapshot: structuredClone(sealedA.value.handle), projectId: "project-a" },
+      "production-a-replay",
+    )).toThrow(expect.objectContaining({ code: "surface_port_stale" }));
+    capturedAdapter.dispose();
   });
 });

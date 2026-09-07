@@ -716,6 +716,39 @@ pnpm run delivery:verify-merged -- --expected-sha <merge-commit-sha>
 
 **已交的学费（2026-09-06 深夜）**：接 pi SDK 时只接了最底层的 agent loop。pi 已经提供的会话持久化（`SessionManager`）、有序转录（`AgentSessionEvent`）、重试（`RetryPolicy`）、价格和 `steer()/followUp()`，我们**各写了一套，而且更差**——`SessionManager.inMemory` + 自研快照信封替掉了落盘与版本迁移；`retry: { enabled: false }` + `maxRetries: 0` 两处开关关掉了 provider 级退避；宿主自己维护一张 `steering` Map 并把修正指令拼进下一次 prompt 文本，丢掉了「流式中插队 vs 排到下一回合」的区分。首批登记 14 条债。
 
+### 第三份必交物：framework-surface 逐字段裁决（2026-09-07）
+
+**前两份都看不见字段。** 四列表按能力清单走，逐层对照按九层走——两张表的最小单位都是「一块能力」。真出事的那一格比它们都小：
+
+> 2026-09-07 早上刚交了 pi 的参考实现逐层对照（`docs/research/2026-09-07-pi-reference-implementation-conformance.md`），同一天用户随口问了一句，才发现 `electron/agentLane/laneTools.mts:175` 给**所有** lane 工具硬写 `executionMode: 'sequential'`，而 pi 的 `AgentHarnessTool.executionMode` 是**逐工具可选**的（`node_modules/@earendil-works/pi-agent-core/dist/types.d.ts:351-359`）。同一个对象字面量里，隔几行的 `replay` 已经改成从 `mutates` 派生了——**做对的和做错的写在相邻两行**，而两份文档级交付物一个字都没拦住。
+
+**规矩**：登记框架**公开的每一个字段**，都要有一条裁决，五种，没有第六种：
+
+| 裁决 | 意思 | 必填 |
+|---|---|---|
+| `derived` | 随输入派生 | `at`（派生点 `file:line`） |
+| `constant` | 钉死一个值 | `value` + `reason`（**领域约束**级别，偏好套话直接红） |
+| `unused` | 这颗开关我们不接 | `why` |
+| `upstream-default` | 让上游默认值站着 | `default`（那个默认值是什么）+ `why` |
+| `debt` | 现在裁不了 | `due` + `owner` + `why`（黄；过期红） |
+
+**门岗**：`check:framework-surface`（`scripts/check-framework-surface.mjs`，判据 `scripts/framework-surface-lib.mjs`，抽取 `scripts/framework-surface-extract.mjs`，登记挂在同一张 `docs/engineering/framework-boundaries.json` 每个框架条目的 `surface` 一格下）。位置在 `check:framework-boundary` 之后。
+
+- **字段是机器抽的，不是人列的。** 抽取器用 TypeScript 编译器 API 读登记表指定的 `.d.ts`（`Omit` / 交叉类型 / 基接口继承全部解开；`expand` 可下钻嵌套可选项与钩子返回形状），所以「上游升级加了一个字段」**必然**变成一条红——这正是要的那声警报。抽到 0 个字段也红：抽空了却放行，等于门岗静默失效。
+- **代码这半靠锚点扫。** 登记表说清「我们在哪儿造这个形状」（JSX 元素名 / 类型标注 / 调用实参），扫描器只在那几处找赋值并判「字面量 vs 派生」。不给锚点就只能按字段名全仓瞎抓，`name` / `id` / `style` 这种词会把裁决全部淹掉。只消费不构造的类型（钩子表、回调参数）可以 `anchors: []`，代价是 `constant` 一律不许用——「这里钉了个值」正是最该被机器复核的那句话。
+- **框架无关是硬要求**（2026-09-07 用户原话：「我希望这个事要成为通用的流程和规则，我们之后可能不是 pi，那之后是其他怎么办？」）。判据与抽取器里没有一个 pi 的符号；首批登记两条正是为了证明这一点：pi（`AgentHarnessTool` / `AgentHarnessOptions` / `HookMap` / `Model`，55 格）与 `@xyflow/react`（`ReactFlowProps`，122 格）。**接任何新框架没有这张表 = 直接红。**
+- **随版本升级自动复核**：`.d.ts` 变了字段就变了，门岗每次都在比，不靠谁记得重跑（和 R29 上游对齐检查同一个 owner，不另起雷达）。
+
+- **裁决只减不增**：一格登记成 `debt`、后来代码里真的接上了，门岗会红并要求把它改成 `derived`——债还了不销账就是登记漂移，而「待裁」的黄字读起来和真欠着一模一样。同理，`constant` 变成派生、`unused` 其实在用，都红。
+
+**R17 红证**（`scripts/check-framework-surface.node-test.mjs`，19 条）：升级加字段红、`derived` 却是字面量红、`derived` 却没人赋值红、陈旧登记红、`debt` 过期红、`debt` 已还却没销账红、`constant` 值漂移红、`unused` 其实在用红、`constant` 其实随输入变红、抽不出字段红；外加必须证明**不会**红的一条——未到期的 `debt` 只出 warning。
+
+**第一批扫出来的东西**（除起因那条之外，都是门岗自己找到的）：
+
+- `ReactFlowProps.minZoom/maxZoom` 没设，而 `GenerationCanvasReactFlow.tsx:353` 手写 `Math.min(3, Math.max(0.2, …))` 钳缩放——按钮缩放能到 0.2、滚轮缩放只到 0.5（内核默认 0.5/2），**同一条上下限两个值**（R14.1）；
+- `ariaLabelConfig` 是 React Flow 自带的英文 a11y 文案，`check:i18n` 扫不到它（它只扫我们的源码）；`colorMode` 恒 `'light'` 而 Nomi 是光/暗双模式；`onError` 的内核报错一条都没进日志体系；
+- **装门岗当天就抓到一次真漂移**：本分支整合最新 `main` 之后，`Model.cost` 从 `{0,0,0,0}` 变成了 `modelCost(config)`、`reasoning` 变成了 `config.reasoning ?? false`、`thinkingLevelMap` 接上了——三格全部当场报红逼着改裁决。这三格的接线不在本 PR 里，是别的分支合进来的：**门岗替我们看见了另一个人的改动把哪些结论作废了**，而这正是文档级交付物永远做不到的事。
+
 **与 R20 / R5 / R6 的分工**（三条常被搞混）：
 
 | 规则 | 管的那一步 | 问题长什么样 |

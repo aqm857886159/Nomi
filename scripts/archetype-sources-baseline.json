@@ -37,5 +37,10 @@
     "viduQ3.ts",
     "wan27.ts",
     "zImage.ts"
+  ],
+  "_whyTokenPricing": "2026-09-07：Agent 可选文本模型必须声明 per-token 价目或显式 free。这里登记的是官方定价页上**查不到价**的存量模型——编一个数字比留一个「不可知」更糟（DeepSeek 官方定价页 2026-09-07 实查只列 v4-flash / v4-pro / v4-flash-vision-exp 三行）。棘轮：只减不增。",
+  "textModelsWithoutTokenPricing": [
+    "apimartTexts.ts:deepseek-v3.1-terminus",
+    "apimartTexts.ts:deepseek-v3.2"
   ]
 }

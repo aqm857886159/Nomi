@@ -15,6 +15,8 @@ import { SETTINGS_STATES } from './settings/settingsStates'
 import { SETTINGS_CELL_HEIGHT, SETTINGS_CELL_WIDTH } from './settings/settingsLabKit'
 import { AGENT_PANEL_V4_STATES, V4_CELL_HEIGHT, V4_PANEL_WIDTH } from './v4/agentPanelV4States'
 import { VENDOR_ORDER_STATES } from './vendorOrder/vendorOrderStates'
+import { VIDEO_DEPTH_STATES } from './videoDepth/videoDepthStates'
+import { DEPTH_ACTION_CELL_HEIGHT, DEPTH_ACTION_CELL_WIDTH } from './videoDepth/videoDepthLabKit'
 import { STAGE_HEIGHT as VENDOR_ORDER_STAGE_HEIGHT, STAGE_WIDTH as VENDOR_ORDER_STAGE_WIDTH } from './vendorOrder/vendorOrderLabKit'
 import type { LabScreen, LabState } from './labScreen'
 
@@ -103,6 +105,13 @@ export const LAB_SCREENS: readonly LabScreen[] = [
     states: PRIMITIVES_SURFACES_STATES,
     // 这屏混着元素格与整屏格（浮层族 Portal 到 body，只能截整屏），取景框按整屏那一族开列。
     cell: { width: 900, height: 560 },
+  },
+  {
+    id: 'depth-action',
+    label: '画布 · 提取深度',
+    states: VIDEO_DEPTH_STATES,
+    // 十格取景一样大：这一屏要人比的是「这几件东西是不是一家的」，格子不同宽就没法比。
+    cell: { width: DEPTH_ACTION_CELL_WIDTH, height: DEPTH_ACTION_CELL_HEIGHT },
   },
   {
     id: 'vendor-order',

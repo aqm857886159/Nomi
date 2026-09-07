@@ -18,7 +18,12 @@ import {
   mergeAgentToolProfiles,
   resolveAgentToolProfile,
 } from "./agentChatPolicy";
-import { canvasToolDescriptors } from "./tools/canvasDescriptors";
+import { agentToolNames } from "./tools/agentToolCatalog";
+
+/** Every tool name the Host catalog can ever project to a model. */
+function modelFacingToolNames(): readonly string[] {
+  return Object.values(agentToolNames).flatMap((names) => [...names]);
+}
 
 describe("Project Agent Pi capability projection", () => {
   it("rejects an unknown work mode at the request boundary", () => {
@@ -35,7 +40,9 @@ describe("Project Agent Pi capability projection", () => {
     expect(tools.map(({ name }) => name)).toEqual(["nomi_canvas_edit"]);
     expect(tools[0]?.schema).toBeDefined();
     expect(canvasWritePiInputSchema.safeParse({ nodeId: "node-a", prompt: "new prompt" }).success).toBe(true);
-    expect(canvasToolDescriptors).not.toHaveProperty(CANVAS_WRITE_CAPABILITY.aliases.pi);
+    // The legacy per-operation alias (`set_node_prompt`) is an operation *inside*
+    // the semantic canvas write schema, never a model-facing tool name of its own.
+    expect(modelFacingToolNames()).not.toContain(CANVAS_WRITE_CAPABILITY.aliases.pi);
 
     const canvasAgentTools = agentToolsForCapability("canvas-agent");
     expect(canvasAgentTools.map(({ name }) => name)).toEqual(expect.arrayContaining([
@@ -46,10 +53,12 @@ describe("Project Agent Pi capability projection", () => {
     expect(tools.map(({ name }) => name)).toEqual(["nomi_canvas_edit"]);
 
     const policySource = readFileSync(new URL("./agentChatPolicy.ts", import.meta.url), "utf8");
-    const descriptorSource = readFileSync(new URL("./tools/canvasDescriptors.ts", import.meta.url), "utf8");
     expect(policySource).not.toContain("canvas.set_node_prompt");
-    expect(descriptorSource).not.toContain("set_node_prompt");
-    expect(descriptorSource).not.toContain("delete_canvas_nodes");
+    // 2026-09-07: this used to read `tools/canvasDescriptors.ts` as source text. That
+    // file was the retired duplicate tool table and is gone; the live owner of what
+    // the model may call is the Host catalog, so assert on the catalog itself.
+    expect(modelFacingToolNames()).not.toContain("set_node_prompt");
+    expect(modelFacingToolNames()).not.toContain("delete_canvas_nodes");
   });
 
   it("lets a Skill shrink but never expand the Host capability ceiling", () => {

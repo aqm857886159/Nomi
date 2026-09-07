@@ -4,7 +4,8 @@
 // 既有 cancelled 语义（canvasRunActions：最新 run 标 cancelled、节点回 idle，不进红色错误桶）。
 import { getDesktopBridge } from '../../../desktop/bridge'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
-import { useComfyuiPreviewStore } from '../store/comfyuiPreviewStore'
+import { useNodeLivePreviewStore } from '../store/nodeLivePreviewStore'
+import { isVideoDepthProgressPhase } from '../videoDepth/videoDepthProgressPhase'
 import { toast } from '../../../ui/toast'
 import i18n from '../../../i18n'
 
@@ -32,9 +33,18 @@ export function clearTaskCancel(nodeId: string): void {
 /** 遮罩取消按钮入口。prompt_id 优先读 node.progress.taskId，回落 runs[0].taskId（progress 是整体替换、run 是保底）。 */
 export function requestTaskCancel(node: {
   id: string
-  progress?: { taskId?: string } | null
+  progress?: { phase?: string; taskId?: string } | null
   runs?: Array<{ taskId?: string }> | null
 }): void {
+  // 本地深度处理没有 taskId（它不是一次「任务」，是一段跑在本机的处理），所以它只需要
+  // 把登记放下——编排每批之间会问一次 isTaskCancelRequested。**这里不改节点状态**：
+  // 收摊要做的事是把那个还没出片的派生节点删掉（startVideoDepthDerivation），
+  // 在这里顺手把它翻成 idle 只会留下一张永远空着的卡。
+  if (isVideoDepthProgressPhase(node.progress?.phase)) {
+    cancelRequested.add(node.id)
+    useNodeLivePreviewStore.getState().clearPreview(node.id)
+    return
+  }
   const promptId = (node.progress?.taskId || node.runs?.[0]?.taskId || '').trim()
   const tasks = getDesktopBridge()?.tasks
   if (promptId.startsWith('local-')) {
@@ -60,7 +70,7 @@ export function requestTaskCancel(node: {
       .catch(() => toast(i18n.t('generationCommon.comfyuiCancel.failed'), 'warning'))
       .finally(() => { void tasks?.comfyuiUnwatch?.(promptId).catch(() => undefined) })
   }
-  useComfyuiPreviewStore.getState().clearPreview(node.id)
+  useNodeLivePreviewStore.getState().clearPreview(node.id)
   useGenerationCanvasStore.getState().setNodeStatus(node.id, 'idle')
 }
 

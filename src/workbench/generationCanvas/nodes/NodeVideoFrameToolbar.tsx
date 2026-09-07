@@ -12,6 +12,7 @@ import {
 } from './NodeFloatingToolbar'
 import { extractVideoFrameToNode } from './extractVideoFrameToNode'
 import NodeShotCutPanel from './NodeShotCutPanel'
+import NodeDepthActionButton from '../videoDepth/NodeDepthActionButton'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 
@@ -19,6 +20,11 @@ import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 // 全屏是「看」的工具，与下载同归右侧工具区，不占最左（此前全屏在最左，抢了创作动作的位）。
 // 抽帧 = 从这段视频取首/尾一帧 → 落独立图片节点（extractVideoFrameToNode），能拿去当 Seedance 首尾帧 /
 // 任何参考 / 接力源。抽首/尾用两个不同图标（⏮/⏭）一眼可分。容器/按钮走共享 NodeFloatingToolbar（token 合规）。
+//
+// 「提取深度」（2026-09-07）排在拆参考片右边，因为左半段这几个是同一族：**从这段片子里
+// 取出点什么，落成一张新卡**（一帧 / 一批帧 / 一张分镜表 / 一段深度视频）。§1.5 的「≤5」
+// 管的是 L1 常驻条，这条浮条整条都是 L2（选中才出），所以加的不是常驻预算；真正要守的是
+// 「一功能一个家」——深度提取从此只有这一个入口，独立节点与加号菜单里的那份同 commit 删掉。
 
 type Props = {
   node: GenerationCanvasNode
@@ -79,6 +85,7 @@ export default function NodeVideoFrameToolbar({ node, downloading, onDownload, o
         disabled={busy !== null}
         onClick={() => openDeconstruction(node.id, { title: node.title || '', videoUrl: node.result?.url || '' })}
       />
+      <NodeDepthActionButton node={node} disabled={busy !== null} />
       <ToolbarDuplicateVariantButton nodeId={node.id} />
       <ToolbarDivider />
       <ToolbarIconButton

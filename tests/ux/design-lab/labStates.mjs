@@ -63,6 +63,10 @@ export const LAB_SCREENS = {
     registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/primitivesSurfaces/states'),
     baselineDir: path.join(BASELINE_ROOT, 'primitives-surfaces'),
   },
+  'depth-action': {
+    registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/videoDepth/states'),
+    baselineDir: path.join(BASELINE_ROOT, 'depth-action')
+  },
   'vendor-order': {
     registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/vendorOrder/states'),
     baselineDir: path.join(BASELINE_ROOT, 'vendor-order'),

@@ -6,6 +6,7 @@
 // ffmpeg/模型编排链一并拉进启动路径。
 import { ipcMain } from "electron";
 import { assertTrustedSender } from "../ipcSenderGuard";
+import { registerVideoDepthIpc } from "./depthVideoIpc";
 
 export function registerVideoIpc(): void {
   ipcMain.handle("nomi:video:extract-frame", async (event, payload) => {
@@ -30,4 +31,8 @@ export function registerVideoIpc(): void {
     const { deconstructVideo } = await import("./deconstructVideo");
     return deconstructVideo(payload);
   });
+
+  // 深度视频处理节点的五个原语同属 video 家族，挂在这里而不是 main.ts —— main.ts 是已登记的
+  // 巨壳（828 行封顶），每加一个子系统就往里塞两行，正是它长成这样的原因。
+  registerVideoDepthIpc();
 }

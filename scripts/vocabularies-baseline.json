@@ -1,5 +1,5 @@
 {
-  "debtCap": 77,
+  "debtCap": 76,
   "registered": [
     {
       "site": "src/workbench/creation/storyboard/StoryboardPlanStrategyPanel.tsx::function:StatusBar/parameter:0/property:stateKey/type-union",
@@ -17,7 +17,13 @@
     },
     {
       "site": "electron/connectors/connectorDefinition.ts::type:UsageStatus/type-union",
-      "members": ["cleared", "reference_only", "requires_attribution", "restricted", "rights_unknown"],
+      "members": [
+        "cleared",
+        "reference_only",
+        "requires_attribution",
+        "restricted",
+        "rights_unknown"
+      ],
       "reason": "UsageStatus 是 P0-1 来源取证的五态操作性枚举（代表「系统该怎么对待这份素材」，不是法律结论）：reference_only 浏览器/本地来源的诚实默认，rights_unknown connector 抓取平台内容的默认，requires_attribution CC BY 族等必须署名的来源，cleared 已核实可用（仅 Pixabay API 等明确授权来源才设），restricted 在当前用途下受限。与 M4 taint 系统对齐：usageStatus 是 content trust level 维度，M4 output projection 直接读取。projectAssetStore.ts 的 VALID_USAGE_STATUSES 运行时 Set 从此类型 derive，不另立成员列表。"
     },
     {
@@ -184,23 +190,31 @@
     },
     {
       "site": "electron/shared/contracts/apiKeyStatus.ts::variable:API_KEY_DECRYPT_STATUSES/as-const",
-      "members": ["locked", "missing", "needs_resave", "ok"],
+      "members": [
+        "locked",
+        "missing",
+        "needs_resave",
+        "ok"
+      ],
       "reason": "ApiKeyDecryptStatus 是首次真实执行时的凭据可解密性合同：missing 表示没有可用记录，needs_resave 表示 legacy plaintext 仅可用于迁移提示且不可执行，locked 表示 safeStorage 密文存在但宿主无法解密，ok 表示取得可用明文；它会触碰解密能力，与零解密的 textBrain metadata readiness 正交。owner 已上移到中立契约层 electron/shared/contracts/apiKeyStatus.ts（renderer connector DTO 与主进程凭据层都从此 derive，跨进程不各写一份）；secrets.ts 只再导出，成员唯一定义在此 as-const tuple。"
     },
     {
       "site": "electron/networkOutboundPolicy.ts::type:OutboundStage/type-union",
-      "members": ["retrieval", "submit"],
+      "members": [
+        "retrieval",
+        "submit"
+      ],
       "reason": "OutboundStage 回答的是「这次出站被拦时，用户的钱怎么样了」——不是任务状态，也不是流程阶段，所以不复用 GenerationProviderTaskState / McpGenerationPhase 那些既有词表（它们描述上游任务走到哪一步，而这里上游根本没被请求到）。submit 表示判据跑在 fetchVendorWithBaseFallback 之前、连接一次都没建立，故供应商必然未计费、也不存在可找回的 taskId，用户的下一步是修好网络重新生成；retrieval 表示提交已成功、上游多半已出片、钱已经付过，丢的只是那一次下载，下一步是免费重新拉取。两者共用一句话就会说反方向，因此成员集只此一处定义，networkOutboundMessage 的文案分支与 nomiErrorCodes 的 outbound-blocked / outbound-blocked-submit 两个码都从它 derive。"
     },
     {
-      "site": "electron/catalog/seedBuiltins.ts::type:CatalogLifecycle/type-union",
+      "site": "electron/catalog/seedModelIdentity.ts::type:CatalogLifecycle/type-union",
       "members": [
         "companion",
         "flagship",
         "legacy",
         "value"
       ],
-      "reason": "seedBuiltins 的 CatalogLifecycle 是主进程内置目录的产品分层标签：flagship、companion、legacy 与 value 决定种子发布和兼容策略，和 renderer 的排序投影保持边界分离。"
+      "reason": "seedModelIdentity 的 CatalogLifecycle 是主进程内置目录的产品分层标签：flagship、companion、legacy 与 value 决定种子发布和兼容策略，和 renderer 的排序投影保持边界分离。2026-09-07 从 seedBuiltins.ts 原样搬到这里（成员一个没改）：那个文件做的是对账，这里是一张随模型雷达增删的查找表，两者变更理由不同；唯一读取者仍是同文件的 curatedCatalogLifecycle。"
     },
     {
       "site": "electron/harness/context/contextStore.ts::interface:StoredAgentContext/property:state/type-union",
@@ -1334,22 +1348,40 @@
     },
     {
       "site": "electron/experience/experienceTypes.ts::variable:experienceStatusSchema/z.enum",
-      "members": ["active", "demoted", "expired", "quarantined", "shadow", "superseded"],
+      "members": [
+        "active",
+        "demoted",
+        "expired",
+        "quarantined",
+        "shadow",
+        "superseded"
+      ],
       "reason": "experienceStatusSchema 是经验候选的唯一生命周期词表：quarantined/shadow/active 表示证据闸门，demoted/expired/superseded 表示不可再用于提示词的终态；策略、投影和回放都必须从此 owner 派生，不能与 Agent turn 或任务状态混用。"
     },
     {
       "site": "electron/shared/contracts/diagnostics.ts::type:DiagnosticsExportResult/property:reason/type-union",
-      "members": ["canceled", "failed"],
+      "members": [
+        "canceled",
+        "failed"
+      ],
       "reason": "诊断包导出失败时的两种收场，只服务设置页那一格的文案分岔：canceled = 用户在系统保存对话框里点了取消（不是错误，界面上说「已取消」就好），failed = 写盘真的没成（界面上要说「请再试一次」）。它描述的是一次本机保存对话框的结果，不是任务/作业/运行的生命周期，所以不能复用 GenerationProviderTaskState、ProductionJobStatus 或 TelemetryResult——那几个词表一旦被借来表达「用户点了取消」，业务状态机的成员含义就被稀释了。成员由 Electron showSaveDialog 的返回形状决定（canceled 布尔 + 写盘是否抛），不由我们扩展。"
     },
     {
       "site": "electron/shared/contracts/telemetry.ts::type:TelemetryStatus/type-union",
-      "members": ["configured", "disabled", "unconfigured"],
+      "members": [
+        "configured",
+        "disabled",
+        "unconfigured"
+      ],
       "reason": "TelemetryStatus 是本地隐私设置视图的三态投影，描述 endpoint 配置与用户同意后的展示状态；它不是任务或连接生命周期，复用已有状态词表会把设置页的可见合同与业务状态混淆。"
     },
     {
       "site": "electron/shared/contracts/telemetry.ts::variable:TELEMETRY_RESULT_VALUES/as-const",
-      "members": ["cancel", "failure", "success"],
+      "members": [
+        "cancel",
+        "failure",
+        "success"
+      ],
       "reason": "TelemetryResult 是遥测出站协议唯一允许的结果维度，跨主进程更新、生成与导出入口共用同一中立合同；它描述一次遥测事件结算，不等同于供应商任务、导出作业或 UI 状态。"
     },
     {
@@ -1367,7 +1399,7 @@
         "complete",
         "queued",
         "running"
-],
+      ],
       "reason": "QueueRowData.status 是 Agent 面板队列行的展示投影，complete 表示行已收束；它与生产任务的 succeeded 语义不同，保持面板词表隔离。"
     },
     {
@@ -1424,19 +1456,35 @@
         "output-available",
         "output-denied",
         "output-error"
-],
+      ],
       "reason": "AI_ELEMENTS_TOOL_STATUSES 是 vendor 解剖报告对应的七态协议常量，作为 V4ToolStatus 的外部契约参照，不能由 Nomi 运行时任务词表替代。"
+    },
+    {
+      "site": "electron/shared/canvas/videoDepthRun.ts::variable:VIDEO_DEPTH_PHASES/as-const",
+      "members": [
+        "cancelled",
+        "done",
+        "downloading",
+        "encoding",
+        "extracting",
+        "failed",
+        "idle",
+        "processing",
+        "warming"
+      ],
+      "reason": "深度视频节点一次本地处理的阶段表：downloading/extracting/warming/encoding 是这条 ffmpeg+WebGPU 管线独有的等待理由，没有任何供应商任务状态词表含这四个；渲染层与主进程都从这一处 import，正是为了不让两个进程各写一份。"
+    },
+    {
+      "site": "electron/shared/canvas/videoDepthRun.ts::variable:TERMINAL_VIDEO_DEPTH_PHASES/set",
+      "members": [
+        "cancelled",
+        "done",
+        "failed"
+      ],
+      "reason": "上一条阶段表的终态子集，用于让迟到事件被吸收（取消后仍在途的那一批不许把界面拽回处理中）。它是同一张表的投影而不是第二份词表，成员必须逐字取自 VIDEO_DEPTH_PHASES。"
     }
   ],
   "debt": [
-    {
-      "site": "electron/ai/agentChatV2Ipc.ts::function:emptyResult/parameter:status/type-union",
-      "members": [
-        "cancelled",
-        "error"
-      ],
-      "reason": "emptyResult.status 只是 RuntimeTurnResult['status'] 中 error、cancelled 的失败子集；应改为 Extract<AgentChatStatus, 'error' | 'cancelled'>，而 AgentChatStatus 本身从 RuntimeTurnResult['status'] 派生，删除该参数的本地字面量。"
-    },
     {
       "site": "electron/ai/antigravityProtocol.ts::class:AntigravityProtocol/method:acceptTool/property:state/type-union",
       "members": [

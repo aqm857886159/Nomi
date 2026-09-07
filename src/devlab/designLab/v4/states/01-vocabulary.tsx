@@ -6,6 +6,7 @@
 // 顺序有意义：`labStates.mjs` 按本屏目录里 `NN-*.tsx` 的文件名排序解析，汇总口按同样顺序拼接，
 // 走查再拿活页面的 `window.__designLabStates` 与解析结果逐项比对——三者对不上当场红。
 import React from 'react'
+import type { LaneSnapshot } from '@earendil-works/pi-agent-core'
 import { IconBrowser, IconSettings } from '../../../../vendor/tablerIcons'
 import { V4Intervention, V4Queue, V4TaskCard } from '../../../../workbench/ai/v4/AgentPanelV4Cards'
 import { V4ContextRing } from '../../../../workbench/ai/v4/AgentPanelV4Context'
@@ -19,6 +20,7 @@ import { V4FlowRow } from '../../../../workbench/ai/v4/AgentPanelV4Panel'
 import { useV4Labels } from '../../../../workbench/ai/v4/agentPanelV4Labels'
 import type { ToolReceipt, V4AssistantStatus } from '../../../../workbench/ai/v4/agentPanelV4Types'
 import { Piece, useV4Fixtures } from '../agentPanelV4LabKit'
+import { laneDrivenReceipt, laneSnapshotToolDenied, laneSnapshotToolRunning } from '../laneDrivenFixtures'
 import type { LabState } from '../../labScreen'
 
 
@@ -83,6 +85,33 @@ function ReceiptCell({ pick, errorBar }: { pick: keyof ReturnType<typeof useV4Fi
       {errorBar ? (
         <V4ErrorBar reason={fx.t('agentPanelV4.fixtureVendorFailure')} action={fx.t('agentPanelV4.fixtureRetryOtherModel')} />
       ) : null}
+    </Piece>
+  )
+}
+
+/**
+ * 由 `LaneSnapshot` 驱动的两格（探针 P6）：收据不是手写的，是 pi 转录 → `projectLaneSnapshot`
+ * → `laneViewModel` 真跑出来的。可见文字仍由实验室给（`toolLabel` 等，R15），和其它格同一份词条。
+ * 「完成」那一格没接：它的摘要（「3 段 · 9.0s」）与用时（「0.4s」）今天的投影给不出来
+ * （摘要要按能力渲染、用时要转录时间戳过桥），接上去就是一张不该被录进基线的红——
+ * 见 `laneDrivenFixtures.test.ts` 钉住的缺口清单。
+ */
+function LaneReceiptCell({ lane }: { lane: (rejectReason: string) => LaneSnapshot }): JSX.Element {
+  const fx = useV4Fixtures()
+  const labels = useV4Labels()
+  const receipt = laneDrivenReceipt(lane(fx.t('agentPanelV4.slotRejectSample')), {
+    toolLabel: () => fx.t('agentPanelV4.fixtureReadTimeline'),
+    thinkingLabel: fx.t('agentPanelV4.thinkingLabel'),
+    formatTokens: (value) => String(value),
+    formatCost: (usd) => `$${usd.toFixed(2)}`,
+    // 三行的两个占位词。这一格只画工具收据，花费/上下文行不进画面；占位词走已有的 contextUnknown，
+    // 「免费」那句不预放死键（3b 的裁决），这里同样借占位符——它在这一格永远不会被渲染。
+    unknown: fx.t('agentPanelV4.contextUnknown'),
+    free: fx.t('agentPanelV4.contextUnknown'),
+  })
+  return (
+    <Piece>
+      <V4ToolReceipt receipt={receipt} statusLabel={labels.toolStatus[receipt.status]} undoLabel={labels.task.undo} />
     </Piece>
   )
 }
@@ -236,7 +265,7 @@ export const V4_VOCABULARY_STATES: readonly LabState[] = [
     name: '③ 收据 · input-streaming（进行中）',
     source: '2026-09-06-agent-panel-v4.md · Vocabulary 板',
     coverage: 'component-only',
-    render: () => <ReceiptCell pick="running" />,
+    render: () => <LaneReceiptCell lane={laneSnapshotToolRunning} />,
   },
   {
     id: 'v4-tool-input-available',
@@ -292,7 +321,7 @@ export const V4_VOCABULARY_STATES: readonly LabState[] = [
     name: '③ 收据 · output-denied（你点了不要）',
     source: '2026-09-06-agent-panel-v4.md · Vocabulary 板',
     coverage: 'component-only',
-    render: () => <ReceiptCell pick="denied" />,
+    render: () => <LaneReceiptCell lane={laneSnapshotToolDenied} />,
   },
   {
     id: 'v4-tool-output-error',

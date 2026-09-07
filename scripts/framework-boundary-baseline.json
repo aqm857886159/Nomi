@@ -28,13 +28,6 @@
       "due": "2026-11-07"
     },
     {
-      "identity": "pi/resource-loading/private-skill-resource-catalog::electron/harness/runtime/pi/nomiSkillResources.mts",
-      "hits": 3,
-      "note": "electron/harness/runtime/pi/nomiSkillResources.mts:66 — 自研 skill 发现与目录装配，与 DefaultResourceLoader.getSkills() 同职责；两份发现逻辑迟早对同一目录给出不同答案。",
-      "plan": "docs/plan/2026-09-07-agent-runtime-rebuild.md",
-      "due": "2026-11-07"
-    },
-    {
       "identity": "pi/retry-policy/max-retries-zero::electron/harness/runtime/pi/run.mts",
       "hits": 1,
       "note": "electron/harness/runtime/pi/run.mts:165 — 把 provider 重试压到 0 是同一件事的第二处开关；两处都在，说明宿主整条重试路径都自持，pi 的策略被架空。",

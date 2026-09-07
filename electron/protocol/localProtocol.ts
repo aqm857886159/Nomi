@@ -6,6 +6,7 @@ import { resolveContentType } from "../assets/mediaTypes";
 import { resolveProjectRelativePath } from "../projects/repository";
 import { getArtifactPreviewSecret, verifyArtifactPreviewHandle } from "../productionRun/artifactProjection";
 import { appendEvents } from "../events/eventLogRepository";
+import { resolveLocalModelAsset, resolveLocalRuntimeAsset } from "./localRuntimeAssets";
 import { LOCAL_ARTIFACT_CONTENT_SECURITY_POLICY } from "../shared/localArtifactPolicy";
 
 function withLocalAssetHeaders(headers?: HeadersInit): Headers {
@@ -122,7 +123,61 @@ function rangeNotSatisfiable(size: number): Response {
   });
 }
 
+/**
+ * 随包运行时资产（ort 的 wasm）与已下载权重的伺服。
+ *
+ * 与 `asset` host 分开处理是因为它们**不属于任何项目**：没有 projectId，也就不该进
+ * 项目事件日志、不该走项目路径解析。命中白名单才有响应，其余一律 404。
+ */
+function handleNonProjectHost(request: Request, hostname: string, segments: readonly string[]): Response | null {
+  const target =
+    hostname === "runtime"
+      ? resolveLocalRuntimeAsset(segments)
+      : hostname === "model"
+        ? resolveLocalModelAsset(segments)
+        : null;
+  if (!target) return hostname === "runtime" || hostname === "model" ? new Response("Not found", { status: 404 }) : null;
+  const stat = fs.statSync(target.filePath);
+  const headers = withLocalAssetHeaders({
+    "Content-Type": target.contentType,
+    "Content-Length": String(stat.size),
+  });
+  const body = request.method === "HEAD" ? null : createOwnedFileStream(target.filePath);
+  return new Response(body, { status: 200, headers });
+}
+
+function nonProjectHostSegments(rawUrl: string): { hostname: string; segments: string[] } | null {
+  let url: URL;
+  try {
+    url = new URL(rawUrl);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== "nomi-local:") return null;
+  const segments = url.pathname
+    .replace(/^\/+/, "")
+    .split("/")
+    .filter(Boolean)
+    .map((seg) => {
+      try {
+        return decodeURIComponent(seg);
+      } catch {
+        return seg;
+      }
+    });
+  return { hostname: url.hostname, segments };
+}
+
 export async function handleNomiLocalRequest(request: Request): Promise<Response> {
+  const nonProject = nonProjectHostSegments(request.url);
+  if (nonProject && (nonProject.hostname === "runtime" || nonProject.hostname === "model")) {
+    try {
+      const response = handleNonProjectHost(request, nonProject.hostname, nonProject.segments);
+      if (response) return response;
+    } catch {
+      return new Response("Not found", { status: 404 });
+    }
+  }
   const target = parseLocalAssetUrl(request.url);
   const respond = (response: Response): Response => {
     if (target?.projectId) {

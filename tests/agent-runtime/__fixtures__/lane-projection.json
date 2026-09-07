@@ -65,6 +65,25 @@
     "outputTokens": 12,
     "cacheReadTokens": 0,
     "cacheWriteTokens": 0,
-    "totalTokens": 42
+    "totalTokens": 42,
+    "cost": {
+      "state": "unknown",
+      "reason": "model-has-no-pricing"
+    },
+    "contextTokens": {
+      "state": "known",
+      "value": 10
+    },
+    "reasoningTokens": {
+      "state": "not-applicable",
+      "reason": "model-has-no-reasoning"
+    }
+  },
+  "thinking": {
+    "supportedLevels": [
+      "off"
+    ],
+    "level": "off",
+    "canTurnOff": true
   }
 }

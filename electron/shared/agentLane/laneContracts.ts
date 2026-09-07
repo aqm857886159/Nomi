@@ -58,6 +58,41 @@ export type LanePart =
 
 export type LanePartKind = LanePart['kind']
 
+/**
+ * 一个数字的**三态**。三行（花费 / 上下文 / 推理）共用它，因为三行踩的是同一个坑：
+ * 「没有数」被当成「数是 0」印出去。
+ *
+ * · `known`          —— 我们量到了这个数。
+ * · `unknown`        —— 这个数**现在**拿不到（首轮还没结算、刚压缩完、模型没价目…）。
+ *                       面板上印占位符，**绝不印 0**：0 是「几乎没花钱 / 几乎没用上下文」这个断言，
+ *                       而那一刻我们其实是「不知道」。
+ * · `not-applicable` —— 这个数**对这个模型不存在**（免费模型没有花费、不会思考的模型没有推理 token）。
+ *                       它是一个真答案，不是缺失——所以和 `unknown` 分开，面板上说的是两句不同的话。
+ *
+ * 为什么不用 `number | undefined`：那样 `unknown` 和 `not-applicable` 会坍缩成同一个 `undefined`，
+ * 下游只能靠猜决定印「—」还是印「免费」；而「有没有理由」这件事也就丢了，报错时没人知道数为什么没有。
+ */
+export type LaneMetric =
+  | { readonly state: 'known'; readonly value: number }
+  | { readonly state: 'unknown'; readonly reason: LaneMetricUnknownReason }
+  | { readonly state: 'not-applicable'; readonly reason: LaneMetricNotApplicableReason }
+
+export type LaneMetricUnknownReason =
+  /** 一条结算过的助手回复都还没有（首轮）。此时任何数都还没产生，估算又不含系统提示词与工具 schema。 */
+  | 'no-settled-turn'
+  /** 刚压缩完，下一条助手回复之前：旧的用量数字描述的是压缩前的上下文，拿它当「现在装了多少」是错的。 */
+  | 'just-compacted'
+  /** 目录里这个模型没有 per-token 价目（`Model.tokenPricing` 缺席）。 */
+  | 'model-has-no-pricing'
+  /** 模型会思考，但供应商这一轮没报推理 token（pi 的 `Usage.reasoning` 是可选的）。 */
+  | 'provider-omits-reasoning'
+
+export type LaneMetricNotApplicableReason =
+  /** 目录明说这个模型不按 token 计费。 */
+  | 'model-is-free'
+  /** `getSupportedThinkingLevels(model)` 只返回 `["off"]` —— 这个模型没有推理这回事。 */
+  | 'model-has-no-reasoning'
+
 /** 这条 lane 到此为止的用量。数字全部来自 pi 的 `SessionStats`，本层不做第二次换算（不变量 I3）。 */
 export interface LaneUsage {
   readonly inputTokens: number
@@ -76,8 +111,53 @@ export interface LaneUsage {
   /** 写进缓存前缀的 token（`Usage.cacheWrite`）。一条新 lane 的第一轮几乎全在这一列。 */
   readonly cacheWriteTokens: number
   readonly totalTokens: number
-  /** 运行时对这个模型没有价目时**整个字段不存在**——不是 0。0 会印成一个我们没资格下的断言。 */
-  readonly costUsd?: number
+  /**
+   * 本条 lane 到此为止的花费（美元），三态。
+   *
+   * **不是 `costUsd?: number`。** pi 的 `Usage.cost` 不可选：没有价目的模型照样产出一份全零
+   * （`pi-ai/dist/models.js:543-547` 拿 `Model.cost` 直接乘），所以 `cost.total === 0` 同时长得像
+   * 「免费」「还没花钱」和「我们没有价目」。用 `> 0` 去分辨它们是猜——那条判断 2026-09-07 删掉了，
+   * 判据改为目录声明的 `NomiPricingBasis`（`electron/harness/runtime/pi/model.mts`）。
+   */
+  readonly cost: LaneMetric
+  /**
+   * 「现在上下文里装了多少 token」，三态。**不是累计用量**：累计会随聊天次数一路涨到超过窗口，
+   * 画出一个 300% 的环（`agentPanelV4Projection.projectV4Context` 早就把这条写在注释里了）。
+   * 取的是最后一条**结算过**的助手消息那次请求的 prompt（`input + cacheRead + cacheWrite`，
+   * 与 pi `calculateCost` 对「输入」的定义一字不差）。
+   */
+  readonly contextTokens: LaneMetric
+  /**
+   * 推理（thinking）token，三态。**逐消息累加**：pi 的会话总计把 `reasoning` 丢掉了
+   * （`core/usage-totals.js` 只并 input/output/cacheRead/cacheWrite），所以它只能从转录里的
+   * 每条助手消息上取。它是 `output` 的**子集**，不是另加的一份。
+   */
+  readonly reasoningTokens: LaneMetric
+  /**
+   * 这个模型的上下文窗口（分母）。**缺就是缺**——没有分母就不画环，也不拿一个默认值凑
+   * （`createNomiProvider` 内部为了满足 pi 的类型给了 128k 兜底，那个数不许上屏）。
+   */
+  readonly contextWindow?: number
+}
+
+/** pi 的思考档（`ModelThinkingLevel`）。中立层复述一遍，是因为 `src/` 那侧 import 不到 pi。 */
+export type LaneThinkingLevel = 'off' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+
+/**
+ * 推理档位。**全部由 `getSupportedThinkingLevels(model)` derive**，不在我们这侧另列一张表：
+ * pi 已经把「`thinkingLevelMap[level] === null` 的档不支持」这条规则写进那个函数
+ * （`pi-ai/dist/models.js:551-562`），再抄一份就是两把尺子。
+ */
+export interface LaneThinking {
+  /** 这个模型真正可选的档。UI 只许画这几个——画一个点不动的档比不画更糟。 */
+  readonly supportedLevels: readonly LaneThinkingLevel[]
+  /** 当前档（`LaneSnapshot.configuration.thinkingLevel`）。 */
+  readonly level: LaneThinkingLevel
+  /**
+   * 能不能关掉思考。`off` 被模型标成 `null` 时它是 `false`——那种模型**关不掉思考**，
+   * UI 不能给一个按下去不生效的「关闭」。
+   */
+  readonly canTurnOff: boolean
 }
 
 /** 一次推送 = lane 当前的全部有序段。阶段 1 走全量快照；增量是阶段 3 的事。 */
@@ -87,6 +167,7 @@ export interface LaneProjection {
   /** 这条 lane 现在有没有在跑（`LaneSnapshot.operation !== null`）。 */
   readonly running: boolean
   readonly usage: LaneUsage
+  readonly thinking: LaneThinking
 }
 
 /** 宿主审批记录的 custom entry 类型名。渲染层按它认出「这是策略拒收，不是工具坏了」。 */

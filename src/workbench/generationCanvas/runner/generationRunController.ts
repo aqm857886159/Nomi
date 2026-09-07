@@ -10,7 +10,7 @@ import { confirmGenerationSpend, describeGenerationCost, generationCostContextFo
 import { generationNodeExecutor, type GenerationNodeExecutor } from './generationNodeExecutor'
 import { narrateProgress } from '../../observability/narrate'
 import { LocalTaskCancelledError, clearTaskCancel, isTaskCancelRequested, isLocalTaskCancelledError } from './localTaskControl'
-import { useComfyuiPreviewStore } from '../store/comfyuiPreviewStore'
+import { useNodeLivePreviewStore } from '../store/nodeLivePreviewStore'
 import { isRecoverableTimeoutError } from './recoverableTimeout'
 import { outboundBlockedRecoverableMessage } from './outboundBlockedRecovery'
 import { describeOpaqueFailure } from '../../observability/opaqueFailure'
@@ -404,7 +404,7 @@ export async function runGenerationNode(
   } finally {
     // 取消登记与活预览帧都是会话瞬态：任务收尾（成/败/取消）一律清，防泄漏到下一次生成。
     clearTaskCancel(id)
-    useComfyuiPreviewStore.getState().clearPreview(id)
+    useNodeLivePreviewStore.getState().clearPreview(id)
     // 单发路径的批次由本函数自建，也由本函数收尾（批量路径归 runGenerationNodesByPlan 收）。
     if (ownsBatch) useGenerationQueueStore.getState().finishBatch(batchId)
   }

@@ -181,7 +181,12 @@ function clampProgressPercent(value: number | undefined): number | null {
   return Math.max(0, Math.min(100, Math.round(value)))
 }
 
-function RemoveBackgroundProgressMark({ progress }: { progress?: number }): JSX.Element {
+/**
+ * 进度环。`compact` 是同一个环缩进一条横条里用的那一档（顶部进度条 · 见 GeneratingOverlay
+ * 的 placement='top'）：去掉自带的圆形托底与阴影——横条本身已经是那块底了，再叠一层
+ * 就是「一个东西两层底」，在 28px 高的条里看着像贴了个贴纸。
+ */
+function RemoveBackgroundProgressMark({ progress, compact = false }: { progress?: number; compact?: boolean }): JSX.Element {
   const percent = clampProgressPercent(progress)
   const radius = 18
   const circumference = 2 * Math.PI * radius
@@ -189,12 +194,12 @@ function RemoveBackgroundProgressMark({ progress }: { progress?: number }): JSX.
   return (
     <div
       className={cn(
-        'grid size-14 place-items-center rounded-full',
-        'bg-nomi-paper/[0.92] text-nomi-ink shadow-nomi-md backdrop-blur-[8px]',
+        'grid place-items-center rounded-full',
+        compact ? 'size-4 shrink-0 text-nomi-ink-80' : 'size-14 bg-nomi-paper/[0.92] text-nomi-ink shadow-nomi-md backdrop-blur-[8px]',
       )}
       aria-hidden="true"
     >
-      <svg className="size-10" viewBox="0 0 44 44">
+      <svg className={compact ? 'size-4' : 'size-10'} viewBox="0 0 44 44">
         <circle cx="22" cy="22" r={radius} fill="none" stroke="currentColor" strokeWidth="4" opacity="0.16" />
         <circle
           className={isDeterminate ? undefined : 'origin-center animate-spin motion-reduce:animate-none'}
@@ -275,35 +280,73 @@ export function LocalImageOpPendingStatus({
   )
 }
 
+/** 遮罩里那颗取消按钮。两档摆法共用一颗，别各写一份（两份总有一份会先漂）。 */
+function GeneratingCancelButton({ onCancel, compact }: { onCancel: () => void; compact?: boolean }): JSX.Element {
+  const { t } = useTranslation()
+  return (
+    <button
+      type="button"
+      aria-label={t('generationCommon.card.generationCancelAria')}
+      onClick={(event) => {
+        event.stopPropagation()
+        onCancel()
+      }}
+      onPointerDown={(event) => event.stopPropagation()}
+      className={cn(
+        'pointer-events-auto inline-flex shrink-0 items-center gap-1 rounded-full text-micro font-medium',
+        'text-workbench-danger bg-[var(--workbench-danger-soft)] hover:opacity-85',
+        compact ? 'px-2 py-0.5' : 'px-3.5 py-1',
+      )}
+    >
+      <IconPlayerStop size={13} stroke={1.8} />
+      {t('generationCommon.card.generationCancel')}
+    </button>
+  )
+}
+
 /**
  * 生成中（queued/running）的统一品牌转圈遮罩（pending 规范 #1）。
- * 挂在节点根容器、对分镜/卡片/文本所有节点类型一致生效；z-[1] 盖住正文但低于
- * header 的状态文字徽标（z-[2]，仍显「生成中」），pointer-events-none 不挡交互。
+ * 挂在节点根容器、对分镜/卡片/文本所有节点类型一致生效；pointer-events-none 不挡交互。
+ *
+ * 两档摆法（`placement`）：
+ * · `center`（默认，其余全部调用方）——转圈居中，z-[1]，低于 header 的状态徽标（z-[2]）。
+ * · `top`（2026-09-07 用户拍板：「把那个放到上面 别遮挡视频」）——进度收成贴着卡顶的一条，
+ *   画面区一点不挡。这一档必须盖在 `__preview`（z-[2]）之上：这一族任务（本地深度处理）
+ *   的活预览帧**就是这张卡此刻的内容**，压在占位底纹底下等于没有；居中那一档层级不动，
+ *   所以其余调用方零变化。
  */
+export type GeneratingOverlayPlacement = 'center' | 'top'
+
 export function GeneratingOverlay({
   percent,
   message,
   previewUrl,
   onCancel,
+  placement = 'center',
 }: {
   /** 0-100 真实进度（P 轨 ws 逐节点）。缺省 = 品牌转圈（No fake progress）。 */
   percent?: number
   /** 人话进度（narrate 产出，如「KSampler · 第 3/17 个节点」）。 */
   message?: string
-  /** 活预览帧 data URL（ComfyUI 采样中间图，会话瞬态、不落盘）。 */
+  /** 活预览帧 data URL（ComfyUI 采样中间图 / 深度逐帧回传，会话瞬态、不落盘）。 */
   previewUrl?: string
-  /** 提供即显示遮罩内取消按钮（2026-08-01 拍板 A 位；仅本地 ComfyUI 任务可取消）。 */
+  /** 提供即显示遮罩内取消按钮（2026-08-01 拍板 A 位；仅本地可中断任务）。 */
   onCancel?: () => void
+  /** 进度摆在哪。默认居中；`top` = 贴卡顶一条，不压画面。 */
+  placement?: GeneratingOverlayPlacement
 } = {}): JSX.Element {
   const { t } = useTranslation()
   const determinate = typeof percent === 'number' && Number.isFinite(percent)
+  const atTop = placement === 'top'
   return (
     <div
       className={cn(
         'generation-canvas-v2-node__generating-overlay',
-        'absolute inset-0 z-[1] grid place-items-center rounded-nomi overflow-hidden',
+        'absolute inset-0 rounded-nomi overflow-hidden',
         'bg-nomi-paper/[0.55] backdrop-blur-[2px] pointer-events-none',
+        atTop ? 'z-[4]' : 'z-[1] grid place-items-center',
       )}
+      data-generating-placement={placement}
       aria-hidden={onCancel ? undefined : true}
     >
       {previewUrl ? (
@@ -314,36 +357,35 @@ export function GeneratingOverlay({
           draggable={false}
         />
       ) : null}
-      <div className="relative z-[1] grid place-items-center gap-2">
-        {determinate ? (
-          <RemoveBackgroundProgressMark progress={percent} />
-        ) : (
-          <NomiLoadingMark size={32} label={t('generationCommon.card.generating')} />
-        )}
-        {message ? (
-          <span className="rounded-full bg-nomi-paper/[0.88] px-2.5 py-1 text-micro font-medium text-nomi-ink-80 shadow-nomi-sm backdrop-blur-[8px]">
-            {message}
+      {atTop ? (
+        <div
+          className={cn(
+            'absolute inset-x-0 top-0 z-[1] flex items-center gap-2 px-2 py-1.5',
+            'border-b border-nomi-line bg-nomi-paper/[0.92] shadow-nomi-sm backdrop-blur-[8px]',
+          )}
+          data-generating-progress-bar="true"
+        >
+          <RemoveBackgroundProgressMark progress={percent} compact />
+          <span className="min-w-0 flex-1 truncate text-micro font-medium text-nomi-ink-80">
+            {message || t('generationCommon.card.generating')}
           </span>
-        ) : null}
-        {onCancel ? (
-          <button
-            type="button"
-            aria-label={t('generationCommon.card.generationCancelAria')}
-            onClick={(event) => {
-              event.stopPropagation()
-              onCancel()
-            }}
-            onPointerDown={(event) => event.stopPropagation()}
-            className={cn(
-              'pointer-events-auto inline-flex items-center gap-1 rounded-full px-3.5 py-1 text-micro font-medium',
-              'text-workbench-danger bg-[var(--workbench-danger-soft)] hover:opacity-85',
-            )}
-          >
-            <IconPlayerStop size={13} stroke={1.8} />
-            {t('generationCommon.card.generationCancel')}
-          </button>
-        ) : null}
-      </div>
+          {onCancel ? <GeneratingCancelButton onCancel={onCancel} compact /> : null}
+        </div>
+      ) : (
+        <div className="relative z-[1] grid place-items-center gap-2">
+          {determinate ? (
+            <RemoveBackgroundProgressMark progress={percent} />
+          ) : (
+            <NomiLoadingMark size={32} label={t('generationCommon.card.generating')} />
+          )}
+          {message ? (
+            <span className="rounded-full bg-nomi-paper/[0.88] px-2.5 py-1 text-micro font-medium text-nomi-ink-80 shadow-nomi-sm backdrop-blur-[8px]">
+              {message}
+            </span>
+          ) : null}
+          {onCancel ? <GeneratingCancelButton onCancel={onCancel} /> : null}
+        </div>
+      )}
     </div>
   )
 }
