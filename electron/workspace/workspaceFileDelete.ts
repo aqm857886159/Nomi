@@ -1,15 +1,17 @@
 import { ipcMain, shell } from "electron";
 import fs from "node:fs";
 import path from "node:path";
-import { assertTrustedSender } from "../ipcSenderGuard";
+import { assertTrustedUiSender } from "../ipcSenderGuard";
 import { resolveWorkspaceFilePath } from "./workspaceFileIndex";
 
 type ProjectReader = (projectId: string) => unknown | null;
 
 export function registerWorkspaceFileDeleteIpc({ readProject }: { readProject: ProjectReader }): void {
-  // 破坏性：把用户项目里的文件扔进废纸篓，只认主窗口。
+  // 破坏性：把用户项目里的文件扔进废纸篓。只认 Nomi 自有 UI 面——素材盒浮层窗的右键删除
+  // 也走这条（用户点了确认弹窗却收到权限错误，是这类里最难看的一种）。远端网页仍够不到：
+  // 它是无 preload 的 WebContentsView，不隶属任何登记窗口。
   ipcMain.handle("nomi:workspace:delete-files", async (event, payload) => {
-    assertTrustedSender(event);
+    assertTrustedUiSender(event);
     const projectId = String((payload as { projectId?: unknown } | null)?.projectId || "").trim();
     const rawRelativePaths = (payload as { relativePaths?: unknown } | null)?.relativePaths;
     const relativePaths = Array.isArray(rawRelativePaths)

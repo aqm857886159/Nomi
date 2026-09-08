@@ -1,7 +1,7 @@
 import { app, BrowserWindow } from "electron";
 import path from "node:path";
 
-import { getMainWindow } from "../mainWindowRegistry";
+import { getMainWindow } from "../appWindowRegistry";
 import { loadOrCreateArtifactPreviewSecret } from "./artifactProjection";
 import { resolveProductionDeepLink, type ProductionDeepLinkTarget } from "./productionDeepLink";
 import { createProductionRunRepository } from "./productionRunRepository";

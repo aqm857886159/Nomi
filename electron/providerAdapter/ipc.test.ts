@@ -36,7 +36,7 @@ vi.mock("electron", () => ({
 }));
 
 import { registerProviderAdapterIpc } from "./ipc";
-import { setMainWindow } from "../mainWindowRegistry";
+import { setMainWindow } from "../appWindowRegistry";
 
 /** 立一个假主窗口并返回它发来的合法事件（未登记主窗口时守卫一律拒绝）。 */
 function trustedEvent(): { sender: unknown; senderFrame: unknown } {

@@ -7,8 +7,8 @@
 - **Nomi 不是一个发布出去的 npm 包**，是一个私有 Electron App。`src/design/` 是它的内部设计系统。
   因此 `pkg: "nomi"` 只是个名字，**没有 `dist/`、没有 build 产物、没有 `.d.ts` 树**——
   转换器走的是 **synth-entry 模式**：从 `srcDir: "src/design"` 直接合成入口。
-- 因为是 synth-entry，`componentSrcMap` 必须**逐个手写**（40 条）。`src/design/index.ts` 是
-  barrel，一个文件导出多个组件（`actions.tsx` 出 5 个、`forms.tsx` 出 7 个、`status.tsx` 出 5 个），
+- 因为是 synth-entry，`componentSrcMap` 必须**逐个手写**（34 条）。`src/design/index.ts` 是
+  barrel，一个文件导出多个组件（`actions.tsx` 出 5 个、`forms.tsx` 出 6 个、`status.tsx` 出 4 个），
   模糊查找按 `<Name>.tsx` 找不到它们。**加新组件到 `src/design/` 后，必须往 `componentSrcMap`
   里补一条**，否则它不会出现在组件库里。
 - `tsconfig: "tsconfig.app.json"` —— esbuild 靠它解析 `@/…` 路径别名。用根 `tsconfig.json` 不行
@@ -91,20 +91,18 @@ Inter 是正文、Fraunces 是 display。中文字体走系统栈，所以 `runt
 ## 预览卡的坑
 
 - **overlay 一族必须配 `cfg.overrides.<Name>: {cardMode:"single", viewport:"WxH"}`**，
-  否则展开态要么逃出卡片、要么塌成 0 高。已配：DesignModal / DesignDrawer /
+  否则展开态要么逃出卡片、要么塌成 0 高。已配：DesignModal /
   ConfirmDialogHost / NomiSelect / TooltipContent / **Tooltip / TooltipProvider /
-  TooltipTrigger / BodyPortal / DesignPageShell**。
+  TooltipTrigger / BodyPortal**。
   判据是「**这东西会不会 portal 出去或撑满视口**」：Radix Tooltip 四件套全走 Portal、
-  BodyPortal 顾名思义、DesignPageShell 带 min-h-screen——这五个 2026-08-26 补上，
-  之前只配了前五个。
+  BodyPortal 顾名思义——这几个 2026-08-26 补上。
+  （原表里还有 `DesignDrawer` / `DesignPageShell`，两件已于 2026-09-07 随组件删除。）
 - **`ConfirmDialogHost` 的预览要用真 store 驱动**，不是摆一个静态壳：
   挂上 `<ConfirmDialogHost />`，再在 `useEffect` 里调 `confirmDialog()/alertDialog()/promptDialog()`
   （都从 `'nomi'` 导出）。这样走的是和生产完全同一条渲染管线
   （store → Host → DesignModal → Mantine Modal），不是仿造的卡。
 - **Tooltip 一族要传受控 `open`**：hover 态截图截不到，靠 `<Tooltip open>` 让气泡常开。
   `TooltipTrigger` 必须配 `asChild`，否则会多套一层 button（嵌套按钮不合法且样式打架）。
-- **`DesignPageShell` 预览要加 `className="min-h-0"`** 抵消它自带的 `min-h-screen`，
-  否则卡里是一大片空白。
 - **按钮/徽标一族配了 `viewport: "900x280"`**——它们是一排小控件，默认视口会把变体挤成多行、
   截图上下留一大片白。
 - **`NomiSelect` 的下拉展开态渲染不出来**：它是 hover/click 驱动的 portal 浮层，静态卡里
@@ -133,14 +131,17 @@ Inter 是正文、Fraunces 是 display。中文字体走系统栈，所以 `runt
 
 ## 本轮状态（2026-08-26）
 
-- **组件总数 40**（= `src/design` 的全部导出 + `NomiPreviewHost` 自身）。
-- **手写预览 39 个**——除 `NomiPreviewHost`（它是 provider 脚手架，不是给人用的组件，
+- **组件总数 34**（= `src/design` 的全部导出 + `NomiPreviewHost` 自身）。
+  > 2026-09-07：`DesignAlert` / `DesignBadge`(留) / `DesignDrawer` / `DesignFileInput` / `DesignPageShell` /
+  > `DesignPagination` / `DesignTable` 里的 6 件零调用组件已删（见 `src/design/README.md` 末节），
+  > 配置条目与它们的手写预览一并删除。原「40 / 39」是删除前的数。
+- **手写预览 33 个**——除 `NomiPreviewHost`（它是 provider 脚手架，不是给人用的组件，
   留 floor card 是对的）外**全部覆盖**，没有剩余 floor card。
 - **已打分 27 个 / 85 格，全部 `good`**（每格都看过截图，或用 playwright 探针核过
   DOM：零 pageerror、高度正常、文本内容如预期，之后才打的分）。
-- **还剩 12 个没打分**：`BodyPortal / ConfirmDialogHost / DesignDrawer / DesignEmptyState /
-  DesignModal / DesignPageShell / DesignTable / NomiSelect / Tooltip / TooltipContent /
-  TooltipProvider / TooltipTrigger`。
+- **还剩 9 个没打分**：`BodyPortal / ConfirmDialogHost / DesignEmptyState /
+  DesignModal / NomiSelect / Tooltip / TooltipContent / TooltipProvider / TooltipTrigger`
+  （原表里的 `DesignDrawer` / `DesignPageShell` / `DesignTable` 已随组件删除）。
   预览 `.tsx` **都已写好并提交**（语法已过 tsc 检查），只是这批 Radix/Mantine 依赖最重，
   单批重建跑了 20+ 分钟还没出结果，本轮没能等到截图就收尾了。
   **下一轮全量重建后，这 12 个会连同其余一起出卡，届时看图打分即可**——
@@ -208,7 +209,7 @@ render check 要 playwright + chromium。本机 chromium 装在 **`~/Library/Cac
 1. **`styles.generated.css` 会静默过期**——它是某一时刻样式的快照。改了 `src/styles/`、
    Tailwind 配置、或 Mantine 版本后没重跑 `build-css.mjs`，组件库看起来一切正常但样式是旧的。
    **每次 re-sync 无脑先跑一遍 build-css.mjs**，成本几秒。
-2. **`componentSrcMap` 手写 40 条会和源码漂移**——`src/design/` 加了新组件而没补这里，
+2. **`componentSrcMap` 手写 34 条会和源码漂移**——`src/design/` 加了新组件而没补这里，
    新组件静默缺席，没有任何报错。re-sync 时对一下 `src/design/index.ts` 的导出列表。
 3. **预览里内联的业务数据会过期**——比如 NomiSelect 预览里写死的模型名/价格
    （Seedream 4.0 ¥0.28…）。模型下架或改价后，卡上就是旧信息。这些是**展示用的示意数据**，

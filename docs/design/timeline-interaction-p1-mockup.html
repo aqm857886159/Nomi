@@ -22,7 +22,7 @@
     --nomi-shadow-sm: 0 1px 2px oklch(0 0 0 / .04), 0 1px 1px oklch(0 0 0 / .03);
     --nomi-shadow-md: 0 2px 4px oklch(0 0 0 / .04), 0 8px 24px oklch(0 0 0 / .06);
     --nomi-radius-sm: 6px; --nomi-radius: 10px; --nomi-radius-lg: 16px;
-    --nomi-transition-fast: 140ms cubic-bezier(.2,.7,.3,1);
+    --nomi-duration-fast: 140ms; --nomi-ease-fast: cubic-bezier(.2, .7, .3, 1);
     --nomi-font-sans: Inter,-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB",system-ui,sans-serif;
     --nomi-font-mono: ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
     /* 新增色（实现时按设计系统 §9 登记进 nomi-tokens.css）：吸附暖橙，与 accent 蓝互补、对比最大 */
@@ -46,7 +46,7 @@
     padding:3px 8px;border-radius:var(--nomi-radius-sm);border:1px solid var(--nomi-line)}
   .grow{flex:1}
   .btn{font-size:12px;border:1px solid var(--nomi-line);background:var(--nomi-paper);color:var(--nomi-ink);
-    border-radius:var(--nomi-radius-sm);padding:4px 9px;cursor:pointer;transition:var(--nomi-transition-fast)}
+    border-radius:var(--nomi-radius-sm);padding:4px 9px;cursor:pointer;transition:var(--nomi-duration-fast) var(--nomi-ease-fast)}
   .btn:hover{background:var(--nomi-bg)}
   .seg{display:inline-flex;border:1px solid var(--nomi-line);border-radius:var(--nomi-radius-sm);overflow:hidden}
   .seg .btn{border:none;border-radius:0}
@@ -75,7 +75,7 @@
 
   /* clip */
   .clip{position:absolute;top:8px;height:46px;border-radius:var(--nomi-radius-sm);cursor:grab;
-    box-shadow:var(--nomi-shadow-sm);overflow:hidden;transition:box-shadow var(--nomi-transition-fast);
+    box-shadow:var(--nomi-shadow-sm);overflow:hidden;transition:box-shadow var(--nomi-duration-fast) var(--nomi-ease-fast);
     display:flex;align-items:flex-end}
   .clip:active{cursor:grabbing}
   .clip .name{font-size:11px;font-weight:550;color:var(--nomi-paper);padding:3px 7px;white-space:nowrap;
@@ -116,7 +116,7 @@
 
   /* 吸附咔哒：clip 轻微脉冲 */
   @keyframes clack{0%{transform:scale(1)}40%{transform:scale(1.012)}100%{transform:scale(1)}}
-  .clip.clack{animation:clack 130ms var(--nomi-transition-fast)}
+  .clip.clack{animation:clack 130ms var(--nomi-ease-fast)}
 
   .note{font-size:11px;color:var(--nomi-ink-40);margin-top:12px;line-height:1.6}
   .note code{font-family:var(--nomi-font-mono);background:var(--nomi-ink-20);padding:0 4px;border-radius:3px}

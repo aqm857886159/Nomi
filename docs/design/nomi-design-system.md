@@ -1,7 +1,7 @@
 # Nomi 设计系统（v2）
 
-日期：2026-06-21（v2 补全：真实色值 + Logo 解剖 + 调用点地图 + 漂移诚实标注）
-覆盖代码版本：v0.10.x
+日期：2026-06-21（v2 补全：真实色值 + Logo 解剖 + 调用点地图 + 漂移诚实标注）· 2026-09-07 重审（真相源统一 + §14.2 漂移清单重跑 + 动效 token 拆分）
+覆盖代码版本：v0.21.0（上一次重审覆盖 v0.10.x，中间 11 个 minor 未重跑）
 维护责任：任何新视觉元素都先来这里查；找不到再走 §9 新增协议。
 
 > 这份文档是 Nomi 视觉与组件的**单一真相源**。任何新设计（组件、卡片、图标、动效、空状态、toast 等）都必须先查这里——能复用就复用，不能复用走 §9 流程登记后再做。
@@ -50,15 +50,18 @@
 
 > 做任何视觉前，先用这张表定位：**值（色/字/间距/圆角）从哪来、组件从哪 import、新文件放哪、照谁抄。**
 
-### 值的真相源（三层，按优先级）
+### 值的真相源（真源 + 镜像 + 遗留）
 
-| 层 | 文件 | 前缀 | 你该不该直接用 |
+> **一句话：改 token = 改 `tailwind.config.ts`，然后把同一个值同步进 `src/theme/nomi-tokens.css`。两处同改，缺一处有测试会红。**
+
+| 角色 | 文件 | 前缀 | 你该怎么用 |
 |---|---|---|---|
-| ① 规范底层（**唯一该新增的地方**）| `src/theme/nomi-tokens.css` | `--nomi-*` | ✅ 优先。新颜色/圆角/阴影只在这里加 |
-| ② 工作区语义映射 | `tailwind.config.ts` addBase `:root`（光/暗两块，与 ① 同机制；2026-08-24 从 workbench.css 收口） | `--workbench-*` | ✅ 工作区语义色（success/danger/video/hover…）用这层；多数 alias 到 ①，少数是 hex（§2.1.4）。**定义必须留在 :root**——写进类作用域，portal/库页浮层就解析不到（check:tokens 第 6 类当场拦）|
-| ③ 遗留并行命名 ⚠️ | `src/styles/globals.css` | `--tc-*` / `--handle-color-*` | ❌ **不要再用、不要再加**。这是早期暗色主题残留，绝大多数已死，详见 §14 漂移 |
+| **① 运行时真源** | `tailwind.config.ts` 的 `workbenchBasePlugin` addBase（光块 `:root` + 暗块 `:root[data-mantine-color-scheme="dark"]`）| `--nomi-*` / `--workbench-*` | ✅ **新增/修改 token 先改这里。** `index.html` 只 `<link>` `public/tailwind.generated.css`，而它由这段 addBase 编译而来——不改这里 = 运行时看不到 |
+| **② 规范镜像（同步义务，不是死文件）** | `src/theme/nomi-tokens.css` | `--nomi-*` | ✅ **改完 ① 必须同步这里。** 它不被任何 import，但有两个真实职责：(a) 喂 `scripts/inject-mockup-tokens.mjs`——样张 HTML 直接 `<link>` 它取真实色值，不同步 = 样张与真机失真；(b) `scripts/colorMixHue.test.mjs:106-125` 逐 token 比对两处定义，漂了当场红 |
+| ③ 遗留并行命名 ⚠️ | `tailwind.config.ts` 里的 legacy 块（原 `src/styles/globals.css` 已删）| `--tc-*` / `--handle-color-*` | ❌ **不要用、不要加。** 早期暗色主题残留，全仓 0 个 `var()` 消费点，清理见 §14.1 |
 
-**铁律：新增 token 只进 ①（`nomi-tokens.css`）。** 看到 `--tc-*` 当它是历史包袱，别扩散。
+**铁律：加 token = 两处同改（`tailwind.config.ts` → `nomi-tokens.css`）。** ① 决定用户看到什么，② 决定样张和门岗看到什么；只改一处的两种失败模式都栽过——「改了没生效」（只改 ②）和「样张/测试各说各话」（只改 ①）。
+> 语义色 `--workbench-*` 的定义必须留在 `:root`——写进类作用域，portal / 库页浮层就解析不到（`check:tokens` 第 6 类当场拦）。
 
 ### 组件去哪 import / 新文件放哪
 
@@ -254,6 +257,28 @@ DaVinci Resolve 确实有「选中跟随播放头」，但它是 **opt-in 且默
 | 工作区映射 | `tailwind.config.ts` addBase `:root`（光/暗两块）| `--workbench-*`（基于 nomi 但提供工作区语义命名）| `workbench-*` 颜色类 |
 | 几何/排版（TS）| `src/theme/nomiTheme.ts` 中的 `nomiDesignTokens` | `radius` / `spacing` / `fontSize` / `lineHeight` / `shadow` | Tailwind config 引用 |
 
+### 2.0 浮层层级（z-index）—— 只有这一份刻度，禁止硬写数字
+
+真相源 `src/design/overlayLayers.ts` 的 `NOMI_OVERLAY_Z_INDEX`，六档（低→高）：
+`floatingPanel 4000` < `applicationModal 9000` < `dialog 9100` < `popover 9200` < `confirmation 9300` < `feedback`。
+
+| 写在哪 | 怎么写 |
+|---|---|
+| TS / style 对象 | `style={{ zIndex: NOMI_OVERLAY_Z_INDEX.dialog }}` |
+| className | `z-floating-panel` / `z-application-modal` / `z-dialog` / `z-popover` / `z-confirmation` / `z-feedback` |
+
+className 那一列是 2026-09-07 补的**合法出口**：Tailwind 默认 `zIndex` 刻度只到 50，
+在此之前 className 侧根本写不出 4000–9300，于是画布/素材库五处浮层只能硬写 `z-[9999]`/`z-[10000]`，
+**全部压过花钱确认卡（`dialog` 9100）**——浮层开着时弹付费确认，钱要花出去了那张卡却看不见
+（`AssetPreviewDialog` / `PanoramaViewer` 这两处 portal 到 `document.body`，已真机实测复现；
+另三处 portal 到 `.workbench-generation__canvas`，被祖先的 `isolation: isolate` 圈住，属契约违反但当时未可达）。
+CSS 变量（`--nomi-z-dialog` …）与 Tailwind 刻度都由那份 TS 常量在 `tailwind.config.ts` 里派生，
+**数字只有一份**，不许两处各写一遍。走查：`tests/ux/overlay-z-order.walk.mjs`（带阳性对照）。
+
+**判档口径**：接管整个工作区/整屏的查看器与任务层 → `applicationModal`；
+承载一次决策的对话框（含花钱确认）→ `dialog`；菜单/下拉/气泡 → `popover`；
+破坏性二次确认 → `confirmation`；toast 一类通知 → `feedback`。
+
 ### 2.1 颜色 token 全表
 
 > **透明度修饰符（2026-07-08 起可用）**：token 色类支持 Tailwind `/` 透明度修饰符——`bg-nomi-ink/85`、`text-nomi-paper/80`、`ring-nomi-accent/[0.5]` 都会正确生成（映射层 `tokenColor()` 用 `color-mix` 注入 alpha，见 `tailwind.config.ts` 顶部）。**此前这些类会被 JIT 静默丢弃**（元素无背景/描边裸奔，Issue #32「图上文字看不清」根因，全仓 60+ 处中招）。新增 token 色映射必须走 `tokenColor()`，别写裸 `var()`。图上小标/遮罩仍优先用语义 token（`--nomi-overlay-chip` / `--nomi-scrim` / `--nomi-media-veil`），`/alpha` 用于语义 token 覆盖不到的一次性透明度。
@@ -285,9 +310,49 @@ DaVinci Resolve 确实有「选中跟随播放头」，但它是 **opt-in 且默
 |---|---|---|---|
 | `--nomi-accent` | `oklch(0.55 0.13 250)` | 中等饱和的蓝紫 | 选中态描边、链接、主操作 hover、字标中间的 m、logo loading |
 | `--nomi-accent-soft` | `color-mix(accent 12%, paper)` | 极浅蓝紫 | 选中态背景、accent 浅底 |
-| `--nomi-warning` | `oklch(0.62 0.14 75)` | 克制的琥珀 | 通知 warning 图标；暗色主题提亮到 `0.78 0.13 75` |
 
-#### 2.1.3 时间轴轨道色（媒体类型区分，定义在 nomi-tokens.css）
+##### 2.1.2b 状态色（四语义 × 四档，2026-09-07 用户拍板「候选 C」）
+
+三条约束（抄 Primer / Geist / Linear 的克制）：
+
+1. **base 亮度平台对齐 accent**（浅 `0.55` / 暗 `0.70–0.72`）——语义靠**色相**区分，不靠「谁更亮更艳」。
+2. **彩度 ≤ accent 的 0.13**（warning/success 压到 `0.085–0.09`）——状态色不许抢 accent 的戏。
+3. **`-soft` / `-edge` 是色阶上独立的一档，不是 base 的 alpha**。
+
+> ⚠️ 第 3 条是 2026-09-07 修掉的一次**错规格**。初版写成 `color-mix(base 18%, transparent)`，把 L0.55 的暗 base 摊薄成浅底，实测落在 **L≈0.92** —— 比成熟系统的浅底档暗 4 个点，看上去发灰发土（警告条从奶油变米灰、错误条从淡粉变脏粉）。那是 GitHub 的**暗色 chip** 配方，套到浅色上不成立。
+>
+> 实测参照：Geist `red-200` `#FFEBEB` = `L0.960 C0.022`；Mantine 浅底 `L 0.959–0.977 / C 0.017–0.024`。都是独立一档，且**贴着 sRGB 色域天花板**——L≥0.955 时红/蓝色相的最大彩度只有 `0.020–0.023`，所以浅底不可能「又浅又艳」，只能取到天花板的九成。暗色底则走低亮度路线（`L≈0.29 / C≤0.05`），两套值必须分别写，不能靠 alpha 自动翻。
+
+| Token | 浅色 | 暗色 | 用途 |
+|---|---|---|---|
+| `--nomi-danger` | `oklch(0.55 0.13 25)` | `oklch(0.72 0.13 25)` | 失败、破坏性操作 |
+| `--nomi-danger-ink` | `oklch(0.45 0.13 25)` | `oklch(0.82 0.13 25)` | danger chip 上的小字 |
+| `--nomi-danger-soft` | `oklch(0.955 0.021 25)` | `oklch(0.3 0.048 25)` | danger chip / 行底 |
+| `--nomi-danger-edge` | `oklch(0.895 0.052 25)` | `oklch(0.4 0.07 25)` | danger chip 描边 |
+| `--nomi-warning` | `oklch(0.55 0.085 72)` | `oklch(0.72 0.085 72)` | 需确认、能力缺口提示 |
+| `--nomi-warning-ink` | `oklch(0.45 0.085 72)` | `oklch(0.82 0.085 72)` | warning 小字 |
+| `--nomi-warning-soft` | `oklch(0.968 0.024 72)` | `oklch(0.295 0.04 72)` | warning 底 |
+| `--nomi-warning-edge` | `oklch(0.905 0.07 72)` | `oklch(0.395 0.058 72)` | warning 描边 |
+| `--nomi-success` | `oklch(0.55 0.09 145)` | `oklch(0.72 0.09 145)` | 完成、已导出 |
+| `--nomi-success-ink` | `oklch(0.45 0.09 145)` | `oklch(0.82 0.09 145)` | success 小字 |
+| `--nomi-success-soft` | `oklch(0.962 0.033 145)` | `oklch(0.295 0.042 145)` | success 底 |
+| `--nomi-success-edge` | `oklch(0.905 0.07 145)` | `oklch(0.395 0.06 145)` | success 描边 |
+| `--nomi-info` | `var(--nomi-accent)` | 同左（accent 自己翻） | 中性提示、排队中 |
+| `--nomi-info-ink` | `oklch(0.45 0.13 250)` | `oklch(0.82 0.13 250)` | info 小字 |
+| `--nomi-info-soft` | `oklch(0.957 0.021 250)` | `oklch(0.295 0.045 250)` | info 底 |
+| `--nomi-info-edge` | `oklch(0.9 0.048 250)` | `oklch(0.395 0.065 250)` | info 描边 |
+
+> ⚠️ **`-ink` 不是可选装饰**。base 压在自己的 soft 底上对比只有 **4.25–4.51**（真机 Chromium canvas 采样，非推算），够不到 WCAG AA 小字的 4.5。用 `-ink` 后实测 **6.48–6.90**（浅）/ **7.19–8.09**（暗），四语义 × 明暗八格全部 ≥4.5。写 chip 小字一律 `text-nomi-<语义>-ink`，不要直接用 base。
+>
+> ⚠️ **`info` 就是 `accent` 本身（别名，不是第二个蓝）**。2026-09-07 修：初版给 info 单写 `oklch(0.55 0.09 250)` —— 与 accent 同色相、同亮度、只差 `ΔC 0.04`，小 chip 上「提示」和「主操作」根本分不开，等于一份并行版（P1）。成熟系统本来就用品牌蓝当 info（Primer 的 accent 兼任 info、Geist 用 blue 表 info/production），故收成别名。`-ink` / `-soft` / `-edge` 三档按上面的规则从 accent 的色相彩度派生。
+
+##### 2.1.2c Mantine 色板重映射（第三个出口）
+
+Mantine 组件的 `color` prop 收的是**色板名**（`red` / `grape` / `teal`…），不是我们的语义 token。`tailwind.config.ts` 的 `mantineSemanticPalette()` 把 12 个色板名全部收进四个语义（`red|pink→danger`、`yellow|orange→warning`、`green|teal|lime→success`、`blue|cyan|indigo|violet|grape→info`），中性的 `gray`/`dark` 不动。
+
+这层是**第二道防线**；根因防线在组件层：`StatusBadge` / `DesignBadge` 都只收封闭的 `tone` 词表（`neutral|info|success|warning|danger`），不透传裸 `color`。
+
+#### 2.1.3 时间轴轨道色（媒体类型区分，定义在 `tailwind.config.ts` addBase，镜像在 `nomi-tokens.css`）
 
 | Token | 实际值 | 视觉 | 用途 |
 |---|---|---|---|
@@ -298,23 +363,25 @@ DaVinci Resolve 确实有「选中跟随播放头」，但它是 **opt-in 且默
 | `--nomi-snap-tag` | `oklch(0.45 0.18 30)` | 深橙 | 吸附标签 |
 | `--workbench-text` | `oklch(0.56 0.17 305)` | 紫 | 预览时间轴文字轨（字幕/标题卡），与图片轨蓝、视频轨青区分 |
 
-#### 2.1.4 工作区语义色（定义在 tailwind.config.ts addBase `:root`，⚠️ 这几个是 hex/rgba 落在 ② 层）
+#### 2.1.4 工作区语义色（定义在 tailwind.config.ts addBase `:root`，② 层）
 
-> 注：这层语义色是 **hex/rgba 直写**（历史原因），不是 oklch token。消费方**只用类名**（`text-workbench-danger` 等），不要把这些 hex 抄进组件。理想态应回收进 ① 层 oklch，见 §14 漂移。定义在 `:root` 而非 `.workbench-shell` 作用域——CSS 变量沿 DOM 继承，作用域定义会让 portal / 库页浮层静默退灰（2026-08-24 收口，docs/plan/2026-08-24-workbench-token-root-scope.md）。
+> 注：**状态色三族（success / danger / warning）已在 2026-09-07 收口成 ① 层 `--nomi-*` 的别名**，不再各写一份 iOS hex。那份 hex 曾是与根层 oklch 并行的第二真相源：两边各自漂移，明暗切换只有一边跟着动。现在 `--workbench-danger: var(--nomi-danger)`，全仓 240 处消费点零改动跟着变；暗色块也不再重定义它们（`--nomi-*` 自己翻，工作区层自动跟）。
+>
+> 剩下的 hex/rgba（video / hover / pressed / backdrop 等）是**非状态语义**（轨道色、交互底），仍在 ② 层直写——它们不参与状态语义体系，本轮不动。消费方**只用类名**（`text-workbench-danger` 等），不要把值抄进组件。定义在 `:root` 而非 `.workbench-shell` 作用域——CSS 变量沿 DOM 继承，作用域定义会让 portal / 库页浮层静默退灰（2026-08-24 收口，docs/plan/2026-08-24-workbench-token-root-scope.md）。
 
 | Token | 实际值 | 用途 |
 |---|---|---|
-| `--workbench-success` / `-soft` | `#34c759` / `rgba(52,199,89,.12)` | 成功语义 |
-| `--workbench-success-ink` | `#248a3d` | 成功态深字 |
-| `--workbench-danger` / `-soft` | `#ff3b30` / `rgba(255,59,48,.1)` | 错误语义 |
+| `--workbench-success` / `-soft` / `-ink` | `var(--nomi-success)` / `-soft` / `-ink` | 成功语义（① 层别名）|
+| `--workbench-danger` / `-soft` / `-ink` | `var(--nomi-danger)` / `-soft` / `-ink` | 错误语义（① 层别名）|
+| `--workbench-warning` / `-soft` / `-ink` | `var(--nomi-warning)` / `-soft` / `-ink` | 警示语义（① 层别名）|
 | `--workbench-video` / `-soft` | `#00a886` / `rgba(0,168,134,.11)` | 视频轨青 |
 | `--workbench-hover` | `rgba(60,60,67,.06)` | 通用 hover 底 |
 | `--workbench-pressed` | `rgba(60,60,67,.09)` | 通用按下底 |
 | `--workbench-backdrop` | `rgba(29,29,31,.16)` | 弹层遮罩 |
 
-#### 2.1.5 连线句柄色（画布连接点，按媒体类型）⚠️ 定义在 globals.css（③ 层）
+#### 2.1.5 连线句柄色（画布连接点，按媒体类型）⚠️ ③ 层遗留，别当真相源
 
-> 这组 `--handle-color-*` 在 `globals.css` 里有**暗色默认 + 光模式覆盖**两套（光模式才是现役）。⚠️ **当前 src 内 0 个 `var(--handle-color-*)` 消费点**——疑似已死或经其它机制上色，新做连线 UI 前先核实实际取色路径，别假设这就是真相源。光模式值留档备查：
+> 这组 `--handle-color-*` 现住 `tailwind.config.ts` 的 legacy 块（原 `src/styles/globals.css` 已删）。⚠️ **全仓 0 个 `var(--handle-color-*)` 消费点**（2026-09-07 复核）——连线另有取色路径，新做连线 UI 前先核实实际取色路径，别假设这就是真相源。历史值留档备查：
 
 | 类型 | 光模式 hex | 视觉 |
 |---|---|---|
@@ -407,11 +474,26 @@ Tailwind 标准 spacing 已经是 4 的倍数（`p-1` = 4px、`gap-3` = 12px）�
 
 ### 2.7 动效
 
-| Token | 值 | 用途 |
-|---|---|---|
-| `--nomi-transition-fast` | `140ms cubic-bezier(.2, .7, .3, 1)` | 所有交互过渡的默认 |
+**时长和缓动是两个 token，永远分开。**
 
-**禁止：** 自己写 `transition-[opacity_300ms_ease-out]`，应该用 `transition-[opacity] duration-[var(--nomi-transition-fast)]`。
+| Token | 值 | Tailwind 类 | 用途 |
+|---|---|---|---|
+| `--nomi-duration-fast` | `140ms` | `duration-nomi-fast` | 所有交互过渡的默认时长 |
+| `--nomi-ease-fast` | `cubic-bezier(.2, .7, .3, 1)` | `ease-nomi-fast` | 所有交互过渡的默认缓动 |
+
+**标准写法**（三段齐全：property + duration + easing）：
+
+```tsx
+className="transition-[background,color] duration-nomi-fast ease-nomi-fast"
+```
+
+**❌ 禁止把时长和缓动打包成一个 token**（2026-09-07 修掉的真实 bug，见 §10 最后一条）：曾经只有一个
+`--nomi-transition-fast: 140ms cubic-bezier(.2,.7,.3,1)`，写法是 `duration-[var(--nomi-transition-fast)]`。
+`transition-duration` 只接受 `<time>`，拿到 `140ms cubic-bezier(...)` 这个复合值**整条声明作废**，
+`getComputedStyle(el).transitionDuration` 实测 `0s`——不是回退到浏览器默认 150ms，是**完全没有过渡**。
+全仓 77 处中招，且 77 处全都同时声明了 `transition-property`，即全部是「设计成要动、实际硬切」。
+
+**❌ 也禁止：** 自己写 `transition-[opacity_300ms_ease-out]` 这种把三段塞进一个任意值的写法——绕过 token，各处节奏会漂。
 
 ---
 
@@ -421,10 +503,10 @@ Tailwind 标准 spacing 已经是 4 的倍数（`p-1` = 4px、`gap-3` = 12px）�
 
 ### 3.1 表面 surfaces
 
-| 组件 | 用途 | 文件 |
-|---|---|---|
-| `PanelCard` | 有边框、带 padding 的卡片表面 | surfaces.tsx |
-| `InlinePanel` | 行内薄面板，无重边框 | surfaces.tsx |
+**这一族现在是空的。** 2026-09-07 复核：`PanelCard` / `InlinePanel` / `surfaces.tsx` 全仓零命中——
+这两行推销了两个**从来不存在**的组件（照着写 `import { PanelCard }` 直接编译失败）。
+面板/卡片表面目前由各面自己用 token 类拼（`rounded-nomi border-nomi-line bg-nomi-paper`）。
+要不要长一个真的表面原语，属于 D 档刀 1 之后的判断，不在这里假装已有。
 
 ### 3.2 操作 actions
 
@@ -461,25 +543,33 @@ Tailwind 标准 spacing 已经是 4 的倍数（`p-1` = 4px、`gap-3` = 12px）�
 
 ### 3.3 状态 status
 
-| 组件 | 用途 |
-|---|---|
-| `DesignBadge` | 通用语义徽章（success / warning / error / info）|
-| `StatusBadge` | 工作区状态徽章（生成中 / 完成 / 错误），含 data-status 切换样式 |
-| `DesignAlert` | 横条提示 |
-| `DesignProgress` | 进度条 |
-| `DesignEmptyState` | **全仓统一空态**（居中 icon + 标题 + 说明 + 可选行动）。`density='panel'`(py-20 独立面板) / `'inline'`(py-12 过滤空态)。收口项目库/提示词库/素材库各手写的重复空态 + 「还没有/暂无/没有匹配」措辞不一。⚠️ 仅用于**面板级居中空态**；列表行/popover 里的 `text-micro` 一行内联提示不归它（那是更小的内联 hint，别硬套）。|
+| 组件 | 用途 | 采纳现状（2026-09-07 实测）|
+|---|---|---|
+| `DesignBadge` | 通用语义徽章，收**封闭 tone 词表**（neutral/info/success/warning/danger），不透传裸 `color` | ⚠️ **生产 0 调用**。保留待推广——画布侧另有 5 份手写徽章（`NodeQueuedBadge` / `NodeLockBadge` / `NodeDeconstructionBadge` / `TechnicalReviewBadge` / `ShotMountBadges`）|
+| `StatusBadge` | 同一套 tone 词表，`radius='md'` + 字距，形态偏「状态胶囊」 | ⚠️ **生产 0 调用**（旧文写的「含 data-status 切换样式」不存在，它只有 `tone`）。与 `DesignBadge` 是近重复，合并归属刀 4 |
+| `DesignProgress` | 进度条 | 4 个文件 |
+| `DesignEmptyState` | 面板级空态（居中 icon + 标题 + 说明 + 可选行动）。`density='panel'`(py-20) / `'inline'`(py-12) | 9 个文件（库页/面板族）。⚠️ **画布节点族没收口**：`nodes/render/NodeEmptyState.tsx`（+ `CardCommon.tsx:55` 的 `EmptyStateLauncher`）、`NodeDeconstructionPanel.tsx:326`、`components/CanvasEmptyState.tsx` 三份并行——它们在 ~180px 卡片里排版且本身可点，是另一个形态，要合并得先定形态。仅用于面板级居中空态；列表行/popover 的 `text-micro` 一行内联提示不归它 |
+
+> 2026-09-07 删除：`DesignAlert`（生产 0 调用，且透传裸 Mantine `color` 绕过 tone 词表）。
 
 ### 3.4 表单 forms
 
-`DesignCheckbox` / `DesignTextInput` / `DesignTextarea` / `DesignSelect` / `DesignNumberInput` / `DesignSegmentedControl` / `DesignSwitch` / `DesignFileInput`。Mantine-backed 一致风格。
+`DesignCheckbox` / `DesignTextInput` / `DesignTextarea` / `DesignNumberInput` / `DesignSegmentedControl` / `DesignSwitch`。Mantine-backed 一致风格。
+**没有 `DesignSelect`**（旧文列过，它从不存在）——选择器用 `NomiSelect`（27 个文件在用）。
+2026-09-07 删除 `DesignFileInput`：生产 0 调用，而全仓 13 处文件选择走的是「隐藏 `<input type="file">` + 自己的按钮」，与 Mantine 的可见文本框不是同一形态。
 
-**`DesignSearchInput`**（`design/searchInput.tsx`）：**全仓统一搜索框**（搜索图标 + pill 描边 + accent 聚焦光环）。收口项目库/提示词库/素材库各手写的搜索框（高度/圆角/占位曾不一）。`size='sm'`(h-[30px] 紧凑面板)/`'md'`(h-9 宽松页)；宽度经 className 给。（注：Mantine 的 `DesignTextInput` 带 `tc-` 残留命名且无图标，不适合做搜索框——用这个。）
+**`DesignSearchInput`**（`design/searchInput.tsx`）：搜索框（搜索图标 + pill 描边 + accent 聚焦光环），**7 个文件已收口**；另有 3 处更小的内嵌过滤框（`ModelEnableEditor.tsx:92` / `ComfyuiTemplateLibrary.tsx:144` / `AssetPicker.tsx:79`）尚未收口——它们比 `size='sm'` 还矮，要收得先加一档更紧凑的 size。`size='sm'`(h-[30px] 紧凑面板)/`'md'`(h-9 宽松页)；宽度经 className 给。（注：Mantine 的 `DesignTextInput` 没有搜索图标，不适合做搜索框——用这个。`tc-*` 残留钩子已于 2026-09-07 全数删除，只留走查锚点 `tc-action-card`。）
 
 **画布上的紧凑表单**：直接用 `<textarea>` + `<input>` + Tailwind token 类，不用 Mantine——节点 composer 就是这么做的。
 
 ### 3.5 弹窗 overlays
 
-`DesignModal` / `DesignDrawer`。
+`DesignModal`（8 个文件）。2026-09-07 删除 `DesignDrawer`：生产 0 调用，且全仓没有抽屉形态
+（`OnboardingDrawer` 名字里带 Drawer，实际是设置对话框里的一页，不走 Mantine `Drawer`）。
+
+**锚点浮层**：`AnchoredPopover`（2 个文件）。⚠️ 它**不是**「全站唯一的浮层定位机制」——
+全仓实有四套（本组件 / Radix tooltip / Mantine Modal / **8 处手写 `getBoundingClientRect()+createPortal`**），
+详见 `src/design/AnchoredPopover.tsx` 顶部注释里的逐处清单与收口方向。
 
 **破坏性操作确认**：一律用 `confirmDialog / alertDialog / promptDialog`（promise 风格，`src/design/confirmDialog.tsx`，宿主 `ConfirmDialogHost` 已挂 App 根部）。**禁用原生 `window.confirm/alert/prompt`**——脱设计系统、E2E 驱动自动 dismiss 测不到、Electron/macOS 有焦点丢失史（2026-06-13 审计 A7）。危险动作传 `danger: true`。
 
@@ -496,17 +586,13 @@ Tailwind 标准 spacing 已经是 4 的倍数（`p-1` = 4px、`gap-3` = 12px）�
 - 视觉：`w-[380px] rounded-nomi-lg border-nomi-line bg-nomi-paper shadow-nomi-md`；图标位 `w-8 h-8 rounded-nomi`（agent=`bg-nomi-ink text-nomi-paper`，user=`bg-nomi-accent-soft text-nomi-accent`）；明细行 `border-nomi-line-soft divide-y`；倒计时条 `bg-nomi-ink-05`，剩 ≤10s 转 `bg-nomi-accent`。
 - 两个宿主**共用同一个 `SpendConfirmRequest` 与同一份明细内容组件**（一语义两投影，不是两套逻辑）。新增确认来源/字段只改 `spendConfirm.ts`，不在别处复制确认 UI。
 
-### 3.6 导航 navigation
+### 3.6–3.8 导航 / 表格 / 布局 —— 2026-09-07 整族删除
 
-`DesignPagination`。
-
-### 3.7 表格 tables
-
-`DesignTable`。
-
-### 3.8 布局 layout
-
-`DesignPageShell`。
+`DesignPagination` / `DesignTable` / `DesignPageShell` 三件全部生产 0 调用，且都没有等待中的用户：
+全仓没有任何分页界面；分镜表用自己的 `TableStage`（`devlab/designLab/storyboard/storyboardLabKit.tsx`）；
+`DesignPageShell` 只是 4 个 Tailwind 类的一层 div。要分页/表格时按当时的真实需求重新包一层，
+那时才有真实调用点来验它（`DesignPagination` 此前就是因为没人用，坏了整整一轮都没人发现——
+实验室基线 `ps-13` 里 `value=1` 和 `value=4` 渲染完全一样）。
 
 ### 3.9 Logo & 品牌身份 identity（全部出自 `src/design/identity.tsx`）
 
@@ -959,6 +1045,22 @@ import IconX from '@/assets/some-svg.svg'
 ```
 应该：选定 token 后跨文件一致。
 
+**❌ 把两个 CSS 属性的值打包进一个 token：**
+```css
+--nomi-transition-fast: 140ms cubic-bezier(.2, .7, .3, 1);   /* 时长 + 缓动打包 */
+```
+```tsx
+<div className="transition-[opacity] duration-[var(--nomi-transition-fast)]">
+```
+**为什么这是 bug 而不只是不优雅**：`transition-duration` 的语法只接受 `<time>`。喂给它一个复合值，
+CSS 不会报错、不会回退到默认值，而是**静默作废整条声明**——computed 值是 `0s`，动效完全消失。
+这一族最阴的地方是：token 名对、类名对、DOM 里在、截图看不出（静态帧本来就一样），只有真人觉得「怎么是硬切」。
+2026-09-07 一次性中招 77 处，全仓所有交互过渡都没在动，存活了三个月。
+
+应该：**一个 token 只对应一个 CSS 属性的值**，拆成 `--nomi-duration-fast` + `--nomi-ease-fast`，
+用 `duration-nomi-fast ease-nomi-fast`（§2.7）。
+自检：这个 token 能不能原样填进它要去的那个 CSS 属性？填不进去 = 打包了。
+
 ---
 
 ## 11. 下一步（占位）
@@ -992,10 +1094,9 @@ import IconX from '@/assets/some-svg.svg'
 
 ### 14.1 系统级（影响全局，需用户拍板再动）
 
-> **2026-06-24 暗色重新引入 + 两处真相源校正（动手前必读）**：
-> - **暗色回归**：新暗色是**暖灰 oklch 主题**（`tailwind.config.ts` 的 `:root[data-mantine-color-scheme="dark"]` addBase 块），与上面 S1 删掉的那套**蓝黑 `--tc-*` 旧暗色无关**——别把两者搞混。开关默认浅色、首启跟随系统。
-> - **真相源校正（重要）**：`src/theme/nomi-tokens.css` / `globals.css` / `vendor-overrides.css` / `animations.css` **未被任何 import = 死参考文件**；`index.html` 只 `<link>` `public/tailwind.generated.css`，其内容由 **`tailwind.config.ts` 的 `workbenchBasePlugin` addBase 编译而来 = 运行时唯一真源**。§0.5 称 nomi-tokens.css 为「① 层真源」是历史说法，**实际改 token 必改 tailwind.config.ts**（nomi-tokens.css 同步只为参考 + 喂 `check-dangling-tokens`）。
-> - **顺带修的潜伏 bug**：`--nomi-scrim`/`--nomi-overlay-chip`/`--nomi-overlay-chip-strong`/`--nomi-media-veil`/`--nomi-axis-x/y/z` 此前**只存在于死文件 nomi-tokens.css → 运行时 undefined**（提示词库/技能库/库页 scrim、引导旅途背景、scene3d 轴标全在用空颜色）；已补进 tailwind.config.ts 真源（光+暗）。
+> **2026-06-24 暗色重新引入（动手前必读）**：新暗色是**暖灰 oklch 主题**（`tailwind.config.ts` 的 `:root[data-mantine-color-scheme="dark"]` addBase 块），与下面 S1 删掉的那套**蓝黑 `--tc-*` 旧暗色无关**——别把两者搞混。开关默认浅色、首启跟随系统。
+>
+> **真相源已在 §0.5 统一，此处不再另说一遍**（旧版这里有一段与 §0.5 相反的「更正」，2026-09-07 随 §0.5 改写删除——两个真相源比一个错的真相源更伤）。当时顺带修的潜伏 bug 留档：`--nomi-scrim` / `--nomi-overlay-chip` / `--nomi-overlay-chip-strong` / `--nomi-media-veil` / `--nomi-axis-x/y/z` 此前只写在镜像文件里、运行时 undefined（提示词库/技能库/库页 scrim、引导旅途背景、scene3d 轴标全在用空颜色），已补进 `tailwind.config.ts` 真源（光+暗）。
 
 | # | 现状 | 为什么是问题 | 修法 |
 |---|---|---|---|
@@ -1003,43 +1104,53 @@ import IconX from '@/assets/some-svg.svg'
 | ~~S2~~ ✅ 已清 | `color-scheme: light dark` | 与 light-only 矛盾 | 已改 `color-scheme: light` |
 | ~~S3~~ ✅ 已清 | Inter / Fraunces 未打包 | 品牌字干净机器回退 | 已装 `@fontsource-variable/{inter,fraunces}` 自托管，字栈首位置 `"Inter Variable"`/`"Fraunces Variable"`（§2.6）|
 | ~~S4~~ ✅ 已清 | `--handle-color-*` 0 消费点死 token | 死代码 | 已随 S1 删除（连线另有取色路径，确认 0 悬空引用）|
-| S5 | 语义色 `--workbench-success/danger/video` 等是 hex/rgba（② 层，tailwind.config.ts addBase；2026-08-24 已收口到 `:root` 并入 check:tokens 第 6 类），非 oklch | 与「颜色只写 oklch」不齐（§2.1.4）| 回收进 `--nomi-*` oklch 体系（**未做**，留 backlog；值本身未动）|
 
-### 14.2 组件级（用户可见面 vs 文档不一致，2026-06-21 审计）
+### 14.2 组件级（用户可见面 vs 文档不一致 · 2026-06-21 建表，**2026-09-07 逐条重跑**）
 
-> 整体结论：**一致性良好且在持续收口**——核心组件库（WorkbenchButton/NomiSelect/NomiWordmark/confirmDialog/NomiLoadingMark）在主力面已正确复用，品牌字标 + 原生弹窗两条红线**零违规**。问题集中在边缘卡片/浮层各自造按钮 + 侧栏行 off-token 类。
+> 重跑口径：按**内容**去代码里找（行号会漂，别按行号找），三类处置——已修的从表里删、还在的更新到当前 `file:line`、变形/搬家的改描述。
+> 2026-06-21 那批 17 条里 **13 条已修**；2026-09-07 新增的 3 条「文档主张与代码现实背离」（D1 浮层 / D2 空态 / D3 README）**已于同日 D 档刀 0 修完，按 §13 维护纪律从表里删除**——修法不是把主张变成现实，而是**把注释改成真话 + 写清该往哪收**（`src/design/AnchoredPopover.tsx` / `emptyState.tsx` / `README.md`）。同批还改真了另外两条同类的（`NomiSelect.tsx` 的「全仓统一…别散落原生 select」实有 6 处原生 `<select>`；`searchInput.tsx` 的「全仓统一搜索框」实有 3 处手写没收口）。
 
-**最该先收口的 3 件事：**
-1. **手写 pill 按钮 → `WorkbenchButton` variant**（`variant: default|primary|accent`，`size: md|sm`，见 `actions.tsx:191` 真相源注释「ad-hoc className 各覆写一套 = 不像一个设计风格的根因」）。重灾：`AboutNomiPopover`、`NoTextModelRecoveryCard`、`StoryboardPlanCard`、`ProjectLibraryPage` 二级按钮。
-2. **`NoTextModelRecoveryCard.tsx:104` 自造 `IconLoader2` spinner → `NomiLoadingMark`**（全仓唯一一处自造加载动画，破坏品牌加载标）。
-3. **侧栏三件套 + 右键菜单 off-token 收口**：`rounded-md`→`rounded-nomi-sm`、`text-nomi-ink-70`→`ink-80`（§2.1.1 中性轴没有 ink-70，是静默失效废类）、右键菜单 `shadow-lg/rounded-md`→`shadow-workbench-pop/rounded-nomi`；library 搜索框手写 inline `<svg>`→`IconSearch`（违 §6）。
+**当前最该收口的 1 件事：** 那 8 处手写 `getBoundingClientRect()+createPortal` 的浮层（清单在 `AnchoredPopover.tsx` 注释里），归属 D 档刀 1/刀 3。
 
-**完整漂移清单**（按面，P0/P1/P2）：
+**完整漂移清单**（2026-09-07 复核，刀 0 后）：
 
-| 面 | 位置 | 现状 → 对齐 |
-|---|---|---|
-| app-shell | `AboutNomiPopover.tsx:15-26` | 自定义 `PRIMARY_BTN/GHOST_BTN` 常量 6 处复用 → `WorkbenchButton` |
-| app-shell | `AboutNomiPopover.tsx:151` / `OnboardingChecklist.tsx:226` | 手拼进度条 → `DesignProgress` |
-| library | `ProjectLibraryPage.tsx:200` | 手写 inline svg 放大镜 → `IconSearch size={14} stroke={1.6}` |
-| library | `ProjectLibraryPage.tsx:266,284` | `hover:text-white`/`bg-white` 透明度类 → 改 `text-nomi-paper`/`bg-nomi-paper/NN`（2026-07-08 起 token 色已支持 /alpha 修饰符，见 §2.1 顶部）|
-| sidebar | `CategoryItem/NodeItem/GroupItem` | `rounded-md`+`text-nomi-ink-70` → `rounded-nomi-sm`+`text-nomi-ink-80` |
-| sidebar | `CategoryTree.tsx:349` | 右键菜单 `rounded-md/shadow-lg` → token |
-| creation | `StoryboardPlanCard.tsx:39` | 手写状态徽章 → `StatusBadge` |
-| creation | `CreationAiPanel.tsx:467` | `font-[Fraunces,Inter,serif]` → `font-nomi-display` |
-| creation | `CreationAiPanel.tsx:568` | `text-xs` → `text-caption` |
-| creation | `SelectionGeneratePopover.tsx:146` | `rounded-lg`(8px) → `rounded-nomi-lg`(16px，注意是视觉变化)|
-| ai | `NoTextModelRecoveryCard.tsx:93-119` | 手写 pill ×2 → `WorkbenchButton` primary+default |
-| canvas | `AssistantTimeline.tsx:140` | `font-[Fraunces,Inter,serif]` → `font-nomi-display` |
-| canvas | 多处图标 stroke 2/1.7/2.2 | 收敛到 §6 档（1.5/1.6/1.8）|
-| preview | `TimelinePreview.tsx:667` | `bg-[var(--mantine-color-blue-5,#339af0)]` 混入 Mantine 默认蓝 → nomi token |
-| preview | `TimelinePreview.tsx:557` | 播放图标 `stroke={2}` → `1.6` |
-| onboarding | `OnboardingChecklist.tsx:271` | 手写主操作 pill → `WorkbenchButton` |
+| # | 面 | 位置（已复核）| 现状 → 对齐 |
+|---|---|---|---|
+| C1 | canvas | 11 文件 21 处：`nodes/NodeDeconstructionBadge.tsx:52,70`、`nodes/DeconstructionShotRow.tsx`(`stroke={2.2}`)、`nodes/Scene3DEditor.tsx:376`、`nodes/whiteboard/{WhiteboardToolbarControls,WhiteboardDrawingTool,WhiteboardLibraryPanel}.tsx`、`components/{CollapsedGroupCard,SelectionPromptSaveController}.tsx`、`reactFlow/GenerationCanvasReactFlowNodes.tsx:372`、`spend/{ProductionContractSummary,SpendConfirmDialog}.tsx` | 图标 `stroke` 2 / 2.2 / 1.7 三个档外值 → 收敛到 §6 规定档（1.5 / 1.6 / 1.8）。白板工具栏那一族（`stroke={1.7}` ×9）是最集中的一块，可整片改 |
+
+**2026-09-07 判定已修、从表里删除的 16 条**（凭据同步留档，免得下次重新怀疑）：
+
+| 原条目 | 凭什么判定已修 |
+|---|---|
+| D1 `AnchoredPopover.tsx:7,20`「全站唯一」+「P1 一律用它」| 刀 0 改成诚实描述：列出实有的四套定位机制、逐处点名那 8 个手写文件、写明「② Radix 不收、③ Modal 不收、④ 收」的收口方向；那句管不住 8 个反例的 P1 已删 |
+| D2 `emptyState.tsx:5-6`「已收口各面板手写空态」| 刀 0 改成「已收口库页/面板族 9 个消费者；画布节点族 3 份并行结构没收口」，并写清为什么（节点空态在 ~180px 卡片里、本身是可点投放区，形态不同）|
+| D3 `README.md` 推销 `PanelCard`/`InlinePanel`/`DesignSelect` | 刀 0 整篇重写为「按 `index.ts` 真实导出 + 逐件采纳现状」；§3.1 也已注明这一族现在是空的 |
+| `AboutNomiPopover.tsx:15-26` 自造 `PRIMARY_BTN`/`GHOST_BTN` | 该文件已不存在；继任者 `src/workbench/settings/AboutSection.tsx:4` 直接 `import { WorkbenchButton }`，5 处按钮全走它；全仓 grep `PRIMARY_BTN|GHOST_BTN` 零命中 |
+| `AboutNomiPopover.tsx:151` 手拼进度条 | 同上文件已删；`AboutSection.tsx:187` 用 `<DesignProgress value={...} size="sm" />` |
+| `OnboardingChecklist.tsx:226` 手拼进度条 | `src/workbench/onboarding/OnboardingChecklist.tsx:25` import、`:256` `<DesignProgress … size="xs" />` |
+| `OnboardingChecklist.tsx:271` 手写主操作 pill | 该面板现在只剩 4 个 `<button>`（`:206` 触发器、`:243` 折叠、`:303`/`:317` 页脚文字链），全部是 token 化的 ghost 写法（`rounded-nomi-sm` + `text-nomi-*`），已无手写实心 pill |
+| `ProjectLibraryPage.tsx:200` 手写 inline `<svg>` 放大镜 | `src/workbench/library/ProjectLibraryPage.tsx` 全文 grep `<svg` 零命中 |
+| `ProjectLibraryPage.tsx:266,284` `hover:text-white`/`bg-white` | 同文件 grep `text-white|bg-white` 零命中 |
+| sidebar `CategoryItem/NodeItem/GroupItem` 的 `rounded-md` + `text-nomi-ink-70` | **全仓** grep `rounded-md` = 0、`text-nomi-ink-70` = 0（不只 sidebar，整个 `src/` 都清干净了）|
+| `CategoryTree.tsx:349` 右键菜单 `rounded-md`/`shadow-lg` | 现 `src/workbench/sidebar/CategoryTree.tsx:359`：`rounded-nomi-sm … shadow-workbench-pop`，已 token 化 |
+| `StoryboardPlanCard.tsx:39` 手写状态徽章 | 该组件已不存在（`src/` 内只剩 `CreationWorkspace.structure.test.ts` 里的一个字符串引用）|
+| `CreationAiPanel.tsx:467` `font-[Fraunces,Inter,serif]` | 该组件已不存在；且**全仓** grep `font-[Fraunces` 零命中 |
+| `CreationAiPanel.tsx:568` `text-xs` | 同上，承载文件已删 |
+| `AssistantTimeline.tsx:140` `font-[Fraunces,Inter,serif]` | 该文件已不存在，全仓零引用；`font-[Fraunces` 全仓零命中 |
+| `SelectionGeneratePopover.tsx:146` `rounded-lg`(8px) | `src/workbench/creation/SelectionGeneratePopover.tsx:155` 现为 `rounded-nomi-lg`，全文无 `rounded-lg` |
+| `NoTextModelRecoveryCard.tsx:93-119` 手写 pill ×2 + `:104` 自造 `IconLoader2` spinner | `src/workbench/ai/NoTextModelRecoveryCard.tsx:15` import `WorkbenchButton`，`:105`/`:117` 两颗按钮都走它；全文 grep `IconLoader2|animate-spin` 零命中 |
+| `TimelinePreview.tsx:667` Mantine 默认蓝 `--mantine-color-blue-5` | **全仓** grep `mantine-color-blue` 零命中 |
+| `TimelinePreview.tsx:557` 播放图标 `stroke={2}` | `src/workbench/preview/TimelinePreview.tsx` 全文 grep `stroke={2}` 零命中 |
 
 ---
 
 ## 13. 维护
 
-- 本文档版本 **v2**（真实色值 + Logo 解剖/调用点地图 + §0.5 真相源全景 + §14 漂移诚实标注），对应代码 v0.10.x
+- 本文档版本 **v2.3**（真实色值 + Logo 解剖/调用点地图 + §0.5 真相源全景 + §14 漂移诚实标注 + §3 逐件采纳现状），对应代码 **v0.21.0**
+- **v2.2（2026-09-07）状态色收口**：四语义（danger/warning/success/info）× 四档（base/-ink/-soft/-edge）落地候选 C，见 §2.1.2b；`--workbench-success/danger/warning` 三族从 iOS hex 改为 ① 层别名（§14.1 S5 因此清掉）；新增 Mantine 色板重映射 + `DesignBadge` 封闭 tone 词表（§2.1.2c）。同日修两处规格错误：`-soft`/`-edge` 从「base 的 alpha」改为色阶上独立的一档（alpha 版浅底 L≈0.92 发灰），`info` 从近重复的独立蓝收成 `accent` 的别名
+- **v2.3（2026-09-07）D 档刀 0「说真话」**：删 6 件生产零调用组件（`DesignPagination` / `DesignTable` / `DesignPageShell` / `DesignDrawer` / `DesignAlert` / `DesignFileInput`）及其实验室格与基线；删 20 个全仓零 CSS 定义的 `tc-*` 钩子类（只留走查锚点 `tc-action-card`）；§3.1/3.3/3.4/3.5 的组件索引改成真实清单 + 逐件采纳现状，§3.6–3.8 整族删除；§14.2 的 D1/D2/D3 三条随修完删表。`DesignBadge` / `StatusBadge` 零调用但**保留**（画布侧 5 份手写徽章待迁），保留理由写进源码
+- **重审记录**：v0.10.x（2026-06-21 建表）→ **v0.21.0（2026-09-07 重审）**：统一 §0.5 真相源（删掉 §14.1 里那段与它相反的「更正」）、§14.2 漂移清单逐条重跑（17 条中 13 条判已修删除、1 条更新、新增 3 条文档主张与现实背离）、§2.7 动效拆成 duration + ease 两个 token。中间 11 个 minor 未重跑，是这次删掉 13 条的原因
+- **下次重审的触发条件**：跨 ≥5 个 minor，或任一次 §14.2 条目数反向增长
 - 每次新增 §4 / §5 entry 时 bump 一次小版本
 - 重大重构（如颜色系统重设、清理 §14.1 暗色层）bump 主版本（v3）
 - 文档过时时优先更新本文档，不依赖代码注释作为 source of truth

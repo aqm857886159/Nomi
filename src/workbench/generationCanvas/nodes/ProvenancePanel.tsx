@@ -2,6 +2,7 @@ import React from 'react'
 import { useTranslation } from 'react-i18next'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { cn } from '../../../utils/cn'
+import { useOverlayEscape } from '../../../design'
 
 /** Trim trailing zeros from a credits amount (8.50 → "8.5", 8.00 → "8"). Local to the
  *  provenance viewer so it does not depend on the estimate module. */
@@ -38,10 +39,14 @@ function copyToClipboard(text: string): void {
 
 export default function ProvenancePanel({ node, open, onClose }: Props): JSX.Element | null {
   const { t, i18n } = useTranslation()
+  // Esc = 关闭（只读溯源面板，关掉不丢任何东西）。hook 必须在 early return 之前。
+  const dialogRef = React.useRef<HTMLDivElement | null>(null)
+  useOverlayEscape(dialogRef, open, onClose)
   if (!open) return null
   const provenance = node.result?.provenance
   return (
     <div
+      ref={dialogRef}
       className="fixed inset-0 z-[210] grid place-items-center bg-black/30 p-4"
       role="dialog"
       aria-modal="true"

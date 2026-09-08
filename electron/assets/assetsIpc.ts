@@ -1,7 +1,7 @@
 // 素材域 IPC 注册器（2026-07-22 素材面收敛时从 main.ts 抽出,R9 巨壳门岗）：
 // 文件夹读写 + 本地文件导入 + 素材下载 + 自动另存/设置（集中设置页「文件与保存」）。
 import { clipboard, dialog, ipcMain } from "electron";
-import { assertTrustedSender } from "../ipcSenderGuard";
+import { assertTrustedSender, assertTrustedUiSender } from "../ipcSenderGuard";
 import { getAutoSavePrefs, setAutoSavePrefs, type AutoSavePrefs } from "./downloadPrefs";
 import { CLIPBOARD_FILE_PATH_FORMATS, parseClipboardFilePaths } from "./clipboardFilePaths";
 import { copyLocalImageFiles } from "./localFileCopy";
@@ -77,8 +77,9 @@ export function registerAssetsIpc(): void {
     const { saveAssetFolders } = await import("./assetFolders");
     return saveAssetFolders(payload);
   });
+  // UI 面而非主窗专属：素材盒浮层窗的拖入导入走这条（同 nomi:assets:list 的理由）。
   ipcMain.handle("nomi:assets:import-file", async (event, payload) => {
-    assertTrustedSender(event);
+    assertTrustedUiSender(event);
     const { importLocalFile } = await import("./localFileImport");
     const raw = (payload || {}) as Record<string, unknown>;
     // 字节通道不接受 renderer 自报路径；原生路径只能经 webUtils 桥进入下面的专用通道。

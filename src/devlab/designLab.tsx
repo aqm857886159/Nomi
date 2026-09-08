@@ -22,9 +22,13 @@ import React from 'react'
 import { createRoot } from 'react-dom/client'
 import '@fontsource-variable/inter/wght.css'
 import '@fontsource-variable/fraunces/wght.css'
-import '@mantine/core/styles/UnstyledButton.css'
-import '@mantine/core/styles/CloseButton.css'
-import '@mantine/core/styles/Notification.css'
+// 2026-09-08：**不要**在这里 import `@mantine/core/styles/<组件>.css` 单份样式。
+// 整包 `@mantine/core/styles.css` 已由 `scripts/build-tailwind.mjs:42-47` 拼进
+// `public/tailwind.generated.css`，而 index.html 先 link 它、Vite 再把这里 import 的 CSS
+// 注在后面——两者特指度同为 (0,1,0)，后来者赢。曾因此重复引入 UnstyledButton.css，
+// 让 `.m_87cf2631{background:transparent;border:0}` 盖掉 Pagination 控件的底色与边框
+// （当前页选中态整个看不见，实验室基线里那排按钮连边框都没有就是这个指纹）。
+// 要单份样式请确认它**不在**整包里；`@mantine/notifications` 是独立包，不在整包内，故保留。
 import '@mantine/notifications/styles.css'
 import '../styles/index.css'
 import { NomiAppProviders } from '../NomiAppProviders'

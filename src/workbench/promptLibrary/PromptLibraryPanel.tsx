@@ -198,7 +198,7 @@ export function PromptLibraryContent({
             aria-selected={activeOption}
             className={cn(
               'rounded-full text-caption cursor-pointer border-0 bg-transparent whitespace-nowrap',
-              'transition-[background,color] duration-[var(--nomi-transition-fast)]',
+              'transition-[background,color] duration-nomi-fast ease-nomi-fast',
               compact ? 'min-w-0 flex-1 px-2 py-1' : 'px-3 py-1',
               activeOption
                 ? 'bg-nomi-paper text-nomi-ink font-semibold shadow-nomi-sm'
@@ -229,7 +229,7 @@ export function PromptLibraryContent({
             aria-selected={activeOption}
             className={cn(
               'rounded-full text-caption cursor-pointer border-0 bg-transparent whitespace-nowrap',
-              'transition-[background,color] duration-[var(--nomi-transition-fast)]',
+              'transition-[background,color] duration-nomi-fast ease-nomi-fast',
               compact ? 'min-w-0 flex-1 px-2 py-1' : 'px-3 py-1',
               activeOption
                 ? 'bg-nomi-paper text-nomi-ink font-semibold shadow-nomi-sm'
@@ -262,7 +262,7 @@ export function PromptLibraryContent({
             aria-selected={activeChip}
             className={cn(
               'shrink-0 rounded-full text-caption cursor-pointer border px-2.5 py-0.5 whitespace-nowrap',
-              'transition-[background,color,border-color] duration-[var(--nomi-transition-fast)]',
+              'transition-[background,color,border-color] duration-nomi-fast ease-nomi-fast',
               activeChip
                 ? 'bg-nomi-ink text-nomi-paper border-nomi-ink font-medium'
                 : 'bg-transparent text-nomi-ink-60 border-nomi-line hover:text-nomi-ink hover:border-nomi-ink-20',

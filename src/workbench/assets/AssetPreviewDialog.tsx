@@ -111,9 +111,10 @@ export function AssetPreviewDialog({ asset, onClose, sequence, initialIndex = 0 
 
   return createPortal(
     <div
-      className={cn('fixed inset-0 z-[10000] flex items-center justify-center overflow-hidden p-8', 'bg-black/60')}
+      className={cn('fixed inset-0 z-application-modal flex items-center justify-center overflow-hidden p-8', 'bg-black/60')}
       role="dialog"
       aria-modal="true"
+      data-asset-preview-dialog="true"
       aria-label={t('assetLibrary.previewAria', { name: title })}
       {...(sequence ? { 'data-storyboard-player': 'true' } : {})}
       onPointerDown={(event) => {

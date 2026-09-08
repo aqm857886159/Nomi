@@ -11,7 +11,7 @@
 //
 // 这里只做接线，不碰 main.ts 的其它职责（保持 main.ts 精简、单一关注点）。
 import { app } from 'electron'
-import { getMainWindow } from '../mainWindowRegistry'
+import { getMainWindow } from '../appWindowRegistry'
 import { notifyHostConfigRepaired } from './hostConfigRepairNotice'
 import { startRpcServer, type RpcServerHandle } from './rpcServer'
 import { ensureCapabilitySigningKey, ensureToken } from './security'

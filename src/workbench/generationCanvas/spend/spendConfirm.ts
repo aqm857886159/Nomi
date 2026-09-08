@@ -113,7 +113,7 @@ export type SpendConfirmRequest = {
 
 type Pending = SpendConfirmRequest & { resolve: (ok: boolean) => void }
 
-type SpendConfirmState = {
+export type SpendConfirmState = {
   /** 当前显示的确认（队首）。null = 无待确认。对话框只读这一个。 */
   pending: Pending | null
   /**

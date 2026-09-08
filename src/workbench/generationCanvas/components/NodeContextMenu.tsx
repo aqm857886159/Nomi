@@ -8,7 +8,8 @@ import {
   IconTrash,
 } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
-import { platformModifier } from './canvasControlsHelpModel'
+import { WorkbenchMenu, type WorkbenchMenuNode } from '../../../design/menu'
+import { platformModifier } from '../../../design/platformShortcut'
 
 /**
  * 节点右键菜单（2026-08-20 用户拍板样张）。
@@ -21,115 +22,90 @@ import { platformModifier } from './canvasControlsHelpModel'
  * 用户点一次菜单就顺带学会了键，下次不必再来。
  *
  * 层级：L3 收纳（§1.5.1，一次点击可达），不占任何常驻预算，不新增平铺按钮。
+ *
+ * **2026-09-08 刀 1：只换实现，不动形态。** 五项、顺序、文案、图标、快捷键、两处禁用及其
+ * 解释、分隔线的位置（倒数第 2 项前）全部照旧，壳换成 `src/design/menu.tsx` 的 `WorkbenchMenu`
+ * （行为走 Radix）。宿主 `useCanvasContextNodeMenu.ts` 的指针编排（pointerup 才提交、
+ * 右键平移和弦、node/frame/blank/selection 四分流）**一行未动**——菜单开不开、开在哪仍是它算的，
+ * 原语只接手定位/避让/键盘/焦点/点外关闭。
+ *
+ * 顺手消失的两样（不是新形态，是同一件事换了更准的做法）：
+ *   · 定位从 stage 相对 `absolute` + 写死 `NODE_MENU_HEIGHT=196` 夹边，改为按视口坐标
+ *     + Radix 真实测量避让；项数变了也不会夹错；
+ *   · 禁用项原先要外包一层 `<span title>` 才触发得了 tooltip（`<button disabled>` 自己不触发），
+ *     Radix 的 Item 不是 disabled 的 button，`title` 直接挂得上，那层壳没了。
  */
 export type NodeContextMenuAction = 'copy' | 'cut' | 'paste' | 'group' | 'delete'
 
 type NodeContextMenuProps = {
+  /** 宿主给的识别类（走查按 `.generation-canvas-v2__node-context-menu` 找它）。 */
   className?: string
-  style?: React.CSSProperties
+  /** 右键那一下的视口坐标（`CanvasContextNodeMenu.clientX/clientY`）。 */
+  point: { x: number; y: number }
   /** 剪贴板为空 → 粘贴禁用并说明为什么（§1.6 C1：可点即有效，否则禁用+解释）。 */
   canPaste: boolean
   /** 少于两个选中项 → 建组禁用并说明为什么。 */
   canGroup: boolean
   onAction: (action: NodeContextMenuAction) => void
+  onClose: () => void
+  /**
+   * 菜单里的 pointerdown 要不要往上冒。画布宿主在 `window` 上挂了「点外面就关菜单」，
+   * 而菜单现在 Portal 到 body、就在 window 的冒泡路径上——不拦住，点自己的菜单项
+   * 会先把菜单关掉。迁移前靠菜单根上的同一句 stopPropagation，照抄。
+   */
   onPointerDown?: (event: React.PointerEvent<HTMLDivElement>) => void
-  onContextMenu?: (event: React.MouseEvent<HTMLDivElement>) => void
 }
 
 export default function NodeContextMenu({
   className,
-  style,
+  point,
   canPaste,
   canGroup,
   onAction,
+  onClose,
   onPointerDown,
-  onContextMenu,
 }: NodeContextMenuProps): JSX.Element {
   const { t } = useTranslation()
   const mod = platformModifier(navigator.platform)
 
-  const items: {
-    action: NodeContextMenuAction
-    label: string
-    shortcut: string
-    icon: typeof IconCopy
-    disabled?: boolean
-    disabledReason?: string
-    danger?: boolean
-  }[] = [
-    { action: 'copy', label: t('canvas.nodeMenuCopy'), shortcut: `${mod} C`, icon: IconCopy },
-    { action: 'cut', label: t('canvas.nodeMenuCut'), shortcut: `${mod} X`, icon: IconCut },
+  const items: WorkbenchMenuNode[] = [
+    { id: 'copy', label: t('canvas.nodeMenuCopy'), shortcut: `${mod} C`, icon: IconCopy, onSelect: () => onAction('copy') },
+    { id: 'cut', label: t('canvas.nodeMenuCut'), shortcut: `${mod} X`, icon: IconCut, onSelect: () => onAction('cut') },
     {
-      action: 'paste',
+      id: 'paste',
       label: t('canvas.nodeMenuPaste'),
       shortcut: `${mod} V`,
       icon: IconClipboard,
       disabled: !canPaste,
       disabledReason: t('canvas.nodeMenuPasteEmpty'),
+      onSelect: () => onAction('paste'),
     },
     {
-      action: 'group',
+      id: 'group',
       label: t('canvas.nodeMenuGroup'),
       shortcut: `${mod} G`,
       icon: IconLayersSubtract,
       disabled: !canGroup,
       disabledReason: t('canvas.nodeMenuGroupNeedsTwo'),
+      onSelect: () => onAction('group'),
     },
-    { action: 'delete', label: t('canvas.nodeMenuDelete'), shortcut: 'Del', icon: IconTrash, danger: true },
+    // 分隔线在倒数第 2 项前：删除独占一段（迁移前是渲染时按 index 插的同一个位置）。
+    { kind: 'separator', id: 'before-delete' },
+    { id: 'delete', label: t('canvas.nodeMenuDelete'), shortcut: 'Del', icon: IconTrash, danger: true, onSelect: () => onAction('delete') },
   ]
 
   return (
-    <div
-      className={cn(
-        'generation-canvas-v2-toolbar__node-menu',
-        'absolute grid gap-0.5 w-[172px] p-[6px]',
-        'border border-workbench-border rounded-nomi',
-        'bg-nomi-paper shadow-workbench-pop',
-        className,
-      )}
-      role="menu"
-      aria-label={t('canvas.nodeMenu')}
-      style={style}
-      onContextMenu={onContextMenu}
+    <WorkbenchMenu
+      open
+      onOpenChange={(next) => { if (!next) onClose() }}
+      point={point}
+      items={items}
+      ariaLabel={t('canvas.nodeMenu')}
       onPointerDown={onPointerDown}
-    >
-      {items.map((item, index) => {
-        const Icon = item.icon
-        // 禁用的 <button> 自己不触发 title（浏览器行为）→ 外层包一层承载它（§1.6 C1）。
-        return (
-          <React.Fragment key={item.action}>
-            {index === items.length - 2 ? (
-              <div className={cn('h-px my-1 mx-2 bg-nomi-line')} aria-hidden="true" />
-            ) : null}
-            <span title={item.disabled ? item.disabledReason : undefined} className={cn('contents')}>
-              <button
-                type="button"
-                className={cn(
-                  'inline-flex items-center justify-between gap-2',
-                  'w-full h-8 min-h-8 px-2 border-0 rounded-nomi',
-                  'bg-workbench-surface-solid font-[inherit] text-caption',
-                  '[&>span]:inline-flex [&>span]:items-center [&>span]:gap-1.5',
-                  '[&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:stroke-[1.8]',
-                  item.disabled
-                    ? 'text-nomi-ink-40 cursor-not-allowed [&_svg]:text-nomi-ink-30'
-                    : item.danger
-                      ? 'text-workbench-danger cursor-pointer hover:bg-nomi-ink-05 [&_svg]:text-workbench-danger'
-                      : 'text-workbench-ink cursor-pointer hover:bg-nomi-ink-05 [&_svg]:text-nomi-ink-60',
-                )}
-                role="menuitem"
-                disabled={item.disabled}
-                onClick={() => onAction(item.action)}
-              >
-                <span>
-                  <Icon />
-                  {item.label}
-                </span>
-                <span className={cn('text-nomi-ink-40 tabular-nums')}>{item.shortcut}</span>
-              </button>
-            </span>
-          </React.Fragment>
-        )
-      })}
-    </div>
+      // 现状原样带过来：172px 宽、面板底色与工具条同一档（`bg-workbench-surface-solid`
+      // 迁移前挂在每一项上，等价于面板整块——两者都解析到 `--nomi-paper`，画面不变）。
+      className={cn('w-[172px]', className)}
+      data-testid="canvas-node-context-menu"
+    />
   )
 }

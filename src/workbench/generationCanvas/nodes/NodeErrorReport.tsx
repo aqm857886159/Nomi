@@ -220,7 +220,7 @@ export function NodeErrorReport({
             title={t('generationCommon.error.dismiss')}
             className={cn(
               '-mr-1 -mt-1 inline-grid size-6 shrink-0 cursor-pointer place-items-center rounded-nomi-sm border-0 bg-transparent',
-              'text-nomi-ink-40 transition-[background,color] duration-[var(--nomi-transition-fast)]',
+              'text-nomi-ink-40 transition-[background,color] duration-nomi-fast ease-nomi-fast',
               'hover:bg-nomi-ink-05 hover:text-nomi-ink',
             )}
           >

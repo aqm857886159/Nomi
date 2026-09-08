@@ -36,7 +36,7 @@ Playwright 的 web-first 断言是**重试到条件成立**。期望值就是 0�
 
 ## 同一族的其他两次（都是「动画没落地就截图」）
 
-- **翻主题**：只写 `data-mantine-color-scheme` 一个属性不够——生产走 `src/theme/colorScheme.ts:54` 的 `applyNomiColorScheme`，**一共写 4 个属性**；且要等 `--nomi-transition-fast`（约 140ms）。少等就拍到按钮标签糊成灰块。
+- **翻主题**：只写 `data-mantine-color-scheme` 一个属性不够——生产走 `src/theme/colorScheme.ts:54` 的 `applyNomiColorScheme`，**一共写 4 个属性**；且要等 `--nomi-duration-fast`（约 140ms）。少等就拍到按钮标签糊成灰块。
 - **toast 滑入**：同一条走查同一条命令，一轮拍到 toast 被视口右缘**切掉一半**，另一轮拍到完整的——**同码同命令、证据不同**，说明截图证据本身是非确定的。
 
 这三次不是三个 bug，是一个：**动画未落地就取证**。

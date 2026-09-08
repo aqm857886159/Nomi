@@ -26,7 +26,7 @@ export function ThemeToggleButton({ className, ...props }: ThemeToggleButtonProp
       className={cn(
         'inline-grid place-items-center size-8 rounded-nomi-sm border border-transparent',
         'bg-transparent text-[var(--nomi-ink-60)] cursor-pointer',
-        'transition-[background,border-color,color] duration-[var(--nomi-transition-fast)]',
+        'transition-[background,border-color,color] duration-nomi-fast ease-nomi-fast',
         'hover:bg-[var(--nomi-ink-05)] hover:text-[var(--nomi-ink)]',
         'focus-visible:outline-2 focus-visible:outline-[var(--nomi-accent)] focus-visible:outline-offset-2',
         className,

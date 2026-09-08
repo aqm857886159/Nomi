@@ -403,7 +403,7 @@ v6 的核心动作是**把这两件事的视觉预算分开**：批量观察继�
 | 表面/文字（暖灰阶） | `--nomi-ink` / `-80/-60/-40/-30/-20/-10/-05` | `#1d1a15` → `#f6f5f3` |
 | 边框 | `--nomi-line` / `--nomi-line-soft` | `#e3e1de` / `#efeeec` |
 | 强调（选中态、@ mention chip） | `--nomi-accent` / `-soft` | `#2a75ba` / `#e5eef7` |
-| **分镜表的红/绿**（不是 `--nomi-danger`/`--nomi-success`） | `--workbench-danger` / `-soft`、`--workbench-success` | `#ff3b30` / `rgba(255,59,48,.1)`、`#34c759` |
+| **分镜表的红/绿** | `--nomi-danger` / `--nomi-danger-soft`、`--nomi-success` | 2026-09-08 用户拍板：统一走 `--nomi-danger/-success`（候选 C，danger 色度 0.13）；原专用红绿例外作废，数值由 `tailwind.config.ts` 派生 |
 | 图/视频遮罩（生成中/hover） | `--nomi-overlay-chip` 等 | `rgba(20,17,13,.64)` 附近 |
 
 ### 6.2 圆角 / 字号 / 间距

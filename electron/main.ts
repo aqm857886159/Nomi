@@ -50,9 +50,9 @@ import { verifyMcp } from "./capabilityCore/mcpVerify";
 import { registerCustomMcpProfileIpc, watchMcpProfiles } from "./capabilityCore/mcpProfiles";
 import { registerLocalProtocol } from "./protocol/localProtocol";
 import { installMainWindowInteractions } from "./mainWindowInteractions";
-import { getMainWindow, setMainWindow } from "./mainWindowRegistry";
+import { getMainWindow, setMainWindow } from "./appWindowRegistry";
 import { createMainWindowGuard } from "./mainWindowPresence";
-import { assertTrustedSender } from "./ipcSenderGuard";
+import { assertTrustedSender, assertTrustedUiSender } from "./ipcSenderGuard";
 import { registerScreenshotIpc } from "./screenshot/screenshotIpc";
 import { registerVideoIpc } from "./video/videoIpc";
 import { registerTikhubConnectorIpc } from "./connectors/tikhubConnectorIpc";
@@ -694,7 +694,7 @@ function registerIpc(): void {
     return importRemoteAsset(payload);
   });
   ipcMain.handle("nomi:assets:list", async (event, payload) => {
-    assertTrustedSender(event);
+    assertTrustedUiSender(event); // UI 面：素材盒界面长在浮层窗里，理由见 ipcSenderGuard#assertTrustedUiSender
     const { listProjectAssets } = await loadRuntimeModule();
     return listProjectAssets(payload);
   });

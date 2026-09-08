@@ -22,10 +22,16 @@ export type ExportTimelineToMp4Options = {
   resolution?: '720p' | '1080p'
   quality?: ExportQuality
   generationNodes?: readonly GenerationCanvasNode[]
-  onProgress?: (progress: { status: 'preparing' | 'recording' | 'converting' | 'done'; ratio: number }) => void
+  onProgress?: (progress: { status: ExportProgressStatus; ratio: number }) => void
   /** Fired only after the main process has created and persisted the export job. */
   onJobStarted?: (job: { jobId: string; backend: 'filtergraph' | 'webm' }) => void
 }
+
+/**
+ * 导出进度的**唯一** owner（语义词表 canonical owner）。UI 侧要表达 idle/error 时，
+ * 从这里 derive 再并上那两个局部标志，不许另写一份四态联合。
+ */
+export type ExportProgressStatus = 'preparing' | 'recording' | 'converting' | 'done'
 
 export type StartTimelineMp4ExportJobOptions = Omit<ExportTimelineToMp4Options, 'onProgress'>
 

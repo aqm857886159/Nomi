@@ -262,7 +262,7 @@ selectShotTableRows(node): ShotTableRowView[]
 | 状态列 | 未生成 / 已生成 / 生成中 + 已等秒数 / 缺画面 / 排队·前面 N。**生成过程中表格结构一格不动**，只有状态列变 | 样张 B2 态 2 逐字：「行不重排、关键帧不闪」 |
 | 底栏 | `已选 N / M 镜` + 批量默认值三胶囊（模型/画幅/预估花费）+ 两颗按钮「全部生成」「生成选中 N 镜」 | 样张 B2/B1 footer |
 | 多选浮条 | 沿用现役 `StoryboardSelectionToolbar`：纸白 `#fff` + `border 1px #e3e1de` + `shadow-workbench-pop`，**不是黑条** | v6 §6.3 逐字（09-05 已核对现役截图改回） |
-| 红/绿 | `--workbench-danger` / `--workbench-success`，**不是** `--nomi-danger/-success` | v6 §6.1 逐字 |
+| 红/绿 | 2026-09-08 用户拍板：统一走 `--nomi-danger/-success`（候选 C，danger 色度 0.13） | v6 §6.1；原专用红绿例外作废 |
 | 缩放三档 | ≥80% 全表 / 40–80% 关键帧条 + 镜号 + 状态点 / <40% 一张卡。**同一个组件，三种密度，不是三个组件** | 样张 B2 逐字；实现用 `useStore(s => s.transform[2] >= 0.8)` 派生布尔（§2.1） |
 | 节点缩放 | `NodeResizer`，宽度可拉（表要宽），最小宽按列集算 | 复用 `GenerationCanvasReactFlowNodes.tsx:177-200` 的既有写法 |
 | 空态 | 不写「暂无数据」；给两条真实的路：「从原稿拆镜」「拆一条参考视频」。**没有「手动加一行」** | 样张 B2 态 1 逐字：「表必须有来源」 |

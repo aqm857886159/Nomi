@@ -14,15 +14,22 @@ test('known projection vocabularies stay in debt with explicit canonical owners'
   const debtBySite = new Map(baseline.debt.map((entry) => [entry.site, entry]))
   const panoramaSite =
     'src/workbench/generationCanvas/nodes/PanoramaViewer.tsx::type:PanoramaCaptureFeedback/property:tone/type-union'
-  const previewSite = 'src/workbench/preview/TimelinePreview.tsx::type:PreviewExportStatus/type-union'
+  // 2026-09-08：导出进度那条债**已收敛**（不是搬家）。UI 侧的 PreviewExportStatus 现在从
+  // `ExportProgressStatus` derive、只并上 idle/error 两个局部标志，所以它既不在 debt 里、
+  // 也不该以任何形式出现在基线中；canonical owner 升级成具名类型并留在 registered。
+  // 这里锁住「收敛后的形状」，免得下次有人把它当没登记的新债又加回去。
+  const previewOwnerSite = 'src/workbench/export/exportApi.ts::type:ExportProgressStatus/type-union'
+  const previewDebtSites = [
+    'src/workbench/preview/TimelinePreview.tsx::type:PreviewExportStatus/type-union',
+    'src/workbench/preview/previewExportRequest.ts::type:PreviewExportStatus/type-union',
+  ]
 
   assert.equal(registeredSites.has(panoramaSite), false)
-  assert.equal(registeredSites.has(previewSite), false)
   assert.match(debtBySite.get(panoramaSite)?.reason ?? '', /src\/ui\/toast\.tsx::type:ToastType\/type-union/)
-  assert.match(
-    debtBySite.get(previewSite)?.reason ?? '',
-    /src\/workbench\/export\/exportApi\.ts::type:ExportTimelineToMp4Options/,
-  )
+  assert.equal(registeredSites.has(previewOwnerSite), true, 'ExportProgressStatus 应是已登记的 canonical owner')
+  for (const site of previewDebtSites) {
+    assert.equal(debtBySite.has(site), false, `${site} 已收敛，不该再是 debt`)
+  }
   assert.equal(baseline.debtCap, baseline.debt.length)
 })
 

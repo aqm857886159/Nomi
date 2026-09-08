@@ -134,7 +134,7 @@ export function TimelineSecondaryAddRow({
         <div
           className={cn(
             'relative h-[26px] flex items-center justify-center rounded-[var(--nomi-radius-sm)]',
-            'border border-dashed transition-[background,border-color] duration-[var(--nomi-transition-fast)]',
+            'border border-dashed transition-[background,border-color] duration-nomi-fast ease-nomi-fast',
             dropHover
               ? 'border-[var(--workbench-audio)] bg-[var(--workbench-audio-soft)]'
               : 'border-[var(--nomi-line)]',

@@ -15,7 +15,7 @@ import { app, desktopCapturer, globalShortcut, screen, shell, systemPreferences 
 import path from "node:path";
 import { getSettingsRoot, ensureDir, readJson } from "../runtimePaths";
 import { writeJsonFileAtomic } from "../jsonFile";
-import { getMainWindow } from "../mainWindowRegistry";
+import { getMainWindow } from "../appWindowRegistry";
 import { writeAsset } from "../runtime";
 import { logError } from "../logging/logger";
 

@@ -20,22 +20,16 @@
     "ActionCard": "src/design/actions.tsx",
     "BodyPortal": "src/design/portal.tsx",
     "ConfirmDialogHost": "src/design/confirmDialog.tsx",
-    "DesignAlert": "src/design/status.tsx",
     "DesignBadge": "src/design/status.tsx",
     "DesignButton": "src/design/actions.tsx",
     "DesignCheckbox": "src/design/forms.tsx",
-    "DesignDrawer": "src/design/overlays.tsx",
     "DesignEmptyState": "src/design/emptyState.tsx",
-    "DesignFileInput": "src/design/forms.tsx",
     "DesignModal": "src/design/overlays.tsx",
     "DesignNumberInput": "src/design/forms.tsx",
-    "DesignPageShell": "src/design/layout.tsx",
-    "DesignPagination": "src/design/navigation.tsx",
     "DesignProgress": "src/design/status.tsx",
     "DesignSearchInput": "src/design/searchInput.tsx",
     "DesignSegmentedControl": "src/design/forms.tsx",
     "DesignSwitch": "src/design/forms.tsx",
-    "DesignTable": "src/design/tables.tsx",
     "DesignTextInput": "src/design/forms.tsx",
     "DesignTextarea": "src/design/forms.tsx",
     "IconActionButton": "src/design/actions.tsx",
@@ -60,10 +54,6 @@
   },
   "overrides": {
     "DesignModal": {
-      "cardMode": "single",
-      "viewport": "760x520"
-    },
-    "DesignDrawer": {
       "cardMode": "single",
       "viewport": "760x520"
     },
@@ -136,13 +126,6 @@
     "TooltipTrigger": {
       "cardMode": "single",
       "viewport": "560x240"
-    },
-    "DesignPageShell": {
-      "cardMode": "single",
-      "viewport": "760x520"
-    },
-    "DesignTable": {
-      "viewport": "760x520"
     },
     "DesignEmptyState": {
       "viewport": "760x560"

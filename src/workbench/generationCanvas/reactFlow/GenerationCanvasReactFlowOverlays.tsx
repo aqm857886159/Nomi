@@ -32,6 +32,8 @@ type GenerationCanvasReactFlowOverlaysProps = {
   } | null
   onCreateEmpty: () => void
   onNodeContextAction: (action: NodeContextMenuAction) => void
+  /** 节点菜单自己关（Esc / 点外面 / 选完）。空白「添加节点」菜单仍走原来的 window 监听。 */
+  onCloseContextNodeMenu: () => void
   onAddContextNode: (kind: GenerationNodeKind) => void
   onImportContextFiles: (files: File[]) => void
   onAddConnectedNode: (kind: GenerationNodeKind) => void
@@ -68,6 +70,7 @@ export function GenerationCanvasReactFlowOverlays({
   connectionCreateMenu,
   onCreateEmpty,
   onNodeContextAction,
+  onCloseContextNodeMenu,
   onAddContextNode,
   onImportContextFiles,
   onAddConnectedNode,
@@ -96,13 +99,16 @@ export function GenerationCanvasReactFlowOverlays({
       {screenshotOverlay}
       {nodes.length === 0 ? <CanvasEmptyState activeCategoryId={activeCategoryId} onCreate={onCreateEmpty} /> : null}
       {contextNodeMenu && contextNodeMenu.target !== 'blank' ? (
+        // 刀 1：这一个菜单走 `WorkbenchMenu`（Portal 到 body + 视口坐标），
+        // 所以不再传 stage 相对的 style，层级也交给原语的 popover 档（不再写 z-[20]）。
+        // 两个识别类留着——走查按它们找菜单（canvas-node-context-menu.walk.mjs 等三处）。
         <NodeContextMenu
-          className="generation-canvas-react-flow__node-context-menu generation-canvas-v2__node-context-menu z-[20]"
-          style={{ left: contextNodeMenu.stageX, top: contextNodeMenu.stageY }}
+          className="generation-canvas-react-flow__node-context-menu generation-canvas-v2__node-context-menu"
+          point={{ x: contextNodeMenu.clientX, y: contextNodeMenu.clientY }}
           canPaste={hasClipboardContent()}
           canGroup={selectedNodeIds.length >= 2}
           onPointerDown={(event) => event.stopPropagation()}
-          onContextMenu={(event) => event.preventDefault()}
+          onClose={onCloseContextNodeMenu}
           onAction={onNodeContextAction}
         />
       ) : contextNodeMenu ? (

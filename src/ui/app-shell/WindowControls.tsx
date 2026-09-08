@@ -23,7 +23,7 @@ export function WindowControls({ className }: { className?: string }): JSX.Eleme
   const btnBase = cn(
     "app-no-drag inline-flex items-center justify-center w-11 h-full",
     "border-none bg-transparent cursor-pointer text-[var(--nomi-ink-60)]",
-    "transition-[background,color] duration-[var(--nomi-transition-fast)]",
+    "transition-[background,color] duration-nomi-fast ease-nomi-fast",
     "hover:bg-[var(--nomi-ink-05)] hover:text-[var(--nomi-ink)]",
   );
 

@@ -54,7 +54,8 @@ export default function NodeMediaPreviewDialog({ mediaType, url, title, onClose 
   return createPortal(
     <div
       className={cn(
-        'absolute inset-0 z-[9999] flex h-full w-full items-center justify-center overflow-hidden overscroll-contain p-6 pt-16',
+        // z-application-modal（9000）：接管画布工作区的预览层，仍在所有 dialog/confirmation 之下。
+        'absolute inset-0 z-application-modal flex h-full w-full items-center justify-center overflow-hidden overscroll-contain p-6 pt-16',
         'bg-black/40',
       )}
       role="dialog"

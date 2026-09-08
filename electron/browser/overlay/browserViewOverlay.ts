@@ -11,6 +11,7 @@ import type {
   BrowserAssetOverlayRecord,
   BrowserAssetOverlayRect,
 } from "../core/browserViewTypes";
+import { registerAppWindow } from "../../appWindowRegistry";
 
 const BROWSER_ASSET_OVERLAY_SHAPE_SLOP = 10;
 let browserAssetOverlayRendererUrlResolver: (() => string) | null = null;
@@ -379,7 +380,11 @@ function ensureBrowserAssetOverlay(owner: BrowserWindow): BrowserAssetOverlayRec
     browserAssetOverlaysByWindow.delete(owner.id);
   });
   overlayWindow.webContents.on("did-finish-load", () => sendBrowserAssetOverlayConfig(record));
-  void overlayWindow.loadURL(overlayRendererUrl());
+  // 建窗即声明信任角色：这是我们自己建、加载我们自己渲染层、挂了 Nomi preload 的窗口，
+  // 素材盒界面就长在这里，它必须够得到素材列表/导入/删除三条通道（2026-09-08 根因修复）。
+  const entryUrl = overlayRendererUrl();
+  registerAppWindow(overlayWindow, "app-surface", entryUrl);
+  void overlayWindow.loadURL(entryUrl);
   return record;
 }
 

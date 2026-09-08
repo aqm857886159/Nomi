@@ -42,7 +42,7 @@ export function FloatingToolbarShell({ ariaLabel, children }: { ariaLabel: strin
 const buttonBase = cn(
   'inline-flex items-center justify-center min-h-8 rounded-nomi-sm border-0 cursor-pointer',
   'text-body-sm leading-none whitespace-nowrap',
-  'transition-colors duration-[var(--nomi-transition-fast)]',
+  'transition-colors duration-nomi-fast ease-nomi-fast',
   'disabled:opacity-45 disabled:cursor-wait',
 )
 const variantClass = (accent?: boolean) =>

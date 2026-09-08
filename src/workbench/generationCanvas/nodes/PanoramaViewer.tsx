@@ -571,7 +571,9 @@ export default function PanoramaViewer({
         ? createPortal(
             <div
               className={cn(
-                'fixed inset-0 z-[9999] flex h-[100dvh] w-screen items-center justify-center overflow-hidden p-8 overscroll-contain',
+                // z-application-modal（9000）：整屏接管的媒体查看器，和设置对话框同一档。
+                // 此前硬写 z-[9999] 压过花钱确认卡（dialog 9100），钱要花出去了那张卡却看不见。
+                'fixed inset-0 z-application-modal flex h-[100dvh] w-screen items-center justify-center overflow-hidden p-8 overscroll-contain',
                 'bg-workbench-backdrop backdrop-blur-[10px]',
               )}
               onPointerDown={(event) => event.stopPropagation()}

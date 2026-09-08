@@ -12,7 +12,7 @@ const FOOTER_ROW = 'mt-2 flex min-h-8 items-center justify-between gap-3'
 const BUTTON_BASE = cn(
   'inline-flex shrink-0 items-center gap-1.5 rounded-nomi-sm border border-nomi-line bg-nomi-paper',
   'px-2.5 py-1.5 text-caption cursor-pointer',
-  'transition-colors duration-[var(--nomi-transition-fast)]',
+  'transition-colors duration-nomi-fast ease-nomi-fast',
 )
 
 /** 内置模式：「已自定义」徽标 +「恢复默认」。 */

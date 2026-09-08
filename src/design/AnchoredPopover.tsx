@@ -4,7 +4,44 @@ import { NOMI_OVERLAY_Z_INDEX } from './overlayLayers'
 import { resolveAnchoredPopoverPlacement, type AnchoredPopoverAlign } from './anchoredPopoverPlacement'
 
 /**
- * 锚点浮层：Portal 到 body + fixed 贴锚点，**逃出祖先 overflow 的裁切**。全站唯一一套浮层定位机制。
+ * 锚点浮层：Portal 到 body + fixed 贴锚点，**逃出祖先 overflow 的裁切**。
+ *
+ * ## 什么时候用它、什么时候用别的（按**浮层里放的是什么**分，不按组件名分）
+ *
+ * | 浮层里是 | 用谁 | 判据 |
+ * |---|---|---|
+ * | **一列可执行的动作** | `src/design/menu.tsx` 的 `WorkbenchMenu`（Radix） | 内容是 `menuitem` / `menuitemcheckbox` / `menuitemradio` 的列表，选一项就发生一件事并（默认）收起 |
+ * | **一块要读、要填、要拖的内容** | **本组件** | 里面有输入框、滑块、画布、缩略图预览这类多焦点富内容 |
+ * | 居中模态 | `DesignModal`（Mantine） | 不锚点，自带遮罩 |
+ * | 纯提示文字 | Radix Tooltip（`src/design/tooltip.tsx`） | 只读一句话，hover 出现 |
+ *
+ * **为什么按内容分而不是按名字分**：`role="menu"` 不等于菜单。三个活生生的反例——它们名字里带
+ * menu、role 也写着 menu，但都属于上表第二行（要读/要填的内容），该走本组件而不是 `WorkbenchMenu`：
+ *   · `workbench/ai/ProjectAgentResidentShell.tsx:514` 会话列表——每行两个可聚焦按钮（切换 + 删除）、
+ *     头部还有「新会话」动作；菜单项的语义是「一项一动作」；
+ *   · `workbench/generationCanvas/nodes/NodeGenerationComposer.tsx:179` 提示词选择器——hover 出图文
+ *     预览副面板、`max-h-[310px]` 滚动长列表，是 listbox/picker；
+ *   · `ui/onboarding/workflowPage/WorkflowNodeMenu.tsx:101` ——头部有 ✕ 关闭钮、字段行是 mono 值预览，
+ *     是节点属性面板。
+ * 上一版这里写的是「本组件是全站唯一的浮层定位机制」，那句话从来不是真的（当时就有 8 个反例）；
+ * 别再写一句新的「全站唯一」，写清楚**判据**。
+ *
+ * ## 全仓浮层定位现有四套（2026-09-08 复核）
+ *   ① 本组件 —— 生产侧 2 个消费者（`workbench/timeline/TimelineTransitionPicker.tsx`、
+ *      `workbench/assets/AssetPickerPopover.tsx`），外加设计实验室的 3 处陈列；
+ *   ② Radix —— `src/design/tooltip.tsx`（tooltip 一族）**与 `src/design/menu.tsx`（菜单一族，
+ *      2026-09-08 刀 1 起：`timeline/TimelineContextMenu.tsx`、
+ *      `generationCanvas/components/NodeContextMenu.tsx`）**。刀 1 没有引进第五套定位库，
+ *      是让已经在用的这一套多担一个用途；
+ *   ③ Mantine —— `src/design/overlays.tsx` 的 `DesignModal`（Modal 自带定位与遮罩）；
+ *   ④ 手写 `getBoundingClientRect()` + `createPortal` —— **8 个文件**：
+ *      `generationCanvas/nodes/{NodeGenerationComposer,InlineParameterBar,ClipNode,PanoramaViewer}.tsx`、
+ *      `generationCanvas/components/{SelectionPromptSaveController,ScreenshotCropOverlay}.tsx`、
+ *      `creation/DocumentListSidebar.tsx`、`assets/AssetTile.tsx`。
+ *
+ * **这个 8 是要被改的数，不是装饰**：④ 每收一处，就把这里的数字和名单当场改掉；
+ * 数对不上就是这段注释又过期了（下一步是把名单交给 `check:` 脚本数，注释只留规则）。
+ * ② 不收（Radix 的 a11y / 键盘 / 避让是它自带的，重写一遍不划算）；③ 不收（居中模态不是锚点浮层）。
  *
  * 为什么必须 Portal 而不是在原地写 absolute：只要浮层与它的定位祖先之间夹着一个
  * `overflow: hidden`（时间轴的轨道格、composer 卡、属性面板的分组…），浮层就会被裁成一条边。
@@ -16,8 +53,6 @@ import { resolveAnchoredPopoverPlacement, type AnchoredPopoverAlign } from './an
  * （49 个采样点只有 7 个命中，8 颗按钮里 7 颗 elementFromPoint 落到别的轨道上）。
  *
  * 判据别再用 rect，用 `tests/ux/_assert.mjs` 的 measureOverlayReach / expectOverlayReachable。
- *
- * P1：新增浮层一律用它，不要再各写各的 absolute，也不要引第三套定位库。
  */
 
 export type AnchoredPopoverProps = {

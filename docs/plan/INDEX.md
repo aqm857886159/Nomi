@@ -242,6 +242,7 @@
 | 文件 | 一句话 | 状态 |
 |---|---|---|
 | [2026-09-06-stack-upgrade-react19-aisdk-tailwind4.md](2026-09-06-stack-upgrade-react19-aisdk-tailwind4.md) | **技术栈升级立项**（React 19 · AI SDK · Tailwind 4）：实查纠正三个前提（我们没用 `useChat`，AI SDK 升级与 Agent 面板无因果；目标是 SDK 6 不是 5，7 是 ESM-only 进不来；React 19 捆着 Mantine 8 + R3F 9 两个次级迁移），逐条命中清单（`JSX.Element` 652 处 / AI SDK 仅 8 个生产文件 / Tailwind 132 处类名）、R3 三方案对比与四步执行门 | 📋 |
+| [../research/2026-09-08-mantine-8-upgrade-probe.md](../research/2026-09-08-mantine-8-upgrade-probe.md) | **Mantine 7.17.8 → 8 升级探针**（变动四步协议 ①，零改码）：`cssVariablesResolver` 签名一字未改故状态色收口安全；实跑纠正立项书三处（ScrollArea `display:table` 仍在、Mantine `Switch` 我们在用、`Portal.reuseTargetNode` 默认翻转是唯一真行为变更）；**`DesignPagination` 无选中态与 Mantine 无关**——根因是 `src/devlab/designLab.tsx:25` 重复 import `UnstyledButton.css` 盖掉了 Pagination 样式（附阳性对照）；含步骤②的基线预期红清单与真回归判据 | 📋 |
 | [2026-06-08-performance-foundation.md](2026-06-08-performance-foundation.md) | 性能地基改造立项 | ⛔ |
 | [2026-05-25-phase-e2-completion-and-tech-uplift.md](2026-05-25-phase-e2-completion-and-tech-uplift.md) | Phase E.2 完成 + 技术栈升级(v0.6) | ⛔ |
 | [2026-05-31-unify-request-pipeline.md](2026-05-31-unify-request-pipeline.md) | 统一请求构建管线（根治测试过/生产挂） | 📋 |
@@ -282,6 +283,12 @@
 - [2026-09-03 画布连线回归调查与修复](2026-09-03-canvas-connect-regression.md)
 
 - [2026-09-05] [第三刀·投影清零方案](2026-09-05-storyboard-projection-cleanup.md) — 分镜唯一 owner、旧字段一次迁移后丢弃、取证 runner 读 Host snapshot。
+
+- [2026-09-07 设计系统优化](2026-09-07-design-system-optimization.md) — 三路体检后的 A 卫生 / B 补洞 / C 加门岗三档实施，D（组件权威）只出方案。
+
+- [2026-09-07 设计系统：从值的字典升级为组件的权威](2026-09-07-design-system-component-authority.md) — 上游 D 档方案：Menu(77 处/20 文件手写) / Dialog(32 文件) / Spinner 三个缺失原语的 R20 build-vs-buy 判断（结论：**买 Radix，别自研**）、Mantine 与 Radix 的 R29 四列表（最刺眼一格：`nomiTheme.ts:221` 配好了 `Menu` defaultProps 却零调用）、primitive 实验室新抓到的 `DesignPagination` 无选中态与 Mantine 色板旁路、刀 0-4 分阶段路线与影响面、R3 三条路对比、**七条「不做什么」**。
+
+- [2026-09-08 菜单原语现状清单（刀 1 ①）](2026-09-08-menu-primitive-inventory.md) — 17 文件 / **24 个手写菜单**逐个对账（触发·项·分隔线·禁用·定位·避让·风险）：**方向键 0/24**、点外不关 2 个、定位机制 5 套、六处各猜一遍菜单宽高的硬编码常数；A 建议**先迁时间轴右键菜单**（宿主最小、今天最坏）并把 `CanvasToolbar` 挪出刀 1（hover-open + 无触发元素 + file input 三条边界）；B 从真实用法反推 API（含 checkbox/radio/段名/危险项/项内副标题；**子菜单不做**）；C **19 条形态差异只列不改**等用户拍板；附 `AnchoredPopover` 注释按「浮层里放的是什么」划界的写法。（📋 方案待拍板）
 
 ## 🤖 自动收录（待人工归位）
 

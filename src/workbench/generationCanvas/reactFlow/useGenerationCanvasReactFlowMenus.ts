@@ -104,6 +104,7 @@ export function useGenerationCanvasReactFlowMenus({
   onFrameToolPointerDown,
 }: UseGenerationCanvasReactFlowMenusArgs): {
   contextNodeMenu: CanvasContextNodeMenu | null
+  closeContextNodeMenu: () => void
   connectionCreateMenu: CanvasConnectionCreateMenu | null
   handleStageContextMenu: (event: React.MouseEvent<HTMLDivElement>) => void
   handleFlowContextMenu: (event: MouseEvent | React.MouseEvent) => void
@@ -156,6 +157,10 @@ export function useGenerationCanvasReactFlowMenus({
     }
     setConnectionCreateMenu(null)
   }, [handleConnectToGroup])
+
+  const closeContextNodeMenu = React.useCallback(() => {
+    setContextNodeMenu(null)
+  }, [setContextNodeMenu])
 
   const handleFlowContextMenu = React.useCallback((event: MouseEvent | React.MouseEvent) => {
     handleStageContextMenu(event as React.MouseEvent<HTMLDivElement>)
@@ -302,6 +307,8 @@ export function useGenerationCanvasReactFlowMenus({
 
   return {
     contextNodeMenu,
+    /** 只关节点/添加菜单本身（不碰连线状态）——`WorkbenchMenu` 的 onOpenChange 走这条。 */
+    closeContextNodeMenu,
     connectionCreateMenu,
     handleStageContextMenu,
     handleFlowContextMenu,

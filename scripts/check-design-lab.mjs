@@ -5,13 +5,27 @@
 // 不再靠手写 HTML 样张 + 人眼对比。样张与实现是两套代码描述同一个东西，中间靠人脑翻译，
 // 漂移是结构性的。实验室把翻译层删掉了；本门岗守住实验室自己不腐坏。
 //
-// 它查四件事：
+// 它查五件事：
 //   1. **注册表可解析、id 唯一**——`labStates.mjs` 那把源码正则一旦解析不出东西就当场红，
 //      而不是静默地少截一张图（漏项在 CI 输出里和「本来就没有这个状态」长得一模一样）。
 //   2. **设计文档的形态覆盖**——21 形态 + P0 17 件索引里的每一件，注册表里必须有对应状态。
 //      设计文档新加一个形态而实验室没跟上 = 红。
 //   3. **基线 ↔ 注册表一一对应**——多一张孤儿 PNG（状态删了图没删）或少一张（状态加了没录基线）都红。
 //   4. **视觉基线本身**——在已校准平台上真跑 Playwright `toHaveScreenshot`。
+//   5. **陈列格声明它镜像的真实调用点**（2026-09-07 用户抓到的系统性缺陷，见下）。
+//
+// 关于第 5 条（`mirrors`）：
+//   primitive 陈列三屏一直宣称「屏幕上那格就是**现役 React 组件**渲染的，不是手画样张」。
+//   这话只对了一半——**组件是真的，props 是夹具作者编的**。于是一格可以「技术上是真组件」
+//   却完全不像真实使用，而它顶着「这是真组件」的名义，比手画样张**更**容易误导。
+//   活标本：`pf-06` 的比例分段给 `NomiSegmented` 喂纯文字选项、还用了生产从不用的
+//   `density="default"`，渲成「大空框配文字」；而真身（`InlineParameterBar.tsx`，2026-07-17
+//   用户拍板）画的是**按真实宽高比的描边矩形**——那个框是这个控件的全部意义。
+//   幸亏用户先看到了：这一格当时还没录基线，否则就把一个从不存在的设计钉成「应该长的样子」，
+//   以后谁改回真实形态反而会被门岗判成回归。
+//   所以每个陈列格必须声明 `mirrors`：它镜像的 `src/….tsx:行号`，或 `'none'`（零采纳件，
+//   本格只是能力展示、生产尚无调用点）。缺字段红；指到不存在的文件或越界的行号也红——
+//   陈旧的指路牌比没有指路牌更糟。
 //
 // 关于第 4 条为什么要按平台开关（这不是逃生口，是诚实）：
 //   基线 PNG 是在 macOS 上渲染、由用户在 macOS 上拍板的。字体栅格化在 macOS 与
@@ -190,13 +204,66 @@ for (const screen of LAB_SCREEN_IDS) {
   }
 }
 
+// ── 5. 陈列格 ↔ 真实调用点（mirrors）────────────────────────────────────────
+//
+// 只对 primitive 陈列三屏必填。另外 9 屏画的是**某个功能界面**的形态（Agent 面板、分镜表、
+// 剪辑浮层……），它们镜像的是一整块界面而不是某个组件的调用点，「这一格对应哪一行」不成立；
+// 把字段硬填满 180 格只会逼出一堆编造的行号，那正是这个字段要消灭的东西。
+//
+// 任何屏只要**填了**，就照验存在性——写下的指路牌必须是真的。
+const MIRROR_REQUIRED_SCREENS = ['primitives-actions', 'primitives-forms', 'primitives-menu', 'primitives-surfaces']
+// `'none'` = 零采纳件（设计系统提供了这个能力、生产还没有调用点）。写出来而不是省略，
+// 是为了把「想过、确实没有」和「忘了写」分开——后者才是要红的那个。
+const MIRROR_NONE = /^none\b/
+
+for (const screen of LAB_SCREEN_IDS) {
+  const required = MIRROR_REQUIRED_SCREENS.includes(screen)
+  for (const state of statesByScreen.get(screen)) {
+    const mirrors = state.mirrors
+    if (!mirrors) {
+      if (required) {
+        fail(
+          `${screen} 的陈列格 ${state.id} 没有声明 mirrors —— ` +
+          `写上它镜像的真实调用点（'src/….tsx:123'，可给多条），` +
+          `或写 'none — 零采纳件'（生产尚无调用点，本格只是能力展示）`,
+        )
+      }
+      continue
+    }
+    for (const entry of mirrors) {
+      if (MIRROR_NONE.test(entry)) continue
+      const match = /^(.+?):(\d+)$/.exec(entry)
+      if (!match) {
+        fail(`${screen}/${state.id} 的 mirrors「${entry}」不是 'src/….tsx:行号' 也不是 'none…'`)
+        continue
+      }
+      const [, relative, lineText] = match
+      const absolute = path.join(repoRoot, relative)
+      if (!fs.existsSync(absolute)) {
+        fail(`${screen}/${state.id} 的 mirrors 指向不存在的文件：${relative}`)
+        continue
+      }
+      // 行号越界 = 指路牌指到了文件外面。行**内容**变没变这里不判：那要么得把源码抄一份
+      // （第二个真相源），要么得钉住行内容（改一个字就红）——两条都比问题本身更糟。
+      const lines = fs.readFileSync(absolute, 'utf8').split('\n').length
+      const line = Number(lineText)
+      if (line < 1 || line > lines) {
+        fail(`${screen}/${state.id} 的 mirrors ${relative}:${line} 越界（该文件只有 ${lines} 行）—— 代码挪过位置了，更新行号`)
+      }
+    }
+  }
+}
+
 if (errors.length) {
   console.error('❌ 设计实验室门岗：')
   for (const message of errors) console.error(`   · ${message}`)
   process.exit(1)
 }
 
-console.log(`✅ 设计实验室结构检查：${LAB_SCREEN_IDS.length} 屏、${stateTotal} 个状态、${baselineTotal} 张基线，一一对应`)
+console.log(
+  `✅ 设计实验室结构检查：${LAB_SCREEN_IDS.length} 屏、${stateTotal} 个状态、${baselineTotal} 张基线，一一对应；`
+  + `${MIRROR_REQUIRED_SCREENS.length} 块陈列屏的每一格都声明了它镜像的真实调用点`,
+)
 
 for (const [screen, why] of Object.entries(pending)) {
   if (!LAB_SCREEN_IDS.includes(screen)) {

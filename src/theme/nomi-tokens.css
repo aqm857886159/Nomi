@@ -15,10 +15,27 @@
   /* ⚠️ 必须 in srgb，别改回 in oklch —— oklch 会对色相走最短弧插值，把 accent(h250) 拽向 paper 被钉死的
      色相（浅 h=0 → 粉 h≈347 / 暗 h=80 → 橄榄绿 h≈124）。完整原委见 tailwind.config.ts 同名 token（运行时真源）。 */
   --nomi-accent-soft: color-mix(in srgb, var(--nomi-accent) 12%, var(--nomi-paper));
-  /* 根层语义红（① 层）。历史注：--workbench-danger 曾困在 .workbench-shell 作用域、portal 浮层够不到
-     而实锤退灰；2026-08-24 起 --workbench-* 也定义在 :root（真源见 tailwind.config.ts addBase）。 */
-  --nomi-danger: oklch(0.55 0.20 27);
-  --nomi-warning: oklch(0.62 0.14 75);
+  /* 根层语义状态色（① 层，四语义 × 四档）。2026-09-07 用户拍板候选 C（danger 提到 0.13），
+     同日修掉一处错规格：soft/edge 不是 base 的 alpha，而是色阶上独立的一档
+     （alpha 摊薄 L0.55 的 base 只到 L≈0.92，浅底会发灰发土）。浅色 soft 贴 sRGB 天花板取
+     L 0.955–0.968，edge 深一档 L 0.895–0.905。info 收成 accent 的别名（原独立值与 accent
+     同色相同亮度、只差 ΔC 0.04，是并行版）。完整推导与对比度实测见 tailwind.config.ts 同名 token（运行时真源）。 */
+  --nomi-danger: oklch(0.55 0.13 25);
+  --nomi-danger-ink: oklch(0.45 0.13 25);
+  --nomi-danger-soft: oklch(0.955 0.021 25);
+  --nomi-danger-edge: oklch(0.895 0.052 25);
+  --nomi-warning: oklch(0.55 0.085 72);
+  --nomi-warning-ink: oklch(0.45 0.085 72);
+  --nomi-warning-soft: oklch(0.968 0.024 72);
+  --nomi-warning-edge: oklch(0.905 0.07 72);
+  --nomi-success: oklch(0.55 0.09 145);
+  --nomi-success-ink: oklch(0.45 0.09 145);
+  --nomi-success-soft: oklch(0.962 0.033 145);
+  --nomi-success-edge: oklch(0.905 0.07 145);
+  --nomi-info: var(--nomi-accent);
+  --nomi-info-ink: oklch(0.45 0.13 250);
+  --nomi-info-soft: oklch(0.957 0.021 250);
+  --nomi-info-edge: oklch(0.9 0.048 250);
   --nomi-track-text: var(--nomi-accent);
   --nomi-track-image: oklch(0.7 0.13 200);
   --nomi-track-video: oklch(0.65 0.13 150);
@@ -45,7 +62,8 @@
   --nomi-radius-sm: 6px;
   --nomi-radius: 10px;
   --nomi-radius-lg: 16px;
-  --nomi-transition-fast: 140ms cubic-bezier(.2, .7, .3, 1);
+  --nomi-duration-fast: 140ms;
+  --nomi-ease-fast: cubic-bezier(.2, .7, .3, 1);
   --nomi-font-sans: "Inter Variable", Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", system-ui, sans-serif;
   --nomi-font-display: "Fraunces Variable", Fraunces, "Inter Variable", Inter, serif;
   --nomi-font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
@@ -71,8 +89,25 @@
   --nomi-accent: oklch(0.70 0.13 250);
   /* in srgb 同上：暗色 paper h=80，走 oklch 会把选中态混成橄榄绿。 */
   --nomi-accent-soft: color-mix(in srgb, var(--nomi-accent) 26%, var(--nomi-paper));
-  --nomi-danger: oklch(0.72 0.16 25);
-  --nomi-warning: oklch(0.78 0.13 75);
+  /* 状态色暗色档：base 亮度平台对齐 accent 的 0.70，-ink 字色提到 0.82。
+     soft/edge 必须另写一档（浅色那档是 L≈0.96 的近白底，拿到暗色上是刺眼白块）：
+     soft L≈0.295–0.30 / C≤0.048，edge L≈0.395–0.40。
+     info 的 base 不在此重定义——它是 var(--nomi-accent) 的别名，accent 在本块已翻暗。 */
+  --nomi-danger: oklch(0.72 0.13 25);
+  --nomi-danger-ink: oklch(0.82 0.13 25);
+  --nomi-danger-soft: oklch(0.3 0.048 25);
+  --nomi-danger-edge: oklch(0.4 0.07 25);
+  --nomi-warning: oklch(0.72 0.085 72);
+  --nomi-warning-ink: oklch(0.82 0.085 72);
+  --nomi-warning-soft: oklch(0.295 0.04 72);
+  --nomi-warning-edge: oklch(0.395 0.058 72);
+  --nomi-success: oklch(0.72 0.09 145);
+  --nomi-success-ink: oklch(0.82 0.09 145);
+  --nomi-success-soft: oklch(0.295 0.042 145);
+  --nomi-success-edge: oklch(0.395 0.06 145);
+  --nomi-info-ink: oklch(0.82 0.13 250);
+  --nomi-info-soft: oklch(0.295 0.045 250);
+  --nomi-info-edge: oklch(0.395 0.065 250);
   --nomi-track-text: oklch(0.75 0.15 305);
   --nomi-track-image: oklch(0.72 0.13 200);
   --nomi-track-video: oklch(0.70 0.13 150);

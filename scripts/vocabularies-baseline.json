@@ -1,5 +1,5 @@
 {
-  "debtCap": 74,
+  "debtCap": 73,
   "converged": [
     {
       "retiredOwners": [
@@ -1097,7 +1097,7 @@
       "reason": "ModelCatalogHealthIssueCode 是模型目录健康 DTO 的结构化问题码，区分目录为空、供应商禁用、缺 API key、safeStorage 密文锁定、legacy plaintext 需重存与缺模型映射；renderer 据此定位安全且可执行的配置缺口，它不是连接探测或任务状态。"
     },
     {
-      "site": "src/workbench/export/exportApi.ts::type:ExportTimelineToMp4Options/property:onProgress/parameter:progress/property:status/type-union",
+      "site": "src/workbench/export/exportApi.ts::type:ExportProgressStatus/type-union",
       "members": [
         "converting",
         "done",
@@ -2169,19 +2169,7 @@
       ],
       "reason": "OpenWorkspaceProjectFromPickerOptions.showMessage 与 library 入口完全共用语义；应复用 OpenWorkspaceMessageTone = Extract<ToastType, 'error' | 'success'>，删除第二份参数字面量。"
     },
-    {
-      "site": "src/workbench/preview/TimelinePreview.tsx::type:PreviewExportStatus/type-union",
-      "members": [
-        "converting",
-        "done",
-        "error",
-        "idle",
-        "preparing",
-        "recording"
-      ],
-      "reason": "TimelinePreview 把 MP4 进度四态再加 idle/error 维护成第二套状态；活动进度的 canonical owner 是 src/workbench/export/exportApi.ts::type:ExportTimelineToMp4Options 的 onProgress.status，待从该合同 derive，并把 idle/error 保留为 UI 局部标志。"
-    },
-    {
+{
       "site": "src/workbench/production/productionShotActions.ts::type:ToastKind/type-union",
       "members": [
         "error",

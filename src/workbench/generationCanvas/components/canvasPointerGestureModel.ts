@@ -3,6 +3,8 @@
 // 2026-08-08 用户真机拍板，反转 08-07 的 selection-first：画布的主导作用是**看图**，
 // 平移是每分钟都在做的高频动作、框选是低频批量动作。高频动作必须占默认手势，
 // 低频动作退到修饰键后（Shift）——这是 ComfyUI / Figma / Miro 的最大公约数。
+import { isMacPlatform } from '../../../design/platformShortcut'
+
 export const CANVAS_DRAG_THRESHOLD = 4
 
 // 「画布空白」的反向定义：命中这些元素就不是空白，指针归它们自己（节点、工具条、边命中区、菜单、表单控件）。
@@ -92,12 +94,8 @@ export function shouldPreventDefaultForCanvasPanStart(button: number): boolean {
   return button !== 2
 }
 
-export function isMacCanvasPlatform(platform: string): boolean {
-  return /(Mac|iPhone|iPad|iPod)/i.test(platform)
-}
-
 export function isCanvasContextMenuPointer(button: number, ctrlKey: boolean, platform: string): boolean {
-  return button === 2 || (button === 0 && ctrlKey && isMacCanvasPlatform(platform))
+  return button === 2 || (button === 0 && ctrlKey && isMacPlatform(platform))
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

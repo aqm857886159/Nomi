@@ -13,6 +13,14 @@ type Offset = { x: number; y: number }
 export type CanvasContextNodeMenu = {
   stageX: number
   stageY: number
+  /**
+   * 右键那一下的**视口坐标**（`event.clientX/clientY`）。
+   * 2026-09-08 刀 1 加：节点菜单迁到 `WorkbenchMenu`（Radix Portal 到 body）后按视口定位，
+   * 由 Radix 量真实盒子做边缘避让——不再需要 `NODE_MENU_HEIGHT` 那个猜出来的高度。
+   * `stageX/stageY` 仍留着：空白「添加节点」菜单与框菜单还在用 stage 相对定位（批 2 迁）。
+   */
+  clientX: number
+  clientY: number
   canvasX: number
   canvasY: number
   /**
@@ -135,6 +143,8 @@ export function useCanvasContextNodeMenu({
       moved: false,
       contextMenuSeen: false,
       menu: {
+        clientX: event.clientX,
+        clientY: event.clientY,
         stageX: clampNumber(stageX, MENU_EDGE_GAP, Math.max(MENU_EDGE_GAP, rect.width - MENU_WIDTH - MENU_EDGE_GAP)),
         stageY: clampNumber(stageY, MENU_EDGE_GAP, Math.max(MENU_EDGE_GAP, rect.height - menuHeight - MENU_EDGE_GAP)),
         canvasX: Math.round((stageX - offsetRef.current.x) / zoom),

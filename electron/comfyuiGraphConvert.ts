@@ -15,6 +15,7 @@
 // 开 contextIsolation；只执行一段取图的脚本，不留驻、不导航别处。
 import { BrowserWindow } from "electron";
 import { normalizeComfyuiBaseUrl } from "./comfyui/endpointResolver";
+import { registerAppWindow } from "./appWindowRegistry";
 
 /** 前端就绪 + 转换的总超时（首次要下载 ComfyUI 前端资源，给足）。实测冷启 ~1.5s、热 ~0.4s。 */
 const CONVERT_TIMEOUT_MS = 45_000;
@@ -74,6 +75,9 @@ function ensureWindow(base: string): Holder {
       partition: CONVERTER_PARTITION,
     },
   });
+  // 显式登记成 untrusted：这个窗口装的是**第三方 ComfyUI 网页**，不挂 preload、不该有任何 IPC 权限。
+  // 写下来而不是「不登记」——漏登记和有意不给权限在代码里长得一样，在审计时含义相反。
+  registerAppWindow(win, "untrusted", base);
   win.on("closed", () => windowsByBase.delete(base));
   // 隐藏窗口绝不能弹任何原生框：ComfyUI 前端会挂 beforeunload（「工作流未保存」）等对话框，
   // 弹出来会**卡死整个转换**且用户根本看不见（窗口是隐藏的）。全部静默放行。

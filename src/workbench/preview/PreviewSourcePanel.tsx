@@ -162,7 +162,7 @@ export default function PreviewSourcePanel(): JSX.Element {
             aria-selected={tab === value}
             className={cn(
               'flex-1 cursor-pointer border-0 bg-transparent py-2 text-caption',
-              'transition-[color,box-shadow] duration-[var(--nomi-transition-fast)]',
+              'transition-[color,box-shadow] duration-nomi-fast ease-nomi-fast',
               tab === value
                 ? 'font-semibold text-nomi-ink shadow-[inset_0_-1.5px_0_var(--workbench-accent)]'
                 : 'text-nomi-ink-60 hover:text-nomi-ink',

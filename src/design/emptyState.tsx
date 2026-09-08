@@ -2,9 +2,20 @@ import React from 'react'
 import { cn } from '../utils/cn'
 
 /**
- * 全仓统一空态（见 design system §3.3）。收口此前各面板（项目库/提示词库/素材库/拾取器…）
- * 各手写一份「居中 icon + 标题 + 说明 + 可选行动」的重复结构（措辞「还没有/暂无/没有匹配」也曾不一）。
+ * 面板级空态：居中 icon + 标题 + 说明 + 可选行动。
  * icon 由调用方传好尺寸/色（如 <IconPhoto size={34} className="text-nomi-ink-30" />），组件只管布局与排版。
+ *
+ * **收口范围（2026-09-07 实测，别再写成「全仓统一」）**：已收口的是**库页/面板族**的 9 个消费者
+ * （项目库 / 提示词库 / 技能库 / 工作流库 / 素材库 / 素材拾取浮层 / 预览源面板 / 分镜工作区 / Agent 面板 v4）。
+ * **画布节点族没有收口**，那边另有 3 份并行结构：
+ *   · `generationCanvas/nodes/render/NodeEmptyState.tsx`（节点自成一套，`render/CardCommon.tsx:55`
+ *     的 `EmptyStateLauncher` 在它外面再包一层）
+ *   · `generationCanvas/nodes/NodeDeconstructionPanel.tsx:326` 的 `DeconstructionEmptyState`
+ *   · `generationCanvas/components/CanvasEmptyState.tsx`
+ * 它们没并进来不全是欠账：节点空态要在 ~180px 的卡片里排版、且本身是可点的投放区，
+ * 与「面板正中一大块」不是同一个形态。**要合并得先定形态，不是直接套这个组件。**
+ *
+ * ⚠️ 只用于**面板级居中空态**；列表行 / popover 里 `text-micro` 一行的内联提示不归它。
  */
 export type DesignEmptyStateProps = {
   icon?: React.ReactNode

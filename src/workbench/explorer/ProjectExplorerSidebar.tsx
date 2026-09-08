@@ -54,7 +54,7 @@ const PROJECT_SIDEBAR_RAIL_WIDTH = 60
 
 const RAIL_BUTTON_CLASS = cn(
   'grid size-8 place-items-center rounded-nomi-sm border-0 bg-transparent',
-  'cursor-pointer text-nomi-ink-40 transition-[background,color] duration-[var(--nomi-transition-fast)]',
+  'cursor-pointer text-nomi-ink-40 transition-[background,color] duration-nomi-fast ease-nomi-fast',
   'hover:bg-nomi-ink-05 hover:text-nomi-ink',
   'disabled:cursor-not-allowed disabled:opacity-50',
 )
@@ -62,7 +62,7 @@ const RAIL_BUTTON_CLASS = cn(
 // 方案A（2026-07-12 拍板）：rail 图标下带微字，治「一列孤图标认不出」；tooltip 保留全名。
 const RAIL_ITEM_BUTTON_CLASS = cn(
   'flex w-11 flex-col items-center gap-0.5 rounded-nomi-sm border-0 bg-transparent py-1.5',
-  'cursor-pointer text-nomi-ink-40 transition-[background,color] duration-[var(--nomi-transition-fast)]',
+  'cursor-pointer text-nomi-ink-40 transition-[background,color] duration-nomi-fast ease-nomi-fast',
   'hover:bg-nomi-ink-05 hover:text-nomi-ink',
   'disabled:cursor-not-allowed disabled:opacity-50',
 )
@@ -71,7 +71,7 @@ const RAIL_BUTTON_ACTIVE_CLASS = 'bg-nomi-ink text-nomi-paper shadow-nomi-sm'
 
 const PANEL_ICON_BUTTON_CLASS = cn(
   'grid size-8 place-items-center rounded-nomi-sm border-0 bg-transparent',
-  'cursor-pointer text-nomi-ink-40 transition-[background,border-color,color] duration-[var(--nomi-transition-fast)]',
+  'cursor-pointer text-nomi-ink-40 transition-[background,border-color,color] duration-nomi-fast ease-nomi-fast',
   'hover:bg-nomi-ink-05 hover:text-nomi-ink',
 )
 

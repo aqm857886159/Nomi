@@ -216,7 +216,7 @@ export function SkillLibraryContent({
             aria-selected={activeOption}
             className={cn(
               'rounded-full text-caption cursor-pointer border-0 bg-transparent whitespace-nowrap',
-              'transition-[background,color] duration-[var(--nomi-transition-fast)]',
+              'transition-[background,color] duration-nomi-fast ease-nomi-fast',
               compact ? 'min-w-0 flex-1 px-2 py-1' : 'px-3 py-1',
               activeOption
                 ? 'bg-nomi-paper text-nomi-ink font-semibold shadow-nomi-sm'

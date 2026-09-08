@@ -52,6 +52,22 @@ export const LAB_SCREENS = {
     registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/settings/states'),
     baselineDir: path.join(BASELINE_ROOT, 'settings'),
   },
+  'primitives-actions': {
+    registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/primitivesActions/states'),
+    baselineDir: path.join(BASELINE_ROOT, 'primitives-actions'),
+  },
+  'primitives-forms': {
+    registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/primitivesForms/states'),
+    baselineDir: path.join(BASELINE_ROOT, 'primitives-forms'),
+  },
+  'primitives-menu': {
+    registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/primitivesMenu/states'),
+    baselineDir: path.join(BASELINE_ROOT, 'primitives-menu'),
+  },
+  'primitives-surfaces': {
+    registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/primitivesSurfaces/states'),
+    baselineDir: path.join(BASELINE_ROOT, 'primitives-surfaces'),
+  },
   'depth-action': {
     registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/videoDepth/states'),
     baselineDir: path.join(BASELINE_ROOT, 'depth-action'),
@@ -93,6 +109,31 @@ function topLevelStringConsts(source) {
 }
 
 /**
+ * `mirrors` —— 这一格镜像的**真实调用点**（`src/….tsx:123`），或 `'none'`（零采纳件）。
+ *
+ * 2026-09-07 加：陈列格一直宣称「渲染的是现役组件本体」，但那句话只管住了**组件**，
+ * 管不住 **props**——夹具作者编一组 props，就能让一格「技术上是真组件」却完全不像真实使用，
+ * 而它顶着「这是真组件」的名义比手画样张更误导（`pf-06` 的比例分段是活标本）。
+ * 声明镜像哪一行，才让这件事可复核。
+ *
+ * 三种写法都认：单条字面量、数组字面量、同文件顶层 const（字符串）。
+ * 读不到就返回 `null`——「有没有写」由门岗按屏判，不在这里 fail-closed：
+ * 另外 9 屏画的是整块功能界面，本来就没有「对应哪一行」这回事。
+ */
+function parseMirrors(segment, consts) {
+  const match = /\bmirrors:\s*(\[[\s\S]*?\]|'[^']*'|[A-Za-z_$][\w$]*)/.exec(segment)
+  if (!match) return null
+  const raw = match[1]
+  if (raw.startsWith('[')) {
+    const items = [...raw.matchAll(/'([^']*)'/g)].map((m) => m[1])
+    return items.length ? items : null
+  }
+  if (raw.startsWith("'")) return [raw.slice(1, -1)]
+  const resolved = consts.get(raw)
+  return resolved === undefined ? null : [resolved]
+}
+
+/**
  * 注册项形如：`id: 'form-06-tool-line',` 紧跟 `name`, `source`, `coverage`；
  * `capture: 'viewport'`（浮层类形态要截整屏）是可选的，出现在 `render` 之前。
  * `source` 可以是字面量，也可以是同文件顶层的 const 标识符。
@@ -127,6 +168,7 @@ export function parseLabStateFile(source, fileLabel) {
     const segment = renderAt < 0 ? body : body.slice(0, renderAt)
     const sourceMatch = /\bsource:\s*(?:'([^']*)'|([A-Za-z_$][\w$]*))/.exec(segment)
     const coverageMatch = /\bcoverage:\s*'([a-z-]+)'/.exec(segment)
+    const mirrors = parseMirrors(segment, consts)
     const where = `${fileLabel} 的状态 ${entry.id}`
     if (!sourceMatch) throw new Error(`${where} 没有可解析的 source —— 写成字面量，或写成同文件顶层的 const 字符串`)
     if (!coverageMatch) throw new Error(`${where} 没有可解析的 coverage`)
@@ -138,6 +180,7 @@ export function parseLabStateFile(source, fileLabel) {
       id: entry.id,
       name: entry.name,
       source: stateSource,
+      mirrors,
       coverage: coverageMatch[1],
       capture: /\bcapture:\s*'viewport'/.test(segment) ? 'viewport' : 'element',
     }

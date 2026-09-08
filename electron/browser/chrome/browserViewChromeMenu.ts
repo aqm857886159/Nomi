@@ -2,6 +2,7 @@ import { BrowserWindow } from "electron";
 import path from "node:path";
 import { clampNumber } from "../core/browserViewUtils";
 import type { BrowserChromeMenuItem, BrowserChromeMenuItemPayload, BrowserChromeMenuPayload, BrowserChromeMenuRecord } from "../core/browserViewTypes";
+import { registerAppWindow } from "../../appWindowRegistry";
 
 const browserChromeMenusByWindow = new Map<number, BrowserChromeMenuRecord>();
 const browserChromeMenusByWebContents = new Map<number, BrowserChromeMenuRecord>();
@@ -210,7 +211,12 @@ export function showBrowserChromeMenu(
     menuWindow.once("ready-to-show", () => {
       if (!menuWindow.isDestroyed()) menuWindow.show();
     });
-    void menuWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(browserChromeMenuHtml(payload.items))}`);
+    // 建窗即声明信任角色。注意入口是 data: URL——它的 origin 是 "null"，不是 file://：
+    // 旧守卫按「顶层帧必须是 file://」判信任，于是这个菜单窗自己的 select/cancel 两条通道
+    // 恒被打回（2026-09-08 与素材盒浮层同一类根因）。登记表按角色判，不再看 URL 长相。
+    const menuEntryUrl = `data:text/html;charset=utf-8,${encodeURIComponent(browserChromeMenuHtml(payload.items))}`;
+    registerAppWindow(menuWindow, "app-surface", menuEntryUrl);
+    void menuWindow.loadURL(menuEntryUrl);
   });
 }
 

@@ -1,0 +1,144 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-08-ipc-trust-derived-not-declared",
+  "change_kind": "corrective",
+  "problem_type": "IPC 信任判定没有唯一 owner：两个守卫各自从窗口的偶然属性（是不是主窗口的 webContents / 顶层帧 URL 是不是 file://）现场再推导一次「这个发送方是不是我们自己的窗口」，于是每加一个窗口、每换一次页面载入方式，就会静默漏掉一个合法调用方",
+  "symptom": "用户把素材盒开成独立浮层窗口后：往里拖文件恒「保存失败」；已落盘的项目素材一条都列不出来（界面是空态，不是报错）。实测阳性对照（tests/ux/browser-overlay-asset-ipc.walk.mjs，修复前）：同一个 projectId、同一份 payload，主窗口 import 成功、list 拿到 1 条；浮层窗两条都抛 `UntrustedIpcSenderError: IPC 请求来源不是 Nomi 主窗口`。列表那条的错误被渲染层 useBrowserAssetLibraryModel.ts:71 的 catch 吞成空数组，所以呈现为「这个项目没有素材」而不是「读不到」——五门全绿、走查截图也「有界面」，问题因此长期隐身。",
+  "direct_cause": "nomi:assets:list（electron/main.ts）、nomi:assets:import-file（electron/assets/assetsIpc.ts）、nomi:workspace:delete-files（electron/workspace/workspaceFileDelete.ts）三条 handler 第一行都是 assertTrustedSender，而 assertTrustedSender 只放行 getMainWindow() 那一个窗口。素材盒的界面从 2026-07 起就长在一个独立 BrowserWindow（electron/browser/overlay/browserViewOverlay.ts）里，它永远过不了这条。",
+  "class_root": "信任是「在守卫里再推导」而不是「在建窗时声明」。同一个类在仓库里同时有三个实例，成因完全一样：① 素材盒浮层窗——新开窗口没进任何信任名单，够不到它界面必需的三条素材通道；② 浏览器 chrome 菜单窗（electron/browser/chrome/browserViewChromeMenu.ts）——它加载 data:text/html，origin 是字符串 \"null\" 不是 file://，被 assertTrustedUiSender 写死的 file:// 判据整个打回，自己的 select/cancel 两条通道全废；③ 开发模式——渲染层跑在 http://127.0.0.1:5273，同一条 file:// 硬编码把主窗口自己也打回，全部 browser:* 通道在 dev 下整体失效（已用真实 Electron 实测复现，见 recurrence.same_class_scan）。三次都不是「谁手滑漏了一处」，而是判据本身依赖了会变的偶然属性（哪个窗口是主窗、页面从什么协议加载），每变一次就再漏一次。",
+  "migration": "无数据迁移、无运行时迁移：只改主进程内存中的信任判定与建窗处的登记调用，没有任何持久化格式或用户数据参与。回滚 = 还原这批文件；旧行为随之回来（浮层窗再次读不到素材）。electron/mainWindowRegistry.ts 整个文件被 electron/appWindowRegistry.ts 取代（同 commit 删除，无并行版），getMainWindow/setMainWindow 两个导出签名与语义逐字不变，10 个引用点只改 import 路径——其中 electron/productionRun/productionRunDesktopLifecycle.ts、electron/screenshot/screenshotHotkey.ts、electron/capabilityCore/appIntegration.ts 三处生产文件的改动**仅是 import 路径**（getMainWindow 的调用与语义一字未动），列进 scope_paths 是为了让门岗覆盖到它们，不是说它们有行为变化。",
+  "affected_population": [
+    "所有把浏览器素材盒开出来的用户：拖入导入恒失败、项目素材恒空态、右键删除弹确认后收到权限错误",
+    "应用内浏览器标签页右键菜单/提示词模式选择器的每一次选择（chrome 菜单窗的 select 通道被打回，菜单只会以 blur 结算成「什么都没选」）",
+    "所有在 pnpm dev 下开发/走查应用内浏览器的人：全部 browser:* 通道被守卫打回"
+  ],
+  "scope_paths": [
+    "electron/appWindowRegistry.ts",
+    "electron/ipcSenderGuard.ts",
+    "electron/main.ts",
+    "electron/assets/assetsIpc.ts",
+    "electron/workspace/workspaceFileDelete.ts",
+    "electron/browser/overlay/browserViewOverlay.ts",
+    "electron/browser/chrome/browserViewChromeMenu.ts",
+    "electron/comfyuiGraphConvert.ts",
+    "electron/productionRun/productionRunDesktopLifecycle.ts",
+    "electron/screenshot/screenshotHotkey.ts",
+    "electron/capabilityCore/appIntegration.ts",
+    "scripts/check-ipc-sender-binding.mjs",
+    "tests/ux/browser-overlay-asset-ipc.walk.mjs"
+  ],
+  "entry_points": [
+    "electron/ipcSenderGuard.ts#assertTrustedSender —— 主窗口专属面（动授权/花额度/碰凭据的通道）",
+    "electron/ipcSenderGuard.ts#assertTrustedUiSender —— Nomi 自有 UI 面（主窗 + 我们自己建、挂了 Nomi preload 的辅助窗）",
+    "electron/appWindowRegistry.ts#registerAppWindow —— 建窗处声明信任角色的唯一入口",
+    "electron/appWindowRegistry.ts#setMainWindow —— 主窗口登记（同一张表的另一个入口，非另一套登记）"
+  ],
+  "invariants": [
+    "一个 BrowserWindow 能拿到哪一档 IPC，只由它在 appWindowRegistry 里登记的角色决定；守卫不再从 URL 长相或「是不是主窗」现场推导信任",
+    "没有登记过的窗口拿不到任何一条受守卫的通道（fail-closed）",
+    "登记成 untrusted 的窗口（装第三方网页、不挂 preload）拿不到任何一档，与「漏登记」在效果上相同但在代码里是写下来的决定",
+    "只有窗口自己的顶层主帧算数：子帧、以及不隶属任何已登记窗口的 webContents（应用内浏览器的无 preload WebContentsView）一律拒绝",
+    "发送帧的 origin 必须等于登记时记录的入口 origin（主窗口记 null = 以自身当前 URL 为准，因此 dev 的 http 与打包的 file:// 都成立）；窗口一旦被导航去别的 origin，权限立即消失",
+    "electron/ 下每一处 new BrowserWindow 都必须在同文件声明信任角色，否则 check:ipc-sender-binding 直接红"
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/ipcSenderGuard.ts",
+    "tests": [
+      "electron/ipcSenderGuard.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/ipcSenderGuard.test.ts",
+    "electron/settings/automationPolicyIpc.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/ipcSenderGuard.test.ts"
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "同一个判据在仓库里已经误伤了三次不同的合法调用方（素材盒浮层窗 / data: 入口的 chrome 菜单窗 / dev 模式 http 渲染层），而且三次的成因是同一个：信任从偶然属性现场推导。只修浮层窗那条，下一个新窗口或下一次换载入方式还会再漏一次。",
+    "same_class_scan": [
+      "实扫 electron/ 下全部 new BrowserWindow：共 4 处——主窗口 electron/main.ts:295、素材盒浮层 electron/browser/overlay/browserViewOverlay.ts:321、浏览器 chrome 菜单 electron/browser/chrome/browserViewChromeMenu.ts:150、ComfyUI 转换窗 electron/comfyuiGraphConvert.ts:59。四处全部纳入本次登记（前三者分别为 main / app-surface / app-surface，第四者显式登记为 untrusted）。",
+      "实测复现 ①（素材盒浮层）：tests/ux/browser-overlay-asset-ipc.walk.mjs 修复前 —— 主窗口 import ok / list count=1，浮层窗两条均 UntrustedIpcSenderError；截图 tests/ux/shots/browser-overlay-asset-ipc/01-overlay-asset-box.png 为空态。修复后同一走查 7 项全 PASS，截图里素材出现。",
+      "实测复现 ③（dev 模式 http 渲染层）：用 NOMI_RENDERER_URL=http://127.0.0.1:5273 起真实 Electron，主窗口调 UI 面通道 browser:prompt-extraction-settings:read 返回 UntrustedIpcSenderError，同一时刻主窗专属面 nomi:assets:list 正常——证明被打回的正是写死 file:// 的那条判据。修复后同一探针不再被守卫拒绝（只剩业务级 projectId is required）。",
+      "② chrome 菜单窗（data: 入口）为代码组合推定，未端到端复现：菜单窗建出来后会立刻收到 blur 并自我结算销毁（browserViewChromeMenu.ts:196 的既定设计），Playwright 环境下抓不到可交互的菜单页。判据链是确定性的：入口 URL 为 data:text/html（browserViewChromeMenu.ts:213 建窗处），其 origin 为 \"null\"，旧 assertTrustedUiSender 要求 originOf(senderFrame.url) === \"file://\"。已在 electron/ipcSenderGuard.test.ts 用 data: origin 的发送方锁死这条回归。",
+      "受影响的受守卫通道实扫：素材盒浮层可达且原先被打回的共 3 条（nomi:assets:list、nomi:assets:import-file、nomi:workspace:delete-files），本次全部改判到 UI 面；浮层用到的其余 browser:* 通道原本就在 UI 面，无需改动；nomi:assets:ensure-playable / import-native-file / folders-get / folders-save / download / auto-save 等不在浮层的可达面内，保持主窗口专属。"
+    ]
+  },
+  "shared_boundaries": [
+    {
+      "path": "electron/appWindowRegistry.ts",
+      "symbol": "registerAppWindow",
+      "responsibility": "唯一一处声明「某个 BrowserWindow 属于哪个信任角色、合法入口 origin 是什么」的地方；守卫只查这张表，不再自行推导。"
+    },
+    {
+      "path": "electron/ipcSenderGuard.ts",
+      "symbol": "assertSenderRole",
+      "responsibility": "全部 IPC 信任判定的唯一实现：查登记角色 + 三道不依赖 URL 内容的结构闸（必须是该窗口自己的 webContents、必须是顶层主帧、origin 必须等于登记的入口 origin）。两个对外守卫都只是它的角色白名单。"
+    },
+    {
+      "path": "scripts/check-ipc-sender-binding.mjs",
+      "symbol": "scanWindowRegistrations",
+      "responsibility": "把「新开窗口忘了声明信任角色」从生产事故挪到 CI 红灯：electron/ 下每处 new BrowserWindow 必须在同文件登记，否则门岗失败。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/browser/overlay/browserViewOverlay.ts",
+      "entry_point": "ensureBrowserAssetOverlay 建出的素材盒浮层窗",
+      "disposition": "enforced",
+      "evidence": "建窗处调 registerAppWindow(overlayWindow, \"app-surface\", entryUrl)；真实 Electron 走查证明它现在能列出并导入素材（tests/ux/browser-overlay-asset-ipc.walk.mjs 7/7 PASS）。"
+    },
+    {
+      "path": "electron/browser/chrome/browserViewChromeMenu.ts",
+      "entry_point": "showBrowserChromeMenu 建出的 data: 入口菜单窗",
+      "disposition": "enforced",
+      "evidence": "建窗处调 registerAppWindow(menuWindow, \"app-surface\", menuEntryUrl)；electron/ipcSenderGuard.test.ts 用 data: origin 的发送方断言它能过 UI 面守卫（旧判据下必被拒）。"
+    },
+    {
+      "path": "electron/main.ts",
+      "entry_point": "createWindow 建出的工作台主窗口（dev 下 origin 是 http，打包下是 file://）",
+      "disposition": "enforced",
+      "evidence": "setMainWindow 登记为 main 且 expectedOrigin 留 null（以窗口自身当前 URL 为准）；真实 Electron 探针证明 http 渲染层下 UI 面通道不再被守卫拒绝，electron/ipcSenderGuard.test.ts 也锁了 http://127.0.0.1:5273 这一例。"
+    },
+    {
+      "path": "electron/comfyuiGraphConvert.ts",
+      "entry_point": "ensureWindow 建出的 ComfyUI 工作流转换窗",
+      "disposition": "not-affected",
+      "evidence": "它刻意不挂 preload（webPreferences 无 preload、sandbox: true、独立 session 分区），页面没有 ipcRenderer，本来就到不了任何通道。本次显式登记为 untrusted，让「不该有权限」成为写下来的决定而不是漏登记的副作用；ipcSenderGuard.test.ts 断言 untrusted 角色两档都拿不到。"
+    }
+  ],
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "scripts/check-ipc-sender-binding.mjs",
+    "invariant": "electron/ 下每一处 new BrowserWindow 都必须在同一文件里调 registerAppWindow / setMainWindow 声明信任角色",
+    "failure_mode": "门岗退出码 1 并点名文件与行号，提示三种合法角色（main / app-surface / untrusted）",
+    "exception_policy": "none",
+    "strategy": "把防线挪到「加窗口的那一刻」（R28）。守卫侧已经是 fail-closed（没登记 = 一条通道都拿不到），但 fail-closed 的表现恰恰是这次的症状——静默空态，用户比 CI 先发现。所以再加一道静态扫描，让漏登记在 CI 就红，而不是等某个界面莫名其妙空掉。规则已按 R17 验红：临时摘掉 browserViewOverlay.ts 的登记后门岗报 `✗ 有 1 个文件建了 BrowserWindow 却没登记信任角色 electron/browser/overlay/browserViewOverlay.ts:322`，还原后恢复绿。",
+    "artifacts": [
+      "scripts/check-ipc-sender-binding.mjs",
+      "electron/appWindowRegistry.ts",
+      "electron/ipcSenderGuard.ts",
+      "electron/ipcSenderGuard.test.ts"
+    ]
+  },
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/mainWindowRegistry.ts"
+    ],
+    "rationale": "旧的 mainWindowRegistry 只登记「哪个是主窗口」，是新登记表的真子集。同 commit 删除、10 个引用点改指 electron/appWindowRegistry.ts（getMainWindow/setMainWindow 签名与语义逐字不变），不留并行版（P1）。守卫里那套「顶层帧 URL 是不是 file://」的旧判据也一并删除，没有 fallback 分支。"
+  },
+  "residual_risks": [
+    "chrome 菜单窗那一例（data: 入口）没有端到端复现，只有代码组合推定 + 单测锁定：菜单窗一建出来就会因 blur 自我结算销毁，自动化环境里抓不到可交互的菜单页。真机手点标签页右键菜单能否正确选中，仍需一次人工确认。",
+    "把 nomi:workspace:delete-files 从「只认主窗」放宽到「Nomi 自有 UI 面」扩大了这条破坏性通道的可达面（多了两个我们自己的窗口）。判断依据是这两个窗口都由我们创建、加载我们自己的页面、挂我们自己的 preload，且远端网页结构上够不到（无 preload 的 WebContentsView 不隶属任何已登记窗口）。若将来某个 app-surface 窗口开始承载不完全可信的内容，这条必须退回主窗口专属，同时它也拿不到主窗专属面的其余通道。",
+    "渲染层 useBrowserAssetLibraryModel.ts:71 的 catch 仍会把任何列表失败吞成空数组。本次没有动它（不属于信任边界，且该文件在并行的设计系统改动范围内），但它正是让这个 bug 隐身数周的放大器：下一次任何原因导致 list 失败，界面依然会说「还没有捕捞素材」。"
+  ],
+  "internal_only_reason": "这次的判据全部是本仓库自己的窗口构造与守卫实现——哪个窗口挂了 preload、加载什么 URL、远端内容跑在 WebContentsView 还是 BrowserWindow——都是仓库内可直接读到并已实测的事实，不依赖任何外部文档的当前状态。",
+  "generality_proof": "这不是「某一个窗口忘了加白名单」，而是判据本身依赖会变的偶然属性。证据有三：① 实扫 electron/ 下全部 4 处 new BrowserWindow，其中 3 处是我们自己的 UI 面，被旧判据误伤的有 2 处（素材盒浮层、chrome 菜单窗），剩下 1 处（主窗口）在 dev 模式下也会被同一条 file:// 硬编码误伤——即「我们自己的窗口」这一类里，没有一个是天然安全的；② 三次误伤的触发条件互不相同（新开窗口 / 换成 data: 入口 / 换成 http 载入），却由同一行判据造成，说明它对『我们自己的窗口』这个概念的刻画本身是错的；③ 反向验证：把判据换成建窗时声明的角色后，三例同时恢复（前两例有单测锁定，第一、第三例另有真实 Electron 实测），无需为任何一例写特例分支——一个改动同时解释并解决三个实例，正是类根因而非三个巧合的标志。共享边界因此定在『窗口诞生的那一刻』：那是唯一同时知道『这个窗口是谁建的、加载什么、该有多少权限』三件事的地方。",
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "exit_criteria": [],
+    "rationale": "本次没有引入、升级或保留任何第三方依赖。用到的全部是 Electron 自带的 BrowserWindow.fromWebContents / webContents.mainFrame / senderFrame.url 这几个既有 API，仓库其它守卫早已在用，版本面无变化。"
+  }
+}

@@ -23,7 +23,7 @@ vi.mock("electron", () => ({
   },
   BrowserWindow: { getAllWindows: () => windows },
 }));
-vi.mock("../mainWindowRegistry", () => ({ getMainWindow: () => null }));
+vi.mock("../appWindowRegistry", () => ({ getMainWindow: () => null }));
 vi.mock("./artifactProjection", () => ({ loadOrCreateArtifactPreviewSecret: () => "secret" }));
 vi.mock("./productionRunRepository", () => ({ createProductionRunRepository: () => ({}) }));
 

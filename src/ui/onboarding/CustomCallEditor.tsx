@@ -424,7 +424,7 @@ export function CustomCallEditor({
           variant="filled"
           onClick={saveTestedScript}
           leftSection={<IconCheck size={14} stroke={2} aria-hidden="true" />}
-          className="h-9"
+          size="md"
         >
           {requiresCapabilitySetup
             ? t('onboardingProviders.customCall.saveAndContinueCapability')

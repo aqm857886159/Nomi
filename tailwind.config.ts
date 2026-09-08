@@ -1,5 +1,9 @@
 import type { Config } from 'tailwindcss'
 import plugin from 'tailwindcss/plugin'
+import {
+  NOMI_OVERLAY_Z_INDEX_CSS_VARS,
+  NOMI_OVERLAY_Z_INDEX_TAILWIND_SCALE,
+} from './src/design/overlayLayers'
 
 /**
  * token 色接入 Tailwind 透明度修饰符（`/85`、`/[0.78]`…）的唯一通道。
@@ -42,6 +46,13 @@ const workbenchBasePlugin = plugin(({ addBase, addUtilities }) => {
     '.app-drag [contenteditable="true"]': { 'app-region': 'no-drag', '-webkit-app-region': 'no-drag' },
   })
 
+  /**
+   * 全局浮层层级契约（`src/design/overlayLayers.ts`）镜像成 CSS 变量。
+   * 有了它，className 侧才有合法出口（`z-dialog` / `z-confirmation` …），
+   * 不必再硬写 `z-[9999]` 去压过花钱确认卡。数字只有 TS 常量那一份，这里纯派生。
+   */
+  addBase({ ':root': NOMI_OVERLAY_Z_INDEX_CSS_VARS })
+
   addBase({
     ':root': {
       '--nomi-bg': 'oklch(0.985 0.003 90)',
@@ -63,20 +74,44 @@ const workbenchBasePlugin = plugin(({ addBase, addUtilities }) => {
       // 全 App 80+ 个选中态/chip 跟着跑色（Chromium 126 实测）。in srgb 无色相分量，结果 h≈248 稳住蓝。
       // 同类雷（有色相的色 × 钉了色相的中性色，用 in oklch 混）已由 check:tokens 门岗设闸拦住。
       '--nomi-accent-soft': 'color-mix(in srgb, var(--nomi-accent) 12%, var(--nomi-paper))',
-      // 根层语义红（设计系统 ① 层）。历史注：--workbench-danger 曾只活在 .workbench-shell 作用域、
-      // portal 浮层够不到（任务中心实锤 rgb(201,201,201)）；现 --workbench-* 已同在 :root（见下方
-      // 工作区语义块），该病已根除，两层按语义就近取用。
-      '--nomi-danger': 'oklch(0.55 0.20 27)',
-      '--nomi-warning': 'oklch(0.62 0.14 75)',
-      // 根层语义色的 soft 底（承载同色文字的浅底：错误行、警示横幅）。此前只有 --nomi-accent-soft 有 soft 档，
-      // danger/warning 没有 → `bg-nomi-danger-soft`/`bg-nomi-warning-soft` 四处静默无底色。配比与混色空间同
-      // --nomi-accent-soft（必须 in srgb，原因见上方 accent-soft 处长注：oklch 插值会对色相走最短弧）。
-      '--nomi-danger-soft': 'color-mix(in srgb, var(--nomi-danger) 12%, var(--nomi-paper))',
-      '--nomi-warning-soft': 'color-mix(in srgb, var(--nomi-warning) 12%, var(--nomi-paper))',
-      // 根层语义绿（设计系统 ① 层）。P4 S5 补：多镜占位「完成」态、批次进度回执的成功信号要在
-      // portal/画布层用（同 --nomi-danger/-warning 那类根层色的动机——作用域色 portal 够不到）。
-      // 与 --workbench-success(#34c759) 同色相、走 oklch 以随明暗自动过渡。
-      '--nomi-success': 'oklch(0.62 0.16 150)',
+      // ── 根层语义状态色（设计系统 ① 层，四语义 × 四档）。2026-09-07 用户拍板「候选 C + danger 提到 0.13」。
+      // 三条约束（抄 Primer/Geist/Linear 的克制）：
+      //   ① base 亮度平台对齐 accent（浅 0.55 / 暗 0.70–0.72）——语义靠色相区分，不靠「谁更亮更艳」；
+      //   ② 彩度 ≤ accent 的 0.13（warning/success 压到 0.085–0.09）——状态色不许抢 accent 的戏；
+      //   ③ soft/edge 是**色阶上独立的一档**，不是 base 的 alpha。
+      // ③ 是 2026-09-07 修掉的错规格：原写法 `color-mix(base 18%, transparent)` 把 L0.55 的暗 base
+      // 摊薄成浅底，实测落在 L≈0.92 —— 比成熟系统的浅底档暗 4 个点，看上去发灰发土（警告条从奶油
+      // 变米灰、错误条从淡粉变脏粉，见 scratchpad/final-vs-C-ps-03 并排）。那是 GitHub 的**暗色** chip
+      // 配方，套到浅色上不成立。实测参照：Geist red-200 #FFEBEB 是 L0.960 C0.022，Mantine 浅底
+      // L0.959–0.977 C0.017–0.024 —— 都是独立一档，且**贴着 sRGB 色域天花板**（L≥0.955 时红/蓝的
+      // 最大彩度只有 0.020–0.023，所以浅底不可能"又浅又艳"，只能取到天花板的九成）。
+      //   浅色 soft：L 0.955–0.968、C 取该 L/色相下 sRGB 上限的 ~92%；edge（描边）深一档：L 0.895–0.905。
+      //   暗色 soft：L≈0.295–0.30、C≤0.048；edge：L≈0.395–0.40（见下方暗色块）。
+      // -ink 是**必需**的字色档（不是可选装饰）：base 压在自己的浅底上只有 4.25–4.51 对比，够不到 WCAG
+      // 小字的 4.5。浅色字压到 L0.45、暗色字提到 L0.82（色相彩度不动）后实测 6.48–6.90（浅）/ 7.19–8.09（暗）。
+      // 历史注：--workbench-danger 曾只活在 .workbench-shell 作用域、portal 浮层够不到
+      // （任务中心实锤 rgb(201,201,201)）；现 --workbench-* 已同在 :root（见下方工作区语义块）。
+      '--nomi-danger': 'oklch(0.55 0.13 25)',
+      '--nomi-danger-ink': 'oklch(0.45 0.13 25)',
+      '--nomi-danger-soft': 'oklch(0.955 0.021 25)',
+      '--nomi-danger-edge': 'oklch(0.895 0.052 25)',
+      '--nomi-warning': 'oklch(0.55 0.085 72)',
+      '--nomi-warning-ink': 'oklch(0.45 0.085 72)',
+      '--nomi-warning-soft': 'oklch(0.968 0.024 72)',
+      '--nomi-warning-edge': 'oklch(0.905 0.07 72)',
+      '--nomi-success': 'oklch(0.55 0.09 145)',
+      '--nomi-success-ink': 'oklch(0.45 0.09 145)',
+      '--nomi-success-soft': 'oklch(0.962 0.033 145)',
+      '--nomi-success-edge': 'oklch(0.905 0.07 145)',
+      // info 就是 accent 本身（别名，不是第二个蓝）。2026-09-07 修：曾给 info 单写
+      // oklch(0.55 0.09 250) —— 与 accent 同色相同亮度、只差 ΔC 0.04，小 chip 上「提示」和「主操作」
+      // 分不开，等于一份并行版（P1）。成熟系统本来就用品牌蓝当 info（Primer 的 accent 兼任 info、
+      // Geist 用 blue 表 info/production），故收成别名。暗色块无需重定义：accent 自己在那边翻，
+      // var() 在使用处求值，info 自动跟着翻。
+      '--nomi-info': 'var(--nomi-accent)',
+      '--nomi-info-ink': 'oklch(0.45 0.13 250)',
+      '--nomi-info-soft': 'oklch(0.957 0.021 250)',
+      '--nomi-info-edge': 'oklch(0.9 0.048 250)',
       // 全局焦点环色（accent 42%）。所有交互控件 :focus-visible 统一用它，覆盖 macOS 系统强调色的
       // outline:auto（用户设了橙/黄就冒橙环）。全局 :root → portal 到 body 的面板也生效。
       '--nomi-focus': 'color-mix(in srgb, var(--nomi-accent) 42%, transparent)',
@@ -105,7 +140,8 @@ const workbenchBasePlugin = plugin(({ addBase, addUtilities }) => {
       '--nomi-radius-sm': '6px',
       '--nomi-radius': '10px',
       '--nomi-radius-lg': '16px',
-      '--nomi-transition-fast': '140ms cubic-bezier(.2, .7, .3, 1)',
+      '--nomi-duration-fast': '140ms',
+      '--nomi-ease-fast': 'cubic-bezier(.2, .7, .3, 1)',
       '--nomi-font-sans': 'Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", system-ui, sans-serif',
       '--nomi-font-display': 'Fraunces, Inter, serif',
       '--nomi-font-mono': 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace',
@@ -135,11 +171,18 @@ const workbenchBasePlugin = plugin(({ addBase, addUtilities }) => {
       '--workbench-ink': 'var(--nomi-ink)',
       '--workbench-accent': 'var(--nomi-accent)',
       '--workbench-accent-soft': 'var(--nomi-accent-soft)',
-      '--workbench-success': '#34c759',
-      '--workbench-success-soft': 'rgba(52, 199, 89, 0.12)',
-      '--workbench-success-ink': '#248a3d',
-      '--workbench-danger': '#ff3b30',
-      '--workbench-danger-soft': 'rgba(255, 59, 48, 0.1)',
+      // ── 工作区状态色：不再各写一份 iOS hex（曾是 #34c759/#ff3b30 与根层 oklch 并行的第二真相源，
+      // 两边各自漂移、明暗切换只有一边跟着动）。2026-09-07 起全部指回根层 --nomi-*（P1 加新必删旧）。
+      // 全仓 130+ 处 `text-workbench-danger` / `bg-workbench-success-soft` 消费点零改动跟着变。
+      '--workbench-success': 'var(--nomi-success)',
+      '--workbench-success-soft': 'var(--nomi-success-soft)',
+      '--workbench-success-ink': 'var(--nomi-success-ink)',
+      '--workbench-danger': 'var(--nomi-danger)',
+      '--workbench-danger-soft': 'var(--nomi-danger-soft)',
+      '--workbench-danger-ink': 'var(--nomi-danger-ink)',
+      '--workbench-warning': 'var(--nomi-warning)',
+      '--workbench-warning-soft': 'var(--nomi-warning-soft)',
+      '--workbench-warning-ink': 'var(--nomi-warning-ink)',
       '--workbench-video': '#00a886',
       '--workbench-video-soft': 'rgba(0, 168, 134, 0.11)',
       '--workbench-audio': '#8b5cf6',
@@ -273,13 +316,28 @@ const workbenchBasePlugin = plugin(({ addBase, addUtilities }) => {
       // 暗底下 soft 混合比要更高，否则选中高亮(侧栏行/节点选中/上手步骤)几乎看不出（浅色 12% 够、暗色压没）。
       // in srgb 的原因见浅色块同名 token 处（暗色 paper h=80，走 oklch 会把选中态混成橄榄绿）。
       '--nomi-accent-soft': 'color-mix(in srgb, var(--nomi-accent) 26%, var(--nomi-paper))',
-      '--nomi-danger': 'oklch(0.72 0.16 25)',
-      '--nomi-warning': 'oklch(0.78 0.13 75)',
-      // 暗底提高混入比（同 --nomi-accent-soft 的 12%→26%），否则 12% 混进暗 paper 几乎看不出底色。
-      '--nomi-danger-soft': 'color-mix(in srgb, var(--nomi-danger) 26%, var(--nomi-paper))',
-      '--nomi-warning-soft': 'color-mix(in srgb, var(--nomi-warning) 26%, var(--nomi-paper))',
-      // 暗底提亮以保持可辨（与 --workbench-success 暗色 #45d483 同族）。
-      '--nomi-success': 'oklch(0.75 0.15 150)',
+      // ── 根层语义状态色（暗色）。约束与浅色块同（见那里的长注）：base 亮度平台对齐 accent 的 0.70，
+      // 彩度 ≤ 0.13，-ink 字色档提到 L0.82（浅色是压到 0.45）。
+      // soft/edge 在暗色**必须另写一档**（不能靠 alpha 自动翻）——浅色那档是 L≈0.96 的近白底，
+      // 直接拿到暗色上是刺眼的白块。暗色底走低亮度路线：soft L≈0.295–0.30 / C≤0.048，
+      // edge L≈0.395–0.40。实测参照 Geist/Primer 暗色 chip 底 L≈0.29、C≤0.05。
+      '--nomi-danger': 'oklch(0.72 0.13 25)',
+      '--nomi-danger-ink': 'oklch(0.82 0.13 25)',
+      '--nomi-danger-soft': 'oklch(0.3 0.048 25)',
+      '--nomi-danger-edge': 'oklch(0.4 0.07 25)',
+      '--nomi-warning': 'oklch(0.72 0.085 72)',
+      '--nomi-warning-ink': 'oklch(0.82 0.085 72)',
+      '--nomi-warning-soft': 'oklch(0.295 0.04 72)',
+      '--nomi-warning-edge': 'oklch(0.395 0.058 72)',
+      '--nomi-success': 'oklch(0.72 0.09 145)',
+      '--nomi-success-ink': 'oklch(0.82 0.09 145)',
+      '--nomi-success-soft': 'oklch(0.295 0.042 145)',
+      '--nomi-success-edge': 'oklch(0.395 0.06 145)',
+      // info 的 base 不在此重定义：它是 var(--nomi-accent) 的别名，accent 在本块已翻暗（0.70），
+      // var() 在使用处求值 → info 自动跟着翻。只有 ink/soft/edge 三档需要暗色值。
+      '--nomi-info-ink': 'oklch(0.82 0.13 250)',
+      '--nomi-info-soft': 'oklch(0.295 0.045 250)',
+      '--nomi-info-edge': 'oklch(0.395 0.065 250)',
       '--nomi-focus': 'color-mix(in srgb, var(--nomi-accent) 50%, transparent)',
       // 时间轴三轨：暗底提亮以保持可辨（fork 未覆盖，本次补）。
       '--nomi-track-text': 'oklch(0.75 0.15 305)',
@@ -299,11 +357,8 @@ const workbenchBasePlugin = plugin(({ addBase, addUtilities }) => {
       // ── 工作区语义层深色覆盖：只重定义「硬编码字面值」那些（success/danger/video/text/hover/
       // pressed/overlay/backdrop/code/bevel/spotlight-grid）；其余派生自 --nomi-* → 随上方自动翻。
       // （audio 刻意无深色覆盖：明暗同色，沿用收口前行为。）
-      '--workbench-success': '#45d483',
-      '--workbench-success-soft': 'rgba(69, 212, 131, 0.16)',
-      '--workbench-success-ink': '#7ee8aa',
-      '--workbench-danger': '#ff6961',
-      '--workbench-danger-soft': 'rgba(255, 105, 97, 0.14)',
+      // 状态色（success/danger/warning）不再在此重定义：浅色块已让它们指向 --nomi-*，
+      // 而 --nomi-* 自己在本块翻暗 → 工作区层自动跟着翻（P1：一份定义，不是两份）。
       '--workbench-video': '#35d0b0',
       '--workbench-video-soft': 'rgba(53, 208, 176, 0.16)',
       '--workbench-text': 'oklch(0.75 0.15 305)',
@@ -632,14 +687,26 @@ export default {
           'line-soft': tokenColor('--nomi-line-soft'),
           accent: tokenColor('--nomi-accent'),
           'accent-soft': tokenColor('--nomi-accent-soft'),
+          // 四语义 × 四档（base / -ink 字色 / -soft 底 / -edge 边）。-ink 是承载小字时的必需档：
+          // base 压在自己的 18% soft 底上只有 3.0–4.5 对比，够不到 WCAG 小字的 4.5（详见 addBase 长注）。
+          // P4 S5 旧注保留：此前 --nomi-warning 有 CSS 变量但无 Tailwind 映射、--nomi-success 根本不存在
+          // → text-nomi-success 静默失色。现在四档全部有出口，portal/画布层都解析得到。
           danger: tokenColor('--nomi-danger'),
+          'danger-ink': tokenColor('--nomi-danger-ink'),
           'danger-soft': tokenColor('--nomi-danger-soft'),
-          // P4 S5：根层 warning/success 映射（此前 --nomi-warning 有 CSS 变量但无 Tailwind 映射，
-          // --nomi-success 根本不存在 → text-nomi-success 静默失色）。多镜占位三态用它们（warning=已停、
-          // success=完成），portal/画布层都解析得到。
+          'danger-edge': tokenColor('--nomi-danger-edge'),
           warning: tokenColor('--nomi-warning'),
+          'warning-ink': tokenColor('--nomi-warning-ink'),
           'warning-soft': tokenColor('--nomi-warning-soft'),
+          'warning-edge': tokenColor('--nomi-warning-edge'),
           success: tokenColor('--nomi-success'),
+          'success-ink': tokenColor('--nomi-success-ink'),
+          'success-soft': tokenColor('--nomi-success-soft'),
+          'success-edge': tokenColor('--nomi-success-edge'),
+          info: tokenColor('--nomi-info'),
+          'info-ink': tokenColor('--nomi-info-ink'),
+          'info-soft': tokenColor('--nomi-info-soft'),
+          'info-edge': tokenColor('--nomi-info-edge'),
           // 时间轴三轨语义色。变量早在上方 addBase，但一直没映射进 theme —— `bg-nomi-track-video` 静默无
           // 底色，另两处只能退回 `bg-[var(--nomi-track-video)]` 任意值逃生口。补映射后两者一起收口。
           'track-text': tokenColor('--nomi-track-text'),
@@ -670,6 +737,10 @@ export default {
           'success-ink': tokenColor('--workbench-success-ink'),
           danger: tokenColor('--workbench-danger'),
           'danger-soft': tokenColor('--workbench-danger-soft'),
+          'danger-ink': tokenColor('--workbench-danger-ink'),
+          warning: tokenColor('--workbench-warning'),
+          'warning-soft': tokenColor('--workbench-warning-soft'),
+          'warning-ink': tokenColor('--workbench-warning-ink'),
           // 时间轴媒体三轨（视频青 / 音频紫 / 文字紫）。video 有类名消费者（ClipNode 时间轴段）；
           // audio/text 目前只被 `bg-[var(--workbench-audio)]` 一类任意值消费，一并映射以免同族再漏。
           video: tokenColor('--workbench-video'),
@@ -747,13 +818,28 @@ export default {
           '55%': { transform: 'scale(1.28)', opacity: '1' },
           '100%': { transform: 'scale(1)', opacity: '1' },
         },
+        // 局部图像操作（抠背景/局部重绘）待处理时的呼吸。原先手写在 src/styles/index.css，
+        // 靠「index.css 是 tailwind 入口、原样透传」才出现在产物里——keyframes 有两个家。
+        // 收进这里当唯一真相源；Tailwind 只在有 animation utility 引用时才吐 @keyframes，
+        // 所以下面 animation 里必须同时登记（1.2s / 1.5s 两个既有时长各一条）。
+        'remove-bg-pulse': {
+          '0%, 100%': { opacity: '0.5' },
+          '50%': { opacity: '0.8' },
+        },
       },
       animation: {
         'generation-focus-pulse': 'generation-focus-pulse 1.35s ease-out',
         'nomi-badge-settle': 'nomi-badge-settle 420ms ease-out 1',
+        'remove-bg-pulse': 'remove-bg-pulse 1.2s ease-in-out infinite',
+        'remove-bg-pulse-slow': 'remove-bg-pulse 1.5s ease-in-out infinite',
+      },
+      // 层级刻度由 NOMI_OVERLAY_Z_INDEX 派生（见 src/design/overlayLayers.ts）。
+      zIndex: NOMI_OVERLAY_Z_INDEX_TAILWIND_SCALE,
+      transitionDuration: {
+        'nomi-fast': 'var(--nomi-duration-fast)',
       },
       transitionTimingFunction: {
-        'nomi-fast': 'var(--nomi-transition-fast)',
+        'nomi-fast': 'var(--nomi-ease-fast)',
       },
     },
   },

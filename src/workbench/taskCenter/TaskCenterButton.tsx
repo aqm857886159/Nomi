@@ -169,7 +169,7 @@ export function TaskCenterButton({ projectId, onRevealNode }: Props): JSX.Elemen
                 'inline-flex items-center gap-1.5 h-[30px] px-2.5',
                 'border border-transparent rounded-[var(--nomi-radius-sm)]',
                 'font-inherit text-body-sm',
-                'transition-[background,color] duration-[var(--nomi-transition-fast)]',
+                'transition-[background,color] duration-nomi-fast ease-nomi-fast',
                 tone === 'busy'
                   ? 'bg-nomi-accent text-nomi-paper hover:bg-nomi-accent'
                   : tone === 'failed'

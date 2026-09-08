@@ -392,7 +392,7 @@ export async function expectNoRawI18nKeysInDom(win, { message, allowSelectors = 
 //   (a) 主题翻转——走查只写了 data-mantine-color-scheme 一个属性，而生产路径走的是
 //       applyNomiColorScheme（src/theme/colorScheme.ts:54），它要写**四个**：
 //       dataset.theme / dataset.nomiColorScheme / data-mantine-color-scheme / style.colorScheme。
-//       只写一个 = 半翻的主题，再叠上 ~140ms 的 --nomi-transition-fast 过渡；
+//       只写一个 = 半翻的主题，再叠上 ~140ms 的 --nomi-duration-fast 过渡；
 //   (b) 已关闭的弹窗还在画退场动画（Mantine 的常驻 Modal，见 src/design/confirmDialog.tsx:70）；
 //   (c) toast 被拍在滑入动画中途，让视口边缘切掉一半。
 //
@@ -560,7 +560,7 @@ export async function applyColorSchemeForShot(win, scheme) {
     root.setAttribute('data-mantine-color-scheme', value)
     root.style.colorScheme = value
   }, scheme)
-  // 翻完还有 ~140ms 的 --nomi-transition-fast 在跑，等它跑完再让调用方截图。
+  // 翻完还有 ~140ms 的 --nomi-duration-fast 在跑，等它跑完再让调用方截图。
   await waitForVisualQuiescence(win)
 }
 

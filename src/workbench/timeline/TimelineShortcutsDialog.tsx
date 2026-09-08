@@ -1,5 +1,6 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
+import { useOverlayEscape } from '../../design'
 
 /**
  * 快捷键面板。原来是 `TimelinePanel.tsx` 里 `shortcutsOpen ? … : null` 的一段内联 JSX；
@@ -12,9 +13,12 @@ import { useTranslation } from 'react-i18next'
  */
 export function TimelineShortcutsDialog({ onClose }: { onClose: () => void }): JSX.Element {
   const { t } = useTranslation()
+  // 快捷键说明框自己不支持 Esc 曾经格外反讽：它就是那张教键盘的卡。
+  const dialogRef = React.useRef<HTMLDivElement | null>(null)
+  useOverlayEscape(dialogRef, true, onClose)
   return (
     <div className="fixed inset-0 z-40 grid place-items-center bg-[color-mix(in_oklch,var(--nomi-ink)_18%,transparent)]" onClick={onClose}>
-      <div className="w-80 rounded-[var(--nomi-radius-lg)] border border-[var(--workbench-border)] bg-[var(--nomi-paper)] p-4 shadow-[var(--nomi-shadow-lg)]" role="dialog" aria-label={t('timelineEditor.shortcuts.title')} onClick={(event) => event.stopPropagation()}>
+      <div className="w-80 rounded-[var(--nomi-radius-lg)] border border-[var(--workbench-border)] bg-[var(--nomi-paper)] p-4 shadow-[var(--nomi-shadow-lg)]" ref={dialogRef} role="dialog" aria-modal="true" aria-label={t('timelineEditor.shortcuts.title')} onClick={(event) => event.stopPropagation()}>
         <div className="mb-3 flex items-center justify-between"><strong className="text-body-sm">{t('timelineEditor.shortcuts.title')}</strong><button type="button" onClick={onClose}>×</button></div>
         <div className="grid grid-cols-[1fr_auto] gap-y-2 text-micro">
           <span>{t('timelineEditor.context.split')}</span><kbd>{t('timelineEditor.shortcuts.splitKey')}</kbd><span>{t('timelineEditor.context.duplicate')}</span><kbd>{t('timelineEditor.shortcuts.duplicateKey')}</kbd><span>{t('timelineEditor.context.delete')}</span><kbd>{t('timelineEditor.shortcuts.deleteKey')}</kbd><span>{t('timelineEditor.context.rippleDelete')}</span><kbd>{t('timelineEditor.shortcuts.rippleKey')}</kbd><span>{t('timelineEditor.context.deleteLeft')}</span><kbd>{t('timelineEditor.shortcuts.leftKey')}</kbd><span>{t('timelineEditor.context.deleteRight')}</span><kbd>{t('timelineEditor.shortcuts.rightKey')}</kbd><span>{t('timelineEditor.undo')}</span><kbd>{t('timelineEditor.shortcuts.undoKey')}</kbd><span>{t('timelineEditor.redo')}</span><kbd>{t('timelineEditor.shortcuts.redoKey')}</kbd><span>{t('timelineEditor.shortcuts.toggleSnap')}</span><kbd>{t('timelineEditor.shortcuts.snapKey')}</kbd><span>{t('timelineEditor.shortcuts.zoom')}</span><kbd>{t('timelineEditor.shortcuts.zoomKey')}</kbd><span>{t('timelineEditor.shortcuts.toggleAssistant')}</span><kbd>{t('timelineEditor.shortcuts.assistantKey')}</kbd>

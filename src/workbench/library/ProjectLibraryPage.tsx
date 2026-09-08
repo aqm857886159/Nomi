@@ -17,10 +17,11 @@ import {
   IconTrash,
 } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
-import { ActionCard, NomiLogoMark, NomiWordmark, DesignEmptyState } from '../../design'
+import { ActionCard, NomiLogoMark, NomiWordmark, DesignEmptyState, NomiSkeleton } from '../../design'
 import { NomiImage } from '../../design/media'
 import { WindowControls } from '../../ui/app-shell/WindowControls'
 import { handleWindowTitlebarDoubleClick } from '../../ui/app-shell/windowTitlebarDoubleClick'
+import { useLocalProjects } from './localProjectStore'
 import type { LocalProjectSummary } from './localProjectStore'
 import type { ProjectTemplateId } from './projectTemplates'
 import { markLibraryUsed, sortByLibraryUsage, useLibraryUsageVersion } from './libraryDiscovery'
@@ -47,7 +48,6 @@ type Props = {
   /** 重看开屏动画（首启播完后从这里可主动重播）；缺省则不渲染重看入口 */
   /** null = 查询中（不渲染告警）；false 时弱入口隐藏、状态条升权（单一入口互斥） */
   hasTextModel?: boolean | null
-  projects: LocalProjectSummary[]
 }
 
 function formatUpdatedAt(value: number): string {
@@ -120,9 +120,11 @@ export default function ProjectLibraryPage({
   onPlayJourneyTour,
   journeyTourSeen = false,
   hasTextModel = null,
-  projects,
 }: Props): JSX.Element {
   const { t } = useTranslation()
+  // 项目列表由本页自己读：它是这份数据的唯一消费者，外壳不该当数据管道（R9）。
+  // `useLocalProjects` 是单一 SWR key，外壳侧的 `refreshProjects` 与这里共享同一份缓存，不是第二个真相源。
+  const { projects, projectsError, projectsLoading, refreshProjects: onRetryLoadProjects } = useLocalProjects()
   const [query, setQuery] = React.useState('')
   const [sourceFilter, setSourceFilter] = React.useState<'all' | 'native' | 'folder'>('all')
   const usageVersion = useLibraryUsageVersion()
@@ -132,6 +134,9 @@ export default function ProjectLibraryPage({
   const [editValue, setEditValue] = React.useState('')
   const [syncInspectionByProject, setSyncInspectionByProject] = React.useState<Record<string, WorkspaceSyncInspection>>({})
   const [openSyncProjectId, setOpenSyncProjectId] = React.useState<string | null>(null)
+  // 「重新检查」这一下自己失败了（≠ 检查跑完发现还没就绪）。不记它的话，两种情况在界面上
+  // 长得一模一样：弹层原样不动——用户会以为检查跑过了、文件夹还是坏的。
+  const [syncRecheckFailedId, setSyncRecheckFailedId] = React.useState<string | null>(null)
   const beginRename = (project: LocalProjectSummary): void => {
     if (!onRenameProject || project.missing) return
     setEditingId(project.id)
@@ -177,6 +182,10 @@ export default function ProjectLibraryPage({
           const inspection = await api({ projectId: project.id })
           return [project.id, inspection] as const
         } catch {
+          // 有意静默：这是**后台批量探测**（挂在 mount + window focus 上，用户没点任何东西），
+          // 产出的只是卡片上的同步告警徽标——一个可选增强。探不到就退回「不显示徽标」，
+          // 也就是探测能力上线前的行为，界面不会因此显示**错误的**同步状态。
+          // 反例见下面的 recheckSync：那条是用户亲手点的，失败必须出声。
           return null
         }
       }),
@@ -193,11 +202,14 @@ export default function ProjectLibraryPage({
   const recheckSync = React.useCallback(async (projectId: string): Promise<void> => {
     const api = getDesktopBridge()?.workspace?.syncInspect
     if (!api) return
+    setSyncRecheckFailedId(null)
     try {
       const inspection = await api({ projectId, adopt: true })
       setSyncInspectionByProject((current) => ({ ...current, [projectId]: inspection }))
       if (inspection.status === 'ready') setOpenSyncProjectId(null)
     } catch {
+      // 用户点的「重新检查」——不能静默：弹层原样不动会被读成「检查跑完了，还是坏的」。
+      setSyncRecheckFailedId(projectId)
       setOpenSyncProjectId(projectId)
     }
   }, [])
@@ -397,7 +409,52 @@ export default function ProjectLibraryPage({
             )}
           />
 
-          {filteredProjects.length === 0 ? (
+          {/* 四态顺序不能变：error → loading → empty。读取失败时 projects 是 fallback []，
+              先判空态就会把「读不到」渲染成首启空库引导屏（用户读作「我的项目全没了」）。 */}
+          {projectsError ? (
+            <div data-testid="library-load-error">
+            <DesignEmptyState
+              density="inline"
+              icon={<IconAlertTriangle size={30} stroke={1.6} className="text-nomi-danger" aria-hidden="true" />}
+              title={t('library.loadFailedTitle')}
+              description={
+                <>
+                  <div>{t('library.loadFailedDescription')}</div>
+                  {projectsError.message ? (
+                    <div className="mt-1 text-micro text-nomi-ink-30 break-words">
+                      {t('library.loadFailedReason', { reason: projectsError.message })}
+                    </div>
+                  ) : null}
+                </>
+              }
+              action={
+                onRetryLoadProjects ? (
+                  <button
+                    type="button"
+                    data-testid="library-load-retry"
+                    className="inline-flex h-8 items-center gap-1.5 px-4 rounded-pill border-0 bg-nomi-ink text-nomi-paper text-body-sm font-medium font-inherit cursor-pointer transition-colors hover:bg-nomi-accent"
+                    onClick={onRetryLoadProjects}
+                  >
+                    <IconRefresh size={14} stroke={1.8} aria-hidden="true" />
+                    {t('library.retryLoad')}
+                  </button>
+                ) : undefined
+              }
+            />
+            </div>
+          ) : projectsLoading ? (
+            // 首屏读取中：骨架屏占位（统一组件 NomiSkeleton），别拿空态文案顶——
+            // 「还没有项目」在数据还没到的时候是一句假话。
+            <div
+              className="shrink-0 grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3"
+              data-testid="library-loading"
+              aria-label={t('library.loadingProjects')}
+            >
+              {[0, 1, 2, 3].map((slot) => (
+                <NomiSkeleton key={slot} className="h-32" />
+              ))}
+            </div>
+          ) : filteredProjects.length === 0 ? (
             // 审计 A10：库非空但「搜索 × 来源 tab」过滤后为空——给空态与出路（统一空态组件）。
             <DesignEmptyState
               density="inline"
@@ -609,6 +666,11 @@ export default function ProjectLibraryPage({
                                 </button>
                               ) : null}
                             </div>
+                            {syncRecheckFailedId === project.id ? (
+                              <div role="alert" className="mt-2 text-micro leading-relaxed text-nomi-danger">
+                                {t('library.syncRecheckFailed')}
+                              </div>
+                            ) : null}
                           </div>
                         )
                       })() : null}

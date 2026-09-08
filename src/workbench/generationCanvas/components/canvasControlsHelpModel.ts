@@ -1,5 +1,5 @@
 import type { CanvasGestureScheme } from '../../../utils/canvasGesturePreference'
-import { isMacCanvasPlatform } from './canvasPointerGestureModel'
+import { platformModifier } from '../../../design/platformShortcut'
 
 export type CanvasControlsHelpSectionId = 'selection' | 'pan' | 'zoom' | 'node'
 
@@ -12,10 +12,6 @@ export type CanvasControlsHelpRow = {
 export type CanvasControlsHelpSection = {
   id: CanvasControlsHelpSectionId
   rows: CanvasControlsHelpRow[]
-}
-
-export function platformModifier(platform: string): '⌘' | 'Ctrl' {
-  return isMacCanvasPlatform(platform) ? '⌘' : 'Ctrl'
 }
 
 export function canvasControlsHelpSections(

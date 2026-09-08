@@ -127,7 +127,7 @@ export function ModelAdapterStatusSection({
                 disabled={starting}
                 loading={starting}
                 onClick={secondaryAction.run}
-                className="h-9"
+                size="md"
               >
                 {secondaryAction.label}
               </DesignButton>
@@ -139,7 +139,7 @@ export function ModelAdapterStatusSection({
                 loading={starting}
                 onClick={action.run}
                 leftSection={!starting ? <action.Icon size={14} stroke={1.8} aria-hidden="true" /> : undefined}
-                className="h-9"
+                size="md"
               >
                 {action.label}
                 {!starting && (state.primaryAction === 'editCapability' || state.primaryAction === 'writeScript' || state.primaryAction === 'openTask') ? (

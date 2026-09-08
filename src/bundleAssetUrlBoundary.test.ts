@@ -26,6 +26,10 @@ const RENDER_ONLY_ALLOWLIST: Record<string, string> = {
   'workbench/generationCanvas/nodes/scene3d/ueSpike/ue4MannequinRig.ts':
     'UE 人偶 GLB（3d-director-desk 收编 spike）：只喂 useGLTF 渲染，不进节点结果，也不落项目。',
   'lib/removeBackground.ts': 'Worker 脚本地址：new Worker 当场消费，不是资产 URL。',
+  'devlab/designLab/primitivesSurfaces/states/03-structure.tsx':
+    '设计实验室 NomiIdentityIcon 陈列格的四张厂商 logo：只喂 <img src> 当场渲染，不进任何状态。' +
+    '而且实验室物理上不进生产包——`vite build` 只吃 index.html，design-lab.html 是另一个根入口' +
+    '（check:design-lab 守着这条），所以它连「被打包出去」这一步都没有。',
   'workbench/generationCanvas/videoDepth/videoDepthClient.ts':
     '深度推理 worker 的脚本地址：new Worker 当场消费，随这次运行结束即弃，不进节点结果也不落项目。',
 }

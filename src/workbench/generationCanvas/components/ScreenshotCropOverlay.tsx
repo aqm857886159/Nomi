@@ -94,7 +94,7 @@ export function ScreenshotCropOverlay({ capture, basePosition, categoryId, onClo
 
   return createPortal(
     <div
-      className="absolute inset-0 z-[9999] flex h-full w-full flex-col items-center justify-center gap-3 overflow-hidden bg-black/55 p-6"
+      className="absolute inset-0 z-application-modal flex h-full w-full flex-col items-center justify-center gap-3 overflow-hidden bg-black/55 p-6"
       role="dialog"
       aria-modal="true"
       aria-label={t('generationCommon.screenshot.title')}
@@ -163,7 +163,7 @@ export function ScreenshotCropOverlay({ capture, basePosition, categoryId, onClo
           className={cn(
             'inline-flex h-9 items-center rounded-full border-0 px-4 cursor-pointer',
             'bg-nomi-paper text-body font-medium text-nomi-ink hover:bg-nomi-accent hover:text-nomi-paper',
-            'transition-colors duration-[var(--nomi-transition-fast)] disabled:opacity-50',
+            'transition-colors duration-nomi-fast ease-nomi-fast disabled:opacity-50',
           )}
           onClick={() => void commit()}
         >

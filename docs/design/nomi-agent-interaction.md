@@ -213,7 +213,7 @@ Nomi 是拍片工具，等待文案用**片场黑话**而非「正在思考中�
 
 ## 7. 动效规范
 
-现状：主文档 §2.7 **只有一条 token**（`--nomi-transition-fast` 140ms）—— 「等待期长什么样」这一层从未定义过。这正是 agent 界面显得死板的根因。
+现状：主文档 §2.7 **只有一条 token**（`--nomi-duration-fast` 140ms）—— 「等待期长什么样」这一层从未定义过。这正是 agent 界面显得死板的根因。
 
 ### 7.1 主张
 
@@ -229,7 +229,7 @@ Nomi 是拍片工具，等待文案用**片场黑话**而非「正在思考中�
 
 | token | 时长 | 用途 |
 |---|---|---|
-| `--nomi-motion-tap` | 140ms | 交互反馈（**= 现有 `--nomi-transition-fast`，改名收口，不新增行为**） |
+| `--nomi-motion-tap` | 140ms | 交互反馈（**= 现有 `--nomi-duration-fast`，改名收口，不新增行为**） |
 | `--nomi-motion-enter` | 260ms | 进场 / 退场 |
 | `--nomi-motion-settle` | 420ms | 一次性跃迁：描边勾、数字落定 |
 | `--nomi-motion-breathe` | 1.8s | 呼吸循环（在想） |

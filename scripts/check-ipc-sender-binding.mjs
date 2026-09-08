@@ -9,6 +9,15 @@
  * (`assertTrustedSender` for main-window-only channels, `assertTrustedUiSender`
  * for channels the in-app browser chrome/overlay also drives).
  *
+ * A second rule rides along: every `new BrowserWindow(` under electron/ must be
+ * accompanied by a trust-role registration (`registerAppWindow` / `setMainWindow`)
+ * in the same file. Trust is declared at window creation and read from
+ * electron/appWindowRegistry.ts by the guards; a window nobody registered gets
+ * zero guarded channels — fail-closed, but silently broken for the user (the
+ * 2026-09-08 asset-box overlay bug: imports failed and the asset grid was
+ * permanently empty). This rule moves that from "someone notices in production"
+ * to "the gate is red before it ships".
+ *
  * The baseline is a **list of stable identities** (`file` + `kind` + `channel`),
  * not a bare count. A count cannot say *which* registration is new, so a failing
  * gate used to point at an arbitrary bystander file and the tempting "fix" was
@@ -66,7 +75,36 @@ function identityOf(entry) {
   return `${entry.file}|${entry.kind}|${entry.channel}`
 }
 
-const registrations = listSourceFiles(electronRoot).flatMap(scanFile)
+/** Rule 2:每处建窗都必须在同文件声明信任角色。 */
+function scanWindowRegistrations(files) {
+  const offenders = []
+  for (const file of files) {
+    const source = fs.readFileSync(file, 'utf8')
+    const creations = [...source.matchAll(/new\s+BrowserWindow\s*\(/g)]
+    if (!creations.length) continue
+    if (/\b(?:registerAppWindow|setMainWindow)\s*\(/.test(source)) continue
+    offenders.push({
+      file: path.relative(repoRoot, file).split(path.sep).join('/'),
+      line: source.slice(0, creations[0].index).split('\n').length,
+      count: creations.length,
+    })
+  }
+  return offenders
+}
+
+const sourceFiles = listSourceFiles(electronRoot)
+const unregisteredWindows = scanWindowRegistrations(sourceFiles)
+if (unregisteredWindows.length) {
+  console.error(`✗ 有 ${unregisteredWindows.length} 个文件建了 BrowserWindow 却没登记信任角色`)
+  for (const entry of unregisteredWindows) {
+    console.error(`  ${entry.file}:${entry.line} (${entry.count} 处 new BrowserWindow)`)
+  }
+  console.error('  → 在建窗处调 registerAppWindow(win, role, entryUrl)；')
+  console.error('    role 只有三种：main / app-surface / untrusted（装第三方网页、不给 IPC 的显式声明）')
+  process.exit(1)
+}
+
+const registrations = sourceFiles.flatMap(scanFile)
 const unguarded = registrations.filter((entry) => !entry.guarded)
 
 if (!fs.existsSync(baselinePath)) {
@@ -116,4 +154,5 @@ if (removed.length) {
   for (const id of removed) console.log(`  ${id}`)
 }
 
+console.log(`✓ 建窗信任登记：${sourceFiles.length} 个源文件全过`)
 console.log('✓ IPC sender binding 棘轮通过（只减不增）')

@@ -86,14 +86,16 @@ describe("Project Agent production cutover structure", () => {
   it("removes the retired chat stylesheet without regressing live workbench scrolling", () => {
     const shell = source("src/workbench/WorkbenchShell.tsx");
     const workbenchCss = source("src/workbench/workbench.css");
-    const animationsCss = source("src/styles/animations.css");
 
     expect(exists("src/workbench/workbench-ai.css")).toBe(false);
     expect(shell).not.toContain("workbench-ai.css");
     expect(workbenchCss).toContain(".workbench-editor__scroll");
     expect(workbenchCss).toContain(".workbench-autogrow");
     expect(workbenchCss).not.toContain("tc-ai-chat");
-    expect(animationsCss).not.toContain("tc-ai-chat");
+    // src/styles/animations.css 已整体删除（从不在 main.tsx 的 import 图里，@apply 的
+    // animate-shimmer/animate-sheen 在 tailwind.config.ts 里根本没定义 → 死码）。
+    // 断言跟着「文件不存在」走，别留一条 readFileSync 会直接抛的死断言。
+    expect(exists("src/styles/animations.css")).toBe(false);
   });
 
   it("keeps retired area turn controllers out of the production import graph", () => {

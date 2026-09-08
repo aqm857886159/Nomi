@@ -58,7 +58,7 @@ export function NomiSegmented({ value, options, onChange, ariaLabel, className, 
             className={cn(
               'px-2 py-1 rounded-nomi-sm border-0 text-caption cursor-pointer min-w-0',
               'inline-flex flex-col items-center justify-center gap-1 font-[inherit]',
-              'transition-colors duration-[var(--nomi-transition-fast)]',
+              'transition-colors duration-nomi-fast ease-nomi-fast',
               on
                 ? 'bg-nomi-paper text-nomi-ink font-semibold shadow-nomi-sm'
                 : 'bg-transparent text-nomi-ink-60 hover:text-nomi-ink-80',

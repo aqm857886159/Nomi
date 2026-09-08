@@ -2,7 +2,7 @@ import React from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { Slider } from '@mantine/core'
-import { IconAspectRatio, IconChevronDown } from '@tabler/icons-react'
+import { IconChevronDown } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
 import { DesignSwitch, NomiSegmented, NomiSelect, type NomiSegmentedOption } from '../../../design'
 import { formatVideoOptionLabel, type ModelParameterControl } from '../../../config/modelCatalogMeta'
@@ -19,6 +19,7 @@ import {
 } from './controls/parameterControlModel'
 import { hasUsableSliderStep, isCompleteNumericDraft } from './controls/numericDraft'
 import { commonRatioSortKey } from './aspectRatio'
+import { ratioShape, shapedGroupLabel } from './aspectRatioShape'
 import { resolveArchetypeForOption } from './nodeModelArchetype'
 import { useDedupedModelSelect } from '../../common/useDedupedModelSelect'
 import {
@@ -136,48 +137,6 @@ function ParameterTextInput({
         onBlur={() => setDraft(null)}
       />
     </label>
-  )
-}
-
-/** 比例文本（"16:9"）→ 宽高比小图形（描边矩形，最长边 18px）。
- *  value 和 label 都试（图片模型 size 值常是像素 "1024x1024"，label 才是 "16:9"——只看 value 会漏画）。 */
-function ratioShape(isAuto: boolean, ...candidates: string[]): JSX.Element | null {
-  if (isAuto) return <IconAspectRatio aria-hidden size={18} stroke={1.6} />
-  for (const candidate of candidates) {
-    const m = /^(\d{1,3}):(\d{1,3})$/.exec(String(candidate || '').trim())
-    if (!m) continue
-    const w = Number(m[1])
-    const h = Number(m[2])
-    if (!w || !h) continue
-    const scale = 18 / Math.max(w, h)
-    return (
-      <span
-        aria-hidden
-        className="block"
-        // 描边用 inline style 而非 Tailwind 任意值类（border-[1.4px]）：dev 的 tailwind 生成缓存
-        // 可能缺新任意值类 → 描边宽 0 图形隐身（2026-07-17 用户 dev 实况）。inline 不依赖生成。
-        style={{
-          width: Math.max(6, Math.round(w * scale)),
-          height: Math.max(6, Math.round(h * scale)),
-          border: '1.4px solid currentColor',
-        }}
-      />
-    )
-  }
-  return null
-}
-
-/** 组级双行 label：图形槽（固定 18px 高，无图形项留空占位）+ 文字——跨项等高，文字基线对齐。
- *  只要组内任一项画得出图形，整组统一双行（此前有/无图形混排 → 项目高低参差，2026-07-17 用户截图）。
- *  槽高 inline style（不用 h-[18px] 任意值类——dev tailwind 缓存缺类会静默塌）。 */
-function shapedGroupLabel(text: string, shape: JSX.Element | null): React.ReactNode {
-  return (
-    <>
-      <span className="flex items-center justify-center" style={{ height: 18 }} aria-hidden>
-        {shape}
-      </span>
-      <span className="leading-none">{text}</span>
-    </>
   )
 }
 

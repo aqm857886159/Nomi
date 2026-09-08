@@ -27,7 +27,7 @@ export const PromptCard = React.memo(function PromptCard({ prompt, onSelect }: P
           className={cn(
             'group relative block w-full aspect-[4/3] overflow-hidden text-left cursor-pointer',
             'rounded-nomi border border-nomi-line bg-nomi-ink-05',
-            'transition-[transform,box-shadow] duration-[var(--nomi-transition-fast)]',
+            'transition-[transform,box-shadow] duration-nomi-fast ease-nomi-fast',
             'hover:-translate-y-0.5 hover:shadow-nomi-md',
           )}
         >

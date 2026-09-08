@@ -1,4 +1,4 @@
-import { Alert, Badge, Progress, type AlertProps, type BadgeProps, type ProgressProps } from '@mantine/core'
+import { Badge, Progress, type BadgeProps, type ProgressProps } from '@mantine/core'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../utils/cn'
 
@@ -16,13 +16,23 @@ export type StatusBadgeProps = Omit<BadgeProps, 'color'> & {
   tone?: StatusBadgeTone
 }
 
+/**
+ * ⚠️ **采纳现状（2026-09-07 实测）：生产代码 0 个调用点。**
+ * 保留理由不是「以后可能用得上」，而是有**具体的迁移对象**：画布侧另有 5 份手写徽章
+ * （`nodes/NodeQueuedBadge.tsx` / `NodeLockBadge.tsx` / `NodeDeconstructionBadge.tsx` /
+ * `TechnicalReviewBadge.tsx` / `render/ShotMountBadges.tsx`）——「状态徽章」这件事一直在
+ * 做，只是没走这个组件。
+ * 与 `NomiSkeleton` 同一类情形（那件本轮已被项目库 loading 态接走）。
+ * 该走的路是**推广**（把画布侧那批手写徽章迁过来），不是删。迁移归属：D 档刀 4。
+ * 在那之前，这里与 `DesignBadge` 的近重复也一并留着——先合并再迁移会让两件事纠缠。
+ */
 export function StatusBadge({
   tone = 'neutral',
   className,
   variant = 'light',
   ...props
 }: StatusBadgeProps): JSX.Element {
-  const rootClassName = cn('tc-status-badge', 'tracking-[0.03em]', className)
+  const rootClassName = cn('tracking-[0.03em]', className)
 
   return (
     <Badge
@@ -36,28 +46,32 @@ export function StatusBadge({
   )
 }
 
-export type DesignBadgeProps = BadgeProps
-
-export function DesignBadge({ className, radius = 'sm', variant = 'light', ...props }: DesignBadgeProps): JSX.Element {
-  const rootClassName = cn('tc-design-badge', className)
-
-  return <Badge {...props} className={rootClassName} radius={radius} variant={variant} />
+/**
+ * `DesignBadge` 与 `StatusBadge` 共用同一套 tone 词表——语义只有这五个，
+ * 谁也不许再引第六种色。曾经 `DesignBadge` 直接透传 Mantine 的 `color`，
+ * 于是 `color="grape"` 能绕过整套 token 上一块 Mantine 自带的紫（设计实验室的
+ * PRO 徽章因此在四套候选配色下岿然不变）。收敛成封闭词表后，类型层就拦住了。
+ *
+ * ⚠️ 采纳现状同 `StatusBadge`：生产代码 0 个调用点，保留理由见上。
+ */
+export type DesignBadgeProps = Omit<BadgeProps, 'color'> & {
+  tone?: StatusBadgeTone
 }
 
-export type DesignAlertProps = AlertProps
-
-export function DesignAlert({ className, radius = 'sm', variant = 'light', ...props }: DesignAlertProps): JSX.Element {
-  const rootClassName = cn('tc-design-alert', className)
-
-  return <Alert {...props} className={rootClassName} radius={radius} variant={variant} />
+export function DesignBadge({
+  tone = 'neutral',
+  className,
+  radius = 'sm',
+  variant = 'light',
+  ...props
+}: DesignBadgeProps): JSX.Element {
+  return <Badge {...props} className={className} color={toneColorMap[tone]} radius={radius} variant={variant} />
 }
 
 export type DesignProgressProps = ProgressProps
 
 export function DesignProgress({ className, radius = 'sm', ...props }: DesignProgressProps): JSX.Element {
-  const rootClassName = cn('tc-design-progress', className)
-
-  return <Progress {...props} className={rootClassName} radius={radius} />
+  return <Progress {...props} className={className} radius={radius} />
 }
 
 export type NomiSkeletonProps = {

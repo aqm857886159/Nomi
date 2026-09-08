@@ -22,7 +22,7 @@ const workbenchBasePlugin = plugin(({ addBase }) => {
       '--workbench-success-ink': '#248a3d',
       '--workbench-ink': 'var(--nomi-ink)',
       '--workbench-topbar-height': '56px',
-      '--nomi-transition-fast': '140ms cubic-bezier(.2, .7, .3, 1)',
+      '--nomi-duration-fast': '140ms',
       '--nomi-font-sans': 'Inter, system-ui, sans-serif',
     },
   })
@@ -113,7 +113,7 @@ test('反向：已映射的颜色变量不算 unmapped，别名链要追进去',
 
 test('反向：长度/时长/字体栈不是颜色，不该逼人去映射', () => {
   const { unmapped } = findUnmappedColorVars(CFG)
-  for (const v of ['--workbench-topbar-height', '--nomi-transition-fast', '--nomi-font-sans']) {
+  for (const v of ['--workbench-topbar-height', '--nomi-duration-fast', '--nomi-font-sans']) {
     assert.ok(!unmapped.includes(v), `${v} 不是颜色，不该进 unmapped`)
   }
 })

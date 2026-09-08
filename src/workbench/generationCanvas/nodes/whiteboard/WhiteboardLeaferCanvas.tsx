@@ -680,7 +680,7 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, LeaferCanvasProps>(fu
             <rect
               data-testid="remove-bg-target-pending"
               fill="white"
-              style={{ animation: 'remove-bg-pulse 1.5s ease-in-out infinite' }}
+              className="animate-remove-bg-pulse-slow"
               {...getSvgRectAttributes(removeBackgroundBounds)}
             />
           ) : null}
