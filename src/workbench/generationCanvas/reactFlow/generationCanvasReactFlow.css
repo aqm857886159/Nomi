@@ -74,6 +74,8 @@
   position: relative;
   min-width: 1px;
   min-height: 1px;
+  isolation: isolate;
+  overflow: visible;
 }
 
 /* Existing node cards still contain their legacy canvas positioning and handles.
@@ -131,7 +133,9 @@
   opacity: 1;
 }
 
-.generation-canvas-react-flow .generation-canvas-react-flow__handle--magnetic .generation-canvas-react-flow__handle-hit {
+.generation-canvas-react-flow
+  .generation-canvas-react-flow__handle--magnetic
+  .generation-canvas-react-flow__handle-hit {
   top: 0;
   width: 112px;
   height: min(168px, calc(var(--generation-flow-node-height) + 28px));
@@ -139,15 +143,21 @@
   cursor: crosshair;
 }
 
-.generation-canvas-react-flow .generation-canvas-react-flow__handle--magnetic[data-side='left'] .generation-canvas-react-flow__handle-hit {
+.generation-canvas-react-flow
+  .generation-canvas-react-flow__handle--magnetic[data-side='left']
+  .generation-canvas-react-flow__handle-hit {
   right: 0;
 }
 
-.generation-canvas-react-flow .generation-canvas-react-flow__handle--magnetic[data-side='right'] .generation-canvas-react-flow__handle-hit {
+.generation-canvas-react-flow
+  .generation-canvas-react-flow__handle--magnetic[data-side='right']
+  .generation-canvas-react-flow__handle-hit {
   left: 0;
 }
 
-.generation-canvas-react-flow .generation-canvas-react-flow__handle--magnetic .generation-canvas-react-flow__handle-icon {
+.generation-canvas-react-flow
+  .generation-canvas-react-flow__handle--magnetic
+  .generation-canvas-react-flow__handle-icon {
   --connection-handle-reveal-x: 0px;
   position: absolute;
   top: var(--connection-handle-y);
@@ -166,26 +176,46 @@
     0 0 0 1px color-mix(in srgb, var(--nomi-ink) 8%, transparent);
   opacity: 0;
   pointer-events: none;
-  transition: left 180ms cubic-bezier(0.16, 1, 0.3, 1), top 180ms cubic-bezier(0.16, 1, 0.3, 1), opacity 180ms cubic-bezier(0.16, 1, 0.3, 1), transform 180ms cubic-bezier(0.16, 1, 0.3, 1), border-color 180ms cubic-bezier(0.16, 1, 0.3, 1), color 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition:
+    left 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    top 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    color 180ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.generation-canvas-react-flow .generation-canvas-react-flow__handle--magnetic[data-side='left'] .generation-canvas-react-flow__handle-icon {
+.generation-canvas-react-flow
+  .generation-canvas-react-flow__handle--magnetic[data-side='left']
+  .generation-canvas-react-flow__handle-icon {
   --connection-handle-reveal-x: 28px;
 }
 
-.generation-canvas-react-flow .generation-canvas-react-flow__handle--magnetic[data-side='right'] .generation-canvas-react-flow__handle-icon {
+.generation-canvas-react-flow
+  .generation-canvas-react-flow__handle--magnetic[data-side='right']
+  .generation-canvas-react-flow__handle-icon {
   --connection-handle-reveal-x: -28px;
 }
 
-.generation-canvas-react-flow .generation-canvas-react-flow__handle--magnetic[data-active='true'] .generation-canvas-react-flow__handle-icon,
-.generation-canvas-react-flow .generation-canvas-react-flow__handle--magnetic .generation-canvas-react-flow__handle-hit[data-following='true'] .generation-canvas-react-flow__handle-icon {
+.generation-canvas-react-flow
+  .generation-canvas-react-flow__handle--magnetic[data-active='true']
+  .generation-canvas-react-flow__handle-icon,
+.generation-canvas-react-flow
+  .generation-canvas-react-flow__handle--magnetic
+  .generation-canvas-react-flow__handle-hit[data-following='true']
+  .generation-canvas-react-flow__handle-icon {
   --connection-handle-reveal-x: 0px;
   transform: translate(-50%, -50%) scale(1);
   opacity: 0.82;
 }
 
-.generation-canvas-react-flow .generation-canvas-react-flow__handle--magnetic[data-active='true'] .generation-canvas-react-flow__handle-icon,
-.generation-canvas-react-flow .generation-canvas-react-flow__handle--magnetic .generation-canvas-react-flow__handle-hit[data-following='true'] .generation-canvas-react-flow__handle-icon {
+.generation-canvas-react-flow
+  .generation-canvas-react-flow__handle--magnetic[data-active='true']
+  .generation-canvas-react-flow__handle-icon,
+.generation-canvas-react-flow
+  .generation-canvas-react-flow__handle--magnetic
+  .generation-canvas-react-flow__handle-hit[data-following='true']
+  .generation-canvas-react-flow__handle-icon {
   border-color: var(--workbench-accent);
   color: var(--workbench-accent);
   opacity: 1;
