@@ -21,3 +21,6 @@ RF 12.11.5：原生 Handle 外侧伪元素命中，固定侧边锚点；https://
 未完成：任意远侧端口松手后固定需扩边模型/持久化，超出限定目录；已询问范围，未收到授权。
 费用：生成/付费模型调用0；Ponytail经正常hook。雷达apimart新增1，apimart-llm凭据解密失败；论文技能本机未找到。
 2026-09-09 第四段假设结论：假设成立。GroupFrame 原先没有 `MagneticConnectionHandle`，按下热区命中组框壳并进入 node-drag；节点卡/折叠组卡才复用共享把手组件。根因：`src/workbench/generationCanvas/components/GroupFrame.tsx:45-170` 缺少共享连接把手与 `nodrag` 命中边界。修法：GroupFrame 接入同一 `MagneticConnectionHandle`，由 `CanvasGroupProjectionLayer` 传入同一 `onStartGroupConnection`，把手容器标 `nodrag` 并阻止壳层 pointerdown 冒泡。
+
+2026-09-09 CI latest: Canvas Acceptance Linux (1) FAIL; (2) FAIL.
+失败日志：/tmp/mh-ci-failed.log
