@@ -94,7 +94,7 @@ function GenerationFlowConnectionHandle({
       aria-label={label}
       data-side={side}
       data-affordance={type === 'source' ? affordance : 'target'}
-      data-active={highlighted ? 'true' : undefined}
+      data-active={active || highlighted ? 'true' : undefined}
       style={type === 'source' && (connecting || affordance === 'hidden') ? { pointerEvents: 'none' } : undefined}
       className={cn(
         'generation-canvas-react-flow__handle',
@@ -105,7 +105,7 @@ function GenerationFlowConnectionHandle({
         // Its measured 1px anchor stays on the card edge; no second pointer/target owner.
         type === 'target' && 'after:absolute after:top-0 after:w-[112px] after:h-[min(168px,calc(var(--generation-flow-node-height)+28px))] after:-translate-y-1/2 after:content-[""]',
         type === 'target' && (side === 'left' ? 'after:right-0' : 'after:left-0'),
-        type === 'target' && (active ? 'after:pointer-events-auto' : 'after:pointer-events-none'),
+        type === 'target' && (active || connecting ? 'after:pointer-events-auto' : 'after:pointer-events-none'),
       )}
     >
       {magnetic && (type === 'source' || highlighted) ? (

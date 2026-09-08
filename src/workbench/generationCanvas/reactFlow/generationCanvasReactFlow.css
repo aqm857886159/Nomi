@@ -106,6 +106,10 @@
   pointer-events: none;
 }
 
+.generation-canvas-react-flow .generation-canvas-react-flow__handle--target[data-active='true'] {
+  pointer-events: auto;
+}
+
 .generation-canvas-react-flow .generation-canvas-react-flow__handle--source {
   width: 28px;
   height: 28px;
