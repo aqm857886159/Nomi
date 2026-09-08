@@ -11,6 +11,7 @@
   "scope_paths": [
     "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlowVisualContract.ts",
     "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx",
+    "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlow.css",
     "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlow.css"
   ],
   "entry_points": [
@@ -44,7 +45,8 @@
     "静止不显示把手，目标热区仅连线期间可命中。",
     "契约变更必须同步全部消费它的走查：tests/ux/canvas-drag-pan-gestures.walk.mjs、tests/ux/canvas-card-stack.walk.mjs、tests/ux/canvas-s5-walkthrough.walk.mjs；共享 tests/ux/_canvasHit.mjs 按节点和侧别命中外侧热区，未选中逐侧 hover 验证 29px 加号，保留拖到侧边成边断言。",
     "空闲 source 热区在卡片控件后方；连线期间 target 热区仍位于前方接收落点。",
-    "group-ports.walk.mjs 同步外侧 hover 起手，节点边缘中心留给 resize，落组仍严格验证四条成员边。"
+    "group-ports.walk.mjs 同步外侧 hover 起手，节点边缘中心留给 resize，落组仍严格验证四条成员边。",
+    "React Flow node shells isolate handle stacking without clipping absolutely positioned result trays; overflow remains visible so trays can negotiate viewport placement."
   ],
   "generality_proof": "所有节点内容均经过 GenerationFlowNodeView 的同一把手，不修改 kind 内容组件；RF 自己产出单线和批量预览坐标并触发 onConnect。正文仍走既有解析。",
   "shared_boundaries": [
@@ -110,7 +112,8 @@
     "strategy": "删除选择/图片身份门与 dot 分支；共享 RF Handle 承担热区，不引入第二指针真相。 source 在共享节点壳内先于卡片绘制且为 z-0，target 保留 z-8；所有 kind 的卡内控件共同优先于空闲热区。",
     "artifacts": [
       "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlowVisualContract.ts",
-      "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx"
+      "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx",
+      "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlow.css"
     ]
   },
   "regression_tests": [
@@ -119,11 +122,13 @@
     "tests/ux/canvas-drag-pan-gestures.walk.mjs",
     "tests/ux/canvas-card-stack.walk.mjs",
     "tests/ux/canvas-s5-walkthrough.walk.mjs",
-    "tests/ux/group-ports.walk.mjs"
+    "tests/ux/group-ports.walk.mjs",
+    "tests/ux/canvas-card-stack.walk.mjs"
   ],
   "class_regression_tests": [
     "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlowVisualContract.test.ts",
-    "tests/ux/canvas-magnetic-handle.walk.mjs"
+    "tests/ux/canvas-magnetic-handle.walk.mjs",
+    "tests/ux/canvas-card-stack.walk.mjs"
   ],
   "legacy_paths": {
     "status": "removed",

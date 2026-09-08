@@ -19,6 +19,7 @@ import type { NodeGroup } from '../model/generationCanvasTypes'
 import type { ConnectionAnchorSide } from '../store/canvasStoreTypes'
 import { GROUP_VISUAL_CLASS } from './groupVisualContract'
 import { GroupFrameHeader, type FrameMembershipPreview } from './GroupFrameHeader'
+import { MagneticConnectionHandle } from '../nodes/NodeConnectionHandles'
 
 export type CanvasGroupBox = {
   group: NodeGroup
@@ -57,6 +58,7 @@ export type GroupFrameProps = {
   pendingConnection?: boolean
   pendingConnectionSide?: ConnectionAnchorSide
   onConnectToGroup?: (groupId: string) => void
+  onStartConnection?: (event: React.PointerEvent<HTMLElement>, groupId: string, side: ConnectionAnchorSide) => void
   readOnly?: boolean
   onCollapse?: (groupId: string) => void
   frame?: CanvasFrameInteraction
@@ -75,12 +77,14 @@ export default function GroupFrame({
   pendingConnection,
   pendingConnectionSide,
   onConnectToGroup,
+  onStartConnection,
   readOnly = false,
   onCollapse,
   frame,
 }: GroupFrameProps): JSX.Element {
   const { t } = useTranslation()
   const connectable = Boolean(!readOnly && pendingConnection && onConnectToGroup && box.memberCount > 0)
+  const handleActive = !readOnly && Boolean(onStartConnection) && (pendingConnection ?? false)
   const groupIsSource = connectable && pendingConnectionSide === 'left'
   const connectionLabel = groupIsSource
     ? t('generationCommon.canvas.group.connectFromHere', { name: box.group.name, count: box.memberCount })
@@ -158,6 +162,12 @@ export default function GroupFrame({
         onConnectToGroup?.(box.group.id)
       }}
     >
+      {!readOnly && onStartConnection ? (
+        <div className="nodrag contents" onPointerDown={(event) => event.stopPropagation()}>
+          <MagneticConnectionHandle side="left" active={handleActive && pendingConnectionSide === 'left'} pendingTarget={Boolean(pendingConnection && pendingConnectionSide !== 'left')} ariaLabel={t('generationCommon.canvas.group.connectInput')} onStart={(event, side) => onStartConnection(event, box.group.id, side)} onComplete={() => onConnectToGroup?.(box.group.id)} />
+          <MagneticConnectionHandle side="right" active={handleActive && pendingConnectionSide === 'right'} pendingTarget={Boolean(pendingConnection && pendingConnectionSide !== 'right')} ariaLabel={t('generationCommon.canvas.group.connectOutput')} onStart={(event, side) => onStartConnection(event, box.group.id, side)} onComplete={() => onConnectToGroup?.(box.group.id)} />
+        </div>
+      ) : null}
       <GroupFrameHeader
         groupId={box.group.id}
         name={box.group.name}
@@ -185,6 +195,7 @@ export type GroupFrameListProps = {
   pendingConnection?: boolean
   pendingConnectionSide?: ConnectionAnchorSide
   onConnectToGroup?: (groupId: string) => void
+  onStartConnection?: (event: React.PointerEvent<HTMLElement>, groupId: string, side: ConnectionAnchorSide) => void
   readOnly?: boolean
   onCollapse?: (groupId: string) => void
   frame?: CanvasFrameInteraction
@@ -196,6 +207,7 @@ export function GroupFrameList({
   pendingConnection,
   pendingConnectionSide,
   onConnectToGroup,
+  onStartConnection,
   readOnly,
   onCollapse,
   frame,
@@ -209,7 +221,8 @@ export function GroupFrameList({
           onPointerDown={onPointerDown}
           pendingConnection={pendingConnection}
           pendingConnectionSide={pendingConnectionSide}
-          onConnectToGroup={onConnectToGroup}
+        onConnectToGroup={onConnectToGroup}
+        onStartConnection={onStartConnection}
           readOnly={readOnly}
           onCollapse={onCollapse}
           frame={frame}

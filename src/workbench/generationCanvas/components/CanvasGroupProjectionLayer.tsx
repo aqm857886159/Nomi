@@ -65,6 +65,7 @@ export function CanvasGroupProjectionLayer({
         pendingConnection={pendingConnection && pendingConnectionSourceKind === 'node'}
         pendingConnectionSide={pendingConnectionSide}
         onConnectToGroup={onConnectToGroup}
+        onStartConnection={onStartGroupConnection}
         onCollapse={readOnly ? undefined : (groupId) => onSetCollapsed(groupId, true)}
       />
       {cards.map((card) => (

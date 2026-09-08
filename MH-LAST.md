@@ -1,3 +1,6 @@
+2026-09-09 版本托盘回归修复：引入点 src/workbench/generationCanvas/reactFlow/generationCanvasReactFlow.css:76（节点壳新增层叠边界导致托盘视口判定异常）；修法：节点壳显式 isolation:isolate + overflow:visible，保持把手层级隔离且托盘可溢出参与边缘避让。
+验证：canvas-card-stack.walk.mjs PASS；两分片/critical/magnetic 待 gates 汇总。
+
 2026-09-09 CI 消费契约修复：更新 4 份走查（gestures / card-stack / S5 / group-ports）及共享 _canvasHit。
 critical：PASS 4/4；magnetic：3/3；单独 gestures：通过；S5：通过。hover 与版本托盘截图已人工查看。
 CI 原红 run：https://github.com/aqm857886159/Nomi/actions/runs/34248853729
@@ -17,3 +20,4 @@ RF 12.11.5：原生 Handle 外侧伪元素命中，固定侧边锚点；https://
 验证：最终gates绿（HEAD 63b62abfc；75项合同，11992项Vitest通过/2跳过）；tokens/vocabularies/heavy-path未增。
 未完成：任意远侧端口松手后固定需扩边模型/持久化，超出限定目录；已询问范围，未收到授权。
 费用：生成/付费模型调用0；Ponytail经正常hook。雷达apimart新增1，apimart-llm凭据解密失败；论文技能本机未找到。
+2026-09-09 第四段假设结论：假设成立。GroupFrame 原先没有 `MagneticConnectionHandle`，按下热区命中组框壳并进入 node-drag；节点卡/折叠组卡才复用共享把手组件。根因：`src/workbench/generationCanvas/components/GroupFrame.tsx:45-170` 缺少共享连接把手与 `nodrag` 命中边界。修法：GroupFrame 接入同一 `MagneticConnectionHandle`，由 `CanvasGroupProjectionLayer` 传入同一 `onStartGroupConnection`，把手容器标 `nodrag` 并阻止壳层 pointerdown 冒泡。

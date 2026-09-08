@@ -74,8 +74,8 @@ export function MagneticConnectionHandle({
       onPointerLeave={resetMagneticHandlePosition}
       onPointerCancel={resetMagneticHandlePosition}
       onPointerDown={(event) => {
+        event.stopPropagation()
         if (pendingTarget) {
-          event.stopPropagation()
           return
         }
         onStart(event, side)
