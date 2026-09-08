@@ -1,3 +1,5 @@
+import { withCanvasGestureContext } from '../events/canvasGestureContext'
+import { completeNodeConnection } from '../nodes/completeNodeConnection'
 import React from 'react'
 import {
   ReactFlowProvider,
@@ -58,6 +60,7 @@ import {
   collectFlowSelectionChanges,
   flowViewportFromCanvas,
   type GenerationFlowEdge,
+  toGenerationFlowNode,
   type GenerationFlowNode,
 } from './generationCanvasReactFlowAdapter'
 import {
@@ -90,6 +93,7 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
   const flow = useReactFlow<GenerationFlowNode, GenerationFlowEdge>()
   const flowStore = useStoreApi<GenerationFlowNode, GenerationFlowEdge>()
   const hostRef = React.useRef<HTMLDivElement>(null)
+  const duplicateDragIdsRef = React.useRef(new Map<string, string>())
   const draggingRef = React.useRef(false)
   const dragDraftNodesRef = React.useRef<GenerationFlowNode[]>([])
   const dragStartPositionsRef = React.useRef<Map<string, { x: number; y: number }>>(new Map())
@@ -118,7 +122,6 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
   const captureHistory = useGenerationCanvasStore((state) => state.captureHistory)
   const commitPersistedChange = useGenerationCanvasStore((state) => state.commitPersistedChange)
   const startConnection = useGenerationCanvasStore((state) => state.startConnection)
-  const connectToNode = useGenerationCanvasStore((state) => state.connectToNode)
   const setGroupCollapsed = useGenerationCanvasStore((state) => state.setGroupCollapsed)
   const pendingConnectionSourceId = useGenerationCanvasStore((state) => state.pendingConnectionSourceId)
   const pendingConnectionSourceSide = useGenerationCanvasStore((state) => state.pendingConnectionSourceSide)
@@ -460,6 +463,8 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
   }, [flow, zoomTo])
 
   const handleNodesChange: OnNodesChange<GenerationFlowNode> = React.useCallback((changes) => {
+    if (duplicateDragIdsRef.current.size) changes = changes.map((change) => change.type === 'position' && duplicateDragIdsRef.current.has(change.id)
+      ? { ...change, id: duplicateDragIdsRef.current.get(change.id)! } : change)
     const positionChanges = collectFlowPositionChanges(changes)
     if (positionChanges.length) {
       const draftNodes = dragDraftNodesRef.current.length ? dragDraftNodesRef.current : flowNodes
@@ -510,16 +515,29 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
     setSelectedEdgeId(null)
   }, [disconnectEdge, readOnly, selectedEdgeId])
 
-  const handleNodeDragStart: OnNodeDrag<GenerationFlowNode> = React.useCallback((_event, draggedNode) => {
+  const handleNodeDragStart: OnNodeDrag<GenerationFlowNode> = React.useCallback((event, draggedNode) => {
     if (readOnly) return
     draggingRef.current = true
     setNodeDragActive(true) // #5：冻结 minimap（纯渲染门，不碰写入路径）
     dragDraftNodesRef.current = flowNodes
     flowStore.setState({ hasDefaultNodes: false })
     setCanvasDragging(hostRef.current, true, CANVAS_DRAGGING_OWNER.reactFlowNode)
-    captureHistory()
+    const originalIds = selectedSet.has(draggedNode.id) ? selectedNodeIds : [draggedNode.id]
+    duplicateDragIdsRef.current = 'altKey' in event && event.altKey
+      ? useGenerationCanvasStore.getState().duplicateNodesForDrag(originalIds) : new Map()
+    if (!duplicateDragIdsRef.current.size) captureHistory()
     const state = useGenerationCanvasStore.getState()
-    const draggedIds = selectedSet.has(draggedNode.id) ? selectedNodeIds : [draggedNode.id]
+    const draggedIds = originalIds.map((id) => duplicateDragIdsRef.current.get(id) ?? id)
+    if (duplicateDragIdsRef.current.size) {
+      // Keep the existing collapsed-group projection. RF retains the original drag
+      // identities for this gesture; only its position changes are mapped to copies.
+      dragDraftNodesRef.current = [
+        ...flowNodes.map((node) => node.selected ? { ...node, selected: false, data: { ...node.data, primarySelection: false } } : node),
+        ...state.nodes.filter((node) => draggedIds.includes(node.id))
+          .map((node) => toGenerationFlowNode(node, true, false, draggedIds.length === 1)),
+      ]
+      flowStore.getState().setNodes(dragDraftNodesRef.current)
+    }
     dragStartPositionsRef.current = new Map(
       draggedIds.flatMap((nodeId) => {
         const node = state.nodes.find((candidate) => candidate.id === nodeId)
@@ -531,7 +549,8 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
   // 拖动中算「松手会发生什么」——进框/出框的反馈就在这里产生（只写本地预览，不碰 store）。
   const handleNodeDrag: OnNodeDrag<GenerationFlowNode> = React.useCallback((_event, draggedNode, draggedNodes) => {
     if (readOnly) return
-    frameMembership.handleNodeDrag(draggedNodes.length ? draggedNodes : [draggedNode])
+    frameMembership.handleNodeDrag((draggedNodes.length ? draggedNodes : [draggedNode])
+      .map((node) => ({ ...node, id: duplicateDragIdsRef.current.get(node.id) ?? node.id })))
   }, [frameMembership, readOnly])
 
   const handleNodeDragStop: OnNodeDrag<GenerationFlowNode> = React.useCallback((event, draggedNode, draggedNodes) => {
@@ -542,8 +561,8 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
     setNodeDragActive(false) // #5：解冻 minimap（在所有退出路径之前，含时间轴投放早退；draggingRef 由 writeback 清）
     commitCanvasNodeDragStop({
       event,
-      draggedNode,
-      draggedNodes,
+      draggedNode: { ...draggedNode, id: duplicateDragIdsRef.current.get(draggedNode.id) ?? draggedNode.id },
+      draggedNodes: draggedNodes.map((node) => ({ ...node, id: duplicateDragIdsRef.current.get(node.id) ?? node.id })),
       readOnly,
       t,
       hostRef,
@@ -554,7 +573,8 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
       commitPersistedChange,
     })
     // 位置写回之后才提交归属变更：先改成员再移动会让框在同一帧里既缩又长，看着像抖了一下。
-    frameMembership.commitMembership()
+    withCanvasGestureContext({ source: 'user', txnId: crypto.randomUUID(), suppressUndoBarriers: true }, () => frameMembership.commitMembership())
+    duplicateDragIdsRef.current.clear()
     // 还原拖动内核关掉的 hasDefaultNodes，恢复 RF 对选择/投影变更的自应用（机制见 helper JSDoc）。
     restoreCanvasDragKernelOwnership(flowStore)
   }, [commitPersistedChange, flowStore, frameMembership, moveNode, readOnly, t])
@@ -563,8 +583,8 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
     if (readOnly || !connection.source || !connection.target) return
     const side = connection.sourceHandle === 'source-left' ? 'left' : 'right'
     startConnection(connection.source, side)
-    connectToNode(connection.target)
-  }, [connectToNode, readOnly, startConnection])
+    completeNodeConnection(connection.target)
+  }, [readOnly, startConnection])
 
   const handlePaneClick = React.useCallback(() => {
     if (!readOnly && !canvasPanMovedRef.current) clearSelection()

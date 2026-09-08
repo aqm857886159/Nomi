@@ -24,6 +24,13 @@ export function completeNodeConnection(connectedNodeId: string): void {
   const sourceNodeId = before.pendingConnectionSourceSide === 'left' ? connectedNodeId : pendingNodeId
   const targetNodeId = before.pendingConnectionSourceSide === 'left' ? pendingNodeId : connectedNodeId
   const verdict = before.connectToNode(connectedNodeId)
+  if ('skipped' in verdict) {
+    if (verdict.skipped > 0) showInfoToast(i18n.t(
+      verdict.ok ? 'generationCommon.canvas.group.connectedWithSkips' : 'generationCommon.canvas.group.connectAllSkipped',
+      { connected: verdict.connected, skipped: verdict.skipped, count: verdict.skipped },
+    ))
+    return
+  }
   // 连边能力校验失败:给手动连线的用户即时反馈,而非静默不连(或落库后到生成期才被丢)。
   if (!verdict.ok && verdict.reason === 'source_not_referenceable') {
     showInfoToast(i18n.t('connection.sourceUnavailable'))

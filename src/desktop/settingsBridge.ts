@@ -42,6 +42,10 @@ export type DesktopSettingsBridge = {
     get: () => Promise<import('../../electron/shared/contracts/vendorPreference').VendorPreferenceSettings>
     set: (payload: unknown) => Promise<import('../../electron/shared/contracts/vendorPreference').VendorPreferenceSettings>
   }
+  canvasMenuPreference: {
+    get: () => Promise<import('../../electron/shared/contracts/canvasMenuPreference').CanvasMenuPreferenceSettings>
+    set: (payload: unknown) => Promise<import('../../electron/shared/contracts/canvasMenuPreference').CanvasMenuPreferenceSettings>
+  }
   telemetry?: {
     get: () => Promise<import('../../electron/shared/contracts/telemetry').TelemetrySettingsView>
     set: (payload: unknown) => Promise<import('../../electron/shared/contracts/telemetry').TelemetrySettingsView>

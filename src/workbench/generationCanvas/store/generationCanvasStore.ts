@@ -122,6 +122,21 @@ export const useGenerationCanvasStore = create<GenerationCanvasState>()(subscrib
       }
     })
   },
+  duplicateNodesForDrag: (nodeIds) => {
+    const payload = buildSelectedClipboard({ ...get(), selectedNodeIds: nodeIds })
+    if (!payload) return new Map()
+    const previousClipboard = getClipboard()
+    try {
+      setClipboard(payload)
+      get().pasteNodes({ x: Math.min(...payload.nodes.map((node) => node.position.x)), y: Math.min(...payload.nodes.map((node) => node.position.y)) })
+      const copies = get().selectedNodeIds
+      const mapping = new Map(payload.nodes.map((node, index) => [node.id, copies[index]]))
+      for (const original of payload.nodes) get().moveNode(mapping.get(original.id)!, original.position)
+      return mapping
+    } finally {
+      setClipboard(previousClipboard)
+    }
+  },
   copySelectedNodes: () => {
     const nextClipboard = buildSelectedClipboard(get())
     if (!nextClipboard) return

@@ -1,3 +1,4 @@
+import { canFitReferenceEdge } from '../runner/referenceSlots'
 import type { GenerationCanvasEdge, GenerationCanvasEdgeMode, GenerationCanvasNode } from './generationCanvasTypes'
 import { acceptsParameterReferenceSource, nextParameterReferenceKey, readParameterReferenceSlots } from './parameterReferenceSlots'
 import { isTextPromptEdge, selectConnectionEdgeMode, validateReferenceEdge, type EdgeSkipReason } from '../agent/referenceEdgeCapability'
@@ -22,5 +23,8 @@ export function resolveCanvasReferenceConnection(
   if (requestedKey) return { ok: false, reason: 'unsupported_reference' }
   const mode = requestedMode ?? selectConnectionEdgeMode(source, target, edges.filter((edge) => edge.target === target.id))
   const verdict = validateReferenceEdge(source, target, mode)
-  return verdict.ok ? { ok: true, mode } : verdict
+  if (!verdict.ok) return verdict
+  const existing = edges.some((edge) => edge.source === source.id && edge.target === target.id && edge.mode === mode)
+  if (!existing && !isTextPromptEdge(source, target, mode) && !canFitReferenceEdge(source, target, nodes, edges, mode)) return { ok: false, reason: 'unsupported_reference' }
+  return { ok: true, mode }
 }

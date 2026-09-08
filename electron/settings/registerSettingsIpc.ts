@@ -1,3 +1,4 @@
+import { registerCanvasMenuPreferenceIpc } from "./canvasMenuPreferenceIpc";
 import { registerAutomationPolicyIpc } from "./automationPolicyIpc";
 import { registerGenerationModelDefaultsIpc } from "./generationModelDefaultsIpc";
 import { registerVendorPreferenceIpc } from "./vendorPreferenceIpc";
@@ -16,6 +17,7 @@ export function registerSettingsIpc(): void {
   registerSystemPromptsIpc();
   registerGenerationModelDefaultsIpc();
   registerVendorPreferenceIpc();
+  registerCanvasMenuPreferenceIpc();
   registerTelemetryIpc();
   // 「隐私与诊断」那一格的另一半：遥测是「发不发出去」，诊断包是「出事时怎么把证据交出来」。
   // 两者同住一个设置区块，接线也放在一起。

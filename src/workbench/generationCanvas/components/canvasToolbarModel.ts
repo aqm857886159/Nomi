@@ -1,3 +1,4 @@
+import type { CanvasMenuPreferenceSettings } from '../../../../electron/shared/contracts/canvasMenuPreference'
 import type { GenerationNodeKind } from '../model/generationCanvasTypes'
 
 /**
@@ -94,25 +95,25 @@ export type CanvasAddSectionView = Readonly<{
 }>
 
 /** 左缘常驻条：按表顺序摊平的 5 个意图。 */
-export function canvasResidentAddIntents(): readonly CanvasAddIntent[] {
-  return CANVAS_ADD_SECTIONS.flatMap((section) => section.intents.filter((intent) => intent.placement === 'resident'))
+export function canvasResidentAddIntents(preference?: CanvasMenuPreferenceSettings): readonly CanvasAddIntent[] {
+  return orderedIntents(CANVAS_ADD_SECTIONS.flatMap((section) => section.intents.filter((intent) => intent.placement === 'resident')), preference)
 }
 
 /** 左缘 ＋「更多」菜单：只有溢出意图的段，段名用 overflowLabelKey。 */
-export function canvasMoreAddSections(): readonly CanvasAddSectionView[] {
+export function canvasMoreAddSections(preference?: CanvasMenuPreferenceSettings): readonly CanvasAddSectionView[] {
   return CANVAS_ADD_SECTIONS.flatMap((section) => {
-    const intents = section.intents.filter((intent) => intent.placement === 'more')
+    const intents = orderedIntents(section.intents.filter((intent) => intent.placement === 'more'), preference)
     return intents.length ? [{ id: section.id, labelKey: section.overflowLabelKey, intents }] : []
   })
 }
 
 /** 空白处右键/双击的完整菜单：三段全列，段名用 labelKey。 */
-export function canvasFullAddSections(): readonly CanvasAddSectionView[] {
+export function canvasFullAddSections(preference?: CanvasMenuPreferenceSettings): readonly CanvasAddSectionView[] {
   return CANVAS_ADD_SECTIONS.map((section) => ({
     id: section.id,
     labelKey: section.labelKey,
-    intents: section.intents,
-  }))
+    intents: orderedIntents(section.intents, preference),
+  })).filter((section) => section.intents.length > 0)
 }
 
 /** 全部意图（常驻在前、更多在后），供需要一条平表的地方用。 */
@@ -124,4 +125,24 @@ export function canvasAddIntents(): readonly CanvasAddIntent[] {
 /** 手动可新建的节点种类，按左缘顺序。 */
 export function canvasToolbarNodeKinds(): GenerationNodeKind[] {
   return canvasAddIntents().flatMap((intent) => (intent.kind ? [intent.kind] : []))
+}
+
+function orderedIntents(intents: readonly CanvasAddIntent[], preference?: CanvasMenuPreferenceSettings): CanvasAddIntent[] {
+  const hidden = new Set(preference?.hiddenIntentIds)
+  const order = preference?.orderedIntentIds ?? []
+  const rank = (id: string) => { const index = order.indexOf(id); return index < 0 ? order.length : index }
+  return intents.filter((intent) => !hidden.has(intent.id)).sort((a, b) => rank(a.id) - rank(b.id))
+}
+
+export function moveCanvasIntentUp(preference: CanvasMenuPreferenceSettings, id: CanvasAddIntentId, previousId?: CanvasAddIntentId): CanvasMenuPreferenceSettings {
+  const section = canvasFullAddSections(preference).find((item) => item.intents.some((intent) => intent.id === id))
+  const ids = section?.intents.map((intent) => intent.id) ?? []
+  const index = ids.indexOf(id)
+  if (index <= 0) return preference
+  const previousIndex = previousId ? ids.indexOf(previousId) : index - 1
+  if (previousIndex < 0 || previousIndex >= index) return preference
+  ids.splice(index, 1)
+  ids.splice(previousIndex, 0, id)
+  const orderedIntentIds = [...ids, ...preference.orderedIntentIds.filter((key) => !ids.includes(key as CanvasAddIntentId))]
+  return { ...preference, orderedIntentIds }
 }

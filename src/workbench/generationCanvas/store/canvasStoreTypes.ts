@@ -172,6 +172,7 @@ export type GenerationCanvasState = {
   setVideoDeconstructionEntry: (nodeId: string, patch: Partial<DeconstructionEntry>) => void
   /** 勾选/取消某镜（会话态）。 */
   toggleVideoDeconstructionShot: (nodeId: string, shotIndex: number) => void
+  duplicateNodesForDrag: (nodeIds: string[]) => Map<string, string>
   copySelectedNodes: () => void
   cutSelectedNodes: () => void
   pasteNodes: (basePosition?: { x: number; y: number }) => void

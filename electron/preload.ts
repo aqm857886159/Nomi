@@ -104,6 +104,10 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
       get: () => ipcRenderer.invoke("nomi:settings:vendor-preference-get"),
       set: (payload: unknown) => ipcRenderer.invoke("nomi:settings:vendor-preference-set", payload),
     },
+    canvasMenuPreference: {
+      get: () => ipcRenderer.invoke("nomi:settings:canvas-menu-preference-get"),
+      set: (payload: unknown) => ipcRenderer.invoke("nomi:settings:canvas-menu-preference-set", payload),
+    },
     telemetry: {
       get: () => ipcRenderer.invoke("nomi:settings:telemetry-get"),
       set: (payload: unknown) => ipcRenderer.invoke("nomi:settings:telemetry-set", payload),

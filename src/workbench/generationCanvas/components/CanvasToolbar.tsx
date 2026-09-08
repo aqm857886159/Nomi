@@ -1,3 +1,5 @@
+import { CanvasAddPreferenceActions } from './CanvasAddPreferenceActions'
+import { useCanvasMenuPreferenceStore } from '../store/canvasMenuPreferenceStore'
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
@@ -13,6 +15,7 @@ import {
   canvasFullAddSections,
   canvasMoreAddSections,
   canvasResidentAddIntents,
+  type CanvasAddIntentId,
   type CanvasAddIntent,
   type CanvasAddSectionView,
 } from './canvasToolbarModel'
@@ -23,9 +26,6 @@ const QUICK_ADD_NODE_ITEMS = getQuickAddGenerationNodePlugins()
 // 2026-06-15：左侧栏瘦身为「纯创建节点」——复制/剪切走快捷键(⌘C/⌘X)、批量生成移到选中浮条、
 // 发送到时间轴删除(节点可直接拖入时间轴)。
 // 2026-09-06「第三档」：9 个平铺 → 5 常驻 + 一个「更多」，每段带名字（§1.5.1 常驻预算 / §1.5.3 分段要有名字）。
-const RESIDENT_ADD_INTENTS = canvasResidentAddIntents()
-const MORE_ADD_SECTIONS = canvasMoreAddSections()
-const FULL_ADD_SECTIONS = canvasFullAddSections()
 
 function nodeKindLabel(kind: GenerationNodeKind, t: TFunction): string {
   if (kind === 'text') return t('canvas.nodeKinds.text')
@@ -97,6 +97,7 @@ function CanvasAddSectionList({
   onPick: (intent: CanvasAddIntent) => void
 }): JSX.Element {
   const { t } = useTranslation()
+  const [editing, setEditing] = React.useState<CanvasAddIntentId | null>(null)
   return (
     <>
       {sections.map((section) => (
@@ -104,32 +105,37 @@ function CanvasAddSectionList({
           <div className="px-1.5 pt-1 pb-0.5 text-micro font-medium uppercase tracking-wide text-nomi-ink-40">
             {t(section.labelKey)}
           </div>
-          {section.intents.map((intent) => {
+          {section.intents.map((intent, index) => {
             const Icon = intentIcon(intent)
             return (
-              <button
-                type="button"
-                key={intent.id}
-                data-add-intent={intent.id}
-                {...(intent.kind ? { 'data-node-kind': intent.kind } : {})}
-                className={cn(
-                  'inline-flex items-center justify-start gap-1.5',
-                  'w-full h-8 min-h-8 px-2 border-0 rounded-nomi',
-                  'bg-transparent text-workbench-ink font-[inherit] text-caption cursor-pointer',
-                  'hover:bg-nomi-ink-05',
-                  '[&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:text-nomi-ink-60 [&>svg]:stroke-[1.8]',
-                )}
-                role="menuitem"
-                aria-label={intentActionLabel(intent, t)}
-                onClick={() => onPick(intent)}
-              >
-                <Icon size={14} stroke={1.6} />
-                <span>{intentLabel(intent, t)}</span>
-              </button>
+              <React.Fragment key={intent.id}>
+                <button
+                  type="button"
+                  data-add-intent={intent.id}
+                  {...(intent.kind ? { 'data-node-kind': intent.kind } : {})}
+                  className={cn(
+                    'inline-flex items-center justify-start gap-1.5',
+                    'w-full h-8 min-h-8 px-2 border-0 rounded-nomi',
+                    'bg-transparent text-workbench-ink font-[inherit] text-caption cursor-pointer',
+                    'hover:bg-nomi-ink-05',
+                    '[&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:text-nomi-ink-60 [&>svg]:stroke-[1.8]',
+                  )}
+                  role="menuitem"
+                  aria-label={intentActionLabel(intent, t)}
+                  onContextMenu={(event) => { event.preventDefault(); event.stopPropagation(); setEditing(intent.id) }}
+                  onKeyDown={(event) => { if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) { event.preventDefault(); setEditing(intent.id) } }}
+                  onClick={() => onPick(intent)}
+                >
+                  <Icon size={14} stroke={1.6} />
+                  <span>{intentLabel(intent, t)}</span>
+                </button>
+                {editing === intent.id && <CanvasAddPreferenceActions intentId={intent.id} previousIntentId={section.intents[index - 1]?.id} onDone={() => setEditing(null)} />}
+              </React.Fragment>
             )
           })}
         </div>
       ))}
+      <CanvasAddPreferenceActions />
     </>
   )
 }
@@ -159,21 +165,22 @@ export function NodeAddMenu({
   onPointerDown,
 }: NodeAddMenuProps): JSX.Element {
   const { t } = useTranslation()
+  const preference = useCanvasMenuPreferenceStore((state) => state.preference)
   const picker = useLocalFilePicker((files) => onImportFiles?.(files))
   // 受限菜单（连线松手）只列被点名的种类，且不分段——它回答的是「这根线接到什么」，不是「往画布加什么」。
   const sections = React.useMemo<readonly CanvasAddSectionView[]>(() => {
     if (!kinds?.length) {
-      if (onImportFiles) return FULL_ADD_SECTIONS
-      return FULL_ADD_SECTIONS.flatMap((section) => {
+      if (onImportFiles) return canvasFullAddSections(preference)
+      return canvasFullAddSections(preference).flatMap((section) => {
         const intents = section.intents.filter((intent) => intent.kind)
         return intents.length ? [{ ...section, intents }] : []
       })
     }
     const allowed = new Set<GenerationNodeKind>(kinds)
-    const intents = FULL_ADD_SECTIONS.flatMap((section) =>
+    const intents = canvasFullAddSections().flatMap((section) =>
       section.intents.filter((intent) => intent.kind && allowed.has(intent.kind)))
     return [{ id: 'generate', labelKey: '', intents }]
-  }, [kinds, onImportFiles])
+  }, [kinds, onImportFiles, preference])
   const restricted = Boolean(kinds?.length)
   return (
     <div
@@ -264,6 +271,8 @@ export default function CanvasToolbar({ getInsertionPosition, categoryId }: Canv
   const addNode = useGenerationCanvasStore((state) => state.addNode)
   const workflowTemplates = useGenerationCanvasStore((state) => state.workflowTemplates)
   const instantiateWorkflowTemplate = useGenerationCanvasStore((state) => state.instantiateWorkflowTemplate)
+  const preference = useCanvasMenuPreferenceStore((state) => state.preference)
+  React.useEffect(() => { void useCanvasMenuPreferenceStore.getState().load().catch(() => {}) }, [])
   const [moreOpen, setMoreOpen] = React.useState(false)
   const hoverTimerRef = React.useRef<number | null>(null)
 
@@ -307,7 +316,7 @@ export default function CanvasToolbar({ getInsertionPosition, categoryId }: Canv
     >
       {picker.input}
       <TooltipProvider delayDuration={250} disableHoverableContent>
-        {RESIDENT_ADD_INTENTS.map((intent) => {
+        {canvasResidentAddIntents(preference).map((intent) => {
           const Icon = intentIcon(intent)
           const action = intentActionLabel(intent, t)
           const tip = intent.kind ? t('canvas.nodeName', { type: nodeKindLabel(intent.kind, t) }) : action
@@ -334,7 +343,7 @@ export default function CanvasToolbar({ getInsertionPosition, categoryId }: Canv
             </Tooltip>
           )
         })}
-        {MORE_ADD_SECTIONS.length ? (
+        {(
           <>
             <span className="my-0.5 h-px w-5 shrink-0 bg-nomi-line" aria-hidden="true" />
             <div
@@ -378,12 +387,12 @@ export default function CanvasToolbar({ getInsertionPosition, categoryId }: Canv
                   role="menu"
                   aria-label={t('canvas.moreMenu')}
                 >
-                  <CanvasAddSectionList sections={MORE_ADD_SECTIONS} onPick={handlePick} />
+                  <CanvasAddSectionList sections={canvasMoreAddSections(preference)} onPick={handlePick} />
                 </div>
               ) : null}
             </div>
           </>
-        ) : null}
+        )}
         {workflowTemplates.length ? (
           <>
             <span className="my-0.5 h-px w-5 shrink-0 bg-nomi-line" aria-hidden="true" />

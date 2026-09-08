@@ -1,0 +1,121 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-08-canvas-menu-preference-boundary",
+  "problem_type": "Persistent user menu customization must share a validated settings boundary",
+  "symptom": "Canvas add menus discard user hiding and ordering because only a fixed table exists; new IPC requires a safety contract. First real Electron run reproduced right-click on menu items being captured as canvas pan before their contextmenu handler.",
+  "direct_cause": "No persisted menu preference exists between the fixed intent table and all menu projections.",
+  "class_root": "Menu preferences lack a shared normalization and trusted persistence owner.",
+  "affected_population": [
+    "All users customizing the resident rail or full/overflow add menus"
+  ],
+  "scope_paths": [
+    "electron/settings/canvasMenuPreferenceIpc.ts",
+    "electron/settings/registerSettingsIpc.ts",
+    "electron/settings/canvasMenuPreferenceSettings.ts",
+    "electron/shared/contracts/canvasMenuPreference.ts",
+    "electron/preload.ts",
+    "src/desktop/settingsBridge.ts",
+    "src/workbench/generationCanvas/store/canvasMenuPreferenceStore.ts",
+    "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowPointer.ts",
+    "src/workbench/generationCanvas/components/canvasPointerGestureModel.ts"
+  ],
+  "entry_points": [
+    "Full add menu hides/orders items",
+    "Overflow menu hides/orders items; resident rail derives the same preference"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "This is an internal settings contract following the existing vendorPreference boundary, not an external format.",
+  "invariants": [
+    "All settings IPC calls validate the sender before read/write.",
+    "Both settings reads and writes normalize identifiers; default intent definitions stay unchanged.",
+    "All menus project the same preference, and resetting restores every default intent."
+  ],
+  "generality_proof": "Read, write and renderer projections all normalize via the same schema; ordering and hiding never mutate the node registry or default table.",
+  "shared_boundaries": [
+    {
+      "path": "electron/shared/contracts/canvasMenuPreference.ts",
+      "symbol": "normalizeCanvasMenuPreferenceSettings",
+      "responsibility": "Normalize schemaVersion 1 preferences on both sides of IPC."
+    },
+    {
+      "path": "electron/settings/canvasMenuPreferenceIpc.ts",
+      "symbol": "registerCanvasMenuPreferenceIpc",
+      "responsibility": "Reject untrusted senders before settings access."
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/canvasPointerGestureModel.ts",
+      "symbol": "isCanvasMenuTarget",
+      "responsibility": "Shared menu ownership guard; canvas pan capture must defer menu gestures."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/settings/canvasMenuPreferenceIpc.ts",
+      "entry_point": "get and set IPC handlers",
+      "disposition": "enforced",
+      "evidence": "Both handlers assertTrustedSender before accessing injected storage."
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/CanvasToolbar.tsx",
+      "entry_point": "NodeAddMenu and CanvasToolbar",
+      "disposition": "enforced",
+      "evidence": "Both consume useCanvasMenuPreferenceStore and project the same default table."
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/useGenerationCanvasReactFlowPointer.ts",
+      "entry_point": "handleCanvasPointerDownCapture",
+      "disposition": "enforced",
+      "evidence": "Checks existing isCanvasMenuTarget before acquiring right-button pan; real walk failed before this guard and must pass after."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every reload and every menu consumer must preserve the same preference.",
+    "same_class_scan": [
+      "rg vendorPreference electron/settings electron/preload.ts src/desktop/settingsBridge.ts: confirmed trusted sender and atomic JSON conventions.",
+      "rg canvasFullAddSections canvasMoreAddSections canvasResidentAddIntents src: found all projections in CanvasToolbar.tsx."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/shared/contracts/canvasMenuPreference.ts",
+    "invariant": "Normalize both identifier lists before persistence and projection.",
+    "failure_mode": "Malformed list entries are discarded and untrusted IPC callers throw before storage.",
+    "exception_policy": "none",
+    "strategy": "One shared schema and one trusted settings namespace for every consumer.",
+    "artifacts": [
+      "electron/shared/contracts/canvasMenuPreference.ts",
+      "electron/settings/canvasMenuPreferenceIpc.ts",
+      "src/workbench/generationCanvas/components/canvasToolbarModel.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/store/canvasMenuPreferenceStore.test.ts",
+    "electron/settings/canvasMenuPreferenceIpc.test.ts",
+    "tests/ux/canvas-three-gestures.walk.mjs"
+  ],
+  "class_regression_tests": [
+    "electron/settings/canvasMenuPreferenceIpc.test.ts",
+    "tests/ux/canvas-three-gestures.walk.mjs"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "New capability; original intent table remains the default source, not a second persistence implementation."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Uses existing trusted settings bridge and atomic writer; no new dependency.",
+    "exit_criteria": []
+  },
+  "migration": "Missing preference files normalize to empty hidden/order lists; existing menu defaults are unchanged.",
+  "residual_risks": [
+    "Disk failure remains possible; renderer reports failed saves and rolls back the latest optimistic preference."
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/settings",
+    "tests": [
+      "electron/settings/canvasMenuPreferenceIpc.test.ts"
+    ]
+  }
+}

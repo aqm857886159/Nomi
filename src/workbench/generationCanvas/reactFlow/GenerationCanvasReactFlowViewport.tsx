@@ -1,3 +1,4 @@
+import { CanvasBatchConnectionLine } from './CanvasBatchConnectionLine'
 import React from 'react'
 import {
   ReactFlow,
@@ -197,6 +198,7 @@ export function GenerationCanvasReactFlowViewport({
       onNodeContextMenu={onNodeContextMenu}
       onPaneContextMenu={onPaneContextMenu}
       onPaneClick={onPaneClick}
+      connectionLineComponent={CanvasBatchConnectionLine}
       onConnect={onConnect}
       onConnectStart={onConnectStart}
       onConnectEnd={onConnectEnd}

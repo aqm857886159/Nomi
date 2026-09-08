@@ -1,3 +1,4 @@
+import { isCanvasMenuTarget } from '../components/canvasPointerGestureModel'
 import React from 'react'
 import type { Viewport } from '@xyflow/react'
 import { canvasViewportFromFlow } from './generationCanvasReactFlowAdapter'
@@ -62,7 +63,7 @@ export function useGenerationCanvasReactFlowPointer({
   }, [readOnly])
 
   const handleCanvasPointerDownCapture = React.useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    if (readOnly || event.pointerType === 'touch') return
+    if (readOnly || event.pointerType === 'touch' || isCanvasMenuTarget(event.target)) return
     const isBlankPrimaryPan =
       event.button === 0 &&
       event.isPrimary &&

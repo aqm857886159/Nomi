@@ -379,6 +379,7 @@ export const zhCN = {
     moreMenu: '更多',
     importFile: '文件…',
     importFileAction: '导入文件',
+    menuPreference: { hide: '隐藏', moveUp: '上移', reset: '恢复默认菜单', saveFailed: '菜单偏好保存失败，请重试' },
     addSections: {
       generate: '生成',
       more: '更多',
@@ -794,6 +795,7 @@ export const en = {
     moreMenu: 'More',
     importFile: 'File…',
     importFileAction: 'Import file',
+    menuPreference: { hide: 'Hide', moveUp: 'Move up', reset: 'Restore default menu', saveFailed: 'Could not save menu preferences. Please try again.' },
     addSections: {
       generate: 'Generate',
       more: 'More',

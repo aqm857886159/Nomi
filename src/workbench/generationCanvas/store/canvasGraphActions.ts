@@ -1,10 +1,11 @@
+import { materializeGroupLink, materializeGroupOutputLink, type GroupMaterializedConnection } from './canvasConnectionMaterialization'
 import { connectNodes, disconnectEdge, removeNodes } from '../model/graphOps'
 import { normalizeParameterEdges, readParameterReferenceSlots } from '../model/parameterReferenceSlots'
 import { resolveCanvasReferenceConnection } from '../model/canvasReferenceConnection'
 import { archetypeForNode, resolveTargetModeForEdge } from '../agent/referenceEdgeCapability'
 import { applyArchetypeModeSwitch } from '../nodes/controls/archetypeMeta'
 import type { GenerationCanvasEdge, GenerationCanvasEdgeMode, GenerationCanvasNode, NodeGroup } from '../model/generationCanvasTypes'
-import { groupMemberNodes, planGroupLinkEdges, removeGroupLinkEdgesForMember, upsertGroupInputLink, upsertGroupOutputLink } from '../model/groupInputLinks'
+import { groupMemberNodes, removeGroupLinkEdgesForMember, upsertGroupInputLink, upsertGroupOutputLink } from '../model/groupInputLinks'
 import { createGroupId } from './canvasIds'
 import { frameBoundsFromMembers } from '../model/canvasFrameBounds'
 import { createCanvasFrameStoreActions } from './canvasFrameStoreActions'
@@ -52,29 +53,6 @@ function autoPromoteTargetModeForEdge(
   )
 }
 
-/**
- * 把一条组入参物化成真边（组内每个成员一根）。**唯一物化点**——`connectToGroup`（新建入参）和
- * `moveNodeToGroup`（新成员进组补边）都走它，杜绝两处各写一遍再慢慢漂。
- * 返回计数供调用方出人话 toast（跳过的必须说，不许静默丢）。
- */
-type GroupLinkStore = {
-  nodes: GenerationCanvasNode[]
-  edges: GenerationCanvasEdge[]
-  groups: NodeGroup[]
-}
-type GroupMaterializedConnection = {
-  sourceNodeId: string
-  targetNodeId: string
-  mode: GenerationCanvasEdgeMode
-  edge: GenerationCanvasEdge
-}
-type GroupMaterializeOutcome = {
-  edges: GenerationCanvasEdge[]
-  connected: GroupMaterializedConnection[]
-  skipped: number
-  alreadyConnected: number
-}
-
 type GroupEdgeDisconnectScope =
   | { groupId: string; direction: 'input'; sourceNodeId: string; mode?: GenerationCanvasEdgeMode }
   | { groupId: string; direction: 'output'; targetNodeId: string }
@@ -109,66 +87,6 @@ function isEdgeInDisconnectScope(edge: GenerationCanvasEdge, scope: GroupEdgeDis
   if (scope.direction === 'output') return edge.target === scope.targetNodeId
   return edge.source === scope.sourceNodeId && (scope.mode == null || edge.mode === scope.mode)
 }
-function materializeGroupLink(
-  pre: GroupLinkStore,
-  groupId: string,
-  sourceNodeId: string,
-  targets: GenerationCanvasNode[],
-): GroupMaterializeOutcome {
-  const plan = planGroupLinkEdges({ link: { sourceNodeId }, targets, nodes: pre.nodes, edges: pre.edges })
-  let edges = pre.edges
-  const connected: GroupMaterializedConnection[] = []
-  for (const item of plan.connect) {
-    const next = connectNodes(edges, item.sourceNodeId, item.targetNodeId, item.mode, item.targetParamKey)
-    if (next === edges) continue
-    // connectNodes 是 append；给刚加的那条盖上溯源章（成员移出组时据此精确撤边、不误伤手工边）。
-    const added = next[next.length - 1]
-    if (!added) continue
-    const materialized = { ...added, viaGroupId: groupId }
-    next[next.length - 1] = materialized
-    edges = next
-    connected.push({ sourceNodeId: item.sourceNodeId, targetNodeId: item.targetNodeId, mode: item.mode ?? 'reference', edge: materialized })
-  }
-  return { edges, connected, skipped: plan.skipped.length, alreadyConnected: plan.alreadyConnected.length }
-}
-
-/** 编组作为来源：每个成员各向同一目标物化一条真边；顺序计算使用逐条追加后的 edges。 */
-function materializeGroupOutputLink(
-  pre: GroupLinkStore,
-  groupId: string,
-  sources: GenerationCanvasNode[],
-  target: GenerationCanvasNode,
-): GroupMaterializeOutcome {
-  let edges = pre.edges
-  const connected: GroupMaterializedConnection[] = []
-  let skipped = 0
-  let alreadyConnected = 0
-  for (const source of sources) {
-    if (source.id === target.id) continue
-    const connection = resolveCanvasReferenceConnection(source, target, pre.nodes, edges)
-    const slots = readParameterReferenceSlots(target.meta)
-    if (edges.some((edge) => edge.source === source.id && edge.target === target.id &&
-      (edge.targetParamKey ? slots.some((slot) => slot.key === edge.targetParamKey) : connection.ok && edge.mode === connection.mode))) {
-      alreadyConnected += 1
-      continue
-    }
-    if (!connection.ok) {
-      skipped += 1
-      continue
-    }
-    const { mode, targetParamKey } = connection
-    const next = connectNodes(edges, source.id, target.id, mode, targetParamKey)
-    if (next === edges) continue
-    const added = next[next.length - 1]
-    if (!added) continue
-    const materialized = { ...added, viaGroupId: groupId }
-    next[next.length - 1] = materialized
-    edges = next
-    connected.push({ sourceNodeId: source.id, targetNodeId: target.id, mode: mode ?? 'reference', edge: materialized })
-  }
-  return { edges, connected, skipped, alreadyConnected }
-}
-
 export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = (set, get, store) => ({
   // 框（Frame）自己的两个写口住在隔壁（R9 分层：本文件已顶到 800 行门岗）。
   ...createCanvasFrameStoreActions(set, get, store),
@@ -199,6 +117,35 @@ export const createCanvasGraphActions: CanvasSliceCreator<CanvasGraphActions> = 
         pendingConnectionSourceKind: 'node',
       })
       return get().connectToGroup(groupId)
+    }
+    const selected = new Set(get().selectedNodeIds)
+    const preBatch = get()
+    const anchorId = selected.has(pendingNodeId) ? pendingNodeId : selected.has(connectedNodeId) ? connectedNodeId : null
+    if (anchorId && selected.size > 1) {
+      const anchor = preBatch.nodes.find((node) => node.id === anchorId)
+      const members = preBatch.nodes.filter((node) => selected.has(node.id) && node.categoryId === anchor?.categoryId)
+      const otherId = anchorId === pendingNodeId ? connectedNodeId : pendingNodeId
+      const other = preBatch.nodes.find((node) => node.id === otherId)
+      if (!other) { get().cancelConnection(); return { ok: false, reason: 'dangling' } }
+      const selectedIsSource = (anchorId === pendingNodeId) === (preBatch.pendingConnectionSourceSide === 'right')
+      const outcome = selectedIsSource
+        ? materializeGroupOutputLink(preBatch, undefined, members, other)
+        : materializeGroupLink(preBatch, undefined, otherId, members)
+      if (outcome.connected.length) {
+        pushUndoSnapshot(preBatch)
+        set((state) => {
+          state.edges = outcome.edges
+          bumpPersistRevision(state)
+          Object.assign(state, getHistoryFlags())
+        })
+        emitCanvasGesture(outcome.connected.map(({ edge }) => ({ type: 'canvas.edge.added' as const, payload: { edge } })))
+        for (const item of outcome.connected) autoPromoteTargetModeForEdge(get(), item.sourceNodeId, item.targetNodeId, item.mode)
+      }
+      get().cancelConnection()
+      const counts = { connected: outcome.connected.length, skipped: outcome.skipped, alreadyConnected: outcome.alreadyConnected }
+      return outcome.connected.length || outcome.alreadyConnected
+        ? { ok: true, ...counts }
+        : { ok: false, reason: 'all_skipped', ...counts }
     }
     // mode 选择在 set 外用同一份 pre-state 计算(与原内嵌逻辑等价),事件要带上它
     const pre = get()

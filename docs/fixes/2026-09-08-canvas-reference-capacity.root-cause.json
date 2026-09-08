@@ -1,0 +1,103 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-08-canvas-reference-capacity",
+  "problem_type": "Connection creation bypasses slot and cross-field capacity",
+  "symptom": "A selected batch can create 12 media edges while three uploaded audio references already consume part of a 12-file total.",
+  "direct_cause": "Group materialization checks reference media compatibility but never checks filled slot capacity.",
+  "class_root": "Connection acceptance and upload acceptance did not share the reference fill budget.",
+  "affected_population": [
+    "Manual single, multi-selection and group connections into models with bounded slots or maxTotalReferences"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/model/canvasReferenceConnection.ts",
+    "src/workbench/generationCanvas/runner/referenceSlots.ts",
+    "src/workbench/generationCanvas/store/canvasConnectionMaterialization.ts",
+    "src/workbench/generationCanvas/store/canvasGraphActions.ts"
+  ],
+  "entry_points": [
+    "Manual connectToNode including current selection",
+    "Group input/output materialization"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The existing archetype and remainingReferenceCapacity already declare the product invariant; the missing step is connecting graph creation to that owner.",
+  "invariants": [
+    "A new connection must fit its resolved slot and the mode total, including uploaded and pending references.",
+    "Mode promotion and all edges from one gesture undo together."
+  ],
+  "generality_proof": "Every graph materialization uses resolveCanvasReferenceConnection; its capacity check uses the exact assignEdgeToSlot and resolveReferenceSlots used by consumers, plus remainingReferenceCapacity used by upload controls.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/model/canvasReferenceConnection.ts",
+      "symbol": "resolveCanvasReferenceConnection",
+      "responsibility": "Validate reference compatibility and capacity before adding edges."
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/referenceSlots.ts",
+      "symbol": "canFitReferenceEdge",
+      "responsibility": "Reuse placement/fills and cross-field budget, projecting a prospective promoted mode without mutating the store."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/store/canvasGraphActions.ts",
+      "entry_point": "connectToNode",
+      "disposition": "enforced",
+      "evidence": "Single and selected connections call the resolver before committing edges."
+    },
+    {
+      "path": "src/workbench/generationCanvas/store/canvasConnectionMaterialization.ts",
+      "entry_point": "materializeGroupLink and materializeGroupOutputLink",
+      "disposition": "enforced",
+      "evidence": "Both call the same resolver; output materialization passes the progressively appended edges."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any bounded model and any mix of uploads and pending sources can exceed budget through graph creation.",
+    "same_class_scan": [
+      "rg remainingReferenceCapacity maxTotalReferences src/workbench/generationCanvas: only upload controls used the shared count.",
+      "Read canvasReferenceConnection.ts and referenceEdgeCapability.ts: compatibility was enforced but total was absent.",
+      "Read materializeGroupLink and materializeGroupOutputLink: both flow through resolveCanvasReferenceConnection."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/model/canvasReferenceConnection.ts",
+    "invariant": "No new accepted media edge exceeds available slot or total capacity.",
+    "failure_mode": "Reject with the existing unsupported_reference reason; batches count skipped entries without creating phantom edges.",
+    "exception_policy": "none",
+    "strategy": "Resolve the prospective mode and count existing fills before materializing each new reference.",
+    "artifacts": [
+      "src/workbench/generationCanvas/model/canvasReferenceConnection.ts",
+      "src/workbench/generationCanvas/runner/referenceSlots.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/store/canvasBatchGestures.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/store/canvasBatchGestures.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/model/canvasReferenceConnection.ts"
+    ],
+    "rationale": "Replaces compatibility-only acceptance with the shared capacity check; no parallel resolver."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Internal archetype and graph invariant; no dependency upgrade is involved.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted graph rewrite; new gestures respect limits. Existing legacy over-capacity edges remain user-authored data and are not silently deleted.",
+  "residual_risks": [
+    "Legacy already-saved over-capacity graphs are not rewritten by this change."
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/model",
+    "tests": [
+      "src/workbench/generationCanvas/store/canvasBatchGestures.test.ts"
+    ]
+  }
+}

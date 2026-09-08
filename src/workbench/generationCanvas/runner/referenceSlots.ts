@@ -1,3 +1,4 @@
+import { remainingReferenceCapacity } from '../../../../electron/shared/videoCapabilities/crossFieldConstraints'
 // 能力驱动的参考槽解析 —— **唯一真相源**（方案 docs/plan/2026-06-14-connection-reference-capability-model.md）。
 //
 // 一个函数把「目标当前模式声明的槽」+「指向它的画布边」+「meta 里手动上传的值」解析成
@@ -11,8 +12,8 @@
 // - **来源判别**：每个 fill 标明来自边（带源节点 id + 语义）还是上传。
 import type { GenerationCanvasEdge, GenerationCanvasEdgeMode, GenerationCanvasNode } from '../model/generationCanvasTypes'
 import type { ArchetypeReferenceSlot, ArchetypeReferenceSlotKind } from '../../../config/modelArchetypes'
-import { currentArchetypeMode, referenceSlotStorage } from '../nodes/controls/archetypeMeta'
-import { archetypeForNode, referenceAssetKindForNode, SLOT_ACCEPTS, type ReferenceAssetKind } from '../agent/referenceEdgeCapability'
+import { applyArchetypeModeSwitch, currentArchetypeMode, referenceSlotStorage } from '../nodes/controls/archetypeMeta'
+import { archetypeForNode, referenceAssetKindForNode, resolveTargetModeForEdge, SLOT_ACCEPTS, type ReferenceAssetKind } from '../agent/referenceEdgeCapability'
 import { sortEdgesByOrder } from '../model/graphOps'
 import { asUrl, findNodeResultUrl } from './referenceUrl'
 
@@ -231,4 +232,20 @@ export function decideArrayReferenceRemoval(
     return { kind: 'remove-upload', url: fill.url as string }
   }
   return { kind: 'noop' }
+}
+
+/** Same slot placement and aggregate budget for uploads and pending connections. */
+export function canFitReferenceEdge(source: GenerationCanvasNode, target: GenerationCanvasNode, nodes: readonly GenerationCanvasNode[], edges: readonly GenerationCanvasEdge[], semantic: GenerationCanvasEdgeMode): boolean {
+  const archetype = archetypeForNode(target)
+  const asset = referenceAssetKindForNode(source)
+  if (!archetype || !asset) return true
+  const promoted = resolveTargetModeForEdge(source, target, semantic)
+  const effectiveTarget = promoted ? { ...target, meta: applyArchetypeModeSwitch(target.meta ?? {}, archetype, promoted) } : target
+  const mode = currentArchetypeMode(archetype, effectiveTarget.meta ?? {})
+  const assignment = assignEdgeToSlot(semantic, asset, mode.slots)
+  if (!assignment) return false
+  const filled = resolveReferenceSlots(effectiveTarget, [...nodes], [...edges])
+  const slot = filled[assignment.slotIndex]
+  if (slot.max !== undefined && slot.fills.length >= slot.max) return false
+  return remainingReferenceCapacity(mode, Object.fromEntries(filled.map((item) => [item.slotKind, item.fills.length]))) > 0
 }

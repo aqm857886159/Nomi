@@ -781,8 +781,9 @@
                     "why": "画布样式只走设计 token 与组件 className（R10：全局/内联样式只可减不可增）。从内核 props 传内联样式会开出第二条样式源。"
                   },
                   "connectionLineComponent": {
-                    "verdict": "unused",
-                    "why": "画布样式只走设计 token 与组件 className（R10：全局/内联样式只可减不可增）。从内核 props 传内联样式会开出第二条样式源。"
+                    "verdict": "derived",
+                    "at": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx:201",
+                    "why": "React Flow owns the connection geometry; CanvasBatchConnectionLine renders the selected-node count through the official preview component extension."
                   },
                   "connectionLineContainerStyle": {
                     "verdict": "unused",
