@@ -12,19 +12,18 @@ function node(kind: GenerationCanvasNode['kind']): GenerationCanvasNode {
   }
 }
 
-describe('React Flow canvas visual parity contract', () => {
-  it('restores magnetic plus handles only for the selected image-like node', () => {
-    expect(resolveGenerationFlowConnectionAffordance(node('image'), true, '')).toBe('magnetic')
-    expect(resolveGenerationFlowConnectionAffordance(node('asset'), true, '')).toBe('magnetic')
-    expect(resolveGenerationFlowConnectionAffordance(node('character'), true, '')).toBe('magnetic')
-    expect(resolveGenerationFlowConnectionAffordance(node('image'), false, '')).toBe('dot')
-    expect(resolveGenerationFlowConnectionAffordance(node('text'), true, '')).toBe('dot')
-    expect(resolveGenerationFlowConnectionAffordance(node('panorama'), true, '')).toBe('dot')
+describe('React Flow magnetic connection contract', () => {
+  it.each(['image', 'asset', 'character', 'text', 'video'] as const)('reveals %s without selecting it first', (kind) => {
+    expect(resolveGenerationFlowConnectionAffordance(node(kind))).toBe('magnetic')
   })
 
-  it('keeps the source node on the compact dot while a connection is active', () => {
+  it('keeps the source magnetic during a connection', () => {
     const image = node('image')
-    expect(resolveGenerationFlowConnectionAffordance(image, true, image.id)).toBe('dot')
-    expect(resolveGenerationFlowConnectionAffordance(image, true, 'another-node')).toBe('magnetic')
+    expect(resolveGenerationFlowConnectionAffordance(image)).toBe('magnetic')
+  })
+
+  it('excludes panorama and collapsed group proxies', () => {
+    expect(resolveGenerationFlowConnectionAffordance(node('panorama'))).toBe('hidden')
+    expect(resolveGenerationFlowConnectionAffordance({ ...node('image'), meta: { collapsedGroupProxy: true } })).toBe('hidden')
   })
 })

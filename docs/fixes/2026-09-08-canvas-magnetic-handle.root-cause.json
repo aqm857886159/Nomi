@@ -1,0 +1,133 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-08-canvas-magnetic-handle",
+  "problem_type": "selection-gated-connection-affordance-and-hit-contract",
+  "symptom": "未选中卡片外侧 hover 没有磁吸图标，目标外侧热区拖线不吸附到侧边。",
+  "direct_cause": "visual contract 继承 primarySelection/kind 门槛；目标 1px Handle 无外侧命中区，RF 只能按默认半径命中。",
+  "class_root": "迁移把上一版实现门槛当成用户行为合同，起点热区、目标热区与 RF 连接状态没有共同保证。",
+  "affected_population": [
+    "image/asset/图片类/text/video，选中与未选中，左右两侧起点和目标"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlowVisualContract.ts",
+    "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx",
+    "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlow.css"
+  ],
+  "entry_points": [
+    "未选中卡片外侧 hover 开始连线",
+    "拖线进入目标左右外侧热区",
+    "正文松手解析"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://reactflow.dev/api-reference/components/handle",
+      "checked_at": "2026-09-08",
+      "purpose": "原生 Handle 起终点连接权限"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://reactflow.dev/api-reference/types/connection-line-component-props",
+      "checked_at": "2026-09-08",
+      "purpose": "框架统一吸附终点"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://reactflow.dev/api-reference/types/on-connect-end",
+      "checked_at": "2026-09-08",
+      "purpose": "最终状态与正文解析边界"
+    }
+  ],
+  "invariants": [
+    "可连线起点的磁吸热区不依赖选中或图片身份；panorama/组代理除外。",
+    "目标外侧热区是 RF Handle 的命中区，RF 决定预览/高亮/最终连线同一侧。",
+    "静止不显示把手，目标热区仅连线期间可命中。"
+  ],
+  "generality_proof": "所有节点内容均经过 GenerationFlowNodeView 的同一把手，不修改 kind 内容组件；RF 自己产出单线和批量预览坐标并触发 onConnect。正文仍走既有解析。",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlowVisualContract.ts",
+      "symbol": "resolveGenerationFlowConnectionAffordance",
+      "responsibility": "全部可连起点的无选中门槛磁吸策略。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx",
+      "symbol": "GenerationFlowConnectionHandle",
+      "responsibility": "所有节点左右两侧的原生 RF 命中、权限和高亮。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx",
+      "entry_point": "GenerationFlowNodeView source-left/source-right",
+      "disposition": "enforced",
+      "evidence": "左右起点均调用同一组件/visual contract；image 与 text/video 原先各走不同档，现在统一。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx",
+      "entry_point": "GenerationFlowNodeView target-left/target-right",
+      "disposition": "enforced",
+      "evidence": "左右目标均由 RF Handle 命中，锚点保留在对应侧中点。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/canvasConnectionDropTarget.ts",
+      "entry_point": "resolveCanvasDropTargetFromDom",
+      "disposition": "not-affected",
+      "evidence": "2026-09-03-canvas-connect-regression 合同仅正文解析，本次无更改。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "同一把手经历多次行为丢失，迁移复制选中门槛，影响全部用户与多个 kind。",
+    "same_class_scan": [
+      "rg resolveGenerationFlowConnectionAffordance：唯一生产调用在 GenerationFlowNodeView。",
+      "读 source/target 双侧及 readOnly/collapsedGroupProxy 分支；text/video 原先 dot。",
+      "rg onConnectEnd/connectionRadius：正文解析与外侧命中分层，9月3日修复不覆盖本次。"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlowVisualContract.ts",
+    "invariant": "可连线起点策略不接受选中态；目标由原生 RF Handle 统一解析。",
+    "failure_mode": "不支持的 panorama/折叠组起点隐藏并禁用；目标不命中由 RF 返回空目标。",
+    "exception_policy": "none",
+    "strategy": "删除选择/图片身份门与 dot 分支；共享 RF Handle 承担热区，不引入第二指针真相。",
+    "artifacts": [
+      "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlowVisualContract.ts",
+      "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlowVisualContract.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlowVisualContract.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlowVisualContract.ts",
+      "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlow.css"
+    ],
+    "rationale": "同次删 dot 档、其 CSS、primarySelection 参数；不保留平行实现。"
+  },
+  "dependency_lifecycle": {
+    "decision": "retain-with-exit",
+    "current": "@xyflow/react 12.11.5",
+    "target": "继续使用锁定的 12.11.5；未来受支持 12.x 升级前复验原生 Handle 命中合同",
+    "rationale": "官方原生能力足够，无需安装或升级。",
+    "exit_criteria": [
+      "未来升级若 elementFromPoint 优先行为变化，三条 Electron 走查必须先红并调整适配后绿，才允许升级。"
+    ]
+  },
+  "migration": "无数据迁移；保留 source-left/right、target-left/right ID 与侧边几何。",
+  "residual_risks": [
+    "PR #653 开工等待45分钟超时；交付前核对批量组件合入并实测。"
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/reactFlow",
+    "tests": [
+      "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlowVisualContract.test.ts"
+    ]
+  }
+}

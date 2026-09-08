@@ -122,31 +122,6 @@
   touch-action: none;
 }
 
-.generation-canvas-react-flow .generation-canvas-react-flow__handle--dot .generation-canvas-react-flow__handle-hit {
-  inset: 0;
-}
-
-.generation-canvas-react-flow .generation-canvas-react-flow__handle--dot .generation-canvas-react-flow__handle-icon {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 14px;
-  height: 14px;
-  transform: translate(-50%, -50%);
-  border: 2px solid var(--workbench-surface-solid);
-  border-radius: 999px;
-  background: var(--workbench-muted-soft);
-  box-shadow: 0 4px 12px rgba(18, 24, 38, 0.14);
-  transition: transform 150ms ease, background 150ms ease, opacity 150ms ease;
-}
-
-.generation-canvas-react-flow .generation-canvas-react-flow__handle--dot:hover .generation-canvas-react-flow__handle-icon,
-.generation-canvas-react-flow .generation-canvas-react-flow__handle--dot[data-active='true'] .generation-canvas-react-flow__handle-icon,
-.generation-canvas-react-flow .generation-canvas-react-flow__handle--dot.connecting .generation-canvas-react-flow__handle-icon {
-  background: var(--workbench-accent);
-  transform: translate(-50%, -50%) scale(1.08);
-}
-
 .generation-canvas-react-flow .generation-canvas-react-flow__handle--magnetic {
   width: 1px;
   height: 1px;
@@ -200,8 +175,6 @@
   --connection-handle-reveal-x: -28px;
 }
 
-.generation-canvas-react-flow .generation-canvas-react-flow__node-shell:hover .generation-canvas-react-flow__handle--magnetic .generation-canvas-react-flow__handle-icon,
-.generation-canvas-react-flow .generation-canvas-react-flow__node-shell:focus-within .generation-canvas-react-flow__handle--magnetic .generation-canvas-react-flow__handle-icon,
 .generation-canvas-react-flow .generation-canvas-react-flow__handle--magnetic[data-active='true'] .generation-canvas-react-flow__handle-icon,
 .generation-canvas-react-flow .generation-canvas-react-flow__handle--magnetic .generation-canvas-react-flow__handle-hit[data-following='true'] .generation-canvas-react-flow__handle-icon {
   --connection-handle-reveal-x: 0px;

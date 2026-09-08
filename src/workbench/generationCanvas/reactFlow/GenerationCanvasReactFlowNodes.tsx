@@ -28,7 +28,7 @@ import {
 } from '../components/canvasNodeLevelOfDetail'
 import type { GenerationFlowEdge, GenerationFlowNode } from './generationCanvasReactFlowAdapter'
 import { GenerationFlowNodeScope } from './generationFlowNodeContext'
-import { resolveGenerationFlowConnectionAffordance } from './generationCanvasReactFlowVisualContract'
+import { resolveGenerationFlowConnectionAffordance, type GenerationFlowConnectionAffordance } from './generationCanvasReactFlowVisualContract'
 import type { CanvasPluginNodeState } from '../plugins/canvasPluginTypes'
 
 const MAGNETIC_HANDLE_ICON_RADIUS = 14.5
@@ -62,7 +62,7 @@ function resetMagneticHandlePosition(event: React.PointerEvent<HTMLSpanElement>)
 type GenerationFlowConnectionHandleProps = {
   side: 'left' | 'right'
   type: 'source' | 'target'
-  affordance: 'dot' | 'magnetic' | 'hidden'
+  affordance: GenerationFlowConnectionAffordance
   active: boolean
   label: string
 }
@@ -82,7 +82,7 @@ function GenerationFlowConnectionHandle({
       id={id}
       type={type}
       position={position}
-      isConnectableStart={type === 'source'}
+      isConnectableStart={type === 'source' && affordance === 'magnetic'}
       isConnectableEnd={type === 'target'}
       aria-label={label}
       data-side={side}
@@ -144,9 +144,7 @@ export function GenerationFlowNodeView({ data, selected }: NodeProps<GenerationF
     selected,
     primarySelection,
   })
-  const connectionAffordance = collapsedGroupProxy
-    ? 'hidden'
-    : resolveGenerationFlowConnectionAffordance(node, primarySelection, pendingConnectionSourceId)
+  const connectionAffordance = resolveGenerationFlowConnectionAffordance(node)
   const isPendingConnectionSource = pendingConnectionSourceId === node.id
   const isPendingConnectionTarget = Boolean(pendingConnectionSourceId && !isPendingConnectionSource)
   const startConnectionLabel = t('generationCommon.node.startConnection')
