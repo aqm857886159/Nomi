@@ -1,0 +1,17 @@
+[
+  {
+    "name": "01-hover",
+    "pass": false,
+    "error": "Error: expect(locator).toHaveCount(expected) failed\n\nLocator:  locator('.react-flow__node[data-id=\"canvas-perf-image-0\"] .react-flow__handle[data-handleid=\"source-left\"]').locator('.generation-canvas-react-flow__handle-icon').locator('svg')\nExpected: 1\nReceived: 0\nTimeout:  5000ms\n\nCall log:\n  - Expect \"to.have.count\" with timeout 5000ms\n  - waiting for locator('.react-flow__node[data-id=\"canvas-perf-image-0\"] .react-flow__handle[data-handleid=\"source-left\"]').locator('.generation-canvas-react-flow__handle-icon').locator('svg')\n    14 × locator resolved to 0 elements\n       - unexpected value \"0\"\n"
+  },
+  {
+    "name": "02-single",
+    "pass": false,
+    "error": "Error: expect(received).toBeLessThan(expected)\n\nExpected: < 3\nReceived:   60\n\nCall Log:\n- Timeout 5000ms exceeded while waiting on the predicate"
+  },
+  {
+    "name": "03-batch",
+    "pass": false,
+    "error": "Error: expect(locator).toHaveAttribute(expected) failed\n\nLocator:  locator('.react-flow__node[data-id=\"canvas-perf-image-2\"] .react-flow__handle[data-handleid=\"target-left\"]')\nExpected: \"true\"\nReceived: \"\"\nTimeout:  5000ms\n\nCall log:\n  - Expect \"to.have.attribute.value\" with timeout 5000ms\n  - waiting for locator('.react-flow__node[data-id=\"canvas-perf-image-2\"] .react-flow__handle[data-handleid=\"target-left\"]')\n    14 × locator resolved to <div data-side=\"left\" aria-label=\"连接到此节点\" data-handlepos=\"left\" data-affordance=\"target\" data-handleid=\"target-left\" data-nodeid=\"canvas-perf-image-2\" data-id=\"1-canvas-perf-image-2-target-left-target\" class=\"react-flow__handle react-flow__handle-left nodrag generation-canvas-react-flow__no-pan generation-canvas-react-flow__handle generation-canvas-react-flow__handle--target target connectable connectableend\"></div>\n       - unexpected value \"null\"\n"
+  }
+]

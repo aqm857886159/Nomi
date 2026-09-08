@@ -4,7 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
-import { expect, expectAbsent, proveProbe, screenshotSettled } from './_assert.mjs'
+import { expect, expectAbsent, proveProbe, screenshotSettled, waitForVisualQuiescence } from './_assert.mjs'
 import { findCanvasBlankPoint, findNodeHitPoint } from './_canvasHit.mjs'
 import { createCanvasPerformanceFixture } from './fixtures/canvas-performance-fixture.mjs'
 
@@ -32,6 +32,7 @@ async function blank() {
   const point = await findCanvasBlankPoint(win, { preference: 'bottom' })
   expect(point, 'real RF pane point').not.toBeNull()
   await win.mouse.click(point.x, point.y)
+  await waitForVisualQuiescence(win)
 }
 async function hotPoint(id, side) {
   const box = await win.locator(selector(id)).boundingBox()
@@ -43,6 +44,7 @@ async function hotPoint(id, side) {
   return point
 }
 async function select(id, append = false) {
+  await waitForVisualQuiescence(win)
   let point
   await expect.poll(async () => {
     point = await findNodeHitPoint(win, { nodeSelector: selector(id) })
@@ -51,6 +53,23 @@ async function select(id, append = false) {
   if (append) await win.keyboard.down('Shift')
   await win.mouse.click(point.x, point.y)
   if (append) await win.keyboard.up('Shift')
+  await expect(win.locator(selector(id))).toHaveClass(/selected/)
+  await waitForVisualQuiescence(win)
+}
+async function edgesTouchingSide(id, side) {
+  return win.evaluate(({ id, side }) => {
+    const box = document.querySelector(`.react-flow__node[data-id="${id}"]`).getBoundingClientRect()
+    const x = side === 'left' ? box.left : box.right
+    const y = box.top + box.height / 2
+    return Array.from(document.querySelectorAll('.react-flow__edge .react-flow__edge-path')).filter((edge) => {
+      const matrix = edge.getScreenCTM()
+      return [0, edge.getTotalLength()].some((length) => {
+        const end = edge.getPointAtLength(length)
+        const p = new DOMPoint(end.x, end.y).matrixTransform(matrix)
+        return Math.hypot(p.x - x, p.y - y) < 3
+      })
+    }).length
+  }, { id, side })
 }
 async function endpoint() {
   return win.locator('.react-flow__connection-path').evaluate((path) => {
@@ -90,7 +109,11 @@ try {
   await expect.poll(() => app.windows().some((page) => /projectId=/.test(page.url()))).toBe(true)
   win = app.windows().find((page) => /projectId=/.test(page.url()))
   const bw = await app.browserWindow(win)
-  await bw.evaluate((window) => window.setBounds({ x: 0, y: 0, width: 1800, height: 1100 }))
+  await bw.evaluate((window) => {
+    window.setBounds({ x: 0, y: 0, width: 1800, height: 1100 })
+    // Ignore unrelated physical cursor motion on this shared desktop; CDP still drives real input.
+    window.setIgnoreMouseEvents(true)
+  })
   await win.locator('.generation-canvas-v2__stage').waitFor()
   await expect(win.locator('.react-flow__node')).toHaveCount(3)
   await select(images[0].id)
@@ -108,8 +131,8 @@ try {
   await task('02-single', async () => {
     await blank()
     // Select here so target snapping is tested independently of the hover regression.
-    await select(images[2].id)
-    const from = await hotPoint(images[2].id, 'left')
+    await select(images[1].id)
+    const from = await hotPoint(images[1].id, 'left')
     const to = await hotPoint(images[0].id, 'right')
     await win.mouse.move(from.x, from.y)
     await win.mouse.down()
@@ -120,24 +143,26 @@ try {
     const before = await win.locator('.react-flow__edge').count()
     await win.mouse.up()
     await expect(win.locator('.react-flow__edge')).toHaveCount(before + 1)
+    await expect.poll(() => edgesTouchingSide(images[0].id, 'right')).toBe(1)
   })
   await task('03-batch', async () => {
     await blank()
     await select(images[0].id)
     await select(images[1].id, true)
     await expect(win.locator('.react-flow__node.selected')).toHaveCount(2)
-    const from = await hotPoint(images[2].id, 'right')
-    const to = await hotPoint(images[0].id, 'left')
+    const from = await hotPoint(images[0].id, 'right')
+    const to = await hotPoint(images[2].id, 'left')
     await win.mouse.move(from.x, from.y)
     await win.mouse.down()
     await win.mouse.move(to.x, to.y, { steps: 24 })
-    await expect(handle(images[0].id, 'target', 'left')).toHaveAttribute('data-active', 'true')
+    await expect(handle(images[2].id, 'target', 'left')).toHaveAttribute('data-active', 'true')
     await expect(win.locator('[data-batch-connection-count="2"]')).toBeVisible()
-    await expectSnapped(images[0].id, 'left', to)
+    await expectSnapped(images[2].id, 'left', to)
     await snap('03-batch')
     const before = await win.locator('.react-flow__edge').count()
     await win.mouse.up()
     await expect(win.locator('.react-flow__edge')).toHaveCount(before + 2)
+    await expect.poll(() => edgesTouchingSide(images[2].id, 'left')).toBe(2)
   })
 } finally {
   fs.writeFileSync(path.join(evidence, `${phase}-results.json`), JSON.stringify(results, null, 2))

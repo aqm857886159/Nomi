@@ -130,7 +130,8 @@
   },
   "migration": "无数据迁移；保留 source-left/right、target-left/right ID 与侧边几何。",
   "residual_risks": [
-    "现有持久边适配器按相对位置选侧，任意远侧固定端口需要用户批准扩大边模型范围；当前走查证明相向侧与预览热区。"
+    "现有持久边适配器按相对位置选侧，任意远侧固定端口需要用户批准扩大边模型范围；当前走查证明相向侧与预览热区。",
+    "同源性能预算与帧率通过；平移脚本耗时中位数107.9→117.3ms，不能声称每项指标严格不升。"
   ],
   "invariant_owner_layer": {
     "layer": "src/workbench/generationCanvas/reactFlow",

@@ -1,0 +1,321 @@
+{
+  "baseline_commit": "60f9123c3f7128aef565d7bbfab42531939b8c80",
+  "treatment_base_commit": "60f9123c3f7128aef565d7bbfab42531939b8c80",
+  "platform": "darwin",
+  "arch": "arm64",
+  "sample_count": 3,
+  "warmup_count": 1,
+  "before_pass": true,
+  "after_pass": true,
+  "command": "node tests/ux/canvas-performance-benchmark.e2e.mjs <label> --scale M --scenario blank-pan,wheel-zoom,node-drag-image --runs 3 --warmup 1",
+  "raw_before": "/Users/aoqimin/Desktop/Nomi-magnetic-handle-perf-base/tests/ux/perf-results/canvas-mh-control.json",
+  "raw_after": "tests/ux/perf-results/canvas-mh-lean.json",
+  "scenarios": {
+    "M/blank-pan": {
+      "fps": {
+        "before": {
+          "median": 120,
+          "p95": 120.1,
+          "samples": [
+            119.8,
+            120,
+            120.1
+          ]
+        },
+        "after": {
+          "median": 120.2,
+          "p95": 120.3,
+          "samples": [
+            120,
+            120.2,
+            120.3
+          ]
+        }
+      },
+      "frameGapP95Ms": {
+        "before": {
+          "median": 10.3,
+          "p95": 10.4,
+          "samples": [
+            10,
+            10.3,
+            10.4
+          ]
+        },
+        "after": {
+          "median": 10.4,
+          "p95": 10.4,
+          "samples": [
+            10.2,
+            10.4,
+            10.4
+          ]
+        }
+      },
+      "scriptDurationMs": {
+        "before": {
+          "median": 107.9,
+          "p95": 116.3,
+          "samples": [
+            100.5,
+            107.9,
+            116.3
+          ]
+        },
+        "after": {
+          "median": 117.3,
+          "p95": 123.8,
+          "samples": [
+            117,
+            117.3,
+            123.8
+          ]
+        }
+      },
+      "layoutDurationMs": {
+        "before": {
+          "median": 2,
+          "p95": 2.1,
+          "samples": [
+            1.9,
+            2,
+            2.1
+          ]
+        },
+        "after": {
+          "median": 2.3,
+          "p95": 2.6,
+          "samples": [
+            1.8,
+            2.3,
+            2.6
+          ]
+        }
+      },
+      "longTaskMs": {
+        "before": {
+          "median": 0,
+          "p95": 0,
+          "samples": [
+            0,
+            0,
+            0
+          ]
+        },
+        "after": {
+          "median": 0,
+          "p95": 0,
+          "samples": [
+            0,
+            0,
+            0
+          ]
+        }
+      }
+    },
+    "M/wheel-zoom": {
+      "fps": {
+        "before": {
+          "median": 120,
+          "p95": 120.2,
+          "samples": [
+            119.2,
+            120,
+            120.2
+          ]
+        },
+        "after": {
+          "median": 120.2,
+          "p95": 120.3,
+          "samples": [
+            120.2,
+            120.2,
+            120.3
+          ]
+        }
+      },
+      "frameGapP95Ms": {
+        "before": {
+          "median": 9.8,
+          "p95": 10,
+          "samples": [
+            9.8,
+            9.8,
+            10
+          ]
+        },
+        "after": {
+          "median": 9.6,
+          "p95": 9.7,
+          "samples": [
+            9.5,
+            9.6,
+            9.7
+          ]
+        }
+      },
+      "scriptDurationMs": {
+        "before": {
+          "median": 86,
+          "p95": 90.5,
+          "samples": [
+            72.6,
+            86,
+            90.5
+          ]
+        },
+        "after": {
+          "median": 72.1,
+          "p95": 72.9,
+          "samples": [
+            70.5,
+            72.1,
+            72.9
+          ]
+        }
+      },
+      "layoutDurationMs": {
+        "before": {
+          "median": 0,
+          "p95": 0,
+          "samples": [
+            0,
+            0,
+            0
+          ]
+        },
+        "after": {
+          "median": 0,
+          "p95": 0,
+          "samples": [
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "longTaskMs": {
+        "before": {
+          "median": 0,
+          "p95": 0,
+          "samples": [
+            0,
+            0,
+            0
+          ]
+        },
+        "after": {
+          "median": 0,
+          "p95": 0,
+          "samples": [
+            0,
+            0,
+            0
+          ]
+        }
+      }
+    },
+    "M/node-drag-image": {
+      "fps": {
+        "before": {
+          "median": 118.9,
+          "p95": 119.1,
+          "samples": [
+            116.2,
+            118.9,
+            119.1
+          ]
+        },
+        "after": {
+          "median": 119.5,
+          "p95": 119.6,
+          "samples": [
+            119,
+            119.5,
+            119.6
+          ]
+        }
+      },
+      "frameGapP95Ms": {
+        "before": {
+          "median": 10.4,
+          "p95": 10.5,
+          "samples": [
+            10.1,
+            10.4,
+            10.5
+          ]
+        },
+        "after": {
+          "median": 10.2,
+          "p95": 10.2,
+          "samples": [
+            10.2,
+            10.2,
+            10.2
+          ]
+        }
+      },
+      "scriptDurationMs": {
+        "before": {
+          "median": 142.2,
+          "p95": 146.3,
+          "samples": [
+            122.2,
+            142.2,
+            146.3
+          ]
+        },
+        "after": {
+          "median": 138.4,
+          "p95": 146.4,
+          "samples": [
+            120.3,
+            138.4,
+            146.4
+          ]
+        }
+      },
+      "layoutDurationMs": {
+        "before": {
+          "median": 10.7,
+          "p95": 10.8,
+          "samples": [
+            10,
+            10.7,
+            10.8
+          ]
+        },
+        "after": {
+          "median": 9.6,
+          "p95": 9.7,
+          "samples": [
+            8.1,
+            9.6,
+            9.7
+          ]
+        }
+      },
+      "longTaskMs": {
+        "before": {
+          "median": 0,
+          "p95": 0,
+          "samples": [
+            0,
+            0,
+            0
+          ]
+        },
+        "after": {
+          "median": 0,
+          "p95": 0,
+          "samples": [
+            0,
+            0,
+            0
+          ]
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,14 @@
+[
+  {
+    "name": "01-hover",
+    "pass": true
+  },
+  {
+    "name": "02-single",
+    "pass": true
+  },
+  {
+    "name": "03-batch",
+    "pass": true
+  }
+]

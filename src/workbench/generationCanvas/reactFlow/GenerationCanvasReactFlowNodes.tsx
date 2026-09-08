@@ -7,7 +7,6 @@ import {
   Position,
   getBezierPath,
   useStore,
-  useNodeId,
   useViewport,
   type EdgeProps,
   type NodeProps,
@@ -65,6 +64,7 @@ type GenerationFlowConnectionHandleProps = {
   type: 'source' | 'target'
   affordance: GenerationFlowConnectionAffordance
   active: boolean
+  activeHandleId: string | null
   label: string
 }
 
@@ -73,17 +73,13 @@ function GenerationFlowConnectionHandle({
   type,
   affordance,
   active,
+  activeHandleId,
   label,
 }: GenerationFlowConnectionHandleProps): JSX.Element {
   const position = side === 'left' ? Position.Left : Position.Right
   const id = `${type}-${side}`
-  const nodeId = useNodeId()
-  const connecting = useStore((state) => state.connection.inProgress)
-  const highlighted = useStore((state) => {
-    const connection = state.connection
-    const handle = type === 'source' ? connection.fromHandle : connection.isValid ? connection.toHandle : null
-    return handle?.nodeId === nodeId && handle.id === id
-  })
+  const connecting = activeHandleId !== null
+  const highlighted = activeHandleId === id
   const magnetic = type === 'target' || affordance === 'magnetic'
   const homeX = type === 'target'
     ? side === 'left' ? '100%' : '0%'
@@ -111,7 +107,7 @@ function GenerationFlowConnectionHandle({
         type === 'target' && (active ? 'after:pointer-events-auto' : 'after:pointer-events-none'),
       )}
     >
-      {magnetic ? (
+      {magnetic && (type === 'source' || highlighted) ? (
         <span
           className="generation-canvas-react-flow__handle-hit"
           data-home-x={homeX}
@@ -137,6 +133,13 @@ function GenerationFlowConnectionHandle({
 export function GenerationFlowNodeView({ data, selected }: NodeProps<GenerationFlowNode>): JSX.Element {
   const { t } = useTranslation()
   const node = data.generationNode
+  // One scalar subscription per card; pointer motion between the same handles does not rerender it.
+  const activeHandleId = useStore((state) => {
+    const connection = state.connection
+    if (!connection.inProgress) return null
+    if (connection.fromHandle.nodeId === node.id) return connection.fromHandle.id ?? ''
+    return connection.isValid && connection.toHandle?.nodeId === node.id ? connection.toHandle.id ?? '' : ''
+  })
   const collapsedGroupProxy = node.meta?.collapsedGroupProxy === true
   const NodeComponent = getGenerationNodeComponentForNode(node)
   const size = resolveNodeVisualSize(node)
@@ -229,8 +232,8 @@ export function GenerationFlowNodeView({ data, selected }: NodeProps<GenerationF
       />
       {!data.readOnly ? (
         <>
-          <GenerationFlowConnectionHandle side="left" type="target" affordance="hidden" active={isPendingConnectionTarget} label={targetConnectionLabel} />
-          <GenerationFlowConnectionHandle side="right" type="target" affordance="hidden" active={isPendingConnectionTarget} label={targetConnectionLabel} />
+          <GenerationFlowConnectionHandle activeHandleId={activeHandleId} side="left" type="target" affordance="hidden" active={isPendingConnectionTarget} label={targetConnectionLabel} />
+          <GenerationFlowConnectionHandle activeHandleId={activeHandleId} side="right" type="target" affordance="hidden" active={isPendingConnectionTarget} label={targetConnectionLabel} />
         </>
       ) : null}
       {!collapsedGroupProxy ? (
@@ -272,8 +275,8 @@ export function GenerationFlowNodeView({ data, selected }: NodeProps<GenerationF
       ) : null}
       {!data.readOnly ? (
         <>
-          <GenerationFlowConnectionHandle side="left" type="source" affordance={connectionAffordance} active={isPendingConnectionSource} label={startConnectionLabel} />
-          <GenerationFlowConnectionHandle side="right" type="source" affordance={connectionAffordance} active={isPendingConnectionSource} label={startConnectionLabel} />
+          <GenerationFlowConnectionHandle activeHandleId={activeHandleId} side="left" type="source" affordance={connectionAffordance} active={isPendingConnectionSource} label={startConnectionLabel} />
+          <GenerationFlowConnectionHandle activeHandleId={activeHandleId} side="right" type="source" affordance={connectionAffordance} active={isPendingConnectionSource} label={startConnectionLabel} />
         </>
       ) : null}
     </div>
