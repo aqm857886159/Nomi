@@ -286,3 +286,4 @@
 > 不代表已归好类。顺手把某一行挪进上面对应主题的表里即可——挪走后本区自然变短。
 
 - [2026-09-07-skill-import-real-use](2026-09-07-skill-import-real-use.md)
+- [2026-09-08-g1-use-case-suite](2026-09-08-g1-use-case-suite.md)
