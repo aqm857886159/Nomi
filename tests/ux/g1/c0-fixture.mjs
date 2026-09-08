@@ -3,7 +3,9 @@ import ffmpeg from '@ffmpeg-installer/ffmpeg'
 import path from 'node:path'
 import http from 'node:http'
 import { execFileSync } from 'node:child_process'
-import { createAgentRuntimeFixture, FIXTURE_VENDOR } from '../agent-runtime-fixture.mjs'
+import { flattenRequestText, createAgentRuntimeFixture, FIXTURE_VENDOR } from '../agent-runtime-fixture.mjs'
+
+import { hasToolResult, recorded } from '../agent-runtime-walk-support.mjs'
 
 export const MODEL = 'c0-loopback-video'
 export const shots = [
@@ -92,5 +94,52 @@ export async function createC0Fixture(rootDir, settingsDir, mediaDir) {
       await new Promise((resolve) => server.close(resolve))
     }
     throw error
+  }
+}
+
+// Provider behavior only; the walk owns every UI action and domain assertion.
+export async function createDryScheduler(root, settingsDir, mediaDir, report) {
+  const fixture = await createC0Fixture(root, settingsDir, mediaDir)
+  let plan, done
+  const planId = 'c0-plan-1', reviews = []
+  return {
+    model: MODEL,
+    async attach() {},
+    async assertNoGeneration(expect) { expect(fixture.calls).toEqual([]) },
+    preparePlan() {
+    plan = fixture.text.expectText({ label: 'C0 full script -> plan',
+      match: (body) => flattenRequestText(body).includes('小禾') && !hasToolResult(body, planId),
+      reply: { type: 'tool', id: planId, name: 'nomi_canvas_plan', args: {
+        operation: 'propose_storyboard_plan', title: '日落前的一分钟', anchors: [], shots,
+      } },
+    })
+    done = fixture.text.expectText({ label: 'C0 approved plan terminal', match: (body) => hasToolResult(body, planId),
+      reply: { type: 'text', text: 'C0_PLAN_DONE：八镜共64秒，请审阅分镜后生成。' } })
+    },
+    async planRequested() { await recorded(plan.received, 'C0 planner') },
+    async planCompleted({ win, panel, expect }) {
+      await recorded(done.received, 'C0 plan result')
+      await expect(win.locator(panel)).toContainText('C0_PLAN_DONE')
+    },
+    verifyPlan(actual, expect) { expect(actual.map((s) => s.prompt)).toEqual(shots.map((s) => s.prompt)) },
+    prepareGeneration() {
+    for (const shot of shots) reviews.push(fixture.text.expectText({
+      label: `C0 synthetic review ${shot.index}`,
+      match: (body) => {
+        const text = flattenRequestText(body)
+        return text.includes('资深影视分镜审片') && text.includes(`镜头意图(提示词)：${shot.prompt}`)
+      },
+      reply: { type: 'text', text: JSON.stringify({ reason: '零额度测试信号，不能评故事质量；待真实模型验收。', scores: { identity: 0, composition: 0, continuity: 0, action: 0 } }) },
+    }))
+    },
+    async generationCompleted({ expect }) {
+      expect([...fixture.calls].sort((a, b) => a - b)).toEqual(shots.map((s) => s.index))
+      await Promise.all(reviews.map((r) => recorded(r.received, 'C0 synthetic review')))
+    },
+    async finish() {
+      fixture.text.assertClean()
+      report.r30.simulated = { firstTool: '1/1 (100%)', turns: '1/1 (100%)' }
+    },
+    async close() { await fixture.close(); fixture.text.assertClean() },
   }
 }
