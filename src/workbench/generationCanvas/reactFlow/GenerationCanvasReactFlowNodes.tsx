@@ -99,6 +99,7 @@ function GenerationFlowConnectionHandle({
       className={cn(
         'generation-canvas-react-flow__handle',
         `generation-canvas-react-flow__handle--${type}`,
+        type === 'source' ? 'z-0' : 'z-[8]',
         magnetic && 'generation-canvas-react-flow__handle--magnetic',
         // A pseudo-element hits the Handle itself (XYHandle prioritizes elementFromPoint).
         // Its measured 1px anchor stays on the card edge; no second pointer/target owner.
@@ -236,6 +237,14 @@ export function GenerationFlowNodeView({ data, selected }: NodeProps<GenerationF
           <GenerationFlowConnectionHandle activeHandleId={activeHandleId} side="right" type="target" affordance="hidden" active={isPendingConnectionTarget} label={targetConnectionLabel} />
         </>
       ) : null}
+      {/* Source hot zones paint behind the isolated card and its controls/trays.
+          Active target handles retain their higher layer for connection drops. */}
+      {!data.readOnly ? (
+        <>
+          <GenerationFlowConnectionHandle activeHandleId={activeHandleId} side="left" type="source" affordance={connectionAffordance} active={isPendingConnectionSource} label={startConnectionLabel} />
+          <GenerationFlowConnectionHandle activeHandleId={activeHandleId} side="right" type="source" affordance={connectionAffordance} active={isPendingConnectionSource} label={startConnectionLabel} />
+        </>
+      ) : null}
       {!collapsedGroupProxy ? (
         <GenerationFlowNodeScope>
           {shouldRenderFullNodeContent({ lightweightMode, selected: primarySelection, focusFlash: data.focusFlash }) ? (
@@ -272,12 +281,6 @@ export function GenerationFlowNodeView({ data, selected }: NodeProps<GenerationF
             />
           )}
         </GenerationFlowNodeScope>
-      ) : null}
-      {!data.readOnly ? (
-        <>
-          <GenerationFlowConnectionHandle activeHandleId={activeHandleId} side="left" type="source" affordance={connectionAffordance} active={isPendingConnectionSource} label={startConnectionLabel} />
-          <GenerationFlowConnectionHandle activeHandleId={activeHandleId} side="right" type="source" affordance={connectionAffordance} active={isPendingConnectionSource} label={startConnectionLabel} />
-        </>
       ) : null}
     </div>
   )

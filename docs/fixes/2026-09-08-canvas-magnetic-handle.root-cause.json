@@ -2,8 +2,8 @@
   "schema_version": 3,
   "id": "2026-09-08-canvas-magnetic-handle",
   "problem_type": "selection-gated-connection-affordance-and-hit-contract",
-  "symptom": "未选中卡片外侧 hover 没有磁吸图标，目标外侧热区拖线不吸附到侧边。",
-  "direct_cause": "visual contract 继承 primarySelection/kind 门槛；目标 1px Handle 无外侧命中区，RF 只能按默认半径命中。",
+  "symptom": "未选中卡片外侧 hover 没有磁吸图标，目标外侧热区拖线不吸附到侧边。 同步走查另发现视频版本按钮/托盘被 source 热区遮挡。",
+  "direct_cause": "visual contract 继承 primarySelection/kind 门槛；目标 1px Handle 无外侧命中区，RF 只能按默认半径命中。 source 与 target 共用 z-index:8，source 位于隔离卡片之后，压过卡内 z-index:14 的托盘。",
   "class_root": "迁移把上一版实现门槛当成用户行为合同，起点热区、目标热区与 RF 连接状态没有共同保证。",
   "affected_population": [
     "image/asset/图片类/text/video，选中与未选中，左右两侧起点和目标"
@@ -41,7 +41,10 @@
   "invariants": [
     "可连线起点的磁吸热区不依赖选中或图片身份；panorama/组代理除外。",
     "目标外侧热区是 RF Handle 的命中区，RF 决定预览/高亮/最终连线同一侧。",
-    "静止不显示把手，目标热区仅连线期间可命中。"
+    "静止不显示把手，目标热区仅连线期间可命中。",
+    "契约变更必须同步全部消费它的走查：tests/ux/canvas-drag-pan-gestures.walk.mjs、tests/ux/canvas-card-stack.walk.mjs、tests/ux/canvas-s5-walkthrough.walk.mjs；共享 tests/ux/_canvasHit.mjs 按节点和侧别命中外侧热区，未选中逐侧 hover 验证 29px 加号，保留拖到侧边成边断言。",
+    "空闲 source 热区在卡片控件后方；连线期间 target 热区仍位于前方接收落点。",
+    "group-ports.walk.mjs 同步外侧 hover 起手，节点边缘中心留给 resize，落组仍严格验证四条成员边。"
   ],
   "generality_proof": "所有节点内容均经过 GenerationFlowNodeView 的同一把手，不修改 kind 内容组件；RF 自己产出单线和批量预览坐标并触发 onConnect。正文仍走既有解析。",
   "shared_boundaries": [
@@ -80,6 +83,12 @@
       "entry_point": "CanvasBatchConnectionLine",
       "disposition": "enforced",
       "evidence": "#653 已合入 82c671203，批量预览直接消费 RF toX/toY/toNode；共享原生 Handle 目标，×2 走查覆盖。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeResultStack.tsx",
+      "entry_point": "CardStackPeeks 与历史图片/视频托盘",
+      "disposition": "enforced",
+      "evidence": "canvas-card-stack 在视频版本按钮及历史视频 hover 复现 source 拦截；共享节点壳绘制顺序修复全部 kind。"
     }
   ],
   "recurrence": {
@@ -88,7 +97,8 @@
     "same_class_scan": [
       "rg resolveGenerationFlowConnectionAffordance：唯一生产调用在 GenerationFlowNodeView。",
       "读 source/target 双侧及 readOnly/collapsedGroupProxy 分支；text/video 原先 dot。",
-      "rg onConnectEnd/connectionRadius：正文解析与外侧命中分层，9月3日修复不覆盖本次。"
+      "rg onConnectEnd/connectionRadius：正文解析与外侧命中分层，9月3日修复不覆盖本次。",
+      "2026-09-09 rg magnetic|handle-hit|29px tests/ux/*.mjs：gestures/S5 仍按选中显示；card-stack 当前 HEAD 无 CI 旧全局点击，补图片/视频双侧 hover；magnetic 已按新契约，折叠组 legacy 句柄不受影响。"
     ]
   },
   "prevention": {
@@ -97,7 +107,7 @@
     "invariant": "可连线起点策略不接受选中态；目标由原生 RF Handle 统一解析。",
     "failure_mode": "不支持的 panorama/折叠组起点隐藏并禁用；目标不命中由 RF 返回空目标。",
     "exception_policy": "none",
-    "strategy": "删除选择/图片身份门与 dot 分支；共享 RF Handle 承担热区，不引入第二指针真相。",
+    "strategy": "删除选择/图片身份门与 dot 分支；共享 RF Handle 承担热区，不引入第二指针真相。 source 在共享节点壳内先于卡片绘制且为 z-0，target 保留 z-8；所有 kind 的卡内控件共同优先于空闲热区。",
     "artifacts": [
       "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlowVisualContract.ts",
       "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx"
@@ -105,7 +115,11 @@
   },
   "regression_tests": [
     "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlowVisualContract.test.ts",
-    "tests/ux/canvas-magnetic-handle.walk.mjs"
+    "tests/ux/canvas-magnetic-handle.walk.mjs",
+    "tests/ux/canvas-drag-pan-gestures.walk.mjs",
+    "tests/ux/canvas-card-stack.walk.mjs",
+    "tests/ux/canvas-s5-walkthrough.walk.mjs",
+    "tests/ux/group-ports.walk.mjs"
   ],
   "class_regression_tests": [
     "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlowVisualContract.test.ts",

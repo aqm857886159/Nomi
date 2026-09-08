@@ -15,7 +15,7 @@ import {
   proveProbe,
   screenshotSettled,
 } from './_assert.mjs'
-import { findEdgeHitPoint } from './_canvasHit.mjs'
+import { findCanvasBlankPoint, findEdgeHitPoint, hoverCanvasSourceHandle } from './_canvasHit.mjs'
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-card-stack-walk-'))
 const settingsDir = path.join(root, 'settings')
@@ -207,6 +207,27 @@ try {
 
   await clickOrFail(imageNode.getByRole('button', { name: '2 版' }), '关闭结果版本托盘')
   await expectHidden(tray, '结果版本托盘应完成退场')
+  // 留出双侧热区，避免工具栏/视口边界遮挡真实 hover。
+  const hoverStage = await win.locator('.generation-canvas-v2__stage').boundingBox()
+  await win.mouse.move(hoverStage.x + hoverStage.width / 2, hoverStage.y + hoverStage.height / 2)
+  await win.mouse.wheel(0, 450)
+  await win.waitForTimeout(450)
+  const handleBlank = await findCanvasBlankPoint(win)
+  expect(handleBlank).not.toBeNull()
+  await win.mouse.click(handleBlank.x, handleBlank.y)
+  for (const card of [imageNode, videoNode]) {
+    await expect(card).toHaveAttribute('data-selected', 'false')
+    for (const side of ['left', 'right']) {
+      const { icon } = await hoverCanvasSourceHandle(win, await card.getAttribute('data-node-id'), side)
+      await expect(icon).toHaveCSS('opacity', '1')
+      await expect(icon).toHaveCSS('width', '29px')
+      await expect(icon).toHaveCSS('height', '29px')
+      await expect(icon.locator('svg')).toHaveCount(1)
+    }
+  }
+  await win.mouse.move(hoverStage.x + hoverStage.width / 2, hoverStage.y + hoverStage.height / 2)
+  await win.mouse.wheel(0, -450)
+  await win.waitForTimeout(450)
   await imageNode.click({ position: { x: 120, y: 120 } })
   await clickOrFail(imageNode.getByRole('button', { name: '复制为变体' }), '复制当前节点为无结果的新变体')
   const selectedNode = win.locator('.generation-canvas-v2-node[data-selected="true"]').first()

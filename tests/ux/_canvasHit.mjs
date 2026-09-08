@@ -341,3 +341,31 @@ export async function findFrameDrawRectAround(page, { nodeSelectors, margin = 56
     { selectors: [...nodeSelectors], marginPx: margin, stageSelector: CANVAS_STAGE_SELECTOR, paneSelector: CANVAS_PANE_SELECTOR },
   )
 }
+
+/** Hover the requested node's outer source hot zone; never rely on selection or a global handle. */
+export async function hoverCanvasSourceHandle(page, nodeId, side) {
+  if (!['left', 'right'].includes(side)) throw new Error(`Unknown handle side: ${side}`)
+  const node = page.locator(`.react-flow__node[data-id="${nodeId}"]`)
+  const card = node.locator('.generation-canvas-v2-node')
+  const box = await card.boundingBox()
+  if (!box) throw new Error(`No card bounds for ${nodeId}`)
+  const handle = node.locator(`.generation-canvas-react-flow__handle--source[data-side="${side}"]`)
+  if (await handle.count() !== 1) throw new Error(`Expected exactly one ${nodeId}/${side} source handle`)
+  // Like blank/node hit helpers, accept only points owned by this exact handle.
+  // Version controls can legitimately cover part of the outer band.
+  const point = await handle.evaluate((element, side) => {
+    const rect = element.querySelector('.generation-canvas-react-flow__handle-hit')?.getBoundingClientRect()
+    if (!rect) return null
+    for (const ry of [0.5, 0.2, 0.8, 0.05, 0.95]) {
+      for (const rx of side === 'left' ? [0.9, 0.7, 0.5, 0.2] : [0.1, 0.3, 0.5, 0.8]) {
+        const x = rect.left + rect.width * rx
+        const y = rect.top + rect.height * ry
+        if (element.contains(document.elementFromPoint(x, y))) return { x, y }
+      }
+    }
+    return null
+  }, side)
+  if (!point) throw new Error(`Outer hot zone is obstructed: ${nodeId}/${side}`)
+  await page.mouse.move(point.x, point.y)
+  return { handle, icon: handle.locator('.generation-canvas-react-flow__handle-icon'), point }
+}

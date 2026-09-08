@@ -15,7 +15,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, screenshotSettled } from './_assert.mjs'
-import { CANVAS_PANE_SELECTOR, findCanvasBlankPoint, findNodeHitPoint } from './_canvasHit.mjs'
+import { CANVAS_PANE_SELECTOR, findCanvasBlankPoint, findNodeHitPoint, hoverCanvasSourceHandle } from './_canvasHit.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/canvas-drag-pan-gestures')
@@ -574,6 +574,24 @@ try {
   await getWin().mouse.up()
   await getWin().waitForTimeout(400)
 
+  // 留出双侧热区，避免工具栏/视口边界遮挡真实 hover。
+  const hoverStage = await getWin().locator('.generation-canvas-v2__stage').boundingBox()
+  await getWin().mouse.move(hoverStage.x + hoverStage.width / 2, hoverStage.y + hoverStage.height / 2)
+  await getWin().mouse.wheel(0, 450)
+  await getWin().waitForTimeout(450)
+  const clearHandles = await findBlankPoint()
+  await getWin().mouse.click(clearHandles.x, clearHandles.y)
+  for (const card of [imageNode, videoNode]) {
+    await expect(card).toHaveAttribute('data-selected', 'false')
+    const id = await card.getAttribute('data-node-id')
+    for (const side of ['left', 'right']) {
+      const { icon } = await hoverCanvasSourceHandle(getWin(), id, side)
+      await expect(icon).toHaveCSS('opacity', '1')
+      await expect(icon).toHaveCSS('width', '29px')
+      await expect(icon).toHaveCSS('height', '29px')
+      await expect(icon.locator('svg')).toHaveCount(1)
+    }
+  }
   await imageNode.click({ position: { x: 20, y: 10 } })
   await getWin().waitForTimeout(450)
   const selectedImageAffordances = await getWin().evaluate(() => {
@@ -613,9 +631,9 @@ try {
       selectedImageAffordances.handles.length === 2 &&
       selectedImageAffordances.handles.map((handle) => handle.side).sort().join(',') === 'left,right' &&
       selectedImageAffordances.handles.every(
-        (handle) => handle.hasPlus && handle.cssWidth === '29px' && handle.cssHeight === '29px' && Number(handle.opacity) >= 0.8,
+        (handle) => handle.hasPlus && handle.cssWidth === '29px' && handle.cssHeight === '29px',
       ),
-    '选中图片节点恢复左右两个 29px 磁吸 +',
+    '图片节点左右各一个 29px 磁吸 +，未选中时已逐侧 hover 验证可见',
     JSON.stringify(selectedImageAffordances.handles),
   )
   assert(
@@ -646,7 +664,7 @@ try {
   await getWin().mouse.move(handlePoint.x, handlePoint.y)
   await getWin().mouse.down()
   const videoVisibleTarget = {
-    x: (Math.max(videoBox.x, visibleStage.x) + Math.min(videoBox.x + videoBox.width, visibleStage.x + visibleStage.width)) / 2,
+    x: videoBox.x - 10,
     y: (Math.max(videoBox.y, visibleStage.y) + Math.min(videoBox.y + videoBox.height, visibleStage.y + visibleStage.height)) / 2,
   }
   await getWin().mouse.move(videoVisibleTarget.x, videoVisibleTarget.y, { steps: 16 })

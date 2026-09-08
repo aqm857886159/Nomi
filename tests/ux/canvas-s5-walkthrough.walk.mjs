@@ -2,7 +2,7 @@
 //
 // 真实用户任务链路（每步一张证据截图 → outputs/canvas-s5-walkthrough/）：
 //   01 空白新项目 → 添加图片节点（节点上屏）
-//   02 点选该节点（左右 29px 磁吸把手出现）
+//   02 未选中节点，逐侧 hover 显示 29px 磁吸把手
 //   03 拖动该节点一段（跟手、松手落位）
 //   04 再建一个节点并连线（edge 出现）
 //   05 拖动画布平移
@@ -16,7 +16,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, expectVisible, screenshotSettled } from './_assert.mjs'
-import { findCanvasBlankPoint } from './_canvasHit.mjs'
+import { findCanvasBlankPoint, hoverCanvasSourceHandle } from './_canvasHit.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'outputs/canvas-s5-walkthrough')
@@ -110,7 +110,7 @@ async function addNode(kind) {
 }
 
 async function edgeCount() {
-  return getWin().evaluate(() => document.querySelectorAll('.react-flow__edge, .generation-canvas-v2__edge-path').length)
+  return getWin().evaluate(() => document.querySelectorAll('.react-flow__edge').length)
 }
 
 const pageErrors = []
@@ -159,44 +159,27 @@ try {
   await expectVisible(getWin().locator('.generation-canvas-v2-node').first(), '图片节点已上屏可见')
   await snap('01-create.png')
 
-  // ── 步骤 02：点选该节点 → 左右 29px 磁吸把手出现 ───────────────────────
+  // ── 步骤 02：点选验证后取消选中 → 逐侧 hover 显示 29px 磁吸把手 ───────────────────────
   const node0 = getWin().locator('.generation-canvas-v2-node').first()
   await node0.click({ position: { x: 24, y: 12 } })
   await getWin().waitForTimeout(350)
   nodes = await nodeInfo()
   assert(nodes[0].selected, '点一下节点会选中它')
 
-  // 磁吸把手（左右各一）：R23 React Flow 单内核后，live 把手是 __handle--source.--magnetic，
-  // 选中图片节点(primarySelection)后 affordance='magnetic'，两侧各浮出一个 28px 的 IconPlus 磁吸把手。
-  const handles = getWin().locator('.generation-canvas-react-flow__handle--source.generation-canvas-react-flow__handle--magnetic')
-  await expect(handles, '选中图片节点后左右磁吸把手都出现').toHaveCount(2, { timeout: 5000 })
-  const handleFacts = await getWin().evaluate(() => {
-    const btns = Array.from(document.querySelectorAll('.generation-canvas-react-flow__handle--source.generation-canvas-react-flow__handle--magnetic'))
-    return btns.map((b) => {
-      const icon = b.querySelector('.generation-canvas-react-flow__handle-icon')
-      const r = icon ? icon.getBoundingClientRect() : { width: 0, height: 0 }
-      const cs = icon ? getComputedStyle(icon) : null
-      const hasPlus = Boolean(icon && icon.querySelector('svg'))
-      return {
-        side: b.getAttribute('data-side'),
-        visible: r.width > 0 && r.height > 0 && (cs ? cs.visibility !== 'hidden' && Number(cs.opacity) > 0.01 : false),
-        hasPlus,
-        iconW: Math.round(r.width),
-        iconH: Math.round(r.height),
-      }
-    })
-  })
-  const leftH = handleFacts.find((h) => h.side === 'left')
-  const rightH = handleFacts.find((h) => h.side === 'right')
-  assert(leftH && rightH, '左右两侧各有一个磁吸把手', JSON.stringify(handleFacts.map((h) => h.side)))
-  assert(leftH.visible && rightH.visible, '左右把手图标都可见', JSON.stringify(handleFacts))
-  assert(leftH.hasPlus && rightH.hasPlus, '左右把手都是「+」连线图标（磁吸态）', JSON.stringify(handleFacts.map((h) => h.hasPlus)))
-  // 渲染盒 = 28px base + 2px 边框，取整到 29px（任务规格「29px」量的就是这个可见盒）。
-  assert(
-    leftH.iconW === 29 && leftH.iconH === 29 && rightH.iconW === 29 && rightH.iconH === 29,
-    '磁吸把手图标是 29px 见方（左右磁吸；live 渲染盒 29px = 28px CSS + 边框）',
-    JSON.stringify({ left: [leftH.iconW, leftH.iconH], right: [rightH.iconW, rightH.iconH] }),
-  )
+  const clearForHover = await findBlankPoint()
+  assert(Boolean(clearForHover), '存在真实空白用于取消选中')
+  await getWin().mouse.click(clearForHover.x, clearForHover.y)
+  await expect(node0).toHaveAttribute('data-selected', 'false')
+  const nodeId = await node0.getAttribute('data-node-id')
+  const handles = getWin().locator(`.react-flow__node[data-id="${nodeId}"] .generation-canvas-react-flow__handle--source`)
+  await expect(handles, '目标节点左右各一个磁吸把手').toHaveCount(2)
+  for (const side of ['left', 'right']) {
+    const { icon } = await hoverCanvasSourceHandle(getWin(), nodeId, side)
+    await expect(icon).toHaveCSS('opacity', '1')
+    await expect(icon).toHaveCSS('width', '29px')
+    await expect(icon).toHaveCSS('height', '29px')
+    await expect(icon.locator('svg')).toHaveCount(1)
+  }
   await snap('02-select-handles.png')
 
   // ── 步骤 03：拖动该节点一段（跟手、松手落位）─────────────────────────
@@ -232,52 +215,24 @@ try {
   nodes = await nodeInfo()
   assert(nodes.length === 2, '再建一个节点后画布上有 2 个节点', JSON.stringify(nodes.map((n) => n.kind)))
 
-  // 用真实用户路径连线：选中源节点让磁吸把手浮出 → 从源右把手拖到目标节点。
+  // 用真实用户路径连线：未选中源节点外侧 hover → 从源右把手拖到目标侧边。
   // live 把手（R23）：命中区 __handle-hit（112px 宽带）、图标 __handle-icon。
   const source = nodes[0]
   const target = nodes[1]
-  const handleCenter = (nodeId, side) => getWin().evaluate(({ id, wantSide }) => {
-    // 把手在 __node-shell 层，与 .generation-canvas-v2-node 同属 React Flow 的 .react-flow__node[data-id] 包裹。
-    // 所以从卡片往上找到那个包裹，再在包裹内取源把手。
-    const card = document.querySelector(`.generation-canvas-v2-node[data-node-id="${id}"]`)
-    const wrapper = card?.closest('.react-flow__node') || document.querySelector(`.react-flow__node[data-id="${id}"]`)
-    if (!wrapper) return null
-    const src = Array.from(wrapper.querySelectorAll('.generation-canvas-react-flow__handle--source'))
-    const pick = src.find((h) => h.getAttribute('data-side') === wantSide) || src[0]
-    if (!pick) return null
-    // 用图标中心作为可点锚（磁吸图标始终在把手静止位）；退回 hit 区中心或 handle 自身。
-    const icon = pick.querySelector('.generation-canvas-react-flow__handle-icon')
-    const hit = pick.querySelector('.generation-canvas-react-flow__handle-hit')
-    const el = icon || hit || pick
-    const r = el.getBoundingClientRect()
-    if (r.width < 1 || r.height < 1) return null
-    return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) }
-  }, { id: nodeId, wantSide: side })
-
-  await getWin().mouse.click(source.rect.x + Math.round(source.rect.w / 2), source.rect.y + 14)
-  await getWin().waitForTimeout(350)
-  const startHandle = await handleCenter(source.id, 'right')
-  assert(Boolean(startHandle), '拿得到源节点右侧磁吸把手坐标', JSON.stringify(startHandle))
-  // 真实拖拽连线：从源右把手拖到目标节点中心（React Flow 连线手势）。
-  await getWin().mouse.move(startHandle.x, startHandle.y)
+  const clearForConnect = await findBlankPoint()
+  assert(Boolean(clearForConnect), '拖线前存在真实空白')
+  await getWin().mouse.click(clearForConnect.x, clearForConnect.y)
+  await expect(getWin().locator(`.generation-canvas-v2-node[data-node-id="${source.id}"]`)).toHaveAttribute('data-selected', 'false')
+  const { point: startHandle, icon: sourceIcon } = await hoverCanvasSourceHandle(getWin(), source.id, 'right')
+  await expect(sourceIcon).toHaveCSS('opacity', '1')
   await getWin().mouse.down()
   await getWin().mouse.move((startHandle.x + target.rect.x) / 2, (startHandle.y + target.rect.y) / 2, { steps: 8 })
-  await getWin().mouse.move(target.rect.x + Math.round(target.rect.w / 2), target.rect.y + Math.round(target.rect.h / 2), { steps: 14 })
+  await getWin().mouse.move(target.rect.x - 10, target.rect.y + Math.round(target.rect.h / 2), { steps: 14 })
   await getWin().waitForTimeout(180)
   await getWin().mouse.up()
   await getWin().waitForTimeout(600)
-  let edgesAfter = await edgeCount()
-  if (edgesAfter <= edgesBefore) {
-    // 兜底：点击式连线（点源右把手进入待连 → 点目标左把手完成）。
-    await getWin().mouse.click(source.rect.x + Math.round(source.rect.w / 2), source.rect.y + 14)
-    await getWin().waitForTimeout(300)
-    const srcAgain = await handleCenter(source.id, 'right')
-    if (srcAgain) { await getWin().mouse.click(srcAgain.x, srcAgain.y); await getWin().waitForTimeout(350) }
-    const tgtHandle = await handleCenter(target.id, 'left')
-    if (tgtHandle) { await getWin().mouse.click(tgtHandle.x, tgtHandle.y); await getWin().waitForTimeout(600) }
-    edgesAfter = await edgeCount()
-  }
-  assert(edgesAfter >= 1, '连线后画布上出现了 edge', `edges ${edgesBefore} → ${edgesAfter}`)
+  const edgesAfter = await edgeCount()
+  assert(edgesAfter === edgesBefore + 1, '从未选中源节点拖到目标侧边新增一条 edge', `edges ${edgesBefore} → ${edgesAfter}`)
   await snap('04-connect.png')
 
   // ── 步骤 05：拖动画布平移 ───────────────────────────────────────────────

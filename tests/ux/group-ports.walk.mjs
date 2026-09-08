@@ -7,7 +7,8 @@ import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { screenshotSettled } from './_assert.mjs'
+import { expect, screenshotSettled } from './_assert.mjs'
+import { findCanvasBlankPoint, hoverCanvasSourceHandle } from './_canvasHit.mjs'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/group-ports')
 fs.rmSync(shotsDir, { recursive: true, force: true })
@@ -175,12 +176,17 @@ console.log('  → 连线源:', srcId)
 // 先「适应视图」：组框比视口还大时它的标签在视口外，截图就拍不到改动区（R13 眼见链第四问）。
 const fitBtn = win.locator('[aria-label="适应视图"]').first()
 if (await fitBtn.count()) { await fitBtn.click({ timeout: 4000 }).catch(() => {}); await win.waitForTimeout(1200) }
-await win.locator(`[data-node-id="${srcId}"]`).first().click({ timeout: 4000 })
-await win.waitForTimeout(800)
+const clearSource = await findCanvasBlankPoint(win)
+expect(clearSource).not.toBeNull()
+await win.mouse.click(clearSource.x, clearSource.y)
+await expect(win.locator(`.generation-canvas-v2-node[data-node-id="${srcId}"]`)).toHaveAttribute('data-selected', 'false')
 // 用**真手势**：从磁吸连接点按下 → 拖到组框空白处 → 松手。这条路走的是 pointerup（useDragToConnect），
 // 和「点一下连接点再点目标」的 click 路是两条，必须两条都真的通（走查第一版就是漏了 pointerup 那条）。
-const handle = win.locator(`.react-flow__node[data-id="${srcId}"] .generation-canvas-react-flow__handle[data-side="right"]`).last()
-check('找得到连接点', await handle.count() > 0)
+const { handle, icon, point: sourcePoint } = await hoverCanvasSourceHandle(win, srcId, 'right')
+await expect(icon).toHaveCSS('opacity', '1')
+await expect(icon).toHaveCSS('width', '29px')
+await expect(icon).toHaveCSS('height', '29px')
+check('找得到唯一右侧连接点', await handle.count() === 1)
 const hb = await handle.boundingBox()
 const gbox0 = await win.locator('.generation-canvas-v2__group-box').first().boundingBox()
 if (!hb || !gbox0) { console.error('❌ 连接点/组框没盒子'); await app.close(); process.exit(1) }
@@ -201,7 +207,7 @@ const dropPoint = await win.evaluate((gb) => {
 }, gbox0)
 check('组框内找得到不压节点的空白落点', Boolean(dropPoint), JSON.stringify(dropPoint))
 if (!dropPoint) { await app.close(); process.exit(1) }
-await win.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2)
+await win.mouse.move(sourcePoint.x, sourcePoint.y)
 const hitHandle = await win.evaluate(({ x, y }) => {
   const hit = document.elementFromPoint(x, y)?.closest('.generation-canvas-react-flow__handle')
   return {
@@ -218,8 +224,8 @@ const hitHandle = await win.evaluate(({ x, y }) => {
       handleType: hit.getAttribute('data-nodeid') ? hit.className.toString() : null,
     } : null,
   }
-}, { x: hb.x + hb.width / 2, y: hb.y + hb.height / 2 })
-check('连接点中心命中 React Flow 握把', hitHandle.handle?.nodeId === srcId, JSON.stringify({ box: hb, ...hitHandle }))
+}, sourcePoint)
+check('外侧热区命中目标节点 React Flow 握把', hitHandle.handle?.nodeId === srcId, JSON.stringify({ box: hb, ...hitHandle }))
 await win.mouse.down()
 await win.mouse.move(dropPoint.x, dropPoint.y, { steps: 12 })
 await win.waitForTimeout(500)

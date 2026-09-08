@@ -98,7 +98,6 @@
   border: 0;
   background: transparent;
   overflow: visible;
-  z-index: 8;
 }
 
 .generation-canvas-react-flow .generation-canvas-react-flow__handle--target {
