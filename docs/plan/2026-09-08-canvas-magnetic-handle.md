@@ -33,3 +33,7 @@
 4. pnpm run gates，tokens/vocabularies/heavy-path 不增；M 规模 blank-pan/wheel-zoom/node-drag-image 各 3 次+1 warmup；隔离 Electron 真实走查。
 
 不动 nodes/**、agentLane/**、ai/lane/**、canvasConnectionDropTarget.ts、依赖与框架包。回滚用任务 commit 的 git revert（不回写主分支）；仅创建任务 PR，不合并。
+
+## 进度证据
+
+#653 随后合入，已通过 git merge 整合真实 origin/main 82c671203。契约 7 项先红后绿；第一笔 733196352。真实 Electron 三条任务初步通过，截图逐张人眼核对。追加离开热区恢复自由端点断言。持久边任意指定侧涉及范围外模型，已询问用户；未擅自扩范围。

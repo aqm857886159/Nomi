@@ -104,7 +104,6 @@
 .generation-canvas-react-flow .generation-canvas-react-flow__handle--target {
   width: 1px;
   height: 1px;
-  opacity: 0;
   pointer-events: none;
 }
 
@@ -182,7 +181,6 @@
   opacity: 0.82;
 }
 
-.generation-canvas-react-flow .generation-canvas-react-flow__handle--magnetic:hover .generation-canvas-react-flow__handle-icon,
 .generation-canvas-react-flow .generation-canvas-react-flow__handle--magnetic[data-active='true'] .generation-canvas-react-flow__handle-icon,
 .generation-canvas-react-flow .generation-canvas-react-flow__handle--magnetic .generation-canvas-react-flow__handle-hit[data-following='true'] .generation-canvas-react-flow__handle-icon {
   border-color: var(--workbench-accent);

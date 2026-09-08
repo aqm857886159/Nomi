@@ -7,6 +7,7 @@ import {
   Position,
   getBezierPath,
   useStore,
+  useNodeId,
   useViewport,
   type EdgeProps,
   type NodeProps,
@@ -76,39 +77,56 @@ function GenerationFlowConnectionHandle({
 }: GenerationFlowConnectionHandleProps): JSX.Element {
   const position = side === 'left' ? Position.Left : Position.Right
   const id = `${type}-${side}`
-  const homeX = side === 'left' ? 'calc(100% - 28px)' : '28px'
+  const nodeId = useNodeId()
+  const connecting = useStore((state) => state.connection.inProgress)
+  const highlighted = useStore((state) => {
+    const connection = state.connection
+    const handle = type === 'source' ? connection.fromHandle : connection.isValid ? connection.toHandle : null
+    return handle?.nodeId === nodeId && handle.id === id
+  })
+  const magnetic = type === 'target' || affordance === 'magnetic'
+  const homeX = type === 'target'
+    ? side === 'left' ? '100%' : '0%'
+    : side === 'left' ? 'calc(100% - 28px)' : '28px'
   return (
     <Handle
       id={id}
       type={type}
       position={position}
       isConnectableStart={type === 'source' && affordance === 'magnetic'}
-      isConnectableEnd={type === 'target'}
+      isConnectableEnd={type === 'target' && active}
       aria-label={label}
       data-side={side}
       data-affordance={type === 'source' ? affordance : 'target'}
-      data-active={active ? 'true' : undefined}
+      data-active={highlighted ? 'true' : undefined}
+      style={type === 'source' && (connecting || affordance === 'hidden') ? { pointerEvents: 'none' } : undefined}
       className={cn(
         'generation-canvas-react-flow__handle',
         `generation-canvas-react-flow__handle--${type}`,
-        type === 'source' && `generation-canvas-react-flow__handle--${affordance}`,
+        magnetic && 'generation-canvas-react-flow__handle--magnetic',
+        // A pseudo-element hits the Handle itself (XYHandle prioritizes elementFromPoint).
+        // Its measured 1px anchor stays on the card edge; no second pointer/target owner.
+        type === 'target' && 'after:absolute after:top-0 after:w-[112px] after:h-[min(168px,calc(var(--generation-flow-node-height)+28px))] after:-translate-y-1/2 after:content-[""]',
+        type === 'target' && (side === 'left' ? 'after:right-0' : 'after:left-0'),
+        type === 'target' && (active ? 'after:pointer-events-auto' : 'after:pointer-events-none'),
       )}
     >
-      {type === 'source' && affordance !== 'hidden' ? (
+      {magnetic ? (
         <span
           className="generation-canvas-react-flow__handle-hit"
           data-home-x={homeX}
           data-side={side}
-          style={affordance === 'magnetic' ? {
+          style={{
+            pointerEvents: type === 'target' ? 'none' : undefined,
             '--connection-handle-x': homeX,
             '--connection-handle-y': '50%',
-          } as React.CSSProperties : undefined}
-          onPointerMove={affordance === 'magnetic' ? updateMagneticHandlePosition : undefined}
-          onPointerLeave={affordance === 'magnetic' ? resetMagneticHandlePosition : undefined}
-          onPointerCancel={affordance === 'magnetic' ? resetMagneticHandlePosition : undefined}
+          } as React.CSSProperties}
+          onPointerMove={type === 'source' && affordance === 'magnetic' ? updateMagneticHandlePosition : undefined}
+          onPointerLeave={type === 'source' && affordance === 'magnetic' ? resetMagneticHandlePosition : undefined}
+          onPointerCancel={type === 'source' && affordance === 'magnetic' ? resetMagneticHandlePosition : undefined}
         >
           <span className="generation-canvas-react-flow__handle-icon" aria-hidden="true">
-            {affordance === 'magnetic' ? <IconPlus size={18} stroke={1.8} /> : null}
+            <IconPlus size={18} stroke={1.8} />
           </span>
         </span>
       ) : null}
@@ -146,7 +164,7 @@ export function GenerationFlowNodeView({ data, selected }: NodeProps<GenerationF
   })
   const connectionAffordance = resolveGenerationFlowConnectionAffordance(node)
   const isPendingConnectionSource = pendingConnectionSourceId === node.id
-  const isPendingConnectionTarget = Boolean(pendingConnectionSourceId && !isPendingConnectionSource)
+  const isPendingConnectionTarget = Boolean(pendingConnectionSourceId && !isPendingConnectionSource && !collapsedGroupProxy)
   const startConnectionLabel = t('generationCommon.node.startConnection')
   const targetConnectionLabel = t('generationCommon.node.connectHere')
   const pluginManifest = node.pluginState ? canvasPluginRegistry.getManifest(node.pluginState.pluginId) : undefined

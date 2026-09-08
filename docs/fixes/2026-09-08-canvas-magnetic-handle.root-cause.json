@@ -74,6 +74,12 @@
       "entry_point": "resolveCanvasDropTargetFromDom",
       "disposition": "not-affected",
       "evidence": "2026-09-03-canvas-connect-regression 合同仅正文解析，本次无更改。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/CanvasBatchConnectionLine.tsx",
+      "entry_point": "CanvasBatchConnectionLine",
+      "disposition": "enforced",
+      "evidence": "#653 已合入 82c671203，批量预览直接消费 RF toX/toY/toNode；共享原生 Handle 目标，×2 走查覆盖。"
     }
   ],
   "recurrence": {
@@ -98,10 +104,12 @@
     ]
   },
   "regression_tests": [
-    "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlowVisualContract.test.ts"
+    "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlowVisualContract.test.ts",
+    "tests/ux/canvas-magnetic-handle.walk.mjs"
   ],
   "class_regression_tests": [
-    "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlowVisualContract.test.ts"
+    "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlowVisualContract.test.ts",
+    "tests/ux/canvas-magnetic-handle.walk.mjs"
   ],
   "legacy_paths": {
     "status": "removed",
@@ -122,7 +130,7 @@
   },
   "migration": "无数据迁移；保留 source-left/right、target-left/right ID 与侧边几何。",
   "residual_risks": [
-    "PR #653 开工等待45分钟超时；交付前核对批量组件合入并实测。"
+    "现有持久边适配器按相对位置选侧，任意远侧固定端口需要用户批准扩大边模型范围；当前走查证明相向侧与预览热区。"
   ],
   "invariant_owner_layer": {
     "layer": "src/workbench/generationCanvas/reactFlow",
