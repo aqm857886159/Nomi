@@ -103,6 +103,15 @@ export async function listAvailableModelsForAgent(): Promise<AgentModelEntry[]> 
   return orderByVendorPreference(buildAgentModelEntries(options.flat()), preference.orderedVendorKeys, (row) => row.vendor);
 }
 
+/** Shared model identity preference for storyboard drafts and materialization. */
+export function pickStoryboardDefaultModel(entries: readonly AgentModelEntry[], kind: 'image' | 'video'): AgentModelEntry | undefined {
+  const candidates = entries.filter(entry => entry.kind === kind)
+  const byName = (re: RegExp) => candidates.find(entry => re.test(`${entry.modelKey} ${entry.modelAlias ?? ''} ${entry.label}`))
+  return kind === 'image'
+    ? byName(/gpt[\s-]?image/i) ?? byName(/nano[\s-]?banana/i) ?? candidates[0]
+    : byName(/seedance/i) ?? candidates[0]
+}
+
 /**
  * 分镜方案落画布时给镜头/定妆卡选的默认图片模型 + 两个模式（用户拍板 2026-06-15：image-first）。
  * 通用解析（不硬编码 vendor 目录，P4）：偏好 GPT Image → Nano Banana → 第一个可用图片模型
@@ -121,11 +130,8 @@ export async function resolveStoryboardImageDefault(): Promise<{ modelKey?: stri
   } catch {
     return {}
   }
-  const images = entries.filter((entry) => entry.kind === 'image')
-  if (images.length === 0) return {}
-  const byName = (re: RegExp) =>
-    images.find((entry) => re.test(`${entry.modelKey} ${entry.modelAlias ?? ''} ${entry.label}`))
-  const prefer = byName(/gpt[\s-]?image/i) ?? byName(/nano[\s-]?banana/i) ?? images[0]
+  const prefer = pickStoryboardDefaultModel(entries, 'image')
+  if (!prefer) return {}
   const plainMode = prefer.modes.find((m) => m.modeId === prefer.defaultModeId) ?? prefer.modes[0]
   const refMode = prefer.modes.find((m) => m.slots.some((s) => s.kind === 'image_ref'))
   return {
@@ -150,11 +156,8 @@ export async function resolveStoryboardVideoDefault(): Promise<{ modelKey?: stri
   } catch {
     return {}
   }
-  const videos = entries.filter((entry) => entry.kind === 'video')
-  if (videos.length === 0) return {}
-  const byName = (re: RegExp) =>
-    videos.find((entry) => re.test(`${entry.modelKey} ${entry.modelAlias ?? ''} ${entry.label}`))
-  const prefer = byName(/seedance/i) ?? videos[0]
+  const prefer = pickStoryboardDefaultModel(entries, 'video')
+  if (!prefer) return {}
   const refMode = prefer.modes.find((m) => m.slots.some((s) => s.kind === 'image_ref' || s.kind === 'first_frame'))
   const mode = refMode ?? prefer.modes.find((m) => m.modeId === prefer.defaultModeId) ?? prefer.modes[0]
   return {

@@ -1,0 +1,97 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-10-agent-process-thinking-rows",
+  "problem_type": "Repeated reasoning rows in process projection",
+  "symptom": "Five reasoning disclosures interleaved with four tool receipts",
+  "direct_cause": "Each thinking item is appended then sorted back to its original receipt-level index",
+  "class_root": "No per-process cardinality and lifecycle invariant for reasoning disclosures",
+  "affected_population": [
+    "Live lane streams",
+    "Restored lane transcripts",
+    "Design lab flows"
+  ],
+  "scope_paths": [
+    "src/workbench/ai/v4/agentPanelV4Collapse.ts"
+  ],
+  "entry_points": [
+    "laneViewModel -> useAgentPanelV4Data -> collapseV4Flow",
+    "b2cFormFixtures -> collapseV4Flow"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "User-specified Nomi presentation invariant; upstream evidence is recorded in the C77 plan.",
+  "invariants": [
+    "A running process has no thinking child rows; a settled process has at most one, before all tools, with full ordered text."
+  ],
+  "generality_proof": "All tool-bearing stretches use this shared projection, independent of provider, history source or number of reasoning parts.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/ai/v4/agentPanelV4Collapse.ts",
+      "symbol": "collapseV4Flow",
+      "responsibility": "Normalize process children and retain receipt identity"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/ai/v4/useAgentPanelV4Data.ts",
+      "entry_point": "flow memo",
+      "disposition": "enforced",
+      "evidence": "Calls collapseV4Flow for live and restored laneViewModel items."
+    },
+    {
+      "path": "src/devlab/designLab/v4/b2cFormFixtures.tsx",
+      "entry_point": "B2cProcessSpecimen",
+      "disposition": "enforced",
+      "evidence": "Calls collapseV4Flow with explicit turn timing."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every multi-step reasoning/tool turn can reproduce the same rows.",
+    "same_class_scan": [
+      "rg collapseV4Flow src: useAgentPanelV4Data and b2cFormFixtures",
+      "rg thinking src/workbench/ai/lane/laneViewModel.ts: live/restored thinking mapping",
+      "AgentPanelV4Panel recursively renders every process detail via V4FlowRow"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/ai/v4/agentPanelV4Collapse.ts",
+    "invariant": "No live thinking children; at most one settled disclosure before tools.",
+    "failure_mode": "Intermediate reasoning parts cannot escape as separate child rows.",
+    "exception_policy": "none",
+    "strategy": "Replace per-part projection and source-position sorting with ordered tools and one merged thought.",
+    "artifacts": [
+      "src/workbench/ai/v4/agentPanelV4Collapse.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/ai/v4/agentPanelV4Collapse.test.ts",
+    "tests/ux/agent-thinking-rows.walk.mjs"
+  ],
+  "class_regression_tests": [
+    "src/workbench/ai/v4/agentPanelV4Collapse.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/ai/v4/agentPanelV4Collapse.ts"
+    ],
+    "rationale": "Remove append-every-thinking and re-interleave sort behavior."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Internal pure UI projection; no SDK version changes required.",
+    "exit_criteria": []
+  },
+  "migration": "Derived view only; persisted thinking and tools remain unchanged.",
+  "residual_risks": [
+    "Real-provider latency is outside this deterministic loopback UI verification."
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/ai/v4/agentPanelV4Collapse.ts",
+    "tests": [
+      "src/workbench/ai/v4/agentPanelV4Collapse.test.ts"
+    ],
+    "why": "Shared process projection owns lifecycle and child cardinality."
+  }
+}

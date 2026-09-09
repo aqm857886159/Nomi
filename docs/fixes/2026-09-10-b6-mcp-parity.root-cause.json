@@ -1,0 +1,163 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-10-b6-mcp-parity",
+  "problem_type": "Parallel transport schema and authentication error boundaries",
+  "symptom": "External clients receive incomplete lane schemas or inconsistent verified-client denial",
+  "direct_cause": "Handwritten MCP field tables drift; stdio authenticates at startup while launcher authenticates on invoke; RPC drops typed code",
+  "class_root": "Published semantics and verified-client refusal lack a shared enforcement boundary",
+  "affected_population": [
+    "Claude Code and WorkBuddy stdio clients",
+    "Electron direct and packaged loopback MCP transports"
+  ],
+  "scope_paths": [
+    "electron/capabilityCore/mcpCapabilityProjection.ts",
+    "electron/capabilityCore/mcpProtocol.ts",
+    "electron/capabilityCore/mcpStdioServer.ts",
+    "electron/capabilityCore/rpcServer.ts",
+    "electron/capabilityCore/rpcError.ts",
+    "electron/capabilityCore/mcpToolErrorResults.ts",
+    "electron/capabilityCore/mcpToolCatalog.ts",
+    "electron/capabilityCore/mcpGenerationToolCatalog.ts",
+    "electron/capabilityCore/mcpIntegrationTools.ts",
+    "electron/capabilityCore/mcpIntegrationManagementTools.ts",
+    "electron/capabilityCore/mcpProjectSessionTool.ts",
+    "electron/shared/agentCapabilities/canvasModelShapes.ts",
+    "electron/capabilityCore/mcpArgValidation.ts",
+    "package.json",
+    "pnpm-lock.yaml",
+    "electron/capabilityCore/mcpTransportSchemaFromZod.ts"
+  ],
+  "entry_points": [
+    "tools/list and tools/call",
+    "initialize, resources and prompts requests",
+    "loopback connection attestation"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://modelcontextprotocol.io/specification/2025-11-25/server/tools",
+      "checked_at": "2026-09-10",
+      "purpose": "Object schema and tool execution error envelope"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://ajv.js.org/json-schema.html",
+      "checked_at": "2026-09-10",
+      "purpose": "Standard draft-07 recursive references, union types and schema-valued additionalProperties"
+    }
+  ],
+  "invariants": [
+    "External semantic schemas derive from the same descriptors consumed by laneToolCatalog",
+    "Invalid client proof is rejected before catalog or domain invocation with stable code"
+  ],
+  "generality_proof": "All MCP requests converge at createMcpProtocol; direct stdio defers identity minting to that boundary; loopback preserves its typed refusal. Composite schemas read the shared lane descriptors.",
+  "shared_boundaries": [
+    {
+      "path": "electron/capabilityCore/mcpCapabilityProjection.ts",
+      "symbol": "MCP_CAPABILITY_RESOLVER",
+      "responsibility": "Publish shared semantic schema inside domain transport envelope"
+    },
+    {
+      "path": "electron/capabilityCore/mcpProtocol.ts",
+      "symbol": "createMcpProtocol",
+      "responsibility": "Reject invalid verified-client claims before protocol/domain work"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/capabilityCore/mcpStdioServer.ts",
+      "entry_point": "startMcpStdioServer",
+      "disposition": "enforced",
+      "evidence": "Uses createMcpProtocol and lazy verified session"
+    },
+    {
+      "path": "electron/capabilityCore/mcpNodeLauncher.ts",
+      "entry_point": "protocol",
+      "disposition": "enforced",
+      "evidence": "Uses the same createMcpProtocol callback and verified connection factory"
+    },
+    {
+      "path": "electron/capabilityCore/rpcServer.ts",
+      "entry_point": "bindMcpConnectionContext catch",
+      "disposition": "enforced",
+      "evidence": "Retains mcp_connection_unauthenticated over loopback"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Another host or new schema constraint repeats the drift",
+    "same_class_scan": [
+      "rg mcpProfileTools / modelFacingToolSpecs / LANE_DEFERRED_TOOL_CATALOG",
+      "rg getAuthenticatedClient / createMcpConnectionContext / bindMcpConnectionContext"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/capabilityCore/mcpProtocol.ts",
+    "invariant": "Verification occurs before MCP request handling and typed code survives both transports",
+    "failure_mode": "JSON-RPC -32001 data.code=mcp_connection_unauthenticated before any domain invocation",
+    "exception_policy": "none",
+    "strategy": "Shared protocol preflight plus same-source schema projection",
+    "artifacts": [
+      "electron/capabilityCore/mcpCapabilityProjection.ts",
+      "electron/capabilityCore/mcpProtocol.ts",
+      "electron/capabilityCore/mcpStdioServer.ts",
+      "electron/capabilityCore/rpcServer.ts",
+      "electron/capabilityCore/rpcError.ts",
+      "electron/capabilityCore/mcpToolErrorResults.ts",
+      "electron/capabilityCore/mcpToolCatalog.ts",
+      "electron/capabilityCore/mcpGenerationToolCatalog.ts",
+      "electron/capabilityCore/mcpIntegrationTools.ts",
+      "electron/capabilityCore/mcpIntegrationManagementTools.ts",
+      "electron/capabilityCore/mcpProjectSessionTool.ts",
+      "electron/shared/agentCapabilities/canvasModelShapes.ts",
+      "electron/capabilityCore/mcpArgValidation.ts",
+      "package.json",
+      "pnpm-lock.yaml",
+      "electron/capabilityCore/mcpTransportSchemaFromZod.ts"
+    ]
+  },
+  "regression_tests": [
+    "tests/ux/mcp-l1-handshake.e2e.mjs",
+    "electron/capabilityCore/mcpParity.test.ts",
+    "electron/capabilityCore/mcpGenerationParity.test.ts",
+    "electron/capabilityCore/rpcServer.test.ts",
+    "electron/capabilityCore/mcpArgValidation.test.ts",
+    "electron/capabilityCore/mcpTransportSchemaFromZod.test.ts"
+  ],
+  "class_regression_tests": [
+    "tests/ux/mcp-l1-handshake.e2e.mjs",
+    "electron/capabilityCore/mcpParity.test.ts",
+    "electron/capabilityCore/mcpGenerationParity.test.ts",
+    "electron/capabilityCore/rpcServer.test.ts",
+    "electron/capabilityCore/mcpArgValidation.test.ts",
+    "electron/capabilityCore/mcpTransportSchemaFromZod.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/capabilityCore/mcpCapabilityProjection.ts",
+      "electron/capabilityCore/mcpStdioServer.ts"
+    ],
+    "rationale": "Delete hand-copied schema tables and eager process-exit authentication"
+  },
+  "dependency_lifecycle": {
+    "decision": "upgrade-now",
+    "rationale": "Promote existing transitive Ajv 8.20.0 to direct runtime dependency and replace the handwritten JSON Schema interpreter; retain shared Zod publication with recursive references.",
+    "exit_criteria": [
+      "All published MCP schemas compile and validate through Ajv without mutation or unresolved references."
+    ],
+    "current": "Handwritten MCP subset validator; Ajv 8.20.0 transitive only",
+    "target": "Ajv 8.20.0 direct runtime dependency with unchanged schema inputs"
+  },
+  "migration": "Published MCP names/actions retained; no persisted data migration",
+  "residual_risks": [
+    "Real third-party client UI behavior and packaged process still require verification"
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/capabilityCore",
+    "tests": [
+      "electron/capabilityCore/mcpParity.test.ts"
+    ]
+  }
+}

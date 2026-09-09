@@ -1,0 +1,14 @@
+{
+  "mode": "official-single-shot-planning",
+  "scope": "Real runStoryboardPlanner -> pi singleShot; then real propose_storyboard_plan write. Not a resident multi-tool turn; no native lane JSONL is expected.",
+  "budgetCny": 1,
+  "outputDir": "/Users/aoqimin/Desktop/Nomi-anchor-real/.tmp/anchor-real-official-02",
+  "paidCalls": 1,
+  "mediaCalls": 0,
+  "result": "failed",
+  "platform": "darwin arm64",
+  "projectRoot": "/Users/aoqimin/Desktop/Nomi-anchor-real/.tmp/anchor-real-official-02/profile/projects/未命名项目 09_10 03_07-mtuh0inb-cedb15ed",
+  "error": "page.evaluate: Error: 第 1 镜的参考槽无法容纳角色图或缺少必填输入。请调整参考或模型后重试。\n    at http://127.0.0.1:5173/src/workbench/generationCanvas/agent/storyboardAnchorPolicy.ts:96:11\n    at Array.map (<anonymous>)\n    at normalizeStoryboardAnchorDefaults (http://127.0.0.1:5173/src/workbench/generationCanvas/agent/storyboardAnchorPolicy.ts:41:28)\n    at runStoryboardPlanner (http://127.0.0.1:5173/src/workbench/generationCanvas/agent/runStoryboardPlanner.ts:39:16)\n    at async eval (eval at evaluate (:302:30), <anonymous>:11:16)\n    at async <anonymous>:328:30\n    at run (/Users/aoqimin/Desktop/Nomi-anchor-real/tests/ux/anchor-real-planner.mjs:206:30)\n    at async file:///Users/aoqimin/Desktop/Nomi-anchor-real/tests/ux/anchor-real-planner.mjs:277:120",
+  "costCny": 0.272682256,
+  "usageVerified": true
+}

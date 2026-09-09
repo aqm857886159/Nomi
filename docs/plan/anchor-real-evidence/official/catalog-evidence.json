@@ -1,0 +1,386 @@
+{
+  "profile": {
+    "id": "minimax-h3-apimart",
+    "family": "minimax",
+    "label": "MiniMax H3",
+    "kind": "video",
+    "sources": [
+      {
+        "url": "https://platform.minimax.io/docs/guides/video-generation",
+        "checkedAt": "2026-09-08",
+        "covers": "Mixed input is capped at 12 files in total"
+      },
+      {
+        "url": "https://docs.apimart.ai/cn/api-reference/videos/minimax-h3/generation",
+        "checkedAt": "2026-08-11",
+        "vendorKey": "apimart",
+        "covers": "MiniMax-H3 文生/首帧/首尾帧/多模态参考的 POST /v1/videos/generations 参数与异步任务契约"
+      }
+    ],
+    "defaultModeId": "t2v",
+    "transportTaskKind": "text_to_video",
+    "identifierPatterns": [
+      "MiniMax-H3"
+    ],
+    "modes": [
+      {
+        "id": "t2v",
+        "intent": "text",
+        "vendorTerm": "文生视频",
+        "hint": "纯文字生成视频，2K / 768P，4–15 秒",
+        "promptRequired": true,
+        "transportTaskKind": "text_to_video",
+        "slots": [],
+        "params": [
+          {
+            "key": "resolution",
+            "label": "清晰度",
+            "type": "select",
+            "options": [
+              {
+                "value": "2K",
+                "label": "2K"
+              },
+              {
+                "value": "768P",
+                "label": "768P"
+              }
+            ],
+            "defaultValue": "2K"
+          },
+          {
+            "key": "aspect_ratio",
+            "label": "比例",
+            "type": "select",
+            "options": [
+              {
+                "value": "21:9",
+                "label": "21:9"
+              },
+              {
+                "value": "16:9",
+                "label": "16:9"
+              },
+              {
+                "value": "4:3",
+                "label": "4:3"
+              },
+              {
+                "value": "1:1",
+                "label": "1:1"
+              },
+              {
+                "value": "3:4",
+                "label": "3:4"
+              },
+              {
+                "value": "9:16",
+                "label": "9:16"
+              }
+            ],
+            "defaultValue": "16:9"
+          },
+          {
+            "key": "duration",
+            "label": "时长(秒)",
+            "type": "number",
+            "options": [],
+            "min": 4,
+            "max": 15,
+            "defaultValue": 5
+          },
+          {
+            "key": "watermark",
+            "label": "添加水印",
+            "type": "boolean",
+            "options": [],
+            "defaultValue": false
+          },
+          {
+            "key": "webhook",
+            "label": "Webhook",
+            "type": "text",
+            "options": [],
+            "placeholder": "可选"
+          }
+        ]
+      },
+      {
+        "id": "first",
+        "intent": "single",
+        "vendorTerm": "首帧",
+        "hint": "首帧图驱动，可选尾帧",
+        "promptRequired": true,
+        "transportTaskKind": "image_to_video",
+        "slots": [
+          {
+            "kind": "first_frame",
+            "label": "首帧",
+            "min": 1,
+            "max": 1,
+            "inputKey": "first_frame_image"
+          },
+          {
+            "kind": "last_frame",
+            "label": "尾帧",
+            "min": 0,
+            "max": 1,
+            "inputKey": "last_frame_image"
+          }
+        ],
+        "params": [
+          {
+            "key": "resolution",
+            "label": "清晰度",
+            "type": "select",
+            "options": [
+              {
+                "value": "2K",
+                "label": "2K"
+              },
+              {
+                "value": "768P",
+                "label": "768P"
+              }
+            ],
+            "defaultValue": "2K"
+          },
+          {
+            "key": "duration",
+            "label": "时长(秒)",
+            "type": "number",
+            "options": [],
+            "min": 4,
+            "max": 15,
+            "defaultValue": 5
+          },
+          {
+            "key": "watermark",
+            "label": "添加水印",
+            "type": "boolean",
+            "options": [],
+            "defaultValue": false
+          },
+          {
+            "key": "webhook",
+            "label": "Webhook",
+            "type": "text",
+            "options": [],
+            "placeholder": "可选"
+          }
+        ]
+      },
+      {
+        "id": "firstlast",
+        "intent": "firstlast",
+        "vendorTerm": "首尾帧",
+        "hint": "首帧 + 尾帧，比例随输入图片",
+        "promptRequired": true,
+        "transportTaskKind": "image_to_video",
+        "slots": [
+          {
+            "kind": "first_frame",
+            "label": "首帧",
+            "min": 1,
+            "max": 1,
+            "inputKey": "first_frame_image"
+          },
+          {
+            "kind": "last_frame",
+            "label": "尾帧",
+            "min": 1,
+            "max": 1,
+            "inputKey": "last_frame_image"
+          }
+        ],
+        "params": [
+          {
+            "key": "resolution",
+            "label": "清晰度",
+            "type": "select",
+            "options": [
+              {
+                "value": "2K",
+                "label": "2K"
+              },
+              {
+                "value": "768P",
+                "label": "768P"
+              }
+            ],
+            "defaultValue": "2K"
+          },
+          {
+            "key": "duration",
+            "label": "时长(秒)",
+            "type": "number",
+            "options": [],
+            "min": 4,
+            "max": 15,
+            "defaultValue": 5
+          },
+          {
+            "key": "watermark",
+            "label": "添加水印",
+            "type": "boolean",
+            "options": [],
+            "defaultValue": false
+          },
+          {
+            "key": "webhook",
+            "label": "Webhook",
+            "type": "text",
+            "options": [],
+            "placeholder": "可选"
+          }
+        ]
+      },
+      {
+        "id": "ref",
+        "maxTotalReferences": 12,
+        "intent": "character",
+        "vendorTerm": "多模态参考",
+        "hint": "参考图 / 视频 / 音频；音频不能单独输入",
+        "promptRequired": true,
+        "transportTaskKind": "image_to_video",
+        "slots": [
+          {
+            "kind": "image_ref",
+            "label": "参考图",
+            "min": 0,
+            "max": 9,
+            "characterIndexed": true,
+            "inputKey": "image_urls"
+          },
+          {
+            "kind": "video_ref",
+            "label": "参考视频",
+            "min": 0,
+            "max": 3,
+            "inputKey": "video_urls"
+          },
+          {
+            "kind": "audio_ref",
+            "label": "参考音频",
+            "min": 0,
+            "max": 3,
+            "inputKey": "audio_urls"
+          }
+        ],
+        "params": [
+          {
+            "key": "resolution",
+            "label": "清晰度",
+            "type": "select",
+            "options": [
+              {
+                "value": "2K",
+                "label": "2K"
+              },
+              {
+                "value": "768P",
+                "label": "768P"
+              }
+            ],
+            "defaultValue": "2K"
+          },
+          {
+            "key": "aspect_ratio",
+            "label": "比例",
+            "type": "select",
+            "options": [
+              {
+                "value": "adaptive",
+                "label": "adaptive"
+              },
+              {
+                "value": "21:9",
+                "label": "21:9"
+              },
+              {
+                "value": "16:9",
+                "label": "16:9"
+              },
+              {
+                "value": "4:3",
+                "label": "4:3"
+              },
+              {
+                "value": "1:1",
+                "label": "1:1"
+              },
+              {
+                "value": "3:4",
+                "label": "3:4"
+              },
+              {
+                "value": "9:16",
+                "label": "9:16"
+              }
+            ],
+            "defaultValue": "adaptive"
+          },
+          {
+            "key": "duration",
+            "label": "时长(秒)",
+            "type": "number",
+            "options": [],
+            "min": 4,
+            "max": 15,
+            "defaultValue": 5
+          },
+          {
+            "key": "watermark",
+            "label": "添加水印",
+            "type": "boolean",
+            "options": [],
+            "defaultValue": false
+          },
+          {
+            "key": "webhook",
+            "label": "Webhook",
+            "type": "text",
+            "options": [],
+            "placeholder": "可选"
+          }
+        ]
+      }
+    ]
+  },
+  "models": [
+    {
+      "modelKey": "MiniMax-H3",
+      "vendorKey": "apimart",
+      "labelZh": "MiniMax H3",
+      "kind": "video",
+      "enabled": true,
+      "meta": {
+        "archetypeId": "minimax-h3-apimart",
+        "catalogLifecycle": "flagship"
+      },
+      "createdAt": "2026-09-09T19:07:39.586Z",
+      "updatedAt": "2026-09-09T19:07:39.586Z"
+    },
+    {
+      "vendorKey": "deepseek-official",
+      "modelKey": "deepseek-v4-pro",
+      "labelZh": "deepseek-v4-pro",
+      "kind": "text",
+      "enabled": true,
+      "published": true,
+      "tokenPricing": {
+        "inputPerMTokUsd": 1.32,
+        "outputPerMTokUsd": 3.96,
+        "cacheReadPerMTokUsd": 0.044
+      },
+      "createdAt": "2026-09-09T19:07:39.586Z",
+      "updatedAt": "2026-09-09T19:07:39.586Z"
+    }
+  ],
+  "mappingTaskKinds": [
+    "text_to_video",
+    "image_to_video"
+  ],
+  "source": "production applyBuiltinSeeds; no user catalog read",
+  "mediaCredential": "synthetic; all media dispatch refused"
+}

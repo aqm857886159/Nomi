@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -9,6 +9,8 @@ import { SKILL_PACKAGE_VERSION } from "./skillPackage";
 import {
   discoverSkillRecordsFromRoots,
   findSkillRecord,
+  listSkillSummariesForMcp,
+  readSkillContentForMcp,
   isSkillSelectableInWorkbench,
   normalizeSkillLookupKey,
   type SkillRecord,
@@ -125,5 +127,31 @@ describe("discoverSkillRecordsFromRoots", () => {
     } finally {
       await rm(root, { recursive: true, force: true });
     }
+  });
+});
+
+
+describe('MCP complete skill content', () => {
+  it('keeps references discoverable and hash-bound, with visibility and path checks', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'nomi-mcp-content-'));
+    const skillDir = join(root, 'complete');
+    await mkdir(join(skillDir, 'references'), { recursive: true });
+    await writeFile(join(skillDir, 'SKILL.md'), '---\nname: complete\ndescription: Complete package\n---\nRead references/full.md.');
+    await writeFile(join(skillDir, 'references/full.md'), 'Full reference body.');
+    await writeFile(join(root, 'outside.md'), 'Outside package.');
+    await symlink(join(root, 'outside.md'), join(skillDir, 'references/escape.md'));
+    try {
+      const records = discoverSkillRecordsFromRoots([{ path: root, origin: 'user' }]).records;
+      const identity = { packageVersion: records[0].packageVersion, contentHash: records[0].contentHash };
+      expect(listSkillSummariesForMcp('local-authenticated', records)[0]).toMatchObject({ filePaths: ['SKILL.md', 'references/full.md'] });
+      expect(readSkillContentForMcp('complete', 'local-authenticated', records, identity, 'references/full.md')?.body).toBe('Full reference body.');
+      expect(listSkillSummariesForMcp('public', records)).toEqual([]);
+      expect(readSkillContentForMcp('complete', 'public', records, identity, 'references/full.md')).toBeNull();
+      expect(readSkillContentForMcp('complete', 'local-authenticated', records, identity, 'references/escape.md')).toBeNull();
+      expect(readSkillContentForMcp('complete', 'local-authenticated', records, identity, '../SKILL.md')).toBeNull();
+      expect(readSkillContentForMcp('complete', 'local-authenticated', records, identity, 'references/missing.md')).toBeNull();
+      await writeFile(join(skillDir, 'references/full.md'), 'Changed reference.');
+      expect(readSkillContentForMcp('complete', 'local-authenticated', records, identity, 'references/full.md')).toBeNull();
+    } finally { await rm(root, { recursive: true, force: true }); }
   });
 });

@@ -12,3 +12,6 @@ export const runLaneSingleShot: RunLaneSingleShot = async (options) =>
 
 export const migrateLaneLegacy: MigrateLaneLegacy = async (options) =>
   (await import('./laneLegacyMigration.mjs')).migrateLaneLegacy(options);
+
+export const openLaneTraceDirectory = async (projectDir: string, laneName?: string): Promise<string> =>
+  (await import('./laneSession.mjs')).openLaneTraceDirectory(projectDir, laneName);

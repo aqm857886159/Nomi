@@ -1,4 +1,5 @@
 import { z, type ZodTypeAny } from "zod";
+import { toPublishedJsonSchema } from "../shared/agentCapabilities/modelVisibleJsonSchema";
 
 import type { CapabilityContract } from "../shared/agentCapabilities/capabilityContract";
 import { CANVAS_READ_CAPABILITY } from "../shared/agentCapabilities/canvasRead";
@@ -204,55 +205,32 @@ function parseDerivedCall(
   };
 }
 
-// plan 直接用 timelineEditPlanSchema（不是 `z.object({}).passthrough()` 再在 parseCall 里二次 parse）：
-// 二次 parse 让 Zod 的错误路径相对于 plan（报 `planId` 而不是 `plan.planId`），宿主看不出该往哪儿填；
-// 而传输层把 plan 广播成一个不透明对象，planId/baseRevision/summary/operations 四个必填在 tools/list 上
-// 一个字都看不见 —— preview/apply 因此结构性不可构造（check:mcp-operation-constructible 现在会红）。
+/** Composite MCP tools retain their published operation/lease envelope, but every
+ * semantic field comes from the same descriptor consumed by laneToolCatalog.
+ * Fail at assembly if an owner disappears; never silently publish a loose schema.
+ */
+function laneModelSchema(name: string): z.AnyZodObject {
+  const schema = modelFacingToolSpecs("internal").find(spec => spec.name === name)?.schema;
+  if (!(schema instanceof z.ZodObject)) throw new Error(`Missing object model schema: ${name}`);
+  return schema;
+}
+
 const timelineEditMcpInput = z.discriminatedUnion("operation", [
   z.object({ ...leaseField, operation: z.literal("preview"), plan: timelineEditPlanSchema }).strict(),
   z.object({ ...leaseField, operation: z.literal("apply"), plan: timelineEditPlanSchema }).strict(),
-  z.object({ ...leaseField, operation: z.literal("undo"), undoToken: z.string().trim().min(1), expectedRevision: z.string().trim().min(1), reason: z.string().trim().max(300).optional() }).strict(),
+  laneModelSchema("undo_timeline_edit").extend({ ...leaseField, operation: z.literal("undo") }).strict(),
 ]);
-const exportJobMcpInput = z.object({ ...leaseField, operation: z.enum(["status", "verify"]), jobId: z.string().trim().min(1) }).strict();
-
-// Keep the broadcast schema compact while the Zod schema above remains the
-// strict execution boundary. This makes all valid operation kinds discoverable
-// without repeating every branch's conditional requirements in tools/list.
-const timelineEditTransportSchema = immutableSchemaSnapshot({
-  type: "object",
-  properties: {
-    leaseHandle: { type: "string" }, projectId: { type: "string" },
-    operation: { type: "string", enum: ["preview", "apply", "undo"] },
-    plan: {
-      type: "object", additionalProperties: false,
-      properties: {
-        planId: { type: "string" }, baseRevision: { type: "string" }, summary: { type: "string" },
-        operations: { type: "array", minItems: 1, maxItems: 128, items: {
-          type: "object", additionalProperties: false,
-          properties: {
-            kind: { type: "string", enum: ["move", "remove", "split", "trim", "source-window", "ripple", "transition", "text", "clip-audio"] },
-            action: { type: "string", enum: ["set", "remove", "add", "edit", "style", "time"] },
-            clipId: { type: "string" }, clipIds: { type: "array", items: { type: "string" } },
-            fromClipId: { type: "string" }, toClipId: { type: "string" }, targetTrackId: { type: "string" }, trackId: { type: "string" },
-            startFrame: { type: "integer", minimum: 0 }, endFrame: { type: "integer", minimum: 0 }, atFrame: { type: "integer", minimum: 0 }, deltaFrame: { type: "integer" },
-            sourceStartFrame: { type: "integer", minimum: 0 }, sourceEndFrame: { type: "integer", minimum: 0 }, rightClipId: { type: "string", minLength: 1 },
-            type: { type: "string", enum: ["cut", "dissolve", "fade", "match_cut", "whip_pan"] }, durationFrames: { type: "integer", minimum: 1 },
-            id: { type: "string" }, sourceNodeId: { type: "string" }, text: { type: "string" }, style: { type: "string", enum: ["caption", "title"] },
-            audio: { type: "object", additionalProperties: false, properties: { gainDb: { type: "number" }, muted: { type: "boolean" }, fadeInFrames: { type: "integer", minimum: 0 }, fadeOutFrames: { type: "integer", minimum: 0 } } },
-            ripple: { type: "boolean" }, includeText: { type: "boolean" },
-          },
-        } },
-      },
-      required: ["planId", "baseRevision", "summary", "operations"],
-    },
-    undoToken: { type: "string" }, expectedRevision: { type: "string" }, reason: { type: "string" },
-  },
-  required: ["leaseHandle", "operation"], additionalProperties: false,
-});
-const exportJobTransportSchema = immutableSchemaSnapshot({
-  type: "object", properties: { leaseHandle: { type: "string", minLength: 1 }, projectId: { type: "string", minLength: 1 }, operation: { type: "string", enum: ["status", "verify"] }, jobId: { type: "string", minLength: 1 } },
-  required: ["leaseHandle", "operation", "jobId"], additionalProperties: false,
-});
+const exportJobMcpInput = laneModelSchema("inspect_export_job")
+  .extend({ ...leaseField, operation: z.enum(["status", "verify"]) }).strict();
+const timelineEditTransportSchema = immutableSchemaSnapshot(transportSchemaFromZod(timelineEditMcpInput, {
+  label: "timelineEdit",
+  // Keep JSON Schema numeric exclusive bounds (not OpenAPI boolean bounds).
+  extraProperties: { plan: (() => {
+    const { $schema: _dialect, ...schema } = toPublishedJsonSchema(laneModelSchema("apply_edit_plan"));
+    return schema;
+  })() },
+}));
+const exportJobTransportSchema = immutableSchemaSnapshot(transportSchemaFromZod(exportJobMcpInput, { label: "exportJob" }));
 
 export const TIMELINE_READ_MCP_ADAPTER: McpCapabilityAdapter = derivedAdapter(TIMELINE_READ_CAPABILITY, {
   authority: { kind: "project_session", requiredScope: "timeline:read" },
@@ -276,8 +254,9 @@ export const TIMELINE_EDIT_MCP_ADAPTER: McpCapabilityAdapter = Object.freeze({
         transport: { leaseHandle, ...(projectId ? { projectId } : {}), operation, plan },
       };
     }
+    const undo = input as Record<string, unknown>;
     return {
-      semanticInput: { operation: "undo_timeline_edit", undoToken: input.undoToken, expectedRevision: input.expectedRevision, ...(input.reason ? { reason: input.reason } : {}) },
+      semanticInput: { operation: "undo_timeline_edit", undoToken: undo.undoToken, expectedRevision: undo.expectedRevision, ...(undo.reason ? { reason: undo.reason } : {}) },
       transport: input,
     };
   },
@@ -389,16 +368,11 @@ export const CANVAS_EDIT_MCP_ADAPTER: McpCapabilityAdapter = derivedAdapter(CANV
   outputSchema: canvasWriteResultSchema,
 });
 
-const canvasMaintenanceTransportSchema = immutableSchemaSnapshot({
-  type: "object",
-  properties: {
-    leaseHandle: { type: "string", minLength: 1 }, projectId: { type: "string", minLength: 1 },
-    operation: { type: "string", enum: ["delete_canvas_nodes", "undo_canvas_delete"] },
-    nodeIds: { type: "array", maxItems: 24, items: { type: "string", minLength: 1 } },
-    reason: { type: "string", maxLength: 300 }, confirmation: { type: "boolean" }, undoToken: { type: "string", minLength: 1 },
-  },
-  required: ["leaseHandle", "operation"], additionalProperties: false,
-});
+const canvasMaintenanceMcpInput = laneModelSchema("delete_canvas_nodes").partial().extend({
+  ...leaseField, operation: z.enum(["delete_canvas_nodes", "undo_canvas_delete"]),
+  confirmation: z.boolean().optional(), undoToken: z.string().trim().min(1).optional(),
+}).strict();
+const canvasMaintenanceTransportSchema = immutableSchemaSnapshot(transportSchemaFromZod(canvasMaintenanceMcpInput, { label: "canvasMaintenance" }));
 export const CANVAS_MAINTENANCE_MCP_ADAPTER: McpCapabilityAdapter = Object.freeze({
   contract: CANVAS_DELETE_CAPABILITY,
   authority: Object.freeze({ kind: "project_session", requiredScope: CANVAS_DELETE_CAPABILITY.requiredScope }),
@@ -406,7 +380,7 @@ export const CANVAS_MAINTENANCE_MCP_ADAPTER: McpCapabilityAdapter = Object.freez
   transportInputSchema: canvasMaintenanceTransportSchema,
   outputSchema: canvasDeleteResultSchema,
   parseCall(args) {
-    const input = z.object({ ...leaseField, operation: z.enum(["delete_canvas_nodes", "undo_canvas_delete"]), nodeIds: z.array(z.string().trim().min(1)).min(1).max(24).optional(), reason: z.string().trim().max(300).optional(), confirmation: z.boolean().optional(), undoToken: z.string().trim().min(1).optional() }).strict().parse(args);
+    const input = canvasMaintenanceMcpInput.parse(args);
     const { leaseHandle, projectId, ...transport } = input;
     const semantic = input.operation === "delete_canvas_nodes"
       ? canvasDeleteSemanticInputSchema.parse({ operation: input.operation, nodeIds: input.nodeIds, ...(input.reason ? { reason: input.reason } : {}) })

@@ -3,7 +3,7 @@ import { collapseV4Flow } from './agentPanelV4Collapse'
 import type { V4FlowItem } from './agentPanelV4Types'
 const t = (key: string, values?: Record<string, unknown>) => `${key}:${JSON.stringify(values ?? {})}`
 const tool = (label: string, status: 'output-available' | 'output-error' | 'input-available' = 'output-available'): V4FlowItem => ({ kind: 'tool', receipt: { label, action: 'document', status, summary: status === 'output-error' ? '无法读取' : undefined } })
-const thinking: V4FlowItem = { kind: 'thinking', label: '思考', meta: '检查文稿' }
+const thinking: V4FlowItem = { kind: 'thinking', label: '思考', meta: '', text: '检查文稿', streaming: false }
 const answer: V4FlowItem = { kind: 'assistant', text: '已完成八个镜头。', status: 'complete' }
 describe('B2c process contract', () => {
   it('settles interleaved thinking and calls into one process, keeping an early answer below it', () => {
@@ -29,11 +29,11 @@ describe('B2c process contract', () => {
 })
 
 // Real invocation order is also the interaction index used for retry/undo handlers.
-it('preserves detail ordering and source indexes across interleaved thinking', () => {
+it('preserves tool ordering and action indexes with the C77 thinking disclosure first', () => {
   const result = collapseV4Flow([answer, tool('读取全文'), thinking, tool('写入 8 镜')], t)
   expect(result[0]).toMatchObject({ details: [
+    { index: 2, item: { kind: 'thinking', text: '检查文稿', streaming: false } },
     { index: 1, item: { kind: 'tool' } },
-    { index: 2, item: { kind: 'thinking' } },
     { index: 3, item: { kind: 'tool' } },
   ] })
 })

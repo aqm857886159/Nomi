@@ -9,15 +9,9 @@
 // 顺带损失的是 Zod 里写得最有价值的东西：plannedNodeSchema.prompt 的提示词撰写指南、
 // plannedEdgeSchema.mode 的参考槽语义 —— 一个字都没到宿主眼前。
 //
-// 为什么不能直接把 zodToJsonSchema 的输出广播出去：
-// 目录里那份 schema 同时是**运行时校验边界**（mcpArgValidation.ts），而那个校验器只认一个
-// 11 关键字的小子集，不实现 anyOf/oneOf。discriminated union 转出来正是 anyOf。
-// 所以这里做一次**确定性的并集展平**：把每个分支转成 JSON Schema，再按属性并集 / 必填交集
-// 合成一份扁平超集。分支内部的互斥必填仍由 Zod 在执行边界强制（fail-closed 不变），
-// 传输层只负责「让每个 operation 都构造得出来，且字段可见」。
-//
-// 「超集会不会放过坏参数」：不会放到执行层。传输层校验只是第一道过滤（早拒幻觉字段），
-// Zod 的 `.strict()` + discriminated union 仍是唯一权威边界；这里放宽的只是「传输层看不看得见这个字段」。
+// 领域 union 仍发布属性并集/必填交集，保留现有外部聚合工具的可构造形状；
+// 分支互斥必填由 canonical Zod 执行。传输层 JSON Schema 由 Ajv 执行。
+// 递归 generation schema 无需展平，直接走共享 toPublishedJsonSchema。
 import { zodToJsonSchema } from "zod-to-json-schema";
 
 import { JSON_TEXT_BRANCH_MARKER } from "../shared/agentCapabilities/jsonArgTolerance";
@@ -27,7 +21,7 @@ type JsonRecord = Record<string, unknown>;
 
 const convert = zodToJsonSchema as unknown as (schema: unknown, options: JsonRecord) => unknown;
 
-/** anyOf/oneOf/allOf 之外的组合关键字一律丢弃：校验器不认，留着只会让结构门报红。 */
+/** The existing aggregate profile flattens alternative operation branches. */
 const UNION_KEYS = ["anyOf", "oneOf"] as const;
 
 function isRecord(value: unknown): value is JsonRecord {
@@ -40,7 +34,7 @@ function branchesOf(node: JsonRecord): JsonRecord[] | null {
     if (!Array.isArray(value) || value.length === 0) continue;
     const branches = value.filter(isRecord);
     // `jsonTolerantArray` 给的「同一个数组的 JSON 文本」那一支**不进传输层**。
-    // 这个校验器不实现 anyOf，扁平化会把「数组 ∪ 字符串」并成一个没有 `type`、
+    // 本聚合投影的扁平化会把「数组 ∪ 字符串」并成一个没有 `type`、
     // 描述被拼成两段的四不像——广播出去是一份「像在校验其实没有」的 schema，
     // 而 `check:mcp-operation-constructible` 会照着它造出一个字符串样本当场红。
     // 丢掉它不削弱容错：执行边界仍是同一份 Zod，二次序列化的写法照样收得下，
@@ -125,7 +119,7 @@ function mergeSchema(left: JsonRecord, right: JsonRecord): JsonRecord {
   return merged;
 }
 
-/** 递归展平：union → 属性并集/必填交集；同时把校验器不认的关键字剔掉。 */
+/** Aggregate union → property superset/required intersection; preserve the published keyword profile. */
 function flatten(node: unknown): JsonRecord {
   if (!isRecord(node)) return {};
   const branches = branchesOf(node);
@@ -143,7 +137,8 @@ function flatten(node: unknown): JsonRecord {
 
   const out: JsonRecord = {};
   for (const [key, value] of Object.entries(node)) {
-    if (value === undefined) continue;
+    if (value === undefined || key === "$schema") continue;
+    if (key === "const") { out.enum = [value]; continue; }
     if (!SUPPORTED_SCHEMA_KEYWORDS.has(key)) continue; // format/nullable/discriminator… 校验器不认，丢
     if (key === "properties" && isRecord(value)) {
       const properties: JsonRecord = {};
@@ -156,7 +151,7 @@ function flatten(node: unknown): JsonRecord {
       continue;
     }
     if (key === "additionalProperties") {
-      // 只有 false 有校验含义；`{}`（z.record 的开放值）一律折成 true，免得结构门去递归一个空壳。
+      // Existing aggregate profile keeps open dictionaries; recursive typed generation uses the shared publisher directly.
       out.additionalProperties = value === false ? false : true;
       continue;
     }
@@ -181,7 +176,7 @@ export type TransportSchemaOptions = Readonly<{
 export function transportSchemaFromZod(schema: unknown, options: TransportSchemaOptions): SchemaLike {
   const converted = convert(schema, {
     $refStrategy: "none",
-    target: "openApi3",
+    target: "jsonSchema7",
     effectStrategy: "input",
     removeAdditionalStrategy: "strict",
   });

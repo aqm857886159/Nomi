@@ -1,0 +1,128 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-10-shot-inline-feedback",
+  "problem_type": "Generation lifecycle feedback loses queue and terminal identity at rendering boundaries",
+  "symptom": "Shot nodes and storyboard rows omit local queue/completion/failure feedback",
+  "direct_cause": "Node status filters terminal feedback, storyboard ignores queue store, cache uses shared progress identity",
+  "class_root": "All shot surfaces must derive feedback from the current node identity and actual scheduling owner",
+  "affected_population": [
+    "Image and video shots including keyframe-first generation",
+    "Queued reruns retaining previous results"
+  ],
+  "scope_paths": [
+    "src/workbench/observability/generationFeedback.ts",
+    "src/workbench/observability/useGenerationFeedback.ts",
+    "src/workbench/generationCanvas/nodes/NodeGenerationStatus.tsx",
+    "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx",
+    "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx",
+    "src/workbench/generationCanvas/components/LightweightGenerationNode.tsx",
+    "src/workbench/generationCanvas/nodes/NodeFloatingToolbar.tsx",
+    "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx"
+  ],
+  "entry_points": [
+    "Canvas node label",
+    "Storyboard shot row"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Internal node/queue identities and existing feedback component own this lifecycle; no dependency change.",
+  "invariants": [
+    "Feedback includes queued, active and terminal phases from their real owners",
+    "Sharing progress across immutable node updates cannot retain stale terminal feedback",
+    "No invented percentage, per-node clock, or success toast"
+  ],
+  "generality_proof": "Node and storyboard consume the same queue-aware hook and existing status atom; cache keys use complete immutable node identity.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/observability/generationFeedback.ts",
+      "symbol": "generationFeedback",
+      "responsibility": "Current immutable node lifecycle identity and narration"
+    },
+    {
+      "path": "src/workbench/observability/useGenerationFeedback.ts",
+      "symbol": "useGenerationFeedback",
+      "responsibility": "Queue and primary/keyframe selection with one shared clock"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeGenerationStatus.tsx",
+      "entry_point": "NodeGenerationStatus",
+      "disposition": "enforced",
+      "evidence": "Canvas uses existing status atom for all lifecycle phases"
+    },
+    {
+      "path": "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx",
+      "entry_point": "StoryboardShotRow",
+      "disposition": "enforced",
+      "evidence": "Row passes bound primary/keyframe nodes to the same feedback owner"
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/LightweightGenerationNode.tsx",
+      "entry_point": "LightweightGenerationNode",
+      "disposition": "enforced",
+      "evidence": "React Flow LOD depends on count/zoom/selection, not job activity. Lightweight nodes now consume NodeGenerationStatus, deleting the stale node.status-only text path."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every queued shot and subsequent immutable status update can reproduce this",
+    "same_class_scan": [
+      "rg NodeGenerationStatus useGenerationFeedback generationFeedback in src",
+      "Read storyboardRowStatus and generationQueueStore, including queued reruns and keyframe-first shots",
+      "Read GenerationCanvasReactFlowNodes.tsx and canvasNodeLevelOfDetail.ts: active nodes are not excluded from lightweight mode at >80 nodes/zoom<0.55 or retained multi-selection."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/observability/useGenerationFeedback.ts",
+    "invariant": "Queue-aware current node feedback is shared across node and row",
+    "failure_mode": "Idle or absent nodes emit no fabricated feedback; actual failures keep their cause",
+    "exception_policy": "none",
+    "strategy": "Consolidate host consumption and remove terminal filter and progress identity cache",
+    "artifacts": [
+      "src/workbench/observability/generationFeedback.ts",
+      "src/workbench/observability/useGenerationFeedback.ts",
+      "src/workbench/generationCanvas/nodes/NodeGenerationStatus.tsx",
+      "src/workbench/generationCanvas/components/LightweightGenerationNode.tsx"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/observability/generationFeedback.test.ts",
+    "src/workbench/generationCanvas/nodes/NodeGenerationStatus.test.ts",
+    "src/workbench/generationCanvas/components/LightweightGenerationNode.test.ts",
+    "tests/ux/shot-nodes-layout.e2e.mjs",
+    "tests/ux/shot-nodes-lifecycle.e2e.mjs",
+    "tests/ux/shot-nodes-layout.e2e.mjs"
+  ],
+  "class_regression_tests": [
+    "src/workbench/observability/generationFeedback.test.ts",
+    "src/workbench/generationCanvas/components/LightweightGenerationNode.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/observability/generationFeedback.ts",
+      "src/workbench/generationCanvas/nodes/NodeGenerationStatus.tsx",
+      "src/workbench/generationCanvas/components/LightweightGenerationNode.tsx"
+    ],
+    "rationale": "Remove progress-identity cache and active-only status filter; no parallel status component"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Existing React and Zustand APIs remain unchanged; invariant is application state ownership",
+    "exit_criteria": []
+  },
+  "migration": "No persisted data changes; derive from existing node and queue records.",
+  "residual_risks": [
+    "Existing production-run placeholder store remains its own renderer path; this correction covers node/queue-derived shots from the gate-r2 flow.",
+    "Screenshots include unrelated existing page feel findings; scoped status/toolbars/badges geometry is verified independently."
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/observability/useGenerationFeedback.ts",
+    "tests": [
+      "src/workbench/observability/generationFeedback.test.ts",
+      "src/workbench/generationCanvas/nodes/NodeGenerationStatus.test.ts"
+    ],
+    "note": "Queue-aware active/terminal selection shared by node and row"
+  }
+}

@@ -1,0 +1,201 @@
+{
+  "mode": "zero-network-replay-of-official-output",
+  "sourceDir": "/Users/aoqimin/Desktop/Nomi-anchor-real/.tmp/anchor-real-official-02",
+  "outputDir": "/Users/aoqimin/Desktop/Nomi-anchor-real/.tmp/anchor-real-official-02/replay-after-fix-4",
+  "projectRoot": "/Users/aoqimin/Desktop/Nomi-anchor-real/.tmp/anchor-real-official-02/profile/projects/未命名项目 09_10 03_07-mtuh0inb-cedb15ed",
+  "scope": "Original single official response, replayed through production parse + normalization + real propose_storyboard_plan write; no new model request.",
+  "originalPaidCalls": 1,
+  "originalCostCny": 0.272682256,
+  "paidCalls": 0,
+  "costCny": 0,
+  "result": "passed",
+  "raw": {
+    "total": 8,
+    "consuming": 8,
+    "bound": 0,
+    "rows": [
+      {
+        "index": 1,
+        "modeId": "ref",
+        "consumesReference": true,
+        "anchorBound": false,
+        "referencesAnchor": true
+      },
+      {
+        "index": 2,
+        "modeId": "ref",
+        "consumesReference": true,
+        "anchorBound": false,
+        "referencesAnchor": true
+      },
+      {
+        "index": 3,
+        "modeId": "ref",
+        "consumesReference": true,
+        "anchorBound": false,
+        "referencesAnchor": true
+      },
+      {
+        "index": 4,
+        "modeId": "ref",
+        "consumesReference": true,
+        "anchorBound": false,
+        "referencesAnchor": true
+      },
+      {
+        "index": 5,
+        "modeId": "ref",
+        "consumesReference": true,
+        "anchorBound": false,
+        "referencesAnchor": true
+      },
+      {
+        "index": 6,
+        "modeId": "ref",
+        "consumesReference": true,
+        "anchorBound": false,
+        "referencesAnchor": true
+      },
+      {
+        "index": 7,
+        "modeId": "ref",
+        "consumesReference": true,
+        "anchorBound": false,
+        "referencesAnchor": true
+      },
+      {
+        "index": 8,
+        "modeId": "ref",
+        "consumesReference": true,
+        "anchorBound": false,
+        "referencesAnchor": true
+      }
+    ]
+  },
+  "normalized": {
+    "total": 8,
+    "consuming": 8,
+    "bound": 8,
+    "rows": [
+      {
+        "index": 1,
+        "modeId": "ref",
+        "consumesReference": true,
+        "anchorBound": true,
+        "referencesAnchor": true
+      },
+      {
+        "index": 2,
+        "modeId": "ref",
+        "consumesReference": true,
+        "anchorBound": true,
+        "referencesAnchor": true
+      },
+      {
+        "index": 3,
+        "modeId": "ref",
+        "consumesReference": true,
+        "anchorBound": true,
+        "referencesAnchor": true
+      },
+      {
+        "index": 4,
+        "modeId": "ref",
+        "consumesReference": true,
+        "anchorBound": true,
+        "referencesAnchor": true
+      },
+      {
+        "index": 5,
+        "modeId": "ref",
+        "consumesReference": true,
+        "anchorBound": true,
+        "referencesAnchor": true
+      },
+      {
+        "index": 6,
+        "modeId": "ref",
+        "consumesReference": true,
+        "anchorBound": true,
+        "referencesAnchor": true
+      },
+      {
+        "index": 7,
+        "modeId": "ref",
+        "consumesReference": true,
+        "anchorBound": true,
+        "referencesAnchor": true
+      },
+      {
+        "index": 8,
+        "modeId": "ref",
+        "consumesReference": true,
+        "anchorBound": true,
+        "referencesAnchor": true
+      }
+    ]
+  },
+  "persisted": {
+    "total": 8,
+    "consuming": 8,
+    "bound": 8,
+    "rows": [
+      {
+        "index": 1,
+        "modeId": "ref",
+        "consumesReference": true,
+        "anchorBound": true,
+        "referencesAnchor": true
+      },
+      {
+        "index": 2,
+        "modeId": "ref",
+        "consumesReference": true,
+        "anchorBound": true,
+        "referencesAnchor": true
+      },
+      {
+        "index": 3,
+        "modeId": "ref",
+        "consumesReference": true,
+        "anchorBound": true,
+        "referencesAnchor": true
+      },
+      {
+        "index": 4,
+        "modeId": "ref",
+        "consumesReference": true,
+        "anchorBound": true,
+        "referencesAnchor": true
+      },
+      {
+        "index": 5,
+        "modeId": "ref",
+        "consumesReference": true,
+        "anchorBound": true,
+        "referencesAnchor": true
+      },
+      {
+        "index": 6,
+        "modeId": "ref",
+        "consumesReference": true,
+        "anchorBound": true,
+        "referencesAnchor": true
+      },
+      {
+        "index": 7,
+        "modeId": "ref",
+        "consumesReference": true,
+        "anchorBound": true,
+        "referencesAnchor": true
+      },
+      {
+        "index": 8,
+        "modeId": "ref",
+        "consumesReference": true,
+        "anchorBound": true,
+        "referencesAnchor": true
+      }
+    ]
+  }
+}

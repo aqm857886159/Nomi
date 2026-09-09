@@ -1,0 +1,20 @@
+{
+  "paidCalls": 0,
+  "supplier": "loopback; real UI/queue/store/materialization",
+  "screenshots": [
+    "after-queued-light.png",
+    "after-queued-dark.png",
+    "after-generating-light.png",
+    "after-generating-dark.png",
+    "after-complete-light.png",
+    "after-complete-dark.png",
+    "after-failed-light.png",
+    "after-failed-dark.png",
+    "after-retry-complete-light.png",
+    "after-retry-complete-dark.png"
+  ],
+  "checks": [
+    "Queued from actual concurrency=1 batch, first operation completes through real asset localization, next fails after vendor is disabled",
+    "Existing node retry/generate action completes after configuration recovery"
+  ]
+}

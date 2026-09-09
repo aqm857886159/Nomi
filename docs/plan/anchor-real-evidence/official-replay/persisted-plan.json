@@ -1,0 +1,231 @@
+{
+  "title": "出门散步",
+  "anchors": [
+    {
+      "id": "anchor-xiaohe",
+      "kind": "character",
+      "name": "小禾",
+      "description": "短黑发，绿色上衣，深色裤子",
+      "carrier": "visual",
+      "scope": "selective",
+      "referenceUrl": "nomi-local://asset/project-1788980860773-82rian/assets/imported/2026-09-09/anchor-xiaohe.png",
+      "referenceKind": "image"
+    }
+  ],
+  "shots": [
+    {
+      "index": 1,
+      "shotKind": "video",
+      "durationSec": 8,
+      "anchorIds": [
+        "anchor-xiaohe"
+      ],
+      "referenceBindings": {
+        "image_ref": [
+          {
+            "url": "nomi-local://asset/project-1788980860773-82rian/assets/imported/2026-09-09/anchor-xiaohe.png",
+            "name": "小禾",
+            "anchorId": "anchor-xiaohe"
+          }
+        ]
+      },
+      "prompt": "固定镜头置于住宅门内一侧，小禾从画面中央走向房门，伸手推开门扇，侧身迈出门槛，门外楼道的自然光透进门内，她的身形被门口亮部勾勒；动作自然流畅，全程约 8 秒。",
+      "modelKey": "MiniMax-H3",
+      "modelVendor": "apimart",
+      "modeId": "ref",
+      "params": {
+        "aspect_ratio": "16:9",
+        "resolution": "768P",
+        "duration": 8
+      }
+    },
+    {
+      "index": 2,
+      "shotKind": "video",
+      "durationSec": 8,
+      "anchorIds": [
+        "anchor-xiaohe"
+      ],
+      "referenceBindings": {
+        "image_ref": [
+          {
+            "url": "nomi-local://asset/project-1788980860773-82rian/assets/imported/2026-09-09/anchor-xiaohe.png",
+            "name": "小禾",
+            "anchorId": "anchor-xiaohe"
+          }
+        ]
+      },
+      "prompt": "镜头位于门外楼道，小禾站在房门前，反手握住门把，将门轻轻拉合；门合上后她在门前短暂停顿，目光看向下楼方向；画面平稳固定，无运镜。",
+      "modelKey": "MiniMax-H3",
+      "modelVendor": "apimart",
+      "modeId": "ref",
+      "params": {
+        "aspect_ratio": "16:9",
+        "resolution": "768P",
+        "duration": 8
+      }
+    },
+    {
+      "index": 3,
+      "shotKind": "video",
+      "durationSec": 8,
+      "anchorIds": [
+        "anchor-xiaohe"
+      ],
+      "referenceBindings": {
+        "image_ref": [
+          {
+            "url": "nomi-local://asset/project-1788980860773-82rian/assets/imported/2026-09-09/anchor-xiaohe.png",
+            "name": "小禾",
+            "anchorId": "anchor-xiaohe"
+          }
+        ]
+      },
+      "prompt": "镜头与小禾保持平行向下移动，小禾沿楼梯扶手一侧迈步下楼，步速平稳，从上半层走到下半层转角平台；镜头随她下降，俯视感逐渐转为平视。",
+      "modelKey": "MiniMax-H3",
+      "modelVendor": "apimart",
+      "modeId": "ref",
+      "params": {
+        "aspect_ratio": "16:9",
+        "resolution": "768P",
+        "duration": 8
+      }
+    },
+    {
+      "index": 4,
+      "shotKind": "video",
+      "durationSec": 8,
+      "anchorIds": [
+        "anchor-xiaohe"
+      ],
+      "referenceBindings": {
+        "image_ref": [
+          {
+            "url": "nomi-local://asset/project-1788980860773-82rian/assets/imported/2026-09-09/anchor-xiaohe.png",
+            "name": "小禾",
+            "anchorId": "anchor-xiaohe"
+          }
+        ]
+      },
+      "prompt": "镜头在街角对面平稳横摇，小禾沿人行道走近转角，在拐角处身体向一侧转动，绕进另一条路；镜头跟随她转向，视点保持在她前方偏侧，景别从中景转为全景。",
+      "modelKey": "MiniMax-H3",
+      "modelVendor": "apimart",
+      "modeId": "ref",
+      "params": {
+        "aspect_ratio": "16:9",
+        "resolution": "768P",
+        "duration": 8
+      }
+    },
+    {
+      "index": 5,
+      "shotKind": "video",
+      "durationSec": 8,
+      "anchorIds": [
+        "anchor-xiaohe"
+      ],
+      "referenceBindings": {
+        "image_ref": [
+          {
+            "url": "nomi-local://asset/project-1788980860773-82rian/assets/imported/2026-09-09/anchor-xiaohe.png",
+            "name": "小禾",
+            "anchorId": "anchor-xiaohe"
+          }
+        ]
+      },
+      "prompt": "镜头与小禾同向移动，她穿过成排行道树下方，树影间歇落在身上；她抬头看了一眼树冠，脚步略微放缓，随后继续向前；镜头从侧面跟随，前景偶尔有枝叶划过。",
+      "modelKey": "MiniMax-H3",
+      "modelVendor": "apimart",
+      "modeId": "ref",
+      "params": {
+        "aspect_ratio": "16:9",
+        "resolution": "768P",
+        "duration": 8
+      }
+    },
+    {
+      "index": 6,
+      "shotKind": "video",
+      "durationSec": 8,
+      "anchorIds": [
+        "anchor-xiaohe"
+      ],
+      "referenceBindings": {
+        "image_ref": [
+          {
+            "url": "nomi-local://asset/project-1788980860773-82rian/assets/imported/2026-09-09/anchor-xiaohe.png",
+            "name": "小禾",
+            "anchorId": "anchor-xiaohe"
+          }
+        ]
+      },
+      "prompt": "镜头从侧面缓慢推近，小禾走向长椅，转身坐下，背部靠向椅背，双手放在大腿上，目视前方，胸口随呼吸轻微起伏；镜头推至中近景后停住。",
+      "modelKey": "MiniMax-H3",
+      "modelVendor": "apimart",
+      "modeId": "ref",
+      "params": {
+        "aspect_ratio": "16:9",
+        "resolution": "768P",
+        "duration": 8
+      }
+    },
+    {
+      "index": 7,
+      "shotKind": "video",
+      "durationSec": 8,
+      "anchorIds": [
+        "anchor-xiaohe"
+      ],
+      "referenceBindings": {
+        "image_ref": [
+          {
+            "url": "nomi-local://asset/project-1788980860773-82rian/assets/imported/2026-09-09/anchor-xiaohe.png",
+            "name": "小禾",
+            "anchorId": "anchor-xiaohe"
+          }
+        ]
+      },
+      "prompt": "镜头从正面缓慢后退，小禾身体前倾，双手轻撑椅面，曲膝从长椅上站起，站直后轻轻舒展一下肩膀；镜头随她起身向后拉远，显出长椅全貌。",
+      "modelKey": "MiniMax-H3",
+      "modelVendor": "apimart",
+      "modeId": "ref",
+      "params": {
+        "aspect_ratio": "16:9",
+        "resolution": "768P",
+        "duration": 8
+      }
+    },
+    {
+      "index": 8,
+      "shotKind": "video",
+      "durationSec": 8,
+      "anchorIds": [
+        "anchor-xiaohe"
+      ],
+      "referenceBindings": {
+        "image_ref": [
+          {
+            "url": "nomi-local://asset/project-1788980860773-82rian/assets/imported/2026-09-09/anchor-xiaohe.png",
+            "name": "小禾",
+            "anchorId": "anchor-xiaohe"
+          }
+        ]
+      },
+      "prompt": "镜头停在住所门外，小禾沿原路从远处走近门前，伸手推开门扇，迈入门内；门在她身后慢慢合上，画面最后定格在紧闭的门板上。",
+      "modelKey": "MiniMax-H3",
+      "modelVendor": "apimart",
+      "modeId": "ref",
+      "params": {
+        "aspect_ratio": "16:9",
+        "resolution": "768P",
+        "duration": 8
+      }
+    }
+  ],
+  "profileKey": "genre.free-form",
+  "storyboardProfile": {
+    "aspect": "16:9",
+    "dialogue": false,
+    "promptSkeleton": []
+  }
+}

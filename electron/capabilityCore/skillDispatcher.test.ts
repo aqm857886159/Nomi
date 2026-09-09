@@ -22,12 +22,14 @@ describe("Skill dispatcher audience authority", () => {
       directoryName: "director-camera",
       packageVersion: "nomi-skill-v1",
       contentHash: "a".repeat(64),
+      filePath: "references/camera.md",
     }, {} as never);
     expect(readSkillContentForMcp).toHaveBeenCalledWith(
       "director-camera",
       "public",
       undefined,
       { packageVersion: "nomi-skill-v1", contentHash: "a".repeat(64) },
+      "references/camera.md",
     );
   });
 
@@ -35,6 +37,6 @@ describe("Skill dispatcher audience authority", () => {
     await dispatch("skills.list", {}, { origin: { host: "codex" } } as never);
     expect(listSkillSummariesForMcp).toHaveBeenCalledWith("local-authenticated");
     await dispatch("skills.read", { name: "private.skill" }, { origin: { host: "claude" } } as never);
-    expect(readSkillContentForMcp).toHaveBeenCalledWith("private.skill", "local-authenticated", undefined, undefined);
+    expect(readSkillContentForMcp).toHaveBeenCalledWith("private.skill", "local-authenticated", undefined, undefined, undefined);
   });
 });

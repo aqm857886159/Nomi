@@ -1,0 +1,222 @@
+{
+  "source": "/Users/aoqimin/Desktop/Nomi-merge-gate/tests/ux/shots/g1-c0-gate-r2/attempt-1UrYyt/review/native-session.jsonl",
+  "sha256": "4d2a2b30d1dc3a1828cabdbf246713005adbcd275fc73215bda1e0d4af3b495f",
+  "writes": [
+    {
+      "line": 9554,
+      "tool": "nomi_storyboard_write",
+      "arguments": {
+        "operation": "propose_storyboard_plan",
+        "title": "日落前的一分钟",
+        "anchors": [
+          {
+            "id": "anchor-1",
+            "kind": "character",
+            "name": "小禾",
+            "description": "二十出头的年轻女性创作者，素色衬衫配深色长裤，单肩背相机、斜挎相机包，神情专注安静；全片同一服装与造型，不换装。",
+            "carrier": "text"
+          },
+          {
+            "id": "anchor-2",
+            "kind": "character",
+            "name": "修鞋师傅",
+            "description": "修鞋摊老师傅，花白短发，系旧围裙，一双磨旧粗糙的手掌，动作沉稳细致。",
+            "carrier": "text"
+          },
+          {
+            "id": "anchor-3",
+            "kind": "character",
+            "name": "孩子",
+            "description": "修鞋摊前等待的孩子，约五六岁，穿简单童装，神情期待而安静。",
+            "carrier": "text"
+          },
+          {
+            "id": "anchor-4",
+            "kind": "scene",
+            "name": "河边旧街修鞋摊",
+            "description": "河边旧街的修鞋摊门面，旧木桌与修鞋工具，傍晚暖金色自然光，河面在远处。",
+            "carrier": "text"
+          },
+          {
+            "id": "anchor-5",
+            "kind": "scene",
+            "name": "河边长椅",
+            "description": "紧邻修鞋摊的河畔长椅，面向河面，傍晚夕阳斜照，水面泛暖光。",
+            "carrier": "text"
+          },
+          {
+            "id": "anchor-6",
+            "kind": "prop",
+            "name": "蓝布",
+            "description": "修鞋摊前迎风的深蓝色布，被风吹得轻轻鼓动起伏，是贯穿首尾的视觉线索。",
+            "carrier": "text"
+          },
+          {
+            "id": "anchor-7",
+            "kind": "style",
+            "name": "全片风格",
+            "description": "傍晚暖金色自然光，纪实安静、细腻温情的质感，横屏16:9，环境声无旁白。",
+            "carrier": "text",
+            "scope": "all"
+          }
+        ],
+        "shots": [
+          {
+            "index": 1,
+            "shotKind": "video",
+            "durationSec": 8,
+            "anchorIds": [
+              "anchor-1",
+              "anchor-4",
+              "anchor-7"
+            ],
+            "prompt": "镜头缓慢向前推进，小禾从旧街远处走近，单肩背相机、斜挎相机包，边走边抬头左右张望沿街旧店面与河面；8秒的舒缓行进，最后她在修鞋摊附近放慢脚步停下。",
+            "modelKey": "MiniMax-H3",
+            "modeId": "t2v",
+            "params": {
+              "resolution": "768P",
+              "aspect_ratio": "16:9",
+              "duration": 8
+            }
+          },
+          {
+            "index": 2,
+            "shotKind": "video",
+            "durationSec": 8,
+            "anchorIds": [
+              "anchor-1",
+              "anchor-4",
+              "anchor-7"
+            ],
+            "prompt": "固定机位，小禾双手举起相机贴近眼前，先向左再向右缓慢扫视，再缓缓放下相机，眉头微动、肩膀微微松下来；随她的视线，画面短暂横摇扫过空旷的旧街与河面，节奏平缓带一丝迟疑。",
+            "modelKey": "MiniMax-H3",
+            "modeId": "t2v",
+            "params": {
+              "resolution": "768P",
+              "aspect_ratio": "16:9",
+              "duration": 8
+            }
+          },
+          {
+            "index": 3,
+            "shotKind": "video",
+            "durationSec": 8,
+            "anchorIds": [
+              "anchor-1",
+              "anchor-2",
+              "anchor-4",
+              "anchor-6",
+              "anchor-7"
+            ],
+            "prompt": "镜头缓慢下移、贴近小禾的蹲姿视角，一阵风吹动摊前蓝布轻轻鼓动；随后特写切入师傅磨旧粗糙的手掌轻柔抚平一只小鞋，针线与皮面在暖光里清晰呈现，节奏安静专注。",
+            "modelKey": "MiniMax-H3",
+            "modeId": "t2v",
+            "params": {
+              "resolution": "768P",
+              "aspect_ratio": "16:9",
+              "duration": 8
+            }
+          },
+          {
+            "index": 4,
+            "shotKind": "video",
+            "durationSec": 8,
+            "anchorIds": [
+              "anchor-3",
+              "anchor-4",
+              "anchor-7"
+            ],
+            "prompt": "中景缓推至近景，孩子站在修鞋摊旁，双手搭着桌沿踮起脚尖，眼睛专注地望向桌面的小鞋，身体微微前倾，神情安静期待；节奏缓慢温柔。",
+            "modelKey": "MiniMax-H3",
+            "modeId": "t2v",
+            "params": {
+              "resolution": "768P",
+              "aspect_ratio": "16:9",
+              "duration": 8
+            }
+          },
+          {
+            "index": 5,
+            "shotKind": "video",
+            "durationSec": 8,
+            "anchorIds": [
+              "anchor-1",
+              "anchor-2",
+              "anchor-3",
+              "anchor-4",
+              "anchor-7"
+            ],
+            "prompt": "镜头先贴近针线穿过皮面的细节，对焦在针尖与线迹；随后镜头缓缓拉远退至门口机位，师傅把修好的鞋递出，孩子接过鞋，嘴角上扬绽开笑容；从特写到中景的一次拉远，节奏由紧变松。",
+            "modelKey": "MiniMax-H3",
+            "modeId": "t2v",
+            "params": {
+              "resolution": "768P",
+              "aspect_ratio": "16:9",
+              "duration": 8
+            }
+          },
+          {
+            "index": 6,
+            "shotKind": "video",
+            "durationSec": 8,
+            "anchorIds": [
+              "anchor-1",
+              "anchor-2",
+              "anchor-3",
+              "anchor-4",
+              "anchor-5",
+              "anchor-7"
+            ],
+            "prompt": "镜头从修鞋摊门口缓慢水平摇向河边长椅，小禾朝师傅与孩子轻轻点头致谢后转身走向长椅坐下，打开膝上的笔记本电脑，把片段依次拖进剪辑时间线；太阳渐低，节奏平稳，落在一人独坐河边的安静里。",
+            "modelKey": "MiniMax-H3",
+            "modeId": "t2v",
+            "params": {
+              "resolution": "768P",
+              "aspect_ratio": "16:9",
+              "duration": 8
+            }
+          },
+          {
+            "index": 7,
+            "shotKind": "video",
+            "durationSec": 8,
+            "anchorIds": [
+              "anchor-1",
+              "anchor-2",
+              "anchor-3",
+              "anchor-5",
+              "anchor-7"
+            ],
+            "prompt": "镜头缓慢推进至电脑屏幕，屏幕里回放的片段：孩子穿好鞋，起身跑向等候的家人；小禾在屏幕上删掉空镜前多余的停顿，让师傅那双手多停留一瞬，随后镜头缓缓拉远露出她专注的侧脸；节奏先快后缓。",
+            "modelKey": "MiniMax-H3",
+            "modeId": "t2v",
+            "params": {
+              "resolution": "768P",
+              "aspect_ratio": "16:9",
+              "duration": 8
+            }
+          },
+          {
+            "index": 8,
+            "shotKind": "video",
+            "durationSec": 8,
+            "anchorIds": [
+              "anchor-1",
+              "anchor-5",
+              "anchor-6",
+              "anchor-7"
+            ],
+            "prompt": "镜头从她按下导出键、进度条缓缓走满推进，随后拉回她的脸，最后一束夕阳落在她脸上；她合上电脑，抬头望向修鞋摊方向，蓝布仍在风里轻轻摆动；节奏极慢，收在全片最安静的一刻。",
+            "modelKey": "MiniMax-H3",
+            "modeId": "t2v",
+            "params": {
+              "resolution": "768P",
+              "aspect_ratio": "16:9",
+              "duration": 8
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

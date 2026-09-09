@@ -1,0 +1,152 @@
+{
+  "title": "真实锚八镜",
+  "anchors": [
+    {
+      "id": "hero",
+      "kind": "character",
+      "name": "小禾",
+      "description": "短发蓝衣",
+      "carrier": "visual",
+      "referenceUrl": "https://example.com/fixture-hero.png",
+      "referenceKind": "image"
+    }
+  ],
+  "shots": [
+    {
+      "index": 1,
+      "shotKind": "video",
+      "durationSec": 8,
+      "anchorIds": [
+        "hero"
+      ],
+      "prompt": "小禾走到河边，第1镜",
+      "modelKey": "MiniMax-H3",
+      "modelVendor": "apimart",
+      "modeId": "t2v",
+      "params": {
+        "resolution": "768P",
+        "aspect_ratio": "16:9",
+        "duration": 8
+      }
+    },
+    {
+      "index": 2,
+      "shotKind": "video",
+      "durationSec": 8,
+      "anchorIds": [
+        "hero"
+      ],
+      "prompt": "小禾走到河边，第2镜",
+      "modelKey": "MiniMax-H3",
+      "modelVendor": "apimart",
+      "modeId": "t2v",
+      "params": {
+        "resolution": "768P",
+        "aspect_ratio": "16:9",
+        "duration": 8
+      }
+    },
+    {
+      "index": 3,
+      "shotKind": "video",
+      "durationSec": 8,
+      "anchorIds": [
+        "hero"
+      ],
+      "prompt": "小禾走到河边，第3镜",
+      "modelKey": "MiniMax-H3",
+      "modelVendor": "apimart",
+      "modeId": "t2v",
+      "params": {
+        "resolution": "768P",
+        "aspect_ratio": "16:9",
+        "duration": 8
+      }
+    },
+    {
+      "index": 4,
+      "shotKind": "video",
+      "durationSec": 8,
+      "anchorIds": [
+        "hero"
+      ],
+      "prompt": "小禾走到河边，第4镜",
+      "modelKey": "MiniMax-H3",
+      "modelVendor": "apimart",
+      "modeId": "t2v",
+      "params": {
+        "resolution": "768P",
+        "aspect_ratio": "16:9",
+        "duration": 8
+      }
+    },
+    {
+      "index": 5,
+      "shotKind": "video",
+      "durationSec": 8,
+      "anchorIds": [
+        "hero"
+      ],
+      "prompt": "小禾走到河边，第5镜",
+      "modelKey": "MiniMax-H3",
+      "modelVendor": "apimart",
+      "modeId": "t2v",
+      "params": {
+        "resolution": "768P",
+        "aspect_ratio": "16:9",
+        "duration": 8
+      }
+    },
+    {
+      "index": 6,
+      "shotKind": "video",
+      "durationSec": 8,
+      "anchorIds": [
+        "hero"
+      ],
+      "prompt": "小禾走到河边，第6镜",
+      "modelKey": "MiniMax-H3",
+      "modelVendor": "apimart",
+      "modeId": "t2v",
+      "params": {
+        "resolution": "768P",
+        "aspect_ratio": "16:9",
+        "duration": 8
+      }
+    },
+    {
+      "index": 7,
+      "shotKind": "video",
+      "durationSec": 8,
+      "anchorIds": [
+        "hero"
+      ],
+      "prompt": "小禾走到河边，第7镜",
+      "modelKey": "MiniMax-H3",
+      "modelVendor": "apimart",
+      "modeId": "t2v",
+      "params": {
+        "resolution": "768P",
+        "aspect_ratio": "16:9",
+        "duration": 8
+      }
+    },
+    {
+      "index": 8,
+      "shotKind": "video",
+      "durationSec": 8,
+      "anchorIds": [
+        "hero"
+      ],
+      "prompt": "小禾走到河边，第8镜",
+      "modelKey": "MiniMax-H3",
+      "modelVendor": "apimart",
+      "modeId": "t2v",
+      "params": {
+        "resolution": "768P",
+        "aspect_ratio": "16:9",
+        "duration": 8
+      }
+    }
+  ]
+}

@@ -338,47 +338,28 @@ export const cameraMoveParamsObjectSchema = z.object({
 });
 
 /** Workflow guidance shared by the model profiles; field schemas retain their concise meanings. */
+// Keep workflow guidance once, alongside both profiles' schemas. Field-specific
+// constraints and enum values remain in the typed schema, never in a second table.
 export const STORYBOARD_MODEL_GUIDELINES = Object.freeze([
-  "Stable id; used as the clientId when the plan lands on the canvas (e.g. 'anchor-1').",
-  "Standard description. Visual anchor (carrier=visual) → reference-card / cast-sheet prompt (stable appearance/environment, neutral). Text anchor (carrier=text) → folded into the prompt of every shot that references it.",
-  "visual = generate a reference image and hang it on the shot's reference slot (faces / specific scenes / props that prompt words can't pin down). text = describe in words only, folded into shot prompts (tone / brand color / wardrobe words). character/scene/prop default visual; style defaults text.",
-  "Scene/group id this shot belongs to (e.g. 'scene-1'). Shots of the same scene must be contiguous and share the id; omit when the story has no scene grouping.",
-  "Shot kind: 'image' = still image-storyboard frame (image-to-image, no duration, no camera move / transition / dialogue), 'video' = video shot (has duration + camera motion). Match ALL shots to the storyboard mode requested by the user; default to 'image' unless the user explicitly wants video.",
-  "Shot duration in seconds (video shots only; for image shots emit 0). Clamped to the chosen model's max when it lands.",
-  "Which anchors this shot uses (by anchor.id) → visual anchors become reference edges, text anchors fold into the prompt.",
-  "Directly-generatable prompt: camera move + action progression; do NOT restate the anchors' static descriptions.",
-  "Video model key for this shot, chosen from the 「可用模型」 list in the user message. Omit to use the default video model.",
-  "Model mode/variant id (paired with modelKey), from the same list. Omit to use the model's default mode.",
-  "Per-shot generation params keyed exactly as the chosen model exposes them in the 「可用模型」 list (e.g. aspect_ratio, resolution, and negative_prompt where the model supports it). Only use param keys that model actually lists; omit unknowns.",
-  "On-screen caption/subtitle text for this shot, carried verbatim to canvas metadata and timeline assembly.",
-  "Spoken dialogue for this shot (speaker + line), carried verbatim to canvas metadata and timeline assembly.",
-  "Explicit editorial transition into the next shot; emit cut for an intentional hard cut, omit when no transition is authored.",
-  "Static first-frame image prompt: composition, shot size, light, character pose/expression, environment. No camera movement, action progression, dialogue, subtitles, or sound.",
-  "Image model key for the first-frame image, chosen from the available image models. Omit to use the default image model.",
-  "Image model mode id for the first-frame image. Prefer an image_ref/edit mode when this shot references visual anchors.",
-  "First-frame image params, using only keys supported by the chosen image model/mode.",
-  "Optional first-frame plan. In 图片+视频 mode keep this as part of the same logical shot instead of emitting a separate image shot."
+  "Stable anchor id becomes canvas clientId. Describe neutral, stable appearance/environment for visual cards; reusable prompt words for text anchors.",
+  "carrier=visual generates shot reference images (faces/scenes/props); carrier=text folds words into shot prompts (tone/brand colors/wardrobe). character/scene/prop default visual; style defaults text.",
+  "Same-sceneId shots must be contiguous; omit without grouping. Match all shot kinds to requested mode; default image unless video is explicit. Image: duration 0, no motion/transition/dialogue. Video: seconds, clamped to model max.",
+  "Reference anchors by id. Video prompts: camera move + action progression, no repeated static anchors. Preserve captions and speaker/line dialogue verbatim on canvas/timeline. Explicit hard cut: cut; unauthored transition: omit.",
+  "modelKey, mode/variant and parameter keys must come from available models; omit unknowns for defaults. First frames use image models; prefer image_ref/edit with visual anchors.",
+  "First frame: static composition, shot size, light, pose/expression, environment; no motion, action progression, dialogue, subtitles or sound. Use supported image parameters. 图片+视频: first frame belongs inside its video shot, never a separate shot."
 ]);
 
-/** Workflow guidance shared by the model profiles; field schemas retain their concise meanings. */
 export const STAGING_MODEL_GUIDELINES = Object.freeze([
-  "clientId (from this turn's create_canvas_nodes) or real node id of the shot/keyframe/video this staging locks; the rendered reference auto-connects to it as composition_ref. Omit for a standalone reference.",
-  "Body pose preset (default standing). squat=deep squat, crouch=upright half-crouch, single-knee=proposal kneel, hands-on-hips, point, wave, cheer=arms up.",
-  "Characters to stage (1-6) for vocab-based precise 3D staging. Omit only when using customBlocking.",
-  "Spatial arrangement. side-by-side = shoulder-to-shoulder in a row (并排/一排/一字排开, e.g. a lineup or saluting row); line = a single-file queue front-to-back (纵队/列队前后排); facing = two face each other (对峙/对坐/对话); behind = one in front of another (一前一后/跟踪); circle = around a center (围绕/环绕).",
-  "Optional gray-model backdrop laid under the characters: street = city street (road/lane-lines/sidewalk/buildings/trees/streetlamps/cars), room = interior (three walls/bed/table/sofa/ceiling light). Use when the shot needs a legible environment + scale reference. Set environment=day for street (sky) if you want it lit.",
-  "[x, z] ground position in meters. Character(s) are at origin; omit to auto-spread props to the character's right.",
-  "Optional individual gray-model props (a car beside the character, a tree behind, etc.). Prefer sceneTemplate for a full backdrop; use props for a few specific placed objects.",
-  "For blocking/composition that's OUTSIDE the layout/pose/facing vocab above (e.g. a complex multi-tier formation, an over-the-shoulder framing, a specific prop-relative arrangement, or 'match this reference image's composition') — DO NOT force a wrong vocab value. Describe it here in natural language and it is injected as a composition directive into the shot's KEYFRAME IMAGE prompt (the tool will NOT 3D-render a staging image; less precise than the rendered reference, but the honest fallback). Use proper film/composition terms. When you use customBlocking, the structured vocab fields (characters/layout/camera…) may be omitted. Provide EITHER vocab characters (precise 3D staging) OR customBlocking (prompt-guided fallback) — not neither."
+  "shotClientId: this turn's create_canvas_nodes clientId or existing shot/keyframe/video id. Render connects as composition_ref; omit id for standalone reference.",
+  "Stage 1–6 characters using precise 3D vocabulary, or supply customBlocking. Default pose standing; squat=deep squat, crouch=upright half-crouch, single-knee=proposal kneel, cheer=arms up; hands-on-hips, point and wave are literal poses.",
+  "layout: side-by-side=shoulder-to-shoulder row（并排/一字排开）; line=front-to-back queue（纵队）; facing=two facing each other; behind=one ahead of another; circle=around a center.",
+  "sceneTemplate supplies a gray backdrop: street has roads/lane lines/sidewalk/buildings/trees/lamps/cars; room has three walls/bed/table/sofa/ceiling light. Use it for environment and scale; street needs environment=day for a lit sky. Props are individual objects; prefer sceneTemplate for whole backdrops. Positions are [x,z] ground meters relative to characters at origin; omitted props auto-spread to their right.",
+  "For out-of-vocabulary multi-tier/over-the-shoulder/prop-relative/reference-image compositions, use customBlocking film terms, never a wrong layout/pose. It injects a KEYFRAME IMAGE prompt directive, not a 3D render, and is less precise. With customBlocking, characters/layout/camera may be omitted; never omit both characters and customBlocking."
 ]);
 
-/** Workflow guidance shared by the model profiles; field schemas retain their concise meanings. */
 export const CAMERA_MOVE_MODEL_GUIDELINES = Object.freeze([
-  "clientId (from this turn's create_canvas_nodes) or real node id of the shot's VIDEO node this camera move drives. The rendered camera-move clip auto-attaches to it as a video reference (the model copies the camera path, not the gray content).",
-  "The single dominant camera move for this shot. orbit_left/right = camera circles the subject (~300°); push_in/pull_out = dolly toward/away; crane_up/down = boom up/down; track_left/right = lateral tracking; arc_left/right = short arc (~90°); zoom_in/zoom_out = lens zoom with the camera static (FOV ramp); dolly_zoom = Hitchcock/vertigo effect (camera pulls back while zooming in, subject size constant, background stretches away). Use ONE of these enum values ONLY when the intended move IS one of them (renders a precise 3D reference). If the move is NOT in this set (e.g. whip-pan, handheld follow, a compound/sequenced move, or 'match this reference video'), DO NOT force a wrong enum — leave move empty and use customMove instead.",
-  "Natural-language camera-move description for moves OUTSIDE the enum (whip pan, handheld follow, a compound/sequenced move like 'push in then whip to the window', or 'match this reference video's camerawork'). The tool will NOT 3D-render this — it injects it as a cinematography directive into the shot's video prompt (less precise than the rendered reference; the honest fallback). Use proper film terms. Set move OR customMove, never both for the same intent.",
-  "Optional body-pose preset id for the subject mannequin the camera moves around (e.g. standing / sit / walk). Default standing.",
-  "Optional gray-model backdrop under the subject: street (road/buildings/trees/cars) or room (walls/furniture). Use when the camera move should read as happening in an environment (e.g. 'push in on a person standing on a street'). The camera still orbits/pushes the subject at origin.",
-  "[x, z] ground position in meters. Subject is at origin; omit to auto-spread props to its right.",
-  "Optional individual gray-model props placed in the move's scene (a car beside the subject, a tree behind). Prefer sceneTemplate for a full backdrop."
+  "shotClientId: this turn's clientId or existing VIDEO id. Render attaches as video reference; model copies camera path, not gray content.",
+  "Use one dominant move: orbit_left/right circles ~300°; push_in/pull_out dollies toward/away; crane_up/down booms; track_left/right tracks laterally; arc_left/right arcs ~90°; zoom_in/out changes FOV with camera static; dolly_zoom pulls back while zooming in, keeping subject size constant as background stretches (Hitchcock/vertigo).",
+  "Use enum move only when it matches the intent. For whip-pan, handheld follow, compound/sequenced moves (push then whip to window) or reference-video matching, omit move and describe customMove with film terms. This injects a video-prompt cinematography directive, not a 3D render, and is less precise. Set move OR customMove for the same intent.",
+  "Subject pose defaults standing (also sit/walk). street/room sceneTemplate: gray backdrop; camera moves around subject at origin. props: individual objects. Prop [x,z] is ground meters; omission auto-spreads right of subject."
 ]);

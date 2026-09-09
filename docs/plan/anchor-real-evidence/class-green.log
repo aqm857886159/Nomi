@@ -1,0 +1,9 @@
+
+ RUN  v4.1.8 /Users/aoqimin/Desktop/Nomi-anchor-real
+
+
+ Test Files  5 passed (5)
+      Tests  35 passed (35)
+   Start at  03:11:02
+   Duration  1.75s (transform 2.55s, setup 170ms, import 4.60s, tests 139ms, environment 0ms)
+

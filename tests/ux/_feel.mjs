@@ -179,3 +179,51 @@ export async function measureDisclosureHierarchy(details, { exclude = '' } = {})
     return { reference, rows, violations: rows.filter(row => row.lightness + 0.00001 < reference.lightness || row.weight > reference.weight) }
   }, exclude)
 }
+
+/** Conservative contrast floor for badges over arbitrary media pixels.
+ * Browser canvas resolves CSS colors (including OKLCH) to sRGB. Background and
+ * translucent text luminance intervals include every possible media color;
+ * overlapping intervals fail closed instead of assuming a white page behind it.
+ */
+export async function measureMediaBadgeContrast(badges, { threshold = 4.5 } = {}) {
+  return badges.evaluateAll((elements, threshold) => {
+    const canvas = document.createElement('canvas')
+    canvas.width = canvas.height = 1
+    const context = canvas.getContext('2d', { willReadFrequently: true })
+    const rgba = color => {
+      context.clearRect(0, 0, 1, 1)
+      context.fillStyle = color
+      context.fillRect(0, 0, 1, 1)
+      return [...context.getImageData(0, 0, 1, 1).data].map(value => value / 255)
+    }
+    const over = (foreground, background) => background.map((value, index) =>
+      foreground[index] * foreground[3] + value * (1 - foreground[3]))
+    const luminance = rgb => rgb.map(value => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4)
+      .reduce((sum, value, index) => sum + value * [0.2126, 0.7152, 0.0722][index], 0)
+    const rows = elements.flatMap(badge => [badge, ...badge.querySelectorAll('*')]
+      .filter(element => element.getClientRects().length && [...element.childNodes]
+        .some(node => node.nodeType === 3 && node.textContent.trim()))
+      .map(element => {
+        const layers = []
+        for (let ancestor = element; ancestor; ancestor = ancestor.parentElement) {
+          layers.unshift(ancestor)
+          if (ancestor === badge) break
+        }
+        let low = [0, 0, 0], high = [1, 1, 1]
+        for (const layer of layers) {
+          const background = rgba(getComputedStyle(layer).backgroundColor)
+          low = over(background, low)
+          high = over(background, high)
+        }
+        const foreground = rgba(getComputedStyle(element).color)
+        const bgLow = luminance(low), bgHigh = luminance(high)
+        const fgLow = luminance(over(foreground, low)), fgHigh = luminance(over(foreground, high))
+        const opaqueLayers = layers.every(layer => Number(getComputedStyle(layer).opacity) === 1)
+        const ratio = !opaqueLayers ? 1 : fgHigh < bgLow ? (bgLow + 0.05) / (fgHigh + 0.05)
+          : fgLow > bgHigh ? (fgLow + 0.05) / (bgHigh + 0.05) : 1
+        return { text: element.textContent.trim(), ratio, threshold }
+      }))
+    if (!rows.length) throw new Error('Media badge contrast probe has no visible text')
+    return { rows, violations: rows.filter(row => row.ratio < threshold) }
+  }, threshold)
+}

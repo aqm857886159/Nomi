@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { IconClockSearch, IconLock } from '../../../../vendor/tablerIcons'
 import { cn } from '../../../../utils/cn'
 import { NomiImage } from '../../../../design/media'
+import { DeferredNodeVideo } from '../../../generationCanvas/nodes/DeferredNodeMedia'
 import type { PlanShot } from '../../../generationCanvas/agent/storyboardPlan'
 import { effectiveShotDurationSec } from '../../../generationCanvas/agent/storyboardPlan'
 import { translateModelDisplayText } from '../../../../i18n/modelDisplayText'
@@ -60,6 +61,25 @@ export default function StoryboardShotFrame({
   const presentation = shotPresentation(shot, shot.index)
   const mediaStyle = { width: box.width, height: box.height }
 
+  // One decoder boundary for final results and retained media during a rerun.
+  // A raw video URL is never an image; an explicit thumbnail can use NomiImage.
+  const renderResult = (className: string, alt: string): JSX.Element | null => {
+    if (!exec.resultUrl) return null
+    const result = exec.node?.result
+    return result?.type === 'video' && !result.thumbnailUrl ? (
+      <DeferredNodeVideo
+        src={exec.resultUrl}
+        className={className}
+        muted
+        playsInline
+        preload="auto"
+        aria-label={alt || undefined}
+      />
+    ) : (
+      <NomiImage src={exec.resultUrl} alt={alt} className={className} />
+    )
+  }
+
   const indexBadge = (quiet: boolean): JSX.Element => (
     <button
       type="button"
@@ -103,11 +123,7 @@ export default function StoryboardShotFrame({
         data-storyboard-frame-media={aspect || 'default'}
       >
         {/* 盒是固定的，画面在盒内 letterbox 居中（object-contain）：混排时不拉伸也不裁切。 */}
-        <NomiImage
-          src={exec.resultUrl}
-          alt={t('storyboardEditor.frame.resultAlt', { index: shot.index })}
-          className="absolute inset-0 w-full h-full object-contain"
-        />
+        {renderResult('absolute inset-0 w-full h-full object-contain', t('storyboardEditor.frame.resultAlt', { index: shot.index }))}
         {indexBadge(false)}
         {durationBadge}
         {locked ? (
@@ -134,20 +150,9 @@ export default function StoryboardShotFrame({
         style={mediaStyle}
         data-storyboard-frame-media={aspect || 'default'}
       >
-        {exec.resultUrl ? (
-          <NomiImage src={exec.resultUrl} alt="" className="absolute inset-0 w-full h-full object-contain opacity-50" />
-        ) : null}
+        {renderResult('absolute inset-0 w-full h-full object-contain opacity-50', '')}
         {indexBadge(false)}
-        <div className="absolute inset-0 z-[1] flex flex-col items-center justify-center gap-1.5 bg-nomi-scrim text-nomi-paper p-1.5 text-center">
-          <div className="w-[52px] h-1 rounded-pill bg-nomi-paper/25 overflow-hidden">
-            <div className="h-full bg-nomi-paper transition-[width]" style={{ width: `${exec.progressPercent ?? 12}%` }} />
-          </div>
-          <span className="text-micro leading-tight">
-            {exec.progressPercent !== null
-              ? t('storyboardEditor.frame.generatingPercent', { percent: Math.round(exec.progressPercent) })
-              : t('storyboardEditor.frame.generating')}
-          </span>
-        </div>
+        <div className="absolute inset-0 z-[1] bg-nomi-scrim" aria-hidden />
       </div>,
     )
   }
@@ -160,9 +165,7 @@ export default function StoryboardShotFrame({
         style={mediaStyle}
         data-storyboard-frame-media={aspect || 'default'}
       >
-        {exec.resultUrl ? (
-          <NomiImage src={exec.resultUrl} alt="" className="absolute inset-0 w-full h-full object-contain opacity-40" />
-        ) : null}
+        {renderResult('absolute inset-0 w-full h-full object-contain opacity-40', '')}
         {indexBadge(true)}
         <span
           className="relative z-[1] text-micro text-workbench-danger leading-tight line-clamp-3"

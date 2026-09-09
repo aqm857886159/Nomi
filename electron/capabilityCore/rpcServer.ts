@@ -176,6 +176,9 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
         const connectionAttestation = firstHeader(req.headers['x-nomi-mcp-connection-attestation'])
         const origin = resolveMcpOrigin(client, clientProof)
         const hasMcpTransportClaims = Boolean(client || clientProof || connectionAttestation)
+        if (hasMcpTransportClaims && origin === 'external') {
+          throw new RpcError('A verified MCP client connection is required', 403, { code: 'mcp_connection_unauthenticated' })
+        }
         let projectSessionConnection
         if (connectionAttestation) {
           try {
@@ -185,13 +188,13 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
               connectionAttestation,
             })
           } catch (error) {
-            if (error instanceof McpConnectionAuthenticationError) throw new RpcError(error.message, 403)
+            if (error instanceof McpConnectionAuthenticationError) throw new RpcError(error.message, 403, { code: error.code })
             throw error
           }
         }
         if (!projectSessionConnection && !isCanvasRead && !isEditing && !isCanonicalCanvasPlanPatch) assertLocalBearerProjectSessionRoute(method)
         if (method === 'nomi_confirm_generation_gate') {
-          if (origin === 'external' || origin === 'nomi') throw new RpcError('Registered MCP client proof is required', 403)
+          if (origin === 'external' || origin === 'nomi') throw new RpcError('Registered MCP client proof is required', 403, { code: 'mcp_connection_unauthenticated' })
           const challengeToken = typeof params.challengeToken === 'string' ? params.challengeToken.trim() : ''
           if (!challengeToken) throw new RpcError('Generation challenge is required', 400)
           if (typeof options.confirmGenerationInNomi !== 'function') throw new RpcError('Nomi confirmation is unavailable', 501)
@@ -201,7 +204,7 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
         }
         if (method === 'nomi_verify_client_generation_gate') {
           // Only registered MCP clients may call this — the same guard as nomi_confirm_generation_gate.
-          if (origin === 'external' || origin === 'nomi') throw new RpcError('Registered MCP client proof is required', 403)
+          if (origin === 'external' || origin === 'nomi') throw new RpcError('Registered MCP client proof is required', 403, { code: 'mcp_connection_unauthenticated' })
           const challengeToken = typeof params.challengeToken === 'string' ? params.challengeToken.trim() : ''
           if (!challengeToken) throw new RpcError('Generation challenge is required', 400)
           const authenticatedClient = typeof params.authenticatedClient === 'string' ? params.authenticatedClient.trim() : ''
@@ -212,7 +215,7 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
           return
         }
         if (method === 'nomi_get_locale') {
-          if (origin === 'external' || origin === 'nomi') throw new RpcError('Registered MCP client proof is required', 403)
+          if (origin === 'external' || origin === 'nomi') throw new RpcError('Registered MCP client proof is required', 403, { code: 'mcp_connection_unauthenticated' })
           send(200, { ok: true, result: { locale: getDesktopLocale() } })
           return
         }
@@ -251,7 +254,7 @@ export function startRpcServer(options: RpcServerOptions): Promise<RpcServerHand
         }
         if (isEditing || isCanonicalCanvasPlanPatch) {
           if (!hasMcpTransportClaims || !projectSessionConnection || !options.projectSessionAuthority) {
-            throw new RpcError('A verified project-session transport is required for editing tools', 403)
+            throw new RpcError('A verified project-session transport is required for editing tools', 403, { code: 'mcp_connection_unauthenticated' })
           }
           const leaseHandle = typeof params.leaseHandle === 'string' ? params.leaseHandle.trim() : ''
           if (!leaseHandle) throw new RpcError('A project-session lease is required', 403)

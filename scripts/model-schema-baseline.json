@@ -34,12 +34,7 @@
     "internal/nomi_canvas_plan#/anyOf/7/properties/props/items",
     "internal/nomi_canvas_plan#/anyOf/7/properties/props/items/additionalProperties",
     "internal/nomi_canvas_plan#/anyOf/8/properties/props/items",
-    "internal/nomi_canvas_plan#/anyOf/8/properties/props/items/additionalProperties",
-    "mcp/nomi_operation_plan#/properties/candidate",
-    "mcp/nomi_operation_plan#/properties/parameters",
-    "mcp/nomi_operation_plan#/properties/patch",
-    "mcp/nomi_operation_plan#/properties/references",
-    "mcp/nomi_operation_plan#/properties/shots/items/properties/candidate"
+    "internal/nomi_canvas_plan#/anyOf/8/properties/props/items/additionalProperties"
   ],
   "root-union": [
     "internal/nomi_canvas_edit",

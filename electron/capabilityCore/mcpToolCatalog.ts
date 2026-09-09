@@ -11,6 +11,8 @@
 // title 字段：MCP tools spec 2025-06-18 支持，宿主 UI 优先显示。readOnlyHint 收进本目录 annotations（真相单一，
 // 不再靠 mcpProtocol.ts 的 name 集合旁挂）。
 //
+import { productionRunToolDescriptors } from '../shared/agentCapabilities/productionRunDescriptors'
+import { toPublishedJsonSchema, type JsonSchemaObject } from '../shared/agentCapabilities/modelVisibleJsonSchema'
 import { listProductionPlaybookNames } from '../productionRun/productionPlaybooks'
 import { CANVAS_READ_CAPABILITY } from '../shared/agentCapabilities/canvasRead'
 import { MCP_CAPABILITY_RESOLVER, immutableSchemaSnapshot } from './mcpCapabilityProjection'
@@ -20,6 +22,18 @@ import { MCP_INTEGRATION_MANAGEMENT_TOOL } from './mcpIntegrationManagementTools
 import { MCP_PROJECT_SESSION_TOOL } from './mcpProjectSessionTool'
 
 const str = (value: unknown): string => (typeof value === 'string' ? value : '')
+
+// Same descriptor schemas used by laneToolCatalog; only the external addressing,
+// object aggregation and approval envelope are owned by this transport.
+function productionFields(name: keyof typeof productionRunToolDescriptors): Record<string, JsonSchemaObject> {
+  return toPublishedJsonSchema(productionRunToolDescriptors[name].parameters).properties as Record<string, JsonSchemaObject>
+}
+const RUN_CREATE_FIELDS = productionFields('start_production_run')
+const RUN_EVENT_FIELDS = productionFields('subscribe_production_run')
+const ARTIFACT_FIELDS = productionFields('read_production_artifact')
+const { playbook: _playbook, playbookVersion: _playbookVersion, ...RUN_BRIEF_FIELDS } = RUN_CREATE_FIELDS
+const { decision: _reviewDecision, ...REVIEW_FIELDS } = productionFields('review_production_artifact')
+
 
 // 画布只读投影（canvas.read capability adapter；别名由能力契约声明，M2 语义面把它改叫 nomi_canvas_read）——
 // 收进 nomi_read target=canvas 时借它的 method/canonical 投影（读侧统一，形状约束1：不另留第二个画布读名）。
@@ -41,7 +55,7 @@ const _CANVAS_EDIT_ADAPTER = MCP_CAPABILITY_RESOLVER.resolve('nomi_canvas_edit')
 if (!_CANVAS_EDIT_ADAPTER) throw new Error('canvas.write MCP adapter is not registered')
 const CANVAS_EDIT_TOOL = {
   ..._CANVAS_EDIT_ADAPTER,
-  title: '在租约内对画布做语义写操作：create_canvas_nodes 加节点 / connect_canvas_edges 连线 / set_node_prompt 改提示词 / tidy_canvas 整理布局。每次操作原子落账，支持 undo。',
+  title: '画布编辑提案',
 }
 
 // M2 语义编辑工具（timeline_read/edit · export_job · media_query + M2 canvas/document 语义面）——
@@ -51,15 +65,15 @@ const CANVAS_EDIT_TOOL = {
 const SEMANTIC_EDITING_TOOLS = MCP_CAPABILITY_RESOLVER.list().filter((tool) => tool.name !== CANVAS_READ_ALIAS && tool.name !== CANVAS_EDIT_TOOL.name)
 if (SEMANTIC_EDITING_TOOLS.length === 0) throw new Error('M2 semantic editing MCP adapters are not registered')
 const SEMANTIC_EDITING_TOOL_TITLES = {
-  nomi_canvas_maintenance: { 'zh-CN': '确认后删除画布节点，或撤销最近一次删除。', en: 'Delete Canvas nodes after confirmation, or undo the latest deletion.' },
-  nomi_document_read: { 'zh-CN': '读取当前创作文档或选区文本。', en: 'Read the current creation document or a selected range.' },
-  nomi_document_edit: { 'zh-CN': '向创作文档插入、替换或追加内容。', en: 'Insert, replace, or append content in the creation document.' },
-  nomi_timeline_read: { 'zh-CN': '读取时间轴或检查指定帧区间。', en: 'Read the timeline or inspect a frame range.' },
-  nomi_timeline_edit: { 'zh-CN': '预览、应用或撤销一次受版本保护的时间轴修改。', en: 'Preview, apply, or undo a revision-guarded timeline edit.' },
-  nomi_export_job: { 'zh-CN': '查看导出任务状态或核验导出结果。', en: 'Inspect an export job or verify its rendered result.' },
-  nomi_media_query: { 'zh-CN': '查询项目媒体、技术信息、来源区间或波形。', en: 'Query project media, technical metadata, source ranges, or waveforms.' },
-  nomi_layout_read: { 'zh-CN': '读取当前剪辑工作区布局。', en: 'Read the current editing workspace layout.' },
-  nomi_layout_write: { 'zh-CN': '调整剪辑工作区布局并保留撤销凭据。', en: 'Change the editing workspace layout with an undo receipt.' },
+  nomi_canvas_maintenance: { 'zh-CN': '删除或撤销画布节点', en: 'Delete or undo Canvas nodes' },
+  nomi_document_read: { 'zh-CN': '读取文稿或选区', en: 'Read document or selection' },
+  nomi_document_edit: { 'zh-CN': '编辑文稿', en: 'Edit document' },
+  nomi_timeline_read: { 'zh-CN': '读取时间轴', en: 'Read timeline' },
+  nomi_timeline_edit: { 'zh-CN': '预览、应用或撤销时间轴修改', en: 'Preview, apply or undo timeline edits' },
+  nomi_export_job: { 'zh-CN': '查看与核验导出', en: 'Inspect or verify export' },
+  nomi_media_query: { 'zh-CN': '查询媒体与波形', en: 'Query media and waveforms' },
+  nomi_layout_read: { 'zh-CN': '读取工作区布局', en: 'Read workspace layout' },
+  nomi_layout_write: { 'zh-CN': '调整工作区布局', en: 'Change workspace layout' },
 } as const
 /** M2 语义编辑工具名单（真相源），供测试派生完整目录范围而非手抄排除规则。 */
 export const SEMANTIC_EDITING_TOOL_NAMES = Object.freeze(SEMANTIC_EDITING_TOOLS.map((t) => t.name))
@@ -92,7 +106,7 @@ export const READ_RUN_DATA_TARGETS = Object.freeze(['run', 'run_events', 'artifa
 
 const READ_TOOL = {
   name: 'nomi_read',
-  title: '读 Nomi 的任意只读投影（画布/项目/模型/生成上下文/Run/产物/接入会话）。',
+  title: '读取项目与制作状态',
   description: '按 target 读取只读投影；不改状态、不花钱。\n'
     + 'For target=canvas only (canvas reads use this tool with target=canvas):\n'
     + CANVAS_READ_ADAPTER_TOOL.description,
@@ -102,12 +116,12 @@ const READ_TOOL = {
       target: { type: 'string', enum: READ_TARGETS, description: '读取：canvas/projects/models/generation_context/operation/run/run_events/artifact/artifact_content/integration。target=projects 的每一行都带 projectSelectionHandle，直接喂给 nomi_session_open 就能续接那个项目（不必自己新建）。' },
       projectId: { type: 'string' },
       leaseHandle: { type: 'string', description: 'target=canvas/generation_context/operation 必填。' },
-      runId: { type: 'string', description: 'target=run/run_events/artifact/artifact_content 必填。' },
+      runId: RUN_EVENT_FIELDS.runId,
       operationId: { type: 'string', description: 'target=operation 必填。' },
-      artifactId: { type: 'string', description: 'target=artifact/artifact_content 必填。' },
+      artifactId: ARTIFACT_FIELDS.artifactId,
       sessionId: { type: 'string', description: 'target=integration 必填。' },
-      afterCursor: { type: 'integer', minimum: 0, default: 0, description: 'run_events 的起点游标。' },
-      waitMs: { type: 'integer', minimum: 0, maximum: 25_000, default: 0, description: 'run_events 最多等待 25 秒。' },
+      afterCursor: { ...RUN_EVENT_FIELDS.afterCursor, default: 0 },
+      waitMs: { ...RUN_EVENT_FIELDS.waitMs, default: 0 },
       page: { type: 'integer', minimum: 0 },
     },
     required: ['target'],
@@ -147,7 +161,7 @@ const READ_TOOL = {
 // ── T4 · nomi_asset_import：本机文件→项目素材 ────────────────────────────────────────────
 const ASSET_IMPORT_TOOL = {
   name: 'nomi_asset_import',
-  title: '把本机图片/视频文件导入项目当素材，返回可引用的 nomi-local:// 地址。',
+  title: '导入本机素材',
   description: '导入本机图片/视频素材；支持 png/jpg/webp/gif/bmp/tiff/heic/mp4/mov/webm/m4v，单文件≤64MB，须绝对路径；拒绝 ~/.ssh、~/.nomi。',
   inputSchema: {
     type: 'object',
@@ -166,18 +180,15 @@ const ASSET_IMPORT_TOOL = {
 // ── T12 · nomi_artifact_review：版本化剧本/分镜的审阅+定点修订（簇 B 镜像消除：script/storyboard 双工具→kind） ──
 const ARTIFACT_REVIEW_TOOL = {
   name: 'nomi_artifact_review',
-  title: '审阅/修订版本化剧本或分镜：approve 采用 / request_changes 请求改 / reject 否决 / revise 起定点修订候选。',
+  title: '审阅与修订剧本或分镜',
   description: '按 action 审阅/修订当前剧本或分镜版本；仅接受刚读到的版本（乐观锁）。',
   inputSchema: {
     type: 'object',
     properties: {
       projectId: { type: 'string' },
-      runId: { type: 'string' },
-      artifactId: { type: 'string' },
-      expectedVersion: { type: 'integer', minimum: 1, description: '刚读到的版本；变更后拒绝。' },
+      ...productionFields('revise_production_artifact'),
+      ...REVIEW_FIELDS,
       action: { type: 'string', enum: ['approve', 'request_changes', 'reject', 'revise'] },
-      kind: { type: 'string', enum: ['script', 'storyboard'], description: 'action=revise 必填。' },
-      instruction: { type: 'string', minLength: 1, maxLength: 4_000, description: 'action=revise 必填；描述定点修改。' },
     },
     required: ['projectId', 'runId', 'artifactId', 'expectedVersion', 'action'],
     additionalProperties: false,
@@ -197,21 +208,15 @@ const ARTIFACT_REVIEW_TOOL = {
 // ── T13 · nomi_run_gate：Run 侧付费/创意门（含物化落地） ──────────────────────────────────
 const RUN_GATE_TOOL = {
   name: 'nomi_run_gate',
-  title: 'Run 的确认门：decide 对可逆创意门（方向/定妆照）approve/reject / materialize 把已批分镜落画布并登记 jobs+预算。',
+  title: '制作确认门',
   description: '按 action 处理 Run 授权：decide 表态可逆创意门；materialize 将已批分镜落画布并登记 jobs/预算；不批剧本/预算、不直接调用付费模型。',
   inputSchema: {
     type: 'object',
     properties: {
       projectId: { type: 'string' },
-      runId: { type: 'string' },
+      ...productionFields('decide_production_gate'),
+      ...productionFields('materialize_production_storyboard'),
       action: { type: 'string', enum: ['decide', 'materialize'] },
-      // action=decide（可逆创意门）
-      gateId: { type: 'string', description: 'action=decide 的门 id。' },
-      decision: { type: 'string', enum: ['approved', 'rejected'], description: 'action=decide 的决定。' },
-      choiceKey: { type: 'string', description: 'action=decide 方向门的候选 key。' },
-      // action=materialize（$ 落地）
-      artifactId: { type: 'string', description: 'action=materialize 的已批准 storyboard artifact id。' },
-      expectedVersion: { type: 'integer', minimum: 1, description: 'action=materialize 的分镜版本；变更后拒绝。' },
     },
     required: ['projectId', 'runId', 'action'],
     additionalProperties: false,
@@ -228,7 +233,7 @@ const RUN_GATE_TOOL = {
 // ── T10 · nomi_run_start：耐久制作草稿入口（只记 brief+playbook，不批预算、不调付费模型） ────────
 const RUN_START_TOOL = {
   name: 'nomi_run_start',
-  title: '在项目里建一个可审阅的持久制作草稿（只记 brief + playbook，不批预算、不调付费模型）。',
+  title: '新建制作草稿',
   description: '创建制作草稿；只记 brief/playbook，不批预算、不调用付费模型。',
   inputSchema: {
     type: 'object',
@@ -239,16 +244,11 @@ const RUN_START_TOOL = {
         enum: listProductionPlaybookNames(),
         description: `可用 playbook：${listProductionPlaybookNames().join('、')}；其他值拒绝。`,
       },
-      playbookVersion: { type: 'string', description: '可选；默认 1.0.0。' },
+      playbookVersion: RUN_CREATE_FIELDS.playbookVersion,
       brief: {
         type: 'object',
         properties: {
-          goal: { type: 'string' },
-          audience: { type: 'string' },
-          channel: { type: 'string' },
-          tone: { type: 'string' },
-          durationSeconds: { type: 'number', minimum: 1, maximum: 3600 },
-          sellingPoints: { type: 'array', maxItems: 20, items: { type: 'string' } },
+          ...RUN_BRIEF_FIELDS,
           referenceArtifactIds: { type: 'array', maxItems: 20, items: { type: 'string' } },
         },
         required: ['goal'],
@@ -276,15 +276,13 @@ const RUN_START_TOOL = {
 // ── T11 · nomi_run_control：持久制作 Run 控制（pause/resume/cancel/set_trust） ─────────────────
 const RUN_CONTROL_TOOL = {
   name: 'nomi_run_control',
-  title: '控制持久制作 Run：pause 暂停 / resume 从断点继续 / cancel 取消 / set_trust 改信任档位。',
+  title: '控制制作任务',
   description: 'pause 保留已花预算/已完成镜头；resume 不重做/不重付；cancel 未提交不计费；set_trust 改档（需 trustLevel）。',
   inputSchema: {
     type: 'object',
     properties: {
       projectId: { type: 'string' },
-      runId: { type: 'string' },
-      action: { type: 'string', enum: ['pause', 'resume', 'cancel', 'set_trust'] },
-      trustLevel: { type: 'string', enum: ['key_confirm', 'budget_only', 'confirm_all'], description: 'action=set_trust 必填：key_confirm 五门全开 / budget_only 只管钱 / confirm_all 每镜确认。' },
+      ...productionFields('control_production_run'),
     },
     required: ['projectId', 'runId', 'action'],
     additionalProperties: false,
@@ -296,7 +294,7 @@ const RUN_CONTROL_TOOL = {
 // ── T15 · nomi_project_create：建新项目（产出 projectId 的独立小对象写） ────────────────────────
 const PROJECT_CREATE_TOOL = {
   name: 'nomi_project_create',
-  title: '新建一个空白 Nomi 项目，返回项目 id。',
+  title: '新建项目',
   description: '新建空白 Nomi 项目并返回 projectId。',
   inputSchema: { type: 'object', properties: { name: { type: 'string' } }, additionalProperties: false },
   method: 'project.create',

@@ -411,6 +411,7 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
         mcpSkillAccess(ctx.origin),
         undefined,
         packageVersion && contentHash ? { packageVersion, contentHash } : undefined,
+        typeof params.filePath === 'string' ? params.filePath : undefined,
       )
     }
     case 'production.start':

@@ -38,3 +38,11 @@ it('rejects invalid percentages before they can become seemingly real zero or on
   for (const percent of [-1, 101, NaN, Infinity]) expect(createProgress({ percent }).percent).toBeUndefined()
   expect(createProgress({ percent: 60 }).percent).toBe(60)
 })
+
+it('does not reuse an active feedback object after an immutable status transition sharing progress', () => {
+  const active = node()
+  const first = generationFeedback(active, 19000)
+  const done = { ...active, status: 'success' as const }
+  expect(generationFeedback(done, 19000)?.saved).toBe(true)
+  expect(generationFeedback(done, 19000)).not.toBe(first)
+})

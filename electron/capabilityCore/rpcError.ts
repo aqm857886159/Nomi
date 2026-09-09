@@ -17,6 +17,7 @@ export type RpcPolicyErrorCode =
   | 'receipt_expired'
 
 export type RpcProjectSessionErrorCode =
+  | 'mcp_connection_unauthenticated'
   | 'project_selection_denied'
   | 'project_identity_unavailable'
   | 'project_session_unavailable'

@@ -1,0 +1,112 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-10-storyboard-result-decoder",
+  "problem_type": "Media result type erased at storyboard preview boundary",
+  "symptom": "gate-r2 persisted success videos display image load failure in storyboard rows.",
+  "direct_cause": "All eight gate-r2 results have type video and nomi-local MP4 URLs without thumbnailUrl; resultDisplayUrl falls back to the MP4 and StoryboardShotFrame passes it to NomiImage.",
+  "class_root": "Storyboard preview rendering loses the result media type when selecting a decoder.",
+  "affected_population": [
+    "Video results without thumbnails, from any provider or persisted project",
+    "Existing video results retained while generating or failed"
+  ],
+  "scope_paths": [
+    "src/workbench/creation/storyboard/shotRow/StoryboardShotFrame.tsx"
+  ],
+  "entry_points": [
+    "Storyboard frame done/locked results",
+    "Storyboard frame generating/failed retained results"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Internal result type projection and existing media component selection; no external API or dependency behavior changes.",
+  "invariants": [
+    "Only image results or explicit image thumbnails may enter NomiImage.",
+    "Video results without thumbnails use the existing managed video decoder and its load-error/retry lifecycle."
+  ],
+  "generality_proof": "One renderer within StoryboardShotFrame serves final and retained results, branching on persisted result type, independent of URL extension, protocol, provider, or shot kind.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/creation/storyboard/shotRow/StoryboardShotFrame.tsx",
+      "symbol": "StoryboardShotFrame",
+      "responsibility": "Choose the decoder for all storyboard result preview states."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/creation/storyboard/shotRow/StoryboardShotFrame.tsx",
+      "entry_point": "done / locked result previews",
+      "disposition": "enforced",
+      "evidence": "Final result branches call the shared renderResult function."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/shotRow/StoryboardShotFrame.tsx",
+      "entry_point": "generating / failed retained previews",
+      "disposition": "enforced",
+      "evidence": "Retained results use the same renderResult function as final results."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeResultStack.tsx",
+      "entry_point": "history video previews",
+      "disposition": "not-affected",
+      "evidence": "HistoryVideoPreview already routes video URLs to DeferredNodeVideo and only explicit thumbnails to images."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/shotRow/StoryboardVariantsDrawer.tsx",
+      "entry_point": "StoryboardVariantsDrawer image-only variants",
+      "disposition": "not-affected",
+      "evidence": "ShotVariant currently has only url; rg variantsByShotId= src returns no production wiring. Only design-lab supplies SVG variants, so no video producer reaches this unfinished feature."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every video result lacking an optional thumbnail triggers the same deterministic decoder mismatch.",
+    "same_class_scan": [
+      "rg resultUrl / NomiImage in StoryboardShotFrame finds done, generating and failed branches.",
+      "Read NodeResultStack HistoryVideoPreview and DeferredNodeMedia: managed video lifecycle already exists.",
+      "Read storyboardRowStatus resultDisplayUrl: URL-only projection selects thumbnail or raw result."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/creation/storyboard/shotRow/StoryboardShotFrame.tsx",
+    "invariant": "All storyboard preview states select their decoder using result type and explicit thumbnail availability.",
+    "failure_mode": "Genuine video decode failures remain visible through DeferredNodeVideo and only its free media reload is offered.",
+    "exception_policy": "none",
+    "strategy": "Replace all three image-only render sites with one shared result renderer using existing components.",
+    "artifacts": [
+      "src/workbench/creation/storyboard/shotRow/StoryboardShotFrame.tsx"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/creation/storyboard/shotRow/StoryboardShotFrame.test.ts",
+    "tests/ux/shot-nodes-media.e2e.mjs"
+  ],
+  "class_regression_tests": [
+    "src/workbench/creation/storyboard/shotRow/StoryboardShotFrame.test.ts",
+    "tests/ux/shot-nodes-media.e2e.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/creation/storyboard/shotRow/StoryboardShotFrame.tsx"
+    ],
+    "rationale": "Removes three unconditional image-decoder sites; no parallel fallback remains."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Application media dispatch bug; existing React/video lifecycle is reused without changing dependencies.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted format changes; old video results retain their declared type and now select the correct decoder.",
+  "residual_risks": [
+    "Video variant drawer integration is not connected today; a future producer must preserve media type rather than supplying MP4 to image-only ShotVariant.url.",
+    "Electron test uses the real full storyboard row host and local protocol decoding with fixed props; it does not claim a new end-to-end paid generation run.",
+    "Existing storyboard frame index/duration chips remain low-contrast in dark theme; C75 explicitly covers canvas shot-label and mount badges, so these separate frame chips are outside this change."
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/creation/storyboard/shotRow/StoryboardShotFrame.tsx",
+    "tests": [
+      "src/workbench/creation/storyboard/shotRow/StoryboardShotFrame.test.ts"
+    ],
+    "note": "Storyboard result preview decoder selection."
+  }
+}

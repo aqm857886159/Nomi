@@ -50,7 +50,7 @@ function Surfaces({ zoom, reduced, preset }: { zoom: number; reduced?: boolean; 
   const now = useGenerationFeedbackClock()
   if (!node) return null
   const row = buildTaskCenterView({ nodes: [node], entries, batches: {}, now, fallbackTitle: '镜 1' }).rows[0]
-  return <div data-process-lab-ready className="grid gap-6 p-6" style={{ width: 800, height: 560, gridTemplateRows: '240px 104px 64px' }}>
+  return <div data-process-lab-ready className="grid gap-6 p-6 pt-24" style={{ width: 800, height: 632, gridTemplateRows: '240px 104px 64px' }}>
     <div className="relative" style={{ width: 340, height: 240, transform: `scale(${zoom})`, transformOrigin: 'top left' }}>
       <BaseGenerationNode node={node} selected={false} readOnly waitingMotion={reduced ? 'reduced' : undefined} waitingPreset={preset} />
     </div>

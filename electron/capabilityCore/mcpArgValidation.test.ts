@@ -33,16 +33,16 @@ describe('MCP tools/call schema boundary', () => {
   it('exercises every runtime schema type and defensive input shape', () => {
     expect(validateToolArguments('no-schema', undefined, {})).toBeNull()
     expect(validateToolArguments('primitive-schema', 'not-a-schema', {})).toBeNull()
-    expect(validateToolArguments('untyped-schema', { type: 123 }, {})).toBeNull()
+    expect(validateToolArguments('untyped-schema', { type: 123 }, {})).not.toBeNull()
 
     const objectSchema = {
       type: 'object',
       properties: {
         name: { type: 'string' },
-        ignored: null,
+        ignored: {},
         optional: { type: 'string' },
       },
-      required: ['name', 42],
+      required: ['name'],
       additionalProperties: false,
     }
     expect(validateToolArguments('object', objectSchema, { name: 3, extra: true, ignored: 'kept' })?.message)
@@ -50,7 +50,7 @@ describe('MCP tools/call schema boundary', () => {
     expect(validateToolArguments('empty-object', { type: 'object', properties: {}, additionalProperties: false }, { extra: true })?.message)
       .toContain('不接受任何参数')
     expect(validateToolArguments('loose-object', { type: 'object', properties: 'invalid', required: 'invalid', additionalProperties: true }, {}))
-      .toBeNull()
+      .not.toBeNull()
     expect(validateToolArguments('object-shape', { type: 'object' }, [])?.message).toContain('必须是对象')
     expect(validateToolArguments('object-shape', { type: 'object' }, null)?.message).toContain('null')
     expect(validateToolArguments('object-shape', { type: 'object' }, 'wrong')?.message).toContain('字符串')
@@ -60,7 +60,7 @@ describe('MCP tools/call schema boundary', () => {
     expect(validateToolArguments('array', arraySchema, ['one', 'two'])?.message).toContain('最多')
     expect(validateToolArguments('array', { type: 'array', items: { type: 'string' } }, [3])?.message).toContain('必须是字符串')
     expect(validateToolArguments('array-shape', { type: 'array' }, 'wrong')?.message).toContain('必须是数组')
-    expect(validateToolArguments('array-items', { type: 'array', items: 'invalid' }, [])).toBeNull()
+    expect(validateToolArguments('array-items', { type: 'array', items: 'invalid' }, [])).not.toBeNull()
 
     expect(validateToolArguments('min-length', { type: 'string', minLength: 1 }, '')?.message).toContain('不能为空')
     expect(validateToolArguments('min-length', { type: 'string', minLength: 2, maxLength: 3 }, '')?.message).toContain('至少 2')
@@ -97,8 +97,32 @@ describe('MCP tools/call schema boundary', () => {
     expect(findUnsupportedSchemaFeatures({ properties: { nested: { type: 'string' } }, items: { type: 'string' } })).toEqual([])
   })
 
+  it('validates recursive JSON values and schema-valued dictionaries without mutation', () => {
+    const schema = { type: 'object', properties: { values: { type: 'object', additionalProperties: { $ref: '#/definitions/json' } } },
+      definitions: { json: { anyOf: [{ type: ['string', 'number', 'boolean', 'null'] },
+        { type: 'array', items: { $ref: '#/definitions/json' } },
+        { type: 'object', additionalProperties: { $ref: '#/definitions/json' } }] } } }
+    const value = { values: { tree: [null, true, 3, { child: ['ok'] }] } }
+    const before = structuredClone(value)
+    expect(validateToolArguments('recursive', schema, value)).toBeNull()
+    expect(value).toEqual(before)
+    for (const invalid of [undefined, Infinity, () => true]) {
+      expect(validateToolArguments('recursive', schema, { values: { invalid } })).not.toBeNull()
+    }
+    expect(validateToolArguments('dictionary', { type: 'object', additionalProperties: { type: 'integer' } }, { x: 1.5 })).not.toBeNull()
+  })
+
+  it('fails closed on unsupported keywords and unresolved references', () => {
+    for (const schema of [{ type: 'object', typo: true }, { $ref: '#/missing' }, { $ref: 'https://invalid.example/schema' }]) {
+      expect(validateToolArguments('invalid-schema', schema, {})).not.toBeNull()
+    }
+  })
+
   it('keeps the entire catalog inside the validator-supported schema subset', () => {
     const unsupported = MCP_TOOL_CATALOG.flatMap((tool) => findUnsupportedSchemaFeatures(tool.inputSchema).map((issue) => `${tool.name}: ${issue}`))
     expect(unsupported).toEqual([])
+    for (const tool of MCP_TOOL_CATALOG) {
+      expect(validateToolArguments(tool.name, tool.inputSchema, {})?.message ?? '').not.toContain('无效工具 schema')
+    }
   })
 })

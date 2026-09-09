@@ -2,6 +2,7 @@ import { require as tsxRequire } from 'tsx/cjs/api'
 // MCP 测试网 L1：真实 in-Electron stdio 进程的协议握手回归。
 // 零额度、无窗口断言；只走 initialize/tools/list/tools/call/notification framing。
 import crypto from 'node:crypto'
+import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
 import { makeIsolatedDirs, spawnMcpStdioClient, parseToolResult } from './_mcpJourney.mjs'
@@ -22,6 +23,9 @@ const { MCP_TOOL_RESOLVER } = tsxRequire('../../electron/capabilityCore/mcpToolC
 // 裸 Node launcher）共用一个常量，手抄一句散文的结局是改了代码这里静默漂成假绿。
 const { MAX_MCP_LINE_BYTES } = tsxRequire('../../electron/capabilityCore/mcpStdioLine.ts', import.meta.url)
 const { MCP_OVERSIZED_LINE_EVENT } = tsxRequire('../../electron/capabilityCore/mcpStdioDiagnostics.ts', import.meta.url)
+const { LANE_MODEL_TOOL_CATALOG, LANE_DEFERRED_TOOL_CATALOG } = tsxRequire('../../electron/agentLane/laneToolCatalog.ts', import.meta.url)
+const { toPublishedJsonSchema } = tsxRequire('../../electron/shared/agentCapabilities/modelVisibleJsonSchema.ts', import.meta.url)
+const LANE_TOOLS = [...LANE_MODEL_TOOL_CATALOG, ...LANE_DEFERRED_TOOL_CATALOG]
 const TOOL_NAMES = [...MCP_TOOL_NAMES]
 const READ_ONLY_TOOL_NAMES = MCP_TOOL_RESOLVER.list().filter((tool) => tool.annotations?.readOnlyHint === true).map((tool) => tool.name)
 
@@ -35,6 +39,20 @@ function proofFor(token, client = 'codex') {
 }
 
 async function main() {
+  for (const client of ['claude', 'workbuddy']) {
+    const denied = spawnMcpStdioClient({ ...makeIsolatedDirs('nomi-mcp-denied-'),
+      clientInfo: { name: client, version: '1' }, capabilities: {}, captureStderr: true,
+      env: { NOMI_MCP_CLIENT: client, NOMI_MCP_CLIENT_PROOF: 'invalid-proof' },
+    })
+    try {
+      for (const method of ['initialize', 'tools/list', 'resources/list', 'prompts/list']) {
+        const response = await denied.rpc(method, { protocolVersion: '2025-11-25', clientInfo: { name: client, version: '1' } }, 10_000)
+        check(response.error?.code === -32001 && response.error?.data?.code === 'mcp_connection_unauthenticated',
+          `C51 ${client} ${method} rejects an unverified client with the stable authentication code`)
+      }
+      check(!denied.childExited(), 'C51 rejection keeps stdio framing alive')
+    } finally { await denied.terminate() }
+  }
   const dirs = makeIsolatedDirs('nomi-mcp-l1-')
   const token = crypto.randomBytes(24).toString('hex')
   fs.writeFileSync(path.join(dirs.capabilityDir, 'token'), token, { mode: 0o600 })
@@ -65,6 +83,19 @@ async function main() {
     const names = tools.map((tool) => tool.name)
     check(names.length === TOOL_NAMES.length && JSON.stringify(names) === JSON.stringify(TOOL_NAMES), `C2 tools/list matches the ${TOOL_NAMES.length}-tool declared catalog`)
     check(tools.every((tool) => typeof tool.title === 'string' && tool.title.length > 0), 'C2 every MCP tool carries a human title')
+    const { $schema: _dialect, ...planSchema } = toPublishedJsonSchema(LANE_TOOLS.find(tool => tool.name === 'apply_edit_plan').schema)
+    assert.deepEqual(tools.find(tool => tool.name === 'nomi_timeline_edit').inputSchema.properties.plan, planSchema,
+      'C51 external timeline plan is the complete lane schema, including action and bounds')
+    check(true, 'C51 timeline write schema is projected from the lane catalog')
+    const runSchema = toPublishedJsonSchema(LANE_TOOLS.find(tool => tool.name === 'start_production_run').schema)
+    for (const field of ['goal', 'audience', 'channel', 'tone', 'durationSeconds', 'sellingPoints']) {
+      assert.deepEqual(tools.find(tool => tool.name === 'nomi_run_start').inputSchema.properties.brief.properties[field], runSchema.properties[field], `C51 production ${field} is the lane schema`)
+    }
+    const { generationPlanInputSchema } = tsxRequire('../../electron/shared/agentCapabilities/generationPlanSchemas.ts', import.meta.url)
+    const create = toPublishedJsonSchema(generationPlanInputSchema.options[1].omit({ operation: true }))
+    for (const [field, schema] of Object.entries(create.properties)) {
+      assert.deepEqual(tools.find(tool => tool.name === 'nomi_operation_plan').inputSchema.properties[field], schema, `C51 generation ${field} is the lane schema`)
+    }
     const readOnly = tools.filter((tool) => tool.annotations?.readOnlyHint === true).map((tool) => tool.name)
     check(JSON.stringify(readOnly) === JSON.stringify(READ_ONLY_TOOL_NAMES), 'C2 readOnlyHint is exactly nomi_read + nomi_operation_preview + M2 read tools')
     const payloadBytesByLocale = measureMcpToolsListPayloadByLocale(MCP_TOOL_RESOLVER.list())

@@ -265,10 +265,10 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
   const defaultAuthorities = createDefaultAuthorities(generationPolicy)
   const projectRevisionResolver = authorities.projectRevisionResolver ?? defaultAuthorities.projectRevisionResolver!
   const approvalReceiptAuthority = authorities.approvalReceiptAuthority ?? defaultAuthorities.approvalReceiptAuthority
-  const projectSession = createProductionMcpStdioProjectSessionBinding(generationPolicy)
+  let verifiedSession: VerifiedProjectSessionBinding | undefined
+  const projectSession = () => verifiedSession ??= createProductionMcpStdioProjectSessionBinding(generationPolicy)
   const proposalReceiptFor = authorities.proposalReceiptFor ?? createDefaultMcpProposalReceiptResolver()
   const canvasReadExecutionRuntime = createHeadlessCanvasReadExecutionRuntime()
-  const { connection } = projectSession
   // 无窗口进程：mac 别在 dock 弹图标。
   app.dock?.hide?.()
   const previewServer = await startArtifactPreviewHttpServer(
@@ -506,11 +506,11 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
       params,
       options,
       generationAuthorities,
-      projectSession,
+      projectSession(),
       canvasReadExecutionRuntime,
     ),
     isAppOpen: () => Boolean(readLiveInstance(currentLibrary())),
-    getAuthenticatedClient: () => connection.authenticatedClient,
+    getAuthenticatedClient: () => projectSession().connection.authenticatedClient,
     onClientDetected: (name) => { recordDetectedMcpClient(name) },
     confirmGenerationInNomi: async (challenge) => {
       const challengeToken = challenge.handoff && typeof challenge.handoff.challengeToken === 'string'
@@ -518,7 +518,7 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
         : ''
       const instance = readLiveInstance(currentLibrary())
       if (!challengeToken || !instance) return { confirmed: false }
-      const result = await callViaRpc(instance, 'nomi_confirm_generation_gate', { challengeToken }, connection)
+      const result = await callViaRpc(instance, 'nomi_confirm_generation_gate', { challengeToken }, projectSession().connection)
       const typed = result as { confirmed?: boolean; receiptId?: string; receiptToken?: string }
       return { confirmed: typed.confirmed === true, ...(typed.receiptId ? { receiptId: typed.receiptId } : {}), ...(typed.receiptToken ? { receiptToken: typed.receiptToken } : {}) }
     },
@@ -529,9 +529,9 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
         ? challenge.handoff.challengeToken
         : ''
       const instance = readLiveInstance(currentLibrary())
-      const authenticatedClient = connection.authenticatedClient
+      const authenticatedClient = projectSession().connection.authenticatedClient
       if (!challengeToken || !instance || !authenticatedClient) return { confirmed: false }
-      const result = await callViaRpc(instance, 'nomi_verify_client_generation_gate', { challengeToken, authenticatedClient }, connection)
+      const result = await callViaRpc(instance, 'nomi_verify_client_generation_gate', { challengeToken, authenticatedClient }, projectSession().connection)
       const typed = result as { confirmed?: boolean; receiptId?: string; receiptToken?: string }
       return { confirmed: typed.confirmed === true, ...(typed.receiptId ? { receiptId: typed.receiptId } : {}), ...(typed.receiptToken ? { receiptToken: typed.receiptToken } : {}) }
     },

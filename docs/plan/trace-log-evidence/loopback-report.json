@@ -1,0 +1,34 @@
+{
+  "name": "trace-log",
+  "mode": "development",
+  "tempRoot": "/var/folders/f4/vz86j5nd0_sf56qdhzrmbbvw0000gn/T/nomi-pi-trace-log-2f70Px",
+  "outputDir": "/Users/aoqimin/Desktop/Nomi-trace-log/.tmp/pi-trace-log-development-1788980178124",
+  "launches": [
+    {
+      "packaged": false,
+      "appPath": "/Users/aoqimin/Desktop/Nomi-trace-log",
+      "userData": "/var/folders/f4/vz86j5nd0_sf56qdhzrmbbvw0000gn/T/nomi-pi-trace-log-2f70Px/user-data",
+      "node": "24.18.1",
+      "electron": "43.4.1",
+      "pid": 48592
+    }
+  ],
+  "screenshots": [
+    "/Users/aoqimin/Desktop/Nomi-trace-log/.tmp/pi-trace-log-development-1788980178124/01-session-menu-after.png",
+    "/Users/aoqimin/Desktop/Nomi-trace-log/.tmp/pi-trace-log-development-1788980178124/02-settings-after.png"
+  ],
+  "paidCalls": 0,
+  "projectId": "project-1788980179563-u7uq4w",
+  "projectRoot": "/var/folders/f4/vz86j5nd0_sf56qdhzrmbbvw0000gn/T/nomi-pi-trace-log-2f70Px/projects/未命名项目 09_10 02_56-mtuglx18-d8991e5b",
+  "traceRows": 3,
+  "toolWriteRate": "3/3",
+  "turnSuccessRate": "3/3",
+  "openedDirectories": [
+    "/var/folders/f4/vz86j5nd0_sf56qdhzrmbbvw0000gn/T/nomi-pi-trace-log-2f70Px/projects/未命名项目 09_10 02_56-mtuglx18-d8991e5b/.nomi/agent-sessions/--nomi-lane-main--/01a08787-3500-769e-9d87-f7ff643e99b2.trace",
+    "/var/folders/f4/vz86j5nd0_sf56qdhzrmbbvw0000gn/T/nomi-pi-trace-log-2f70Px/projects/未命名项目 09_10 02_56-mtuglx18-d8991e5b/.nomi/agent-sessions"
+  ],
+  "textRequests": 6,
+  "imageRequests": 0,
+  "unexpected": [],
+  "result": "passed"
+}

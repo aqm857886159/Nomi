@@ -1,0 +1,50 @@
+{
+  "budgetCny": 1,
+  "reservedCny": 0.272682256,
+  "requests": [
+    {
+      "path": "/v1/chat/completions",
+      "model": "deepseek-v4-pro",
+      "maxTokens": 8192,
+      "upperUsd": 0.08242344,
+      "started": "2026-09-09T19:07:42.536Z",
+      "requestNumber": 1,
+      "httpStatus": 200,
+      "usage": {
+        "prompt_tokens": 10920,
+        "completion_tokens": 6362,
+        "total_tokens": 17282,
+        "prompt_tokens_details": {
+          "cached_tokens": 512
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 4399
+        },
+        "prompt_cache_hit_tokens": 512,
+        "prompt_cache_miss_tokens": 10408
+      },
+      "costCny": 0.272682256
+    }
+  ],
+  "denied": [],
+  "observed": [
+    {
+      "inputType": "string",
+      "initFields": [
+        "signal",
+        "method",
+        "headers",
+        "body"
+      ],
+      "path": "/v1/chat/completions",
+      "bodyFields": [
+        "model",
+        "messages",
+        "stream",
+        "stream_options"
+      ],
+      "inputBytes": 37866,
+      "reservationCny": 0.57696408
+    }
+  ]
+}

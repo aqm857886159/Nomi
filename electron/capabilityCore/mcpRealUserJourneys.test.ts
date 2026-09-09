@@ -206,7 +206,9 @@ describe('MCP production entrypoint user journeys', () => {
     const { calls, frames, protocol } = createTransportHarness()
     try {
       const empty = await callTool(protocol, frames, 11, 'nomi_operation_plan', { leaseHandle: 'lease-1', prompt: '' })
-      expect(empty?.isError).not.toBe(true)
+      expect(empty?.isError).toBe(true)
+      expect(errorCode(empty)).toBe('capability_input_invalid')
+      expect(calls.some(({ method }) => method === 'nomi_operation_create')).toBe(false)
 
       const longUnicodePrompt = '重复的镜头意图😀'.repeat(1_000)
       const long = await callTool(protocol, frames, 12, 'nomi_operation_plan', {

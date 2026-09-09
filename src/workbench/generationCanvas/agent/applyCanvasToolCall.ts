@@ -1,4 +1,4 @@
-import { validateAnchorModelFit } from './storyboardAnchorPolicy'
+import { hasRealCharacterReferences, normalizeStoryboardAnchorDefaults, validateAnchorModelFit } from './storyboardAnchorPolicy'
 import type {
   BuiltinCanvasCategoryId,
   GenerationCanvasEdgeMode,
@@ -287,7 +287,10 @@ export async function applyCanvasToolCall(
     // 规划免费可改:planner 第一手产出结构化方案对象,落创作 store 给用户审/改——不碰画布、零网络、零扣费。
     // 用户确认后才由 storyboardPlanToCreateNodesArgs 转成 create_canvas_nodes 落画布(S4)。
     // 校验失败 throw → 调用方映射成 tool error,回喂 LLM 自我修正(与 gate deny 同语义)。
-    const plan = parseStoryboardPlan(record)
+    const parsedPlan = parseStoryboardPlan(record)
+    const plan = hasRealCharacterReferences(parsedPlan)
+      ? normalizeStoryboardAnchorDefaults(parsedPlan, await listAvailableModelsForAgent())
+      : parsedPlan
     const store = useWorkbenchStore.getState()
     // P4:按 documentId 存方案。documentId 由调用方在发起拆镜头时捕获，异步期间切文档不串稿。
     // 缺 documentId（如旧调用方）回退 activeDocumentId，保证至少落到当前激活文档。

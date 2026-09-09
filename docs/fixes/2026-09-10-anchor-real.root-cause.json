@@ -1,0 +1,124 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-10-anchor-real",
+  "problem_type": "Agent storyboard defaults ignore available character image inputs",
+  "symptom": "Eight video shots can persist text-only modes despite real referenced character images",
+  "direct_cause": "propose_storyboard_plan saves parsed modes before advisory validation; referenceBindings are not derived from real anchor URLs",
+  "class_root": "Missing joint mode and real-reference binding invariant at the AI draft write boundary",
+  "affected_population": [
+    "Agent storyboard drafts with referenced visual character image URLs across catalog vendors"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/agent/storyboardAnchorPolicy.ts",
+    "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts",
+    "src/workbench/generationCanvas/agent/storyboardPlanSchema.ts",
+    "src/workbench/creation/storyboard/shotRow/StoryboardShotRow.tsx",
+    "src/i18n/locales/storyboardEditor.ts",
+    "src/workbench/creation/storyboard/exec/storyboardRowStatus.ts",
+    "src/workbench/generationCanvas/agent/availableModels.ts",
+    "src/workbench/generationCanvas/agent/runStoryboardPlanner.ts"
+  ],
+  "entry_points": [
+    "Native lane nomi_storyboard_write through shared renderer application",
+    "Direct propose_storyboard_plan capability application"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Existing model profiles own external contracts; this repair changes only internal AI draft default admission, not a provider API or dependency.",
+  "invariants": [
+    "A referenced real character image gets a consuming mode and bound slot before an AI draft is saved whenever the selected catalog model can accept it",
+    "Explicit GUI modes and old project hydration are not rewritten",
+    "Unsupported models retain honest inline warnings; insufficient capacity never silently discards references"
+  ],
+  "generality_proof": "Both lane and capability callers converge on propose_storyboard_plan in applyCanvasToolCall; the catalog-supplied vendor identity and existing slot declarations determine admission without provider branches.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/agent/storyboardAnchorPolicy.ts",
+      "symbol": "normalizeStoryboardAnchorDefaults",
+      "responsibility": "Joint catalog mode selection and real character image binding before AI draft persistence"
+    },
+    {
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowStatus.ts",
+      "symbol": "deriveShotRowExec",
+      "responsibility": "A real image bound in the active image slot satisfies its anchor dependency; unbound anchors still wait."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts",
+      "entry_point": "propose_storyboard_plan",
+      "disposition": "enforced",
+      "evidence": "All native and capability draft writes converge here after schema parsing and before setStoryboardPlan."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/StoryboardPlanEditor.tsx",
+      "entry_point": "setStoryboardPlan GUI edits",
+      "disposition": "not-affected",
+      "evidence": "User-authored mode edits are explicit intent and retain #681 advisory; hydration likewise never passes draft normalization."
+    },
+    {
+      "path": "src/workbench/generationCanvas/agent/storyboardPatchShots.ts",
+      "entry_point": "previewStoryboardPatchShots",
+      "disposition": "not-affected",
+      "evidence": "Targeted user-requested field edits are not default full-draft planning; existing reference bindings are preserved."
+    },
+    {
+      "path": "src/workbench/generationCanvas/agent/runStoryboardPlanner.ts",
+      "entry_point": "runStoryboardPlanner",
+      "disposition": "enforced",
+      "evidence": "Production single-shot planner returns the same normalized AI draft IR before materialization; original response text retained as evidence."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every model-written draft can omit slots or choose a text mode regardless of available real images.",
+    "same_class_scan": [
+      "rg propose_storyboard_plan src electron: shared applyCanvasToolCall admission",
+      "rg referenceBindings src/workbench: schema, slot append and meta projection",
+      "rg setStoryboardPlan src/workbench: GUI, proposal, patch and hydration examined"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/agent/storyboardAnchorPolicy.ts",
+    "invariant": "Real referenced character images and consumable modes are admitted together for AI drafts.",
+    "failure_mode": "Reject insufficient slot capacity or missing catalog identity; models without image capability retain visible ignored-reference warning.",
+    "exception_policy": "none",
+    "strategy": "Normalize before persistence using existing catalog and slot append owner, not prompt text or generation-time corrections.",
+    "artifacts": [
+      "src/workbench/generationCanvas/agent/storyboardAnchorPolicy.ts",
+      "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts",
+      "src/workbench/generationCanvas/agent/storyboardPlanSchema.ts",
+      "src/workbench/creation/storyboard/exec/storyboardRowStatus.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/agent/storyboardAnchorReal.test.ts",
+    "src/workbench/generationCanvas/agent/runStoryboardPlanner.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/agent/storyboardAnchorReal.test.ts",
+    "src/workbench/generationCanvas/agent/runStoryboardPlanner.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts"
+    ],
+    "rationale": "Replaces unconditional raw AI draft persistence for the real-anchor population; no second write route remains."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "An internal admission invariant using already installed catalog, schema and slot owners; no runtime upgrade needed.",
+    "exit_criteria": []
+  },
+  "migration": "No implicit legacy migration: existing saved user mode choices stay intact; newly planned drafts are normalized using existing PlanShot fields.",
+  "residual_risks": [
+    "Reference input consumption is not a guarantee of generated face consistency; this task generates no media."
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/agent/storyboardAnchorPolicy.ts",
+    "tests": [
+      "src/workbench/generationCanvas/agent/storyboardAnchorReal.test.ts"
+    ]
+  }
+}

@@ -255,6 +255,7 @@
     "@xmldom/xmldom": "0.9.12",
     "@xyflow/react": "12.11.5",
     "ai": "^4.3.19",
+    "ajv": "8.20.0",
     "clsx": "^2.1.1",
     "electron-updater": "^6.8.9",
     "fflate": "0.8.3",

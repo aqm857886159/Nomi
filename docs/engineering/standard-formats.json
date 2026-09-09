@@ -301,6 +301,98 @@
       "writers": [
         "electron/providerAdapter/certificationCleanup.ts"
       ]
+    },
+    {
+      "name": "pi-session-jsonl",
+      "kind": "external-standard",
+      "files": [
+        "*.jsonl (pi JsonlSessionRepo format 4)"
+      ],
+      "spec": "https://github.com/earendil-works/pi/blob/main/packages/agent/src/harness/session/testing/conformance/session-repo.ts",
+      "upstreamVersion": "@earendil-works/pi-agent-core 0.85.1; JSONL format 4 / storageVersion 1; installed official conformance helper, 2026-09-10",
+      "why": "Native pi JSONL remains the only session authority. Nomi reads it through session.findEntries, never a parallel parser or recorder.",
+      "fixtures": [
+        "tests/fixtures/standard-formats/pi-session/conformance-messages.json"
+      ],
+      "readers": [
+        "electron/agentLane/laneSession.mts",
+        "electron/agentLane/laneTrace.mts",
+        "electron/agentLane/laneTraceRedaction.mts"
+      ],
+      "writers": [
+        "electron/agentLane/laneSession.mts",
+        "electron/agentLane/laneTraceRecorder.mts"
+      ],
+      "deviations": [
+        {
+          "what": "Host timings, pricing and credential-redaction locations use standard custom entries (nomi.ui.trace / nomi.ui.trace-redactions); native messages and usage retain their SDK shape.",
+          "reason": "Tool execution start time and host pricing provenance are absent from message entries. Session.mutate commits detached custom entries, without copying messages or changing the model branch; redaction locations make cold derived rebuild independent of retained credentials."
+        }
+      ]
+    },
+    {
+      "name": "nomi-agent-trace-view",
+      "kind": "nomi-defined",
+      "files": [
+        "trace.md",
+        "trace.jsonl",
+        "index.md (agent sessions)"
+      ],
+      "why": "Human-readable and queryable derived views, rebuilt from native pi entries. A sessionId.trace subdirectory prevents collisions and avoids native top-level JSONL discovery.",
+      "searched": [
+        {
+          "what": "https://code.claude.com/docs/en/hooks and https://code.claude.com/docs/en/costs",
+          "verdict": "Claude transcript and current /usage are product-specific, not a reusable per-user-turn schema; adopting them would create a second native session format."
+        },
+        {
+          "what": "https://github.com/openai/codex/blob/main/codex-rs/rollout/src/recorder.rs",
+          "verdict": "Codex rollout is a native session recorder, not a pi derived view. Keep its inspectability principle, not its private payload schema."
+        },
+        {
+          "what": "https://github.com/open-telemetry/semantic-conventions-genai/blob/main/docs/gen-ai/gen-ai-spans.md",
+          "verdict": "Reuse invoke_agent/execute_tool semantics; no OTLP transport is required for offline local files. Preserve separate pi cache counters rather than mislabel input as OTel cache-inclusive input."
+        }
+      ],
+      "readers": [],
+      "writers": [
+        "electron/agentLane/laneTrace.mts",
+        "electron/agentLane/laneSession.mts"
+      ],
+      "deviations": [
+        {
+          "what": "Each JSONL row is a user turn, not an OTLP span. Unknown metrics remain null; cost is estimated USD from native usage with pricing provenance.",
+          "reason": "Creators need one local record per prompt plus session totals; streamed model/tool events would obscure the user-turn boundary."
+        }
+      ]
+    },
+    {
+      "name": "mcp-skill-resources-prompts",
+      "kind": "external-standard",
+      "wire": true,
+      "files": [],
+      "wireContract": "MCP resources/list/read and prompts/list/get for content-addressed skill packages",
+      "spec": "https://modelcontextprotocol.io/specification/2025-11-25/server/prompts",
+      "upstreamVersion": "2025-11-25, official request example retrieved 2026-09-10",
+      "why": "External hosts discover complete skill text packages using standard resources and prompt arguments.",
+      "fixtures": [
+        "tests/fixtures/standard-formats/mcp/prompts-get.json"
+      ],
+      "readers": [
+        "electron/capabilityCore/mcpProtocol.ts"
+      ],
+      "writers": [
+        "electron/capabilityCore/mcpProtocol.ts"
+      ],
+      "deviations": [
+        {
+          "what": "Resources use the custom nomi-skill URI scheme and prompt _meta carries package identity.",
+          "reason": "Domain constraint: resources must remain bound to an authorized local skill package and its exact content hash, not arbitrary local files. These fields use standard MCP extension points."
+        },
+        {
+          "what": "Binary preview media is not exposed as a skill text resource.",
+          "reason": "Domain constraint: the canonical text skill package hash includes only supported text and script source files; this endpoint reads that package and never executes its scripts."
+        }
+      ]
     }
   ]
 }

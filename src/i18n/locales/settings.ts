@@ -199,6 +199,15 @@ export const zhSettings = {
   },
   general: {
     title: '通用',
+    trace: {
+      title: '日志',
+      description: '当前项目的 Agent 会话轨迹，仅保存在本机。',
+      open: '打开目录',
+      opening: '正在打开…',
+      noProject: '请先打开一个项目，再查看日志。',
+      projectChanged: '项目已切换，请重新打开日志。',
+      failed: '无法打开日志目录，请重试。',
+    },
     screenshot: '全局截图热键',
     screenshotHint:
       '默认关。开启后按一下热键就能把屏幕抓进画布——Nomi 没在前台也管用（找参考时很顺手）。macOS 需要「屏幕录制」权限。',
@@ -471,6 +480,15 @@ export const enSettings = {
   },
   general: {
     title: 'General',
+    trace: {
+      title: 'Logs',
+      description: 'Agent conversation traces for this project, stored locally.',
+      open: 'Open folder',
+      opening: 'Opening…',
+      noProject: 'Open a project to view its logs.',
+      projectChanged: 'The project changed. Open the logs again.',
+      failed: 'Could not open the log folder. Try again.',
+    },
     screenshot: 'Global screenshot hotkey',
     screenshotHint:
       'Off by default. When on, one keypress grabs the screen into the canvas — even when Nomi is not in front (handy while hunting references). macOS needs Screen Recording permission.',

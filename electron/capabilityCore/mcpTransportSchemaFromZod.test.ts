@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import { CANVAS_WRITE_OPERATIONS, CANVAS_NODE_PROMPT_GUIDELINES, canvasWriteSemanticInputSchema, plannedNodeSchema } from "../shared/agentCapabilities/canvasWrite";
-import { findUnsupportedSchemaFeatures } from "./mcpArgValidation";
+import { findUnsupportedSchemaFeatures, validateToolArguments } from "./mcpArgValidation";
 import { MCP_CAPABILITY_RESOLVER } from "./mcpCapabilityProjection";
 import { transportSchemaFromZod } from "./mcpTransportSchemaFromZod";
 import { MCP_TOOL_RESOLVER } from "./mcpToolCatalog";
@@ -35,6 +35,13 @@ describe("transportSchemaFromZod", () => {
     expect(select.type).toBe("object");
     expect(select.required).toEqual(["kind"]);
     expect((select.properties as Record<string, { enum?: unknown[] }>).kind.enum).toEqual(["all", "indexes"]);
+  });
+
+  it("publishes and enforces numeric draft-07 exclusive bounds", () => {
+    const schema = transportSchemaFromZod(z.object({ duration: z.number().positive() }), { label: "positive duration" });
+    expect((schema.properties as Record<string, Record<string, unknown>>).duration.exclusiveMinimum).toBe(0);
+    expect(validateToolArguments("duration", schema, { duration: 0 })).not.toBeNull();
+    expect(validateToolArguments("duration", schema, { duration: 0.5 })).toBeNull();
   });
 
   it("stays inside the runtime validator's keyword subset", () => {

@@ -35,6 +35,10 @@ for (const screen of LAB_SCREEN_IDS) {
 
     for (const state of states) {
       test(`状态 ${state.id} · ${state.name}`, async ({ page }) => {
+        if (screen === 'storyboard' && state.id === 'sb-row-06-generating') {
+          // Fix only Date: real animation/timers still run, while elapsed narration is deterministic.
+          await page.clock.setFixedTime(new Date('2026-09-10T00:00:00Z'))
+        }
         const errors = []
         page.on('pageerror', (error) => errors.push(String(error)))
         if (screen === 'process-feedback') {

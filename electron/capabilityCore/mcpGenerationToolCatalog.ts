@@ -7,7 +7,9 @@
  *
  * Reconciliation vocabulary is owned by shared/agentCapabilities/generationPlanSchemas.
  */
-import { GENERATION_RECONCILE_OUTCOMES } from "../shared/agentCapabilities/generationPlanSchemas";
+import { z } from "zod";
+import { toPublishedJsonSchema } from "../shared/agentCapabilities/modelVisibleJsonSchema";
+import { generationPlanInputSchema, GENERATION_RECONCILE_OUTCOMES } from "../shared/agentCapabilities/generationPlanSchemas";
 import {
   assertPaidBoundaryExternalSurface,
   paidBoundaryAnnotations,
@@ -15,42 +17,17 @@ import {
 
 const gstr = (value: unknown): string => (typeof value === "string" ? value : "");
 
-const OPERATION_PLAN_SHARED_FIELDS = {
-  projectId: { type: "string" },
-  prompt: { type: "string", description: "单镜目标；无 candidate 时用默认模型创建草稿。" },
-  taskKind: { type: "string", enum: ["text_to_image", "image_edit", "text_to_video", "image_to_video"] },
-  // 模型身份三元组：三项都从 nomi_read(target=models) 的同一行读得到（moduleId / vendor / modelKey）。
-  moduleId: { type: "string", description: "模型身份：取 nomi_read(target=models) 里那一行的 moduleId。" },
-  providerId: { type: "string", description: "模型身份：取 nomi_read(target=models) 里那一行的 vendor（也可以直接写 vendor 字段）。" },
-  modelId: { type: "string", description: "模型身份：取 nomi_read(target=models) 里那一行的 modelKey（也可以直接写 modelKey 字段）。" },
-  // 读工具吐 {vendor, modelKey}，写工具本来只认 {providerId, modelId} —— 同一个东西两套叫法，
-  // 宿主把读到的行原样贴过来就被 additionalProperties:false 拒掉（探针 c-3）。这里直接收下读侧的名字，
-  // 在 build 里归一到 providerId/modelId，身份键定义一个字不改。
-  vendor: { type: "string", description: "providerId 的读侧别名：nomi_read(target=models) 里那一行的 vendor。" },
-  modelKey: { type: "string", description: "modelId 的读侧别名：nomi_read(target=models) 里那一行的 modelKey。" },
-  mode: { type: "string" },
-  modeId: { type: "string" },
-  variantId: { type: "string" },
-  parameters: { type: "object" },
-  references: { type: "array" },
-  candidate: { type: "object", description: "单镜完整 candidate。" },
-  shots: {
-    type: "array",
-    description: "多镜逐镜计划；可含 shotId、role(anchor/shot)、included 和 candidate。",
-    items: {
-      type: "object",
-      properties: {
-        shotId: { type: "string" },
-        role: { type: "string", enum: ["anchor", "shot"] },
-        included: { type: "boolean" },
-        candidate: { type: "object" },
-      },
-      required: ["candidate"],
-      additionalProperties: false,
-    },
-  },
-  scriptText: { type: "string", description: "多镜剧本/分镜文本；服务端生成逐镜提示词、模型/模式建议和锚声明。" },
-} as const;
+// Assemble the complete envelope before publication: recursive references remain relative
+// to the final tool root, and every semantic field retains its canonical lane owner.
+const generationTransportSchema = generationPlanInputSchema.options[1].omit({ operation: true }).extend({
+  leaseHandle: z.string(),
+  projectId: z.string().optional(),
+  operationId: z.string().describe("缺省新建；给出则配合 patch 编辑。").optional(),
+  vendor: z.string().describe("providerId alias from nomi_read(target=models).").optional(),
+  modelKey: z.string().describe("modelId alias from nomi_read(target=models).").optional(),
+  patch: generationPlanInputSchema.options[2].shape.patch.optional(),
+});
+const { $schema: _dialect, ...generationInputSchema } = toPublishedJsonSchema(generationTransportSchema);
 
 /** create（无 operationId）用的 candidate/shots/scriptText 字段拷贝（build 里透传）。 */
 function buildOperationCreateParams(args: Record<string, unknown>): Record<string, unknown> {
@@ -80,19 +57,9 @@ export const MCP_GENERATION_TOOL_CATALOG = [
   {
     // T5 · 起/改一份可编辑的生成草稿（不提交、不花额度）。无 operationId=新建(create)；有 operationId+patch=改(plan)。
     name: "nomi_operation_plan",
-    title: "起/改一份可编辑的生成草稿（单镜 prompt / 多镜 shots / 剧本 scriptText 三选一）；不提交、不花额度。",
+    title: "编辑生成草稿",
     description: "创建/编辑生成草稿；不提交、不花额度。无 operationId=新建（prompt 单镜，分钟级/成片自动拟剧本分镜）；带 operationId+patch=编辑。",
-    inputSchema: {
-      type: "object",
-      properties: {
-        leaseHandle: { type: "string" },
-        operationId: { type: "string", description: "缺省新建；给出则配合 patch 编辑。" },
-        ...OPERATION_PLAN_SHARED_FIELDS,
-        patch: { type: "object", description: "有 operationId 时的定点修改。" },
-      },
-      required: ["leaseHandle"],
-      additionalProperties: false,
-    },
+    inputSchema: generationInputSchema,
     // create（无 operationId）→ nomi_operation_create；patch（有 operationId）→ nomi_submit_generation_plan。
     method: "nomi_operation_create",
     resolveMethod: (args: Record<string, unknown>): string =>
@@ -105,7 +72,7 @@ export const MCP_GENERATION_TOOL_CATALOG = [
   {
     // T6 · 预览草稿将用的模型/模式/参数/参考 + 定价；不调用模型、不封存（RO，编译预演相位）。
     name: "nomi_operation_preview",
-    title: "预览草稿将用的模型/模式/参数/参考与不支持字段 + 定价；不调用模型、不封存。",
+    title: "预览生成方案与价格",
     description: "预览模型、模式、参数、参考、不支持字段与定价；不调用模型，未知价不显示为 0。",
     inputSchema: {
       type: "object",
@@ -121,7 +88,7 @@ export const MCP_GENERATION_TOOL_CATALOG = [
     // T7 · 单次生成付费确认门（两相，phase 参数）。request 发起真人确认挑战 / decide 提交客户端已完成的凭据。
     // 付费 seam（assertKnownShotPrice fail-closed / receipt MAC / gate_decide 抛错走 Run-owned seam）原地不动在 handler。
     name: "nomi_operation_gate",
-    title: "单次生成的付费确认门：request 发起真人确认挑战 / decide 提交客户端已完成的确认凭据。",
+    title: "确认生成费用",
     description: "付费门：request 封存计划、计算 maximumCost 并发确认挑战（不提交）；decide 提交客户端确认凭据；不接受裸 confirm/approved。",
     inputSchema: {
       type: "object",
@@ -150,7 +117,7 @@ export const MCP_GENERATION_TOOL_CATALOG = [
   {
     // T8 · 在计划已封存且确认有效后开始单次生成（$ 提交）。前置 approvedReceiptId 有效，与 T7 分家（形状约束3）。
     name: "nomi_operation_execute",
-    title: "在计划已封存且确认有效后开始单次生成；提交只走统一 Runtime Adapter。",
+    title: "执行已确认的生成",
     description: "计划封存且确认有效后生成；经统一 Runtime Adapter 提交，replay 幂等。",
     inputSchema: {
       type: "object",
@@ -165,7 +132,7 @@ export const MCP_GENERATION_TOOL_CATALOG = [
   {
     // T9 · 控制单次生成：cancel 取消草稿 / reconcile 核对提交状态（未知结果不盲目重提）。
     name: "nomi_operation_control",
-    title: "控制单次生成：cancel 取消草稿 / reconcile 核对提交状态（未知结果不盲目重提）。",
+    title: "取消或核对生成任务",
     description: "cancel 取消未提交草稿（已提交进入可核账取消）；reconcile 核对提交状态，未知结果不重提。",
     inputSchema: {
       type: "object",

@@ -277,7 +277,7 @@ function BaseGenerationNodeImpl({
         flowManagedLayout ? 'relative' : 'absolute', 'p-0 border-0 rounded-none bg-transparent shadow-none',
         'cursor-grab select-none touch-none overflow-visible',
         'data-[selected=true]:z-[5]',
-        'block isolate group/node',
+        'block isolate group/node [&_[data-generation-message]]:min-w-0 [&_[data-generation-message]]:[overflow-wrap:anywhere]',
       )}
       data-node-id={node.id}
       data-kind={node.kind}
@@ -433,7 +433,6 @@ function BaseGenerationNodeImpl({
         <ShotPreviewOverlays shotIndex={shotIndex} />
         {!isCardKind && !isTextKind ? <NodeInlineImageTitle nodeId={node.id} value={node.title || ''} readOnly={readOnly} /> : null}
         {!isCardKind ? <ShotMountBadges cards={mountedCards} /> : null}
-        <NodeGenerationStatus node={node} />
         <TechnicalReviewBadge meta={node.meta} />
         {/* 拆解收起态（视图 07）：视频节点有拆解结果且面板未占槽时，挂「已拆解 · N 镜」角标 + 可点回浮条。 */}
         <NodeDeconstructionBadge node={node} />
@@ -459,12 +458,15 @@ function BaseGenerationNodeImpl({
         ) : null}
         {/* 2026-08-04 撤离卡片右上两颗常驻按钮（放大＝浮条「全屏」去重；生成记录迁进浮动工具栏，门是 selected 非 hover）——动作不压内容（§1.5）。 */}
       </NodeLabelRow>
+      <div data-node-inline-status className="pointer-events-none absolute inset-x-0 bottom-[calc(100%+40px)] z-[4] flex h-7 items-center [&_[data-generation-message]]:truncate [&_[data-generation-status]]:bg-nomi-paper/90">
+        <NodeGenerationStatus node={node} />
+      </div>
 
       <ProvenancePanel node={node} open={provenanceOpen} onClose={() => setProvenanceOpen(false)} />
 
       {/* 失败态：错误卡铺满节点正文（absolute inset-0 z-[5]），盖占位底纹但不挡 composer/resize/handles。 */}
       {status === 'error' && node.error ? (
-        <NodeErrorReport
+        <NodeErrorReport summaryVisible={false}
           message={node.error} meta={node.meta}
           onDismiss={() => useGenerationCanvasStore.getState().dismissNodeError(node.id)}
           onRetry={

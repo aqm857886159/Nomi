@@ -40,8 +40,11 @@ export function NodeErrorReport({
   onRetry,
   onDismiss,
   meta,
+  summaryVisible = true,
 }: {
   message: string
+  /** False when the owning node already displays this same failure summary inline. */
+  summaryVisible?: boolean
   onRetry?: () => void
   /** 收起这张卡（不删错误，只把遮罩撤掉露出下面的产物）。不给 = 不显示关闭钮。 */
   onDismiss?: () => void
@@ -206,8 +209,8 @@ export function NodeErrorReport({
       // 不拦 pointerdown：错误卡 inset-0 盖住整个节点正文，若 stopPropagation 会让节点**拖不动也选不中**
       // （用户真机反馈）。放行 → 节点可拖可选、参数框正常弹；复制错误详情走卡里的「复制详情」按钮（不靠划选）。
     >
-      <div className="flex items-start gap-2">
-        <GenerationStatusBar feedback={{ phase: 'failed', message: report.reason, active: false, saved: false, late: false, previewLabel: '' }} />
+      <div className={cn("flex items-start gap-2", !summaryVisible && "justify-end")}>
+        {summaryVisible ? <GenerationStatusBar feedback={{ phase: 'failed', message: report.reason, active: false, saved: false, late: false, previewLabel: '' }} /> : null}
         {/* 收起：失败卡是铺满正文的遮罩，节点先前生成的片子就压在它下面——没有这颗钮，用户「一直看不了
             原本的视频」（2026-08-24 用户反馈，并在截图上把 × 画在了这个位置）。§1.5：它是 L2 情境控件，
             只随失败卡存在，且长在卡自己的不透明表面上、不是压在画面内容上（§1.5.3 那条硬规则）。

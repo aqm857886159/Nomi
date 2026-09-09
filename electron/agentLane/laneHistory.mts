@@ -1,3 +1,6 @@
+import { logError } from '../logging/logger.js';
+import { registerLiveLaneTrace } from './laneTraceRecorder.mjs';
+import { writeLaneTrace } from './laneTrace.mjs';
 import type { OpenLaneOptions } from './laneRuntimePort.js';
 import { findLaneReceiptAuthority } from './laneReceiptAuthority.mjs';
 // Opening saved conversation history does not require a configured model or credentials.
@@ -12,7 +15,11 @@ export async function openLaneHistory(options: Pick<OpenLaneOptions, 'projectDir
   const context = BACKGROUND_CONTEXT;
   const opened = await openLaneSession(options, context);
   const laneName = options.laneName ?? 'main';
+  let unregisterTrace: (() => void) | undefined;
   try {
+    await writeLaneTrace(opened.session).catch(() => {
+      logError('agent', 'derived-view-write-failed', new Error('Agent trace could not be written'));
+    });
     const branch = await opened.session.branch(laneName, context);
     const transcript = branch ? await branch.findEntries({ order: 'oldestFirst' }, context) : [];
     const stats = await opened.session.getStats(context);
@@ -27,6 +34,7 @@ export async function openLaneHistory(options: Pick<OpenLaneOptions, 'projectDir
     const listeners = new Set<(next: typeof projection) => void>();
     const unavailable = () => { throw new Error('Model is not configured'); };
     let closing: Promise<void> | undefined;
+    unregisterTrace = registerLiveLaneTrace(opened.session.metadata.path, () => writeLaneTrace(opened.session));
     return {
       laneName, sessionId: opened.sessionId,
       receiptAuthority: (proposalId) => findLaneReceiptAuthority(snapshot, proposalId),
@@ -39,12 +47,14 @@ export async function openLaneHistory(options: Pick<OpenLaneOptions, 'projectDir
         for (const listener of listeners) listener(projection);
       },
       close: () => closing ??= (async () => {
+        unregisterTrace?.();
         listeners.clear();
         try { await opened.session.close(context); }
         finally { await opened.release(context); }
       })(),
     };
   } catch (error) {
+    unregisterTrace?.();
     try { await opened.session.close(context); }
     finally { await opened.release(context); }
     throw error;

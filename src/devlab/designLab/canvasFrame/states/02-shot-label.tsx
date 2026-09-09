@@ -13,7 +13,7 @@ function ShotLabelStage(): JSX.Element {
   const zoom = useWorkbenchStore((s) => s.categoryViewports.shots?.zoom ?? 1)
   React.useEffect(() => {
     const update = (event: Event) => {
-      const { kind, zoom, selected, details = false } = (event as CustomEvent<ShotLabelFixture>).detail
+      const { kind, zoom, selected, details = false, nodePatch } = (event as CustomEvent<ShotLabelFixture>).detail
       const shot = useGenerationCanvasStore.getState().nodes.find((n) => n.id === 'label-shot')!
       const reference: GenerationCanvasNode = { id: 'label-reference', kind: 'character', title: '阿青', categoryId: 'characters', position: { x: 0, y: 0 }, status: 'idle' }
       useGenerationCanvasStore.setState({ nodes: [{ ...shot,
@@ -22,6 +22,7 @@ function ShotLabelStage(): JSX.Element {
         progress: details && kind === 'image' ? { phase: 'generating', updatedAt: 1 } : undefined,
         meta: details && kind === 'video' ? { videoDeconstruction: { shots: [{ index: 1 }] } } : undefined,
         result: kind === 'empty' ? undefined : { id: 'label-result', type: kind === 'video' ? 'video' : 'image', url: kind === 'video' ? '/fixtures/node-label-video.mp4' : '/fixtures/process-feedback-frame.svg', createdAt: 1 },
+        ...nodePatch,
       }, ...(details ? [reference] : [])],
         edges: details ? [{ id: 'label-reference-edge', source: reference.id, target: shot.id }] : [],
         selectedNodeIds: selected ? ['label-shot'] : [] })

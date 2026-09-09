@@ -1,0 +1,6 @@
+{
+  "url": "https://api-docs.deepseek.com/quick_start/pricing",
+  "checkedAt": "2026-09-10",
+  "sha256": "fc590e5b2cc856c798d46314828dd790320e177317121a1864ef5428991d12d7",
+  "result": "URL returned First API Call page, not pricing. This fetch does not reverify rates; budget uses repository officialPlannerPrice checked 2026-09-10."
+}

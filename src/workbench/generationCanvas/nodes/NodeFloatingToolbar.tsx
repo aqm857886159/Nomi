@@ -20,7 +20,7 @@ export function FloatingToolbarShell({ ariaLabel, children }: { ariaLabel: strin
   return (
     <div
       className={cn(
-        'absolute left-1/2 bottom-[calc(100%+40px)] z-[12]',
+        'absolute left-1/2 bottom-[calc(100%+40px)] group-has-[[data-node-inline-status]_[data-generation-status]]/node:bottom-[calc(100%+72px)] z-[12]',
         'inline-flex items-center gap-1 min-h-9 px-1.5 py-1',
         'border border-nomi-line rounded-nomi',
         'bg-nomi-paper shadow-nomi-md',

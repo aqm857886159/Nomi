@@ -1,0 +1,125 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-10-agent-trace-rebuild-boundary",
+  "problem_type": "Derived trace privacy and ownership must survive cold rebuild and project copies",
+  "symptom": "Review of C70 found that cold rebuild could restore a credential removed by the live view, and copied projects could open another project trace.",
+  "direct_cause": "Live rendering knew in-memory secrets; cold history did not. The live registry originally keyed globally by sessionId, which survives copying a project.",
+  "class_root": "A rebuildable view must carry its privacy decisions in its authoritative source and scope transient owners by the source file, not a portable identifier.",
+  "affected_population": [
+    "New C70 traces containing known credentials echoed by a model or tool",
+    "Copied local projects retaining the same native pi sessionId",
+    "History opened without a configured model"
+  ],
+  "scope_paths": [
+    "electron/agentLane/laneTrace.mts",
+    "electron/agentLane/laneTraceRecorder.mts",
+    "electron/agentLane/laneTraceRedaction.mts",
+    "electron/agentLane/laneHost.mts",
+    "electron/agentLane/laneHistory.mts",
+    "electron/agentLane/laneSession.mts",
+    "electron/diagnostics/agentTraceIpc.ts",
+    "electron/settings/registerSettingsIpc.ts"
+  ],
+  "entry_points": [
+    "Completed run trace publication",
+    "Settings/session directory opening",
+    "Cold history opening"
+  ],
+  "internal_only_reason": "The invariant concerns Nomi derived-view privacy and local project ownership. pi remains the unchanged serializer and Session mutation owner; official source research is recorded in docs/plan/2026-09-10-trace-log.md.",
+  "invariants": [
+    "Known-secret redaction positions are durable standard custom entries containing no secret or copied text.",
+    "Every derived writer applies those positions before serialization.",
+    "A live trace owner is keyed by the absolute native session path.",
+    "Derived write failure does not prevent reading or executing the original session.",
+    "Only the trusted current main window can request a native metadata-resolved directory; no arbitrary renderer path reaches shell.openPath."
+  ],
+  "generality_proof": "Every live/cold writer converges on writeLaneTrace; durable source positions remove dependence on currently configured credentials. Native source paths distinguish project copies with identical portable ids.",
+  "shared_boundaries": [
+    {
+      "path": "electron/agentLane/laneTrace.mts",
+      "symbol": "writeLaneTrace",
+      "responsibility": "Apply durable redactions and safe value projection before publishing either derived format."
+    },
+    {
+      "path": "electron/agentLane/laneTraceRecorder.mts",
+      "symbol": "registerLiveLaneTrace",
+      "responsibility": "Scope each live owner to the native source path."
+    },
+    {
+      "path": "electron/diagnostics/agentTraceIpc.ts",
+      "symbol": "registerAgentTraceIpc",
+      "responsibility": "Validate sender/lane, resolve current project and revalidate after async rebuild before shell dispatch."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/agentLane/laneHost.mts",
+      "entry_point": "openLane",
+      "disposition": "enforced",
+      "evidence": "Attaches one recorder and publishes source-backed views after native settlement."
+    },
+    {
+      "path": "electron/agentLane/laneHistory.mts",
+      "entry_point": "openLaneHistory",
+      "disposition": "enforced",
+      "evidence": "Uses shared writer and registers the exact source path without requiring credentials."
+    },
+    {
+      "path": "electron/agentLane/laneSession.mts",
+      "entry_point": "openLaneTraceDirectory",
+      "disposition": "enforced",
+      "evidence": "Resolves native metadata and shares the live writer or SDK reader for cold rebuild."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any later cold open or copied project can reproduce the mechanism; not tied to one provider.",
+    "same_class_scan": [
+      "rg -n 'writeLaneTrace|refreshLiveLaneTrace|registerLiveLaneTrace' electron/agentLane",
+      "Independently inspected run completion, read-only history and directory rebuild."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/agentLane/laneTrace.mts",
+    "invariant": "Both derived formats use source-backed redaction and source-scoped ownership.",
+    "failure_mode": "Unsafe trace publication fails; directory IPC returns a bounded error; native session remains usable.",
+    "exception_policy": "none",
+    "strategy": "Persist privacy locations in pi custom entries and apply centrally before serialization; key live ownership by native file path.",
+    "artifacts": [
+      "electron/agentLane/laneTrace.mts",
+      "electron/agentLane/laneTraceRecorder.mts",
+      "electron/agentLane/laneTraceRedaction.mts"
+    ]
+  },
+  "regression_tests": [
+    "tests/agent-runtime/lane-trace.test.mts",
+    "tests/agent-runtime/lane-trace-redaction.test.mts",
+    "electron/diagnostics/agentTraceIpc.test.ts"
+  ],
+  "class_regression_tests": [
+    "tests/agent-runtime/lane-trace.test.mts",
+    "tests/agent-runtime/lane-trace-redaction.test.mts"
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/agentLane/laneTrace.mts",
+    "tests": [
+      "tests/agent-runtime/lane-trace.test.mts",
+      "tests/agent-runtime/lane-trace-redaction.test.mts"
+    ]
+  },
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "C70 is a new derived view; the existing pi JSONL persistence is neither replaced nor migrated."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The bug is Nomi view identity/privacy state, not pi serialization. No dependency change is needed.",
+    "exit_criteria": []
+  },
+  "migration": "Existing native sessions remain unchanged. Recorded redaction positions travel with the source; older sessions without C70 timing retain explicit unknown values.",
+  "residual_risks": [
+    "Unknown credentials in historical native text cannot be identified exhaustively; generic credential patterns still apply. Nomi does not rewrite pre-existing native transcripts."
+  ]
+}

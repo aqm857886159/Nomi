@@ -78,15 +78,22 @@ export function collapseV4Flow(
     const running = turn
       ? timing?.liveTurnId === turn.turnId
       : receipts.some(receipt => receipt.status === 'input-streaming' || receipt.status === 'input-available')
+        || stretch.some(item => item.kind === 'thinking' ? item.streaming === true
+          : item.kind === 'assistant' && item.status === 'streaming')
     const work = stretch.filter(item => item.kind !== 'assistant')
-    // Group same tools across explicit thinking as in B2a; retain all thinking in details.
+    // Thinking is one process-level disclosure, never a receipt between tools.
+    // Keep original receipt indices for actions; merging thoughts must not reindex tools.
     const grouped: V4FlowItem[] = []
     emitTools(receipts, t, grouped)
-    grouped.push(...work.filter(item => item.kind === 'thinking'))
     const details = grouped.map(item => ({ item, index: index + stretch.findIndex(entry =>
       item.kind === 'tool-group' ? entry.kind === 'tool' && entry.receipt === item.receipts[0]
-        : item.kind === 'tool' ? entry.kind === 'tool' && entry.receipt === item.receipt
-          : entry === item) })).sort((a, b) => a.index - b.index)
+        : item.kind === 'tool' && entry.kind === 'tool' && entry.receipt === item.receipt) }))
+    const thoughts = stretch.filter(item => item.kind === 'thinking')
+    const text = thoughts.map(item => item.text).filter(Boolean).join('\n\n')
+    if (!running && text) details.unshift({
+      item: { kind: 'thinking', label: t('agentPanelV4.thinkingDone'), meta: '', text, streaming: false },
+      index: index + stretch.findIndex(item => item.kind === 'thinking'),
+    })
     // An unsuccessful attempt counts as a retry only if the same operation was attempted again.
     const retried = receipts.filter((receipt, at) => receipt.status === 'output-error'
       && receipts.slice(at + 1).some(next => groupKey(next) === groupKey(receipt)))

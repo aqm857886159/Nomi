@@ -55,5 +55,6 @@ export type DesktopSettingsBridge = {
   }
   diagnostics?: {
     exportBundle: () => Promise<import('../../electron/shared/contracts/diagnostics').DiagnosticsExportResult>
+    openTraceDirectory?: (laneName?: string) => Promise<import('../../electron/shared/contracts/agentTrace').AgentTraceOpenResult>
   }
 }

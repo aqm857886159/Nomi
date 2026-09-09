@@ -1,0 +1,112 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-10-shot-node-badge-contrast",
+  "problem_type": "Media-adjacent metadata has no contrast-preserving surface",
+  "symptom": "Shot numbers and mounted-card badges are unreadable against media in light and dark themes.",
+  "direct_cause": "Both badge renderers use muted ink on a transparent background, including the mounted-card overflow badge.",
+  "class_root": "Shared shot metadata renderers do not own a foreground/background pair that preserves contrast independently of the underlying media.",
+  "affected_population": [
+    "All shot numbers",
+    "Character and scene mounted-card names",
+    "Mounted-card overflow counts",
+    "Light and dark themes"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/nodes/ConvertShotToVideoButton.tsx",
+    "src/workbench/generationCanvas/nodes/render/ShotMountBadges.tsx"
+  ],
+  "entry_points": [
+    "ShotPreviewOverlays",
+    "ShotMountBadges named cards and overflow"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "This repair concerns existing internal token-backed badge renderers and their computed browser contrast; no new external API or dependency behavior.",
+  "invariants": [
+    "All shot metadata badge text retains a conservative contrast floor of 4.5:1 over arbitrary media backgrounds in both themes."
+  ],
+  "generality_proof": "The two shared badge renderers are used by every image/video shot host; both named-card and overflow branches receive the same token-backed surface. The browser test renders real TSX and compiles real Tailwind config, and the common measurement accounts for background and text alpha without assuming a page color.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/ConvertShotToVideoButton.tsx",
+      "symbol": "ShotPreviewOverlays",
+      "responsibility": "Own a readable theme-token foreground and overlay surface for all shot numbers."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/render/ShotMountBadges.tsx",
+      "symbol": "ShotMountBadges",
+      "responsibility": "Own a readable foreground and overlay surface for every named and overflow mount badge."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/ConvertShotToVideoButton.tsx",
+      "entry_point": "ShotPreviewOverlays",
+      "disposition": "enforced",
+      "evidence": "The transparent shot-number span is replaced by the token-backed overlay surface."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/render/ShotMountBadges.tsx",
+      "entry_point": "ShotMountBadges cards.slice(0, 2)",
+      "disposition": "enforced",
+      "evidence": "Both character and scene names share the fixed named-card rendering branch."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/render/ShotMountBadges.tsx",
+      "entry_point": "ShotMountBadges rest.length > 0",
+      "disposition": "enforced",
+      "evidence": "The overflow count receives the same surface and is independently measured."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any media pixel or overlapping canvas node can match transparent badge text, for every future generation and either theme.",
+    "same_class_scan": [
+      "Inspected ConvertShotToVideoButton.tsx shot number and ShotMountBadges.tsx named/overflow branches.",
+      "Inspected BaseGenerationNode.tsx metadata composition and NodeLabelRow.tsx framework placement.",
+      "Compared GenerationStatusBar.tsx existing paper/90 overlay with src/theme/nomi-tokens.css light/dark pairs.",
+      "Reviewed ui-driver.mjs contrast probe: white-background assumption cannot verify arbitrary media."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/nodes/render/ShotMountBadges.tsx",
+    "invariant": "Every named or overflow mount badge and shot number owns an ink/paper overlay pair that meets 4.5:1 independently of media.",
+    "failure_mode": "The generic browser contrast measurement reports violations when foreground/background luminance intervals overlap or the contrast floor falls below 4.5.",
+    "exception_policy": "none",
+    "strategy": "Apply the surface in the existing two shared badge renderers, removing transparent muted-ink styling; assert all renderer branches against actual compiled tokens.",
+    "artifacts": [
+      "src/workbench/generationCanvas/nodes/ConvertShotToVideoButton.tsx",
+      "src/workbench/generationCanvas/nodes/render/ShotMountBadges.tsx"
+    ]
+  },
+  "regression_tests": [
+    "tests/ux/_feel.browser.mjs"
+  ],
+  "class_regression_tests": [
+    "tests/ux/_feel.browser.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/nodes/ConvertShotToVideoButton.tsx",
+      "src/workbench/generationCanvas/nodes/render/ShotMountBadges.tsx"
+    ],
+    "rationale": "Removed the transparent muted-ink-only metadata rendering in both shared components; no parallel renderer remains."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Existing React, Tailwind and browser APIs suffice; the defect is missing internal surface ownership.",
+    "exit_criteria": []
+  },
+  "migration": "No stored state or data changes; existing nodes immediately render the new surface.",
+  "residual_risks": [
+    "Full Electron before/after screenshots and canvas layout acceptance are performed by the coordinating task."
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/nodes/render/ShotMountBadges.tsx",
+    "tests": [
+      "tests/ux/_feel.browser.mjs"
+    ],
+    "note": "Real TSX and production Tailwind tokens are rendered in Chromium, with transparent/alpha/OKLCH class controls."
+  }
+}

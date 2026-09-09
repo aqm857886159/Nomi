@@ -65,7 +65,13 @@ export const ROW_STATES: readonly LabState[] = [
     name: '行 · 生成中 37%',
     source: '合同 §3.1 generating',
     coverage: 'shell',
-    render: () => RowStage({ exec: { status: 'generating', progressPercent: 37 } }),
+    render: () => RowStage({ exec: {
+      status: 'generating', progressPercent: 37,
+      node: {
+        id: 'sb-row-generating-node', kind: 'video', title: '镜头 1', position: { x: 0, y: 0 }, status: 'running',
+        progress: { phase: 'generating', percent: 37, updatedAt: Date.now() - 12000 },
+      },
+    } }),
   },
   {
     id: 'sb-row-07-failed',

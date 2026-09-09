@@ -1,0 +1,30 @@
+{
+  "result": "passed",
+  "c77": {
+    "liveThinking": 0,
+    "settledThinking": 1,
+    "toolResults": [
+      {
+        "id": "c77-0",
+        "isError": false
+      },
+      {
+        "id": "c77-1",
+        "isError": true
+      },
+      {
+        "id": "c77-2",
+        "isError": false
+      },
+      {
+        "id": "c77-3",
+        "isError": false
+      }
+    ],
+    "repeatedRows": []
+  },
+  "textRequests": 5,
+  "imageRequests": 0,
+  "unexpected": [],
+  "paidCalls": 0
+}

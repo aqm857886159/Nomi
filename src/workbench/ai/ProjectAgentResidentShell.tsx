@@ -34,6 +34,7 @@ import { promptDisplayTitle } from '../promptLibrary/promptDisplay'
 import { filterPrompts } from '../api/promptLibraryApi'
 import type { ComposerPopover } from './v4/agentPanelV4Types'
 import { buildV4ModelRows } from './v4/agentPanelV4ModelRows'
+import { useAgentTraceDirectory } from '../../desktop/useAgentTraceDirectory'
 
 /**
  * 面板尺寸只有真实 DOM 知道。v4 的积木按面板高度 derive composer 上限，所以必须量。
@@ -67,6 +68,7 @@ function usePanelSize(): Readonly<{ width: number; height: number; measure: (nod
 export default function ProjectAgentResidentShell({ surface }: { surface: ResidentSurface }): JSX.Element {
   const { t } = useTranslation()
   const labels = useV4Labels()
+  const trace = useAgentTraceDirectory()
   const size = usePanelSize()
   const collapsed = useWorkbenchStore((state) => state.projectAgentDockCollapsed)
   const dockHidden = useWorkbenchStore((state) => state.agentDockHidden)
@@ -485,6 +487,21 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
               </button>
             </div>
           ))}
+          {trace.available ? (
+            <div className="mt-1 border-t border-nomi-line pt-1">
+              <button
+                type="button"
+                role="menuitem"
+                data-agent-trace-open="session"
+                disabled={trace.busy}
+                className="w-full rounded-nomi-sm px-2 py-2 text-left text-caption text-nomi-ink-60 hover:bg-nomi-ink-05 disabled:opacity-50"
+                onClick={() => { void trace.open(data.snapshot.active.lane) }}
+              >
+                {t(trace.busy ? 'settings.general.trace.opening' : 'agentResident.viewTrace')}
+              </button>
+              {trace.message ? <p role="alert" className="px-2 py-1 text-caption text-nomi-ink-60">{trace.message}</p> : null}
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>

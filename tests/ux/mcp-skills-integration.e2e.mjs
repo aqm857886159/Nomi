@@ -22,6 +22,7 @@ import {
   makeIsolatedDirs,
   repoRoot,
   spawnMcpStdioClient,
+  seedMcpClientIdentityEnv,
 } from './_mcpJourney.mjs'
 
 const SKILL_URI_PREFIX = 'nomi-skill://'
@@ -43,16 +44,20 @@ function check(condition, label) {
   console.log(`  ✓ ${label}`)
 }
 
-async function main() {
+async function verifyClient(client) {
   assertBuilt()
   const dirs = makeIsolatedDirs('nomi-mcp-skills-')
-  // spawnMcpStdioClient 的基础 env 本身就带一份已验证的客户端身份（见 _mcpJourney.mjs 的
-  // seedMcpClientIdentityEnv，默认 'claude'），因此这里**不再自己 seed 一遍**——重复注入等于并行版。
-  // 签名身份 → mcpSkillAccess() 判为 local-authenticated → 拿到全量创作技能目录（无 audience 过滤，
-  // 所以本测试不需要、也不应该在测试里重抄一份可见性规则）。
+  const fixtureRoot = path.join(dirs.settingsDir, 'skills', 'b6-complete-package')
+  fs.mkdirSync(path.join(fixtureRoot, 'references'), { recursive: true })
+  fs.mkdirSync(path.join(fixtureRoot, 'scripts'), { recursive: true })
+  fs.writeFileSync(path.join(fixtureRoot, 'SKILL.md'), '---\nname: b6-complete-package\ndescription: Isolated package fixture\n---\nRead references/full.md and inspect scripts/example.py.\n')
+  fs.writeFileSync(path.join(fixtureRoot, 'references/full.md'), 'Complete fixture reference.\n')
+  fs.writeFileSync(path.join(fixtureRoot, 'scripts/example.py'), 'print("read only, never executed")\n')
+  // Exercise the same verified-client contract for both requested external hosts.
   const mcp = spawnMcpStdioClient({
     ...dirs,
-    clientInfo: { name: 'Nomi MCP skills integration', version: '1.0.0' },
+    clientInfo: { name: client, version: '1.0.0' },
+    env: seedMcpClientIdentityEnv(dirs.capabilityDir, client),
     capabilities: {},
   })
 
@@ -73,7 +78,7 @@ async function main() {
     const listedDirectories = [...new Set(
       skillResources.map((resource) => String(resource.uri).slice(SKILL_URI_PREFIX.length).split('/')[0]),
     )].sort()
-    const expectedDirectories = bundledSkillDirectories()
+    const expectedDirectories = [...bundledSkillDirectories(), 'b6-complete-package'].sort()
     assert.deepEqual(
       listedDirectories,
       expectedDirectories,
@@ -110,6 +115,35 @@ async function main() {
     const promptNames = (prompts?.prompts || []).map((prompt) => prompt.name)
     check(promptNames.includes('director-cinematography'), 'prompts/list 用 directoryName 当命令名（斜杠友好）')
 
+    // Every advertised file must be exactly readable, including referenced files; no length heuristic.
+    let attachmentCount = 0
+    for (const resource of skillResources) {
+      const uriParts = String(resource.uri).slice(SKILL_URI_PREFIX.length).split('/').map(decodeURIComponent)
+      const [directoryName, , , ...segments] = uriParts
+      const relativePath = segments.length ? segments.join('/') : 'SKILL.md'
+      const expected = fs.readFileSync(path.join(directoryName === 'b6-complete-package' ? fixtureRoot : path.join(repoRoot, 'skills', directoryName), relativePath), 'utf8')
+      const response = await mcp.rpc('resources/read', { uri: resource.uri }, 30_000)
+      assert.equal(response.result?.contents?.[0]?.text, expected, `Resource content mismatch: ${directoryName}/${relativePath}`)
+      if (segments.length) attachmentCount += 1
+    }
+    assert.ok(attachmentCount >= 2, 'Isolated package references and scripts must be exposed')
+    check(true, `resources/read 逐字读回全部 ${skillResources.length} 个文件（含 ${attachmentCount} 个附件）`)
+    for (const prompt of prompts.prompts) {
+      assert.equal(prompt.packageVersion, undefined, 'Prompt identity must use the standard metadata extension')
+      assert.equal(prompt.contentHash, undefined, 'Prompt identity must use the standard metadata extension')
+      assert.deepEqual(prompt.arguments.map(arg => arg.name), ['packageVersion', 'contentHash'])
+      const response = await mcp.rpc('prompts/get', { name: prompt.name, arguments: prompt._meta }, 30_000)
+      const expected = fs.readFileSync(path.join(prompt.name === 'b6-complete-package' ? fixtureRoot : path.join(repoRoot, 'skills', prompt.name), 'SKILL.md'), 'utf8')
+      assert.equal(response.result?.messages?.[0]?.content?.text, expected, `Prompt body mismatch: ${prompt.name}`)
+      const related = skillResources.filter(resource => resource.uri.startsWith(`${SKILL_URI_PREFIX}${prompt.name}/`) && resource.uri.split('/').length > 5)
+      for (const resource of related) assert.ok(response.result.messages.some(message => message.content.text.includes(resource.uri)), `Missing attachment URI in prompt ${prompt.name}`)
+    }
+    check(true, 'prompts/get 标准 arguments 绑定身份，正文与附件索引完整')
+    const stalePrompt = await mcp.rpc('prompts/get', { name: 'director-cinematography', arguments: { contentHash: '0'.repeat(64) } }, 30_000)
+    check(Boolean(stalePrompt.error), '标准 prompt arguments 中过期 hash 被拒绝')
+    const unsafeRead = await mcp.rpc('resources/read', { uri: `${cinematography.uri}/%2e%2e/SKILL.md` }, 30_000)
+    check(Boolean(unsafeRead.error), '附件资源拒绝路径穿越')
+
     const badRead = await mcp.rpc('resources/read', { uri: `${SKILL_URI_PREFIX}nope-nonexistent` }, 30_000)
     check(Boolean(badRead.error), '未知技能资源回 error')
 
@@ -117,6 +151,10 @@ async function main() {
   } finally {
     await mcp.terminate()
   }
+}
+
+async function main() {
+  for (const client of ['claude', 'workbuddy']) await verifyClient(client)
 }
 
 main().catch((error) => {

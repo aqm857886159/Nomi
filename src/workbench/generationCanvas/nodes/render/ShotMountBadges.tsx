@@ -35,7 +35,7 @@ export default function ShotMountBadges({ cards }: { cards: readonly MountedCard
           title={t('generationCommon.node.mountTitle', { title: card.title })}
           className={cn(
             'pointer-events-auto cursor-default inline-flex items-center gap-1 min-w-0 py-[3px] px-2 rounded-nomi-sm',
-            'text-nomi-ink-60',
+            'border border-nomi-line bg-nomi-paper/90 text-nomi-ink',
           )}
         >
           {card.kind === 'character' ? (
@@ -49,7 +49,7 @@ export default function ShotMountBadges({ cards }: { cards: readonly MountedCard
       {rest.length > 0 ? (
         <span
           title={restTitle}
-          className="pointer-events-auto cursor-default py-[3px] px-2 rounded-nomi-sm text-nomi-ink-60"
+          className="pointer-events-auto cursor-default py-[3px] px-2 rounded-nomi-sm border border-nomi-line bg-nomi-paper/90 text-nomi-ink"
         >
           +{rest.length}
         </span>

@@ -1,0 +1,46 @@
+
+ RUN  v4.1.8 /Users/aoqimin/Desktop/Nomi-anchor-real
+
+ ❯ src/workbench/generationCanvas/agent/storyboardAnchorReal.test.ts (2 tests | 2 failed) 9ms
+     × loopback: real catalog + one anchor saves 8/8 consuming modes and bound slots 7ms
+     × keeps anchor provenance through parsing and repeated writes 2ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/workbench/generationCanvas/agent/storyboardAnchorReal.test.ts > real character reference at the shared storyboard write boundary > loopback: real catalog + one anchor saves 8/8 consuming modes and bound slots
+AssertionError: shot 1: expected [ 'none' ] to not include 'none'
+ ❯ src/workbench/generationCanvas/agent/storyboardAnchorReal.test.ts:43:65
+     41|       const archetype = resolveArchetypeForModel({ modelKey: shot.mode…
+     42|       const mode = archetype.modes.find(mode => mode.id === shot.modeI…
+     43|       expect(anchorsConsumedBy(mode), `shot ${shot.index}`).not.toCont…
+       |                                                                 ^
+     44|       expect(shot.referenceBindings?.image_ref).toEqual([{ url: anchor…
+     45|       expect(Object.values(shotReferenceMetaPatch(mode, shot)).flat())…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/workbench/generationCanvas/agent/storyboardAnchorReal.test.ts > real character reference at the shared storyboard write boundary > keeps anchor provenance through parsing and repeated writes
+AssertionError: expected undefined to be 'hero' // Object.is equality
+
+- Expected:
+"hero"
+
++ Received:
+undefined
+
+ ❯ src/workbench/generationCanvas/agent/storyboardAnchorReal.test.ts:51:91
+     49|   it('keeps anchor provenance through parsing and repeated writes', as…
+     50|     const once = await write(fixture())
+     51|     expect(parseStoryboardPlan(once).shots[0].referenceBindings?.image…
+       |                                                                                           ^
+     52|     expect(await write(once)).toEqual(once)
+     53|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed (2)
+   Start at  02:33:53
+   Duration  1.37s (transform 639ms, setup 20ms, import 1.17s, tests 9ms, environment 0ms)
+

@@ -1,4 +1,4 @@
-import { anchorsConsumedBy } from '../../../../config/modelArchetypes/anchorPolicy'
+import { anchorsConsumedBy, SLOT_ACCEPTS } from '../../../../config/modelArchetypes/anchorPolicy'
 import { ignoredShotAnchors, type IgnoredAnchor } from '../../../generationCanvas/agent/storyboardAnchorPolicy'
 import type { GenerationCanvasNode } from '../../../generationCanvas/model/generationCanvasTypes'
 import type { ArchetypeMode, ArchetypeReferenceSlot } from '../../../../config/modelArchetypes/types'
@@ -121,6 +121,10 @@ export function deriveShotRowExec(input: {
     // isVisualAnchor 再过一道：与 materialize 连边同一谓词——不给「永远等一张不会生成的卡」留缝
     // （如 carrier 被手动翻成 visual 的 style 锚，materialize 不建节点也不连边）。
     for (const anchor of referencedVisualAnchors(shot, plan.anchors).filter(isVisualAnchor)) {
+      // A real reference already bound in the active image slot is the input;
+      // materialization deliberately does not create another anchor node for it.
+      if (anchor.referenceUrl && !anchor.referenceSourceNodeId && mode?.slots.some(slot => SLOT_ACCEPTS[slot.kind].includes('image')
+        && shot.referenceBindings?.[slot.kind]?.some(binding => binding.anchorId === anchor.id && binding.url === anchor.referenceUrl))) continue
       const anchorNode = findAnchorNode(nodes, designId, anchor)
       if (!anchorNode || !hasUsableResult(anchorNode)) {
         waitingRefs.push({ anchor, node: anchorNode })

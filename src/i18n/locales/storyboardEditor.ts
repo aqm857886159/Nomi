@@ -5,6 +5,9 @@ export const zhStoryboardEditor = {
     removeAnchors: '第 {{index}} 镜的 {{mode}} 模式不会使用「{{anchors}}」参考图；请去掉该镜视觉锚，或选择支持图片参考的模型。',
     countWarning: '{{total}} 镜引用了它，其中 {{ignored}} 镜的模型不吃参考图，这张参考图在那 {{ignored}} 镜里不会被使用',
     rowIgnored: '参考图不会被使用',
+    modelUnsupported: '该模型不吃参考',
+    catalogMissing: '第 {{index}} 镜的模型不在可用目录中，无法绑定角色参考图。请选择可用模型后重试。',
+    capacityExceeded: '第 {{index}} 镜的参考槽无法容纳角色图或缺少必填输入。请调整参考或模型后重试。',
   },
   overrides: {
     badge: '画布改的：{{value}}',
@@ -363,6 +366,9 @@ type TranslationShape<T> = {
 
 export const enStoryboardEditor = {
   anchorPolicy: {
+    modelUnsupported: 'This model does not accept references',
+    catalogMissing: 'Shot {{index}} has no matching available model for character references. Choose an available model and retry.',
+    capacityExceeded: 'Shot {{index}} cannot fit the character references or is missing required inputs. Adjust the references or model and retry.',
     ignoredReason: 'Mode {{mode}} has no image input; reference images will not be used',
     switchMode: 'Shot {{index}} uses {{mode}} and will ignore reference images {{anchors}}. Switch to {{alternative}} on the same model, or remove this shot’s visual anchors.',
     removeAnchors: 'Shot {{index}} mode {{mode}} will ignore reference images {{anchors}}. Remove its visual anchors or select a model that accepts images.',

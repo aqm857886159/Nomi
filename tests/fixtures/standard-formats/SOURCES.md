@@ -14,3 +14,6 @@
 
 **为什么夹具里是 `filesystem` 而不是 `nomi`**：夹具要证的是「**别人写的条目在我们手里活得下来**」。
 我们自己的条目当然读得过；真正会出事的是合并进用户已有配置时把别人的 server 弄没了（`mcpConfig.ts` 的合并语义）。
+
+## MCP prompts/get (B6, 2026-09-10)
+`mcp/prompts-get.json` is the unmodified request example from https://modelcontextprotocol.io/specification/2025-11-25/server/prompts (retrieved 2026-09-10). Its standard name/arguments envelope is read by nomiMcpSkills.test.ts; the example's code_review prompt is correctly unknown to Nomi.

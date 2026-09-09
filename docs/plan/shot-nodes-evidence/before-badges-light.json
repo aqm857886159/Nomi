@@ -1,0 +1,50 @@
+{
+  "text": "镜头 2\n雨夜街口\n阿青",
+  "children": [
+    {
+      "text": "镜头 2",
+      "color": "oklab(0.5 0.00173648 0.00984808)",
+      "background": "rgba(0, 0, 0, 0)",
+      "rect": {
+        "x": 160,
+        "y": 131,
+        "width": 34.9375,
+        "height": 18,
+        "top": 131,
+        "right": 194.9375,
+        "bottom": 149,
+        "left": 160
+      }
+    },
+    {
+      "text": "雨夜街口",
+      "color": "oklab(0.5 0.00173648 0.00984808)",
+      "background": "rgba(0, 0, 0, 0)",
+      "rect": {
+        "x": 202.9375,
+        "y": 131,
+        "width": 234.0625,
+        "height": 18,
+        "top": 131,
+        "right": 437,
+        "bottom": 149,
+        "left": 202.9375
+      }
+    },
+    {
+      "text": "阿青",
+      "color": "oklab(0.5 0.00173648 0.00984808)",
+      "background": "rgba(0, 0, 0, 0)",
+      "rect": {
+        "x": 445,
+        "y": 128,
+        "width": 55,
+        "height": 24,
+        "top": 128,
+        "right": 500,
+        "bottom": 152,
+        "left": 445
+      }
+    }
+  ]
+}

@@ -128,6 +128,7 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
     },
     diagnostics: {
       exportBundle: () => ipcRenderer.invoke("nomi:diagnostics:export"),
+      openTraceDirectory: (laneName?: string) => ipcRenderer.invoke("nomi:diagnostics:open-agent-trace", laneName),
     },
   },
   telemetry: {

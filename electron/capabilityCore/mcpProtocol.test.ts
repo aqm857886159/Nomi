@@ -47,7 +47,7 @@ describe('MCP L1 tools/list_changed notification', () => {
     protocol.handleIncoming({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} })
     const listed = frames.find((frame) => frame.id === 1)?.result as { tools: Array<{ name: string; title?: string }> } | undefined
     expect(listed).toBeDefined()
-    expect(listed?.tools.find((tool) => tool.name === 'nomi_timeline_edit')?.title).toBe('Preview, apply, or undo a revision-guarded timeline edit.')
+    expect(listed?.tools.find((tool) => tool.name === 'nomi_timeline_edit')?.title).toBe('Preview, apply or undo timeline edits')
     protocol.dispose()
   })
 

@@ -31,7 +31,7 @@ const capabilityDir = path.join(tempRoot, 'capability')
 const token = crypto.randomBytes(24).toString('hex')
 fs.mkdirSync(capabilityDir, { recursive: true })
 fs.writeFileSync(path.join(capabilityDir, 'token'), token, { mode: 0o600 })
-const clients = ['claude', 'codex', 'cursor']
+const clients = ['claude', 'codex', 'cursor', 'workbuddy']
 
 if (!fs.existsSync(executablePath) || !fs.existsSync(launcherPath)) {
   throw new Error(`Packaged Nomi executable/helper not found: ${executablePath} / ${launcherPath}`)
@@ -133,6 +133,41 @@ async function smokeClient(client, { signed = true } = {}) {
       capabilities: {},
       clientInfo: { name: 'nomi-packaged-smoke', version: '1.0' },
     }, 60_000)
+    if (!signed) {
+      assert(initialized.error?.code === -32001 && initialized.error?.data?.code === 'mcp_connection_unauthenticated', `${client} initialize rejects unverified identity`)
+      for (const method of ['tools/list', 'resources/list', 'prompts/list', 'resources/read', 'prompts/get']) {
+        const denied = await rpc(method)
+        assert(denied.error?.code === -32001 && denied.error?.data?.code === 'mcp_connection_unauthenticated', `${client} ${method} rejects before discovery or execution`)
+      }
+      // Same write requests as the signed path must reject with the typed code.
+      const begin = await rpc('tools/call', {
+        name: 'nomi_integration',
+        arguments: {
+          action: 'begin',
+          kind: 'http-api-provider',
+          name: 'Unsigned generic host',
+          baseUrl: 'https://example.invalid/v1',
+        },
+      })
+      assert(begin.error?.code === -32001 && begin.error?.data?.code === 'mcp_connection_unauthenticated', `${client} unsigned integration.begin is rejected`)
+      const openCredentials = await rpc('tools/call', {
+        name: 'nomi_integration',
+        arguments: { action: 'open_credentials', sessionId: 'unsigned-session', expectedRevision: 1 },
+      })
+      assert(openCredentials.error?.code === -32001 && openCredentials.error?.data?.code === 'mcp_connection_unauthenticated', `${client} unsigned credential handoff is rejected`)
+      const start = await rpc('tools/call', {
+        name: 'nomi_integration',
+        arguments: {
+          action: 'start',
+          sessionId: 'unsigned-session',
+          expectedRevision: 1,
+          idempotencyKey: 'unsigned-start',
+          receipt: 'unsigned-receipt',
+        },
+      })
+      assert(start.error?.code === -32001 && start.error?.data?.code === 'mcp_connection_unauthenticated', `${client} unsigned certification start is rejected`)
+      return { tools: 0, resources: 0, body: 0, origin: 'external' }
+    }
     assert(initialized.result?.serverInfo?.name === 'nomi-capability-core', `${client} initialize handshake`)
 
     const tools = (await rpc('tools/list')).result?.tools || []
@@ -153,63 +188,13 @@ async function smokeClient(client, { signed = true } = {}) {
         + `缺少 [${declaredToolNames.filter((name) => !actualToolNames.includes(name)).join(', ')}]`,
     )
 
-    // resources/list: unsigned hosts receive an RPC-level error (403 from rpcServer when
-    // clientProof is absent → rpcErrorFromPayload propagates → mcpProtocol catches it and
-    // returns -32603 to the caller → .result is undefined → falls back to []). This is the
-    // correct behaviour: the launcher's launcherConnection() throws McpConnectionAuthenticationError
-    // at the first invoke() boundary, the protocol layer turns it into a -32603 reply, and the
-    // process stays alive for the full session. Signed clients reach the GUI RPC which forwards
-    // through the skills.list route and returns the full creative catalog.
-    const resources = (await rpc('resources/list')).result?.resources || []
-    // Host cutover content-addresses skill resources: nomi-skill://<dir>/<packageVersion>/<contentHash>
-    // (integrity contract asserted in electron/capabilityCore/nomiMcpSkills.test.ts). Match by the
-    // directory-name prefix and read via the returned uri rather than the pre-cutover bare uri.
-    const director = resources.find((resource) => resource.uri.startsWith('nomi-skill://director-cinematography/'))
-    let body = ''
-    if (signed) {
-      // Signed clients (proof-verified claude/codex/cursor) get local-authenticated MCP access →
-      // the full creative catalog including director.cinematography (electron/capabilityCore/
-      // dispatcher.ts::mcpSkillAccess + skillDispatcher.test.ts). Read via the returned uri.
-      assert(director, `${client} director cinematography resource is missing`)
-      body = (await rpc('resources/read', { uri: director.uri })).result?.contents?.[0]?.text || ''
-      assert(body.includes('镜头语言') && body.length > 1_000, `${client} director cinematography body is incomplete`)
-    } else {
-      // Unsigned/generic hosts: resources/list returns an empty list (RPC auth gate → -32603 →
-      // result undefined → []). The internal creative catalog must not leak to unverified callers.
-      assert(!director, `${client} internal creative skill must not leak to an unsigned host`)
-    }
-
-    if (!signed) {
-      // Write-boundary check: the exact same nomi_integration tool calls that succeed for signed
-      // clients must return isError:true for unsigned callers (rpcServer 403 → dispatcher rejects).
-      const begin = await rpc('tools/call', {
-        name: 'nomi_integration',
-        arguments: {
-          action: 'begin',
-          kind: 'http-api-provider',
-          name: 'Unsigned generic host',
-          baseUrl: 'https://example.invalid/v1',
-        },
-      })
-      assert(begin.result?.isError === true, `${client} unsigned integration.begin is rejected`)
-      const openCredentials = await rpc('tools/call', {
-        name: 'nomi_integration',
-        arguments: { action: 'open_credentials', sessionId: 'unsigned-session', expectedRevision: 1 },
-      })
-      assert(openCredentials.result?.isError === true, `${client} unsigned credential handoff is rejected`)
-      const start = await rpc('tools/call', {
-        name: 'nomi_integration',
-        arguments: {
-          action: 'start',
-          sessionId: 'unsigned-session',
-          expectedRevision: 1,
-          idempotencyKey: 'unsigned-start',
-          receipt: 'unsigned-receipt',
-        },
-      })
-      assert(start.result?.isError === true, `${client} unsigned certification start is rejected`)
-      return { tools: tools.length, resources: resources.length, body: body.length, origin: 'external' }
-    }
+    const resourcesReply = await rpc('resources/list')
+    assert(Array.isArray(resourcesReply.result?.resources), `${client} resources/list succeeds`)
+    const resources = resourcesReply.result.resources
+    const director = resources.find(resource => resource.uri.startsWith('nomi-skill://director-cinematography/'))
+    assert(director, `${client} director cinematography resource is missing`)
+    const body = (await rpc('resources/read', { uri: director.uri })).result?.contents?.[0]?.text || ''
+    assert(body.includes('镜头语言') && body.length > 1_000, `${client} director cinematography body is incomplete`)
 
     // J0 positive path: a Nomi-signed host can create a durable integration
     // draft from an empty directory without exposing a credential or sending a

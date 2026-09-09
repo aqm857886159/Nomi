@@ -161,3 +161,65 @@ describe('process retry summary', () => {
     }
   })
 })
+
+
+describe('C77 process thinking projection', () => {
+  const thoughts = Array.from({ length: 5 }, (_, i): V4FlowItem => ({
+    kind: 'thinking', label: '思考中…', meta: `${i + 1}s`, text: `思考正文 ${i}`, streaming: false,
+  }))
+  const calls = [tool('读取文稿', 'output-available'), tool('保存分镜', 'output-error'),
+    tool('保存分镜', 'output-available'), tool('读取分镜', 'output-available')]
+  const input = thoughts.flatMap((thought, i) => calls[i] ? [thought, calls[i]!] : [thought])
+
+  it('N thoughts and M tools retain one complete disclosure before every tool', () => {
+    const process = collapseV4Flow(input, t)[0]
+    if (process?.kind !== 'process') throw new Error('missing process')
+    const details = process.details!
+    expect(details.filter(detail => detail.item.kind === 'thinking')).toHaveLength(1)
+    expect(details[0]?.item).toMatchObject({ kind: 'thinking', streaming: false,
+      text: thoughts.map(thought => thought.kind === 'thinking' ? thought.text : '').join('\n\n') })
+    expect(details.slice(1).every(detail => ['tool', 'tool-group'].includes(detail.item.kind))).toBe(true)
+    expect(process).toMatchObject({ toolCount: 4, retries: 1 })
+    expect(details.slice(1).map(detail => detail.index)).toEqual([1, 3, 7])
+  })
+
+  it('running process uses only its live summary even with completed thoughts', () => {
+    const live = [...input, tool('读取分镜', 'input-streaming')]
+    const process = collapseV4Flow(live, t)[0]
+    if (process?.kind !== 'process') throw new Error('missing process')
+    expect(process.running).toBe(true)
+    expect(process.details!.filter(detail => detail.item.kind === 'thinking')).toHaveLength(0)
+  })
+
+  it('streaming thought after settled receipts still belongs to the live summary', () => {
+    const process = collapseV4Flow([...input, { kind: 'thinking', label: '思考中…', meta: '', text: '继续核对', streaming: true }], t)[0]
+    expect(process).toMatchObject({ kind: 'process', running: true })
+    if (process?.kind !== 'process') throw new Error('missing process')
+    expect(process.details!.some(detail => detail.item.kind === 'thinking')).toBe(false)
+  })
+
+  it('metadata-only thoughts leave no empty disclosure and tools remain intact', () => {
+    const process = collapseV4Flow([{ kind: 'thinking', label: '思考中…', meta: '4s', streaming: false }, ...calls], t)[0]
+    if (process?.kind !== 'process') throw new Error('missing process')
+    expect(process.details!.map(detail => detail.item.kind)).toEqual(['tool', 'tool-group', 'tool'])
+    expect(process).toMatchObject({ toolCount: 4, retries: 1 })
+  })
+
+  it('streaming answer keeps the process live until the turn settles', () => {
+    const process = collapseV4Flow([...input, { kind: 'assistant', text: '已保存', status: 'streaming' }], t)[0]
+    expect(process).toMatchObject({ kind: 'process', running: true })
+    if (process?.kind !== 'process') throw new Error('missing process')
+    expect(process.details!.some(detail => detail.item.kind === 'thinking')).toBe(false)
+  })
+
+  it('turn boundaries keep separate thought bodies without mutating replay input', () => {
+    const before = JSON.stringify(input)
+    const flow = collapseV4Flow([...input, { kind: 'user', text: '下一轮' }, ...input], t)
+    const processes = flow.filter(item => item.kind === 'process')
+    expect(processes).toHaveLength(2)
+    for (const process of processes) {
+      expect(process.details!.filter(detail => detail.item.kind === 'thinking')).toHaveLength(1)
+    }
+    expect(JSON.stringify(input)).toBe(before)
+  })
+})

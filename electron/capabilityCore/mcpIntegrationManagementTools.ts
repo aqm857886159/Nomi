@@ -3,7 +3,7 @@ const str = (value: unknown): string => (typeof value === 'string' ? value : '')
 /** 管理已接入连接的后端动词；UI 仍需另出样张，本班不改 UI。 */
 export const MCP_INTEGRATION_MANAGEMENT_TOOL = {
   name: 'nomi_integration_manage',
-  title: '管理已接入连接：改配置、删除、切换单连接代理。',
+  title: '管理模型连接',
   description: '只收公开配置；密钥只能在 Nomi 安全页管理。',
   inputSchema: {
     type: 'object',

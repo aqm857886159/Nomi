@@ -58,6 +58,7 @@ const USER_ACTION_HINT: Record<string, { action: string; zh: string; en: string 
 const OPEN_NEW_PROJECT_SESSION = 'Open a new project session and retry'
 
 const POLICY_CODES = new Set([
+  'mcp_connection_unauthenticated',
   'legacy_path_forbidden', 'feature_disabled', 'phase_not_ready', 'not_ready',
   'capability_invocation_unverified', 'capability_authority_invalid', 'capability_input_invalid',
   'capability_policy_stale', 'capability_output_invalid', 'capability_timeout',

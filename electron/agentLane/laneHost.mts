@@ -1,3 +1,4 @@
+import { attachLaneTrace } from './laneTraceRecorder.mjs';
 import { capabilityContractById } from '../shared/agentCapabilities/registry.js';
 import { modelToolCapabilityId } from '../shared/agentCapabilities/modelFacingTools.js';
 import type { LaneComposerContext } from '../shared/agentLane/laneDesktopContracts.js';
@@ -442,6 +443,11 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
     return { role: 'nomi.input', content: text, timestamp: Date.now(), context: captured };
   }
 
+  const trace = attachLaneTrace({ harness, session, pricing: pricingBasis,
+    model: { provider: options.model.providerId, model: options.model.modelId },
+    secrets: [options.model.apiKey ?? '', ...Object.values(options.model.headers ?? {})] });
+  await trace.refresh().catch(() => undefined);
+
   const observations: LaneOrderObservation[] = [];
   const stopObserving = harness.events.on('message_update', (event) => {
     const inner = event.event;
@@ -506,6 +512,7 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
         if (!admission.ok) throw new Error(admission.error._tag);
         executionOptions?.onAccepted?.();
         const result = await lane.drive({ operationId: admission.value.operationId, waitForRetry: true }, context);
+        await trace.flush();
         if (!result.ok) throw new Error(result.error._tag);
         return {};
       }
@@ -556,6 +563,7 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
       gate?.cancelAll('stopped');
       const aborted = await lane.abort(context);
       await flushApprovalNotes();
+      await trace.refresh().catch(() => undefined);
       // pi returns both unconsumed queues with their original nomi.input context.
       const restoredInput = aborted.ok ? [...aborted.value.steer, ...aborted.value.followUp].map(draftInputFromMessage) : [];
       return restoredInput.length > 0 ? { restoredInput } : {};
@@ -565,8 +573,8 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
       // 顺序反过来就没得写了——`harness.close()` 之后这条 lane 再也 append 不进任何东西，
       // 用户重开这条对话会看到一个永远停在「在等你」的幽灵。
       try {
-        if (gate?.pending()) {
-          gate.cancelAll('window-closed');
+        if (snapshot.operation !== null || gate?.pending()) {
+          gate?.cancelAll('window-closed');
           await lane.abort(context).catch(() => undefined);
           await flushApprovalNotes();
         }
@@ -574,7 +582,7 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
         stopObserving();
         watch.unsubscribe();
         listeners.clear();
-        try { await harness.close(context); }
+        try { await trace.close(); await harness.close(context); }
         finally {
           try { await native?.close(); }
           // The repository is shared by project; return this handle's ownership even after cleanup failure.

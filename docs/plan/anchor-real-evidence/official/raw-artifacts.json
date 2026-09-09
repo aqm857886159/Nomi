@@ -1,0 +1,7 @@
+{
+  "originalResponse": "/Users/aoqimin/Desktop/Nomi-anchor-real/.tmp/anchor-real-official-02/response-1.txt",
+  "originalRequest": "/Users/aoqimin/Desktop/Nomi-anchor-real/.tmp/anchor-real-official-02/request-1.json",
+  "responseSha256": "40f90bf6e4e401c5b24577e5be7eda702fe288c38638e45d7370626c0f7084ff",
+  "requestSha256": "9b20e50a2a19a84ff57a6643178ba251627ee579ed1f6de196cdc52f0992a62f",
+  "note": "Full streaming deltas and full production prompt remain in isolated local evidence; PR includes exact assembled model output and usage ledger to keep review bounded."
+}

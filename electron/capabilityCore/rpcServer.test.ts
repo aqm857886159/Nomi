@@ -303,7 +303,7 @@ describe("capabilityCore/rpcServer", () => {
       token,
       { client: "cursor", proof: codexProof },
     );
-    expect((forged.body.result as { origin: { host: string } }).origin.host).toBe("external");
+    expect(forged).toMatchObject({ status: 403, body: { ok: false, error: { code: "mcp_connection_unauthenticated" } } });
   });
 
   it("preserves one transport-owned connection across RPC create → selection → session and rejects replay on another connection", async () => {
@@ -518,7 +518,11 @@ describe("capabilityCore/rpcServer", () => {
 
     expect(sessionOnly.status).toBe(403);
     expect(nonceOnly.status).toBe(403);
-    expect(forged.status).toBe(403);
+    expect(forged).toMatchObject({ status: 403, body: { ok: false, error: { code: "mcp_connection_unauthenticated" } } });
+    for (const method of ["skills.list", "project.list"]) {
+      const missingAttestation = await rpc(method, {}, token, { ...base, proof: "invalid-proof" });
+      expect(missingAttestation).toMatchObject({ status: 403, body: { ok: false, error: { code: "mcp_connection_unauthenticated" } } });
+    }
   });
 
   it("executes local bearer canvas read only through the verified internal adapter", async () => {
@@ -734,7 +738,7 @@ describe("capabilityCore/rpcServer", () => {
     });
     expect(accepted.body).toMatchObject({ ok: true, result: { confirmed: true, receiptId: "receipt-1" } });
     const forged = await rpc("nomi_confirm_generation_gate", { challengeToken: "signed-challenge-token" });
-    expect(forged.status).toBe(403);
+    expect(forged).toMatchObject({ status: 403, body: { ok: false, error: { code: "mcp_connection_unauthenticated" } } });
     expect(confirmGenerationInNomi).toHaveBeenCalledTimes(1);
   });
 });

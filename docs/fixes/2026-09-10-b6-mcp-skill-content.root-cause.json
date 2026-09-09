@@ -1,0 +1,113 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-10-b6-mcp-skill-content",
+  "problem_type": "Incomplete MCP skill package projection",
+  "symptom": "External hosts cannot read referenced skill files and standard prompt arguments do not bind identity.",
+  "direct_cause": "MCP exposes only SKILL.md body and reads identity from nonstandard top-level prompt fields.",
+  "class_root": "MCP projections do not preserve the canonical content-addressed skill package boundary.",
+  "affected_population": [
+    "Verified MCP hosts reading multi-file skill packages"
+  ],
+  "scope_paths": [
+    "electron/skills/skillStore.ts",
+    "electron/capabilityCore/dispatcher.ts",
+    "electron/capabilityCore/mcpProtocol.ts",
+    "electron/capabilityCore/mcpSkillResources.ts"
+  ],
+  "entry_points": [
+    "resources/list and resources/read",
+    "prompts/list and prompts/get"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://modelcontextprotocol.io/specification/2025-11-25/server/prompts",
+      "checked_at": "2026-09-10",
+      "purpose": "Standard arguments and metadata extension points"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://modelcontextprotocol.io/specification/2025-11-25/server/resources",
+      "checked_at": "2026-09-10",
+      "purpose": "Content-addressed URI resources and textual content"
+    }
+  ],
+  "invariants": [
+    "Every exposed file belongs to the authorized package and current content hash.",
+    "Prompt identity travels through standard arguments and metadata."
+  ],
+  "generality_proof": "Both prompt and resource entry points use skillStore package visibility, hash and safe file-map lookup; no filesystem paths from MCP are opened directly.",
+  "shared_boundaries": [
+    {
+      "path": "electron/skills/skillStore.ts",
+      "symbol": "readSkillContentForMcp",
+      "responsibility": "Authorize package and verify its file-map hash before returning any file."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/capabilityCore/mcpProtocol.ts",
+      "entry_point": "resources/read",
+      "disposition": "enforced",
+      "evidence": "Passes parsed identity and relative file path through skills.read."
+    },
+    {
+      "path": "electron/capabilityCore/mcpProtocol.ts",
+      "entry_point": "prompts/get",
+      "disposition": "enforced",
+      "evidence": "Standard arguments are validated before the same skills.read boundary."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any multi-file package or conforming MCP host can hit this boundary.",
+    "same_class_scan": [
+      "Inspected readSkillContentForMcp and listSkillSummariesForMcp in skillStore.ts.",
+      "Inspected resources/read and prompts/get in mcpProtocol.ts and laneInstalledSkills.mts package roots."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/skills/skillStore.ts",
+    "invariant": "Only authorized current package files are readable.",
+    "failure_mode": "Stale hash, unsafe or absent path and unauthorized audience return null.",
+    "exception_policy": "none",
+    "strategy": "Derive file metadata and content from existing safe package reader and hash.",
+    "artifacts": [
+      "electron/skills/skillStore.ts",
+      "electron/capabilityCore/mcpProtocol.ts",
+      "electron/capabilityCore/mcpSkillResources.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/skills/skillStore.test.ts",
+    "electron/capabilityCore/nomiMcpSkills.test.ts",
+    "tests/ux/mcp-skills-integration.e2e.mjs"
+  ],
+  "class_regression_tests": [
+    "electron/skills/skillStore.test.ts",
+    "electron/capabilityCore/nomiMcpSkills.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/capabilityCore/mcpProtocol.ts"
+    ],
+    "rationale": "Remove top-level prompt identity fields; standard arguments own the input."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Internal protocol projection using existing MCP standard; no new dependency.",
+    "exit_criteria": []
+  },
+  "migration": "Root resource URIs remain stable. Prompt callers use advertised standard arguments; no stored data migration.",
+  "residual_risks": [
+    "Only files supported by canonical text skill packages are exposed; binary media remains outside that format."
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/skills",
+    "tests": [
+      "electron/skills/skillStore.test.ts"
+    ]
+  }
+}

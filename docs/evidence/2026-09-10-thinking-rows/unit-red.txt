@@ -1,0 +1,96 @@
+
+ RUN  v4.1.8 /Users/aoqimin/Desktop/Nomi-thinking-rows
+
+ ❯ src/workbench/ai/v4/agentPanelV4Collapse.test.ts (17 tests | 4 failed) 24ms
+     × N thoughts and M tools retain one complete disclosure before every tool 3ms
+     × running process uses only its live summary even with completed thoughts 0ms
+     × streaming thought after settled receipts still belongs to the live summary 1ms
+     × turn boundaries keep separate thought bodies without mutating replay input 0ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/workbench/ai/v4/agentPanelV4Collapse.test.ts > C77 process thinking projection > N thoughts and M tools retain one complete disclosure before every tool
+AssertionError: expected [ { item: { …(5) }, index: +0 }, …(4) ] to have a length of 1 but got 5
+
+- Expected
++ Received
+
+- 1
++ 5
+
+ ❯ src/workbench/ai/v4/agentPanelV4Collapse.test.ts:178:71
+    176|     if (process?.kind !== 'process') throw new Error('missing process')
+    177|     const details = process.details!
+    178|     expect(details.filter(detail => detail.item.kind === 'thinking')).…
+       |                                                                       ^
+    179|     expect(details[0]?.item).toMatchObject({ kind: 'thinking', streami…
+    180|       text: thoughts.map(thought => thought.kind === 'thinking' ? thou…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  src/workbench/ai/v4/agentPanelV4Collapse.test.ts > C77 process thinking projection > running process uses only its live summary even with completed thoughts
+AssertionError: expected [ { item: { …(5) }, index: +0 }, …(4) ] to have a length of +0 but got 5
+
+- Expected
++ Received
+
+- 0
++ 5
+
+ ❯ src/workbench/ai/v4/agentPanelV4Collapse.test.ts:191:80
+    189|     if (process?.kind !== 'process') throw new Error('missing process')
+    190|     expect(process.running).toBe(true)
+    191|     expect(process.details!.filter(detail => detail.item.kind === 'thi…
+       |                                                                                ^
+    192|   })
+    193|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  src/workbench/ai/v4/agentPanelV4Collapse.test.ts > C77 process thinking projection > streaming thought after settled receipts still belongs to the live summary
+AssertionError: expected { kind: 'process', …(6) } to match object { kind: 'process', running: true }
+(5 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+    "kind": "process",
+-   "running": true,
++   "running": false,
+  }
+
+ ❯ src/workbench/ai/v4/agentPanelV4Collapse.test.ts:196:21
+    194|   it('streaming thought after settled receipts still belongs to the li…
+    195|     const process = collapseV4Flow([...input, { kind: 'thinking', labe…
+    196|     expect(process).toMatchObject({ kind: 'process', running: true })
+       |                     ^
+    197|     if (process?.kind !== 'process') throw new Error('missing process')
+    198|     expect(process.details!.some(detail => detail.item.kind === 'think…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  src/workbench/ai/v4/agentPanelV4Collapse.test.ts > C77 process thinking projection > turn boundaries keep separate thought bodies without mutating replay input
+AssertionError: expected [ { item: { …(5) }, index: +0 }, …(4) ] to have a length of 1 but got 5
+
+- Expected
++ Received
+
+- 1
++ 5
+
+ ❯ src/workbench/ai/v4/agentPanelV4Collapse.test.ts:207:82
+    205|     expect(processes).toHaveLength(2)
+    206|     for (const process of processes) {
+    207|       expect(process.details!.filter(detail => detail.item.kind === 't…
+       |                                                                                  ^
+    208|     }
+    209|     expect(JSON.stringify(input)).toBe(before)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  4 failed | 13 passed (17)
+   Start at  03:52:17
+   Duration  151ms (transform 40ms, setup 22ms, import 16ms, tests 24ms, environment 0ms)

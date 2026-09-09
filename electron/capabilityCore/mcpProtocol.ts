@@ -1,3 +1,5 @@
+import { SKILL_URI_PREFIX, skillResourceUri, parseSkillResourceUri, skillFileMimeType, type SkillSummaryFrame, type SkillContentFrame } from './mcpSkillResources'
+import { McpConnectionAuthenticationError } from './mcpConnectionContext'
 // 能力核 · MCP 协议层（传输注入，纯逻辑，可裸 node 单测）。
 //
 // MCP Apps（GUI 宿主内嵌 widget）；ProductionRun 结果保留文本兜底。
@@ -95,16 +97,6 @@ export const MCP_TOOL_NAMES = MCP_TOOL_RESOLVER.list().map((tool) => tool.name)
 // 旧的按 name 旁挂集合（READ_ONLY_TOOLS）已退役；tools/list 直接读 tool.annotations（见 method:'tools/list'）。
 
 type RpcMessage = { jsonrpc?: string; id?: unknown; method?: string; params?: Record<string, unknown>; result?: unknown; error?: { code?: number; message?: string } }
-
-// 能力核 skills.list / skills.read 返回的形状（协议层据此把技能映射成 MCP resources/prompts）。
-type SkillSummaryFrame = {
-  name: string
-  directoryName: string
-  description: string
-  packageVersion: string
-  contentHash: string
-}
-type SkillContentFrame = SkillSummaryFrame & { body: string }
 
 /**
  * 建一个 MCP 协议处理器。喂入客户端发来的每一帧（handleIncoming），它经 transport.send 回响应；
@@ -312,6 +304,18 @@ export function createMcpProtocol(transport: McpTransport) {
         requests.cancel(params?.requestId, reason)
       }
       return
+    }
+
+    // Both production stdio assemblies supply this verifier. Reject before
+    // discovery, argument validation, confirmation or cold-start/domain effects.
+    if (transport.getAuthenticatedClient) {
+      try {
+        if (!transport.getAuthenticatedClient()) throw new McpConnectionAuthenticationError()
+      } catch (error) {
+        if (!(error instanceof McpConnectionAuthenticationError)) throw error
+        replyError(id, -32001, error.message, { code: error.code })
+        return
+      }
     }
 
     if (method === 'initialize') {
@@ -598,36 +602,7 @@ export function createMcpProtocol(transport: McpTransport) {
     }
     // ── 技能库（导演/编剧方法论）经 resources + prompts 暴露 · 渐进披露 ────────────
     // skills.list 只返元数据（name+描述，不含正文）；skills.read 才载正文——客户端只为用到的技能付上下文。
-    const SKILL_URI_PREFIX = 'nomi-skill://'
     const PRODUCTION_ARTIFACT_URI_PREFIX = 'nomi://project/'
-    function skillResourceUri(skill: SkillSummaryFrame): string | null {
-      if (!/^[A-Za-z0-9._-]{1,160}$/.test(skill.directoryName)) return null
-      if (!/^[A-Za-z0-9._-]{1,80}$/.test(skill.packageVersion)) return null
-      if (!/^[a-f0-9]{64}$/.test(skill.contentHash)) return null
-      return `${SKILL_URI_PREFIX}${encodeURIComponent(skill.directoryName)}/${encodeURIComponent(skill.packageVersion)}/${skill.contentHash}`
-    }
-
-    function parseSkillResourceUri(uri: string): {
-      directoryName: string
-      packageVersion: string
-      contentHash: string
-    } {
-      const match = /^nomi-skill:\/\/([^/]+)\/([^/]+)\/([a-f0-9]{64})$/.exec(uri)
-      if (!match) throw new Error(`技能资源 uri 无效: ${uri}`)
-      let directoryName: string
-      let packageVersion: string
-      try {
-        directoryName = decodeURIComponent(match[1])
-        packageVersion = decodeURIComponent(match[2])
-      } catch {
-        throw new Error(`技能资源 uri 编码无效: ${uri}`)
-      }
-      if (!/^[A-Za-z0-9._-]{1,160}$/.test(directoryName) || !/^[A-Za-z0-9._-]{1,80}$/.test(packageVersion)) {
-        throw new Error(`技能资源 uri 标识无效: ${uri}`)
-      }
-      return { directoryName, packageVersion, contentHash: match[3] }
-    }
-
     /** Parse the only production artifact resource shape we expose. IDs are validated again in dispatch/service. */
     function productionArtifactResource(uri: string): Record<string, string> | null {
       if (!uri.startsWith(PRODUCTION_ARTIFACT_URI_PREFIX)) return null
@@ -652,8 +627,10 @@ export function createMcpProtocol(transport: McpTransport) {
     if (method === 'resources/list') {
       const res = (await invokeForRequest('skills.list', {})) as { skills?: SkillSummaryFrame[] } | null
       const skillResources = (res?.skills || []).flatMap((skill) => {
-        const uri = skillResourceUri(skill)
-        return uri ? [{ uri, name: skill.name, description: skill.description, mimeType: 'text/markdown' }] : []
+        return (skill.filePaths ?? ['SKILL.md']).flatMap(filePath => {
+          const uri = skillResourceUri(skill, filePath)
+          return uri ? [{ uri, name: filePath === 'SKILL.md' ? skill.name : `${skill.name}/${filePath}`, description: skill.description, mimeType: skillFileMimeType(filePath) }] : []
+        })
       })
       // 活 widget 资源（MCP Apps）：宿主预取渲染生成结果与 production Run 投影的活面板。
       const uiResources = [{
@@ -703,11 +680,11 @@ export function createMcpProtocol(transport: McpTransport) {
       try {
         const identity = parseSkillResourceUri(uri)
         const content = (await invokeForRequest('skills.read', identity)) as SkillContentFrame | null
-        if (!content?.body) {
+        if (typeof content?.body !== 'string') {
           replyError(id, -32602, `未找到技能资源: ${uri}`)
           return
         }
-        reply(id, { contents: [{ uri, mimeType: 'text/markdown', text: content.body }] })
+        reply(id, { contents: [{ uri, mimeType: skillFileMimeType(identity.filePath ?? 'SKILL.md'), text: content.body }] })
       } catch (error) {
         replyError(id, -32602, error instanceof Error ? error.message : String(error))
       }
@@ -723,8 +700,11 @@ export function createMcpProtocol(transport: McpTransport) {
         name: s.directoryName,
         title: s.name,
         description: s.description,
-        packageVersion: s.packageVersion,
-        contentHash: s.contentHash,
+        arguments: [
+          { name: 'packageVersion', description: 'Package version from prompt metadata.', required: false },
+          { name: 'contentHash', description: 'Content hash from prompt metadata.', required: false },
+        ],
+        _meta: { packageVersion: s.packageVersion, contentHash: s.contentHash },
       }))
       reply(id, { prompts })
       return
@@ -737,8 +717,14 @@ export function createMcpProtocol(transport: McpTransport) {
         replyError(id, -32602, `未找到技能提示词: ${name}`)
         return
       }
-      const requestedVersion = typeof params?.packageVersion === 'string' ? params.packageVersion : ''
-      const requestedHash = typeof params?.contentHash === 'string' ? params.contentHash : ''
+      const args = params?.arguments ?? {}
+      if (!args || typeof args !== 'object' || Array.isArray(args)
+        || Object.entries(args).some(([key, value]) => !['packageVersion', 'contentHash'].includes(key) || typeof value !== 'string' || !value)) {
+        replyError(id, -32602, 'Invalid skill prompt arguments')
+        return
+      }
+      const requestedVersion = (args as Record<string, string>).packageVersion ?? ''
+      const requestedHash = (args as Record<string, string>).contentHash ?? ''
       if ((requestedVersion && requestedVersion !== meta.packageVersion) || (requestedHash && requestedHash !== meta.contentHash)) {
         replyError(id, -32602, `技能提示词已变化，请刷新列表后重试: ${name}`)
         return
@@ -754,7 +740,12 @@ export function createMcpProtocol(transport: McpTransport) {
       }
       reply(id, {
         description: content.description,
-        messages: [{ role: 'user', content: { type: 'text', text: content.body } }],
+        messages: [
+          { role: 'user', content: { type: 'text', text: content.body } },
+          ...(meta.filePaths ?? []).filter(filePath => filePath !== 'SKILL.md').map(filePath => ({
+            role: 'user', content: { type: 'text', text: `${filePath}: ${skillResourceUri(meta, filePath)}` },
+          })),
+        ],
       })
       return
     }

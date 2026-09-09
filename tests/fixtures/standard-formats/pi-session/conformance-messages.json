@@ -1,0 +1,72 @@
+{
+  "source": "https://github.com/earendil-works/pi/blob/main/packages/agent/src/harness/session/testing/conformance/session-repo.ts",
+  "upstreamVersion": "@earendil-works/pi-agent-core 0.85.1",
+  "installedSource": "node_modules/@earendil-works/pi-agent-core/dist/harness/session/testing/conformance/session-repo.js",
+  "sourceSha256": "0433e75dd662fe6f6dbe92c639c9c838b3bc6cc595893ec912ec3ab19ae99e55",
+  "extraction": "User message is the literal from the fork conformance case; assistant messages are evaluated directly from the official assistantMessage helper for toolUse and stop. No usage/content fields changed. SDK, not this fixture, writes the v4 JSONL envelope.",
+  "messages": [
+    {
+      "role": "user",
+      "content": "child",
+      "timestamp": 1
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "toolCall",
+          "id": "call",
+          "name": "read",
+          "arguments": {}
+        }
+      ],
+      "api": "anthropic-messages",
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-5",
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      "stopReason": "toolUse",
+      "timestamp": 1
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "stop"
+        }
+      ],
+      "api": "anthropic-messages",
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-5",
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "totalTokens": 0,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      "stopReason": "stop",
+      "timestamp": 1
+    }
+  ]
+}

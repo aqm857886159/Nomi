@@ -16,17 +16,17 @@ export type GenerationFeedback = {
 /** Cache the exact narration result, so all three surfaces consume one call per node/tick/locale. */
 const cache = new WeakMap<object, { key: string; feedback: GenerationFeedback | null }>()
 
-export function generationFeedback(node: GenerationCanvasNode, now: number, queued = false): GenerationFeedback | null {
-  const key = `${Math.floor(now / 1000)}:${queued}:${i18n.resolvedLanguage}`
-  const identity = node.progress ?? node.runs?.[0] ?? node
+export function generationFeedback(node: GenerationCanvasNode, now: number, queued = false, queueAhead?: number): GenerationFeedback | null {
+  const key = `${Math.floor(now / 1000)}:${queued}:${queueAhead}:${i18n.resolvedLanguage}`
+  const identity = node
   const cached = cache.get(identity)
   if (cached?.key === key) return cached.feedback
-  const feedback = deriveFeedback(node, now, queued)
+  const feedback = deriveFeedback(node, now, queued, queueAhead)
   cache.set(identity, { key, feedback })
   return feedback
 }
 
-function deriveFeedback(node: GenerationCanvasNode, now: number, queued: boolean): GenerationFeedback | null {
+function deriveFeedback(node: GenerationCanvasNode, now: number, queued: boolean, queueAhead?: number): GenerationFeedback | null {
   const active = queued || node.status === 'queued' || node.status === 'running'
   const saved = !queued && node.status === 'success'
   const failed = !queued && node.status === 'error'
@@ -50,6 +50,6 @@ function deriveFeedback(node: GenerationCanvasNode, now: number, queued: boolean
     late: active && stage === 'still-generating',
     message: failed ? classifyGenerationError(node.error || '').reason
       : saved ? i18n.t('generationCommon.observability.progress.saved')
-      : narrateProgress(stage, { ...context, elapsedMs }),
+      : narrateProgress(stage, { ...context, elapsedMs, ...(queueAhead === undefined || queueAhead === 0 ? {} : { queueAhead }) }),
   }
 }

@@ -83,3 +83,58 @@ test('disclosure hierarchy compares computed lightness and weight', async () => 
     expect((await measureDisclosureHierarchy(page.locator('details'), { exclude: '[data-status]' })).violations).toHaveLength(1)
   } finally { await browser.close() }
 })
+
+// C75: verify the browser's computed colors, not token names or class strings.
+test('media badges: transparent and translucent text fail; OKLCH overlay passes in both themes', async () => {
+  const { measureMediaBadgeContrast } = await import('./_feel.mjs')
+  const browser = await chromium.launch({ headless: true })
+  try {
+    const page = await browser.newPage()
+    await page.setContent('<span style="color:oklch(.5 .01 80)">Shot 1</span>')
+    expect((await measureMediaBadgeContrast(page.locator('span'))).violations).toHaveLength(1)
+    await page.locator('span').evaluate(el => { el.style.background = 'oklch(1 0 0 / .9)'; el.style.color = 'oklch(.22 .01 80 / .2)' })
+    expect((await measureMediaBadgeContrast(page.locator('span'))).violations).toHaveLength(1)
+    for (const [background, foreground] of [['oklch(1 0 0 / .9)', 'oklch(.22 .01 80)'], ['oklch(.235 .007 80 / .9)', 'oklch(.93 .006 85)']]) {
+      await page.locator('span').evaluate((el, colors) => { el.style.background = colors[0]; el.style.color = colors[1] }, [background, foreground])
+      expect((await measureMediaBadgeContrast(page.locator('span'))).violations).toEqual([])
+    }
+  } finally { await browser.close() }
+})
+
+test('production shot number, mounted names and overflow exceed 4.5 over any media in light/dark', async () => {
+  const { createRequire } = await import('node:module')
+  const require = createRequire(import.meta.url)
+  const { build } = createRequire(require.resolve('vite/package.json'))('esbuild')
+  const { measureMediaBadgeContrast } = await import('./_feel.mjs')
+  const compiled = await build({
+    stdin: { contents: `const React = require('react'); const { renderToStaticMarkup } = require('react-dom/server');
+      const { ShotPreviewOverlays } = require('./src/workbench/generationCanvas/nodes/ConvertShotToVideoButton.tsx');
+      const ShotMountBadges = require('./src/workbench/generationCanvas/nodes/render/ShotMountBadges.tsx').default;
+      module.exports = renderToStaticMarkup(React.createElement('div', null,
+        React.createElement(ShotPreviewOverlays, {shotIndex: 1}),
+        React.createElement(ShotMountBadges, { cards: [{id:'a',title:'Actor',kind:'character'}, {id:'b',title:'Scene',kind:'scene'}, {id:'c',title:'Prop',kind:'scene'}] })));`, resolveDir: process.cwd() },
+    bundle: true, write: false, platform: 'node', format: 'cjs', packages: 'external',
+    plugins: [{ name: 'translation-fixture', setup(builder) {
+      builder.onResolve({ filter: /^react-i18next$/ }, () => ({ path: 'translation', namespace: 'fixture' }))
+      builder.onLoad({ filter: /.*/, namespace: 'fixture' }, () => ({ contents: 'exports.useTranslation = () => ({ t: (key, args) => args?.title || args?.index || key })' }))
+    } }],
+  })
+  const module = { exports: {} }
+  new Function('require', 'module', 'exports', compiled.outputFiles[0].text)(createRequire(import.meta.url), module, module.exports)
+  const config = require('tailwindcss/loadConfig')(`${process.cwd()}/tailwind.config.ts`)
+  const css = (await require('postcss')([require('tailwindcss')({ ...config, content: [
+    './src/workbench/generationCanvas/nodes/ConvertShotToVideoButton.tsx',
+    './src/workbench/generationCanvas/nodes/render/ShotMountBadges.tsx',
+  ] })]).process('@tailwind base; @tailwind utilities;', { from: undefined })).css
+  const browser = await chromium.launch({ headless: true })
+  try {
+    const page = await browser.newPage()
+    await page.setContent(`<style>${css}</style>${module.exports}`)
+    for (const theme of ['light', 'dark']) {
+      await page.locator('html').evaluate((el, theme) => el.setAttribute('data-mantine-color-scheme', theme), theme)
+      const result = await measureMediaBadgeContrast(page.locator('[data-shot-number], [data-node-mount-badges] > span'))
+      expect(result.rows).toHaveLength(4)
+      expect(result.violations, `${theme}: ${JSON.stringify(result.rows)}`).toEqual([])
+    }
+  } finally { await browser.close() }
+})

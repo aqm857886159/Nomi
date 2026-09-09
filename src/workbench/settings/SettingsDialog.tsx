@@ -28,6 +28,7 @@ import { hasSettingsUnsavedChanges } from './settingsUnsavedChanges'
 import { AttentionSoundSection } from './AttentionSoundSection'
 import { TelemetrySection } from './TelemetrySection'
 import { DiagnosticsBundleSection } from './DiagnosticsBundleSection'
+import { AgentTraceSection } from './AgentTraceSection'
 
 // ⚠️ 必须懒加载：SettingsDialog 本身是 NomiStudioApp 里**同步 import** 的，而接入面整棵树
 // （OnboardingWizard / 各家 VendorCard / ComfyUI 那套）是个 160KB+ 的独立 chunk。直接 import
@@ -357,6 +358,7 @@ export function SettingsDialog({
             ) : tab === 'general' ? (
               <div>
                 <div className="mb-4 text-body font-medium text-nomi-ink">{t('settings.general.title')}</div>
+                <AgentTraceSection />
                 <ScreenshotHotkeySection />
                 <CanvasGestureSection />
                 {/* 语言 / 外观归位到这里（§1.5「归位」）：它们过去挤在 studio 顶栏右簇 + 项目库顶栏，

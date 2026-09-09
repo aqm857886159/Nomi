@@ -1,3 +1,4 @@
+import { normalizeStoryboardAnchorDefaults } from './storyboardAnchorPolicy'
 import { formatAvailableModelsForPrompt } from "../../../../electron/shared/agentCapabilities/availableModels";
 import type { CapturedCanvasReadSnapshotHandleWire } from '../../../../electron/shared/surfacePortBinding'
 import type { CanvasReadResult } from '../../../../electron/shared/agentCapabilities/canvasRead'
@@ -31,7 +32,8 @@ export async function runStoryboardPlanner(input: StoryboardPlannerInput) {
   assertTurnCanWrite(input.canWrite)
   assertIssuedCanvasReadResult(input.snapshot)
   const canvas = formatCanvasForAgent(input.snapshot)
-  const models = formatAvailableModelsForPrompt(await listAvailableModelsForAgent())
+  const entries = await listAvailableModelsForAgent()
+  const models = formatAvailableModelsForPrompt(entries)
   assertTurnCanWrite(input.canWrite)
   const prompt = [
     '只输出 JSON 对象，不调用工具，不写入画布。',
@@ -50,6 +52,6 @@ export async function runStoryboardPlanner(input: StoryboardPlannerInput) {
   if (response.status !== 'finished') return { text: response.text, status: response.status }
   const text = response.text.trim()
   const candidate = text.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i)?.[1] ?? text
-  const plan = parseStoryboardPlan(JSON.parse(candidate))
+  const plan = normalizeStoryboardAnchorDefaults(parseStoryboardPlan(JSON.parse(candidate)), entries)
   return { text, status: response.status, plan }
 }

@@ -1,0 +1,402 @@
+[
+  {
+    "selected": false,
+    "status": {
+      "x": 400,
+      "y": 92,
+      "width": 340,
+      "height": 28,
+      "top": 92,
+      "right": 740,
+      "bottom": 120,
+      "left": 400
+    },
+    "rect": {
+      "x": 400,
+      "y": 160,
+      "width": 340,
+      "height": 240,
+      "top": 160,
+      "right": 740,
+      "bottom": 400,
+      "left": 400
+    },
+    "label": {
+      "x": 400,
+      "y": 126,
+      "width": 340,
+      "height": 28,
+      "top": 126,
+      "right": 740,
+      "bottom": 154,
+      "left": 400
+    },
+    "messages": [
+      {
+        "x": 422,
+        "y": 97.0625,
+        "width": 39,
+        "height": 17.875,
+        "top": 97.0625,
+        "right": 461,
+        "bottom": 114.9375,
+        "left": 422
+      }
+    ]
+  },
+  {
+    "selected": false,
+    "status": {
+      "x": 400,
+      "y": 92,
+      "width": 340,
+      "height": 28,
+      "top": 92,
+      "right": 740,
+      "bottom": 120,
+      "left": 400
+    },
+    "rect": {
+      "x": 400,
+      "y": 160,
+      "width": 340,
+      "height": 240,
+      "top": 160,
+      "right": 740,
+      "bottom": 400,
+      "left": 400
+    },
+    "label": {
+      "x": 400,
+      "y": 126,
+      "width": 340,
+      "height": 28,
+      "top": 126,
+      "right": 740,
+      "bottom": 154,
+      "left": 400
+    },
+    "messages": [
+      {
+        "x": 422,
+        "y": 97.0625,
+        "width": 112.328125,
+        "height": 17.875,
+        "top": 97.0625,
+        "right": 534.328125,
+        "bottom": 114.9375,
+        "left": 422
+      }
+    ]
+  },
+  {
+    "selected": false,
+    "status": {
+      "x": 400,
+      "y": 92,
+      "width": 340,
+      "height": 28,
+      "top": 92,
+      "right": 740,
+      "bottom": 120,
+      "left": 400
+    },
+    "rect": {
+      "x": 400,
+      "y": 160,
+      "width": 340,
+      "height": 240,
+      "top": 160,
+      "right": 740,
+      "bottom": 400,
+      "left": 400
+    },
+    "label": {
+      "x": 400,
+      "y": 126,
+      "width": 340,
+      "height": 28,
+      "top": 126,
+      "right": 740,
+      "bottom": 154,
+      "left": 400
+    },
+    "messages": [
+      {
+        "x": 422,
+        "y": 97.0625,
+        "width": 78,
+        "height": 17.875,
+        "top": 97.0625,
+        "right": 500,
+        "bottom": 114.9375,
+        "left": 422
+      }
+    ]
+  },
+  {
+    "selected": false,
+    "status": {
+      "x": 400,
+      "y": 92,
+      "width": 340,
+      "height": 28,
+      "top": 92,
+      "right": 740,
+      "bottom": 120,
+      "left": 400
+    },
+    "rect": {
+      "x": 400,
+      "y": 160,
+      "width": 340,
+      "height": 240,
+      "top": 160,
+      "right": 740,
+      "bottom": 400,
+      "left": 400
+    },
+    "label": {
+      "x": 400,
+      "y": 126,
+      "width": 340,
+      "height": 28,
+      "top": 126,
+      "right": 740,
+      "bottom": 154,
+      "left": 400
+    },
+    "messages": [
+      {
+        "x": 422,
+        "y": 97.0625,
+        "width": 310,
+        "height": 17.875,
+        "top": 97.0625,
+        "right": 732,
+        "bottom": 114.9375,
+        "left": 422
+      }
+    ]
+  },
+  {
+    "selected": true,
+    "status": {
+      "x": 400,
+      "y": 92,
+      "width": 340,
+      "height": 28,
+      "top": 92,
+      "right": 740,
+      "bottom": 120,
+      "left": 400
+    },
+    "rect": {
+      "x": 400,
+      "y": 160,
+      "width": 340,
+      "height": 240,
+      "top": 160,
+      "right": 740,
+      "bottom": 400,
+      "left": 400
+    },
+    "label": {
+      "x": 400,
+      "y": 126,
+      "width": 340,
+      "height": 28,
+      "top": 126,
+      "right": 740,
+      "bottom": 154,
+      "left": 400
+    },
+    "toolbar": {
+      "x": 156.1640625,
+      "y": 46,
+      "width": 827.671875,
+      "height": 42,
+      "top": 46,
+      "right": 983.8359375,
+      "bottom": 88,
+      "left": 156.1640625
+    },
+    "messages": [
+      {
+        "x": 422,
+        "y": 97.0625,
+        "width": 39,
+        "height": 17.875,
+        "top": 97.0625,
+        "right": 461,
+        "bottom": 114.9375,
+        "left": 422
+      }
+    ]
+  },
+  {
+    "selected": true,
+    "status": {
+      "x": 400,
+      "y": 92,
+      "width": 340,
+      "height": 28,
+      "top": 92,
+      "right": 740,
+      "bottom": 120,
+      "left": 400
+    },
+    "rect": {
+      "x": 400,
+      "y": 160,
+      "width": 340,
+      "height": 240,
+      "top": 160,
+      "right": 740,
+      "bottom": 400,
+      "left": 400
+    },
+    "label": {
+      "x": 400,
+      "y": 126,
+      "width": 340,
+      "height": 28,
+      "top": 126,
+      "right": 740,
+      "bottom": 154,
+      "left": 400
+    },
+    "toolbar": {
+      "x": 156.1640625,
+      "y": 46,
+      "width": 827.671875,
+      "height": 42,
+      "top": 46,
+      "right": 983.8359375,
+      "bottom": 88,
+      "left": 156.1640625
+    },
+    "messages": [
+      {
+        "x": 422,
+        "y": 97.0625,
+        "width": 112.328125,
+        "height": 17.875,
+        "top": 97.0625,
+        "right": 534.328125,
+        "bottom": 114.9375,
+        "left": 422
+      }
+    ]
+  },
+  {
+    "selected": true,
+    "status": {
+      "x": 400,
+      "y": 92,
+      "width": 340,
+      "height": 28,
+      "top": 92,
+      "right": 740,
+      "bottom": 120,
+      "left": 400
+    },
+    "rect": {
+      "x": 400,
+      "y": 160,
+      "width": 340,
+      "height": 240,
+      "top": 160,
+      "right": 740,
+      "bottom": 400,
+      "left": 400
+    },
+    "label": {
+      "x": 400,
+      "y": 126,
+      "width": 340,
+      "height": 28,
+      "top": 126,
+      "right": 740,
+      "bottom": 154,
+      "left": 400
+    },
+    "toolbar": {
+      "x": 156.1640625,
+      "y": 46,
+      "width": 827.671875,
+      "height": 42,
+      "top": 46,
+      "right": 983.8359375,
+      "bottom": 88,
+      "left": 156.1640625
+    },
+    "messages": [
+      {
+        "x": 422,
+        "y": 97.0625,
+        "width": 78,
+        "height": 17.875,
+        "top": 97.0625,
+        "right": 500,
+        "bottom": 114.9375,
+        "left": 422
+      }
+    ]
+  },
+  {
+    "selected": true,
+    "status": {
+      "x": 400,
+      "y": 92,
+      "width": 340,
+      "height": 28,
+      "top": 92,
+      "right": 740,
+      "bottom": 120,
+      "left": 400
+    },
+    "rect": {
+      "x": 400,
+      "y": 160,
+      "width": 340,
+      "height": 240,
+      "top": 160,
+      "right": 740,
+      "bottom": 400,
+      "left": 400
+    },
+    "label": {
+      "x": 400,
+      "y": 126,
+      "width": 340,
+      "height": 28,
+      "top": 126,
+      "right": 740,
+      "bottom": 154,
+      "left": 400
+    },
+    "toolbar": {
+      "x": 156.1640625,
+      "y": 46,
+      "width": 827.671875,
+      "height": 42,
+      "top": 46,
+      "right": 983.8359375,
+      "bottom": 88,
+      "left": 156.1640625
+    },
+    "messages": [
+      {
+        "x": 422,
+        "y": 97.0625,
+        "width": 310,
+        "height": 17.875,
+        "top": 97.0625,
+        "right": 732,
+        "bottom": 114.9375,
+        "left": 422
+      }
+    ]
+  }
+]
