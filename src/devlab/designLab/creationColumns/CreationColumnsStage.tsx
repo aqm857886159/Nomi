@@ -10,11 +10,6 @@ const snapshot = labHostState({ items: [
   labAssistantItem('reply', '可以先用远景交代雨夜的车站，再切到人物手里的信。保留最后一段停顿，让重逢有一点悬念。'),
 ] })
 
-// Specimen-only overrides. One selector owns all three frames; production has no import here.
-const frames = '[&_:is([data-creation-resource-tree],[data-creation-editor],[data-v4-panel])]:rounded-nomi [&_:is([data-creation-resource-tree],[data-creation-editor],[data-v4-panel])]:border [&_:is([data-creation-resource-tree],[data-creation-editor],[data-v4-panel])]:border-nomi-line [&_:is([data-creation-resource-tree],[data-creation-editor],[data-v4-panel])]:bg-nomi-paper [&_:is([data-creation-resource-tree],[data-creation-editor],[data-v4-panel])]:shadow-none [&_:is([data-creation-resource-tree],[data-creation-editor],[data-v4-panel])]:overflow-clip'
-const headers = '[&_:is([data-creation-resource-tree]>div:first-child,.workbench-editor-toolbar,[data-v4-panel]>header)]:h-12 [&_:is([data-creation-resource-tree]>div:first-child,.workbench-editor-toolbar,[data-v4-panel]>header)]:px-3 [&_:is([data-creation-resource-tree]>div:first-child,.workbench-editor-toolbar,[data-v4-panel]>header)]:py-0 [&_:is([data-creation-resource-tree]>div:first-child,.workbench-editor-toolbar,[data-v4-panel]>header)]:border-b [&_:is([data-creation-resource-tree]>div:first-child,.workbench-editor-toolbar,[data-v4-panel]>header)]:border-nomi-line-soft [&_:is([data-creation-resource-tree]>div:first-child,.workbench-editor-toolbar,[data-v4-panel]>header)]:bg-nomi-paper [&_[data-creation-editor]]:grid-rows-[48px_minmax(0,1fr)]'
-const layout = '[&_.workbench-creation]:!grid-cols-[minmax(0,1fr)_var(--columns-agent-width)] [&_.workbench-shell>main]:p-4 [&_.workbench-shell>main]:gap-4 [&_.workbench-creation]:gap-4 [&_.workbench-creation>div:first-child]:p-0 [&_[data-assistant-pane]]:p-0 [&_[data-assistant-pane]>[role=separator]]:-left-4 [&_[data-assistant-pane]>[role=separator]]:inset-y-0'
-
 export function CreationColumnsStage({ specimen = false }: { specimen?: boolean }): JSX.Element {
   React.useMemo(() => {
     laneClient.connect({ onProjection: listener => { listener(snapshot); return () => undefined },
@@ -36,10 +31,8 @@ export function CreationColumnsStage({ specimen = false }: { specimen?: boolean 
     return null
   }, [])
   React.useEffect(() => () => laneClient.connect(undefined), [])
-  const width = useWorkbenchStore(state => state.editingPanelLayout.assistantWidth)
   return <div data-creation-columns={specimen ? 'specimen' : 'current'}
-    className={specimen ? `${frames} ${headers} ${layout}` : undefined}
-    style={{ width: 1440, height: 900, '--columns-agent-width': `${width}px` } as React.CSSProperties}>
+    style={{ width: 1440, height: 900 }}>
     <WorkbenchShell generation={null} projectName="雨夜来信" />
   </div>
 }

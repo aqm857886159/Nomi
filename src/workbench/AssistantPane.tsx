@@ -1,4 +1,5 @@
 import React from 'react'
+import { useWorkspacePanelFrame } from './WorkspacePanelFrame'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../utils/cn'
 import { ASSISTANT_WIDTH_MIN, assistantWidthMaxFor } from './assistantWidthBounds'
@@ -9,6 +10,7 @@ export function AssistantPane({ dockRef, collapsed = false }: {
   dockRef?: React.Ref<HTMLDivElement>; collapsed?: boolean
 }): JSX.Element {
   const { t } = useTranslation()
+  const workspaceFrame = useWorkspacePanelFrame()
   const width = useWorkbenchStore(state => state.editingPanelLayout.assistantWidth)
   const setWidth = useWorkbenchStore(state => state.setAssistantWidth)
   const drag = React.useRef<{ x: number; width: number } | null>(null)
@@ -17,13 +19,14 @@ export function AssistantPane({ dockRef, collapsed = false }: {
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
   }
   return <aside data-assistant-pane="true" className={cn(
-    collapsed ? 'pointer-events-none absolute inset-0 z-40 overflow-visible' : 'relative h-full min-h-0 min-w-0 p-4',
+    collapsed ? 'pointer-events-none absolute inset-0 z-40 overflow-visible' : 'relative h-full min-h-0 min-w-0',
+    !collapsed && !workspaceFrame && 'p-4',
   )}>
     {!collapsed ? <div
       role="separator" tabIndex={0} aria-orientation="vertical"
       aria-label={t('generationCommon.workspace.resizeAssistant')}
       aria-valuemin={ASSISTANT_WIDTH_MIN} aria-valuemax={assistantWidthMaxFor(typeof window === 'undefined' ? 0 : window.innerWidth)} aria-valuenow={width}
-      className="group absolute inset-y-4 left-0 z-10 flex w-4 cursor-col-resize touch-none items-center justify-center"
+      className={cn('group absolute z-10 flex w-4 cursor-col-resize touch-none items-center justify-center', workspaceFrame ? 'inset-y-0 -left-4' : 'inset-y-4 left-0')}
       onPointerDown={event => { drag.current = { x: event.clientX, width }; event.currentTarget.setPointerCapture(event.pointerId) }}
       onPointerMove={event => { if (drag.current) setWidth(drag.current.width + drag.current.x - event.clientX) }}
       onPointerUp={finish} onPointerCancel={finish} onLostPointerCapture={() => { drag.current = null }}

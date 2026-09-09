@@ -1,4 +1,5 @@
 import React from 'react'
+import { workspacePanelFrame, workspacePanelHeader } from '../WorkspacePanelFrame'
 import { useTranslation } from 'react-i18next'
 import { EditorContent, type Editor, type JSONContent } from '@tiptap/react'
 import SelectionGeneratePopover from './SelectionGeneratePopover'
@@ -63,8 +64,8 @@ function WorkbenchEditorToolbar({ editor }: { editor: Editor | null }): JSX.Elem
       <div
         className={cn(
           'workbench-editor-toolbar',
-          'h-[44px] flex items-center gap-1 px-3',
-          'border-b border-workbench-border-soft bg-workbench-surface',
+          'flex items-center gap-1',
+        workspacePanelHeader,
         )}
         aria-label={t('creationAi.editor.toolbarAria')}
       />
@@ -78,8 +79,8 @@ function WorkbenchEditorToolbar({ editor }: { editor: Editor | null }): JSX.Elem
     <div
       className={cn(
         'workbench-editor-toolbar',
-        'h-[44px] flex items-center gap-1 px-3',
-        'border-b border-workbench-border-soft bg-workbench-surface',
+        'flex items-center gap-1',
+        workspacePanelHeader,
       )}
       aria-label={t('creationAi.editor.toolbarAria')}
     >
@@ -219,10 +220,8 @@ export default function WorkbenchEditor(): JSX.Element {
       className={cn(
         'workbench-editor',
         'relative w-full h-full min-h-0',
-        'grid grid-rows-[44px_minmax(0,1fr)]',
-        'border border-workbench-border rounded-workbench',
-        'bg-workbench-surface-solid shadow-workbench-md',
-        'overflow-hidden',
+        'grid grid-rows-[auto_minmax(0,1fr)]',
+        workspacePanelFrame,
       )}
       aria-label={t('creationAi.editor.documentAria')}
       data-creation-editor="true"

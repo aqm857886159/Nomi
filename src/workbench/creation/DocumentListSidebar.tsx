@@ -1,4 +1,5 @@
 import React from 'react'
+import { useWorkspacePanelFrame, workspacePanelFrame, workspacePanelHeader } from '../WorkspacePanelFrame'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import {
@@ -27,6 +28,7 @@ type ResourceMenu = {
 
 export default function DocumentListSidebar(): JSX.Element {
   const { t } = useTranslation()
+  const workspaceFrame = useWorkspacePanelFrame()
   const documents = useWorkbenchStore((state) => state.workbenchDocuments)
   const activeDocumentId = useWorkbenchStore((state) => state.activeDocumentId)
   const activeStoryboardId = useWorkbenchStore((state) => state.activeStoryboardId)
@@ -219,11 +221,11 @@ export default function DocumentListSidebar(): JSX.Element {
 
   return (
     <aside
-      className="flex h-full w-[240px] shrink-0 flex-col border-r border-nomi-line-soft bg-nomi-paper max-[1180px]:w-[200px]"
+      className={cn('flex h-full w-[240px] shrink-0 flex-col max-[1180px]:w-[200px]', workspaceFrame ? workspacePanelFrame : 'border-r border-nomi-line-soft bg-nomi-paper')}
       aria-label={t('creationAi.documentList.aria')}
       data-creation-resource-tree="true"
     >
-      <div className="flex h-12 shrink-0 items-center justify-between border-b border-nomi-line-soft px-3">
+      <div className={cn('flex shrink-0 items-center justify-between', workspaceFrame ? workspacePanelHeader : 'h-12 border-b border-nomi-line-soft px-3')}>
         <div className="min-w-0">
           <div className="truncate text-body-sm font-semibold text-nomi-ink">{t('creationAi.documentList.title')}</div>
           <div className="text-micro text-nomi-ink-40">{t('creationAi.documentList.count', { count: documents.length })}</div>

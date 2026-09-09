@@ -1,6 +1,6 @@
 # C76 · 创作区三栏工作区面板外框
 
-> 📋 样张待拍板。仅文档、实验室与候选基线；生产代码未实施。
+> 已于 2026-09-10 03:05 批准（PR #689）；03:10/04:32 裁决仅外框，发送按钮保持原位。生产实施证据见 [对账](creation-columns-evidence/implementation/README.md)。
 > 基线：`5c507a5cc3ee74f5fa25706165cb94cd3d2e8165`，包含 #646 pi lane 切换。
 > 方案：[2026-09-10-creation-columns](../plan/2026-09-10-creation-columns.md)。
 

@@ -1,4 +1,5 @@
 import React from "react";
+import { WorkspacePanelFrameContext } from "./WorkspacePanelFrame";
 import { createPortal } from 'react-dom';
 import { useTranslation } from "react-i18next";
 import "./workbench.css";
@@ -270,6 +271,7 @@ export default function WorkbenchShell({
     );
 
     return (
+        <WorkspacePanelFrameContext.Provider value={workspaceMode === "creation"}>
         <div
             className={cn(
                 "workbench-shell",
@@ -353,6 +355,7 @@ export default function WorkbenchShell({
                 className={cn(
                     "workbench-shell__body",
                     "relative min-w-0 min-h-0 overflow-hidden flex flex-1",
+                    workspaceMode === "creation" && "p-4 gap-4",
                 )}>
                 {/* 文件树只在生成区显示：创作是纯文稿、预览/剪辑是回看时间轴，都不需要左侧资源树。 */}
                 {workspaceMode === "generation" ? (
@@ -402,5 +405,6 @@ export default function WorkbenchShell({
                 {agentDock ? createPortal(<ProjectAgentResidentShell surface={agentSurface} />, agentDock) : null}
             </main>
         </div>
+        </WorkspacePanelFrameContext.Provider>
     );
 }

@@ -1,5 +1,4 @@
 import { AssistantPane } from '../AssistantPane'
-import { assistantPaneWidth } from '../assistantWidthBounds'
 import { useWorkbenchStore } from '../workbenchStore'
 import React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -25,12 +24,12 @@ export default function CreationWorkspace({ aiCollapsed = false, agentDockRef }:
         'workbench-creation relative',
         'w-full h-full min-w-0 min-h-0',
         'bg-workbench-bg',
-        'grid',
+        'grid gap-4',
       )}
-      style={{ gridTemplateColumns: agentDockRef && !aiCollapsed ? `minmax(0,1fr) ${assistantPaneWidth(width)}px` : 'minmax(0,1fr)' }}
+      style={{ gridTemplateColumns: agentDockRef && !aiCollapsed ? `minmax(0,1fr) ${width}px` : 'minmax(0,1fr)' }}
       aria-label={t('creationAi.workspace.aria')}
     >
-      <div className="min-w-0 min-h-0 flex flex-col gap-2 p-4">
+      <div className="min-w-0 min-h-0 flex flex-col gap-2">
         <div className="min-h-0 flex-1" data-creation-surface="source">
           {/* The script remains visible in Creation; opening a storyboard is an
               explicit navigation action so a starter row cannot hide the draft. */}

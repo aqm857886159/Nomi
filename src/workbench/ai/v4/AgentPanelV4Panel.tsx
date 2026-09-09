@@ -15,6 +15,7 @@ import { NomiBrand } from '../../../design/identity'
 // 记住哪个还没接——而「没接」和「接了但没反应」在界面上长得一模一样。一个对象，
 // 缺哪个键就是那件事这里做不了，TypeScript 看得见。
 import React from 'react'
+import { useWorkspacePanelFrame, workspacePanelFrame, workspacePanelHeader } from '../../WorkspacePanelFrame'
 import type { LaneLegacyFacts } from '../../../../electron/shared/agentLane/laneLegacyNote'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../../../utils/cn'
@@ -190,6 +191,7 @@ export function AgentPanelV4Panel({
   scrollMemory,
 }: AgentPanelV4PanelProps): JSX.Element {
   const { t } = useTranslation()
+  const workspaceFrame = useWorkspacePanelFrame()
   const labels = useV4Labels()
   const legacyNotice = legacy ? [t('agentPanelV4.legacyNotice'),
     ...(legacy.arrayOrder ? [t('agentPanelV4.legacyArrayOrder')] : []),
@@ -247,11 +249,11 @@ export function AgentPanelV4Panel({
       // 滚动容器，浏览器把新内容 scrollIntoView 时会把 scrollLeft 推走，而用户没有任何手段
       // 拖回来——一次溢出就变成永久裁切。面板自身在两个方向上都不该滚（对话流有自己的
       // `overflow-y-auto`），所以直接 clip：把「溢出」留在能看见的地方，不留一个静默的坏状态。
-      className="flex flex-col overflow-clip rounded-nomi border border-nomi-line bg-nomi-paper"
+      className={cn('flex flex-col', workspacePanelFrame)}
       style={{ width, height }}
       data-v4-panel="true"
     >
-      <header className="flex h-10 shrink-0 items-center gap-2 border-b border-nomi-line-soft px-3 text-body-sm font-semibold">
+      <header className={cn('flex shrink-0 items-center gap-2 text-body-sm font-semibold', workspaceFrame ? workspacePanelHeader : 'h-10 border-b border-nomi-line-soft px-3')}>
         <NomiBrand markSize={18} wordSize={14} />
         <V4ContextRing usage={context} labels={labels.context} />
         <span className="flex-1" />

@@ -1,0 +1,106 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-10-creation-columns",
+  "problem_type": "Creation workspace frame ownership",
+  "symptom": "Three adjacent columns have inconsistent frame and header geometry",
+  "direct_cause": "Independent border, shadow and header classes in Sidebar, Editor and Agent",
+  "class_root": "No shared workspace frame specification at the common host",
+  "affected_population": [
+    "Creation workspace in light and dark themes"
+  ],
+  "scope_paths": [
+    "src/workbench/WorkspacePanelFrame.ts",
+    "src/workbench/WorkbenchShell.tsx",
+    "src/workbench/AssistantPane.tsx",
+    "src/workbench/creation/CreationWorkspace.tsx",
+    "src/workbench/creation/DocumentListSidebar.tsx",
+    "src/workbench/creation/WorkbenchEditor.tsx",
+    "src/workbench/ai/v4/AgentPanelV4Panel.tsx"
+  ],
+  "entry_points": [
+    "Creation resource tree",
+    "Creation editor",
+    "Resident Agent portal"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "User-approved internal frame specification; no dependency or external format change.",
+  "invariants": [
+    "Creation frames share radius, border, background, shadow and header classes; controls retain their internal layouts."
+  ],
+  "generality_proof": "The Shell context covers both direct descendants and the resident portal; all three consume the same frame/header constants. Other workspaces keep their prior geometry.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/WorkspacePanelFrame.ts",
+      "symbol": "WorkspacePanelFrameContext",
+      "responsibility": "Enable the common frame only under the creation host"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/creation/DocumentListSidebar.tsx",
+      "entry_point": "DocumentListSidebar",
+      "disposition": "enforced",
+      "evidence": "Replaces independent outer classes with shared frame/header"
+    },
+    {
+      "path": "src/workbench/creation/WorkbenchEditor.tsx",
+      "entry_point": "WorkbenchEditor",
+      "disposition": "enforced",
+      "evidence": "Replaces independent outer classes with shared frame/header"
+    },
+    {
+      "path": "src/workbench/ai/v4/AgentPanelV4Panel.tsx",
+      "entry_point": "AgentPanelV4Panel",
+      "disposition": "enforced",
+      "evidence": "Portal inherits creation host context; standalone and other workspace headers remain unchanged"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Independent frame owners diverge for every project and theme.",
+    "same_class_scan": [
+      "Read DocumentListSidebar and WorkbenchEditor frame/header classes",
+      "Read AgentPanelV4Panel and AssistantPane plus CreationWorkspace width budget",
+      "Read WorkbenchShell portal and creation/storyboard resource tree consumers"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/WorkspacePanelFrame.ts",
+    "invariant": "A single frame/header class specification serves the three creation columns.",
+    "failure_mode": "Consumers cannot independently choose creation frame tokens.",
+    "exception_policy": "none",
+    "strategy": "Native context at common Shell owns opt-in; shared constants replace local creation frame specifications.",
+    "artifacts": [
+      "src/workbench/WorkspacePanelFrame.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/WorkspacePanelFrame.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/WorkspacePanelFrame.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/devlab/designLab/creationColumns/CreationColumnsStage.tsx",
+      "src/workbench/creation/WorkbenchEditor.tsx"
+    ],
+    "rationale": "Remove specimen selector overrides and old editor frame classes; other workspaces remain out of scope."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Existing React context and Tailwind classes only; no package change.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted data changes.",
+  "residual_risks": ["Visual verification is calibrated on macOS; other platform font rasterization is not established by these screenshots."],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/WorkspacePanelFrame.ts",
+    "tests": [
+      "src/workbench/WorkspacePanelFrame.test.ts"
+    ],
+    "note": "Workspace host frame specification"
+  }
+}
