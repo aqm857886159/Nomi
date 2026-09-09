@@ -86,6 +86,11 @@ export type FetchTaskResultFn = (payload: { taskId: string; vendor: string; task
 
 const TERMINAL_STATUSES = new Set(['succeeded', 'failed'])
 
+// 任务已提交（付费已发生）后，查结果连续失败多久才放弃轮询、落失败终态。短于此 = 网络
+// 抖动，免费重试查询（绝不冒泡终止已付费任务）；与渲染层 catalogTaskActions 的
+// POLL_FAILURE_GRACE_MS 同策——**配对常量，改一处必改另一处**。
+const POLL_FAILURE_GRACE_MS = 45_000
+
 /** Headless/MCP 轮询上限：视频 API 官方建议客户端最多等待 15 分钟，允许环境变量覆盖。 */
 export function resolveCapabilityPollTimeoutMs(kind: string, envValue: string | undefined = process.env.NOMI_POLL_TIMEOUT_MS): number {
   const override = Number(envValue)
@@ -513,14 +518,23 @@ export async function generateOnProject(
     let frame = out
     if (fetchTaskResultFn && frame.status && !TERMINAL_STATUSES.has(frame.status)) {
       const startedAt = Date.now()
+      let pollFailureStreakStartedAt: number | null = null
       while (frame.status && !TERMINAL_STATUSES.has(frame.status)) {
         if (Date.now() - startedAt > 240000) break // 首帧是增益，到点就放弃走一跳，不拖垮整镜
         await delay(1500)
-        const polled = await fetchTaskResultFn({
-          taskId: frame.id || '', vendor: painter.vendorKey, taskKind: frameKind,
-          prompt: framePrompt, modelKey: painter.modelKey,
-        })
-        frame = polled.result
+        try {
+          const polled = await fetchTaskResultFn({
+            taskId: frame.id || '', vendor: painter.vendorKey, taskKind: frameKind,
+            prompt: framePrompt, modelKey: painter.modelKey,
+          })
+          frame = polled.result
+          pollFailureStreakStartedAt = null
+        } catch {
+          // 查结果失败：免费重试（首帧是增益，不冒泡拖垮整镜）；持续失败超 grace 就放弃两跳。
+          const now = Date.now()
+          if (pollFailureStreakStartedAt == null) pollFailureStreakStartedAt = now
+          if (now - pollFailureStreakStartedAt > POLL_FAILURE_GRACE_MS) break
+        }
       }
     }
     const url = (frame.assets || [])[0]?.url
@@ -611,6 +625,7 @@ export async function generateOnProject(
       // 的 MARKER 约定）。本循环一次只跑一个任务，不存在批量同相位问题，故不叠抖动/退避。
       const pollIntervalMs = kind === 'text_to_video' || kind === 'image_to_video' ? 3000 : 1500
       const startedAt = Date.now()
+      let pollFailureStreakStartedAt: number | null = null
       while (result.status && !TERMINAL_STATUSES.has(result.status)) {
         if (Date.now() - startedAt > timeoutMs) {
           // 到点必须落**终态**：旧版直接 break，result 保持 queued/running 且不带 error —— 调用方
@@ -627,14 +642,33 @@ export async function generateOnProject(
           break
         }
         await delay(pollIntervalMs)
-        const polled = await fetchTaskResultFn({
-          taskId: result.id || '',
-          vendor: input.vendor,
-          taskKind: kind,
-          prompt,
-          modelKey: input.modelKey,
-        })
-        result = polled.result
+        try {
+          const polled = await fetchTaskResultFn({
+            taskId: result.id || '',
+            vendor: input.vendor,
+            taskKind: kind,
+            prompt,
+            modelKey: input.modelKey,
+          })
+          result = polled.result
+          pollFailureStreakStartedAt = null
+        } catch {
+          // 查结果失败：免费重试，绝不冒泡——任务已提交付费，一次网络抖动不能终止它。
+          // 持续失败超 grace → 落失败终态（不重发，文案明说任务可能仍在供应商侧）。
+          const now = Date.now()
+          if (pollFailureStreakStartedAt == null) pollFailureStreakStartedAt = now
+          if (now - pollFailureStreakStartedAt > POLL_FAILURE_GRACE_MS) {
+            result = {
+              ...result,
+              status: 'failed',
+              error: desktopT('tasks.pollFailed', {
+                seconds: Math.round((now - pollFailureStreakStartedAt) / 1000),
+                status: result.status || 'unknown',
+              }),
+            }
+            break
+          }
+        }
       }
     }
   } catch (error) {

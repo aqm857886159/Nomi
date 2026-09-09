@@ -40,6 +40,7 @@ const translations = {
     "tasks.unknown": "未知任务：该任务不在本地待办缓存中（可能从未受理或 id 有误）。",
     "tasks.unrecognizedStatus": "上游返回了无法识别的任务状态：「{{status}}」。连续查询 {{polls}} 次、持续 {{seconds}} 秒都是这个状态，Nomi 按失败处理。该任务也可能仍在供应商侧运行——请到供应商后台核对。",
     "tasks.pollTimedOut": "等待生成结果超时（已等 {{seconds}} 秒，最后状态：{{status}}）。任务可能仍在供应商侧运行——请到供应商后台核对，或稍后重新拉取结果。",
+    "tasks.pollFailed": "连续 {{seconds}} 秒查询生成结果失败（最后状态：{{status}}）。任务可能仍在供应商侧运行——请到供应商后台核对，或稍后重新拉取结果。",
     // ⚠️ 长度纪律：错误卡大标题走 classifyError.truncateLine，**超 100 字会被截尾**（那正是
     // 「该怎么办」那半句）。这两条 key 因此写得短，完整上下文留在 raw / 上游原话里。
     "tasks.noQueryOperation": "这个模型没有配置「查询结果」接口，而本次创建也没有返回任何产物——没有第二次查询可发，已按失败处理。请检查该模型的接入配置。",
@@ -213,6 +214,7 @@ const translations = {
     "tasks.unknown": "Unknown task: it is not in the local pending-task cache. It may never have been accepted, or its ID may be incorrect.",
     "tasks.unrecognizedStatus": "The provider returned an unrecognized task status: “{{status}}”. It stayed that way for {{polls}} polls over {{seconds}}s, so Nomi is treating the task as failed. It may still be running on the provider side — check your provider dashboard.",
     "tasks.pollTimedOut": "Timed out waiting for the result (waited {{seconds}}s, last status: {{status}}). The task may still be running on the provider side — check your provider dashboard or fetch the result again later.",
+    "tasks.pollFailed": "Failed to fetch the generation result for {{seconds}}s in a row (last status: {{status}}). The task may still be running on the provider side — check your provider dashboard or fetch the result again later.",
     "tasks.noQueryOperation": "This model has no result-query operation and the create call returned nothing. Check its setup.",
     "outbound.fakeIpBlocked": "The download was blocked by Nomi's own network policy: {{host}} resolved to {{address}} (the RFC 2544 range that local fake-IP proxies use for synthetic addresses). Nomi could not confirm a proxy is running, so it refused the download. **Your paid task is not lost** - confirm your local proxy under Model settings > Network, then use \"Re-fetch result\" to retrieve it for free. Do not regenerate.",
     "outbound.privateAddress": "The download was blocked by Nomi's own network policy: {{host}} resolved to the private address {{address}}, and Nomi never downloads results from private networks. Your paid task is not lost - fix DNS or the proxy, then use \"Re-fetch result\" to retrieve it for free.",
