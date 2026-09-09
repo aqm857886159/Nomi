@@ -1,0 +1,70 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; font-family: "Inter Variable", Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", system-ui, sans-serif; }
+    a { color: oklch(0.55 0.13 250); } a:hover { color: oklch(0.45 0.13 250); }
+    .wb { height: 32px; padding: 0 12px; border-radius: 6px; font-size: 13px; font-weight: 500; font-family: inherit; cursor: pointer; border: 1px solid oklch(0.91 0.004 80); background: oklch(1 0 0); color: oklch(0.32 0.01 80); }
+    .wb.primary { background: oklch(0.22 0.01 80); border-color: oklch(0.22 0.01 80); color: oklch(1 0 0); }
+    .wb.primary:hover { background: oklch(0.55 0.13 250); border-color: oklch(0.55 0.13 250); }
+  </style>
+</helmet>
+
+<div style="width: 480px; height: 560px; background: oklch(0.985 0.003 90); padding: 30px; box-sizing: border-box; display: flex; flex-direction: column; gap: 16px;">
+
+  <div style="width: 420px; background: oklch(1 0 0); border: 1px solid oklch(0.91 0.004 80); border-radius: 10px; box-shadow: 0 1px 2px oklch(0 0 0 / 0.04), 0 1px 1px oklch(0 0 0 / 0.03); overflow: hidden;">
+    <div style="display: flex; align-items: center; gap: 8px; padding: 14px 16px 12px; border-bottom: 1px solid oklch(0.91 0.004 80);">
+      <span style="font-size: 16px; font-weight: 700; color: oklch(0.22 0.01 80);">素材库</span>
+      <span style="font-size: 12px; color: oklch(0.68 0.01 80);">· 24</span>
+      <span style="flex-grow: 1;"></span>
+      <button style="display: grid; place-items: center; width: 32px; height: 32px; border-radius: 6px; color: oklch(0.68 0.01 80); background: transparent; border: 0;" aria-label="关闭"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M18 6l-12 12"/><path d="M6 6l12 12"/></svg></button>
+    </div>
+
+    <div style="background: oklch(0.985 0.003 90); padding: 10px 12px 14px;">
+      <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 8px;">
+        <span style="font-size: 11px; color: oklch(0.68 0.01 80);">参考平台</span>
+        <span style="height: 26px; padding: 0 10px; display: inline-flex; align-items: center; border-radius: 999px; font-size: 12px; font-weight: 600; border: 1px solid oklch(0.55 0.13 250); color: oklch(0.55 0.13 250); background: color-mix(in srgb, oklch(0.55 0.13 250) 12%, oklch(1 0 0));">TikTok</span>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; box-sizing: border-box; border-radius: 999px; border: 1px solid oklch(0.91 0.004 80); background: oklch(1 0 0);">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="oklch(0.78 0.01 80)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0"/><path d="M21 21l-6 -6"/></svg>
+        <span style="font-size: 13px; color: oklch(0.22 0.01 80);">护肤精华</span>
+      </div>
+
+      <div style="padding: 8px 0 10px; font-size: 12px; color: oklch(0.68 0.01 80);">
+        已按 <b style="color: oklch(0.32 0.01 80); font-weight: 600;">skincare serum</b> 搜索（广告库是英文的）· <span style="color: oklch(0.55 0.13 250);">改</span>
+      </div>
+
+      <div style="padding: 12px 14px; border-radius: 6px; border: 1px solid color-mix(in srgb, oklch(0.62 0.14 75) 40%, oklch(1 0 0)); background: color-mix(in srgb, oklch(0.62 0.14 75) 8%, oklch(1 0 0));">
+        <div style="font-size: 13px; font-weight: 600; color: oklch(0.22 0.01 80);">这个词近 30 天没有跑量素材</div>
+        <div style="margin-top: 4px; font-size: 12px; line-height: 1.6; color: oklch(0.50 0.01 80);">TikTok 广告库只收录一部分热门数据，不是全量。<b style="color: oklch(0.32 0.01 80);">不是搜坏了。</b></div>
+        <div style="display: flex; gap: 8px; margin-top: 12px;">
+          <button class="wb primary">放宽到近半年</button>
+          <button class="wb">换个词</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="font-size: 12px; color: oklch(0.50 0.01 80); line-height: 1.7;">
+    <div style="font-size: 13px; font-weight: 600; color: oklch(0.22 0.01 80); margin-bottom: 6px;">卡点③ 空态与失败 —— 两个都是实测撞到的</div>
+    <div style="display: flex; gap: 8px; margin-bottom: 6px;">
+      <span style="flex-shrink: 0; color: oklch(0.68 0.01 80);">a</span>
+      <span>实调 <code style="font-size: 11px;">keyword + period=30 + like=1</code> 真的返回 <b style="color: oklch(0.32 0.01 80);">total_count = 0</b>。<b style="color: oklch(0.32 0.01 80);">「不是搜坏了」这句必须有</b>——没有它，用户会判定功能坏了。走三段式（发生什么 / 为什么 / 下一步），沿用 <code style="font-size: 11px;">ERROR_KIND_KEY</code> 已有的九种错误映射规范，不新造一套。</span>
+    </div>
+    <div style="display: flex; gap: 8px;">
+      <span style="flex-shrink: 0; color: oklch(0.68 0.01 80);">b</span>
+      <span><b style="color: oklch(0.32 0.01 80);">转译要回显且可改</b>：不回显，他不知道结果为什么长这样；回显 + 可改，他能自己纠。<b style="color: oklch(0.32 0.01 80);">不是替他做决定，是替他省一步再告诉他省了什么。</b>只有 TikTok 这一档出现——抖音 / 小红书 中文原生可用，不转译。</span>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

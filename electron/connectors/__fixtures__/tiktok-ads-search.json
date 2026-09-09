@@ -1,0 +1,39 @@
+{
+  "code": 200,
+  "data": {
+    "code": 0,
+    "msg": "OK",
+    "data": {
+      "materials": [
+        {
+          "id": "7198057145040093186",
+          "ad_title": "World class formulas, personalised to you. That’s the Secret.",
+          "like": 512,
+          "ctr": 0.32,
+          "cost": 2,
+          "objective_key": "campaign_objective_conversion",
+          "video_info": {
+            "duration": 22.145,
+            "cover": "https://p16-common-sign.tiktokcdn.com/tos-alisg-p-0051c001-sg/oUxDyiDBgEkBJJriPz"
+          }
+        },
+        {
+          "id": "7229593358557134849",
+          "ad_title": "Microneedling at Home: Start Skincare Journey Now",
+          "like": 27284,
+          "ctr": 0.1,
+          "cost": 2,
+          "objective_key": "campaign_objective_product_sales",
+          "video_info": {
+            "duration": 54.849,
+            "cover": "https://p16-common-sign.tiktokcdn.com/tos-maliva-p-0051c799-us/o4gegKDcbOjHAdGR0"
+          }
+        }
+      ],
+      "pagination": {
+        "has_more": true,
+        "total_count": 313
+      }
+    }
+  }
+}

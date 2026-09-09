@@ -1,0 +1,109 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; font-family: "Inter Variable", Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", system-ui, sans-serif; }
+    a { color: oklch(0.55 0.13 250); } a:hover { color: oklch(0.45 0.13 250); }
+  </style>
+</helmet>
+
+<div style="width: 900px; height: 620px; background: oklch(0.985 0.003 90); padding: 28px 30px; box-sizing: border-box;">
+
+  <div style="font-size: 16px; font-weight: 700; color: oklch(0.22 0.01 80);">卡片的「证据」那一格，必须按平台 derive</div>
+  <div style="margin-top: 6px; font-size: 12px; color: oklch(0.50 0.01 80); line-height: 1.6; max-width: 640px;">
+    2026-09-07 逐平台实调 TikHub 的结果：<b style="color: oklch(0.22 0.01 80);">三个平台的数据面根本不对等</b>。
+    写死一种角标，就会在另外两个平台上要么显示 0、要么显示一个语义完全不同的数。
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 20px;">
+
+    <div style="background: oklch(1 0 0); border: 1px solid oklch(0.91 0.004 80); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="font-size: 14px; font-weight: 600; color: oklch(0.22 0.01 80);">抖音</span>
+        <span style="font-size: 11px; color: oklch(0.68 0.01 80);">自然流量</span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <div style="font-size: 11px; color: oklch(0.68 0.01 80);">角标用</div>
+        <div style="display: flex; gap: 6px;">
+          <span style="border-radius: 999px; padding: 3px 9px; font-size: 11px; line-height: 1; color: #fff; background: oklch(0.18 0.01 80 / 0.64);">♥ 74.1万</span>
+          <span style="border-radius: 999px; padding: 3px 9px; font-size: 11px; line-height: 1; color: oklch(0.32 0.01 80); background: oklch(0.94 0.003 80);">收藏 18.4万</span>
+        </div>
+      </div>
+      <div style="height: 1px; background: oklch(0.95 0.003 80);"></div>
+      <div style="font-size: 11px; line-height: 1.6; color: oklch(0.50 0.01 80);">
+        实调可用：<b style="color: oklch(0.32 0.01 80);">digg 741383 · collect 184326 · comment 20029 · share 49215</b>
+      </div>
+      <div style="display: flex; align-items: flex-start; gap: 6px; padding: 8px 10px; border-radius: 6px; background: color-mix(in srgb, oklch(0.62 0.14 75) 10%, oklch(1 0 0)); border: 1px solid color-mix(in srgb, oklch(0.62 0.14 75) 30%, oklch(1 0 0));">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="oklch(0.62 0.14 75)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 1px;"><path d="M12 9v4"/><path d="M12 16v.01"/><path d="M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636 -2.87l-8.106 -13.536a1.914 1.914 0 0 0 -3.274 0z"/></svg>
+        <span style="font-size: 11px; line-height: 1.5; color: oklch(0.32 0.01 80);"><b>播放量拿不到</b>：实调 <code style="font-size: 11px;">play_count</code> 与 <code style="font-size: 11px;">exposure_count</code> 恒返回 0。不能画「播放」这一格</span>
+      </div>
+    </div>
+
+    <div style="background: oklch(1 0 0); border: 1px solid oklch(0.91 0.004 80); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="font-size: 14px; font-weight: 600; color: oklch(0.22 0.01 80);">小红书</span>
+        <span style="font-size: 11px; color: oklch(0.68 0.01 80);">自然流量</span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <div style="font-size: 11px; color: oklch(0.68 0.01 80);">角标用</div>
+        <div style="display: flex; gap: 6px;">
+          <span style="border-radius: 999px; padding: 3px 9px; font-size: 11px; line-height: 1; color: #fff; background: oklch(0.18 0.01 80 / 0.64);">收藏 3896</span>
+          <span style="border-radius: 999px; padding: 3px 9px; font-size: 11px; line-height: 1; color: oklch(0.32 0.01 80); background: oklch(0.94 0.003 80);">♥ 7503</span>
+        </div>
+      </div>
+      <div style="height: 1px; background: oklch(0.95 0.003 80);"></div>
+      <div style="font-size: 11px; line-height: 1.6; color: oklch(0.50 0.01 80);">
+        实调可用：<b style="color: oklch(0.32 0.01 80);">liked 7503 · collected 3896 · comments 151 · shared 173</b>
+      </div>
+      <div style="display: flex; align-items: flex-start; gap: 6px; padding: 8px 10px; border-radius: 6px; background: oklch(0.97 0.003 80);">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="oklch(0.68 0.01 80)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 1px;"><path d="M12 9h.01"/><path d="M11 12h1v4h1"/><path d="M12 3a9 9 0 1 0 0 18a9 9 0 0 0 0 -18z"/></svg>
+        <span style="font-size: 11px; line-height: 1.5; color: oklch(0.50 0.01 80);"><b style="color: oklch(0.32 0.01 80);">收藏排在点赞前面</b>：小红书的收藏＝「被当成攻略存起来」，比点赞更接近「这条有用」。<b style="color: oklch(0.32 0.01 80);">同一个位置，语义不同</b></span>
+      </div>
+    </div>
+
+    <div style="background: oklch(1 0 0); border: 1px solid oklch(0.55 0.13 250); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 2px 4px oklch(0 0 0 / 0.04), 0 8px 24px oklch(0 0 0 / 0.06);">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="font-size: 14px; font-weight: 600; color: oklch(0.22 0.01 80);">TikTok</span>
+        <span style="border-radius: 999px; padding: 2px 8px; font-size: 11px; line-height: 1.3; color: oklch(0.55 0.13 250); background: color-mix(in srgb, oklch(0.55 0.13 250) 12%, oklch(1 0 0));">唯一有投放表现</span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <div style="font-size: 11px; color: oklch(0.68 0.01 80);">角标用</div>
+        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+          <span style="border-radius: 999px; padding: 3px 9px; font-size: 11px; line-height: 1; color: #fff; background: oklch(0.18 0.01 80 / 0.64);">♥ 8.4k</span>
+          <span style="display: inline-flex; align-items: center; gap: 3px; border-radius: 999px; padding: 3px 8px; font-size: 11px; line-height: 1; color: #fff; background: color-mix(in srgb, oklch(0.62 0.14 75) 88%, black);">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12c2 -2.96 0 -7 -1 -8c0 3.038 -1.773 4.741 -3 6c-1.226 1.26 -2 3.24 -2 5a6 6 0 1 0 12 0c0 -1.532 -1.056 -3.94 -2 -5c-1.786 3 -2.791 3 -4 2z"/></svg>放量
+          </span>
+          <span style="border-radius: 999px; padding: 3px 9px; font-size: 11px; line-height: 1; color: oklch(0.32 0.01 80); background: oklch(0.94 0.003 80);">CTR 0.32%</span>
+        </div>
+      </div>
+      <div style="height: 1px; background: oklch(0.95 0.003 80);"></div>
+      <div style="font-size: 11px; line-height: 1.6; color: oklch(0.50 0.01 80);">
+        实调可用：<b style="color: oklch(0.32 0.01 80);">ctr · cost 花费档 · like · objective 广告目标 · 行业分位 · 逐秒留存</b>（Creative Center）
+      </div>
+      <div style="display: flex; align-items: flex-start; gap: 6px; padding: 8px 10px; border-radius: 6px; background: color-mix(in srgb, oklch(0.55 0.13 250) 8%, oklch(1 0 0));">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="oklch(0.55 0.13 250)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 1px;"><path d="M12 9h.01"/><path d="M11 12h1v4h1"/><path d="M12 3a9 9 0 1 0 0 18a9 9 0 0 0 0 -18z"/></svg>
+        <span style="font-size: 11px; line-height: 1.5; color: oklch(0.32 0.01 80);"><b>「放量」＝花费档高</b>，比 CTR 更接近「正在跑量」。实测 cost 高的那批 CTR 反而低（0.16% / 点赞 8374），CTR 高的只有 7 个赞＝噪声</span>
+      </div>
+    </div>
+
+  </div>
+
+  <div style="display: flex; align-items: flex-start; gap: 8px; margin-top: 20px; padding: 12px 14px; background: oklch(1 0 0); border: 1px solid oklch(0.91 0.004 80); border-radius: 10px;">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="oklch(0.55 0.13 250)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 1px;"><path d="M9 12l2 2l4 -4"/><path d="M12 3a9 9 0 1 0 0 18a9 9 0 0 0 0 -18z"/></svg>
+    <div style="font-size: 12px; line-height: 1.7; color: oklch(0.32 0.01 80);">
+      <b style="color: oklch(0.22 0.01 80);">平台是项目级设定，不是每次搜索的筛选器</b> —— 跟分镜画幅同构（项目级 + 单次可覆盖）。
+      做抖音的人不该每搜一次就重选一次平台（那是让他重复付出，卡点②）；但也不能写死 TikTok。
+      <br>随之 derive 的有三样：<b>角标语义</b>（点赞 / 收藏 / 投放表现）、<b>要不要转译关键词</b>（只有 TikTok 要）、<b>筛选维度</b>（TikTok 才有广告目标）。
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

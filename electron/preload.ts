@@ -351,6 +351,8 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
       setRoute: (payload: unknown) => ipcRenderer.invoke("nomi:connector:tikhub:set-route", payload) as Promise<unknown>,
       resolveShareUrl: (payload: unknown) => ipcRenderer.invoke("nomi:connector:tikhub:resolve-share-url", payload) as Promise<unknown>,
       importToProject: (payload: unknown) => ipcRenderer.invoke("nomi:connector:tikhub:import-to-project", payload) as Promise<unknown>,
+      searchReferences: (payload: unknown) => ipcRenderer.invoke("nomi:connector:tikhub:search-references", payload) as Promise<unknown>,
+      importReference: (payload: unknown) => ipcRenderer.invoke("nomi:connector:tikhub:import-reference", payload) as Promise<unknown>,
     },
   },
   screenshot: {

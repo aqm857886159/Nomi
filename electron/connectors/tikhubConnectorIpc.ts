@@ -39,6 +39,18 @@ export function registerTikhubConnectorIpc(): void {
     const { resolveTikhubShareUrl } = await import("./tikhubConnectorService");
     return resolveTikhubShareUrl(payload);
   });
+  // 找参考：跨平台检索（只读，不落盘）。媒体直链留在主进程，不随结果回渲染层。
+  ipcMain.handle("nomi:connector:tikhub:search-references", async (event, payload) => {
+    assertTrustedSender(event);
+    const { searchTikhubReferences } = await import("./tikhubConnectorService");
+    return searchTikhubReferences(payload);
+  });
+  // 找参考：把选中的一条落成项目素材（usageStatus: reference_only）。
+  ipcMain.handle("nomi:connector:tikhub:import-reference", async (event, payload) => {
+    assertTrustedSender(event);
+    const { importTikhubReference } = await import("./tikhubConnectorService");
+    return importTikhubReference(payload);
+  });
   // 解析 + 落成项目视频素材（带 AssetSourceEvidence）。
   ipcMain.handle("nomi:connector:tikhub:import-to-project", async (event, payload) => {
     assertTrustedSender(event);

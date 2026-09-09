@@ -152,4 +152,7 @@ export const DYNAMIC_KEY_PREFIXES: DynamicPrefix[] = [
   { prefix: 'libraries.sidebar.nodeKindShort', why: '动态: 节点类型短名;枚举来源: 节点 kind(nodeKindShort.* 词条)' },
   { prefix: 'libraries.skill.importReason', why: '动态: 技能导入失败原因;枚举来源: skill import reason 联合(skill.importReason.* 词条)' },
   { prefix: 'libraries.workflow', why: '动态: 流程库字段;枚举来源: WorkflowLibraryContent 的 value(workflow.* 词条)' },
+  // ── assetLibrary.findReference ──
+  { prefix: 'assetLibrary.findReference.platform', why: '动态: 参考平台名;枚举来源: electron/shared/contracts/referenceSearch.ts 的 REFERENCE_PLATFORMS(douyin/xhs/tiktok),UI 按平台 id 取名而不是让主进程回传中文文案(主进程不产出用户可见文字)' },
+  { prefix: 'assetLibrary.findReference.reason', why: "动态: 关键词转译原因;枚举来源: ReferenceSearchResult.translationReason 的语义 token('english-index'),同上——主进程只回 token,文案归 UI" },
 ]

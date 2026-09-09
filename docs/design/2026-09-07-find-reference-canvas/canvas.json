@@ -1,0 +1,12 @@
+{
+  "artboards": [
+    { "file": "EmptyEntry.dc.html", "x": 0, "y": 0, "w": 480, "h": 520, "title": "① 空态入口" },
+    { "file": "Main.dc.html", "x": 560, "y": 0, "w": 480, "h": 800, "title": "② 搜索结果（可切平台）", "is_interactive": true },
+    { "file": "PlatformEvidence.dc.html", "x": 1120, "y": 0, "w": 900, "h": 620, "title": "③ 证据格按平台 derive" },
+    { "file": "FailStates.dc.html", "x": 2100, "y": 0, "w": 480, "h": 560, "title": "④ 转译回显 + 空结果" }
+  ],
+  "annotations": [
+    { "id": "task-card", "x": 0, "y": -150, "w": 620, "text": "任务卡：做内容的人，在「不知道这条素材该怎么拍」的那一刻，找到几条同类目正在跑的片子，挑一条带回项目。挑完就走。\n\n平台不是筛选器，是项目级设定（跟分镜画幅同构）——随之 derive：角标语义、要不要转译、筛选维度。" }
+  ],
+  "launch": { "view": "canvas" }
+}

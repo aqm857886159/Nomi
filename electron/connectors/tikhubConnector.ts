@@ -17,6 +17,12 @@ import { formatTikhubErrorMessage, type TikhubErrorKind } from "../shared/contra
 import type { ConnectorDefinition } from "./connectorDefinition";
 import { TIKHUB_CONNECTOR_ID, TIKHUB_HOST_PRIMARY, TIKHUB_HOSTS } from "./tikhubHosts";
 import { resolveTikhubHost, failoverTikhubHost } from "./tikhubRoute";
+import { buildSearchResult, extractMediaUrls } from "./referenceSearch";
+import {
+  REFERENCE_PLATFORM_FACTS,
+  type ReferencePlatform,
+  type ReferenceSearchResult,
+} from "../shared/contracts/referenceSearch";
 
 /** 主域基址（sticky 未定/兜底时用；实际出站 host 由 tikhubRoute 实测选路决定）。 */
 export const TIKHUB_BASE_URL = `https://${TIKHUB_HOST_PRIMARY}`;
@@ -145,8 +151,14 @@ async function resolveRuntimeHost(deps: TikhubDeps): Promise<string | null> {
 }
 
 type TikhubDeps = {
-  /** 出站发送器（默认 hardenedFetch）。host 由选路给定。测试注入。 */
-  fetchJson?: (path: string, query: Record<string, string>, apiKey: string, host: string) => Promise<JsonRecord>;
+  /** 出站发送器（默认 hardenedFetch）。host 由选路给定。传 jsonBody 即 POST。测试注入。 */
+  fetchJson?: (
+    path: string,
+    query: Record<string, string>,
+    apiKey: string,
+    host: string,
+    jsonBody?: Record<string, unknown>,
+  ) => Promise<JsonRecord>;
   /** 选路：连接时/首次调用前挑生效 host（默认 tikhubRoute.resolveTikhubHost，实测赛跑 + sticky）。测试注入。 */
   resolveHost?: () => Promise<string | null>;
   /** 失败自动切换：主选 host 出站失败后换备域（默认 tikhubRoute.failoverTikhubHost）。测试注入。 */
@@ -178,6 +190,12 @@ async function fetchTikhubJson(
   query: Record<string, string>,
   apiKey: string,
   host: string,
+  /**
+   * 传了就发 POST + JSON body（TikHub 的检索族有一半是 POST，如 tiktok/ads/search_ads、
+   * douyin/search/fetch_video_search_v1）。**加固参数一字不改**——白名单、敏感头剥离、
+   * 禁重定向、字节上限、超时全部沿用 GET 那条路，不给 POST 开任何口子。
+   */
+  jsonBody?: Record<string, unknown>,
 ): Promise<JsonRecord> {
   const testOrigin = getTikhubTestOrigin();
   const url = new URL(path, testOrigin && new URL(testOrigin).host === host ? testOrigin : `https://${host}`);
@@ -192,8 +210,13 @@ async function fetchTikhubJson(
   let result;
   try {
     result = await hardenedFetch(url.toString(), {
-      method: "GET",
-      headers: { Authorization: `Bearer ${apiKey}`, Accept: "application/json" },
+      method: jsonBody ? "POST" : "GET",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        Accept: "application/json",
+        ...(jsonBody ? { "Content-Type": "application/json" } : {}),
+      },
+      ...(jsonBody ? { body: JSON.stringify(jsonBody) } : {}),
       sensitiveHeaders: ["authorization"],
       allowRedirect: false,
       maxBytes: 8 * 1024 * 1024,
@@ -222,14 +245,41 @@ async function fetchTikhubJson(
   const envelopeCode = typeof body.code === "number" ? body.code : status;
   const effective = status >= 400 ? status : envelopeCode;
   if (effective >= 400) {
-    const msg = firstString(body.message_zh, body.message) || `TikHub 请求失败（${effective}）`;
+    const msg = extractTikhubErrorMessage(body) || `TikHub 请求失败（${effective}）`;
     if (effective === 401) throw new TikhubConnectorError("auth", msg, effective);
-    if (effective === 403) throw new TikhubConnectorError("quota", msg, effective);
+    // 402 余额不足与 403 权限不足处置相同（都得去 tikhub.io 处理），归一到 quota。
+    if (effective === 402 || effective === 403) throw new TikhubConnectorError("quota", msg, effective);
     if (effective === 404) throw new TikhubConnectorError("not-found", msg, effective);
+    // 429 单列：它只要等一下再试，不该让用户以为要充值。
+    if (effective === 429) throw new TikhubConnectorError("rate-limited", msg, effective);
     if (effective >= 500) throw new TikhubConnectorError("upstream", msg, effective);
     throw new TikhubConnectorError("bad-response", msg, effective);
   }
   return body;
+}
+
+/**
+ * 从 TikHub 的错误响应里捞一句人话。
+ *
+ * ⚠️ **不能只读顶层 `message_zh`/`message`**：实调 2026-09-07 发现错误走的是另一套信封——
+ *   · 401 无效 key → `{"detail": {"code": 401, "message": "Invalid API token, ..."}}`
+ *   · 422 参数错   → `{"detail": [{"type": "int_parsing", "loc": [...], "msg": "..."}]}`
+ * 顶层读不到时用户只会看到「TikHub 请求失败（401）」这种废话。
+ * （docs.tikhub.io 并未规定统一 error envelope——见 docs/plan/2026-09-07-find-reference-connector.md。）
+ */
+export function extractTikhubErrorMessage(body: JsonRecord): string {
+  const top = firstString(body.message_zh, body.message);
+  if (top) return top;
+  const detail = body.detail;
+  if (typeof detail === "string") return detail.trim();
+  if (isJsonRecord(detail)) return firstString(detail.message_zh, detail.message, detail.msg);
+  if (Array.isArray(detail)) {
+    const msgs = detail
+      .map((entry) => (isJsonRecord(entry) ? firstString(entry.msg, entry.message) : ""))
+      .filter(Boolean);
+    if (msgs.length > 0) return msgs.join("；");
+  }
+  return "";
 }
 
 /**
@@ -430,4 +480,131 @@ export async function resolveShareVideo(
     }
     return await resolveOnHost(platform, shareUrl, apiKey, alternate, fetchJson);
   }
+}
+
+// ── 找参考：跨平台检索 ─────────────────────────────────────────────────────────
+// 端点按平台分族（TikHub 自己就是这么组织文档的：按平台而不是按能力）。
+// 每个平台的请求形状不同（GET query vs POST body），响应形状也不同——
+// 前者在这里吸收，后者交给 referenceSearch.ts 的 normalizer。
+// 方案：docs/plan/2026-09-07-find-reference-connector.md
+
+/** 一次检索的请求参数（平台无关的那部分）。 */
+export type ReferenceSearchQuery = {
+  platform: ReferencePlatform;
+  /** 用户原样输入的关键词。 */
+  keyword: string;
+  /**
+   * 实际打给上游的关键词。中文 → 英文索引平台时由调用方译好传进来，
+   * 归一层据此产出 `translationReason` 让 UI 回显。不传就用 keyword。
+   */
+  effectiveKeyword?: string;
+  /** TikTok 广告库限定：国家码，默认 US。其它平台忽略。 */
+  countryCode?: string;
+  /** TikTok 广告库限定：广告目标（1 流量 2 应用安装 3 转化 4 视频浏览 5 触达 6 潜客 7 商品销售）。 */
+  objective?: number;
+  /** 时间窗（天）。TikTok 广告库用 period；抖音映射到 publish_time 档位。 */
+  periodDays?: number;
+};
+
+/** 每个平台的出站形状（路径 + 方法 + 参数组装）。新增平台只加一条。 */
+function buildSearchRequest(
+  q: ReferenceSearchQuery,
+  keyword: string,
+): { path: string; query: Record<string, string>; body?: Record<string, unknown> } {
+  const facts = REFERENCE_PLATFORM_FACTS[q.platform];
+  if (q.platform === "tiktok") {
+    // POST。⚠️ limit 实测上限是 20——文档写「最大 50」是错的（传 30/50 都 422）。
+    return {
+      path: "/api/v1/tiktok/ads/search_ads",
+      query: {},
+      body: {
+        keyword,
+        period: q.periodDays ?? 30,
+        country_code: trim(q.countryCode) || "US",
+        page: 1,
+        limit: facts.pageSize,
+        order_by: "likes",
+        ...(typeof q.objective === "number" ? { objective: q.objective } : {}),
+      },
+    };
+  }
+  if (q.platform === "douyin") {
+    // POST。sort_type 1 = 最多点赞；publish_time 只认 0/1/7/180 这几档。
+    const bucket = q.periodDays == null ? "0" : q.periodDays <= 1 ? "1" : q.periodDays <= 7 ? "7" : "180";
+    return {
+      path: "/api/v1/douyin/search/fetch_video_search_v1",
+      query: {},
+      body: { keyword, cursor: 0, sort_type: "1", publish_time: bucket, content_type: "1" },
+    };
+  }
+  // 小红书是 GET + query，且时间筛选是**中文枚举**（填错不报错，只是静默失效）。
+  return {
+    path: "/api/v1/xiaohongshu/app_v2/search_notes",
+    query: buildQuery({
+      keyword,
+      page: "1",
+      sort_type: "general",
+      note_type: "不限",
+      time_filter: q.periodDays == null ? "不限" : q.periodDays <= 7 ? "一周内" : "半年内",
+    }),
+  };
+}
+
+/**
+ * 跑一次跨平台参考素材检索。
+ *
+ * 与 resolveShareVideo 同款的选路 + 自动切备域，不另起一套（P1）。
+ * 归一交给 referenceSearch.ts —— 本函数只管「怎么问」，不管「怎么读」。
+ */
+export type ReferenceSearchOutcome = {
+  result: ReferenceSearchResult;
+  /**
+   * 条目 id → 媒体直链。**主进程内部用，绝不跨 IPC**：这些是平台侧短时签名 URL，
+   * 没有理由流到渲染层；服务层在用户点「加入素材库」时就地取用（省掉再花一次钱重查）。
+   */
+  mediaUrls: Record<string, string>;
+};
+
+export async function searchReferences(
+  q: ReferenceSearchQuery,
+  apiKey: string,
+  deps: TikhubDeps = {},
+): Promise<ReferenceSearchOutcome> {
+  if (!trim(apiKey)) {
+    throw new TikhubConnectorError("missing-key", "尚未配置 TikHub API Key。");
+  }
+  const keyword = trim(q.effectiveKeyword) || trim(q.keyword);
+  if (!keyword) {
+    throw new TikhubConnectorError("bad-response", "请先输入要搜的关键词。");
+  }
+  const fetchJson = deps.fetchJson || fetchTikhubJson;
+  const failover = deps.failover || failoverTikhubHost;
+
+  const host = await resolveRuntimeHost(deps);
+  if (!host) {
+    throw new TikhubConnectorError(
+      "no-route",
+      "连不上 TikHub：主线路和大陆加速线路都探测不通。请换个网络或代理后重试；也可在高级设置里手动指定线路。",
+    );
+  }
+
+  const req = buildSearchRequest(q, keyword);
+  let body: JsonRecord;
+  try {
+    body = await fetchJson(req.path, req.query, apiKey, host, req.body);
+  } catch (error) {
+    if (!isRoutableFailure(error)) throw error;
+    const alternate = await failover(host);
+    if (!alternate) {
+      throw new TikhubConnectorError(
+        "no-route",
+        "连不上 TikHub：主线路和大陆加速线路都探测不通。请换个网络或代理后重试；也可在高级设置里手动指定线路。",
+      );
+    }
+    body = await fetchJson(req.path, req.query, apiKey, alternate, req.body);
+  }
+  return {
+    result: buildSearchResult(q.platform, body, q.keyword, keyword),
+    mediaUrls: extractMediaUrls(q.platform, body),
+  };
 }

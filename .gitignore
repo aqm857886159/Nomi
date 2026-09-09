@@ -166,5 +166,9 @@ ds-bundle/
 # Codex/agent 盘上现场文件——只住 worktree，不进树（09-06 曾经由 #524 漏进 main）
 .codex-heartbeat
 CODEX-REPORT.md
+
+# Claude Design 画布的打包产物（2.4MB：编辑器+内容打在一起）。
+# 画布的**源**在 docs/design/<date>-*-canvas/（.dc.html + canvas.json），改动从源重新生成。
+.design-work/
 /*-LAST.md
 /*-RULINGS.md

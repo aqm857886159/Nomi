@@ -20,6 +20,11 @@ export type DesignSearchInputProps = {
   ariaLabel?: string
   /** 'sm'(h-[30px] 紧凑面板) | 'md'(h-9 宽松页面)。默认 sm。 */
   size?: 'sm' | 'md'
+  /**
+   * 按键透传——给「回车即执行」这类用法（素材库找参考的回车搜索）。
+   * 加在共享组件上而不是让调用方手搓一个输入框（否则就是又长一份并行版，违 P1）。
+   */
+  onKeyDown?: React.KeyboardEventHandler<HTMLInputElement>
   className?: string
 }
 
@@ -29,6 +34,7 @@ export function DesignSearchInput({
   placeholder,
   ariaLabel,
   size = 'sm',
+  onKeyDown,
   className,
 }: DesignSearchInputProps): JSX.Element {
   return (
@@ -47,6 +53,7 @@ export function DesignSearchInput({
         placeholder={placeholder}
         aria-label={ariaLabel ?? placeholder}
         onChange={(event) => onChange(event.currentTarget.value)}
+        onKeyDown={onKeyDown}
         className="flex-1 min-w-0 border-0 bg-transparent outline-none text-body-sm text-nomi-ink placeholder:text-nomi-ink-30 [&::-webkit-search-cancel-button]:hidden"
       />
     </div>

@@ -8,12 +8,15 @@
 //
 //   · missing-key         ：没配 key。
 //   · auth                ：401，key 无效/过期。
-//   · quota               ：403，额度不足/权限。
+//   · quota               ：403 权限不足 / **402 余额不足**（2026-09-07 补：官方文档 docs.tikhub.io
+//                          明列 402，此前掉进 bad-response，用户看到的是「响应结构异常」而不是「余额不足」）。
 //   · not-found           ：404，链接解析不到作品。
 //   · unsupported-platform：不是抖音/TikTok 链接。
 //   · no-play-url         ：拿到作品但抽不出直链。
 //   · upstream            ：5xx / 风控波动 / 网络。
 //   · no-route            ：两个候选域（主 api.tikhub.io + 加速 api.tikhub.dev）都探测不通。
+//   · rate-limited        ：429，超了 QPS 10/秒（spec info.description 的 Rate Limit）。
+//                          与 quota 分开是因为**处置不同**：quota 要充值，这个只要稍后重试。
 //   · bad-response        ：非 JSON / 信封异常。
 
 export const TIKHUB_ERROR_KINDS = [
@@ -23,6 +26,7 @@ export const TIKHUB_ERROR_KINDS = [
   "not-found",
   "unsupported-platform",
   "no-play-url",
+  "rate-limited",
   "upstream",
   "no-route",
   "bad-response",

@@ -1,0 +1,428 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>找参考（TikHub 跑量素材）· 减法梯度样张 2026-09-07</title>
+<!--
+  这是「素材库 → 找参考」的待拍板样张，第一张走新流程（page-design-process §2.5）画的图。
+
+  闸① 摸现状：外壳逐项复刻真实素材库——
+    头部  src/workbench/assets/AssetLibraryPanel.tsx:553-571（标题 + 「· N」计数 + 右上关闭 ×）
+    工具栏 src/workbench/assets/AssetLibraryToolbar.tsx:106-255
+          （上传 / 链接 / 垃圾桶 ｜ 来源▾ / 漏斗 / 搜索框 / 文件夹+ ）—— 现有 7 个控件一个没动
+    网格  AssetLibraryPanel.tsx:640-712（FolderGridCell + AssetGridCell）
+  除「找参考」面板本身，其余一字未改。
+
+  闸② 新面 → 四件产物：任务卡见每版页眉；三版是「减法梯度」不是风格梯度；删除清单在文末；卡点表（走一遍这条路）在删除清单前。
+  token 值取自 src/theme/nomi-tokens.css。默认暗色（真机即暗色），右上角可切光色。
+-->
+<style>
+  :root {
+    --nomi-bg: oklch(0.985 0.003 90); --nomi-paper: oklch(1 0 0);
+    --nomi-ink: oklch(0.22 0.01 80); --nomi-ink-80: oklch(0.32 0.01 80);
+    --nomi-ink-60: oklch(0.50 0.01 80); --nomi-ink-40: oklch(0.68 0.01 80);
+    --nomi-ink-20: oklch(0.88 0.005 80); --nomi-ink-10: oklch(0.94 0.003 80);
+    --nomi-ink-05: oklch(0.97 0.003 80);
+    --nomi-line: oklch(0.91 0.004 80); --nomi-line-soft: oklch(0.95 0.003 80);
+    --nomi-accent: oklch(0.55 0.13 250);
+    --nomi-accent-soft: color-mix(in srgb, var(--nomi-accent) 12%, var(--nomi-paper));
+    --nomi-success: oklch(0.60 0.13 150);
+    --nomi-warning: oklch(0.62 0.14 65);
+    --nomi-radius-sm: 6px; --nomi-radius: 10px; --nomi-radius-lg: 16px;
+    --nomi-font-sans: "Inter Variable", Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", system-ui, sans-serif;
+  }
+  html[data-theme="dark"] {
+    --nomi-bg: oklch(0.18 0.006 80); --nomi-paper: oklch(0.235 0.007 80);
+    --nomi-ink: oklch(0.93 0.006 85); --nomi-ink-80: oklch(0.84 0.006 85);
+    --nomi-ink-60: oklch(0.70 0.006 85); --nomi-ink-40: oklch(0.62 0.006 85);
+    --nomi-ink-20: oklch(0.42 0.006 85); --nomi-ink-10: oklch(0.34 0.006 85);
+    --nomi-ink-05: oklch(0.30 0.006 85);
+    --nomi-line: oklch(0.38 0.006 80); --nomi-line-soft: oklch(0.32 0.006 80);
+    --nomi-accent: oklch(0.70 0.12 250);
+    --nomi-accent-soft: color-mix(in srgb, var(--nomi-accent) 16%, var(--nomi-paper));
+    --nomi-success: oklch(0.72 0.14 150);
+    --nomi-warning: oklch(0.76 0.14 70);
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:28px 28px 60px; background:var(--nomi-bg); color:var(--nomi-ink);
+         font-family:var(--nomi-font-sans); font-size:13px; line-height:1.55; }
+  h1 { font-size:17px; margin:0 0 4px; font-weight:620; }
+  .sub { color:var(--nomi-ink-60); font-size:12px; margin-bottom:8px; max-width:900px; }
+  .task { border-left:3px solid var(--nomi-accent); background:var(--nomi-accent-soft);
+          padding:8px 12px; border-radius:0 var(--nomi-radius-sm) var(--nomi-radius-sm) 0;
+          margin:10px 0 18px; max-width:900px; font-size:12.5px; }
+  .task b { font-weight:640; }
+  h2 { font-size:14px; font-weight:640; margin:34px 0 2px; }
+  .verdict { font-size:11.5px; margin:0 0 12px; }
+  .rec { color:var(--nomi-success); font-weight:600; }
+  .ctrl { color:var(--nomi-ink-40); }
+  .row { display:flex; gap:20px; flex-wrap:wrap; align-items:flex-start; }
+  .theme-btn { position:fixed; top:14px; right:18px; z-index:9; font:inherit; font-size:11.5px;
+               padding:5px 10px; border-radius:var(--nomi-radius-sm); cursor:pointer;
+               border:1px solid var(--nomi-line); background:var(--nomi-paper); color:var(--nomi-ink-60); }
+
+  /* ── 真实素材库外壳（逐项复刻，未改）── */
+  .panel { width:430px; background:var(--nomi-paper); border:1px solid var(--nomi-line);
+           border-radius:var(--nomi-radius); overflow:hidden; display:flex; flex-direction:column; }
+  .panel-head { display:flex; align-items:center; gap:8px; padding:14px 16px 12px;
+                border-bottom:1px solid var(--nomi-line); }
+  .panel-head b { font-size:14px; font-weight:700; }
+  .panel-head .count { color:var(--nomi-ink-40); font-size:12px; }
+  .spacer { flex:1; }
+  .ibtn { width:26px; height:26px; display:grid; place-items:center; border:0; background:transparent;
+          color:var(--nomi-ink-40); border-radius:var(--nomi-radius-sm); cursor:pointer; font-size:14px; }
+  .ibtn:hover { background:var(--nomi-ink-05); color:var(--nomi-ink); }
+  .ibtn.on { background:var(--nomi-accent-soft); color:var(--nomi-accent); }
+  .toolbar { display:flex; align-items:center; gap:6px; padding:9px 12px; flex-wrap:wrap;
+             border-bottom:1px solid var(--nomi-line-soft); }
+  .pill { display:inline-flex; align-items:center; gap:4px; font-size:11.5px; padding:4px 9px;
+          border:1px solid var(--nomi-line); border-radius:var(--nomi-radius-sm);
+          background:var(--nomi-paper); color:var(--nomi-ink-80); cursor:pointer; }
+  .pill.primary { background:var(--nomi-accent); border-color:var(--nomi-accent); color:#fff; }
+  .search { flex:1; min-width:96px; font-size:11.5px; padding:4px 8px; color:var(--nomi-ink-40);
+            border:1px solid var(--nomi-line); border-radius:var(--nomi-radius-sm); background:var(--nomi-ink-05); }
+  .sep { width:1px; height:16px; background:var(--nomi-line); margin:0 2px; }
+  .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; padding:12px; }
+  .cell { aspect-ratio:1/1; border-radius:var(--nomi-radius-sm); background:var(--nomi-ink-10);
+          border:1px solid var(--nomi-line-soft); display:grid; place-items:center;
+          color:var(--nomi-ink-40); font-size:10.5px; }
+
+  /* ── 找参考面板（新东西，只有这块是改动）── */
+  .sheet { border-top:1px solid var(--nomi-line); background:var(--nomi-bg); }
+  .sheet-head { display:flex; align-items:center; gap:8px; padding:10px 12px 8px; }
+  .field { flex:1; font-size:12px; padding:6px 9px; border:1px solid var(--nomi-accent);
+           border-radius:var(--nomi-radius-sm); background:var(--nomi-paper); color:var(--nomi-ink); }
+  .echo { padding:0 12px 7px; font-size:10.5px; color:var(--nomi-ink-40); }
+  .echo b { color:var(--nomi-ink-80); font-weight:640; }
+  .echo u { color:var(--nomi-accent); text-decoration:none; cursor:pointer; }
+  .empty { padding:26px 18px 22px; text-align:center; }
+  .empty-h { font-size:13px; font-weight:640; margin-bottom:3px; }
+  .empty-p { font-size:11.5px; color:var(--nomi-ink-60); margin-bottom:12px; }
+  .empty-field { display:flex; gap:6px; align-items:center; max-width:290px; margin:0 auto; }
+  .fail { margin:2px 12px 12px; padding:9px 11px; border-radius:var(--nomi-radius-sm);
+          border:1px solid var(--nomi-warning); background:color-mix(in srgb,var(--nomi-warning) 10%,var(--nomi-paper)); }
+  .fail-h { font-size:11.5px; font-weight:640; margin-bottom:2px; }
+  .fail-p { font-size:11px; color:var(--nomi-ink-60); margin-bottom:8px; }
+  .hint { padding:0 12px 8px; font-size:11px; color:var(--nomi-ink-40); }
+  .res { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; padding:2px 12px 12px; }
+  .card { border:1px solid var(--nomi-line); border-radius:var(--nomi-radius-sm);
+          overflow:hidden; background:var(--nomi-paper); cursor:pointer; }
+  .card:hover { border-color:var(--nomi-accent); }
+  .thumb { aspect-ratio:9/16; background:linear-gradient(150deg,var(--nomi-ink-20),var(--nomi-ink-10));
+           position:relative; display:grid; place-items:center; color:var(--nomi-ink-40); font-size:10px; }
+  .badge { position:absolute; left:4px; top:4px; font-size:9.5px; padding:1.5px 5px; border-radius:20px;
+           background:color-mix(in srgb, var(--nomi-success) 88%, black); color:#fff; font-weight:640; }
+  .scale { position:absolute; left:4px; top:22px; font-size:9px; padding:1px 5px; border-radius:20px;
+           background:color-mix(in srgb, var(--nomi-warning) 88%, black); color:#fff; font-weight:640; }
+  .dur { position:absolute; right:4px; bottom:4px; font-size:9.5px; padding:1px 4px; border-radius:3px;
+         background:rgba(0,0,0,.62); color:#fff; }
+  .cap { padding:5px 6px 6px; font-size:10.5px; color:var(--nomi-ink-60); line-height:1.35;
+         display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .filters { display:flex; gap:5px; flex-wrap:wrap; padding:0 12px 9px; }
+  .fpill { font-size:10.5px; padding:3px 8px; border:1px solid var(--nomi-line);
+           border-radius:20px; color:var(--nomi-ink-60); background:var(--nomi-paper); cursor:pointer; }
+  .fpill.on { border-color:var(--nomi-accent); color:var(--nomi-accent); background:var(--nomi-accent-soft); }
+  .tabs { display:flex; gap:2px; padding:0 12px 8px; }
+  .tab { font-size:11px; padding:4px 10px; border-radius:var(--nomi-radius-sm); cursor:pointer;
+         color:var(--nomi-ink-60); }
+  .tab.on { background:var(--nomi-ink-05); color:var(--nomi-ink); font-weight:600; }
+  .meta { display:flex; gap:6px; padding:0 6px 6px; font-size:9.5px; color:var(--nomi-ink-40); flex-wrap:wrap; }
+  .spark { height:22px; margin:0 6px 6px; background:
+      repeating-linear-gradient(90deg, var(--nomi-accent) 0 2px, transparent 2px 5px);
+      opacity:.55; border-radius:2px; }
+
+  table { border-collapse:collapse; margin-top:10px; font-size:12px; max-width:960px; }
+  th,td { border:1px solid var(--nomi-line); padding:6px 10px; text-align:left; vertical-align:top; }
+  th { background:var(--nomi-ink-05); font-weight:620; }
+</style>
+</head>
+<body>
+<button class="theme-btn" onclick="document.documentElement.dataset.theme = document.documentElement.dataset.theme==='dark'?'light':'dark'">切光/暗</button>
+
+<h1>找参考（TikHub 跑量素材）· 减法梯度样张</h1>
+<p class="sub">
+  2026-09-07 · 第一张按 <code>docs/design/page-design-process.md §2.5</code>「新面三件产物」画的样张。
+  外壳逐项复刻真实素材库（头部 / 7 个工具栏控件 / 网格），<b>只有底部展开的那块是新东西</b>。
+</p>
+
+<div class="task">
+  <b>任务卡：</b>出海投放的人，在「不知道这条素材该怎么拍」的那一刻，找到几条同类目正在跑量的片子，挑一条带回项目。<b>挑完就走。</b>
+</div>
+
+<h2>v1 · 只有一件事 <span class="rec">← 默认推荐</span></h2>
+<p class="verdict">
+  一个输入框 + 一列带<b>规模证据</b>的卡片 + 点一下加入。<b>三个控件。</b>
+  入口不是第 8 个按钮——是现有「贴链接」那颗的升级（<span class="ctrl">🔗 已点亮</span>）：
+  贴链接 = 我已经知道要哪条；输关键词 = 我还不知道要哪条。<b>同一个家，常驻控件数仍是 7。</b>
+</p>
+<div class="row">
+  <div class="panel" data-mockup="find-reference-v1">
+    <div class="panel-head"><b>素材库</b><span class="count">· 24</span><span class="spacer"></span><span class="ibtn">✕</span></div>
+    <div class="toolbar">
+      <span class="pill">＋ 上传</span>
+      <span class="ibtn on" title="贴链接 / 找参考">🔗</span>
+      <span class="ibtn" title="删除">🗑</span>
+      <span class="sep"></span>
+      <span class="pill">来源 ▾</span>
+      <span class="ibtn" title="筛选">⚙</span>
+      <span class="search">搜索…</span>
+      <span class="ibtn" title="新建文件夹">📁</span>
+    </div>
+    <div class="sheet" data-mockup="find-reference-sheet-v1">
+      <div class="sheet-head"><input class="field" value="护肤 精华" /></div>
+      <div class="hint">贴分享链接直接拿这一条；输关键词看同类正在跑量的。</div>
+      <div class="res">
+        <div class="card"><div class="thumb"><span class="badge">♥ 8.4k</span><span class="scale">放量</span><span class="dur">0:22</span>封面</div><div class="cap">创始人手持产品直接对镜头说</div></div>
+        <div class="card"><div class="thumb"><span class="badge">♥ 1.4k</span><span class="dur">0:15</span>封面</div><div class="cap">开箱粗剪 · 无配音字幕流</div></div>
+        <div class="card"><div class="thumb"><span class="badge">♥ 320</span><span class="dur">0:31</span>封面</div><div class="cap">前后对比 + 手写体大字</div></div>
+      </div>
+    </div>
+    <div class="grid"><div class="cell">已有素材</div><div class="cell">已有素材</div><div class="cell">已有素材</div></div>
+  </div>
+  <div style="max-width:300px;font-size:11.5px;color:var(--nomi-ink-60)">
+    <b style="color:var(--nomi-ink)">为什么这三样必须留：</b><br>
+    · <b>输入框</b>＝「找」的唯一入口<br>
+    · <b>规模角标（♥点赞 + 放量标）</b>＝「跑量」的证据。<u>去掉它这条线就退化成普通搜索</u>，也就没有存在理由了<br>
+    · <b>点卡片加入</b>＝任务卡里的「带回项目」，即出口<br><br>
+    <b style="color:var(--nomi-ink)">刻意少得让人不安的地方：</b>没有筛选、没有排序、没有 tab、没有详情面板。第一眼会觉得「就这？」——<b>这是预期内的</b>，要什么再往上加。
+  </div>
+</div>
+
+<h2>v2.5 · 从 v3 捞回三个真核心维度 <span class="rec">← 修正后的推荐</span></h2>
+<p class="verdict">
+  按「用户挑素材时脑子里在判断什么」捞，不按「API 给了什么」捞。只有三个判断是必答的：
+  <b>同市场吗</b>（地区）· <b>同目标吗</b>（卖货/推 App/拉流量）· <b>真跑量还是噪声</b>（规模角标，已在 v1）。
+  <span class="ctrl">代价：+1 行 chip，面板高 +30px。行业/表现分位/时长/语言/Spark/创意标签仍全部不加。</span>
+</p>
+<div class="row">
+  <div class="panel" data-mockup="find-reference-v25">
+    <div class="panel-head"><b>素材库</b><span class="count">· 24</span><span class="spacer"></span><span class="ibtn">✕</span></div>
+    <div class="toolbar">
+      <span class="pill">＋ 上传</span><span class="ibtn on">🔗</span><span class="ibtn">🗑</span>
+      <span class="sep"></span><span class="pill">来源 ▾</span><span class="ibtn">⚙</span>
+      <span class="search">搜索…</span><span class="ibtn">📁</span>
+    </div>
+    <div class="sheet">
+      <div class="sheet-head"><input class="field" value="护肤精华" /></div>
+      <div class="echo">已按 <b>skincare serum</b> 搜索（广告库是英文的）· <u>改</u></div>
+      <div class="filters">
+        <span class="fpill on">🇺🇸 美国</span>
+        <span class="sep" style="height:14px"></span>
+        <span class="fpill on">卖货的</span><span class="fpill">推 App 的</span><span class="fpill">拉流量的</span>
+      </div>
+      <div class="res">
+        <div class="card"><div class="thumb"><span class="badge">♥ 8.4k</span><span class="scale">放量</span><span class="dur">0:22</span>封面</div><div class="cap">创始人手持产品直接对镜头说</div></div>
+        <div class="card"><div class="thumb"><span class="badge">♥ 1.4k</span><span class="dur">0:15</span>封面</div><div class="cap">开箱粗剪 · 无配音字幕流</div></div>
+        <div class="card"><div class="thumb"><span class="badge">♥ 320</span><span class="dur">0:31</span>封面</div><div class="cap">前后对比 + 手写体大字</div></div>
+      </div>
+    </div>
+    <div class="grid"><div class="cell">已有素材</div><div class="cell">已有素材</div><div class="cell">已有素材</div></div>
+  </div>
+  <div style="max-width:300px;font-size:11.5px;color:var(--nomi-ink-60)">
+    <b style="color:var(--nomi-ink)">地区</b>默认<b>跟随他的投放地区</b>（可 derive，不用问）——是一颗<b>已选中的 chip</b>，不是要他填的下拉。
+    <br><br><b style="color:var(--nomi-ink)">广告目标</b>是这次真正捞回来的那个。实测一次「skincare」搜索的 20 条里：
+    产品销售 9 / 转化 6 / 流量 3 / 触达 2 —— <b>四种目标混排</b>。做电商的人看到「拉流量」和「触达」的素材是纯浪费，
+    因为<b>拍法根本不同</b>（卖货演产品使用，推 App 演界面操作）。
+    <br><br>⚠️ API 的枚举有 7 种（流量/应用安装/转化/视频浏览/触达/潜在客户/产品销售）。
+    <b>这里刻意收成 3 颗</b>——按「用户的问题」分组，不按 API 的枚举分。让用户学平台的 7 分类法 = 让他学我们的格式。
+    <br><br>时间窗<b>不做成常驻筛选器</b>：默认近 30 天，只在<b>结果为空时</b>才冒出一颗「放宽到半年」。
+  </div>
+</div>
+
+<h2>v3 · 全都要（对照组 —— 不过这道闸会画成的样子）</h2>
+<p class="verdict">
+  把研究里拿到的能力全铺出来：7 个筛选器 + 广告/自然流量 tab + 花费档 + 评论分享 + 落地页 + 逐秒 highlight 曲线。
+  <span class="ctrl">这不是推荐项，是<b>让「全都要」的代价可见</b>——面板高度翻倍，第一屏只剩 2 条结果，而任务卡那件事一步都没变快。</span>
+</p>
+<div class="row">
+  <div class="panel" data-mockup="find-reference-v3">
+    <div class="panel-head"><b>素材库</b><span class="count">· 24</span><span class="spacer"></span><span class="ibtn">✕</span></div>
+    <div class="toolbar">
+      <span class="pill">＋ 上传</span><span class="ibtn on">🔗</span><span class="ibtn">🗑</span>
+      <span class="sep"></span><span class="pill">来源 ▾</span><span class="ibtn">⚙</span>
+      <span class="search">搜索…</span><span class="ibtn">📁</span>
+    </div>
+    <div class="sheet">
+      <div class="tabs"><span class="tab on">广告库</span><span class="tab">自然流量</span><span class="tab">热榜</span></div>
+      <div class="sheet-head"><input class="field" value="护肤 精华" /><span class="pill primary">搜索</span></div>
+      <div class="filters">
+        <span class="fpill on">🇺🇸 美国</span><span class="fpill">行业 ▾</span><span class="fpill">广告目标 ▾</span>
+        <span class="fpill">表现分位 ▾</span><span class="fpill">时长 ▾</span><span class="fpill">语言 ▾</span>
+        <span class="fpill">Spark Ads</span><span class="fpill">创意标签 ▾</span><span class="fpill">近 30 天 ▾</span>
+        <span class="fpill">排序：点赞 ▾</span>
+      </div>
+      <div class="res" style="grid-template-columns:repeat(2,1fr)">
+        <div class="card">
+          <div class="thumb"><span class="badge">♥ 8.4k</span><span class="scale">放量</span><span class="dur">0:22</span>封面</div>
+          <div class="cap">创始人手持产品直接对镜头说</div>
+          <div class="meta"><span>CTR 0.32%</span><span>♥512</span><span>💬6</span><span>↗16</span><span>花费档 2/5</span></div>
+          <div class="meta"><span>转化目标</span><span>落地页 ↗</span></div>
+          <div class="spark"></div>
+        </div>
+        <div class="card">
+          <div class="thumb"><span class="badge">♥ 1.4k</span><span class="dur">0:15</span>封面</div>
+          <div class="cap">开箱粗剪 · 无配音字幕流</div>
+          <div class="meta"><span>CTR 0.27%</span><span>♥38</span><span>💬2</span><span>↗4</span><span>花费档 1/5</span></div>
+          <div class="meta"><span>流量目标</span><span>落地页 ↗</span></div>
+          <div class="spark"></div>
+        </div>
+      </div>
+    </div>
+    <div class="grid"><div class="cell">已有素材</div><div class="cell">已有素材</div><div class="cell">已有素材</div></div>
+  </div>
+  <div style="max-width:300px;font-size:11.5px;color:var(--nomi-ink-60)">
+    <b style="color:var(--nomi-warning)">注意这一版的真实成本：</b><br>
+    · 10 颗筛选 chip 里，<b>9 颗他第一次进来时不知道自己要什么</b><br>
+    · 三个 tab 是<b>两套心智混排</b>（广告 vs 自然流量，UX 体检尺子 pattern 2）<br>
+    · 逐秒曲线在这一步<b>没有解释力</b>——他还没看过片，曲线是天书。它属于「拆」的时刻，不属于「找」<br>
+    · 结果从 3 条掉到 2 条，而任务卡那件事一步没少
+  </div>
+</div>
+
+<h2>卡点表逼出来的三个改动（前三件产物一个都发现不了）</h2>
+<p class="verdict">
+  前三件产物管<b>构图</b>（一屏上有多少东西）；卡点表管<b>路径</b>（用户走一条路会卡在哪）。
+  把这条路真的走一遍，抓到三个问题——<b>其中第一个是我上一轮的减法自己造出来的</b>。
+</p>
+
+<h3 style="font-size:12.5px;margin:20px 0 4px">① 发现：🔗 这个入口是断的（自己造的坑）</h3>
+<p class="verdict">
+  这功能的价值在「<b>我还不知道要哪条</b>」，但 <code>IconLink</code> 说的是「<b>我已经有链接了</b>」——
+  没有链接的人<b>永远不会点它</b>。上一轮为了「一功能一个家」把它塞进 🔗：<b>构图赢了，路径断了</b>。
+  <span class="ctrl">修法用「就近」手法（代价 0，不是收纳）：素材库空态的主 CTA 直接是它，而且<b>输入框就地内嵌、不弹层</b>——顺便砍掉一步。</span>
+</p>
+<div class="row">
+  <div class="panel" data-mockup="find-reference-empty">
+    <div class="panel-head"><b>素材库</b><span class="count">· 0</span><span class="spacer"></span><span class="ibtn">✕</span></div>
+    <div class="toolbar">
+      <span class="pill">＋ 上传</span><span class="pill">🔗 找素材</span><span class="ibtn">🗑</span>
+      <span class="sep"></span><span class="pill">来源 ▾</span><span class="ibtn">⚙</span>
+      <span class="search">搜索…</span><span class="ibtn">📁</span>
+    </div>
+    <div class="empty">
+      <div class="empty-h">还没有素材</div>
+      <div class="empty-p">拖文件进来，或看看 <b>TikTok 同类目正在跑量</b>的片子长什么样</div>
+      <div class="empty-field">
+        <input class="field" placeholder="输产品词，或贴一条分享链接" />
+      </div>
+      <div class="hint" style="padding-top:8px">按回车搜索 · 每次搜索约 $0.001</div>
+    </div>
+  </div>
+  <div style="max-width:300px;font-size:11.5px;color:var(--nomi-ink-60)">
+    <b style="color:var(--nomi-ink)">为什么放空态：</b>空态是天然教学位，<b>而且素材库空的时候正是他最需要这功能的时刻</b>。不新增常驻控件（空态本来就有内容）。
+    <br><br><b style="color:var(--nomi-ink)">代价前置（卡点②）：</b>底下那行小字同时交代了两笔代价——回车即搜（不用找按钮）、每次约 $0.001。
+    <b>$0.001 不弹付费确认</b>：弹窗的摩擦远大于金额本身，但不说 = 不诚实。
+    <br><br>Key 没配的处理<b>照抄现成范例</b>：先查 key 再让他输，不让他输完才发现（<code>pasteShareLinkImport.ts:57-68</code>，注释就写着「少一步空跑」）。
+  </div>
+</div>
+
+<h3 style="font-size:12.5px;margin:24px 0 4px">③ 空态与失败：两个都是实测撞到的</h3>
+<div class="row">
+  <div class="panel" data-mockup="find-reference-empty-result">
+    <div class="panel-head"><b>素材库</b><span class="count">· 24</span><span class="spacer"></span><span class="ibtn">✕</span></div>
+    <div class="sheet" style="border-top:0">
+      <div class="sheet-head"><input class="field" value="护肤精华" /></div>
+      <div class="echo">已按 <b>skincare serum</b> 搜索（广告库是英文的）· <u>改</u></div>
+      <div class="fail">
+        <div class="fail-h">这个词近 30 天没有跑量素材</div>
+        <div class="fail-p">TikTok 广告库只收录一部分热门数据，不是全量。<b>不是搜坏了。</b></div>
+        <span class="pill primary">放宽到近半年</span> <span class="pill">换个词</span>
+      </div>
+    </div>
+  </div>
+  <div style="max-width:300px;font-size:11.5px;color:var(--nomi-ink-60)">
+    <b style="color:var(--nomi-ink)">走三段式</b>（发生什么 / 为什么 / 下一步）——沿用 <code>ERROR_KIND_KEY</code> 已有的九种错误映射规范，不新造一套。
+    <br><br><b style="color:var(--nomi-warning)">「不是搜坏了」这句必须有</b>：实测 <code>keyword+period=30+like=1</code> 真的会返回 <code>total_count=0</code>。
+    没有这句，用户会判定功能坏了。
+    <br><br><b style="color:var(--nomi-ink)">中文转译要回显</b>：不回显 = 他不知道为什么结果长这样；回显 + 可改 = 他能自己纠。
+    <b>不是替他做决定，是替他省一步再告诉他省了什么。</b>
+  </div>
+</div>
+
+<h2>实测修正：不是「中文不可用」，是<b>平台没选</b>（用户指出）</h2>
+<p class="verdict">
+  初稿写「中文关键词基本不可用」。<b>这个结论是错的，错在我自己的方法</b>——我拿中文去查了 <b>TikTok 广告库</b>，那是英文市场的库。
+  补测同一个词 <code>护肤精华</code>：
+</p>
+<table>
+  <tr><th>平台 / 端点</th><th>条数</th><th>相关性</th></tr>
+  <tr><td><b>抖音</b> <code>douyin/search/fetch_video_search_v1</code></td><td>7</td><td><b>6/7（86%）</b> —— 中文在中文平台完全可用</td></tr>
+  <tr><td>TikTok <b>广告库</b> <code>tiktok/ads/search_ads</code></td><td>19</td><td>6/19（32%），混入泰语 / 印尼语</td></tr>
+  <tr><td>TikTok <b>自然流量</b> <code>tiktok/app/v3/fetch_video_search_result</code></td><td><b>0</b></td><td>—</td></tr>
+</table>
+<p class="verdict" style="margin-top:10px">
+  <b>真正的结论：平台不是一个筛选器，是任务卡的一部分</b> —— 它由「用户在做哪件事」决定，不该让用户选。
+</p>
+<table>
+  <tr><th>用户在做什么</th><th>该查哪</th><th>关键词语言</th><th>有没有「跑量证据」</th></tr>
+  <tr><td><b>TikTok 出海投放</b>（= 本设计的任务卡）</td><td>TikTok 广告库</td><td><b>英文</b>（所以自动转译<b>更该做</b>）</td><td>✅ CTR / 花费档 / 表现分位</td></tr>
+  <tr><td>国内做抖音内容</td><td>抖音</td><td>中文原生可用</td><td>❌ <b>只有点赞/播放，没有广告表现面</b></td></tr>
+</table>
+<p class="verdict" style="margin-top:10px">
+  <b>这条修正带出一个结构性事实</b>：这条产品线的核心价值（「按曝光排序的跑量素材」）<b>是 TikTok 特有的</b>——它来自 TikTok Creative Center，抖音侧没有对偶数据。
+  → v2.5 <b>保持 TikTok-only，但不假装自己是通用的「找参考」</b>：任务卡写死「TikTok 出海投放」，界面上说明白查的是什么库。
+  「做抖音内容」是<b>另一张任务卡</b>，要做得单独立项。
+</p>
+
+<h2>必答题：这条路能不能少一步？</h2>
+<p class="verdict">
+  原设计 <b>10 步</b>：打开素材库 → 看见 🔗 → 点它 →（查 key，没配则去设置再回来）→ 弹输入框 → 输关键词 → 回车 → 看结果 → 点一张 → 落进素材库。
+</p>
+<table>
+  <tr><th>砍掉的步骤</th><th>怎么砍的</th></tr>
+  <tr><td>「弹输入框」这一层</td><td>空态里<b>就地内嵌输入框</b>，看到即可用，少一次弹层开合</td></tr>
+  <tr><td>「用户自己想英文关键词」</td><td>中文自动转译 + 回显。<b>他本来得先知道「这个库是英文的」才能用对——那是让用户学我们的实现细节</b></td></tr>
+  <tr><td colspan="2" style="color:var(--nomi-ink-60)">砍不掉：<b>配 key</b>（外部依赖，只能前移不能消除，已前移到点击那一刻就检查）</td></tr>
+</table>
+<p class="verdict" style="margin-top:8px"><b>10 步 → 8 步。</b></p>
+
+<h2>为什么角标从「CTR 前 N%」换成「♥点赞 + 放量」（实测推翻了初稿）</h2>
+<p class="verdict">
+  2026-09-07 用真 key 拉了 20 条 <code>skincare / US / 近半年</code> 的真实广告，按花费档分组：
+</p>
+<table>
+  <tr><th>花费档 <code>cost</code></th><th>条数</th><th>CTR 均值</th><th>点赞均值</th><th>读法</th></tr>
+  <tr><td>2（花得最多）</td><td>9</td><td>0.16%</td><td><b>8374</b></td><td>真被放量了；受众放宽后 CTR 自然摊薄</td></tr>
+  <tr><td>1</td><td>8</td><td>0.51%</td><td>1372</td><td>中间档</td></tr>
+  <tr><td>0（几乎没花钱）</td><td>3</td><td><b>0.64%</b></td><td><b>7</b></td><td>CTR 最高，但只有 7 个赞 —— <b>小样本噪声</b></td></tr>
+</table>
+<p class="verdict" style="margin-top:10px">
+  <b>结论：CTR 和投放规模是反的。</b> 初稿 v1 的「CTR 前 1%」角标会把一条 <code>CTR 0.87% / 点赞 1</code> 的噪声素材
+  当爆款推给用户 —— 那正是这条产品线最不该犯的错。
+  用户原始诉求那句是「<b>按曝光量</b>排好序」，曝光量对应的是 <code>cost</code>（花费档）与点赞量，<b>不是 CTR</b>。
+  所以角标改成 <b>♥点赞量（规模） + 「放量」标（cost 高时才出）</b>；CTR 降级进详情，不上卡片正面。
+</p>
+<p class="verdict">
+  ⚠️ 顺带三条实测契约修正（<b>文档都写错了</b>）：<code>limit</code> 上限是 <b>20</b> 不是文档说的 50（传 30/50 都 422）·
+  <code>cost</code> 实际出现 <b>0</b> 值，不是文档说的 1–5 · <code>like</code> 是整数枚举 1–5（传 <code>"top_1"</code> 直接 422）。
+</p>
+
+<h2>删除清单（v1 没放上去的东西都在这）</h2>
+<table>
+  <tr><th>我没放上去的</th><th>为什么</th><th>用户要它时怎么找到</th></tr>
+  <tr><td>行业 / 广告目标 / 表现分位 / 时长 / 语言 / Spark Ads / 创意标签（7 个筛选器）</td>
+      <td>第一次进来不知道自己要筛什么。<b>先看见东西，才有得筛</b></td><td>结果区顶部「筛选 ▾」，L3（v2 已放出地区与排序两颗）</td></tr>
+  <tr><td>落地页 URL / 花费档 / 评论数 / 分享数</td>
+      <td>是投放复盘用的，不是「挑一条带回去」用的</td><td>卡片展开详情，L3</td></tr>
+  <tr><td>逐秒 highlight 曲线</td>
+      <td>没看过片之前它是天书；它属于<b>「拆」的时刻</b>，是另一张任务卡</td><td>拆解卡上（与分镜表镜号对齐显示）</td></tr>
+  <tr><td>自然流量搜索（非广告）</td>
+      <td>两个源混排 = 两套心智。v1 先只做「跑量素材」这一个心智</td><td>v2 之后再评估；真有人问再做</td></tr>
+  <tr><td>Top Contents 热榜 / 热门话题</td>
+      <td>那是「逛」，与任务卡的「挑完就走」冲突</td><td>暂不做</td></tr>
+  <tr><td>「搜索」按钮</td>
+      <td>输入框回车即搜；多一颗按钮不多一分能力</td><td>回车（快捷键不算入口，算加速器）</td></tr>
+</table>
+
+<h2>诚实标注（不许在实现时悄悄糊掉）</h2>
+<table>
+  <tr><th>点</th><th>状态</th></tr>
+  <tr><td>「贴链接」那颗按钮语义要扩（链接 + 关键词两用）</td><td>⚠️ 这是<b>改现有控件的语义</b>，不是加新控件。文案/aria-label 要一起改，且要过 <code>check:icon-semantics</code>（同一动作只能一个图标）</td></tr>
+  <tr><td>CTR 角标写「前 1%」</td><td>⚠️ 实调 <code>get_ad_percentile</code> 只回 <code>ctr_percentile</code> 一个数（如 0.99）。<b>「前 1%」是我按 0.99 反推的展示口径，未与 TikHub 核对语义方向</b>——接线前必须确认它是「超过 99% 的同行」还是别的</td></tr>
+  <tr><td>卡片封面用 <code>video_info.cover</code></td><td>⚠️ 实调回来的是带签名和 <code>x-expires</code> 的短时 URL，<b>有效期未实测</b>。不能落库久存</td></tr>
+  <tr><td>「加入素材库」后这条素材的可用性</td><td>⚠️ 广告素材落进用户项目，<code>usageStatus</code> 未做法务口径核对，<b>默认取最保守的 <code>reference_only</code></b>（仅供参考，不可直接进成片）</td></tr>
+</table>
+
+</body>
+</html>

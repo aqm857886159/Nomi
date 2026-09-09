@@ -1,3 +1,4 @@
+import { FIND_REFERENCE_STATES } from './findReference/states/01-find-reference'
 import { CREATION_COLUMNS_STATES } from './creationColumns/states/01-columns'
 import { SHOT_TABLE_STATES } from './shotTable/states/01-table'
 import { PROCESS_FEEDBACK_STATES } from './processFeedback/states/01-process-feedback'
@@ -32,6 +33,7 @@ import type { LabScreen, LabState } from './labScreen'
  * 只改一处 = 那一屏要么截不出图、要么孤儿基线）。
  */
 export const LAB_SCREENS: readonly LabScreen[] = [
+  { id: 'find-reference', label: '找参考', states: FIND_REFERENCE_STATES, cell: { width: 1260, height: 650 } },
   { id: 'shot-table', label: '画布 · 分镜表', states: SHOT_TABLE_STATES, cell: { width: 992, height: 452 } },
   { id: 'process-feedback', label: '生成过程反馈 C1', states: PROCESS_FEEDBACK_STATES, cell: { width: 800, height: 560 } },
   { id: 'settings-sound', label: '提醒与声音', states: SETTINGS_SOUND_STATES, cell: { width: 564, height: 550 } },

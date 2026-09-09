@@ -1,0 +1,65 @@
+{
+  "code": 200,
+  "data": {
+    "data": [
+      {
+        "aweme_info": {
+          "aweme_id": "7103431378309532942",
+          "desc": "妮儿的推荐也忒er好辣~\n@DOU+小助手  #好物推荐   #主播请就位 #美好生活尽在抖音电商 ",
+          "statistics": {
+            "digg_count": 741383,
+            "collect_count": 184326,
+            "comment_count": 20029,
+            "share_count": 49215,
+            "play_count": 0,
+            "exposure_count": 0
+          },
+          "video": {
+            "duration": 283440,
+            "cover": {
+              "url_list": [
+                "https://p3-sign.douyinpic.com/tos-cn-p-0015/36296d9919f645c4946b7a01e10fc064~noop.webp?lk3s=138a59ce&x-expires=1789995600&x-signature=C%2BoSlt3nO5aFnhBHDDnc5Ey3nG4%3D&from=327834062_large&s=PackSourceEnum_SEARCH_VID&se=false&sc=cover&biz_tag=aweme_video&l=20260907210343EC0DFE75CA0A22C41A43"
+              ]
+            },
+            "play_addr": {
+              "uri": "v0200fg10000caa6u6jc77ueiklktj8g",
+              "url_list": [
+                "https://v3-search.douyinvod.com/a68215555ab564eed533984f36422123/6a9ec55a/video/tos/cn/tos-cn-ve-15c001-alinc2/oolizFety"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "aweme_info": {
+          "aweme_id": "7240008135841320250",
+          "desc": "熬夜党速进！618购物清单都给大家整理好啦～#618年中好物大赏  #护肤好物",
+          "statistics": {
+            "digg_count": 284210,
+            "collect_count": 29815,
+            "comment_count": 10929,
+            "share_count": 11696,
+            "play_count": 0,
+            "exposure_count": 0
+          },
+          "video": {
+            "duration": 357526,
+            "cover": {
+              "url_list": [
+                "https://p26-sign.douyinpic.com/tos-cn-i-dy/77ea8b19ad014be4888b2cd31ed58e9c~noop.webp?lk3s=138a59ce&x-expires=1789995600&x-signature=t7ALbjASYBzhH4CV0V5tBU1DrYc%3D&from=327834062_large&s=PackSourceEnum_SEARCH_VID&se=false&sc=cover&biz_tag=aweme_video&l=20260907210343EC0DFE75CA0A22C41A43"
+              ]
+            },
+            "play_addr": {
+              "uri": "v0200fg10000chsqldrc77u03vqb0cfg",
+              "url_list": [
+                "https://v3-search.douyinvod.com/f6363775f4d4353660e7ae3dc6825e75/6a9ec5a4/video/tos/cn/tos-cn-ve-15c001-alinc2/o4E7VEIA1"
+              ]
+            }
+          }
+        }
+      }
+    ],
+    "cursor": 2,
+    "has_more": 1
+  }
+}

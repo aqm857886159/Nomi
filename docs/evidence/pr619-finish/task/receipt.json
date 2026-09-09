@@ -1,0 +1,8 @@
+{
+  "semantics": "link imports one; keyword search finds references",
+  "searches": 0,
+  "imports": [],
+  "errors": [
+    "expect(received).toBeGreaterThan(expected)\n\nExpected: > 0\nReceived:   0\n\nCall Log:\n- Timeout 60000ms exceeded while waiting on the predicate"
+  ]
+}

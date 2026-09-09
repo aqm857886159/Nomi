@@ -18,7 +18,12 @@
 | **已拍板但还没交付的，都欠着什么** | `pnpm run ledger:brief` 看一行摘要（每轮 L0 hook 也会自动顶出来）；`pnpm run gen:ledger` 生成本地 `DELIVERY-LEDGER.md`——**本地视图、不进 git**（它含全局计数，commit 了两个分支会永远抢它）|
 | **设计系统 / token / 组件规范** | [`design/`](design/) → 核心是 `design/nomi-design-system.md`（任何 UI 改动前必读）|
 | **「设计一个页面」的完整流程（可搬到别的产品复用）** | [`design/page-design-process.md`](design/page-design-process.md) → 七道闸 + 每道闸防的真实事故 + 可复制的模板/门岗/断言 |
-| **说一句话触发的设计流程技能（五步：看真实 UI→复用→样张→走读→契约）** | `.claude/skills/nomi-design-flow/SKILL.md`（技能）；`design/nomi-design-flow-howto.md`（使用指南）|
+| **说一句话触发的设计流程技能（七闸）** | `.claude/skills/nomi-design-flow/SKILL.md`（技能）；[`design/nomi-design-flow-howto.md`](design/nomi-design-flow-howto.md)（使用指南）|
+| **找参考的设计画布源（4 块画板 + 布局）** | [`design/2026-09-07-find-reference-canvas/README.md`](design/2026-09-07-find-reference-canvas/README.md) → 改画布从这里重新生成，别手改发布产物 |
+| **借结构：把一条跑量片子变成我自己的分镜（第二张任务卡·设计中）** | [`design/2026-09-08-borrow-structure-design.md`](design/2026-09-08-borrow-structure-design.md) → 闸①摸出的三个断点、四件产物、10 步砍到 7 步；接的是既有拆解链路的空参考槽 |
+| **找参考的真机走查报告（真 key / 真 Electron，抓到 5 个问题）** | [`qa/2026-09-08-find-reference-walkthrough.md`](qa/2026-09-08-find-reference-walkthrough.md) → 走通了什么、两个 P0（素材库一大片时的共存 / 切平台不换结果）、我自己犯的两个「猜锚点」错误 |
+| **找参考：跨平台素材检索 connector（TikHub 抖音/小红书/TikTok 广告库）** | [`plan/2026-09-07-find-reference-connector.md`](plan/2026-09-07-find-reference-connector.md) → 四列表、每平台归一、媒体直链处理、402/429 错误分类修正、诚实边界；设计见 [`design/2026-09-07-find-reference-design.md`](design/2026-09-07-find-reference-design.md) |
+| **界面为什么越长越杂 · 减法设计（新面必出的三件产物 + 图标语义门岗）** | [`plan/2026-09-07-subtractive-design-process.md`](plan/2026-09-07-subtractive-design-process.md) → 诊断出的两个洞、四件落地、`check:icon-semantics` 判据与三条刻意排除 |
 | **UI 样张（HTML mockup）** | [`mockups/`](mockups/) ｜ 旧版 [`ui-designs/`](ui-designs/) |
 | **代码健康 / 周期审计 / 问题分级** | [`audit/`](audit/) |
 | **某版本改了什么** | [`release-notes/`](release-notes/) |

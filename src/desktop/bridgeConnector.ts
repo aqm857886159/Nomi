@@ -6,6 +6,7 @@
  */
 import type { ApiKeyDecryptStatus } from '../../electron/shared/contracts/apiKeyStatus'
 import type { TikhubRouteMode } from '../../electron/shared/contracts/tikhubRoute'
+import type { ReferencePlatform, ReferenceSearchResult } from '../../electron/shared/contracts/referenceSearch'
 
 export type TikhubKeyStatus = {
   /** key 解密态；成员单一 owner 在 electron/shared/contracts/apiKeyStatus.ts（跨进程不各写一份）。 */
@@ -53,6 +54,24 @@ export type DesktopConnectorBridge = {
       resolveShareUrl: (payload: { shareUrl: string }) => Promise<TikhubResolvedShareVideo>
       /** 解析 + 落成项目视频素材（带 AssetSourceEvidence，rightsStatus:'unknown'）。 */
       importToProject: (payload: { projectId: string; shareUrl: string }) => Promise<TikhubImportResult>
+      /**
+       * 找参考：按平台检索正在跑的素材。**返回里没有媒体直链**——那是平台侧短时签名 URL，
+       * 留在主进程；渲染层落地时只回传 `itemId`。
+       */
+      searchReferences: (payload: {
+        platform: ReferencePlatform
+        keyword: string
+        effectiveKeyword?: string
+        countryCode?: string
+        objective?: number
+        periodDays?: number
+      }) => Promise<ReferenceSearchResult>
+      /** 找参考：把选中的一条落成项目素材（usageStatus: reference_only）。 */
+      importReference: (payload: {
+        projectId: string
+        platform: ReferencePlatform
+        itemId: string
+      }) => Promise<{ asset: unknown; platform: ReferencePlatform; itemId: string }>
     }
   }
 }

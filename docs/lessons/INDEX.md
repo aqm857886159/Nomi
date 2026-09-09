@@ -47,6 +47,7 @@
 - [`waitForFunction` 配 async 判据 = 一个从不等待的等待](wait-for-function-with-async-predicate-never-waits.md) — 判据里有 `await` 就等于没等：Promise 被当 truthy，0ms 返回 null；下游那句 `Cannot read properties of null` 长得像业务 bug。换 `expect.poll`
 - [expectAbsent 会通过得太早](expect-absent-passes-too-early.md) — 「元素不存在」断言在计数本来就是 0 时首次采样即过
 - [gates 全绿 ≠ 走查真的跑过](gates-green-does-not-mean-walkthrough-ran.md) — `check:walkthroughs` 是静态检查；旧截图不会自动失效
+- [hook 指向的技能可以根本不存在，而且没有任何东西会发现](hook-pointed-at-a-skill-that-never-existed.md) — 「我们明明有规则为什么没照做」；任何 hook/文档说「走 XX 技能」时先 ls 那个文件；.claude/* 是 gitignore 的本机数据、技能没有仓内真相源也没门岗
 - [门岗说「机器超载」，其实是页面自己崩了](gate-blames-environment-for-a-page-error.md) — 任何「等不到 ready / 预热超时」的失败，尤其它还贴了 load 数字时；先开页面看控制台再谈环境，curl 一下就能分开「服务器起没起」和「页面崩没崩」
 - [「先查别人」要查两层：open PR 之外还有已合入 main 的](check-merged-main-not-just-open-prs.md) — 动手修红之前；gh pr list 查不到已经合进 main、只是你没 fetch 的那条修复；同一晚躲过一次、没躲过一次，代价是造了一份并行版
 - [typecheck 绿 ≠ 构建绿：图标白名单 barrel 只在构建期生效](typecheck-green-does-not-mean-build-green.md) — 新加 Tabler 图标；src/vendor/tablerIcons.ts 只有 252 个，typecheck 解析真包、构建解析 barrel，两者看的不是同一份模块图

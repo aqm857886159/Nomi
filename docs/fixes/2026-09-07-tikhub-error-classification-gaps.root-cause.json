@@ -1,0 +1,143 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-07-tikhub-error-classification-gaps",
+  "problem_type": "第三方失败分类表照「我们撞见过的状态码」写，而不是照上游声明的全集写",
+  "symptom": "TikHub 余额耗尽（HTTP 402）与超速限流（HTTP 429）时，用户在素材库看到的是「TikHub 返回了预期外的数据。第三方抓取源可能随平台风控波动，请稍后重试」——一句既不解释发生了什么、也给不出下一步的话。真实处置本该是「去 tikhub.io 充值」与「等几秒再试」，两者完全不同。此外 401 无效 key 与 422 参数错的真实文案（如 \"Invalid API token, your submitted API token is …\"）读不出来，只剩「TikHub 请求失败（401）」。",
+  "direct_cause": "electron/connectors/tikhubConnector.ts 的 fetchTikhubJson 分类分支只写了 401→auth / 403→quota / 404→not-found / >=500→upstream，其余一律 bad-response；错误文案只读顶层 body.message_zh|message，而实调发现 TikHub 的错误响应走的是另一套 detail 信封（401 是 {detail:{code,message}}，422 是 {detail:[{msg,loc}]}），顶层那两个字段是空的。",
+  "class_root": "分类表是**经验驱动**的：写它的时候只覆盖了当时接的那两个端点实际返回过的状态码，没有跟上游声明的全集对账。docs.tikhub.io 明列 400/401/402/403/404/429/500，而我们只处理了其中四档。只要再接一族新端点（本次的跨平台检索族就是），就会带来一批我们没见过的失败面，而没有任何机制会提醒分类表该扩。这不是某一行写错，是「分类表与上游声明之间没有对账」这个结构缺口。",
+  "migration": "无持久化格式迁移。TIKHUB_ERROR_KINDS 只新增 rate-limited 一档（既有九档语义一字未改），402 归入已有的 quota；错误文案提取抽成 extractTikhubErrorMessage，顶层字段仍优先，detail 是新增兜底而不是替换。渲染层的 kind→文案映射同步补 rate-limited，其余复用贴链接那套文案，不另写一份（P1）。",
+  "affected_population": [
+    "所有配了 TikHub key 的用户：余额耗尽或触发限流时看到看不懂的错误，且被引向错误的处置",
+    "素材库「贴链接导入」与本次新增的「找参考」跨平台检索——两者共用同一条出站与分类路径",
+    "设置区的 TikHub key 校验（verifyTikhubApiKey 走同一个 fetchTikhubJson）"
+  ],
+  "scope_paths": [
+    "electron/connectors/tikhubConnector.ts",
+    "electron/connectors/tikhubConnectorService.ts",
+    "electron/connectors/tikhubConnectorIpc.ts",
+    "electron/shared/contracts/tikhubErrorKinds.ts",
+    "src/workbench/assets/FindReferencePanel.tsx"
+  ],
+  "entry_points": [
+    "electron/connectors/tikhubConnector.ts::fetchTikhubJson（唯一的出站+分类点，全部 TikHub 调用都过它）",
+    "electron/connectors/tikhubConnector.ts::resolveShareVideo（贴链接路径的调用方）",
+    "electron/connectors/tikhubConnector.ts::verifyTikhubApiKey（设置区 key 校验的调用方）",
+    "electron/connectors/tikhubConnector.ts::searchReferences（本次新增的检索族调用方——正是它让这个缺口暴露出来）"
+  ],
+  "invariants": [
+    "上游声明的每一档状态码都映射到一个能给出正确下一步的 kind：402 与 403 归 quota（去 tikhub.io 处理），429 归 rate-limited（等一下再试），两者不得互相合并——处置不同",
+    "错误文案优先读顶层 message_zh/message，读不到时从 detail 信封提取（对象形与数组形都要覆盖），都读不到才回退到带状态码的兜底句",
+    "新增 POST 出站路径的加固参数与既有 GET 完全一致：域名白名单、Authorization 作敏感头跨域剥离、禁重定向、8MB 上限、30s 超时——不得因为换了 method 就放宽任何一项"
+  ],
+  "regression_tests": [
+    "electron/connectors/tikhubTransport.test.ts",
+    "electron/connectors/referenceSearch.test.ts"
+  ],
+  "residual_risks": [
+    "HTTP 400 与 500 之外的其它 4xx（如 405/409）仍落 bad-response。这是刻意的：上游文档没有声明它们，编一个映射等于把猜测写进分类表；真撞上时按同一流程补一档。",
+    "分类表与上游声明之间**仍然没有机器对账**——本次补的是缺口本身，不是对账机制。上游若新增状态码语义，仍要靠人读文档发现。见 prevention 的 enforcement_path 说明为什么这一轮选了测试而不是门岗。",
+    "detail 信封的两种形状来自 2026-09-07 的实调（401 与 422 各一次）；TikHub 未在文档里规定 error envelope，因此不能保证覆盖了它全部的错误形状。"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://docs.tikhub.io",
+      "checked_at": "2026-09-07",
+      "purpose": "官方文档明列 HTTP 400/401/402/403/404/429/500 七档状态码，且**未规定统一的 error envelope 与分页约定**——这既证明了我们只覆盖四档是缺口，也证明了归一化必须由我们这层做。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://api.tikhub.io/openapi.json",
+      "checked_at": "2026-09-07",
+      "purpose": "info.description 声明 Rate Limit 为 QPS 10/秒（429 的来源），且 search_ads 的 responses 只声明 200 与 422。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "同一个机制已经在同一个文件上第二次生效：分类表写于只接两个端点的时候，本次接检索族就撞上两档没覆盖的状态码。只要 TikHub 这个 connector 继续长新端点族（1063 个端点里我们只用了 4 个），就会继续有没见过的失败面。判 one_off 等于假装下一次不会发生。",
+    "same_class_scan": [
+      "扫 fetchTikhubJson 的全部调用方（resolveShareVideo / verifyTikhubApiKey / searchReferences）——三者都经由同一个分类分支，因此修在 fetchTikhubJson 一处即对三者同时生效，无需逐个改。",
+      "对照 docs.tikhub.io 声明的七档状态码逐档核对现有映射：400→bad-response(在)、401→auth(在)、402→缺(本次补)、403→quota(在)、404→not-found(在)、429→缺(本次补)、500→upstream(在)。",
+      "扫渲染层的 kind→文案映射（src/workbench/assets/pasteShareLinkImport.ts 的 ERROR_KIND_KEY 与新增的 FindReferencePanel 的同名表），确认新增的 rate-limited 两处都有文案，不会渲染出空串。"
+    ]
+  },
+  "generality_proof": "整类问题的唯一发生点是「HTTP/信封状态码 → 用户可见处置」这一次映射，而它在生产上只有一处：fetchTikhubJson 的分类分支。所有 TikHub 出站（贴链接、key 校验、跨平台检索，以及将来任何新端点族）都必须穿过它才能拿到数据——没有第二条出站路径可以绕开（allowedOrigins 与 hardenedFetch 也在同一函数里）。因此把全集补齐在这一处，等价于对所有现有与未来调用方同时补齐。文案提取同理收口在 extractTikhubErrorMessage 一个函数，调用方只有分类分支自己。",
+  "shared_boundaries": [
+    {
+      "path": "electron/connectors/tikhubConnector.ts",
+      "symbol": "fetchTikhubJson",
+      "responsibility": "唯一的 TikHub 出站点：施加加固参数（域白名单/敏感头剥离/禁重定向/字节上限/超时），并把 HTTP 状态码与信封 code 归一成 TikhubErrorKind。所有调用方共用这一次判定。"
+    },
+    {
+      "path": "electron/connectors/tikhubConnector.ts",
+      "symbol": "extractTikhubErrorMessage",
+      "responsibility": "把上游三种错误信封（顶层 message_zh/message、detail 对象、detail 数组）归一成一句人话，保证分类之外还有可读的原因。"
+    },
+    {
+      "path": "electron/shared/contracts/tikhubErrorKinds.ts",
+      "symbol": "TIKHUB_ERROR_KINDS",
+      "responsibility": "kind 词表的中立单一 owner：主进程分类与渲染层文案映射都从它 derive，杜绝两侧各写一份。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/connectors/tikhubConnector.ts",
+      "entry_point": "resolveShareVideo",
+      "disposition": "enforced",
+      "evidence": "贴链接路径不自带分类逻辑，全部错误由 fetchTikhubJson 抛出后原样冒泡（读代码确认其 catch 只处理 isRoutableFailure 的切域重试，不改 kind）。因此 402/429/detail 三处修正对它自动生效——tikhubTransport.test.ts 里那四条新增断言正是经 resolveShareVideo 触发的。"
+    },
+    {
+      "path": "electron/connectors/tikhubConnector.ts",
+      "entry_point": "verifyTikhubApiKey",
+      "disposition": "enforced",
+      "evidence": "设置区 key 校验同样只调 fetchJson 并让错误冒泡（同上，catch 仅做切域重试）。402 从此显示为额度问题而不是「响应结构异常」。"
+    },
+    {
+      "path": "electron/connectors/tikhubConnector.ts",
+      "entry_point": "searchReferences",
+      "disposition": "enforced",
+      "evidence": "本次新增的检索族调用方，结构与上面两者相同（fetchJson + isRoutableFailure 切域重试），未自建任何错误分类。referenceSearch.test.ts 与 tikhubTransport.test.ts 的 POST 用例覆盖它。"
+    },
+    {
+      "path": "src/workbench/assets/pasteShareLinkImport.ts",
+      "entry_point": "ERROR_KIND_KEY",
+      "disposition": "enforced",
+      "evidence": "渲染层贴链接路径的 kind→文案映射。逐条核对后确认既有九档文案齐全；rate-limited 是新增档，其文案落在 assetLibrary.findReference.errRateLimited，由 FindReferencePanel 的同名映射引用。check:i18n 的 key-ref 门岗保证不会渲染出未注册的键。"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/connectors/tikhubConnector.ts",
+    "invariant": "上游声明的每一档状态码都映射到一个能给出正确下一步的 kind（402/403→quota 去充值，429→rate-limited 等一下再试，两者不得合并）；错误文案在顶层字段读不到时必须从 detail 信封（对象形与数组形）提取；新增 POST 出站不得放宽任何一项加固参数。",
+    "failure_mode": "若有人新接一个端点族又撞上没覆盖的状态码，它会静默落进 bad-response——界面显示「返回了预期外的数据」，用户被引向错误的处置（以为是风控波动、实际是余额耗尽或该等几秒）。若有人把 429 并回 quota，用户会去充值而问题不消失。",
+    "exception_policy": "none",
+    "strategy": "把状态码判定与文案提取收口在唯一出站函数，任何调用方都无法绕过它拿到数据；kind 词表在中立契约层做单一 owner，主进程分类与渲染层文案两侧都从它 derive。回归测试对每一档新增映射各钉一条断言并验过活性，日后把某档并回 bad-response 会当场红。",
+    "artifacts": [
+      "electron/connectors/tikhubConnector.ts",
+      "electron/shared/contracts/tikhubErrorKinds.ts",
+      "electron/connectors/tikhubTransport.test.ts"
+    ],
+    "verified_by": "electron/connectors/tikhubTransport.test.ts"
+  },
+  "class_regression_tests": [
+    "electron/connectors/tikhubTransport.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "没有删除旧实现：既有九档 kind 语义一字未改，本次只新增 rate-limited 一档并把 402 归入已有的 quota；文案提取是在顶层字段读不到时的新增兜底，不替换原有读法。渲染层复用贴链接那套 kind→文案表，未另起一份并行映射。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "不新增、不升级、不保留任何第三方依赖。官方 TikHub SDK（Python/TS/Go/Java/C++）刻意不引入——它们自带 HTTP 栈，会绕过主进程 hardenedFetch 的域白名单与敏感头剥离；理由与四列表见 docs/plan/2026-09-07-find-reference-connector.md。",
+    "exit_criteria": []
+  },
+  "invariant_owner_layer": {
+    "layer": "electron/connectors/tikhubConnector.ts",
+    "tests": [
+      "electron/connectors/tikhubTransport.test.ts",
+      "electron/connectors/referenceSearch.test.ts"
+    ],
+    "note": "「状态码 → 用户可见处置」这条不变量归唯一出站函数 fetchTikhubJson 所有：它是所有 TikHub 调用（贴链接 / key 校验 / 跨平台检索）必经的一处，加固参数与错误分类都在它体内，没有第二条出站路径可绕开。tikhubTransport.test.ts 对 402→quota、429→rate-limited、detail 两种信封各钉一条断言，并额外钉住 POST 路径的加固参数与 GET 完全一致；这些断言经变异测试证明活性（撤掉三处修复 → 四条当场红，还原 → 全绿），不是恒真装饰。referenceSearch.test.ts 钉的是同一边界的另一半——归一层只产语义 token 不产文案，因此文案层的任何改动都不会绕过 kind 词表这个单一 owner。"
+  }
+}

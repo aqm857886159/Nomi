@@ -1,0 +1,178 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; font-family: "Inter Variable", Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", system-ui, sans-serif; }
+    a { color: oklch(0.55 0.13 250); } a:hover { color: oklch(0.45 0.13 250); }
+    .ib { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 6px; color: oklch(0.68 0.01 80); background: transparent; border: 0; }
+    .ib:hover { background: oklch(0.97 0.003 80); color: oklch(0.22 0.01 80); }
+    .plat { height: 26px; padding: 0 10px; border-radius: 999px; font-size: 12px; font-family: inherit; cursor: pointer;
+            border: 1px solid oklch(0.91 0.004 80); background: oklch(1 0 0); color: oklch(0.50 0.01 80);
+            transition: background 140ms cubic-bezier(.2,.7,.3,1), color 140ms cubic-bezier(.2,.7,.3,1), border-color 140ms cubic-bezier(.2,.7,.3,1); }
+    .plat[data-on="true"] { border-color: oklch(0.55 0.13 250); color: oklch(0.55 0.13 250); background: color-mix(in srgb, oklch(0.55 0.13 250) 12%, oklch(1 0 0)); font-weight: 600; }
+    .goal { height: 24px; padding: 0 9px; border-radius: 999px; font-size: 11px; font-family: inherit; cursor: pointer;
+            border: 1px solid oklch(0.91 0.004 80); background: oklch(1 0 0); color: oklch(0.50 0.01 80); }
+    .goal[data-on="true"] { border-color: oklch(0.55 0.13 250); color: oklch(0.55 0.13 250); background: color-mix(in srgb, oklch(0.55 0.13 250) 12%, oklch(1 0 0)); }
+  </style>
+</helmet>
+
+<div style="width: 480px; height: 800px; background: oklch(0.985 0.003 90); padding: 30px; box-sizing: border-box;">
+  <div style="width: 420px; background: oklch(1 0 0); border: 1px solid oklch(0.91 0.004 80); border-radius: 10px; box-shadow: 0 1px 2px oklch(0 0 0 / 0.04), 0 1px 1px oklch(0 0 0 / 0.03); overflow: hidden;">
+
+    <div style="display: flex; align-items: center; gap: 8px; padding: 14px 16px 12px; border-bottom: 1px solid oklch(0.91 0.004 80);">
+      <span style="font-size: 16px; font-weight: 700; color: oklch(0.22 0.01 80);">素材库</span>
+      <span style="font-size: 12px; color: oklch(0.68 0.01 80);">· 24</span>
+      <span style="flex-grow: 1;"></span>
+      <button class="ib" aria-label="关闭"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M18 6l-12 12"/><path d="M6 6l12 12"/></svg></button>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 4px; padding: 8px 12px; border-bottom: 1px solid oklch(0.95 0.003 80);">
+      <button style="display: inline-flex; align-items: center; gap: 4px; height: 32px; padding: 0 12px; border-radius: 6px; border: 1px solid oklch(0.91 0.004 80); background: oklch(1 0 0); color: oklch(0.32 0.01 80); font-size: 13px; font-weight: 500; font-family: inherit;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>上传
+      </button>
+      <button class="ib" style="background: color-mix(in srgb, oklch(0.55 0.13 250) 12%, oklch(1 0 0)); color: oklch(0.55 0.13 250);" aria-label="找参考素材"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 15l6 -6"/><path d="M11 6l.463 -.536a5 5 0 0 1 7.071 7.072l-.534 .464"/><path d="M13 18l-.397 .534a5.068 5.068 0 0 1 -7.127 0a4.972 4.972 0 0 1 0 -7.071l.524 -.463"/></svg></button>
+      <button class="ib" aria-label="删除"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12"/><path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3"/></svg></button>
+      <span style="width: 1px; height: 16px; background: oklch(0.91 0.004 80); margin: 0 4px;"></span>
+      <button style="display: inline-flex; align-items: center; gap: 4px; height: 32px; padding: 0 8px; border-radius: 6px; border: 1px solid oklch(0.91 0.004 80); background: oklch(1 0 0); color: oklch(0.32 0.01 80); font-size: 13px; font-family: inherit;">来源<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6l6 -6"/></svg></button>
+      <button class="ib" aria-label="筛选"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v2.172a2 2 0 0 1 -.586 1.414l-4.414 4.414v7l-6 2v-8.5l-4.48 -4.928a2 2 0 0 1 -.52 -1.345v-2.227z"/></svg></button>
+      <div style="display: inline-flex; align-items: center; gap: 6px; flex-grow: 1; min-width: 0; height: 30px; padding: 0 10px; border-radius: 999px; border: 1px solid oklch(0.91 0.004 80); background: oklch(1 0 0);">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="oklch(0.78 0.01 80)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0"/><path d="M21 21l-6 -6"/></svg>
+        <span style="font-size: 13px; color: oklch(0.78 0.01 80);">搜索…</span>
+      </div>
+      <button class="ib" aria-label="新建文件夹"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19h-7a2 2 0 0 1 -2 -2v-11a2 2 0 0 1 2 -2h4l3 3h7a2 2 0 0 1 2 2v3.5"/><path d="M16 19h6"/><path d="M19 16v6"/></svg></button>
+    </div>
+
+    <div style="background: oklch(0.985 0.003 90); border-bottom: 1px solid oklch(0.91 0.004 80);">
+
+      <div style="display: flex; align-items: center; gap: 6px; padding: 10px 12px 8px;">
+        <span style="font-size: 11px; color: oklch(0.68 0.01 80); flex-shrink: 0;">参考平台</span>
+        <sc-for list="{{plats}}" as="p" hint-placeholder-count="3">
+          <button class="plat" data-on="{{p.on}}" onClick="{{p.pick}}">{{p.label}}</button>
+        </sc-for>
+        <span style="flex-grow: 1;"></span>
+        <span style="font-size: 11px; color: oklch(0.78 0.01 80);">项目设定</span>
+      </div>
+
+      <div style="padding: 0 12px 8px;">
+        <div style="display: flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; box-sizing: border-box; border-radius: 999px; border: 1px solid oklch(0.55 0.13 250); background: oklch(1 0 0); box-shadow: 0 0 0 3px color-mix(in oklch, oklch(0.55 0.13 250) 10%, transparent);">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="oklch(0.78 0.01 80)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0"/><path d="M21 21l-6 -6"/></svg>
+          <span style="font-size: 13px; color: oklch(0.22 0.01 80);">护肤精华</span>
+        </div>
+      </div>
+
+      <sc-if value="{{cur.echo}}" hint-placeholder-val="{{true}}">
+        <div style="padding: 0 12px 8px; font-size: 12px; color: oklch(0.68 0.01 80);">已按 <b style="color: oklch(0.32 0.01 80); font-weight: 600;">{{cur.echoTerm}}</b> 搜索（{{cur.echoWhy}}）· <span style="color: oklch(0.55 0.13 250);">改</span></div>
+      </sc-if>
+
+      <div style="display: flex; align-items: center; gap: 5px; flex-wrap: wrap; padding: 0 12px 10px;">
+        <sc-for list="{{goals}}" as="g" hint-placeholder-count="4">
+          <button class="goal" data-on="{{g.on}}" onClick="{{g.pick}}">{{g.label}}</button>
+        </sc-for>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 0 12px 12px;">
+        <sc-for list="{{cards}}" as="c" hint-placeholder-count="3">
+          <div style="position: relative; overflow: hidden; border-radius: 10px; border: 1px solid oklch(0.91 0.004 80); background: oklch(1 0 0);">
+            <div style="position: relative; aspect-ratio: 9 / 16; background: linear-gradient(155deg, oklch(0.94 0.003 80), oklch(0.88 0.005 80)); display: grid; place-items: center;">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="oklch(0.78 0.01 80)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 8h.01"/><path d="M3 6a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v12a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3v-12z"/><path d="M3 16l5 -5c.928 -.893 2.072 -.893 3 0l5 5"/><path d="M14 14l1 -1c.928 -.893 2.072 -.893 3 0l3 3"/></svg>
+              <span style="position: absolute; left: 6px; top: 6px; display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; padding: 2px 8px; font-size: 11px; line-height: 1; color: #fff; background: oklch(0.18 0.01 80 / 0.64);">{{c.metric}}</span>
+              <sc-if value="{{c.hot}}" hint-placeholder-val="{{true}}">
+                <span style="position: absolute; left: 6px; top: 26px; display: inline-flex; align-items: center; gap: 3px; border-radius: 999px; padding: 2px 7px; font-size: 11px; line-height: 1; color: #fff; background: color-mix(in srgb, oklch(0.62 0.14 75) 88%, black);">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12c2 -2.96 0 -7 -1 -8c0 3.038 -1.773 4.741 -3 6c-1.226 1.26 -2 3.24 -2 5a6 6 0 1 0 12 0c0 -1.532 -1.056 -3.94 -2 -5c-1.786 3 -2.791 3 -4 2z"/></svg>放量
+                </span>
+              </sc-if>
+              <span style="position: absolute; right: 5px; bottom: 5px; border-radius: 4px; padding: 1px 5px; font-size: 11px; line-height: 1.3; color: #fff; background: oklch(0.12 0.01 80 / 0.74);">{{c.dur}}</span>
+            </div>
+            <div style="padding: 6px 7px 4px; font-size: 11px; line-height: 1.4; color: oklch(0.50 0.01 80); height: 32px; overflow: hidden;">{{c.cap}}</div>
+            <div style="padding: 0 7px 7px; font-size: 11px; color: oklch(0.68 0.01 80);">{{c.second}}</div>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="display: flex; align-items: flex-start; gap: 6px; margin: 0 12px 12px; padding: 8px 10px; border-radius: 6px; background: oklch(0.97 0.003 80);">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="oklch(0.68 0.01 80)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 1px;"><path d="M12 9h.01"/><path d="M11 12h1v4h1"/><path d="M12 3a9 9 0 1 0 0 18a9 9 0 0 0 0 -18z"/></svg>
+        <span style="font-size: 11px; line-height: 1.5; color: oklch(0.50 0.01 80);">{{cur.honest}}</span>
+      </div>
+
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 12px;">
+      <div style="aspect-ratio: 1; border-radius: 6px; background: oklch(0.94 0.003 80); border: 1px solid oklch(0.95 0.003 80);"></div>
+      <div style="aspect-ratio: 1; border-radius: 6px; background: oklch(0.94 0.003 80); border: 1px solid oklch(0.95 0.003 80);"></div>
+      <div style="aspect-ratio: 1; border-radius: 6px; background: oklch(0.94 0.003 80); border: 1px solid oklch(0.95 0.003 80);"></div>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+<script data-dc-script data-props='{"$preview":{"width":480,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const plat = this.state?.plat ?? 'douyin';
+    const goal = this.state?.goal ?? 'sell';
+
+    const DATA = {
+      douyin: {
+        label: '抖音',
+        echo: false,
+        honest: '抖音侧只有自然流量指标（点赞/收藏/评论/分享）——没有投放表现面。实测 play_count 恒返回 0，所以不展示播放量。',
+        cards: [
+          { metric: '♥ 74.1万', second: '收藏 18.4万', dur: '0:38', cap: '成分党拆解｜这瓶到底值不值', hot: false },
+          { metric: '♥ 12.6万', second: '收藏 3.1万', dur: '0:22', cap: '素人试用 28 天前后对比', hot: false },
+          { metric: '♥ 4.8万', second: '收藏 9800', dur: '1:04', cap: '皮肤科医生：别再这样涂', hot: false },
+        ],
+      },
+      xhs: {
+        label: '小红书',
+        echo: false,
+        honest: '小红书的核心指标是收藏而不是点赞（收藏率高＝被当成攻略存起来）。同样没有投放表现面。',
+        cards: [
+          { metric: '收藏 3896', second: '♥ 7503', dur: '图文', cap: '空瓶记｜今年回购了三次的精华', hot: false },
+          { metric: '收藏 2140', second: '♥ 5120', dur: '0:31', cap: '油皮姐妹快冲，早八也不闷痘', hot: false },
+          { metric: '收藏 870', second: '♥ 2260', dur: '图文', cap: '成分表逐行讲，别被话术骗', hot: false },
+        ],
+      },
+      tiktok: {
+        label: 'TikTok',
+        echo: true,
+        echoTerm: 'skincare serum',
+        echoWhy: '广告库是英文的',
+        honest: '只有 TikTok 有投放表现面（CTR / 花费档 / 行业分位），来自 Creative Center。「放量」＝花费档高，比 CTR 更接近「正在跑量」。',
+        cards: [
+          { metric: '♥ 8.4k', second: 'CTR 0.32% · 转化', dur: '0:22', cap: '创始人手持产品直接对镜头说', hot: true },
+          { metric: '♥ 1.4k', second: 'CTR 0.27% · 流量', dur: '0:15', cap: '开箱粗剪 · 无配音字幕流', hot: false },
+          { metric: '♥ 320', second: 'CTR 0.19% · 转化', dur: '0:31', cap: '前后对比 + 手写体大字', hot: false },
+        ],
+      },
+    };
+
+    const cur = DATA[plat];
+
+    const plats = Object.keys(DATA).map((id) => ({
+      label: DATA[id].label,
+      on: id === plat ? 'true' : 'false',
+      pick: () => this.setState({ plat: id }),
+    }));
+
+    const GOALS = plat === 'tiktok'
+      ? [{ id: 'us', label: '美国' }, { id: 'sell', label: '卖货的' }, { id: 'app', label: '推 App 的' }, { id: 'traffic', label: '拉流量的' }]
+      : [{ id: 'sell', label: '带货的' }, { id: 'know', label: '科普的' }, { id: 'vlog', label: '日常向' }];
+
+    const goals = GOALS.map((g) => ({
+      label: g.label,
+      on: (g.id === goal || g.id === 'us') ? 'true' : 'false',
+      pick: () => this.setState({ goal: g.id }),
+    }));
+
+    return { cur, plats, goals, cards: cur.cards };
+  }
+}
+</script>
+</body>
+</html>

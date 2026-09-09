@@ -77,8 +77,16 @@ export function isBrowserCaptureAssetKind(kind: unknown): boolean {
   return BROWSER_CAPTURE_ASSET_KINDS.has(String(kind || "").toLowerCase());
 }
 
-export function assetBucketFromMeta(meta: JsonRecord): "generated" | "imported" {
+// 落盘桶 = 素材来源的**结构事实**（2026-09-08）：来源不靠额外字段一路投影，靠它自己的目录
+// 说话——`assets/<bucket>/` 目录遍历天然带着它，界面按路径前缀就能筛，不需要新拉一条 sidecar
+// 投影管线（R28：防线/事实建在最早能拦住的那层）。
+export type AssetBucket = "generated" | "imported" | "reference";
+
+export function assetBucketFromMeta(meta: JsonRecord): AssetBucket {
   const kind = String(meta.kind || "").toLowerCase();
+  // 「找参考」从外部平台拿回来的素材单独一桶：它既不是用户自己的上传，也不是我们生成的产物，
+  // 而且授权状态另算（usageStatus=reference_only / rights_unknown）。
+  if (kind === "reference") return "reference";
   // 网页捕捞和浏览器上传都属于外来素材，与上传/导入同桶，不冒充生成产物。
   return kind === "upload" || kind === "imported" || kind === "local" || isBrowserCaptureAssetKind(kind)
     ? "imported"

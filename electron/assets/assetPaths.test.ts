@@ -118,6 +118,11 @@ describe("assetBucketFromMeta", () => {
     expect(assetBucketFromMeta({ kind: "generated" })).toBe("generated");
     expect(assetBucketFromMeta({})).toBe("generated");
   });
+
+  it("gives 找参考 拿回来的素材 its own bucket（来源筛选的结构真相源）", () => {
+    expect(assetBucketFromMeta({ kind: "reference" })).toBe("reference");
+    expect(assetBucketFromMeta({ kind: "REFERENCE" })).toBe("reference");
+  });
 });
 
 describe("isBrowserCaptureAssetKind", () => {

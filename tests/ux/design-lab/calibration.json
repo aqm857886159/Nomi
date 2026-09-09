@@ -12,6 +12,7 @@
   },
   "colorScheme": "light",
   "screens": {
+    "find-reference": { "tolerance": { "threshold": 0.2, "maxDiffPixels": 40 } },
     "creation-columns": { "tolerance": { "threshold": 0.2, "maxDiffPixels": 40 } },
     "shot-table": { "tolerance": { "threshold": 0.2, "maxDiffPixels": 40 } },
     "settings-sound": { "tolerance": { "threshold": 0.2, "maxDiffPixels": 40 } },

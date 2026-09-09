@@ -44,7 +44,7 @@ describe("tikhubErrorKindOf — 跨 IPC 唯一一份 kind 提取器", () => {
     expect(stripTikhubErrorMarker("没有前缀的普通串")).toBe("没有前缀的普通串");
   });
 
-  it("kind 清单覆盖全部九类失败", () => {
+  it("kind 清单覆盖全部十类失败", () => {
     expect([...TIKHUB_ERROR_KINDS]).toEqual([
       "missing-key",
       "auth",
@@ -52,6 +52,9 @@ describe("tikhubErrorKindOf — 跨 IPC 唯一一份 kind 提取器", () => {
       "not-found",
       "unsupported-platform",
       "no-play-url",
+      // 2026-09-07 新增：429 限流。刻意不并进 quota——两者处置相反
+      // （quota 要去 tikhub.io 充值，这个只要等几秒重试）。
+      "rate-limited",
       "upstream",
       "no-route",
       "bad-response",

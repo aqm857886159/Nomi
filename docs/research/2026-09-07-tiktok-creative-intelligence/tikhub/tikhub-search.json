@@ -1,0 +1,320 @@
+{
+  "source": "tikhub",
+  "baseUrl": "https://api.tikhub.io",
+  "keyword": "TikTok 素材分析 爆款拆解 投放",
+  "since": null,
+  "limitPerPlatform": 8,
+  "generatedAt": "2026-09-07T11:03:22.693Z",
+  "failures": [],
+  "summary": {
+    "totalRecords": 16,
+    "platformsOk": 2,
+    "platformsEmpty": 0,
+    "platformsFailed": 0,
+    "platforms": [
+      {
+        "platform": "douyin",
+        "platformLabel": "抖音",
+        "status": "ok",
+        "items": 8,
+        "pagesFetched": 2,
+        "missingFields": {},
+        "fieldConfidence": "verified-against-live-response",
+        "fieldsVerifiedOn": "2026-09-06",
+        "error": null
+      },
+      {
+        "platform": "bilibili",
+        "platformLabel": "B站",
+        "status": "ok",
+        "items": 8,
+        "pagesFetched": 1,
+        "missingFields": {},
+        "fieldConfidence": "verified-against-live-response",
+        "fieldsVerifiedOn": "2026-09-06",
+        "error": null
+      }
+    ]
+  },
+  "results": [
+    {
+      "platform": "douyin",
+      "platformLabel": "抖音",
+      "records": [
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7621865530568359289",
+          "url": "https://www.douyin.com/video/7621865530568359289",
+          "author": "钟老师很懂TK",
+          "authorId": "3801472695025040",
+          "publishedAt": "2026-03-27T09:30:57.000Z",
+          "title": "Tiktok爆款怎么拆明白#跨境电商#tiktok",
+          "excerpt": "Tiktok爆款怎么拆明白#跨境电商#tiktok",
+          "mentions": [
+            "tiktok"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7584384456200768794",
+          "url": "https://www.douyin.com/video/7584384456200768794",
+          "author": "钟老师聊TK",
+          "authorId": "7535014352852943931",
+          "publishedAt": "2025-12-16T09:25:34.000Z",
+          "title": "海外短视频爆款拆解纬度#跨境电商#tiktok",
+          "excerpt": "海外短视频爆款拆解纬度#跨境电商#tiktok",
+          "mentions": [
+            "tiktok"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7596603905338757361",
+          "url": "https://www.douyin.com/video/7596603905338757361",
+          "author": "跨境 kevin",
+          "authorId": "2394085699361065",
+          "publishedAt": "2026-01-18T07:42:58.000Z",
+          "title": "TikTok\n如何分析\n并做出\n爆款短视频脚本？#TikTok#跨境电商#TikTok脚本#Kalodata #Kalodata\n#短视频脚本",
+          "excerpt": "TikTok 如何分析 并做出 爆款短视频脚本？#TikTok#跨境电商#TikTok脚本#Kalodata #Kalodata #短视频脚本",
+          "mentions": [
+            "Kalodata",
+            "TikTok"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7657973779972877684",
+          "url": "https://www.douyin.com/video/7657973779972877684",
+          "author": "小羊圈",
+          "authorId": "7627805125452874811",
+          "publishedAt": "2026-07-02T16:49:25.000Z",
+          "title": "10-拆解爆款视频背后的流量逻辑，复制成功不靠感觉#TikTok #跨境 #跨境电商 #国际版抖音 #电商",
+          "excerpt": "10-拆解爆款视频背后的流量逻辑，复制成功不靠感觉#TikTok #跨境 #跨境电商 #国际版抖音 #电商",
+          "mentions": [
+            "TikTok"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7676059240587614629",
+          "url": "https://www.douyin.com/video/7676059240587614629",
+          "author": "做TK的有里",
+          "authorId": "2880326401524764",
+          "publishedAt": "2026-08-20T10:30:14.000Z",
+          "title": "爆款都在用的内容逻辑：冲突 + 好奇 + 反转 #海外短视频 #TK #跨境电商 #创作内容 #自媒体干货",
+          "excerpt": "爆款都在用的内容逻辑：冲突 + 好奇 + 反转 #海外短视频 #TK #跨境电商 #创作内容 #自媒体干货",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7674873331627199753",
+          "url": "https://www.douyin.com/video/7674873331627199753",
+          "author": "来点盐",
+          "authorId": "7517545769631958041",
+          "publishedAt": "2026-08-17T05:48:25.000Z",
+          "title": "爆款千变万化 掌握其中的规律，你也能制作出百万爆款。#tk跨境编导#tk#tk美区#跨境电商#电商",
+          "excerpt": "爆款千变万化 掌握其中的规律，你也能制作出百万爆款。#tk跨境编导#tk#tk美区#跨境电商#电商",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7623746459502005519",
+          "url": "https://www.douyin.com/video/7623746459502005519",
+          "author": "流量捕手",
+          "authorId": "2797636891717832",
+          "publishedAt": "2026-04-01T11:10:10.000Z",
+          "title": "TikTok爆款视频解析！1100万播放量的爆款模板！ #品牌曝光  #海外自媒体  #海外爆款  #爆款视频  #TikTok",
+          "excerpt": "TikTok爆款视频解析！1100万播放量的爆款模板！ #品牌曝光 #海外自媒体 #海外爆款 #爆款视频 #TikTok",
+          "mentions": [
+            "TikTok"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7674873331627199753",
+          "url": "https://www.douyin.com/video/7674873331627199753",
+          "author": "来点盐",
+          "authorId": "7517545769631958041",
+          "publishedAt": "2026-08-17T05:48:25.000Z",
+          "title": "爆款千变万化 掌握其中的规律，你也能制作出百万爆款。#tk跨境编导#tk#tk美区#跨境电商#电商",
+          "excerpt": "爆款千变万化 掌握其中的规律，你也能制作出百万爆款。#tk跨境编导#tk#tk美区#跨境电商#电商",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        }
+      ],
+      "pages": [
+        {
+          "page": 1,
+          "received": 7
+        },
+        {
+          "page": 2,
+          "received": 7
+        }
+      ]
+    },
+    {
+      "platform": "bilibili",
+      "platformLabel": "B站",
+      "records": [
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1Kz4d6MELi",
+          "url": "https://www.bilibili.com/video/BV1Kz4d6MELi",
+          "author": "Doingfb",
+          "authorId": "262393158",
+          "publishedAt": "2026-08-27T17:05:25.000Z",
+          "title": "DownloadHD.net 免费在线视频解析下载工具，支持YouTube、TikTok、抖音、Bilibili、Instagram等",
+          "excerpt": "DownloadHD.net 免费在线视频解析下载工具，支持YouTube、TikTok、抖音、Bilibili、Instagram等 DownloadHD.net 免费在线视频解析下载工具，支持YouTube、TikTok、抖音、Bilibili、Instagram等100+平台，高清无水印，单条+批量都能下！ 本视频手把手教你如何使用 DownloadHD.net 免费下载全网高清无水印视频和音频，无需安装任何软件，电脑和手机都能直接用，操作超级简单。 ✅ 视频内容包含： • DownloadHD官网正确进入方式 • 单条视频解析下载完整演示 • 批量下载操作方法 • 视频 / 音频 / …",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1bASHBeES7",
+          "url": "https://www.bilibili.com/video/BV1bASHBeES7",
+          "author": "花6硬币换名字",
+          "authorId": "415346046",
+          "publishedAt": "2025-12-02T01:27:06.000Z",
+          "title": "TikTok无水印下载视频教程",
+          "excerpt": "TikTok无水印下载视频教程 网站:https://api.spapi.cn/",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV122SbB7EFP",
+          "url": "https://www.bilibili.com/video/BV122SbB7EFP",
+          "author": "海外跨境Kevin",
+          "authorId": "202263661",
+          "publishedAt": "2025-12-02T16:04:10.000Z",
+          "title": "TikTok如何拆解和分析爆款带货短视频脚本",
+          "excerpt": "TikTok如何拆解和分析爆款带货短视频脚本 -",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1vftE6XEUu",
+          "url": "https://www.bilibili.com/video/BV1vftE6XEUu",
+          "author": "TikTok曼森",
+          "authorId": "285562942",
+          "publishedAt": "2026-09-02T10:17:53.000Z",
+          "title": "TikTok中国网红失眠熊，很多老外都知道她说了什么",
+          "excerpt": "TikTok中国网红失眠熊，很多老外都知道她说了什么 -",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1gAtm69EmZ",
+          "url": "https://www.bilibili.com/video/BV1gAtm69EmZ",
+          "author": "TT趣事",
+          "authorId": "3691006960602045",
+          "publishedAt": "2026-09-06T03:01:00.000Z",
+          "title": "TikTok外网：中国用纸币做防伪标识，评论区：太聪明了",
+          "excerpt": "TikTok外网：中国用纸币做防伪标识，评论区：太聪明了 -",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1hrGt6wEGx",
+          "url": "https://www.bilibili.com/video/BV1hrGt6wEGx",
+          "author": "刘乐观-乐观出海",
+          "authorId": "3706992944220749",
+          "publishedAt": "2026-05-22T08:44:01.000Z",
+          "title": "「2026全平台投放」开更！第一站：TikTok广告",
+          "excerpt": "「2026全平台投放」开更！第一站：TikTok广告 -",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1PMt16kErc",
+          "url": "https://www.bilibili.com/video/BV1PMt16kErc",
+          "author": "豆子保姆新号",
+          "authorId": "3546979734915606",
+          "publishedAt": "2026-09-05T06:22:10.000Z",
+          "title": "【豆子保姆新号】哪些国家可以用TikTok(终极修改版)",
+          "excerpt": "【豆子保姆新号】哪些国家可以用TikTok(终极修改版) -",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1U31HBWE88",
+          "url": "https://www.bilibili.com/video/BV1U31HBWE88",
+          "author": "卖家精灵",
+          "authorId": "486765127",
+          "publishedAt": "2025-11-05T03:18:39.000Z",
+          "title": "第153期 TikTok爆款短视频深度拆解——卖家精灵【实战课堂】2025.11.03",
+          "excerpt": "第153期 TikTok爆款短视频深度拆解——卖家精灵【实战课堂】2025.11.03 主题：TikTok爆款短视频深度拆解 讲师：卷王CC 时间：2025.11.03 19:30（周一） 内容： 1、TikTok每个国家短视频成交占比分析 2、自研爆款模型：TikTok短视频“三频共振”模型拆解 3、如何利用“AI+短视频”快速提升内容生产效率？",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        }
+      ],
+      "pages": [
+        {
+          "page": 1,
+          "received": 20
+        }
+      ]
+    }
+  ]
+}

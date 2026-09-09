@@ -13,6 +13,7 @@ import { broadcastAssetsUpdated } from "./assetEvents";
 import { collectFilesRecursively, parseDataUrl } from "./assetBytes";
 import {
   assetBucketFromMeta,
+  type AssetBucket,
   canonicalAssetFileName,
   assetKindFromContentType,
   contentTypeFromPath,
@@ -203,7 +204,7 @@ async function writeAssetSidecarMetaAsync(absolutePath: string, meta: JsonRecord
 function uniqueAssetPath(
   projectId: string,
   fileName: string,
-  bucket: "generated" | "imported" = "generated",
+  bucket: AssetBucket = "generated",
 ): { absolutePath: string; relativePath: string } {
   const projectDir = projectDirById(projectId);
   if (!projectDir) throw new Error("Project not found");

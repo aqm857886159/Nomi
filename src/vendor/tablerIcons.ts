@@ -64,6 +64,8 @@ export { default as IconCamera } from '@tabler/icons-react/dist/esm/icons/IconCa
 export { default as IconCards } from '@tabler/icons-react/dist/esm/icons/IconCards.mjs'
 export { default as IconCategory } from '@tabler/icons-react/dist/esm/icons/IconCategory.mjs'
 export { default as IconChartBar } from '@tabler/icons-react/dist/esm/icons/IconChartBar.mjs'
+// 「放量」角标：广告花费档高＝正在被放量投放（素材库·找参考）。
+export { default as IconTrendingUp } from '@tabler/icons-react/dist/esm/icons/IconTrendingUp.mjs'
 export { default as IconCheck } from '@tabler/icons-react/dist/esm/icons/IconCheck.mjs'
 export { default as IconChevronUp } from '@tabler/icons-react/dist/esm/icons/IconChevronUp.mjs'
 export { default as IconChevronDown } from '@tabler/icons-react/dist/esm/icons/IconChevronDown.mjs'

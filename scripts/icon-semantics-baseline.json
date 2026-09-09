@@ -1,0 +1,8 @@
+{
+  "note": "同一动作配了多个图标的存量冲突；棘轮只减不增。清掉后跑 --update-baseline 重拍。",
+  "conflicts": [
+    "scene3d.character.exitCameraControl → IconVideo/IconX",
+    "scene3d.character.exitControl → IconManFilled/IconX",
+    "scene3d.fullscreen.openEditor → IconCube/IconMaximize"
+  ]
+}

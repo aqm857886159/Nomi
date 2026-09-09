@@ -1,0 +1,247 @@
+{
+  "source": "tikhub",
+  "baseUrl": "https://api.tikhub.io",
+  "keyword": "界面 太复杂 做减法 设计 冗余 按钮太多",
+  "since": null,
+  "limitPerPlatform": 6,
+  "generatedAt": "2026-09-07T12:27:12.202Z",
+  "failures": [],
+  "summary": {
+    "totalRecords": 12,
+    "platformsOk": 2,
+    "platformsEmpty": 0,
+    "platformsFailed": 0,
+    "platforms": [
+      {
+        "platform": "douyin",
+        "platformLabel": "抖音",
+        "status": "ok",
+        "items": 6,
+        "pagesFetched": 1,
+        "missingFields": {},
+        "fieldConfidence": "verified-against-live-response",
+        "fieldsVerifiedOn": "2026-09-06",
+        "error": null
+      },
+      {
+        "platform": "bilibili",
+        "platformLabel": "B站",
+        "status": "ok",
+        "items": 6,
+        "pagesFetched": 1,
+        "missingFields": {},
+        "fieldConfidence": "verified-against-live-response",
+        "fieldsVerifiedOn": "2026-09-06",
+        "error": null
+      }
+    ]
+  },
+  "results": [
+    {
+      "platform": "douyin",
+      "platformLabel": "抖音",
+      "records": [
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7674195589692656923",
+          "url": "https://www.douyin.com/video/7674195589692656923",
+          "author": "设计师-念念",
+          "authorId": "3674987259781635",
+          "publishedAt": "2026-08-15T12:30:00.000Z",
+          "title": "好的家懂得做减法，摒弃冗余设计，在极简框架下，释放材质自带的高级气场。#意式极简  #空间美学 #家的样子 #装修  #设计装修",
+          "excerpt": "好的家懂得做减法，摒弃冗余设计，在极简框架下，释放材质自带的高级气场。#意式极简 #空间美学 #家的样子 #装修 #设计装修",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7670944859968101257",
+          "url": "https://www.douyin.com/video/7670944859968101257",
+          "author": "搞钱艺术家-商业化UI/UX设计",
+          "authorId": "4246754537249083",
+          "publishedAt": "2026-08-06T15:43:50.000Z",
+          "title": "为什么复杂科技界面，信息很多却依然不拥挤？ 复杂界面真正怕的，不是信息多，而是所有内容都挤在第一层。\n这套任务与项目管理设计，用不同视觉权重承接全局概览，再通过看板、列表、日历和任务详情，把判断与操作逐层分开。信息密度很高，阅读路径却始终稳定。\n#科技产品 #UI设计 #UX设计 #b端设计 #设计素材",
+          "excerpt": "为什么复杂科技界面，信息很多却依然不拥挤？ 复杂界面真正怕的，不是信息多，而是所有内容都挤在第一层。 这套任务与项目管理设计，用不同视觉权重承接全局概览，再通过看板、列表、日历和任务详情，把判断与操作逐层分开。信息密度很高，阅读路径却始终稳定。 #科技产品 #UI设计 #UX设计 #b端设计 #设计素材",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7680372656201272616",
+          "url": "https://www.douyin.com/video/7680372656201272616",
+          "author": "产品管理影响力",
+          "authorId": "96036100730",
+          "publishedAt": "2026-09-04T10:00:00.000Z",
+          "title": "简约设计 如何理解产品简约设计#产品经理#简约设计 #用户体验设计 #交互体验设计 #用户体验",
+          "excerpt": "简约设计 如何理解产品简约设计#产品经理#简约设计 #用户体验设计 #交互体验设计 #用户体验",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7680190731613313273",
+          "url": "https://www.douyin.com/video/7680190731613313273",
+          "author": "申面杨政",
+          "authorId": "1329789981959387",
+          "publishedAt": "2026-08-31T13:42:31.000Z",
+          "title": "跟着热点学申面 每天学一个申面热点——基层减负#公务员 #公务员考试 #申论#公务员面试 #基层减负",
+          "excerpt": "跟着热点学申面 每天学一个申面热点——基层减负#公务员 #公务员考试 #申论#公务员面试 #基层减负",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7647777456858326129",
+          "url": "https://www.douyin.com/video/7647777456858326129",
+          "author": "阿明说",
+          "authorId": "3472693271993584",
+          "publishedAt": "2026-06-05T05:22:29.000Z",
+          "title": "WP Elementor 的\n代码冗余比我\n想象中还要严重\n#wordpress外贸建站 #wordpress教程 #wordpress插件",
+          "excerpt": "WP Elementor 的 代码冗余比我 想象中还要严重 #wordpress外贸建站 #wordpress教程 #wordpress插件",
+          "mentions": [
+            "wordpress"
+          ],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "douyin",
+          "platformLabel": "抖音",
+          "id": "7649264563975621934",
+          "url": "https://www.douyin.com/video/7649264563975621934",
+          "author": "佑菜佑爱玩",
+          "authorId": "7573946873641616433",
+          "publishedAt": "2026-06-09T08:30:00.000Z",
+          "title": "做好独立游戏？先从做好减法开始 #游戏 #游戏日常 #独立游戏 #杂谈",
+          "excerpt": "做好独立游戏？先从做好减法开始 #游戏 #游戏日常 #独立游戏 #杂谈",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        }
+      ],
+      "pages": [
+        {
+          "page": 1,
+          "received": 7
+        }
+      ]
+    },
+    {
+      "platform": "bilibili",
+      "platformLabel": "B站",
+      "records": [
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1XetV6eEe1",
+          "url": "https://www.bilibili.com/video/BV1XetV6eEe1",
+          "author": "玄妙门资料库",
+          "authorId": "33012840",
+          "publishedAt": "2026-09-05T08:05:00.000Z",
+          "title": "【免费白嫖资源-简介/评论领取】《皮革工艺_3 简约日用包》。这是一本聚焦实用型皮具制作的专业实操指南，最大的卖点是完全贴合日常使用场景，没有复杂冗余的工艺设计",
+          "excerpt": "【免费白嫖资源-简介/评论领取】《皮革工艺_3 简约日用包》。这是一本聚焦实用型皮具制作的专业实操指南，最大的卖点是完全贴合日常使用场景，没有复杂冗余的工艺设计 皮革工艺_ Vol_3, 简约日用包,.pdf 链接：https://pan.baidu.com/s/1bjQBidybPe0925pHTHQHDg?pwd=8888 提取码：8888",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1J6qrY7EJX",
+          "url": "https://www.bilibili.com/video/BV1J6qrY7EJX",
+          "author": "成都宽师自动变速箱",
+          "authorId": "3493296682830491",
+          "publishedAt": "2024-12-10T12:30:00.000Z",
+          "title": "比亚迪早期混动，仍然保留传统变速箱，整体结构复杂、冗余",
+          "excerpt": "比亚迪早期混动，仍然保留传统变速箱，整体结构复杂、冗余",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1qCatzzEPx",
+          "url": "https://www.bilibili.com/video/BV1qCatzzEPx",
+          "author": "Dtool",
+          "authorId": "470469208",
+          "publishedAt": "2025-09-05T01:54:16.000Z",
+          "title": "Plasticity 中文界面 转换顶点和删除冗余拓扑",
+          "excerpt": "Plasticity 中文界面 转换顶点和删除冗余拓扑",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1G3td6nEC8",
+          "url": "https://www.bilibili.com/video/BV1G3td6nEC8",
+          "author": "熵沧信息_隆一",
+          "authorId": "495495216",
+          "publishedAt": "2026-09-03T06:22:27.000Z",
+          "title": "笨人追逐复杂,聪明人砍掉冗余",
+          "excerpt": "笨人追逐复杂,聪明人砍掉冗余 -",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1gE411Z7gy",
+          "url": "https://www.bilibili.com/video/BV1gE411Z7gy",
+          "author": "数之寻",
+          "authorId": "473532822",
+          "publishedAt": "2019-10-12T06:55:58.000Z",
+          "title": "数据错误循环冗余检查的数据恢复方法",
+          "excerpt": "数据错误循环冗余检查的数据恢复方法 循环冗余检查",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        },
+        {
+          "platform": "bilibili",
+          "platformLabel": "B站",
+          "id": "BV1Fo4y167ck",
+          "url": "https://www.bilibili.com/video/BV1Fo4y167ck",
+          "author": "杨扬数据恢复",
+          "authorId": "39727912",
+          "publishedAt": "2023-03-09T14:48:38.000Z",
+          "title": "硬盘出现未分配打开显示数据错误循环冗余检查，经过技术处理成功恢复全部数据",
+          "excerpt": "硬盘出现未分配打开显示数据错误循环冗余检查，经过技术处理成功恢复全部数据 本期视频讲解硬盘出现未分配打开显示数据错误循环冗余检查，经过技术处理成功恢复全部数据。",
+          "mentions": [],
+          "fieldConfidence": "verified-against-live-response",
+          "fieldsVerifiedOn": "2026-09-06",
+          "missingFields": []
+        }
+      ],
+      "pages": [
+        {
+          "page": 1,
+          "received": 20
+        }
+      ]
+    }
+  ]
+}

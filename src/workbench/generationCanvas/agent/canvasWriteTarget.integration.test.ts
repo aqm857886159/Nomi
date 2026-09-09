@@ -323,8 +323,14 @@ describe('storyboard receipt preparation race', () => {
     ], 'race-doc')
     useWorkbenchStore.getState().hydrateStoryboardDesigns({})
     useWorkbenchStore.getState().setStoryboardPlan(plan, 'race-doc')
+    const originalId = useWorkbenchStore.getState().activeStoryboardId
+    // Creating a design now projects a canvas table. Seed both before the
+    // receipt owns the write boundary; the race under test is selection only.
+    useWorkbenchStore.getState().addStoryboardDesign('race-doc', { ...plan, title: 'Other' })
+    const otherId = useWorkbenchStore.getState().activeStoryboardId
+    useWorkbenchStore.getState().setActiveStoryboardId(originalId, 'race-doc')
     const request = buildRequest({ operation: 'propose_storyboard_plan', ...plan, title: 'Replacement' })
-    receiptHarness.onPrepare = () => { useWorkbenchStore.getState().addStoryboardDesign('race-doc', { ...plan, title: 'Other' }) }
+    receiptHarness.onPrepare = () => { useWorkbenchStore.getState().setActiveStoryboardId(otherId, 'race-doc') }
     await expect(executeCanvasWriteTarget(request, readGenerationCanvasSnapshot)).rejects.toMatchObject({ code: 'capability_target_stale' })
     expect(useWorkbenchStore.getState().storyboardDesignsByDocumentId['race-doc'].map(d => d.plan.shots[0].prompt)).toEqual(['Original', 'Original'])
     expect(receiptHarness.commits).toEqual([])
