@@ -16,7 +16,6 @@ import type { WorkbenchAiMessage } from '../../ai/workbenchAiTypes'
 import type { EdgeCapabilityResult } from '../agent/referenceEdgeCapability'
 import type { CanvasMutationOptions } from './canvasGuards'
 import type { NodeProgressInput, NodeRunRecordInput, NodeRunRecordPatch } from './runRecordHelpers'
-import type { DeconstructionEntry } from '../nodes/deconstructionTypes'
 
 export type ConnectionAnchorSide = 'left' | 'right'
 export type ConnectionEndpointKind = 'node' | 'group'
@@ -143,13 +142,6 @@ export type GenerationCanvasState = {
   generationAiDraft: string
   generationAiMessages: WorkbenchAiMessage[]
   generationAiCollapsed: boolean
-  /**
-   * 拆解态**按源视频节点身份建槽**（结果驱动，R-C-7）：同一条视频从任何入口拆都写回同一槽。
-   * key = 源视频节点 id。收起面板不清这个 map（状态不丢，R-C-3）。
-   */
-  videoDeconstructions: Record<string, DeconstructionEntry>
-  /** 当前占住右槽的拆解面板属于哪条源视频（null=没有拆解面板占槽）。与 generationAiCollapsed 互斥（过渡期 R-C-1）。 */
-  videoDeconstructionOpenNodeId: string | null
   canUndo: boolean
   canRedo: boolean
   hasClipboard: boolean
@@ -161,17 +153,6 @@ export type GenerationCanvasState = {
   setGenerationAiMessages: (messages: WorkbenchAiMessage[] | ((messages: WorkbenchAiMessage[]) => WorkbenchAiMessage[])) => void
   setGenerationAiCollapsed: (collapsed: boolean) => void
   resetGenerationAiConversation: () => void
-  /**
-   * 打开某条源视频的拆解面板并占住右槽。过渡期互斥（R-C-1）：同一事务里把 generationAiCollapsed 翻 true，
-   * AI 栏让位收成顶栏角标。已有该视频的拆解态则保留（收起再开状态不丢，R-C-3），否则起一个 idle 槽。
-   */
-  openVideoDeconstruction: (nodeId: string, source: { title: string; videoUrl: string }) => void
-  /** 关闭占槽的拆解面板（面板收起为节点浮条，槽让给 AI/Agent）。不清 map，状态保留。 */
-  closeVideoDeconstruction: () => void
-  /** patch 某条视频的拆解态（状态/结果/阶段/错误）。调用者无关——节点入口与未来 Agent 工具都走这一口。 */
-  setVideoDeconstructionEntry: (nodeId: string, patch: Partial<DeconstructionEntry>) => void
-  /** 勾选/取消某镜（会话态）。 */
-  toggleVideoDeconstructionShot: (nodeId: string, shotIndex: number) => void
   duplicateNodesForDrag: (nodeIds: string[]) => Map<string, string>
   copySelectedNodes: () => void
   cutSelectedNodes: () => void

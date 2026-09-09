@@ -1,0 +1,90 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-10-storyboard-table-proposal-context",
+  "problem_type": "Indirect canvas writes must retain their owning proposal context",
+  "symptom": "Confirming a storyboard saved its plan but removed its new shot table and caused another confirmation request.",
+  "direct_cause": "setStoryboardPlan calls ensureStoryboardShotTable; addNode without the proposal context interrupts and compensates its own pending proposal.",
+  "class_root": "The semantic tool boundary treated storyboard owner writes as canvas-free although explicit plan writes now project a canvas view.",
+  "affected_population": [
+    "Every approved propose_storyboard_plan and patch_shots operation with a missing storyboard table"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts"
+  ],
+  "entry_points": [
+    "propose_storyboard_plan",
+    "nomi_canvas_plan operation=patch_shots"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The invariant is enforced by the existing in-process canvasGestureContext and canvasWriteBoundary; no external API or dependency behavior changed.",
+  "invariants": [
+    "All synchronous canvas effects of an approved semantic tool retain its proposalId, including effects reached through another store."
+  ],
+  "generality_proof": "Both storyboard-writing branches use the same existing inCtx synchronous boundary as all other canvas mutations; the proposal guard remains strict and needs no exception.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts",
+      "symbol": "applyCanvasToolCall/inCtx",
+      "responsibility": "Bind the approved proposal gesture to all synchronous plan-to-canvas writes."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts",
+      "entry_point": "propose_storyboard_plan",
+      "disposition": "enforced",
+      "evidence": "Repository scan found this direct setStoryboardPlan call outside inCtx; the call can create the table and project existing shot nodes."
+    },
+    {
+      "path": "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts",
+      "entry_point": "nomi_canvas_plan/patch_shots",
+      "disposition": "enforced",
+      "evidence": "Repository scan found this direct setStoryboardPlan call outside inCtx; the call can create the table and project existing shot nodes."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Both semantic storyboard operations can create a table from any plan or project, so repeated user approvals encounter the same pending-write cancellation.",
+    "same_class_scan": [
+      "rg setStoryboardPlan src/workbench/generationCanvas/agent/applyCanvasToolCall.ts: patch_shots and propose_storyboard_plan independently inspected",
+      "rg inCtx src/workbench/generationCanvas/agent/applyCanvasToolCall.ts: direct canvas actions already preserve context"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts",
+    "invariant": "Owner writes and their synchronous canvas projection execute under the active semantic tool gesture.",
+    "failure_mode": "Existing canWrite/pending proposal guards still reject foreign or stale writes.",
+    "exception_policy": "none",
+    "strategy": "Use the existing inCtx boundary for both storyboard writes; do not relax canvasWriteBoundary.",
+    "artifacts": [
+      "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/creation/storyboard/exec/shotTableProjection.integration.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/creation/storyboard/exec/shotTableProjection.integration.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "No alternate implementation exists; the two unscoped calls are replaced in place."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Internal mutation ownership, no third-party lifecycle involved.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted data migration; explicit writes retain existing source-only shot-table metadata.",
+  "residual_risks": [
+    "The full one-window replay stopped on a platform-dependent zoom action; same-profile continuation verified the remaining UI assertions. See docs/audit/2026-09-10-shot-table-storyboard-walk.md."
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts",
+    "tests": [
+      "src/workbench/creation/storyboard/exec/shotTableProjection.integration.test.ts"
+    ]
+  }
+}

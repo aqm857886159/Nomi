@@ -29,7 +29,11 @@ export function registerVideoIpc(): void {
   ipcMain.handle("nomi:video:deconstruct", async (event, payload) => {
     assertTrustedSender(event);
     const { deconstructVideo } = await import("./deconstructVideo");
-    return deconstructVideo(payload);
+    return deconstructVideo(payload, (phase) => {
+      if (!event.sender.isDestroyed() && typeof payload?.requestId === "string") {
+        event.sender.send("nomi:video:deconstruction-progress", { requestId: payload.requestId, projectId: payload.projectId, phase });
+      }
+    });
   });
 
   // 深度视频处理节点的五个原语同属 video 家族，挂在这里而不是 main.ts —— main.ts 是已登记的

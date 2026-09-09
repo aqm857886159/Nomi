@@ -1,0 +1,104 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-10-canvas-zoom-kernel-range",
+  "problem_type": "Application and React Flow zoom limits diverge",
+  "symptom": "The canvas slider offers 20% but stops at 50%, making the approved shot-table card density unreachable.",
+  "direct_cause": "ReactFlow receives neither minZoom nor maxZoom, so its defaults override the app range used by fit and slider.",
+  "class_root": "The viewport framework did not receive the domain zoom boundary.",
+  "affected_population": [
+    "All canvas slider, wheel, and fit users"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx",
+    "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+    "src/workbench/generationCanvas/components/CanvasNavigationStack.tsx",
+    "src/workbench/generationCanvas/model/canvasFitBounds.ts"
+  ],
+  "entry_points": [
+    "slider zoomTo",
+    "wheel panZoom",
+    "fit getViewportForBounds"
+  ],
+  "external_sources": [
+    {
+      "kind": "source-code",
+      "url": "https://github.com/xyflow/xyflow/blob/main/packages/react/src/store/initialState.ts",
+      "checked_at": "2026-09-10",
+      "purpose": "Installed @xyflow/react/dist/esm/index.mjs:3279 confirms default minZoom .5 and maxZoom 2; zoomTo at522 delegates panZoom scaleTo."
+    }
+  ],
+  "internal_only_reason": "Installed dependency source and pre-existing framework-boundaries.json minZoom/maxZoom debt inspected; no dependency upgrade.",
+  "invariants": [
+    "The ReactFlow kernel, explicit fit, and slider use the same minimum and maximum zoom."
+  ],
+  "generality_proof": "All viewport changes converge on ReactFlow panZoom; passing shared constants aligns wheel, slider, fit and keyboard.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx",
+      "symbol": "GenerationCanvasReactFlowViewport",
+      "responsibility": "Configure the panZoom kernel limits."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "entry_point": "zoomTo and fitView",
+      "disposition": "enforced",
+      "evidence": "Existing explicit min .2/max3 conflict with default framework .5/2."
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/CanvasNavigationStack.tsx",
+      "entry_point": "zoom range input",
+      "disposition": "enforced",
+      "evidence": "Advertises 20–300 while kernel previously clamped50–200."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every zoom input and any new density consumer sees the conflicting ranges.",
+    "same_class_scan": [
+      "GenerationCanvasReactFlow.tsx zoomTo and getViewportForBounds inspected",
+      "CanvasNavigationStack range min/max and installed ReactFlow initialState defaults inspected"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx",
+    "invariant": "The ReactFlow kernel, explicit fit, and slider use the same minimum and maximum zoom.",
+    "failure_mode": "Existing canWrite/pending proposal guards still reject foreign or stale writes.",
+    "exception_policy": "none",
+    "strategy": "Pass existing minimum and newly named existing maximum through one framework configuration; remove manual zoomTo clamp.",
+    "artifacts": [
+      "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx",
+      "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlow.tsx",
+      "src/workbench/generationCanvas/components/CanvasNavigationStack.tsx",
+      "src/workbench/generationCanvas/model/canvasFitBounds.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/reactFlow/canvasZoomBoundary.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/reactFlow/canvasZoomBoundary.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "No alternate implementation exists; the two unscoped calls are replaced in place."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The installed framework already supports the required minZoom/maxZoom props; no version change is needed.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted data migration; apply existing advertised 20–300 range to the kernel.",
+  "residual_risks": [
+    "The full one-window replay stopped on a platform-dependent zoom action; same-profile continuation verified the remaining UI assertions. See docs/audit/2026-09-10-shot-table-storyboard-walk.md."
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx",
+    "tests": [
+      "src/workbench/generationCanvas/reactFlow/canvasZoomBoundary.test.ts"
+    ]
+  }
+}

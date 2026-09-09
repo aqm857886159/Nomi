@@ -17,6 +17,8 @@ export type WorkbenchDocumentSlice = {
   /** 每篇原稿的分镜设计（唯一领域真相源，按 documentId 索引）。随项目持久化。 */
   storyboardDesignsByDocumentId: Record<string, StoryboardDesign[]>
   activeStoryboardId: string | null
+  storyboardRowFocus: { designId: string; rowId: string } | null
+  setStoryboardRowFocus: (focus: { designId: string; rowId: string } | null) => void
   /** 更新某篇文档（按 id 定位），并 bump 持久化。 */
   setWorkbenchDocument: (document: WorkbenchDocument) => void
   /** 新增一篇原稿（默认空白），返回新文档并设为激活。 */
@@ -93,6 +95,8 @@ export const createWorkbenchDocumentSlice = (
   activeDocumentId: INITIAL_DOCUMENT.id,
   storyboardDesignsByDocumentId: {},
   activeStoryboardId: null,
+  storyboardRowFocus: null,
+  setStoryboardRowFocus: (storyboardRowFocus) => set({ storyboardRowFocus }),
   setWorkbenchDocument: (workbenchDocument) => {
     const normalized = normalizeWorkbenchDocument(workbenchDocument)
     set((state) => {
@@ -160,7 +164,7 @@ export const createWorkbenchDocumentSlice = (
     const normalized = documents.map(normalizeWorkbenchDocument)
     const safe = normalized.length ? normalized : [createDefaultWorkbenchDocument()]
     const active = safe.some((d) => d.id === activeId) ? (activeId as string) : safe[0].id
-    set({ workbenchDocuments: safe, activeDocumentId: active, activeStoryboardId: null })
+    set({ workbenchDocuments: safe, activeDocumentId: active, activeStoryboardId: null, storyboardRowFocus: null })
   },
   setActiveStoryboardId: (id, documentId) => {
     if (id === null) {
@@ -198,6 +202,7 @@ export const createWorkbenchDocumentSlice = (
       activeStoryboardId: design.id,
       persistRevision: current.persistRevision + 1,
     }))
+    projectPlan(design)
     return design
   },
   duplicateStoryboardDesign: (id, documentId) => {

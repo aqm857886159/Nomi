@@ -1,0 +1,90 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-10-project-shot-number-owner",
+  "problem_type": "Legacy migration assigns shot identities to non-shot views",
+  "symptom": "A new shot table receives shotIndex1 and pushes the first generated shot to mirror label2.",
+  "direct_cause": "The old migration used categoryId alone to assign sorted indexes to every node including tables and text.",
+  "class_root": "Migration bypassed the canonical shot-number predicate and rewrote existing persistent identities.",
+  "affected_population": [
+    "New shot tables, text views and existing numbered shots in projects that run the legacy migration"
+  ],
+  "scope_paths": [
+    "src/workbench/project/projectV51ToV60Migration.ts"
+  ],
+  "entry_points": [
+    "migration needed scan",
+    "migration number assignment"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The invariant is enforced by the existing in-process canvasGestureContext and canvasWriteBoundary; no external API or dependency behavior changed.",
+  "invariants": [
+    "Only isShotNumberedNode candidates receive an index; existing valid shot indexes remain unchanged."
+  ],
+  "generality_proof": "Both migration admission and assignment use the same existing shotNumbering boundary as factory creation and normal hydration.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/project/projectV51ToV60Migration.ts",
+      "symbol": "migrateProjectV51ToV60",
+      "responsibility": "Delegate missing shot numbering to the canonical backfill."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/project/projectV51ToV60Migration.ts",
+      "entry_point": "recordNeedsV51ToV60Migration",
+      "disposition": "enforced",
+      "evidence": "Currently category shots with no index incorrectly requests migration forever for non-shot views."
+    },
+    {
+      "path": "src/workbench/project/projectV51ToV60Migration.ts",
+      "entry_point": "shotIndex assignment",
+      "disposition": "enforced",
+      "evidence": "Category-only sorted assignment overwrites all IDs; replace with backfillShotIndexes."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every non-shot view within shots and any existing nonsequential shot identity can trigger the same wrong renumbering.",
+    "same_class_scan": [
+      "projectV51ToV60Migration recordNeeds and step3 independently inspected",
+      "rendererNodeFactoryDeps, shotNumbering and projectPersistenceService already use canonical predicate/backfill"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/project/projectV51ToV60Migration.ts",
+    "invariant": "Only isShotNumberedNode candidates receive an index; existing valid shot indexes remain unchanged.",
+    "failure_mode": "Existing canWrite/pending proposal guards still reject foreign or stale writes.",
+    "exception_policy": "none",
+    "strategy": "Reuse isShotNumberedNode for admission and backfillShotIndexes for assignment; remove the parallel category-only renumberer.",
+    "artifacts": [
+      "src/workbench/project/projectV51ToV60Migration.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/project/projectV51ToV60Migration.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/project/projectV51ToV60Migration.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "No alternate implementation exists; the two unscoped calls are replaced in place."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Internal mutation ownership, no third-party lifecycle involved.",
+    "exit_criteria": []
+  },
+  "migration": "Legacy missing eligible shot indexes use existing deterministic backfill; already numbered image identities remain unchanged. No guessing original numbers for data already damaged by earlier runs.",
+  "residual_risks": [
+    "Previously persisted wrong shot numbers cannot safely be inferred or rewritten automatically."
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/project/projectV51ToV60Migration.ts",
+    "tests": [
+      "src/workbench/project/projectV51ToV60Migration.test.ts"
+    ]
+  }
+}

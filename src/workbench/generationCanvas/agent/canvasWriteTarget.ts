@@ -2,6 +2,7 @@ import {
   assertCanvasWriteAdmissionMatches,
   canvasWriteBatchRawEvidenceSchema,
   CanvasWriteEvidenceError,
+  canvasWriteEvidenceHash,
   canvasWriteRawEvidenceSchema,
   type CanvasWriteBatchRawEvidence,
   type CanvasWriteRawEvidence,
@@ -26,6 +27,7 @@ import { buildStepDetailLabels, summarizeToolCall } from '../components/toolCall
 import { resolveCanvasToolNodeId } from './clientIdRegistry'
 import { createProposalReceiptCoordinator } from './proposalUndo'
 import { applyProposalBatch } from './proposalTxn'
+import { useWorkbenchStore } from '../../workbenchStore'
 
 function trimmedString(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value.trim() : null
@@ -75,6 +77,22 @@ function nodeModelEvidence(
   }
 }
 
+function captureStoryboardTarget(input: CanvasWriteInput): CanvasWriteBatchRawEvidence['storyboard'] {
+  if (input.operation !== 'propose_storyboard_plan' && input.operation !== 'patch_shots') return undefined
+  const state = useWorkbenchStore.getState()
+  const document = state.workbenchDocuments.find(item => item.id === state.activeDocumentId)
+  if (!document) throw new CanvasWriteEvidenceError('capability_target_stale')
+  const designs = state.storyboardDesignsByDocumentId[document.id] ?? []
+  const design = state.activeStoryboardId
+    ? designs.find(item => item.id === state.activeStoryboardId)
+    : designs[0]
+  if ((state.activeStoryboardId && !design) || (input.operation === 'patch_shots' && !design)) {
+    throw new CanvasWriteEvidenceError('capability_target_stale')
+  }
+  return { documentId: document.id, storyboardId: design?.id ?? null,
+    contentHash: canvasWriteEvidenceHash('storyboard', { document, design: design ?? null }) }
+}
+
 export function captureCanvasWriteBatchRawEvidence(
   snapshot: GenerationCanvasSnapshot,
   input?: Exclude<CanvasWriteInput, { operation: 'set_node_prompt' }>,
@@ -121,6 +139,7 @@ export function captureCanvasWriteBatchRawEvidence(
       nodeIds: [...group.nodeIds],
     })),
     resolvedReferences,
+    ...(input ? { storyboard: captureStoryboardTarget(input) } : {}),
   }
   const parsed = canvasWriteBatchRawEvidenceSchema.safeParse(evidence)
   if (!parsed.success) throw new CanvasWriteEvidenceError('capability_input_invalid')
@@ -241,6 +260,7 @@ export async function executeCanvasWriteTarget(
   })
   let admittedNodeId: string | undefined
   const beforeSnapshot = readSnapshot()
+  const storyboardTarget = captureStoryboardTarget(input)
   let outcome: Awaited<ReturnType<typeof applyProposalBatch>>
   try {
     outcome = await applyProposalBatch(
@@ -251,6 +271,7 @@ export async function executeCanvasWriteTarget(
         // direct tool name.
         toolName: input.operation === 'patch_shots' ? 'nomi_canvas_plan' : input.operation,
         effectiveArgs: input,
+        ...(storyboardTarget ? { storyboardTarget } : {}),
       }],
       { canWrite: () => {
         assertExecutionCurrent(request)
@@ -259,6 +280,12 @@ export async function executeCanvasWriteTarget(
       receiptCoordinator,
       {
         proposalId: request.receiptProposalId,
+        beforeApply() {
+          if (storyboardTarget && canvasWriteEvidenceHash('storyboard-target', captureStoryboardTarget(input))
+            !== canvasWriteEvidenceHash('storyboard-target', storyboardTarget)) {
+            throw new SurfacePortWireError('capability_target_stale')
+          }
+        },
         beforePrepare() {
           try {
             assertExecutionCurrent(request)

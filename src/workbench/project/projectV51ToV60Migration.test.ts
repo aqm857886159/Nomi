@@ -116,6 +116,19 @@ describe('migrateProjectV51ToV60', () => {
   })
 
   describe('shotIndex assignment', () => {
+    it.each(['shot_table', 'text'] as const)('does not give %s a shot number or renumber existing shots', (kind) => {
+      const record = makeRecord([
+        makeNode({ id: 'view', kind, categoryId: 'shots', position: { x: 0, y: 0 } }),
+        makeNode({ id: 'shot', kind: 'image', categoryId: 'shots', shotIndex: 7, renderKind: 'shot-frame', position: { x: 0, y: 100 } }),
+      ])
+      const first = migrateProjectV51ToV60(record)
+      expect(first.record.payload.generationCanvas.nodes[0].shotIndex).toBeUndefined()
+      expect(first.record.payload.generationCanvas.nodes[1].shotIndex).toBe(7)
+      const second = migrateProjectV51ToV60(first.record)
+      expect(second.record).toBe(first.record)
+      expect(second.diagnostic.shotIndicesAssigned).toBe(0)
+    })
+
     it('assigns shotIndex by position.y ascending', () => {
       const record = makeRecord([
         makeNode({ id: 's3', kind: 'image', categoryId: 'shots', position: { x: 0, y: 300 } }),

@@ -93,6 +93,10 @@ export default function StoryboardPlanEditor({ projectId }: { projectId?: string
   // 放大预览：存 nodeId（不存快照），渲染时从画布节点现取结果——重生成后再开永远是最新图。
   const [previewNodeId, setPreviewNodeId] = React.useState<string | null>(null)
   const [filterAnchorId, setFilterAnchorId] = React.useState<string | null>(null)
+  const storyboardRowFocus = useWorkbenchStore((state) => state.storyboardRowFocus)
+  React.useEffect(() => {
+    if (storyboardRowFocus?.designId === designId) setFilterAnchorId(null)
+  }, [storyboardRowFocus, designId])
   const [playbackOpen, setPlaybackOpen] = React.useState(false)
   const [playbackRows, setPlaybackRows] = React.useState<StoryboardRowRuntime[] | null>(null)
   const [mentionPreviewAsset, setMentionPreviewAsset] = React.useState<AssetRef | null>(null)

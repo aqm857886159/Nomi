@@ -25,6 +25,7 @@ export type ProposalStep = {
   toolCallId: string
   toolName: string
   effectiveArgs: Record<string, unknown>
+  storyboardTarget?: Readonly<{ documentId: string; storyboardId: string | null }>
 }
 
 /** S6-5 整笔撤销的补偿计划:随事务逐步捕获,执行时倒序应用;对已消失目标全部容忍 no-op。 */
@@ -54,6 +55,7 @@ export type ProposalOutcome =
 export type ProposalBatchAdmission = Readonly<{
   proposalId: string
   beforePrepare: () => void
+  beforeApply?: () => void
 }>
 
 export function mintProposalId(): string {
@@ -249,8 +251,10 @@ export async function applyProposalBatch(
       const step = steps[index]
       try {
         assertTurnCanWrite(canWrite)
+        admission?.beforeApply?.()
         pendingStep = { step, before: readGenerationCanvasSnapshot() }
-        const result = await applyCanvasToolCall(step.toolName, step.effectiveArgs, ctx, canWrite)
+        const result = await applyCanvasToolCall(step.toolName, step.effectiveArgs, ctx, canWrite,
+          step.storyboardTarget?.documentId, step.storyboardTarget?.storyboardId ?? undefined)
         if (aborted) return await abortAndFinalizeReceipt(currentAbortReason())
         if (!isSameCanvas()) return await abortAndFinalizeReceipt('Agent turn abandoned')
         collectCurrentStep()

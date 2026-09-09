@@ -64,7 +64,6 @@ import { hydrateWorkbenchProjectWithRecovery } from './project/projectHydrationR
 import { runProjectAssetHealthCheck } from './generationCanvas/runner/projectAssetHealthCheck'
 import { abandonPendingCanvasWrite } from './generationCanvas/events/canvasWriteBoundary'
 import { SurfacePortWireError } from '../../electron/shared/surfacePortBinding'
-import DeconstructionPanelHost from './generationCanvas/nodes/DeconstructionPanelHost'
 import { FeedbackShareHost } from '../ui/community/FeedbackShareHost'
 type AppView = 'library' | 'studio'
 // 项目创建规格：所有创建入口拼装项目的单一真相源（P1）。
@@ -776,7 +775,6 @@ export default function NomiStudioApp(): JSX.Element {
                 {/* P4 S5 画布落地 host（跟着画布常驻）：poll 活跃多镜 Run 喂占位三态 + 进度通知 + 删节点上报 detach。 */}
                 <ProductionCanvasLandingHost projectId={activeProject?.id ?? null} />
                 {/* 拆解面板宿主：为占着右槽的源视频渲染就近停靠面板（互斥共占，收起态状态留槽不丢）。 */}
-                <DeconstructionPanelHost />
               </div>
             </React.Suspense>
           }

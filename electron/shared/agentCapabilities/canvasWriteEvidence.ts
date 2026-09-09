@@ -98,6 +98,11 @@ export const canvasWriteBatchRawEvidenceSchema = z
           .strict(),
       )
       .max(16),
+    storyboard: z.object({
+      documentId: canonicalIdSchema,
+      storyboardId: canonicalIdSchema.nullable(),
+      contentHash: canonicalIdSchema,
+    }).strict().optional(),
     resolvedReferences: z
       .array(
         z
@@ -141,7 +146,7 @@ function stableJson(value: unknown): string {
   throw new CanvasWriteEvidenceError("capability_input_invalid");
 }
 
-export function canvasWriteEvidenceHash(domain: "node" | "result" | "membership" | "canvas", value: unknown): string {
+export function canvasWriteEvidenceHash(domain: "node" | "result" | "membership" | "canvas" | "storyboard" | "storyboard-target", value: unknown): string {
   const text = `nomi-canvas-write:${domain}:v1\0${stableJson(value)}`;
   return `sha256-${synchronousSha256(text)}`;
 }
@@ -275,6 +280,7 @@ function buildBatchCanvasWriteAdmission(
     edges: evidence.edges,
     groups: evidence.groups,
     resolvedReferences: evidence.resolvedReferences,
+    ...(evidence.storyboard ? { storyboard: evidence.storyboard } : {}),
   });
   const inputReferenceIds = requestedReferenceIds(input);
   const targetNodeIds =

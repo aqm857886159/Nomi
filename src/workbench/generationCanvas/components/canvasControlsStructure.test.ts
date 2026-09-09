@@ -374,12 +374,12 @@ describe('generation canvas control structure', () => {
     expect(helpPopover).toContain('text-caption font-medium leading-none whitespace-nowrap text-nomi-ink')
   })
 
-  it('keeps the C-02 deconstruction node anchors canonical', () => {
-    const badge = source('../nodes/NodeDeconstructionBadge.tsx')
-
-    expect(badge).toContain('data-decon-node-stub={nodeId}')
-    expect(badge).toContain('data-decon-node-badge={nodeId}')
-    expect(badge).not.toContain('data-deconstruct-stub')
-    expect(badge).not.toContain('data-deconstruct-result-badge')
+  it('keeps the shot table as the sole deconstruction result surface', () => {
+    const table = source('../nodes/shotTable/ShotTableNode.tsx')
+    const toolbar = source('../nodes/NodeVideoFrameToolbar.tsx')
+    expect(table).toContain('data-testid="shot-table-node"')
+    expect(table).toContain('data-kind="shot_table"')
+    expect(toolbar).toContain('deconstructToShotTable')
+    expect(toolbar).not.toContain('openVideoDeconstruction')
   })
 })

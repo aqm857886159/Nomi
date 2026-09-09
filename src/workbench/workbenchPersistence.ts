@@ -1,3 +1,4 @@
+import { normalizeShotTableMeta } from '../../electron/shared/canvas/shotTable'
 import { normalizeWorkbenchDocument, type WorkbenchDocument } from './workbenchTypes'
 import { createDefaultTimeline, normalizeTimeline } from './timeline/timelineMath'
 import type { TimelineState } from './timeline/timelineTypes'
@@ -44,6 +45,9 @@ export function normalizeGenerationCanvasSnapshot(input: unknown): GenerationCan
   }
   return {
     ...input,
+    nodes: input.nodes.map((node) => node.kind === 'shot_table'
+      ? { ...node, meta: normalizeShotTableMeta(node.meta) }
+      : node),
     groups: Array.isArray(input.groups) ? input.groups : [],
   }
 }

@@ -1,0 +1,49 @@
+
+ RUN  v4.1.8 /Users/aoqimin/Desktop/Nomi-storyboard-loop
+
+ ❯ src/workbench/generationCanvas/agent/canvasWriteTarget.integration.test.ts (12 tests | 1 failed) 32ms
+     × does not apply an approved replacement after selection changes while preparing its receipt 5ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/workbench/generationCanvas/agent/canvasWriteTarget.integration.test.ts > storyboard receipt preparation race > does not apply an approved replacement after selection changes while preparing its receipt
+AssertionError: promise resolved "{ applied: true, …(4) }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "applied": true,
++   "operation": "propose_storyboard_plan",
++   "proposalId": "receipt-host-canvas",
++   "reconciliation": {
++     "deviationCount": 0,
++     "ok": true,
++   },
++   "result": {
++     "anchorIssues": [],
++     "documentId": "race-doc",
++     "message": "已生成分镜方案「Replacement」：0 个锚 · 1 个镜头，已放到分镜页，待你审阅/修改后在行内或底部批量生成。",
++     "status": "applied",
++     "storyboardDesignId": "storyboard-34526af9-674d-495f-bb38-c61a5941e19d",
++   },
+  }
+
+ ❯ src/workbench/generationCanvas/agent/canvasWriteTarget.integration.test.ts:328:81
+    326|     const request = buildRequest({ operation: 'propose_storyboard_plan…
+    327|     receiptHarness.onPrepare = () => { useWorkbenchStore.getState().ad…
+    328|     await expect(executeCanvasWriteTarget(request, readGenerationCanva…
+       |                                                                                 ^
+    329|     expect(useWorkbenchStore.getState().storyboardDesignsByDocumentId[…
+    330|     expect(receiptHarness.commits).toEqual([])
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 11 passed (12)
+   Start at  04:11:40
+   Duration  1.34s (transform 684ms, setup 23ms, import 1.20s, tests 32ms, environment 0ms)
+

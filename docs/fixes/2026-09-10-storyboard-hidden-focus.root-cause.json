@@ -1,0 +1,90 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-10-storyboard-hidden-focus",
+  "problem_type": "Navigation requests consumed by hidden mounted workspace",
+  "symptom": "Double clicking a table row opens the full-page editor but leaves the target below the viewport and unfocused.",
+  "direct_cause": "The table layout effect can consume a pending row focus while its storyboard workspace is hidden, before the subsequent workspace-mode update.",
+  "class_root": "A mounted view was treated as an active navigation destination without observing workspace visibility.",
+  "affected_population": [
+    "Any shot-table row navigation while an existing storyboard workspace remains mounted but hidden"
+  ],
+  "scope_paths": [
+    "src/workbench/creation/storyboard/StoryboardShotTable.tsx"
+  ],
+  "entry_points": [
+    "double click table row",
+    "open selected row footer"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The invariant is enforced by the existing in-process canvasGestureContext and canvasWriteBoundary; no external API or dependency behavior changed.",
+  "invariants": [
+    "Pending row navigation is consumed only by the active storyboard workspace."
+  ],
+  "generality_proof": "Both table navigation entry points write the same transient focus request; gating the single consumer by active workspace covers both.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/creation/storyboard/StoryboardShotTable.tsx",
+      "symbol": "StoryboardShotTable layout effect",
+      "responsibility": "Consume navigation only after the workspace is active and the row exists."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/shotTable/ShotTableNode.tsx",
+      "entry_point": "openRow from grid double click",
+      "disposition": "enforced",
+      "evidence": "Calls openShotTableRow, which sets focus before changing workspace."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/shotTable/ShotTableNode.tsx",
+      "entry_point": "openRow from footer",
+      "disposition": "enforced",
+      "evidence": "Uses the same navigation request and consumer as double click."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any already-mounted hidden table can consume a row request prematurely.",
+    "same_class_scan": [
+      "StoryboardWorkspace.tsx states workspace stays mounted while hidden",
+      "ShotTableNode.tsx grid and footer both call openRow"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/creation/storyboard/StoryboardShotTable.tsx",
+    "invariant": "Pending row navigation is consumed only by the active storyboard workspace.",
+    "failure_mode": "Keep the request pending while hidden, folded, or filtered until the active view can consume it.",
+    "exception_policy": "none",
+    "strategy": "Subscribe to existing workspaceMode and gate the single layout-effect consumer; no timer or polling.",
+    "artifacts": [
+      "src/workbench/creation/storyboard/StoryboardShotTable.tsx"
+    ]
+  },
+  "regression_tests": [
+    "tests/ux/shot-table-storyboard-projection.walk.mjs"
+  ],
+  "class_regression_tests": [
+    "tests/ux/shot-table-storyboard-projection.walk.mjs"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "No alternate implementation exists; the two unscoped calls are replaced in place."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Internal mutation ownership, no third-party lifecycle involved.",
+    "exit_criteria": []
+  },
+  "migration": "Transient state only; no saved project data changes.",
+  "residual_risks": [
+    "The full one-window replay stopped on a platform-dependent zoom action; same-profile continuation verified the remaining UI assertions. See docs/audit/2026-09-10-shot-table-storyboard-walk.md."
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/creation/storyboard/StoryboardShotTable.tsx",
+    "tests": [
+      "tests/ux/shot-table-storyboard-projection.walk.mjs"
+    ]
+  }
+}

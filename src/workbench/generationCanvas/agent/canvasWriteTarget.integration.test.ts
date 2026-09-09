@@ -12,6 +12,7 @@ import { resetClientIdRegistry } from './applyCanvasToolCall'
 import type { StoryboardPlan } from './storyboardPlan'
 
 const receiptHarness = vi.hoisted(() => ({
+  onPrepare: undefined as (() => void) | undefined,
   metadata: [] as unknown[],
   prepares: [] as Array<{ proposalId: string; before: unknown }>,
   commits: [] as unknown[],
@@ -27,6 +28,7 @@ vi.mock('./proposalUndo', async (importOriginal) => {
       return {
         async prepare(proposalId: string, before: unknown) {
           receiptHarness.prepares.push({ proposalId, before })
+          receiptHarness.onPrepare?.()
           return true
         },
         async commit(input: unknown) {
@@ -76,6 +78,7 @@ beforeEach(() => {
   useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], selectedNodeIds: [], groups: [] })
   __resetCanvasUndoJournalForTests()
   resetClientIdRegistry()
+  receiptHarness.onPrepare = undefined
   receiptHarness.metadata.length = 0
   receiptHarness.prepares.length = 0
   receiptHarness.commits.length = 0
@@ -264,5 +267,66 @@ describe('canvas.write real renderer execution', () => {
     expect(receiptHarness.prepares).toEqual([expect.objectContaining({ proposalId: RECEIPT_ID })])
     expect(receiptHarness.commits).toEqual([expect.objectContaining({ proposalId: RECEIPT_ID })])
     expect(receiptHarness.aborts).toEqual([])
+  })
+})
+
+describe('storyboard target identity across the shared proposal boundary', () => {
+  const plan: StoryboardPlan = { title: 'Same story', anchors: [], shots: [
+    { index: 1, shotKind: 'image', durationSec: 0, anchorIds: [], prompt: 'Opening' },
+    { index: 2, shotKind: 'image', durationSec: 0, anchorIds: [], prompt: 'Closing' },
+  ] }
+  beforeEach(() => {
+    useWorkbenchStore.getState().hydrateWorkbenchDocuments([
+      { id: 'identity-doc', version: 1, title: 'Story', contentJson: { type: 'doc', content: [] }, updatedAt: 1 },
+    ], 'identity-doc')
+    useWorkbenchStore.getState().hydrateStoryboardDesigns({ 'identity-doc': [
+      { id: 'identity-board', documentId: 'identity-doc', title: plan.title, plan, committed: false,
+        status: 'draft', sourceDocumentUpdatedAt: 1, createdAt: 1, updatedAt: 1 },
+    ] })
+    useWorkbenchStore.setState({ activeStoryboardId: 'identity-board' })
+  })
+
+  it('replaces the selected plan and patches that same plan without making duplicate designs', async () => {
+    const replacement: CanvasWriteInput = { operation: 'propose_storyboard_plan', ...plan,
+      anchors: [{ id: 'hero', kind: 'character', name: 'Hero', description: 'Blue coat', carrier: 'text' }],
+      shots: plan.shots.map(shot => ({ ...shot, anchorIds: ['hero'] })),
+    }
+    await executeCanvasWriteTarget(buildRequest(replacement), readGenerationCanvasSnapshot)
+    const patch: CanvasWriteInput = { operation: 'patch_shots', select: { kind: 'indexes', indexes: [2] }, patch: { prompt: 'Night closing' } }
+    await executeCanvasWriteTarget(buildRequest(patch), readGenerationCanvasSnapshot)
+    const designs = useWorkbenchStore.getState().storyboardDesignsByDocumentId['identity-doc']
+    expect(designs).toHaveLength(1)
+    expect(designs[0]).toMatchObject({ id: 'identity-board', plan: { anchors: replacement.anchors,
+      shots: [{ prompt: 'Opening', anchorIds: ['hero'] }, { prompt: 'Night closing', anchorIds: ['hero'] }] } })
+  })
+
+  it.each(['selection', 'content'] as const)('rejects an approval when storyboard %s changes but the canvas stays empty', async change => {
+    const input: CanvasWriteInput = { operation: 'patch_shots', select: { kind: 'all' }, patch: { promptAppend: 'Rain' } }
+    const request = buildRequest(input)
+    if (change === 'selection') useWorkbenchStore.getState().addStoryboardDesign('identity-doc', { ...plan, title: 'Other' })
+    else useWorkbenchStore.getState().setStoryboardPlan({ ...plan, title: 'Edited while awaiting approval' }, 'identity-doc', 'identity-board')
+    const before = structuredClone(useWorkbenchStore.getState().storyboardDesignsByDocumentId)
+    await expect(executeCanvasWriteTarget(request, readGenerationCanvasSnapshot)).rejects.toMatchObject({ code: 'capability_target_stale' })
+    expect(useWorkbenchStore.getState().storyboardDesignsByDocumentId).toEqual(before)
+    expect(receiptHarness.commits).toEqual([])
+  })
+})
+
+
+describe('storyboard receipt preparation race', () => {
+  it('does not apply an approved replacement after selection changes while preparing its receipt', async () => {
+    const plan: StoryboardPlan = { title: 'Before', anchors: [], shots: [
+      { index: 1, shotKind: 'image', durationSec: 0, anchorIds: [], prompt: 'Original' },
+    ] }
+    useWorkbenchStore.getState().hydrateWorkbenchDocuments([
+      { id: 'race-doc', version: 1, title: 'Race', contentJson: { type: 'doc', content: [] }, updatedAt: 1 },
+    ], 'race-doc')
+    useWorkbenchStore.getState().hydrateStoryboardDesigns({})
+    useWorkbenchStore.getState().setStoryboardPlan(plan, 'race-doc')
+    const request = buildRequest({ operation: 'propose_storyboard_plan', ...plan, title: 'Replacement' })
+    receiptHarness.onPrepare = () => { useWorkbenchStore.getState().addStoryboardDesign('race-doc', { ...plan, title: 'Other' }) }
+    await expect(executeCanvasWriteTarget(request, readGenerationCanvasSnapshot)).rejects.toMatchObject({ code: 'capability_target_stale' })
+    expect(useWorkbenchStore.getState().storyboardDesignsByDocumentId['race-doc'].map(d => d.plan.shots[0].prompt)).toEqual(['Original', 'Original'])
+    expect(receiptHarness.commits).toEqual([])
   })
 })

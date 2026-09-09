@@ -1,0 +1,122 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-10-shot-table-async-write-ownership",
+  "problem_type": "Canvas async writes must retain session and user-intent ownership",
+  "symptom": "Undo restores an orphan running table; a pending table operation can mutate a restored project and regroup existing user nodes.",
+  "direct_cause": "Fact progress uses user-edit barriers and projectId-only identity; optional batch landing lacks canvas generation checks and groups all selected nodes. Runtime updateNode also enters the unconditional document write boundary and could cancel an unrelated pending proposal.",
+  "class_root": "Async completion and landing writes are not constrained by the originating canvas generation and operation-owned mutation set.",
+  "affected_population": [
+    "Fact deconstruction and single-shot retry",
+    "Selected storyboard/fact production batches"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/nodes/shotTable/factBridge.ts",
+    "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+    "electron/video/videoIpc.ts"
+  ],
+  "entry_points": [
+    "deconstructToShotTable and retryShot",
+    "runStoryboardBatch with table landing"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "These are repository-owned journal and store invariants; Electron and model provider behavior does not determine ownership.",
+  "invariants": [
+    "Runtime progress creates no user undo barriers.",
+    "A completion cannot write after canvas generation changes.",
+    "Batch landing groups only nodes created by that batch.",
+    "Async fact progress and results wait for any existing proposal to settle before reading and writing the latest table."
+  ],
+  "generality_proof": "The fact write boundary and optional batch context cover full deconstruction, retry, and every materialization write; generation identity distinguishes even reopening the same project.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/shotTable/factBridge.ts",
+      "symbol": "writeTable",
+      "responsibility": "Await the existing canvas write boundary, validate generation, reread the current table, and persist runtime changes without user edit barriers."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+      "symbol": "runStoryboardBatch",
+      "responsibility": "Bind table landing writes to canvas generation and newly created nodes."
+    },
+    {
+      "path": "electron/video/videoIpc.ts",
+      "symbol": "registerVideoIpc",
+      "responsibility": "Send progress only to the trusted invoking renderer with its request and project identity; the receiver additionally enforces canvas generation."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/shotTable/factBridge.ts",
+      "entry_point": "deconstructToShotTable",
+      "disposition": "enforced",
+      "evidence": "Owns phase subscriptions and success/failure writes after IPC awaits."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/shotTable/factBridge.ts",
+      "entry_point": "retryShot",
+      "disposition": "enforced",
+      "evidence": "Owns one-shot result merge after IPC await."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+      "entry_point": "runStoryboardBatch",
+      "disposition": "enforced",
+      "evidence": "Calls materializeShotRow, which awaits defaults and model entries before shared create/update writes."
+    },
+    {
+      "path": "electron/video/videoIpc.ts",
+      "entry_point": "nomi:video:deconstruct",
+      "disposition": "enforced",
+      "evidence": "Progress carries requestId/projectId to the originating sender; factBridge binds that receipt to the originating canvas generation."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every project switch, retry, and long model call can reach the same lifecycle boundary.",
+    "same_class_scan": [
+      "rg writeTable and deconstruct in factBridge.ts verified full and retry calls.",
+      "rg applyCreate and syncShotNodeWithRow in storyboardRowActions.ts verified create and existing-node writes."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/nodes/shotTable/factBridge.ts",
+    "invariant": "Async table writes retain canvas generation, runtime history policy, and operation-owned nodes.",
+    "failure_mode": "Stale fact replies return without writing; stale batch materialization throws before create/update/confirmation.",
+    "exception_policy": "none",
+    "strategy": "Use existing undo-journal generation as identity, pass canWrite through existing gesture/capability boundary, and restrict grouping to the before/after created-node set. Fact progress, success, failure and retry converge on async writeTable, which awaits whenCanvasWriteBoundarySettled before rereading and mutation.",
+    "artifacts": [
+      "src/workbench/generationCanvas/nodes/shotTable/factBridge.ts",
+      "src/workbench/creation/storyboard/exec/storyboardRowActions.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/nodes/shotTable/factBridge.test.ts",
+    "src/workbench/creation/storyboard/exec/storyboardBatchLanding.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/nodes/shotTable/factBridge.test.ts",
+    "src/workbench/creation/storyboard/exec/storyboardBatchLanding.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "The new table code is corrected in place; no parallel implementation or persisted legacy format is introduced."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Store/journal ownership is internal; no third-party version controls this invariant.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted schema change. Already-running snapshots still recover through the existing running-to-idle normalization.",
+  "residual_risks": [
+    "Actual Electron journey and production confirmation remain part of root task verification."
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas",
+    "tests": [
+      "src/workbench/generationCanvas/nodes/shotTable/factBridge.test.ts",
+      "src/workbench/creation/storyboard/exec/storyboardBatchLanding.test.ts"
+    ]
+  }
+}

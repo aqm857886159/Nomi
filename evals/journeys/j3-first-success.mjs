@@ -56,7 +56,8 @@ export default {
         await finale.getByRole("button", { name: "先逛逛", exact: true }).click();
         await ctx.win.getByRole("button", { name: "生成", exact: true }).first().click().catch(() => {});
         await ctx.win.getByRole("button", { name: "适应画布", exact: true }).first().click().catch(() => {});
-        const node = ctx.win.locator(".generation-canvas-v2-node").first();
+        // The storyboard table is also a canvas node; inspect a shot with generation parameters.
+        const node = ctx.win.locator('.generation-canvas-v2-node[data-kind="video"]').first();
         await node.click({ position: { x: 24, y: 24 } });
         await ctx.win.locator(".generation-canvas-v2-node__composer").waitFor({ state: "visible", timeout: 8_000 });
       },

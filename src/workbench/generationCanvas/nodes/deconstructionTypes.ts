@@ -35,29 +35,6 @@ export type DeconstructionResult = {
   failedShotIndexes: number[]
 }
 
-/**
- * 一条源视频的拆解态。四态对齐样张：
- *  idle    —— 可拆但还没拆（空态）
- *  running —— 拆解中（进度态；引擎是整批返回，进度=阶段指示）
- *  ready   —— 结果（镜头结构表）；partial 由 result.failedShotIndexes 表达，不另立态
- *  failed  —— 整次拆解抛错（区别于逐镜 visionFailed）
- */
-export type DeconstructionEntry = {
-  /** 该拆解结果属于哪条源视频节点（结果驱动的主键）。 */
-  nodeId: string
-  status: 'idle' | 'running' | 'ready' | 'failed'
-  /** 源视频只读快照：面板头/收起浮条用（节点可能被移出视口仍要显示名/时长）。 */
-  sourceTitle: string
-  sourceVideoUrl: string
-  result?: DeconstructionResult
-  /** 已勾选的镜号（会话态，收起不丢——R-C-3）。 */
-  selectedIndexes: number[]
-  /** 进行中的阶段（0=找切点 1=读画面 2=归对白），仅进度指示。 */
-  phase: number
-  /** 整次失败时的诚实文案。 */
-  errorMessage?: string
-}
-
 /** 存进 GenerationCanvasNode.meta 的键：拆解结果随节点走（图片/运镜提示词随节点走，方案 §3.1）。 */
 export const NODE_DECONSTRUCTION_META_KEY = 'videoDeconstruction'
 

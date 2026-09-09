@@ -13,6 +13,7 @@
   "colorScheme": "light",
   "screens": {
     "creation-columns": { "tolerance": { "threshold": 0.2, "maxDiffPixels": 40 } },
+    "shot-table": { "tolerance": { "threshold": 0.2, "maxDiffPixels": 40 } },
     "settings-sound": { "tolerance": { "threshold": 0.2, "maxDiffPixels": 40 } },
     "agent-panel": {
       "tolerance": {

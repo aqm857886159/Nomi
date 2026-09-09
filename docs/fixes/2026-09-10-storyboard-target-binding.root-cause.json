@@ -1,0 +1,110 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-10-storyboard-target-binding",
+  "problem_type": "Storyboard writes lose selected design identity across proposal admission",
+  "symptom": "UI anchor replacement creates another same-title design; later patch edits the older selected design.",
+  "direct_cause": "Proposal transaction drops existing documentId/storyboardId arguments; absent storyboardId forces new design creation.",
+  "class_root": "Canvas write admission binds canvas nodes but omits the storyboard business target and its content revision.",
+  "affected_population": [
+    "Creation and generation Agent storyboard writes",
+    "MCP canvas.write propose_storyboard_plan and patch_shots"
+  ],
+  "scope_paths": [
+    "electron/shared/agentCapabilities/canvasWriteEvidence.ts",
+    "src/workbench/generationCanvas/agent/canvasWriteTarget.ts",
+    "src/workbench/generationCanvas/agent/proposalTxn.ts"
+  ],
+  "entry_points": [
+    "Project renderer canvas.write capture and execute",
+    "Shared proposal batch execution"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Official Claude, pi and DeepSeek tool-result contracts establish truthful result correlation (plan prior-art section); selected Nomi storyboard identity is an internal domain invariant.",
+  "invariants": [
+    "An approved storyboard mutation remains bound to its captured document, design and content.",
+    "Replace and patch update the selected design without silently creating another; explicit new-design UI remains unchanged."
+  ],
+  "generality_proof": "Both resident Agent and MCP use canvas.write capture/admission/execute; the same evidence hash detects selected document/design/content changes, and the transaction receives the validated target rather than resolving mutable selection again.",
+  "shared_boundaries": [
+    {
+      "path": "electron/shared/agentCapabilities/canvasWriteEvidence.ts",
+      "symbol": "buildBatchCanvasWriteAdmission",
+      "responsibility": "Hash storyboard identity/content into approval preconditions."
+    },
+    {
+      "path": "src/workbench/generationCanvas/agent/canvasWriteTarget.ts",
+      "symbol": "executeCanvasWriteTarget",
+      "responsibility": "Capture and validate the storyboard target before passing it to proposal execution."
+    },
+    {
+      "path": "src/workbench/generationCanvas/agent/proposalTxn.ts",
+      "symbol": "applyProposalBatch",
+      "responsibility": "Carry captured domain identity across asynchronous receipt preparation."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/agentLane/laneDesktopTools.ts",
+      "entry_point": "createDesktopLaneTools",
+      "disposition": "enforced",
+      "evidence": "canvas.write operations including propose and patch share renderer capture and execute."
+    },
+    {
+      "path": "src/workbench/NomiStudioApp.tsx",
+      "entry_point": "projectSurface capture and execute registration",
+      "disposition": "enforced",
+      "evidence": "Project-level callbacks use captureCanvasWriteRawEvidence and executeCanvasWriteTarget for both surfaces and MCP."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every replacement without a bound design can append and misdirect later patches, regardless of supplier or surface.",
+    "same_class_scan": [
+      "rg propose_storyboard_plan/patch_shots across laneDesktopTools, canvasModelTools, canvasWriteTarget, proposalTxn and applyCanvasToolCall",
+      "Checked direct planner with explicit documentId/no storyboardId: intentionally creates a new design; preserved existing test."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/agent/canvasWriteTarget.ts",
+    "invariant": "Storyboard target and content used to approve equal the ones admitted to execution.",
+    "failure_mode": "Target/content drift fails capability_target_stale before mutation; invalid evidence fails capability_input_invalid.",
+    "exception_policy": "none",
+    "strategy": "Bind the non-canvas business object in shared canvas.write evidence, then pass its identity through the transaction.",
+    "artifacts": [
+      "electron/shared/agentCapabilities/canvasWriteEvidence.ts",
+      "src/workbench/generationCanvas/agent/canvasWriteTarget.ts",
+      "src/workbench/generationCanvas/agent/proposalTxn.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/agent/canvasWriteTarget.integration.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/agent/canvasWriteTarget.integration.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/agent/proposalTxn.ts"
+    ],
+    "rationale": "Removed implicit active-state resolution from admitted storyboard proposal execution; explicit new-design direct API remains domain-owned."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No SDK replacement or upgrade can restore missing application-owned storyboard identity. pi 0.85.1 tool result format remains unchanged.",
+    "exit_criteria": []
+  },
+  "migration": "No disk migration. Existing duplicates are preserved as user data. Fresh approvals capture current selected design; stale approvals must be reissued.",
+  "residual_risks": [
+    "Model may clarify ambiguous replacement requests; do not count clarification as a save.",
+    "Media catalog availability is separate and no certification that generates media is authorized."
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/agent/canvasWriteTarget.ts",
+    "tests": [
+      "src/workbench/generationCanvas/agent/canvasWriteTarget.integration.test.ts"
+    ],
+    "why": "Shared renderer capture and execute see canonical storyboard store and enforce admission before any write."
+  }
+}

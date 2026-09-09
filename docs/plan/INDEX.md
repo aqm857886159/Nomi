@@ -298,3 +298,6 @@
 - [2026-09-07-skill-import-real-use](2026-09-07-skill-import-real-use.md)
 - [2026-09-08-g1-use-case-suite](2026-09-08-g1-use-case-suite.md)
 - [2026-09-08-docs-autosync-ci](2026-09-08-docs-autosync-ci.md) — 固定 action PR、默认 token 防循环与 CI 合同修复
+
+- [左侧栏三组设计成文与 shot_table 实施](2026-09-10-left-sidebar-and-shot-table-node.md)
+- [shot_table 两来源数据契约](2026-09-10-shot-table-contract.md)

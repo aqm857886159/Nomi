@@ -12,6 +12,7 @@ import { CANVAS_NODE_KINDS } from '../shared/agentCapabilities/canvasRead'
 
 /** per-kind 名义默认尺寸（镜像 registry.defaultSize）。 */
 export const NODE_KIND_DEFAULT_SIZE: Record<string, { width: number; height: number }> = {
+  shot_table: { width: 960, height: 420 },
   text: { width: 280, height: 200 },
   character: { width: 300, height: 190 },
   scene: { width: 300, height: 190 },
@@ -32,6 +33,7 @@ export const NODE_KIND_DEFAULT_SIZE: Record<string, { width: number; height: num
 
 /** per-kind 英文默认标题（镜像 registry.defaultTitle；locale 版在渲染层 i18n，headless 用英文回退）。 */
 export const NODE_KIND_DEFAULT_TITLE: Record<string, string> = {
+  shot_table: 'Shot Table',
   text: 'Text',
   character: 'Character',
   scene: 'Scene',

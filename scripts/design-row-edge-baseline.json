@@ -38,7 +38,6 @@
   "src/workbench/generationCanvas/nodes/ClipNode.tsx": 1,
   "src/workbench/generationCanvas/nodes/DeconstructionShotRow.tsx": 2,
   "src/workbench/generationCanvas/nodes/InlineParameterBar.tsx": 3,
-  "src/workbench/generationCanvas/nodes/NodeDeconstructionPanel.tsx": 2,
   "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx": 3,
   "src/workbench/generationCanvas/nodes/NodePromptOptimizer.tsx": 1,
   "src/workbench/generationCanvas/nodes/NodeResultStack.tsx": 1,

@@ -48,3 +48,5 @@ export function unionCanvasFitBounds(rects: readonly (CanvasFitRect | null | und
 
 /** Shared readable lower bound for explicit fit, gestures and creation reveal. */
 export const CANVAS_MIN_ZOOM = 0.2
+
+export const CANVAS_MAX_ZOOM = 3

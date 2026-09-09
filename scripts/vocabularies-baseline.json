@@ -1129,14 +1129,14 @@
       "reason": "3D/全景交互的局部捕获或反馈结果（done / generating），仅属于该交互域。"
     },
     {
-      "site": "src/workbench/generationCanvas/nodes/deconstructionTypes.ts::type:DeconstructionEntry/property:status/type-union",
+      "site": "electron/shared/canvas/shotTable.ts::variable:deconstructionShotTableSchema/property:source/property:status/z.enum",
       "members": [
         "failed",
         "idle",
         "ready",
         "running"
       ],
-      "reason": "DeconstructionEntry.status 是「一条源视频拆解成分镜表」这个动作的四态本地 view model（idle 未拆 / running 拆解中 / ready 结果 / failed 整次拆解抛错）。它按源视频节点身份建槽、驱动就近拆解面板的四态渲染，语义是拆解流水线状态，不等同于 ShotVerifyStatus（单镜画面校验的 verifying/…）也不等同于生成任务/导出状态；逐镜画面失败由 DeconstructionShot.visionFailed 单独表达、不进本 union。故保持独立。"
+      "reason": "拆参考片流水线的四态 owner 从旧 DeconstructionEntry.status 迁入共享 shotTable 持久化 schema（docs/plan/2026-09-10-shot-table-contract.md）：idle 未拆 / running 拆解中 / ready 事实可采用 / failed 整次拆解失败。旧右栏及其状态 owner 同时删除；逐镜失败仍由 fact row visionFailed 表达。它不是生成任务或 Agent 注意力状态，保留独立语义，成员完全不变。"
     },
     {
       "site": "src/workbench/generationCanvas/nodes/deferredNodeMediaQueue.ts::type:DeferredNodeMediaState/type-union",

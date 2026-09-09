@@ -886,16 +886,16 @@
                     "at": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx:181"
                   },
                   "minZoom": {
-                    "verdict": "debt",
-                    "due": "2026-09-14",
-                    "owner": "画布交互 · 缩放上下限单一真相源",
-                    "why": "**门岗自己扫出来的第二条**：GenerationCanvasReactFlow.tsx:353 手写 Math.max(0.2, …) 钳缩放，而内核这颗没设、默认 0.5。结果是按钮缩放能到 0.2、滚轮缩放只到 0.5——同一条上下限两个值（R14.1）。修法是把 0.2/3 传给内核，删掉手钳，但那要连着走查一起做，不塞进这个门岗 PR。"
+                    "verdict": "derived",
+                    "reason": "创作画布需在既定 20–300% 范围查看节点概览与细节；表节点低于 40% 展示卡片，所有缩放入口必须保持同一范围。",
+                    "why": "Existing shared canvas range is passed to React Flow kernel, fit and slider; no independent zoom clamp.",
+                    "at": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx:176"
                   },
                   "maxZoom": {
-                    "verdict": "debt",
-                    "due": "2026-09-14",
-                    "owner": "画布交互 · 缩放上下限单一真相源",
-                    "why": "同 minZoom：手写上限 3，内核默认 2。"
+                    "verdict": "derived",
+                    "reason": "创作画布需在既定 20–300% 范围查看节点概览与细节；表节点低于 40% 展示卡片，所有缩放入口必须保持同一范围。",
+                    "why": "Existing shared canvas range is passed to React Flow kernel, fit and slider; no independent zoom clamp.",
+                    "at": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx:176"
                   },
                   "viewport": {
                     "verdict": "unused",

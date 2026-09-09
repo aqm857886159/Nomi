@@ -25,7 +25,7 @@ import { getActiveWorkbenchProjectId } from '../../project/workbenchProjectSessi
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { useStableCategoryNodes } from './useStableCategoryNodes'
 import { getCanvasGroupBoxes, getSelectedBounds } from '../components/generationCanvasGeometry'
-import { CANVAS_MIN_ZOOM, unionCanvasFitBounds } from '../model/canvasFitBounds'
+import { CANVAS_MIN_ZOOM, CANVAS_MAX_ZOOM, unionCanvasFitBounds } from '../model/canvasFitBounds'
 import { useCollapsedGroupConnectionSource } from '../components/useCollapsedGroupConnectionSource'
 import { projectCollapsedGroups } from '../model/canvasCardStackModel'
 import { useCanvasSelectionDrag } from '../components/useCanvasSelectionDrag'
@@ -340,7 +340,7 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
       ...groupBoxes.map((box) => ({ x: box.left, y: box.top, width: box.width, height: box.height })),
     ])
     if (!bounds) return
-    const next = getViewportForBounds(bounds, stage.width, stage.height, CANVAS_MIN_ZOOM, 3, 0.12)
+    const next = getViewportForBounds(bounds, stage.width, stage.height, CANVAS_MIN_ZOOM, CANVAS_MAX_ZOOM, 0.12)
     if (![next.x, next.y, next.zoom].every((value) => Number.isFinite(value))) return
     if (animate) {
       animateViewportTo(next.zoom, { x: next.x, y: next.y }, 200)
@@ -351,7 +351,7 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
     void flow.setViewport(next, { duration: 0 })
   }, [animateViewportTo, cancelViewportAnimation, flow, flowStore, groupBoxes, hostRef, nodes.length])
   const zoomTo = React.useCallback((nextZoom: number) => {
-    void flow.zoomTo(Math.min(3, Math.max(CANVAS_MIN_ZOOM, nextZoom)), { duration: 120 })
+    void flow.zoomTo(nextZoom, { duration: 120 })
   }, [flow])
   const handleMinimapJump = React.useCallback((point: { x: number; y: number }) => {
     void flow.setCenter(point.x, point.y, { zoom: zoomRef.current, duration: 0 })

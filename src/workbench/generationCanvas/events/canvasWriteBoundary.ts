@@ -13,8 +13,6 @@ const documentActions = {
   markReady: false, captureHistory: true, setCanvasTransform: false, setCanvasZoom: false,
   setGenerationAiDraft: false, setGenerationAiMessages: false, setGenerationAiCollapsed: false,
   resetGenerationAiConversation: false, copySelectedNodes: false, cutSelectedNodes: true,
-  openVideoDeconstruction: false, closeVideoDeconstruction: false,
-  setVideoDeconstructionEntry: false, toggleVideoDeconstructionShot: false,
   duplicateNodesForDrag: true, pasteNodes: true, undo: true, redo: true, readSnapshot: false, readDocumentSnapshot: false,
   restoreSnapshot: true, applyEventTail: true, applyExternalGraph: true,
   addNode: true, commitPersistedChange: false, updateNode: true, updateNodes: true,

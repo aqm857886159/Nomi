@@ -13,7 +13,7 @@ import {
 import { extractVideoFrameToNode } from './extractVideoFrameToNode'
 import NodeShotCutPanel from './NodeShotCutPanel'
 import NodeDepthActionButton from '../videoDepth/NodeDepthActionButton'
-import { useGenerationCanvasStore } from '../store/generationCanvasStore'
+import { deconstructToShotTable } from './shotTable/factBridge'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 
 // 视频节点浮条（按「创作优先级」排左→右，与图片工具栏一致）：左·创作：抽首帧 / 抽尾帧 ｜ 右·工具：全屏 · 下载。
@@ -41,8 +41,6 @@ export default function NodeVideoFrameToolbar({ reportFeedback, node, downloadin
   const { t } = useTranslation()
   const [busy, setBusy] = React.useState<'first' | 'last' | null>(null)
   const [shotCutOpen, setShotCutOpen] = React.useState(false)
-  const openDeconstruction = useGenerationCanvasStore((state) => state.openVideoDeconstruction)
-  const deconstructOpen = useGenerationCanvasStore((state) => state.videoDeconstructionOpenNodeId === node.id)
   const extract = (which: 'first' | 'last') => {
     if (busy) return
     setBusy(which)
@@ -84,9 +82,8 @@ export default function NodeVideoFrameToolbar({ reportFeedback, node, downloadin
         icon={<IconScissors size={I.size} stroke={I.stroke} />}
         label={t('generationCommon.videoToolbar.deconstruct')}
         title={t('generationCommon.videoToolbar.deconstructHint')}
-        accent={deconstructOpen}
         disabled={busy !== null}
-        onClick={() => openDeconstruction(node.id, { title: node.title || '', videoUrl: node.result?.url || '' })}
+        onClick={() => { void deconstructToShotTable(node.id).catch((error: unknown) => reportFeedback(error instanceof Error ? error.message : String(error))) }}
       />
       <NodeDepthActionButton reportFeedback={reportFeedback} node={node} disabled={busy !== null} />
       <ToolbarDuplicateVariantButton nodeId={node.id} />

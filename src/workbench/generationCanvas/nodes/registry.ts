@@ -60,6 +60,18 @@ const loadBaseGenerationNode = () =>
 
 export const GENERATION_NODE_PLUGINS = defineGenerationNodePlugins([
   {
+    kind: 'shot_table',
+    label: 'Shot Table',
+    menuLabel: 'Shot Table',
+    component: () => import('./shotTable/ShotTableNode') as Promise<{ default: GenerationNodeComponent }>,
+    icon: 'shot',
+    defaultTitle: 'Shot Table',
+    defaultSize: { width: 960, height: 420 },
+    catalogKind: 'text',
+    quickAdd: false,
+    agentCreatable: false,
+  },
+  {
     kind: 'text',
     label: 'Text',
     menuLabel: 'Text',

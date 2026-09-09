@@ -51,6 +51,7 @@ export const zhRuntime = {
       placeholder: '选一段画布上的视频，本机跑出深度视频当动作参考...',
     },
     asset: { menu: '素材', title: '素材', placeholder: '描述素材内容...' },
+    shot_table: { menu: '分镜表', title: '分镜表', placeholder: '' },
     'agent-artifact': {
       menu: 'Agent 产物',
       title: 'Agent 产物',
@@ -233,6 +234,7 @@ export const enRuntime = {
     },
     asset: { menu: 'Asset', title: 'Asset', placeholder: 'Describe the asset...' },
     clip: { menu: 'Clip', title: 'Clip', placeholder: 'Add image or video to start editing...' },
+    shot_table: { menu: 'Shot Table', title: 'Shot Table', placeholder: '' },
     'agent-artifact': {
       menu: 'Agent Artifact',
       title: 'Agent Artifact',

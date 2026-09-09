@@ -1,3 +1,4 @@
+import { enShotTable, zhShotTable } from './locales/shotTable'
 import { enAntigravity, zhAntigravity } from './locales/antigravity'
 import { enModelSetup, zhModelSetup } from './locales/modelSetup'
 import { enBrowserAssets, zhBrowserAssets } from './locales/browserAssets'
@@ -21,6 +22,7 @@ import { enCommunity, zhCommunity } from './locales/community'
 import { enAgentPanelV4, zhAgentPanelV4 } from './locales/agentPanelV4'
 
 export const zhCN = {
+  shotTable: zhShotTable,
   common: {
     language: '语言',
     chinese: '简体中文',
@@ -177,9 +179,6 @@ export const zhCN = {
     openModelAccess: '打开模型设置',
     windowTitleBar: '窗口标题栏',
     projectQuickActions: '项目快捷操作',
-    generationCollapsedChip: '生成',
-    generationCollapsedRestore: '展开生成 AI 栏（拆解占用右栏时暂收于此）',
-    generationCollapsedUpdates: '有 {{count}} 条 Agent 新动静',
     // 收起角标钮上那个词（窄窗隐藏，只剩 logo）。09-01 定稿 §11.2 收起态。
     agentChip: 'Nomi',
   },
@@ -431,6 +430,7 @@ type TranslationShape<T> = {
 }
 
 export const en = {
+  shotTable: enShotTable,
   common: {
     language: 'Language',
     chinese: '简体中文',
@@ -588,9 +588,6 @@ export const en = {
     openModelAccess: 'Open model setup',
     windowTitleBar: 'Window title bar',
     projectQuickActions: 'Project quick actions',
-    generationCollapsedChip: 'Generate',
-    generationCollapsedRestore: 'Reopen the generation AI panel (tucked here while deconstruction uses the right dock)',
-    generationCollapsedUpdates: '{{count}} new Agent updates',
     agentChip: 'Nomi',
   },
   window: {

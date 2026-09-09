@@ -1,4 +1,5 @@
 import React from 'react'
+import { useWorkbenchStore } from '../../workbenchStore'
 import { useTranslation } from 'react-i18next'
 import { IconChevronDown, IconChevronRight, IconPlayerPlay, IconPlus } from '@tabler/icons-react'
 import type { ModelOption } from '../../../config/models'
@@ -156,6 +157,22 @@ export default function StoryboardShotTable({ plan, projectId, rows, anchorCards
   const [selectedShotIds, setSelectedShotIds] = React.useState<ReadonlySet<string>>(new Set())
   const [selectionAnchor, setSelectionAnchor] = React.useState<number | null>(null)
 
+  const tableRef = React.useRef<HTMLDivElement>(null)
+  const rowFocus = useWorkbenchStore((state) => state.storyboardRowFocus)
+  const workspaceMode = useWorkbenchStore((state) => state.workspaceMode)
+  const activeDesignId = useWorkbenchStore((state) => state.activeStoryboardId)
+  const focusShot = rowFocus?.designId === activeDesignId ? plan.shots.find((shot) => stableShotId(shot) === rowFocus.rowId) : undefined
+  React.useLayoutEffect(() => {
+    if (workspaceMode !== 'storyboard' || !focusShot) return
+    if (foldedScenes.size) { setFoldedScenes(new Set()); return }
+    const row = tableRef.current?.querySelector<HTMLElement>(`[data-storyboard-row="${focusShot.index}"]`)
+    if (!row) return
+    row.scrollIntoView({ block: 'center' })
+    row.focus({ preventScroll: true })
+    setSelectedShotIds(new Set([focusShot.shotId ?? `index:${focusShot.index}`]))
+    useWorkbenchStore.getState().setStoryboardRowFocus(null)
+  }, [focusShot, foldedScenes, filterAnchorId, workspaceMode])
+
   const visiblePositions = positionsForAnchorFilter(plan, filterAnchorId ?? null)
   const visiblePlan = filterAnchorId ? { ...plan, shots: visiblePositions.map((position) => plan.shots[position]) } : plan
   const groups = sceneGroupsOf(visiblePlan)
@@ -239,7 +256,7 @@ export default function StoryboardShotTable({ plan, projectId, rows, anchorCards
       .filter((row): row is StoryboardRowRuntime => Boolean(row))
 
   return (
-    <div className="border border-nomi-line rounded-nomi divide-y divide-nomi-line-soft overflow-hidden" data-storyboard-rows="true">
+    <div ref={tableRef} className="border border-nomi-line rounded-nomi divide-y divide-nomi-line-soft overflow-hidden" data-storyboard-rows="true">
       {groups.map((group, groupIndex) => {
         const folded = foldedScenes.has(foldKeyOf(group))
         const groupRows = groupRowsOf(group)

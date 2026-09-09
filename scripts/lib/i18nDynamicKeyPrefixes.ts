@@ -33,6 +33,9 @@ export type DynamicPrefix =
 export const OVERBROAD_NAMESPACE_DEBT: readonly string[] = []
 
 export const DYNAMIC_KEY_PREFIXES: DynamicPrefix[] = [
+  { prefix: 'shotTable.columns', members: ['index', 'thumbnail', 'duration'], why: '动态：表头紧凑/完整档遍历固定 leading 列；枚举来源 ShotTableGrid.tsx 的 leading 字面量元组，其余表头用完整键。' },
+  { prefix: 'shotTable.facts', members: ['shotSize', 'motion', 'visual', 'dialogue', 'onScreenText', 'mood'], why: '动态：事实表按持久列顺序展示内置列；枚举来源 shotTableFacts.ts 的事实列集，自定义列直接显示用户标签。' },
+  { prefix: 'shotTable.status', members: ['ready', 'anchor-ignored', 'waiting-refs', 'missing-required', 'generating', 'failed', 'recoverable', 'done', 'locked'], why: '动态：表投影现役执行状态；枚举来源 storyboardRowStatus.ts 的 ShotRowExec.status，未另建状态机。' },
   // ── creationAi ──
   // ── agentPanelV4 ──
   { prefix: 'agentPanelV4.permission', why: "动态: Agent 面板 v4 的权限三档;枚举来源: PermissionTier = ProjectAgentApprovalPolicy['mode'] 的 step/safe-auto/project(permission.* 词条)" },

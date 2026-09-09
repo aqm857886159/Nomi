@@ -1,3 +1,4 @@
+import { CANVAS_MIN_ZOOM, CANVAS_MAX_ZOOM } from '../model/canvasFitBounds'
 import { CanvasBatchConnectionLine } from './CanvasBatchConnectionLine'
 import React from 'react'
 import {
@@ -171,6 +172,8 @@ export function GenerationCanvasReactFlowViewport({
       nodeTypes={nodeTypes}
       edgeTypes={edgeTypes}
       defaultViewport={viewport}
+      minZoom={CANVAS_MIN_ZOOM}
+      maxZoom={CANVAS_MAX_ZOOM}
       // 框工具就绪期间把这两颗开关关掉，内核**知道**这次拖动不归它——而不是我们在
       // capture 阶段偷它的 pointerdown（R29 §6.2：偷法在框架改事件绑定阶段时会静默失效）。
       // 空格 / 中键 / 右键平移不走 panOnDrag，由 useGenerationCanvasReactFlowPointer 的

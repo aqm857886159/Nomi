@@ -262,13 +262,13 @@ export async function applyCanvasToolCall(
     const targetStoryboardId = storyboardId
       ?? store.activeStoryboardId
       ?? store.storyboardDesignsByDocumentId[targetDocumentId]?.[0]?.id
-    const updatedDesign = store.setStoryboardPlan(
+    const updatedDesign = inCtx(() => store.setStoryboardPlan(
       preview.nextPlan,
       targetDocumentId,
       targetStoryboardId,
       true,
       false,
-    )
+    ))
     if (!updatedDesign) {
       throw Object.assign(new Error('目标分镜方案已不存在，未应用修改。'), { code: 'capability_target_stale' })
     }
@@ -284,8 +284,7 @@ export async function applyCanvasToolCall(
   }
 
   if (operation === 'propose_storyboard_plan') {
-    // 规划免费可改:planner 第一手产出结构化方案对象,落创作 store 给用户审/改——不碰画布、零网络、零扣费。
-    // 用户确认后才由 storyboardPlanToCreateNodesArgs 转成 create_canvas_nodes 落画布(S4)。
+    // 规划写入唯一 owner 并同步表节点投影；不生成媒体。间接画布写也继承本提议的上下文。
     // 校验失败 throw → 调用方映射成 tool error,回喂 LLM 自我修正(与 gate deny 同语义)。
     const parsedPlan = parseStoryboardPlan(record)
     const plan = hasRealCharacterReferences(parsedPlan)
@@ -303,7 +302,7 @@ export async function applyCanvasToolCall(
         message: '目标原稿已不存在，未应用迟到的规划结果。',
       } satisfies StoryboardPlanApplicationResult
     }
-    const design = store.setStoryboardPlan(plan, targetDocumentId, storyboardId, true, !storyboardId)
+    const design = inCtx(() => store.setStoryboardPlan(plan, targetDocumentId, storyboardId, true, !storyboardId))
     if (!design) {
       return {
         status: 'obsolete',

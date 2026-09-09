@@ -65,6 +65,8 @@ export type DeconstructVideoPayload = {
   customColumns?: DeconstructColumn[];
   /** 同时在跑的镜头数。默认 4：再高对单条视频收益递减，且容易撞供应商限流。 */
   concurrency?: number;
+  /** Retry only these measured shot indexes; all boundaries and dialogue timing remain derived from the source. */
+  shotIndexes?: number[];
 };
 
 export type DeconstructVideoResult = {
@@ -189,7 +191,8 @@ async function transcribeShots(
 /**
  * 拆一条视频。任一镜的画面分析失败只影响那一镜（标 visionFailed），不毁整批。
  */
-export async function deconstructVideo(payload: DeconstructVideoPayload): Promise<DeconstructVideoResult> {
+export async function deconstructVideo(payload: DeconstructVideoPayload, onPhase?: (phase: 0 | 1 | 2) => void): Promise<DeconstructVideoResult> {
+  onPhase?.(0);
   const { videoUrl, projectId } = payload;
   if (!trim(videoUrl)) throw new DeconstructError("缺少源视频地址");
   if (!trim(projectId)) throw new DeconstructError("缺少 projectId");
@@ -227,7 +230,8 @@ export async function deconstructVideo(payload: DeconstructVideoPayload): Promis
   const brain = resolveTextBrainKeys({ preferImageInput: true });
   if (!brain) throw new DeconstructError("还没有能读图的文本模型。去「接入模型」启用一个（如 Gemini 3.5 Flash）。");
 
-  const analyzed = await mapWithConcurrency(boundaries, payload.concurrency ?? DECONSTRUCT_CONCURRENCY, async (shot) => {
+  onPhase?.(1);
+  const analyzed = await mapWithConcurrency(payload.shotIndexes ? boundaries.filter(shot => payload.shotIndexes!.includes(shot.index)) : boundaries, payload.concurrency ?? DECONSTRUCT_CONCURRENCY, async (shot) => {
     const seconds = sampleSecondsForShot(shot, framesPerShot);
     let frameUrls: string[];
     try {
@@ -258,6 +262,7 @@ export async function deconstructVideo(payload: DeconstructVideoPayload): Promis
     }
   });
 
+  onPhase?.(2);
   const { hasAudio, dialogues } = await audioPromise;
   const dialogueByIndex = new Map(dialogues.map((d) => [d.shotIndex, d]));
   const failedShotIndexes: number[] = [];

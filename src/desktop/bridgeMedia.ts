@@ -1,3 +1,4 @@
+import type { DeconstructionProgress } from '../../electron/shared/canvas/shotTable'
 import type { VideoDepthMainOwnedPhase } from '../../electron/shared/canvas/videoDepthRun'
 /**
  * 媒体类桥口（抽帧 / 胶片条 / 按镜头拆 / 全局截图）的类型。
@@ -49,13 +50,16 @@ export type DesktopMediaBridge = {
      * 与 detectShotCuts 的区别：那个只找切点（本地 ffmpeg、秒级、零成本），这个**读得懂内容**（要调模型、慢、花钱）。
      * `failedShotIndexes` 是画面分析没成功的镜号——诚实回报，那几镜其余字段（如对白）仍可用。
      */
+    onDeconstructionProgress: (callback: (event: DeconstructionProgress) => void) => () => void
     deconstruct: (payload: {
+      requestId?: string
       videoUrl: string
       projectId: string
       threshold?: number
       framesPerShot?: number
       customColumns?: { name: string; hint?: string }[]
       concurrency?: number
+      shotIndexes?: number[]
     }) => Promise<{
       shots: {
         index: number

@@ -1,3 +1,4 @@
+import { backfillShotIndexes, isShotNumberedNode } from '../generationCanvas/model/shotNumbering'
 /**
  * Migration v0.5.1 → v0.6.0
  *
@@ -62,7 +63,7 @@ function recordNeedsV51ToV60Migration(nodes: readonly GenerationCanvasNode[]): b
   const derivedFromCandidates: GenerationCanvasNode[] = []
   for (const node of nodes) {
     if (!node.renderKind && inferRenderKind(node.categoryId)) return true
-    if (node.categoryId === 'shots' && typeof node.shotIndex !== 'number') return true
+    if (isShotNumberedNode(node) && typeof node.shotIndex !== 'number') return true
     if (node.derivedFrom && !node.regeneratedFrom) derivedFromCandidates.push(node)
   }
   if (!derivedFromCandidates.length) return false
@@ -137,24 +138,11 @@ export function migrateProjectV51ToV60(record: WorkbenchProjectRecordV1): {
     return next
   })
 
-  // 3. shotIndex 补齐（仅 shots 分类节点）
-  const shotNodes = upgradedNodes
-    .map((node, idx) => ({ node, idx }))
-    .filter(({ node }) => node.categoryId === 'shots')
-    .sort((a, b) => {
-      const ay = a.node.position?.y ?? 0
-      const by = b.node.position?.y ?? 0
-      if (ay !== by) return ay - by
-      // tie-break by id for determinism
-      return a.node.id.localeCompare(b.node.id)
-    })
-
-  shotNodes.forEach(({ node, idx }, sortedIndex) => {
-    const newShotIndex = sortedIndex + 1
-    if (node.shotIndex !== newShotIndex) {
-      upgradedNodes[idx] = { ...node, shotIndex: newShotIndex }
-      shotIndicesAssigned += 1
-    }
+  // 3. Missing shot identities use the same owner as normal hydration; views never receive numbers.
+  const numbered = backfillShotIndexes(upgradedNodes)
+  numbered.nodes.forEach((node, index) => {
+    if (node.shotIndex !== upgradedNodes[index].shotIndex) shotIndicesAssigned += 1
+    upgradedNodes[index] = node
   })
 
   // 4. 数组参考 meta.referenceImageUrls → 有序 character_ref 边（反查不到源的 URL 保留 meta）。

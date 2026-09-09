@@ -1,0 +1,133 @@
+
+ RUN  v4.1.8 /Users/aoqimin/Desktop/Nomi-storyboard-loop
+
+ ❯ src/workbench/generationCanvas/agent/canvasWriteTarget.integration.test.ts (11 tests | 3 failed) 29ms
+     × replaces the selected plan and patches that same plan without making duplicate designs 4ms
+     × rejects an approval when storyboard selection changes but the canvas stays empty 2ms
+     × rejects an approval when storyboard content changes but the canvas stays empty 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/workbench/generationCanvas/agent/canvasWriteTarget.integration.test.ts > storyboard target identity across the shared proposal boundary > replaces the selected plan and patches that same plan without making duplicate designs
+AssertionError: expected [ Array(2) ] to have a length of 1 but got 2
+
+- Expected
++ Received
+
+- 1
++ 2
+
+ ❯ src/workbench/generationCanvas/agent/canvasWriteTarget.integration.test.ts:295:21
+    293|     await executeCanvasWriteTarget(buildRequest(patch), readGeneration…
+    294|     const designs = useWorkbenchStore.getState().storyboardDesignsByDo…
+    295|     expect(designs).toHaveLength(1)
+       |                     ^
+    296|     expect(designs[0]).toMatchObject({ id: 'identity-board', plan: { a…
+    297|       shots: [{ prompt: 'Opening', anchorIds: ['hero'] }, { prompt: 'N…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  src/workbench/generationCanvas/agent/canvasWriteTarget.integration.test.ts > storyboard target identity across the shared proposal boundary > rejects an approval when storyboard selection changes but the canvas stays empty
+AssertionError: promise resolved "{ applied: true, …(6) }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "applied": true,
++   "changedFields": [
++     "prompt",
++   ],
++   "changedShotIndexes": [
++     1,
++     2,
++   ],
++   "operation": "patch_shots",
++   "proposalId": "receipt-host-canvas",
++   "reconciliation": {
++     "deviationCount": 0,
++     "ok": true,
++   },
++   "result": {
++     "anchorIssues": [],
++     "changedFields": [
++       "prompt",
++     ],
++     "changedShotIndexes": [
++       1,
++       2,
++     ],
++     "documentId": "identity-doc",
++     "message": "已修改第 1、2 镜：prompt。",
++     "status": "applied",
++     "storyboardDesignId": "storyboard-0cb96670-fcd4-487a-b6a6-0b739c493703",
++   },
+  }
+
+ ❯ src/workbench/generationCanvas/agent/canvasWriteTarget.integration.test.ts:306:81
+    304|     else useWorkbenchStore.getState().setStoryboardPlan({ ...plan, tit…
+    305|     const before = structuredClone(useWorkbenchStore.getState().storyb…
+    306|     await expect(executeCanvasWriteTarget(request, readGenerationCanva…
+       |                                                                                 ^
+    307|     expect(useWorkbenchStore.getState().storyboardDesignsByDocumentId)…
+    308|     expect(receiptHarness.commits).toEqual([])
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  src/workbench/generationCanvas/agent/canvasWriteTarget.integration.test.ts > storyboard target identity across the shared proposal boundary > rejects an approval when storyboard content changes but the canvas stays empty
+AssertionError: promise resolved "{ applied: true, …(6) }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "applied": true,
++   "changedFields": [
++     "prompt",
++   ],
++   "changedShotIndexes": [
++     1,
++     2,
++   ],
++   "operation": "patch_shots",
++   "proposalId": "receipt-host-canvas",
++   "reconciliation": {
++     "deviationCount": 0,
++     "ok": true,
++   },
++   "result": {
++     "anchorIssues": [],
++     "changedFields": [
++       "prompt",
++     ],
++     "changedShotIndexes": [
++       1,
++       2,
++     ],
++     "documentId": "identity-doc",
++     "message": "已修改第 1、2 镜：prompt。",
++     "status": "applied",
++     "storyboardDesignId": "identity-board",
++   },
+  }
+
+ ❯ src/workbench/generationCanvas/agent/canvasWriteTarget.integration.test.ts:306:81
+    304|     else useWorkbenchStore.getState().setStoryboardPlan({ ...plan, tit…
+    305|     const before = structuredClone(useWorkbenchStore.getState().storyb…
+    306|     await expect(executeCanvasWriteTarget(request, readGenerationCanva…
+       |                                                                                 ^
+    307|     expect(useWorkbenchStore.getState().storyboardDesignsByDocumentId)…
+    308|     expect(receiptHarness.commits).toEqual([])
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 8 passed (11)
+   Start at  04:09:23
+   Duration  1.46s (transform 774ms, setup 24ms, import 1.32s, tests 29ms, environment 0ms)
+

@@ -1,6 +1,7 @@
 // 画布快照归一化 + 种子节点。从 generationCanvasStore.ts 抽出。
 // 注意：这是 store 专用的深度归一化（过滤未知 kind、position 兜底、groups 走 zod、edges 校验端点），
 // 与 workbenchPersistence.ts 的轻量直通版 normalizeGenerationCanvasSnapshot 行为不同，故改名 normalizeStoreSnapshot。
+import { normalizeShotTableMeta, readShotTable } from '../../../../electron/shared/canvas/shotTable'
 import { isGenerationNodeKind } from '../model/generationNodeKinds'
 import { normalizeParameterEdges } from '../model/parameterReferenceSlots'
 import { nodeGroupSchema } from '../model/generationCanvasSchema'
@@ -65,6 +66,12 @@ export function normalizeStoreSnapshot(input: unknown): GenerationCanvasSnapshot
           kind,
           title: typeof node.title === 'string' ? node.title : id,
           position: { x, y },
+          ...(kind === 'shot_table' ? { meta: normalizeShotTableMeta(node.meta) } : {}),
+        }
+        const table = kind === 'shot_table' ? readShotTable(normalizedNode.meta) : undefined
+        // Deconstruction calls do not survive a renderer restart. Preserve evidence and permit an explicit retry.
+        if (table?.source.kind === 'deconstruction' && table.source.status === 'running') {
+          normalizedNode.meta = { ...normalizedNode.meta, shotTable: { ...table, source: { ...table.source, status: 'idle', phase: undefined } } }
         }
         const convergedNode = convergeStuckMidFlightNode(normalizedNode)
         return [categoryId ? { ...convergedNode, categoryId } : convergedNode]

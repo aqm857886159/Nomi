@@ -1,0 +1,9 @@
+
+ RUN  v4.1.8 /Users/aoqimin/Desktop/Nomi-storyboard-loop
+
+
+ Test Files  4 passed (4)
+      Tests  81 passed (81)
+   Start at  04:12:03
+   Duration  1.34s (transform 1.69s, setup 86ms, import 3.55s, tests 147ms, environment 0ms)
+

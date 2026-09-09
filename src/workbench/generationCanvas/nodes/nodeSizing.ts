@@ -1,6 +1,7 @@
 // BaseGenerationNode 的纯工具/常量：状态文案、尺寸边界、媒体尺寸推算、时间轴落点命中。
 // 从 BaseGenerationNode.tsx 抽出（纯函数 + 常量，无 React 依赖）。
 import type { GenerationCanvasNode } from "../model/generationCanvasTypes";
+import { GENERATION_NODE_PLUGIN_BY_KIND } from "./registry";
 import { readNodeAspectRatio } from "./aspectRatio";
 import { isCardRenderKind, resolveNodeRenderKind } from "./resolveRenderKind";
 
@@ -108,6 +109,9 @@ export function shouldAllowComposerAttachmentRecompute(input: {
 // 非媒体节点（含 text）自由缩放时的 min/max。媒体（图/视频）走比例锁定分支，
 // 仍用上面的 MIN/MAX_NODE_*，故此处只为「自由拉伸」路径按 kind 取边界。
 export function getNodeSizeBounds(kind: GenerationCanvasNode["kind"]): NodeSizeBounds {
+    if (kind === "shot_table") {
+        return { minWidth: 560, maxWidth: 1400, minHeight: 160, maxHeight: 900 };
+    }
     if (kind === "clip") {
         return {
             minWidth: CLIP_NODE_MIN_WIDTH,
@@ -389,6 +393,14 @@ const DEFAULT_VISUAL_SIZE = { width: 320, height: 360 };
 export function resolveNodeVisualSize(
     node: Pick<GenerationCanvasNode, "kind" | "size" | "renderKind" | "categoryId" | "meta" | "result">,
 ): { width: number; height: number } {
+    if (node.kind === "shot_table") {
+        const size = node.size ?? GENERATION_NODE_PLUGIN_BY_KIND.shot_table.defaultSize;
+        const bounds = getNodeSizeBounds(node.kind);
+        return {
+            width: clampNumber(size.width, bounds.minWidth, bounds.maxWidth),
+            height: clampNumber(size.height, bounds.minHeight, bounds.maxHeight),
+        };
+    }
     const size = node.size || DEFAULT_VISUAL_SIZE;
     if (node.kind === "clip") {
         const bounds = getNodeSizeBounds("clip");

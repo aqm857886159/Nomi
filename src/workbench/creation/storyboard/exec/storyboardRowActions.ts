@@ -1,3 +1,5 @@
+import { withCanvasGestureContext, type CanvasGestureContext } from '../../../generationCanvas/events/canvasGestureContext'
+import { pushUndoSnapshot, getUndoJournalGeneration } from '../../../generationCanvas/events/canvasUndoJournal'
 import { projectShotNode } from './storyboardProjection'
 import { ignoredShotAnchors, type IgnoredAnchor } from '../../../generationCanvas/agent/storyboardAnchorPolicy'
 import type { GenerationCanvasNode } from '../../../generationCanvas/model/generationCanvasTypes'
@@ -41,6 +43,7 @@ type RowActionContext = {
   documentId: string
   designId: string
   plan: StoryboardPlan
+  gesture?: CanvasGestureContext
 }
 
 async function resolveDefaults(): Promise<Pick<StoryboardShotRowArgsOptions,
@@ -89,8 +92,9 @@ function existingRowBindings(ctx: RowActionContext, shot: PlanShot): {
 
 type CreateNodesResult = { createdNodeIds?: string[]; clientIdToNodeId?: Record<string, string> }
 
-async function applyCreate(args: PlanCreateNodesArgs): Promise<Record<string, string>> {
-  const result = (await applyCanvasToolCall('create_canvas_nodes', args)) as CreateNodesResult
+async function applyCreate(args: PlanCreateNodesArgs, gesture?: CanvasGestureContext): Promise<Record<string, string>> {
+  if (gesture?.canWrite && !gesture.canWrite()) throw new Error('Canvas changed before storyboard landing')
+  const result = (await applyCanvasToolCall('create_canvas_nodes', args, gesture, gesture?.canWrite)) as CreateNodesResult
   return result?.clientIdToNodeId ?? {}
 }
 
@@ -98,10 +102,13 @@ async function applyCreate(args: PlanCreateNodesArgs): Promise<Record<string, st
 
 async function syncShotNodeWithRow(ctx: RowActionContext, shot: PlanShot, node: GenerationCanvasNode, part: 'shot' | 'keyframe', mode?: ArchetypeMode | null): Promise<void> {
   const entries = buildModelEntryIndex(await listAvailableModelsForAgent())
+  if (ctx.gesture?.canWrite && !ctx.gesture.canWrite()) throw new Error('Canvas changed before storyboard update')
   const current = useGenerationCanvasStore.getState().nodes.find(candidate => candidate.id === node.id)
   if (!current) return
   const patch = projectShotNode(ctx.plan, shot, current, part, entries, mode)
-  useGenerationCanvasStore.getState().updateNode(node.id, patch, { origin: 'storyboard-projection' })
+  const write = () => useGenerationCanvasStore.getState().updateNode(node.id, patch, { origin: 'storyboard-projection' })
+  if (ctx.gesture) withCanvasGestureContext(ctx.gesture, write)
+  else write()
 }
 
 /**
@@ -122,6 +129,7 @@ export async function materializeShotRow(
     return { ignoredAnchors, shotNodeId: existing.shotNode.id, keyframeNodeId: existing.keyframeNode?.id ?? null }
   }
   const defaults = await resolveDefaults()
+  if (ctx.gesture?.canWrite && !ctx.gesture.canWrite()) throw new Error('Canvas changed before storyboard materialization')
   const args = storyboardShotToCreateNodesArgs(ctx.plan, shot, {
     ...defaults,
     creationDocumentId: ctx.documentId,
@@ -130,7 +138,7 @@ export async function materializeShotRow(
     ...(existing.keyframeNode ? { existingKeyframeNodeId: existing.keyframeNode.id } : {}),
     ...(rowConsumesReferences(mode) ? {} : { omitAnchorReferenceEdges: true }),
   })
-  const clientIdToNodeId = await applyCreate(args)
+  const clientIdToNodeId = await applyCreate(args, ctx.gesture)
   const shotNodeId = existing.shotNode?.id ?? clientIdToNodeId[stableShotId(shot)]
   if (!shotNodeId) throw new Error('materialize failed: shot node missing')
   const keyframeNodeId = existing.keyframeNode?.id
@@ -278,16 +286,33 @@ function syncAnchorNodeWithCard(anchor: PlanAnchor, node: GenerationCanvasNode):
 export async function runStoryboardBatch(
   ctx: RowActionContext,
   rows: readonly StoryboardRowRuntime[],
+  landing?: { groupTitle: string },
 ): Promise<void> {
   if (rows.length === 0) return
+  const existingNodeIds = new Set(canvasState().nodes.map(node => node.id))
+  if (landing) {
+    const generation = getUndoJournalGeneration()
+    pushUndoSnapshot()
+    ctx = { ...ctx, gesture: { source: 'user', txnId: `shot-table-batch-${crypto.randomUUID()}`, suppressUndoBarriers: true, canWrite: () => getUndoJournalGeneration() === generation } }
+  }
   const runIds: string[] = []
   for (const row of rows) {
+    if (ctx.gesture?.canWrite && !ctx.gesture.canWrite()) throw new Error('Canvas changed before storyboard batch')
     const { shotNodeId, keyframeNodeId } = await materializeShotRow(ctx, row.shot, row.mode)
     const { nodes } = canvasState()
     const keyframeNode = keyframeNodeId ? nodes.find((node) => node.id === keyframeNodeId) ?? null : null
     if (keyframeNode && !hasUsableResult(keyframeNode)) runIds.push(keyframeNode.id)
     runIds.push(shotNodeId)
   }
+  if (landing && ctx.gesture) {
+    withCanvasGestureContext(ctx.gesture, () => {
+      const store = useGenerationCanvasStore.getState()
+      if (ctx.gesture?.canWrite && !ctx.gesture.canWrite()) throw new Error('Canvas changed before storyboard grouping')
+      const createdIds = runIds.filter(id => !existingNodeIds.has(id))
+      if (createdIds.length) store.createGroup('shots', landing.groupTitle, { nodeIds: createdIds })
+    })
+  }
+  if (ctx.gesture?.canWrite && !ctx.gesture.canWrite()) throw new Error('Canvas changed before storyboard confirmation')
   const { nodes, edges } = canvasState()
   await confirmAndRunPlan(buildDependencyWaves(runIds, { nodes, edges }))
 }

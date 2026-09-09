@@ -46,8 +46,6 @@ export const useGenerationCanvasStore = create<GenerationCanvasState>()(subscrib
   generationAiDraft: '',
   generationAiMessages: [],
   generationAiCollapsed: true,
-  videoDeconstructions: {},
-  videoDeconstructionOpenNodeId: null,
   canUndo: false,
   canRedo: false,
   hasClipboard: false,
@@ -69,58 +67,10 @@ export const useGenerationCanvasStore = create<GenerationCanvasState>()(subscrib
     })
   },
   setGenerationAiCollapsed: (generationAiCollapsed) => {
-    // 过渡期互斥（R-C-1）：AI 栏展开 = 占右槽 → 任何占槽的拆解面板让位（收成节点浮条）。
-    // 在同一事务里翻，避免「两个都展开」的中间态。
-    if (!generationAiCollapsed) {
-      set({ generationAiCollapsed, videoDeconstructionOpenNodeId: null })
-      return
-    }
     set({ generationAiCollapsed })
   },
   resetGenerationAiConversation: () => {
     set({ generationAiDraft: '', generationAiMessages: [] })
-  },
-  openVideoDeconstruction: (nodeId, source) => {
-    set((state) => {
-      const existing = state.videoDeconstructions[nodeId]
-      // 已有拆解态则保留（收起再开不丢，R-C-3），只刷新源快照；否则起一个 idle 槽。
-      state.videoDeconstructions[nodeId] = existing
-        ? { ...existing, sourceTitle: source.title, sourceVideoUrl: source.videoUrl }
-        : {
-            nodeId,
-            status: 'idle',
-            sourceTitle: source.title,
-            sourceVideoUrl: source.videoUrl,
-            selectedIndexes: [],
-            phase: 0,
-          }
-      // 过渡期互斥：拆解面板占槽 → AI 栏让位（收顶栏角标）。同一事务翻，无中间态。
-      state.videoDeconstructionOpenNodeId = nodeId
-      state.generationAiCollapsed = true
-    })
-  },
-  closeVideoDeconstruction: () => {
-    set({ videoDeconstructionOpenNodeId: null })
-  },
-  setVideoDeconstructionEntry: (nodeId, patch) => {
-    set((state) => {
-      const existing = state.videoDeconstructions[nodeId]
-      if (!existing) return
-      state.videoDeconstructions[nodeId] = { ...existing, ...patch }
-    })
-  },
-  toggleVideoDeconstructionShot: (nodeId, shotIndex) => {
-    set((state) => {
-      const existing = state.videoDeconstructions[nodeId]
-      if (!existing) return
-      const selected = new Set(existing.selectedIndexes)
-      if (selected.has(shotIndex)) selected.delete(shotIndex)
-      else selected.add(shotIndex)
-      state.videoDeconstructions[nodeId] = {
-        ...existing,
-        selectedIndexes: [...selected].sort((a, b) => a - b),
-      }
-    })
   },
   duplicateNodesForDrag: (nodeIds) => {
     const payload = buildSelectedClipboard({ ...get(), selectedNodeIds: nodeIds })

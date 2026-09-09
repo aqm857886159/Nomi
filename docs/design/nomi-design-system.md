@@ -1154,3 +1154,7 @@ CSS 不会报错、不会回退到默认值，而是**静默作废整条声明**
 `src/workbench/generationCanvas/nodes/GenerationStatusBar.tsx`：图、视频、音频共用纸白胶囊，6px 状态点、正文 token 人话、等宽真实数字。压媒体时使用 overlay-chip 底与固定白字 token。排队 ink-30、进行 accent、完成 success、软超时 warning、失败 danger。状态不参与节点几何布局；点 1.6s 呼吸，reduced-motion 常亮；完成停 2s 后 240ms 淡出，减弱动态时停 4s 直接消失。失败动作沿用节点现役错误卡，不复制操作入口。
 
 重复 warning/error 第二次起转为可关闭持久提示，直到用户关闭或原地恢复回执撤回；不靠抖动 TTL 伪造续时，避免最新失败只剩上一次倒计时的几毫秒。普通单次通知仍沿用 Mantine 原生时长。
+
+### 画布分镜表节点（B1，2026-09-10）
+
+`src/workbench/generationCanvas/nodes/shotTable/ShotTableNode.tsx` 消费已拍板 TableNode 画板：纸面节点、40px 标题/底栏、32px 表行、24px 高关键帧、sticky 表头、内部横纵滚动。≥80% 全表，40–80% 镜号/关键帧/状态，<40% 摘要卡；尺寸仍由画布 NodeResizer 单源持久化。生产表只读，双击回 v6 全页；参考片自定义列操作复用 WorkbenchMenu/promptDialog。两套列集共用 token 与表壳，状态沿现役行执行 derive。详见 [三组设计合同](2026-09-08-left-sidebar-canvas-nodes-process-feedback.md)。

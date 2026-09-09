@@ -328,6 +328,11 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
       ipcRenderer.invoke("nomi:video:extract-filmstrip", payload) as Promise<{ url: string; tiles: number; tileHeight: number }>,
     detectShotCuts: (payload: unknown) =>
       ipcRenderer.invoke("nomi:video:detect-shot-cuts", payload) as Promise<unknown>,
+    onDeconstructionProgress: (callback: (event: unknown) => void) => {
+      const listener = (_event: unknown, payload: unknown) => callback(payload);
+      ipcRenderer.on("nomi:video:deconstruction-progress", listener);
+      return () => { ipcRenderer.removeListener("nomi:video:deconstruction-progress", listener); };
+    },
     deconstruct: (payload: unknown) =>
       ipcRenderer.invoke("nomi:video:deconstruct", payload) as Promise<unknown>,
   },

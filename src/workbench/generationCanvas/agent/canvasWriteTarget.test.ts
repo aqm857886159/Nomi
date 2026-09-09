@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { buildCanvasWriteAdmission, buildCanvasWriteAdmissionForOperation } from "../../../../electron/shared/agentCapabilities/canvasWriteEvidence";
 import type { CanvasWriteInput } from "../../../../electron/shared/agentCapabilities/canvasWrite";
+import { useWorkbenchStore } from "../../workbenchStore";
 import type { GenerationCanvasSnapshot } from "../model/generationCanvasTypes";
 
 const deps = vi.hoisted(() => ({
@@ -196,6 +197,14 @@ describe("canvas.write renderer evidence capture", () => {
   });
 
   it("executes patch_shots through the canonical tool name and returns changed-row receipt data", async () => {
+    useWorkbenchStore.getState().hydrateWorkbenchDocuments([
+      { id: "patch-doc", version: 1, title: "Story", contentJson: { type: "doc", content: [] }, updatedAt: 1 },
+    ], "patch-doc");
+    useWorkbenchStore.getState().hydrateStoryboardDesigns({});
+    useWorkbenchStore.getState().setStoryboardPlan({ title: "Story", anchors: [], shots: [
+      { index: 1, shotKind: "image", durationSec: 0, anchorIds: [], prompt: "Opening" },
+      { index: 2, shotKind: "image", durationSec: 0, anchorIds: [], prompt: "Closing" },
+    ] }, "patch-doc");
     const snapshot = writableSnapshot();
     const input: CanvasWriteInput = {
       operation: "patch_shots",
