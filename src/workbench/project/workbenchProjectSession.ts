@@ -197,6 +197,9 @@ type QueuedWorkbenchProjectSave = {
 }
 
 const PROJECT_SAVE_DEBOUNCE_MS = 700
+/** flushSave 在 hydrate 窗口 early-return 时的重试间隔：保留快照等待 cutover 的
+ * cleanup 兜底，而不是把防抖意图连同快照一起丢掉（切项目丢 ≤700ms 编辑的根因）。 */
+const PROJECT_SAVE_HYDRATION_RETRY_MS = 150
 
 function createProjectSaveQueue(input: {
   saveProject: WorkbenchProjectSaveFn
@@ -255,6 +258,9 @@ export function subscribeWorkbenchProjectPersistence(options: WorkbenchProjectPe
   let disposed = false
   let saveScheduled = false
   let saveTimer: ReturnType<typeof setTimeout> | null = null
+  // 防抖排程那一刻快照的 payload。flush 和 cleanup 都只用这份快照：cleanup 时全局
+  // store 可能已被下一个项目 hydrate 换掉，重读会把 B 的数据写进 A 的 projectId。
+  let pendingPayload: WorkbenchProjectPayload | null = null
   const saveQueue = createProjectSaveQueue({
     saveProject: options.saveProject,
     onSaved: options.onSaved,
@@ -266,12 +272,24 @@ export function subscribeWorkbenchProjectPersistence(options: WorkbenchProjectPe
       clearTimeout(saveTimer)
       saveTimer = null
     }
+    if (disposed) {
+      saveScheduled = false
+      pendingPayload = null
+      return
+    }
+    if (options.isHydrating() || !options.canPersist()) {
+      // hydrate/cutover 窗口：保留快照与意图，短间隔重试直到窗口结束或 cleanup 兜底。
+      if (saveScheduled) saveTimer = setTimeout(() => { void flushSave() }, PROJECT_SAVE_HYDRATION_RETRY_MS)
+      return
+    }
     saveScheduled = false
-    if (disposed || options.isHydrating() || !options.canPersist()) return
+    if (!pendingPayload) return
+    const payload = pendingPayload
+    pendingPayload = null
     saveQueue.enqueue({
       projectId: options.projectId,
       projectName: options.projectName,
-      payload: readCurrentWorkbenchProjectPayload(),
+      payload,
     })
   }
   const flushPendingSave = () => {
@@ -281,6 +299,7 @@ export function subscribeWorkbenchProjectPersistence(options: WorkbenchProjectPe
   const saveIfReady = () => {
     if (options.isHydrating() || !options.canPersist()) return
     saveScheduled = true
+    pendingPayload = readCurrentWorkbenchProjectPayload()
     if (saveTimer) clearTimeout(saveTimer)
     saveTimer = setTimeout(() => { void flushSave() }, PROJECT_SAVE_DEBOUNCE_MS)
   }
@@ -321,9 +340,11 @@ export function subscribeWorkbenchProjectPersistence(options: WorkbenchProjectPe
     // essential to prevent data loss when the subscription is torn down by
     // a Vite hot-reload, a project rename, or a component unmount while
     // there are debounced changes still pending.
-    if (saveScheduled || saveTimer !== null) {
+    if (saveScheduled || saveTimer !== null || pendingPayload !== null) {
       saveScheduled = false
-      const payload = readCurrentWorkbenchProjectPayload()
+      // 只用排程时刻的快照；全局 store 此时可能是已 hydrate 的下一个项目。
+      const payload = pendingPayload ?? readCurrentWorkbenchProjectPayload()
+      pendingPayload = null
       const finalProjectId = options.projectId
       const finalProjectName = options.projectName
       void options.saveProject(finalProjectId, payload, finalProjectName)
