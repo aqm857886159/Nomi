@@ -1,0 +1,102 @@
+{
+  "viewport": {
+    "width": 1600,
+    "height": 1000
+  },
+  "screenshots": [
+    "process-running-0",
+    "process-running-1",
+    "process-running-6",
+    "process-running",
+    "process-done",
+    "process-done-expanded",
+    "process-failed",
+    "panel-narrow",
+    "panel-wide",
+    "frames-unified",
+    "logo-audit"
+  ],
+  "checks": [
+    "running: one process row; previous steps hidden; same y across all 3 steps",
+    "done: summary collapsed by default, expands to 7 receipts; answer remains visible",
+    "failed: separate visible failure card; ordinary process remains collapsed",
+    "resize: pointer drag clamps at 600; reload restores 600; keyboard clamps at 300"
+  ],
+  "frames": [
+    {
+      "y": 46,
+      "height": 620,
+      "radius": "10px"
+    },
+    {
+      "y": 46,
+      "height": 620,
+      "radius": "10px"
+    },
+    {
+      "y": 46,
+      "height": 620,
+      "radius": "10px"
+    },
+    {
+      "y": 46,
+      "height": 620,
+      "radius": "10px"
+    }
+  ],
+  "brand": [
+    {
+      "gap": "8px",
+      "font": "Fraunces, Inter, serif",
+      "weight": "400",
+      "tracking": "-0.34px",
+      "radius": "7"
+    },
+    {
+      "gap": "8px",
+      "font": "\"Fraunces Variable\", Fraunces, \"Inter Variable\", Inter, serif",
+      "weight": "400",
+      "tracking": "-0.34px",
+      "radius": "7"
+    },
+    {
+      "gap": "8px",
+      "font": "\"Fraunces Variable\", Fraunces, \"Inter Variable\", Inter, serif",
+      "weight": "400",
+      "tracking": "-0.28px",
+      "radius": "7"
+    }
+  ],
+  "renderedBrandFonts": [
+    {
+      "fonts": [
+        {
+          "familyName": "Songti SC",
+          "postScriptName": "STSongti-SC-Regular",
+          "isCustomFont": false,
+          "glyphCount": 4
+        }
+      ]
+    },
+    {
+      "fonts": [
+        {
+          "familyName": "Fraunces",
+          "postScriptName": "Fraunces-Regular_wght1900000",
+          "isCustomFont": true,
+          "glyphCount": 4
+        }
+      ]
+    },
+    {
+      "fonts": [
+        {
+          "familyName": "Fraunces",
+          "postScriptName": "Fraunces-Regular_wght1900000",
+          "isCustomFont": true,
+          "glyphCount": 4
+        }
+      ]
+    }
+  ]
+}

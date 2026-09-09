@@ -1,0 +1,62 @@
+[
+  {
+    "file": "024-agent-wait-150.png",
+    "sha256": "36aae003f5256672449c7f656cf5828414437a7d0c4c557e1c53338431303808",
+    "crop": [
+      2060,
+      110,
+      2880,
+      1680
+    ],
+    "originalSize": [
+      2880,
+      1680
+    ],
+    "displayScale": 0.5
+  },
+  {
+    "file": "cont-010-c2-open-board-after.png",
+    "sha256": "83acd0cdf3f845e6ab1f78ddee2d522ae98a3c522412f44b00a83ddbaf34400e",
+    "crop": [
+      2060,
+      110,
+      2880,
+      1680
+    ],
+    "originalSize": [
+      2880,
+      1684
+    ],
+    "displayScale": 0.5
+  },
+  {
+    "file": "088-open-generation-canvas-after.png",
+    "sha256": "f4cc0a1c23476eff23985c9c6d0af5f229262980e621c0a5b6985c20b85a1658",
+    "crop": [
+      2060,
+      110,
+      2880,
+      1680
+    ],
+    "originalSize": [
+      2880,
+      1680
+    ],
+    "displayScale": 0.5
+  },
+  {
+    "file": "132-preview-workspace-after.png",
+    "sha256": "7d9340c53d19964fb400e60693861ec63bc92a0eaeb27f6f55a0d03c6126d6bc",
+    "crop": [
+      2060,
+      110,
+      2880,
+      1680
+    ],
+    "originalSize": [
+      2880,
+      1680
+    ],
+    "displayScale": 0.5
+  }
+]
