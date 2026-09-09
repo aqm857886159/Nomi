@@ -161,13 +161,20 @@ describe('groupGenerationNodesByExecutionKind', () => {
 
 describe('canvas batch concurrency', () => {
   it.each([
-    [undefined, 6],
-    [Number.NaN, 6],
+    [undefined, 8],
+    [Number.NaN, 8],
     [0, 1],
     [9, 8],
     [4.9, 4],
   ])('normalizes %s to %s', (input, expected) => {
     expect(normalizeCanvasBatchConcurrency(input)).toBe(expected)
+  })
+
+  it('uses the default only for absent preferences and preserves explicit lower limits', () => {
+    expect(readCanvasBatchConcurrency({ getItem: () => null, setItem() {} })).toBe(8)
+    for (const value of [1, 2, 4, 6, 8]) {
+      expect(readCanvasBatchConcurrency({ getItem: () => String(value), setItem() {} })).toBe(value)
+    }
   })
 
   it('persists and restores the normalized preference', () => {

@@ -1,0 +1,96 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-10-canvas-default-concurrency",
+  "problem_type": "bounded-batch-queue-latency",
+  "symptom": "An eight-shot C0 media stage takes 487.489 seconds; shots seven and eight wait locally about 150 seconds.",
+  "direct_cause": "The shared default admits six tasks while the existing selectable bound is eight; the slowest task starts in the second group.",
+  "class_root": "The default batch policy underfills the existing eight-slot capacity for independent work without a saved preference.",
+  "affected_population": [
+    "New or preference-free canvas batch users with more than six independent nodes"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/components/canvasProductionScope.ts"
+  ],
+  "entry_points": [
+    "All-canvas generation",
+    "Selection generation",
+    "Dependency-plan batch runner"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Concurrency eight is an existing Nomi option, not an upstream recommendation. APIMart does not publish a general concurrent-task cap in the checked docs; no vendor guarantee is claimed.",
+  "invariants": [
+    "Absent preference uses the existing eight-slot bound; explicit lower preferences and dependency waves remain authoritative."
+  ],
+  "generality_proof": "UI preference loading, normalization and cost estimation share DEFAULT_CANVAS_BATCH_CONCURRENCY; the unchanged worker still enforces normalized bounds across media kinds.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/components/canvasProductionScope.ts",
+      "symbol": "DEFAULT_CANVAS_BATCH_CONCURRENCY",
+      "responsibility": "Own the absent-preference batch admission policy."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/components/useCanvasProductionActions.ts",
+      "entry_point": "readCanvasBatchConcurrency",
+      "disposition": "enforced",
+      "evidence": "Initial production state reads the shared preference helper."
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "entry_point": "runGenerationNodesBatch",
+      "disposition": "enforced",
+      "evidence": "Worker count consumes normalizeCanvasBatchConcurrency; by-plan calls preserve serial dependency waves."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every preference-free batch larger than six can incur the same extra local waiting.",
+    "same_class_scan": [
+      "rg DEFAULT_CANVAS_BATCH_CONCURRENCY src: preference, runner, spend estimate share the owner",
+      "Inspected useCanvasProductionActions, useCanvasFrameActions and runGenerationNodesByPlan"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/components/canvasProductionScope.ts",
+    "invariant": "Fill the existing bounded capacity by default while preserving explicit limits.",
+    "failure_mode": "Invalid numeric input normalizes to the bounded default; finite inputs remain clamped 1..8.",
+    "exception_policy": "none",
+    "strategy": "Change the existing shared default instead of adding caller-specific overrides or a second scheduler.",
+    "artifacts": [
+      "src/workbench/generationCanvas/components/canvasProductionScope.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/components/canvasProductionScope.test.ts",
+    "src/workbench/generationCanvas/runner/generationQueue.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/components/canvasProductionScope.test.ts",
+    "src/workbench/generationCanvas/runner/generationQueue.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "Replace the constant in place; no alternative worker or preference path."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "This is a local admission-policy value, not a third-party runtime behavior change.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted preference is overwritten, including six. Preference-free sessions use eight.",
+  "residual_risks": [
+    "No paid media rerun: replay measures client scheduling only. Real supplier queueing and rate limits can reduce or erase improvement.",
+    "Eight in-flight tasks reduce the window to cancel not-yet-submitted work compared with six."
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/components/canvasProductionScope.ts",
+    "tests": [
+      "src/workbench/generationCanvas/components/canvasProductionScope.test.ts",
+      "src/workbench/generationCanvas/runner/generationQueue.test.ts"
+    ],
+    "why": "Shared preference policy is tested alongside actual batch admission and existing cancellation/dependency tests."
+  }
+}

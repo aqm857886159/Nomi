@@ -8,7 +8,7 @@ import {
 import { requiredModeForGenerationNode } from '../adapters/modelOptionsAdapter'
 
 export const CANVAS_BATCH_CONCURRENCY_STORAGE_KEY = 'nomi.canvas.batch-concurrency'
-export const DEFAULT_CANVAS_BATCH_CONCURRENCY = 6
+export const DEFAULT_CANVAS_BATCH_CONCURRENCY = 8
 
 export function canvasBatchDockScopeKey(eligibleIds: readonly string[]): string {
   return eligibleIds.join('\u0000')

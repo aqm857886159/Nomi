@@ -45,6 +45,31 @@ describe('生成队列外化', () => {
     setCanvasEventSinkForTests(null)
   })
 
+  it.each([
+    [undefined, 8],
+    [2, 2],
+  ])('bounds in-flight work with concurrency %s and fills available slots', async (concurrency, expected) => {
+    const ids = addImageNodes(10)
+    const started: string[] = []
+    let release!: () => void
+    const barrier = new Promise<void>((resolve) => { release = resolve })
+    const run = runGenerationNodesBatch(ids, {
+      concurrency, assetUploadConsent: 'not-needed',
+      executor: async (node) => {
+        started.push(node.id)
+        await barrier
+        return fakeResult(node.id)
+      },
+    })
+    try {
+      await vi.waitFor(() => expect(started).toHaveLength(expected))
+    } finally {
+      release()
+      await run
+    }
+    expect(started).toEqual(ids)
+  })
+
   it('整批一次登记：后续波次的节点立刻可见为「排队中」，不再是 idle', async () => {
     const ids = addImageNodes(4)
     const plan = planOf([[ids[0], ids[1]], [ids[2], ids[3]]])

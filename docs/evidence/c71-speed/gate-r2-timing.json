@@ -1,0 +1,159 @@
+{
+  "source": "gate-r2/attempt-1UrYyt",
+  "stationTotalSeconds": 674.276,
+  "stations": [
+    {
+      "id": "00",
+      "action": "准备隔离空项目",
+      "seconds": 1.817
+    },
+    {
+      "id": "01",
+      "action": "导入原创剧本和五约束",
+      "seconds": 1.136
+    },
+    {
+      "id": "02",
+      "action": "拆分并审阅八镜分镜",
+      "seconds": 137.851
+    },
+    {
+      "id": "03",
+      "action": "分镜物化到画布",
+      "seconds": 1.518
+    },
+    {
+      "id": "04",
+      "action": "确认并生成八段真实视频",
+      "seconds": 487.489
+    },
+    {
+      "id": "05",
+      "action": "按叙事加入时间轴并预览",
+      "seconds": 11.181
+    },
+    {
+      "id": "06",
+      "action": "通过 Nomi 导出 MP4",
+      "seconds": 23.546
+    },
+    {
+      "id": "07",
+      "action": "冷重启检查资产和时间轴",
+      "seconds": 9.738
+    }
+  ],
+  "plannerRequests": [
+    {
+      "started": "2026-09-09T17:51:54.815Z",
+      "elapsedMs": 1796,
+      "streamEndElapsedMs": 42208,
+      "requestBytes": 108676
+    },
+    {
+      "started": "2026-09-09T17:52:37.161Z",
+      "elapsedMs": 921,
+      "streamEndElapsedMs": 1801,
+      "requestBytes": 123276
+    },
+    {
+      "started": "2026-09-09T17:52:38.970Z",
+      "elapsedMs": 872,
+      "streamEndElapsedMs": 84043,
+      "requestBytes": 127902
+    },
+    {
+      "started": "2026-09-09T17:54:03.798Z",
+      "elapsedMs": 1295,
+      "streamEndElapsedMs": 7234,
+      "requestBytes": 152420
+    }
+  ],
+  "media": [
+    {
+      "shot": 1,
+      "submitOffsetSeconds": 0.0,
+      "submitResponseSeconds": 1.245,
+      "providerActualSeconds": 200,
+      "completionDetectionSeconds": 0.794,
+      "pollCount": 55,
+      "meanPollStartGapSeconds": 3.656,
+      "submitToDetectedSeconds": 201.717
+    },
+    {
+      "shot": 2,
+      "submitOffsetSeconds": 0.003,
+      "submitResponseSeconds": 1.462,
+      "providerActualSeconds": 211,
+      "completionDetectionSeconds": 1.242,
+      "pollCount": 59,
+      "meanPollStartGapSeconds": 3.61,
+      "submitToDetectedSeconds": 214.162
+    },
+    {
+      "shot": 3,
+      "submitOffsetSeconds": 0.006,
+      "submitResponseSeconds": 1.36,
+      "providerActualSeconds": 192,
+      "completionDetectionSeconds": 1.831,
+      "pollCount": 52,
+      "meanPollStartGapSeconds": 3.73,
+      "submitToDetectedSeconds": 194.748
+    },
+    {
+      "shot": 4,
+      "submitOffsetSeconds": 0.009,
+      "submitResponseSeconds": 1.206,
+      "providerActualSeconds": 146,
+      "completionDetectionSeconds": 0.592,
+      "pollCount": 41,
+      "meanPollStartGapSeconds": 3.534,
+      "submitToDetectedSeconds": 147.506
+    },
+    {
+      "shot": 5,
+      "submitOffsetSeconds": 0.012,
+      "submitResponseSeconds": 1.225,
+      "providerActualSeconds": 147,
+      "completionDetectionSeconds": 0.743,
+      "pollCount": 43,
+      "meanPollStartGapSeconds": 3.435,
+      "submitToDetectedSeconds": 148.654
+    },
+    {
+      "shot": 6,
+      "submitOffsetSeconds": 0.014,
+      "submitResponseSeconds": 1.222,
+      "providerActualSeconds": 159,
+      "completionDetectionSeconds": 3.27,
+      "pollCount": 47,
+      "meanPollStartGapSeconds": 3.441,
+      "submitToDetectedSeconds": 163.179
+    },
+    {
+      "shot": 7,
+      "submitOffsetSeconds": 150.072,
+      "submitResponseSeconds": 0.496,
+      "providerActualSeconds": 331,
+      "completionDetectionSeconds": 0.969,
+      "pollCount": 94,
+      "meanPollStartGapSeconds": 3.545,
+      "submitToDetectedSeconds": 332.82
+    },
+    {
+      "shot": 8,
+      "submitOffsetSeconds": 151.14,
+      "submitResponseSeconds": 0.512,
+      "providerActualSeconds": 208,
+      "completionDetectionSeconds": 2.468,
+      "pollCount": 61,
+      "meanPollStartGapSeconds": 3.447,
+      "submitToDetectedSeconds": 211.251
+    }
+  ],
+  "limitations": [
+    "Provider completion is second-resolution and uses a different clock; detection offsets are approximate.",
+    "Transport body prefixes truncate result URLs; no asset download timings or UI profiler are available.",
+    "Station timings include user automation and screenshots; nested intervals must not be added again."
+  ]
+}
