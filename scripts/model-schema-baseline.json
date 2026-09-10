@@ -115,7 +115,6 @@
     "mcp/nomi_asset_import",
     "mcp/nomi_canvas_maintenance",
     "mcp/nomi_export_job",
-    "mcp/nomi_integration",
     "mcp/nomi_integration_manage",
     "mcp/nomi_layout_read",
     "mcp/nomi_layout_write",

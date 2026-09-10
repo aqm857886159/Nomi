@@ -41,6 +41,13 @@ const proposalSchema = {
     },
     workflow: { type: 'string', minLength: 1, maxLength: 2097152 },
     modelKey: { type: 'string', minLength: 1, maxLength: 160 },
+    // 由驱动 Agent 自己按接口文档编出来的说明卡（JSON 文本，形状见上一次 propose 返回的
+    // compileRequest.contractSchema）。传输层用字符串承载，与同一工具里的 workflow 一致；
+    // 权威校验在主进程的 validateProviderAdapterDraft，宿主端不做二次形状约束。
+    adapterDraft: {
+      type: 'string', minLength: 2, maxLength: 524288,
+      description: 'JSON text of {"sources":[...],"models":[...]} compiled from the provider API docs. Only send it when a prior propose returned compileRequest; provider identity, model ids, labels and billing kinds are locked by Nomi and must not be repeated here.',
+    },
   },
   additionalProperties: false,
 } as const
@@ -48,7 +55,7 @@ const proposalSchema = {
 export const MCP_INTEGRATION_TOOL = {
   name: 'nomi_integration',
   title: '接入模型或 ComfyUI',
-  description: '空 proposal 探测 /models；candidates 可手填兜底；不得传 key。',
+  description: '空 proposal 探测 /models；candidates 可手填兜底；不得传 key。本机没有可读文档的文本模型时，propose 会返回 compileRequest（目标 schema + 撰写规则），照它回填 proposal.adapterDraft 再次 propose。',
   inputSchema: {
     type: 'object',
     properties: {
