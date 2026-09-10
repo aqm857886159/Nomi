@@ -317,6 +317,8 @@ export const zhCN = {
     projectRepairMessage: '未找到可用的自动备份。可以打开项目文件夹检查 .nomi/project.json：{{path}}',
     openProjectFolder: '打开项目文件夹',
     hostConfigRepaired: '已修复 {{clients}} 的 Nomi 接入配置，重启 {{clients}} 后生效',
+    integrationConfirmPending: '「{{name}}」等你确认后才会开始验证',
+    integrationConfirmPendingAction: '去确认',
     initializeTitle: '初始化为 Nomi 项目',
     initializeMessage: '{{path}}\n\nNomi 会创建 .nomi/，并把生成的图片、视频保存到 assets/ 和 exports/。',
     folderUnsupported: '当前运行环境不支持打开项目文件夹',
@@ -724,6 +726,8 @@ export const en = {
     projectRepairMessage: 'No valid automatic backup was found. Open the project folder and inspect .nomi/project.json: {{path}}',
     openProjectFolder: 'Open project folder',
     hostConfigRepaired: 'Repaired the Nomi connection for {{clients}}. Restart {{clients}} to apply it.',
+    integrationConfirmPending: '"{{name}}" is waiting for your confirmation before verification starts',
+    integrationConfirmPendingAction: 'Review',
     initializeTitle: 'Initialize as a Nomi project',
     initializeMessage:
       '{{path}}\n\nNomi will create .nomi/ and save generated images and videos in assets/ and exports/.',
