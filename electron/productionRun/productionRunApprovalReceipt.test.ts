@@ -4,8 +4,8 @@ import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { createApprovalReceiptAuthority, ReceiptScopeError } from '../capabilityCore/approvalReceipt'
-import { approvalReceiptForGate, assertCurrentProjectRevision } from './productionRunApprovalReceipt'
-import type { RunCommand } from './productionRunTypes'
+import { createGateApprovalOwner, assertCurrentProjectRevision } from './productionRunApprovalReceipt'
+import type { ProductionGate, ProductionRun, RunCommand } from './productionRunTypes'
 
 const roots: string[] = []
 const now = '2026-08-23T00:00:00.000Z'
@@ -46,15 +46,39 @@ function fixture() {
     decision: 'accept',
   })
   const minted = authority.mintReceipt(challenge.token, attestation)
-  const command = (payload: Record<string, unknown>): RunCommand => ({
+  const command = (payload: Record<string, unknown>, extra: Partial<RunCommand> = {}): RunCommand => ({
     commandId: 'scope-command',
     expectedRevision: 2,
     type: 'gate.decide',
     payload: { gateId: 'gate-1', status: 'approved', receiptId: minted.receipt.receiptId, ...payload },
     issuedAt: now,
+    ...extra,
   })
   return { authority, receiptId: minted.receipt.receiptId, command }
 }
+
+function gate(gateId: string, scope: ProductionGate['scope']): ProductionGate {
+  return {
+    gateId,
+    scope,
+    status: 'waiting',
+    planHash: 'digest-1',
+    jobIds: ['job-1'],
+    title: gateId,
+    summary: gateId,
+    createdAt: now,
+    expiresAt: '2026-08-24T00:00:00.000Z',
+  }
+}
+
+/** gate-1 = 付费门（预算门），gate-free = 免费创意门。付费与否只看 scope，见 isSpendGate。 */
+const run = {
+  gates: [gate('gate-1', 'budget_envelope'), gate('gate-free', 'stage')],
+} as unknown as ProductionRun
+
+const owner = (authority: unknown, resolver: ((projectId: string) => number | undefined) | undefined = () => 2) =>
+  createGateApprovalOwner(authority as never, resolver)
+
 
 describe('production approval receipt scope', () => {
   it('accepts the current safe project revision and returns it to the caller', () => {
@@ -70,21 +94,51 @@ describe('production approval receipt scope', () => {
     expect(() => assertCurrentProjectRevision('project-1', expected, resolver)).toThrowError(ReceiptScopeError)
   })
 
-  it('returns no receipt for non-gate commands or without a receipt authority', () => {
+  it('returns no receipt for non-gate commands', () => {
     const { command } = fixture()
-    expect(approvalReceiptForGate(undefined, 'project-1', 'run-1', command({}), () => 2)).toBeUndefined()
-    expect(approvalReceiptForGate({} as never, 'project-1', 'run-1', { ...command({}), type: 'run.control' } as never, () => 2)).toBeUndefined()
+    expect(owner({}).verifyGateDecision('project-1', 'run-1', run, { ...command({}), type: 'run.control' })).toBeUndefined()
+  })
+
+  // 2026-09-10 根因回归闸：生产装配从没注入过收据权威，旧实现在权威缺席时返回 undefined，
+  // productionRunService 便原样放行 gate.decide——付费门 fail-open。缺权威必须**拒绝**，不是跳过。
+  it('rejects a paid gate decision when no receipt authority is assembled', () => {
+    const { command } = fixture()
+    expect(() => owner(undefined).verifyGateDecision('project-1', 'run-1', run, command({})))
+      .toThrowError(expect.objectContaining({ code: 'human_approval_required' }))
+    expect(() => owner(undefined).verifyGateDecision('project-1', 'run-1', run, command({ receiptId: undefined })))
+      .toThrowError(expect.objectContaining({ code: 'human_approval_required' }))
+    expect(() => owner(undefined).duplicateGateDecisionFor('project-1', 'run-1', {
+      ...run, gates: run.gates.map((item) => ({ ...item, status: 'approved' as const })),
+    }, command({}))).toThrowError(expect.objectContaining({ code: 'human_approval_required' }))
+  })
+
+  // 免费门（创意门/定妆检查点/导出）不进收据制：MCP 客户端经 elicitation 表态的可逆门必须照常通过。
+  it('keeps free gates and rejections receipt-free', () => {
+    const { authority, command } = fixture()
+    expect(owner(authority).verifyGateDecision('project-1', 'run-1', run,
+      command({ gateId: 'gate-free', receiptId: undefined }))).toBeUndefined()
+    expect(owner(undefined).verifyGateDecision('project-1', 'run-1', run,
+      command({ gateId: 'gate-free', receiptId: undefined }))).toBeUndefined()
+    expect(owner(undefined).verifyGateDecision('project-1', 'run-1', run,
+      command({ status: 'rejected', receiptId: undefined }))).toBeUndefined()
+  })
+
+  // 渲染层 IPC 过了 assertTrustedSender 后自己盖的真人手势章：Nomi 窗口里的确认卡照常批得动付费门。
+  it('accepts the trusted in-app human gesture on a paid gate without a receipt', () => {
+    const { command } = fixture()
+    expect(owner(undefined).verifyGateDecision('project-1', 'run-1', run,
+      command({ receiptId: undefined }, { humanGesture: true }))).toBeUndefined()
   })
 
   it('rejects a gate approval without a receipt at the production command boundary', () => {
     const { authority, command } = fixture()
-    expect(() => approvalReceiptForGate(authority, 'project-1', 'run-1', command({ receiptId: undefined }), () => 2))
+    expect(() => owner(authority).verifyGateDecision('project-1', 'run-1', run, command({ receiptId: undefined })))
       .toThrowError(expect.objectContaining({ code: 'human_approval_required' }))
   })
 
   it('verifies and returns a valid receipt using its signed token and current revision', () => {
     const { authority, receiptId, command } = fixture()
-    const result = approvalReceiptForGate(authority, 'project-1', 'run-1', command({}), () => 2)
+    const result = owner(authority).verifyGateDecision('project-1', 'run-1', run, command({}))
     expect(result).toMatchObject({ receipt: { receiptId, projectId: 'project-1', projectRevision: 2 } })
     expect(result?.token).toEqual(expect.any(String))
   })
@@ -92,15 +146,15 @@ describe('production approval receipt scope', () => {
   it('accepts a supplied receipt token and rejects a conflicting receipt id', () => {
     const { authority, receiptId, command } = fixture()
     const token = authority.resolveReceiptToken(receiptId)
-    const result = approvalReceiptForGate(authority, 'project-1', 'run-1', command({ receiptId: undefined, receiptToken: token }), () => 2)
+    const result = owner(authority).verifyGateDecision('project-1', 'run-1', run, command({ receiptId: undefined, receiptToken: token }))
     expect(result).toMatchObject({ receipt: { receiptId } })
-    expect(() => approvalReceiptForGate(authority, 'project-1', 'run-1', command({ receiptId: 'receipt-other', receiptToken: token }), () => 2))
+    expect(() => owner(authority).verifyGateDecision('project-1', 'run-1', run, command({ receiptId: 'receipt-other', receiptToken: token })))
       .toThrowError(expect.objectContaining({ code: 'receipt_invalid', message: 'Approval receipt id is invalid' }))
   })
 
   it('requires a revision resolver at the command boundary even for a signed receipt', () => {
     const { authority, command } = fixture()
-    expect(() => approvalReceiptForGate(authority, 'project-1', 'run-1', command({}), undefined))
+    expect(() => createGateApprovalOwner(authority, undefined).verifyGateDecision('project-1', 'run-1', run, command({})))
       .toThrowError(expect.objectContaining({ code: 'receipt_invalid' }))
   })
 
@@ -110,7 +164,7 @@ describe('production approval receipt scope', () => {
       resolveReceiptToken: vi.fn(() => 'bad-token'),
       verifyReceipt: vi.fn(() => { throw new Error('sealed receipt cannot be decoded') }),
     }
-    expect(() => approvalReceiptForGate(authority as never, 'project-1', 'run-1', command({}), () => 2))
+    expect(() => owner(authority).verifyGateDecision('project-1', 'run-1', run, command({})))
       .toThrowError(expect.objectContaining({ code: 'receipt_invalid', message: 'sealed receipt cannot be decoded' }))
   })
 
@@ -120,13 +174,13 @@ describe('production approval receipt scope', () => {
       resolveReceiptToken: vi.fn(() => 'bad-token'),
       verifyReceipt: vi.fn(() => { throw 'malformed' }),
     }
-    expect(() => approvalReceiptForGate(authority as never, 'project-1', 'run-1', command({}), () => 2))
+    expect(() => owner(authority).verifyGateDecision('project-1', 'run-1', run, command({})))
       .toThrowError(expect.objectContaining({ code: 'receipt_invalid', message: 'Approval receipt is invalid' }))
   })
 
   it('rejects an explicitly stale command revision even when the signed receipt is current', () => {
     const { authority, command } = fixture()
-    expect(() => approvalReceiptForGate(authority, 'project-1', 'run-1', command({ projectRevision: 3 }), () => 2))
+    expect(() => owner(authority).verifyGateDecision('project-1', 'run-1', run, command({ projectRevision: 3 })))
       .toThrowError(expect.objectContaining({ code: 'receipt_invalid' }))
   })
 })
