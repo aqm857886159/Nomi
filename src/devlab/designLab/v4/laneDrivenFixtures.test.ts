@@ -27,6 +27,7 @@ const labels: LaneViewModelLabels = {
   formatStages: (done, total) => `${done} / ${total} 阶段`,
   formatMoney: (currency, amount) => `${currency} ${amount.toFixed(2)}`,
   taskUnknown: '任务详情在任务中心',
+  skillLabel: (key) => `[skill:${key}]`,
 }
 
 describe('design-lab fixtures driven by a LaneSnapshot (probe P6)', () => {

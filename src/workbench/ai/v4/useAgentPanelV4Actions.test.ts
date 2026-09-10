@@ -13,9 +13,15 @@ const fixture = vi.hoisted(() => {
   const state = {
     projectAgentDraft: '', projectAgentAttachments: [] as ComposerAttachment[],
     activeDocumentId: 'doc-1', workbenchDocuments: [{ id: 'doc-1', title: 'Current document' }],
-    creationDocumentTools: null, persistRevision: 1, creationActiveSkill: null,
+    creationDocumentTools: null, persistRevision: 1,
+    creationActiveSkill: null as { key: string; name: string } | null, selectedLibraryPrompt: null as { id: string } | null,
     projectAgentApprovalPolicy: { mode: 'safe-auto', spend: 'confirm' },
     setProjectAgentDraft(text: string) { state.projectAgentDraft = text },
+    // 真店里这个 setter 一次清掉同一个引用槽的两半（`workbenchStore.setCreationActiveSkill`）。
+    setCreationActiveSkill(skill: { key: string; name: string } | null) {
+      state.creationActiveSkill = skill
+      state.selectedLibraryPrompt = null
+    },
     setProjectAgentAttachments(update: (current: ComposerAttachment[]) => ComposerAttachment[]) {
       state.projectAgentAttachments = update(state.projectAgentAttachments)
     },
@@ -58,6 +64,8 @@ beforeEach(() => {
   fixture.owner = { subscriptionId: 'workspace-a' }
   fixture.state.projectAgentDraft = 'keep this draft'
   fixture.state.projectAgentAttachments = []
+  fixture.state.creationActiveSkill = null
+  fixture.state.selectedLibraryPrompt = null
   fixture.say.mockReset()
   fixture.models.mockReset().mockResolvedValue([])
   fixture.record = null
@@ -79,6 +87,25 @@ describe('composer sends commit local cleanup only after current admission', () 
     expect(fixture.say.mock.calls[1][1]).toBe('secondary')
     expect(fixture.say.mock.calls[1][2].availableModels).toEqual([])
     expect(fixture.models).toHaveBeenCalledTimes(2)
+  })
+
+  // 技能是**这条消息的引用**，不是常驻开关：发出去就该跟着走，留在 composer 上等于
+  // 告诉用户「以后每条都得挂着它」（2026-09-10 反馈）。失败那条路不摘，重发不用重选。
+  it('releases the skill reference once the message is admitted', async () => {
+    fixture.state.creationActiveSkill = { key: 'workbench-storyboard-planner', name: '分镜规划' }
+    fixture.say.mockResolvedValue({ ok: true })
+    expect(await mountActions().send('plan the opening')).toBe(true)
+    expect(fixture.say.mock.calls[0][2].skillKey).toBe('workbench-storyboard-planner')
+    expect(fixture.state.creationActiveSkill).toBeNull()
+    expect(fixture.state.selectedLibraryPrompt).toBeNull()
+  })
+
+  it.each(['negative-ack', 'exception'])('keeps the skill reference when the send fails with %s', async kind => {
+    fixture.state.creationActiveSkill = { key: 'workbench-storyboard-planner', name: '分镜规划' }
+    if (kind === 'exception') fixture.say.mockRejectedValue(new Error('lane down'))
+    else fixture.say.mockResolvedValue({ ok: false, message: 'lane down' })
+    expect(await mountActions().send('plan the opening')).toBe(false)
+    expect(fixture.state.creationActiveSkill).toEqual({ key: 'workbench-storyboard-planner', name: '分镜规划' })
   })
 
   it('preserves the draft and sends nothing when catalog capture fails', async () => {
