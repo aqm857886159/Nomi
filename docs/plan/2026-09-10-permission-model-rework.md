@@ -7,6 +7,30 @@
 > 参考：pi-permission-system（用户给）+ 顶尖产品调研（下）。
 > 现状审计见 docs/plan/2026-09-10-ux-feedback-triage.md「权限控制全链路审计」。
 
+## 先查别人
+
+> 报告全文：`docs/research/2026-09-10-permission-model-rework/prior-art.md`（本节是结论摘要）。
+
+**① 依赖里已有？**
+- 本仓 embed 的 `@earendil-works/pi-agent-core@0.85.1`（`package.json`）**没有权限扩展点**：`node_modules/@earendil-works/pi-agent-core/dist/agent-loop.d.ts:12-21` 的 loop 入口只接 `AgentContext`/`AgentLoopConfig`/`streamFn`，`node_modules/@earendil-works/pi-agent-core/dist/types.d.ts:122` 起的 `AgentLoopConfig` 接口无 permission/approval 字段；对全部 7 个 `.d.ts` 声明文件 `grep -lni permission` 零命中。用户给的 pi-permission-system 是 pi 生态里更上层的**宿主/CLI 扩展**，不随这个库版本进来——判据层必须在我们自己的宿主边界（`laneHost`/`capabilityApprovalPolicy.ts`）自建，不是漏接了依赖自带的东西。
+
+**② 仓库里已有？**
+- 单发付费收据链已是 HMAC+TTL+一次性：`electron/capabilityCore/approvalReceipt.ts:8-9`（`HUMAN_APPROVAL_ALGORITHM = "HMAC-SHA256"`）、`:239-241`（TTL 校验）、`:543`（`consumedAt` 一次性消费判据）。
+- 判据 owner 已单点化：`electron/shared/agentCapabilities/capabilityApprovalPolicy.ts:105-108`（`capabilityIsHardGated`，硬地板）与 `:144-154`（`capabilityMayReuseSafeApproval`，档位×effectClass 复用判据——本方案 §4.1 升级的正是这张表）。
+- 确认 UI 已单一收口：`src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx:12-18`（注释明写「三种来源共用这一个对话框，不另造并行卡」）+ `src/workbench/generationCanvas/spend/MultiShotContractSummary.tsx:8-14`（批量确认卡内容区）。
+
+**③ 生态里已有？**
+- Claude Code 官方安全文档（权限模式 + deny→ask→allow 规则表）：https://docs.claude.com/en/docs/claude-code/security
+- Codex CLI 官方文档（sandbox_mode × approval_policy 双独立轴）：https://developers.openai.com/codex/agent-approvals-security
+- Cursor CLI 官方文档（Auto-review：allowlist→sandbox→分类器三级流水线）：https://cursor.com/docs/agent/security/run-modes
+- Cline 官方文档（Auto Approve 按动作类别逐项授权，YOLO 才全放行）：https://docs.cline.bot/features/auto-approve
+- 结论：四家共同结构——规则宿主执行不靠模型自觉、危险/花钱类独立于档位的硬地板、自主/全放行是显式 opt-in。方案 §4.1 矩阵与 Claude Code/Cursor 同构，§4.2 自主开关对齐 Cline YOLO/Claude Code bypass 的「独立 opt-in」共识。
+
+**④ TikHub 自媒体里怎么说？**
+- 未检索。同日期目录 `docs/research/2026-09-10-ux-feedback-fixes/tikhub/tikhub-search.md` 是唯一现成检索产物，但关键词是「openai compatible api key 验证 401 models」（服务 B2 apimart 调研），与权限模型主题不相关，抽查其 80 条结果无一条涉及 agent 权限档位/审批流。本方案未另跑权限主题的 TikHub 检索，如实标注未检索。
+
+**结论**：付费确认闸、判据 owner、UI 组件仓库里都已存在单点实现，方案不新增并行版，只在既有 owner 上升级判据矩阵（§4.1）与接入槽单轨化（§4.3）；自主开关（§4.2）是仓库新概念，但结构对齐 Cline YOLO / Claude Code bypass 两家生态先例；pi-agent-core 库本身不提供权限扩展点，判据层必须自建，这是宿主职责边界所在，不是遗漏。
+
 ## 一、调研摘要（均为一手官方文档/实核文）
 
 | 产品 | 模型 | 关键细节 |

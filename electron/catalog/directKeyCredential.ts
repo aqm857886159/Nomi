@@ -23,6 +23,7 @@ import { builtinVendorSeed, builtinVendorScopeMatches, isBuiltinDirectKeyVendor 
 import { hasBuiltinCuratedExecution } from './seedBuiltins'
 import { buildHttpRequest, appendQueryParams } from '../ai/requestPipeline'
 import { readNestedRecord } from '../jsonUtils'
+import { appFetch } from '../appFetch'
 import type { Vendor } from './types'
 
 export type DirectKeyProbeOutcome = 'verified' | 'invalid-key' | 'pending'
@@ -39,7 +40,7 @@ export function directKeyProbeModelId(state: ReturnType<typeof readCatalog>, ven
  * persists upstream bodies, request headers, or exception messages (they may
  * echo credentials) — same discipline as the weekly radar probe.
  */
-export async function probeDirectKeyCredential(vendor: Vendor, apiKey: string, fetchImpl: typeof fetch = fetch): Promise<DirectKeyProbeOutcome> {
+export async function probeDirectKeyCredential(vendor: Vendor, apiKey: string, fetchImpl: typeof fetch = appFetch): Promise<DirectKeyProbeOutcome> {
   const declaration = builtinVendorSeed(vendor.key)?.livenessProbe
   if (!declaration) return 'pending'
   const model = directKeyProbeModelId(readCatalog(), vendor.key)

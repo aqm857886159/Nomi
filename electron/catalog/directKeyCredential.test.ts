@@ -35,17 +35,19 @@ vi.mock("../ai/antigravityConnection", () => ({
   antigravityConnection: { canEnable: () => false, hasPassed: () => false },
 }));
 
-const fetchMock = vi.fn<typeof fetch>();
+// probeDirectKeyCredential defaults its fetchImpl param to appFetch (production transport,
+// not raw Node fetch — check-network-entry.mjs forbids bare `fetch` as a value). Tests inject
+// by mocking the appFetch module, same pattern as localAssetFile.multipart-order.test.ts.
+const { mockAppFetch } = vi.hoisted(() => ({ mockAppFetch: vi.fn<typeof fetch>() }));
+vi.mock("../appFetch", () => ({ appFetch: mockAppFetch }));
 
 beforeEach(() => {
   mockedUserDataRoot = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-direct-key-"));
   tempRoots.push(mockedUserDataRoot);
-  vi.stubGlobal("fetch", fetchMock);
 });
 
 afterEach(() => {
-  vi.unstubAllGlobals();
-  fetchMock.mockReset();
+  mockAppFetch.mockReset();
   for (const root of tempRoots.splice(0)) fs.rmSync(root, { recursive: true, force: true });
 });
 
@@ -77,19 +79,19 @@ function probeResponse(status: number, body?: unknown): Response {
 describe("direct-key credential validation (apimart liveness probe)", () => {
   it("probe 200 + choices → verified (not pending), no /v1/models call", async () => {
     const state = seedApimartCatalog();
-    fetchMock.mockResolvedValue(probeResponse(200));
+    mockAppFetch.mockResolvedValue(probeResponse(200));
     await expect(validateCandidateCredential(apimartVendor(state), "sk-test")).resolves.toBe(false);
   });
 
   it.each([401, 403])("probe %i → key is invalid (throws, candidate never published)", async (status) => {
     const state = seedApimartCatalog();
-    fetchMock.mockResolvedValue(probeResponse(status, { code: 401, message: "unauthorized" }));
+    mockAppFetch.mockResolvedValue(probeResponse(status, { code: 401, message: "unauthorized" }));
     await expect(validateCandidateCredential(apimartVendor(state), "sk-bad")).rejects.toThrow();
   });
 
   it("network failure → pending (honest: not faked as available, not misreported as bad key)", async () => {
     const state = seedApimartCatalog();
-    fetchMock.mockRejectedValue(new TypeError("offline"));
+    mockAppFetch.mockRejectedValue(new TypeError("offline"));
     await expect(validateCandidateCredential(apimartVendor(state), "sk-test")).resolves.toBe(true);
   });
 });
@@ -97,7 +99,7 @@ describe("direct-key credential validation (apimart liveness probe)", () => {
 describe("direct-key credential publish path", () => {
   it("verified key publishes credential AND vendor in the same write", async () => {
     seedApimartCatalog();
-    fetchMock.mockResolvedValue(probeResponse(200));
+    mockAppFetch.mockResolvedValue(probeResponse(200));
     await upsertRendererCatalogVendorApiKey("apimart", { apiKey: "sk-live", enabled: false });
     const state = readCatalog();
     expect(state.apiKeysByVendor.apimart).toMatchObject({ enabled: true });
@@ -107,7 +109,7 @@ describe("direct-key credential publish path", () => {
 
   it("pending key stays disabled and the vendor stays de-published (honesty invariant intact)", async () => {
     seedApimartCatalog();
-    fetchMock.mockRejectedValue(new TypeError("offline"));
+    mockAppFetch.mockRejectedValue(new TypeError("offline"));
     await upsertRendererCatalogVendorApiKey("apimart", { apiKey: "sk-live", enabled: false });
     const state = readCatalog();
     expect(state.apiKeysByVendor.apimart).toMatchObject({ enabled: false, verificationPending: true });
@@ -119,7 +121,7 @@ describe("direct-key credential publish path", () => {
     // 用户（或旧数据）把 baseUrl 指去别处 → 不再是代码拥有的契约，promote 必须拒绝。
     apimartVendor(state).baseUrlHint = "https://evil.example";
     fs.writeFileSync(path.join(mockedUserDataRoot, "model-catalog.json"), JSON.stringify(state), "utf8");
-    fetchMock.mockResolvedValue(probeResponse(200));
+    mockAppFetch.mockResolvedValue(probeResponse(200));
     await upsertRendererCatalogVendorApiKey("apimart", { apiKey: "sk-live", enabled: false });
     const after = readCatalog();
     expect(after.vendors.find((vendor) => vendor.key === "apimart")?.enabled).toBe(false);
