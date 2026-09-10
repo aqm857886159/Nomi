@@ -12,6 +12,7 @@ import { V4Row } from './AgentPanelV4Row'
 //
 // ⑥ 队列行：只在「运行中还继续输入」时出现在 composer 顶上；完成的划掉；空队列不渲染。
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { AgentPanelV4Markdown } from './AgentPanelV4Markdown'
 import { cn } from '../../../utils/cn'
 import {
@@ -171,6 +172,39 @@ function SlotIcon({ kind }: { kind: V4InterventionKind }): JSX.Element {
 }
 
 /**
+ * 卡顶的翻页器（`‹ 2/4 ›`）。
+ *
+ * 它长在槽头的内容流里、紧跟标题与徽标，**不用 `ml-auto` 顶到右缘**
+ * （2026-09-09 用户拍板的通用规则；`check:tokens` 对 `src/workbench/ai/` 是硬零）。
+ * 槽头本来就只有三四个词，翻页器跟在后面读起来是「这张卡是第几张」，
+ * 顶到右缘反而把它和它在说的那张卡拉开了。
+ *
+ * 只有一项时调用方不传 `pager`，整个翻页器不渲染——「1/1」是一句废话。
+ */
+function V4Pager({
+  pager,
+  onPage,
+}: {
+  pager: NonNullable<InterventionData['pager']>
+  onPage?: (index: number) => void
+}): JSX.Element {
+  const { t } = useTranslation()
+  const step = (delta: number): void => onPage?.((pager.index + delta + pager.total) % pager.total)
+  const arrow = 'flex size-5 shrink-0 items-center justify-center rounded-nomi-sm text-nomi-accent hover:bg-nomi-info-edge disabled:opacity-40'
+  return (
+    <V4Row as="div" className="shrink-0 gap-0.5 font-normal" data-v4-block="pager">
+      <button type="button" className={arrow} aria-label={t('agentPanelV4.pagerPrev')} disabled={pager.total < 2} onClick={() => step(-1)} data-v4-control="pager-prev">
+        <IconChevronRight size={12} className="rotate-180" aria-hidden="true" />
+      </button>
+      <span className="tabular-nums text-micro">{`${pager.index + 1}/${pager.total}`}</span>
+      <button type="button" className={arrow} aria-label={t('agentPanelV4.pagerNext')} disabled={pager.total < 2} onClick={() => step(1)} data-v4-control="pager-next">
+        <IconChevronRight size={12} aria-hidden="true" />
+      </button>
+    </V4Row>
+  )
+}
+
+/**
  * ⑤ 介入槽的**价格行**（形态 9 · B-02）。
  *
  * 一行两端：左边说「怎么算出来的」，右边是加粗合计。合计缺席时右边印的是那句
@@ -218,9 +252,10 @@ function V4PriceRow({ price }: { price: NonNullable<InterventionData['price']> }
 
 export function V4Intervention({
   data,
-  parameterBar,
+  composer,
   labels,
   onConfirm,
+  onPage,
   onReject,
   onEscalate,
   onAlternate,
@@ -230,18 +265,23 @@ export function V4Intervention({
 }: {
   data: InterventionData
   /**
-   * 参数条。给了就**替掉** `data.params` 那排只读 chip——同一张卡上不许既摆一排不能点的 chip、
-   * 又摆一条能点的参数条（那是同一件事的两个说法）。
+   * 卡体 = **画布节点那张生成框整件**（`NodeGenerationComposer host="panel"`）：
+   * 上边提示词、下边那条参数条，和用户在画布上改一个镜头时看到的是同一个东西。
    *
-   * 2026-09-10 用户拍板：付费卡上的参数要和**图片节点/视频节点底下那条参数条一模一样**
-   * ——点模型下拉着选、点摘要 pill 弹出同一个参数面板逐项选。所以这里收的是一个 ReactNode，
-   * 由调用方把节点那条 `InlineParameterBar` 直接放进来；槽里**不重画**一份长得像的
-   * （重画一份就是并行版，P1）。
+   * 2026-09-10 用户退回 v1 时说得很直接：「你没有用我们下面那种一行的模式——上边是提示词，
+   * 下边是那些参数组件……要和画布里一样的真实体验」。所以这里收的不是一条参数条，
+   * 是**整件 composer**；卡壳只负责它周围那圈东西（槽头 / 价格行 / 动作）。
+   * 槽里不重画一份长得像的（重画一份就是并行版，P1）。
+   *
+   * 给了它就**替掉** `data.params` 那排只读 chip——同一张卡上不许既摆一排不能点的 chip、
+   * 又摆一条能点的参数条（那是同一件事的两个说法）。
    */
-  parameterBar?: React.ReactNode
+  composer?: React.ReactNode
   labels: { confirm: string; reject: string; escalate: string; cancel: string; confirmReject: string; collapsePlan: string }
   /** 确认。计划槽传的是当前勾选集，其余档传 `undefined`。 */
   onConfirm?: () => void
+  /** 翻到第几张卡（`data.pager` 在时才有意义）。 */
+  onPage?: (index: number) => void
   /** 拒绝。`reason` 是渐进披露出来的那一行，可为空。 */
   onReject?: (reason?: string) => void
   /** 「不再问 →」——**这一个能力**以后不再问，不是整个项目（2026-09-06 拍板 ②）。 */
@@ -274,13 +314,14 @@ export function V4Intervention({
       data-kind={data.kind}
     >
       <V4Row as="header" className="bg-nomi-accent-soft px-2.5 py-2 text-caption font-semibold text-nomi-accent">
-        <SlotIcon kind={data.kind} />
+        {data.hideIcon ? null : <SlotIcon kind={data.kind} />}
         <AgentPanelV4Markdown text={data.title} />
         {data.badge ? <span className="shrink-0 font-normal opacity-85">{data.badge}</span> : null}
+        {data.pager ? <V4Pager pager={data.pager} onPage={onPage} /> : null}
       </V4Row>
       <div className="flex flex-col gap-1.5 px-2.5 py-2 text-caption text-nomi-ink">
         {data.summary ? <AgentPanelV4Markdown text={data.summary} /> : null}
-        {parameterBar ?? (data.params?.length ? (
+        {composer ?? (data.params?.length ? (
           <div className="flex flex-wrap gap-1">
             {data.params.map((param) => (
               <span

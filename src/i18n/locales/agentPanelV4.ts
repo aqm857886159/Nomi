@@ -341,16 +341,15 @@ export const zhAgentPanelV4 = {
   slotDeviationDraw: '先生图（+¥0.12）',
   slotDeviationSkip: '跳过',
   // 付费卡 · 参数条版（2026-09-10 用户拍板：参数行 = 节点那条参数条，确认前全部可改）
-  spendParamsTitle: '生成 4 段视频',
-  spendParamsBatchTitle: '生成 4 镜的视频',
+  spendParamsTitle: '生成 {{count}} 镜的视频',
   /** 模型芯片上的极小徽标：这一项是 Nomi 替你挑的，不是你选的。 */
   spendParamsModelPicked: 'Nomi 选的',
-  /** 这一单到底会发生什么。旧卡借用了单镜那句「用镜头 2 采用的那张…」，放在 4 段的卡上是句错话。 */
-  spendParamsSummary: '每镜用它已采用的那张图当首帧 · 生成结果落画布，可再拖进时间轴。',
   /** 「怎么算出来的」那半行。数由报价给，语序在这里。 */
-  spendParamsBreakdown: '{{count}} 段 × {{seconds}}s · {{quality}} · {{unit}}/秒',
-  /** 报不出价时的算式：**不印单价**。报不出价却印着 ¥0.10/秒，等于自己编了一个数。 */
-  spendParamsBreakdownNoUnit: '{{count}} 段 × {{seconds}}s · {{quality}}',
+  spendParamsBreakdown: '{{count}} 镜 × {{seconds}}s · {{quality}} · {{unit}}/秒',
+  /** 逐镜参数已经不一样了：那句算式不再成立，改说「逐镜不同」，数字交给下面的逐镜折叠口。 */
+  spendParamsBreakdownMixed: '{{count}} 镜 · 逐镜不同',
+  /** 报不出价时的算式：**不印单价、不印时长**。报不出价却印着 ¥0.10/秒，等于自己编了一个数。 */
+  spendParamsBreakdownNoUnit: '{{count}} 镜',
   spendParamsTotalLabel: '合计',
   spendParamsUnavailable: '暂时算不出价格',
   spendParamsPerItem: '逐镜 · {{count}} 镜',
@@ -358,8 +357,9 @@ export const zhAgentPanelV4 = {
   /** 确认钮：动词 + 这一刻的合计。改了参数它当场跟着变。 */
   spendParamsConfirm: '生成 {{amount}}',
   spendParamsConfirmUnknown: '仍要生成',
+  /** 整批一次过。逐镜看完再按，所以它是次动作、不是主动作。 */
+  spendParamsGenerateAll: '全部生成 {{amount}}',
   spendParamsDecline: '不要',
-  spendParamsScope: '确认前这些参数都能改；确认后这一单就定了。',
   spendParamsScopeUnknown: '价格没取到。要继续就得接受「花多少事后才知道」。',
   qualityStandard: '标准画质',
   qualityPro: '高画质',
@@ -371,6 +371,12 @@ export const zhAgentPanelV4 = {
   autoModeConfirmCancel: '不用',
   autoModeBannerNote: '付费和不可逆仍会问',
   autoModeBannerRevert: '回到自动改',
+  /** 叉掉这一条（2026-09-10 用户：可以叉掉，一直放占空间）。 */
+  autoModeBannerDismiss: '不再显示这条提醒',
+
+  /** 介入槽翻页器（`‹ 2/4 ›`）的无障碍名。 */
+  pagerPrev: '上一张',
+  pagerNext: '下一张',
 
   slotThreeEdits: '3 处改动，已在时间轴高亮',
   slotEditTransition: '转场 · 镜头 2→3 叠化 12 帧',
@@ -703,20 +709,19 @@ export const enAgentPanelV4 = {
   slotDeviationTitle: 'Shot 3 has no first frame — skip it or draw one first?',
   slotDeviationDraw: 'Draw one first (+¥0.12)',
   slotDeviationSkip: 'Skip',
-  spendParamsTitle: 'Generate 4 video clips',
-  spendParamsBatchTitle: 'Generate video for 4 shots',
+  spendParamsTitle: 'Generate video for {{count}} shots',
   spendParamsModelPicked: 'Nomi picked',
-  spendParamsSummary: 'Each shot uses its adopted still as the first frame · results land on the canvas and can be dragged onto the timeline.',
-  spendParamsBreakdown: '{{count}} clips × {{seconds}}s · {{quality}} · {{unit}}/s',
-  spendParamsBreakdownNoUnit: '{{count}} clips × {{seconds}}s · {{quality}}',
+  spendParamsBreakdown: '{{count}} shots × {{seconds}}s · {{quality}} · {{unit}}/s',
+  spendParamsBreakdownMixed: '{{count}} shots · settings differ',
+  spendParamsBreakdownNoUnit: '{{count}} shots',
   spendParamsTotalLabel: 'Total',
   spendParamsUnavailable: 'Price unavailable right now',
   spendParamsPerItem: 'Per shot ({{count}})',
   spendParamsShot: 'Shot {{number}}',
   spendParamsConfirm: 'Generate {{amount}}',
   spendParamsConfirmUnknown: 'Generate anyway',
+  spendParamsGenerateAll: 'Generate all {{amount}}',
   spendParamsDecline: 'No',
-  spendParamsScope: 'Everything here can still be changed; once you confirm, this order is fixed.',
   spendParamsScopeUnknown: 'No price came back. Continuing means you only learn the cost afterwards.',
   qualityStandard: 'Standard',
   qualityPro: 'High quality',
@@ -727,6 +732,10 @@ export const enAgentPanelV4 = {
   autoModeConfirmCancel: 'Not now',
   autoModeBannerNote: 'Paid and irreversible still ask',
   autoModeBannerRevert: 'Back to Auto-edit',
+  autoModeBannerDismiss: 'Hide this reminder',
+
+  pagerPrev: 'Previous',
+  pagerNext: 'Next',
 
   slotThreeEdits: '3 edits, highlighted on the timeline',
   slotEditTransition: 'Transition · 12-frame dissolve, shot 2→3',

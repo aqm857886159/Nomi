@@ -14,12 +14,15 @@
 // 不用 icon——设计定稿 ⑧ 禁用闪光/机器人头那一族，而「自动」正是最容易被画成闪电的地方。
 import React from 'react'
 import { V4Row } from './AgentPanelV4Row'
+import { IconX } from './AgentPanelV4Icons'
 
 export function V4AutoModeBanner({
   label,
   note,
   revertLabel,
+  dismissLabel,
   onRevert,
+  onDismiss,
 }: {
   /** 档位名（「全自动」）。 */
   label: string
@@ -27,7 +30,17 @@ export function V4AutoModeBanner({
   note: string
   /** 退回上一档那颗小钮的文案（「回到自动改」）。 */
   revertLabel: string
+  /** 叉掉那颗钮的无障碍名（2026-09-10 用户拍板：这条要能叉掉，一直挂着占地方）。 */
+  dismissLabel: string
   onRevert?: () => void
+  /**
+   * 叉掉这一条。
+   *
+   * 为什么允许叉：这条是**提醒**，不是开关。提醒的价值在「你可能忘了」，
+   * 而看过一次就不会忘的人被它常年占掉一行——用户原话「可以叉掉，一直放占空间」。
+   * 叉掉只影响这一会话的这一条横幅，档位本身一动不动（改档的家仍是 composer 底栏那颗钮）。
+   */
+  onDismiss?: () => void
 }): JSX.Element {
   return (
     <V4Row
@@ -49,6 +62,15 @@ export function V4AutoModeBanner({
         className="h-5 shrink-0 rounded-pill border border-nomi-warning-edge px-1.5 font-medium text-nomi-warning-ink hover:bg-nomi-warning-edge"
       >
         {revertLabel}
+      </button>
+      <button
+        type="button"
+        onClick={onDismiss}
+        aria-label={dismissLabel}
+        data-v4-control="auto-mode-dismiss"
+        className="flex size-5 shrink-0 items-center justify-center rounded-nomi-sm hover:bg-nomi-warning-edge"
+      >
+        <IconX size={11} aria-hidden="true" />
       </button>
     </V4Row>
   )
