@@ -340,6 +340,50 @@ export const zhAgentPanelV4 = {
   slotDeviationTitle: '第 3 镜没有首帧，跳过还是先生图？',
   slotDeviationDraw: '先生图（+¥0.12）',
   slotDeviationSkip: '跳过',
+  // 付费卡 · 参数条版（2026-09-10 用户拍板：参数行 = 节点那条参数条，确认前全部可改）
+  spendParamsTitle: '生成 {{count}} 镜的视频',
+  /** 模型芯片上的极小徽标：这一项是 Nomi 替你挑的，不是你选的。 */
+  spendParamsModelPicked: 'Nomi 选的',
+  /** 「怎么算出来的」那半行。数由报价给，语序在这里。 */
+  spendParamsBreakdown: '{{count}} 镜 × {{seconds}}s · {{quality}} · {{unit}}/秒',
+  /** 逐镜参数已经不一样了：那句算式不再成立，改说「逐镜不同」，数字交给下面的逐镜折叠口。 */
+  spendParamsBreakdownMixed: '{{count}} 镜 · 逐镜不同',
+  /** 报不出价时的算式：**不印单价、不印时长**。报不出价却印着 ¥0.10/秒，等于自己编了一个数。 */
+  spendParamsBreakdownNoUnit: '{{count}} 镜',
+  spendParamsTotalLabel: '合计',
+  spendParamsUnavailable: '暂时算不出价格',
+  spendParamsPerItem: '逐镜 · {{count}} 镜',
+  spendParamsShot: '镜头 {{number}}',
+  /** 确认钮：动词 + 这一刻的合计。改了参数它当场跟着变。 */
+  spendParamsConfirm: '生成 {{amount}}',
+  spendParamsConfirmUnknown: '仍要生成',
+  /** 范围切到「全部」后的同一颗主按钮：多印一句「几镜」，因为这时的数不再是眼前这一页的。 */
+  spendParamsConfirmAll: '生成 {{count}} 镜 {{amount}}',
+  /** 范围切换两档（2026-09-10 v3：批量不再是第二颗文字按钮，是同一个决定的范围）。 */
+  spendParamsScopeEach: '逐镜',
+  spendParamsScopeAll: '全部',
+  spendParamsScopeAria: '生成范围',
+  spendParamsDecline: '不要',
+  spendParamsScopeUnknown: '价格没取到。要继续就得接受「花多少事后才知道」。',
+  qualityStandard: '标准画质',
+  qualityPro: '高画质',
+
+  // 「全自动」档（2026-09-10 用户拍板 · 增量 2）
+  autoModeConfirmTitle: '切到「全自动」？',
+  autoModeConfirmBody: '之后可撤销的改动 Nomi 直接做，不再逐步问你。**付费和不可逆的操作仍然每次问。**',
+  autoModeConfirmOk: '切到全自动',
+  autoModeConfirmCancel: '不用',
+  autoModeBannerNote: '付费和不可逆仍会问',
+  autoModeBannerRevert: '回到自动改',
+  /** 叉掉这一条（2026-09-10 用户：可以叉掉，一直放占空间）。 */
+  autoModeBannerDismiss: '不再显示这条提醒',
+
+  /** 介入槽翻页器（`‹ 2/4 ›`）的无障碍名。 */
+  pagerPrev: '上一张',
+  pagerNext: '下一张',
+  /** 键盘翻页提示：只印两个箭头字符（不是一句说明；说明会让用户多读一行）。 */
+  pagerKeyHint: '←→',
+
   slotThreeEdits: '3 处改动，已在时间轴高亮',
   slotEditTransition: '转场 · 镜头 2→3 叠化 12 帧',
   slotEditCaption: '字幕 · 第 2 镜 →「清爽相伴」',
@@ -671,6 +715,38 @@ export const enAgentPanelV4 = {
   slotDeviationTitle: 'Shot 3 has no first frame — skip it or draw one first?',
   slotDeviationDraw: 'Draw one first (+¥0.12)',
   slotDeviationSkip: 'Skip',
+  spendParamsTitle: 'Generate video for {{count}} shots',
+  spendParamsModelPicked: 'Nomi picked',
+  spendParamsBreakdown: '{{count}} shots × {{seconds}}s · {{quality}} · {{unit}}/s',
+  spendParamsBreakdownMixed: '{{count}} shots · settings differ',
+  spendParamsBreakdownNoUnit: '{{count}} shots',
+  spendParamsTotalLabel: 'Total',
+  spendParamsUnavailable: 'Price unavailable right now',
+  spendParamsPerItem: 'Per shot ({{count}})',
+  spendParamsShot: 'Shot {{number}}',
+  spendParamsConfirm: 'Generate {{amount}}',
+  spendParamsConfirmUnknown: 'Generate anyway',
+  spendParamsConfirmAll: 'Generate {{count}} shots {{amount}}',
+  spendParamsScopeEach: 'Per shot',
+  spendParamsScopeAll: 'All',
+  spendParamsScopeAria: 'Generation scope',
+  spendParamsDecline: 'No',
+  spendParamsScopeUnknown: 'No price came back. Continuing means you only learn the cost afterwards.',
+  qualityStandard: 'Standard',
+  qualityPro: 'High quality',
+
+  autoModeConfirmTitle: 'Switch to Full auto?',
+  autoModeConfirmBody: 'Nomi will make undoable edits directly instead of asking you step by step. **Paid and irreversible actions are still confirmed every time.**',
+  autoModeConfirmOk: 'Switch to full auto',
+  autoModeConfirmCancel: 'Not now',
+  autoModeBannerNote: 'Paid and irreversible still ask',
+  autoModeBannerRevert: 'Back to Auto-edit',
+  autoModeBannerDismiss: 'Hide this reminder',
+
+  pagerPrev: 'Previous',
+  pagerNext: 'Next',
+  pagerKeyHint: '←→',
+
   slotThreeEdits: '3 edits, highlighted on the timeline',
   slotEditTransition: 'Transition · 12-frame dissolve, shot 2→3',
   slotEditCaption: 'Caption · shot 2 → “Fresh match”',
