@@ -234,6 +234,30 @@ export function withWorkspaceManifestTransactionSync<T>(
   return runTransactionSync(tryAcquireWorkspaceManifestLock(actualRootPath, lockOptions), callback);
 }
 
+/** Wait without blocking the owner, then preserve synchronous staged validation and commit semantics. */
+const stagedTransactionTails = new Map<string, Promise<void>>();
+
+export async function withWorkspaceManifestStagedTransaction<T>(
+  actualRootPath: string,
+  callback: (transaction: WorkspaceManifestTransaction) => T extends PromiseLike<unknown> ? never : T,
+  lockOptions: WorkspaceManifestLockOptions = {},
+): Promise<T> {
+  const canonicalRoot = fs.realpathSync(actualRootPath);
+  const previous = stagedTransactionTails.get(canonicalRoot) ?? Promise.resolve();
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  const tail = previous.then(() => gate);
+  stagedTransactionTails.set(canonicalRoot, tail);
+  await previous;
+  try {
+    const lease = await acquireWorkspaceManifestLock(canonicalRoot, lockOptions);
+    return runTransactionSync(lease, callback);
+  } finally {
+    release();
+    if (stagedTransactionTails.get(canonicalRoot) === tail) stagedTransactionTails.delete(canonicalRoot);
+  }
+}
+
 export async function withWorkspaceManifestTransaction<T>(
   actualRootPath: string,
   callback: (transaction: WorkspaceManifestTransaction) => T | Promise<T>,

@@ -1,0 +1,95 @@
+{
+  "version": "desktop-local-v1",
+  "exportedAt": "2026-09-10T02:15:00.000Z",
+  "vendors": [
+    {
+      "vendor": {
+        "key": "example-relay",
+        "name": "Example Relay",
+        "enabled": true,
+        "hasApiKey": true,
+        "baseUrlHint": "https://api.example-relay.test/v1",
+        "authType": "bearer",
+        "providerKind": "openai-compatible",
+        "createdAt": "2026-09-10T02:00:00.000Z",
+        "updatedAt": "2026-09-10T02:00:00.000Z"
+      },
+      "models": [
+        {
+          "modelKey": "example-chat",
+          "vendorKey": "example-relay",
+          "labelZh": "Example Chat",
+          "kind": "text",
+          "enabled": true,
+          "createdAt": "2026-09-10T02:00:00.000Z",
+          "updatedAt": "2026-09-10T02:00:00.000Z"
+        },
+        {
+          "modelKey": "example-image",
+          "vendorKey": "example-relay",
+          "labelZh": "Example Image",
+          "kind": "image",
+          "enabled": true,
+          "createdAt": "2026-09-10T02:00:00.000Z",
+          "updatedAt": "2026-09-10T02:00:00.000Z"
+        }
+      ],
+      "mappings": [
+        {
+          "id": "mapping-example-chat",
+          "vendorKey": "example-relay",
+          "taskKind": "chat",
+          "modelKey": "example-chat",
+          "name": "chat",
+          "enabled": true,
+          "create": {
+            "method": "POST",
+            "path": "/chat/completions",
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "body": {
+              "model": "{{model.modelKey}}",
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "{{request.prompt}}"
+                }
+              ]
+            },
+            "response_mapping": {
+              "text": "choices.0.message.content"
+            }
+          },
+          "createdAt": "2026-09-10T02:00:00.000Z",
+          "updatedAt": "2026-09-10T02:00:00.000Z"
+        },
+        {
+          "id": "mapping-example-image",
+          "vendorKey": "example-relay",
+          "taskKind": "text_to_image",
+          "modelKey": "example-image",
+          "name": "text_to_image",
+          "enabled": true,
+          "create": {
+            "method": "POST",
+            "path": "/images/generations",
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "body": {
+              "model": "{{model.modelKey}}",
+              "prompt": "{{request.prompt}}",
+              "size": "{{request.params.size}}"
+            },
+            "response_mapping": {
+              "image_url": "data.0.url"
+            }
+          },
+          "createdAt": "2026-09-10T02:00:00.000Z",
+          "updatedAt": "2026-09-10T02:00:00.000Z"
+        }
+      ]
+    }
+  ]
+}

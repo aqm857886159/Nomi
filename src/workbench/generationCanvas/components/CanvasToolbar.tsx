@@ -36,7 +36,7 @@ function nodeKindLabel(kind: GenerationNodeKind, t: TFunction): string {
   if (kind === 'model3d') return t('canvas.nodeKinds.model3d')
   if (kind === 'whiteboard') return t('canvas.nodeKinds.whiteboard')
   if (kind === 'panorama') return t('canvas.nodeKinds.panorama')
-  if (kind === 'scene3d') return t('canvas.nodeKinds.scene3d')
+  if (kind === 'director') return t('canvas.nodeKinds.director')
   return kind
 }
 

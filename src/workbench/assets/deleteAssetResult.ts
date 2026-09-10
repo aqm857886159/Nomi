@@ -93,7 +93,7 @@ async function deleteAssetResultUnlocked(
     if (project) {
       const plan = buildAssetResultDeletionPlan(asset, project.payload.generationCanvas.nodes)
       if (plan.matches.length > 0) {
-        saveLocalProject(metadataProjectId, {
+        await saveLocalProject(metadataProjectId, {
           ...project.payload,
           generationCanvas: {
             ...project.payload.generationCanvas,

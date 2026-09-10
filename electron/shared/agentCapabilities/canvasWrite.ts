@@ -163,7 +163,7 @@ const tidyCanvasInputSchema = z
   .strict();
 
 // Storyboard-side canvas actions already have renderer/domain owners (the
-// creation store, timeline adoption bridge, and scene3d builders).  Keep
+// creation store, timeline adoption bridge, and director builders).  Keep
 // their model-facing envelopes in the same canonical capability so a visible
 // tool cannot fall through to an unverified generic approval.  The nested
 // domain records are validated again by the renderer's authoritative parser;

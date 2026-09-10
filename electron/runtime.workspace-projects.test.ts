@@ -107,12 +107,12 @@ describe("runtime workspace project APIs", () => {
     expect(fs.readdirSync(path.join(workspaceRoot, "assets", "generated", "2026-05-31"))).toHaveLength(1);
   });
 
-  it("saveProject updates workspace manifest payload", () => {
+  it("saveProject updates workspace manifest payload", async () => {
     const workspaceRoot = makeTempDir();
     const created = createProject({ rootPath: workspaceRoot, name: "Save Runtime", payload: { draft: 1 } });
     vi.setSystemTime(new Date("2026-05-31T12:30:00Z"));
 
-    const saved = saveProject(created.id, { name: "Saved Runtime", payload: { draft: 2 } });
+    const saved = await saveProject(created.id, { name: "Saved Runtime", payload: { draft: 2 } });
     const raw = JSON.parse(fs.readFileSync(workspaceProjectFile(workspaceRoot), "utf8"));
 
     expect(saved).toMatchObject({
@@ -256,8 +256,8 @@ describe("runtime workspace project APIs", () => {
     expect(readProject(created.id)).toEqual(created);
   });
 
-  it("does not create new fixed-root projects when saving an unknown project id", () => {
-    expect(() => saveProject("missing-id", { name: "Missing", payload: {} })).toThrow(/workspace project/i);
+  it("does not create new fixed-root projects when saving an unknown project id", async () => {
+    await expect(saveProject("missing-id", { name: "Missing", payload: {} })).rejects.toThrow(/workspace project/i);
     expect(listProjects()).toEqual([]);
   });
 

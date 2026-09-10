@@ -39,6 +39,27 @@ export function isSpendGate(gate: Pick<ProductionRun['gates'][number], 'gateId' 
   return gate.scope === 'budget_envelope' || gate.scope === 'job_set'
 }
 
+/**
+ * 「以后 ¥X 内别再逐镜问」= 把 Run 降到 budget_only 这一档。这个降档**会替真人放行后续付费提交**
+ * （逐镜确认门从此不再生成），所以它和付费门同权：必须有一次真人答过的确认。
+ *
+ * 这两个函数是那次确认的**身份**——收据签在什么上、验的时候拿什么比：
+ * - `trustGrantGateId`：合成门 id。刻意不用 `gate-` 前缀，于是一张信任收据永远落不进 `gate.decide`
+ *   （那里按 `command.payload.gateId` 比对），反向也一样（真门收据的 costScope 不是 `trust.budget-only:`）。
+ * - `trustGrantCostScope`：把「哪个 run + 什么币种 + 多少钱」编进 costScope（既有约定，见
+ *   `generation.multi-shot:${runId}`）。**改上限或换 run ⇒ 串不一样 ⇒ 收据失配**，这就是「上限绑死」。
+ */
+export function trustGrantGateId(planVersion: number): string {
+  return `trust-budget-only-v${planVersion}`;
+}
+
+export function trustGrantCostScope(runId: string, currency: string, maximum: number): string {
+  if (!runId || !currency || !Number.isFinite(maximum) || maximum <= 0) {
+    throw new Error("A trust grant needs a run, a currency and a positive ceiling");
+  }
+  return `trust.budget-only:${runId}:${currency}:${maximum}`;
+}
+
 export function sampleGateId(planVersion: number): string {
   return `gate-sample-v${planVersion}`
 }

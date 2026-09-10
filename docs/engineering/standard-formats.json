@@ -366,6 +366,59 @@
       ]
     },
     {
+      "name": "model-catalog-package",
+      "kind": "nomi-defined",
+      "files": [
+        "nomi-model-catalog.desktop-local-v1.json"
+      ],
+      "why": "「配置是独立文件」这条路的落点：一个人把中转站/自建端点接好，导出一份 JSON，别人——或一个照着供应商接口文档写配置的 LLM——直接写一份同样形状的文件导进去。这是**外面也读写**的东西，所以它必须有一份说得清的形状；2026-09-10 之前它只有 exportModelCatalogPackage / importModelCatalogPackage 两个函数，外部要么逆向我们的代码，要么先在 Nomi 里点一遍再照抄导出来的文件。schema 从 zod 契约派生（docs/engineering/formats/desktop-local-v1.schema.json），条目形状的单一真相仍是 electron/catalog/types.ts 的 Vendor / Model / Mapping，身份字段与 TS 类型之间有编译期桥。",
+      "searched": [
+        {
+          "what": "OpenAI 兼容生态里「模型清单/接入配置」的既有格式：OpenAI `GET /v1/models` 响应（https://platform.openai.com/docs/api-reference/models/list）、LiteLLM 的 `model_list` YAML（https://docs.litellm.ai/docs/proxy/configs）",
+          "verdict": "都对不上：前者是**只读的模型清单**，没有鉴权方式、没有任务映射、没有请求/响应字段映射，导进来还是不能生成；后者是网关自己的进程配置（router/fallback/budget 那一套），描述的是「LiteLLM 怎么代理」，不是「一台桌面机上某个供应商的某个模型怎么调」。两者都缺我们这个包的核心一格——create/query/result 三段 HTTP 声明与 response_mapping。"
+        },
+        {
+          "what": "MCP servers 配置（.mcp.json，本表另有一格）与 Agent Skills 的 SKILL.md frontmatter",
+          "verdict": "同族但不同物：那两者描述「怎么启动一个进程/怎么读一段技能文本」，没有任何一格能承载模型的计费类别、任务种类与响应字段映射。硬套只会变成把我们的字段塞进别人的扩展点，用户拿到的仍是一个别的工具读不了的文件。"
+        },
+        {
+          "what": "JSON Schema 本身（https://json-schema.org/draft-07/schema）",
+          "verdict": "**这一格对齐了**：形状是我们自定义的，但描述形状的语言用标准的 draft-07，并从 zod 单一真相派生，不手写第二份。外部工具与 LLM 因此可以直接拿这份 schema 做约束解码。"
+        }
+      ],
+      "fixtures": [
+        "tests/fixtures/standard-formats/model-catalog-package/desktop-local-v1.json"
+      ],
+      "readers": [
+        "electron/catalog/catalogStore.ts",
+        "electron/catalog/catalogPackageFormat.ts"
+      ],
+      "writers": [
+        "electron/catalog/catalogStore.ts",
+        "electron/catalog/catalogPackageFormat.ts"
+      ],
+      "deviations": [
+        {
+          "what": "条目（vendor / model / mapping）一律 `additionalProperties: true`，schema 只声明身份字段",
+          "reason": "领域约束：条目形状的单一真相是 electron/catalog/types.ts，在这里再抄一份完整的 Vendor 定义，两份必然漂移，而漂移的方向是「schema 说合法、导入却失败」。透传保证新增字段不需要同时改两处，也让旧版本导出的包仍然导得进来。"
+        },
+        {
+          "what": "导入侧只校验骨架（vendors 是数组、每个 bundle 是对象、vendor 在），条目内部的必填字段一律不判",
+          "reason": "领域约束：导出是「我们承诺写出来的形状」，导入面对的是别人的手写文件和更老版本导出的包。把 labelZh 这类**派生得出来**的字段当必填，只会把一直能用的输入判死——2026-09-10 首次接上这道闸时，labelZh 与只带 customConfig 的 apiKey 当场把三条既有用例判红，那就是实证。条目归一仍由 apply*Upsert 单点负责，没有第二条写路。"
+        },
+        {
+          "what": "导入侧不要求 `version`（导出侧一定写）",
+          "reason": "领域约束：现役调用方（跨机同步方案与 networkConfigSecrets 的往返测试）传的就是 `{ vendors }`。要求 version 等于把一条一直合法的输入判死，而 version 的作用是未来分版本时的判据，不是入口守卫。"
+        }
+      ],
+      "debt": {
+        "what": "还没有 UI 入口：导出走 `nomi:model-catalog:export` IPC，界面上没有「导出/导入接入包」的按钮，所以那个建议文件名目前没有任何写入方钉住它",
+        "why": "入口的形态（放在哪、要不要带凭据的二次确认、导入的冲突提示）属于设计问题，另有讨论；先把格式与读取器契约立住，避免入口做出来时又临时定一版形状。",
+        "plan": "docs/plan/2026-09-10-integration-docs-to-compiler.md",
+        "due": "2026-12-10"
+      }
+    },
+    {
       "name": "mcp-skill-resources-prompts",
       "kind": "external-standard",
       "wire": true,

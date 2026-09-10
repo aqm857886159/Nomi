@@ -13,9 +13,86 @@ import { execFileSync, spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { pathToFileURL } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
-export const REVIEW_TIMEOUT_MS = 180_000
+/**
+ * 评审墙钟：**派生的，不是常量**（2026-09-11）。
+ *
+ * 起因：`REVIEW_TIMEOUT_MS = 180_000` 假设评审进程能拿到一台闲机器。这台机器常年挂着
+ * 20+ worktree，同一刻三四棵在跑 gates；负载 8 时同一次 Codex 调用要花 3-5 倍时间。
+ * 于是闸门的语义从「这段改动过不过度工程化」悄悄变成「你现在这台机器忙不忙」——
+ * 2026-09-11 一晚六条分支被拦十几次，没有一条 diff 有问题。
+ * 闸门一旦开始拦无辜的人，人就会开始绕过闸门。
+ *
+ * 公式（常量与算式住这一处，单测直接喂）：
+ *   steps   = floor(diffBytes / REVIEW_TIMEOUT_DIFF_STEP_BYTES)
+ *   raw     = BASE + steps × REVIEW_TIMEOUT_DIFF_STEP_MS
+ *   scaled  = load1min > THRESHOLD ? raw × MULTIPLIER : raw
+ *   timeout = min(MAX, round(scaled))
+ *
+ * 负载用**原始** 1 分钟 loadavg，不按核数归一化：要防的就是「20 棵树一起跑」的绝对拥挤度。
+ * 上限封顶的理由：再长就不是超时问题而是 runner 坏了，那条路是延后账本，不是继续等。
+ */
+export const REVIEW_TIMEOUT_BASE_MS = 180_000
+export const REVIEW_TIMEOUT_MAX_MS = 600_000
+export const REVIEW_TIMEOUT_DIFF_STEP_BYTES = 50_000
+export const REVIEW_TIMEOUT_DIFF_STEP_MS = 60_000
+export const REVIEW_TIMEOUT_LOAD_THRESHOLD = 4
+export const REVIEW_TIMEOUT_LOAD_MULTIPLIER = 1.5
+
+/** 非有限/负数一律退回基线：0 会让 spawnSync 当场杀掉子进程，比写死还糟。 */
+function finiteOrZero(value) {
+  const number = Number(value)
+  return Number.isFinite(number) && number > 0 ? number : 0
+}
+
+export function resolveReviewTimeoutMs({ diffBytes = 0, loadAverage = 0 } = {}) {
+  const steps = Math.floor(finiteOrZero(diffBytes) / REVIEW_TIMEOUT_DIFF_STEP_BYTES)
+  const raw = REVIEW_TIMEOUT_BASE_MS + steps * REVIEW_TIMEOUT_DIFF_STEP_MS
+  const scaled = finiteOrZero(loadAverage) > REVIEW_TIMEOUT_LOAD_THRESHOLD
+    ? raw * REVIEW_TIMEOUT_LOAD_MULTIPLIER
+    : raw
+  return Math.min(REVIEW_TIMEOUT_MAX_MS, Math.round(scaled))
+}
+
+/**
+ * 全机串行锁（2026-09-11）。同一时刻只跑一个 Ponytail 评审——互相饿死的根源直接掐掉。
+ *
+ * 锁本体复用仓库唯一那把 flock 包装器 `scripts/with-gates-lock.py`（它的抬头注释解释了
+ * 为什么不删锁文件），只换锁路径。**为什么是「在锁下重跑一次自己」而不是「用包装器套住
+ * codex」**：套住 codex 的话，`spawnSync` 的 timeout 会同时盖住排队时间，排队久一点就又变成
+ * 超时——正是这次要修的病。分成两层后，外层只负责等锁（上限 15 分钟），内层拿到锁才开始计
+ * 评审墙钟。
+ */
+export const PONYTAIL_LOCK_HELD_ENV = 'NOMI_PONYTAIL_LOCK_HELD'
+const PONYTAIL_LOCK_WAIT_TIMEOUT_S = 900
+const PONYTAIL_LOCK_LABEL = 'Ponytail 评审'
+
+function ponytailLockPath(env = process.env) {
+  return String(env.NOMI_PONYTAIL_LOCK_PATH || '').trim()
+    || path.join(process.platform === 'win32' ? os.tmpdir() : '/tmp', 'nomi-ponytail.lock')
+}
+
+/**
+ * 提交阶段的留痕延后（2026-09-11）。
+ *
+ * 只在 `staged` scope 生效：`push` 的 outgoing diff 是最后一道本地闸，不许延后。
+ * 版本化 pre-commit 的顺序不变（敏感数据扫描在前），所以被扫描拦下的提交根本走不到这里。
+ * 账本格式逐字对齐 `.claude/push-bypass.log`（见 scripts/check-push-bypass.mjs 抬头）——
+ * 「留痕而非禁止」这套机制仓库已经有一份，不另发明第二套。
+ */
+const DEFERRED_LOG_RELATIVE = path.join('.claude', 'ponytail-deferred.log')
+const DEFAULT_DEFER_REASON = 'runner unavailable'
+
+export function deferredLogPath(repoRoot, env = process.env) {
+  return String(env.NOMI_PONYTAIL_DEFERRED_LOG_OVERRIDE || '').trim()
+    || path.join(repoRoot, DEFERRED_LOG_RELATIVE)
+}
+
+export function isDeferRequested({ scope, env = process.env } = {}) {
+  return scope === 'staged' && String(env.PONYTAIL_REVIEW_DEFER || '').trim() === '1'
+}
+
 export const EMPTY_TREE_SHA = '4b825dc642cb6eb9a060e54bf8d69288fbee4904'
 // The runner times out around 150 KB; bound model input separately from Git I/O.
 export const MAX_REVIEW_DIFF_BYTES = 150_000
@@ -351,6 +428,55 @@ function removeEphemeralReport(reportPath) {
   fs.rmSync(directory, { recursive: true, force: true })
 }
 
+/** 账本字段是单行 `|` 分隔的，任何分隔符/换行都必须在写入前消失，否则一行会变成两行。 */
+function ledgerField(value, limit = 200) {
+  return String(value ?? '').replace(/[|\r\n]+/g, ' ').trim().slice(0, limit)
+}
+
+const UNKNOWN_SHA = '0'.repeat(40)
+
+/** 把一次「延后」写进账本。写不进去就抛——留痕失败时放行等于静默跳过评审。 */
+function recordDeferredReview({ repoRoot, env = process.env, runGit: git = runGit, now = () => new Date() } = {}) {
+  const read = (args) => {
+    try {
+      return String(git(repoRoot, args) || '').trim()
+    } catch (_error) {
+      return ''
+    }
+  }
+  const head = read(['rev-parse', 'HEAD'])
+  const row = [
+    now().toISOString().replace(/\.\d+Z$/, 'Z'),
+    'deferred',
+    `branch=${ledgerField(read(['branch', '--show-current']))}`,
+    `sha=${SHA.test(head) ? head.toLowerCase() : UNKNOWN_SHA}`,
+    `worktree=${ledgerField(read(['rev-parse', '--show-toplevel']) || repoRoot, 1000)}`,
+    `reason=${ledgerField(env.PONYTAIL_REVIEW_DEFER_REASON) || DEFAULT_DEFER_REASON}`,
+    'reviewed=no',
+  ].join('|')
+  const logPath = deferredLogPath(repoRoot, env)
+  fs.mkdirSync(path.dirname(logPath), { recursive: true })
+  fs.appendFileSync(logPath, `${row}\n`)
+  return { logPath, row }
+}
+
+/** 在全机锁下重跑本适配器一次。返回内层进程的退出码；排队时间不计入评审墙钟。 */
+function runUnderPonytailLock(argv, { env = process.env, spawnSyncImpl = spawnSync } = {}) {
+  const scriptPath = fileURLToPath(import.meta.url)
+  const helper = path.join(path.dirname(scriptPath), 'with-gates-lock.py')
+  const childEnv = { ...env, [PONYTAIL_LOCK_HELD_ENV]: '1', NOMI_GATES_LOCK_PATH: ponytailLockPath(env) }
+  // 外层 gates 那把锁的 token 不是这把锁的凭据；带着它会让继承判定读到无关的身份。
+  delete childEnv.NOMI_GATES_LOCK_TOKEN
+  const result = spawnSyncImpl('python3', [
+    helper,
+    '--wait-timeout', String(PONYTAIL_LOCK_WAIT_TIMEOUT_S),
+    '--label', PONYTAIL_LOCK_LABEL,
+    '--', process.execPath, scriptPath, ...argv,
+  ], { stdio: 'inherit', env: childEnv })
+  if (result?.error) throw new Error(`could not serialize the review through ${helper}: ${result.error.message}`)
+  return result?.status ?? 1
+}
+
 export function runPonytailReview({
   repoRoot,
   scope,
@@ -359,14 +485,22 @@ export function runPonytailReview({
   env = process.env,
   runGit: git = runGit,
   spawnSyncImpl = spawnSync,
+  loadAverage = () => os.loadavg()[0],
 } = {}) {
   if (!repoRoot) throw new Error('repoRoot is required')
+  if (isDeferRequested({ scope, env })) {
+    const { logPath, row } = recordDeferredReview({ repoRoot, env, runGit: git })
+    return { ok: true, status: 'deferred', logPath, row }
+  }
   const collected = collectReviewDiff({ repoRoot, scope, pushInput, remoteName, runGit: git })
+  const diffBytes = Buffer.byteLength(collected.diff, 'utf8')
+  const timeoutMs = resolveReviewTimeoutMs({ diffBytes, loadAverage: loadAverage() })
   const diffHash = crypto.createHash('sha256').update(collected.diff).digest('hex')
   const reportPath = createReportPath(env, diffHash)
   try {
     const codexBinary = resolveCodexBinary(env)
-    const childEnv = { ...process.env, ...env, GIT_TERMINAL_PROMPT: '0', PONYTAIL_REVIEW_HOOK: '1' }
+    // 壳/适配器不许各自持一份墙钟：把本次派生出来的预算传下去，让它在同一个数字下自限。
+    const childEnv = { ...process.env, ...env, GIT_TERMINAL_PROMPT: '0', PONYTAIL_REVIEW_HOOK: '1', PONYTAIL_REVIEW_TIMEOUT_MS: String(timeoutMs) }
     const args = [
       '--ask-for-approval', 'never',
       '--cd', repoRoot,
@@ -381,7 +515,7 @@ export function runPonytailReview({
       cwd: repoRoot,
       input: buildReviewPrompt({ ...collected, scope, diffHash }),
       encoding: 'utf8',
-      timeout: REVIEW_TIMEOUT_MS,
+      timeout: timeoutMs,
       killSignal: 'SIGTERM',
       env: childEnv,
       // Codex can emit unbounded progress/tool logs on stderr. Discard both
@@ -397,7 +531,7 @@ export function runPonytailReview({
 
     if (result?.error || result?.status !== 0) {
       const reason = result?.error?.code === 'ETIMEDOUT'
-        ? `timed out after ${REVIEW_TIMEOUT_MS}ms`
+        ? `timed out after ${timeoutMs}ms（按 diff ${diffBytes} 字节与当前负载派生）`
         : `exited with status ${result?.status ?? 'unknown'}`
       return { ok: false, status: 'runner_failed', reportPath, diffHash, reason, output }
     }
@@ -442,14 +576,25 @@ function main() {
       throw new Error('--scope staged or --scope push is required')
     }
     const scope = process.argv[3]
+    // 顺序是契约：先判延后，再排队等锁。反过来的话，一次「跳过评审」要先排 15 分钟队。
+    // stdin（push 的四列 ref-update）必须在重跑之后再读——外层读掉了内层就拿不到。
+    if (!isDeferRequested({ scope }) && process.env[PONYTAIL_LOCK_HELD_ENV] !== '1') {
+      return runUnderPonytailLock(process.argv.slice(2))
+    }
     const pushInput = scope === 'push' ? fs.readFileSync(0, 'utf8') : ''
     const remoteName = scope === 'push' ? process.argv[4] || '' : ''
     const result = runPonytailReview({ repoRoot: repoRootFromGit(), scope, pushInput, remoteName })
+    if (result.status === 'deferred') {
+      console.error(`[ponytail-review] deferred; 已留痕 ${result.logPath}`)
+      console.error('提交放行，但 check:ponytail-review 会一直红到这条被补审或 --accept。')
+      return 0
+    }
     const label = result.status === 'findings' ? 'completed with findings' : result.status
     console.error(`[ponytail-review] ${label}; diff ${result.diffHash}; ephemeral report removed (${result.output})`)
     if (!result.ok) {
       console.error(`[ponytail-review] BLOCKED: ${result.reason}`)
       console.error('Install/enable the Ponytail Codex plugin and retry the Git operation.')
+      console.error('runner 真的不可用时的明路：PONYTAIL_REVIEW_DEFER=1 git commit …（保留敏感数据扫描，留痕进 .claude/ponytail-deferred.log，门岗会红到补审为止）。')
       return 1
     }
     return 0

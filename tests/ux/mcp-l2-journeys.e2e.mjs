@@ -307,12 +307,15 @@ try {
   const generationCard = win.locator('div.fixed.inset-0').filter({ hasText: /允许 Nomi 生成这一批镜头|生成这一批镜头/ }).first()
   await generationCard.waitFor({ timeout: 20_000 })
   await takeScreenshot(win, 'C9-generation-gate-stale')
-  const staleRevisionWrite = await win.evaluate((id) => {
+  // projects.save is the app's own asynchronous save-lock path (it resolves only
+  // after the manifest lock receipt lands), so the probe awaits the record the
+  // renderer would await too.
+  const staleRevisionWrite = await win.evaluate(async (id) => {
     const projects = window.nomiDesktop?.projects
     const current = projects?.read?.(id)
     if (!projects?.save || !current) throw new Error('C9 stale-receipt probe could not read the isolated project')
     const before = Number(current.revision)
-    const saved = projects.save(id, {
+    const saved = await projects.save(id, {
       ...current,
       // A real persisted user-visible project edit is enough to invalidate a
       // generation approval receipt. Keep the project isolated and make the

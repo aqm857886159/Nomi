@@ -148,6 +148,7 @@
 - [界面重设计走四步流水线：整件复用优先](ui-redesign-four-step-pipeline.md) — 分类 → 找证据（库解剖 / 竞品还原，禁脑补）→ 还原解剖 → 套 token + 认知负荷审计
 - [本地旧构建的 `-h` ≠ 官方现役能力面](stale-local-build-is-not-the-current-capability.md) — 判「工具支不支持 X」先刷新到现役版本；update log 才是事实源
 - [自造 `skill.json`：标准就摆在那儿，只是没人在动手前去看一眼](self-invented-skill-json-while-the-standard-existed.md) — 碰「外部也读写」的格式前先找规范；扩展只放标准的扩展点、不许另起平行文件；症状修复（加兼容导入）会让根因活得更久
+- [一屏堆四颗文字按钮，是「规则缺席」不是「这四颗写错了」](text-buttons-pile-up-when-the-rule-is-missing.md) — 加第二颗文字按钮 / 给按钮想文案 / 纠结配什么 icon 之前；先问「它是不是主按钮的一个状态」
 
 ## F. 多智能体编排
 

@@ -449,13 +449,3 @@ export function UploadFallback({
 export function placeholderLabel(categoryName: string | undefined, title: string | undefined): string {
   return categoryName || title || i18n.t('generationCommon.card.node')
 }
-
-/** Scene3DEditor 懒加载期间的占位（React.Suspense fallback）。 */
-export function Scene3DEditorLoading(): JSX.Element {
-  const { t } = useTranslation()
-  return (
-    <div className={cn('flex w-full h-full items-center justify-center bg-nomi-ink-05 text-caption text-nomi-ink-40')}>
-      {t('generationCommon.card.scene3dLoading')}
-    </div>
-  )
-}

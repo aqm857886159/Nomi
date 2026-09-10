@@ -21,7 +21,7 @@ export async function repairStoryboard(win, projectId, { title, shots }) {
       plan: { title, anchors: [], shots },
     }] }
     p.activeStoryboardId = designId
-    return window.nomiDesktop.projects.saveAsync(projectId, record)
+    return window.nomiDesktop.projects.save(projectId, record)
   }, { projectId, title, shots })
   if (!saved) throw Error('Fixture persistence did not return a receipt')
   await win.reload({ waitUntil: 'domcontentloaded' })

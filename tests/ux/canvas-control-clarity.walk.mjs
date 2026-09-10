@@ -201,7 +201,7 @@ try {
   ]
   const moreTools = [
     ['text', '文字'],
-    ['scene3d', '3D 场景'],
+    ['director', '导演台'],
     ['model3d', '3D 模型'],
     ['panorama', '全景图'],
     ['whiteboard', '画板'],

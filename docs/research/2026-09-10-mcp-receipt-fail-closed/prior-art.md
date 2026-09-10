@@ -58,3 +58,27 @@
 而是把「这条命令来自受信窗口」这个**本来就存在**的事实（`assertTrustedSender`）显式化，
 以便付费门能区分「Nomi 自己窗口里的真人」和「远端客户端」。升级它成为带签名的手势证明
 （`createMainProcessGestureAttestation`）是后续工作，前提是批量确认卡先领 challenge。
+
+---
+
+## 补记（09-10 21:00 拍板后）：确认弹在客户端要照谁的规范写
+
+用户拍板「所有确认都在客户端里弹」后，多出一个必须先查的问题：**在 MCP 里向真人提问的标准长什么样**，
+以及我们能不能把「问过了」当授权。三条一手规范：
+
+- **Elicitation（怎么问）**：<https://modelcontextprotocol.io/specification/2025-06-18/client/elicitation>
+  —— `elicitation/create` + `requestedSchema`（JSON Schema 的受限子集：只允许扁平对象与原始类型）。
+  我们的偏差：**没有**。布尔确认就是规范原样的 `{ type: 'object', properties: { confirm: { type: 'boolean' } }, required: ['confirm'] }`
+  （`electron/capabilityCore/mcpElicitation.ts:55`），逐镜价目走 `message` 文本，不自造平行字段、不另起私有方法（R31）。
+  规范同时明确：客户端**不得**代替用户自动应答，且 accept 只代表「用户同意了这次交互」——
+  它本身**不是**一份可验证的凭据。
+- **能力协商（能不能问）**：<https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation>
+  —— `capabilities.elicitation` 存在 = 支持 form 模式；url 模式必须显式声明 `url` 成员，服务端不得发客户端没声明的模式。
+  已落在 `readElicitationCapability`（同文件 :103）。
+- **安全基线（问过了算不算授权）**：<https://modelcontextprotocol.io/specification/2025-06-18/basic/security_best_practices>
+  —— 不得把客户端自述的身份或同意当授权依据。**所以本次的做法是：确认可以弹在客户端，但答案必须由主进程
+  转成自己签的收据**（`createClientElicitationAttestation` → `mintReceipt`）。「不逼用户回 Nomi 点」与
+  「不拿客户端的一句 true 当授权」两件事并不冲突，中间那层就是收据。
+
+**结论没变，只是多用了一条既有能力**：仍然是那一份收据链（一把密钥、一个状态文件、一个确认流），
+信任降档只是往里加了一种 costScope，没有新协议、没有第二个确认面。

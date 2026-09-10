@@ -1,3 +1,12 @@
+/**
+ * [INPUT]: 依赖 @photo-sphere-viewer/core 的 Viewer / EquirectangularAdapter、react-dom 的 createPortal、
+ *          ../../../ui/app-shell/windowChrome 的 currentFullscreenOverlayTopOffset、../../../design 的 NomiImage / WorkbenchIconButton
+ * [OUTPUT]: 对外提供 PanoramaViewer 与 PanoramaScreenshot 类型
+ * [POS]: generationCanvas/nodes 的全景查看器：卡片内嵌 + 全屏两态共用一个 psv Viewer 实例；
+ *        全屏那层从 Windows 自绘窗口栏之下起画（不是 inset-0 铺满）——那条 32px 是系统拖拽带，
+ *        顶部那排取景/截图/退出按钮压上去会被当成拖窗口吃掉（与 issue #58 同根，见 windowChrome）。
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 import { notify } from '../../../ui/notificationPolicy'
 import React from 'react'
 import { createPortal } from 'react-dom'
@@ -8,6 +17,7 @@ import { IconCamera, IconMaximize, IconX } from '@tabler/icons-react'
 import { NomiImage } from '../../../design/media'
 import { cn } from '../../../utils/cn'
 import { WorkbenchIconButton } from '../../../design/actions'
+import { currentFullscreenOverlayTopOffset } from '../../../ui/app-shell/windowChrome'
 import i18n from '../../../i18n'
 
 export type PanoramaScreenshot = {
@@ -572,9 +582,10 @@ export default function PanoramaViewer({
               className={cn(
                 // z-application-modal（9000）：整屏接管的媒体查看器，和设置对话框同一档。
                 // 此前硬写 z-[9999] 压过花钱确认卡（dialog 9100），钱要花出去了那张卡却看不见。
-                'fixed inset-0 z-application-modal flex h-[100dvh] w-screen items-center justify-center overflow-hidden p-8 overscroll-contain',
+                'fixed inset-x-0 bottom-0 z-application-modal flex items-center justify-center overflow-hidden p-8 overscroll-contain',
                 'bg-workbench-backdrop backdrop-blur-[10px]',
               )}
+              style={{ top: currentFullscreenOverlayTopOffset() }}
               onPointerDown={(event) => event.stopPropagation()}
               onClick={(event) => {
                 if (event.target === event.currentTarget) setFullscreen(false)
