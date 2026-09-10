@@ -124,19 +124,28 @@ export function AgentPanelV4Composer({
 }: AgentPanelV4ComposerProps): JSX.Element {
   const { t } = useTranslation()
   const hardRows = Math.max(1, value.split('\n').length)
-  // 2026-09-10 走查反馈：硬换行之外，长句软换行（wrap）也要算行——把 textarea 瞬时压到
-  // 0 高读 scrollHeight（useLayoutEffect 在绘制前完成，无闪烁），拿到的是纯内容高度，
-  // 删字时也能正确缩回。行数仍然走同一套 useComposerHeight 规则，不另起高度真相源。
+  // 2026-09-10 走查反馈：硬换行之外，长句软换行（wrap）也要算行——把 textarea 瞬时压扁
+  // 再读 scrollHeight（useLayoutEffect 在绘制前完成，无闪烁），拿到的是纯内容高度。
+  // 行数仍然走同一套 useComposerHeight 规则，不另起高度真相源。
+  //
+  // 2026-09-11 走查根因：光写 `height:0` 量不出来。这个 textarea 是 flex 列容器里的
+  // **拉伸项**（`flex-1` = `flex:1 1 0%`），主轴尺寸由 flex-basis 与剩余空间决定，
+  // 行内 height 根本不生效——`scrollHeight` 回的是「它被撑开后的自身高度」，于是删字
+  // 时算出来的行数只增不减，框成了只涨不落的棘轮（清空后仍卡在 158px）。
+  // 所以量之前必须先让它**脱离父布局的约束**：`flex:0 0 auto` + `height:0`，量完原样还原。
   const textareaRef = React.useRef<HTMLTextAreaElement | null>(null)
   const [measuredRows, setMeasuredRows] = React.useState(hardRows)
   React.useLayoutEffect(() => {
     const el = textareaRef.current
     if (!el) return
     const measure = (): void => {
-      const previous = el.style.height
+      const previousFlex = el.style.flex
+      const previousHeight = el.style.height
+      el.style.flex = '0 0 auto'
       el.style.height = '0px'
       setMeasuredRows(rowsFromContentHeight(el.scrollHeight))
-      el.style.height = previous
+      el.style.flex = previousFlex
+      el.style.height = previousHeight
     }
     measure()
     const observer = new ResizeObserver(measure)

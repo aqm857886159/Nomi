@@ -1,3 +1,4 @@
+import fs from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { GENERATION_NODE_PLUGIN_BY_KIND } from '../nodes/registry'
 import {
@@ -85,5 +86,34 @@ describe('canvas add-intent model（2026-09-10 拍板：文本回常驻 → 6 �
     const everyIntent = CANVAS_ADD_SECTIONS.flatMap((section) => [...section.intents])
     const nonNode = everyIntent.filter((intent) => intent.kind === null)
     expect(nonNode.map((intent) => intent.id)).toEqual(['import-file'])
+  })
+})
+
+describe('「更多」hover 开合的结构不变量（2026-09-11 走查根因的棘轮）', () => {
+  // 走查（tests/ux/pr720-ux-geometry.walk.mjs 的 #5）才是真证明：它真的把指针斜着挪进菜单。
+  // 这里只钉住那个根因——**收起判据不许再挂在那颗 32×32 的按钮上**。菜单向上高出按钮 130+px，
+  // 挂在按钮上就等于「指针一离开按钮那条横带就关」，用户斜着奔顶部那一项永远点不到。
+  const source = fs.readFileSync(new URL('./CanvasToolbar.tsx', import.meta.url), 'utf8')
+
+  it('收起挂在整条工具条上，8px before 伪元素桥已删（P1 不留两套）', () => {
+    expect(source).not.toContain('before:-left-2')
+    // 工具条根节点（带 generation-canvas-v2-toolbar 类的那一层）自己带 onPointerLeave。
+    const railBlock = source.slice(source.indexOf("'generation-canvas-v2-toolbar',"), source.indexOf('<TooltipProvider'))
+    expect(railBlock).toContain('onPointerLeave')
+    expect(railBlock).toContain('onPointerEnter')
+    // 按钮那一层只许管「开」：它的 pointerleave 只清展开计时器，不 setMoreOpen(false)。
+    const buttonWrapper = source.slice(source.indexOf('onPointerLeave={clearOpenTimer}') - 600,
+      source.indexOf('onPointerLeave={clearOpenTimer}') + 40)
+    expect(buttonWrapper).toContain('onPointerLeave={clearOpenTimer}')
+    expect(buttonWrapper).not.toContain('setMoreOpen(false)')
+  })
+
+  it('间隙桥沿菜单全高，不是只补按钮那条横带', () => {
+    expect(source).toContain('data-canvas-more-hover-bridge="true"')
+    const bridge = source.slice(source.indexOf('data-canvas-more-hover-bridge') - 200,
+      source.indexOf('data-canvas-more-hover-bridge'))
+    // 桥是菜单的**父层**（高度天然等于菜单高度），左侧只补按钮右沿到菜单左沿那 8px。
+    expect(bridge).toContain('left-full')
+    expect(bridge).toContain('pl-2')
   })
 })
