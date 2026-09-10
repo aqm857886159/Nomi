@@ -105,6 +105,15 @@ type NodeParameterControlsProps = {
   onInsertMention?: (url: string) => void
   /** 当前 composer 连在节点哪条边；比例切换用它保持同一连接锚点。 */
   composerAttachmentSide?: ComposerAttachmentSide
+  /**
+   * 参数浮层的落点容器（`host="panel"` 的 composer 传自己的卡）。
+   *
+   * 画布上不传：浮层 portal 到 body、打开时定位一次就不再跟随——节点卡本来就不滚动，
+   * 静止定位反而让人不用追着鼠标找。面板里的卡不一样：它随转录滚动，
+   * 一个 body 上的静止浮层会**留在原地**脱离卡。给了落点就换成「就地展开 + 浮层进卡」，
+   * 和 `panelMode="inline"` 是同一条理由。
+   */
+  inlinePanelTarget?: React.RefObject<HTMLElement | null>
 }
 
 export default function NodeParameterControls({
@@ -112,6 +121,7 @@ export default function NodeParameterControls({
   section = 'all',
   onInsertMention,
   composerAttachmentSide = 'bottom',
+  inlinePanelTarget,
 }: NodeParameterControlsProps): JSX.Element | null {
   const reportFeedback = React.useCallback((message: string) => {
     notify({ identity: `NodeParameterControls:${node.id}`, reason: 'interaction', message, level: 'inline', present: setUploadError })
@@ -697,6 +707,7 @@ export default function NodeParameterControls({
         activeVariantId={activeVariantId}
         onVariantSelect={handleVariantSwitch}
         summaryOverride={workflowSummary}
+        {...(inlinePanelTarget ? { panelMode: 'inline' as const, portalTarget: inlinePanelTarget } : {})}
       />
     )
   }
