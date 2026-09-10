@@ -24,7 +24,7 @@ import type { ApprovalReceiptAuthority } from './approvalReceipt'
 import { readWorkspaceProject, resolveWorkspaceProjectDir } from '../workspace/workspaceRepository'
 import { createRuntimeMcpGenerationPolicy, type McpGenerationPolicy } from './mcpGenerationPolicy'
 import type { DispatchContext } from './dispatcher'
-import { requestRenderer } from './rendererBridge'
+import { requestRenderer, rendererTargetIdentity } from './rendererBridge'
 import { createGenerationPlanningHandler } from './mcpGenerationTools'
 import { installGuiResolveNarrowIpc } from './generationResolveIpc'
 import { planStoryboardFromScript } from './mcpStoryboardPlanner'
@@ -66,6 +66,9 @@ import { createLiveGenerationRuntime } from './liveGenerationRuntime'
 import { createGenerationProviderBootstrap } from './generationProviderBootstrap'
 import { createDefaultAuthorities } from './appIntegrationAuthorities'
 import { createProductionActionHooks } from './appIntegrationProductionActions'
+import { installPendingSpendActions, pendingSpendDependencies } from './appIntegrationSpendConfirm'
+// 付费确认卡的四个动作住在它自己的模块里（这里只装配）。main.ts 的 IPC 经能力核门面转调，所以门面要露出这四个名字。
+export { listPendingSpendConfirmations, revisePendingSpendConfirmation, discardPendingSpendConfirmation, confirmPendingSpendConfirmation } from './appIntegrationSpendConfirm'
 import { repairStaleMcpConfigs } from './mcpConfig'
 import { logDevDetail, logError, logInfo, logWarn } from '../logging/logger'
 
@@ -617,8 +620,17 @@ export async function startCapabilityCore(
     try {
       const requestGenerationGate = authorities.requestGenerationGate ?? runOwnedGenerationAuthority.requestGenerationGate
       const authorizeGeneration = authorities.authorizeGeneration ?? runOwnedGenerationAuthority.authorizeGeneration
-      const confirmGenerationInNomi = authorities.confirmGenerationInNomi ?? defaults.confirmGenerationInNomi
-      disposeResidentGenerationAdapter = installResidentGenerationAdapter({ planning: generationPlanning, requestGenerationGate, authorizeGeneration, confirmGenerationInNomi, approvalReceiptAuthority: defaults.approvalReceiptAuthority!, projectSessionAuthority: defaults.projectSessionAuthority, owner: generationService }, authorities.onGenerationReady)
+      // P1 单轨化（2026-09-11）：这条 lane 不再注入 `confirmGenerationInNomi`（居中弹窗的入口），
+      // 于是「agent 代发的付费确认弹居中卡」结构上不可能；真被走到会 fail-closed。面板那条走 appIntegrationSpendConfirm。
+      const residentGeneration = installResidentGenerationAdapter({ planning: generationPlanning, requestGenerationGate, authorizeGeneration, approvalReceiptAuthority: defaults.approvalReceiptAuthority!, projectSessionAuthority: defaults.projectSessionAuthority, owner: generationService }, authorities.onGenerationReady)
+      disposeResidentGenerationAdapter = residentGeneration.dispose
+      // 付费确认卡的编排：租约与 resident 适配器共用同一个 `leaseFor`（不另起一份续期逻辑）。
+      installPendingSpendActions(pendingSpendDependencies({
+        isProjectOpen, repository: generationService.repository, operations: operationStore, planning: generationPlanning,
+        requestGenerationGate, authorizeGeneration, receipts: defaults.approvalReceiptAuthority!,
+        rendererTarget: rendererTargetIdentity, committedSelection: canvasReadSurfaceRuntime.getCommittedProjectSelection,
+        leaseFor: residentGeneration.leaseFor, resolvePricing: resolveModelPricing,
+      }))
     } catch (error) {
       logError('capability', 'resident-generation-adapter-install-failed', error)
     }
@@ -783,6 +795,6 @@ export function stopCapabilityCore(): void {
   reworkProductionShotHook = null
   resumeProductionBatchHook = null
   disposeSingleShotObservationLifecycle?.(); disposeSingleShotObservationLifecycle = null
-  disposeResidentGenerationAdapter?.(); disposeResidentGenerationAdapter = null
+  disposeResidentGenerationAdapter?.(); disposeResidentGenerationAdapter = null; installPendingSpendActions(null)
   installGuiResolveNarrowIpc(null)
 }
