@@ -560,6 +560,7 @@ export const zhOnboardingProviders = {
     progress: {
       title: '{{host}} 正在接入 {{name}}',
       titleUnknownHost: '正在接入 {{name}}',
+      titleStopped: '{{host}} 接入 {{name}}',
       hint: '这个窗口可以关，进度会留着。',
       running: '进行中',
       done: '已接进来',
@@ -1744,6 +1745,7 @@ export const enOnboardingProviders = {
     progress: {
       title: '{{host}} is connecting {{name}}',
       titleUnknownHost: 'Connecting {{name}}',
+      titleStopped: '{{host}} \u2192 {{name}}',
       hint: 'You can close this window; the progress is kept.',
       running: 'In progress',
       done: 'Connected',

@@ -6,10 +6,15 @@
  */
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconAlertTriangle, IconCircleCheck, IconCircleDashed, IconLoader2 } from '@tabler/icons-react'
+import { IconAlertCircle, IconAlertTriangle, IconCircleCheck, IconCircleDashed, IconLoader2 } from '@tabler/icons-react'
 
 import { cn } from '../../utils/cn'
-import type { AssistedProgressRowState, AssistedProgressStep, AssistedProgressView } from './assistedProgressProjection'
+import type {
+  AssistedProgressOutcome,
+  AssistedProgressRowState,
+  AssistedProgressStep,
+  AssistedProgressView,
+} from './assistedProgressProjection'
 
 export type AssistedIntegrationProgressProps = {
   view: AssistedProgressView
@@ -21,11 +26,31 @@ export type AssistedIntegrationProgressProps = {
   reasonCode?: string | null
 }
 
-function StepIcon({ state }: { state: AssistedProgressRowState }): JSX.Element {
+/**
+ * `halted` = 这次接入已经停了（失败/取消）。停了还画一颗转圈的圈 = 界面在说「还在跑」，
+ * 而它已经不跑了——这一格是 2026-09-11 看基线截图时抓到的（断言看不见转不转）。
+ *
+ * 图标只能从 `src/vendor/tablerIcons.ts` 那份**白名单**里挑：`@tabler/icons-react` 在
+ * vite.config.ts:231 被 alias 到它，而 tsc 解析的是 node_modules 里的真包——所以引一个
+ * 没登记的图标**类型检查照样绿**，运行时才 undefined、整页白屏（2026-09-11 实测：
+ * IconCircleX 让设计实验室整趟 warmup-unreachable）。加新图标先往那份白名单里登记。
+ */
+function StepIcon({ state, outcome }: { state: AssistedProgressRowState; outcome: AssistedProgressOutcome }): JSX.Element {
+  const halted = outcome === 'failed' || outcome === 'cancelled'
   if (state === 'done') {
     return <IconCircleCheck size={16} stroke={1.7} className="mt-0.5 shrink-0 text-workbench-success-ink" aria-hidden="true" />
   }
   if (state === 'active') {
+    if (halted) {
+      return (
+        <IconAlertCircle
+          size={16}
+          stroke={1.7}
+          className={cn('mt-0.5 shrink-0', outcome === 'failed' ? 'text-workbench-danger' : 'text-nomi-ink-40')}
+          aria-hidden="true"
+        />
+      )
+    }
     return <IconLoader2 size={16} stroke={1.7} className="mt-0.5 shrink-0 animate-spin text-nomi-accent" aria-hidden="true" />
   }
   return <IconCircleDashed size={16} stroke={1.7} className="mt-0.5 shrink-0 text-nomi-ink-30" aria-hidden="true" />
@@ -50,10 +75,15 @@ export function AssistedIntegrationProgress({
       <div className="min-w-0">
         {/* 状态胶囊紧跟标题，不推到右缘（2026-09-09 用户拍板的通用行规则）。 */}
         <div className="flex flex-wrap items-center gap-2">
+          {/* 停了就别再说「正在接入」——标题和它右边那颗胶囊会互相打脸。 */}
           <span className="min-w-0 text-body-sm font-semibold text-nomi-ink">
-            {hostLabel
-              ? t('onboardingProviders.assistedOnboarding.progress.title', { host: hostLabel, name })
-              : t('onboardingProviders.assistedOnboarding.progress.titleUnknownHost', { name })}
+            {view.outcome === 'running'
+              ? (hostLabel
+                ? t('onboardingProviders.assistedOnboarding.progress.title', { host: hostLabel, name })
+                : t('onboardingProviders.assistedOnboarding.progress.titleUnknownHost', { name }))
+              : (hostLabel
+                ? t('onboardingProviders.assistedOnboarding.progress.titleStopped', { host: hostLabel, name })
+                : name)}
           </span>
         <span className={cn(
           'shrink-0 rounded-full px-2 py-0.5 text-micro font-semibold',
@@ -70,9 +100,12 @@ export function AssistedIntegrationProgress({
               : t('onboardingProviders.assistedOnboarding.progress.running')}
         </span>
         </div>
-        <div className="mt-0.5 text-micro leading-relaxed text-nomi-ink-40">
-          {t('onboardingProviders.assistedOnboarding.progress.hint')}
-        </div>
+        {/* 「这个窗口可以关，进度会留着」只在真的还在跑的时候才成立。 */}
+        {view.outcome === 'running' ? (
+          <div className="mt-0.5 text-micro leading-relaxed text-nomi-ink-40">
+            {t('onboardingProviders.assistedOnboarding.progress.hint')}
+          </div>
+        ) : null}
       </div>
 
       {/* 失败/取消不复用「进行中」的壳：标题直说结果，原因给原始错误码 + 一句人话，
@@ -96,7 +129,7 @@ export function AssistedIntegrationProgress({
       <ol className="flex flex-col gap-1.5">
         {view.rows.map((row) => (
           <li key={row.step} data-assisted-progress-step={row.step} data-assisted-progress-state={row.state} className="flex items-start gap-2">
-            <StepIcon state={row.state} />
+            <StepIcon state={row.state} outcome={view.outcome} />
             <span className="min-w-0 flex-1">
               <span className={cn(
                 'block text-caption font-semibold',

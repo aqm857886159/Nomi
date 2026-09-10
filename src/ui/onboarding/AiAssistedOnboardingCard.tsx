@@ -92,8 +92,8 @@ export function AiAssistedOnboardingCard({
     )
   }
 
-  // 这一行只说得起「配置里有没有这条」——**不是**「还连不连得上」。真握手要 spawn 一次
-  // （ConnectAssistantCard 的 verifyMcp 干这活，那是它的家），本卡不许再起一份（P1）。
+  // 这一行只说得起「配置里有没有这条」——**不是**「还连不连得上」。真握手要 spawn 一次，
+  // 那件事的家在 ConnectAssistantCard（实连验证），本卡不许再起一份（P1）。
   // 所以文案也只敢说到这个份上：写「已连上」就是在替一次没做过的握手打包票。
   const configured = clientKey && info ? info.clients[clientKey]?.installed === true : null
 
