@@ -547,6 +547,9 @@ export default function InlineParameterBar({
     <button
       ref={pillRef}
       type="button"
+      // 走查锚点：底栏 v1.1 承诺「chip 只报两个值」，断言得能拿到那串摘要本身，
+      // 不能靠中文 aria-label 去找（换个语言就断了）。
+      data-parameter-summary={pillText}
       aria-label={t('generationCommon.parameters.generationParameters')}
       aria-expanded={panelOpen}
       title={pillText || t('generationCommon.parameters.generationParameters')}

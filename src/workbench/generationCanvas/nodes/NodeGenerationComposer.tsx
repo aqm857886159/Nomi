@@ -21,7 +21,8 @@ import { buildDependencyWaves } from '../runner/dependencyWaves'
 import { useBatchPlanPreviewStore } from '../components/batchPlanPreview'
 import NodeParameterControls from './NodeParameterControls'
 import { GENERATE_BUTTON_CLASS } from './nodeComposerStyles'
-import { NodeLockBadge } from './NodeLockBadge'
+import { NodePromptToolCluster } from './NodePromptToolCluster'
+import { ToolbarDivider } from './NodeFloatingToolbar'
 import NodeCameraMoveControl from './NodeCameraMoveControl'
 import { NodePromptOptimizer } from './NodePromptOptimizer'
 import { useNodeAssetDrop } from './useNodeAssetDrop'
@@ -291,6 +292,14 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize }:
 
   const effects = useNodeEffectChips({ enabled: hasPromptPickerButton, empty: !node.prompt?.trim(), kind: nodeExecutionKind ?? node.kind, disabled: node.locked, onSelect: applyPromptPickerItem })
 
+  // B 簇（帮我写提示词）：运镜 → 效果 → 优化，顺序就是 2026-09-11 拍板那句话。
+  // 运镜排头是因为三者里只有它带状态（选过带激活点），状态位紧挨分隔线更容易被扫到。
+  // 一件都没有（锁住的节点、不吃提示词的工作流）就整段不渲染——空的分组连同两根分隔线
+  // 留在那里只会在底栏里留一段没人看得懂的空白。
+  const showCameraMove = isVideoLikeGenerationNodeKind(node.kind) && !node.locked
+  const showOptimizer = acceptsPrompt && (nodeExecutionKind === 'image' || nodeExecutionKind === 'video') && !node.locked
+  const hasPromptTools = showCameraMove || hasPromptPickerButton || showOptimizer
+
   // 卡宽由模型底栏驱动；推荐项让位，输入内滚、底栏固定。
 
   return (
@@ -402,41 +411,52 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize }:
         </div>
       )}
       {hasPromptPickerButton && effects.recommendations}
-      {/* 底栏铺满卡宽（w-full）：生成钮 ml-auto 永远贴右。底栏恒单行——参数已主次分层（最常调的内联、
-          其余收进 InlineParameterBar 的「更多」弹层，方案 B），不会再横排超长/截断/换行（D2 根治）。
-          2026-09-10 用户复核拍板：单行没有问题，底栏怎么整合另有设计讨论——控件组成、文案、顺序都不动。
-          `data-node-composer-footer` 只是给走查一个锚点，好断言「底栏仍是单行」，不改任何形态。 */}
-      <div data-node-composer-footer className={cn('flex items-center gap-2 mt-auto pt-1 shrink-0 w-full')}>
-        {/* 锁从节点卡片移到这里（编辑面板底栏）：卡片预览保持干净，锁定/解锁在选中编辑时就近可达。
-            selected 恒为真（composer 只在选中时挂载）→ 始终可见：未锁=描边开锁、已锁=实心锁。 */}
-        <NodeLockBadge nodeId={node.id} locked={node.locked} selected />
-        {hasPromptPickerButton && effects.more}
-        <NodeParameterControls
-          node={node}
-          section="parameters"
-          composerAttachmentSide={flipUp ? 'top' : 'bottom'}
-        />
-        {/* 手动运镜（B1）：视频镜头才有 video_ref 槽——运镜芯片仅对 video-like 节点显示（AI 工具 create_camera_move 的第二道门，共用同一产路）。 */}
-        {isVideoLikeGenerationNodeKind(node.kind) && !node.locked ? (
-          <NodeCameraMoveControl node={node} />
-        ) : null}
-        {acceptsPrompt && (nodeExecutionKind === 'image' || nodeExecutionKind === 'video') && !node.locked ? (
-          <NodePromptOptimizer node={node} isVideo={nodeExecutionKind === 'video'} />
-        ) : null}
-        {/* ×N「一次生成几个」：支不支持从执行类派生（generationVariantCount.ts 唯一 owner），
-            不在这里按 kind 点名——图对图、视频对视频、音频对音频用的是同一个通用件（反馈 #11）。 */}
-        {supportsGenerationVariants(nodeExecutionKind) && !node.locked ? (
-          <NomiSelect
-            ariaLabel={t('generationCommon.composer.variantCountAria')}
-            title={t('generationCommon.composer.variantCountTitle', { count: variantCount })}
-            value={String(variantCount)}
-            disabled={isGenerating}
-            options={GENERATION_VARIANT_COUNTS.map((count) => ({
-              value: String(count),
-              label: t('generationCommon.composer.variantCountOption', { count }),
-            }))}
-            onChange={(value) => setVariantCount(parseGenerationVariantCount(value))}
+      {/* 底栏（v1.1，2026-09-11 用户拍板）：铺满卡宽（w-full），一行三段、不换行：
+            `[模型 ▾] [参数 ▾] │ [🎥][✦][✨] │ [×N ▾] ……… [↑]`
+          从左到右是「出什么 → 怎么写 → 出几张 → 走」，与人在按下生成那一刻的决策顺序同向。
+          三类归位见 docs/design/2026-09-10-node-composer-bar-v1.md：
+            A 决定出什么/花多少 → 第一段与第三段；B 帮我写提示词 → 中段缩小一号的纯 icon；
+            锁 → 回节点浮条（它的作用对象是**这个节点**，不是这一次生成）。
+          `data-node-composer-footer` / `data-bar-segment` 是走查锚点，好断言「单行 + 段序没漂」。 */}
+      <div data-node-composer-footer className={cn('flex items-center gap-2 mt-auto pt-1 shrink-0 w-full flex-nowrap')}>
+        {/* 第一段：模型芯片 + 参数 chip（只报两个值，见 composerHeadlineSummary）。 */}
+        <div data-bar-segment="model-params" className={cn('flex min-w-0 shrink items-center')}>
+          <NodeParameterControls
+            node={node}
+            section="parameters"
+            composerAttachmentSide={flipUp ? 'top' : 'bottom'}
           />
+        </div>
+        {/* 第二段：B 簇。分隔线用节点浮条那根现役 ToolbarDivider，不另画一根。 */}
+        {hasPromptTools ? (
+          <>
+            <ToolbarDivider />
+            <NodePromptToolCluster ariaLabel={t('generationCommon.composerBarV1.promptTools')}>
+              {/* 手动运镜（B1）：视频镜头才有 video_ref 槽——仅对 video-like 节点显示
+                  （AI 工具 create_camera_move 的第二道门，共用同一产路）。 */}
+              {showCameraMove ? <NodeCameraMoveControl node={node} /> : null}
+              {hasPromptPickerButton ? effects.more : null}
+              {showOptimizer ? <NodePromptOptimizer node={node} isVideo={nodeExecutionKind === 'video'} /> : null}
+            </NodePromptToolCluster>
+            <ToolbarDivider />
+          </>
+        ) : null}
+        {/* 第三段：×N「一次生成几个」——支不支持从执行类派生（generationVariantCount.ts 唯一 owner），
+            不在这里按 kind 点名；图对图、视频对视频、音频对音频用的是同一个通用件（反馈 #11）。 */}
+        {supportsGenerationVariants(nodeExecutionKind) && !node.locked ? (
+          <div data-bar-segment="variants" className={cn('flex shrink-0 items-center')}>
+            <NomiSelect
+              ariaLabel={t('generationCommon.composer.variantCountAria')}
+              title={t('generationCommon.composer.variantCountTitle', { count: variantCount })}
+              value={String(variantCount)}
+              disabled={isGenerating}
+              options={GENERATION_VARIANT_COUNTS.map((count) => ({
+                value: String(count),
+                label: t('generationCommon.composer.variantCountOption', { count }),
+              }))}
+              onChange={(value) => setVariantCount(parseGenerationVariantCount(value))}
+            />
+          </div>
         ) : null}
         {(() => {
           const disabledReason = unmetDependency
@@ -472,6 +492,7 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize }:
                   ml-auto：把生成钮推到底栏最右 = 卡片右下角（卡宽恒定 → 屏幕位置锁死）。 */}
               <button
                 type="button"
+                data-bar-segment="generate"
                 className={cn(GENERATE_BUTTON_CLASS, 'ml-auto')}
                 aria-label={hasResult ? t('generationCommon.composer.regenerate') : t('generationCommon.composer.generateAsset')}
                 disabled={!canGenerateNow}

@@ -810,7 +810,6 @@ export const zhGenerationCommon = {
   },
   cameraMove: {
     title: '运镜',
-    hint: '运镜：不用搭 3D 场景，一键生成灰模运镜片接入本镜',
     noSceneHint: '不用搭 3D 场景',
     type: '运镜类型',
     speed: '速度',
@@ -924,7 +923,6 @@ export const zhGenerationCommon = {
     optimizePrompt: '优化这条提示词',
     aria: '用 Nomi 优化提示词',
     running: '优化中…',
-    optimize: '优化',
   },
   videoToolbar: {
     aria: '视频操作',
@@ -2240,7 +2238,6 @@ export const enGenerationCommon = {
   },
   cameraMove: {
     title: 'Camera move',
-    hint: 'Generate a blocking camera-move clip and attach it to this shot without building a 3D scene',
     noSceneHint: 'No 3D scene required',
     type: 'Camera move type',
     speed: 'Speed',
@@ -2355,7 +2352,6 @@ export const enGenerationCommon = {
     optimizePrompt: 'Optimize this prompt',
     aria: 'Optimize prompt with Nomi',
     running: 'Optimizing…',
-    optimize: 'Optimize',
   },
   videoToolbar: {
     aria: 'Video actions',

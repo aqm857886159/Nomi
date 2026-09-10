@@ -2,7 +2,9 @@ import { NodeEffectRecommendations } from './NodeEffectRecommendations'
 import { groupLibraryItems, libraryGroup } from '../../library/libraryGroups'
 import React from 'react'
 import { useTranslation } from 'react-i18next'
+import { IconSparkles } from '@tabler/icons-react'
 import { WorkbenchMenu, type WorkbenchMenuNode } from '../../../design/menu'
+import { NodePromptToolButton } from './NodePromptToolCluster'
 import { usePromptLibrary } from '../../promptLibrary/usePromptLibrary'
 import { useUserPrompts } from '../../promptLibrary/useUserPrompts'
 import type { LibraryPrompt } from '../../api/promptLibraryApi'
@@ -39,10 +41,21 @@ export function useNodeEffectChips({ enabled, empty, kind, disabled, onSelect }:
           className="shrink-0 whitespace-nowrap rounded-pill bg-nomi-ink-05 px-2 py-1 text-caption leading-4 text-nomi-ink-80 hover:text-nomi-accent disabled:opacity-40">{label(item)}</button>] : []
       })}
   </NodeEffectRecommendations> : null
+  // v1.1（2026-09-11 拍板）：「更多 ▾」这个名字骗人——它往提示词里塞的是**效果库**，
+  // 谁也猜不到。带文字的旧触发器整颗删掉，换成 B 簇里那颗 ✦，名字改在 hover 里说清
+  // （「效果与提示词库」）：好过一个常驻却骗人的名字。弹层与菜单一行没动。
   const more = <>
-    <button type="button" disabled={disabled} aria-expanded={Boolean(point)} aria-haspopup="menu" data-effect-more
+    <NodePromptToolButton
+      toolId="effects"
+      icon={<IconSparkles size={16} stroke={2} />}
+      label={t('generationCommon.composerBarV1.effects')}
+      disabled={disabled}
+      disabledReason={t('generationCommon.node.lock.unlockHint')}
+      aria-expanded={Boolean(point)}
+      aria-haspopup="menu"
+      data-effect-more
       onClick={event => { const rect = event.currentTarget.getBoundingClientRect(); setPoint({ x: rect.left, y: rect.bottom + 4 }) }}
-      className="shrink-0 whitespace-nowrap rounded-pill bg-nomi-ink-05 px-2 py-1 text-caption leading-4 text-nomi-ink-80 hover:text-nomi-accent disabled:opacity-40">{t('libraries.gallery.more')} ▾</button>
+    />
     <WorkbenchMenu open={Boolean(point)} onOpenChange={open => { if (!open) setPoint(null) }} point={point ?? { x: 0, y: 0 }} items={menu}
       ariaLabel={t('libraries.gallery.effect')} className="max-h-[470px] w-60 overflow-y-auto p-3" itemClassName="rounded-nomi-sm text-caption" data-testid="node-effect-menu" />
   </>
