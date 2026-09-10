@@ -337,7 +337,7 @@ export const zhCN = {
     progressLabel: '上手 4 步，已完成 {{done}} / {{total}}',
     panelLabel: '上手 4 步',
     collapse: '收起',
-    fullHandbook: '看完整手册',
+    fullHandbook: '完整手册',
     dismiss: '不再提示',
     steps: {
       model: { label: '接入模型', hint: '连一个 AI 服务（用你自己的 Key）。' },
@@ -383,7 +383,7 @@ export const zhCN = {
     moreMenu: '更多',
     importFile: '文件…',
     importFileAction: '导入文件',
-    menuPreference: { hide: '隐藏', moveUp: '上移', reset: '恢复默认菜单', saveFailed: '菜单偏好保存失败，请重试' },
+    menuPreference: { hide: '隐藏', moveUp: '上移', reset: '恢复默认', saveFailed: '菜单偏好保存失败，请重试' },
     addSections: {
       generate: '生成',
       more: '更多',
@@ -753,8 +753,8 @@ export const en = {
     progressLabel: 'Getting started: {{done}} of {{total}} steps complete',
     panelLabel: '4 steps to get started',
     collapse: 'Collapse',
-    fullHandbook: 'Open full guide',
-    dismiss: 'Do not show again',
+    fullHandbook: 'Full Guide',
+    dismiss: 'Dismiss',
     steps: {
       model: { label: 'Connect a model', hint: 'Connect an AI service using your own key.' },
       storyboard: { label: 'Plan one shot', hint: 'Ask Nomi to turn your idea into shots in Create.' },
@@ -800,7 +800,7 @@ export const en = {
     moreMenu: 'More',
     importFile: 'File…',
     importFileAction: 'Import file',
-    menuPreference: { hide: 'Hide', moveUp: 'Move up', reset: 'Restore default menu', saveFailed: 'Could not save menu preferences. Please try again.' },
+    menuPreference: { hide: 'Hide', moveUp: 'Move up', reset: 'Restore Default', saveFailed: 'Could not save menu preferences. Please try again.' },
     addSections: {
       generate: 'Generate',
       more: 'More',
