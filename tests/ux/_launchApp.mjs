@@ -132,7 +132,7 @@ export function buildNomiLaunchEnv({ extraEnv = {}, userDataDir, settingsDir, pr
  * Linux CI 没有可用的 setuid chrome-sandbox；所有测试进程统一显式关闭 Chromium sandbox。
  * 另：Chromium ≥139 移除了 SwiftShader 软件 WebGL 自动回退（安全策略，
  * https://chromestatus.com/feature/5166674414927872），xvfb 无 GPU 环境下 WebGL 上下文
- * 直接创建失败 → scene3d/轨迹面板不挂载（Electron 43 升级时 smoke 在 CI 死于此，macOS 本地全绿）。
+ * 直接创建失败 → 导演台/轨迹面板不挂载（Electron 43 升级时 smoke 在 CI 死于此，macOS 本地全绿）。
  * headless 测试正是官方点名保留的 opt-in 场景 → Linux 测试进程统一带 --enable-unsafe-swiftshader。
  * 只影响测试启动器；生产桌面端有真 GPU，不带此旗标。
  */

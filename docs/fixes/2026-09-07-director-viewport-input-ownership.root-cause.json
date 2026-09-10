@@ -1,0 +1,183 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-07-director-viewport-input-ownership",
+  "problem_type": "Viewport navigation and keyboard routing violate shared input ownership and approved movement frame",
+  "symptom": "Ctrl+D also moves the camera; held WASD continues behind input/modal/outside the viewport; looking down + W lowers the camera; arrows move the target instead of orbiting it. Hidden group children and locked IK handles remain pickable; a mode Escape also clears selection.",
+  "direct_cause": "Separate navigation listener checks only keydown target/hover and uses camera-forward/world-self rotation; hotkey matching ignores the nonnative platform modifier.",
+  "class_root": "Keyboard ownership must be validated both at dispatch and each navigation frame; navigation axes and orbit pivot must match the approved common contract.",
+  "affected_population": [
+    "Free-view keyboard navigation",
+    "POV navigation writing into camera rest/keyframe",
+    "Text inputs, modal dialogs, composition and modified shortcuts"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/nodes/director/scene/ViewCamera.tsx",
+    "src/workbench/generationCanvas/nodes/director/useDirectorHotkeys.ts",
+    "src/workbench/generationCanvas/nodes/director/model/hotkeys.ts",
+    "src/workbench/generationCanvas/nodes/director/scene/useViewportPicking.ts",
+    "src/workbench/generationCanvas/nodes/director/DirectorEditor.tsx",
+    "src/workbench/generationCanvas/nodes/director/panels/viewport/DirectorViewport.tsx",
+    "src/workbench/generationCanvas/nodes/director/scene/DirectorCanvas.tsx",
+    "src/workbench/generationCanvas/nodes/director/scene/creation/useBoxDraw.ts",
+    "src/workbench/generationCanvas/nodes/director/scene/creation/useCharacterPlacement.ts",
+    "src/workbench/generationCanvas/nodes/director/scene/creation/usePathDraw.ts",
+    "src/workbench/generationCanvas/nodes/director/panels/topbar/AddObjectMenu.tsx",
+    "src/workbench/generationCanvas/nodes/director/panels/viewport/ViewportToolbar.tsx",
+    "src/workbench/generationCanvas/nodes/director/scene/sceneRefs.ts",
+    "src/workbench/generationCanvas/nodes/director/scene/character/SkeletonVisual.tsx",
+    "src/workbench/generationCanvas/nodes/director/scene/character/SkeletonHandles.tsx"
+  ],
+  "entry_points": [
+    "onKeyDown / useFrame",
+    "useDirectorHotkeys",
+    "matchesHotkey"
+  ],
+  "external_sources": [
+    {
+      "kind": "source-code",
+      "url": "https://github.com/pmndrs/drei/blob/master/src/core/GizmoViewcube.tsx",
+      "checked_at": "2026-09-07",
+      "purpose": "Official onClick override replaces camera tween for face/edge/corner during recording"
+    }
+  ],
+  "invariants": [
+    "Blocked input never drives editor actions or camera frames",
+    "WASD preserves world height; EQ changes height; arrow rotation preserves target and orbit radius",
+    "Unexpected Ctrl/Meta modifiers cannot match unmodified bindings",
+    "Picking excludes ancestor-hidden or ancestor-locked objects and their special handles; skinned meshes never reenter proxy picking",
+    "Creation mode owns the first Escape before selection or editor exit",
+    "At most one creation mode owns pointers and Orbit; entering a mode schedules visible UI state immediately",
+    "One multi-entity shortcut or continuous POV gesture produces one undo step",
+    "Viewcube cannot jump the camera during motion recording",
+    "Portal skeletons and gizmos obey object, ancestor and scene visibility."
+  ],
+  "generality_proof": "The common text/composition/modal guard is consumed by command and camera key listeners. Each frame rechecks navigation ownership and clears stale keys; camera movement is shared by free view and POV.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/useDirectorHotkeys.ts",
+      "symbol": "isDirectorKeyboardBlocked",
+      "responsibility": "Own text, composition, consumed-event and modal rejection"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/scene/ViewCamera.tsx",
+      "symbol": "ViewCamera",
+      "responsibility": "Own navigation input lifetime and reference-frame math"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/model/hotkeys.ts",
+      "symbol": "matchesHotkey",
+      "responsibility": "Reject unexpected modifiers"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/scene/useViewportPicking.ts",
+      "symbol": "useViewportPicking",
+      "responsibility": "Apply visibility/lock/mesh eligibility to all picking passes"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/DirectorEditor.tsx",
+      "symbol": "onKeyDown",
+      "responsibility": "Yield Escape to active creation mode before shell state changes"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/panels/viewport/DirectorViewport.tsx",
+      "symbol": "DirectorViewport",
+      "responsibility": "Own creation-mode cancellation and Orbit lifetime for all creation tools"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/scene/sceneRefs.ts",
+      "symbol": "isWorldVisible / isDirectorObjectVisible",
+      "responsibility": "Resolve actual renderer visibility and reactive scene object ancestry for picking, labels and portal overlays"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/scene/ViewCamera.tsx",
+      "entry_point": "onKeyDown / useFrame",
+      "disposition": "enforced",
+      "evidence": "One navigation path feeds free view and POV"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/useDirectorHotkeys.ts",
+      "entry_point": "useDirectorHotkeys",
+      "disposition": "enforced",
+      "evidence": "Editor and timeline share dispatcher"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/model/hotkeys.ts",
+      "entry_point": "matchesHotkey",
+      "disposition": "enforced",
+      "evidence": "All table-driven shortcut bindings use exact modifiers"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/scene/useViewportPicking.ts",
+      "entry_point": "pointerup and dblclick",
+      "disposition": "enforced",
+      "evidence": "Normal geometry, registry entries and tagged handles pass the same eligibility boundary"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Keyboard ownership must be validated both at dispatch and each navigation frame; navigation axes and orbit pivot must match the approved common contract.",
+    "same_class_scan": [
+      "rg isTextTarget / addEventListener keydown across director: ViewCamera, useDirectorHotkeys, DirectorEditor, creation and timeline inspected",
+      "Reference navigation behavior compared directly against ViewCamera horizontal and arrow invariants",
+      "Inspected picking candidate population from scene.traverse and registry.entries including proxy, IK, bone and waypoint meshes",
+      "Inspected portal SkeletonVisual/SkeletonHandles and shared parent visibility with picking and labels; hidden scene/parent/root cannot leak overlays."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/nodes/director/scene/ViewCamera.tsx",
+    "invariant": "Blocked input never drives editor actions or camera frames; WASD preserves world height; EQ changes height; arrow rotation preserves target and orbit radius; Unexpected Ctrl/Meta modifiers cannot match unmodified bindings",
+    "failure_mode": "Reject input and clear latched movement before any camera mutation.",
+    "exception_policy": "none",
+    "strategy": "The common text/composition/modal guard is consumed by command and camera key listeners. Each frame rechecks navigation ownership and clears stale keys; camera movement is shared by free view and POV.",
+    "artifacts": [
+      "src/workbench/generationCanvas/nodes/director/scene/ViewCamera.tsx",
+      "src/workbench/generationCanvas/nodes/director/useDirectorHotkeys.ts",
+      "src/workbench/generationCanvas/nodes/director/model/hotkeys.ts",
+      "src/workbench/generationCanvas/nodes/director/scene/useViewportPicking.ts",
+      "src/workbench/generationCanvas/nodes/director/DirectorEditor.tsx",
+      "src/workbench/generationCanvas/nodes/director/panels/viewport/DirectorViewport.tsx",
+      "src/workbench/generationCanvas/nodes/director/scene/DirectorCanvas.tsx",
+      "src/workbench/generationCanvas/nodes/director/scene/creation/useBoxDraw.ts",
+      "src/workbench/generationCanvas/nodes/director/scene/creation/useCharacterPlacement.ts",
+      "src/workbench/generationCanvas/nodes/director/scene/creation/usePathDraw.ts",
+      "src/workbench/generationCanvas/nodes/director/panels/topbar/AddObjectMenu.tsx",
+      "src/workbench/generationCanvas/nodes/director/panels/viewport/ViewportToolbar.tsx",
+      "src/workbench/generationCanvas/nodes/director/scene/sceneRefs.ts",
+      "src/workbench/generationCanvas/nodes/director/scene/character/SkeletonVisual.tsx",
+      "src/workbench/generationCanvas/nodes/director/scene/character/SkeletonHandles.tsx"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/nodes/director/scene/ViewCamera.test.ts",
+    "src/workbench/generationCanvas/nodes/director/scene/creation/creationCoordinates.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/nodes/director/scene/ViewCamera.test.ts",
+    "src/workbench/generationCanvas/nodes/director/scene/creation/creationCoordinates.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/nodes/director/scene/ViewCamera.tsx",
+      "src/workbench/generationCanvas/nodes/director/useDirectorHotkeys.ts",
+      "src/workbench/generationCanvas/nodes/director/model/hotkeys.ts",
+      "src/workbench/generationCanvas/nodes/director/scene/useViewportPicking.ts",
+      "src/workbench/generationCanvas/nodes/director/DirectorEditor.tsx",
+      "src/workbench/generationCanvas/nodes/director/panels/viewport/DirectorViewport.tsx"
+    ],
+    "rationale": "Remove ViewCamera private text-only guard and camera-forward/self-pivot behavior."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "React/three/desktop bridge remain unchanged; the application owns keyboard routing, coordinate contract and asynchronous operation lifetime.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted schema changes. Existing projects use the corrected runtime boundaries upon next open.",
+  "residual_risks": [
+    "Hardware keyboard layouts and native IME behavior require platform integration evidence; deterministic regression tests exercise actual hook ownership with synthetic input."
+  ],
+  "invariant_owner_layer": {"layer": "src/workbench/generationCanvas/nodes/director/scene/ViewCamera.tsx", "tests": ["src/workbench/generationCanvas/nodes/director/scene/ViewCamera.test.ts", "src/workbench/generationCanvas/nodes/director/scene/creation/creationCoordinates.test.ts"], "why": "不变量由 src/workbench/generationCanvas/nodes/director/scene/ViewCamera.tsx 单点持有（即本合同的 prevention.enforcement_path / shared_boundaries）；上游其它入口只调用它、不各自重判。tests 是该层现有的类级与回归测试，改动这条不变量必先让它们红。"}
+}

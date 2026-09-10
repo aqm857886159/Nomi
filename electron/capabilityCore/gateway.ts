@@ -98,12 +98,12 @@ function readDiskSnapshot(projectId: string): CanvasSnapshot {
   return normalizeSnapshot(payload.generationCanvas)
 }
 
-function writeDiskSnapshot(projectId: string, snapshot: CanvasSnapshot): void {
+async function writeDiskSnapshot(projectId: string, snapshot: CanvasSnapshot): Promise<void> {
   const record = readProject(projectId)
   if (!record) throw new Error(`项目不存在: ${projectId}`)
   const payload = record.payload && typeof record.payload === 'object' ? { ...(record.payload as Record<string, unknown>) } : {}
   payload.generationCanvas = snapshot
-  saveProject(projectId, { ...record, payload })
+  await saveProject(projectId, { ...record, payload })
 }
 
 /**
@@ -119,7 +119,7 @@ export function createDiskGateway(projectId: string): ProjectGateway {
       return readDiskSnapshot(projectId)
     },
     async apply(snapshot) {
-      writeDiskSnapshot(projectId, snapshot)
+      await writeDiskSnapshot(projectId, snapshot)
     },
     async confirmSpend(info) {
       return process.env.NOMI_LOOP_SPEND_OK === '1' ? mintSpendGrant({ nodeIds: [info.nodeId] }) : null

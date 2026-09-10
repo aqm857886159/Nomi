@@ -1,0 +1,198 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-07-director-world-local-coordinates",
+  "problem_type": "World-space interaction data is persisted or rendered in an incompatible scene/parent coordinate frame",
+  "symptom": "Character/box previews commit at different positions in transformed scenes; nested-group paths do not follow pointer/grid; transformed camera models disagree with POV/preview/capture/recording.",
+  "direct_cause": "Pointer and view APIs produce world coordinates but callers write them directly into scene-local/parent-local fields; rendering camera and path data omits the reverse conversion.",
+  "class_root": "Every interaction crossing world and persisted local spaces must convert at a shared frame boundary, preserving position, orientation and dimensions.",
+  "affected_population": [
+    "Scenes with global translation, rotation or scale",
+    "Characters nested in transformed groups",
+    "POV, mobile camera, camera capture and recorded motion",
+    "Screenshot and PIP camera rendering"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/nodes/director/model/cameraCoordinateSpace.ts",
+    "src/workbench/generationCanvas/nodes/director/scene/creation/useCharacterPlacement.ts",
+    "src/workbench/generationCanvas/nodes/director/scene/creation/useBoxDraw.ts",
+    "src/workbench/generationCanvas/nodes/director/scene/creation/usePathDraw.ts",
+    "src/workbench/generationCanvas/nodes/director/scene/TrajectoryVisuals.tsx",
+    "src/workbench/generationCanvas/nodes/director/scene/ViewCamera.tsx",
+    "src/workbench/generationCanvas/nodes/director/DirectorEditor.tsx",
+    "src/workbench/generationCanvas/nodes/director/useCameraMotionRecorder.ts",
+    "src/workbench/generationCanvas/nodes/director/scene/capture/CaptureBinder.tsx",
+    "src/workbench/generationCanvas/nodes/director/scene/PipRenderer.tsx",
+    "src/workbench/generationCanvas/nodes/director/panels/topbar/AddObjectMenu.tsx",
+    "src/workbench/generationCanvas/nodes/director/scene/LabelProjector.tsx",
+    "src/workbench/generationCanvas/nodes/director/scene/character/characterLabel.ts",
+    "src/workbench/generationCanvas/nodes/director/model/sceneObjectGraph.ts",
+    "src/workbench/generationCanvas/nodes/director/model/evaluatedSceneObject.ts",
+    "src/workbench/generationCanvas/nodes/director/model/storeCameraActions.ts",
+    "src/workbench/generationCanvas/nodes/director/scene/useTimelinePlayback.ts",
+    "src/workbench/generationCanvas/nodes/director/scene/character/useCharacterRig.ts"
+  ],
+  "entry_points": [
+    "Character placement and box drawing",
+    "Pencil/waypoint path drawing",
+    "Camera POV/capture/recording",
+    "PIP and offline frame rendering"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The repository declares object coordinates parent-local and camera coordinates scene-local while ViewportApi is world-space. Real three.Matrix4 composition is used as the independent regression oracle; this is an application coordinate contract, not a dependency feature.",
+  "invariants": [
+    "Persisted transforms and waypoints stay in their declared scene/parent coordinate space",
+    "Ghost/preview world transforms equal the final entity/camera world transforms",
+    "World gridHeight remains the path ground height even in a transformed scene",
+    "Free view and mobile ViewportApi stay world-space",
+    "Viewport and output labels share the local head anchor transformed through the complete scene/parent hierarchy.",
+    "All target-relative camera consumers evaluate the complete target hierarchy in scene coordinates; character head and target enter the existing gaze solver in the same character frame."
+  ],
+  "generality_proof": "All creation producers use shared sceneObjectGraph frames; camera producers/consumers share transformCameraPose with the same scene frame and inverse. Thus forward rendering and inverse interaction transforms are paired across all scanned entrances.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/model/cameraCoordinateSpace.ts",
+      "symbol": "transformCameraPose",
+      "responsibility": "Convert a logical YXZ camera pose across an arbitrary scene coordinate frame"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/scene/creation/usePathDraw.ts",
+      "symbol": "subjectFrame",
+      "responsibility": "Resolve scene and parent chain for path writeback and world ghost coordinates"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/scene/character/characterLabel.ts",
+      "symbol": "characterLabelAnchor",
+      "responsibility": "Return a visible character head world anchor from its actual object transform"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/model/evaluatedSceneObject.ts",
+      "symbol": "evaluateSceneObjectPose",
+      "responsibility": "Compose target and ancestor poses at the requested time into one scene-space frame for live cameras, baked closeups and character gaze"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/scene/creation/useCharacterPlacement.ts",
+      "entry_point": "createAt",
+      "disposition": "enforced",
+      "evidence": "World placement TRS converted to scene local"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/scene/creation/useBoxDraw.ts",
+      "entry_point": "commit",
+      "disposition": "enforced",
+      "evidence": "World box dimensions and bottom position converted together"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/scene/creation/usePathDraw.ts",
+      "entry_point": "finishPencil / placeWaypoint",
+      "disposition": "enforced",
+      "evidence": "World pointer seeds converted to entity parent space"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/scene/ViewCamera.tsx",
+      "entry_point": "cameraDataPose / POV writeback",
+      "disposition": "enforced",
+      "evidence": "Scene camera data and world view APIs use reciprocal conversion"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/scene/TrajectoryVisuals.tsx",
+      "entry_point": "TrajectoryVisuals",
+      "disposition": "enforced",
+      "evidence": "Parent chain applied to nested object trajectory geometry"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/scene/useTimelinePlayback.ts",
+      "entry_point": "evaluateCameraPose",
+      "disposition": "enforced",
+      "evidence": "Live closeup/look-at/follow use target scene position and composed forward heading"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/model/storeCameraActions.ts",
+      "entry_point": "convertCloseupToTrajectory",
+      "disposition": "enforced",
+      "evidence": "Baked closeup target samples use the same complete animated hierarchy as live playback"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/scene/character/useCharacterRig.ts",
+      "entry_point": "applyLookAt",
+      "disposition": "enforced",
+      "evidence": "Camera/object targets are transformed from scene to world, then head and target are both solved in character coordinates without changing the bone algorithm"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every interaction crossing world and persisted local spaces must convert at a shared frame boundary, preserving position, orientation and dimensions.",
+    "same_class_scan": [
+      "Searched getViewPose/applyViewPose/writeCameraSpatialTransform/cameraQuaternion across all director consumers",
+      "Read scene global container, object parent hierarchy, both creation ghosts and all three creation hooks",
+      "Read trajectory visuals, PIP and capture pipeline for forward counterpart conversion",
+      "Both label producers share the complete localToWorld head anchor; output projection runs before auxiliary ancestor visibility is restored.",
+      "Audited live camera closeup/lookAt/follow, closeup baking, and character gaze after detecting parent-local target data consumed as scene/world coordinates; 5 camera and 2 gaze red tests reproduce the class."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/nodes/director/model/cameraCoordinateSpace.ts",
+    "invariant": "Persisted transforms and waypoints stay in their declared scene/parent coordinate space; Ghost/preview world transforms equal the final entity/camera world transforms; World gridHeight remains the path ground height even in a transformed scene; Free view and mobile ViewportApi stay world-space",
+    "failure_mode": "Reject singular frame inversion; do not silently reinterpret world data as local.",
+    "exception_policy": "none",
+    "strategy": "All creation producers use shared sceneObjectGraph frames; camera producers/consumers share transformCameraPose with the same scene frame and inverse. Thus forward rendering and inverse interaction transforms are paired across all scanned entrances.",
+    "artifacts": [
+      "src/workbench/generationCanvas/nodes/director/model/cameraCoordinateSpace.ts",
+      "src/workbench/generationCanvas/nodes/director/scene/creation/useCharacterPlacement.ts",
+      "src/workbench/generationCanvas/nodes/director/scene/creation/useBoxDraw.ts",
+      "src/workbench/generationCanvas/nodes/director/scene/creation/usePathDraw.ts",
+      "src/workbench/generationCanvas/nodes/director/scene/TrajectoryVisuals.tsx",
+      "src/workbench/generationCanvas/nodes/director/scene/ViewCamera.tsx",
+      "src/workbench/generationCanvas/nodes/director/DirectorEditor.tsx",
+      "src/workbench/generationCanvas/nodes/director/useCameraMotionRecorder.ts",
+      "src/workbench/generationCanvas/nodes/director/scene/capture/CaptureBinder.tsx",
+      "src/workbench/generationCanvas/nodes/director/scene/PipRenderer.tsx",
+      "src/workbench/generationCanvas/nodes/director/panels/topbar/AddObjectMenu.tsx",
+      "src/workbench/generationCanvas/nodes/director/scene/LabelProjector.tsx",
+      "src/workbench/generationCanvas/nodes/director/scene/character/characterLabel.ts",
+      "src/workbench/generationCanvas/nodes/director/model/sceneObjectGraph.ts",
+      "src/workbench/generationCanvas/nodes/director/model/evaluatedSceneObject.ts",
+      "src/workbench/generationCanvas/nodes/director/model/storeCameraActions.ts",
+      "src/workbench/generationCanvas/nodes/director/scene/useTimelinePlayback.ts",
+      "src/workbench/generationCanvas/nodes/director/scene/character/useCharacterRig.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/nodes/director/scene/creation/creationCoordinates.test.ts",
+    "src/workbench/generationCanvas/nodes/director/scene/ViewCamera.test.ts",
+    "src/workbench/generationCanvas/nodes/director/model/cameraCoordinateSpace.test.ts",
+    "src/workbench/generationCanvas/nodes/director/scene/character/useCharacterRig.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/nodes/director/scene/creation/creationCoordinates.test.ts",
+    "src/workbench/generationCanvas/nodes/director/scene/ViewCamera.test.ts",
+    "src/workbench/generationCanvas/nodes/director/model/cameraCoordinateSpace.test.ts",
+    "src/workbench/generationCanvas/nodes/director/scene/character/useCharacterRig.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/nodes/director/scene/creation/useCharacterPlacement.ts",
+      "src/workbench/generationCanvas/nodes/director/scene/creation/useBoxDraw.ts",
+      "src/workbench/generationCanvas/nodes/director/scene/creation/usePathDraw.ts",
+      "src/workbench/generationCanvas/nodes/director/scene/TrajectoryVisuals.tsx",
+      "src/workbench/generationCanvas/nodes/director/scene/ViewCamera.tsx",
+      "src/workbench/generationCanvas/nodes/director/DirectorEditor.tsx",
+      "src/workbench/generationCanvas/nodes/director/useCameraMotionRecorder.ts",
+      "src/workbench/generationCanvas/nodes/director/scene/capture/CaptureBinder.tsx"
+    ],
+    "rationale": "Remove direct world-to-local assignment and incomplete parent/render frame interpretation in the same change."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Shared coordinate conversion remains pure matrix mathematics; three appears only in rendering consumers and test oracles.",
+    "exit_criteria": []
+  },
+  "migration": "No data schema change; existing scene-local/parent-local fields retain their declared meaning. No guessing or rewriting historical authored data.",
+  "residual_risks": [
+    "No automatic rewriting of historical projects authored under prior coordinate bugs; existing fields keep their declared local-space meaning."
+  ],
+  "invariant_owner_layer": {"layer": "src/workbench/generationCanvas/nodes/director/model/cameraCoordinateSpace.ts", "tests": ["src/workbench/generationCanvas/nodes/director/scene/creation/creationCoordinates.test.ts", "src/workbench/generationCanvas/nodes/director/scene/ViewCamera.test.ts", "src/workbench/generationCanvas/nodes/director/model/cameraCoordinateSpace.test.ts", "src/workbench/generationCanvas/nodes/director/scene/character/useCharacterRig.test.ts"], "why": "不变量由 src/workbench/generationCanvas/nodes/director/model/cameraCoordinateSpace.ts 单点持有（即本合同的 prevention.enforcement_path / shared_boundaries）；上游其它入口只调用它、不各自重判。tests 是该层现有的类级与回归测试，改动这条不变量必先让它们红。"}
+}

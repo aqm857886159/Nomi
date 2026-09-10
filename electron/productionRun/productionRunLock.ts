@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
-import { fsyncIfDurable, isDurable } from "../durability";
+import { fsyncDirectoryIfDurable, fsyncIfDurable } from "../durability";
 import { writeJsonFileAtomic } from "../jsonFile";
 
 export const PRODUCTION_RUN_LOCK_SCHEMA_VERSION = 1;
@@ -59,17 +59,7 @@ function fsyncFile(fd: number): void {
 }
 
 function fsyncDirectory(filePath: string): void {
-  if (!isDurable()) return; // 连开目录 fd 都省掉——它存在的唯一目的就是被 fsync。
-  try {
-    const fd = fs.openSync(path.dirname(filePath), "r");
-    try {
-      fs.fsyncSync(fd);
-    } finally {
-      fs.closeSync(fd);
-    }
-  } catch {
-    // Windows does not support opening a directory as a file descriptor.
-  }
+  fsyncDirectoryIfDurable(path.dirname(filePath));
 }
 
 function parseEpoch(filePath: string): number {

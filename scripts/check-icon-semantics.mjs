@@ -26,7 +26,18 @@
  *   · 没有 aria-label/title 的纯图标按钮 —— 无从判定它表示哪个动作；
  *   · 图标隐喻对不对（`IconTrash` 用来表示「归档」这种）—— 那是**盲测**，人工，不可机器化。
  *
- * 棘轮：`scripts/icon-semantics-baseline.json` 记录存量冲突，**只减不增**。
+ * 规则二（2026-09-10 加）：**图标词典登记**（设计系统 §1.8 规则 5「一个 icon 全 app 一个含义；
+ * 新 icon 先证明词典没有现成的再登记」）。判据：全仓用到的 Tabler 图标构成「词典」，
+ * 存量进基线的 `dictionary` 数组；**新图标只有先登记进 §6「语义图标登记」表才放行**，
+ * 否则红。它守的不是「这个图标好不好看」，而是**加图标这一步必须经过一次「词典里有没有现成的」**——
+ * 靠自觉记不住，于是同一个「关闭」长出 IconX / IconSquareX / IconCircleX 三种画法。
+ *
+ * 规则二刻意**不**做的两件事（不是漏，是边界）：
+ *   · 不反过来查「一个图标被用在几个动作上」：`IconX` 天然要关掉弹窗、面板、预览、chip，
+ *     那不是漂移；硬做会产生几百条永远修不掉的基线，然后没人再看这道门岗。
+ *   · 不查图标隐喻对不对 —— 那是 §6 的盲测，人工。
+ *
+ * 棘轮：`scripts/icon-semantics-baseline.json` 记录存量冲突（`conflicts`）与存量词典（`dictionary`），**只减不增**。
  *   `--update-baseline` 重拍快照（只在真的清掉了冲突之后用）。
  *   `--report` 只列出全部 动作→图标 映射，不判红。
  */
@@ -36,6 +47,8 @@ import process from 'node:process'
 import ts from 'typescript'
 
 import { pathToFileURL } from 'node:url'
+
+import { i18nKeyOf, isControlTag, jsxAttrsOf, jsxTagOf } from './lib/jsxControls.mjs'
 
 const ROOT = process.cwd()
 const SCAN_ROOTS = ['src', 'electron']
@@ -47,19 +60,19 @@ const EXCLUDED_PREFIXES = [
 ]
 
 /** 收集一个目录下所有 .tsx（图标只出现在 JSX 里）。 */
-function collectFiles(dir, root, out = []) {
+function collectFiles(dir, root, out = [], excluded = EXCLUDED_PREFIXES) {
   if (!fs.existsSync(dir)) return out
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name)
     if (entry.isDirectory()) {
       if (entry.name === 'node_modules' || entry.name === 'dist') continue
-      collectFiles(full, root, out)
+      collectFiles(full, root, out, excluded)
       continue
     }
     if (!entry.name.endsWith('.tsx')) continue
     if (entry.name.endsWith('.test.tsx')) continue
     const rel = path.relative(root, full).split(path.sep).join('/')
-    if (EXCLUDED_PREFIXES.some((p) => rel.startsWith(p))) continue
+    if (excluded.some((p) => rel.startsWith(p))) continue
     out.push(full)
   }
   return out
@@ -71,44 +84,11 @@ function collectFiles(dir, root, out = []) {
  */
 const AFFORDANCE_ICON = /^Icon(Chevron|Caret|Selector|Loader|ArrowsSort|Point)/
 
-/**
- * 这个 JSX 标签是不是一个真实控件（动作身份只能挂在控件上，不能挂在容器上）。
- *
- * ⚠️ 刻意**不**把「有 onClick」当控件：`role="dialog"` 的弹层容器普遍写
- * `onClick={(e) => e.stopPropagation()}`，一旦算它，容器的 aria-label 会被安到里面
- * 所有图标头上（实测 TimelineTransitionPicker 因此假红）。要判就判可访问性角色。
- */
-function isControlTag(tagName, attrs) {
-  if (tagName === 'button' || tagName === 'a') return true
-  if (/(Button|IconBtn|Btn|MenuItem|Tab)$/.test(tagName)) return true
-  if (!attrs) return false
-  return attrs.properties.some((attr) => {
-    if (!ts.isJsxAttribute(attr) || attr.name.getText() !== 'role' || !attr.initializer) return false
-    return ts.isStringLiteral(attr.initializer) && attr.initializer.text === 'button'
-  })
-}
-
-/** `t('a.b.c')` / `t('a.b', {..})` → 'a.b.c'；不是这个形状就返回 null。 */
-function i18nKeyOf(node) {
-  let expr = node
-  if (ts.isJsxExpression(expr)) expr = expr.expression
-  if (!expr) return null
-  // 三元里取不到唯一 key（`cond ? t(a) : t(b)`）——那是状态切换，跳过。
-  if (!ts.isCallExpression(expr)) return null
-  const callee = expr.expression
-  const name = ts.isIdentifier(callee) ? callee.text : ts.isPropertyAccessExpression(callee) ? callee.name.text : ''
-  if (name !== 't' && name !== 'desktopT') return null
-  const first = expr.arguments[0]
-  if (!first || !ts.isStringLiteral(first)) return null
-  return first.text
-}
-
 /** 这个 JSX 元素上的动作身份（aria-label 优先，其次 title）。 */
 function actionKeyOf(element) {
-  const attrs = ts.isJsxSelfClosingElement(element) ? element.attributes : element.openingElement?.attributes
+  const attrs = jsxAttrsOf(element)
   if (!attrs) return null
-  const tag = ts.isJsxSelfClosingElement(element) ? element.tagName.getText() : element.openingElement.tagName.getText()
-  if (!isControlTag(tag, attrs)) return null
+  if (!isControlTag(jsxTagOf(element), attrs)) return null
   let fallback = null
   for (const attr of attrs.properties) {
     if (!ts.isJsxAttribute(attr) || !attr.initializer) continue
@@ -154,7 +134,7 @@ export function scanIconSemantics(root = ROOT, scanRoots = SCAN_ROOTS) {
       if (ts.isJsxElement(node) || ts.isJsxSelfClosingElement(node)) {
         const own = actionKeyOf(node)
         if (own) action = own
-        const tag = ts.isJsxSelfClosingElement(node) ? node.tagName.getText() : node.openingElement.tagName.getText()
+        const tag = jsxTagOf(node)
         if (tablerIcons.has(tag) && action && !AFFORDANCE_ICON.test(tag)) {
           const line = source.getLineAndCharacterOfPosition(node.getStart()).line + 1
           // 同一个三元表达式里的两个图标 = 同一按钮的两个态，折叠成一条（用三元节点位置当组 id）。
@@ -162,8 +142,7 @@ export function scanIconSemantics(root = ROOT, scanRoots = SCAN_ROOTS) {
           for (let p = node.parent; p; p = p.parent) {
             if (ts.isConditionalExpression(p)) { ternary = `${rel}#${p.getStart()}`; break }
             if (ts.isJsxElement(p) || ts.isJsxSelfClosingElement(p)) {
-              const ptag = ts.isJsxSelfClosingElement(p) ? p.tagName.getText() : p.openingElement.tagName.getText()
-              if (isControlTag(ptag, ts.isJsxSelfClosingElement(p) ? p.attributes : p.openingElement.attributes)) break
+              if (isControlTag(jsxTagOf(p), jsxAttrsOf(p))) break
             }
           }
           if (!pairs.has(action)) pairs.set(action, new Map())
@@ -179,6 +158,62 @@ export function scanIconSemantics(root = ROOT, scanRoots = SCAN_ROOTS) {
   }
   }
   return pairs
+}
+
+/* ───────────────────────── 规则二：图标词典登记 ───────────────────────── */
+
+/**
+ * 词典扫描范围比语义扫描宽一点：`src/design/` 组件库里的图标一样会出现在产品界面上，
+ * 属于词典的一部分；只有设计实验室（刻意并列多种画法做对照）不算。
+ */
+const DICTIONARY_EXCLUDED_PREFIXES = ['src/devlab/']
+
+/** 全仓从 `@tabler/icons-react` 引进来的图标名 → 出现位置。 */
+export function scanIconDictionary(root = ROOT, scanRoots = SCAN_ROOTS) {
+  const dictionary = new Map()
+  for (const scanRoot of scanRoots) {
+    for (const file of collectFiles(path.join(root, scanRoot), root, [], DICTIONARY_EXCLUDED_PREFIXES)) {
+      const text = fs.readFileSync(file, 'utf8')
+      if (!text.includes('@tabler/icons-react')) continue
+      const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
+      const rel = path.relative(root, file).split(path.sep).join('/')
+      source.forEachChild((node) => {
+        if (!ts.isImportDeclaration(node)) return
+        if (!ts.isStringLiteral(node.moduleSpecifier) || node.moduleSpecifier.text !== '@tabler/icons-react') return
+        // `import type { Icon }` 引的是类型（图标组件的 props 签名），不是词典里的一个词。
+        if (node.importClause?.isTypeOnly) return
+        const named = node.importClause?.namedBindings
+        if (!named || !ts.isNamedImports(named)) return
+        for (const el of named.elements) {
+          if (el.isTypeOnly) continue
+          if (el.name.text === 'Icon') continue // 同上：`Icon` 是类型名，不是图标
+          const line = source.getLineAndCharacterOfPosition(el.getStart()).line + 1
+          if (!dictionary.has(el.name.text)) dictionary.set(el.name.text, new Set())
+          dictionary.get(el.name.text).add(`${rel}:${line}`)
+        }
+      })
+    }
+  }
+  return dictionary
+}
+
+/**
+ * 设计系统 §6「语义图标登记」表里登记过的图标 —— 这是**新图标唯一的入口**。
+ * 让文档当 owner 而不是让基线当 owner：往基线里加一行是无声的，往 §6 表里加一行要写清
+ * 「这个语义是什么、用在哪」，那一步才是规则真正要的那次思考。
+ */
+export function loadRegisteredIcons(root = ROOT) {
+  const file = path.join(root, 'docs', 'design', 'nomi-design-system.md')
+  if (!fs.existsSync(file)) return new Set()
+  const lines = fs.readFileSync(file, 'utf8').split(/\r?\n/)
+  const start = lines.findIndex((line) => /^#{2,4}\s.*语义图标登记/u.test(line))
+  if (start < 0) return new Set()
+  const registered = new Set()
+  for (let i = start + 1; i < lines.length; i += 1) {
+    if (/^#{1,3}\s/u.test(lines[i])) break
+    for (const match of lines[i].matchAll(/`(Icon[A-Za-z0-9]+)`/g)) registered.add(match[1])
+  }
+  return registered
 }
 
 /** 冲突 = 同一动作被配了 ≥2 个不同图标（已折叠状态切换）。 */
@@ -212,6 +247,9 @@ const REPORT = process.argv.includes('--report')
 const UPDATE_BASELINE = process.argv.includes('--update-baseline')
 const pairs = scanIconSemantics()
 const conflicts = findConflicts(pairs)
+const dictionary = scanIconDictionary()
+const registered = loadRegisteredIcons()
+const icons = [...dictionary.keys()].sort()
 
 if (REPORT) {
   console.log(`扫到 ${pairs.size} 个「动作 → 图标」映射；冲突 ${conflicts.length} 个。`)
@@ -219,24 +257,35 @@ if (REPORT) {
     console.log(`\n  ✗ ${c.action} → ${c.icons.join(' / ')}`)
     for (const s of c.sites) console.log(`      ${s}`)
   }
+  console.log(`\n词典：${icons.length} 个图标在用，§6 登记 ${registered.size} 个。`)
   process.exit(0)
 }
 
 const conflictIds = conflicts.map(conflictId).sort()
 
+const savedRaw = fs.existsSync(BASELINE_FILE) ? JSON.parse(fs.readFileSync(BASELINE_FILE, 'utf8')) : {}
+
 if (UPDATE_BASELINE) {
   fs.writeFileSync(
     BASELINE_FILE,
-    `${JSON.stringify({ note: '同一动作配了多个图标的存量冲突；棘轮只减不增。清掉后跑 --update-baseline 重拍。', conflicts: conflictIds }, null, 2)}\n`,
+    `${JSON.stringify({
+      note: '同一动作配了多个图标的存量冲突；棘轮只减不增。清掉后跑 --update-baseline 重拍。',
+      dictionaryNote:
+        'dictionary = 立项时全仓在用的 Tabler 图标词典（设计系统 §1.8 规则 5）。新图标不许往这里加，'
+        + '要先登记进 docs/design/nomi-design-system.md §6「语义图标登记」表；不再用的图标从这里删。',
+      conflicts: conflictIds,
+      dictionary: icons,
+    }, null, 2)}\n`,
   )
-  console.log(`✅ 基线已重拍：${conflictIds.length} 个存量冲突。`)
+  console.log(`✅ 基线已重拍：${conflictIds.length} 个存量冲突，词典 ${icons.length} 个图标。`)
   process.exit(0)
 }
 
-const baseline = fs.existsSync(BASELINE_FILE)
-  ? JSON.parse(fs.readFileSync(BASELINE_FILE, 'utf8')).conflicts ?? []
-  : []
+const baseline = savedRaw.conflicts ?? []
 const baselineSet = new Set(baseline)
+const dictionaryBaseline = savedRaw.dictionary ?? []
+const knownIcons = new Set([...dictionaryBaseline, ...registered])
+const unregistered = icons.filter((icon) => !knownIcons.has(icon))
 const added = conflictIds.filter((id) => !baselineSet.has(id))
 const removed = baseline.filter((id) => !conflictIds.includes(id))
 
@@ -254,10 +303,30 @@ if (added.length > 0) {
   process.exit(1)
 }
 
+if (unregistered.length > 0) {
+  console.error(`❌ check:icon-semantics —— ${unregistered.length} 个图标不在词典里：\n`)
+  for (const icon of unregistered) {
+    console.error(`  ✗ ${icon}`)
+    for (const site of [...dictionary.get(icon)].sort()) console.error(`      ${site}`)
+  }
+  console.error(`
+设计系统 §1.8 规则 5：一个 icon 全 app 一个含义；**新 icon 先证明词典里没有现成的再登记**。
+修法二选一：
+  ① 词典里已有能表达这个语义的图标 → 改用它（词典 ${dictionaryBaseline.length} 个，跑 --report 看全表）；
+  ② 确实是新语义 → 在 docs/design/nomi-design-system.md §6「语义图标登记」表里加一行
+     （语义 / 图标 / 用在哪），门岗读那张表放行。**别往基线的 dictionary 数组里加**——
+     那一步是无声的，而 §6 那一行才是规则真正要的那次「词典里有没有现成的」思考。`)
+  process.exit(1)
+}
+
+const retired = dictionaryBaseline.filter((icon) => !dictionary.has(icon))
 if (removed.length > 0) {
   console.log(`✅ check:icon-semantics 通过；顺带清掉了 ${removed.length} 个存量冲突 —— 跑 --update-baseline 把基线降下来。`)
 } else {
-  console.log(`✅ check:icon-semantics 通过（${pairs.size} 个动作→图标映射，存量冲突 ${conflictIds.length}）。`)
+  console.log(
+    `✅ check:icon-semantics 通过（${pairs.size} 个动作→图标映射，存量冲突 ${conflictIds.length}；`
+    + `词典 ${icons.length} 个图标，§6 登记 ${registered.size} 个${retired.length > 0 ? `，${retired.length} 个已停用可从基线删` : ''}）。`,
+  )
 }
 }
 

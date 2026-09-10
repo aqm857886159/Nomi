@@ -63,7 +63,7 @@ const NODE_EMPTY_COPY: Record<CanvasToolbarNodeKind, {
   model3d: { name: '3D 模型节点空态', titleKey: 'generationCommon.nodeEmpty.model3d.title', descriptionKey: 'generationCommon.nodeEmpty.model3d.description' },
   whiteboard: { name: '画板节点空态', titleKey: 'generationCommon.nodeEmpty.whiteboard.title', descriptionKey: 'generationCommon.nodeEmpty.whiteboard.description', actionKey: 'generationCommon.nodeEmpty.whiteboard.action' },
   panorama: { name: '全景节点空态', titleKey: 'generationCommon.nodeEmpty.panorama.title', descriptionKey: 'generationCommon.nodeEmpty.panorama.description', actionKey: 'generationCommon.node.uploadPanorama' },
-  scene3d: { name: '3D 场景节点空态', titleKey: 'generationCommon.nodeEmpty.scene3d.title', descriptionKey: 'generationCommon.nodeEmpty.scene3d.description', actionKey: 'generationCommon.nodeEmpty.scene3d.action' },
+  director: { name: '导演台节点空态', titleKey: 'generationCommon.nodeEmpty.director.title', descriptionKey: 'generationCommon.nodeEmpty.director.description', actionKey: 'generationCommon.nodeEmpty.director.action' },
 }
 
 function NodeEmptyLabCell({ kind }: { kind: CanvasToolbarNodeKind }): JSX.Element {

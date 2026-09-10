@@ -340,11 +340,14 @@ export function main() {
   const stationHits = []
   for (const file of collectTestFiles()) {
     const raw = fs.readFileSync(file, 'utf8')
-    stationHits.push(...stationWaitHits(raw, path.relative(repoRoot, file)).map(hit => ({ ...hit, file: path.relative(repoRoot, file) })))
+    // 键里的路径必须归一成正斜杠：基线在 Linux CI 生成，Windows 上 path.relative 给反斜杠会让 824 条全部对不上、整片报陈旧
+    // （同文件其余 path.relative 早已这样归一，这一行是新规则落下的）
+    const stationFile = path.relative(repoRoot, file).replaceAll(path.sep, '/')
+    stationHits.push(...stationWaitHits(raw, stationFile).map(hit => ({ ...hit, file: stationFile })))
     const source = stripComments(raw)
     const context = { clockDeltaNames: collectClockDeltaNames(source), spiesOnFsRead: FS_READ_SPY.test(source), asyncWaitLines: asyncWaitForFunctionLines(raw, file),
-      builtArtifactImportLines: builtArtifactImportLines(raw, path.relative(repoRoot, file)),
-      unownedLaneCleanupLines: unownedLaneCleanupLines(raw, path.relative(repoRoot, file)) }
+      builtArtifactImportLines: builtArtifactImportLines(raw, path.relative(repoRoot, file).replaceAll(path.sep, '/')),
+      unownedLaneCleanupLines: unownedLaneCleanupLines(raw, path.relative(repoRoot, file).replaceAll(path.sep, '/')) }
     const unitTest = /\.test\.(tsx?|mts|cts|mjs)$/.test(file)
     source.split('\n').forEach((line, i) => {
       context.lineIndex = i
@@ -378,7 +381,7 @@ export function main() {
   const hardHits = hits.filter((hit) => hit.rule.id !== 'wallclock-budget-assertion')
   const budgetByFile = new Map()
   for (const hit of budgetHits) {
-    const relative = path.relative(repoRoot, hit.file)
+    const relative = path.relative(repoRoot, hit.file).replaceAll(path.sep, '/')
     budgetByFile.set(relative, [...(budgetByFile.get(relative) ?? []), hit])
   }
 
@@ -394,7 +397,7 @@ export function main() {
   if (stationErrors.length > 0 || hardHits.length > 0 || budgetViolations.length > 0 || staleBaseline.length > 0) {
     console.log('✖ 测试等待门岗未通过：测试不许空等待、私有墙钟等待、墙钟判分或无 owner 的 lane 清理')
     for (const hit of hardHits.slice(0, 20)) {
-      console.log(`    ${path.relative(repoRoot, hit.file)}:${hit.line}  [${hit.rule.id}]  ${hit.text}`)
+      console.log(`    ${path.relative(repoRoot, hit.file).replaceAll(path.sep, '/')}:${hit.line}  [${hit.rule.id}]  ${hit.text}`)
     }
     for (const { relative, fileHits, allowed } of budgetViolations) {
       console.log(`    ${relative}  [wallclock-budget-assertion]  ${fileHits.length} 处 > 基线 ${allowed} 处`)

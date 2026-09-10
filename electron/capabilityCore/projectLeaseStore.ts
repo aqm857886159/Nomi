@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
-import { fsyncIfDurable, isDurable } from "../durability";
+import { fsyncDirectoryIfDurable, fsyncIfDurable } from "../durability";
 import { renameSyncWithRetry } from "../jsonFile";
 
 export const PROJECT_LEASE_STORE_SCHEMA_VERSION = 2;
@@ -117,19 +117,6 @@ function equalMac(actual: string, expected: string): boolean {
   return left.length === right.length && crypto.timingSafeEqual(left, right);
 }
 
-function fsyncDirectory(directoryPath: string): void {
-  if (!isDurable()) return;
-  try {
-    const fd = fs.openSync(directoryPath, "r");
-    try {
-      fs.fsyncSync(fd);
-    } finally {
-      fs.closeSync(fd);
-    }
-  } catch {
-    // Windows cannot open a directory as a file descriptor.
-  }
-}
 
 function realDirectory(directoryPath: string): boolean {
   try {
@@ -247,7 +234,7 @@ export function createProjectLeaseStore(deps: ProjectLeaseStoreDeps) {
       throw error;
     }
     try { fs.rmSync(retiredPath, { force: true }); } catch { /* Never read a retired V1 session ledger again. */ }
-    fsyncDirectory(path.dirname(legacyPath));
+    fsyncDirectoryIfDurable(path.dirname(legacyPath));
   }
 
   function initialize(): void {
@@ -346,10 +333,10 @@ export function createProjectLeaseStore(deps: ProjectLeaseStoreDeps) {
     fs.mkdirSync(candidatePath, { mode: 0o700 });
     try {
       writeCandidateRecord(path.join(candidatePath, recordName), record);
-      fsyncDirectory(candidatePath);
+      fsyncDirectoryIfDurable(candidatePath);
       try {
         renameSyncWithRetry(candidatePath, targetPath);
-        fsyncDirectory(parentPath);
+        fsyncDirectoryIfDurable(parentPath);
         return true;
       } catch (error) {
         const code = (error as NodeJS.ErrnoException)?.code;
@@ -393,7 +380,7 @@ export function createProjectLeaseStore(deps: ProjectLeaseStoreDeps) {
       if (createdAtMs + candidateGraceMs <= timeMs) {
         try {
           fs.rmSync(candidatePath, { recursive: true, force: true });
-          fsyncDirectory(parentPath);
+          fsyncDirectoryIfDurable(parentPath);
         } catch (error) {
           if ((error as NodeJS.ErrnoException)?.code !== "ENOENT") throw error;
         }
@@ -529,7 +516,7 @@ export function createProjectLeaseStore(deps: ProjectLeaseStoreDeps) {
         if ((error as NodeJS.ErrnoException)?.code === "ENOENT") continue;
         throw error;
       }
-      fsyncDirectory(issuedRoot);
+      fsyncDirectoryIfDurable(issuedRoot);
       try { fs.rmSync(quarantinePath, { recursive: true, force: true }); } catch { /* It is already outside authority. */ }
     }
   }
