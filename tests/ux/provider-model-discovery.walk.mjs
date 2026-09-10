@@ -77,7 +77,7 @@ async function home() {
 async function openPicker(vendorKey) {
   await clickOrFail(win.locator(`[data-model-home-connection="${vendorKey}"]`), `连接 ${vendorKey}`)
   await expect(win.locator(`[data-model-settings-vendor="${vendorKey}"]`)).toBeVisible()
-  await clickOrFail(win.getByRole('button', { name: /添加其他模型|Add more models/, exact: true }), '添加其他模型')
+  await clickOrFail(win.getByRole('button', { name: /添加其他|Add More/, exact: true }), '添加其他')
   await expect(picker()).toContainText(/选择要添加的模型|Choose models to add/)
 }
 async function backHome() {
@@ -214,12 +214,12 @@ try {
   await win.getByPlaceholder('https://api.openai.com/v1').fill(`${base}/relay/v1`)
   await win.getByPlaceholder('sk-...').fill('fixture-discovery-key')
   await clickOrFail(win.getByRole('button', { name: '高级设置（接口协议 / 自定义请求头）', exact: true }), '展开自定义请求头')
-  await clickOrFail(win.getByRole('button', { name: '添加请求头（可选）', exact: true }), '添加鉴权覆盖')
+  await clickOrFail(win.getByRole('button', { name: '添加 Header', exact: true }), '添加鉴权覆盖')
   await win.getByPlaceholder('Header 名，如 HTTP-Referer').fill('AUTHORIZATION')
   await win.getByPlaceholder('值', { exact: true }).fill('Bearer fixture-gateway-override')
   await clickOrFail(win.getByRole('button', { name: '保存连接', exact: true }), '先保存新连接')
   await expect(picker()).toContainText('连接已保存')
-  await clickOrFail(win.getByRole('button', { name: '获取模型列表', exact: true }), '新连接读取模型列表')
+  await clickOrFail(win.getByRole('button', { name: '获取模型', exact: true }), '新连接读取模型列表')
   await expect(row('gpt-discovery-text')).toBeEnabled()
   await clickOrFail(row('gpt-discovery-text'), '选择新连接文本模型')
   relayMode = 'auth'
@@ -240,7 +240,7 @@ try {
   await win.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))
   await expect(picker()).toContainText('连接已保存')
   relayMode = 'success'
-  await clickOrFail(win.getByRole('button', { name: '获取模型列表', exact: true }), '用户主动返回列表')
+  await clickOrFail(win.getByRole('button', { name: '获取模型', exact: true }), '用户主动返回列表')
   await clickOrFail(row('gpt-discovery-text'), '重新选择新连接文本模型')
   await clickOrFail(picker().getByRole('button', { name: '保存 1 个模型', exact: true }), '保存新连接')
   await expect(win.locator('[data-model-settings-page="connection"]')).toBeVisible()
