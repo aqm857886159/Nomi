@@ -4,14 +4,17 @@
 //   生成浮框底栏现在挤成一行：图片节点 7 件（锁 / 更多▾ / 模型 / 参数 chip / 优化 / ×N / 生成），
 //   视频节点 9 件（再加变体、运镜）。实测卡宽被撑到 768px、参数 chip 截断成「1080p · 16:…」、
 //   「运镜 · 推近 中」这句长文字白占一格（证据：composer-bar-before-video.png）。按 §1.5「先分组 → 去重 → 归位 → 最后才收纳」
-//   把它拆成三类：A（决定出什么、花多少）留底栏单行 · B（帮我写提示词）收成提示词框
-//   右上角一簇纯 icon · 锁归位回节点右上浮条。
+//   把它拆成三类：A（决定出什么、花多少）· B（帮我写提示词）· 锁。
+//
+//   v1.1（2026-09-10 21:20 用户看过 v1 后定）：B 簇**不挂在提示词行尾**——挂那儿会让人以为
+//   提示词要写到它下面去（用户原话）。改成缩小一号的纯 icon，和 A 类**并进同一条底栏**：
+//   `[模型 ▾] [参数 ▾] · [🎥 运镜] [✦ 效果] [✨ 优化] · [×N ▾] [↑]`，提示词区右端一件控件都不留。
 //
 // 两种格子的证据强度**不一样，且必须说清**（LabState.mirrors 记的就是这件事）：
 //   · `before-*`：渲染的是**现役 NodeGenerationComposer 本体**（经 BaseGenerationNode 挂载），
 //     底栏那一行是真的，不是照着画的。
 //   · `v1-*`：这是**样张**。底栏与参考区仍是现役组件（NodeParameterControls / InlineParameterBar /
-//     PromptEditor / NomiSelect / GENERATE_BUTTON_CLASS），**排布**是新的；B 簇那三颗 icon 用的是
+//     PromptEditor / NomiSelect / GENERATE_BUTTON_CLASS / ToolbarDivider），**排布**是新的；B 簇那三颗 icon 用的是
 //     现役 `WorkbenchIconButton` 原子 + 现役图标，但它们此刻只是触发器外观——真实实现是给
 //     NodePromptOptimizer / NodeCameraMoveControl / useNodeEffectChips 的**触发器**换成这个外观，
 //     弹层与逻辑一行不动。本分支不接线，故这里不 import 那三个组件的触发器（import 了也仍是带文字的老外观，
@@ -90,9 +93,6 @@ const NODE_LEFT = 28
 const NODE_TOP = 96
 /** 浮框与节点底边的间距 —— 与现役 composer 的 `floatingComposerLayout().gap` 同一个数。 */
 const COMPOSER_GAP = 14
-/** B 簇净空 = 3 颗 size-7 icon + 缝 + 容器内边距与描边，取整到 4 的倍数（§2.2 间距刻度）。 */
-const CLUSTER_CLEARANCE = 96
-
 type BarKind = 'video' | 'image'
 
 /**
@@ -263,7 +263,11 @@ function useHeadlineSummary(kind: BarKind, controls: DynamicModelControl[], meta
     .join(' · ')
 }
 
-// ── B 簇：提示词框右上角的三颗纯 icon ────────────────────────────────────────
+// ── B 簇：底栏中段的三颗纯 icon（v1.1） ──────────────────────────────────────
+// v1 把它挂在提示词框右上角，用户看完的判断是「感觉提示词要写到它下面去」——一簇带描边、
+// 带阴影的浮层压在输入区上方，读起来像**这个框的表头**，而不是一组工具。v1.1 让它下到底栏、
+// 缩到 `WorkbenchIconButton` 的**小号**规格（sm，设计系统里已有的一档，不新造尺寸），
+// 用现役 ToolbarDivider 与左右两段分开：视觉重量降到底栏其它控件之下，提示词区回到「只有提示词」。
 type ClusterItem = { id: string; icon: JSX.Element; label: string; active?: boolean; openTooltip?: boolean }
 
 function PromptToolCluster({ items, ariaLabel }: { items: ClusterItem[]; ariaLabel: string }): JSX.Element {
@@ -273,10 +277,8 @@ function PromptToolCluster({ items, ariaLabel }: { items: ClusterItem[]; ariaLab
         role="group"
         aria-label={ariaLabel}
         data-prompt-tool-cluster="true"
-        className={cn(
-          'absolute right-1 top-1 z-[2] inline-flex items-center gap-0.5',
-          'rounded-nomi-sm border border-nomi-line-soft bg-nomi-paper p-0.5 shadow-nomi-sm',
-        )}
+        data-bar-segment="prompt-tools"
+        className="inline-flex shrink-0 items-center gap-0.5"
       >
         {items.map((item) => (
           <Tooltip key={item.id} open={item.openTooltip || undefined}>
@@ -312,14 +314,9 @@ function useClusterItems(node: GenerationCanvasNode, kind: BarKind, tooltipFor: 
         speed: t(`generationCommon.cameraMove.${pick.speed}` as 'generationCommon.cameraMove.medium'),
       })
     : t('generationCommon.cameraMove.title')
-  const items: ClusterItem[] = [
-    {
-      id: 'optimize',
-      icon: <NomiLogoMark size={16} />,
-      label: t('generationCommon.optimizer.aria'),
-      openTooltip: tooltipFor === 'optimize',
-    },
-  ]
+  // 顺序就是 v1.1 那一句：模型和参数在前两个，然后是运镜 / 更多 / 优化。
+  // 运镜排头是因为三者里只有它**带状态**（选过就带激活点），状态位紧挨分隔线更容易被扫到。
+  const items: ClusterItem[] = []
   if (kind === 'video') {
     items.push({
       id: 'camera-move',
@@ -334,6 +331,12 @@ function useClusterItems(node: GenerationCanvasNode, kind: BarKind, tooltipFor: 
     icon: <IconSparkles size={16} stroke={2} />,
     label: t('generationCommon.composerBarV1.effects'),
     openTooltip: tooltipFor === 'effects',
+  })
+  items.push({
+    id: 'optimize',
+    icon: <NomiLogoMark size={16} />,
+    label: t('generationCommon.optimizer.aria'),
+    openTooltip: tooltipFor === 'optimize',
   })
   return items
 }
@@ -374,10 +377,11 @@ export function ComposerBarBeforeStage({ kind }: { kind: BarKind }): JSX.Element
 }
 
 /**
- * v1 样张。三件事同时看：
+ * v1.1 样张。三件事同时看：
  *   ① 锁回到节点右上浮条（与「生成记录 / 复制变体」同一条，现役 FloatingToolbarShell + NodeLockBadge）；
- *   ② B 簇在提示词框右上角，纯 icon、运镜已选带激活点；
- *   ③ 底栏只剩 A 类且**单行不换行**：模型芯片 → 参数 chip（两个值）→ ×N → 生成。
+ *   ② 提示词区右端**一件控件都没有**；
+ *   ③ 底栏一行三段且**不换行**：模型 / 参数 chip（两个值）· 运镜 / 效果 / 优化（缩小一号纯 icon，
+ *      运镜已选带激活点）· ×N / 生成。
  */
 export function ComposerBarV1Stage({
   kind,
@@ -467,50 +471,61 @@ function ComposerBarV1Card({
         <NodeParameterControls node={node} section="references" />
       </div>
 
-      {/* ② B 簇贴在提示词框右上角：它们服务的对象就是这个框，就近 > 收纳（§1.5.3）。 */}
-      <div data-node-composer-prompt className="relative min-h-[72px] w-full">
-        <PromptToolCluster items={cluster} ariaLabel={t('generationCommon.composerBarV1.promptTools')} />
-        {/* 给 B 簇留出净空：icon 簇是**浮在**输入区上的，不留右内边距文字会从它底下穿过去
-            （第一版就是这样，截图上看着像排版坏了）。宽度按簇的实际占位给，不是拍脑袋的数。 */}
-        <div style={{ paddingRight: CLUSTER_CLEARANCE }}>
-          <PromptEditor
-            className="min-h-[72px]"
-            value={node.prompt || ''}
-            placeholder={getGenerationNodePromptPlaceholder(node.kind)}
-            onChange={(next) => useGenerationCanvasStore.getState().updateNode(node.id, { prompt: next })}
-          />
-        </div>
+      {/* ② 提示词区**只有提示词**（v1.1）。v1 在它右上角摆了 B 簇，用户读出来的是
+          「提示词要写到它下面去」——一个浮在输入区上的带框小簇，位置语义压过了功能语义。
+          这里既不留净空、也不留占位：这一格要证的就是「右端一件控件都没有」。 */}
+      <div data-node-composer-prompt className="min-h-[72px] w-full">
+        <PromptEditor
+          className="min-h-[72px]"
+          value={node.prompt || ''}
+          placeholder={getGenerationNodePromptPlaceholder(node.kind)}
+          onChange={(next) => useGenerationCanvasStore.getState().updateNode(node.id, { prompt: next })}
+        />
       </div>
 
-      {/* ③ A 底栏：`flex-nowrap` 是这条的硬承诺——单行、不换行。 */}
+      {/* ③ 底栏（v1.1）：`[模型 ▾] [参数 ▾] · [🎥][✦][✨] · [×N ▾] [↑]`。
+          `flex-nowrap` 是这条的硬承诺——三段全在一行，不换行。 */}
       <div data-composer-bar-v1-actions data-headline={headline} className="mt-auto flex w-full shrink-0 flex-nowrap items-center gap-2 pt-1">
-        {/* A 段 = 现役 InlineParameterBar：模型芯片 + 参数 chip。chip 文案走它**已有的**
+        {/* 第一段 = 现役 InlineParameterBar：模型芯片 + 参数 chip。chip 文案走它**已有的**
             `summaryOverride` 缝（ComfyUI 工作流那一支在用同一个入口），v1 喂进去的是
             「最影响结果/价格的两个值」——不新造第二条摘要通路。点开仍是同一块全参数面板。 */}
-        <InlineParameterBar
-          modelOptions={modelOptions}
-          modelCatalogStatus={{ message: '' }}
-          renderedControls={controls}
-          selectedModelOption={selectedModelOption}
-          archetype={null}
-          meta={meta}
-          onModelChange={(value, vendor) => patchMeta({ modelKey: value, modelVendor: vendor ?? null })}
-          onCatalogControlChange={(control, value) => patchMeta({ [control.key]: value })}
-          onParameterControlChange={(control, value) => patchMeta({ [control.key]: value })}
-          summaryOverride={headline}
-        />
-        <NomiSelect
-          ariaLabel={t('generationCommon.composer.variantCountAria')}
-          title={t('generationCommon.composer.variantCountTitle', { count: variantCount })}
-          value={String(variantCount)}
-          options={GENERATION_VARIANT_COUNTS.map((count) => ({
-            value: String(count),
-            label: t('generationCommon.composer.variantCountOption', { count }),
-          }))}
-          onChange={(value) => setVariantCount(parseGenerationVariantCount(value))}
-        />
+        <div data-bar-segment="model-params" className="flex min-w-0 shrink items-center">
+          <InlineParameterBar
+            modelOptions={modelOptions}
+            modelCatalogStatus={{ message: '' }}
+            renderedControls={controls}
+            selectedModelOption={selectedModelOption}
+            archetype={null}
+            meta={meta}
+            onModelChange={(value, vendor) => patchMeta({ modelKey: value, modelVendor: vendor ?? null })}
+            onCatalogControlChange={(control, value) => patchMeta({ [control.key]: value })}
+            onParameterControlChange={(control, value) => patchMeta({ [control.key]: value })}
+            summaryOverride={headline}
+          />
+        </div>
+        {/* 分段线用现役 ToolbarDivider（节点浮条上的那一根），不另画一根：
+            §1.5.3「分段要有名字」在这条一行的带子上只能靠分隔与分组名交代，
+            而分隔线在本仓已经有一个 owner 了。 */}
+        <ToolbarDivider />
+        {/* 第二段 = B 簇：缩小一号的纯 icon，hover 出名字，运镜已选带激活点。 */}
+        <PromptToolCluster items={cluster} ariaLabel={t('generationCommon.composerBarV1.promptTools')} />
+        <ToolbarDivider />
+        {/* 第三段 = 出几张 + 生成。 */}
+        <div data-bar-segment="variants" className="flex shrink-0 items-center">
+          <NomiSelect
+            ariaLabel={t('generationCommon.composer.variantCountAria')}
+            title={t('generationCommon.composer.variantCountTitle', { count: variantCount })}
+            value={String(variantCount)}
+            options={GENERATION_VARIANT_COUNTS.map((count) => ({
+              value: String(count),
+              label: t('generationCommon.composer.variantCountOption', { count }),
+            }))}
+            onChange={(value) => setVariantCount(parseGenerationVariantCount(value))}
+          />
+        </div>
         <button
           type="button"
+          data-bar-segment="generate"
           className={cn(GENERATE_BUTTON_CLASS, 'ml-auto')}
           aria-label={t('generationCommon.composer.generateAsset')}
         >

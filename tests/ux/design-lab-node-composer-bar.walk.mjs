@@ -1,7 +1,7 @@
 // 设计实验室 · 画布「节点生成浮框底栏」走查（R13 人眼判断的素材源）。零额度：纯本地渲染，不碰任何生成 API。
 //
 // 流程住 `design-lab/walkScreen.mjs`（与另几屏共用一份）；这里只声明这一屏的取景参数
-// 和**这一屏独有的那几条承诺**——底栏改造的全部主张都是「有没有 / 在不在 / 换没换行」，
+// 和**这一屏独有的那几条承诺**——底栏改造的全部主张都是「有没有 / 在不在 / 换没换行 / 谁在谁前面」，
 // 光截图看不出「它是不是真的没换行」，所以逐条写成断言（assertState 里点不到/数不对就红）。
 //
 // 产出：`tests/ux/shots/design-lab-node-composer-bar/<state>.png` + `_contact-sheet.png`（拍板用）。
@@ -10,7 +10,14 @@
 import { walkDesignLabScreen } from './design-lab/walkScreen.mjs'
 import { expectAbsent, proveProbe } from './_assert.mjs'
 
-/** v1 底栏必须是**一行**：所有直接子元素的中心 y 落在同一行内（换行 = 立刻拉开一整行高度）。 */
+/**
+ * v1.1 底栏必须是**一行三段**：
+ *   ① 所有直接子元素的中心 y 落在同一行内（换行 = 立刻拉开一整行高度）；
+ *   ② 三段的顺序就是拍板那句话——模型/参数 → B 簇 → ×N/生成。
+ * 顺序按 `data-bar-segment` 读，不按下标猜：中间夹着两根分隔线，下标会跟着分隔线一起飘。
+ */
+const BAR_SEGMENT_ORDER = ['model-params', 'prompt-tools', 'variants', 'generate']
+
 async function assertSingleRow(page, record, stateId) {
   const rows = await page.evaluate(() => {
     const bar = document.querySelector('[data-composer-bar-v1-actions]')
@@ -19,11 +26,46 @@ async function assertSingleRow(page, record, stateId) {
       const rect = child.getBoundingClientRect()
       return rect.height > 0 ? rect.top + rect.height / 2 : null
     }).filter((value) => value !== null)
-    return { count: centers.length, spread: centers.length ? Math.max(...centers) - Math.min(...centers) : 0 }
+    return {
+      count: centers.length,
+      spread: centers.length ? Math.max(...centers) - Math.min(...centers) : 0,
+      segments: [...bar.children]
+        .map((child) => child.getAttribute('data-bar-segment'))
+        .filter(Boolean),
+    }
   })
-  if (!rows) { record(`${stateId} 找不到 v1 底栏 [data-composer-bar-v1-actions]`); return }
-  if (rows.count < 3) record(`${stateId} v1 底栏只有 ${rows.count} 件，A 类应为「参数组 + ×N + 生成」三件`)
-  if (rows.spread > 8) record(`${stateId} v1 底栏换行了：子元素中心 y 相差 ${Math.round(rows.spread)}px（单行不换行是这条改造的硬承诺）`)
+  if (!rows) { record(`${stateId} 找不到 v1.1 底栏 [data-composer-bar-v1-actions]`); return }
+  if (rows.count < 4) record(`${stateId} v1.1 底栏只有 ${rows.count} 件，应为「模型/参数 · 分隔 · B 簇 · 分隔 · ×N · 生成」`)
+  if (rows.spread > 8) record(`${stateId} v1.1 底栏换行了：子元素中心 y 相差 ${Math.round(rows.spread)}px（单行不换行是这条改造的硬承诺）`)
+  const order = rows.segments.join(' → ')
+  if (order !== BAR_SEGMENT_ORDER.join(' → ')) {
+    record(`${stateId} v1.1 底栏顺序应是「${BAR_SEGMENT_ORDER.join(' → ')}」，实际「${order}」`)
+  }
+}
+
+/**
+ * 「缩小一号」不能靠眼睛认：B 簇每颗 icon 的实际盒子必须**小于底栏里最高的那颗控件**，
+ * 且不超过设计系统小号档（`WorkbenchIconButton` size="sm" = 28px）。
+ * 量的是 getBoundingClientRect，不是 class 名——写着 sm 却被外层拉高，这条才拦得住。
+ */
+async function assertClusterIsSmaller(page, record, stateId) {
+  const sizes = await page.evaluate(() => {
+    const bar = document.querySelector('[data-composer-bar-v1-actions]')
+    if (!bar) return null
+    const icons = [...bar.querySelectorAll('[data-prompt-tool]')].map((el) => el.getBoundingClientRect().height)
+    const others = [...bar.querySelectorAll('button, [role="combobox"]')]
+      .filter((el) => !el.closest('[data-prompt-tool-cluster="true"]'))
+      .map((el) => el.getBoundingClientRect().height)
+      .filter((height) => height > 0)
+    return { icons, tallest: others.length ? Math.max(...others) : 0 }
+  })
+  if (!sizes || !sizes.icons.length) { record(`${stateId} 底栏里找不到 B 簇 icon，量不了尺寸`); return }
+  const biggest = Math.max(...sizes.icons)
+  if (biggest > 28) record(`${stateId} B 簇 icon 高 ${Math.round(biggest)}px，超过设计系统小号档 28px（不许造新尺寸）`)
+  if (!sizes.tallest) { record(`${stateId} 底栏里没量到其它控件，「缩小一号」没有对照物`); return }
+  if (biggest >= sizes.tallest) {
+    record(`${stateId} B 簇 icon 高 ${Math.round(biggest)}px，没有比底栏其它控件（${Math.round(sizes.tallest)}px）小一号`)
+  }
 }
 
 await walkDesignLabScreen({
@@ -42,8 +84,9 @@ await walkDesignLabScreen({
       if (lockInBar !== 1) record(`${state.id} 现状底栏里应能看到锁（[data-node-lock]），实际 ${lockInBar}`)
       return
     }
-    // v1 三条承诺，逐条断言。
+    // v1.1 的承诺，逐条断言。
     await assertSingleRow(page, record, state.id)
+    await assertClusterIsSmaller(page, record, state.id)
     // 锁：先证「浮条上确实有一把锁」，再断言「浮框里一把都没有」。
     // 没有前一句，后一句在锁根本没渲染时也照样绿——那正是 expectAbsent 在签名上逼你补的基线。
     const lockOnToolbar = await page.locator('[data-node-floating-toolbar="true"] [data-node-lock]').count()
@@ -56,9 +99,27 @@ await walkDesignLabScreen({
       page.locator('[data-composer-bar-v1-card] [data-node-lock]'),
       { provenBy: lockProof, message: `${state.id} v1 浮框里不该再有锁（它已归位到浮条）` },
     )
+    // v1.1 第一条：B 簇在**底栏里**，提示词区右端一件控件都没有。
+    // 先证「底栏里确实有簇」，再断言「提示词区一颗都没有」——没有前一句，簇整个没渲染时后一句照样绿。
+    const clusterInBar = await page.locator('[data-composer-bar-v1-actions] [data-prompt-tool-cluster="true"]').count()
+    if (clusterInBar !== 1) record(`${state.id} B 簇应在底栏里（v1.1），实际在底栏找到 ${clusterInBar} 个`)
+    const clusterInBarProof = await proveProbe(
+      page.locator('[data-composer-bar-v1-actions] [data-prompt-tool]'),
+      `${state.id} 的 B 簇已经在底栏里渲染出来了`,
+    )
+    await expectAbsent(
+      page.locator('[data-node-composer-prompt] [data-prompt-tool], [data-node-composer-prompt] button'),
+      { provenBy: clusterInBarProof, message: `${state.id} 提示词区右端不该再有任何控件（v1.1）` },
+    )
     const clusterButtons = await page.locator('[data-prompt-tool-cluster="true"] [data-prompt-tool]').count()
     const expected = state.id.includes('image') ? 2 : 3
     if (clusterButtons !== expected) record(`${state.id} B 簇应有 ${expected} 颗 icon（视频含运镜、图片没有），实际 ${clusterButtons}`)
+    // 簇内顺序也是拍板那句话的一部分：运镜 → 更多（效果）→ 优化。图片节点没有运镜，只掉头一颗。
+    const clusterOrder = await page.locator('[data-prompt-tool-cluster="true"] [data-prompt-tool]').evaluateAll(
+      (nodes) => nodes.map((node) => node.getAttribute('data-prompt-tool')).join(' → '),
+    )
+    const wantedOrder = (state.id.includes('image') ? ['effects', 'optimize'] : ['camera-move', 'effects', 'optimize']).join(' → ')
+    if (clusterOrder !== wantedOrder) record(`${state.id} B 簇顺序应是「${wantedOrder}」，实际「${clusterOrder}」`)
     const clusterText = (await page.locator('[data-prompt-tool-cluster="true"]').innerText().catch(() => '')).trim()
     if (clusterText) record(`${state.id} B 簇必须是纯 icon，却渲出了文字「${clusterText}」`)
     // 「哪几格该有激活点」按 id 白名单判，别用 includes 猜——`image-dark` 里也有 dark，
