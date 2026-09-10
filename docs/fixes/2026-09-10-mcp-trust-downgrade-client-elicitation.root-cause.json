@@ -1,0 +1,142 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-10-mcp-trust-downgrade-client-elicitation",
+  "problem_type": "A security boundary that was just made fail-closed (2026-09-10-mcp-run-gate-receipt-fail-closed) also fail-closed the one caller class it was never meant to block: an external MCP client, which cannot reach the in-app Nomi window it is not attached to.",
+  "symptom": "Downgrading trust to budget_only from an MCP client (nomi_run_control action=set_trust trustLevel=budget_only) required a main-process humanGesture stamp that only the in-app IPC boundary can set, so the request always threw HumanApprovalRequiredError and forced the user back into the Nomi desktop window to approve, even though the calling AI host (e.g. Claude Code) was already asking the user directly. 用户 2026-09-10 21:00 拍板：外部 MCP 客户端不该被逼回 Nomi 界面点确认。",
+  "direct_cause": "createGateApprovalOwner's verifyTrustGrant path (added by the prior fix) accepted only command.humanGesture === true as proof of human approval for a budget_only downgrade; there was no second credential a client-side MCP elicitation answer could produce and have verified at the same boundary.",
+  "class_root": "The shared invariant 'a spend-gate approval must carry a human-approval fact the main process can vouch for' had exactly one implementation of that fact: a gesture stamped by the trusted-sender IPC boundary, which by construction only the in-app renderer can trigger. A remote caller class (MCP clients) can ask a human just as validly through its own UI, but had no way to turn that answer into a fact this boundary could verify, so the invariant and 'must return to the Nomi window' were accidentally the same rule.",
+  "affected_population": [
+    "Every registered MCP client and AI host driving Nomi through nomi_run_control set_trust while a Run is at confirm_all",
+    "Every user who approves spend inside their AI client (Claude Code, or any other MCP host) rather than by switching to the Nomi window"
+  ],
+  "scope_paths": [
+    "electron/productionRun/productionRunApprovalReceipt.ts",
+    "electron/productionRun/productionRunTrustGrant.ts",
+    "electron/capabilityCore/productionTrustGrantChallenge.ts",
+    "electron/capabilityCore/mcpTrustDowngrade.ts",
+    "electron/capabilityCore/mcpGateConfirmation.ts",
+    "electron/capabilityCore/dispatcher.ts",
+    "electron/capabilityCore/dispatcherParams.ts",
+    "electron/capabilityCore/mcpProtocol.ts",
+    "electron/productionRun/productionRunGateIdentity.ts",
+    "electron/productionRun/productionRunService.ts"
+  ],
+  "entry_points": [
+    "MCP stdio tool nomi_run_control action=set_trust trustLevel=budget_only, intercepted by handleTrustDowngrade in mcpTrustDowngrade.ts before it reaches the command boundary",
+    "RPC dispatcher production.control set_trust (electron/capabilityCore/dispatcher.ts), which forwards a client-issued receiptId/receiptToken into the same command boundary"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://modelcontextprotocol.io/specification/2025-06-18/basic/security_best_practices",
+      "checked_at": "2026-09-10",
+      "purpose": "Confirms a server must not treat a client's self-declared identity or consent as authorization, so the client's elicitation answer must still be converted into a main-process-verified receipt rather than trusted as a plain flag."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation",
+      "checked_at": "2026-09-10",
+      "purpose": "Capability negotiation and the requestedSchema shape used for the in-client confirmation, so the spend confirmation stays on the standard elicitation/create surface instead of a parallel private method (R31)."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://docs.claude.com/en/docs/claude-code/iam",
+      "checked_at": "2026-09-10",
+      "purpose": "Comparable product's permission model publishes an explicit list of actions no mode ever auto-approves; used as the reference for 'lowering the trust level must not auto-approve a spend action'."
+    }
+  ],
+  "invariants": [
+    "Lowering a run from confirm_all to budget_only removes a paid per-shot confirmation, so it carries the same human-approval fact as a spend gate: a humanGesture stamp, or a receipt whose costScope encodes runId + currency + ceiling and whose contractHash is the sealed authorization digest",
+    "The ceiling a trust receipt authorizes is recomputed from the sealed authorization envelope, never read from the caller's payload",
+    "A confirmation surface never presents an unknown price as a number: a batch whose shot prices are all unknown is not asked at all, and a trust grant without a positive ceiling is refused before any prompt"
+  ],
+  "generality_proof": "Both callers that can reach a budget_only downgrade (the in-app IPC command and the RPC/MCP dispatcher's production.control case) funnel through the same createProductionRunService(...).command, whose gate approval owner now exposes verifyTrustGrant as the single decision point. mcpTrustDowngrade.ts is the only place a client-supplied elicitation answer is converted into a receipt, and that receipt is re-verified at the shared boundary exactly like a gate receipt, so no caller can skip the check by minting its own confirmation format.",
+  "shared_boundaries": [
+    {
+      "path": "electron/productionRun/productionRunApprovalReceipt.ts",
+      "symbol": "createGateApprovalOwner.verifyTrustGrant",
+      "responsibility": "Owns the human-approval invariant for the budget_only downgrade: the same two credentials as a spend gate (humanGesture or a verified receipt), with the receipt bound to the ceiling recomputed from the sealed authorization envelope rather than the caller's payload."
+    },
+    {
+      "path": "electron/productionRun/productionRunTrustGrant.ts",
+      "symbol": "readTrustGrantBinding",
+      "responsibility": "Single definition of what a 'don't ask me per shot under X' approval is bound to (per-shot prices, total, ceiling, digest), derived only from the sealed authorization envelope so no second pricing truth source exists."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/capabilityCore/dispatcher.ts",
+      "entry_point": "production.control set_trust",
+      "disposition": "enforced",
+      "evidence": "The RPC/MCP control route now forwards receiptId/receiptToken into the run command, and the command boundary refuses a confirm_all to budget_only downgrade that carries neither a receipt nor a trusted-sender gesture; productionTrustLevel.test.ts proves the bare downgrade throws human_approval_required and leaves the trust level at confirm_all."
+    },
+    {
+      "path": "electron/capabilityCore/mcpTrustDowngrade.ts",
+      "entry_point": "nomi_run_control action=set_trust trustLevel=budget_only",
+      "disposition": "enforced",
+      "evidence": "The protocol layer asks the calling client through MCP elicitation with the itemized per-shot prices, mints a main-process client_elicitation receipt from that accept, and only then invokes production.control; without a confirmed answer it replies isError and never reaches the command boundary."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The same shared invariant (a spend approval must carry a main-process-verifiable human-approval fact) now has to serve more than one caller topology: an in-app renderer that can stamp a humanGesture, and any external MCP client that can only supply an elicitation answer. Any future remote caller class (a new transport, a new agent lane) will hit the same gap unless it goes through the same receipt path, so this is a class of caller, not a one-off client.",
+    "same_class_scan": [
+      "git grep 'verifyTrustGrant' outside tests: only createGateApprovalOwner defines it and only productionRunApprovalReceipt.ts calls it, confirming there is exactly one verification path for the downgrade",
+      "git grep 'set_trust' across electron/: enumerated every caller (mcpTrustDowngrade.ts, dispatcher.ts, productionRunIpc.ts) and confirmed the in-app IPC path still relies on humanGesture (unchanged, in-scope of the prior fix) while both remote paths now route through the new receipt",
+      "git grep 'requestGenerationConfirmation' outside tests: confirmed mcpTrustDowngrade.ts reuses the existing single confirmation surface (mcpGateConfirmation.ts) instead of inventing a second elicitation flow (P1)"
+    ]
+  },
+  "invariant_owner_layer": {
+    "layer": "electron/productionRun/productionRunApprovalReceipt.ts",
+    "tests": [
+      "electron/productionRun/productionRunApprovalReceipt.test.ts",
+      "electron/productionRun/productionTrustLevel.test.ts",
+      "electron/productionRun/productionRunTrustGrant.test.ts",
+      "electron/capabilityCore/mcpTrustDowngrade.test.ts"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/productionRun/productionRunApprovalReceipt.ts",
+    "invariant": "Approving a budget_only downgrade from confirm_all requires a receipt verified by the process-owned approval receipt authority (bound to runId + currency + ceiling recomputed from the sealed authorization envelope) or a humanGesture stamped by the trusted-sender IPC boundary; the confirmation itself may happen inside the calling MCP client, because what Nomi requires is a human answer it can vouch for, not a return trip to the Nomi window.",
+    "failure_mode": "HumanApprovalRequiredError is thrown before the trust level is mutated and before any per-shot gate is auto-approved, so the run stays at confirm_all and the client sees an explicit isError result.",
+    "exception_policy": "none",
+    "strategy": "Give the one existing invariant owner (createGateApprovalOwner) a second credential path for the same fact instead of adding a parallel 'trust this caller' shortcut: the client's elicitation answer is converted into the same receipt shape a spend gate already accepts, verified by the same authority, and consumed once.",
+    "artifacts": [
+      "electron/productionRun/productionRunApprovalReceipt.ts",
+      "electron/productionRun/productionRunTrustGrant.ts",
+      "electron/capabilityCore/productionTrustGrantChallenge.ts",
+      "electron/capabilityCore/mcpTrustDowngrade.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/productionRun/productionRunApprovalReceipt.test.ts",
+    "electron/productionRun/productionRunService.test.ts",
+    "electron/productionRun/productionTrustLevel.test.ts",
+    "electron/productionRun/productionRunTrustGrant.test.ts",
+    "electron/capabilityCore/mcpTrustDowngrade.test.ts",
+    "electron/capabilityCore/mcpGenerationConfirmation.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/productionRun/productionTrustLevel.test.ts",
+    "electron/productionRun/productionRunTrustGrant.test.ts",
+    "electron/capabilityCore/mcpTrustDowngrade.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "mcpTrustDowngrade.ts, productionTrustGrantChallenge.ts and productionRunTrustGrant.ts are new files; there was no prior dedicated code path for an MCP-side budget_only downgrade to remove. Before this change the only way to satisfy the prior fix's humanGesture-only check from outside Nomi was to not satisfy it at all (a hard refusal), so this change adds a second verified path rather than deleting an old one."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The invariant and its receipt primitives are entirely application code (electron/capabilityCore/approvalReceipt.ts, node:crypto only); no third-party runtime dependency is introduced or upgraded by this change.",
+    "exit_criteria": []
+  },
+  "migration": "No migration. The new receipt credential is additive to the existing verifyTrustGrant predicate; the in-app humanGesture path is unchanged. A Run already stopped at confirm_all with no receipt still requires one of the two credentials, exactly as the prior fix specified.",
+  "residual_risks": [
+    "A budget_only downgrade from key_confirm still needs no receipt. That level never had per-shot paid confirmations, so the downgrade authorizes no spend the run did not already allow, and the budget gate still stops it; but the rule now depends on 'which gates does this level create', which lives in productionRunDriverOps.ts. If a future change starts creating shot gates at another level, that predicate and this one must move together.",
+    "A trust grant can only be asked for once the plan is sealed, because the ceiling is derived from the sealed authorization envelope. Saying 'stop asking me per shot' earlier than that is refused with an honest reason rather than approximated with a made-up ceiling.",
+    "The receipt authorizes 'stop asking per shot under X'; it does not approve a gate that is already waiting. A user stopped at a per-shot gate still decides that one gate first (the dispatcher says so explicitly), which is one extra step the 21:00 ruling did not ask to remove but also did not bless.",
+    "真人手势章仍只证「来自受信窗口」（#722 残余）；批量确认卡真机点击闭环待走查"
+  ]
+}

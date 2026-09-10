@@ -6,6 +6,7 @@
 import { launchNomiApp } from "./_launchApp.mjs";
 import { checkComposerFixedFooter } from "./_composerFixedFooter.mjs";
 import { addCanvasNodeFromRail } from "./_canvasRail.mjs";
+import { stationTimeout } from "./_station-budget.mjs";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -165,41 +166,16 @@ try {
   //（回归 2026-08-04：createdId 从 setState updater 里往外带，依赖 React eager-eval 才同步执行；
   // 「新建」handler 先 setTimelineOpen(true) 把 fiber 弄脏 → updater 推迟 → active 从未设置 →
   // 面板永远停在「请选择一条轨迹」，用户被迫再去时间轴点一次「轨迹1」行）。
-  await win.evaluate(() => window.localStorage.setItem("nomi.onboarding.scene3dCoach.v1", "seen"));
-  // 3D 场景自 2026-09-06「第三档」起住在左缘的「更多」里；点法收口在 _canvasRail，找不到当场抛。
-  await addCanvasNodeFromRail(win, "scene3d");
+  // 导演台自 2026-09-06「第三档」起住在左缘的「更多」里；点法收口在 _canvasRail，找不到当场抛。
+  await addCanvasNodeFromRail(win, "director");
   await win.waitForTimeout(1200);
   // 新节点落点不定（画布已被上一段平移过），Playwright actionability 可能够不着 → DOM click 兜底
-  await win.locator('[aria-label="打开 3D 编辑器"]').first().click({ timeout: 3000 })
-    .catch(() => win.evaluate(() => document.querySelector('[aria-label="打开 3D 编辑器"]')?.click()));
-  await win.waitForTimeout(3000);
-  const coachSkip = win.locator('[data-coach-skip="true"]').first();
-  if (await coachSkip.count()) {
-    await coachSkip.click({ timeout: 1500 }).catch(() => win.evaluate(() => {
-      const button = document.querySelector('[data-coach-skip="true"]');
-      if (button instanceof HTMLElement) button.click();
-    }));
-    await coachSkip.waitFor({ state: "detached", timeout: 3000 }).catch(() => {});
-  }
-  await win.getByRole("button", { name: "轨迹", exact: true }).first().click();
-  await win.waitForTimeout(400);
-  await win.getByRole("button", { name: "新建", exact: true }).first().click();
-  await win.waitForTimeout(800);
-  const trajectoryPanel = await win.evaluate(() => {
-    const buttons = Array.from(document.querySelectorAll("button"));
-    return {
-      // setTimelineOpen 是普通布尔 setter 永远成功 → 修复前时间轴已有「轨迹1」行而面板未激活，
-      // 两个断言拆开才能把「建成了但没激活」与「压根没建成」分开。
-      rowExists: buttons.some((b) => /^轨迹\d/.test((b.textContent || "").trim())),
-      appendPointVisible: buttons.some((b) => (b.textContent || "").includes("追加点")),
-      stillPlaceholder: Boolean(document.body.textContent?.includes("请选择一条轨迹")),
-    };
-  });
-  assert(trajectoryPanel.rowExists, "3D 轨迹「新建」后时间轴出现「轨迹1」行（轨迹已创建）");
-  assert(
-    trajectoryPanel.appendPointVisible && !trajectoryPanel.stillPlaceholder,
-    "3D 轨迹「新建」后属性面板即时激活（「追加点」可见、无「请选择一条轨迹」占位，无需再点时间轴行）",
-  );
+  await win.locator('[data-testid="director-node-open"]').first().click({ timeout: 3000 })
+    .catch(() => win.evaluate(() => document.querySelector('[data-testid="director-node-open"]')?.click()));
+  // 全屏导演台唯一真标志：DirectorEditor 经 createPortal 挂到 body 的 [data-testid="director-editor"]
+  const directorShell = win.locator('[data-testid="director-editor"]').first();
+  await directorShell.waitFor({ state: "visible", timeout: stationTimeout({ operations: 2 }) });
+  assert(await directorShell.count() > 0, "导演台节点「进入导演台」后全屏壳挂出（data-testid=director-editor）");
 
   console.log(`\nSMOKE PASS: ${passed} assertions`);
   await finishAndExit(0);

@@ -72,7 +72,7 @@ export const CANVAS_ADD_SECTIONS = [
     labelKey: 'canvas.addSections.space',
     overflowLabelKey: 'canvas.addSections.space',
     intents: [
-      { id: 'scene3d', kind: 'scene3d', placement: 'more' },
+      { id: 'director', kind: 'director', placement: 'more' },
       { id: 'model3d', kind: 'model3d', placement: 'more' },
       { id: 'panorama', kind: 'panorama', placement: 'more' },
       { id: 'whiteboard', kind: 'whiteboard', placement: 'more' },

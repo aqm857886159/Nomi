@@ -1,0 +1,149 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-04-fullscreen-overlay-windows-windowbar",
+  "problem_type": "Fullscreen overlay painted over the Windows self-drawn windowbar, so the OS drag band eats its top control row and buries the only window controls",
+  "symptom": "On Windows, opening the director console makes its entire top toolbar row unclickable: reset-view, the select/move/rotate/scale segmented control, the draw/waypoint modes and the exit X all swallow clicks and drag the window instead. The app's minimize / maximize / close buttons are covered by the overlay and cannot be reached at all while the console is open.",
+  "direct_cause": "DirectorEditor renders its shell as `fixed inset-0` at FULLSCREEN_Z_INDEX, portalled to document.body. WorkbenchShell's 32px Windows windowbar stays mounted underneath and carries `app-drag`. Electron turns `-webkit-app-region: drag` rects into a native WM_NCHITTEST caption area, which is hit-tested by geometry before the web content sees the event and is not reduced by elements painted on top. The director header is `h-11`, so every button in it is centred at y≈22px, entirely inside the 32px band.",
+  "class_root": "No shared rule said how far a fullscreen overlay must stay clear of the Windows self-drawn windowbar. Each overlay independently chose `fixed inset-0`, so the windowbar's drag band and the single WindowControls instance were covered by whatever overlay happened to be open. Issue #58 diagnosed the identical hit-test mechanism for portalled floating cards and fixed only that one surface with `app-no-drag`, leaving the full-bleed overlay family unswept.",
+  "affected_population": [
+    "Every Windows user opening the director console: the whole top toolbar row is dead and the app cannot be minimised, maximised or closed without exiting the console first",
+    "Every Windows user opening the whiteboard shell, the ComfyUI workflow settings page, the fullscreen panorama viewer, or the asset library preview: their top-edge controls sit in the same band"
+  ],
+  "scope_paths": [
+    "src/ui/app-shell/windowChrome.ts",
+    "src/ui/app-shell/windowChrome.test.ts",
+    "src/workbench/generationCanvas/nodes/director/DirectorEditor.tsx",
+    "src/workbench/generationCanvas/nodes/whiteboard/WhiteboardModal.tsx",
+    "src/ui/onboarding/workflowPage/ComfyuiWorkflowSettingsPage.tsx",
+    "src/workbench/generationCanvas/nodes/PanoramaViewer.tsx",
+    "src/workbench/assets/AssetPreviewDialog.tsx"
+  ],
+  "entry_points": [
+    "Generation canvas director node → open console (reported)",
+    "Generation canvas whiteboard node → open whiteboard",
+    "Settings → ComfyUI card → workflow settings page",
+    "Panorama image node → enter fullscreen",
+    "Asset library → double-click an asset to preview"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://www.electronjs.org/docs/latest/tutorial/custom-window-styles",
+      "checked_at": "2026-09-04",
+      "purpose": "Frameless windows: -webkit-app-region drag regions and the documented rule that interactive elements over a drag region need an explicit no-drag opt-out, because the region is a hit-test rectangle rather than a painted layer"
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/electron/electron/blob/main/shell/browser/ui/win/electron_desktop_window_tree_host_win.cc",
+      "checked_at": "2026-09-04",
+      "purpose": "Windows host resolves WM_NCHITTEST against the collected draggable-region rects before the renderer receives the mouse event, confirming geometry wins over DOM stacking"
+    }
+  ],
+  "invariants": [
+    "The Windows self-drawn windowbar height has exactly one definition, WINDOWS_WINDOWBAR_HEIGHT in src/ui/app-shell/windowChrome.ts.",
+    "Every fullscreen overlay starts below the windowbar: its top inset comes from currentFullscreenOverlayTopOffset(), never from a literal 32 and never from `fixed inset-0`.",
+    "The offset is computed during render, not at module scope, so window.nomiDesktop.platform is already attached when it is read.",
+    "There is exactly one WindowControls instance in the app, the one in WorkbenchShell's windowbar; overlays expose it by leaving it uncovered rather than by drawing their own."
+  ],
+  "generality_proof": "The failure needs two things: an overlay rect that intersects the windowbar rect, and interactive content inside that intersection. Removing the first condition kills the class regardless of what the overlay puts at its top edge, which is why the fix is a top inset rather than an app-no-drag opt-out on each control. A repository scan for `fixed inset-0` in src/ returned 19 sites; the five that are full-bleed overlays inside the main window now take their top inset from the shared helper, and the class test pins both halves of the rule (uses the helper, no longer `fixed inset-0`) for each of them. The remaining sites are centred scrim dialogs whose interactive content is centre-anchored, plus the browser asset overlay which renders in its own WebContentsView where no windowbar exists.",
+  "shared_boundaries": [
+    {
+      "path": "src/ui/app-shell/windowChrome.ts",
+      "symbol": "fullscreenOverlayTopOffset / currentFullscreenOverlayTopOffset",
+      "responsibility": "Own how far any fullscreen overlay must stay clear of the Windows self-drawn windowbar, so overlays never encode the 32px band or decide platform behaviour themselves."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/DirectorEditor.tsx",
+      "entry_point": "Director console fullscreen shell (reported case)",
+      "disposition": "enforced",
+      "evidence": "Shell root changed from `fixed inset-0 h-[100dvh] w-screen` to `fixed inset-x-0 bottom-0` with `top: currentFullscreenOverlayTopOffset()`; the 44px header row now begins at y=32 on Windows and the windowbar's WindowControls stay visible."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/whiteboard/WhiteboardModal.tsx",
+      "entry_point": "Whiteboard fullscreen shell",
+      "disposition": "enforced",
+      "evidence": "Same shell shape with a 52px header as its first child, so its title row and action buttons were centred at y≈26 inside the band; root now takes the shared top inset."
+    },
+    {
+      "path": "src/ui/onboarding/workflowPage/ComfyuiWorkflowSettingsPage.tsx",
+      "entry_point": "ComfyUI workflow settings full page",
+      "disposition": "enforced",
+      "evidence": "`fixed inset-0 flex flex-col` whose first child is a `px-3 py-2` header carrying the back button; root now takes the shared top inset."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/PanoramaViewer.tsx",
+      "entry_point": "Panorama fullscreen portal",
+      "disposition": "enforced",
+      "evidence": "Fullscreen layer positions its framing toolbar at `top-3` and its screenshot/exit cluster at `right-3 top-3`, both rows starting 12px from the overlay top and therefore inside the band; root now takes the shared top inset."
+    },
+    {
+      "path": "src/workbench/assets/AssetPreviewDialog.tsx",
+      "entry_point": "Asset library preview lightbox",
+      "disposition": "enforced",
+      "evidence": "Close and download buttons are `absolute right-4 top-4 size-9`, spanning y=16..52 so their upper half fell in the band — the same 'click the centre and nothing happens' shape as issue #58; root now takes the shared top inset."
+    },
+    {
+      "path": "src/ui/browser/overlay/BrowserAssetOverlayApp.tsx",
+      "entry_point": "Browser asset overlay root (`fixed inset-0`)",
+      "disposition": "not-affected",
+      "evidence": "src/main.tsx mounts it as a separate React root when the URL carries `nomiOverlay=browserAsset`, and electron/browser/core/browserViews.ts attaches that document to its own view; WorkbenchShell and its windowbar do not exist in that document, so there is no drag band to intersect."
+    },
+    {
+      "path": "src/workbench/settings/SettingsDialog.tsx",
+      "entry_point": "Settings dialog scrim (`fixed inset-0 flex items-center justify-center`)",
+      "disposition": "not-affected",
+      "evidence": "Centred scrim dialog: the scrim itself has no controls and the dialog card is centre-anchored with `p-2 sm:p-6`, so no interactive element lands in the top 32px. Covering the band with an inert scrim costs a modal-time drag, not a click."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Issue #58 already hit this exact hit-test mechanism on a portalled floating card and fixed only that surface, so the mechanism came back the moment a new full-bleed overlay (the director console) grew a top control row. Five overlays carry the shape today and every future fullscreen surface is another chance to write `fixed inset-0`.",
+    "same_class_scan": [
+      "grep -rn 'fixed inset-0' src --include=*.tsx → 19 sites; 5 full-bleed overlays in the main window (all migrated), 12 centred scrim dialogs, 1 separate-view overlay root, 1 assertion inside settingsDialogStructure.test.ts.",
+      "grep -rn 'app-drag' src → the only drag region is WorkbenchShell's windowbar plus the project library windowbar; both are 32px and both are what the overlays were covering.",
+      "grep -rn 'WINDOWS_WINDOWBAR_HEIGHT|workbenchFloatingTopOffset' src → before this change only notifications, the task centre panel and the onboarding checklist cleared the band; no fullscreen overlay did."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/ui/app-shell/windowChrome.ts",
+    "invariant": "A fullscreen overlay's top inset is whatever currentFullscreenOverlayTopOffset() returns, so on win32 the windowbar rect and the overlay rect never intersect.",
+    "failure_mode": "An overlay that goes back to `fixed inset-0` or hardcodes its own offset fails the class test in src/ui/app-shell/windowChrome.test.ts, which asserts for each listed overlay that the source uses currentFullscreenOverlayTopOffset and no longer contains `fixed inset-0`; a module-scope capture of the offset fails the render-time assertion inherited from issue #58.",
+    "exception_policy": "none",
+    "strategy": "Give the windowbar geometry a single owner next to the existing floating-surface offset, convert every full-bleed overlay to it in the same change, and pin the rule with a source scan so the sixth overlay cannot silently reintroduce the band overlap.",
+    "artifacts": [
+      "src/ui/app-shell/windowChrome.ts",
+      "src/ui/app-shell/windowChrome.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/ui/app-shell/windowChrome.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/ui/app-shell/windowChrome.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/nodes/director/DirectorEditor.tsx",
+      "src/workbench/generationCanvas/nodes/whiteboard/WhiteboardModal.tsx",
+      "src/ui/onboarding/workflowPage/ComfyuiWorkflowSettingsPage.tsx",
+      "src/workbench/generationCanvas/nodes/PanoramaViewer.tsx",
+      "src/workbench/assets/AssetPreviewDialog.tsx"
+    ],
+    "rationale": "The `fixed inset-0` (plus `h-[100dvh] w-screen`) full-bleed roots are deleted in the same change, not kept behind a flag; there is no second code path that still paints over the windowbar."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The behaviour is Electron's documented frameless-window hit testing on the installed runtime; no dependency version controls whether a drag rect is hit-tested by geometry, and the fix is an application-level layout invariant.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted data changes and no user action needed. On macOS and Linux the offset is 0, so those platforms render exactly as before; on Windows every listed overlay simply starts 32px lower and the existing windowbar stays visible above it.",
+  "residual_risks": [
+    "The class test enumerates overlays by path, so a brand-new fullscreen surface is only covered once it is added to the list; a static gate that discovers full-bleed overlays automatically is not built.",
+    "Centred scrim dialogs still paint over the windowbar. Their content clears the band today, but a future dialog that anchors a control to its own top edge would be a new instance of this class.",
+    "Verified on Windows 11 with the packaged-equivalent dev build; the macOS branch is a compile-time-constant 0 offset and was not re-walked on a Mac."
+  ]
+}

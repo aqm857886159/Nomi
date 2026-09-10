@@ -46,7 +46,9 @@ import { useAutoFitOnLoad } from '../components/useAutoFitOnLoad'
 import { useCreatedNodeVisibilityPan } from '../components/useCreatedNodeVisibilityPan'
 import { useReactFlowViewportAnimation } from './useReactFlowViewportAnimation'
 import { useBatchPlanPreviewStore } from '../components/batchPlanPreview'
-import { hasPendingScene3DCameraMoveCapture, hasPendingScene3DStagingCapture } from '../components/scene3dCaptureHostActivation'
+import { buildCanvasMenuActions } from '../components/useCanvasMenuActions'
+import { hasPendingDirectorCameraMoveCapture, hasPendingDirectorStagingCapture } from '../components/directorCaptureHostActivation'
+import { isImageLikeGenerationNodeKind } from '../model/generationNodeKinds'
 import CanvasToolbar from '../components/CanvasToolbar'
 import { CANVAS_DRAGGING_OWNER, setCanvasDragging } from '../components/canvasDraggingFlag'
 import {
@@ -79,11 +81,11 @@ import {
   useGenerationCanvasReactFlowHostEffects,
 } from './useGenerationCanvasReactFlowEffects'
 
-const StagingCaptureHost = lazyWithChunkBoundary('3D 站位捕获', () =>
-  import('../nodes/scene3d/StagingCaptureHost').then((module) => ({ default: module.StagingCaptureHost })),
+const StagingCaptureHost = lazyWithChunkBoundary('i18n:generationCommon.chunk.stagingCapture', () =>
+  import('../nodes/director/agent/StagingCaptureHost').then((module) => ({ default: module.StagingCaptureHost })),
 )
-const CameraMoveCaptureHost = lazyWithChunkBoundary('3D 运镜捕获', () =>
-  import('../nodes/scene3d/CameraMoveCaptureHost').then((module) => ({ default: module.CameraMoveCaptureHost })),
+const CameraMoveCaptureHost = lazyWithChunkBoundary('i18n:generationCommon.chunk.cameraMoveCapture', () =>
+  import('../nodes/director/agent/CameraMoveCaptureHost').then((module) => ({ default: module.CameraMoveCaptureHost })),
 )
 type GenerationCanvasReactFlowProps = { readOnly?: boolean }
 
@@ -109,8 +111,8 @@ function GenerationCanvasReactFlowInner({ readOnly = false }: GenerationCanvasRe
   const allNodes = useGenerationCanvasStore((state) => state.nodes)
   const allEdges = useGenerationCanvasStore((state) => state.edges)
   const groups = useGenerationCanvasStore((state) => state.groups)
-  const hasPendingStagingCapture = useGenerationCanvasStore((state) => hasPendingScene3DStagingCapture(state.nodes))
-  const hasPendingCameraMoveCapture = useGenerationCanvasStore((state) => hasPendingScene3DCameraMoveCapture(state.nodes))
+  const hasPendingStagingCapture = useGenerationCanvasStore((state) => hasPendingDirectorStagingCapture(state.nodes))
+  const hasPendingCameraMoveCapture = useGenerationCanvasStore((state) => hasPendingDirectorCameraMoveCapture(state.nodes))
   const hasBatchPlanPreview = useBatchPlanPreviewStore((state) => Boolean(state.plan))
   const selectedNodeIds = useGenerationCanvasStore((state) => state.selectedNodeIds)
   const isReady = useGenerationCanvasStore((state) => state.isReady)

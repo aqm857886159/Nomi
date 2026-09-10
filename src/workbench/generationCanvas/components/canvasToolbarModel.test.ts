@@ -28,7 +28,7 @@ describe('canvas add-intent model（2026-09-10 拍板：文本回常驻 → 6 �
   it('「更多」里恰好 4 个（空间·草图），一段带名字', () => {
     const sections = canvasMoreAddSections()
     expect(sections.flatMap((section) => section.intents).map((intent) => intent.id)).toEqual([
-      'scene3d',
+      'director',
       'model3d',
       'panorama',
       'whiteboard',
@@ -52,7 +52,7 @@ describe('canvas add-intent model（2026-09-10 拍板：文本回常驻 → 6 �
       'text',
       'clip',
       'import-file',
-      'scene3d',
+      'director',
       'model3d',
       'panorama',
       'whiteboard',

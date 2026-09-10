@@ -8,7 +8,8 @@ import { V4Row } from './AgentPanelV4Row'
 //            回形针在用户心智里是「附件」，而这个口还收技能、收选中的片段。
 //   模型名   **纯文字、无 icon**（用户点名，参照 ChatCut），并管图片/视频/音频三类默认预设。
 //   ｜       竖分隔：左边是「这条消息带什么」，右边是「怎么执行」。
-//   Skill    IconPackage + 文字；选中后钮上一个 accent 小点，引用落成上方 chip。
+//   Skill    IconPackage + 文字；选中后引用落成**上方那颗 chip**——钮上不再点第二次名
+//            （2026-09-10：一件事两处反馈，用户读成「这个点是另一个状态」）。
 //   权限     文字胶囊（参照 MiniMax「自动 ▾」），三档映射合同 approvalPolicy。
 //   ↑        圆形发送；运行中变 ■ 停止，占位文案改「可继续输入，将排队发送」。
 //
@@ -53,7 +54,7 @@ function ComposerChip({ chip, removeLabel, onRemove }: { chip: V4Chip; removeLab
       data-v4-chip={chip.kind}
     >
       {chip.kind === 'skill' ? (
-        <SkillMedia cover={chip.cover} preview={chip.preview} className="size-4 rounded-nomi-sm object-cover" />
+        <SkillMedia cover={chip.cover} preview={chip.preview} iconSize={12} className="size-4 rounded-nomi-sm object-cover" />
       ) : (
         <span
           className={cn('h-3.5 w-[18px] shrink-0 rounded-sm', chip.kind === 'clip' ? 'bg-nomi-track-video' : 'bg-nomi-ink-20')}
@@ -275,7 +276,6 @@ export function AgentPanelV4Composer({
         >
           <IconPackage size={14} />
           {t('agentPanelV4.skill')}
-          {skillSelected ? <span className="size-1.5 rounded-pill bg-nomi-accent" aria-hidden="true" /> : null}
         </V4Row>
 
         {/* 2026-09-10 走查反馈：权限+发送两钮会跟着模型名长度左右漂——定稿本就画了

@@ -37,6 +37,16 @@ export type ProviderAdapterConnectionInput = {
   headers?: Record<string, string>;
   /** Optional proxy for this connection only; never inherited by other vendors or local services. */
   proxyUrl?: string;
+  /**
+   * 用户 / 驱动 Agent 交进来的接口文档：**正文**或**每行一个 http(s) URL 的列表**。
+   * 给了就是编译器的首选来源（providedDocs.ts 的 resolveProviderDocs），按域名猜文档站只在没给时兜底。
+   */
+  docs?: string;
+  /**
+   * 由 Nomi 之外（驱动 Agent）编译好的说明卡。给了就跳过「抓文档 + 叫内置文本模型编译」，
+   * 但**不跳过校验**：执行边界仍然要过 validateProviderAdapterDraft，再走同一条真实验证。
+   */
+  adapterDraft?: ProviderAdapterDraft;
   models: ProviderAdapterModelSelection[];
 };
 
@@ -207,11 +217,26 @@ export type ProviderAdapterRevision = {
   createdAt: string;
 };
 
+/**
+ * 一次认证 run 的**外部输入**（文档正文 / 外部编译好的说明卡）。
+ *
+ * 为什么单开一张边表而不是塞进 `ProviderAdapterRun`：run 是要投影给渲染层与 MCP 的 DTO，
+ * 把 64KB 文档和整份说明卡塞进去，每次列 run 都要抬着它们走。这里只有 service 自己读，
+ * 落盘是为了「装机重启后 resume 的那次 run 仍然认得用户给的文档」。
+ */
+export type ProviderAdapterRunInput = {
+  runId: string;
+  docs?: string;
+  draft?: ProviderAdapterDraft;
+  updatedAt: string;
+};
+
 export type ProviderAdapterStoreState = {
   version: 1;
   revision: number;
   runs: ProviderAdapterRun[];
   revisions: ProviderAdapterRevision[];
+  inputs: ProviderAdapterRunInput[];
 };
 
 export type AdapterModelMeta = {

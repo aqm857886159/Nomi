@@ -8,6 +8,9 @@
  * 为什么要这页（2026-08-11 反馈的体验根源）：以前配一条工作流，是在 320px 窄栏里对着
  * 「#110 CLIPTextEncode」猜哪个是提示词。现在图摆在眼前，点那张卡说「你是提示词」。
  *
+ * 整页从 Windows 自绘窗口栏之下起画（不是 inset-0 铺满）：那条 32px 是系统拖拽带，盖住它这页
+ * 顶部的返回/保存一条会被当成拖窗口吃掉、窗口控件也埋在下面（与 issue #58 同根，见 windowChrome）。
+ *
  * 与「导入自定义工作流」的分工（§1.5.2 一功能一个家，2026-08-12 用户拍板）：
  *   贴 JSON 导入 = 接入动作，留在 ComfyUI 卡里；
  *   改绑定/改字段/改名/删除 = 配置动作，全在这页。窄栏那套编辑态已同 commit 删除，不留并行版（P1）。
@@ -18,6 +21,7 @@ import { Portal } from '@mantine/core'
 import { IconAlertTriangle, IconArrowLeft, IconTrash, IconX } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
 import { confirmDialog, NOMI_OVERLAY_Z_INDEX } from '../../../design'
+import { currentFullscreenOverlayTopOffset } from '../../app-shell/windowChrome'
 import { getDesktopBridge } from '../../../desktop/bridge'
 import { cancelComfyCandidateTestRevision, type TaskKind } from '../../../workbench/api/taskApi'
 import { notify } from '../../notificationPolicy'
@@ -348,8 +352,8 @@ export function ComfyuiWorkflowSettingsPage({
   return (
     <Portal>
       <div
-        className="fixed inset-0 flex flex-col bg-nomi-bg"
-        style={{ zIndex: NOMI_OVERLAY_Z_INDEX.dialog }}
+        className="fixed inset-x-0 bottom-0 flex flex-col bg-nomi-bg"
+        style={{ top: currentFullscreenOverlayTopOffset(), zIndex: NOMI_OVERLAY_Z_INDEX.dialog }}
         role="dialog"
         aria-modal="true"
         aria-label={t('comfyuiWorkflowPage.aria')}

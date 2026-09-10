@@ -18,7 +18,6 @@ function stubBridge(projectsOverride: Partial<DesktopBridge['projects']>): Deskt
     video: {} as DesktopBridge['video'],
     screenshot: {} as DesktopBridge['screenshot'],
     image: {} as DesktopBridge['image'],
-    scene3d: {} as DesktopBridge['scene3d'],
     videoDepth: {} as DesktopBridge['videoDepth'],
     onboarding: {} as DesktopBridge['onboarding'],
     skill: {} as DesktopBridge['skill'],

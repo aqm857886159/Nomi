@@ -1,0 +1,118 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-07-director-timeline-interaction-invariants",
+  "problem_type": "Timeline edits violate clip ownership, pose continuity, and single-action history",
+  "symptom": "Resize deletes animation, cuts jump at the boundary, camera key insertion crosses closeups, custom pose starts empty, and one undo only removes part of a compound action.",
+  "direct_cause": "Store paths duplicate placement and child-key logic; resize filters keys, split shallow-copies keys, prepare checks trajectory-only occupancy, and initial pose keys are overwritten.",
+  "class_root": "No shared boundary binds clip geometry edits to complete owned keyframes and shared lane occupancy; compound actions bypass history transaction ownership.",
+  "affected_population": [
+    "All director trajectory/custom-pose clips edited through timeline or inspector",
+    "Camera paths sharing a lane with closeups",
+    "Users undoing add-track, recording, conversion, or create-closeup"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/nodes/director/model/storeClipActions.ts",
+    "src/workbench/generationCanvas/nodes/director/model/storeTimelineActions.ts",
+    "src/workbench/generationCanvas/nodes/director/model/storeCameraActions.ts",
+    "src/workbench/generationCanvas/nodes/director/model/clipKeyframes.ts",
+    "src/workbench/generationCanvas/nodes/director/model/timelineClipboard.ts",
+    "src/workbench/generationCanvas/nodes/director/timeline/TrackLanes.tsx",
+    "src/workbench/generationCanvas/nodes/director/timeline/DirectorTimeline.tsx"
+  ],
+  "entry_points": [
+    "Timeline resize, split and trim",
+    "Inspector clip timing",
+    "Insert keyframe and recording",
+    "Copy/paste clips"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The invariants are internal project data ownership and transaction contracts, checked against the approved reference timeline behavior.",
+  "invariants": [
+    "Camera trajectory and closeup intervals never overlap",
+    "Resize preserves all keys and proportional timing; cuts retain sampled boundary values and only owned in-range keys",
+    "Each compound user action creates one undo step",
+    "Clipboard copies own all mutable values"
+  ],
+  "generality_proof": "UI and inspector use the same store actions. Clip-key geometry helpers cover both trajectory and custom-pose children; laneClips covers creation and extension; withHistory folds nested subactions.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/model/clipKeyframes.ts",
+      "responsibility": "Preserve key timing when clip geometry changes",
+      "symbol": "resizeClipKeyframes"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/model/storeClipActions.ts",
+      "responsibility": "Validate complete shared camera lane before extending or creating a clip",
+      "symbol": "prepareClipForKeyframeInsert"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "evidence": "Both timeline drag and inspector timing call these actions, which call shared keyframe helpers.",
+      "path": "src/workbench/generationCanvas/nodes/director/model/storeClipActions.ts",
+      "disposition": "enforced",
+      "entry_point": "updateClipTime / splitClip / trimClip"
+    },
+    {
+      "evidence": "Keyboard, header insert and drawing converge at these boundaries.",
+      "path": "src/workbench/generationCanvas/nodes/director/model/storeTimelineActions.ts",
+      "disposition": "enforced",
+      "entry_point": "insertKeyframeAt / insertWaypointsBatch"
+    },
+    {
+      "evidence": "Recording and conversion use exact clip placement and history transactions.",
+      "path": "src/workbench/generationCanvas/nodes/director/model/storeCameraActions.ts",
+      "disposition": "enforced",
+      "entry_point": "finishRecording / convertCloseupToTrajectory"
+    }
+  ],
+  "recurrence": {
+    "reason": "Every newly created or loaded clip can reach these store actions via multiple controls.",
+    "same_class_scan": [
+      "rg updateClipTime/splitClip/trimClip found TrackLanes, timelineCommands and inspector consumers",
+      "Read storeClipActions, storeTimelineActions, storeCameraActions, timelineClipboard and the reference clip placement rules"
+    ],
+    "classification": "recurring"
+  },
+  "prevention": {
+    "invariant": "Clip edits preserve owned keyframes and sampled boundaries",
+    "exception_policy": "none",
+    "artifacts": [
+      "src/workbench/generationCanvas/nodes/director/model/clipKeyframes.ts",
+      "src/workbench/generationCanvas/nodes/director/model/storeClipActions.ts",
+      "src/workbench/generationCanvas/nodes/director/model/storeTimelineActions.ts",
+      "src/workbench/generationCanvas/nodes/director/model/storeCameraActions.ts",
+      "src/workbench/generationCanvas/nodes/director/model/timelineClipboard.ts"
+    ],
+    "strategy": "Replace shallow split/filter resize with common keyframe geometry; use laneClips and history transaction entrypoints",
+    "failure_mode": "Reject occupied/out-of-clip operations without mutating project",
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/nodes/director/model/clipKeyframes.ts"
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/nodes/director/model/directorTimelineInteractions.test.ts",
+    "tests/ux/director-timeline-pointer.walk.mjs"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/nodes/director/model/directorTimelineInteractions.test.ts",
+    "tests/ux/director-timeline-pointer.walk.mjs"
+  ],
+  "legacy_paths": {
+    "removed_paths": [
+      "src/workbench/generationCanvas/nodes/director/model/storeClipActions.ts"
+    ],
+    "status": "removed",
+    "rationale": "Remove keyframes overwrite, trajectory-only preparation, child-deleting resize and shallow action split paths."
+  },
+  "dependency_lifecycle": {
+    "exit_criteria": [],
+    "decision": "not-applicable",
+    "rationale": "No dependency upgrade owns these project-state invariants; production model remains pure without THREE or React."
+  },
+  "migration": "No format migration: existing clip IDs/seconds/frames are retained; legacy waypoints without clipId are resolved using existing waypointsOfClip ownership.",
+  "residual_risks": [
+    "26 store/pure tests and 3 isolated real-browser pointer tests passed; full desktop seven user journeys are run by coordinating agent.",
+    "Clipboard numeric-time geometry is covered; mobile-device transport and export codecs lie outside this agent ownership."
+  ],
+  "invariant_owner_layer": {"layer": "src/workbench/generationCanvas/nodes/director/model/clipKeyframes.ts", "tests": ["src/workbench/generationCanvas/nodes/director/model/directorTimelineInteractions.test.ts", "tests/ux/director-timeline-pointer.walk.mjs"], "why": "不变量由 src/workbench/generationCanvas/nodes/director/model/clipKeyframes.ts 单点持有（即本合同的 prevention.enforcement_path / shared_boundaries）；上游其它入口只调用它、不各自重判。tests 是该层现有的类级与回归测试，改动这条不变量必先让它们红。"}
+}

@@ -5,7 +5,7 @@
 //   · camera-move-agent-eval 只验「agent 选不选对工具」——故意拒绝 create_camera_move，host 永不真渲。
 //   · 单测（framesToVideoArgs / archetypeMeta / referenceEdgeCapability）只验纯函数与投影规则。
 //   · 真正没人验过的是：① 常驻 CameraMoveCaptureHost 在真 WebGL 里沿轨迹采帧 → ffmpeg 真拼出 mp4 →
-//     真写回 scene3d.meta.cameraMoveVideo + 真把 mp4 灌进目标视频节点 meta.referenceVideoUrls 并切到
+//     真写回 director 节点 meta.cameraMoveVideo + 真把 mp4 灌进目标视频节点 meta.referenceVideoUrls 并切到
 //     有 video_ref 槽的模式（omni）。② 那个 nomi-local:// 的 **mp4** 真生成时会被 apimart 的
 //     `POST /v1/uploads/images`（一个「images」端点）上传 —— 这正是 #6 的风险点：图片端点可能拒 mp4。
 //
@@ -147,7 +147,7 @@ async function pollNodes(win, projectDir, predicate, { timeoutMs, intervalMs = 1
   return { ok: false, elapsedMs: Date.now() - startedAt, nodes: readNodes(projectDir) };
 }
 
-/** scene3d 节点上 host 写回的运镜小片 url（meta.cameraMoveVideo.url）。 */
+/** director 节点上 host 写回的运镜小片 url（meta.cameraMoveVideo.url）。 */
 function cameraMoveVideoUrl(nodes) {
   for (const n of nodes) {
     const u = n?.meta?.cameraMoveVideo?.url;
@@ -312,7 +312,7 @@ try {
     }
   }
 
-  // host 异步出片：轮询 scene3d.meta.cameraMoveVideo.url 出现，或目标节点 referenceVideoUrls 变非空。
+  // host 异步出片：轮询 director 节点 meta.cameraMoveVideo.url 出现，或目标节点 referenceVideoUrls 变非空。
   console.log("◆ 轮询 CameraMoveCaptureHost 产物（离屏采帧 + ffmpeg 拼片，~45s 上限）……");
   const rendered = await pollNodes(
     win,

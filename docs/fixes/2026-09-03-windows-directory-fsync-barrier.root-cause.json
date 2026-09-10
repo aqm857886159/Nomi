@@ -1,0 +1,157 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-03-windows-directory-fsync-barrier",
+  "problem_type": "Directory fsync barrier copied per module with divergent platform handling",
+  "symptom": "On Windows, creating or opening any project fails in the main process and the renderer only sees project_agent_unavailable; the project library never navigates into the project. The Electron director walkthrough could not open a project at all.",
+  "direct_cause": "projectAgentMigration.archiveLegacySources and projectAgentRepository.fsyncDirectory open a directory fd and call fsyncSync on it; Windows opens directory handles fine but FlushFileBuffers on a directory handle raises EPERM, which the IPC envelope masks as project_agent_unavailable.",
+  "class_root": "The 'open a directory fd only to fsync it' barrier had no shared owner: eight modules each carried their own copy, and each copy decided differently whether unsupported-platform errors are swallowed (catch-all, win32 early return, openSync-only guard, or no guard).",
+  "affected_population": [
+    "Every Windows user opening or creating a project (project agent host initialize / legacy archive)",
+    "Every durable directory barrier in the main process: lease store, production-run lock and intent log, workspace manifest lock, cutover manifest, proposal receipt store, certification persistence"
+  ],
+  "scope_paths": [
+    "electron/durability.ts",
+    "electron/durability.test.ts",
+    "electron/capabilityCore/projectAgentProposalReceiptStore.ts",
+    "electron/capabilityCore/projectLeaseStore.ts",
+    "electron/productionRun/productionRunLock.ts",
+    "electron/productionRun/productionRunIntentLog.ts",
+    "electron/workspace/workspaceManifestLock.ts",
+    "electron/integrationCertification/certificationPersistence.ts",
+    "electron/agentLane/laneLegacyFiles.ts"
+  ],
+  "entry_points": [
+    "nomi:projectAgent:open IPC (project agent host initialize + legacy migration)",
+    "project lease publish / renew",
+    "production run lock and intent log append",
+    "workspace manifest lock recovery",
+    "integration certification persistence"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://nodejs.org/api/fs.html#fsfsyncsyncfd",
+      "checked_at": "2026-09-03",
+      "purpose": "fs.fsyncSync contract; Windows directory handles cannot be flushed, the failure surfaces as EPERM"
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/libuv/libuv/blob/v1.x/src/win/fs.c",
+      "checked_at": "2026-09-03",
+      "purpose": "uv__fs_fsync on win32 calls FlushFileBuffers; directory handles opened for read fail with access denied → EPERM"
+    }
+  ],
+  "internal_only_reason": "",
+  "invariants": [
+    "There is exactly one implementation of the directory barrier, electron/durability.fsyncDirectoryIfDurable.",
+    "In durable mode the barrier opens the directory and fsyncs it; platform codes that mean 'no directory fsync available' (EPERM, EACCES, EINVAL, ENOTSUP, EISDIR, EBADF) return silently, every other error propagates.",
+    "In ephemeral mode the barrier does not open the directory at all.",
+    "No module outside durability.ts opens a directory fd for the purpose of fsync."
+  ],
+  "generality_proof": "grep for fsyncDirectory / fsyncNomiDirectory / fsyncReceiptDirectory / 'openSync(dir, \"r\")' + fsyncIfDurable across electron/ found eight copies; all eight now delegate to fsyncDirectoryIfDurable, and the heavy-path gate's unguarded-fsync rule already forbids raw fs.fsyncSync outside durability.ts, so a new copy cannot reintroduce a raw fsync. The remaining way to regress is a new module re-implementing open+fsyncIfDurable on a directory fd; the class regression test pins that only durability.ts contains that shape.",
+  "shared_boundaries": [
+    {
+      "path": "electron/durability.ts",
+      "symbol": "fsyncDirectoryIfDurable",
+      "responsibility": "Own the durable directory barrier including the platform-unsupported error set; callers pass a directory path and never touch the fd."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/capabilityCore/projectAgentProposalReceiptStore.ts",
+      "entry_point": "fsyncReceiptDirectory",
+      "disposition": "enforced",
+      "evidence": "Thin wrapper now delegates; the win32 early return moved into the shared barrier."
+    },
+    {
+      "path": "electron/capabilityCore/projectLeaseStore.ts",
+      "entry_point": "lease publish / issue / prune directory barriers",
+      "disposition": "enforced",
+      "evidence": "Local catch-all copy removed; five call sites delegate."
+    },
+    {
+      "path": "electron/productionRun/productionRunLock.ts",
+      "entry_point": "fsyncDirectory(filePath)",
+      "disposition": "enforced",
+      "evidence": "Wrapper keeps the dirname convenience and delegates."
+    },
+    {
+      "path": "electron/productionRun/productionRunIntentLog.ts",
+      "entry_point": "appendDurableLine",
+      "disposition": "enforced",
+      "evidence": "Inline open + fsyncSync block replaced by the shared call."
+    },
+    {
+      "path": "electron/workspace/workspaceManifestLock.ts",
+      "entry_point": "lock / quarantine / release directory barriers",
+      "disposition": "enforced",
+      "evidence": "Local catch-all copy removed; nine call sites delegate."
+    },
+    {
+      "path": "electron/integrationCertification/certificationPersistence.ts",
+      "entry_point": "writeFileDurably directory barrier",
+      "disposition": "enforced",
+      "evidence": "Inline isDurable + open + fsyncIfDurable block replaced by the shared call."
+    },
+    {
+      "path": "electron/jsonFile.ts",
+      "entry_point": "writeJsonFileAtomic",
+      "disposition": "not-affected",
+      "evidence": "Only fsyncs the temp file fd through fsyncIfDurable; it never opens a directory fd."
+    },
+    {
+      "path": "electron/agentLane/laneLegacyFiles.ts",
+      "entry_point": "syncDirectory (atomic publish / unlink / lock release, 4 call sites)",
+      "disposition": "enforced",
+      "evidence": "2026-09-10 merging origin/main: main retired projectAgentHost (agentLane refactor) and the ninth local copy reappeared here as syncDirectory (read-only openSync + fsyncIfDurable). electron/durability.test.ts class test failed on the merged tree; the local copy was removed and all four call sites now use fsyncDirectoryIfDurable."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The same barrier was re-implemented eight times with four different Windows policies; every new durable write path is a place where the ninth copy would appear.",
+    "same_class_scan": [
+      "grep -rn 'function fsync' electron --include=*.ts (excluding tests) → 8 local copies, all migrated.",
+      "grep -rln fsyncIfDurable electron | xargs grep -l 'O_RDONLY\\|, \"r\")' → certificationPersistence, projectAgentCommandLedger (file fd only, not affected), projectAgentProposalReceiptStore.",
+      "check:heavy-path unguarded-fsync = 0 after the change (raw fsyncSync only inside durability.ts).",
+      "2026-09-10 recurrence confirmed: after merging origin/main the class test flagged electron/agentLane/laneLegacyFiles.ts (a fresh syncDirectory copy in code that never saw this contract). Routed through fsyncDirectoryIfDurable; the class test is what caught it, not review."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/durability.ts",
+    "invariant": "Directory barriers go through fsyncDirectoryIfDurable; platform-unsupported errors are classified once.",
+    "failure_mode": "A module that re-implements the barrier is caught by the class regression test in electron/durability.test.ts (only durability.ts may pair a read-only directory openSync with fsync); a raw fsyncSync is caught by the pre-existing check:heavy-path unguarded-fsync rule.",
+    "exception_policy": "none",
+    "strategy": "Add the shared helper next to fsyncIfDurable, delete every local copy in the same change, and pin the single-implementation invariant with a source scan test.",
+    "artifacts": [
+      "electron/durability.ts",
+      "electron/durability.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/durability.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/durability.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/capabilityCore/projectLeaseStore.ts",
+      "electron/workspace/workspaceManifestLock.ts",
+      "electron/productionRun/productionRunIntentLog.ts",
+      "electron/integrationCertification/certificationPersistence.ts"
+    ],
+    "rationale": "The per-module fsyncDirectory / fsyncNomiDirectory / inline directory-fsync copies in these files are deleted in the same change; two thin wrappers (productionRunLock.fsyncDirectory, proposalReceiptStore.fsyncReceiptDirectory) only compute the directory path and delegate."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The behaviour is Node's fs semantics on Windows; no dependency version controls it.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted data changes. Existing project folders that failed to open on Windows open on the next launch; nothing was written in the failed attempts beyond the legacy archive directory, which the migration re-validates by hash.",
+  "residual_risks": [
+    "On filesystems that reject directory fsync the barrier degrades to file-only durability; this matches the previous catch-all copies and is documented in durability.ts.",
+    "Windows symlink-privilege and 1,000-command timeout failures in the same electron test files are environment-specific on this machine and unrelated to the barrier."
+  ]
+}
