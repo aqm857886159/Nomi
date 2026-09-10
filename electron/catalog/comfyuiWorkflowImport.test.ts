@@ -923,3 +923,67 @@ describe("视频输入通道（补帧/视频超分/视频去背景 —— 语料
     expect(a.suggested.firstFrameNodeId).toBe("2");
   });
 });
+
+describe("音频输入通道（用户报的根因「ComfyUI 音频输入用不了」——MEDIA_INPUT_KEYS 早就预留了 audio 键名，唯独没有配套的 class_type 识别正则，音频输入被降级成裸文本 widget）", () => {
+  // 真实 ComfyUI LoadAudio 节点：class_type="LoadAudio"，装文件名的输入键叫 audio。
+  const AUDIO_CONDITIONED: ComfyGraph = {
+    "1": { class_type: "LoadAudio", inputs: { audio: "voice.mp3" } },
+    "2": { class_type: "CLIPTextEncode", inputs: { text: "album cover reacting to this audio", clip: ["4", 1] } },
+    "4": { class_type: "CheckpointLoaderSimple", inputs: { ckpt_name: "ace-step.safetensors" } },
+    "9": { class_type: "SaveImage", inputs: { filename_prefix: "x", images: ["2", 0] } },
+  };
+
+  it("LoadAudio.audio 认得出来是媒体输入（此前落进 pushScalarWidgetCandidate，只能手填裸 URL）", () => {
+    const a = analyzeComfyWorkflow(AUDIO_CONDITIONED);
+    expect(a.imageInputs.map((i) => `${i.nodeId}.${i.inputKey}`)).toContain("1.audio");
+    expect(a.widgetInputs.map((i) => `${i.nodeId}.${i.inputKey}`)).not.toContain("1.audio");
+    expect(a.imageInputs.find((i) => i.nodeId === "1")?.mediaKind).toBe("audio");
+  });
+
+  it("音频输入不冒充首帧图（唯一的 still 输入是 0 张，不会把音频错当图片首帧）", () => {
+    const a = analyzeComfyWorkflow(AUDIO_CONDITIONED);
+    expect(a.suggested.firstFrameNodeId).toBeUndefined();
+    expect(a.suggested.lastFrameNodeId).toBeUndefined();
+    expect(a.suggested.sourceVideoNodeId).toBeUndefined();
+    expect(a.suggested.images?.[0]).toMatchObject({ nodeId: "1", inputKey: "audio", mediaKind: "audio" });
+  });
+
+  it("建图时注入音频占位并保留 mediaKind:audio（画布据此渲染成可拖拽的音频槽，不是裸文本框）", () => {
+    const built = buildImportedWorkflow(AUDIO_CONDITIONED, analyzeComfyWorkflow(AUDIO_CONDITIONED).suggested);
+    const audioParamKey = analyzeComfyWorkflow(AUDIO_CONDITIONED).suggested.images?.[0]?.paramKey;
+    expect(audioParamKey).toBeDefined();
+    expect(built.templatedGraph["1"]?.inputs?.audio).toBe(`{{request.params.${audioParamKey}}}`);
+    expect(built.parameters.find((p) => p.key === audioParamKey)).toMatchObject({ type: "image-url", mediaKind: "audio" });
+  });
+
+  it("图片、视频、音频三种媒体输入同时出现 → 各进各的槽，互不误判", () => {
+    const graph: ComfyGraph = {
+      "1": { class_type: "LoadAudio", inputs: { audio: "voice.mp3" } },
+      "2": { class_type: "LoadImage", inputs: { image: "ref.png" } },
+      "3": { class_type: "LoadVideo", inputs: { file: "clip.mp4" } },
+      "9": { class_type: "SaveVideo", inputs: { video: ["3", 0] } },
+    };
+    const a = analyzeComfyWorkflow(graph);
+    expect(a.suggested.sourceVideoNodeId).toBe("3");
+    expect(a.suggested.firstFrameNodeId).toBe("2");
+    const audioImage = a.suggested.images?.find((i) => i.nodeId === "1");
+    expect(audioImage).toMatchObject({ inputKey: "audio", mediaKind: "audio" });
+  });
+
+  it("音频输入不冒充图片输入去驱动 taskKind（纯音频条件的图生工作流仍是 text_to_image，不是 image_edit）", () => {
+    // 根因回归：resolveComfyWorkflowTaskKind 曾用 `mediaKind !== 'video'` 判「有没有图输入」——
+    // 这把 audio 也算进了"有图输入"，纯 LoadAudio(无 LoadImage) 的工作流会被错分类成 image_edit，
+    // 画布侧再按 image_edit 去找 mapping/提示必传首帧图，对不上导入时其实半张图都没有的事实。
+    const audioOnlyImageGraph: ComfyGraph = {
+      "1": { class_type: "LoadAudio", inputs: { audio: "voice.mp3" } },
+      "2": { class_type: "CLIPTextEncode", inputs: { text: "album cover for this song", clip: ["4", 1] } },
+      "4": { class_type: "CheckpointLoaderSimple", inputs: { ckpt_name: "author.safetensors" } },
+      "9": { class_type: "SaveImage", inputs: { filename_prefix: "cover", images: ["2", 0] } },
+    };
+    const suggested = analyzeComfyWorkflow(audioOnlyImageGraph).suggested;
+    expect(suggested.images?.every((image) => image.mediaKind === "audio")).toBe(true);
+    const built = buildImportedWorkflow(audioOnlyImageGraph, suggested);
+    expect(built.kind).toBe("image");
+    expect(built.taskKind).toBe("text_to_image");
+  });
+});

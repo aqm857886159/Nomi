@@ -4,7 +4,7 @@ export type WorkflowFixture = {
   id: string
   api?: ComfyGraph
   ui?: Record<string, unknown>
-  mediaKinds: Array<'image' | 'video'>
+  mediaKinds: Array<'image' | 'video' | 'audio'>
   outputKind?: 'image' | 'video' | 'model3d'
   unsupportedOutputKinds?: string[]
   expectPrompt: boolean
@@ -101,6 +101,10 @@ export const COMFYUI_WORKFLOW_CORPUS: WorkflowFixture[] = [
       '1': { class_type: 'LoadAudio', inputs: { audio: 'voice.wav' } },
       '2': { class_type: 'SaveAudioMP3', inputs: { audio: ['1', 0], filename_prefix: 'Nomi' } },
     },
-    mediaKinds: [], unsupportedOutputKinds: ['unsupported'], expectPrompt: false,
+    // 这条真实语料的**输出**仍不支持（Nomi 存不下 SaveAudioMP3 的产物，unsupportedOutputKinds
+    // 照旧）；但它的**输入**——LoadAudio.audio——用户报的根因之一「ComfyUI 音频输入用不了」
+    // 在这份真实语料上实锤：根因修复前 mediaKinds 是 []（音频输入完全隐形，识别不出来），
+    // 修复后正确识别成 ['audio']。别把这条改回 []，那就是把根因又焊死回去。
+    mediaKinds: ['audio'], unsupportedOutputKinds: ['unsupported'], expectPrompt: false,
   },
 ]
