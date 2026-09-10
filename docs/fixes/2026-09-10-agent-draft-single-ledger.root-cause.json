@@ -11,6 +11,7 @@
     "Existing projects whose nodes were landed before this change (they carry no candidate stamp and are treated as first landing)"
   ],
   "scope_paths": [
+    "electron/productionRun/canvasLandingHost.ts",
     "electron/productionRun/multiShotCanvasLanding.ts",
     "electron/productionRun/productionGenerationOperationStore.ts",
     "electron/productionRun/productionRunDraftSummary.ts",
@@ -70,6 +71,11 @@
       "path": "electron/productionRun/multiShotCanvasLanding.ts",
       "symbol": "buildMaterializeShotsPayload",
       "responsibility": "Sole producer of the canvas landing payload; projects the candidate's model identity onto the wire field by field and withholds transportModelId and parameters."
+    },
+    {
+      "path": "electron/productionRun/canvasLandingHost.ts",
+      "symbol": "createCanvasLandingHost",
+      "responsibility": "Assembles the one best-effort landing chain shared by all three moments (draft create/patch, paid confirmation, project reopen) so they cannot diverge into separate write paths with separate operation ids."
     },
     {
       "path": "electron/productionRun/productionGenerationOperationStore.ts",
