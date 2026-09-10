@@ -604,7 +604,9 @@ pnpm run delivery:verify-merged -- --expected-sha <merge-commit-sha>
 2. `pre-commit` 只把 `git diff --cached` 交给评审；`pre-push` 解析 Git 传入的四列 ref-update，逐个评审实际 outgoing range。新建远端 ref 没有旧 SHA 时，以远端 HEAD 的 merge-base 为基线，拒绝退化成整仓 diff；无法确定基线就 fail closed。不会把无关的未暂存改动或其他分支混进上下文。
 3. 评审只看过度工程化（delete/stdlib/native/yagni/shrink）。有发现时 hook 只报告状态和字节数摘要，不替用户判断功能正确性；需要逐条意见时另行运行 `@ponytail-review`。没有合法结果、Codex 缺失、插件未启用、异常或超时都 fail closed，必须处理环境后重试。
 4. 运行器固定为只读、临时、限时调用，报告写入系统临时目录，不进项目和 Git index；评审结束后立即删除唯一临时目录，清理失败也 fail closed。hook/返回值只保留状态、diff hash 和 report/stdout/stderr 字节数，绝不把报告正文或进程输出复制到终端、CI 日志或错误对象。报告读取上限为 256 KB；`pre-commit` 先执行既有敏感数据扫描，避免把明显凭据送入模型；`pre-push` 只审 outgoing diff。**二进制文件内容不进评审 diff**（`collectReviewDiff` 去掉 `--binary`，Git 自然降级为一行 `Binary files … differ`），改附一段 `BINARY: <added/modified/deleted> <path> (<size>)` 摘要——图片字节对精简代码评审是 100% 噪音，base85 blob 曾反复顶爆上限；摘要保留「仓库变肥」信号供评审当 lean 发现提出。单次送审 diff 上限为 1.5 MB（**自此只约束文本 diff + 二进制摘要**）、push ref-update 上限为 32 条，超限直接 fail closed。
-5. 只接受 `--output-last-message` 报告的严格、报告-only 合同：适配器形式要求唯一一条 `net: -N lines possible.` 后紧跟唯一最终行 `PONYTAIL_REVIEW: PASS|FINDINGS`；同时兼容 Ponytail 原生的精确 clean 行 `Lean already. Ship.` 和以 `net: -N lines possible.` 收尾的 findings 报告。stdout/stderr、prompt 回显、重复 marker 和不完整报告一律不算通过。
+5. **评审墙钟是派生的，不是常量**（2026-09-11）：`resolveReviewTimeoutMs` 按 `base 180s + floor(diffBytes / 50KB) × 60s`，1 分钟原始 loadavg > 4 时 × 1.5，上限 600s。起因是写死的 180s 假设机器是闲的——这台机器常年 20+ worktree、三四棵同时跑 gates，一晚上六条分支被超时拦十几次，没有一条 diff 有问题。**同一时刻全机只跑一个评审**：`scripts/ponytail-review-hook.mjs` 复用 `scripts/with-gates-lock.py` 的 flock 在 `/tmp/nomi-ponytail.lock` 上把自己重跑一次（`NOMI_PONYTAIL_LOCK_HELD=1` 防递归），所以**排队等锁的时间不计入评审超时**（等锁上限 15 分钟，到点 fail-closed）。锁在外层、墙钟在内层，是这个分层的唯一理由。
+6. **runner 不可用时的留痕延后**（2026-09-11）：`PONYTAIL_REVIEW_DEFER=1` 只在 `staged` scope 生效（push 的 outgoing diff 是最后一道本地闸，不许延后）。此时敏感数据扫描照跑，评审记一行进 `.claude/ponytail-deferred.log`（格式逐字对齐 `.claude/push-bypass.log`：`<ISO>|deferred|branch=…|sha=<提交前 HEAD>|worktree=…|reason=…|reviewed=no`），提交放行。`pnpm run check:ponytail-review` 读该账本，任一 `reviewed=no` 或读不懂的行即红（零容忍、无棘轮）；补跑 `@ponytail-review` 处理完发现后用 `node scripts/check-ponytail-deferred.mjs --accept <sha>` 标 yes，`--clear-reviewed` 清旧行。**`scripts/claude-hooks/commit-bypass-check.sh` 不放宽**：`-c core.hooksPath=`、`--no-verify`、`commit-tree` 等一切绕口写法照旧 exit 2——留痕只走 `PONYTAIL_REVIEW_DEFER=1` 这一条明路，它保留扫描、保留账本、保留红灯，而绕口三样全丢。
+7. 只接受 `--output-last-message` 报告的严格、报告-only 合同：适配器形式要求唯一一条 `net: -N lines possible.` 后紧跟唯一最终行 `PONYTAIL_REVIEW: PASS|FINDINGS`；同时兼容 Ponytail 原生的精确 clean 行 `Lean already. Ship.` 和以 `net: -N lines possible.` 收尾的 findings 报告。stdout/stderr、prompt 回显、重复 marker 和不完整报告一律不算通过。
 
 ### 推送形态与 diff 上限的实操后果（2026-09-01 实测源码后固化）
 
@@ -625,7 +627,7 @@ pnpm run delivery:verify-merged -- --expected-sha <merge-commit-sha>
 - `scripts/install-git-hooks.cjs` 由 `postinstall` 调用，保留既有 `commit-msg` 和敏感数据扫描顺序，并新增 `pre-push`。普通 worktree 使用 configured hooks 路径；linked worktree 只有在 Git `extensions.worktreeConfig=true` 时才写入专属目录，无法隔离则跳过并警告，避免一个分支改坏并行 worktree。
 - `PONYTAIL_REVIEW_CODEX_BIN` 可在本机明确指定 Codex 可执行文件；`PONYTAIL_REVIEW_REPORT_DIR` 仅用于调试报告目录。缺失配置不会放行。
 
-**验证**：`scripts/ponytail-review-hook.node-test.mjs` 覆盖 hook 生成顺序、staged/outgoing diff 范围、结果分类、Codex 失败/超时、真实 fake-runner 调用和 linked-worktree 隔离；改动本规则或 hook 时必须运行该测试与 contracts gate。
+**验证**：`scripts/ponytail-review-hook.node-test.mjs` 覆盖 hook 生成顺序、staged/outgoing diff 范围、结果分类、Codex 失败/超时、超时公式各档、真实两进程锁互斥、延后账本写入和 linked-worktree 隔离；`scripts/check-ponytail-deferred.node-test.mjs` 覆盖账本门岗的红/绿、`--accept`（含短 sha）与读不懂行的 fail-closed。两者都在 `pnpm run check:ponytail-review` 里；改动本规则或 hook 时必须运行该测试与 contracts gate。
 
 ## R26 分层边界不许反向/循环
 
