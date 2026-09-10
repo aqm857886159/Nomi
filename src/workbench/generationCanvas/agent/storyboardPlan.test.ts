@@ -222,7 +222,7 @@ describe('storyboardPlanToCreateNodesArgs', () => {
 
   it('产出的节点种类都是画布支持的（结构保证：防 prop/style 等非节点种类漏进去崩 defaultSize）', () => {
     // 画布 registry 支持的种类（src/workbench/generationCanvas/nodes/registry.ts）。
-    const VALID_NODE_KINDS = new Set(['text', 'character', 'scene', 'image', 'keyframe', 'video', 'shot', 'output', 'panorama', 'scene3d'])
+    const VALID_NODE_KINDS = new Set(['text', 'character', 'scene', 'image', 'keyframe', 'video', 'shot', 'output', 'panorama', 'director'])
     const { nodes } = storyboardPlanToCreateNodesArgs(PLAN)
     for (const node of nodes) expect(VALID_NODE_KINDS.has(node.kind)).toBe(true)
   })

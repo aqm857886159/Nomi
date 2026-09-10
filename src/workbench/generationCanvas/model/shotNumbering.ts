@@ -10,7 +10,7 @@ import type { GenerationCanvasNode, GenerationNodeKind } from './generationCanva
  *
  * 新契约：
  * - 编号只属于「分镜分类里的镜头内容节点」（image/video/shot/keyframe）；
- *   text/panorama/scene3d/output 永不参与编号。
+ *   text/panorama/director/output 永不参与编号。
  * - shotIndex 在节点创建/进入分镜分类时一次性分配（max+1），此后移动节点、
  *   添加无关节点、布局变更都不再改号；删除留空号（编号是身份，如章节号）。
  * - 存量项目在 hydrate 时按 (y, x, id) 确定性回填一次（与旧视觉顺序最接近）。

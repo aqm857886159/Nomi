@@ -8,9 +8,9 @@ import { validateGlbStructure } from '../../../../../electron/assets/model3dVali
 /**
  * 生成出的 3D 模型（.glb）的卡内交互预览。
  *
- * 复用 scene3d 同一套 R3F + drei + three 栈（CSP 已为 Three.js WASM/blob 放行，见 electron/main.ts），
+ * 复用导演台同一套 R3F + drei + three 栈（CSP 已为 Three.js WASM/blob 放行，见 electron/main.ts），
  * 但**不引 Environment/Stage 的远程 HDR 预设**——那会去 CDN 拉 .hdr，触 CSP/离线失败，违 local-first。
- * 改用手动三点光（仿 scene3dEnvironment）。Bounds 自动取景、OrbitControls 让用户拖转、autoRotate 给转盘感。
+ * 改用手动三点光。Bounds 自动取景、OrbitControls 让用户拖转、autoRotate 给转盘感。
  *
  * 只吃 glTF/glb（useGLTF = three GLTFLoader）；.obj 不在栈里（MVP 不做）。
  */

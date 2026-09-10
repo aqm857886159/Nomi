@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { WorkbenchProjectRecordV1 } from './projectRecordSchema'
 
-const deps = vi.hoisted(() => ({ read: vi.fn(), restore: vi.fn(), replay: vi.fn(), upgrade: vi.fn() }))
-vi.mock('../library/localProjectStore', () => ({ readLocalProjectAsync: deps.read, saveLocalProject: vi.fn() }))
+const deps = vi.hoisted(() => ({ read: vi.fn(), save: vi.fn(), restore: vi.fn(), replay: vi.fn(), upgrade: vi.fn() }))
+vi.mock('../library/localProjectStore', () => ({ readLocalProjectAsync: deps.read, saveLocalProject: deps.save }))
 vi.mock('./projectMediaMigration', () => ({ upgradeWorkbenchProjectMediaUrls: deps.upgrade, normalizeLegacyImageAssetKinds: (value: unknown) => value }))
 vi.mock('./projectCategoryMigration', () => ({ migrateProjectRecord: (record: unknown) => ({ record, diagnostic: { alreadyMigrated: true } }) }))
 vi.mock('./projectV51ToV60Migration', () => ({ migrateProjectV51ToV60: (record: unknown) => ({ record }) }))
@@ -25,6 +25,20 @@ afterEach(() => {
 })
 
 describe('project hydration invalidates Agent ownership before asynchronous work', () => {
+  it('does not publish an outgoing save after another project becomes active', async () => {
+    const record = { id: 'A', name: 'A', version: 1 as const, createdAt: 1, updatedAt: 1, revision: 1, savedAt: 1, payload: createDefaultWorkbenchProjectPayload() }
+    let active = 'A'
+    let release!: (value: WorkbenchProjectRecordV1) => void
+    deps.save.mockReturnValueOnce(new Promise(resolve => { release = resolve }))
+    const setActiveProject = vi.fn()
+    const service = createWorkbenchProjectPersistenceService({ setActiveProject, isActiveProject: id => active === id })
+    const saving = service.persistProject(record, record.payload)
+    active = 'B'
+    release(record)
+    await expect(saving).resolves.toEqual(record)
+    expect(setActiveProject).not.toHaveBeenCalled()
+  })
+
   it('clears review ownership before reading, and any review begun during hydration before projecting', async () => {
     useShotVerifyStore.getState().activateProject('A')
     const oldVerify = useShotVerifyStore.getState().beginVerify('A')
@@ -33,7 +47,7 @@ describe('project hydration invalidates Agent ownership before asynchronous work
     deps.read.mockImplementationOnce(() => new Promise((resolve) => { release = resolve }))
     deps.replay.mockImplementationOnce(() => new Promise<void>((resolve) => { releaseReplay = resolve }))
     const setActiveProject = vi.fn()
-    const service = createWorkbenchProjectPersistenceService({ setActiveProject })
+    const service = createWorkbenchProjectPersistenceService({ setActiveProject, isActiveProject: () => true })
     const guard = { signal: new AbortController().signal, assertCurrent: vi.fn() }
     const loading = service.hydrateProject('B', guard)
     expect(useShotVerifyStore.getState().isVerifyCurrent(oldVerify, 'A')).toBe(false)
@@ -71,7 +85,7 @@ describe('project hydration invalidates Agent ownership before asynchronous work
       }),
     }
     const setActiveProject = vi.fn()
-    const service = createWorkbenchProjectPersistenceService({ setActiveProject })
+    const service = createWorkbenchProjectPersistenceService({ setActiveProject, isActiveProject: () => true })
 
     await expect(service.hydrateProject('B', guard)).rejects.toThrow('project_hydration_superseded')
     expect(deps.restore).not.toHaveBeenCalled()

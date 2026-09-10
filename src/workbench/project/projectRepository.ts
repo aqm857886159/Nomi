@@ -206,11 +206,11 @@ export async function readLocalProjectAsync(projectId: string): Promise<Workbenc
   return readLocalProject(id)
 }
 
-export function saveLocalProject(
+export async function saveLocalProject(
   projectId: string,
   state: WorkbenchProjectPayload,
   name?: string,
-): WorkbenchProjectRecordV1 {
+): Promise<WorkbenchProjectRecordV1> {
   const id = String(projectId || '').trim()
   if (!id) throw new Error('projectId is required')
   const desktop = getDesktopBridge()
@@ -246,7 +246,7 @@ export function saveLocalProject(
   }
   assertWorkbenchProjectMediaUrlsPersistable(record)
   if (desktop) {
-    return desktop.projects.save(id, record) as WorkbenchProjectRecordV1
+    return await desktop.projects.save(id, record) as WorkbenchProjectRecordV1
   }
   if (existingRecord) rememberProjectBackup(id, existingRecord)
   const nextIndex = [summary, ...readMergedProjectSummaries().filter((item) => item.id !== id)]
@@ -263,7 +263,7 @@ export function saveLocalProject(
  * 违反 never-wipe-user-data 铁律）。列表页改的是**任意项目**（可能没打开），更不能拿当前内存
  * 状态覆盖它。空名/未变 → no-op 返回原 record。
  */
-export function renameLocalProject(projectId: string, name: string): WorkbenchProjectRecordV1 | null {
+export async function renameLocalProject(projectId: string, name: string): Promise<WorkbenchProjectRecordV1 | null> {
   const id = String(projectId || '').trim()
   if (!id) return null
   const record = readLocalProject(id)
@@ -281,7 +281,7 @@ export function renameLocalProject(projectId: string, name: string): WorkbenchPr
   }
   assertWorkbenchProjectMediaUrlsPersistable(next)
   const desktop = getDesktopBridge()
-  if (desktop) return desktop.projects.save(id, next) as WorkbenchProjectRecordV1
+  if (desktop) return await desktop.projects.save(id, next) as WorkbenchProjectRecordV1
   const existingRecord = readJson(projectRecordKey(id))
   if (existingRecord) rememberProjectBackup(id, existingRecord)
   writeJson(projectRecordKey(id), next)

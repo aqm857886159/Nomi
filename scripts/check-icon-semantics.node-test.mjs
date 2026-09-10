@@ -10,7 +10,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
-import { conflictId, findConflicts, scanIconSemantics } from './check-icon-semantics.mjs'
+import { conflictId, findConflicts, loadRegisteredIcons, scanIconDictionary, scanIconSemantics } from './check-icon-semantics.mjs'
 
 function fixture(files) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'icon-semantics-'))
@@ -74,4 +74,49 @@ export const E = () => (
   <button aria-label={t('scene.open')}><IconCube /><IconMaximize /></button>)`,
   })
   assert.equal(conflicts.length, 1)
+})
+
+/* ───────────── 规则二：图标词典登记（设计系统 §1.8 规则 5）的红/绿证明 ───────────── */
+
+const dictionaryOf = (files) => [...scanIconDictionary(fixture(files), ['src']).keys()].sort()
+
+test('会红：新图标不在词典基线、也没登记进 §6', () => {
+  const icons = dictionaryOf({
+    'src/A.tsx': `import { IconSquareX } from '@tabler/icons-react'
+export const A = () => <button aria-label={t('panel.close')}><IconSquareX /></button>`,
+  })
+  const baseline = new Set(['IconX']) // 词典里已经有一个「关闭」
+  const registered = new Set()
+  assert.deepEqual(icons.filter((icon) => !baseline.has(icon) && !registered.has(icon)), ['IconSquareX'])
+})
+
+test('不乱红：登记进 §6「语义图标登记」表就放行', () => {
+  const root = fixture({
+    'src/A.tsx': `import { IconTrendingUp } from '@tabler/icons-react'
+export const A = () => <button aria-label={t('ref.hot')}><IconTrendingUp /></button>`,
+    'docs/design/nomi-design-system.md': `## 6. 图标使用规则
+
+### 语义图标登记
+
+| 语义 | 图标 | 用在哪 |
+|---|---|---|
+| 正在放量 | \`IconTrendingUp\` | FindReferencePanel |
+
+### 选图规则
+`,
+  })
+  const registered = loadRegisteredIcons(root)
+  assert.ok(registered.has('IconTrendingUp'))
+  const icons = [...scanIconDictionary(root, ['src']).keys()]
+  assert.deepEqual(icons.filter((icon) => !registered.has(icon)), [])
+})
+
+test('不乱红：`import type { Icon }` 是类型不是词典里的词', () => {
+  assert.deepEqual(
+    dictionaryOf({
+      'src/A.tsx': `import type { Icon } from '@tabler/icons-react'
+export type Props = { icon: Icon }`,
+    }),
+    [],
+  )
 })

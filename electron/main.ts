@@ -53,6 +53,7 @@ import { installMainWindowInteractions } from "./mainWindowInteractions";
 import { getMainWindow, setMainWindow } from "./appWindowRegistry";
 import { createMainWindowGuard } from "./mainWindowPresence";
 import { assertTrustedSender, assertTrustedUiSender } from "./ipcSenderGuard";
+import { registerDirectorMobileIpc } from "./director/mobileBridgeIpc";
 import { registerScreenshotIpc } from "./screenshot/screenshotIpc";
 import { registerVideoIpc } from "./video/videoIpc";
 import { registerTikhubConnectorIpc } from "./connectors/tikhubConnectorIpc";
@@ -140,7 +141,6 @@ let capabilityCoreModule: typeof import("./capabilityCore/appIntegration") | nul
 let capabilityCoreModulePromise: Promise<typeof import("./capabilityCore/appIntegration")> | null = null;
 let capabilityPortCache: number | null = null;
 let desktopCanvasReadExecutionRuntime: CanvasReadExecutionRuntime | null = null;
-
 function loadRuntimeModule(): Promise<typeof import("./runtime")> {
   runtimeModulePromise ??= import("./runtime");
   return runtimeModulePromise;
@@ -350,7 +350,6 @@ async function createWindow(
   }
   return mainWindow;
 }
-
 // 零窗口自愈的唯一入口（issue #62）；activate / second-instance / 窗口重建失败都走它。
 const ensureMainWindow = createMainWindowGuard({ createWindow, onWindowReady: () => flushPendingProductionDeepLink() });
 
@@ -595,6 +594,7 @@ function registerIpc(): void {
     const { framesToVideoAsset } = await import("./video/framesToVideo");
     return framesToVideoAsset(payload);
   });
+  registerDirectorMobileIpc();
   registerExportJobIpc({
     getActiveProjectSelection: () => canvasReadSurfaceRuntime.getCommittedProjectSelection(),
   });

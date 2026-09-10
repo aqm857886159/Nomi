@@ -57,7 +57,7 @@ export function isCardRenderKind(renderKind: string | undefined): boolean {
  * 五行否定判断，每加一种承载型 kind 就长一行，而它和上面 renderKind 的 asset/agent-artifact
  * 特例说的是同一件事。一份定义，两处消费。
  */
-const KINDS_WITHOUT_GENERATION_COMPOSER = new Set(["panorama", "scene3d", "whiteboard", "asset", "agent-artifact"]);
+const KINDS_WITHOUT_GENERATION_COMPOSER = new Set(["panorama", "director", "whiteboard", "asset", "agent-artifact"]);
 
 /** 该 kind 是否应该在选中时浮出生成 composer。 */
 export function nodeHasGenerationComposer(kind: string): boolean {

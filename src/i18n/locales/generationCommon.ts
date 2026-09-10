@@ -61,7 +61,6 @@ export const zhGenerationCommon = {
     closeMediaEsc: '关闭预览（Esc）',
   },
   chunk: {
-    scene3dEditor: '3D 场景编辑器',
     model3dViewer: '3D 模型预览',
     textEditor: '文本节点编辑器',
     panoramaViewer: '全景预览',
@@ -98,7 +97,7 @@ export const zhGenerationCommon = {
     clip: { title: '剪辑节点', description: '把视频节点连进来，或从素材库添加图片/视频。' },
     model3d: { title: '3D 模型节点', description: '描述想要的模型或连入参考图，生成一个 3D 模型。' },
     whiteboard: { title: '画板节点', description: '手绘草图或涂改参考，作为构图参考。', action: '打开画板' },
-    scene3d: { title: '3D 场景节点', description: '摆放模型和相机，输出截图当参考。', action: '进入 3D 编辑器' },
+    director: { title: '导演台节点', description: '摆放角色与机位，出图出片当参考。', action: '进入导演台' },
     character: { title: '角色节点', description: '放入角色参考图，保持人物形象一致。' },
     scene: { title: '场景节点', description: '放入场景参考图，固定空间与氛围。' },
     prop: { title: '道具节点', description: '放入道具参考图，让关键物件保持一致。' },
@@ -864,7 +863,6 @@ export const zhGenerationCommon = {
     comfyPreviewAlt: 'ComfyUI 采样活预览',
     upload: '+ 上传{{label}}',
     node: '节点',
-    scene3dLoading: '3D 编辑器加载中',
     prop: {
       image: '道具图',
       unnamed: '未命名道具',
@@ -1490,7 +1488,6 @@ export const enGenerationCommon = {
     closeMediaEsc: 'Close preview (Esc)',
   },
   chunk: {
-    scene3dEditor: '3D scene editor',
     model3dViewer: '3D model preview',
     textEditor: 'Text node editor',
     panoramaViewer: 'Panorama preview',
@@ -1527,7 +1524,7 @@ export const enGenerationCommon = {
     clip: { title: 'Clip node', description: 'Connect a video node or add image/video from your library.' },
     model3d: { title: '3D model node', description: 'Describe the model you want or connect a reference image to generate a 3D model.' },
     whiteboard: { title: 'Whiteboard node', description: 'Sketch or mark up a reference for composition.', action: 'Open whiteboard' },
-    scene3d: { title: '3D scene node', description: 'Place models and cameras, then capture a reference image.', action: 'Enter 3D editor' },
+    director: { title: 'Director node', description: 'Place characters and cameras, then capture a reference image or clip.', action: 'Open director' },
     character: { title: 'Character node', description: 'Add a character reference to keep the person consistent.' },
     scene: { title: 'Scene node', description: 'Add a scene reference to keep space and mood consistent.' },
     prop: { title: 'Prop node', description: 'Add a prop reference to keep key objects consistent.' },
@@ -2291,7 +2288,6 @@ export const enGenerationCommon = {
     comfyPreviewAlt: 'ComfyUI sampling live preview',
     upload: '+ Upload {{label}}',
     node: 'Node',
-    scene3dLoading: 'Loading 3D editor',
     prop: {
       image: 'Prop image',
       unnamed: 'Untitled prop',

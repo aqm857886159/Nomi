@@ -1,0 +1,184 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-07-director-mobile-lifecycle",
+  "problem_type": "Overlapping mobile server start and stop loses service ownership",
+  "symptom": "Double-open creates two LAN listeners; closing while starting may leave a live orphan service. Phone has no monitor frame and guesses recording state locally. The final disconnect screenshot exposes a broken-image icon and border, also possible before the first frame.",
+  "direct_cause": "start checks listening before asynchronous initialization, IPC drops the owner before shutdown drains, and inbound JSON is accessed as an object without runtime shape validation. The page removes the preview src without hiding the image and accepts queued messages from released or superseded sockets.",
+  "class_root": "The shared bridge boundary must own listener and decoded-frame lifetime and validate all incoming/outgoing payloads before dispatch; a released connection cannot recreate or clear another connection's visible frame.",
+  "affected_population": [
+    "Every desktop director session that opens or closes the phone service while startup is pending"
+  ],
+  "scope_paths": [
+    "electron/director/mobileBridgeServer.ts",
+    "electron/director/mobileBridgeIpc.ts",
+    "electron/director/mobilePage.ts",
+    "electron/shared/contracts/directorMobileBridge.ts",
+    "electron/preload.ts",
+    "src/desktop/bridge.ts",
+    "src/workbench/generationCanvas/nodes/director/useMobileCamera.ts",
+    "src/workbench/generationCanvas/nodes/director/useMobilePreview.ts"
+  ],
+  "entry_points": [
+    "Phone dialog start/restart",
+    "Phone disconnect and window destruction",
+    "Phone initial waiting, image decode failure, reconnect and pagehide"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://nodejs.org/docs/latest-v24.x/api/http.html",
+      "checked_at": "2026-09-07",
+      "purpose": "Confirmed listen and close lifecycle and draining HTTP connections"
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/websockets/ws/blob/master/README.md",
+      "checked_at": "2026-09-07",
+      "purpose": "Confirm binary broadcast and per-client ready state/backpressure ownership"
+    }
+  ],
+  "invariants": [
+    "Only one owned listener per service",
+    "Queued window cleanup checks the expected owner when executed, so it cannot close a later owner's service",
+    "Stop resolves after every earlier startup is closed",
+    "Later restart receives a new owned listener",
+    "Only authenticated clients receive bounded PNG frames from the owning desktop sender",
+    "A slow client holds no application frame queue",
+    "Phone recording UI follows desktop state, never guesses from a click",
+    "Malformed control JSON cannot escape the WebSocket message handler or poison the next valid command",
+    "The preview starts hidden and becomes visible only after the current connection's image successfully decodes",
+    "Disconnect, decode failure and pagehide share URL release and image hiding; late callbacks cannot restore a released image",
+    "A previous socket cannot replace or clear the current reconnected monitor"
+  ],
+  "generality_proof": "All start/stop producers share serialized server and IPC owner queues; every WS control message crosses one shape-validation handler, and feedback crosses bounded PNG/owner/authentication checks.",
+  "shared_boundaries": [
+    {
+      "path": "electron/director/mobileBridgeServer.ts",
+      "symbol": "MobileBridgeServer",
+      "responsibility": "Serialize all listener lifetime operations and release sockets"
+    },
+    {
+      "path": "electron/director/mobileBridgeIpc.ts",
+      "symbol": "enqueueLifetime",
+      "responsibility": "Retain and release the IPC server owner in operation order"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/useMobilePreview.ts",
+      "symbol": "useMobilePreview",
+      "responsibility": "At most one low-resolution capture/transfer in flight, stopped on detach"
+    },
+    {
+      "path": "electron/director/mobileBridgeServer.ts",
+      "symbol": "MobileBridgeServer.feedback",
+      "responsibility": "Validate PNG byte bound and broadcast only while owned listener is live"
+    },
+    {
+      "path": "electron/director/mobilePage.ts",
+      "symbol": "clearPreview",
+      "responsibility": "Pair frame URL release with hiding the image for disconnect, decode failure and pagehide; current successful load alone makes it visible"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/director/mobileBridgeIpc.ts",
+      "entry_point": "START handler",
+      "disposition": "enforced",
+      "evidence": "Every dialog/restart invokes the serialized server lifetime"
+    },
+    {
+      "path": "electron/director/mobileBridgeIpc.ts",
+      "entry_point": "shutdown on STOP and destroyed",
+      "disposition": "enforced",
+      "evidence": "Both shutdown triggers drain the same queue before clearing ownership"
+    },
+    {
+      "path": "electron/director/mobileBridgeServer.ts",
+      "entry_point": "WebSocket JSON and binary message handler",
+      "disposition": "enforced",
+      "evidence": "Real WS red case with null control data threw TypeError and poisoned stream; null/array/string/malformed JSON now ignored and the next hello, packet, record and pong succeed."
+    },
+    {
+      "path": "electron/director/mobilePage.ts",
+      "entry_point": "initial HTML, preview.onload/onerror, socket.onclose and pagehide",
+      "disposition": "enforced",
+      "evidence": "Real rendered page script tests first prove a visible decoded frame, then exercise disconnect, bad decode and release; the initial HTML is hidden. Final Electron phone journey probes visible image before requiring sustained absence after stop."
+    },
+    {
+      "path": "electron/director/mobilePage.ts",
+      "entry_point": "connect socket onopen/onclose/onmessage",
+      "disposition": "enforced",
+      "evidence": "Disposed/current-socket/connected checks reject late frames and old socket close events; regression reconnects and verifies the old connection cannot replace or clear the new frame."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Repeated clicks and startup cancellation can happen on any run.",
+    "same_class_scan": [
+      "Read renderer useMobileCamera start/stop/unmount",
+      "Read mobileBridgeIpc START STOP destroyed callbacks",
+      "Read MobileBridgeServer certificate await listen and close lifetimes",
+      "Read every preview src assignment/removal and every phone image/socket/pagehide callback; initial waiting and all frame-clear routes share the visibility invariant"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/director/mobileBridgeServer.ts",
+    "invariant": "Listener transitions are ordered and malformed controls cannot escape dispatch; monitor frames remain bounded and current.",
+    "failure_mode": "Failed initialization closes its resources and rejects without poisoning subsequent transitions.",
+    "exception_policy": "none",
+    "strategy": "Serialize server and owner lifetimes, validate parsed controls before property access, validate outbound PNG and skip slow clients, and drive mobile UI from desktop truth. Pair preview URL release and hiding in clearPreview, show only a current decoded image, and gate every socket callback by current ownership.",
+    "artifacts": [
+      "electron/director/mobileBridgeServer.ts",
+      "electron/director/mobileBridgeIpc.ts",
+      "electron/director/mobilePage.ts",
+      "electron/shared/contracts/directorMobileBridge.ts",
+      "electron/preload.ts",
+      "src/desktop/bridge.ts",
+      "src/workbench/generationCanvas/nodes/director/useMobileCamera.ts",
+      "src/workbench/generationCanvas/nodes/director/useMobilePreview.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/director/mobilePage.test.ts",
+    "electron/director/mobileBridgeLifecycle.test.ts",
+    "electron/director/mobileBridgeServer.test.ts",
+    "electron/director/mobileBridgeFeedback.test.ts",
+    "electron/director/mobileBridgeIpc.test.ts",
+    "src/workbench/generationCanvas/nodes/director/useMobilePreview.test.ts",
+    "tests/ux/director-mobile.walk.mjs"
+  ],
+  "class_regression_tests": [
+    "electron/director/mobilePage.test.ts",
+    "electron/director/mobileBridgeLifecycle.test.ts",
+    "electron/director/mobileBridgeFeedback.test.ts",
+    "electron/director/mobileBridgeIpc.test.ts",
+    "src/workbench/generationCanvas/nodes/director/useMobilePreview.test.ts",
+    "tests/ux/director-mobile.walk.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/director/mobileBridgeServer.ts",
+      "electron/director/mobileBridgeIpc.ts",
+      "electron/director/mobilePage.ts"
+    ],
+    "rationale": "Replace unconstrained start/stop, premature owner clearing and bare-src preview cleanup in place; no parallel page implementation."
+  },
+  "dependency_lifecycle": {
+    "decision": "retain-with-exit",
+    "rationale": "Node HTTP and ws already expose the required lifecycle APIs; the missing ownership invariant is application-side.",
+    "current": "Node 24 / existing ws and selfsigned dependencies",
+    "target": "Existing supported runtime with serialized service ownership",
+    "exit_criteria": [
+      "Concurrent starts share one listener",
+      "Stop during initialization drains startup",
+      "Authenticated packet integration and restart pass"
+    ]
+  },
+  "migration": "No persistent schema change; existing active services close normally; next start uses the serialized lifecycle.",
+  "residual_risks": [
+    "Physical handset LAN certificate acceptance, browser permissions and sensor drift are not verified by the local Chrome phone simulation.",
+    "Preview is a bounded 480px monitor (one capture in flight, 250ms delay after completion); it is not a delivery-quality video stream."
+  ],
+  "invariant_owner_layer": {"layer": "electron/director/mobileBridgeServer.ts", "tests": ["electron/director/mobilePage.test.ts", "electron/director/mobileBridgeLifecycle.test.ts", "electron/director/mobileBridgeFeedback.test.ts", "electron/director/mobileBridgeIpc.test.ts", "src/workbench/generationCanvas/nodes/director/useMobilePreview.test.ts", "tests/ux/director-mobile.walk.mjs", "electron/director/mobileBridgeServer.test.ts"], "why": "不变量由 electron/director/mobileBridgeServer.ts 单点持有（即本合同的 prevention.enforcement_path / shared_boundaries）；上游其它入口只调用它、不各自重判。tests 是该层现有的类级与回归测试，改动这条不变量必先让它们红。"}
+}

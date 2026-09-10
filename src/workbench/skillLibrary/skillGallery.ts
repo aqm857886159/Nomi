@@ -3,6 +3,7 @@ import type { SkillListItemDto } from '../api/skillApi'
 import type { LibraryPrompt } from '../api/promptLibraryApi'
 import { promptDisplayTitle } from '../promptLibrary/promptDisplay'
 import { matchesLibraryQuery } from '../library/libraryDiscovery'
+import { skillDisplayTitle } from './skillDisplay'
 
 export type SkillGalleryEntry = {
   id: string
@@ -24,7 +25,7 @@ export function galleryEntries(skills: readonly SkillListItemDto[], prompts: rea
   const locale = language.startsWith('zh') ? 'zh-CN' : 'en'
   return [
     ...skills.filter(s => s.curation?.kind !== 'effect').map(skill => ({
-      id: `skill:${skill.name}`, group: libraryGroup(skill, language), title: skill.curation?.title[locale] ?? skill.label,
+      id: `skill:${skill.name}`, group: libraryGroup(skill, language), title: skillDisplayTitle(skill, language),
       description: skill.curation?.summary[locale] ?? skill.description ?? '', body: skill.body ?? '', kind: 'skill' as const,
       cover: skill.cover, preview: skill.preview, source: skill.curation?.source.url,
       author: skill.curation?.source.author ?? skill.author ?? undefined, license: skill.curation?.license,

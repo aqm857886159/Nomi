@@ -1,0 +1,108 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-07-director-asset-tree-import",
+  "problem_type": "Asset folders cannot be moved or searched consistently and invalid JSON imports as an empty scene",
+  "symptom": "Asset folders cannot be moved or searched consistently and invalid JSON imports as an empty scene",
+  "direct_cause": "The UI had no directory move path and filtering hid matching descendants under folded parents; permissive scene normalization accepted unrelated JSON.",
+  "class_root": "Asset hierarchy mutations and scene import did not enforce referential validity and schema identity at their shared boundaries.",
+  "affected_population": [
+    "All director sessions using the affected user and stored-data entry points"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/nodes/director/model/storeAssetActions.ts",
+    "src/workbench/generationCanvas/nodes/director/model/assetFolders.ts",
+    "src/workbench/generationCanvas/nodes/director/panels/side/AssetsTab.tsx"
+  ],
+  "entry_points": [
+    "Read all asset CRUD and upload/linked add handlers",
+    "Read folder tree filtering and folded rendering",
+    "Read normalizeScene permissive record normalization and AI groups schema"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "This is internal director request and asset ownership; no third-party behavior determines the invariant.",
+  "invariants": [
+    "A directory cannot become its own ancestor.",
+    "Uploads completing after target deletion remain reachable at root.",
+    "Search hits remain visible through their ancestor path.",
+    "Unrelated JSON cannot create a successful empty import."
+  ],
+  "generality_proof": "All equivalent producers converge on the same action or request boundary, which validates ownership before mutating project state.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/model/assetFolders.ts",
+      "symbol": "canMoveAssetFolder / matchingAssetFolders",
+      "responsibility": "Reject cyclic targets and retain ancestor paths of search hits."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/model/storeAssetActions.ts",
+      "symbol": "createAssetActions",
+      "responsibility": "Validate current folder targets and distinguish AI-scene JSON from director scene records before import."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/model/storeAssetActions.ts",
+      "entry_point": "moveAssetFolder / addAssetItem / importScene",
+      "disposition": "enforced",
+      "evidence": "Tests reject self/descendant moves, preserve upload after parent deletion, and import AI groups while rejecting unrelated JSON."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/model/assetFolders.ts",
+      "entry_point": "matchingAssetFolders and UI folded-directory rendering",
+      "disposition": "enforced",
+      "evidence": "Unit search-ancestor test plus real menu/drop/cycle/search journey in director-assets.walk.mjs."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any user may repeat these event and input sequences.",
+    "same_class_scan": [
+      "Read all asset CRUD and upload/linked add handlers",
+      "Read folder tree filtering and folded rendering",
+      "Read normalizeScene permissive record normalization and AI groups schema"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/nodes/director/model/storeAssetActions.ts",
+    "invariant": "Mutations preserve valid folder destinations and imports carry a recognized scene shape.",
+    "failure_mode": "Reject invalid input without mutating project; cancelled work cannot publish.",
+    "exception_policy": "none",
+    "strategy": "Use one ancestor-chain validator for menu and drag entry points; validate upload destination at commit; parse AI groups before the director-scene schema boundary.",
+    "artifacts": [
+      "src/workbench/generationCanvas/nodes/director/model/storeAssetActions.ts",
+      "src/workbench/generationCanvas/nodes/director/model/assetFolders.ts",
+      "src/workbench/generationCanvas/nodes/director/panels/side/AssetsTab.tsx"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/nodes/director/model/storeAssetActions.test.ts",
+    "src/workbench/generationCanvas/nodes/director/model/assetFolders.test.ts",
+    "tests/ux/director-assets.walk.mjs"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/nodes/director/model/storeAssetActions.test.ts",
+    "src/workbench/generationCanvas/nodes/director/model/assetFolders.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/nodes/director/model/storeAssetActions.ts",
+      "src/workbench/generationCanvas/nodes/director/model/assetFolders.ts",
+      "src/workbench/generationCanvas/nodes/director/panels/side/AssetsTab.tsx"
+    ],
+    "rationale": "Replace the permissive mutation paths in place without parallel fallbacks."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Application-owned event ordering and input invariants use existing APIs.",
+    "exit_criteria": []
+  },
+  "migration": "No schema bump; valid stored folder identities are retained. New mutations use the shared ancestor-chain validator.",
+  "residual_risks": [
+    "Previously persisted externally corrupted cyclic folder data is not migrated by this patch; new move operations reject loops.",
+    "Deleting asset entries deliberately removes project references, not shared cached files.",
+    "Splat decoding and reveal are verified with the current Spark renderer through the uploaded PLY valley walkthrough."
+  ],
+  "invariant_owner_layer": {"layer": "src/workbench/generationCanvas/nodes/director/model/storeAssetActions.ts", "tests": ["src/workbench/generationCanvas/nodes/director/model/storeAssetActions.test.ts", "src/workbench/generationCanvas/nodes/director/model/assetFolders.test.ts", "tests/ux/director-assets.walk.mjs"], "why": "不变量由 src/workbench/generationCanvas/nodes/director/model/storeAssetActions.ts 单点持有（即本合同的 prevention.enforcement_path / shared_boundaries）；上游其它入口只调用它、不各自重判。tests 是该层现有的类级与回归测试，改动这条不变量必先让它们红。"}
+}

@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { getDurabilityMode, setDurabilityMode } from "./durability";
+import { fsyncDirectoryIfDurable, getDurabilityMode, setDurabilityMode } from "./durability";
 import { writeJsonFileAtomic } from "./jsonFile";
 import { createProductionRunRepository } from "./productionRun/productionRunRepository";
 
@@ -86,6 +86,80 @@ describe("durability barrier", () => {
       const abs = path.join(process.cwd(), dir);
       if (fs.existsSync(abs)) walk(abs);
     }
+    expect(offenders).toEqual([]);
+  });
+});
+
+// 目录屏障（fsyncDirectoryIfDurable）：全仓唯一的「开目录 fd 只为 fsync 它」实现。
+// 2026-09-03 根因：Windows 上 openSync 目录能成功、fsyncSync 才抛 EPERM，两处各抄一份的实现没兜这一步，
+// 新建 / 打开任何项目都在主进程炸成 project_agent_unavailable。这里钉住三条：durable 真 fsync、
+// 不支持目录 fsync 的平台码静默放过、ephemeral 连 open 都不做。
+describe("fsyncDirectoryIfDurable", () => {
+  const previous = getDurabilityMode();
+  let root: string;
+
+  beforeEach(() => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-durability-dir-"));
+  });
+
+  afterEach(() => {
+    setDurabilityMode(previous);
+    vi.restoreAllMocks();
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  it("'durable' 模式下打开目录并 fsync 它", () => {
+    setDurabilityMode("durable");
+    const open = vi.spyOn(fs, "openSync");
+    const sync = vi.spyOn(fs, "fsyncSync").mockImplementation(() => undefined);
+    fsyncDirectoryIfDurable(root);
+    expect(open).toHaveBeenCalledWith(root, "r");
+    expect(sync).toHaveBeenCalledTimes(1);
+  });
+
+  it("平台不支持目录 fsync（EPERM / EINVAL / ENOTSUP）→ 静默放过，其它错误照抛", () => {
+    setDurabilityMode("durable");
+    const unsupported = Object.assign(new Error("EPERM: operation not permitted, fsync"), { code: "EPERM" });
+    vi.spyOn(fs, "fsyncSync").mockImplementation(() => {
+      throw unsupported;
+    });
+    expect(() => fsyncDirectoryIfDurable(root)).not.toThrow();
+    const io = Object.assign(new Error("EIO: i/o error, fsync"), { code: "EIO" });
+    vi.spyOn(fs, "fsyncSync").mockImplementation(() => {
+      throw io;
+    });
+    expect(() => fsyncDirectoryIfDurable(root)).toThrow(io);
+  });
+
+  it("'ephemeral' 模式下连目录 fd 都不开", () => {
+    setDurabilityMode("ephemeral");
+    const open = vi.spyOn(fs, "openSync");
+    const sync = vi.spyOn(fs, "fsyncSync");
+    fsyncDirectoryIfDurable(root);
+    expect(open).not.toHaveBeenCalled();
+    expect(sync).not.toHaveBeenCalled();
+  });
+});
+
+// 类级回归（docs/fixes/2026-09-03-windows-directory-fsync-barrier）：「开一个只读目录 fd 然后 fsync 它」这个形态
+// 全仓只许出现在 durability.ts。再抄一份就是第九个平台差异分叉点。
+describe("directory barrier has a single implementation", () => {
+  it("no module outside electron/durability.ts pairs a read-only openSync with an fsync", () => {
+    const offenders: string[] = [];
+    const walk = (dir: string): void => {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        if (entry.name === "node_modules" || entry.name.startsWith(".")) continue;
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) { walk(full); continue; }
+        if (!/\.(ts|mts)$/.test(entry.name) || /\.test\.[a-z]+$/.test(entry.name)) continue;
+        if (full.endsWith(path.join("electron", "durability.ts"))) continue;
+        const source = fs.readFileSync(full, "utf8");
+        if (/openSync\([^)]*(?:"r"|O_RDONLY)[^)]*\)[\s\S]{0,300}?fsync(?:IfDurable|Sync)\(/.test(source)) {
+          offenders.push(path.relative(process.cwd(), full));
+        }
+      }
+    };
+    walk(path.join(process.cwd(), "electron"));
     expect(offenders).toEqual([]);
   });
 });

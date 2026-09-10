@@ -14,7 +14,9 @@ describe("IntegrationSessionService", () => {
     });
   }
 
-  function make() {
+  // compilerAvailable 默认注 true = 「这台机器上已经有能读文档的文本模型」，也就是这些既有用例
+  // 一直隐含的处境。为 false 的那条路（鸡生蛋）由本文件末尾的专门用例覆盖。
+  function make(overrides: { compilerAvailable?: () => boolean } = {}) {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-integration-session-"));
     const filePath = path.join(dir, "sessions.json");
     return {
@@ -23,6 +25,7 @@ describe("IntegrationSessionService", () => {
         filePath,
         now: () => "2026-08-28T00:00:00.000Z",
         save: (target, state) => fs.writeFileSync(target, JSON.stringify(state)),
+        compilerAvailable: overrides.compilerAvailable || (() => true),
       }),
     };
   }
@@ -133,6 +136,7 @@ describe("IntegrationSessionService", () => {
       certification: certification as never,
       credentialResolver: () => "secret",
       save: (target, state) => fs.writeFileSync(target, JSON.stringify(state)),
+      compilerAvailable: () => true,
     });
     const session = service.begin(
       { kind: "http-api-provider", name: "Audio Provider", baseUrl: "https://api.example" },
@@ -490,5 +494,147 @@ describe("IntegrationSessionService", () => {
     );
     expect(replay.childRunRef).toEqual(started.childRunRef);
     expect(certification.startHttp).toHaveBeenCalledTimes(1);
+  });
+  // ── 鸡生蛋（2026-09-10）：本机没有可读文档的文本模型时，编译交给驱动 Agent ─────────
+  //
+  // 旧行为是 start 之后在认证里抛 AdapterNeedsAiError：「想接模型，先接一个模型」。
+  // 新行为把「待编译的输入」在 propose 阶段就交回去，收回来的东西照样过 validateProviderAdapterDraft。
+
+  function mediaProposal() {
+    return { candidates: [{ modelKey: "paint-v2", kind: "image" }], selections: [{ modelKey: "paint-v2" }] };
+  }
+  function suppliedContract(overrides: Record<string, unknown> = {}) {
+    return JSON.stringify({
+      sources: [{ url: "https://docs.example/api", evidence: "POST /images returns data[0].url" }],
+      models: [
+        {
+          modelKey: "paint-v2",
+          labelZh: "ignored - Nomi locks the label",
+          kind: "image",
+          modes: [
+            {
+              taskKind: "text_to_image",
+              create: {
+                method: "POST",
+                path: "/images",
+                body: { prompt: "{{request.prompt}}" },
+                response_mapping: { image_url: "data.0.url" },
+              },
+              sourceUrls: ["https://docs.example/api"],
+            },
+          ],
+        },
+      ],
+      ...overrides,
+    });
+  }
+
+  it("hands the compile job to the driving agent when no text model can read the documentation", async () => {
+    const { service } = make({ compilerAvailable: () => false });
+    const session = service.begin(
+      { kind: "http-api-provider", name: "Relay", baseUrl: "https://api.example/v1", docs: "POST /images -> data[0].url" },
+      "codex",
+    );
+    const ready = service.markCredentialReady(session.id, "ref", "codex");
+
+    const proposed = await service.propose(session.id, ready.revision, "codex", mediaProposal());
+
+    expect(proposed.stage).toBe("needs_input");
+    expect(proposed.unresolvedFields).toEqual([
+      { key: "proposal.adapterDraft", reasonCode: "adapter_contract_required" },
+    ]);
+    expect(proposed.compileRequest).toMatchObject({
+      field: "proposal.adapterDraft",
+      provider: { baseUrl: "https://api.example/v1", authType: "bearer" },
+      models: [{ modelKey: "paint-v2", kind: "image" }],
+      docs: { provided: true, bytes: 27 },
+    });
+    // 交底必须自足：目标 schema + 撰写规则都在返回值里，Agent 不需要读 Nomi 的仓库。
+    expect(String(proposed.compileRequest?.instructions)).toContain("declarative provider adapter schema");
+    const schema = JSON.stringify(proposed.compileRequest?.contractSchema);
+    expect(schema).toContain("sourceUrls");
+    expect(schema).toContain("referenceParam");
+  });
+
+  it("accepts an agent-compiled contract, locks identity, and advances to spend confirmation", async () => {
+    const { service } = make({ compilerAvailable: () => false });
+    const session = service.begin(
+      { kind: "http-api-provider", name: "Relay", baseUrl: "https://api.example/v1" },
+      "codex",
+    );
+    const ready = service.markCredentialReady(session.id, "ref", "codex");
+    const blocked = await service.propose(session.id, ready.revision, "codex", mediaProposal());
+
+    const accepted = await service.propose(session.id, blocked.revision, "codex", {
+      ...mediaProposal(),
+      adapterDraft: suppliedContract(),
+    });
+
+    expect(accepted.stage).toBe("needs_spend_confirmation");
+    expect(accepted.unresolvedFields).toEqual([]);
+    expect(accepted.compileRequest).toBeUndefined();
+    expect(accepted.adapterDraft).toEqual({ present: true, modelKeys: ["paint-v2"] });
+  });
+
+  it("rejects an agent-compiled contract that does not pass the adapter validator, without moving the session", async () => {
+    const { service } = make({ compilerAvailable: () => false });
+    const session = service.begin(
+      { kind: "http-api-provider", name: "Relay", baseUrl: "https://api.example/v1" },
+      "codex",
+    );
+    const ready = service.markCredentialReady(session.id, "ref", "codex");
+    const blocked = await service.propose(session.id, ready.revision, "codex", mediaProposal());
+
+    await expect(service.propose(session.id, blocked.revision, "codex", {
+      ...mediaProposal(),
+      // 媒体模式没有任何产物映射 —— 认证跑起来必然拿不到图，必须在收件处就被打回。
+      adapterDraft: suppliedContract({
+        models: [
+          {
+            modelKey: "paint-v2",
+            labelZh: "Paint",
+            kind: "image",
+            modes: [
+              {
+                taskKind: "text_to_image",
+                create: { method: "POST", path: "/images" },
+                sourceUrls: ["https://docs.example/api"],
+              },
+            ],
+          },
+        ],
+      }),
+    })).rejects.toThrow(/propose rejected: proposal\.adapterDraft/);
+    // 拒绝不改 revision：Agent 拿同一个 expectedRevision 修好再交。
+    expect(service.get(session.id, "codex").revision).toBe(blocked.revision);
+    expect(service.get(session.id, "codex").stage).toBe("needs_input");
+  });
+
+  it("still goes straight to spend confirmation for a text-only proposal on a machine with no text model", async () => {
+    const { service } = make({ compilerAvailable: () => false });
+    const session = service.begin(
+      { kind: "http-api-provider", name: "Relay", baseUrl: "https://api.example/v1" },
+      "codex",
+    );
+    const ready = service.markCredentialReady(session.id, "ref", "codex");
+
+    const proposed = await proposeHttp(service, session.id, ready.revision, "codex");
+
+    expect(proposed.stage).toBe("needs_spend_confirmation");
+    expect(proposed.compileRequest).toBeUndefined();
+  });
+
+  it("does not ask the agent to compile for a self-hosted endpoint that uses the built-in contract", async () => {
+    const { service } = make({ compilerAvailable: () => false });
+    const session = service.begin(
+      { kind: "http-api-provider", name: "Local", baseUrl: "http://192.168.1.20:8000/v1" },
+      "codex",
+    );
+    const ready = service.markCredentialReady(session.id, "ref", "codex");
+
+    const proposed = await service.propose(session.id, ready.revision, "codex", mediaProposal());
+
+    expect(proposed.stage).toBe("needs_spend_confirmation");
+    expect(proposed.compileRequest).toBeUndefined();
   });
 });

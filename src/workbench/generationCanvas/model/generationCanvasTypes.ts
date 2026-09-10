@@ -28,7 +28,7 @@ export type CategoryId = string
  * 此前两处各持一份映射且互相矛盾（text 在迁移侧被判 null 删除），是「新建空白项目
  * 走 legacy 迁移并删默认节点」的根因（2026-06-13 审计 A4）。
  * - character → 'cast'（角色）
- * - scene / panorama / scene3d → 'scene'（场景资产）
+ * - scene / panorama / director / model3d → 'scene'（场景资产）
  * - 其余（image/video/keyframe/shot/output/text…）→ 'shots'（分镜）
  * prop/audio 无独占 kind，由各自创建流程显式指定，不在此推断。
  */
@@ -38,7 +38,7 @@ export function getDefaultCategoryForNodeKind(kind: GenerationNodeKind): Builtin
       return 'cast'
     case 'scene':
     case 'panorama':
-    case 'scene3d':
+    case 'director':
     case 'model3d':
       return 'scene'
     case 'audio':

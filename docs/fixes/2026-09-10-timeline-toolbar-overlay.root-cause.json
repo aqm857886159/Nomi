@@ -1,0 +1,138 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-10-timeline-toolbar-overlay",
+  "problem_type": "面板常驻控件被做成浮层：布局没给它留行，控件与被它遮住的内容一起挤在同一段高度里",
+  "symptom": "2026-09-10 真机反馈：「时间轴无法向下缩；右上角的功能栏和下面有遮挡。」生成画布的时间轴工具条压住标尺与第一条轨道；拖把手拖到底也只能缩到 140px，退不出画布空间；面板内没有任何收起入口。",
+  "direct_cause": "src/workbench/timeline/TimelinePanel.tsx 的 .workbench-timeline__controls 写成 `absolute top-[10px] right-4 z-[8]`，而 section 的行模板是 `grid-rows-[minmax(0,1fr)]`——只有轨道区一行，工具条脱离文档流叠在它上面；同一文件把 onCollapse 接成下划线形参从不使用，收起入口只剩画布底部把手。",
+  "class_root": "面板里的常驻控件（不是临时浮层、不跟随指针、没有 dismiss 语义）必须占一行真实布局，由容器的行模板给它留位。缺这条不变量时，控件与内容共用同一段高度：宽/高一变就相互遮挡，而且面板的高度下限被迫按「工具条 + 至少一条轨道」拍数，用户退不出空间。",
+  "migration": "无数据迁移。工具条从浮层改为头部行、面板行模板补一行 auto，同 commit 删掉浮层专用的定位/毛玻璃/z 层写法与被弃用的下划线形参（P1 无并行版）；折叠偏好首次读为空时取旧默认值（收起），不需要回填。",
+  "affected_population": [
+    "每个打开生成画布时间轴的用户：工具条恒定压在标尺与首轨之上",
+    "想把时间轴缩小、把高度还给画布的用户：下限 140px 里硬含一条轨道的高度",
+    "剪辑面（density=full）同一个 TimelinePanel：同一条浮层写法，助手面板拖宽后可视宽度更窄"
+  ],
+  "scope_paths": [
+    "src/workbench/timeline/TimelinePanel.tsx",
+    "src/workbench/timeline/timelinePanelBounds.ts",
+    "src/workbench/timeline/timelinePanelPrefs.ts",
+    "src/workbench/workbenchStore.ts"
+  ],
+  "entry_points": [
+    "src/workbench/timeline/TimelinePanel.tsx:341 —— 面板 section 的行模板（决定工具条有没有自己的行）",
+    "src/workbench/timeline/TimelinePanel.tsx:358 —— .workbench-timeline__controls 工具条容器",
+    "src/workbench/generation/GenerationWorkspace.tsx:137 —— 生成画布传 onCollapse（唯一有折叠态的宿主）",
+    "src/workbench/preview/PreviewWorkspace.tsx:259 —— 剪辑面挂同一个 TimelinePanel（density=full）",
+    "src/workbench/timeline/timelinePanelBounds.ts:18 —— 面板高度下限/上限（本次从 workbenchStore.ts 抽出：那份已 782 行、贴着 800 行巨壳门岗 R9/R12，纯换算不该继续堆在 store 里）"
+  ],
+  "invariants": [
+    "时间轴面板里的常驻工具条参与布局：面板行模板为它留一行，其矩形与标尺、任意轨道矩形都不相交",
+    "工具条一行放不下时横向滚动，簇内不换行、不压扁、不裁掉（flex-wrap:nowrap + overflow-x:auto + 每簇 flex-shrink:0）",
+    "面板高度下限由「头部行 + 面板内边距」派生，而不是拍一个含轨道高度的数",
+    "面板内至少有一个收起入口，且收起状态跨会话记得住"
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/timeline/TimelinePanel.tsx",
+    "tests": [
+      "src/workbench/timeline/timelinePanelLayout.test.ts",
+      "src/workbench/timeline/TimelineResizeHandle.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/timeline/timelinePanelLayout.test.ts",
+    "src/workbench/timeline/TimelineResizeHandle.test.ts",
+    "tests/ux/timeline-toolbar-row.walk.mjs"
+  ],
+  "residual_risks": [
+    "剪辑面（density=full）的下限仍是 EDITING_PANEL_BOUNDS.timeline.min=140（src/workbench/preview/panelLayout.ts:45）：那一格由 react-resizable-panels 管，本次只证了它的工具条不再遮挡，没有放开它的下限——剪辑面整体重做时一并处理",
+    "折叠态下画布底部的「时间轴 N 段」胶囊压住画布工具条最右侧那颗键盘快捷键钮（03 号截图 x≈402,y≈899）。这是同一类（常驻控件当浮层），但归属方是画布底栏而不是 TimelinePanel：胶囊 .workbench-generation__timeline-handle 与画布工具条各自绝对定位在同一段底边，本次 diff 一行都没碰它们，main 上同样如此。用户本次拍板的范围是「工具条不再盖内容 + 面板能缩到只剩头部，不重排」，动画布底栏就是重排，故只登记不修。",
+    "把 Nomi 面板拖到上限时，剪辑面左侧素材栏会被压成竖排折行文字（05 号截图可见）。那是 09-05 合同下预览三栏的既有形态，与本次工具条改动无关，未在本次范围内处理"
+  ],
+  "external_sources": [
+    {
+      "kind": "source-code",
+      "url": "https://github.com/OpenCut-app/opencut-classic/blob/main/apps/web/src/timeline/components/timeline-toolbar.tsx",
+      "checked_at": "2026-09-10",
+      "purpose": "确认同类开源剪辑器把时间轴工具条做成「可横向滚动容器 + 一行 flex（h-10 + border-b）」，而不是浮层"
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/OpenCut-app/opencut-classic/blob/main/apps/web/src/timeline/components/index.tsx",
+      "checked_at": "2026-09-10",
+      "purpose": "确认 TimelineToolbar 是轨道区的兄弟节点（:439 工具条、:445 轨道区），即参与布局而非叠在其上"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "同一个 TimelinePanel 被两个宿主挂载（生成画布 compact、剪辑面 full），两边宽高各不相同；只要工具条不占行，任何一边变窄/变矮都会重新压住内容。同一份浮层写法也解释了下限为什么必须硬含一条轨道。",
+    "same_class_scan": [
+      "git grep 'TimelinePanel' src → 两个真实挂载点：src/workbench/generation/GenerationWorkspace.tsx:133、src/workbench/preview/PreviewWorkspace.tsx:259，两者共用同一份工具条",
+      "git grep 'onCollapse' src → 折叠入口的现役实现：src/workbench/preview/inspector/PreviewInspector.tsx:80（WorkbenchIconButton + IconChevronDown）、src/workbench/generationCanvas/components/GroupFrameHeader.tsx:203；TimelinePanel 是唯一接了 onCollapse 却从不渲染入口的一处",
+      "git grep 'TIMELINE_PANEL_MIN' src → 下限只有 TimelineResizeHandle.tsx:14,51 与 timelinePanelBounds.ts:28（clampTimelinePanelHeight，workbenchStore.ts:349 的 setter 经它）三处消费，改一处即全线生效"
+    ]
+  },
+  "generality_proof": "工具条的位置与面板的高度下限都收敛到同一处：TimelinePanel 的 section 行模板。行模板补一行 auto 之后，工具条无论在 compact 还是 full 密度、无论宿主给多少宽高，都由 grid 排在轨道区之上，不可能再叠上去；下限也不再是拍出来的数，而是从同一个头部行派生。两个挂载点共用这一个组件，没有第三条路径能绕过它。",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/timeline/TimelinePanel.tsx",
+      "symbol": "TimelinePanel",
+      "responsibility": "面板行模板给常驻工具条留一行（grid-rows-[auto_minmax(0,1fr)]），工具条不再绝对定位；放不下时横向滚动而不是换行或遮挡；行尾提供收起入口"
+    },
+    {
+      "path": "src/workbench/timeline/timelinePanelBounds.ts",
+      "symbol": "TIMELINE_PANEL_MIN",
+      "responsibility": "面板高度下限由「面板内边距 + 头部工具条行」派生，所有消费者（拖把手、键盘 Home、clamp）共用这一个数"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generation/GenerationWorkspace.tsx",
+      "entry_point": "GenerationWorkspace",
+      "disposition": "enforced",
+      "evidence": "它挂 density=compact 的 TimelinePanel 并传 onCollapse；工具条行与下限都来自共享边界，走查 tests/ux/timeline-toolbar-row.walk.mjs 在这里量了真实矩形不相交、缩到 86px、收起/展开闭环"
+    },
+    {
+      "path": "src/workbench/preview/PreviewWorkspace.tsx",
+      "entry_point": "PreviewWorkspace",
+      "disposition": "enforced",
+      "evidence": "它挂 density=full 的同一个 TimelinePanel；同一条走查把 Nomi 面板拖到上限、把时间轴挤到最窄后，再次量到工具条与标尺/首轨不相交且仍是一行"
+    },
+    {
+      "path": "src/workbench/timeline/TimelineMiniPreview.tsx",
+      "entry_point": "TimelineMiniPreview",
+      "disposition": "not-affected",
+      "evidence": "它是画布上的浮窗，语义上就该浮（可拖、可收起、盖在画布之上），不是面板内的常驻控件，不属于本类"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/timeline/TimelinePanel.tsx",
+    "invariant": "时间轴面板的常驻工具条占一行真实布局：面板行模板为它留行、容器不绝对定位、放不下横向滚动",
+    "failure_mode": "把工具条改回浮层会同时打红两处：结构测试 src/workbench/timeline/timelinePanelLayout.test.ts（行模板与容器类名）与走查 tests/ux/timeline-toolbar-row.walk.mjs（真实矩形相交、带阳性对照）",
+    "exception_policy": "none",
+    "strategy": "位置与下限都只有一个真相源（TimelinePanel 的行模板 + 从头部行派生的 TIMELINE_PANEL_MIN），两个宿主共用；再加一处浮层就得改这一处，改这一处就会被结构测试与走查同时拦住",
+    "artifacts": [
+      "src/workbench/timeline/TimelinePanel.tsx",
+      "src/workbench/timeline/timelinePanelBounds.ts",
+      "src/workbench/workbenchStore.ts",
+      "src/workbench/timeline/timelinePanelPrefs.ts",
+      "src/workbench/timeline/timelinePanelLayout.test.ts",
+      "tests/ux/timeline-toolbar-row.walk.mjs"
+    ]
+  },
+  "class_regression_tests": [
+    "src/workbench/timeline/timelinePanelLayout.test.ts",
+    "tests/ux/timeline-toolbar-row.walk.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/timeline/TimelinePanel.tsx"
+    ],
+    "rationale": "同 commit 删掉浮层实现本身：absolute/top/right/z-[8] 定位、毛玻璃底与浮层圆角内衬，以及被弃用的下划线 onCollapse 形参；不留开关、不留回退路径（P1）"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "不变量完全由本仓的布局代码决定，没有第三方运行时参与；React / Tailwind 版本不影响「工具条要不要占一行」这条规则",
+    "exit_criteria": []
+  }
+}

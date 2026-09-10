@@ -12,7 +12,8 @@ import { certificationModeOperationKey } from "../integrationCertification/modeI
 import { deriveVendorKeyFromBaseUrl } from "../catalog/catalogCommit";
 import type { BillingModelKind, Model, Vendor } from "../catalog/types";
 import { AdapterNeedsAiError, compileProviderAdapter, repairProviderAdapter } from "./compiler";
-import { discoverProviderDocs, type DiscoveredDocs } from "./docsDiscovery";
+import type { DiscoveredDocs } from "./docsDiscovery";
+import { resolveProviderDocs } from "./providedDocs";
 import { builtinDraftForUndocumentedEndpoint } from "./builtinOpenAiCompatibleDraft";
 import {
   connectionFingerprint,
@@ -40,7 +41,7 @@ import {
   genericCompilation,
   withTextModels,
 } from "./serviceFallback";
-import { compileMediaModels } from "./serviceCompilation";
+import { discoverAndCompileMediaModels, externallyCompiledDraft } from "./serviceCompilation";
 import { normalizeProviderAdapterInput, registerProviderConnection } from "./registration";
 import {
   activeRunsSupersededBy,
@@ -69,7 +70,7 @@ export type { ProviderAdapterRegisterInput, ProviderAdapterRegistration } from "
 export type ProviderAdapterServiceDependencies = {
   catalog: ProviderAdapterCatalogPort;
   schedule?: (runId: string) => void;
-  discover: (input: { baseUrl: string; modelKeys: readonly string[]; proxyUrl?: string; signal?: AbortSignal }) => Promise<DiscoveredDocs>;
+  discover: (input: { baseUrl: string; modelKeys: readonly string[]; providedDocs?: string; proxyUrl?: string; signal?: AbortSignal }) => Promise<DiscoveredDocs>;
   resolveLanguageModels: (connection: LoadedConnection) => readonly LanguageModelV1[];
   compile: (input: {
     languageModels: readonly LanguageModelV1[];
@@ -120,7 +121,7 @@ export type ProviderAdapterServiceDependencies = {
 
 const defaultDependencies: ProviderAdapterServiceDependencies = {
   catalog: defaultCatalog,
-  discover: ({ baseUrl, modelKeys, proxyUrl, signal }) => discoverProviderDocs({ baseUrl, modelKeys, proxyUrl, signal }),
+  discover: (input) => resolveProviderDocs(input),
   resolveLanguageModels: defaultResolveLanguageModels,
   compile: (input) => compileProviderAdapter(input),
   repair: (input) => repairProviderAdapter(input),
@@ -190,6 +191,10 @@ export class ProviderAdapterService {
       deadlineAt: deadlineFrom(timestamp, this.dependencies.batchTimeoutMs ?? 5 * 60_000),
       checkpoint: this.dependencies.certificationCheckpoint,
     });
+    // 用户交的文档 / 外部编译好的说明卡跟着 run 落盘（边表，不进 run DTO）。
+    // 必须在 schedule 之前写：process() 一开跑就会去读它。
+    const externalInput = { ...(input.docs ? { docs: input.docs } : {}), ...(input.adapterDraft ? { draft: input.adapterDraft } : {}) };
+    if (Object.keys(externalInput).length > 0) this.store.setRunInput({ runId: run.id, ...externalInput, updatedAt: timestamp });
     this.supersedeActiveLineageRuns(
       run.id,
       staged.lineageRootVendorKey,
@@ -330,41 +335,30 @@ export class ProviderAdapterService {
       // 编译它纯属白花时间，还平添「文档没抓到 / 编译失败」这些真实使用路径没有的失败模式。
       // 旧行为：全部无差别走完整流程，两个 DeepSeek 文本模型烧掉 132 秒后判死。
       const mediaModels = connection.models.filter((model) => model.kind !== "text");
-      const needsCompile = mediaModels.length > 0;
+      const runInput = this.store.getRunInput(id);
+      const suppliedDraft = externallyCompiledDraft(runInput, connection);
+      const needsCompile = mediaModels.length > 0 && !suppliedDraft;
       let docs: DiscoveredDocs = { sources: [], corpus: "" };
-      let compilation = genericCompilation(connection, []);
-      let compiledModelKeys = new Set<string>();
+      let compilation = suppliedDraft ? { draft: suppliedDraft, failures: [] } : genericCompilation(connection, []);
+      let compiledModelKeys = new Set<string>(suppliedDraft ? suppliedDraft.models.map((model) => model.modelKey) : []);
       const languageModels = needsCompile ? this.dependencies.resolveLanguageModels(connection) : [];
       if (needsCompile) {
-        this.setStage(id, "discovering_docs");
-        try {
-          docs = await this.awaitStep(id, "Document discovery", this.dependencies.discoverTimeoutMs ?? 45_000, (signal) =>
-            this.dependencies.discover({
-              baseUrl: String(connection.vendor.baseUrlHint || ""),
-              modelKeys: mediaModels.map((model) => model.modelKey),
-              proxyUrl: connection.vendor.network?.proxyUrl,
-              signal,
-            }),
-          );
-        } catch (error) {
-          if (error instanceof AdapterWaitError && error.reason !== "step_timeout") throw error;
-          docs = { sources: [], corpus: "" };
-        }
-        if (docs.sources.length > 0 && docs.corpus.trim()) {
-          this.updateRunIfActive(id, (run) => ({
-            ...run,
-            sourceUrls: docs.sources.map((source) => source.url),
-            lastProgressAt: this.dependencies.now(),
-            updatedAt: this.dependencies.now(),
-          }));
-        }
-        const compiled = await compileMediaModels({
+        const compiled = await discoverAndCompileMediaModels({
           connection,
           models: mediaModels,
-          docs,
+          ...(runInput?.docs ? { providedDocs: runInput.docs } : {}),
           languageModels,
-          onModel: (modelKey) => this.setStage(id, "compiling", modelKey),
-          compileOne: (model) => this.awaitStep(
+          discover: this.dependencies.discover,
+          discoverTimeoutMs: this.dependencies.discoverTimeoutMs ?? 45_000,
+          onStage: (stage, modelKey) => this.setStage(id, stage, modelKey),
+          onDocs: (found) => this.updateRunIfActive(id, (run) => ({
+            ...run,
+            sourceUrls: found.sources.map((source) => source.url),
+            lastProgressAt: this.dependencies.now(),
+            updatedAt: this.dependencies.now(),
+          })),
+          runStep: (label, timeoutMs, work) => this.awaitStep(id, label, timeoutMs, work),
+          compileOne: (model, found) => this.awaitStep(
             id,
             `Adapter compilation for ${model.modelKey}`,
             this.dependencies.compileTimeoutMs ?? 120_000,
@@ -373,11 +367,12 @@ export class ProviderAdapterService {
               providerBaseUrl: String(connection.vendor.baseUrlHint || ""),
               authType: (connection.vendor.authType || "bearer") as AdapterAuthType,
               selectedModels: [{ modelKey: model.modelKey, label: model.labelZh, kind: model.kind }],
-              docs: docs.sources,
+              docs: found.sources,
               signal,
             }),
           ),
         });
+        docs = compiled.docs;
         compilation = compiled.compilation;
         compiledModelKeys = compiled.compiledModelKeys;
       }
@@ -402,7 +397,9 @@ export class ProviderAdapterService {
       // 压根不读这份草稿——对文本失败重修等于原样再发一次同样的请求，必然同样失败。
       // 旧行为：白转 2 轮、界面还写着「正在根据真实错误自动修复…」（假的），用户干等 2 分钟拿同一个结果。
       // 只让「修得动的」失败（真正按草稿发请求的非文本模型）触发重修。(2026-08-12)
-      const repairableKeys = compiledModelKeys;
+      // 外部编译的说明卡我们修不动（重修本身要叫文本模型，而这条路存在的前提正是没有）。
+      // 失败如实回报，由驱动 Agent 拿着真实错误重新 propose 一份，别在这里假装在修。
+      const repairableKeys = suppliedDraft ? new Set<string>() : compiledModelKeys;
       for (let repairAttempt = 1; repairAttempt <= maxRepairs; repairAttempt += 1) {
         const compiledKeys = new Set(candidate.models.map((model) => model.modelKey));
         const failure = results.find(

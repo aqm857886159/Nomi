@@ -60,6 +60,7 @@
 | **资产（导入/媒体探测）** | `electron/assets/` + `electron/export/mediaProbe.ts` | `src/workbench/generationCanvas/assets/`（渲染层资产 UI） | 主进程媒体探测散进 providerAdapter（现存 1 处跨引，见审计 C8） |
 | **设置 / 自动化策略** | `electron/settings/`（契约 + 存储） | `src/workbench/settings/`（设置 UI） | 渲染层直捅 `settings/*Contract.ts`（应经中立层） |
 | **持久化** | `electron/projects/` · `electron/settings/` · `electron/workspace/` · `electron/memory/` | 无 | 渲染层直读磁盘（走 bridge） |
+| **项目保存回执与写序** | `workspaceRepository.saveWorkspaceProject` → `withWorkspaceManifestStagedMutation` → `withWorkspaceManifestStagedTransaction`；`workbenchProjectSession` 持有订阅快照和队列回执 | `save-async` 传递同一个 Promise；工作台/改名/资源删除/headless 消费者 await；显式保存与自动保存共用订阅队列；返回库/关闭/刷新等待同一回执，`useProjectLeaveAction` 合并重复返回 | 同步保存 IPC；解绑重读异主全局快照；清 UI target 丢在途回执；显式保存旁路；绕过 canonical root 写序或 lease；staged 换成 immediate |
 | **门岗脚本** | `scripts/` | 无 | `src/` 或 `electron/` 生产码 import `scripts/`（`check:boundaries`） |
 
 ---
