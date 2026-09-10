@@ -57,6 +57,33 @@ Agent 说「草稿已建」，用户却在画布上什么都看不到——因�
 - `pnpm run gates` 全绿（含 `check:i18n` / `check:vocabularies` / `check:heavy-path` / `check:root-cause-contracts`）。
 - 根因合同：`docs/fixes/2026-09-10-agent-draft-single-ledger.root-cause.json`（schema-v3，`invariant_owner_layer` 必答）。
 
+## 没做：防复发门岗的设计与落点（本轮只出设计，不半做）
+
+**要守的不变量**：agent 通过 MCP 写进 Run 的每一个 durable 字段，要么在渲染层有真实读者，
+要么被显式登记成「内部中间态」。这条正是本次 bug 的**上游**——`generationPlan.candidate.modelId`
+是 agent 写的 durable 字段，渲染层从来没有读者，于是节点只好自己另挑模型，而没有任何机器
+能在合并前告诉我们「这个字段写了没人读」。
+
+**落点**：`scripts/check-durable-field-readers.mjs` + 登记表
+`docs/engineering/durable-field-readers.json`，挂进 `gates:contracts`（棘轮：存量只减不增）。
+
+**判据形状**（刻意可机读，不判语义）：
+1. 从 `electron/productionRun/productionRunTypes.ts` 与 `electron/capabilityCore/executionContract.ts`
+   的类型声明里 AST 抽出 `ProductionGenerationPlan` / `ProductionGenerationShot` / `PlanCandidate`
+   的**每个字段**（与 `check:framework-surface` 从 `.d.ts` 抽字段同一手法，升级/加字段即红）。
+2. 对每个字段判一条裁决：`projected`（有跨 RPC 的投影者 + `src/` 里的读者，两端各给一个 file:line）、
+   `internal`（只在主进程内部流转，须写明为什么渲染层不需要它 —— `transportModelId` 属于这格）、
+   `debt`（带到期日与 owner）。
+3. 新增字段没有裁决 = 红。裁决说 `projected` 但 `src/` 里搜不到那个投影字段名 = 红。
+
+**为什么值得**：`check:vocabularies` 管的是「同一语义有几个 owner」，`check:framework-surface` 管的是
+「框架公开的字段我们逐条判过没有」，这一条补的是第三块——**我们自己 durable 写下的字段，
+有没有人在用户看得见的那一侧读它**。三者判据同形，可以共用抽字段与登记表的骨架。
+
+**为什么这轮没做**：它要先把三个类型的既有字段全部裁决一遍（`ProductionRun` 一层就有 ~40 个字段），
+存量裁决没做完就上门岗只会一片红然后被无视（`check:prior-art` 的日期阈值就是这个教训）。
+半做比不做更糟，故本轮只留设计与落点。
+
 ## 先查别人
 
 完整报告：[docs/research/2026-09-10-agent-draft-single-ledger/prior-art.md](../research/2026-09-10-agent-draft-single-ledger/prior-art.md)
