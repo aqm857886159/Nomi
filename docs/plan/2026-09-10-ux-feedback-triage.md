@@ -226,3 +226,22 @@
 
 ## 验收门（全批次通用）
 - contracts 全门 + focused tests；涉及画布/时间轴/agent 面板的走 J1-J5 真实旅程走查（R13）+ 与本表逐项对账（P3）；模型接入改动跑真实 apimart key 端到端验证（填 key → 列表出现 → agent 可选 → 真实生成一张）。
+
+## 本轮执行记录（B6 · 2026-09-11 真机复验两条红的根因修复）
+
+走查报告：`docs/research/2026-09-10-ux-feedback-fixes/walkthrough-pr720.md`（6 绿 / 2 红 / 1 跳过）。
+根因合同：`docs/fixes/2026-09-11-pr720-walkthrough-reds.root-cause.json`（recurring，四条不变量）。
+共同的类根因：**判据取自一个只在某一瞬间 / 某一子区域成立的参照系**——hover 参照按钮矩形（真实交互区是「按钮 ∪ 间隙 ∪ 菜单」）、量高参照一个主轴尺寸被父 flex 接管的元素、语言参照开 lane 那一刻的设置快照。
+
+- **红 1 · 左缘「+」hover 菜单点不到**（`CanvasToolbar.tsx`）：
+  - 收起判据从那颗 32×32 按钮上移到**整条工具条根节点**——菜单与间隙桥都是它的 DOM 后代，指针在「工具条 ∪ 间隙桥 ∪ 菜单」这块连通区域里移动时一个 `pointerleave` 都不发；按钮那层只保留「展开」。
+  - 间隙桥改成菜单的**父层**（`absolute bottom-0 left-full pl-2`）：高度由菜单自身 derive、沿菜单全高，不再是按按钮高度裁出来的 `before` 伪元素；旧的 `before:-left-2 before:w-2` 同 commit 删除（P1）。刻意不往左盖住工具条本体，免得菜单开着时吞掉上面几颗常驻钮的点击。
+  - 收起加 140ms 延时（`--nomi-duration-fast`），兜边界抖动，不是用来「让人来得及穿过缝」——几何已经管死了。
+  - **没有引入 Floating UI 的 `safePolygon`**：`@floating-ui/react` 当前只是 Mantine 的传递依赖（`node_modules/@floating-ui` 未提升），直接 import = 幻影依赖；提成直接依赖属于引入新框架层，按 R29 要先出四列表 + 参考实现逐层对照 + 字段级裁决，代价远大于本条修复。原生解法零新增依赖、几何由结构 derive。
+- **红 2 · 聊天框只涨不落**（`AgentPanelV4Composer.tsx`）：量高前先 `flex:'0 0 auto'` 把 textarea 摘出主轴拉伸再压 `height:0`，量完两项原样还原。原写法只压 `height:0`，而它是 `flex-1` 拉伸项、主轴尺寸由 flex-basis 接管，`scrollHeight` 回的是「它被撑开后的自身高度」（实测清空后 `value.length=0` 而 `scrollHeight=116`）。涨与落走同一条路径，没有「只在 value 变短时重置」这类半边特判。
+- **顺带 ① 成功卡文案落后于新行为**（`KnownVendorKeyConnectPage.tsx` + `OnboardingDrawer.tsx` + `onboardingProviders.ts` zh/en）：成功卡新增 `curatedModelsPublished` 一态（文案 `publishedTitle`/`publishedHint`），由调用方从 `vendor.enabled && hasApiKey` derive——凭据停用必然连带 vendor 停用（`credentialPublication.ts` 的既有不变量），所以这不是第二份真相、也没新立标志位。direct-key（apimart）填完 key 即到这一态，卡片如实说「预置模型现在就能选到」；certification 供应商仍走原来的「等待验证」文案。
+- **顺带 ② 界面语言中途切换不改回复语言 —— 不是设计如此，已修**（`laneRuntimePort.ts` + `laneHost.mts` + `laneDesktopRuntime.ts`）：`openLane` 的 `systemPrompt` 原本是 **string 快照**，`buildLanguageRule()` 在开 workspace 那一刻求值一次；`laneHost` 的 `transform_context`（每回合都跑）复用的是那个闭包常量，于是同一个项目里连开新对话都还在用旧语言，只有冷启动才生效。契约放宽成 `string | (() => string)`（与同文件 `tasks` 那条「给函数不给快照」的既有纪律一致），`transform_context` 每回合调 `composeSystemPrompt()` 重新求值，桌面运行时传函数。已经开着的 lane 下一个回合就改口，不需要重开项目；**已在跑的那一个回合不会中途改口、历史消息也不翻译**（有意）。
+- **走查断言加严**（`tests/ux/pr720-ux-geometry.walk.mjs`）：
+  - `#5` 从「一条斜插路径」扩到**四条真人路径 = {最顶项, 最底项} × {慢 1px/30ms, 快 8px/4ms}**，且瞄准点改成项的文字起点一侧（斜率最陡、缝最长的那条），每条都断言「全程不关」+「目标项 `expectHittable`」。
+  - `#7b` 从「清空后缩回」扩到**三个时机**：清空 / 失焦（像真人一样点面板别处）/ 再打满一次再清空，并断言中间那次确实又涨起来（证明可逆，不是「第一次删对了、第二次又棘轮住」）。
+- **三条源码级棘轮**（都做过变异验证，改回旧写法当场红）：`canvasToolbarModel.test.ts`（收起挂工具条、`before` 桥已删、间隙桥是 `left-full`+`pl-2` 的父层）、`agentPanelV4Logic.test.ts`（量高前 `flex:0 0 auto` 且顺序在 `height:0` 之前，带阳性对照）、`laneDesktopStructure.test.ts`（port 允许函数、`transform_context` 调 `composeSystemPrompt()`、运行时传函数）。jsdom 没有布局引擎、`scrollHeight` 恒 0，红 2 那一族在渲染型单测里表现不出来，所以真机走查才是真证明，棘轮只负责「别等下一次走查才发现回退」。

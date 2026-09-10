@@ -107,7 +107,7 @@ try {
     await win.waitForTimeout(700)
     return await moreMenu.isVisible().catch(() => false)
   }
-  async function walkPath(points, stepPx = 2) {
+  async function walkPath(points, { stepPx = 2, dwellMs = 18 } = {}) {
     let closedAt = null
     let cursor = { ...center }
     for (const target of points) {
@@ -116,7 +116,7 @@ try {
         const x = cursor.x + (target.x - cursor.x) * i / steps
         const y = cursor.y + (target.y - cursor.y) * i / steps
         await win.mouse.move(x, y)
-        await win.waitForTimeout(18)
+        await win.waitForTimeout(dwellMs)
         if (!(await moreMenu.count())) { closedAt = { x: Math.round(x), y: Math.round(y) } ; break }
       }
       if (closedAt) break
@@ -125,44 +125,54 @@ try {
     return closedAt
   }
 
-  const openedA = await hoverOpenMenu()
-  const menuBox = openedA ? await moreMenu.boundingBox() : null
+  const openedFirst = await hoverOpenMenu()
+  const menuBox = openedFirst ? await moreMenu.boundingBox() : null
   const zOrder = await win.evaluate(() => {
     const menu = document.querySelector('.generation-canvas-v2-toolbar__more-menu')
     const card = document.querySelector('.generation-canvas-v2-node__composer-card')
     const zi = (el) => { if (!el) return null; const v = getComputedStyle(el).zIndex; return v === 'auto' ? 'auto' : Number.parseInt(v, 10) }
     return { menuZ: zi(menu), cardZ: zi(card), cardPresent: Boolean(card) }
   })
-  // A：直奔菜单顶部一项（真人最短路径）
-  const closedA = menuBox ? await walkPath([{ x: menuBox.x + menuBox.width / 2, y: menuBox.y + 20 }]) : { x: -1, y: -1 }
-  const menuOpenAfterA = await moreMenu.isVisible().catch(() => false)
-  let itemHittableA = false
-  let hitDetailA = ''
-  if (menuOpenAfterA) {
-    try { await expectHittable(moreMenu.locator('button').first(), '更多菜单第一项'); itemHittableA = true } catch (e) { hitDetailA = String(e?.message || e).slice(0, 120) }
-  }
-  await screenshotSettled(win, { path: path.join(shots, '05-more-menu-diagonal.png') })
 
-  // B：直奔菜单**最底**一项（与按钮同高，指针不离开按钮那条横带）——用来定位「哪一半没修好」。
-  const openedB = await hoverOpenMenu()
-  const menuBoxB = openedB ? await moreMenu.boundingBox() : null
-  const closedB = menuBoxB
-    ? await walkPath([{ x: menuBoxB.x + menuBoxB.width / 2, y: menuBoxB.y + menuBoxB.height - 18 }])
-    : { x: -1, y: -1 }
-  const menuOpenAfterB = await moreMenu.isVisible().catch(() => false)
-  let itemHittableB = false
-  if (menuOpenAfterB) {
-    try { await expectHittable(moreMenu.locator('button').last(), '更多菜单最后一项'); itemHittableB = true } catch { itemHittableB = false }
+  // 四条真人路径 = {最顶项, 最底项} × {慢, 快}。
+  //  · 最顶项在按钮**上沿之上** 100+px，指针必须斜着往上走 —— 2026-09-11 走查红的就是它；
+  //  · 最底项与按钮同高，指针几乎不离开按钮那条横带（对照组：这条一直是绿的）；
+  //  · 慢（1px/30ms）与快（8px/4ms）各跑一次：hover 若还靠「缝里停多久」判定，慢的那条必红。
+  // 每条都必须①全程不关 ②到达后目标项真的可点（expectHittable 会验命中、可见、未被遮挡）。
+  const HOVER_PATHS = [
+    { id: 'top-slow', label: '奔最顶项 · 慢（1px/30ms）', aim: 'top', speed: { stepPx: 1, dwellMs: 30 } },
+    { id: 'top-fast', label: '奔最顶项 · 快（8px/4ms）', aim: 'top', speed: { stepPx: 8, dwellMs: 4 } },
+    { id: 'bottom-slow', label: '奔最底项 · 慢（1px/30ms）', aim: 'bottom', speed: { stepPx: 1, dwellMs: 30 } },
+    { id: 'bottom-fast', label: '奔最底项 · 快（8px/4ms）', aim: 'bottom', speed: { stepPx: 8, dwellMs: 4 } },
+  ]
+  const hoverRuns = []
+  for (const spec of HOVER_PATHS) {
+    const opened = await hoverOpenMenu()
+    const box = opened ? await moreMenu.boundingBox() : null
+    if (!box) { hoverRuns.push({ ...spec, opened, closedAt: null, held: false, hittable: false, detail: '菜单没打开' }); continue }
+    // 瞄准项本体的文字起点一侧（真人点的是字，不是菜单中线）：这是斜率最陡、缝最长的那条路径。
+    const target = spec.aim === 'top'
+      ? { x: box.x + 24, y: box.y + 20 }
+      : { x: box.x + 24, y: box.y + box.height - 18 }
+    const closedAt = await walkPath([target], spec.speed)
+    const held = !closedAt && await moreMenu.isVisible().catch(() => false)
+    let hittable = false
+    let detail = ''
+    if (held) {
+      const item = spec.aim === 'top' ? moreMenu.locator('button').first() : moreMenu.locator('button').last()
+      try { await expectHittable(item, `更多菜单${spec.aim === 'top' ? '第一' : '最后一'}项`); hittable = true }
+      catch (error) { detail = String(error?.message || error).slice(0, 120) }
+    }
+    hoverRuns.push({ ...spec, opened, closedAt, held, hittable, detail })
+    await screenshotSettled(win, { path: path.join(shots, `05-more-menu-${spec.id}.png`) })
   }
-  await screenshotSettled(win, { path: path.join(shots, '05-more-menu-hover-hold.png') })
 
-  record('#5', 'hover「+」后指针斜着移进菜单：菜单仍开且菜单项可点',
-    openedA && !closedA && menuOpenAfterA && itemHittableA,
-    `按钮=[${Math.round(moreBox.x)},${Math.round(moreBox.x + moreBox.width)}]x[${Math.round(moreBox.y)},${Math.round(moreBox.y + moreBox.height)}] 菜单=[${Math.round(menuBox?.x)},${Math.round(menuBox?.x + menuBox?.width)}]x[${Math.round(menuBox?.y)},${Math.round(menuBox?.y + menuBox?.height)}]；`
-    + `奔顶项（菜单 ${Math.round(moreBox.y - (menuBox?.y ?? 0))}px 高过按钮，必须斜着往上走）${closedA ? `在 (${closedA.x},${closedA.y}) 提前关闭` : '全程保持'}（可点=${itemHittableA}）；`
-    + `奔底项（与按钮同高、指针不离开按钮横带）${closedB ? `在 (${closedB.x},${closedB.y}) 关闭` : '全程保持'}（可点=${itemHittableB}）。`
-    + `→ 8px before 桥只补了按钮那条横带的缝，菜单高出按钮的那一段没有 hit-area，`
-    + `指针一离开按钮上沿（y<${Math.round(moreBox.y)}）且还没进菜单左沿（x<${Math.round(menuBox?.x)}）就 pointerleave 立刻关`)
+  record('#5', 'hover「+」后斜着移进菜单（顶/底项 × 慢/快 四条路径）：菜单全程不关、目标项可点',
+    hoverRuns.length === HOVER_PATHS.length && hoverRuns.every((run) => run.opened && run.held && run.hittable),
+    `按钮=[${Math.round(moreBox.x)},${Math.round(moreBox.x + moreBox.width)}]x[${Math.round(moreBox.y)},${Math.round(moreBox.y + moreBox.height)}] `
+    + `菜单=[${Math.round(menuBox?.x)},${Math.round(menuBox?.x + menuBox?.width)}]x[${Math.round(menuBox?.y)},${Math.round(menuBox?.y + menuBox?.height)}]`
+    + `（菜单高过按钮 ${Math.round(moreBox.y - (menuBox?.y ?? 0))}px，奔顶项必须斜着往上走）；`
+    + hoverRuns.map((run) => `${run.label}：${run.closedAt ? `在 (${run.closedAt.x},${run.closedAt.y}) 提前关闭` : '全程保持'}、可点=${run.hittable}${run.detail ? `（${run.detail}）` : ''}`).join('；'))
   record('#5b', '节点 composer 在场时更多菜单 z 序在其上',
     zOrder.cardPresent && typeof zOrder.menuZ === 'number' && (zOrder.cardZ === 'auto' || zOrder.menuZ > zOrder.cardZ),
     `menu z=${zOrder.menuZ}, composer-card z=${zOrder.cardZ}, composer 卡数=${composerCardCount}`)
@@ -197,19 +207,38 @@ try {
     `高度 ${Math.round(before.composer.height)} → ${Math.round(grown.composer.height)}（上限 ${Number.isFinite(cap) ? Math.round(cap) : 'n/a'}）`)
   await screenshotSettled(win, { path: path.join(shots, '07a-composer-grown.png') })
 
-  await input.press('Meta+A')
-  await input.press('Backspace')
-  // 给足 3s 再量：700ms 量到不缩会被当成「还没重排」。实测 5s、失焦、重新打字再删都不缩。
-  await win.waitForTimeout(3000)
-  const shrunk = await rectsOf(SEL)
-  const measured = await win.evaluate((sel) => {
+  const probeInput = () => win.evaluate((sel) => {
     const el = document.querySelector(sel)
     return el ? { valueLength: el.value.length, scrollHeight: el.scrollHeight, height: Math.round(el.getBoundingClientRect().height) } : null
   }, SEL.input)
-  record('#7b', '删字后 composer 缩回原高', Math.abs(shrunk.composer.height - before.composer.height) <= 2,
-    `高度回到 ${Math.round(shrunk.composer.height)}（原 ${Math.round(before.composer.height)}）；`
-    + `清空后 textarea 内容长度=${measured?.valueLength} 但 scrollHeight 仍是 ${measured?.scrollHeight}（=它自己被撑开后的高度 ${measured?.height}）`
-    + ` → 压 0 高测量对 flex 拉伸的 textarea 不生效，高度成了只涨不落的棘轮`)
+  await input.press('Meta+A')
+  await input.press('Backspace')
+  // 给足 3s 再量：700ms 量到不缩会被当成「还没重排」。
+  await win.waitForTimeout(3000)
+  const shrunk = await rectsOf(SEL)
+  const measured = await probeInput()
+  // 失焦一次再量：旧实现（把 flex 拉伸项压到 height:0 读 scrollHeight）在这三个时机全都不缩，
+  // 所以三个都得断，只断第一个会漏掉「只在 change 那一帧临时收一下」的假修。
+  const panelForBlur = (await rectsOf(SEL)).panel
+  await win.mouse.click(panelForBlur.left + panelForBlur.width / 2, panelForBlur.top + 120)
+  await win.waitForTimeout(600)
+  const blurred = await rectsOf(SEL)
+  // 再打一次同样长的一段、再删空：证明它是可逆的，不是「第一次删对了、第二次又棘轮住」。
+  await input.click()
+  await input.type(longText, { delay: 2 })
+  await win.waitForTimeout(700)
+  const regrown = await rectsOf(SEL)
+  await input.press('Meta+A')
+  await input.press('Backspace')
+  await win.waitForTimeout(900)
+  const reshrunk = await rectsOf(SEL)
+  const backToOne = (rect) => Math.abs(rect.composer.height - before.composer.height) <= 2
+  record('#7b', '删字后 composer 缩回一行高（清空 / 失焦 / 再打再删 三个时机都缩）',
+    backToOne(shrunk) && backToOne(blurred) && backToOne(reshrunk)
+    && regrown.composer.height > before.composer.height + 8,
+    `原 ${Math.round(before.composer.height)} → 打满 ${Math.round(grown.composer.height)} → 清空 ${Math.round(shrunk.composer.height)}`
+    + ` → 失焦 ${Math.round(blurred.composer.height)} → 再打满 ${Math.round(regrown.composer.height)} → 再清空 ${Math.round(reshrunk.composer.height)}；`
+    + `清空时 textarea 内容长度=${measured?.valueLength} scrollHeight=${measured?.scrollHeight}（自身高度 ${measured?.height}）`)
   await screenshotSettled(win, { path: path.join(shots, '07b-composer-shrunk.png') })
 
   // 权限弹层：点开 → 点面板别处 → 关闭
