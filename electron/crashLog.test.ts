@@ -4,6 +4,7 @@ import {
   installProcessGoneHandlers,
   installUncaughtExceptionNoiseFilter,
   isUpstreamStreamTeardownError,
+  registerRendererCrashIpc,
   startNativeCrashCapture,
 } from "./crashLog";
 
@@ -206,3 +207,35 @@ describe("startNativeCrashCapture", () => {
     expect(() => startNativeCrashCapture(reporter)).not.toThrow();
   });
 });
+
+describe("registerRendererCrashIpc", () => {
+  it("每条 renderer 崩溃消息都先过 sender 守卫再落盘（修复前 main.ts 里是无守卫的独一条通道）", () => {
+    const registered = new Map<string, (event: unknown, message: unknown) => void>();
+    const assertTrusted = vi.fn();
+    const onMessage = vi.fn((channel: string, handler: (event: unknown, message: unknown) => void) => {
+      registered.set(channel, handler);
+    });
+
+    registerRendererCrashIpc({ onMessage, assertTrusted });
+
+    const handler = registered.get("nomi:log:renderer-crash");
+    expect(handler).toBeTypeOf("function");
+    const order: string[] = [];
+    assertTrusted.mockImplementation(() => order.push("assert"));
+    handler!({ sender: { id: 1 } }, "RootErrorBoundary:boom");
+    // 守卫先跑（拒绝即抛，logCrash 不会执行）；消息以字符串形式落盘。
+    expect(order).toEqual(["assert"]);
+  });
+
+  it("守卫拒绝时异常上抛：不落盘、让非法 sender 的消息被丢弃", () => {
+    const registered = new Map<string, (event: unknown, message: unknown) => void>();
+    const assertTrusted = vi.fn(() => { throw new Error("untrusted sender"); });
+    registerRendererCrashIpc({
+      onMessage: (channel, handler) => registered.set(channel, handler),
+      assertTrusted,
+    });
+
+    expect(() => registered.get("nomi:log:renderer-crash")!({ sender: { id: 9 } }, "x")).toThrow("untrusted sender");
+  });
+});
+
