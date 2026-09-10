@@ -279,19 +279,28 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
 
     applyAt(event.clientX, event.shiftKey)
     const handlePointerMove = (moveEvent: PointerEvent) => applyAt(moveEvent.clientX, moveEvent.shiftKey)
-    const handlePointerUp = () => {
+    const stopScrubListeners = () => {
       target.releasePointerCapture?.(pointerId)
       window.removeEventListener('pointermove', handlePointerMove)
-      window.removeEventListener('pointerup', handlePointerUp)
+      window.removeEventListener('pointerup', stopScrubListeners)
+      // 系统打断（触控手势/alt-tab）发 pointercancel 而非 pointerup——只摘 up 会泄漏
+      // 两个 window 监听并让 snap guide 残留。
+      window.removeEventListener('pointercancel', stopScrubListeners)
       useWorkbenchStore.getState().setTimelineSnapGuide(null)
     }
     window.addEventListener('pointermove', handlePointerMove)
-    window.addEventListener('pointerup', handlePointerUp)
+    window.addEventListener('pointerup', stopScrubListeners)
+    window.addEventListener('pointercancel', stopScrubListeners)
   }, [frameFromClientX, snapEnabled])
 
   React.useEffect(() => {
     const onHelp = (event: KeyboardEvent) => {
+      // 与上面的 dispatchTimelineShortcut 同款去重：预览/生成两个 TimelinePanel 因
+      // keep-alive 同时挂载、各注册一个 window keydown。`?` 是 toggle——不去重会在
+      // 两个面板各翻转一次（开了又关，快捷键表按了像没反应）；Escape 幂等（各关各的
+      // 菜单/弹层，执行两次无副作用），不参与去重，否则第二面板的菜单就关不掉了。
       if (event.key === '?' || (event.key === '/' && event.shiftKey)) {
+        if (event.defaultPrevented) return
         event.preventDefault()
         setShortcutsOpen((open) => !open)
       }
