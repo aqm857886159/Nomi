@@ -164,7 +164,15 @@ async function executeTaskQuery(taskId: string, cached: CachedTask): Promise<{ v
     // this query has produced and decoded a real artifact. Resolve the exact
     // staged revision instead of treating that disabled model as unavailable.
     const stagedCandidate = resolveComfyCandidateExecution(cached.request);
-    const { vendor, model, apiKey } = stagedCandidate || findExecutableModel(cached.vendor, cached.model.modelKey, cached.wantedKind);
+    // 模型解析必须可守（与 rebuildCachedTaskFromPayload 同款）：模型下架/凭证失效是**永久
+    // 条件**，裸抛会被渲染层当可恢复轮询错误、45s 后落「可找回」——错误既不指向根因也
+    // 不会再自愈。落诚实失败终态（用户去供应商后台核对或重配模型）。
+    let vendor: ReturnType<typeof findExecutableModel>["vendor"], model: Model, apiKey: string;
+    try {
+      ({ vendor, model, apiKey } = stagedCandidate || findExecutableModel(cached.vendor, cached.model.modelKey, cached.wantedKind));
+    } catch {
+      return { vendor: cached.vendor, result: { id: taskId, kind: cached.request.kind, status: "failed", assets: [], raw: {}, error: desktopT("tasks.modelUnresolvable") } };
+    }
     let executed = await executeProfileOperation({
       vendor,
       model,
