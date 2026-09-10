@@ -367,11 +367,23 @@ try {
   await clickOrFail(timelinePanel.getByRole('button', { name: '快捷键（?）' }).first(), '打开快捷键面板')
   const shortcuts = win.getByRole('dialog', { name: '快捷键' })
   await expectVisible(shortcuts, '快捷键面板没打开')
+  const shortcutsProof = await proveProbe(shortcuts, '快捷键面板')
   const shortcutText = (await shortcuts.innerText()).replace(/\s+/g, ' ')
   check('快捷键面板列出吸附 N / 缩放 −＋0 / 收起 Nomi ⌘\\',
     /切换吸附 N/.test(shortcutText) && /− \/ ＋ \/ 0/.test(shortcutText) && /收起 \/ 展开 Nomi ⌘\\/.test(shortcutText), shortcutText)
   await snap('06-shortcuts')
   await win.keyboard.press('Escape')
+
+  // 外部 PR #710-719 合并列车（tianlinzx #719a）根因：预览/生成两个 TimelinePanel 因
+  // keep-alive 同时挂载（本走查第 237 行已从默认的「生成」切到「预览」，此刻两个都在
+  // DOM 里），各自注册一个 window keydown 处理 '?'。没有 defaultPrevented 去重时按一次
+  // '?' 两个面板各处理一次，看起来像按了没反应。用键盘（不是按钮）按一次 '?'，
+  // 面板必须真的打开。
+  await expectAbsent(shortcuts, { provenBy: shortcutsProof, message: '按 Escape 后快捷键面板应已关闭（本断言的前提）' })
+  await win.keyboard.press('?')
+  await expectVisible(shortcuts, "按键盘 '?' 应该打开快捷键面板（两个 keep-alive 面板都注册了这个键，PR #719 之前会互相抵消）")
+  await win.keyboard.press('Escape')
+  await expectAbsent(shortcuts, { provenBy: shortcutsProof, message: '再次关闭快捷键面板失败' })
 
   const snapButton = timelinePanel.getByRole('button', { name: '吸附', exact: true }).first()
   const snapBefore = (await snapButton.getAttribute('class') ?? '').includes('accent-soft')
@@ -382,9 +394,23 @@ try {
   await win.keyboard.press('n')
 
   const scaleBefore = (await persisted()).scale
+  const contentWidth = () => win.evaluate(() =>
+    document.querySelector('.workbench-timeline')?.style.getPropertyValue('--workbench-timeline-content-width') ?? '')
+  const widthBeforeZoom = await contentWidth()
   await win.keyboard.press('=')
   await win.waitForTimeout(250)
-  const zoomed = await win.evaluate(() => document.querySelector('.workbench-timeline')?.style.getPropertyValue('--workbench-timeline-content-width') ?? '')
+  const zoomed = await contentWidth()
+  // 外部 PR #710-719 合并列车（tianlinzx #708）根因：自动 fit 的 effect 把 timeline.scale
+  // 放进依赖数组——手动缩放（这里的 ⌘=）改了 scale 就立刻重跑 effect、算出同一个 fittedScale、
+  // 弹回原值，手动缩放形同虚设（按了跟没按一样）。仓库没有组件测试基建能盖这条 effect；
+  // timeline.scale 本身不进 persistRevision（缩放是视口态、不落盘，`persisted()` 问不出这件事），
+  // 所以直接问渲染出来的内容宽度这个活信号——它是 scale 的单调函数，弹没弹回去看它就知道：
+  // 修复前 = 内容宽度按下 ⌘= 后一小段时间又弹回按键前的值；修复后 = 稳稳停在放大后的宽度。
+  await win.waitForTimeout(500)
+  const widthSettled = await contentWidth()
+  check('手动缩放（⌘=）改了内容宽度就真的留住，不被自动 fit 弹回原值（PR #708 根因）',
+    zoomed !== widthBeforeZoom && widthSettled === zoomed,
+    `before=${widthBeforeZoom} afterPlus=${zoomed} settled=${widthSettled}`)
   await win.keyboard.press('0')
   await win.waitForTimeout(250)
   check('缩放键 ＋ / 0 真的绑上了（tooltip 上写了十几天的键位不再是假的）', zoomed.length > 0, `scaleBefore=${scaleBefore} width=${zoomed}`)

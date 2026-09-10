@@ -113,7 +113,7 @@ describe("production project-session runtime with the real workspace repository"
     const before = readWorkspaceProject(PROJECT_ID, harness.deps)!;
     vi.spyOn(Date, "now").mockReturnValue(before.updatedAt + 10_000);
 
-    const after = saveWorkspaceProject(
+    const after = await saveWorkspaceProject(
       PROJECT_ID,
       { name: before.name, payload: structuredClone(before.payload) },
       harness.deps,

@@ -43,14 +43,15 @@ function buildContentSecurityPolicy(isDev: boolean): string {
       ...common,
       `script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: ${RUNTIME_ASSET_SOURCE} http://127.0.0.1:5273`,
       "style-src 'self' 'unsafe-inline'",
-      "connect-src 'self' nomi-local: https: ws://127.0.0.1:5273 http://127.0.0.1:5273 blob:",
+      "connect-src 'self' nomi-local: https: ws://127.0.0.1:5273 http://127.0.0.1:5273 blob: data:",
     ].join("; ");
   }
   return [
     ...common,
     `script-src 'self' 'wasm-unsafe-eval' blob: ${RUNTIME_ASSET_SOURCE}`,
     "style-src 'self' 'unsafe-inline'",
-    "connect-src 'self' nomi-local: https: blob:",
+    // data: 放行给 @sparkjsdev/spark 的内联 WASM（它用 fetch(data:application/wasm) 取字节，被拦 = 导演台泼溅渲染起不来）
+    "connect-src 'self' nomi-local: https: blob: data:",
   ].join("; ");
 }
 

@@ -74,6 +74,53 @@ describe('canonical persistence barrier suppresses stale debounce writes', () =>
     dispose()
   })
 
+  it('does not drop the debounced payload when the timer fires inside a hydration window before project cutover', async () => {
+    deps.workbenchState.activeDocumentId = 'doc-a'
+    let hydrating = false
+    let canPersist = true
+    const saveProject = vi.fn(async (_projectId: string, _payload: unknown, _name: string) => ({ id: 'project-a', version: 1, revision: 1 }) as never)
+    const dispose = subscribeWorkbenchProjectPersistence({
+      projectId: 'project-a', projectName: 'Project A',
+      isHydrating: () => hydrating,
+      canPersist: () => canPersist,
+      saveProject, onSaved: vi.fn(),
+    })
+    // A 项目的编辑触发防抖排程（此时快照的是 A 的数据）。
+    deps.workbenchListener?.()
+    // 切项目：hydrate(B) 开始 → 防抖 timer 在窗口内触发。
+    hydrating = true
+    await vi.advanceTimersByTimeAsync(700)
+    // hydrate 完成：store 已换成 B 的数据，A 不再是活动项目。
+    deps.workbenchState.activeDocumentId = 'doc-b'
+    hydrating = false
+    canPersist = false
+    // React effect cleanup（旧代码在此看到 saveScheduled=false，静默丢编辑）。
+    dispose()
+
+    expect(saveProject).toHaveBeenCalledTimes(1)
+    expect(saveProject.mock.calls[0][0]).toBe('project-a')
+    expect(saveProject.mock.calls[0][1]).toMatchObject({ activeDocumentId: 'doc-a' })
+  })
+
+  it('cleanup flush uses the payload captured at schedule time, never the hydrated successor data', async () => {
+    deps.workbenchState.activeDocumentId = 'doc-a'
+    const saveProject = vi.fn(async (_projectId: string, _payload: unknown, _name: string) => ({ id: 'project-a', version: 1, revision: 1 }) as never)
+    const dispose = subscribeWorkbenchProjectPersistence({
+      projectId: 'project-a', projectName: 'Project A',
+      isHydrating: () => false,
+      canPersist: () => true,
+      saveProject, onSaved: vi.fn(),
+    })
+    deps.workbenchListener?.()
+    // 防抖未到期就发生 cutover：cleanup 前全局 store 已被 hydrate 成 B 的数据。
+    deps.workbenchState.activeDocumentId = 'doc-b'
+    dispose()
+
+    expect(saveProject).toHaveBeenCalledTimes(1)
+    expect(saveProject.mock.calls[0][0]).toBe('project-a')
+    expect(saveProject.mock.calls[0][1]).toMatchObject({ activeDocumentId: 'doc-a' })
+  })
+
   it('signals canonical callers when React installs the active persistence owner', async () => {
     const pending = waitForActiveWorkbenchProjectSaveTarget('project-a')
     let ownerReady = false

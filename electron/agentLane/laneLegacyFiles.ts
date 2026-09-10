@@ -1,6 +1,8 @@
 import fs from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
-import { fsyncIfDurable, isDurable } from '../durability';
+// 目录 fsync 只许走 durability 的唯一实现：Windows 上 fsync 只读目录句柄会抛 EPERM，平台不支持码只在那里判一次
+// （docs/fixes/2026-09-03-windows-directory-fsync-barrier.root-cause.json；electron/durability.test.ts 的类级测试拦新副本）
+import { fsyncDirectoryIfDurable, fsyncIfDurable } from '../durability';
 import { writeJsonFileAtomic } from '../jsonFile';
 
 function fail(): never { throw new Error('legacy-file-identity-or-content-changed'); }
@@ -10,11 +12,6 @@ function stat(path: string): fs.Stats | undefined {
 }
 function sameIdentity(left: fs.Stats, right: fs.Stats | undefined): boolean {
   return !!right && left.dev === right.dev && left.ino === right.ino && !right.isSymbolicLink();
-}
-function syncDirectory(path: string): void {
-  if (!isDurable()) return;
-  const fd = fs.openSync(path, fs.constants.O_RDONLY);
-  try { fsyncIfDurable(fd); } finally { fs.closeSync(fd); }
 }
 function readRegular(path: string, links = 1): { bytes: Buffer; identity: fs.Stats } | undefined {
   const linked = stat(path);
@@ -88,7 +85,7 @@ export function createLegacyFileAccess(inputRoots: readonly string[]) {
     // unlink, finish removing its second name only after byte/identity proof.
     if (published?.nlink === 2 && temporary && sameIdentity(published, temporary)) {
       if (!readRegular(path, 2)?.bytes.equals(bytes)) fail();
-      check(); fs.unlinkSync(partial); syncDirectory(dirname(path));
+      check(); fs.unlinkSync(partial); fsyncDirectoryIfDurable(dirname(path));
     }
     const existing = read(path);
     if (existing) {
@@ -105,7 +102,7 @@ export function createLegacyFileAccess(inputRoots: readonly string[]) {
     const fd = fs.openSync(partial, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL, 0o600);
     try { fs.writeFileSync(fd, bytes); fs.fchmodSync(fd, 0o400); fsyncIfDurable(fd); }
     finally { fs.closeSync(fd); }
-    check(); fs.linkSync(partial, path); fs.unlinkSync(partial); syncDirectory(dirname(path));
+    check(); fs.linkSync(partial, path); fs.unlinkSync(partial); fsyncDirectoryIfDurable(dirname(path));
     if (!read(path)?.bytes.equals(bytes)) fail();
   }
   function remove(path: string, archivedPath: string, bytes: Buffer): void {
@@ -117,7 +114,7 @@ export function createLegacyFileAccess(inputRoots: readonly string[]) {
     check(); const current = stat(path);
     if (!sameIdentity(source.identity, current) || current?.nlink !== 1
       || current.size !== source.identity.size || current.mtimeMs !== source.identity.mtimeMs) fail();
-    fs.unlinkSync(path); syncDirectory(dirname(path));
+    fs.unlinkSync(path); fsyncDirectoryIfDurable(dirname(path));
   }
   function writeManifest(path: string, value: unknown, expected: Buffer | undefined): Buffer {
     path = resolve(path);
@@ -155,7 +152,7 @@ export async function withLegacyMigrationLock<T>(access: ReturnType<typeof creat
   } finally {
     try {
       access.check(); if (!sameIdentity(identity, stat(lock))) fail();
-      fs.unlinkSync(lock); syncDirectory(dirname(lock));
+      fs.unlinkSync(lock); fsyncDirectoryIfDurable(dirname(lock));
     } finally { fs.closeSync(fd); }
   }
 }

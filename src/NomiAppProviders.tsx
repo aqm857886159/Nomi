@@ -21,7 +21,7 @@ export function NomiAppProviders({ children }: { children: React.ReactNode }): J
       <MantineProvider theme={nomiTheme} cssVariablesResolver={nomiCssVariablesResolver} forceColorScheme={colorScheme} defaultColorScheme={colorScheme}>
         <ModalsProvider>
           <Notifications
-            className="pointer-events-none [&[data-position=top-right]]:!right-3 [&[data-position=top-right]]:grid [&[data-position=top-right]]:gap-2 [body:has([data-nomi-right-panel=model])_&]:!right-[344px] [body:has([data-nomi-right-panel=tasks])_&]:!right-[404px]"
+            className="pointer-events-none [&[data-position=top-right]]:!right-3 [&[data-position=top-right]]:grid [&[data-position=top-right]]:gap-2 [body:has([data-nomi-right-panel=model])_&]:!right-[344px] [body:has([data-nomi-right-panel=tasks])_&]:!right-[404px] [body:has([data-nomi-right-panel=director])_&]:!right-[calc(var(--nomi-director-side-width,320px)_+_24px)]"
             style={{ top: notificationTopOffset }}
             classNames={{ notification: 'pointer-events-auto !mt-0' }}
             position="top-right"

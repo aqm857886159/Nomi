@@ -229,8 +229,12 @@ export function projectLaneSnapshot(
     if (entry.type !== 'message') continue;
     const message = entry.message;
     if (message.role === 'user' || isLaneInputMessage(message)) {
+      // 技能只从**这条消息自己**的 context 读。用「当前选中的技能」去补历史那几条，
+      // 会把今天选的技能追认到昨天那句话上——那是编一个用户没做过的操作。
+      const skillKey = isLaneInputMessage(message) ? message.context.skillKey : undefined;
       parts.push({ sequence: parts.length, entrySeq: entry.seq, contentIndex: 0,
-        kind: 'user', text: isLaneInputMessage(message) ? message.context.displayText ?? message.content : textOf(message.content) });
+        kind: 'user', text: isLaneInputMessage(message) ? message.context.displayText ?? message.content : textOf(message.content),
+        ...(skillKey ? { skillKey } : {}) });
       continue;
     }
     if (message.role === 'assistant') {

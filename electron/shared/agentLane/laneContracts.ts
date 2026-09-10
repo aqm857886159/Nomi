@@ -33,7 +33,18 @@ export interface LanePartIdentity {
 
 export type LanePart =
   | (LanePartIdentity & { readonly kind: 'error'; readonly text: string })
-  | (LanePartIdentity & { readonly kind: 'user'; readonly text: string })
+  | (LanePartIdentity & {
+      readonly kind: 'user'
+      readonly text: string
+      /**
+       * 用户发这句话时挂着的技能。**它是转录里已经有的事实**（`LaneInputMessage.context.skillKey`
+       * 由 pi 的自定义消息一起落盘），这里只是把它从消息体里拿到段上——不是第二份真相。
+       *
+       * 为什么必须上屏：技能是「这一轮按哪套方法做」的唯一开关，而选完之后
+       * 对话里一个字都看不到它，用户只能猜「到底用上没有」（2026-09-10 用户反馈 #6）。
+       */
+      readonly skillKey?: string
+    })
   | (LanePartIdentity & { readonly kind: 'assistant-text'; readonly text: string; readonly streaming: boolean; readonly interrupted?: true; readonly continuationEntryId?: string })
   | (LanePartIdentity & { readonly kind: 'thinking'; readonly text: string; readonly streaming: boolean })
   | (LanePartIdentity & {

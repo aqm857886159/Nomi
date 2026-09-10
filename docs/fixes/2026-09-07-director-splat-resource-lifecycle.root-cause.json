@@ -1,0 +1,41 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-07-director-splat-resource-lifecycle",
+  "problem_type": "Display metadata invalidates an asynchronous decoded resource",
+  "symptom": "Renaming a loaded splat or changing language destroys it, reloads the source and restarts the black reveal backdrop.",
+  "direct_cause": "SplatEntity's resource effect depends on object.name and translation function t alongside url and store.",
+  "class_root": "The resource lifetime is not separated from the latest display metadata used only by asynchronous failure reporting.",
+  "affected_population": ["All builtin, linked and uploaded splat entities; metadata changes during or after decoding"],
+  "scope_paths": ["src/workbench/generationCanvas/nodes/director/scene/entities/SplatEntity.tsx"],
+  "entry_points": ["Outliner or inspector rename", "Language change", "Source replacement or entity removal"],
+  "external_sources": [{"kind":"official-doc","url":"https://react.dev/reference/react/useEffect","checked_at":"2026-09-07","purpose":"Effect dependency changes dispose the old synchronization before starting the new one; asynchronous results require cleanup cancellation."}],
+  "invariants": ["Only source URL or store ownership changes replace the mounted splat.", "Failure reports read the latest committed name and translator without reacquiring the resource.", "Each load closes its backdrop once, including cancellation and late failure."],
+  "generality_proof": "All splat kinds converge at SplatEntity. Its committed metadata ref removes every display-only change from resource identity, while URL/store dependencies preserve replacement and cancellation.",
+  "shared_boundaries": [{"path":"src/workbench/generationCanvas/nodes/director/scene/entities/SplatEntity.tsx","symbol":"SplatEntity","responsibility":"Own the decoded mesh, reveal, and backdrop by source and store; independently refresh committed failure metadata."}],
+  "same_class_entry_points": [
+    {"path":"src/workbench/generationCanvas/nodes/director/panels/side/SceneObjectsTab.tsx","entry_point":"commitRename -> renameObject","disposition":"enforced","evidence":"Outliner rename changes the object name while DirectorEntities keeps the object-id key; it reaches the same SplatEntity."},
+    {"path":"src/workbench/generationCanvas/nodes/director/panels/inspector/PrimitiveInspector.tsx","entry_point":"TextField onCommit -> renameObject","disposition":"enforced","evidence":"The splat inspector uses the shared object metadata path, with unchanged modelPath."},
+    {"path":"src/workbench/generationCanvas/nodes/director/scene/entities/ModelEntity.tsx","entry_point":"ModelEntity onError","disposition":"not-affected","evidence":"Its name/translator update only the error callback; useGLTF/useFBX source identity and LoadedModel source memoization do not depend on display metadata."}
+  ],
+  "recurrence": {
+    "classification":"recurring",
+    "reason":"Every rename and language switch can invalidate the same resource again for any splat URL.",
+    "same_class_scan":["rg new SplatMesh|SplatEntity found one shared constructor in SplatEntity and keyed consumer in DirectorEntities.","rg renameObject checked outliner and PrimitiveInspector independently; inspected ModelEntity for equivalent metadata-dependent resources."]
+  },
+  "prevention": {
+    "kind":"centralized-boundary",
+    "enforcement_path":"src/workbench/generationCanvas/nodes/director/scene/entities/SplatEntity.tsx",
+    "invariant":"Committed failure metadata cannot acquire, dispose or restart a resource.",
+    "failure_mode":"Current-source decoding failure reports the current label and closes its backdrop; cancelled sources are ignored.",
+    "exception_policy":"none",
+    "strategy":"Update failure metadata in a layout effect, then key the acquisition effect solely by source URL and store ownership.",
+    "artifacts":["src/workbench/generationCanvas/nodes/director/scene/entities/SplatEntity.tsx"]
+  },
+  "regression_tests":["src/workbench/generationCanvas/nodes/director/scene/entities/SplatEntity.test.ts","tests/ux/director-assets.walk.mjs"],
+  "class_regression_tests":["src/workbench/generationCanvas/nodes/director/scene/entities/SplatEntity.test.ts"],
+  "legacy_paths":{"status":"removed","removed_paths":["src/workbench/generationCanvas/nodes/director/scene/entities/SplatEntity.tsx"],"rationale":"Removes name/translator-triggered resource teardown; no parallel loader or compatibility route remains."},
+  "dependency_lifecycle":{"decision":"not-applicable","rationale":"React and Spark implement the expected lifecycle; the defect is Nomi's resource-identity declaration. No third-party upgrade controls this invariant.","exit_criteria":[]},
+  "migration":"No stored data changes. Existing splats retain user transforms and names.",
+  "residual_risks":["The deterministic lifecycle slice mocks Spark decoding; the existing real-SPZ browser journey verifies the resource identity and visible result."],
+  "invariant_owner_layer": {"layer": "src/workbench/generationCanvas/nodes/director/scene/entities/SplatEntity.tsx", "tests": ["src/workbench/generationCanvas/nodes/director/scene/entities/SplatEntity.test.ts", "tests/ux/director-assets.walk.mjs"], "why": "不变量由 src/workbench/generationCanvas/nodes/director/scene/entities/SplatEntity.tsx 单点持有（即本合同的 prevention.enforcement_path / shared_boundaries）；上游其它入口只调用它、不各自重判。tests 是该层现有的类级与回归测试，改动这条不变量必先让它们红。"}
+}

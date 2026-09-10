@@ -33,6 +33,11 @@
 // Host 拒绝，裸 `void` 把拒绝丢进 unhandled rejection，界面一个字都不说。判据和它是怎么从
 // 121 处 `void` 收窄到个位数真问题的，都写在 control-contract-discarded-commands.mjs 里。
 //
+// 规则四~六（2026-09-10 加）：**控件文案契约**。前三条看的是「控件做不做事」，这三条看的是
+// 「控件把话说清楚了没有」——标签超过 4 个字、写成客服话术（「请…」「…一下」）、
+// 或者同一个动作在另一个面上换了个说法（「确定」之于「确认」）。判据、GLOSSARY 动作词表的读法
+// 和诚实边界都住在 control-contract-copy.mjs；规则本体在设计系统 §1.8。
+//
 // 抓不到的（诚实标注，别把它当万能）：
 //   · 守卫藏在具名函数里、JSX 上只写 onClick={handler} → 需要跨函数数据流，留给 R13 走查断言
 //   · disabled 了但没说明原因（契约 C4）→ 全仓 100+ 处 disabled={readOnly} 语境自明，做成硬门必成噪音
@@ -42,6 +47,7 @@ import path from 'node:path'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { discardedCommandOffenders } from './control-contract-discarded-commands.mjs'
+import { copyOffenders } from './control-contract-copy.mjs'
 
 const require = createRequire(import.meta.url)
 const ts = require('typescript')
@@ -219,12 +225,41 @@ for (const file of SCANNED) {
   visit(sf)
 }
 
+// 规则四~六：控件文案契约。存量走棘轮（只减不增），基线身份是「规则 | i18n key | 判定详情」，
+// 刻意不含行号——文件挪几行不该让门岗翻红，而改了文案本身**应该**重新过一遍这道尺子。
+const COPY_BASELINE = path.join(ROOT, 'scripts', 'control-copy-baseline.json')
+const copyAll = copyOffenders({ root: ROOT, files: SCANNED })
+const copyBaseline = fs.existsSync(COPY_BASELINE)
+  ? JSON.parse(fs.readFileSync(COPY_BASELINE, 'utf8')).offenders ?? []
+  : []
+
+if (process.argv.includes('--update-copy-baseline')) {
+  fs.writeFileSync(
+    COPY_BASELINE,
+    `${JSON.stringify({
+      _comment: [
+        '控件文案契约（check:controls 规则四~六）的存量棘轮：只减不增。',
+        '身份 = 「规则 | i18n key | 判定详情」。规则本体见 docs/design/nomi-design-system.md §1.8，',
+        '动作规范词的 owner 是 docs/GLOSSARY.md「动作词」表。',
+        '改好一条就从这里删一行；不许往里加新行。重拍：node scripts/check-control-contract.mjs --update-copy-baseline',
+      ],
+      offenders: copyAll.map((o) => o.id),
+    }, null, 2)}\n`,
+  )
+  console.log(`✅ 控件文案基线已重拍：${copyAll.length} 条存量。`)
+  process.exit(0)
+}
+
+const copyBaselineSet = new Set(copyBaseline)
+const copyAdded = copyAll.filter((o) => !copyBaselineSet.has(o.id))
+const copyFixed = copyBaseline.filter((id) => !copyAll.some((o) => o.id === id))
+
 // 规则三：被静默丢弃的命令。判据和缘起住在 control-contract-discarded-commands.mjs，
 // 那份分析要走模块图和 Promise 数据流，塞进本文件会把两种完全不同的判断搅在一起。
 const discarded = discardedCommandOffenders({ root: ROOT, files: SCANNED })
 
-if (offenders.length > 0 || discarded.length > 0) {
-  console.error('✗ 控件交互契约门岗未通过（设计系统 §4.1 C1）：')
+if (offenders.length > 0 || discarded.length > 0 || copyAdded.length > 0) {
+  console.error('✗ 控件契约门岗未通过（交互契约 §1.6 C1 / 文案契约 §1.8）：')
   // 两条规则的修法完全不同，别合成一段说。规则二在上面明写「不看 disabled」——
   // 对空 handler 说「去加 disabled」会把人指去加一个多半已经在那儿的属性（2026-09-07 实际踩到）。
   const guarded = offenders.filter((o) => o.guard !== EMPTY_HANDLER_GUARD)
@@ -244,6 +279,24 @@ if (offenders.length > 0 || discarded.length > 0) {
     console.error('  ② 干脆别渲染这个控件——占位控件就是承诺了做不到的事。\n')
     for (const o of empty) console.error(`  · ${o.where}  ${o.handler}: ${o.guard}`)
   }
+  if (copyAdded.length > 0) {
+    const RULE_TITLE = {
+      long: '标签超过 4 个字',
+      'long-en': '英文标签超过 2 个词',
+      banned: '客服话术 / 口语否定词',
+      synonym: '同一个动作的第二种说法',
+    }
+    console.error('\n【文案没说清楚】控件文案契约（设计系统 §1.8，用户 2026-09-10 拍板）：')
+    console.error('  · 一屏只有一个主动作，主动作可带文字（≤4 字、动词开头，带后果时带金额）；')
+    console.error('    次动作和工具动作一律 icon + hover 名字——文字长了说明它本来就不该是文字按钮。')
+    console.error('  · 同一个动作全 app 只准一个词，规范词的 owner 是 docs/GLOSSARY.md「动作词」表。\n')
+    for (const o of copyAdded) {
+      console.error(`  · ${o.where}  [${RULE_TITLE[o.rule] ?? o.rule}] ${o.key} —— ${o.detail}`)
+    }
+    console.error('\n  修法三选一：① 改短成动词开头的 ≤4 字；② 改成 icon + hover 名字（图标要有公认图形，')
+    console.error('  自造概念别硬造 icon——先问它该不该单独存在）；③ 说明性的话搬进 tooltip 或空态。')
+    console.error(`  （存量 ${copyBaseline.length} 条已在 scripts/control-copy-baseline.json，棘轮只减不增。）`)
+  }
   if (discarded.length > 0) {
     console.error('\n【点了失败但用户看不到】handler 丢掉了一个会被拒绝的跨进程命令的 Promise，')
     console.error('  拒绝变成 unhandled rejection：控件像是生效了，实际什么都没发生，界面也不解释。')
@@ -255,6 +308,10 @@ if (offenders.length > 0 || discarded.length > 0) {
   process.exit(1)
 }
 
+if (copyFixed.length > 0) {
+  console.log(`✓ 顺带清掉了 ${copyFixed.length} 条控件文案存量 —— 跑 --update-copy-baseline 把基线降下来。`)
+}
 console.log(
-  `✓ 控件交互契约门岗通过：无「点了没反应」「点了失败没人说」的控件（例外 ${ALLOWLIST.size} 条，均已写明理由）。`,
+  `✓ 控件交互契约门岗通过：无「点了没反应」「点了失败没人说」的控件（例外 ${ALLOWLIST.size} 条，均已写明理由）；` +
+    `控件文案契约无新增违规（存量 ${copyAll.length} 条在棘轮里）。`,
 )

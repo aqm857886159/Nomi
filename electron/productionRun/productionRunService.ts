@@ -297,11 +297,16 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
       // 若正卡在创意/样片门等待且新档位是 budget_only → 顺手自动批准该门，让「直接出」立刻生效。
       const current = requireRun(safeProjectId, safeRunId)
       const trustLevel = normalizeTrustLevel(runCommand.payload.trustLevel)
+      // 降到 budget_only = 一次付费放行（此后逐镜确认门不再生成）→ 必须有一次真人答过的确认：
+      // Nomi 窗口里的手势章，或一张绑死「预算上限 + runId」的 elicitation 收据。缺两者 → 拒。
+      const trustReceipt = gateApproval.verifyTrustGrant(safeProjectId, safeRunId, current, runCommand)
       const result = repository.execute(safeProjectId, safeRunId, {
         ...runCommand,
         type: 'policy.set',
         payload: { policy: { ...current.policy, trustLevel } },
       })
+      // 事件先落库再消费收据：崩溃最多留下一张对着已生效档位的可重放收据，不会把档位改回去。
+      gateApproval.consume(trustReceipt || undefined)
       if (trustLevel === 'budget_only') {
         // 2026-09-10 根因：这里原本也把 isShotGate(gate) 算进「顺手批掉」的范围。逐镜门是**付费门**
         // （批准即放行 production.generate-node），而 set_trust 只能由客户端工具调用发起（渲染层 IPC

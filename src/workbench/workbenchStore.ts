@@ -52,24 +52,12 @@ import type { AgentContextHandle } from '../../electron/shared/agentContextSnaps
 import { DEFAULT_PROJECT_AGENT_APPROVAL_POLICY, type ProjectAgentApprovalPolicy } from '../../electron/shared/agentCapabilities/capabilityApprovalPolicy';
 import { createEditingPanelLayoutSlice, type EditingPanelLayoutSlice } from './preview/editingPanelLayoutSlice'
 import { createTimelineClipWritesSlice, type TimelineClipWritesSlice } from './timeline/timelineClipWritesSlice'
+import { readTimelinePanelCollapsed, writeTimelinePanelCollapsed } from './timeline/timelinePanelPrefs'
+import { TIMELINE_PANEL_DEFAULT, clampTimelinePanelHeight } from './timeline/timelinePanelBounds'
 import type { ExportQuality } from './export/exportTypes'
 
 /** 拖动中临时吸附辅助线（非持久化）。 */
 export type TimelineSnapGuide = { frame: number; label: string }
-
-/** Shared timeline layout bounds; this is UI state, not timeline data. */
-export const TIMELINE_PANEL_MIN = 140
-export const TIMELINE_PANEL_MAX = 300
-// 188 = origin/main 的固定 --workbench-timeline-height。cutover 把时间轴改成可拖拽面板
-// （timelinePanelHeight），展开态默认高度对齐 main 的 188（比 cutover 原来的 206 少 18px、多还画布
-// stage 18px；可拖拽特性不变，用户仍可拉高/降低）。默认折叠态（timelinePanelCollapsed=true）下
-// gridTemplateRows 走 0px、stage 拿满高，本值不参与；只有加片段展开时间轴后此值决定 stage 底边。
-export const TIMELINE_PANEL_DEFAULT = 188
-
-export function clampTimelinePanelHeight(value: number): number {
-  if (!Number.isFinite(value)) return TIMELINE_PANEL_DEFAULT
-  return Math.max(TIMELINE_PANEL_MIN, Math.min(TIMELINE_PANEL_MAX, Math.round(value)))
-}
 
 // 时间轴撤销栈封顶（防无限增长）。
 const TIMELINE_UNDO_LIMIT = 30
@@ -352,8 +340,11 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
   timelineSnapGuide: null,
   timelineSplitMode: false,
   // 默认折叠以保持最小窗口的 composer 可用空间；用户仍可拖拽展开。
-  timelinePanelCollapsed: true,
-  setTimelinePanelCollapsed: (collapsed) => set({ timelinePanelCollapsed: Boolean(collapsed) }),
+  timelinePanelCollapsed: readTimelinePanelCollapsed(),
+  setTimelinePanelCollapsed: (collapsed) => {
+    writeTimelinePanelCollapsed(Boolean(collapsed))
+    set({ timelinePanelCollapsed: Boolean(collapsed) })
+  },
   timelinePanelHeight: TIMELINE_PANEL_DEFAULT,
   setTimelinePanelHeight: (height) => set({ timelinePanelHeight: clampTimelinePanelHeight(height) }),
   ...createEditingPanelLayoutSlice(set, get, store),
@@ -785,7 +776,14 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
       const next = updateTextClipFont(state.timeline, id, fontId)
       return next === state.timeline
         ? state
-        : { timeline: next, persistRevision: state.persistRevision + 1 }
+        : {
+            timeline: next,
+            // 换字体是离散编辑：必须压 undo、清 redo（同 updateTimelineTextClip），
+            // 否则 ⌘Z 会回退到更早一次编辑、redo 栈语义被破坏。
+            timelineUndoStack: pushTimelineUndo(state.timelineUndoStack, state.timeline),
+            timelineRedoStack: [],
+            persistRevision: state.persistRevision + 1,
+          }
     })
   },
 })))

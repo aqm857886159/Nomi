@@ -468,14 +468,14 @@ describe('parseStagingSpec — 灰模布景字段', () => {
   })
 })
 
-// S4 执行分支：建 scene3d 节点 + 打 cameraMoveAutoCapture 标志（targetNodeId/fps/frameCount/move），不渲染。
+// S4 执行分支：建 director 节点 + 打 cameraMoveAutoCapture 标志（targetNodeId/fps/frameCount/move），不渲染。
 describe('applyCanvasToolCall create_camera_move 执行', () => {
   beforeEach(() => {
     resetCanvas()
     resetClientIdRegistry()
   })
 
-  it('建 scene3d 节点，标志含解析出的真实 targetNodeId + frameCount=duration*12', async () => {
+  it('建 director 节点，标志含解析出的真实 targetNodeId + frameCount=duration*12', async () => {
     const created = (await applyCanvasToolCall('create_canvas_nodes', {
       nodes: [{ clientId: 'v1', kind: 'video', title: '镜头 1', prompt: 'p' }],
     })) as { clientIdToNodeId: Record<string, string> }
@@ -488,15 +488,15 @@ describe('applyCanvasToolCall create_camera_move 执行', () => {
     })) as { cameraMoveNodeId: string; targetNodeId: string | null }
 
     expect(res.targetNodeId).toBe(targetId)
-    const scene3d = useGenerationCanvasStore.getState().nodes.find((n) => n.id === res.cameraMoveNodeId)
-    expect(scene3d?.kind).toBe('scene3d')
-    const flag = scene3d?.meta?.cameraMoveAutoCapture as Record<string, unknown> | undefined
+    const director = useGenerationCanvasStore.getState().nodes.find((n) => n.id === res.cameraMoveNodeId)
+    expect(director?.kind).toBe('director')
+    const flag = director?.meta?.cameraMoveAutoCapture as Record<string, unknown> | undefined
     expect(flag).toMatchObject({ targetNodeId: targetId, fps: 24, frameCount: 72, move: 'push_in' })
-    expect(scene3d?.meta?.scene3dState).toBeTruthy()
+    expect(director?.meta?.directorProject).toBeTruthy()
   })
 
-  // 词表外逃生口：只给 customMove → 不建 scene3d 节点、不渲，运镜指令追加进目标视频节点 prompt（诚实降级）。
-  it('customMove（词表外）→ 不建 scene3d，运镜指令追加进视频节点 prompt + 打幂等标志', async () => {
+  // 词表外逃生口：只给 customMove → 不建 director 节点、不渲，运镜指令追加进目标视频节点 prompt（诚实降级）。
+  it('customMove（词表外）→ 不建 director，运镜指令追加进视频节点 prompt + 打幂等标志', async () => {
     const created = (await applyCanvasToolCall('create_canvas_nodes', {
       nodes: [{ clientId: 'v9', kind: 'video', title: '镜头 1', prompt: '女孩站在窗边的特写' }],
     })) as { clientIdToNodeId: Record<string, string> }
@@ -507,10 +507,10 @@ describe('applyCanvasToolCall create_camera_move 执行', () => {
       customMove: '快速甩镜到窗外街景（whip pan）',
     })) as { cameraMoveNodeId: string | null; targetNodeId: string | null; degraded?: boolean }
 
-    expect(res.cameraMoveNodeId).toBeNull() // 不渲、不建 scene3d 节点
+    expect(res.cameraMoveNodeId).toBeNull() // 不渲、不建 director 节点
     expect(res.degraded).toBe(true)
     const state = useGenerationCanvasStore.getState()
-    expect(state.nodes.filter((n) => n.kind === 'scene3d')).toHaveLength(0)
+    expect(state.nodes.filter((n) => n.kind === 'director')).toHaveLength(0)
     const target = state.nodes.find((n) => n.id === targetId)
     expect(target?.prompt).toContain('快速甩镜')
     expect(target?.prompt).toContain('女孩站在窗边的特写') // 不覆盖原 prompt，追加
@@ -545,19 +545,19 @@ describe('applyCanvasToolCall create_camera_move 执行', () => {
 
     expect(result).toMatchObject({ cameraMoveNodeId: null, degraded: true })
     const state = useGenerationCanvasStore.getState()
-    expect(state.nodes.filter((node) => node.kind === 'scene3d')).toHaveLength(0)
+    expect(state.nodes.filter((node) => node.kind === 'director')).toHaveLength(0)
     expect(state.nodes.find((node) => node.id === created.clientIdToNodeId.v10)?.prompt).toContain('快速甩镜')
   })
 })
 
-// 词表外逃生口（站位）：只给 customBlocking → 不建 scene3d、不渲，构图指令追加进目标关键帧节点 prompt。
+// 词表外逃生口（站位）：只给 customBlocking → 不建 director、不渲，构图指令追加进目标关键帧节点 prompt。
 describe('applyCanvasToolCall create_staging_reference customBlocking 降级', () => {
   beforeEach(() => {
     resetCanvas()
     resetClientIdRegistry()
   })
 
-  it('customBlocking（词表外）→ 不建 scene3d，构图指令追加进关键帧节点 prompt', async () => {
+  it('customBlocking（词表外）→ 不建 director，构图指令追加进关键帧节点 prompt', async () => {
     const created = (await applyCanvasToolCall('create_canvas_nodes', {
       nodes: [{ clientId: 'k1', kind: 'image', title: '镜头关键帧', prompt: '雨夜天台' }],
     })) as { clientIdToNodeId: Record<string, string> }
@@ -571,7 +571,7 @@ describe('applyCanvasToolCall create_staging_reference customBlocking 降级', (
     expect(res.stagingNodeId).toBeNull()
     expect(res.degraded).toBe(true)
     const state = useGenerationCanvasStore.getState()
-    expect(state.nodes.filter((n) => n.kind === 'scene3d')).toHaveLength(0)
+    expect(state.nodes.filter((n) => n.kind === 'director')).toHaveLength(0)
     const target = state.nodes.find((n) => n.id === targetId)
     expect(target?.prompt).toContain('三层人墙的复杂队形')
     expect(target?.prompt).toContain('雨夜天台')

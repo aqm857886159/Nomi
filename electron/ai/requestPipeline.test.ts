@@ -154,6 +154,10 @@ describe("looksLikeLogicalError", () => {
     expect(looksLikeLogicalError({ code: 422, msg: "bad" })).toBe(422);
     expect(looksLikeLogicalError({ code: "404" })).toBe(404);
   });
+  it("字符串 code 不限 3 位：4 位业务码（如 \"1004\"）也是逻辑错，不许漏判成成功", () => {
+    // 修复前 /^\d{3}$/ 漏掉 4 位 → 200 空壳体当成功流进结果构造（errorCode 分支早有 /^\d+$/，同文件两分支口径不一）。
+    expect(looksLikeLogicalError({ code: "1004", msg: "quota denied" })).toBe(1004);
+  });
   it("ignores success codes", () => {
     expect(looksLikeLogicalError({ code: 200 })).toBeNull();
     expect(looksLikeLogicalError({ data: {} })).toBeNull();

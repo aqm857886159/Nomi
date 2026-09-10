@@ -79,7 +79,7 @@ describe('migrateNodeToCategoryId', () => {
     expect(migrateNodeToCategoryId(makeNode({ kind: 'character' }), [])).toBe('cast')
     expect(migrateNodeToCategoryId(makeNode({ kind: 'scene' }), [])).toBe('scene')
     expect(migrateNodeToCategoryId(makeNode({ kind: 'panorama' }), [])).toBe('scene')
-    expect(migrateNodeToCategoryId(makeNode({ kind: 'scene3d' }), [])).toBe('scene')
+    expect(migrateNodeToCategoryId(makeNode({ kind: 'director' }), [])).toBe('scene')
     expect(migrateNodeToCategoryId(makeNode({ kind: 'image' }), [])).toBe('shots')
     expect(migrateNodeToCategoryId(makeNode({ kind: 'video' }), [])).toBe('shots')
     expect(migrateNodeToCategoryId(makeNode({ kind: 'text' }), [])).toBe('shots')

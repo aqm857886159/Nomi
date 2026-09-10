@@ -80,6 +80,13 @@
 | [2026-09-06-video-deconstruction-table-node.md](2026-09-06-video-deconstruction-table-node.md) | **视频拆解表节点重做实施计划**：D-2=A，表是画布节点；行内关键帧、选行生成、Agent 投影、ProductionRun 接口与旧右槽/铺图同 commit 删除 | ⏳ |
 | [2026-09-02-canvas-media-derived-persistence-performance.md](2026-09-02-canvas-media-derived-persistence-performance.md) | 画布媒体派生尺寸回填性能回归修复：隔离运行时测量，避免视口揭示触发项目持久化 | ✅ |
 | [2026-09-01-tikhub-connector-v1.md](2026-09-01-tikhub-connector-v1.md) | TikHub 数据 connector v1：分享链接→无水印直链→喂现有拆解引擎（native-api / BYO-key / effect=spend / AssetSourceEvidence） | 🚧 |
+| [2026-09-02-director-console-v2.md](2026-09-02-director-console-v2.md) | 导演台 V2：完整的 3D 导演台独立节点 `director`（视口 / 片段时间轴 / 机位与录制运镜 / 角色骨骼 IK / 泼溅与全景 / 出片 / AI 搭场景 / 手机虚拟相机 / 偏好与帮助）；§7 分期表记 S0–S9 每期落地与走查证据 | 🚧 |
+| [2026-09-03-director-cutover-gate.md](2026-09-03-director-cutover-gate.md) | 导演台 V2 切换门：切 V1 还是再养一期的取舍、切换前必补的 G1–G5（scene3d 数据迁移 / agent 工具重定向 / 真机走查 / V1 独有能力盘点 / 上架）、同一 PR 的删旧步骤；待用户拍板 | 🚧 |
+| 2026-09-03 | [导演台外壳对齐参考产品](2026-09-03-director-chrome-parity.md) | 顶栏 / 左栏 / 底栏 / 时间轴 / 机位 HUD / 骨骼页与参考产品逐区对账并改齐 | 已实现（工作区未提交） |
+| [2026-09-07-director-functional-interaction-audit.md](2026-09-07-director-functional-interaction-audit.md) | 导演台全区域复核与根因修复，保存冷重开、实际输出和交互闭环已验证 | ✅ 本地验收，未提交 |
+| [2026-09-07-director-mobile-monitor.md](2026-09-07-director-mobile-monitor.md) | 无线监视画面、录制回执、断线清理与服务生命周期 | ✅ 本地验收，未提交 |
+| [2026-09-07-director-spark-retirement.md](2026-09-07-director-spark-retirement.md) | Spark 卸载排空异步排序后释放资源，保留真实依赖红绿回归 | ✅ 本地验收，未提交 |
+| [2026-09-07-director-pip-lifecycle.md](2026-09-07-director-pip-lifecycle.md) | PiP 冷挂载及显隐测量生命周期，实际窗口像素红绿验收 | ✅ 本地验收，未提交 |
 | [2026-06-07-apimart-curated-onboarding.md](2026-06-07-apimart-curated-onboarding.md) | 策展两家(kie+apimart)一键接入；战略从「通用接入」转向 | ✅ |
 | [2026-06-06-universal-model-onboarding.md](2026-06-06-universal-model-onboarding.md) | 「描述符+通用解释器接长尾」研究稿 | ⛔ |
 | [2026-05-30-onboarding-schema-first-extraction.md](2026-05-30-onboarding-schema-first-extraction.md) | 参数抽取从 curl-only 升级为 schema-first | ⛔ |
