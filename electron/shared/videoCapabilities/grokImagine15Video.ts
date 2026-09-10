@@ -4,12 +4,13 @@ import { runwayDurationControl } from "./runwayWireFacts";
 
 // Grok Imagine 1.5（APIMart）视频档案。支持文生视频 / 图生视频；图生最多 7 张公网图片，
 // 比例会自动跟随参考图，因此图生模式不展示也不发送 size。
+// APIMart 官方 duration 6–15；quality 是存量内部参数，mapping 按官方 resolution 发出。
 
 const opt = (values: string[]): ModelParameterControl["options"] => values.map((value) => ({ value, label: value }));
 
 const COMMON_PARAMS: ModelParameterControl[] = [
   { key: "quality", label: "清晰度", type: "select", options: opt(["480p", "720p"]), defaultValue: "480p" },
-  { key: "duration", label: "时长(秒)", type: "number", options: [], min: 6, max: 30, defaultValue: 6 },
+  { key: "duration", label: "时长(秒)", type: "number", options: [], min: 6, max: 15, defaultValue: 6 },
 ];
 
 const T2V_PARAMS: ModelParameterControl[] = [
@@ -24,7 +25,7 @@ const T2V_PARAMS: ModelParameterControl[] = [
 // 故 runwayDurationControl 返回 null，沿用档案自己的 duration 控件——不无谓收窄。
 const RUNWAY_PARAMS: ModelParameterControl[] = [
   { key: "resolution", label: "清晰度", type: "select", options: opt(["480p", "720p"]), defaultValue: "480p" },
-  runwayDurationControl("grok") ?? COMMON_PARAMS.find((p) => p.key === "duration")!,
+  runwayDurationControl("grok") ?? { ...COMMON_PARAMS.find((p) => p.key === "duration")!, max: 30 },
 ];
 
 export const GROK_IMAGINE_1_5_VIDEO_ARCHETYPE: ModelArchetype = {
@@ -49,7 +50,7 @@ export const GROK_IMAGINE_1_5_VIDEO_ARCHETYPE: ModelArchetype = {
       id: "t2v",
       intent: "text",
       vendorTerm: "文生视频",
-      hint: "纯文字生成 6–30 秒视频",
+      hint: "纯文字生成视频",
       promptRequired: true,
       transportTaskKind: "text_to_video",
       slots: [],

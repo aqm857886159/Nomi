@@ -145,8 +145,8 @@ export const APIMART_VIDEO_MODELS: ApimartVideoModel[] = [
   videoModel({
     modelKey: "grok-imagine-1.5-video-apimart", labelZh: "Grok Imagine 1.5", archetypeId: "grok-imagine-1.5-video",
     requestTransform: "apimart-canonical-model-id",
-    t2vBody: { size: SIZE, quality: QUALITY, duration: DURATION },
-    i2vBody: { quality: QUALITY, duration: DURATION, image_urls: IMAGE_URLS },
+    t2vBody: { size: SIZE, resolution: QUALITY, duration: DURATION },
+    i2vBody: { resolution: QUALITY, duration: DURATION, image_urls: IMAGE_URLS },
   }),
   // Sora 2：变体（标准 sora-2 / Pro sora-2-pro）→ body model 取 {{request.params.model}}。duration 离散枚举。
   videoModel({

@@ -102,6 +102,7 @@ describe("resolveArchetypeForModel — 供应商无关的识别桥", () => {
     expect(arch.modes.map((m) => m.id)).toEqual(["t2v", "i2v"]);
     expect(arch.modes.find((m) => m.id === "i2v")?.slots[0]).toMatchObject({ inputKey: "image_urls", max: 7 });
     expect(arch.modes.find((m) => m.id === "i2v")?.params.map((p) => p.key)).toEqual(["quality", "duration"]);
+    expect(arch.modes[0].params.find((p) => p.key === "duration")).toMatchObject({ min: 6, max: 15 });
   });
 
   it("火山方舟 Seedance 2.0：标准/Fast/Mini 解析到火山专属档案", () => {

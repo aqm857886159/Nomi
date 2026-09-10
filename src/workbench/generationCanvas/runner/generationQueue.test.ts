@@ -46,7 +46,7 @@ describe('生成队列外化', () => {
   })
 
   it.each([
-    [undefined, 8],
+    [undefined, 10],
     [2, 2],
   ])('bounds in-flight work with concurrency %s and fills available slots', async (concurrency, expected) => {
     const ids = addImageNodes(10)

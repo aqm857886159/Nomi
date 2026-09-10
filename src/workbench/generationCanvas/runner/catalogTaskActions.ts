@@ -1,3 +1,4 @@
+import { trackPendingSubmission } from './localTaskControl'
 import { withAssetLocalizationFeedback } from './assetLocalizationFeedback'
 import { getDesktopBridge } from '../../../desktop/bridge'
 import {
@@ -520,11 +521,15 @@ async function runCatalogGenerationTaskWithFeedback(
     if (registered) watchedPromptId = requestedComfyPromptId
   }
   let initialResult: TaskResultDto
+  const pendingNodeId = asTrimmedString(request.extras?.nodeId)
+  trackPendingSubmission(pendingNodeId, asTrimmedString(request.extras?.idempotencyKey))
   try {
     initialResult = await runTask(vendor, request)
   } catch (error) {
     if (watchedPromptId) unwatchComfyuiProgress(watchedPromptId)
     throw error
+  } finally {
+    trackPendingSubmission(pendingNodeId)
   }
   if (isTaskCancelRequested(asTrimmedString(request.extras?.nodeId))) {
     if (initialResult.id.startsWith('local-')) await getDesktopBridge()?.tasks.cancel?.(initialResult.id)

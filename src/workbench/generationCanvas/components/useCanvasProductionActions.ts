@@ -40,7 +40,7 @@ export function useCanvasProductionActions(params: { activeCategoryId: string; s
     [edges, nodes, scopedNodes],
   )
 
-  const setConcurrency = React.useCallback((value: number) => {
+  const setConcurrency = React.useCallback((value: number | undefined) => {
     setConcurrencyState(writeCanvasBatchConcurrency(value))
   }, [])
 

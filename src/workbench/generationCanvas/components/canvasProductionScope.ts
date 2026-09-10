@@ -8,7 +8,6 @@ import {
 import { requiredModeForGenerationNode } from '../adapters/modelOptionsAdapter'
 
 export const CANVAS_BATCH_CONCURRENCY_STORAGE_KEY = 'nomi.canvas.batch-concurrency'
-export const DEFAULT_CANVAS_BATCH_CONCURRENCY = 8
 
 export function canvasBatchDockScopeKey(eligibleIds: readonly string[]): string {
   return eligibleIds.join('\u0000')
@@ -28,29 +27,29 @@ export function resolveCanvasGenerationScope(
   return selectedNodeIds.length > 0 ? { nodeIds: selectedNodeIds } : { categoryId: activeCategoryId }
 }
 
-export function normalizeCanvasBatchConcurrency(value: unknown): number {
-  if (typeof value !== 'number' || !Number.isFinite(value)) return DEFAULT_CANVAS_BATCH_CONCURRENCY
-  return Math.max(1, Math.min(8, Math.floor(value)))
+export function normalizeCanvasBatchConcurrency(value: unknown): number | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 1) return undefined
+  return Math.floor(value)
 }
 
 function defaultStorage(): CanvasBatchConcurrencyStorage | undefined {
   return typeof window !== 'undefined' ? window.localStorage : undefined
 }
 
-export function readCanvasBatchConcurrency(storage = defaultStorage()): number {
-  if (!storage) return DEFAULT_CANVAS_BATCH_CONCURRENCY
+export function readCanvasBatchConcurrency(storage = defaultStorage()): number | undefined {
+  if (!storage) return undefined
   try {
     const raw = storage.getItem(CANVAS_BATCH_CONCURRENCY_STORAGE_KEY)
     return normalizeCanvasBatchConcurrency(raw === null ? undefined : Number(raw))
   } catch {
-    return DEFAULT_CANVAS_BATCH_CONCURRENCY
+    return undefined
   }
 }
 
-export function writeCanvasBatchConcurrency(value: unknown, storage = defaultStorage()): number {
+export function writeCanvasBatchConcurrency(value: unknown, storage = defaultStorage()): number | undefined {
   const normalized = normalizeCanvasBatchConcurrency(value)
   try {
-    storage?.setItem(CANVAS_BATCH_CONCURRENCY_STORAGE_KEY, String(normalized))
+    storage?.setItem(CANVAS_BATCH_CONCURRENCY_STORAGE_KEY, normalized === undefined ? '' : String(normalized))
   } catch {
     // Hardened Electron sessions may block localStorage; the in-memory value still applies.
   }

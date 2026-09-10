@@ -417,8 +417,7 @@ export async function runGenerationNode(
 }
 
 export type RunGenerationNodesBatchOptions = RunGenerationNodeOptions & {
-  /** Maximum concurrent runs. Defaults to 6（用户拍板：同一波内尽量并行，框选 6 个镜头能一起跑，
-   *  不再一个一个来）。有依赖的镜头仍按波次串行（锚先于镜头），这只调「同波内同时几个」。上限 8。 */
+  /** Optional user ceiling within one dependency wave; provider admission owns actual quotas. */
   concurrency?: number
   /** Called whenever a node finishes (success or failure) so the UI can update progress. */
   onNodeResult?: (
@@ -453,7 +452,7 @@ export async function runGenerationNodesBatch(
   const queue = nodeIds
     .map((value) => String(value || '').trim())
     .filter((value, index, array) => Boolean(value) && array.indexOf(value) === index)
-  const concurrency = normalizeCanvasBatchConcurrency(options.concurrency)
+  const concurrency = normalizeCanvasBatchConcurrency(options.concurrency) ?? queue.length
   const successes: RunGenerationNodesBatchResult['successes'] = []
   const failures: RunGenerationNodesBatchResult['failures'] = []
   let cursor = 0

@@ -14,10 +14,10 @@ type CanvasSelectionToolbarProps = {
   maxWidth?: number
   eligibleCount: number
   executionGroups: CanvasGenerationExecutionGroup[]
-  concurrency: number
+  concurrency: number | undefined
   /** 选中的节点里已经出图的张数——不足 2 张就没有联系表可拼，钮直接不出现（不给点了才说不行）。 */
   contactSheetCount: number
-  onConcurrencyChange: (value: number) => void
+  onConcurrencyChange: (value: number | undefined) => void
   onGenerate: () => void
   onApplyModel: (input: CanvasApplyModelInput) => void
   onGroupSelectedNodes: () => void
@@ -66,7 +66,7 @@ export function CanvasSelectionToolbar({
         />
       ))}
       <CanvasProductionRunButton scope="selection" count={eligibleCount} onClick={onGenerate} />
-      <CanvasProductionConcurrencySelect value={concurrency} onChange={onConcurrencyChange} />
+      <CanvasProductionConcurrencySelect value={concurrency} count={eligibleCount} onChange={onConcurrencyChange} />
       <span className={cn('w-px h-4 bg-nomi-line')} />
       {contactSheetCount >= 2 ? (
         <WorkbenchIconButton

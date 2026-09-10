@@ -10,6 +10,11 @@ import { notify } from '../../../ui/notificationPolicy'
 import i18n from '../../../i18n'
 
 const cancelRequested = new Set<string>()
+const pendingSubmissions = new Map<string, string>()
+export function trackPendingSubmission(nodeId: string, key?: string): void {
+  if (key) pendingSubmissions.set(nodeId, key)
+  else pendingSubmissions.delete(nodeId)
+}
 
 export class LocalTaskCancelledError extends Error {
   constructor() {
@@ -50,6 +55,8 @@ export function requestTaskCancel(node: {
     useNodeLivePreviewStore.getState().clearPreview(node.id)
     return
   }
+  const submission = pendingSubmissions.get(node.id)
+  if (submission) void getDesktopBridge()?.tasks.cancel?.(`submission:${submission}`).catch(() => report('failed'))
   const promptId = (node.progress?.taskId || node.runs?.[0]?.taskId || '').trim()
   const tasks = getDesktopBridge()?.tasks
   if (promptId.startsWith('local-')) {

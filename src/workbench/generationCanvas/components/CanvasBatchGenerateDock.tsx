@@ -9,8 +9,8 @@ import { CanvasProductionConcurrencySelect, CanvasProductionRunButton } from './
 export function CanvasBatchGenerateDock(props: {
   eligibleIds: readonly string[]
   executionGroups: readonly CanvasGenerationExecutionGroup[]
-  concurrency: number
-  setConcurrency: (value: number) => void
+  concurrency: number | undefined
+  setConcurrency: (value: number | undefined) => void
   generate: () => void
   applyModel: (input: CanvasApplyModelInput) => void
   onDismiss: () => void
@@ -42,7 +42,7 @@ export function CanvasBatchGenerateDock(props: {
         />
       ))}
       <CanvasProductionRunButton scope="all" count={eligibleCount} onClick={props.generate} />
-      <CanvasProductionConcurrencySelect value={props.concurrency} onChange={props.setConcurrency} />
+      <CanvasProductionConcurrencySelect value={props.concurrency} count={eligibleCount} onChange={props.setConcurrency} />
       <span className={cn('w-px h-4 bg-nomi-line')} aria-hidden="true" />
       <WorkbenchIconButton
         size="sm"

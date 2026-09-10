@@ -1,5 +1,4 @@
 import { toast } from '../../../ui/toast'
-import { DEFAULT_CANVAS_BATCH_CONCURRENCY } from '../components/canvasProductionScope'
 import type { SpendQuote } from '../../../../electron/shared/contracts/spendQuote'
 import { isComfyuiVendorKey } from '../model/comfyuiVendor'
 import { create } from 'zustand'
@@ -38,8 +37,8 @@ export function generationCostContextForNodes(nodes: readonly ({ meta?: Record<s
   const vendorKeys = new Set(contexts.map((context) => context.vendorKey).filter(Boolean))
   const modelKeys = new Set(contexts.map((context) => context.modelKey).filter(Boolean))
   return vendorKeys.size === 1 && modelKeys.size === 1
-    ? { concurrency: DEFAULT_CANVAS_BATCH_CONCURRENCY, vendorKey: [...vendorKeys][0], modelKey: [...modelKeys][0], projectId: contexts.find((context) => context.projectId)?.projectId }
-    : { concurrency: DEFAULT_CANVAS_BATCH_CONCURRENCY }
+    ? { vendorKey: [...vendorKeys][0], modelKey: [...modelKeys][0], projectId: contexts.find((context) => context.projectId)?.projectId }
+    : {}
 }
 
 export type HostingDisclosure = {
@@ -269,7 +268,7 @@ function historicalEta(context: GenerationCostContext | undefined, kind: Generat
 }
 
 function etaMinutes(count: number, kind: GenerationCostKind, context?: GenerationCostContext): string {
-  const concurrency = Math.max(1, context?.concurrency ?? 1)
+  const concurrency = Math.max(1, context?.concurrency ?? count)
   const batches = (context?.waveSizes ?? [count]).reduce((sum, size) => sum + Math.ceil(size / concurrency), 0)
   const sample = historicalEta(context, kind)
   const [lowSeconds, highSeconds] = sample

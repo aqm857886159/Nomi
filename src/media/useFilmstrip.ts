@@ -7,7 +7,7 @@ import { parseNomiLocalAssetUrl } from './nomiLocalAssetUrl'
  * 视频胶片条（16 帧横向拼图）懒加载，跨面共享的媒体基建。
  * 用处：时间轴 clip 全条真帧；素材库视频卡取第一格当封面（同一份缓存，不重复抽）。
  * 同源共享一份（key=projectId::url），失败落 failed 由调用方回退占位——绝不冒充。
- * 并发闸 2：几十个视频同屏时不并发拉起几十个 ffmpeg。
+ * 并发按浏览器报告的逻辑处理器数派生，避免同屏视频无限启动 ffmpeg。
  * 产物落项目缓存区（.nomi/cache/），不进素材库（见 electron/assets/projectCacheFile.ts）。
  */
 export type FilmstripEntry =
@@ -19,7 +19,7 @@ const cache = new Map<string, FilmstripEntry>()
 const listeners = new Set<() => void>()
 const queue: Array<() => void> = []
 let running = 0
-const MAX_CONCURRENT = 2
+const MAX_CONCURRENT = navigator.hardwareConcurrency
 
 function notify(): void {
   for (const listener of listeners) listener()
