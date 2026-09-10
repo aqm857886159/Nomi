@@ -1,0 +1,80 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-09-poll-horizon-wall-clock",
+  "problem_type": "Single-shot observation horizon ignores poll HTTP round-trip time",
+  "symptom": "The nominal pollHorizonMs (default 300s) only accumulates sleep time; each poll's HTTP round-trip (which can hang up to the vendor timeout) is free, so the real observation window can exceed the horizon substantially.",
+  "direct_cause": "elapsedMs was incremented by waitMs after each sleep, never accounting for the time spent inside deps.submission.poll.",
+  "class_root": "A wall-clock budget must be measured against the clock, not reconstructed from the delays the loop itself chose.",
+  "affected_population": [
+    "Headless single-shot generation observation with slow providers"
+  ],
+  "scope_paths": [
+    "electron/productionRun/singleShotGenerationObserver.ts"
+  ],
+  "entry_points": [
+    "observeSingleShotGeneration main loop"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Internal observer loop; no external format change.",
+  "invariants": [
+    "The observation horizon bounds wall-clock time from the first poll, including poll round-trips and sleeps.",
+    "Sleep backoff cadence is unchanged; only the budget accounting switched to wall clock."
+  ],
+  "generality_proof": "Both the horizon check and the remaining-wait computation read the same wall-clock elapsed function, so every loop exit path honors the same budget.",
+  "shared_boundaries": [
+    {
+      "path": "electron/productionRun/singleShotGenerationObserver.ts",
+      "symbol": "observeSingleShotGeneration",
+      "responsibility": "Bound the observation window by wall clock via an injectable now()."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/productionRun/multiShotBatchScheduler.ts",
+      "entry_point": "batch scheduler poll loop (sleptMs accounting)",
+      "disposition": "enforced",
+      "evidence": "Its loop re-polls on each scheduler tick with its own tick budget; its sleptMs is a within-tick cadence bound, and horizon across ticks is driven by wall-clock re-entry, not by accumulation across awaits."
+    },
+    {
+      "path": "electron/capabilityCore/core.ts",
+      "entry_point": "headless poll loops",
+      "disposition": "enforced",
+      "evidence": "Those loops already compare Date.now() - startedAt against timeoutMs (wall clock), matching the invariant this fix restores here."
+    }
+  ],
+  "recurrence": {
+    "classification": "one_off",
+    "reason": "Only this observer reconstructed its budget from accumulated sleep times; the sibling loops already use wall clock.",
+    "same_class_scan": [
+      "Checked capabilityCore core.ts loops: wall-clock based.",
+      "Checked multiShotBatchScheduler: per-tick cadence bound with wall-clock re-entry."
+    ]
+  },
+  "regression_tests": [
+    "electron/productionRun/singleShotGenerationObserver.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/productionRun/singleShotGenerationObserver.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "No legacy path removed; accounting switched from sleep accumulation to wall clock."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency change.",
+    "exit_criteria": []
+  },
+  "migration": "No persistence change.",
+  "residual_risks": [
+    "Injectable tests that do not pass now() use real Date.now; horizon tests must inject now or use terminal actions."
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/productionRun/singleShotGenerationObserver.ts",
+    "tests": [
+      "electron/productionRun/singleShotGenerationObserver.test.ts"
+    ],
+    "note": "The observer owns its own budget; the regression pins poll round-trips consuming the horizon."
+  }
+}

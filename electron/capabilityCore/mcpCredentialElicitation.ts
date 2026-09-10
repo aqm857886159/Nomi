@@ -29,6 +29,13 @@ const DEFAULT_WAIT_MS = 5 * 60 * 1000
 
 const L = (locale: ResultLocale, zh: string, en: string): string => (locale === 'en' ? en : zh)
 
+// 降级成「人工填 key」时，模型需要被明确告知**它这一步该做的是等**。不说清楚，它就会
+// 把「没成功」当成「再试一次」——2026-09-10 实测里同一个循环在花费确认那一关烧掉了三次白点。
+const WAIT_HINT = {
+  zh: '在人保存之前不要重复调用 open_credentials；要确认有没有存好，用 nomi_read（target=integration）看 credentialStatus 是不是 ready。',
+  en: ' Do not call open_credentials again while waiting; check nomi_read (target=integration) for credentialStatus "ready" instead.',
+}
+
 const COPY = {
   ask: (locale: ResultLocale, name: string) => L(
     locale,
@@ -43,11 +50,11 @@ const COPY = {
   manual: (locale: ResultLocale, name: string, opened: boolean) => L(
     locale,
     opened
-      ? `你的 AI 客户端不支持 MCP 的 URL 模式 elicitation。Nomi 窗口已经打开在接入「${name}」的页面，粘上 key 保存后让我继续。`
-      : `Nomi 没在运行。请先打开 Nomi → 设置 → 模型 →「添加一个 AI 模型」，在那里保存「${name}」的 key，然后让我继续。`,
+      ? `你的 AI 客户端不支持 MCP 的 URL 模式 elicitation。Nomi 窗口已经打开在接入「${name}」的页面，粘上 key 保存后让我继续。${WAIT_HINT.zh}`
+      : `Nomi 没在运行。请先打开 Nomi → 设置 → 模型 →「添加一个 AI 模型」，在那里保存「${name}」的 key，然后让我继续。${WAIT_HINT.zh}`,
     opened
-      ? `Your AI client does not support MCP URL-mode elicitation. The Nomi window is open on the "${name}" setup page; paste the key, save it, then ask me to continue.`
-      : `Nomi is not running. Open Nomi → Settings → Models → "Add an AI model", save the key for "${name}" there, then ask me to continue.`,
+      ? `Your AI client does not support MCP URL-mode elicitation. The Nomi window is open on the "${name}" setup page; paste the key, save it, then ask me to continue.${WAIT_HINT.en}`
+      : `Nomi is not running. Open Nomi → Settings → Models → "Add an AI model", save the key for "${name}" there, then ask me to continue.${WAIT_HINT.en}`,
   ),
   // A `decline` is NOT evidence that a human said no. Measured 2026-09-06 against Codex CLI 0.153.4,
   // which declares `elicitation:{form:{},url:{}}` and then answers url-mode requests with
@@ -58,11 +65,11 @@ const COPY = {
   notOpened: (locale: ResultLocale, name: string, opened: boolean) => L(
     locale,
     opened
-      ? `填写页没有在你的 AI 客户端里打开（有些客户端会直接拒掉这类链接，也可能是你取消了）。Nomi 窗口已经打开在接入「${name}」的页面，粘上 key 保存后让我继续。`
-      : `填写页没有打开，且 Nomi 没在运行。请先打开 Nomi → 设置 → 模型 →「添加一个 AI 模型」，在那里保存「${name}」的 key，然后让我继续。`,
+      ? `填写页没有在你的 AI 客户端里打开（有些客户端会直接拒掉这类链接，也可能是你取消了）。Nomi 窗口已经打开在接入「${name}」的页面，粘上 key 保存后让我继续。${WAIT_HINT.zh}`
+      : `填写页没有打开，且 Nomi 没在运行。请先打开 Nomi → 设置 → 模型 →「添加一个 AI 模型」，在那里保存「${name}」的 key，然后让我继续。${WAIT_HINT.zh}`,
     opened
-      ? `The entry page did not open in your AI client (some clients refuse these links outright, or you may have cancelled it). The Nomi window is open on the "${name}" setup page; paste the key, save it, then ask me to continue.`
-      : `The entry page did not open and Nomi is not running. Open Nomi → Settings → Models → "Add an AI model", save the key for "${name}" there, then ask me to continue.`,
+      ? `The entry page did not open in your AI client (some clients refuse these links outright, or you may have cancelled it). The Nomi window is open on the "${name}" setup page; paste the key, save it, then ask me to continue.${WAIT_HINT.en}`
+      : `The entry page did not open and Nomi is not running. Open Nomi → Settings → Models → "Add an AI model", save the key for "${name}" there, then ask me to continue.${WAIT_HINT.en}`,
   ),
 }
 
