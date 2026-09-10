@@ -153,13 +153,20 @@ export function useNodeImageEditing(
   const visualWidth = visualSize.width
   const nodeId = node.id
   const nodeResult = node.result
-  const nodeHistory = node.history
   const nodeMeta = node.meta
   const nodeStatus = node.status
   const nodeTitle = node.title
   const nodeCategoryId = node.categoryId
   const nodePositionX = node.position.x
   const nodePositionY = node.position.y
+
+  // 编辑操作跨多个 await（解码/落盘/抠图 CDN），期间节点可能被新一轮生成写入——
+  // 写回前必须重读 store 里的最新 result/history/meta；渲染期闭包快照（nodeResult/
+  // nodeHistory/nodeMeta）只可用于发起前的同步读，await 后整体写回会覆盖丢新结果/历史。
+  const latestNodeSnapshot = React.useCallback(() => {
+    const latest = useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === nodeId)
+    return { result: latest?.result, history: latest?.history, meta: latest?.meta }
+  }, [nodeId])
 
   // 切图（N 格）：每切好一格就**当场落一个节点**在画布上，一张接一张冒出来（用户拍板 2026-08-20）——
   // 进度就是画面本身，不用另加进度条；切完把这批瓦片编成一组，整组能一起拖走。
@@ -330,17 +337,18 @@ export function useNodeImageEditing(
         }
         const preferredWidth = clampNumber(visualWidth, MIN_NODE_WIDTH, MAX_NODE_WIDTH)
         const newSize = imageGridTileNodeSize(cropped.width, cropped.height, preferredWidth)
+        const latest = latestNodeSnapshot()
         updateNode(nodeId, {
           result,
-          history: mergeNodeImageHistory(nodeResult, nodeHistory, [result]),
+          history: mergeNodeImageHistory(latest.result, latest.history, [result]),
           status: 'success',
           error: undefined,
           progress: undefined,
-          ...(newSize && nodeMeta?.userResized !== true
+          ...(newSize && latest.meta?.userResized !== true
             ? { size: { width: newSize.width, height: newSize.height } }
             : {}),
           meta: {
-            ...(nodeMeta || {}),
+            ...(latest.meta || {}),
             source: 'image-crop',
             localOnly: stored.localOnly,
             ...(stored.localOnly ? {} : { uploadStatus: 'uploaded' as const }),
@@ -359,7 +367,7 @@ export function useNodeImageEditing(
         setImageOpBusy(false)
       }
     },
-    [cancelEdit, editGrid, imageOpBusy, nodeHistory, nodeId, nodeMeta, nodeResult, nodeStatus, splitIntoTiles, updateNode, visualWidth],
+    [cancelEdit, editGrid, imageOpBusy, latestNodeSnapshot, nodeId, nodeResult, nodeStatus, splitIntoTiles, updateNode, visualWidth],
   )
 
   // 旋转 / 翻转：写回当前节点历史堆叠，并切换为当前主图。
@@ -387,16 +395,17 @@ export function useNodeImageEditing(
           url: stored.url,
           createdAt,
         }
+        const latest = latestNodeSnapshot()
         updateNode(nodeId, {
           result,
-          history: mergeNodeImageHistory(nodeResult, nodeHistory, [result]),
+          history: mergeNodeImageHistory(latest.result, latest.history, [result]),
           status: 'success',
           error: undefined,
-          ...(newSize && nodeMeta?.userResized !== true
+          ...(newSize && latest.meta?.userResized !== true
             ? { size: { width: newSize.width, height: newSize.height } }
             : {}),
           meta: {
-            ...(nodeMeta || {}),
+            ...(latest.meta || {}),
             source: `image-${op}`,
             localOnly: stored.localOnly,
             ...(stored.localOnly ? {} : { uploadStatus: 'uploaded' as const }),
@@ -413,7 +422,7 @@ export function useNodeImageEditing(
         setImageOpBusy(false)
       }
     },
-    [imageOpBusy, nodeHistory, nodeId, nodeMeta, nodeResult, updateNode, visualWidth],
+    [imageOpBusy, latestNodeSnapshot, nodeId, nodeResult, updateNode, visualWidth],
   )
 
   const handleRemoveBackground = React.useCallback(async () => {
@@ -462,14 +471,15 @@ export function useNodeImageEditing(
         url: stored.url,
         createdAt,
       }
+      const latest = latestNodeSnapshot()
       updateNode(nodeId, {
         result,
-        history: mergeNodeImageHistory(nodeResult, nodeHistory, [result]),
+        history: mergeNodeImageHistory(latest.result, latest.history, [result]),
         status: 'success',
         error: undefined,
         progress: undefined,
         meta: {
-          ...(nodeMeta || {}),
+          ...(latest.meta || {}),
           removeBackgroundSource: imageUrl,
           localOnly: stored.localOnly,
           uploadStatus: stored.localOnly ? undefined : 'uploaded',
@@ -486,7 +496,7 @@ export function useNodeImageEditing(
     } finally {
       setImageOpBusy(false)
     }
-  }, [imageOpBusy, nodeHistory, nodeId, nodeMeta, nodeResult, nodeStatus, updateNode])
+  }, [imageOpBusy, latestNodeSnapshot, nodeId, nodeMeta, nodeResult, nodeStatus, updateNode])
 
   return {
     editGrid,
