@@ -511,11 +511,11 @@ describe('apimart Seedance 首尾帧 — image_with_roles（combineSlotsInto 落
 describe('APIMart Grok Imagine 1.5 — 文生/图生档案投影', () => {
   const GROK = getArchetypeById('grok-imagine-1.5-video')!
 
-  it('文生模式提供比例/清晰度/6–30 秒；图生模式隐藏比例并限制最多 7 图', () => {
+  it('文生模式提供比例/清晰度/6–15 秒；图生模式隐藏比例并限制最多 7 图', () => {
     const t2v = GROK.modes.find((m) => m.id === 't2v')!
     const i2v = GROK.modes.find((m) => m.id === 'i2v')!
     expect(t2v.params.map((p) => p.key)).toEqual(['size', 'quality', 'duration'])
-    expect(t2v.params.find((p) => p.key === 'duration')).toMatchObject({ min: 6, max: 30, defaultValue: 6 })
+    expect(t2v.params.find((p) => p.key === 'duration')).toMatchObject({ min: 6, max: 15, defaultValue: 6 })
     expect(i2v.params.map((p) => p.key)).toEqual(['quality', 'duration'])
     expect(i2v.slots[0]).toMatchObject({ kind: 'image_ref', inputKey: 'image_urls', min: 1, max: 7 })
   })

@@ -20,13 +20,20 @@ describe('generation spend ETA copy', () => {
     expect(parallel).toContain('5–20')
     expect(dependent).toContain('10–40')
   })
-  it('uses historical P50/P90 as an interval', () => {
+  it('uses historical P50/P90 with an explicit serial preference', () => {
     const message = describeGenerationCost(2, 'video', {
-      vendorKey: 'relay', modelKey: 'video-model',
+      vendorKey: 'relay', modelKey: 'video-model', concurrency: 1,
       etaStats: [{ key: 'relay|video-model|video', vendorKey: 'relay', modelKey: 'video-model', kind: 'video', sampleCount: 4, p50Seconds: 480, p90Seconds: 1020 }],
     })
     expect(message).toContain('16–34')
     expect(message).not.toContain('预计约 1 分钟')
+  })
+
+  it('auto admits the whole independent wave without an invented serial ETA', () => {
+    const one = describeGenerationCost(1, 'video', { etaStats: [] })
+    const many = describeGenerationCost(8, 'video', { etaStats: [] })
+    expect(one).toContain('5–20')
+    expect(many).toContain('5–20')
   })
 
   it('uses a cold-start interval when history is unavailable', () => {

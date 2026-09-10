@@ -73,6 +73,8 @@ type Session = {
 };
 
 const sessions = new Map<string, Session>();
+// Reserve the same project during preparation, before a session can exist.
+const preparingProjects = new Set<string>();
 
 /** 渲染层调 prepare 时用来推「下载中」进度的回调（由 IPC 层注入，主进程不认识窗口）。 */
 export type VideoDepthPrepareEmitter = (event: {
@@ -149,11 +151,28 @@ export async function prepareVideoDepthJob(
   payload: VideoDepthPreparePayload,
   emit: VideoDepthPrepareEmitter,
 ): Promise<VideoDepthPrepareResult> {
+  if (preparingProjects.has(payload.projectId)) {
+    throw new VideoDepthJobError("already-running", `project ${payload.projectId} is preparing a depth job`, false);
+  }
   for (const existing of sessions.values()) {
     if (existing.projectId === payload.projectId) {
       throw new VideoDepthJobError("already-running", `project ${payload.projectId} already has job ${existing.jobId}`, false);
     }
   }
+
+  preparingProjects.add(payload.projectId);
+  try {
+    return await prepareReservedVideoDepthJob(payload, emit);
+  } finally {
+    // Success has already installed the session; failures leave the project reusable.
+    preparingProjects.delete(payload.projectId);
+  }
+}
+
+async function prepareReservedVideoDepthJob(
+  payload: VideoDepthPreparePayload,
+  emit: VideoDepthPrepareEmitter,
+): Promise<VideoDepthPrepareResult> {
 
   const ffmpegPath = resolveFfmpegPath();
   const ffprobePath = resolveFfprobePath();

@@ -1,3 +1,5 @@
+import { availableParallelism } from 'node:os';
+import { ProviderTrafficScheduler } from '../vendor/providerTrafficScheduler';
 // 视频拆解编排：一条本地视频 → 一张结构化分镜表。
 //
 // 三条上游合流（其中两条是**现成的**，只有取音轨是本次新增）：
@@ -85,7 +87,6 @@ export class DeconstructError extends Error {
 }
 
 export const DECONSTRUCT_FRAMES_PER_SHOT = 3;
-export const DECONSTRUCT_CONCURRENCY = 4;
 export const DECONSTRUCT_MAX_TOKENS = 4000;
 
 /**
@@ -231,16 +232,10 @@ export async function deconstructVideo(payload: DeconstructVideoPayload, onPhase
   if (!brain) throw new DeconstructError("还没有能读图的文本模型。去「接入模型」启用一个（如 Gemini 3.5 Flash）。");
 
   onPhase?.(1);
-  const analyzed = await mapWithConcurrency(payload.shotIndexes ? boundaries.filter(shot => payload.shotIndexes!.includes(shot.index)) : boundaries, payload.concurrency ?? DECONSTRUCT_CONCURRENCY, async (shot) => {
-    const seconds = sampleSecondsForShot(shot, framesPerShot);
-    let frameUrls: string[];
-    try {
-      frameUrls = await Promise.all(
-        seconds.map(async (s) => (await extractVideoFrameToAsset({ videoUrl, which: s, projectId })).url),
-      );
-    } catch {
-      return { shot, frameUrls: [] as string[], parsed: null as Record<string, unknown> | null };
-    }
+  const preferences = new ProviderTrafficScheduler();
+  const preference = typeof payload.concurrency === 'number' && Number.isFinite(payload.concurrency) && payload.concurrency >= 1 ? Math.floor(payload.concurrency) : undefined;
+  const analyze = async (shot: ShotBoundary, frameUrls: string[]) => {
+    const lease = await preferences.acquire({ scope: 'user-preference', inflight: preference });
     try {
       const result = await runTask({
         vendor: brain.vendor,
@@ -260,7 +255,21 @@ export async function deconstructVideo(payload: DeconstructVideoPayload, onPhase
     } catch {
       return { shot, frameUrls, parsed: null };
     }
+    finally { lease.release(); }
+  }
+  // CPU workers release after frame extraction. Slow model responses must not hold CPU slots.
+  const prepared = await mapWithConcurrency(payload.shotIndexes ? boundaries.filter(shot => payload.shotIndexes!.includes(shot.index)) : boundaries, availableParallelism(), async (shot) => {
+    const frameUrls: string[] = [];
+    try {
+      for (const second of sampleSecondsForShot(shot, framesPerShot)) {
+        frameUrls.push((await extractVideoFrameToAsset({ videoUrl, which: second, projectId })).url);
+      }
+      return { analysis: analyze(shot, frameUrls) };
+    } catch {
+      return { analysis: Promise.resolve({ shot, frameUrls: [] as string[], parsed: null as Record<string, unknown> | null }) };
+    }
   });
+  const analyzed = await Promise.all(prepared.map((entry) => entry.analysis));
 
   onPhase?.(2);
   const { hasAudio, dialogues } = await audioPromise;

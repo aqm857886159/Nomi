@@ -1,0 +1,20 @@
+{
+  "command": "python3 scripts/with-gates-lock.py -- pnpm run gates",
+  "exit_code": 0,
+  "source_head": "687047e0bebac833e8195009cef980617bbe4b39",
+  "log_sha256": "971f5c6c1bf3d56eceaf3c634d1f6e9e79652bae990970147249d8c2a24b1415",
+  "contracts": {
+    "total": 77,
+    "passed": 74,
+    "blocking_failures": 0,
+    "advisory_failures": 3
+  },
+  "vitest": {
+    "files_passed": 1328,
+    "files_skipped": 1,
+    "tests_passed": 12124,
+    "tests_skipped": 2
+  },
+  "remaining_chain": "agent-worktree-janitor, agent-runtime, test:stats, Vite and Electron build passed",
+  "post_build_changes": "Only verification documentation and evidence receipts; production sources unchanged."
+}

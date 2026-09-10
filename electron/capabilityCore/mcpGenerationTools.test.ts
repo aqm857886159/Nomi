@@ -793,9 +793,9 @@ describe("semantic MCP generation tools", () => {
       expect(eta.waitSeconds).toBeGreaterThan(40);
     });
 
-    it("video kind scales linearly with shotCount", () => {
+    it("explicit serial preference scales linearly with shotCount", () => {
       const single = coldstartEtaForGate(["video"], 1);
-      const four = coldstartEtaForGate(["video"], 4);
+      const four = coldstartEtaForGate(["video"], 4, 1);
       expect(four.waitSeconds).toBe(single.waitSeconds * 4);
       expect(four.waitSecondsHigh).toBe(single.waitSecondsHigh * 4);
     });
