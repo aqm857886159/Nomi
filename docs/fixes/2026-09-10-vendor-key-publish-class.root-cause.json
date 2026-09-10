@@ -1,0 +1,191 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-10-vendor-key-publish-class",
+  "problem_type": "内置供应商填 key 后整家被下架——发布判据写成 vendor 名白名单、验证判据写成单一 HTTP 路由假设",
+  "symptom": "用户在设置里给内置供应商粘 API key 后，该供应商的模型从模型选择器与 Agent 可用清单里全部消失，重启也不回来；apimart 之外的 17 家内置供应商全部如此。火山豆包语音更严重：App ID:Access Token 根本存不进去（validateCandidateCredential 第一行抛 credential.validationUnavailable）。Replicate 因此「元素拆解」永久不可用。用户原话：「apimart 写入 key 没有和以前一样一次性打开所有模型」，追问确认其它内置供应商同样。",
+  "direct_cause": "渲染层唯一凭据入口 sanitizeRendererVendorApiKeyMutation 恒发 enabled:false；validateCandidateCredential 对非 apimart 一律拿 GET /v1/models 当 key 判据，而 kie/runninghub/meshy/fal/runway/火山语音 上游没有这条路由 → 返回 pending；applyApiKeyUpsert 见到 !enabled 或 verificationPending 即调 depublishVendorForDisabledCredential 把整家 vendor.enabled 翻 false；modelCatalogListing/usableVendorModel 按 vendor.enabled 过滤，该家模型全部消失；seedBuiltins 的 seedVendor「存在即跳过」，重启不自愈。PR #720 的修复 electron/catalog/directKeyCredential.ts 只覆盖 apimart 一家。",
+  "class_root": "「这家能不能凭 key 发布」与「这家的 key 该怎么验」两条判据都没有由**种子自己的声明**派生：发布判据是硬编码的 vendor 名（seedBuiltins.hasBuiltinCuratedExecution 第一行 `if (vendorKey !== APIMART) return false`）+ 只对 credentialMode==='direct-key' 生效的 promote；验证判据是「所有人都有 OpenAI 兼容的 /v1/models 且它对合法 key 会放行」这个单一路由假设。两条都按名字/路由分派，于是每新接一家供应商都必须记得同时改三处（播种两行 + 发布白名单），漏了就以「填了 key 反而全消失」的形态复发。更深一层：`/v1/models` 可达性根本不是 key 有效性的判据——我们自己的认证账本里两个方向的反例都在（apimart 合法 key 恒 401 = 假阴性；minimax /v1/models 回 200 但最小生成 canary 跑不通 = 假阳性）。",
+  "affected_population": [
+    "18 家内置供应商里 17 家（kie / agnes / modelscope / volcengine / volcengine-speech / runninghub / replicate / fal / runway / minimax / elevenlabs / meshy 等）的所有用户：只要在设置里粘过 key",
+    "火山豆包语音（volcengine-speech）：authType:'none' 的三头鉴权家，凭据完全存不进去（P0）",
+    "Replicate：无 curated mapping、执行契约住在主进程专用路径，「元素拆解」功能永久不可用",
+    "存量装机：de-publish 落盘后 seedVendor 存在即跳过，升级与重启都不自愈"
+  ],
+  "scope_paths": [
+    "electron/catalog/builtinVendorSeeds.ts",
+    "electron/catalog/seedBuiltins.ts",
+    "electron/catalog/directKeyCredential.ts",
+    "electron/catalog/validateCandidateCredential.ts",
+    "electron/catalog/rendererCatalogMutation.ts",
+    "electron/catalog/catalogStore.ts",
+    "electron/catalog/volcengineVendor.ts",
+    "electron/catalog/replicate.ts",
+    "electron/catalog/credentialPublication.ts"
+  ],
+  "entry_points": [
+    "设置卡片保存 key → IPC → upsertRendererCatalogVendorApiKey（渲染层唯一凭据入口）",
+    "执行前的待验证复检 revalidatePendingCredential（runtime.ts / textTaskRunner.ts 各一处调用）",
+    "整包导入与主进程 mutateCatalog 事务 → applyApiKeyUpsert（凭据写入的最内层汇合点）",
+    "媒体 provider bootstrap 与 apimart 专用 provider 的 direct-key 契约断言"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://docs.aifast.hk/en/guides/openai-compatible-api",
+      "checked_at": "2026-09-10",
+      "purpose": "OpenAI 兼容生态的 key 验收共识：/v1/models 之外必须再发一次最小非流式请求，两者都过才算通——说明单靠列表端点不足以判 key。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://wpnews.pro/news/openai-compatible-base-url-troubleshooting-7-checks-before-you-blame-the-sdk",
+      "checked_at": "2026-09-10",
+      "purpose": "401 排查顺序与「一发最小请求」作为端到端判据的生态做法，佐证按供应商分派验证策略而非统一打 /v1/models。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://docs.apimart.ai/en/api-reference/texts/general/chat-completions-nostream.md",
+      "checked_at": "2026-09-08",
+      "purpose": "apimart 官方 chat 契约，种子 livenessProbe 的来源（零成本 max_tokens:1 探测的成功判据 choices.0）。"
+    }
+  ],
+  "invariants": [
+    "内置供应商的发布判据只由「代码拥有的执行契约是否完好」派生（curated 登记表里的模型+mapping，或种子声明的主进程专用路径），永不由 vendor 名的白名单派生。",
+    "内置供应商的 key 验证判据只由种子声明派生（liveness-probe / model-list / first-use），永不假设某条 HTTP 路由对所有家成立。",
+    "「没有便宜可信的预检」不得被翻译成「不许用」：first-use 这一类的凭据存下即发布，也不挂 verificationPending（那个标记在本仓的语义是「之后还会再验」，对这一类做不到）；真正停用的凭据仍然照常 de-publish。",
+    "curated 契约清单只有一份（CURATED_VENDOR_CONTRACTS）：播种与发布判据共用它，加一家只加一行。",
+    "没有内置种子的行（自定义供应商 / 用户自建中转 / 认证晋升候选）发布策略不变，仍由认证晋升决定。"
+  ],
+  "generality_proof": "两条判据都被下沉成「问种子」而不是「问名字」。发布侧：hasBuiltinCuratedExecution 现在遍历 CURATED_VENDOR_CONTRACTS——这张表同时是 applyBuiltinSeeds 播种模型与 mapping 的唯一来源，所以「能被播种」与「能被发布」在构造上不可能再分叉；publishBuiltinCuratedVendor 的守卫从 isBuiltinDirectKeyVendor 换成 builtinVendorSeed 存在性，三条 fail-closed 守卫（scope 匹配 / 无认证适配器接管 / 执行契约完好）一条不减。验证侧：credentialValidationStrategy 是唯一分派点，validateCandidateCredential 与 revalidatePendingCredential 都从它取策略，没有第二处按 vendor 名分支。所有凭据写入方（渲染层 IPC、整包导入、主进程 mutateCatalog 事务）都在 applyApiKeyUpsert 这一个最内层汇合点上继承「凭据停用 ⇒ 退出发布投影」，本次只把连坐的 verificationPending 条件摘掉，汇合点本身不动。装配期三条不变量测试对**真播种**的 catalog 逐家断言，因此「将来新接一家忘了改发布判据」不再需要人记得——加一家而漏登记，测试当场红。",
+  "shared_boundaries": [
+    {
+      "path": "electron/catalog/seedBuiltins.ts",
+      "symbol": "CURATED_VENDOR_CONTRACTS",
+      "responsibility": "curated 执行契约的单一登记表：播种（reconcileModels/reconcileMappings 两条循环）与发布判据共用同一份，消灭了此前两份手抄清单 + 一份 vendor 白名单的三方漂移。"
+    },
+    {
+      "path": "electron/catalog/seedBuiltins.ts",
+      "symbol": "hasBuiltinCuratedExecution",
+      "responsibility": "「这家在当前 catalog 里是否仍指向代码拥有的执行契约」的唯一判据，登记表驱动 + 认种子声明的主进程专用路径；契约漂移、被认证适配器接管一律 fail-closed。"
+    },
+    {
+      "path": "electron/catalog/builtinVendorSeeds.ts",
+      "symbol": "credentialValidationStrategy",
+      "responsibility": "「这家的 key 该怎么验」的唯一分派点：种子带 livenessProbe → 零成本探测；种子声明 model-list → OpenAI 兼容列表端点；其余内置家 → first-use（存 key 即发布 + 待首次使用验证）；无内置种子 → undefined，调用方回落 /v1/models。"
+    },
+    {
+      "path": "electron/catalog/directKeyCredential.ts",
+      "symbol": "publishBuiltinCuratedVendor",
+      "responsibility": "凭据落盘后把内置家重新置为已发布的唯一动作，守卫为 scope 匹配 / 无认证占用 / 执行契约完好三条，缺一不发布。"
+    },
+    {
+      "path": "electron/catalog/catalogStore.ts",
+      "symbol": "applyApiKeyUpsert",
+      "responsibility": "所有凭据写入唯一汇合的最内层：「凭据停用 ⇒ vendor 退出发布投影」原子生效并被全部写入方继承；触发条件收回停用本义，不再连坐「待首次使用验证」。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/catalog/rendererCatalogMutation.ts",
+      "entry_point": "upsertRendererCatalogVendorApiKey",
+      "disposition": "enforced",
+      "evidence": "设置卡片保存 key 的唯一 IPC 路径。改为按 credentialValidationStrategy 决定 publishNow，并调用 publishBuiltinCuratedVendor；渲染层仍恒发 enabled:false（manualCertificationBoundary.test.ts:17 原样通过），启用决策全部留在主进程。"
+    },
+    {
+      "path": "electron/catalog/validateCandidateCredential.ts",
+      "entry_point": "revalidatePendingCredential",
+      "disposition": "enforced",
+      "evidence": "runtime.ts:316 与 textTaskRunner.ts:67 在每次执行前调用它。first-use 策略直接早退（没有零成本预检可跑，唯一判据就是这次真实调用），否则会把「没法便宜地预检」翻译成「不许用」；探测型策略的转正路径改调 publishBuiltinCuratedVendor。"
+    },
+    {
+      "path": "electron/catalog/catalogStore.ts",
+      "entry_point": "importModelCatalogPackage",
+      "disposition": "enforced",
+      "evidence": "整包导入经 applyApiKeyUpsert 继承同一条不变量；credentialPublication.test.ts 的导入用例写 enabled:false，行为逐字不变（本次只摘掉 verificationPending 的连坐条件）。"
+    },
+    {
+      "path": "electron/capabilityCore/generationProviderBootstrap.ts",
+      "entry_point": "createGenerationProviderBootstrap",
+      "disposition": "not-affected",
+      "evidence": "该文件三处对 hasBuiltinCuratedExecution / builtinVendorScopeMatches 的调用要么写死 'apimart' 字面量（:102/:129），要么被 isBuiltinDirectKeyVendor 早退保护（hasSafeDirectKeyScope :63）。判据泛化后它问的仍是 apimart 同一个问题，答案不变；327 个 catalog/capabilityCore 测试文件全绿佐证。"
+    },
+    {
+      "path": "electron/catalog/rendererCatalogMutation.ts",
+      "entry_point": "sanitizeRendererVendorApiKeyMutation",
+      "disposition": "not-affected",
+      "evidence": "渲染层恒发 enabled:false 这条边界刻意保留不动——它守的是「渲染层不得自行宣布已接入」，与本类无关且方向相反；本次的发布决策全部发生在主进程验证之后。"
+    },
+    {
+      "path": "src/ui/onboarding/CustomVendorManage.tsx",
+      "entry_point": "自定义/中转供应商保存凭据",
+      "disposition": "not-affected",
+      "evidence": "这些行没有内置种子，credentialValidationStrategy 返回 undefined → 仍走 /v1/models + 认证晋升（对用户自己填地址的 OpenAI 兼容端点，列表端点确实是成立的判据）。新增用例「自定义/中转供应商（无内置种子）发布策略不变」钉死这一点。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "同一机制已经在 18 家内置供应商里复发了 17 次，而且每新接一家就再复发一次：接入一家的自然动作是「加播种两行」，没有任何东西提醒你还要改第三处发布白名单。验证侧同理——每家都被默认套上 /v1/models 假设，上游没这路由就静默 pending 并连坐下架。PR #720 已经为 apimart 修过一次同一条链，那次的修法（按 vendor 名加分支）恰恰是让它对另外 17 家继续成立的原因。",
+    "same_class_scan": [
+      "grep hasBuiltinCuratedExecution / isBuiltinDirectKeyVendor / builtinVendorScopeMatches / promoteDirectKeyVendor 全仓：命中 electron/catalog/{directKeyCredential,rendererCatalogMutation,validateCandidateCredential,seedBuiltins}.ts 与 electron/capabilityCore/{generationProviderBootstrap,apimartGenerationProvider}.ts，逐处判定见 same_class_entry_points。",
+      "对一份真播种的 catalog 逐家跑 hasBuiltinCuratedExecution：修复前 14 家返回 false（kie/agnes/modelscope/volcengine/volcengine-speech/dreamina/runninghub/fal/runway/comfyui-local/codex-local/minimax/elevenlabs/meshy），只有 apimart 返回 true——机器化的复发证据，见 builtinVendorSeeds.invariants.test.ts 不变量 (b) 的红。",
+      "对同一份 catalog 逐家跑「填 key → 凭据落盘 + 该家发布」：修复前 13 家全部失败（11 家凭据存进去了但整家未发布，apimart 与 volcengine-speech 直接抛错），见不变量 (c) 的红。",
+      "git log -S 溯源 de-publish 边界：529188045(2026-08-28) 引入 verificationPending + 渲染层恒 enabled:false；1aaf466b8(2026-09-01, PR #304) 引入 key 写入即 de-publish；ac2a23983(2026-09-01, PR #391) 下沉到 applyApiKeyUpsert，正文自述「当前无活 bug（显式写入点一律 enabled:true）」——说明这条不变量原本是兜底，后来被渲染层恒 false 变成主路。",
+      "读 docs/integration-certification/model-certification-ledger.json 全部 66 条：43 条 live.blocker 逐字为「not selected for live canary under the minimum-spend budget」，证明 curated 模型进种子时是验证过的，blocked 只表示我们没花钱跑付费 canary。",
+      "先例 docs/fixes/2026-09-07-relay-catalog-listing-is-not-liveness.root-cause.json 已判「列表 ≠ 可用」，但只落在雷达脚本，没落到凭据发布路径——本次补的正是这个缺口。"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/catalog/seedBuiltins.ts",
+    "invariant": "内置供应商的发布只由 CURATED_VENDOR_CONTRACTS 登记表（或种子声明的 bespokeExecution）派生，验证只由 credentialValidationStrategy 派生；两处都不接受 vendor 名白名单，也不假设某条 HTTP 路由对所有家成立。",
+    "failure_mode": "契约漂移（mapping 被改/删、被认证适配器接管、baseUrl 被改指别的 host）时 hasBuiltinCuratedExecution 返回 false、publishBuiltinCuratedVendor 不发布——fail-closed；探测型策略遇到 401/403 抛「密钥无效」并保持不发布。",
+    "exception_policy": "none",
+    "strategy": "把「哪些家有代码拥有的执行契约」从三份互相漂移的清单（播种模型 18 行 + 播种 mapping 18 行 + 发布白名单 1 行）收成一张登记表，播种与发布判据共用；把「怎么验 key」从散落的路由假设收成种子上的一个声明字段。加一家新供应商只需在登记表加一行，两条判据自动跟上；漏了则装配期不变量测试当场红（R28：能在装配期拦的别留给用户）。",
+    "artifacts": [
+      "electron/catalog/seedBuiltins.ts",
+      "electron/catalog/builtinVendorSeeds.ts",
+      "electron/catalog/directKeyCredential.ts",
+      "electron/catalog/validateCandidateCredential.ts",
+      "electron/catalog/rendererCatalogMutation.ts",
+      "electron/catalog/catalogStore.ts",
+      "electron/catalog/credentialPublication.ts"
+    ]
+  },
+  "invariant_owner_layer": {
+    "layer": "electron/catalog/builtinVendorSeeds.ts",
+    "tests": [
+      "electron/catalog/builtinVendorSeeds.invariants.test.ts",
+      "electron/catalog/directKeyCredential.test.ts",
+      "electron/catalog/credentialPublication.test.ts"
+    ],
+    "why": "「一家内置供应商能不能用、怎么验」这条不变量归**种子声明层**管，不归任何一处调用点管。种子是这家的身份档案（host / 鉴权 / 资产吞入 / 认证关系），把「怎么验 key」（keyValidation）与「执行契约住在哪」（bespokeExecution）也放进去，才使得判据能从档案 derive 而不是在调用点手写（P4 档案声明槽、通用系统填）。这一层有三侧真实测试：invariants.test.ts 对真播种的 catalog 逐家断言装配期三条（direct-key 必带探测 / 有契约必可发布 / 填 key 必存得进且发布），directKeyCredential.test.ts 证明探测型那条路（401 判无效、200 判 verified、抖动判 pending、scope 漂移 fail-closed），credentialPublication.test.ts 证明「凭据停用 ⇒ 退出发布投影」仍被所有写入方继承。三侧分开是因为「种子说得对」「探测判得对」「停用连坐得对」可以各自成立又各自失效。"
+  },
+  "regression_tests": [
+    "electron/catalog/builtinVendorSeeds.invariants.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/catalog/builtinVendorSeeds.invariants.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/catalog/seedBuiltins.ts",
+      "electron/catalog/directKeyCredential.ts",
+      "electron/catalog/catalogStore.ts",
+      "electron/catalog/credentialPublication.ts"
+    ],
+    "rationale": "同 commit 删掉的旧行为：① seedBuiltins.ts 里 18 行 reconcileModels + 18 行 reconcileMappings 的两份手抄清单，被 CURATED_VENDOR_CONTRACTS 一张表取代，不留并行版；② hasBuiltinCuratedExecution 的 `if (vendorKey !== APIMART) return false` 硬编码白名单删除；③ promoteDirectKeyVendor（含 isBuiltinDirectKeyVendor 前置）改名为 publishBuiltinCuratedVendor 并删除该前置，旧名不保留、无别名；④ builtinVendorScopeMatches 的 credentialMode==='direct-key' 前置删除；⑤ applyApiKeyUpsert 的 `|| verificationPending` 连坐条件删除（理由随不变量搬进 credentialPublication.ts 的文档注释，catalogStore.ts 保持 800 行硬门岗之内）；⑥ hasBuiltinCuratedExecution 里为「只出文本的家」预留的分支未写成投机路径——现役 curated 家全都至少出一个媒体模型，真出现那么一家由装配期不变量 (b) 当场报红、由那次改动的作者显式决定。没有任何一条旧路径留作 fallback。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "本类完全由应用层判据造成：发布与验证两条规则都是我们自己写死的，没有第三方运行时或版本参与。供应商上游契约本身未变（各家 curated 契约文件的 checkedAt 日期与认证账本不动）。",
+    "exit_criteria": []
+  },
+  "migration": "无数据迁移。已被 de-publish 的存量装机在用户下一次保存该家 key 时自动恢复发布（publishBuiltinCuratedVendor 在同一次写入里翻回 enabled:true）。刻意不做启动期批量重新发布：vendor.enabled 也承载「用户手动停用」的意图，启动期无差别翻开会覆盖用户自己关掉的家（残余风险已在 residual_risks 记录）。落盘 schema 与 catalogVersion 均不变。",
+  "residual_risks": [
+    "已 de-publish 的存量装机不会在升级后自动恢复，需用户重新保存一次该家 key 才翻回来——这是为了不覆盖「用户手动停用某家」的意图而做的取舍；若后续要自愈，需要先把「用户停用」与「系统 de-publish」分成两个可区分的状态（当前 vendor.enabled 一个布尔承载两种意图）。",
+    "first-use 策略把 key 是否有效的判定推迟到首次真实生成：用户在保存时看不到「这个 key 对不对」，只在生成失败时才看到。刻意不挂 verificationPending——那个标记的现有 UI 文案逐字承诺「联网后会自动复验，下次调用前也会先检查一次」，对这一类做不到，挂上去会让 12 家常驻一句假承诺并把接入卡的「N 个可使用」永久换成「未验证」。代价是保存态没有任何「未验证」提示；要补这个提示需要新的 UI 文案与形态（本轮硬约束是不动 UI），已列为后续项。",
+    "本轮只在零额度夹具上证明了「填 key → 发布 → 模型出现在投影」，未用各家真实 key 跑付费 canary（认证账本里 43 条仍是 minimum-spend budget blocked）。真实 key 的端到端验收仍待用户侧走查。",
+    "Replicate 通过 bespokeExecution 发布后，「元素拆解」的前置（vendor.enabled + 凭据）已满足，但该功能的完整闭环（本地图上传 → 多输出解析 → 落画布）本次未真机走查。",
+    "本轮没有为 first-use 这一类设计「保存了但还没验过」的诚实提示（现有 verificationPending 文案不适用，见上）。真实体感如何要等用户走查；若确需提示，应是一条新的 UI 形态而不是复用一个承诺做不到的标记。"
+  ]
+}

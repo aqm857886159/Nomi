@@ -301,3 +301,4 @@
 
 - [左侧栏三组设计成文与 shot_table 实施](2026-09-10-left-sidebar-and-shot-table-node.md)
 - [shot_table 两来源数据契约](2026-09-10-shot-table-contract.md)
+- [内置供应商「填 key 不解锁模型」类根因修复](2026-09-10-vendor-key-publish-class.md) — 发布判据改登记表驱动、验证判据按种子声明分派、装配期三条不变量（🚧 进行中）；先查别人报告在 [../research/2026-09-10-vendor-key-publish-class/prior-art.md](../research/2026-09-10-vendor-key-publish-class/prior-art.md)
