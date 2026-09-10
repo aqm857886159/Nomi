@@ -475,6 +475,8 @@ export async function runGenerationNodesBatch(
           ...(options.batchId ? { batchId: options.batchId } : {}),
         })
         successes.push({ nodeId, result })
+        // 批量重生成也要走回填闸（与单发路径同款）：位置不变、clip 换新产物 URL；无引用时 no-op。
+        useWorkbenchStore.getState().reconcileTimelineForUpdatedNodes(nodeId, result)
         options.onNodeResult?.({ ok: true, nodeId, result })
       } catch (error: unknown) {
         const normalizedError = error instanceof Error ? error : new Error(String(error))
