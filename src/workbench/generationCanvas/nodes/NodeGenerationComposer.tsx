@@ -42,6 +42,7 @@ import { getTextGenMode, type TextGenMode } from '../runner/textActions'
 import {
   GENERATION_VARIANT_COUNTS,
   parseGenerationVariantCount,
+  supportsGenerationVariants,
   type GenerationVariantCount,
 } from './generationVariantCount'
 import { useComposerViewportPlacement } from './useComposerViewportPlacement'
@@ -402,8 +403,10 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize }:
       )}
       {hasPromptPickerButton && effects.recommendations}
       {/* 底栏铺满卡宽（w-full）：生成钮 ml-auto 永远贴右。底栏恒单行——参数已主次分层（最常调的内联、
-          其余收进 InlineParameterBar 的「更多」弹层，方案 B），不会再横排超长/截断/换行（D2 根治）。 */}
-      <div className={cn('flex items-center gap-2 mt-auto pt-1 shrink-0 w-full')}>
+          其余收进 InlineParameterBar 的「更多」弹层，方案 B），不会再横排超长/截断/换行（D2 根治）。
+          2026-09-10 用户复核拍板：单行没有问题，底栏怎么整合另有设计讨论——控件组成、文案、顺序都不动。
+          `data-node-composer-footer` 只是给走查一个锚点，好断言「底栏仍是单行」，不改任何形态。 */}
+      <div data-node-composer-footer className={cn('flex items-center gap-2 mt-auto pt-1 shrink-0 w-full')}>
         {/* 锁从节点卡片移到这里（编辑面板底栏）：卡片预览保持干净，锁定/解锁在选中编辑时就近可达。
             selected 恒为真（composer 只在选中时挂载）→ 始终可见：未锁=描边开锁、已锁=实心锁。 */}
         <NodeLockBadge nodeId={node.id} locked={node.locked} selected />
@@ -420,7 +423,9 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize }:
         {acceptsPrompt && (nodeExecutionKind === 'image' || nodeExecutionKind === 'video') && !node.locked ? (
           <NodePromptOptimizer node={node} isVideo={nodeExecutionKind === 'video'} />
         ) : null}
-        {(nodeExecutionKind === 'image' || nodeExecutionKind === 'video') && !node.locked ? (
+        {/* ×N「一次生成几个」：支不支持从执行类派生（generationVariantCount.ts 唯一 owner），
+            不在这里按 kind 点名——图对图、视频对视频、音频对音频用的是同一个通用件（反馈 #11）。 */}
+        {supportsGenerationVariants(nodeExecutionKind) && !node.locked ? (
           <NomiSelect
             ariaLabel={t('generationCommon.composer.variantCountAria')}
             title={t('generationCommon.composer.variantCountTitle', { count: variantCount })}

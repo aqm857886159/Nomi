@@ -1,6 +1,6 @@
 import { V4Row } from './AgentPanelV4Row'
 import { formatV4Tokens } from './agentPanelV4UsageFormat'
-import { resolveComposerObstaclePlacement } from '../../generationCanvas/nodes/composerObstaclePlacement'
+import { resolveAnchoredPlacement } from '../../generationCanvas/nodes/anchoredPlacement'
 // Agent 面板 v4 · 积木 ⑧ 上下文用量（AI Elements Context）
 //
 // 定稿 Vocabulary 板 ⑧：头部一个小环 + 百分比，展开出**真实** token 分项与本线程花费。
@@ -58,9 +58,9 @@ export function V4ContextRing({
     const update = () => {
       const bounds = panel?.getBoundingClientRect()
       const node = anchor.getBoundingClientRect()
-      const placement = resolveComposerObstaclePlacement({
+      const placement = resolveAnchoredPlacement({
         stage: { left: Math.max(0, bounds?.left ?? 0), right: Math.min(window.innerWidth, bounds?.right ?? window.innerWidth), top: Math.max(0, bounds?.top ?? 0), bottom: Math.min(window.innerHeight, bounds?.bottom ?? window.innerHeight) },
-        node, obstacles: [], width: 230, height: popover.scrollHeight, gap: 4, aboveClearance: 0,
+        anchor: node, width: 230, height: popover.scrollHeight, gap: 4, aboveClearance: 0,
       })
       setPosition({ left: placement.left - node.left, top: placement.top - node.top, width: placement.width, maxHeight: placement.height })
     }
