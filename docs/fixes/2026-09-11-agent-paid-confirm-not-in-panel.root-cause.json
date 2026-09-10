@@ -1,0 +1,192 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-11-agent-paid-confirm-not-in-panel",
+  "problem_type": "A paid action the agent prepared has no confirmation surface on the panel where the user is looking, so the durable spend gate can never be answered from there",
+  "symptom": "用户在 Agent 面板里说「帮我生成一张六棱柱」，Agent 回「好」并建了草稿，然后界面上什么都没有：没有报价、没有确认卡、没有开始按钮。用户以为已经在跑了，实际那笔生成停在 ProductionRun 的草稿态，只能自己去画布上把节点一个个点开重来。",
+  "direct_cause": "付费能力（effect:\"paid\"）按设计不投影到 Agent lane 的模型工具面（paidBoundary.ts），所以模型自己发不起付费门；而宿主这一侧从没有为「面板里那笔待确认的生成」建过入口——appIntegration 只把 confirmGenerationInNomi 接给外部 MCP 那条路，介入槽的唯一数据源是 lane 的工具审批（LanePendingApproval），那上面根本没有报价字段。",
+  "class_root": "一个已经产生了 durable 授权义务的动作，必须在**发起它的那个面**上有一条通往人的确认通路；缺这条通路时系统既不能前进也不会报错，只会静默停住。这条不变量此前没有任何一层拥有：能力契约管「要不要问」，审批闸管「怎么问」，但「问谁、在哪问」散在各个宿主的装配里，少接一处不会有任何机器发现。",
+  "affected_population": [
+    "所有在 Agent 面板里让 Nomi 生成图片/视频的用户（agent 建的每一份生成草稿）",
+    "所有 origin.host === \"nomi\" 的 ProductionRun 生成计划，无论单镜还是多镜",
+    "任何未来从 Agent 面板发起的付费能力（判据是契约的 effect:\"paid\"，不是某个具体模型或供应商）"
+  ],
+  "scope_paths": [
+    "electron/productionRun/productionPendingSpend.ts",
+    "electron/productionRun/productionRunReducer.ts",
+    "electron/productionRun/productionGenerationOperationStore.ts",
+    "electron/productionRun/productionActionIpc.ts",
+    "electron/capabilityCore/appIntegrationSpendConfirm.ts",
+    "electron/capabilityCore/appIntegration.ts",
+    "electron/capabilityCore/residentGenerationAdapterFactory.ts",
+    "src/workbench/ai/v4/agentPanelSpendCard.ts",
+    "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts",
+    "src/workbench/ai/v4/agentPanelV4Types.ts",
+    "src/workbench/ai/ProjectAgentResidentShell.tsx",
+    "electron/productionRun/multiShotCanvasLanding.ts",
+    "src/workbench/capability/multiShotCanvasLanding.ts"
+  ],
+  "entry_points": [
+    "Agent lane 建生成草稿（nomi_generation_plan → generation.create/patch）后停在 draft",
+    "同一份计划被封印且付费门 waiting 时（外部编排或未来的宿主编排留下的中间态）",
+    "用户在卡上改参数（prompt / 时长 / 模型 / 画幅）后需要重新计价",
+    "用户在卡上按 × 丢弃这份草稿"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://code.claude.com/docs/en/tools-reference",
+      "checked_at": "2026-09-10",
+      "purpose": "确认同行把「权限提问永不 idle 自动收尾」写成明文规则（\"Permission prompts (including plan approval) never auto-resolve on idle\"），据此本方案的付费卡不设倒计时。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://code.claude.com/docs/en/permission-modes",
+      "checked_at": "2026-09-10",
+      "purpose": "确认「任何档位都不自动批」需要写成显式清单，且连 bypassPermissions 也不例外——对应本方案把 spend 轴从档位里独立出来（三档恒 confirm）。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://learn.chatgpt.com/docs/sandboxing/auto-review",
+      "checked_at": "2026-09-10",
+      "purpose": "唯一有超时的同行审批先例，且超时后动作仍然不跑（fail-closed）——据此确认任何等待人答的付费通路都必须 fail-closed，不得按已选项自动提交。"
+    },
+    {
+      "kind": "source-code",
+      "url": "https://pi.dev/packages/pi-agent-core",
+      "checked_at": "2026-09-10",
+      "purpose": "核对 before_tool 返回 { args } 会重新校验但不改写转录里那条 assistant toolCall（dist/harness/execution/tools.js:36-54 与 applyBeforeToolDecision），据此确认「改参数后直接跑」会让收据与实际执行分叉，必须改走 generation.revise 重新封印。"
+    }
+  ],
+  "invariants": [
+    "一笔等人点头的付费生成，必须能从它被发起的那个面（Agent 面板介入槽）读到：逐镜提示词、模型、参数、宿主算出来的价，以及三个动作（确认 / 改 / 丢弃）。",
+    "卡上印的价格只能来自宿主对目录 model.pricing 的求值；算不出时必须是显式 unknown，绝不可落成 0。",
+    "改了供应商真正会收到的那份载荷，就必须撤掉尚未被点头的授权、回到草稿、重新封印——收据上写的与实际执行的永远是同一份合同。",
+    "付费在任何权限档位下都逐次问；档位只决定可撤销改动问不问。",
+    "Agent 面板路径上的付费确认只存在于介入槽；这条 lane 上不注入居中弹窗的入口。"
+  ],
+  "generality_proof": "三条边界各自覆盖整个类而不是这一个例子：① projectPendingSpendConfirm 的判据是「generationPlan 处于 draft，或已封印且其授权门 waiting」加上 origin.host —— 不认模型、不认供应商、不认单镜/多镜，任何未来的付费计划一旦进入等人状态都会被同一条投影出来；② generation.revise 的判据是「这份授权还没被点头」，它清零的是封印/授权字段的**整组**（unsealedGenerationPlanFields 是唯一清零点），所以以后往 ProductionGenerationPlan 上加授权字段时只有一处要跟着改，trial_narrow 与 revise 自动同时正确；③ 付费必问由 capabilityIsHardGated 按契约的 effectClass 判定，与档位正交，所以新增任何 effect:\"paid\" 的能力都自动落进硬闸，不需要有人记得去某张名单里加一行。",
+  "shared_boundaries": [
+    {
+      "path": "electron/productionRun/productionPendingSpend.ts",
+      "symbol": "projectPendingSpendConfirm",
+      "responsibility": "「有没有一笔付费生成在等人点头，它长什么样、值多少钱」的唯一定义。价格在这里由目录求值，unknown 保持 unknown；面板只是它的读者。"
+    },
+    {
+      "path": "electron/productionRun/productionRunReducer.ts",
+      "symbol": "revokeWaitingGenerationAuthorization",
+      "responsibility": "「改载荷必须先撤授权」的唯一执行点。trial_narrow 与 revise 都经过它，任何第三条改载荷的路也必须经过它，否则拿不到新的 digest。"
+    },
+    {
+      "path": "electron/productionRun/productionRunReducer.ts",
+      "symbol": "unsealedGenerationPlanFields",
+      "responsibility": "封印/授权字段的唯一清零点：新增授权字段只在这里补一行，两条撤授权命令同时正确。"
+    },
+    {
+      "path": "electron/capabilityCore/appIntegrationSpendConfirm.ts",
+      "symbol": "createPendingSpendActions",
+      "responsibility": "面板那一下点击 → 主进程手势证明 → 收据 → 门批准 → start 的唯一顺序。收据一次性消费，重放批不动第二次。"
+    },
+    {
+      "path": "src/workbench/ai/v4/agentPanelSpendCard.ts",
+      "symbol": "projectSpendCard",
+      "responsibility": "宿主事实 → 卡上文字的唯一映射：算不出价时印那句话而不是 ¥0，标题不印金额，报不出合计时不给「全部」。"
+    },
+    {
+      "path": "electron/productionRun/multiShotCanvasLanding.ts",
+      "symbol": "candidateWire",
+      "responsibility": "候选 → 画布节点的投影里必须带上**选中的参数**，否则每次重绑定都会用模型档案的默认值覆盖用户（或 agent）挑过的值。节点是候选的投影，参数是投影的一部分。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "entry_point": "installResidentGenerationAdapter",
+      "disposition": "enforced",
+      "evidence": "Agent lane 的生成适配器不再注入 confirmGenerationInNomi，因此这条 lane 上不可能弹出居中确认卡；真被走到时 generationTransportAdapters.requestGate 直接抛 generation_approval_unavailable（fail-closed），面板那条路统一走 createPendingSpendActions。"
+    },
+    {
+      "path": "electron/capabilityCore/mcpStdioServer.ts",
+      "entry_point": "confirmGenerationInNomi",
+      "disposition": "not-affected",
+      "evidence": "外部 MCP 宿主（Claude Desktop / Codex 等）的用户此刻不在看 Nomi 的面板，它有自己的 elicitation + 倒计时形态；projectPendingSpendConfirm 因此按 origin.host 把这条排除在面板投影之外，两条路互不干扰。"
+    },
+    {
+      "path": "src/workbench/capability/capabilityApplyHandler.ts",
+      "entry_point": "confirmGenerationGateForAgent",
+      "disposition": "not-affected",
+      "evidence": "该渲染层处理器只服务主进程 requestRenderer('generation.gate.confirm') 这条通道，而这条通道现在只被外部 MCP 宿主使用；画布内用户自己点「生成」的弹窗同样保持不变（那是用户主动动作，不在本类里）。"
+    },
+    {
+      "path": "electron/productionRun/productionRunReducer.ts",
+      "entry_point": "generation.trial_narrow",
+      "disposition": "enforced",
+      "evidence": "同一条「撤授权 → 回 draft → 重新封印」的路：本次把它改为调用 revokeWaitingGenerationAuthorization 与 unsealedGenerationPlanFields，两条命令因此共用同一份判据，不会再各自漂移。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "同一个机制会随每一个新增的付费能力、每一个新的发起面（左侧栏、分镜表、MCP 内嵌 app）重新出现：只要有人在某个面上发起了一笔带 durable 授权义务的动作，却忘了在那个面上接确认通路，系统就会再次静默停住而不报错。这不是某个模型或某次装配的疏忽，是「问谁、在哪问」此前没有 owner。",
+    "same_class_scan": [
+      "grep -rn \"confirmGenerationInNomi\" electron —— 四个装配点（appIntegration / mcpStdioServer / mcpNodeLauncher / residentGenerationAdapterFactory），确认只有 resident 那一处服务 Agent 面板，其余三处属外部宿主。",
+      "npx tsx -e 打印 LANE_MODEL_TOOL_CATALOG + LANE_DEFERRED_TOOL_CATALOG —— 确认 nomi_request_generation_gate 不在模型可见工具面里，因此模型无法自己发起付费门（paidBoundary.ts 的设计意图），缺口只可能在宿主侧。",
+      "grep -rn \"effect: \\\"paid\\\"\" electron/shared/agentCapabilities —— 目前只有 generation.gate 一个付费契约；判据按 effectClass 而非能力 id 写，第二个付费契约出现时无需改本次的任何一条边界。",
+      "grep -rn \"generation.trial_narrow\" electron —— 找到同族的既有命令与它的幂等键写法（productionGenerationOperationStore.ts:154），据此确认 revise 必须同样带 planVersion。"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/productionRun/productionPendingSpend.ts",
+    "invariant": "任何处于「等人点头」状态的付费生成计划，都会被同一条投影按 origin 分派到对应的确认面；面板那条路的价格只能由宿主对目录求值得到，算不出时保持显式 unknown。",
+    "failure_mode": "投影不到（能力核未就绪、项目未打开、origin 不属本面）时读通道返回空数组、写通道返回结构化 unavailable / run_not_open —— 面板上不出卡，绝不出一张按不动或价格是 0 的卡；确认那条在缺渲染窗口身份、缺租约、缺收据权威时全部 fail-closed。",
+    "exception_policy": "none",
+    "strategy": "把「这笔生成在等谁」从各个宿主的装配里收成一条纯函数投影，再把「点头之后发生什么」收成一条编排（手势 → 收据 → 门 → start）。新增付费能力或新增发起面时，要接的只有这两处，而不是记得去四个装配点各补一行。",
+    "artifacts": [
+      "electron/productionRun/productionPendingSpend.ts",
+      "electron/capabilityCore/appIntegrationSpendConfirm.ts",
+      "electron/productionRun/productionRunReducer.ts",
+      "electron/productionRun/productionGenerationOperationStore.ts",
+      "electron/capabilityCore/appIntegration.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/productionRun/productionPendingSpend.test.ts",
+    "electron/productionRun/generationRevise.test.ts",
+    "electron/shared/agentCapabilities/capabilityApprovalPolicy.test.ts",
+    "src/workbench/ai/v4/agentPanelSpendCard.test.ts",
+    "src/workbench/ai/v4/agentPanelV4Logic.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/productionRun/productionPendingSpend.test.ts",
+    "electron/productionRun/generationRevise.test.ts",
+    "electron/shared/agentCapabilities/capabilityApprovalPolicy.test.ts"
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/productionRun/productionPendingSpend.ts",
+    "tests": [
+      "electron/productionRun/productionPendingSpend.test.ts",
+      "electron/productionRun/generationRevise.test.ts",
+      "electron/shared/agentCapabilities/capabilityApprovalPolicy.test.ts"
+    ]
+  },
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/capabilityCore/appIntegration.ts"
+    ],
+    "rationale": "appIntegration 不再向 resident 生成适配器注入 confirmGenerationInNomi —— 那是居中确认弹窗在 Agent 路径上的唯一入口。删掉注入之后「agent 代发的付费确认弹居中卡」在结构上不可能，而不是靠没人去调它；外部 MCP 宿主的同名注入保持不变（不同的面，不同的形态）。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "不变量由本仓的能力契约、ProductionRun 命令与收据链拥有。pi（@earendil-works/pi-agent-core@0.85.1）确实提供 before_tool 的 { args } 改写并会重新校验，但它不改写转录里那条 assistant toolCall，用它会让收据与实际执行分叉 —— 这是我们不用它的理由，不是它需要升级的理由。",
+    "exit_criteria": []
+  },
+  "migration": "无数据迁移。generation.revise 只写既有 ProductionGenerationPlan 字段；PendingSpendConfirm 是只读投影，不落盘。旧的 approvalPolicy 记录若写着 spend: \"within-budget\"，硬闸判据（capabilityIsHardGated）与档位正交，付费照样逐次问，因此不需要改写落盘值。",
+  "residual_risks": [
+    "卡上改参数不会当场刷新价格：改动在按下确认那一刻才写进 durable 候选。实时同步会与落地链形成双向拉锯（实测把计划连推三版并停在档案默认值），正解是把那条投影链改成单向，不在本轮范围内。确认前那一次 revise 保住了「封印的就是卡上此刻这一份」。",
+    "确认那条链（主进程手势证明 → 收据 → 门批准 → start）在走查里没走到底：R13 走查走的是丢弃那条路。它的正确性目前由类型、单测与直连探针支撑，没有一次端到端的真实提交证据。",
+    "确认那条链（requestGenerationGate → 手势证明 → 收据 → authorize → start）目前只有类型与单元级证据，没有端到端跑过一次真实提交；租约获取失败/项目切换竞态下的行为未验。",
+    "切「全自动」的二次确认与常驻提醒没有单测：仓库没有 @testing-library/react，钩子层测不了，本轮依赖走查覆盖而走查未跑。",
+    "同时有多笔待确认时只显示第一张，卡壳上还没有「还有 N 条」；投影已按 updatedAt 排序并返回全部，缺的是显示。",
+    "R30 数字（工具写对率 / 回合成功率）未产出：loopback 走查里模型的每一步都是夹具编排的固定回复，量不出真实模型的写对率。"
+  ]
+}

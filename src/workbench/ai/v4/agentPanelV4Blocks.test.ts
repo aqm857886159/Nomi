@@ -322,7 +322,7 @@ describe('⑧ composer 底栏逐件', () => {
     expect(attrs('step')).toContain('data-approval-mode="step"')
     expect(attrs('step')).toContain('data-spend-policy="confirm"')
     expect(attrs('safe-auto')).toContain('data-approval-mode="safe-auto"')
-    expect(attrs('project')).toContain('data-spend-policy="within-budget"')
+    expect(attrs('project')).toContain('data-spend-policy="confirm"')
   })
 
   it('运行中变 ■ 停止，占位改「排队发送」', () => {
