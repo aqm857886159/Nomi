@@ -36,6 +36,31 @@ export type ReferenceImageUrlsMigration = {
 }
 
 /**
+ * 迁移闸用的预判：是否存在「能反查到画布内源节点」的 meta.referenceImageUrls。
+ * 反查口径与 migrateReferenceImageUrlsToEdges 同一套（本文件是唯一 owner）——V51→V60
+ * 迁移闸缺了它会把「其余字段干净、只剩数组参考」的记录误判 alreadyMigrated，永不收敛。
+ */
+export function hasMigratableReferenceImageUrls(nodes: readonly GenerationCanvasNode[]): boolean {
+  const sourceByUrl = new Map<string, string>()
+  for (const node of nodes) {
+    for (const url of resultUrlsOf(node)) {
+      if (!sourceByUrl.has(url)) sourceByUrl.set(url, node.id)
+    }
+  }
+  if (sourceByUrl.size === 0) return false
+  for (const node of nodes) {
+    const raw = ((node.meta || {}) as Record<string, unknown>).referenceImageUrls
+    if (!Array.isArray(raw) || raw.length === 0) continue
+    for (const value of raw) {
+      const url = typeof value === 'string' ? value.trim() : ''
+      const sourceId = url ? sourceByUrl.get(url) : undefined
+      if (sourceId && sourceId !== node.id) return true
+    }
+  }
+  return false
+}
+
+/**
  * 把所有节点 meta.referenceImageUrls 里「能反查到源节点」的 URL 还原成有序 character_ref 边。
  * 返回新的 nodes（被迁移节点的 meta.referenceImageUrls 清掉已建边的 URL）+ 新 edges。
  * 无任何可迁移 URL → 原样返回（edgesCreated=0）。
