@@ -11,6 +11,7 @@ import {
   IconViewportWide,
   IconZoomIn,
   IconScissors,
+  IconChevronDown,
 } from '@tabler/icons-react'
 import { useWorkbenchStore } from '../workbenchStore'
 import { WorkbenchIconButton } from '../../design'
@@ -72,13 +73,19 @@ type TimelinePanelProps = {
   actionLabelPrefix: string
   /** 是否显示文字轨（字幕/标题卡）。仅预览标签传 true；生成画布底部不传。 */
   showTextTrack?: boolean
+  /**
+   * 传了就在工具条行尾渲染「收起时间轴」钮（生成画布传；预览面的时间轴是
+   * react-resizable-panels 的一格，没有折叠态，故不传）。
+   * 2026-09-10 之前这个 prop 被接进一个下划线形参从不使用 —— 面板内没有任何收起入口，
+   * 只能靠画布底部把手，用户真机反馈「时间轴无法向下缩」。
+   */
   onCollapse?: () => void
 }
 
 const CLIP_TOOL_CLASS =
   'workbench-timeline__tool w-auto min-w-[30px] h-[var(--workbench-control-size)] px-2 inline-grid place-items-center border-0 rounded-[var(--workbench-control-radius)] bg-transparent text-[var(--workbench-muted)] shadow-none cursor-pointer enabled:hover:bg-[var(--workbench-hover)] disabled:opacity-40'
 
-export default function TimelinePanel({ density = 'compact', regionLabel, actionLabelPrefix, showTextTrack = false, onCollapse: _onCollapse }: TimelinePanelProps): JSX.Element {
+export default function TimelinePanel({ density = 'compact', regionLabel, actionLabelPrefix, showTextTrack = false, onCollapse }: TimelinePanelProps): JSX.Element {
   const { t } = useTranslation()
   const timeline = useWorkbenchStore((state) => state.timeline)
   const selectedClipIds = useWorkbenchStore((state) => state.selectedTimelineClipIds)
@@ -342,7 +349,7 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
     <section
       className={cn(
         'workbench-timeline',
-        'relative min-w-0 min-h-0 h-full grid grid-rows-[minmax(0,1fr)]',
+        'relative min-w-0 min-h-0 h-full grid grid-rows-[auto_minmax(0,1fr)]',
         'bg-[var(--workbench-surface-solid)] border-t border-[var(--workbench-border)]',
         'shadow-[0_-1px_0_var(--workbench-bevel)] overflow-hidden',
         density === 'full' ? 'px-[18px] pt-[10px] pb-5' : 'px-4 pt-3 pb-4',
@@ -351,12 +358,21 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
       aria-label={regionLabel}
       style={{ '--workbench-timeline-content-width': `${rulerWidth}px` } as React.CSSProperties}
     >
+      {/*
+        工具条是**独立头部行**，不是浮层。2026-09-10 真机反馈「右上角的功能栏和下面有遮挡」：
+        原写法 `absolute top right z-[8]`，标尺与首轨从没给它留过行，面板一窄就压在内容上。
+        近邻做法同形：OpenCut `apps/web/src/timeline/components/timeline-toolbar.tsx:71-72`
+        也是「可横向滚动的容器 + 一行 flex」，由 `index.tsx:439` 当兄弟节点排在轨道区之上。
+        簇内不换行（ControlGroup 自带 flex-none），整行放不下时横向滚动。
+      */}
       <div className={cn(
         'workbench-timeline__controls',
-        'absolute top-[10px] right-4 z-[8] inline-flex items-center gap-2',
-        'bg-[color-mix(in_oklch,var(--nomi-paper)_84%,transparent)] rounded-[var(--nomi-radius-lg)] p-1 backdrop-blur-[10px]',
-      )} role="toolbar" aria-label={t('timelineEditor.toolbarLabel')}>
-        <div className="workbench-timeline__clip-tools">
+        'flex min-w-0 items-center gap-2 pt-2 pb-2',
+        'overflow-x-auto overflow-y-hidden',
+        'scrollbar-thin scrollbar-color-transparent',
+        'hover:scrollbar-color-[color-mix(in_srgb,var(--nomi-ink)_22%,transparent)]',
+      )} role="toolbar" aria-label={t('timelineEditor.toolbarLabel')} data-timeline-toolbar-row="true">
+        <div className="workbench-timeline__clip-tools flex-none">
         <ControlGroup label={t('timelineEditor.toolbar.thisSegment')} tone="clip" disabled={!hasSelection} disabledReason={t('timelineEditor.clipToolsHint')}>
           <WorkbenchIconButton className={CLIP_TOOL_CLASS} label={t('timelineEditor.context.split')} title={t('timelineEditor.context.splitShortcut')} icon={<IconScissors size={14} />} disabled={!primaryClipId} onClick={() => primaryClipId && splitTimelineClip(primaryClipId, timeline.playheadFrame)} />
           <WorkbenchIconButton className={CLIP_TOOL_CLASS} label={t('timelineEditor.context.duplicate')} title={t('timelineEditor.context.duplicateShortcut')} icon={<IconCopy size={14} />} disabled={!primaryClipId} onClick={() => duplicateTimelineClip(primaryClipId)} />
@@ -375,13 +391,30 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
           <WorkbenchIconButton className={CLIP_TOOL_CLASS} label={t('timelineEditor.zoomIn', { prefix: actionLabelPrefix })} title={t('timelineEditor.zoomInShortcut')} icon={<IconZoomIn size={14} />} onClick={() => setTimelineZoom(timeline.scale * 1.25)} />
           <span className="min-w-8 text-center text-micro tabular-nums opacity-60">{Math.round(timeline.scale * 100)}%</span>
         </ControlGroup>
-        <button type="button" className="grid h-7 w-7 place-items-center rounded-[var(--nomi-radius-sm)] text-micro text-[var(--workbench-muted)] hover:bg-[var(--workbench-hover)]" aria-label={t('timelineEditor.shortcuts.open')} title={t('timelineEditor.shortcuts.open')} onClick={() => setShortcutsOpen(true)}>?</button>
+        <button type="button" className="grid h-7 w-7 flex-none place-items-center rounded-[var(--nomi-radius-sm)] text-micro text-[var(--workbench-muted)] hover:bg-[var(--workbench-hover)]" aria-label={t('timelineEditor.shortcuts.open')} title={t('timelineEditor.shortcuts.open')} onClick={() => setShortcutsOpen(true)}>?</button>
+        {/* 面板内的收起入口。用的是现役折叠原子：WorkbenchIconButton + IconChevronDown，
+            同 `src/workbench/preview/inspector/PreviewInspector.tsx:80` 的属性面折起钮。
+            只有真有折叠态的宿主才传 onCollapse，所以预览面不会长出一个按了没反应的钮。 */}
+        {onCollapse ? (
+          <WorkbenchIconButton
+            className="flex-none"
+            size="sm"
+            data-timeline-collapse="true"
+            label={t('timelineEditor.collapsePanel')}
+            title={t('timelineEditor.collapsePanel')}
+            icon={<IconChevronDown size={16} />}
+            onClick={onCollapse}
+          />
+        ) : null}
       </div>
       <div
         className={cn(
           'workbench-timeline__tracks',
           'relative min-w-0 min-h-0 block bg-transparent',
-          'overflow-x-auto overflow-y-auto pb-2',
+          // 不给这层加 padding：轨道区高度归零（面板缩到只剩头部行）时，padding 会让它的
+          // padding-box 仍有几层像素，标尺就从下边缘露出半行被切掉的刻度字。
+          // 底部留白由外层 section 的 pb 负责，不必在滚动容器里再留一次。
+          'overflow-x-auto overflow-y-auto',
           'scrollbar-thin scrollbar-color-transparent',
           'hover:scrollbar-color-[color-mix(in_srgb,var(--nomi-ink)_22%,transparent)]',
         )}
