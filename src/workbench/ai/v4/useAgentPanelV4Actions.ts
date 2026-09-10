@@ -164,6 +164,11 @@ export function useAgentPanelV4Actions(surface: ResidentSurface, data: AgentPane
       if (laneClient.context() !== owner) return false
       const sentIds = new Set(state.projectAgentAttachments.map((attachment) => attachment.id))
       state.setProjectAgentAttachments((current) => current.filter((attachment) => !sentIds.has(attachment.id)))
+      // 技能 / 提示词是**随这条消息发出去的引用**（和 @ 素材、附件同语义），不是一个常驻开关。
+      // 挂着不摘，用户读到的是「以后每条都得用这个技能」（2026-09-10 用户看走查截图后的反馈）。
+      // 它进没进这一轮由转录自己作证（用户气泡的 chip + 回复头上的凭据），不靠 composer 挂着。
+      // **只在成功那条路上摘**：发失败了那句话还得重发，把他刚选的东西撤掉是让他白干一遍。
+      state.setCreationActiveSkill(null)
       if (useWorkbenchStore.getState().projectAgentDraft.trim() === text) setDraft('')
       return true
     } catch (caught) { setError(friendlyError(caught, t)); return false }
