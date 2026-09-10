@@ -35,7 +35,15 @@ export function NodePromptToolCluster({ ariaLabel, children }: { ariaLabel: stri
   )
 }
 
-type NodePromptToolButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
+/**
+ * 名字里的 `IconButton` 是**契约的一部分**，不是随手起的：本仓「纯 icon + hover 名字」这一族
+ * 一律叫 `*IconButton`（`WorkbenchIconButton` 是原型），文案门岗 `check:controls` 按这个后缀
+ * 判「`label` 是看得见的文字还是 hover 名字」（scripts/lib/jsxControls.mjs + control-contract-copy.mjs）。
+ * 叫 `NodePromptToolButton` 时它被当成带文字的按钮，hover 名字「效果与提示词库」被按 §1.8
+ * 的「≤4 字」量了一遍判红——而 §1.8 明说 hover 名字刻意不量。改名等于把这颗按钮真实的形态
+ * 讲给门岗听，不是绕过它：形态一旦退化成带文字的按钮，名字就该跟着改，门岗也就该量它。
+ */
+type NodePromptToolIconButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   /** 走查与簇内顺序的锚点：camera-move / effects / optimize。 */
   toolId: string
   icon: React.ReactNode
@@ -47,8 +55,8 @@ type NodePromptToolButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> &
   disabledReason?: string
 }
 
-export const NodePromptToolButton = React.forwardRef<HTMLButtonElement, NodePromptToolButtonProps>(
-  function NodePromptToolButton({ toolId, icon, label, active, disabledReason, ...buttonProps }, ref): JSX.Element {
+export const NodePromptToolIconButton = React.forwardRef<HTMLButtonElement, NodePromptToolIconButtonProps>(
+  function NodePromptToolIconButton({ toolId, icon, label, active, disabledReason, ...buttonProps }, ref): JSX.Element {
     const button = (
       <Tooltip>
         <TooltipTrigger asChild>

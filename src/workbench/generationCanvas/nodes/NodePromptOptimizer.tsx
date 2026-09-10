@@ -9,7 +9,7 @@ import { useTranslation } from 'react-i18next'
 import { IconX } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
 import { NomiLogoMark, WorkbenchButton } from '../../../design'
-import { NodePromptToolButton } from './NodePromptToolCluster'
+import { NodePromptToolIconButton } from './NodePromptToolCluster'
 import { getTextBrain } from '../../api/promptLibraryApi'
 import { runWorkbenchTextTaskStream } from '../../api/taskApi'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
@@ -188,7 +188,7 @@ export function NodePromptOptimizer({ node, isVideo }: { node: GenerationCanvasN
         </div>
       ) : null}
 
-      <NodePromptToolButton
+      <NodePromptToolIconButton
         toolId="optimize"
         icon={open ? <IconX size={16} stroke={2} /> : <NomiLogoMark size={16} />}
         label={running ? t('generationCommon.optimizer.running') : t('generationCommon.optimizer.aria')}

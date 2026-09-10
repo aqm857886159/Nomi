@@ -2,7 +2,7 @@ import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { IconVideo } from '@tabler/icons-react'
-import { NodePromptToolButton, NodePromptToolCluster } from './NodePromptToolCluster'
+import { NodePromptToolIconButton, NodePromptToolCluster } from './NodePromptToolCluster'
 
 // 底栏 B 簇（v1.1，2026-09-11 拍板）的三条形制承诺，写成结构断言：
 // ① 纯 icon——一个字都不渲染（名字退到 hover）；
@@ -19,7 +19,7 @@ const cluster = (children: React.ReactNode): React.ReactElement =>
   React.createElement(NodePromptToolCluster, { ariaLabel: '写提示词', children })
 
 const tool = (props: Record<string, unknown>): React.ReactElement =>
-  React.createElement(NodePromptToolButton, {
+  React.createElement(NodePromptToolIconButton, {
     toolId: 'camera-move',
     icon: React.createElement(IconVideo, { size: 16, stroke: 2 }),
     label: '推近 · 中',

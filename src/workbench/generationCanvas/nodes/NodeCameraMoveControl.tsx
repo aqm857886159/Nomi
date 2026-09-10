@@ -19,7 +19,7 @@ import {
   type Icon,
 } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
-import { NodePromptToolButton } from './NodePromptToolCluster'
+import { NodePromptToolIconButton } from './NodePromptToolCluster'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import {
@@ -177,7 +177,7 @@ export default function NodeCameraMoveControl({ node }: { node: GenerationCanvas
       <Popover.Target>
         {/* v1.1：带文字的芯片整颗删掉，只剩 B 簇里这颗缩小一号的纯 icon（已选带激活点、
             hover 报「推近 · 中」）。弹层与逻辑一行没动。 */}
-        <NodePromptToolButton
+        <NodePromptToolIconButton
           toolId="camera-move"
           icon={<IconVideo size={16} stroke={2} aria-hidden />}
           label={triggerLabel}

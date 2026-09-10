@@ -4,7 +4,7 @@ import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconSparkles } from '@tabler/icons-react'
 import { WorkbenchMenu, type WorkbenchMenuNode } from '../../../design/menu'
-import { NodePromptToolButton } from './NodePromptToolCluster'
+import { NodePromptToolIconButton } from './NodePromptToolCluster'
 import { usePromptLibrary } from '../../promptLibrary/usePromptLibrary'
 import { useUserPrompts } from '../../promptLibrary/useUserPrompts'
 import type { LibraryPrompt } from '../../api/promptLibraryApi'
@@ -45,7 +45,7 @@ export function useNodeEffectChips({ enabled, empty, kind, disabled, onSelect }:
   // 谁也猜不到。带文字的旧触发器整颗删掉，换成 B 簇里那颗 ✦，名字改在 hover 里说清
   // （「效果与提示词库」）：好过一个常驻却骗人的名字。弹层与菜单一行没动。
   const more = <>
-    <NodePromptToolButton
+    <NodePromptToolIconButton
       toolId="effects"
       icon={<IconSparkles size={16} stroke={2} />}
       label={t('generationCommon.composerBarV1.effects')}
