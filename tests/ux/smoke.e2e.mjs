@@ -170,8 +170,8 @@ try {
   await addCanvasNodeFromRail(win, "scene3d");
   await win.waitForTimeout(1200);
   // 新节点落点不定（画布已被上一段平移过），Playwright actionability 可能够不着 → DOM click 兜底
-  await win.locator('[aria-label="打开 3D 编辑器"]').first().click({ timeout: 3000 })
-    .catch(() => win.evaluate(() => document.querySelector('[aria-label="打开 3D 编辑器"]')?.click()));
+  await win.locator('[aria-label="打开编辑"]').first().click({ timeout: 3000 })
+    .catch(() => win.evaluate(() => document.querySelector('[aria-label="打开编辑"]')?.click()));
   await win.waitForTimeout(3000);
   const coachSkip = win.locator('[data-coach-skip="true"]').first();
   if (await coachSkip.count()) {
