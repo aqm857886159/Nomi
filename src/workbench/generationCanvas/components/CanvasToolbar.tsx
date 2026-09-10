@@ -312,6 +312,10 @@ export default function CanvasToolbar({ getInsertionPosition, categoryId }: Canv
         'max-h-[calc(100%-32px)]',
       )}
       aria-label={t('canvas.toolbar')}
+      // 「我常驻在画布左缘，别把浮层排到我身上」——同 useCanvasBottomDockRects.ts 底部停靠
+      // 用的那个标记机制：`useComposerViewportPlacement` 用它量出自己的真实宽度来收窄
+      // 浮框可用区，不是抄一份硬编码宽度（2026-09-10 反馈 #10 的可用区遗漏）。
+      data-canvas-left-dock="true"
       onKeyDown={(event) => {
         if (event.key === 'Escape') setMoreOpen(false)
       }}

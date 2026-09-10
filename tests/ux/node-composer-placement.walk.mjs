@@ -57,6 +57,7 @@ async function measure() {
     const anchor = document.querySelector('.generation-canvas-v2-node__composer')
     const card = document.querySelector('.generation-canvas-v2-node__composer-card')
     const nodeEl = anchor?.parentElement
+    const leftDockEl = document.querySelector('[data-canvas-left-dock="true"]')
     if (!stage || !anchor || !card || !nodeEl) return null
     const box = (element) => {
       const rect = element.getBoundingClientRect()
@@ -83,6 +84,9 @@ async function measure() {
       stage: box(stage),
       node: box(nodeEl),
       card: box(card),
+      // 左缘常驻工具条（CanvasToolbar）的真实矩形——浮框左缘必须让在它右边，
+      // 不是硬编码一个宽度去比（2026-09-10 反馈 #10：截图 02 里浮框左缘被它压住）。
+      leftDock: leftDockEl ? box(leftDockEl) : null,
       flipped: anchor.getAttribute('data-flipped'),
       // 「几行」按**竖直中心**聚类算，不能按 top：`items-center` 的同一行里控件高矮不同，
       // top 天生各不相同，按 top 数会把一条正常单行数成 4 行（第一版就是这么假红的）。
@@ -185,6 +189,13 @@ try {
   // ② 整框在视口内。
   check('整框在画布视口内（左右上下都没出界）', inside(first.card, first.stage, 2),
     `card=${JSON.stringify(first.card)} stage=${JSON.stringify(first.stage)}`)
+  // ②.5 浮框左缘不被左缘常驻工具条压住（2026-09-10 反馈 #10 复核：截图里「生成方式」
+  // 标签与第一个模式页签左半被 CanvasToolbar 盖住，根因是可用区算漏了这一块）。
+  check(
+    '浮框左缘 ≥ 左栏工具条右缘 + 间距（不被左栏压住）',
+    !first.leftDock || first.card.left >= first.leftDock.right + 1,
+    `card.left=${Math.round(first.card.left)} leftDock.right=${first.leftDock ? Math.round(first.leftDock.right) : 'n/a'}`,
+  )
   // ③ 底栏所有控件都在卡内并且真的点得到（不是被 overflow-hidden 裁在外面）。
   check('底栏控件全部在卡内', first.controlsInsideCard, `控件 ${first.controlCount} 个，${first.footerRows} 行`)
   check('底栏控件全部可命中（没有被别的东西盖住）', first.controlsHittable)
@@ -226,10 +237,13 @@ try {
   )
   // 横向**不能**要求偏移不变：卡比节点宽得多，正常就贴着视口边被 clamp 住。
   // 该断的是「横向 = 以节点为心、被视口 clamp 之后的那个唯一值」——既证明它跟着节点算，
-  // 也证明 clamp 是唯一另一个输入（VIEWPORT_MARGIN=12，与 useComposerViewportPlacement 同一个数）。
+  // 也证明 clamp 的输入只有两个：VIEWPORT_MARGIN=12（与 useComposerViewportPlacement 同一个数）
+  // 和左栏工具条的真实矩形（LEFT_DOCK_GAP=12，同一份 stageLeft 公式）——不是硬编码宽度。
   const expectedLeft = (item) => {
     const margin = 12
-    const min = item.stage.left + margin
+    const leftDockGap = 12
+    const leftDockUsable = item.leftDock && item.leftDock.width > 0 && item.leftDock.bottom > item.stage.top && item.leftDock.top < item.stage.bottom
+    const min = item.stage.left + (leftDockUsable ? Math.max(margin, item.leftDock.right - item.stage.left + leftDockGap) : margin)
     const max = Math.max(min, item.stage.right - margin - item.card.width)
     return Math.min(Math.max((item.node.left + item.node.right - item.card.width) / 2, min), max)
   }
@@ -261,7 +275,36 @@ try {
   check('声音节点底栏同样是单行', audio.footerRows === 1, `${audio.footerRows} 行`)
   await screenshotSettled(getWin(), { path: path.join(shotsDir, '03-audio-node-composer.png') })
 
-  fs.writeFileSync(path.join(shotsDir, 'geometry.json'), JSON.stringify({ first, dragged, audio }, null, 2))
+  // ⑧ 窄视口：真实场景不是缩小 OS 窗口（主窗口 minWidth=1100，缩不下去，而且 Electron
+  // 真实窗口下 `page.setViewportSize` 只改 CDP 上报的量值、不动原生边界，会撞出「布局和
+  // React Flow 各读各的尺寸」——实测就是这条路先炸了：composer 整个从 DOM 消失，量了 8 次全
+  // null）。真实会让画布变窄的是**拉宽常驻 Agent 面板**这个既有 UI（`AssistantPane` 的
+  // 分隔条，键盘 End 直接跳到当前视口下的最大宽度），画布宽度因此被真实地挤掉一块，
+  // 不用碰原生窗口。浮框自然宽必须超出这块收窄后的可用区，才真的走到 anchoredPlacement
+  // 的「收窄到 stage 宽度」分支——不是把左栏那块也算进可用区、溢出到左栏底下或伸出视口。
+  const assistantResizer = getWin().getByRole('separator', { name: '拖动调整助手宽度' }).first()
+  await assistantResizer.waitFor({ state: 'visible' })
+  await assistantResizer.focus()
+  await getWin().keyboard.press('End')
+  let narrowSettled = null
+  await expect.poll(async () => {
+    const sample = await measure()
+    const signature = sample ? `${Math.round(sample.card.left)},${Math.round(sample.card.width)},${Math.round(sample.stage.width)}` : null
+    const stable = narrowSettled !== null && narrowSettled === signature
+    narrowSettled = signature
+    return stable
+  }, { message: '拉宽 Agent 面板后浮框位置必须落定（连续两次采样相同）' }).toBe(true)
+  const narrow = await measure()
+  if (!narrow) throw new Error('拉宽 Agent 面板后量不到浮框几何')
+  check('拉宽 Agent 面板确实挤窄了画布（这条断言不是摆设）', narrow.stage.width < first.stage.width - 40,
+    `narrow.stage.width=${Math.round(narrow.stage.width)} first.stage.width=${Math.round(first.stage.width)}`)
+  check('窄画布下浮框仍完整在可用区内（不出视口）', inside(narrow.card, narrow.stage, 2),
+    `card=${JSON.stringify(narrow.card)} stage=${JSON.stringify(narrow.stage)}`)
+  check('窄画布下浮框左缘仍不压左栏工具条', !narrow.leftDock || narrow.card.left >= narrow.leftDock.right + 1,
+    `card.left=${Math.round(narrow.card.left)} leftDock.right=${narrow.leftDock ? Math.round(narrow.leftDock.right) : 'n/a'}`)
+  await screenshotSettled(getWin(), { path: path.join(shotsDir, '04-narrow-canvas.png') })
+
+  fs.writeFileSync(path.join(shotsDir, 'geometry.json'), JSON.stringify({ first, dragged, audio, narrow }, null, 2))
 } catch (error) {
   console.error(`VERIFY ERROR: ${error?.stack || error?.message || error}`)
   process.exitCode = 1

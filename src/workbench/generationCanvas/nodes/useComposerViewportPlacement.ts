@@ -5,7 +5,10 @@ import { CANVAS_DRAGGING_ATTRIBUTE } from '../components/canvasDraggingFlag'
 import { resolveAnchoredPlacement } from './anchoredPlacement'
 
 export const NODE_FLOATING_TOOLBAR_SELECTOR = '[data-node-floating-toolbar="true"]'
+/** 画布左缘常驻工具条（`CanvasToolbar`）自己挂的标记——同 `useCanvasBottomDockRects.ts` 底部停靠的机制。 */
+const CANVAS_LEFT_DOCK_SELECTOR = '[data-canvas-left-dock="true"]'
 const VIEWPORT_MARGIN = 12
+const LEFT_DOCK_GAP = 12
 const TOOLBAR_CLEARANCE_GAP = 18
 const COMPOSER_MAX_WIDTH = 880
 const COMPOSER_MIN_WIDTH = 360
@@ -24,6 +27,10 @@ export function toolbarClearanceInCanvasUnits(screenHeight: number, zoom: number
  *
  * 要观测的因此**正好是那两个入参**：节点自己的屏幕矩形，和舞台的屏幕矩形。
  * 观测方式见下面 `recompute` 后面那段——`ResizeObserver` 一个人办不到。
+ *
+ * 「舞台矩形」本身不等于「可用区」：画布左缘常驻着 `CanvasToolbar`，是固定停靠的画布
+ * chrome，不随视口滚动。`recompute` 里量它的真实矩形来收窄 `stage.left`（2026-09-10
+ * 反馈 #10 复核：截图里浮框左缘、「生成方式」标签被它压住，根因是可用区算漏了这一块）。
  */
 export function useComposerViewportPlacement(input: {
   node: GenerationCanvasNode
@@ -72,8 +79,15 @@ export function useComposerViewportPlacement(input: {
       Object.assign(card.style, previousStyle)
       if (references) references.style.maxHeight = previousReferenceMaxHeight
       const toolbar = nodeEl.querySelector<HTMLElement>(NODE_FLOATING_TOOLBAR_SELECTOR)
+      // 可用区要再扣掉画布左缘那条常驻工具条（`CanvasToolbar`）——它是固定停靠的画布 chrome，
+      // 不是浮框要避让的「障碍物」（那套已经删了，见文件头注释）。现量它的真实矩形，
+      // 不是抄一份硬编码宽度：工具条宽度由它自己的图标数、内边距决定，会随设计改动漂移。
+      // 找不到（未挂载 / 只读画布没有它）或它这一屏根本不在竖直范围内时不收窄，退回原有边距。
+      const leftDockRect = stage.querySelector<HTMLElement>(CANVAS_LEFT_DOCK_SELECTOR)?.getBoundingClientRect()
+      const leftDockUsable = leftDockRect && leftDockRect.width > 0 && leftDockRect.bottom > stageRect.top && leftDockRect.top < stageRect.bottom
+      const stageLeft = stageRect.left + (leftDockUsable ? Math.max(VIEWPORT_MARGIN, leftDockRect.right - stageRect.left + LEFT_DOCK_GAP) : VIEWPORT_MARGIN)
       const result = resolveAnchoredPlacement({
-        stage: { left: stageRect.left + VIEWPORT_MARGIN, right: stageRect.right - VIEWPORT_MARGIN, top: stageRect.top + VIEWPORT_MARGIN, bottom: stageRect.bottom - VIEWPORT_MARGIN },
+        stage: { left: stageLeft, right: stageRect.right - VIEWPORT_MARGIN, top: stageRect.top + VIEWPORT_MARGIN, bottom: stageRect.bottom - VIEWPORT_MARGIN },
         anchor: nodeRect,
         width: Math.min(COMPOSER_MAX_WIDTH, naturalSize.width),
         height: Math.min(preferredMaxHeight, naturalSize.height),
