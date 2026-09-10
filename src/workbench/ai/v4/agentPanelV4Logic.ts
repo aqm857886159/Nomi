@@ -26,6 +26,15 @@ const composerHeightForRows = (rows: number, chipRows: number): number =>
   BAR_HEIGHT +
   BORDER
 
+/**
+ * 由实测内容高度反推行数（2026-09-10 走查反馈：只数硬换行，长句软换行仍在
+ * 「1 行」里内部滚动，框不长高）。textarea 的 `scrollHeight` 含自身 padding
+ * （TEXT_PADDING，与定稿 `.txt` 的 10+6 对齐），去掉后除行高即行数。
+ */
+export function rowsFromContentHeight(contentHeight: number): number {
+  return Math.max(1, Math.ceil((contentHeight - TEXT_PADDING) / COMPOSER_LINE_HEIGHT))
+}
+
 /** 定稿的「6 行」档：小面板与收起坞共用。 */
 export const COMPOSER_SIX_LINE_CAP = composerHeightForRows(6, 0)
 

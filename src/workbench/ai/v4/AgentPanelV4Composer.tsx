@@ -29,7 +29,7 @@ import {
   IconPlus,
   IconX,
 } from './AgentPanelV4Icons'
-import { approvalPolicyForTier, maxComposerHeight, useComposerHeight, shouldSubmitComposer } from './agentPanelV4Logic'
+import { approvalPolicyForTier, maxComposerHeight, rowsFromContentHeight, useComposerHeight, shouldSubmitComposer } from './agentPanelV4Logic'
 import type { ComposerMode, ComposerPopover, PermissionTier, V4Chip } from './agentPanelV4Types'
 import { DEFAULT_PERMISSION_TIER, PERMISSION_TIERS } from './agentPanelV4Types'
 
@@ -123,7 +123,27 @@ export function AgentPanelV4Composer({
   inputRef,
 }: AgentPanelV4ComposerProps): JSX.Element {
   const { t } = useTranslation()
-  const rows = Math.max(1, value.split('\n').length)
+  const hardRows = Math.max(1, value.split('\n').length)
+  // 2026-09-10 走查反馈：硬换行之外，长句软换行（wrap）也要算行——把 textarea 瞬时压到
+  // 0 高读 scrollHeight（useLayoutEffect 在绘制前完成，无闪烁），拿到的是纯内容高度，
+  // 删字时也能正确缩回。行数仍然走同一套 useComposerHeight 规则，不另起高度真相源。
+  const textareaRef = React.useRef<HTMLTextAreaElement | null>(null)
+  const [measuredRows, setMeasuredRows] = React.useState(hardRows)
+  React.useLayoutEffect(() => {
+    const el = textareaRef.current
+    if (!el) return
+    const measure = (): void => {
+      const previous = el.style.height
+      el.style.height = '0px'
+      setMeasuredRows(rowsFromContentHeight(el.scrollHeight))
+      el.style.height = previous
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [value])
+  const rows = Math.max(hardRows, measuredRows)
   const chipRows = chips?.length ? 1 : 0
   const height = useComposerHeight(panelHeight, dock ? 'dock' : mode, rows, chipRows)
   // 高度是**下限 + 上限**，不是写死值：`height` 是规则算出来的自然高（一行 86px、逐行长），
@@ -175,7 +195,11 @@ export function AgentPanelV4Composer({
         </div>
       ) : null}
       <textarea
-        ref={inputRef}
+        ref={(el) => {
+          textareaRef.current = el
+          if (typeof inputRef === 'function') inputRef(el)
+          else if (inputRef) (inputRef as React.MutableRefObject<HTMLTextAreaElement | null>).current = el
+        }}
         value={value}
         readOnly={!onValueChange}
         onChange={(event) => onValueChange?.(event.target.value)}
@@ -245,6 +269,10 @@ export function AgentPanelV4Composer({
           {skillSelected ? <span className="size-1.5 rounded-pill bg-nomi-accent" aria-hidden="true" /> : null}
         </V4Row>
 
+        {/* 2026-09-10 走查反馈：权限+发送两钮会跟着模型名长度左右漂——定稿本就画了
+            「Skill …… 权限」之间的推开的空档，这里把空档落成 flex-1 spacer，
+            右簇（权限/发送）永远右锚定，左簇宽度再怎么变也只向左生长。 */}
+        <span className="min-w-0 flex-1" aria-hidden="true" />
         <V4Row as="button"
           type="button"
           onClick={() => onTogglePopover?.('permission')}

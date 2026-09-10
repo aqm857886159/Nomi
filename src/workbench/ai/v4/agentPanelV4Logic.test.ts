@@ -9,6 +9,7 @@ import {
   composerHeight,
   isNoWiderThan,
   maxComposerHeight,
+  rowsFromContentHeight,
   shouldSubmitComposer,
 } from './agentPanelV4Logic'
 import { DEFAULT_PERMISSION_TIER, PERMISSION_TIERS } from './agentPanelV4Types'
@@ -94,5 +95,14 @@ describe('Enter 语义', () => {
     // 这一条是真坑：不判 isComposing 的话，中文选字时按 Enter 会把半截拼音发出去。
     expect(shouldSubmitComposer({ key: 'Enter', shiftKey: false, isComposing: true })).toBe(false)
     expect(shouldSubmitComposer({ key: 'a', shiftKey: false, isComposing: false })).toBe(false)
+  })
+})
+
+describe('rowsFromContentHeight（软换行行数，2026-09-10 走查反馈）', () => {
+  it('单行/多行/边界：去掉 padding 后按 20px 行高向上取整', () => {
+    expect(rowsFromContentHeight(0)).toBe(1)
+    expect(rowsFromContentHeight(36)).toBe(1)
+    expect(rowsFromContentHeight(56)).toBe(2)
+    expect(rowsFromContentHeight(76)).toBe(3)
   })
 })
