@@ -258,5 +258,23 @@ describe('migrateProjectV51ToV60', () => {
       expect(second.diagnostic.referenceEdgesCreated).toBe(0)
       expect(second.record).toBe(first.record)
     })
+
+    it('其余字段全干净、只剩 meta.referenceImageUrls 待迁 → 闸必须放行（不因 renderKind/shotIndex 已齐而整段跳过）', () => {
+      // 回归：recordNeedsV51ToV60Migration 只查 renderKind/shotIndex/derivedFrom 时，
+      // 这份记录被误判 alreadyMigrated，referenceImageUrls 永不收敛成边。
+      const record = recordWithEdges([
+        { ...imgWithResult('a', 'https://cdn/a.png'), renderKind: 'character-card' },
+        {
+          ...omniShot('v1', ['https://cdn/a.png']),
+          renderKind: 'shot-frame',
+          shotIndex: 1,
+        },
+      ])
+      const { record: out, diagnostic } = migrateProjectV51ToV60(record)
+      expect(diagnostic.alreadyMigrated).toBe(false)
+      expect(diagnostic.referenceEdgesCreated).toBe(1)
+      const v1 = out.payload.generationCanvas.nodes.find((n) => n.id === 'v1')
+      expect((v1?.meta as Record<string, unknown>)?.referenceImageUrls).toBeUndefined()
+    })
   })
 })

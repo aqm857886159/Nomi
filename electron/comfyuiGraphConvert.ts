@@ -101,6 +101,9 @@ function ensureWindow(base: string): Holder {
       // 等 ComfyUI 前端把 app 挂到 window 上（版本差异靠能力探测，不靠版本号猜）。
       const deadline = Date.now() + CONVERT_TIMEOUT_MS;
       while (Date.now() < deadline) {
+        // 窗口被 closeConverterWindow 销毁后别再空转轮询（每 400ms 对已销毁 webContents
+        // executeJavaScript，throw 被 catch 成 false，白转到 deadline）。
+        if (win.isDestroyed()) return false;
         const ok = await win.webContents
           .executeJavaScript(`Boolean(window.app && window.app.graphToPrompt && window.app.loadGraphData)`)
           .catch(() => false);
@@ -140,10 +143,15 @@ export async function convertUiWorkflowToApi(baseUrl: string, uiWorkflowText: st
   }
 
   const holder = ensureWindow(base);
-  const ready = await Promise.race([
-    holder.ready,
-    new Promise<boolean>((r) => setTimeout(() => r(false), CONVERT_TIMEOUT_MS)),
-  ]);
+  // race 的超时 timer 必须 clear：ready 先成时留着它就是 CONVERT_TIMEOUT_MS 的空挂定时器。
+  let raceTimer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<boolean>((r) => { raceTimer = setTimeout(() => r(false), CONVERT_TIMEOUT_MS); });
+  let ready: boolean;
+  try {
+    ready = await Promise.race([holder.ready, timeout]);
+  } finally {
+    clearTimeout(raceTimer);
+  }
   if (!ready) {
     closeConverterWindow(base);
     return { ok: false, error: `连不上 ComfyUI 网页（${base}），无法自动转换格式` };

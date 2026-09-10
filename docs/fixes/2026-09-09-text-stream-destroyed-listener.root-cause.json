@@ -1,0 +1,92 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-09-text-stream-destroyed-listener",
+  "problem_type": "Text stream sessions leak destroyed listeners on the sender webContents",
+  "symptom": "Each text stream attaches a once(\"destroyed\") listener to the sender webContents; normally-finished streams leave the listener (and its closed-over session/abortController) attached until the webContents is destroyed, accumulating listeners across a long session and eventually tripping MaxListeners warnings.",
+  "direct_cause": "The listener is only removed implicitly when destroyed fires; the stream's finally block deletes the session from the map but never unbinds the listener.",
+  "class_root": "Any listener attached to a lifecycle longer than the operation that registered it must be unbound in that operation's cleanup path, not only in the listener's own trigger path.",
+  "affected_population": [
+    "Long-lived renderer sessions that open many text streams (agent conversations, text node generations)"
+  ],
+  "scope_paths": [
+    "electron/ai/textStreamIpc.ts"
+  ],
+  "entry_points": [
+    "nomi:tasks:text:stream handle"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Internal Electron IPC session lifecycle; no external format change.",
+  "invariants": [
+    "When a stream reaches its finally block, the sender carries zero listeners attributable to that stream.",
+    "A destroyed sender still aborts its in-flight sessions (unbind must not weaken the destroy path)."
+  ],
+  "generality_proof": "The finally block is the single completion point for done, error, and thrown paths, so unbinding there covers every stream termination; the destroy path keeps its own trigger semantics.",
+  "shared_boundaries": [
+    {
+      "path": "electron/ai/textStreamIpc.ts",
+      "symbol": "registerTextStreamIpc stream handle",
+      "responsibility": "Bind on stream start, unbind on stream end and on sender destruction."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/ai/textStreamIpc.ts",
+      "entry_point": "nomi:tasks:text:cancel handle",
+      "disposition": "enforced",
+      "evidence": "Cancel only aborts the controller; session cleanup still flows through the runner's completion into the same finally block, which now unbinds."
+    },
+    {
+      "path": "electron/ai/textStreamIpc.ts",
+      "entry_point": "sendTextEvent",
+      "disposition": "enforced",
+      "evidence": "Reads webContents by id per event without attaching listeners, so it cannot contribute to the leak."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every normally-completed text stream leaked one listener; accumulation is proportional to conversation length.",
+    "same_class_scan": [
+      "Checked the cancel handle: it does not attach listeners itself.",
+      "Checked sendTextEvent: it reads webContents by id without attaching listeners.",
+      "No other once(\"destroyed\") registrations exist in this file."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/ai/textStreamIpc.ts",
+    "invariant": "Stream teardown removes both the session entry and its sender listener.",
+    "failure_mode": "removeListener is skipped only when the sender is already destroyed, in which case the listener died with it.",
+    "exception_policy": "none",
+    "strategy": "Keep a named handler reference; unbind it in the stream's finally block.",
+    "artifacts": [
+      "electron/ai/textStreamIpc.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/ai/textStreamIpc.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/ai/textStreamIpc.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "No legacy path removed; the destroy handler keeps identical semantics."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency change.",
+    "exit_criteria": []
+  },
+  "migration": "No persistence change.",
+  "residual_risks": [
+    "Streams whose runner promise never settles (a hang) still hold their listener; abort via cancel or destroy remains the recovery path."
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/ai/textStreamIpc.ts",
+    "tests": [
+      "electron/ai/textStreamIpc.test.ts"
+    ],
+    "note": "The IPC handler owns the stream session lifecycle; the regression pins listener count returning to zero and the destroy-abort path."
+  }
+}
