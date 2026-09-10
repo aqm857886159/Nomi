@@ -23,23 +23,10 @@ Actions 从未在这些 fork PR 上跑过（fork PR 默认不触发需要 secret
 
 ## 先查别人
 
-- 分诊证据文档：`docs/plan/2026-09-11-triage-board-evidence/fork-prs-triage.md` ——
-  19/19 PR 逐条核实仍适用于当前 `origin/main`（读了每条 PR body 点名的确切函数/行号），
-  18/19 `git merge-tree` 三方合并干净，仅 #710 与本仓 `afac7546d`（通知策略重构）在
-  `useNodeImageEditing.ts` 的同三处写回点产生逐行冲突。
-- 内部近邻先例（对应 R6 的仓库内版本）：#703（时间轴删片段不清转场引用）修的是
-  `src/workbench/timeline/timelineEdit.ts:120-160` 的 legacy 编辑路径；kernel 编辑路径
-  `src/workbench/timeline/kernel/timelineKernel.ts:423` 早就有
-  `timeline.transitions?.filter((transition) => !ids.includes(transition.fromClipId) && !ids.includes(transition.toClipId))`
-  这一行——#703 的修复就是把 legacy 路径补成跟 kernel 路径一样的清理逻辑，不是发明新概念。
-- 各 PR 自身：每条 PR body（`git show refs/pr/<N>` 可查）都点名了它照抄的「同文件既有
-  姊妹写法」作为落地依据，例如 #711 抄 `updateTimelineTextClip`（`workbenchStore.ts:721`）
-  已有的 push-undo-clear-redo 写法给 `updateTimelineTextClipFont` 补齐；#717 抄同文件
-  `rebuildCachedTaskFromPayload` 已有的守卫模式给 `findExecutableModel` 调用补 try/catch；
-  这些都不是「自研新解法」，是「补齐同文件内已有的一致性」，风险面因此可控。
-- GitHub PR 元数据核实（`gh pr view <N> --repo aqm857886159/Nomi --json author,commits`）：
-  确认 19 个 PR 的 GitHub 作者都是 `tianlinzx`（提交里的 `calvin <calvin@local>` 是其本地
-  commit author 配置，不影响署名认定）。
+- 逐条 `git merge-tree` 三方合并核实（19/19 PR 对照当前 `origin/main` 均仍适用）：18/19 干净，仅 #710 与本仓通知策略重构在 `src/workbench/generationCanvas/nodes/useNodeImageEditing.ts:1` 起的三处写回点产生逐行冲突（手工重新落位见下节，冲突原因是同一批代码行被两个正交改动各改一次，不是发明新写法）。
+- 内部近邻先例（对应 R6 的仓库内版本）：#703（时间轴删片段不清转场引用）修的是 `src/workbench/timeline/timelineEdit.ts:120-160` 的 legacy 编辑路径；kernel 编辑路径 `src/workbench/timeline/kernel/timelineKernel.ts:423` 早就有等价的转场清理 filter——#703 的修复是把 legacy 路径补成跟 kernel 路径一样的清理逻辑，不是发明新概念。
+- 各 PR 自身抄同文件既有姊妹写法：#711 抄 `updateTimelineTextClip`（`src/workbench/workbenchStore.ts:712`）已有的 push-undo-clear-redo 写法给 `updateTimelineTextClipFont`（`src/workbench/workbenchStore.ts:774`）补齐；#717 抄同文件 `rebuildCachedTaskFromPayload` 已有的守卫模式给 `findExecutableModel` 调用补 try/catch——这些是「补齐同文件内已有的一致性」，不是自研新解法，风险面因此可控。
+- GitHub PR 元数据核实：`gh pr view <N> --repo aqm857886159/Nomi --json author,commits` 输出见 `docs/plan/2026-09-11-train-tianlinzx.md:31`（下方「19 个 PR 状态」表）；确认 19 个 PR 的 GitHub 作者都是 `tianlinzx`（提交里的 `calvin <calvin@local>` 是其本地 commit author 配置，不影响署名认定）。
 
 ## 19 个 PR 状态
 
