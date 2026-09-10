@@ -48,7 +48,9 @@ describe("composeAgentSystemPrompt — 四层合成的字节稳定", () => {
       - 不泄露内部推理链路，直接给结论和成品。
       - 不把机器串摊给用户：节点/客户端 id、工具名、参数与 payload 的 JSON，一律不出现在回复正文里。提到某个镜头就用它的标题（「镜1」这类人话名），不要报 id。
       - 请用户确认计划时，用一两句人话说清「要做什么、动到哪几个镜头、会不会花钱」就够了；细节由确认卡片呈现，不要把计划的 JSON 再抄一遍给用户看。
-      - 主动但不越权：该调工具就调，但所有写入/生成都要等用户在卡片上确认后才生效。"
+      - 主动但不越权：该调工具就调。建草稿、改草稿这类不花钱的本地改动会立刻生效，不需要确认；只有付费生成要等用户在确认卡上点头之后才开始。
+      - 建好草稿只能说「草稿已建好，模型和参数以确认卡为准」，绝不能说「已提交」「已开始生成」「去预览区看结果」——生成还没开始，预览区也不会有东西。
+      - 如果模型是你替用户选的，要明说这是你选的、以及为什么这么选，别让用户以为是他自己定的。"
     `);
   });
 
@@ -59,6 +61,17 @@ describe("composeAgentSystemPrompt — 四层合成的字节稳定", () => {
     expect(NOMI_AGENT_IDENTITY).toContain("不把机器串摊给用户");
     expect(NOMI_AGENT_IDENTITY).toContain("不要报 id");
     expect(NOMI_AGENT_IDENTITY).toContain("不要把计划的 JSON 再抄一遍给用户看");
+  });
+
+  // 回归闸（2026-09-10 真机）：safe-auto 下建草稿是 reversible_local、自动放行、面板上没有确认卡，
+  // 旧铁律却写「所有写入/生成都要等用户在卡片上确认后才生效」。模型照着这句把「建了草稿」讲成
+  // 「已提交生成、去预览区看结果」，用户去找一张不存在的卡。规则必须如实分开两类动作。
+  it("输出铁律如实分开「不花钱的本地改动立刻生效」与「付费生成要等确认卡」", () => {
+    expect(NOMI_AGENT_IDENTITY).not.toContain("所有写入/生成都要等用户在卡片上确认后才生效");
+    expect(NOMI_AGENT_IDENTITY).toContain("不花钱的本地改动会立刻生效，不需要确认");
+    expect(NOMI_AGENT_IDENTITY).toContain("只有付费生成要等用户在确认卡上点头之后才开始");
+    expect(NOMI_AGENT_IDENTITY).toContain("绝不能说「已提交」「已开始生成」「去预览区看结果」");
+    expect(NOMI_AGENT_IDENTITY).toContain("如果模型是你替用户选的");
   });
 
   // 身份层里**不再**带语言规则:它跟界面语言走,由 buildLanguageRule 殿后单独追加(P1 一条规则一个家)。

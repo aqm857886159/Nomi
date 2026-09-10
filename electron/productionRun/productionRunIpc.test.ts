@@ -210,7 +210,34 @@ describe("production run IPC", () => {
       type: "gate.decide",
       payload: { gateId: "gate-contract", status: "approved" },
       issuedAt: "2026-08-08T08:00:00.000Z",
+      // 真人手势章：这条命令已过 assertTrustedSender（Nomi 自己的窗口），付费门凭它放行。
+      humanGesture: true,
     });
+  });
+
+  // 手势章必须是**这一层自己盖的**，不是从渲染层 payload 抄的——抄的话渲染进程被攻破就等于
+  // 拿到了付费门的万能钥匙。给一个显式 humanGesture: false 也照样盖成 true，证明它不看输入。
+  it("stamps the trusted human gesture itself instead of copying it from the renderer payload", async () => {
+    const repo = repository();
+    registerProductionRunIpc(repo as never);
+
+    await handlers.get("nomi:production-runs:command")?.(trustedEvent(), {
+      projectId: "project-1",
+      runId: "run-1",
+      command: {
+        commandId: "cmd-gate-forged",
+        expectedRevision: 2,
+        type: "gate.decide",
+        humanGesture: false,
+        payload: { gateId: "gate-contract", status: "approved", humanGesture: true },
+        issuedAt: "2026-08-08T08:00:00.000Z",
+      },
+    });
+
+    expect(repo.execute).toHaveBeenCalledWith("project-1", "run-1", expect.objectContaining({
+      humanGesture: true,
+      payload: { gateId: "gate-contract", status: "approved" },
+    }));
   });
 
   it("preserves only validated storyboard bindings when crossing into the service", async () => {

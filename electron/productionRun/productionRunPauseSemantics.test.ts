@@ -67,7 +67,7 @@ describe('pause spend semantics (提交门 + 收尾落停 + resume 重踢)', () 
       origin: { host: 'codex' }, brief: { goal: 'pause semantics', durationSeconds: 30 },
     })
     await service.command('project-1', runId, {
-      commandId: 'direction', expectedRevision: 0, type: 'gate.decide',
+      commandId: 'direction', expectedRevision: 0, type: 'gate.decide', humanGesture: true,
       payload: { gateId: 'gate-direction-v1', status: 'approved' }, issuedAt: new Date().toISOString(),
     })
     await approveLatestScript(service, 'project-1', runId)
@@ -83,7 +83,7 @@ describe('pause spend semantics (提交门 + 收尾落停 + resume 重踢)', () 
       issuedAt: new Date().toISOString(),
     })
     await service.command('project-1', runId, {
-      commandId: 'contract', expectedRevision: attached.run.revision, type: 'gate.decide',
+      commandId: 'contract', expectedRevision: attached.run.revision, type: 'gate.decide', humanGesture: true,
       payload: { gateId: 'gate-contract-v1', status: 'approved' }, issuedAt: new Date().toISOString(),
     })
 

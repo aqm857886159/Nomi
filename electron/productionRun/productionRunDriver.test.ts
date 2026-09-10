@@ -131,7 +131,7 @@ describe('ProductionRunService driver round 1', () => {
       brief: { goal: 'Make a truthful Nomi product promo', durationSeconds: 60 },
     })
     const approved = await service.command('project-1', 'run-driver-2', {
-      commandId: 'user-direction-1', expectedRevision: 0, type: 'gate.decide',
+      commandId: 'user-direction-1', expectedRevision: 0, type: 'gate.decide', humanGesture: true,
       payload: { gateId: 'gate-direction-v1', status: 'approved' }, issuedAt: new Date().toISOString(),
     })
     expect(approved.run.status).toBe('running')
@@ -179,7 +179,7 @@ describe('ProductionRunService driver round 1', () => {
     expect(attached.run.budget.authorized).toBe(0)
 
     await expect(service.command('project-1', 'run-driver-2', {
-      commandId: 'incomplete-contract-1', expectedRevision: attached.run.revision, type: 'gate.decide',
+      commandId: 'incomplete-contract-1', expectedRevision: attached.run.revision, type: 'gate.decide', humanGesture: true,
       payload: { gateId: 'gate-contract-v1', status: 'approved' }, issuedAt: new Date().toISOString(),
     })).rejects.toThrow(/供应商「local」.*模型「demo-video」/)
     expect(service.readFull('project-1', 'run-driver-2')).toMatchObject({
@@ -202,7 +202,7 @@ describe('ProductionRunService driver round 1', () => {
     expect(refreshed.run.budget.authorized).toBe(0)
 
     const rejected = await service.command('project-1', 'run-driver-2', {
-      commandId: 'reject-contract-1', expectedRevision: refreshed.run.revision, type: 'gate.decide', payload: { gateId: 'gate-contract-v1', status: 'rejected' }, issuedAt: new Date().toISOString(),
+      commandId: 'reject-contract-1', expectedRevision: refreshed.run.revision, type: 'gate.decide', humanGesture: true, payload: { gateId: 'gate-contract-v1', status: 'rejected' }, issuedAt: new Date().toISOString(),
     })
     expect(rejected.run.gates.find((gate) => gate.gateId === 'gate-contract-v1')?.status).toBe('rejected')
     expect(rejected.run.budget).toMatchObject({ authorized: 0, reserved: 0, actual: 0, unsettled: 0 })
@@ -241,7 +241,7 @@ describe('ProductionRunService driver round 1', () => {
       runId: 'run-driver-3', projectId: 'project-1', playbook: { name: 'brand.promo', version: '1.0.0' }, origin: { host: 'codex' },
       brief: { goal: 'Make a truthful Nomi product promo', durationSeconds: 60 },
     })
-    await service.command('project-1', 'run-driver-3', { commandId: 'direction-3', expectedRevision: 0, type: 'gate.decide', payload: { gateId: 'gate-direction-v1', status: 'approved' }, issuedAt: new Date().toISOString() })
+    await service.command('project-1', 'run-driver-3', { commandId: 'direction-3', expectedRevision: 0, type: 'gate.decide', humanGesture: true, payload: { gateId: 'gate-direction-v1', status: 'approved' }, issuedAt: new Date().toISOString() })
     await approveLatestScript(service, 'project-1', 'run-driver-3')
     await approveLatestStoryboard(service, 'project-1', 'run-driver-3')
     const planned = service.readFull('project-1', 'run-driver-3')
@@ -250,14 +250,14 @@ describe('ProductionRunService driver round 1', () => {
       payload: { artifactId: planned.artifacts.find((item) => item.kind === 'storyboard')?.artifactId, bindings: [{ nodeId: 'shot-1', provider: 'local', model: 'demo-video', stageId: 'generate' }] }, issuedAt: new Date().toISOString(),
     })
     expect(calls).not.toContain('production.generate-node')
-    const contract = await service.command('project-1', 'run-driver-3', { commandId: 'contract-3', expectedRevision: attached.run.revision, type: 'gate.decide', payload: { gateId: 'gate-contract-v1', status: 'approved' }, issuedAt: new Date().toISOString() })
+    const contract = await service.command('project-1', 'run-driver-3', { commandId: 'contract-3', expectedRevision: attached.run.revision, type: 'gate.decide', humanGesture: true, payload: { gateId: 'gate-contract-v1', status: 'approved' }, issuedAt: new Date().toISOString() })
     expect(contract.run.budget.authorized).toBe(10)
     // B2 样片门：首镜落地后停一次；批准后才继续到编排。
     await waitFor(() => service.readFull('project-1', 'run-driver-3').gates.some((gate) => gate.gateId === 'gate-sample-v1' && gate.status === 'waiting'))
     const atSample = service.readFull('project-1', 'run-driver-3')
     expect(atSample.status).toBe('running')
     expect(calls).not.toContain('production.arrange') // 样片门期间未进编排
-    await service.command('project-1', 'run-driver-3', { commandId: 'sample-3', expectedRevision: atSample.revision, type: 'gate.decide', payload: { gateId: 'gate-sample-v1', status: 'approved' }, issuedAt: new Date().toISOString() })
+    await service.command('project-1', 'run-driver-3', { commandId: 'sample-3', expectedRevision: atSample.revision, type: 'gate.decide', humanGesture: true, payload: { gateId: 'gate-sample-v1', status: 'approved' }, issuedAt: new Date().toISOString() })
     await waitFor(() => calls.includes('production.arrange'))
     const roughCut = service.readFull('project-1', 'run-driver-3')
     expect(roughCut.status).toBe('awaiting_rough_cut_review')
@@ -269,9 +269,9 @@ describe('ProductionRunService driver round 1', () => {
     expect(calls).toEqual(expect.arrayContaining(['production.plan-storyboard', 'production.generate-node', 'production.arrange']))
     const exportGate = roughCut.gates.find((gate) => gate.scope === 'export')
     expect(exportGate?.status).toBe('waiting')
-    await expect(service.command('project-1', 'run-driver-3', { commandId: 'export-too-early-3', expectedRevision: roughCut.revision, type: 'gate.decide', payload: { gateId: exportGate?.gateId, status: 'approved' }, issuedAt: new Date().toISOString() })).rejects.toThrow(/粗剪/)
+    await expect(service.command('project-1', 'run-driver-3', { commandId: 'export-too-early-3', expectedRevision: roughCut.revision, type: 'gate.decide', humanGesture: true, payload: { gateId: exportGate?.gateId, status: 'approved' }, issuedAt: new Date().toISOString() })).rejects.toThrow(/粗剪/)
     const reviewed = await service.command('project-1', 'run-driver-3', { commandId: 'rough-cut-3', expectedRevision: roughCut.revision, type: 'run.status', payload: { status: 'awaiting_export' }, issuedAt: new Date().toISOString() })
-    await service.command('project-1', 'run-driver-3', { commandId: 'export-3', expectedRevision: reviewed.run.revision, type: 'gate.decide', payload: { gateId: exportGate?.gateId, status: 'approved' }, issuedAt: new Date().toISOString() })
+    await service.command('project-1', 'run-driver-3', { commandId: 'export-3', expectedRevision: reviewed.run.revision, type: 'gate.decide', humanGesture: true, payload: { gateId: exportGate?.gateId, status: 'approved' }, issuedAt: new Date().toISOString() })
     await waitFor(() => calls.includes('production.export'))
     await waitFor(() => service.readFull('project-1', 'run-driver-3').status === 'completed')
     const completed = service.readFull('project-1', 'run-driver-3')
@@ -312,7 +312,7 @@ describe('ProductionRunService driver round 1', () => {
       runId: 'run-freeze', projectId: 'project-1', playbook: { name: 'brand.promo', version: '1.0.0' }, origin: { host: 'codex' },
       brief: { goal: 'Make a truthful Nomi product promo', durationSeconds: 60 },
     })
-    await service.command('project-1', 'run-freeze', { commandId: 'direction-f', expectedRevision: 0, type: 'gate.decide', payload: { gateId: 'gate-direction-v1', status: 'approved' }, issuedAt: new Date().toISOString() })
+    await service.command('project-1', 'run-freeze', { commandId: 'direction-f', expectedRevision: 0, type: 'gate.decide', humanGesture: true, payload: { gateId: 'gate-direction-v1', status: 'approved' }, issuedAt: new Date().toISOString() })
     await approveLatestScript(service, 'project-1', 'run-freeze')
     await approveLatestStoryboard(service, 'project-1', 'run-freeze')
     const planned = service.readFull('project-1', 'run-freeze')
@@ -321,7 +321,7 @@ describe('ProductionRunService driver round 1', () => {
       payload: { artifactId: planned.artifacts.find((item) => item.kind === 'storyboard')?.artifactId, bindings: [{ nodeId: 'shot-1', provider: 'local', model: 'demo-video', stageId: 'generate' }] }, issuedAt: new Date().toISOString(),
     })
     // 合同批准 → driveGeneration 触发；但有未冻结锚 → 停在冻结门，绝不提交（零 generate-node）。
-    await service.command('project-1', 'run-freeze', { commandId: 'contract-f', expectedRevision: attached.run.revision, type: 'gate.decide', payload: { gateId: 'gate-contract-v1', status: 'approved' }, issuedAt: new Date().toISOString() })
+    await service.command('project-1', 'run-freeze', { commandId: 'contract-f', expectedRevision: attached.run.revision, type: 'gate.decide', humanGesture: true, payload: { gateId: 'gate-contract-v1', status: 'approved' }, issuedAt: new Date().toISOString() })
     await waitFor(() => service.readFull('project-1', 'run-freeze').gates.some((gate) => gate.gateId === 'gate-freeze-v1' && gate.status === 'waiting'))
     const atFreeze = service.readFull('project-1', 'run-freeze')
     const freezeGate = atFreeze.gates.find((gate) => gate.gateId === 'gate-freeze-v1')
@@ -331,7 +331,7 @@ describe('ProductionRunService driver round 1', () => {
     expect(calls).not.toContain('production.generate-node') // 冻结门期间零 provider 调用
     expect(atFreeze.budget.actual).toBe(0)
     // 冻结确认走创意门 seam（视觉确认），批准 → 重踢 driver → 首镜提交。
-    await service.command('project-1', 'run-freeze', { commandId: 'freeze-f', expectedRevision: atFreeze.revision, type: 'gate.decide', payload: { gateId: 'gate-freeze-v1', status: 'approved' }, issuedAt: new Date().toISOString() })
+    await service.command('project-1', 'run-freeze', { commandId: 'freeze-f', expectedRevision: atFreeze.revision, type: 'gate.decide', humanGesture: true, payload: { gateId: 'gate-freeze-v1', status: 'approved' }, issuedAt: new Date().toISOString() })
     await waitFor(() => service.readFull('project-1', 'run-freeze').jobs.some((job) => job.status === 'adopted' || job.status === 'submitting'))
     expect(calls).toContain('production.generate-node') // 冻结放行后才提交
     // 冻结桥只在放行前问一次（放行后 hasApprovedFreezeGate 短路）。
@@ -364,7 +364,7 @@ describe('ProductionRunService driver round 1', () => {
       runId: 'run-frozen-ok', projectId: 'project-1', playbook: { name: 'brand.promo', version: '1.0.0' }, origin: { host: 'codex' },
       brief: { goal: 'Make a truthful Nomi product promo', durationSeconds: 60 },
     })
-    await service.command('project-1', 'run-frozen-ok', { commandId: 'direction-ok', expectedRevision: 0, type: 'gate.decide', payload: { gateId: 'gate-direction-v1', status: 'approved' }, issuedAt: new Date().toISOString() })
+    await service.command('project-1', 'run-frozen-ok', { commandId: 'direction-ok', expectedRevision: 0, type: 'gate.decide', humanGesture: true, payload: { gateId: 'gate-direction-v1', status: 'approved' }, issuedAt: new Date().toISOString() })
     await approveLatestScript(service, 'project-1', 'run-frozen-ok')
     await approveLatestStoryboard(service, 'project-1', 'run-frozen-ok')
     const planned = service.readFull('project-1', 'run-frozen-ok')
@@ -372,7 +372,7 @@ describe('ProductionRunService driver round 1', () => {
       commandId: 'attach-ok', expectedRevision: planned.revision, type: 'plan.attach',
       payload: { artifactId: planned.artifacts.find((item) => item.kind === 'storyboard')?.artifactId, bindings: [{ nodeId: 'shot-1', provider: 'local', model: 'demo-video', stageId: 'generate' }] }, issuedAt: new Date().toISOString(),
     })
-    await service.command('project-1', 'run-frozen-ok', { commandId: 'contract-ok', expectedRevision: attached.run.revision, type: 'gate.decide', payload: { gateId: 'gate-contract-v1', status: 'approved' }, issuedAt: new Date().toISOString() })
+    await service.command('project-1', 'run-frozen-ok', { commandId: 'contract-ok', expectedRevision: attached.run.revision, type: 'gate.decide', humanGesture: true, payload: { gateId: 'gate-contract-v1', status: 'approved' }, issuedAt: new Date().toISOString() })
     // 全冻结 → 无冻结门、直接进首镜（会停在样片门，证明已越过冻结门）。
     await waitFor(() => service.readFull('project-1', 'run-frozen-ok').gates.some((gate) => gate.gateId === 'gate-sample-v1' && gate.status === 'waiting'))
     const state = service.readFull('project-1', 'run-frozen-ok')
@@ -386,7 +386,7 @@ describe('ProductionRunService driver round 1', () => {
     const created = repository.create({
       runId: 'run-driver-recovery', projectId: 'project-1', playbook: { name: 'brand.promo', version: '1.0.0' }, origin: { host: 'codex' }, brief: { goal: 'recovery test' },
     })
-    const directionApproved = repository.execute('project-1', 'run-driver-recovery', { commandId: 'recovery-direction', expectedRevision: 0, type: 'gate.decide', payload: { gateId: 'gate-direction-v1', status: 'approved' }, issuedAt: created.createdAt })
+    const directionApproved = repository.execute('project-1', 'run-driver-recovery', { commandId: 'recovery-direction', expectedRevision: 0, type: 'gate.decide', humanGesture: true, payload: { gateId: 'gate-direction-v1', status: 'approved' }, issuedAt: created.createdAt })
     const job = { jobId: 'job-recovery', stageId: 'generate', status: 'planned' as const, attempt: 0, provider: 'local', model: 'demo-video', idempotencyKey: 'idem-recovery', providerTaskId: 'provider-task-1', taskKind: 'text_to_video', createdAt: created.createdAt, updatedAt: created.createdAt }
     let revision = directionApproved.run.revision
     for (const command of [
@@ -558,7 +558,7 @@ describe('ProductionRunService driver round 1', () => {
     })
     expect(exportReady.run.status).toBe('awaiting_export')
     await service.command('project-1', 'semantic-driver-run', {
-      commandId: 'semantic-export-approve', expectedRevision: exportReady.run.revision, type: 'gate.decide',
+      commandId: 'semantic-export-approve', expectedRevision: exportReady.run.revision, type: 'gate.decide', humanGesture: true,
       payload: { gateId: exportGate.gateId, status: 'approved' }, issuedAt: new Date().toISOString(),
     })
     await waitFor(() => service.readFull('project-1', 'semantic-driver-run').status === 'completed')
@@ -569,7 +569,7 @@ describe('ProductionRunService driver round 1', () => {
 
     // Same gate decision is service-idempotent and cannot launch a second export.
     const replay = await service.command('project-1', 'semantic-driver-run', {
-      commandId: 'semantic-export-approve-replay', expectedRevision: completed.revision, type: 'gate.decide',
+      commandId: 'semantic-export-approve-replay', expectedRevision: completed.revision, type: 'gate.decide', humanGesture: true,
       payload: { gateId: exportGate.gateId, status: 'approved' }, issuedAt: new Date().toISOString(),
     })
     expect(replay.run.revision).toBe(completed.revision)
