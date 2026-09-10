@@ -1,0 +1,99 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-10-storyboard-fixture-projection",
+  "problem_type": "Hand-authored evaluation parameters diverge from runtime catalog",
+  "symptom": "Round 1/2 loopback cases 4 and 9 fail canonical parameter validation",
+  "direct_cause": "argsFor wrote size rather than the real mode parameter resolution",
+  "class_root": "Evaluation tool arguments bypassed the production catalog projection",
+  "affected_population": [
+    "All future fixture model tiers and supplier identities"
+  ],
+  "scope_paths": [
+    "docs/fixes/storyboard-reliability/cases.mjs"
+  ],
+  "entry_points": [
+    "argsFor model 1K",
+    "argsFor model2 2K"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "This repair only reconnects an internal evaluation caller to existing production projection; no SDK, API or production runtime is changed.",
+  "invariants": [
+    "Every fixture tier uses an option and key from the projected model mode; absent projection fails closed."
+  ],
+  "generality_proof": "Both tiers share argsFor and derive identity/mode/parameter keys from projected entries. Tests exercise APIMart and Kie and absent/unsupported configuration.",
+  "shared_boundaries": [
+    {
+      "path": "docs/fixes/storyboard-reliability/cases.mjs",
+      "symbol": "argsFor",
+      "responsibility": "Derive all model-bearing fixture arguments from the real catalog projection"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "docs/fixes/storyboard-reliability/cases.mjs",
+      "entry_point": "cases id 4 model",
+      "disposition": "enforced",
+      "evidence": "1K uses argsFor projected mode parameter"
+    },
+    {
+      "path": "docs/fixes/storyboard-reliability/cases.mjs",
+      "entry_point": "cases id 9 model2",
+      "disposition": "enforced",
+      "evidence": "2K uses the same boundary"
+    },
+    {
+      "path": "tests/ux/agent-runtime-fixture.mjs",
+      "entry_point": "projectAgentRuntimeModels",
+      "disposition": "not-affected",
+      "evidence": "Already delegates to real mapper and buildAgentModelEntries; reused unchanged"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Hand-authored metadata can drift with any new tier or vendor.",
+    "same_class_scan": [
+      "rg argsFor docs/fixes/storyboard-reliability and .tmp: two tier callers share owner; obsolete scratch copy not used",
+      "Read tests/ux/agent-runtime-fixture.mjs projectAgentRuntimeModels and src/workbench/generationCanvas/agent/availableModels.ts buildAgentModelEntries"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "docs/fixes/storyboard-reliability/cases.mjs",
+    "invariant": "Model-bearing fixture arguments derive from projected modes.",
+    "failure_mode": "Throw before submitting if model/mode/tier is absent.",
+    "exception_policy": "none",
+    "strategy": "Remove handwritten key and bind fixture values to production catalog.",
+    "artifacts": [
+      "docs/fixes/storyboard-reliability/cases.mjs"
+    ]
+  },
+  "regression_tests": [
+    "tests/ux/storyboard-reliability-cases.test.mjs"
+  ],
+  "class_regression_tests": [
+    "tests/ux/storyboard-reliability-cases.test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "docs/fixes/storyboard-reliability/cases.mjs"
+    ],
+    "rationale": "Removed hardcoded params.size; historical failure traces remain unchanged."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No external dependency behavior changed; existing Vite projection reused.",
+    "exit_criteria": []
+  },
+  "migration": "No user data migration; next evaluation supplies catalog entries. Round 1/2 immutable evidence remains failures.",
+  "residual_risks": [
+    "Correct fixture projection cannot establish real model behavior; rounds 3\u20135 measure separately."
+  ],
+  "invariant_owner_layer": {
+    "layer": "docs/fixes/storyboard-reliability/cases.mjs",
+    "tests": [
+      "tests/ux/storyboard-reliability-cases.test.mjs"
+    ],
+    "why": "The fixture argument producer owns the rule and is tested with real production projection."
+  }
+}

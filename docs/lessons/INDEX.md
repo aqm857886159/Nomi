@@ -163,3 +163,5 @@
 - [合并收据只认 main 的 tip](merge-receipts-need-exact-tip.md) — 合一个等 CI 记一个再合下一个；probe worktree 分离 HEAD 跑 verify-merged
 - [Docs Gate Autosync 必须有正式 CI](docs-autosync-cannot-push-protected-main.md) — GH006 与跳过 CI 是写回链故障；固定 action PR + 默认 token 防循环，CI 批准边界明确
 - [样张两条硬纪律：真字形、真比例](mockups-need-real-glyphs-and-true-proportions.md) — 图标从 @tabler 包抽真实路径；布局线框按 1680×842 真比例并自己看过
+
+- [实验夹具必须经过真实调用点的投影](lab-fixtures-must-mirror-real-callsites.md) — 模型目录、档位与 canonical 参数不可手写平行真相。
