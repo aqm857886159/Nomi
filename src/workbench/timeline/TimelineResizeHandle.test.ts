@@ -1,7 +1,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { clampTimelinePanelHeight, TIMELINE_PANEL_DEFAULT, TIMELINE_PANEL_MAX, TIMELINE_PANEL_MIN, useWorkbenchStore } from '../workbenchStore'
+import { useWorkbenchStore } from '../workbenchStore'
+import { clampTimelinePanelHeight, TIMELINE_PANEL_DEFAULT, TIMELINE_PANEL_MAX, TIMELINE_PANEL_MIN } from './timelinePanelBounds'
 import { timelineResizeKeyboardHeight } from './TimelineResizeHandle'
 
 const source = fs.readFileSync(path.join(process.cwd(), 'src/workbench/timeline/TimelineResizeHandle.tsx'), 'utf8')
@@ -39,7 +40,7 @@ describe('TimelineResizeHandle contract', () => {
   it('derives the expected keyboard transitions before the store clamps them', () => {
     expect(timelineResizeKeyboardHeight(206, 'ArrowUp')).toBe(222)
     expect(timelineResizeKeyboardHeight(206, 'ArrowDown')).toBe(190)
-    expect(timelineResizeKeyboardHeight(206, 'Home')).toBe(140)
+    expect(timelineResizeKeyboardHeight(206, 'Home')).toBe(TIMELINE_PANEL_MIN)
     expect(timelineResizeKeyboardHeight(206, 'End')).toBe(300)
     expect(timelineResizeKeyboardHeight(206, 'Escape')).toBeNull()
   })
