@@ -72,15 +72,6 @@ type InlineParameterBarProps = {
    * the wider 150px dialog pill; the canvas remains 110px. */
   summaryWidth?: number
   /**
-   * 模型芯片上的极小徽标（`NomiSelect` 的 `triggerBadge`）。
-   *
-   * 立项处：Agent 的付费确认卡（2026-09-10 用户拍板）——那张卡上的模型是 **Nomi 自己挑的**，
-   * 用户有权知道「这一项不是我选的」。标记必须长在**那颗芯片上**，不是卡上另起一行小字：
-   * 另起一行的话，用户改了模型之后那行字还在，就变成一句假话。
-   * 画布节点不传它（那儿的模型一直是用户自己选的），所以默认没有。
-   */
-  modelBadge?: { text: string; tone?: 'accent' | 'danger' }
-  /**
    * 身份行两个下拉的浮层落点。
    *
    * 画布上不传 = Mantine 默认 portal 到 body（下拉要能盖出节点卡外面）。对话流里的卡不一样：
@@ -193,7 +184,6 @@ export default function InlineParameterBar({
   layout = 'inline',
   panelMode = 'portal',
   summaryWidth,
-  modelBadge,
   portalTarget,
   modeChoices,
   activeModeId = '',
@@ -547,7 +537,6 @@ export default function InlineParameterBar({
         options={modelSelect.modelOptions}
         onChange={modelSelect.onModelPick}
         onChipChange={modelSelect.onModelProviderPick}
-        {...(modelBadge ? { triggerBadge: modelBadge } : {})}
         {...(portalTarget ? { portalTarget } : {})}
       />
       {/* 变体（型号）小下拉：紧跟模型芯片（身份级，恒内联）。有变体的模型才显示。 */}
@@ -597,7 +586,14 @@ export default function InlineParameterBar({
   ) : null
 
   return (
-    <div className={cn('generation-canvas-v2-node__params--parameters', 'min-w-0', stacked ? 'flex flex-col items-stretch gap-1.5' : 'flex items-center gap-2')}>
+    <div className={cn(
+      'generation-canvas-v2-node__params--parameters', 'min-w-0',
+      stacked ? 'flex flex-col items-stretch gap-1.5' : 'flex items-center gap-2',
+      // 就地展开的参数面板是**整幅**的（`w-full`）。横排布局里 identityRow 用的是 `contents`，
+      // 所以面板会变成这一排的兄弟、和模型芯片抢宽度——芯片被挤成一个光秃秃的图标。
+      // 允许换行后 `w-full` 自己占满一整行，面板落在参数条**下面**，横排本身一动不动。
+      !stacked && panelMode === 'inline' && 'flex-wrap gap-y-1.5',
+    )}>
       {stacked ? identityRow : <div className="contents">{identityRow}</div>}
       {summaryTrigger ? (
         <div className={cn('min-w-0', stacked ? 'w-full' : 'contents')}>
