@@ -86,7 +86,9 @@ describe("(b) 有代码拥有执行契约的家，发布判据必须能返回 tr
   it("逐家断言：代码拥有执行契约的家，一个都不能被判成不可发布", () => {
     const state = seededCatalog();
     const withContract = vendorsWithCodeOwnedExecution(state);
-    expect(withContract.length).toBeGreaterThan(1);
+    // 先证明这份清单不是空的：一个采不到样本的扫描会以「全绿」的样子通过，
+    // 和真绿长得一模一样（docs/lessons 「死选择器同时造假红和假绿」）。
+    expect(withContract.length).toBeGreaterThanOrEqual(14);
     const failing = withContract.filter((key) => !hasBuiltinCuratedExecution(state, key));
     expect(failing, `这些家带着代码拥有的执行契约，却永远不会被发布：${failing.join(", ")}`).toEqual([]);
   });
@@ -113,6 +115,10 @@ describe("(c) 填 key → 凭据落盘 + 该家发布（逐家参数化，用户
   }
 
   it("每一家都存得进 key，并且存完之后这家是已发布的", async () => {
+    // 同上：文本读取的 vendorKey 正则一旦失效就会采到空清单，然后以「全绿」的样子通过。
+    expect(knownVendorKeys().size).toBeGreaterThanOrEqual(10);
+    expect(credentialVendorKeys()).toEqual(expect.arrayContaining(["kie", "apimart", "volcengine-speech", "replicate"]));
+
     const seeded = seededCatalog();
     for (const vendor of seeded.vendors) vendor.enabled = false;
     fs.writeFileSync(path.join(mockedUserDataRoot, "model-catalog.json"), JSON.stringify(seeded), "utf8");
