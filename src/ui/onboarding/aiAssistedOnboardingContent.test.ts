@@ -19,7 +19,7 @@ const prompt = '帮我把 X 接进 Nomi。'
 describe('AI-assisted onboarding clipboard', () => {
   // 技能包是唯一真相源：卡里预览的、复制出去的、装进宿主的，必须是同一个字节流。
   it('reads the skill body straight from the shipped skill package', () => {
-    const onDisk = fs.readFileSync(path.join(process.cwd(), 'skills/nomi-add-model/SKILL.md'), 'utf8').trim()
+    const onDisk = fs.readFileSync(path.join(process.cwd(), 'agent-skills/nomi-add-model/SKILL.md'), 'utf8').trim()
     expect(ASSISTED_ONBOARDING_SKILL_MARKDOWN).toBe(onDisk)
     expect(ASSISTED_ONBOARDING_SKILL_PATH).toBe('nomi-add-model/SKILL.md')
   })

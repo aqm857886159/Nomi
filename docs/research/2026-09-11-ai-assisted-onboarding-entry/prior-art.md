@@ -57,4 +57,4 @@
 
 **全部用已有**：卡（ConnectAssistantCard）留在原家不动、契约（`nomi_integration`）不动、阶段词表不动、
 格式（Agent Skills / `mcpServers`）对齐官方。本轮真正新写的只有两样：
-① 一份标准 frontmatter 的 `skills/nomi-add-model/SKILL.md`；② 模型页顶部那张把它交到用户手上的卡。
+① 一份标准 frontmatter 的 `agent-skills/nomi-add-model/SKILL.md`；② 模型页顶部那张把它交到用户手上的卡。

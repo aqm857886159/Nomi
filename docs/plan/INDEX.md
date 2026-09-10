@@ -51,7 +51,7 @@
 
 | 文件 | 一句话 | 状态 |
 |---|---|---|
-| [2026-09-11-ai-assisted-onboarding-entry.md](2026-09-11-ai-assisted-onboarding-entry.md) | **「用 AI 帮我接入」入口**：把「让你已经在用的 AI 助手替你接模型」这条路搬到模型设置页顶部，并补上缺的那半——任务提示词 + 标准 frontmatter 的 [`skills/nomi-add-model/SKILL.md`](../../skills/nomi-add-model/SKILL.md)；设计定稿 [2026-09-11-ai-assisted-onboarding-entry.md](../design/2026-09-11-ai-assisted-onboarding-entry.md)、先查别人 [prior-art.md](../research/2026-09-11-ai-assisted-onboarding-entry/prior-art.md) | ✅ |
+| [2026-09-11-ai-assisted-onboarding-entry.md](2026-09-11-ai-assisted-onboarding-entry.md) | **「用 AI 帮我接入」入口**：把「让你已经在用的 AI 助手替你接模型」这条路搬到模型设置页顶部，并补上缺的那半——任务提示词 + 标准 frontmatter 的 [`agent-skills/nomi-add-model/SKILL.md`](../../agent-skills/nomi-add-model/SKILL.md)；设计定稿 [2026-09-11-ai-assisted-onboarding-entry.md](../design/2026-09-11-ai-assisted-onboarding-entry.md)、先查别人 [prior-art.md](../research/2026-09-11-ai-assisted-onboarding-entry/prior-art.md) | ✅ |
 | [2026-06-07-model-onboarding-final-plan.md](2026-06-07-model-onboarding-final-plan.md) | **模型接入最终方案**（R7 定稿，审计+设计+计划）— 本簇主文档 | ✅ |
 | [2026-08-30-runway-seedance25-onboarding.md](2026-08-30-runway-seedance25-onboarding.md) | Runway Seedance 2.5 接入与分镜设置（源分支只含文档、未合并；配套指南带「未发布」横幅）| 📋 |
 | [2026-08-15-model-integration-no-dead-end-master-plan.md](2026-08-15-model-integration-no-dead-end-master-plan.md) | 模型接入「不留死路」总纲：事实源 manifest + 能力契约 + 旅程矩阵 | 🚧 |

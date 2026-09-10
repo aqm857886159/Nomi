@@ -20,7 +20,7 @@
 
 | | 改什么 | 不改什么 |
 |---|---|---|
-| A | `skills/nomi-add-model/SKILL.md`：一份标准 frontmatter 的技能包，正文逐条对着真实工具契约写 | 技能包格式（Agent Skills 标准）一个字不自造；`metadata.nomi` 不填 ⇒ 它不进 Nomi 自己的技能选择器 |
+| A | `agent-skills/nomi-add-model/SKILL.md`：一份标准 frontmatter 的技能包，正文逐条对着真实工具契约写 | 技能包格式（Agent Skills 标准）一个字不自造；`metadata.nomi` 不填 ⇒ 它不进 Nomi 自己的技能选择器 |
 | B | 模型页顶部新增「用 AI 帮我接入」卡：宿主分段 → 主按钮「复制指引」→ 折叠内容预览 → 「或：手动接入 →」 | **不接 MCP**：一键接入/撤销仍由 `ConnectAssistantCard` 独占；新卡只给一行状态 + 一个跳转 |
 | C | 进行中：把 `integrationContract` 的 12 个 stage 投影成 5 步显示，失败态如实报原始错误码 | 不新造状态机、不新加 IPC；用现役 `integrationHandoffList` / `integrationSessionGet` |
 | D | 旧二级页（`ConnectAssistantCard`）加**一条**指向模型页那张卡的指路 | 旧页的一键接入、实连验证、复制配置一行不动 |
@@ -38,7 +38,7 @@
   `:67` 的 `docs`。**用已有**：SKILL.md 正文逐条对着它写，不编流程。
 - **仓库里已有（阶段词表）**：`electron/shared/integrationContract.ts:4` 的 12 个 stage。**用已有**：五步是它的投影。
 - **依赖里已有**：pi 自带的 Agent Skills 加载器（`scripts/skills-format-lib.mjs:160` 已把它当第六条判据）。
-  **用已有**：技能包直接进 `skills/`，由 `check:skills-format` 判「别的宿主读不读得出来」。
+  **用已有**：技能包由 `check:skills-format` 判「别的宿主读不读得出来」（落点见下面「没想到」④）。
 - **生态里已有（格式）**：Agent Skills 规范 <https://agentskills.io/specification>（`name`/`description` 必填，`metadata` 是扩展点）；
   Claude Code 装 MCP server 的 stdio 形状 <https://code.claude.com/docs/en/mcp>；
   Codex 的 `codex mcp add` 与 `~/.codex/config.toml` <https://learn.chatgpt.com/docs/extend/mcp?surface=cli>。**全部对齐，零自定义格式**（R31）。
@@ -46,7 +46,7 @@
 
 ## 实现落点
 
-- A：`skills/nomi-add-model/SKILL.md`。
+- A：`agent-skills/nomi-add-model/SKILL.md`。
 - B：`src/ui/onboarding/aiAssistedOnboardingContent.ts`（三段内容 + 剪贴板拼装，纯函数）、
   `AiAssistedOnboardingCard.tsx`（**零桥**，实验室能用真实 props 陈列）、
   `AiAssistedOnboardingSection.tsx`（桥/订阅/轮询/首次描边）、
@@ -68,6 +68,13 @@
 3. **「重试 / 取消这次接入」在渲染层没有合法路径**：cancel 是 MCP 侧的 action，渲染层桥上没有它。
    画上去就是一颗按不动的按钮（违反控件契约 C1，`check:controls` 抓的正是这族）。
    改成一句真话：「Key 已经保存了，回到助手里让它重试即可」。见设计定稿的删除清单。
+
+4. **技能包不能住 `skills/`**——那是 Nomi **自己的**技能库根：`package.json` 的 `build.files` 带 `skills/**`
+   把它整棵装进安装包，`electron/skills/skillStore.ts:70-73` 在运行时发现它，`dispatcher.ts` 的
+   `listSkillSummariesForMcp` 再把它端给 Agent。也就是说放进去就等于告诉**站内** Agent「你也可以接模型」，
+   而那正是设计定稿 §V2 明确否掉的那条路。改落 **`agent-skills/`**（= 交给别人的宿主装的包，不进我们的库、
+   不进安装包，靠 `?raw` 编进渲染层），`check:skills-format` 加成两个根、判据一份共用
+   （`scripts/check-skills-format.mjs` 的 `SKILL_ROOTS`）——格式一歪照样红，别人那边整包读不出来才是这道门要拦的。
 
 ## 回滚
 

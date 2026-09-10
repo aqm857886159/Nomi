@@ -6,7 +6,7 @@
  * 为什么单独一个模块：这三段内容既要被卡渲染、被剪贴板复制，也要被走查逐字断言。
  * 放在组件里就只能靠截图证明「复制对了」，那证明不了内容。
  */
-import skillMarkdown from '../../../skills/nomi-add-model/SKILL.md?raw'
+import skillMarkdown from '../../../agent-skills/nomi-add-model/SKILL.md?raw'
 import { ASSISTANT_CLIENT_ORDER, type AssistantClientKey } from './assistantActivationState'
 import type { McpInfo } from '../../desktop/mcpBridgeTypes'
 
@@ -31,7 +31,7 @@ export const OTHER_ONE_CLICK_CLIENTS: readonly AssistantClientKey[] = ASSISTANT_
 
 export const ASSISTED_ONBOARDING_SKILL_NAME = 'nomi-add-model'
 export const ASSISTED_ONBOARDING_SKILL_PATH = `${ASSISTED_ONBOARDING_SKILL_NAME}/SKILL.md`
-/** 技能包原文。真相源是 skills/nomi-add-model/SKILL.md，这里只是它的一个读者。 */
+/** 技能包原文。真相源是 agent-skills/nomi-add-model/SKILL.md，这里只是它的一个读者。 */
 export const ASSISTED_ONBOARDING_SKILL_MARKDOWN = skillMarkdown.trim()
 
 /**
