@@ -28,7 +28,7 @@ function record(value: unknown): Record<string, unknown> {
 }
 
 export function looksLikeImageUrlControl(control: ModelParameterControl): boolean {
-  if (control.mediaKind === 'image' || control.mediaKind === 'video') return true
+  if (control.mediaKind === 'image' || control.mediaKind === 'video' || control.mediaKind === 'audio') return true
   if (control.type === 'image-url') return true
   if (control.type !== 'text') return false
   const key = control.key.toLowerCase().replace(/[-_]/g, '')
@@ -43,7 +43,7 @@ export function usesExplicitParameterReferenceDeclarations(meta: unknown, vendor
 
 export function isParameterReferenceControl(control: ModelParameterControl, explicitOnly = false): boolean {
   return explicitOnly
-    ? control.type === 'image-url' || control.mediaKind === 'image' || control.mediaKind === 'video'
+    ? control.type === 'image-url' || control.mediaKind === 'image' || control.mediaKind === 'video' || control.mediaKind === 'audio'
     : looksLikeImageUrlControl(control)
 }
 
@@ -51,7 +51,9 @@ function slotsFromControls(controls: readonly ModelParameterControl[], explicitO
   return controls.filter((control) => isParameterReferenceControl(control, explicitOnly)).map((control): ImageUrlSlot => {
     const key = control.key.toLowerCase().replace(/[-_]/g, '')
     const mediaKind = control.mediaKind
-    const group: ImageUrlGroup = mediaKind === 'video' ? 'reference'
+    // video/audio 声明永远是「参考」组：first/last frame 只对图片有意义(补空位靠位置猜首尾帧)，
+    // 音频/视频源没有「帧」的概念,误落 first_frame/last_frame 会被当图片首帧发出去必炸。
+    const group: ImageUrlGroup = mediaKind === 'video' || mediaKind === 'audio' ? 'reference'
       : FIRST_KEYS.some((fragment) => key.includes(fragment)) ? 'first_frame'
         : LAST_KEYS.some((fragment) => key.includes(fragment)) ? 'last_frame' : 'reference'
     return { key: control.key, label: control.label, group, ...(mediaKind ? { mediaKind } : {}) }
@@ -115,6 +117,9 @@ export function acceptsParameterReferenceSource(slot: ImageUrlSlot, source: Gene
   if (!source) return false
   const execution = getGenerationNodeExecutionKind(source.kind)
   const kind = execution === 'video' || source.result?.type === 'video' ? 'video'
+    // 用户报的根因之一「ComfyUI 音频输入用不了」：ComfyUI LoadAudio 声明的媒体槽走的是这条
+    // 独立于 anchorPolicy 的第二道口径(同一份不变量在两处各实现一次，改必须两处同改)。
+    : execution === 'audio' ? 'audio'
     : execution === 'image' || getGenerationNodeDefinition(source.kind).providesImageReference ? 'image' : null
   if (slot.mediaKind !== 'video' && kind === 'video'
     && (slot.group === 'first_frame' || (slot.group === 'reference' && mode === 'first_frame'))) return true
@@ -205,7 +210,8 @@ export function nextParameterReferenceKey(
 /** Upload/removal touches one parameter; legacy aliases are safe only for a unique semantic slot. */
 export function parameterReferenceMetaPatch(slot: ImageUrlSlot, slots: readonly ImageUrlSlot[], url: string | null): Record<string, unknown> {
   const patch: Record<string, unknown> = { [slot.key]: url, [`${slot.key}_nodeRef`]: null }
-  if (slot.mediaKind === 'video' || slots.filter((candidate) => candidate.group === slot.group).length !== 1) return patch
+  // audio 同 video：没有 legacy referenceImages 别名可写，写了就是把一段音频 URL 冒充成图片参考。
+  if (slot.mediaKind === 'video' || slot.mediaKind === 'audio' || slots.filter((candidate) => candidate.group === slot.group).length !== 1) return patch
   if (slot.group === 'first_frame') Object.assign(patch, { firstFrameUrl: url, firstFrameRef: null })
   else if (slot.group === 'last_frame') Object.assign(patch, { lastFrameUrl: url, lastFrameRef: null })
   else Object.assign(patch, { referenceImages: url ? [url] : [], referenceImageUrl: url, referenceImageRef: null })
