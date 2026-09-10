@@ -106,14 +106,17 @@ type NodeParameterControlsProps = {
   /** 当前 composer 连在节点哪条边；比例切换用它保持同一连接锚点。 */
   composerAttachmentSide?: ComposerAttachmentSide
   /**
-   * 参数浮层的落点容器（`host="panel"` 的 composer 传自己的卡）。
-   *
-   * 画布上不传：浮层 portal 到 body、打开时定位一次就不再跟随——节点卡本来就不滚动，
-   * 静止定位反而让人不用追着鼠标找。面板里的卡不一样：它随转录滚动，
-   * 一个 body 上的静止浮层会**留在原地**脱离卡。给了落点就换成「就地展开 + 浮层进卡」，
-   * 和 `panelMode="inline"` 是同一条理由。
+   * 参数**下拉浮层**的落点容器（`host="panel"` 的 composer 传自己的卡）。画布上不传：浮层 portal 到
+   * body、打开时定位一次就不跟随，而节点卡本来就不滚动。面板里的卡随转录滚动，body 上的静止浮层会
+   * **留在原地**脱离卡；给了落点就换成「就地展开 + 浮层进卡」，和 `panelMode="inline"` 同一条理由。
    */
   inlinePanelTarget?: React.RefObject<HTMLElement | null>
+  /**
+   * 就地展开的参数面板**本体**落在哪（`host="panel"` 传底栏下面那个空 div）。和上面那条是两件事：
+   * 那条是下拉浮层的 portal 根（整张卡），这条是面板的位置。不给就原地渲染在摘要 pill 后面——
+   * 那会让整幅面板变成底栏那一排的兄弟去抢宽度，把「模型/参数/×N」挤成两行。
+   */
+  inlinePanelSlot?: React.RefObject<HTMLElement | null>
 }
 
 export default function NodeParameterControls({
@@ -122,6 +125,7 @@ export default function NodeParameterControls({
   onInsertMention,
   composerAttachmentSide = 'bottom',
   inlinePanelTarget,
+  inlinePanelSlot,
 }: NodeParameterControlsProps): JSX.Element | null {
   const reportFeedback = React.useCallback((message: string) => {
     notify({ identity: `NodeParameterControls:${node.id}`, reason: 'interaction', message, level: 'inline', present: setUploadError })
@@ -708,6 +712,7 @@ export default function NodeParameterControls({
         onVariantSelect={handleVariantSwitch}
         summaryOverride={workflowSummary}
         {...(inlinePanelTarget ? { panelMode: 'inline' as const, portalTarget: inlinePanelTarget } : {})}
+        {...(inlinePanelSlot ? { inlinePanelSlot } : {})}
       />
     )
   }

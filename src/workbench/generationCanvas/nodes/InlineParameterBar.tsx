@@ -79,6 +79,17 @@ type InlineParameterBarProps = {
    * 下拉就跟着卡走——和 `panelMode="inline"` 是同一条理由。
    */
   portalTarget?: React.RefObject<HTMLElement | null>
+  /**
+   * 就地展开的参数面板落在哪个容器里（只对 `panelMode="inline"` 有意义）。
+   *
+   * 面板是**整幅**的（`w-full`）。横排布局里 identityRow 与摘要 pill 用的都是 `contents`，
+   * 所以面板会直接变成参数条那一排的兄弟去和模型芯片抢宽度（v2 实测：芯片被挤成一个光秃秃的图标）。
+   * v2 靠给那一排开 `flex-wrap` 兜底，代价是「模型 / 参数 / ×N」被拆成上下两行、长短不齐——
+   * 正是 2026-09-10 用户看到 v2 时说的「参数摆得不齐、还上下两行」。
+   * v3 改成把面板**搬出那一排**：调用方给一个落点（底栏下面那个空 div），面板 portal 过去，
+   * 参数条本身恒一行。不给落点就退回原地渲染（画布不走这条路，那儿用 portal 面板）。
+   */
+  inlinePanelSlot?: React.RefObject<HTMLElement | null>
   /** Optional generation-mode group shown at the top of the shared panel. */
   modeChoices?: readonly { id: string; label: string }[]
   activeModeId?: string
@@ -185,6 +196,7 @@ export default function InlineParameterBar({
   panelMode = 'portal',
   summaryWidth,
   portalTarget,
+  inlinePanelSlot,
   modeChoices,
   activeModeId = '',
   modeLabel,
@@ -585,20 +597,23 @@ export default function InlineParameterBar({
     </button>
   ) : null
 
+  // 就地展开的面板：有落点就 portal 过去（参数条恒一行），没有就原地渲染在 pill 下面。
+  const inlinePanel = panelOpen && panelMode === 'inline'
+    ? <div className="mt-1.5 w-full">{renderParameterPanel('inline')}</div>
+    : null
+
   return (
     <div className={cn(
       'generation-canvas-v2-node__params--parameters', 'min-w-0',
       stacked ? 'flex flex-col items-stretch gap-1.5' : 'flex items-center gap-2',
-      // 就地展开的参数面板是**整幅**的（`w-full`）。横排布局里 identityRow 用的是 `contents`，
-      // 所以面板会变成这一排的兄弟、和模型芯片抢宽度——芯片被挤成一个光秃秃的图标。
-      // 允许换行后 `w-full` 自己占满一整行，面板落在参数条**下面**，横排本身一动不动。
-      !stacked && panelMode === 'inline' && 'flex-wrap gap-y-1.5',
     )}>
       {stacked ? identityRow : <div className="contents">{identityRow}</div>}
       {summaryTrigger ? (
         <div className={cn('min-w-0', stacked ? 'w-full' : 'contents')}>
           {summaryTrigger}
-          {panelOpen && panelMode === 'inline' ? <div className="mt-1.5 w-full">{renderParameterPanel('inline')}</div> : null}
+          {inlinePanel
+            ? (inlinePanelSlot?.current ? createPortal(inlinePanel, inlinePanelSlot.current) : inlinePanel)
+            : null}
           {panelOpen && panelMode === 'portal' && panelInit ? createPortal(renderParameterPanel('portal'), document.body) : null}
         </div>
       ) : null}
