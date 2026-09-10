@@ -1,0 +1,144 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-11-ponytail-timeout-starvation",
+  "problem_type": "Local commit gate blocks correct work because a wall-clock constant assumes an idle machine",
+  "symptom": "Six task branches were blocked more than a dozen times in one night by `[ponytail-review] BLOCKED: timed out after 180000ms`, with no code defect in any of the diffs.",
+  "direct_cause": "REVIEW_TIMEOUT_MS was a hardcoded 180s passed to spawnSync; concurrent reviews from parallel worktrees starved each other of CPU so the Codex turn could not finish inside it.",
+  "class_root": "A machine-shared, unbounded-cost resource (one model turn per Git operation) was gated by a fixed wall clock with no admission control, so the gate's verdict encoded machine load rather than the change under review.",
+  "affected_population": [
+    "Every git commit and git push in every worktree on this machine",
+    "All parallel agent sessions that run gates and commits concurrently"
+  ],
+  "scope_paths": [
+    "scripts/ponytail-review-hook.mjs",
+    "scripts/with-gates-lock.py",
+    "scripts/check-ponytail-deferred.mjs"
+  ],
+  "entry_points": [
+    "Versioned pre-commit hook (scope staged)",
+    "Versioned pre-push hook (scope push)"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://github.com/pre-commit/pre-commit/issues/3317",
+      "checked_at": "2026-09-11",
+      "purpose": "pre-commit 框架维护者对并行执行的说明：会读写共享资源的 hook 必须 require_serial 退回串行。"
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/pre-commit/pre-commit-hooks/issues/656",
+      "checked_at": "2026-09-11",
+      "purpose": "官方 hook 集合里一个因并行而失效的真实案例与其 require_serial 修法。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://github.com/evilmartians/lefthook/issues/66",
+      "checked_at": "2026-09-11",
+      "purpose": "lefthook 用 parallel/piped 显式区分并行与串行链，默认不并行。"
+    }
+  ],
+  "internal_only_reason": "",
+  "invariants": [
+    "A review verdict reflects the reviewed diff, never the machine's instantaneous load.",
+    "At most one Ponytail review runs on this machine at a time; queueing time is never charged against the review's own timeout.",
+    "A skipped review is never silent: it leaves an auditable row that a gate turns red until it is reviewed or explicitly accepted."
+  ],
+  "generality_proof": "Both hook entry points call the same runPonytailReview; the timeout is derived in one exported function fed by the same collected diff, and this file's single CLI entry takes the serial lock before any diff collection or runner spawn, so neither hook can acquire a second concurrent slot or a different clock.",
+  "shared_boundaries": [
+    {
+      "path": "scripts/ponytail-review-hook.mjs",
+      "symbol": "resolveReviewTimeoutMs",
+      "responsibility": "Single place where the review wall clock is derived from diff size and machine load."
+    },
+    {
+      "path": "scripts/ponytail-review-hook.mjs",
+      "symbol": "runUnderPonytailLock",
+      "responsibility": "Serialize every review on this machine through one flock, re-running the adapter under it so queue time stays outside the review clock."
+    },
+    {
+      "path": "scripts/with-gates-lock.py",
+      "symbol": "main",
+      "responsibility": "The machine's only flock wrapper; now bounded by --wait-timeout and labelled by --label."
+    },
+    {
+      "path": "scripts/check-ponytail-deferred.mjs",
+      "symbol": "module",
+      "responsibility": "Read the deferred ledger and stay red while any row is reviewed=no."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "scripts/install-git-hooks.cjs",
+      "entry_point": "pre-commit / pre-push hook templates",
+      "disposition": "enforced",
+      "evidence": "Both templates invoke scripts/ponytail-review-hook.mjs, which now derives its own timeout and takes the lock internally; the templates themselves are unchanged so no entry point can opt out."
+    },
+    {
+      "path": "scripts/claude-hooks/commit-bypass-check.sh",
+      "entry_point": "PreToolUse(Bash) commit gate",
+      "disposition": "enforced",
+      "evidence": "Deliberately not relaxed: -c core.hooksPath= and every other bypass spelling still exit 2, so the deferred ledger is the only legal skip route."
+    },
+    {
+      "path": "scripts/claude-hooks/pre-push-check.sh",
+      "entry_point": "PreToolUse(Bash) push gate",
+      "disposition": "not-affected",
+      "evidence": "Push-stage bypass already has its own ledger (check:push-bypass); the deferred route is commit-stage only."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Twenty-plus worktrees run gates concurrently every day on this machine; any fixed wall clock around a model call will keep producing load-dependent false blocks.",
+    "same_class_scan": [
+      "grep -rn 'timeout:' scripts/*.mjs — the only other wall clocks are git maxBuffer limits and test waits, both bounded by check:test-waits.",
+      "Reviewed scripts/with-gates-lock.py as the machine's existing serialization boundary; no second lock implementation exists or was added."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "scripts/ponytail-review-hook.mjs",
+    "invariant": "One review at a time, on a clock derived from the reviewed diff and current load; any skip is ledgered.",
+    "failure_mode": "Lock wait beyond 15 minutes exits non-zero and blocks the Git operation; a deferred review leaves reviewed=no and check:ponytail-review turns red.",
+    "exception_policy": "none",
+    "strategy": "Derive the budget instead of fixing it, admit one review at a time, and make the only skip route (PONYTAIL_REVIEW_DEFER=1, staged scope, secrets scan intact) leave a ledgered row that check:ponytail-review keeps red.",
+    "artifacts": [
+      "scripts/ponytail-review-hook.mjs",
+      "scripts/with-gates-lock.py",
+      "scripts/check-ponytail-deferred.mjs",
+      "docs/plan/2026-09-11-ponytail-adaptive-serial-defer.md"
+    ]
+  },
+  "regression_tests": [
+    "scripts/ponytail-review-hook.node-test.mjs",
+    "scripts/check-ponytail-deferred.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/ponytail-review-hook.node-test.mjs",
+    "scripts/check-ponytail-deferred.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "scripts/ponytail-review-hook.mjs"
+    ],
+    "rationale": "The fixed REVIEW_TIMEOUT_MS constant is deleted in the same commit; no parallel clock remains."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency change. The lock reuses the repository's existing flock wrapper rather than adding a lock library.",
+    "exit_criteria": []
+  },
+  "migration": "None. The deferred ledger is created on first use under .claude/ (machine-local, gitignored like push-bypass.log).",
+  "residual_risks": [
+    "A review that legitimately needs more than 600s still fails closed; that is intended — the defer ledger, not a longer clock, is the route.",
+    "Load average is a coarse proxy; a machine busy with I/O rather than CPU gets the base clock."
+  ],
+  "invariant_owner_layer": {
+    "layer": "scripts/ponytail-review-hook.mjs",
+    "tests": [
+      "scripts/ponytail-review-hook.node-test.mjs"
+    ],
+    "why": "Both Git hook entry points funnel through runPonytailReview in this file; the clock, the lock and the defer decision are all taken there, so a test on this layer covers every caller."
+  }
+}
