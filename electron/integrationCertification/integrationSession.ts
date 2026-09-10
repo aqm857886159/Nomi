@@ -10,7 +10,6 @@ import type {
   AdapterAuthType,
   ProviderAdapterDraft,
   ProviderAdapterModelSelection,
-  ProviderAdapterRun,
 } from "../providerAdapter/types";
 import {
   ADAPTER_CONTRACT_INSTRUCTIONS,
@@ -32,11 +31,26 @@ import { OperationLedger } from "./operationLedger";
 import type { CertificationOperationRecord } from "./types";
 import type { WorkflowBinding, WorkflowEnumOption } from "../catalog/comfyuiWorkflowImport";
 import {
+  integrationConfirmationProjection,
+  type IntegrationConfirmationChallenge,
+} from "./integrationSpendGate";
+export type { IntegrationConfirmationChallenge } from "./integrationSpendGate";
+import {
+  proposalCandidates,
+  proposalRejected,
+  proposalSelections,
+} from "./integrationProposalValidation";
+import {
+  adapterTerminalReasonCode,
+  integrationStageFromAdapterRun,
+  safeCertificationFailureCode,
+  validateState,
+} from "./integrationSessionRecord";
+import {
   assertRecord,
   rejectWorkflowKeys,
   sanitizeWorkflowBinding,
   sanitizeWorkflowEnumOptions,
-  workflowString,
 } from "./integrationWorkflowBinding";
 import { certificationModeOperationKey } from "./modeIdentity";
 import { hardenedFetch, isPrivateHost } from "../hardenedFetch";
@@ -47,9 +61,7 @@ import { promoteCertifiedComfyCandidate, resolveComfyStagedCandidate } from "../
 import { buildComfyCertificationFixtureParams } from "../shared/comfyCertificationFixtures";
 import {
   assertIntegrationRevision,
-  INTEGRATION_CREDENTIAL_STATUSES,
   INTEGRATION_STAGES,
-  INTEGRATION_START_RECEIPT_STATUSES,
   IntegrationRequestError,
   type IntegrationCredentialStatus,
   type IntegrationStage,
@@ -134,20 +146,6 @@ export type IntegrationSession = {
   /** 驱动 Agent 交回并已通过 validateProviderAdapterDraft 的说明卡。 */
   adapterDraft?: ProviderAdapterDraft;
 };
-/** 花费确认这一跳的对外投影（MCP `nomi_integration action=confirm` 的返回形状）。 */
-export type IntegrationConfirmationChallenge = {
-  sessionId: string;
-  challengeId: string;
-  expiresAt: string;
-  contractHash: string;
-  maximumCost: number;
-  currency: string;
-  stage: IntegrationStage;
-  expectedRevision: number;
-  serverTime: string;
-  expiresInSeconds: number;
-  nextAction: string;
-};
 export type IntegrationSessionProjection = Omit<
   IntegrationSession,
   "config" | "credentialRef" | "adapterDraft" | "compileRequest"
@@ -161,7 +159,8 @@ export type IntegrationSessionProjection = Omit<
   compileRequest?: IntegrationCompileRequest & { contractSchema: Record<string, unknown>; instructions: string };
   adapterDraft?: { present: boolean; modelKeys: string[] };
 };
-type PersistedState = { version: 1; revision: number; sessions: IntegrationSession[] };
+export type PersistedIntegrationState = { version: 1; revision: number; sessions: IntegrationSession[] };
+type PersistedState = PersistedIntegrationState;
 type Dependencies = {
   filePath?: string;
   certification?: ConnectionCertificationService;
@@ -559,7 +558,6 @@ function defaultIntegrationReceiptAuthority() {
   });
   return runtimeReceiptAuthority;
 }
-const MAX_SESSIONS = 100;
 const MAX_TEXT = 64 * 1024;
 const MAX_WORKFLOW = 2 * 1024 * 1024;
 const WRITE_STAGES = new Set<IntegrationStage>([
@@ -567,10 +565,7 @@ const WRITE_STAGES = new Set<IntegrationStage>([
     (stage) => !["certifying", "committing", "completed", "partial", "failed", "cancelled"].includes(stage),
   ),
 ]);
-/**
- * 花费确认这一关的三档（该你 confirm / 等真人点 / 人点完了）。判据从 INTEGRATION_STAGES 派生，
- * 不另立一份成员清单：confirm 只在这一关内有意义，start 只在最后一档放行。
- */
+/** 花费确认那三档（该你 confirm / 等真人点 / 人点完了）。判据从词表派生，不另立成员清单。 */
 const isSpendGateStage = (stage: IntegrationStage): boolean => stage.includes("confirm");
 const TERMINAL = new Set<IntegrationStage>(
   INTEGRATION_STAGES.filter((stage) => ["completed", "partial", "failed", "cancelled"].includes(stage)),
@@ -593,40 +588,6 @@ function id(value: unknown, name: string): string {
   return normalized;
 }
 
-const PROPOSAL_KINDS = new Set(["text", "image", "video", "audio", "model3d"]);
-function proposalRejected(field: string, reason: string, repair: string): never {
-  throw new Error(`propose rejected: ${field} ${reason}. ${repair}`);
-}
-function proposalCandidates(value: unknown): IntegrationCandidate[] {
-  if (!Array.isArray(value) || value.length === 0 || value.length > 100)
-    proposalRejected("proposal.candidates", "must contain 1 to 100 items", "send the complete candidate page set");
-  return value.map((raw, index) => {
-    assertRecord(raw);
-    try {
-      rejectWorkflowKeys(raw, ["modelKey", "kind"], `proposal.candidates[${index}]`);
-      const modelKey = id(raw.modelKey, `proposal.candidates[${index}].modelKey`);
-      if (typeof raw.kind !== "string" || !PROPOSAL_KINDS.has(raw.kind))
-        proposalRejected(`proposal.candidates[${index}].kind`, "is not a supported capability kind", "use text, image, video, audio, or model3d");
-      return { modelKey, kind: raw.kind };
-    } catch (error) {
-      if (error instanceof Error && error.message.startsWith("propose rejected:")) throw error;
-      proposalRejected(`proposal.candidates[${index}]`, error instanceof Error ? error.message : "is invalid", "correct the candidate object and resubmit");
-    }
-  });
-}
-function proposalSelections(value: unknown, candidates: IntegrationCandidate[]): IntegrationCandidate[] {
-  if (!Array.isArray(value) || value.length === 0 || value.length > 100)
-    proposalRejected("proposal.selections", "must contain 1 to 100 items", "select at least one candidate by modelKey");
-  const allowed = new Map(candidates.map((candidate) => [candidate.modelKey, candidate]));
-  return value.map((raw, index) => {
-    assertRecord(raw);
-    rejectWorkflowKeys(raw, ["modelKey"], `proposal.selections[${index}]`);
-    const modelKey = id(raw.modelKey, `proposal.selections[${index}].modelKey`);
-    const candidate = allowed.get(modelKey);
-    if (!candidate) proposalRejected(`proposal.selections[${index}].modelKey`, "does not match proposal.candidates", "select only a candidate included in the same proposal");
-    return clone(candidate);
-  });
-}
 function integrationContractDigest(session: IntegrationSession, idempotencyKey: string): string {
   return digest({
     kind: session.kind,
@@ -702,97 +663,6 @@ function integrationReceiptContract(session: IntegrationSession, idempotencyKey:
   return integrationContractDigest(session, idempotencyKey);
 }
 
-/** Convert connector/runtime failures into the closed, localizable reason-code
- * set exposed by the session projection. Never persist upstream error strings. */
-function safeCertificationFailureCode(error: unknown): string {
-  const code = error instanceof Error ? error.message : "";
-  if (/credential|api.?key|safe.?storage/i.test(code)) return "credential_unavailable";
-  if (/balance|billing|payment|insufficient/i.test(code)) return "provider_balance";
-  if (/quota|rate.?limit|429/i.test(code)) return "provider_quota";
-  if (/workflow|candidate|binding|input|missing_media|prompt_missing/i.test(code)) return "invalid_input";
-  if (/timeout|network|fetch|connect|socket/i.test(code)) return "provider_network";
-  if (/unavailable|runner/i.test(code)) return "certification_unavailable";
-  return "provider_failed";
-}
-function integrationStageFromAdapterRun(stage: ProviderAdapterRun["stage"]): IntegrationStage {
-  if (stage === "completed" || stage === "partial") return stage;
-  if (["queued", "discovering_docs", "compiling", "testing", "repairing", "reconciling"].includes(stage))
-    return "certifying";
-  return "failed";
-}
-
-function adapterTerminalReasonCode(stage: ProviderAdapterRun["stage"]): string {
-  if (stage === "needs_ai") return "certification_needs_ai";
-  if (stage === "timed_out") return "certification_timed_out";
-  if (stage === "cancelled") return "certification_cancelled";
-  if (stage === "stale") return "certification_stale";
-  return "provider_failed";
-}
-
-function validateState(raw: unknown): PersistedState {
-  assertRecord(raw);
-  if (
-    raw.version !== 1 ||
-    !Number.isSafeInteger(raw.revision) ||
-    !Array.isArray(raw.sessions) ||
-    raw.sessions.length > MAX_SESSIONS
-  )
-    throw new Error("Invalid integration session state");
-  const stages = new Set<IntegrationStage>(INTEGRATION_STAGES);
-  const owners = new Set<CapabilityOriginHost>(["external", "nomi", "claude", "codex", "cursor"]);
-  for (const item of raw.sessions) {
-    assertRecord(item);
-    const allowedKeys = new Set([
-      "schemaVersion",
-      "id",
-      "revision",
-      "ownerClientId",
-      "capabilityDigest",
-      "kind",
-      "stage",
-      "configDigest",
-      "credentialStatus",
-      "childRunRef",
-      "unresolvedFields",
-      "blockingReason",
-      "persistenceProof",
-      "createdAt",
-      "updatedAt",
-      "config",
-      "candidates",
-      "selections",
-      "credentialRef",
-      "startIdempotencyKey",
-      "startReceiptDigest",
-      "pendingReceiptId",
-      "startReceiptStatus",
-      "pendingChallengeId",
-      "pendingConfirmationKey",
-      "compileRequest",
-      "adapterDraft",
-    ]);
-    const unknown = Object.keys(item).find((key) => !allowedKeys.has(key));
-    if (unknown) throw new Error(`Invalid integration session field: ${unknown}`);
-    if (
-      item.schemaVersion !== 1 ||
-      typeof item.id !== "string" ||
-      !/^[A-Za-z0-9._-]+$/.test(item.id) ||
-      !Number.isSafeInteger(item.revision) ||
-      !owners.has(item.ownerClientId as CapabilityOriginHost) ||
-      !stages.has(item.stage as IntegrationStage) ||
-      !Array.isArray(item.unresolvedFields) ||
-      !Array.isArray(item.candidates) ||
-      !Array.isArray(item.selections) ||
-      !item.config ||
-      typeof item.config !== "object" ||
-      !INTEGRATION_CREDENTIAL_STATUSES.includes(item.credentialStatus as IntegrationCredentialStatus) ||
-      (item.startReceiptStatus !== undefined &&
-        !INTEGRATION_START_RECEIPT_STATUSES.includes(item.startReceiptStatus as IntegrationStartReceiptStatus))
-    )
-      throw new Error("Invalid integration session record");
-  }
-  return { version: 1, revision: Number(raw.revision), sessions: raw.sessions as IntegrationSession[] };
-}
 
 export class IntegrationSessionService {
   private state: PersistedState;
@@ -984,11 +854,8 @@ export class IntegrationSessionService {
     return this.projection(session);
   }
   /**
-   * 列出本客户端的接入会话，未完成的排前面。
-   *
-   * 为什么必须有它：修复前 `nomi_read target=integration` 不带 sessionId 直接报错，而 MCP 面上
-   * 没有第二条路——实测里 agent 是靠 shell 去盘上 grep 我们的日志才把 sessionId 找回来的。
-   * 「上下文一丢就没法接着做」不是模型的问题，是我们没给回家的路。
+   * 列出本客户端的接入会话，未完成的排前面。修复前不带 sessionId 直接报错，而 MCP 面上没有
+   * 第二条路——实测里 agent 只能去盘上 grep 我们的日志找回 id。丢了上下文不是模型的问题。
    */
   list(owner: CapabilityOriginHost, limit = 20): { sessions: IntegrationSessionProjection[] } {
     const mine = this.state.sessions.filter((entry) => entry.ownerClientId === owner);
@@ -1001,11 +868,7 @@ export class IntegrationSessionService {
   }
 
   /** 同一个接入目标的未完成会话（同 owner + 同 kind + 同 baseUrl）。 */
-  private resumableFor(
-    owner: CapabilityOriginHost,
-    kind: IntegrationKind,
-    baseUrl: string | undefined,
-  ): IntegrationSession | undefined {
+  private resumableFor(owner: CapabilityOriginHost, kind: IntegrationKind, baseUrl?: string): IntegrationSession | undefined {
     if (!baseUrl) return undefined;
     return this.state.sessions.find(
       (entry) =>
@@ -1032,9 +895,8 @@ export class IntegrationSessionService {
     owner: CapabilityOriginHost,
   ): IntegrationSessionProjection {
     if (owner === "external") throw new Error("Signed client identity is required");
-    // 带 sessionId 的 begin 是「接着上次做」，不是「再开一个」。修复前它照样新建，
-    // 于是同一个 baseUrl 冒出第二个会话，并且报 credentialStatus: missing——
-    // 用户会被要求把已经存过的 key 再填一遍。
+    // 带 sessionId 的 begin 是「接着上次做」，不是「再开一个」。修复前它照样新建，于是同一个
+    // baseUrl 冒出第二个会话并报 credentialStatus: missing，用户被要求把存过的 key 再填一遍。
     if (input.sessionId !== undefined) return this.get(input.sessionId, owner);
     if (input.clientRequestId) {
       const existing = this.state.sessions.find((entry) => entry.config.clientRequestId === input.clientRequestId);
@@ -1084,10 +946,9 @@ export class IntegrationSessionService {
       candidates: [],
       selections: [],
     };
-    // 这个 baseUrl 的 key 可能早就在 Nomi 的安全存储里（用户上次接入时存的，或在设置页手动存的）。
-    // 报 missing 等于让用户再填一遍已经填过的东西；这里如实读一次既有凭据边界，不新增第二份真相。
-    const credentialReady =
-      input.kind === "http-api-provider" && Boolean(this.deps.credentialResolver?.(session));
+    // 这个 baseUrl 的 key 可能早就在 Nomi 的安全存储里。报 missing 等于让用户再填一遍已经填过
+    // 的东西；这里如实读一次既有凭据边界，不新增第二份真相。
+    const credentialReady = input.kind === "http-api-provider" && Boolean(this.deps.credentialResolver?.(session));
     if (credentialReady) {
       session.credentialStatus = "ready";
     } else if (input.kind === "http-api-provider") {
@@ -1253,11 +1114,9 @@ export class IntegrationSessionService {
   /**
    * Create the signed, immutable confirmation challenge consumed by the trusted Nomi UI.
    *
-   * 幂等契约（2026-09-10 真实宿主实测的直接产物）：一旦挑战签发出去，会话就进入
-   * `awaiting_human_confirmation`，**再调 confirm 只会原样返回当前挑战**，不重签、不作废
-   * 人刚才那次点击。修复前它是「后写覆盖」：Agent 每回合再确认一次就把人的点击洗掉，
-   * 于是人点三次全是白点。Stripe 的 idempotency key 语义也是「重放返回同一结果」而不是
-   * 「重放作废上一次」（https://docs.stripe.com/api/idempotent_requests）。
+   * 幂等契约：挑战一旦签发，会话进入 `awaiting_human_confirmation`，**再调 confirm 只原样返回
+   * 当前挑战**，不重签、不作废人刚才那次点击（修复前是后写覆盖，实测里人点三次全是白点）。
+   * 这也是 idempotency key 的标准语义：重放返回同一结果，不是重放作废上一次。
    */
   requestConfirmation(
     sessionId: unknown,
@@ -1278,17 +1137,14 @@ export class IntegrationSessionService {
     const authority = this.deps.approvalReceiptAuthority;
     if (!authority) throw new Error("Integration approval is unavailable");
     const nowIso = (this.deps.now || (() => new Date().toISOString()))();
-    // 人已经点完了：不碰挑战，直接告诉 Agent「该 start 了」，并给出收据自己的到期时间。
+    // 人点完了：不碰挑战，直接告诉 Agent「该 start 了」，并给收据自己的到期时间。
     if (session.stage === "human_confirmed" && session.pendingReceiptId) {
+      // 收据过期/已消费由 start 自己报，这里不把读取失败伪装成「还没确认」。
       let receiptExpiresAt = "";
       try {
-        if (authority.resolveReceiptToken) {
-          receiptExpiresAt = authority.verifyReceipt(authority.resolveReceiptToken(session.pendingReceiptId)).expiresAt;
-        }
-      } catch {
-        // 收据过期/已消费由 start 自己报，这里不把读取失败伪装成「还没确认」。
-      }
-      return this.confirmationProjection(session, {
+        if (authority.resolveReceiptToken) receiptExpiresAt = authority.verifyReceipt(authority.resolveReceiptToken(session.pendingReceiptId)).expiresAt;
+      } catch { /* 见上 */ }
+      return integrationConfirmationProjection(session, {
         challengeId: session.pendingChallengeId || "",
         expiresAt: receiptExpiresAt,
         contractHash: integrationReceiptContract(session, session.pendingConfirmationKey || key),
@@ -1305,7 +1161,7 @@ export class IntegrationSessionService {
     ) {
       try {
         const existing = authority.verifyChallenge(authority.resolveChallengeToken(session.pendingChallengeId));
-        return this.confirmationProjection(session, {
+        return integrationConfirmationProjection(session, {
           challengeId: existing.challengeId,
           expiresAt: existing.expiresAt,
           contractHash: existing.contractHash,
@@ -1318,8 +1174,8 @@ export class IntegrationSessionService {
         // keeps the same challenge key, so the authority remains idempotent.
       }
     }
-    // 只有「还没有活挑战」才会走到这里：首次 confirm，或上一枚挑战已经过期。
-    // 过期重签必须沿用原来的确认键，否则合同哈希会变，人上一次看到的报价就对不上了。
+    // 只有「没有活挑战」才到这里（首次 confirm，或挑战已过期）。重签沿用原确认键，
+    // 否则合同哈希会变，人上一次看到的报价就对不上了。
     const effectiveKey = session.stage === "awaiting_human_confirmation" && session.pendingConfirmationKey
       ? session.pendingConfirmationKey
       : key;
@@ -1367,14 +1223,13 @@ export class IntegrationSessionService {
     });
     session.pendingChallengeId = challenge.challenge.challengeId;
     session.pendingConfirmationKey = effectiveKey;
-    // 从「该你调 confirm」推进到「等真人点」。这一档存在的全部意义就是让 Agent 分得清
-    // 「等人」和「人点完了」——它以前分不清，于是选择了最坏的一种：再 confirm 一次。
+    // 推进到「等真人点」。这一档的全部意义就是让 Agent 分得清「等人」和「人点完了」。
     session.stage = "awaiting_human_confirmation";
     session.revision += 1;
     session.updatedAt = (this.deps.now || (() => new Date().toISOString()))();
     this.state.revision += 1;
     this.persist();
-    return this.confirmationProjection(session, {
+    return integrationConfirmationProjection(session, {
       challengeId: challenge.challenge.challengeId,
       expiresAt: challenge.challenge.expiresAt,
       contractHash,
@@ -1382,45 +1237,6 @@ export class IntegrationSessionService {
       currency: challenge.challenge.reservationPreview.currency,
       now: (this.deps.now || (() => new Date().toISOString()))(),
     });
-  }
-
-  /**
-   * 花费确认的对外投影。除了挑战本身，额外给三样模型真正用得上的东西：
-   *   · `stage` / `nextAction`：这一跳之后到底该谁动（实测里两个回合都在这里选错）
-   *   · `serverTime` + `expiresInSeconds`：相对量。只给绝对 UTC 等于让 LLM 做它最不擅长的
-   *     时间比较——实测里 agent 拿自己「今天是 09-11」的认知比出「已过期」并停下，其实还有 5 分钟。
-   *   · `expectedRevision`：下一跳该传的值，省掉一次重读。
-   */
-  private confirmationProjection(
-    session: IntegrationSession,
-    input: {
-      challengeId: string;
-      expiresAt: string;
-      contractHash: string;
-      maximumCost: number;
-      currency: string;
-      now: string;
-    },
-  ): IntegrationConfirmationChallenge {
-    const remaining = Number.isFinite(Date.parse(input.expiresAt))
-      ? Math.max(0, Math.round((Date.parse(input.expiresAt) - Date.parse(input.now)) / 1000))
-      : 0;
-    return {
-      sessionId: session.id,
-      challengeId: input.challengeId,
-      expiresAt: input.expiresAt,
-      contractHash: input.contractHash,
-      maximumCost: input.maximumCost,
-      currency: input.currency,
-      stage: session.stage,
-      expectedRevision: session.revision,
-      serverTime: input.now,
-      expiresInSeconds: remaining,
-      nextAction:
-        session.stage === "human_confirmed"
-          ? "call nomi_integration action=start with this sessionId and expectedRevision"
-          : "wait for the person to approve in Nomi, then poll nomi_read target=integration; do NOT call confirm again",
-    };
   }
 
   /** Trusted UI confirms the immutable contract and mints the receipt handle
@@ -1435,8 +1251,8 @@ export class IntegrationSessionService {
   }): IntegrationSessionProjection {
     const session = this.getOrThrow(input.sessionId);
     assertIntegrationRevision(input.expectedRevision, session.revision);
-    // `needs_spend_confirmation` 仍被接受：本版本之前落盘、正卡在这一关的会话读出来就是那一档，
-    // 不能因为词表变细就让人点不动它（老数据不是并行代码路径）。
+    // `needs_spend_confirmation` 仍被接受：本版本之前落盘的会话读出来就是那一档，不能因为
+    // 词表变细就让人点不动它（老数据不是并行代码路径）。
     if (session.stage !== "awaiting_human_confirmation" && session.stage !== "needs_spend_confirmation")
       throw new IntegrationRequestError(
         "integration_stage_not_allowed",
@@ -1584,8 +1400,8 @@ export class IntegrationSessionService {
       this.persist();
       return this.projection(session);
     }
-    // 没有任何收据可谈（调用方没给，会话上也没有）＝ 人根本还没批。此时报「收据无效」是把
-    // 因果讲反了，而实测证明 agent 会照着这句话去重试收据而不是去等人。先把真正的原因说出来。
+    // 没有任何收据可谈（调用方没给，会话上也没有）＝ 人根本还没批。报「收据无效」是把因果
+    // 讲反了：agent 会照着它去重试收据而不是去等人。先把真正的原因说出来。
     if (!resumableStart && !receipt && !session.pendingReceiptId && session.stage !== "human_confirmed") {
       throw new IntegrationRequestError(
         "integration_stage_not_allowed",
