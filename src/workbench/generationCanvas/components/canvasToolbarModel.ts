@@ -46,7 +46,8 @@ export type CanvasAddSection = Readonly<{
   intents: readonly CanvasAddIntent[]
 }>
 
-/** 顺序即左缘顺序：常驻 图片/视频/声音/剪辑/导入，更多 文字 → 空间·草图四种。 */
+/** 顺序即左缘顺序：常驻 图片/视频/声音/文字/剪辑/导入，更多 空间·草图四种。
+ *  （2026-09-10 走查反馈：文本是高频意图，从「更多」提回常驻——常驻预算让位给真实使用。） */
 export const CANVAS_ADD_SECTIONS = [
   {
     id: 'generate',
@@ -56,8 +57,8 @@ export const CANVAS_ADD_SECTIONS = [
       { id: 'image', kind: 'image', placement: 'resident' },
       { id: 'video', kind: 'video', placement: 'resident' },
       { id: 'audio', kind: 'audio', placement: 'resident' },
+      { id: 'text', kind: 'text', placement: 'resident' },
       { id: 'clip', kind: 'clip', placement: 'resident' },
-      { id: 'text', kind: 'text', placement: 'more' },
     ],
   },
   {

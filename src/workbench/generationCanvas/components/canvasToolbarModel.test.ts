@@ -12,28 +12,27 @@ import {
 /** 派生节点：agent / 分镜流程 / 导入的产物，用户不会「先建一个空的」。加号里不许出现它们。 */
 const DERIVED_KINDS = ['character', 'scene', 'keyframe', 'shot', 'output', 'asset'] as const
 
-describe('canvas add-intent model（第三档：5 常驻 + 更多）', () => {
-  it('常驻恰好 5 个，顺序是 图片/视频/声音/剪辑/导入', () => {
+describe('canvas add-intent model（2026-09-10 拍板：文本回常驻 → 6 常驻 + 更多）', () => {
+  it('常驻恰好 6 个，顺序是 图片/视频/声音/文字/剪辑/导入', () => {
     expect(canvasResidentAddIntents().map((intent) => intent.id)).toEqual([
       'image',
       'video',
       'audio',
+      'text',
       'clip',
       'import-file',
     ])
   })
 
-  it('「更多」里恰好 5 个，分两段带名字：更多 · 空间 · 草图', () => {
+  it('「更多」里恰好 4 个（空间·草图），一段带名字', () => {
     const sections = canvasMoreAddSections()
     expect(sections.flatMap((section) => section.intents).map((intent) => intent.id)).toEqual([
-      'text',
       'scene3d',
       'model3d',
       'panorama',
       'whiteboard',
     ])
     expect(sections.map((section) => [section.id, section.labelKey])).toEqual([
-      ['generate', 'canvas.addSections.more'],
       ['space', 'canvas.addSections.space'],
     ])
   })
@@ -49,8 +48,8 @@ describe('canvas add-intent model（第三档：5 常驻 + 更多）', () => {
       'image',
       'video',
       'audio',
-      'clip',
       'text',
+      'clip',
       'import-file',
       'scene3d',
       'model3d',

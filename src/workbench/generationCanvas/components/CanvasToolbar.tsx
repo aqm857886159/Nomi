@@ -383,7 +383,12 @@ export default function CanvasToolbar({ getInsertionPosition, categoryId }: Canv
                 <div
                   className={cn(
                     'generation-canvas-v2-toolbar__more-menu',
-                    'absolute bottom-0 left-[calc(100%+8px)] z-[9] grid gap-0.5 w-[148px] p-[6px]',
+                    // 2026-09-10 走查反馈：菜单 z-[9] 会被节点 composer（z-[8] 同层后挂）
+                    // 和节点浮条（z-[12]）盖住，hover「＋」点不到菜单项——提到浮条之上；
+                    // before 桥补上按钮→菜单之间 8px 视觉空隙的 hit-area，指针穿过缝隙
+                    // 不再触发 wrapper 的 pointerleave 把菜单关掉。
+                    'absolute bottom-0 left-[calc(100%+8px)] z-[13] grid gap-0.5 w-[148px] p-[6px]',
+                    'before:absolute before:inset-y-0 before:-left-2 before:w-2 before:content-[""]',
                     'border border-workbench-border rounded-nomi bg-nomi-paper shadow-workbench-pop',
                   )}
                   role="menu"
