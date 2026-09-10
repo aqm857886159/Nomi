@@ -1,10 +1,10 @@
 # 音频参考一等公民化（声音节点连不上视频节点 + ComfyUI 音频输入用不了）
 
-> 📎 状态：代码修复 + 单测 + 走查已跑，验收证据在 `AUDIO-LAST.md` · 2026-09-11
+> 📎 状态：代码修复 + 单测 + 真机走查（含截图）已跑，真实付费出片见 `AUDIO-LAST.md`（5 次尝试均 ¥0，判断为 APIMart 环境限制非代码缺陷）· 2026-09-11
 > 分支：fix/audio-first-class-reference-20260911
-> 基线：origin/main 9809892c5（Merge PR #722）
+> 基线：origin/main 9809892c5（Merge PR #722），已 merge 最新 origin/main（含导演台 V2，57 commit）
 > 合同：`docs/fixes/2026-09-11-audio-reference-slot-gate.root-cause.json`（schema v3，`check:root-cause-contracts` 绿）
-> 验收：`npx vitest run` 全量绿（12125+ 用例）+ `pnpm run typecheck`/`lint:ci` 绿 + `tests/ux/audio-reference-connect.walk.mjs` 真机走查
+> 验收：`npx vitest run` 全量绿（merge 后 12169 用例）+ `pnpm run typecheck`/`lint:ci` 绿 + `tests/ux/audio-reference-connect.walk.mjs` 真机走查（EXIT:0，截图见 `tests/ux/shots/audio-reference-connect/`）
 > 不动项：不改任何模型档案的参考槽声明本身（audio_ref 早就声明好了，问题只在门岗）；不新增 ComfyUI 音频角色的旧式单槽（沿用已有的通用 images[] 多媒体列表机制）
 
 ## 用户摩擦（D1）
