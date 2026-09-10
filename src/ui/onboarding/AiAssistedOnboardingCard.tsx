@@ -92,7 +92,10 @@ export function AiAssistedOnboardingCard({
     )
   }
 
-  const connected = clientKey && info ? info.clients[clientKey]?.installed === true : null
+  // 这一行只说得起「配置里有没有这条」——**不是**「还连不连得上」。真握手要 spawn 一次
+  // （ConnectAssistantCard 的 verifyMcp 干这活，那是它的家），本卡不许再起一份（P1）。
+  // 所以文案也只敢说到这个份上：写「已连上」就是在替一次没做过的握手打包票。
+  const configured = clientKey && info ? info.clients[clientKey]?.installed === true : null
 
   return (
     <section
@@ -144,7 +147,7 @@ export function AiAssistedOnboardingCard({
           />
 
           {/* 「一键接入 MCP」已经有家（自动化与权限），这里只报状态 + 指路，不放第二颗按钮。 */}
-          {connected === false ? (
+          {configured === false ? (
             <button
               type="button"
               data-assisted-onboarding-connect
@@ -160,7 +163,7 @@ export function AiAssistedOnboardingCard({
                 <IconExternalLink size={13} stroke={1.6} aria-hidden="true" />
               </span>
             </button>
-          ) : connected === true ? (
+          ) : configured === true ? (
             <div className="inline-flex items-center gap-1.5 text-micro text-nomi-ink-60">
               <IconCheck size={13} stroke={1.8} className="text-workbench-success-ink" aria-hidden="true" />
               {t('onboardingProviders.assistedOnboarding.connection.connected', { host: hostLabel })}
@@ -195,7 +198,10 @@ export function AiAssistedOnboardingCard({
                       {t(`onboardingProviders.assistedOnboarding.steps.${step}.title`)}
                     </span>
                     <span className="mt-0.5 block text-micro leading-relaxed text-nomi-ink-40">
-                      {t(`onboardingProviders.assistedOnboarding.steps.${step}.body`, { host: hostLabel })}
+                      {/* 「其它」段没有宿主名可念——「在 其它 的对话框里」是句病句，换成不点名的说法。 */}
+                      {step === 'paste' && host === 'other'
+                        ? t('onboardingProviders.assistedOnboarding.steps.pasteAnyHost')
+                        : t(`onboardingProviders.assistedOnboarding.steps.${step}.body`, { host: hostLabel })}
                     </span>
                   </span>
                 </li>

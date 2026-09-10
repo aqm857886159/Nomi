@@ -61,7 +61,7 @@ export const DYNAMIC_KEY_PREFIXES: DynamicPrefix[] = [
   // ── onboardingProviders ──
   {
     prefix: 'onboardingProviders.assistedOnboarding.steps',
-    members: ['paste.title', 'paste.body', 'ask.title', 'ask.body', 'key.title', 'key.body'],
+    members: ['paste.title', 'paste.body', 'pasteAnyHost', 'ask.title', 'ask.body', 'key.title', 'key.body'],
     why: "动态: 「复制指引」之后那三步小示意;枚举来源: AiAssistedOnboardingCard.tsx 里那个 ['paste','ask','key'] as const 字面量元组(steps.*.title/.body 词条)",
   },
   {

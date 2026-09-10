@@ -547,14 +547,15 @@ export const zhOnboardingProviders = {
     otherOneClickHint: 'Nomi 也能替 {{clients}} 一键写好配置。',
     steps: {
       paste: { title: '粘到助手里', body: '在 {{host}} 的对话框里粘贴一次。' },
+      pasteAnyHost: '在你那个助手的对话框里粘贴一次。',
       ask: { title: '说要接哪个', body: '「帮我把某某模型接进 Nomi。」' },
       key: { title: '在 Nomi 里贴 Key', body: '它会弹出这一页，Key 只在这里输入。' },
     },
     keyNotice: 'Key 只经过这一页，不进 AI 的上下文，助手全程看不到它。',
     connection: {
-      connected: '已连上 {{host}}',
-      missing: '还没连上 {{host}}',
-      action: '去连接',
+      connected: '{{host}} 的配置里已有 Nomi',
+      missing: '{{host}} 还没接入 Nomi',
+      action: '去接入',
     },
     progress: {
       title: '{{host}} 正在接入 {{name}}',
@@ -1730,13 +1731,14 @@ export const enOnboardingProviders = {
     otherOneClickHint: 'Nomi can also write the config for {{clients}} in one click.',
     steps: {
       paste: { title: 'Paste it into your assistant', body: 'Paste once into the {{host}} chat box.' },
+      pasteAnyHost: 'Paste once into your assistant\u2019s chat box.',
       ask: { title: 'Say which model', body: '"Connect model X to Nomi for me."' },
       key: { title: 'Paste the key inside Nomi', body: 'It opens this page; the key is only ever typed here.' },
     },
     keyNotice: 'The key only passes through this page. It never enters the AI context — the assistant never sees it.',
     connection: {
-      connected: '{{host}} is connected',
-      missing: '{{host}} is not connected yet',
+      connected: 'Nomi is in {{host}}\u2019s config',
+      missing: '{{host}} is not connected to Nomi yet',
       action: 'Connect',
     },
     progress: {
