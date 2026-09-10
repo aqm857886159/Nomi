@@ -14,6 +14,35 @@ describe("IntegrationSessionService", () => {
     });
   }
 
+  /**
+   * 走完真实的人证关卡：Agent 请求挑战 → 可信 UI 侧真人手势 → 铸收据。
+   *
+   * 为什么用例里必须走它：`start` 现在只在 `human_confirmed` 放行。旧用例直接从
+   * `needs_spend_confirmation` 跳到 `start` 并塞一个字符串 "receipt-1"，等于把这一关整个测没了——
+   * 正是 R30 点名的盲区（夹具用变量直传，真实模型在回路里的那一段从没被测过）。
+   */
+  function approveSpend(service: IntegrationSessionService, sessionId: string, owner: "codex" | "claude", key: string) {
+    const current = service.get(sessionId, owner);
+    const requested = service.requestConfirmation(sessionId, current.revision, owner, key);
+    const afterRequest = service.get(sessionId, owner);
+    expect(afterRequest.stage).toBe("awaiting_human_confirmation");
+    return service.confirmFromTrustedUi({
+      sessionId,
+      expectedRevision: afterRequest.revision,
+      challengeId: requested.challengeId,
+      webContentsId: 1,
+      frameId: 1,
+      origin: "file://",
+    });
+  }
+
+  function testAuthority(dir: string) {
+    return createApprovalReceiptAuthority({
+      filePath: path.join(dir, "receipts.json"),
+      macKey: "integration-test-key",
+    });
+  }
+
   // compilerAvailable 默认注 true = 「这台机器上已经有能读文档的文本模型」，也就是这些既有用例
   // 一直隐含的处境。为 false 的那条路（鸡生蛋）由本文件末尾的专门用例覆盖。
   function make(overrides: { compilerAvailable?: () => boolean } = {}) {
@@ -86,7 +115,7 @@ describe("IntegrationSessionService", () => {
     })).resolves.toMatchObject({ stage: "needs_spend_confirmation" });
     await expect(service.propose(started.id, ready.revision, "claude", {
       candidates: [{ modelKey: "text-1", kind: "text" }], selections: [{ modelKey: "text-1" }],
-    })).rejects.toThrow(/stale/);
+    })).rejects.toThrow(/behind the session/);
     expect(fs.existsSync(filePath)).toBe(true);
     const reloaded = new IntegrationSessionService({ filePath });
     expect(reloaded.get(started.id, "claude").id).toBe(started.id);
@@ -100,10 +129,12 @@ describe("IntegrationSessionService", () => {
         childRunRef: { runId: "run-1", revisionDigest: "a".repeat(64) },
       })),
     };
+    const certDir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-session-cert-"));
     const withCert = new IntegrationSessionService({
-      filePath: path.join(fs.mkdtempSync(path.join(os.tmpdir(), "nomi-session-cert-")), "sessions.json"),
+      filePath: path.join(certDir, "sessions.json"),
       certification: cert as never,
       credentialResolver: () => "secret",
+      approvalReceiptAuthority: testAuthority(certDir),
       save: (target, state) => fs.writeFileSync(target, JSON.stringify(state)),
     });
     const session = withCert.begin(
@@ -112,8 +143,11 @@ describe("IntegrationSessionService", () => {
     );
     const ready = withCert.markCredentialReady(session.id, "ref", "codex");
     const selected = await proposeHttp(withCert, session.id, ready.revision, "codex");
-    await expect(withCert.start(session.id, selected.revision, "codex", "idem")).rejects.toThrow(/receipt/i);
-    const result = await withCert.start(session.id, selected.revision, "codex", "idem", "receipt-1");
+    // 人还没批：start 必须明说「等人批」，而不是含糊地报收据问题（这正是实测里 agent 读错的那一跳）。
+    await expect(withCert.start(session.id, selected.revision, "codex", "idem")).rejects.toThrow(/not ready to start|approved/i);
+    const approved = approveSpend(withCert, session.id, "codex", "idem");
+    expect(approved.stage).toBe("human_confirmed");
+    const result = await withCert.start(session.id, approved.revision, "codex", "idem", approved.pendingReceiptId);
     expect(result.childRunRef?.runId).toBe("run-1");
     expect(cert.startHttp).toHaveBeenCalledTimes(1);
     expect(service).toBeDefined();
@@ -135,6 +169,7 @@ describe("IntegrationSessionService", () => {
       filePath: path.join(dir, "sessions.json"),
       certification: certification as never,
       credentialResolver: () => "secret",
+      approvalReceiptAuthority: testAuthority(dir),
       save: (target, state) => fs.writeFileSync(target, JSON.stringify(state)),
       compilerAvailable: () => true,
     });
@@ -143,9 +178,10 @@ describe("IntegrationSessionService", () => {
       "codex",
     );
     const ready = service.markCredentialReady(session.id, "ref", "codex");
-    const selected = await proposeHttp(service, session.id, ready.revision, "codex", "audio-flagship", "audio");
+    await proposeHttp(service, session.id, ready.revision, "codex", "audio-flagship", "audio");
+    const approved = approveSpend(service, session.id, "codex", "async-http");
 
-    const started = await service.start(session.id, selected.revision, "codex", "async-http", "receipt-1");
+    const started = await service.start(session.id, approved.revision, "codex", "async-http", approved.pendingReceiptId);
     expect(started).toMatchObject({ stage: "certifying", childRunRef: { runId: "run-async" } });
     childStage = "testing";
     expect(service.get(session.id, "codex").stage).toBe("certifying");
@@ -168,6 +204,7 @@ describe("IntegrationSessionService", () => {
       filePath: path.join(dir, "sessions.json"),
       certification: cert as never,
       credentialResolver: () => "secret",
+      approvalReceiptAuthority: testAuthority(dir),
       save: (target, state) => fs.writeFileSync(target, JSON.stringify(state)),
     });
     const session = service.begin(
@@ -175,9 +212,10 @@ describe("IntegrationSessionService", () => {
       "codex",
     );
     const ready = service.markCredentialReady(session.id, "ref", "codex");
-    const selected = await proposeHttp(service, session.id, ready.revision, "codex");
-    const first = await service.start(session.id, selected.revision, "codex", "same-key", "receipt-1");
-    const second = await service.start(session.id, first.revision, "codex", "same-key", "receipt-1");
+    await proposeHttp(service, session.id, ready.revision, "codex");
+    const approved = approveSpend(service, session.id, "codex", "same-key");
+    const first = await service.start(session.id, approved.revision, "codex", "same-key", approved.pendingReceiptId);
+    const second = await service.start(session.id, first.revision, "codex", "same-key", approved.pendingReceiptId);
     expect(second.childRunRef).toEqual(first.childRunRef);
     expect(cert.startHttp).toHaveBeenCalledTimes(1);
   });
@@ -189,12 +227,14 @@ describe("IntegrationSessionService", () => {
       filePath: path.join(dir, "sessions.json"),
       certification: cert as never,
       credentialResolver: () => undefined,
+      approvalReceiptAuthority: testAuthority(dir),
       save: (target, state) => fs.writeFileSync(target, JSON.stringify(state)),
     });
     const session = service.begin({ kind: "http-api-provider", name: "Provider", baseUrl: "https://api.example" }, "codex");
     const ready = service.markCredentialReady(session.id, "ref", "codex");
-    const selected = await proposeHttp(service, session.id, ready.revision, "codex");
-    const result = await service.start(session.id, selected.revision, "codex", "missing-key", "receipt-1");
+    await proposeHttp(service, session.id, ready.revision, "codex");
+    const approved = approveSpend(service, session.id, "codex", "missing-key");
+    const result = await service.start(session.id, approved.revision, "codex", "missing-key", approved.pendingReceiptId);
     expect(result.stage).toBe("failed");
     expect(result.blockingReason).toEqual({ code: "credential_unavailable" });
     expect(cert.startHttp).not.toHaveBeenCalled();
@@ -212,12 +252,14 @@ describe("IntegrationSessionService", () => {
     const service = new IntegrationSessionService({
       filePath: path.join(dir, "sessions.json"),
       certifyComfy,
+      approvalReceiptAuthority: testAuthority(dir),
       save: (target, state) => fs.writeFileSync(target, JSON.stringify(state)),
     });
     const session = service.begin({ kind: "comfyui-workflow", name: "Local" }, "codex");
     const workflow = service.submitWorkflow(session.id, session.revision, "codex", '{"nodes":{}}');
-    const ready = service.resolveInput(session.id, workflow.revision, "codex", {});
-    const starting = service.start(session.id, ready.revision, "codex", "comfy-key", "receipt-1");
+    service.resolveInput(session.id, workflow.revision, "codex", {});
+    const approved = approveSpend(service, session.id, "codex", "comfy-key");
+    const starting = service.start(session.id, approved.revision, "codex", "comfy-key", approved.pendingReceiptId);
     await new Promise((resolve) => setTimeout(resolve, 0));
     const certifying = service.get(session.id, "codex");
     expect(certifying.stage).toBe("certifying");
@@ -260,6 +302,7 @@ describe("IntegrationSessionService", () => {
     );
     const ready = service.markCredentialReady(session.id, "ref", "codex");
     const selected = await proposeHttp(service, session.id, ready.revision, "codex");
+    // 伪造收据在人证之前就被拒：收据校验先于阶段判断，所以这条断言仍然测的是「收据必须注册过」。
     await expect(service.start(session.id, selected.revision, "codex", "idem", "forged-receipt")).rejects.toThrow(
       /receipt/i,
     );
@@ -357,7 +400,7 @@ describe("IntegrationSessionService", () => {
       "codex",
     );
     const opened = service.openCredentials(session.id, session.revision, "codex");
-    expect(() => service.saveCredential(opened.id, opened.revision - 1, "nomi", "sk-stale")).toThrow(/stale/);
+    expect(() => service.saveCredential(opened.id, opened.revision - 1, "nomi", "sk-stale")).toThrow(/behind the session/);
     expect(() => service.saveCredential(opened.id, opened.revision, "nomi", "sk-no-keychain")).toThrow(/secure storage/);
     expect(retireHandoff).not.toHaveBeenCalled();
   });
