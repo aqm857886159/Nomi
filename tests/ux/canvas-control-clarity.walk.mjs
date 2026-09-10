@@ -330,15 +330,17 @@ try {
   assert(resolvedGaps.every((gap) => closeEnough(gap, resolvedGaps[0], 1)), '节点与编辑框连接间距保持一致')
   await snap('02-dark-canvas-ratio-panel.png')
 
-  // ③ 生成数量是明确的 1–4 选择，不再循环跳数；3 张是真选项。
+  // ③ 生成数量是明确的 1–4 选择，不再循环跳数；3 个是真选项。
+  //    文案 2026-09-10 由「张」改为「个」：同一个计数件现在也管视频/音频/3D（反馈 #11），
+  //    「张」只对图片成立。
   await getWin().keyboard.press('Escape')
-  const countSelect = composer.getByRole('button', { name: '每次生成张数', exact: true }).first()
+  const countSelect = composer.getByRole('button', { name: '每次生成几个', exact: true }).first()
   await countSelect.click()
   const countOptions = getWin().getByRole('option')
   const labels = (await countOptions.allTextContents()).map((text) => text.trim())
-  assert(['1 张', '2 张', '3 张', '4 张'].every((label) => labels.includes(label)), '数量菜单明确包含 1、2、3、4 张')
-  await getWin().getByRole('option', { name: '3 张', exact: true }).click()
-  assert((await countSelect.textContent())?.includes('3 张'), '可直接选择 3 张并在触发器显示')
+  assert(['1 个', '2 个', '3 个', '4 个'].every((label) => labels.includes(label)), '数量菜单明确包含 1、2、3、4 个')
+  await getWin().getByRole('option', { name: '3 个', exact: true }).click()
+  assert((await countSelect.textContent())?.includes('3 个'), '可直接选择 3 个并在触发器显示')
 
   // ④ 顶栏语义分组与任务按钮：任务独立，设置和模型接入相邻，主组只负责去出片。
   const actionGroups = await getWin().evaluate(() => ({
