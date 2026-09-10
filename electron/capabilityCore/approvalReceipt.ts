@@ -154,7 +154,19 @@ export type ApprovalReceiptAuthorityDeps = {
   lock?: ProductionRunLock;
   now?: () => string;
   randomId?: () => string;
+  /** 挑战 TTL：**人**要多久发现并点下去。 */
   defaultTtlMs?: number;
+  /**
+   * 收据 TTL：人点完之后，调用方还有多久可以把它花掉。从**铸造时刻**（＝人点下去那一刻）起算。
+   *
+   * 为什么必须和挑战 TTL 分开：修复前收据直接继承挑战的 `expiresAt`，于是「人要多久发现」
+   * 和「agent 多久花掉」共用同一段 5 分钟。2026-09-10 的真实宿主实测里这一关走不通——
+   * 一个 agent 回合本身就要 30–120s，人还得自己发现队列里躺着一条待确认再翻到设置页，
+   * 三件事塞不进同一个 5 分钟，`start` 拿到的是 `receipt_expired`。
+   * 两段各自计时是同类流程的标准形状（GitHub device flow 的 user code 与换 token 也是两段）。
+   * 默认值不新增魔法数：与挑战同为 `defaultTtlMs`，改变的是**起点**而不是长度。
+   */
+  receiptTtlMs?: number;
 };
 
 export type ReceiptReplayResult = { receipt: HumanApprovalReceiptV1; replayed: boolean };
@@ -258,6 +270,7 @@ export function createApprovalReceiptAuthority(deps: ApprovalReceiptAuthorityDep
   const now = deps.now ?? (() => new Date().toISOString());
   const randomId = deps.randomId ?? (() => crypto.randomUUID());
   const defaultTtlMs = deps.defaultTtlMs ?? 5 * 60_000;
+  const receiptTtlMs = deps.receiptTtlMs ?? defaultTtlMs;
 
   function readState(): ApprovalReceiptState {
     if (!fs.existsSync(deps.filePath)) return emptyState(keyId);
@@ -466,6 +479,7 @@ export function createApprovalReceiptAuthority(deps: ApprovalReceiptAuthorityDep
   function mintReceipt(token: string, gesture: unknown): { token: string; receipt: HumanApprovalReceiptV1 } {
     const challenge = verifyChallenge(token);
     const attestation = verifyGesture(token, gesture);
+    const issuedAt = now();
     const state = readState();
     const challengeRecord = state.challenges[challenge.challengeId];
     if (!challengeRecord) throw new HumanApprovalRequiredError();
@@ -498,8 +512,9 @@ export function createApprovalReceiptAuthority(deps: ApprovalReceiptAuthorityDep
       gestureAttestation: attestation,
       receiptNonce: randomId(),
       audience: HUMAN_APPROVAL_AUDIENCE,
-      issuedAt: now(),
-      expiresAt: challenge.expiresAt,
+      issuedAt,
+      // 从人点下去那一刻起算，不继承挑战的剩余时间。
+      expiresAt: expiresAt(issuedAt, undefined, receiptTtlMs),
     };
     const receipt: HumanApprovalReceiptV1 = { ...receiptWithoutMac, mac: sign(receiptWithoutMac, deps.macKey) };
     const receiptToken = encode(receipt);

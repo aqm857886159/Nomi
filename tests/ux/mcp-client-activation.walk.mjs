@@ -182,7 +182,7 @@ async function installOrReconnect(win, panel, clientKey, label) {
 }
 
 async function openCursorPermissions(win, panel) {
-  const action = panel.locator('button').filter({ hasText: /打开 Cursor 权限设置|Open Cursor permission settings/ }).first()
+  const action = panel.locator('button').filter({ hasText: /Cursor 权限|Cursor Permissions/ }).first()
   assert((await action.count()) === 1, 'Cursor Nomi-permission action is missing')
   await action.click()
   const dialog = win.locator('[role="dialog"]').filter({ hasText: /自动化与权限|Automation & permissions/ }).last()
@@ -226,7 +226,7 @@ async function allowCursor(win, dialog, input) {
 
 async function verifyCardUpdated(panel) {
   assert(
-    (await panel.locator('button').filter({ hasText: /打开 Cursor 权限设置|Open Cursor permission settings/ }).count()) === 0,
+    (await panel.locator('button').filter({ hasText: /Cursor 权限|Cursor Permissions/ }).count()) === 0,
     'Cursor permission CTA remained after persisted Nomi approval',
   )
   const text = await panel.innerText()

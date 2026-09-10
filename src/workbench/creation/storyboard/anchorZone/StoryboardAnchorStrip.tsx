@@ -90,6 +90,7 @@ export default function StoryboardAnchorStrip({ cards, filterAnchorId, onFilterB
         <button
           type="button"
           onClick={onAddAnchor}
+          title={t('storyboardEditor.addAnchorHint')}
           className="inline-flex h-12 shrink-0 items-center gap-1 rounded-nomi border border-dashed border-nomi-ink-20 px-2.5 text-caption text-nomi-ink-40 hover:border-nomi-ink-40 hover:text-nomi-ink-60"
         >
           <IconPlus size={14} stroke={1.8} />

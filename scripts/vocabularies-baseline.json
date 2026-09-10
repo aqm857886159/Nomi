@@ -760,6 +760,7 @@
     {
       "site": "electron/shared/integrationContract.ts::variable:INTEGRATION_STAGES/as-const",
       "members": [
+        "awaiting_human_confirmation",
         "cancelled",
         "certifying",
         "committing",
@@ -767,13 +768,14 @@
         "discovering",
         "draft",
         "failed",
+        "human_confirmed",
         "needs_credential",
         "needs_input",
         "needs_selection",
         "needs_spend_confirmation",
         "partial"
       ],
-      "reason": "INTEGRATION_STAGES 是模型/ComfyUI 接入会话生命周期唯一合同；MCP、trusted UI、持久化恢复和下一步映射都从同一 tuple 派生。"
+      "reason": "INTEGRATION_STAGES 是模型/ComfyUI 接入会话生命周期唯一合同；MCP、trusted UI、持久化恢复和下一步映射都从同一 tuple 派生。2026-09-11 增 awaiting_human_confirmation / human_confirmed：花费确认这一关有三个真正不同的状态（该 Agent 调 confirm / 等真人在 Nomi 里点 / 人点完了该 start），2026-09-10 真实宿主实测证明压成一档会让 Agent 每回合再 confirm 一次，而重复 confirm 会作废人刚才那次点击。"
     },
     {
       "site": "electron/shared/integrationContract.ts::variable:INTEGRATION_START_RECEIPT_STATUSES/as-const",

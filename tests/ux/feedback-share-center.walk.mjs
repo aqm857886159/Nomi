@@ -5,7 +5,7 @@
 //      不是脱离设置的独立浮层——获批样张画的就是它长在设置右栏。上一版只验「对话框可见」（存在≠位置），
 //      于是交付漂成独立框还全绿；这里断言反馈主体是 [data-settings-dialog] 的后代、设置没被关、屏上无另开的反馈 dialog。
 //   ② 分享给朋友拿到的是**一段可直接转发的话**（推荐语 + 真实链接）并能一键复制到剪贴板，不是一条裸 URL（问题 #2）。
-//   ③ 情境入口（生成失败卡上「反馈此问题」）仍能打开反馈（画布里无设置外壳，走独立 DesignModal 是对的），
+//   ③ 情境入口（生成失败卡上「反馈问题」）仍能打开反馈（画布里无设置外壳，走独立 DesignModal 是对的），
 //      且其构造的外发 URL（私密 Tally / 公开 GitHub）只带**有界字段**，**永不携带用户自定义供应商的字符串**——
 //      失败卡的 vendorKey 由用户 base-url 派生（deriveVendorKeyFromBaseUrl → 主机名 slug，可能是内网地址），
 //      必须在信封边界被映射成字面量 "custom"。
@@ -278,7 +278,7 @@ fs.writeFileSync(projectFile, `${JSON.stringify(project, null, 2)}\n`)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 路径 B：情境入口（生成失败卡上「反馈此问题」）——vendorKey 是私有 base-url 派生 key。
+// 路径 B：情境入口（生成失败卡上「反馈问题」）——vendorKey 是私有 base-url 派生 key。
 // 这条是本走查的核心断言：私有字符串必须在信封边界被换成 "custom"，不进 URL、不进 outbox。
 // ─────────────────────────────────────────────────────────────────────────────
 {
@@ -292,15 +292,15 @@ fs.writeFileSync(projectFile, `${JSON.stringify(project, null, 2)}\n`)
   await clickOrFail(win.locator('[aria-label="工作区切换"]').getByText('生成', { exact: true }), '工作区切换→生成')
   await win.waitForTimeout(1200)
 
-  // 失败节点应渲染出错误卡与「反馈此问题」。先证探针在这一屏是活的（基线），再截图。
+  // 失败节点应渲染出错误卡与「反馈问题」。先证探针在这一屏是活的（基线），再截图。
   const failedNode = win.locator('[data-node-id="failed-shot"]')
   await expectVisible(failedNode, '失败节点没渲染出来（种子工程没被读到？）')
-  const feedbackLink = failedNode.getByText('反馈此问题', { exact: true })
-  const proof = await proveProbe(feedbackLink, '失败卡上「反馈此问题」链接存在')
+  const feedbackLink = failedNode.getByText('反馈问题', { exact: true })
+  const proof = await proveProbe(feedbackLink, '失败卡上「反馈问题」链接存在')
   await shot(win, 'B01-canvas-failed-node.png')
 
   // 点情境入口。
-  await clickOrFail(feedbackLink, '失败卡「反馈此问题」')
+  await clickOrFail(feedbackLink, '失败卡「反馈问题」')
   const feedbackDialog = win.getByRole('dialog', { name: '反馈与分享' })
   await expectVisible(feedbackDialog, '失败卡没打开反馈对话框')
   await expectVisible(win.getByText('一句话说说发生了什么', { exact: true }), '失败卡进来没直达反馈表单')
@@ -351,10 +351,10 @@ fs.writeFileSync(projectFile, `${JSON.stringify(project, null, 2)}\n`)
     throw new Error('B 路径 outbox 草稿里混入了私有 vendor/model 串')
   }
 
-  // 收尾：关掉对话框后，失败卡上的「反馈此问题」应仍在（入口没被这次提交吃掉）。
+  // 收尾：关掉对话框后，失败卡上的「反馈问题」应仍在（入口没被这次提交吃掉）。
   await win.keyboard.press('Escape').catch(() => {})
   await win.waitForTimeout(400)
-  await expectVisible(win.locator('[data-node-id="failed-shot"]').getByText('反馈此问题', { exact: true }), '提交后情境入口消失了')
+  await expectVisible(win.locator('[data-node-id="failed-shot"]').getByText('反馈问题', { exact: true }), '提交后情境入口消失了')
 
   // 反向对照：换一个**不含** vendor 串的探针，证明 expectAbsent 这套尺子在这一屏确实测得到——
   // 用同屏必然不存在的私有串做负向断言（provenBy 用上面证过的活探针）。
