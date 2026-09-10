@@ -301,3 +301,6 @@
 
 - [左侧栏三组设计成文与 shot_table 实施](2026-09-10-left-sidebar-and-shot-table-node.md)
 - [shot_table 两来源数据契约](2026-09-10-shot-table-contract.md)
+
+- [2026-09-09 Agent 原生剪辑：Nomi 完整可执行方案（A'–G'）](2026-09-09-agent-native-editing-plan.md) — 时间轴 agent 层施工图；配套竞品回应方案包见 [`2026-09-09-competitive-response-plans/INDEX.md`](2026-09-09-competitive-response-plans/INDEX.md)（P0-P2 分期、开工纪律：#646 未过门前不开新战线）；2026-09-11 从竞品研究方案包归档入库
+- [2026-09-11 卫生 PR：方案包入库 + ARCHITECTURE-NOW 去过时 + 删两个死控制器](2026-09-11-docs-hygiene.md) — 竞品方案包搬入 `docs/{research,plan,product}`（19 篇）；`docs/ARCHITECTURE-NOW.md` 三行过时描述改写为 pi lane 现役状态；删 `canvasTurnController.ts`/`creationTurnController.ts` 两个零生产引用死控制器（✅ 已交付）
