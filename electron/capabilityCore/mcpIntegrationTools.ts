@@ -31,9 +31,14 @@ const sessionFields = {
  * 模型没做错任何事，是我们广告了假的契约。
  *
  * 这张表同时派生两样东西，所以不可能再漂移：
- *   ① 对外 JSON Schema 的 `allOf` + `if/then`（条件必填的标准写法，见
- *      https://json-schema.org/draft/2020-12/json-schema-core#name-if）；
+ *   ① 对外广播的 `action` 字段描述（每个 action 的必填清单，逐字从本表生成）；
  *   ② `build()` 里的一次性缺字段聚合校验（一次列全，不逐个抛）。
+ *
+ * 为什么**不**用 JSON Schema 的 `allOf` + `if/then`（条件必填的标准写法）：模型看到的 schema
+ * 要先过各家适配器。Anthropic 适配器会静默丢掉根上的 allOf——模型会看到一个**没有 schema**
+ * 的工具；Google 的 OpenAPI 3.0.3 路径不认 const。仓库的 check:model-schema 门岗守的就是这条，
+ * 而它守的正是本次修复要根除的那一族：广播出去的东西模型没真收到。所以这里选扁平 schema +
+ * 描述里说真话 + 运行时一次说全，而不是一份漂亮但会被丢掉的条件 schema。
  *
  * `begin` 永远要 kind + name（HTTP 供应商还要 baseUrl）；带上 `sessionId` 表示「接着这一个做」，
  * 不带则同一个 kind+baseUrl 会复用已有的未完成会话，而不是再建一个。
@@ -53,22 +58,12 @@ export const INTEGRATION_BEGIN_HTTP_REQUIRED = ['baseUrl'] as const
 
 // `action` 已经是顶层 required，所以每条 if 里不必再写一遍（写了只是把同一句话广播 6 遍，
 // 而 tools/list 的字节是棘轮管着的预算）。
-const requiredRule = (action: string, required: readonly string[]) => ({
-  if: { properties: { action: { const: action } } },
-  then: { required: [...required] },
-})
-
-/** 条件必填的标准 JSON Schema 表达。形状与上表逐字派生，没有第二处手写。 */
-const INTEGRATION_CONDITIONAL_REQUIRED = [
-  {
-    // `kind` 在 if 里保留：它不是顶层必填，缺席时 const 会空过。
-    if: { properties: { action: { const: 'begin' }, kind: { const: 'http-api-provider' } }, required: ['kind'] },
-    then: { required: [...INTEGRATION_BEGIN_HTTP_REQUIRED] },
-  },
-  ...(['begin', 'open_credentials', 'propose', 'confirm', 'start', 'cancel'] as const).map((action) =>
-    requiredRule(action, INTEGRATION_REQUIRED_BY_ACTION[action]),
-  ),
-] as const
+/** 广播给模型的必填清单，逐字从上表生成——描述里写的和运行时校验的是同一份。 */
+const INTEGRATION_ACTION_DESCRIPTION = `按 action 分派。必填随 action 变：${
+  Object.entries(INTEGRATION_REQUIRED_BY_ACTION)
+    .map(([action, fields]) => `${action}=${fields.join('+')}${action === 'begin' ? `（kind=http-api-provider 时还要 ${INTEGRATION_BEGIN_HTTP_REQUIRED.join('+')}）` : ''}`)
+    .join('；')
+}。`
 
 /** 缺什么一次说全，并带上该 action 的完整必填清单。 */
 function assertIntegrationRequired(a: Record<string, unknown>): void {
@@ -125,7 +120,7 @@ export const MCP_INTEGRATION_TOOL = {
   inputSchema: {
     type: 'object',
     properties: {
-      action: { type: 'string', enum: ['begin', 'open_credentials', 'propose', 'confirm', 'start', 'cancel'] },
+      action: { type: 'string', enum: ['begin', 'open_credentials', 'propose', 'confirm', 'start', 'cancel'], description: INTEGRATION_ACTION_DESCRIPTION },
       ...sessionFields,
       kind: { type: 'string', enum: ['http-api-provider', 'comfyui-workflow'] },
       name: { type: 'string', minLength: 1, maxLength: 240 },
@@ -141,7 +136,6 @@ export const MCP_INTEGRATION_TOOL = {
       receipt: { type: 'string', minLength: 1, maxLength: 8192 },
     },
     required: ['action'],
-    allOf: INTEGRATION_CONDITIONAL_REQUIRED,
     additionalProperties: false,
   },
   method: 'integration.begin',
