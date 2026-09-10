@@ -164,11 +164,13 @@ export default function TimelinePanel({ density = 'compact', regionLabel, action
     observer.observe(element)
     return () => observer.disconnect()
   }, [])
+  // 自动 fit 只在内容时长/视口宽度变化时执行——**不订阅 timeline.scale**。旧版把 scale
+  // 放进依赖，用户手动缩放（⌘±/滚轮）改 scale 即重跑本 effect、立即弹回 fittedScale，
+  // 手动缩放形同虚设。去掉 scale 依赖后：缩放不被回退；加片/删片/窗口 resize 仍自动 refit。
   React.useEffect(() => {
     if (durationFrame <= 0 || contentViewportWidth <= 0) return
-    const fittedScale = resolveTimelineFitScale(durationFrame, contentViewportWidth)
-    if (Math.abs(fittedScale - timeline.scale) > 0.001) setTimelineZoom(fittedScale)
-  }, [contentViewportWidth, durationFrame, setTimelineZoom, timeline.scale])
+    setTimelineZoom(resolveTimelineFitScale(durationFrame, contentViewportWidth))
+  }, [contentViewportWidth, durationFrame, setTimelineZoom])
   React.useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       // 预览(full)与生成(compact)两个 TimelinePanel 因 keep-alive 同时挂载，各注册一个 window keydown。
