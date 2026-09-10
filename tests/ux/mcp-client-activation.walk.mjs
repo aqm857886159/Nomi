@@ -82,7 +82,6 @@ async function prepareWindow(win) {
         'nomi:splash:v1',
         'nomi:journey-tour:v1',
         'nomi:canvas-gesture-hint:v1',
-        'nomi.onboarding.scene3dCoach.v1',
       ]) window.localStorage.setItem(key, 'seen')
       window.localStorage.setItem('nomi:locale:v1', 'zh-CN')
       window.localStorage.setItem('nomi-color-scheme', 'light')

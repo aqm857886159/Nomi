@@ -27,6 +27,7 @@ const labels: LaneViewModelLabels = {
   formatStages: (done, total) => `${done}/${total} stages`,
   formatMoney: (currency, amount) => `${currency} ${amount.toFixed(2)}`,
   taskUnknown: '[task-unknown]',
+  skillLabel: (key) => `[skill:${key}]`,
 }
 
 /** 三态的常用取值。写成构件是因为下面几乎每条都要摆一次。 */
@@ -171,7 +172,7 @@ describe('laneViewModel', () => {
     expect(model.items).toEqual([])
   })
 
-  it('emits one flow item per part, in the order the transcript recorded', () => {
+  it('一回合里被工具行隔开的助手文本合成一个气泡，工具行仍按序内联', () => {
     next = 0
     const model = laneViewModel(projection([
       part({ kind: 'user', text: 'Append a closing line.' }),
@@ -182,11 +183,51 @@ describe('laneViewModel', () => {
       part({ kind: 'assistant-text', text: 'Done.', streaming: false }),
     ]), labels)
 
-    expect(model.items.map((item) => item.kind)).toEqual(['user', 'thinking', 'assistant', 'tool', 'assistant'])
+    // 三段文本 + 一次调用 = **一个**气泡，不是两个：一轮回复在传输上是「一条消息里的若干块」，
+    // 一块一个气泡就是把一个人说的一段话切成两句话（2026-09-10 用户反馈 #7）。
+    expect(model.items.map((item) => item.kind)).toEqual(['user', 'thinking', 'tool', 'assistant'])
+    const bubble = model.items[3]
+    // 段与段之间是空行：Markdown 里空行才是段落分隔，直接拼会把两段粘成一段。
+    expect(bubble.kind === 'assistant' && bubble.text).toBe('Reading it first.\n\nDone.')
     // 工具结果**并回它自己那一行**，不新开一行——收据是一行，不是两行（v4 定稿）。
-    const tool = model.items[3]
+    const tool = model.items[2]
     expect(tool.kind === 'tool' && tool.receipt.status).toBe('output-available')
     expect(tool.kind === 'tool' && tool.receipt.output).toBe('The opening scene.')
+  })
+
+  it('回合以用户消息为界：上一轮的文本绝不并进下一轮的气泡', () => {
+    next = 0
+    const model = laneViewModel(projection([
+      part({ kind: 'user', text: '第一句。' }),
+      part({ kind: 'assistant-text', text: '好的。', streaming: false }),
+      part({ kind: 'user', text: '第二句。' }),
+      part({ kind: 'assistant-text', text: '我先看看。', streaming: false }),
+      part({ kind: 'tool-call', toolCallId: 'c1', toolName: 'read_full_text', args: {}, running: false }),
+      part({ kind: 'tool-result', toolCallId: 'c1', toolName: 'read_full_text', text: '开场。', isError: false }),
+      part({ kind: 'assistant-text', text: '看完了。', streaming: true }),
+    ]), labels)
+    expect(model.items.map((item) => item.kind)).toEqual(['user', 'assistant', 'user', 'tool', 'assistant'])
+    expect(model.items[1].kind === 'assistant' && model.items[1].text).toBe('好的。')
+    const second = model.items[4]
+    // 落点是**最后**一段：还在流的是它，气泡跟着字往下长，不会跑到已经发生的工具行上面去。
+    expect(second.kind === 'assistant' && second.text).toBe('我先看看。\n\n看完了。')
+    expect(second.kind === 'assistant' && second.status).toBe('streaming')
+  })
+
+  it('技能随消息落盘：用户气泡带 chip，这一轮的回复头上带凭据', () => {
+    next = 0
+    const model = laneViewModel(projection([
+      { ...part({ kind: 'user', text: '拆分镜。' }), skillKey: 'workbench.storyboard.planner' } as LanePart,
+      part({ kind: 'assistant-text', text: '好的。', streaming: false }),
+      part({ kind: 'user', text: '再来一句。' }),
+      part({ kind: 'assistant-text', text: '这轮没挂技能。', streaming: false }),
+    ]), labels)
+    expect(model.items[0]).toEqual({ kind: 'user', text: '拆分镜。',
+      chips: [{ kind: 'skill', label: '[skill:workbench.storyboard.planner]' }] })
+    expect(model.items[1]).toMatchObject({ kind: 'assistant', skill: '[skill:workbench.storyboard.planner]' })
+    // 没挂技能的那一轮**整行不出**：印一个空凭据等于说「用了个说不出名字的技能」。
+    expect(model.items[2]).toEqual({ kind: 'user', text: '再来一句。' })
+    expect(JSON.stringify(model.items[3])).not.toContain('skill')
   })
 
   it('refuses a projection whose parts are out of order instead of quietly sorting them', () => {

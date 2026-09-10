@@ -94,6 +94,7 @@ const LAST_ACTIVE_PROJECT_KEY = 'nomi-workbench-last-active-project-v1'
 
 type Dependencies = {
   setActiveProject: (project: LocalProjectSummary | null) => void
+  isActiveProject: (projectId: string) => boolean
 }
 
 
@@ -113,14 +114,16 @@ export type WorkbenchProjectPersistenceService = {
     canPersist: () => boolean
     onSaved: (record: WorkbenchProjectRecordV1) => void
     onSaveError: (error: unknown) => void
-  }) => () => void
+  }) => () => Promise<void>
 }
 
 export function createWorkbenchProjectPersistenceService(deps: Dependencies): WorkbenchProjectPersistenceService {
   const persistProject = async (project: LocalProjectSummary, payload: WorkbenchProjectPayload): Promise<WorkbenchProjectRecordV1> => {
-    const localSaved = saveLocalProject(project.id, payload, project.name)
-    writeLastActiveProjectId(localSaved.id)
-    deps.setActiveProject(localSaved)
+    const localSaved = await saveLocalProject(project.id, payload, project.name)
+    if (deps.isActiveProject(localSaved.id)) {
+      writeLastActiveProjectId(localSaved.id)
+      deps.setActiveProject(localSaved)
+    }
     return localSaved
   }
 
@@ -130,15 +133,15 @@ export function createWorkbenchProjectPersistenceService(deps: Dependencies): Wo
     canPersist: () => boolean
     onSaved: (record: WorkbenchProjectRecordV1) => void
     onSaveError: (error: unknown) => void
-  }): (() => void) => {
+  }): (() => Promise<void>) => {
     return subscribeWorkbenchProjectPersistence({
       projectId: input.project.id,
       projectName: input.project.name,
       isHydrating: input.isHydrating,
       canPersist: input.canPersist,
       saveProject: async (_projectId, payload, _projectName) => {
-        const localSaved = saveLocalProject(input.project.id, payload, input.project.name)
-        writeLastActiveProjectId(localSaved.id)
+        const localSaved = await saveLocalProject(input.project.id, payload, input.project.name)
+        if (input.canPersist()) writeLastActiveProjectId(localSaved.id)
         return localSaved
       },
       onSaved: input.onSaved,
@@ -184,7 +187,7 @@ export function createWorkbenchProjectPersistenceService(deps: Dependencies): Wo
       categoryMigrationDiagnostics.set(guard, diagnostic)
     }
     if (changed) {
-      saveLocalProject(upgraded.id, upgraded.payload, upgraded.name)
+      await saveLocalProject(upgraded.id, upgraded.payload, upgraded.name)
     }
     // A turn begun while the read was pending still targets the outgoing project.
     abandonHydratingProjectOwnership()

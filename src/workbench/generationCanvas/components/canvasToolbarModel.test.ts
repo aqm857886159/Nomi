@@ -27,7 +27,7 @@ describe('canvas add-intent model（第三档：5 常驻 + 更多）', () => {
     const sections = canvasMoreAddSections()
     expect(sections.flatMap((section) => section.intents).map((intent) => intent.id)).toEqual([
       'text',
-      'scene3d',
+      'director',
       'model3d',
       'panorama',
       'whiteboard',
@@ -52,7 +52,7 @@ describe('canvas add-intent model（第三档：5 常驻 + 更多）', () => {
       'clip',
       'text',
       'import-file',
-      'scene3d',
+      'director',
       'model3d',
       'panorama',
       'whiteboard',

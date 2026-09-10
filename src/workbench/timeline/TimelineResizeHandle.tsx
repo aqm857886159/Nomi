@@ -1,12 +1,12 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../../utils/cn'
+import { useWorkbenchStore } from '../workbenchStore'
 import {
   TIMELINE_PANEL_DEFAULT,
   TIMELINE_PANEL_MAX,
   TIMELINE_PANEL_MIN,
-  useWorkbenchStore,
-} from '../workbenchStore'
+} from './timelinePanelBounds'
 
 export function timelineResizeKeyboardHeight(current: number, key: string): number | null {
   if (key === 'ArrowUp') return current + 16

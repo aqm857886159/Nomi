@@ -9,8 +9,7 @@ import { enSettings, zhSettings } from './locales/settings'
 import { enOnboardingProviders, zhOnboardingProviders } from './locales/onboardingProviders'
 import { enComfyuiWorkflowPage, zhComfyuiWorkflowPage } from './locales/comfyuiWorkflowPage'
 import { enLibraries, zhLibraries } from './locales/libraries'
-import { enScene3d, zhScene3d } from './locales/scene3d'
-import { enScene3dJourney, zhScene3dJourney } from './locales/scene3dJourney'
+import { enDirector, zhDirector } from './locales/director'
 import { enTimelineEditor, zhTimelineEditor } from './locales/timelineEditor'
 import { enCreationAi, zhCreationAi } from './locales/creationAi'
 import { enStoryboardEditor, zhStoryboardEditor } from './locales/storyboardEditor'
@@ -401,7 +400,7 @@ export const zhCN = {
       model3d: '3D 模型',
       whiteboard: '画板',
       panorama: '全景图',
-      scene3d: '3D 场景',
+      director: '导演台',
     },
   },
   modelSetup: zhModelSetup,
@@ -414,14 +413,7 @@ export const zhCN = {
   antigravity: zhAntigravity,
   comfyuiWorkflowPage: zhComfyuiWorkflowPage,
   libraries: zhLibraries,
-  scene3d: {
-    ...zhScene3d,
-    coach: { ...zhScene3d.coach, ...zhScene3dJourney.coach },
-    fullscreen: { ...zhScene3d.fullscreen, ...zhScene3dJourney.fullscreen },
-    trajectory: { ...zhScene3d.trajectory, ...zhScene3dJourney.trajectory },
-    export: zhScene3dJourney.export,
-    moveHub: zhScene3dJourney.moveHub,
-  },
+  director: zhDirector,
   timelineEditor: zhTimelineEditor,
   creationAi: zhCreationAi,
   storyboardEditor: zhStoryboardEditor,
@@ -819,7 +811,7 @@ export const en = {
       model3d: '3D model',
       whiteboard: 'Whiteboard',
       panorama: 'Panorama',
-      scene3d: '3D scene',
+      director: 'Director',
     },
   },
   modelSetup: enModelSetup,
@@ -832,14 +824,7 @@ export const en = {
   antigravity: enAntigravity,
   comfyuiWorkflowPage: enComfyuiWorkflowPage,
   libraries: enLibraries,
-  scene3d: {
-    ...enScene3d,
-    coach: { ...enScene3d.coach, ...enScene3dJourney.coach },
-    fullscreen: { ...enScene3d.fullscreen, ...enScene3dJourney.fullscreen },
-    trajectory: { ...enScene3d.trajectory, ...enScene3dJourney.trajectory },
-    export: enScene3dJourney.export,
-    moveHub: enScene3dJourney.moveHub,
-  },
+  director: enDirector,
   timelineEditor: enTimelineEditor,
   creationAi: enCreationAi,
   storyboardEditor: enStoryboardEditor,

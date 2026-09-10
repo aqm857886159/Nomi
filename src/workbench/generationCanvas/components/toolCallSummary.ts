@@ -5,7 +5,7 @@ import i18n from '../../../i18n'
 import { getDefaultCategoryForNodeKind, type GenerationNodeKind } from '../model/generationCanvasTypes'
 import { getGenerationNodeDefaultTitle, isGenerationNodeKind } from '../model/generationNodeKinds'
 import { BUILTIN_CATEGORY_IDS } from '../../project/projectCategories'
-import { CAMERA_SPEED_DURATION, type CameraMove, type CameraSpeed } from '../nodes/scene3d/cameraMoveVocab'
+import { CAMERA_SPEED_DURATION, type CameraMove, type CameraSpeed } from '../nodes/director/agent/cameraMoveVocab'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 
 const T = 'generationCommon.assistant.toolCall'

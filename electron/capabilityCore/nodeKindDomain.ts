@@ -24,7 +24,7 @@ export const NODE_KIND_DEFAULT_SIZE: Record<string, { width: number; height: num
   shot: { width: 340, height: 230 },
   output: { width: 280, height: 170 },
   panorama: { width: 480, height: 270 },
-  scene3d: { width: 480, height: 320 },
+  director: { width: 480, height: 320 },
   whiteboard: { width: 320, height: 240 },
   model3d: { width: 320, height: 300 },
   asset: { width: 340, height: 280 },
@@ -45,7 +45,7 @@ export const NODE_KIND_DEFAULT_TITLE: Record<string, string> = {
   shot: 'Shot',
   output: 'Output',
   panorama: 'Panorama',
-  scene3d: '3D Scene',
+  director: 'Director',
   whiteboard: 'Whiteboard',
   model3d: '3D Model',
   asset: 'Asset',
@@ -87,7 +87,7 @@ export function nodeKindDefaultTitle(kind: string): string {
 
 /**
  * kind→默认分类（镜像 src getDefaultCategoryForNodeKind）：
- * character→cast；scene/panorama/scene3d/model3d→scene；audio→audio；其余→shots。
+ * character→cast；scene/panorama/director/model3d→scene；audio→audio；其余→shots。
  */
 export function nodeKindDefaultCategory(kind: string): string {
   switch (kind) {
@@ -95,7 +95,7 @@ export function nodeKindDefaultCategory(kind: string): string {
       return 'cast'
     case 'scene':
     case 'panorama':
-    case 'scene3d':
+    case 'director':
     case 'model3d':
       return 'scene'
     case 'audio':
