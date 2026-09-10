@@ -785,7 +785,14 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
       const next = updateTextClipFont(state.timeline, id, fontId)
       return next === state.timeline
         ? state
-        : { timeline: next, persistRevision: state.persistRevision + 1 }
+        : {
+            timeline: next,
+            // 换字体是离散编辑：必须压 undo、清 redo（同 updateTimelineTextClip），
+            // 否则 ⌘Z 会回退到更早一次编辑、redo 栈语义被破坏。
+            timelineUndoStack: pushTimelineUndo(state.timelineUndoStack, state.timeline),
+            timelineRedoStack: [],
+            persistRevision: state.persistRevision + 1,
+          }
     })
   },
 })))
