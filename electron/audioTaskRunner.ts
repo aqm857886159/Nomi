@@ -101,9 +101,13 @@ async function runDoubaoUnidirectionalTts(input: AudioTaskInput, op: HttpOperati
   const reqParams = buildDoubaoReqParams({ text, voice, emotion });
   const body = JSON.stringify({ user: { uid: "nomi" }, req_params: reqParams });
 
-  let response: Response;
+  let fetched: Awaited<ReturnType<typeof hardenedFetch>>;
   try {
-    response = await appFetch(url, {
+    // 走 hardenedFetch 读体（限 MAX_AUDIO_BYTES、带超时）：NDJSON 也是无限流，
+    // 异常/恶意端点可用超大响应撑爆主进程内存（入站参考音频同文件早就限 30MB，
+    // 出站响应此前是裸 response.text() 无上限）。SSRF/私网策略与全局出站口径一致。
+    // throwOnNon2xx=false：非 2xx 也要读 body 拼进错误文案（原语义），不读盘。
+    fetched = await hardenedFetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -112,14 +116,18 @@ async function runDoubaoUnidirectionalTts(input: AudioTaskInput, op: HttpOperati
         "X-Api-Resource-Id": resourceId,
       },
       body,
+      timeoutMs: 120_000,
+      maxBytes: MAX_AUDIO_BYTES,
+      throwOnNon2xx: false,
     });
   } catch (error: unknown) {
     throw new Error(desktopT("dubbing.networkError", { vendor: vendor.key, detail: (error instanceof Error ? error.message : String(error)).slice(0, 256) }));
   }
-  if (!response.ok) {
-    throw new Error(desktopT("dubbing.httpError", { vendor: vendor.key, status: response.status, detail: (await safeText(response)).slice(0, 300) || desktopT("common.noDetail") }));
+  if (fetched.status >= 400) {
+    const detail = fetched.bytes.byteLength > 0 ? fetched.bytes.toString("utf8").slice(0, 300) : "";
+    throw new Error(desktopT("dubbing.httpError", { vendor: vendor.key, status: fetched.status, detail: detail || desktopT("common.noDetail") }));
   }
-  const audio = decodeDoubaoNdjsonAudio(await response.text());
+  const audio = decodeDoubaoNdjsonAudio(fetched.bytes.toString("utf8"));
   if (audio.byteLength === 0) throw new Error(desktopT("dubbing.emptyAudio"));
   const ab = audio.buffer.slice(audio.byteOffset, audio.byteOffset + audio.byteLength) as ArrayBuffer;
   const saved = (await importLocalFile({

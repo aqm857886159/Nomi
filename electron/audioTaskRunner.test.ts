@@ -15,9 +15,17 @@ vi.mock("./catalog/profileHttpRequest", async (importOriginal) => ({
 vi.mock("./assets/localFileImport", () => ({
   importLocalFile: vi.fn(async () => ({ id: "asset-1", name: "tts.wav", data: { url: "nomi-local://asset/p/tts.wav" } })),
 }));
+// 豆包 NDJSON 回归用：真实现上套 vi.fn（可 mockResolvedValue 断言调用形状）——字节上限的流式
+// 实现归 hardenedFetch 自己的门岗；这里钉 runner 是否把 NDJSON 响应**路由进**带 maxBytes 的读体。
+vi.mock("./hardenedFetch", async (importOriginal) => ({
+  ...await importOriginal<typeof import("./hardenedFetch")>(),
+  hardenedFetch: vi.fn((...args: Parameters<typeof import("./hardenedFetch").hardenedFetch>) =>
+    importOriginal<typeof import("./hardenedFetch")>().then((m) => m.hardenedFetch(...args))),
+}));
 
 import { runAudioTask } from "./audioTaskRunner";
 import { importLocalFile } from "./assets/localFileImport";
+import { hardenedFetch } from "./hardenedFetch";
 import { buildProfileHttpRequest } from "./catalog/profileHttpRequest";
 import type { Model, Vendor } from "./catalog/types";
 
@@ -87,6 +95,47 @@ describe("runAudioTask（音频同步执行路径）", () => {
       contentType: "audio/mpeg",
       fileName: "tts-t-binary.mp3",
     }));
+  });
+
+  it("豆包 NDJSON：响应经 hardenedFetch 读体（限 30MB 上限，不再裸 response.text() 读爆主进程）", async () => {
+    const ndjson = [
+      JSON.stringify({ code: 0, data: Buffer.from("ID3fake-mp3-bytes").toString("base64") }),
+      JSON.stringify({ code: 20000000 }),
+    ].join("\n");
+    vi.mocked(hardenedFetch).mockResolvedValueOnce({
+      bytes: Buffer.from(ndjson, "utf8"), contentType: "application/json", status: 200, finalUrl: "", truncated: false,
+    });
+    const doubaoVendor = { ...vendor, key: "volcengine", baseUrlHint: "https://openspeech.bytedance.com" } as Vendor;
+    const result = await runAudioTask({
+      vendor: doubaoVendor, model: ttsModel, apiKey: "app-1:secret-key",
+      request: { kind: "text_to_audio", prompt: "你好", extras: { voice: "zh_female" } } as never,
+      kind: "text_to_audio", taskId: "t-doubao", projectId: "p", nodeId: "n",
+      mapping: { create: { method: "POST", path: "/api/v3/tts/unidirectional", audioResponse: "ndjson-base64" } } as never,
+    });
+
+    // 关键回归：出站响应必须走带字节上限的读体（修复前是 appFetch + 无上限 response.text()）。
+    expect(hardenedFetch).toHaveBeenCalledWith("https://openspeech.bytedance.com/api/v3/tts/unidirectional", expect.objectContaining({
+      method: "POST",
+      maxBytes: 30 * 1024 * 1024,
+      throwOnNon2xx: false,
+    }));
+    expect(result.status).toBe("succeeded");
+    expect(result.assets[0].type).toBe("audio");
+    expect(result.assets[0].url).toContain("nomi-local://");
+  });
+
+  it("豆包 NDJSON：非 2xx 用响应体拼错误详情（保持原 httpError 语义）", async () => {
+    vi.mocked(hardenedFetch).mockResolvedValueOnce({
+      bytes: Buffer.from(JSON.stringify({ code: 45000001, message: "quota exhausted" }), "utf8"),
+      contentType: "application/json", status: 429, finalUrl: "", truncated: false,
+    });
+    const doubaoVendor = { ...vendor, key: "volcengine", baseUrlHint: "https://openspeech.bytedance.com" } as Vendor;
+    await expect(runAudioTask({
+      vendor: doubaoVendor, model: ttsModel, apiKey: "app-1:secret-key",
+      request: { kind: "text_to_audio", prompt: "你好", extras: { voice: "zh_female" } } as never,
+      kind: "text_to_audio", taskId: "t-doubao-err", projectId: "p", nodeId: "n",
+      mapping: { create: { method: "POST", path: "/api/v3/tts/unidirectional", audioResponse: "ndjson-base64" } } as never,
+    })).rejects.toThrow(/429/);
   });
 
   it("声明的 JSON hex 音频按路径解码后落盘（MiniMax speech）", async () => {
