@@ -125,7 +125,10 @@ export default function GenerationWorkspace({
         {timelineCollapsed ? null : <TimelineMiniPreview />}
       </div>
       {hasAssistant ? <AssistantPane dockRef={agentDockRef} collapsed={aiCollapsed} /> : null}
-      <div className={cn('workbench-generation__timeline', 'relative col-span-full min-w-0 min-h-0')}>
+      {/* 2026-09-10 走查反馈：时间轴原先 col-span-full 横跨 agent 列，agent 面板
+          弹簧动画改宽时时间轴跟着左右伸缩、盖住画布内容。时间轴是画布的时间观，
+          只占画布列（col-start-1），agent 列与它解耦。 */}
+      <div className={cn('workbench-generation__timeline', 'relative col-start-1 min-w-0 min-h-0')}>
         {timelineCollapsed ? null : (
           <>
             <TimelineResizeHandle />
