@@ -9,6 +9,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { buildMaterializeShotsPayload } from './multiShotCanvasLanding'
 import { buildProductionRunDraftSummary, promptFirstLine } from './productionRunDraftSummary'
 import { createProductionGenerationOperationStore } from './productionGenerationOperationStore'
+import { createCanvasLandingHost } from './canvasLandingHost'
 import type { PlanCandidate } from '../capabilityCore/executionContract'
 import type { ProductionGenerationShot, ProductionRun } from './productionRunTypes'
 
@@ -157,5 +158,57 @@ describe('draft lifecycle notifies the canvas landing', () => {
       onPlanChanged: () => { throw new Error('renderer unavailable') },
     })
     expect(await store.create({ operationId: 'run-1', projectId: 'proj-1', candidate: candidate(), now: NOW })).toMatchObject({ operationId: 'run-1' })
+  })
+})
+
+// 第四条不变量（2026-09-10 CI 的 C9 红）：**Nomi 自己的草稿投影不许作废用户的付费批准。**
+//
+// 机制：落地写画布 → 项目落盘 → project.revision 前进；而付费授权信封盖的就是 project.revision
+// （收据只在它描述的那份项目文档还是当前版本时有效，approvalReceiptRuntime）。草稿落地是 fire-and-forget，
+// 于是这次前进可能落在「封信封」与「用户点确认」之间，用户点了确认却被告知「此确认已失效」。
+// 闸就一条：封信封前先等自家在飞的落地落完（settleCanvasLanding）。
+// **用户自己改项目**照样作废收据——那是 #722 要的语义，这里不碰。
+describe('付费信封与自家画布投影的先后', () => {
+  const landingRun: ProductionRun = run({}, [shot('s1'), shot('s2')])
+
+  function hostWith(requestRenderer: () => Promise<unknown>) {
+    return createCanvasLandingHost({
+      readRun: () => landingRun,
+      command: async () => undefined,
+      requestRenderer,
+      resolveProjectRoot: () => '/tmp/nomi-proj',
+      previewSecret: () => 'preview-secret',
+      isProjectOpen: () => true,
+    })
+  }
+
+  it('settleCanvasLanding 只在在飞的草稿落地真写完之后才放行', async () => {
+    let releaseRenderer: () => void = () => {}
+    const rendererGate = new Promise<void>((resolve) => { releaseRenderer = resolve })
+    const order: string[] = []
+    const host = hostWith(async () => {
+      await rendererGate
+      order.push('landed')
+      return { bindings: [{ shotId: 's1', nodeId: 'node-1' }] }
+    })
+
+    host.landDraftOnCanvas('proj-1', 'run-1')
+    const settled = host.settleCanvasLanding('proj-1').then(() => { order.push('sealed') })
+    releaseRenderer()
+    await settled
+
+    // 顺序本身就是判据：闸先放行（['sealed','landed']）= 信封盖的是即将被自家写覆盖的旧 revision。
+    expect(order).toEqual(['landed', 'sealed'])
+  })
+
+  it('落地失败也必须放行（best-effort 铁律：不许把付费闸挂死在渲染层上）', async () => {
+    const host = hostWith(async () => { throw new Error('renderer unavailable') })
+    host.landDraftOnCanvas('proj-1', 'run-1')
+    await expect(host.settleCanvasLanding('proj-1')).resolves.toBeUndefined()
+  })
+
+  it('没有在飞的落地 → 立即放行（不给每次封信封加一次等待）', async () => {
+    const host = hostWith(async () => ({ bindings: [] }))
+    await expect(host.settleCanvasLanding('proj-untouched')).resolves.toBeUndefined()
   })
 })

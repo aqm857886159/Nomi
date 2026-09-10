@@ -480,7 +480,11 @@ export async function startCapabilityCore(
           const providerBootstrap = readProviderBootstrap()
           return providerBootstrap.readinessByProvider[providerId] ?? { providerReady: false, missingForSubmit: ['configured_provider'] }
         },
-        prepareAuthorization: ({ lease, operation, contract, multiShot }) => {
+        prepareAuthorization: async ({ lease, operation, contract, multiShot }) => {
+          // 封信封前先等 Nomi 自己在飞的画布落地落完（草稿投影是 fire-and-forget，它会让
+          // project.revision 前进）。不等的话信封盖的是旧 revision，用户点确认时收据已被自家的写作废，
+          // 报「此确认已失效」——付费闸对**用户**改项目才该 fail-closed，对我们自己的投影不该。
+          await canvasLanding.settleCanvasLanding(lease.projectId)
           const providerBootstrap = readProviderBootstrap()
           const projectRecord = readWorkspaceProject(lease.projectId, getWorkspaceRepositoryDeps())
           if (!projectRecord || !Number.isInteger(projectRecord.revision)) throw new Error('Generation authorization requires the current project revision')

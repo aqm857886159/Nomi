@@ -39,9 +39,28 @@ Agent 说「草稿已建」，用户却在画布上什么都看不到——因�
 
 - `electron/productionRun/productionRunApprovalReceipt.ts`；`productionRunService.ts` 的 set_trust /
   decide 段；`electron/harness/context/agentContext.ts`（另一个工人在改）。
-- 付费闸、授权信封、seal/approve 的任何判据——本方案只碰**草稿期**与**落地投影**，不碰钱。
+- 付费闸、授权信封、seal/approve 的任何**判据**——本方案只碰**草稿期**与**落地投影**，不碰钱。
+  **2026-09-10 修正**：判据确实一个字没改，但「不碰钱」的假设错了——见下面「与 #722 的相互作用」。
 - `landCanvasForRun` 的 best-effort 铁律：落地失败只记 warn，绝不阻断生成。
 - 分镜方案（storyboard）那条落地路径的语义；它只跟着 ⑥ 的去重下沉走。
+
+## 与 #722 的相互作用（2026-09-10 CI 的 C9 红，事后补记）
+
+`#722` 让付费收据 **fail-closed**：收据只在它描述的那份项目文档还是当前版本时有效，判据就是
+`project.revision`。而本方案的「建草稿即落画布」是 **fire-and-forget** 的项目文档写：
+落地 → 渲染层建节点 → 700ms 防抖后落盘 → `project.revision` 前进。
+
+于是这次前进可能落在「封授权信封」与「用户点确认」之间：**用户点了确认，却被告知「此确认已失效」**
+（`receipt_invalid: projectRevision does not match the current scope`）。两个 PR 各自绿，合起来红。
+这不是测试的问题——它是真实用户会撞上的形状：agent 建完草稿，用户点确认付费，被驳回。
+
+根因不是判据太严，是 **Nomi 自己的投影写没有被排序**。两条闸，都在「写必须有序」这一族：
+
+1. 落地真写了画布 → **当场落盘**（复用 `canonicalCanvasPlanPatch` 用的同一个
+   `persistActiveWorkbenchProjectNow`，P1 一个 owner），不交给防抖；幂等空跑不落盘。
+2. 封信封前 → **等自家在飞的落地落完**（`canvasLandingHost.settleCanvasLanding`）。
+
+**用户自己**改项目照样作废收据——那正是 #722 要的语义，一个字没动。
 
 ## 回滚
 

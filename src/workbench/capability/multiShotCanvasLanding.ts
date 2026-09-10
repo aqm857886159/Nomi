@@ -24,6 +24,7 @@ import { withCanvasGestureContext } from '../generationCanvas/events/canvasGestu
 import { pushUndoSnapshot } from '../generationCanvas/events/canvasUndoJournal'
 import { interruptPendingCanvasWrite } from '../generationCanvas/events/canvasWriteBoundary'
 import { CATEGORY_IDS, type BuiltinCanvasCategoryId, type GenerationNodeKind, type GenerationNodeResult } from '../generationCanvas/model/generationCanvasTypes'
+import { persistActiveWorkbenchProjectNow } from '../project/workbenchProjectSession'
 
 /**
  * 这一镜候选的模型身份（主进程 MaterializeShotCandidateWire 的渲染半）。
@@ -181,7 +182,11 @@ export async function materializeShots(payload: MaterializeShotsPayload): Promis
   // 节点全落 groupCategoryId(shots) → ≥2 个就够建组（锚+镜同组，靠 referenceSheet 区分）。
   const groupExists = useGenerationCanvasStore.getState().groups.some((group) => group.materializationOperationId === materializationOperationId)
   const willCreateGroup = !groupExists && ordered.length >= 2
-  if (missing.length > 0 || rebindable.length > 0 || willCreateGroup) pushUndoSnapshot()
+  // 「这次落地结构性地改了画布吗」——一个判据两处用：打不打撤销步、要不要立刻落盘（见末尾 flush 注释）。
+  // 回填已完成镜的 result **不算**：那是「打开项目补齐」每次都会做的幂等重放，把它算进来等于每开一次
+  // 项目就白推高一次 revision（projectPersistenceService 头注释里那条「漂到 706」的自激振荡）。
+  const changedCanvasStructure = missing.length > 0 || rebindable.length > 0 || willCreateGroup
+  if (changedCanvasStructure) pushUndoSnapshot()
 
   if (missing.length > 0) {
     const missingAnchorCount = missing.filter((shot) => shot.role === 'anchor').length
@@ -278,6 +283,15 @@ export async function materializeShots(payload: MaterializeShotsPayload): Promis
       }
     })
     .filter((binding): binding is NonNullable<typeof binding> => Boolean(binding))
+
+  // 真写了画布就**立刻落盘**，不交给 700ms 防抖。
+  // 为什么：这次写会让 project.revision 前进，而付费授权信封盖的就是 project.revision
+  // （收据只在它描述的那份项目文档还是当前版本时有效）。交给防抖 = 这次前进可能落在「封信封」与
+  // 「用户点确认」之间，用户的批准被 Nomi 自己的投影作废，报「此确认已失效」。
+  // 主进程侧的 settleCanvasLanding 等的就是这条 await——它必须在 revision 定下来之后才 resolve。
+  // 落盘 owner 只此一个（canonicalCanvasPlanPatch 走的同一个 persistActiveWorkbenchProjectNow，P1）；
+  // 幂等空跑绝不落盘，否则重开项目补齐会白白推高 revision。
+  if (changedCanvasStructure) await persistActiveWorkbenchProjectNow().catch(() => {})
 
   return { bindings, createdNodeIds, groupId }
 }
