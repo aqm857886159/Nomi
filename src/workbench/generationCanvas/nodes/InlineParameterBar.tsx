@@ -2,7 +2,7 @@ import React from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { Slider } from '@mantine/core'
-import { IconAdjustmentsHorizontal } from '@tabler/icons-react'
+import { IconAdjustmentsHorizontal, IconChevronDown } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
 import { DesignSwitch, NomiSegmented, NomiSelect, WorkbenchIconButton, type NomiSegmentedOption } from '../../../design'
 import { formatVideoOptionLabel, type ModelParameterControl } from '../../../config/modelCatalogMeta'
@@ -41,6 +41,18 @@ import { translateModelDisplayText } from '../../../i18n/modelDisplayText'
 
 export type InlineParameterBarLayout = 'inline' | 'stacked'
 export type InlineParameterBarPanelMode = 'portal' | 'inline'
+/**
+ * 参数怎么摆——**同一个组件的一个布局属性**，不是两个组件。
+ *
+ * · `summary`（默认）＝ 摘要 pill + 统一面板：一颗 pill 报当前配置，点开是**全部**参数
+ *   （比例那组带小图形）。画布节点用它——2026-09-11 04:30 用户拍板：节点保持原样。
+ * · `chips` ＝ 每个主参数一颗下拉 chip + ⚙ 收长尾：看得见的值本身就是可点的控件，一步到位。
+ *   付费确认卡（`host='panel'`）用它——那一刻用户正在逐项确认「出什么、花多少」，多一次点击最贵。
+ *
+ * 为什么是一个属性而不是两个组件：面板里那些控件（分段 / 滑杆 / 数字草稿 / 开关）两边一模一样，
+ * 拆成两份就是并行版（P1），改一处修不了另一处。
+ */
+export type InlineParameterBarParameterLayout = 'summary' | 'chips'
 
 type InlineParameterBarProps = {
   modelOptions: readonly ModelOption[]
@@ -57,6 +69,22 @@ type InlineParameterBarProps = {
   activeVariantId?: string
   onVariantSelect?: (id: string) => void
   /**
+   * 摘要 pill / 逐参数 chip 二选一。**默认 `summary`**：画布节点不传这个属性，拿到的就是
+   * 2026-07-17 起那套摘要 pill + 面板（用户 2026-09-11 04:30 拍板：节点退回原样）。
+   * 付费确认卡显式传 `chips`。
+   */
+  parameterLayout?: InlineParameterBarParameterLayout
+  /**
+   * 摘要 pill 文案覆盖（只在 `parameterLayout='summary'` 下有意义）。
+   * 默认 pill 显示各参数**当前值**串接（`16:9 · 2k`）——这对档案模型可读：你一眼认得出比例和清晰度。
+   * 但 ComfyUI 导入工作流的参数是**任意**的，值串出来是 `15 · 24`（采样步数和帧率），
+   * 没人看得出那是自己导入时勾的东西
+   * （群反馈 2026-08-20 G2#433「勾了功能画布里没对应按钮」——其实渲染了，只是这颗 pill 没说）。
+   * 传了就用它当 pill 文案；点开的参数面板内容不受影响。
+   * 2026-08-20 用户拍板，是 2026-07-17「摘要 pill」拍板形态内的一处窄例外。
+  */
+  summaryOverride?: string
+  /**
    * Chat surfaces use the same controls as the canvas, but stack the identity
    * row and the parameter summary so a narrow resident panel never creates a
    * second horizontal form. Canvas keeps the historical inline layout.
@@ -68,6 +96,9 @@ type InlineParameterBarProps = {
    * scrolls.
    */
   panelMode?: InlineParameterBarPanelMode
+  /** Width of the summary trigger in CSS pixels（只在 `summary` 下有意义）。The resident contract uses
+   * the wider 150px dialog pill; the canvas remains 110px. */
+  summaryWidth?: number
   /** Optional generation-mode group shown at the top of the shared panel. */
   modeChoices?: readonly { id: string; label: string }[]
   activeModeId?: string
@@ -75,17 +106,21 @@ type InlineParameterBarProps = {
   onModeSelect?: (id: string) => void
 }
 
-// section="parameters"：底栏 = 模型芯片 + 变体 + **每个主参数一颗下拉 chip** + 一颗 ⚙（长尾参数）。
-//   [模型 ▾] [变体 ▾] [16:9 ▾] [5s ▾] [1080p ▾] [⚙]
+// section="parameters"：底栏 = 模型芯片 + 变体 + **参数区**。参数区有两种摆法，由 `parameterLayout` 选：
 //
-// 2026-09-11 02:10 用户拍板方案 B，替代 2026-07-17 起的「摘要 pill + 统一面板」。
-// 换掉它的理由只有一条：**要改一个参数得点两次**（先点 pill 开面板、再在面板里选），
-// 而比例 / 时长 / 清晰度正是每次生成前都要确认的那几个——摘要 pill 让人看得见、却够不着。
-// chip 化之后看得见的那个值本身就是可点的控件，一步到位；代价是底栏变长，因此有退位规则（见下）。
+//   summary（默认 · 画布节点）  [模型 ▾] [变体 ▾] [16:9 · 5s ▾]
+//     一颗摘要 pill 报当前配置，点开是**统一参数面板**：每个参数一组「小标题 + 分段选择器」，
+//     点即改、面板不关（可连改多项），比例那组每项带一个比例小图形。
+//     2026-07-17 用户拍板（样张 docs/design/mockups/node-param-panel.html）。
+//     2026-09-11 02:10 曾被逐参数 chip 换掉，同日 04:30 用户纠正：**节点退回原样**，chip 只给付费卡。
 //
-// 哪几个参数变 chip **由模型档案 derive**（`splitPrimaryParameterControls`，判据写在那个文件里），
-// 不在这里点名任何模型或键：档案里没声明比例，就不出比例 chip，不补默认值假装有。
-// 长尾（种子 / 生成音频 / 水印 / 负向提示词…）、供应商、生成方式仍在同一块面板里，收在 ⚙ 后面。
+//   chips（付费确认卡）  [模型 ▾] [变体 ▾] [16:9 ▾] [5s ▾] [1080p ▾] [⚙]
+//     每个主参数自己一颗下拉 chip——看得见的那个值本身就是可点的控件，一步到位（付费确认那一刻
+//     多一次点击最贵）。哪几个参数变 chip **由模型档案 derive**（`splitPrimaryParameterControls`，
+//     判据写在那个文件里），不在这里点名任何模型或键：档案里没声明比例，就不出比例 chip。
+//     长尾（种子 / 生成音频 / 水印…）、供应商收在 ⚙ 后面，与 chip 不重复出现（一功能一个家）。
+//
+// 两种摆法共用同一块面板与同一批控件渲染函数——差的只是「参数区那一格里放什么、面板里剩什么」。
 // 「生成方式」（文生/图生 tab）在画布上仍住 composer 顶部，不进面板（2026-07-17 用户拍板第 2 点）。
 
 /**
@@ -144,6 +179,26 @@ function ParameterTextInput({
   )
 }
 
+/** 摘要 pill 的单参数短文本：当前值的纯 label（不带价签）。boolean=开显示参数名/关跳过；空值跳过。 */
+function summaryPart(control: DynamicModelControl, meta: Record<string, unknown>, autoLabel: string): string {
+  if (!isParameterControl(control)) {
+    const value = catalogControlInitialValue(control, meta)
+    const matched = control.options.find((o) => optionValue(o) === value)
+    const label = matched ? (typeof matched === 'string' ? matched : matched.label) : value
+    return localizeAutoOption(value, label, autoLabel).text
+  }
+  if (control.type === 'boolean') {
+    return (controlInitialValue(control, meta) || 'false') === 'true'
+      ? translateModelDisplayText(control.label)
+      : ''
+  }
+  const value = controlInitialValue(control, meta)
+  if (!value) return ''
+  const matched = control.options.find((o) => controlValueToString(o.value) === value)
+  const label = matched ? matched.label : value.length > 8 ? `${value.slice(0, 8)}…` : value
+  return localizeAutoOption(value, label, autoLabel).text
+}
+
 export default function InlineParameterBar({
   modelOptions,
   modelCatalogStatus,
@@ -156,8 +211,11 @@ export default function InlineParameterBar({
   variantChoices,
   activeVariantId,
   onVariantSelect,
+  parameterLayout = 'summary',
+  summaryOverride,
   layout = 'inline',
   panelMode = 'portal',
+  summaryWidth,
   modeChoices,
   activeModeId = '',
   modeLabel,
@@ -172,19 +230,31 @@ export default function InlineParameterBar({
     selectedModelOption?.vendor,
   )
 
-  // ── 底栏摆哪几颗 chip ──
+  const chipsMode = parameterLayout === 'chips'
+  const stacked = layout === 'stacked'
+
+  // ── chips 形态：底栏摆哪几颗 chip ──
   // 「哪几个是主参数」的判据全在 primaryParameterChips.ts（从档案 derive）；
   // 「这一行装不装得下」是**量出来的**（useFittedChipCount 读真实盒子），不在这里估宽度。
+  // summary 形态用不到这两件事，但 hook 不能条件调用——所以 enabled 关掉、chips 规划成空。
   const { primary } = splitPrimaryParameterControls(renderedControls)
-  const stacked = layout === 'stacked'
   const barRef = React.useRef<HTMLDivElement | null>(null)
   // 竖排（窄面板）本来就允许换行，用不着退位；横排底栏不许换行，装不下就退回 ⚙。
-  const fittedCount = useFittedChipCount(barRef, primary.length, { enabled: !stacked })
-  const { chips } = planParameterChips(primary, stacked ? primary.length : fittedCount)
-  const panelControls = overflowParameterControls(renderedControls, chips)
+  const fittedCount = useFittedChipCount(barRef, primary.length, { enabled: chipsMode && !stacked })
+  const planned = planParameterChips(primary, stacked ? primary.length : fittedCount)
+  const chips = chipsMode ? planned.chips : []
+  // summary 形态的面板装**全部**参数（摘要 pill 不占走任何一个）；chips 形态只装没上底栏的那些。
+  const panelControls = chipsMode ? overflowParameterControls(renderedControls, chips) : renderedControls
 
-  // ── 长尾参数浮层：静止定位（打开定位一次，绝不跟随）。 ──
-  // 打开时以 ⚙ 中心定位一次，之后绝不跟随；比例变化通过节点原子锚定保证 ⚙ 本身不动。
+  // 摘要 pill 文本（summary 形态）：各参数当前值串接（16:9 · 1080p · 5 · 音频）。
+  const summaryText = summaryOverride || renderedControls
+    .map((c) => summaryPart(c, meta, t('generationCommon.parameters.auto')))
+    .filter(Boolean)
+    .join(' · ')
+
+  // ── 参数浮层：静止定位（打开定位一次，绝不跟随）。 ──
+  // 打开时以触发器（pill / ⚙）中心定位一次，之后绝不跟随；
+  // 比例变化通过节点原子锚定保证触发器本身不动。摘要文本也在打开期间冻结，宽度不跳。
   const [panelOpen, setPanelOpen] = React.useState(false)
   const [panelInit, setPanelInit] = React.useState<{
     left: number
@@ -192,7 +262,9 @@ export default function InlineParameterBar({
     maxHeight: number
     side: 'above' | 'below'
   } | null>(null)
-  const moreRef = React.useRef<HTMLButtonElement | null>(null)
+  const [frozenSummary, setFrozenSummary] = React.useState('')
+  // 触发器只有一个：summary 形态是那颗摘要 pill，chips 形态是那颗 ⚙。
+  const triggerRef = React.useRef<HTMLButtonElement | null>(null)
   const panelRef = React.useRef<HTMLDivElement | null>(null)
 
   const PANEL_W = 320
@@ -200,10 +272,11 @@ export default function InlineParameterBar({
 
   const openPanel = (): void => {
     if (panelMode === 'inline') {
+      setFrozenSummary(summaryText)
       setPanelOpen(true)
       return
     }
-    const rect = moreRef.current?.getBoundingClientRect()
+    const rect = triggerRef.current?.getBoundingClientRect()
     if (!rect) return
     const vw = window.innerWidth
     const vh = window.innerHeight
@@ -213,9 +286,10 @@ export default function InlineParameterBar({
     // 翻向此刻锁定：上方优先（底栏贴卡底），上方不足 240px 才放下方。定位仅此一次。
     const side: 'above' | 'below' = spaceAbove >= 240 ? 'above' : 'below'
     const maxHeight = side === 'above' ? Math.min(420, spaceAbove) : Math.min(420, Math.max(160, vh - rect.bottom - 18))
-    // above 用 bottom 锚（面板实高小于 maxHeight 时依然贴住 ⚙ 顶）；below 用 top 锚。
+    // above 用 bottom 锚（面板实高小于 maxHeight 时依然贴住触发器顶）；below 用 top 锚。
     const top = side === 'above' ? vh - rect.top + PANEL_GAP : rect.bottom + PANEL_GAP
     setPanelInit({ left, top, maxHeight, side })
+    setFrozenSummary(summaryText)
     setPanelOpen(true)
   }
   const closePanel = React.useCallback((): void => {
@@ -231,7 +305,7 @@ export default function InlineParameterBar({
       // 会被当成「点外面」把面板关掉，表现为「点击不了」。
       if (!panelRef.current) return
       if (panelRef.current.contains(target)) return
-      if (moreRef.current?.contains(target)) return
+      if (triggerRef.current?.contains(target)) return
       closePanel()
     }
     const onKeyDown = (event: KeyboardEvent): void => {
@@ -248,6 +322,9 @@ export default function InlineParameterBar({
       window.removeEventListener('keydown', onKeyDown, true)
     }
   }, [panelOpen, closePanel])
+
+  // 面板打开期间 pill 文本冻结（宽度稳定）；关闭后回到实时值。
+  const pillText = panelOpen ? frozenSummary : summaryText
 
   if (modelOptions.length === 0) {
     return (
@@ -421,8 +498,8 @@ export default function InlineParameterBar({
   }
 
   const hasProvider = modelSelect.providerOptions.length > 1
-  // ⚙ 只在**里面真有东西**时出现：长尾参数、供应商、生成方式一件都没有的模型（参数全上了 chip），
-  // 留一颗点开是空白的齿轮比不留更糟。
+  // 触发器只在**里面真有东西**时出现：长尾参数、供应商、生成方式一件都没有的模型
+  // （chips 形态下参数可能全上了 chip），留一颗点开是空白的触发器比不留更糟。
   const hasPanel = panelControls.length > 0 || hasProvider || Boolean(modeChoices?.length && onModeSelect)
   // Catalog variants keep separate exact IDs; media archetype variants keep their existing parameter contract.
   // Both use the same approved variant control next to the family/model chip.
@@ -447,7 +524,9 @@ export default function InlineParameterBar({
             )}
           </div>
         ) : null}
-        {/* 只放**没上底栏**的那些：上了 chip 的参数在这里再出现一次，就是同一个值两个家（§1.5.2）。 */}
+        {/* summary 形态：全部参数都在这里（摘要 pill 只是读，不占走任何一个）。
+            chips 形态：只放**没上底栏**的那些——上了 chip 的参数在这里再出现一次，
+            就是同一个值两个家（§1.5.2）。 */}
         {panelControls.map((control) => renderPanelGroup(control))}
         {hasProvider ? (
           <div className="flex flex-col gap-1.5">
@@ -499,10 +578,12 @@ export default function InlineParameterBar({
     )
   }
 
-  // 横排底栏里身份两枚**不缩**：模型名本身已由 triggerMaxWidth 截到 150px，再让它跟着挤，
+  const resolvedSummaryWidth = summaryWidth ?? (stacked ? 150 : 110)
+  // chips 形态的横排里身份两枚**不缩**：模型名本身已由 triggerMaxWidth 截到 150px，再让它跟着挤，
   // 结果是「宽度不够时模型名先被榨没、chip 却一颗不少」——而模型是这一行的一等决策（§1.5.4）。
   // 不缩也是「装不下」这件事能被量出来的前提：所有成员都不缩，行才会真的溢出（见 useFittedChipCount）。
-  const identityChipClass = stacked ? undefined : 'shrink-0'
+  // summary 形态只有一颗定宽 pill，不存在「装不下」，身份两枚照旧允许压缩（保持 2026-07-17 的样子）。
+  const identityChipClass = chipsMode && !stacked ? 'shrink-0' : undefined
   const identityRow = (
     <div className={cn('flex min-w-0 items-center gap-2', stacked && 'w-full')}>
       <NomiSelect
@@ -580,11 +661,11 @@ export default function InlineParameterBar({
 
   const moreTrigger = hasPanel ? (
     <WorkbenchIconButton
-      ref={moreRef}
+      ref={triggerRef}
       size="sm"
       className="shrink-0"
       icon={<IconAdjustmentsHorizontal aria-hidden />}
-      // 数字是有行动价值的：它说明齿轮后面**确实还有东西**（导入的 ComfyUI 工作流参数全在这里，
+      // 数字是有行动价值的：它说明这颗按钮后面**确实还有东西**（导入的 ComfyUI 工作流参数全在这里，
       // 群反馈 2026-08-20 G2#433 要的就是「勾过的功能到底在不在」这句话）。
       label={t('generationCommon.parameters.moreParameters', { count: panelControls.length })}
       aria-expanded={panelOpen}
@@ -592,6 +673,48 @@ export default function InlineParameterBar({
       onClick={() => (panelOpen ? closePanel() : openPanel())}
     />
   ) : null
+
+  /** summary 形态的触发器：一颗报当前配置的摘要 pill，点开是同一块面板。 */
+  const summaryTrigger = hasPanel ? (
+    <button
+      ref={triggerRef}
+      type="button"
+      // 走查锚点：断言得能拿到那串摘要本身，
+      // 不能靠中文 aria-label 去找（换个语言就断了）。
+      data-parameter-summary={pillText}
+      aria-label={t('generationCommon.parameters.generationParameters')}
+      aria-expanded={panelOpen}
+      title={pillText || t('generationCommon.parameters.generationParameters')}
+      onClick={() => (panelOpen ? closePanel() : openPanel())}
+      className={cn(
+        'inline-flex items-center gap-1 h-7 pl-2.5 pr-2 rounded-pill border border-nomi-line bg-nomi-ink-05',
+        'shrink-0 justify-between text-caption text-nomi-ink-80 cursor-pointer min-w-0',
+        'hover:border-nomi-ink-20 focus:outline-none focus-visible:border-nomi-accent',
+        stacked && 'w-full',
+      )}
+      style={{ width: stacked ? '100%' : resolvedSummaryWidth }}
+    >
+      <span className="min-w-0 truncate" style={{ maxWidth: stacked ? 'calc(100% - 18px)' : 240 }}>
+        {pillText || t('generationCommon.parameters.parameters')}
+      </span>
+      <IconChevronDown
+        size={12}
+        stroke={1.6}
+        className={cn(
+          'shrink-0 text-nomi-ink-40 pointer-events-none transition-transform',
+          panelOpen && 'rotate-180',
+        )}
+        aria-hidden
+      />
+    </button>
+  ) : null
+
+  const panelPortals = (
+    <>
+      {panelOpen && panelMode === 'inline' ? <div className="mt-1.5 w-full">{renderParameterPanel('inline')}</div> : null}
+      {panelOpen && panelMode === 'portal' && panelInit ? createPortal(renderParameterPanel('portal'), document.body) : null}
+    </>
+  )
 
   return (
     <div
@@ -603,14 +726,22 @@ export default function InlineParameterBar({
       )}
     >
       {stacked ? identityRow : <div className="contents">{identityRow}</div>}
-      {/* 横排：chip 与 ⚙ 直接排在模型芯片后面（`contents` 让它们成为同一条 flex 行的成员，
-          好让底栏「单行不换行」这条断言量得到）。竖排（窄面板）自己成一行并允许换行。 */}
-      <div className={cn(stacked ? 'flex w-full flex-wrap items-center gap-1.5' : 'contents')}>
-        {chips.map((control) => renderChip(control))}
-        {moreTrigger}
-      </div>
-      {panelOpen && panelMode === 'inline' ? <div className="mt-1.5 w-full">{renderParameterPanel('inline')}</div> : null}
-      {panelOpen && panelMode === 'portal' && panelInit ? createPortal(renderParameterPanel('portal'), document.body) : null}
+      {chipsMode ? (
+        <>
+          {/* 横排：chip 与 ⚙ 直接排在模型芯片后面（`contents` 让它们成为同一条 flex 行的成员，
+              好让底栏「单行不换行」这条断言量得到）。竖排（窄面板）自己成一行并允许换行。 */}
+          <div className={cn(stacked ? 'flex w-full flex-wrap items-center gap-1.5' : 'contents')}>
+            {chips.map((control) => renderChip(control))}
+            {moreTrigger}
+          </div>
+          {panelPortals}
+        </>
+      ) : summaryTrigger ? (
+        <div className={cn('min-w-0', stacked ? 'w-full' : 'contents')}>
+          {summaryTrigger}
+          {panelPortals}
+        </div>
+      ) : null}
     </div>
   )
 }

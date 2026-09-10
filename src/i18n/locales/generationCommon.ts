@@ -548,8 +548,11 @@ export const zhGenerationCommon = {
   },
   parameters: {
     auto: '自动',
-    // ⚙ 的名字带数字：它要回答的是「齿轮后面还有没有东西」（导入的 ComfyUI 工作流参数全在里面，
-    // 群反馈 2026-08-20 G2#433）。数字为 0 时这颗齿轮根本不渲染，所以不必再写一版无数字文案。
+    // 摘要 pill 的文案覆盖（画布节点 summary 形态）：导入的 ComfyUI 工作流参数名是作者随手起的，
+    // 串当前值成 `15 · 24` 没人认得出那是自己勾的东西（群反馈 2026-08-20 G2#433），改成报名字+条数。
+    workflowParams: '工作流参数 · {{count}} 项',
+    // ⚙ 的名字带数字（付费卡 chips 形态）：它要回答的是「齿轮后面还有没有东西」。
+    // 数字为 0 时这颗齿轮根本不渲染，所以不必再写一版无数字文案。
     moreParameters: '更多参数 · {{count}} 项',
     configureModel: '去配置模型',
     openModelCatalog: '点击打开模型设置',
@@ -559,6 +562,8 @@ export const zhGenerationCommon = {
     // 模型下拉里病模型的右侧标注（沉底 + 灰化时替掉厂商名那一列）。
     recentlyFailing: '最近多次失败',
     variant: '变体',
+    generationParameters: '生成参数',
+    parameters: '参数',
     panel: '生成参数面板',
     provider: '供应商',
     noVendorConnected: '还没接入供应商',
@@ -1983,6 +1988,7 @@ export const enGenerationCommon = {
   },
   parameters: {
     auto: 'Auto',
+    workflowParams: 'Workflow params · {{count}}',
     moreParameters: 'More parameters · {{count}}',
     configureModel: 'Configure a model',
     openModelCatalog: 'Open model setup',
@@ -1991,6 +1997,8 @@ export const enGenerationCommon = {
     selectModel: 'Select a model',
     recentlyFailing: 'Failing recently',
     variant: 'Variant',
+    generationParameters: 'Generation parameters',
+    parameters: 'Parameters',
     panel: 'Generation parameters panel',
     provider: 'Provider',
     noVendorConnected: 'No provider connected yet',

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import type { ModelParameterControl } from '../../../../config/modelCatalogMeta'
 import {
   buildModelControls,
+  isImportedComfyWorkflowModel,
   parseControlInput,
   shouldUseVideoFrameSlotFallback,
   videoAspectDefaultPatch,
@@ -148,3 +149,24 @@ describe('shouldUseVideoFrameSlotFallback — 未识别视频模型兜底不套�
   })
 })
 
+
+// 群反馈 2026-08-20 G2#433「导入时勾了功能，画布里没有对应的功能按钮」。
+// 参数其实**渲染了**（resolveRenderedControls 在无 archetype 分支会读 meta.parameters），
+// 缺的是底栏那颗摘要 pill 没说清里面是什么：它默认串当前值，
+// 档案模型上是 `16:9 · 2k`（认得出），导入工作流上是 `15 · 24`（认不出）。
+// 这个判据决定要不要换成「工作流参数 · N 项」。
+describe('isImportedComfyWorkflowModel — 认出「用户导入的工作流」这类模型', () => {
+  it('导入流程写过 comfyWorkflowImport → 是', () => {
+    expect(isImportedComfyWorkflowModel({ comfyWorkflowImport: { binding: {} } })).toBe(true)
+  })
+
+  it('内置档案模型没有这个键 → 否（它们的值串本来就读得懂，不该被改文案）', () => {
+    expect(isImportedComfyWorkflowModel({ parameters: [{ key: 'aspect_ratio' }] })).toBe(false)
+  })
+
+  it('meta 缺失 / 非对象 → 否，不炸', () => {
+    expect(isImportedComfyWorkflowModel(undefined)).toBe(false)
+    expect(isImportedComfyWorkflowModel(null)).toBe(false)
+    expect(isImportedComfyWorkflowModel('comfyWorkflowImport')).toBe(false)
+  })
+})

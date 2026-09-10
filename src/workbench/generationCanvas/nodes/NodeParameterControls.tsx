@@ -37,6 +37,7 @@ import {
   getSlotNodeRef,
   getSlotThumbUrl,
   imageCatalogReferenceSlot,
+  isImportedComfyWorkflowModel,
   nodeSelectedModelAddress,
   parseControlInput,
   readMeta,
@@ -80,6 +81,7 @@ import type { AssetRef } from '../../assets/assetTypes'
 import { moveArrayItem } from '../../assets/assetTypes'
 import { removeMention } from '../../assets/promptMentions'
 import InlineParameterBar from './InlineParameterBar'
+import { composerHeadlineSummary } from './composerHeadlineSummary'
 import { useNodeModelAutoSelect } from './useNodeModelAutoSelect'
 import { resolveArchetypeForOption, resolveRenderedControls } from './nodeModelArchetype'
 import {
@@ -673,8 +675,27 @@ export default function NodeParameterControls({
     updateMeta({ [slot.key]: null })
   }
 
-  // section="parameters"：底栏 = 模型芯片 + 变体 + 每个主参数一颗下拉 chip + ⚙ 长尾（实现见 InlineParameterBar）。
+  // section="parameters"：底栏 = 模型芯片 + 变体 + 摘要 pill + 统一参数面板（实现见 InlineParameterBar）。
+  // **画布节点不传 parameterLayout** → 默认 `summary`：2026-09-11 04:30 用户纠正，
+  // 同日 02:10 的逐参数 chip 只给付费确认卡，节点这一处退回原样（摘要 pill + 面板，含比例小图形）。
   if (section === 'parameters') {
+    // 导入的 ComfyUI 工作流：参数名是作者随手起的（采样步数/帧率/Float (duration)…），
+    // 把当前值串成 pill（`15 · 24`）没人认得出那是自己勾的东西。改成报名字+条数。
+    // 判据取 meta.comfyWorkflowImport 是否存在——它只由导入流程写入，档案模型不会有。
+    const workflowSummary = isImportedComfyWorkflowModel(selectedModelOption?.meta) && renderedControls.length > 0
+      ? t('generationCommon.parameters.workflowParams', { count: renderedControls.length })
+      : undefined
+    // v1.1 底栏：档案模型的 pill 只报「最影响结果和价格的两个值」（视频=比例+时长、图=比例+清晰度），
+    // 其余参数一个不少、仍在同一块弹层里。走 summaryOverride 这条**已有的**缝（导入工作流那支
+    // 在用同一个入口），不新造第二条摘要通路。工作流的口径优先——它连「值串出来没人认得」
+    // 这个更基本的问题都还没解决，轮不到再挑两个。
+    const summaryOverride = workflowSummary ?? composerHeadlineSummary({
+      isImageLike,
+      isVideoLike,
+      controls: renderedControls,
+      meta,
+      formatSeconds: (value) => t('generationCommon.composerBarV1.seconds', { value }),
+    })
     return (
       <InlineParameterBar
         modelOptions={modelOptions}
@@ -689,6 +710,7 @@ export default function NodeParameterControls({
         variantChoices={showVariantBar ? variantChoices : []}
         activeVariantId={activeVariantId}
         onVariantSelect={handleVariantSwitch}
+        summaryOverride={summaryOverride}
       />
     )
   }

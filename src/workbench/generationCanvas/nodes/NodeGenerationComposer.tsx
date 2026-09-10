@@ -411,15 +411,16 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize }:
         </div>
       )}
       {hasPromptPickerButton && effects.recommendations}
-      {/* 底栏（v1.1 + 同日 02:10 拍板的 B，2026-09-11）：铺满卡宽（w-full），一行三段、不换行：
-            `[模型 ▾][变体 ▾][16:9 ▾][5s ▾][1080p ▾][⚙] │ [🎥][✦][✨] │ [×N ▾] ……… [↑]`
+      {/* 底栏（v1.1，2026-09-11 用户拍板）：铺满卡宽（w-full），一行三段、不换行：
+            `[模型 ▾] [16:9 · 5s ▾] │ [🎥][✦][✨] │ [×N ▾] ……… [↑]`
           从左到右是「出什么 → 怎么写 → 出几张 → 走」，与人在按下生成那一刻的决策顺序同向。
           三类归位见 docs/design/2026-09-10-node-composer-bar-v1.md：
             A 决定出什么/花多少 → 第一段与第三段；B 帮我写提示词 → 中段缩小一号的纯 icon；
             锁 → 回节点浮条（它的作用对象是**这个节点**，不是这一次生成）。
+          参数区是**摘要 pill**（同日 02:10 的逐参数 chip 于 04:30 被用户收回，只给付费确认卡）。
           `data-node-composer-footer` / `data-bar-segment` 是走查锚点，好断言「单行 + 段序没漂」。 */}
       <div data-node-composer-footer className={cn('flex items-center gap-2 mt-auto pt-1 shrink-0 w-full flex-nowrap')}>
-        {/* 第一段：模型芯片 + 变体 + 每个主参数一颗下拉 chip + ⚙ 长尾（见 primaryParameterChips.ts）。 */}
+        {/* 第一段：模型芯片 + 变体 + 参数摘要 pill（只报两个值，见 composerHeadlineSummary）。 */}
         <div data-bar-segment="model-params" className={cn('flex min-w-0 shrink items-center')}>
           <NodeParameterControls
             node={node}

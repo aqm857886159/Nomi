@@ -58,6 +58,18 @@ export type FrameSlotLabels = {
   lastFrame: string
 }
 
+/**
+ * 这个模型是不是「用户导入的 ComfyUI 工作流」。
+ *
+ * 判据取 meta.comfyWorkflowImport 这个键是否存在——它只由导入流程写入，内置档案模型不会有。
+ * 用途：这类模型的参数名是工作流作者随手起的（采样步数 / 帧率 / Float (duration)…），
+ * 底栏摘要 pill 把当前值串起来会显示成 `15 · 24`，没人认得出那是自己导入时勾的东西
+ * （群反馈 2026-08-20 G2#433）——所以要换成「工作流参数 · N 项」这种报名字的写法。
+ */
+export function isImportedComfyWorkflowModel(meta: unknown): boolean {
+  return Boolean(meta && typeof meta === 'object' && 'comfyWorkflowImport' in (meta as Record<string, unknown>))
+}
+
 export function shouldUseVideoFrameSlotFallback(input: {
   isVideoLike: boolean
   modelImageUrlSlots: readonly ImageUrlSlot[]
