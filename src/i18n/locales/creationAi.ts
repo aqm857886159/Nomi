@@ -15,11 +15,11 @@ export const zhCreationAi = {
     empty: '还没有原稿',
     expand: '展开原稿',
     collapse: '收起原稿',
-    newStoryboard: '新建分镜方案',
+    newStoryboard: '新建方案',
     moreActions: '更多操作',
     rename: '重命名',
-    duplicateStoryboard: '复制分镜方案',
-    deleteStoryboard: '删除分镜方案',
+    duplicateStoryboard: '复制方案',
+    deleteStoryboard: '删除方案',
     keepOneDocument: '项目至少需要保留一篇原稿',
   },
   editor: {
@@ -132,11 +132,11 @@ export const enCreationAi = {
     empty: 'No drafts yet',
     expand: 'Expand draft',
     collapse: 'Collapse draft',
-    newStoryboard: 'New storyboard design',
+    newStoryboard: 'New Storyboard',
     moreActions: 'More actions',
     rename: 'Rename',
-    duplicateStoryboard: 'Duplicate storyboard design',
-    deleteStoryboard: 'Delete storyboard design',
+    duplicateStoryboard: 'Duplicate Storyboard',
+    deleteStoryboard: 'Delete Storyboard',
     keepOneDocument: 'A project must keep at least one draft',
   },
   editor: {
@@ -181,7 +181,7 @@ export const enCreationAi = {
     textModel: 'text conversation model',
     descriptionAfter: ' as the assistant’s brain.',
     enable: 'Enable {{model}}',
-    settings: 'Open model setup',
+    settings: 'Model Setup',
   },
   mode: {
     general: {

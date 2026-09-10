@@ -143,12 +143,12 @@ export async function walkWorkflowMacGestures(win, snap, readCatalog) {
   await wheelAt(win, list, 0, 320)
   await expect.poll(() => list.evaluate((el) => el.scrollTop)).toBeGreaterThan(0)
   for (let i = 0; i < 2; i += 1) {
-    await clickOrFail(graph.getByRole('button', { name: '回到节点图', exact: true }), '触控板切回图')
+    await clickOrFail(graph.getByRole('button', { name: '节点图', exact: true }), '触控板切回图')
     await clickOrFail(graph.getByRole('button', { name: '适应', exact: true }), '适应大图')
     const remounted = await viewportState(viewport)
     await wheelAt(win, viewport, 18, 24)
     expectPan(remounted, await viewportState(viewport), 18, 24)
-    await clickOrFail(graph.getByRole('button', { name: '显示完整节点列表', exact: true }), '回到节点列表')
+    await clickOrFail(graph.getByRole('button', { name: '节点列表', exact: true }), '回到节点列表')
   }
   await clickOrFail(page.getByRole('button', { name: '返回设置', exact: true }), '检查主画布共用偏好')
   await checkMainCanvas(win, 'modifier-zoom')

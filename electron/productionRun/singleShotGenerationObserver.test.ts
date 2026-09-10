@@ -166,4 +166,31 @@ describe("single-shot generation observation", () => {
     })).resolves.toMatchObject({ nextAction: "attention", polls: 1 });
     expect(submission.materialize).not.toHaveBeenCalled();
   });
+
+  it("pollHorizon 按墙钟计：poll 的 HTTP 往返也消耗预算，不只累计 sleep", async () => {
+    // 修复前：elapsed 只 += waitMs，两次 3000ms 的 poll 往返不占预算，观察窗被拉长。
+    let clock = 0;
+    const submission = {
+      poll: vi.fn(async () => {
+        clock += 3_000; // 模拟单次 poll 挂 3s（网络慢/上游排队）
+        return {
+          operationId: "op-1", runId: "op-1", jobId: "job-1", providerTaskId: "task-1",
+          providerStatus: "processing", nextAction: "poll" as const,
+        };
+      }),
+      materialize: vi.fn(),
+    };
+    const result = await observeSingleShotGeneration({
+      submission,
+      input: { projectId: "project-1", operationId: "op-1" },
+      sleep: async () => { clock += 1; },
+      now: () => clock,
+      pollHorizonMs: 10_000,
+      initialDelayMs: 1,
+      maxDelayMs: 1,
+    });
+    expect(result.nextAction).toBe("observe");
+    // 墙钟口径：第 4 次 poll 后已 12000ms > 10000ms，停——而不是让 sleep 只攒 3ms。
+    expect(submission.poll.mock.calls.length).toBe(4);
+  });
 });
