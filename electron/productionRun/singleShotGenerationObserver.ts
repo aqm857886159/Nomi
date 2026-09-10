@@ -28,6 +28,8 @@ export type SingleShotGenerationObserverInput = {
   /** Maximum delay between queries. */
   maxDelayMs?: number;
   sleep?: (ms: number) => Promise<void>;
+  /** Injectable clock; the horizon counts wall time (poll round-trips included), not just sleeps. */
+  now?: () => number;
 };
 
 export type SingleShotGenerationObservation = {
@@ -89,7 +91,11 @@ export async function observeSingleShotGeneration(
   const initialDelayMs = Math.max(0, deps.initialDelayMs ?? 3_000);
   const maxDelayMs = Math.max(initialDelayMs, deps.maxDelayMs ?? 15_000);
   const sleep = deps.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
-  let elapsedMs = 0;
+  // horizon 按**墙钟**计：只累计 sleep 时间会漏掉每次 poll 的 HTTP 往返（单次可挂到
+  // vendorHttp 超时上限），名义 300s 的实际观察窗可显著超出。
+  const now = deps.now ?? Date.now;
+  const startedAtMs = now();
+  const elapsedMs = (): number => now() - startedAtMs;
   let delayMs = initialDelayMs;
   let polls = 0;
   let lastPoll: GenerationSubmissionPollResult | undefined;
@@ -110,14 +116,13 @@ export async function observeSingleShotGeneration(
       return { nextAction: "completed", polls, lastPoll, materialized };
     }
     if (lastPoll.nextAction === "attention") return { nextAction: "attention", polls, lastPoll };
-    if (elapsedMs >= pollHorizonMs) return { nextAction: "observe", polls, lastPoll };
+    if (elapsedMs() >= pollHorizonMs) return { nextAction: "observe", polls, lastPoll };
 
-    const waitMs = Math.min(delayMs, pollHorizonMs - elapsedMs);
+    const waitMs = Math.min(delayMs, pollHorizonMs - elapsedMs());
     if (waitMs <= 0) return { nextAction: "observe", polls, lastPoll };
     if (!(await sleepUnlessAborted(sleep, waitMs, deps.signal))) {
       return { nextAction: "observe", polls, lastPoll, aborted: true };
     }
-    elapsedMs += waitMs;
     delayMs = Math.min(maxDelayMs, Math.max(initialDelayMs, delayMs * 2 || initialDelayMs));
   }
 }
