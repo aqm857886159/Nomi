@@ -1,96 +1,254 @@
 {
   "schema_version": 3,
   "id": "2026-09-10-canvas-default-concurrency",
-  "problem_type": "bounded-batch-queue-latency",
-  "symptom": "An eight-shot C0 media stage takes 487.489 seconds; shots seven and eight wait locally about 150 seconds.",
-  "direct_cause": "The shared default admits six tasks while the existing selectable bound is eight; the slowest task starts in the second group.",
-  "class_root": "The default batch policy underfills the existing eight-slot capacity for independent work without a saved preference.",
+  "problem_type": "provider-quota-ownership",
+  "symptom": "Eight-shot media run delays shots seven/eight locally 150.072/151.140 seconds. Prior PR changed an arbitrary default and used scaled replay as performance evidence.",
+  "direct_cause": "Renderer worker holds six/eight arbitrarily selected lifecycle slots, independent of provider account/interface/model contract.",
+  "class_root": "Execution concurrency is not admitted at the earliest appropriate resource owner: provider limits are replaced by caller constants, and local depth preparation starts before reserving its project.",
   "affected_population": [
-    "New or preference-free canvas batch users with more than six independent nodes"
+    "Canvas single/batch generation, headless generation, text and VLM requests across provider accounts and model changes"
   ],
   "scope_paths": [
-    "src/workbench/generationCanvas/components/canvasProductionScope.ts"
+    "electron/agentLane/laneModelProvider.mts",
+    "electron/ai/buildAiSdkModel.ts",
+    "electron/ai/vendorModelConnection.ts",
+    "electron/capabilityCore/mcpGenerationTools.ts",
+    "electron/catalog/apimartVideos.ts",
+    "electron/catalog/seedBuiltins.test.ts",
+    "electron/runtime.ts",
+    "electron/shared/agentLane/laneModelConfig.ts",
+    "electron/shared/videoCapabilities/grokImagine15Video.ts",
+    "electron/tasks/taskCache.ts",
+    "electron/tasks/taskIpcHandlers.ts",
+    "electron/tasks/taskResultQuery.ts",
+    "electron/vendor/providerTaskAdmission.ts",
+    "electron/vendor/providerTrafficContracts.json",
+    "electron/vendor/providerTrafficFetch.test.ts",
+    "electron/vendor/providerTrafficFetch.ts",
+    "electron/vendor/providerTrafficPolicy.test.ts",
+    "electron/vendor/providerTrafficPolicy.ts",
+    "electron/vendor/providerTrafficRuntime.test.ts",
+    "electron/vendor/providerTrafficRuntime.ts",
+    "electron/vendor/providerTrafficScheduler.test.ts",
+    "electron/vendor/providerTrafficScheduler.ts",
+    "electron/vendor/vendorHttp.test.ts",
+    "electron/vendor/vendorHttp.ts",
+    "electron/video/deconstructVideo.ts",
+    "scripts/check-heavy-path.mjs",
+    "scripts/hardcoded-provider-limits.mjs",
+    "scripts/hardcoded-provider-limits.test.mjs",
+    "scripts/vocabularies-baseline.json",
+    "src/config/modelArchetypes/index.test.ts",
+    "src/media/useFilmstrip.ts",
+    "src/workbench/generationCanvas/components/CanvasBatchGenerateDock.tsx",
+    "src/workbench/generationCanvas/components/CanvasProductionControls.tsx",
+    "src/workbench/generationCanvas/components/CanvasSelectionToolbar.tsx",
+    "src/workbench/generationCanvas/components/canvasProductionScope.test.ts",
+    "src/workbench/generationCanvas/components/canvasProductionScope.ts",
+    "src/workbench/generationCanvas/components/useCanvasProductionActions.ts",
+    "src/workbench/generationCanvas/runner/catalogTaskActions.ts",
+    "src/workbench/generationCanvas/runner/generationQueue.test.ts",
+    "src/workbench/generationCanvas/runner/generationRunController.ts",
+    "src/workbench/generationCanvas/runner/localTaskControl.ts",
+    "src/workbench/generationCanvas/spend/spendConfirm.ts",
+    "tests/ux/g1/c71-budget-main.mjs",
+    "tests/ux/g1/c71-fixture.mjs",
+    "tests/ux/g1/c71-media-latency.node-test.mjs",
+    "tests/ux/g1/c71-media-latency.walk.mjs",
+    "tests/ux/g1/c71-planner.mjs",
+    "tests/ux/g1/c71-resume-media.mjs",
+    "electron/video/depthVideoJob.ts",
+    "electron/video/depthVideoJob.test.ts"
   ],
   "entry_points": [
     "All-canvas generation",
     "Selection generation",
     "Dependency-plan batch runner"
   ],
-  "external_sources": [],
-  "internal_only_reason": "Concurrency eight is an existing Nomi option, not an upstream recommendation. APIMart does not publish a general concurrent-task cap in the checked docs; no vendor guarantee is claimed.",
-  "invariants": [
-    "Absent preference uses the existing eight-slot bound; explicit lower preferences and dependency waves remain authoritative."
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://docs.apimart.ai/en/development",
+      "checked_at": "2026-09-10",
+      "purpose": "APIMart 429 guidance, no numeric generic limit"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://platform.minimaxi.com/docs/guides/rate-limits",
+      "checked_at": "2026-09-10",
+      "purpose": "China-region model/interface/account quota"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://api-docs.deepseek.com/quick_start/rate_limit",
+      "checked_at": "2026-09-10",
+      "purpose": "Account-level model concurrent connections"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://apimart.ai/zh/keys",
+      "checked_at": "2026-09-10",
+      "purpose": "Supplier-published generic RPM initial value, not inflight"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://platform.minimaxi.com/docs/api-reference/errorcode",
+      "checked_at": "2026-09-10",
+      "purpose": "China-region logical rejection versus input failure"
+    }
   ],
-  "generality_proof": "UI preference loading, normalization and cost estimation share DEFAULT_CANVAS_BATCH_CONCURRENCY; the unchanged worker still enforces normalized bounds across media kinds.",
+  "invariants": [
+    "Concurrency/rate limits originate only in a sourced provider contract or a lower user preference. Unknown is not an invented numeric cap or an unlimited guarantee.",
+    "Request-rate and complete-task concurrency are separate dimensions; HTTP acceptance does not release an asynchronous generation slot.",
+    "Local depth preparation reserves its project before the first await and transfers ownership to the existing session or releases it on failure; project exclusivity is a domain invariant, not a numeric provider quota."
+  ],
+  "generality_proof": "Canvas single/batch, headless media, VLM and native text converge on sourced provider policies and shared HTTP/task lifecycle admission. Actual model, service host and explicit account tier select the contract. Unknown identity conservatively shares provider scope; no per-key quota duplication. The empty-allowlist AST gate rejects executable numeric policies.",
   "shared_boundaries": [
     {
-      "path": "src/workbench/generationCanvas/components/canvasProductionScope.ts",
-      "symbol": "DEFAULT_CANVAS_BATCH_CONCURRENCY",
-      "responsibility": "Own the absent-preference batch admission policy."
+      "path": "electron/vendor/providerTrafficPolicy.ts",
+      "symbol": "resolveProviderTrafficPolicy",
+      "responsibility": "Resolve sourced provider limits without a numeric fallback."
+    },
+    {
+      "path": "electron/vendor/providerTrafficScheduler.ts",
+      "symbol": "ProviderTrafficScheduler",
+      "responsibility": "Hold admission through the actual lifecycle and apply scoped rate cooldown."
+    },
+    {
+      "path": "electron/vendor/providerTrafficRuntime.ts",
+      "symbol": "withProviderTaskTraffic",
+      "responsibility": "Acquire asynchronous task capacity only at paid submit, retain through upstream termination, share foreground/background queries."
+    },
+    {
+      "path": "electron/vendor/providerTrafficFetch.ts",
+      "symbol": "withProviderTextTraffic",
+      "responsibility": "Hold connection permits through complete streams, normalize sourced quota rejection for SDK retry."
+    },
+    {
+      "path": "electron/vendor/vendorHttp.ts",
+      "symbol": "requestVendor",
+      "responsibility": "Enforce actual HTTP RPM and quota feedback; preserve existing retry ownership and structure admission cancellation without consuming network timeout while queued."
+    },
+    {
+      "path": "electron/video/depthVideoJob.ts",
+      "symbol": "prepareVideoDepthJob",
+      "responsibility": "Own same-project local preparation before asynchronous side effects and transfer to the existing session without an ownership gap."
     }
   ],
   "same_class_entry_points": [
     {
-      "path": "src/workbench/generationCanvas/components/useCanvasProductionActions.ts",
-      "entry_point": "readCanvasBatchConcurrency",
+      "path": "electron/runtime.ts",
+      "entry_point": "runTask",
       "disposition": "enforced",
-      "evidence": "Initial production state reads the shared preference helper."
+      "evidence": "Shared paid media and VLM entry used by renderer and headless calls."
     },
     {
-      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
-      "entry_point": "runGenerationNodesBatch",
+      "path": "electron/tasks/taskResultQuery.ts",
+      "entry_point": "fetchTaskResult",
       "disposition": "enforced",
-      "evidence": "Worker count consumes normalizeCanvasBatchConcurrency; by-plan calls preserve serial dependency waves."
+      "evidence": "Only actual terminal provider results release admitted asynchronous tasks."
+    },
+    {
+      "path": "electron/ai/buildAiSdkModel.ts",
+      "entry_point": "buildAiSdkModel",
+      "disposition": "enforced",
+      "evidence": "Native SDK fetch uses same provider policy as media."
+    },
+    {
+      "path": "electron/agentLane/laneModelProvider.mts",
+      "entry_point": "createNomiProvider",
+      "disposition": "enforced",
+      "evidence": "Agent text streaming retains provider connection until stream terminates."
+    },
+    {
+      "path": "electron/video/deconstructVideo.ts",
+      "entry_point": "deconstructVideo",
+      "disposition": "enforced",
+      "evidence": "Removed fixed VLM concurrency; CPU extraction derives hardware count independently."
+    },
+    {
+      "path": "electron/video/depthVideoJob.ts",
+      "entry_point": "prepareVideoDepthJob",
+      "disposition": "enforced",
+      "evidence": "Structural review found same-project concurrent prepares both entered heavy work before session registration. Reservation now precedes the first await; failed preparation releases it."
     }
   ],
   "recurrence": {
     "classification": "recurring",
-    "reason": "Every preference-free batch larger than six can incur the same extra local waiting.",
+    "reason": "Account tier, service region, model and concurrent callers change independently of the renderer constant.",
     "same_class_scan": [
-      "rg DEFAULT_CANVAS_BATCH_CONCURRENCY src: preference, runner, spend estimate share the owner",
-      "Inspected useCanvasProductionActions, useCanvasFrameActions and runGenerationNodesByPlan"
+      "rg concurrency|CONCURRENCY src electron: canvas default/clamp, VLM deconstruct constant and MCP ETA independent constant.",
+      "Read runtime.runTask, vendorHttp.requestVendor, taskResultQuery.fetchTaskResult, laneModelProvider.createNomiProvider and buildAiSdkModel."
     ]
   },
   "prevention": {
     "kind": "centralized-boundary",
-    "enforcement_path": "src/workbench/generationCanvas/components/canvasProductionScope.ts",
-    "invariant": "Fill the existing bounded capacity by default while preserving explicit limits.",
-    "failure_mode": "Invalid numeric input normalizes to the bounded default; finite inputs remain clamped 1..8.",
+    "enforcement_path": "electron/vendor/providerTrafficPolicy.ts",
+    "invariant": "Concurrency/rate limits originate only in a sourced provider contract or a lower user preference. Unknown is not an invented numeric cap or an unlimited guarantee.",
+    "failure_mode": "Production numeric concurrency policies fail the hard-zero gate; unknown quotas remain absent. Explicit upstream quota rejection delays admission, never fabricates an inflight cap; transport never creates a second paid retry owner; task retries still consume existing per-node attempt grants.",
     "exception_policy": "none",
-    "strategy": "Change the existing shared default instead of adding caller-specific overrides or a second scheduler.",
+    "strategy": "Resolve limits at provider boundary and prohibit literal policies in production source via AST gate.",
     "artifacts": [
-      "src/workbench/generationCanvas/components/canvasProductionScope.ts"
+      "electron/vendor/providerTrafficPolicy.ts",
+      "electron/vendor/providerTrafficScheduler.ts",
+      "scripts/check-heavy-path.mjs",
+      "electron/vendor/providerTrafficRuntime.ts",
+      "electron/vendor/providerTrafficFetch.ts",
+      "scripts/hardcoded-provider-limits.mjs",
+      "electron/video/depthVideoJob.ts"
     ]
   },
   "regression_tests": [
-    "src/workbench/generationCanvas/components/canvasProductionScope.test.ts",
-    "src/workbench/generationCanvas/runner/generationQueue.test.ts"
+    "electron/vendor/providerTrafficPolicy.test.ts",
+    "electron/vendor/providerTrafficScheduler.test.ts",
+    "electron/vendor/providerTrafficRuntime.test.ts",
+    "electron/vendor/providerTrafficFetch.test.ts",
+    "electron/vendor/vendorHttp.test.ts",
+    "src/workbench/generationCanvas/runner/generationQueue.test.ts",
+    "scripts/hardcoded-provider-limits.test.mjs",
+    "electron/catalog/seedBuiltins.test.ts",
+    "src/config/modelArchetypes/index.test.ts",
+    "electron/video/depthVideoJob.test.ts",
+    "electron/capabilityCore/mcpGenerationTools.test.ts",
+    "src/workbench/generationCanvas/spend/spendConfirm.test.ts",
+    "src/workbench/generationCanvas/nodes/controls/archetypeMeta.test.ts"
   ],
   "class_regression_tests": [
-    "src/workbench/generationCanvas/components/canvasProductionScope.test.ts",
-    "src/workbench/generationCanvas/runner/generationQueue.test.ts"
+    "electron/vendor/providerTrafficPolicy.test.ts",
+    "electron/vendor/providerTrafficScheduler.test.ts",
+    "electron/vendor/providerTrafficRuntime.test.ts",
+    "electron/vendor/providerTrafficFetch.test.ts",
+    "electron/vendor/vendorHttp.test.ts",
+    "electron/video/depthVideoJob.test.ts"
   ],
   "legacy_paths": {
-    "status": "not-applicable",
-    "removed_paths": [],
-    "rationale": "Replace the constant in place; no alternative worker or preference path."
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/components/canvasProductionScope.ts"
+    ],
+    "rationale": "Remove application-selected default and upper clamp, replace with sourced quota policy and optional lower preference."
   },
   "dependency_lifecycle": {
     "decision": "not-applicable",
-    "rationale": "This is a local admission-policy value, not a third-party runtime behavior change.",
+    "rationale": "Provider policy is domain admission around existing task lifecycle; no replacement SDK or new framework.",
     "exit_criteria": []
   },
-  "migration": "No persisted preference is overwritten, including six. Preference-free sessions use eight.",
+  "migration": "Preserve explicit user preferences as additional lower ceilings, never as overrides of a sourced provider ceiling. Missing preference adds no invented provider cap. Existing Grok quality parameters retain their name internally; curated mapping emits official resolution.",
   "residual_risks": [
-    "No paid media rerun: replay measures client scheduling only. Real supplier queueing and rate limits can reduce or erase improvement.",
-    "Eight in-flight tasks reduce the window to cancel not-yet-submitted work compared with six."
+    "Unknown account tier and unpublished quota dimensions remain unknown. APIMart RPM500 is an official static console declaration, not dynamically verified account capacity.",
+    "Provider TPM is enforced by upstream tokenizer; no fabricated local multimodal token counting. Active work outside this process and process restarts can only be constrained by provider feedback.",
+    "Real two-shot sample and resumed export/cold restore passed; cannot measure real seventh/eighth waits, no same-condition pre-change baseline or speedup claim. First planner attempt and initial stage05 harness failure are retained in evidence."
   ],
   "invariant_owner_layer": {
-    "layer": "src/workbench/generationCanvas/components/canvasProductionScope.ts",
+    "layer": "electron/vendor/providerTrafficPolicy.ts",
     "tests": [
-      "src/workbench/generationCanvas/components/canvasProductionScope.test.ts",
-      "src/workbench/generationCanvas/runner/generationQueue.test.ts"
+      "electron/vendor/providerTrafficPolicy.test.ts",
+      "electron/vendor/providerTrafficScheduler.test.ts",
+      "electron/vendor/providerTrafficRuntime.test.ts",
+      "electron/vendor/providerTrafficFetch.test.ts",
+      "electron/vendor/vendorHttp.test.ts",
+      "electron/video/depthVideoJob.test.ts"
     ],
-    "why": "Shared preference policy is tested alongside actual batch admission and existing cancellation/dependency tests."
+    "why": "Provider contract owns allowed limits; shared scheduler enforces actual task lifecycle."
   }
 }

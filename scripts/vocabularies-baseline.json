@@ -1,5 +1,5 @@
 {
-  "debtCap": 70,
+  "debtCap": 69,
   "converged": [
     {
       "retiredOwners": [
@@ -1801,14 +1801,6 @@
         "verified"
       ],
       "reason": "AdapterModelMeta.state 模型适配结果合同 跨 IPC 重复写在多个实现层，目前没有 neutral shared contract，因此所有现有 copy 都列 debt。收敛动作：在构建中立模块导出 ADAPTER_MODEL_STATES as const tuple 和 runtime schema，再让 main、preload、renderer 的 DTO、校验、解析与分支全部 derive；任何一侧都不得导入另一侧实现目录。"
-    },
-    {
-      "site": "electron/runtime.ts::function:runTask/property:status/type-union",
-      "members": [
-        "failed",
-        "succeeded"
-      ],
-      "reason": "runTask.status 只返回 neutral TaskStatus 合同的 failed、succeeded 终态；应从 TASK_STATUSES 生成的 TaskStatus 以 Extract 派生，并复用 isTerminalTaskStatus，不保留局部二元字面量。"
     },
     {
       "site": "electron/runtime.ts::type:TaskResult/property:status/type-union",

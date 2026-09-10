@@ -24,6 +24,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { scanHardcodedProviderLimits } from './hardcoded-provider-limits.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const BASELINE_FILE = path.join(repoRoot, 'scripts/heavy-path-baseline.json')
@@ -56,6 +57,13 @@ function stripComments(source) {
 }
 
 const RULES = [
+  {
+    id: 'hardcoded-provider-limits',
+    hardZero: true,
+    label: '生产代码硬编码供应商并发/速率限额——换模型或账号后策略失真',
+    hint: '从带来源的供应商契约数据派生，仅允许用户偏好压低；未知不补默认数值。此规则无白名单、不可更新基线。',
+    scan: scanHardcodedProviderLimits,
+  },
   {
     id: 'sync-image-encode',
     label: '同步图像编码（canvas.toDataURL）——编码期间整个界面冻住',
@@ -205,15 +213,20 @@ const RULES = [
 const files = collect()
 const found = new Map(RULES.map((rule) => [rule.id, []]))
 for (const file of files) {
-  const code = stripComments(fs.readFileSync(file, 'utf8'))
+  const raw = fs.readFileSync(file, 'utf8')
+  const code = stripComments(raw)
   for (const rule of RULES) {
-    for (const hit of rule.scan(code, file)) found.get(rule.id).push(hit)
+    for (const hit of rule.scan(rule.hardZero ? raw : code, file)) found.get(rule.id).push(hit)
   }
 }
 
 const baseline = fs.existsSync(BASELINE_FILE) ? JSON.parse(fs.readFileSync(BASELINE_FILE, 'utf8')) : {}
 if (process.argv.includes('--update-baseline')) {
-  const next = Object.fromEntries(RULES.map((rule) => [rule.id, found.get(rule.id).length]))
+  if (RULES.some((rule) => rule.hardZero && found.get(rule.id).length > 0)) {
+    console.error('硬零规则命中，不允许写入基线。')
+    process.exit(1)
+  }
+  const next = Object.fromEntries(RULES.filter((rule) => !rule.hardZero).map((rule) => [rule.id, found.get(rule.id).length]))
   fs.writeFileSync(BASELINE_FILE, `${JSON.stringify(next, null, 2)}\n`)
   console.log(`✅ 已写入基线：${JSON.stringify(next)}`)
   process.exit(0)
@@ -223,7 +236,7 @@ let failed = false
 const summary = []
 for (const rule of RULES) {
   const hits = found.get(rule.id)
-  const allowed = Number.isFinite(baseline[rule.id]) ? baseline[rule.id] : 0
+  const allowed = !rule.hardZero && Number.isFinite(baseline[rule.id]) ? baseline[rule.id] : 0
   summary.push(`${rule.id}=${hits.length}`)
   if (hits.length <= allowed) continue
   failed = true
