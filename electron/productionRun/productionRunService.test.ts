@@ -243,6 +243,35 @@ describe('production run service projection boundary', () => {
     expect(consume).toHaveBeenCalledTimes(1)
   })
 
+  // 2026-09-10 根因回归闸（装配侧）：生产装配长期没注入收据权威，旧实现在权威缺席时直接放行付费门。
+  // 这里用「没有权威的 service」复现那个装配，证明它现在**拒绝**，且只有主进程手势章过得去。
+  it('fails closed on a spend gate when the service was assembled without a receipt authority', async () => {
+    const execute = vi.fn(() => ({ run: { ...run, revision: 3 }, events: [] }))
+    const repository = { read: vi.fn(() => run), readEvents: vi.fn(() => []), execute }
+    const service = createProductionRunService({ repository: repository as never, projectRootResolver: () => null })
+    const decide = (commandId: string, extra: Record<string, unknown> = {}) => service.command('project-1', 'run-1', {
+      commandId,
+      expectedRevision: 2,
+      type: 'gate.decide',
+      payload: { gateId: 'gate-1', status: 'approved' },
+      issuedAt: new Date().toISOString(),
+      ...extra,
+    })
+
+    await expect(decide('remote-approve-no-authority')).rejects.toMatchObject({ code: 'human_approval_required' })
+    expect(execute).not.toHaveBeenCalled()
+
+    // 带着收据也一样拒：验不动就是验不动，绝不「验不了就放行」。
+    await expect(decide('remote-approve-with-unverifiable-receipt', {
+      payload: { gateId: 'gate-1', status: 'approved', receiptId: 'receipt-from-nowhere' },
+    })).rejects.toMatchObject({ code: 'human_approval_required' })
+    expect(execute).not.toHaveBeenCalled()
+
+    // Nomi 自己窗口里的真人手势（productionRunIpc 在受信发送方校验后盖的章）照常通过。
+    await expect(decide('in-app-gesture', { humanGesture: true })).resolves.toMatchObject({ run: { revision: 3 } })
+    expect(execute).toHaveBeenCalledTimes(1)
+  })
+
   it('rejects a stale receipt before execute and also checks receipts on duplicate decisions', async () => {
     const approval = makeApprovalReceipt()
     const execute = vi.fn(() => ({ run, events: [] }))
