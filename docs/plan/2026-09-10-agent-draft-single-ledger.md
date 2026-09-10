@@ -62,6 +62,26 @@ Agent 说「草稿已建」，用户却在画布上什么都看不到——因�
 
 **用户自己**改项目照样作废收据——那正是 #722 要的语义，一个字没动。
 
+## 与「封存」的相互作用（2026-09-11 CI 的 C9 红，同一条根因链的下一段）
+
+上面那两条闸让 C9 的重新确认过了，走查往下跑了一段，露出**下一段**：Run 一路跑到
+`needs_attention`，摘要写「生成镜头缺少画布节点」——四个 job 全都没有 `nodeId`。
+
+链条三段，缺一段都不炸：
+
+1. 本方案让草稿一建就落画布，`plan.bind-shot-nodes` 把 shotId→nodeId 写进镜——**绑定发生在封存之前**
+   （在 #723 之前，第一次绑定永远发生在「确认即落」，也就是封存之后）。
+2. `generation.seal` 用调用方 `sealMultiShotFor` **逐字段重建**的镜整体替换 `plan.shots`，那份投影只带
+   shotId/role/included/candidate/contract，**不带 nodeId** → 绑定被抹。而同一条 seal 命令当场就按
+   `shot.nodeId` 铸 job（`authorizationUnits`），于是这批 job 永远没有 nodeId。
+3. 「确认即落」那次重落地算出的绑定与草稿那次**逐字节相同** → bind 命令的 commandId 也相同
+   （`canvas-landing:{runId}:bind:{shotId}={nodeId}…`）→ 被仓储按幂等重放吞掉，补不回来。
+
+根因不是「seal 太狠」也不是「幂等太狠」，是**封存越权**：seal 冻的是合同与候选，
+`nodeId` / `canvasDetached` 是画布落地 owner 写的「shot ↔ 画布节点」单一真相
+（`productionRunTypes.ts` 该字段的注释原话）。修在替换 `plan.shots` 的那个 owner——
+reducer 的 `sealGenerationShots` 把绑定带过封存线。三条回归测试，变异验证：去掉这段即红。
+
 ## 回滚
 
 单分支单 commit 族，回滚 = revert 分支。逐项独立可退：
