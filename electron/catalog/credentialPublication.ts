@@ -7,7 +7,10 @@ import type { CatalogState } from "./types";
  *
  * 由 applyApiKeyUpsert 调用——所有凭据写入（渲染层 IPC、整包导入、主进程 mutateCatalog）唯一汇合的
  * 最内层边界，且就地改内存 state 随调用方那一次 writeCatalog 落盘，故不变量被全部写入方继承且原子生效。
- * 触发条件即「凭据停用」，认证 promote 一族一律写 enabled:true，构造上不触发，无需 skip 逃生口（P1）。
+ * 触发条件即「凭据停用」本身，认证 promote 一族一律写 enabled:true，构造上不触发，无需 skip 逃生口（P1）。
+ * 2026-09-10：调用点（applyApiKeyUpsert）同时去掉了 `|| verificationPending` 这个连坐条件——
+ * 「待验证」说的是「还没验过」，不是「已停用」，把它翻成整家下架正是「填了 key 模型全消失」的最后一段；
+ * 见 docs/fixes/2026-09-10-vendor-key-publish-class.root-cause.json。
  * 只翻 enabled+updatedAt（不绕 applyVendorUpsert 重建行），vendor 的 name/meta/顺序原样保留。
  */
 export function depublishVendorForDisabledCredential(state: CatalogState, vendorKey: string, now: string): void {

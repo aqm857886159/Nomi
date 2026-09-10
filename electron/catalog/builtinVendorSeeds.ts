@@ -50,7 +50,36 @@ export type VendorSeed = {
     successPath: string;
     source: { url: string; checkedAt: string };
   };
+  /**
+   * 该家的 key 该拿什么当判据（**种子声明，不是按路由猜**）。
+   *
+   * 为什么需要它：`GET /v1/models` 既不充分也不必要，两个方向的反例都在我们自己的证据里——
+   * apimart 对合法 key 恒 401（electron/vendor/vendorBaseFallback.ts 实测注释），minimax 回 200
+   * 却连最小生成 canary 都跑不通（认证账本 blocker 原文）。详见
+   * docs/research/2026-09-10-vendor-key-publish-class/prior-art.md 第 ④ 节。
+   *
+   *  · `liveness-probe`：种子带 `livenessProbe`，一次零成本探测即判（apimart）。
+   *  · `model-list`    ：上游确有 OpenAI 兼容模型列表端点，且它对合法 key 会放行。
+   *  · `first-use`     ：没有便宜且可信的预检——最小真实请求 = 一次付费生成，不能替用户花钱。
+   *                      存 key 即发布 + 标「待首次使用验证」，首次生成的鉴权失败走现有诚实报错。
+   *
+   * 缺省 = `first-use`：内置家的执行契约是代码拥有、且逐条验证过才进种子的（认证账本
+   * docs/integration-certification/model-certification-ledger.json + 各契约文件的实测注释），
+   * 发布它们不需要再向上游多要一次许可。
+   */
+  keyValidation?: KeyValidationStrategy;
+  /**
+   * 代码拥有的执行契约**不走 mapping 运行时**、而住在主进程专用路径时，在这里指出去。
+   * 现役唯一一例：Replicate 元素拆解是多输出（一次返回 N 张图层），刻意不套单结果 runtime
+   * （electron/catalog/replicate.ts 顶注、docs/plan/2026-06-28-element-decomposition-feature.md §3.1），
+   * 因此它没有 curated mapping —— 但它同样是「代码拥有、已真生成实测固化」的契约，发布判据必须认它，
+   * 否则「元素拆解」永远点不亮。为它编一条没人消费的假 mapping 才是不诚实的那条路。
+   */
+  bespokeExecution?: { capability: string; path: string };
 };
+
+/** key 判据的三种形态（详见 `VendorSeed.keyValidation`）。 */
+export type KeyValidationStrategy = "liveness-probe" | "model-list" | "first-use";
 
 /** 顺序 = 原 seedBuiltins 的播种顺序（保持既有装机行为一致）。 */
 export const BUILTIN_VENDOR_SEEDS: readonly VendorSeed[] = [
@@ -103,13 +132,29 @@ export function isBuiltinDirectKeyVendor(vendorKey: string): boolean {
 }
 
 /**
- * Check the transport scope of a built-in direct-key vendor against its code
- * seed.  This is shared by renderer mutation and runtime bootstrap so an old
- * catalog edit cannot retarget an already-saved credential to another host.
+ * 这家的 key 该怎么验（**唯一分派点**）。内置种子自己说了算；没有内置种子的行（自定义供应商、
+ * 用户自建中转、认证晋升出来的候选）返回 undefined，由调用方回落到 OpenAI 兼容的 `/v1/models`
+ * —— 那对「用户自己填地址的兼容端点」确实是成立的判据，对内置 curated 家则不是。
+ */
+export function credentialValidationStrategy(vendorKey: string): KeyValidationStrategy | undefined {
+  const seed = builtinVendorSeed(vendorKey);
+  if (!seed) return undefined;
+  if (seed.livenessProbe) return "liveness-probe";
+  return seed.keyValidation ?? "first-use";
+}
+
+/**
+ * 该 catalog 行的传输面是否仍等于它的代码种子。渲染层写入、运行时 bootstrap 与凭据发布共用
+ * 这一份判据，于是「一次旧的 catalog 编辑把已存凭据改指别的 host」在任何一条路上都拦得住。
+ *
+ * 2026-09-10 去掉了「仅 direct-key」的前置：三个既有调用点本就分别被 `isBuiltinDirectKeyVendor`
+ * 早退（generationProviderBootstrap.ts 的 hasSafeDirectKeyScope、apimartGenerationProvider.ts 的
+ * direct-key 契约断言）或写死 apimart，行为不变；而凭据发布要对**所有**内置家问同一个问题，
+ * 前置留在这里就成了第二条 vendor 白名单。
  */
 export function builtinVendorScopeMatches(vendor: Vendor): boolean {
   const seed = builtinVendorSeed(vendor.key);
-  if (!seed || seed.credentialMode !== "direct-key") return false;
+  if (!seed) return false;
   const normalize = (value: unknown, trimSlashes = false): unknown => {
     if (typeof value !== "string") return value ?? null;
     const trimmed = value.trim();
