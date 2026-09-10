@@ -5,6 +5,16 @@
 // 请求体这条链路已由 tests/ux/audio-reference-connect.walk.mjs 的真机走查 + 干跑步骤验过，
 // 这里只补最后一环——真供应商端点真的吃得下音频参考、真出得了片。
 // 用法：pnpm run build && node scripts/audio-ref-paid-smoke.mjs   （真实小额花费，默认授权）
+//
+// 2026-09-11 现状：跑了 5 次，请求都真实到达 APIMart（task 创建成功、进过 queued/running），
+// 每次都以 code=task_failed / "We couldn't complete this request. Please try again in a moment."
+// 收场，credits_cost/cost 恒 0（未扣费）。已排除的假设：size 字段缺失（已补，仍失败）、resolution/
+// generate_audio 偏离默认值（改回档案默认 720p/true 仍失败）、纯音频问题（image-only 探针同样
+// task_failed，排除音频专属）。剩下最可能是 APIMart 侧对本机出站网络/本地化后素材 URL 的可达性
+// 限制（同 docs/lessons/paid-smoke-apimart-only.md 记录的既有限制：APIMart 只能走本地代理）——
+// 不是这次 audio-first-class-reference 改动本身的缺陷：同一份请求体的核心字段（image_urls/
+// audio_urls/referenceImages）已经由 tests/ux/audio-reference-connect.walk.mjs 的干跑步骤，
+// 用生产同一份 buildArchetypeInputParams 验证过构造正确。
 import { launchNomiApp } from '../tests/ux/_launchApp.mjs'
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import path from 'node:path'
@@ -67,7 +77,10 @@ try {
         // 读的是这个通用键，不是 image_urls（那是 APIMart 传输层自己的 body 字段名）——
         // 画布正常走 buildArchetypeInputParams 时两者都会填，这里手搭请求得自己补上。
         referenceImages: [a.imageUrl],
-        resolution: '480p', duration: 5, generate_audio: false,
+        // size 是必填字段（electron/shared/videoCapabilities/seedanceApimart.ts 的比例控件，
+        // 16:9/9:16/1:1/4:3/3:4/21:9/adaptive）——手搭请求漏了它，真实探针复现：连最简单的
+        // image-only 请求都被 APIMart 判 task_failed（¥0 未扣费）；补上后本地址才算完整。
+        size: '16:9', resolution: '720p', duration: 5, generate_audio: true,
         grantId: a.grantId, nodeId: 'audio-ref-omni',
       },
     },
