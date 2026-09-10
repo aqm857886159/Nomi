@@ -131,19 +131,19 @@ export function createLocalProject(name?: string, templateId?: string, options: 
 
 export { readLocalProject, readLocalProjectAsync }
 
-export function saveLocalProject(
+export async function saveLocalProject(
   projectId: string,
   state: WorkbenchProjectPayload,
   name?: string,
-): LocalProjectRecord {
-  const record = saveProjectRecord(projectId, state, name)
+): Promise<LocalProjectRecord> {
+  const record = await saveProjectRecord(projectId, state, name)
   publishLocalProjectRecord(record)
   return record
 }
 
 /** 列表页「双击改名」：只改名（不动内容），存回后刷新列表卡片。空名/未变=no-op。 */
-export function renameLocalProject(projectId: string, name: string): LocalProjectRecord | null {
-  const record = renameProjectRecord(projectId, name)
+export async function renameLocalProject(projectId: string, name: string): Promise<LocalProjectRecord | null> {
+  const record = await renameProjectRecord(projectId, name)
   if (record) publishLocalProjectRecord(record)
   return record
 }

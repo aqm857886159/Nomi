@@ -6,7 +6,18 @@ import { createApprovalReceiptAuthority } from "../capabilityCore/approvalReceip
 import { createProductionRunLock } from "../productionRun/productionRunLock";
 import { writeCertificationJsonAtomic } from "./certificationPersistence";
 import { ConnectionCertificationService, getConnectionCertificationService } from "./service";
-import type { AdapterAuthType, ProviderAdapterModelSelection, ProviderAdapterRun } from "../providerAdapter/types";
+import type {
+  AdapterAuthType,
+  ProviderAdapterDraft,
+  ProviderAdapterModelSelection,
+  ProviderAdapterRun,
+} from "../providerAdapter/types";
+import {
+  ADAPTER_CONTRACT_INSTRUCTIONS,
+  adapterContractJsonSchema,
+} from "../providerAdapter/agentCompileRequest";
+import { hasCompilerLanguageModel } from "../providerAdapter/serviceLanguageModels";
+import { adapterDraftFromProposal, compileRequestFor } from "./integrationAdapterContract";
 import type { ApprovalReceiptAuthority, HumanApprovalReceiptV1 } from "../capabilityCore/approvalReceipt";
 import type { IntegrationHandoff } from "./handoffQueue";
 import { enqueueIntegrationHandoff, retireIntegrationHandoffs } from "./handoffQueue";
@@ -20,6 +31,13 @@ import { isComfyuiVendor, COMFYUI_VENDOR_KEY } from "../catalog/types";
 import { OperationLedger } from "./operationLedger";
 import type { CertificationOperationRecord } from "./types";
 import type { WorkflowBinding, WorkflowEnumOption } from "../catalog/comfyuiWorkflowImport";
+import {
+  assertRecord,
+  rejectWorkflowKeys,
+  sanitizeWorkflowBinding,
+  sanitizeWorkflowEnumOptions,
+  workflowString,
+} from "./integrationWorkflowBinding";
 import { certificationModeOperationKey } from "./modeIdentity";
 import { hardenedFetch, isPrivateHost } from "../hardenedFetch";
 import { discoverAndPersistHttpCandidates } from "./httpModelDiscovery";
@@ -52,6 +70,19 @@ export type IntegrationProposal = {
   selections?: unknown;
   workflow?: unknown;
   modelKey?: unknown;
+  adapterDraft?: unknown;
+};
+/**
+ * 「Nomi 自己编不动，请你来编」的结构化交底（B 路，见 providerAdapter/agentCompileRequest.ts）。
+ * 落盘的只有这几个小字段；目标 schema 与撰写规则是常量，在投影时现加，不占会话文件。
+ */
+export type IntegrationCompileRequest = {
+  schemaVersion: 1;
+  reasonCode: "adapter_contract_required";
+  field: "proposal.adapterDraft";
+  provider: { baseUrl: string; authType: AdapterAuthType; providerKind?: string };
+  models: Array<{ modelKey: string; kind: string }>;
+  docs: { provided: boolean; bytes: number };
 };
 export type IntegrationSession = {
   schemaVersion: 1;
@@ -96,13 +127,23 @@ export type IntegrationSession = {
   startReceiptStatus?: IntegrationStartReceiptStatus;
   pendingChallengeId?: string;
   pendingConfirmationKey?: string;
+  /** 待驱动 Agent 编译时的交底；收到合法 adapterDraft 后清空。 */
+  compileRequest?: IntegrationCompileRequest;
+  /** 驱动 Agent 交回并已通过 validateProviderAdapterDraft 的说明卡。 */
+  adapterDraft?: ProviderAdapterDraft;
 };
-export type IntegrationSessionProjection = Omit<IntegrationSession, "config" | "credentialRef"> & {
+export type IntegrationSessionProjection = Omit<
+  IntegrationSession,
+  "config" | "credentialRef" | "adapterDraft" | "compileRequest"
+> & {
   config: Omit<IntegrationSession["config"], "workflow" | "uiWorkflow"> & {
     workflow?: { present: boolean; bytes: number };
     uiWorkflow?: { present: boolean; bytes: number };
   };
   credentialRef?: { status: IntegrationSession["credentialStatus"]; scope: string };
+  /** 交底 + 目标 schema + 撰写规则。驱动 Agent 照着它回填 proposal.adapterDraft。 */
+  compileRequest?: IntegrationCompileRequest & { contractSchema: Record<string, unknown>; instructions: string };
+  adapterDraft?: { present: boolean; modelKeys: string[] };
 };
 type PersistedState = { version: 1; revision: number; sessions: IntegrationSession[] };
 type Dependencies = {
@@ -125,6 +166,8 @@ type Dependencies = {
   /** Main-process spend authority used after the integration receipt is consumed. */
   mintSpendGrant?: (nodeIds: string[], maxAttemptsPerNode?: number) => string;
   credentialResolver?: (session: IntegrationSession) => string | undefined;
+  /** 「Nomi 自己有没有文本模型可以拿来读文档」。默认问真实 catalog；测试注入布尔。 */
+  compilerAvailable?: () => boolean;
   /** Main-process authority for the user-confirmed, signed integration receipt. */
   approvalReceiptAuthority?: Pick<ApprovalReceiptAuthority, "requestChallenge" | "verifyReceipt"> &
     Partial<
@@ -528,20 +571,6 @@ function id(value: unknown, name: string): string {
   if (!/^[A-Za-z0-9._-]+$/.test(normalized)) throw new Error(`Invalid ${name}`);
   return normalized;
 }
-function assertRecord(value: unknown): asserts value is Record<string, unknown> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Invalid object");
-}
-function workflowString(value: unknown, name: string, max = 512): string {
-  if (typeof value !== "string" || value.length === 0 || value.length > max) throw new Error(`Invalid ${name}`);
-  return value;
-}
-function rejectWorkflowKeys(value: Record<string, unknown>, allowed: readonly string[], name: string): void {
-  const allowedSet = new Set(allowed);
-  const unknown = Object.keys(value).find(
-    (key) => key === "__proto__" || key === "prototype" || key === "constructor" || !allowedSet.has(key),
-  );
-  if (unknown) throw new Error(`Unexpected ${name} field: ${unknown}`);
-}
 
 const PROPOSAL_KINDS = new Set(["text", "image", "video", "audio", "model3d"]);
 function proposalRejected(field: string, reason: string, repair: string): never {
@@ -575,114 +604,6 @@ function proposalSelections(value: unknown, candidates: IntegrationCandidate[]):
     const candidate = allowed.get(modelKey);
     if (!candidate) proposalRejected(`proposal.selections[${index}].modelKey`, "does not match proposal.candidates", "select only a candidate included in the same proposal");
     return clone(candidate);
-  });
-}
-function sanitizeWorkflowBinding(value: unknown): WorkflowBinding | undefined {
-  if (value === undefined) return undefined;
-  assertRecord(value);
-  rejectWorkflowKeys(
-    value,
-    [
-      "promptNodeId",
-      "promptInputKey",
-      "firstFrameNodeId",
-      "firstFrameInputKey",
-      "lastFrameNodeId",
-      "lastFrameInputKey",
-      "sourceVideoNodeId",
-      "sourceVideoInputKey",
-      "outputNodeId",
-      "outputKind",
-      "images",
-      "numeric",
-      "params",
-    ],
-    "workflow binding",
-  );
-  const result: WorkflowBinding = {};
-  for (const key of [
-    "promptNodeId",
-    "promptInputKey",
-    "firstFrameNodeId",
-    "firstFrameInputKey",
-    "lastFrameNodeId",
-    "lastFrameInputKey",
-    "sourceVideoNodeId",
-    "sourceVideoInputKey",
-    "outputNodeId",
-  ] as const) {
-    if (value[key] !== undefined) result[key] = workflowString(value[key], key);
-  }
-  if (value.outputKind !== undefined) {
-    if (!new Set(["image", "video", "model3d"]).has(String(value.outputKind))) throw new Error("Invalid outputKind");
-    result.outputKind = value.outputKind as NonNullable<WorkflowBinding["outputKind"]>;
-  }
-  if (value.images !== undefined) {
-    if (!Array.isArray(value.images) || value.images.length > 64) throw new Error("Invalid workflow media bindings");
-    result.images = value.images.map((raw) => {
-      assertRecord(raw);
-      rejectWorkflowKeys(raw, ["nodeId", "inputKey", "paramKey", "label", "mediaKind"], "workflow media binding");
-      if (raw.mediaKind !== "image" && raw.mediaKind !== "video") throw new Error("Invalid workflow media kind");
-      return {
-        nodeId: workflowString(raw.nodeId, "media nodeId"),
-        inputKey: workflowString(raw.inputKey, "media inputKey"),
-        paramKey: workflowString(raw.paramKey, "media paramKey"),
-        label: workflowString(raw.label, "media label", 1_000),
-        mediaKind: raw.mediaKind,
-      };
-    });
-  }
-  if (value.numeric !== undefined) {
-    if (!Array.isArray(value.numeric) || value.numeric.length > 256) throw new Error("Invalid numeric bindings");
-    result.numeric = value.numeric.map((raw) => {
-      assertRecord(raw);
-      rejectWorkflowKeys(raw, ["nodeId", "inputKey", "paramKey", "label", "default"], "numeric binding");
-      if (typeof raw.default !== "number" || !Number.isFinite(raw.default)) throw new Error("Invalid numeric default");
-      return {
-        nodeId: workflowString(raw.nodeId, "numeric nodeId"),
-        inputKey: workflowString(raw.inputKey, "numeric inputKey"),
-        paramKey: workflowString(raw.paramKey, "numeric paramKey"),
-        label: workflowString(raw.label, "numeric label", 1_000),
-        default: raw.default,
-      };
-    });
-  }
-  if (value.params !== undefined) {
-    if (!Array.isArray(value.params) || value.params.length > 256) throw new Error("Invalid parameter bindings");
-    result.params = value.params.map((raw) => {
-      assertRecord(raw);
-      rejectWorkflowKeys(raw, ["nodeId", "inputKey", "paramKey", "label", "type", "default"], "parameter binding");
-      if (!new Set(["number", "text", "boolean"]).has(String(raw.type))) throw new Error("Invalid parameter type");
-      if (
-        (raw.type === "number" && (typeof raw.default !== "number" || !Number.isFinite(raw.default))) ||
-        (raw.type === "text" && (typeof raw.default !== "string" || raw.default.length > 64 * 1024)) ||
-        (raw.type === "boolean" && typeof raw.default !== "boolean")
-      )
-        throw new Error("Invalid parameter default");
-      return {
-        nodeId: workflowString(raw.nodeId, "parameter nodeId"),
-        inputKey: workflowString(raw.inputKey, "parameter inputKey"),
-        paramKey: workflowString(raw.paramKey, "parameter paramKey"),
-        label: workflowString(raw.label, "parameter label", 1_000),
-        type: raw.type as "number" | "text" | "boolean",
-        default: raw.default as string | number | boolean,
-      };
-    });
-  }
-  return result;
-}
-function sanitizeWorkflowEnumOptions(value: unknown): WorkflowEnumOption[] | undefined {
-  if (value === undefined) return undefined;
-  if (!Array.isArray(value) || value.length > 256) throw new Error("Invalid workflow enum options");
-  return value.map((raw) => {
-    assertRecord(raw);
-    rejectWorkflowKeys(raw, ["classType", "inputKey", "options"], "workflow enum option");
-    if (!Array.isArray(raw.options) || raw.options.length > 2_000) throw new Error("Invalid workflow enum values");
-    return {
-      classType: workflowString(raw.classType, "enum classType"),
-      inputKey: workflowString(raw.inputKey, "enum inputKey"),
-      options: raw.options.map((option) => workflowString(option, "enum value", 8_192)),
-    };
   });
 }
 function integrationContractDigest(session: IntegrationSession, idempotencyKey: string): string {
@@ -826,6 +747,8 @@ function validateState(raw: unknown): PersistedState {
       "startReceiptStatus",
       "pendingChallengeId",
       "pendingConfirmationKey",
+      "compileRequest",
+      "adapterDraft",
     ]);
     const unknown = Object.keys(item).find((key) => !allowedKeys.has(key));
     if (unknown) throw new Error(`Invalid integration session field: ${unknown}`);
@@ -975,9 +898,29 @@ export class IntegrationSessionService {
       ...(rawConfig.workflowEnumOptions ? { workflowEnumOptions: clone(rawConfig.workflowEnumOptions) } : {}),
       ...(rawConfig.modelKey ? { modelKey: rawConfig.modelKey } : {}),
     };
-    const { config: _rawConfig, credentialRef: _rawCredential, ...safeSession } = clone(session);
+    const {
+      config: _rawConfig,
+      credentialRef: _rawCredential,
+      adapterDraft: rawDraft,
+      compileRequest: rawCompileRequest,
+      ...safeSession
+    } = clone(session);
     return {
       ...safeSession,
+      // 目标 schema 与撰写规则是进程常量，投影时现加：落盘一份等于给每个会话复制一份大 JSON，
+      // 而且升级后盘上那份就成了过期的第二真相。
+      ...(rawCompileRequest
+        ? {
+            compileRequest: {
+              ...rawCompileRequest,
+              contractSchema: adapterContractJsonSchema(),
+              instructions: ADAPTER_CONTRACT_INSTRUCTIONS,
+            },
+          }
+        : {}),
+      ...(rawDraft
+        ? { adapterDraft: { present: true, modelKeys: rawDraft.models.map((model) => model.modelKey) } }
+        : {}),
       config: {
         ...config,
         ...(workflow !== undefined ? { workflow: { present: true, bytes: Buffer.byteLength(workflow, "utf8") } } : {}),
@@ -1174,7 +1117,7 @@ export class IntegrationSessionService {
     if (!rawProposal || typeof rawProposal !== "object" || Array.isArray(rawProposal))
       proposalRejected("proposal", "is required and must be an object", "send candidates and selections for HTTP, or workflow for ComfyUI");
     assertRecord(rawProposal);
-    rejectWorkflowKeys(rawProposal, ["candidates", "selections", "workflow", "modelKey"], "proposal");
+    rejectWorkflowKeys(rawProposal, ["candidates", "selections", "workflow", "modelKey", "adapterDraft"], "proposal");
     const session = this.getOrThrow(sessionId);
     if (session.kind === "http-api-provider") {
       if (session.credentialStatus !== "ready")
@@ -1190,14 +1133,24 @@ export class IntegrationSessionService {
         keys.add(candidate.modelKey);
       }
       const selections = proposalSelections(rawProposal.selections, candidates);
+      const draft = adapterDraftFromProposal(session, selections, rawProposal.adapterDraft);
+      // Nomi 编不动 + 外部也没交说明卡 → 不假装能编，也不判死：停在 needs_input，
+      // 把「要什么形状、锁死了哪些身份、按什么规则写」交回给驱动 Agent（B 路）。
+      const compileRequest = draft
+        ? undefined
+        : compileRequestFor(session, selections, this.deps.compilerAvailable || hasCompilerLanguageModel);
       return this.mutate(sessionId, expectedRevision, owner, (current) => {
         current.candidates = clone(candidates);
         current.selections = clone(selections);
-        current.unresolvedFields = [];
-        current.stage = "needs_spend_confirmation";
+        current.adapterDraft = draft ? clone(draft) : undefined;
+        current.compileRequest = compileRequest;
+        current.unresolvedFields = compileRequest
+          ? [{ key: "proposal.adapterDraft", reasonCode: compileRequest.reasonCode }]
+          : [];
+        current.stage = compileRequest ? "needs_input" : "needs_spend_confirmation";
       });
     }
-    if (rawProposal.candidates !== undefined || rawProposal.selections !== undefined)
+    if (rawProposal.candidates !== undefined || rawProposal.selections !== undefined || rawProposal.adapterDraft !== undefined)
       proposalRejected("proposal", "contains HTTP-only fields for a ComfyUI workflow", "send workflow and optionally modelKey only");
     const workflow = text(rawProposal.workflow, "proposal.workflow", MAX_WORKFLOW);
     const modelKey = rawProposal.modelKey === undefined ? undefined : id(rawProposal.modelKey, "proposal.modelKey");
@@ -1598,6 +1551,10 @@ export class IntegrationSessionService {
       ...(session.config.authHeader ? { authHeader: session.config.authHeader } : {}),
       ...(session.config.authQueryParam ? { authQueryParam: session.config.authQueryParam } : {}),
       providerKind: (session.config.providerKind || "openai-compatible") as never,
+      // 用户 / 驱动 Agent 交进来的两样东西，从这里才真正流到编译器与认证：
+      // 文档正文或 URL 列表（首选文档来源），以及外部编译好的说明卡（跳过编译，不跳过校验）。
+      ...(session.config.docs ? { docs: session.config.docs } : {}),
+      ...(session.adapterDraft ? { adapterDraft: clone(session.adapterDraft) } : {}),
       models: session.selections.map((item) => ({
         modelKey: item.modelKey,
         kind: item.kind as ProviderAdapterModelSelection["kind"],

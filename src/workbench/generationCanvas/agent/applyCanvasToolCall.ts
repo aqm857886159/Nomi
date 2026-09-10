@@ -20,11 +20,10 @@ import { layoutPlannedNodes, layoutStoryboardNodes } from './trajectoryLayout'
 import { FOCUS_GENERATION_NODE_EVENT } from '../nodes/nodeSizing'
 import { arrangeStoryboardToTimeline } from './sendStoryboardToTimeline'
 import { parseStoryboardPlan } from './storyboardPlanSchema'
-import type { StagingSpec, StagingCharacterSpec } from '../nodes/scene3d/stagingBuilder'
-import type { CameraMoveSpec } from '../nodes/scene3d/cameraMoveBuilder'
-import type { ScenePropPlacement } from '../nodes/scene3d/scene3dPropSpecs'
-import type { Scene3DSceneTemplate } from '../nodes/scene3d/scene3dSceneTemplates'
-import type { CameraSpeed } from '../nodes/scene3d/cameraMoveVocab'
+import type { StagingSpec, StagingCharacterSpec } from '../nodes/director/agent/stagingBuilder'
+import type { CameraMoveSpec } from '../nodes/director/agent/cameraMoveBuilder'
+import type { LegacySceneTemplate, ScenePropPlacement } from '../nodes/director/migration/legacySceneBuilders'
+import type { CameraSpeed } from '../nodes/director/agent/cameraMoveVocab'
 import { useWorkbenchStore } from '../../workbenchStore'
 import { assertTurnCanWrite } from '../../ai/agentTurnLifecycle'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
@@ -123,7 +122,7 @@ const strValue = (value: unknown): string | undefined =>
 
 /** 灰模布景字段（sceneTemplate + props）容错提取——站位/运镜两工具共用（P4）。 */
 function parseSceneBackdrop(record: Record<string, unknown>): {
-  sceneTemplate?: Scene3DSceneTemplate
+  sceneTemplate?: LegacySceneTemplate
   props?: ScenePropPlacement[]
 } {
   const rawProps = Array.isArray(record.props) ? record.props : []
@@ -149,7 +148,7 @@ function parseSceneBackdrop(record: Record<string, unknown>): {
       ]
     })
   return {
-    sceneTemplate: strValue(record.sceneTemplate) as Scene3DSceneTemplate | undefined,
+    sceneTemplate: strValue(record.sceneTemplate) as LegacySceneTemplate | undefined,
     props: props.length > 0 ? props : undefined,
   }
 }
@@ -199,7 +198,7 @@ export function parseCameraMoveSpec(record: Record<string, unknown>): {
   shot?: CameraMoveSpec['shot']
   subjectPose?: string
   customMove?: string
-  sceneTemplate?: Scene3DSceneTemplate
+  sceneTemplate?: LegacySceneTemplate
   props?: ScenePropPlacement[]
 } {
   const str = strValue
@@ -580,30 +579,11 @@ export async function applyCanvasToolCall(
       }
     }
 
-    // 站位参考：词汇 spec → 3D 场景 → 建 scene3d 节点(带 stagingAutoCapture)。
-    // 节点挂载时离屏出图 + 连 composition_ref 到目标镜头（Scene3DEditor 内完成）。
+    // 站位参考：词汇 spec → 导演台工程 → 建 director 节点(带 stagingAutoCapture)。
+    // 常驻 StagingCaptureHost 扫到标志就离屏出图 + 连 composition_ref 到目标镜头（director/agent）。
     const spec = parseStagingSpec(record)
-    const { buildStagingSceneAudited } = await import('../nodes/scene3d/stagingBuilder')
-    // 运行时自检(F3,零额度几何守卫):修正非法/近似姿势 id(治静默落站立)+ 角色过近自动拉开间距。
-    const { state, issues: stagingIssues } = buildStagingSceneAudited(spec)
-    const existing = readGenerationCanvasSnapshot().nodes
-    const position = layoutPlannedNodes(['image'], existing)[0]
-    const created = inCtx(() =>
-      generationCanvasTools.create_nodes([
-        {
-          kind: 'scene3d',
-          categoryId: getDefaultCategoryForNodeKind('scene3d'),
-          title: '站位参考',
-          prompt: '',
-          position,
-          meta: {
-            scene3dState: state,
-            stagingAutoCapture: targetNodeId ? { targetNodeId } : {},
-          },
-        },
-      ]),
-    )
-    const stagingNodeId = created[0]?.id ?? null
+    const { createStagingReferenceNode } = await import('../nodes/director/agent/createStagingReferenceNode')
+    const { stagingNodeId, issues: stagingIssues } = createStagingReferenceNode({ spec, targetNodeId, inCtx })
     const cam = spec.camera ?? {}
     return {
       stagingNodeId,
@@ -645,7 +625,7 @@ export async function applyCanvasToolCall(
       }
     }
 
-    // 运镜参考:词汇 spec → 含相机轨迹的 3D 场景 → 建 scene3d 节点(带 cameraMoveAutoCapture)。
+    // 运镜参考:词汇 spec → 含相机轨迹的 3D 场景 → 迁成导演台工程 → 建 director 节点(带 cameraMoveAutoCapture)。
     // 节点挂载时常驻 Host(CameraMoveCaptureHost)离屏沿轨迹采帧拼 mp4 + 喂目标镜头视频参考(S3)。
     // 这里只建节点 + 打标志,不渲(S2 Host 异步出片),与 staging 执行结构对称。
     // 建节点 + 标志的实现抽进 createCameraMoveReferenceNode(单一真相源)——手动运镜控件(B1)也调它,
@@ -659,8 +639,8 @@ export async function applyCanvasToolCall(
       props: parsed.props,
     }
     const [{ createCameraMoveReferenceNode }, { CAMERA_SPEED_DURATION, CAMERA_MOVE_LABEL }] = await Promise.all([
-      import('../nodes/scene3d/cameraMoveReferenceNode'),
-      import('../nodes/scene3d/cameraMoveVocab'),
+      import('../nodes/director/agent/createCameraMoveReferenceNode'),
+      import('../nodes/director/agent/cameraMoveVocab'),
     ])
     const speed: CameraSpeed = spec.speed ?? 'medium'
     const { cameraMoveNodeId } = createCameraMoveReferenceNode({ spec, targetNodeId, inCtx })

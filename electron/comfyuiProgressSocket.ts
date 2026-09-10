@@ -291,7 +291,13 @@ async function ensureSocket(baseUrl: string): Promise<boolean> {
   const holder: SocketHolder = { ws, alive: false, ready, settleReady };
   socketsByBase.set(baseUrl, holder);
   ws.binaryType = "arraybuffer";
-  const readyTimer = setTimeout(() => settleReady(false), 800);
+  // open 超时不只 settle(false)：必须 close 挂在 CONNECTING 的僵尸 ws——否则没有 close
+  // 事件、drop 不跑、不重连，且 ensureSocket 对后续 watcher 永远返回这份已 settle 的
+  // ready（真实进度静默丢失到任务终态）。close 借 close 事件走 drop → 仍有 watcher 时 3s 重连。
+  const readyTimer = setTimeout(() => {
+    settleReady(false);
+    try { ws.close(); } catch { /* 已在关闭中 */ }
+  }, 800);
   readyTimer.unref?.();
   ws.addEventListener("open", () => {
     holder.alive = true;

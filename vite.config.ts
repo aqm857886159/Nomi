@@ -159,8 +159,6 @@ const DEFERRED_MODULE_PRELOAD_PATTERNS: RegExp[] = [
   /^NodeGenerationComposer-/,
   /^PanoramaViewer-/,
   /^PromptLibraryPanel-/,
-  /^Scene3DEditor-/,
-  /^Scene3DFullscreen-/,
   /^SkillLibraryPanel-/,
   /^SpendConfirmDialog-/,
   /^StagingCaptureHost-/,
@@ -174,7 +172,6 @@ const DEFERRED_MODULE_PRELOAD_PATTERNS: RegExp[] = [
   /^panorama-vendor-/,
   /^prosemirror-vendor-/,
   /^r3f-vendor-/,
-  /^scene3d/,
   /^three-vendor-/,
   /^tiptap-vendor-/,
 ]

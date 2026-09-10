@@ -35,7 +35,7 @@ try {
   await win.locator('[data-model-home-available="apimart"]').click()
   const page = win.locator('[data-key-only-vendor="apimart"]')
   await page.locator('input[type="password"]').fill('fixture-offline-key')
-  await page.getByRole('button', { name: '安全保存并继续验证', exact: true }).click()
+  await page.getByRole('button', { name: '保存验证', exact: true }).click()
   await expect(page.locator('[data-key-only-success]')).toContainText('已保存 · 未验证')
   await expect(page.locator('[data-key-only-success]')).toContainText('联网后会自动复验')
   const pending = await win.evaluate(() => window.nomiDesktop.modelCatalog.listVendors().find(item => item.key === 'apimart'))
@@ -55,7 +55,7 @@ try {
   await screenshotSettled(win, { path: path.join(shots, '02-revalidated.png') })
   await page.getByRole('button', { name: '更换密钥', exact: true }).click()
   await page.locator('input[type="password"]').fill('fixture-rejected-key')
-  await page.getByRole('button', { name: '安全保存并继续验证', exact: true }).click()
+  await page.getByRole('button', { name: '保存验证', exact: true }).click()
   await expect(page.locator('[aria-invalid="true"]')).toBeVisible()
   await expect(page).toContainText('原密钥')
   // A second real probe succeeds only if the previous key survived the 401 replacement.

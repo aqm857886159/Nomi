@@ -12,6 +12,7 @@ import { projectV4Intervention } from './agentPanelV4Intervention'
 import { useWorkbenchStore } from '../../workbenchStore'
 import { listWorkbenchModelCatalogModels, listWorkbenchModelCatalogVendors, type ModelCatalogModelDto, type ModelCatalogVendorDto } from '../../api/modelCatalogApi'
 import { listWorkbenchSkills, type SkillListItemDto } from '../../api/skillApi'
+import { skillDisplayTitle } from '../../skillLibrary/skillDisplay'
 import { onSkillLibraryChanged } from '../../skillLibrary/skillLibraryChanged'
 import { decodeModelIdentity, encodeModelIdentity, filterUsableAssistantTextModels, labelForModel } from '../assistantModelIdentity'
 import { getAssistantModelPref, setAssistantModelPref } from '../assistantModelPref'
@@ -63,7 +64,7 @@ export type AgentPanelV4Data = Readonly<{
 }>
 
 export function useAgentPanelV4Data(surface: ResidentSurface): AgentPanelV4Data {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const labels = useV4Labels()
   const snapshot = React.useSyncExternalStore(laneClient.subscribe, laneClient.workspace, laneClient.workspace)
   const committedProposal = React.useSyncExternalStore(subscribeCommittedProposal, getCommittedProposal, getCommittedProposal)
@@ -181,7 +182,20 @@ export function useAgentPanelV4Data(surface: ResidentSurface): AgentPanelV4Data 
     formatStages: (done, total) => t('agentPanelV4.taskStages', { done, total }),
     formatMoney: (currency, amount) => t('agentPanelV4.money', { currency, amount: amount.toFixed(2) }),
     taskUnknown: t('agentPanelV4.taskUnknown'),
-  }, undoableToolCallId), [snapshot.active, t, undoableToolCallId])
+    // 名字与 `/` 菜单、技能库画廊同一个 owner（`skillDisplayTitle`）：菜单里选的是「分镜规划」，
+    // 气泡上就得也叫「分镜规划」。库里查不到就原样印 key——用户确实挂过它，只是这台机器上
+    // 现在没有这份技能；把 chip 藏掉等于抹掉他做过的操作。
+    skillLabel: (key) => {
+      const found = skills.find((skill) => skill.name === key)
+      return found ? skillDisplayTitle(found, i18n.language) : key
+    },
+    // 封面与名字同一份目录、同一次查：气泡里那颗 chip 和 composer 上那颗（`liveChips`）
+    // 因此长得一样，用户挂上去看见什么、发出去还是什么。
+    skillMedia: (key) => {
+      const found = skills.find((skill) => skill.name === key)
+      return found ? { cover: found.cover, preview: found.preview } : undefined
+    },
+  }, undoableToolCallId), [snapshot.active, i18n.language, skills, t, undoableToolCallId])
   const flow = React.useMemo(() => {
     const items = [...view.items]
     const last = items.at(-1)

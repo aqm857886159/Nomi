@@ -8,7 +8,7 @@ import {
   readWorkspaceManifest,
   readWorkspaceManifestSnapshot,
   recoverWorkspaceManifest,
-  withWorkspaceManifestMutationSync,
+  withWorkspaceManifestStagedMutation,
 } from "./workspaceManifest";
 import {
   backfillWorkspaceOrigins,
@@ -340,16 +340,16 @@ export function readWorkspaceProject(
   return normalizeWorkspaceProjectRecord({ ...manifest, lastKnownRootPath: entry.rootPath });
 }
 
-export function saveWorkspaceProject(
+export async function saveWorkspaceProject(
   projectId: string,
   record: unknown,
   deps: WorkspaceRepositoryDeps,
-): WorkspaceProjectRecordV2 {
+): Promise<WorkspaceProjectRecordV2> {
   const entry = findRecentEntry(projectId, deps);
   if (!entry || entry.missing) {
     throw new Error(`Workspace project not found: ${projectId}`);
   }
-  const written = withWorkspaceManifestMutationSync(entry.rootPath, (context) => {
+  const written = await withWorkspaceManifestStagedMutation(entry.rootPath, (context) => {
     const existing = context.current;
     if (!existing || existing.id !== projectId) {
       throw new Error(`Workspace project not found: ${projectId}`);

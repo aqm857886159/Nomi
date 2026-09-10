@@ -20,7 +20,6 @@ import { recentWorkspacesPath } from "./workspaceRegistry";
 import { WorkspaceProjectIdentityUnavailableError } from "./workspaceTypes";
 import { ensureWorkspaceProjectIdentity } from "./workspaceProjectIdentity";
 import {
-  WorkspaceManifestLockBusyError,
   releaseWorkspaceManifestLock,
   tryAcquireWorkspaceManifestLock,
 } from "./workspaceManifestLock";
@@ -140,7 +139,7 @@ describe("workspace repository", () => {
     expect(read).toEqual(created);
   });
 
-  it("saves payload into .nomi/project.json", () => {
+  it("saves payload into .nomi/project.json", async () => {
     const selectedRoot = makeTempDir();
     const repoDeps = deps();
     const created = createWorkspaceProject(
@@ -149,7 +148,7 @@ describe("workspace repository", () => {
     );
     vi.setSystemTime(new Date("2026-05-31T12:30:00Z"));
 
-    const saved = saveWorkspaceProject(created.id, { name: "Saved Name", payload: { draft: 2 } }, repoDeps);
+    const saved = await saveWorkspaceProject(created.id, { name: "Saved Name", payload: { draft: 2 } }, repoDeps);
     const raw = JSON.parse(fs.readFileSync(workspaceProjectFile(selectedRoot), "utf8"));
 
     expect(saved).toMatchObject({
@@ -174,7 +173,7 @@ describe("workspace repository", () => {
     });
   });
 
-  it("keeps save read-backup-write inside the shared sync transaction", () => {
+  it("keeps save read-backup-write behind the shared transaction owner", async () => {
     const selectedRoot = makeTempDir();
     const repoDeps = deps();
     const created = createWorkspaceProject(
@@ -190,16 +189,17 @@ describe("workspace repository", () => {
       randomId: () => "other-writer-nonce",
     });
 
-    expect(() => saveWorkspaceProject(created.id, { name: "Must not save", payload: { draft: 2 } }, repoDeps)).toThrow(
-      WorkspaceManifestLockBusyError,
-    );
+    const saving = saveWorkspaceProject(created.id, { name: "Wait then save", payload: { draft: 2 } }, repoDeps);
+    await vi.advanceTimersByTimeAsync(10);
     expect(fs.readFileSync(manifestPath, "utf8")).toBe(manifestBefore);
     expect(fs.readFileSync(backupPath, "utf8")).toBe(backupBefore);
 
     releaseWorkspaceManifestLock(held);
+    await vi.advanceTimersByTimeAsync(10);
+    await expect(saving).resolves.toMatchObject({ payload: { draft: 2 } });
   });
 
-  it("backs up the raw manifest so future fields survive a repository save", () => {
+  it("backs up the raw manifest so future fields survive a repository save", async () => {
     const selectedRoot = makeTempDir();
     const repoDeps = deps();
     const created = createWorkspaceProject(
@@ -210,7 +210,7 @@ describe("workspace repository", () => {
     const current = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
     fs.writeFileSync(manifestPath, `${JSON.stringify({ ...current, futureField: { keep: [1, 2, 3] } }, null, 2)}\n`);
 
-    saveWorkspaceProject(created.id, { name: "Saved", payload: { step: 1 } }, repoDeps);
+    await saveWorkspaceProject(created.id, { name: "Saved", payload: { step: 1 } }, repoDeps);
 
     expect(JSON.parse(fs.readFileSync(workspaceProjectBackupFile(selectedRoot), "utf8"))).toMatchObject({
       immutableProjectUuid: created.immutableProjectUuid,
@@ -232,7 +232,7 @@ describe("workspace repository", () => {
     const { immutableProjectUuid: _uuid, projectGeneration: _generation, ...legacy } = current;
     fs.writeFileSync(manifestPath, `${JSON.stringify(legacy, null, 2)}\n`);
 
-    const saved = saveWorkspaceProject(created.id, { name: "Saved", payload: { step: 1 } }, repoDeps);
+    const saved = await saveWorkspaceProject(created.id, { name: "Saved", payload: { step: 1 } }, repoDeps);
     const identity = await ensureWorkspaceProjectIdentity(selectedRoot, {
       randomUuid: () => "11111111-1111-4111-8111-111111111111",
     });
@@ -262,7 +262,7 @@ describe("workspace repository", () => {
     const identity = await ensureWorkspaceProjectIdentity(selectedRoot, {
       randomUuid: () => "11111111-1111-4111-8111-111111111111",
     });
-    const saved = saveWorkspaceProject(created.id, { name: "Saved", payload: { step: 1 } }, repoDeps);
+    const saved = await saveWorkspaceProject(created.id, { name: "Saved", payload: { step: 1 } }, repoDeps);
     const backup = JSON.parse(fs.readFileSync(workspaceProjectBackupFile(selectedRoot), "utf8"));
 
     expect(saved).toMatchObject({
@@ -277,14 +277,14 @@ describe("workspace repository", () => {
     });
   });
 
-  it("diagnoses and recovers a corrupt manifest from the last valid backup", () => {
+  it("diagnoses and recovers a corrupt manifest from the last valid backup", async () => {
     const selectedRoot = makeTempDir();
     const repoDeps = deps();
     const created = createWorkspaceProject(
       { rootPath: selectedRoot, record: { name: "Recover Me", payload: { draft: 1 } } },
       repoDeps,
     );
-    saveWorkspaceProject(created.id, { name: "Recover Me", payload: { draft: 2 } }, repoDeps);
+    await saveWorkspaceProject(created.id, { name: "Recover Me", payload: { draft: 2 } }, repoDeps);
     fs.writeFileSync(workspaceProjectFile(selectedRoot), "{bad json");
 
     expect(diagnoseWorkspaceProject(created.id, repoDeps)).toMatchObject({
@@ -457,7 +457,7 @@ describe("draft lifecycle + empty-draft GC", () => {
     fs.writeFileSync(path.join(dir, "shot.png"), "binary");
   }
 
-  it("persists draft:true onto a freshly created blank project, and clears it on first save (promote)", () => {
+  it("persists draft:true onto a freshly created blank project, and clears it on first save (promote)", async () => {
     const repoDeps = deps();
     const created = createWorkspaceProject(
       { rootPath: nativeRoot(repoDeps, "blank-a"), record: { name: "空白", draft: true, payload: { scenes: [] } } },
@@ -467,7 +467,7 @@ describe("draft lifecycle + empty-draft GC", () => {
     expect(created.revision).toBe(0);
     expect(readWorkspaceProject(created.id, repoDeps)?.draft).toBe(true);
 
-    const saved = saveWorkspaceProject(created.id, { name: "空白", payload: { scenes: [{ id: "s1" }] } }, repoDeps);
+    const saved = await saveWorkspaceProject(created.id, { name: "空白", payload: { scenes: [{ id: "s1" }] } }, repoDeps);
     expect(saved.revision).toBe(1);
     expect(saved.draft).toBeUndefined();
     expect(readWorkspaceProject(created.id, repoDeps)?.draft).toBeUndefined();
@@ -501,13 +501,13 @@ describe("draft lifecycle + empty-draft GC", () => {
     expect(readWorkspaceProject(draft.id, repoDeps)).not.toBeNull();
   });
 
-  it("keeps edited drafts (revision > 0)", () => {
+  it("keeps edited drafts (revision > 0)", async () => {
     const repoDeps = deps();
     const draft = createWorkspaceProject(
       { rootPath: nativeRoot(repoDeps, "blank-edited"), record: { name: "空白", draft: true } },
       repoDeps,
     );
-    saveWorkspaceProject(draft.id, { name: "已编辑", payload: { scenes: [{ id: "s1" }] } }, repoDeps);
+    await saveWorkspaceProject(draft.id, { name: "已编辑", payload: { scenes: [{ id: "s1" }] } }, repoDeps);
 
     const result = gcEmptyDraftWorkspaceProjects(repoDeps, listWorkspaceProjects(repoDeps));
     expect(result.recycled).not.toContain(draft.id);

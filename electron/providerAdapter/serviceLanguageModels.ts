@@ -6,9 +6,19 @@ import { prioritizeCompilerCandidates } from "./compilerCandidatePriority";
 import type { LoadedConnection } from "./serviceCatalog";
 import { modelHasPublishedExecution } from "../shared/modelPublication";
 
-export function defaultResolveLanguageModels(connection: LoadedConnection): LanguageModelV1[] {
+type CompilerCandidate = { vendorKey: string; modelKey: string; languageModel: LanguageModelV1 };
+
+/**
+ * 谁能当「读文档写说明卡」的编译器：已发布、可执行、凭据可解密的文本模型，外加本次接入
+ * 自己选中的那个文本模型（vendor 还没发布，但 key 就在手上）。
+ *
+ * 单独抽出来是因为**同一份判据有两个消费者**：真要跑编译时要拿到模型实例；而在 propose
+ * 阶段只需要知道「有没有」——没有就把待编译的输入交回给驱动 Agent 自己编（B 路）。
+ * 两处各写一遍必然漂移成「界面说没有、跑起来又有」。
+ */
+export function compilerLanguageModelCandidates(connection?: LoadedConnection): CompilerCandidate[] {
   const state = readCatalog();
-  const candidates: Array<{ vendorKey: string; modelKey: string; languageModel: LanguageModelV1 }> = [];
+  const candidates: CompilerCandidate[] = [];
   for (const model of state.models) {
     if (model.kind !== "text" || !modelHasPublishedExecution(model, { mappings: state.mappings })) continue;
     const vendor = state.vendors.find((item) => item.key === model.vendorKey && item.enabled && item.baseUrlHint);
@@ -21,16 +31,25 @@ export function defaultResolveLanguageModels(connection: LoadedConnection): Lang
       languageModel: buildLanguageModelForVendor(vendor, model, apiKey),
     });
   }
-  const selectedText = connection.models.find((model) => model.kind === "text");
-  if (selectedText) {
+  const selectedText = connection?.models.find((model) => model.kind === "text");
+  if (connection && selectedText) {
     candidates.push({
       vendorKey: connection.vendor.key,
       modelKey: selectedText.modelKey,
       languageModel: buildLanguageModelForVendor(connection.vendor, selectedText, connection.apiKey),
     });
   }
+  return candidates;
+}
+
+/** propose 阶段的「Nomi 自己编得动吗」。false = 把待编译的输入交回驱动 Agent。 */
+export function hasCompilerLanguageModel(): boolean {
+  return compilerLanguageModelCandidates().length > 0;
+}
+
+export function defaultResolveLanguageModels(connection: LoadedConnection): LanguageModelV1[] {
   const seen = new Set<string>();
-  return prioritizeCompilerCandidates(candidates, connection.vendor.key)
+  return prioritizeCompilerCandidates(compilerLanguageModelCandidates(connection), connection.vendor.key)
     .filter((candidate) => {
       const key = `${candidate.vendorKey}\0${candidate.modelKey}`;
       if (seen.has(key)) return false;

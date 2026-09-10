@@ -15,13 +15,13 @@ const shotPrefix = locale === 'en' ? 'en-' : ''
 const labels = locale === 'en'
   ? {
       newProject: 'New blank project',
-      openPolicy: 'Complete production policy',
+      openPolicy: 'Refine Policy',
       close: 'Close',
       approve: 'Approve and continue',
     }
   : {
       newProject: '新建空白项目',
-      openPolicy: '完善制作策略',
+      openPolicy: '完善策略',
       close: '关闭',
       approve: '批准并继续',
     }

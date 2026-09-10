@@ -1,0 +1,112 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-07-director-waypoint-aim",
+  "problem_type": "Missing shared waypoint aiming and batch orientation contract",
+  "symptom": "Single and batch waypoint inspectors omit approved aim-at-target and independent pitch/roll controls.",
+  "direct_cause": "The cards expose only raw angles or an all-zero loop; no action samples each target at each waypoint time.",
+  "class_root": "Waypoint orientation has no common scene-coordinate and transactional batch editing boundary.",
+  "affected_population": [
+    "Single object/camera waypoint edits",
+    "Multi-selected waypoint edits",
+    "Reloaded waypoint target metadata"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/nodes/director/model/waypointAim.ts",
+    "src/workbench/generationCanvas/nodes/director/model/storeTimelineActions.ts",
+    "src/workbench/generationCanvas/nodes/director/model/directorTypes.ts",
+    "src/workbench/generationCanvas/nodes/director/model/directorProject.ts",
+    "src/workbench/generationCanvas/nodes/director/panels/inspector/WaypointCard.tsx",
+    "src/workbench/generationCanvas/nodes/director/panels/inspector/BatchWaypointsCard.tsx",
+    "src/workbench/generationCanvas/nodes/director/panels/inspector/WaypointAimField.tsx",
+    "src/i18n/locales/director.ts"
+  ],
+  "entry_points": [
+    "Single waypoint aim target",
+    "Batch waypoint aim per frame",
+    "Batch pitch and roll edits",
+    "Project normalization"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The approved reference waypoint cards define bake-on-change semantics; this repair only uses existing internal math and store contracts.",
+  "invariants": [
+    "Each selected waypoint aims at target evaluated at its own time",
+    "Single target metadata survives normalization; batch does not create dynamic bindings",
+    "Batch mutation has one undo boundary and rejects invalid targets or angles",
+    "Batch deletion waits for existing confirmation dialog; cancel leaves project unchanged",
+    "Object XYZ and camera YXZ baked rotations align their actual +Z forward axis to the evaluated target with zero roll"
+  ],
+  "generality_proof": "Both inspector cards call the same scene-aware aiming action and batch orientation action; normalization preserves the optional metadata.",
+  "shared_boundaries": [
+    {
+      "responsibility": "Evaluate source/target in common parent coordinates per waypoint time",
+      "symbol": "waypointAimAngles",
+      "path": "src/workbench/generationCanvas/nodes/director/model/waypointAim.ts"
+    },
+    {
+      "responsibility": "Validate target and batch angles, mutate once with shared history",
+      "symbol": "aimWaypointsAt / updateWaypointAngles",
+      "path": "src/workbench/generationCanvas/nodes/director/model/storeTimelineActions.ts"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "disposition": "enforced",
+      "entry_point": "single target",
+      "evidence": "Calls shared aim action with rememberTarget",
+      "path": "src/workbench/generationCanvas/nodes/director/panels/inspector/WaypointCard.tsx"
+    },
+    {
+      "disposition": "enforced",
+      "entry_point": "batch target and pitch/roll",
+      "evidence": "Uses the same action without persisting target metadata",
+      "path": "src/workbench/generationCanvas/nodes/director/panels/inspector/BatchWaypointsCard.tsx"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every object/camera and every multi-selection can reach missing interaction",
+    "same_class_scan": [
+      "Read WaypointCard, BatchWaypointsCard, storeTimelineActions, trajectoryEval, directorProject normalization",
+      "Read the reference waypoint card behavior and all lookAtObjectId consumers to distinguish baked metadata from dynamic camera rig targets",
+      "Independent THREE Euler oracle on objects and cameras exposed 0.11016 forward-vector error for XYZ using YXZ angles; camera passed"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/nodes/director/model/storeTimelineActions.ts",
+    "artifacts": [
+      "src/workbench/generationCanvas/nodes/director/model/storeTimelineActions.ts",
+      "src/workbench/generationCanvas/nodes/director/model/waypointAim.ts",
+      "src/workbench/generationCanvas/nodes/director/model/directorProject.ts"
+    ],
+    "failure_mode": "Invalid targets and nonfinite angles return zero without writes",
+    "exception_policy": "none",
+    "invariant": "All orientation batches use validated scene-aware sampling and one project mutation",
+    "strategy": "Two UI entries converge on shared actions"
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/nodes/director/model/waypointAim.test.ts",
+    "tests/ux/director-waypoint-aim.walk.mjs"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/nodes/director/model/waypointAim.test.ts",
+    "tests/ux/director-waypoint-aim.walk.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "rationale": "Replace old per-point flatten loop with atomic shared batch actions",
+    "removed_paths": [
+      "src/workbench/generationCanvas/nodes/director/panels/inspector/BatchWaypointsCard.tsx"
+    ]
+  },
+  "dependency_lifecycle": {
+    "rationale": "Internal math and existing store/component APIs",
+    "exit_criteria": [],
+    "decision": "not-applicable"
+  },
+  "migration": "Optional lookAtObjectId is preserved when present, absent legacy values remain free orientation.",
+  "residual_risks": [
+    "9 model regressions passed including independent THREE XYZ/YXZ forward-vector oracle; 9 real-browser cases passed with zero page errors; full desktop J1-J8 integration is owned by the coordinator."
+  ],
+  "invariant_owner_layer": {"layer": "src/workbench/generationCanvas/nodes/director/model/storeTimelineActions.ts", "tests": ["src/workbench/generationCanvas/nodes/director/model/waypointAim.test.ts", "tests/ux/director-waypoint-aim.walk.mjs"], "why": "不变量由 src/workbench/generationCanvas/nodes/director/model/storeTimelineActions.ts 单点持有（即本合同的 prevention.enforcement_path / shared_boundaries）；上游其它入口只调用它、不各自重判。tests 是该层现有的类级与回归测试，改动这条不变量必先让它们红。"}
+}

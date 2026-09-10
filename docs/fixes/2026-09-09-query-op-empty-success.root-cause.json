@@ -1,0 +1,93 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-09-query-op-empty-success",
+  "problem_type": "Async media task persists succeeded with zero assets when the query endpoint completes empty",
+  "symptom": "query-op-only vendors (kie/apimart family, mapping has query but no result op) that report COMPLETED while the asset path extracts empty get persisted as a succeeded task with 0 assets — a silent empty success the user sees as a node that 'finished' with nothing in it.",
+  "direct_cause": "ensureAsyncMediaOutput (COMPLETED-without-output must fail) is only applied on the result-op second-hop branch; the query-only return path bypasses it.",
+  "class_root": "Every terminal-result exit of the task query boundary must pass the same async-media output guard; terminal normalization and terminal validation are one boundary, not two.",
+  "affected_population": [
+    "All async media generations on vendors whose mapping lacks a result op (kie images, apimart video, runninghub family)"
+  ],
+  "scope_paths": [
+    "electron/tasks/taskResultQuery.ts"
+  ],
+  "entry_points": [
+    "executeTaskQuery terminal result construction"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Internal vendor task-result boundary; no external format change.",
+  "invariants": [
+    "A terminal async-media result that reports success with zero assets never leaves executeTaskQuery; it is downgraded to failed with the completedWithoutOutput reason.",
+    "Successful queries with real assets are unaffected (guard passes them through)."
+  ],
+  "generality_proof": "The guard now wraps the single terminal-result construction shared by the query branch (both unrecognized-status and normal outcomes), so every query-path terminal exits through the same validation; the result-op branch keeps its existing guard.",
+  "shared_boundaries": [
+    {
+      "path": "electron/tasks/taskResultQuery.ts",
+      "symbol": "executeTaskQuery",
+      "responsibility": "Apply ensureAsyncMediaOutput to every terminal result before persistence/return."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/tasks/taskResultQuery.ts",
+      "entry_point": "result-op second-hop branch (ensureAsyncMediaOutput on resultNormalized)",
+      "disposition": "enforced",
+      "evidence": "Pre-existing guard on the second-hop result; unchanged and still active."
+    },
+    {
+      "path": "electron/tasks/taskResultQuery.ts",
+      "entry_point": "extractAssetUrl raw-asset branch",
+      "disposition": "enforced",
+      "evidence": "Only returns when an asset URL actually exists, so an empty success cannot be constructed there."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every kie/apimart-style task whose upstream completes without output reproduced the silent empty success.",
+    "same_class_scan": [
+      "Checked the result-op branch: guard already present.",
+      "Checked the raw-asset branch: cannot produce an empty success (returns only on a found URL).",
+      "Checked the fallback no-query branch (unpollableTaskQuery path): already fails closed with an honest reason.",
+      "apimartVendor.ts:64-65 documents the bare-string video url case that lands in this hole."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/tasks/taskResultQuery.ts",
+    "invariant": "Terminal result construction is wrapped by ensureAsyncMediaOutput on every path.",
+    "failure_mode": "Guard downgrades succeeded+0-assets media results to failed with tasks.completedWithoutOutput; text tasks and synchronous audio stay outside the guard's wantedKind filter, matching its documented boundary.",
+    "exception_policy": "none",
+    "strategy": "Wrap the shared terminal-result construction in ensureAsyncMediaOutput instead of guarding individual branches.",
+    "artifacts": [
+      "electron/tasks/taskResultQuery.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/tasks/queryOpEmptySuccess.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/tasks/queryOpEmptySuccess.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "No legacy path removed; the existing result-op guard remains and the new wrap covers the query path."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency change.",
+    "exit_criteria": []
+  },
+  "migration": "No persistence schema change.",
+  "residual_risks": [
+    "A vendor that genuinely emits a zero-asset success for media would now surface as an honest failure instead of an empty success; that is the intended semantic per the guard's own documentation."
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/tasks/taskResultQuery.ts",
+    "tests": [
+      "electron/tasks/queryOpEmptySuccess.test.ts"
+    ],
+    "note": "executeTaskQuery owns terminal-result validation; the regression pins both the empty-completion downgrade and the asset-bearing pass-through."
+  }
+}
