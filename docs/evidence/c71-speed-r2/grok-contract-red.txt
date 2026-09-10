@@ -1,0 +1,37 @@
+
+ RUN  v4.1.8 /Users/aoqimin/Desktop/Nomi-speed
+
+ ❯ src/config/modelArchetypes/index.test.ts (20 tests | 1 failed) 9ms
+     × Grok Imagine 1.5：官方主键/兼容别名命中同一视频档案 4ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/config/modelArchetypes/index.test.ts > resolveArchetypeForModel — 供应商无关的识别桥 > Grok Imagine 1.5：官方主键/兼容别名命中同一视频档案
+AssertionError: expected { key: 'duration', …(6) } to match object { min: 6, max: 15 }
+(5 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "max": 15,
++   "max": 30,
+    "min": 6,
+  }
+
+ ❯ src/config/modelArchetypes/index.test.ts:105:68
+    103|     expect(arch.modes.find((m) => m.id === "i2v")?.slots[0]).toMatchOb…
+    104|     expect(arch.modes.find((m) => m.id === "i2v")?.params.map((p) => p…
+    105|     expect(arch.modes[0].params.find((p) => p.key === "duration")).toM…
+       |                                                                    ^
+    106|   });
+    107|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 1 passed (2)
+      Tests  1 failed | 51 passed (52)
+   Start at  06:29:28
+   Duration  726ms (transform 618ms, setup 55ms, import 705ms, tests 279ms, environment 0ms)
+

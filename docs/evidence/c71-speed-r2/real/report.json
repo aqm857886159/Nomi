@@ -1,0 +1,749 @@
+{
+  "mode": "real-two-shot-ai-film",
+  "paidCalls": 9,
+  "sourceSha": "de0c8877e29a90e310db5bf4f81280399163a1b0",
+  "gitDiffSha256": "138425b060d54ee32ae1905eac8c19a888b2c9934fd401600db9bfd59c7e8d97",
+  "sourceBuild": {
+    "main": "06e6c705adad0ad6f74c51bf342b7d0b8e2dfb473b8b64a6740f5397028de9c6",
+    "index": "1d40e412399f39aa2719293dba74fde74754814f56b2eae6117f83e07698f6b6"
+  },
+  "steps": [
+    {
+      "id": "00",
+      "action": "准备隔离空项目",
+      "started": "2026-09-09T22:50:16.893Z",
+      "result": "assertions-passed",
+      "screenshot": "/tmp/c71-real/attempt-qXJKfz/00.png",
+      "ended": "2026-09-09T22:50:20.267Z",
+      "seconds": 3.3746977910000004
+    },
+    {
+      "id": "01",
+      "action": "导入原创两镜剧本和五约束",
+      "started": "2026-09-09T22:50:20.268Z",
+      "result": "assertions-passed",
+      "screenshot": "/tmp/c71-real/attempt-qXJKfz/01.png",
+      "ended": "2026-09-09T22:50:21.331Z",
+      "seconds": 1.0634971250000007
+    },
+    {
+      "id": "02",
+      "action": "真实AI拆分、审批两镜分镜",
+      "started": "2026-09-09T22:50:21.332Z",
+      "result": "assertions-passed",
+      "screenshot": "/tmp/c71-real/attempt-qXJKfz/02.png",
+      "ended": "2026-09-09T22:50:53.078Z",
+      "seconds": 31.746631708000006
+    },
+    {
+      "id": "03",
+      "action": "从获批分镜物化视频节点",
+      "started": "2026-09-09T22:50:53.078Z",
+      "result": "assertions-passed",
+      "screenshot": "/tmp/c71-real/attempt-qXJKfz/03.png",
+      "ended": "2026-09-09T22:50:54.272Z",
+      "seconds": 1.1940494590000017
+    },
+    {
+      "id": "04",
+      "action": "批准生成、等待供应商终态并验证资产落盘",
+      "started": "2026-09-09T22:50:54.272Z",
+      "result": "assertions-passed",
+      "screenshot": "/tmp/c71-real/attempt-qXJKfz/04.png",
+      "ended": "2026-09-09T22:51:52.971Z",
+      "seconds": 58.69905549999999
+    },
+    {
+      "id": "05",
+      "action": "按镜头顺序入轴并播放",
+      "started": "2026-09-09T22:51:52.972Z",
+      "result": "failed",
+      "ended": "2026-09-09T22:52:22.980Z",
+      "seconds": 30.0080855
+    },
+    {
+      "id": "05",
+      "action": "恢复同一真实项目：切到生成画布、入轴并预览",
+      "continuation": true,
+      "started": "2026-09-09T22:55:13.923Z",
+      "result": "assertions-passed",
+      "screenshot": "/tmp/c71-real/attempt-qXJKfz/05-resumed.png",
+      "seconds": 5.145097207999999,
+      "ended": "2026-09-09T22:55:19.070Z"
+    },
+    {
+      "id": "06",
+      "action": "通过Nomi导出真实两镜MP4并完整解码",
+      "continuation": true,
+      "started": "2026-09-09T22:55:19.071Z",
+      "result": "assertions-passed",
+      "screenshot": "/tmp/c71-real/attempt-qXJKfz/06-resumed.png",
+      "seconds": 15.215099291,
+      "ended": "2026-09-09T22:55:34.286Z"
+    },
+    {
+      "id": "07",
+      "action": "冷重启恢复已保存两镜资产与时间轴",
+      "continuation": true,
+      "started": "2026-09-09T22:55:34.286Z",
+      "result": "assertions-passed",
+      "screenshot": "/tmp/c71-real/attempt-qXJKfz/07-resumed.png",
+      "seconds": 2.8635966249999982,
+      "ended": "2026-09-09T22:55:37.150Z"
+    }
+  ],
+  "seventhEighthWait": "N/A: two-shot real sample; no invented 7th/8th observation",
+  "beforeAfter": "No comparable real pre-change baseline; no speedup claim",
+  "review": "primary visual reviewed: river/tree sunlight → floating leaf sequence; first/middle/last export frames and preview screenshot inspected",
+  "quote": {
+    "model": "grok-imagine-1.5-video-apimart",
+    "label": "Grok Imagine 1.5",
+    "params": {
+      "size": "16:9",
+      "quality": "480p",
+      "duration": 6
+    },
+    "resolution": "480p",
+    "usdPerSecond": 0.01275,
+    "wireModels": [
+      "grok-imagine-1.5-video-apimart",
+      "grok-imagine-1.5-video-ext"
+    ],
+    "perShotUpperCny": 0.5355,
+    "shots": 2,
+    "budgetCny": 6,
+    "upperCny": 1.071,
+    "cnyPerUsd": 7,
+    "source": "https://apimart.ai/pricing",
+    "checkedAt": "2026-09-09T22:50:16.889Z",
+    "selectionScope": "configured text-to-video models with explicit live-priced default tier",
+    "candidates": [
+      {
+        "model": "grok-imagine-1.5-video-apimart",
+        "label": "Grok Imagine 1.5",
+        "params": {
+          "size": "16:9",
+          "quality": "480p",
+          "duration": 6
+        },
+        "resolution": "480p",
+        "usdPerSecond": 0.01275,
+        "wireModels": [
+          "grok-imagine-1.5-video-apimart",
+          "grok-imagine-1.5-video-ext"
+        ],
+        "perShotUpperCny": 0.5355
+      },
+      {
+        "model": "MiniMax-H3",
+        "label": "MiniMax H3",
+        "params": {
+          "resolution": "2K",
+          "aspect_ratio": "16:9",
+          "duration": 5,
+          "watermark": false
+        },
+        "resolution": "2K",
+        "usdPerSecond": 0.1143,
+        "wireModels": [
+          "MiniMax-H3"
+        ],
+        "perShotUpperCny": 4.0005
+      },
+      {
+        "model": "wan2.7",
+        "label": "Wan 2.7",
+        "params": {
+          "size": "16:9",
+          "resolution": "1080P",
+          "duration": 5,
+          "model": "wan2.7"
+        },
+        "resolution": "1080P",
+        "usdPerSecond": 0.137,
+        "wireModels": [
+          "wan2.7"
+        ],
+        "perShotUpperCny": 4.795
+      },
+      {
+        "model": "kling-3.0-turbo",
+        "label": "可灵 3.0 Turbo",
+        "params": {
+          "aspect_ratio": "16:9",
+          "resolution": "720p",
+          "duration": 5
+        },
+        "resolution": "720p",
+        "usdPerSecond": 0.143,
+        "wireModels": [
+          "kling-3.0-turbo"
+        ],
+        "perShotUpperCny": 5.005
+      },
+      {
+        "model": "wan3.0-video",
+        "label": "Wan 3.0",
+        "params": {
+          "size": "adaptive",
+          "resolution": "1080P",
+          "duration": 5,
+          "audio": true,
+          "watermark": false
+        },
+        "resolution": "1080P",
+        "usdPerSecond": 0.17143,
+        "wireModels": [
+          "wan3.0-video"
+        ],
+        "perShotUpperCny": 6.00005
+      },
+      {
+        "model": "happyhorse-1.1",
+        "label": "HappyHorse 1.1",
+        "params": {
+          "resolution": "1080P",
+          "size": "16:9",
+          "duration": 5
+        },
+        "resolution": "1080P",
+        "usdPerSecond": 0.215,
+        "wireModels": [
+          "happyhorse-1.1"
+        ],
+        "perShotUpperCny": 7.5249999999999995
+      }
+    ],
+    "planner": {
+      "model": "deepseek-v4-flash",
+      "label": "DeepSeek V4 Flash",
+      "rates": {
+        "input": 0.428571,
+        "cached_input": 0.085714,
+        "output": 1.285714
+      },
+      "maxOutputTokens": 16000,
+      "candidates": [
+        {
+          "model": "deepseek-v4-flash",
+          "label": "DeepSeek V4 Flash",
+          "rates": {
+            "input": 0.428571,
+            "cached_input": 0.085714,
+            "output": 1.285714
+          },
+          "maxOutputTokens": 16000
+        },
+        {
+          "model": "deepseek-v4-pro",
+          "label": "DeepSeek V4 Pro",
+          "rates": {
+            "input": 1.285714,
+            "cached_input": 0.257143,
+            "output": 3.857143
+          },
+          "maxOutputTokens": 393216
+        }
+      ],
+      "selectionScope": "configured text models with live token prices and published maximum output for unmodified requests",
+      "source": "https://apimart.ai/pricing"
+    }
+  },
+  "preflightSeconds": 2.5680592499999997,
+  "projectRoot": "/tmp/c71-real/attempt-qXJKfz/profile/projects/未命名项目 09_10 06_50-mtuoytwh-3bbb7031",
+  "r30": {
+    "firstTool": "1/1 (100%)",
+    "turns": "1/1 (100%)",
+    "scope": "First native storyboard write and completed planner turn; automatic reviews excluded.",
+    "toolWriteRate": {
+      "correct": 1,
+      "attempted": 1,
+      "percent": 100
+    },
+    "source": "native lane transcript; no fixture result substitution"
+  },
+  "plannerCheckpoint": "native-turn-complete",
+  "plannerObservation": [
+    {
+      "model": "grok-imagine-1.5-video-apimart",
+      "duration": 6,
+      "prefix": true
+    },
+    {
+      "model": "grok-imagine-1.5-video-apimart",
+      "duration": 6,
+      "prefix": true
+    }
+  ],
+  "approvedAt": "2026-09-09T22:50:54.273Z",
+  "generationSeconds": 58.322609375,
+  "result": "assertions-passed-after-harness-recovery-review-pending",
+  "error": "C71_WALK_FAILED",
+  "diagnostic": {
+    "name": "TimeoutError",
+    "message": "locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByLabel('适应视图').first()\u001b[22m\n",
+    "source": [
+      "    at /Users/aoqimin/Desktop/Nomi-speed/tests/ux/g1/c71-media-latency.walk.mjs:153:46",
+      "    at async step (/Users/aoqimin/Desktop/Nomi-speed/tests/ux/g1/c71-media-latency.walk.mjs:41:5)",
+      "    at async file:///Users/aoqimin/Desktop/Nomi-speed/tests/ux/g1/c71-media-latency.walk.mjs:147:5"
+    ]
+  },
+  "reservedCny": 3.6706991842989996,
+  "outbound": [
+    {
+      "kind": "text",
+      "model": "deepseek-v4-flash",
+      "inputBytes": 103479,
+      "maxTokens": 16000,
+      "started": "2026-09-09T22:46:40.968Z",
+      "startedMs": 3230.201208,
+      "reservedCny": 0.4544366575629999,
+      "httpStatus": 200,
+      "headersReceived": "2026-09-09T22:46:44.667Z",
+      "usage": {
+        "completion_tokens": 434,
+        "prompt_tokens": 27323,
+        "prompt_tokens_details": {
+          "cached_tokens": 16384
+        },
+        "total_tokens": 27757
+      },
+      "ended": "2026-09-09T22:46:54.819Z",
+      "endedMs": 17081.359541
+    },
+    {
+      "kind": "text",
+      "model": "deepseek-v4-flash",
+      "inputBytes": 104942,
+      "maxTokens": 16000,
+      "started": "2026-09-09T22:46:56.127Z",
+      "startedMs": 18388.682166,
+      "reservedCny": 0.458825653174,
+      "ended": "2026-09-09T22:46:56.334Z",
+      "endedMs": 18595.88575,
+      "error": "C71_TRANSPORT_FAILED"
+    },
+    {
+      "kind": "text",
+      "model": "deepseek-v4-flash",
+      "inputBytes": 103479,
+      "maxTokens": 16000,
+      "started": "2026-09-09T22:50:21.669Z",
+      "startedMs": 3857.219417,
+      "reservedCny": 0.4544366575629999,
+      "httpStatus": 200,
+      "headersReceived": "2026-09-09T22:50:25.200Z",
+      "usage": {
+        "completion_tokens": 37,
+        "prompt_tokens": 27332,
+        "prompt_tokens_details": {
+          "cached_tokens": 16384
+        },
+        "total_tokens": 27369
+      },
+      "ended": "2026-09-09T22:50:26.019Z",
+      "endedMs": 8207.209042
+    },
+    {
+      "kind": "text",
+      "model": "deepseek-v4-flash",
+      "inputBytes": 104405,
+      "maxTokens": 16000,
+      "started": "2026-09-09T22:50:26.123Z",
+      "startedMs": 8311.664667,
+      "reservedCny": 0.457214654785,
+      "httpStatus": 200,
+      "headersReceived": "2026-09-09T22:50:30.068Z",
+      "usage": {
+        "completion_tokens": 435,
+        "prompt_tokens": 27570,
+        "prompt_tokens_details": {
+          "cached_tokens": 16384
+        },
+        "total_tokens": 28005
+      },
+      "ended": "2026-09-09T22:50:40.761Z",
+      "endedMs": 22949.042208
+    },
+    {
+      "kind": "text",
+      "model": "deepseek-v4-flash",
+      "inputBytes": 105899,
+      "maxTokens": 16000,
+      "started": "2026-09-09T22:50:41.888Z",
+      "startedMs": 24076.647333,
+      "reservedCny": 0.46169665030299994,
+      "httpStatus": 200,
+      "headersReceived": "2026-09-09T22:50:45.740Z",
+      "usage": {
+        "completion_tokens": 214,
+        "prompt_tokens": 28024,
+        "prompt_tokens_details": {
+          "cached_tokens": 16384
+        },
+        "total_tokens": 28238
+      },
+      "ended": "2026-09-09T22:50:52.180Z",
+      "endedMs": 34368.950417
+    },
+    {
+      "kind": "video",
+      "shot": 1,
+      "model": "grok-imagine-1.5-video-ext",
+      "duration": 6,
+      "resolution": "480p",
+      "started": "2026-09-09T22:50:54.359Z",
+      "startedMs": 36548.022542,
+      "reservedCny": 0.5355,
+      "httpStatus": 200,
+      "headersReceived": "2026-09-09T22:50:54.771Z",
+      "ended": "2026-09-09T22:50:54.771Z",
+      "endedMs": 36959.082708
+    },
+    {
+      "kind": "video",
+      "shot": 2,
+      "model": "grok-imagine-1.5-video-ext",
+      "duration": 6,
+      "resolution": "480p",
+      "started": "2026-09-09T22:50:54.360Z",
+      "startedMs": 36548.618875,
+      "reservedCny": 0.5355,
+      "httpStatus": 200,
+      "headersReceived": "2026-09-09T22:50:55.460Z",
+      "ended": "2026-09-09T22:50:55.460Z",
+      "endedMs": 37649.06725
+    },
+    {
+      "kind": "text",
+      "model": "deepseek-v4-flash",
+      "inputBytes": 4409,
+      "maxTokens": 16000,
+      "started": "2026-09-09T22:51:52.658Z",
+      "startedMs": 94846.533,
+      "reservedCny": 0.157226954773,
+      "httpStatus": 200,
+      "headersReceived": "2026-09-09T22:51:54.679Z",
+      "usage": {
+        "completion_tokens": 87,
+        "prompt_tokens": 1035,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "total_tokens": 1122
+      },
+      "ended": "2026-09-09T22:51:58.080Z",
+      "endedMs": 100268.562417
+    },
+    {
+      "kind": "text",
+      "model": "deepseek-v4-flash",
+      "inputBytes": 3954,
+      "maxTokens": 16000,
+      "started": "2026-09-09T22:51:58.149Z",
+      "startedMs": 100337.903208,
+      "reservedCny": 0.155861956138,
+      "httpStatus": 200,
+      "headersReceived": "2026-09-09T22:52:00.530Z",
+      "usage": {
+        "completion_tokens": 42,
+        "prompt_tokens": 910,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "total_tokens": 952
+      },
+      "ended": "2026-09-09T22:52:03.099Z",
+      "endedMs": 105288.272083
+    }
+  ],
+  "polls": [
+    {
+      "taskId": "task_01M245VYE575TWDEVN0ARM2F0Z",
+      "status": "processing",
+      "at": "2026-09-09T22:50:57.871Z"
+    },
+    {
+      "taskId": "task_01M245VZ325HC2YZRJ3JHSBFNQ",
+      "status": "processing",
+      "at": "2026-09-09T22:50:59.677Z"
+    },
+    {
+      "taskId": "task_01M245VYE575TWDEVN0ARM2F0Z",
+      "status": "processing",
+      "at": "2026-09-09T22:51:00.919Z"
+    },
+    {
+      "taskId": "task_01M245VZ325HC2YZRJ3JHSBFNQ",
+      "status": "processing",
+      "at": "2026-09-09T22:51:02.231Z"
+    },
+    {
+      "taskId": "task_01M245VYE575TWDEVN0ARM2F0Z",
+      "status": "processing",
+      "at": "2026-09-09T22:51:03.520Z"
+    },
+    {
+      "taskId": "task_01M245VZ325HC2YZRJ3JHSBFNQ",
+      "status": "processing",
+      "at": "2026-09-09T22:51:05.351Z"
+    },
+    {
+      "taskId": "task_01M245VYE575TWDEVN0ARM2F0Z",
+      "status": "processing",
+      "at": "2026-09-09T22:51:07.511Z"
+    },
+    {
+      "taskId": "task_01M245VZ325HC2YZRJ3JHSBFNQ",
+      "status": "processing",
+      "at": "2026-09-09T22:51:07.960Z"
+    },
+    {
+      "taskId": "task_01M245VYE575TWDEVN0ARM2F0Z",
+      "status": "processing",
+      "at": "2026-09-09T22:51:10.079Z"
+    },
+    {
+      "taskId": "task_01M245VZ325HC2YZRJ3JHSBFNQ",
+      "status": "processing",
+      "at": "2026-09-09T22:51:12.090Z"
+    },
+    {
+      "taskId": "task_01M245VYE575TWDEVN0ARM2F0Z",
+      "status": "processing",
+      "at": "2026-09-09T22:51:12.630Z"
+    },
+    {
+      "taskId": "task_01M245VZ325HC2YZRJ3JHSBFNQ",
+      "status": "processing",
+      "at": "2026-09-09T22:51:14.751Z"
+    },
+    {
+      "taskId": "task_01M245VYE575TWDEVN0ARM2F0Z",
+      "status": "processing",
+      "at": "2026-09-09T22:51:16.890Z"
+    },
+    {
+      "taskId": "task_01M245VZ325HC2YZRJ3JHSBFNQ",
+      "status": "processing",
+      "at": "2026-09-09T22:51:18.040Z"
+    },
+    {
+      "taskId": "task_01M245VYE575TWDEVN0ARM2F0Z",
+      "status": "processing",
+      "at": "2026-09-09T22:51:20.490Z"
+    },
+    {
+      "taskId": "task_01M245VZ325HC2YZRJ3JHSBFNQ",
+      "status": "processing",
+      "at": "2026-09-09T22:51:22.269Z"
+    },
+    {
+      "taskId": "task_01M245VYE575TWDEVN0ARM2F0Z",
+      "status": "processing",
+      "at": "2026-09-09T22:51:24.303Z"
+    },
+    {
+      "taskId": "task_01M245VZ325HC2YZRJ3JHSBFNQ",
+      "status": "processing",
+      "at": "2026-09-09T22:51:25.051Z"
+    },
+    {
+      "taskId": "task_01M245VYE575TWDEVN0ARM2F0Z",
+      "status": "processing",
+      "at": "2026-09-09T22:51:27.071Z"
+    },
+    {
+      "taskId": "task_01M245VZ325HC2YZRJ3JHSBFNQ",
+      "status": "processing",
+      "at": "2026-09-09T22:51:28.771Z"
+    },
+    {
+      "taskId": "task_01M245VYE575TWDEVN0ARM2F0Z",
+      "status": "processing",
+      "at": "2026-09-09T22:51:31.144Z"
+    },
+    {
+      "taskId": "task_01M245VZ325HC2YZRJ3JHSBFNQ",
+      "status": "processing",
+      "at": "2026-09-09T22:51:32.561Z"
+    },
+    {
+      "taskId": "task_01M245VYE575TWDEVN0ARM2F0Z",
+      "status": "processing",
+      "at": "2026-09-09T22:51:33.881Z"
+    },
+    {
+      "taskId": "task_01M245VZ325HC2YZRJ3JHSBFNQ",
+      "status": "processing",
+      "at": "2026-09-09T22:51:36.249Z"
+    },
+    {
+      "taskId": "task_01M245VYE575TWDEVN0ARM2F0Z",
+      "status": "processing",
+      "at": "2026-09-09T22:51:37.551Z"
+    },
+    {
+      "taskId": "task_01M245VZ325HC2YZRJ3JHSBFNQ",
+      "status": "completed",
+      "at": "2026-09-09T22:51:40.189Z"
+    },
+    {
+      "taskId": "task_01M245VYE575TWDEVN0ARM2F0Z",
+      "status": "processing",
+      "at": "2026-09-09T22:51:41.233Z"
+    },
+    {
+      "taskId": "task_01M245VYE575TWDEVN0ARM2F0Z",
+      "status": "processing",
+      "at": "2026-09-09T22:51:44.919Z"
+    },
+    {
+      "taskId": "task_01M245VYE575TWDEVN0ARM2F0Z",
+      "status": "completed",
+      "at": "2026-09-09T22:51:49.791Z"
+    }
+  ],
+  "billing": "Conservative live-price reservation; actual account bill not queried",
+  "export": {
+    "path": "/tmp/c71-real/attempt-qXJKfz/profile/projects/未命名项目 09_10 06_50-mtuoytwh-3bbb7031/exports/nomi-export-202609100655.mp4",
+    "sha256": "8394120110cbc07f728991624a3deb5902380fdd527509411ffa86f293ba0eea",
+    "bytes": 12486445,
+    "probe": {
+      "streams": [
+        {
+          "index": 0,
+          "codec_name": "h264",
+          "codec_long_name": "H.264 / AVC / MPEG-4 AVC / MPEG-4 part 10",
+          "profile": "High",
+          "codec_type": "video",
+          "codec_tag_string": "avc1",
+          "codec_tag": "0x31637661",
+          "width": 1920,
+          "height": 1080,
+          "coded_width": 1920,
+          "coded_height": 1080,
+          "closed_captions": 0,
+          "has_b_frames": 2,
+          "sample_aspect_ratio": "1:1",
+          "display_aspect_ratio": "16:9",
+          "pix_fmt": "yuv420p",
+          "level": 40,
+          "chroma_location": "left",
+          "refs": 1,
+          "is_avc": "true",
+          "nal_length_size": "4",
+          "r_frame_rate": "30/1",
+          "avg_frame_rate": "30/1",
+          "time_base": "1/15360",
+          "start_pts": 0,
+          "start_time": "0.000000",
+          "duration_ts": 185344,
+          "duration": "12.066667",
+          "bit_rate": "8075790",
+          "bits_per_raw_sample": "8",
+          "nb_frames": "362",
+          "disposition": {
+            "default": 1,
+            "dub": 0,
+            "original": 0,
+            "comment": 0,
+            "lyrics": 0,
+            "karaoke": 0,
+            "forced": 0,
+            "hearing_impaired": 0,
+            "visual_impaired": 0,
+            "clean_effects": 0,
+            "attached_pic": 0,
+            "timed_thumbnails": 0
+          },
+          "tags": {
+            "language": "und",
+            "handler_name": "VideoHandler",
+            "vendor_id": "[0][0][0][0]"
+          }
+        },
+        {
+          "index": 1,
+          "codec_name": "aac",
+          "codec_long_name": "AAC (Advanced Audio Coding)",
+          "profile": "LC",
+          "codec_type": "audio",
+          "codec_tag_string": "mp4a",
+          "codec_tag": "0x6134706d",
+          "sample_fmt": "fltp",
+          "sample_rate": "48000",
+          "channels": 2,
+          "channel_layout": "stereo",
+          "bits_per_sample": 0,
+          "r_frame_rate": "0/0",
+          "avg_frame_rate": "0/0",
+          "time_base": "1/48000",
+          "start_pts": 0,
+          "start_time": "0.000000",
+          "duration_ts": 579168,
+          "duration": "12.066000",
+          "bit_rate": "192453",
+          "nb_frames": "567",
+          "disposition": {
+            "default": 1,
+            "dub": 0,
+            "original": 0,
+            "comment": 0,
+            "lyrics": 0,
+            "karaoke": 0,
+            "forced": 0,
+            "hearing_impaired": 0,
+            "visual_impaired": 0,
+            "clean_effects": 0,
+            "attached_pic": 0,
+            "timed_thumbnails": 0
+          },
+          "tags": {
+            "language": "und",
+            "handler_name": "SoundHandler",
+            "vendor_id": "[0][0][0][0]"
+          }
+        }
+      ],
+      "format": {
+        "filename": "/tmp/c71-real/attempt-qXJKfz/profile/projects/未命名项目 09_10 06_50-mtuoytwh-3bbb7031/exports/nomi-export-202609100655.mp4",
+        "nb_streams": 2,
+        "nb_programs": 0,
+        "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+        "format_long_name": "QuickTime / MOV",
+        "start_time": "0.000000",
+        "duration": "12.067000",
+        "size": "12486445",
+        "bit_rate": "8278077",
+        "probe_score": 100,
+        "tags": {
+          "major_brand": "isom",
+          "minor_version": "512",
+          "compatible_brands": "isomiso2avc1mp41",
+          "encoder": "Lavf58.76.100",
+          "comment": "Signature: VgXejZEMYFYynpqwSRFD0KqJmEc4X/TxW65Akyk/fE7gKgxC1wAYqhuxt1jnN2gATYT4GOimkfD4OCqbt64FOZIWdMUFfFeXpL13ZE3pBLckDAkBtKLk1St67Tk+VEHmhnmn24AmBiqEnAXr3gJNaaRVjSCvxxW3S12vpxVKAZQ0rZrFdvb3n4Rv0qlZQzn/DfXYtI+P3UGTHNIRYo6CYT8IAE8DviysrnTd8yzZE00fOKZGeTgXZahtYTAfE/8XEs/YcCMs08jJ4z/VAXE2gxZ3PiGByFNNWuWVULSqUB+aKkS6JfWiXJcNExAroQRl/3iwcuY4Ed8r1OPe0IFDDfLwSA+O8Kxj+mOPmOhRi5JaIF/PNXaR7/d5EZG2dBkCS6tIjPikztNDh5Jp0WkB/tphtVKvgB2WCe5ymXP4n0F7H+KSAjoDspirtzf5LVOFkdiY3xyunanz8Ba6M1ZEXuHPImssu+RMRwfcgUlIOKjqAC06MLQPjE7m1Hrw8RW/Cq4G9EoJUs2jUQhIHI5mJg=="
+        }
+      }
+    }
+  },
+  "recovery": {
+    "paidCalls": 0,
+    "outbound": "disabled",
+    "preservedFailure": "original stage05 remains in steps"
+  },
+  "buildProvenance": {
+    "dist": {
+      "version": 1,
+      "head": "de0c8877e29a90e310db5bf4f81280399163a1b0",
+      "tree": "941e6836a7ffff092a298fc61afcf06a37aff5e2",
+      "dirty": true
+    },
+    "electron": {
+      "version": 1,
+      "head": "de0c8877e29a90e310db5bf4f81280399163a1b0",
+      "tree": "941e6836a7ffff092a298fc61afcf06a37aff5e2",
+      "dirty": true
+    }
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "ref": "4339e45ebe81f4cb854b752ad4388f149cab734d",
+  "result": "RED",
+  "hits": [
+    {
+      "line": 62,
+      "file": "electron/capabilityCore/mcpGenerationTools.ts",
+      "text": "const DEFAULT_BATCH_CONCURRENCY = 6;"
+    },
+    {
+      "line": 64,
+      "file": "electron/capabilityCore/mcpGenerationTools.ts",
+      "text": "export function coldstartEtaForGate(outputKinds: readonly string[], shotCount: number, concurrency = 1): { waitSeconds: "
+    },
+    {
+      "line": 86,
+      "file": "electron/video/deconstructVideo.ts",
+      "text": "export const DECONSTRUCT_CONCURRENCY = 4;"
+    },
+    {
+      "line": 22,
+      "file": "src/media/useFilmstrip.ts",
+      "text": "const MAX_CONCURRENT = 2"
+    },
+    {
+      "line": 5,
+      "file": "src/workbench/generationCanvas/components/CanvasProductionControls.tsx",
+      "text": "const CONCURRENCY_OPTIONS = [1, 2, 4, 6, 8].map((value) => ({ value: String(value), label: String(value) }))"
+    },
+    {
+      "line": 11,
+      "file": "src/workbench/generationCanvas/components/canvasProductionScope.ts",
+      "text": "export const DEFAULT_CANVAS_BATCH_CONCURRENCY = 8"
+    },
+    {
+      "line": 32,
+      "file": "src/workbench/generationCanvas/components/canvasProductionScope.ts",
+      "text": "if (typeof value !== 'number' || !Number.isFinite(value)) return DEFAULT_CANVAS_BATCH_CONCURRENCY"
+    },
+    {
+      "line": 33,
+      "file": "src/workbench/generationCanvas/components/canvasProductionScope.ts",
+      "text": "return Math.max(1, Math.min(8, Math.floor(value)))"
+    },
+    {
+      "line": 41,
+      "file": "src/workbench/generationCanvas/components/canvasProductionScope.ts",
+      "text": "if (!storage) return DEFAULT_CANVAS_BATCH_CONCURRENCY"
+    },
+    {
+      "line": 46,
+      "file": "src/workbench/generationCanvas/components/canvasProductionScope.ts",
+      "text": "return DEFAULT_CANVAS_BATCH_CONCURRENCY"
+    },
+    {
+      "line": 272,
+      "file": "src/workbench/generationCanvas/spend/spendConfirm.ts",
+      "text": "const concurrency = Math.max(1, context?.concurrency ?? 1)"
+    }
+  ]
+}

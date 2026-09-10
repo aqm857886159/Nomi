@@ -1,0 +1,53 @@
+✔ reject executable capacity: const BATCH_CONCURRENCY = 8 (2.857291ms)
+✔ reject executable capacity: const options = { concurrency: 8 } (0.641ms)
+✔ reject executable capacity: function submit(concurrency = 6) {} (0.352084ms)
+✔ reject executable capacity: const CONCURRENCY_OPTIONS = [1, 2, 4, 6, 8].map(String) (0.416834ms)
+✔ reject executable capacity: const concurrency = limits.inflight ?? 6 (0.186041ms)
+✔ reject executable capacity: function normalizeConcurrency(value) { return Math.max(1, Math.min(8, value)) } (0.3115ms)
+✔ reject executable capacity: const cap = 8; const concurrency = cap (0.173541ms)
+✔ reject executable capacity: const DEFAULT_RPM = 120 (0.107667ms)
+✔ reject executable capacity: const RATE_LIMIT = 120 (0.095834ms)
+✔ reject executable capacity: const PROVIDER_RATE_LIMIT = 120 (0.156792ms)
+✔ reject executable capacity: const MAX_INFLIGHT = 8 (0.092792ms)
+✔ reject executable capacity: const MAX_CONCURRENT_REQUESTS = 8 (0.088583ms)
+✔ reject executable capacity: const REQUESTS_PER_MINUTE = 120 (0.057666ms)
+✔ reject executable capacity: const requestLimit = 30 (0.048292ms)
+✔ reject executable capacity: const rateLimit = { limit: 20 } (0.14625ms)
+✔ reject executable capacity: const quota = { rateLimit: 4 } (0.072958ms)
+✔ reject executable capacity: const priority = { concurrency: 4, rpm: 120 } (0.114042ms)
+✔ reject executable capacity: const quota = { requestsPerMinute: 120 } (0.076041ms)
+✔ reject executable capacity: const quota = { maxInflight: 8 } (0.055208ms)
+✔ reject executable capacity: provider.concurrency = 8 (0.101209ms)
+✔ reject executable capacity: class Queue { concurrency = 8 } (0.24275ms)
+✔ reject executable capacity: const limiter = pLimit(8) (0.058792ms)
+✔ reject executable capacity: function limits() { return { concurrency: 8 } } (0.093375ms)
+✔ reject executable capacity: const workers = 8 (0.036791ms)
+✔ reject executable capacity: const poolSize = 4 (0.034625ms)
+✔ reject executable capacity: const maxActive = 6 (0.031125ms)
+✔ reject executable capacity: const parallelism = 12 (0.032458ms)
+✔ reject executable capacity: const maxWorkers = 3 (0.049375ms)
+✔ reject executable capacity: scheduler.acquire({ scope: "provider", inflight: 8 }) (0.141417ms)
+✔ accept derived quota / unrelated number: const concurrency = contract.limits.inflight (0.269916ms)
+✔ accept derived quota / unrelated number: const concurrency = Math.min(contract.limits.inflight, userPreference) (0.079084ms)
+✔ accept derived quota / unrelated number: const concurrency = Math.max(1, Math.floor(preference)) (0.094167ms)
+✔ accept derived quota / unrelated number: const rateLimit = parseProviderContract(contractData) (0.047208ms)
+✔ accept derived quota / unrelated number: const rateLimitStreak = 0 (0.056209ms)
+✔ accept derived quota / unrelated number: const FAILURE_PRIORITY: Record<FailureKind, number> = { unsupported: 0, invalid_response: 1, upstream: 2, network: 3, rate_limit: 4, auth: 5 } (0.263542ms)
+✔ accept derived quota / unrelated number: const fileSizeLimit = 1024 (0.0405ms)
+✔ accept derived quota / unrelated number: const limit = 800; const width = Math.min(800, requestedWidth) (0.072125ms)
+✔ accept derived quota / unrelated number: // const concurrency = 8
+const help = "concurrency = 8" (0.178792ms)
+✔ accept derived quota / unrelated number: function concurrentQueue() { return [] } (0.06575ms)
+✔ accept derived quota / unrelated number: const quota = { concurrency: observed.inflight } (0.058708ms)
+✔ accept derived quota / unrelated number: const quota = { concurrency: contract.inflight ?? observed.inflight } (0.076791ms)
+✔ accept derived quota / unrelated number: const preference = input >= 1 ? Math.floor(input) : undefined; scheduler.acquire({ scope: "user", inflight: preference }) (0.185875ms)
+✔ accept derived quota / unrelated number: function CanvasConcurrencySelect() { return <Select columns={2} /> } (0.353125ms)
+✔ reports original source lines without stripping comments or string URLs (0.11975ms)
+ℹ tests 44
+ℹ suites 0
+ℹ pass 44
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 216.143792

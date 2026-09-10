@@ -1,0 +1,9 @@
+
+ RUN  v4.1.8 /Users/aoqimin/Desktop/Nomi-speed
+
+
+ Test Files  4 passed (4)
+      Tests  69 passed (69)
+   Start at  06:30:25
+   Duration  991ms (transform 1.28s, setup 67ms, import 1.62s, tests 249ms, environment 0ms)
+

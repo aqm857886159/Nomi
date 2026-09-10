@@ -1,0 +1,245 @@
+{
+  "mode": "real-two-shot-ai-film",
+  "paidCalls": 2,
+  "sourceSha": "de0c8877e29a90e310db5bf4f81280399163a1b0",
+  "gitDiffSha256": "841d83f1bb3871c058b64e40b3f0a2db418ae2d6ea27f70a9c8524c53a685466",
+  "sourceBuild": {
+    "main": "06e6c705adad0ad6f74c51bf342b7d0b8e2dfb473b8b64a6740f5397028de9c6",
+    "index": "1d40e412399f39aa2719293dba74fde74754814f56b2eae6117f83e07698f6b6"
+  },
+  "steps": [
+    {
+      "id": "00",
+      "action": "准备隔离空项目",
+      "started": "2026-09-09T22:46:36.807Z",
+      "result": "assertions-passed",
+      "screenshot": "/tmp/c71-real/attempt-wjj3yk/00.png",
+      "ended": "2026-09-09T22:46:39.547Z",
+      "seconds": 2.740039583
+    },
+    {
+      "id": "01",
+      "action": "导入原创两镜剧本和五约束",
+      "started": "2026-09-09T22:46:39.548Z",
+      "result": "assertions-passed",
+      "screenshot": "/tmp/c71-real/attempt-wjj3yk/01.png",
+      "ended": "2026-09-09T22:46:40.634Z",
+      "seconds": 1.0860697500000005
+    },
+    {
+      "id": "02",
+      "action": "真实AI拆分、审批两镜分镜",
+      "started": "2026-09-09T22:46:40.634Z",
+      "result": "failed",
+      "ended": "2026-09-09T22:46:56.148Z",
+      "seconds": 15.514394417
+    }
+  ],
+  "seventhEighthWait": "N/A: two-shot real sample; no invented 7th/8th observation",
+  "beforeAfter": "No comparable real pre-change baseline; no speedup claim",
+  "review": "pending human screenshot and exported film review",
+  "quote": {
+    "model": "grok-imagine-1.5-video-apimart",
+    "label": "Grok Imagine 1.5",
+    "params": {
+      "size": "16:9",
+      "quality": "480p",
+      "duration": 6
+    },
+    "resolution": "480p",
+    "usdPerSecond": 0.01275,
+    "wireModels": [
+      "grok-imagine-1.5-video-apimart",
+      "grok-imagine-1.5-video-ext"
+    ],
+    "perShotUpperCny": 0.5355,
+    "shots": 2,
+    "budgetCny": 6,
+    "upperCny": 1.071,
+    "cnyPerUsd": 7,
+    "source": "https://apimart.ai/pricing",
+    "checkedAt": "2026-09-09T22:46:36.805Z",
+    "selectionScope": "configured text-to-video models with explicit live-priced default tier",
+    "candidates": [
+      {
+        "model": "grok-imagine-1.5-video-apimart",
+        "label": "Grok Imagine 1.5",
+        "params": {
+          "size": "16:9",
+          "quality": "480p",
+          "duration": 6
+        },
+        "resolution": "480p",
+        "usdPerSecond": 0.01275,
+        "wireModels": [
+          "grok-imagine-1.5-video-apimart",
+          "grok-imagine-1.5-video-ext"
+        ],
+        "perShotUpperCny": 0.5355
+      },
+      {
+        "model": "MiniMax-H3",
+        "label": "MiniMax H3",
+        "params": {
+          "resolution": "2K",
+          "aspect_ratio": "16:9",
+          "duration": 5,
+          "watermark": false
+        },
+        "resolution": "2K",
+        "usdPerSecond": 0.1143,
+        "wireModels": [
+          "MiniMax-H3"
+        ],
+        "perShotUpperCny": 4.0005
+      },
+      {
+        "model": "wan2.7",
+        "label": "Wan 2.7",
+        "params": {
+          "size": "16:9",
+          "resolution": "1080P",
+          "duration": 5,
+          "model": "wan2.7"
+        },
+        "resolution": "1080P",
+        "usdPerSecond": 0.137,
+        "wireModels": [
+          "wan2.7"
+        ],
+        "perShotUpperCny": 4.795
+      },
+      {
+        "model": "kling-3.0-turbo",
+        "label": "可灵 3.0 Turbo",
+        "params": {
+          "aspect_ratio": "16:9",
+          "resolution": "720p",
+          "duration": 5
+        },
+        "resolution": "720p",
+        "usdPerSecond": 0.143,
+        "wireModels": [
+          "kling-3.0-turbo"
+        ],
+        "perShotUpperCny": 5.005
+      },
+      {
+        "model": "wan3.0-video",
+        "label": "Wan 3.0",
+        "params": {
+          "size": "adaptive",
+          "resolution": "1080P",
+          "duration": 5,
+          "audio": true,
+          "watermark": false
+        },
+        "resolution": "1080P",
+        "usdPerSecond": 0.17143,
+        "wireModels": [
+          "wan3.0-video"
+        ],
+        "perShotUpperCny": 6.00005
+      },
+      {
+        "model": "happyhorse-1.1",
+        "label": "HappyHorse 1.1",
+        "params": {
+          "resolution": "1080P",
+          "size": "16:9",
+          "duration": 5
+        },
+        "resolution": "1080P",
+        "usdPerSecond": 0.215,
+        "wireModels": [
+          "happyhorse-1.1"
+        ],
+        "perShotUpperCny": 7.5249999999999995
+      }
+    ],
+    "planner": {
+      "model": "deepseek-v4-flash",
+      "label": "DeepSeek V4 Flash",
+      "rates": {
+        "input": 0.428571,
+        "cached_input": 0.085714,
+        "output": 1.285714
+      },
+      "maxOutputTokens": 16000,
+      "candidates": [
+        {
+          "model": "deepseek-v4-flash",
+          "label": "DeepSeek V4 Flash",
+          "rates": {
+            "input": 0.428571,
+            "cached_input": 0.085714,
+            "output": 1.285714
+          },
+          "maxOutputTokens": 16000
+        },
+        {
+          "model": "deepseek-v4-pro",
+          "label": "DeepSeek V4 Pro",
+          "rates": {
+            "input": 1.285714,
+            "cached_input": 0.257143,
+            "output": 3.857143
+          },
+          "maxOutputTokens": 393216
+        }
+      ],
+      "selectionScope": "configured text models with live token prices and published maximum output for unmodified requests",
+      "source": "https://apimart.ai/pricing"
+    }
+  },
+  "preflightSeconds": 2.2747437500000003,
+  "projectRoot": "/tmp/c71-real/attempt-wjj3yk/profile/projects/未命名项目 09_10 06_46-mtuou3sd-0cc8ccdf",
+  "r30": {
+    "firstTool": "1/1 (100%)",
+    "turns": "0/1 (0%)",
+    "scope": "First native storyboard write and completed planner turn; automatic reviews excluded.",
+    "toolWriteRate": {
+      "correct": 1,
+      "attempted": 1,
+      "percent": 100
+    },
+    "source": "native lane transcript; no fixture result substitution"
+  },
+  "result": "failed",
+  "error": "C71_WALK_FAILED",
+  "reservedCny": 0.9132623107369999,
+  "outbound": [
+    {
+      "kind": "text",
+      "model": "deepseek-v4-flash",
+      "inputBytes": 103479,
+      "maxTokens": 16000,
+      "started": "2026-09-09T22:46:40.968Z",
+      "startedMs": 3230.201208,
+      "reservedCny": 0.4544366575629999,
+      "httpStatus": 200,
+      "headersReceived": "2026-09-09T22:46:44.667Z",
+      "usage": {
+        "completion_tokens": 434,
+        "prompt_tokens": 27323,
+        "prompt_tokens_details": {
+          "cached_tokens": 16384
+        },
+        "total_tokens": 27757
+      },
+      "ended": "2026-09-09T22:46:54.819Z",
+      "endedMs": 17081.359541
+    },
+    {
+      "kind": "text",
+      "model": "deepseek-v4-flash",
+      "inputBytes": 104942,
+      "maxTokens": 16000,
+      "started": "2026-09-09T22:46:56.127Z",
+      "startedMs": 18388.682166,
+      "reservedCny": 0.458825653174
+    }
+  ],
+  "polls": [],
+  "billing": "Conservative live-price reservation; actual account bill not queried"
+}

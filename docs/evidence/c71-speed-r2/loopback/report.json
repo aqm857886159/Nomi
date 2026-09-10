@@ -1,0 +1,305 @@
+{
+  "mode": "zero-cost-eight-shot-barrier-protocol",
+  "paidCalls": 0,
+  "sourceSha": "687047e0bebac833e8195009cef980617bbe4b39",
+  "gitDiffSha256": "b2429a64958d0dcb2f962bdd9f70334d4d71026e79d621533a8926f8829fc016",
+  "sourceBuild": {
+    "main": "06e6c705adad0ad6f74c51bf342b7d0b8e2dfb473b8b64a6740f5397028de9c6",
+    "index": "8fbdd878f7922bb621e734a8dd0fd88e8d0e02472439f9bd2e041a4a2f260a61"
+  },
+  "steps": [
+    {
+      "id": "00",
+      "action": "准备隔离空项目",
+      "started": "2026-09-10T01:05:32.185Z",
+      "result": "assertions-passed",
+      "screenshot": "/tmp/c71-loopback-delivery/attempt-gbLhRW/00.png",
+      "ended": "2026-09-10T01:05:34.182Z",
+      "seconds": 1.996506541
+    },
+    {
+      "id": "01",
+      "action": "导入手动协议测试题材（非AI规划）",
+      "started": "2026-09-10T01:05:34.182Z",
+      "result": "assertions-passed",
+      "screenshot": "/tmp/c71-loopback-delivery/attempt-gbLhRW/01.png",
+      "ended": "2026-09-10T01:05:35.192Z",
+      "seconds": 1.0098370830000003
+    },
+    {
+      "id": "02",
+      "action": "手动创建 8 镜协议输入（非AI规划）",
+      "started": "2026-09-10T01:05:35.192Z",
+      "result": "assertions-passed",
+      "screenshot": "/tmp/c71-loopback-delivery/attempt-gbLhRW/02.png",
+      "ended": "2026-09-10T01:05:43.703Z",
+      "seconds": 8.510906958
+    },
+    {
+      "id": "03",
+      "action": "打开手动协议输入整批审批",
+      "started": "2026-09-10T01:05:43.703Z",
+      "result": "assertions-passed",
+      "screenshot": "/tmp/c71-loopback-delivery/attempt-gbLhRW/03.png",
+      "ended": "2026-09-10T01:05:44.328Z",
+      "seconds": 0.6250200000000005
+    },
+    {
+      "id": "04",
+      "action": "批准生成、等待供应商终态并验证资产落盘",
+      "started": "2026-09-10T01:05:44.328Z",
+      "result": "assertions-passed",
+      "screenshot": "/tmp/c71-loopback-delivery/attempt-gbLhRW/04.png",
+      "ended": "2026-09-10T01:05:48.943Z",
+      "seconds": 4.614768624999999
+    },
+    {
+      "id": "05",
+      "action": "按镜头顺序入轴并播放",
+      "started": "2026-09-10T01:05:48.943Z",
+      "result": "assertions-passed",
+      "screenshot": "/tmp/c71-loopback-delivery/attempt-gbLhRW/05.png",
+      "ended": "2026-09-10T01:06:00.196Z",
+      "seconds": 11.253302541999998
+    },
+    {
+      "id": "06",
+      "action": "导出 MP4 并完整解码",
+      "started": "2026-09-10T01:06:00.196Z",
+      "result": "assertions-passed",
+      "screenshot": "/tmp/c71-loopback-delivery/attempt-gbLhRW/06.png",
+      "ended": "2026-09-10T01:06:16.010Z",
+      "seconds": 15.814235874999998
+    },
+    {
+      "id": "07",
+      "action": "冷重启恢复同一项目与成片",
+      "started": "2026-09-10T01:06:16.010Z",
+      "result": "assertions-passed",
+      "screenshot": "/tmp/c71-loopback-delivery/attempt-gbLhRW/07.png",
+      "ended": "2026-09-10T01:06:18.736Z",
+      "seconds": 2.726253582999998
+    }
+  ],
+  "seventhEighthWait": "Both admitted before first terminal; protocol proof only, not a real-provider timing claim",
+  "beforeAfter": "No comparable real pre-change baseline; no speedup claim",
+  "review": "Primary agent visually reviewed 05.png and 07.png: eight ordered assets and eight timeline clips, 64-second project, preview and cold restore present. Synthetic protocol media; not a supplier performance measurement.",
+  "quote": {
+    "budgetCny": 0,
+    "explanation": "Synthetic media tests admission only; no latency simulation"
+  },
+  "preflightSeconds": 0.47264300000000004,
+  "projectRoot": "/tmp/c71-loopback-delivery/attempt-gbLhRW/profile/projects/未命名项目 09_10 09_05-mtutsqwp-c49c88fb",
+  "approvedAt": "2026-09-10T01:05:44.328Z",
+  "generationSeconds": 4.248094459,
+  "admission": {
+    "localLifecycleQueueBeyondProvider": 0,
+    "proof": "All eight submissions reached provider before first terminal result; no artificial service delay",
+    "calls": [
+      {
+        "shot": 1,
+        "started": "2026-09-10T01:05:44.535Z",
+        "startedMs": 13547.364125
+      },
+      {
+        "shot": 2,
+        "started": "2026-09-10T01:05:44.537Z",
+        "startedMs": 13549.026584
+      },
+      {
+        "shot": 3,
+        "started": "2026-09-10T01:05:44.537Z",
+        "startedMs": 13549.317125
+      },
+      {
+        "shot": 4,
+        "started": "2026-09-10T01:05:44.537Z",
+        "startedMs": 13549.583625
+      },
+      {
+        "shot": 5,
+        "started": "2026-09-10T01:05:44.538Z",
+        "startedMs": 13549.820334
+      },
+      {
+        "shot": 6,
+        "started": "2026-09-10T01:05:44.538Z",
+        "startedMs": 13550.122334
+      },
+      {
+        "shot": 7,
+        "started": "2026-09-10T01:05:44.538Z",
+        "startedMs": 13550.55575
+      },
+      {
+        "shot": 8,
+        "started": "2026-09-10T01:05:44.539Z",
+        "startedMs": 13550.917292
+      }
+    ],
+    "terminals": [
+      {
+        "shot": 7,
+        "admitted": 8,
+        "at": "2026-09-10T01:05:46.728Z"
+      },
+      {
+        "shot": 4,
+        "admitted": 8,
+        "at": "2026-09-10T01:05:47.167Z"
+      },
+      {
+        "shot": 3,
+        "admitted": 8,
+        "at": "2026-09-10T01:05:47.316Z"
+      },
+      {
+        "shot": 8,
+        "admitted": 8,
+        "at": "2026-09-10T01:05:47.648Z"
+      },
+      {
+        "shot": 2,
+        "admitted": 8,
+        "at": "2026-09-10T01:05:47.772Z"
+      },
+      {
+        "shot": 1,
+        "admitted": 8,
+        "at": "2026-09-10T01:05:47.904Z"
+      },
+      {
+        "shot": 6,
+        "admitted": 8,
+        "at": "2026-09-10T01:05:48.241Z"
+      },
+      {
+        "shot": 5,
+        "admitted": 8,
+        "at": "2026-09-10T01:05:48.372Z"
+      }
+    ]
+  },
+  "export": {
+    "path": "/tmp/c71-loopback-delivery/attempt-gbLhRW/profile/projects/未命名项目 09_10 09_05-mtutsqwp-c49c88fb/exports/nomi-export-202609100906.mp4",
+    "sha256": "760d8f6370e3b032f445462135bcc48c2d63d5cee93331d2c49657fa821f6e1b",
+    "bytes": 19796538,
+    "probe": {
+      "streams": [
+        {
+          "index": 0,
+          "codec_name": "h264",
+          "codec_long_name": "H.264 / AVC / MPEG-4 AVC / MPEG-4 part 10",
+          "profile": "High",
+          "codec_type": "video",
+          "codec_tag_string": "avc1",
+          "codec_tag": "0x31637661",
+          "width": 1920,
+          "height": 1080,
+          "coded_width": 1920,
+          "coded_height": 1080,
+          "closed_captions": 0,
+          "has_b_frames": 2,
+          "sample_aspect_ratio": "1:1",
+          "display_aspect_ratio": "16:9",
+          "pix_fmt": "yuv420p",
+          "level": 40,
+          "chroma_location": "left",
+          "refs": 1,
+          "is_avc": "true",
+          "nal_length_size": "4",
+          "r_frame_rate": "30/1",
+          "avg_frame_rate": "30/1",
+          "time_base": "1/15360",
+          "start_pts": 0,
+          "start_time": "0.000000",
+          "duration_ts": 983040,
+          "duration": "64.000000",
+          "bit_rate": "2406132",
+          "bits_per_raw_sample": "8",
+          "nb_frames": "1920",
+          "disposition": {
+            "default": 1,
+            "dub": 0,
+            "original": 0,
+            "comment": 0,
+            "lyrics": 0,
+            "karaoke": 0,
+            "forced": 0,
+            "hearing_impaired": 0,
+            "visual_impaired": 0,
+            "clean_effects": 0,
+            "attached_pic": 0,
+            "timed_thumbnails": 0
+          },
+          "tags": {
+            "language": "und",
+            "handler_name": "VideoHandler",
+            "vendor_id": "[0][0][0][0]"
+          }
+        },
+        {
+          "index": 1,
+          "codec_name": "aac",
+          "codec_long_name": "AAC (Advanced Audio Coding)",
+          "profile": "LC",
+          "codec_type": "audio",
+          "codec_tag_string": "mp4a",
+          "codec_tag": "0x6134706d",
+          "sample_fmt": "fltp",
+          "sample_rate": "44100",
+          "channels": 1,
+          "channel_layout": "mono",
+          "bits_per_sample": 0,
+          "r_frame_rate": "0/0",
+          "avg_frame_rate": "0/0",
+          "time_base": "1/44100",
+          "start_pts": 0,
+          "start_time": "0.000000",
+          "duration_ts": 2822400,
+          "duration": "64.000000",
+          "bit_rate": "59625",
+          "nb_frames": "2758",
+          "disposition": {
+            "default": 1,
+            "dub": 0,
+            "original": 0,
+            "comment": 0,
+            "lyrics": 0,
+            "karaoke": 0,
+            "forced": 0,
+            "hearing_impaired": 0,
+            "visual_impaired": 0,
+            "clean_effects": 0,
+            "attached_pic": 0,
+            "timed_thumbnails": 0
+          },
+          "tags": {
+            "language": "und",
+            "handler_name": "SoundHandler",
+            "vendor_id": "[0][0][0][0]"
+          }
+        }
+      ],
+      "format": {
+        "filename": "/tmp/c71-loopback-delivery/attempt-gbLhRW/profile/projects/未命名项目 09_10 09_05-mtutsqwp-c49c88fb/exports/nomi-export-202609100906.mp4",
+        "nb_streams": 2,
+        "nb_programs": 0,
+        "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+        "format_long_name": "QuickTime / MOV",
+        "start_time": "0.000000",
+        "duration": "64.000000",
+        "size": "19796538",
+        "bit_rate": "2474567",
+        "probe_score": 100,
+        "tags": {
+          "major_brand": "isom",
+          "minor_version": "512",
+          "compatible_brands": "isomiso2avc1mp41",
+          "encoder": "Lavf58.76.100"
+        }
+      }
+    }
+  },
+  "result": "assertions-and-screenshot-review-passed"
+}

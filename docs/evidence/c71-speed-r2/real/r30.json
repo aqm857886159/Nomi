@@ -1,0 +1,11 @@
+{
+  "firstTool": "1/1 (100%)",
+  "turns": "1/1 (100%)",
+  "scope": "First native storyboard write and completed planner turn; automatic reviews excluded.",
+  "toolWriteRate": {
+    "correct": 1,
+    "attempted": 1,
+    "percent": 100
+  },
+  "source": "native lane transcript; no fixture result substitution"
+}

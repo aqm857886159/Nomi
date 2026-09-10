@@ -1,0 +1,1 @@
+✅ 重活门岗通过：hardcoded-provider-limits=0 · sync-image-encode=5 · base64-into-store=0 · duplicate-node-size-bounds=0 · child-stdin-write-unguarded=0 · node-stream-into-response=0 · unguarded-fsync=0（棘轮只减不增）

@@ -1,0 +1,14 @@
+{
+  "dist": {
+    "version": 1,
+    "head": "de0c8877e29a90e310db5bf4f81280399163a1b0",
+    "tree": "941e6836a7ffff092a298fc61afcf06a37aff5e2",
+    "dirty": true
+  },
+  "electron": {
+    "version": 1,
+    "head": "de0c8877e29a90e310db5bf4f81280399163a1b0",
+    "tree": "941e6836a7ffff092a298fc61afcf06a37aff5e2",
+    "dirty": true
+  }
+}
