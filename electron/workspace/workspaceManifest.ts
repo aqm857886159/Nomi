@@ -8,6 +8,7 @@ import { readJsonFile } from "../jsonFile";
 import {
   withWorkspaceManifestTransaction,
   withWorkspaceManifestTransactionSync,
+  withWorkspaceManifestStagedTransaction,
   type WorkspaceManifestTransaction,
 } from "./workspaceManifestTransaction";
 import { WorkspaceManifestLockBusyError, type WorkspaceManifestLockOptions } from "./workspaceManifestLock";
@@ -447,6 +448,19 @@ export function withWorkspaceManifestMutation<T>(
   mutationOptions: WorkspaceManifestMutationOptions = {},
 ): Promise<T> {
   return withWorkspaceManifestTransaction(
+    rootPath,
+    (transaction) => callback(createMutationContext(transaction, mutationOptions)),
+    lockOptions,
+  );
+}
+
+export function withWorkspaceManifestStagedMutation<T>(
+  rootPath: string,
+  callback: (context: WorkspaceManifestMutationContext) => T extends PromiseLike<unknown> ? never : T,
+  lockOptions: WorkspaceManifestLockOptions = {},
+  mutationOptions: WorkspaceManifestMutationOptions = {},
+): Promise<T> {
+  return withWorkspaceManifestStagedTransaction<T>(
     rootPath,
     (transaction) => callback(createMutationContext(transaction, mutationOptions)),
     lockOptions,

@@ -862,96 +862,6 @@
     "64fe0feb0350e978eb0b8e06817b90607f79d28aa342f1fc453e4c93fcd1e82e": 1,
     "7dbaef465016e6073870241e334643ccba1b252e785b2f10ab6710cfad0fdc10": 1
   },
-  "tests/ux/scene3d-camera-move-ctxloss-recovery.walk.mjs": {
-    "0fe3c02fe18a34159bd771cb6f5c0d59039276790e75fc26fc8f97afeb87059e": 1,
-    "2515c4029624e01a6fe8651e0d0252bd23d79cd921a5d016b4e188bcda85766a": 1,
-    "eb52d9804764e3da556e29a833960311100da53f5a68b0a54e1ec2791b8dcc09": 1,
-    "0a041aceb565f55418d53aeaa838e07ede9b83db870a8065e4fda27aa28a23ea": 1
-  },
-  "tests/ux/scene3d-camera-move-retry.walk.mjs": {
-    "0fe3c02fe18a34159bd771cb6f5c0d59039276790e75fc26fc8f97afeb87059e": 1,
-    "2515c4029624e01a6fe8651e0d0252bd23d79cd921a5d016b4e188bcda85766a": 1,
-    "eb52d9804764e3da556e29a833960311100da53f5a68b0a54e1ec2791b8dcc09": 1,
-    "0a041aceb565f55418d53aeaa838e07ede9b83db870a8065e4fda27aa28a23ea": 1
-  },
-  "tests/ux/scene3d-camera-possess.walk.mjs": {
-    "2515c4029624e01a6fe8651e0d0252bd23d79cd921a5d016b4e188bcda85766a": 1,
-    "8f5c46559ae82e78c9c5badbcbae8dd294ecc1caa6ddaa020bd998b46e995017": 1,
-    "0a041aceb565f55418d53aeaa838e07ede9b83db870a8065e4fda27aa28a23ea": 1
-  },
-  "tests/ux/scene3d-character-drive.walk.mjs": {
-    "0fe3c02fe18a34159bd771cb6f5c0d59039276790e75fc26fc8f97afeb87059e": 1
-  },
-  "tests/ux/scene3d-context-loss-recovery.walk.mjs": {
-    "0fe3c02fe18a34159bd771cb6f5c0d59039276790e75fc26fc8f97afeb87059e": 1
-  },
-  "tests/ux/scene3d-exit-flush-recording.walk.mjs": {
-    "0fe3c02fe18a34159bd771cb6f5c0d59039276790e75fc26fc8f97afeb87059e": 1,
-    "2515c4029624e01a6fe8651e0d0252bd23d79cd921a5d016b4e188bcda85766a": 1
-  },
-  "tests/ux/scene3d-pose-click.walk.mjs": {
-    "eb52d9804764e3da556e29a833960311100da53f5a68b0a54e1ec2791b8dcc09": 1,
-    "0a041aceb565f55418d53aeaa838e07ede9b83db870a8065e4fda27aa28a23ea": 1
-  },
-  "tests/ux/scene3d-pose-i18n.walk.mjs": {
-    "7f249f3d87865d47ca686cd58e6c068279cb670649e8eca11d308b0c75a83b94": 1,
-    "8a12cd24aa874080aa28bce4b1fe6c38bcd465d621e8edc36c792cb8dc867fec": 1,
-    "1b5292a881ea5fb1d02b70e07ccbc59be3ccfdf8236e1b25a4c5a7e2fee8525c": 1,
-    "753a6f84004ebc8d02d01cde7b11c5e2468e8db2febcccc33c75a85dfc14aa03": 1,
-    "27ba9572529cf05fa048cba442ebe0562c4811016dde0f839a7e4e68d9405ef5": 1,
-    "50ca432897a644bf28f6b5423de1395fb866d3d305909ddf7b5324cf6ee1eb47": 1,
-    "bd86cec1ae4c3dc335993397b0312102111b67532f67f93687735adc69b06809": 1
-  },
-  "tests/ux/scene3d-pose-toggle-and-drive-keys.walk.mjs": {
-    "2515c4029624e01a6fe8651e0d0252bd23d79cd921a5d016b4e188bcda85766a": 2,
-    "0fe3c02fe18a34159bd771cb6f5c0d59039276790e75fc26fc8f97afeb87059e": 1
-  },
-  "tests/ux/scene3d-reference-pack.walk.mjs": {
-    "0fe3c02fe18a34159bd771cb6f5c0d59039276790e75fc26fc8f97afeb87059e": 1,
-    "6cb75fa44a98ee3086b96bdf522caa20f60f69aa5561105dc7e3b9650b1c1718": 1,
-    "cab7eaa863ebcec875dd971f5052f2588437cf802ea5297ecbedb342d31eebb0": 1,
-    "57b6b833e4047aaf001554cf513ef94a090fe0bda13e4c6c0b3c97e53a6b5db6": 1,
-    "4e998e41dd9167662f00014f04be974c06bf0fd19bc2b9fef0f1975c364f7109": 1,
-    "9e1ab72cabaf9f4e23736a428eadc6784eac72b3ba09489e3830aa0d5ad7dd7f": 1,
-    "2399b20e736a7cba481d6c7b6f05a6a3fcf2bb806ba1e98a06df072f8d4d23cc": 1,
-    "f88c1312b49559924a6a7ae44647a8d5c27dcfd50387158526264cef271e3c19": 1,
-    "ab12836a025d0864c5c39714b37a522d782390abef94bb52fd49330ff4685383": 1,
-    "4caf3b51fa9f8faaf257aad729430ca6cf45b87cf053941f2880fc5502674178": 1,
-    "82918d9ad272023253c4e055710d9261842761538d47ffbd699453306f6fb43c": 1,
-    "c769219e1222d3d8dee56344c2df8997b83618bdbcc30a6c071dab8bf4abfbea": 1,
-    "4ba5de21c19ccb22d7e68c3fce380320e44b2b3a1882f3c72b455e6df9fbcb06": 1,
-    "eb52d9804764e3da556e29a833960311100da53f5a68b0a54e1ec2791b8dcc09": 1,
-    "0a041aceb565f55418d53aeaa838e07ede9b83db870a8065e4fda27aa28a23ea": 1,
-    "d085acb2036322171aabe1a1fadc1aa73d620e953452f82dd928a76e6bd2c30c": 1,
-    "913078004eca28b1bd83e3268270b8f2f6729460ce09cf77e96ccd9763d39c6d": 1
-  },
-  "tests/ux/scene3d-take-record-pose.walk.mjs": {
-    "0fe3c02fe18a34159bd771cb6f5c0d59039276790e75fc26fc8f97afeb87059e": 1,
-    "2515c4029624e01a6fe8651e0d0252bd23d79cd921a5d016b4e188bcda85766a": 1
-  },
-  "tests/ux/scene3d-take-record.walk.mjs": {
-    "2515c4029624e01a6fe8651e0d0252bd23d79cd921a5d016b4e188bcda85766a": 1,
-    "eb52d9804764e3da556e29a833960311100da53f5a68b0a54e1ec2791b8dcc09": 1,
-    "0a041aceb565f55418d53aeaa838e07ede9b83db870a8065e4fda27aa28a23ea": 1,
-    "913078004eca28b1bd83e3268270b8f2f6729460ce09cf77e96ccd9763d39c6d": 1
-  },
-  "tests/ux/scene3d-toolbar-fit.walk.mjs": {
-    "0fe3c02fe18a34159bd771cb6f5c0d59039276790e75fc26fc8f97afeb87059e": 1
-  },
-  "tests/ux/scene3d-viewfinder-playback-marker.walk.mjs": {
-    "e9be941ff54fbdd14cc6c89ea7e770a4818240c56baf039096e7d95641de8aa7": 1,
-    "48efb259d71c8f160fd1afe37e5c5c5396373810281d696813df1605f80d02bd": 1,
-    "993899990fe1ec3586c0cafa4f4a8fac22cf07d4e573f1fff63d533e0fa7ca9d": 1,
-    "763a1d2de3c8e57774a651e2f596eb8457cf3af5810bb5b046cb9ae76ca7b119": 1
-  },
-  "tests/ux/scene3d-walk-squat-walk.walk.mjs": {
-    "0fe3c02fe18a34159bd771cb6f5c0d59039276790e75fc26fc8f97afeb87059e": 1
-  },
-  "tests/ux/scene3d-whitescreen-repro.walk.mjs": {
-    "0fe3c02fe18a34159bd771cb6f5c0d59039276790e75fc26fc8f97afeb87059e": 1,
-    "8f5c46559ae82e78c9c5badbcbae8dd294ecc1caa6ddaa020bd998b46e995017": 1,
-    "0a041aceb565f55418d53aeaa838e07ede9b83db870a8065e4fda27aa28a23ea": 1
-  },
   "tests/ux/screenshot-hotkey.walk.mjs": {
     "fb3f496324f82bb85b2be63003aec3f8acf5bfe2f95050cfd3507ebd2fef2dbc": 1,
     "34e1889db882bbb5de34b6b50d8d96ced9b8dd3f2b8ff88bde917336a4ca7514": 1,
@@ -1006,9 +916,6 @@
     "0ba92f5fb5f9aefa7dc1a40ca8010cc0fa37f344a293294f244ee8bd8e1f4bf0": 1,
     "28af47a1dbecf03a6450d8ff1ec4c0cd26dae38a9c729f181f3c1cdf33c9c9c0": 1,
     "8fb95b7263aab04b1d736ffba3f78861d9da2adaf05df0f38e23e43f27ffabc9": 1
-  },
-  "tests/ux/staging-pose-shots.walk.mjs": {
-    "bdc7865a3459b6790bd9b8071545543862af21515a73f7d73c23d157e4d55dc4": 1
   },
   "tests/ux/storyboard-agent-canonical-patch.e2e.mjs": {
     "97c72097e12d32047683735793283e267766648d7395cee76f2a1239fc88a7ae": 1,

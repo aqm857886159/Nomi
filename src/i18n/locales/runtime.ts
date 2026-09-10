@@ -42,7 +42,8 @@ export const zhRuntime = {
     shot: { menu: '镜头', title: '镜头', placeholder: '记录镜头设计、调度、对白或拍摄说明...' },
     output: { menu: '输出', title: '输出', placeholder: '整理最终输出说明或交付备注...' },
     panorama: { menu: '全景图', title: '全景图', placeholder: '上传或截取全景参考图...' },
-    scene3d: { menu: '3D 场景', title: '3D 场景', placeholder: '在 3D 场景中摆放模型并截图...' },
+
+    director: { menu: '导演台', title: '导演台', placeholder: '在 3D 导演台里摆位、运镜并出片...' },
     whiteboard: { menu: '画板', title: '画板', placeholder: '在画板里绘制参考，再描述要生成的画面...' },
     model3d: { menu: '3D 模型', title: '3D 模型', placeholder: '描述要生成的 3D 模型（外形、材质、风格）...' },
     video_depth_process: {
@@ -212,11 +213,7 @@ export const enRuntime = {
     shot: { menu: 'Shot', title: 'Shot', placeholder: 'Describe shot design, blocking, dialogue, or filming notes...' },
     output: { menu: 'Output', title: 'Output', placeholder: 'Add final output or delivery notes...' },
     panorama: { menu: 'Panorama', title: 'Panorama', placeholder: 'Upload or capture a panorama reference...' },
-    scene3d: {
-      menu: '3D Scene',
-      title: '3D Scene',
-      placeholder: 'Arrange models in the 3D scene and capture a frame...',
-    },
+    director: { menu: 'Director', title: 'Director', placeholder: 'Block, move the camera and render in the 3D director...' },
     whiteboard: {
       menu: 'Whiteboard',
       title: 'Whiteboard',

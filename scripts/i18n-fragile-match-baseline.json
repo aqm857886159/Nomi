@@ -2,7 +2,6 @@
   "electron/capabilityCore/mcpBriefIntake.ts": 1,
   "electron/catalog/assetLocalization.ts": 1,
   "electron/catalog/imageRouteFallback.ts": 2,
-  "src/workbench/generationCanvas/nodes/scene3d/attachCameraMoveToTarget.ts": 1,
-  "src/workbench/generationCanvas/nodes/scene3d/scene3dReferenceDirector.ts": 2,
+  "src/workbench/generationCanvas/nodes/director/agent/attachCameraMoveToTarget.ts": 1,
   "src/workbench/observability/classifyError.ts": 36
 }

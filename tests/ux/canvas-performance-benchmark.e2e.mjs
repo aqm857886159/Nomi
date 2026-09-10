@@ -1120,7 +1120,7 @@ async function runScenario({ scale, scenario, runIndex, rootDir }) {
     await cdp.send('Performance.enable').catch(() => {})
     await cdp.send('Memory.enable').catch(() => {})
     // eval v2 throttle leg: model a median machine. Same CDP call and shape used
-    // by scripts/scene3d-drag-jitter-walkthrough.mjs on this Electron build.
+    // by the (since retired) scene3d drag-jitter walkthrough on this Electron build.
     if (cpuThrottleRate > 1) {
       await cdp.send('Emulation.setCPUThrottlingRate', { rate: cpuThrottleRate }).catch(() => {})
     }

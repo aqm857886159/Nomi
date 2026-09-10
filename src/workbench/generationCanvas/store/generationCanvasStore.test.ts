@@ -230,8 +230,8 @@ describe('generationCanvasStore snapshot normalization', () => {
     expect(stateNode?.position).toEqual({ x: 123, y: 456 })
   })
 
-  it('keeps scene3d trajectory data in node meta across restore/read snapshot', () => {
-    const scene3dState = {
+  it('keeps director project data in node meta across restore/read snapshot', () => {
+    const directorProject = {
       objects: [],
       cameras: [],
       trajectories: [
@@ -267,20 +267,20 @@ describe('generationCanvasStore snapshot normalization', () => {
     useGenerationCanvasStore.getState().restoreSnapshot({
       nodes: [
         {
-          id: 'scene3d-1',
-          kind: 'scene3d',
-          title: '3D 场景',
+          id: 'director-1',
+          kind: 'director',
+          title: '导演台',
           position: { x: 10, y: 20 },
-          meta: { scene3dState },
+          meta: { directorProject },
         },
       ],
       edges: [],
-      selectedNodeIds: ['scene3d-1'],
+      selectedNodeIds: ['director-1'],
       groups: [],
     })
 
     const snapshot = useGenerationCanvasStore.getState().readSnapshot()
-    expect(snapshot.nodes[0]?.meta?.scene3dState).toEqual(scene3dState)
+    expect(snapshot.nodes[0]?.meta?.directorProject).toEqual(directorProject)
   })
 
   it('drops removed semantic scene nodes from legacy snapshots', () => {

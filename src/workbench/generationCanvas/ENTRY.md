@@ -10,7 +10,7 @@
 |---|---|---|---|
 | **components/** | 10 | 画布外壳与非节点 UI（工具栏、分组与选择覆盖层） | `GenerationCanvas.tsx`（React Flow 唯一入口）· `AgentPlanCard.tsx`（计划清单卡）；Agent 统一壳位于 `workbench/ai/ProjectAgentResidentShell.tsx` |
 | **reactFlow/** | 12 | React Flow 适配器、节点/边渲染器与画布交互容器 | `GenerationCanvasReactFlow.tsx` · `GenerationCanvasReactFlowNodes.tsx` · `generationCanvasReactFlowAdapter.ts` · `canvasDragDraft.ts` · `canvasDragWriteback.ts` |
-| **nodes/** | 42 | 节点渲染与节点内交互（最大子目录）| `BaseGenerationNode.tsx`（节点基座 952 行）· `NodeParameterControls.tsx` · `NodeGenerationComposer.tsx` · `Scene3DEditor.tsx` · `aspectRatio.ts`（比例） |
+| **nodes/** | 42 | 节点渲染与节点内交互（最大子目录）| `BaseGenerationNode.tsx`（节点基座 952 行）· `NodeParameterControls.tsx` · `NodeGenerationComposer.tsx` · `director/`（导演台节点 + 全屏壳 + AI 来导）· `aspectRatio.ts`（比例） |
 | **runner/** | 15 | 执行层：能不能跑、怎么发、错误分类、结果解析 | `generationNodeExecutor.ts` · `generationRunController.ts` · `catalogTask*.ts` · `classifyGenerationError.ts` · `usableVendorModel.ts` |
 | **model/** | 13 | 领域模型：图结构、类型、schema、节点元数据 | `generationCanvasTypes.ts` · `generationCanvasSchema.ts` · `graphOps.ts` · `nodeMetaFields.ts` · `generationNodeKinds.ts` |
 | **agent/** | 12 | 画布 agent：工具定义、应用工具调用、建节点、推时间轴 | `generationCanvasTools.ts` · `applyCanvasToolCall.ts` · `generationCanvasAgentClient.ts` · `availableModels.ts` · `plannedNodeMeta.ts` |
@@ -35,6 +35,7 @@
 | 状态/撤销重做/存盘快照 | `store/generationCanvasStore.ts` · `store/canvasHistory.ts` · `store/canvasSnapshotNormalizer.ts` |
 | 节点数据结构 / schema | `model/generationCanvasTypes.ts` · `model/generationCanvasSchema.ts` |
 | 定妆卡 | `fixation/buildFixationNode.ts` |
+| 导演台（`director` 节点，完整的 3D 导演台；Nomi 唯一的 3D 节点，老 `scene3d` 节点加载时经 `nodes/director/migration/` 迁成它） | `nodes/director/`（L2 见 `nodes/director/CLAUDE.md`；方案 `docs/plan/2026-09-02-director-console-v2.md`；dev 入口 `director-lab.html`） |
 | 推到时间轴 | `agent/sendGenerationNodeToTimeline.ts` · `agent/sendStoryboardToTimeline.ts` |
 
 ## 相关方案文档

@@ -29,7 +29,7 @@ import { fileURLToPath } from 'node:url'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
 // 真二进制资产：它们本来就该含 NUL，不在本门岗管辖范围。
-const BINARY_ASSET_EXT = /\.(png|jpe?g|gif|ico|icns|webp|avif|woff2?|ttf|otf|eot|mp4|mov|webm|mp3|wav|m4a|flac|zip|gz|tgz|bz2|7z|pdf|node|dylib|so|dll|exe|asar|bin|wasm|glb|gltf|hdr|exr|psd|sketch|db|sqlite3?|keystore|jks)$/i
+const BINARY_ASSET_EXT = /\.(png|jpe?g|gif|ico|icns|webp|avif|woff2?|ttf|otf|eot|mp4|mov|webm|mp3|wav|m4a|flac|zip|gz|tgz|bz2|7z|pdf|node|dylib|so|dll|exe|asar|bin|wasm|glb|gltf|fbx|spz|ply|splat|ksplat|sog|hdr|exr|psd|sketch|db|sqlite3?|keystore|jks)$/i
 
 // --cached 已跟踪 + --others 未跟踪，--exclude-standard 去掉 gitignore 的（node_modules/dist/截图…）。
 // **必须带 --others**：只扫已跟踪文件的话，一个刚写出来、还没 git add 的新文件带着裸 NUL 会

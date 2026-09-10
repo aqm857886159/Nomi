@@ -29,17 +29,28 @@ export type NomiSegmentedProps = {
   itemClassName?: string
   /** compact = 28px item height for dense canvas controls; default = 32px. */
   density?: 'compact' | 'default'
+  /**
+   * fill（默认）= 撑满父容器宽、超宽换行——参数面板用；
+   * content = 按内容收缩成一行、各项仍等宽——放在 flex 工具条 / 绝对定位的浮层里用。
+   * 为什么要分：auto-fit 列数靠「父容器的确定宽度」算，父级是 flex 项或 shrink-to-fit 容器时宽度不定，
+   * 浏览器按 min-content 只排出一列 → 四个工具竖着叠成一根柱子（2026-09-02 导演台顶栏栽过）。
+   */
+  fit?: 'fill' | 'content'
 }
 
-export function NomiSegmented({ value, options, onChange, ariaLabel, className, itemClassName, density = 'default' }: NomiSegmentedProps): JSX.Element {
+const FILL_STYLE: React.CSSProperties = { gridTemplateColumns: 'repeat(auto-fit, minmax(56px, 1fr))' }
+const CONTENT_STYLE: React.CSSProperties = { gridAutoFlow: 'column', gridAutoColumns: '1fr', width: 'max-content' }
+
+export function NomiSegmented({ value, options, onChange, ariaLabel, className, itemClassName, density = 'default', fit = 'fill' }: NomiSegmentedProps): JSX.Element {
   return (
     // grid 等宽列（2026-07-17 用户反馈：flex-1 下换行的孤项被拉伸，「多出来的选项要和其他一样大」）：
-    // auto-fit+minmax——所有项严格等宽；选项少于一行时空轨道塌陷、项拉伸**填满父容器**（1K/2K 两项
+    // fill: auto-fit+minmax——所有项严格等宽；选项少于一行时空轨道塌陷、项拉伸**填满父容器**（1K/2K 两项
     // 各占一半，不缩在左边）；选项多于一行时与 auto-fill 无差（换行项与上行同宽）。
+    // content: 单行 auto-flow column + auto-columns 1fr——宽度由最宽一项决定、各列等宽，不依赖父容器宽度。
     // 尺寸走 inline style 不用任意值类：dev 的 tailwind 生成缓存可能缺新类 → 布局静默塌（栽过两次）。
     <div
       className={cn('grid rounded-nomi bg-nomi-ink-05 p-1 gap-1', className)}
-      style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(56px, 1fr))' }}
+      style={fit === 'content' ? CONTENT_STYLE : FILL_STYLE}
       role="radiogroup"
       aria-label={ariaLabel}
     >

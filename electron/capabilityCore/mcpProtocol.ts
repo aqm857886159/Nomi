@@ -47,6 +47,7 @@ function withRequestSignal(params: Record<string, unknown>, signal?: AbortSignal
 }
 
 import { createGenerationGateConfirmation } from './mcpGateConfirmation'
+import { handleTrustDowngrade } from './mcpTrustDowngrade'
 import { createElicitationClient, readElicitationCapability } from './mcpElicitation'
 import { runIntegrationCredentialElicitation } from './mcpCredentialElicitation'
 import type { GenerationGateChallengeProjection, GenerationGateVerificationResult } from './mcpGateConfirmation'
@@ -464,6 +465,9 @@ export function createMcpProtocol(transport: McpTransport) {
           reply(id, buildToolResultPayload(tool.name, args, result))
           return
         }
+        // 2026-09-10：降到 budget_only（以后 ¥X 内不再逐镜问）= 一次付费放行 → 先在调用方客户端摊开
+        // 逐镜价目问一次真人，拿主进程铸的收据再改档（mcpTrustDowngrade.ts）。名字先同步判再 await。
+        if (tool.name === 'nomi_run_control' && await handleTrustDowngrade({ id, toolName: tool.name, args, built, routedMethod, requestSignal }, { invokeForRequest, requestGenerationConfirmation, reply, buildToolResultPayload, locale })) return
         if (tool.name === 'nomi_canvas_maintenance') {
           const nodeIds = Array.isArray(built.nodeIds) ? built.nodeIds.length : 0
           const confirm = await elicitBooleanConfirm({
