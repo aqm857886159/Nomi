@@ -6,6 +6,13 @@
 > 汇总裁决文档：[竞品核心架构对标报告](../../research/2026-09-09-competitor-core-architecture-benchmark.md) · [主报告](../../product/2026-09-09-nomi-competitive-master-report.md)
 > 本文是唯一开工入口；各方案文件自洽（目标/设计/落点/分期/验收门/回滚），细节溯源见文内链接。
 
+## 先查别人
+
+- 仓库里已有？—— agent 工具组按 capability 选、不按 skillKey 选的路由已经存在：`electron/harness/agentChatPolicy.ts:80` 的 `agentToolsForCapability`；本方案包「为什么方案里几乎没有『改 agent 本体』」一节直接建立在这个既有事实上——加剪辑能力=挂工具到某个 capability，不改运行时。
+- 生态里已有？—— [竞品核心架构对标报告](../../research/2026-09-09-competitor-core-architecture-benchmark.md)（12 条失败模式 F1–F12，全部 issue 编号实证）与 [主报告](../../product/2026-09-09-nomi-competitive-master-report.md) 是本索引全部方案的裁决依据，两份文档已交叉核对过 AdCraft / Velorn / OpenChatCut / TimelineStudio 四个直接对手的架构取舍。
+- 仓库里已有？—— [AdCraft 全面对比与方案](../../product/2026-09-09-adcraft-vs-nomi-full-comparison-and-plan.md) 的方案 A 是 P0-1（#646 三刀）的详版依据，两文件互相引用而不是各自重复调研。
+- 结论：本索引本身不引入新方案立项判断，是把已经做过的两轮独立调研（竞品架构对标 + AdCraft 全面对比）汇成一张可执行的路线图；「边界（不做）」一节的四条禁止项均来自这两份调研里已验证过的教训（AGPL 许可、ComfyUI 绑定、Palmier 商务路线）。
+
 ## 全局瓶颈与开工纪律
 
 **#646（agent 阶段 4 原子切换）过门之前，不开任何新战线。** 方案 A 是第一批里唯一的事。每条方案开工前过 P5（读真实外壳+样张拍板）；验收=R16 真实任务闭环+R13 走查；五门绿只是必要条件。先红后绿。

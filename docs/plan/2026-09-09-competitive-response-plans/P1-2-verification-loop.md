@@ -4,6 +4,13 @@
 
 > 详版：[agent 原生剪辑方案 D'](../2026-09-09-agent-native-editing-plan.md) · 竞品教训：OpenChatCut #113/#114、Velorn 95 分钟导出丢音轨、TimelineStudio #100 双端漂移
 
+## 先查别人
+
+- 生态里已有？—— [Agent 原生剪辑版图调研](../../research/2026-09-09-agent-native-video-editing-landscape.md) 已核实 `MartinDelophy/ai-video-editor`（Timeline Studio）2026-09-08 刚给 agent 加了「apply 前给语义 diff 预览」的机制，本方案「agent 抽帧自检引用帧号」的验证环设计与该先例同构，双端漂移（TimelineStudio #100）是它已踩过的坑，本方案的「同一帧 resolver」设计正是为规避这个已知失败模式。
+- 仓库里已有？—— 生成节点已有的帧解析实现在 `src/workbench/generationCanvas/runner/relayFrameResolver.ts:1`，`preview_timeline_frames` 要求的「renderer 用同一帧 resolver 抽帧」直接点名与这个既有文件同源，不是重新实现一套帧提取逻辑。
+- 仓库里已有？—— `get_media` 只回稳定 asset ID 不出本地路径的纪律已是既有约定：`src/workbench/generationCanvas/agent/gate.ts:36` 的 `get_media: { writes: false }` 门禁声明，本方案的抽帧返回格式沿用同一条纪律。
+- 结论：验证环不是自研新的渲染管线，是把已经存在的帧 resolver 包一层 agent 可调用的接口，同时吸收了 OpenChatCut/Velorn/TimelineStudio 三家已公开的失败教训。
+
 ## 目标
 
 agent 改完能「看见」结果；导出前失败在起跑前暴露。纪律基线：「agent 验证 ≠ 用户批准」「报告完成前验证真实结果+依赖元素」。

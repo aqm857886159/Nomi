@@ -4,6 +4,13 @@
 
 > 详版：[agent 原生剪辑方案 A'](../2026-09-09-agent-native-editing-plan.md) · 落点修正：[剪辑栈底层分析 §4-X1](../../research/2026-09-09-nomi-editing-architecture-analysis.md)
 
+## 先查别人
+
+- 仓库里已有？—— `src/workbench/timeline/kernel/timelineKernel.ts:10` 的 `export type TimelineOperation` 已经是时间轴写操作的单一真相源，`applyTimelineOperations`（:706）与 `applyTimelineOperation`（:785）已实现；本方案是给这个既有类型扩字段（重排/裁切/字幕/转场/配乐），不是新建第二套操作词表。
+- 仓库里已有？—— [剪辑栈底层分析 §4-X1](../../research/2026-09-09-nomi-editing-architecture-analysis.md) 已逐文件核过现有 kernel/adoption 两层的边界，本方案的「一致性门」设计直接沿用该分析定位的落点，不是重新探勘。
+- 仓库里已有？—— 可撤销提案的语义已有先例：`src/workbench/adoption/adoptionProposalRegistry.ts:36` 的 `getAdoptionProposal` 是 #232 候选/采纳桥的既有实现，本方案「每次写入=可撤销提案」复用同一套幂等模式而非另造。
+- 结论：契约层是在已验证的 kernel 类型上做扩展 + 复用既有 adoption 提案模式，核心新增只有「一致性门」这一处判定逻辑。
+
 ## 目标
 
 agent 能对时间轴做结构化写操作（重排/裁切/字幕/转场/配乐），每次写入=可撤销提案；操作词表单一真相源 = `timelineKernel.ts` 的 `TimelineOperation`。

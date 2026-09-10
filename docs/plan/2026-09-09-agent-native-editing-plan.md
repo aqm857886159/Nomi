@@ -8,6 +8,13 @@
 
 ---
 
+## 先查别人
+
+- 生态里已有？—— [Agent 原生剪辑版图调研](../research/2026-09-09-agent-native-video-editing-landscape.md) 已扫过 FableCut（项目文件即接口）、Timeline Studio（agent markers + 语义 diff 预览）、Velorn（100+ MCP 工具但绑死 ComfyUI）、SmartCut（寄生剪映工程文件）四条不同路线，本方案在「路线」一节逐条对比取舍，不是从零假设。
+- 仓库里已有？—— `src/workbench/timeline/kernel/timelineKernel.ts:10` 的 `TimelineOperation` 已是时间轴写操作的唯一真相源（`applyTimelineOperations` 在 :706、`applyTimelineOperation` 在 :785）；本方案的写入契约是在这个既有类型上扩字段，不是另起一套操作词表。
+- 仓库里已有？—— [剪辑栈底层分析](../research/2026-09-09-nomi-editing-architecture-analysis.md) 已逐文件核过现有剪辑侧代码边界（kernel / adoption / capability target 三层职责），本方案的分层沿用该分析的判断。
+- 结论：agent 原生剪辑不是要自研一条新的编辑引擎，是给已经存在的 kernel + adoption 两层加 agent 可写的工具面；这也是为什么下面九个方案（A'–G'）几乎全是「挂工具」而非「换内核」。
+
 ## 现状基线（当日实核，防拿旧文档开工）
 
 | 事实 | 锚点 |

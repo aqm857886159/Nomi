@@ -4,6 +4,13 @@
 
 > 详版依据：PR #646 三轮 C0 失败实录 + [AdCraft 对比文档方案 A](../../product/2026-09-09-adcraft-vs-nomi-full-comparison-and-plan.md)
 
+## 先查别人
+
+- 仓库里已有？—— A1 工具契约收敛的落点 `electron/shared/agentCapabilities/canvasWrite.ts:1` 已经是画布写工具的现有实现文件，本刀是在这个文件里收敛 schema，不是新建一层写入通路。
+- 仓库里已有？—— capability 路由 `electron/harness/agentChatPolicy.ts:80` 的 `agentToolsForCapability` 已存在，A1/A2/A3 三刀都在这条既有路由之上改契约/UI/提示词，不改路由本身。
+- 生态里已有？—— [AdCraft 全面对比与方案](../../product/2026-09-09-adcraft-vs-nomi-full-comparison-and-plan.md) 方案 A 一节已经把「operation 类路由字段按动作派生/给默认值」的哲学核对过 AdCraft 的对应实现，A1 的具体做法沿用该结论而非另起炉灶。
+- 结论：三刀全部落在已存在的文件与路由上做收敛式修改，PR #646 本身三轮失败的根因（schema 错/审批摩擦/语言）已有实录佐证，不是重新猜测。
+
 ## 目标
 
 agent 阶段 4 原子切换 PR #646 通过其既有合并门：L2 回放全绿（语料补到 200 回合）+ 打包 C0 真短片**一次通过**（出 MP4、13 截图全、R30 首调与回合成功率给正式数字）。三轮已失败根因不是模型能力，是三件可修的事。

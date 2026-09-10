@@ -4,6 +4,13 @@
 
 > 详版：[agent 原生剪辑方案 B'](../2026-09-09-agent-native-editing-plan.md) · 竞品依据：OpenChatCut/ChatCut/FireRed 全部以 ASR 为剪辑 agent 地基
 
+## 先查别人
+
+- 依赖/仓库里已有？—— whisper 转写链路已经存在，不需要新接第二个 ASR 供应商：`electron/video/extractAudioTrack.ts:1`（音轨提取）+ `electron/audioTaskRunner.ts:1`（转写任务调度）；本方案「引擎已有 whisper」的前提在 [方案包 INDEX 路线图](INDEX.md) 里也标注了「无（引擎已有 whisper）」的依赖状态。
+- 生态里已有？—— [AI 视频编辑版图与缺口](../../research/2026-09-09-ai-video-editing-landscape-and-gap.md) 已核过 `modelscope/FunClip`（FunASR Paraformer 词级时间戳 + 选段式剪辑）与 FireRed-OpenStoryline（ASR 口播粗剪，2026-03 上线）两条独立实现路径，transcript 层的「词级时间戳→项目资产」设计与这两者同构，不是本方案独创的假设。
+- 仓库里已有？—— 时间轴一致性门依赖的操作类型已在 `src/workbench/timeline/kernel/timelineKernel.ts:10` 定义，transcript 资产要投影进文本式剪辑（P1-1）时复用同一套类型，不新起第二套帧/时间码表示。
+- 结论：transcript 层是给现有 whisper 链路加一层「词级时间戳资产化」的封装，供 P1-1/语义选段/口播粗剪三条下游线复用，不新接供应商也不新造时间码系统。
+
 ## 目标
 
 agent 能「听见」视频：词级时间戳转写成为项目资产，支撑文本式剪辑（P1-1）、语义选段、口播粗剪三条线。

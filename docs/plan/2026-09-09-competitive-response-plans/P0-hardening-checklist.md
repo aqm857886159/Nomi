@@ -4,6 +4,13 @@
 
 > 详版：[竞品核心架构对标报告](../../research/2026-09-09-competitor-core-architecture-benchmark.md)（12 条失败模式 F1–F12，全部 issue 编号实证）
 
+## 先查别人
+
+- 生态里已有？—— 本清单 N1–N8 的每一条都锚定 [竞品核心架构对标报告](../../research/2026-09-09-competitor-core-architecture-benchmark.md) 里已经用 issue 编号实证过的失败模式（F1–F12），不是臆测出来的假想问题——例如 N1 对应 Velorn #108（ComfyUI 动态 COMBO 解析崩溃）、N4 对应 OpenChatCut #113（read 结果省略媒体关联导致 agent 误判）。
+- 仓库里已有？—— N4「读模型完备性」要收紧的落点已经存在实现：`electron/video/deconstructVideo.ts:1` 是当前拆解引擎读取媒体信息的实际文件，N4 的判定完备性检查加在这个既有读取路径上，不新建读取通路。
+- 仓库里已有？—— N1/N2 涉及的接入认证矩阵已经存在于本仓：`electron/integrationCertification/httpConnector.ts:19`，本清单是给这个既有认证矩阵加实测项，不新建一套认证框架。
+- 结论：N1–N8 全部是「已发生在同类产品身上、有 issue 号可查」的失败模式在 Nomi 自己代码上的对账用例，属于治未病而非猜测性加固。
+
 ## P0 三条（小而硬，先红后绿）
 
 ### N1 · ComfyUI 动态 COMBO 对账用例（治 F5）

@@ -4,6 +4,13 @@
 
 > 详版：[AdCraft 对比文档方案 B/C/D/E](../../product/2026-09-09-adcraft-vs-nomi-full-comparison-and-plan.md) · 本文为执行卡片
 
+## 先查别人
+
+- 仓库里已有？—— 生产流程引擎已经存在：`electron/productionRun/productionPlaybooks.ts:33` 定义了 `brief→direction→script→storyboard→build→generate→qa→assemble→export` 九阶段 playbook；本方案「一句 brief→agent 跑完九阶段出粗剪 MP4」的验收目标是走通这条既有引擎，不是新建一套流水线。
+- 仓库里已有？—— capability 路由 `electron/harness/agentChatPolicy.ts:80` 的 `agentToolsForCapability` 已存在，本文「角色化包装=纯 UI 投影」的判断依据是这条既有路由——角色只是给同一个 capability 的工具组换皮，不是真的多开一个 agent 实例。
+- 生态里已有？—— [AdCraft 全面对比与方案](../../product/2026-09-09-adcraft-vs-nomi-full-comparison-and-plan.md) 方案 B/C/D/E 一节已经把「拉片复刻」「管线硬化」「资产包」「对白 TTS」四条差异化叙事逐条核对过 AdCraft 的对应实现，本执行卡片是把那份对比落成分期任务，不是重新调研。
+- 结论：制作线深度的四条线全部建立在已存在的 productionRun 引擎 + capability 路由之上，新增工作量集中在拆解面板 UI 与管线硬化的具体实现，不涉及新架构。
+
 ## B 拉片复刻合龙（P0→P2）
 
 差异化叙事=「**对标素材库+拉片**」：#619 找参考（在飞）→ #259 拆解引擎（九成熟）→ 拆解面板 → 可编辑工作流 → 局部复刻。

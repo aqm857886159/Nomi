@@ -4,6 +4,13 @@
 
 > 详版：[agent 原生剪辑方案 C'](../2026-09-09-agent-native-editing-plan.md) · 范式鼻祖：Descript；开源实证：OpenChatCut read_script/apply_script
 
+## 先查别人
+
+- 生态里已有？—— [AI 视频编辑版图与缺口](../../research/2026-09-09-ai-video-editing-landscape-and-gap.md) 已核过 `modelscope/FunClip`（选文本段/说话人→剪出对应片段）与 FireRed-OpenStoryline（全 NL 剪辑：切/换/重排/调色/字体/位置）两条独立的文本式剪辑实现，「文本改动=视频改动」不是本方案独创的假设，是这个赛道的共识范式（Descript 首创，多家跟进）。
+- 仓库里已有？—— 序列化器要投影的时间轴数据已有唯一真相源：`src/workbench/timeline/kernel/timelineKernel.ts:10` 的 `TimelineOperation`；本方案「segment-id 编码的 Markdown」是这个既有类型的一个视图/投影，不是给时间轴另开一份平行状态。
+- 仓库里已有？—— transcript 层（[P0-3](P0-3-transcript-layer.md)）已经规划复用现有 whisper 链路（`electron/video/extractAudioTrack.ts:1`）产出词级时间戳，本方案的 segment-id 编码直接消费 P0-3 的产物，不重复造一份转写。
+- 结论：文本式剪辑是「既有 kernel 数据 + 既有 transcript 产物」的一层 Markdown 投影/反投影，双向序列化本身是新增代码，但两端的数据源都已存在，不是从零建模型。
+
 ## 目标
 
 时间轴可物化为 segment-id 编码的 Markdown，人或 agent 改文本=剪辑视频；序列化器同时服务 agent 工具、调试与未来互操作。

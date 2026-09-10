@@ -7,6 +7,13 @@
 
 ---
 
+## 先查别人
+
+- 仓库里已有？—— transcript 层要的音频提取链路已经存在：`electron/video/extractAudioTrack.ts:1`（提取音轨）+ `electron/audioTaskRunner.ts:1`（whisper 调度），本施工图 §「复用 extractAudioTrack + whisper verbose_json（#259 同链路）」直接点名复用，不新起第二条 ASR 管线。
+- 仓库里已有？—— 工具挂载的落点在 [P0-2 时间轴写入契约](P0-2-timeline-write-contract.md) 已定的 `TimelineOperation`（`src/workbench/timeline/kernel/timelineKernel.ts:10`）之上，本文只补写码级的 schema/端口细节，不重复定义操作词表。
+- 生态里已有？—— [工具面政策](../../research/2026-09-09-agent-tool-surface-minimalism.md) 已调研过工具数量膨胀后的检索/选择成本（ToolSearch 延迟激活的取舍），本文「工具面超过 ~30 个时再上 ToolSearch」直接沿用该结论，不是本文自己拍的数字。
+- 结论：本施工图不引入新依赖、不新建并行链路，全部落点复用现成的 kernel 类型与音频提取/转写调度。
+
 ## 0. 现成模板（照抄的接线模式，当日实核）
 
 ```

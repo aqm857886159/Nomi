@@ -4,6 +4,13 @@
 
 > 详版：[agent 原生剪辑方案 F'/G'](../2026-09-09-agent-native-editing-plan.md) · [AdCraft 方案 F/G](../../product/2026-09-09-adcraft-vs-nomi-full-comparison-and-plan.md)
 
+## 先查别人
+
+- 仓库里已有？—— #232 候选/采纳桥的幂等模式已经实现在 `src/workbench/adoption/adoptionProposalRegistry.ts:36`（`getAdoptionProposal`）；本方案「资产 lineage + 重生成两段式候选→确认」是复用这个既有语义扩到剪辑侧，不是新造一套版本模型。
+- 生态里已有？—— [AdCraft 全面对比与方案](../../product/2026-09-09-adcraft-vs-nomi-full-comparison-and-plan.md) 方案 F/G 一节已经核过 AdCraft 的 supersession/revision candidates 与 OpenCreator「每次修改新版本」两种实现，本方案的版本语义是在这两者之间做了取舍（kernel diff 而非整 doc 替换），取舍依据已写在正文。
+- 仓库里已有？—— 时间轴写操作的单一真相源 `src/workbench/timeline/kernel/timelineKernel.ts:10` 已存在，命名版本存 diff 的设计建立在这个既有类型可被 diff 的前提上，不需要新的数据结构。
+- 结论：F 语义（候选/版本）复用已有的 adoption 幂等模式而非双轨并行；OpenChatCut 的「整 doc 替换 + changeLog」教训已被本方案明确规避（正文已写明理由：kernel diff 更省）。
+
 ## F+M-F' 候选版本/回滚（生成+剪辑两侧统一）
 
 - 资产 `lineage`（来源/生成参数/被谁引用）+ 重生成两段式「候选→确认」（复用 #232 候选语义+采纳桥幂等模式）；语义对标 AdCraft supersession/revision candidates 与 OpenCreator「每次修改新版本」。
