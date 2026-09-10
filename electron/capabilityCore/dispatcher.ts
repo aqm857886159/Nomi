@@ -380,7 +380,7 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
       const withHandles = await Promise.all(projects.map(async (project) => {
         try {
           const selection = await projectSession.authority.issueProjectSelection('listed_project', project.id, projectSession.connection)
-          return { ...project, projectSelectionHandle: selection.token }
+          return { ...project, projectSelectionHandle: selection.handle.handleId }
         } catch {
           return project
         }
@@ -395,7 +395,7 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
         created.id,
         ctx.projectSession.connection,
       )
-      return { ...created, projectSelectionHandle: selection.token }
+      return { ...created, projectSelectionHandle: selection.handle.handleId }
     }
     case 'models.list':
       return { models: listAvailableModels() }
@@ -727,6 +727,7 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
         {
           kind: params.kind as 'http-api-provider' | 'comfyui-workflow',
           name: params.name as string,
+          ...(typeof params.sessionId === 'string' ? { sessionId: params.sessionId } : {}),
           ...(typeof params.baseUrl === 'string' ? { baseUrl: params.baseUrl } : {}),
           ...(typeof params.docs === 'string' ? { docs: params.docs } : {}),
           ...(typeof params.providerKind === 'string' ? { providerKind: params.providerKind } : {}),
@@ -777,11 +778,15 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
         params.idempotencyKey as string,
         params.receipt as string,
       )
-    case 'integration.get':
-      return (ctx.integrationSessions || getIntegrationSessionService()).get(
-        params.sessionId,
-        ctx.origin?.host || 'external',
-      )
+    case 'integration.get': {
+      const sessions = ctx.integrationSessions || getIntegrationSessionService()
+      const owner = ctx.origin?.host || 'external'
+      // 不带 sessionId = 「我把 id 弄丢了，给我看看有哪些会话」。修复前这里直接报 Invalid sessionId，
+      // 而 MCP 面上没有第二条路，实测里 agent 只能去盘上 grep 我们的日志找回 id。
+      return typeof params.sessionId === 'string' && params.sessionId.trim()
+        ? sessions.get(params.sessionId, owner)
+        : sessions.list(owner)
+    }
     case 'integration.cancel':
       return (ctx.integrationSessions || getIntegrationSessionService()).cancel(
         params.sessionId,

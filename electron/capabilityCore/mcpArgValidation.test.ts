@@ -118,6 +118,25 @@ describe('MCP tools/call schema boundary', () => {
     }
   })
 
+  it('enforces conditional required rules instead of only advertising them', () => {
+    // 「广告出去的 schema」和「运行时真正校验的那份」必须是同一份。条件必填是标准 JSON Schema
+    // 的 if/then（draft-07 §6.6），2026-09-10 实测里 22 次失败调用有 9 次就是它没被表达出来的代价。
+    const schema = {
+      type: 'object',
+      properties: { action: { type: 'string', enum: ['a', 'b'] }, only: { type: 'string' } },
+      required: ['action'],
+      allOf: [{ if: { properties: { action: { const: 'a' } } }, then: { required: ['only'] } }],
+      additionalProperties: false,
+    }
+    expect(findUnsupportedSchemaFeatures(schema)).toEqual([])
+    expect(validateToolArguments('conditional', schema, { action: 'a' })?.message).toContain('缺少必填参数')
+    expect(validateToolArguments('conditional', schema, { action: 'a', only: 'x' })).toBeNull()
+    // 分支不匹配时那条 required 不许生效。
+    expect(validateToolArguments('conditional', schema, { action: 'b' })).toBeNull()
+    // `if` 自己那条英文错不许泄漏到模型看到的文案里。
+    expect(validateToolArguments('conditional', schema, { action: 'a' })?.message).not.toContain('must match')
+  })
+
   it('keeps the entire catalog inside the validator-supported schema subset', () => {
     const unsupported = MCP_TOOL_CATALOG.flatMap((tool) => findUnsupportedSchemaFeatures(tool.inputSchema).map((issue) => `${tool.name}: ${issue}`))
     expect(unsupported).toEqual([])

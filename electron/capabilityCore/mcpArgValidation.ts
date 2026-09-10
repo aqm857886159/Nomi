@@ -9,6 +9,10 @@ export const SUPPORTED_SCHEMA_KEYWORDS = new Set([
   'minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum', 'minItems', 'maxItems',
   'minLength', 'maxLength', 'default', 'description', '$ref', '$schema', '$defs', 'definitions',
   'anyOf', 'oneOf', 'allOf',
+  // 条件必填的标准写法（JSON Schema draft-07 §6.6，Ajv 原生支持）。加进白名单是因为
+  // 「广告出去的 schema」和「运行时真正校验的 schema」必须是同一份：nomi_integration 的
+  // 必填集按 action 分支，2026-09-10 实测里那 9 次「schema 撒谎」就是它没被表达出来的代价。
+  'if', 'then', 'const',
 ])
 export const SUPPORTED_SCHEMA_TYPES = new Set(['object', 'string', 'array', 'number', 'integer', 'boolean', 'null'])
 const ajv = new Ajv({ allErrors: true, strictSchema: true, strictTypes: false, strictRequired: false, strictNumbers: true, verbose: true, allowUnionTypes: true, addUsedSchema: false })
@@ -40,6 +44,7 @@ function issueFrom(error: ErrorObject): ValidationIssue {
     case 'maxLength': message = `最多 ${limit} 个字符`; break
     case 'minItems': message = `至少 ${limit} 项`; break
     case 'maxItems': message = `最多 ${limit} 项`; break
+    case 'if': message = '这个 action 还缺必填参数'; break
   }
   return { path, message }
 }
@@ -58,7 +63,11 @@ export function validateToolArguments(toolName: string, schema: unknown, args: u
     }
   }
   if (validate(args)) return null
-  const detail = (validate.errors ?? []).map(issueFrom).map(issue => issue.path ? `${issue.path}：${issue.message}` : issue.message).join('；')
+  // `if` 自己那条错（"must match then schema"）不带信息量：真正的原因是 then 里的 required，
+  // 它已经作为独立一条报出来了。只在没有别的错时才保留它，避免同一件事说两遍还夹一句英文。
+  const raw = validate.errors ?? []
+  const meaningful = raw.filter((error) => error.keyword !== 'if')
+  const detail = (meaningful.length ? meaningful : raw).map(issueFrom).map(issue => issue.path ? `${issue.path}：${issue.message}` : issue.message).join('；')
   return Object.assign(new Error(`参数不符合 ${toolName} 的契约 —— ${detail}`), { code: 'capability_input_invalid' })
 }
 
@@ -74,6 +83,7 @@ export function findUnsupportedSchemaFeatures(schema: unknown, path = ''): strin
       for (const [child, childSchema] of Object.entries(value)) found.push(...findUnsupportedSchemaFeatures(childSchema, path ? `${path}.${child}` : child))
     }
     if (key === 'items' || key === 'additionalProperties') found.push(...findUnsupportedSchemaFeatures(value, `${path}[]`))
+    if (key === 'if' || key === 'then') found.push(...findUnsupportedSchemaFeatures(value, `${path}/${key}`))
     if (['anyOf', 'oneOf', 'allOf'].includes(key) && Array.isArray(value)) value.forEach((branch, index) => found.push(...findUnsupportedSchemaFeatures(branch, `${path}/${key}/${index}`)))
   }
   return found

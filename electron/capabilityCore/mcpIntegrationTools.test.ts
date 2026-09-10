@@ -164,7 +164,7 @@ describe("MCP integration tool contract", () => {
     await expect(dispatch("integration.propose", {
       sessionId: created.id, expectedRevision: ready.revision,
       proposal: { candidates: [{ modelKey: "relay-text", kind: "text" }], selections: [{ modelKey: "relay-text" }] },
-    }, { integrationSessions: sessions, origin: { host: "codex" } } as never)).rejects.toThrow(/stale/);
+    }, { integrationSessions: sessions, origin: { host: "codex" } } as never)).rejects.toThrow(/behind the session/);
   });
 
   it("rejects an invalid ComfyUI proposal before the CAS write", async () => {
