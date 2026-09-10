@@ -4,6 +4,48 @@ vi.mock("electron", () => ({ webContents: { fromId: () => null } }));
 
 import { cancelComfyuiPrompt, computeOverallPercent, parsePreviewFrame } from "./comfyuiProgressSocket";
 
+// ── 连接生命周期回归（open 超时必须终止挂起的 ws 并排程重连）──────────────────────────────
+// 场景：ws 一直停在 CONNECTING（服务挂起/网络黑洞）。open 800ms 超时 settleReady(false)，
+// 但旧实现不 close 这个僵尸 ws——没有 close 事件 → drop 不跑 → 不重连，且 ensureSocket
+// 对后续 watcher 永远返回那份已 settle(false) 的 ready。修复：超时即 close()，借 close
+// 事件走 drop → 仍有 watcher 时 3s 后重连。
+const fakeSockets = vi.hoisted(() => {
+  class FakeWebSocket {
+    static CONNECTING = 0; static OPEN = 1; static CLOSING = 2; static CLOSED = 3;
+    binaryType = "";
+    closeCalled = false;
+    readonly listeners = new Map<string, Array<(event?: unknown) => void>>();
+    constructor(public url: string) { fakeSockets.instances.push(this); }
+    addEventListener(type: string, listener: (event?: unknown) => void): void {
+      const list = this.listeners.get(type) ?? [];
+      list.push(listener);
+      this.listeners.set(type, list);
+    }
+    send(): void { /* 不关心 */ }
+    close(): void {
+      if (this.closeCalled) return;
+      this.closeCalled = true;
+      this.emit("close");
+    }
+    emit(type: string): void { for (const listener of this.listeners.get(type) ?? []) listener({}); }
+  }
+  const fakeSockets = { instances: [] as Array<InstanceType<typeof FakeWebSocket>>, FakeWebSocket };
+  return fakeSockets;
+});
+
+vi.mock("undici", () => ({ WebSocket: fakeSockets.FakeWebSocket }));
+vi.mock("./systemProxy", () => ({ getAppDispatcher: async () => ({}) }));
+vi.mock("./comfyui/clientSession", () => ({
+  COMFYUI_CLIENT_FEATURE_FLAGS: { all: true },
+  getComfyuiClientId: () => "test-client",
+}));
+vi.mock("./catalog/catalogStore", async (importOriginal) => ({
+  ...await importOriginal<typeof import("./catalog/catalogStore")>(),
+  readCatalog: () => ({ vendors: [], models: [], mappings: [] }),
+}));
+
+import { watchComfyuiTask } from "./comfyuiProgressSocket";
+
 describe("parsePreviewFrame（ComfyUI ws 二进制帧 [>I event][>I format][bytes]）", () => {
   const frame = (event: number, format: number, payload: Buffer) => {
     const head = Buffer.alloc(8);
@@ -127,4 +169,30 @@ describe("终态事件口径（真服务器实测：全缓存那轮不发 execut
       expect(isComfyuiTerminalEvent(type), String(type)).toBe(false);
     }
   });
+
 });
+
+describe("ws 连接生命周期（open 超时 → 终止僵尸连接并重连）", () => {
+  it("open 800ms 超时后 close 挂起的 ws；仍有 watcher → 3s 后重连一次", async () => {
+    vi.useFakeTimers();
+    try {
+      const watch = watchComfyuiTask({ promptId: "p-timeout-1", nodeId: "n1", taskKind: "text_to_image" }, 1);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(fakeSockets.instances.length).toBe(1);
+      const first = fakeSockets.instances[0];
+      expect(first.closeCalled).toBe(false);
+
+      // 800ms open 超时：必须 close 僵尸连接（借 close 事件走 drop → 排程重连）。
+      await vi.advanceTimersByTimeAsync(800);
+      expect(first.closeCalled).toBe(true);
+      await watch;
+
+      // drop 看到仍有 watcher → 3s 后重连（修复前：无 close 事件，永远只有第一个实例）。
+      await vi.advanceTimersByTimeAsync(3000);
+      expect(fakeSockets.instances.length).toBe(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
