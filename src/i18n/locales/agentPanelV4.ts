@@ -357,8 +357,12 @@ export const zhAgentPanelV4 = {
   /** 确认钮：动词 + 这一刻的合计。改了参数它当场跟着变。 */
   spendParamsConfirm: '生成 {{amount}}',
   spendParamsConfirmUnknown: '仍要生成',
-  /** 整批一次过。逐镜看完再按，所以它是次动作、不是主动作。 */
-  spendParamsGenerateAll: '全部生成 {{amount}}',
+  /** 范围切到「全部」后的同一颗主按钮：多印一句「几镜」，因为这时的数不再是眼前这一页的。 */
+  spendParamsConfirmAll: '生成 {{count}} 镜 {{amount}}',
+  /** 范围切换两档（2026-09-10 v3：批量不再是第二颗文字按钮，是同一个决定的范围）。 */
+  spendParamsScopeEach: '逐镜',
+  spendParamsScopeAll: '全部',
+  spendParamsScopeAria: '生成范围',
   spendParamsDecline: '不要',
   spendParamsScopeUnknown: '价格没取到。要继续就得接受「花多少事后才知道」。',
   qualityStandard: '标准画质',
@@ -377,6 +381,8 @@ export const zhAgentPanelV4 = {
   /** 介入槽翻页器（`‹ 2/4 ›`）的无障碍名。 */
   pagerPrev: '上一张',
   pagerNext: '下一张',
+  /** 键盘翻页提示：只印两个箭头字符（不是一句说明；说明会让用户多读一行）。 */
+  pagerKeyHint: '←→',
 
   slotThreeEdits: '3 处改动，已在时间轴高亮',
   slotEditTransition: '转场 · 镜头 2→3 叠化 12 帧',
@@ -720,7 +726,10 @@ export const enAgentPanelV4 = {
   spendParamsShot: 'Shot {{number}}',
   spendParamsConfirm: 'Generate {{amount}}',
   spendParamsConfirmUnknown: 'Generate anyway',
-  spendParamsGenerateAll: 'Generate all {{amount}}',
+  spendParamsConfirmAll: 'Generate {{count}} shots {{amount}}',
+  spendParamsScopeEach: 'Per shot',
+  spendParamsScopeAll: 'All',
+  spendParamsScopeAria: 'Generation scope',
   spendParamsDecline: 'No',
   spendParamsScopeUnknown: 'No price came back. Continuing means you only learn the cost afterwards.',
   qualityStandard: 'Standard',
@@ -736,6 +745,7 @@ export const enAgentPanelV4 = {
 
   pagerPrev: 'Previous',
   pagerNext: 'Next',
+  pagerKeyHint: '←→',
 
   slotThreeEdits: '3 edits, highlighted on the timeline',
   slotEditTransition: 'Transition · 12-frame dissolve, shot 2→3',

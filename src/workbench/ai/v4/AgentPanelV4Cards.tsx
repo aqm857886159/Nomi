@@ -14,6 +14,7 @@ import { V4Row } from './AgentPanelV4Row'
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { AgentPanelV4Markdown } from './AgentPanelV4Markdown'
+import { NomiSegmented } from '../../../design'
 import { cn } from '../../../utils/cn'
 import {
   ActionIcon,
@@ -172,25 +173,34 @@ function SlotIcon({ kind }: { kind: V4InterventionKind }): JSX.Element {
 }
 
 /**
- * 卡顶的翻页器（`‹ 2/4 ›`）。
+ * 翻页器（`‹ 2/4 ›`）+ 范围切换（`逐镜 | 全部`）+ 键盘提示（`←→`）。
  *
- * 它长在槽头的内容流里、紧跟标题与徽标，**不靠自动外边距顶到右缘**
- * （2026-09-09 用户拍板的通用规则；`check:tokens` 对 `src/workbench/ai/` 是硬零）。
- * 槽头本来就只有三四个词，翻页器跟在后面读起来是「这张卡是第几张」，
- * 顶到右缘反而把它和它在说的那张卡拉开了。
+ * **2026-09-10 v3：它从槽头搬到了动作行上方那一行。** 两条理由：
  *
- * 只有一项时调用方不传 `pager`，整个翻页器不渲染——「1/1」是一句废话。
+ * ① 它现在决定主按钮上印的那个数——「逐镜」印这一页的价、「全部」印合计。
+ *    改一个数的控件必须和那个数在一处，否则用户按下去之前得在两处之间来回对。
+ * ② 槽头在 390px 面板里已经排满了（icon + 标题 + 「付费 · Nomi 选的」），
+ *    再塞一个范围切换就会挤出视口——而范围切换和翻页器必须挨着（用户 2026-09-10：
+ *    「翻页器旁加一个『全部』切换」）。
+ *
+ * 排布仍守 2026-09-09 的通用规则：三件都在内容流里紧跟彼此，**不靠自动外边距顶到右缘**
+ * （`check:tokens` 对 `src/workbench/ai/` 是硬零——连注释里写出那个类名都会被它数进去）。
+ *
+ * 只有一项时调用方不传 `pager`，整行不渲染——「1/1」是一句废话，而单镜卡也没有「全部」可言。
  */
 function V4Pager({
   pager,
   onPage,
+  onScope,
 }: {
   pager: NonNullable<InterventionData['pager']>
   onPage?: (index: number) => void
+  onScope?: (value: 'each' | 'all') => void
 }): JSX.Element {
   const { t } = useTranslation()
   const step = (delta: number): void => onPage?.((pager.index + delta + pager.total) % pager.total)
   const arrow = 'flex size-5 shrink-0 items-center justify-center rounded-nomi-sm text-nomi-accent hover:bg-nomi-info-edge disabled:opacity-40'
+  const scope = pager.scope
   return (
     <V4Row as="div" className="shrink-0 gap-0.5 font-normal" data-v4-block="pager">
       <button type="button" className={arrow} aria-label={t('agentPanelV4.pagerPrev')} disabled={pager.total < 2} onClick={() => step(-1)} data-v4-control="pager-prev">
@@ -200,6 +210,29 @@ function V4Pager({
       <button type="button" className={arrow} aria-label={t('agentPanelV4.pagerNext')} disabled={pager.total < 2} onClick={() => step(1)} data-v4-control="pager-next">
         <IconChevronRight size={12} aria-hidden="true" />
       </button>
+      {/* 键盘提示：只印两个箭头。它不是说明文字，是**告诉你这里有快捷键**的最短形式；
+          写成「按左右键翻页」就是让用户多读一行（D1）。 */}
+      {pager.keyHint ? (
+        <span className="ml-1 shrink-0 select-none text-micro text-nomi-ink-40" data-v4-block="pager-keyhint">
+          {pager.keyHint}
+        </span>
+      ) : null}
+      {scope ? (
+        <NomiSegmented
+          value={scope.value}
+          onChange={(value) => onScope?.(value === 'all' ? 'all' : 'each')}
+          ariaLabel={scope.ariaLabel}
+          density="compact"
+          // 宽度写死 w-32（128px）不是凑数：NomiSegmented 的列是 `auto-fit, minmax(56px, 1fr)`，
+          // 容器窄于「2×56 + 列间距 4 + 内边距 8 = 124」时 auto-fit 会塌成一列，
+          // 两档就竖着摞起来（v3 首轮实测就是这样）。128 是能横着放下两档的最小整数格。
+          className="ml-1.5 w-32 shrink-0"
+          options={[
+            { value: 'each', label: scope.eachLabel },
+            { value: 'all', label: scope.allLabel },
+          ]}
+        />
+      ) : null}
     </V4Row>
   )
 }
@@ -256,6 +289,7 @@ export function V4Intervention({
   labels,
   onConfirm,
   onPage,
+  onScope,
   onReject,
   onEscalate,
   onAlternate,
@@ -282,6 +316,8 @@ export function V4Intervention({
   onConfirm?: () => void
   /** 翻到第几张卡（`data.pager` 在时才有意义）。 */
   onPage?: (index: number) => void
+  /** 切范围：这一镜 / 全部（`data.pager.scope` 在时才有意义）。 */
+  onScope?: (value: 'each' | 'all') => void
   /** 拒绝。`reason` 是渐进披露出来的那一行，可为空。 */
   onReject?: (reason?: string) => void
   /** 「不再问 →」——**这一个能力**以后不再问，不是整个项目（2026-09-06 拍板 ②）。 */
@@ -307,17 +343,35 @@ export function V4Intervention({
   // 计划槽底栏照画布画的那样收尾：主动作 + 「改一下」…… 「收起 ▴」，没有「不要」——
   // 计划是清单，取消一项靠取消勾选，整张不要就是不勾任何一项。
   const isPlan = data.kind === 'plan'
+  const pager = data.pager
+  /**
+   * 卡聚焦时 ← → 翻页（2026-09-10 用户要求）。
+   *
+   * 两条边界：
+   * · 焦点在提示词编辑器/输入框里时**不接管**——那儿的左右键是移动光标，抢走它等于把打字弄坏。
+   * · 只在有翻页器时才接管，否则一张普通卡吃掉方向键会让页面滚不动。
+   */
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLElement>): void => {
+    if (!pager || !onPage) return
+    const delta = event.key === 'ArrowLeft' ? -1 : event.key === 'ArrowRight' ? 1 : 0
+    if (!delta) return
+    const target = event.target as HTMLElement | null
+    if (target?.closest('input, textarea, [contenteditable="true"]')) return
+    event.preventDefault()
+    onPage((pager.index + delta + pager.total) % pager.total)
+  }
   return (
     <aside
       className="overflow-hidden rounded-nomi border border-nomi-accent bg-nomi-paper"
       data-v4-block="intervention"
       data-kind={data.kind}
+      // 有翻页器才可聚焦：焦点是「← → 归谁管」的唯一凭据，没有翻页器的卡不该抢 Tab 序。
+      {...(pager ? { tabIndex: 0, onKeyDown: handleKeyDown } : {})}
     >
       <V4Row as="header" className="bg-nomi-accent-soft px-2.5 py-2 text-caption font-semibold text-nomi-accent">
         {data.hideIcon ? null : <SlotIcon kind={data.kind} />}
         <AgentPanelV4Markdown text={data.title} />
         {data.badge ? <span className="shrink-0 font-normal opacity-85">{data.badge}</span> : null}
-        {data.pager ? <V4Pager pager={data.pager} onPage={onPage} /> : null}
       </V4Row>
       <div className="flex flex-col gap-1.5 px-2.5 py-2 text-caption text-nomi-ink">
         {data.summary ? <AgentPanelV4Markdown text={data.summary} /> : null}
@@ -375,7 +429,13 @@ export function V4Intervention({
         {data.scope ? <p className="m-0 text-micro text-nomi-ink-60">{data.scope}</p> : null}
       </div>
       {hasActions ? (
-        <V4Row as="footer" className="border-t border-nomi-line-soft px-2.5 py-2 text-caption">
+        <footer className="flex flex-col gap-1.5 border-t border-nomi-line-soft px-2.5 py-2 text-caption">
+        {/* 翻页 + 范围切换单独占一行，压在主按钮正上方：它们决定按钮上印的那个数，
+            所以要挨着它；而挤进同一行会让 390px 的卡横向溢出（实测 350px 可用宽放不下）。 */}
+        {pager && !rejecting && data.kind !== 'reject-reason' ? (
+          <V4Pager pager={pager} onPage={onPage} onScope={onScope} />
+        ) : null}
+        <V4Row as="div" className="text-caption">
           {rejecting || data.kind === 'reject-reason' ? (
             <>
               <span className="flex-1" />
@@ -425,21 +485,26 @@ export function V4Intervention({
                   {labels.collapsePlan}
                 </button>
               ) : (
-                // 「不要」不直接发拒绝：它先把那一行原因摊开（渐进披露），
-                // 第二下「确认不要」才真的回给宿主。一次点击就否掉一个提案，
-                // 手滑的成本是整回合重来。
+                // 否定动作 = 一颗 ×（2026-09-10 拍板的按钮规则：一屏一个主动作、否定动作用 ×）。
+                // 它和「生成」并排在同一行，仍是同一个决定的两面；但**不是第二颗文字按钮**——
+                // 两颗一样重的文字钮会让人在花钱的卡上多想一秒「哪颗是往前」。
+                // 它也不直接发拒绝：有原因输入时先把那一行摊开（渐进披露），
+                // 第二下「确认不要」才真的回给宿主。文案没消失，它是这颗 × 的无障碍名与 tooltip。
                 <button
                   type="button"
-                  className="h-7 rounded-nomi-sm px-2.5 text-nomi-danger"
+                  aria-label={labels.reject}
+                  title={labels.reject}
+                  className="grid size-[22px] shrink-0 place-items-center rounded-nomi-sm text-nomi-ink-60 hover:bg-nomi-ink-05 hover:text-nomi-danger"
                   onClick={() => (data.reasonPlaceholder ? setRejecting(true) : onReject?.())}
                   data-v4-control="reject"
                 >
-                  {labels.reject}
+                  <IconX size={14} aria-hidden="true" />
                 </button>
               )}
             </>
           )}
         </V4Row>
+        </footer>
       ) : null}
     </aside>
   )
