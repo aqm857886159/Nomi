@@ -37,6 +37,8 @@ export type MaterializeShotCandidate = {
   modelKey?: string
   modeId?: string
   mode?: string
+  /** 候选选中的标量参数。节点是候选的投影，参数是投影的一部分——漏掉它节点就会回落档案默认。 */
+  parameters?: Record<string, string | number | boolean>
 }
 
 /** 一镜/一锚要落的占位节点（主进程从 Run 的 generationPlan.shots 投影而来）。clientId = shotId（稳定寻址）。 */
@@ -74,6 +76,9 @@ function candidateNodeArgs(candidate: MaterializeShotCandidate | undefined): Rec
     modelKey: candidate.modelKey,
     ...(candidate.vendor ? { vendor: candidate.vendor } : {}),
     ...(candidate.modeId ? { modeId: candidate.modeId } : {}),
+    // 候选选的参数要跟着身份一起过来：`buildPlannedNodeMeta` 铺的是档案**默认值**，
+    // 不喂它真实选择，新建出来的节点就会显示一份没人选过的参数（而卡上印的价格是按真实选择算的）。
+    ...(candidate.parameters ? { params: candidate.parameters } : {}),
   }
 }
 
@@ -122,6 +127,9 @@ async function rebindLandedShots(
             modelKey: shot.candidate.modelKey,
             ...(shot.candidate.vendor ? { vendor: shot.candidate.vendor } : {}),
             ...(shot.candidate.modeId ? { modeId: shot.candidate.modeId } : {}),
+            // 同上：重绑定必须带上候选真正选的参数，否则每一次重绑定都把用户挑过的值
+            // 按回档案默认（2026-09-11 付费卡上改尺寸「改完又弹回去」就是这条漏掉的后果）。
+            ...(shot.candidate.parameters ? { params: shot.candidate.parameters } : {}),
           },
           entryByKey,
         )

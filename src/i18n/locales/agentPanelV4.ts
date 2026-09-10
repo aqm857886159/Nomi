@@ -58,7 +58,7 @@ export const zhAgentPanelV4 = {
   permissionWhy: {
     step: '改动、花钱、计划都先问。',
     'safe-auto': '文稿和时间轴改动直接做（收据可撤销），付费生成才问。',
-    project: '预算内都不问，流里只留收据。',
+    project: '可撤销的改动直接做，不再逐步问你。付费和不可逆的操作仍然每次问。',
   },
 
   // Context 环
@@ -342,6 +342,9 @@ export const zhAgentPanelV4 = {
   slotDeviationSkip: '跳过',
   // 付费卡 · 参数条版（2026-09-10 用户拍板：参数行 = 节点那条参数条，确认前全部可改）
   spendParamsTitle: '生成 {{count}} 镜的视频',
+  // 同一张卡也用来确认图片生成（agent 建的草稿两种都有）。标题不许一律写「视频」——
+  // 用户看着一张图片草稿被说成视频，第一反应是「它是不是搞错了」，而这一刻他正要付钱。
+  spendParamsTitleImage: '生成 {{count}} 张图片',
   /** 模型芯片上的极小徽标：这一项是 Nomi 替你挑的，不是你选的。 */
   spendParamsModelPicked: 'Nomi 选的',
   /** 「怎么算出来的」那半行。数由报价给，语序在这里。 */
@@ -449,7 +452,7 @@ export const enAgentPanelV4 = {
   permissionWhy: {
     step: 'Edits, spending and plans are all confirmed first.',
     'safe-auto': 'Document and timeline edits happen directly (receipts are undoable); paid generation still asks.',
-    project: 'Nothing is asked inside budget; only receipts appear in the flow.',
+    project: 'Undoable edits happen directly instead of asking step by step. Paid and irreversible actions are still confirmed every time.',
   },
 
   context: 'Context usage',
@@ -716,6 +719,7 @@ export const enAgentPanelV4 = {
   slotDeviationDraw: 'Draw one first (+¥0.12)',
   slotDeviationSkip: 'Skip',
   spendParamsTitle: 'Generate video for {{count}} shots',
+  spendParamsTitleImage: 'Generate {{count}} image(s)',
   spendParamsModelPicked: 'Nomi picked',
   spendParamsBreakdown: '{{count}} shots × {{seconds}}s · {{quality}} · {{unit}}/s',
   spendParamsBreakdownMixed: '{{count}} shots · settings differ',

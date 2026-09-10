@@ -26,6 +26,10 @@ import { useV4DockStatus } from './v4/agentPanelV4DockStatus'
 import { AgentPanelV4Composer, V4ModelPopover, V4PermissionPopover, V4SkillPopover, type V4CommandRow } from './v4/AgentPanelV4Composer'
 import { useAgentPanelV4Data } from './v4/useAgentPanelV4Data'
 import { useAgentPanelV4Actions } from './v4/useAgentPanelV4Actions'
+import { useAgentPanelSpendConfirm } from './v4/useAgentPanelSpendConfirm'
+import { useAgentPanelAutoMode } from './v4/useAgentPanelAutoMode'
+import { V4AutoModeBanner } from './v4/AgentPanelV4AutoMode'
+import NodeGenerationComposer from '../generationCanvas/nodes/NodeGenerationComposer'
 import { useShotVerifyFeedback } from './resident/useShotVerifyFeedback'
 import { adoptLaneTaskCandidate } from './lane/laneTaskCandidateActions'
 import { useV4Labels } from './v4/agentPanelV4Labels'
@@ -86,6 +90,45 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
 
   const data = useAgentPanelV4Data(surface)
   const actions = useAgentPanelV4Actions(surface, data)
+  // 付费确认卡（2026-09-11 P1）。它是介入槽的**第二个数据源**：lane 的工具审批答的是
+  // 「要不要让我做这件事」，这一张答的是「要不要花这笔钱」——后者住在 ProductionRun 域里，
+  // `LanePendingApproval` 上根本没有报价字段。两者同时在时钱优先：钱撤不回来。
+  const spend = useAgentPanelSpendConfirm()
+  const spendComposer = spend.pending && spend.node ? (
+    <NodeGenerationComposer
+      node={spend.node}
+      visualSize={spend.node.size ?? { width: 340, height: 192 }}
+      host="panel"
+      onFeedback={() => undefined}
+    />
+  ) : null
+  // 切到「全自动」要先问一句（换档本身可撤销，所以它就是介入槽的可撤销档）。
+  const autoMode = useAgentPanelAutoMode(actions.permission, actions.setPermission)
+  // 三个数据源同时有卡时的优先序：**换档 > 钱 > lane 的工具审批**。
+  //
+  // 换档卡排第一不是因为它更重要，是因为它是**用户刚刚那一下点击的直接回应**——
+  // 点了「全自动」却什么都没出现，只会被读成「点坏了」，于是他再点一次。
+  // 付费卡让位不会丢：它没有倒计时、永不因空闲超时（同行一致 + 09-01 定稿），
+  // 答完档位它就回到原处，价格一个字都没变。
+  // lane 的工具审批排最后，因为档位恰恰决定它以后还问不问。
+  const activeSlot = autoMode.slot ?? spend.slot ?? data.slot
+  const spendSlotHandlers = {
+    onConfirm: spend.confirm,
+    onReject: spend.discard,
+    onPage: spend.setPage,
+    onScope: spend.setScope,
+  }
+  const autoModeSlotHandlers = { onConfirm: autoMode.confirm, onReject: autoMode.cancel }
+  const autoModeBanner = autoMode.bannerVisible ? (
+    <V4AutoModeBanner
+      label={t('agentPanelV4.permission.project')}
+      note={t('agentPanelV4.autoModeBannerNote')}
+      revertLabel={t('agentPanelV4.autoModeBannerRevert')}
+      dismissLabel={t('agentPanelV4.autoModeBannerDismiss')}
+      onRevert={() => actions.setPermission('safe-auto')}
+      onDismiss={autoMode.dismissBanner}
+    />
+  ) : null
   const shotVerifyFeedback = useShotVerifyFeedback(surface, actions.send)
   /**
    * 「他读到哪儿了」得活在这棵子树之外（定稿 §11.2：点角标 = 原宽**原状态**还原）。
@@ -309,7 +352,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
         />
       )
       : popover === 'permission'
-        ? <V4PermissionPopover permission={actions.permission} onSelect={(tier) => { actions.setPermission(tier); setPopover(null) }} />
+        ? <V4PermissionPopover permission={actions.permission} onSelect={(tier) => { autoMode.request(tier); setPopover(null) }} />
         : undefined
 
   // 收起 = 藏起**对话流**，不是藏起对话（定稿 Collapsed 板）。同一个 composer 掉到画面下沿
@@ -332,16 +375,24 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
         <TimelineAgentReceiptEffect />
         {timelinePlanPreviewPortal}
         {!dockHidden && <V4CollapsedDock onClose={() => setDockHidden(true)}>
-          {data.slot ? (
+          {activeSlot ? (
             <V4Intervention
-              data={data.slot}
+              data={activeSlot}
               labels={labels.intervention}
-              onConfirm={actions.approve}
-              onReject={actions.reject}
-              onEscalate={actions.stopAsking}
-              onOption={(option) => actions.answerOption(option)}
+              {...(!autoMode.slot && spend.slot && spendComposer ? { composer: spendComposer } : {})}
+              {...(autoMode.slot
+                ? autoModeSlotHandlers
+                : spend.slot
+                  ? spendSlotHandlers
+                  : {
+                    onConfirm: actions.approve,
+                    onReject: actions.reject,
+                    onEscalate: actions.stopAsking,
+                    onOption: (option: string) => actions.answerOption(option),
+                  })}
             />
           ) : null}
+          {autoModeBanner}
           <AgentPanelV4Composer
             dock
             panelHeight={size.height}
@@ -404,7 +455,9 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
         flowTail={shotVerifyFeedback}
         surface={surface}
         onStarter={startFromStarter}
-        slot={data.slot}
+        slot={activeSlot}
+        {...(!autoMode.slot && spend.slot && spendComposer ? { slotComposer: spendComposer } : {})}
+        {...(autoModeBanner ? { composerBanner: autoModeBanner } : {})}
         queue={data.queue}
         queueHint={t('agentPanelV4.queueHint')}
         context={data.context}
@@ -422,7 +475,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
           onErrorAction: recoverFromFailure,
           onSuggestion: (_index, option) => actions.answerOption(option),
         }}
-        slotHandlers={{
+        slotHandlers={autoMode.slot ? autoModeSlotHandlers : spend.slot ? spendSlotHandlers : {
           onConfirm: actions.approve,
           onReject: actions.reject,
           onEscalate: actions.stopAsking,

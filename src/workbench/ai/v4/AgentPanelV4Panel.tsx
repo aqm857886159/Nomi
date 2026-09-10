@@ -55,6 +55,10 @@ export type V4FlowHandlers = Readonly<{
 
 export type V4InterventionHandlers = Readonly<{
   onConfirm?: () => void
+  /** 翻页（付费卡多镜时）。 */
+  onPage?: (index: number) => void
+  /** 范围切换：这一镜 / 全部（付费卡多镜时）。 */
+  onScope?: (value: 'each' | 'all') => void
   onReject?: (reason?: string) => void
   onEscalate?: () => void
   onAlternate?: () => void
@@ -78,6 +82,17 @@ export type AgentPanelV4PanelProps = {
   /** 点空态起手 chip：把那句话填进 composer 并聚焦，**不发送**。 */
   onStarter?: (prompt: string) => void
   slot?: InterventionData
+  /**
+   * 介入槽的**卡体**。付费确认卡把画布节点那张生成框整件放进来
+   * （`NodeGenerationComposer host="panel"`，2026-09-10 用户拍板：「要和画布里一样的真实体验」）。
+   * 其余 kind 不传 = 槽照旧渲染它自己的摘要与参数 chip。
+   */
+  slotComposer?: React.ReactNode
+  /**
+   * 压在 composer 上沿那一条微字横条。今天只有「全自动」档的常驻提醒用它
+   * （`V4AutoModeBanner`）——它在的地方就是用户打字的地方，所以不该住在面板头上。
+   */
+  composerBanner?: React.ReactNode
   queue?: readonly QueueRowData[]
   queueHint?: string
   context: ContextUsage
@@ -176,6 +191,8 @@ export function AgentPanelV4Panel({
   surface = 'creation',
   onStarter,
   slot,
+  slotComposer,
+  composerBanner,
   queue,
   queueHint,
   context,
@@ -284,7 +301,7 @@ export function AgentPanelV4Panel({
       </div>
       {slot ? (
         <div className="shrink-0 px-2.5 pb-2">
-          <V4Intervention data={slot} labels={labels.intervention} {...slotHandlers} />
+          <V4Intervention data={slot} labels={labels.intervention} {...(slotComposer ? { composer: slotComposer } : {})} {...slotHandlers} />
         </div>
       ) : null}
       {queue?.length ? (
@@ -293,7 +310,8 @@ export function AgentPanelV4Panel({
           {queueHint ? <p className="px-1 pt-1 text-micro text-nomi-ink-60">{queueHint}</p> : null}
         </div>
       ) : null}
-      <div className={cn('shrink-0 px-2.5 pb-2.5', !slot && !queue?.length && 'pt-2')}>
+      <div className={cn('flex shrink-0 flex-col gap-1.5 px-2.5 pb-2.5', !slot && !queue?.length && 'pt-2')}>
+        {composerBanner}
         <AgentPanelV4Composer
           panelHeight={height}
           {...composer}

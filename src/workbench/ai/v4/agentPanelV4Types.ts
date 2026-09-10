@@ -286,12 +286,21 @@ export type ContextUsage = Readonly<{
 
 /**
  * 三档 → 合同两个字段。定稿 §2：「每步问」= 改动/花钱/计划都先问；「自动改」= 可撤销改动直接做、
- * 付费仍逐次问；「全自动」= 预算内都不问。介入槽的「不再问 →」= 当场抬到下一档。
+ * 付费仍逐次问；「全自动」= **可撤销的改动都不问**。介入槽的「不再问 →」= 当场抬到下一档。
+ *
+ * ⚠️ **`spend` 这根轴三档都是 `confirm`**（2026-09-10 用户拍板：「钱的闸 = 每次提交看报价确认」，
+ * 同时删掉了设置里的硬预算上限）。合同里两根轴本来就是**故意分开**的
+ * （`capabilityApprovalPolicy.ts`：“kept independent deliberately”），把 `spend` 折进档位就等于
+ * 让「全自动」顺手把付费也放行——而全自动的定义恰恰是「没人看着的时候连着做」，
+ * 那正是最不该自动花钱的一刻。全自动免掉的只有 `reversible_local` 的逐次确认。
+ *
+ * 早先 `project` 档写的是 `within-budget`，配套的是一个「项目预算上限」设置；那条设置已删，
+ * 于是 `within-budget` 变成了一张没有额度的通行证——留着它就是留一个只在账单上看得见的洞。
  */
 export const PERMISSION_POLICIES: Readonly<Record<PermissionTier, ProjectAgentApprovalPolicy>> = {
   step: { mode: 'step', spend: 'confirm' },
   'safe-auto': { mode: 'safe-auto', spend: 'confirm' },
-  project: { mode: 'project', spend: 'within-budget' },
+  project: { mode: 'project', spend: 'confirm' },
 }
 
 /** 档位顺序，用于「不再问 →」抬一档。 */
