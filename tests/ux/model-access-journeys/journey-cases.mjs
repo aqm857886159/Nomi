@@ -484,7 +484,7 @@ async function customCurlQueue(journey, ui, fixture, recorder) {
     // Same "接口材料 vs main script" caveat as J07 — target the main script textarea by aria.
     const script = editor.getByRole('textbox', { name: /自定义调用脚本/ }).first()
     await script.fill("const task = await http.post('/v1/video/generations', { model, prompt })\nreturn await poll(() => http.get('/v1/video/generations/' + task.task_id), (s) => s.status === 'succeeded' ? s.data[0].url : null, { intervalMs: 500, timeoutMs: 5000 })")
-    await editor.getByRole('button', { name: /发送测试请求|停止试跑/ }).first().click()
+    await editor.getByRole('button', { name: /测试运行|停止试跑/ }).first().click()
     await requireVisible(editor.getByText(/试跑成功|个产物|测试成功/).first(), 'custom-call-queue-no-product', '用文档里的变量写的队列脚本试跑没有拿到产物', 20_000)
     await ui.screenshot('custom-call-queue-product')
     return { assetTaskObserved: fixture.requests.some((request) => request.path.endsWith('fixture-video-task')) }
@@ -503,7 +503,7 @@ async function customCallRepair(journey, ui, fixture, recorder) {
   // while running it becomes "停止试跑". The old "/试跑/" anchor only matched the stop
   // state, never the run button. The save button appears only AFTER a passing try-run,
   // labelled "保存「视频」" (saveScope) / "保存并启用" (saveAndEnable) — never bare "保存".
-  const runTest = () => editor.getByRole('button', { name: /发送测试请求|停止试跑/ }).first()
+  const runTest = () => editor.getByRole('button', { name: /测试运行|停止试跑/ }).first()
   await recorder.step('executed', '用错误字段试跑并查看实际请求和上游错误', async () => {
     await script.fill("const task = await http.post('/v1/video/generations', { wrong_prompt: prompt })\nreturn task.missing")
     await runTest().click()
@@ -595,7 +595,7 @@ async function codexLocalImage(journey, ui, fixture, recorder) {
   })
   await recorder.step('persisted', '在卡上开启 Codex 本地生图并等待 vendor 落盘', async () => {
     // 真实开关（CodexLocalImageCard turnOn）：接入 = 种子 vendor enabled 翻 true。
-    await ui.win.getByRole('button', { name: '开启 Codex 本地生图', exact: true }).click()
+    await ui.win.getByRole('button', { name: '开启生图', exact: true }).click()
     const vendor = await waitForCatalogState(
       ui,
       (snapshot) => snapshot.vendors?.find((v) => v.key === 'codex-local' && v.enabled),
@@ -628,8 +628,8 @@ async function errorRecovery(journey, ui, fixture, recorder) {
       // wizard), then probe. The injected fault returns HTML, not a model list.
       const save = ui.win.getByRole('button', { name: '保存连接', exact: true })
       if (await save.isVisible().catch(() => false)) await save.first().click()
-      await requireVisible(ui.win.getByRole('button', { name: /获取模型列表|获取可用模型/ }).first(), 'fetch-entry-missing', '保存连接后没有出现获取模型列表入口', 15_000)
-      await ui.win.getByRole('button', { name: /获取模型列表|获取可用模型/ }).first().click()
+      await requireVisible(ui.win.getByRole('button', { name: /获取模型|获取可用模型/ }).first(), 'fetch-entry-missing', '保存连接后没有出现获取模型入口', 15_000)
+      await ui.win.getByRole('button', { name: /获取模型|获取可用模型/ }).first().click()
       await ui.win.waitForTimeout(1500)
       return { requests: fixture.requests.filter((request) => request.path.endsWith('/models')).length }
     })

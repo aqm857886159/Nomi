@@ -117,15 +117,33 @@ export function moveClipToLegalFrame(timeline: TimelineState, clipId: string, st
   return moved ? { ...timeline, tracks } : timeline
 }
 
+/**
+ * 删 clip 必须连带清掉引用它的转场（fromClipId/toClipId 悬空会随 normalizeTimeline
+ * 持久化进项目文件，转场标记/渲染指向不存在的接缝）。kernel 删除路径（timelineKernel）
+ * 一直这么做；这里给 timelineEdit 的三条删除入口同款清理。无命中保持原引用。
+ */
+function dropTransitionsForClipIds(
+  transitions: TimelineState['transitions'],
+  removedClipIds: ReadonlySet<string>,
+): TimelineState['transitions'] {
+  if (!transitions?.length || removedClipIds.size === 0) return transitions
+  const next = transitions.filter(
+    (transition) => !removedClipIds.has(transition.fromClipId) && !removedClipIds.has(transition.toClipId),
+  )
+  return next.length === transitions.length ? transitions : next
+}
+
 export function removeClipById(timeline: TimelineState, clipId: string): TimelineState {
   const id = String(clipId || '').trim()
   if (!id) return timeline
+  const transitions = dropTransitionsForClipIds(timeline.transitions, new Set([id]))
   return {
     ...timeline,
     tracks: timeline.tracks.map((track) => ({
       ...track,
       clips: track.clips.filter((clip) => clip.id !== id),
     })),
+    ...(transitions ? { transitions } : {}),
   }
 }
 
@@ -139,7 +157,9 @@ export function removeClipsByIds(timeline: TimelineState, clipIds: readonly stri
     removed = true
     return { ...track, clips: nextClips }
   })
-  return removed ? { ...timeline, tracks } : timeline
+  if (!removed) return timeline
+  const transitions = dropTransitionsForClipIds(timeline.transitions, idSet)
+  return { ...timeline, tracks, ...(transitions ? { transitions } : {}) }
 }
 
 /**
@@ -152,13 +172,20 @@ export function removeClipsBySourceNodeIds(timeline: TimelineState, nodeIds: rea
   const idSet = new Set(nodeIds.map((id) => String(id || '').trim()).filter(Boolean))
   if (idSet.size === 0) return timeline
   let removed = false
+  const removedClipIds = new Set<string>()
   const tracks = timeline.tracks.map((track) => {
-    const nextClips = track.clips.filter((clip) => !idSet.has(clip.sourceNodeId))
+    const nextClips = track.clips.filter((clip) => {
+      if (!idSet.has(clip.sourceNodeId)) return true
+      removedClipIds.add(clip.id)
+      return false
+    })
     if (nextClips.length === track.clips.length) return track
     removed = true
     return { ...track, clips: nextClips }
   })
-  return removed ? { ...timeline, tracks } : timeline
+  if (!removed) return timeline
+  const transitions = dropTransitionsForClipIds(timeline.transitions, removedClipIds)
+  return { ...timeline, tracks, ...(transitions ? { transitions } : {}) }
 }
 
 /**

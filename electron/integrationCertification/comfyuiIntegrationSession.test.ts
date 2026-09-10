@@ -5,6 +5,7 @@ import crypto from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 import { ComfyUiConnector } from "./comfyuiConnector";
 import { IntegrationSessionService } from "./integrationSession";
+import { createApprovalReceiptAuthority } from "../capabilityCore/approvalReceipt";
 import { OperationLedger } from "./operationLedger";
 import { certificationModeOperationKey } from "./modeIdentity";
 import { CertificationMediaError } from "../providerAdapter/certificationMedia";
@@ -28,7 +29,29 @@ function sessionService(
   return new IntegrationSessionService({
     filePath: path.join(dir, "sessions.json"),
     save: (target, state) => fs.writeFileSync(target, JSON.stringify(state)),
+    approvalReceiptAuthority: createApprovalReceiptAuthority({
+      filePath: path.join(dir, "receipts.json"),
+      macKey: "comfy-integration-test-key",
+    }),
     certifyComfy,
+  });
+}
+
+/**
+ * 走完真实的人证关卡再 start。start 现在只在 `human_confirmed` 放行，用例不能再从
+ * `needs_spend_confirmation` 直接跳过去塞一个字符串 "receipt"——那等于把这一关测没了。
+ */
+function approveSpend(service: IntegrationSessionService, sessionId: string, key: string) {
+  const current = service.get(sessionId, "codex");
+  const requested = service.requestConfirmation(sessionId, current.revision, "codex", key);
+  const afterRequest = service.get(sessionId, "codex");
+  return service.confirmFromTrustedUi({
+    sessionId,
+    expectedRevision: afterRequest.revision,
+    challengeId: requested.challengeId,
+    webContentsId: 1,
+    frameId: 1,
+    origin: "file://",
   });
 }
 
@@ -157,15 +180,16 @@ describe("ComfyUI canonical integration session", () => {
     const service = sessionService(certifyComfy);
     const created = service.begin({ kind: "comfyui-workflow", name: "UI workflow" }, "codex");
     const submitted = service.submitWorkflow(created.id, created.revision, "codex", "ui-save-workflow");
-    const ready = service.resolveInput(submitted.id, submitted.revision, "codex", {});
-    const first = await service.start(ready.id, ready.revision, "codex", "comfy-idempotency", "receipt");
+    service.resolveInput(submitted.id, submitted.revision, "codex", {});
+    const approved = approveSpend(service, created.id, "comfy-idempotency");
+    const first = await service.start(approved.id, approved.revision, "codex", "comfy-idempotency", approved.pendingReceiptId);
     expect(first.stage).toBe("completed");
     expect(first.childRunRef?.runId).toBe("prompt-comfy-idempotency");
     expect(events).toEqual(["upload:comfy_a", "upload:comfy_b", "prompt", "history", "view", "decode", "promote"]);
     expect(promote).toHaveBeenCalledTimes(1);
     expect(certifyComfy).toHaveBeenCalledTimes(1);
 
-    const replay = await service.start(first.id, first.revision, "codex", "comfy-idempotency", "receipt");
+    const replay = await service.start(first.id, first.revision, "codex", "comfy-idempotency", approved.pendingReceiptId);
     expect(replay.childRunRef).toEqual(first.childRunRef);
     expect(certifyComfy).toHaveBeenCalledTimes(1);
   });
@@ -187,8 +211,9 @@ describe("ComfyUI canonical integration session", () => {
     const service = sessionService(certifyComfy);
     const created = service.begin({ kind: "comfyui-workflow", name: "Broken workflow" }, "codex");
     const submitted = service.submitWorkflow(created.id, created.revision, "codex", workflow);
-    const ready = service.resolveInput(submitted.id, submitted.revision, "codex", {});
-    const result = await service.start(ready.id, ready.revision, "codex", "failed-idempotency", "receipt");
+    service.resolveInput(submitted.id, submitted.revision, "codex", {});
+    const approved = approveSpend(service, created.id, "failed-idempotency");
+    const result = await service.start(approved.id, approved.revision, "codex", "failed-idempotency", approved.pendingReceiptId);
     expect(result.stage).toBe("failed");
     expect(result.childRunRef).toBeUndefined();
     expect(result.blockingReason?.code).toBe("provider_failed");

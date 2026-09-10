@@ -35,8 +35,10 @@ export function useVideoPlaybackHeal({
 }: {
   /** 节点 result.url 原值——诊断探针与自愈都要原始 URL，不要 buildVideoPlaybackUrl 之后的。 */
   rawUrl: string
-  /** 自愈成功回调：有持久化去处的面（画布节点/时间轴源节点）借此把新 URL 写回，下次开项目直接好。 */
-  onHealed?: (healedUrl: string) => void
+  /** 自愈成功回调：有持久化去处的面（画布节点/时间轴源节点）借此把新 URL 写回，下次开项目直接好。
+   * sourceUrl 是发起自愈时的原始 URL——持久化方必须校验节点当前 result.url 仍是它，防止旧自愈
+   * 结论覆盖期间重新生成的新结果。 */
+  onHealed?: (healedUrl: string, sourceUrl: string) => void
 }): VideoPlaybackHeal {
   const { t } = useTranslation()
   const [failureText, setFailureText] = React.useState('')
@@ -45,6 +47,9 @@ export function useVideoPlaybackHeal({
   const healAttemptedRef = React.useRef('')
   const onHealedRef = React.useRef(onHealed)
   onHealedRef.current = onHealed
+  // 最新 rawUrl 的只读锚点：await 之后用它比对「自愈发起时的 rawUrl」是否已被换掉。
+  const rawUrlRef = React.useRef(rawUrl)
+  rawUrlRef.current = rawUrl
 
   // rawUrl 换了（重新生成/换素材）→ 上一轮的失败与自愈结论全部作废，否则旧报错会盖在新视频上。
   React.useEffect(() => {
@@ -57,6 +62,8 @@ export function useVideoPlaybackHeal({
   const onError: React.ReactEventHandler<HTMLVideoElement> = (event) => {
     const mediaError = event.currentTarget.error
     void diagnoseVideoPlaybackFailure(rawUrl, mediaError).then(async (diagnostics) => {
+      // 诊断在飞时 rawUrl 已被换掉 → 旧结论作废（reset effect 只在换的那一刻跑，拦不住之后 resolve 的写回）。
+      if (rawUrlRef.current !== rawUrl) return
       logVideoPlaybackFailure(diagnostics)
       const decodeFailure = diagnostics.mediaErrorCode === 3 || diagnostics.mediaErrorCode === 4
       const ensurePlayable = getDesktopBridge()?.assets?.ensurePlayable
@@ -67,11 +74,13 @@ export function useVideoPlaybackHeal({
         setHealing(true)
         try {
           const healed = await ensurePlayable({ url: rawUrl })
+          // 自愈在飞时节点被重新生成（rawUrl 已换）→ 旧 healedUrl 不得写回，否则覆盖新结果。
+          if (rawUrlRef.current !== rawUrl) return
           const nextUrl = typeof healed?.data?.url === 'string' ? healed.data.url.trim() : ''
           if (nextUrl && nextUrl !== rawUrl) {
             // 本地先切过去，当场就能播；有持久化去处的面再把它写回节点，下次开项目直接好。
             setHealedUrl(nextUrl)
-            onHealedRef.current?.(nextUrl)
+            onHealedRef.current?.(nextUrl, rawUrl)
             setHealing(false)
             setFailureText('')
             return

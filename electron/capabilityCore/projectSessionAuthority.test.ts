@@ -175,10 +175,10 @@ describe('ProjectSessionAuthority', () => {
       connection,
       projectHint: 'project-1',
     })
-    await expect(session.open({ projectSelectionHandle: selection.token }, foreignConnection))
+    await expect(session.open({ projectSelectionHandle: selection.handle.handleId }, foreignConnection))
       .rejects.toThrow(/connection/i)
 
-    const opened = await session.open({ projectSelectionHandle: selection.token }, connection)
+    const opened = await session.open({ projectSelectionHandle: selection.handle.handleId }, connection)
     expect(opened).toMatchObject({
       projectId: 'project-1',
       sessionId: connection.sessionId,
