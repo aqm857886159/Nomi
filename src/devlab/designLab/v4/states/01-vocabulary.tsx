@@ -119,6 +119,9 @@ function LaneReceiptCell({ lane }: { lane: (rejectReason: string) => LaneSnapsho
     formatStages: (done, total) => fx.t('agentPanelV4.taskStages', { done, total }),
     formatMoney: (currency, amount) => fx.t('agentPanelV4.money', { currency, amount: amount.toFixed(2) }),
     taskUnknown: fx.t('agentPanelV4.taskUnknown'),
+    // 技能名。这一格的转录里一条用户消息都没有，所以永远查不到它——但类型要求穷尽，
+    // 哪天这一格接上带技能的那一轮，缺的那句话是编译错误，不是画面上的一块空白。
+    skillLabel: (key) => key,
   })
   return (
     <Piece>

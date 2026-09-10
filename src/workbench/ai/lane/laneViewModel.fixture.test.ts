@@ -27,6 +27,7 @@ const labels: LaneViewModelLabels = {
   formatStages: (done, total) => `${done}/${total} stages`,
   formatMoney: (currency, amount) => `${currency} ${amount.toFixed(2)}`,
   taskUnknown: '[task-unknown]',
+  skillLabel: (key) => `[skill:${key}]`,
 }
 
 describe('laneViewModel against a projection a real pi lane produced', () => {
