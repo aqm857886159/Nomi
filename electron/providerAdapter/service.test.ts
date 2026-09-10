@@ -23,8 +23,10 @@ import {
   runCanonicalReservationRace,
   runCanonicalReservationTimeout,
 } from "./tests/serviceReservationRaceFixture";
+import { providedDocsUrn, resolveProviderDocs } from "./providedDocs";
 
 type VerifyInput = Parameters<ProviderAdapterServiceDependencies["verify"]>[0];
+type CompileInput = Parameters<ProviderAdapterServiceDependencies["compile"]>[0];
 
 const dirs: string[] = [];
 const now = "2026-08-07T00:00:00.000Z";
@@ -71,6 +73,49 @@ function draft(): ProviderAdapterDraft {
             create: { method: "POST", path: "/edits", body: { image: "{{request.params.referenceImages}}" } },
             referenceParam: "referenceImages",
             referenceShape: "array",
+            sourceUrls: ["https://docs.example.com/api"],
+          },
+        ],
+      },
+    ],
+  };
+}
+
+/**
+ * 外部（驱动 Agent）交回来的说明卡：和上面的 draft() 不同，它必须**真的过得了**
+ * validateProviderAdapterDraft——那正是这条路的全部安全性所在（编译器那条路的 draft() 走的是
+ * compile mock，历史上从来没被真校验过）。
+ */
+function externalDraft(): ProviderAdapterDraft {
+  return {
+    provider: { baseUrl: "https://api.example.com/v1", authType: "bearer" },
+    sources: [{ url: "https://docs.example.com/api", evidence: "API reference" }],
+    models: [
+      {
+        modelKey: "text-v1",
+        labelZh: "Text V1",
+        kind: "text",
+        modes: [
+          {
+            taskKind: "chat",
+            create: { method: "POST", path: "/chat", body: { prompt: "{{request.prompt}}" }, response_mapping: { text: "text" } },
+            sourceUrls: ["https://docs.example.com/api"],
+          },
+        ],
+      },
+      {
+        modelKey: "paint-v2",
+        labelZh: "Paint V2",
+        kind: "image",
+        modes: [
+          {
+            taskKind: "text_to_image",
+            create: {
+              method: "POST",
+              path: "/images",
+              body: { prompt: "{{request.prompt}}" },
+              response_mapping: { image_url: "data.0.url" },
+            },
             sourceUrls: ["https://docs.example.com/api"],
           },
         ],
@@ -1591,5 +1636,102 @@ describe("ProviderAdapterService", () => {
     expect(result.stageCount).toBe(0);
     expect(result.scheduleCount).toBe(0);
     expect(result.createCount).toBe(0);
+  });
+  // ── 外部输入（2026-09-10）：接口文档与「外面编好的说明卡」两条路 ─────────────────
+  //
+  // 卡点 A：`nomi_integration begin` 一直收 docs，但它只到 session 就断了，编译器仍在猜域名。
+  // 卡点 B：编译借的是用户已接的文本模型，一台还没接过任何模型的机器上直接判死（鸡生蛋）。
+
+  it("feeds operator-supplied documentation to the compiler instead of guessing the provider docs site", async () => {
+    const catalog = fakeCatalog();
+    const deps = dependencies(catalog);
+    // 用真实的文档来源边界（散文那条路不发任何请求），断言编译器吃到的确实是这份正文。
+    deps.discover = resolveProviderDocs;
+    let compiledWith: CompileInput | undefined;
+    const compile = vi.fn(async (input: CompileInput) => {
+      compiledWith = input;
+      return { draft: draft(), failures: [] };
+    });
+    deps.compile = compile;
+    const service = new ProviderAdapterService(store(), deps);
+    const providedDocs = "POST /v1/images -> data[0].url; poll GET /v1/images/{id}";
+
+    const run = await service.start({
+      ...startInput,
+      docs: providedDocs,
+      certification: { ...startInput.certification, idempotencyKey: "provided-docs-reach-compiler" },
+    });
+    await service.executeRun(run.id);
+
+    expect(compile).toHaveBeenCalledTimes(1);
+    expect(compiledWith?.docs).toEqual([
+      { url: providedDocsUrn(providedDocs), title: "Operator-supplied API documentation", text: providedDocs },
+    ]);
+  });
+
+  it("certifies an externally compiled contract with no text model available and never tries to repair it", async () => {
+    const catalog = fakeCatalog();
+    const deps = dependencies(catalog);
+    const discover = vi.fn(async () => ({ sources: [], corpus: "" }));
+    const compile = vi.fn(async () => ({ draft: draft(), failures: [] }));
+    const repair = vi.fn(async () => draft());
+    deps.discover = discover;
+    deps.compile = compile;
+    deps.repair = repair;
+    // 鸡生蛋的那台机器：一个可用的文本模型都没有。
+    deps.resolveLanguageModels = () => [];
+    // 图片模式验证失败——如果我们还去「自动修复」，就会立刻叫 repair（而它必然抛 needs_ai）。
+    const verified: Array<{ modelKey: string; path: string }> = [];
+    deps.verify = async ({ model, mode }) => {
+      verified.push({ modelKey: model.modelKey, path: mode.create.path });
+      return mode.taskKind === "chat"
+        ? { ok: true as const, taskKind: mode.taskKind }
+        : { ok: false as const, taskKind: mode.taskKind, stage: "create" as const, error: "provider rejected the request" };
+    };
+    const service = new ProviderAdapterService(store(), deps);
+
+    const run = await service.start({
+      ...startInput,
+      adapterDraft: externalDraft(),
+      certification: { ...startInput.certification, idempotencyKey: "external-contract-no-text-model" },
+    });
+    await service.executeRun(run.id);
+
+    expect(discover).not.toHaveBeenCalled();
+    expect(compile).not.toHaveBeenCalled();
+    expect(repair).not.toHaveBeenCalled();
+    // 媒体模型跑的就是外部交回来的那张卡（/images 来自 externalDraft）；文本条目仍以
+    // withTextModels 的确定性契约为单一真相（外部卡里的 /chat 被它盖掉，与编译器那条路一致）。
+    expect(verified).toEqual([
+      { modelKey: "paint-v2", path: "/images" },
+      { modelKey: "text-v1", path: "/chat/completions" },
+    ]);
+    expect(catalog.promoted).toHaveLength(1);
+    expect(catalog.promoted[0].verified).toEqual(["text-v1/chat"]);
+  });
+
+  it("fails closed when an externally compiled contract does not pass the adapter validator", async () => {
+    const catalog = fakeCatalog();
+    const deps = dependencies(catalog);
+    deps.resolveLanguageModels = () => [];
+    const adapterStore = store();
+    const service = new ProviderAdapterService(adapterStore, deps);
+    const invalid = externalDraft();
+    // create 声明了运行时消费不了的响应键 —— 校验必须在执行边界拦住，不是「收件时看过就算」。
+    invalid.models[1].modes[0].create = {
+      ...invalid.models[1].modes[0].create,
+      response_mapping: { totally_unsupported: "data.0.url" },
+    };
+
+    const run = await service.start({
+      ...startInput,
+      adapterDraft: invalid,
+      certification: { ...startInput.certification, idempotencyKey: "external-contract-invalid" },
+    });
+    await service.executeRun(run.id);
+
+    expect(adapterStore.getRun(run.id)?.stage).toBe("failed");
+    expect(adapterStore.getRun(run.id)?.error).toMatch(/unsupported response mapping key/i);
+    expect(catalog.promoted).toEqual([]);
   });
 });
