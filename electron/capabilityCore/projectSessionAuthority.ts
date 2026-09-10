@@ -163,7 +163,8 @@ export function createProjectSessionAuthority(deps: ProjectSessionAuthorityDeps)
       throw new ProjectSessionRequestError('Choose a selection handle or current-project bootstrap, not both')
     }
 
-    let handleToken = selectionToken
+    // 模型手上的是短 id（见 projectLease.ts 的 liveSelectionHandles），签名 token 从不出主进程。
+    let handleToken = selectionToken ? deps.leaseAuthority.resolveSelectionHandle(selectionToken) : ''
     if (bootstrap !== undefined) {
       if (!bootstrap || typeof bootstrap !== 'object' || Array.isArray(bootstrap)) {
         throw new ProjectSessionRequestError('Current-project bootstrap is invalid')

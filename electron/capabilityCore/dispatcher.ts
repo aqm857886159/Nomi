@@ -45,6 +45,9 @@ import {
 import { withCredentialElicitationTicket } from '../integrationCertification/credentialElicitation'
 import { manageModelCatalogConnection } from '../catalog/catalogManagement'
 
+/** 带 id = 读那一个；不带 = 列出这个客户端自己的会话。 */
+const readIntegrationSession = (sessions: IntegrationSessionService, sessionId: unknown, owner: CapabilityOriginHost) =>
+  (typeof sessionId === 'string' && sessionId.trim() ? sessions.get(sessionId, owner) : sessions.list(owner))
 export function projectIdOf(params: Record<string, unknown>): string {
   return typeof params.projectId === 'string' ? params.projectId : ''
 }
@@ -364,7 +367,7 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
       const withHandles = await Promise.all(projects.map(async (project) => {
         try {
           const selection = await projectSession.authority.issueProjectSelection('listed_project', project.id, projectSession.connection)
-          return { ...project, projectSelectionHandle: selection.token }
+          return { ...project, projectSelectionHandle: selection.handle.handleId }
         } catch {
           return project
         }
@@ -379,7 +382,7 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
         created.id,
         ctx.projectSession.connection,
       )
-      return { ...created, projectSelectionHandle: selection.token }
+      return { ...created, projectSelectionHandle: selection.handle.handleId }
     }
     case 'models.list':
       return { models: listAvailableModels() }
@@ -719,17 +722,12 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
         ...(typeof params.title === 'string' && params.title.trim() ? { title: params.title.trim() } : {}),
       })
     case 'integration.begin': {
+      const optional = ['sessionId', 'baseUrl', 'docs', 'providerKind', 'authType', 'authHeader', 'authQueryParam', 'clientRequestId'] as const
       return (ctx.integrationSessions || getIntegrationSessionService()).begin(
         {
           kind: params.kind as 'http-api-provider' | 'comfyui-workflow',
           name: params.name as string,
-          ...(typeof params.baseUrl === 'string' ? { baseUrl: params.baseUrl } : {}),
-          ...(typeof params.docs === 'string' ? { docs: params.docs } : {}),
-          ...(typeof params.providerKind === 'string' ? { providerKind: params.providerKind } : {}),
-          ...(typeof params.authType === 'string' ? { authType: params.authType as import('../providerAdapter/types').AdapterAuthType } : {}),
-          ...(typeof params.authHeader === 'string' ? { authHeader: params.authHeader } : {}),
-          ...(typeof params.authQueryParam === 'string' ? { authQueryParam: params.authQueryParam } : {}),
-          ...(typeof params.clientRequestId === 'string' ? { clientRequestId: params.clientRequestId } : {}),
+          ...Object.fromEntries(optional.filter((key) => typeof params[key] === 'string').map((key) => [key, params[key]])),
         },
         ctx.origin?.host || 'external',
       )
@@ -773,11 +771,9 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
         params.idempotencyKey as string,
         params.receipt as string,
       )
+    // 不带 sessionId = 「我把 id 弄丢了」。修复前这里直接报 Invalid sessionId，而 MCP 面上没有第二条路。
     case 'integration.get':
-      return (ctx.integrationSessions || getIntegrationSessionService()).get(
-        params.sessionId,
-        ctx.origin?.host || 'external',
-      )
+      return readIntegrationSession(ctx.integrationSessions || getIntegrationSessionService(), params.sessionId, ctx.origin?.host || 'external')
     case 'integration.cancel':
       return (ctx.integrationSessions || getIntegrationSessionService()).cancel(
         params.sessionId,

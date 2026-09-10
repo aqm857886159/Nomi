@@ -206,11 +206,57 @@ function assertTransportBinding(value: ProjectTransportClaims, connection: McpCo
   }
 }
 
+/**
+ * 一条连接内最多记住多少枚待兑换的选择句柄。project.list 每调一次就为每个项目签一枚，
+ * 所以要有上限；超出时按签发顺序淘汰最旧的（它们本来也快到期了）。
+ */
+const MAX_LIVE_SELECTION_HANDLES = 512
+
 export function createProjectLeaseAuthority(deps: ProjectLeaseAuthorityDeps) {
   const keyId = deps.keyId ?? 'project-lease-v2'
   const now = deps.now ?? (() => new Date().toISOString())
   const randomId = deps.randomId ?? (() => crypto.randomUUID())
   const defaultTtlMs = deps.defaultTtlMs ?? 5 * 60_000
+  /**
+   * handleId → 签名 token 的进程内映射。
+   *
+   * 为什么在这里而不是发给模型：签名句柄编码后有 1200+ 字符，2026-09-10 的真实宿主实测里
+   * 模型回传了 1192 个字符、从第 514 个字符起就开始分歧（相似度 0.692）——不是截断，是凭记忆重写，
+   * 而且重试永远出不来。**把不可读的 blob 当成模型要背下来的入参，本身就是设计错误。**
+   * 收据链上早就是对的做法（approvalReceipt.ts 的 resolveReceiptToken：id 给外面、token 留主进程），
+   * 这里照抄它，不发明第二种机制。
+   *
+   * 不落盘是刻意的：句柄绑死 principal + sessionId + connectionNonce，进程重启后本来就验不过。
+   */
+  const liveSelectionHandles = new Map<string, { token: string; expiresAt: string }>()
+
+  function pruneSelectionHandles(): void {
+    const current = Date.parse(now())
+    for (const [handleId, record] of liveSelectionHandles) {
+      if (!Number.isFinite(Date.parse(record.expiresAt)) || current >= Date.parse(record.expiresAt)) {
+        liveSelectionHandles.delete(handleId)
+      }
+    }
+    while (liveSelectionHandles.size > MAX_LIVE_SELECTION_HANDLES) {
+      const oldest = liveSelectionHandles.keys().next()
+      if (oldest.done) break
+      liveSelectionHandles.delete(oldest.value)
+    }
+  }
+
+  /** 把模型手上的短 id 换回签名 token。换不到 = 这枚句柄过期了或来自另一条连接。 */
+  function resolveSelectionHandle(handleId: string): string {
+    pruneSelectionHandles()
+    const normalized = typeof handleId === 'string' ? handleId.trim() : ''
+    if (!normalized) throw new ProjectLeaseScopeError('A projectSelectionHandle is required')
+    const record = liveSelectionHandles.get(normalized)
+    if (!record) {
+      throw new ProjectLeaseScopeError(
+        'This projectSelectionHandle is not live on this connection; read nomi_read target=projects again to get a fresh one',
+      )
+    }
+    return record.token
+  }
 
   function expiresAt(startedAt: string, ttlMs: number | undefined, cap?: string): string {
     if (ttlMs !== undefined && (!Number.isInteger(ttlMs) || ttlMs <= 0)) {
@@ -274,7 +320,10 @@ export function createProjectLeaseAuthority(deps: ProjectLeaseAuthorityDeps) {
       scopeSet,
     }
     const handle: ProjectSelectionHandleV2 = { ...handleWithoutMac, mac: sign(handleWithoutMac, deps.macKey) }
-    return { token: encode(handle), handle }
+    const token = encode(handle)
+    pruneSelectionHandles()
+    liveSelectionHandles.set(handle.handleId, { token, expiresAt: handle.expiresAt })
+    return { token, handle }
   }
 
   async function assertFreshProjectIdentity(claims: ProjectIdentityClaims): Promise<void> {
@@ -412,6 +461,7 @@ export function createProjectLeaseAuthority(deps: ProjectLeaseAuthorityDeps) {
 
   return {
     issueSelectionHandle,
+    resolveSelectionHandle,
     verifySelectionHandle,
     issueLease,
     upgradeLeaseScope,

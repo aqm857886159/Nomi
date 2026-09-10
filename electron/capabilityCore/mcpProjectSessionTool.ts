@@ -6,7 +6,7 @@ export const MCP_PROJECT_SESSION_TOOL = Object.freeze({
   inputSchema: Object.freeze({
     type: 'object',
     properties: Object.freeze({
-      projectSelectionHandle: Object.freeze({ type: 'string' }),
+      projectSelectionHandle: Object.freeze({ type: 'string', maxLength: 200, description: 'nomi_read target=projects 每行给的短 id，原样传回；不要自己拼。' }),
       bootstrap: Object.freeze({
         type: 'object',
         properties: Object.freeze({

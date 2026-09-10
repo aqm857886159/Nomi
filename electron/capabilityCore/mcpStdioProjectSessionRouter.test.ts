@@ -134,7 +134,7 @@ describe('MCP stdio project-session router', () => {
 
     const rpcSelection = await guiRuntime.authority.issueProjectSelection('created_project', 'project-1', guiConnection)
     const rpcOpened = await invoke('nomi_session_open', {
-      projectSelectionHandle: rpcSelection.token,
+      projectSelectionHandle: rpcSelection.handle.handleId,
     }) as { leaseHandle: string }
     const rpcLeaseClaims = JSON.parse(Buffer.from(rpcOpened.leaseHandle, 'base64url').toString('utf8')) as Record<string, unknown>
     expect(JSON.stringify(rpcSelection)).not.toContain(secret)
@@ -152,7 +152,7 @@ describe('MCP stdio project-session router', () => {
       stdioConnection,
     )
     const directOpened = await invoke('nomi_session_open', {
-      projectSelectionHandle: directSelection.token,
+      projectSelectionHandle: directSelection.handle.handleId,
     }) as { leaseHandle: string }
     const directLeaseClaims = JSON.parse(Buffer.from(directOpened.leaseHandle, 'base64url').toString('utf8')) as Record<string, unknown>
     expect(JSON.stringify(directSelection)).not.toContain(secret)
