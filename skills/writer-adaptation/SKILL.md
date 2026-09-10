@@ -1,6 +1,38 @@
 ---
 name: writer-adaptation
 description: 改编顾问——原著分析 / 改编策略 / 戏剧点提炼 / 结构映射 / 人物迁移。Nomi 创作区把小说/原著改编成剧本时参考。
+metadata:
+  nomi:
+    selectable-in-workbench: true
+    library:
+      kind: skill
+      title:
+        zh-CN: 改编顾问
+        en: Adaptation
+      summary:
+        zh-CN: 改编顾问——原著分析 / 改编策略 / 戏剧点提炼 / 结构映射 / 人物迁移。Nomi 创作区把小说/原著改编成剧本时参考。
+        en: Transform source material into a coherent dramatic screenplay.
+      appliesTo:
+      - text
+      group:
+        zh-CN: 编剧
+        en: Writing
+      slots: []
+      source:
+        url: https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/writer-adaptation/SKILL.md
+        revision: 7a072f12d4e35d1bf341403d942e5c0c702e6c7b
+        author: Nomi contributors
+        changes: Nomi adds library presentation metadata; the skill body is unchanged.
+        evidence:
+        - https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/writer-adaptation/SKILL.md
+      preview:
+        path: assets/cover.png
+        type: image
+        provenance: illustration
+    version: 1.0.0
+    tools: []
+    required-providers: []
+license: AGPL-3.0-only
 ---
 
 # 改编顾问

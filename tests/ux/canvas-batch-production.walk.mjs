@@ -1,6 +1,7 @@
+import { expectComposerFooterHit } from './_composerFixedFooter.mjs'
 // Real Electron journey for canvas batch production. The UI, spend gate, IPC, queue, HTTP transport,
 // persistence, retry, and screenshots are real; only the remote vendor is replaced by a loopback fixture.
-import { launchNomiApp } from './_launchApp.mjs'
+import { launchNomiApp, ACCEPTANCE_WIDE_VIEWPORT } from './_launchApp.mjs'
 import { findCanvasBlankPoint } from './_canvasHit.mjs'
 import fs from 'node:fs'
 import http from 'node:http'
@@ -174,7 +175,11 @@ async function addNodeWithPrompt(win, kind, prompt) {
   await target.waitFor({ timeout: 5000 })
   const id = await target.getAttribute('data-node-id')
   const editor = win.locator(`[data-node-id="${id}"] div[contenteditable="true"]`).last()
+  // The editor's own box can remain tall while its flex scrollport collapses to zero.
+  // Assert the actual visible input region for both image and video composers.
+  await expect.poll(() => editor.evaluate(element => element.closest('[data-prompt-box]').parentElement.clientHeight), { message: `${kind}提示词区保留三行可输入空间` }).toBeGreaterThanOrEqual(72)
   await editor.click({ timeout: 5000 })
+  await expectComposerFooterHit(editor.locator('xpath=ancestor::*[contains(@class, "generation-canvas-v2-node__composer-card")]'), `${kind}生成`)
   await editor.fill(prompt)
   await win.waitForTimeout(500)
   return id
@@ -227,6 +232,7 @@ const pageErrors = []
 const consoleErrors = []
 const { app, win } = await launchNomiApp({
   name: 'canvas-batch-production',
+  ...(process.argv.includes('--wide') ? { viewportSize: ACCEPTANCE_WIDE_VIEWPORT } : {}),
   userDataDir,
   settingsDir,
   projectsDir,
@@ -244,9 +250,6 @@ try {
     const ext = gl?.getExtension('WEBGL_debug_renderer_info')
     return ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : 'unavailable'
   }))
-  const browserWindow = await app.browserWindow(win)
-  await browserWindow.evaluate((window) => window.setBounds({ x: 0, y: 0, width: 1680, height: 1020 }))
-  await win.setViewportSize({ width: 1680, height: 993 })
   win.on('pageerror', (error) => pageErrors.push(String(error)))
   win.on('console', (message) => {
     if (message.type() === 'error') consoleErrors.push(message.text())
@@ -393,7 +396,7 @@ try {
   const modelNotificationBoxes = await win
     .locator('.mantine-Notifications-root[data-position="top-right"]')
     .getByRole('alert')
-    .evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect()).map(({ x, width }) => ({ x, width })))
+    .evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect()).map(({ x, y, width, height }) => ({ x, y, width, height })))
   check(modelNotificationBoxes.length > 0, '模型切换反馈通知仍然可见')
   check(
     Boolean(
@@ -401,7 +404,9 @@ try {
         modelNotificationBoxes.every(
           (box) =>
             box.x + box.width <= modelPanelBox.x - 8 ||
-            box.x >= modelPanelBox.x + modelPanelBox.width + 8,
+            box.x >= modelPanelBox.x + modelPanelBox.width + 8 ||
+            box.y + box.height <= modelPanelBox.y - 8 ||
+            box.y >= modelPanelBox.y + modelPanelBox.height + 8,
         ),
     ),
     '模型面板打开时通知不会遮挡面板',

@@ -1,4 +1,5 @@
 import React from 'react'
+import { createPortal } from 'react-dom'
 import * as DropdownMenuPrimitive from '@radix-ui/react-dropdown-menu'
 import { IconCheck } from '@tabler/icons-react'
 import { cn } from '../utils/cn'
@@ -289,15 +290,18 @@ export function WorkbenchMenu({
   return (
     <DropdownMenuPrimitive.Root open={open} onOpenChange={onOpenChange} modal={false}>
       {/*
-        虚拟锚点：0×0 的 fixed 触发元素落在宿主给的视口坐标上，Radix 拿它当 popper 锚点。
+        虚拟锚点与内容同样 Portal 到 body；否则画布 transform 会把 fixed 视口坐标再变换一次。
         `tabIndex={-1}` 是必需的——它不可见，留在 Tab 序里就是一个摸不着的停靠点。
       */}
-      <DropdownMenuPrimitive.Trigger
+      {typeof document !== 'undefined' && createPortal(
+        <DropdownMenuPrimitive.Trigger
         tabIndex={-1}
         aria-label={ariaLabel}
         className="fixed size-0 border-0 bg-transparent p-0"
         style={{ left: point.x, top: point.y }}
-      />
+      />,
+        document.body,
+      )}
       <DropdownMenuPrimitive.Portal>
         <DropdownMenuPrimitive.Content
           side="bottom"

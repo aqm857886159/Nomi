@@ -1,6 +1,39 @@
 ---
 name: director-style-otomo-wright
 description: 导演风格融合招式·大友启史 × 埃德加·赖特（时尚动作怪盗 DNA）——按情节类型（飙车/打斗/跑酷/盗窃潜入/文戏温情/时尚换装登场）分别配运镜 + 剪辑节奏 + 声画卡点；Nomi 做高燃动作 / 时尚怪盗戏、想要这种质感时套用。运镜写进镜头 prompt，卡点节奏当时间轴剪辑参考，经应用内 Seedance / 可灵生成。
+metadata:
+  nomi:
+    selectable-in-workbench: true
+    library:
+      kind: skill
+      title:
+        zh-CN: 动作剪辑风格
+        en: Action editing style
+      summary:
+        zh-CN: 导演风格融合招式·大友启史 × 埃德加·赖特（时尚动作怪盗 DNA）——按情节类型（飙车/打斗/跑酷/盗窃潜入/文戏温情/时尚换装登场）分别配运镜 + 剪辑节奏 + 声画卡点；Nomi 做高燃动作 / 时尚怪盗戏、想要这种质感时套用。运镜写进镜头
+          prompt，卡点节奏当时间轴剪辑参考，经应用内 Seedance / 可灵生成。
+        en: Combine dynamic action, precise cutting and audiovisual rhythm.
+      appliesTo:
+      - text
+      group:
+        zh-CN: 导演
+        en: Directing
+      slots: []
+      source:
+        url: https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/director-style-otomo-wright/SKILL.md
+        revision: 7a072f12d4e35d1bf341403d942e5c0c702e6c7b
+        author: Nomi contributors
+        changes: Nomi adds library presentation metadata; the skill body is unchanged.
+        evidence:
+        - https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/director-style-otomo-wright/SKILL.md
+      preview:
+        path: assets/cover.png
+        type: image
+        provenance: illustration
+    version: 1.0.0
+    tools: []
+    required-providers: []
+license: AGPL-3.0-only
 ---
 
 # 大友启史 × 埃德加·赖特 · 融合风格招式（时尚动作怪盗 DNA）

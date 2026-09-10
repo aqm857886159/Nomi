@@ -3,6 +3,7 @@ name: release-media-pack
 description: 为 Nomi 桌面端发版制作故事先行的双语宣传片、更新图文与发布文案，并把版本事实、TikHub 样片研究、Nomi 生成和本地后期串成可回溯的素材包。
 metadata:
   nomi:
+    selectable-in-workbench: true
     version: 1.0.0
     label: 发版素材包
     author: "@nomi"
@@ -117,6 +118,32 @@ metadata:
         pause: true
         model-prefs:
           - kind: text
+    library:
+      kind: skill
+      title:
+        zh-CN: 发版素材包
+        en: Release media pack
+      summary:
+        zh-CN: 为 Nomi 桌面端发版制作故事先行的双语宣传片、更新图文与发布文案，并把版本事实、TikHub 样片研究、Nomi 生成和本地后期串成可回溯的素材包。
+        en: Prepare bilingual launch films, graphics and release copy.
+      appliesTo:
+      - text
+      group:
+        zh-CN: 创作流程
+        en: Workflow
+      slots: []
+      source:
+        url: https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/release-media-pack/SKILL.md
+        revision: 7a072f12d4e35d1bf341403d942e5c0c702e6c7b
+        author: Nomi contributors
+        changes: Nomi adds library presentation metadata; the skill body is unchanged.
+        evidence:
+        - https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/release-media-pack/SKILL.md
+      preview:
+        path: assets/cover.png
+        type: image
+        provenance: illustration
+license: AGPL-3.0-only
 ---
 
 # Nomi 发版素材包

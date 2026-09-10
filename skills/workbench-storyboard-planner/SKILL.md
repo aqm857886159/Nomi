@@ -11,6 +11,32 @@ metadata:
     required-providers:
       - text
       - image
+    library:
+      kind: skill
+      title:
+        zh-CN: 分镜规划
+        en: Storyboard planning
+      summary:
+        zh-CN: 把短故事拆成有序镜头，整理为可审阅的分镜方案。
+        en: Turn a short story into ordered shots on the canvas.
+      appliesTo:
+      - text
+      group:
+        zh-CN: 创作流程
+        en: Workflow
+      slots: []
+      source:
+        url: https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/workbench-storyboard-planner/SKILL.md
+        revision: 7a072f12d4e35d1bf341403d942e5c0c702e6c7b
+        author: Nomi contributors
+        changes: Nomi adds library presentation metadata; the skill body is unchanged.
+        evidence:
+        - https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/workbench-storyboard-planner/SKILL.md
+      preview:
+        path: assets/cover.png
+        type: image
+        provenance: illustration
+license: AGPL-3.0-only
 ---
 
 # 故事板规划师 (Storyboard Planner)

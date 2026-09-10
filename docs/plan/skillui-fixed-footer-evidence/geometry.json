@@ -1,0 +1,146 @@
+[
+  {
+    "state": "short",
+    "scheme": "light",
+    "nodeWidth": 340,
+    "promptHeight": 72,
+    "promptScrolls": false,
+    "outerOverflow": "hidden",
+    "outerScrollTop": 0,
+    "generateHit": true,
+    "moreHit": true,
+    "rowHeight": 0,
+    "visibleChips": 0,
+    "chipsHit": true,
+    "card": {
+      "width": 659,
+      "height": 211
+    }
+  },
+  {
+    "state": "short",
+    "scheme": "dark",
+    "nodeWidth": 340,
+    "promptHeight": 72,
+    "promptScrolls": false,
+    "outerOverflow": "hidden",
+    "outerScrollTop": 0,
+    "generateHit": true,
+    "moreHit": true,
+    "rowHeight": 0,
+    "visibleChips": 0,
+    "chipsHit": true,
+    "card": {
+      "width": 659,
+      "height": 211
+    }
+  },
+  {
+    "state": "long",
+    "scheme": "light",
+    "nodeWidth": 340,
+    "promptHeight": 82,
+    "promptScrolls": true,
+    "outerOverflow": "hidden",
+    "outerScrollTop": 0,
+    "generateHit": true,
+    "moreHit": true,
+    "rowHeight": 0,
+    "visibleChips": 0,
+    "chipsHit": true,
+    "card": {
+      "width": 659,
+      "height": 221
+    }
+  },
+  {
+    "state": "long",
+    "scheme": "dark",
+    "nodeWidth": 340,
+    "promptHeight": 82,
+    "promptScrolls": true,
+    "outerOverflow": "hidden",
+    "outerScrollTop": 0,
+    "generateHit": true,
+    "moreHit": true,
+    "rowHeight": 0,
+    "visibleChips": 0,
+    "chipsHit": true,
+    "card": {
+      "width": 659,
+      "height": 221
+    }
+  },
+  {
+    "state": "cramped",
+    "scheme": "light",
+    "nodeWidth": 340,
+    "promptHeight": 72,
+    "promptScrolls": false,
+    "outerOverflow": "hidden",
+    "outerScrollTop": 0,
+    "generateHit": true,
+    "moreHit": true,
+    "rowHeight": 4,
+    "visibleChips": 0,
+    "chipsHit": true,
+    "card": {
+      "width": 659,
+      "height": 221
+    }
+  },
+  {
+    "state": "cramped",
+    "scheme": "dark",
+    "nodeWidth": 340,
+    "promptHeight": 72,
+    "promptScrolls": false,
+    "outerOverflow": "hidden",
+    "outerScrollTop": 0,
+    "generateHit": true,
+    "moreHit": true,
+    "rowHeight": 4,
+    "visibleChips": 0,
+    "chipsHit": true,
+    "card": {
+      "width": 659,
+      "height": 221
+    }
+  },
+  {
+    "state": "narrow",
+    "scheme": "light",
+    "nodeWidth": 240,
+    "promptHeight": 72,
+    "promptScrolls": false,
+    "outerOverflow": "hidden",
+    "outerScrollTop": 0,
+    "generateHit": true,
+    "moreHit": true,
+    "rowHeight": 24,
+    "visibleChips": 4,
+    "chipsHit": true,
+    "card": {
+      "width": 659,
+      "height": 241
+    }
+  },
+  {
+    "state": "narrow",
+    "scheme": "dark",
+    "nodeWidth": 240,
+    "promptHeight": 72,
+    "promptScrolls": false,
+    "outerOverflow": "hidden",
+    "outerScrollTop": 0,
+    "generateHit": true,
+    "moreHit": true,
+    "rowHeight": 24,
+    "visibleChips": 4,
+    "chipsHit": true,
+    "card": {
+      "width": 659,
+      "height": 241
+    }
+  }
+]

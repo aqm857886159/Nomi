@@ -1,0 +1,263 @@
+feel record: library-category-collapse/FAIL.png; findings=28; new-surfaces=3; evidence: /Users/aoqimin/Desktop/Nomi-skill-ui/artifacts/feel/library-category-collapse-f023e669-e4cc-4b9b-b655-5f9373105ca6
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+ExpectError: expect(locator).toContainText(expected) failed
+
+Locator: locator('[data-v4-popover="skill"]').first().locator('details[data-library-group*="source:builtin-expressions"]').locator('summary')
+Expected substring: "25"
+Timeout: 5000ms
+Error: element(s) not found
+
+Call log:
+  - Expect "to.have.text" with timeout 5000ms
+  - waiting for locator('[data-v4-popover="skill"]').first().locator('details[data-library-group*="source:builtin-expressions"]').locator('summary')
+
+    at captureRawStack (/Users/aoqimin/Desktop/Nomi-skill-ui/node_modules/.pnpm/playwright-core@1.60.0/node_modules/playwright-core/lib/coreBundle.js:3130:17)
+    at callMatcherAsStep (/Users/aoqimin/Desktop/Nomi-skill-ui/node_modules/.pnpm/playwright@1.60.0/node_modules/playwright/lib/matchers/expect.js:12873:57)
+    at Object.toContainText (/Users/aoqimin/Desktop/Nomi-skill-ui/node_modules/.pnpm/playwright@1.60.0/node_modules/playwright/lib/matchers/expect.js:12863:23)
+    at Proxy.<anonymous> (/Users/aoqimin/Desktop/Nomi-skill-ui/tests/ux/_collect.mjs:18:32)
+    at /Users/aoqimin/Desktop/Nomi-skill-ui/tests/ux/library-category-collapse.walk.mjs:43:47 {
+  matcherResult: {
+    name: 'toContainText',
+    expected: '25',
+    message: 'expect(locator).toContainText(expected) failed\n' +
+      '\n' +
+      `Locator: locator('[data-v4-popover="skill"]').first().locator('details[data-library-group*="source:builtin-expressions"]').locator('summary')\n` +
+      'Expected substring: "25"\n' +
+      'Timeout: 5000ms\n' +
+      'Error: element(s) not found\n' +
+      '\n' +
+      'Call log:\n' +
+      '  - Expect "to.have.text" with timeout 5000ms\n' +
+      `  - waiting for locator('[data-v4-popover="skill"]').first().locator('details[data-library-group*="source:builtin-expressions"]').locator('summary')\n`,
+    pass: false,
+    actual: undefined,
+    log: [
+      '  - Expect "to.have.text" with timeout 5000ms',
+      `  - waiting for locator('[data-v4-popover="skill"]').first().locator('details[data-library-group*="source:builtin-expressions"]').locator('summary')`
+    ],
+    timeout: 5000,
+    ariaSnapshot: '- banner "Nomi 工作台":\n' +
+      '  - navigation "位置导航":\n' +
+      '    - button "返回项目库": 项目库\n' +
+      '    - button "未命名项目 09/09 21:30"\n' +
+      '  - navigation "工作区切换":\n' +
+      '    - button "创作"\n' +
+      '    - button "生成"\n' +
+      '    - button "预览"\n' +
+      '  - toolbar "全局操作":\n' +
+      '    - button "任务":\n' +
+      '      - img\n' +
+      '      - text: 任务\n' +
+      '    - button "上手 4 步，已完成 0 / 4": 上手 0/4\n' +
+      '    - button "打开浏览器":\n' +
+      '      - img\n' +
+      '      - text: 浏览器\n' +
+      '    - button "设置":\n' +
+      '      - img\n' +
+      '      - text: 设置\n' +
+      '    - button "打开模型设置":\n' +
+      '      - img\n' +
+      '      - text: 模型\n' +
+      '    - button "去出片":\n' +
+      '      - img\n' +
+      '      - text: 去出片\n' +
+      '- main:\n' +
+      '  - complementary "创作内容列表":\n' +
+      '    - text: 创作内容 原稿 · 1 篇\n' +
+      '    - button "新建一篇原稿":\n' +
+      '      - img\n' +
+      '    - navigation "创作内容列表":\n' +
+      '      - button "收起原稿" [expanded]:\n' +
+      '        - img\n' +
+      '      - button "未命名项目 1"\n' +
+      '      - button "更多操作":\n' +
+      '        - img\n' +
+      '      - button "分镜方案, 需同步": 分镜方案\n' +
+      '      - button "更多操作":\n' +
+      '        - img\n' +
+      '      - button "新建分镜方案"\n' +
+      '  - region "创作区":\n' +
+      '    - region "创作文档编辑区":\n' +
+      '      - button "加粗":\n' +
+      '        - img\n' +
+      '      - button "斜体":\n' +
+      '        - img\n' +
+      '      - button "删除线":\n' +
+      '        - img\n' +
+      '      - button "行内代码":\n' +
+      '        - img\n' +
+      '      - button "高亮":\n' +
+      '        - img\n' +
+      '      - button "一级标题":\n' +
+      '        - img\n' +
+      '      - button "二级标题":\n' +
+      '        - img\n' +
+      '      - button "三级标题":\n' +
+      '        - img\n' +
+      '      - button "引用":\n' +
+      '        - img\n' +
+      '      - button "分隔线":\n' +
+      '        - img\n' +
+      '      - button "项目符号":\n' +
+      '        - img\n' +
+      '      - button "编号列表":\n' +
+      '        - img\n' +
+      '      - button "待办列表":\n' +
+      '        - img\n' +
+      '      - button "插入表格":\n' +
+      '        - img\n' +
+      '      - button "链接":\n' +
+      '        - img\n' +
+      '      - button "撤销":\n' +
+      '        - img\n' +
+      '      - button "重做" [disabled]:\n' +
+      '        - img\n' +
+      '      - paragraph: 从这里开始写你的故事、脚本或文案…… 选中文字，点右侧即可生成图片 / 视频节点。\n' +
+      '    - complementary:\n' +
+      '      - separator "拖动调整助手宽度"\n' +
+      '      - group:\n' +
+      '        - text: —\n' +
+      '        - img\n' +
+      '      - button "历史会话":\n' +
+      '        - img\n' +
+      '      - button "收起面板":\n' +
+      '        - img\n' +
+      '      - text: Nomi 能读你的文稿、改它、拆成分镜\n' +
+      '      - button "写脚本"\n' +
+      '      - button "拆分镜"\n' +
+      '      - button "改文稿"\n' +
+      '      - complementary:\n' +
+      '        - textbox "搜索技能，或输入 / 命令"\n' +
+      '        - button "全部"\n' +
+      '        - button "技能"\n' +
+      '        - button "提示词"\n' +
+      '        - button "效果"\n' +
+      '        - text: 技能\n' +
+      '        - button "品牌宣传片/brand-promo 做产品/品牌宣传片。当用户要把产品文案、卖点或品牌介绍做成一条短宣传视频，或提到「宣传片 / 产品视频 / 品牌短片 / promo / 广告片」时用我。":\n' +
+      '          - img\n' +
+      '          - text: 品牌宣传片\n' +
+      '          - code: /brand-promo\n' +
+      '          - text: 做产品/品牌宣传片。当用户要把产品文案、卖点或品牌介绍做成一条短宣传视频，或提到「宣传片 / 产品视频 / 品牌短片 / promo / 广告片」时用我。\n' +
+      '        - button "烛光氛围短片/curated-candle-mood 用点火、暖光与烟雾营造安静氛围。 用户要求烛光氛围短片时使用。":\n' +
+      '          - text: 烛光氛围短片\n' +
+      '          - code: /curated-candle-mood\n' +
+      '          - text: 用点火、暖光与烟雾营造安静氛围。 用户要求烛光氛围短片时使用。\n' +
+      '        - button "咖啡倾注特写/curated-coffee-pour 把注入、油脂和蒸汽拆成清楚的镜头节拍。 用户要求咖啡倾注特写时使用。":\n' +
+      '          - text: 咖啡倾注特写\n' +
+      '          - code: /curated-coffee-pour\n' +
+      '          - text: 把注入、油脂和蒸汽拆成清楚的镜头节拍。 用户要求咖啡倾注特写时使用。\n' +
+      '        - button "跨视角构图/curated-cross-view 把参考画面转成另一机位，核对空间关系。 用户要求跨视角构图时使用。":\n' +
+      '          - text: 跨视角构图\n' +
+      '          - code: /curated-cross-view\n' +
+      '          - text: 把参考画面转成另一机位，核对空间关系。 用户要求跨视角构图时使用。\n' +
+      '        - button "参考表情迁移/curated-expression-reference 参考第二张图的表情，保留第一张图的人物。 用户要求参考表情迁移时使用。":\n' +
+      '          - text: 参考表情迁移\n' +
+      '          - code: /curated-expression-reference\n' +
+      '          - text: 参考第二张图的表情，保留第一张图的人物。 用户要求参考表情迁移时使用。\n' +
+      '        - button "表情设定表/curated-expression-sheet 按姿势参考生成同一角色的多种表情。 用户要求表情设定表时使用。":\n' +
+      '          - text: 表情设定表\n' +
+      '          - code: /curated-expression-sheet\n' +
+      '          - text: 按姿势参考生成同一角色的多种表情。 用户要求表情设定表时使用。\n' +
+      '        - button "眼镜光轨广告/curated-eyewear-light 用移动光线表现镜片与镜架材质。 用户要求眼镜光轨广告时使用。":\n' +
+      '          - text: 眼镜光轨广告\n' +
+      '          - code: /curated-eyewear-light\n' +
+      '          - text: 用移动光线表现镜片与镜架材质。 用户要求眼镜光轨广告时使用。\n' +
+      '        - button "电影分镜/curated-film-storyboard 把用户提供的剧本文字整理成宽屏分镜。 用户要求电影分镜时使用。":\n' +
+      '          - text: 电影分镜\n' +
+      '          - code: /curated-film-storyboard\n' +
+      '          - text: 把用户提供的剧本文字整理成宽屏分镜。 用户要求电影分镜时使用。\n' +
+      '        - button "多视图设定/curated-multi-view 把同一主体整理成一致的多面设定。 用户要求多视图设定时使用。":\n' +
+      '          - text: 多视图设定\n' +
+      '          - code: /curated-multi-view\n' +
+      '          - text: 把同一主体整理成一致的多面设定。 用户要求多视图设定时使用。\n' +
+      '        - button "自然扩图/curated-outpaint 补齐边缘空白，核对纹理与透视衔接。 用户要求自然扩图时使用。":\n' +
+      '          - text: 自然扩图\n' +
+      '          - code: /curated-outpaint\n' +
+      '          - text: 补齐边缘空白，核对纹理与透视衔接。 用户要求自然扩图时使用。\n' +
+      '        - button "清洁前后对比/curated-product-before-after 通过擦镜转场展示同一产品的清洁变化。 用户要求清洁前后对比时使用。":\n' +
+      '          - text: 清洁前后对比\n' +
+      '          - code: /curated-product-before-after\n' +
+      '          - text: 通过擦镜转场展示同一产品的清洁变化。 用户要求清洁前后对比时使用。\n' +
+      '        - button "凝露产品广告/curated-product-condensation 用微距、水滴和环绕镜头展示产品质感。 用户要求凝露产品广告时使用。":\n' +
+      '          - text: 凝露产品广告\n' +
+      '          - code: /curated-product-condensation\n' +
+      '          - text: 用微距、水滴和环绕镜头展示产品质感。 用户要求凝露产品广告时使用。\n' +
+      '        - button "产品爆炸视图/curated-product-exploded-view 让部件分离展示后归位，保持产品结构。 用户要求产品爆炸视图时使用。":\n' +
+      '          - text: 产品爆炸视图\n' +
+      '          - code: /curated-product-exploded-view\n' +
+      '          - text: 让部件分离展示后归位，保持产品结构。 用户要求产品爆炸视图时使用。\n' +
+      '        - button "转台产品广告/curated-product-turntable 保持鞋型和细节，完成转台环绕展示。 用户要求转台产品广告时使用。":\n' +
+      '          - text: 转台产品广告\n' +
+      '          - code: /curated-product-turntable\n' +
+      '          - text: 保持鞋型和细节，完成转台环绕展示。 用户要求转台产品广告时使用。\n' +
+      '        - button "产品开箱/curated-product-unboxing 按揭盖、取出和定格组织一次开箱。 用户要求产品开箱时使用。":\n' +
+      '          - text: 产品开箱\n' +
+      '          - code: /curated-product-unboxing\n' +
+      '          - text: 按揭盖、取出和定格组织一次开箱。 用户要求产品开箱时使用。\n' +
+      '        - button "旧图重新绘制/curated-restore-image 重新诠释旧图细节；结果可能改变原纹理。 用户要求旧图重新绘制时使用。":\n' +
+      '          - text: 旧图重新绘制\n' +
+      '          - code: /curated-restore-image\n' +
+      '          - text: 重新诠释旧图细节；结果可能改变原纹理。 用户要求旧图重新绘制时使用。\n' +
+      '        - button "短剧/drama-short 做剧情类短剧/短片。当用户要把一个故事、梗概、小说片段或「深夜便利店发生了什么」这类情境做成有人物、有转折的短剧，或提到「短剧 / 微短剧 / 剧情短片 / 小说改编」时用我。":\n' +
+      '          - img\n' +
+      '          - text: 短剧\n' +
+      '          - code: /drama-short\n' +
+      '          - text: 做剧情类短剧/短片。当用户要把一个故事、梗概、小说片段或「深夜便利店发生了什么」这类情境做成有人物、有转折的短剧，或提到「短剧 / 微短剧 / 剧情短片 / 小说改编」时用我。\n' +
+      '        - button "发版素材包/release-media-pack 为 Nomi 桌面端发版制作故事先行的双语宣传片、更新图文与发布文案，并把版本事实、TikHub 样片研究、Nomi 生成和本地后期串成可回溯的素材包。":\n' +
+      '          - img\n' +
+      '          - text: 发版素材包\n' +
+      '          - code: /release-media-pack\n' +
+      '          - text: 为 Nomi 桌面端发版制作故事先行的双语宣传片、更新图文与发布文案，并把版本事实、TikHub 样片研究、Nomi 生成和本地后期串成可回溯的素材包。\n' +
+      '        - button "workbench-storyboard-planner/workbench-storyboard-planner Decompose a 200–500 character story into 6–12 ordered storyboard shots and lay them out on the generation canvas with linear edges.":\n' +
+      '          - img\n' +
+      '          - text: workbench-storyboard-planner\n' +
+      '          - code: /workbench-storyboard-planner\n' +
+      '          - text: Decompose a 200–500 character story into 6–12 ordered storyboard shots and lay them out on the generation canvas with linear edges.\n' +
+      '        - text: 提示词\n' +
+      '        - button "喜悦 1/5 · 一丝笑意/builtin-expr-joy-1 保持画面中人物的身份、五官、发型、服装、姿态、构图与光线完全不变，仅将面部表情改为：嘴角极轻微地上扬，带出一丝若有若无的笑意；眉眼放松，目光柔和，面部其余部分保持平静，克制而含蓄的愉悦。表情强度：喜悦五档中的第 1 档（最轻）。":\n' +
+      '          - text: 喜悦 1/5 · 一丝笑意\n' +
+      '          - code: /builtin-expr-joy-1\n' +
+      '          - text: 保持画面中人物的身份、五官、发型、服装、姿态、构图与光线完全不变，仅将面部表情改为：嘴角极轻微地上扬，带出一丝若有若无的笑意；眉眼放松，目光柔和，面部其余部分保持平静，克制而含蓄的愉悦。表情强度：喜悦五档中的第 1 档（最轻）。\n' +
+      '        - button "喜悦 2/5 · 浅笑/builtin-expr-joy-2 保持画面中人物的身份、五官、发型、服装、姿态、构图与光线完全不变，仅将面部表情改为：双唇轻抿、嘴角明确上扬成浅浅的微笑，不露牙齿；眼尾微微弯起，面颊轻轻提起，神情温和亲切。表情强度：喜悦五档中的第 2 档。":\n' +
+      '          - text: 喜悦 2/5 · 浅笑\n' +
+      '          - code: /builtin-expr-joy-2\n' +
+      '          - text: 保持画面中人物的身份、五官、发型、服装、姿态、构图与光线完全不变，仅将面部表情改为：双唇轻抿、嘴角明确上扬成浅浅的微笑，不露牙齿；眼尾微微弯起，面颊轻轻提起，神情温和亲切。表情强度：喜悦五档中的第 2 档。\n' +
+      '        - button "喜悦 3/5 · 明朗微笑/builtin-expr-joy-3 保持画面中人物的身份、五官、发型、服装、姿态、构图与光线完全不变，仅将面部表情改为：开口露出上排牙齿的明朗笑容，眼睛弯成月牙、眼角出现细小笑纹，苹果肌隆起，眉毛舒展上扬，真诚开朗的快乐。表情强度：喜悦五档中的第 3 档。":\n' +
+      '          - text: 喜悦 3/5 · 明朗微笑\n' +
+      '          - code: /builtin-expr-joy-3\n' +
+      '          - text: 保持画面中人物的身份、五官、发型、服装、姿态、构图与光线完全不变，仅将面部表情改为：开口露出上排牙齿的明朗笑容，眼睛弯成月牙、眼角出现细小笑纹，苹果肌隆起，眉毛舒展上扬，真诚开朗的快乐。表情强度：喜悦五档中的第 3 档。\n' +
+      '        - button "喜悦 4/5 · 开怀大笑/builtin-expr-joy-4 保持画面中人物的身份、五官、发型、服装、姿态、构图与光线完全不变，仅将面部表情改为：嘴巴张开纵情大笑，上下牙齿可见，双眼笑得眯起近乎闭合，眼角挤出明显笑纹，面颊高高隆起，头部微微后仰，毫无保留的欢畅。表情强度：喜悦五档中的第 4 档。":\n' +
+      '          - text: 喜悦 4/5 · 开怀大笑\n' +
+      '          - code: /builtin-expr-joy-4\n' +
+      '          - text: 保持画面中人物的身份、五官、发型、服装、姿态、构图与光线完全不变，仅将面部表情改为：嘴巴张开纵情大笑，上下牙齿可见，双眼笑得眯起近乎闭合，眼角挤出明显笑纹，面颊高高隆起，头部微微后仰，毫无保留的欢畅。表情强度：喜悦五档中的第 4 档。\n' +
+      '        - button "喜悦 5/5 · 欣喜若狂/builtin-expr-joy-5 保持画面中人物的身份、五官、发型、服装、姿态、构图与光线完全不变，仅将面部表情改为：狂喜到顶点，嘴张到最大放声大笑，眉毛高高扬起，双眼激动得发亮，整张脸的肌肉都兴奋地绷起，像刚听到天大的好消息，抑制不住的狂喜。表情强度：喜悦五档中的第 5 档（最强）。":\n' +
+      '          - text: 喜悦 5/5 · 欣喜若狂\n' +
+      '          - code: /builtin-expr-joy-5\n' +
+      '          - text: 保持画面中人物的身份、五官、发型、服装、姿态、构图与光线完全不变，仅将面部表情改为：狂喜到顶点，嘴张到最大放声大笑，眉毛高高扬起，双眼激动得发亮，整张脸的肌肉都兴奋地绷起，像刚听到天大的好消息，抑制不住的狂喜。表情强度：喜悦五档中的第 5 档（最强）。\n' +
+      '        - button "愤怒 1/5 · 眉头微蹙/builtin-expr-anger-1 保持画面中人物的身份、五官、发型、服装、姿态、构图与光线完全不变，仅将面部表情改为：眉心轻轻皱起，目光略微下沉变冷，嘴角平直并微微下压，面部其余部分保持平静，不易察觉的不快。表情强度：愤怒五档中的第 1 档（最轻）。":\n' +
+      '          - text: 愤怒 1/5 · 眉头微蹙\n' +
+      '          - code: /builtin-expr-anger-1\n' +
+      '          - text: 保持画面中人物的身份、五官、发型、服装、姿态、构图与光线完全不变，仅将面部表情改为：眉心轻轻皱起，目光略微下沉变冷，嘴角平直并微微下压，面部其余部分保持平静，不易察觉的不快。表情强度：愤怒五档中的第 1 档（最轻）。\n' +
+      '        - button "愤怒 2/5 · 面露不悦/builtin-expr-anger-2 保持画面中人物的身份、五官、发型、服装、姿态、构图与光线完全不变，仅将面部表情改为：双眉压低皱紧，眼神冷硬直视前方，嘴唇抿成一条紧绷的直线，下颌微微收紧，明显写在脸上的不满。表情强度：愤怒五档中的第 2 档。":\n' +
+      '          - text: 愤怒 2/5 · 面露不悦\n' +
+      '          - code: /builtin-expr-anger-2\n' +
+      '          - text: 保持画面中人物的身份、五官、发型、服装、姿态、构图与光线完全不变，仅将面部表情改为：双眉压低皱紧，眼神冷硬直视前方，嘴唇抿成一条紧绷的直线，下颌微微收紧，明显写在脸上的不满。表情强度：愤怒五档中的第 2 档。\n' +
+      '        - button "愤怒 3/5 · 愠怒压火/builtin-expr-anger-3 保持画面中人物的身份、五官、发型、服装、姿态、构图与光线完全不变，仅将面部表情改为：眉头深锁、眉心挤出竖纹，上眼睑压低让目光变得锐利，鼻翼微张，嘴角紧绷下拉，咬肌隐隐鼓起，压着火气随时要发作。表情强度：愤怒五档中的第 3 档。":\n' +
+      '          - text: 愤怒 3/5 · 愠怒压火\n' +
+      '          - code: /builtin-expr-anger-3\n' +
+      '          - text: 保持画面中人物的身份、五官、发型、服装、姿态、构图与光线完全不变，仅将面部表情改为：眉头深锁、眉心挤出竖纹，上眼睑压低让目光变得锐利，鼻翼微张，嘴角紧绷下拉，咬肌隐隐鼓起，压着火气随时要发作。表情强度：愤怒五档中的第 3 档。\n' +
+      '        - button "愤怒 4/5 · 怒目而视/builtin-expr-anger-4 保持画面中人物的身份、五官、发型、服装、姿态、构图与光线完全不变，仅将面部表情改为：双眉猛压成倒八字，双眼圆瞪、目光如刀，鼻翼张开呼吸加重，牙关紧咬、咬肌明显鼓起，嘴唇紧抿甚至微微掀起，强烈的怒意直逼镜头。表情强度：愤怒五档中的第 4 档。":\n' +
+      '          - text: 愤怒 4/5 · 怒目而视\n' +
+      '          - code: /builtin-expr-anger-4\n' +
+      '          - text: 保持画面中人物的身份、五官、发型、服装、姿态、构图与光线完全不变，仅将面部表情改为：双眉猛压成倒八字，双眼圆瞪、目光如刀，鼻翼张开呼吸加重，牙关紧咬、咬肌明显鼓起，嘴唇紧抿甚至微微掀起，强烈的怒意直逼镜头。表情强度：愤怒五档中的第 4 档。\n' +
+      '        - button "愤怒 5/5 · 暴怒嘶吼/builtin-expr-anger-5 保持画面中人物的身份、五官、发型、服装、姿态、构图与光线完全不变，仅将面部表情改为：暴怒到失控，眉毛拧成一团、眉心刻出深沟，双眼圆瞪充血，鼻梁皱起，嘴巴大张嘶吼、上下牙齿全露，面部与颈部肌肉青筋紧绷，狂怒爆发的瞬间。表情强度：愤怒五档中的第 5 档（最强）。":\n' +
+      '          - text: 愤怒 5/5 · 暴怒嘶吼\n' +
+      '          - code: /builtin-expr-anger-5\n' +
+      '          - text: 保持画面中人物的身份、五官、发型、服装、姿态、构图与光线完全不变'... 1043942 more characters
+  }
+}
+
+Node.js v24.13.1

@@ -1,6 +1,39 @@
 ---
 name: director-performance
 description: 非武打文戏的表演指导——微表情/肢体语言/视线设计/沉默表演/角色行为模式。AI 不会自己「演」，情绪必须在 prompt 里精确物理化成可拍的身体信号（眉/眼/嘴/手/肩/呼吸/停顿）。Nomi 写文戏 shot 的 prompt 时参考，让画面演得出「情绪」而不是只写情绪词。
+metadata:
+  nomi:
+    selectable-in-workbench: true
+    library:
+      kind: skill
+      title:
+        zh-CN: 表演指导
+        en: Performance direction
+      summary:
+        zh-CN: 非武打文戏的表演指导——微表情/肢体语言/视线设计/沉默表演/角色行为模式。AI 不会自己「演」，情绪必须在 prompt 里精确物理化成可拍的身体信号（眉/眼/嘴/手/肩/呼吸/停顿）。Nomi 写文戏 shot
+          的 prompt 时参考，让画面演得出「情绪」而不是只写情绪词。
+        en: Translate emotion into visible gestures, gaze and physical behavior.
+      appliesTo:
+      - text
+      group:
+        zh-CN: 导演
+        en: Directing
+      slots: []
+      source:
+        url: https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/director-performance/SKILL.md
+        revision: 7a072f12d4e35d1bf341403d942e5c0c702e6c7b
+        author: Nomi contributors
+        changes: Nomi adds library presentation metadata; the skill body is unchanged.
+        evidence:
+        - https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/director-performance/SKILL.md
+      preview:
+        path: assets/cover.png
+        type: image
+        provenance: illustration
+    version: 1.0.0
+    tools: []
+    required-providers: []
+license: AGPL-3.0-only
 ---
 
 # 文戏表演指导（把情绪拆成可拍的身体信号）

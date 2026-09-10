@@ -78,7 +78,7 @@
         "electron/skills/skillManifestMigration.ts",
         "src/workbench/skillLibrary/parseSkillImport.ts",
         "src/workbench/skillLibrary/skillDropIntake.ts",
-        "electron/skills/skillCuration.ts"
+        "electron/shared/skillCuration.ts"
       ],
       "writers": [
         "electron/skills/skillPackage.ts",

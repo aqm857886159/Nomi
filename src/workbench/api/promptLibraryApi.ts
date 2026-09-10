@@ -1,5 +1,6 @@
 // 渲染层取提示词库的唯一入口(镜像 skillApi 的 requireDesktopRuntime 范式)。
 // 主进程已聚合+缓存;这里取全量,搜索/分类过滤是平凡纯函数,放渲染层(不重复后端逻辑)。
+import type { SkillCuration } from '../../../electron/shared/skillCuration'
 import { getDesktopBridge, type DesktopBridge } from '../../desktop/bridge'
 import i18n from '../../i18n'
 import { matchesLibraryQuery } from '../library/libraryDiscovery'
@@ -11,6 +12,7 @@ export type PromptOrigin = 'public' | 'user'
 export type PromptReferenceImage = { url: string; title?: string; sourceUrl?: string }
 
 export type LibraryPrompt = {
+  curation?: SkillCuration
   id: string
   title: string
   prompt: string
@@ -45,6 +47,7 @@ function toPrompt(raw: unknown): LibraryPrompt | null {
   const promptType: PromptMediaType = r.promptType === 'video' ? 'video' : 'image'
   return {
     id,
+    curation: r.curation as SkillCuration | undefined,
     title: String(r.title ?? i18n.t('runtime.promptLibrary.untitled')),
     prompt,
     mediaUrl: String(r.mediaUrl ?? ''),

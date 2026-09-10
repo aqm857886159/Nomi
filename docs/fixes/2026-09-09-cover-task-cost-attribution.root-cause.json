@@ -1,0 +1,99 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-09-cover-task-cost-attribution",
+  "problem_type": "Shared account spend attributed to one image task",
+  "symptom": "Fifth cover triggers excess-charge stop despite task cost matching quote",
+  "direct_cause": "Script uses shared balance delta as task actualUsd",
+  "class_root": "Task spend invariant lacks task-scoped provider cost ownership",
+  "affected_population": [
+    "All cover jobs while another client uses the same account"
+  ],
+  "scope_paths": [
+    "scripts/covers/cover-budget.mjs",
+    "scripts/covers/generate-covers.mjs"
+  ],
+  "entry_points": [
+    "Initial cover generation",
+    "Rejected-cover rework"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://docs.apimart.ai/en/api-reference/images/gpt-image-2/generation.md",
+      "checked_at": "2026-09-09",
+      "purpose": "Task response includes cost and credits_cost distinct from shared balance"
+    }
+  ],
+  "invariants": [
+    "Task spend uses finite nonnegative provider cost and stays within reserved CNY",
+    "Shared account delta retained separately as diagnostic evidence"
+  ],
+  "generality_proof": "One charge function used for every initial and rework task; no job/model-specific exceptions.",
+  "shared_boundaries": [
+    {
+      "path": "scripts/covers/cover-budget.mjs",
+      "symbol": "taskCharge",
+      "responsibility": "Validate and attribute completed task fee"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "scripts/covers/generate-covers.mjs",
+      "entry_point": "main initial generation",
+      "disposition": "enforced",
+      "evidence": "Completion receipt invokes shared taskCharge"
+    },
+    {
+      "path": "scripts/covers/generate-covers.mjs",
+      "entry_point": "main --rework",
+      "disposition": "enforced",
+      "evidence": "Rework jobs enter the identical completion boundary"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Concurrent billing can contaminate any polling interval.",
+    "same_class_scan": [
+      "Initial job loop and --rework share completion accounting",
+      "Generation receipt director-cinematography cost .0085 vs account delta .029442"
+    ]
+  },
+  "prevention": {
+    "kind": "runtime-assertion",
+    "enforcement_path": "scripts/covers/cover-budget.mjs",
+    "invariant": "Actual fee must be finite, nonnegative and below reservation",
+    "failure_mode": "Missing/invalid/excess fee throws before another submission; unresolved ledger blocks restart",
+    "exception_policy": "none",
+    "strategy": "Use provider task cost for spend and keep account delta as evidence only",
+    "artifacts": [
+      "scripts/covers/cover-budget.mjs",
+      "scripts/covers/generate-covers.mjs"
+    ]
+  },
+  "regression_tests": [
+    "scripts/covers/cover-budget.node-test.mjs"
+  ],
+  "class_regression_tests": [
+    "scripts/covers/cover-budget.node-test.mjs"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "Extend the existing parser; no alternate parser or bypass"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Internal data projection; retain existing native and framework primitives without version changes.",
+    "exit_criteria": []
+  },
+  "migration": "Reconcile only this task five receipts against their recorded providerCost; preserve original balanceDelta.",
+  "residual_risks": [
+    "Provider-reported task cost cannot be independently audited beyond account and task receipts."
+  ],
+  "invariant_owner_layer": {
+    "layer": "scripts/covers",
+    "tests": [
+      "scripts/covers/cover-budget.node-test.mjs"
+    ]
+  }
+}

@@ -1,0 +1,90 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-09-first-party-cover-license",
+  "problem_type": "First-party cover metadata excluded by redistribution license enum",
+  "symptom": "33 first-party Skills cannot declare cover metadata under the repository license",
+  "direct_cause": "readSkillCuration admits a short redistribution license enum excluding AGPL-3.0-only",
+  "class_root": "Supported curated licenses omit the application own distribution license",
+  "affected_population": [
+    "All first-party Skills covered by root LICENSE and package.json license"
+  ],
+  "scope_paths": [
+    "electron/shared/skillCuration.ts"
+  ],
+  "entry_points": [
+    "Skill discovery",
+    "Skill package intake"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The repository package.json and root LICENSE are the authority for first-party content; this extends the existing curation SPDX enum, without changing license terms.",
+  "invariants": [
+    "The repository license remains intact when first-party Skills add cover metadata"
+  ],
+  "generality_proof": "Adding the declared SPDX license at the shared parser covers discovery and package validation without relabeling content.",
+  "shared_boundaries": [
+    {
+      "path": "electron/shared/skillCuration.ts",
+      "symbol": "readSkillCuration",
+      "responsibility": "Validate truthful supported redistribution licenses"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/skills/skillStore.ts",
+      "entry_point": "discoverSkillRecordsFromRoots",
+      "disposition": "enforced",
+      "evidence": "Records read curation through readSkillCuration"
+    },
+    {
+      "path": "electron/skills/skillPackage.ts",
+      "entry_point": "validateSkillPackage",
+      "disposition": "enforced",
+      "evidence": "Intake validates curation at the same parser"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every additional first-party skill cover reaches the same enum.",
+    "same_class_scan": [
+      "33 SKILL.md files have no license; root package.json declares AGPL-3.0-only",
+      "readSkillCuration used by discovery and package validation"
+    ]
+  },
+  "prevention": {
+    "kind": "schema-validation",
+    "enforcement_path": "electron/shared/skillCuration.ts",
+    "invariant": "Allow the actual repository license without dropping existing redistribution checks",
+    "failure_mode": "Missing and unknown licenses still rejected for declared curation",
+    "exception_policy": "none",
+    "strategy": "Extend the shared SPDX enum with the repository license",
+    "artifacts": [
+      "electron/shared/skillCuration.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/skills/skillCuration.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/skills/skillCuration.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "Extend the existing parser; no alternate parser or bypass"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Existing internal curation parser only; no third-party version or runtime change.",
+    "exit_criteria": []
+  },
+  "migration": "Only metadata gains the existing project license; skill bodies unchanged.",
+  "residual_risks": [
+    "Future bundled skills still require explicit curation and Workbench opt-in metadata; the completeness fixtures catch omissions."
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/shared",
+    "tests": [
+      "electron/skills/skillCuration.test.ts"
+    ]
+  }
+}

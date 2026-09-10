@@ -1,6 +1,39 @@
 ---
 name: director-art-design
 description: "服化道——设计「人物设定图」与「场景环境图」的生图提示词，含顶部「风格前缀块」（摄影机/胶片/调色/画幅等烧进画面的统一风格）+ 生图 avoid（多指/文字水印/穿帮等）+ identity DNA（角色跨图一致的关键特征锁定）。Nomi 为角色/场景等视觉 anchor（`carrier: visual`）生成参考图、写它的生图 prompt 时参考。"
+metadata:
+  nomi:
+    selectable-in-workbench: true
+    library:
+      kind: skill
+      title:
+        zh-CN: 服化道设计
+        en: Art direction
+      summary:
+        zh-CN: '服化道——设计「人物设定图」与「场景环境图」的生图提示词，含顶部「风格前缀块」（摄影机/胶片/调色/画幅等烧进画面的统一风格）+ 生图 avoid（多指/文字水印/穿帮等）+ identity DNA（角色跨图一致的关键特征锁定）。Nomi
+          为角色/场景等视觉 anchor（`carrier: visual`）生成参考图、写它的生图 prompt 时参考。'
+        en: Design consistent character, costume, prop and environment references.
+      appliesTo:
+      - text
+      group:
+        zh-CN: 导演
+        en: Directing
+      slots: []
+      source:
+        url: https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/director-art-design/SKILL.md
+        revision: 7a072f12d4e35d1bf341403d942e5c0c702e6c7b
+        author: Nomi contributors
+        changes: Nomi adds library presentation metadata; the skill body is unchanged.
+        evidence:
+        - https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/director-art-design/SKILL.md
+      preview:
+        path: assets/cover.png
+        type: image
+        provenance: illustration
+    version: 1.0.0
+    tools: []
+    required-providers: []
+license: AGPL-3.0-only
 ---
 
 # 服化道（视觉 anchor 生图提示词）

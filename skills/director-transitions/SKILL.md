@@ -1,6 +1,39 @@
 ---
 name: director-transitions
 description: 创意转场方法论。AI 视频逐条生成、帧天然对不齐，硬切会露缝——用遮挡/甩镜/入暗/匹配剪辑/物体擦过镜头等创意转场把相邻两条缝合成一气呵成，同时把转场当叙事工具用（场景切换/时间跳转/角色替换/情绪转折）。Nomi 里设计跨镜衔接、给相邻 shot 写首尾帧提示词时参考。
+metadata:
+  nomi:
+    selectable-in-workbench: true
+    library:
+      kind: skill
+      title:
+        zh-CN: 创意转场
+        en: Creative transitions
+      summary:
+        zh-CN: 创意转场方法论。AI 视频逐条生成、帧天然对不齐，硬切会露缝——用遮挡/甩镜/入暗/匹配剪辑/物体擦过镜头等创意转场把相邻两条缝合成一气呵成，同时把转场当叙事工具用（场景切换/时间跳转/角色替换/情绪转折）。Nomi
+          里设计跨镜衔接、给相邻 shot 写首尾帧提示词时参考。
+        en: Connect separately generated shots through motivated visual transitions.
+      appliesTo:
+      - text
+      group:
+        zh-CN: 导演
+        en: Directing
+      slots: []
+      source:
+        url: https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/director-transitions/SKILL.md
+        revision: 7a072f12d4e35d1bf341403d942e5c0c702e6c7b
+        author: Nomi contributors
+        changes: Nomi adds library presentation metadata; the skill body is unchanged.
+        evidence:
+        - https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/director-transitions/SKILL.md
+      preview:
+        path: assets/cover.png
+        type: image
+        provenance: illustration
+    version: 1.0.0
+    tools: []
+    required-providers: []
+license: AGPL-3.0-only
 ---
 
 # 创意转场：AI 视频跨镜缝合方法论

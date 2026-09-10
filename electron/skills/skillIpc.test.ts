@@ -32,6 +32,25 @@ vi.mock("./skillStore", async (importOriginal) => {
 });
 
 describe("listSkillsForRenderer", () => {
+  it("projects declared media and the body through the renderer boundary, without inventing a cover for legacy Skills", async () => {
+    const { readSkillRecords } = await import("./skillStore");
+    const { readSkillCuration } = await import("../shared/skillCuration");
+    const { parseSkillFrontmatter } = await import("./skillFrontmatter");
+    const fs = await import("node:fs");
+    const source = fs.readFileSync("skills/curated-multi-view/SKILL.md", "utf8");
+    const curation = readSkillCuration(parseSkillFrontmatter(source).values);
+    vi.mocked(readSkillRecords).mockReturnValue([
+      record({ directoryName: "curated-multi-view", curation, body: source, manifest: manifest({ selectableInWorkbench: true }) }),
+      record({ name: "external", origin: "user" }),
+    ]);
+    const [curated, external] = listSkillsForRenderer();
+    expect(curated.cover).toBe("nomi-local://skill-preview/curated-multi-view");
+    expect(curated.preview).toEqual({ url: curated.cover, type: "image" });
+    expect(curated.body).toBe(source);
+    expect(curated.curation?.license).toBe("Apache-2.0");
+    expect(external.cover).toBeUndefined();
+    expect(external.preview).toBeUndefined();
+  });
   it("projects an explicitly selectable single-stage storyboard Skill into the real renderer DTO", async () => {
     const { readSkillRecords } = await import("./skillStore");
     vi.mocked(readSkillRecords).mockReturnValue([

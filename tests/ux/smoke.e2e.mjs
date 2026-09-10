@@ -4,6 +4,7 @@
 //
 // 用法：pnpm run build && pnpm run test:e2e
 import { launchNomiApp } from "./_launchApp.mjs";
+import { checkComposerFixedFooter } from "./_composerFixedFooter.mjs";
 import { addCanvasNodeFromRail } from "./_canvasRail.mjs";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import os from "node:os";
@@ -152,10 +153,13 @@ try {
     const btn = card.querySelector('button[aria-label="生成素材"], button[aria-label="重新生成"]');
     const r = btn?.getBoundingClientRect();
     const hitEl = r ? document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2) : null;
-    return { scrolls, btnClickable: Boolean(btn && hitEl && (btn === hitEl || btn.contains(hitEl))) };
+    return { outerScrolls: /auto|scroll/.test(getComputedStyle(card).overflowY), promptHeight: scroller?.clientHeight ?? 0, scrolls, btnClickable: Boolean(btn && hitEl && (btn === hitEl || btn.contains(hitEl))) };
   });
+  assert(!composerCheck.outerScrolls && composerCheck.promptHeight >= 72, "外卡不滚且输入区至少 72px");
   assert(composerCheck.scrolls, "超长提示词在编辑区内部滚动（不撑爆卡片）");
   assert(composerCheck.btnClickable, "超长提示词下生成钮 hit-test 可点（底栏未被溢出文字盖住）");
+
+  await checkComposerFixedFooter(win, { composer, promptInput, flowNode, longPrompt, evidenceDir });
 
   // 5) 3D 导演台：右栏「整运镜→轨迹」点「新建」→ 轨迹属性面板必须即时激活
   //（回归 2026-08-04：createdId 从 setState updater 里往外带，依赖 React eager-eval 才同步执行；

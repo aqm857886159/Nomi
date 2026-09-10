@@ -1,0 +1,78 @@
+
+ RUN  v4.1.8 /Users/aoqimin/Desktop/Nomi-skill-ui
+
+ ❯ electron/skills/skillCuration.test.ts (16 tests | 1 failed) 152ms
+     × explicitly exposes all 48 curated Skills through the existing Workbench opt-in policy 25ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  electron/skills/skillCuration.test.ts > curated Skill and effect intake > explicitly exposes all 48 curated Skills through the existing Workbench opt-in policy
+AssertionError: expected [ 'brand-promo', …(18) ] to deeply equal [ 'brand-promo', …(47) ]
+
+- Expected
++ Received
+
+@@ -1,8 +1,7 @@
+  [
+    "brand-promo",
+-   "creation-edit",
+    "curated-candle-mood",
+    "curated-coffee-pour",
+    "curated-cross-view",
+    "curated-expression-reference",
+    "curated-expression-sheet",
+@@ -14,37 +13,9 @@
+    "curated-product-condensation",
+    "curated-product-exploded-view",
+    "curated-product-turntable",
+    "curated-product-unboxing",
+    "curated-restore-image",
+-   "director-action",
+-   "director-art-design",
+-   "director-cinematography",
+-   "director-consistency",
+-   "director-guzhuang",
+-   "director-keyframe-review",
+-   "director-performance",
+-   "director-shot-translation",
+-   "director-sound",
+-   "director-staging",
+-   "director-style-otomo-wright",
+-   "director-transitions",
+    "drama-short",
+-   "model-integration",
+    "release-media-pack",
+-   "skill-author",
+-   "workbench-creation",
+-   "workbench-fixation-planner",
+-   "workbench-generation",
+    "workbench-storyboard-planner",
+-   "writer-adaptation",
+-   "writer-behavior-psychology",
+-   "writer-dialogue",
+-   "writer-improv",
+-   "writer-incubation",
+-   "writer-novel-digester",
+-   "writer-review",
+-   "writer-screenwriter",
+-   "writer-songfangjin",
+-   "writer-structure",
+-   "writer-style-schrader",
+  ]
+
+ ❯ electron/skills/skillCuration.test.ts:37:92
+     35|     const library = records.filter(record => record.curation?.kind ===…
+     36|     expect(library).toHaveLength(48)
+     37|     expect(library.filter(isSkillSelectableInWorkbench).map(record => …
+       |                                                                                            ^
+     38|   })
+     39|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 15 passed (16)
+   Start at  22:18:54
+   Duration  540ms (transform 219ms, setup 41ms, import 263ms, tests 152ms, environment 0ms)
+

@@ -1,5 +1,7 @@
 // 渲染层要的 skill 列表 DTO（主进程组装）。按「路 A」：这里只把 manifest 原样给渲染层，
 // 能力比对（缺哪个 provider）放渲染层用 getCatalogHealth 做，catalog 一变实时刷新、不耦合。
+import { skillPreviewUrl } from "./skillPreview";
+import type { SkillCuration } from "../shared/skillCuration";
 import { deriveSkillNeeds } from "./skillCapability";
 import { ipcMain } from "electron";
 import { assertTrustedSender } from "../ipcSenderGuard";
@@ -38,6 +40,10 @@ function importSkillAndDeriveNeeds(raw: unknown): SkillImportOutcome {
 }
 
 export type SkillListItem = {
+  cover?: string;
+  preview?: { url: string; type: "image" | "video" };
+  curation?: SkillCuration;
+  body?: string;
   directoryName: string;
   name: string;
   /** 人话显示名（manifest.label，缺则回退 name）。 */
@@ -69,6 +75,10 @@ export function listSkillsForRenderer(): SkillListItem[] {
     .map((r) => {
     const needs = r.manifest ? deriveSkillNeeds(r.manifest) : null;
     return {
+      cover: r.curation?.preview?.type === "image" ? skillPreviewUrl(r) : undefined,
+      preview: skillPreviewUrl(r) ? { url: skillPreviewUrl(r), type: r.curation!.preview!.type } : undefined,
+      curation: r.curation,
+      body: r.body,
       directoryName: r.directoryName,
       name: r.name,
       label: r.manifest?.label || r.name,

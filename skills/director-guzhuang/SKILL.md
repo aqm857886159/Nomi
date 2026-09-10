@@ -1,6 +1,39 @@
 ---
 name: director-guzhuang
 description: 中国古装题材形制知识——服饰造型(朝代/身份/发冠/妆容/色彩等级)、建筑形制(屋顶等级/开间/斗拱/院落/衙门公堂)、礼仪调度、穿帮自检，以及古装参考图/视频提示词要点(古匾汉字放开、现代穿帮 avoid)；Nomi 做古装短片/微短剧时参考。
+metadata:
+  nomi:
+    selectable-in-workbench: true
+    library:
+      kind: skill
+      title:
+        zh-CN: 古装形制
+        en: Period design
+      summary:
+        zh-CN: 中国古装题材形制知识——服饰造型(朝代/身份/发冠/妆容/色彩等级)、建筑形制(屋顶等级/开间/斗拱/院落/衙门公堂)、礼仪调度、穿帮自检，以及古装参考图/视频提示词要点(古匾汉字放开、现代穿帮 avoid)；Nomi
+          做古装短片/微短剧时参考。
+        en: Check period costumes, architecture and staging for historical coherence.
+      appliesTo:
+      - text
+      group:
+        zh-CN: 导演
+        en: Directing
+      slots: []
+      source:
+        url: https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/director-guzhuang/SKILL.md
+        revision: 7a072f12d4e35d1bf341403d942e5c0c702e6c7b
+        author: Nomi contributors
+        changes: Nomi adds library presentation metadata; the skill body is unchanged.
+        evidence:
+        - https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/director-guzhuang/SKILL.md
+      preview:
+        path: assets/cover.png
+        type: image
+        provenance: illustration
+    version: 1.0.0
+    tools: []
+    required-providers: []
+license: AGPL-3.0-only
 ---
 
 # 古装形制（服化道造型 + 建筑风格）

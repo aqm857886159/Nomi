@@ -1,3 +1,4 @@
+import { groupLibraryItems, libraryGroup } from '../library/libraryGroups'
 /**
  * 提示词库面板。借鉴 infinite-canvas 的提示词库,但瘦身:库只管「靠封面挑起点 → 送上画布」,
  * AI 优化下沉到节点 composer(不在库内重复)。居中大画廊 + 遮罩;点卡片 FLIP 放大浮到中央预览。
@@ -57,12 +58,13 @@ export function PromptLibraryContent({
   onClose,
   className,
 }: PromptLibraryContentProps): JSX.Element {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [source, setSource] = React.useState<Source>('nomi')
   const [category, setCategory] = React.useState<PromptCategory>('all')
   // 精选条目按「来源」分类导航（GPT Image 2 / Sora 2…）——治「一大片无分类难找」。默认「全部来源」。
   const [sourceFilter, setSourceFilter] = React.useState<string>(PROMPT_SOURCE_ALL)
   const [query, setQuery] = React.useState('')
+  const [expanded, setExpanded] = React.useState<ReadonlySet<string>>(new Set())
   const [selected, setSelected] = React.useState<Selected | null>(null)
   const [scrollEl, setScrollEl] = React.useState<HTMLDivElement | null>(null)
   const [composing, setComposing] = React.useState(false)
@@ -121,18 +123,26 @@ export function PromptLibraryContent({
   const cardWidth = (width - (cols - 1) * GRID_GAP) / cols
   const rowHeight = cardWidth * CARD_ASPECT + GRID_GAP
 
-  const rowCount = Math.ceil(visible.length / cols)
+  const rows = React.useMemo(() => groupLibraryItems(visible, item => libraryGroup(item, i18n.language)).flatMap(group => {
+    const header = group.label ? [{ id: group.id, group, items: [] as LibraryPrompt[] }] : []
+    if (group.collapsed && !expanded.has(group.id)) return header
+    const cards = Array.from({ length: Math.ceil(group.items.length / cols) }, (_, index) => ({
+      id: `${group.id}:${index}`, group: undefined, items: group.items.slice(index * cols, (index + 1) * cols),
+    }))
+    return [...header, ...cards]
+  }), [visible, i18n.language, expanded, cols])
   const rowVirtualizer = useVirtualizer({
-    count: rowCount,
+    count: rows.length,
+    getItemKey: index => rows[index].id,
     getScrollElement: () => scrollEl,
-    estimateSize: () => rowHeight,
+    estimateSize: index => rows[index].group ? 40 : rowHeight,
     overscan: 3,
   })
 
   // 列数/行高变化（窗口缩放）后重新测量，避免虚拟化用旧行高错位。
   React.useEffect(() => {
     rowVirtualizer.measure()
-  }, [rowVirtualizer, rowHeight, cols])
+  }, [rowVirtualizer, rowHeight, cols, rows])
 
   React.useEffect(() => {
     if (!active || !onClose) return
@@ -371,8 +381,8 @@ export function PromptLibraryContent({
             ) : (
               <div style={{ height: rowVirtualizer.getTotalSize(), width: '100%', position: 'relative' }}>
                 {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-                  const start = virtualRow.index * cols
-                  const rowItems = visible.slice(start, start + cols)
+                  const row = rows[virtualRow.index]
+                  const group = row.group
                   return (
                     <div
                       key={virtualRow.key}
@@ -380,9 +390,14 @@ export function PromptLibraryContent({
                       className={cn('grid gap-3 pb-3')}
                       style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${virtualRow.start}px)`, gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
                     >
-                      {rowItems.map((prompt) => (
-                        <PromptCard key={prompt.id} prompt={prompt} onSelect={handleSelect} />
-                      ))}
+                      {group ? <button type="button" disabled={!group.collapsed}
+                        aria-expanded={group.collapsed ? expanded.has(group.id) : undefined}
+                        data-library-group={group.id}
+                        onClick={() => setExpanded(previous => { const next = new Set(previous); if (next.has(group.id)) next.delete(group.id); else next.add(group.id); return next })}
+                        className="col-span-full flex h-7 items-center gap-2 rounded-nomi-sm px-2 text-left text-caption font-medium text-nomi-ink enabled:hover:bg-nomi-ink-05">
+                        {group.collapsed ? <span aria-hidden="true">{expanded.has(group.id) ? '▾' : '▸'}</span> : null}
+                        {t('libraries.gallery.groupCount', { name: group.label, count: group.items.length })}
+                      </button> : row.items.map(prompt => <PromptCard key={prompt.id} prompt={prompt} onSelect={handleSelect} />)}
                     </div>
                   )
                 })}

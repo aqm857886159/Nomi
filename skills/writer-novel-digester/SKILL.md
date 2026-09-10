@@ -1,6 +1,38 @@
 ---
 name: writer-novel-digester
 description: 小说消化——把原著文本按 Truby/Mamet/McKee/Gilroy 方法论拆解，输出结构分析/对白范例/场景范例/叙事技法/本剧对标映射。Nomi 创作区改编或从原著取养分时参考，分层读取不必一次读完全本。
+metadata:
+  nomi:
+    selectable-in-workbench: true
+    library:
+      kind: skill
+      title:
+        zh-CN: 小说消化
+        en: Novel analysis
+      summary:
+        zh-CN: 小说消化——把原著文本按 Truby/Mamet/McKee/Gilroy 方法论拆解，输出结构分析/对白范例/场景范例/叙事技法/本剧对标映射。Nomi 创作区改编或从原著取养分时参考，分层读取不必一次读完全本。
+        en: Analyze source structure, dialogue and scenes for adaptation.
+      appliesTo:
+      - text
+      group:
+        zh-CN: 编剧
+        en: Writing
+      slots: []
+      source:
+        url: https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/writer-novel-digester/SKILL.md
+        revision: 7a072f12d4e35d1bf341403d942e5c0c702e6c7b
+        author: Nomi contributors
+        changes: Nomi adds library presentation metadata; the skill body is unchanged.
+        evidence:
+        - https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/writer-novel-digester/SKILL.md
+      preview:
+        path: assets/cover.png
+        type: image
+        provenance: illustration
+    version: 1.0.0
+    tools: []
+    required-providers: []
+license: AGPL-3.0-only
 ---
 
 # 小说消化 · Truby / Mamet / McKee / Gilroy 方法论

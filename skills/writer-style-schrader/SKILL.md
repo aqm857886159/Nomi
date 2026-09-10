@@ -1,6 +1,39 @@
 ---
 name: writer-style-schrader
 description: 保罗·施拉德（Paul Schrader，《出租车司机》编剧、《美国舞男》《第一归正会》导演）的叙事风格——超验电影式的极简、克制与蓄压，写孤独主角在平庸日常里被侵蚀、由偶遇而非选择推向转折，意义在"一切照旧"中悄然位移。适用于都市孤独、边缘人物、慢节奏内心戏、生活流的现实题材。Nomi 创作区想要这种冷峻克制、不解释情绪、靠并置而非因果说话的剧本质感时套用。
+metadata:
+  nomi:
+    selectable-in-workbench: true
+    library:
+      kind: skill
+      title:
+        zh-CN: 克制叙事
+        en: Restrained storytelling
+      summary:
+        zh-CN: 保罗·施拉德（Paul Schrader，《出租车司机》编剧、《美国舞男》《第一归正会》导演）的叙事风格——超验电影式的极简、克制与蓄压，写孤独主角在平庸日常里被侵蚀、由偶遇而非选择推向转折，意义在"一切照旧"中悄然位移。适用于都市孤独、边缘人物、慢节奏内心戏、生活流的现实题材。Nomi
+          创作区想要这种冷峻克制、不解释情绪、靠并置而非因果说话的剧本质感时套用。
+        en: Shape a restrained story around solitude, routine and growing pressure.
+      appliesTo:
+      - text
+      group:
+        zh-CN: 编剧
+        en: Writing
+      slots: []
+      source:
+        url: https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/writer-style-schrader/SKILL.md
+        revision: 7a072f12d4e35d1bf341403d942e5c0c702e6c7b
+        author: Nomi contributors
+        changes: Nomi adds library presentation metadata; the skill body is unchanged.
+        evidence:
+        - https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/writer-style-schrader/SKILL.md
+      preview:
+        path: assets/cover.png
+        type: image
+        provenance: illustration
+    version: 1.0.0
+    tools: []
+    required-providers: []
+license: AGPL-3.0-only
 ---
 
 # 施拉德叙事风格

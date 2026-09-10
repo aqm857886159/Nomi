@@ -1,6 +1,38 @@
 ---
 name: director-sound
 description: 声音设计知识——环境音/音效/配乐情绪/沉默设计/听觉记号（leitmotif）/声画对位，仅供叙事规划与后期剪辑参考；⚠️视频生成提示词不含音频，这些内容不写进 shot 的 prompt，是给 Nomi 时间轴后期配音/配乐用的。
+metadata:
+  nomi:
+    selectable-in-workbench: true
+    library:
+      kind: skill
+      title:
+        zh-CN: 声音设计
+        en: Sound design
+      summary:
+        zh-CN: 声音设计知识——环境音/音效/配乐情绪/沉默设计/听觉记号（leitmotif）/声画对位，仅供叙事规划与后期剪辑参考；⚠️视频生成提示词不含音频，这些内容不写进 shot 的 prompt，是给 Nomi 时间轴后期配音/配乐用的。
+        en: Plan ambience, effects, music and silence for narrative impact.
+      appliesTo:
+      - text
+      group:
+        zh-CN: 导演
+        en: Directing
+      slots: []
+      source:
+        url: https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/director-sound/SKILL.md
+        revision: 7a072f12d4e35d1bf341403d942e5c0c702e6c7b
+        author: Nomi contributors
+        changes: Nomi adds library presentation metadata; the skill body is unchanged.
+        evidence:
+        - https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/director-sound/SKILL.md
+      preview:
+        path: assets/cover.png
+        type: image
+        provenance: illustration
+    version: 1.0.0
+    tools: []
+    required-providers: []
+license: AGPL-3.0-only
 ---
 
 # 声音设计知识（叙事规划 + 后期参考）

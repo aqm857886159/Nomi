@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { readSkillCuration, type SkillCuration } from "./skillCuration";
+import { readSkillCuration, type SkillCuration } from "../shared/skillCuration";
 
 import { getSkillsRoots, getUserSkillsRoot } from "../runtimePaths";
 import { frontmatterString, parseSkillFrontmatter, type SkillFrontmatter } from "./skillFrontmatter";

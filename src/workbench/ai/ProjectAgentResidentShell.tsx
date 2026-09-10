@@ -1,3 +1,4 @@
+import { libraryGroup } from '../library/libraryGroups'
 // 常驻 Agent 面板的容器。
 //
 // 它现在只做三件事：把宿主接线（读侧 `useAgentPanelV4Data` / 写侧 `useAgentPanelV4Actions`）
@@ -66,7 +67,7 @@ function usePanelSize(): Readonly<{ width: number; height: number; measure: (nod
 }
 
 export default function ProjectAgentResidentShell({ surface }: { surface: ResidentSurface }): JSX.Element {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const labels = useV4Labels()
   const trace = useAgentTraceDirectory()
   const size = usePanelSize()
@@ -244,16 +245,20 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
 
   const commandRows: readonly V4CommandRow[] = React.useMemo(() => {
     const query = commandQuery.trim()
+    const locale = i18n.language.startsWith('zh') ? 'zh-CN' : 'en'
     const skillRows: V4CommandRow[] = data.skills
-      .filter((skill) => !query || `${skill.label} ${skill.name}`.toLowerCase().includes(query.toLowerCase()))
+      .filter((skill) => skill.curation?.kind !== 'effect' && (!query || `${skill.curation?.title[locale] ?? skill.label} ${skill.name}`.toLowerCase().includes(query.toLowerCase())))
       // 自己导进来的排在内置前面。用户刚把一个技能弄进 Nomi，下一秒来这里找它——
       // 让他先滚过四个他没装过的内置技能才看见自己那个，是把「我刚做的事」排在最后。
       .sort((a, b) => (a.origin === b.origin ? 0 : a.origin === 'user' ? -1 : 1))
       .map((skill) => ({
         id: `skill:${skill.name}`,
-        name: skill.label,
+        group: libraryGroup(skill, i18n.language),
+        name: skill.curation?.title[locale] ?? skill.label,
         command: `/${skill.name}`,
-        desc: skill.description ?? skill.stageLabels.join(' · '),
+        desc: skill.curation?.summary[locale] ?? skill.description ?? skill.stageLabels.join(' · '),
+        cover: skill.cover,
+        preview: skill.preview,
         section: t('agentPanelV4.sectionSkills'),
         selected: activeSkill?.key === skill.name,
       }))
@@ -263,17 +268,19 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
       .filter((prompt) => filterPrompts([prompt], 'all', query).length > 0)
       .map((prompt) => ({
         id: `prompt:${prompt.id}`,
+        group: libraryGroup(prompt, i18n.language),
         name: promptDisplayTitle(prompt),
         command: `/${prompt.id}`,
-        desc: prompt.prompt.slice(0, 60),
-        section: t('agentPanelV4.sectionPrompts'),
+        desc: prompt.prompt,
+        section: prompt.curation?.kind === 'effect' ? t('libraries.gallery.effect') : t('agentPanelV4.sectionPrompts'),
+        preview: prompt.mediaUrl ? { url: prompt.mediaUrl, type: prompt.mediaType } : undefined,
         // 提示词库本来就有封面（`mediaUrl` = 首图），此前在这里被整包丢掉，
         // 于是每一行都退化成同一个白块。有图就把图给它。
-        ...(prompt.mediaUrl ? { cover: prompt.mediaUrl } : {}),
+        ...(prompt.mediaType === 'image' && prompt.mediaUrl ? { cover: prompt.mediaUrl } : {}),
         selected: actions.selectedLibraryPrompt?.id === prompt.id,
       }))
     return Object.freeze([...skillRows, ...promptRows])
-  }, [actions.selectedLibraryPrompt, activeSkill, commandQuery, data.skills, promptLibrary.items, t, userPromptLibrary.items])
+  }, [actions.selectedLibraryPrompt, activeSkill, commandQuery, data.skills, i18n.language, promptLibrary.items, t, userPromptLibrary.items])
 
   const composerPopover = popover === 'model'
     ? <V4ModelPopover rows={modelRows} onOpenLibrary={() => { window.dispatchEvent(new Event('nomi-open-model-catalog')); setPopover(null) }} />
@@ -281,7 +288,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
       ? (
         <V4SkillPopover
           rows={commandRows}
-          categories={[t('agentPanelV4.skillAll'), t('agentPanelV4.sectionSkills'), t('agentPanelV4.sectionPrompts')]}
+          categories={[t('agentPanelV4.skillAll'), t('agentPanelV4.sectionSkills'), t('agentPanelV4.sectionPrompts'), t('libraries.gallery.effect')]}
           query={commandQuery}
           onQueryChange={setCommandQuery}
           onSelect={(row) => {
@@ -294,7 +301,6 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
             } else {
               const id = row.id.slice('prompt:'.length)
               const prompt = [...promptLibrary.items, ...userPromptLibrary.items].find((item) => item.id === id)
-              setActiveSkill(null)
               actions.setSelectedLibraryPrompt(prompt ?? null)
             }
             setPopover(null)

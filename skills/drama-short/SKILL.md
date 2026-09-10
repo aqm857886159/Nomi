@@ -3,6 +3,7 @@ name: drama-short
 description: 做剧情类短剧/短片。当用户要把一个故事、梗概、小说片段或「深夜便利店发生了什么」这类情境做成有人物、有转折的短剧，或提到「短剧 / 微短剧 / 剧情短片 / 小说改编」时用我。
 metadata:
   nomi:
+    selectable-in-workbench: true
     version: 1.0.0
     label: 短剧
     author: "@nomi"
@@ -83,6 +84,32 @@ metadata:
         pause: true
         model-prefs:
           - kind: video
+    library:
+      kind: skill
+      title:
+        zh-CN: 短剧
+        en: Short drama
+      summary:
+        zh-CN: 做剧情类短剧/短片。当用户要把一个故事、梗概、小说片段或「深夜便利店发生了什么」这类情境做成有人物、有转折的短剧，或提到「短剧 / 微短剧 / 剧情短片 / 小说改编」时用我。
+        en: Develop a story into a short film with characters and a dramatic turn.
+      appliesTo:
+      - text
+      group:
+        zh-CN: 创作流程
+        en: Workflow
+      slots: []
+      source:
+        url: https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/drama-short/SKILL.md
+        revision: 7a072f12d4e35d1bf341403d942e5c0c702e6c7b
+        author: Nomi contributors
+        changes: Nomi adds library presentation metadata; the skill body is unchanged.
+        evidence:
+        - https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/drama-short/SKILL.md
+      preview:
+        path: assets/cover.png
+        type: image
+        provenance: illustration
+license: AGPL-3.0-only
 ---
 
 # 短剧 (Short Drama)

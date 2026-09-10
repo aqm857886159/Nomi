@@ -1,0 +1,92 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-09-builtin-library-cold-start",
+  "problem_type": "Bundled prompt availability blocked by external source latency",
+  "symptom": "Cold Skill popover shows only Skills while built-in expressions wait for remote downloads",
+  "direct_cause": "getPromptLibrary awaits all external downloads before prepending bundled prompts",
+  "class_root": "Local availability shares the completion dependency of optional remote freshness",
+  "affected_population": [
+    "Every cold or stale-cache prompt library consumer"
+  ],
+  "scope_paths": [
+    "electron/promptLibrary/promptLibraryStore.ts"
+  ],
+  "entry_points": [
+    "Composer Skill popover",
+    "Prompt library and skill gallery"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Uses the existing bundled snapshot, disk cache, TTL and bounded refresh; no new dependency or external format.",
+  "invariants": [
+    "Bundled and cached prompts are immediately available independent of network completion"
+  ],
+  "generality_proof": "All IPC readers converge on getPromptLibrary; local snapshot is returned while the existing single inflight refresh updates the same cache.",
+  "shared_boundaries": [
+    {
+      "path": "electron/promptLibrary/promptLibraryStore.ts",
+      "symbol": "getPromptLibrary",
+      "responsibility": "Return local snapshot without awaiting remote refresh"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "entry_point": "usePromptLibrary",
+      "disposition": "enforced",
+      "evidence": "Uses the same promptLibrary.list IPC"
+    },
+    {
+      "path": "src/workbench/promptLibrary/PromptLibraryPanel.tsx",
+      "entry_point": "usePromptLibrary",
+      "disposition": "enforced",
+      "evidence": "Uses the same promptLibrary.list IPC"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every cold profile and every expired remote cache can trigger this.",
+    "same_class_scan": [
+      "getPromptLibrary has one IPC caller, shared by composer and both libraries",
+      "Existing floor contains bundled external snapshot; builtinPacks adds 25 expressions and curated effects"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/promptLibrary/promptLibraryStore.ts",
+    "invariant": "Local prompt availability never waits for remote freshness",
+    "failure_mode": "Existing refresh failures retain local snapshot",
+    "exception_policy": "none",
+    "strategy": "Return the existing hydrated floor and refresh the existing cache in the background",
+    "artifacts": [
+      "electron/promptLibrary/promptLibraryStore.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/promptLibrary/promptLibraryStore.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/promptLibrary/promptLibraryStore.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/promptLibrary/promptLibraryStore.ts"
+    ],
+    "rationale": "Remove the blocking await at the sole public read boundary; keep one cache and one refresher"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Existing internal cache and hardened fetch retained.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted schema changes.",
+  "residual_risks": [
+    "Fresh external additions appear on a subsequent reload or application session; local built-ins remain immediately available."
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/promptLibrary",
+    "tests": [
+      "electron/promptLibrary/promptLibraryStore.test.ts"
+    ]
+  }
+}

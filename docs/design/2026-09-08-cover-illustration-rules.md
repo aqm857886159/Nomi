@@ -103,3 +103,43 @@
 第一轮 5 张实付 $0.0625，保守折算 ¥0.50。纸底、线条与蓝色色相接近锚图，但 01/04/05 出现 3 块以上蓝形，04/05 带入锚图主体，隐喻不符。第一轮接触表保留到 `covers/rejected-trial-1/`；最终回选其中合格的 02/03，其他图标记不选用。第二轮模板只借用纸底、线条与色彩，明确禁止复制锚图构图；每条几何隐喻作为唯一主体，优先一块蓝形、最多两块。前轮曾采用最多两轮试产，第二轮不合格停止全量；第三轮由用户新裁决明确取代。
 
 第二轮结论：配色线宽一致，04/05 隐喻仍未表达，按最多两轮停止全量。最终回选 3 张（第二轮 01，第一轮 02/03），37 张待生成；实付本次 $0.125 / 保守 ¥1.00。详细逐图路径、收据和未完成边界见 [试产报告](covers/covers-v1-report.md)。
+
+## skill-ui-b：33 个老技能的封面隐喻
+
+本任务单独预算 ≤¥12、最多90张；一轮生成后仅返工目检未过项一次，不沿用历史第三轮权限。既有55条真实媒体不重复付费。以下是一句话隐喻及蓝色块数，沿用锚图3纸底/墨线/唯一蓝色；不改技能正文。生成模型沿用最新已批准的 GPT Image 2，与既有37张补图同模型、同 image_urls 锚图槽。
+
+| 条目 | 几何隐喻 | 蓝块数 |
+|---|---|---|
+| brand-promo | 一枚蓝色圆片置于空白矩形展台中央，两条墨线向外展开 | 1 |
+| creation-edit | 一张纸色矩形中间缺一条横带，蓝色短条恰好补齐缺口 | 1 |
+| director-action | 一个蓝色圆片沿拱形轨迹越过两块纸色障碍 | 1 |
+| director-art-design | 一个纸色舞台框内，蓝色三角片与蓝色圆片分立两侧 | 2 |
+| director-cinematography | 一个空取景框内的蓝色方片，被框外一条弧线环绕 | 1 |
+| director-consistency | 三个相邻纸色画框被一条连续蓝色带贯穿 | 1 |
+| director-guzhuang | 两层纸色梯形屋檐叠在一个蓝色长方形基座上 | 1 |
+| director-keyframe-review | 一个纸色画框的一角压着一枚蓝色圆形印记 | 1 |
+| director-performance | 一条墨线弧由平缓逐渐抬高，末端托起一枚蓝色圆片 | 1 |
+| director-shot-translation | 一条墨线曲线穿过空框后变成蓝色直条 | 1 |
+| director-sound | 一个蓝色圆片向右发出两道墨线半圆弧 | 1 |
+| director-staging | 三个纸色圆片围绕一个蓝色方片形成三角站位 | 1 |
+| director-style-otomo-wright | 三条斜向纸色速度片间插入一条蓝色短片，形成切分节奏 | 1 |
+| director-transitions | 两个空画框在中间重叠，交界由蓝色窄片衔接 | 1 |
+| drama-short | 两个纸色场景框之间一条折线突然转向蓝色终点方块 | 1 |
+| model-integration | 两个相对的纸色接口由一块蓝色榫形几何块连接 | 1 |
+| release-media-pack | 一个纸色开口盒里露出一张蓝色卡片和两张纸色卡片 | 1 |
+| skill-author | 三条纸色横带汇入一张蓝色卡片 | 1 |
+| workbench-creation | 一枚蓝色小圆片在纸色长方形页面上拉出一条墨线 | 1 |
+| workbench-fixation-planner | 两个并排空框各钉住一枚同色蓝片，一个圆形一个方形 | 2 |
+| workbench-generation | 一条墨线分叉连接两个蓝色方块 | 2 |
+| workbench-storyboard-planner | 三个空画框沿一条折线依次排列，终点落一枚蓝色方片 | 1 |
+| writer-adaptation | 一个纸色竖框展开成横框，蓝色小圆片贯穿两种轮廓 | 1 |
+| writer-behavior-psychology | 一个纸色圆片背后藏着半枚蓝色圆片，二者以短线相连 | 1 |
+| writer-dialogue | 两个纸色轮廓圆相向，一条蓝色短线横跨其间 | 1 |
+| writer-improv | 两条自由墨线交会，交点向上跳出一枚蓝色方片 | 1 |
+| writer-incubation | 一枚蓝色种子形几何片上生出两条墨线分枝 | 1 |
+| writer-novel-digester | 三张叠放纸页的墨线汇入一枚蓝色小方片 | 1 |
+| writer-review | 一张纸色页面上的墨线被一个蓝色空心圆圈住 | 1 |
+| writer-screenwriter | 两个纸色几何角色沿一条动作线走向蓝色场景框 | 1 |
+| writer-songfangjin | 两个纸色圆片之间牵着一条墨线，中央系一枚蓝色小方片 | 1 |
+| writer-structure | 三个相接纸色拱形由中央一枚蓝色楔形块支撑 | 1 |
+| writer-style-schrader | 一个高大的空矩形里，一枚很小的蓝色方片独处在底边 | 1 |

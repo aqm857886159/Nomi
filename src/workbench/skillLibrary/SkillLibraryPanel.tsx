@@ -1,3 +1,5 @@
+import { LibraryGroup } from '../library/LibraryGroup'
+import { groupLibraryItems } from '../library/libraryGroups'
 /**
  * 技能库面板。技能在 App 里唯一的「家」：浏览（我的技能 / Nomi 内置）、搜索、导入文件、用 AI 新建、
  * 导出、删除、一键在创作区使用。设计对齐提示词库（PromptLibraryPanel）：居中模态 + 来源标签 + 卡片网格。
@@ -18,7 +20,11 @@ import { parseSkillImportFile, type SkillImportParse } from './parseSkillImport'
 import { parseSkillDrop } from './skillDropIntake'
 import { SkillCard } from './SkillCard'
 import { markLibraryUsed, sortByLibraryUsage, useLibraryUsageVersion } from '../library/libraryDiscovery'
-import { filterSkillLibraryItems, type SkillLibraryCategory } from '../library/libraryAdapters'
+import { galleryEntries, matchesGalleryQuery, type SkillGalleryEntry } from './skillGallery'
+import { SkillDetail } from './SkillDetail'
+import { usePromptLibrary } from '../promptLibrary/usePromptLibrary'
+import { useUserPrompts } from '../promptLibrary/useUserPrompts'
+import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import { LibraryDiscoveryToolbar } from '../library/LibraryDiscoveryToolbar'
 
 type Source = 'mine' | 'builtin'
@@ -45,9 +51,12 @@ export function SkillLibraryContent({
   onClose,
   className,
 }: SkillLibraryContentProps): JSX.Element {
-  const { t } = useTranslation()
-  const [source, setSource] = React.useState<Source>('mine')
-  const [category, setCategory] = React.useState<SkillLibraryCategory>('all')
+  const { t, i18n } = useTranslation()
+  const [source, setSource] = React.useState<Source>('builtin')
+  const [category, setCategory] = React.useState<'all' | SkillGalleryEntry['kind']>('all')
+  const [selected, setSelected] = React.useState<SkillGalleryEntry | null>(null)
+  const prompts = usePromptLibrary(active)
+  const userPrompts = useUserPrompts(active)
   const [query, setQuery] = React.useState('')
   const [feedback, setFeedback] = React.useState<Record<string, string>>({})
   const report = React.useCallback((identity: string, message: string) => notify({ identity: `skill-library:${identity}`, reason: 'operation', level: 'inline', message, present: (value) => setFeedback((old) => ({ ...old, [identity]: value })) }), [])
@@ -55,7 +64,7 @@ export function SkillLibraryContent({
   const [dragActive, setDragActive] = React.useState(false)
   const usageVersion = useLibraryUsageVersion()
 
-  const { items, available, remove, importPackage, exportPackage } = useWorkbenchSkills(active)
+  const { items, remove, importPackage, exportPackage } = useWorkbenchSkills(active)
   const setWorkspaceMode = useWorkbenchStore((s) => s.setWorkspaceMode)
   const setCreationActiveSkill = useWorkbenchStore((s) => s.setCreationActiveSkill)
 
@@ -67,18 +76,21 @@ export function SkillLibraryContent({
     },
     [items, usageVersion],
   )
-  const visible = React.useMemo(() => {
-    return filterSkillLibraryItems(sortedItems, { source, category, query })
-  }, [category, query, source, sortedItems])
+  const visible = React.useMemo(() => galleryEntries(
+    sortedItems.filter(s => source === 'mine' ? s.origin === 'user' : s.origin === 'builtin'),
+    source === 'mine' ? userPrompts.items : prompts.items, i18n.language,
+  ).filter(entry => (category === 'all' || entry.kind === category)
+    && matchesGalleryQuery(entry, query)),
+  [sortedItems, source, userPrompts.items, prompts.items, i18n.language, category, query])
 
   React.useEffect(() => {
     if (!active || !onClose) return
     const handler = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape' && !selected) onClose()
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [active, onClose])
+  }, [active, onClose, selected])
 
   // 在创作区锁定一个技能并切到创作区（与 ActiveSkillChip 的 onSelect 同口径）。
   const gotoCreationWith = React.useCallback(
@@ -242,14 +254,15 @@ export function SkillLibraryContent({
   const categoryTabs = (
     <NomiSegmented
       value={category}
-      onChange={(value) => setCategory(value as SkillLibraryCategory)}
+      onChange={(value) => setCategory(value as typeof category)}
       ariaLabel={t('libraries.skill.categoryAria')}
       density="compact"
       className={cn(compact ? 'w-full' : 'shrink-0')}
       options={[
-        { value: 'all', label: t('libraries.skill.category.all') },
-        { value: 'playbook', label: t('libraries.skill.category.playbook') },
-        { value: 'assistant', label: t('libraries.skill.category.assistant') },
+        { value: 'all', label: t('libraries.gallery.all') },
+        { value: 'skill', label: t('libraries.gallery.skill') },
+        { value: 'prompt', label: t('libraries.gallery.prompt') },
+        { value: 'effect', label: t('libraries.gallery.effect') },
       ]}
     />
   )
@@ -361,7 +374,7 @@ export function SkillLibraryContent({
           ) : (
             <div
               className={cn('grid gap-3')}
-              style={{ gridTemplateColumns: compact ? 'minmax(0, 1fr)' : 'repeat(auto-fill, minmax(220px, 1fr))' }}
+              style={{ gridTemplateColumns: compact ? 'repeat(2, minmax(0, 1fr))' : 'repeat(auto-fill, minmax(220px, 1fr))' }}
             >
               {showNewTile ? (
                 <button
@@ -373,16 +386,11 @@ export function SkillLibraryContent({
                   <span className={cn('text-caption')}>{t('libraries.skill.createOne')}</span>
                 </button>
               ) : null}
-              {visible.map((skill) => (
-                <SkillCard
-                  key={skill.directoryName}
-                  skill={skill}
-                  available={available}
-                  onUse={handleUse}
-                  onExport={handleExport}
-                  onDelete={handleDelete}
-                />
-              ))}
+              {groupLibraryItems(visible, entry => entry.group).map(group => !group.label ? group.items.map(entry => <SkillCard key={entry.id} entry={entry} onOpen={setSelected} />) : <LibraryGroup key={group.id} group={group} className="col-span-full">
+                <div className="grid gap-3" style={{ gridTemplateColumns: compact ? 'repeat(2, minmax(0, 1fr))' : 'repeat(auto-fill, minmax(220px, 1fr))' }}>
+                  {group.items.map(entry => <SkillCard key={entry.id} entry={entry} onOpen={setSelected} />)}
+                </div>
+              </LibraryGroup>)}
             </div>
           )}
           {source === 'mine' && !query.trim() ? (
@@ -391,6 +399,34 @@ export function SkillLibraryContent({
             </p>
           ) : null}
         </div>
+
+        {selected && <SkillDetail entry={selected} onClose={() => setSelected(null)}
+          onReference={() => {
+            if (selected.skill) handleUse(selected.skill)
+            else {
+              useWorkbenchStore.getState().setSelectedLibraryPrompt(selected.prompt!)
+              setWorkspaceMode('creation')
+              onClose?.()
+            }
+            setSelected(null)
+          }}
+          onApply={() => {
+            const state = useGenerationCanvasStore.getState()
+            const target = state.nodes.find(n => state.selectedNodeIds.includes(n.id) && !n.locked && (n.kind === 'image' || n.kind === 'video'))
+            const body = selected.body.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, '').trim()
+            if (target) {
+              const before = target.prompt || ''
+              state.updateNode(target.id, { prompt: [before, body].filter(Boolean).join('\n') })
+              showUndoToast({ message: t('libraries.gallery.appended'), onUndo: () => useGenerationCanvasStore.getState().updateNode(target.id, { prompt: before }) })
+            } else {
+              const node = state.addNode({ kind: selected.prompt?.promptType ?? 'image', prompt: body, select: true })
+              showUndoToast({ message: t('libraries.gallery.appended'), onUndo: () => useGenerationCanvasStore.getState().deleteNode(node.id) })
+            }
+            setSelected(null)
+          }}
+          onExport={selected.skill ? () => handleExport(selected.skill!) : undefined}
+          onDelete={selected.skill?.origin === 'user' ? () => { handleDelete(selected.skill!); setSelected(null) } : undefined}
+        />}
 
         {/* 松手区提示：只在真的拖着文件时出现，盖住整块面板，让「能不能松手」没有歧义。 */}
         {dragActive ? (

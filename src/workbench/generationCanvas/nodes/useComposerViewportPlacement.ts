@@ -23,7 +23,7 @@ export function useComposerViewportPlacement(input: {
   const canvasZoom = useWorkbenchStore((state) => state.categoryViewports[state.activeCategoryId]?.zoom ?? 1)
   const canvasOffset = useWorkbenchStore((state) => state.categoryViewports[state.activeCategoryId]?.offset)
   const anchorRef = React.useRef<HTMLDivElement>(null)
-  const [placement, setPlacement] = React.useState({ left: 0, top: visualSize.height + gap, maxWidth: 880, maxHeight: preferredMaxHeight, flipUp: false })
+  const [placement, setPlacement] = React.useState({ left: 0, top: visualSize.height + gap, maxWidth: 880, maxHeight: preferredMaxHeight, referenceMaxHeight: preferredMaxHeight, flipUp: false })
 
   React.useLayoutEffect(() => {
     const anchor = anchorRef.current
@@ -42,10 +42,26 @@ export function useComposerViewportPlacement(input: {
       if (!card) return
       // Measure the current content unconstrained, then restore before paint. This lets both
       // a smaller model form and a newly freed region resize naturally after clipping.
+      const references = card.querySelector<HTMLElement>('[data-node-composer-references]')
+      const previousReferenceMaxHeight = references?.style.maxHeight ?? ''
+      if (references) references.style.maxHeight = 'none'
       const previousStyle = { maxWidth: card.style.maxWidth, minWidth: card.style.minWidth, maxHeight: card.style.maxHeight, minHeight: card.style.minHeight }
       Object.assign(card.style, { maxWidth: '880px', minWidth: '360px', maxHeight: `${preferredMaxHeight}px`, minHeight: `${minUsableHeight}px` })
       const naturalSize = { width: card.offsetWidth, height: card.offsetHeight }
+      // Prompt and actions own their minimums. Recommendations are optional;
+      // only references may need an additional inner scrollport in a dense canvas.
+      const children = Array.from(card.children).filter((child): child is HTMLElement => child instanceof HTMLElement)
+      const cardStyle = getComputedStyle(card)
+      const pixels = (value: string) => Number.parseFloat(value) || 0
+      const fixedHeight = pixels(cardStyle.paddingTop) + pixels(cardStyle.paddingBottom)
+        + pixels(cardStyle.borderTopWidth) + pixels(cardStyle.borderBottomWidth)
+        + pixels(cardStyle.rowGap) * Math.max(0, children.length - 1)
+        + children.reduce((sum, child) => {
+          if (child === references || child.hasAttribute('data-node-effect-chips')) return sum
+          return sum + (child.hasAttribute('data-node-composer-prompt') ? pixels(getComputedStyle(child).minHeight) : child.offsetHeight)
+        }, 0)
       Object.assign(card.style, previousStyle)
+      if (references) references.style.maxHeight = previousReferenceMaxHeight
       const toolbar = nodeEl.querySelector<HTMLElement>(NODE_FLOATING_TOOLBAR_SELECTOR)
       const result = resolveComposerObstaclePlacement({
         stage: { left: stageRect.left + VIEWPORT_MARGIN, right: stageRect.right - VIEWPORT_MARGIN, top: stageRect.top + VIEWPORT_MARGIN, bottom: stageRect.bottom - VIEWPORT_MARGIN },
@@ -56,7 +72,7 @@ export function useComposerViewportPlacement(input: {
         gap: gap * canvasZoom,
         aboveClearance: toolbarClearanceInCanvasUnits(toolbar?.getBoundingClientRect().height ?? 0, canvasZoom, TOOLBAR_CLEARANCE_GAP) * canvasZoom,
       })
-      const next = { left: (result.left - nodeRect.left) / canvasZoom, top: (result.top - nodeRect.top) / canvasZoom, maxWidth: result.width, maxHeight: result.height, flipUp: result.side === 'above' }
+      const next = { left: (result.left - nodeRect.left) / canvasZoom, top: (result.top - nodeRect.top) / canvasZoom, maxWidth: result.width, maxHeight: result.height, referenceMaxHeight: Math.max(0, result.height - fixedHeight), flipUp: result.side === 'above' }
       setPlacement(previous => Object.keys(next).every(key => previous[key as keyof typeof next] === next[key as keyof typeof next]) ? previous : next)
     }
     const observed = new Set<Element>()

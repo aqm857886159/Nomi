@@ -1,6 +1,38 @@
 ---
 name: writer-structure
 description: 结构师（John Truby 方法论）——故事有机结构设计 / 对手网络构建 / 场景编织 / 节奏控制 / 钩子编排。Nomi 创作区搭故事骨架时参考。
+metadata:
+  nomi:
+    selectable-in-workbench: true
+    library:
+      kind: skill
+      title:
+        zh-CN: 故事结构
+        en: Story structure
+      summary:
+        zh-CN: 结构师（John Truby 方法论）——故事有机结构设计 / 对手网络构建 / 场景编织 / 节奏控制 / 钩子编排。Nomi 创作区搭故事骨架时参考。
+        en: Build causal story structure from character needs and opposition.
+      appliesTo:
+      - text
+      group:
+        zh-CN: 编剧
+        en: Writing
+      slots: []
+      source:
+        url: https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/writer-structure/SKILL.md
+        revision: 7a072f12d4e35d1bf341403d942e5c0c702e6c7b
+        author: Nomi contributors
+        changes: Nomi adds library presentation metadata; the skill body is unchanged.
+        evidence:
+        - https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/writer-structure/SKILL.md
+      preview:
+        path: assets/cover.png
+        type: image
+        provenance: illustration
+    version: 1.0.0
+    tools: []
+    required-providers: []
+license: AGPL-3.0-only
 ---
 
 # 结构师 · John Truby 方法论

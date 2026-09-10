@@ -1,6 +1,38 @@
 ---
 name: director-keyframe-review
 description: 参考图（角色/场景设定图）的 Go/No-Go 审图清单——逐项检查 + 判定规则 + 反馈模板，帮用户快速识别设定图是否合格、不合格时怎么反馈调整重抽；Nomi 生成参考图后审核时用。
+metadata:
+  nomi:
+    selectable-in-workbench: true
+    library:
+      kind: skill
+      title:
+        zh-CN: 参考图审查
+        en: Reference image review
+      summary:
+        zh-CN: 参考图（角色/场景设定图）的 Go/No-Go 审图清单——逐项检查 + 判定规则 + 反馈模板，帮用户快速识别设定图是否合格、不合格时怎么反馈调整重抽；Nomi 生成参考图后审核时用。
+        en: Review character and location references before generating shots.
+      appliesTo:
+      - text
+      group:
+        zh-CN: 导演
+        en: Directing
+      slots: []
+      source:
+        url: https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/director-keyframe-review/SKILL.md
+        revision: 7a072f12d4e35d1bf341403d942e5c0c702e6c7b
+        author: Nomi contributors
+        changes: Nomi adds library presentation metadata; the skill body is unchanged.
+        evidence:
+        - https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/director-keyframe-review/SKILL.md
+      preview:
+        path: assets/cover.png
+        type: image
+        provenance: illustration
+    version: 1.0.0
+    tools: []
+    required-providers: []
+license: AGPL-3.0-only
 ---
 
 # 参考图 Go/No-Go 审图清单

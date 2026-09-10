@@ -1,4 +1,5 @@
 export const zhLibraries = {
+  gallery: { groupCount: '{{name}} · {{count}} 项', all: '全部', skill: '技能', prompt: '提示词', effect: '效果', detail: '技能详情', reference: '引用到 Agent', apply: '用到节点', more: '更多', appended: '已追加到节点', source: '来源', licenseUnknown: '未声明许可', upstream: '原仓配图 · 完整图像不裁切；尚非 Nomi 本次生成验证。' },
   prompt: {
     source: { mine: '我的库', nomi: 'Nomi 精选' },
     category: { all: '全部', image: '图片', video: '视频' },
@@ -52,7 +53,6 @@ export const zhLibraries = {
   },
   skill: {
     source: { mine: '我的技能', builtin: 'Nomi 内置' },
-    category: { all: '全部', playbook: '流程包', assistant: '助手' },
     authorName: 'AI 写技能',
     exportNotFound: '导出失败：没找到这个技能',
     deleteFailed: '删除失败',
@@ -88,19 +88,8 @@ export const zhLibraries = {
     tryAnotherSearch: '换个搜索词试试。',
     mineEmptyHint: '点「用 AI 新建」让 AI 帮你写一个，或「导入文件」接别人的技能包。',
     createOne: '用 AI 新建一个',
-    playbookStages: 'playbook · {{count}} 段',
-    manifestError: '这个技能包无法加载：{{message}}',
-    unavailable: '暂时无法使用',
-    assistant: '助手',
-    noDescription: '暂无说明',
-    useInCreation: '在创作区用',
-    exportAria: '导出 {{name}}',
     exportPackage: '导出技能包',
-    deleteAria: '删除 {{name}}',
     deleteSkill: '删除技能',
-    builtinReadonlyAria: '内置技能，只读',
-    builtinReadonly: '内置技能 · 只读',
-    provider: { text: '文本', image: '图像', video: '视频' },
   },
   workflow: {
     title: '流程库',
@@ -180,6 +169,7 @@ type TranslationShape<T> = {
 }
 
 export const enLibraries = {
+  gallery: { groupCount: '{{name}} · {{count}} items', all: 'All', skill: 'Skills', prompt: 'Prompts', effect: 'Effects', detail: 'Skill details', reference: 'Reference in Agent', apply: 'Apply to node', more: 'More', appended: 'Appended to node', source: 'Source', licenseUnknown: 'License not declared', upstream: 'Original repository media · uncropped; not a verified Nomi generation.' },
   prompt: {
     source: { mine: 'My library', nomi: 'Nomi picks' },
     category: { all: 'All', image: 'Image', video: 'Video' },
@@ -233,7 +223,6 @@ export const enLibraries = {
   },
   skill: {
     source: { mine: 'My skills', builtin: 'Built into Nomi' },
-    category: { all: 'All', playbook: 'Playbooks', assistant: 'Assistants' },
     authorName: 'AI skill author',
     exportNotFound: 'Export failed: skill not found',
     deleteFailed: 'Delete failed',
@@ -269,19 +258,8 @@ export const enLibraries = {
     tryAnotherSearch: 'Try another search term.',
     mineEmptyHint: 'Use “Create with AI” to have AI write one, or import someone else’s skill package.',
     createOne: 'Create one with AI',
-    playbookStages: 'playbook · {{count}} stages',
-    manifestError: 'This skill package could not be loaded: {{message}}',
-    unavailable: 'Unavailable',
-    assistant: 'Assistant',
-    noDescription: 'No description',
-    useInCreation: 'Use in Creation',
-    exportAria: 'Export {{name}}',
     exportPackage: 'Export skill package',
-    deleteAria: 'Delete {{name}}',
     deleteSkill: 'Delete skill',
-    builtinReadonlyAria: 'Built-in skill, read-only',
-    builtinReadonly: 'Built-in skill · Read-only',
-    provider: { text: 'Text', image: 'Image', video: 'Video' },
   },
   workflow: {
     title: 'Workflow library',

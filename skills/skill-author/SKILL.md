@@ -3,6 +3,7 @@ name: skill-author
 description: 把用户给的任意东西（别家的 skill、一段流程文档、或一句需求）转写成一个能用的 Nomi 技能：映射工具、声明能力、换不了的标缺口。用户说「帮我把这个 skill 变成 Nomi 能用的」「照这个做一个技能」时用我。
 metadata:
   nomi:
+    selectable-in-workbench: true
     version: 1.0.0
     label: AI 写技能
     author: "@nomi"
@@ -11,6 +12,32 @@ metadata:
       - author_skill
     required-providers:
       - text
+    library:
+      kind: skill
+      title:
+        zh-CN: AI 写技能
+        en: Skill author
+      summary:
+        zh-CN: 把用户给的任意东西（别家的 skill、一段流程文档、或一句需求）转写成一个能用的 Nomi 技能：映射工具、声明能力、换不了的标缺口。用户说「帮我把这个 skill 变成 Nomi 能用的」「照这个做一个技能」时用我。
+        en: Turn an existing workflow or request into a usable Nomi skill.
+      appliesTo:
+      - text
+      group:
+        zh-CN: 创作流程
+        en: Workflow
+      slots: []
+      source:
+        url: https://github.com/aqm857886159/Nomi/blob/1c515f05d55a935d8580fdf219f40a6820123208/skills/skill-author/SKILL.md
+        revision: 1c515f05d55a935d8580fdf219f40a6820123208
+        author: Nomi contributors
+        changes: Nomi adds library presentation metadata; the skill body is unchanged.
+        evidence:
+        - https://github.com/aqm857886159/Nomi/blob/1c515f05d55a935d8580fdf219f40a6820123208/skills/skill-author/SKILL.md
+      preview:
+        path: assets/cover.png
+        type: image
+        provenance: illustration
+license: AGPL-3.0-only
 ---
 
 # 技能转写师 (Skill Author)

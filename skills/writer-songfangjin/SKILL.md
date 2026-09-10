@@ -1,6 +1,38 @@
 ---
 name: writer-songfangjin
 description: 宋方金编剧方法论（中国编剧《手机》《给青年编剧的信》）——人物先于情节 / 生活质感 / 关系即戏剧 / 对白零废话。Nomi 创作区写剧本时参考，尤其中式现实题材。
+metadata:
+  nomi:
+    selectable-in-workbench: true
+    library:
+      kind: skill
+      title:
+        zh-CN: 生活质感编剧
+        en: Character-led writing
+      summary:
+        zh-CN: 宋方金编剧方法论（中国编剧《手机》《给青年编剧的信》）——人物先于情节 / 生活质感 / 关系即戏剧 / 对白零废话。Nomi 创作区写剧本时参考，尤其中式现实题材。
+        en: Build grounded drama from character relationships and everyday life.
+      appliesTo:
+      - text
+      group:
+        zh-CN: 编剧
+        en: Writing
+      slots: []
+      source:
+        url: https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/writer-songfangjin/SKILL.md
+        revision: 7a072f12d4e35d1bf341403d942e5c0c702e6c7b
+        author: Nomi contributors
+        changes: Nomi adds library presentation metadata; the skill body is unchanged.
+        evidence:
+        - https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/writer-songfangjin/SKILL.md
+      preview:
+        path: assets/cover.png
+        type: image
+        provenance: illustration
+    version: 1.0.0
+    tools: []
+    required-providers: []
+license: AGPL-3.0-only
 ---
 
 # 宋方金编剧方法论

@@ -1,0 +1,31 @@
+[2m[WebServer] [22m
+[2m[WebServer] [22mRebuilding...
+[2m[WebServer] [22m(node:16666) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[2m[WebServer] [22m(Use `node --trace-warnings ...` to show where the warning was created)
+[2m[WebServer] [22m
+[2m[WebServer] [22mDone in 2532ms.
+[2m[WebServer] [22mnpm warn Unknown env config "verify-deps-before-run". This will stop working in the next major version of npm.
+[2m[WebServer] [22m(node:16676) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[2m[WebServer] [22m(Use `node --trace-warnings ...` to show where the warning was created)
+[2m[WebServer] [22m(node:16694) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[2m[WebServer] [22m(Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 3 tests using 1 worker
+
+(node:16756) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:16756) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/ux/design-lab/design-lab.visual.spec.mjs:37:7 › design lab · storyboard › 状态 sb-zone-10-playback-skipped · 播放全部 · 未生成行灰色跳过 (2.2s)
+(node:16771) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:16771) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  2 tests/ux/design-lab/design-lab.visual.spec.mjs:37:7 › design lab · storyboard › 状态 sb-zone-10-playback-skipped · 播放全部 · 未生成行灰色跳过 (1.6s)
+(node:16781) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:16781) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  3 tests/ux/design-lab/design-lab.visual.spec.mjs:37:7 › design lab · storyboard › 状态 sb-zone-10-playback-skipped · 播放全部 · 未生成行灰色跳过 (1.7s)
+
+  3 passed (13.6s)

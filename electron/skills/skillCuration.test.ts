@@ -6,8 +6,8 @@ import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import yaml from "js-yaml";
 import { parseSkillFrontmatter, readSkillFrontmatterIdentity } from "./skillFrontmatter";
-import { readSkillCuration } from "./skillCuration";
-import { discoverSkillRecordsFromRoots } from "./skillStore";
+import { readSkillCuration } from "../shared/skillCuration";
+import { discoverSkillRecordsFromRoots, isSkillSelectableInWorkbench } from "./skillStore";
 import { buildSkillPackage, validateSkillPackage, readSkillDirFiles, exportSkillPackageByName } from "./skillPackage";
 import { getCuratedPrompts } from "../promptLibrary/curatedPrompts";
 
@@ -20,6 +20,29 @@ function rewrite(source: string, mutate: (front: Record<string, unknown>) => voi
 }
 
 describe("curated Skill and effect intake", () => {
+  it("resolves a real media file for every bundled Skill, including legacy knowledge packs", () => {
+    const { records } = discoverSkillRecordsFromRoots([{ path: path.join(root, 'skills'), origin: 'builtin' }])
+    expect(records).toHaveLength(88)
+    for (const record of records) {
+      expect(record.manifestError, record.directoryName).toBeUndefined()
+      expect(record.curation?.preview, record.directoryName).toBeDefined()
+      expect(fs.statSync(path.join(path.dirname(record.filePath), record.curation!.preview!.path)).size).toBeGreaterThan(0)
+    }
+  })
+
+  it("explicitly exposes all 48 curated Skills through the existing Workbench opt-in policy", () => {
+    const { records } = discoverSkillRecordsFromRoots([{ path: path.join(root, 'skills'), origin: 'builtin' }])
+    const library = records.filter(record => record.curation?.kind === 'skill')
+    expect(library).toHaveLength(48)
+    expect(library.filter(isSkillSelectableInWorkbench).map(record => record.name).sort()).toEqual(library.map(record => record.name).sort())
+  })
+
+  it("accepts the repository's declared AGPL license without relabeling first-party cover metadata", () => {
+    const front = parseSkillFrontmatter(read('skills/curated-multi-view/SKILL.md')).values
+    front.license = JSON.parse(read('package.json')).license
+    expect(readSkillCuration(front)?.license).toBe('AGPL-3.0-only')
+  })
+
   it.each(["tests/fixtures/standard-formats/agent-skill/SKILL.md", "tests/fixtures/standard-formats/agent-skill/anthropic-algorithmic-art.md"])("reads unmodified official sample %s", (file) => {
     const source = read(file);
     expect(readSkillFrontmatterIdentity(source).error).toBeUndefined();
@@ -48,9 +71,9 @@ describe("curated Skill and effect intake", () => {
     });
   }
 
-  it("discovers 15 Skills and projects 40 effects from the same packages", () => {
+  it("discovers 48 Skills and projects 40 effects from the same packages", () => {
     const { records } = discoverSkillRecordsFromRoots([{ path: path.join(root, "skills"), origin: "builtin" }]);
-    expect(records.filter((record) => record.curation?.kind === "skill")).toHaveLength(15);
+    expect(records.filter((record) => record.curation?.kind === "skill")).toHaveLength(48);
     const prompts = getCuratedPrompts(records);
     expect(prompts).toHaveLength(40);
     expect(new Set(prompts.map((prompt) => prompt.id)).size).toBe(40);

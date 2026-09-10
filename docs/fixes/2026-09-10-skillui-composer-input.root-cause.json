@@ -1,0 +1,115 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-10-skillui-composer-input",
+  "problem_type": "Dynamic composer controls collapse the prompt scrollport",
+  "symptom": "Electron smoke: long prompt scrolls but generate button fails hit-test.",
+  "direct_cause": "Outer card scrolls when fixed reference/effect/footer rows plus the 72px prompt exceed available height.",
+  "class_root": "Optional recommendations and variable-height references lack a shared budget that reserves prompt and fixed footer before clipping the card.",
+  "affected_population": [
+    "Image and video composers with limited placement height and dynamic effect/reference controls"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx",
+    "src/workbench/generationCanvas/nodes/NodeEffectChips.tsx",
+    "src/workbench/generationCanvas/nodes/NodeEffectRecommendations.tsx",
+    "src/workbench/generationCanvas/nodes/useComposerViewportPlacement.ts"
+  ],
+  "entry_points": [
+    "Image creation and video creation through NodeGenerationComposer"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Internal flex sizing invariant; no SDK or protocol behavior changes.",
+  "invariants": [
+    "Prompt scrollport remains at least 72px; outer card never scrolls; footer remains hit-testable; recommendation row is at most one line."
+  ],
+  "generality_proof": "Shared image/video composer bounds prompt scrolling and keeps more in the fixed footer; optional recommendations shrink within a single row independent of input length or model.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx",
+      "symbol": "NodeGenerationComposer",
+      "responsibility": "Own prompt minimum, non-scrolling card, and fixed footer together"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeEffectRecommendations.tsx",
+      "symbol": "NodeEffectRecommendations",
+      "responsibility": "Bound shortcuts to one available row and remove clipped shortcuts from visual and keyboard access."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/useComposerViewportPlacement.ts",
+      "symbol": "useComposerViewportPlacement",
+      "responsibility": "Measure fixed child minimums and allocate the remaining height to the reference scrollport without moving prompt/footer out of the card."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx",
+      "entry_point": "image prompt",
+      "disposition": "enforced",
+      "evidence": "Shared PromptEditor branch and NodeEffectChips below it"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx",
+      "entry_point": "video prompt",
+      "disposition": "enforced",
+      "evidence": "Same branch with additional reference controls; original failure is video creation"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any viewport or control row growth can exhaust the flex prompt area.",
+    "same_class_scan": [
+      "Read useNodeEffectChips, shared image/video NodeGenerationComposer prompt/footers, and NodeEffectRecommendations width/height boundary",
+      "Read group-baseline editor click and canvas-batch-production image/video creation",
+      "Read useComposerViewportPlacement and composerObstaclePlacement: available height varies with obstacles"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx",
+    "invariant": "Prompt scrollport remains at least 72px; outer card never scrolls; footer remains hit-testable; recommendation row is at most one line.",
+    "failure_mode": "Recommendations yield space while all choices remain in the footer menu.",
+    "exception_policy": "none",
+    "strategy": "Remove outer scrolling; reserve prompt/footer before allocating height to references, then let optional recommendations consume remaining space. Oversized references scroll internally only after recommendations have yielded.",
+    "artifacts": [
+      "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx",
+      "src/workbench/generationCanvas/nodes/NodeEffectChips.tsx",
+      "src/workbench/generationCanvas/nodes/NodeEffectRecommendations.tsx",
+      "src/workbench/generationCanvas/nodes/useComposerViewportPlacement.ts"
+    ]
+  },
+  "regression_tests": [
+    "tests/ux/smoke.e2e.mjs",
+    "tests/ux/canvas-batch-production.walk.mjs",
+    "tests/ux/group-baseline.walk.mjs",
+    "tests/ux/_composerFixedFooter.mjs"
+  ],
+  "class_regression_tests": [
+    "tests/ux/smoke.e2e.mjs",
+    "tests/ux/_composerFixedFooter.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx"
+    ],
+    "rationale": "Remove whole-card scrolling and wrapping recommendations that displaced the fixed footer."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party API or version change; internal layout ownership.",
+    "exit_criteria": []
+  },
+  "migration": "No stored data or API changes.",
+  "residual_risks": [
+    "Linux CI rerun remains required after local macOS Electron acceptance."
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx",
+    "tests": [
+      "tests/ux/smoke.e2e.mjs",
+      "tests/ux/canvas-batch-production.walk.mjs",
+      "tests/ux/group-baseline.walk.mjs",
+      "tests/ux/_composerFixedFooter.mjs"
+    ]
+  }
+}

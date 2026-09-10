@@ -81,7 +81,7 @@ export type PermissionTier = ProjectAgentApprovalPolicy['mode']
 export type ComposerPopover = 'model' | 'skill' | 'permission'
 
 export type V4ChipKind = 'file' | 'skill' | 'clip'
-export type V4Chip = Readonly<{ kind: V4ChipKind; label: string }>
+export type V4Chip = Readonly<{ kind: V4ChipKind; label: string; description?: string; cover?: string; preview?: { url: string; type: 'image' | 'video' } }>
 
 export type ToolReceipt = Readonly<{
   /** Exact call identity for row actions; never an authorization record. */

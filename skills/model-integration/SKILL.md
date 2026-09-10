@@ -3,6 +3,7 @@ name: model-integration
 description: Connect HTTP models or a native ComfyUI workflow through Nomi's verified certification path.
 metadata:
   nomi:
+    selectable-in-workbench: true
     version: 1.0.0
     tools:
       - nomi_integration
@@ -12,6 +13,32 @@ metadata:
       - text
       - image
       - video
+    library:
+      kind: skill
+      title:
+        zh-CN: 模型接入
+        en: Model integration
+      summary:
+        zh-CN: 按已验证的接入流程连接 HTTP 模型或 ComfyUI 工作流。
+        en: Connect and verify HTTP models or ComfyUI workflows.
+      appliesTo:
+      - text
+      group:
+        zh-CN: 创作流程
+        en: Workflow
+      slots: []
+      source:
+        url: https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/model-integration/SKILL.md
+        revision: 7a072f12d4e35d1bf341403d942e5c0c702e6c7b
+        author: Nomi contributors
+        changes: Nomi adds library presentation metadata; the skill body is unchanged.
+        evidence:
+        - https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/model-integration/SKILL.md
+      preview:
+        path: assets/cover.png
+        type: image
+        provenance: illustration
+license: AGPL-3.0-only
 ---
 
 # Nomi model integration

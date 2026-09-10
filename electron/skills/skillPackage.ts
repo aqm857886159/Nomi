@@ -16,7 +16,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { getSkillsRoots, getUserSkillsRoot } from "../runtimePaths";
-import { readSkillCuration } from "./skillCuration";
+import { readSkillCuration } from "../shared/skillCuration";
 import { parseSkillFrontmatter, readSkillFrontmatterIdentity } from "./skillFrontmatter";
 
 export const SKILL_PACKAGE_VERSION = "nomi-skill-v1";

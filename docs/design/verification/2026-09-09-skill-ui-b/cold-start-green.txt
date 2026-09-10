@@ -1,0 +1,9 @@
+
+ RUN  v4.1.8 /Users/aoqimin/Desktop/Nomi-skill-ui
+
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  22:47:16
+   Duration  357ms (transform 124ms, setup 22ms, import 145ms, tests 126ms, environment 0ms)
+

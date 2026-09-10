@@ -1,6 +1,38 @@
 ---
 name: writer-incubation
 description: 创意孵化——在有故事骨架之前，基于 Truby 有机结构 + 宋方金人物先于情节 + Kasdan 核心信念检验，通过多轮追问帮用户从碎片里长出故事的根系（主题/人物内核/核心信念/世界）。Nomi 创作区立项初期、还没想清楚要写什么时用。
+metadata:
+  nomi:
+    selectable-in-workbench: true
+    library:
+      kind: skill
+      title:
+        zh-CN: 创意孵化
+        en: Story incubation
+      summary:
+        zh-CN: 创意孵化——在有故事骨架之前，基于 Truby 有机结构 + 宋方金人物先于情节 + Kasdan 核心信念检验，通过多轮追问帮用户从碎片里长出故事的根系（主题/人物内核/核心信念/世界）。Nomi 创作区立项初期、还没想清楚要写什么时用。
+        en: Grow fragments into themes, characters and a story premise.
+      appliesTo:
+      - text
+      group:
+        zh-CN: 编剧
+        en: Writing
+      slots: []
+      source:
+        url: https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/writer-incubation/SKILL.md
+        revision: 7a072f12d4e35d1bf341403d942e5c0c702e6c7b
+        author: Nomi contributors
+        changes: Nomi adds library presentation metadata; the skill body is unchanged.
+        evidence:
+        - https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/writer-incubation/SKILL.md
+      preview:
+        path: assets/cover.png
+        type: image
+        provenance: illustration
+    version: 1.0.0
+    tools: []
+    required-providers: []
+license: AGPL-3.0-only
 ---
 
 # 创意孵化 · 从碎片里长出故事的根系

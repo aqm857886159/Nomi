@@ -1,0 +1,10 @@
+{
+  "passed": true,
+  "paidCalls": 0,
+  "tasks": [
+    "12 variants collapse and keyboard expand",
+    "25 real expressions collapse and expand in composer/gallery",
+    "apply real expression to node",
+    "prompt virtual gallery expands and collapses"
+  ]
+}

@@ -1,0 +1,133 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-09-skill-library-media-projection",
+  "problem_type": "Declared Skill media is lost at presentation boundaries",
+  "symptom": "Skill picker and old library cards cannot show the 15 installed real covers; prompt picker descriptions are truncated before hover can display them.",
+  "direct_cause": "listSkillsForRenderer omits curation, preview URL and body; renderer prompt normalization drops curation and composer slices prompt text.",
+  "class_root": "Presentation DTOs do not preserve the media, complete text and classification needed by all discovery consumers.",
+  "affected_population": [
+    "Built-in curated Skills and effects",
+    "Imported Skills without media",
+    "Prompt library and Agent picker readers"
+  ],
+  "scope_paths": [
+    "electron/skills/skillIpc.ts",
+    "electron/shared/skillCuration.ts",
+    "src/workbench/api/skillApi.ts",
+    "src/workbench/api/promptLibraryApi.ts",
+    "src/workbench/skillLibrary/",
+    "src/workbench/ai/ProjectAgentResidentShell.tsx",
+    "electron/skills/skillPackage.ts",
+    "electron/skills/skillStore.ts",
+    "electron/skills/skillFrontmatter.ts",
+    "electron/promptLibrary/promptLibraryTypes.ts",
+    "src/workbench/library/libraryAdapters.ts"
+  ],
+  "entry_points": [
+    "SkillLibraryContent reads listWorkbenchSkills",
+    "ProjectAgentResidentShell maps Skill and prompt DTOs"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://agentskills.io/specification",
+      "checked_at": "2026-09-09",
+      "purpose": "Preserve SKILL.md frontmatter metadata extension; no parallel cover manifest."
+    }
+  ],
+  "invariants": [
+    "Each declared media identity is projected through the existing guarded skill-preview protocol.",
+    "Full prompt text and curation survive renderer normalization.",
+    "A Skill without media remains valid and uses a neutral placeholder.",
+    "Prompt bodies are rendered intact as Markdown even when their card description equals the complete body."
+  ],
+  "generality_proof": "Skill and prompt readers preserve the canonical metadata and use the same SkillMedia renderer; no provider or skill-name branch determines whether a declared cover exists.",
+  "shared_boundaries": [
+    {
+      "path": "electron/skills/skillIpc.ts",
+      "symbol": "listSkillsForRenderer",
+      "responsibility": "Project canonical Skill metadata, complete body and guarded media URL."
+    },
+    {
+      "path": "src/workbench/api/promptLibraryApi.ts",
+      "symbol": "toPrompt",
+      "responsibility": "Keep curation from the canonical prompt projection."
+    },
+    {
+      "path": "src/workbench/skillLibrary/skillGallery.ts",
+      "symbol": "galleryBody",
+      "responsibility": "Preserve complete prompt bodies; only Skill documents remove duplicated frontmatter/title/summary."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/skillLibrary/SkillLibraryPanel.tsx",
+      "entry_point": "SkillLibraryContent",
+      "disposition": "enforced",
+      "evidence": "galleryEntries consumes the projected fields for cards and detail."
+    },
+    {
+      "path": "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "entry_point": "commandRows",
+      "disposition": "enforced",
+      "evidence": "Rows keep cover, preview and complete description for shared hover display."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every newly installed curated Skill would lose its cover at the same DTO boundary.",
+    "same_class_scan": [
+      "rg SkillListItem/listSkillsForRenderer traced skillIpc, skillApi and useWorkbenchSkills.",
+      "rg V4CommandRow/mediaUrl/curation traced Agent composer, prompt toPrompt and curatedPrompts.",
+      "rg filterSkillLibraryItems found only tests after gallery replacement; move provider/name search to matchesGalleryQuery and remove the obsolete filter and category types."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/skills/skillIpc.ts",
+    "invariant": "All consumers receive the same canonical declared media identity and complete body.",
+    "failure_mode": "No declaration yields no URL; existing protocol rejects undeclared/traversal media. UI renders a neutral placeholder for unavailable media.",
+    "exception_policy": "none",
+    "strategy": "Preserve canonical fields at their earliest renderer projection, then reuse one media component.",
+    "artifacts": [
+      "electron/skills/skillIpc.ts",
+      "src/workbench/api/promptLibraryApi.ts",
+      "src/workbench/skillLibrary/SkillMedia.tsx",
+      "src/workbench/skillLibrary/skillGallery.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/skills/skillIpc.test.ts",
+    "src/workbench/skillLibrary/skillGallery.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/skills/skillIpc.test.ts",
+    "src/workbench/skillLibrary/skillGallery.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/skillLibrary/SkillCard.tsx",
+      "src/workbench/ai/ProjectAgentResidentShell.tsx",
+      "src/workbench/library/libraryAdapters.ts",
+      "electron/shared/skillCuration.ts"
+    ],
+    "rationale": "Old text-only card implementation is replaced; early prompt slicing is removed. Remove obsolete skill filter (project filter stays) and the curation forwarding module; all consumers import the canonical shared schema directly. Git identifies the original schema as a rename to electron/shared/skillCuration.ts; removed_paths uses the diff destination."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The omission is in Nomi DTO projection, not a third-party runtime defect. Existing UI and parser dependencies are retained.",
+    "exit_criteria": []
+  },
+  "migration": "No stored content is rewritten. metadata.nomi.library.preview already exists on main. Optional DTO fields preserve old/imported Skill compatibility.",
+  "residual_risks": [
+    "User package import still supports its existing textual package contract; this change does not add binary package import."
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/skills",
+    "tests": [
+      "electron/skills/skillIpc.test.ts",
+      "electron/skills/skillCuration.test.ts"
+    ]
+  }
+}

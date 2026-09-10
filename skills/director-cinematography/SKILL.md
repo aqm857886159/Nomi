@@ -1,6 +1,38 @@
 ---
 name: director-cinematography
 description: 镜头语言与摄影技法方法论——统一景别体系/构图规则/运镜的情绪语言/打光方案/景深控制/色温光源/镜头特性，以及这些怎么翻译成视频提示词该怎么写。Nomi 拆镜头或写视频 shot 的 prompt 时参考。
+metadata:
+  nomi:
+    selectable-in-workbench: true
+    library:
+      kind: skill
+      title:
+        zh-CN: 镜头语言
+        en: Cinematography
+      summary:
+        zh-CN: 镜头语言与摄影技法方法论——统一景别体系/构图规则/运镜的情绪语言/打光方案/景深控制/色温光源/镜头特性，以及这些怎么翻译成视频提示词该怎么写。Nomi 拆镜头或写视频 shot 的 prompt 时参考。
+        en: Choose framing, camera motion and lighting to support a scene.
+      appliesTo:
+      - text
+      group:
+        zh-CN: 导演
+        en: Directing
+      slots: []
+      source:
+        url: https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/director-cinematography/SKILL.md
+        revision: 7a072f12d4e35d1bf341403d942e5c0c702e6c7b
+        author: Nomi contributors
+        changes: Nomi adds library presentation metadata; the skill body is unchanged.
+        evidence:
+        - https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/director-cinematography/SKILL.md
+      preview:
+        path: assets/cover.png
+        type: image
+        provenance: illustration
+    version: 1.0.0
+    tools: []
+    required-providers: []
+license: AGPL-3.0-only
 ---
 
 # 镜头语言与摄影技法

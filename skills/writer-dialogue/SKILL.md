@@ -1,6 +1,38 @@
 ---
 name: writer-dialogue
 description: 对白专家（David Mamet 方法论）——台词创作 / 潜台词设计 / 角色语言个性化 / 对白节拍分析 / 沉默设计。Nomi 创作区写剧本/对白时参考。
+metadata:
+  nomi:
+    selectable-in-workbench: true
+    library:
+      kind: skill
+      title:
+        zh-CN: 对白设计
+        en: Dialogue
+      summary:
+        zh-CN: 对白专家（David Mamet 方法论）——台词创作 / 潜台词设计 / 角色语言个性化 / 对白节拍分析 / 沉默设计。Nomi 创作区写剧本/对白时参考。
+        en: Write distinctive dialogue, subtext and purposeful silence.
+      appliesTo:
+      - text
+      group:
+        zh-CN: 编剧
+        en: Writing
+      slots: []
+      source:
+        url: https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/writer-dialogue/SKILL.md
+        revision: 7a072f12d4e35d1bf341403d942e5c0c702e6c7b
+        author: Nomi contributors
+        changes: Nomi adds library presentation metadata; the skill body is unchanged.
+        evidence:
+        - https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/writer-dialogue/SKILL.md
+      preview:
+        path: assets/cover.png
+        type: image
+        provenance: illustration
+    version: 1.0.0
+    tools: []
+    required-providers: []
+license: AGPL-3.0-only
 ---
 
 # 对白专家 · David Mamet 方法论

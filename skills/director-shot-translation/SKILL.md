@@ -1,6 +1,39 @@
 ---
 name: director-shot-translation
 description: 把「镜头意图」翻译成视频提示词的手册——运镜翻译表（推/拉/摇/跟/环绕…→提示词措辞）、焦点翻译、复合镜头(多 clip)模式、污染词替换铁律、把抽象动作/情绪换成物理动作。Nomi 写视频 shot 的 `prompt` 字段时参考。
+metadata:
+  nomi:
+    selectable-in-workbench: true
+    library:
+      kind: skill
+      title:
+        zh-CN: 镜头意图转译
+        en: Shot prompt translation
+      summary:
+        zh-CN: 把「镜头意图」翻译成视频提示词的手册——运镜翻译表（推/拉/摇/跟/环绕…→提示词措辞）、焦点翻译、复合镜头(多 clip)模式、污染词替换铁律、把抽象动作/情绪换成物理动作。Nomi 写视频 shot 的 `prompt`
+          字段时参考。
+        en: Translate a shot intention into precise visual generation instructions.
+      appliesTo:
+      - text
+      group:
+        zh-CN: 导演
+        en: Directing
+      slots: []
+      source:
+        url: https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/director-shot-translation/SKILL.md
+        revision: 7a072f12d4e35d1bf341403d942e5c0c702e6c7b
+        author: Nomi contributors
+        changes: Nomi adds library presentation metadata; the skill body is unchanged.
+        evidence:
+        - https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/director-shot-translation/SKILL.md
+      preview:
+        path: assets/cover.png
+        type: image
+        provenance: illustration
+    version: 1.0.0
+    tools: []
+    required-providers: []
+license: AGPL-3.0-only
 ---
 
 # 镜头意图 → 视频提示词翻译手册

@@ -1,0 +1,24 @@
+
+ RUN  v4.1.8 /Users/aoqimin/Desktop/Nomi-skill-ui
+
+ ❯ src/workbench/library/libraryGroups.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/workbench/library/libraryGroups.test.ts [ src/workbench/library/libraryGroups.test.ts ]
+Error: Cannot find module './libraryGroups' imported from /Users/aoqimin/Desktop/Nomi-skill-ui/src/workbench/library/libraryGroups.test.ts
+ ❯ src/workbench/library/libraryGroups.test.ts:2:1
+      1| import { describe, expect, it } from 'vitest'
+      2| import { groupLibraryItems, libraryGroup } from './libraryGroups'
+       | ^
+      3|
+      4| const variants = (count: number, category = 'Expressions') => Array.fr…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  21:24:39
+   Duration  152ms (transform 26ms, setup 33ms, import 0ms, tests 0ms, environment 0ms)
+

@@ -1,6 +1,39 @@
 ---
 name: director-consistency
 description: 治 AI 视频多镜头「同角色换脸 / 同道具换形 / 同场景换景」三大顽疾的方法论——五维一致性检查、参考图锚定、场内状态表、段间承接。Nomi 拆镜头与跨镜生成时参考：把每个跨镜元素落成画布 anchor 节点（角色/场景/道具/风格），镜头用 anchorIds 引用、系统连参考边，段间用首尾帧承接。
+metadata:
+  nomi:
+    selectable-in-workbench: true
+    library:
+      kind: skill
+      title:
+        zh-CN: 跨镜一致性
+        en: Shot consistency
+      summary:
+        zh-CN: 治 AI 视频多镜头「同角色换脸 / 同道具换形 / 同场景换景」三大顽疾的方法论——五维一致性检查、参考图锚定、场内状态表、段间承接。Nomi 拆镜头与跨镜生成时参考：把每个跨镜元素落成画布 anchor 节点（角色/场景/道具/风格），镜头用
+          anchorIds 引用、系统连参考边，段间用首尾帧承接。
+        en: Preserve character, prop and location identity across shots.
+      appliesTo:
+      - text
+      group:
+        zh-CN: 导演
+        en: Directing
+      slots: []
+      source:
+        url: https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/director-consistency/SKILL.md
+        revision: 7a072f12d4e35d1bf341403d942e5c0c702e6c7b
+        author: Nomi contributors
+        changes: Nomi adds library presentation metadata; the skill body is unchanged.
+        evidence:
+        - https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/director-consistency/SKILL.md
+      preview:
+        path: assets/cover.png
+        type: image
+        provenance: illustration
+    version: 1.0.0
+    tools: []
+    required-providers: []
+license: AGPL-3.0-only
 ---
 
 # 跨镜一致性方法论 (Consistency Engineering)

@@ -1,6 +1,38 @@
 ---
 name: director-action
 description: 非对抗性动作场景（跑酷/追逐/攀爬/特技/坠落）的动作编排知识——专业动作词汇、环境交互、动作节奏、FPV 追拍、身体力学约束、怎么把动作精确物理化地描述进视频提示词；Nomi 写动作戏 shot 时参考。
+metadata:
+  nomi:
+    selectable-in-workbench: true
+    library:
+      kind: skill
+      title:
+        zh-CN: 动作编排
+        en: Action choreography
+      summary:
+        zh-CN: 非对抗性动作场景（跑酷/追逐/攀爬/特技/坠落）的动作编排知识——专业动作词汇、环境交互、动作节奏、FPV 追拍、身体力学约束、怎么把动作精确物理化地描述进视频提示词；Nomi 写动作戏 shot 时参考。
+        en: Plan clear physical action, movement and environmental interaction.
+      appliesTo:
+      - text
+      group:
+        zh-CN: 导演
+        en: Directing
+      slots: []
+      source:
+        url: https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/director-action/SKILL.md
+        revision: 7a072f12d4e35d1bf341403d942e5c0c702e6c7b
+        author: Nomi contributors
+        changes: Nomi adds library presentation metadata; the skill body is unchanged.
+        evidence:
+        - https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/director-action/SKILL.md
+      preview:
+        path: assets/cover.png
+        type: image
+        provenance: illustration
+    version: 1.0.0
+    tools: []
+    required-providers: []
+license: AGPL-3.0-only
 ---
 
 # 动作戏编排（写进 shot 的物理化动作链）

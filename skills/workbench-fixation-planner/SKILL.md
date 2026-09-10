@@ -1,6 +1,38 @@
 ---
 name: workbench-fixation-planner
 description: 定妆/定景规划师。从一段剧本里识别主要角色与关键场景，为每个建一张卡节点，并注入「身份板/场景板」提示词（剧本驱动、逐字标注、身份锁定），写入生成画布。
+metadata:
+  nomi:
+    selectable-in-workbench: true
+    library:
+      kind: skill
+      title:
+        zh-CN: 定妆定景
+        en: Character and scene planning
+      summary:
+        zh-CN: 定妆/定景规划师。从一段剧本里识别主要角色与关键场景，为每个建一张卡节点，并注入「身份板/场景板」提示词（剧本驱动、逐字标注、身份锁定），写入生成画布。
+        en: Identify story characters and locations and plan consistent reference images.
+      appliesTo:
+      - text
+      group:
+        zh-CN: 创作流程
+        en: Workflow
+      slots: []
+      source:
+        url: https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/workbench-fixation-planner/SKILL.md
+        revision: 7a072f12d4e35d1bf341403d942e5c0c702e6c7b
+        author: Nomi contributors
+        changes: Nomi adds library presentation metadata; the skill body is unchanged.
+        evidence:
+        - https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/workbench-fixation-planner/SKILL.md
+      preview:
+        path: assets/cover.png
+        type: image
+        provenance: illustration
+    version: 1.0.0
+    tools: []
+    required-providers: []
+license: AGPL-3.0-only
 ---
 
 # 定妆/定景规划师 (Fixation Planner)

@@ -3,6 +3,7 @@ name: workbench-generation
 description: Generation-area AI assistant. Plans image/video canvas nodes with prompts; never auto-executes generation.
 metadata:
   nomi:
+    selectable-in-workbench: true
     version: 1.0.0
     tools:
       - read_canvas_state
@@ -12,6 +13,32 @@ metadata:
     required-providers:
       - text
       - image
+    library:
+      kind: skill
+      title:
+        zh-CN: 生成规划
+        en: Generation planning
+      summary:
+        zh-CN: 规划图片和视频节点及其提示词，由用户决定何时开始生成。
+        en: Plan image and video canvas nodes before generating media.
+      appliesTo:
+      - text
+      group:
+        zh-CN: 创作流程
+        en: Workflow
+      slots: []
+      source:
+        url: https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/workbench-generation/SKILL.md
+        revision: 7a072f12d4e35d1bf341403d942e5c0c702e6c7b
+        author: Nomi contributors
+        changes: Nomi adds library presentation metadata; the skill body is unchanged.
+        evidence:
+        - https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/workbench-generation/SKILL.md
+      preview:
+        path: assets/cover.png
+        type: image
+        provenance: illustration
+license: AGPL-3.0-only
 ---
 
 # 生成区 AI 助手

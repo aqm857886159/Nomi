@@ -1,0 +1,39 @@
+
+ RUN  v4.1.8 /Users/aoqimin/Desktop/Nomi-skill-ui
+
+ ❯ electron/promptLibrary/promptLibraryStore.test.ts (2 tests | 2 failed) 9ms
+   × returns bundled expressions without waiting for an unresolved external request 7ms
+   × serves stale disk content immediately and makes refreshed content available on the next read 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  electron/promptLibrary/promptLibraryStore.test.ts > returns bundled expressions without waiting for an unresolved external request
+AssertionError: expected 'network-blocked' not to be 'network-blocked' // Object.is equality
+ ❯ electron/promptLibrary/promptLibraryStore.test.ts:15:22
+     13|   mocks.fetch.mockReturnValue(new Promise(() => {}))
+     14|   const result = await Promise.race([getPromptLibrary(), Promise.resol…
+     15|   expect(result).not.toBe('network-blocked')
+       |                      ^
+     16|   expect((result as LibraryPrompt[]).filter(p => p.sourceId === 'built…
+     17| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  electron/promptLibrary/promptLibraryStore.test.ts > serves stale disk content immediately and makes refreshed content available on the next read
+AssertionError: expected 'network-blocked' not to be 'network-blocked' // Object.is equality
+ ❯ electron/promptLibrary/promptLibraryStore.test.ts:27:22
+     25|   mocks.write.mockImplementation(() => persisted())
+     26|   const result = await Promise.race([getPromptLibrary(), Promise.resol…
+     27|   expect(result).not.toBe('network-blocked')
+       |                      ^
+     28|   expect(result).toEqual(expect.arrayContaining([old]))
+     29|   finish({ text: 'remote content' })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed (2)
+   Start at  22:46:55
+   Duration  274ms (transform 135ms, setup 22ms, import 162ms, tests 9ms, environment 0ms)
+

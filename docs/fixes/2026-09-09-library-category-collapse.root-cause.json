@@ -1,0 +1,118 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-09-library-category-collapse",
+  "problem_type": "Unbounded same-category discovery entries",
+  "symptom": "25 expression presets occupy entire card/list surfaces",
+  "direct_cause": "Consumers render each variant without category aggregation",
+  "class_root": "Discovery projection has no shared greater-than-four category disclosure invariant",
+  "affected_population": [
+    "Builtin expression pack",
+    "Curated effect groups",
+    "Public prompt sources"
+  ],
+  "scope_paths": [
+    "src/workbench/library/libraryGroups.ts",
+    "src/workbench/library/LibraryGroup.tsx",
+    "src/workbench/skillLibrary/skillGallery.ts",
+    "src/workbench/skillLibrary/SkillLibraryPanel.tsx",
+    "src/workbench/ai/ProjectAgentResidentShell.tsx",
+    "src/workbench/ai/v4/AgentPanelV4Composer.tsx",
+    "src/workbench/promptLibrary/PromptLibraryPanel.tsx",
+    "src/workbench/generationCanvas/nodes/NodeEffectChips.tsx"
+  ],
+  "entry_points": [
+    "Skill gallery",
+    "Composer skill picker",
+    "Prompt gallery",
+    "Node effect menu"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "User task defines internal discovery density; native disclosure and current menu API are retained.",
+  "invariants": [
+    "Explicit categories with more than four choices start collapsed; every choice remains accessible"
+  ],
+  "generality_proof": "Category identity and count drive projection independently of titles, providers and expression names.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/library/libraryGroups.ts",
+      "symbol": "groupLibraryItems",
+      "responsibility": "Stable category grouping and collapse threshold"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/skillLibrary/SkillLibraryPanel.tsx",
+      "entry_point": "SkillLibraryContent",
+      "disposition": "enforced",
+      "evidence": "Currently maps flat entries; will consume shared group projection"
+    },
+    {
+      "path": "src/workbench/ai/v4/AgentPanelV4Composer.tsx",
+      "entry_point": "V4SkillPopover",
+      "disposition": "enforced",
+      "evidence": "Currently maps flat entries; will consume shared group projection"
+    },
+    {
+      "path": "src/workbench/promptLibrary/PromptLibraryPanel.tsx",
+      "entry_point": "PromptLibraryContent",
+      "disposition": "enforced",
+      "evidence": "Currently maps flat entries; will consume shared group projection"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeEffectChips.tsx",
+      "entry_point": "NodeEffectChips",
+      "disposition": "enforced",
+      "evidence": "Currently maps flat entries; will consume shared group projection"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any new public pack or curated category can exceed four entries.",
+    "same_class_scan": [
+      "builtinExpressionPack.json contains 25 presets; curated-expression skills each hold one recipe",
+      "SkillLibraryContent visible.map and V4SkillPopover visibleRows.map render all variants",
+      "PromptLibraryContent virtual rows flatten source groups; NodeEffectChips groups have no collapse"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/library/libraryGroups.ts",
+    "invariant": "More than four explicitly grouped choices require disclosure",
+    "failure_mode": "Ungrouped items remain individually reachable; no title guessing or hidden discarded choices",
+    "exception_policy": "none",
+    "strategy": "All discovery consumers use the same count-derived grouping",
+    "artifacts": [
+      "src/workbench/library/libraryGroups.ts",
+      "src/workbench/library/LibraryGroup.tsx"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/library/libraryGroups.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/library/libraryGroups.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/ai/v4/AgentPanelV4Composer.tsx",
+      "src/workbench/skillLibrary/SkillLibraryPanel.tsx"
+    ],
+    "rationale": "Replace flat rendering in place; no alternate listing mode"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Internal data projection; retain existing native and framework primitives without version changes.",
+    "exit_criteria": []
+  },
+  "migration": "No stored data/schema changes; group identity is derived from existing curation or source metadata.",
+  "residual_risks": [
+    "Native disclosure expansion state is session-local; changing the active facet may reset groups to their declared default."
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/library",
+    "tests": [
+      "src/workbench/library/libraryGroups.test.ts"
+    ]
+  }
+}

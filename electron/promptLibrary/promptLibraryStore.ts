@@ -115,7 +115,12 @@ async function getExternalPrompts(): Promise<LibraryPrompt[]> {
 
 /** 取全部提示词 = 内置包(随构建,恒在最前) + 外部源。唯一对外出口,内置永不被在线拉取顶掉。 */
 export async function getPromptLibrary(): Promise<LibraryPrompt[]> {
-  return withBuiltinPrompts(await getExternalPrompts());
+  hydrateFromDisk();
+  const local = withBuiltinPrompts(floor());
+  // Remote freshness must not delay bundled media; the existing single-flight
+  // refresh persists its result for the next read, including manual reloads.
+  void getExternalPrompts();
+  return local;
 }
 
 /** 测试/手动失效。清内存 + 重新允许磁盘水合(下次访问从盘读回或重拉)。 */

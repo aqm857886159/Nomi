@@ -1,0 +1,9 @@
+{
+  "passed": true,
+  "paidCalls": 0,
+  "tasks": [
+    "browse and reference skill",
+    "filter and preview picker",
+    "apply effect and undo"
+  ]
+}

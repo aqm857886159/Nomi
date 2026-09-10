@@ -1,0 +1,151 @@
+BATCH_FAILURE locator.click: Timeout 5000ms exceeded.
+Call log:
+  - waiting for locator('[data-node-id="gen-v2-video-mtulbxtj-5r7f"] div[contenteditable="true"]').last()
+    - locator resolved to <div tabindex="0" translate="no" contenteditable="true" class="tiptap ProseMirror generation-canvas-v2-node__prompt-input outline-0">…</div>
+  - attempting click action
+    - waiting for element to be visible, enabled and stable
+    - element is visible, enabled and stable
+    - scrolling into view if needed
+    - done scrolling
+    - <div data-node-effect-chips="empty" class="flex shrink-0 flex-wrap items-center gap-1">…</div> intercepts pointer events
+  - retrying click action
+    - waiting for element to be visible, enabled and stable
+    - element is visible, enabled and stable
+    - scrolling into view if needed
+    - done scrolling
+    - <div class="generation-canvas-v2-node__composer-card relative flex flex-col gap-2.5 p-3 min-w-0 max-w-[880px] w-max border border-nomi-line rounded-nomi bg-nomi-paper overflow-hidden shadow-nomi-md transition-[outline-color] duration-150">…</div> intercepts pointer events
+  - retrying click action
+    - waiting 20ms
+    - waiting for element to be visible, enabled and stable
+    - element is visible, enabled and stable
+    - scrolling into view if needed
+    - done scrolling
+    - <div class="generation-canvas-v2-node__composer-card relative flex flex-col gap-2.5 p-3 min-w-0 max-w-[880px] w-max border border-nomi-line rounded-nomi bg-nomi-paper overflow-hidden shadow-nomi-md transition-[outline-color] duration-150">…</div> intercepts pointer events
+  2 × retrying click action
+      - waiting 100ms
+      - waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <div data-node-effect-chips="empty" class="flex shrink-0 flex-wrap items-center gap-1">…</div> intercepts pointer events
+  2 × retrying click action
+      - waiting 500ms
+      - waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <div class="generation-canvas-v2-node__composer-card relative flex flex-col gap-2.5 p-3 min-w-0 max-w-[880px] w-max border border-nomi-line rounded-nomi bg-nomi-paper overflow-hidden shadow-nomi-md transition-[outline-color] duration-150">…</div> intercepts pointer events
+    - retrying click action
+      - waiting 500ms
+      - waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <div class="generation-canvas-v2-node__composer-card relative flex flex-col gap-2.5 p-3 min-w-0 max-w-[880px] w-max border border-nomi-line rounded-nomi bg-nomi-paper overflow-hidden shadow-nomi-md transition-[outline-color] duration-150">…</div> intercepts pointer events
+    - retrying click action
+      - waiting 500ms
+      - waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <div data-node-effect-chips="empty" class="flex shrink-0 flex-wrap items-center gap-1">…</div> intercepts pointer events
+    - retrying click action
+      - waiting 500ms
+      - waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <div data-node-effect-chips="empty" class="flex shrink-0 flex-wrap items-center gap-1">…</div> intercepts pointer events
+  - retrying click action
+    - waiting 500ms
+    - waiting for element to be visible, enabled and stable
+    - element is visible, enabled and stable
+    - scrolling into view if needed
+    - done scrolling
+    - <div class="generation-canvas-v2-node__composer-card relative flex flex-col gap-2.5 p-3 min-w-0 max-w-[880px] w-max border border-nomi-line rounded-nomi bg-nomi-paper overflow-hidden shadow-nomi-md transition-[outline-color] duration-150">…</div> intercepts pointer events
+  - retrying click action
+    - waiting 500ms
+
+    at addNodeWithPrompt (/Users/aoqimin/Desktop/Nomi-skill-ui/tests/ux/canvas-batch-production.walk.mjs:177:16)
+    at async file:///Users/aoqimin/Desktop/Nomi-skill-ui/tests/ux/canvas-batch-production.walk.mjs:355:19 {
+  name: 'TimeoutError'
+}
+feel record: canvas-batch-production/failure.png; findings=19; new-surfaces=3; evidence: /Users/aoqimin/Desktop/Nomi-skill-ui/artifacts/feel/canvas-batch-production-5d9eb434-f886-43da-b9e5-3ec6b59c06d8
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+locator.click: Timeout 5000ms exceeded.
+Call log:
+  - waiting for locator('[data-node-id="gen-v2-video-mtulbxtj-5r7f"] div[contenteditable="true"]').last()
+    - locator resolved to <div tabindex="0" translate="no" contenteditable="true" class="tiptap ProseMirror generation-canvas-v2-node__prompt-input outline-0">…</div>
+  - attempting click action
+    - waiting for element to be visible, enabled and stable
+    - element is visible, enabled and stable
+    - scrolling into view if needed
+    - done scrolling
+    - <div data-node-effect-chips="empty" class="flex shrink-0 flex-wrap items-center gap-1">…</div> intercepts pointer events
+  - retrying click action
+    - waiting for element to be visible, enabled and stable
+    - element is visible, enabled and stable
+    - scrolling into view if needed
+    - done scrolling
+    - <div class="generation-canvas-v2-node__composer-card relative flex flex-col gap-2.5 p-3 min-w-0 max-w-[880px] w-max border border-nomi-line rounded-nomi bg-nomi-paper overflow-hidden shadow-nomi-md transition-[outline-color] duration-150">…</div> intercepts pointer events
+  - retrying click action
+    - waiting 20ms
+    - waiting for element to be visible, enabled and stable
+    - element is visible, enabled and stable
+    - scrolling into view if needed
+    - done scrolling
+    - <div class="generation-canvas-v2-node__composer-card relative flex flex-col gap-2.5 p-3 min-w-0 max-w-[880px] w-max border border-nomi-line rounded-nomi bg-nomi-paper overflow-hidden shadow-nomi-md transition-[outline-color] duration-150">…</div> intercepts pointer events
+  2 × retrying click action
+      - waiting 100ms
+      - waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <div data-node-effect-chips="empty" class="flex shrink-0 flex-wrap items-center gap-1">…</div> intercepts pointer events
+  2 × retrying click action
+      - waiting 500ms
+      - waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <div class="generation-canvas-v2-node__composer-card relative flex flex-col gap-2.5 p-3 min-w-0 max-w-[880px] w-max border border-nomi-line rounded-nomi bg-nomi-paper overflow-hidden shadow-nomi-md transition-[outline-color] duration-150">…</div> intercepts pointer events
+    - retrying click action
+      - waiting 500ms
+      - waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <div class="generation-canvas-v2-node__composer-card relative flex flex-col gap-2.5 p-3 min-w-0 max-w-[880px] w-max border border-nomi-line rounded-nomi bg-nomi-paper overflow-hidden shadow-nomi-md transition-[outline-color] duration-150">…</div> intercepts pointer events
+    - retrying click action
+      - waiting 500ms
+      - waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <div data-node-effect-chips="empty" class="flex shrink-0 flex-wrap items-center gap-1">…</div> intercepts pointer events
+    - retrying click action
+      - waiting 500ms
+      - waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <div data-node-effect-chips="empty" class="flex shrink-0 flex-wrap items-center gap-1">…</div> intercepts pointer events
+  - retrying click action
+    - waiting 500ms
+    - waiting for element to be visible, enabled and stable
+    - element is visible, enabled and stable
+    - scrolling into view if needed
+    - done scrolling
+    - <div class="generation-canvas-v2-node__composer-card relative flex flex-col gap-2.5 p-3 min-w-0 max-w-[880px] w-max border border-nomi-line rounded-nomi bg-nomi-paper overflow-hidden shadow-nomi-md transition-[outline-color] duration-150">…</div> intercepts pointer events
+  - retrying click action
+    - waiting 500ms
+
+    at addNodeWithPrompt (/Users/aoqimin/Desktop/Nomi-skill-ui/tests/ux/canvas-batch-production.walk.mjs:177:16)
+    at async file:///Users/aoqimin/Desktop/Nomi-skill-ui/tests/ux/canvas-batch-production.walk.mjs:355:19 {
+  name: 'TimeoutError'
+}
+
+Node.js v24.13.1

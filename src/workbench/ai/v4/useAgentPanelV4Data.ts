@@ -163,6 +163,7 @@ export function useAgentPanelV4Data(surface: ResidentSurface): AgentPanelV4Data 
   const selectedClipIds = useWorkbenchStore((state) => state.selectedTimelineClipIds)
   const selectedTextClipId = useWorkbenchStore((state) => state.selectedTextClipId)
   const activeSkill = useWorkbenchStore((state) => state.creationActiveSkill)
+  const selectedLibraryPrompt = useWorkbenchStore((state) => state.selectedLibraryPrompt)
   const attachments = useWorkbenchStore((state) => state.projectAgentAttachments)
   const timelineSelection = useTimelineSelectionChips(surface, timeline, selectedClipIds, selectedTextClipId)
 
@@ -204,7 +205,10 @@ export function useAgentPanelV4Data(surface: ResidentSurface): AgentPanelV4Data 
   const liveChips = React.useMemo(() => {
     const chips: V4Chip[] = []
     for (const attachment of attachments) chips.push({ kind: 'file', label: attachment.fileName })
-    if (activeSkill) chips.push({ kind: 'skill', label: activeSkill.name })
+    if (activeSkill) {
+      const skill = skills.find(s => s.name === activeSkill.key)
+      chips.push({ kind: 'skill', label: activeSkill.name, cover: skill?.cover, preview: skill?.preview, description: skill?.description ?? undefined })
+    } else if (selectedLibraryPrompt) chips.push({ kind: 'skill', label: selectedLibraryPrompt.title, cover: selectedLibraryPrompt.mediaType === 'image' ? selectedLibraryPrompt.mediaUrl : undefined, preview: selectedLibraryPrompt.mediaUrl ? { url: selectedLibraryPrompt.mediaUrl, type: selectedLibraryPrompt.mediaType } : undefined, description: selectedLibraryPrompt.prompt })
     for (const selection of timelineSelection.selections) {
       // 时间轴片段的人话名字是 `label`；文本片段用它的正文。两者都可能是空串。
       const clip = selection.clip as { id: string; label?: string; text?: string }
@@ -216,7 +220,7 @@ export function useAgentPanelV4Data(surface: ResidentSurface): AgentPanelV4Data 
       })
     }
     return Object.freeze(chips)
-  }, [activeSkill, attachments, t, timelineSelection])
+  }, [activeSkill, selectedLibraryPrompt, skills, attachments, t, timelineSelection])
 
   return {
     snapshot,

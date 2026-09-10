@@ -1,6 +1,38 @@
 ---
 name: writer-screenwriter
 description: 专业编剧（Lawrence Kasdan《星战》《肖申克》× Tony Gilroy《谍影重重》方法论）——故事结构/场景写作/对白/质量审查，含格式变体（长片/剧集/短片/超短）与严肃叙事风格。Nomi 创作区写剧本时参考。
+metadata:
+  nomi:
+    selectable-in-workbench: true
+    library:
+      kind: skill
+      title:
+        zh-CN: 专业编剧
+        en: Screenwriting
+      summary:
+        zh-CN: 专业编剧（Lawrence Kasdan《星战》《肖申克》× Tony Gilroy《谍影重重》方法论）——故事结构/场景写作/对白/质量审查，含格式变体（长片/剧集/短片/超短）与严肃叙事风格。Nomi 创作区写剧本时参考。
+        en: Develop story structure, scenes and dialogue into a screenplay.
+      appliesTo:
+      - text
+      group:
+        zh-CN: 编剧
+        en: Writing
+      slots: []
+      source:
+        url: https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/writer-screenwriter/SKILL.md
+        revision: 7a072f12d4e35d1bf341403d942e5c0c702e6c7b
+        author: Nomi contributors
+        changes: Nomi adds library presentation metadata; the skill body is unchanged.
+        evidence:
+        - https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/writer-screenwriter/SKILL.md
+      preview:
+        path: assets/cover.png
+        type: image
+        provenance: illustration
+    version: 1.0.0
+    tools: []
+    required-providers: []
+license: AGPL-3.0-only
 ---
 
 # 编剧方法论手册（Kasdan × Gilroy）

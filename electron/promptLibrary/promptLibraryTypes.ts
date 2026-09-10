@@ -19,7 +19,7 @@ export type PromptReferenceImage = {
 
 /** 对外的完整提示词条目。 */
 export type LibraryPrompt = ParsedPrompt & {
-  curation?: import("../skills/skillCuration").SkillCuration;
+  curation?: import("../shared/skillCuration").SkillCuration;
   id: string;
   /** 这条提示词产出的是图还是视频(决定送上画布建哪种节点)。 */
   promptType: PromptMediaType;

@@ -1,3 +1,4 @@
+import type { LibraryPrompt } from './api/promptLibraryApi'
 import { applyStoryboardPlanProjection } from './creation/storyboard/exec/ensureStoryboardShotTable'
 import { create } from 'zustand'
 import { subscribeWithSelector } from 'zustand/middleware'
@@ -177,6 +178,8 @@ type WorkbenchState = WorkbenchDocumentSlice & EditingPanelLayoutSlice & Timelin
   /** 请生成画布平滑 fit 一次；可显式切到并绑定目标分类。 */
   requestCanvasFit: (categoryId?: string) => void
   /** Resident ProjectAgent composer state. Draft/attachments are ephemeral UI state, not Host history. */
+  selectedLibraryPrompt: LibraryPrompt | null
+  setSelectedLibraryPrompt: (prompt: LibraryPrompt | null) => void
   projectAgentDraft: string
   projectAgentAttachments: ComposerAttachment[]
   /** Composer-only references. Host remains the sole owner of durable context/history. */
@@ -324,6 +327,8 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
   creationActiveSkill: null,
   canvasFitNonce: 0,
   canvasFitCategoryId: null,
+  selectedLibraryPrompt: null,
+  setSelectedLibraryPrompt: (selectedLibraryPrompt) => set({ selectedLibraryPrompt, creationActiveSkill: null }),
   projectAgentDraft: '',
   projectAgentAttachments: [],
   projectAgentReferences: [],
@@ -376,7 +381,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(subscribeWithSelector(
     set({ creationAiModeId })
   },
   setCreationActiveSkill: (creationActiveSkill) => {
-    set({ creationActiveSkill })
+    set({ creationActiveSkill, selectedLibraryPrompt: null })
   },
   requestCanvasFit: (categoryId) => {
     // 一次性信号：目标分类与 nonce 原子更新。显式目标立即切过去，延迟消费时若用户又手动切走则跳过。

@@ -1,0 +1,10 @@
+✔ shared account activity does not become a task charge (0.50425ms)
+✔ missing, invalid or above-reservation task cost fails closed (0.107708ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 40.48825

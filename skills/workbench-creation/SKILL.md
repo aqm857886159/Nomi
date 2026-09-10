@@ -3,12 +3,39 @@ name: workbench-creation
 description: Creation-area AI assistant for writing, rewriting, screenwriting, prompt generation, and shot-list drafting. Returns documentAction proposals for user confirmation before any write.
 metadata:
   nomi:
+    selectable-in-workbench: true
     version: 1.0.0
     tools:
       - creation_read
       - creation_write
     required-providers:
       - text
+    library:
+      kind: skill
+      title:
+        zh-CN: 创作助手
+        en: Writing assistant
+      summary:
+        zh-CN: 协助写作、改写和编剧，生成提示词及分镜草稿，修改前交由用户确认。
+        en: Develop and revise stories, scripts and generation prompts.
+      appliesTo:
+      - text
+      group:
+        zh-CN: 创作流程
+        en: Workflow
+      slots: []
+      source:
+        url: https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/workbench-creation/SKILL.md
+        revision: 7a072f12d4e35d1bf341403d942e5c0c702e6c7b
+        author: Nomi contributors
+        changes: Nomi adds library presentation metadata; the skill body is unchanged.
+        evidence:
+        - https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/workbench-creation/SKILL.md
+      preview:
+        path: assets/cover.png
+        type: image
+        provenance: illustration
+license: AGPL-3.0-only
 ---
 
 # 创作区 AI 助手

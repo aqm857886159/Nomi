@@ -2,13 +2,12 @@ import { notify } from '../../../ui/notificationPolicy'
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Editor } from '@tiptap/react'
-import { createPortal } from 'react-dom'
-import { AnimatePresence, motion } from 'framer-motion'
-import { IconFileText } from '../../../vendor/tablerIcons'
 import { NomiLoadingMark, NomiSelect } from '../../../design'
 import type { TranslationKey } from '../../../i18n/translationKey'
 import { cn } from '../../../utils/cn'
-import { fetchUserPrompts, type PromptMediaType, type PromptReferenceImage } from '../../api/promptLibraryApi'
+import type { LibraryPrompt } from '../../api/promptLibraryApi'
+import { useNodeEffectChips } from './NodeEffectChips'
+import { showUndoToast } from '../../../utils/showUndoToast'
 import PromptEditor from '../../assets/PromptEditor'
 import { promptToContent } from '../../assets/promptEditorContent'
 import { useAllProjectAssets } from '../../assets/useAllProjectAssets'
@@ -69,20 +68,6 @@ const TEXT_MODE_PLACEHOLDER_KEY = {
   replace: 'generationCommon.composer.replacePlaceholder',
 } as const satisfies Record<TextGenMode, TranslationKey>
 
-const PROMPT_PICKER_WIDTH = 245
-const PROMPT_PICKER_MIN_WIDTH = 240
-const PROMPT_PICKER_MAX_HEIGHT = 310
-const PROMPT_PICKER_MARGIN = 12
-const PROMPT_PICKER_PREVIEW_WIDTH = 296
-const PROMPT_PICKER_PREVIEW_GAP = 4
-const PROMPT_PICKER_PREVIEW_MAX_HEIGHT = 380
-
-type PromptPickerPosition = {
-  left: number
-  top: number
-  width: number
-}
-
 // 生成节点的浮动 composer：references + 提示词 + 参数 + 生成/重新生成按钮。
 // 从 BaseGenerationNode 抽出（A1.5 接缝）：只有「生成类」节点挂它，素材节点不挂。
 // 所有生成相关依赖（runner / NodeParameterControls / 布局计算）都收在这里，壳保持 kind 无关。
@@ -104,156 +89,13 @@ function floatingComposerLayout(_width: number, _height: number, kind: Generatio
   //
   // 高度同理**内容驱动**，不再绑节点高（旧 `height*0.72` 是 bug 根因：小节点 → 矮卡，
   // 「参考区 + 3 行提示词 + 底栏」放不下，overflow-hidden 把底栏的生成钮裁到卡外，修③④）。
-  // 卡片在 flex-col 里自然按内容长高；只有一个可伸缩区（提示词 flex-1 overflow-auto），
-  // 底栏 shrink-0 永远贴底可见。这里给一个宽松上限：内容超过它时只有提示词内部滚动，底栏不动。
+  // 卡片在 flex-col 里自然按内容长高；提示词 flex-1 overflow-auto，推荐项只占剩余空间，
+  // 底栏不收缩；提示词保留三行，推荐项不挤占输入和主行动。
   const maxHeight = kind === 'video' ? 460 : 400
   // 连接间距是空间关系，不应随节点画幅宽度跨阈值跳变；否则 1:1 → 21:9 时即使底边
   // 锚点完全不动，composer 仍会被旧的 10px → 14px 分支推开，看起来像断开。
   const gap = 14
   return { maxHeight, gap }
-}
-
-// 提示词只此一家（素材面收敛 2026-07-22）：picker 读主提示词库「我的库」（原素材盒 localStorage 私账已并入）。
-type PromptPickerItem = {
-  id: string
-  title: string
-  prompt: string
-  promptType: PromptMediaType
-  referenceImages: PromptReferenceImage[]
-}
-
-type BrowserPromptPickerPopoverProps = {
-  items: PromptPickerItem[]
-  position: PromptPickerPosition | null
-  onSelect: (item: PromptPickerItem) => void
-  setNodeRef: (node: HTMLDivElement | null) => void
-}
-
-function BrowserPromptPickerPopover({
-  items,
-  position,
-  onSelect,
-  setNodeRef,
-}: BrowserPromptPickerPopoverProps): React.ReactPortal | null {
-  const { t } = useTranslation()
-  const [hoveredPromptId, setHoveredPromptId] = React.useState<string | null>(null)
-  const [previewTop, setPreviewTop] = React.useState(0)
-  const [previewAnchorCenter, setPreviewAnchorCenter] = React.useState(0)
-  const previewCardRef = React.useRef<HTMLElement | null>(null)
-  const hoveredItem = hoveredPromptId ? items.find((item) => item.id === hoveredPromptId) ?? null : null
-  const hoveredReferences = hoveredItem?.referenceImages ?? []
-  const showHoveredPrompt = React.useCallback((id: string, row: HTMLElement): void => {
-    setHoveredPromptId(id)
-    const root = row.closest('[data-prompt-picker-root="true"]')
-    const rootRect = root?.getBoundingClientRect()
-    const rowRect = row.getBoundingClientRect()
-    const anchorCenter = rootRect ? rowRect.top - rootRect.top + rowRect.height / 2 : rowRect.height / 2
-    const nextItem = items.find((item) => item.id === id)
-    const referenceCount = nextItem?.referenceImages.length ? 1 : 0
-    const innerWidth = PROMPT_PICKER_PREVIEW_WIDTH - 16
-    const promptPreviewHeight = nextItem?.prompt ? 118 : 0
-    const estimatedHeight = Math.min(
-      PROMPT_PICKER_PREVIEW_MAX_HEIGHT,
-      16 + referenceCount * (innerWidth * 9 / 16) + promptPreviewHeight,
-    )
-    setPreviewAnchorCenter(anchorCenter)
-    setPreviewTop(anchorCenter - estimatedHeight / 2)
-  }, [items])
-  React.useLayoutEffect(() => {
-    if (hoveredReferences.length === 0) return
-    const card = previewCardRef.current
-    if (!card) return
-    setPreviewTop(previewAnchorCenter - card.getBoundingClientRect().height / 2)
-  }, [hoveredReferences.length, previewAnchorCenter])
-  if (!position || typeof document === 'undefined') return null
-
-  return createPortal(
-    <motion.div
-      ref={setNodeRef}
-      data-prompt-picker-root="true"
-      className="fixed z-[80] overflow-visible"
-      style={{ left: position.left, top: position.top, width: position.width, transformOrigin: 'top right' }}
-      initial={{ opacity: 0, y: -6, scale: 0.96 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: -4, scale: 0.98 }}
-      transition={{ type: 'spring', stiffness: 420, damping: 34, mass: 0.7 }}
-      role="menu"
-      aria-label={t('generationCommon.composer.promptLibrary')}
-      onPointerDown={(event) => event.stopPropagation()}
-      onMouseLeave={() => setHoveredPromptId(null)}
-    >
-      <div className="max-h-[310px] overflow-hidden rounded-nomi bg-nomi-paper shadow-nomi-lg">
-        <div className="min-w-0 overflow-y-auto py-1">
-          {items.length === 0 ? (
-            <div className="grid min-h-24 place-items-center px-4 text-center text-caption text-nomi-ink-40">
-              {t('generationCommon.composer.emptyPromptLibrary')}
-            </div>
-          ) : (
-            items.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                role="menuitem"
-                className={cn(
-                  'grid w-full min-w-0 grid-cols-[32px_minmax(0,1fr)] items-center gap-2 border-0 bg-transparent px-2.5 py-1.5 text-left',
-                  'cursor-pointer transition-colors duration-nomi-fast ease-nomi-fast',
-                  'text-nomi-ink-60 hover:bg-nomi-ink-05 hover:text-nomi-ink',
-                )}
-                onMouseEnter={(event) => showHoveredPrompt(item.id, event.currentTarget)}
-                onFocus={(event) => showHoveredPrompt(item.id, event.currentTarget)}
-                onClick={() => onSelect(item)}
-              >
-                {item.referenceImages[0]?.url ? (
-                  <img
-                    src={item.referenceImages[0].url}
-                    alt=""
-                    draggable={false}
-                    className="block size-8 rounded-nomi-sm object-cover"
-                  />
-                ) : (
-                  <span className="grid size-8 place-items-center rounded-nomi-sm bg-nomi-bg text-nomi-ink-40">
-                    <IconFileText size={15} stroke={1.6} aria-hidden="true" />
-                  </span>
-                )}
-                <span className="block min-w-0 overflow-hidden whitespace-nowrap text-caption leading-none">
-                  {item.prompt}
-                </span>
-              </button>
-            ))
-          )}
-        </div>
-      </div>
-      {hoveredReferences.length > 0 ? (
-        <aside
-          ref={previewCardRef}
-          className="absolute left-full overflow-hidden rounded-nomi bg-nomi-paper p-2 shadow-nomi-lg"
-          style={{
-            top: previewTop,
-            marginLeft: PROMPT_PICKER_PREVIEW_GAP,
-            width: PROMPT_PICKER_PREVIEW_WIDTH,
-            maxHeight: PROMPT_PICKER_PREVIEW_MAX_HEIGHT,
-          }}
-        >
-          <div className="grid gap-2">
-            {hoveredReferences.slice(0, 1).map((reference, index) => (
-              <div
-                key={`${reference.url}-${index}`}
-                className="overflow-hidden rounded-nomi-sm bg-nomi-paper shadow-nomi-sm"
-              >
-                <img src={reference.url} alt="" draggable={false} className="block aspect-video w-full object-cover" />
-              </div>
-            ))}
-            {hoveredItem?.prompt ? (
-              <div className="overflow-hidden rounded-nomi-sm bg-nomi-bg/70 px-2 py-1.5 text-caption leading-snug text-nomi-ink-60 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:6] [overflow-wrap:anywhere]">
-                {hoveredItem.prompt}
-              </div>
-            ) : null}
-          </div>
-        </aside>
-      ) : null}
-    </motion.div>,
-    document.body,
-  )
 }
 
 export default function NodeGenerationComposer({ onFeedback, node, visualSize }: Props): JSX.Element {
@@ -265,7 +107,6 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize }:
     if (feedbackOwnerRef.current !== node.id) { onFeedback(message); return }
     notify({ identity: `NodeGenerationComposer:${node.id}`, reason: 'interaction', message, level: 'inline', present: setFeedback })
   }, [node.id, onFeedback])
-
   const { t } = useTranslation()
   const updateNode = useGenerationCanvasStore((state) => state.updateNode)
   const status = node.status || 'idle'
@@ -334,13 +175,8 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize }:
     isModel3dLikeGenerationNodeKind(node.kind)
   // 持有 prompt 编辑器实例,供「点参考 tile → 在光标处插入 chip」(@ 内联引用主路径)。
   const [promptEditor, setPromptEditor] = React.useState<Editor | null>(null)
-  const [promptPickerOpen, setPromptPickerOpen] = React.useState(false)
-  const [promptPickerItems, setPromptPickerItems] = React.useState<PromptPickerItem[]>([])
   // 变体张数是会话态、不落盘；显式列出 1–4，避免循环按钮让用户猜下一档。
   const [variantCount, setVariantCount] = React.useState<GenerationVariantCount>(1)
-  const [promptPickerPosition, setPromptPickerPosition] = React.useState<PromptPickerPosition | null>(null)
-  const promptPickerButtonRef = React.useRef<HTMLButtonElement | null>(null)
-  const promptPickerPopoverRef = React.useRef<HTMLDivElement | null>(null)
   // 拖文件到卡 → 加为参考（捷径 A）。仅当当前模式有数组参考槽时接管拖拽。
   const { acceptsDrop, isDragOver, isUploading, dropHandlers } = useNodeAssetDrop(node, reportFeedback)
   // @ 候选 = 当前模式 image_ref 槽的有序填充（连线在前+上传，option 2 单源），与面板编号①②③、
@@ -374,101 +210,25 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize }:
   const appendMentionHint = (base: string): string =>
     mentionCandidates.length > 0 ? `${base} · ${t('assetLibrary.mentionPlaceholderHint')}` : base
 
-  const loadPromptPickerItems = React.useCallback((): void => {
-    void fetchUserPrompts()
-      .then((prompts) => {
-        setPromptPickerItems(prompts.map((prompt) => ({
-          id: prompt.id,
-          title: prompt.title,
-          prompt: prompt.prompt,
-          promptType: prompt.promptType,
-          referenceImages: prompt.referenceImages ?? [],
-        })))
-      })
-      .catch(() => setPromptPickerItems([]))
-  }, [])
-
-  const updatePromptPickerPosition = React.useCallback((): void => {
-    const button = promptPickerButtonRef.current
-    if (!button || typeof window === 'undefined') return
-    const rect = button.getBoundingClientRect()
-    const viewportWidth = window.innerWidth
-    const viewportHeight = window.innerHeight
-    const availableWidth = viewportWidth - PROMPT_PICKER_MARGIN * 2
-    const width = Math.max(
-      PROMPT_PICKER_MIN_WIDTH,
-      Math.min(PROMPT_PICKER_WIDTH, availableWidth),
-    )
-    const maxLeft = viewportWidth - width - PROMPT_PICKER_MARGIN
-    const left = Math.max(
-      PROMPT_PICKER_MARGIN,
-      Math.min(rect.right - width, maxLeft),
-    )
-    const belowTop = rect.bottom + 8
-    const aboveTop = rect.top - PROMPT_PICKER_MAX_HEIGHT - 8
-    const top = belowTop + PROMPT_PICKER_MAX_HEIGHT <= viewportHeight - PROMPT_PICKER_MARGIN
-      ? belowTop
-      : Math.max(PROMPT_PICKER_MARGIN, Math.min(aboveTop, viewportHeight - PROMPT_PICKER_MAX_HEIGHT - PROMPT_PICKER_MARGIN))
-    setPromptPickerPosition({ left, top, width })
-  }, [])
-
-  React.useEffect(() => {
-    if (!promptPickerOpen) return undefined
-    const handlePointerDown = (event: PointerEvent): void => {
-      const target = event.target as Node | null
-      if (target && promptPickerButtonRef.current?.contains(target)) return
-      if (target && promptPickerPopoverRef.current?.contains(target)) return
-      setPromptPickerOpen(false)
-    }
-    const handleKeyDown = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') setPromptPickerOpen(false)
-    }
-    window.addEventListener('pointerdown', handlePointerDown, { capture: true })
-    window.addEventListener('keydown', handleKeyDown)
-    return () => {
-      window.removeEventListener('pointerdown', handlePointerDown, { capture: true })
-      window.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [promptPickerOpen])
-
-  React.useLayoutEffect(() => {
-    if (!promptPickerOpen || typeof window === 'undefined') return undefined
-    updatePromptPickerPosition()
-    const frame = window.requestAnimationFrame(updatePromptPickerPosition)
-    const handleViewportChange = (): void => updatePromptPickerPosition()
-    window.addEventListener('resize', handleViewportChange)
-    window.addEventListener('scroll', handleViewportChange, true)
-    return () => {
-      window.cancelAnimationFrame(frame)
-      window.removeEventListener('resize', handleViewportChange)
-      window.removeEventListener('scroll', handleViewportChange, true)
-    }
-  }, [promptPickerOpen, updatePromptPickerPosition])
-
-  const togglePromptPicker = React.useCallback((event: React.MouseEvent<HTMLButtonElement>): void => {
-    event.stopPropagation()
-    if (promptPickerOpen) {
-      setPromptPickerOpen(false)
-      return
-    }
-    loadPromptPickerItems()
-    updatePromptPickerPosition()
-    setPromptPickerOpen(true)
-  }, [loadPromptPickerItems, promptPickerOpen, updatePromptPickerPosition])
-
   const applyPromptPickerItem = React.useCallback(
-    (item: PromptPickerItem): void => {
+    (item: LibraryPrompt): void => {
       if (node.locked) return
+      const before = node.prompt || ''
+      const next = [before, item.prompt].filter(Boolean).join('\n')
       if (promptEditor && !promptEditor.isDestroyed) {
-        promptEditor.commands.setContent(promptToContent(item.prompt, mentionCandidates))
+        promptEditor.commands.setContent(promptToContent(next, mentionCandidates))
         promptEditor.commands.focus('end')
       }
-      updateNode(node.id, { prompt: item.prompt })
+      updateNode(node.id, { prompt: next })
+      showUndoToast({ message: t('libraries.gallery.appended'), onUndo: () => {
+        updateNode(node.id, { prompt: before })
+        if (promptEditor && !promptEditor.isDestroyed) promptEditor.commands.setContent(promptToContent(before, mentionCandidates))
+      } })
       // 库 prompt 自带的参考图一并落地（此前只写 prompt，item.referenceImages 被静默丢弃——
       // 2026-07-28 群反馈「参考被丢」家族）。当前生成方式收不下 image_ref 先促到能收的模式
       // （与建边 auto-promote 同一把尺子），再走 addAssetUrlToNode 单源写入（去重/上限同一处）；
       // 模型任何模式都不吃图参考 → 诚实提示只应用了文本，不写死数据。
-      const referenceUrls = item.referenceImages.map((reference) => reference.url).filter(Boolean)
+      const referenceUrls = (item.referenceImages ?? []).map((reference) => reference.url).filter(Boolean)
       if (referenceUrls.length) {
         const state = useGenerationCanvasStore.getState()
         const target = state.nodes.find((candidate) => candidate.id === node.id)
@@ -490,10 +250,9 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize }:
           reportFeedback(t('generationCommon.composer.promptReferenceUnsupported'))
         }
       }
-      setPromptPickerOpen(false)
       void persistActiveWorkbenchProjectNow().catch(() => {})
     },
-    [mentionCandidates, node.id, node.locked, promptEditor, reportFeedback, t, updateNode],
+    [mentionCandidates, node.id, node.locked, node.prompt, promptEditor, reportFeedback, t, updateNode],
   )
 
   const handleGenerate = async (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -521,7 +280,7 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize }:
 
   // 吃提示词的节点才有「最小可用高度」——不吃的（如某些 ComfyUI 工作流）本来就该按内容自然矮。
   const minUsableHeight = acceptsPrompt ? COMPOSER_MIN_USABLE_HEIGHT : 0
-  const { anchorRef, canvasZoom, flipUp, left, top, maxWidth, maxHeight } = useComposerViewportPlacement({
+  const { anchorRef, canvasZoom, flipUp, left, top, maxWidth, maxHeight, referenceMaxHeight } = useComposerViewportPlacement({
     node,
     visualSize,
     gap: composerLayout.gap,
@@ -529,7 +288,9 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize }:
     minUsableHeight,
   })
 
-  // 卡宽由当前模型底栏驱动；放置层按屏幕空间限制可用宽高，拥挤时滚动。
+  const effects = useNodeEffectChips({ enabled: hasPromptPickerButton, empty: !node.prompt?.trim(), kind: nodeExecutionKind ?? node.kind, disabled: node.locked, onSelect: applyPromptPickerItem })
+
+  // 卡宽由模型底栏驱动；推荐项让位，输入内滚、底栏固定。
 
   return (
     // 外层只做屏幕空间定位锚，反向缩放保持参数卡可读。
@@ -563,8 +324,8 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize }:
       <div
         className={cn(
           'generation-canvas-v2-node__composer-card',
-          'relative flex flex-col gap-2.5 p-3 min-w-0 max-w-[880px] w-max',
-          // 常规空间保留底栏、内层滚动；拥挤时整个卡在无碰撞矩形内滚动。
+          'relative flex flex-col gap-1.5 p-3 min-w-0 max-w-[880px] w-max',
+          // 卡片不滚动，只有提示词拥有滚动；附属推荐行承担收缩。
           'border border-nomi-line rounded-nomi bg-nomi-paper overflow-hidden shadow-nomi-md',
           'transition-[outline-color] duration-150',
           isDragOver && 'outline-2 outline-dashed outline-nomi-accent outline-offset-[-2px]',
@@ -574,60 +335,15 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize }:
           maxWidth,
           minWidth: Math.min(360, maxWidth),
           minHeight: Math.min(minUsableHeight, maxHeight),
-          overflow: maxHeight < minUsableHeight || maxWidth < 360 ? 'auto' : undefined,
           cursor: 'default',
           userSelect: 'auto',
           touchAction: 'auto',
         }}
       >
-      {hasReferenceControls || hasPromptPickerButton ? (
-        <div className={cn('flex w-0 min-w-full items-start gap-3')}>
-          {hasReferenceControls ? (
-            <div className={cn('min-w-0 flex-1')}>
-              <NodeParameterControls node={node} section="references" onInsertMention={insertMention} />
-            </div>
-          ) : null}
-          {hasPromptPickerButton ? (
-            <button
-              ref={promptPickerButtonRef}
-              type="button"
-              className={cn(
-                'inline-flex h-7 shrink-0 items-center gap-1.5 rounded-nomi-sm border-0 bg-transparent px-2',
-                'cursor-pointer text-nomi-ink-40 transition-[background,color,transform] duration-nomi-fast ease-nomi-fast',
-                'hover:-translate-y-0.5 hover:bg-nomi-ink-05 hover:text-nomi-accent',
-                promptPickerOpen && 'bg-nomi-ink-05 text-nomi-accent',
-                node.locked && 'cursor-not-allowed opacity-45 hover:translate-y-0 hover:bg-transparent hover:text-nomi-ink-40',
-              )}
-              aria-label={t('generationCommon.composer.openPromptLibrary')}
-              aria-haspopup="menu"
-              aria-expanded={promptPickerOpen}
-              title={t('generationCommon.composer.promptLibrary')}
-              disabled={node.locked}
-              onClick={togglePromptPicker}
-            >
-              <IconFileText size={15} stroke={1.8} aria-hidden="true" />
-              <span className="text-caption font-medium leading-none">{t('generationCommon.composer.prompt')}</span>
-            </button>
-          ) : null}
-        </div>
-      ) : null}
-      <AnimatePresence initial={false}>
-        {hasPromptPickerButton && promptPickerOpen ? (
-          <BrowserPromptPickerPopover
-            key="browser-prompt-picker"
-            items={promptPickerItems}
-            position={promptPickerPosition}
-            onSelect={applyPromptPickerItem}
-            setNodeRef={(popoverNode) => {
-              promptPickerPopoverRef.current = popoverNode
-            }}
-          />
-        ) : null}
-      </AnimatePresence>
-      {/* 参考区：图像/视频的参考槽，以及声音的「配音生成/转写」模式切换 + 转写的音频参考槽。 */}
       {hasReferenceControls ? (
-        // 样张 v4 .divider：参考区与描述之间一条极淡分隔线
-        <div className={cn('h-px bg-nomi-line-soft')} />
+        <div data-node-composer-references className="min-h-0 shrink-0 overflow-y-auto overscroll-contain border-b border-nomi-line-soft" style={{ maxHeight: referenceMaxHeight }}>
+          <NodeParameterControls node={node} section="references" onInsertMention={insertMention} />
+        </div>
       ) : null}
       {isTextKind ? (
         <div
@@ -658,20 +374,16 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize }:
           ))}
         </div>
       ) : null}
-      {/* 长 prompt 在编辑器内部滚动/换行；底栏永远贴底（卡宽确定，提示词在卡宽内自然换行，不撑爆）。 */}
-      {/* 空间充足时 PromptEditor 保持 3 行；视口收紧时外层允许缩到 0 并内部滚动，底栏始终可见。 */}
-      {/* 转写模式无台词输入（音频参考即输入）——隐藏 prompt，避免误导。 */}
+      {/* 长 prompt 在编辑器内部滚动/换行；卡宽确定，提示词不撑爆卡片。 */}
+      {/* 输入区始终保留三行，推荐项在剩余高度内展示。 */}
+      {/* 转写模式无台词输入（音频参考即输入）。 */}
       {audioIsTranscribe || isTextKind || !acceptsPrompt ? null : (
-        // w-0 min-w-full：填满卡宽但**贡献 0** 到 max-content（长 prompt 在卡宽内换行，不把卡撑爆 → 卡宽由底栏定）。
-        // overflow-y-auto 直接挂在 flex-1 伸缩区上：该区高度被卡片 maxHeight 卡住后有界 → 超长 prompt 在本区内部
-        // 滚动，底栏（shrink-0）永远贴底可见。外层必须 min-h-0，才能在视口高度不足时让出空间；
-        // 内层 PromptEditor 的 min-h-[72px] 仍提供正常状态的 3 行高度，并成为本区的滚动内容。
-        // ⚠️ 别再往里套「无高度约束的内层块 + overflow-y-auto」：那样内层块按内容长到全高、滚动永不触发，
-        // 整片 prompt 下溢盖住底栏（= 截图里「文字太长盖住 选择模型/优化」的根因）。滚动容器必须自己有界。
-        // 用 overflow-y-auto 而非 overflow-auto：卡宽已被 w-0 min-w-full 锁死、prompt 在卡宽内换行，横向永不溢出，明确关掉横向滚动条。
+        // w-0 min-w-full keeps long prompts from widening the card. The bounded
+        // scrollport retains its minimum even when fixed controls exhaust the card.
         <div
-          className={cn('relative flex-1 min-h-0 w-0 min-w-full overflow-y-auto overscroll-contain')}
-          style={{ flex: maxHeight < minUsableHeight ? '0 0 auto' : undefined, cursor: node.locked ? 'default' : 'text', userSelect: node.locked ? 'auto' : 'text' }}
+          data-node-composer-prompt
+          className={cn('relative flex-1 min-h-[72px] w-0 min-w-full overflow-y-auto overscroll-contain')}
+          style={{ cursor: node.locked ? 'default' : 'text', userSelect: node.locked ? 'auto' : 'text' }}
         >
           <PromptEditor
             className={cn('min-h-[72px]')}
@@ -688,12 +400,14 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize }:
           />
         </div>
       )}
+      {hasPromptPickerButton && effects.recommendations}
       {/* 底栏铺满卡宽（w-full）：生成钮 ml-auto 永远贴右。底栏恒单行——参数已主次分层（最常调的内联、
           其余收进 InlineParameterBar 的「更多」弹层，方案 B），不会再横排超长/截断/换行（D2 根治）。 */}
       <div className={cn('flex items-center gap-2 mt-auto pt-1 shrink-0 w-full')}>
         {/* 锁从节点卡片移到这里（编辑面板底栏）：卡片预览保持干净，锁定/解锁在选中编辑时就近可达。
             selected 恒为真（composer 只在选中时挂载）→ 始终可见：未锁=描边开锁、已锁=实心锁。 */}
         <NodeLockBadge nodeId={node.id} locked={node.locked} selected />
+        {hasPromptPickerButton && effects.more}
         <NodeParameterControls
           node={node}
           section="parameters"

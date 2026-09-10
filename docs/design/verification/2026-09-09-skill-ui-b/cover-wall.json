@@ -1,0 +1,358 @@
+{
+  "passed": true,
+  "paidCalls": 0,
+  "media": [
+    {
+      "id": "skill:brand-promo",
+      "loaded": true
+    },
+    {
+      "id": "skill:creation-edit",
+      "loaded": true
+    },
+    {
+      "id": "skill:drama-short",
+      "loaded": true
+    },
+    {
+      "id": "skill:model-integration",
+      "loaded": true
+    },
+    {
+      "id": "skill:release-media-pack",
+      "loaded": true
+    },
+    {
+      "id": "skill:skill-author",
+      "loaded": true
+    },
+    {
+      "id": "skill:workbench-creation",
+      "loaded": true
+    },
+    {
+      "id": "skill:workbench-fixation-planner",
+      "loaded": true
+    },
+    {
+      "id": "skill:workbench-generation",
+      "loaded": true
+    },
+    {
+      "id": "skill:workbench-storyboard-planner",
+      "loaded": true
+    },
+    {
+      "id": "skill:curated-candle-mood",
+      "loaded": true
+    },
+    {
+      "id": "skill:curated-coffee-pour",
+      "loaded": true
+    },
+    {
+      "id": "skill:curated-eyewear-light",
+      "loaded": true
+    },
+    {
+      "id": "skill:curated-product-before-after",
+      "loaded": true
+    },
+    {
+      "id": "skill:curated-product-condensation",
+      "loaded": true
+    },
+    {
+      "id": "skill:curated-product-exploded-view",
+      "loaded": true
+    },
+    {
+      "id": "skill:curated-product-turntable",
+      "loaded": true
+    },
+    {
+      "id": "skill:curated-product-unboxing",
+      "loaded": true
+    },
+    {
+      "id": "skill:curated-cross-view",
+      "loaded": true
+    },
+    {
+      "id": "skill:curated-expression-reference",
+      "loaded": true
+    },
+    {
+      "id": "skill:curated-expression-sheet",
+      "loaded": true
+    },
+    {
+      "id": "skill:curated-film-storyboard",
+      "loaded": true
+    },
+    {
+      "id": "skill:curated-multi-view",
+      "loaded": true
+    },
+    {
+      "id": "skill:curated-outpaint",
+      "loaded": true
+    },
+    {
+      "id": "skill:curated-restore-image",
+      "loaded": true
+    },
+    {
+      "id": "skill:director-action",
+      "loaded": true
+    },
+    {
+      "id": "skill:director-art-design",
+      "loaded": true
+    },
+    {
+      "id": "skill:director-cinematography",
+      "loaded": true
+    },
+    {
+      "id": "skill:director-consistency",
+      "loaded": true
+    },
+    {
+      "id": "skill:director-guzhuang",
+      "loaded": true
+    },
+    {
+      "id": "skill:director-keyframe-review",
+      "loaded": true
+    },
+    {
+      "id": "skill:director-performance",
+      "loaded": true
+    },
+    {
+      "id": "skill:director-shot-translation",
+      "loaded": true
+    },
+    {
+      "id": "skill:director-sound",
+      "loaded": true
+    },
+    {
+      "id": "skill:director-staging",
+      "loaded": true
+    },
+    {
+      "id": "skill:director-style-otomo-wright",
+      "loaded": true
+    },
+    {
+      "id": "skill:director-transitions",
+      "loaded": true
+    },
+    {
+      "id": "skill:writer-adaptation",
+      "loaded": true
+    },
+    {
+      "id": "skill:writer-behavior-psychology",
+      "loaded": true
+    },
+    {
+      "id": "skill:writer-dialogue",
+      "loaded": true
+    },
+    {
+      "id": "skill:writer-improv",
+      "loaded": true
+    },
+    {
+      "id": "skill:writer-incubation",
+      "loaded": true
+    },
+    {
+      "id": "skill:writer-novel-digester",
+      "loaded": true
+    },
+    {
+      "id": "skill:writer-review",
+      "loaded": true
+    },
+    {
+      "id": "skill:writer-screenwriter",
+      "loaded": true
+    },
+    {
+      "id": "skill:writer-songfangjin",
+      "loaded": true
+    },
+    {
+      "id": "skill:writer-structure",
+      "loaded": true
+    },
+    {
+      "id": "skill:writer-style-schrader",
+      "loaded": true
+    },
+    {
+      "id": "prompt:effect-camera-01",
+      "loaded": true
+    },
+    {
+      "id": "prompt:effect-camera-02",
+      "loaded": true
+    },
+    {
+      "id": "prompt:effect-camera-03",
+      "loaded": true
+    },
+    {
+      "id": "prompt:effect-camera-04",
+      "loaded": true
+    },
+    {
+      "id": "prompt:effect-camera-05",
+      "loaded": true
+    },
+    {
+      "id": "prompt:effect-camera-06",
+      "loaded": true
+    },
+    {
+      "id": "prompt:effect-camera-07",
+      "loaded": true
+    },
+    {
+      "id": "prompt:effect-camera-08",
+      "loaded": true
+    },
+    {
+      "id": "prompt:effect-camera-09",
+      "loaded": true
+    },
+    {
+      "id": "prompt:effect-camera-10",
+      "loaded": true
+    },
+    {
+      "id": "prompt:effect-camera-11",
+      "loaded": true
+    },
+    {
+      "id": "prompt:effect-camera-12",
+      "loaded": true
+    },
+    {
+      "id": "prompt:effect-camera-13",
+      "loaded": true
+    },
+    {
+      "id": "prompt:effect-camera-21",
+      "loaded": true
+    },
+    {
+      "id": "prompt:effect-camera-22",
+      "loaded": true
+    },
+    {
+      "id": "prompt:effect-camera-23",
+      "loaded": true
+    },
+    {
+      "id": "prompt:effect-camera-24",
+      "loaded": true
+    },
+    {
+      "id": "prompt:effect-camera-25",
+      "loaded": true
+    },
+    {
+      "id": "prompt:effect-camera-26",
+      "loaded": true
+    },
+    {
+      "id": "prompt:effect-camera-27",
+      "loaded": true
+    },
+    {
+      "id": "prompt:effect-camera-28",
+      "loaded": true
+    },
+    {
+      "id": "prompt:effect-camera-29",
+      "loaded": true
+    },
+    {
+      "id": "prompt:effect-camera-30",
+      "loaded": true
+    },
+    {
+      "id": "prompt:effect-camera-14",
+      "loaded": true
+    },
+    {
+      "id": "prompt:effect-camera-15",
+      "loaded": true
+    },
+    {
+      "id": "prompt:effect-camera-16",
+      "loaded": true
+    },
+    {
+      "id": "prompt:effect-camera-17",
+      "loaded": true
+    },
+    {
+      "id": "prompt:effect-camera-18",
+      "loaded": true
+    },
+    {
+      "id": "prompt:effect-camera-19",
+      "loaded": true
+    },
+    {
+      "id": "prompt:effect-camera-20",
+      "loaded": true
+    },
+    {
+      "id": "prompt:effect-overhead-view",
+      "loaded": true
+    },
+    {
+      "id": "prompt:effect-character-three-view",
+      "loaded": true
+    },
+    {
+      "id": "prompt:effect-expression-grid",
+      "loaded": true
+    },
+    {
+      "id": "prompt:effect-object-six-view",
+      "loaded": true
+    },
+    {
+      "id": "prompt:effect-transfer-expression",
+      "loaded": true
+    },
+    {
+      "id": "prompt:effect-fill-outpaint",
+      "loaded": true
+    },
+    {
+      "id": "prompt:effect-restore-drawing",
+      "loaded": true
+    },
+    {
+      "id": "prompt:effect-natural-texture",
+      "loaded": true
+    },
+    {
+      "id": "prompt:effect-scene-three-view",
+      "loaded": true
+    },
+    {
+      "id": "prompt:effect-storyboard-panels",
+      "loaded": true
+    }
+  ]
+}

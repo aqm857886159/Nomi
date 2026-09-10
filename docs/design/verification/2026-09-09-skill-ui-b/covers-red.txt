@@ -1,0 +1,26 @@
+
+ RUN  v4.1.8 /Users/aoqimin/Desktop/Nomi-skill-ui
+
+ ❯ electron/skills/skillCuration.test.ts (15 tests | 1 failed) 96ms
+     × resolves a real media file for every bundled Skill, including legacy knowledge packs 44ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  electron/skills/skillCuration.test.ts > curated Skill and effect intake > resolves a real media file for every bundled Skill, including legacy knowledge packs
+AssertionError: brand-promo: expected undefined to be defined
+ ❯ electron/skills/skillCuration.test.ts:28:62
+     26|     for (const record of records) {
+     27|       expect(record.manifestError, record.directoryName).toBeUndefined…
+     28|       expect(record.curation?.preview, record.directoryName).toBeDefin…
+       |                                                              ^
+     29|       expect(fs.statSync(path.join(path.dirname(record.filePath), reco…
+     30|     }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 14 passed (15)
+   Start at  21:45:18
+   Duration  354ms (transform 114ms, setup 21ms, import 132ms, tests 96ms, environment 0ms)
+

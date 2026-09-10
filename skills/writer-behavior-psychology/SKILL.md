@@ -1,6 +1,38 @@
 ---
 name: writer-behavior-psychology
 description: 行为心理学编剧工具——把认知失调 / 依恋理论 / 防御机制 / 微表情等心理学工具转化为角色行为设计与观众心理操控。Nomi 创作区设计角色行为/心理转折时参考。
+metadata:
+  nomi:
+    selectable-in-workbench: true
+    library:
+      kind: skill
+      title:
+        zh-CN: 角色行为心理
+        en: Character psychology
+      summary:
+        zh-CN: 行为心理学编剧工具——把认知失调 / 依恋理论 / 防御机制 / 微表情等心理学工具转化为角色行为设计与观众心理操控。Nomi 创作区设计角色行为/心理转折时参考。
+        en: Use psychological conflicts to design believable character behavior.
+      appliesTo:
+      - text
+      group:
+        zh-CN: 编剧
+        en: Writing
+      slots: []
+      source:
+        url: https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/writer-behavior-psychology/SKILL.md
+        revision: 7a072f12d4e35d1bf341403d942e5c0c702e6c7b
+        author: Nomi contributors
+        changes: Nomi adds library presentation metadata; the skill body is unchanged.
+        evidence:
+        - https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/writer-behavior-psychology/SKILL.md
+      preview:
+        path: assets/cover.png
+        type: image
+        provenance: illustration
+    version: 1.0.0
+    tools: []
+    required-providers: []
+license: AGPL-3.0-only
 ---
 
 # 行为心理学编剧工具

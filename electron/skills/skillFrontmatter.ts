@@ -1,5 +1,5 @@
 import yaml from "js-yaml";
-import { readSkillCuration } from "./skillCuration";
+import { readSkillCuration } from "../shared/skillCuration";
 
 /**
  * SKILL.md 的 YAML frontmatter —— 技能清单的**唯一** owner（2026-09-07 起）。

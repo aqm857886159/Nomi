@@ -2,6 +2,7 @@
 """Assemble existing media for visual review; never generates cover artwork."""
 import argparse
 import math
+import re
 from pathlib import Path
 
 import yaml
@@ -16,7 +17,9 @@ for source in sorted((ROOT / 'skills').glob('*/SKILL.md')):
     front = yaml.safe_load(source.read_text().split('---', 2)[1])
     library = front.get('metadata', {}).get('nomi', {}).get('library')
     if not library:
-        continue
+        heading = re.search(r'^# (.+)$', source.read_text(), re.MULTILINE)
+        label = front.get('metadata', {}).get('nomi', {}).get('label') or (heading.group(1) if heading else source.parent.name)
+        library = {'title': {'zh-CN': label}}
     preview = library.get('preview')
     if not preview:
         if not args.trial:
@@ -39,7 +42,7 @@ small = ImageFont.truetype('/System/Library/Fonts/Supplemental/Songti.ttc', 13)
 illustrations = sum(item[3] == 'illustration' for item in entries)
 real = sum(item[3] == 'upstream-output' for item in entries)
 pending = sum(item[3] == 'pending' for item in entries)
-title = f'封面 v1 · 试产与锚图对照 · {illustrations} 张' if args.trial else f'封面 v1 未完成 · {real} 真实媒体 + {illustrations} 可用插画 + {pending} 待生成'
+title = f'封面 v1 · 试产与锚图对照 · {illustrations} 张' if args.trial else f'封面盘点 · {len(entries)} 条 · {real} 原始媒体 + {illustrations} 插画 + {pending} 待生成'
 draw.text((gap, 16), title, font=font, fill='#252931')
 draw.text((gap, 44), '标题仅标在接触表图外；各条目封面无文字。', font=small, fill='#555963')
 for index, (label, name, filename, provenance) in enumerate(entries):
@@ -54,6 +57,6 @@ for index, (label, name, filename, provenance) in enumerate(entries):
         draw.text((x + 90, y + 86), '未生成 · 非封面', font=font, fill='#555963')
     draw.text((x, y + 207), label, font=font, fill='#252931')
     draw.text((x, y + 232), name, font=small, fill='#555963')
-output = ROOT / 'docs/design/covers/contact-sheet-v3.png'
+output = ROOT / 'docs/design/covers/contact-sheet-skill-ui-b.png'
 sheet.save(output)
 print(f'{output.relative_to(ROOT)}: {len(entries)} images, {sheet.width}×{sheet.height}')

@@ -3,12 +3,39 @@ name: creation-edit
 description: "Direct creation-area document editing: read current content, append or replace text, and maintain the shot-list format."
 metadata:
   nomi:
+    selectable-in-workbench: true
     version: 1.0.0
     tools:
       - creation_read
       - creation_write
     required-providers:
       - text
+    library:
+      kind: skill
+      title:
+        zh-CN: 文稿编辑
+        en: Document editing
+      summary:
+        zh-CN: 读取当前文稿，追加或改写内容，并保留分镜列表格式。
+        en: Read, append and revise the current creation document.
+      appliesTo:
+      - text
+      group:
+        zh-CN: 创作流程
+        en: Workflow
+      slots: []
+      source:
+        url: https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/creation-edit/SKILL.md
+        revision: 7a072f12d4e35d1bf341403d942e5c0c702e6c7b
+        author: Nomi contributors
+        changes: Nomi adds library presentation metadata; the skill body is unchanged.
+        evidence:
+        - https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/creation-edit/SKILL.md
+      preview:
+        path: assets/cover.png
+        type: image
+        provenance: illustration
+license: AGPL-3.0-only
 ---
 
 # Creation Edit

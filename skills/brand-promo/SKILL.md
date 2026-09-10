@@ -3,6 +3,7 @@ name: brand-promo
 description: 做产品/品牌宣传片。当用户要把产品文案、卖点或品牌介绍做成一条短宣传视频，或提到「宣传片 / 产品视频 / 品牌短片 / promo / 广告片」时用我。
 metadata:
   nomi:
+    selectable-in-workbench: true
     version: 1.0.0
     label: 品牌宣传片
     author: "@nomi"
@@ -83,6 +84,32 @@ metadata:
         pause: true
         model-prefs:
           - kind: video
+    library:
+      kind: skill
+      title:
+        zh-CN: 品牌宣传片
+        en: Brand promo
+      summary:
+        zh-CN: 做产品/品牌宣传片。当用户要把产品文案、卖点或品牌介绍做成一条短宣传视频，或提到「宣传片 / 产品视频 / 品牌短片 / promo / 广告片」时用我。
+        en: Turn product benefits and brand stories into a short promotional film.
+      appliesTo:
+      - text
+      group:
+        zh-CN: 创作流程
+        en: Workflow
+      slots: []
+      source:
+        url: https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/brand-promo/SKILL.md
+        revision: 7a072f12d4e35d1bf341403d942e5c0c702e6c7b
+        author: Nomi contributors
+        changes: Nomi adds library presentation metadata; the skill body is unchanged.
+        evidence:
+        - https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/brand-promo/SKILL.md
+      preview:
+        path: assets/cover.png
+        type: image
+        provenance: illustration
+license: AGPL-3.0-only
 ---
 
 # 品牌宣传片 (Brand Promo)

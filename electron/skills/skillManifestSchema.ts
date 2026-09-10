@@ -30,8 +30,8 @@ import { CAPABILITY_CONTRACTS } from "../shared/agentCapabilities/registry";
  * frontmatter 顶层（`electron/skills/skillStore.ts`），不许在扩展块里再写一份。
  */
 
-export const skillProviderKindSchema = z.enum(["text", "image", "video"]);
-export type SkillProviderKind = z.infer<typeof skillProviderKindSchema>;
+import { skillProviderKindSchema, type SkillProviderKind } from "../shared/skillProvider";
+export { skillProviderKindSchema, type SkillProviderKind } from "../shared/skillProvider";
 
 export const skillAudienceSchema = z.enum(["internal", "mcp"]);
 export type SkillAudience = z.infer<typeof skillAudienceSchema>;

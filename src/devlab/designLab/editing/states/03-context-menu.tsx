@@ -4,7 +4,7 @@
 // 同目录的 `index.tsx` 按同样顺序拼接，走查再拿活页面的 `window.__designLabStates`
 // 与解析结果逐项比对——三者对不上当场红。加状态时别打乱文件名的数字前缀。
 //
-// 菜单是 `position: fixed`，所以取景用 `FixedStage`（它开了 transform，把 fixed 收进这一格）。
+// 菜单接收视口坐标并 Portal 到 body；用格内真实锚点的 DOMRect 投影，不能传格内坐标。
 // 四种 target 各是一条独立分支（TimelineContextMenu.tsx:48/66/92/110），条目数和危险色都不同，
 // 一格看一条——把四种挤进一张图就没法逐项对账了。
 import React from 'react'
@@ -16,9 +16,16 @@ import type { LabState } from '../../labScreen'
 function MenuCell({ target, height }: { target: TimelineContextTarget; height: number }): JSX.Element {
   useLabTimeline()
   const [feedback, setFeedback] = React.useState('')
+  const anchor = React.useRef<HTMLSpanElement>(null)
+  const [point, setPoint] = React.useState<{ x: number; y: number } | null>(null)
+  React.useLayoutEffect(() => {
+    const rect = anchor.current!.getBoundingClientRect()
+    setPoint({ x: rect.left, y: rect.top })
+  }, [])
   return (
     <FixedStage width={300} height={height}>
-      <TimelineContextMenu target={target} x={16} y={16} onClose={NOOP} onRegenerate={NOOP} onChangeTransition={NOOP} onArrange={NOOP} onFeedback={setFeedback} />
+      <span ref={anchor} className="absolute left-4 top-4 size-0" />
+      {point && <TimelineContextMenu target={target} x={point.x} y={point.y} onClose={NOOP} onRegenerate={NOOP} onChangeTransition={NOOP} onArrange={NOOP} onFeedback={setFeedback} />}
       {feedback ? <p role="status" className="text-caption text-workbench-danger">{feedback}</p> : null}
     </FixedStage>
   )

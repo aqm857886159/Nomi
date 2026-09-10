@@ -1,0 +1,99 @@
+[walkthrough] content viewport {"width":1680,"height":993}
+GL_RENDERER ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)
+  ok: 种子供应商 Batch Mock 已在模型设置里可见
+feel record: canvas-batch-production/waitForFunction.png; findings=67; new-surfaces=3; evidence: /Users/aoqimin/Desktop/Nomi-skill-ui/artifacts/feel/canvas-batch-production-d30eff5a-298e-4851-967e-6d0c705b190d
+feel record: canvas-batch-production/01-light-model-settings.png; findings=67; new-surfaces=3; evidence: /Users/aoqimin/Desktop/Nomi-skill-ui/artifacts/feel/canvas-batch-production-d30eff5a-298e-4851-967e-6d0c705b190d
+  screenshot: 01-light-model-settings.png
+CANVAS_CLICK_DIAGNOSTIC {"tag":"P","label":"AI 影像创作画布","nodeId":"gen-v2-image-mtulhcau-m46l","x":685,"y":730}
+CANVAS_CLICK_DIAGNOSTIC {"tag":"P","label":"AI 影像创作画布","nodeId":"gen-v2-image-mtulhduv-z2v4","x":1007,"y":730}
+CANVAS_CLICK_DIAGNOSTIC {"tag":"DIV","label":"AI 影像创作画布","nodeId":"gen-v2-image-mtulhcau-m46l","x":478,"y":354}
+  ok: 连接点和目标节点都有可点击区域
+  ok: 真实点击建立依赖边
+  ok: 无选择入口显示两个待生成节点
+  ok: 未框选时批量模型更新已触发项目持久化
+  ok: 未框选时图片节点统一切到图片 B
+  ok: 并发偏好写入本地存储
+feel record: canvas-batch-production/waitForFunction.png; findings=17; new-surfaces=1; evidence: /Users/aoqimin/Desktop/Nomi-skill-ui/artifacts/feel/canvas-batch-production-d30eff5a-298e-4851-967e-6d0c705b190d
+feel record: canvas-batch-production/02-light-generate-all.png; findings=17; new-surfaces=4; evidence: /Users/aoqimin/Desktop/Nomi-skill-ui/artifacts/feel/canvas-batch-production-d30eff5a-298e-4851-967e-6d0c705b190d
+  screenshot: 02-light-generate-all.png
+feel record: canvas-batch-production/waitForFunction.png; findings=61; new-surfaces=0; evidence: /Users/aoqimin/Desktop/Nomi-skill-ui/artifacts/feel/canvas-batch-production-d30eff5a-298e-4851-967e-6d0c705b190d
+feel record: canvas-batch-production/03-spend-confirm-before-cancel.png; findings=61; new-surfaces=4; evidence: /Users/aoqimin/Desktop/Nomi-skill-ui/artifacts/feel/canvas-batch-production-d30eff5a-298e-4851-967e-6d0c705b190d
+  screenshot: 03-spend-confirm-before-cancel.png
+  ok: 取消付费确认后 vendor 零调用
+CONFIRM_HIT {"x":983,"y":555.0625,"hit":"<button class=\"inline-flex items-center justify-center gap-1.5 rounded-workbench-control font-medium whitespace-nowrap transition-[background,border-color,color,box-shadow] duration-150 ease-out disabled:opacity-50 disabled:cursor-not-allowed [&amp;&gt;svg]:size-4 [&amp;&gt;svg]:stroke-2 text-body-sm border active:bg-workbench-pressed h-8 px-4 cursor-pointer bg-nomi-ink text-nomi-paper border-nomi-ink hover:bg-nomi-accent hover:text-nomi-paper\" type=\"button\">生成</button>","stack":[{"tag":"BUTTON","cls":"inline-flex items-center justify-center gap-1.5 rounded-workbench-control font-medium whitespace-nowrap transition-[background,border-color,color,box-shadow] duration-150 ease-out disabled:opacity-50 disabled:cursor-not-allowed [&>svg]:size-4 [&>svg]:stroke-2 text-body-sm border active:bg-workbench-pressed h-8 px-4 cursor-pointer bg-nomi-ink text-nomi-paper border-nomi-ink hover:bg-nomi-accent hover:text-nomi-paper","pointer":"auto"},{"tag":"DIV","cls":"flex items-center justify-end gap-2","pointer":"auto"},{"tag":"DIV","cls":"outline-none w-[380px] max-h-[88vh] max-w-[88%] rounded-nomi-lg border border-nomi-line bg-nomi-paper p-4 shadow-nomi-md overflow-y-auto","pointer":"auto"},{"tag":"DIV","cls":"fixed inset-0 flex items-center justify-center bg-nomi-ink/20 pointer-events-auto","pointer":"auto"},{"tag":"DIV","cls":"flex h-full w-full items-center justify-center gap-2 px-4 text-center flex-col py-5","pointer":"auto"},{"tag":"DIV","cls":"h-full w-full","pointer":"auto"},{"tag":"DIV","cls":"generation-canvas-v2-node__preview relative z-[2] w-full h-full min-h-0 overflow-hidden rounded-nomi shadow-nomi-md cursor-grab touch-none ring-1 ring-inset ring-nomi-line bg-[repeating-linear-gradient(45deg,var(--nomi-ink-05)_0_23px,var(--nomi-ink-20)_23px_24px)]","pointer":"auto"},{"tag":"ARTICLE","cls":"generation-canvas-v2-node relative p-0 border-0 rounded-none bg-transparent shadow-none cursor-grab select-none touch-none overflow-visible data-[selected=true]:z-[5] block isolate group/node","pointer":"auto"}]}
+feel record: canvas-batch-production/waitForFunction.png; findings=12; new-surfaces=0; evidence: /Users/aoqimin/Desktop/Nomi-skill-ui/artifacts/feel/canvas-batch-production-d30eff5a-298e-4851-967e-6d0c705b190d
+feel record: canvas-batch-production/waitForFunction.png; findings=11; new-surfaces=0; evidence: /Users/aoqimin/Desktop/Nomi-skill-ui/artifacts/feel/canvas-batch-production-d30eff5a-298e-4851-967e-6d0c705b190d
+feel record: canvas-batch-production/04-generate-all-completed.png; findings=11; new-surfaces=2; evidence: /Users/aoqimin/Desktop/Nomi-skill-ui/artifacts/feel/canvas-batch-production-d30eff5a-298e-4851-967e-6d0c705b190d
+  screenshot: 04-generate-all-completed.png
+  ok: 依赖波次两个请求都完成
+  ok: 下游在上游完成后才开始
+  ok: 下游请求收到上游图片参考
+BATCH_FAILURE ExpectError: 图片提示词区保留三行可输入空间
+
+图片提示词区保留三行可输入空间
+
+expect(received).toBeGreaterThanOrEqual(expected)
+
+Expected: >= 72
+Received:    36
+
+Call Log:
+- Timeout 5000ms exceeded while waiting on the predicate
+    at captureRawStack (/Users/aoqimin/Desktop/Nomi-skill-ui/node_modules/.pnpm/playwright-core@1.60.0/node_modules/playwright-core/lib/coreBundle.js:3130:17)
+    at callMatcherAsStep (/Users/aoqimin/Desktop/Nomi-skill-ui/node_modules/.pnpm/playwright@1.60.0/node_modules/playwright/lib/matchers/expect.js:12873:57)
+    at Object.toBeGreaterThanOrEqual (/Users/aoqimin/Desktop/Nomi-skill-ui/node_modules/.pnpm/playwright@1.60.0/node_modules/playwright/lib/matchers/expect.js:12863:23)
+    at Proxy.<anonymous> (/Users/aoqimin/Desktop/Nomi-skill-ui/tests/ux/_collect.mjs:18:32)
+    at addNodeWithPrompt (/Users/aoqimin/Desktop/Nomi-skill-ui/tests/ux/.skillui-original-red.walk.mjs:179:157)
+    at async file:///Users/aoqimin/Desktop/Nomi-skill-ui/tests/ux/.skillui-original-red.walk.mjs:354:24 {
+  matcherResult: {
+    pass: false,
+    message: '图片提示词区保留三行可输入空间\n' +
+      '\n' +
+      'expect(received).toBeGreaterThanOrEqual(expected)\n' +
+      '\n' +
+      'Expected: >= 72\n' +
+      'Received:    36\n' +
+      '\n' +
+      'Call Log:\n' +
+      '- Timeout 5000ms exceeded while waiting on the predicate',
+    name: 'toBeGreaterThanOrEqual'
+  }
+}
+feel record: canvas-batch-production/failure.png; findings=14; new-surfaces=3; evidence: /Users/aoqimin/Desktop/Nomi-skill-ui/artifacts/feel/canvas-batch-production-d30eff5a-298e-4851-967e-6d0c705b190d
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+ExpectError: 图片提示词区保留三行可输入空间
+
+图片提示词区保留三行可输入空间
+
+expect(received).toBeGreaterThanOrEqual(expected)
+
+Expected: >= 72
+Received:    36
+
+Call Log:
+- Timeout 5000ms exceeded while waiting on the predicate
+    at captureRawStack (/Users/aoqimin/Desktop/Nomi-skill-ui/node_modules/.pnpm/playwright-core@1.60.0/node_modules/playwright-core/lib/coreBundle.js:3130:17)
+    at callMatcherAsStep (/Users/aoqimin/Desktop/Nomi-skill-ui/node_modules/.pnpm/playwright@1.60.0/node_modules/playwright/lib/matchers/expect.js:12873:57)
+    at Object.toBeGreaterThanOrEqual (/Users/aoqimin/Desktop/Nomi-skill-ui/node_modules/.pnpm/playwright@1.60.0/node_modules/playwright/lib/matchers/expect.js:12863:23)
+    at Proxy.<anonymous> (/Users/aoqimin/Desktop/Nomi-skill-ui/tests/ux/_collect.mjs:18:32)
+    at addNodeWithPrompt (/Users/aoqimin/Desktop/Nomi-skill-ui/tests/ux/.skillui-original-red.walk.mjs:179:157)
+    at async file:///Users/aoqimin/Desktop/Nomi-skill-ui/tests/ux/.skillui-original-red.walk.mjs:354:24 {
+  matcherResult: {
+    pass: false,
+    message: '图片提示词区保留三行可输入空间\n' +
+      '\n' +
+      'expect(received).toBeGreaterThanOrEqual(expected)\n' +
+      '\n' +
+      'Expected: >= 72\n' +
+      'Received:    36\n' +
+      '\n' +
+      'Call Log:\n' +
+      '- Timeout 5000ms exceeded while waiting on the predicate',
+    name: 'toBeGreaterThanOrEqual'
+  }
+}
+
+Node.js v24.13.1

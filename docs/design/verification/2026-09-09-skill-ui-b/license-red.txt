@@ -1,0 +1,45 @@
+
+ RUN  v4.1.8 /Users/aoqimin/Desktop/Nomi-skill-ui
+
+ ❯ electron/skills/skillCuration.test.ts (14 tests | 1 failed) 90ms
+     × accepts the repository's declared AGPL license without relabeling first-party cover metadata 4ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  electron/skills/skillCuration.test.ts > curated Skill and effect intake > accepts the repository's declared AGPL license without relabeling first-party cover metadata
+ZodError: [
+  {
+    "received": "AGPL-3.0-only",
+    "code": "invalid_enum_value",
+    "options": [
+      "MIT",
+      "Apache-2.0",
+      "CC0-1.0",
+      "CC-BY-4.0",
+      "CC-BY-SA-4.0"
+    ],
+    "path": [
+      "license"
+    ],
+    "message": "Invalid enum value. Expected 'MIT' | 'Apache-2.0' | 'CC0-1.0' | 'CC-BY-4.0' | 'CC-BY-SA-4.0', received 'AGPL-3.0-only'"
+  }
+]
+ ❯ Object.get error [as error] node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/types.js:39:31
+ ❯ ZodObject.parse node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/types.js:114:22
+ ❯ readSkillCuration electron/shared/skillCuration.ts:48:33
+     46|     throw new Error("Invalid curated Skill metadata");
+     47|   }
+     48|   return licensedCurationSchema.parse({ ...library, license: values.li…
+       |                                 ^
+     49| }
+     50|
+ ❯ electron/skills/skillCuration.test.ts:26:12
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 13 passed (14)
+   Start at  21:32:32
+   Duration  486ms (transform 224ms, setup 26ms, import 283ms, tests 90ms, environment 0ms)
+

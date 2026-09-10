@@ -1,6 +1,38 @@
 ---
 name: director-staging
 description: 多角色调度方法论——3 人以上同框的站位设计/视线网络/注意力引导/前后景分层/AI 生成中的多角色一致性控制；Nomi 写多人 shot 的 prompt（谁站哪/朝向/视线/谁是焦点）时参考，走应用内 Seedance/可灵生成。
+metadata:
+  nomi:
+    selectable-in-workbench: true
+    library:
+      kind: skill
+      title:
+        zh-CN: 多角色调度
+        en: Ensemble staging
+      summary:
+        zh-CN: 多角色调度方法论——3 人以上同框的站位设计/视线网络/注意力引导/前后景分层/AI 生成中的多角色一致性控制；Nomi 写多人 shot 的 prompt（谁站哪/朝向/视线/谁是焦点）时参考，走应用内 Seedance/可灵生成。
+        en: Arrange positions, gaze and attention in scenes with multiple characters.
+      appliesTo:
+      - text
+      group:
+        zh-CN: 导演
+        en: Directing
+      slots: []
+      source:
+        url: https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/director-staging/SKILL.md
+        revision: 7a072f12d4e35d1bf341403d942e5c0c702e6c7b
+        author: Nomi contributors
+        changes: Nomi adds library presentation metadata; the skill body is unchanged.
+        evidence:
+        - https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/director-staging/SKILL.md
+      preview:
+        path: assets/cover.png
+        type: image
+        provenance: illustration
+    version: 1.0.0
+    tools: []
+    required-providers: []
+license: AGPL-3.0-only
 ---
 
 # 多角色调度方法论

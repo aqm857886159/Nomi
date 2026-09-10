@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { skillProviderKindSchema } from "./skillManifestSchema";
+import { skillProviderKindSchema } from "./skillProvider";
 
 const localMediaPath = z.string().regex(/^(?:assets|references)\/[a-zA-Z0-9_./-]+\.(?:png|jpe?g|webp|mp4|webm)$/)
   .refine((value) => !value.split("/").some((part) => part === ".." || part === "." || !part));
@@ -33,7 +33,7 @@ export const skillCurationSchema = z.object({
 }).strict();
 
 const licensedCurationSchema = skillCurationSchema.extend({
-  license: z.enum(["MIT", "Apache-2.0", "CC0-1.0", "CC-BY-4.0", "CC-BY-SA-4.0"]),
+  license: z.enum(["MIT", "Apache-2.0", "CC0-1.0", "CC-BY-4.0", "CC-BY-SA-4.0", "AGPL-3.0-only"]),
 });
 export type SkillCuration = z.infer<typeof licensedCurationSchema>;
 

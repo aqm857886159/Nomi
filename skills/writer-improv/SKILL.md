@@ -1,6 +1,38 @@
 ---
 name: writer-improv
 description: 即兴生台词——让角色在设定好的世界里即兴对戏，长出编剧预设不出的真实口语与情节；再把即兴原料按「剪水→留金→上结构→转场景」消化成可拍剧本。Nomi 创作区想要自然口语/真实关系张力时用。
+metadata:
+  nomi:
+    selectable-in-workbench: true
+    library:
+      kind: skill
+      title:
+        zh-CN: 即兴对白
+        en: Improvised dialogue
+      summary:
+        zh-CN: 即兴生台词——让角色在设定好的世界里即兴对戏，长出编剧预设不出的真实口语与情节；再把即兴原料按「剪水→留金→上结构→转场景」消化成可拍剧本。Nomi 创作区想要自然口语/真实关系张力时用。
+        en: Develop natural exchanges through character improvisation.
+      appliesTo:
+      - text
+      group:
+        zh-CN: 编剧
+        en: Writing
+      slots: []
+      source:
+        url: https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/writer-improv/SKILL.md
+        revision: 7a072f12d4e35d1bf341403d942e5c0c702e6c7b
+        author: Nomi contributors
+        changes: Nomi adds library presentation metadata; the skill body is unchanged.
+        evidence:
+        - https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/writer-improv/SKILL.md
+      preview:
+        path: assets/cover.png
+        type: image
+        provenance: illustration
+    version: 1.0.0
+    tools: []
+    required-providers: []
+license: AGPL-3.0-only
 ---
 
 # 即兴生台词

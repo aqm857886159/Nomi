@@ -1,6 +1,38 @@
 ---
 name: writer-review
 description: 剧本审查·导演视角——用视觉叙事/节奏把控/镜头语言/空间调度/情绪曲线等导演维度审一份剧本，找出「读着顺但拍不出/立不住」的问题。Nomi 创作区写完剧本回头检查时用。
+metadata:
+  nomi:
+    selectable-in-workbench: true
+    library:
+      kind: skill
+      title:
+        zh-CN: 剧本审查
+        en: Screenplay review
+      summary:
+        zh-CN: 剧本审查·导演视角——用视觉叙事/节奏把控/镜头语言/空间调度/情绪曲线等导演维度审一份剧本，找出「读着顺但拍不出/立不住」的问题。Nomi 创作区写完剧本回头检查时用。
+        en: Review visual storytelling, pacing and whether scenes can be filmed.
+      appliesTo:
+      - text
+      group:
+        zh-CN: 编剧
+        en: Writing
+      slots: []
+      source:
+        url: https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/writer-review/SKILL.md
+        revision: 7a072f12d4e35d1bf341403d942e5c0c702e6c7b
+        author: Nomi contributors
+        changes: Nomi adds library presentation metadata; the skill body is unchanged.
+        evidence:
+        - https://github.com/aqm857886159/Nomi/blob/7a072f12d4e35d1bf341403d942e5c0c702e6c7b/skills/writer-review/SKILL.md
+      preview:
+        path: assets/cover.png
+        type: image
+        provenance: illustration
+    version: 1.0.0
+    tools: []
+    required-providers: []
+license: AGPL-3.0-only
 ---
 
 # 剧本审查·导演视角

@@ -626,10 +626,6 @@ export const zhGenerationCommon = {
   composer: {
     attachmentImage: '图片',
     attachmentFile: '文件',
-    promptLibrary: '素材盒提示词',
-    emptyPromptLibrary: '素材盒暂无可用提示词',
-    openPromptLibrary: '打开素材盒提示词',
-    prompt: '提示词',
     generationMode: '生成模式',
     append: '续写',
     rewrite: '改写',
@@ -2055,10 +2051,6 @@ export const enGenerationCommon = {
   composer: {
     attachmentImage: 'Image',
     attachmentFile: 'File',
-    promptLibrary: 'Asset library prompts',
-    emptyPromptLibrary: 'No prompts are available in the asset library',
-    openPromptLibrary: 'Open asset library prompts',
-    prompt: 'Prompt',
     generationMode: 'Generation mode',
     append: 'Continue',
     rewrite: 'Revise',

@@ -1,0 +1,62 @@
+[walkthrough] content viewport {"width":1280,"height":933}
+CANVAS_NODE_VISIBILITY {"stage":{"x":60,"y":56,"width":798,"height":876,"top":56,"right":858,"bottom":932,"left":60},"card":{"x":83.99998474121094,"y":221.5939483642578,"width":234.6424102783203,"height":234.6424102783203,"top":221.5939483642578,"right":318.64239501953125,"bottom":456.2363586425781,"left":83.99998474121094}}
+feel record: group-baseline/waitForFunction.png; findings=16; new-surfaces=3; evidence: /Users/aoqimin/Desktop/Nomi-skill-ui/artifacts/feel/group-baseline-52be21c1-f0fe-4a93-b213-0df990dd7796
+feel record: group-baseline/01-canvas-4-nodes.png; findings=16; new-surfaces=3; evidence: /Users/aoqimin/Desktop/Nomi-skill-ui/artifacts/feel/group-baseline-52be21c1-f0fe-4a93-b213-0df990dd7796
+  · shot 01-canvas-4-nodes
+feel record: group-baseline/waitForFunction.png; findings=15; new-surfaces=1; evidence: /Users/aoqimin/Desktop/Nomi-skill-ui/artifacts/feel/group-baseline-52be21c1-f0fe-4a93-b213-0df990dd7796
+feel record: group-baseline/02-selection-toolbar-real.png; findings=15; new-surfaces=4; evidence: /Users/aoqimin/Desktop/Nomi-skill-ui/artifacts/feel/group-baseline-52be21c1-f0fe-4a93-b213-0df990dd7796
+  · shot 02-selection-toolbar-real
+feel record: group-baseline/waitForFunction.png; findings=20; new-surfaces=1; evidence: /Users/aoqimin/Desktop/Nomi-skill-ui/artifacts/feel/group-baseline-52be21c1-f0fe-4a93-b213-0df990dd7796
+feel record: group-baseline/03-canvas-grouped.png; findings=20; new-surfaces=5; evidence: /Users/aoqimin/Desktop/Nomi-skill-ui/artifacts/feel/group-baseline-52be21c1-f0fe-4a93-b213-0df990dd7796
+  · shot 03-canvas-grouped
+feel record: group-baseline/waitForFunction.png; findings=20; new-surfaces=0; evidence: /Users/aoqimin/Desktop/Nomi-skill-ui/artifacts/feel/group-baseline-52be21c1-f0fe-4a93-b213-0df990dd7796
+feel record: group-baseline/04-group-frame-real.png; findings=20; new-surfaces=5; evidence: /Users/aoqimin/Desktop/Nomi-skill-ui/artifacts/feel/group-baseline-52be21c1-f0fe-4a93-b213-0df990dd7796
+  · shot 04-group-frame-real
+feel record: group-baseline/waitForFunction.png; findings=20; new-surfaces=0; evidence: /Users/aoqimin/Desktop/Nomi-skill-ui/artifacts/feel/group-baseline-52be21c1-f0fe-4a93-b213-0df990dd7796
+feel record: group-baseline/05-group-label-real.png; findings=20; new-surfaces=5; evidence: /Users/aoqimin/Desktop/Nomi-skill-ui/artifacts/feel/group-baseline-52be21c1-f0fe-4a93-b213-0df990dd7796
+  · shot 05-group-label-real
+feel record: group-baseline/waitForFunction.png; findings=24; new-surfaces=0; evidence: /Users/aoqimin/Desktop/Nomi-skill-ui/artifacts/feel/group-baseline-52be21c1-f0fe-4a93-b213-0df990dd7796
+feel record: group-baseline/06-canvas-node-selected.png; findings=24; new-surfaces=4; evidence: /Users/aoqimin/Desktop/Nomi-skill-ui/artifacts/feel/group-baseline-52be21c1-f0fe-4a93-b213-0df990dd7796
+  · shot 06-canvas-node-selected
+feel record: group-baseline/waitForFunction.png; findings=24; new-surfaces=0; evidence: /Users/aoqimin/Desktop/Nomi-skill-ui/artifacts/feel/group-baseline-52be21c1-f0fe-4a93-b213-0df990dd7796
+feel record: group-baseline/07-composer-real.png; findings=24; new-surfaces=4; evidence: /Users/aoqimin/Desktop/Nomi-skill-ui/artifacts/feel/group-baseline-52be21c1-f0fe-4a93-b213-0df990dd7796
+  · shot 07-composer-real
+feel record: group-baseline/waitForFunction.png; findings=24; new-surfaces=0; evidence: /Users/aoqimin/Desktop/Nomi-skill-ui/artifacts/feel/group-baseline-52be21c1-f0fe-4a93-b213-0df990dd7796
+feel record: group-baseline/08-node-floating-toolbar-real.png; findings=24; new-surfaces=4; evidence: /Users/aoqimin/Desktop/Nomi-skill-ui/artifacts/feel/group-baseline-52be21c1-f0fe-4a93-b213-0df990dd7796
+  · shot 08-node-floating-toolbar-real
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+ExpectError: 分组后图片提示词区仍保留三行可输入空间
+
+分组后图片提示词区仍保留三行可输入空间
+
+expect(received).toBeGreaterThanOrEqual(expected)
+
+Expected: >= 72
+Received:    0
+
+Call Log:
+- Timeout 5000ms exceeded while waiting on the predicate
+    at captureRawStack (/Users/aoqimin/Desktop/Nomi-skill-ui/node_modules/.pnpm/playwright-core@1.60.0/node_modules/playwright-core/lib/coreBundle.js:3130:17)
+    at callMatcherAsStep (/Users/aoqimin/Desktop/Nomi-skill-ui/node_modules/.pnpm/playwright@1.60.0/node_modules/playwright/lib/matchers/expect.js:12873:57)
+    at Object.toBeGreaterThanOrEqual (/Users/aoqimin/Desktop/Nomi-skill-ui/node_modules/.pnpm/playwright@1.60.0/node_modules/playwright/lib/matchers/expect.js:12863:23)
+    at Proxy.<anonymous> (/Users/aoqimin/Desktop/Nomi-skill-ui/tests/ux/_collect.mjs:18:32)
+    at /Users/aoqimin/Desktop/Nomi-skill-ui/tests/ux/group-baseline.walk.mjs:95:154 {
+  matcherResult: {
+    pass: false,
+    message: '分组后图片提示词区仍保留三行可输入空间\n' +
+      '\n' +
+      'expect(received).toBeGreaterThanOrEqual(expected)\n' +
+      '\n' +
+      'Expected: >= 72\n' +
+      'Received:    0\n' +
+      '\n' +
+      'Call Log:\n' +
+      '- Timeout 5000ms exceeded while waiting on the predicate',
+    name: 'toBeGreaterThanOrEqual'
+  }
+}
+
+Node.js v24.13.1

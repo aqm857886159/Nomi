@@ -87,6 +87,19 @@ describe('releaseWorkbenchProjectRuntimeState', () => {
     expect(verify.requestId).toBeGreaterThan(verifyRequest.requestId)
   })
 
+  it('keeps prompt and Skill references mutually exclusive and clears them across projects', () => {
+    const prompt = { id: 'private-recipe', title: 'Recipe', prompt: 'Project A private direction', mediaUrl: '', mediaType: 'image' as const, promptType: 'image' as const, tags: [], source: '', sourceId: '', sourceUrl: '', origin: 'user' as const }
+    useWorkbenchStore.getState().setCreationActiveSkill({ key: 'skill-a', name: 'Skill A' })
+    useWorkbenchStore.getState().setSelectedLibraryPrompt(prompt)
+    expect(useWorkbenchStore.getState().creationActiveSkill).toBeNull()
+    expect(useWorkbenchStore.getState().selectedLibraryPrompt).toEqual(prompt)
+    useWorkbenchStore.getState().setCreationActiveSkill({ key: 'skill-b', name: 'Skill B' })
+    expect(useWorkbenchStore.getState().selectedLibraryPrompt).toBeNull()
+    useWorkbenchStore.getState().setSelectedLibraryPrompt(prompt)
+    releaseWorkbenchProjectRuntimeState()
+    expect(useWorkbenchStore.getState().selectedLibraryPrompt).toBeNull()
+  })
+
   it('resets the resident approval and spend policy when switching projects', () => {
     useWorkbenchStore.getState().setProjectAgentApprovalPolicy({ mode: 'project', spend: 'within-budget' })
 

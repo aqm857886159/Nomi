@@ -1,0 +1,107 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-09-menu-viewport-anchor",
+  "problem_type": "Viewport menu anchors inherit a transformed containing block",
+  "symptom": "Node effect More menu appears 507px away from the trigger in Electron.",
+  "direct_cause": "WorkbenchMenu portals Content but leaves its fixed Trigger under the canvas transform.",
+  "class_root": "Viewport point coordinates require both the anchor and popup to live outside transformed ancestors.",
+  "affected_population": [
+    "Point menus mounted under CSS transform, including canvas node composers"
+  ],
+  "scope_paths": [
+    "src/design/menu.tsx",
+    "src/workbench/generationCanvas/nodes/NodeEffectChips.tsx",
+    "tests/ux/skill-library-cards.walk.mjs",
+    "src/devlab/designLab/editing/states/03-context-menu.tsx"
+  ],
+  "entry_points": [
+    "NodeEffectChips More menu",
+    "Existing WorkbenchMenu point consumers"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://react.dev/reference/react-dom/createPortal",
+      "checked_at": "2026-09-09",
+      "purpose": "Portals move DOM while preserving React context and events."
+    }
+  ],
+  "invariants": [
+    "Viewport menu anchors are mounted directly under document.body regardless of their React owner."
+  ],
+  "generality_proof": "The shared menu places both trigger and content in body portals; callers cannot reintroduce a transformed containing block via their ancestry.",
+  "shared_boundaries": [
+    {
+      "path": "src/design/menu.tsx",
+      "symbol": "WorkbenchMenu",
+      "responsibility": "Keep point anchor and popup in the viewport coordinate space."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeEffectChips.tsx",
+      "entry_point": "NodeEffectChips",
+      "disposition": "enforced",
+      "evidence": "Real Electron default transform caused 507px offset; browser walk also adds an ancestor translation."
+    },
+    {
+      "path": "src/workbench/timeline/TimelineContextMenu.tsx",
+      "entry_point": "TimelineContextMenu",
+      "disposition": "enforced",
+      "evidence": "Uses the same WorkbenchMenu point API and now the same body anchor."
+    },
+    {
+      "path": "src/devlab/designLab/editing/states/03-context-menu.tsx",
+      "entry_point": "MenuCell",
+      "disposition": "enforced",
+      "evidence": "Lab projects the real anchor DOMRect to viewport coordinates instead of passing local coordinates; four existing PNG baselines are retained."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any new point menu nested under transform would reproduce the coordinate error.",
+    "same_class_scan": [
+      "Read src/design/menu.tsx: Trigger outside Portal, Content inside Portal.",
+      "rg WorkbenchMenu found canvas NodeContextMenu and timeline TimelineContextMenu sharing the point boundary."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/design/menu.tsx",
+    "invariant": "Point coordinates are interpreted relative to the viewport.",
+    "failure_mode": "The anchor cannot inherit any caller transform because its DOM parent is document.body.",
+    "exception_policy": "none",
+    "strategy": "Portal the virtual trigger at the existing shared menu boundary.",
+    "artifacts": [
+      "src/design/menu.tsx"
+    ]
+  },
+  "regression_tests": [
+    "tests/ux/skill-library-cards.walk.mjs"
+  ],
+  "class_regression_tests": [
+    "tests/ux/skill-library-cards.walk.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/design/menu.tsx"
+    ],
+    "rationale": "The in-tree virtual Trigger is replaced, with no alternate coordinate implementation."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "React createPortal and the installed Radix menu already support this; Nomi mounted its virtual Trigger at the wrong DOM boundary.",
+    "exit_criteria": []
+  },
+  "migration": "No data migration. Existing point-menu props and behavior remain.",
+  "residual_risks": [
+    "OS-native context menus are outside this React DOM boundary."
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/design",
+    "tests": [
+      "tests/ux/skill-library-cards.walk.mjs"
+    ]
+  }
+}

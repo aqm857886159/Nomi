@@ -1,12 +1,17 @@
 // 渲染层调 skill IPC 的唯一入口（镜像 modelCatalogApi 的 requireDesktopRuntime 范式）。
 // 能力派生的「权威逻辑」在 electron（deriveSkillNeeds 算 neededProviders 进 DTO）；这里只做
 // 「needs − available」的平凡差集，不重复派生逻辑（P1）。
+import type { SkillCuration } from '../../../electron/shared/skillCuration'
 import { getDesktopBridge, type DesktopBridge } from '../../desktop/bridge'
 import { getWorkbenchModelCatalogHealth } from './modelCatalogApi'
 
 export type SkillProviderKind = 'text' | 'image' | 'video'
 
 export type SkillListItemDto = {
+  cover?: string
+  preview?: { url: string; type: 'image' | 'video' }
+  curation?: SkillCuration
+  body?: string
   directoryName: string
   name: string
   label: string
