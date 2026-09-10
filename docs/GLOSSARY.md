@@ -1,7 +1,7 @@
 # 术语表 — 同一个东西的多个叫法
 
 > 状态：🚧 长期维护
-> 最后核对：2026-08-27
+> 最后核对：2026-09-10
 
 ## 这份文件为什么存在
 
@@ -60,6 +60,23 @@
 | 门 · 闸 · gate · 检查点 | 代码侧叫 **门岗**（`scripts/check-*.mjs`）；流程侧叫 **门/gate**（审批） | `package.json` gates 链 |
 | 棘轮 · baseline · 只减不增 | **棘轮门岗**（存量进 baseline，新增报红） | `scripts/*-baseline.json` |
 | 审片 · 校验 · QA · verify | **shotVerify / production.verify-shots** | `src/workbench/capability/capabilityApplyHandler.ts:554` |
+
+## 动作词（按钮 / 菜单文案的规范动词）
+
+> **这张表是门岗 `check:controls` 的 owner。** 规则本体在设计系统
+> [§1.8 按钮三档：文字还是图标](design/nomi-design-system.md#18-按钮三档文字还是图标强制--有门岗)，
+> 这里只登记「同一个动作，全 app 只准用哪个词」。
+> 「替代说法」列里的词**作为一整条按钮文案出现即报红**（`确定` 红，`确认删除` 不红——那是一句话不是第二种说法）。
+> 加一组：先确认它真是同一个动作（`移除`≠`删除`：一个从列表里拿掉、一个从盘上删掉，是两个动作，不进这张表）。
+
+| 规范名 | 替代说法（整条文案等于它即红） | 英文 | 用在哪 |
+|---|---|---|---|
+| **撤销** | 撤回 · 回退 · 反悔 | Undo | `common.undo`；Undo Toast（设计系统 §5.4） |
+| **删除** | 删掉 · 去掉 · 清掉 · 抹掉 | Delete | `common.delete`；节点/会话/素材的销毁动作 |
+| **关闭** | 关掉 · 收掉 · 关上 | Close | `common.close`；弹窗、面板、预览的收起 |
+| **取消** | 算了 · 不要 · 不用 · 放弃 · 不了 | Cancel | `common.cancel`；否定动作统一样式（§1.8 规则 4） |
+| **生成** | 去生成 · 开始生成 · 生成一下 · 出图 | Generate | 生成主动作；带后果时写成「生成 ¥1.20」 |
+| **确认** | 确定 · 好的 · 知道了 · 我知道了 · 没问题 | Confirm | `common.confirm`；花钱确认（§3.5 `SpendConfirmDialog`） |
 
 ## 对外接口
 
