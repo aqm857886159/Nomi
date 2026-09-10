@@ -13,6 +13,7 @@ import { NomiLoadingMark, NomiWordmark, DesignEmptyState, TooltipProvider } from
 import { showUndoToast } from '../../utils/showUndoToast'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import { filterPrompts, promptSourceOptions, PROMPT_SOURCE_ALL, type LibraryPrompt, type PromptCategory } from '../api/promptLibraryApi'
+import { promptSourceKey, promptSourceDisplayLabel } from './promptDisplay'
 import { usePromptLibrary } from './usePromptLibrary'
 import { useUserPrompts } from './useUserPrompts'
 import { PromptCard } from './PromptCard'
@@ -88,14 +89,22 @@ export function PromptLibraryContent({
     [isMine, items, user.items, usageVersion],
   )
   // 来源分类只对精选列表有意义（我的库来源统一为「我的」）；按当前类型筛选后的集合派生来源项，
-  // 这样切「视频」时来源行只列出真有视频的来源，不出空类。
+  // 这样切「视频」时来源行只列出真有视频的来源，不出空类。值 = 稳定键（不随语言变），
+  // 标签按界面语言另取（promptSourceDisplayLabel）——2026-09-10 走查反馈：原先值/标签共用
+  // 投影时写死中文的 source，切语言时 chips 还是中文。
   const sourceOptions = React.useMemo(
-    () => (isMine ? [] : promptSourceOptions(activeItems.filter((p) => category === 'all' || p.promptType === category))),
+    () => (isMine
+      ? []
+      : promptSourceOptions(activeItems.filter((p) => category === 'all' || p.promptType === category))
+          .map((value) => {
+            const first = activeItems.find((p) => promptSourceKey(p) === value)
+            return { value, label: first ? promptSourceDisplayLabel(first) : value }
+          })),
     [isMine, activeItems, category],
   )
   // 当前来源筛选若因切类型/切来源不再存在，回落到「全部来源」，避免筛出空列表还高亮着不存在的项。
   React.useEffect(() => {
-    if (sourceFilter !== PROMPT_SOURCE_ALL && !sourceOptions.includes(sourceFilter)) setSourceFilter(PROMPT_SOURCE_ALL)
+    if (sourceFilter !== PROMPT_SOURCE_ALL && !sourceOptions.some((option) => option.value === sourceFilter)) setSourceFilter(PROMPT_SOURCE_ALL)
   }, [sourceOptions, sourceFilter])
   const effectiveSource = isMine ? PROMPT_SOURCE_ALL : sourceFilter
   const visible = React.useMemo(
@@ -261,9 +270,9 @@ export function PromptLibraryContent({
       role="tablist"
       aria-label={t('libraries.prompt.sourceFilterAria')}
     >
-      {[PROMPT_SOURCE_ALL, ...sourceOptions].map((value) => {
+      {[{ value: PROMPT_SOURCE_ALL, label: t('libraries.prompt.allSources') }, ...sourceOptions].map((option) => {
+        const { value, label } = option
         const activeChip = sourceFilter === value
-        const label = value === PROMPT_SOURCE_ALL ? t('libraries.prompt.allSources') : value
         return (
           <button
             key={value}

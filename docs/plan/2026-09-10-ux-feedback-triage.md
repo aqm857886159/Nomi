@@ -200,9 +200,10 @@
 
 ### 权限面后续修复项（B4 追加）
 
-1. 生成类确认卡接进 v4 介入槽（现在是居中弹窗双轨，面板里看不见）+ 可编辑（方案 A/B 拍板后实施）。
-2. `spend` 轴：接上消费者或从 UI 明说「不会自动花钱」，消除「虚假按钮」体感。
-3. 外部 CLI 工具（antigravity generate_image）绕闸问题：至少在档位说明里如实标注，评估纳入闸。
+0. **参考模型（2026-09-10 用户给）**：pi-permission-system（https://pi.dev/packages/pi-permission-system ，v0.8.0，MIT）。注意：它是 pi coding agent 宿主的扩展（钩子是 `tool_call`/`before_agent_start`/`input`，**没有 before_tool**；**没有 batch/batchConfirm API**——文档确认），本仓 embed 的是 pi-agent-core/pi-ai 库，**不能直接装**，借的是模型：①规则级三态 allow/deny/ask（per-tool 通配 + last-match-wins），deny 是跨层硬地板、项目层不可放松；②YOLO 全自动是独立 opt-in 开关（默认关、批准不落盘、关闭后重新问）；③ask 卡四选项（一次/本会话/拒/拒并说理由）；④被禁工具在 before_agent_start 从工具表与系统提示词里移除（我们 paidBoundary 剔除 generation.gate 同思路，但外部 CLI 漏网）。
+1. 付费工具默认必确认（需求①）：单镜确认已有 SpendConfirmDialog、多镜批量卡已有 MultiShotContractSummary，但只覆盖画布内生成路径——要把「付费类工具 → 必经付费门」收全（含外部 CLI 工具），并把确认弹窗接入面板介入槽。
+2. 完全自主运行（需求②）：按 pi 的 YOLO 语义做成**独立 opt-in 开关**（默认关 + 显式提醒），与三档解耦；project 档不等于自主（spend 轴零消费者恰好证明三档都不该自动花钱）。
+3. 可编辑确认卡（方案 A 复用返回修改路 vs B allow-with-overrides 回写，待拍板）。
 4. 真机复测六棱柱场景：确认那次生成走的是哪条工具路径（antigravity CLI vs 画布默认流）。
 
 ## 本轮执行记录（B1+B2）
