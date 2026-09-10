@@ -623,6 +623,14 @@ export const zhGenerationCommon = {
     dragAria: '拖动文本节点',
     label: '文本',
   },
+  // 节点生成浮框底栏 v1（样张 docs/design/2026-09-10-node-composer-bar-v1.md，2026-09-10 拍板的三类归位）。
+  // A 类（决定出什么/花多少）留底栏；B 类（帮我写提示词）收成提示词框右上角一簇纯 icon；锁回节点浮条。
+  composerBarV1: {
+    promptTools: '写提示词',
+    effects: '效果与提示词库',
+    cameraPicked: '{{move}} · {{speed}}',
+    seconds: '{{value}}s',
+  },
   composer: {
     attachmentImage: '图片',
     attachmentFile: '文件',
@@ -2047,6 +2055,12 @@ export const enGenerationCommon = {
     formattingAria: 'Text formatting',
     dragAria: 'Drag text node',
     label: 'Text',
+  },
+  composerBarV1: {
+    promptTools: 'Prompt helpers',
+    effects: 'Effects & prompt library',
+    cameraPicked: '{{move}} · {{speed}}',
+    seconds: '{{value}}s',
   },
   composer: {
     attachmentImage: 'Image',
