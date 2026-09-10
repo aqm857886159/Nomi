@@ -26,7 +26,7 @@
 ## 3. 生态里已有？
 
 - **MCP 规范 · 工具错误**：<https://modelcontextprotocol.io/specification/2025-06-18/server/tools> §Error Handling —— 协议错误走 JSON-RPC `error`（示例码 `-32602`），工具执行错误走结果里的 `isError: true`。我们已在 `electron/capabilityCore/mcpProtocol.ts:592` 走 `isError` 分支，本次不改形状，只让码分得开。
-- **MCP 规范 · inputSchema**：同页 §Data Types，`inputSchema` 就是 JSON Schema。因此条件必填用标准的 `allOf` + `if/then`（<https://json-schema.org/draft/2020-12/json-schema-core#name-if>），不自造私有关键字。
+- **MCP 规范 · inputSchema**：同页 §Data Types，`inputSchema` 就是 JSON Schema，条件必填的标准写法是 `allOf` + `if/then`（<https://json-schema.org/draft/2020-12/json-schema-core#name-if>）。**实施时被仓库自己的门岗推翻**：`scripts/check-model-schema.ts` 证明 Anthropic 适配器会丢掉根 allOf、Google 的 OpenAPI 3.0.3 路径不认 const，模型会看到一个没有 schema 的工具——那正是本题要根除的同一族。结论改成：schema 保持扁平，必填清单写进 `action` 的描述（每家适配器都原样透传），并由工具层一次说全。
 - **MCP 规范 · elicitation**：<https://modelcontextprotocol.io/specification/2025-06-18/client/elicitation> —— 2025-06-18 版只有 form 模式，没有 URL 模式；URL 模式是 2025-11-25 才有的（我们按它实现在 `electron/integrationCertification/credentialElicitation.ts:1`）。宿主不支持时降级到人工填 key **符合规范意图**（规范明说服务端不得用 elicitation 索取敏感信息），保留。
 - **同类产品的两段计时**：GitHub device flow 把「人去授权」（user code，15 分钟）与「程序换 token」分成两段独立节奏：<https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps#device-flow>。这正是缺陷 2 的解法形状。
 - **同类产品的幂等**：Stripe 的 idempotency key 语义是「同一个 key 重放返回同一个结果」，而不是「重放作废上一次」：<https://docs.stripe.com/api/idempotent_requests>。我们的 `confirm` 现在是后者，所以 agent 每回合再确认一次就把人的点击洗掉了。
@@ -38,5 +38,6 @@
 ## 5. 结论
 
 **全部用已有的。** 六条改动没有一条需要新机制：短句柄抄收据链、错误码进既有表、新 stage 进既有 tuple、
-GUI 提示用既有 `notify`、条件必填用标准 JSON Schema、两段 TTL 抄 device flow 的形状。
-新增的只有「把真话写进对外 schema」这件事本身。
+GUI 提示用既有 `notify`、两段 TTL 抄 device flow 的形状。新增的只有「把真话写进模型真能收到的那一份契约」
+这件事本身——而「模型真能收到哪一份」这个问题，答案来自仓库自己的 `check:model-schema` 门岗，
+不是来自规范文本。

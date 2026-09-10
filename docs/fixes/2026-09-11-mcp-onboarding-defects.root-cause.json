@@ -18,14 +18,16 @@
     "electron/capabilityCore/projectLease.ts",
     "electron/capabilityCore/projectSessionAuthority.ts",
     "electron/capabilityCore/mcpIntegrationTools.ts",
-    "electron/capabilityCore/mcpArgValidation.ts",
     "electron/capabilityCore/mcpToolCatalog.ts",
     "electron/capabilityCore/mcpToolErrorResults.ts",
     "electron/capabilityCore/mcpProjectSessionTool.ts",
     "electron/capabilityCore/mcpCredentialElicitation.ts",
     "electron/capabilityCore/dispatcher.ts",
     "src/workbench/capability/useIntegrationConfirmationNotice.ts",
-    "src/NomiRouterApp.tsx"
+    "src/NomiRouterApp.tsx",
+    "electron/integrationCertification/integrationProposalValidation.ts",
+    "electron/integrationCertification/integrationSessionRecord.ts",
+    "electron/integrationCertification/integrationSpendGate.ts"
   ],
   "entry_points": [
     "MCP tools/call nomi_integration (begin / open_credentials / propose / confirm / start / cancel) from any registered external host",
@@ -67,7 +69,7 @@
     }
   ],
   "invariants": [
-    "Every field the implementation requires for an action is declared required for that action in the published inputSchema, and every field declared required is actually enforced",
+    "Every field the implementation requires for an action is named in the contract the model actually receives (the action field's description, generated from the same table the tool layer enforces), and nothing is declared that is not enforced",
     "A spend challenge that has already been issued is returned unchanged until it expires or is consumed; a repeated confirm never mints a replacement while a human click is pending",
     "The session stage distinguishes 'the agent must confirm', 'a person must approve' and 'a person approved', and start is reachable only from the last one",
     "A human approval receipt's lifetime starts when the person acts, never when the agent asked",
@@ -76,7 +78,7 @@
     "An owner can always enumerate its own integration sessions without already knowing a session id",
     "Beginning an integration for a target that already has an unfinished session for the same owner resumes it instead of creating a second one"
   ],
-  "generality_proof": "The six repairs land on the boundaries every caller already funnels through, not on the MCP transport. expectedRevision is validated in exactly one function (assertIntegrationRevision in electron/shared/integrationContract.ts) which every write entry - mutate, saveCredential, requestConfirmation, confirmFromTrustedUi, startConfirmedFromTrustedUi, start, cancel - now calls, so the RPC dispatcher used by the in-app drawer and the MCP transport get identical codes. The stage vocabulary lives in the same shared file and is the only source both main and renderer DTOs derive from, so no surface can invent a fourth spend-gate state. The per-action required set exists once as INTEGRATION_REQUIRED_BY_ACTION and is the source of both the published allOf/if-then and the runtime aggregate check, so the schema cannot drift from the implementation; the existing check in electron/capabilityCore/mcpArgValidation.ts additionally forbids publishing any keyword the runtime validator cannot enforce, which is why if/then/const were added to the supported set rather than the conditional required being left to prose. The receipt lifetime is computed inside the single mintReceipt, so the production run gates and the integration gate share the corrected semantics. The selection handle registry lives inside createProjectLeaseAuthority, the only issuer, and projectSessionAuthority.open is the only consumer, so no caller can still pass a raw token.",
+  "generality_proof": "The six repairs land on the boundaries every caller already funnels through, not on the MCP transport. expectedRevision is validated in exactly one function (assertIntegrationRevision in electron/shared/integrationContract.ts) which every write entry - mutate, saveCredential, requestConfirmation, confirmFromTrustedUi, startConfirmedFromTrustedUi, start, cancel - now calls, so the RPC dispatcher used by the in-app drawer and the MCP transport get identical codes. The stage vocabulary lives in the same shared file and is the only source both main and renderer DTOs derive from, so no surface can invent a fourth spend-gate state. The per-action required set exists once as INTEGRATION_REQUIRED_BY_ACTION and is the source of both the published allOf/if-then and the runtime aggregate check, so the schema cannot drift from the implementation; the published shape stays flat on purpose: check:model-schema proves that a root allOf is silently dropped by the Anthropic adapter and that const is unsupported on Google's OpenAPI 3.0.3 path, so a conditional-required schema would have reproduced this very defect class (a contract the model never actually receives). The truth therefore rides in the action field's description, generated from the same table, and the tool layer refuses a call that does not satisfy it. The receipt lifetime is computed inside the single mintReceipt, so the production run gates and the integration gate share the corrected semantics. The selection handle registry lives inside createProjectLeaseAuthority, the only issuer, and projectSessionAuthority.open is the only consumer, so no caller can still pass a raw token.",
   "shared_boundaries": [
     {
       "path": "electron/shared/integrationContract.ts",
@@ -140,10 +142,10 @@
       "evidence": "The production run spend gates consume receipts minted by the same authority, so they inherit the corrected receipt lifetime; the file itself is unchanged because the invariant lives in mintReceipt, and its existing suite (productionRunApprovalReceipt.test.ts) passes unchanged."
     },
     {
-      "path": "electron/capabilityCore/mcpCapabilityProjection.ts",
-      "entry_point": "findUnsupportedSchemaFeatures usage",
+      "path": "scripts/check-model-schema.ts",
+      "entry_point": "model-visible schema ratchet",
       "disposition": "enforced",
-      "evidence": "Every published capability schema is checked against the runtime validator's supported keyword set; adding if/then/const there keeps the rule 'we only advertise what we can enforce' true for the new conditional required rules instead of exempting them."
+      "evidence": "The ratchet proved the first attempt wrong: declaring the per-action required with allOf + if/then + const added 9 new violations, because the Anthropic adapter drops a root allOf and Google's legacy path does not read const - the model would have seen a tool with no schema at all. The published schema therefore stays flat and the required set is declared in the action description that every adapter passes through verbatim."
     },
     {
       "path": "electron/capabilityCore/generationTransportAdapters.ts",
@@ -173,14 +175,13 @@
   "prevention": {
     "kind": "centralized-boundary",
     "enforcement_path": "electron/capabilityCore/mcpIntegrationTools.ts",
-    "invariant": "The per-action required set exists exactly once (INTEGRATION_REQUIRED_BY_ACTION) and is the source of both the published JSON Schema conditional rules and the runtime aggregate check, and expectedRevision is judged exactly once (assertIntegrationRevision) for every write entry point.",
+    "invariant": "The per-action required set exists exactly once (INTEGRATION_REQUIRED_BY_ACTION) and is the source of both the published action description and the runtime aggregate check, and expectedRevision is judged exactly once (assertIntegrationRevision) for every write entry point.",
     "failure_mode": "A missing required field is refused before any dispatch, with every missing field named at once and the action's full required set attached; a wrong expectedRevision is refused with a code that says which of the three things went wrong and what the current revision is; a start before human approval is refused with the stage that blocks it.",
     "exception_policy": "none",
-    "strategy": "Both drifts that produced this class - the advertised contract diverging from the enforced one, and one message standing for several distinct failures - are removed by construction rather than by review: the schema is generated from the required table, and the revision judgement has a single function with one code per outcome. The stage vocabulary lives in the shared contract file that check:vocabularies already guards, so a future parallel definition of the spend gate fails the gate instead of shipping.",
+    "strategy": "Both drifts that produced this class - the advertised contract diverging from the enforced one, and one message standing for several distinct failures - are removed by construction rather than by review: the published description is generated from the required table, and the revision judgement has a single function with one code per outcome. The stage vocabulary lives in the shared contract file that check:vocabularies already guards, so a future parallel definition of the spend gate fails the gate instead of shipping.",
     "artifacts": [
       "electron/shared/integrationContract.ts",
       "electron/capabilityCore/mcpIntegrationTools.ts",
-      "electron/capabilityCore/mcpArgValidation.ts",
       "electron/integrationCertification/integrationSession.ts",
       "electron/capabilityCore/approvalReceipt.ts",
       "electron/capabilityCore/projectLease.ts",
@@ -200,13 +201,11 @@
     "electron/capabilityCore/mcpOnboardingLoopback.test.ts",
     "electron/integrationCertification/integrationSession.test.ts",
     "electron/integrationCertification/comfyuiIntegrationSession.test.ts",
-    "electron/capabilityCore/projectSessionAuthority.test.ts",
-    "electron/capabilityCore/mcpArgValidation.test.ts"
+    "electron/capabilityCore/projectSessionAuthority.test.ts"
   ],
   "class_regression_tests": [
     "electron/capabilityCore/mcpOnboardingLoopback.test.ts",
-    "electron/capabilityCore/mcpOnboardingDefects.test.ts",
-    "electron/capabilityCore/mcpArgValidation.test.ts"
+    "electron/capabilityCore/mcpOnboardingDefects.test.ts"
   ],
   "legacy_paths": {
     "status": "removed",
@@ -227,6 +226,7 @@
     "The spend-gate stage predicate uses the stage name (isSpendGateStage matches names containing 'confirm'). A future stage whose name happens to contain 'confirm' would silently join the gate; the pinning test in mcpOnboardingDefects.test.ts catches that at the vocabulary level but nothing rejects it at compile time.",
     "The loopback fixture is deterministic and free: it proves the published contract is walkable step by step, but it does not prove a real model will choose those steps. The 62% first-try argument rate can only be re-measured by repeating the real-host experiment, which this change does not automate.",
     "The GUI pending-confirmation notice was verified by unit-level reasoning and the existing handoff subscription, not by a Playwright walkthrough on a packaged build; the visual placement of that toast is unproven.",
-    "Receipt lifetime is now up to 5 minutes longer in absolute terms for every gate in the app, including production run gates. The window is still bounded and still single-use, but the exposure after a human gesture is strictly larger than before."
+    "Receipt lifetime is now up to 5 minutes longer in absolute terms for every gate in the app, including production run gates. The window is still bounded and still single-use, but the exposure after a human gesture is strictly larger than before.",
+    "The per-action required set cannot be machine-checked by a JSON Schema validator on the client side, because the constructs that would express it (root allOf, const) are dropped or unsupported by real model adapters. A host that ignores the action description still learns the required set only from the first refusal - one round trip, with every missing field named, instead of one per field."
   ]
 }
