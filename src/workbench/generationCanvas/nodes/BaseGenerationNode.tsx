@@ -372,7 +372,7 @@ function BaseGenerationNodeImpl({
 
       <EmptyNodeVariantToolbar nodeId={node.id} visible={selected && !isMultiSelectActive && !readOnly && !resultStackOpen && !hasResult} />
       {node.kind === 'panorama' && selected && !isMultiSelectActive && !readOnly && node.result?.url ? (
-        <FloatingToolbarShell ariaLabel={t('generationCommon.node.panoramaActions')}>
+        <FloatingToolbarShell ariaLabel={t('generationCommon.node.panoramaActions')} lockNodeId={node.id}>
           <ToolbarButton
             icon={<IconMaximize size={TBI.size} stroke={TBI.stroke} />}
             label={t('generationCommon.node.panoramaPreview')}

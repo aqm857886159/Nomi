@@ -58,7 +58,7 @@ export default function NodeImageEditToolbar({ reportFeedback, node, editGrid, i
   return (
     <>
 
-      <FloatingToolbarShell ariaLabel={t('generationCommon.imageToolbar.aria')}>
+      <FloatingToolbarShell ariaLabel={t('generationCommon.imageToolbar.aria')} lockNodeId={node.id}>
         {/* 锚卡（角色/场景/道具参考卡）：最左是「定妆」= 确认形象、放行下游镜头（F15 装上的操作者）。
             一功能一个家——锚卡不再显示「建参考卡」（对着参考卡再建参考卡冗余）。 */}
         {isAnchor && onToggleFreeze ? (
