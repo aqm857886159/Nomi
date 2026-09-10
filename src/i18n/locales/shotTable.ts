@@ -1,7 +1,7 @@
 export const zhShotTable = {
   openScript: '打开原稿', factsEmpty: '点击重新拆解，读取这段参考片',
   sourceVideoMissing: '来源视频已删除，无法重新拆解',
-  addColumn: '添加列', editCell: '编辑单元格', renameColumn: '重命名列', removeColumn: '删除列', generate: '生成选中 {{count}} 镜', running: '正在读取镜头', retry: '重新拆解', facts: { shotSize: '景别', motion: '运镜', visual: '画面', dialogue: '对白', onScreenText: '字幕', mood: '情绪' },
+  addColumn: '添加列', editCell: '编辑单元格', renameColumn: '重命名列', removeColumn: '删除列', generate: '生成 {{count}} 镜', running: '正在读取镜头', retry: '重新拆解', facts: { shotSize: '景别', motion: '运镜', visual: '画面', dialogue: '对白', onScreenText: '字幕', mood: '情绪' },
   title: '分镜表', count: '{{count}} 镜', duration: '{{duration}}s', timeRange: '{{start}}–{{end}}s', open: '打开分镜表',
   sourceMissing: '来源方案已删除', empty: '还没有镜头，打开原稿继续拆解',
   select: '选择第 {{index}} 镜', selected: '已选 {{count}} 镜',
@@ -13,7 +13,7 @@ export const zhShotTable = {
 export const enShotTable = {
   openScript: 'Open script', factsEmpty: 'Deconstruct again to read this reference video',
   sourceVideoMissing: 'Source video was deleted; cannot deconstruct again',
-  addColumn: 'Add column', editCell: 'Edit cell', renameColumn: 'Rename column', removeColumn: 'Delete column', generate: 'Generate {{count}} selected shots', running: 'Reading shots', retry: 'Deconstruct again', facts: { shotSize: 'Shot size', motion: 'Motion', visual: 'Visual', dialogue: 'Dialogue', onScreenText: 'On-screen text', mood: 'Mood' },
+  addColumn: 'Add column', editCell: 'Edit cell', renameColumn: 'Rename column', removeColumn: 'Delete column', generate: 'Generate {{count}} Shots', running: 'Reading shots', retry: 'Deconstruct again', facts: { shotSize: 'Shot size', motion: 'Motion', visual: 'Visual', dialogue: 'Dialogue', onScreenText: 'On-screen text', mood: 'Mood' },
   title: 'Shot table', count: '{{count}} shots', duration: '{{duration}}s', timeRange: '{{start}}–{{end}}s', open: 'Open storyboard',
   sourceMissing: 'Source storyboard was deleted', empty: 'No shots yet. Open the script to continue',
   select: 'Select shot {{index}}', selected: '{{count}} selected',
