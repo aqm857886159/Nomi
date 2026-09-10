@@ -5,17 +5,30 @@ import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import installer from './install-git-hooks.cjs'
+import { fileURLToPath } from 'node:url'
 import {
   EMPTY_TREE_SHA,
   MAX_PUSH_RANGES,
   MAX_REVIEW_DIFF_BYTES,
   MAX_REVIEW_REPORT_BYTES,
+  PONYTAIL_LOCK_HELD_ENV,
+  REVIEW_TIMEOUT_BASE_MS,
+  REVIEW_TIMEOUT_DIFF_STEP_BYTES,
+  REVIEW_TIMEOUT_DIFF_STEP_MS,
+  REVIEW_TIMEOUT_LOAD_MULTIPLIER,
+  REVIEW_TIMEOUT_LOAD_THRESHOLD,
+  REVIEW_TIMEOUT_MAX_MS,
   buildReviewPrompt,
   classifyReviewOutput,
   collectReviewDiff,
+  deferredLogPath,
+  isDeferRequested,
   parsePushInput,
+  resolveReviewTimeoutMs,
   runPonytailReview,
 } from './ponytail-review-hook.mjs'
+
+const repoScriptsDir = path.dirname(fileURLToPath(import.meta.url))
 
 const SHA_A = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
 const SHA_B = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
@@ -390,14 +403,19 @@ test('generated runner executes against a real staged diff with a fake Codex bin
   fs.writeFileSync(path.join(root, 'change.txt'), 'staged\n')
   git(root, ['add', 'change.txt'])
   const script = path.resolve('scripts/ponytail-review-hook.mjs')
+  // 用隔离锁路径：测试不许去抢真实的 /tmp/nomi-ponytail.lock，否则套件会和别的
+  // worktree 上正在跑的真评审互相排队（并行跑才炸的那一族）。
+  const lockPath = path.join(root, 'ponytail.lock')
   const result = spawnSync(process.execPath, [script, '--scope', 'staged'], {
     cwd: root,
     encoding: 'utf8',
-    env: { ...process.env, PONYTAIL_REVIEW_CODEX_BIN: fakeCodex },
+    env: { ...process.env, PONYTAIL_REVIEW_CODEX_BIN: fakeCodex, NOMI_PONYTAIL_LOCK_PATH: lockPath },
     stdio: ['ignore', 'pipe', 'pipe'],
   })
   assert.equal(result.status, 0, result.stderr)
   assert.match(`${result.stdout}\n${result.stderr}`, /ponytail-review/)
+  // 真跑一次就必须证明它走了串行锁：锁文件是 with-gates-lock.py 建的，不是本测试建的。
+  assert.equal(fs.existsSync(lockPath), true, '真实调用必须经过全机串行锁')
 })
 
 test('linked worktrees get isolated hook paths without touching the base worktree', (t) => {
@@ -683,4 +701,141 @@ test('clean merge without AUTO_MERGE still reviews manually staged changes', (t)
   git(root, ['add', 'manual.txt'])
   const { diff } = collectReviewDiff({ repoRoot: root, scope: 'staged' })
   assert.match(diff, /MANUAL-CLEAN-MERGE/)
+})
+
+// ── 自适应超时 / 全机串行锁 / 提交阶段留痕延后（2026-09-11，R25 三条）──────────
+// 起因见 docs/fixes/2026-09-11-ponytail-timeout-starvation.root-cause.json：
+// 写死的 180s 墙钟在 20+ worktree 并跑时变成「机器忙不忙」的抽签，一晚拦了十几次正确提交。
+
+test('review timeout derives from diff size and machine load, and is capped', () => {
+  const at = (diffBytes, loadAverage) => resolveReviewTimeoutMs({ diffBytes, loadAverage })
+  // 空闲机器 + 小 diff = 基线。
+  assert.equal(at(0, 0), REVIEW_TIMEOUT_BASE_MS)
+  assert.equal(at(REVIEW_TIMEOUT_DIFF_STEP_BYTES - 1, 0), REVIEW_TIMEOUT_BASE_MS)
+  // 每满一档 diff 加一档时间（向下取整，不给未满的档提前发钱）。
+  assert.equal(at(REVIEW_TIMEOUT_DIFF_STEP_BYTES, 0), REVIEW_TIMEOUT_BASE_MS + REVIEW_TIMEOUT_DIFF_STEP_MS)
+  assert.equal(at(REVIEW_TIMEOUT_DIFF_STEP_BYTES * 3, 0), REVIEW_TIMEOUT_BASE_MS + REVIEW_TIMEOUT_DIFF_STEP_MS * 3)
+  // 负载阈值是严格大于：正好等于阈值不加成，否则空闲机器也会被放大。
+  assert.equal(at(0, REVIEW_TIMEOUT_LOAD_THRESHOLD), REVIEW_TIMEOUT_BASE_MS)
+  assert.equal(
+    at(0, REVIEW_TIMEOUT_LOAD_THRESHOLD + 0.1),
+    Math.round(REVIEW_TIMEOUT_BASE_MS * REVIEW_TIMEOUT_LOAD_MULTIPLIER),
+  )
+  // 上限封顶：再长就不是超时问题而是 runner 坏了，该走延后账本。
+  assert.equal(at(REVIEW_TIMEOUT_DIFF_STEP_BYTES * 100, 16), REVIEW_TIMEOUT_MAX_MS)
+  assert.ok(at(REVIEW_TIMEOUT_DIFF_STEP_BYTES * 100, 16) <= REVIEW_TIMEOUT_MAX_MS)
+  // 非法/缺失输入退回基线，绝不退回 0（0 = spawnSync 立刻杀掉子进程）。
+  assert.equal(resolveReviewTimeoutMs(), REVIEW_TIMEOUT_BASE_MS)
+  assert.equal(at(Number.NaN, Number.NaN), REVIEW_TIMEOUT_BASE_MS)
+  assert.equal(at(-1, -1), REVIEW_TIMEOUT_BASE_MS)
+})
+
+test('runner passes the derived timeout, not a constant, to the Codex spawn', () => {
+  const reportDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-ponytail-report-'))
+  const fake = fakeRunner({ report: 'Lean already. Ship.' })
+  const bigDiff = 'x'.repeat(REVIEW_TIMEOUT_DIFF_STEP_BYTES * 2)
+  runPonytailReview({
+    repoRoot: '/repo',
+    scope: 'staged',
+    env: {
+      PONYTAIL_REVIEW_REPORT_DIR: reportDir,
+      PONYTAIL_REVIEW_CODEX_BIN: 'codex',
+      [PONYTAIL_LOCK_HELD_ENV]: '1',
+    },
+    runGit: () => bigDiff,
+    loadAverage: () => 0,
+    spawnSyncImpl: fake.spawnSyncImpl,
+  })
+  fs.rmSync(reportDir, { recursive: true, force: true })
+  assert.equal(
+    fake.calls[0].options.timeout,
+    REVIEW_TIMEOUT_BASE_MS + REVIEW_TIMEOUT_DIFF_STEP_MS * 2,
+  )
+})
+
+test('machine-wide Ponytail lock admits one review and bounds the queue wait', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-ponytail-lock-'))
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }))
+  const helper = path.join(repoScriptsDir, 'with-gates-lock.py')
+  const lockPath = path.join(dir, 'nomi-ponytail.lock')
+  const env = { ...process.env, NOMI_GATES_LOCK_PATH: lockPath }
+  delete env.NOMI_GATES_LOCK_TOKEN
+
+  // 无人占用 → 立刻拿到锁并跑完。
+  const free = spawnSync('python3', [helper, '--wait-timeout', '30', '--label', '测试锁', '--', 'true'],
+    { env, encoding: 'utf8' })
+  assert.equal(free.status, 0, free.stderr)
+
+  // 有人占用 → 另一棵树排队，超过 --wait-timeout 就 fail-closed（非零），而不是硬闯。
+  // `env -u` 清掉 token 并换 cwd，才算「另一棵 worktree」而不是前台继承。
+  const contended = spawnSync('python3', [
+    helper, '--', 'env', '-u', 'NOMI_GATES_LOCK_TOKEN',
+    'python3', helper, '--wait-timeout', '1', '--label', '测试锁', '--', 'true',
+  ], { cwd: dir, env, encoding: 'utf8' })
+  assert.notEqual(contended.status, 0, '第二个评审必须排队等锁，等不到就拦，不许并跑')
+  assert.match(contended.stderr, /测试锁/)
+})
+
+test('deferred review keeps the secrets scan, ledgers the skip, and lets the commit through', (t) => {
+  const root = makeRepository(t)
+  const env = { PONYTAIL_REVIEW_DEFER: '1' }
+  const outcome = runPonytailReview({
+    repoRoot: root,
+    scope: 'staged',
+    env,
+    spawnSyncImpl: () => assert.fail('deferred review must not spawn the runner'),
+  })
+  assert.equal(outcome.ok, true)
+  assert.equal(outcome.status, 'deferred')
+
+  const logPath = deferredLogPath(root, env)
+  assert.equal(logPath, path.join(root, '.claude', 'ponytail-deferred.log'))
+  const row = fs.readFileSync(logPath, 'utf8').trim()
+  // 格式逐字对齐 .claude/push-bypass.log：时间|种类|branch|sha|worktree|reason|状态
+  assert.match(
+    row,
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z\|deferred\|branch=[^|]*\|sha=[0-9a-f]{40}\|worktree=[^|]+\|reason=[^|]+\|reviewed=no$/,
+  )
+  // git 给的是 realpath（macOS 的 /var → /private/var）；账本记 git 的那个，和 push-bypass.log 一致。
+  assert.ok(row.includes(`worktree=${fs.realpathSync(root)}`))
+
+  // 追加而不是覆盖：第二次延后必须留下第二行。
+  runPonytailReview({ repoRoot: root, scope: 'staged', env, spawnSyncImpl: () => assert.fail('no runner') })
+  assert.equal(fs.readFileSync(logPath, 'utf8').trim().split('\n').length, 2)
+})
+
+test('push scope never defers: outgoing diff is the last local gate', (t) => {
+  const root = makeRepository(t)
+  const env = { PONYTAIL_REVIEW_DEFER: '1', [PONYTAIL_LOCK_HELD_ENV]: '1', PONYTAIL_REVIEW_CODEX_BIN: 'codex' }
+  assert.equal(isDeferRequested({ scope: 'staged', env }), true)
+  assert.equal(isDeferRequested({ scope: 'push', env }), false)
+  assert.equal(isDeferRequested({ scope: 'staged', env: {} }), false)
+  assert.equal(fs.existsSync(deferredLogPath(root, env)), false)
+})
+
+test('the Claude shim self-limits under the hook budget it is handed, not a second constant', async () => {
+  // 壳曾写死 165s/175s 去压 180s 常量。墙钟改成派生后，那份常量会在大 diff 上把评审
+  // 提前砍掉——正好复刻这次要修的假超时。壳必须从 PONYTAIL_REVIEW_TIMEOUT_MS 反推。
+  const { resolveTimeout } = await import('./ponytail-review-claude-shim.mjs')
+  assert.equal(resolveTimeout({ PONYTAIL_REVIEW_TIMEOUT_MS: String(REVIEW_TIMEOUT_MAX_MS) }), REVIEW_TIMEOUT_MAX_MS - 15_000)
+  assert.equal(resolveTimeout({ PONYTAIL_REVIEW_TIMEOUT_MS: String(REVIEW_TIMEOUT_BASE_MS) }), REVIEW_TIMEOUT_BASE_MS - 15_000)
+  // 缺预算（壳被手工调用）退回基线，绝不退回 0 或无限。
+  assert.equal(resolveTimeout({}), REVIEW_TIMEOUT_BASE_MS - 15_000)
+  // 人工 override 只能往小调，不许越过钩子的预算。
+  assert.equal(resolveTimeout({ PONYTAIL_REVIEW_TIMEOUT_MS: '180000', PONYTAIL_REVIEW_CLAUDE_TIMEOUT_MS: '900000' }), REVIEW_TIMEOUT_BASE_MS - 15_000)
+})
+
+test('the derived budget reaches the runner environment', () => {
+  const reportDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-ponytail-report-'))
+  const fake = fakeRunner({ report: 'Lean already. Ship.' })
+  runPonytailReview({
+    repoRoot: '/repo',
+    scope: 'staged',
+    env: { PONYTAIL_REVIEW_REPORT_DIR: reportDir, PONYTAIL_REVIEW_CODEX_BIN: 'codex', [PONYTAIL_LOCK_HELD_ENV]: '1' },
+    runGit: () => 'patch',
+    loadAverage: () => 0,
+    spawnSyncImpl: fake.spawnSyncImpl,
+  })
+  fs.rmSync(reportDir, { recursive: true, force: true })
+  assert.equal(fake.calls[0].options.env.PONYTAIL_REVIEW_TIMEOUT_MS, String(REVIEW_TIMEOUT_BASE_MS))
 })
