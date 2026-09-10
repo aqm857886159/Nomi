@@ -61,7 +61,7 @@ async function driveToFirstShotGate(
     .find((gate) => gate.gateId === 'gate-direction-v1')?.directionCandidates?.length ?? 0) === 2)
   let current = service.readFull('project-1', runId)!
   await service.command('project-1', runId, {
-    commandId: 'approve-direction', expectedRevision: current.revision, type: 'gate.decide',
+    commandId: 'approve-direction', expectedRevision: current.revision, type: 'gate.decide', humanGesture: true,
     payload: { gateId: 'gate-direction-v1', status: 'approved', choiceKey: 'a' }, issuedAt: new Date().toISOString(),
   })
   await approveLatestScript(service, 'project-1', runId)
@@ -79,7 +79,7 @@ async function driveToFirstShotGate(
   const contract = attached.run.gates.find((gate) => gate.scope === 'budget_envelope')!
   expect(contract.status).toBe('waiting')
   await service.command('project-1', runId, {
-    commandId: 'approve-contract', expectedRevision: attached.run.revision, type: 'gate.decide',
+    commandId: 'approve-contract', expectedRevision: attached.run.revision, type: 'gate.decide', humanGesture: true,
     payload: { gateId: contract.gateId, status: 'approved' }, issuedAt: new Date().toISOString(),
   })
   await waitFor(() => service.readFull('project-1', runId)!.gates
@@ -109,7 +109,7 @@ describe('confirm_all per-shot provider boundary', () => {
     expect(narration.outcome).toMatchObject({ shotGateId: shotGate.gateId, shotJobId: current.jobs[0].jobId, nextActions: ['review_shot_in_nomi'] })
 
     await service.command('project-1', runId, {
-      commandId: 'approve-shot-1', expectedRevision: current.revision, type: 'gate.decide',
+      commandId: 'approve-shot-1', expectedRevision: current.revision, type: 'gate.decide', humanGesture: true,
       payload: { gateId: shotGate.gateId, status: 'approved' }, issuedAt: new Date().toISOString(),
     })
     await waitFor(() => service.readFull('project-1', runId)!.gates
@@ -119,7 +119,7 @@ describe('confirm_all per-shot provider boundary', () => {
     current = service.readFull('project-1', runId)!
     const sampleGate = current.gates.find((gate) => gate.gateId.startsWith('gate-sample-') && gate.status === 'waiting')!
     await service.command('project-1', runId, {
-      commandId: 'approve-sample', expectedRevision: current.revision, type: 'gate.decide',
+      commandId: 'approve-sample', expectedRevision: current.revision, type: 'gate.decide', humanGesture: true,
       payload: { gateId: sampleGate.gateId, status: 'approved' }, issuedAt: new Date().toISOString(),
     })
     await waitFor(() => service.readFull('project-1', runId)!.gates
@@ -130,7 +130,7 @@ describe('confirm_all per-shot provider boundary', () => {
     expect(shotGate.jobIds).toEqual([current.jobs[1].jobId])
     expect(submissions).toHaveLength(1)
     await service.command('project-1', runId, {
-      commandId: 'approve-shot-2', expectedRevision: current.revision, type: 'gate.decide',
+      commandId: 'approve-shot-2', expectedRevision: current.revision, type: 'gate.decide', humanGesture: true,
       payload: { gateId: shotGate.gateId, status: 'approved' }, issuedAt: new Date().toISOString(),
     })
     await waitFor(() => service.readFull('project-1', runId)!.status === 'awaiting_rough_cut_review')
@@ -138,7 +138,7 @@ describe('confirm_all per-shot provider boundary', () => {
 
     const completed = service.readFull('project-1', runId)!
     await service.command('project-1', runId, {
-      commandId: 'duplicate-approve-shot-2', expectedRevision: completed.revision, type: 'gate.decide',
+      commandId: 'duplicate-approve-shot-2', expectedRevision: completed.revision, type: 'gate.decide', humanGesture: true,
       payload: { gateId: shotGate.gateId, status: 'approved' }, issuedAt: new Date().toISOString(),
     })
     await new Promise((resolve) => setTimeout(resolve, 30))
@@ -160,7 +160,7 @@ describe('confirm_all per-shot provider boundary', () => {
     const current = restarted.readFull('project-1', runId)!
     const gate = current.gates.find((candidate) => candidate.gateId.startsWith('gate-shot-') && candidate.status === 'waiting')!
     await restarted.command('project-1', runId, {
-      commandId: 'approve-after-restart', expectedRevision: current.revision, type: 'gate.decide',
+      commandId: 'approve-after-restart', expectedRevision: current.revision, type: 'gate.decide', humanGesture: true,
       payload: { gateId: gate.gateId, status: 'approved' }, issuedAt: new Date().toISOString(),
     })
     await waitFor(() => submissions.length === 1)
@@ -179,7 +179,7 @@ describe('confirm_all per-shot provider boundary', () => {
     // Persist the human decision without invoking the service's post-command driver hook, which
     // models a process exit in the narrow window after the decision reached disk.
     first.repository.execute('project-1', runId, {
-      commandId: 'approve-then-crash', expectedRevision: current.revision, type: 'gate.decide',
+      commandId: 'approve-then-crash', expectedRevision: current.revision, type: 'gate.decide', humanGesture: true,
       payload: { gateId: gate.gateId, status: 'approved' }, issuedAt: new Date().toISOString(),
     })
     expect(submissions).toEqual([])
@@ -199,7 +199,7 @@ describe('confirm_all per-shot provider boundary', () => {
     const current = service.readFull('project-1', runId)!
     const gate = current.gates.find((candidate) => candidate.gateId.startsWith('gate-shot-') && candidate.status === 'waiting')!
     await service.command('project-1', runId, {
-      commandId: 'reject-shot', expectedRevision: current.revision, type: 'gate.decide',
+      commandId: 'reject-shot', expectedRevision: current.revision, type: 'gate.decide', humanGesture: true,
       payload: { gateId: gate.gateId, status: 'rejected' }, issuedAt: new Date().toISOString(),
     })
     await waitFor(() => service.readFull('project-1', runId)!.status === 'paused')
@@ -219,7 +219,7 @@ describe('confirm_all per-shot provider boundary', () => {
     expect(submissions).toEqual([])
 
     await service.command('project-1', runId, {
-      commandId: 'approve-retried-shot', expectedRevision: retried.revision, type: 'gate.decide',
+      commandId: 'approve-retried-shot', expectedRevision: retried.revision, type: 'gate.decide', humanGesture: true,
       payload: { gateId: retryGate.gateId, status: 'approved' }, issuedAt: new Date().toISOString(),
     })
     await waitFor(() => submissions.length === 1)

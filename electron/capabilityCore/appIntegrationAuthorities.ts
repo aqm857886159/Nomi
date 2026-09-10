@@ -1,11 +1,5 @@
-import path from 'node:path'
-
 import type { RpcServerOptions } from './rpcServer'
-import { capabilityCoreDir, ensureCapabilitySigningKey } from './security'
-import { getWorkspaceRepositoryDeps } from '../runtimePaths'
-import { readWorkspaceProject } from '../workspace/workspaceRepository'
-import { createApprovalReceiptAuthority } from './approvalReceipt'
-import { createProductionRunLock } from '../productionRun/productionRunLock'
+import { currentProjectRevision, getApprovalReceiptAuthority } from './approvalReceiptRuntime'
 import type { McpGenerationPolicy } from './mcpGenerationPolicy'
 import type { DispatchContext } from './dispatcher'
 import { requestRenderer, rendererTargetIdentity } from './rendererBridge'
@@ -28,12 +22,6 @@ export function createDefaultAuthorities(generationPolicy: McpGenerationPolicy, 
   DispatchContext,
   'approvalReceiptAuthority' | 'projectRevisionResolver' | 'confirmGenerationInNomi'
 > & Pick<RpcServerOptions, 'projectSessionAuthority' | 'verifyClientGenerationGateInMain'> {
-  const authorityDir = capabilityCoreDir()
-  const sharedLock = createProductionRunLock({
-    filePath: path.join(authorityDir, 'semantic-authorities.lock'),
-    epochPath: path.join(authorityDir, 'semantic-authorities.epoch'),
-    ownerId: `capability-core-${process.pid}`,
-  })
   const projectSession = createProductionProjectSessionRuntime({
     generationPolicy,
     getOpenProjectSelection: canvasReadSurfaceRuntime.getCommittedProjectSelection,
@@ -41,13 +29,8 @@ export function createDefaultAuthorities(generationPolicy: McpGenerationPolicy, 
     // because they exist. A future allowlist must be an explicit policy.
     isServerAllowlisted: () => false,
   })
-  const receiptAuthority = createApprovalReceiptAuthority({
-    filePath: path.join(authorityDir, 'approval-receipts.json'),
-    macKey: ensureCapabilitySigningKey('approval-receipt'),
-    storeMacKey: ensureCapabilitySigningKey('approval-receipt-store'),
-    keyId: 'approval-receipt-v1',
-    lock: sharedLock,
-  })
+  // 进程内唯一的人证权威（制作 Run 服务拿的是同一个实例，见 approvalReceiptRuntime.ts）。
+  const receiptAuthority = getApprovalReceiptAuthority()
   const confirmGenerationInNomi = async ({ challengeToken }: { challengeToken: string }) => {
     const challenge = receiptAuthority.verifyChallenge(challengeToken)
     const target = rendererTargetIdentity()
@@ -103,6 +86,6 @@ export function createDefaultAuthorities(generationPolicy: McpGenerationPolicy, 
     approvalReceiptAuthority: receiptAuthority,
     confirmGenerationInNomi,
     verifyClientGenerationGateInMain,
-    projectRevisionResolver: (projectId) => readWorkspaceProject(projectId, getWorkspaceRepositoryDeps())?.revision,
+    projectRevisionResolver: currentProjectRevision,
   }
 }
