@@ -1,5 +1,14 @@
 # 2026-09-10 用户走查反馈分诊（17 条）
 
+## 先查别人
+
+完整报告：docs/research/2026-09-10-ux-feedback-fixes/prior-art.md。带出处条目：
+
+1. **key 验证判据**：OpenAI 兼容生态共识是「/v1/models + 最小非流式请求双通过才算通」，且部分聚合商 /v1/models 对合法 key 也回 401——https://docs.aifast.hk/en/guides/openai-compatible-api 、https://wpnews.pro/news/openai-compatible-base-url-troubleshooting-7-checks-before-you-blame-the-sdk ；apimart 恒 401 的一手证据在 electron/vendor/vendorBaseFallback.ts:153，官方 chat 契约见 electron/catalog/apimartVendor.ts:29-33（带 checkedAt）。→ B2 采用 per-vendor 分派：direct-key 用种子 livenessProbe（max_tokens:1）。
+2. **direct-key 发布守卫**：仓库已有同名判据 generationProviderBootstrap.ts:62-67（scope 匹配+无认证占用）与 seedBuiltins.ts:587（curated 契约），promoteDirectKeyVendor 直接复用，零新真相源。
+3. **popover 点外关闭**：src/design/ 无通用 dismissable popover 原语（NomiSelect 是 Mantine Combobox 下拉，src/design/NomiSelect.tsx:134-142），V4 弹层为手写定位 src/workbench/ai/v4/AgentPanelV4Composer.tsx:160-164 → 手写 outside-close 为最短正路，不为此引入新依赖。
+4. **软换行高度**：仓库高度规则层 src/workbench/ai/v4/agentPanelV4Logic.ts 只有硬换行行数（composer :126 消费），本次新增 rowsFromContentHeight 复用同一常量与 useComposerHeight 规则，不建第二套高度真相源。
+
 > 来源：2026-09-10 用户真机走查（5 张截图 + 17 条文字反馈）。
 > 本文只做分诊：现象 → 代码级根因（file:line 已实核）→ 修法 → 量级 → 批次建议。
 > 动手前待用户拍板批次。分支：从最新 origin/main 新建 `task/ux-feedback-20260910`。
@@ -108,10 +117,9 @@
 - 修法：时间轴只占画布列（span 改为画布列），agent 面板列独立。
 - 量级：S。
 
-### 4.3 左右拉环不可见（反馈 #14）
-- 根因：拉环**已实现**（`AssistantPane.tsx:25-38`）但视觉只有 0.5px 发丝线，generation 模式下几乎不可见 → 用户视为没做。
-- 修法：做成可见拉环造型（把手柄/加宽热区 + hover 高亮），符合拖拽 affordance。
-- 量级：S。
+### 4.3 左右拉环不可见（反馈 #14）— **改判：属 PR #656，非本轮改动**
+- 用户澄清（2026-09-10）：「拉环」指**节点连线磁吸悬停把手**，实现已在 PR #656（fix/canvas-magnetic-handle-hover-20260908，已整合最新 main、CI 已修），尚未合入 main → 用户在 main 上自然看不到。
+- 处置：不在本轮重做（避免并行版，P1）。合并 #656 即闭环。本轮误加的 AssistantPane 拉环样式改动已撤销。
 
 ### 4.4 顶部/左轨空间浪费（反馈 #3）
 - 根因：`GenerationWorkspace.tsx:38,54` agent 面板常驻（min300/max600，`assistantWidthBounds.ts:17-34`）+ 左轨 60px 恒占，画布/预览被压缩。
@@ -171,9 +179,49 @@
 3. draft 交互（3.2）：点击 draft 卡直接物化上画布（B4 批次）。
 4. 批次：B1（单点小修）+ B2（apimart 模型接入）先行；B3/B6 样张后跟进。
 
+## 权限控制全链路审计（2026-09-10 盘点，回应「是不是虚假按钮」）
+
+**结论：三档按钮是真的，不是假按钮；问题出在「覆盖面」——多数生成动作根本不经过它。**
+
+- **档位真实生效**：UI 改档 → `useAgentPanelV4Actions.ts:223-227` → laneClient `workspace-policy` → `laneDesktopRuntime.ts:142` 活 getter → 闸 `laneHost.mts:292-307` 每次工具调用实时读。判据 owner：`capabilityApprovalPolicy.ts:144-154`（step 恒不自动放；safe-auto 只放 reversible_local；project 放宽非 hard-gate）。
+- **用户「没弹卡就生成完了」的根因**：面板里模型摸到的生成工具只有「建/改草稿」（`nomi_generation_plan` 等，`extendedModelTools.ts:52-63`），契约 `reversible_local`（`generation.ts:59-60`）→ safe-auto 本来就自动放。**真正的付费门 `generation.gate` 被 paidBoundary（`paidBoundary.ts:77-80`）从模型工具面整体剔除**，付费确认走另一条居中弹窗（SpendConfirmDialog 家族，`NomiStudioApp.tsx:93-95`），不进面板介入槽。另外 antigravity `generate_image` 是外部 CLI 自带 permission_mode，完全不过 lane 闸（`catalog/antigravityCatalog.ts:96`）——六棱柱那次疑似走的就是这类工具。
+- **`spend: 'within-budget'` 轴全仓零消费者**：project 档也不会自动花钱——设计红线成立，但体感上「三档差不多」。
+- **确认卡现状**：V4Intervention（`AgentPanelV4Cards.tsx:173-340`）只有 confirm/reject/escalate/reject-reason，approve 无参数回写通道；「提案内联编辑器」是 2026-09-06 拍板删除的。
+- **可编辑确认卡有设计**：`docs/design/2026-08-31-agent-interaction-synthesis.draft.md`（S12 付费卡冻结项/Prompt 可改、S16 生成提案卡）+ `docs/handoff/2026-08-24-semantic-single-shot-p1-p3-handoff.md` §4.2（可编辑计划 →「返回修改」→ `nomi_generation_plan` patch → re-seal → 重出卡，数据链路是通的）。
+
+### 新拍板（2026-09-10 用户）：确认卡必须可调整
+
+生成确认卡不是「只能对 agent 定死的模型/参数点确认」，要能**在卡上调整模型与参数再放行**。两条接线方案（待 R3 对比表拍板）：
+
+| 方案 | 做法 | 代价 |
+|---|---|---|
+| A 复用「返回修改」路 | 介入卡加编辑态 → 写回 `nomi_generation_plan` patch → re-seal → 重出卡；数据链已在 handoff §4.2 定义 | 改动小；但编辑要重走一轮 agent |
+| B 直接回写 overrides | `LaneApprovalAction` 加 `allow-with-overrides`，codec/gate/laneHost before_tool 放行前改写 `event.args`；pending 里本就带完整 args（`laneApprovalGate.ts:255-263`） | 动 IPC 合同三层；一步到位、通用（可编辑确认卡从此是通用能力） |
+
+### 权限面后续修复项（B4 追加）
+
+1. 生成类确认卡接进 v4 介入槽（现在是居中弹窗双轨，面板里看不见）+ 可编辑（方案 A/B 拍板后实施）。
+2. `spend` 轴：接上消费者或从 UI 明说「不会自动花钱」，消除「虚假按钮」体感。
+3. 外部 CLI 工具（antigravity generate_image）绕闸问题：至少在档位说明里如实标注，评估纳入闸。
+4. 真机复测六棱柱场景：确认那次生成走的是哪条工具路径（antigravity CLI vs 画布默认流）。
+
 ## 本轮执行记录（B1+B2）
-- 分支：`task/ux-feedback-20260910`（从最新 origin/main）。
-- 状态：进行中。
+- 分支：`task/ux-feedback-20260910`（从最新 origin/main，preflight 全绿）。
+- B1 已落（8 条）：
+  - 1.1 输入框软换行自适应：`agentPanelV4Logic.ts` 新增 `rowsFromContentHeight`（纯函数），composer 用 scrollHeight 实测（压 0 高测量、ResizeObserver 跟随宽度变化，删字可缩回）。
+  - 1.2 底栏右锚定：Skill 与权限之间落 flex-1 spacer，权限+发送永远右锚。
+  - 1.3 popover outside-close：`ProjectAgentResidentShell` 加 document pointerdown 捕获监听，豁免弹层本体/触发钮/NomiSelect 传送门（role=listbox）。
+  - 2.4 加号更多菜单：z-[9]→z-[13]（压过节点 composer/浮条），加 before 桥补 8px 空隙 hit-area。
+  - 2.5 文本节点回常驻：`canvasToolbarModel.ts` placement 'more'→'resident'（6 常驻），两个锁旧决策的测试同步更新。
+  - 4.2 时间轴只占画布列：GenerationWorkspace `col-span-full`→`col-start-1`，与 agent 列宽动画解耦。
+  - 4.3 拉环：**改判属 PR #656**（节点磁吸把手，已实现未合入），本轮撤销误加的 AssistantPane 样式改动，#14 以合并 #656 闭环。
+  - 6.3 提示词硬约定中文：`agentContext.ts` buildLanguageRule 双语分支各加「生成提示词一律简体中文，与回复语言无关」；`canvasSystemPrompt.ts` 同步；composeAgentSystemPrompt 测试镜像串更新。
+- B2 已落：
+  - 新文件 `electron/catalog/directKeyCredential.ts`：`probeDirectKeyCredential`（用种子代码拥有的 livenessProbe 验 key：401/403=无效 throw、200+successPath=verified、其它=pending）+ `promoteDirectKeyVendor`（scope 匹配 + 无认证占用 + curated 契约在，三守卫缺一不 promote）。
+  - `validateCandidateCredential.ts`：direct-key 供应商改走 livenessProbe 判据（/v1/models 对 apimart 恒 401 的回归根因）；`revalidatePendingCredential` 转正时同步发布凭据+vendor（修「验证过了但模型还不出现」半截状态）。
+  - `rendererCatalogMutation.ts`：upsertRendererCatalogVendorApiKey 对 direct-key verified 结果写 `enabled:true` 并 promote；渲染层恒发 enabled:false 不变（manualCertificationBoundary 测试继续成立），启用决策全在主进程。
+  - 新测试 `electron/catalog/directKeyCredential.test.ts` 7 条全绿（verified 发布 / pending 诚实停用 / 401 403 无效 / 网络抖动 pending / scope 漂移 fail-closed）。
+- 验证：typecheck 双向绿；lint:ci 绿（0 errors）；agent 面板 39 文件 359 测试绿；generationCanvas 3043 测试绿；direct-key 相关 catalog 测试绿。
 
 ## 验收门（全批次通用）
 - contracts 全门 + focused tests；涉及画布/时间轴/agent 面板的走 J1-J5 真实旅程走查（R13）+ 与本表逐项对账（P3）；模型接入改动跑真实 apimart key 端到端验证（填 key → 列表出现 → agent 可选 → 真实生成一张）。
