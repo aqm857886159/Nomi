@@ -1,0 +1,80 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-09-model-unresolvable-query",
+  "problem_type": "Model-resolution failure during polling surfaces as a raw recoverable error instead of an honest terminal failure",
+  "symptom": "While a task is being polled, if the model was removed or its credential became invalid, findExecutableModel throws and the raw error bubbles out of fetchTaskResult; the renderer treats a thrown query error as recoverable, keeps retrying for the free-grace window, then parks the task as recoverable — the message never points at the root cause and the condition can never heal by retrying.",
+  "direct_cause": "executeTaskQuery resolved the model outside any guard, unlike rebuildCachedTaskFromPayload which wraps the same call and falls back to honest diagnostics.",
+  "class_root": "Permanent resolution failures (model gone / credential invalid) must convert to terminal failed results at the query boundary; only transient network errors may remain recoverable throws.",
+  "affected_population": [
+    "Tasks still polling when their model gets removed or its credential expires"
+  ],
+  "scope_paths": [
+    "electron/tasks/taskResultQuery.ts"
+  ],
+  "entry_points": [
+    "executeTaskQuery model resolution"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Internal vendor task-result boundary; no external format change.",
+  "invariants": [
+    "A model-resolution throw inside executeTaskQuery returns a failed result with tasks.modelUnresolvable instead of rejecting.",
+    "Transient executeProfileOperation errors keep their existing recoverable-throw semantics."
+  ],
+  "generality_proof": "The guard sits at the single model-resolution point shared by cached and rebuilt task queries, so both admission paths get the same honest terminal behavior.",
+  "shared_boundaries": [
+    {
+      "path": "electron/tasks/taskResultQuery.ts",
+      "symbol": "executeTaskQuery",
+      "responsibility": "Convert permanent model-resolution failures to terminal failed results."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/tasks/taskResultQuery.ts",
+      "entry_point": "rebuildCachedTaskFromPayload",
+      "disposition": "enforced",
+      "evidence": "Already guards the same findExecutableModel call and returns null to fall through to honest cache-miss diagnostics; the reference pattern this fix mirrors."
+    },
+    {
+      "path": "electron/tasks/taskResultQuery.ts",
+      "entry_point": "executeProfileOperation query call",
+      "disposition": "enforced",
+      "evidence": "Transient query failures intentionally remain recoverable per the fetchTaskResult doctrine comment; unchanged."
+    }
+  ],
+  "recurrence": {
+    "classification": "one_off",
+    "reason": "A single unguarded resolution call; the sibling path already guarded it.",
+    "same_class_scan": [
+      "Checked rebuildCachedTaskFromPayload: guarded, returns null.",
+      "Checked executeProfileOperation call sites in this file: transient-error semantics preserved on purpose."
+    ]
+  },
+  "regression_tests": [
+    "electron/tasks/modelUnresolvableQuery.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/tasks/modelUnresolvableQuery.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "No legacy path removed; a guard was added around resolution."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency change.",
+    "exit_criteria": []
+  },
+  "migration": "No persistence schema change.",
+  "residual_risks": [
+    "A transient catalog read failure that throws inside findExecutableModel would now surface as terminal instead of recoverable; catalog reads are local-file and deterministic, so this is accepted."
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/tasks/taskResultQuery.ts",
+    "tests": [
+      "electron/tasks/modelUnresolvableQuery.test.ts"
+    ],
+    "note": "The query boundary owns result classification; the regression pins resolution failures becoming honest terminal results."
+  }
+}
