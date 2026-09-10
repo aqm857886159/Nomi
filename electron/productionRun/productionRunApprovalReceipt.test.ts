@@ -183,4 +183,46 @@ describe('production approval receipt scope', () => {
     expect(() => owner(authority).verifyGateDecision('project-1', 'run-1', run, command({ projectRevision: 3 })))
       .toThrowError(expect.objectContaining({ code: 'receipt_invalid' }))
   })
+  // 2026-09-10 21:00：降到 budget_only 也是一次付费放行（逐镜确认门只在 confirm_all 生成，降档=以后不再问）。
+  // 判据与付费门逐字同构：手势章或收据，缺两者拒。收紧方向（升到 confirm_all）与还没开逐镜确认的
+  // 档位不进这条闸——把不变量放大成打扰不是守住它。
+  it('requires a human approval fact only when the downgrade actually removes a paid confirmation', () => {
+    const { command } = fixture()
+    const trust = (payload: Record<string, unknown>, extra: Partial<RunCommand> = {}): RunCommand => ({
+      ...command({}, extra),
+      type: 'run.control',
+      payload: { action: 'set_trust', trustLevel: 'budget_only', ...payload },
+    })
+    const confirmAll = { ...run, policy: { trustLevel: 'confirm_all' } } as unknown as ProductionRun
+    const keyConfirm = { ...run, policy: { trustLevel: 'key_confirm' } } as unknown as ProductionRun
+
+    expect(() => owner(undefined).verifyTrustGrant('project-1', 'run-1', confirmAll, trust({})))
+      .toThrowError(expect.objectContaining({ code: 'human_approval_required' }))
+    expect(owner(undefined).verifyTrustGrant('project-1', 'run-1', confirmAll, trust({}, { humanGesture: true }))).toBeUndefined()
+    expect(owner(undefined).verifyTrustGrant('project-1', 'run-1', keyConfirm, trust({}))).toBeUndefined()
+    expect(owner(undefined).verifyTrustGrant('project-1', 'run-1', confirmAll, trust({ trustLevel: 'confirm_all' }))).toBeUndefined()
+  })
+
+  // 反向也要堵死：一张真门的收据不能拿来当信任降档的人证（gateId 与 costScope 都对不上）。
+  it('never lets a gate receipt stand in for a trust downgrade', () => {
+    const { authority, receiptId } = fixture()
+    const confirmAll = {
+      ...run,
+      policy: { trustLevel: 'confirm_all' },
+      generationPlan: {
+        authorizationDigest: 'digest-trust',
+        costCertainty: 'known',
+        authorizationEnvelope: {
+          immutableProjectUuid: 'uuid-1', projectGeneration: 1, projectRevision: 2, runId: 'run-1', planVersion: 1,
+          budget: { currency: 'CNY', maximum: 5, ledgerCeiling: 5 },
+          jobs: [{ shotId: 'shot-1', providerId: 'apimart', modelId: 'kling-v2', mode: 'i2v', price: { currency: 'CNY', maximum: 5 } }],
+        },
+      },
+    } as unknown as ProductionRun
+    expect(() => owner(authority).verifyTrustGrant('project-1', 'run-1', confirmAll, {
+      ...fixture().command({}),
+      type: 'run.control',
+      payload: { action: 'set_trust', trustLevel: 'budget_only', receiptId },
+    })).toThrowError(expect.objectContaining({ code: 'receipt_invalid' }))
+  })
 })
