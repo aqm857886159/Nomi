@@ -7,13 +7,11 @@ import { canHostPublicDocs } from "../providerAdapter/docsDiscovery";
 import { draftFromSuppliedContract, parseAdapterSuppliedContract } from "../providerAdapter/agentCompileRequest";
 import type { ProviderAdapterDraft, ProviderAdapterModelSelection } from "../providerAdapter/types";
 import type { IntegrationCandidate, IntegrationCompileRequest, IntegrationSession } from "./integrationSession";
+import { proposalRejected } from "./integrationProposalValidation";
 
 const MAX_ADAPTER_DRAFT_TEXT = 512 * 1024;
 const ADAPTER_PROVIDER_KINDS = new Set(["openai-compatible", "anthropic", "openai-responses"]);
 
-function proposalRejected(field: string, reason: string, repair: string): never {
-  throw new Error(`propose rejected: ${field} ${reason}. ${repair}`);
-}
 
 /**
  * 这次接入需不需要「借 Nomi 已接的文本模型去读文档」。四种不需要：
