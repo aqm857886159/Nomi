@@ -1161,14 +1161,14 @@ export const zhGenerationCommon = {
     runPanel: {
       aria: '当前制作状态',
       origin: '来自 {{host}}',
-      previewAlt: '最近生成产物',
+      previewAlt: '最近产物',
       details: '制作详情',
       playPreview: '播放这段预览',
       openPreview: '打开这个产物',
     },
     route: {
       waiting: '{{host}} 那边等你决定——回到那边一句话就行',
-      fallback: '也可以在这里决定',
+      fallback: '手动决定',
     },
     runAction: {
       'open-stage': '查看当前阶段',
@@ -2587,14 +2587,14 @@ export const enGenerationCommon = {
     runPanel: {
       aria: 'Current production status',
       origin: 'From {{host}}',
-      previewAlt: 'Latest generated artifact',
+      previewAlt: 'Latest Output',
       details: 'Production details',
       playPreview: 'Play this preview',
       openPreview: 'Open this artifact',
     },
     route: {
       waiting: '{{host}} is waiting on your decision — just answer there',
-      fallback: 'Or decide here',
+      fallback: 'Decide Here',
     },
     runAction: {
       'open-stage': 'Open current stage',

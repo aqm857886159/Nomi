@@ -1,7 +1,7 @@
 export const zhRuntime = {
   design: {
     cancel: '取消',
-    gotIt: '知道了',
+    gotIt: '确认',
     confirm: '确认',
   },
   modelCatalog: {
@@ -161,7 +161,7 @@ type TranslationShape<T> = {
 }
 
 export const enRuntime = {
-  design: { cancel: 'Cancel', gotIt: 'Got it', confirm: 'Confirm' },
+  design: { cancel: 'Cancel', gotIt: 'Confirm', confirm: 'Confirm' },
   modelCatalog: {
     desktopUnavailable: 'The local model catalog is unavailable. Open model setup and check the desktop runtime.',
     loadFailed: 'Failed to load the model catalog',
