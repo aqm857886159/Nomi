@@ -32,9 +32,10 @@ type WorkflowCanvasPreviewProps = {
   onRun: () => void
 }
 
-const MEDIA_LABEL_KEY: Record<'image' | 'video', string> = {
+const MEDIA_LABEL_KEY: Record<'image' | 'video' | 'audio', string> = {
   image: 'comfyuiWorkflowPage.preview.mediaImage',
   video: 'comfyuiWorkflowPage.preview.mediaVideo',
+  audio: 'comfyuiWorkflowPage.preview.mediaAudio',
 }
 
 export function WorkflowCanvasPreview({
@@ -135,7 +136,7 @@ function PreviewControl({
     )
   }
 
-  if (field.kind === 'image' || field.kind === 'video') {
+  if (field.kind === 'image' || field.kind === 'video' || field.kind === 'audio') {
     return (
       <div>
         {head}
