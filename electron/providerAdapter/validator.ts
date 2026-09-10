@@ -121,6 +121,45 @@ export const adapterModelContractSchema: z.ZodType<Pick<AdapterModelDraft, "para
     modes: adapterModesSchema,
   });
 
+const adapterSourcesSchema = z
+  .array(
+    z
+      .object({
+        url: z.string().url().describe("Exact documentation page URL this mapping was read from."),
+        title: z.string().max(300).optional(),
+        evidence: z.string().min(1).max(8_000).describe("The supporting excerpt copied from that page."),
+      })
+      .strict(),
+  )
+  .min(1)
+  .max(64);
+
+const adapterDraftModelsSchema = z
+  .array(
+    z
+      .object({
+        modelKey: z.string().min(1).max(256),
+        labelZh: z.string().min(1).max(256),
+        kind: z.enum(BILLING_MODEL_KINDS),
+        parameters: adapterParametersSchema.optional(),
+        modes: adapterModesSchema,
+      })
+      .strict(),
+  )
+  .min(1)
+  .max(256);
+
+/**
+ * 由 Nomi 之外编译好的说明卡交件形状：**只有出处与模型两块**。
+ * `provider`（baseUrl / authType / 鉴权字段）由 Nomi 从会话配置填，和编译器那条路一样是锁死的身份，
+ * 不接受外部覆写——否则「说明卡」就变成了「把请求发到哪儿」的改写入口。
+ */
+export const adapterSuppliedContractSchema = z
+  .object({ sources: adapterSourcesSchema, models: adapterDraftModelsSchema })
+  .strict();
+
+export type AdapterSuppliedContract = z.infer<typeof adapterSuppliedContractSchema>;
+
 const adapterDraftSchema: z.ZodType<ProviderAdapterDraft> = z
   .object({
     provider: z
@@ -132,32 +171,8 @@ const adapterDraftSchema: z.ZodType<ProviderAdapterDraft> = z
         providerKind: z.enum(["openai-compatible", "anthropic", "openai-responses"]).optional(),
       })
       .strict(),
-    sources: z
-      .array(
-        z
-          .object({
-            url: z.string().url(),
-            title: z.string().max(300).optional(),
-            evidence: z.string().min(1).max(8_000),
-          })
-          .strict(),
-      )
-      .min(1)
-      .max(64),
-    models: z
-      .array(
-        z
-          .object({
-            modelKey: z.string().min(1).max(256),
-            labelZh: z.string().min(1).max(256),
-            kind: z.enum(BILLING_MODEL_KINDS),
-            parameters: adapterParametersSchema.optional(),
-            modes: adapterModesSchema,
-          })
-          .strict(),
-      )
-      .min(1)
-      .max(256),
+    sources: adapterSourcesSchema,
+    models: adapterDraftModelsSchema,
   })
   .strict();
 

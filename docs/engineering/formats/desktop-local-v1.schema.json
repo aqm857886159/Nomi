@@ -1,0 +1,187 @@
+{
+  "$ref": "#/definitions/NomiModelCatalogPackage",
+  "definitions": {
+    "NomiModelCatalogPackage": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "string",
+          "const": "desktop-local-v1"
+        },
+        "exportedAt": {
+          "type": "string",
+          "minLength": 1,
+          "description": "ISO 8601 timestamp of the export."
+        },
+        "vendors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "vendor": {
+                "type": "object",
+                "properties": {
+                  "key": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Stable provider id inside the catalog."
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "baseUrlHint": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "authType": {
+                    "type": "string"
+                  },
+                  "providerKind": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "key",
+                  "name",
+                  "enabled"
+                ],
+                "additionalProperties": true,
+                "description": "A catalog vendor. Shape: electron/catalog/types.ts Vendor. Credential values are never part of this object."
+              },
+              "apiKey": {
+                "type": "object",
+                "properties": {
+                  "apiKey": {
+                    "type": "string"
+                  },
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "customConfig": {
+                    "type": "object",
+                    "additionalProperties": {}
+                  }
+                },
+                "required": [
+                  "apiKey"
+                ],
+                "additionalProperties": true,
+                "description": "Present only when the export was asked to carry credentials; re-import re-encrypts on the target machine."
+              },
+              "models": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "modelKey": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "vendorKey": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "labelZh": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "text",
+                        "image",
+                        "video",
+                        "audio",
+                        "model3d"
+                      ]
+                    },
+                    "enabled": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "modelKey",
+                    "vendorKey",
+                    "labelZh",
+                    "kind",
+                    "enabled"
+                  ],
+                  "additionalProperties": true,
+                  "description": "A catalog model. Shape: electron/catalog/types.ts Model."
+                }
+              },
+              "mappings": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "vendorKey": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "taskKind": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "create": {
+                      "type": "object",
+                      "properties": {
+                        "method": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "path": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "required": [
+                        "method",
+                        "path"
+                      ],
+                      "additionalProperties": true
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "vendorKey",
+                    "taskKind",
+                    "name",
+                    "create"
+                  ],
+                  "additionalProperties": true,
+                  "description": "One task mapping (create/query/result HTTP declarations). Shape: electron/catalog/types.ts Mapping."
+                }
+              }
+            },
+            "required": [
+              "vendor"
+            ],
+            "additionalProperties": true
+          }
+        }
+      },
+      "required": [
+        "version",
+        "exportedAt",
+        "vendors"
+      ],
+      "additionalProperties": true,
+      "description": "Nomi model catalog package (desktop-local-v1): one file that carries providers, their models and task mappings between machines."
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

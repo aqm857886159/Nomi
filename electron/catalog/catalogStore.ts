@@ -41,6 +41,7 @@ import {
   overlayDecryptedNetworkConfig,
   resolveNetworkConfigForWrite,
 } from "./networkConfigStore";
+import { buildCatalogPackage, catalogPackageImportSchema, type CatalogPackage } from "./catalogPackageFormat";
 import { invalidateProviderAdapterRunsForVendors } from "../providerAdapter/store";
 import { invalidateVendorValidation, normalizedConnectionScope } from "./vendorValidationInvalidation";
 import { logWarn } from "../logging/logger";
@@ -651,33 +652,10 @@ export function deleteModelCatalogMapping(id: string): void {
   state.mappings = state.mappings.filter((mapping) => mapping.id !== id);
   writeCatalog(state);
 }
-export function exportModelCatalogPackage(params?: unknown): unknown {
-  const state = readCatalog();
-  const includeApiKeys = Boolean((params as JsonRecord | undefined)?.includeApiKeys);
-  return {
-    version: "desktop-local-v1",
-    exportedAt: nowIso(),
-    vendors: state.vendors.map((vendor) => ({
-      // The exported vendor is public (no credential-bearing values) UNLESS keys are
-      // included for portability, in which case the effective (decrypted) proxy/headers
-      // ride the vendor plaintext exactly like the API key does, and re-import re-encrypts
-      // them on the target machine. Without includeApiKeys, no credential leaves the box.
-      vendor: includeApiKeys
-        ? exportableVendorWithNetworkConfig(publicVendor(vendor), state.apiKeysByVendor[vendor.key])
-        : publicVendor(vendor),
-      // Export carries plaintext keys for portability; re-import will re-encrypt on the target machine.
-      ...(includeApiKeys && state.apiKeysByVendor[vendor.key]
-        ? {
-            apiKey: {
-              apiKey: decryptApiKeyRecord(state.apiKeysByVendor[vendor.key]),
-              enabled: state.apiKeysByVendor[vendor.key].enabled,
-            },
-          }
-        : {}),
-      models: state.models.filter((model) => model.vendorKey === vendor.key),
-      mappings: state.mappings.filter((mapping) => mapping.vendorKey === vendor.key),
-    })),
-  };
+export function exportModelCatalogPackage(params?: unknown): CatalogPackage {
+  // 形状与凭据裁决都住在 catalogPackageFormat（那里同时放着它必须满足的 zod 契约）。
+  // 这里只负责「读一份 state」和「includeApiKeys 这一格从 IPC 参数怎么读」。
+  return buildCatalogPackage(readCatalog(), { includeApiKeys: Boolean((params as JsonRecord | undefined)?.includeApiKeys) });
 }
 /**
  * 事务化导入（P2·根治半成品）：整包先在**一份内存 state** 上逐项应用 + 校验，全部成功才
@@ -689,6 +667,16 @@ export function exportModelCatalogPackage(params?: unknown): unknown {
  * 这类 bug 整类消失，而不是逐 upsert 补偿。`apply*` 纯函数与单条公开 upsert 共用（无第二份逻辑）。
  */
 export function importModelCatalogPackage(payload: unknown): unknown {
+  // 信封先过公开契约（docs/engineering/formats/desktop-local-v1.schema.json 就是它导出来的）。
+  // 骨架不对 = 整包不写、原因照实说，而不是一路 as 下去在某条 upsert 里抛一句看不懂的话。
+  // 条目内部仍交给既有 apply*Upsert 归一（新旧两种 mapping 形状都收），这里不改写任何一格。
+  const envelope = catalogPackageImportSchema.safeParse(payload);
+  if (!envelope.success) {
+    return {
+      imported: { vendors: 0, models: 0, mappings: 0 },
+      errors: envelope.error.issues.slice(0, 8).map((issue) => `${issue.path.join(".") || "package"}: ${issue.message}`),
+    };
+  }
   const raw = payload as {
     vendors?: Array<{ vendor?: unknown; apiKey?: unknown; models?: unknown[]; mappings?: unknown[] }>;
   };

@@ -261,4 +261,47 @@ describe("MCP integration tool contract", () => {
     expect(MCP_INTEGRATION_TOOL.name).toBe("nomi_integration");
     expect(MCP_TOOL_CATALOG.map((tool) => tool.name)).toContain("nomi_integration");
   });
+  it("carries an agent-compiled adapter contract through the tool schema into propose", async () => {
+    // 鸡生蛋那台机器：没有可读文档的文本模型，编译交给驱动 Agent（B 路）。
+    const sessions = service({ compilerAvailable: () => false });
+    const created = await dispatch("integration.begin", {
+      kind: "http-api-provider", name: "Relay", baseUrl: "https://relay.example/v1", docs: "POST /images -> data[0].url",
+    }, { integrationSessions: sessions, origin: { host: "codex" } } as never) as { id: string; revision: number };
+    const ready = sessions.markCredentialReady(created.id, "ref-never-returned", "codex");
+    const proposal = { candidates: [{ modelKey: "relay-paint", kind: "image" }], selections: [{ modelKey: "relay-paint" }] };
+
+    const blocked = await dispatch("integration.propose", {
+      sessionId: created.id, expectedRevision: ready.revision, proposal,
+    }, { integrationSessions: sessions, origin: { host: "codex" } } as never) as {
+      stage: string; revision: number; compileRequest?: { field: string; contractSchema: unknown; instructions: string };
+    };
+    expect(blocked.stage).toBe("needs_input");
+    expect(blocked.compileRequest?.field).toBe("proposal.adapterDraft");
+    expect(blocked.compileRequest?.contractSchema).toBeTruthy();
+
+    const adapterDraft = JSON.stringify({
+      sources: [{ url: "https://docs.relay.example/images", evidence: "POST /images returns data[0].url" }],
+      models: [{
+        modelKey: "relay-paint",
+        labelZh: "Relay Paint",
+        kind: "image",
+        modes: [{
+          taskKind: "text_to_image",
+          create: { method: "POST", path: "/images", body: { prompt: "{{request.prompt}}" }, response_mapping: { image_url: "data.0.url" } },
+          sourceUrls: ["https://docs.relay.example/images"],
+        }],
+      }],
+    });
+    // 传输层先放行（schema 把它声明成 JSON 文本，与同一工具里的 workflow 一致）。
+    expect(validateToolArguments(MCP_INTEGRATION_TOOL.name, MCP_INTEGRATION_TOOL.inputSchema, {
+      action: "propose", sessionId: created.id, expectedRevision: blocked.revision, proposal: { ...proposal, adapterDraft },
+    })).toBeNull();
+    const accepted = await dispatch("integration.propose", {
+      sessionId: created.id, expectedRevision: blocked.revision, proposal: { ...proposal, adapterDraft },
+    }, { integrationSessions: sessions, origin: { host: "codex" } } as never) as {
+      stage: string; adapterDraft?: { present: boolean; modelKeys: string[] };
+    };
+    expect(accepted.stage).toBe("needs_spend_confirmation");
+    expect(accepted.adapterDraft).toEqual({ present: true, modelKeys: ["relay-paint"] });
+  });
 });

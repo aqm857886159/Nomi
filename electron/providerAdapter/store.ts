@@ -12,11 +12,12 @@ import type {
   AdapterModeResult,
   ProviderAdapterRevision,
   ProviderAdapterRun,
+  ProviderAdapterRunInput,
   ProviderAdapterStoreState,
 } from "./types";
 import type { PromotionTerminalStage } from "../integrationCertification/types";
 
-const EMPTY_STATE: ProviderAdapterStoreState = { version: 1, revision: 0, runs: [], revisions: [] };
+const EMPTY_STATE: ProviderAdapterStoreState = { version: 1, revision: 0, runs: [], revisions: [], inputs: [] };
 export const TERMINAL_ADAPTER_STAGES = new Set<ProviderAdapterRun["stage"]>([
   "completed",
   "partial",
@@ -118,6 +119,9 @@ function loadState(filePath: string): ProviderAdapterStoreState {
       revision: Number.isSafeInteger(parsed.revision) && Number(parsed.revision) >= 0 ? Number(parsed.revision) : 0,
       runs: (parsed.runs as ProviderAdapterRun[]).map(sanitizeRun),
       revisions: parsed.revisions as ProviderAdapterRevision[],
+      // 边表是后加的（同一个 version 1，纯增量）：旧文件没有它就是空表，
+      // 老版本读新文件也只是多一个它不认识的键，两个方向都不需要迁移。
+      inputs: Array.isArray(parsed.inputs) ? (parsed.inputs as ProviderAdapterRunInput[]) : [],
     };
   } catch {
     return clone(EMPTY_STATE);
@@ -193,6 +197,21 @@ export class ProviderAdapterStore {
     });
   }
 
+  /** 外部输入（用户交的文档 / 外部编译的说明卡）随 run 一起落盘，供重启后的 resume 复用。 */
+  setRunInput(input: ProviderAdapterRunInput): ProviderAdapterRunInput {
+    const next = clone(input);
+    return this.mutate((fresh) => {
+      const inputs = [...(fresh.inputs || [])].filter((item) => item.runId !== input.runId);
+      inputs.push(next);
+      return { state: { ...fresh, inputs }, result: next };
+    });
+  }
+
+  getRunInput(runId: string): ProviderAdapterRunInput | undefined {
+    const found = (this.refresh().inputs || []).find((item) => item.runId === runId);
+    return found ? clone(found) : undefined;
+  }
+
   upsertRevision(revision: ProviderAdapterRevision): ProviderAdapterRevision {
     return this.mutate((fresh) => {
       const revisions = [...fresh.revisions];
@@ -218,14 +237,20 @@ export class ProviderAdapterStore {
   /** Remove durable verification projections when their catalog connection is gone. */
   deleteRunsForVendors(vendorKeys: ReadonlySet<string>): void {
     if (vendorKeys.size === 0) return;
-    this.mutate((fresh) => ({
-      state: {
-        ...fresh,
-        runs: fresh.runs.filter((run) => !vendorKeys.has(run.vendorKey)),
-        revisions: fresh.revisions.filter((revision) => !vendorKeys.has(revision.vendorKey)),
-      },
-      result: undefined,
-    }));
+    this.mutate((fresh) => {
+      const runs = fresh.runs.filter((run) => !vendorKeys.has(run.vendorKey));
+      const keptRunIds = new Set(runs.map((run) => run.id));
+      return {
+        state: {
+          ...fresh,
+          runs,
+          revisions: fresh.revisions.filter((revision) => !vendorKeys.has(revision.vendorKey)),
+          // 输入随它服务的 run 一起消失；留下孤儿输入等于把用户交的文档永久留在盘上。
+          inputs: (fresh.inputs || []).filter((input) => keptRunIds.has(input.runId)),
+        },
+        result: undefined,
+      };
+    });
   }
 
   finalizePromotion(input: {
@@ -283,7 +308,7 @@ export class ProviderAdapterStore {
       const mutation = update(clone(fresh));
       this.lock.assertOwned(lease);
       if (loadState(this.filePath).revision !== fresh.revision) throw new Error("Provider adapter store revision conflict");
-      const next = { ...mutation.state, version: 1 as const, revision: fresh.revision + 1 };
+      const next = { ...mutation.state, version: 1 as const, revision: fresh.revision + 1, inputs: mutation.state.inputs || [] };
       writeJsonFileAtomic(this.filePath, next);
       this.state = clone(next);
       return clone(mutation.result);
