@@ -18,7 +18,7 @@
  */
 import type { WorkbenchProjectRecordV1 } from './projectRecordSchema'
 import type { GenerationCanvasNode } from '../generationCanvas/model/generationCanvasTypes'
-import { migrateReferenceImageUrlsToEdges } from '../generationCanvas/model/referenceImageUrlsToEdges'
+import { hasMigratableReferenceImageUrls, migrateReferenceImageUrlsToEdges } from '../generationCanvas/model/referenceImageUrlsToEdges'
 import {
   BUILTIN_CATEGORIES,
   type NodeRenderKind,
@@ -65,6 +65,9 @@ function recordNeedsV51ToV60Migration(nodes: readonly GenerationCanvasNode[]): b
     if (node.categoryId === 'shots' && typeof node.shotIndex !== 'number') return true
     if (node.derivedFrom && !node.regeneratedFrom) derivedFromCandidates.push(node)
   }
+  // 步骤 4 的目标数据：数组参考 meta.referenceImageUrls → 边。旧闸漏查它，导致
+  // 「其余字段干净、只剩数组参考」的记录被误判 alreadyMigrated、永不收敛成边。
+  if (hasMigratableReferenceImageUrls(nodes)) return true
   if (!derivedFromCandidates.length) return false
 
   const categoryById = new Map<string, string | undefined>()
