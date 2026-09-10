@@ -5,6 +5,7 @@ import { normalizeShotTableMeta, readShotTable } from '../../../../electron/shar
 import { isGenerationNodeKind } from '../model/generationNodeKinds'
 import { normalizeParameterEdges } from '../model/parameterReferenceSlots'
 import { nodeGroupSchema } from '../model/generationCanvasSchema'
+import { isLegacyScene3DNode, migrateScene3DNode } from '../nodes/director/migration/migrateScene3dNode'
 import { backfillGroupFrameBounds } from '../model/canvasFrameBounds'
 import { resolveNodeVisualSize } from '../nodes/nodeSizing'
 import { isCategoryId } from './canvasGuards'
@@ -50,7 +51,13 @@ export function normalizeStoreSnapshot(input: unknown): GenerationCanvasSnapshot
   const nodes = Array.isArray(raw.nodes)
     ? raw.nodes.flatMap((item): GenerationCanvasNode[] => {
         if (!item || typeof item !== 'object') return []
-        const node = item as Record<string, unknown>
+        const rawNode = item as Record<string, unknown>
+        // 切换门（2026-09-03）：老 scene3d 节点在加载时迁成 director（kind + meta.directorProject），之后与普通 director 节点无异
+        const node = (() => {
+          if (!isLegacyScene3DNode(rawNode)) return rawNode
+          const migrated = migrateScene3DNode(rawNode, typeof rawNode.title === 'string' && rawNode.title ? rawNode.title : 'Scene 1')
+          return { ...rawNode, kind: migrated.kind, meta: migrated.meta }
+        })()
         const id = typeof node.id === 'string' ? node.id.trim() : ''
         const kind = isGenerationNodeKind(node.kind) ? node.kind : null
         const positionRaw = node.position && typeof node.position === 'object' ? node.position as Record<string, unknown> : {}

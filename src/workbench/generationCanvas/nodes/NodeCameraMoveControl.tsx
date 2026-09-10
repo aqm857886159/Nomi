@@ -28,8 +28,8 @@ import {
   type CameraMove,
   type CameraSpeed,
   type StagingShot,
-} from './scene3d/cameraMoveVocab'
-import { createCameraMoveReferenceNode } from './scene3d/cameraMoveReferenceNode'
+} from './director/agent/cameraMoveVocab'
+import { createCameraMoveReferenceNode } from './director/agent/createCameraMoveReferenceNode'
 
 // 手动运镜控件（B1）：视频镜头 composer 底栏的一枚「运镜」芯片 + 弹层，是 AI 工具 create_camera_move
 // 的**第二道门**——不搭 3D 场景，选个精确运镜 + 速度 + 景别，一键建灰模运镜小片自动接入本镜的
@@ -158,7 +158,7 @@ export default function NodeCameraMoveControl({ node }: { node: GenerationCanvas
     event.stopPropagation()
     // 落上次选择到本节点 meta（芯片回显 + 下次打开的初值），再建灰模运镜片自动接入本镜 video_ref。
     updateNode(node.id, { meta: { ...getLatestMeta(), cameraMovePick: { ...draft } } })
-    // 与 AI 工具 create_camera_move 共用同一核心：建 scene3d 节点 + cameraMoveAutoCapture 标志，
+    // 与 AI 工具 create_camera_move 共用同一核心：建 director 节点 + cameraMoveAutoCapture 标志，
     // 常驻 CameraMoveCaptureHost 离屏出 mp4 并喂给本视频节点作 video_ref（P1/P4，不另起接缝）。
     createCameraMoveReferenceNode({
       spec: { move: draft.move, speed: draft.speed, shot: draft.shot },

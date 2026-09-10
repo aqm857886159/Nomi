@@ -42,7 +42,7 @@ describe("resolveNodeRenderKind — 渲染分发优先级（kind > categoryId）
 describe("nodeHasGenerationComposer", () => {
   // 「承载型」节点拿的是已有的文件、或者正文本身就是功能（画板/3D/全景）——
   // 对它们弹「描述你要生成的画面」是在问一个它答不了的问题。
-  it.each(["panorama", "scene3d", "whiteboard", "asset", "agent-artifact"])("%s 不挂生成 composer", (kind) => {
+  it.each(["panorama", "director", "whiteboard", "asset", "agent-artifact"])("%s 不挂生成 composer", (kind) => {
     expect(nodeHasGenerationComposer(kind)).toBe(false);
   });
 

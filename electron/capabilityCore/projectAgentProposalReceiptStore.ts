@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { writeJsonFileAtomic } from "../jsonFile";
-import { fsyncIfDurable } from "../durability";
+import { fsyncDirectoryIfDurable } from "../durability";
 import type { ProjectBinding } from "../shared/projectBinding";
 import {
   parseProjectAgentCommittedProposal,
@@ -64,15 +64,7 @@ function receiptPath(projectRoot: string): string {
 }
 
 function fsyncReceiptDirectory(projectRoot: string): void {
-  if (process.platform === "win32") return;
-  const directory = path.dirname(receiptPath(projectRoot));
-  let fd: number | undefined;
-  try {
-    fd = fs.openSync(directory, fs.constants.O_RDONLY);
-    fsyncIfDurable(fd);
-  } finally {
-    if (fd !== undefined) fs.closeSync(fd);
-  }
+  fsyncDirectoryIfDurable(path.dirname(receiptPath(projectRoot)));
 }
 
 function stableJson(value: unknown): string {

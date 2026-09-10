@@ -61,3 +61,33 @@ export function isDurable(): boolean {
 export function fsyncIfDurable(fd: number): void {
   if (mode === "durable") fs.fsyncSync(fd);
 }
+
+// 有些文件系统 / 平台对「目录 fd」根本不提供 fsync（Windows FlushFileBuffers 对目录句柄一律 EPERM；
+// 部分网络盘 EINVAL / ENOTSUP）。这些码表示「没有可等价的目录屏障」，不是数据出了问题——
+// 文件本身早已单独 fsync 过，目录项落盘交给文件系统日志。其它错误照抛。
+const DIRECTORY_FSYNC_UNSUPPORTED = new Set(["EPERM", "EACCES", "EINVAL", "ENOTSUP", "EISDIR", "EBADF"]);
+
+/**
+ * 目录屏障（rename / 新建文件之后让目录项落盘）——全仓唯一实现。
+ *
+ * 2026-09-03 之前这段逻辑在 6 个模块里各抄一份，其中两份（projectAgentRepository / cutoverManifest）
+ * 只兜了 openSync 的错没兜 fsyncSync 的错：Windows 上 openSync 目录能成功、fsyncSync 才抛 EPERM，
+ * 于是新建 / 打开任何项目都在主进程炸成 project_agent_unavailable。收口到这里，平台差异只处理一次。
+ */
+export function fsyncDirectoryIfDurable(directoryPath: string): void {
+  if (mode !== "durable") return; // 目录 fd 存在的唯一目的就是被 fsync —— ephemeral 下连 open 都省掉
+  let fd: number;
+  try {
+    fd = fs.openSync(directoryPath, "r");
+  } catch (error) {
+    if (DIRECTORY_FSYNC_UNSUPPORTED.has(String((error as NodeJS.ErrnoException).code))) return;
+    throw error;
+  }
+  try {
+    fs.fsyncSync(fd);
+  } catch (error) {
+    if (!DIRECTORY_FSYNC_UNSUPPORTED.has(String((error as NodeJS.ErrnoException).code))) throw error;
+  } finally {
+    fs.closeSync(fd);
+  }
+}

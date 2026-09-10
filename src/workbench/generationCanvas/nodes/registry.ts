@@ -25,7 +25,7 @@ export type GenerationNodeIconKey =
   | 'shot'
   | 'output'
   | 'panorama'
-  | 'scene3d'
+  | 'director'
   | 'model3d'
   | 'whiteboard'
   | 'audio'
@@ -225,18 +225,20 @@ export const GENERATION_NODE_PLUGINS = defineGenerationNodePlugins([
     promptPlaceholder: 'Add a panorama reference...',
   },
   {
-    kind: 'scene3d',
-    label: '3D Scene',
-    menuLabel: '3D Scene',
-    component: loadBaseGenerationNode,
-    icon: 'scene3d',
-    defaultTitle: '3D Scene',
+    // 导演台（docs/plan/2026-09-02-director-console-v2.md）：Nomi 唯一的 3D 节点；老 scene3d 节点在快照加载时迁成它（director/migration）。
+    // AI 来导（站位 / 运镜参考）走 director/agent 的建节点入口，不经 agentCreatable 泛用建节点。
+    kind: 'director',
+    label: 'Director',
+    menuLabel: 'Director',
+    component: () => import('./director/DirectorNode'),
+    icon: 'director',
+    defaultTitle: 'Director',
     defaultSize: { width: 480, height: 320 },
     catalogKind: 'text',
     quickAdd: true,
     agentCreatable: false,
     providesImageReference: true,
-    promptPlaceholder: 'Arrange a 3D scene...',
+    promptPlaceholder: 'Block, move the camera and render in the 3D director...',
   },
   {
     kind: 'whiteboard',

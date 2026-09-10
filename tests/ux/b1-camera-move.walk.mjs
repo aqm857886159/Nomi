@@ -5,7 +5,7 @@
 //   ① 选中视频节点 → composer 底栏出现「运镜 · 推近 中」芯片
 //   ② 点芯片 → 弹层：标题「运镜」+「不用搭 3D 场景」+ 10 运镜网格 + 速度 + 景别 + 读出 + 应用
 //   ③ 改运镜/速度 → 读出与芯片实时更新
-//   ④ 点「应用」→ 画布出现「运镜参考」scene3d 节点、无 console error
+//   ④ 点「应用」→ 画布出现「运镜参考」director 节点、无 console error
 //   ⑤ 选中图片节点 → composer 无「运镜」芯片（video-only 门）
 import { launchNomiApp } from './_launchApp.mjs'
 import fs from 'node:fs'
