@@ -25,7 +25,7 @@ import { storyboardPlanToCreateNodesArgs } from '../generationCanvas/agent/story
 import { parseStoryboardPlan } from '../generationCanvas/agent/storyboardPlanSchema'
 import { resolveStoryboardImageDefault, resolveStoryboardVideoDefault } from '../generationCanvas/agent/availableModels'
 import { applyCanvasToolCall, resolveCanvasToolNodeId } from '../generationCanvas/agent/applyCanvasToolCall'
-import { generationCanvasTools, readGenerationCanvasSnapshot } from '../generationCanvas/agent/generationCanvasTools'
+import { readGenerationCanvasSnapshot } from '../generationCanvas/agent/generationCanvasTools'
 import { captureCanvasReadResult } from '../generationCanvas/agent/canvasReadResultSeal'
 import {
   captureCurrentProjectCanvasReadSurfaceBinding,
@@ -619,38 +619,13 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
         ...(videoDefault.modeId ? { defaultVideoModeId: videoDefault.modeId } : {}),
         ...(materializationOperationId ? { materializationOperationId } : {}),
       })
-      // If the process dies after the canvas store commits but before the main
-      // process attaches the Production contract, the next attempt reuses the
-      // operation-stamped nodes instead of creating a second storyboard.
-      const existingByClientId = new Map<string, string>()
-      if (materializationOperationId) {
-        for (const node of useGenerationCanvasStore.getState().nodes) {
-          const meta = node.meta as Record<string, unknown> | undefined
-          if (meta?.materializationOperationId !== materializationOperationId) continue
-          const clientId = typeof meta.materializationClientId === 'string' ? meta.materializationClientId.trim() : ''
-          if (clientId) existingByClientId.set(clientId, node.id)
-        }
-      }
-      const hasExistingOperationNodes = existingByClientId.size > 0
-      const missingNodes = hasExistingOperationNodes
-        ? args.nodes.filter((node) => !existingByClientId.has(node.clientId))
-        : args.nodes
-      let applied: { createdNodeIds?: unknown; clientIdToNodeId?: unknown; connectedCount?: unknown }
-      if (!hasExistingOperationNodes) {
-        applied = (await applyCanvasToolCall('create_canvas_nodes', args)) as typeof applied
-      } else if (missingNodes.length > 0) {
-        const missingAnchorCount = missingNodes.reduce((count, node) => {
-          const plannedIndex = args.nodes.indexOf(node)
-          return count + (plannedIndex >= 0 && plannedIndex < args.anchorCount ? 1 : 0)
-        }, 0)
-        applied = (await applyCanvasToolCall('create_canvas_nodes', {
-          ...args,
-          nodes: missingNodes,
-          edges: [],
-          anchorCount: missingAnchorCount,
-        })) as typeof applied
-      } else {
-        applied = { createdNodeIds: [], clientIdToNodeId: {}, connectedCount: 0 }
+      // 幂等归写边界所有（applyCanvasToolCall 的 create_canvas_nodes 认物化章）：进程在画布已提交、
+      // Production 合同还没挂上时挂掉，下一次重放会复用带章的旧节点而不是再建一份分镜。
+      // 这里**不再手写第二份去重**（P1）——边也一并由写边界解析，不需要另调 connect_nodes。
+      const applied = (await applyCanvasToolCall('create_canvas_nodes', args)) as {
+        createdNodeIds?: unknown
+        clientIdToNodeId?: unknown
+        connectedCount?: unknown
       }
       const rawClientIdToNodeId =
         applied?.clientIdToNodeId &&
@@ -658,23 +633,12 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
         !Array.isArray(applied.clientIdToNodeId)
           ? (applied.clientIdToNodeId as Record<string, unknown>)
           : {}
-      const clientIdToNodeId: Record<string, string> = {
-        ...Object.fromEntries(existingByClientId.entries()),
-        ...Object.entries(rawClientIdToNodeId).reduce<Record<string, string>>((out, [clientId, nodeId]) => {
-          if (typeof nodeId === 'string' && nodeId.trim()) out[clientId] = nodeId
-          return out
-        }, {}),
-      }
-      const edgeResult =
-        args.edges.length > 0 && hasExistingOperationNodes
-          ? generationCanvasTools.connect_nodes(
-              args.edges.map((edge) => ({
-                source: clientIdToNodeId[edge.sourceClientId] || resolveCanvasToolNodeId(edge.sourceClientId),
-                target: clientIdToNodeId[edge.targetClientId] || resolveCanvasToolNodeId(edge.targetClientId),
-                ...(edge.mode ? { mode: edge.mode } : {}),
-              })),
-            )
-          : { connected: 0 }
+      const clientIdToNodeId: Record<string, string> = Object.entries(rawClientIdToNodeId).reduce<
+        Record<string, string>
+      >((out, [clientId, nodeId]) => {
+        if (typeof nodeId === 'string' && nodeId.trim()) out[clientId] = nodeId
+        return out
+      }, {})
       const nodeById = new Map(useGenerationCanvasStore.getState().nodes.map((node) => [node.id, node]))
       const bindings = args.nodes
         .map((created) => {
@@ -701,11 +665,7 @@ export async function handleCapabilityApply(op: string, payload: unknown): Promi
         createdNodeIds: args.nodes
           .map((created) => clientIdToNodeId[created.clientId])
           .filter((value): value is string => typeof value === 'string' && Boolean(value.trim())),
-        connectedCount: hasExistingOperationNodes
-          ? edgeResult.connected
-          : typeof applied?.connectedCount === 'number'
-            ? applied.connectedCount
-            : 0,
+        connectedCount: typeof applied?.connectedCount === 'number' ? applied.connectedCount : 0,
         bindings,
       }
     }

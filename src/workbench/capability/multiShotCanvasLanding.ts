@@ -13,10 +13,31 @@ import i18n from '../../i18n'
 import { useWorkbenchStore } from '../workbenchStore'
 import { useGenerationCanvasStore } from '../generationCanvas/store/generationCanvasStore'
 import { applyCanvasToolCall, resolveCanvasToolNodeId } from '../generationCanvas/agent/applyCanvasToolCall'
+import { listAvailableModelsForAgent } from '../generationCanvas/agent/availableModels'
+import { buildModelEntryIndex, buildPlannedNodeMeta } from '../generationCanvas/agent/plannedNodeMeta'
+import {
+  materializedNodeIdsByClientId,
+  sanitizeMaterializationOperationId,
+} from '../generationCanvas/agent/materializationStamp'
+import { CANDIDATE_META_KEYS } from '../generationCanvas/agent/candidateNodeMeta'
 import { withCanvasGestureContext } from '../generationCanvas/events/canvasGestureContext'
 import { pushUndoSnapshot } from '../generationCanvas/events/canvasUndoJournal'
 import { interruptPendingCanvasWrite } from '../generationCanvas/events/canvasWriteBoundary'
 import { CATEGORY_IDS, type BuiltinCanvasCategoryId, type GenerationNodeKind, type GenerationNodeResult } from '../generationCanvas/model/generationCanvasTypes'
+
+/**
+ * 这一镜候选的模型身份（主进程 MaterializeShotCandidateWire 的渲染半）。
+ * **它在则节点模型以它为准**——渲染层不再另挑默认模型（那是「agent 说的模型 ≠ 节点上的模型」的直接原因）。
+ */
+export type MaterializeShotCandidate = {
+  candidateId: string
+  /** PlanCandidate.revision：只有它比节点上记着的更新，才重绑定 prompt/模型。 */
+  revision: number
+  vendor?: string
+  modelKey?: string
+  modeId?: string
+  mode?: string
+}
 
 /** 一镜/一锚要落的占位节点（主进程从 Run 的 generationPlan.shots 投影而来）。clientId = shotId（稳定寻址）。 */
 export type MaterializeShotInput = {
@@ -26,6 +47,7 @@ export type MaterializeShotInput = {
   kind?: GenerationNodeKind
   title?: string
   prompt?: string
+  candidate?: MaterializeShotCandidate
   /** 已完成镜的结果（打开项目补齐时一并回填；确认即落时为空）。 */
   result?: GenerationNodeResult
 }
@@ -45,10 +67,72 @@ export type MaterializeShotsResult = {
   groupId: string | null
 }
 
-const OPERATION_ID_RE = /^[A-Za-z0-9._:-]{1,240}$/
+/** 候选身份写进节点入参（create_canvas_nodes 认 modelKey/vendor/modeId，由 buildPlannedNodeMeta 解析成 meta）。 */
+function candidateNodeArgs(candidate: MaterializeShotCandidate | undefined): Record<string, unknown> {
+  if (!candidate?.modelKey) return {}
+  return {
+    modelKey: candidate.modelKey,
+    ...(candidate.vendor ? { vendor: candidate.vendor } : {}),
+    ...(candidate.modeId ? { modeId: candidate.modeId } : {}),
+  }
+}
 
-function sanitizeOperationId(value: unknown): string | undefined {
-  return typeof value === 'string' && OPERATION_ID_RE.test(value) ? value : undefined
+/** 候选来源戳：节点从此**知道自己是谁的意图**（自愈 effect 据此不静默改写；重绑定据 revision 判断）。 */
+function candidateStamp(candidate: MaterializeShotCandidate | undefined): Record<string, unknown> {
+  if (!candidate) return {}
+  return {
+    [CANDIDATE_META_KEYS.candidateId]: candidate.candidateId,
+    [CANDIDATE_META_KEYS.candidateRevision]: candidate.revision,
+    ...(candidate.modelKey ? { [CANDIDATE_META_KEYS.candidateModelKey]: candidate.modelKey } : {}),
+    ...(candidate.vendor ? { [CANDIDATE_META_KEYS.candidateModelVendor]: candidate.vendor } : {}),
+  }
+}
+
+/** 节点上记着的候选 revision（没有 = 从没被候选绑定过，按「首次落地」处理）。 */
+function nodeCandidateRevision(meta: Record<string, unknown> | undefined): number | null {
+  const value = meta?.[CANDIDATE_META_KEYS.candidateRevision]
+  return typeof value === 'number' && Number.isFinite(value) ? value : null
+}
+
+/**
+ * 把新候选重绑定到**已经落在画布上**的节点：prompt、标题、模型身份、以及新的候选 revision 戳。
+ *
+ * 模型 meta 走 `buildPlannedNodeMeta`（全仓「计划模型 → 节点 meta」的唯一 owner），不在这里另写一套：
+ * 它负责按 `(vendor, modelKey)` 认身份、铺档案默认参数、丢掉非法值。候选的模型此刻不可用时它返回
+ * undefined —— 那就只更新 prompt 与戳，**不去猜一个别的模型**（戳仍记着 agent 要的是哪个，
+ * 由节点控件那边向用户明说）。
+ */
+async function rebindLandedShots(
+  shots: readonly MaterializeShotInput[],
+  nodeIdByShot: ReadonlyMap<string, string>,
+  inLandingTxn: <T>(fn: () => T) => T,
+): Promise<void> {
+  const needsModels = shots.some((shot) => Boolean(shot.candidate?.modelKey))
+  const entryByKey = buildModelEntryIndex(needsModels ? await listAvailableModelsForAgent() : [])
+  for (const shot of shots) {
+    const nodeId = nodeIdByShot.get(shot.shotId)
+    if (!nodeId) continue
+    const store = useGenerationCanvasStore.getState()
+    const node = store.nodes.find((candidate) => candidate.id === nodeId)
+    if (!node) continue
+    const currentMeta = (node.meta as Record<string, unknown> | undefined) ?? {}
+    const modelMeta = shot.candidate?.modelKey
+      ? buildPlannedNodeMeta(
+          {
+            modelKey: shot.candidate.modelKey,
+            ...(shot.candidate.vendor ? { vendor: shot.candidate.vendor } : {}),
+            ...(shot.candidate.modeId ? { modeId: shot.candidate.modeId } : {}),
+          },
+          entryByKey,
+        )
+      : undefined
+    const title = (shot.title || '').trim()
+    inLandingTxn(() => useGenerationCanvasStore.getState().updateNode(nodeId, {
+      ...(typeof shot.prompt === 'string' ? { prompt: shot.prompt } : {}),
+      ...(title ? { title } : {}),
+      meta: { ...currentMeta, ...(modelMeta ?? {}), ...candidateStamp(shot.candidate) },
+    }))
+  }
 }
 
 /**
@@ -57,30 +141,35 @@ function sanitizeOperationId(value: unknown): string | undefined {
  * 抛错 = 落地失败（调用方主进程 catch → 只记 warn，不阻断生成，§1 铁律）。
  */
 export async function materializeShots(payload: MaterializeShotsPayload): Promise<MaterializeShotsResult> {
-  const materializationOperationId = sanitizeOperationId(payload.materializationOperationId)
+  const materializationOperationId = sanitizeMaterializationOperationId(payload.materializationOperationId)
   const incoming = Array.isArray(payload.shots) ? payload.shots.filter((shot) => shot && typeof shot.shotId === 'string' && shot.shotId.trim()) : []
   if (!materializationOperationId || incoming.length === 0) return { bindings: [], createdNodeIds: [], groupId: null }
 
   interruptPendingCanvasWrite()
-  const store = useGenerationCanvasStore.getState()
-  // 已建的（本 op 章 + clientId）→ shotId → 节点 id。补齐时据此只补缺失、幂等回填 result。
-  const existingByShot = new Map<string, string>()
-  for (const node of store.nodes) {
-    const meta = node.meta as Record<string, unknown> | undefined
-    if (meta?.materializationOperationId !== materializationOperationId) continue
-    const clientId = typeof meta.materializationClientId === 'string' ? meta.materializationClientId.trim() : ''
-    if (clientId) existingByShot.set(clientId, node.id)
-  }
+  // 本 op 章已经落过的 shotId → 节点 id。**只用来决定撤销步与重绑定**：
+  // 「这次要不要真建节点」的判据不在这里，在写边界 applyCanvasToolCall（P1 一个 owner）。
+  const existingByShot = materializedNodeIdsByClientId(
+    useGenerationCanvasStore.getState().nodes,
+    materializationOperationId,
+  )
 
   // 分锚/镜：参考行（锚）在上、镜头折行网格（复用 storyboard 布局的 anchorCount 约定）。构造序=先锚后镜。
   const ordered = [...incoming].sort((a, b) => Number(a.role !== 'anchor') - Number(b.role !== 'anchor'))
   // 全部落进同一分类（分镜组），锚按 kind、镜落 shots。跨分类混编时以「镜头组」为主分类。
   const groupCategoryId: BuiltinCanvasCategoryId = 'shots'
 
-  // 只建缺失的节点（幂等）。已建的直接进 bindings（补齐时回填 result 见下）。
-  const missing = ordered.filter((shot) => !existingByShot.has(shot.shotId))
   const clientIdToNodeId: Record<string, string> = Object.fromEntries(existingByShot.entries())
   const createdNodeIds: string[] = []
+  const missing = ordered.filter((shot) => !existingByShot.has(shot.shotId))
+  // 已落的节点里，候选意图**变新了**的那些（generation.patch 之后）。revision 没变就一个字不动——
+  // 这条闸是「打开项目补齐」这类幂等重放不会覆盖用户手改的原因。
+  const rebindable = ordered.filter((shot) => {
+    const nodeId = existingByShot.get(shot.shotId)
+    if (!nodeId || !shot.candidate) return false
+    const node = useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === nodeId)
+    const stored = nodeCandidateRevision(node?.meta as Record<string, unknown> | undefined)
+    return stored === null || shot.candidate.revision > stored
+  })
 
   // 事务边界（proposalTxn 同款）：在 ctx 外**先打一个** barrier（不被抑制），整批 N 节点 + 边 + 组全部
   // 挂同一 txn 且 suppressUndoBarriers=true（它们各自的 pushUndoSnapshot 被抑制）→ 一次 Cmd+Z 撤整批。
@@ -88,11 +177,11 @@ export async function materializeShots(payload: MaterializeShotsPayload): Promis
   const txnId = `txn_materialize_shots_${materializationOperationId}`
   const ctx = { source: 'runtime' as const, txnId, suppressUndoBarriers: true }
   const inLandingTxn = <T,>(fn: () => T): T => withCanvasGestureContext(ctx, fn)
-  // 只在本次真会落东西时打 barrier（有缺失节点，或要新建分镜组）——纯回填/幂等空跑不该占一个撤销步。
+  // 只在本次真会落东西时打 barrier（有缺失节点 / 有要重绑定的 / 要新建分镜组）——纯回填/幂等空跑不该占一个撤销步。
   // 节点全落 groupCategoryId(shots) → ≥2 个就够建组（锚+镜同组，靠 referenceSheet 区分）。
   const groupExists = useGenerationCanvasStore.getState().groups.some((group) => group.materializationOperationId === materializationOperationId)
   const willCreateGroup = !groupExists && ordered.length >= 2
-  if (missing.length > 0 || willCreateGroup) pushUndoSnapshot()
+  if (missing.length > 0 || rebindable.length > 0 || willCreateGroup) pushUndoSnapshot()
 
   if (missing.length > 0) {
     const missingAnchorCount = missing.filter((shot) => shot.role === 'anchor').length
@@ -104,15 +193,18 @@ export async function materializeShots(payload: MaterializeShotsPayload): Promis
           kind,
           title: (shot.title || '').trim() || i18n.t('generationCommon.production.canvasLanding.shotFallbackTitle', { shot: shot.shotId }),
           prompt: typeof shot.prompt === 'string' ? shot.prompt : '',
+          // 候选的模型身份：节点模型以它为准（写边界 buildPlannedNodeMeta 负责校验+补全档案参数）。
+          ...candidateNodeArgs(shot.candidate),
           // categoryId 由 groupCategoryId 统一定（create_canvas_nodes 忽略 per-node categoryId，按 groupCategoryId/kind 定）。
           ...(shot.role === 'anchor' ? { referenceSheet: true as const } : {}),
-          // 幂等章 + 批次占位标记（三态占位组件据 productionRunId 找到对应 Run 的 job 派生态）。
+          // 幂等章 + 批次占位标记（三态占位组件据 productionRunId 找到对应 Run 的 job 派生态）+ 候选来源戳。
           metadata: {
             materializationOperationId,
             materializationClientId: shot.shotId,
             ...(payload.runId ? { productionRunId: payload.runId } : {}),
             productionShotId: shot.shotId,
             ...(shot.role ? { productionShotRole: shot.role } : {}),
+            ...candidateStamp(shot.candidate),
           },
         }
       }),
@@ -138,6 +230,10 @@ export async function materializeShots(payload: MaterializeShotsPayload): Promis
       }
     }
   }
+
+  // generation.patch 之后：把已落节点的 prompt / 模型同步到新候选。**草稿只有一个账本**——
+  // 候选是意图，节点是它的投影，改了意图就该在用户眼前变，而不是等下次重开项目。
+  if (rebindable.length > 0) await rebindLandedShots(rebindable, existingByShot, inLandingTxn)
 
   // 编组（幂等章）：先按 op 章找已建的分镜组复用；没有才建。名字即时命名「分镜组·<计划名>」。
   const allNodeIds = ordered.map((shot) => clientIdToNodeId[shot.shotId]).filter((id): id is string => Boolean(id))
