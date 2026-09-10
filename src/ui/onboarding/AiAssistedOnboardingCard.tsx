@@ -148,21 +148,23 @@ export function AiAssistedOnboardingCard({
 
           {/* 「一键接入 MCP」已经有家（自动化与权限），这里只报状态 + 指路，不放第二颗按钮。 */}
           {configured === false ? (
-            <button
-              type="button"
-              data-assisted-onboarding-connect
-              onClick={onOpenAssistantConnections}
-              className="inline-flex h-8 w-full items-center gap-2 rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2.5 text-left text-caption text-nomi-ink-60 hover:border-nomi-ink-20 hover:text-nomi-ink"
-            >
+            /* 那句「还没接入」是**状态**不是标签：能点的只有「去接入」三个字（§1.8 规则 1，
+               整行可点会把一句话当成按钮文案，也让这一屏出现第二颗看起来像主动作的东西）。
+               动作词紧跟在状态后面，不推到右缘（2026-09-09 用户拍板的通用行规则）。 */
+            <div className="inline-flex max-w-full items-center gap-2 text-caption text-nomi-ink-60">
               <span className="min-w-0 truncate">
                 {t('onboardingProviders.assistedOnboarding.connection.missing', { host: hostLabel })}
               </span>
-              {/* 「去连接」紧跟在那句话后面，不推到右缘（2026-09-09 用户拍板的通用行规则）。 */}
-              <span className="inline-flex shrink-0 items-center gap-1 text-nomi-accent">
+              <button
+                type="button"
+                data-assisted-onboarding-connect
+                onClick={onOpenAssistantConnections}
+                className="inline-flex shrink-0 items-center gap-1 text-nomi-accent hover:underline"
+              >
                 {t('onboardingProviders.assistedOnboarding.connection.action')}
                 <IconExternalLink size={13} stroke={1.6} aria-hidden="true" />
-              </span>
-            </button>
+              </button>
+            </div>
           ) : configured === true ? (
             <div className="inline-flex items-center gap-1.5 text-micro text-nomi-ink-60">
               <IconCheck size={13} stroke={1.8} className="text-workbench-success-ink" aria-hidden="true" />
