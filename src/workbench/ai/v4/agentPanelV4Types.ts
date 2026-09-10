@@ -141,6 +141,34 @@ export type InterventionData = Readonly<{
   options?: readonly string[]
   selectedOption?: number
   plan?: readonly PlanRow[]
+  /**
+   * 付费卡的**价格行**（形态 9 · B-02「逐项单价 + 合计」）。
+   *
+   * 为什么它是一个字段而不是几个散字段：这一行说的是**同一件事**——「这次要花多少、怎么算出来的」。
+   * 拆成 breakdown/total/unavailable 三个平级可选字段，第一个把 total 填了却忘了 breakdown 的人
+   * 就会渲出一个没有来路的数字，而那正是付费卡最不该有的东西。
+   *
+   * `total` 缺 = **这次算不出价格**（中转/自建端点没有价目是常态）。那时渲的是 `unavailable` 那句话，
+   * 绝不落成 `¥0`——印 0 等于对用户说「这次免费」，是三种可能里唯一错得离谱的那一种。
+   *
+   * 2026-09-10 用户拍板：参数在卡上可改，所以这一行必须**随参数原地刷新**。数只有一个产地
+   * （报价），这里只负责印。
+   */
+  price?: Readonly<{
+    /** 怎么算出来的（「4 段 × 3s · 标准画质 · ¥0.10/秒」）。 */
+    breakdown: string
+    /** 合计的标签（「合计」）。它必须有地方放：合计紧跟算式时，两个 ¥ 数字挨着会读不出谁是谁
+     *  （现役 P0 件 11 的病灶就是这个标签无处安放，见 09-06 不一致清单 B5）。 */
+    totalLabel?: string
+    /** 合计。缺 = 算不出。 */
+    total?: string
+    /** 算不出时印的那句话（现役是「暂时算不出价格」）。 */
+    unavailable?: string
+    /** 批量时逐项摊开的那几行。空 = 不出这个折叠口。 */
+    perItem?: readonly Readonly<{ label: string; amount: string }>[]
+    /** 折叠口那句话（「逐镜 4」）。 */
+    perItemLabel?: string
+  }>
   /** 「不要」之后渐进披露的拒绝原因输入。 */
   reasonPlaceholder?: string
   confirmLabel?: string

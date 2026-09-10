@@ -9,6 +9,7 @@ import { V4_FLOW_STATES } from './states/03-flow'
 import { V4_WIRED_STATES } from './states/04-wired'
 import { V4_EMPTY_STATES } from './states/05-empty'
 import { V4_FORM_STATES } from './states/06-b2c-form'
+import { V4_SPEND_PARAMS_STATES } from './states/07-spend-params'
 import type { LabState } from '../labScreen'
 
 export const AGENT_PANEL_V4_STATES: readonly LabState[] = [
@@ -18,6 +19,7 @@ export const AGENT_PANEL_V4_STATES: readonly LabState[] = [
   ...V4_WIRED_STATES,
   ...V4_EMPTY_STATES,
   ...V4_FORM_STATES,
+  ...V4_SPEND_PARAMS_STATES,
 ]
 
 export { V4_CELL_HEIGHT, V4_PANEL_WIDTH } from './agentPanelV4LabKit'

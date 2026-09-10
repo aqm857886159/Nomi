@@ -170,8 +170,55 @@ function SlotIcon({ kind }: { kind: V4InterventionKind }): JSX.Element {
   return <ActionIcon action={SLOT_ACTION[kind]} size={13} />
 }
 
+/**
+ * ⑤ 介入槽的**价格行**（形态 9 · B-02）。
+ *
+ * 一行两端：左边说「怎么算出来的」，右边是加粗合计。合计缺席时右边印的是那句
+ * 「暂时算不出价格」——不是 `¥0`。三种可能（免费 / 算不出 / 真的零元）里，
+ * 印 0 恰好是唯一会让用户误以为「这次不花钱」的那一种。
+ */
+function V4PriceRow({ price }: { price: NonNullable<InterventionData['price']> }): JSX.Element {
+  const known = Boolean(price.total)
+  return (
+    <div className="flex flex-col gap-1" data-v4-block="price">
+      {/* 合计**紧跟**算式，不用 flex-1 把它推到右缘（2026-09-09 用户拍板：行尾附属信息紧跟内容）。
+          推到右缘的代价不是好不好看：算式和它的结果之间会横着一大片空白，
+          读的人得把视线甩过去才知道那个数是这一行算出来的。 */}
+      <V4Row as="div" className="text-caption text-nomi-ink-60">
+        <span className="min-w-0 truncate">{price.breakdown}</span>
+        {known && price.totalLabel ? (
+          <span className="shrink-0 text-micro text-nomi-ink-40">{price.totalLabel}</span>
+        ) : null}
+        <span
+          className={cn('shrink-0 tabular-nums', known ? 'font-semibold text-nomi-ink' : 'text-nomi-warning')}
+          data-v4-price={known ? 'total' : 'unavailable'}
+        >
+          {price.total ?? price.unavailable}
+        </span>
+      </V4Row>
+      {price.perItem?.length ? (
+        <details className="group" data-v4-block="price-per-item">
+          <summary className="flex cursor-pointer list-none items-center gap-1 text-micro text-nomi-ink-40">
+            <IconChevronRight size={12} className="group-open:rotate-90" aria-hidden="true" />
+            {price.perItemLabel}
+          </summary>
+          <div className="mt-1 flex flex-col gap-0.5">
+            {price.perItem.map((item) => (
+              <V4Row as="div" key={item.label} className="text-micro text-nomi-ink-60">
+                <span className="min-w-0 truncate">{item.label}</span>
+                <span className="shrink-0 tabular-nums">{item.amount}</span>
+              </V4Row>
+            ))}
+          </div>
+        </details>
+      ) : null}
+    </div>
+  )
+}
+
 export function V4Intervention({
   data,
+  parameterBar,
   labels,
   onConfirm,
   onReject,
@@ -182,6 +229,16 @@ export function V4Intervention({
   onCollapsePlan,
 }: {
   data: InterventionData
+  /**
+   * 参数条。给了就**替掉** `data.params` 那排只读 chip——同一张卡上不许既摆一排不能点的 chip、
+   * 又摆一条能点的参数条（那是同一件事的两个说法）。
+   *
+   * 2026-09-10 用户拍板：付费卡上的参数要和**图片节点/视频节点底下那条参数条一模一样**
+   * ——点模型下拉着选、点摘要 pill 弹出同一个参数面板逐项选。所以这里收的是一个 ReactNode，
+   * 由调用方把节点那条 `InlineParameterBar` 直接放进来；槽里**不重画**一份长得像的
+   * （重画一份就是并行版，P1）。
+   */
+  parameterBar?: React.ReactNode
   labels: { confirm: string; reject: string; escalate: string; cancel: string; confirmReject: string; collapsePlan: string }
   /** 确认。计划槽传的是当前勾选集，其余档传 `undefined`。 */
   onConfirm?: () => void
@@ -223,7 +280,7 @@ export function V4Intervention({
       </V4Row>
       <div className="flex flex-col gap-1.5 px-2.5 py-2 text-caption text-nomi-ink">
         {data.summary ? <AgentPanelV4Markdown text={data.summary} /> : null}
-        {data.params?.length ? (
+        {parameterBar ?? (data.params?.length ? (
           <div className="flex flex-wrap gap-1">
             {data.params.map((param) => (
               <span
@@ -234,7 +291,8 @@ export function V4Intervention({
               </span>
             ))}
           </div>
-        ) : null}
+        ) : null)}
+        {data.price ? <V4PriceRow price={data.price} /> : null}
         {data.options?.length ? (
           <V4OptionChips options={data.options} selectedOption={data.selectedOption} onSelect={onOption} />
         ) : null}

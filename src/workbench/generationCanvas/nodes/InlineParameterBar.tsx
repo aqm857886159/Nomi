@@ -71,6 +71,23 @@ type InlineParameterBarProps = {
   /** Width of the summary trigger in CSS pixels. The resident contract uses
    * the wider 150px dialog pill; the canvas remains 110px. */
   summaryWidth?: number
+  /**
+   * 模型芯片上的极小徽标（`NomiSelect` 的 `triggerBadge`）。
+   *
+   * 立项处：Agent 的付费确认卡（2026-09-10 用户拍板）——那张卡上的模型是 **Nomi 自己挑的**，
+   * 用户有权知道「这一项不是我选的」。标记必须长在**那颗芯片上**，不是卡上另起一行小字：
+   * 另起一行的话，用户改了模型之后那行字还在，就变成一句假话。
+   * 画布节点不传它（那儿的模型一直是用户自己选的），所以默认没有。
+   */
+  modelBadge?: { text: string; tone?: 'accent' | 'danger' }
+  /**
+   * 身份行两个下拉的浮层落点。
+   *
+   * 画布上不传 = Mantine 默认 portal 到 body（下拉要能盖出节点卡外面）。对话流里的卡不一样：
+   * 卡随转录滚动，portal 到 body 的下拉会**脱离卡**留在原地。传一个卡内的容器 ref，
+   * 下拉就跟着卡走——和 `panelMode="inline"` 是同一条理由。
+   */
+  portalTarget?: React.RefObject<HTMLElement | null>
   /** Optional generation-mode group shown at the top of the shared panel. */
   modeChoices?: readonly { id: string; label: string }[]
   activeModeId?: string
@@ -176,6 +193,8 @@ export default function InlineParameterBar({
   layout = 'inline',
   panelMode = 'portal',
   summaryWidth,
+  modelBadge,
+  portalTarget,
   modeChoices,
   activeModeId = '',
   modeLabel,
@@ -528,6 +547,8 @@ export default function InlineParameterBar({
         options={modelSelect.modelOptions}
         onChange={modelSelect.onModelPick}
         onChipChange={modelSelect.onModelProviderPick}
+        {...(modelBadge ? { triggerBadge: modelBadge } : {})}
+        {...(portalTarget ? { portalTarget } : {})}
       />
       {/* 变体（型号）小下拉：紧跟模型芯片（身份级，恒内联）。有变体的模型才显示。 */}
       {catalogVariants || visibleVariants.length > 1 ? (
@@ -538,6 +559,7 @@ export default function InlineParameterBar({
           options={visibleVariants}
           disabled={visibleVariants.length < 2}
           onChange={catalogVariants ? modelSelect.onVariantPick : (v) => onVariantSelect?.(v)}
+          {...(portalTarget ? { portalTarget } : {})}
         />
       ) : null}
     </div>
