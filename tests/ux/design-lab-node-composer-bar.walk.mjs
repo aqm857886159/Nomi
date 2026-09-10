@@ -4,7 +4,8 @@
 // 和**这一屏独有的那几条承诺**——底栏改造的全部主张都是「有没有 / 在不在 / 换没换行 / 谁在谁前面」，
 // 光截图看不出「它是不是真的没换行」，所以逐条写成断言（assertState 里点不到/数不对就红）。
 //
-// 2026-09-11 起每一格都是**现役 composer 本体**（v1.1 已接线），所以这些断言同时是生产回归：
+// 2026-09-11 起每一格都是**现役 composer 本体**（v1.1 与同日 02:10 拍板的 B 都已接线），
+// 所以这些断言同时是生产回归：
 // 底栏被后来的改动挤成两行、段序漂了、锁又跑回浮框里，这里当场红。
 //
 // 产出：`tests/ux/shots/design-lab-node-composer-bar/<state>.png` + `_contact-sheet.png`（拍板用）。
@@ -133,13 +134,17 @@ await walkDesignLabScreen({
       )
       await expectAbsent(dots, { provenBy: clusterProof, message: `${state.id} 运镜未选不该有激活点` })
     }
-    // 参数 chip 只报两个值：摘要由档案 derive（比例 + 时长 / 比例 + 清晰度），形状必须是 `A · B`。
-    const headline = await page.getAttribute(
-      '.generation-canvas-v2-node__composer-card [data-parameter-summary]',
-      'data-parameter-summary',
-    ).catch(() => null)
-    if (!headline || headline.split(' · ').filter(Boolean).length !== 2) {
-      record(`${state.id} 参数 chip 摘要应恰好两个值，实际「${headline}」`)
-    }
+    // 主参数各自一颗下拉 chip（2026-09-11 02:10 方案 B）：**每颗都是可点的下拉**，
+    // 上面印的是从档案 derive 的当前值。这两句话缺一不可——只有值没有下拉，就退回了「看得见够不着」。
+    const chips = await page.evaluate(() => [...document.querySelectorAll(
+      '.generation-canvas-v2-node__composer-card [data-parameter-chip]',
+    )].map((element) => ({
+      key: element.getAttribute('data-parameter-chip'),
+      value: element.getAttribute('data-parameter-chip-value'),
+      trigger: Boolean(element.querySelector('button')),
+    })))
+    if (!chips.length) record(`${state.id} 底栏一颗主参数 chip 都没有（档案 derive 断了？）`)
+    const brokenChip = chips.find((chip) => !chip.trigger || !chip.value)
+    if (brokenChip) record(`${state.id} chip「${brokenChip.key}」不是可点的下拉或没有当前值（${JSON.stringify(brokenChip)}）`)
   },
 })

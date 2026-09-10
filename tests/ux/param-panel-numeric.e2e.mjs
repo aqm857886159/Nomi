@@ -43,9 +43,9 @@ try {
   page.on('pageerror', (error) => pageErrors.push(error.message))
   await page.goto(`http://127.0.0.1:${address.port}${fixturePath}`)
 
-  // 打开参数面板（摘要 pill）。
-  const pill = page.locator('button[aria-expanded]').first()
-  await pill.click()
+  // 打开长尾参数面板（底栏那颗 ⚙）。这三个参数都不是主参数，全在它后面。
+  const moreButton = page.locator('[data-parameter-more="true"]').first()
+  await moreButton.click()
   await page.getByLabel('百万像素').waitFor({ state: 'visible', timeout: 15_000 })
   ok('参数面板打开，三个数字参数都渲染出来了')
 
@@ -91,9 +91,9 @@ try {
   ok('0–1 参数可以输入任意小数', '0.35')
 
   // ── ③ 反向对照：步长可用的区间仍然是滑杆（没把滑杆全砍）─────────────
-  const durationSlider = page.locator('[role="slider"]')
+  const rangeSlider = page.locator('[role="slider"]')
   assert.ok(
-    await durationSlider.count() > 0,
+    await rangeSlider.count() > 0,
     '声明了可用步长的区间参数仍应是滑杆——本次修的是「切不出两档时退回」，不是「全砍滑杆」',
   )
   ok('有可用步长的区间参数仍然是滑杆')
