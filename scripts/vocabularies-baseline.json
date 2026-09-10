@@ -1121,14 +1121,6 @@
       "reason": "**媒体加载失败原因**分类（不是状态），用于给用户不同的人话提示。"
     },
     {
-      "site": "src/workbench/generationCanvas/nodes/Scene3DEditor.tsx::function:readTakeCaptureStatus/type-union",
-      "members": [
-        "done",
-        "generating"
-      ],
-      "reason": "3D/全景交互的局部捕获或反馈结果（done / generating），仅属于该交互域。"
-    },
-    {
       "site": "electron/shared/canvas/shotTable.ts::variable:deconstructionShotTableSchema/property:source/property:status/z.enum",
       "members": [
         "failed",
@@ -1151,22 +1143,51 @@
       "reason": "**延迟媒体加载队列**态，loading/ready 是资源维度、timeout 是它独有的失败原因，与生成任务正交。"
     },
     {
-      "site": "src/workbench/generationCanvas/nodes/scene3d/cameraMoveCaptureRetry.ts::type:CameraMoveCaptureOutcome/type-union",
+      "site": "src/workbench/generationCanvas/nodes/director/scene/creation/useBoxDraw.ts::type:BoxDrawStep/type-union",
+      "members": [
+        "dragging_base",
+        "extruding_height",
+        "idle"
+      ],
+      "reason": "BoxDrawStep 是导演台 V2 视口内「画方块」创建手势的两段式状态机：idle 未开始、dragging_base 正在拖底面、extruding_height 松手后拉高等待确认。它描述的是一次指针手势的进度，不是实体或任务的生命周期，仓库里没有同语义的词表可复用。"
+    },
+    {
+      "site": "src/workbench/generationCanvas/nodes/director/useAiSceneBuilder.ts::type:AiScenePhase/type-union",
+      "members": [
+        "cancelled",
+        "done",
+        "error",
+        "idle",
+        "running"
+      ],
+      "reason": "AiScenePhase 是导演台 V2「AI 搭场景」浮条的一次搭建流程状态：idle 未开始、running 正在向文本大脑请求并物化、done 已落成、error 失败、cancelled 用户取消。它是浮条状态行的展示态，与 WorkbenchAiMessage.status（对话消息 pending/streaming 的传输态）语义不同：没有流式消息生命周期，只有「这一次搭建做完没有 / 为什么没做完」。"
+    },
+    {
+      "site": "electron/shared/contracts/directorMobileBridge.ts::type:MobileBridgeEvent/property:state/type-union",
+      "members": [
+        "connected",
+        "disconnected"
+      ],
+      "reason": "MobileBridgeEvent.state 是导演台 V2 手机虚拟相机局域网桥上「这一台手机」的在线态：connected 是 hello 握手成功，disconnected 是 WebSocket 关闭。它描述的是局域网设备会话，不是生成任务、审批 challenge 或画布节点选中态；渲染层 DesktopDirectorMobileEvent 从这份类型 derive，不另立词表。"
+    },
+    {
+      "site": "src/workbench/generationCanvas/nodes/director/scene/entities/CameraEntity.tsx::type:CameraVisualState/type-union",
+      "members": [
+        "active",
+        "idle",
+        "preview",
+        "selected"
+      ],
+      "reason": "CameraVisualState 是导演台 V2 场内机位模型的四态着色（idle/selected/active/preview 四色），由选中态、激活机位、预览机位三个 store 事实推导出的纯视觉枚举，只在 CameraEntity 内消费，与画布节点选中态或任务状态词表语义不同。"
+    },
+    {
+      "site": "src/workbench/generationCanvas/nodes/director/agent/cameraMoveCaptureRetry.ts::type:CameraMoveCaptureOutcome/type-union",
       "members": [
         "null",
         "ok",
         "timeout"
       ],
       "reason": "3D/全景交互的局部捕获或反馈结果（null / ok / timeout），仅属于该交互域。"
-    },
-    {
-      "site": "src/workbench/generationCanvas/nodes/scene3d/useScene3DFullscreenActions.ts::type:Scene3DExportCard/property:phase/type-union",
-      "members": [
-        "done",
-        "rendering",
-        "slow"
-      ],
-      "reason": "Scene3DExportCard.phase 是 3D 导出反馈卡的局部呈现阶段：rendering 正在捕获，slow 表示耗时提示，done 表示已产出并可下传；它不持久化为生成任务状态。"
     },
     {
       "site": "src/workbench/generationCanvas/runner/generationQueueStore.ts::type:QueueEntryState/type-union",
@@ -1291,6 +1312,15 @@
         "stale"
       ],
       "reason": "Storyboard design status is the persisted lifecycle of a draft-owned creative asset: draft is proposed, committed is placed on canvas, and stale needs synchronization after its source draft changes."
+    },
+    {
+      "site": "src/workbench/generationCanvas/nodes/director/scene/character/poseClipLibrary.ts::function:poseClipStatus/type-union",
+      "members": [
+        "loading",
+        "missing",
+        "ready"
+      ],
+      "reason": "poseClipStatus 是导演台姿态库（Mixamo FBX 单例缓存）的加载态：ready 已落地可采样、loading 拉取中、missing 库里没有该条目或加载失败；不是资产浏览器 NomiBrowserAsset.status（那里的 error 是网络资产失败，这里 missing 还含「本就不存在」），E2E 桥 poseClipStatus 的返回类型用 ReturnType derive，不另立词表。"
     },
     {
       "site": "src/workbench/creation/storyboard/exec/storyboardRowStatus.ts::variable:SHOT_ROW_STATUSES/as-const",

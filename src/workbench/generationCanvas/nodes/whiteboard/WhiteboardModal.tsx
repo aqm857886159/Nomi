@@ -1,3 +1,14 @@
+/**
+ * [INPUT]: 依赖 react-dom 的 createPortal、../fullscreenZIndex 的 FULLSCREEN_Z_INDEX、
+ *          ../../../../ui/app-shell/windowChrome 的 currentFullscreenOverlayTopOffset、
+ *          ../../store/generationCanvasStore（节点读写）、../../adapters/persistNodeImage（落盘）、
+ *          ./WhiteboardDrawingTool（画板本体）、./whiteboardState（序列化）
+ * [OUTPUT]: 对外提供 WhiteboardModal：白板全屏壳
+ * [POS]: whiteboard 的页面根：把画板工具撑成一张整窗工作面，负责「打开/关闭/存回节点」这条生命周期；
+ *        壳从 Windows 自绘窗口栏之下起画（不是 inset-0 铺满）——那条 32px 是系统拖拽带，盖住它自己
+ *        顶部一条的点击会被当成拖窗口吃掉、窗口控件也埋在下面（与 issue #58 同根，见 windowChrome）。
+ * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+ */
 import React from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
@@ -5,7 +16,8 @@ import { IconBrush } from '@tabler/icons-react'
 import { cn } from '../../../../utils/cn'
 import { WorkbenchButton } from '../../../../design'
 import { notify } from '../../../../ui/notificationPolicy'
-import { FULLSCREEN_Z_INDEX } from '../scene3d/scene3dConstants'
+import { currentFullscreenOverlayTopOffset } from '../../../../ui/app-shell/windowChrome'
+import { FULLSCREEN_Z_INDEX } from '../fullscreenZIndex'
 import type {
   GenerationCanvasEdge,
   GenerationCanvasNode,
@@ -313,10 +325,10 @@ export default function WhiteboardModal({
     <div
       data-nomi-whiteboard-modal="true"
       className={cn(
-        'workbench-shell fixed inset-0 isolate flex h-[100dvh] w-screen flex-col overflow-hidden',
+        'workbench-shell fixed inset-x-0 bottom-0 isolate flex flex-col overflow-hidden',
         'bg-[var(--workbench-bg)] text-[var(--workbench-ink)] font-[var(--nomi-font-sans)]',
       )}
-      style={{ zIndex: FULLSCREEN_Z_INDEX }}
+      style={{ top: currentFullscreenOverlayTopOffset(), zIndex: FULLSCREEN_Z_INDEX }}
       role="dialog"
       aria-modal="true"
       aria-label={t('generationCommon.whiteboard.title')}

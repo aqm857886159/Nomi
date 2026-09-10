@@ -1,0 +1,96 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-03-director-mobile-bridge-ipc",
+  "problem_type": "Renderer-triggered LAN listener without a single trust boundary",
+  "symptom": "The director console's mobile virtual camera needs the main process to open a LAN HTTPS + WebSocket listener on the renderer's request. Without one gated entry, any web content in the app could start a listener, and any LAN client could push camera packets into the active project.",
+  "direct_cause": "A new IPC surface (nomi:director:mobile:start/stop/status + event push) and a new network listener (electron/director/mobileBridgeServer.ts) are introduced by the director console cutover.",
+  "class_root": "Every renderer-reachable main-process capability that opens a network or OS resource must be bound to a trusted sender and every inbound client must authenticate; the bridge is a new instance of that class.",
+  "affected_population": [
+    "Every director console session that connects a phone",
+    "Every LAN peer that can reach the machine while the bridge is running"
+  ],
+  "scope_paths": [
+    "electron/director/mobileBridgeIpc.ts",
+    "electron/director/mobileBridgeServer.ts",
+    "electron/director/mobileBridgeServer.test.ts",
+    "electron/director/mobilePage.ts",
+    "electron/preload.ts",
+    "src/desktop/bridge.ts",
+    "src/workbench/generationCanvas/nodes/director/useMobileCamera.ts"
+  ],
+  "entry_points": [
+    "nomi:director:mobile:start / stop / status IPC handlers",
+    "WebSocket handshake of the LAN bridge (token in the pairing URL)",
+    "32-byte camera packet decode into the active camera pose"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The trust boundary (assertTrustedSender on IPC, per-session token on the LAN socket, fixed 32-byte packet contract) is an application contract shared with electron/ipcSenderGuard.ts and src/workbench/generationCanvas/nodes/director/model/mobileCamera.ts; no third-party protocol defines it.",
+  "invariants": [
+    "All three IPC handlers call assertTrustedSender before touching the bridge; untrusted senders never start, stop, or read the listener.",
+    "The listener only accepts a WebSocket after a token handshake; a missing or wrong token is rejected and never reaches the packet decoder.",
+    "The listener stops when the director editor unmounts (useMobileCamera cleanup) and on app quit; it is never left running without an editor.",
+    "Packets are fixed-size Float32 frames decoded by the shared mobileCamera math; malformed sizes are dropped, not applied."
+  ],
+  "generality_proof": "The IPC registration is the only place the bridge server is instantiated, and it goes through the same ipcSenderGuard every other privileged IPC uses; the WebSocket path is the only network entry, gated by the token issued at start. There is no second way to reach the listener from the renderer or the LAN.",
+  "shared_boundaries": [
+    {
+      "path": "electron/director/mobileBridgeIpc.ts",
+      "symbol": "registerDirectorMobileIpc",
+      "responsibility": "Own the renderer-facing lifecycle (start/stop/status + event push) behind assertTrustedSender; the only owner of the bridge server instance."
+    },
+    {
+      "path": "electron/director/mobileBridgeServer.ts",
+      "symbol": "MobileBridgeServer",
+      "responsibility": "Own the LAN listener, token handshake, device registry, and packet decoding; refuses un-authenticated clients before any state changes."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/director/mobileBridgeIpc.ts",
+      "entry_point": "nomi:director:mobile:*",
+      "disposition": "enforced",
+      "evidence": "Each handler begins with assertTrustedSender(event)."
+    },
+    {
+      "path": "electron/director/mobileBridgeServer.ts",
+      "entry_point": "WebSocket upgrade",
+      "disposition": "enforced",
+      "evidence": "mobileBridgeServer.test.ts covers rejected handshake without / with wrong token and the event inbox for hello / pong / record."
+    },
+    {
+      "path": "electron/preload.ts",
+      "entry_point": "director.mobile bridge",
+      "disposition": "enforced",
+      "evidence": "Preload only forwards to the three named channels; no raw ipcRenderer is exposed."
+    }
+  ],
+  "recurrence": {
+    "classification": "one_off",
+    "reason": "The bridge is a single new listener; the class (trusted-sender IPC + authenticated network entry) is already enforced repo-wide by ipcSenderGuard and check:ipc-sender-binding.",
+    "same_class_scan": [
+      "grep -rn 'ipcMain.handle' electron/director → 3 handlers, all guarded.",
+      "check:ipc-sender-binding passes with the new handlers."
+    ]
+  },
+  "regression_tests": [
+    "electron/director/mobileBridgeServer.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/director/mobileBridgeServer.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "New capability; there is no previous mobile bridge to retire."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The listener uses Node's built-in https / ws stack already present in the app; no new runtime dependency governs the trust boundary.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted data. The self-signed certificate is cached under userData and regenerated if missing.",
+  "residual_risks": [
+    "Real-device pairing (QR scan, certificate trust prompt, gyroscope permission) is verified only with a simulated client in tests and a Playwright phone in the S8 walkthrough; it still needs a physical phone.",
+    "WebRTC DataChannel transport remains optional and unimplemented."
+  ]
+}

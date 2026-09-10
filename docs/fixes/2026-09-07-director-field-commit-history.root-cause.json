@@ -1,0 +1,132 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-07-director-field-commit-history",
+  "problem_type": "Inspector input commit/cancel and history boundaries differ by input channel",
+  "symptom": "Escape or an empty numeric draft writes zero on blur; range keyboard changes and some color/name/toggle changes cannot be individually undone.",
+  "direct_cause": "Two numeric fields coerce null/empty strings with Number; gesture history is wired only to pointerdown; several discrete inspectors call raw setters.",
+  "class_root": "Shared field primitives do not own a commit/cancel lifecycle covering text, keyboard, pointer, and color input channels; discrete mutations lack a transaction boundary.",
+  "affected_population": [
+    "All director inspector number/vector/color fields",
+    "Camera names/ray, light names/shadows, scene label/grid/snap toggles",
+    "Read-only evaluated transforms"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/nodes/director/panels/fields/useNumberDraft.ts",
+    "src/workbench/generationCanvas/nodes/director/panels/fields/FieldPrimitives.tsx",
+    "src/workbench/generationCanvas/nodes/director/panels/fields/SliderNumberField.tsx",
+    "src/workbench/generationCanvas/nodes/director/panels/inspector/CameraInspector.tsx",
+    "src/workbench/generationCanvas/nodes/director/panels/inspector/LightInspector.tsx",
+    "src/workbench/generationCanvas/nodes/director/panels/inspector/SceneLayerInspector.tsx",
+    "src/workbench/generationCanvas/nodes/director/panels/inspector/TransformSection.tsx",
+    "src/workbench/generationCanvas/nodes/director/model/storeClipActions.ts",
+    "src/workbench/generationCanvas/nodes/director/panels/inspector/TrajectoryClipInspector.tsx",
+    "src/workbench/generationCanvas/nodes/director/panels/inspector/ActionClipInspector.tsx",
+    "src/workbench/generationCanvas/nodes/director/panels/inspector/CloseupClipInspector.tsx"
+  ],
+  "entry_points": [
+    "Numeric Enter/blur/Escape",
+    "Range keyboard/pointer/wheel",
+    "Color swatch/clear/custom picker",
+    "Discrete inspector controls"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Internal React field lifecycle and director history contract; no dependency capability or version change.",
+  "invariants": [
+    "Empty/cancelled numeric drafts do not commit",
+    "Valid changed input commits once through the same parser",
+    "Every control mutation has a prior history boundary",
+    "Read-only transforms expose no editable control",
+    "Continuous clip slider gestures retain one history snapshot across all changes"
+  ],
+  "generality_proof": "Both number renderers consume one draft hook; gesture changes call onChangeStart at first mutation across keyboard/pointer channels; discrete inspectors call withHistory.",
+  "shared_boundaries": [
+    {
+      "symbol": "useNumberDraft",
+      "responsibility": "Own numeric draft validation and cancellation",
+      "path": "src/workbench/generationCanvas/nodes/director/panels/fields/useNumberDraft.ts"
+    },
+    {
+      "symbol": "SliderNumberField",
+      "responsibility": "Begin history on actual keyboard/pointer mutation",
+      "path": "src/workbench/generationCanvas/nodes/director/panels/fields/SliderNumberField.tsx"
+    },
+    {
+      "symbol": "ColorField",
+      "responsibility": "Begin history for color clear/custom input as well as swatches",
+      "path": "src/workbench/generationCanvas/nodes/director/panels/fields/FieldPrimitives.tsx"
+    },
+    {
+      "symbol": "updateClipTime",
+      "path": "src/workbench/generationCanvas/nodes/director/model/storeClipActions.ts",
+      "responsibility": "Let shared field gestures own one snapshot while discrete timeline edits keep an independent history entry"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "entry_point": "Vec3Fields / NumberInput",
+      "disposition": "enforced",
+      "path": "src/workbench/generationCanvas/nodes/director/panels/fields/FieldPrimitives.tsx",
+      "evidence": "Consumes shared numeric draft hook."
+    },
+    {
+      "entry_point": "SliderNumberField text and range",
+      "disposition": "enforced",
+      "path": "src/workbench/generationCanvas/nodes/director/panels/fields/SliderNumberField.tsx",
+      "evidence": "Same hook/parser for text; first actual range change triggers snapshot."
+    },
+    {
+      "entry_point": "TextField / ToggleField",
+      "disposition": "enforced",
+      "path": "src/workbench/generationCanvas/nodes/director/panels/inspector/CameraInspector.tsx",
+      "evidence": "Discrete changes are wrapped in withHistory."
+    }
+  ],
+  "recurrence": {
+    "same_class_scan": [
+      "Read all panels/fields and Camera/Light/SceneLayer inspectors",
+      "rg onChange/onCommit/onChangeStart/saveState across all panels/inspector, then inspected Character/Primitive/Closeup/Action/LookAt/Transform/Waypoint paths"
+    ],
+    "classification": "recurring",
+    "reason": "All field instances and all keyboard users can repeat the same lifecycle mechanism."
+  },
+  "prevention": {
+    "artifacts": [
+      "src/workbench/generationCanvas/nodes/director/panels/fields/useNumberDraft.ts",
+      "src/workbench/generationCanvas/nodes/director/panels/fields/FieldPrimitives.tsx",
+      "src/workbench/generationCanvas/nodes/director/panels/fields/SliderNumberField.tsx",
+      "src/workbench/generationCanvas/nodes/director/model/storeClipActions.ts"
+    ],
+    "strategy": "One numeric draft lifecycle for both renderers; all input modalities enter mutation history consistently",
+    "failure_mode": "Cancel or invalid draft clears local text without changing project",
+    "enforcement_path": "src/workbench/generationCanvas/nodes/director/panels/fields/useNumberDraft.ts",
+    "invariant": "Only finite changed drafts commit; cancel/null/blank never writes",
+    "kind": "centralized-boundary",
+    "exception_policy": "none"
+  },
+  "regression_tests": [
+    "tests/ux/director-fields.walk.mjs",
+    "tests/ux/director-waypoint-aim.walk.mjs"
+  ],
+  "class_regression_tests": [
+    "tests/ux/director-fields.walk.mjs",
+    "tests/ux/director-waypoint-aim.walk.mjs"
+  ],
+  "legacy_paths": {
+    "rationale": "Remove duplicated Number(draft) coercion and pointer-only history entry.",
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/nodes/director/panels/fields/FieldPrimitives.tsx",
+      "src/workbench/generationCanvas/nodes/director/panels/fields/SliderNumberField.tsx"
+    ]
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Uses existing React hooks and history contract; no dependency change.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted schema change; existing controls consume the corrected primitives.",
+  "residual_risks": [
+    "17 field browser cases passed; continuous trajectory/action/closeup/single/batch slider cases passed in waypoint-ui-green.log; coordinator owns full desktop integration."
+  ],
+  "invariant_owner_layer": {"layer": "src/workbench/generationCanvas/nodes/director/panels/fields/useNumberDraft.ts", "tests": ["tests/ux/director-fields.walk.mjs", "tests/ux/director-waypoint-aim.walk.mjs"], "why": "不变量由 src/workbench/generationCanvas/nodes/director/panels/fields/useNumberDraft.ts 单点持有（即本合同的 prevention.enforcement_path / shared_boundaries）；上游其它入口只调用它、不各自重判。tests 是该层现有的类级与回归测试，改动这条不变量必先让它们红。"}
+}

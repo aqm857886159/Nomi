@@ -46,6 +46,7 @@
 | 你可能搜的词 | 规范名 | 去哪找 |
 |---|---|---|
 | 画布 · canvas · 节点图 · 流程图 | **生成画布 GenerationCanvas**（`@xyflow/react` 单内核，R21） | `src/workbench/generationCanvas/` |
+| 3D 场景 · scene3d · 导演台 · director · 站位参考 · 运镜参考 · 灰模 | **导演台 director 节点**（唯一的 3D 节点；`scene3d` 是已删的 V1，老节点加载时自动迁移）；AI 来导 = **站位参考**（create_staging_reference → 灰模图喂 composition_ref）/ **运镜参考**（create_camera_move → 灰模 mp4 喂 video_ref） | `src/workbench/generationCanvas/nodes/director/`（`agent/`、`migration/`） |
 | 拆镜头 · 分镜 · storyboard · 镜头表 | **分镜 / storyboard**；产物是 **StoryboardPlan** | `src/workbench/generationCanvas/agent/storyboardPlan.ts` |
 | 锚 · 参考图 · 角色圣经 · 定妆 | **视觉锚 anchor**（character/scene/prop/style），**冻结**=frozen | `electron/shared/agentCapabilities/canvasModelShapes.ts` storyboardAnchorSchema |
 | 镜号 · shot number · 顺序 | **`shotIndex`**（存储身份，拖动不变，排片唯一排序信号） | `src/workbench/generationCanvas/model/shotNumbering.ts` |

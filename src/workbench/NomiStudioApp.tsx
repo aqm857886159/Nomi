@@ -13,6 +13,7 @@ import {
   type LocalProjectSummary,
 } from './library/localProjectStore'
 import type { WorkbenchProjectPersistenceService } from './project/projectPersistenceService'
+import { useProjectLeaveAction, useProjectWindowLifecycle } from './project/useProjectWindowLifecycle'
 import { useWorkspaceEvents } from './useWorkspaceEvents'
 import { useWorkbenchStore, type WorkspaceMode } from './workbenchStore'
 import {
@@ -151,10 +152,8 @@ export default function NomiStudioApp(): JSX.Element {
   const initialHydrationAttemptedRef = React.useRef(false)
   const projectPersistenceModuleRef = React.useRef<ProjectPersistenceModule | null>(null)
   const projectPersistenceServiceRef = React.useRef<WorkbenchProjectPersistenceService | null>(null)
-  const projectPersistenceUnbindRef = React.useRef<(() => void) | null>(null)
-  const hardReloadingRef = React.useRef(false)
+  const projectPersistenceUnbindRef = React.useRef<(() => Promise<void>) | null>(null)
   const browserOpenedRef = React.useRef(false)
-  const pendingCloseRequestRef = React.useRef<string | null>(null)
   const routeProjectId = React.useMemo(() => readProjectIdFromSearch(location.search), [location.search])
   const activeProjectPersistenceKey = activeProject ? `${activeProject.id}\u0000${activeProject.name}` : ''
   const [projectSurface] = React.useState(() =>
@@ -168,34 +167,7 @@ export default function NomiStudioApp(): JSX.Element {
     browserOpenedRef.current = browserOpened
   }, [browserOpened])
 
-  React.useEffect(() => {
-    const windowBridge = getDesktopBridge()?.window
-    if (!windowBridge?.onCloseRequest) return undefined
-    return windowBridge.onCloseRequest((payload) => {
-      const requestId = typeof payload?.requestId === 'string' ? payload.requestId.trim() : ''
-      if (!requestId) return
-      if (pendingCloseRequestRef.current) {
-        windowBridge.cancelClose?.(requestId)
-        return
-      }
-      pendingCloseRequestRef.current = requestId
-      void confirmDialog({
-        title: t('studio.closeTitle'),
-        message: t('studio.closeMessage'),
-        confirmLabel: t('common.close'),
-        cancelLabel: t('common.cancel'),
-        tone: 'info',
-      })
-        .then((confirmed) => {
-          const latestWindowBridge = getDesktopBridge()?.window
-          if (confirmed) latestWindowBridge?.confirmClose?.(requestId)
-          else latestWindowBridge?.cancelClose?.(requestId)
-        })
-        .finally(() => {
-          if (pendingCloseRequestRef.current === requestId) pendingCloseRequestRef.current = null
-        })
-    })
-  }, [t])
+  useProjectWindowLifecycle()
 
   // 素材面收敛一次性迁移（幂等）：旧素材盒 localStorage 提示词卡并入主提示词库。
   React.useEffect(() => {
@@ -231,6 +203,7 @@ export default function NomiStudioApp(): JSX.Element {
     if (!service) {
       service = module.createWorkbenchProjectPersistenceService({
         setActiveProject,
+        isActiveProject: (projectId) => activeProjectIdRef.current === projectId,
       })
       projectPersistenceServiceRef.current = service
     }
@@ -339,30 +312,6 @@ export default function NomiStudioApp(): JSX.Element {
     } catch {
       // localStorage 不可用 → 跳过
     }
-  }, [])
-
-  React.useEffect(() => {
-    const handleHardReloadShortcut = (event: KeyboardEvent) => {
-      const key = event.key.toLowerCase()
-      const isReloadShortcut = key === 'f5' || ((event.ctrlKey || event.metaKey) && key === 'r')
-      if (!isReloadShortcut) return
-      const desktop = getDesktopBridge()
-      if (!desktop?.app?.hardReloadWindow) return
-      event.preventDefault()
-      event.stopPropagation()
-      if (hardReloadingRef.current) return
-      hardReloadingRef.current = true
-      void import('./project/workbenchProjectSession')
-        .then(({ persistActiveWorkbenchProjectNow }) => persistActiveWorkbenchProjectNow())
-        .catch((error: unknown) => {
-          console.error('hard reload save error', error)
-        })
-        .finally(() => {
-          desktop.app?.hardReloadWindow?.()
-        })
-    }
-    window.addEventListener('keydown', handleHardReloadShortcut, { capture: true })
-    return () => window.removeEventListener('keydown', handleHardReloadShortcut, { capture: true })
   }, [])
 
   const hydrateProject = React.useCallback(
@@ -584,10 +533,10 @@ export default function NomiStudioApp(): JSX.Element {
 
   // 列表页「双击改名」：只改名不动内容；若改的正是当前打开的项目，同步顶栏显示名（activeProject）。
   const renameLibraryProject = React.useCallback(
-    (projectId: string, name: string) => {
+    async (projectId: string, name: string) => {
       setFeedback(null)
       try {
-        const record = renameLocalProject(projectId, name)
+        const record = await renameLocalProject(projectId, name)
         if (record && activeProjectIdRef.current === projectId) {
           setActiveProject((prev) => (prev && prev.id === projectId ? { ...prev, name: record.name } : prev))
         }
@@ -633,7 +582,7 @@ export default function NomiStudioApp(): JSX.Element {
   React.useEffect(() => {
     if (!activeProject?.id) return
     let disposed = false
-    let unbind: (() => void) | undefined
+    let unbind: (() => Promise<void>) | undefined
     void ensureProjectPersistenceService().then(({ service }) => {
       if (disposed || activeProjectIdRef.current !== activeProject.id) return
       const rawUnbind = service.bindProjectPersistence({
@@ -653,12 +602,8 @@ export default function NomiStudioApp(): JSX.Element {
           report(activeProject.id, t('studio.projectSaveFailed'))
         },
       })
-      let unbound = false
-      unbind = () => {
-        if (unbound) return
-        unbound = true
-        rawUnbind()
-      }
+      let unbound: Promise<void> | undefined
+      unbind = () => unbound ??= rawUnbind()
       projectPersistenceUnbindRef.current = unbind
     })
     return () => {
@@ -666,7 +611,7 @@ export default function NomiStudioApp(): JSX.Element {
       if (unbind && projectPersistenceUnbindRef.current === unbind) {
         projectPersistenceUnbindRef.current = null
       }
-      unbind?.()
+      void unbind?.().catch(() => undefined) // onSaveError already reports the failure; React cleanup cannot await.
     }
   }, [activeProject, activeProjectPersistenceKey, ensureProjectPersistenceService, refreshProjects, report, t])
 
@@ -678,7 +623,17 @@ export default function NomiStudioApp(): JSX.Element {
     }
   })
 
-  const backToLibrary = React.useCallback(async () => {
+  const leaveProject = React.useCallback(async () => {
+    const unbindPersistence = projectPersistenceUnbindRef.current
+    try {
+      const { persistActiveWorkbenchProjectNow } = await import('./project/workbenchProjectSession')
+      await persistActiveWorkbenchProjectNow()
+      await unbindPersistence?.()
+    } catch (error: unknown) {
+      setActiveProject((project) => project ? { ...project } : project)
+      throw error
+    }
+    if (projectPersistenceUnbindRef.current === unbindPersistence) projectPersistenceUnbindRef.current = null
     try {
       await projectSurface.releaseCurrent()
       if (laneClient.context()) await laneClient.close()
@@ -686,9 +641,8 @@ export default function NomiStudioApp(): JSX.Element {
       console.error('project Surface release failed', error)
       return
     }
-    const unbindPersistence = projectPersistenceUnbindRef.current
-    projectPersistenceUnbindRef.current = null
-    unbindPersistence?.()
+    // 持久化解绑已在上方完成：先落盘、await 解绑（等保存锁回执）、引用未变才清空（docs/fixes/2026-09-07-project-save-lock-receipt）。
+    // 合并 main 时这里曾被带回「释放后同步解绑」的旧写法，那是本修复替掉的版本，不要再加回来。
     activeProjectIdRef.current = null
     setDesktopActiveProjectId(null)
     setActiveProject(null)
@@ -697,6 +651,7 @@ export default function NomiStudioApp(): JSX.Element {
     releaseWorkbenchProjectRuntimeState()
     refreshProjects()
   }, [navigate, projectSurface, refreshProjects])
+  const backToLibrary = useProjectLeaveAction(leaveProject)
 
   const handleRenameProject = React.useCallback(
     (newName: string) => {

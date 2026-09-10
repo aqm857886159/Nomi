@@ -8,6 +8,12 @@ export type NomiColorSchemeContextValue = {
   /** 用户显式选择（写盘，OS 偏好从此不再覆盖）。 */
   setColorScheme: (scheme: NomiColorScheme) => void
   toggleColorScheme: () => void
+  /**
+   * 全屏暗色面（导演台）声明「我这一屏必须是暗的」，返回释放函数；多处叠加按计数生效。
+   * 走声明而不是自己写 DOM：主题的唯一写入者是 provider，且「天黑自动暗」每分钟会核对一次，
+   * 谁绕过去自己 setAttribute，都会在 60 秒内被改回来。
+   */
+  acquireForcedDark: () => () => void
 }
 
 export const STORAGE_KEY = 'nomi-color-scheme'

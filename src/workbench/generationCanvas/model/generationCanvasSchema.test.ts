@@ -129,15 +129,15 @@ describe('generationCanvasSchema Phase E.2 groups', () => {
     expect(legacy.contentJson).toBeUndefined()
   })
 
-  it('preserves scene3d trajectory data in node meta', () => {
+  it('preserves director project data in node meta', () => {
     const parsed = generationCanvasNodeSchema.parse({
-      id: 'scene3d-1',
-      kind: 'scene3d',
-      title: '3D 场景',
+      id: 'director-1',
+      kind: 'director',
+      title: '导演台',
       position: { x: 0, y: 0 },
       categoryId: 'shots',
       meta: {
-        scene3dState: {
+        directorProject: {
           trajectories: [
             {
               id: 'trajectory-1',
@@ -159,7 +159,7 @@ describe('generationCanvasSchema Phase E.2 groups', () => {
       },
     })
 
-    expect(parsed.meta?.scene3dState).toMatchObject({
+    expect(parsed.meta?.directorProject).toMatchObject({
       trajectories: [expect.objectContaining({ id: 'trajectory-1' })],
       trajectoryGroups: [expect.objectContaining({ id: 'group-1' })],
       sceneTimeline: { totalDuration: 3 },

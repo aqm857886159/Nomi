@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
-import { fsyncIfDurable, isDurable } from "../durability";
+import { fsyncDirectoryIfDurable, fsyncIfDurable } from "../durability";
 
 export const PRODUCTION_RUN_INTENT_LOG_SCHEMA_VERSION = 1;
 
@@ -107,19 +107,9 @@ function appendDurableLine(filePath: string, record: ProductionRunIntent): void 
   } finally {
     fs.closeSync(fd);
   }
-  // The file contents are durable before returning. Directory fsync is best effort
-  // because Windows does not allow opening a directory as a file descriptor.
-  if (!isDurable()) return; // 开目录 fd 的唯一目的就是 fsync 它——ephemeral 下整段省掉。
-  try {
-    const directoryFd = fs.openSync(dir, "r");
-    try {
-      fs.fsyncSync(directoryFd);
-    } finally {
-      fs.closeSync(directoryFd);
-    }
-  } catch {
-    // The intent itself remains durable; callers still get the original result.
-  }
+  // The file contents are durable before returning; the directory barrier is the shared one
+  // (platforms without directory fsync are handled there).
+  fsyncDirectoryIfDurable(dir);
 }
 
 function invalid(message: string): never {

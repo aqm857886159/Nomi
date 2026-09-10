@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { isDurable } from "../durability";
+import { fsyncDirectoryIfDurable } from "../durability";
 import { readJsonFile, writeJsonFileAtomic } from "../jsonFile";
 import { workspaceNomiDir } from "./workspacePaths";
 
@@ -52,9 +52,20 @@ export type WorkspaceManifestLockOptions = {
 export class WorkspaceManifestLockBusyError extends Error {
   readonly code = "workspace_manifest_busy";
 
-  constructor(message = "Workspace manifest is being changed by another process") {
+  constructor(message = "Workspace manifest is being changed by another process", options?: { cause?: unknown }) {
     super(message);
     this.name = "WorkspaceManifestLockBusyError";
+    if (options) Object.defineProperty(this, "cause", { configurable: true, value: options.cause });
+  }
+}
+
+export class WorkspaceManifestLockPublishError extends Error {
+  readonly code = "workspace_manifest_publish_failed";
+
+  constructor(cause: unknown) {
+    super("Workspace manifest lock could not be published");
+    this.name = "WorkspaceManifestLockPublishError";
+    Object.defineProperty(this, "cause", { configurable: true, value: cause });
   }
 }
 
@@ -72,19 +83,6 @@ export class WorkspaceManifestLockLostError extends Error {
 
 type ParsedOwner = { valid: true; owner: WorkspaceManifestLockOwner } | { valid: false };
 
-function fsyncDirectory(directoryPath: string): void {
-  if (!isDurable()) return;
-  try {
-    const fd = fs.openSync(directoryPath, "r");
-    try {
-      fs.fsyncSync(fd);
-    } finally {
-      fs.closeSync(fd);
-    }
-  } catch {
-    // Windows cannot open directories as file descriptors.
-  }
-}
 
 function defaultProcessLiveness(pid: number): ProcessLiveness {
   try {
@@ -183,7 +181,7 @@ function removeReleasedLocks(nomiDir: string): void {
   for (const name of releaseNames(nomiDir)) {
     try {
       fs.rmSync(path.join(nomiDir, name), { recursive: true, force: true });
-      fsyncDirectory(nomiDir);
+      fsyncDirectoryIfDurable(nomiDir);
     } catch {
       throw new WorkspaceManifestLockBusyError("Workspace manifest release cleanup is still in progress");
     }
@@ -210,14 +208,14 @@ function removeRecoverableQuarantines(input: {
         );
       }
       fs.rmSync(quarantinePath, { recursive: true, force: true });
-      fsyncDirectory(input.nomiDir);
+      fsyncDirectoryIfDurable(input.nomiDir);
       continue;
     }
     if (directoryAgeMs(quarantinePath, input.nowMs) < input.initializationGraceMs) {
       throw new WorkspaceManifestLockBusyError("Workspace manifest recovery owner is still initializing");
     }
     fs.rmSync(quarantinePath, { recursive: true, force: true });
-    fsyncDirectory(input.nomiDir);
+    fsyncDirectoryIfDurable(input.nomiDir);
   }
 }
 
@@ -236,7 +234,7 @@ function quarantineExistingOwner(input: {
     if ((error as NodeJS.ErrnoException)?.code === "ENOENT") return;
     throw new WorkspaceManifestLockBusyError("Workspace manifest owner changed during recovery");
   }
-  fsyncDirectory(input.nomiDir);
+  fsyncDirectoryIfDurable(input.nomiDir);
 
   const moved = parseOwner(quarantinePath);
   if (input.expected) {
@@ -248,7 +246,7 @@ function quarantineExistingOwner(input: {
   }
 
   fs.rmSync(quarantinePath, { recursive: true, force: true });
-  fsyncDirectory(input.nomiDir);
+  fsyncDirectoryIfDurable(input.nomiDir);
 }
 
 function recoverExistingLock(input: {
@@ -338,17 +336,18 @@ function tryAcquireCanonicalWorkspaceManifestLock(
     if (!candidateOwner.valid || !sameOwner(candidateOwner.owner, owner)) {
       throw new WorkspaceManifestLockLostError("Workspace manifest owner record could not be verified before publish");
     }
-    fsyncDirectory(candidateDir);
+    fsyncDirectoryIfDurable(candidateDir);
     try {
       fs.renameSync(candidateDir, lockDir);
     } catch (error) {
       const code = (error as NodeJS.ErrnoException)?.code;
       if (code === "EEXIST" || code === "ENOTEMPTY" || code === "EPERM") {
-        throw new WorkspaceManifestLockBusyError();
+        if (code === "EPERM" && !fs.existsSync(lockDir)) throw new WorkspaceManifestLockPublishError(error);
+        throw new WorkspaceManifestLockBusyError(undefined, { cause: error });
       }
       throw error;
     }
-    fsyncDirectory(nomiDir);
+    fsyncDirectoryIfDurable(nomiDir);
   } finally {
     if (fs.existsSync(candidateDir)) {
       fs.rmSync(candidateDir, { recursive: true, force: true });
@@ -379,7 +378,7 @@ export async function acquireWorkspaceManifestLock(
     try {
       return tryAcquireCanonicalWorkspaceManifestLock(canonicalRootPath, options);
     } catch (error) {
-      if (!(error instanceof WorkspaceManifestLockBusyError) || Date.now() >= deadline) {
+      if (!(error instanceof WorkspaceManifestLockBusyError || error instanceof WorkspaceManifestLockPublishError) || Date.now() >= deadline) {
         throw error;
       }
       await new Promise<void>((resolve) => setTimeout(resolve, retryDelayMs));
@@ -409,10 +408,10 @@ export function releaseWorkspaceManifestLock(lease: WorkspaceManifestLockLease):
   } catch (error) {
     throw new WorkspaceManifestLockLostError("Workspace manifest lock changed before release", { cause: error });
   }
-  fsyncDirectory(nomiDir);
+  fsyncDirectoryIfDurable(nomiDir);
   try {
     fs.rmSync(releaseDir, { recursive: true, force: true });
-    fsyncDirectory(nomiDir);
+    fsyncDirectoryIfDurable(nomiDir);
   } catch {
     // The atomic rename above already relinquished ownership. A leftover release
     // directory is reserved metadata and the next acquirer safely reaps it.

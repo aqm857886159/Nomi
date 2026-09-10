@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { FEEDBACK_LAYER_Z_INDEX } from './feedbackLayer'
-import { FULLSCREEN_Z_INDEX } from '../workbench/generationCanvas/nodes/scene3d/scene3dConstants'
+import { FULLSCREEN_Z_INDEX } from '../workbench/generationCanvas/nodes/fullscreenZIndex'
 import { NOMI_OVERLAY_Z_INDEX } from '../design/overlayLayers'
 import { buildNomiTheme } from '../theme/nomiTheme'
 
