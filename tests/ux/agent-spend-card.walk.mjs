@@ -10,7 +10,7 @@
 //   ② 卡上改参数 → 价格原地刷新（宿主重算，不是渲染层现算）
 //   ③ 等待中切到「全自动」→ 卡仍然在等人答（钱不因档位放行）
 //   ④ × → 草稿取消、画布节点消失
-import { clickOrFail, expect, expectAbsent, proveProbe } from './_assert.mjs'
+import { DEFAULT_TIMEOUT_MS, clickOrFail, expect, expectAbsent, proveProbe } from './_assert.mjs'
 import { FIXTURE_IMAGE_MODEL, FIXTURE_VENDOR, flattenRequestText } from './agent-runtime-fixture.mjs'
 import {
   APPROVAL_CARD, CANVAS_PANEL, COMPOSER_PERMISSION, INTERVENTION_CONFIRM, INTERVENTION_REJECT,
@@ -58,7 +58,7 @@ try {
   // 草稿落画布（一本账）：节点先出现，用户看得见 agent 到底要生成什么。
   await expect.poll(async () => {
     return (await readProject(win, projectId)).payload.generationCanvas.nodes.length
-  }, { timeout: 30_000 }).toBe(1)
+  }, { timeout: DEFAULT_TIMEOUT_MS }).toBe(1)
   const node = (await readProject(win, projectId)).payload.generationCanvas.nodes[0]
   expect(node.meta.modelKey, '落地的节点必须带 agent 定的模型身份').toBe(FIXTURE_IMAGE_MODEL)
 
@@ -102,7 +102,7 @@ try {
   await clickOrFail(card.locator(INTERVENTION_REJECT), '丢弃这份草稿')
   await expectAbsent(card, { provenBy: cardProof, message: '丢弃之后付费卡不再可操作' })
   await expect.poll(async () => (await readProject(win, projectId)).payload.generationCanvas.nodes.length,
-    { timeout: 30_000 }).toBe(0)
+    { timeout: DEFAULT_TIMEOUT_MS }).toBe(0)
   expect(walk.fixture.images, '整场走查一次供应商生成都没发生（零额度）').toHaveLength(0)
   await walk.snap('spend-card-discarded-canvas-clean')
 

@@ -79,7 +79,7 @@ describe("付费卡的宿主投影", () => {
 
   it("已封印 + 付费门在等 = 同一张卡的另一档（带 gateId；卡不区分这两档，命令那层才区分）", () => {
     const sealed = run({
-      gates: [{ gateId: "gate-1", scope: "budget_envelope", status: "waiting", planHash: "d1", authorizationDigest: "d1", title: "", summary: "", requestedAt: NOW } as ProductionRun["gates"][number]],
+      gates: [{ gateId: "gate-1", scope: "budget_envelope", status: "waiting", planHash: "d1", authorizationDigest: "d1", title: "", summary: "", jobIds: [], createdAt: NOW, expiresAt: NOW } as ProductionRun["gates"][number]],
     });
     sealed.generationPlan = { ...sealed.generationPlan!, state: "sealed", authorizationGateId: "gate-1", authorizationDigest: "d1" };
     const pending = projectPendingSpendConfirm(sealed, resolvePricing);
@@ -88,7 +88,7 @@ describe("付费卡的宿主投影", () => {
 
   it("门已经批过 / 计划已提交 / 已取消 → 不出卡（那已经不是「等你决定」了）", () => {
     const decided = run({
-      gates: [{ gateId: "gate-1", scope: "budget_envelope", status: "approved", planHash: "d1", authorizationDigest: "d1", title: "", summary: "", requestedAt: NOW } as ProductionRun["gates"][number]],
+      gates: [{ gateId: "gate-1", scope: "budget_envelope", status: "approved", planHash: "d1", authorizationDigest: "d1", title: "", summary: "", jobIds: [], createdAt: NOW, expiresAt: NOW } as ProductionRun["gates"][number]],
     });
     decided.generationPlan = { ...decided.generationPlan!, state: "sealed", authorizationGateId: "gate-1", authorizationDigest: "d1" };
     expect(projectPendingSpendConfirm(decided, resolvePricing)).toBeUndefined();

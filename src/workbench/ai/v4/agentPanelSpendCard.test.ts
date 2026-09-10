@@ -11,7 +11,7 @@ import type { GenerationCanvasNode } from '../../generationCanvas/model/generati
 const t = (key: string, options?: Record<string, unknown>): string =>
   options ? `${key}(${Object.entries(options).map(([k, v]) => `${k}=${String(v)}`).join(',')})` : key
 
-function shot(index: number, amount: number | null, modelId = 'kling') {
+function shot(index: number, amount: number | null, modelId = 'kling', mode?: string) {
   return {
     shotId: `s${index}`,
     nodeId: `node-${index}`,
@@ -19,6 +19,7 @@ function shot(index: number, amount: number | null, modelId = 'kling') {
     prompt: `镜头 ${index}`,
     providerId: 'kie',
     modelId,
+    mode,
     parameters: { duration: '3' },
     price: amount === null ? { known: false as const } : { known: true as const, amount },
   }
