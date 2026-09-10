@@ -13,8 +13,10 @@ import { NodePromptToolButton, NodePromptToolCluster } from './NodePromptToolClu
 
 const render = (element: React.ReactElement): string => renderToStaticMarkup(element)
 
+// children 写进 props 对象而不是第三个参数：`React.createElement` 的类型重载不会把第三个参数
+// 回填进 props 的必填检查，写成第三个参数就是 TS2769（`check:test-types` 拦得到、`pnpm typecheck` 看不到）。
 const cluster = (children: React.ReactNode): React.ReactElement =>
-  React.createElement(NodePromptToolCluster, { ariaLabel: '写提示词' }, children)
+  React.createElement(NodePromptToolCluster, { ariaLabel: '写提示词', children })
 
 const tool = (props: Record<string, unknown>): React.ReactElement =>
   React.createElement(NodePromptToolButton, {

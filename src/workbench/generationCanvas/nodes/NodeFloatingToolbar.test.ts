@@ -29,11 +29,11 @@ describe('ToolbarDuplicateVariantButton', () => {
 // 已锁形态归真机走查（tests/ux/node-composer-placement.walk.mjs 量 [data-node-lock] 在哪）。
 describe('FloatingToolbarShell 的锁', () => {
   it('给了 nodeId 就在浮条最左渲出锁，并用分隔线和后面的动作族分开', () => {
-    const html = renderToStaticMarkup(React.createElement(
-      FloatingToolbarShell,
-      { ariaLabel: '节点动作', lockNodeId: 'shot-1' },
-      React.createElement(ToolbarDuplicateVariantButton, { nodeId: 'shot-1' }),
-    ))
+    const html = renderToStaticMarkup(React.createElement(FloatingToolbarShell, {
+      ariaLabel: '节点动作',
+      lockNodeId: 'shot-1',
+      children: React.createElement(ToolbarDuplicateVariantButton, { nodeId: 'shot-1' }),
+    }))
     expect(html).toContain('data-node-lock=')
     expect(html.match(/data-node-lock=/g)).toHaveLength(1)
     // 锁在最左：它出现在第一颗动作按钮（复制变体）之前，中间隔着一根 ToolbarDivider。
@@ -42,11 +42,11 @@ describe('FloatingToolbarShell 的锁', () => {
   })
 
   it('lockNodeId=null 的浮条一把锁都不挂（手艺产物那一条）', () => {
-    const html = renderToStaticMarkup(React.createElement(
-      FloatingToolbarShell,
-      { ariaLabel: '产物动作', lockNodeId: null },
-      React.createElement(ToolbarDuplicateVariantButton, { nodeId: 'shot-1' }),
-    ))
+    const html = renderToStaticMarkup(React.createElement(FloatingToolbarShell, {
+      ariaLabel: '产物动作',
+      lockNodeId: null,
+      children: React.createElement(ToolbarDuplicateVariantButton, { nodeId: 'shot-1' }),
+    }))
     expect(html).not.toContain('data-node-lock')
   })
 })
