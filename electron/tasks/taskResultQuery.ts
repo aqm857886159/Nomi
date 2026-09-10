@@ -1,3 +1,4 @@
+import { queryProviderTrafficTask } from '../vendor/providerTrafficRuntime';
 // 异步任务「续查」收口（从 runtime.ts 拆出，巨壳门岗·只减不增 R12）。
 // 单一真相：缓存命中与无状态重建共用同一段 query。与 runtime 是调用时（函数体内）的循环依赖——
 // ESM/CJS 都按 live binding 在调用时取值，加载期不触碰，安全。
@@ -329,6 +330,11 @@ function withProjectIdSecondChance(cached: CachedTask, pollProjectId: string): C
 }
 
 export async function fetchTaskResult(payload: unknown): Promise<{ vendor: string; result: TaskResult }> {
+  const taskId = trim((payload as JsonRecord).taskId);
+  return queryProviderTrafficTask(taskId, () => fetchTaskResultUntracked(payload));
+}
+
+export async function fetchTaskResultUntracked(payload: unknown): Promise<{ vendor: string; result: TaskResult }> {
   const raw = payload as JsonRecord;
   const taskId = trim(raw.taskId);
   const cached = taskCache.get(taskId);

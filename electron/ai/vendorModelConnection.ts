@@ -18,10 +18,12 @@ function resolveSdkBaseUrl(vendor: Vendor): string {
 
 /** Catalog connection rules shared by pi Agent and the non-Agent AI4 tasks. */
 export function vendorModelConnection(vendor: Vendor, model: Model, apiKey: string) {
+  const meta = vendor.meta && typeof vendor.meta === 'object' ? vendor.meta as Record<string, unknown> : {};
   const kind = normalizeProviderKind(vendor.providerKind);
   const headers = extractVendorExtraHeaders(vendor);
   return {
     kind,
+    ...(typeof meta.accountTier === 'string' ? { accountTier: meta.accountTier } : {}),
     baseURL: kind === 'anthropic'
       ? (vendor.baseUrlHint || '').trim() || 'https://api.anthropic.com/v1'
       : resolveSdkBaseUrl(vendor),

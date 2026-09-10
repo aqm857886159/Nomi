@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ProviderTrafficScheduler, providerTrafficScheduler } from "./providerTrafficScheduler";
+import { cancelProviderAdmission, withProviderAdmissionOwner } from "./providerTaskAdmission";
 import { VendorRequestError, categorizeVendorFailure, requestBinary, requestJson } from "./vendorHttp";
 import { setSubmitOutboundDepsForTests } from "./vendorOutboundGuard";
 import type { Vendor } from "../catalog/types";
@@ -27,6 +29,7 @@ afterEach(() => {
   delete process.env.NOMI_VENDOR_HTTP_TIMEOUT_MS;
   vi.useRealTimers();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 const stubFetch = (impl: () => Promise<Response> | Response) => vi.stubGlobal("fetch", vi.fn(async () => impl()));
@@ -51,12 +54,68 @@ describe("requestJson 结构化错误(S4-0,修压扁根因)", () => {
     expect(error.structured.httpStatus).toBeUndefined();
   });
 
-  it("真 HTTP 429 → quota 可重试,message 保留旧格式(下游正则过渡期不破)", async () => {
-    stubFetch(() => new Response(JSON.stringify({ message: "rate limited" }), { status: 429 }));
-    const error = await requestJson(vendor, "k", "POST", "https://x", {}, {}, {}).catch((e) => e);
-    assert(error instanceof VendorRequestError);
-    expect(error.structured).toMatchObject({ httpStatus: 429, category: "quota", retryable: true });
-    expect(String(error.message)).toContain("Provider request failed (HTTP 429)");
+  it("exposes HTTP 429 to the retry owner and admits its next successful request", async () => {
+    vi.useFakeTimers();
+    const scheduler = new ProviderTrafficScheduler();
+    vi.spyOn(providerTrafficScheduler, "acquire").mockImplementation(scheduler.acquire.bind(scheduler));
+    const fetch = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ message: "rate limited" }), {
+        status: 429, headers: { "Retry-After": "3" },
+      }))
+      .mockResolvedValueOnce(Response.json({ task_id: "accepted-after-rate-limit" }));
+    vi.stubGlobal("fetch", fetch);
+    await expect(requestJson(vendor, "k", "POST", "https://http-rate-test.example/v1/task", {}, {}, {}))
+      .rejects.toMatchObject({ structured: { httpStatus: 429, category: "quota", retryAfterMs: 3000 } });
+    expect(fetch).toHaveBeenCalledOnce();
+    const next = requestJson(vendor, "k", "POST", "https://http-rate-test.example/v1/task", {}, {}, {});
+    await vi.advanceTimersByTimeAsync(2999);
+    expect(fetch).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(1);
+    const result = await next;
+    expect(result).toEqual({ task_id: "accepted-after-rate-limit" });
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not spend the HTTP response deadline while waiting for provider admission", async () => {
+    vi.useFakeTimers();
+    process.env.NOMI_VENDOR_HTTP_TIMEOUT_MS = "10";
+    const scheduler = new ProviderTrafficScheduler();
+    vi.spyOn(providerTrafficScheduler, "acquire").mockImplementation(scheduler.acquire.bind(scheduler));
+    const fetch = vi.fn()
+      .mockResolvedValueOnce(new Response("limited", { status: 429, headers: { "Retry-After": "1" } }))
+      .mockResolvedValueOnce(Response.json({ task_id: "accepted-after-long-queue" }));
+    vi.stubGlobal("fetch", fetch);
+    await expect(requestJson(vendor, "k", "POST", "https://queue-budget.example/v1/task", {}, {}, {}))
+      .rejects.toMatchObject({ structured: { category: "quota" } });
+    const next = requestJson(vendor, "k", "POST", "https://queue-budget.example/v1/task", {}, {}, {});
+    await vi.advanceTimersByTimeAsync(999);
+    expect(fetch).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(1);
+    await expect(next).resolves.toEqual({ task_id: "accepted-after-long-queue" });
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([1002, 1041, 2045])("exposes real MiniMax base_resp rejection %s before the owner retries", async (statusCode) => {
+    const fetch = vi.fn()
+      .mockResolvedValueOnce(Response.json({ base_resp: { status_code: statusCode, status_msg: "slow down" } }, {
+        headers: { "Retry-After": "0" },
+      }))
+      .mockResolvedValueOnce(Response.json({ base_resp: { status_code: 0, status_msg: "success" }, task_id: "accepted" }));
+    vi.stubGlobal("fetch", fetch);
+    await expect(requestJson({ ...vendor, key: "minimax", baseUrlHint: "https://api.minimaxi.com" }, "k", "POST", "https://api.minimaxi.com/v2/video_generation", {}, {}, { model: "MiniMax-H3" }))
+      .rejects.toMatchObject({ structured: { logicalCode: statusCode, category: "quota", retryAfterMs: 0 } });
+    expect(fetch).toHaveBeenCalledOnce();
+    const result = await requestJson({ ...vendor, key: "minimax", baseUrlHint: "https://api.minimaxi.com" }, "k", "POST", "https://api.minimaxi.com/v2/video_generation", {}, {}, { model: "MiniMax-H3" });
+    expect(result).toMatchObject({ task_id: "accepted", base_resp: { status_code: 0 } });
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not retry MiniMax max_tokens rejection as a rate limit", async () => {
+    const fetch = vi.fn().mockResolvedValue(Response.json({ base_resp: { status_code: 1039, status_msg: "adjust max_tokens" } }));
+    vi.stubGlobal("fetch", fetch);
+    await expect(requestJson({ ...vendor, key: "minimax", baseUrlHint: "https://api.minimaxi.com" }, "k", "POST", "https://api.minimaxi.com/v1/text/chatcompletion_v2", {}, {}, {}))
+      .rejects.toMatchObject({ structured: { logicalCode: 1039, category: "input", retryable: false, upstreamMsg: "adjust max_tokens" } });
+    expect(fetch).toHaveBeenCalledOnce();
   });
 
   it("魔搭风格复数 errors 信封(HTTP 400)→ 提取真实原因,不再压成「(no detail from provider)」", async () => {
@@ -227,15 +286,17 @@ describe("requestJson 结构化错误(S4-0,修压扁根因)", () => {
     expect(`${error.message}${JSON.stringify(error.structured)}`).not.toMatch(/user:pass|UNKNOWN_TOKEN|#private/);
   });
 
-  it("调用方取消请求 → 原样抛出取消原因，不伪装成可重试的网络超时", async () => {
+  it("调用方取消已发请求 → 原样抛出取消原因，不伪装成可重试的网络超时", async () => {
     const controller = new AbortController();
+    let enteredFetch!: () => void;
+    const sent = new Promise<void>((resolve) => { enteredFetch = resolve; });
     vi.stubGlobal("fetch", vi.fn((_url: string, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
       init?.signal?.addEventListener("abort", () => reject(init.signal?.reason), { once: true });
+      enteredFetch();
     })));
     const pending = requestJson(vendor, "k", "GET", "https://x", {}, {}, null, controller.signal);
-
+    await sent;
     controller.abort(new Error("cancel vendor request"));
-
     await expect(pending).rejects.toThrow("cancel vendor request");
     await expect(pending).rejects.not.toBeInstanceOf(VendorRequestError);
   });
@@ -244,9 +305,12 @@ describe("requestJson 结构化错误(S4-0,修压扁根因)", () => {
   // 窗口里取消 → 付费请求**一次都没发出去**，而且抛的是调用方给的取消原因，不是伪装的网络超时。
   it("授权窗口内取消 → 原样抛取消原因，且付费请求从未发出", async () => {
     let releaseResolve: () => void = () => {};
+    let enteredResolve!: () => void;
+    const entered = new Promise<void>((resolve) => { enteredResolve = resolve; });
     setSubmitOutboundDepsForTests({
       resolve: () => new Promise<readonly { address: string; family: 4 | 6 }[]>((resolve) => {
         releaseResolve = () => resolve([{ address: "93.184.216.34", family: 4 }]);
+        enteredResolve();
       }),
       readEnvironment: async () => ({ syntheticResolver: false, syntheticSample: "" }),
       isApplicationProxyActive: () => false,
@@ -256,12 +320,45 @@ describe("requestJson 结构化错误(S4-0,修压扁根因)", () => {
 
     const controller = new AbortController();
     const pending = requestJson(vendor, "k", "GET", "https://x", {}, {}, null, controller.signal);
-    await Promise.resolve();
+    await entered;
     controller.abort(new Error("cancel during authorization"));
     releaseResolve();
 
     await expect(pending).rejects.toThrow("cancel during authorization");
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("preserves the task ID when the admission owner cancels after a paid POST is sent", async () => {
+    let sent!: () => void;
+    const sending = new Promise<void>((resolve) => { sent = resolve; });
+    let answer!: () => void;
+    let sentSignal: AbortSignal | undefined;
+    const fetchSpy = vi.fn(async (_input: unknown, init?: RequestInit) => {
+      sentSignal = init?.signal ?? undefined;
+      sent();
+      await new Promise<void>((resolve) => { answer = resolve; });
+      return Response.json({ task_id: "provider-already-accepted" });
+    });
+    vi.stubGlobal("fetch", fetchSpy);
+    const pending = withProviderAdmissionOwner(701, "paid-node", () => requestJson(vendor, "k", "POST", "https://owner-after-send.example/v1/task", {}, {}, {}));
+    await sending;
+    expect(cancelProviderAdmission(701, "paid-node")).toBe(true);
+    expect(sentSignal?.aborted).toBe(false);
+    answer();
+    await expect(pending).resolves.toEqual({ task_id: "provider-already-accepted" });
+    expect(fetchSpy).toHaveBeenCalledOnce();
+  });
+
+  it("does not send a paid POST if its owner cancels while admission is queued", async () => {
+    const fetchSpy = vi.fn(async () => new Response("rate limited", { status: 429, headers: { "Retry-After": "60" } }));
+    vi.stubGlobal("fetch", fetchSpy);
+    await expect(requestJson(vendor, "k", "POST", "https://owner-queued.example/v1/task", {}, {}, {}))
+      .rejects.toMatchObject({ structured: { category: "quota" } });
+    const pending = withProviderAdmissionOwner(702, "queued-node", () => requestJson(vendor, "k", "POST", "https://owner-queued.example/v1/task", {}, {}, {}));
+    const cancelled = expect(pending).rejects.toMatchObject({ name: "VendorRequestError", structured: { upstreamMsg: "Provider admission cancelled", retryable: false, category: "unknown" } });
+    cancelProviderAdmission(702, "queued-node");
+    await cancelled;
+    expect(fetchSpy).toHaveBeenCalledOnce();
   });
 
   it("成功路径原样回 JSON", async () => {

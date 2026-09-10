@@ -1,3 +1,8 @@
+import { ensureProviderTaskAdmission } from './providerTrafficRuntime';
+import { providerLogicalFailure, providerRequestPolicy } from './providerTrafficPolicy';
+import { providerTrafficScheduler } from './providerTrafficScheduler';
+import { providerAdmissionSignal } from './providerTaskAdmission';
+import { providerRetryAfterMs } from './providerTrafficFetch';
 // vendor HTTP 出口(harness S4-0):从 runtime.ts(807/807 零余量)拆出,同时修
 // 「错误压扁」根因(P2)——此前 throw 时把 httpStatus/逻辑码/上游消息全压成一个字符串,
 // 下游 classifyGenerationError 只能正则反猜。现在错误在抛出那一刻保留结构:
@@ -62,6 +67,7 @@ export type VendorErrorStructured = {
   category: VendorErrorCategory;
   retryable: boolean;
   reasonCode?: "response_timeout";
+  retryAfterMs?: number;
 };
 
 export class VendorRequestError extends Error {
@@ -113,7 +119,42 @@ export function authQueryParams(vendor: Vendor, apiKey: string): Record<string, 
  * 读体 → 逻辑错误信封识别 → 分诊抛 VendorRequestError。`bodyInit` 已是 fetch 可直发的形态
  * （字符串 JSON / FormData / undefined），本核不再关心 body 是什么形状。
  */
-async function requestVendor(
+async function requestVendor(...args: Parameters<typeof requestVendorUnthrottled>): ReturnType<typeof requestVendorUnthrottled> {
+  // Owner cancellation stops admission; it must never discard a paid POST response
+  // after the provider may already have accepted (and charged for) the task.
+  const signal = AbortSignal.any([args[7], providerAdmissionSignal()].filter((value): value is AbortSignal => Boolean(value)));
+  let lease: Awaited<ReturnType<typeof providerTrafficScheduler.acquire>>;
+  try {
+    signal.throwIfAborted();
+    await ensureProviderTaskAdmission(args[3]);
+    lease = await providerTrafficScheduler.acquire(providerRequestPolicy(args[0], args[3], args[6]), signal);
+  } catch (error) {
+    if (error instanceof VendorRequestError) throw error;
+    const upstreamMsg = signal.aborted ? "Provider admission cancelled" : "Provider admission failed";
+    throw new VendorRequestError(upstreamMsg, {
+      vendorKey: args[0].key, method: args[2].toUpperCase(), url: safeNetworkUrl(args[3]),
+      upstreamMsg, category: signal.aborted ? "unknown" : "input", retryable: false,
+    });
+  }
+  // requestVendorUnthrottled owns the response deadline, starting after admission.
+  // Only the original caller signal reaches the sent HTTP request.
+
+  try {
+    const result = await requestVendorUnthrottled(...args);
+    lease.release();
+    return result;
+  } catch (error) {
+    if (error instanceof VendorRequestError && error.structured.category === 'quota') {
+      lease.rateLimited(error.structured.retryAfterMs);
+    }
+    lease.release(false);
+    // The existing task retry owner consumes the next per-node spend attempt.
+    // Transport records backoff but must not create unbudgeted paid requests.
+    throw error;
+  }
+}
+
+async function requestVendorUnthrottled(
   vendor: Vendor,
   apiKey: string,
   method: string,
@@ -182,7 +223,7 @@ async function requestVendor(
   // 窗口里 abort，signal 已经是 aborted 而 fetch 还没被调用过。不在这里接住的话，取消要么被
   // 无声吞掉（照旧把付费请求发出去），要么落进一个已经 abort 的 signal 上、事件永不再触发。
   // 接住它，且原样抛出取消原因——与下面 catch 里的 callerCancellation 同一条纪律。
-  const cancelledDuringAuthorization = callerCancellation(signal);
+  const cancelledDuringAuthorization = callerCancellation(signal) ?? callerCancellation(providerAdmissionSignal());
   if (cancelledDuringAuthorization) {
     releaseRequestResources();
     throw cancelledDuringAuthorization;
@@ -298,15 +339,19 @@ async function requestVendor(
   // a logical-error envelope `{ code: 4xx/5xx, msg/message: "..." }` instead of
   // a real error status. Treat that as a failure too, otherwise we'd hand a
   // body with no asset URL to the result builder and report a silent dud.
-  const logicalCode = looksLikeLogicalError(record);
+  const providerFailure = providerLogicalFailure(finalUrl, json);
+  const logicalCode = providerFailure?.code ?? looksLikeLogicalError(record);
   if (!response.ok || logicalCode != null) {
     // 键优先级表住 jsonUtils.pickUpstreamMessage（全仓唯一，onboarding 拉模型/测连接同读一份）。
-    const rawUpstream = pickUpstreamMessage(record, redactRequestMessage);
+    const rawUpstream = providerFailure?.message ? redactRequestMessage(providerFailure.message) : pickUpstreamMessage(record, redactRequestMessage);
     const statusLabel = logicalCode != null ? `code ${logicalCode}` : `HTTP ${response.status}`;
     // "No message available" is Spring's default placeholder — surface the URL
     // and status so the failure is diagnosable instead of opaque.
     const detail = rawUpstream && rawUpstream !== "No message available" ? rawUpstream : `(no detail from provider)`;
-    const { category, retryable } = categorizeVendorFailure(response.ok ? undefined : response.status, logicalCode ?? undefined);
+    const genericFailure = categorizeVendorFailure(response.ok ? undefined : response.status, logicalCode ?? undefined);
+    const minimaxLimit = providerFailure?.rateLimited === true;
+    const { category, retryable } = minimaxLimit ? { category: 'quota' as const, retryable: true } : genericFailure;
+    const retryAfterMs = providerRetryAfterMs(response.headers.get('retry-after'));
     throw new VendorRequestError(`Provider request failed (${statusLabel}) at ${vendor.key} ${upperMethod} ${diagnosticUrl}: ${detail}`, {
       vendorKey: vendor.key,
       method: upperMethod,
@@ -316,6 +361,7 @@ async function requestVendor(
       upstreamMsg: detail.slice(0, 256),
       category,
       retryable,
+      ...(retryAfterMs !== undefined ? { retryAfterMs } : {}),
     });
   }
   return responseKind === "binary" ? { bytes, contentType } : json;

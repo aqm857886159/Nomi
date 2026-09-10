@@ -12,6 +12,7 @@ export interface NomiModelConfig {
   kind: 'openai-compatible' | 'openai-responses' | 'anthropic'
   providerId: string
   modelId: string
+  accountTier?: string
   baseURL: string
   authType: 'api-key' | 'none'
   apiKey?: string

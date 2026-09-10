@@ -9,6 +9,11 @@ export type TtlLruCacheOptions = {
 
 type Entry<V> = { value: V; expiresAt: number };
 
+/** Shared retention for pending task context and completed query delivery. */
+export function createTaskCache<V>(): TtlLruCache<V> {
+  return new TtlLruCache<V>({ maxEntries: 200, ttlMs: 60 * 60 * 1000 });
+}
+
 export class TtlLruCache<V> {
   private readonly map = new Map<string, Entry<V>>();
   private readonly maxEntries: number;

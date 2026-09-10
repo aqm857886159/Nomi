@@ -1,3 +1,4 @@
+import { finishProviderTrafficTask, withProviderTaskTraffic } from './vendor/providerTrafficRuntime';
 import { revalidatePendingCredential } from './catalog/validateCandidateCredential';
 import crypto from "node:crypto";
 import { assertLocalAssetTransportReady, localizeAssetsForVendor } from "./catalog/assetLocalization";
@@ -24,7 +25,7 @@ import { collectAssetUrls, firstMappedString, providerMetaFromResponse, resolveT
 import { extractAssetUrl } from "./tasks/assetUrlExtract";
 import { applyResponseTransform } from "./tasks/responseTransforms";
 import { applyRequestTransform } from "./tasks/requestTransforms";
-import { TtlLruCache } from "./tasks/taskCache";
+import { createTaskCache } from "./tasks/taskCache";
 import { markTaskAdmitted } from "./tasks/taskAdmission";
 import { readCachedTaskResult, recipeFingerprint, rememberTaskResult } from "./vendor/fingerprintCache";
 import {
@@ -148,7 +149,7 @@ export type TaskResult = {
   };
 };
 // TTL(1h) + LRU(200) 上限，防异步任务条目无界驻留（P0-7）。不再缓存明文 apiKey。
-export const taskCache = new TtlLruCache<CachedTask>({ maxEntries: 200, ttlMs: 60 * 60 * 1000 });
+export const taskCache = createTaskCache<CachedTask>();
 
 /** 受理一个异步任务：写工作缓存 + 记账本（单一入口，所有 admit 点同源，防漏记）。 */
 export function admitTask(id: string, entry: CachedTask): void {
@@ -277,6 +278,7 @@ export async function buildProfileTaskResult(input: {
   const mappedAssetValues = ["assets", "image_url", "video_url", "audio_url", "model_url"].flatMap((key) => valuesFromMapping(response, responseMapping, key));
   const assetUrls = Array.from(new Set([...mappedAssetValues.flatMap(collectAssetUrls), ...collectAssetUrls(extractAssetUrl(response))]));
   const { status, unrecognizedStatus } = resolveTaskStatus(response, responseMapping, input.mapping.statusMapping, assetUrls);
+  finishProviderTrafficTask(taskId, status);
   const type: "image" | "video" | "audio" | "model3d" =
     input.wantedKind === "video" ? "video" : input.wantedKind === "audio" ? "audio" : input.wantedKind === "model3d" ? "model3d" : "image";
   const certification = await certifyTaskOutputAndSettleComfyCandidate({ request: input.request, modelKey: input.model?.modelKey, status, urls: assetUrls, kind: type, vendorBaseUrl: String(input.vendor?.baseUrlHint || "") });
@@ -305,6 +307,18 @@ export async function buildProfileTaskResult(input: {
 
 export async function runTask(payload: unknown): Promise<TaskResult> {
   const raw = payload as { vendor?: string; request?: TaskRequest };
+  if (!raw.vendor || !raw.request) throw new Error("vendor and request are required");
+  await revalidatePendingCredential(trim(raw.vendor));
+  const staged = resolveComfyCandidateExecution(raw.request);
+  const identity = staged || findExecutableModel(trim(raw.vendor), firstString(raw.request.extras?.modelKey, raw.request.extras?.modelAlias), billingKindForTaskKind(raw.request.kind));
+  return withProviderTaskTraffic(identity.vendor, identity.model, () => runTaskUnthrottled(payload), async (taskId) => {
+    const { fetchTaskResultUntracked } = await import('./tasks/taskResultQuery');
+    return fetchTaskResultUntracked({ taskId, vendor: identity.vendor.key, modelKey: identity.model.modelKey, taskKind: raw.request!.kind, projectId: raw.request!.extras?.projectId, archetype: raw.request!.extras?.archetype });
+  });
+}
+
+async function runTaskUnthrottled(payload: unknown): Promise<TaskResult> {
+  const raw = payload as { vendor?: string; request?: TaskRequest };
   const vendorKey = trim(raw.vendor);
   const request = raw.request;
   if (!vendorKey || !request) throw new Error("vendor and request are required");
@@ -313,7 +327,6 @@ export async function runTask(payload: unknown): Promise<TaskResult> {
   const modelKey = firstString(request.extras?.modelKey, request.extras?.modelAlias);
   const archetypeMeta = request.extras?.archetype;
   const modeId = archetypeMeta && typeof archetypeMeta === "object" ? firstString((archetypeMeta as JsonRecord).modeId) : firstString(request.extras?.modeId);
-  await revalidatePendingCredential(vendorKey);
   const stagedCandidate = resolveComfyCandidateExecution(request);
   const { vendor, model, apiKey, customConfig } = stagedCandidate || findExecutableModel(vendorKey, modelKey, wantedKind);
   const projectId = trim(request.extras?.projectId) || activeTaskProjectFallback();
@@ -389,8 +402,8 @@ export async function runTask(payload: unknown): Promise<TaskResult> {
       return missingTaskIdResult;
     }
     traceVendorRequested(projectId, { runId: normalized.result.id, nodeId, recipe });
-    if (["succeeded", "failed"].includes(normalized.result.status)) {
-      traceVendorCompleted(projectId, { runId: normalized.result.id, nodeId, status: normalized.result.status as "succeeded" | "failed", assetCount: normalized.result.assets.length, ...(normalized.actualCost ? { cost: normalized.actualCost } : {}) });
+    if (normalized.result.status === "succeeded" || normalized.result.status === "failed") {
+      traceVendorCompleted(projectId, { runId: normalized.result.id, nodeId, status: normalized.result.status, assetCount: normalized.result.assets.length, ...(normalized.actualCost ? { cost: normalized.actualCost } : {}) });
       rememberTaskResult(projectId, fingerprint, normalized.result);
     }
     if (!["succeeded", "failed"].includes(normalized.result.status)) {

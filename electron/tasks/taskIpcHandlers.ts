@@ -1,3 +1,4 @@
+import { cancelProviderAdmission, withProviderAdmissionOwner } from '../vendor/providerTaskAdmission';
 import { app, ipcMain } from "electron";
 
 import { assertTrustedSender } from "../ipcSenderGuard";
@@ -43,11 +44,14 @@ export function registerTaskIpcHandlers(loadRuntimeModule: RuntimeLoader): void 
     assertTrustedSender(event);
     if (!owners.has(event.sender.id)) {
       const owner = event.sender.id; owners.add(owner);
-      event.sender.once("destroyed", () => { owners.delete(owner); void antigravityImageJobs.cancelOwner(owner); });
+      event.sender.once("destroyed", () => { owners.delete(owner); cancelProviderAdmission(owner); void antigravityImageJobs.cancelOwner(owner); });
     }
     return runTaskIpcGuard(payload, async () => {
       const { runTask } = await loadRuntimeModule();
-      return withTaskOwner(event.sender.id, () => runTaskWithIdempotency(payload, () => runTask(payload)));
+      return withTaskOwner(event.sender.id, () => runTaskWithIdempotency(payload, () => {
+        const key = String((payload as { request?: { extras?: { idempotencyKey?: unknown } } })?.request?.extras?.idempotencyKey ?? '');
+        return withProviderAdmissionOwner(event.sender.id, key, () => runTask(payload));
+      }));
     });
   });
 
@@ -94,6 +98,9 @@ export function registerTaskIpcHandlers(loadRuntimeModule: RuntimeLoader): void 
   });
   ipcMain.handle("nomi:tasks:cancel", (event, taskId: unknown) => {
     assertTrustedSender(event);
+    if (typeof taskId === 'string' && taskId.startsWith('submission:')) {
+      return { ok: cancelProviderAdmission(event.sender.id, taskId.slice('submission:'.length)) };
+    }
     if (typeof taskId !== "string" || !/^local-[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(taskId)) throw new Error("LOCAL_TASK_INVALID_ID");
     return antigravityImageJobs.cancel(taskId, event.sender.id);
   });

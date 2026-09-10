@@ -1,3 +1,4 @@
+import { withProviderTextTraffic } from '../vendor/providerTrafficFetch.js';
 // Agent lane · pi provider 的**唯一装配点**（阶段 4 前置 ③ 从 `harness/runtime/pi/model.mts` 搬来）
 //
 // 为什么搬：`laneHost.mts` 每开一条 lane 都要调 `createNomiProvider`，而它原来住在
@@ -26,6 +27,7 @@ export const modelConfigSchema = z.object({
   authType: z.enum(['api-key', 'none']),
   apiKey: z.string().optional(),
   headers: z.record(z.string()).optional(),
+  accountTier: z.string().optional(),
   contextWindow: z.number().int().positive().optional(),
   maxOutputTokens: z.number().int().positive().optional(),
   temperature: z.number().finite().optional(),
@@ -128,6 +130,7 @@ export function createNomiModelDescriptor(config: NomiModelConfig): Model<Api> {
 export async function createNomiProvider(input: NomiModelConfig, fetchRequest: typeof globalThis.fetch, guard?: NomiStreamGuard) {
   if (typeof fetchRequest !== 'function') throw new Error('agent_lane_transport_required');
   const config = configCompatibility.parse(input);
+  fetchRequest = withProviderTextTraffic(fetchRequest, config.accountTier);
   const credentials = new InMemoryCredentialStore();
   if (config.authType === 'api-key') {
     await credentials.modify(config.providerId, async () => ({ type: 'api_key', key: config.apiKey }));

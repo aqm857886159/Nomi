@@ -1,3 +1,4 @@
+import { withProviderTextTraffic } from '../vendor/providerTrafficFetch';
 /**
  * AI SDK model factory.
  *
@@ -17,7 +18,7 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import type { LanguageModelV1 } from "ai";
 import { applyProfileToRequestBody, getModelProfile } from "./modelProfiles";
-import { appFetch } from "../appFetch";
+import { appFetch as nativeAppFetch } from "../appFetch";
 // 单一真相源：provider-kind 联合定义在 catalog/types，这里只 re-export，避免并行定义漂移（规则 1）。
 import type { AiSdkProviderKind, Vendor } from "../catalog/types";
 import { createExplicitProxyDispatcher } from "../systemProxy";
@@ -31,6 +32,7 @@ export interface BuildAiSdkModelInput {
   /** `none` is supported by OpenAI-compatible gateways and omits Authorization entirely. */
   authType?: Vendor["authType"];
   modelId: string;
+  accountTier?: string;
   /**
    * Extra HTTP headers sent on every request to the provider. Lets users add
    * relay/proxy auth headers (e.g. `HTTP-Referer`, a second bearer, a vendor's
@@ -59,7 +61,8 @@ function vendorHostOf(url: string): string {
  *
  * Optional debug: set LAB_DEBUG_REQUESTS=1 to dump each request body to /tmp.
  */
-function buildProfiledFetch(modelId: string, proxyUrl?: string): typeof fetch {
+function buildProfiledFetch(modelId: string, proxyUrl?: string, accountTier?: string): typeof fetch {
+  const appFetch = withProviderTextTraffic((input, init) => nativeAppFetch(input, init), accountTier);
   const profile = getModelProfile(modelId);
   const debug = process.env.LAB_DEBUG_REQUESTS === "1";
   const dispatcher = proxyUrl ? createExplicitProxyDispatcher(proxyUrl) : undefined;
@@ -144,6 +147,7 @@ export function anthropicBaseUrl(baseURL: string): string {
 }
 
 export function buildAiSdkModel(input: BuildAiSdkModelInput): LanguageModelV1 {
+  const appFetch = withProviderTextTraffic((target, init) => nativeAppFetch(target, init), input.accountTier);
   const apiKey = (input.apiKey || "").trim();
   const unauthenticated = input.authType === "none";
   if (!apiKey && !unauthenticated) {
@@ -177,7 +181,7 @@ export function buildAiSdkModel(input: BuildAiSdkModelInput): LanguageModelV1 {
       apiKey,
       baseURL,
       ...(headers ? { headers } : {}),
-      fetch: buildProfiledFetch(modelId, input.proxyUrl),
+      fetch: buildProfiledFetch(modelId, input.proxyUrl, input.accountTier),
     });
     return provider.responses(modelId);
   }
@@ -190,7 +194,7 @@ export function buildAiSdkModel(input: BuildAiSdkModelInput): LanguageModelV1 {
     baseURL,
     ...(apiKey ? { apiKey } : {}),
     ...(headers ? { headers } : {}),
-    fetch: buildProfiledFetch(modelId, input.proxyUrl),
+    fetch: buildProfiledFetch(modelId, input.proxyUrl, input.accountTier),
   });
   return provider.chatModel(modelId);
 }
