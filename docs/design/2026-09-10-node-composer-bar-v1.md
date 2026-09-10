@@ -1,9 +1,12 @@
-# 节点生成浮框底栏 v1.1 + B · 三类归位 · 逐参数下拉
+# 节点生成浮框底栏 v1.1 · 三类归位（+ §B：逐参数下拉，只给付费确认卡）
 
-> 状态：**已接线**（2026-09-11 用户「都按默认」拍板 v1.1；同日 02:10 拍板 B「逐参数下拉」，均已实施）。
-> **先读 §B**：它推翻了 v1.1 的「参数 chip 只报两个值」，下面 v1.1 各节里凡写「参数 chip / 摘要 pill」的都以 §B 为准。
-> 屏：设计实验室 `node-composer-bar`（5 格，`pnpm run design-lab:walk:node-composer-bar`），
-> 接线后**每一格都是现役 `NodeGenerationComposer` 本体**（`coverage: shell`）——样张阶段那两格
+> 状态：**已接线**（2026-09-11 用户「都按默认」拍板 v1.1 并已实施）。
+> **先读 §B 开头那段**：同日 02:10 拍板的「逐参数下拉 chip」我错误地落到了共用组件的默认行为上，
+> 04:30 用户纠正为**只给付费确认卡，画布节点退回摘要 pill**。所以 v1.1 各节里写的
+> 「参数 chip 只报两个值」**仍然是画布节点上现役的形态**，没有被推翻。
+> 屏：设计实验室 `node-composer-bar`（6 格，`pnpm run design-lab:walk:node-composer-bar`），
+> 前五格**都是现役 `NodeGenerationComposer` 本体**（`coverage: shell`），
+> 第六格是 chips 摆法的组件陈列（`coverage: component-only`）——样张阶段那两格
 > `before` 与六格 `component-only` 已同 commit 删除：形态一上线，「现状」就是 v1.1 本身，
 > 再留一格顶着「现状 · 9 件挤一行」的名字去渲染新底栏，那是一句会骗人的图注（P1 加新必删旧）。
 > 基线：本屏仍挂在 `tests/ux/design-lab/calibration.json` 的 `pendingApprovalScreens` 里，
@@ -87,28 +90,39 @@ v1 把 B 簇做成**贴在提示词框右上角、带描边和阴影的一小块
 
 ---
 
-## B · 逐参数下拉（2026-09-11 02:10 用户拍板 · 同日实施）
+## B · 逐参数下拉 —— **只给付费确认卡；画布节点保持摘要 pill**（2026-09-11 02:10 拍板 → 04:30 收窄）
 
-> 这一节推翻的是 v1.1 的第 1 条实现细节（「参数 chip 只报两个值」），其余（B 簇 / 锁 / 三段）原样不动。
+> **先读这一句**：02:10 拍板的「每个主参数一颗下拉 chip」我落错了地方——把它写进了
+> `InlineParameterBar` 的默认行为，于是画布节点和付费确认卡**两处一起变了**。
+> 用户 04:30 纠正：**方案 B 只应用于付费确认卡，画布节点的参数条退回原样**
+> （摘要 pill + 统一面板，含比例小图形）。本节按纠正后的口径重写。
+> 所以 v1.1 的「参数 chip 只报两个值」**没有被推翻**，它仍是画布节点上现役的形态。
 
 ### 他说中的是什么
 
-v1.1 的参数 chip 长这样：`[16:9 · 5s ▾]`。它**读得出**、但**够不着**——想把 5s 改成 8s，
-要先点 chip 打开面板、再在面板里点一次。这一步是继承来的：2026-07-17 那版把「摘要 pill + 统一面板」
-定成形态时，解决的是「参数多时内联下拉挤成一团」；一年下来参数被档案收敛成三五个，
-挤的问题没了，多出来的那一步却留下了。付费卡（`layout="stacked"`）复用同一个组件，
-所以那边也一样多一步。
+摘要 pill 长这样：`[16:9 · 5s ▾]`。它**读得出**、但要改一个值得点两次（先开面板、再在面板里选）。
+这一步在**画布节点**上不贵：节点上改参数是探索期的动作，面板一次打开可以连改多项，
+而且面板里比例那组带比例小图形——那是「一眼选对画幅」的东西，下拉列表给不了。
 
-用户 02:10 的原话大意：**每个常用参数自己一颗下拉 chip，一步到位**；长尾收进一颗 ⚙。
+它在**付费确认卡**上才贵：那一刻用户正在逐项确认「出什么、花多少」，每多一次点击都挡在钱前面。
+所以逐参数 chip 的家是那里，不是画布。
 
-### 形态
+### 一个属性，不是两个组件
 
-```
-[模型 ▾] [变体 ▾] [16:9 ▾] [5s ▾] [1080p ▾] [⚙]  │  [🎥][✦][✨]  │  [×1 ▾] ……… [↑]
-   身份（不缩）        主参数：看得见 = 点得到        长尾    帮我写提示词      出几张 / 走
-```
+`InlineParameterBar` 加一个 `parameterLayout: 'summary' | 'chips'`，**默认 `'summary'`**：
 
-**露哪几颗由模型档案决定，不硬编码**（`nodes/primaryParameterChips.ts`）。判据三条，缺一不可：
+| 值 | 参数区长什么样 | 谁在用 |
+|---|---|---|
+| `summary`（默认） | 一颗摘要 pill（`16:9 · 5s ▾`），点开是统一参数面板：每个参数一组「小标题 + 分段选择器」，点即改、面板不关，比例那组每项带比例小图形 | 画布节点（`NodeGenerationComposer` → `NodeParameterControls section="parameters"`，**不传这个属性**） |
+| `chips` | `[16:9 ▾] [5s ▾] [1080p ▾] [⚙]`：每个主参数一颗可点的下拉，长尾与供应商收进 ⚙ | 付费确认卡（`host='panel'`，在权限那条分支上）**显式传** |
+
+为什么不拆成两个组件：面板里那批控件（分段 / 滑杆 / 数字草稿缓冲 / 开关 / 搜索下拉）两边一模一样。
+拆成两份就是并行版（P1 加新必删旧），改一处修不了另一处。差的只有一件事——
+**参数区那一格里放什么、面板里剩什么**：`summary` 下面板装全部参数，`chips` 下只装没上底栏的那些。
+
+### chips 形态：露哪几颗由模型档案决定，不硬编码
+
+判据在 `nodes/primaryParameterChips.ts`，三条缺一不可：
 
 | 条 | 判据 | 为什么 |
 |---|---|---|
@@ -123,50 +137,42 @@ catalog 的 `binding` 早就是本仓「哪个键表示哪件事」的唯一出�
 - 档案里没有清晰度 → 就没有那颗 chip（**不补默认值假装模型支持**）；
 - 图片模型自然只剩比例 + 清晰度，视频才有时长——不在 UI 里按 kind 点名；
 - 用户自接入的模型 / 导入的 ComfyUI 工作流（采样步数、帧率…）**一颗 chip 都不出**，全在 ⚙ 里。
-  它们的参数名是工作流作者随手起的，摆成没有名字的值 chip 就是 `15 · 24` 那条老问题（群反馈 G2#433）。
-  ⚙ 的名字带条数（「更多参数 · 4 项」），那句「勾过的功能到底在不在」由它回答。
 
-**顺序固定为 比例 → 时长 → 清晰度**，不随档案声明顺序漂：底栏是每次生成前都要扫的同一行，
-比例这颗今天第一位、换个模型跑到第三位，等于每换一次模型都要重新找一遍。
-
-### 一行装不下时（不允许换行）
-
-1. **先靠短标签**：chip 上只印当前值，不印参数名（参数名在 `aria-label` 与 hover 的 `title` 里）。
-2. **仍装不下就退位**：按上面那个顺序**从尾巴退**（先退清晰度，再退时长），退下来的回到 ⚙ 里它在档案中的原位。
-   一颗都装不下就全退，绝不换行、绝不缩成看不清的小字。
-3. 「装不装得下」是**量出来的**（`useFittedChipCount`：行内容比行本身宽 = 装不下），
-   不是按「每个字大约几像素」估的——卡宽是 `w-max` 算出来的、可用区还会被 Agent 面板真实挤窄，
-   估错的那一次表现为**底栏被裁掉一半**（卡是 `overflow-hidden`）。
-   为此身份两枚（模型 / 变体）在横排里**不缩**：否则宽度不够时先被榨没的是模型名，而它是这一行的一等决策。
+**顺序固定为 比例 → 时长 → 清晰度**，不随档案声明顺序漂。
+一行装不下时按这个顺序**从尾巴退**回 ⚙（先退清晰度，再退时长），绝不换行；
+「装不装得下」是量出来的（`useFittedChipCount` 读真实盒子），不是按字宽估的。
+为此 chips 形态的横排里身份两枚（模型 / 变体）不缩——否则宽度不够时先被榨没的是模型名。
 
 ### 代价（诚实说清）
 
-1. **底栏更长了**：视频节点从「模型 + 变体 + 一颗 pill」变成「模型 + 变体 + 三颗 chip + ⚙」。
-   卡宽仍由 `w-max` 算、封顶 880px，单行不换行是硬断言。
-2. **比例的图形选项没了**：面板里那组分段每项带一个比例小图形（2026-07-17 拍板的细节），
-   下拉列表只能给文字。常用序（16:9 / 9:16 领头）保留，走的还是同一把尺子 `commonRatioSortKey`。
-3. **退位之后不会自动补回来**：卡从窄变宽时，只有宽度真的变了才重新摆满；否则要等换模型/换模式。
+1. **同一个组件有两种摆法**：读代码的人要先看 `parameterLayout` 才知道自己在看哪一种。
+   换来的是面板与那批控件只有一份实现——比两个组件各写一遍便宜得多。
+2. **chips 形态里比例的图形选项没了**：下拉列表只能给文字。常用序（16:9 / 9:16 领头）保留，
+   走的还是同一把尺子 `commonRatioSortKey`。画布节点不受影响（它是 `summary`，面板里图形还在）。
+3. **chips 退位之后不会自动补回来**：卡从窄变宽时，只有宽度真的变了才重新摆满。
    宁可这样，也不要为了「随时补回来」引入一加一退的抖动。
 4. **⚙ 用的是滑块 icon（`IconAdjustmentsHorizontal`）不是齿轮**：齿轮在本仓已经是「设置」的家
-   （`NomiAppBar` / 供应商设置），参数不是设置。**这一颗请在拍板时一并看**：接受，或换成齿轮。
+   （`NomiAppBar` / 供应商设置），参数不是设置。这一颗请在付费卡拍板时一并看。
 
 ### 删了什么（P1 加新必删旧）
 
-| 删除 | 连带 |
-|---|---|
-| 摘要 pill（`summaryTrigger` / `summaryWidth` / 冻结文本 / 走查锚点 `data-parameter-summary`） | 「点开才够得着」这一步 |
-| `summaryOverride` 这条缝 | 它只为「导入工作流报名字+条数」存在；⚙ 的名字带条数之后不需要第二条摘要通路 |
-| `nodes/composerHeadlineSummary.ts`（v1.1 当天新加的两值摘要）与它的测试 | chip 化之后没有「摘要」这个东西了 |
-| `isImportedComfyWorkflowModel()` 与 i18n `parameters.workflowParams` | 上一条的唯一调用者；ComfyUI 那支不再需要一条按供应商分叉的文案（P2 修根因不修症状） |
+02:10 那一版删掉的摘要 pill 通路（`summaryOverride` / `summaryWidth` / 冻结文案 /
+`data-parameter-summary` / `composerHeadlineSummary.ts` / `isImportedComfyWorkflowModel()` /
+i18n `parameters.workflowParams`）**在 04:30 的纠正里全部恢复**——它们是画布节点现役形态的实现，
+不是遗留物。恢复用的是 `git show d0cc83163^`，不是凭记忆重写。
 
-### 走查新增的硬断言（真机）
+没有并行版：`chips` 那一支不再有自己的面板、自己的摘要、自己的控件渲染函数，
+它和 `summary` 共用 `renderParameterPanel` / `renderPanelGroup`（单测直接数这两处只有一个定义）。
 
-| 断言 | 拦的是什么 |
-|---|---|
-| 每颗 `[data-parameter-chip]` 都有 `button` 触发器、可命中、带当前值 | 「一步到位」退化成一段不可点的文字 |
-| 像真人一样点第一颗 chip → 下拉里挑另一个值 → chip 的 `data-parameter-chip-value` 真的变了 | 只改了下拉自己的显示、没写进节点（store） |
-| 打开 ⚙ 后：里面**有**长尾参数（基线），且**没有**任何一颗已经上底栏的参数 | 同一个值两个家；以及「点开是空白的齿轮」 |
-| 改完参数底栏仍是单行 | 换行 / 撑爆卡宽 |
+### 走查怎么守（各守各的形态）
+
+| 在哪 | 断言 | 拦的是什么 |
+|---|---|---|
+| 真机 `node-composer-placement.walk.mjs` | 底栏参数区是一颗读得出当前配置、点得到的摘要 pill；像真人一样点开它 → 面板里挑一个别的档 → 那一组的选中态真的挪过去了（面板受控，选中态 = 节点 meta） | 画布节点的「读得出 + 点得开真能改」退化 |
+| 真机 同上 | 画布节点上 `[data-parameter-chip]` **一颗都没有**（基线 = 上一条 pill 读到了） | chips 又被误接回画布（这次的根因） |
+| 真机 同上 | 「点开面板改一个值」这条路整场至少走到一次 | 模型碰巧没有分段组时那一段静静跳过的假绿 |
+| 实验室 `composer-bar-chips-mode` 那一格 | 每颗 `[data-parameter-chip]` 都有 `button` 触发器、带当前值；且不同时渲染摘要 pill | chips 形态退化成一段不可点的文字 |
+| 实验室 画布五格 | 摘要 pill 恰好两个值；且这五格里没有任何逐参数 chip | 两种摆法互相串门 |
 
 ---
 
@@ -299,7 +305,7 @@ v1 已经把这一步从「读 9 件东西并找出哪两件要紧」压成「�
 
 ## 截图（接线后 · 相对仓库根）
 
-设计实验室（5 格 + 接触表，`pnpm run design-lab:walk:node-composer-bar`）：
+设计实验室（6 格 + 接触表，`pnpm run design-lab:walk:node-composer-bar`）：
 
 ```
 tests/ux/shots/design-lab-node-composer-bar/_contact-sheet.png
@@ -308,6 +314,7 @@ tests/ux/shots/design-lab-node-composer-bar/composer-bar-v1-video-camera.png
 tests/ux/shots/design-lab-node-composer-bar/composer-bar-v1-image.png
 tests/ux/shots/design-lab-node-composer-bar/composer-bar-v1-video-dark.png
 tests/ux/shots/design-lab-node-composer-bar/composer-bar-v1-image-dark.png
+tests/ux/shots/design-lab-node-composer-bar/composer-bar-chips-mode.png  ← §B：chips 摆法（付费卡用）
 ```
 
 真机（打包 Electron 里点出来的，`node tests/ux/node-composer-placement.walk.mjs`）：
@@ -315,8 +322,7 @@ tests/ux/shots/design-lab-node-composer-bar/composer-bar-v1-image-dark.png
 ```
 tests/ux/shots/node-composer-placement/01-video-node-composer.png
 tests/ux/shots/node-composer-placement/05-image-node-composer.png
-tests/ux/shots/node-composer-placement/06-video-chip-open.png   ← §B：点一颗 chip 直接弹下拉
-tests/ux/shots/node-composer-placement/07-image-more-panel.png  ← §B：⚙ 里只剩长尾（视频那格的模型三个参数全上了 chip，没有 ⚙）
+tests/ux/shots/node-composer-placement/06-video-param-panel.png  ← 点摘要 pill 弹出的统一参数面板
 ```
 
 ---
@@ -331,8 +337,9 @@ tests/ux/shots/node-composer-placement/07-image-more-panel.png  ← §B：⚙ �
 | `generationCommon.composerBarV1.effects` | 效果与提示词库 | Effects & prompt library |
 | `generationCommon.composerBarV1.cameraPicked` | `{{move}} · {{speed}}` | `{{move}} · {{speed}}` |
 | `generationCommon.composerBarV1.seconds` | `{{value}}s` | `{{value}}s` |
-| `generationCommon.parameters.moreParameters`（§B 新增） | `更多参数 · {{count}} 项` | `More parameters · {{count}}` |
-| ~~`generationCommon.parameters.workflowParams`~~ | §B 删除（它只服务已删掉的 `summaryOverride`） | — |
+| `generationCommon.parameters.moreParameters`（§B 新增，chips 形态的 ⚙） | `更多参数 · {{count}} 项` | `More parameters · {{count}}` |
+| `generationCommon.parameters.workflowParams`（现役 · 画布节点的 summary 形态） | `工作流参数 · {{count}} 项` | `Workflow params · {{count}}` |
+| `generationCommon.parameters.generationParameters` / `.parameters`（现役 · 摘要 pill 的名字与空态） | `生成参数` / `参数` | `Generation parameters` / `Parameters` |
 | `generationCommon.optimizer.aria`（复用） | 优化提示词 | — 现役 |
 | `generationCommon.cameraMove.title`（复用） | 运镜 | — 现役 |
 | `generationCommon.node.lock.lockHint`（复用） | 锁定提示 | — 现役 |
@@ -341,11 +348,12 @@ tests/ux/shots/node-composer-placement/07-image-more-panel.png  ← §B：⚙ �
 
 ## 这份文档的证据强度（别读岔）
 
-接线之后不再有「样张」这一档：设计实验室五格与真机走查截的都是**同一份生产代码**。
+接线之后不再有「样张」这一档：设计实验室前五格与真机走查截的都是**同一份生产代码**。
 
 | 部分 | 是什么 |
 |---|---|
-| 实验室五格 | **现役 `BaseGenerationNode` + `NodeGenerationComposer` 本体**，`coverage: shell`。夹具只给了两件东西：一个只读模型目录桥（实验室没有 Electron 桥）和一个节点 meta，参数 chip 上那两个值仍由档案 derive |
+| 实验室前五格 | **现役 `BaseGenerationNode` + `NodeGenerationComposer` 本体**，`coverage: shell`。夹具只给了两件东西：一个只读模型目录桥（实验室没有 Electron 桥）和一个节点 meta，摘要 pill 上那两个值仍由档案 derive |
+| 实验室第六格 | 同一个 `InlineParameterBar` 多传一个 `parameterLayout="chips"`，控件走 `resolveRenderedControls`（生产同一个函数）从 Seedance 2 真实档案 derive。`coverage: component-only` + `mirrors: 'none'`——付费确认卡在另一条分支上，本分支没有生产调用点，不假装它有家 |
 | 真机两张 | 打包 Electron 里用真实鼠标建节点、选节点截的，不灌 store、不注入夹具 |
 | 底栏三段 | 生产实现：第一段 `NodeParameterControls section="parameters"` → `InlineParameterBar`；中段 `NodePromptToolCluster` 包着现役的 `NodeCameraMoveControl` / `useNodeEffectChips().more` / `NodePromptOptimizer` 三个**触发器换了外观、弹层与逻辑一行没动**的控件；第三段 `NomiSelect` + `GENERATE_BUTTON_CLASS` |
 | 锁 | `FloatingToolbarShell` 里的 `NodeLockBadge`，六条浮条共用同一份（`lockNodeId` 必填，让编译器逼每条浮条答一次） |
@@ -356,8 +364,8 @@ tests/ux/shots/node-composer-placement/07-image-more-panel.png  ← §B：⚙ �
 
 | 拍板那一条 | 落在哪 | 删了什么 |
 |---|---|---|
-| **（B · 02:10 覆盖下面那条）** 每个主参数一颗下拉 chip、长尾进 ⚙ | 新 `nodes/primaryParameterChips.ts`（判据从档案 derive）+ `nodes/useFittedChipCount.ts`（装不下就退位，量真实盒子）；角色表 `parameterControlRole` 挂在既有的别名/binding 唯一出处上 | 摘要 pill 整条路（`summaryTrigger`/`summaryWidth`/`summaryOverride`/`data-parameter-summary`）、`composerHeadlineSummary.ts`、`isImportedComfyWorkflowModel()` 与 `parameters.workflowParams` |
-| ~~参数 chip 只报两个值~~（当天 02:10 被 §B 推翻） | 曾是 `nodes/composerHeadlineSummary.ts` → `summaryOverride` 缝 | 已随 §B 全部删除，无并行版 |
+| 参数 chip 只报两个值（**画布节点现役**） | `nodes/composerHeadlineSummary.ts`（按控件 key 挑，值从档案 derive）→ `NodeParameterControls` 走 `InlineParameterBar` 已有的 `summaryOverride` 缝 | 没有新造第二条摘要通路；导入工作流那支的口径优先，原样保留 |
+| **（B · 02:10 拍板 → 04:30 收窄到付费卡）** 每个主参数一颗下拉 chip、长尾进 ⚙ | `InlineParameterBar` 的 `parameterLayout='chips'`（默认 `'summary'`，画布节点不传）+ `nodes/primaryParameterChips.ts`（判据从档案 derive）+ `nodes/useFittedChipCount.ts`（装不下就退位，量真实盒子）；角色表 `parameterControlRole` 挂在既有的别名/binding 唯一出处上 | 无（02:10 那版误删的摘要 pill 通路已按 04:30 的纠正整条恢复） |
 | B 簇 = 缩小一号的纯 icon | 新 `nodes/NodePromptToolCluster.tsx`（只放外观与分组：`WorkbenchIconButton size="sm"` + Radix `Tooltip` + 激活点），三个控件各自的触发器改用它 | `NodeCameraMoveControl` 带文字的芯片（连同 `cameraMove.hint` 词条）· `NodePromptOptimizer` 带文字的按钮与它的 `ml-auto`（连同 `optimizer.optimize`）· `NodeEffectChips` 的「更多 ▾」（连同 `libraries.gallery.more`） |
 | 锁回节点浮条 | `FloatingToolbarShell` 里，`lockNodeId` 是**必填**参数：六条浮条每条都得答一次「你挂的是不是一个可锁的节点」，写成可选就是下一条浮条静默少一把锁（R28 让编译器拦） | `NodeGenerationComposer` 底栏那份 `NodeLockBadge` 与「锁移到底栏」那段注释；`NodeLockBadge` 的 `locked` / `selected` 两个 prop（锁态自己从 store 读，不把同一个事实抄两份） |
 | 底栏一行三段 | `NodeGenerationComposer` 底栏：`data-bar-segment` 四段 + 两根现役 `ToolbarDivider`；一件工具都没有（锁住的节点）时整段连分隔线一起不渲染 | — |

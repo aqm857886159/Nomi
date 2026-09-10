@@ -45,14 +45,10 @@ const denoiseControl: ModelParameterControl = {
   defaultValue: 1,
 }
 
-/**
- * 有可用步长的区间：仍然该是滑杆——证明我们没有把「滑杆全砍」当修法。
- * 用 `shift` 这种工作流参数而不是 `duration`：2026-09-11 起时长是**主参数**，会被摆成底栏 chip
- * 而不是进面板（见 primaryParameterChips.ts）——拿它当样本，验的就不再是「面板里的滑杆」了。
- */
-const shiftControl: ModelParameterControl = {
-  key: 'shift',
-  label: '偏移',
+/** 有可用步长的区间：仍然该是滑杆——证明我们没有把「滑杆全砍」当修法。 */
+const durationControl: ModelParameterControl = {
+  key: 'duration',
+  label: '时长',
   type: 'number',
   binding: 'parameter',
   options: [],
@@ -66,7 +62,7 @@ function Fixture(): JSX.Element {
   const [meta, setMeta] = React.useState<Record<string, unknown>>({
     megapixels: 1,
     denoise: 1,
-    shift: 5,
+    duration: 5,
   })
   // 记录每一次回写，用来证明「打字途中没有把 0. 当成 0 提交过」。
   const [commits, setCommits] = React.useState<string[]>([])
@@ -84,7 +80,7 @@ function Fixture(): JSX.Element {
           <InlineParameterBar
             modelOptions={[workflowOption]}
             modelCatalogStatus={{ message: 'ready' }}
-            renderedControls={[megapixelsControl, denoiseControl, shiftControl]}
+            renderedControls={[megapixelsControl, denoiseControl, durationControl]}
             selectedModelOption={workflowOption}
             archetype={null}
             meta={meta}

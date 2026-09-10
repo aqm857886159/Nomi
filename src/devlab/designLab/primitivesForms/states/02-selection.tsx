@@ -140,7 +140,7 @@ export const SELECTION_STATES: readonly LabState[] = [
     name: 'DesignSegmentedControl（Mantine）vs NomiSegmented（原生）· 同轴两套并排',
     source: SOURCE_SEGMENTED,
     mirrors: [
-      'src/workbench/generationCanvas/nodes/InlineParameterBar.tsx:323',
+      'src/workbench/generationCanvas/nodes/InlineParameterBar.tsx:400',
       'src/workbench/settings/AutomationPermissionsSection.tsx:183',
       'src/ui/onboarding/ConnectAssistantCard.tsx:248',
     ],
@@ -322,7 +322,7 @@ export const SELECTION_STATES: readonly LabState[] = [
     id: 'pf-09-nomi-select-searchable',
     name: 'NomiSelect · searchable 展开态（长枚举走搜索 + 长文件名换行）',
     source: SOURCE_SELECT,
-    mirrors: ['src/workbench/generationCanvas/nodes/InlineParameterBar.tsx:306'],
+    mirrors: ['src/workbench/generationCanvas/nodes/InlineParameterBar.tsx:383'],
     coverage: 'shell',
     // `searchable` 全仓**只有一个**调用点，这一格逐项照抄它：
     // `className="w-full justify-between"`（面板里的整宽字段，不是自适应宽的 pill）

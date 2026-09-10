@@ -1,11 +1,11 @@
 // 设计实验室 · 屏「画布 · 节点生成浮框底栏」的取景台与夹具。
 //
-// 这一屏钉的是 2026-09-11 用户拍板、**已经上线**的底栏形态（v1.1 + 02:10 拍板的 B）：
+// 这一屏钉的是 2026-09-11 用户拍板、**已经上线**的底栏形态（v1.1）：
 //
-//   [模型 ▾] [变体 ▾] [16:9 ▾] [5s ▾] [1080p ▾] [⚙]  │  [🎥] [✦] [✨]  │  [×N ▾] ……… [↑]
-//      决定出什么/花多少                                   帮我写提示词         出几张 / 走
+//   [模型 ▾] [变体 ▾] [16:9 · 5s ▾]  │  [🎥] [✦] [✨]  │  [×N ▾] ……… [↑]
+//      决定出什么/花多少                    帮我写提示词         出几张 / 走
 //
-//   · A 类（模型 / 每个主参数一颗下拉 chip / 长尾进 ⚙ / ×N / 生成）留底栏第一段与第三段；
+//   · A 类（模型 / 参数摘要 pill / ×N / 生成）留底栏第一段与第三段；
 //   · B 类（运镜 / 效果 / 优化）收成中段一簇缩小一号的纯 icon，hover 出名字，运镜已选带激活点；
 //   · 锁归位回节点右上浮条（它的作用对象是**这个节点**，不是这一次生成）。
 //   方案与删除清单/卡点表：docs/design/2026-09-10-node-composer-bar-v1.md。
@@ -15,13 +15,22 @@
 // `component-only` 样张；形态一上线，「现状」就是 v1.1 本身，再留一格顶着「现状 · 9 件挤一行」
 // 的名字去渲染新底栏，那是一句会骗人的图注，所以同 commit 删掉（P1 加新必删旧）。
 //
+// 参数区的**第二种摆法**（`parameterLayout='chips'`，逐参数下拉 + ⚙）只给付费确认卡，
+// 画布节点不用它（用户 2026-09-11 04:30 纠正：02:10 拍板的 B 我错误地落到了共用组件上，
+// 两处都变了）。它在这一屏有单独一格「chips 模式（付费卡用）」，coverage 是 `component-only`：
+// 组件支持，本分支上还没有生产调用点（付费卡在权限那条分支）。
+//
 // 模型目录：实验室没有 Electron 桥，`useModelOptions` 会 catch 成空 → 参数区退化成
 // 「配置模型」按钮，整屏就白画了。所以这里按 findReference 那一屏的既有手法装一个**只读桥**，
-// 喂真实档案认得的 modelKey（seedance-2 / gpt-image-2）；底栏上摆出哪几颗 chip、上面印什么值，
+// 喂真实档案认得的 modelKey（seedance-2 / gpt-image-2）；底栏上印什么值，
 // 因此全是档案 derive 出来的真货（比例 / 时长 / 清晰度），不是在这里手打的一句文案。
 import React from 'react'
 
 import BaseGenerationNode from '../../../workbench/generationCanvas/nodes/BaseGenerationNode'
+import InlineParameterBar from '../../../workbench/generationCanvas/nodes/InlineParameterBar'
+import { resolveArchetypeForOption, resolveRenderedControls } from '../../../workbench/generationCanvas/nodes/nodeModelArchetype'
+import { toCatalogModelOptions } from '../../../config/modelOptionMappers'
+import type { ModelCatalogModelDto } from '../../../workbench/api/modelCatalogApi'
 import type { GenerationCanvasNode } from '../../../workbench/generationCanvas/model/generationCanvasTypes'
 import { useGenerationCanvasStore } from '../../../workbench/generationCanvas/store/generationCanvasStore'
 import { useWorkbenchStore } from '../../../workbench/workbenchStore'
@@ -187,7 +196,7 @@ function StageFrame({ children }: { children: React.ReactNode }): JSX.Element {
  * 一格 = 现役 BaseGenerationNode + NodeGenerationComposer 本体。三件事同时看：
  *   ① 锁在节点右上浮条（与「复制变体 / 生成记录」同一条）；
  *   ② 提示词区右端一件控件都没有；
- *   ③ 底栏一行三段且不换行：模型/参数 chip（两个值）· 运镜/效果/优化（缩小一号纯 icon，
+ *   ③ 底栏一行三段且不换行：模型/参数摘要 pill（两个值）· 运镜/效果/优化（缩小一号纯 icon，
  *      运镜已选带激活点）· ×N/生成。
  *
  * 刻意不套 `.generation-canvas-v2__stage`：套上会启用 useComposerViewportPlacement 的避让算法
@@ -204,6 +213,50 @@ export function ComposerBarStage({ kind, cameraPicked = false }: { kind: BarKind
           <BaseGenerationNode node={node} selected />
         </div>
       ) : null}
+    </StageFrame>
+  )
+}
+
+/**
+ * 「chips 模式（付费卡用）」那一格：**同一个 `InlineParameterBar`**，只多传一个
+ * `parameterLayout="chips"`。它证的是这个属性真的换了摆法（每个主参数一颗可点的下拉 + ⚙），
+ * 不是另写了一个组件。
+ *
+ * 为什么不像上面几格那样挂整张节点卡：画布节点**不传**这个属性（用户 2026-09-11 04:30 拍板），
+ * 让节点渲成 chips 就是在这一屏上造一份生产里不存在的假形态。付费确认卡是它真正的宿主，
+ * 那个宿主在另一条分支上——所以这一格诚实地标成 `component-only` + `mirrors: 'none'`。
+ *
+ * 控件不是手打的：走 `resolveRenderedControls`（NodeParameterControls 用的同一个函数）
+ * 从 Seedance 2 的真实档案 derive，所以摆出哪几颗 chip、上面印什么值都是真货。
+ */
+export function ChipsModeStage(): JSX.Element {
+  // 不装那个只读目录桥：这一格直接用 `toCatalogModelOptions`（生产同一个映射器）把同一份档案行
+  // 变成 ModelOption，不走 `useModelOptions`——用不上的全局副作用就别留。
+  const modelOptions = React.useMemo(
+    () => toCatalogModelOptions(CATALOG_MODELS.filter((model) => model.kind === 'video') as ModelCatalogModelDto[]),
+    [],
+  )
+  const [meta, setMeta] = React.useState<Record<string, unknown>>(
+    () => ({ ...(makeBarNode('video').meta as Record<string, unknown>) }),
+  )
+  const option = modelOptions[0] ?? null
+  const controls = React.useMemo(() => resolveRenderedControls(option, meta, false, true), [option, meta])
+  return (
+    <StageFrame>
+      <div className="absolute left-7 top-7 rounded-nomi-lg border border-nomi-line bg-nomi-paper p-3" style={{ width: 560 }}>
+        <InlineParameterBar
+          parameterLayout="chips"
+          modelOptions={modelOptions}
+          modelCatalogStatus={{ message: '' }}
+          renderedControls={controls}
+          selectedModelOption={option}
+          archetype={resolveArchetypeForOption(option)}
+          meta={meta}
+          onModelChange={() => {}}
+          onCatalogControlChange={(control, value) => setMeta((prev) => ({ ...prev, [control.key]: value }))}
+          onParameterControlChange={(control, value) => setMeta((prev) => ({ ...prev, [control.key]: value }))}
+        />
+      </div>
     </StageFrame>
   )
 }

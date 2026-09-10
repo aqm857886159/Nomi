@@ -6,10 +6,11 @@
 // 根因：placement 之前把全场元素当障碍物做空矩形搜索，任何布局变化都重定位（漂移）。
 // 修：`nodes/anchoredPlacement.ts` —— 位置只是 (stage, anchor, 自然尺寸) 的函数。
 //
-// 底栏形态是 v1.1 + B（B 于 2026-09-11 02:10 用户拍板，见
-// docs/design/2026-09-10-node-composer-bar-v1.md §B）：一行三段
-// `[模型 ▾][变体 ▾][16:9 ▾][5s ▾][1080p ▾][⚙] │ [🎥][✦][✨] │ [×N ▾] ……… [↑]`，
-// 主参数各自一颗下拉 chip（一步到位）、长尾在 ⚙ 里、锁回节点浮条、提示词区右端不留控件。
+// 底栏形态是 v1.1（见 docs/design/2026-09-10-node-composer-bar-v1.md）：一行三段
+// `[模型 ▾][变体 ▾][16:9 · 5s ▾] │ [🎥][✦][✨] │ [×N ▾] ……… [↑]`，
+// 参数区是**摘要 pill**（读得出当前配置、点开是统一参数面板）、锁回节点浮条、提示词区右端不留控件。
+// 同日 02:10 拍板的「逐参数下拉 chip」于 04:30 被用户收回——**只给付费确认卡**，画布节点保持原样；
+// 那个摆法的回归钉在设计实验室 `composer-bar-chips-mode` 那一格上，不在这里。
 // 这里把那几条承诺连同原有的「单行」一起当**真机回归**守着：设计实验室那一屏证的是同一份代码
 // 在受控夹具下的样子，这一条证的是它在打包 Electron 里被真实鼠标点出来之后还是那个样子。
 //
@@ -133,17 +134,17 @@ async function measure() {
       // 锁：浮框里一把都不该有，节点浮条上必须有且只有一把。
       lockInComposer: card.querySelectorAll('[data-node-lock]').length,
       lockOnToolbar: document.querySelectorAll('[data-node-floating-toolbar="true"] [data-node-lock]').length,
-      // 主参数各自一颗 chip（2026-09-11 02:10 方案 B）：key 与当前值都挂在 chip 上，
-      // 读它比读截图可靠，也不依赖中文 aria-label（换个语言就断了）。
-      parameterChips: [...card.querySelectorAll('[data-parameter-chip]')].map((element) => ({
-        key: element.getAttribute('data-parameter-chip'),
-        value: element.getAttribute('data-parameter-chip-value'),
-        // chip 必须是**可点的下拉**，不是一段文字：底栏 v1 的病根就是「看得见、够不着」。
-        trigger: Boolean(element.querySelector('button')),
-        hittable: hits(element),
-      })),
-      moreButton: Boolean(card.querySelector('[data-parameter-more="true"]')),
-      // ⚙ 弹层里的参数组（弹层 portal 到 body，所以从 document 找，不从卡里找）。
+      // 参数区是摘要 pill：那串摘要本身挂在 pill 上，读它比读截图可靠，
+      // 也不依赖中文 aria-label（换个语言就断了）。pill 不在时是 null（区别于「在但是空串」）。
+      parameterSummary: card.querySelector('[data-parameter-summary]')?.getAttribute('data-parameter-summary') ?? null,
+      summaryHittable: (() => {
+        const pill = card.querySelector('[data-parameter-summary]')
+        return pill ? hits(pill) : false
+      })(),
+      // 画布节点**不该**长出逐参数 chip（那是付费确认卡的摆法，用户 2026-09-11 04:30 收回）。
+      // 数出来才断言得了「一颗都没有」。
+      parameterChipCount: card.querySelectorAll('[data-parameter-chip]').length,
+      // 参数面板里的参数组（面板 portal 到 body，所以从 document 找，不从卡里找）。
       panelControlKeys: [...document.querySelectorAll('[data-agent-parameter-panel="true"] [data-agent-parameter-control]')]
         .map((element) => element.getAttribute('data-agent-parameter-control')),
     }
@@ -192,45 +193,25 @@ function checkComposerBarV1(label, m) {
     m.lockOnToolbar === 1 && m.lockInComposer === 0,
     `浮条 ${m.lockOnToolbar} 把 / 浮框 ${m.lockInComposer} 把`,
   )
-  // B 方案（2026-09-11 02:10）：主参数各自一颗**可点的**下拉 chip（一步到位），长尾收进 ⚙。
+  // 参数区是**一颗读得出当前配置、点得到的摘要 pill**（v1.1；「点开真能改」由 ⑤.6 在视频节点上
+  // 真点一次，不在这里靠肉眼）。
   check(
-    `${label} 主参数各自一颗 chip，且每颗都是可点的下拉`,
-    m.parameterChips.length > 0 && m.parameterChips.every((chip) => chip.trigger && chip.hittable && chip.value),
-    `chip：${m.parameterChips.map((chip) => `${chip.key}=${chip.value}`).join(' / ') || '一颗都没有'}`,
+    `${label} 底栏参数区是一颗读得出当前配置的摘要 pill，且点得到`,
+    Boolean(m.parameterSummary && m.parameterSummary.trim()) && m.summaryHittable,
+    `pill「${m.parameterSummary}」hittable=${m.summaryHittable}`,
   )
-  // ⚙ 只在**里面真有东西**时出现：三个参数全是主参数的模型（如即梦 Seedance 会员）不该留一颗
-  // 点开是空白的齿轮。所以这里不能无条件断言它在——「有长尾就有家」这条由下面的
-  // openMorePanel 在真的有 ⚙ 时逐条查，并由 sawMorePanel 保证这条路整场至少走到一次。
+  // 画布节点**不该**长出逐参数 chip。这条不是废话：基线就是上面那句「pill 读到了」——
+  // 参数区整个没渲染时上一条会先红，所以「一颗 chip 都没有」在这里是有观测基线的。
   check(
-    `${label} 参数不是「有些看得见、有些没家」：chip + ⚙ 至少有一处`,
-    m.parameterChips.length > 0 || m.moreButton,
-    `chip ${m.parameterChips.length} 颗 / ⚙ ${m.moreButton ? '有' : '无'}`,
+    `${label} 画布节点不摆逐参数 chip（那是付费确认卡的摆法，用户 09-11 04:30 收回）`,
+    m.parameterChipCount === 0,
+    `数到 ${m.parameterChipCount} 颗`,
   )
 }
 
-/**
- * ⚙ 里装的是**长尾**：底栏上那几颗不在里面再出现一次（同一个值只有一个家）。
- * 没有 ⚙ 的模型（参数全上了 chip）直接返回 false——这不是失败，是设计；
- * 整场是否走到过这条路由 sawMorePanel 兜底。
- */
-let sawMorePanel = false
-async function openMorePanel(label, getWin, measure) {
-  const more = getWin().locator('[data-parameter-more="true"]').first()
-  if (!(await more.isVisible().catch(() => false))) return false
-  await more.click()
-  await getWin().locator('[data-agent-parameter-panel="true"]').first().waitFor({ state: 'visible' })
-  const withPanel = await measure()
-  if (!withPanel) throw new Error(`${label} 打开 ⚙ 后量不到浮框几何`)
-  check(`${label} ⚙ 弹层里确实有长尾参数（基线：不是一个点开空白的齿轮）`, withPanel.panelControlKeys.length > 0,
-    `弹层里 ${withPanel.panelControlKeys.join(' / ') || '空'}`)
-  check(
-    `${label} 底栏 chip 上的参数不在 ⚙ 里重复出现（一功能一个家）`,
-    withPanel.parameterChips.every((chip) => !withPanel.panelControlKeys.includes(chip.key)),
-    `chip ${withPanel.parameterChips.map((chip) => chip.key).join('/') || '无'} vs 弹层 ${withPanel.panelControlKeys.join('/')}`,
-  )
-  sawMorePanel = true
-  return true
-}
+// 「点开面板真能改一个值」这条路整场必须真的走到过：模型碰巧一个分段组都没有（全是搜索下拉 /
+// 输入框）时，上面那段会**静静跳过**，那种绿和真绿在观测上一模一样（走查里最贵的一类假绿）。
+let sawPanelPick = false
 
 const inside = (inner, outer, slack = 1) => inner.left >= outer.left - slack && inner.right <= outer.right + slack
   && inner.top >= outer.top - slack && inner.bottom <= outer.bottom + slack
@@ -332,46 +313,54 @@ try {
   check('视频节点 B 簇三颗：运镜 → 效果 → 优化', first.clusterTools.join(' → ') === 'camera-move → effects → optimize',
     `实际「${first.clusterTools.join(' → ')}」`)
 
-  // ⑤.6 B 方案的那句主张：**一步到位**。像真人一样点第一颗 chip → 下拉里挑另一个值 →
-  // store 真的变了（chip 上的 data 值跟着变）。不灌 store、不注入夹具，全程鼠标。
-  const firstChip = getWin().locator('[data-parameter-chip]').first()
-  const chipKey = await firstChip.getAttribute('data-parameter-chip')
-  const chipValueBefore = await firstChip.getAttribute('data-parameter-chip-value')
-  await firstChip.locator('button').first().click()
-  // NomiSelect 的下拉 `keepMounted`：**每颗** chip 的下拉都常驻 DOM，关着的是 display:none。
-  // 所以必须先锁定**可见的那一个**再找选项——直接 `[role=option]` 取 .first() 会选中一个隐藏的，
-  // 永远等不到 visible（第一版就是这么挂的）。
-  const chipDropdown = getWin().locator('[data-nomi-select-dropdown]:visible [role="option"]')
-  await chipDropdown.first().waitFor({ state: 'visible' })
-  const optionCount = await chipDropdown.count()
-  check(`点第一颗参数 chip（${chipKey}）直接弹出下拉（不再先开一层面板）`, optionCount > 1, `${optionCount} 个候选`)
-  await screenshotSettled(getWin(), { path: path.join(shotsDir, '06-video-chip-open.png') })
-  // 挑一个和当前值不同的候选。
-  let picked = null
-  for (let index = 0; index < optionCount; index += 1) {
-    const option = chipDropdown.nth(index)
-    const value = await option.getAttribute('value') ?? await option.textContent()
-    if ((value || '').trim() && (value || '').trim() !== chipValueBefore) { picked = value.trim(); await option.click(); break }
+  // ⑤.6 摘要 pill 的那两句主张：**读得出** + **点得开真能改**（v1.1 形态；同日 02:10 的逐参数
+  // chip 已于 04:30 被用户收回，只给付费确认卡）。像真人一样点 pill → 面板打开 →
+  // 在面板里挑一个别的档 → 那一组的选中态真的挪过去了（面板是受控的，读的就是节点 meta，
+  // 所以选中态挪过去 = 值写进了 store）。不灌 store、不注入夹具，全程鼠标。
+  const pill = getWin().locator('[data-parameter-summary]').last()
+  const summaryBefore = await pill.getAttribute('data-parameter-summary')
+  check('视频节点底栏是一颗读得出当前配置的摘要 pill', Boolean(summaryBefore && summaryBefore.trim()),
+    `pill「${summaryBefore}」`)
+  await pill.click()
+  const paramPanel = getWin().locator('[data-agent-parameter-panel="true"]').last()
+  await paramPanel.waitFor({ state: 'visible' })
+  const withPanel = await measure()
+  if (!withPanel) throw new Error('打开参数面板后量不到浮框几何')
+  check('点开 pill 弹的是统一参数面板，里面确实有参数组（基线：不是一块点开空白的面板）',
+    withPanel.panelControlKeys.length > 0, `面板里 ${withPanel.panelControlKeys.join(' / ') || '空'}`)
+  await screenshotSettled(getWin(), { path: path.join(shotsDir, '06-video-param-panel.png') })
+  // 挑一个**没被选中**的分段档。定位先在页面里算好「哪一组的第几项」再用稳定选择器点：
+  // 直接写 `[aria-checked="false"]` 会在点完之后指向另一项（选择器自己失效了），
+  // 那种「永远为真」的轮询和真绿长得一样。
+  const pickTarget = await getWin().evaluate(() => {
+    const groups = [...document.querySelectorAll('[data-agent-parameter-panel="true"] [data-agent-parameter-control]')]
+    for (const group of groups) {
+      const radios = [...group.querySelectorAll('[role="radio"]')]
+      if (radios.length < 2) continue
+      const index = radios.findIndex((radio) => radio.getAttribute('aria-checked') !== 'true' && !radio.hasAttribute('disabled'))
+      if (index >= 0) return { key: group.getAttribute('data-agent-parameter-control'), index }
+    }
+    return null
+  })
+  if (pickTarget) {
+    const radio = paramPanel.locator(`[data-agent-parameter-control="${pickTarget.key}"] [role="radio"]`).nth(pickTarget.index)
+    await radio.click()
+    await expect.poll(() => radio.getAttribute('aria-checked'),
+      { message: '面板里选完必须把新值写进节点（store）——面板是受控的，选中态没挪过去就是没写进去' }).toBe('true')
+    check(`面板里改「${pickTarget.key}」一次点击即生效，且面板不关（可连改多项）`, await paramPanel.isVisible())
+    sawPanelPick = true
   }
-  await expect.poll(
-    async () => getWin().locator(`[data-parameter-chip="${chipKey}"]`).first().getAttribute('data-parameter-chip-value'),
-    { message: 'chip 选完必须把新值写进节点（store），不是只改了下拉自己的显示' },
-  ).not.toBe(chipValueBefore)
+  await dismiss()
   const afterPick = await measure()
   if (!afterPick) throw new Error('改完参数后量不到浮框几何')
-  check(`选完 chip 值真的落进节点：${chipValueBefore} → ${afterPick.parameterChips.find((chip) => chip.key === chipKey)?.value}`,
-    afterPick.parameterChips.find((chip) => chip.key === chipKey)?.value !== chipValueBefore, `候选里挑的是 ${picked}`)
+  check('改完参数摘要 pill 仍读得出当前配置（打开期间冻结、关掉回到实时值）',
+    Boolean(afterPick.parameterSummary && afterPick.parameterSummary.trim()), `pill「${afterPick.parameterSummary}」`)
   check('改完参数底栏仍是单行', afterPick.footerRows === 1, `${afterPick.footerRows} 行`)
 
-  // ⑤.7 ⚙（这个模型的参数可能全上了 chip → 没有 ⚙，那时这一步自然跳过，由 sawMorePanel 兜底）。
-  if (await openMorePanel('视频节点', getWin, measure)) {
-    await screenshotSettled(getWin(), { path: path.join(shotsDir, '07-video-more-panel.png') })
-    await dismiss()
-  }
-
   // ⑥ 拖动画布后浮框仍贴着节点：节点动了多少，浮框就动多少（相对偏移逐像素不变 = 不漂移）。
-  // 基线要**现量**，不能拿最上面那次 `first`：上一步刚把比例从 16:9 改成 9:16，节点因此变高了，
-  // 浮框相对节点顶边的偏移本来就该跟着变——拿改参数之前的偏移来比，量到的是「参数改了」不是「漂移了」。
+  // 基线要**现量**，不能拿最上面那次 `first`：上一步刚在面板里改过一个参数，改的若是比例，
+  // 节点会因此变高、浮框相对节点顶边的偏移本来就该跟着变——拿改参数之前的偏移来比，
+  // 量到的是「参数改了」不是「漂移了」。
   const beforeDrag = await measure()
   if (!beforeDrag) throw new Error('拖动前量不到浮框几何')
   const stageBox = await getWin().locator('.generation-canvas-v2__stage').first().boundingBox()
@@ -443,13 +432,6 @@ try {
     `flipped=${audio.flipped}`)
   check('声音节点底栏控件全部在卡内且可命中', audio.controlsInsideCard && audio.controlsHittable, `控件 ${audio.controlCount} 个，${audio.footerRows} 行`)
   check('声音节点底栏同样是单行', audio.footerRows === 1, `${audio.footerRows} 行`)
-  // 声音模型的档案里没有比例/时长/清晰度这几个角色 → 一颗 chip 都不该冒出来，参数全在 ⚙ 里。
-  // 这条是「chip 由档案 derive」的反面证据：不是随便挑三个参数摆上去。
-  check('声音节点：档案没声明主参数角色 → 底栏不硬摆 chip，参数在 ⚙ 里',
-    audio.parameterChips.length === 0 ? audio.moreButton : true,
-    `chip ${audio.parameterChips.map((chip) => chip.key).join('/') || '无'} / ⚙ ${audio.moreButton ? '有' : '无'}`)
-  await openMorePanel('声音节点', getWin, measure)
-  await dismiss()
   await screenshotSettled(getWin(), { path: path.join(shotsDir, '03-audio-node-composer.png') })
 
   // ⑦.5 图片节点：B 簇没有运镜，只剩两颗（效果 / 优化）——「图片节点只两颗」是 v1.1 拍板的一条，
@@ -468,15 +450,10 @@ try {
   checkComposerBarV1('图片节点', image)
   check('图片节点 B 簇只剩两颗：效果 → 优化（没有运镜）', image.clusterTools.join(' → ') === 'effects → optimize',
     `实际「${image.clusterTools.join(' → ')}」`)
-  // 图与视频的 chip **不是同一批**（图没有时长）——证明这几颗是按各自档案 derive 的，
-  // 不是一张写死的清单在到处渲染。
-  const videoChipKeys = first.parameterChips.map((chip) => chip.key).join('/')
-  const imageChipKeys = image.parameterChips.map((chip) => chip.key).join('/')
-  check('图片与视频的参数 chip 各按各的档案来（两边不是同一批）', imageChipKeys !== videoChipKeys,
-    `视频 ${videoChipKeys} / 图片 ${imageChipKeys}`)
-  if (await openMorePanel('图片节点', getWin, measure)) {
-    await screenshotSettled(getWin(), { path: path.join(shotsDir, '07-image-more-panel.png') })
-  }
+  // 图与视频的摘要**不是同一句**（图没有时长，报的是比例 + 清晰度）——证明这两个值是按各自档案
+  // derive 的，不是一张写死的清单在到处渲染。
+  check('图片与视频的参数摘要各按各的档案来（两边不是同一句）', image.parameterSummary !== first.parameterSummary,
+    `视频「${first.parameterSummary}」/ 图片「${image.parameterSummary}」`)
   await dismiss()
   await screenshotSettled(getWin(), { path: path.join(shotsDir, '05-image-node-composer.png') })
 
@@ -509,9 +486,7 @@ try {
     `card.left=${Math.round(narrow.card.left)} leftDock.right=${narrow.leftDock ? Math.round(narrow.leftDock.right) : 'n/a'}`)
   await screenshotSettled(getWin(), { path: path.join(shotsDir, '04-narrow-canvas.png') })
 
-  // ⚙ 这条路整场必须真的走到过一次：三个节点的模型都碰巧没有长尾参数时，上面那几条 ⚙ 断言
-  // 会**全部静静跳过**，那种绿和真绿在观测上一模一样（走查里最贵的一类假绿）。
-  check('⚙ 弹层这条路整场至少走到一次（否则上面那几条 ⚙ 断言等于没跑）', sawMorePanel)
+  check('「点开面板改一个值」这条路整场至少走到一次（否则那几条断言等于没跑）', sawPanelPick)
 
   fs.writeFileSync(path.join(shotsDir, 'geometry.json'), JSON.stringify({ first, dragged, audio, image, narrow }, null, 2))
 } catch (error) {
