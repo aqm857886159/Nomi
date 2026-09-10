@@ -106,6 +106,16 @@ docs/plan/2026-06-28-element-decomposition-feature.md §3.1 都写明它**刻意
    代价（保存态没有「未验证」提示）已写进合同 `residual_risks`。
    `revalidatePendingCredential` 里对 first-use 的放行**保留**：存量装机里还有本次改动之前写下的 pending 记录。
 
+## 六之三、任务书里一条**没做**的项及理由
+
+任务书要求「`vendorHealth.ts` 探测成功清标记时同步 re-publish（现在只清标记不发布）」。
+实核后**没做**：那条清理只在 `res.ok` 时执行，而今天唯一会留下 pending 凭据的内置家是 apimart
+（liveness-probe 遇网络抖动），它的 `/v1/models` 恒 401 → `res.ok` 永假，这条路不可达；
+自定义 / 中转行的 pending 本就该由认证晋升发布，不该在这里发布。
+预先写一段今天跑不到、也没法诚实测到的代码违反 P1。
+提醒改放在 `VendorSeed.keyValidation` 的 `model-list` 档注释里——第一个声明该档的人会先读到它，
+并已列入合同 `residual_risks`。
+
 ## 七、回滚
 
 单 commit 可整体 revert：改动全部集中在 `electron/catalog/**` 与新增测试，无迁移、无落盘 schema 变更、无 UI 改动。

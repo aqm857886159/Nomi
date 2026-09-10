@@ -119,6 +119,12 @@
       "entry_point": "自定义/中转供应商保存凭据",
       "disposition": "not-affected",
       "evidence": "这些行没有内置种子，credentialValidationStrategy 返回 undefined → 仍走 /v1/models + 认证晋升（对用户自己填地址的 OpenAI 兼容端点，列表端点确实是成立的判据）。新增用例「自定义/中转供应商（无内置种子）发布策略不变」钉死这一点。"
+    },
+    {
+      "path": "electron/ai/onboarding/vendorHealth.ts",
+      "entry_point": "probe",
+      "disposition": "not-affected",
+      "evidence": "探测成功时只 `delete verificationPending`、不发布 vendor——同一类「清了标记却不发布」的半截状态。今天不可达：这条清理只在 res.ok 时执行，而唯一会留下 pending 凭据的内置家是 apimart（liveness-probe 抖动），它的 /v1/models 恒 401 故 res.ok 永假；自定义/中转行的 pending 由认证晋升负责发布，本就不该在这里发布。刻意不预先补那段代码（P1：不留投机路径），提醒写在 VendorSeed.keyValidation 的 `model-list` 档注释里——第一个声明该档的人会先读到它。"
     }
   ],
   "recurrence": {
@@ -186,6 +192,7 @@
     "first-use 策略把 key 是否有效的判定推迟到首次真实生成：用户在保存时看不到「这个 key 对不对」，只在生成失败时才看到。刻意不挂 verificationPending——那个标记的现有 UI 文案逐字承诺「联网后会自动复验，下次调用前也会先检查一次」，对这一类做不到，挂上去会让 12 家常驻一句假承诺并把接入卡的「N 个可使用」永久换成「未验证」。代价是保存态没有任何「未验证」提示；要补这个提示需要新的 UI 文案与形态（本轮硬约束是不动 UI），已列为后续项。",
     "本轮只在零额度夹具上证明了「填 key → 发布 → 模型出现在投影」，未用各家真实 key 跑付费 canary（认证账本里 43 条仍是 minimum-spend budget blocked）。真实 key 的端到端验收仍待用户侧走查。",
     "Replicate 通过 bespokeExecution 发布后，「元素拆解」的前置（vendor.enabled + 凭据）已满足，但该功能的完整闭环（本地图上传 → 多输出解析 → 落画布）本次未真机走查。",
-    "本轮没有为 first-use 这一类设计「保存了但还没验过」的诚实提示（现有 verificationPending 文案不适用，见上）。真实体感如何要等用户走查；若确需提示，应是一条新的 UI 形态而不是复用一个承诺做不到的标记。"
+    "本轮没有为 first-use 这一类设计「保存了但还没验过」的诚实提示（现有 verificationPending 文案不适用，见上）。真实体感如何要等用户走查；若确需提示，应是一条新的 UI 形态而不是复用一个承诺做不到的标记。",
+    "vendorHealth.probe 清 verificationPending 时不发布 vendor：今天不可达（见 same_class_entry_points），但若将来给某家声明 keyValidation:'model-list'，那一档的 pending 转正会卡在半截状态。防线是声明处的注释，不是门岗——比机器判据弱一档。"
   ]
 }
