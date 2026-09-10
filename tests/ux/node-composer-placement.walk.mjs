@@ -6,8 +6,11 @@
 // 根因：placement 之前把全场元素当障碍物做空矩形搜索，任何布局变化都重定位（漂移）。
 // 修：`nodes/anchoredPlacement.ts` —— 位置只是 (stage, anchor, 自然尺寸) 的函数。
 //
-// 底栏本身**不动**（2026-09-10 用户复核：单行没有问题，底栏整合另有设计讨论）：
-// 这里因此把「底栏仍是单行」当回归断言守着，防止后续定位改动把它挤成两行。
+// 底栏形态是 v1.1（2026-09-11 用户「都按默认」拍板并接线，见
+// docs/design/2026-09-10-node-composer-bar-v1.md）：一行三段
+// `[模型 ▾] [参数 ▾] │ [🎥][✦][✨] │ [×N ▾] ……… [↑]`，锁回节点浮条、提示词区右端不留控件。
+// 这里把那几条承诺连同原有的「单行」一起当**真机回归**守着：设计实验室那一屏证的是同一份代码
+// 在受控夹具下的样子，这一条证的是它在打包 Electron 里被真实鼠标点出来之后还是那个样子。
 //
 // 全程 UI 驱动（建节点、选节点、拖画布都是真实鼠标动作），不灌 store、不注入夹具。
 // 用法: node tests/ux/node-composer-placement.walk.mjs（需先 pnpm run build）
@@ -71,6 +74,15 @@ async function measure() {
     }
     const footer = card.querySelector('[data-node-composer-footer]')
     const cardRect = card.getBoundingClientRect()
+    // v1.1 底栏：段序、B 簇尺寸、提示词区有没有控件、锁在哪，全部量真实盒子，不看 class 名。
+    const barSegments = footer ? [...footer.querySelectorAll('[data-bar-segment]')] : []
+    const clusterIcons = footer ? [...footer.querySelectorAll('[data-prompt-tool]')] : []
+    const nonClusterHeights = footer
+      ? [...footer.querySelectorAll('button, [role="combobox"]')]
+        .filter((element) => !element.closest('[data-prompt-tool-cluster="true"]'))
+        .map((element) => element.getBoundingClientRect().height)
+        .filter((height) => height > 0)
+      : []
     const controls = footer
       ? [...footer.querySelectorAll('button, [role="button"], select')].filter((element) => {
         const style = getComputedStyle(element)
@@ -104,8 +116,65 @@ async function measure() {
       }),
       controlsHittable: controls.every(hits),
       variantControl: Boolean(card.querySelector('[aria-label="每次生成几个"]')),
+      barSegments: barSegments.map((element) => element.getAttribute('data-bar-segment')),
+      clusterTools: clusterIcons.map((element) => element.getAttribute('data-prompt-tool')),
+      clusterTallest: clusterIcons.length ? Math.max(...clusterIcons.map((element) => element.getBoundingClientRect().height)) : 0,
+      barTallestOutsideCluster: nonClusterHeights.length ? Math.max(...nonClusterHeights) : 0,
+      // B 簇必须是纯 icon：渲出任何文字就是「缩小一号」只做了一半。
+      clusterText: (footer?.querySelector('[data-prompt-tool-cluster="true"]')?.textContent || '').trim(),
+      // 提示词区右端一件控件都不留（v1.1 的第一条主张）。
+      promptControlCount: card.querySelectorAll('[data-node-composer-prompt] button, [data-node-composer-prompt] [data-prompt-tool]').length,
+      // 锁：浮框里一把都不该有，节点浮条上必须有且只有一把。
+      lockInComposer: card.querySelectorAll('[data-node-lock]').length,
+      lockOnToolbar: document.querySelectorAll('[data-node-floating-toolbar="true"] [data-node-lock]').length,
+      // 参数 chip 只报两个值——摘要串本身挂在 pill 上，读它比读截图可靠。
+      parameterSummary: card.querySelector('[data-parameter-summary]')?.getAttribute('data-parameter-summary') ?? null,
     }
   })
+}
+
+/**
+ * 浮框刚挂上的那几帧里，`useComposerViewportPlacement` 还没算出可用区，卡上写着
+ * `visibility: hidden`（见 NodeGenerationComposer 的 style）。此时 getBoundingClientRect
+ * 照样有值、Playwright 也认它「visible」（隐的是**卡**不是锚点），但 getComputedStyle
+ * 一律报 hidden——量到的是「0 个控件 / 0 行」，和「底栏整个没渲染」在观测上一模一样。
+ * 所以量之前先等它真的定位完：条件是「底栏里有可见控件」，不是等一个墙钟（R18）。
+ */
+async function settleComposer(label) {
+  await expect.poll(async () => (await measure())?.controlCount ?? 0, {
+    message: `${label}浮框底栏必须完成定位（底栏里量得到可见控件）`,
+  }).toBeGreaterThan(0)
+}
+
+/**
+ * v1.1 底栏那几条承诺，逐条量。**每条都先证基线再断言不在**——「提示词区没有控件」
+ * 在整个提示词区没渲染时也照样绿，那种绿和真绿在观测上一模一样。
+ */
+function checkComposerBarV1(label, m) {
+  const wantedSegments = ['model-params', 'prompt-tools', 'variants', 'generate']
+  check(
+    `${label} 底栏段序 = 模型/参数 → B 簇 → ×N → 生成`,
+    m.barSegments.join(' → ') === wantedSegments.join(' → '),
+    `实际「${m.barSegments.join(' → ')}」`,
+  )
+  check(
+    `${label} B 簇是缩小一号的纯 icon（≤28px 且严格小于底栏最高控件）`,
+    m.clusterTools.length > 0 && m.clusterTallest > 0 && m.clusterTallest <= 28
+      && m.barTallestOutsideCluster > 0 && m.clusterTallest < m.barTallestOutsideCluster,
+    `簇 ${m.clusterTools.join('/')} 高 ${Math.round(m.clusterTallest)}px，底栏其它控件最高 ${Math.round(m.barTallestOutsideCluster)}px`,
+  )
+  check(`${label} B 簇不渲染任何文字`, m.clusterText === '', `实际「${m.clusterText}」`)
+  // 基线：簇真的渲染出来了（下面那条「提示词区没有控件」才不是句废话）。
+  check(
+    `${label} 提示词区右端一件控件都没有（基线：B 簇确实在底栏里）`,
+    m.clusterTools.length > 0 && m.promptControlCount === 0,
+    `簇 ${m.clusterTools.length} 颗 / 提示词区 ${m.promptControlCount} 个控件`,
+  )
+  check(
+    `${label} 锁在节点浮条上、浮框里一把都没有（基线：浮条上确实有一把）`,
+    m.lockOnToolbar === 1 && m.lockInComposer === 0,
+    `浮条 ${m.lockOnToolbar} 把 / 浮框 ${m.lockInComposer} 把`,
+  )
 }
 
 const inside = (inner, outer, slack = 1) => inner.left >= outer.left - slack && inner.right <= outer.right + slack
@@ -203,6 +272,10 @@ try {
   check('底栏仍是单行（控件竖直中心只有一条）', first.footerRows === 1, `${first.footerRows} 行 / ${first.controlCount} 个控件`)
   // ⑤ 「一次生成几个」在视频节点上可见。
   check('视频节点有「每次生成几个」控件', first.variantControl)
+  // ⑤.5 v1.1 底栏形态（段序 / B 簇缩小一号 / 提示词区清空 / 锁归位）。
+  checkComposerBarV1('视频节点', first)
+  check('视频节点 B 簇三颗：运镜 → 效果 → 优化', first.clusterTools.join(' → ') === 'camera-move → effects → optimize',
+    `实际「${first.clusterTools.join(' → ')}」`)
 
   // ⑥ 拖动画布后浮框仍贴着节点：节点动了多少，浮框就动多少（相对偏移逐像素不变 = 不漂移）。
   const stageBox = await getWin().locator('.generation-canvas-v2__stage').first().boundingBox()
@@ -265,6 +338,7 @@ try {
     await getWin().locator('[data-node-id]').last().click({ timeout: 3000 }).catch(() => {})
   }
   await audioComposer.waitFor({ state: 'visible' })
+  await settleComposer('声音节点')
   const audio = await measure()
   if (!audio) throw new Error('量不到声音节点浮框几何')
   check('声音节点也有「每次生成几个」（×N 已按执行类派生，不再只给图片/视频）', audio.variantControl)
@@ -274,6 +348,24 @@ try {
   check('声音节点底栏控件全部在卡内且可命中', audio.controlsInsideCard && audio.controlsHittable, `控件 ${audio.controlCount} 个，${audio.footerRows} 行`)
   check('声音节点底栏同样是单行', audio.footerRows === 1, `${audio.footerRows} 行`)
   await screenshotSettled(getWin(), { path: path.join(shotsDir, '03-audio-node-composer.png') })
+
+  // ⑦.5 图片节点：B 簇没有运镜，只剩两颗（效果 / 优化）——「图片节点只两颗」是 v1.1 拍板的一条，
+  // 光看视频那格看不出来它是**按节点类型派生**的，还是碰巧渲了三颗。
+  await getWin().keyboard.press('Escape').catch(() => {})
+  await addNode('image', '图片')
+  const imageComposer = getWin().locator('.generation-canvas-v2-node__composer').last()
+  if (!(await imageComposer.isVisible().catch(() => false))) {
+    await getWin().locator('[data-node-id]').last().click({ timeout: 3000 }).catch(() => {})
+  }
+  await imageComposer.waitFor({ state: 'visible' })
+  await settleComposer('图片节点')
+  const image = await measure()
+  if (!image) throw new Error('量不到图片节点浮框几何')
+  check('图片节点底栏同样是单行', image.footerRows === 1, `${image.footerRows} 行 / ${image.controlCount} 个控件`)
+  checkComposerBarV1('图片节点', image)
+  check('图片节点 B 簇只剩两颗：效果 → 优化（没有运镜）', image.clusterTools.join(' → ') === 'effects → optimize',
+    `实际「${image.clusterTools.join(' → ')}」`)
+  await screenshotSettled(getWin(), { path: path.join(shotsDir, '05-image-node-composer.png') })
 
   // ⑧ 窄视口：真实场景不是缩小 OS 窗口（主窗口 minWidth=1100，缩不下去，而且 Electron
   // 真实窗口下 `page.setViewportSize` 只改 CDP 上报的量值、不动原生边界，会撞出「布局和
@@ -304,7 +396,7 @@ try {
     `card.left=${Math.round(narrow.card.left)} leftDock.right=${narrow.leftDock ? Math.round(narrow.leftDock.right) : 'n/a'}`)
   await screenshotSettled(getWin(), { path: path.join(shotsDir, '04-narrow-canvas.png') })
 
-  fs.writeFileSync(path.join(shotsDir, 'geometry.json'), JSON.stringify({ first, dragged, audio, narrow }, null, 2))
+  fs.writeFileSync(path.join(shotsDir, 'geometry.json'), JSON.stringify({ first, dragged, audio, image, narrow }, null, 2))
 } catch (error) {
   console.error(`VERIFY ERROR: ${error?.stack || error?.message || error}`)
   process.exitCode = 1

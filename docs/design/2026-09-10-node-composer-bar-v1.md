@@ -1,9 +1,12 @@
 # 节点生成浮框底栏 v1.1 · 三类归位
 
-> 状态：**待用户拍板**（2026-09-10，当前版本 **v1.1**）。只出样张、不接线——本分支不改任何生产组件的行为。
-> 屏：设计实验室 `node-composer-bar`（8 格，`pnpm run design-lab:walk:node-composer-bar`）。
-> 基线：本屏在 `tests/ux/design-lab/calibration.json` 的 `pendingApprovalScreens` 里挂着，
-> **拍板前不录基线**（没被看过的图录成基线 = 把「今天碰巧长这样」钉成「应该长这样」）。
+> 状态：**已接线**（2026-09-11 用户「都按默认」拍板 v1.1，同日实施）。
+> 屏：设计实验室 `node-composer-bar`（5 格，`pnpm run design-lab:walk:node-composer-bar`），
+> 接线后**每一格都是现役 `NodeGenerationComposer` 本体**（`coverage: shell`）——样张阶段那两格
+> `before` 与六格 `component-only` 已同 commit 删除：形态一上线，「现状」就是 v1.1 本身，
+> 再留一格顶着「现状 · 9 件挤一行」的名字去渲染新底栏，那是一句会骗人的图注（P1 加新必删旧）。
+> 基线：本屏仍挂在 `tests/ux/design-lab/calibration.json` 的 `pendingApprovalScreens` 里，
+> **等用户看过真机截图再录**（没被看过的图录成基线 = 把「今天碰巧长这样」钉成「应该长这样」）。
 > 依据：`docs/design/nomi-design-system.md` §1.5（控件层级）· §1.5.5（新面三件产物）· §2（token）· §6（图标）。
 
 ---
@@ -83,18 +86,18 @@ v1 把 B 簇做成**贴在提示词框右上角、带描边和阴影的一小块
 
 ---
 
-## 现状（before）· 先看真实样子
+## 现状（before）· 改之前是什么样
 
-两格 before 渲染的是**现役 `NodeGenerationComposer` 本体**（经 `BaseGenerationNode` 挂载），
-不是照着它画的——「挤不挤、截没截断」必须来自真身。
+样张阶段那两格 before 渲染的是接线前的**现役 `NodeGenerationComposer` 本体**，
+钉住的是这两条实测事实（截图已随接线一起退役，事实留档在这里）：
 
-| 图 | 说明 |
+| 节点 | 接线前的底栏 |
 |---|---|
-| `tests/ux/shots/design-lab-node-composer-bar/composer-bar-before-video.png` | 视频节点：卡宽 768px；底栏 `锁 / 更多▾ / Seedance 2 / 变体 标准 / 1080p · 16:…（截断）/ 运镜 · 推近 中 / 优化 / 1 张 / ↑` |
-| `tests/ux/shots/design-lab-node-composer-bar/composer-bar-before-image.png` | 图片节点：底栏少了运镜和变体，仍是 7 件 |
+| 视频 | 9 件挤一行，卡宽 768px：`锁 / 更多▾ / Seedance 2 / 变体 标准 / 1080p · 16:…（截断）/ 运镜 · 推近 中 / 优化 / 1 张 / ↑` |
+| 图片 | 7 件（少了运镜和变体） |
 
 读过的现役实现（全文，不是片段）：
-`NodeGenerationComposer.tsx`（底栏 404-470）·`NodeParameterControls.tsx`·`InlineParameterBar.tsx`·
+`NodeGenerationComposer.tsx`·`NodeParameterControls.tsx`·`InlineParameterBar.tsx`·
 `NodeCameraMoveControl.tsx`·`NodePromptOptimizer.tsx`·`NodeFloatingToolbar.tsx`·`NodeEffectChips.tsx`。
 
 ---
@@ -210,18 +213,24 @@ v1 已经把这一步从「读 9 件东西并找出哪两件要紧」压成「�
 
 ---
 
-## 样张截图（绝对路径）
+## 截图（接线后 · 相对仓库根）
+
+设计实验室（5 格 + 接触表，`pnpm run design-lab:walk:node-composer-bar`）：
 
 ```
-/Users/aoqimin/Desktop/Nomi-node-bar-mockup/tests/ux/shots/design-lab-node-composer-bar/_contact-sheet.png
-/Users/aoqimin/Desktop/Nomi-node-bar-mockup/tests/ux/shots/design-lab-node-composer-bar/composer-bar-before-video.png
-/Users/aoqimin/Desktop/Nomi-node-bar-mockup/tests/ux/shots/design-lab-node-composer-bar/composer-bar-before-image.png
-/Users/aoqimin/Desktop/Nomi-node-bar-mockup/tests/ux/shots/design-lab-node-composer-bar/composer-bar-v1-video.png
-/Users/aoqimin/Desktop/Nomi-node-bar-mockup/tests/ux/shots/design-lab-node-composer-bar/composer-bar-v1-video-camera.png
-/Users/aoqimin/Desktop/Nomi-node-bar-mockup/tests/ux/shots/design-lab-node-composer-bar/composer-bar-v1-image.png
-/Users/aoqimin/Desktop/Nomi-node-bar-mockup/tests/ux/shots/design-lab-node-composer-bar/composer-bar-v1-video-dark.png
-/Users/aoqimin/Desktop/Nomi-node-bar-mockup/tests/ux/shots/design-lab-node-composer-bar/composer-bar-v1-image-dark.png
-/Users/aoqimin/Desktop/Nomi-node-bar-mockup/tests/ux/shots/design-lab-node-composer-bar/composer-bar-v1-cluster-hover.png
+tests/ux/shots/design-lab-node-composer-bar/_contact-sheet.png
+tests/ux/shots/design-lab-node-composer-bar/composer-bar-v1-video.png
+tests/ux/shots/design-lab-node-composer-bar/composer-bar-v1-video-camera.png
+tests/ux/shots/design-lab-node-composer-bar/composer-bar-v1-image.png
+tests/ux/shots/design-lab-node-composer-bar/composer-bar-v1-video-dark.png
+tests/ux/shots/design-lab-node-composer-bar/composer-bar-v1-image-dark.png
+```
+
+真机（打包 Electron 里点出来的，`node tests/ux/node-composer-placement.walk.mjs`）：
+
+```
+tests/ux/shots/node-composer-placement/01-video-node-composer.png
+tests/ux/shots/node-composer-placement/05-image-node-composer.png
 ```
 
 ---
@@ -242,23 +251,27 @@ v1 已经把这一步从「读 9 件东西并找出哪两件要紧」压成「�
 
 ---
 
-## 这份样张的证据强度（别读岔）
+## 这份文档的证据强度（别读岔）
+
+接线之后不再有「样张」这一档：设计实验室五格与真机走查截的都是**同一份生产代码**。
 
 | 部分 | 是什么 |
 |---|---|
-| before 两格 | **现役组件本体**，`coverage: shell` |
-| v1.1 的参考区 / 模型芯片 / 参数 chip / 全参数面板 / ×N / 生成钮 | **现役组件本体**（`NodeParameterControls`、`InlineParameterBar`、`NomiSelect`、`GENERATE_BUTTON_CLASS`），只是排布是新的 |
-| v1.1 的锁与浮条 | **现役组件本体**（`FloatingToolbarShell` + `NodeLockBadge` + 现役两颗浮条按钮） |
-| v1.1 的 B 簇三颗 icon | **现役原子 `WorkbenchIconButton`（`sm` 档）+ 现役图标**，但它们此刻只是**触发器外观**：真实实现是把 `NodePromptOptimizer` / `NodeCameraMoveControl` / `useNodeEffectChips` 的触发器换成这个外观，**弹层与逻辑一行不动**。本分支不接线，所以没有把那三个组件摆上去——它们现在仍是带文字的老外观，摆上去等于给用户看一个假的 v1 |
-| v1.1 里的节点卡 | **占位块**（同 canvas-frame 那一屏的手法）。节点内部形态另有它自己的屏，摆一张真卡只会把两件事混在一格里比 |
-
-因此 v1.1 六格的 `coverage` 一律是 `component-only`：组件都在、现役界面走不到这个形态。
+| 实验室五格 | **现役 `BaseGenerationNode` + `NodeGenerationComposer` 本体**，`coverage: shell`。夹具只给了两件东西：一个只读模型目录桥（实验室没有 Electron 桥）和一个节点 meta，参数 chip 上那两个值仍由档案 derive |
+| 真机两张 | 打包 Electron 里用真实鼠标建节点、选节点截的，不灌 store、不注入夹具 |
+| 底栏三段 | 生产实现：第一段 `NodeParameterControls section="parameters"` → `InlineParameterBar`；中段 `NodePromptToolCluster` 包着现役的 `NodeCameraMoveControl` / `useNodeEffectChips().more` / `NodePromptOptimizer` 三个**触发器换了外观、弹层与逻辑一行没动**的控件；第三段 `NomiSelect` + `GENERATE_BUTTON_CLASS` |
+| 锁 | `FloatingToolbarShell` 里的 `NodeLockBadge`，六条浮条共用同一份（`lockNodeId` 必填，让编译器逼每条浮条答一次） |
 
 ---
 
-## 拍板后要做的事（不在本分支）
+## 接线落点（2026-09-11 已做）
 
-1. `InlineParameterBar` 的 `summaryOverride` 从 `NodeParameterControls` 透传一个「两个值」的来源。
-2. `NodePromptOptimizer` / `NodeCameraMoveControl` / `useNodeEffectChips` 各加一档 icon-only 触发器外观（弹层不动），由 composer 组成 B 簇放进底栏中段（模型/参数 之后、×N 之前），并删掉它们现在那份带文字的底栏外观（P1 加新必删旧）。
-3. `NodeGenerationComposer` 底栏删掉 `NodeLockBadge`；`BaseGenerationNode` 的节点浮条加上它。
-4. 删掉 `calibration.json` 里 `node-composer-bar` 的待拍板登记，跑 `pnpm run design-lab:update -- --screen node-composer-bar` 录基线。
+| 拍板那一条 | 落在哪 | 删了什么 |
+|---|---|---|
+| 参数 chip 只报两个值 | 新 `nodes/composerHeadlineSummary.ts`（按控件 key 挑，值从档案 derive）→ `NodeParameterControls` 走 `InlineParameterBar` **已有的** `summaryOverride` 缝 | 没有新造第二条摘要通路；导入工作流那支的口径优先，原样保留 |
+| B 簇 = 缩小一号的纯 icon | 新 `nodes/NodePromptToolCluster.tsx`（只放外观与分组：`WorkbenchIconButton size="sm"` + Radix `Tooltip` + 激活点），三个控件各自的触发器改用它 | `NodeCameraMoveControl` 带文字的芯片（连同 `cameraMove.hint` 词条）· `NodePromptOptimizer` 带文字的按钮与它的 `ml-auto`（连同 `optimizer.optimize`）· `NodeEffectChips` 的「更多 ▾」（连同 `libraries.gallery.more`） |
+| 锁回节点浮条 | `FloatingToolbarShell` 里，`lockNodeId` 是**必填**参数：六条浮条每条都得答一次「你挂的是不是一个可锁的节点」，写成可选就是下一条浮条静默少一把锁（R28 让编译器拦） | `NodeGenerationComposer` 底栏那份 `NodeLockBadge` 与「锁移到底栏」那段注释；`NodeLockBadge` 的 `locked` / `selected` 两个 prop（锁态自己从 store 读，不把同一个事实抄两份） |
+| 底栏一行三段 | `NodeGenerationComposer` 底栏：`data-bar-segment` 四段 + 两根现役 `ToolbarDivider`；一件工具都没有（锁住的节点）时整段连分隔线一起不渲染 | — |
+
+还没做的一件：**录基线**。等用户看过真机截图点头，再删 `calibration.json` 里
+`node-composer-bar` 的待拍板登记并跑 `pnpm run design-lab:update -- --screen node-composer-bar`。

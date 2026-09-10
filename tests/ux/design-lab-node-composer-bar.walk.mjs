@@ -4,6 +4,9 @@
 // 和**这一屏独有的那几条承诺**——底栏改造的全部主张都是「有没有 / 在不在 / 换没换行 / 谁在谁前面」，
 // 光截图看不出「它是不是真的没换行」，所以逐条写成断言（assertState 里点不到/数不对就红）。
 //
+// 2026-09-11 起每一格都是**现役 composer 本体**（v1.1 已接线），所以这些断言同时是生产回归：
+// 底栏被后来的改动挤成两行、段序漂了、锁又跑回浮框里，这里当场红。
+//
 // 产出：`tests/ux/shots/design-lab-node-composer-bar/<state>.png` + `_contact-sheet.png`（拍板用）。
 // 用法：node tests/ux/design-lab-node-composer-bar.walk.mjs
 //      （ONLY=composer-bar-v1-video 只跑一个）
@@ -12,34 +15,33 @@ import { expectAbsent, proveProbe } from './_assert.mjs'
 
 /**
  * v1.1 底栏必须是**一行三段**：
- *   ① 所有直接子元素的中心 y 落在同一行内（换行 = 立刻拉开一整行高度）；
- *   ② 三段的顺序就是拍板那句话——模型/参数 → B 簇 → ×N/生成。
+ *   ① 所有分段的中心 y 落在同一行内（换行 = 立刻拉开一整行高度）；
+ *   ② 段序就是拍板那句话——模型/参数 → B 簇 → ×N/生成。
  * 顺序按 `data-bar-segment` 读，不按下标猜：中间夹着两根分隔线，下标会跟着分隔线一起飘。
  */
 const BAR_SEGMENT_ORDER = ['model-params', 'prompt-tools', 'variants', 'generate']
 
 async function assertSingleRow(page, record, stateId) {
   const rows = await page.evaluate(() => {
-    const bar = document.querySelector('[data-composer-bar-v1-actions]')
+    const bar = document.querySelector('.generation-canvas-v2-node__composer-card [data-node-composer-footer]')
     if (!bar) return null
-    const centers = [...bar.children].map((child) => {
-      const rect = child.getBoundingClientRect()
+    const segments = [...bar.querySelectorAll('[data-bar-segment]')]
+    const centers = segments.map((element) => {
+      const rect = element.getBoundingClientRect()
       return rect.height > 0 ? rect.top + rect.height / 2 : null
     }).filter((value) => value !== null)
     return {
       count: centers.length,
       spread: centers.length ? Math.max(...centers) - Math.min(...centers) : 0,
-      segments: [...bar.children]
-        .map((child) => child.getAttribute('data-bar-segment'))
-        .filter(Boolean),
+      segments: segments.map((element) => element.getAttribute('data-bar-segment')),
     }
   })
-  if (!rows) { record(`${stateId} 找不到 v1.1 底栏 [data-composer-bar-v1-actions]`); return }
-  if (rows.count < 4) record(`${stateId} v1.1 底栏只有 ${rows.count} 件，应为「模型/参数 · 分隔 · B 簇 · 分隔 · ×N · 生成」`)
-  if (rows.spread > 8) record(`${stateId} v1.1 底栏换行了：子元素中心 y 相差 ${Math.round(rows.spread)}px（单行不换行是这条改造的硬承诺）`)
+  if (!rows) { record(`${stateId} 找不到现役底栏 [data-node-composer-footer]`); return }
+  if (rows.count !== 4) record(`${stateId} 底栏应有 4 段（模型/参数 · B 簇 · ×N · 生成），实际量到 ${rows.count} 段`)
+  if (rows.spread > 8) record(`${stateId} 底栏换行了：分段中心 y 相差 ${Math.round(rows.spread)}px（单行不换行是这条改造的硬承诺）`)
   const order = rows.segments.join(' → ')
   if (order !== BAR_SEGMENT_ORDER.join(' → ')) {
-    record(`${stateId} v1.1 底栏顺序应是「${BAR_SEGMENT_ORDER.join(' → ')}」，实际「${order}」`)
+    record(`${stateId} 底栏顺序应是「${BAR_SEGMENT_ORDER.join(' → ')}」，实际「${order}」`)
   }
 }
 
@@ -50,7 +52,7 @@ async function assertSingleRow(page, record, stateId) {
  */
 async function assertClusterIsSmaller(page, record, stateId) {
   const sizes = await page.evaluate(() => {
-    const bar = document.querySelector('[data-composer-bar-v1-actions]')
+    const bar = document.querySelector('.generation-canvas-v2-node__composer-card [data-node-composer-footer]')
     if (!bar) return null
     const icons = [...bar.querySelectorAll('[data-prompt-tool]')].map((el) => el.getBoundingClientRect().height)
     const others = [...bar.querySelectorAll('button, [role="combobox"]')]
@@ -75,16 +77,9 @@ await walkDesignLabScreen({
   cellWidth: 900,
   columns: 2,
   async assertState(page, state, record) {
-    if (state.id.startsWith('composer-bar-before')) {
-      // before 那两格的价值全在「它是真身」。真身的证据 = 现役 composer 的卡还在，
-      // 且底栏里那颗锁还在底栏（这正是 v1 要搬走的东西）。
-      const card = await page.locator('.generation-canvas-v2-node__composer-card').count()
-      if (card !== 1) record(`${state.id} 现役 composer 卡应有 1 张，实际 ${card} —— 这一格已经不是真身了`)
-      const lockInBar = await page.locator('.generation-canvas-v2-node__composer-card [data-node-lock]').count()
-      if (lockInBar !== 1) record(`${state.id} 现状底栏里应能看到锁（[data-node-lock]），实际 ${lockInBar}`)
-      return
-    }
-    // v1.1 的承诺，逐条断言。
+    // 每一格都是真身：现役 composer 卡必须真的挂出来了，否则下面每一条「没看到 X」都是废话。
+    const card = await page.locator('.generation-canvas-v2-node__composer-card').count()
+    if (card !== 1) { record(`${state.id} 现役 composer 卡应有 1 张，实际 ${card} —— 这一格没渲染出真身`); return }
     await assertSingleRow(page, record, state.id)
     await assertClusterIsSmaller(page, record, state.id)
     // 锁：先证「浮条上确实有一把锁」，再断言「浮框里一把都没有」。
@@ -96,25 +91,25 @@ await walkDesignLabScreen({
       `${state.id} 的锁已经在节点浮条上`,
     )
     await expectAbsent(
-      page.locator('[data-composer-bar-v1-card] [data-node-lock]'),
-      { provenBy: lockProof, message: `${state.id} v1 浮框里不该再有锁（它已归位到浮条）` },
+      page.locator('.generation-canvas-v2-node__composer-card [data-node-lock]'),
+      { provenBy: lockProof, message: `${state.id} 浮框里不该再有锁（它已归位到浮条）` },
     )
-    // v1.1 第一条：B 簇在**底栏里**，提示词区右端一件控件都没有。
+    // B 簇在**底栏里**，提示词区右端一件控件都没有。
     // 先证「底栏里确实有簇」，再断言「提示词区一颗都没有」——没有前一句，簇整个没渲染时后一句照样绿。
-    const clusterInBar = await page.locator('[data-composer-bar-v1-actions] [data-prompt-tool-cluster="true"]').count()
-    if (clusterInBar !== 1) record(`${state.id} B 簇应在底栏里（v1.1），实际在底栏找到 ${clusterInBar} 个`)
+    const clusterInBar = await page.locator('[data-node-composer-footer] [data-prompt-tool-cluster="true"]').count()
+    if (clusterInBar !== 1) record(`${state.id} B 簇应在底栏里，实际在底栏找到 ${clusterInBar} 个`)
     const clusterInBarProof = await proveProbe(
-      page.locator('[data-composer-bar-v1-actions] [data-prompt-tool]'),
+      page.locator('[data-node-composer-footer] [data-prompt-tool]'),
       `${state.id} 的 B 簇已经在底栏里渲染出来了`,
     )
     await expectAbsent(
       page.locator('[data-node-composer-prompt] [data-prompt-tool], [data-node-composer-prompt] button'),
-      { provenBy: clusterInBarProof, message: `${state.id} 提示词区右端不该再有任何控件（v1.1）` },
+      { provenBy: clusterInBarProof, message: `${state.id} 提示词区右端不该有任何控件` },
     )
     const clusterButtons = await page.locator('[data-prompt-tool-cluster="true"] [data-prompt-tool]').count()
     const expected = state.id.includes('image') ? 2 : 3
     if (clusterButtons !== expected) record(`${state.id} B 簇应有 ${expected} 颗 icon（视频含运镜、图片没有），实际 ${clusterButtons}`)
-    // 簇内顺序也是拍板那句话的一部分：运镜 → 更多（效果）→ 优化。图片节点没有运镜，只掉头一颗。
+    // 簇内顺序也是拍板那句话的一部分：运镜 → 效果 → 优化。图片节点没有运镜，只掉头一颗。
     const clusterOrder = await page.locator('[data-prompt-tool-cluster="true"] [data-prompt-tool]').evaluateAll(
       (nodes) => nodes.map((node) => node.getAttribute('data-prompt-tool')).join(' → '),
     )
@@ -124,7 +119,7 @@ await walkDesignLabScreen({
     if (clusterText) record(`${state.id} B 簇必须是纯 icon，却渲出了文字「${clusterText}」`)
     // 「哪几格该有激活点」按 id 白名单判，别用 includes 猜——`image-dark` 里也有 dark，
     // 猜一次就把一格图片态误判成「运镜没生效」（第一版就这么假红过）。
-    const CAMERA_PICKED = new Set(['composer-bar-v1-video-camera', 'composer-bar-v1-video-dark', 'composer-bar-v1-cluster-hover'])
+    const CAMERA_PICKED = new Set(['composer-bar-v1-video-camera', 'composer-bar-v1-video-dark'])
     const dots = page.locator('[data-prompt-tool-active="true"]')
     if (CAMERA_PICKED.has(state.id)) {
       const dot = await dots.count()
@@ -138,9 +133,11 @@ await walkDesignLabScreen({
       )
       await expectAbsent(dots, { provenBy: clusterProof, message: `${state.id} 运镜未选不该有激活点` })
     }
-    // 参数 chip 只报两个值：headline 由档案 derive，形状必须是 `A · B`。
-    const headline = await page.getAttribute('[data-composer-bar-v1-card] [data-headline]', 'data-headline')
-      .catch(() => null)
+    // 参数 chip 只报两个值：摘要由档案 derive（比例 + 时长 / 比例 + 清晰度），形状必须是 `A · B`。
+    const headline = await page.getAttribute(
+      '.generation-canvas-v2-node__composer-card [data-parameter-summary]',
+      'data-parameter-summary',
+    ).catch(() => null)
     if (!headline || headline.split(' · ').filter(Boolean).length !== 2) {
       record(`${state.id} 参数 chip 摘要应恰好两个值，实际「${headline}」`)
     }
