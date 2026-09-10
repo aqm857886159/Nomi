@@ -1,0 +1,148 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-10-agent-transcript-merge",
+  "problem_type": "Transcript view projection loses turn-level identity: one model turn is rendered as several utterances, and a recorded input fact never reaches the screen",
+  "symptom": "2026-09-10 real-machine user report: one Nomi reply appeared as three separate assistant bubbles (\"好，我先看看…\" / \"好的，用 Seedream 4.5…\" / \"已经提交生成了…\") with tool rows between them, reading as three utterances. Same session, report #6: a skill picked in the composer left no trace anywhere in the conversation, so the user assumed it was never applied.",
+  "direct_cause": "src/workbench/ai/lane/laneViewModel.ts emitted exactly one V4FlowItem per LanePart, so every assistant-text part became its own bubble, and it dropped the input's skillKey entirely because electron/shared/agentLane/laneProjection.ts never copied LaneInputMessage.context.skillKey onto the user LanePart.",
+  "class_root": "The view projection had no notion of a turn. It projected part-by-part, so any turn-scoped fact - the identity of one continuous assistant utterance, and which skill governed that turn - had no owner and was silently lost. Anything the model emits as several blocks inside one turn is rendered as several things, and anything recorded on the input message rather than in a part is invisible.",
+  "affected_population": [
+    "Every Nomi user on every lane surface (creation / generation / preview / storyboard) whose model emits text around a tool call - the common shape for any tool-using model",
+    "Every user who picks a skill in the composer: the skill was sent and persisted but never displayed, on all locales"
+  ],
+  "scope_paths": [
+    "src/workbench/ai/lane/laneViewModel.ts",
+    "electron/shared/agentLane/laneProjection.ts",
+    "electron/shared/agentLane/laneContracts.ts",
+    "src/workbench/ai/v4/agentPanelV4Types.ts",
+    "src/workbench/ai/v4/AgentPanelV4Message.tsx",
+    "src/workbench/ai/v4/AgentPanelV4Panel.tsx",
+    "src/workbench/ai/v4/useAgentPanelV4Data.ts",
+    "src/i18n/locales/agentPanelV4.ts"
+  ],
+  "entry_points": [
+    "Resident agent panel v4 on every surface, via useAgentPanelV4Data -> laneViewModel -> collapseV4Flow",
+    "Main-process lane projection of any persisted pi transcript, including cold-restart replays of old conversations"
+  ],
+  "external_sources": [
+    {
+      "kind": "source-code",
+      "url": "https://github.com/cline/cline/blob/fc3273bbe0e106cdb9c0194b1a96b6536a74d9ad/apps/vscode/webview-ui/src/components/chat/chat-view/utils/messageUtils.ts#L202",
+      "checked_at": "2026-09-10",
+      "purpose": "Establish what comparable agent UIs group: Cline groups browser sessions and read-only tool runs, and explicitly skips say:\"text\" in both absorb checks, so its assistant text is never merged. Recorded as the deviation baseline for our turn-level merge."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://ai-sdk.dev/docs/ai-sdk-ui/chatbot-tool-usage",
+      "checked_at": "2026-09-10",
+      "purpose": "Upstream contract our vendored AI Elements primitives follow: UIMessage.parts is a mixed ordered array rendered one block per part. Confirms tool rows must stay inline in emission order, and that merging text parts is our deliberate, documented deviation."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://code.claude.com/docs/en/skills",
+      "checked_at": "2026-09-10",
+      "purpose": "Skill invocation is a first-class, transcript-visible event with permission syntax Skill(name); the evidence that a skill ran lives in the transcript. Basis for requiring an on-screen skill receipt rather than trusting the user to remember."
+    }
+  ],
+  "invariants": [
+    "One turn produces at most one assistant bubble; a turn begins at a user part and there is no other turn boundary",
+    "Merging changes only which flow items carry the text - it never reorders, drops, or reindexes tool rows",
+    "A skill receipt is rendered only from the skillKey recorded on that very input message; the currently selected skill never back-fills earlier turns",
+    "A turn with no recorded skill renders no receipt row and no chip at all, rather than an empty or guessed one"
+  ],
+  "generality_proof": "Both symptoms are the same missing turn boundary, and the fix installs that boundary once, in the single place where LaneParts become V4FlowItems. laneViewModel is the only producer of V4FlowItem[] in the repository (grep for laneViewModel and for kind: 'assistant' shows one production caller, useAgentPanelV4Data, plus tests), so every surface, every lane, every restored historical transcript and every future part kind flows through the same merge pass. Because the merge keys on the user part rather than on any provider, model, tool name or streaming state, a model that emits ten text blocks around eight tool calls collapses exactly the same way as the reported three-block turn. The skill fact is taken at the same boundary from the part that recorded it, so a lane replayed cold from disk shows the same receipt as the live one, and a lane whose input carried no skill shows none.",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/ai/lane/laneViewModel.ts",
+    "tests": [
+      "src/workbench/ai/lane/laneViewModel.test.ts",
+      "src/workbench/ai/lane/laneViewModel.fixture.test.ts"
+    ],
+    "rationale": "The transcript view projection is the layer that owns the turn boundary, and it already has a dedicated unit suite plus a fixture suite driven by a projection a real pi lane produced. Both were changed here: the unit suite now pins one bubble per turn, the turn boundary at user parts, and the skill chip/receipt pair; the fixture suite keeps proving the same rules against real recorded transcript data."
+  },
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/ai/lane/laneViewModel.ts",
+      "symbol": "mergeAssistantTextPerTurn",
+      "responsibility": "Owns the turn boundary for the whole transcript view: collapses every assistant-text part of one turn into a single assistant flow item at the last segment's position, and stamps that turn's skill receipt onto it. Every downstream consumer, including collapseV4Flow, therefore receives at most one assistant item per turn by construction."
+    },
+    {
+      "path": "electron/shared/agentLane/laneProjection.ts",
+      "symbol": "projectLaneSnapshot",
+      "responsibility": "Owns the neutral contract's user part: carries the skillKey already persisted on that message's LaneInputMessage.context onto the part, so the renderer never has to guess which skill governed a historical turn."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/ai/v4/useAgentPanelV4Data.ts",
+      "entry_point": "useAgentPanelV4Data",
+      "disposition": "enforced",
+      "evidence": "The only production caller of laneViewModel (grep laneViewModel across src and tests returns this file plus three test files). It feeds every resident panel surface, so the merge applies to creation, generation, preview and storyboard without a per-surface branch."
+    },
+    {
+      "path": "src/workbench/ai/v4/agentPanelV4Collapse.ts",
+      "entry_point": "collapseV4Flow",
+      "disposition": "enforced",
+      "evidence": "Line 111 pushed every assistant item of a work stretch separately - the second place the symptom was visible. It is left unchanged on purpose: a stretch cannot span a user part (user items are not work items), so after the upstream merge it can only ever receive one assistant item per stretch. Writing a second merge here would be a parallel implementation of the same rule (P1)."
+    },
+    {
+      "path": "electron/shared/agentLane/laneProjection.ts",
+      "entry_point": "pushAssistantParts",
+      "disposition": "not-affected",
+      "evidence": "The producer of assistant-text parts, including the not-yet-persisted streaming message. It must keep emitting one part per content block: the parts array is the ordering truth (sequence, invariant I1) and merging there would destroy the tool interleaving the receipts join against. The class root is the missing turn concept in the view, not the granularity of the transcript."
+    },
+    {
+      "path": "src/workbench/ai/v4/AgentPanelV4Composer.tsx",
+      "entry_point": "composer live chips",
+      "disposition": "not-affected",
+      "evidence": "Already renders the selected skill as a V4Chip before sending (useAgentPanelV4Data.liveChips). It shows unsent intent, not a transcript record, so it is outside the class; the fix deliberately reuses its chip shape rather than inventing a second one."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every tool-using turn reproduces it. The number of bubbles is a function of how many text blocks the provider happens to emit around its tool calls, so any model, any vendor, any prompt and every restored historical conversation hits the same mechanism; the reported turn was ordinary, not exceptional. The skill half recurs on every send that carries a skillKey.",
+    "same_class_scan": [
+      "grep -rn \"laneViewModel\" src tests: one production caller (src/workbench/ai/v4/useAgentPanelV4Data.ts) plus laneViewModel.test.ts, laneViewModel.fixture.test.ts, lanePanelMechanics.test.ts - no second projection exists",
+      "grep -rn \"collapseV4Flow\" src tests: one production caller (useAgentPanelV4Data.ts:191) plus agentPanelV4Form.test.ts - the only other place assistant items are re-emitted, checked and left to the upstream boundary",
+      "grep -rn \"kind: 'user'\" electron: laneContracts.ts (the type) and laneProjection.ts:233 (the single producer) - so one place had to learn skillKey",
+      "grep -rn \"skillKey\" src electron: the send path (useAgentPanelV4Actions.ts:160) and the runtime resolvers (laneDesktopRuntime.ts:86,155; laneHost.mts:503) all consume it; nothing displayed it, confirming the fact was recorded but never projected",
+      "src/workbench/ai/lane/laneViewModel.fixture.test.ts drives the same projection from a transcript a real pi lane produced, independently confirming the part-per-item behaviour before the change"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/ai/lane/laneViewModel.ts",
+    "invariant": "Every V4FlowItem[] leaving laneViewModel contains at most one assistant item per turn, and any skill receipt on it comes from the skillKey recorded on that turn's own user part.",
+    "failure_mode": "The merge is total rather than conditional: assistant items that are not the last of their turn are dropped and their text is concatenated into the surviving one, so a new part kind, provider or streaming state cannot opt out of the rule. A turn with no recorded skillKey emits no skill field at all, so a missing fact renders nothing instead of an empty or guessed receipt.",
+    "exception_policy": "none",
+    "strategy": "The turn boundary is installed at the single point where an ordered part list becomes flow items - upstream of collapsing, grouping and rendering. Downstream layers keep receiving the existing V4FlowItem contract, so no consumer needs to know the rule, and no consumer can bypass it.",
+    "artifacts": [
+      "src/workbench/ai/lane/laneViewModel.ts",
+      "electron/shared/agentLane/laneProjection.ts",
+      "electron/shared/agentLane/laneContracts.ts",
+      "src/workbench/ai/v4/agentPanelV4Types.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/ai/lane/laneViewModel.test.ts",
+    "electron/shared/agentLane/laneProjection.test.ts",
+    "tests/ux/agent-transcript-merge.walk.mjs"
+  ],
+  "class_regression_tests": [
+    "src/workbench/ai/lane/laneViewModel.test.ts",
+    "electron/shared/agentLane/laneProjection.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "Nothing is left callable beside the new rule. The per-part assistant emission was not a separate code path but the absence of one, and it is replaced in place; collapseV4Flow:111 keeps its single line because after the upstream merge it can only ever receive one assistant item per stretch, so it is not a surviving fallback."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party runtime controls the invariant. pi keeps emitting one content block per part, which is correct and unchanged; the missing rule was entirely ours, in our own view projection.",
+    "exit_criteria": []
+  },
+  "migration": "None. skillKey is read from LaneInputMessage.context, which pi has been persisting since the custom-message extension landed, so no transcript is rewritten and no byte is added. Conversations recorded before a skill was ever picked simply have no skillKey and correctly render no chip and no receipt.",
+  "residual_risks": [
+    "A turn that produces tool rows but no assistant text at all shows the user-bubble skill chip and no receipt row, because the receipt is a state of the assistant bubble and there is no bubble to carry it. Observed as rare (models close a turn with text); not covered by a test.",
+    "Multi-select skills (the third item of user report #6) are explicitly out of scope; the contract assumes at most one skillKey per input message, which is what the send path and LaneComposerContext record today."
+  ]
+}

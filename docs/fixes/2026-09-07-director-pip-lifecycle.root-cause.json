@@ -1,0 +1,33 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-07-director-pip-lifecycle",
+  "problem_type": "Shared viewport measurement runs before its DOM owner is attached and misses visibility transitions",
+  "symptom": "A cold reopened director shows the loaded character in the main viewport but its saved camera PiP stays blank; a newly added camera previews normally.",
+  "direct_cause": "PipViewport child layout effect reads the parent hostRef before React attaches that host ref. It returns without a ResizeObserver and stable dependencies never retry. showPreview also does not participate in setup or cleanup.",
+  "class_root": "The scissor rectangle lifetime must belong to a visible committed screen and its committed host, with all conditional DOM mount transitions represented.",
+  "affected_population": ["Cold mounting a saved scene with cameras", "Initially hidden preview and later show", "Hide/show, collapse/expand and camera changes"],
+  "scope_paths": ["src/workbench/generationCanvas/nodes/director/panels/viewport/PipViewport.tsx"],
+  "entry_points": ["DirectorViewport cold mount", "setPanelVisibility showCameraPreview", "PiP collapse and camera selector"],
+  "external_sources": [
+    {"kind":"official-doc","url":"https://react.dev/reference/react/useEffect","checked_at":"2026-09-07","purpose":"Post-commit synchronization, dependency changes and unmount cleanup; checked through Context7."},
+    {"kind":"source-code","url":"https://github.com/facebook/react/blob/v18.3.1/packages/react-reconciler/src/ReactFiberCommitWork.new.js","checked_at":"2026-09-07","purpose":"Installed ReactDOM 18.3.1 commitLayoutEffects traverses child before parent, invokes child hook then attaches parent ref (local react-dom.development.js:24703,24727,23542)."}
+  ],
+  "invariants": ["A visible committed screen with a camera gets a measured rectangle even on first mount", "Hidden, collapsed, camera-less and unmounted screens own no rectangle or observer", "Resize updates the same rectangle without acquiring another renderer"],
+  "generality_proof": "All PiP mount, visibility, layout and camera transitions converge on one post-commit measurement effect. Its dependencies and cleanup own the observer and rectangle for both PipRenderer and AspectGuide.",
+  "shared_boundaries": [{"path":"src/workbench/generationCanvas/nodes/director/panels/viewport/PipViewport.tsx","symbol":"PipViewport","responsibility":"Measure committed screen/host and own observer/rectangle for every visibility and layout transition."}],
+  "same_class_entry_points": [
+    {"path":"src/workbench/generationCanvas/nodes/director/panels/viewport/DirectorViewport.tsx","entry_point":"hostRef parent div and PipViewport child cold mount","disposition":"enforced","evidence":"Parent DOM ref attachment follows child layout effects; post-commit measurement sees both refs without waiting on an unrelated camera change."},
+    {"path":"src/workbench/generationCanvas/nodes/director/model/directorStore.ts","entry_point":"setPanelVisibility and resetDefaults showCameraPreview","disposition":"enforced","evidence":"The showPreview dependency clears measurements on hide and registers the new screen when shown again, including initially hidden mounts."},
+    {"path":"src/workbench/generationCanvas/nodes/director/panels/viewport/PipViewport.tsx","entry_point":"layout collapse/expand and shownCameraId changes","disposition":"enforced","evidence":"Both remain dependencies of the same measurement effect; collapsed and camera-less states clear the rectangle."},
+    {"path":"src/workbench/generationCanvas/nodes/director/panels/viewport/AspectGuide.tsx","entry_point":"viewport measurement and PiP mask consumer","disposition":"not-affected","evidence":"Its own DOM measurement already uses post-commit useEffect keyed by inPov. Its mask consumes the shared rectangle and does not create an independent PiP rectangle."}
+  ],
+  "recurrence": {"classification":"recurring","reason":"Any saved camera scene can reach the cold mount ordering; any visibility transition can leave stale or missing measurements.","same_class_scan":["Read DirectorViewport hostRef ownership and PipViewport useLayoutEffect/conditional return independently.","rg showCameraPreview/setPanelVisibility checked store defaults, reset and visibility action.","Read PipRenderer rectangle early-return and AspectGuide measurement/mask consumer; no renderer or pixel algorithm needs replacement."]},
+  "prevention": {"kind":"centralized-boundary","enforcement_path":"src/workbench/generationCanvas/nodes/director/panels/viewport/PipViewport.tsx","invariant":"Only a visible committed screen owns a measured scissor rectangle and observer.","failure_mode":"Hidden, unmounted or missing camera/DOM leaves a null rectangle and no observer.","exception_policy":"none","strategy":"Synchronize measurements after the entire DOM commit and explicitly key setup/cleanup by showPreview, layout and selected camera.","artifacts":["src/workbench/generationCanvas/nodes/director/panels/viewport/PipViewport.tsx"]},
+  "regression_tests": ["src/workbench/generationCanvas/nodes/director/panels/viewport/PipViewport.test.ts","tests/ux/director-electron.walk.mjs"],
+  "class_regression_tests": ["src/workbench/generationCanvas/nodes/director/panels/viewport/PipViewport.test.ts"],
+  "legacy_paths": {"status":"removed","removed_paths":["src/workbench/generationCanvas/nodes/director/panels/viewport/PipViewport.tsx"],"rationale":"Replace child-layout-phase host measurement and visibility-blind dependencies in place; no fallback polling or parallel renderer."},
+  "dependency_lifecycle": {"decision":"not-applicable","rationale":"React 18 commit ordering and ResizeObserver behave as designed. This is application ownership/timing, fixed using existing documented useEffect without runtime upgrade.","exit_criteria":[]},
+  "migration": "No saved data changes; reopening existing scenes uses the corrected measurement lifecycle.",
+  "residual_risks": ["The Node component slice substitutes DOM commit scheduling/ResizeObserver; the same-build Electron screenshot-pixel journey supplies actual React, DOM and GPU evidence."],
+  "invariant_owner_layer": {"layer": "src/workbench/generationCanvas/nodes/director/panels/viewport/PipViewport.tsx", "tests": ["src/workbench/generationCanvas/nodes/director/panels/viewport/PipViewport.test.ts", "tests/ux/director-electron.walk.mjs"], "why": "不变量由 src/workbench/generationCanvas/nodes/director/panels/viewport/PipViewport.tsx 单点持有（即本合同的 prevention.enforcement_path / shared_boundaries）；上游其它入口只调用它、不各自重判。tests 是该层现有的类级与回归测试，改动这条不变量必先让它们红。"}
+}

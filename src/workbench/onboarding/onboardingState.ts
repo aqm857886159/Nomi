@@ -16,34 +16,6 @@ const JOURNEY_TOUR_KEY = 'nomi:journey-tour:v1'
 /** 上手清单生命周期上限：首次显示满 2 天仍未完成 → 自动永久关闭，不再回来。 */
 export const CHECKLIST_TTL_MS = 2 * 24 * 60 * 60 * 1000
 
-const SCENE3D_COACH_KEY = 'nomi.onboarding.scene3dCoach.v1'
-
-export function hasSeenScene3DCoach(): boolean {
-  try {
-    return window.localStorage.getItem(SCENE3D_COACH_KEY) === 'seen'
-  } catch {
-    // localStorage 不可用：退化为「已看过」，不反复弹教练标注
-    return true
-  }
-}
-
-export function markScene3DCoachSeen(): void {
-  try {
-    window.localStorage.setItem(SCENE3D_COACH_KEY, 'seen')
-  } catch {
-    /* ignore */
-  }
-}
-
-/** 重看引导：清除记忆，下次进编辑器会重新出 Coach Marks */
-export function resetScene3DCoachSeen(): void {
-  try {
-    window.localStorage.removeItem(SCENE3D_COACH_KEY)
-  } catch {
-    /* ignore */
-  }
-}
-
 export type ChecklistStep = 'model' | 'storyboard' | 'generated' | 'exported'
 export type ChecklistState = Record<ChecklistStep, boolean>
 

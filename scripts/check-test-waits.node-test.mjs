@@ -82,7 +82,7 @@ test('discovers real walk/e2e/helper scripts and unit tests while skipping gener
       fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true })
       fs.writeFileSync(path.join(root, file), '')
     }
-    assert.deepEqual(collectTestFiles(root).map((file) => path.relative(root, file)).sort(), included.sort())
+    assert.deepEqual(collectTestFiles(root).map((file) => path.relative(root, file).replaceAll(path.sep, '/')).sort(), included.sort())
   } finally {
     fs.rmSync(root, { recursive: true, force: true })
   }

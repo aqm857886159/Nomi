@@ -237,9 +237,9 @@ export function recoverProject(projectId: string): ProjectRecord {
   return recoverWorkspaceProject(String(projectId || "").trim(), getWorkspaceRepositoryDeps());
 }
 
-export function saveProject(projectId: string, input: unknown): ProjectRecord {
+export async function saveProject(projectId: string, input: unknown): Promise<ProjectRecord> {
   const id = String(projectId || "").trim();
-  if (readWorkspaceProject(id, getWorkspaceRepositoryDeps())) {
+  if (findRecentWorkspace(getWorkspaceRepositoryDeps().settingsRoot, id)) {
     return saveWorkspaceProject(id, input, getWorkspaceRepositoryDeps());
   }
 

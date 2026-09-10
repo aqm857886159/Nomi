@@ -27,11 +27,11 @@ function makeNode(input: {
 }
 
 describe('shotNumbering（镜头编号 = 存储身份，审计 A2）', () => {
-  it('只有分镜分类里的镜头内容 kind 参与编号；text/panorama/scene3d/output 永不编号', () => {
+  it('只有分镜分类里的镜头内容 kind 参与编号；text/panorama/director/output 永不编号', () => {
     for (const kind of ['image', 'video', 'shot', 'keyframe'] as const) {
       expect(isShotNumberedNode(makeNode({ id: kind, kind }))).toBe(true)
     }
-    for (const kind of ['text', 'panorama', 'scene3d', 'output', 'character', 'scene'] as const) {
+    for (const kind of ['text', 'panorama', 'director', 'output', 'character', 'scene'] as const) {
       expect(isShotNumberedNode(makeNode({ id: kind, kind }))).toBe(false)
     }
     // 同 kind 不在分镜分类 → 不编号

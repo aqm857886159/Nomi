@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { fsyncIfDurable, isDurable } from "../durability";
+import { fsyncDirectoryIfDurable, fsyncIfDurable } from "../durability";
 import { renameSyncWithRetry } from "../jsonFile";
 
 const MAX_FILE_BYTES = 1_048_576;
@@ -30,14 +30,7 @@ export function writeCertificationJsonAtomic(filePath: string, state: unknown): 
     renameSyncWithRetry(tempPath, filePath);
     renamed = true;
     fs.chmodSync(filePath, 0o600);
-    if (isDurable()) {
-      try {
-        const dirFd = fs.openSync(dir, "r");
-        try { fsyncIfDurable(dirFd); } finally { fs.closeSync(dirFd); }
-      } catch (error) {
-        if (process.platform !== "win32") throw error;
-      }
-    }
+    fsyncDirectoryIfDurable(dir);
   } finally {
     if (!renamed) try { fs.rmSync(tempPath, { force: true }); } catch { /* preserve original failure */ }
   }
