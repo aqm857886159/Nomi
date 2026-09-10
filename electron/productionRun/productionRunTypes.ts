@@ -476,6 +476,13 @@ export type RunCommand = {
   type: string;
   payload: Record<string, unknown>;
   issuedAt: string;
+  /**
+   * 「这条命令来自 Nomi 自己窗口里的真人操作」。**只由主进程装配层自己盖章**——
+   * productionRunIpc 在 `assertTrustedSender` 通过之后设，绝不从渲染层传来的 payload 抄，
+   * 也不进持久化事件（事件只记 commandId/type）。付费门在没有收据时认它当人证，
+   * 见 productionRunApprovalReceipt.ts 的不变量说明。MCP / RPC / Agent 路径永远不设它。
+   */
+  humanGesture?: true;
 };
 
 export type RunCommandResult = {
