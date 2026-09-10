@@ -192,13 +192,13 @@ export async function walkWorkflowZoom(win, snap, readCatalog) {
   await menu.getByRole('button', { name: '关闭菜单', exact: true }).scrollIntoViewIfNeeded()
   await clickOrFail(menu.getByRole('button', { name: '关闭菜单', exact: true }), '关闭多字段菜单')
   for (let i = 0; i < 3; i += 1) {
-    await clickOrFail(graph.getByRole('button', { name: '回到节点图', exact: true }), '切到图定位细节')
+    await clickOrFail(graph.getByRole('button', { name: '节点图', exact: true }), '切到图定位细节')
     await expect(viewport).toBeVisible()
     await fit()
     const initial = await state()
     await wheel(-120)
     await expect.poll(async () => (await state()).zoom).toBeCloseTo(initial.zoom * 1.24, 4)
-    await clickOrFail(graph.getByRole('button', { name: '显示完整节点列表', exact: true }), '回到完整列表')
+    await clickOrFail(graph.getByRole('button', { name: '节点列表', exact: true }), '回到完整列表')
   }
   await clickOrFail(page.getByRole('button', { name: '返回设置', exact: true }), '关闭工作流页')
   await open()

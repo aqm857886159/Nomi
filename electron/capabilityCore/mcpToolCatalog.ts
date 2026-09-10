@@ -113,13 +113,13 @@ const READ_TOOL = {
   inputSchema: {
     type: 'object',
     properties: {
-      target: { type: 'string', enum: READ_TARGETS, description: '读取：canvas/projects/models/generation_context/operation/run/run_events/artifact/artifact_content/integration。target=projects 的每一行都带 projectSelectionHandle，直接喂给 nomi_session_open 就能续接那个项目（不必自己新建）。' },
+      target: { type: 'string', enum: READ_TARGETS, description: '读取：canvas/projects/models/generation_context/operation/run/run_events/artifact/artifact_content/integration。target=projects 每行带一个短 projectSelectionHandle，原样喂给 nomi_session_open 即续接该项目。' },
       projectId: { type: 'string' },
       leaseHandle: { type: 'string', description: 'target=canvas/generation_context/operation 必填。' },
       runId: RUN_EVENT_FIELDS.runId,
       operationId: { type: 'string', description: 'target=operation 必填。' },
       artifactId: ARTIFACT_FIELDS.artifactId,
-      sessionId: { type: 'string', description: 'target=integration 必填。' },
+      sessionId: { type: 'string', description: 'target=integration：不填=列出你的接入会话。' },
       afterCursor: { ...RUN_EVENT_FIELDS.afterCursor, default: 0 },
       waitMs: { ...RUN_EVENT_FIELDS.waitMs, default: 0 },
       page: { type: 'integer', minimum: 0 },
