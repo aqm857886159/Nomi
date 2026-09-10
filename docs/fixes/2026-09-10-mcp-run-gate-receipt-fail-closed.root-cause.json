@@ -1,0 +1,194 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-10-mcp-run-gate-receipt-fail-closed",
+  "problem_type": "A security invariant that is implemented at a shared boundary but never assembled in production, so the boundary silently degrades to fail-open",
+  "symptom": "Any caller of the production Run command boundary (MCP client tool call, RPC dispatcher, agent tool, or a trust-level downgrade) could move a spend gate (the contract budget gate or a per-shot submission gate) to approved with no verified human approval, and the next step is a real paid provider call. A single client-issued run.control set_trust=budget_only additionally auto-approved a waiting per-shot spend gate.",
+  "direct_cause": "electron/productionRun/productionRunApprovalReceipt.ts returned undefined when approvalReceiptAuthority was absent, and every production assembly of createProductionRunService (electron/productionRun/productionRunRuntime.ts) omitted that dependency, so productionRunService.command executed gate.decide with no receipt verification at all. Only tests ever injected the authority.",
+  "class_root": "The question 'may this caller approve a gate that authorizes spend?' had no owner at the command boundary. The boundary held an optional receipt verifier whose absent state meant 'skip' instead of 'refuse', and each remote caller re-implemented its own allowlist instead. An optional security dependency whose absence means skip is not a defence.",
+  "affected_population": [
+    "Every Nomi installation: no production assembly injected the receipt authority, so the fail-open path was the only path that ever ran",
+    "Every registered MCP client and agent lane that can reach production run commands",
+    "Every production Run in confirm_all trust level (per-shot spend gates) and every Run stopped at the contract budget gate"
+  ],
+  "scope_paths": [
+    "electron/productionRun/productionRunApprovalReceipt.ts",
+    "electron/productionRun/productionRunGateIdentity.ts",
+    "electron/productionRun/productionRunService.ts",
+    "electron/productionRun/productionRunRuntime.ts",
+    "electron/productionRun/productionRunIpc.ts",
+    "electron/productionRun/productionRunTypes.ts",
+    "electron/capabilityCore/approvalReceiptRuntime.ts",
+    "electron/capabilityCore/appIntegrationAuthorities.ts",
+    "electron/harness/context/agentContext.ts"
+  ],
+  "entry_points": [
+    "Renderer IPC nomi:production-runs:command (the in-app confirmation card)",
+    "RPC dispatcher production.decide-gate (MCP over the capability-core RPC server)",
+    "MCP stdio server production tools via the pi production transport adapter",
+    "Trust-level downgrade run.control set_trust=budget_only, which auto-approved a waiting gate",
+    "The Run-owned generation gate authority used by the single-shot and multi-shot semantic generation flows"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://modelcontextprotocol.io/specification/2025-06-18/basic/security_best_practices",
+      "checked_at": "2026-09-10",
+      "purpose": "Confirms a server must not treat a client's self-declared identity or consent as authorization, so a paid gate decision has to be backed by something the main process itself signs."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://modelcontextprotocol.io/specification/2025-06-18/client/elicitation",
+      "checked_at": "2026-09-10",
+      "purpose": "Defines elicitation as the way to ask a human but supplies no verifiable proof of that answer, which is why the accept must be converted into a main-process-signed attestation rather than trusted directly."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://docs.claude.com/en/docs/claude-code/iam",
+      "checked_at": "2026-09-10",
+      "purpose": "Comparable product's permission model publishes an explicit list of actions no mode ever auto-approves; used as the reference for 'lowering the trust level must not auto-approve a spend action'."
+    }
+  ],
+  "invariants": [
+    "A gate.decide that approves a spend gate must carry a human-approval fact the main process can vouch for: a receipt verified by the process-owned approval receipt authority, or a humanGesture stamp applied by the trusted-sender IPC boundary",
+    "Absence of the receipt authority makes a spend-gate approval fail closed; it never skips verification",
+    "The production run service holds no 'no approval owner' state after construction",
+    "A trust-level downgrade never auto-approves a spend gate",
+    "'Which gates authorize spend' has exactly one definition: isSpendGate in productionRunGateIdentity.ts",
+    "humanGesture is set only by main-process assembly code and is never copied from a renderer-supplied payload"
+  ],
+  "generality_proof": "Every entry point that can decide a production gate goes through productionRunService.command, which is the single writer to the durable Run repository for gate.decide: the renderer IPC handler, the RPC dispatcher case, the pi production transport adapter, the run-owned generation gate authority, the multi-shot batch scheduler kick and the service's own autoApproveGate all call it. Moving the invariant into the gate approval owner constructed inside that function means no caller can reach the repository's gate.decide branch without first satisfying it, and the constructor removes the undefined state entirely, so a future assembly that forgets the authority fails closed instead of silently opting out. The per-caller allowlists in mcpProtocol.ts, productionRunTransportAdapters.ts and dispatcher.ts remain as defence in depth but are no longer the only thing standing between a remote client and a paid submission.",
+  "shared_boundaries": [
+    {
+      "path": "electron/productionRun/productionRunApprovalReceipt.ts",
+      "symbol": "createGateApprovalOwner",
+      "responsibility": "Owns the human-approval invariant for every gate.decide: paid gates require a verified receipt or a trusted in-app gesture, free gates and rejections stay receipt-free, and a missing receipt authority refuses instead of skipping."
+    },
+    {
+      "path": "electron/productionRun/productionRunGateIdentity.ts",
+      "symbol": "isSpendGate",
+      "responsibility": "Single definition of which gate scopes authorize provider spend, so the approval rule and the auto-approval refusal read the same answer."
+    },
+    {
+      "path": "electron/productionRun/productionRunService.ts",
+      "symbol": "createProductionRunService",
+      "responsibility": "Assembly boundary: constructs the gate approval owner unconditionally so the service never holds an absent approval owner, and refuses to auto-approve a spend gate at any trust level."
+    },
+    {
+      "path": "electron/capabilityCore/approvalReceiptRuntime.ts",
+      "symbol": "getApprovalReceiptAuthority",
+      "responsibility": "The one process-wide receipt authority and project revision resolver, so the capability-core assembly and the production run assembly share one key, one store and one lock instead of each building their own."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/productionRun/productionRunIpc.ts",
+      "entry_point": "registerProductionRunIpc nomi:production-runs:command",
+      "disposition": "enforced",
+      "evidence": "The in-app confirmation card path cannot supply a receipt (rendererCommandPayload strips receiptId/receiptToken), so it now carries the humanGesture stamp applied after assertTrustedSender; productionRunIpc.test.ts proves the stamp is written by this layer and not copied from the renderer payload."
+    },
+    {
+      "path": "electron/capabilityCore/dispatcher.ts",
+      "entry_point": "production.decide-gate",
+      "disposition": "enforced",
+      "evidence": "It calls ctx.productionRuns.command, which is the shared singleton now built with the receipt authority; a spend gate reaching that call with neither receipt nor gesture throws HumanApprovalRequiredError even if its own creative-gate allowlist were ever widened."
+    },
+    {
+      "path": "electron/capabilityCore/productionRunTransportAdapters.ts",
+      "entry_point": "decide_production_gate",
+      "disposition": "enforced",
+      "evidence": "The agent lane tool routes through input.service.command, the same production singleton, so the boundary applies; its own creative-gate check stays as defence in depth."
+    },
+    {
+      "path": "electron/productionRun/productionRunService.ts",
+      "entry_point": "autoApproveGate",
+      "disposition": "enforced",
+      "evidence": "The trust-level auto-approval now refuses any spend gate at the shared exit rather than relying on each caller's filter; productionTrustLevel.test.ts was proven red against the pre-fix filter by restoring it and observing the shot gate flip to approved."
+    },
+    {
+      "path": "electron/capabilityCore/runOwnedGenerationGateAuthority.ts",
+      "entry_point": "authorizeGeneration / decideRunOwnedGenerationGate",
+      "disposition": "enforced",
+      "evidence": "It already mints and passes a receiptId; with the authority now assembled that receipt is actually verified and consumed at the boundary instead of being an unchecked string, and the injected projectRevisionResolver makes the scope check resolvable."
+    },
+    {
+      "path": "electron/productionRun/multiShotBatchScheduler.ts",
+      "entry_point": "auto-release-anchor-checkpoint",
+      "disposition": "not-affected",
+      "evidence": "Anchor checkpoint gates are scope anchor_checkpoint, which authorizes no budget (productionRunRepository only authorizes the ledger for budget_envelope), so they are outside the spend class and their auto-release semantics are unchanged."
+    },
+    {
+      "path": "electron/capabilityCore/generationTransportAdapters.ts",
+      "entry_point": "single-shot semantic generation confirmation",
+      "disposition": "not-affected",
+      "evidence": "This path already required the receipt authority as a hard precondition and consumed the receipt itself; it is the reference implementation this fix aligns the batch side with, and its behaviour is unchanged."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The mechanism is 'an optional security dependency whose absent state means skip'. It reaches production through any assembly site that forgets to inject it, and this repository has several assemblies of the same service (GUI app integration, MCP stdio server, RPC server, IPC registration, agent lane). It is also reachable by every registered MCP client and every future caller of the command boundary, not by one user or one input.",
+    "same_class_scan": [
+      "git grep 'createProductionRunService(' across electron/ and src/: 53 call sites, of which only productionRunRuntime.ts is production; both of its branches lacked approvalReceiptAuthority",
+      "git grep 'approvalReceiptAuthority' outside tests: only createDefaultAuthorities produced one, and it was handed to the dispatcher context only, never to productionRuns",
+      "git grep \"gate.decide\" outside tests: enumerated every producer (productionRunIpc, dispatcher, productionRunTransportAdapters, runOwnedGenerationGateAuthority, residentGenerationAdapterFactory, multiShotBatchScheduler, autoApproveGate) and checked each against the shared boundary",
+      "git grep \"'job_set'\" and 'budget_envelope' outside tests: confirmed job_set is produced only by shotGateId in productionRunDriverOps.ts and that the repository authorizes the budget ledger only for budget_envelope, which fixes the spend-gate definition by scope rather than by id prefix",
+      "git grep 'creativeGate' : found three independent copies of the 'which gates may a remote caller decide' allowlist (mcpProtocol.ts, productionRunTransportAdapters.ts, dispatcher.ts), which is the duplication that let the boundary rot unnoticed"
+    ]
+  },
+  "invariant_owner_layer": {
+    "layer": "electron/productionRun/productionRunApprovalReceipt.ts",
+    "tests": [
+      "electron/productionRun/productionRunApprovalReceipt.test.ts",
+      "electron/productionRun/productionRunService.test.ts",
+      "electron/productionRun/productionTrustLevel.test.ts",
+      "electron/productionRun/productionRunIpc.test.ts"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/productionRun/productionRunApprovalReceipt.ts",
+    "invariant": "Approving a spend gate requires a receipt verified by the process-owned approval receipt authority or a humanGesture stamped by the trusted-sender IPC boundary; the service is constructed with a gate approval owner in every case, so a missing authority narrows what can pass instead of disabling the check.",
+    "failure_mode": "HumanApprovalRequiredError is thrown before repository.execute runs, so the Run is not mutated, no provider call is made, and the gate stays waiting.",
+    "exception_policy": "none",
+    "strategy": "Move the answer to 'may this decision approve spend' from each remote caller into the one command boundary every caller already funnels through, and delete the undefined state at construction so a future assembly cannot opt out by omission.",
+    "artifacts": [
+      "electron/productionRun/productionRunApprovalReceipt.ts",
+      "electron/productionRun/productionRunGateIdentity.ts",
+      "electron/productionRun/productionRunService.ts",
+      "electron/productionRun/productionRunRuntime.ts",
+      "electron/productionRun/productionRunIpc.ts",
+      "electron/capabilityCore/approvalReceiptRuntime.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/productionRun/productionRunApprovalReceipt.test.ts",
+    "electron/productionRun/productionRunService.test.ts",
+    "electron/productionRun/productionTrustLevel.test.ts",
+    "electron/productionRun/productionRunIpc.test.ts",
+    "electron/ai/composeAgentSystemPrompt.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/productionRun/productionRunApprovalReceipt.test.ts",
+    "electron/productionRun/productionTrustLevel.test.ts",
+    "electron/productionRun/productionRunIpc.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/productionRun/productionRunApprovalReceipt.ts",
+      "electron/productionRun/productionRunService.ts",
+      "electron/capabilityCore/appIntegrationAuthorities.ts"
+    ],
+    "rationale": "The fail-open helpers approvalReceiptForGate and the free-function duplicateGateDecisionFor are deleted, not kept alongside the new owner, so there is no callable path that skips verification. The second inline construction of the approval receipt authority and of the project revision resolver in appIntegrationAuthorities.ts is removed in favour of the shared runtime module, so no second key or store can be created."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The invariant is entirely owned by application code. The receipt primitives are our own HMAC/TTL implementation in electron/capabilityCore/approvalReceipt.ts and depend only on node:crypto, which is not a version-sensitive third-party runtime for this behaviour.",
+    "exit_criteria": []
+  },
+  "migration": "No migration. humanGesture is a transport-level field that never enters the durable event log (events persist only commandId and type), no persisted Run shape changes, and existing waiting gates keep their identity. Runs currently stopped at a spend gate are approved exactly as before from inside Nomi; only remote receipt-less approval stops working, which is the intended change.",
+  "residual_risks": [
+    "humanGesture proves 'this command came from a trusted Nomi window', not a signed gesture attestation. Upgrading the batch confirmation card to mint a challenge and use createMainProcessGestureAttestation is follow-up work; until then a compromised renderer can still approve batch spend gates, which is unchanged from before this fix but not improved by it.",
+    "Three per-caller allowlists deciding which gates a remote caller may touch still exist (mcpProtocol.ts, productionRunTransportAdapters.ts, dispatcher.ts). They are defence in depth and were deliberately not consolidated here because widening them would be a security change in the wrong direction, but the duplication remains a place where the answer can drift.",
+    "The repository still accepts any non-empty receiptId string for a gate carrying an authorizationDigest; the cryptographic check now happens at the service boundary above it. Pushing the verification down into the repository would remove the ordering assumption but was out of scope for this fix."
+  ]
+}
