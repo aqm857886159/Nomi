@@ -272,12 +272,12 @@ describe("applyBuiltinSeeds", () => {
     expect(t2v?.create.body).toMatchObject({
       model: "{{model.modelKey}}",
       size: "{{request.params.size}}",
-      quality: "{{request.params.quality}}",
+      resolution: "{{request.params.quality}}",
       duration: "{{request.params.duration}}",
     });
     expect(i2v?.create.body).toMatchObject({
       model: "{{model.modelKey}}",
-      quality: "{{request.params.quality}}",
+      resolution: "{{request.params.quality}}",
       duration: "{{request.params.duration}}",
       image_urls: "{{request.params.image_urls}}",
     });

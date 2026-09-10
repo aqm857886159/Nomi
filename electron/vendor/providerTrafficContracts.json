@@ -1,0 +1,197 @@
+{
+  "checkedAt": "2026-09-10",
+  "providers": [
+    {
+      "hosts": [
+        "api.apimart.ai",
+        "api.apib.ai",
+        "api.aiuxu.com",
+        "api.aishuch.com"
+      ],
+      "source": "https://apimart.ai/zh/keys",
+      "rules": [
+        {
+          "models": [
+            "*"
+          ],
+          "kind": "*",
+          "requestsPerMinute": 500
+        }
+      ],
+      "queueSource": "https://docs.apimart.ai/en/api-reference/tasks/status"
+    },
+    {
+      "hosts": [
+        "api.deepseek.com"
+      ],
+      "source": "https://api-docs.deepseek.com/quick_start/rate_limit",
+      "rules": [
+        {
+          "models": [
+            "deepseek-v4-pro"
+          ],
+          "kind": "text",
+          "inflight": 500,
+          "inflightUnit": "connection"
+        },
+        {
+          "models": [
+            "deepseek-v4-flash",
+            "deepseek-v4-flash-vision-exp"
+          ],
+          "kind": "text",
+          "inflight": 2500,
+          "inflightUnit": "connection"
+        }
+      ]
+    },
+    {
+      "hosts": [
+        "api.minimaxi.com"
+      ],
+      "source": "https://platform.minimaxi.com/docs/guides/rate-limits",
+      "rules": [
+        {
+          "models": [
+            "MiniMax-H3"
+          ],
+          "kind": "video",
+          "inflight": 30,
+          "requestsPerMinute": 300,
+          "inflightUnit": "task",
+          "pollIntervalMs": 10000,
+          "pollSource": "https://platform.minimaxi.com/docs/guides/video-generation",
+          "submissionPath": "/v2/video_generation"
+        },
+        {
+          "models": [
+            "MiniMax-Hailuo-2.3",
+            "MiniMax-Hailuo-2.3-Fast",
+            "MiniMax-Hailuo-02",
+            "T2V-01",
+            "T2V-01-Director",
+            "I2V-01",
+            "I2V-01-live",
+            "I2V-01-Director"
+          ],
+          "kind": "video",
+          "requestsPerMinute": 20
+        },
+        {
+          "models": [
+            "speech-02-hd",
+            "speech-02-turbo",
+            "speech-2.6-hd",
+            "speech-2.6-turbo",
+            "speech-2.8-hd",
+            "speech-2.8-turbo"
+          ],
+          "kind": "audio",
+          "accountTier": "free",
+          "requestsPerMinute": 10
+        },
+        {
+          "models": [
+            "speech-02-hd",
+            "speech-02-turbo",
+            "speech-2.6-hd",
+            "speech-2.6-turbo",
+            "speech-2.8-hd",
+            "speech-2.8-turbo"
+          ],
+          "kind": "audio",
+          "accountTier": "paid",
+          "requestsPerMinute": 20
+        },
+        {
+          "models": [
+            "music-2.6",
+            "music-cover",
+            "music-2.0"
+          ],
+          "kind": "audio",
+          "accountTier": "free",
+          "requestsPerMinute": 3,
+          "inflight": 3,
+          "inflightUnit": "connection"
+        },
+        {
+          "models": [
+            "music-2.6",
+            "music-cover",
+            "music-2.0"
+          ],
+          "kind": "audio",
+          "accountTier": "paid",
+          "requestsPerMinute": 120,
+          "inflight": 20,
+          "inflightUnit": "connection"
+        },
+        {
+          "models": [
+            "image-01"
+          ],
+          "kind": "image",
+          "requestsPerMinute": 10
+        },
+        {
+          "models": [
+            "MiniMax-M3",
+            "MiniMax-M2.7",
+            "MiniMax-M2.7-highspeed",
+            "MiniMax-M2.5",
+            "MiniMax-M2.5-highspeed",
+            "MiniMax-M2.1",
+            "MiniMax-M2.1-highspeed",
+            "MiniMax-M2"
+          ],
+          "kind": "text",
+          "accountTier": "free",
+          "requestsPerMinute": 20,
+          "tokensPerMinute": 1000000
+        },
+        {
+          "models": [
+            "MiniMax-M3"
+          ],
+          "kind": "text",
+          "accountTier": "paid",
+          "requestsPerMinute": 200,
+          "tokensPerMinute": 10000000
+        },
+        {
+          "models": [
+            "MiniMax-M2.7",
+            "MiniMax-M2.7-highspeed",
+            "MiniMax-M2.5",
+            "MiniMax-M2.5-highspeed",
+            "MiniMax-M2.1",
+            "MiniMax-M2.1-highspeed",
+            "MiniMax-M2"
+          ],
+          "kind": "text",
+          "accountTier": "paid",
+          "requestsPerMinute": 500,
+          "tokensPerMinute": 20000000
+        }
+      ],
+      "errorContract": {
+        "codePath": [
+          "base_resp",
+          "status_code"
+        ],
+        "messagePath": [
+          "base_resp",
+          "status_msg"
+        ],
+        "successCode": 0,
+        "rateLimitCodes": [
+          1002,
+          1041,
+          2045
+        ],
+        "source": "https://platform.minimaxi.com/docs/api-reference/errorcode"
+      }
+    }
+  ]
+}
