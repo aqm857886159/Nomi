@@ -1,11 +1,11 @@
 // 设计实验室 · 屏「画布 · 节点生成浮框底栏」的取景台与夹具。
 //
-// 这一屏钉的是 2026-09-11 用户拍板、**已经上线**的底栏形态（v1.1）：
+// 这一屏钉的是 2026-09-11 用户拍板、**已经上线**的底栏形态（v1.1 + 02:10 拍板的 B）：
 //
-//   [模型 ▾] [参数 ▾]  │  [🎥] [✦] [✨]  │  [×N ▾] ……… [↑]
-//      决定出什么/花多少      帮我写提示词         出几张 / 走
+//   [模型 ▾] [变体 ▾] [16:9 ▾] [5s ▾] [1080p ▾] [⚙]  │  [🎥] [✦] [✨]  │  [×N ▾] ……… [↑]
+//      决定出什么/花多少                                   帮我写提示词         出几张 / 走
 //
-//   · A 类（模型 / 参数 chip 只报两个值 / ×N / 生成）留底栏第一段与第三段；
+//   · A 类（模型 / 每个主参数一颗下拉 chip / 长尾进 ⚙ / ×N / 生成）留底栏第一段与第三段；
 //   · B 类（运镜 / 效果 / 优化）收成中段一簇缩小一号的纯 icon，hover 出名字，运镜已选带激活点；
 //   · 锁归位回节点右上浮条（它的作用对象是**这个节点**，不是这一次生成）。
 //   方案与删除清单/卡点表：docs/design/2026-09-10-node-composer-bar-v1.md。
@@ -15,10 +15,10 @@
 // `component-only` 样张；形态一上线，「现状」就是 v1.1 本身，再留一格顶着「现状 · 9 件挤一行」
 // 的名字去渲染新底栏，那是一句会骗人的图注，所以同 commit 删掉（P1 加新必删旧）。
 //
-// 模型目录：实验室没有 Electron 桥，`useModelOptions` 会 catch 成空 → 参数 chip 退化成
+// 模型目录：实验室没有 Electron 桥，`useModelOptions` 会 catch 成空 → 参数区退化成
 // 「配置模型」按钮，整屏就白画了。所以这里按 findReference 那一屏的既有手法装一个**只读桥**，
-// 喂真实档案认得的 modelKey（seedance-2 / gpt-image-2），参数 chip 上的两个值因此是档案
-// derive 出来的真货（比例 / 时长 / 清晰度），不是在这里手打的一句文案。
+// 喂真实档案认得的 modelKey（seedance-2 / gpt-image-2）；底栏上摆出哪几颗 chip、上面印什么值，
+// 因此全是档案 derive 出来的真货（比例 / 时长 / 清晰度），不是在这里手打的一句文案。
 import React from 'react'
 
 import BaseGenerationNode from '../../../workbench/generationCanvas/nodes/BaseGenerationNode'
@@ -110,7 +110,7 @@ function installCatalogBridge(): void {
 
 // ── 节点夹具 ─────────────────────────────────────────────────────────────────
 // meta 里的参数值就是**现役参数控件读的那些键**（controlInitialValue 直接读 meta[control.key]），
-// 所以 chip 上的「16:9 · 5s」是从这份夹具 derive 的，不是写死的一句文案。
+// 所以三颗 chip 上的「16:9」「5s」「1080p」是从这份夹具 derive 的，不是写死的一句文案。
 export function makeBarNode(kind: BarKind, options: { cameraPicked?: boolean; locked?: boolean } = {}): GenerationCanvasNode {
   const shared = {
     id: `composer-bar-${kind}`,
