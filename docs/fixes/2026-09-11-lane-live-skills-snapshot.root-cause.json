@@ -1,0 +1,226 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-11-lane-live-skills-snapshot",
+  "problem_type": "一个长生命周期对象在装配时把「每一刻都可能变的事实」当成「装配期常量」收下：类型上两者长得一模一样（都是一个数组或一个字符串），于是没有任何东西逼人回答「这个字段是哪一种寿命」",
+  "symptom": "用户在 Agent 面板旁边的技能库里导入一个技能包，左边卡片立着、composer 的技能菜单里也选得到，但对着 Agent 说「用刚导入的那个技能」，模型回「我没有这个技能」——要关掉项目再打开才认得它。同族的第二处：用户在记忆折叠里删一条项目记忆、或锁一个画布节点，已经开着的这条 lane 直到冷启动前都还在用旧的那份。同族的第三处（渲染层）：Agent 自己用 author_skill 写完一个技能落盘后，技能库面板与技能菜单都不知道，要重启 App 才撞见。",
+  "direct_cause": "laneDesktopRuntime.ts 在 openWorkspace 时把 readSkillRecords() 求值一次、以数组传进 openDesktopLaneWorkspace；laneNativeDesktop.mts 据此算出 { skills, trustedSkillRoots } 两份快照，laneHost.mts 再据此渲染一次 skillSection 拼进系统提示词。lane 会跨很多回合活着，而这三样都停在开 lane 那一刻。项目记忆同理：memory 在 openWorkspace 里先算好，systemPrompt 那个函数闭包引用的是这个常量。渲染层那一处是另一种形状但同一个后果：技能盘的变更信号只由渲染层自己的导入/删除派发（useWorkbenchSkills.ts），主进程里写盘的第三个入口（author_skill）一个字都传不出来。",
+  "class_root": "**一个跨很多回合活着的宿主，它的装配参数里混着两种寿命完全不同的东西——「开 lane 那一刻的事实」和「每一刻都可能变的事实」——而类型系统里两者没有区别。** 这一层其实已经知道规则（`tasks` / `approval.policy` 的注释把「给函数不给快照」写得很清楚），但规则只住在注释里：下一个字段被加进来时没有任何东西逼人回答它是哪一种寿命。2026-09-11 的 systemPrompt（回复语言）和本次的 native.skills 就是这么先后漏过去的，两者都在「每回合重拼」的钩子下游、却都是装配期取的值。所以修法不是给技能加一条刷新路径，而是**把「什么时候求值」变成这一层唯一的一条规则**：系统提示词在每个回合边界整体重新求值一次，会变的事实一律由来源提供。",
+  "affected_population": [
+    "所有在会话进行中导入技能的用户：技能库与 composer 菜单都看得见它，模型的索引里却没有——用户不点菜单、只用嘴说「用刚才那个技能」时，模型一口咬定没有",
+    "所有让 Agent 自己写技能（author_skill）的用户：写完落盘了，模型下一轮不认得它，用户在技能菜单里也找不到，要重启 App",
+    "所有在会话进行中改项目记忆的用户（记忆折叠里删/纠正一条、锁一个画布节点）：已经开着的 lane 直到冷启动前都在用旧的那份，锁了的节点它照样提议改",
+    "所有在会话进行中导入带 scripts/ 的技能并立刻引用它的用户：coding 工具的解锁判定看的是旧索引，模型会说「我要跑它的 selftest」然后说自己没有工具"
+  ],
+  "scope_paths": [
+    "electron/agentLane/laneRuntimePort.ts",
+    "electron/agentLane/laneHost.mts",
+    "electron/agentLane/laneInstalledSkills.mts",
+    "electron/agentLane/laneNativeDesktop.mts",
+    "electron/agentLane/laneCodingPaths.mts",
+    "electron/agentLane/laneCodingTools.mts",
+    "electron/agentLane/laneDesktopRuntime.ts",
+    "electron/skills/skillLibraryBroadcast.ts",
+    "electron/skills/skillPackage.ts",
+    "electron/preload.ts",
+    "src/NomiRouterApp.tsx",
+    "src/workbench/skillLibrary/skillLibraryChanged.ts",
+    "src/workbench/skillLibrary/useWorkbenchSkills.ts"
+  ],
+  "entry_points": [
+    "laneHost 的 systemPromptForRun（electron/agentLane/laneHost.mts）— 这一层唯一的「什么时候求值」规则：按 runId 记账，一个回合整体重新求值一次（重扫技能库 + 重拼提示词），回合内不变。transform_context 每次模型请求都走它，既不会引用开 lane 时的常量，也不会在回合内改口",
+    "LaneSkillIndexSource（electron/agentLane/laneInstalledSkills.mts）— 「这条 lane 关于技能的全部事实」的唯一 owner：entries / trustedSkillRoots / promptSection 三样出自同一次刷新，所以「模型看得见」与「read 读得到」不可能分叉；指纹含 contentHash，记录集没变就连 pi 的渲染都不重跑",
+    "createLaneCodingPaths 的可信根解析（electron/agentLane/laneCodingPaths.mts）— 收 readonly string[] | (() => readonly string[])，按「根的集合」缓存 realpath；根消失（用户删了技能）时把它摘掉而不是让之后每次 read 都炸",
+    "openLane 的 native.skills（electron/agentLane/laneRuntimePort.ts）— 契约放宽成 readonly SkillRecord[] | (() => readonly SkillRecord[])，与同文件 systemPrompt / tasks / approval.policy 同一条纪律",
+    "laneDesktopRuntime 的 openWorkspace（electron/agentLane/laneDesktopRuntime.ts）— 三样会变的事实都传来源：技能库给函数、语言铁律在函数体里、项目记忆改由 currentProjectMemory() 在同一个函数体里现读",
+    "broadcastSkillLibraryChanged（electron/skills/skillLibraryBroadcast.ts）— 技能盘变更信号的唯一发出点，挂在落盘那两个函数上（importSkillPackageToUserDir / deleteUserSkill），所以三个写入者（面板导入、拖拽、author_skill）都不必记得喊一声"
+  ],
+  "invariants": [
+    "跨多个回合活着的宿主，其装配参数里「会变的事实」必须以来源（函数 / 索引源）传入，不能传快照——与同文件 tasks / approval.policy / systemPrompt 同一条纪律",
+    "一条 lane 的系统提示词在每个回合边界整体重新求值一次，回合内不变：既不能引用开 lane 时的常量（回合间不更新），也不能每次模型请求都重算（回合内会改口、且把全量重扫乘上回合内的请求数）",
+    "技能索引与 read 允许越出项目的可信根必须来自同一个 owner 的同一次刷新——「模型看得见」与「模型读得到」不许分叉",
+    "「这条技能要不要 coding 工具」判在准入那一刻，判之前索引必须已经刷到当前回合",
+    "共享磁盘状态的变更信号发自写盘那一层，不发自某一个调用入口——入口会长出第四个，而漏掉的那一个不会报错",
+    "扫描与校验之间被删掉的技能不是安全事件：它只是不在这一刻的索引里，不许让整条 lane 之后的每个回合都失败",
+    "可信读根的集合是活的，但**每个根只 canonicalize 一次，就在它第一次出现的那一刻**：已经认下的根被换成指向别处的软链时不许重新解析（否则「把根变活」就顺手把它变成一块可以被换掉的可读区）；根本身是软链的一律拒，判越界的那一层不依赖上游记得校验"
+  ],
+  "regression_tests": [
+    "tests/ux/lane-live-skills.walk.mjs",
+    "tests/agent-runtime/lane-live-skill-index.test.mts",
+    "electron/agentLane/laneDesktopStructure.test.ts",
+    "electron/skills/skillLibraryBroadcast.test.ts"
+  ],
+  "class_regression_tests": [
+    "tests/ux/lane-live-skills.walk.mjs",
+    "tests/agent-runtime/lane-live-skill-index.test.mts",
+    "electron/agentLane/laneDesktopStructure.test.ts",
+    "electron/skills/skillLibraryBroadcast.test.ts"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://code.claude.com/docs/en/skills.md",
+      "checked_at": "2026-09-11",
+      "purpose": "确认 Claude Code 的技能索引是会话启动时装载、改了文件要重开会话——证明「启动一次」是生态现状，我们和它不一样是领域约束（导入入口就在面板旁边）而不是口味。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://github.com/agentskills/agentskills",
+      "checked_at": "2026-09-11",
+      "purpose": "Agent Skills 标准：只规定「启动预载 name+description、正文按需读」，对发现时机与热加载不作规定——所以刷新时机是宿主的自由，索引格式仍须照标准（R31 无偏差）。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://modelcontextprotocol.io/specification/2025-06-18/server/tools",
+      "checked_at": "2026-09-11",
+      "purpose": "MCP 的 notifications/tools/list_changed 是「能力集在会话中途变了」这件事唯一有标准解法的地方；我们这一层没有服务端可发通知，取它的等价物——在回合边界重查一次。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://github.com/openai/codex/issues/8547",
+      "checked_at": "2026-09-11",
+      "purpose": "Codex 的 AGENTS.md 同样启动一次、热加载至今是 open issue——第三家佐证「启动一次」是现状而非最优解。"
+    },
+    {
+      "kind": "source-code",
+      "url": "https://www.npmjs.com/package/@earendil-works/pi-coding-agent/v/0.85.1",
+      "checked_at": "2026-09-11",
+      "purpose": "实读 dist/core/resource-loader.js:206 的 getSkills()（返回 load() 时的缓存）与 :263 的 reload()、dist/core/agent-session.js:755（一次性烘进 _baseSystemPromptOptions）：上游没有「每回合重读」的机制可借，刷新时机只能由宿主决定；渲染仍用 dist/core/skills.d.ts:44 的 formatSkillsForPrompt。"
+    }
+  ],
+  "internal_only_reason": "",
+  "invariant_owner_layer": {
+    "layer": "electron/agentLane/laneHost.mts",
+    "tests": [
+      "electron/agentLane/laneDesktopStructure.test.ts",
+      "tests/agent-runtime/lane-live-skill-index.test.mts",
+      "tests/ux/lane-live-skills.walk.mjs"
+    ]
+  },
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "同一个形状在这一层已经连着出现两次：2026-09-11 上午是 systemPrompt（回复语言跟不上界面语言），当天的结构评审就把 native.skills 点名为「同类缺口，尚未修」（docs/audit/2026-09-11-agent-lane-live-vs-snapshot.md 的「待派」），本次是它。两次都不是手误，而是「装配参数里混着两种寿命、类型上没有区别」这个结构缺口在不同字段上的显形——它还会随下一个被加进 OpenLaneOptions 的字段回来。渲染层那一处（技能盘变更信号只由某一个调用入口派发）是同一个后果的另一种成因，同样会随第四个写入者回来。",
+    "same_class_scan": [
+      "逐字段扫 OpenLaneOptions 与 openWorkspace 的闭包（electron/agentLane/laneRuntimePort.ts + laneDesktopRuntime.ts）：装配期常量 = projectDir / laneName / sessionId / native.settingsRoot / tools / toolLifecycle / watchdog / limits / approval.hasUserInterface（工具集由代码拥有、目录换了就是换 lane，均正确）；有显式变更路径 = model（每次发送前 laneIpc 都调 configure，改了就 configureModel 重开 lane，凭据随之重解析）；已经是函数 = approval.policy / approval.workMode / tasks / input.capture / native.availableModels；**本次修的三个快照 = native.skills（含 trustedSkillRoots）、systemPrompt 闭包里的 memory、以及它们共同依赖的求值时机**",
+      "grep readSkillRecords 全仓（electron/ src/）：主进程读点为 skillIpc.listSkillsForRenderer / skillExecutionEvidence / skillPreview / curatedPrompts / skillRead 与 skillWrite 两个 transport adapter，全部是「每次调用现读」，构造上无快照问题；唯一把它求值一次交给长生命周期对象的就是 laneDesktopRuntime 的 openWorkspace（本次改成函数）",
+      "grep sandboxPolicyFor 的 allowedDomains（electron/agentLane/laneCodingSandbox.mts:73）：当前恒为空数组（没有调用方传它），所以还不是一份会过期的快照；技能一旦开始声明出网域名，它会立刻变成同一类——已在本合同的 residual_risks 里记名",
+      "grep webContents.send 全仓（electron/）：跨进程变更广播的既有用法为 model-catalog / assets / screenshot / browser / updater / production，技能是唯一一个只有渲染层本地总线、没有主进程广播的共享磁盘状态（本次补上）"
+    ]
+  },
+  "generality_proof": "修的是「什么时候求值」这条规则本身，不是技能这一个字段。①laneHost 只多了一条按 runId 记账的求值规则，任何随设置/磁盘变化的提示词段落（今天是技能索引、界面语言、项目记忆，明天可能是权限说明或项目档案）都自动跟上，不必各自发明一条刷新路径；②技能的三样事实（索引、可信读根、提示词段）收进一个 owner，于是「看得见却读不到」这种自相矛盾在结构上不可能发生，而不是靠两处记得同时刷；③可信根接受来源而不是数组，缓存键是根的集合，来源怎么变都不必改这一层；④渲染层的变更信号从「某个调用入口记得喊」搬到「写盘那一层必然喊」，第四个写入者出现时不必记得补一行（R28）。粒度选回合而不是请求，也是一条通用裁决：回合是用户能感知的最小原子，回合内不改口同时解决了「一句中文一句英文」和「把全量重扫乘以回合内请求数」两个问题。",
+  "shared_boundaries": [
+    {
+      "path": "electron/agentLane/laneHost.mts",
+      "symbol": "systemPromptForRun + composeSystemPrompt",
+      "responsibility": "一条 lane 每个回合的系统提示词由这里统一重新求值一次：按 runId 记账，回合内复用同一份；会变的事实在这一刻从来源取，不复用开 lane 时的闭包常量"
+    },
+    {
+      "path": "electron/agentLane/laneInstalledSkills.mts",
+      "symbol": "createLaneSkillIndexSource / LaneSkillIndexSource",
+      "responsibility": "这条 lane 关于技能的全部事实的唯一 owner：entries / trustedSkillRoots / promptSection 三样同一次刷新产出，指纹（含 contentHash）没变就整份复用"
+    },
+    {
+      "path": "electron/agentLane/laneCodingPaths.mts",
+      "symbol": "createLaneCodingPaths 的 skillRoots 解析",
+      "responsibility": "read 允许越出项目的可信根的唯一判定点：从来源取当前根集合，按集合缓存 realpath，根消失时摘掉而不是抛"
+    },
+    {
+      "path": "electron/skills/skillLibraryBroadcast.ts",
+      "symbol": "broadcastSkillLibraryChanged",
+      "responsibility": "技能盘变更信号的唯一发出点，挂在落盘那一层；渲染层只在 NomiRouterApp 一个接线点把它转成本地总线事件"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "tests/ux/lane-live-skills.walk.mjs",
+      "entry_point": "会话开着的时候导入技能 → 不重开项目/对话 → 下一轮的 system 里必须出现它的名字、描述与安装路径（阳性对照：导入前那一轮 <available_skills> 在、这个名字不在）",
+      "disposition": "enforced",
+      "evidence": "真机 Electron、隔离 profile、零额度 loopback：用户点侧栏「技能库」→ 面板里的导入 input 选一个 zip → 不碰任何重开动作 → 再发一轮。变异验证过会红：把 laneDesktopRuntime 的 skills 改回 readSkillRecords() 数组后，阳性对照仍绿而第 ④ 条当场红，报文里的 <available_skills> 只剩内置技能（2026-09-11 实跑）。刻意不在这一轮选中技能——选了走的是 composer chip 通路（正文随消息走），证不到索引。"
+    },
+    {
+      "path": "tests/agent-runtime/lane-live-skill-index.test.mts",
+      "entry_point": "索引源的四条不变量：refresh 才换代 / current() 回合内不动 / 记录集没变不重算（含 contentHash 变了要重算）/ 第一个技能半路进来时才加载渲染器；可信根跟着来源走且根消失只是摘掉；原生装配下「导入前 read 越界、刷新后 read 读得到」；以及「根的集合是活的、已认下的根不许被重新解析」这条安全性质",
+      "disposition": "enforced",
+      "evidence": "node:test 真跑真盘（临时目录 + 真 SKILL.md）。变异验证过会红：把 laneNativeDesktop 的 trustedSkillRoots 改回装配期快照后，最后一条当场红（read 仍判越界），前三条仍绿——证明它量的正是「索引与可信根同源」这一条（2026-09-11 实跑）。 另一条变异验证：把 pin 表改回「每次按集合重新 realpath」后，既有的 lane-native-paths「装配之后被换成软链」用例与本文件新增的那条同时红（2026-09-11 实跑先红后绿）。"
+    },
+    {
+      "path": "electron/agentLane/laneDesktopStructure.test.ts",
+      "entry_point": "结构棘轮四条：port 上会变的字段收来源不收快照 / laneHost 按 runId 求值且准入前先刷索引 / 桌面运行时三样事实都传来源（没有预先算好的 memory 常量）/ 索引与可信根是同一个 owner",
+      "disposition": "enforced",
+      "evidence": "变异验证过会红：把 transform_context 改回每请求 composeSystemPrompt() 当场红；把桌面运行时的 skills 改回数组当场红（两次均 2026-09-11 实跑）。它钉的是根因形状，不用等下一次真机走查才发现回归。"
+    },
+    {
+      "path": "electron/skills/skillLibraryBroadcast.test.ts",
+      "entry_point": "技能盘变更信号：广播只发给活着的窗口、没有窗口时是 no-op；两个落盘函数都发信号、频道名两头对得上、渲染层只有一个接线点且不再自己喊第二遍",
+      "disposition": "enforced",
+      "evidence": "变异验证过会红：删掉 deleteUserSkill 里的 broadcastSkillLibraryChanged() 后本用例当场红（2026-09-11 实跑）。广播本体用注入的窗口源观测，不需要起 Electron。"
+    },
+    {
+      "path": "electron/agentLane/laneSingleShot.mts",
+      "entry_point": "runLaneSingleShot 的 systemPrompt 与技能正文",
+      "disposition": "not-affected",
+      "evidence": "单发调用在 laneDesktopRuntime.singleShot 里现算（laneDesktopRuntime.ts 的 singleShot 分支每次都重新 buildLanguageRule() 并 resolveRequestedSkill()），生命周期只有这一次请求，构造上不存在「快照过期」。"
+    },
+    {
+      "path": "electron/agentLane/laneDesktopRuntime.ts",
+      "entry_point": "model / 供应商凭据（selectModel + configureModel）",
+      "disposition": "not-affected",
+      "evidence": "已有显式变更路径：laneIpc 在每一条 prompt / steer / follow-up 之前都调 dependencies.configure（electron/agentLane/laneIpc.ts:128），configure 重新 selectModel 并在配置有差异时走 opened.configureModel()，而 laneWorkspace.configureModel 是关掉再开一条 lane——凭据随之重新解析。这是评审表里「有显式换档路径」那一档，不是快照。"
+    },
+    {
+      "path": "electron/agentLane/laneCodingSandbox.mts",
+      "entry_point": "sandboxPolicyFor 的 allowedDomains",
+      "disposition": "not-affected",
+      "evidence": "当前没有任何调用方传它，恒为空数组（全拒出网），所以还不存在「一份会过期的快照」。它一旦开始由技能声明填充就属于同一类——已在 residual_risks 里记名，不是被忽略。"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/agentLane/laneHost.mts",
+    "invariant": "一条 lane 的系统提示词在每个回合边界整体重新求值一次、回合内不变；会变的事实一律由来源提供（函数 / LaneSkillIndexSource），技能索引与可信读根出自同一次刷新；共享磁盘状态的变更信号发自写盘那一层",
+    "failure_mode": "把 transform_context 改回每请求重拼或改回引用开 lane 时的常量、把桌面运行时的 skills/systemPrompt 改回快照、把可信根改回装配期数组、把技能盘的变更信号搬回某一个调用入口——四种回退各被一条已变异验证过的断言当场钉红（laneDesktopStructure.test.ts / lane-live-skill-index.test.mts / skillLibraryBroadcast.test.ts），真机层再由 lane-live-skills 走查的第 ④ 条兜底",
+    "exception_policy": "none",
+    "strategy": "把「什么时候求值」收成这一层唯一的一条规则（回合边界求值一次），把「这条 lane 有哪些技能」收成唯一一个 owner（索引 + 可信根 + 提示词段同一次产出），把「技能盘变了」收成唯一一个发出点（写盘那一层）。三处旧写法同 commit 删除：装配期的 installed.skills 数组、laneHost 里的 skillSection 常量、渲染层 useWorkbenchSkills 的两处本地派发，都不留并行版。",
+    "artifacts": [
+      "electron/agentLane/laneHost.mts",
+      "electron/agentLane/laneInstalledSkills.mts",
+      "electron/agentLane/laneNativeDesktop.mts",
+      "electron/agentLane/laneCodingPaths.mts",
+      "electron/agentLane/laneCodingTools.mts",
+      "electron/agentLane/laneRuntimePort.ts",
+      "electron/agentLane/laneDesktopRuntime.ts",
+      "electron/skills/skillLibraryBroadcast.ts",
+      "electron/skills/skillPackage.ts",
+      "electron/preload.ts",
+      "src/desktop/bridge.ts",
+      "src/NomiRouterApp.tsx",
+      "src/workbench/skillLibrary/skillLibraryChanged.ts",
+      "src/workbench/skillLibrary/useWorkbenchSkills.ts",
+      "electron/agentLane/laneDesktopStructure.test.ts",
+      "electron/skills/skillLibraryBroadcast.test.ts",
+      "tests/agent-runtime/lane-live-skill-index.test.mts",
+      "tests/ux/lane-live-skills.walk.mjs",
+      "docs/plan/2026-09-11-lane-live-vs-snapshot-fix.md"
+    ]
+  },
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/agentLane/laneNativeDesktop.mts",
+      "electron/agentLane/laneHost.mts",
+      "src/workbench/skillLibrary/useWorkbenchSkills.ts"
+    ],
+    "rationale": "三处旧写法同 commit 删除，不留并行版：① laneNativeDesktop 不再把 installed.skills 摊成数组交出去（那正是快照回来的形状），改为交出索引源本身；② laneHost 里开 lane 时算一次的 skillSection 常量没了，原生路径一律从索引源取当前值；③ useWorkbenchSkills 的两处 notifySkillLibraryChanged() 删除——信号现在只有主进程写盘那一层发，渲染层留第二个来源就等于「author_skill 那条路会继续缺席」。port 仍接受数组形式的 native.skills（影子夹具与单测在用、且它们的技能集本就不变），这不是并行版而是同一条纪律里「装配期常量」那一档的合法输入，与 systemPrompt 的 string 形式同理。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "没有引入或升级任何依赖。R29 的四列表已登记 pi 在这一层提供什么：渲染仍然只用 pi 的 formatSkillsForPrompt（framework-boundaries.json 的 skill-prompt-format），发现仍然是 Nomi 自己那条（resource-loading 一格已登记我们不用 DefaultResourceLoader）。上游在这件事上没有可借的机制——DefaultResourceLoader 自己也是 load() 时的快照（dist/core/resource-loader.js:206），唯一出路是显式 reload()（:263），所以刷新时机只能由宿主决定。",
+    "exit_criteria": []
+  },
+  "migration": "无数据/状态迁移：改的是求值时机与变更通知。已安装的技能包、已存在的 lane 会话、项目记忆的落盘格式一字未动；已经开着的 lane 在下一个回合自动拿到当前的技能索引与项目记忆，不需要重开项目。",
+  "residual_risks": [
+    "刷新粒度是回合：回合**内**导入的技能要等这一轮说完才进索引。这是有意的（评审裁决③：正在跑的那一个回合不会中途改口），不是遗留缺口。",
+    "每个回合会做一次技能库全量重扫（readSkillRecords 会读每个包的文本文件算 contentHash，本机 88 个内置包实测 ~25ms 同步 fs）。回合是几秒量级的模型调用，代价可忽略；但如果技能库长到几百个包，这个数会跟着长——那时的正解是给 skillStore 一个按目录 mtime 的廉价指纹，而不是把粒度改回「开 lane 一次」。",
+    "技能盘的变更广播只覆盖走 importSkillPackageToUserDir / deleteUserSkill 的写入。用户在 App 外面直接往 skills 目录里丢文件夹仍然不会实时刷新渲染层——不过 lane 侧因为每回合重扫，反而是实时的。补渲染层需要一个 fs watcher，本轮不做（它会带来自己的一族问题：编辑器写临时文件引发的抖动）。",
+    "sandboxPolicyFor 的 allowedDomains 今天恒为空，所以不是快照；技能一旦开始声明出网域名，它会立刻变成同一类（沙箱策略在 openLaneSandbox 时 initialize 一次，不随回合走）。届时要连沙箱的重初始化一起裁决，不能只把字段改成函数。"
+  ]
+}

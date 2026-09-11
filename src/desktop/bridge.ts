@@ -716,6 +716,8 @@ export type DesktopBridge = DesktopMediaBridge &
     exportPackage: (dirName: string) => unknown
     importPackage: (payload: unknown) => unknown
     deleteByDir: (dirName: string) => unknown
+    /** 技能盘变了（导入/删除/Agent 的 author_skill 写完落盘）。可选：老 preload 无此口。 */
+    onChanged?: (callback: () => void) => () => void
   }
   /** 即梦会员（dreamina CLI）：设备码登录/账户检测/安装（可选——老 preload 无此口）。 */
   dreamina?: {
