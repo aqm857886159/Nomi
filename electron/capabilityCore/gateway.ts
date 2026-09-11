@@ -11,7 +11,7 @@ import { readProject, saveProject } from '../projects/repository'
 import { mintSpendGrant } from '../spendGrant'
 import { prepareSpendQuote, takeSpendQuote } from '../spendQuote'
 import { normalizeSnapshot, type CanvasSnapshot } from './canvasGraph'
-import { requestRenderer } from './rendererBridge'
+import { requestRenderer, requestRendererDecision } from './rendererBridge'
 
 /** 弹付费确认卡需要的上下文（让用户一眼看懂谁要花钱、花在哪、花多少）。 */
 export type SpendConfirmInfo = {
@@ -116,8 +116,6 @@ export function createDiskGateway(projectId: string): ProjectGateway {
 
 // 画布读写转发超时：界面 store 操作是本地同步的，15s 足够兜「渲染层卡住」。
 const RENDERER_APPLY_TIMEOUT_MS = 15_000
-// 付费确认等待：卡片自身 60s 倒计时，主进程这道兜底略长（65s），防渲染层异常永不应答（不死等）。
-const RENDERER_SPEND_TIMEOUT_MS = 65_000
 
 /**
  * 混合网关：窗口活着、但目标项目**没在前台**时用。
@@ -148,20 +146,21 @@ export function createRendererGateway(projectId: string): ProjectGateway {
     async confirmSpend(info) {
       try {
         const quote = prepareSpendQuote([{ vendorKey: info.vendor, modelKey: info.modelKey, parameters: info.parameters }])
-        const reply = (await requestRenderer('spend.confirm', { ...info, quote }, RENDERER_SPEND_TIMEOUT_MS)) as { confirmed?: boolean } | null
+        const reply = (await requestRendererDecision('spend.confirm', { ...info, quote })) as { confirmed?: boolean } | null
         // 真人点确认才到这里；铸令牌发生在主进程、消费仍在 runTask 硬闸（信任边界不破）。
         return reply?.confirmed ? mintSpendGrant({ nodeIds: [info.nodeId], quote: takeSpendQuote(quote.quoteId) }) : null
       } catch {
-        // 超时/渲染层不可用 → 当作未确认（不死等，把干净错误透传给 agent）。
+        // 渲染层不可用（窗口关了/进程没了）→ 当作未确认，把干净错误透传给 agent。
+        // 注意这里**没有**「等太久就算没确认」那一档：卡在屏幕上等多久都不算答案（见 requestRendererDecision）。
         return null
       }
     },
     async confirmPlan(info) {
       try {
-        const reply = (await requestRenderer('plan.confirm', info, RENDERER_SPEND_TIMEOUT_MS)) as { confirmed?: boolean } | null
+        const reply = (await requestRendererDecision('plan.confirm', info)) as { confirmed?: boolean } | null
         return Boolean(reply?.confirmed)
       } catch {
-        // 弹卡失败/超时 → 当未确认（不静默落一堆节点；用户可让 agent 再试）。
+        // 弹卡失败/窗口没了 → 当未确认（不静默落一堆节点；用户可让 agent 再试）。同样没有空闲超时这一档。
         return false
       }
     },
