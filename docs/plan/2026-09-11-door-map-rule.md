@@ -1,6 +1,6 @@
 # 数门：查根因必须先数清这个状态有几扇门
 
-> 状态：已实施 · 2026-09-11 · 规则落点 R21（合同侧）+ R27（派工侧）
+> 状态：✅ 已交付 · 2026-09-11 · 规则落点 R21（合同侧）+ R27（派工侧）
 > 门岗：`pnpm run check:root-cause-contracts`（合同必填 `doors` / `door_reduction`）、`pnpm run check:door-map`（PR 侧引用）
 > 工具：`node scripts/door-map.mjs <mutator 符号或文件>`
 
