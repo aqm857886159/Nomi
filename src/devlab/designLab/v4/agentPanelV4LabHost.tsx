@@ -65,7 +65,7 @@ export function ShellStage({ snapshot, surface = 'generation', draft = '', width
   React.useMemo(() => {
     laneClient.connect({
       onProjection: (listener) => { listener(snapshot); return () => undefined },
-      send: async () => ({ ok: false, code: 'design_lab_read_only', message: '' }),
+      send: async () => ({ ok: false as const, code: 'agent_lane_bridge_absent' as const, diagnostic: 'design lab host is read-only' }),
     })
     useWorkbenchStore.setState({ editingPanelLayout: { ...useWorkbenchStore.getState().editingPanelLayout, assistantWidth: width }, projectAgentDockCollapsed: false,
       projectAgentDraft: draft, projectAgentAttachments: [], creationActiveSkill: null })

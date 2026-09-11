@@ -42,7 +42,7 @@ describe('single-shot requests', () => {
   })
 
   it('preserves the main rejection for an explicitly requested missing skill', async () => {
-    deps.singleShot.mockResolvedValue({ ok: false, message: 'agent_skill_unavailable' })
+    deps.singleShot.mockResolvedValue({ ok: false, code: 'agent_skill_unavailable', diagnostic: 'agent_skill_unavailable' })
     await expect(runSingleShotAgent(request)).rejects.toThrow('agent_skill_unavailable')
     expect(deps.singleShot).toHaveBeenCalledOnce()
   })
