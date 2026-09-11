@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import WebSocket from 'ws'
-import { decodePacketValues, MobileBridgeServer, type MobileBridgeEvent } from './mobileBridgeServer'
+import { decodePacketValues } from './mobileBridgeMessages'
+import { MobileBridgeServer, type MobileBridgeEvent } from './mobileBridgeServer'
 
 function packet(values: number[]): Buffer {
   const buffer = Buffer.alloc(32)
@@ -39,6 +40,7 @@ describe('MobileBridgeServer（模拟手机客户端）', () => {
   it('页面带令牌、无令牌的 WS 被拒、手机 hello / 32 字节包 / 录制 / pong 都成事件', async () => {
     const inbox = createEventInbox()
     server = new MobileBridgeServer(inbox.push, { secure: false, host: '127.0.0.1', pingIntervalMs: 50, text: { title: 'Nomi' } })
+    server.grantConsent()
     const status = await server.start()
     expect(status.running).toBe(true)
     expect(status.port).toBeGreaterThan(0)
@@ -59,11 +61,7 @@ describe('MobileBridgeServer（模拟手机客户端）', () => {
       phone.on('open', () => resolve())
       phone.on('error', reject)
     })
-    // Malformed control JSON must not escape the message boundary or block the next valid command.
-    phone.send('null')
-    phone.send('[]')
-    phone.send('"hello"')
-    phone.send('{')
+    // 畸形帧的处置（断开）住 mobileBridgeSecurity.test.ts；这里只走正常手机页发得出的那些帧。
     phone.send(JSON.stringify({ type: 'hello', role: 'phone', name: 'Pixel' }))
     await inbox.until((event) => event.type === 'device' && event.state === 'connected' && event.name === 'Pixel')
     phone.send(packet([0.5, -1, 0.25, 1.5, -2, 0.1, 50, 1]))
@@ -85,11 +83,13 @@ describe('MobileBridgeServer（模拟手机客户端）', () => {
     expect(server.status().devices).toHaveLength(0)
   })
 
-  it('包解码：不足 32 字节返回 null，NaN 归零', () => {
+  it('包解码：长度不是 32 字节、NaN、量程越界一律 null（畸形不再被归一化吞掉）', () => {
     expect(decodePacketValues(Buffer.alloc(8))).toBeNull()
-    const buffer = packet([1, 2, 3, 4, 5, 6, 7, 8])
-    buffer.writeFloatLE(Number.NaN, 0)
-    expect(decodePacketValues(buffer)?.[0]).toBe(0)
-    expect(decodePacketValues(buffer)?.[7]).toBe(8)
+    expect(decodePacketValues(Buffer.alloc(33))).toBeNull()
+    const nan = packet([1, 1, 1, 4, 5, 6, 7, 1])
+    nan.writeFloatLE(Number.NaN, 0)
+    expect(decodePacketValues(nan)).toBeNull()
+    expect(decodePacketValues(packet([9, 0, 0, 0, 0, 0, 35, 0]))).toBeNull()
+    expect(decodePacketValues(packet([1, -1, 0.5, 30, -30, 2, 35, 1]))).toEqual([1, -1, 0.5, 30, -30, 2, 35, 1])
   })
 })
