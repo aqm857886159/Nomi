@@ -124,7 +124,7 @@ export function V4TaskCard({
                   {candidate.thumbnailUrl ? <img src={candidate.thumbnailUrl} alt="" className="size-full object-cover" /> : null}
                   {/* 角标写的是**这一张是谁**（画布 Vocabulary 板是「采用」、FlowGeneration 板是「2 ✓」），
                       由数据给；`adopted` 只管那圈 accent 描边，不改写文字。 */}
-                  <span className="absolute left-1 top-1 rounded-sm bg-nomi-overlay-chip px-1 text-micro leading-[15px] text-nomi-paper">
+                  <span className="absolute left-1 top-1 rounded-sm bg-nomi-overlay-chip px-1 text-micro leading-[15px] text-nomi-media-ink">
                     {candidate.tag}
                   </span>
                 </Tile>

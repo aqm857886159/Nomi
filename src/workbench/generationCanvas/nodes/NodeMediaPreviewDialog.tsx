@@ -88,7 +88,7 @@ export default function NodeMediaPreviewDialog({ mediaType, url, title, onClose 
       <span
         className={cn(
           'pointer-events-none absolute left-4 top-4 z-[2] max-w-[calc(100%-80px)] truncate rounded-full px-3 py-1.5',
-          'bg-nomi-overlay-chip-strong border border-nomi-paper/20 text-caption font-medium text-nomi-paper shadow-nomi-sm backdrop-blur-sm',
+          'bg-nomi-overlay-chip-strong border border-nomi-media-ink/20 text-caption font-medium text-nomi-media-ink shadow-nomi-sm backdrop-blur-sm',
         )}
       >
         {t('generationCommon.imagePreview.mediaHeader', { type: mediaTypeLabel, title: dialogTitle })}
@@ -98,7 +98,7 @@ export default function NodeMediaPreviewDialog({ mediaType, url, title, onClose 
         type="button"
         className={cn(
           'absolute right-4 top-4 z-[3] grid size-9 place-items-center rounded-full cursor-pointer',
-          'border border-nomi-paper/20 bg-nomi-overlay-chip-strong text-nomi-paper shadow-nomi-md hover:bg-nomi-overlay-chip',
+          'border border-nomi-media-ink/20 bg-nomi-overlay-chip-strong text-nomi-media-ink shadow-nomi-md hover:bg-nomi-overlay-chip',
           'focus-visible:outline-2 focus-visible:outline-nomi-paper focus-visible:outline-offset-2',
         )}
         aria-label={t('generationCommon.imagePreview.closeMedia')}

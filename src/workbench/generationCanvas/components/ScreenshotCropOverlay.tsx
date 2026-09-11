@@ -104,7 +104,7 @@ export function ScreenshotCropOverlay({ capture, basePosition, categoryId, onClo
         <span className="text-body-sm text-nomi-paper">{t('generationCommon.screenshot.hint')}</span>
         <button
           type="button"
-          className="grid size-8 place-items-center rounded-full border-0 bg-nomi-overlay-chip text-nomi-paper cursor-pointer hover:bg-nomi-overlay-chip-strong"
+          className="grid size-8 place-items-center rounded-full border-0 bg-nomi-overlay-chip text-nomi-media-ink cursor-pointer hover:bg-nomi-overlay-chip-strong"
           aria-label={t('generationCommon.screenshot.cancel')}
           onClick={onClose}
         >

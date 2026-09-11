@@ -208,7 +208,7 @@ export const BrowserAssetTile = React.memo(function BrowserAssetTile({
           </span>
         ) : null}
         {asset.duration ? (
-          <span className="absolute bottom-1 right-1 rounded-nomi-sm bg-nomi-overlay-chip-strong px-1.5 py-0.5 text-micro leading-none text-nomi-paper">
+          <span className="absolute bottom-1 right-1 rounded-nomi-sm bg-nomi-overlay-chip-strong px-1.5 py-0.5 text-micro leading-none text-nomi-media-ink">
             {asset.duration}
           </span>
         ) : null}
