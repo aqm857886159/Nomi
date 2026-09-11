@@ -2,7 +2,9 @@ import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconLock, IconPlayerPlay, IconRobot, IconTrash, IconX } from '@tabler/icons-react'
 import BulkModelPicker from '../../common/BulkModelPicker'
+import { NomiSelect } from '../../../design'
 import { SelectionToolbarFrame } from '../../generationCanvas/components/SelectionToolbarFrame'
+import { NO_SCENE_VALUE } from '../../generationCanvas/agent/storyboardPlanEdits'
 import type { StoryboardBulkModelGroup, StoryboardShotKind } from './storyboardBulkModelScope'
 
 /**
@@ -11,6 +13,11 @@ import type { StoryboardBulkModelGroup, StoryboardShotKind } from './storyboardB
  *
  * v6 新增「交给 Agent」（§2.7 入口 2/3）——三个入口对应三种选择规模（全部 / 多选 / 单行），
  * 不是同一功能的重复入口。三处共用 `data-storyboard-agent-handoff`，走查一次数得出"是不是三个都在"。
+ *
+ * 「移到场」只在这份分镜**真的有场**时出现：没有场的分镜里它只剩「移到场」与「未分场」两行——
+ * 一个点开什么都做不了的下拉（2026-09-11 用户实测反馈）。有场才是它有意义的前提，
+ * 所以判据就写在渲染条件上，而不是靠一句提示解释一个空控件。
+ * 标题也不再是那条既当标签又当选项的 `<option value="">`：它是 `NomiSelect` 的真占位，选不中。
  *
  * 「统一模型」不是本文件自己的下拉：它与画布框选工具条、分镜「全部镜头」批量条共用
  * `BulkModelPicker`（厂商明确、自带去重与健康度排序）。选中集合里有几种镜种就有几个下拉，
@@ -31,6 +38,7 @@ export default function StoryboardSelectionToolbar({
   selectedCount: number
   /** 按选中集合的镜种分好的模型档（`storyboardBulkModelGroups`）；一档一个下拉。 */
   modelGroups: readonly StoryboardBulkModelGroup[]
+  /** 这份分镜里的场；空数组 = 没有分场，「移到场」整枚不出现。 */
   sceneOptions: readonly { id: string; title: string }[]
   onGenerate: () => void
   onMoveToScene: (sceneId: string) => void
@@ -73,20 +81,22 @@ export default function StoryboardSelectionToolbar({
           {t('storyboardEditor.agentHandoff.selection')}
         </button>
       ) : null}
-      <select
-        value=""
-        onChange={(event) => onMoveToScene(event.target.value)}
-        aria-label={t('storyboardEditor.selection.moveToScene')}
-        className="h-7 shrink-0 rounded-full border border-nomi-line bg-nomi-paper px-2 text-micro text-nomi-ink-80"
-      >
-        <option value="">{t('storyboardEditor.selection.moveToScene')}</option>
-        <option value="__none__">{t('storyboardEditor.selection.allScenes')}</option>
-        {sceneOptions.map((scene) => (
-          <option key={scene.id} value={scene.id}>
-            {scene.title}
-          </option>
-        ))}
-      </select>
+      {sceneOptions.length > 0 ? (
+        <span className="shrink-0" data-storyboard-move-to-scene="true">
+          <NomiSelect
+            value=""
+            options={[
+              { value: NO_SCENE_VALUE, label: t('storyboardEditor.selection.allScenes') },
+              ...sceneOptions.map((scene) => ({ value: scene.id, label: scene.title })),
+            ]}
+            onChange={onMoveToScene}
+            ariaLabel={t('storyboardEditor.selection.moveToScene')}
+            placeholder={t('storyboardEditor.selection.moveToScene')}
+            size="sm"
+            triggerMaxWidth={120}
+          />
+        </span>
+      ) : null}
       {modelGroups.map((group) => {
         const scope = t(`generationCommon.production.modelGroup.${group.kind}`, { count: group.count })
         return (

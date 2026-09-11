@@ -10,6 +10,13 @@ import { hasMentions, mentionUrlsInOrder } from '../../assets/promptMentions'
  * 由 validatePlan 暴露成红标（plan doc §1.4：标红提示，不去猜）。
  */
 
+/**
+ * 「移到场」下拉里那条「未分场」的值——**不是场 id**，是「把这几镜从场里摘出来」这条命令。
+ * 三个写口（多选条、行级菜单、表的两条 onMoveToScene）必须是同一个串：
+ * 各写一次字面量的代价是改名时只改得动其中几处，剩下那几处静默失效。
+ */
+export const NO_SCENE_VALUE = '__none__'
+
 export const ANCHOR_KIND_LABELS: Record<PlanAnchorKind, string> = {
   character: '角色',
   scene: '场景',

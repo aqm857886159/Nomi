@@ -10,6 +10,7 @@ import {
   duplicateShotAt,
   danglingAnchorIdsForShot,
   moveShot,
+  NO_SCENE_VALUE,
   insertShotAt,
   rememberAnchorReferenceUrl,
   sceneGroupsOf,
@@ -213,7 +214,7 @@ export default function StoryboardShotTable({ plan, projectId, rows, anchorCards
   }
   const moveSelectedToScene = (sceneId: string): void => {
     if (!sceneId) return
-    onChange({ ...plan, shots: plan.shots.map((shot) => selectedShotIds.has(selectKeyOf(shot)) ? (sceneId === '__none__' ? (() => { const { sceneId: _removed, ...rest } = shot; return rest })() : { ...shot, sceneId }) : shot) })
+    onChange({ ...plan, shots: plan.shots.map((shot) => selectedShotIds.has(selectKeyOf(shot)) ? (sceneId === NO_SCENE_VALUE ? (() => { const { sceneId: _removed, ...rest } = shot; return rest })() : { ...shot, sceneId }) : shot) })
   }
   const applyModelToSelected = (kind: StoryboardShotKind, modelKey: string, vendor?: string): void => {
     onChange(applyBulkModelToShots({ plan, isSelected: (shot) => selectedShotIds.has(selectKeyOf(shot)), kind, modelKey, vendor }))
@@ -362,7 +363,7 @@ export default function StoryboardShotTable({ plan, projectId, rows, anchorCards
                     onSelect: (event: React.MouseEvent) => onSelectShot(pos, event),
                     scenes: plan.scenes ?? [],
                     onCopy: () => onChange(duplicateShotAt(plan, pos)),
-                    onMoveToScene: (sceneId: string) => onChange(updateShotAt(plan, pos, sceneId === '__none__' ? (() => { const { sceneId: _removed, ...rest } = shot; return rest })() : { sceneId })),
+                    onMoveToScene: (sceneId: string) => onChange(updateShotAt(plan, pos, sceneId === NO_SCENE_VALUE ? (() => { const { sceneId: _removed, ...rest } = shot; return rest })() : { sceneId })),
                     onKeyboardMove: (direction: -1 | 1) => {
                       const target = pos + direction
                       if (target >= 0 && target < plan.shots.length) onChange(moveShot(plan, pos, target))
