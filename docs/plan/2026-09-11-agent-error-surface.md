@@ -108,3 +108,31 @@ Nomi 的语言只住在渲染层（`src/i18n`），主进程拿不到它——�
   `pnpm run test` 才冒出来的。把 lane 夹具都标上类型是更早的一道防线（R28），留作下一批。
 - `showableRaw` 用「有没有汉字」区分「已本地化的人话」与「没翻译的散句」。对 `en` 用户而言
   一句中文兜底同样是泄漏；那个方向由 `check:i18n` 的 electron 中文基线（只减不增）在收。
+
+## 真机走查（2026-09-11 20:16 · development · 零额度夹具）
+
+`node ./tests/ux/agent-error-surface.walk.mjs` → `passed`，`paidCalls: 0`，`unexpected: []`。
+这一跑真机落在**替换当中**那一侧（`racedMessageLandedFirstTry: false`），正好是报障用户撞上的那半：
+
+- 横幅上出现过的**全部**文案（MutationObserver 全程记，不是轮询采样）只有一条，中文：
+  「对话已经换过了，刚才那句没发出去，重新发一次。」——原来那句
+  `The agent is opening a conversation. Try again after it opens.` 一次都没再出现。
+- 截图 `01-after-racing-a-send-right-after-switching-conversation.png`：横幅在位的同时，
+  他抢着打的那句**还留在输入框里**（`ERRSURF_RACED：…`）——按横幅说的重发一次即可，不用重打。
+- 截图 `02-raced-message-landed-in-the-new-conversation.png`：重发后那句落进新对话并拿到回复，
+  横幅归零（`ERROR_BANNER` count = 0）。
+
+拉丁散句断言是**类级**的（「横幅里不许出现由空格隔开的两个拉丁词」），不是盯那一句；
+换一句没翻译的英文提示同样会红。
+
+## 门岗先验会红（R17 · 三条规则逐条变异，2026-09-11）
+
+| 规则 | 变异 | 结果 |
+|---|---|---|
+| ① 码 ↔ 文案 | 从 `agentLaneError.ts` 删掉 `agent_lane_workspace_stale` 的 zh-CN 一行 | 红：`zh-CN 缺 'agent_lane_workspace_stale'` |
+| ② `diagnostic` 进显示汇 | 在**报障现场** `ProjectAgentResidentShell.tsx:461` 那条 `role="alert"` 上挂 `title={laneFailure.diagnostic}` | 红：`:461: diagnostic 是诊断串不是界面文案` |
+| ③ 英文散句 throw 棘轮 | 在 `laneIpc.ts` 加一句新的英文 `throw new Error('This is a brand new English sentence…')` | 红：点名那一句 + `从 19 涨到 20——棘轮只减不增` |
+
+②**必须选报障现场来验**：第一次拿 `laneCommandFailure.ts` 试是绿的，因为它在
+`DIAGNOSTIC_ALLOWED` 里——变异打在豁免文件上，量到的是豁免生效，不是规则失效。
+三次变异全部还原后 `check:error-surface` 复绿。
