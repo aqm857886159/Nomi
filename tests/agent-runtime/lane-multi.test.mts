@@ -96,7 +96,7 @@ test('G2 · 删一条对话：它从列表和盘上一起消失；当前这条�
     '那条对话的转录真的从盘上没了');
 
   await assert.rejects(() => workspace.execute({ kind: 'lane-delete', laneName: 'main' }),
-    /Switch to another conversation/, '删掉当前这条就没有活着的对话了 —— 正确姿势是先切走再删');
+    /agent_lane_conversation_in_use/, '删掉当前这条就没有活着的对话了 —— 正确姿势是先切走再删');
 });
 
 test('G2 · 四条命令的拒绝面：重名新建 / 切到不存在 / 删不存在，都抛，不静默', async (t: TestContext) => {
@@ -106,10 +106,10 @@ test('G2 · 四条命令的拒绝面：重名新建 / 切到不存在 / 删不�
 
   // 重名新建静默变成「打开」是最坏的默认值：用户以为自己在白纸上开始，
   // 而模型看得见上一件事的全部上下文。
-  await assert.rejects(() => workspace.execute({ kind: 'lane-create', laneName: 'main' }), /already has a conversation/);
+  await assert.rejects(() => workspace.execute({ kind: 'lane-create', laneName: 'main' }), /agent_lane_conversation_exists/);
   // 静默新建会给他一条空白对话，而他以为那是自己昨天写的东西。
-  await assert.rejects(() => workspace.execute({ kind: 'lane-select', laneName: 'ghost' }), /no conversation named/);
-  await assert.rejects(() => workspace.execute({ kind: 'lane-delete', laneName: 'ghost' }), /no conversation named/);
+  await assert.rejects(() => workspace.execute({ kind: 'lane-select', laneName: 'ghost' }), /agent_lane_conversation_missing/);
+  await assert.rejects(() => workspace.execute({ kind: 'lane-delete', laneName: 'ghost' }), /agent_lane_conversation_missing/);
   // 拒绝之后工作区还活着：一次被拒的命令不该把当前那条对话关掉。
   assert.equal(workspace.projection().active.lane, 'main');
 });

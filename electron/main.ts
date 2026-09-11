@@ -61,6 +61,7 @@ import { desktopT, registerI18nIpc, setDesktopLocale } from "./i18n";
 import { registerSettingsIpc } from "./settings/registerSettingsIpc";
 import { registerIntegrationHandoffIpc } from "./integrationCertification/handoffQueue";
 import { registerIntegrationSessionIpc } from "./integrationCertification/integrationSessionIpc";
+import { installIntegrationSessionRuntime } from "./integrationCertification/integrationSessionRuntimeInstall";
 import { registerProductionRunIpc } from "./productionRun/productionRunIpc";
 import { registerProductionActionIpc } from "./productionRun/productionActionIpc";
 import { installProductionRunDesktopLifecycle } from "./productionRun/productionRunDesktopLifecycle";
@@ -407,7 +408,7 @@ function registerIpc(): void {
   // preload 与 OnboardingWizard/IntegrationConfirmationPanel 仍调这些通道（No handler registered）；
   // model-integration-trusted-audio.e2e 抓到后按根因恢复注册。
   registerIntegrationHandoffIpc();
-  registerIntegrationSessionIpc();
+  registerIntegrationSessionIpc(installIntegrationSessionRuntime());
   // 渲染层崩溃（RootErrorBoundary）也落到同一崩溃日志（P0-8）；注册与 sender 守卫住在 crashLog（main.ts 巨壳只减不增）。
   registerRendererCrashIpc({ onMessage: ipcMain.on.bind(ipcMain), assertTrusted: assertTrustedUiSender });
   // 窗口控制（Windows 自绘标题栏）：只注册一次，作用于发起请求的那个窗口（fromWebContents），

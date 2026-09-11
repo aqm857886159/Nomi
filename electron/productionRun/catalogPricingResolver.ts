@@ -1,6 +1,7 @@
 import type { Model } from "../catalog/types";
 import type { ExecutionContractV1 } from "../capabilityCore/executionContract";
 import { deriveShotPrice, type ModelPricing, type ShotPrice } from "./shotPricing";
+import { createModelPricingResolver } from "../shared/contracts/shotPricingRule";
 
 /**
  * P4 S2 — the runtime bridge from the catalog to the pure pricing derive.
@@ -14,8 +15,6 @@ import { deriveShotPrice, type ModelPricing, type ShotPrice } from "./shotPricin
  * calls a provider and never fabricates a price.
  */
 
-const normalized = (value: string): string => value.trim().toLowerCase();
-
 function toModelPricing(pricing: Model["pricing"]): ModelPricing | undefined {
   if (!pricing || typeof pricing !== "object") return undefined;
   const specCosts = Array.isArray(pricing.specCosts)
@@ -27,20 +26,19 @@ function toModelPricing(pricing: Model["pricing"]): ModelPricing | undefined {
 }
 
 /**
- * Build a `resolveModelPricing(providerId, modelId)` over a catalog models snapshot. Matches on
- * vendorKey + (modelKey OR modelAlias), case-insensitively, mirroring how the rest of the semantic
- * chain resolves model identity. Returns undefined when the model or its pricing is absent →
- * the pure derive then reports the price as honestly unknown.
+ * Build a `resolveModelPricing(providerId, modelId)` over a catalog models snapshot. The identity
+ * match itself lives in the neutral contract layer (`createModelPricingResolver`) so the renderer's
+ * spend card resolves the same row by the same rule; this function only adapts catalog rows into it.
+ * Returns undefined when the model or its pricing is absent → the pure derive then reports the price
+ * as honestly unknown.
  */
 export function createCatalogModelPricingResolver(models: readonly Model[]): (providerId: string, modelId: string) => ModelPricing | undefined {
-  return (providerId, modelId) => {
-    const vendor = normalized(providerId);
-    const model = normalized(modelId);
-    const row = models.find((item) =>
-      normalized(item.vendorKey) === vendor
-      && (normalized(item.modelKey) === model || (typeof item.modelAlias === "string" && normalized(item.modelAlias) === model)));
-    return row ? toModelPricing(row.pricing) : undefined;
-  };
+  return createModelPricingResolver(models.map((item) => ({
+    vendorKey: item.vendorKey,
+    modelKey: item.modelKey,
+    modelAlias: item.modelAlias,
+    pricing: toModelPricing(item.pricing),
+  })));
 }
 
 /**

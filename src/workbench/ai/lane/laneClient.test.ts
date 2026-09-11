@@ -48,11 +48,11 @@ describe('laneClient', () => {
     const binding = { projectId: 'p', immutableProjectUuid: 'u', projectGeneration: 1 }
     const bridge = fakeBridge().bridge
     bridge.send = vi.fn().mockResolvedValueOnce({ ok: true, workspaceId: 'w' })
-      .mockResolvedValueOnce({ ok: false, code: 'agent_lane_execute_failed', message: 'storage close failed' })
+      .mockResolvedValueOnce({ ok: false, code: 'agent_lane_execute_failed', diagnostic: 'storage close failed' })
       .mockResolvedValueOnce({ ok: true })
     const client = createLaneClient(bridge)
     await client.open(binding)
-    await expect(client.close()).rejects.toThrow('storage close failed')
+    await expect(client.close()).rejects.toThrow('agent_lane_execute_failed')
     expect(client.context()?.subscriptionId).toBe('w')
     await client.close()
     expect(client.context()).toBeNull()
@@ -167,7 +167,7 @@ describe('laneClient', () => {
     const client = createLaneClient(undefined)
     await expect(client.prompt('hi')).resolves.toEqual({
       ok: false, code: 'agent_lane_bridge_absent',
-      message: 'The agent lane bridge is not exposed in this build.',
+      diagnostic: 'nomiDesktop.agentLane is not exposed on this build',
     })
   })
 
@@ -219,4 +219,30 @@ describe('laneClient', () => {
     const result = await client.abort()
     expect(result).toEqual({ ok: true, restoredInput: [{ text: '不对，横屏' }] })
   })
+  // 面板刚打开的那一两秒里用户就打字回车：以前这条命令带着**空身份**（`current` 还是 null）
+  // 就发出去了，主进程当然找不到归属、回一条失败，那句话还得他自己重打。
+  it('holds a command until its own open settles, then sends it with the real workspace id', async () => {
+    const binding = { projectId: 'p', immutableProjectUuid: 'u', projectGeneration: 1 }
+    const sent: LaneDesktopCommand[] = []
+    let release!: () => void
+    const blocked = new Promise<void>((resolve) => { release = resolve })
+    const bridge: LaneBridge = {
+      onProjection: () => () => {},
+      send: async (command) => {
+        sent.push(command)
+        if (command.kind === 'workspace-open') { await blocked; return { ok: true, workspaceId: 'w' } }
+        return { ok: true }
+      },
+    }
+    const client = createLaneClient(bridge)
+    const opening = client.open(binding)
+    const saying = client.prompt('打开的时候我就打字了')
+    expect(sent.map((one) => one.kind)).toEqual(['workspace-open'])
+    release()
+    await opening
+    await saying
+    expect(sent.map((one) => one.kind)).toEqual(['workspace-open', 'prompt'])
+    expect(sent[1]).toMatchObject({ kind: 'prompt', workspaceId: 'w' })
+  })
+
 })
