@@ -8,6 +8,10 @@ import {
 } from './comfyuiWorkflowImport'
 
 describe('ComfyUI generic workflow corpus', () => {
+  // 2026-09-11 根因修复后，语料 'unsupported-output' 的 expected mediaKinds 从 [] 改成了 ['audio']：
+  // 那条真实语料本就带一个 LoadAudio 节点（见 comfyuiWorkflowFixtures.ts），修复前它的音频输入
+  // 完全识别不出来（用户报的根因「ComfyUI 音频输入用不了」），这条穷举测试因此曾经悄悄通过一个
+  // 假阴性。别把 mediaKinds 改回 []，那就是把根因焊死回去——语料本身没变，变的是识别能力。
   it.each(COMFYUI_WORKFLOW_CORPUS.filter((fixture) => fixture.api))('$id obeys the shared input contract', (fixture) => {
     const graph = parseComfyApiWorkflow(JSON.stringify(fixture.api))
     const analysis = analyzeComfyWorkflow(graph)

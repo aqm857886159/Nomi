@@ -14,8 +14,8 @@
 // 改画布那边的口径，这里要同步（两处都指向对方，别只改一处）。
 import { workflowMediaBindings, type WorkflowBinding, type WorkflowParamType } from './comfyuiWorkflowBinding'
 
-/** 画布上一个可填控件的类型。media 槽 = 拖图/拖视频的方框，不是输入框。 */
-export type PreviewFieldKind = 'prompt' | 'image' | 'video' | WorkflowParamType
+/** 画布上一个可填控件的类型。media 槽 = 拖图/拖视频/拖音频的方框，不是输入框。 */
+export type PreviewFieldKind = 'prompt' | 'image' | 'video' | 'audio' | WorkflowParamType
 
 export type PreviewField = {
   /** 稳定 key（React key + 走查定位）。角色槽用角色名，可调字段用 paramKey。 */
