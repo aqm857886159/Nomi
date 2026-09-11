@@ -1,6 +1,6 @@
 # ComfyUI 接入主链阻断：认证服务的运行时依赖从没接上
 
-- **状态**：已实现，等合入（分支 `fix/comfyui-certification-wiring-20260911`）
+- 状态：🚧 已实现·等合入（分支 `fix/comfyui-certification-wiring-20260911`）
 - **触发**：2026-09-11 第一次对着本机真 ComfyUI 跑的接入矩阵（`docs/research/2026-09-11-comfyui-workflow-matrix-real.md` §BUG-1/2/3，那份报告在 worktree `Nomi-comfy-matrix`，PR #743）
 - **根因合同**：[`docs/fixes/2026-09-11-comfyui-certification-wiring.root-cause.json`](../fixes/2026-09-11-comfyui-certification-wiring.root-cause.json)（schema v3，`recurring`）
 - **真机证据**：[`docs/plan/2026-09-11-comfyui-cert-evidence/`](./2026-09-11-comfyui-cert-evidence/)
@@ -95,24 +95,31 @@ ComfyUI 把编号叫 `prompt_id`，只走 `response_mapping` 这一条路，于�
 
 ## 先查别人
 
-1. **仓库里已有？** —— 同族处置在 `#722`：付费门缺人证时改成**拒绝**而不是放行
-   （`electron/productionRun/runCommand.ts`，merge commit `3f3346ffb`；本分支 base 的第 2 条 commit）。
-   结论：同一族（必需前提被表达成可选），处置方向已由仓库自己定死 = fail-closed，本条照抄该方向，
+1. **仓库里已有？同族处置** —— `electron/productionRun/productionRunRuntime.ts:34`（PR #722，merge commit
+   `3f3346ffb`，本分支 base 的第 2 条 commit）：那条注释写的就是本条的同一句话——「**每一个**生产装配都
+   必须带上进程内唯一的收据权威……否则付费门直接放行（R28：防线建在最早能拦住的那层，而不是各入口自己记得）」。
+   结论：同一族（必需前提被表达成可选）的处置方向已由仓库自己定死 = 在**装配处**收口，本条照抄该方向，
    区别只是那条 fail-open、这条 fail-silent。
-2. **仓库里已有？** —— 做对了的对照样本：`electron/productionRun/productionRunService.ts:82` 起，
-   `approvalReceiptAuthority` 缺席时**构造出一个 fail-closed 的 owner**，而不是留 undefined 等调用期炸。
-   结论：本仓已有「必需依赖要在构造期给出确定行为」的先例，不需要发明新模式。
-3. **规矩已有？** —— `docs/engineering-rules.md` R28「防线建在最早能拦住的那层：能让编译器拦的别留给门岗，
-   安全关键依赖不许『optional + 欠账登记』」。结论：本条的修法（必填参数 = 编译期拦）就是 R28 的字面执行。
-4. **生态里已有？** —— 「必需依赖在构造期校验」是 DI 容器（NestJS 的 provider 解析、InversifyJS 的
-   `@injectable` 绑定校验）的既有标准做法，见 https://docs.nestjs.com/fundamentals/custom-providers
-   （构造期解析不到 provider 就在应用启动时抛 `UnknownDependenciesException`，不推迟到请求期）。
+2. **仓库里已有？做对了的对照样本** —— `electron/productionRun/productionRunApprovalReceipt.ts:102`：
+   「service 构造时若没拿到收据权威，持有的就是 fail-closed 的这份（`createGateApprovalOwner(undefined)`），
+   而不是『undefined 于是跳过校验』」。
+   结论：本仓已有「必需依赖缺席时要在构造期给出确定行为」的先例，不需要发明新模式；本条更进一步用类型
+   把它变成编译期错误（本例能做到，那例做不到——它要在运行期兼容没有权威的旧装配）。
+3. **规矩已有？** —— `docs/engineering-rules.md:655` 的 R28「防线建在最早能拦住的那层：能让编译器拦的
+   别留给门岗，安全关键依赖不许『optional + 欠账登记』」。
+   结论：本条的修法（必填参数 = 编译期拦）就是 R28 的字面执行，不是新发明。
+4. **生态里已有？** —— https://docs.nestjs.com/fundamentals/custom-providers ：DI 容器（NestJS 的 provider
+   解析、InversifyJS 的 `@injectable` 绑定校验）把「必需依赖在构造期校验」当标准做法——解析不到就在应用
+   启动时抛 `UnknownDependenciesException`，不推迟到请求期。
    结论：**不引入** DI 容器——那属于引入新框架层，按 R29 要先出四列表 + 参考实现逐层对照 + 字段级裁决，
    代价远大于本条修复；而 TypeScript 的必填参数在本例里能提供同等强度的保证且零运行时开销。
    借的是它的**不变量**（构造期而非调用期），不是它的实现。
-5. **真机事实已有？** —— `docs/research/2026-09-11-comfyui-workflow-matrix-real.md` §BUG-1/2/3
-   已经逐跳核实过这条链，并存下了可复跑的探针脚本与 7 行工作流夹具。
+5. **真机事实已有？** —— [2026-09-11 ComfyUI 接入矩阵真机报告](../research/2026-09-11-comfyui-workflow-matrix-real.md)
+   §BUG-1/2/3 已经逐跳核实过这条链，并存下了可复跑的探针脚本与 7 行工作流夹具。
    结论：不重跑矩阵，只复核行号（main 已前进）并复用它的探针写法与 SD1.5 夹具。
+6. **自媒体来源？** —— 本条没用 TikHub：它修的是本仓自己的装配顺序与结果判读，判据全部来自本机真
+   ComfyUI 的可复跑证据（`docs/plan/2026-09-11-comfyui-cert-evidence/acceptance-result.json:1`），
+   外部观点对「这个依赖该不该必填」给不出更强的裁决。
 
 ## 验收（R13/R16，本机真 ComfyUI）
 

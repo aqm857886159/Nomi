@@ -53,7 +53,7 @@
     "src/ui/onboarding/integrationConfirmationOutcome.test.ts"
   ],
   "external_sources": [],
-  "internal_only_reason": "这条不需要外部规范做裁决：不变量（必需依赖在构造期强制提供）与判据全部取自仓库内可复跑的真机证据——隔离 profile 的 capability/integration-sessions.json 写着 certification_unavailable、ComfyUI 的 /history 里 Nomi 一条 /prompt 都没有、model-catalog.json 里搜不到导入的名字，三条互相印证；修复后同一套探针在同一台真 ComfyUI 上给出相反结果。仓库自身的 R28 条文与 #722（fix/mcp-receipt-fail-closed-20260910，付费门缺人证时改成拒绝而不是放行）已经把这一族的处置定死，无需再引第三方文档。",
+  "internal_only_reason": "这条不需要外部规范做裁决：不变量（必需依赖在构造期强制提供）与判据全部取自仓库内可复跑的真机证据——隔离 profile 的 capability/integration-sessions.json 写着 certification_unavailable、ComfyUI 的 /history 里 Nomi 一条 /prompt 都没有、model-catalog.json 里搜不到导入的名字，三条互相印证；修复后同一套探针在同一台真 ComfyUI 上给出相反结果。仓库自身的 R28 条文与 #722（fix/mcp-receipt-fail-closed-20260910，付费门缺人证时改成拒绝而不是放行；装配处收口在 electron/productionRun/productionRunRuntime.ts:34）已经把这一族的处置定死，无需再引第三方文档。",
   "invariant_owner_layer": {
     "layer": "electron/integrationCertification/integrationSessionRuntimeInstall.ts",
     "tests": [
@@ -62,7 +62,7 @@
   },
   "recurrence": {
     "classification": "recurring",
-    "reason": "不是一次手误，而是一种会反复长出来的写法：工厂的 deps 对象为了「方便测试注入」整体写成 optional，生产注册处顺手零参调用，缺席的后果被闭包里的 `if (!dep) throw \"*_unavailable\"` 兜住——三步各自看着都合理，合起来就是必炸且静默。同一仓库在 #722 刚刚处置过同族的另一半（必需前提缺席时 fail-open 放行），说明这个形状已经复发过至少一次；而 `createRuntime*Service` / `singleton ||= createX()` 这两种写法在 electron/ 下不止一处，只要下一处也把必需依赖写成 optional 就会再中一次。",
+    "reason": "不是一次手误，而是一种会反复长出来的写法：工厂的 deps 对象为了「方便测试注入」整体写成 optional，生产注册处顺手零参调用，缺席的后果被闭包里的 `if (!dep) throw \"*_unavailable\"` 兜住——三步各自看着都合理，合起来就是必炸且静默。同一仓库在 #722 刚刚处置过同族的另一半（必需前提缺席时 fail-open 放行，装配处收口见 electron/productionRun/productionRunRuntime.ts:34），说明这个形状已经复发过至少一次；而 `createRuntime*Service` / `singleton ||= createX()` 这两种写法在 electron/ 下不止一处，只要下一处也把必需依赖写成 optional 就会再中一次。",
     "same_class_scan": [
       "grep 全仓 `createRuntimeIntegrationSessionService|installRuntimeIntegrationSessionService|configureIntegrationSessionService|getIntegrationSessionService`（electron/ src/ scripts/ tests/，排除 *.test.ts）：生产调用点只有 electron/main.ts:411（本次改成显式装配）、electron/capabilityCore/dispatcher.ts 的 7 处 `ctx.integrationSessions || getIntegrationSessionService()` 与 electron/integrationCertification/credentialElicitationRuntime.ts 的 3 处 `getIntegrationSessionService()`——后两者都是**取用**不是构造，本次改成只能取到装配处装好的那一个；`installRuntimeIntegrationSessionService` 与 `DispatchContext.integrationSessions` 在本次之前生产里零调用点，实锤零参兜底是唯一构造路径",
       "grep `singleton ||=` / `singleton ??=` + `createRuntime`（electron/）：本文件的 `singleton ||= createRuntimeIntegrationSessionService()` 是唯一一处「兜底构造一个需要外部运行时依赖的服务」，本次删除",
