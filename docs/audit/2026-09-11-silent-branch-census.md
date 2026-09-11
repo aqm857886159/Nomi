@@ -6,6 +6,8 @@
 > 仓里，只会让每次评审都去读一份没人手写过的东西（它也确实撞了 ponytail 的 diff 上限）。
 > 需要冻结的那部分——900 个位置的 `file:line` + 类别——已经逐条落在 §7。
 > §5 的门岗 `check:silent-branches` 是**设计，尚未实施**。
+> **基线 = `c3be2044`（2026-09-11）**。行号随 main 前进会漂移，本文所有 `file:line` 都以这个 SHA 为准；
+> 要复核旧行号就 `git checkout c3be2044`，要当下的数字就直接重跑脚本。
 
 ## 0. 为什么有这份普查
 
@@ -13,7 +15,7 @@
 
 | # | 位置 | 写法 | 用户看到的 |
 |---|---|---|---|
-| ① | `src/workbench/ai/v4/useAgentPanelSpendConfirm.ts:144` | `void run(target).catch(() => undefined)` | 点「确认」，圈转完，卡还在原地——不知道是没点到还是失败了 |
+| ① | `src/workbench/ai/v4/useAgentPanelSpendConfirm.ts:144`（**普查期间已在 main 修掉**，见 §3.1 #2） | `void run(target).catch(() => undefined)` | 点「确认」，圈转完，卡还在原地——不知道是没点到还是失败了 |
 | ② | `electron/productionRun/productionActionIpc.ts:62` | `catch { return [] }` | 面板显示「没有要确认的东西」，真相是能力核读失败了 |
 | ③ | `electron/capabilityCore/appIntegration.ts:508` | `catch (error) { logError(...) }` | 整条付费卡 lane 静默缺席，界面上连入口都不出现 |
 
@@ -43,7 +45,7 @@
 | **e** | catch 不中断、直接落回成功路径（fallthrough） |
 | **f** | 带 `fallback`/`兜底`/`默认为`/`best-effort` 注释的静默分支 |
 
-a/e/f 会重叠（同一处 catch 可以既是 a1 又是 e）：**900 个不同位置、1032 条命中**，其中 120 处带多个标签。
+a/e/f 会重叠（同一处 catch 可以既是 a1 又是 e）：**899 个不同位置、1031 条命中**，其中 120 处带多个标签。
 
 ### 1.2 「响了」的判据（为什么必须走 AST 而不是 grep）
 
@@ -77,24 +79,31 @@ a/e/f 会重叠（同一处 catch 可以既是 a1 又是 e）：**900 个不同�
 
 | 对照组 | 位置 | 期望 | 结果 |
 |---|---|---|---|
-| 阳性 ① | `useAgentPanelSpendConfirm.ts:144` | 命中 | ✅ `b` |
-| 阳性 ①的根 | `useAgentPanelSpendConfirm.ts:106` | 命中 | ✅ `d`（`setPending(undefined)`）|
+| 阳性 ① | `useAgentPanelSpendConfirm.ts:144`（基线 `c3be2044` 之前） | 命中 | ✅ `b` |
+| **①修好之后** | 同一处，现在走 `toast(…, 'error')` | **必须不再命中** | ✅ 已从名单消失（见下）|
+| 阳性 ①的根 | `useAgentPanelSpendConfirm.ts:107` | 命中 | ✅ `d`（`setPending(undefined)`）|
 | 阳性 ② | `productionActionIpc.ts:62` | 命中 | ✅ `d`（`[]`）|
 | 阳性 ③ | `appIntegration.ts:508` | 命中 | ✅ `a2`+`e` |
 | 阴性 | `components/batchPlanPreview.ts:40`（走 `reportCanvasFeedback`） | 排除 | ✅ |
 | 阴性 | `runner/recoverTaskActions.ts:102`（走 `setNodeStatus(…,'recoverable',…)`） | 排除 | ✅ |
 | 阴性 | `canvasReadSurfacePort.ts:165`（`assertTrustedSender` 守卫） | 归「设计如此」 | ✅ |
-| 阴性 | `SpendConfirmDialog.tsx:63`（localStorage 探针） | 归「设计如此」 | ✅ |
+| 阴性 | `SpendConfirmDialog.tsx:61`（localStorage 探针） | 归「设计如此」 | ✅ |
 
 「阳性①的根」那条是普查自己挖出来的，值得单说：**exemplar ① 的链条真正断在上游的
 `catch { setPending(undefined) }`，不在下游那句 `.catch(() => undefined)`**。
 只认 `return` 的第一版会把这类根因整片漏掉——UI 层本来就很少 `return`，它写 state。
 **这就是「只修撞见的那处」和「把一类数出来」的差别**：撞见的是症状，普查顺手把根因也摆出来了。
 
+**写这份普查的当天，① 被另一条线在 main 上修掉了**（权限重做那批）——于是它成了一个不用编的
+负对照：修好的版本必须从名单上消失，而它确实消失了（`b` 全层 161 → 160，UI 69 → 68，钱 33 → 32）。
+判据钉的是行为不是位置，所以它既不需要手动摘除，也不会在修好之后继续报。
+**但 #1 那个根还在**：`catch { setPending(undefined) }` 一字未动，注释仍写着「通道还没起来 ≠ 错误」——
+这句话对一半，另一半（真读失败）仍在被同一条路径吞掉。修了症状、根还在，正是 §0 说的那笔利息。
+
 ## 2. 总表
 
-扫描 **2328** 个文件，命中 **1127** 条；扣掉「设计如此」**95** 条（§4），
-待分诊 **1032** 条，分布在 **900 个不同位置 / 415 个文件**（占被扫文件的 18%）。
+扫描 **2330** 个文件，命中 **1126** 条；扣掉「设计如此」**95** 条（§4），
+待分诊 **1031** 条，分布在 **899 个不同位置 / 415 个文件**（占被扫文件的 18%）。
 
 ### 2.1 类别 × 层
 
@@ -102,12 +111,12 @@ a/e/f 会重叠（同一处 catch 可以既是 a1 又是 e）：**900 个不同�
 |---|--:|--:|--:|--:|--:|
 | **a1** | 56 | 11 | 165 | 10 | **242** |
 | **a2** | 1 | 0 | 29 | 0 | **30** |
-| **b** | 69 | 11 | 68 | 13 | **161** |
+| **b** | 68 | 11 | 68 | 13 | **160** |
 | **c** | 129 | 15 | 33 | 15 | **192** |
 | **d** | 58 | 7 | 151 | 12 | **228** |
 | **e** | 29 | 6 | 101 | 6 | **142** |
 | **f** | 3 | 1 | 30 | 3 | **37** |
-| **合计** | 345 | 51 | 577 | 59 | **1032** |
+| **合计** | 344 | 51 | 577 | 59 | **1031** |
 
 **读法**：`MAIN` 那一列最厚，`a1`/`d` 最多。主进程编排层大量用「装配失败就跳过这一块」的写法——
 这正是 exemplar ③ 的形状：**功能整块静默缺席，用户只会说「它没了」**，既不报错也没有入口可点，
@@ -122,7 +131,7 @@ a/e/f 会重叠（同一处 catch 可以既是 a1 又是 e）：**900 个不同�
 
 | 领域 | UI | IPC | MAIN | CORE | 合计 |
 |---|--:|--:|--:|--:|--:|
-| 钱（付费确认/授权/收据/配额） | 13 | 3 | 17 | 0 | **33** |
+| 钱（付费确认/授权/收据/配额） | 12 | 3 | 17 | 0 | **32** |
 | 生成任务（run/调度/供应商/模型） | 153 | 7 | 177 | 8 | **345** |
 | 画布（节点/图/时间轴/分镜） | 38 | 6 | 40 | 0 | **84** |
 | 项目（库/持久化/迁移） | 43 | 3 | 52 | 0 | **98** |
@@ -131,9 +140,9 @@ a/e/f 会重叠（同一处 catch 可以既是 a1 又是 e）：**900 个不同�
 | 设置/偏好/i18n | 12 | 3 | 7 | 4 | **26** |
 | 其它 | 70 | 24 | 125 | 34 | **253** |
 
-钱只有 33 条——**但今天三处全落在这 33 条里**，而且三处都是用户当场看得见的。
+钱只有 32 条——**但今天三处全落在这一档里**，而且三处都是用户当场看得见的。
 密度不是危险度：生成任务那 300 多条里有大量是「取缩略图失败 → 不显示缩略图」这种可容忍的降级；
-而钱这 33 条里，任何一条静默都直接变成「我点了确认，它没反应」或「它说没有要确认的」。
+而钱这 32 条里，任何一条静默都直接变成「我点了确认，它没反应」或「它说没有要确认的」。
 **所以 §3 的排序按钱 → 生成 → 画布，不按密度。**
 
 ### 2.3 命中最密的 10 个文件
@@ -147,7 +156,7 @@ a/e/f 会重叠（同一处 catch 可以既是 a1 又是 e）：**900 个不同�
 | `electron/productionRun/productionRunDriverOps.ts` | 9 |
 | `electron/assets/localAssetFile.ts` | 9 |
 | `electron/comfyuiProgressSocket.ts` | 9 |
-| `electron/main.ts` | 9 |
+| `electron/main.ts` | 9 |  | 9 | 341`a2` 368`b` 369`b` 373`b` 641`a1ef` 661`a2e` 664`c` 669`b` 709`a2` |
 | `src/ui/onboarding/OnboardingDrawer.tsx` | 9 |
 | `electron/capabilityCore/appIntegrationRunObservation.ts` | 7 |
 
@@ -163,8 +172,8 @@ a/e/f 会重叠（同一处 catch 可以既是 a1 又是 e）：**900 个不同�
 
 | # | 位置 | 类 | 现在 | 用户看到的 | 该响的方式 |
 |---|---|---|---|---|---|
-| 1 | `src/workbench/ai/v4/useAgentPanelSpendConfirm.ts:106` | d | `catch { setPending(undefined) }` | 待确认的付费卡**凭空消失**，下一次轮询也不会把它带回来 | 区分「通道还没起来」（保持上一次的卡，不清空）与「读失败」（卡位保留 + 顶部一条失败提示）。现在两种情况共用同一条清空路径，**这是 exemplar ① 的真正根因** |
-| 2 | `src/workbench/ai/v4/useAgentPanelSpendConfirm.ts:144` | b | `.catch(() => undefined)` | 点「确认」→ 圈转完 → 卡还在原地，不知道是没点到还是失败 | 确认结果必须回到调用方：成功关卡、失败在**卡上原地**显示失败态并保留重试（用户拍板过「确认与角标必须原地内联」） |
+| 1 | `src/workbench/ai/v4/useAgentPanelSpendConfirm.ts:107` | d | `catch { setPending(undefined) }` | 待确认的付费卡**凭空消失**，下一次轮询也不会把它带回来 | 区分「通道还没起来」（保持上一次的卡，不清空）与「读失败」（卡位保留 + 顶部一条失败提示）。现在两种情况共用同一条清空路径，**这是 exemplar ① 的真正根因** |
+| 2 | ~~`useAgentPanelSpendConfirm.ts:144`~~ **已修（基线 `c3be2044` 已含）** | b | 曾是 `.catch(() => undefined)`，现在 `.then` 认 `{ok:false}` + `.catch` 一起走 `toast(…, 'error')` | 曾经：点「确认」→ 圈转完 → 卡还在原地 | 已按「失败必须回到调用方」修掉，并且宿主原话只进控制台、用户只看 i18n 那句——留在表里是为了让**修好之后从名单上消失**这件事有据可查 |
 | 3 | `electron/productionRun/productionActionIpc.ts:62` | d | `catch { return [] }` | 面板显示「没有要确认的东西」，真相是能力核读失败 | 通道注释说的是「能力核还没起来 ≠ 错误」——那是对的，但它现在把**真实读失败**也一起吞了。分成两种返回：`not-ready`（面板保持静默）与 `failed`（面板顶部提示），别共用 `[]` |
 | 4 | `electron/capabilityCore/appIntegration.ts:508` | a2+e | `catch { logError(...) }` 后继续 | 整条付费卡 lane 静默缺席，界面上连入口都不出现 | 装配失败必须 fail-loud：要么抛到启动路径让能力核起不来（这条 lane 是钱的必经之路），要么把「付费确认不可用」作为一等状态送到面板顶部。**只写日志 = 用户永远不知道** |
 | 5 | `src/workbench/capability/useIntegrationConfirmationNotice.ts:30` | d | `catch { return }` | 有待确认的接入会话，但提示条**永远不出现** | 拉取失败要与「队列为空」分开；失败时保留上一次的提示条，不要静默撤掉 |
@@ -202,7 +211,7 @@ a/e/f 会重叠（同一处 catch 可以既是 a1 又是 e）：**900 个不同�
 |---|---|---|---|---|---|
 | 28 | `electron/productionRun/productionRunService.ts`（22 处，最密） | a1/a2/c/d | 大量「命令冲突就跳过」与 `void` 派发 | 批量生成里个别镜头静默不前进，进度条卡住但没有失败 | 逐条过一遍：真正的幂等冲突（如 `:560` 并发已对账）可留，**其余要把失败记到该 job 的状态上**，让返工/续拍看得见 |
 | 29 | `electron/productionRun/canvasLandingHost.ts:61`、`electron/capabilityCore/appIntegrationRunObservation.ts:87,123` | d | `catch { return false }` / `catch { return }` | run **读失败**被当成「没有这个 run」→ 落地与调度整段不发生：生成跑完了，画布上什么都没出现 | 三处都是 `repository.read` 失败与「run 不存在」共用同一条返回。读失败要与「确实没有」分开：前者该重试并留痕（补齐钩子据此再来一次），后者才是正常的跳过 |
-| 30 | `electron/main.ts:367,368,372,668`（4 处 `b`） | b | 启动期 `.catch(() => undefined)` | 启动期的注册/迁移失败无声，表现为某功能这次启动就是不在 | 启动期失败要进一条可查询的「本次启动降级清单」，设置或诊断里能看到，而不是只活在日志里 |
+| 30 | `electron/main.ts:368,369,373,669`（4 处 `b`） | b | 启动期 `.catch(() => undefined)` | 启动期的注册/迁移失败无声，表现为某功能这次启动就是不在 | 启动期失败要进一条可查询的「本次启动降级清单」，设置或诊断里能看到，而不是只活在日志里 |
 
 > **不在前 30、但同类且值得顺手看的**：`electron/screenshot/screenshotHotkey.ts`（7 处）、
 > `electron/video/depthVideoJob.ts`、`electron/assets/localAssetFile.ts`、
@@ -214,17 +223,17 @@ a/e/f 会重叠（同一处 catch 可以既是 a1 又是 e）：**900 个不同�
 
 | 条数 | 理由 | 位置 |
 |---|---|---|
-| 64 | 浏览器存储访问在隐私窗口/禁用站点数据时会直接 throw，按约定必须 try/catch 且以「没有存过」继续。 | `src/design/confirmDialog.tsx:55`、`src/desktop/activeProject.ts:24`、`src/devlab/directorLab.tsx:27,35`、`src/i18n/index.ts:21,86`、`src/theme/colorScheme.ts:45,74`、`src/ui/community/feedbackOutbox.ts:19`、`src/ui/onboarding/AiAssistedOnboardingSection.tsx:141`、`src/utils/canvasGesturePreference.ts:57`、`src/workbench/NomiStudioApp.tsx:312`、`src/workbench/ai/assistantModelPref.ts:17,28`、`src/workbench/assets/assetSurfaceMigration.ts:286,307`、`src/workbench/generationCanvas/agent/shotVerifyStore.ts:30`、`src/workbench/generationCanvas/components/canvasProductionScope.ts:54`、`src/workbench/generationCanvas/nodes/director/DirectorEditor.tsx:76,169`、`src/workbench/generationCanvas/nodes/director/agent/CameraMoveCaptureHost.tsx:48,116`、`src/workbench/generationCanvas/nodes/director/panels/EditorSplit.tsx:41`、`src/workbench/generationCanvas/nodes/director/panels/side/SidePanels.tsx:43,51,59`、`src/workbench/generationCanvas/nodes/director/panels/viewport/PipViewport.tsx:48`、`src/workbench/generationCanvas/nodes/director/scene/E2EBridge.tsx:52`、`src/workbench/generationCanvas/nodes/director/scene/viewSettings.ts:70`、`src/workbench/generationCanvas/nodes/director/useAiSceneBuilder.ts:34`、`src/workbench/generationCanvas/nodes/director/useMobileCamera.ts:99`、`src/workbench/generationCanvas/runner/modelHealthMemory.ts:31,43`、`src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx:63`、`src/workbench/library/libraryDiscovery.ts:71,81`、`src/workbench/library/workflowLibrary.ts:32`、`src/workbench/onboarding/onboardingState.ts:36,57,69,77,86,94,135`、`src/workbench/preview/editingPanelLayoutSlice.ts:74,109`、`src/workbench/production/ProductionCanvasLandingHost.tsx:55`、`src/workbench/project/projectStorage.ts:15,24,62`、`src/workbench/taskCenter/TaskCenterButton.tsx:107`、`src/workbench/timeline/TimelineMiniPreview.tsx:31`、`src/workbench/timeline/timelinePanelPrefs.ts:22,31` |
+| 64 | 浏览器存储访问在隐私窗口/禁用站点数据时会直接 throw，按约定必须 try/catch 且以「没有存过」继续。 | `src/design/confirmDialog.tsx:55`、`src/desktop/activeProject.ts:24`、`src/devlab/directorLab.tsx:27,35`、`src/i18n/index.ts:21,86`、`src/theme/colorScheme.ts:45,74`、`src/ui/community/feedbackOutbox.ts:19`、`src/ui/onboarding/AiAssistedOnboardingSection.tsx:141`、`src/utils/canvasGesturePreference.ts:57`、`src/workbench/NomiStudioApp.tsx:312`、`src/workbench/ai/assistantModelPref.ts:17,28`、`src/workbench/assets/assetSurfaceMigration.ts:286,307`、`src/workbench/generationCanvas/agent/shotVerifyStore.ts:30`、`src/workbench/generationCanvas/components/canvasProductionScope.ts:54`、`src/workbench/generationCanvas/nodes/director/DirectorEditor.tsx:76,169`、`src/workbench/generationCanvas/nodes/director/agent/CameraMoveCaptureHost.tsx:48,116`、`src/workbench/generationCanvas/nodes/director/panels/EditorSplit.tsx:41`、`src/workbench/generationCanvas/nodes/director/panels/side/SidePanels.tsx:43,51,59`、`src/workbench/generationCanvas/nodes/director/panels/viewport/PipViewport.tsx:48`、`src/workbench/generationCanvas/nodes/director/scene/E2EBridge.tsx:52`、`src/workbench/generationCanvas/nodes/director/scene/viewSettings.ts:70`、`src/workbench/generationCanvas/nodes/director/useAiSceneBuilder.ts:34`、`src/workbench/generationCanvas/nodes/director/useMobileCamera.ts:99`、`src/workbench/generationCanvas/runner/modelHealthMemory.ts:31,43`、`src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx:61`、`src/workbench/library/libraryDiscovery.ts:71,81`、`src/workbench/library/workflowLibrary.ts:32`、`src/workbench/onboarding/onboardingState.ts:36,57,69,77,86,94,135`、`src/workbench/preview/editingPanelLayoutSlice.ts:74,109`、`src/workbench/production/ProductionCanvasLandingHost.tsx:55`、`src/workbench/project/projectStorage.ts:15,24,62`、`src/workbench/taskCenter/TaskCenterButton.tsx:107`、`src/workbench/timeline/TimelineMiniPreview.tsx:31`、`src/workbench/timeline/timelinePanelPrefs.ts:22,31` |
 | 20 | 日志/遥测自身的兜底：写日志失败再抛会把主流程一起拖倒，属于可观测性降级而非功能失败。 | `electron/crashLog.ts:115`、`electron/diagnostics/diagnosticsBundle.ts:53,70`、`electron/logging/logFiles.ts:36,70,120,130,162,177`、`electron/logging/logger.ts:148,199`、`electron/telemetry/telemetryOutbox.ts:63`、`src/workbench/settings/TelemetrySection.tsx:23,26,69` |
 | 11 | 信任边界守卫：来路不明的 IPC 消息就是要**无声丢弃**——回一条错误等于告诉攻击方通道存在。安全上静默才是正解。 | `electron/capabilityCore/canvasReadSurfacePort.ts:135,165,173,181,189,197,205,213,221,229,237` |
 
 另外四类在名单上但**逐条读过、理由成立**，保留只是因为机器判不了，不该当成待修：
 
-- `electron/capabilityCore/gateway.ts:154 / 163`（`confirmSpend` / `confirmPlan`）——渲染层超时/不可用时
+- `electron/capabilityCore/gateway.ts:152 / 162`（`confirmSpend` / `confirmPlan`）——渲染层超时/不可用时
   返回「未确认」。**钱上 fail-closed 是正解**：宁可让用户重点一次，不可以把超时当成同意。
 - `electron/spendGrant.ts:133`——`previous.catch(() => undefined)` 是确认锁链，故意让前一个等待者的失败
   不传染给下一个。换成传播反而制造串联故障。
-- `electron/capabilityCore/mcpDocumentWriteReceipt.ts:63`、`electron/integrationCertification/integrationSession.ts:644`
+- `electron/capabilityCore/mcpDocumentWriteReceipt.ts:63`、`electron/integrationCertification/integrationSession.ts:633`
   ——catch 之后**紧接着 `throw error` 或走进一个会抛的校验**，原始失败没丢。
 - `electron/vendor/vendorOutboundGuard.ts:99`——URL 解析不出来返回 `null`（不拦），注释已写明：
   那是调用方拼错了地址，交给 fetch 自己报 `Invalid URL`，比在这里假装成一次安全拒绝诚实。
@@ -251,9 +260,9 @@ a/e/f 会重叠（同一处 catch 可以既是 a1 又是 e）：**900 个不同�
 现在就能复跑（这是门岗「会红」的必要条件：检测不到就永远拦不住）：
 
 ```
-node ./scripts/census-silent-branches.mjs --json --file useAgentPanelSpendConfirm   # ① 106 d / 144 b
-node ./scripts/census-silent-branches.mjs --json --file productionActionIpc         # ② 62  d
-node ./scripts/census-silent-branches.mjs --json --file appIntegration.ts           # ③ 508 a2+e
+node ./scripts/census-silent-branches.mjs --json --file useAgentPanelSpendConfirm   # ①的根 107 d（144 b 已修，已不在名单）
+node ./scripts/census-silent-branches.mjs --json --file productionActionIpc         # ②      62  d
+node ./scripts/census-silent-branches.mjs --json --file appIntegration.ts           # ③      508 a2+e
 ```
 
 剩下一半在门岗实施时补：把三处从基线里摘掉再跑，必须红；加回去，必须绿。
@@ -261,11 +270,11 @@ node ./scripts/census-silent-branches.mjs --json --file appIntegration.ts       
 
 ### 5.3 只拦增量，且分档
 
-1032 条存量一次修完不现实，也不该。建议分档：
+1031 条存量一次修完不现实，也不该。建议分档：
 
 | 档 | 范围 | 力度 |
 |---|---|---|
-| **硬拦** | `domain=money` 的任何新增（现 33 条） | 零增长。钱上没有 best-effort |
+| **硬拦** | `domain=money` 的任何新增（现 32 条） | 零增长。钱上没有 best-effort |
 | **硬拦** | 新增 `a2`（只 log 不回错） | 零增长。这条最容易写、最难发现，且日志在桌面端基本没人看 |
 | **棘轮** | `d` 在 UI/IPC 层（失败伪装成无数据） | 只减不增 |
 | **棘轮** | `a1`/`b`/`e` 全层 | 只减不增 |
@@ -355,13 +364,13 @@ ESLint 文档白纸黑字：*"This rule ignores block statements which contain a
 | `d` catch 写空值（含 `setX(undefined)`） | — 无 — | ❌ **自研门岗** |
 | `e` fallthrough | — 无 — | ❌ **自研门岗** |
 
-**lint 能拿走的份额：192 / 900 ≈ 21%**，而且拿走的恰好是危害最轻的那一类
+**lint 能拿走的份额：192 / 899 ≈ 21%**，而且拿走的恰好是危害最轻的那一类
 （`c` 多数只是 `d` 的下游）。**79% 必须自研**，理由在 §6.3：生态检查结构，我们要检查语义。
 
 门岗的判据一句话：**一条 catch / rejection 处理器必须到达至少一个 sink——重抛、报错调用、
 或用户看得见的失败态。注释不是 sink，日志在桌面端也基本不是。**
 
-## 7. 逐条清单（按文件，900 个位置 / 415 个文件）
+## 7. 逐条清单（按文件，899 个位置 / 415 个文件）
 
 格式：`行号` + 类别字母（多字母 = 同一处命中多个类别）。全量字段见
 `node ./scripts/census-silent-branches.mjs --json`（含所在函数、领域、评分、代码片段）；
@@ -372,7 +381,7 @@ ESLint 文档白纸黑字：*"This rule ignores block statements which contain a
 |---|---|---|--:|---|
 | `electron/productionRun/productionRunService.ts` | MAIN | generation | 22 | 160`c` 161`c` 211`d` 292`c` 318`c` 325`c` 340`c` 434`c` 437`c` 443`c` 453`a2` 461`c` 471`a2` 482`c` 492`a2` 498`c` 529`a2` 560`a1` 566`a1` 569`a1` 573`c` 586`a2` |
 | `electron/capabilityCore/appIntegration.ts` | MAIN | generation/agent | 9 | 162`a1e` 248`d` 272`a2` 508`a2e` 515`c` 569`a2e` 576`a2` 639`a1f` 647`a2` |
-| `electron/main.ts` | MAIN | other | 9 | 340`a2` 367`b` 368`b` 372`b` 640`a1ef` 660`a2e` 663`c` 668`b` 708`a2` |
+| `electron/main.ts` | MAIN | other | 9 | 341`a2` 368`b` 369`b` 373`b` 641`a1ef` 661`a2e` 664`c` 669`b` 709`a2` |
 | `electron/screenshot/screenshotHotkey.ts` | MAIN | canvas | 7 | 57`a1ef` 88`a1e` 102`b` 106`e` 124`d` 133`a1f` 143`b` |
 | `electron/assets/localAssetFile.ts` | MAIN | project/asset | 9 | 24`d` 31`d` 52`d` 72`d` 102`a1` 108`a1e` 120`d` 178`e` 188`b` |
 | `electron/comfyuiProgressSocket.ts` | MAIN | other | 9 | 109`d` 151`a1` 156`d` 251`a1` 280`f` 299`a1` 306`a1e` 407`b` 414`b` |
@@ -384,7 +393,7 @@ ESLint 文档白纸黑字：*"This rule ignores block statements which contain a
 | `src/ui/onboarding/OnboardingDrawer.tsx` | UI | other | 9 | 120`a1` 127`c` 149`c` 151`c` 152`c` 580`c` 594`c` 735`c` 770`c` |
 | `electron/capabilityCore/mcpNodeLauncher.ts` | MAIN | canvas | 5 | 77`a1` 142`d` 184`a1ef` 279`a1` 370`a1f` |
 | `electron/capabilityCore/projectLeaseStore.ts` | MAIN | project | 7 | 125`d` 160`a1` 236`a1e` 318`a1` 350`a1` 507`a1` 520`a1` |
-| `electron/integrationCertification/integrationSession.ts` | MAIN | money/agent | 6 | 630`d` 644`a1e` 1097`e` 1146`a1e` 1172`a1` 1579`e` |
+| `electron/integrationCertification/integrationSession.ts` | MAIN | money/agent | 6 | 619`d` 633`a1e` 1086`e` 1135`a1e` 1161`a1` 1568`e` |
 | `electron/productionRun/artifactProjection.ts` | MAIN | generation | 4 | 51`a1e` 59`a1ef` 62`a1e` 141`d` |
 | `electron/agentLane/laneStreamObserver.mts` | MAIN | agent | 4 | 54`b` 67`a1bf` 74`a1e` 104`c` |
 | `electron/assets/projectAssetStore.ts` | MAIN | project | 6 | 57`d` 70`a1` 200`a1` 236`a1e` 605`b` 675`d` |
@@ -403,10 +412,10 @@ ESLint 文档白纸黑字：*"This rule ignores block statements which contain a
 | `electron/assets/localFileImport.ts` | MAIN | asset | 3 | 63`a2e` 128`d` 160`a1e` |
 | `electron/browser/core/browserViews.ts` | MAIN | canvas/other | 5 | 224`c` 225`e` 289`c` 334`b` 496`d` |
 | `electron/browser/media/browserMediaVisualCapture.ts` | MAIN | canvas/asset | 4 | 44`d` 78`d` 119`a1e` 170`d` |
-| `electron/capabilityCore/host.ts` | MAIN | agent | 4 | 41`a1` 54`d` 121`a1e` 128`e` |
+| `electron/capabilityCore/host.ts` | MAIN | agent | 4 | 42`a1` 55`d` 125`a1e` 132`e` |
 | `electron/capabilityCore/mcpConfig.ts` | MAIN | agent | 5 | 121`d` 279`d` 358`d` 461`a1` 512`a1` |
 | `electron/capabilityCore/mcpDetectedClients.ts` | MAIN | agent | 3 | 53`a1e` 71`a1f` 81`d` |
-| `electron/capabilityCore/mcpStdioServer.ts` | MAIN | generation/agent | 3 | 282`a1e` 292`a1e` 416`b` |
+| `electron/capabilityCore/mcpStdioServer.ts` | MAIN | generation/agent | 3 | 286`a1e` 296`a1e` 420`b` |
 | `electron/catalog/processOperation.ts` | MAIN | other | 3 | 157`a1` 175`a1f` 178`a1f` |
 | `electron/comfyuiGraphConvert.ts` | MAIN | canvas | 5 | 49`a1` 95`b` 109`b` 114`d` 193`d` |
 | `electron/export/exportJobs.ts` | MAIN | generation | 4 | 108`d` 147`a1` 200`d` 383`a1f` |
@@ -417,7 +426,7 @@ ESLint 文档白纸黑字：*"This rule ignores block statements which contain a
 | `src/ui/ErrorBoundary.tsx` | UI | generation/other | 3 | 15`a1e` 40`a1e` 49`b` |
 | `src/ui/onboarding/CustomCallEditor.tsx` | UI | other | 5 | 83`d` 164`d` 440`c` 631`c` 675`c` |
 | `src/ui/onboarding/workflowPage/ComfyuiWorkflowSettingsPage.tsx` | UI | settings | 5 | 98`b` 104`b` 185`d` 407`c` 454`c` |
-| `src/workbench/ai/v4/useAgentPanelSpendConfirm.ts` | UI | money | 5 | 106`d` 113`c` 114`c` 144`b` 146`c` |
+| `src/workbench/ai/v4/useAgentPanelSpendConfirm.ts` | UI | money | 4 | 107`d` 114`c` 115`c` 169`c` |
 | `src/workbench/generationCanvas/nodes/PanoramaViewer.tsx` | UI | generation | 4 | 144`d` 158`c` 264`a1` 290`a1e` |
 | `src/workbench/generationCanvas/runner/generationRunController.ts` | UI | money/generation | 5 | 360`b` 364`b` 617`a1` 656`d` 705`a1` |
 | `src/workbench/NomiStudioApp.tsx` | UI | project/other | 5 | 126`d` 371`b` 586`c` 614`b` 640`d` |
@@ -521,7 +530,7 @@ ESLint 文档白纸黑字：*"This rule ignores block statements which contain a
 | `electron/browser/media/browserPromptScreenshotSelection.ts` | MAIN | canvas | 1 | 21`a1e` |
 | `electron/browser/overlay/browserViewOverlay.ts` | MAIN | asset | 2 | 140`d` 387`c` |
 | `electron/capabilityCore/apimartGenerationProjection.ts` | MAIN | generation | 2 | 80`d` 90`d` |
-| `electron/capabilityCore/gateway.ts` | MAIN | money | 2 | 154`d` 163`d` |
+| `electron/capabilityCore/gateway.ts` | MAIN | money | 2 | 152`d` 162`d` |
 | `electron/capabilityCore/generationOutputMaterializer.ts` | MAIN | generation | 1 | 46`a1e` |
 | `electron/capabilityCore/mcpDocumentWriteReceipt.ts` | MAIN | money | 1 | 63`a1e` |
 | `electron/capabilityCore/mcpProfiles.ts` | MAIN | agent | 2 | 42`b` 54`a1` |
@@ -536,13 +545,13 @@ ESLint 文档白纸黑字：*"This rule ignores block statements which contain a
 | `electron/catalog/relayNativeWireUpgrade.ts` | MAIN | generation | 2 | 64`b` 115`b` |
 | `electron/export/ensureExecutable.ts` | MAIN | other | 1 | 25`a1f` |
 | `electron/integrationCertification/httpConnector.ts` | MAIN | generation | 1 | 161`a1e` |
-| `electron/integrationCertification/integrationSessionIpc.ts` | IPC | money | 1 | 72`a1e` |
+| `electron/integrationCertification/integrationSessionIpc.ts` | IPC | money | 1 | 74`a1e` |
 | `electron/integrationCertification/operationLedger.ts` | MAIN | other | 2 | 400`a1` 792`a1` |
 | `electron/integrationCertification/promotionJournal.ts` | MAIN | other | 2 | 161`a1` 437`a1` |
 | `electron/integrationCertification/providerAdapterCoordinator.ts` | MAIN | generation | 2 | 388`d` 658`a1` |
 | `electron/preload.ts` | IPC | settings/other | 2 | 40`d` 764`c` |
 | `electron/productionRun/artifactPreviewHttpServer.ts` | MAIN | generation | 2 | 81`e` 104`c` |
-| `electron/productionRun/multiShotBatchScheduler.ts` | MAIN | generation | 2 | 142`a2` 182`a2` |
+| `electron/productionRun/multiShotBatchScheduler.ts` | MAIN | generation | 2 | 137`a2` 169`a2` |
 | `electron/productionRun/multiShotCanvasLanding.ts` | MAIN | generation | 2 | 161`a1` 225`d` |
 | `electron/productionRun/productionGenerationOperationStore.ts` | MAIN | generation | 1 | 61`a1f` |
 | `electron/productionRun/productionRunArtifactOperations.ts` | MAIN | generation | 1 | 105`a1f` |
@@ -629,7 +638,7 @@ ESLint 文档白纸黑字：*"This rule ignores block statements which contain a
 | `electron/browser/chrome/browserViewChromeMenu.ts` | MAIN | other | 1 | 219`c` |
 | `electron/browser/core/browserViewSession.ts` | MAIN | agent | 1 | 37`b` |
 | `electron/browser/media/browserMediaValidation.ts` | MAIN | asset | 1 | 146`b` |
-| `electron/capabilityCore/appIntegrationAuthorities.ts` | MAIN | money | 1 | 53`a2` |
+| `electron/capabilityCore/appIntegrationAuthorities.ts` | MAIN | money | 1 | 55`a2` |
 | `electron/capabilityCore/canvasReadSurfaceIpc.ts` | IPC | canvas | 1 | 59`d` |
 | `electron/capabilityCore/dispatcher.ts` | MAIN | generation | 1 | 744`e` |
 | `electron/capabilityCore/generationProviderBootstrap.ts` | MAIN | generation | 1 | 76`d` |
@@ -638,7 +647,7 @@ ESLint 文档白纸黑字：*"This rule ignores block statements which contain a
 | `electron/capabilityCore/mcpPreviewImage.ts` | MAIN | agent | 1 | 111`d` |
 | `electron/capabilityCore/mcpResultEnrichLive.ts` | MAIN | agent | 1 | 18`d` |
 | `electron/capabilityCore/projectAgentDocumentReceipt.ts` | MAIN | money | 1 | 81`a1` |
-| `electron/capabilityCore/rendererBridge.ts` | IPC | generation | 1 | 58`d` |
+| `electron/capabilityCore/rendererBridge.ts` | IPC | generation | 1 | 79`d` |
 | `electron/capabilityCore/shotVerifyCore.ts` | MAIN | canvas | 1 | 215`a1` |
 | `electron/capabilityCore/skillReadTransportAdapters.ts` | MAIN | agent | 1 | 38`d` |
 | `electron/catalog/assetValueScheme.ts` | MAIN | asset | 1 | 116`d` |
