@@ -355,7 +355,7 @@ describe('buildCatalogTaskRequest — 标准参考面与档案投影并存（中
 // 被静默选中，否则一次 credential repair 会把旧节点送到完全无关的端点并产生付费请求。
 describe('runCatalogGenerationTask — 旧节点供应商只由用户切换', () => {
   const vendorDto = (key: string, hasApiKey: boolean, meta?: unknown): ModelCatalogVendorDto => ({ key, name: key, enabled: true, hasApiKey, ...(meta ? { meta } : {}), createdAt: '', updatedAt: '' })
-  const apimartSeedream: ModelCatalogModelDto = { modelKey: 'doubao-seedream-4.5', vendorKey: 'apimart', labelZh: 'Seedream 4.5', kind: 'image', enabled: true, published: true, publishedModes: ['text_to_image'], meta: { archetypeId: 'seedream' }, createdAt: '', updatedAt: '' }
+  const apimartSeedream: ModelCatalogModelDto = { modelKey: 'doubao-seedream-4.5', vendorKey: 'apimart', labelZh: 'Seedream 4.5', kind: 'image', enabled: true, published: true, availability: { usable: true }, publishedModes: ['text_to_image'], meta: { archetypeId: 'seedream' }, createdAt: '', updatedAt: '' }
 
   const staleKieNode: GenerationCanvasNode = {
     id: 'n1', kind: 'image', title: '', position: { x: 0, y: 0 }, prompt: '画只猫',

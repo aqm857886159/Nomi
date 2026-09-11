@@ -170,6 +170,7 @@ describe('custom capability contract catalog -> canvas -> request', () => {
       kind: 'video',
       enabled: true,
       published: true,
+      availability: { usable: true },
       publishedModes: ['image_to_video'],
       meta: { customCapabilityContract: contract },
       createdAt: '',

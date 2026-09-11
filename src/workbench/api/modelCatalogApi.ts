@@ -1,4 +1,5 @@
 import { getDesktopBridge, type DesktopBridge } from '../../desktop/bridge'
+import type { ModelAvailability } from '../../../electron/shared/modelAvailability'
 import { modelContextWindow } from '../../../electron/shared/modelContextWindow'
 import type {
   BillingModelKind,
@@ -73,6 +74,13 @@ export type ModelCatalogModelDto = {
   enabled: boolean
   published: boolean
   publishedModes: ProfileKind[]
+  /**
+   * 「这个模型现在能不能用」——主进程算好随行下发的**唯一**答案
+   * （`electron/shared/modelAvailability.ts`）。设置页计数、首页横幅、助手下拉、画布/分镜选择器
+   * 全部读它；谁都不许在渲染层再拼一份 `vendor.enabled && hasApiKey && published`，
+   * 那正是 2026-09-12 真实验收里「三个地方给两个答案」的来源（P0-10）。
+   */
+  availability: ModelAvailability
   meta?: unknown
   /**
    * 这个模型的上下文窗口（token）。目录里它住在 `meta.contextWindow`，`meta` 是
