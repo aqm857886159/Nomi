@@ -1,0 +1,265 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-11-agent-generation-second-door",
+  "__draft_note": "草稿。刻意不以 `.root-cause.json` 结尾，因此 scripts/check-root-cause-contracts.mjs 不会收它——该门岗要求 regression_tests 的每个文件都存在且在本次 diff 中被改过（scripts/root-cause-contracts.mjs:440-447），一个 docs-only 分支满足不了，用正式名字只会让门岗红。实施时改名成 2026-09-11-agent-generation-second-door.root-cause.json，与代码和测试放进同一个 commit。方案正本：docs/plan/2026-09-11-close-agent-doors.md；门表：docs/plan/2026-09-11-close-agent-doors.doors.json。",
+  "__pending_decision": "本合同按方案正本 §5(a) 的**方案 1（归一到同一个效果处理器，Codex intercept_apply_patch 模式）**写。若用户拍板改方案 2（schema 收窄封死），prevention.strategy、prevention.invariant 与 invariants 需同改。",
+
+  "problem_type": "agent tool surface exposes several doors to one user-visible effect, and only one of them carries the paid-confirmation gate",
+
+  "symptom": "用户对 Agent 说「给我生成一张开场图」，Agent 调 nomi_canvas_write 建了一个 kind=image 的节点并回答「已经为你创建好了」。画布上出现了一个与正常占位节点肉眼无法区分的空节点，但面板上没有付费确认卡，也永远不会有图生成出来。用户等着图出现，图不会出现，而界面上没有任何地方说明发生了什么。同一族还有两条：nomi_storyboard_write 的 propose_storyboard_plan 一次落一整排永不出卡的生成类节点；materialize_production_storyboard 同样落节点不出卡。此外 start_production_run 建的 Run 打的是 origin.host=\"embedded-agent\"，而付费卡的投影判据是 origin.host===\"nomi\"，于是这条 Agent 路径上的花钱请求结构上永远到不了用户眼前。",
+
+  "direct_cause": "「把生成类节点放到画布上」这个效果有四个模型可达的入口，其中只有 nomi_generation_plan 一条会打上 origin.host=\"nomi\"（electron/capabilityCore/generationTransportAdapters.ts:201），因而只有它会被 projectPendingSpendConfirm 投影成付费卡（electron/productionRun/productionPendingSpend.ts:71）。另外三条各自直接建节点，不产生 durable 生成计划，也就不产生报价、不产生任何用户可见的等待确认状态。模型可见的描述还在把它往错的方向推：唯一正确的工具自己的描述里写着 \"This host cannot preview or start paid generation\"（electron/shared/agentCapabilities/extendedModelTools.ts:53），而错的那个写着 \"Create ... generation-canvas nodes\"（electron/shared/agentCapabilities/canvasModelTools.ts:150）——对「生成一张图」这个意图，后者看起来才是正解。",
+
+  "class_root": "模型可见工具面上没有任何一层对「效果」做过声明或去重：工具是按**能力契约**注册的（electron/shared/agentCapabilities/modelFacingToolRegistry.ts:40），注册表校验名字唯一、校验只读不许声明可撤、校验花钱必须改状态，但从不问「这两个工具会不会造出同一样东西」。于是每新增一个能沾到画布的能力，就多一扇绕开付费闸的门，而绕开是静默的——因为付费闸挂在**某一个工具的传输适配器**上（origin.host 打点），不是挂在**效果**上。审批与报价必须按效果对齐、跨越工具边界，这一点 Codex 的 intercept_apply_patch 与 Claude Code 的 `Edit(...) allow 蕴含 read` 都已是成熟做法，Nomi 这一层完全缺席。",
+
+  "affected_population": [
+    "任何在 Agent 面板里用自然语言要求生成图片、视频、音频或 3D 的用户——模型选错工具时他拿到一个永远不会有内容的空节点和一句「已完成」",
+    "任何让 Agent 排分镜再出图的用户——propose_storyboard_plan 一次落一整排空节点，全部不出卡",
+    "任何经外部 MCP 宿主（Claude Code / Codex 等）驱动 Nomi 建镜头的用户——同一批工具、同一个盲区",
+    "任何走 start_production_run 起生产 Run 的用户——该 Run 后续产生的生成计划因 origin 不匹配而永远不会在面板上要求确认"
+  ],
+
+  "scope_paths": [
+    "electron/shared/agentCapabilities/modelFacingTools.ts",
+    "electron/shared/agentCapabilities/modelFacingToolRegistry.ts",
+    "electron/shared/agentCapabilities/canvasModelTools.ts",
+    "electron/shared/agentCapabilities/extendedModelTools.ts",
+    "electron/shared/agentCapabilities/productionModelTools.ts",
+    "electron/shared/agentCapabilities/productionRunDescriptors.ts",
+    "electron/capabilityCore/productionRunTransportAdapters.ts",
+    "electron/capabilityCore/appIntegration.ts",
+    "electron/productionRun/productionActionIpc.ts",
+    "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts",
+    "src/workbench/capability/capabilityApplyHandler.ts",
+    "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts",
+    "src/i18n/locales/agentPanelV4.ts",
+    "scripts/check-model-schema.ts"
+  ],
+
+  "entry_points": [
+    "nomi_generation_plan create/patch —— 唯一会出付费卡的那条路（electron/shared/agentCapabilities/extendedModelTools.ts:52）",
+    "nomi_canvas_write create_canvas_nodes —— 直接建生成类节点，不出卡（electron/shared/agentCapabilities/canvasModelTools.ts:149）",
+    "nomi_storyboard_write propose_storyboard_plan —— 一次落一整排生成类节点，不出卡（electron/shared/agentCapabilities/canvasModelTools.ts:157）",
+    "materialize_production_storyboard —— 经 production.materialize-storyboard 落节点，不出卡（electron/shared/agentCapabilities/productionRunDescriptors.ts:91）",
+    "start_production_run —— origin.host=\"embedded-agent\"，该 Run 的待确认永远投影不出来（electron/capabilityCore/productionRunTransportAdapters.ts:113）",
+    "付费卡的读通道与编排装配 —— 读失败与装配失败都伪装成「现在没有要确认的东西」"
+  ],
+
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/define-tools",
+      "checked_at": "2026-09-11",
+      "purpose": "工具描述的官方要求：说清干什么 / 什么时候用与不用 / 每个参数 / 关键限制，至少 3-4 句；以及「把相关操作合并成更少的工具以降低选择歧义」。(b) 五条描述改写按它写。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://www.anthropic.com/engineering/writing-tools-for-agents",
+      "checked_at": "2026-09-11",
+      "purpose": "官方对本 bug 的一句话诊断：\"When tools overlap in function or have a vague purpose, agents can get confused about which ones to use.\""
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://developers.openai.com/api/docs/guides/function-calling",
+      "checked_at": "2026-09-11",
+      "purpose": "「把反复出现的失败写进描述」「用系统提示词说清何时不要用」「一个回合开始时函数数量控制在 20 以内」——(b) 的负向指引与工具总数的 backlog 依据。"
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/openai/codex/blob/main/codex-rs/core/src/tools/handlers/apply_patch.rs#L499",
+      "checked_at": "2026-09-11",
+      "purpose": "intercept_apply_patch：shell 里的第二扇门被接回同一个处理器、同一个 diff tracker、同一份 pre/post hook 身份（tool_name 一律报 apply_patch）。本合同 prevention 的形状直接抄它。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://code.claude.com/docs/en/tools-reference",
+      "checked_at": "2026-09-11",
+      "purpose": "权限规则按效果写、故意跨工具边界：\"An Edit(...) allow rule also grants read access to the same path\"；以及 Bash 的 cat/head/tail 也满足 read-before-edit。佐证「闸挂在效果上而不是工具上」。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://docs.cline.bot/features/auto-approve",
+      "checked_at": "2026-09-11",
+      "purpose": "审批轴 =（效果 × 范围），不是工具名。与 Nomi 09-10「只问花钱/撤不回」的拍板同形。"
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/earendil-works/pi/blob/main/packages/coding-agent/src/core/extensions/runner.ts#L500-L510",
+      "checked_at": "2026-09-11",
+      "purpose": "R29 四列表的「它提供」那一格：pi 的工具注册只有 \"first registration per name wins\" 的 Map，无效果去重、无冲突检测、无命名空间（同文件却检测快捷键冲突、去重斜杠命令）。结论是这层必须建在我们自己的注册表里，不改上游。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://arxiv.org/abs/2505.03275",
+      "checked_at": "2026-09-11",
+      "purpose": "RAG-MCP：工具目录变大导致选择准确率下降（43.13% vs 13.62%），佐证「工具总数」是选对率的天花板，列进 residual_risks。"
+    }
+  ],
+
+  "invariants": [
+    "「建一个生成类节点」这个效果只有一个处理器：任何模型可见工具产生它，都必须经 generation.plan 能力，因而继承同一份 origin.host=\"nomi\" 打点、同一张报价卡、同一份收据身份。",
+    "生成类节点（nodes/registry.ts 上 executionKind 非空的 kind）落到画布上时必然伴随一份 durable 生成计划；不存在「没有计划的生成类节点」。",
+    "「是不是生成类」从 src/workbench/generationCanvas/nodes/registry.ts 的 executionKind 派生，不在任何闸里手写第二份 kind 名单。",
+    "模型可见工具注册表里，同一个 creates.state 只能有一个 owner；出现第二个 owner 时 App 装配期当场抛，而不是等运行时。",
+    "同一个 Agent 的任何自称（origin.host）都不得让花钱请求绕过面板：面板前的调用者只有 \"nomi\" 一个 host 值。",
+    "「没有东西要确认」与「我读不到 / 我装不上」在界面上必须长得不一样——付费卡的读通道与编排装配失败必须产出一个可区分、用户看得见的状态。"
+  ],
+
+  "generality_proof": "闸建在两层，都在「效果」这一侧而不是某一个工具上。第一层是 electron/shared/agentCapabilities/modelFacingToolRegistry.ts 的 collectSpecs：它是模型可见工具的唯一注册表，所有 profile（lane / internal / mcp）都从它派生，任何新工具——包括还没写出来的——必须在这里声明自己 creates 哪些 state 与由谁 owner，同一个 state 出现第二个 owner 时装配期抛错，App 起不来。第二层是 src/workbench/generationCanvas/agent/applyCanvasToolCall.ts 的 create_canvas_nodes 分支：今天四扇门中的三扇（nomi_canvas_write、propose_storyboard_plan、materialize_production_storyboard）最终都落到这一个函数，宿主侧落地（multiShotCanvasLanding）与用户手势（storyboardRowActions / journeyTourStore）也落到它，所以「生成类节点必须带 durable 计划绑定」这条断言对所有调用者一视同仁，对未来新增的调用者同样成立。判据本身也不是手写的：executionKind 已经是 nodes/registry.ts 上机器可读的声明，闸从它派生并由一条对账测试保证两份词表不漂移。第三层是门岗侧的 duplicate-effect 规则，它补的正是现有 identical-input-schema 规则的盲区——后者判「schema 形状相同 + 仍留多值枚举」，而本族是 schema 完全不同、效果相同，所以旧规则结构上看不见它，这也正是这个 bug 一直没被门岗抓到的原因。",
+
+  "shared_boundaries": [
+    {
+      "path": "electron/shared/agentCapabilities/modelFacingToolRegistry.ts",
+      "symbol": "collectSpecs",
+      "responsibility": "模型可见工具的唯一注册表。装配期裁决「同一个效果只有一个 owner」，第二个 owner 出现时当场抛，让 App 起不来而不是让它静默多一扇门。"
+    },
+    {
+      "path": "electron/shared/agentCapabilities/modelFacingTools.ts",
+      "symbol": "ModelFacingToolEffects.creates",
+      "responsibility": "声明一个工具会造出哪些领域状态、由谁处理。它是 mutates / billable / reversal 之后的第四条副作用声明，是上面那条装配期裁决唯一的输入。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts",
+      "symbol": "applyCanvasToolCall 的 create_canvas_nodes 分支",
+      "responsibility": "画布落节点的语义执行体，也是运行期最后一道：executionKind 非空的节点必须携带 durable 生成计划绑定，否则路由进 generation.plan 而不是建裸节点。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/agent/canvasWriteTarget.ts",
+      "symbol": "executeCanvasWriteTarget",
+      "responsibility": "模型可达画布写入的唯一 admission → 提议事务 → 收据边界。本次把 capabilityApplyHandler 的两处旁路折进来。"
+    },
+    {
+      "path": "electron/productionRun/productionPendingSpend.ts",
+      "symbol": "projectPendingSpendConfirm",
+      "responsibility": "「哪些 Run 会出付费卡」的唯一投影与唯一报价产地。本次不改它的逻辑，只让所有面板前的调用者都打同一个 origin.host 进来。"
+    }
+  ],
+
+  "same_class_entry_points": [
+    {
+      "path": "electron/shared/agentCapabilities/canvasModelTools.ts",
+      "entry_point": "nomi_canvas_write / create_canvas_nodes",
+      "disposition": "enforced",
+      "evidence": "生成类 kind 不再产生裸节点：applyCanvasToolCall 的运行期断言把它路由进 generation.plan，产出与 nomi_generation_plan 相同的草稿与报价卡；lane-tool-accuracy 的 route 臂断言回执逐字包含 nomi_generation_plan 且本回合产生了一份 pending 计划，route-control 对照臂必须产不出计划。"
+    },
+    {
+      "path": "electron/shared/agentCapabilities/canvasModelTools.ts",
+      "entry_point": "nomi_storyboard_write / propose_storyboard_plan",
+      "disposition": "enforced",
+      "evidence": "它落节点同样经 applyCanvasToolCall（applyCanvasToolCall.ts:286 → create_canvas_nodes），因此受同一条断言约束；结构测试断言整排生成类镜头落地后必然存在对应的 durable 计划绑定。"
+    },
+    {
+      "path": "electron/shared/agentCapabilities/productionRunDescriptors.ts",
+      "entry_point": "materialize_production_storyboard",
+      "disposition": "enforced",
+      "evidence": "capabilityApplyHandler 的 production.materialize-storyboard 分支折进 executeCanvasWriteTarget 后，它与其它模型可达写入共用同一份 admission/事务/收据；且其落的生成类节点同样要过 applyCanvasToolCall 的计划绑定断言。"
+    },
+    {
+      "path": "electron/capabilityCore/productionRunTransportAdapters.ts",
+      "entry_point": "start_production_run 的 origin 打点",
+      "disposition": "enforced",
+      "evidence": "origin 改成与 generationTransportAdapters 同一份 { host: \"nomi\", actorId: \"project-agent-host\" }，该 Run 后续产生的生成计划因此能被 projectPendingSpendConfirm 投影；实施前以 git grep 'embedded-agent' 全仓逐处裁决并写进 PR。"
+    },
+    {
+      "path": "src/workbench/capability/multiShotCanvasLanding.ts",
+      "entry_point": "materializeShots 的宿主侧落地",
+      "disposition": "not-affected",
+      "evidence": "它不接受模型输入（reachableBy 只有 host），且它落的节点正是 generation.plan 草稿的投影——本来就带 materializationOperationId 计划绑定，断言对它天然成立。它仍未折进 executeCanvasWriteTarget，作为 residual risk 记录，不写成已解决。"
+    },
+    {
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+      "entry_point": "用户在分镜表按「落画布」",
+      "disposition": "not-affected",
+      "evidence": "用户手势路径，不经模型；门岗与断言必须显式放行它，否则会把用户自己的操作误伤成越权写入。本合同把它列进 same-class 扫描正是为了记下这条豁免是**判断过的**，不是漏掉的。"
+    },
+    {
+      "path": "src/workbench/capability/capabilityApplyHandler.ts",
+      "entry_point": "case 'canvas.apply' → applyExternalGraph 整图替换",
+      "disposition": "enforced",
+      "evidence": "整图替换连节点级闸都绕过，本次以 git grep 核实调用者后同 commit 删除（P1）；若仍有生产调用者则改成经门 A 逐节点 admission。"
+    }
+  ],
+
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/shared/agentCapabilities/modelFacingToolRegistry.ts",
+    "invariant": "模型可见工具注册表里，每一个 creates.state 只有一个 owner；任何工具想产生生成类节点，都必须把这次调用交给 generation.plan 那一个处理器，因而继承它的 origin 打点、报价卡与收据身份。",
+    "failure_mode": "第二个 owner 声明同一个 state 时 collectSpecs 在 App 装配期抛错（App 起不来）；check:model-schema 的 duplicate-effect 规则在 CI 当场红；applyCanvasToolCall 收到没有计划绑定的生成类节点时走路由分支而非建裸节点，lane-tool-accuracy 的 route / route-control 两臂把「有没有真的路由到」量成数字；真人走查截图证明用户无论 Agent 走哪条路都看得到报价卡。",
+    "exception_policy": "none",
+    "strategy": "归一而不是禁止（抄 Codex 的 intercept_apply_patch）：第二扇门不被堵死，而是被接回第一扇门的处理器与审批身份上，于是审批、报价、收据与审计都按**效果**对齐，跨越工具边界。结构保底（用户永远拿得到报价与结果），描述提率（模型逐步学会直接走正门），两半的数字分别由零额度 loopback 与真实模型各量一次。",
+    "artifacts": [
+      "electron/shared/agentCapabilities/modelFacingToolRegistry.ts",
+      "electron/shared/agentCapabilities/modelFacingTools.ts",
+      "electron/shared/agentCapabilities/canvasModelTools.ts",
+      "electron/shared/agentCapabilities/extendedModelTools.ts",
+      "electron/shared/agentCapabilities/productionRunDescriptors.ts",
+      "electron/capabilityCore/productionRunTransportAdapters.ts",
+      "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts",
+      "src/workbench/capability/capabilityApplyHandler.ts",
+      "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts",
+      "electron/productionRun/productionActionIpc.ts",
+      "electron/capabilityCore/appIntegration.ts",
+      "src/i18n/locales/agentPanelV4.ts",
+      "scripts/check-model-schema.ts"
+    ]
+  },
+
+  "invariant_owner_layer": {
+    "layer": "electron/shared/agentCapabilities/modelFacingToolRegistry.ts",
+    "tests": [
+      "tests/agent-runtime/lane-tool-accuracy.test.mts",
+      "tests/agent-runtime/lane-tool-contract.test.mts",
+      "tests/agent-runtime/lane-tool-schema.test.mts"
+    ],
+    "__note": "这一层今天已有测试（上面三份存在于 origin/main），本次要在 lane-tool-accuracy 里加 route / route-control 两臂，并新增一份门表结构测试断言 creates.state='generation-node' 的 owner 数量恒为 1。实施时把新测试文件补进本数组与 regression_tests / class_regression_tests。"
+  },
+
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "每新增一个能沾到画布或能起 Run 的能力，就可能多一扇绕开付费闸的门，而绕开是静默的——今天已经独立发生了四次（nomi_canvas_write / nomi_storyboard_write / materialize_production_storyboard / start_production_run 的 origin），四次的成因完全相同：闸挂在某一个工具的传输适配器上，而不是挂在效果上。没有一个效果级的 owner 声明，第五次一定会来，而且和前四次一样不会报错。",
+    "same_class_scan": [
+      "全量枚举了模型可见工具注册表（modelFacingToolRegistry.ts:40-48 收齐的六族 specs），逐个判「它能不能把生成类节点放到画布上」，得到四条模型可达入口，结论写进 docs/plan/2026-09-11-close-agent-doors.doors.json。",
+      "git grep applyCanvasToolCall / executeCanvasWriteTarget / executeCanonicalCanvasPlanPatch 全仓，得到 8 处画布写边界，按 reachableBy（model / user / host）分类，模型可达的 5 处逐处给了裁决。",
+      "按 origin.host 反查付费卡投影判据（productionPendingSpend.ts:71），确认 \"embedded-agent\" 是同一个 Agent 的第二个自称，且它下面的花钱请求结构上到不了面板。",
+      "按 executionKind 反查「哪些 kind 算生成类」，确认 nodes/registry.ts 上已有机器可读的声明，闸不需要手写第二份词表；同时发现 text 的 executionKind 归属需要一次产品确认（见 residual_risks）。",
+      "核实了任务书里点名的 runStoryboardPlanner：它只输出 JSON IR、提示词第一行就是「不调用工具，不写入画布」、全函数无 store 写入——**它不是一扇门**，本次不动它（D3：叫某东西是 bug 前先搞懂现有设计为什么这么写）。",
+      "逐条比对了 Claude Code / Codex / Cursor / Cline 的工具面与 pi 的 tool registry，确认「效果去重」在 pi 上完全不存在、在 Codex 上以 intercept 形式存在、在 Claude Code 与 Cline 上以「权限按效果跨工具」形式存在；出处全部带 URL 写进方案正本的「先查别人」一节。"
+    ]
+  },
+
+  "regression_tests": [
+    "tests/agent-runtime/lane-tool-accuracy.test.mts",
+    "tests/agent-runtime/lane-tool-contract.test.mts",
+    "tests/agent-runtime/lane-tool-schema.test.mts",
+    "scripts/check-model-schema.node-test.mjs"
+  ],
+
+  "class_regression_tests": [
+    "tests/agent-runtime/lane-tool-accuracy.test.mts",
+    "tests/agent-runtime/lane-tool-contract.test.mts",
+    "scripts/check-model-schema.node-test.mjs"
+  ],
+
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "草稿阶段填 not-applicable。实施时若按方案正本 §5(d) 删掉 capabilityApplyHandler 的 case 'canvas.apply' → applyExternalGraph 整图替换旁路，本节必须改成 status=\"removed\" 并把被删路径列进 removed_paths——那正是本次要删的旧实现（P1：加新必删旧）。删之前先 git grep \"'canvas.apply'\" 核实调用者。"
+  },
+
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "pi SDK 在这件事上什么都不提供，但这不是升级能解决的缺口：效果去重、审批归一与反重叠描述引导是 Nomi 自己的领域语义（哪些节点会花钱、钱的闸长什么样、报价从哪来），上游没有也不应该有这些概念。已核实 pi 的工具注册只有 first-registration-wins 的 Map（runner.ts:500-510），且同一文件对快捷键冲突与斜杠命令重名是有检测的——机制存在，只是没用到工具上。落点因此在我们自己的注册表 modelFacingToolRegistry.ts，不改上游、不提上游 PR。",
+    "exit_criteria": []
+  },
+
+  "migration": "无数据迁移。origin.host 只影响新建 Run 的投影，已落盘的旧 Run 的 origin 不重写——旧的 embedded-agent Run 维持现状（它们本来就没有等待中的生成计划）。方案 1 的路由分支产出的是正常的生成 Run 与正常的画布占位节点，与今天走 nomi_generation_plan 产出的完全同形，因此回滚时它们照常工作、不需要对账。画布上已经存在的、由旧路径建出来的空生成类节点不迁移也不清理：它们是用户项目里的真实内容，用户可以照常在节点上手动生成或删除；把它们批量改写或删掉才是破坏。i18n 新增 key 在 zh-CN 与 en 同时落，无既有文案改写。",
+
+  "residual_risks": [
+    "方案 1 治后果不治成因：模型仍可能在两个工具名之间猜，结构保证用户拿到正确结果，但工具面上的歧义还在。真正消除需要下一轮删掉 nomi_canvas_write 的 create 能力（Claude Code 删 MultiEdit 那一手），等真实模型的选对率数字说话再决定。",
+    "零额度 loopback 夹具的工具选择是脚本写死的，量不了模型的选对工具率——它量的是「撞门之后系统会不会把用户送到正确结果」。选对率只能从真实模型拿，而那一步不在 CI 里，靠纪律。把夹具的数字叫成选对率就是假绿。",
+    "src/workbench/capability/multiShotCanvasLanding.ts:230 本轮不折进 executeCanvasWriteTarget，画布写入仍有一处宿主侧旁路。它不接模型输入，风险低于模型可达的几扇，但 I-3（模型可达画布写入唯一边界）在这一轮**没有完全成立**。",
+    "nodes/registry.ts:83 给 text 也声明了 executionKind:'text'，按闸它会被划进生成类，于是「Agent 建一个空文本节点当便签」会被路由成一份文本生成草稿。实施前需产品确认；若要放行，正确做法是在 registry 上单独声明 billable 一档并让闸从新那一档派生，**不许在闸里手写 if (kind !== 'text') 例外**（那是第二份词表）。",
+    "外部 MCP 宿主用 nomi_canvas_write 建生成类节点会从「静默得到一个空节点」变成「得到一份路由回执并弹出报价卡」。这是修复不是回归（它们本来也建不出图），但对已经写死这套调用的外部脚本是可见变化，要在 PR 正文与 release note 明说。",
+    "internal profile 的模型可见工具总数可能已超过 OpenAI 建议的 20（arXiv:2505.03275 显示目录规模直接压低选对率）。实施时用 MODEL_FACING_TOOL_SPECS 实测并写进 PR；若超了，它会成为门 3 数字的天花板，但本轮不处理。"
+  ]
+}

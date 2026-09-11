@@ -1,0 +1,109 @@
+{
+  "$comment": "手工门表（2026-09-11）。三个状态各自的全部写入口/读入口。同期有工人在写 scripts/door-map.mjs，它上线后本文件退位为它的 fixture/基线，不并存两份（P1）。所有 file:line 对 origin/main af3652e1c 核实。",
+  "generatedBy": "manual",
+  "verifiedAgainst": "origin/main af3652e1c（门表引用的每个文件在 e15939292..af3652e1c 之间均无改动）",
+  "verifiedAt": "2026-09-11",
+  "legend": {
+    "kind": "model-tool = 模型直接看得见的工具；transport = 主进程把工具调用翻成能力调用的那一层；ipc = 跨进程通道；write-boundary = 真正改状态的那一下；read = 读投影；assembly = 装配/注册点（门岗最该住的地方）；ui = 渲染层入口",
+    "reachableBy": "model = Agent 模型可达；user = 用户手势可达；host = 主进程/宿主内部编排可达"
+  },
+
+  "states": {
+    "canvasNodeWrite": {
+      "title": "画布节点写入（任何往 generationCanvas store 里加/改节点的路）",
+      "intendedSingleDoor": "src/workbench/generationCanvas/agent/canvasWriteTarget.ts:245 executeCanvasWriteTarget",
+      "entries": [
+        { "kind": "model-tool", "path": "electron/shared/agentCapabilities/canvasModelTools.ts", "line": 149, "symbol": "nomi_canvas_write", "reachableBy": ["model"], "note": "create_canvas_nodes / connect_nodes / set_node_prompt / retitle / tidy" },
+        { "kind": "model-tool", "path": "electron/shared/agentCapabilities/canvasModelTools.ts", "line": 157, "symbol": "nomi_storyboard_write", "reachableBy": ["model"], "note": "propose_storyboard_plan / patch_shots / arrange_storyboard_to_timeline" },
+        { "kind": "model-tool", "path": "electron/shared/agentCapabilities/canvasModelTools.ts", "line": 165, "symbol": "nomi_shot_reference_write", "reachableBy": ["model"], "note": "create_staging_reference / create_camera_move" },
+        { "kind": "model-tool", "path": "electron/shared/agentCapabilities/extendedModelTools.ts", "line": 48, "symbol": "delete_canvas_nodes", "reachableBy": ["model"], "note": "canvas.delete；删是另一族，但共用 executeCanvasWriteTarget:251" },
+        { "kind": "model-tool", "path": "electron/shared/agentCapabilities/productionRunDescriptors.ts", "line": 91, "symbol": "materialize_production_storyboard", "reachableBy": ["model"], "note": "描述自称 “this writes the canvas”，但它走的是 production.materialize-storyboard，不经门 A" },
+
+        { "kind": "assembly", "path": "electron/shared/agentCapabilities/modelFacingToolRegistry.ts", "line": 40, "symbol": "collectSpecs", "reachableBy": ["host"], "note": "模型可见工具的唯一注册表。装配期已有两条不变量断言（:59/:62），是 effect-dedup 门岗的最早落点（R28）" },
+        { "kind": "transport", "path": "electron/agentLane/laneCanvasTools.ts", "line": 33, "symbol": "createCanvasLaneTools → port.write", "reachableBy": ["model"] },
+        { "kind": "transport", "path": "electron/capabilityCore/canvasReadSurfacePort.ts", "line": 337, "symbol": "createCanvasWritePort", "reachableBy": ["model", "host"], "note": "capture + write 两段；write 落到渲染层 SURFACE_CANVAS_WRITE_EXECUTE_REQUEST_CHANNEL" },
+        { "kind": "transport", "path": "electron/capabilityCore/productionRunTransportAdapters.ts", "line": 221, "symbol": "materialize_production_storyboard 分支", "reachableBy": ["model"] },
+        { "kind": "ipc", "path": "electron/productionRun/productionRunArtifactOperations.ts", "line": 200, "symbol": "materializeStoryboardImpl → requestRenderer('production.materialize-storyboard')", "reachableBy": ["model", "host"], "note": "门 B①：绕过 executeCanvasWriteTarget" },
+        { "kind": "ipc", "path": "electron/productionRun/multiShotCanvasLanding.ts", "line": 214, "symbol": "requestRenderer('production.materialize-shots')", "reachableBy": ["host"], "note": "门 B②：付费草稿落地（正确门的落地半，不是模型直调）" },
+
+        { "kind": "ui", "path": "src/workbench/NomiStudioApp.tsx", "line": 271, "symbol": "executeCanvasWriteTarget 绑定", "reachableBy": ["host"], "note": "门 A 的渲染层装配点" },
+        { "kind": "write-boundary", "path": "src/workbench/generationCanvas/agent/canvasWriteTarget.ts", "line": 245, "symbol": "executeCanvasWriteTarget", "reachableBy": ["model"], "note": "门 A：admission → proposalTxn → receipt → 一个 Cmd+Z" },
+        { "kind": "write-boundary", "path": "src/workbench/capability/canonicalCanvasPlanPatch.ts", "line": 28, "symbol": "executeCanonicalCanvasPlanPatch", "reachableBy": ["model"], "note": "门 A 的 patch_shots 专用包装，仍进 executeCanvasWriteTarget:60" },
+        { "kind": "write-boundary", "path": "src/workbench/capability/capabilityApplyHandler.ts", "line": 408, "symbol": "case 'canvas.write'", "reachableBy": ["model"], "note": "唯一走门 A 的 dispatch 分支" },
+        { "kind": "write-boundary", "path": "src/workbench/capability/capabilityApplyHandler.ts", "line": 625, "symbol": "case 'production.materialize-storyboard' → applyCanvasToolCall('create_canvas_nodes')", "reachableBy": ["model"], "note": "门 B①：无 admission、无 proposal 事务、无收据、不进 executeCanvasWriteTarget" },
+        { "kind": "write-boundary", "path": "src/workbench/capability/capabilityApplyHandler.ts", "line": 419, "symbol": "case 'canvas.apply' → applyExternalGraph", "reachableBy": ["host"], "note": "门 C：整图替换，完全绕过节点级写边界" },
+        { "kind": "write-boundary", "path": "src/workbench/capability/multiShotCanvasLanding.ts", "line": 230, "symbol": "materializeShots → inLandingTxn(applyCanvasToolCall)", "reachableBy": ["host"], "note": "门 B②：有自己的撤销事务（inLandingTxn）与幂等章，但不是门 A 的 admission/收据" },
+        { "kind": "write-boundary", "path": "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts", "line": 220, "symbol": "applyCanvasToolCall", "reachableBy": ["model", "user", "host"], "note": "真正的语义执行体。门 A 经 proposalTxn.ts:256 到它；门 B 直调它" },
+        { "kind": "write-boundary", "path": "src/workbench/generationCanvas/agent/proposalTxn.ts", "line": 256, "symbol": "applyProposalBatch → applyCanvasToolCall", "reachableBy": ["model"], "note": "门 A 的内部；不是第二扇门" },
+        { "kind": "write-boundary", "path": "src/workbench/generationCanvas/agent/generationCanvasTools.ts", "line": 59, "symbol": "generationCanvasTools", "reachableBy": ["host"], "note": "store 级原语，applyCanvasToolCall 的下游" },
+
+        { "kind": "ui", "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts", "line": 97, "symbol": "applyCreate → applyCanvasToolCall", "reachableBy": ["user"], "note": "用户在分镜表按「落画布」。用户手势，不在本次关门范围，但必须列出来否则门岗会误伤" },
+        { "kind": "ui", "path": "src/workbench/onboarding/journeyTourStore.ts", "line": 99, "symbol": "新手引导落画布", "reachableBy": ["user"], "note": "同上，用户手势" },
+        { "kind": "ui", "path": "src/workbench/onboarding/journeyTourStore.ts", "line": 132, "symbol": "arrange_storyboard_to_timeline", "reachableBy": ["user"] }
+      ],
+      "reads": [
+        { "kind": "model-tool", "path": "electron/shared/agentCapabilities/canvasModelTools.ts", "line": 184, "symbol": "nomi_canvas_read", "reachableBy": ["model"] },
+        { "kind": "transport", "path": "electron/capabilityCore/canvasReadSurfacePort.ts", "line": 339, "symbol": "createCanvasWritePort.capture", "reachableBy": ["model", "host"], "note": "写前证据快照（admission 的输入）" },
+        { "kind": "read", "path": "src/workbench/capability/capabilityApplyHandler.ts", "line": 417, "symbol": "case 'canvas.read-doc' → readDocumentSnapshot", "reachableBy": ["model", "host"] },
+        { "kind": "read", "path": "src/workbench/capability/canonicalCanvasPlanPatch.ts", "line": 54, "symbol": "readGenerationCanvasSnapshot", "reachableBy": ["model"] }
+      ],
+      "doorCount": { "modelReachableWrite": 5, "writeBoundary": 8, "read": 4 }
+    },
+
+    "paidDraftAndCard": {
+      "title": "付费草稿 / 确认卡（唯一能让用户看到报价并点头的那条路）",
+      "intendedSingleDoor": "nomi_generation_plan create/patch → generationTransportAdapters.ts:192 origin.host=\"nomi\" → productionPendingSpend.ts:67 投影 → useAgentPanelSpendConfirm.ts:99 轮询",
+      "entries": [
+        { "kind": "model-tool", "path": "electron/shared/agentCapabilities/extendedModelTools.ts", "line": 52, "symbol": "nomi_generation_plan", "reachableBy": ["model"], "note": "唯一会出卡的工具。描述第 53 行自带劝退句「This host cannot preview or start paid generation」" },
+        { "kind": "model-tool", "path": "electron/shared/agentCapabilities/extendedModelTools.ts", "line": 58, "symbol": "nomi_generation_status", "reachableBy": ["model"], "note": "read/cancel/reconcile，不建草稿" },
+        { "kind": "model-tool", "path": "electron/shared/agentCapabilities/productionRunDescriptors.ts", "line": 91, "symbol": "start_production_run", "reachableBy": ["model"], "note": "另一条 Run 起点。origin.host='embedded-agent'（productionRunTransportAdapters.ts:113）→ productionPendingSpend.ts:71 的 host 判据不认它 → 永不出卡" },
+        { "kind": "transport", "path": "electron/capabilityCore/generationTransportAdapters.ts", "line": 192, "symbol": "createPiGenerationTransportAdapter.plan → origin { host: \"nomi\" }", "reachableBy": ["model"], "note": "出卡的唯一 origin 打点" },
+        { "kind": "transport", "path": "electron/capabilityCore/productionRunTransportAdapters.ts", "line": 113, "symbol": "start_production_run → origin { host: \"embedded-agent\" }", "reachableBy": ["model"], "note": "门：同一个 Agent 建的 Run，origin 不同 → 结构上出不了卡" },
+        { "kind": "assembly", "path": "electron/capabilityCore/appIntegration.ts", "line": 502, "symbol": "installPendingSpendActions", "reachableBy": ["host"], "note": "卡的编排装配。失败只 logError（:509），静默点①" },
+        { "kind": "assembly", "path": "electron/capabilityCore/appIntegration.ts", "line": 499, "symbol": "installResidentGenerationAdapter", "reachableBy": ["host"], "note": "同一个 try 块；这条 lane 刻意不注入 confirmGenerationInNomi（:497 注释）" },
+        { "kind": "write-boundary", "path": "src/workbench/capability/capabilityApplyHandler.ts", "line": 421, "symbol": "case 'spend.confirm' → confirmSpendForAgent", "reachableBy": ["model", "user"] },
+        { "kind": "write-boundary", "path": "src/workbench/capability/capabilityApplyHandler.ts", "line": 423, "symbol": "case 'generation.gate.confirm'", "reachableBy": ["model", "user"] },
+        { "kind": "write-boundary", "path": "src/workbench/capability/capabilityApplyHandler.ts", "line": 425, "symbol": "case 'plan.confirm'", "reachableBy": ["model", "user"] },
+        { "kind": "ipc", "path": "electron/productionRun/productionActionIpc.ts", "line": 76, "symbol": "nomi:production-runs:revise-spend", "reachableBy": ["user"] },
+        { "kind": "ui", "path": "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts", "line": 160, "symbol": "confirm()", "reachableBy": ["user"], "note": "revise → confirmSpend" },
+        { "kind": "ui", "path": "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts", "line": 185, "symbol": "discard()", "reachableBy": ["user"], "note": "取消 durable 计划 + 删占位节点" },
+        { "kind": "ui", "path": "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts", "line": 144, "symbol": "act() 的 .catch(() => undefined)", "reachableBy": ["user"], "note": "静默点②：确认/丢弃失败被吞，用户看到卡原地不动" }
+      ],
+      "reads": [
+        { "kind": "read", "path": "electron/productionRun/productionPendingSpend.ts", "line": 67, "symbol": "projectPendingSpendConfirm", "reachableBy": ["host"], "note": "唯一投影；:71 的 origin.host 判据是「哪些 Run 会出卡」的真相源" },
+        { "kind": "ipc", "path": "electron/productionRun/productionActionIpc.ts", "line": 56, "symbol": "nomi:production-runs:pending-spend", "reachableBy": ["user"], "note": "静默点③：catch → 返回 []（:62-64），读失败和「没有待确认」长得一样" },
+        { "kind": "read", "path": "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts", "line": 99, "symbol": "productionRunApi.pendingSpend 轮询（1500ms）", "reachableBy": ["user"], "note": "catch → setPending(undefined)（:106-109），静默点③的渲染半" }
+      ],
+      "doorCount": { "modelReachableWrite": 3, "cardProducing": 1, "read": 3 }
+    },
+
+    "generationNodeCreate": {
+      "title": "生成类节点创建（kind ∈ image/keyframe/video/shot/output/panorama/character/scene——即「点一下会花钱」的节点）",
+      "intendedSingleDoor": "nomi_generation_plan → landCanvasBestEffort → materializeShots（且同时出卡）",
+      "kindSource": { "kind": "read", "path": "electron/shared/agentCapabilities/canvasWrite.ts", "line": 18, "symbol": "canvasNodeKindSchema", "note": "10 个 kind。非生成类只有 text 与 agent-artifact（手艺产物，不调模型）" },
+      "entries": [
+        { "kind": "model-tool", "path": "electron/shared/agentCapabilities/canvasModelTools.ts", "line": 149, "symbol": "nomi_canvas_write / create_canvas_nodes", "reachableBy": ["model"], "note": "第二扇门 ①：直接建生成类节点，不出卡、不生成。描述「Create … generation-canvas nodes」对「生成一张图」看起来像正解" },
+        { "kind": "model-tool", "path": "electron/shared/agentCapabilities/canvasModelTools.ts", "line": 157, "symbol": "nomi_storyboard_write / propose_storyboard_plan", "reachableBy": ["model"], "note": "第二扇门 ②：经 applyCanvasToolCall.ts:286 落一整排生成类节点" },
+        { "kind": "model-tool", "path": "electron/shared/agentCapabilities/productionRunDescriptors.ts", "line": 91, "symbol": "materialize_production_storyboard", "reachableBy": ["model"], "note": "第二扇门 ③：经 capabilityApplyHandler.ts:625 落一整排生成类节点" },
+        { "kind": "model-tool", "path": "electron/shared/agentCapabilities/extendedModelTools.ts", "line": 52, "symbol": "nomi_generation_plan (create)", "reachableBy": ["model"], "note": "正门：建草稿 → onPlanChanged → landDraftOnCanvas → 落节点 + 出卡" },
+        { "kind": "assembly", "path": "electron/capabilityCore/appIntegration.ts", "line": 165, "symbol": "landDraftOnCanvas / onPlanChanged", "reachableBy": ["host"], "note": "「草稿建即落画布」的挂钩点" },
+        { "kind": "assembly", "path": "electron/capabilityCore/appIntegration.ts", "line": 410, "symbol": "多镜 start 前 landCanvasBestEffort", "reachableBy": ["host"] },
+        { "kind": "assembly", "path": "electron/capabilityCore/appIntegration.ts", "line": 450, "symbol": "单镜 start 后 landCanvasBestEffort", "reachableBy": ["host"] },
+        { "kind": "write-boundary", "path": "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts", "line": 326, "symbol": "operation === 'create_canvas_nodes'", "reachableBy": ["model", "user", "host"], "note": "所有生成类节点最终都在这里落地——kind 白名单闸的唯一正确落点" },
+        { "kind": "write-boundary", "path": "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts", "line": 286, "symbol": "operation === 'propose_storyboard_plan'", "reachableBy": ["model", "user"] },
+        { "kind": "write-boundary", "path": "src/workbench/capability/multiShotCanvasLanding.ts", "line": 230, "symbol": "materializeShots", "reachableBy": ["host"], "note": "正门的落地半" },
+        { "kind": "write-boundary", "path": "src/workbench/capability/capabilityApplyHandler.ts", "line": 419, "symbol": "canvas.apply → applyExternalGraph", "reachableBy": ["host"], "note": "整图替换可以凭空塞进任意 kind 的节点，连 kind 闸都绕过" }
+      ],
+      "reads": [
+        { "kind": "read", "path": "src/workbench/generationCanvas/model/generationCanvasTypes.ts", "line": 0, "symbol": "GenerationNodeKind", "note": "渲染层那份 kind 词表；与 canvasWrite.ts:18 是同一语义的两份声明，R14.1 该并" }
+      ],
+      "doorCount": { "modelReachableWrite": 4, "ofWhichProduceSpendCard": 1, "writeBoundary": 4 }
+    }
+  },
+
+  "summary": {
+    "canvasNodeWrite": "模型可达写入口 5 扇，真正的写边界 8 处，其中只有 1 处（executeCanvasWriteTarget）带 admission + 事务 + 收据",
+    "paidDraftAndCard": "模型可达的建 Run 入口 3 扇，其中只有 1 扇（nomi_generation_plan）会出付费卡",
+    "generationNodeCreate": "模型可达的建生成类节点入口 4 扇，其中只有 1 扇（nomi_generation_plan）同时出卡；另 3 扇永不出卡"
+  }
+}
