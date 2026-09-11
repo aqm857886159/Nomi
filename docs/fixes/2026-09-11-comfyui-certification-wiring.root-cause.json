@@ -1,0 +1,177 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-11-comfyui-certification-wiring",
+  "problem_type": "运行时必需依赖被声明成 optional，于是「能力挂上了」和「能力真能用」变成两回事：注册处一个字不传照样构造成功，能力探测全过，只有用户真的点下去才在闭包第一行炸，而且炸的那一下被 catch 洗成一个中性状态码，界面什么都不说",
+  "symptom": "2026-09-11 第一次对着本机真 ComfyUI（0.35.0，127.0.0.1:8188）跑接入矩阵（docs/research 的真机报告 §BUG-1/2/3，复现率 3/3）：7 行工作流 7/7 能被正确解析、缺件报告精确到文件名，但 0/7 能真的跑起来。粘贴工作流 → 分析 → 命名 → 导入 → 弹出「确认接入并开始验证」→ 点「确认验证」→ 弹层关闭、直接跳回模型首页显示「还没有接入生成模型」，**全程没有任何错误提示**；model-catalog.json 里搜不到刚导入的名字；ComfyUI 的 /history 自始至终只有人工直连那 5 条，Nomi 一次 /prompt 都没发出去。盘上 capability/integration-sessions.json 写着 `{\"stage\":\"failed\",\"startReceiptStatus\":\"consumed\",\"blockingReason\":{\"code\":\"certification_unavailable\"}}`。连带后果：ComfyUI 实例在设置里永远停在「未启用」（卡片按设计要等一条工作流认证晋级才启用，而那条路被堵死 → 死循环），画布的两个模型选择器里一个 ComfyUI 条目都没有（内置的 comfyui-txt2img mapping 本身 enabled:true，但 vendor 未启用整条浮不上来）。",
+  "direct_cause": "electron/main.ts 的 registerIpc() 调 `registerIntegrationSessionIpc()` 时**不传 service**（该参数当时是 `service?`）→ 落到 integrationSession.ts 的 `getIntegrationSessionService()`，它 `singleton ||= createRuntimeIntegrationSessionService()` **零参构造** → 工厂里 `const runTask = input.runTask` / `fetchTaskResult` / `mintSpendGrant` 三样全是 `undefined` → 但 `certifyComfy` 闭包照样被装进 `new IntegrationSessionService({ certifyComfy })`，于是 start() 里 `if (!this.deps.certifyComfy) throw` 与 approve 前的 `if (!this.deps.certification && !this.deps.certifyComfy) throw` 这两处「有没有这个能力」的检查**全部通过**，直到闭包第一行 `if (!runTask || !fetchTaskResult || !mintSpendGrant) throw new Error(\"comfy_certification_unavailable\")` 才炸；这一炸被 start() 的 catch 接住，经 safeCertificationFailureCode 的 `/unavailable|runner/` 分支归成 `certification_unavailable` 写进 blockingReason。界面这一侧，IntegrationConfirmationPanel 的 confirm() 拿到返回的会话投影后**根本不看**，一律 `onDone()` 关掉弹层——主进程已经如实写回来的失败原因，在最后一米被丢掉。补充事实：`installRuntimeIntegrationSessionService` 与 DispatchContext.integrationSessions 在生产里从来没有任何调用点，所以这个零参兜底不是「某条路径漏了」，而是**唯一**的构造路径。 接上依赖之后真机复跑又露出**同一条链上的第二跳**：electron/runtime.ts 的 buildProfileTaskResult 把 `taskId`（走 response_mapping，ComfyUI 的编号叫 `prompt_id`）和 `providerMeta.task_id`（只看 provider_meta_mapping 与 extractTaskId 认得的 id/taskId/task_id/jobId 那几个键，**看不见 response_mapping**）算成两份互不相干的答案；而 runTask 里那道「上游没返回任务编号就按失败处理」的闸问的是 providerMeta，于是对本机 ComfyUI 恒答「没有」——result.id 明明已经拿到了 prompt_id，认证仍必失败。真机日志实锤：`comfy-candidate-no-output … providerError=供应商没有返回任务编号，无法安全查询结果；已按失败处理`（2026-09-11 14:00 那趟，/history 里能看到 Nomi 发出的那条 prompt fbc3b6d5，即依赖已经接上、只是结果判读错）。",
+  "class_root": "一个必需依赖被写成 optional，缺席时不是在**构造期**失败，而是把「残废实例」交出去，让失败推迟到调用期再发生——于是所有基于「这个能力存在吗」的判断都得到肯定答案，而真实答案是否定的。这一族的三个标志同时出现在本例：① 工厂/注册处能以零参构造；② 依赖缺席时能力仍被无条件挂上（`certifyComfy` 照挂）；③ 用它的闭包在第一行重新判一次 undefined 并抛一个 `*_unavailable`。第③点看着像防御，实际是把「构造期就该炸」的错误挪到了最难诊断的地方，再被上游的统一 catch 洗成一个中性状态码。这正是 R28 点名的那一族（安全/关键依赖不许「optional + 欠账登记」），与 #722「付费门缺人证时放行」同源：都是**一个必需前提被表达成可选**，只是一个 fail-open、一个 fail-silent。修法必须是把前提搬回构造期让编译器拦，而不是在闭包里把错误信息写得更漂亮。 第二跳属于同族的另一种表达：**同一个事实（上游到底给没给任务编号）在同一个函数里被算了两遍、两份答案可以不一致**，而下游的闸只问其中一份。处置方向同样是「让它只有一个答案」——在算出来的那一处就把来自上游的编号回填进 providerMeta，本地兜底编号刻意不回填（那道闸要拦的正是「拿伪造编号去轮询」）。",
+  "affected_population": [
+    "所有想把本机 ComfyUI 接进 Nomi 的用户——这是**全量**，不是边缘情形：产品里除了这一条没有第二条把 ComfyUI 工作流接进来的路。真机矩阵 7 行工作流（文生图 / 图生图 / LoRA / 放大 / 视频链 / Flux / 第三方节点包）全部 0/7 跑通，复现率 3/3",
+    "所有已经装好 ComfyUI 的用户在设置里看到的是「未启用」且点「启用 ComfyUI」没有任何后续：晋级永远不来，实例永远启用不了，卡片上「预置模板一键启用 / 工作流列表 / 进工作流设置整页」这些挂在 enabled 分支下的东西全部够不着",
+    "所有在画布上找本地模型的用户：模型选择器里零个 ComfyUI 条目（对话区显示「目录里没有可用的」，节点默认落到「即梦图片（会员）」），于是「本地免费出图」这条能力在产品里等于不存在",
+    "所有走这条路失败的用户都收不到任何解释：弹层静默关闭、跳回「还没有接入生成模型」，用户唯一能得到的结论是「Nomi 接不了 ComfyUI」而不知道为什么"
+  ],
+  "scope_paths": [
+    "electron/capabilityCore/host.ts",
+    "electron/capabilityCore/mcpStdioServer.ts",
+    "electron/integrationCertification/integrationSession.ts",
+    "electron/integrationCertification/integrationSessionIpc.ts",
+    "electron/integrationCertification/integrationSessionRuntimeInstall.ts",
+    "electron/main.ts",
+    "electron/runtime.ts",
+    "electron/tasks/comfyCandidateTest.ts",
+    "src/i18n/locales/modelSetup.ts",
+    "src/ui/onboarding/IntegrationConfirmationPanel.tsx",
+    "src/ui/onboarding/integrationConfirmationOutcome.ts"
+  ],
+  "entry_points": [
+    "electron/integrationCertification/integrationSessionRuntimeInstall.ts — 桌面侧**唯一**的装配处：`integrationSessionRuntimeDependencies()` 交出真实 runTask（electron/runtime.ts）、fetchTaskResult（经 runtime re-export 的 electron/tasks/taskResultQuery.ts）与 mintSpendGrant（electron/spendGrant.ts，适配成工厂要的 (nodeIds, maxAttemptsPerNode) 形状）；`installIntegrationSessionRuntime()` 在启动期把它装成进程内唯一实例，RPC / stdio / 可信 UI IPC 之后拿到的都是这一个",
+    "electron/main.ts 的 registerIpc() — `registerIntegrationSessionIpc(installIntegrationSessionRuntime())`：装配与注册变成同一条表达式，中间没有「先注册、回头再兜底解析」的缝",
+    "electron/integrationCertification/integrationSession.ts 的 `createRuntimeIntegrationSessionService(input: ComfyCertificationRuntime & {...})` — 三样运行时依赖从 optional 提升为**必填**，缺一样编译不过；闭包里那行 undefined 重判随之删除（唯一态，不留双重态）",
+    "electron/integrationCertification/integrationSession.ts 的 `getIntegrationSessionService()` — 不再零参兜底造残废实例；没装过就抛 `integration_session_service_not_installed`，这只可能是启动顺序坏了，不可能是某个用户动作坏了",
+    "src/ui/onboarding/integrationConfirmationOutcome.ts — 「确认验证之后该关弹层还是该留下报错」的唯一判据：主进程说 stage:\"failed\" 就留在原地并把 blockingReason.code 念出来（modelSetup.integrationFailedWithReason），其余情况才 onDone",
+    "electron/runtime.ts 的 buildProfileTaskResult — 「上游任务编号」只算一次：先从 response_mapping / providerMeta / extractTaskId 里 derive 出 `providerTaskId`，再把它回填进 providerMeta.task_id / query_id，最后才叠上本地兜底 taskIdFallback 得到 taskId。于是 runTask 那道「没有上游编号就按失败处理」的闸与 result.id 看到的是同一个事实",
+    "electron/capabilityCore/mcpStdioServer.ts 与 electron/capabilityCore/host.ts — 另外两个会用到接入会话服务的主进程入口，各自在启动期调 installIntegrationSessionRuntime()。取用口改成「没装就抛」之后，漏装任何一个都等于那个进程整条接入链不可用；由 integrationSessionRuntimeInstall.test.ts 的结构断言守着",
+    "electron/tasks/comfyCandidateTest.ts 的 safeFailure / executeCandidate — 认证失败时把原始错误与「status 不对 / succeeded 但零产物」两条不同的排查路写进脱敏日志；以前只抛一句 Provider candidate failed，盘上、界面上、日志里全无线索（本条的第二跳就是靠补上这条日志才定位到的）"
+  ],
+  "invariants": [
+    "认证运行时的三样依赖（runTask / fetchTaskResult / mintSpendGrant）在服务构造期必须齐备；缺席必须是**编译期**错误，不许构造出一个能力挂着但调用必炸的实例",
+    "进程内唯一的接入会话服务只能由装配处显式安装；取用口在没安装时必须抛错，不许自己零参兜底造一个",
+    "任何依赖某个 dep 才成立的能力，不许「无条件挂上 + 在闭包里再判一次 undefined」这种双重态——能力挂不挂必须与依赖在不在是同一件事",
+    "主进程写回的失败态（stage:\"failed\" + blockingReason）必须在发起那次操作的界面上被看见；拿到返回值却不看、一律按成功收尾，等于把已经查明的原因丢掉",
+    "「上游到底给没给任务编号」在一次结果构造里只能有一个答案：result.id 与 providerMeta.task_id 要么同时有、要么同时没有；本地兜底编号不许冒充上游编号（那道拒绝轮询的闸正是要拦它）",
+    "每一个会用到接入会话服务的主进程入口（GUI / MCP stdio / CLI host）都必须在启动期装配它；取用口没装就抛，漏装必须在测试里被抓到而不是在用户手里"
+  ],
+  "regression_tests": [
+    "electron/comfyuiLocal.integration.test.ts",
+    "electron/integrationCertification/integrationSessionRuntimeInstall.test.ts",
+    "src/ui/onboarding/integrationConfirmationOutcome.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/comfyuiLocal.integration.test.ts",
+    "electron/integrationCertification/integrationSessionRuntimeInstall.test.ts",
+    "src/ui/onboarding/integrationConfirmationOutcome.test.ts"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "这条不需要外部规范做裁决：不变量（必需依赖在构造期强制提供）与判据全部取自仓库内可复跑的真机证据——隔离 profile 的 capability/integration-sessions.json 写着 certification_unavailable、ComfyUI 的 /history 里 Nomi 一条 /prompt 都没有、model-catalog.json 里搜不到导入的名字，三条互相印证；修复后同一套探针在同一台真 ComfyUI 上给出相反结果。仓库自身的 R28 条文与 #722（fix/mcp-receipt-fail-closed-20260910，付费门缺人证时改成拒绝而不是放行）已经把这一族的处置定死，无需再引第三方文档。",
+  "invariant_owner_layer": {
+    "layer": "electron/integrationCertification/integrationSessionRuntimeInstall.ts",
+    "tests": [
+      "electron/integrationCertification/integrationSessionRuntimeInstall.test.ts"
+    ]
+  },
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "不是一次手误，而是一种会反复长出来的写法：工厂的 deps 对象为了「方便测试注入」整体写成 optional，生产注册处顺手零参调用，缺席的后果被闭包里的 `if (!dep) throw \"*_unavailable\"` 兜住——三步各自看着都合理，合起来就是必炸且静默。同一仓库在 #722 刚刚处置过同族的另一半（必需前提缺席时 fail-open 放行），说明这个形状已经复发过至少一次；而 `createRuntime*Service` / `singleton ||= createX()` 这两种写法在 electron/ 下不止一处，只要下一处也把必需依赖写成 optional 就会再中一次。",
+    "same_class_scan": [
+      "grep 全仓 `createRuntimeIntegrationSessionService|installRuntimeIntegrationSessionService|configureIntegrationSessionService|getIntegrationSessionService`（electron/ src/ scripts/ tests/，排除 *.test.ts）：生产调用点只有 electron/main.ts:411（本次改成显式装配）、electron/capabilityCore/dispatcher.ts 的 7 处 `ctx.integrationSessions || getIntegrationSessionService()` 与 electron/integrationCertification/credentialElicitationRuntime.ts 的 3 处 `getIntegrationSessionService()`——后两者都是**取用**不是构造，本次改成只能取到装配处装好的那一个；`installRuntimeIntegrationSessionService` 与 `DispatchContext.integrationSessions` 在本次之前生产里零调用点，实锤零参兜底是唯一构造路径",
+      "grep `singleton ||=` / `singleton ??=` + `createRuntime`（electron/）：本文件的 `singleton ||= createRuntimeIntegrationSessionService()` 是唯一一处「兜底构造一个需要外部运行时依赖的服务」，本次删除",
+      "grep `_unavailable\"` 抛错点（electron/）：闭包首行重判 optional 构造依赖的只有本处 certifyComfy；其余 `unavailable` 是真实的运行期状态（能力核未启动 / 远端不可达 / 凭据未配置），不属本类",
+      "派 Explore 子 agent 对 electron/ 与 src/ 全域横扫「optional 依赖 + 零参生产构造 + 闭包内重判」这一形状，结论逐条登记在 same_class_entry_points；本次只修 ComfyUI 认证这一条，其余按处置分类登记"
+    ]
+  },
+  "generality_proof": "修在「谁负责保证这个依赖在场」的那一层，而不是在报错处：① `ComfyCertificationRuntime` 把三样依赖提升成工厂的必填入参，于是「缺依赖」从一个运行期分支变成一个**类型错误**——本次改完，仓库里两处历史调用点（integrationSession.test.ts:321 与 runtimeComfyReconcile.test.ts:187）立刻被 check:test-types 打红，证明这道闸真的拦得住而不是写在注释里；② 闭包里那行 undefined 重判同 commit 删除，双重态消失，以后不可能出现「挂上了但调用炸」的第三种状态；③ 取用口不再兜底造实例，任何新的消费方（stdio、未来的第二个宿主）都只能拿到装配处装好的那一个，想绕过就得自己写一份装配，而装配又被①拦着；④ 界面侧把「该不该关弹层」抽成纯函数并按主进程的真实 stage 判，于是以后任何新的失败原因（凭据、额度、网络）都会自动被念出来，不需要为每一种再接一条线。四步合起来，这一族里「构造」「使用」「报告」三个环节各有一处结构性保证，而不是一处补丁加一句承诺。",
+  "shared_boundaries": [
+    {
+      "path": "electron/integrationCertification/integrationSessionRuntimeInstall.ts",
+      "symbol": "integrationSessionRuntimeDependencies + installIntegrationSessionRuntime",
+      "responsibility": "桌面侧接入会话服务的唯一装配处：三样认证运行时依赖在这里被真正接上真实运行时，并在启动期装成进程内唯一实例。注册处、RPC、stdio 与凭据交接路径之后都只能取用它，不能自己构造"
+    },
+    {
+      "path": "electron/integrationCertification/integrationSession.ts",
+      "symbol": "ComfyCertificationRuntime + createRuntimeIntegrationSessionService + getIntegrationSessionService",
+      "responsibility": "把「ComfyUI 认证要哪些运行时能力」表达成必填契约（编译期可拦），并保证取用口只返回装配过的实例；不再存在「能力挂上但依赖缺席」这种中间态"
+    },
+    {
+      "path": "src/ui/onboarding/integrationConfirmationOutcome.ts",
+      "symbol": "integrationConfirmationOutcome",
+      "responsibility": "确认验证后「关弹层还是报原因」的唯一判据：主进程的 stage/blockingReason 是真相源，界面不许把失败当成功收尾"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/integrationCertification/integrationSession.ts",
+      "entry_point": "createRuntimeIntegrationSessionService 的 runTask / fetchTaskResult / mintSpendGrant（原 optional，缺席即静默失败）",
+      "disposition": "enforced",
+      "evidence": "三样提升为必填后，仓库里两处零参/半参调用点当场编译红：`check:test-types` 报 integrationSession.test.ts:321 与 runtimeComfyReconcile.test.ts:187 各新增 1 处 TS2345（2026-09-11 实跑，输出见 PR 正文）。闭包首行的 undefined 重判同 commit 删除，双重态不复存在。"
+    },
+    {
+      "path": "electron/integrationCertification/integrationSessionIpc.ts",
+      "entry_point": "registerIntegrationSessionIpc(service) 的 service 参数（原 `service?`，缺席时回落到零参兜底单例）",
+      "disposition": "enforced",
+      "evidence": "改成必填参数并删掉 `const resolve = () => service || getIntegrationSessionService()` 这条兜底；integrationSessionRuntimeInstall.test.ts 里带 `@ts-expect-error` 的零参调用由 check:test-types 判分——那行一旦不再报错（即参数被改回 optional），门岗立刻因 unused ts-expect-error 变红。"
+    },
+    {
+      "path": "electron/integrationCertification/credentialElicitationRuntime.ts",
+      "entry_point": "getIntegrationSessionService()（凭据交接路径的取用点，共 3 处）",
+      "disposition": "not-affected",
+      "evidence": "它只**取用**不构造。改动后它拿到的是装配处装好的同一个实例（以前拿到的也是同一个单例，只不过那个单例是残废的），调用形状一字未改；HTTP 供应商那条路不经过 certifyComfy，本来就不受三样 ComfyUI 依赖影响。electron/integrationCertification/credentialElicitation*.test.ts 全绿（2026-09-11 实跑）。"
+    },
+    {
+      "path": "electron/capabilityCore/dispatcher.ts",
+      "entry_point": "`ctx.integrationSessions || getIntegrationSessionService()`（外部 Agent 走 MCP 接模型的 7 处取用点）",
+      "disposition": "not-affected",
+      "evidence": "同样是取用不构造，且能力核（startCapabilityCore）在 registerIpc() 之后才起，装配一定已经完成。本次改动反而修好了这条路：外部 Agent 接 ComfyUI 工作流以前拿到的也是那个残废单例。`ctx.integrationSessions` 只在测试里注入，生产零调用点（已 grep 核实）。"
+    },
+    {
+      "path": "electron/runtime.ts",
+      "entry_point": "buildProfileTaskResult 里「上游任务编号」的两份算法（taskId 走 response_mapping，providerMeta.task_id 走 provider_meta_mapping/extractTaskId）",
+      "disposition": "enforced",
+      "evidence": "两份合成一份：providerTaskId 算出来后回填进 providerMeta.task_id/query_id，本地兜底刻意不回填。electron/comfyuiLocal.integration.test.ts 把 `createNorm.providerMeta.task_id === prompt_id` 与 `query_id === prompt_id` 钉死（真 HTTP 端到端，2026-09-11 红先绿后：还原该改动后该断言报 `expected undefined to be '123e4567-…'`），同时删掉了该用例里由调用方手工补 providerMeta 的那两行——调用方补一遍正是「两份答案」的另一种表达。"
+    }
+  ],
+  "prevention": {
+    "kind": "type-system",
+    "enforcement_path": "electron/integrationCertification/integrationSession.ts",
+    "invariant": "ComfyUI 认证的三样运行时依赖必须在 createRuntimeIntegrationSessionService 的构造期齐备（类型上必填，不许 `?`），且进程内唯一实例只能由装配处显式安装——缺席在编译期／启动期就炸，不许推迟到用户点「确认验证」的那一刻，更不许被 catch 洗成一个中性状态码",
+    "failure_mode": "把 runTask/fetchTaskResult/mintSpendGrant 中任何一样改回 optional、把 registerIntegrationSessionIpc 的 service 改回 `service?`、或把 `getIntegrationSessionService` 的零参兜底加回来——前两种会让 integrationSessionRuntimeInstall.test.ts 里对应的 `@ts-expect-error` 变成「未使用」而被 check:test-types 当场打红，第三种会让同文件「没装过就必须抛」那条用例当场失败；界面侧若把 confirm() 改回不看返回值，integrationConfirmationOutcome.test.ts 的 failed 分支失去消费方、IntegrationConfirmationPanel 的 import 成为死码",
+    "exception_policy": "none",
+    "strategy": "把「这个依赖必须在场」从运行期分支搬到类型契约（ComfyCertificationRuntime 必填），并把装配收成唯一一处（integrationSessionRuntimeInstall）；旧的双重态——闭包首行的 undefined 重判、注册处的 `service || getIntegrationSessionService()` 兜底、取用口的 `singleton ||= createX()` 兜底——三处同 commit 全部删除，不留并行版。界面侧补上最后一米：主进程已经写明的失败原因必须被念出来。",
+    "artifacts": [
+      "electron/capabilityCore/host.ts",
+      "electron/capabilityCore/mcpStdioServer.ts",
+      "electron/comfyuiLocal.integration.test.ts",
+      "electron/integrationCertification/integrationSession.ts",
+      "electron/integrationCertification/integrationSessionIpc.ts",
+      "electron/integrationCertification/integrationSessionRuntimeInstall.test.ts",
+      "electron/integrationCertification/integrationSessionRuntimeInstall.ts",
+      "electron/main.ts",
+      "electron/runtime.ts",
+      "electron/tasks/comfyCandidateTest.ts",
+      "src/i18n/locales/modelSetup.ts",
+      "src/ui/onboarding/IntegrationConfirmationPanel.tsx",
+      "src/ui/onboarding/integrationConfirmationOutcome.test.ts",
+      "src/ui/onboarding/integrationConfirmationOutcome.ts"
+    ]
+  },
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/comfyuiLocal.integration.test.ts",
+      "electron/integrationCertification/integrationSession.ts",
+      "electron/integrationCertification/integrationSessionIpc.ts"
+    ],
+    "rationale": "三处旧路径同 commit 删除，不留并行版（P1）：① certifyComfy 闭包首行的 `if (!runTask || !fetchTaskResult || !mintSpendGrant) throw new Error(\"comfy_certification_unavailable\")`；② `getIntegrationSessionService()` 里的 `singleton ||= createRuntimeIntegrationSessionService()` 零参兜底；③ registerIntegrationSessionIpc 里的 `const resolve = () => service || getIntegrationSessionService()`（连同它在各 handler 里的 resolve() 间接层一并去掉，直接用 service）。另外 Dependencies 上 runTask/fetchTaskResult/mintSpendGrant 三个字段是纯死的透传（IntegrationSessionService 类体从不读它们，已 grep 核实），一并删除，避免留下第二份「依赖在哪声明」的说法。 第二跳同理删旧：`configureIntegrationSessionService`（本次之前已零调用点，是 installRuntimeIntegrationSessionService 之外的第二条装配路）与 `getIntegrationSessionService(deps?)` 的 deps 兜底一并删除，装配从此只剩 installIntegrationSessionRuntime 一条；comfyuiLocal.integration.test.ts 里「调用方自己把 task_id/query_id 补进 providerMeta」的那两行同 commit 删除，否则等于在测试里保留了第二份答案。",
+    "rationale_note": "",
+    "removed_symbols": [
+      "comfy_certification_unavailable 闭包守卫",
+      "getIntegrationSessionService 的零参兜底构造",
+      "registerIntegrationSessionIpc 的 service 可选兜底",
+      "configureIntegrationSessionService（第二条装配路，零调用点）",
+      "getIntegrationSessionService(deps?) 的 deps 兜底构造",
+      "comfyuiLocal.integration.test.ts 里调用方手工回填 providerMeta.task_id/query_id 的两行"
+    ]
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "不引入也不升级任何第三方依赖：修复全部发生在仓库自己的装配与类型契约上。刻意没有引入 DI 容器（InversifyJS / tsyringe 之类）——那属于引入新框架层，按 R29 要先出四列表 + 参考实现逐层对照 + 字段级裁决，代价远大于本条修复；而 TypeScript 的必填参数已经能在编译期提供同等强度的保证，且零运行时开销。",
+    "exit_criteria": []
+  },
+  "migration": "无数据迁移。已有的 capability/integration-sessions.json 格式一字未动；那些以 `blockingReason.code = \"certification_unavailable\"` 收尾的历史会话仍然是失败态（它们确实失败了），用户重新导入一次即可走通新路径。已保存的凭据、已存在的 catalog 条目、已持久化的画布数据都不受影响。唯一的行为变化是启动顺序上的硬约束：接入会话服务现在必须在 registerIpc() 期间装配完成，否则第一个取用点会抛 integration_session_service_not_installed——这是有意的（启动期炸 > 用户点下去才炸）。",
+  "residual_risks": [
+    "`getIntegrationSessionService()` 现在会抛。如果将来有人在 registerIpc() 之前就去取这个服务（例如把某段初始化提前），会得到一个启动期异常而不是一个静默残废的实例——这是有意的方向，但它确实把一类「以前能跑起来（只是接不了 ComfyUI）」的顺序错误变成了「起不来」。判据是：ComfyUI 接入是产品能力，不是可选增强，不该为了让 app 起得来而牺牲它。",
+    "本次真机验收跑的是 SD1.5 文生图这一行。图生图 / LoRA / 放大 / 视频链 / 第三方节点包那几行在矩阵里断的是**同一处**（全部 certification_unavailable），按根因它们应当一起通；但它们各自还有自己的缺口（矩阵 §BUG-4 新式 COMBO 缺件漏报、§BUG-5 LoadAudio 槽标成图片、§BUG-9 视频输入被描述成文生），那些不在本条范围内，已在报告里各自登记。",
+    "界面侧现在把 blockingReason.code 原样带进文案（如「验证没有通过（provider_network）」）。这些码是稳定的机器码不是人话——诚实但不够友好。取舍：先保证用户看得见原因（以前是零信息），把码到人话的映射留给后续按真实出现频率逐个补，而不是现在凭空编一张全量对照表。",
+    "mintSpendGrant 在认证这一跳只铸一颗覆盖单个合成节点、只允许 1 次尝试的令牌，且发生在 confirmFromTrustedUi 之后。本机 ComfyUI 不花钱，但同一条路以后若接远端 ComfyUI 就会真花钱——闸在，预算粒度也在，只是「本机免费也照样弹确认」这件事本身是另一条已登记的体验问题（矩阵 §BUG-7），不在本条范围内。"
+  ]
+}
