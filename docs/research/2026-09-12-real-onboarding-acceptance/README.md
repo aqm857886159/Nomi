@@ -6,6 +6,7 @@
 = `origin/feat/mcp-onboarding-tool-face-20260911`（PR #754，接模型 4 个工具）
 + merge `d5024dada57205428f3d525629cce588a6280450`（`feat/model-onboarding-two-paths-20260911`，15 个未推的本地提交）
 无冲突。`pnpm install --frozen-lockfile` + `pnpm build` 全绿。走查台见 [harness.md](harness.md)。
+本报告只记录，**没有改任何产品代码**。
 
 **一句话结论**：入参这一层修好了（62% → 100%，零服务器报错），但**没有一次真的接成**。
 按产品自己给的指引原样跑，三次里零次靠自己走完：接入会话卡死在 `needs_spend_confirmation`（外部会话没有出口），
@@ -22,7 +23,7 @@
 | 司机 B | Claude Code CLI 2.1.263 —— **没跑成**：`You've hit your weekly limit · resets Sep 14 at 9am`。MCP 接线本身已验证（见 §5） |
 | 供应商 | DeepSeek 官方 `https://api.deepseek.com`，key 来自 `~/.nomi-secrets.env` |
 | 图片模型 | **没做成**：这台机器上只有 DEEPSEEK_API_KEY，APIMart / Kie 都没有 key，产品设计又要求 key 只能由用户在 Nomi 页面里填 —— 见 §6 |
-| 隔离 | 每个司机一套 profile；产品「一键接入」写的是隔离 HOME 下的配置，用户真实的 `~/.codex` / `~/.claude.json` 已备份并未被改坏 |
+| 隔离 | 每个司机一套隔离 profile（settings/projects/capability/user-data 都在 `/tmp/nomi-real-onboard/<司机>/`）。**`HOME` 没有换**——换了 macOS safeStorage 就存不了 key（见 harness.md「D4」），所以产品「一键接入」写的是用户真实的 `~/.codex/config.toml` 与 `~/.claude.json`：两份都已在动手前备份，跑完已原样还原（已核对）。跑司机时用的是这两份的**副本**（改指向被测树 + 补隔离目录 env），不是原件 |
 | 花费 | Codex 侧 5 次 turn，约 50 万 input token（绝大部分是缓存命中）；DeepSeek 侧 0 次生成调用（见 §4），另有 1 次免费的 `GET /models` 核对 |
 
 ## 2. 数字（对照 2026-09-11 基线：58 次调用 / 入参一次写对 62% / 9 回合 1 成功 / 人工 9 次）

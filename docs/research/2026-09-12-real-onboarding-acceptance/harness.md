@@ -6,8 +6,14 @@
 
 构建：`pnpm install --frozen-lockfile` + `pnpm build`（dist-electron + dist）。
 
-隔离：每个司机一套 profile，`HOME` 也一起换掉——所以产品「一键接入」写的是
-`<profile>/home/.codex/config.toml` / `<profile>/home/.claude.json`，**用户真实的 `~/.codex` 与 `~/.claude.json` 全程没被碰过**。
+隔离：每个司机一套 profile（settings / projects / capability / user-data）。
+
+**D4 —— `HOME` 不能换**：第一版走查把 `HOME` 也指到隔离目录，结果贴 key 时 Nomi 报
+`System secure storage is unavailable; the API credential was not saved.`（截图 `codex-v1-key-after-1.png`）——
+macOS 的 safeStorage 要用 `$HOME/Library/Keychains` 下的登录钥匙串。所以最终版**保留真实 HOME**：
+产品「一键接入」写进用户真实的 `~/.codex/config.toml` 与 `~/.claude.json`，动手前已备份、跑完已还原；
+真正喂给司机的是这两份的**副本**（`ro-patch.mjs` 改成指向被测树的 launcher，并补上
+`NOMI_CAPABILITY_DIR` / `NOMI_PROJECTS_DIR` / `NOMI_SETTINGS_DIR` 三条隔离 env）。
 
 - codex：`/tmp/nomi-real-onboard/codex/{home,settings,projects,capability,user-data,agent-cwd}`
 - claude：`/tmp/nomi-real-onboard/claude/...`
