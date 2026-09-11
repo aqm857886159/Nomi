@@ -292,9 +292,17 @@ try {
     const saved = await catalog.upsertVendorApiKey('kie', { apiKey: 'nomi-e2e-placeholder', enabled: true })
     return { saved, vendor: catalog.listVendors().find(item => item.key === 'kie') }
   })
-  expect(savedCredential.saved.verificationPending).toBe(true)
-  expect(savedCredential.vendor.credentialVerificationPending).toBe(true)
-  expect(savedCredential.saved.hasApiKey).toBe(true)
+  // 这三行断的是**前提**（占位 key 真的存进去了），不是验证流程本身。
+  // #726（vendor-key-publish-class）改了 kie 这类内置 curated 家的 key 判据：没有便宜且可信的
+  // 预检（最小真实请求 = 一次付费生成，不能替用户花钱），于是缺省判据是 `first-use`——
+  // **存 key 即发布、不再挂「待验证」**（理由逐字写在 builtinVendorSeeds.ts 的 keyValidation 上）。
+  // 此前这里断言 `verificationPending === true`，断的其实是「/v1/models 探测打不通那台假 host」
+  // 这个副产物；判据一改它就必红。改成断言新语义本身，两边都说得出口。
+  expect(savedCredential.saved.hasApiKey, '占位 key 要真的落进 catalog').toBe(true)
+  expect(savedCredential.saved.verificationPending ?? false,
+    'first-use 判据不挂「待验证」：没有可验的便宜端点，挂上就是一句做不到的承诺（#726）').toBe(false)
+  expect(savedCredential.vendor.credentialVerificationPending ?? false,
+    'vendor 行上的那面旗子同理不该亮').toBe(false)
   await getWin().reload()
   await getWin().waitForLoadState('domcontentloaded')
   await getWin().waitForTimeout(1500)
