@@ -31,6 +31,7 @@ import {
   type RunEvent,
 } from "./productionRunTypes";
 import type { PlanCandidate } from "../capabilityCore/executionContract";
+import { buildProductionRunDraftSummary } from "./productionRunDraftSummary";
 
 type SnapshotEnvelope = {
   schemaVersion: number;
@@ -149,7 +150,9 @@ function validSnapshot(filePath: string): SnapshotEnvelope | null {
 }
 
 function summarize(run: ProductionRun): ProductionRunSummary {
+  const draft = buildProductionRunDraftSummary(run);
   return {
+    ...(draft ? { draft } : {}),
     runId: run.runId,
     projectId: run.projectId,
     revision: run.revision,

@@ -110,17 +110,6 @@ export function getModelLabel(kind: NodeKind | undefined, modelValue: string): s
   return model?.label || modelValue
 }
 
-export function getDefaultModel(kind?: NodeKind): string {
-  if (kind === 'image') {
-    return DEFAULT_IMAGE_MODEL_VALUE
-  }
-  if (kind === 'imageEdit') {
-    return DEFAULT_IMAGE_EDIT_MODEL_VALUE
-  }
-  const models = getAllowedModelsByKind(kind)
-  return models[0]?.value || TEXT_MODELS[0].value
-}
-
 // Provider映射
 export type AIProvider = 'openai' | 'anthropic' | 'google'
 

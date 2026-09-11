@@ -130,6 +130,7 @@ export function TaskCenterButton({ projectId, onRevealNode }: Props): JSX.Elemen
         completed: t('taskCenter.productionRun.statuses.completed'),
         cancelled: t('taskCenter.productionRun.statuses.cancelled'),
       },
+      draftShots: (count: number) => t('taskCenter.productionRun.draftShots', { count }),
     })
     const exports = buildExportJobTaskRows(resolvedExportJobs, {
       title: t('taskCenter.exportJob.title'),

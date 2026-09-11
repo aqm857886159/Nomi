@@ -131,6 +131,8 @@ export const zhCN = {
     },
     productionRun: {
       title: 'Nomi 制作',
+      // 草稿行的镜数后缀：行首已经是「模型 · 比例 · 提示词」，多镜时才补这一段。
+      draftShots: '{{count}} 个镜头',
       statuses: {
         draft: '等待开始', awaitingDirection: '等待确认方向', awaitingScriptReview: '等待审核剧本', awaitingStoryboardReview: '等待审核分镜',
         awaitingContract: '等待确认制作与预算', ready: '准备生成', running: '正在生成', pausing: '正在暂停',
@@ -541,6 +543,7 @@ export const en = {
     },
     productionRun: {
       title: 'Nomi production',
+      draftShots: '{{count}} shots',
       statuses: {
         draft: 'Waiting to start', awaitingDirection: 'Direction approval required', awaitingScriptReview: 'Script review required', awaitingStoryboardReview: 'Storyboard review required',
         awaitingContract: 'Production and budget approval required', ready: 'Ready to generate', running: 'Generating', pausing: 'Pausing',

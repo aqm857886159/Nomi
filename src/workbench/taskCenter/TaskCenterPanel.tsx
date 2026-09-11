@@ -107,6 +107,7 @@ export function TaskCenterPanel({ opened, onClose, productionRuns, exportJobs, o
       completed: t('taskCenter.productionRun.statuses.completed'),
       cancelled: t('taskCenter.productionRun.statuses.cancelled'),
     },
+    draftShots: (count: number) => t('taskCenter.productionRun.draftShots', { count }),
   }), [productionRuns, t])
   const exportRows = React.useMemo(() => buildExportJobTaskRows(exportJobs, {
     title: t('taskCenter.exportJob.title'),

@@ -362,10 +362,44 @@ export type ProductionRun = {
   updatedAt: string;
 };
 
+/**
+ * 草稿摘要：Run 列表投影里**结构上**能显示「这份草稿到底是什么」的最小事实集。
+ *
+ * 为什么必须进 Summary：任务中心的行只吃 ProductionRunSummary，而 Summary 此前不含 generationPlan，
+ * 所以一份 agent 刚建的草稿在任务面板上只能显示「等待开始」——用户看不到模型、看不到提示词，
+ * 也就无从判断 agent 定的对不对。
+ *
+ * 只投影**展示**用的身份与文本，绝不含 transportModelId、参数全集或任何凭据。
+ */
+export type ProductionRunDraftSummary = {
+  candidateId: string;
+  /** PlanCandidate.revision —— 列表刷新时用来判断「这份草稿变了没有」。 */
+  revision: number;
+  /** 供应商 key + 模型 key（身份唯一键是这两段，只显示模型段会串台）。 */
+  vendor: string;
+  modelKey: string;
+  /** 目录任务种类（text_to_image / image_to_video …）。 */
+  mode: string;
+  modeId?: string;
+  /** 提示词首行（已裁剪）——列表行只放一行，全文在详情里。 */
+  promptLine: string;
+  /**
+   * 画幅比例的**显示值**。各档案给这个参数起的名字不同（aspect_ratio / ratio / size / resolution），
+   * 故按固定优先序从候选参数里 derive 第一个命中的字符串，而不是硬认某一个键。取不到就省略——
+   * 宁可不显示，也不编一个「16:9」出来。
+   */
+  aspectRatio?: string;
+  /** 计划里被勾选的镜数（单镜草稿恒 1）。 */
+  shotCount: number;
+};
+
 export type ProductionRunSummary = Pick<
   ProductionRun,
   "runId" | "projectId" | "revision" | "status" | "stageId" | "playbook" | "origin" | "budget" | "updatedAt"
->;
+> & {
+  /** 计划仍是草稿时的候选摘要；已封存/已提交/无计划的 Run 省略。 */
+  draft?: ProductionRunDraftSummary;
+};
 
 /**
  * P4 S6：返工/续拍编排的结构化结果（appIntegration 编排 → main.ts IPC → 渲染层给用户人话反馈）。
