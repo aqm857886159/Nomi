@@ -32,7 +32,7 @@
 | J5 | 3D 导演台：AI 搭场景维持「粗模只给站位和机位用」，加界面说明 + 下一步引导；**补回 V1 的四步新手引导到 V2**；帮助入口目前藏在视口齿轮里要提出来；其余问题**单独走查一轮列清单**（Q1）| — |
 | J6 | Q4：分镜面板「交给 Agent」「锁定」**终局删**，过渡期先修反馈 | — |
 | J7 | Q5–Q13 走同伴默认（Q5 定稿后收成一行摘要；Q6 表内点格子即播放；Q13 设置精简包同意→出样张后动工）| — |
-| J8 | Q7b = 助手输出 hover 浮出的复制 icon 无反馈；Q8 = ① 镜头卡显示的不是完整提示词 ② 锚定卡生成时没进镜头引用槽 ③「添加参考」浮层设计整体离谱；Q9 = skill 感觉没用上（研究分支 `research/skill-trigger-mechanism-20260912` **未推送**，本文写「待研究结论」）；Q11 = 「劈成两半」**根本没出现确认卡**；Q12 = 技能库技能卡左上角空黑胶囊角标 | 同伴 Q7/Q8/Q11/Q12 的「待指认」全部关闭 |
+| J8 | Q7b = 助手输出 hover 浮出的复制 icon 无反馈；Q8 = ① 镜头卡显示的不是完整提示词 ② 锚定卡生成时没进镜头引用槽 ③「添加参考」浮层设计整体离谱；Q9 = skill 感觉没用上（研究分支 `research/skill-trigger-mechanism-20260912` 已推送，结论：触发机制没坏，坏的是画幅直通（→B5）、加载不可观测、显式技能只管一句话（→B11））；Q11 = 「劈成两半」**根本没出现确认卡**；Q12 = 技能库技能卡左上角空黑胶囊角标 | 同伴 Q7/Q8/Q11/Q12 的「待指认」全部关闭 |
 | J9 | P0-1（外部接入会话卡死 `needs_spend_confirmation`）：**删该状态**，正在 `feat/model-onboarding-two-paths-20260911` 做；P0-2（存 key 后自动发现返回空）批准，接在同一分支后面 | — |
 | J10 | 接模型：**没有付费验证**；验证 = 免费自检 + 第一次真用；失败不下架，模型上挂原因 | 作废 MCP-P2「并发验证 / 部分晋升」里任何花上游额度的验证步 |
 | J11 | 工具设计规则：一个工具 = 一种后果（状态 × 效果类别）；同格合并用 action，跨格必拆；**不留安全阀门**（禁 fallback / 静默转进 / 兜底），保险只能是「响」的检测器；先用脚本把同类全找出来再修（数门，`rule/door-map-root-cause-20260911`）| 作废同伴 A1 方案里的「可恢复错误自动重试一次」（那是静默转进）|
@@ -42,7 +42,7 @@
 
 ## 2. 架构层六根（先立规矩，再分批关门）
 
-「根」= 多条症状背后同一个结构性原因。每根：一句人话 / 证据 / 该立的规矩或门岗 / 由哪些批关掉。行号在 origin/main `499f3c943` 重核：✔️ 核过 · ⚠️ 未核（沿用同伴/编排者的号）。
+「根」= 多条症状背后同一个结构性原因。每根：一句人话 / 证据 / 该立的规矩或门岗 / 由哪些批关掉。行号在 origin/main `499f3c943` 重核：✔️ 核过 · ⚠️ 未核（沿用同伴/编排者的号）。本分支随后合入 `a11dccf5b`（+39 commit，含 #757/#758/#761）：`git diff --stat 499f3c943..a11dccf5b` 对本文引用的 18 个文件为空，行号照旧有效。
 
 ### 根 1 · 工具看的是「哪个面板开着」，不是「项目数据」
 - **人话**：Agent 读文稿，读的不是项目文件，而是「创作区面板此刻的快照通道」（surface port）。面板没打开就没有通道，读必失败。
@@ -71,7 +71,7 @@
 ### 根 5 · Skill 只是「让模型读一个 md」
 - **人话**：Skill 没有「调用」这个动作，只是系统提示里一行名字+描述，模型自己决定去不去 `read` 正文；没有输出契约、没有「用了」回执。
 - **证据**：`electron/agentLane/laneSkillIndex.mts:12-22` 明写「不新造 `load_skill` 工具 · 自动触发就是 description」✔️，`:125-131` 只渲染索引 ✔️；trace 里 `read /Users/aoqimin/Desktop/Nomi/skills/.../SKILL.md`（开发仓路径）。
-- **规矩**：skill 正文 = 结构化提示词包，一处挂载 + 显式 load + 回执。**等研究分支结论**，本文只占位。
+- **规矩**（研究结论 `docs/research/2026-09-12-skill-trigger-mechanism/prior-art.md` §3 G1/G2/G4/G5）：触发机制（description 驱动 + `read`）与三家标准一致，**不动**；要补的是 ① 加载回执（模型读了哪条技能，面板与转录留可见记录）② 显式选中的技能跨回合常驻（对齐 Claude Code 语义）③ 用现成带凭据的框 `agentContext.ts:85-107 buildSkillSystemPrompt`（零生产调用者的死码）替换两处裸拼正文——同一语义两份实现只留一份。技能声明结构化默认（G7 ③）延后。
 - **关门批**：B11（待研究）。
 
 ### 根 6 · 沙箱没网，且模型不知道
@@ -98,17 +98,17 @@ A4 反馈缺失 / A5 每帧全量重算 / A6 深底小字 / A7 optional 回调�
 | 在途 | 状态（09-12 fetch） | 解锁 | 
 |---|---|---|
 | PR #754 接模型工具面收成 4 个工具 | open | B13、P0-1/P0-2 的落点 |
-| PR #757 P1.1b 改参数重出卡 | open | B3（报价卡三档语义）、B4（报价卡渲染门）、排队项「报价卡右上角 ×」 |
-| PR #758 模型框整理（显示/排序/默认/记住手选）| open | B5 的 #49（记住上次选择）可能已被它覆盖，合入后复核 |
+| PR #757 P1.1b 改参数重出卡 | **已合**（09-11 21:24）| B3（报价卡三档语义）、B4（报价卡渲染门）、排队项「报价卡右上角 ×」 |
+| PR #758 模型框整理（显示/排序/默认/记住手选）| **已合**（09-11 21:13）| B5 的 #49（记住上次选择）可能已被它覆盖，合入后复核 |
 | `fix/param-panel-flat-options-20260911` | **未推送** | B6a 参数行样式；文件面未知 ⚠️ |
-| `rule/door-map-root-cause-20260911`（数门 + `check:door-map`）| 已推，22 文件 | **所有 recurring 合同**的 `doors` 字段；B1/B3/B4/B5 都要用 `scripts/door-map.mjs` |
-| `feat/agent-tool-face-single-owner-20260911`（PR A）→ `feat/agent-tool-face-20-verbs-20260911`（PR B，`read_script/write_script`）| A 已推 111 文件；B **未推送** | B1（在 `read_script/write_script` 之上改真相源，不在旧 20 动词上改）|
+| PR #759 `rule/door-map-root-cause-20260911`（数门 + `check:door-map`）| open | **所有 recurring 合同**的 `doors` 字段；B1/B3/B4/B5 都要用 `scripts/door-map.mjs` |
+| PR #760 `feat/agent-tool-face-single-owner-20260911`（PR A）→ `feat/agent-tool-face-20-verbs-20260911`（PR B，`read_script/write_script`）| A open；B **未推送** | B1（在 `read_script/write_script` 之上改真相源，不在旧 20 动词上改）|
 | `feat/model-onboarding-two-paths-20260911`（+P0-1 +P0-2）| 远端只有 4 个 docs 文件；验收报告称 15 个本地提交未推 ⚠️ | B13 全部；J9/J10 的落点 |
-| `fix/integration-run-failure-path-20260912` | 已推（docs 4 文件）| B2 的 MCP 半边（reaper / cancel），B2 不重做 |
-| `tooling/gates-risk-tier-20260912` | **未推送** | #1 门岗分档；本文不再列为批 |
+| PR #761 `fix/integration-run-failure-path-20260912` | **已合**（09-11 21:48；reaper + cancel + 逐模型错误原文）| B2 的 MCP 半边（reaper / cancel），B2 不重做 |
+| PR #762 `tooling/gates-risk-tier-20260912` | open | #1 门岗分档；本文不再列为批 |
 | `docs/agent-tool-face-research-20260911` | **未推送** | B1/B2 的「先查别人」引用 |
 | `docs/real-onboarding-acceptance-20260912` | 已推 | B13 缺陷清单来源 |
-| `research/skill-trigger-mechanism-20260912` | **未推送** | B11 前置 |
+| `research/skill-trigger-mechanism-20260912` | 已推（纯调研）| B11 的规格：G1/G2/G4/G5 修、G3 不动、G7 ③ 延后、G9 单独小修 |
 | 排队项：报价卡右上角 ×（#757 后）| 未开工 | 并入 B4 |
 | 排队项：画布第三刀（画布工具 → 同一扇门、静默分支可见）| 未开工 | 与 B4 同族不同文件；B4 不碰画布工具 |
 | 排队项：Goal 模式 | 未开工 | 不在本文 |
@@ -252,9 +252,9 @@ A4 反馈缺失 / A5 每帧全量重算 / A6 深底小字 / A7 optional 回调�
 | 项 | 内容 |
 |---|---|
 | 条目 | #8 #38（提示词半）Q9 B3 P2-8 P2-9 |
-| 状态 | **待研究结论**（`research/skill-trigger-mechanism-20260912` 未推送）。占位只写边界：一处挂载（删「Skill 按钮拼正文」与「索引 read」两条路中的一条）、显式 load 动作、回执（`skillsUsed[]` 进转录）、读的是安装目录不是开发仓路径。**不许加**：第三条注入路径。 |
-| 验收门 | R30：20 句 → skill 回执率 + 回合成功率；trace 断言：无开发仓路径 read |
-| 依赖 | 研究分支结论；B1（工具面稳定后再动挂载）|
+| 改法（研究已收）| 触发机制不动（G3）；① 加载回执：模型 `read` 到技能正文 → 转录与面板出「已加载 <skill>」记录（G1）；② 显式选中跨回合常驻，用户可摘（G2）；③ 显式挂载改用 `agentContext.ts:85-107 buildSkillSystemPrompt` 带凭据的框，**删** `laneDesktopRuntime.ts:100/:172` 与 `useAgentPanelV4Actions.ts:173` 两处裸拼（G5，同一语义只留一份）；④ G9 `runtimePaths.ts:60` 打包版技能根不再优先 `process.cwd()/skills`（安全小修，可单独 PR）。**不许加**：第三条注入路径；G7 ③「技能声明结构化默认」延后。 |
+| 验收门 | R30：20 句显式挂技能 → 回执率 100%、回合成功率写进 PR；走查：第 3 轮仍能看到技能常驻 chip；源码棘轮：`buildSkillSystemPrompt` 生产调用者 ≥1、裸拼 = 0 |
+| 依赖 | B1（工具面稳定后再动挂载）|
 | 规模 / 执行者 | L / **Fable** |
 | 主要文件 | `electron/agentLane/{laneSkillIndex,laneDesktopRuntime}.mts`、`lanePromptSections.ts`、`src/workbench/ai/v4/useAgentPanelV4Actions.ts`、`electron/skills/*` |
 
@@ -320,7 +320,7 @@ A4 反馈缺失 / A5 每帧全量重算 / A6 深底小字 / A7 optional 回调�
       #758 ─► B15 ◄─ B3
       #754 + two-paths ─► B13 (P0-10 与 B5 共 owner: B5 先)
       failure-path ─► B2
-      research/skill ─► B11 ◄─ B1
+      B1 ─► B11（研究已收）
       #755 ─► B8
       door-map ─► B1, B3, B4, B5 的合同
 无依赖: B6a, B7, B9, B10, B14a ─► B14b
@@ -330,9 +330,9 @@ A4 反馈缺失 / A5 每帧全量重算 / A6 深底小字 / A7 optional 回调�
 | 波 | 同时派（≤6）| 触发条件 |
 |---|---|---|
 | W0 现在 | B7（Codex）· B9（Codex）· B10（Codex）· B6a（Opus）· B14a（Opus）· B12 探针（Opus，只读）| 无 |
-| W1 | B3（Fable）· B4（Opus）· B5（Codex）· B8（Opus）· B14b（Opus）· B13（Opus）| #757 / #758 / #755 / #754+two-paths 合入；B6a 完成后才派 B5（同目录）|
+| W1 | B3（Fable）· B4（Opus）· B5（Codex）· B8（Opus）· B14b（Opus）· B13（Opus）| #757/#758 已合 → B3/B4/B5 可即派；B8 等 #755；B13 等 #754+two-paths；B6a 完成后才派 B5（同目录）|
 | W2 | B1（Fable）· B12 修（Opus）· B15（Codex）| PR-B 合入；B3 完成；样张拍板 |
-| W3 | B2（Opus）· B6b（Codex）· B11（Fable）| B1 合入；failure-path 合入；研究分支推送 |
+| W3 | B2（Opus）· B6b（Codex）· B11（Fable）| B1 合入（failure-path #761 已合）|
 
 ### 4.3 文件重叠矩阵（同一行打 ● 的批不能同时派）
 | 目录 / 文件 | B1 | B2 | B3 | B4 | B5 | B6a | B7 | B8 | B9 | B12 | B13 | B15 |
@@ -390,6 +390,7 @@ A4 反馈缺失 / A5 每帧全量重算 / A6 深底小字 / A7 optional 回调�
 | #37 编组框 resize 拉环 | 留在 B8 但排最后 | 功能缺失非回归；与 Frame 工具方向一致 |
 | Goal 模式、画布第三刀 | 不在本文 | 在途排队项 |
 | 3D 导演台其余问题 | 延后到 B14a 清单 | J5 |
+| 技能声明结构化默认（研究 G7 ③）| 延后到 B5 + B11 落地后 | 最贵，且画幅直通修好后大半诉求消失 |
 | `nomi-add-model` 技能「每轮 ≤3 模型」操作手册 | 不做 | 那是给死锁擦屁股的说明书，failure-path 治根后不需要 |
 
 ---
@@ -413,9 +414,9 @@ A4 反馈缺失 / A5 每帧全量重算 / A6 深底小字 / A7 optional 回调�
 | b) 无并行版 / fallback / 静默转进 | ✅ | 每卡「不许加」明列；B1 删 bash 写文稿门、B4 删 `catch→undefined` 与 `return []`、B5 删 9:16 兜底与硬拼清单、B6a 删 `continue` 静默跳参考、B9 删静默 `return`、B10 删每格兜底文案、B13 删 `/Applications` 优先与启动重写、B3 删设置页第二份三档。唯一「新增」的门岗 `check:card-owner` 是响的检测器 |
 | c) 「同一语义多份定义」各有单一 owner | ✅ | 画幅 = `effectiveShotAspect`（B5）；模型清单 = 目录按 kind 派生（B5，含创作助手文本下拉 P0-10）；权限档 = 面板三档表（B3，删 `settings.mode`）；允许的供应商/模型 = approvedModelAccess（B5 删设置页那份）；文稿 = 主进程文档 store（B1）；MCP 宿主目录 = `BUILTIN_MCP_CLIENTS` × appInstalled（B15）；launcher = `process.execPath`（B13）|
 | d) 每批验收门可机器或走查验证 | ✅ | 每卡有 门岗/单测/走查断言 三选一以上；涉 Agent 的 B1/B2/B3/B4/B11/B12 有 R30 数字；用户可见的 B5/B6a/B7/B8/B9/B14b/B15 有走查截图或实验室基线 |
-| e) 与在途分支的文件重叠已标 | ✅ | §3 在途表 + §4.3 矩阵；未推送的 4 条分支（PR-B / param-panel / gates-risk-tier / skill 研究）文件面未知已标 ⚠️ |
+| e) 与在途分支的文件重叠已标 | ✅ | §3 在途表 + §4.3 矩阵；未推送的 3 条分支（PR-B / param-panel / agent-tool-face-research）文件面未知已标 ⚠️ |
 | f) file:line 在 origin/main 重核 | ✅ 21 处 ✔️ / ⚠️ 5 处 | ✔️：`projectCanvasReadSurface.ts:405/419/438`、`laneDesktopTools.ts:73/119`、`codingCommandPolicy.ts:366-371/380-382`、`storyboardPlan.ts:551-554`、`StoryboardShotTable.tsx:188`、`useAgentPanelSpendConfirm.ts:82-106`（编排者写 ~144，实为 82-106）、`productionActionIpc.ts:57-64`、`appIntegration.ts:~512`、`spendConfirm.ts:116-134`、`mcpConfig.ts:59/196/224/499-502`、`mcp-l2-journeys.e2e.mjs` 无 restore、`laneSkillIndex.mts:12-22/125-131`、`laneCodingSandbox.mts:110/114/122`、`NodeDepthActionButton.tsx:7`、`depthVideoModelCache.ts:43/162`、`AutomationPermissionsSection.tsx:188-190`、`agentPanelV4.ts:57`、`DirectorEditor.tsx:163` + `HelpDialog.tsx`、`package.json:93`。⚠️：`shotFrameGeometry.ts:19-20`、`storyboardAspectScope.ts:37-39`、`laneApprovalGate.ts:173`、`laneNativeApproval.ts:25-41`、`documentReadTransportAdapters.ts:50-51`（沿用同伴）。**修正一条前提**：`scene3dJourney.ts` 不在 main（`d3f68057c` 删），B14b 从历史取回 |
-| g) 无「之后再说」的空批 | ✅ | B11 是「待研究结论」但写明边界、验收门与触发条件；B14a 是产出清单的只读批；无一批内容为空 |
+| g) 无「之后再说」的空批 | ✅ | B11 研究已收、改法与验收门齐；B14a 是产出清单的只读批；无一批内容为空 |
 
 ---
 
