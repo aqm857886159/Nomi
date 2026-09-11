@@ -134,7 +134,7 @@ async function runProductionTextPlanner(input: {
   return text
 }
 
-/** 外部 MCP 付费确认：弹全仓唯一的确认对话框（agent 来源 + 明细 + 60s 倒计时），真人点了才回 confirmed。 */
+/** 外部 MCP 付费确认：弹全仓唯一的确认对话框（agent 来源 + 明细），真人点了才回 confirmed——卡不超时。 */
 async function confirmSpendForAgent(info: SpendConfirmPayload): Promise<{ confirmed: boolean }> {
   const store = useGenerationCanvasStore.getState()
   const node = store.nodes.find((item) => item.id === info.nodeId)
@@ -161,7 +161,6 @@ async function confirmSpendForAgent(info: SpendConfirmPayload): Promise<{ confir
     ].join('\n'),
     confirmLabel: i18n.t('runtime.capability.confirmGenerate'),
     source: 'agent',
-    countdownMs: 60_000,
     details: [
       spendQuoteDetail(info.quote ?? { amount: null }),
       // 项目行放第一位：用户可能不在这个项目里，先让他知道花在哪个项目。
@@ -213,8 +212,6 @@ async function confirmGenerationGateForAgent(
       }),
       confirmLabel: i18n.t('generationCommon.production.batch.confirm', { count: payload.shots.length }),
       source: 'agent',
-      // 倒计时时长随镜数伸缩：每镜 +8s，封顶 5 分钟（交互即暂停，见 SpendConfirmDialog）。
-      countdownMs: Math.min(300_000, 60_000 + payload.shots.length * 8_000),
       contract,
       onTrialFirst: () => {
         trialFirst = true
@@ -243,7 +240,6 @@ async function confirmGenerationGateForAgent(
     message: i18n.t('runtime.capability.generationGateMessage', { model, cost, shot }),
     confirmLabel: i18n.t('runtime.capability.confirmGenerate'),
     source: 'agent',
-    countdownMs: 60_000,
     details: [
       ...(info.projectName
         ? [{ label: i18n.t('runtime.capability.generationGateProject'), value: info.projectName }]
@@ -275,7 +271,6 @@ async function confirmPlanForAgent(info: PlanConfirmPayload): Promise<{ confirme
     message: i18n.t('runtime.capability.planMessage', { count }),
     confirmLabel: i18n.t('runtime.capability.planConfirm'),
     source: 'agent',
-    countdownMs: 60_000,
     details: [
       ...(projectName ? [{ label: i18n.t('runtime.capability.project'), value: projectName }] : []),
       {

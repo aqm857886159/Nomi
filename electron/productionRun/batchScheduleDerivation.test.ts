@@ -243,30 +243,20 @@ describe("P4 S4 deriveBatchPlan — anchor + checkpoint", () => {
     expect(result.shotDispatch).toEqual([]); // not released until the gate is opened + approved
   });
 
-  it("auto-releases the checkpoint when the configured timeout has elapsed", () => {
-    const openedAt = "2026-08-25T00:00:00.000Z";
-    const later = "2026-08-25T00:10:00.000Z"; // 10 minutes later
-    const result = deriveBatchPlan(baseInput({
-      plan: planWithAnchor(),
-      jobs: [anchorJobReady("anchor-1"), ...authorizedJobsFor(planWithAnchor().shots!.slice(1))],
-      anchorGate: anchorCheckpointGate("waiting", openedAt),
-      now: later,
-      anchorAutoReleaseMs: 5 * 60 * 1000, // 5 minutes
-    }));
-    expect(result.checkpoint.status).toBe("auto_release");
-    expect(result.shotDispatch.map((s) => s.shotId)).toEqual(["shot-a", "shot-b"]);
-  });
-
-  it("does NOT auto-release by default (anchorAutoReleaseMs undefined)", () => {
-    const later = "2026-08-25T02:00:00.000Z";
-    const result = deriveBatchPlan(baseInput({
-      plan: planWithAnchor(),
-      jobs: [anchorJobReady("anchor-1")],
-      anchorGate: anchorCheckpointGate("waiting", NOW),
-      now: later,
-    }));
-    expect(result.checkpoint.status).toBe("waiting");
-    expect(result.shotDispatch).toEqual([]);
+  // 2026-09-11 ruling: an approval gate NEVER decides itself. There is no timeout input any more, so
+  // "how long has it been waiting" is not an input to the derivation at all. This is the regression
+  // guard: no matter how much wall time passed, `waiting` stays `waiting` and no shot is dispatched.
+  it("never releases a waiting checkpoint on its own, however long it has been open", () => {
+    for (const later of ["2026-08-25T00:10:00.000Z", "2026-08-26T00:00:00.000Z", "2027-01-01T00:00:00.000Z"]) {
+      const result = deriveBatchPlan(baseInput({
+        plan: planWithAnchor(),
+        jobs: [anchorJobReady("anchor-1"), ...authorizedJobsFor(planWithAnchor().shots!.slice(1))],
+        anchorGate: anchorCheckpointGate("waiting", NOW),
+        now: later,
+      }));
+      expect(result.checkpoint.status).toBe("waiting");
+      expect(result.shotDispatch).toEqual([]);
+    }
   });
 
   it("re-dispatches ONLY the anchor (not shots) when the checkpoint was rejected", () => {

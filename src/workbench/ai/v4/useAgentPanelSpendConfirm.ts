@@ -21,6 +21,7 @@ import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { getActiveWorkbenchProjectId } from '../../project/workbenchProjectSession'
 import { productionRunApi } from '../../production/productionRunApi'
+import { toast } from '../../../ui/toast'
 import { useGenerationCanvasStore } from '../../generationCanvas/store/generationCanvasStore'
 import { getGenerationNodeCatalogKind } from '../../generationCanvas/model/generationNodeKinds'
 import { preloadModelOptions, MODEL_REFRESH_EVENT } from '../../../config/modelCatalogCache'
@@ -191,15 +192,37 @@ export function useAgentPanelSpendConfirm(): AgentPanelSpendConfirm {
     })
   }, [repriced, index, scope, t])
 
-  const act = React.useCallback((run: (target: PendingSpendConfirm) => Promise<unknown>) => {
+  /**
+   * 卡上四个动作共用的一次执行。**宿主说不行就必须让用户看见**：
+   *
+   * 这一层此前是 `.catch(() => undefined)` —— 主进程返回的 `{ok:false, message}` 和抛出来的异常一起
+   * 被吞掉，于是用户按下「生成 ¥0.50」之后界面一动不动：卡还在、钱没花、一个字的解释都没有。
+   * 而宿主那头明明有话说（「模型未加入白名单」「供应商还没配好」……）。按了没反应是最贵的一种沉默：
+   * 用户只能再按一次，或者以为 Nomi 坏了。
+   */
+  const act = React.useCallback((run: (target: PendingSpendConfirm) => Promise<{ ok?: boolean; message?: string } | unknown>) => {
     const target = pending
     if (!target || busy) return
     setBusy(true)
-    void run(target).catch(() => undefined).finally(() => {
-      setBusy(false)
-      void refresh()
-    })
-  }, [pending, busy, refresh])
+    // 用户看到的永远是这一句（i18n，R15），**不是宿主那句原话**：主进程的 message 混着内部术语和英文
+    // （`Provider X lacks required recovery capabilities: configured_provider`），直接印出去就是把
+    // 内部状态倒给用户。原话进控制台供排查，用户这边只留「没成 · 没开始生成 · 没花钱」这三件他能用的事。
+    const failed = (reason: unknown): void => {
+      // eslint-disable-next-line no-console
+      console.warn('[spend-confirm] host refused', reason)
+      toast(t('agentPanelV4.spendActionFailed'), 'error')
+    }
+    void run(target)
+      .then((result) => {
+        const outcome = result as { ok?: boolean; message?: string } | undefined
+        if (outcome && outcome.ok === false) failed(outcome.message ?? outcome)
+      })
+      .catch((error: unknown) => failed(error))
+      .finally(() => {
+        setBusy(false)
+        void refresh()
+      })
+  }, [pending, busy, refresh, t])
 
   return {
     pending: repriced,

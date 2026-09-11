@@ -1,0 +1,214 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-11-approval-gates-never-self-decide",
+  "problem_type": "审批闸自带「空闲到点就替用户答」的定时器：钱的门在没有人的时候会自己走完，而唯一该决定它的就是那个人",
+  "symptom": "2026-09-10 用户拍板两件事：**审批卡永不因空闲超时**、**付费与不可逆永远问**。当时仓库里有两处相反的实现：① 付费/合同确认卡跑一个 200ms 的倒计时，到点直接 `resolvePending(false)` 替用户按下「未确认」，卡上还印着「N 秒后自动忽略」；② 多镜批的锚检查点带一个 `anchorAutoReleaseMs` 超时，等够时间就 `gate.decide approved`——**自动把一道付费批次的闸批掉**。生产没有给它配值，但该能力在代码里存在、在测试里被当捷径用（四处 `anchorAutoReleaseMs: 0` 绕过检查点），这恰好把「生产没有审批入口」那个 bug 盖了很久。同一轮还量出第三个症状：付费卡的主按钮按下去之后宿主返回 `{ok:false,message}` 被 `.catch(() => undefined)` 吞掉，界面一动不动、一个字都没有——用户只会再按一次，或者以为 Nomi 坏了。④ **删掉卡上的倒计时之后才露出来的第四处**：同一条等待在**主进程**还有一份兜底（`gateway.ts` 的 `RENDERER_SPEND_TIMEOUT_MS = 65_000`、`taskSpend.ts` 写死的 `65_000`、`appIntegrationAuthorities.ts` 的 `60_000`），它们原本被设计成「比卡的 60s 倒计时略长的防挂死」。倒计时一删，这三处就成了同一件事的暗面：卡还好端端在屏幕上，请求已经被替用户答成「否」，pending 被删，他三分钟后按下「生成 ¥0.50」时那条 reply 被静默丢弃，界面一动不动——正是本轮要根治的形态本身，只是藏在了用户看不见的进程里。",
+  "direct_cause": "① `SpendConfirmDialog.tsx` 的倒计时 effect 每 200ms 收敛一次，`left <= 0` 时调 `resolvePending(false)`；时长由调用方的 `countdownMs` 给（`capabilityApplyHandler.ts` 四个付费/方案门各写一个 60s 或按镜数伸缩的值）。② `batchScheduleDerivation.ts` 的 `checkpointStatus` 在 `gate.status === \"waiting\" && input.anchorAutoReleaseMs !== undefined` 时比较 `now - gate.createdAt`，够了就回 `auto_release`；`multiShotBatchScheduler.ts` 看见这个状态就发一条 `gate.decide approved`。③ `useAgentPanelSpendConfirm.ts` 的 `act` 用 `.catch(() => undefined)` 吞掉全部失败，且不看 `{ok:false}`。④ `rendererBridge.requestRenderer` 只有「超时即 reject」一种等法，于是四个「等真人按」的调用点（`gateway.confirmSpend` / `gateway.confirmPlan` / `taskSpend.consumeTaskSpend` / `appIntegrationAuthorities.confirmGenerationInNomi`）只能各传一个墙钟毫秒数，catch 里一律当作未确认。",
+  "class_root": "**一个「等人决定」的状态，被允许由时间而不是人推进。** 三处的形状是同一个：判据里混进了「已经等了多久」这个量，而这个量与「用户想不想花这笔钱」毫无关系；一旦混进去，无人看管就等于默认答案（付费卡答「不」、检查点答「批」——方向相反，同样不是用户的意思）。与它同构的第三个变体是「宿主已经答了，但答案没有出口」：`act` 把失败吞掉，用户那头看到的同样是「时间过去了，什么都没发生」。所以修法不是调时长、不是加一个开关，而是**把时间从审批判据里彻底拿掉，并保证宿主的每个回答都有一个用户看得见的出口**。第四处更进一步说明这个形状为什么反复长出来：写「不能死等」的人是对的——一个请求确实不能永远挂着——但**活性的判据被错选成了「等了多久」，而正确的判据是「那个要按按钮的界面还在不在」**。换成后者，活性一分不少（窗口关了、渲染进程没了、主窗口被换掉都立刻 fail-closed），而时间彻底退出审批。",
+  "migration": "无数据迁移：删掉的是运行期定时器与一个从未在生产配过值的调度选项。`countdownMs` 字段从请求契约上移除（四个调用点同 commit 删），`anchorAutoReleaseMs` 选项、`auto_release` 状态与 `autoReleaseCheckpoint` 命令同 commit 删，`scripts/vocabularies-baseline.json` 里 `CheckpointStatus` 的成员表同步减一。此前靠 `anchorAutoReleaseMs: 0` 抄近路的四处测试改成像生产入口那样发一条真的 `gate.decide approved`（两个文件各加一个 `approveCheckpoint` 助手）。已存在的 durable Run 不受影响：等待中的门还是等待中，只是不会再自己变成 approved。",
+  "affected_population": [
+    "所有把付费确认卡放着去做别的事的用户：单发付费门 60s、多镜合同门最多 5 分钟，回来时卡已经自己按了「未确认」，而他以为还在等他",
+    "外部 MCP 宿主（Claude Desktop / Codex）驱动的付费确认：同一张卡、同一条倒计时，用户在另一个窗口里根本没看见它就被判了「没确认」",
+    "多镜批的锚检查点：只要有人给 Run 配上 `anchorAutoReleaseMs`（代码支持、测试在用），一整批付费镜头会在无人看管时自动开拍",
+    "所有在 Agent 面板里按付费卡主按钮的用户：宿主拒绝时界面毫无反应（实测拒绝理由是 `Provider X lacks required recovery capabilities`，用户一个字都收不到）",
+    "删掉卡上倒计时之后、主进程兜底还在的那个中间态里的每一个人：卡永远留在屏幕上，而 60/65s 之后按下去完全没有反应——比原来的「自动按了未确认」更难看懂，因为连卡消失这个线索都没有了"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/spend/",
+    "src/workbench/capability/capabilityApplyHandler.ts",
+    "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts",
+    "electron/productionRun/",
+    "electron/capabilityCore/rendererBridge.ts",
+    "electron/capabilityCore/gateway.ts",
+    "electron/capabilityCore/appIntegrationAuthorities.ts",
+    "electron/tasks/taskSpend.ts"
+  ],
+  "entry_points": [
+    "SpendConfirmDialog 的倒计时 effect（src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx）— 唯一一处会替用户 resolve 的定时器，已删；`countdownMs` 一并从 `spendConfirm.ts` 的请求契约上删除，于是「再传一个时长进来」在类型层就不成立",
+    "capabilityApplyHandler 的四个付费/方案确认调用点（src/workbench/capability/capabilityApplyHandler.ts）— 外部 MCP 付费门 / 多镜合同门 / 单镜生成门 / 方案门，四处 `countdownMs` 全删",
+    "checkpointStatus（electron/productionRun/batchScheduleDerivation.ts）— 检查点判据里的时间分支已删，`waiting` 只能由一条真的 `gate.decide` 推动；`CheckpointStatus` 联合类型上不再有 `auto_release` 这个成员",
+    "autoReleaseCheckpoint / BatchSchedulerOptions.anchorAutoReleaseMs（electron/productionRun/multiShotBatchScheduler.ts）— 发自动批准命令的那一段与它的选项一起删",
+    "AnchorCheckpointCard 的自动放行脚注（src/workbench/generationCanvas/spend/AnchorCheckpointCard.tsx）— `autoReleaseSeconds` prop 与「N 分钟无操作将自动开拍」文案一起删",
+    "useAgentPanelSpendConfirm 的 act（src/workbench/ai/v4/useAgentPanelSpendConfirm.ts）— 宿主回答的唯一出口：`{ok:false}` 与抛出的异常都走同一句 i18n 提示，原话进控制台",
+    "rendererBridge 的 requestRenderer（electron/capabilityCore/rendererBridge.ts）— 主进程等渲染层的唯一通道。新增 `requestRendererDecision`（等人：无墙钟期限，按收件渲染层的生死收尾），四个「等真人按」的调用点全部改用它：gateway.confirmSpend / gateway.confirmPlan / taskSpend.consumeTaskSpend / appIntegrationAuthorities.confirmGenerationInNomi"
+  ],
+  "invariants": [
+    "审批/付费确认上不存在任何以时间为判据的自动决议：没有 setTimeout/setInterval 会调 resolve，没有 deadline 分支会 decide 一道门",
+    "`CheckpointStatus` 的 `waiting` 只能由一条真实的 `gate.decide` 命令离开——推进它的输入里不含「已经等了多久」",
+    "付费确认的请求契约上不存在「多久之后自动怎样」这类字段（`countdownMs` 已从类型上移除，再传进来编译不过）",
+    "凭据类 TTL（收据 / 报价 / 授权令牌 / 幂等窗口）与审批超时是两回事：前者过期只让这张凭据失效、要求重新走一遍，绝不代替用户作答，故一律保留",
+    "付费卡上的每一次动作，宿主的回答都必须有一个用户看得见的出口；印给用户的是 i18n 那一句，宿主的内部错误串只进控制台",
+    "主进程等真人作答的请求没有墙钟期限：活性判据是「收件的那个渲染层还在不在」（窗口销毁 / 渲染进程没了 / 主窗口被换掉 → 立即 fail-closed 当作未确认），而不是「等了多久」"
+  ],
+  "regression_tests": [
+    "electron/capabilityCore/rendererBridge.test.ts",
+    "electron/productionRun/batchScheduleDerivation.test.ts",
+    "electron/capabilityCore/agentPanelSpendConfirm.e2e.test.ts",
+    "tests/ux/agent-spend-confirm-executes.walk.mjs",
+    "tests/ux/mcp-generation-multishot-confirm.e2e.mjs"
+  ],
+  "residual_risks": [
+    "主进程等真人作答的那条 pending 现在只靠「收件渲染层还在不在」收尾。窗口销毁、渲染进程没了、主窗口被换掉三种都接住了；理论上若某天出现「窗口活着但界面卡死，永远不回复」的第四种，这条会一直挂着（不占资源，重启即清）。选它而不是留一个长超时，是因为长超时会重新把「等了多久」放回审批判据里——那正是这份合同要根除的形状。",
+    "外部 MCP 客户端发起的付费确认现在会一直等到真人作答。调用方那头的超时是它自己的事——这正是拍板要的语义（宁可那边超时，也不替用户按下「未确认」）；但它意味着一个没人看的窗口里可以永远挂着一张卡，卡本身不占资源、可随时被 × 掉。",
+    "锚检查点失去了「无人看管时自动往前走」的能力，长批次因此可能停在检查点上等很久。这是有意的：那一步之后花的是真钱。",
+    "`act` 现在只印一句通用提示，用户拿不到宿主给的具体原因（宿主那句混着英文与内部术语，直接印出去违反 R15/R2）。把宿主错误分类成人话是独立一件事，已记进 docs/plan/2026-09-10-permission-model-rework.md 的「P1.1a 已知缺口」。"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "这是一条产品语义裁决（2026-09-10 用户拍板：审批卡永不空闲超时、付费与不可逆永远问），不需要外部文档来决定对错；同方向的行业依据早已写在 docs/plan/2026-09-10-permission-model-rework.md 的「先查别人」一节里（Claude Code / Codex CLI / Cursor / Cline / pi-permission-system 五家共同的「危险或花钱的动作任何模式都不自动放行」），本次不重复检索。删除范围的判定全部来自仓库内可复跑的证据：`grep -rn -i -E 'countdown|倒计时|autoApproveAfter|idleTimeout|expiresAt' src electron` 的逐条分诊。",
+  "invariant_owner_layer": {
+    "layer": "electron/productionRun/batchScheduleDerivation.ts",
+    "tests": [
+      "electron/productionRun/batchScheduleDerivation.test.ts",
+      "electron/capabilityCore/agentPanelSpendConfirm.e2e.test.ts"
+    ],
+    "note": "检查点判据的唯一 owner；付费确认请求契约那半边的 owner 是 src/workbench/generationCanvas/spend/spendConfirm.ts（同 commit 一起收紧，见 shared_boundaries）"
+  },
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "「等人决定的东西被时间推着走」在本仓已经独立长出过至少两次，而且两次的默认答案方向相反（卡超时=拒、检查点超时=批），说明它不是某一个人写歪了一行，而是一种在「不能死等」的直觉下会反复被写出来的形状：只要下一个审批面再遇到「外部调用方在等 / 批次不能停」的压力，同样的定时器就会再长一次。第三个变体（宿主已经答了但答案没有出口）同一天在付费卡上被量到，机制相同——用户那头看到的都是「时间过去了，什么都没发生」。",
+    "same_class_scan": [
+      "`grep -rn -i -E 'countdown|倒计时|autoApproveAfter|idleTimeout|expiresAt' src electron`（2026-09-11 实跑）：审批类命中两族——SpendConfirmDialog 的倒计时（含 capabilityApplyHandler 四个调用点、spendConfirm 的契约字段、AnchorCheckpointCard 的脚注、三对 i18n 词条）与 batchScheduleDerivation/multiShotBatchScheduler 的 anchorAutoReleaseMs，两族本次全删",
+      "同一次扫描的非审批命中逐条分诊后**保留**：`electron/capabilityCore/approvalReceipt.ts`（收据 TTL + 一次性消费，防重放）、`electron/spendQuote.ts` / `electron/spendGrant.ts`（报价与授权令牌新鲜度）、`electron/submissionLedger.ts`（幂等去重窗口）、`productionContractView.ts` 的 `expiresAt`（只是显示门凭据何时失效）——它们过期都只让凭据失效、要求重走一遍，不替用户作答",
+      "同一次扫描的无关命中：`viewportTargetTracker.ts`（视口目标的 grace 期）、`deferredNodeMediaQueue.ts` 的 autoReleaseTimer（媒体队列）、`videoDepthNodeModel` 的 countdown（视频任务剩余时间显示）、`DreaminaMemberCard` 的设备码 `expiresAt`（OAuth device flow）——都与审批无关",
+      "**第一轮扫描漏了第四族，补记以警后来者**：`countdown|倒计时|autoApproveAfter|idleTimeout|expiresAt` 这组词按不中主进程那三处——它们叫 `RENDERER_SPEND_TIMEOUT_MS` / 写死的 `65_000` / `60_000`，字面上是「超时」不是「倒计时」。补扫 `grep -rn \"requestRenderer(\" electron/ | grep -v test` 逐条判「这条等的是渲染层自己干活，还是等人按按钮」，命中四处等人的：gateway.confirmSpend / gateway.confirmPlan / taskSpend / appIntegrationAuthorities.confirmGenerationInNomi，本次全部改走 `requestRendererDecision`。教训：同类扫描的词表要按**语义**（谁在等谁）而不是按**命名**（这个词怎么写）展开",
+      "同一次补扫保留的：`productionRunDriverOps` / `productionRunArtifactOperations` / `productionRunService` 的 requestRenderer 超时（5–30 分钟）——那些等的是渲染层自己在干活（导出、逐镜校验、物化分镜），等太久就是它卡住了，超时正是对的活性判据，与「等人」无关",
+      "`electron/capabilityCore/mcpElicitation.ts` 的 300s `sendServerRequest` 超时**保留**：那张卡是**外部 MCP 客户端**（Claude Desktop / Codex）自己画的，我们这边是一条发给外部进程的 JSON-RPC 请求。MCP 规范本身就为请求设超时，而且外部客户端断开时唯一能让我们收尾的就是它。Nomi 自己的卡永不超时，别人家的卡由别人家负责——两件事不混为一谈",
+      "`grep -rn 'catch(() => undefined)' src/workbench/ai/`（2026-09-11 实跑）：付费卡的 `act` 是唯一一处把**宿主对用户动作的回答**整个吞掉的地方，本次改掉；同目录其余 catch 吞的是轮询/订阅这类后台读，不是用户动作的回答"
+    ]
+  },
+  "generality_proof": "修在「谁决定这道门」的那一层，而不是在出错的那一点上调参数：① 检查点判据（`batchScheduleDerivation.ts` 的 `checkpointStatus`）是全仓唯一决定「镜头批能不能往下走」的地方，把时间分支连同 `auto_release` 这个联合类型成员一起删掉之后，「等了很久所以批了」在类型层就不可表达——以后想再加回来必须改这个联合类型、改词表基线，两处都会被门岗看见；② 付费确认的请求契约（`spendConfirm.ts`）是全仓唯一入口，`countdownMs` 从类型上消失之后，任何调用方想再传一个时长进来直接编译不过，而不是「记得别传」；③ 宿主回答的出口收在 `act` 这一个回调里（卡上四个动作共用它），所以以后新增第五个动作自动带上出口，不需要每处各写一遍 toast。三处的共同点是：删掉的能力在结构上不可复现，而不是靠约定不用。",
+  "shared_boundaries": [
+    {
+      "path": "electron/productionRun/batchScheduleDerivation.ts",
+      "symbol": "CheckpointStatus 联合类型 + checkpointStatus()",
+      "responsibility": "「锚检查点能不能放行镜头批」的唯一判据。输入里不含时间，`waiting` 只能被一条真实的 gate.decide 推动；联合类型上不存在任何表示「自动放行」的成员"
+    },
+    {
+      "path": "src/workbench/generationCanvas/spend/spendConfirm.ts",
+      "symbol": "SpendConfirmRequest",
+      "responsibility": "付费/合同确认请求的唯一契约。它上面不存在「多久之后自动怎样」的字段，因此任何调用方都无法把一条超时语义带进确认卡"
+    },
+    {
+      "path": "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts",
+      "symbol": "act()",
+      "responsibility": "付费卡上四个动作共用的执行口，也是宿主回答的唯一出口：失败必须有一句用户看得见的 i18n 提示，宿主原话只进控制台"
+    },
+    {
+      "path": "electron/capabilityCore/rendererBridge.ts",
+      "symbol": "requestRendererDecision()",
+      "responsibility": "主进程「等真人作答」的唯一等法。它不接受任何时长参数——调用方连表达一个墙钟期限的机会都没有——活性改由收件渲染层的生死给出。等渲染层自己干活的另有 requestRenderer(timeoutMs)，两种等法在 API 上分开，写代码时必须先答「我在等谁」"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/productionRun/batchScheduleDerivation.ts",
+      "entry_point": "checkpointStatus 的 waiting 分支",
+      "disposition": "enforced",
+      "evidence": "时间分支与 `auto_release` 成员同 commit 删除；`batchScheduleDerivation.test.ts` 新增的用例把三个相隔 10 分钟到 1 年多的 `now` 依次喂进去，断言 `waiting` 恒为 `waiting`、`shotDispatch` 恒为空。旧的两条（「超时就 auto_release」「默认不自动放行」）一起替换掉，不留并行断言。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx",
+      "entry_point": "倒计时 effect 与两条倒计时进度条",
+      "disposition": "enforced",
+      "evidence": "effect、`remainingMs` 状态、`interacted`（它只为「交互即暂停」存在，而暂停只在有倒计时时有意义）、两条进度条与 `data-production-countdown` 锚点全删；`tests/ux/mcp-generation-multishot-confirm.e2e.mjs` 改成结构 + 行为双判据：DOM 上没有倒计时条，且静置 2s 之后卡仍在等人答（只断结构会漏掉「条不渲染但计时器照跑」）。"
+    },
+    {
+      "path": "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts",
+      "entry_point": "act 的失败处理",
+      "disposition": "enforced",
+      "evidence": "`tests/ux/agent-spend-confirm-executes.walk.mjs` 在真 Electron 里像真人一样按下付费卡主按钮，用 MutationObserver 盯真通知节点，断言必须出现「没有开始生成」那句人话、且不许出现宿主的内部串 `configured_provider`。2026-09-11 真机跑绿（截图 .tmp/pi-spend-confirm-executes-*/02-spend-confirm-refusal-is-visible.png）。"
+    },
+    {
+      "path": "electron/capabilityCore/rendererBridge.ts",
+      "entry_point": "requestRenderer —— 主进程等渲染层的唯一通道（此前只有「超时即 reject」一种等法）",
+      "disposition": "enforced",
+      "evidence": "新增 `requestRendererDecision(op, payload)`：**不接受时长参数**，活性判据换成「收件的那个渲染层还在不在」（destroyed / render-process-gone / setRendererTarget 换人 → 立即 fail-closed reject）。改走 `requestRendererDecision(op, payload)`（无时长参数），墙钟常量同 commit 删除。共同的回归测试在 `electron/capabilityCore/rendererBridge.test.ts`：① 静置远超任何一版倒计时之后仍未自行作答，人后来按下去那条 reply 照样被认领（旧实现里 pending 已被超时删掉，这条会被静默丢弃）；② 窗口销毁 → RendererUnavailableError；③ 主窗口被换掉 → RendererUnavailableError。2026-09-11 做过变异验证：把 `until-recipient-gone` 换回 `{kind:'timeout',ms:10}`，三条当场全红。"
+    },
+    {
+      "path": "electron/capabilityCore/gateway.ts",
+      "entry_point": "confirmSpend / confirmPlan 的 RENDERER_SPEND_TIMEOUT_MS = 65_000",
+      "disposition": "enforced",
+      "evidence": "两处改走 `requestRendererDecision`，`RENDERER_SPEND_TIMEOUT_MS` 常量同 commit 删除（它唯一的用处就是这两处）。catch 分支的注释同步改写：现在只有「窗口没了」一种失败，没有「等太久」那一档。"
+    },
+    {
+      "path": "electron/tasks/taskSpend.ts",
+      "entry_point": "consumeTaskSpend 里写死的 spend.confirm 65_000",
+      "disposition": "enforced",
+      "evidence": "改走 `requestRendererDecision`；`electron/tasks/taskSpend.test.ts` 的断言从 `toHaveBeenCalledWith('spend.confirm', …, 65_000)` 改成不带第三个参数——多传一个时长进去当场红。"
+    },
+    {
+      "path": "electron/capabilityCore/appIntegrationAuthorities.ts",
+      "entry_point": "confirmGenerationInNomi 的 generation.gate.confirm 60_000",
+      "disposition": "enforced",
+      "evidence": "改走 `requestRendererDecision`。挑战自己的 `expiresAt` 保留并在注释里写明理由：那是凭据新鲜度（过期只让这张凭据不能再用，门照样等着人），不是替用户答「否」。"
+    },
+    {
+      "path": "electron/capabilityCore/mcpElicitation.ts",
+      "entry_point": "booleanConfirm / requestUrl 的 300s sendServerRequest 超时",
+      "disposition": "not-affected",
+      "evidence": "这条等的不是 Nomi 的卡，而是**外部 MCP 客户端**自己画的确认界面，中间隔着一条到外部进程的 JSON-RPC。MCP 规范为请求设超时，外部客户端静默断开时这也是唯一的收尾手段。拍板管的是「Nomi 自己的审批卡永不因空闲超时」，不是「替别人家的客户端决定它的 UI 该等多久」。"
+    },
+    {
+      "path": "electron/capabilityCore/approvalReceipt.ts",
+      "entry_point": "收据 TTL 校验与 consumeReceipt 一次性消费",
+      "disposition": "not-affected",
+      "evidence": "这是防重放不是空闲超时：收据过期只让这一张凭据不能再用，卡照样等人按，下一次确认会重新铸一张。删掉它等于开一个重放洞。`agentPanelSpendConfirm.e2e.test.ts` 的「确认过一次之后重复按不再发第二次生成」正是靠这条不变量成立。"
+    },
+    {
+      "path": "electron/submissionLedger.ts",
+      "entry_point": "LedgerEntry.expiresAt 的 TTL 清理",
+      "disposition": "not-affected",
+      "evidence": "幂等去重窗口（同一条提交在多久内算同一次），与审批语义无关：它过期只影响「重放会不会被合并」，从不产生任何门的决议。"
+    }
+  ],
+  "prevention": {
+    "kind": "type-system",
+    "enforcement_path": "electron/productionRun/batchScheduleDerivation.ts",
+    "invariant": "主进程「等真人作答」的那条 API（`requestRendererDecision`）**不接受时长参数**，于是调用方连表达一个审批超时的位置都没有；「锚检查点自动放行」同样在类型层不可表达：`CheckpointStatus` 联合类型上没有对应成员，`BatchDerivationInput` 上没有任何时间预算字段，于是调度器不可能收到一个「时间到了所以批了」的状态",
+    "failure_mode": "想把它加回来必须先在联合类型上加一个成员——那会同时撞上 `scripts/vocabularies-baseline.json` 里 `CheckpointStatus` 的成员表（`check:vocabularies` 对新增成员报红），并让 `batchScheduleDerivation.test.ts` 的「无论等多久都不自我放行」用例失败；付费卡那半边则由 `spendConfirm.ts` 的契约把关——再传一个时长进来直接编译不过",
+    "exception_policy": "none",
+    "strategy": "把「时间」从审批判据里删到类型层：两个 owner 上都不再存在可以表达超时语义的字段或成员，旧实现同 commit 删除，不留开关、不留 fallback（P1）",
+    "artifacts": [
+      "electron/productionRun/batchScheduleDerivation.ts",
+      "electron/productionRun/multiShotBatchScheduler.ts",
+      "src/workbench/generationCanvas/spend/spendConfirm.ts",
+      "src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx",
+      "src/workbench/capability/capabilityApplyHandler.ts",
+      "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts",
+      "scripts/vocabularies-baseline.json",
+      "electron/productionRun/batchScheduleDerivation.test.ts",
+      "electron/capabilityCore/agentPanelSpendConfirm.e2e.test.ts",
+      "tests/ux/agent-spend-confirm-executes.walk.mjs",
+      "electron/capabilityCore/rendererBridge.ts",
+      "electron/capabilityCore/rendererBridge.test.ts",
+      "electron/capabilityCore/gateway.ts",
+      "electron/capabilityCore/appIntegrationAuthorities.ts",
+      "electron/tasks/taskSpend.ts"
+    ]
+  },
+  "class_regression_tests": [
+    "electron/capabilityCore/rendererBridge.test.ts",
+    "electron/productionRun/batchScheduleDerivation.test.ts",
+    "electron/capabilityCore/agentPanelSpendConfirm.e2e.test.ts",
+    "tests/ux/agent-spend-confirm-executes.walk.mjs",
+    "tests/ux/mcp-generation-multishot-confirm.e2e.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx",
+      "src/workbench/generationCanvas/spend/spendConfirm.ts",
+      "src/workbench/generationCanvas/spend/AnchorCheckpointCard.tsx",
+      "src/workbench/capability/capabilityApplyHandler.ts",
+      "electron/productionRun/batchScheduleDerivation.ts",
+      "electron/productionRun/multiShotBatchScheduler.ts",
+      "src/i18n/locales/generationCommon.ts"
+    ],
+    "rationale": "两族旧实现同 commit 删干净、不留开关：倒计时 effect/状态/进度条/契约字段/四个调用点/脚注，以及 `anchorAutoReleaseMs` 选项、`auto_release` 状态、`autoReleaseCheckpoint` 命令；对应的 i18n 词条（`spend.autoIgnore`、`production.batch.countdownPaused/countdownAuto`、`production.checkpoint.autoRelease`，zh+en）同步删除。此前靠 `anchorAutoReleaseMs: 0` 抄近路的四处测试改成发真的 `gate.decide`，不是保留一个测试专用后门。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "纯删除 + 一处失败出口的补全，没有引入或升级任何依赖。",
+    "exit_criteria": []
+  }
+}
