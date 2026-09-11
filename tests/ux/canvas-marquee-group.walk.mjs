@@ -157,9 +157,10 @@ try {
   await expectCount(getWin().locator('.generation-canvas-v2-node'), NODE_COUNT, `画布上应当有 ${NODE_COUNT} 个节点`)
   await clickOrFail(getWin().locator('[aria-label="适应视图"]'), '适应视图')
   await clearSelection()
-  // 「适应视图」不放大到 1 以上，三张卡在默认缩放下装不进视口；装不下 = React Flow 的框选
-  // （SelectionMode.Full）永远选不全，那一步会以「框选没框住」的形式报红，把人引向错误的方向。
-  // 所以先用真实的滚轮缩放把它们收进来，收不进来就 fail-closed。
+  // 「适应视图」不放大到 1 以上，三张卡在默认缩放下装不进视口；装不下视口的节点，
+  // 不管 selectionMode 是 Full 还是 Partial，屏幕坐标的框选矩形都够不着它——那一步
+  // 会以「框选没框住」的形式报红，把人引向错误的方向。所以先用真实的滚轮缩放把它们
+  // 收进来，收不进来就 fail-closed。
   await zoomOutUntilNodesFit()
   await snap('00-nodes-ready')
 
