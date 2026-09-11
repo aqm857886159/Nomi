@@ -46,13 +46,13 @@ export function groupOtherVendorModels(
 
 export function resolveKindGuessGap(
   models: readonly ChipModel[],
-  vendorMeta: ReadonlyMap<string, OnboardingVendorMeta>,
 ): { dominantKind: string; count: number; missing: Array<(typeof KIND_CAPS)[number]['labelKey']> } | null {
   const coveredKindCounts = new Map<string, number>()
   for (const model of models) {
-    if (!model.enabled) continue
-    const meta = vendorMeta.get(model.vendorKey)
-    if (!meta?.hasApiKey && !(meta?.authType === 'none' && meta.enabled)) continue
+    // 「这一类已经有得用了吗」问的就是可用性，所以只认主进程那一个答案（P0-10 根因修复）。
+    // 旧写法是 `model.enabled && (vendor.hasApiKey || 免鉴权)` 的近似——它会把一个接进来但
+    // 认证没走完的图片模型算成「图片这一类你已经覆盖了」，于是该提醒用户补模型的时候不提醒。
+    if (model.availability?.usable !== true) continue
     const kind = String(model.kind)
     coveredKindCounts.set(kind, (coveredKindCounts.get(kind) ?? 0) + 1)
   }

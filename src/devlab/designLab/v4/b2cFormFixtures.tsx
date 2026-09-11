@@ -13,7 +13,7 @@ const B2C_MODELS: ModelCatalogModelDto[] = [
   { modelKey: 'deepseek-v4-pro', labelZh: 'DeepSeek V4 Pro', kind: 'text' },
   { modelKey: 'gpt-image-2', labelZh: 'GPT Image 2', kind: 'image' },
   { modelKey: 'MiniMax-H3', labelZh: 'MiniMax H3', kind: 'video' },
-].map(model => ({ ...model, kind: model.kind as ModelCatalogModelDto['kind'], vendorKey: 'b2c-catalog', enabled: true, published: true, publishedModes: [], createdAt: '2026-09-09T00:00:00Z', updatedAt: '2026-09-09T00:00:00Z' }))
+].map(model => ({ ...model, kind: model.kind as ModelCatalogModelDto['kind'], vendorKey: 'b2c-catalog', enabled: true, published: true, publishedModes: [], availability: { usable: true } as const, createdAt: '2026-09-09T00:00:00Z', updatedAt: '2026-09-09T00:00:00Z' }))
 
 export function B2cModelSpecimen(): JSX.Element {
   const { t } = useTranslation()
