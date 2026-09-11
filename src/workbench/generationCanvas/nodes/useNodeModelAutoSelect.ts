@@ -37,6 +37,7 @@ import {
   nodeHasImageReference,
   resolveDefaultModelOption,
 } from './defaultNodeModelSelection'
+import { readCandidateNodeIdentity } from '../agent/candidateNodeMeta'
 
 type UseNodeModelAutoSelectArgs = {
   node: GenerationCanvasNode
@@ -102,9 +103,26 @@ export function useNodeModelAutoSelect({
   React.useEffect(() => {
     if (!isGenerationNode) return
     if (selectedModelValue) return
-    if (!defaultsReady) return
     const latestNode = getLatestNode()
     const latestMeta = latestNode.meta || {}
+    // 这张卡是 agent 草稿的投影，而候选指定的模型此刻解析不出来（不在可用清单里）。
+    // **绝不替他挑一个**：静默换掉之后，「agent 说的模型」和「卡上的模型」就对不上了，
+    // 而用户没有任何线索知道换过——2026-09-10 真机 bug 的形状正是这个。
+    // 诚实做法：保留 agent 的意图（戳仍在 meta 上），把缺口明着告诉用户（D4）。
+    const candidateIdentity = readCandidateNodeIdentity(latestMeta)
+    if (candidateIdentity?.modelKey) {
+      useToastStore.getState().push({
+        id: `candidate-model-unavailable:${node.id}:${candidateIdentity.modelVendor}:${candidateIdentity.modelKey}`,
+        type: 'warning',
+        ttl: false,
+        message: t('generationCommon.node.candidateModelUnavailable', {
+          model: candidateIdentity.modelKey,
+          vendor: candidateIdentity.modelVendor || '—',
+        }),
+      })
+      return
+    }
+    if (!defaultsReady) return
     const taskKind = deriveGenerationDefaultTaskKind({
       isImageLike,
       isVideoLike,
@@ -131,7 +149,7 @@ export function useNodeModelAutoSelect({
           : { imageModel: firstOption.value, imageModelVendor: firstOption.vendor || null }),
       }, firstOption.meta),
     })
-  }, [defaultsReady, getLatestNode, isGenerationNode, isImageLike, isVideoLike, modelOptions, node.id, selectedModelValue, writeDerivedMeta])
+  }, [defaultsReady, getLatestNode, isGenerationNode, isImageLike, isVideoLike, modelOptions, node.id, selectedModelValue, t, writeDerivedMeta])
 
   React.useEffect(() => {
     if (!isGenerationNode || !selectedModelOption) return

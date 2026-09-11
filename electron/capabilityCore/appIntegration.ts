@@ -36,7 +36,7 @@ import {
 import { createMultiShotBatchScheduler, type MultiShotBatchScheduler } from '../productionRun/multiShotBatchScheduler'
 import { registerBatchSchedulerKicker } from '../productionRun/batchSchedulerKick'
 import type { ProductionActionResult } from '../productionRun/productionRunTypes'
-import { landCanvasForRun } from '../productionRun/multiShotCanvasLanding'
+import { createCanvasLandingHost } from '../productionRun/canvasLandingHost'
 import { createArtifactProjection, getArtifactPreviewSecret } from '../productionRun/artifactProjection'
 import { createCatalogModelPricingResolver, createCatalogShotPriceResolver } from '../productionRun/catalogPricingResolver'
 import type { ModuleRegistry } from './moduleRegistry'
@@ -165,7 +165,13 @@ export async function startCapabilityCore(
     } catch { /* 宿主配置不可读不是 Nomi 的故障，不能反向拖垮能力核 */ }
     const token = ensureToken()
     const generationService = getProductionRunService()
-    const operationStore = createProductionGenerationOperationStore(generationService)
+    // 建草稿 / 改草稿即刻落画布。真正的落地函数（landCanvasBestEffort）在下面才装配得起来
+    // （它要 requestRenderer / projectRoot / 预览密钥），故这里留一个后填的钩子槽：
+    // 装配完成前的调用是 no-op（能力核还没就绪时本来也没有渲染层可落）。
+    let landDraftOnCanvas: ((projectId: string, runId: string) => void) | null = null
+    const operationStore = createProductionGenerationOperationStore(generationService, {
+      onPlanChanged: (projectId, operationId) => landDraftOnCanvas?.(projectId, operationId),
+    })
     const generationPolicy = authorities.generationPolicy ?? createRuntimeMcpGenerationPolicy()
     // P4 S4: trialFirst narrows the durable plan to shot 1 and re-seals it.
     const defaults = createDefaultAuthorities(generationPolicy, {
@@ -223,35 +229,18 @@ export async function startCapabilityCore(
     const resolveShotPrice = (contract: Parameters<ReturnType<typeof createCatalogShotPriceResolver>>[0]) => createCatalogShotPriceResolver(readCatalog().models)(contract)
     // P4 S5：只认 main-issued Surface 的完整 committed identity；renderer scalar 不是 authority。
     const isProjectOpen = (id: string) => canvasReadSurfaceRuntime.getCommittedProjectSelection()?.projectId === id
-    // P4 S5：把一个 Run 的镜尽力落成画布占位/组/回填 result，并把 shotId→nodeId 写回 Run（best-effort，永不抛）。
-    // 确认即落与打开项目补齐（reconcileOpenProject）共用它——一个家（P1）。
-    const landCanvasBestEffort = async (projectId: string, runId: string, isCurrent?: () => boolean): Promise<boolean> => {
-      if (isCurrent && !isCurrent()) return false
-      let run
-      try {
-        run = generationService.repository.read(projectId, runId)
-      } catch {
-        return false
-      }
-      if (!run) return false
-      const projectRoot = resolveWorkspaceProjectDir(projectId, getWorkspaceRepositoryDeps())
-      return landCanvasForRun(run, {
-        requestRenderer,
-        projectRoot,
-        previewSecret: getArtifactPreviewSecret(),
-        planName: run.brief?.goal,
-        ...(isCurrent ? { isCurrent } : {}),
-        bindShotNodes: async (boundProjectId, boundRunId, expectedRevision, bindings) => {
-          await generationService.command(boundProjectId, boundRunId, {
-            commandId: `canvas-landing:${boundRunId}:bind:${bindings.map((binding) => `${binding.shotId}=${binding.nodeId}`).join(',')}`.slice(0, 200),
-            expectedRevision,
-            type: 'plan.bind-shot-nodes',
-            payload: { bindings },
-            issuedAt: new Date().toISOString(),
-          })
-        },
-      })
-    }
+    // P4 S5：三个落地时机（建/改草稿即投影 · 付费确认即落 · 打开项目补齐）共用的一条 best-effort 链。
+    // 实现住 productionRun/canvasLandingHost.ts（本文件守 800 行门岗 · R9），这里只做接线。
+    const canvasLanding = createCanvasLandingHost({
+      readRun: (projectId, runId) => generationService.repository.read(projectId, runId),
+      command: (projectId, runId, command) => generationService.command(projectId, runId, command as never),
+      requestRenderer,
+      resolveProjectRoot: (projectId) => resolveWorkspaceProjectDir(projectId, getWorkspaceRepositoryDeps()),
+      previewSecret: getArtifactPreviewSecret,
+      isProjectOpen,
+    })
+    const landCanvasBestEffort = canvasLanding.landCanvasBestEffort
+    landDraftOnCanvas = canvasLanding.landDraftOnCanvas
     // P4 S5：一镜落地 → 把它的 result 推给渲染层回填占位节点（逐个冒）。best-effort：项目没开/渲染层不可用/
     // 该镜没绑 nodeId → 静默跳过。渲染层 attach 会断言 result.url 为 nomi-local://（我们这里就用 preview.nomiUrl）。
     const pushShotResultToRenderer = async (projectId: string, runId: string, shotId: string): Promise<void> => {
@@ -491,7 +480,11 @@ export async function startCapabilityCore(
           const providerBootstrap = readProviderBootstrap()
           return providerBootstrap.readinessByProvider[providerId] ?? { providerReady: false, missingForSubmit: ['configured_provider'] }
         },
-        prepareAuthorization: ({ lease, operation, contract, multiShot }) => {
+        prepareAuthorization: async ({ lease, operation, contract, multiShot }) => {
+          // 封信封前先等 Nomi 自己在飞的画布落地落完（草稿投影是 fire-and-forget，它会让
+          // project.revision 前进）。不等的话信封盖的是旧 revision，用户点确认时收据已被自家的写作废，
+          // 报「此确认已失效」——付费闸对**用户**改项目才该 fail-closed，对我们自己的投影不该。
+          await canvasLanding.settleCanvasLanding(lease.projectId)
           const providerBootstrap = readProviderBootstrap()
           const projectRecord = readWorkspaceProject(lease.projectId, getWorkspaceRepositoryDeps())
           if (!projectRecord || !Number.isInteger(projectRecord.revision)) throw new Error('Generation authorization requires the current project revision')
