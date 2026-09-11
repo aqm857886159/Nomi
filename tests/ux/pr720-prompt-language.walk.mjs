@@ -23,6 +23,7 @@ import path from 'node:path'
 import { launchNomiApp } from './_launchApp.mjs'
 import { prepareIsolation } from '../../evals/lib/isoApp.mjs'
 import { screenshotSettled, clickOrFail } from './_assert.mjs'
+import { stationTimeout } from './_station-budget.mjs'
 import {
   CANVAS_PANEL, ASSISTANT_MESSAGE, COMPOSER, COMPOSER_INPUT, COMPOSER_SEND, COMPOSER_MODEL,
   MODEL_POPOVER, waitForV4TurnIdle,
@@ -91,25 +92,25 @@ async function askForPrompt({ locale, question, shotName }) {
     const uiLocale = await win.evaluate(() => document.documentElement.lang || '')
     const english = locale === 'en'
 
-    await win.getByText(english ? /New (blank|empty) project/i : '新建空白项目', { exact: false }).first().click({ timeout: 15000 })
+    await win.getByText(english ? /New (blank|empty) project/i : '新建空白项目', { exact: false }).first().click({ timeout: stationTimeout() })
     await win.waitForTimeout(2500)
-    await win.getByRole('button', { name: english ? 'Generate' : '生成', exact: true }).first().click({ timeout: 8000 })
+    await win.getByRole('button', { name: english ? 'Generate' : '生成', exact: true }).first().click({ timeout: stationTimeout() })
     await win.waitForTimeout(2000)
-    await win.locator(`${CANVAS_PANEL} ${COMPOSER}`).first().waitFor({ state: 'visible', timeout: 15000 })
+    await win.locator(`${CANVAS_PANEL} ${COMPOSER}`).first().waitFor({ state: 'visible', timeout: stationTimeout() })
 
     // 真人动作：在「对话」那一行的下拉里挑模型（弹层每类一行，行尾一个 NomiSelect）。
     await clickOrFail(win.locator(`${CANVAS_PANEL} ${COMPOSER_MODEL}`), '模型选择器')
     const popover = win.locator(`${CANVAS_PANEL} ${MODEL_POPOVER}`)
-    await popover.waitFor({ state: 'visible', timeout: 8000 })
+    await popover.waitFor({ state: 'visible', timeout: stationTimeout() })
     const chatTrigger = popover.locator('[data-v4-model-row]').first().locator('button').first()
-    await chatTrigger.click({ timeout: 8000 })
+    await chatTrigger.click({ timeout: stationTimeout() })
     await win.waitForTimeout(900)
     // 作用域按 aria-controls 限死：页面上另有图片/视频两个下拉，不限死会选错行。
     const listboxId = await chatTrigger.getAttribute('aria-controls')
     if (!listboxId) throw new Error('「对话」模型下拉没有 aria-controls，无法定位选项列表')
     await win.locator(`#${listboxId} [role="option"]`)
       .filter({ hasText: new RegExp(TEXT_MODEL.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')) }).first()
-      .click({ timeout: 8000 })
+      .click({ timeout: stationTimeout() })
     await win.waitForTimeout(900)
     await win.keyboard.press('Escape').catch(() => {})
     await win.waitForTimeout(600)

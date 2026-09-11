@@ -17,6 +17,7 @@ import path from 'node:path'
 import { launchNomiApp } from './_launchApp.mjs'
 import { prepareIsolation } from '../../evals/lib/isoApp.mjs'
 import { screenshotSettled, expectHittable, proveProbe, expectAbsent } from './_assert.mjs'
+import { stationTimeout } from './_station-budget.mjs'
 
 const repoRoot = path.resolve(new URL('../..', import.meta.url).pathname)
 const shots = path.join(repoRoot, 'tests/ux/shots/pr720-walkthrough')
@@ -57,15 +58,15 @@ try {
   await win.evaluate(() => { localStorage.setItem('nomi-color-scheme', 'light'); for (const k of ['nomi:splash:v1', 'nomi:journey-tour:v1', 'nomi:canvas-gesture-hint:v1']) localStorage.setItem(k, 'seen') })
   await win.reload(); await win.waitForLoadState('domcontentloaded'); await win.waitForTimeout(2500)
 
-  await win.getByText('新建空白项目', { exact: false }).first().click({ timeout: 15000 })
+  await win.getByText('新建空白项目', { exact: false }).first().click({ timeout: stationTimeout() })
   await win.waitForTimeout(2500)
-  await win.getByRole('button', { name: '生成', exact: true }).first().click({ timeout: 8000 })
+  await win.getByRole('button', { name: '生成', exact: true }).first().click({ timeout: stationTimeout() })
   await win.waitForTimeout(2000)
   await screenshotSettled(win, { path: path.join(shots, '00-generation-workspace.png') })
 
   // ───────── #16 文字节点回常驻区 ─────────
   const rail = win.locator('.generation-canvas-v2-toolbar').first()
-  await rail.waitFor({ state: 'visible', timeout: 10000 })
+  await rail.waitFor({ state: 'visible', timeout: stationTimeout() })
   const residentLabels = await rail.locator('button').evaluateAll((bs) => bs.map((b) => (b.getAttribute('aria-label') || b.textContent || '').trim()))
   const moreButton = rail.locator('button[aria-label="更多"]').first()
   const textResident = residentLabels.includes('添加文字节点')
@@ -89,8 +90,8 @@ try {
   await win.keyboard.press('Escape').catch(() => {})
   await win.waitForTimeout(300)
   const newBoard = win.locator('button', { hasText: '新建画面' }).first()
-  if (await newBoard.count()) { await newBoard.click({ timeout: 5000 }).catch(() => {}); await win.waitForTimeout(1500) }
-  await rail.locator('button[aria-label="添加图片节点"]').first().click({ timeout: 8000 }).catch(() => {})
+  if (await newBoard.count()) { await newBoard.click({ timeout: stationTimeout() }).catch(() => {}); await win.waitForTimeout(1500) }
+  await rail.locator('button[aria-label="添加图片节点"]').first().click({ timeout: stationTimeout() }).catch(() => {})
   await win.waitForTimeout(1800)
   const composerCardCount = await win.locator('.generation-canvas-v2-node__composer-card').count()
   await screenshotSettled(win, { path: path.join(shots, '05-node-composer-present.png') })
@@ -181,7 +182,7 @@ try {
     panel: '[data-agent-resident="true"][data-agent-panel="true"]',
   }
   const input = win.locator(SEL.input).first()
-  await input.waitFor({ state: 'visible', timeout: 10000 })
+  await input.waitFor({ state: 'visible', timeout: stationTimeout() })
   const before = await rectsOf(SEL)
   await input.click()
   const longText = '这是一段用来验证聊天框软换行自适应的连续中文长句不带任何回车符号'.repeat(4).slice(0, 200)
@@ -251,7 +252,7 @@ try {
   const sendRights = []
   if (modelPopoverVisible) {
     const chatTrigger = () => win.locator('[data-v4-popover="model"] [data-v4-model-row="对话"] button').first()
-    await chatTrigger().click({ timeout: 5000 })
+    await chatTrigger().click({ timeout: stationTimeout() })
     await win.waitForTimeout(700)
     // 作用域：只认「对话」那颗触发器 aria-controls 指到的 listbox（页面上另有图片/视频两个）。
     const listboxId = await chatTrigger().getAttribute('aria-controls')
@@ -268,11 +269,11 @@ try {
       if (n > 0) {
         await win.locator(SEL.model).first().click().catch(() => {})
         await win.waitForTimeout(500)
-        await chatTrigger().click({ timeout: 5000 }).catch(() => {})
+        await chatTrigger().click({ timeout: stationTimeout() }).catch(() => {})
         await win.waitForTimeout(600)
       }
       const currentId = await chatTrigger().getAttribute('aria-controls').catch(() => listboxId)
-      await win.locator(`#${currentId || listboxId} [role="option"]`).nth(pick.index).click({ timeout: 5000 })
+      await win.locator(`#${currentId || listboxId} [role="option"]`).nth(pick.index).click({ timeout: stationTimeout() })
       await win.waitForTimeout(900)
       await win.keyboard.press('Escape').catch(() => {})
       await win.waitForTimeout(500)
