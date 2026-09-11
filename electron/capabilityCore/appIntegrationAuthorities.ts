@@ -2,7 +2,7 @@ import type { RpcServerOptions } from './rpcServer'
 import { currentProjectRevision, getApprovalReceiptAuthority } from './approvalReceiptRuntime'
 import type { McpGenerationPolicy } from './mcpGenerationPolicy'
 import type { DispatchContext } from './dispatcher'
-import { requestRenderer, rendererTargetIdentity } from './rendererBridge'
+import { requestRendererDecision, rendererTargetIdentity } from './rendererBridge'
 import { createProductionProjectSessionRuntime } from './projectSessionRuntime'
 import { canvasReadSurfaceRuntime } from './canvasReadSurfaceRuntime'
 import { logError } from '../logging/logger'
@@ -35,7 +35,9 @@ export function createDefaultAuthorities(generationPolicy: McpGenerationPolicy, 
     const challenge = receiptAuthority.verifyChallenge(challengeToken)
     const target = rendererTargetIdentity()
     if (!target || !challenge.display?.model) return { confirmed: false, challengeId: challenge.challengeId }
-    const result = await requestRenderer('generation.gate.confirm', {
+    // 生成闸的卡在等真人按，没有墙钟期限（2026-09-11 拍板）。挑战自己的 expiresAt 仍在——
+    // 那是凭据新鲜度（过期只是这张凭据不能再用，门照样等着人），不是替他答「否」。
+    const result = await requestRendererDecision('generation.gate.confirm', {
       challengeId: challenge.challengeId,
       projectName: challenge.display.projectName,
       shotSummary: challenge.display.shotSummary,
@@ -45,7 +47,7 @@ export function createDefaultAuthorities(generationPolicy: McpGenerationPolicy, 
       currency: challenge.reservationPreview.currency,
       expiresAt: challenge.expiresAt,
       ...(challenge.display.shots ? { shots: challenge.display.shots } : {}),
-    }, 60_000) as { confirmed?: unknown; trialFirst?: unknown } | null
+    }) as { confirmed?: unknown; trialFirst?: unknown } | null
     if (result?.confirmed !== true) {
       if (result?.trialFirst === true && hooks.onTrialFirst && challenge.runId && challenge.projectId) {
         try {

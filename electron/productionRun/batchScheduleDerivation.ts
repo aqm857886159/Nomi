@@ -25,7 +25,7 @@ import { productionGenerationJobId } from "./productionGenerationAuthorization";
  *   - "how much have we spent?" = the budget summary (reserved + actual + unsettled). The ledger is an
  *     append-only replay — itself a single source of truth. Halt is judged against `authorized`.
  *   - "did the anchor pass?" = the anchor checkpoint gate's status, written into the Run (never the
- *     renderer store). Waiting → shots blocked; approved (or auto-released) → shots released.
+ *     renderer store). Waiting → shots blocked; approved → shots released.
  *
  * This mirrors the already-shipped `latestGenerationAttempt` pattern (derive attempt from jobs[], never
  * self-count), so the two layers agree by construction and recovery cannot double-submit or over-spend.
@@ -52,7 +52,9 @@ export type DispatchTask = {
  *   - `waiting` — gate open, user has not decided → shots stay blocked.
  *   - `approved` — user approved the look → release shots.
  *   - `rejected` — user rejected → re-attempt ONLY the anchor (shots stay blocked).
- *   - `auto_release` — the configured timeout elapsed → release shots (orchestrator records approval).
+ *
+ * There is deliberately NO idle-timeout release (2026-09-11 ruling): an approval gate never decides
+ * itself. `waiting` stays `waiting` for as long as it takes; only a real person moves it.
  */
 export type CheckpointStatus =
   | "not_required"
@@ -60,8 +62,7 @@ export type CheckpointStatus =
   | "should_open"
   | "waiting"
   | "approved"
-  | "rejected"
-  | "auto_release";
+  | "rejected";
 
 export type CheckpointState = {
   status: CheckpointStatus;
@@ -120,8 +121,6 @@ export type BatchDerivationInput = {
   /** The current anchor checkpoint gate, if one was opened. */
   anchorGate?: ProductionGate;
   now: string;
-  /** Auto-release the checkpoint after this many ms of waiting. Undefined = never auto-release (default). */
-  anchorAutoReleaseMs?: number;
 };
 
 export type BatchDerivationResult = {
@@ -229,14 +228,9 @@ function deriveCheckpoint(input: BatchDerivationInput, anchors: ProductionGenera
   if (!gate) return { status: "should_open", readyAnchorJobIds };
   if (gate.status === "approved") return { status: "approved", readyAnchorJobIds };
   if (gate.status === "rejected") return { status: "rejected", readyAnchorJobIds };
-  // waiting (or expired/revoked treated as still-blocking): check the optional auto-release timeout.
-  if (gate.status === "waiting" && input.anchorAutoReleaseMs !== undefined) {
-    const openedAt = Date.parse(gate.createdAt);
-    const now = Date.parse(input.now);
-    if (Number.isFinite(openedAt) && Number.isFinite(now) && now - openedAt >= input.anchorAutoReleaseMs) {
-      return { status: "auto_release", readyAnchorJobIds };
-    }
-  }
+  // waiting (or expired/revoked treated as still-blocking). No timeout branch exists on purpose:
+  // waiting never ages into a decision, so a user who walks away can never come back to a paid batch
+  // that started without him.
   return { status: "waiting", readyAnchorJobIds };
 }
 
@@ -285,13 +279,13 @@ export function deriveBatchPlan(input: BatchDerivationInput): BatchDerivationRes
   const anchorDispatch = anchors
     .filter((anchor) => needsDispatch(input.runId, anchor, input.jobs))
     .map((anchor) => toTask(input.runId, anchor));
-  const checkpointReleased = checkpoint.status === "approved" || checkpoint.status === "auto_release";
+  const checkpointReleased = checkpoint.status === "approved";
   if (anchors.length > 0 && !checkpointReleased) {
     // Anchors present but checkpoint not released → dispatch anchors (if any pending), block shots.
     return { anchorDispatch, shotDispatch: [], observe, checkpoint, progress };
   }
 
-  // Checkpoint released (approved / auto_release) or no anchors at all → consider video shots.
+  // Checkpoint approved by a person, or no anchors at all → consider video shots.
   // Budget halt (plan §3.3): walk included, not-yet-started shots in checkbox order, accumulating the
   // ALREADY-COMMITTED liability (reserved + actual + unsettled) + each candidate shot's price. The first
   // shot that would breach `authorized` halts the batch there (that shot and all after are not dispatched).
