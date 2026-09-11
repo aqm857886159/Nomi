@@ -238,7 +238,8 @@ export async function deconstructVideo(payload: DeconstructVideoPayload, onPhase
       frameUrls = await Promise.all(
         seconds.map(async (s) => (await extractVideoFrameToAsset({ videoUrl, which: s, projectId })).url),
       );
-    } catch {
+    } catch (error) {
+      console.error('[deconstruct:frame-failed]', error instanceof Error ? error.message : String(error));
       return { shot, frameUrls: [] as string[], parsed: null as Record<string, unknown> | null };
     }
     try {
@@ -257,7 +258,8 @@ export async function deconstructVideo(payload: DeconstructVideoPayload, onPhase
         },
       });
       return { shot, frameUrls, parsed: parseLooseJsonObject(textFromTaskResult((result as { raw?: unknown }).raw)) };
-    } catch {
+    } catch (error) {
+      console.error('[deconstruct:model-failed]', error instanceof Error ? error.message : String(error));
       return { shot, frameUrls, parsed: null };
     }
   });
