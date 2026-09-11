@@ -100,7 +100,7 @@ export function buildModelSelectOptions(
   orderedVendorKeys: readonly string[] = [],
   preference?: ModelBoxPreferenceSettings | null,
 ): NomiSelectOption[] {
-  // 空 = 一家都没接入（catalog 层的 keepRunnableVendorOptions 只放行能跑的家），不是「碰巧没模型」。
+  // 空 = 一家都没接入（catalog 层的 keepUsableModelRows 只放行现在真能用的行），不是「碰巧没模型」。
   if (deduped.length === 0) return [connectVendorOption()]
   // 「藏起来的不进来、排过的排在前面」只在这一处判（`partitionByModelBoxPreference` 是唯一解析点）。
   const { visible } = partitionByModelBoxPreference(deduped, preference)

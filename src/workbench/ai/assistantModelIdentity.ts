@@ -8,6 +8,7 @@
 //   · 选中时 find(m => m.modelKey === next) 也只找第一条 → 静默绑到**另一个供应商**去。
 // 身份从 derive 而来、不再用半截 key 凑合，这类「显示/绑定张冠李戴」才不会换个入口又复发。
 
+import type { ModelAvailability } from '../../../electron/shared/modelAvailability'
 import { modelSupportsToolCalls } from '../../../electron/shared/textModelCapabilities'
 import { translateModelDisplayText } from '../../i18n/modelDisplayText';
 export type ModelIdentity = { vendorKey: string; modelKey: string };
@@ -16,16 +17,9 @@ export type AssistantCatalogModelLike = {
   vendorKey: string;
   modelKey: string;
   kind: string;
-  enabled: boolean;
-  published: boolean;
+  /** 主进程算好的「现在能不能用」——渲染层不重算（见 electron/shared/modelAvailability.ts）。 */
+  availability: ModelAvailability;
   meta?: unknown;
-};
-
-export type AssistantCatalogVendorLike = {
-  key: string;
-  enabled: boolean;
-  authType?: string | null;
-  hasApiKey?: boolean;
 };
 
 function isPromptRefineOnly(meta: unknown): boolean {
@@ -37,33 +31,26 @@ function isPromptRefineOnly(meta: unknown): boolean {
 }
 
 /**
- * 助手下拉的唯一数据门：只让真实 catalog 中「已启用 + 供应商当前可用」的文本模型进入 UI。
+ * 助手下拉的数据门 = **可用性 owner 的结论** + 本下拉独有的**角色**要求。
  *
- * `listModels({ kind: 'text', enabled: true })` 只保证模型行本身启用，不能保证供应商仍有
- * key（用户拔 key 后 vendor.enabled 可能还保留）。这里和生成节点的可用性判据对齐，避免
- * 下拉给出一个看似能选、点击后必然失败的假选择；身份字段不完整的行也直接丢弃。
+ * 2026-09-12 真实验收 P0-10：这里曾自己拼一份「vendor.enabled && hasApiKey && published」，
+ * 而设置页拼的是另一份（只看 enabled）、首页横幅走主进程第三份。同一时刻三个地方两个答案。
+ * 现在「能不能用」只有 `model.availability` 一个来源；这里只再过滤「能不能当助手主控」：
+ * 必须是 text、不是 prompt_refine 专用、发得出工具调用。角色过滤器永远压在可用性之上，
+ * 不是第二份可用性判据。
  */
 export function filterUsableAssistantTextModels<T extends AssistantCatalogModelLike>(
   models: readonly T[],
-  vendors: readonly AssistantCatalogVendorLike[],
 ): T[] {
-  const usableVendorKeys = new Set(
-    vendors
-      .filter((vendor) => vendor.enabled && (vendor.authType === 'none' || vendor.hasApiKey === true))
-      .map((vendor) => vendor.key.trim().toLowerCase())
-      .filter(Boolean),
-  )
-  return models.filter((model) => {
-    const vendorKey = model.vendorKey.trim().toLowerCase()
-    return model.kind === 'text'
-      && model.enabled
-      && model.published
-      && !isPromptRefineOnly(model.meta)
-      && modelSupportsToolCalls(model.meta)
-      && Boolean(vendorKey)
-      && Boolean(model.modelKey.trim())
-      && usableVendorKeys.has(vendorKey)
-  })
+  return models.filter((model) => model.availability.usable
+    && fitsAssistantTextRole(model)
+    && Boolean(model.vendorKey.trim())
+    && Boolean(model.modelKey.trim()))
+}
+
+/** 「这一行能当助手主控吗」——纯角色判据，与主进程 textBrainResolver.fitsAssistantTextRole 同口径。 */
+export function fitsAssistantTextRole(model: Pick<AssistantCatalogModelLike, 'kind' | 'meta'>): boolean {
+  return model.kind === 'text' && !isPromptRefineOnly(model.meta) && modelSupportsToolCalls(model.meta)
 }
 
 /** 两段身份 → DOM 安全且可逆的 option value。用 encodeURIComponent 是因为 vendorKey 是从
