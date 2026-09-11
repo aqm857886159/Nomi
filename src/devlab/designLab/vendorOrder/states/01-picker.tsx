@@ -8,6 +8,8 @@ import React from 'react'
 import {
   CONFIGURED_MODELS,
   MIXED_MODELS,
+  MODEL_BOX_MODELS,
+  MODEL_BOX_PREFERENCE,
   NO_RUNNABLE_VENDORS,
   RUNNABLE_VENDORS,
   VENDOR_APIMART,
@@ -77,6 +79,23 @@ export const PICKER_STATES: readonly LabState[] = [
         runnableVendorKeys={RUNNABLE_VENDORS}
         preferredVendorKeys={[VENDOR_APIMART]}
         selected="seedream-4-5"
+      />
+    ),
+  },
+  {
+    id: 'vo-06-picker-model-box',
+    name: '整理过的模型框 · 按手排的顺序、藏起来的不在、手点过的那家高亮',
+    source: 'docs/plan/2026-09-11-model-box-tidy.md §3 + 样张 PickerAfter.dc.html · 用户 2026-09-11 拍板',
+    coverage: 'shell',
+    // 喂进去的是**八个**模型；屏上只该有六行，Seedream 5.0 Lite 与 Z-Image Turbo 落进脚注那个数字里。
+    // Nano Banana 2 那行的两个标签顺序仍是 APIMart、Kie（全局顺序），蓝的却是 Kie——
+    // 「顺序归全局、高亮归手点」这条如果哪天写反了，这一格当场变样。
+    render: () => (
+      <ModelPickerStage
+        models={MODEL_BOX_MODELS}
+        runnableVendorKeys={RUNNABLE_VENDORS}
+        preferredVendorKeys={[VENDOR_APIMART, VENDOR_KIE]}
+        modelBoxPreference={MODEL_BOX_PREFERENCE}
       />
     ),
   },

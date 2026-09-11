@@ -19,8 +19,10 @@ import type { ModelOption } from '../../config/models'
 import { NomiSelect } from '../../design'
 import { dedupeModelOptions } from '../../config/modelIdentity'
 import { isModelRecentlyAiling } from '../generationCanvas/runner/modelHealthMemory'
-import { buildVendorExplicitModelOptions, resolveProviderByAddress, openModelCatalog, CONNECT_VENDOR_OPTION_VALUE } from './useDedupedModelSelect'
+import { buildVendorExplicitModelOptions, modelBoxHiddenNote, resolveProviderByAddress, openModelCatalog, CONNECT_VENDOR_OPTION_VALUE } from './useDedupedModelSelect'
 import { useVendorPreferenceOrder } from './useVendorPreference'
+import { useModelBoxPreference } from './useModelBoxPreference'
+import { partitionByModelBoxPreference } from '../../config/modelBoxPreference'
 
 import i18n from '../../i18n'
 
@@ -63,10 +65,16 @@ export default function BulkModelPicker({
   const { t } = useTranslation()
   const deduped = React.useMemo(() => dedupeModelOptions([...modelOptions]), [modelOptions])
   const orderedVendorKeys = useVendorPreferenceOrder()
+  const preference = useModelBoxPreference()
   const vendorRows = React.useMemo(
-    () => buildVendorExplicitModelOptions(deduped, isModelRecentlyAiling, orderedVendorKeys),
+    () => buildVendorExplicitModelOptions(deduped, isModelRecentlyAiling, orderedVendorKeys, preference),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- i18n.language：切语言要重算 trailing 文案
-    [deduped, i18n.language, orderedVendorKeys],
+    [deduped, i18n.language, orderedVendorKeys, preference],
+  )
+  const hiddenNote = React.useMemo(
+    () => modelBoxHiddenNote(partitionByModelBoxPreference(deduped, preference).hidden.length),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- i18n.language：切语言要重算脚注文案
+    [deduped, preference, i18n.language],
   )
 
   const handleChange = React.useCallback(
@@ -97,6 +105,7 @@ export default function BulkModelPicker({
       onChange={handleChange}
       size={size}
       triggerMaxWidth={triggerMaxWidth}
+      hiddenNote={hiddenNote}
     />
   )
 }
