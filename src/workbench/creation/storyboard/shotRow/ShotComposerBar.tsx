@@ -133,6 +133,7 @@ export default function ShotComposerBar({
             onChange={(id) => (id ? modelSelect.onModelPick(id) : onShotModelChange(''))}
             onChipChange={modelSelect.onModelProviderPick}
             footerAction={modelVisibilityFooterAction()}
+            hiddenNote={modelSelect.hiddenNote}
           />
         </Chip>
       ) : null}

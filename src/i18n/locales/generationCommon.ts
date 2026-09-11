@@ -572,6 +572,8 @@ export const zhGenerationCommon = {
     untried: '未试跑',
     noVendorConnected: '还没接入供应商',
     connectVendorAction: '去接入',
+    // 模型框底部脚注：列表变短了要说出来，否则「我藏的」和「坏了」在屏幕上长得一样。
+    hiddenModels: '已隐藏 {{count}} 个 · 在设置里找回',
     referenceTotal: '参考总数最多 {{max}} 个（图片、视频和音频合计）',
     referenceFull: '参考已满（最多 {{max}} 个，含连线）',
     maximum: '最多 {{max}} 个{{label}}',
@@ -2004,6 +2006,7 @@ export const enGenerationCommon = {
     untried: 'not tried yet',
     noVendorConnected: 'No provider connected yet',
     connectVendorAction: 'Connect',
+    hiddenModels: '{{count}} hidden · bring back in Settings',
     referenceTotal: 'Up to {{max}} references in total (images, videos and audio combined)',
     referenceFull: 'References are full (up to {{max}}, including connections)',
     maximum: 'Up to {{max}} {{label}}',
