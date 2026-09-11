@@ -23,9 +23,8 @@ const catalogOptionsCache = new Map<string, ModelOption[]>()
 const catalogPromiseCache = new Map<string, Promise<ModelOption[]>>()
 let catalogHealthCache: ModelCatalogHealthDto | null = null
 let catalogHealthPromise: Promise<ModelCatalogHealthDto> | null = null
-let runnableVendorKeysCache: Set<string> | null = null
-let runnableVendorKeysPromise: Promise<Set<string>> | null = null
 let vendorNamesCache: Map<string, string> | null = null
+let vendorNamesPromise: Promise<Map<string, string>> | null = null
 
 const HIDDEN_IMAGE_MODEL_ID_RE = /^(gemini-.*-image(?:-(?:landscape|portrait))?|imagen-.*-(?:landscape|portrait))$/i
 
@@ -44,9 +43,8 @@ function invalidateAvailableCache() {
   catalogPromiseCache.clear()
   catalogHealthCache = null
   catalogHealthPromise = null
-  runnableVendorKeysCache = null
-  runnableVendorKeysPromise = null
   vendorNamesCache = null
+  vendorNamesPromise = null
 }
 
 export async function getCatalogHealth(): Promise<ModelCatalogHealthDto> {
@@ -73,56 +71,50 @@ export function notifyModelOptionsRefresh(detail?: RefreshDetail) {
 }
 
 /**
- * 「现在就能跑」的供应商 key 集合：启用 **且** 手上有钥匙（有 API key，或本来就免鉴权）。
+ * 供应商 key → 显示名（节点下拉标注厂商用；自定义中转的 key 是 baseUrl 派生串不宜直显）。
  *
- * 只看 `enabled` 会把断开的家（拔了 key 但 vendor.enabled 仍 true）留下，用户选中就撞
- * `API key missing`。可用性必须由 hasApiKey 派生，不能由「有没有这一行」派生。
+ * 这里**只取名字**。「这一家现在能不能跑」曾经也在这一层判（`enabled && (authType==='none' || hasApiKey)`），
+ * 那是全仓第三份同语义判据——设置页是第一份、助手下拉是第二份，三份在 2026-09-12 的真实验收里
+ * 当场给出了两个答案（P0-10）。判据已收回主进程 `electron/shared/modelAvailability.ts`，
+ * 随每一行模型以 `availability` 下发。
  */
-async function getRunnableVendorKeys(): Promise<Set<string>> {
-  if (runnableVendorKeysCache) return runnableVendorKeysCache
-  if (!runnableVendorKeysPromise) {
-    runnableVendorKeysPromise = (async () => {
+async function getVendorNames(): Promise<Map<string, string>> {
+  if (vendorNamesCache) return vendorNamesCache
+  if (!vendorNamesPromise) {
+    vendorNamesPromise = (async () => {
       try {
         const vendors = await listWorkbenchModelCatalogVendors()
-        const rows = Array.isArray(vendors) ? vendors : []
-        const runnable = new Set(
-          rows
-            .filter((v) => Boolean(v?.enabled) && (v?.authType === 'none' || Boolean(v?.hasApiKey)))
-            .map((v) => String(v?.key || '').trim().toLowerCase())
-            .filter(Boolean),
-        )
-        // 顺手缓存 key→显示名（节点下拉标注厂商用；自定义中转 key 是 baseUrl 派生串不宜直显）。
         const names = new Map<string, string>()
-        for (const v of rows) {
-          const key = String(v?.key || '').trim().toLowerCase()
-          const name = String(v?.name || '').trim()
+        for (const vendor of Array.isArray(vendors) ? vendors : []) {
+          const key = String(vendor?.key || '').trim().toLowerCase()
+          const name = String(vendor?.name || '').trim()
           if (key && name) names.set(key, name)
         }
         vendorNamesCache = names
-        runnableVendorKeysCache = runnable
-        return runnable
+        return names
       } finally {
-        runnableVendorKeysPromise = null
+        vendorNamesPromise = null
       }
     })()
   }
-  return runnableVendorKeysPromise
+  return vendorNamesPromise
 }
 
 /**
- * **全 App 唯一**一道「这一家现在能不能跑」的闸（2026-09-06 用户拍板）：没接入的供应商，
- * 它的模型**不出现**——不是沉底、不是灰显，是根本不进到任何调用方眼前。闸开在这里而不是各个
- * picker 里，是因为下游不止选择器：agent 可用模型清单、成本预估、「换到 X」指路的前提都是
- * 「列出来的都能跑」，各滤各的就一定有漏掉的那个。
+ * **全 App 唯一**一道「这个模型现在能不能用」的闸（2026-09-06 用户拍板放在这一层，
+ * 2026-09-12 把判据本身收回主进程）：没接入的供应商、没走完认证的模型、钥匙解不开的家，
+ * 它的模型**不出现**——不是沉底、不是灰显，是根本不进到任何调用方眼前。
+ *
+ * 闸开在这里而不是各个 picker 里，是因为下游不止选择器：agent 可用模型清单、成本预估、
+ * 「换到 X」指路的前提都是「列出来的都能跑」，各滤各的就一定有漏掉的那个。
  *
  * 导出是给设计实验室用的：那边喂**整份**目录（含没接入的家）进来，由这道真闸决定屏上剩下什么。
  */
-export function keepRunnableVendorOptions(
-  options: readonly ModelOption[],
-  runnableVendorKeys: ReadonlySet<string>,
-): ModelOption[] {
-  // 空集 = 「一家都没接入」，不是「随便放行」：这时候选择器该是空的（由上层给出诚实空态）。
-  return options.filter((option) => runnableVendorKeys.has(String(option.vendor || '').trim().toLowerCase()))
+export function keepUsableModelRows<T extends { availability?: { usable: boolean } }>(
+  rows: readonly T[],
+): T[] {
+  // 缺 `availability` = 这一行没经过主进程投影（夹具/旧缓存），按 fail-closed 当作不可用。
+  return rows.filter((row) => row.availability?.usable === true)
 }
 
 function defaultPublishedMode(kind?: NodeKind): ProfileKind {
@@ -147,21 +139,17 @@ async function getCatalogModelOptions(
   const promise = (async () => {
     try {
       const rows = await listWorkbenchModelCatalogModels({ kind: catalogKind, enabled: true })
-      const runnableVendorKeys = await getRunnableVendorKeys()
-      const publishedRows = (Array.isArray(rows) ? rows : []).filter(
-        (row) => Boolean(row?.published) && Array.isArray(row.publishedModes) && row.publishedModes.includes(requiredMode),
+      const names = await getVendorNames()
+      // 「能不能用」判一次（主进程给的 availability）；这里额外要的只是**模式级**匹配：
+      // 同一个模型可能文生图发布了、改图那条没发布，节点问的是「这个模式能用吗」。
+      const usableRows = keepUsableModelRows(Array.isArray(rows) ? rows : []).filter(
+        (row) => Array.isArray(row.publishedModes) && row.publishedModes.includes(requiredMode),
       )
-      // 「能不能跑」只判一次，就在 keepRunnableVendorOptions 里——这里再顺手滤一遍 vendorKey
-      // 就是第二份同语义规则，两份迟早漂。
-      const normalized = keepRunnableVendorOptions(toCatalogModelOptions(publishedRows), runnableVendorKeys)
-      // 回填厂商显示名（getRunnableVendorKeys 已顺手缓存 key→name）。
-      const names = vendorNamesCache
-      const annotated = names
-        ? normalized.map((opt) => {
-            const name = opt.vendor ? names.get(opt.vendor.toLowerCase()) : undefined
-            return name ? { ...opt, vendorName: name } : opt
-          })
-        : normalized
+      const normalized = toCatalogModelOptions(usableRows)
+      const annotated = normalized.map((opt) => {
+        const name = opt.vendor ? names.get(opt.vendor.toLowerCase()) : undefined
+        return name ? { ...opt, vendorName: name } : opt
+      })
       catalogOptionsCache.set(cacheKey, annotated)
       return annotated
     } finally {

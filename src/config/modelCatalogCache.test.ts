@@ -11,8 +11,9 @@ vi.mock('../workbench/api/modelCatalogApi', () => ({
   listWorkbenchModelCatalogVendors: mocks.listVendors,
 }))
 
-import { keepRunnableVendorOptions, notifyModelOptionsRefresh, preloadModelOptions } from './modelCatalogCache'
+import { keepUsableModelRows, notifyModelOptionsRefresh, preloadModelOptions } from './modelCatalogCache'
 import { derivePublishedExecution } from '../../electron/shared/modelPublication'
+import type { ModelAvailability } from '../../electron/shared/modelAvailability'
 
 const row = (modelKey: string, publishedModes: string[] = ['text_to_image'], meta?: unknown) => ({
   modelKey,
@@ -22,6 +23,11 @@ const row = (modelKey: string, publishedModes: string[] = ['text_to_image'], met
   enabled: true,
   published: publishedModes.length > 0,
   publishedModes,
+  // 主进程算好的那一个答案随行下发（`electron/shared/modelAvailability.ts`）。
+  // 这些夹具模拟的是「已接入、钥匙在」的家，所以可用性跟着发布资格走。
+  availability: publishedModes.length > 0
+    ? { usable: true as const }
+    : { usable: false as const, reason: 'model_unpublished' as const },
   ...(meta ? { meta } : {}),
   createdAt: 't',
   updatedAt: 't',
@@ -132,26 +138,26 @@ describe('未接入的供应商在 catalog 那层就没了', () => {
     notifyModelOptionsRefresh()
   })
 
-  it('keepRunnableVendorOptions 只放行接入了的家（大小写不敏感，vendor 缺失一律挡）', () => {
-    const kept = keepRunnableVendorOptions(
-      [
-        { value: 'a', label: 'A', vendor: 'APIMart' },
-        { value: 'b', label: 'B', vendor: 'runninghub' },
-        { value: 'c', label: 'C' },
-      ],
-      new Set(['apimart']),
-    )
-    expect(kept.map((option) => option.value)).toEqual(['a'])
+  it('keepUsableModelRows 只放行主进程判为可用的行（不可用的一律挡）', () => {
+    const rows: Array<{ modelKey: string; availability: ModelAvailability }> = [
+      { modelKey: 'a', availability: { usable: true } },
+      { modelKey: 'b', availability: { usable: false, reason: 'credential_missing' } },
+    ]
+    const kept = keepUsableModelRows(rows)
+    expect(kept.map((option) => option.modelKey)).toEqual(['a'])
   })
 
-  it('空集 = 一家都没接入，不是「随便放行」', () => {
-    expect(keepRunnableVendorOptions([{ value: 'a', label: 'A', vendor: 'apimart' }], new Set())).toEqual([])
+  it('没有 availability 的行 fail-closed（夹具/旧缓存没过主进程投影，不当作可用）', () => {
+    const stale: Array<{ modelKey: string; availability?: { usable: boolean } }> = [{ modelKey: 'a' }]
+    expect(keepUsableModelRows(stale)).toEqual([])
   })
 
   it('拔了 key 但 vendor 仍 enabled 的家，模型一行都不出现（选择器也拿不到）', async () => {
+    // 主进程的可用性判据已经把它判成 credential_missing —— 渲染层不再自己看 hasApiKey，
+    // 那正是 2026-09-12 P0-10 里三份判据之一（见 modelAvailabilityAgreement.test.ts）。
     mocks.listModels.mockResolvedValue([
       { ...row('with-key'), vendorKey: 'has-key' },
-      { ...row('no-key'), vendorKey: 'lost-key' },
+      { ...row('no-key'), vendorKey: 'lost-key', availability: { usable: false, reason: 'credential_missing' } },
     ])
     mocks.listVendors.mockResolvedValue([
       { key: 'has-key', name: 'Has key', enabled: true, authType: 'bearer', hasApiKey: true },
