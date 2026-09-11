@@ -8,8 +8,13 @@
  * 用户导进来了，却在 Agent 里用不上，只能靠重启 App 撞见。
  *
  * 根因是「共享状态没有失效信号」，不是哪个组件写错了。所以修在最早的共享边界：
- * 写方（导入/删除）派发一次，所有读者监听同一个事件重读。范式与 `nomi-model-catalog-changed`
- * 完全一致，不另发明一套。
+ * 写方派发一次，所有读者监听同一个事件重读。范式与 `nomi-model-catalog-changed` 完全一致。
+ *
+ * **2026-09-11 更正：唯一的写方在主进程，不在这里。** 此前派发它的只有渲染层自己的导入/删除，
+ * 于是第三个写入者——Agent 的 `author_skill`，它在主进程里落盘——一个字都传不到渲染层，
+ * 用户「让 Agent 帮我写个技能」写完了却在菜单里找不到它。现在信号发自写盘那一层
+ * （`electron/skills/skillLibraryBroadcast.ts`），`NomiRouterApp` 把它接进这条本地总线；
+ * `notifySkillLibraryChanged` 只该由那个接线点调用，别在业务代码里再喊一次（那就是第二个来源）。
  */
 
 export const SKILL_LIBRARY_CHANGED_EVENT = 'nomi-skill-library-changed'

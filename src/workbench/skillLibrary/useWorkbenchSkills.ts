@@ -11,7 +11,7 @@ import {
   type SkillListItemDto,
   type SkillProviderKind,
 } from '../api/skillApi'
-import { notifySkillLibraryChanged, onSkillLibraryChanged } from './skillLibraryChanged'
+import { onSkillLibraryChanged } from './skillLibraryChanged'
 
 export type UseWorkbenchSkills = {
   items: SkillListItemDto[]
@@ -56,8 +56,9 @@ export function useWorkbenchSkills(opened: boolean): UseWorkbenchSkills {
 
   const remove = React.useCallback(
     (dirName: string) => {
+      // 不在这里派发：技能盘的变更信号由主进程写盘那一层统一发出（`skillLibraryBroadcast.ts`），
+      // 渲染层再喊一次就是第二个来源——它会在「Agent 写的技能」那条路上继续缺席。
       const res = deleteWorkbenchSkill(dirName)
-      if (res.ok) notifySkillLibraryChanged()
       return { ok: res.ok, error: res.error }
     },
     [],
@@ -66,9 +67,6 @@ export function useWorkbenchSkills(opened: boolean): UseWorkbenchSkills {
   const importPackage = React.useCallback(
     (payload: unknown) => {
       const res = importWorkbenchSkill(payload)
-      // 派信号而不是只 reload 自己：Agent 面板的 `/` 技能菜单是同一份盘的另一个读者，
-      // 它读不到这次写入就等于「导进来了却用不上」（本轮走查抓到的那一幕）。
-      if (res.ok) notifySkillLibraryChanged()
       return { ok: res.ok, skillName: res.skillName, error: res.error }
     },
     [],
