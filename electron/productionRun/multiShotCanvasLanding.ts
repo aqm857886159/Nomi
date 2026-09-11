@@ -10,6 +10,27 @@ import { createArtifactProjection } from "./artifactProjection";
 import type { ProductionRun, ProductionGenerationShot } from "./productionRunTypes";
 import { logWarn } from "../logging/logger";
 
+/**
+ * 一镜候选的**模型身份**，随落地报文过 RPC。它是画布节点模型的唯一来源：带上它，渲染层就不再
+ * 自己另挑一个默认模型（那正是「agent 说的模型」与「节点上的模型」对不上的直接原因）。
+ *
+ * 只带身份，**绝不带 transportModelId、密钥或任何供应商凭据**：transportModelId 是内部投影，
+ * 渲染层不需要也不许知道；节点 `meta.modelKey` 与候选 `modelId` 本来就是同一个串
+ * （generationDefaultModelResolver 的 `modelId: model.modelKey`），故不造转换层。
+ *
+ * `revision` = PlanCandidate.revision。渲染层据它判断「这镜的意图变了没有」：变了才重绑定
+ * prompt/模型，没变一个字不动——这样 `generation.patch` 能同步下去，而「打开项目补齐」这条
+ * 幂等重放不会覆盖用户之后在画布上的手改。
+ */
+export type MaterializeShotCandidateWire = {
+  candidateId: string;
+  revision: number;
+  vendor: string;
+  modelKey: string;
+  modeId?: string;
+  mode: string;
+};
+
 /** 渲染层 materialize-shots 载荷里的一镜（与渲染层 MaterializeShotInput 对齐，跨 RPC 序列化形状）。 */
 export type MaterializeShotWire = {
   shotId: string;
@@ -17,6 +38,7 @@ export type MaterializeShotWire = {
   kind?: "image" | "video";
   title?: string;
   prompt?: string;
+  candidate?: MaterializeShotCandidateWire;
   result?: { id: string; type: "image" | "video"; url: string; createdAt: number; thumbnailUrl?: string; providerUrl?: string; model?: string };
 };
 
@@ -40,6 +62,21 @@ function shotTitle(shot: ProductionGenerationShot, index: number): string {
     return p ? p.slice(0, 24) : `参考 ${index + 1}`;
   }
   return `镜头 ${index + 1}`;
+}
+
+/**
+ * 候选 → 落地报文里的模型身份。**逐字段列举**（不是 spread），这样 PlanCandidate 以后新增
+ * transportModelId 之类的内部字段时，绝不会顺着这条 RPC 悄悄流到渲染层。
+ */
+function candidateWire(candidate: ProductionGenerationShot["candidate"]): MaterializeShotCandidateWire {
+  return {
+    candidateId: candidate.candidateId,
+    revision: candidate.revision,
+    vendor: candidate.providerId,
+    modelKey: candidate.modelId,
+    ...(candidate.modeId ? { modeId: candidate.modeId } : {}),
+    mode: candidate.mode,
+  };
 }
 
 /** 镜的执行模态 → 画布节点 kind（anchor 恒 image；镜按 transportTaskKind 猜，缺省 video）。 */
@@ -114,6 +151,7 @@ export function buildMaterializeShotsPayload(
         ? (shot.candidate.prompt.trim().slice(0, 24) || shotTitle(shot, index))
         : shotTitle(shot, index),
       prompt: shot.candidate?.prompt ?? "",
+      ...(shot.candidate ? { candidate: candidateWire(shot.candidate) } : {}),
       ...(result ? { result } : {}),
     };
   });
