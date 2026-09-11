@@ -24,6 +24,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { DEFAULT_TIMEOUT_MS, clickOrFail, expect } from './_assert.mjs'
+import { stationTimeout } from './_station-budget.mjs'
 import { FIXTURE_IMAGE_MODEL, FIXTURE_TEXT_MODEL_LABEL, FIXTURE_VENDOR } from './agent-runtime-fixture.mjs'
 import {
   APPROVAL_CARD, CANVAS_PANEL, COMPOSER, chooseAssistantModel, createRuntimeWalk,
@@ -168,15 +169,16 @@ try {
       }
     }
     await sendCanvas(win, sample.text)
-    // 落地判据：composer 退出运行态（两档同一条）。真实模型慢，给够时间。
+    // 落地判据：composer 退出运行态（两档同一条）。预算从站点预算派生，不写死墙钟数
+    // （R18）：真实模型那档给「一个完整回合」的预算，夹具那档给四步操作的预算。
     await expect(win.locator(`${CANVAS_PANEL} ${COMPOSER}[data-mode="running"]`).first())
-      .toBeHidden({ timeout: DEEPSEEK ? 180_000 : 60_000 })
+      .toBeHidden({ timeout: DEEPSEEK ? stationTimeout({ turns: 1 }) : stationTimeout({ operations: 4 }) })
 
     // 回合结束**不等于**卡已经在屏幕上：草稿要先落画布，宿主投影再被轮询读到。
     // 所以这里等的是**产出本身**（Playwright 自己的等待器，不是私造的墙钟轮询，R18）。
     // 阴性对照那两句等满同一段时间才判「没出卡」——不等就判，等于用仪器的慢换一个假绿。
     const card = win.locator(CARD).first()
-    const cardVisible = await card.waitFor({ state: 'visible', timeout: 20_000 }).then(() => true, () => false)
+    const cardVisible = await card.waitFor({ state: 'visible', timeout: stationTimeout({ operations: 2 }) }).then(() => true, () => false)
     const priceText = cardVisible ? await win.locator(`${CARD} ${PRICE_TOTAL}`).first().innerText().catch(() => '') : ''
     // 这一句到底有没有**新**落下一份草稿。这是两个数唯一的判据——
     // 卡是否在屏幕上不能当判据：草稿留在画布上不清，介入槽里那张卡从第一句起就一直在。
