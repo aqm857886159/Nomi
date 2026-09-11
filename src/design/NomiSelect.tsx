@@ -224,7 +224,11 @@ export function NomiSelect({
             classNames={{ input: 'text-caption bg-nomi-paper text-nomi-ink border-nomi-line' }}
           />
         ) : null}
-        <Combobox.Options className="max-h-[240px] overflow-auto">
+        {/* nowheel/nodrag：React Flow 的默认 no-wheel/no-drag class 名（v12 未改名就是它俩）。
+            通用组件不知道自己会不会被挂进画布节点内部（如生成画布的行内参数面板把
+            portalTarget 指回节点自身 DOM，而不是 document.body）——挂了就必须挡住滚轮被画布
+            当缩放吃掉；没挂进画布时这两个 class 谁也不认，纯粹无操作。 */}
+        <Combobox.Options className="nowheel nodrag max-h-[240px] overflow-auto">
           {visibleOptions.length === 0 ? <Combobox.Empty>{t('common.noMatchingOptions')}</Combobox.Empty> : null}
           {visibleOptions.map((option) => {
             const isSel = option.value === value
