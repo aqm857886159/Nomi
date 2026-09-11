@@ -136,6 +136,17 @@ function buildSubmission(root: string, repository: ReturnType<typeof createProdu
   });
 }
 
+/** 真人批准锚检查点。检查点永不自己放行（2026-09-11 拍板），整批要跑完就得像生产入口那样发 gate.decide。 */
+function approveCheckpoint(repository: ReturnType<typeof createProductionRunRepository>): void {
+  const run = repository.read("project-1", "op-batch")!;
+  const gate = run.gates.find((candidate) => candidate.gateId === anchorCheckpointGateId("op-batch") && candidate.status === "waiting");
+  if (!gate) throw new Error("expected a waiting anchor checkpoint to approve");
+  repository.execute("project-1", "op-batch", {
+    commandId: `approve-checkpoint:${run.revision}`, expectedRevision: run.revision,
+    type: "gate.decide", payload: { gateId: gate.gateId, status: "approved" }, issuedAt: tickClock(),
+  });
+}
+
 function scheduler(root: string, repository: ReturnType<typeof createProductionRunRepository>, origin: string, submits: string[], options: Parameters<typeof createMultiShotBatchScheduler>[0]["options"] = {}) {
   const submission = buildSubmission(root, repository, origin, submits);
   return createMultiShotBatchScheduler({ repository, submission, projectId: "project-1", runId: "op-batch", perShotPrice: () => ({ known: true, amount: 6 }), now, options });
@@ -242,8 +253,11 @@ describe("P4 S6 J2 — single-shot rework over a real loopback vendor", () => {
     const vendor = await startLoopbackVendor();
     try {
       const submits: string[] = [];
-      // Phase A: full batch — anchor (checkpoint auto-released here for brevity) → 2 shots.
-      await scheduler(root, repository, vendor.origin, submits, { anchorAutoReleaseMs: 0 }).runToQuiescence();
+      // Phase A: full batch — anchor → the batch parks at the checkpoint → a person approves it
+      // (nothing else can: the checkpoint has no self-release) → 2 shots.
+      await scheduler(root, repository, vendor.origin, submits).runToQuiescence();
+      approveCheckpoint(repository);
+      await scheduler(root, repository, vendor.origin, submits).runToQuiescence();
       let run = repository.read("project-1", "op-batch")!;
       expect(submits).toHaveLength(3); // 1 anchor + 2 shots
       const shot2JobBefore = run.jobs.find((j) => j.metadata?.shotId === "shot-2" && (j.status === "ready" || j.status === "adopted"))!;
@@ -287,7 +301,7 @@ describe("P4 S6 J2 — single-shot rework over a real loopback vendor", () => {
         payload: { gateId: rework.envelope.gateId, status: "approved", receiptId: "receipt-rework", authorizationDigest: rework.authorizationDigest }, issuedAt: tickClock(),
       }).run;
       run = repository.execute("project-1", "op-batch", { commandId: "submit-rework", expectedRevision: run.revision, type: "generation.submit", payload: {}, issuedAt: tickClock() }).run;
-      const afterRework = await scheduler(root, repository, vendor.origin, submits, { anchorAutoReleaseMs: 0 }).runToQuiescence();
+      const afterRework = await scheduler(root, repository, vendor.origin, submits).runToQuiescence();
       expect(afterRework.progress.completed).toBe(2); // both video shots still count as completed
 
       run = repository.read("project-1", "op-batch")!;
