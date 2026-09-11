@@ -47,6 +47,10 @@ const settingsDirectory = path.join(process.cwd(), 'src/workbench/settings')
 //             **这次只有这一行变**，
 //             对应正向断言见下方 uses the split motion tokens on the gesture options——锁住它不许
 //             退回打包写法（退回=按钮 hover 又变回硬切，而所有快照仍然全绿）。
+// 2026-09-11：「模型框里显示哪些、排在哪」区块挂进本 tab，紧贴「默认走哪家」下面（用户当天拍板的
+//             两张表：上面那张管每行高亮哪个供应商标签，下面这张管有哪几行、什么顺序）。故更新
+//             AiModelsSection 基线；对应正向断言见下方 hosts the model box order right below the
+//             vendor preference——锁住两块必须同屏相邻（分开放 = 用户要去两个地方找同一件事）。
 // 2026-09-10 DC24: remove repeated teaching; retain actionable upload/privacy and gesture details.
 // Positive cross-surface coverage: quietDefaults.test.ts.
 const APPROVED_NON_MODEL_SECTION_SHA256 = {
@@ -55,7 +59,7 @@ const APPROVED_NON_MODEL_SECTION_SHA256 = {
   'ProjectLocationSection.tsx': '6fdcf159d9a0e32e72637049fce6d0f9acaeee43369d0c8d2be46d3f7ec81c10',
   // 2026-09-02: AiModelsSection 按渲染边界收口供应商/模型展示名（translateModelDisplayText）。
   // B4: user explicitly removed the global budget setting; the positive absence assertion is below.
-  'AiModelsSection.tsx': '8fee6e8299842d0b52892766a4e94c88a37fb69e0fa9900095f00a4a299e3c7c',
+  'AiModelsSection.tsx': '4787572783a6fa0985d0eea1bf0611e952be244c984780d7292c2ef24fee52f3',
   // 2026-09-03：toggleHost 参数类型从 SettingsHostKey（四值联合）泛化为 string（支持自定义 profile key）；
   // 新增 CustomMcpClientCard UI TODO 注释（底层能力已就绪，UI 面另排样张拍板）。
   // 2026-09-09：声音归通用设置的单一入口，移除这里的旧开关；下方断言保留系统通知策略。
@@ -249,6 +253,21 @@ describe('settings dialog structure', () => {
     expect(aiModelsSource).toContain("provider.state !== 'needs-key' && provider.state !== 'disabled'")
     const modelHome = readCode(path.join(process.cwd(), 'src/ui/onboarding/ModelSettingsHome.tsx'))
     expect(modelHome, '优先供应商不该在「模型」tab 再有一个家').not.toContain('VendorPreference')
+  })
+
+  // 2026-09-11：「模型框里显示哪些、排在哪」必须和「默认走哪家」同屏相邻。
+  // 用户心里这两块是同一件事（「模型框里我看到什么」）：一块定每行高亮哪个供应商标签，
+  // 一块定有哪几行、什么顺序。把它挪去别的 tab 不会让任何快照变红，却会让用户去两个地方
+  // 找同一件事（§1.5.2 一功能一个家）。
+  it('hosts the model box order right below the vendor preference', () => {
+    expect(aiModelsSource).toContain("import { ModelBoxOrderSection } from './ModelBoxOrderSection'")
+    expect(aiModelsSource).toContain('<ModelBoxOrderSection />')
+    const vendorAt = aiModelsSource.indexOf('<VendorPreferenceOrderSection')
+    const modelBoxAt = aiModelsSource.indexOf('<ModelBoxOrderSection />')
+    expect(vendorAt, '「默认走哪家」必须在前（每行标签的顺序是它定的）').toBeGreaterThan(-1)
+    expect(modelBoxAt, '「显示哪些、排在哪」紧跟其后').toBeGreaterThan(vendorAt)
+    const modelHome = readCode(path.join(process.cwd(), 'src/ui/onboarding/ModelSettingsHome.tsx'))
+    expect(modelHome, '模型框整理不该在「模型」tab 再有一个家').not.toContain('ModelBoxOrder')
   })
 
   // 2026-09-08：哈希只证明「变了/没变」，证不了「变成对的」。这条锁住动效 token 的拆包形态：
