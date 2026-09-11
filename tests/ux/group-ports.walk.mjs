@@ -156,7 +156,7 @@ const fitBtn = win.locator('[aria-label="适应视图"]').first()
 if (await fitBtn.count()) { await fitBtn.click({ timeout: 4000 }).catch(() => {}); await win.waitForTimeout(1200) }
 await win.locator(`[data-node-id="${srcId}"]`).first().click({ timeout: 4000 })
 await win.waitForTimeout(800)
-// 用**真手势**：从磁吸连接点按下 → 拖到组框空白处 → 松手。这条路走的是 pointerup（useDragToConnect），
+// 用**真手势**：从磁吸连接点按下 → 拖到组框空白处 → 松手。这条路走的是 React Flow 的 onConnectEnd，
 // 和「点一下连接点再点目标」的 click 路是两条，必须两条都真的通（走查第一版就是漏了 pointerup 那条）。
 const handle = win.locator(`.react-flow__node[data-id="${srcId}"] .generation-canvas-react-flow__handle[data-side="right"]`).last()
 check('找得到连接点', await handle.count() > 0)

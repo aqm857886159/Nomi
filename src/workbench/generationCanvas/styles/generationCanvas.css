@@ -15,9 +15,8 @@
   cursor: grab;
 }
 
-.generation-canvas-v2__stage[data-panning] {
-  cursor: grabbing;
-}
+/* 平移中的 grabbing 光标规则搬去 reactFlow/generationCanvasReactFlow.css（同宿主元素、
+   与写属性的 useGenerationCanvasReactFlowPointer 同层），这里不留第二份（P1/R10）。 */
 
 .generation-canvas-v2__canvas {
   position: absolute;

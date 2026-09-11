@@ -3,6 +3,7 @@ import { CanvasBatchConnectionLine } from './CanvasBatchConnectionLine'
 import React from 'react'
 import {
   ReactFlow,
+  SelectionMode,
   ViewportPortal,
   type OnConnect,
   type OnConnectEnd,
@@ -13,6 +14,8 @@ import {
   type Viewport,
   useReactFlow,
 } from '@xyflow/react'
+import { useCanvasGestureScheme } from '../../../utils/canvasGesturePreference'
+import { canvasWheelGestureProps } from './canvasViewportGestureProps'
 import { CanvasSelectionToolbar } from '../components/CanvasSelectionToolbar'
 import { CanvasGroupProjectionLayer } from '../components/CanvasGroupProjectionLayer'
 import type { CanvasGroupBox } from '../components/GroupFrame'
@@ -149,6 +152,9 @@ export function GenerationCanvasReactFlowViewport({
   onClearSelection,
   isNodeDragging,
 }: GenerationCanvasReactFlowViewportProps): JSX.Element {
+  // 「画布手势」设置（#832）订阅式读：设置页改完，这块画布当场换语义，不用重开。
+  // 翻译成内核开关的那一步住在 canvasViewportGestureProps（真值表仍归 resolveWheelIntent）。
+  const wheelGestures = canvasWheelGestureProps(useCanvasGestureScheme())
   // 底部那一排常驻控件此刻占了哪几块——浮条不许排到它们身上（现量，不写常数）。
   const bottomDockRects = useCanvasBottomDockRects(hostRef, Boolean(selectedBounds) && selectedNodeIds.length > 1)
   // 浮条让开的是「你选中的那个东西」的上沿：选中的卡全在一个框里时，那就是框的上沿
@@ -187,6 +193,17 @@ export function GenerationCanvasReactFlowViewport({
       connectOnClick={false}
       selectionKeyCode="Shift"
       multiSelectionKeyCode="Shift"
+      // 扫到就算选中（2026-06-14 §B2 拍板的 AABB 相交语义）。内核默认是 Full＝必须整张卡
+      // 落进框里，用户得把框拉得比卡还大——迁移时漏传这颗，走查还被改写去迁就它。
+      selectionMode={SelectionMode.Partial}
+      // 旧画布没有「双击空白」这个手势；内核默认 true，误触就突然放大一档。
+      zoomOnDoubleClick={false}
+      // 滚轮语义二选一（#832）。⌘/Ctrl+滚轮、捏合、Shift+滚轮横向平移都由内核自己兜，
+      // 见 canvasViewportGestureProps 的头注释（带 @xyflow/system 的 file:line）。
+      zoomOnScroll={wheelGestures.zoomOnScroll}
+      panOnScroll={wheelGestures.panOnScroll}
+      panOnScrollMode={wheelGestures.panOnScrollMode}
+      panOnScrollSpeed={wheelGestures.panOnScrollSpeed}
       noPanClassName="generation-canvas-react-flow__no-pan"
       onlyRenderVisibleElements
       deleteKeyCode={null}
