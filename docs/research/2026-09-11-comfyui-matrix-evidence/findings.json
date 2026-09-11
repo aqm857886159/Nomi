@@ -1,0 +1,23 @@
+[
+  {
+    "row": "env",
+    "step": "connect",
+    "verdict": "submitted-awaiting-verification",
+    "detail": "已提交「本地 ComfyUI」，请在 Nomi 中确认后开始真实验证"
+  },
+  {
+    "row": "row7b",
+    "step": "step2-inputs",
+    "verdict": "panel",
+    "detail": "导入自定义工作流\n直接粘贴 ComfyUI 保存的 workflow.json；也支持 Workflow → Export (API) 导出的 workflow_api.json。\n已识别为\n图片\n工作流（带首帧输入 = 图生）——确认下面的对应关系，需要就改：\n提示词接哪个节点\n__none__\n媒体输入（按声明逐个绑定）\nLoad Image\n图片\n成品输出节点\n#9 SaveImage（图片）\n生成时可调参数\n添加参数\n自动识别不准时，在这里手动把 ComfyUI 的节点输入暴露到生成面板，例如宽度、高度、秒数、帧率。\n常用：\n宽度\n高度\n秒数\n帧率\n#20 ImageResizeKJv2\n数字\n#20 ImageResizeKJv2\n数字\n导入"
+  },
+  {
+    "row": "row7b",
+    "step": "step3-missing",
+    "verdict": "reconcile",
+    "detail": {
+      "missingFiles": "(no missing-files line)",
+      "missingNodes": "(no missing-nodes line)"
+    }
+  }
+]

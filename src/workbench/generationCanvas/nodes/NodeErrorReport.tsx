@@ -13,6 +13,7 @@ import { isComfyuiVendorKey } from '../model/comfyuiVendor'
 import { nodeSelectedModelAddress } from './controls/parameterControlModel'
 import { classifyGenerationError } from '../runner/generationRunController'
 import { narrateErrorActionLabel, narrateModelKind, type GenerationErrorAction } from '../../observability/narrate'
+import { NODE_SCROLL_REGION_CLASS_NAME } from './nodeScrollRegionClassName'
 import { stageForGenerationError } from '../../../ui/community/feedbackTypes'
 
 const ACTION_ICON: Record<GenerationErrorAction, typeof IconRefresh> = {
@@ -235,8 +236,10 @@ export function NodeErrorReport({
           hint + 上游原话却可以很长。不给正文独立滚动，长文案会把整排动作按钮顶出卡外，用户连
           「换个模型」都点不到（2026-07-31 走查几何断言抓到：436×245 的节点上按钮底边越界）。
           内容短时它照旧撑满剩余高度，按钮仍贴底，视觉与旧版一致。
-          onWheel 停冒泡：画布用 bubble 阶段的 wheel 缩放，不停的话在卡里滚 = 缩放画布。 */}
-      <div className="mt-2 min-h-0 flex-1 overflow-y-auto" onWheel={(event) => event.stopPropagation()}>
+          画布用 d3-zoom 原生监听器（挂在 `.react-flow__pane` 上）处理 wheel 缩放，比 React 合成
+          事件到达根节点更早——onWheel 里 stopPropagation 拦不住它（见
+          nodeScrollRegionClassName.ts 头注释），真正管用的是 React Flow 自己认的 nowheel。 */}
+      <div className={cn(NODE_SCROLL_REGION_CLASS_NAME, 'mt-2 min-h-0 flex-1 overflow-y-auto')}>
         {report.hint || customCallTarget ? (
           <p className="select-text cursor-text text-caption leading-relaxed text-nomi-ink-60">
             {report.hint}
@@ -266,7 +269,7 @@ export function NodeErrorReport({
 
       {showRaw ? (
         <pre
-          className="mb-2 max-h-[88px] select-text overflow-auto whitespace-pre-wrap break-all rounded-nomi-sm bg-nomi-ink-05 p-2 font-nomi-mono text-micro text-nomi-ink-60"
+          className={cn(NODE_SCROLL_REGION_CLASS_NAME, 'mb-2 max-h-[88px] select-text overflow-auto whitespace-pre-wrap break-all rounded-nomi-sm bg-nomi-ink-05 p-2 font-nomi-mono text-micro text-nomi-ink-60')}
           onPointerDown={(event) => event.stopPropagation()}
         >
           {report.raw}
