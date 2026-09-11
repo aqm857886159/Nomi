@@ -12,6 +12,7 @@ import { listWorkbenchModelCatalogModels, type ModelCatalogModelDto } from '../a
 import type { ProductionPolicyRequirement } from '../production/productionPolicyRecovery'
 import { DefaultGenerationModelsSection } from './DefaultGenerationModelsSection'
 import { VendorPreferenceOrderSection } from './VendorPreferenceOrderSection'
+import { ModelBoxOrderSection } from './ModelBoxOrderSection'
 import {
   getGenerationModelDefaults,
   loadGenerationModelDefaults,
@@ -222,6 +223,11 @@ export function AiModelsSection({
       {/* 「默认走哪个模型」的紧邻兄弟：「默认走哪家供应商」。两块都是「已接好的东西怎么用」，
           住一起才不会出现第二个「默认用什么」的家（设计系统 §1.5.2 / §1.7.2）。 */}
       <VendorPreferenceOrderSection entries={configuredVendorEntries} />
+
+      {/* 「默认走哪家」定的是每一行里高亮哪个标签；这一块定的是**有哪几行、什么顺序**。
+          两块必须紧挨着：用户心里它们是同一件事（「模型框里我看到什么」），分屏放就会去两个
+          地方找同一件事（§1.5.2 一功能一个家）。 */}
+      <ModelBoxOrderSection />
 
       {/* 2026-08-12 删掉顶部那段只读「模型连接」列表：模型的家搬去「模型」tab 之后，
           它就是第二个家；而且下面「默认模型策略」的勾选框本来就逐个列了 provider 且带状态，

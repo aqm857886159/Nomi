@@ -9,6 +9,7 @@ import {
   buildModelSelectOptions,
   buildProviderSelectOptions,
   buildVendorExplicitModelOptions,
+  modelBoxHiddenNote,
   pickHealthiestProvider,
   providerAddress,
   resolveProviderByAddress,
@@ -18,6 +19,7 @@ import {
 } from './useDedupedModelSelect'
 import { dedupeModelOptions } from '../../config/modelIdentity'
 import type { ModelOption } from '../../config/models'
+import type { ModelBoxPreferenceSettings } from '../../../electron/shared/contracts/modelBoxPreference'
 import { toCatalogModelOptions } from '../../config/modelOptionMappers'
 
 function option(modelKey: string, vendor: string, label: string): ModelOption {
@@ -355,5 +357,63 @@ describe('一家供应商都没接入 → 诚实空态，而不是空白下拉',
     } finally {
       vi.unstubAllGlobals()
     }
+  })
+})
+
+// ── 模型框偏好：显示哪些 / 排在哪 / 记住哪家（2026-09-11 用户拍板） ──
+//
+// 这四条是用户当场就能看出来对不对的行为，所以逐条钉死在这里：藏起来的不出现、
+// 排过的排在前面、chip 顺序仍由全局供应商顺序决定、高亮与自动选家都听手点过的那家。
+describe('模型框偏好', () => {
+  // 偏好按 canonicalId 存，所以夹具显式给出 canonicalModelId（不靠 label 归一化推导，
+  // 否则测试里的 id 和被测代码里的 id 只是**碰巧**一样）。
+  const boxOption = (canonicalId: string, vendor: string, label: string): ModelOption => ({
+    ...option(`${canonicalId}-${vendor}`, vendor, label), meta: { canonicalModelId: canonicalId },
+  })
+  const modelBoxDeduped = dedupeModelOptions([
+    boxOption('gpt-image-2', 'apimart', 'GPT Image 2'),
+    boxOption('gpt-image-2', 'kie', 'GPT Image 2'),
+    boxOption('nano-banana-2', 'apimart', 'Nano Banana 2'),
+    boxOption('nano-banana-2', 'kie', 'Nano Banana 2'),
+    boxOption('z-image-turbo', 'apimart', 'Z-Image Turbo'),
+  ])
+  const preference = (patch: Partial<ModelBoxPreferenceSettings>): ModelBoxPreferenceSettings => ({
+    schemaVersion: 1, modelOrder: [], hiddenModelIds: [], preferredVendorByModel: {}, ...patch,
+  })
+
+  it('隐藏的模型一行都不进模型框，折叠版与批量版同一口径', () => {
+    const hidden = preference({ hiddenModelIds: ['z-image-turbo'] })
+    expect(buildModelSelectOptions(modelBoxDeduped, healthy, [], hidden).map(o => o.label))
+      .toEqual(['GPT Image 2', 'Nano Banana 2'])
+    expect(buildVendorExplicitModelOptions(modelBoxDeduped, healthy, [], hidden).every(o => o.label !== 'Z-Image Turbo')).toBe(true)
+  })
+
+  it('手排过的模型排在前面，没排过的仍按原顺序跟在后面', () => {
+    expect(buildModelSelectOptions(modelBoxDeduped, healthy, [], preference({ modelOrder: ['z-image-turbo'] })).map(o => o.label))
+      .toEqual(['Z-Image Turbo', 'GPT Image 2', 'Nano Banana 2'])
+  })
+
+  it('chip 顺序永远是全局供应商顺序，只有高亮跟着手点过的那家走', () => {
+    const options = buildModelSelectOptions(
+      modelBoxDeduped, healthy, ['apimart', 'kie'],
+      preference({ preferredVendorByModel: { 'nano-banana-2': 'kie' } }),
+    )
+    const nanoBanana = options.find(o => o.label === 'Nano Banana 2')!
+    expect(nanoBanana.chips?.map(chip => chip.label)).toEqual(['APIMart', 'Kie'])
+    expect(nanoBanana.chips?.find(chip => chip.active)?.label).toBe('Kie')
+    // 阴性对照：没手点过的那行仍是顺序里的第一家（证明记忆只作用在被点过的模型上）。
+    expect(options.find(o => o.label === 'GPT Image 2')!.chips?.find(chip => chip.active)?.label).toBe('APIMart')
+  })
+
+  it('自动选家：手点过的那家压过全局顺序，记忆没了就干净回落', () => {
+    const nanoBanana = modelBoxDeduped.find(model => model.canonicalId === 'nano-banana-2')!
+    expect(pickHealthiestProvider(nanoBanana, healthy, ['apimart', 'kie'], 'kie')?.vendor).toBe('kie')
+    expect(pickHealthiestProvider(nanoBanana, healthy, ['apimart', 'kie'], null)?.vendor).toBe('apimart')
+    expect(pickHealthiestProvider(nanoBanana, healthy, ['apimart', 'kie'], 'runninghub')?.vendor).toBe('apimart')
+  })
+
+  it('脚注只有真藏过东西才出现', () => {
+    expect(modelBoxHiddenNote(0)).toBe('')
+    expect(modelBoxHiddenNote(2)).toContain('2')
   })
 })
