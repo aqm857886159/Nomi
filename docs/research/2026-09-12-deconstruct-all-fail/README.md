@@ -34,7 +34,7 @@ select(scene>0.1): code=0, stdout 无切点（No filtered frames）
 - **B 返回体解析不到：最可疑、与“全部镜头全空”最匹配。** `textFromTaskResult` 只接受 OpenAI choices 形状；APIMart/模型适配器若返回 SDK `content`、字符串或空 choices，全部镜头静默变空。
 - **C 截断：可能但证据不足。** 注释明确 `maxTokens=4000` 为思考模型保留；若 `finishReason=length`，当前解析可能拿到空正文。需记录 finish reason 与 raw 结构确认。
 
-本机未跑真模型，故结论是：**用户机最可能为 B（供应商返回形状与解析契约不一致），其次是 C；A 需日志排除。**
+本次尝试按用户指定注入 APIMart key，并将 `real-shot-640x360.mp4` 作为 walk 脚本 fixture（临时替换其固定 fixture，运行后已恢复）。真实模型调用未能开始：走查在点击拆解前的面板基线探针失败（`data-deconstruct-panel=<nodeId>` 计数为 0），因此没有产生 raw/choices/finishReason 或 `[deconstruct:model-failed]` 日志，也没有发生 APIMart 计费。该失败属于测试宿主/选择器与当前构建不一致，不能用来支持 B 或 C。故 B、C 均**未坐实，无法排除**；现有静态证据仍只允许保留“B 最可疑、C 次之”的暂定排序。
 
 ## 秒数 0.0333333
 
