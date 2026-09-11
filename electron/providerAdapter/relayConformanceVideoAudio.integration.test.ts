@@ -34,10 +34,12 @@ vi.mock("electron", () => ({
 }));
 
 import { buildOpenAiCompatibleDraft } from "./builtinOpenAiCompatibleDraft";
-import { verifyAdapterMode } from "./verifier";
-import { executeProfileOperation } from "../runtime";
+import { buildProfileTaskResult, executeProfileOperation } from "../runtime";
+import { certifyMediaArtifact } from "./certificationMedia";
+import { executeSynchronousAudioOperation } from "../audio/synchronousAudioResponse";
 import type { Model, Vendor } from "../catalog/types";
 import type { AdapterModeDraft } from "./types";
+import type { CertificationMediaEvidence } from "./certificationMedia";
 
 const VENDOR_KEY = "self-hosted-relay";
 const VIDEO_MODEL_KEY = "relay-video-1";
@@ -51,6 +53,8 @@ const RESULT_MP4 = fs.readFileSync(path.join(FIXTURES, "valid.mp4"));
 const RESULT_WAV = fs.readFileSync(path.join(FIXTURES, "valid.wav"));
 
 const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
+const LOCAL_FIRST_FRAME_PNG = fs.readFileSync(path.join(FIXTURES, "valid.png"));
+const LOCAL_FIRST_FRAME_URL = `data:image/png;base64,${LOCAL_FIRST_FRAME_PNG.toString("base64")}`;
 
 type RelayHit = {
   method: string;
@@ -221,14 +225,75 @@ function modeOf(kind: "video" | "audio", taskKind: string): AdapterModeDraft {
   return mode;
 }
 
-/** 真认证探针（service.ts:127 的 verify 就是它，未打桩）。轮询间隔压到 1ms 只为跑得快，
- *  轮询**次数**不缩水：仍要真的转够 POLLS_BEFORE_TERMINAL 圈才拿得到产物。 */
-function certify(kind: "video" | "audio", mode: AdapterModeDraft) {
-  return verifyAdapterMode(
-    { vendor: vendor(), model: model(kind), apiKey: "sk-relay-test", mode },
-    { pollIntervalMs: 1, maxPolls: 8 },
-  );
+type LifecycleOutcome =
+  | { ok: true; mediaEvidence: CertificationMediaEvidence[]; remoteTaskId?: string }
+  | { ok: false; stage: string; error: string };
+
+/**
+ * **真生产生命周期**（create → 轮询 → 终态 → 产物校验），三块全是生产原语、未打桩：
+ * executeProfileOperation / buildProfileTaskResult / certifyMediaArtifact。
+ *
+ * 2026-09-11 之前这里跑的是认证探针——它当年就是一次付费生成，所以这些「异步生命周期真的转过没有」
+ * 「产物真解得开吗」的断言都挂在它身上。付费验证删掉之后那次真实请求挪到了用户第一次生成，
+ * 断言也跟着挪到生产这条路上，**一条没少**。
+ */
+async function runLifecycle(kind: "video" | "audio", mode: AdapterModeDraft): Promise<LifecycleOutcome> {
+  const vendorRow = vendor();
+  const modelRow = model(kind);
+  const request = {
+    kind: mode.taskKind,
+    prompt: kind === "audio" ? "a short sting" : "a slow pan over a blue square",
+    extras: {
+      modelKey: modelRow.modelKey,
+      // 参考图**故意用本地字节**（data: URL）：这才是用户真实的处境——首帧是他机器上的一张图。
+      // 本地字节 → 素材中转上传 → 换回 URL 是 i2v 首帧的真实生产路径，断言两端对得上。
+      ...(mode.referenceParam
+        ? { [mode.referenceParam]: LOCAL_FIRST_FRAME_URL, referenceImages: [LOCAL_FIRST_FRAME_URL] }
+        : {}),
+    },
+  } as never;
+  try {
+    if (mode.create.audioResponse) {
+      const audio = await executeSynchronousAudioOperation({
+        vendor: vendorRow, model: modelRow, apiKey: "sk-relay-test", request, operation: mode.create,
+      });
+      return {
+        ok: true,
+        mediaEvidence: [await certifyMediaArtifact({ source: { bytes: audio.bytes, contentType: audio.contentType }, expectedKind: "audio" })],
+      };
+    }
+    let executed = await executeProfileOperation({
+      vendor: vendorRow, model: modelRow, apiKey: "sk-relay-test", request, operation: mode.create, stage: "create",
+    });
+    let normalized = await buildProfileTaskResult({
+      response: executed.response, mapping: { create: mode.create, ...(mode.query ? { query: mode.query } : {}), ...(mode.statusMapping ? { statusMapping: mode.statusMapping } : {}) } as never,
+      operation: mode.create, request, taskIdFallback: "local-fallback", wantedKind: kind, vendor: vendorRow, model: modelRow,
+    });
+    let providerMeta = normalized.providerMeta;
+    const remoteTaskId = normalized.result.id;
+    for (let attempt = 0; attempt < 8 && normalized.result.status !== "succeeded"; attempt += 1) {
+      if (!mode.query) return { ok: false, stage: "poll", error: "asynchronous mode without a query operation" };
+      executed = await executeProfileOperation({
+        vendor: vendorRow, model: modelRow, apiKey: "sk-relay-test", request, operation: mode.query, stage: "query", providerMeta,
+      });
+      normalized = await buildProfileTaskResult({
+        response: executed.response, mapping: { create: mode.create, query: mode.query, ...(mode.statusMapping ? { statusMapping: mode.statusMapping } : {}) } as never,
+        operation: mode.query, request, taskIdFallback: normalized.result.id, wantedKind: kind, vendor: vendorRow, model: modelRow,
+      });
+      providerMeta = { ...providerMeta, ...normalized.providerMeta };
+    }
+    if (normalized.result.status !== "succeeded") return { ok: false, stage: "poll", error: "task never reached a terminal success" };
+    const evidence: CertificationMediaEvidence[] = [];
+    for (const asset of normalized.result.assets) {
+      evidence.push(await certifyMediaArtifact({ source: asset.url, expectedKind: kind, allowedPrivateOrigins: [baseUrl] }));
+    }
+    return { ok: true, mediaEvidence: evidence, ...(remoteTaskId ? { remoteTaskId } : {}) };
+  } catch (error) {
+    return { ok: false, stage: "create", error: error instanceof Error ? error.message : String(error) };
+  }
 }
+
+const certify = (kind: "video" | "audio", mode: AdapterModeDraft) => runLifecycle(kind, mode);
 
 const hitsTo = (predicate: (hit: RelayHit) => boolean) => hits.filter(predicate);
 const createVideoHits = () => hitsTo((hit) => hit.method === "POST" && hit.path === "/v1/video/generations");
@@ -241,10 +306,10 @@ describe("自建中转一致性台架 · 视频（异步两段：create → 轮�
     expect(mode.query, "视频模式缺 query op —— 异步任务永远停在 pending，用户看到的是永远转圈").toBeTruthy();
 
     const result = await certify("video", mode);
-    expect(result.ok, `文生视频认证失败：${result.ok ? "" : `[${result.stage}] ${result.error}`}`).toBe(true);
+    expect(result.ok, `文生视频生成失败：${result.ok ? "" : `[${result.stage}] ${result.error}`}`).toBe(true);
 
     const create = createVideoHits();
-    expect(create.length, "认证探针根本没打到 /v1/video/generations —— 视频 create 走错了端点").toBe(1);
+    expect(create.length, "生产请求根本没打到 /v1/video/generations —— 视频 create 走错了端点").toBe(1);
     expect(create[0].status, `严格中转拒绝了这次 create：${create[0].rejection}`).toBe(200);
     expect(create[0].jsonBody?.model).toBe(VIDEO_MODEL_KEY);
 
@@ -261,15 +326,15 @@ describe("自建中转一致性台架 · 视频（异步两段：create → 轮�
   it("文生视频：终态产物是**真能解码的视频**，不是「200 就算过」", async () => {
     // certifyMediaArtifact 对 video 会真的跑 ffprobe + 解码；证据里的宽高/时长/编码来自那次真解码。
     const result = await certify("video", modeOf("video", "text_to_video"));
-    expect(result.ok, `文生视频认证失败：${result.ok ? "" : `[${result.stage}] ${result.error}`}`).toBe(true);
+    expect(result.ok, `文生视频生成失败：${result.ok ? "" : `[${result.stage}] ${result.error}`}`).toBe(true);
     if (!result.ok) return;
     const evidence = result.mediaEvidence?.[0];
-    expect(evidence?.kind, "产物没有被当成视频校验 —— 认证放过了一个不是视频的东西").toBe("video");
+    expect(evidence?.kind, "产物没有被当成视频校验 —— 终态产物校验放过了一个不是视频的东西").toBe("video");
     expect(evidence?.contentType).toBe("video/mp4");
     expect(evidence?.metadata?.videoCodec, "产物解不出视频编码 —— 它不是一个真能播的视频").toBeTruthy();
     expect(Number(evidence?.metadata?.durationSeconds), "产物时长为 0 —— 不是一段真视频").toBeGreaterThan(0);
     // task_id 必须是中转发的那个（而不是本地兜底 uuid）：它是用户侧「去中转后台查这单」的唯一线索。
-    expect(result.remoteTaskId, "认证没有留住中转发的 task_id —— 出事时用户无从对账").toMatch(/^task-/);
+    expect(result.remoteTaskId, "生命周期没有留住中转发的 task_id —— 出事时用户无从对账").toMatch(/^task-/);
   }, 30_000);
 
   it("图生视频：注入的首帧**真的出现在发给中转的报文里**，键是 image（不是 image_url）", async () => {
@@ -282,10 +347,10 @@ describe("自建中转一致性台架 · 视频（异步两段：create → 轮�
     expect(mode.referenceShape).toBe("single");
 
     const result = await certify("video", mode);
-    expect(result.ok, `图生视频认证失败：${result.ok ? "" : `[${result.stage}] ${result.error}`}`).toBe(true);
+    expect(result.ok, `图生视频生成失败：${result.ok ? "" : `[${result.stage}] ${result.error}`}`).toBe(true);
 
     const create = createVideoHits();
-    expect(create.length, "认证探针根本没打到 /v1/video/generations").toBe(1);
+    expect(create.length, "生产请求根本没打到 /v1/video/generations").toBe(1);
     const sentFirstFrame = create[0].jsonBody?.image;
 
     // ① 首帧确实进了报文，且就在 image 这个键下（键名咬合）。
@@ -311,7 +376,7 @@ describe("自建中转一致性台架 · 视频（异步两段：create → 轮�
     expect(i2v.query?.path, "i2v 没有复用同一条轮询 —— 图生视频会永远停在 pending").toBe(t2v.query?.path);
     // i2v 也必须真的走完异步生命周期，不能因为带了首帧就走另一条同步路径。
     const result = await certify("video", i2v);
-    expect(result.ok, `图生视频认证失败：${result.ok ? "" : `[${result.stage}] ${result.error}`}`).toBe(true);
+    expect(result.ok, `图生视频生成失败：${result.ok ? "" : `[${result.stage}] ${result.error}`}`).toBe(true);
     expect(pollVideoHits().length, "i2v 没有走轮询").toBeGreaterThan(POLLS_BEFORE_TERMINAL - 1);
   }, 30_000);
 });
@@ -325,10 +390,10 @@ describe("自建中转一致性台架 · 配音 TTS（同步二进制）", () =>
     expect(mode.query, "配音是同步的，不该有轮询 op").toBeFalsy();
 
     const result = await certify("audio", mode);
-    expect(result.ok, `配音认证失败：${result.ok ? "" : `[${result.stage}] ${result.error}`}`).toBe(true);
+    expect(result.ok, `配音生成失败：${result.ok ? "" : `[${result.stage}] ${result.error}`}`).toBe(true);
 
     const speech = hitsTo((hit) => hit.method === "POST" && hit.path === "/v1/audio/speech");
-    expect(speech.length, "认证探针根本没打到 /v1/audio/speech —— 配音走错了端点").toBe(1);
+    expect(speech.length, "生产请求根本没打到 /v1/audio/speech —— 配音走错了端点").toBe(1);
     expect(speech[0].status, `严格中转拒绝了这次配音：${speech[0].rejection}`).toBe(200);
     expect(speech[0].jsonBody?.model).toBe(AUDIO_MODEL_KEY);
     // input 是 OpenAI /v1/audio/speech 的文本键（不是 prompt）。写错键 = 中转收到空文本。
@@ -342,7 +407,7 @@ describe("自建中转一致性台架 · 配音 TTS（同步二进制）", () =>
     // 同步音频不经 JSON 解析，字节直接进 certifyMediaArtifact；证据里的 codec/sampleRate
     // 来自真解码。若运行期把音频当 JSON 或当图片处理，这里拿不到 audio 证据。
     const result = await certify("audio", modeOf("audio", "text_to_audio"));
-    expect(result.ok, `配音认证失败：${result.ok ? "" : `[${result.stage}] ${result.error}`}`).toBe(true);
+    expect(result.ok, `配音生成失败：${result.ok ? "" : `[${result.stage}] ${result.error}`}`).toBe(true);
     if (!result.ok) return;
     const evidence = result.mediaEvidence?.[0];
     expect(evidence?.kind, "产物没有被当成音频校验").toBe("audio");
