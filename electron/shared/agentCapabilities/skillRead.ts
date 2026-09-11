@@ -41,7 +41,8 @@ export const SKILL_READ_ALIASES = Object.freeze({
 export const SKILL_READ_CAPABILITY = {
   id: "skill.read",
   version: 1,
-  aliases: { pi: SKILL_READ_ALIASES.load },
+  // 没有模型可见工具（模型经 pi 的 `read` 读 SKILL.md）；这是宿主传输的方法名。
+  aliases: { method: SKILL_READ_ALIASES.load },
   inputSchema: skillReadSemanticInputSchema,
   outputSchema: skillReadResultSchema,
   effect: "read",
@@ -50,11 +51,6 @@ export const SKILL_READ_CAPABILITY = {
   exposure: "internal_only",
   requiredScope: "skills:read",
   targetKind: "project",
-  projections: {
-    pi: {
-      description: "Load one named Skill body from the approved Nomi catalog without granting its permissions.",
-    },
-  },
 } as const satisfies CapabilityContract<SkillReadInput, SkillReadResult>;
 
 export function skillReadInputForAlias(alias: string, args: unknown): SkillReadInput | undefined {

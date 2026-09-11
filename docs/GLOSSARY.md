@@ -35,8 +35,8 @@
 | 你可能搜的词 | 规范名 | 去哪找 |
 |---|---|---|
 | agent 引擎 · runAgentChatV2 · streamText 循环 | **pi runtime**（pi SDK 0.85.1）。`runAgentChatV2` 是**已被取代**的旧名 | `electron/harness/runtime/pi/` |
-| 工具组 · toolset · skillKey 选工具 | **capability**（工具组按 capability 选，**不按 skillKey**） | `electron/harness/agentChatPolicy.ts:35` |
-| 工具定义 · tool schema · descriptor | **模型可见工具清单**（`modelToolSurfaceManifest.ts`；`canvasDescriptors.ts` / `documentDescriptors.ts` 是**已删**的旧名） | `electron/harness/tools/` |
+| 工具组 · toolset · skillKey 选工具 | **内部 profile 全量 + 延迟组**（#646 后不再按 capability 裁剪；工具组按 `internalGroup` 延迟披露） | `electron/agentLane/laneToolCatalog.ts` |
+| 工具定义 · tool schema · descriptor · 说明书 | **动词声明 `VerbDeclaration`**（唯一 owner；`modelToolSurfaceManifest.ts` / `agentToolCatalog.ts` / `*ModelTools.ts` / 契约 `projections` 都是 2026-09-11 **已删**的旧名） | `electron/shared/agentCapabilities/verbDeclarations.ts` |
 | 统一 agent · 跨区 agent · 常驻助手 | **R2-U1 项目级统一 Agent**（未交付） | `docs/plan/2026-08-26-pi-agent-loop-file-migration.md` §7 |
 | 会话 · 线程 · session · thread | **`{sessionKey, threadId}` 二元组**；area 仅 `creation \| generation` | `src/workbench/ai/agentSessionKey.ts:3` |
 | 幻影工具 · phantom tool | 后端有 schema、前端未实现的工具（历史问题，已修） | `docs/plan/agent-merge-architecture.md`（⛔ 已过期） |
