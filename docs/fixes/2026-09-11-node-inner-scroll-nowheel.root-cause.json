@@ -1,0 +1,235 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-11-node-inner-scroll-nowheel",
+  "problem_type": "画布节点内部的滚动/可编辑区域没有挡住 React Flow 的画布滚轮缩放/平移——一个 DOM 后代节点里的 onWheel handler 调用 stopPropagation，试图拦截一个绑在更靠近事件源的祖先 DOM 节点上的原生监听器，语法上像是生效了，语义上从没生效过",
+  "symptom": "用户原话：「鼠标在画布上滑动…提示词框…画布会跑」——把长提示词滚到底，或者只是想在节点的提示词框里往下滚看剩下的字，画布却跟着缩放/平移，节点从眼前跑掉。用户要求「查一查同类问题」，不只是修这一个框",
+  "direct_cause": "React Flow 的画布缩放由 d3-zoom 实现，它的 wheel 事件监听器直接 `addEventListener` 在 `.react-flow__pane`（真实 DOM 祖先节点）上；React 的合成事件系统是在应用根容器上统一分发的，位置比 `.react-flow__pane` 更靠外层。原生事件冒泡按 DOM 树由近到远依次触发监听器，所以一次 wheel 事件会先经过 pane 上 d3-zoom 的原生监听器，之后才轮到 React 的根级监听器去调用节点里写的 onWheel prop。ProductionShotPlaceholder.tsx、NodeErrorReport.tsx、ClipNodeTimeline.tsx 三处生产代码在修复前都写着 `onWheel={(event) => event.stopPropagation()}`——这行代码执行的时候，d3-zoom 早已经处理完那次 wheel 并已经把画布缩放/平移过了，stopPropagation 拦的是『事件到达 React 根之后』的传播，拦不住『事件到达 pane 原生监听器』这一步，因此从未真正生效过。同时，`NodeGenerationComposer.tsx`（用户报的「提示词框」）、`NodeResultStack.tsx`（版本堆）、`ProvenancePanel.tsx`（溯源面板）、`InlineParameterBar.tsx`（参数面板）、`NodePromptOptimizer.tsx`（AI 改写弹层）、`render/TextDocumentNode.tsx`（文本节点正文）、`artifact/ArtifactBody.tsx`（Agent 产物预览）、`whiteboard/WhiteboardLibraryPanel.tsx`（白板素材库）这些内部滚动区域连 stopPropagation 都没写，直接对画布的原生 wheel 监听器零防护。`src/design/NomiSelect.tsx` 的下拉选项列表（模型选择器等）在 `portalTarget` 指回节点自身 DOM（而非 document.body）时同样零防护。真正生效的机制是 React Flow 自带的 `noWheelClassName`（未在 `GenerationCanvasReactFlowViewport.tsx` 里覆盖，维持库默认值 `'nowheel'`）：d3-zoom 的 wheel 处理器在处理事件前，先对事件的真实 target 做 `closest('.nowheel')`，命中就直接跳过缩放——这一步只看事件源头的 DOM 祖先链，不依赖冒泡顺序，因此不会被『谁先谁后』坑到",
+  "class_root": "『节点内部滚动/可编辑区域必须不让画布把 wheel 当缩放手势消费掉』这条不变量，在这份代码库里没有一个统一持有者：会不会贴上正确的 class、贴的是不是框架真正认的那个 class 名，全靠每个作者在写下一个新的 overflow-auto/textarea 时自己想起来、自己判断对不对。缺了共享持有者，同一类缺陷就会在不同作者、不同 PR、不同时间点各自独立地重新长出来——已经独立发生过至少三次（ProductionShotPlaceholder / NodeErrorReport / ClipNodeTimeline 各自写了一份不生效的 stopPropagation），还有至少八处完全没有任何防护",
+  "affected_population": [
+    "在任何画布节点的提示词框（NodeGenerationComposer 的 data-node-composer-prompt 容器）里输入或阅读长提示词、用滚轮往下看的用户——这是用户本次报告的具体场景",
+    "在节点的结果版本堆（NodeResultStack）、AI 改写弹层（NodePromptOptimizer）、溯源面板（ProvenancePanel）、参数面板（InlineParameterBar）、分镜表（ShotTableGrid，此前已有部分防护）、文本节点正文（TextDocumentNode）、Agent 产物预览（ArtifactBody 的 markdown/table/text 三种子视图）、白板素材库（WhiteboardLibraryPanel）、视频节点内联时间轴（ClipNodeTimeline）里滚动的用户",
+    "在节点内、且 portalTarget 指回节点自身 DOM（而非 document.body）的模型/参数下拉列表（NomiSelect 经 InlineParameterBar 使用的场景）里滚动选项的用户"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/nodes/nodeScrollRegionClassName.ts",
+    "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx",
+    "src/workbench/generationCanvas/nodes/NodePromptOptimizer.tsx",
+    "src/workbench/generationCanvas/nodes/ProductionShotPlaceholder.tsx",
+    "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
+    "src/workbench/generationCanvas/nodes/ProvenancePanel.tsx",
+    "src/workbench/generationCanvas/nodes/NodeResultStack.tsx",
+    "src/workbench/generationCanvas/nodes/InlineParameterBar.tsx",
+    "src/workbench/generationCanvas/nodes/ClipNodeTimeline.tsx",
+    "src/workbench/generationCanvas/nodes/whiteboard/WhiteboardLibraryPanel.tsx",
+    "src/workbench/generationCanvas/nodes/render/TextDocumentNode.tsx",
+    "src/workbench/generationCanvas/nodes/artifact/ArtifactBody.tsx",
+    "src/workbench/generationCanvas/nodes/shotTable/ShotTableGrid.tsx",
+    "src/design/NomiSelect.tsx",
+    "src/workbench/generationCanvas/nodes/nodeInnerScrollNoWheel.test.ts"
+  ],
+  "entry_points": [
+    "NodeGenerationComposer.tsx 的 data-node-composer-prompt / data-node-composer-references 容器——用户报的「提示词框」本身",
+    "NodePromptOptimizer.tsx 的 AI 改写 diff 展示区与 idea textarea",
+    "ProductionShotPlaceholder.tsx / NodeErrorReport.tsx 的失败态正文区（此前用不生效的 onWheel stopPropagation）",
+    "NodeResultStack.tsx 的版本堆列表（role=list）",
+    "InlineParameterBar.tsx 的参数面板滚动容器（inline 与 portal 两种 surface 共用同一份 JSX）",
+    "ClipNodeTimeline.tsx 的水平时间轴滚动条（此前用不生效的 onWheel stopPropagation）",
+    "ProvenancePanel.tsx 的整卡与内部 JSON 参数 `<pre>`",
+    "whiteboard/WhiteboardLibraryPanel.tsx 的素材网格",
+    "render/TextDocumentNode.tsx 的 ProseMirror 正文滚动区",
+    "artifact/ArtifactBody.tsx 的 markdown / table / text 三种预览子视图",
+    "shotTable/ShotTableGrid.tsx（此前已贴 nowheel/nodrag/no-pan 三个字面量，本次改成引用共享常量）",
+    "design/NomiSelect.tsx 的 Combobox.Options 下拉列表（当 portalTarget 指回节点内某个 ref 时）"
+  ],
+  "invariants": [
+    "画布节点内任何 `overflow-*-auto`/`overflow-*-scroll` 容器、任何 `<textarea>`，其自身或其某个 DOM 祖先必须带 React Flow 认的 `nowheel`（本仓固定用共享常量 NODE_SCROLL_REGION_CLASS_NAME，其中包含 `nowheel`），否则鼠标滚轮会被画布当缩放/平移手势吃掉",
+    "拦截手法必须是 React Flow 自己识别的 class（closest 检测），不许用 onWheel 里 event.stopPropagation() 这种依赖冒泡顺序、且已被证明对 d3-zoom 原生监听器无效的手法",
+    "确认某处滚动区域『天然免疫』（因为它被 portal 到 `.react-flow__pane` 的 DOM 子树之外，wheel 原生冒泡够不到 pane 的监听器）必须逐一核实真实 portal 目标，不能假设，并进 `nodeInnerScrollNoWheel.test.ts` 的显式豁免名单"
+  ],
+  "generality_proof": "把 class 名字（3 个 React Flow / 本画布相关的 class 拼成一份常量）收进 nodeScrollRegionClassName.ts 一个模块，让它成为唯一的『正确写法』来源——任何新节点想要一处不被画布吃掉滚轮的滚动区域，只需要引用这个常量而不是自己拼字符串或自己发明拦截手法。同时新增的 nodeInnerScrollNoWheel.test.ts 对 `nodes/**` 下所有 `.tsx` 文件做静态扫描（排除已核实天然免疫的 director/ 全屏编辑器子树与两个显式豁免文件），逐行找 `overflow-*-auto/-scroll` 与 `<textarea>`，要求其附近出现 nowheel 标记——新增节点若忘记贴、或贴错手法，这条测试会在 CI 里直接标出具体文件:行号，不必等真人在真机上滚一下才发现",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/nodeScrollRegionClassName.ts",
+      "symbol": "NODE_SCROLL_REGION_CLASS_NAME",
+      "responsibility": "节点内滚动/可编辑区域唯一认可的 class 组合（React Flow 默认 noWheelClassName='nowheel' + noDragClassName='nodrag' + 本画布自定义的 noPanClassName='generation-canvas-react-flow__no-pan'），所有新旧滚动区域引用同一个常量，不各写各的字符串"
+    },
+    {
+      "path": "src/design/NomiSelect.tsx",
+      "symbol": "Combobox.Options 的 className",
+      "responsibility": "设计系统通用下拉组件不知道自己会不会被挂进画布节点内部（portalTarget 指回节点 DOM），因此无条件带 React Flow 默认识别的 `nowheel nodrag`（不含画布自定义的 no-pan class 名——那是画布私有的覆盖值，通用组件不应该硬编码消费方的私有配置）"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/nodeInnerScrollNoWheel.test.ts",
+      "symbol": "整份文件的两条静态扫描用例",
+      "responsibility": "对 `nodes/**` 下每个 overflow-auto/-scroll 元素与每个 `<textarea>` 强制要求 nowheel 标记存在，新增/遗漏在 CI 里直接标文件:行号，是本条不变量的机器化持有者"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx",
+      "entry_point": "data-node-composer-prompt / data-node-composer-references 容器",
+      "disposition": "enforced",
+      "evidence": "两处容器此前完全没有任何 wheel 防护；已改用 NODE_SCROLL_REGION_CLASS_NAME，真机走查 tests/ux/node-wheel-scroll-not-canvas-zoom.walk.mjs 证明在提示词框里滚轮画布 viewport 变换严格不变、且提示词框自身 scrollTop 真的变化"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/ProductionShotPlaceholder.tsx",
+      "entry_point": "失败态正文 overflow-y-auto 容器",
+      "disposition": "enforced",
+      "evidence": "此前的 `onWheel={(event) => event.stopPropagation()}` 已删除并换成 NODE_SCROLL_REGION_CLASS_NAME——原写法从未生效（见 direct_cause 对 d3-zoom 监听器位置与事件冒泡顺序的分析）"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
+      "entry_point": "失败态正文 overflow-y-auto 容器 + 原始报错 `<pre>`",
+      "disposition": "enforced",
+      "evidence": "同 ProductionShotPlaceholder，`onWheel stopPropagation` 已删除换成共享常量；原始报错 `<pre>` 此前连 stopPropagation 都没有，现已加上"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/ClipNodeTimeline.tsx",
+      "entry_point": "水平时间轴 axisRef 容器",
+      "disposition": "enforced",
+      "evidence": "此前 `<section>` 外层写着不生效的 `onWheel stopPropagation`；已删除，改为在真正滚动的内层容器上贴共享常量"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeResultStack.tsx",
+      "entry_point": "版本堆列表容器",
+      "disposition": "enforced",
+      "evidence": "此前零防护；已加共享常量"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodePromptOptimizer.tsx",
+      "entry_point": "AI 改写 diff 展示区 + idea textarea",
+      "disposition": "enforced",
+      "evidence": "此前零防护；已加共享常量"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/ProvenancePanel.tsx",
+      "entry_point": "整卡容器 + JSON 参数 `<pre>`",
+      "disposition": "enforced",
+      "evidence": "此前零防护；已加共享常量（closest 检测沿祖先链找，贴在外层卡片上对内层 `<pre>` 同样生效，但仍显式各贴一份以配合本次新增的逐元素静态测试）"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/InlineParameterBar.tsx",
+      "entry_point": "参数面板滚动容器（inline 与 portal 两种 surface）",
+      "disposition": "enforced",
+      "evidence": "同一份 JSX 同时服务 inline（DOM 仍在节点内）与 portal（portal 到 document.body）两种 surface；已核实 document.body 分支不在 pane 的 DOM 子树内、原本就天然免疫，但无条件贴常量对它无害（class 在没有 React Flow 上下文时不生效），因此不必分支处理"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/whiteboard/WhiteboardLibraryPanel.tsx",
+      "entry_point": "素材网格容器",
+      "disposition": "enforced",
+      "evidence": "此前零防护；已加共享常量"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/render/TextDocumentNode.tsx",
+      "entry_point": "ProseMirror 正文滚动区",
+      "disposition": "enforced",
+      "evidence": "此前零防护；已加共享常量。nodrag 不会与该文件既有的自定义拖拽/编辑白名单（handlePointerDown）冲突——nodrag 只关闭 React Flow 自己的节点位置拖拽捕获，与业务层的 onPointerDown handler 是两套互不干扰的机制"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/artifact/ArtifactBody.tsx",
+      "entry_point": "markdown / table / text 三种预览子视图的 overflow-auto 容器",
+      "disposition": "enforced",
+      "evidence": "三处此前均零防护；已逐一加共享常量。html/glb/svg 子视图各自没有 overflow-auto 容器（html 走独立沙箱 iframe，wheel 事件发生在 iframe 自己的文档里，原生冒泡到不了宿主页面更到不了 pane，不在本类问题范围内）"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/shotTable/ShotTableGrid.tsx",
+      "entry_point": "表格滚动容器",
+      "disposition": "enforced",
+      "evidence": "此前已手写字面量 `nowheel nodrag generation-canvas-react-flow__no-pan`（唯一提前做对的一处）；本次改成引用共享常量，消除『同一份 class 组合在仓库里有两处不同来源』的重复"
+    },
+    {
+      "path": "src/design/NomiSelect.tsx",
+      "entry_point": "Combobox.Options 下拉列表",
+      "disposition": "enforced",
+      "evidence": "InlineParameterBar 把 `portalTarget` 指向节点内部某个 ref（而非 document.body）时，NomiSelect 渲染的下拉列表实际挂在节点 DOM 子树内；已加 `nowheel nodrag`（不含画布私有的 no-pan class 名，理由见 shared_boundaries）"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeEffectChips.tsx",
+      "entry_point": "WorkbenchMenu 效果库下拉（node-effect-menu）",
+      "disposition": "not-affected",
+      "evidence": "逐行读过 src/design/menu.tsx：WorkbenchMenu 内部用 Radix `DropdownMenuPrimitive.Portal`，默认 portal 到 `document.body`——渲染出的 DOM 不是 `.react-flow__pane` 的后代，wheel 原生冒泡够不到 pane 上 d3-zoom 的监听器，天然免疫，不需要也不该硬套 nowheel"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeShotCutPanel.tsx",
+      "entry_point": "镜头切分对话框滚动网格",
+      "disposition": "not-affected",
+      "evidence": "逐行读过：`createPortal` 到 `document.querySelector('.workbench-generation__canvas')`——那是 GenerationWorkspace.tsx 里包着 `<ReactFlow>` 的外层宿主 div，portal 出来的内容是 `<ReactFlow>` 根节点的**同级兄弟**而不是 `.react-flow__pane` 的后代，同样天然免疫"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/",
+      "entry_point": "DirectorNode.tsx（画布小卡片）与 DirectorEditor.tsx（全屏 3D 导演台）整个子树",
+      "disposition": "not-affected",
+      "evidence": "逐行读过 DirectorNode.tsx：小卡片本身只有 overflow-hidden/-visible，没有任何滚动容器。DirectorEditor.tsx 按 director/CLAUDE.md 头注释是『全屏壳（portal + FULLSCREEN_Z_INDEX）』，portal 目标同样不在 pane 的 DOM 子树内，打开后整个 3D 编辑器与画布不共享 DOM 祖先链"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "这不是一次手误：同一个『节点内滚动区要不要挡住画布滚轮』的判断，在 ProductionShotPlaceholder.tsx、NodeErrorReport.tsx、ClipNodeTimeline.tsx 三处由不同的改动各自独立地写出了同一种看似合理、实则从未生效的手法（onWheel 里 stopPropagation），另有八处（NodeGenerationComposer/NodeResultStack/NodePromptOptimizer/ProvenancePanel/InlineParameterBar/WhiteboardLibraryPanel/TextDocumentNode/ArtifactBody）完全没有任何防护、NomiSelect 的下拉在特定挂载方式下也没有。用户本人明确要求『查一查同类问题』，说明这类缺陷已经不是第一次被用户撞见",
+    "same_class_scan": [
+      "`grep -rn \"overflow-y-auto\\|overflow-auto\\|overflow-scroll\" src/workbench/generationCanvas/nodes/` 命中 20 余处，逐一核实是否已贴 nowheel、是否 portal 到 pane 子树外",
+      "`grep -rn \"<textarea\" src/workbench/generationCanvas/nodes/` 命中 1 处（NodePromptOptimizer.tsx），已加防护",
+      "`grep -rn \"onWheel\" src/workbench/generationCanvas/nodes/` 找出三处使用不生效手法 `event.stopPropagation()` 的历史代码，均已删除换成共享常量",
+      "对每个疑似豁免点（NodeEffectChips / NodeShotCutPanel / director/ 全屏编辑器）逐行读源码确认真实 portal 目标是否在 `.react-flow__pane` 的 DOM 子树内，而不是假设『看起来是弹层就免疫』",
+      "`grep -n \"noWheelClassName\\|zoomOnScroll\\|panOnScroll\" src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx` 确认画布没有覆盖 noWheelClassName（维持库默认值 'nowheel'），noPanClassName 被覆盖成 'generation-canvas-react-flow__no-pan'——这也是为什么共享常量必须用画布这个自定义值而不是默认的 'nopan'"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/nodes/nodeScrollRegionClassName.ts",
+    "invariant": "节点内任何滚动/可编辑区域必须引用 NODE_SCROLL_REGION_CLASS_NAME，不许自己拼 class 字符串或自己发明拦截手法",
+    "failure_mode": "新增一处 overflow-auto/textarea 却忘记引用共享常量，或又写回 onWheel stopPropagation 这种不生效的手法，会被 nodeInnerScrollNoWheel.test.ts 的静态扫描直接标出文件:行号——CI 红，不必等真机走查才发现",
+    "exception_policy": "none",
+    "strategy": "把『贴什么 class』收进一个模块常量，把『有没有贴』收进一条机器化的静态扫描测试，同时删除已确认从未生效的 onWheel stopPropagation 旧写法，不留一个新旧两种拦截手法并存的中间态。测试脚本内部保留一个显式豁免名单（NodeEffectChips.tsx、NodeShotCutPanel.tsx），仅用于『已逐行核实 portal 目标确实在 pane DOM 子树之外、这条不变量根本不适用』的条目——这是对不变量适用范围的界定，不是对不变量本身开的口子（适用范围内零豁免）",
+    "artifacts": [
+      "src/workbench/generationCanvas/nodes/nodeScrollRegionClassName.ts",
+      "src/workbench/generationCanvas/nodes/nodeInnerScrollNoWheel.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/nodes/nodeInnerScrollNoWheel.test.ts",
+    "tests/ux/node-wheel-scroll-not-canvas-zoom.walk.mjs"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/nodes/nodeInnerScrollNoWheel.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/nodes/ProductionShotPlaceholder.tsx",
+      "src/workbench/generationCanvas/nodes/NodeErrorReport.tsx",
+      "src/workbench/generationCanvas/nodes/ClipNodeTimeline.tsx"
+    ],
+    "rationale": "三处从未生效的 `onWheel={(event) => event.stopPropagation()}` 在同一处改动里直接删除，换成共享常量；不保留旧手法作为『双保险』——它不生效，留着只会让下一个读代码的人误以为这里已经处理过 wheel 问题（P1：加新必删旧，无并行版）。shotTable/ShotTableGrid.tsx 此前手写的字面量 class 字符串同样删除，改为引用共享常量，避免『同一份 class 组合两处不同来源、以后改一处忘改另一处』"
+    },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "React Flow（@xyflow/react）版本未变（12.11.5），本次只是启用它已经提供、且没有被本画布覆盖掉的默认机制（noWheelClassName 默认值 'nowheel'），不涉及升级、不需要保留旧版本的退出条件",
+    "exit_criteria": []
+  },
+  "migration": "纯渲染层 className 改动，不涉及任何持久化数据结构、不涉及 IPC 契约、不涉及画布快照格式。旧项目文件打开后节点照常渲染，只是内部滚动区域的 wheel 行为从『被画布吃掉』变成『交给内部滚动』，用户不需要做任何操作即可获得修复",
+  "residual_risks": [
+    "React Flow 的 nowheel 机制会**无条件**挡住 wheel（source: createZoomOnScrollHandler 在 hasNoWheelClass 为真时直接 return，不判断 ctrlKey/metaKey），因此按住 Ctrl/Cmd 在节点内滚动区域滚轮不会再强制缩放画布——这是采用框架原生机制后的架构性副作用，不是本次改动可选择保留的行为。仓库里存在一份更早、针对旧（React Flow 迁移前）画布实现写的走查 tests/ux/composer-long-prompt.walk.mjs，其中『Ctrl+滚轮仍缩放画布』『Command+滚轮仍缩放画布』『提示词区中间正常向下滚动』三条断言在 origin/main（本次改动之前）已经是红的——已用 git stash 验证过：前两条断言编码的是已经不适用于当前 React Flow 架构的旧契约，第三条是与本次改动无关的既有缺陷（未修，超出本次范围）；用户报的核心断言『提示词内部滚动时画布不动』在 main 上确实是红的，本次改动后转绿",
+      "本次没有对 `nodes/**` 之外的目录（如 src/workbench/generationCanvas/components/、src/workbench/generation/ 等画布周边组件）做同等的滚动区域普查——那些不是『画布节点』本身，超出用户『节点内』这个明确范围，留作后续如果有类似反馈时的下一批扫描面",
+      "director/ 子树的判断依据是『DirectorEditor 是全屏 portal』这一份 CLAUDE.md 头注释与源码阅读，未对 3D 导演台内部各面板（timeline/panels 下的滚动区域）逐一像 nodes/ 这样机器化扫描——它们的 portal 边界已确认在 pane DOM 子树之外，理论上天然免疫，但没有一条像 nodeInnerScrollNoWheel.test.ts 那样的机器化回归覆盖"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://github.com/xyflow/xyflow/blob/main/_autodocs/configuration.md",
+      "checked_at": "2026-09-11",
+      "purpose": "确认 `<ReactFlow>` 组件确实暴露 noWheelClassName/noDragClassName/noPanClassName 等交互配置项（经 Context7 查询官方文档得到的原文引用）"
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/xyflow/xyflow/blob/main/packages/system/src/xypanzoom/filter.ts",
+      "checked_at": "2026-09-11",
+      "purpose": "确认 React Flow 的 nopan/nowheel 过滤机制用的是对事件真实 target 做 `closest('.class')` 检测（Context7 返回的源码片段），不依赖事件冒泡顺序；并交叉核对本地已安装版本 node_modules/.pnpm/@xyflow+system@0.0.81 的 dist/esm/index.js 中 createZoomOnScrollHandler（第 2802-2816 行）与 createFilter（第 2876-2997 行）实现，确认 12.11.5 这个具体安装版本里 noWheelClassName 默认值确实是 'nowheel'、hasNoWheelClass 为真时无条件跳过缩放（不判断 ctrlKey/metaKey，对应 residual_risks 第一条）"
+    }
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/nodes/nodeScrollRegionClassName.ts",
+    "tests": [
+      "src/workbench/generationCanvas/nodes/nodeInnerScrollNoWheel.test.ts"
+    ]
+  }
+}

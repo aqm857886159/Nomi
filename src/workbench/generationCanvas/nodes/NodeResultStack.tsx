@@ -20,6 +20,7 @@ import { deleteAssetResult } from '../../assets/deleteAssetResult'
 import { CardStackPeeks } from '../components/CardStackPeeks'
 import NodeMediaPreviewDialog from './NodeMediaPreviewDialog'
 import { DeferredNodeVideo } from './DeferredNodeMedia'
+import { NODE_SCROLL_REGION_CLASS_NAME } from './nodeScrollRegionClassName'
 import { useResultDownload } from './useResultDownload'
 import { getActiveWorkbenchProjectId } from '../../project/workbenchProjectSession'
 import { reworkProductionShot } from '../../production/productionShotActions'
@@ -397,7 +398,7 @@ export function NodeResultStack({
                 </button>
               ) : null}
             </header>
-            <div className="min-h-0 overflow-y-auto p-2" role="list">
+            <div className={cn(NODE_SCROLL_REGION_CLASS_NAME, 'min-h-0 overflow-y-auto p-2')} role="list">
               {entries.slice(0, visibleCount).map((entry, index) => {
                 const identity = resultIdentity(entry)
                 const isCurrent = identity === currentId

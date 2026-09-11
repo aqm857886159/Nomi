@@ -5,6 +5,7 @@ import { cn } from '../../../../utils/cn'
 import type { CanvasObjectTarget } from './WhiteboardLeaferCanvas'
 import type { WhiteboardResultLibraryItem } from './whiteboardTypes'
 import { mergeResultLibraryItems, type AssetPanelItem, type LibraryDragPayload } from './whiteboardStateOps'
+import { NODE_SCROLL_REGION_CLASS_NAME } from '../nodeScrollRegionClassName'
 
 export type WhiteboardLibraryTabKey = 'board' | 'results'
 
@@ -119,7 +120,7 @@ export function WhiteboardLibraryPanel({
           </div>
         </div>
 
-        <div className="grid min-h-0 content-start gap-2 overflow-y-auto p-2.5">
+        <div className={cn(NODE_SCROLL_REGION_CLASS_NAME, 'grid min-h-0 content-start gap-2 overflow-y-auto p-2.5')}>
           {activeTab === 'board' && boardLibraryItemCount === 0 ? (
             <div className="grid min-h-[120px] place-items-center rounded-nomi border border-dashed border-nomi-line px-3 text-center text-caption text-nomi-ink-40">
               {t('generationCommon.whiteboard.library.emptyBoard')}
