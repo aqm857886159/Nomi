@@ -4,6 +4,25 @@
 > 本 PR 只做审计 §③ 的 **行 2 / 行 4 / 行 7**，外加 **行 8 / 行 11** 两条纯注释裁决。
 > 行 1（卡内滚轮）、行 3（滚轮语义设置）、行 5/6/9/10/12 不在本 PR；行 9/10/12 由并行的 backfill-a 车道做。
 
+## 先查别人
+
+**① 依赖里已有？**
+- React Flow（`@xyflow/react@12.11.5`）自带 `useViewport()` 读取 `{x, y, zoom}`（`node_modules/.pnpm/@xyflow+react@12.11.5.../node_modules/@xyflow/react/dist/esm/hooks/useViewport.d.ts:31`），本 PR 的 `canvasViewportScale.ts` 直接封装它、`BatchPlanOverlay.tsx` 改读它替换手写的 `pos*zoom+offset`——没有另造一份 viewport 状态源。
+- 同包 `EdgeLabelRenderer` 官方类型声明里的示例（`.../@xyflow/react/dist/esm/components/EdgeLabelRenderer/index.d.ts:28`）本身就不反缩放标签（`transform: translate(-50%,-50%) translate(labelX,labelY)`，没有 `scale(1/zoom)`）——反缩放是框架故意留给业务层自己决定的效果，不是依赖里漏用的能力，本 PR 补的 `edgeLabelTransform` 因此不是重造轮子，是补框架有意空出的那一层。
+
+**② 仓库里已有？**
+- 判据（chrome 要保持屏幕尺寸）在这个仓库不是新发明：OLD 的自绘边层 `components/CanvasEdgeLayer.tsx:63,176` 就是用 `scale(1/zoom)` 反缩放边标签，迁移到 React Flow 时连着旧渲染器一起被删掉，本 PR 只是在新渲染器（`EdgeLabelRenderer`）里把这条判据找补回来。
+- `reactFlow/selectionToolbarPlacement.ts:115,121-122` 是仓库里另一条已验证的同判据实现，走「画布坐标 × zoom + offset → 屏幕坐标、渲染在视口外」拿恒定尺寸；本 PR 头注释里写清两条路各自成立的原因（视口内 vs 视口外坐标系不同），不合并成一份重复实现。
+- OLD 的 `useCanvasTransformStoreSync.ts` 在当前仓库已确认不存在（`find src -iname "*useCanvasTransformStoreSync*"` 零命中），坐实了审计发现：写入方已经删了，只是没人删读的一侧，不是本 PR 才发现的新问题。
+
+**③ 生态里已有？**
+- React Flow 官方「edge label renderer」示例：https://reactflow.dev/examples/edges/edge-label-renderer —— 示例只做「贴住某个点」，不做「跟屏幕像素恒定」，说明这确实是应用层的自定义需求而非框架遗漏的能力，与①的 .d.ts 观察互相印证。
+
+**④ TikHub 自媒体里怎么说？**
+未检索。这是内部回归修复（迁移等价审计发现的既有 bug 回填：写入方被删、读的人还在），不是面向用户的新功能选型，判断依据是审计文档本身与红先行走查实测数据（见下「验收」表），不适用「真实用户怎么解决这件事」的检索场景。
+
+**结论**：三条修复都不是重造轮子——行 2 / 行 7 直接复用 React Flow 自带的 `useViewport()` / `EdgeLabelRenderer`，只补框架有意留白的反缩放这一层；行 4 是把仓库里曾经写过、后被 `903d992f6` 误删的 CSS + setter 按当前类名原样找补回来。没有新造并行状态源，也没有新造并行组件库。
+
 ## 为什么要做这三条（一句话各一条）
 
 - **行 2 是真 bug，不是观感**：剪辑节点内嵌时间轴在任何非 100% 缩放下，拖/裁片段的位移都算错——50% 缩放时片段只走一半，手指在这儿、片段在那儿。
