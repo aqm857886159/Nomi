@@ -54,7 +54,16 @@ describe('权限三档映射仓库合同', () => {
   it('三档 = approvalPolicy 的三种组合，不新造词', () => {
     expect(approvalPolicyForTier('step')).toEqual({ mode: 'step', spend: 'confirm' })
     expect(approvalPolicyForTier('safe-auto')).toEqual({ mode: 'safe-auto', spend: 'confirm' })
-    expect(approvalPolicyForTier('project')).toEqual({ mode: 'project', spend: 'within-budget' })
+    expect(approvalPolicyForTier('project')).toEqual({ mode: 'project', spend: 'confirm' })
+  })
+
+  // 2026-09-10 用户拍板：「钱的闸 = 每次提交看报价确认」，设置里的硬预算上限同时删掉。
+  // 这条把「全自动不等于自动花钱」钉死在档位表上：任何一档把 spend 放宽都会先红在这里，
+  // 而不是等到某个用户的账单上。阳性对照在下一条（尺子本身量得出宽窄）。
+  it('三档都不自动花钱：spend 恒为 confirm', () => {
+    for (const tier of PERMISSION_TIERS) expect(approvalPolicyForTier(tier).spend).toBe('confirm')
+    expect(isNoWiderThan({ mode: 'project', spend: 'confirm' }, { mode: 'project', spend: 'within-budget' })).toBe(true)
+    expect(isNoWiderThan({ mode: 'project', spend: 'within-budget' }, { mode: 'project', spend: 'confirm' })).toBe(false)
   })
 
   it('每一档的 mode 就是它自己——档位不是第二份词表', () => {
@@ -73,7 +82,7 @@ describe('权限三档映射仓库合同', () => {
   it('三档没有一档比它该有的更宽', () => {
     expect(isNoWiderThan(approvalPolicyForTier('step'), { mode: 'step', spend: 'confirm' })).toBe(true)
     expect(isNoWiderThan(approvalPolicyForTier('safe-auto'), { mode: 'safe-auto', spend: 'confirm' })).toBe(true)
-    expect(isNoWiderThan(approvalPolicyForTier('project'), { mode: 'project', spend: 'within-budget' })).toBe(true)
+    expect(isNoWiderThan(approvalPolicyForTier('project'), { mode: 'project', spend: 'confirm' })).toBe(true)
   })
 
   it('档位单调：低档永远不比高档宽', () => {

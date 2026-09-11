@@ -25,6 +25,12 @@ export type ResidentGenerationAdapterFactoryInput = Readonly<{
 
 export type ResidentGenerationAdapterFactory = Readonly<{
   factory: (binding: ProjectBinding) => PiGenerationTransportAdapter;
+  /**
+   * 同一条项目租约的**唯一**取得口。付费确认卡（`appIntegrationSpendConfirm.ts`）要用它去开
+   * Run 自己的付费门；再写一份缓存/续期逻辑就会出现两份过期判断，而过期判断错在钱这条轴上
+   * 是「门开着但没人守」。
+   */
+  leaseFor: (binding: ProjectBinding) => Promise<ProjectLeaseV2>;
   dispose: () => void;
 }>;
 
@@ -32,10 +38,10 @@ export type ResidentGenerationAdapterFactory = Readonly<{
 export function installResidentGenerationAdapter(
   input: ResidentGenerationAdapterFactoryInput,
   onReady?: (factory: ResidentGenerationAdapterFactory["factory"]) => void,
-): () => void {
+): ResidentGenerationAdapterFactory {
   const adapter = createResidentGenerationAdapterFactory(input);
   onReady?.(adapter.factory);
-  return adapter.dispose;
+  return adapter;
 }
 
 /**
@@ -105,6 +111,7 @@ export function createResidentGenerationAdapterFactory(
 
   return {
     factory,
+    leaseFor,
     dispose() {
       disposed = true;
       connections.clear();

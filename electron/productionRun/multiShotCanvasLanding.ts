@@ -29,6 +29,18 @@ export type MaterializeShotCandidateWire = {
   modelKey: string;
   modeId?: string;
   mode: string;
+  /**
+   * 候选**选中的那些参数**（画质 / 时长 / 尺寸 / 声效……）。
+   *
+   * 为什么必须过这条线：渲染层重绑定时走 `buildPlannedNodeMeta`，而它按模型档案铺的是**默认值**。
+   * 不把候选真正选的参数带过来，每一次重绑定都会把用户（或 agent）挑过的值悄悄改回档案默认——
+   * 2026-09-11 实测：付费卡上把尺寸从 1024x1024 改成 1536x1024，落地链下一拍就把它按回去，
+   * 价格跟着弹回原价。这不是显示问题：**节点是候选的投影，投影漏掉了参数**。
+   *
+   * 只带标量（字符串/数字/布尔）：参数面上真正能选的就是这些，而这条线不该变成一个任意 JSON 通道。
+   * 绝不含 transportModelId、密钥或供应商 URL。
+   */
+  parameters?: Record<string, string | number | boolean>;
 };
 
 /** 渲染层 materialize-shots 载荷里的一镜（与渲染层 MaterializeShotInput 对齐，跨 RPC 序列化形状）。 */
@@ -68,6 +80,16 @@ function shotTitle(shot: ProductionGenerationShot, index: number): string {
  * 候选 → 落地报文里的模型身份。**逐字段列举**（不是 spread），这样 PlanCandidate 以后新增
  * transportModelId 之类的内部字段时，绝不会顺着这条 RPC 悄悄流到渲染层。
  */
+/** 候选参数里能过线的那一半：标量。非标量（引用、嵌套对象）由参考槽那条路自己走。 */
+function scalarParameters(parameters: Record<string, unknown> | undefined): Record<string, string | number | boolean> | undefined {
+  if (!parameters) return undefined;
+  const scalars: Record<string, string | number | boolean> = {};
+  for (const [key, value] of Object.entries(parameters)) {
+    if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") scalars[key] = value;
+  }
+  return Object.keys(scalars).length > 0 ? scalars : undefined;
+}
+
 function candidateWire(candidate: ProductionGenerationShot["candidate"]): MaterializeShotCandidateWire {
   return {
     candidateId: candidate.candidateId,
@@ -76,6 +98,7 @@ function candidateWire(candidate: ProductionGenerationShot["candidate"]): Materi
     modelKey: candidate.modelId,
     ...(candidate.modeId ? { modeId: candidate.modeId } : {}),
     mode: candidate.mode,
+    ...(scalarParameters(candidate.parameters) ? { parameters: scalarParameters(candidate.parameters)! } : {}),
   };
 }
 
