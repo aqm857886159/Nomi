@@ -13,7 +13,7 @@ const snapshot = labHostState({ items: [
 export function CreationColumnsStage({ specimen = false }: { specimen?: boolean }): JSX.Element {
   React.useMemo(() => {
     laneClient.connect({ onProjection: listener => { listener(snapshot); return () => undefined },
-      send: async () => ({ ok: false, code: 'design_lab_read_only', message: '' }) })
+      send: async () => ({ ok: false as const, code: 'agent_lane_bridge_absent' as const, diagnostic: 'design lab host is read-only' }) })
     const current = useWorkbenchStore.getState()
     const first = current.workbenchDocuments[0]
     useWorkbenchStore.setState({

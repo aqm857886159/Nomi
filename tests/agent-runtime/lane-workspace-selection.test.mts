@@ -101,7 +101,7 @@ test('a failed selection commit closes its opened host and cannot admit more wor
   await rm(selectionPath(fixture.projectDir))
   await mkdir(selectionPath(fixture.projectDir))
   await assert.rejects(workspace.execute({ kind: 'lane-create', laneName: 'research' }))
-  await assert.rejects(workspace.execute({ kind: 'prompt', text: 'Never admitted.' }), /workspace is closed/)
+  await assert.rejects(workspace.execute({ kind: 'prompt', text: 'Never admitted.' }), /agent_lane_disposed/)
   const reopened = await openLaneHistory({ projectDir: fixture.projectDir, laneName: 'research' })
   await reopened.close()
   assert.equal(fixture.http.requests.length, 0)
@@ -112,7 +112,7 @@ test('an explicit missing selection cannot create a conversation in a nonempty p
   const workspace = await openLaneWorkspace(fixture.options)
   await workspace.close()
   const before = await listLaneSessions(fixture.projectDir, BACKGROUND_CONTEXT)
-  await assert.rejects(openLaneWorkspace({ ...fixture.options, laneName: 'deleted' }), /no conversation named/)
+  await assert.rejects(openLaneWorkspace({ ...fixture.options, laneName: 'deleted' }), /agent_lane_conversation_missing/)
   assert.deepEqual(await listLaneSessions(fixture.projectDir, BACKGROUND_CONTEXT), before)
 })
 

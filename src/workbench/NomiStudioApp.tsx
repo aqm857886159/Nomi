@@ -39,6 +39,7 @@ import {
   executeExportWriteTarget,
 } from './timeline/agent/phase4CapabilityTargets'
 import { laneClient } from './ai/lane/laneClient'
+import { LaneCommandFailure, laneFailureText } from './ai/lane/laneCommandFailure'
 import { laneReceiptClient } from './ai/lane/laneReceiptClient'
 import { initReviewEventBridge } from './generationCanvas/reviewEventBridge'
 import { initComfyuiProgressBridge } from './generationCanvas/comfyuiProgressBridge'
@@ -356,7 +357,7 @@ export default function NomiStudioApp(): JSX.Element {
         if (committedBinding) {
           const opened = await laneClient.open(committedBinding.binding)
           surfaceEpoch.assertCurrent()
-          if (!opened.ok) throw new Error(opened.message)
+          if (!opened.ok) throw new LaneCommandFailure(opened.code, opened.diagnostic)
           if (!opened.workspaceId) throw new Error('agent_lane_closed')
           hydrateCommittedProposalReceipt(await laneReceiptClient.readProposalReceipt(opened.workspaceId))
           await recoverPendingProposalReceipt()
@@ -373,7 +374,10 @@ export default function NomiStudioApp(): JSX.Element {
       } catch (error) {
         if (error instanceof ProjectHydrationSupersededError) throw error
         console.error('project Surface hydration failed', error)
-        report(projectId, error instanceof Error ? error.message : t('studio.projectRestoreFailed'))
+        // 主进程的原始串不进这条横幅：它可能是一句内部断言（2026-09-11 面板顶部那行红色英文
+        // 就是这么来的）。lane 失败按码取文案，其余一律走这句本地化兜底。
+        report(projectId, error instanceof LaneCommandFailure
+          ? laneFailureText(error, t) : t('studio.projectRestoreFailed'))
         return false
       } finally {
         if (hydrationSequenceRef.current === hydrationSequence) hydratingProjectRef.current = false
