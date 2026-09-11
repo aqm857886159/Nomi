@@ -24,7 +24,7 @@ type PromptTool = Pick<LaneToolSpec, 'name' | 'promptSnippet' | 'promptGuideline
 
 /**
  * 渲染两段。**顺序即合同**：菜单按目录顺序，纪律按首次出现顺序去重——
- * 与 `agentToolCatalog.ts:31-35` 的「`tools/list` 确定性顺序」同一条理由，
+ * 与 `verbDeclarations.ts` 的「`tools/list` 确定性顺序」同一条理由，
  * 系统提示词是 prompt cache 的前缀，抖一下就整段失效。
  */
 export function renderLanePromptSections(tools: readonly PromptTool[]): string {
