@@ -126,6 +126,7 @@
 - [Electron 被 macOS 误报恶意软件的修法](electron-xprotect-false-positive-resign.md) — 重下 + ad-hoc 重签换 cdhash；摘 quarantine 没用
 - [Windows 改保存名闪退：根因已修、平台未验](sogou-save-dialog-crash-pending-win32-verify.md) — 再遇先要崩溃日志尾行和 minidump，别重猜
 - [MCP 侧改动必须重新打包 app 才看得到](mcp-fixes-need-repackaged-app.md) — MCP server 就是 app 二进制
+- [打包后「每条命令都要点头」= 沙箱运行时的二进制卡在 app.asar 里](sandbox-runtime-not-unpacked-from-asar.md) — asar 里的路径 `existsSync` 回 true 但 exec 不了；`asarUnpack` 只让盘上有一份真的，**不改**库用 `import.meta.url` 算出的那条路径，还得显式把解包路径交给它
 - [多会话同开 MCP 会串库](nomi-mcp-multi-instance-library-swap.md) — 报「项目不存在」别重试、别改用当前 id
 - [`nomi_get_run` 结果要读 `structuredContent.nomiRunData`](nomi-get-run-mcp-projection-shape.md) — text 块是人话不是 JSON
 - [MCP elicitation 的支持面（结论已反转）](claude-code-lacks-elicitation-capability.md) — CLI ≥2.1.76 已支持；旧结论别再当前提
