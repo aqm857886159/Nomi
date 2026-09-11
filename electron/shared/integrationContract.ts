@@ -7,15 +7,12 @@ export const INTEGRATION_STAGES = [
   "needs_input",
   "discovering",
   "needs_selection",
-  "needs_spend_confirmation",
-  // 花费确认这一关有三个真正不同的状态，2026-09-10 的真实宿主实测证明它们不能压成一个：
-  //   needs_spend_confirmation  = 该由驱动 Agent 调 confirm 了（还没有挑战）
-  //   awaiting_human_confirmation = 挑战已签发，**等真人在 Nomi 里点**（Agent 什么都不用做，等着）
-  //   human_confirmed           = 人点完了、收据已铸造，**该由 Agent 调 start**
-  // 压成一个的代价是实测出来的：两个独立回合看着同一个 stage 都选择了「再 confirm 一次」，
-  // 而再 confirm 会作废刚才那次点击 —— 正常人走不出这个循环。
-  "awaiting_human_confirmation",
-  "human_confirmed",
+  // 「方案收下了，自检还没开跑」。2026-09-12 用户拍板：接模型这条路**没有付费验证**，
+  // 所以也**没有花费确认**——钱的闸只有一处，在画布每次提交时的报价卡。
+  // 这一档因此只剩机器语义（该调 start 了），任何 owner 都能自己走出去；
+  // 它取代了旧的 needs_spend_confirmation / awaiting_human_confirmation / human_confirmed 三档，
+  // 那三档连同挑战、收据、真人手势章一起删掉（它们的存在理由只有「授权花钱」一条）。
+  "ready_to_certify",
   "certifying",
   "committing",
   "completed",
@@ -28,9 +25,6 @@ export type IntegrationStage = typeof INTEGRATION_STAGES[number];
 
 export const INTEGRATION_CREDENTIAL_STATUSES = ["missing", "ready", "needs_resave", "unavailable"] as const;
 export type IntegrationCredentialStatus = typeof INTEGRATION_CREDENTIAL_STATUSES[number];
-
-export const INTEGRATION_START_RECEIPT_STATUSES = ["pending", "consumed"] as const;
-export type IntegrationStartReceiptStatus = typeof INTEGRATION_START_RECEIPT_STATUSES[number];
 
 /**
  * 接入会话写前置条件的错误码词表（单一 owner）。
