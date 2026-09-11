@@ -6,6 +6,7 @@
 ## 文件索引
 | 文件 | 内容 | 出处等级 |
 |---|---|---|
+| [davinci-resolve.md](./davinci-resolve.md) | DaVinci Resolve 21.1 官方内置 MCP（**唯一同域官方样本**）+ 三个社区版（88 / 36·377 / 295+） | 官方发布贴+公告 + 开源源码 |
 | [figma.md](./figma.md) | Figma MCP 26 工具 + 1 prompt | 官方文档 |
 | [blender.md](./blender.md) | Blender MCP 28 工具 + 1 prompt（**最像 Nomi 的样本**） | 开源源码 |
 | [linear.md](./linear.md) | Linear MCP 31 工具 | 官方一句话 + 第三方实连快照 |
@@ -24,6 +25,7 @@
 | [counterexamples.md](./counterexamples.md) | 三类反例的真实证据与修法 | 官方 issue/changelog/论坛 |
 
 ### 没拿到 / 有保留的
+- **DaVinci Resolve（官方）**：Blackmagic **没有公开任何工具名 / 描述 / schema**，官方 What's New 里 MCP 只有一行 "Native MCP server for interacting with AI assistants."。本机没装 Resolve 21.1（Studio-only），没跑 `tools/list`。**网上流传的「官方 88 工具 + 20 resources」是误传**——那是第三方仓库 `DigitalWorkflowCompany/resolve-mcp` 的自述数字，被报道搬到了官方头上；同理「100+ 工具」指的是剪辑/调色界面工具，不是 MCP 工具数。详见 [davinci-resolve.md](./davinci-resolve.md) §「没拿到」。
 - **Slack**：官方文档按能力组织，**没有** tool name 与 schema。文中的名字是能力标题，不保证等于 `tools/list` 的 `name`。
 - **Linear**：官方 https://linear.app/docs/mcp **不列工具**，全文一句话。31 条来自 Speakeasy 的实连目录（第三方快照）。
 - **Manus / Devin / Cursor**：只有泄露件，非官方发布，**引用必须标注**。
@@ -36,6 +38,10 @@
 
 | 产品 | 工具数 | 动词粒度 | 命名风格 | 读写分离 | 破坏性怎么标 | 返回值指路 |
 |---|---|---|---|---|---|---|
+| **DaVinci Resolve 21.1（官方）** | **未公开** | scripting API 粒度（从 19 条新 API 措辞反推） | 未公开 | 未公开 | **无公开机制**（媒体点名此缺口） | 未知 |
+| ├ 社区 A `DWC/resolve-mcp` | 88 + 20 resources | API 粒度，仅 `create_dailies` 是任务级 | 动词_名词 | **协议级**：读=resource / 写=tool | 无 | 进度探针与阻塞等待分开给 |
+| ├ 社区 B `gursky`（**同域粒度 A/B**） | **36 复合 / 377 细粒度 / 18 离线** | **三层**：361 API → 136 guarded actions → 9 复合工具 | `probe_*` / `safe_*` / `*_boundary_report`（**按风险命名**） | 前缀 + 四种 annotation 全用 | **risk level × blast radius** + `confirmation_required` + `dry_run` | ✅ **`_operation` 统一信封**（「没测到」与「测了没问题」类型分开） |
+| └ 社区 C `jenkins` | 295+ | 严格 1:1 API 镜像（Layout Presets 独占 22 个） | `resolve_` + 动词_名词 | 无 | 无 | ❌ |
 | Figma | 26 | 一次能用上的一整件上下文 | 动词_名词（用户词汇） | 动词 | 无 | ✅ 文档写死"主入口+fallback" |
 | Blender | 28 | 读细 / 写=1 个逃生口 / 素材按供应商 | 供应商_动词 | 动词 | 只有自然语言告警 | ✅ poll/status 族 |
 | Linear | 31 | list/get + **save（upsert 合一）** | 动词_名词 | 动词整齐 | 无（delete 单列） | ✅ 返回带 git branch name |
@@ -50,14 +56,15 @@
 | Codex | ~20+ | session id 建模长任务 | 动词_名词（动词=意图） | approvals 模块 | **55 条人话审批模板表** | ✅ output_schema |
 | Claude Code | 8 + ~50 延迟 | 两极（原子 / 巨型 action 路由） | **大驼峰纯名词** | 无 | permission system | ✅ 大量"别做什么" |
 
-### 三个统计事实
+### 四个统计事实
 1. **工具数中位数 ≈ 29**；最少 Cline 9，最多 Playwright 71（但默认只暴露 24）。**没有一家把"全部能力"一次性摆出来**。
 2. **命名风格没有共识**，但**每家内部高度一致**。唯一的跨家共识是：**名词必须是用户词汇**。
-3. **MCP 的 `destructiveHint` 在四个官方 server 里一次都没被用上**（Figma/Linear/Notion 文档层无标注；GitHub 源码只填 `ReadOnlyHint`）。各家都另建了自己的审批机制。
+3. **MCP 的 `destructiveHint` 在四个官方 server 里一次都没被用上**（Figma/Linear/Notion 文档层无标注；GitHub 源码只填 `ReadOnlyHint`）。各家都另建了自己的审批机制。**唯一四种 annotation 全用的是社区版 `gursky`**（[davinci-resolve.md](./davinci-resolve.md) §6），而它同时给出了代价：复合工具的 annotation 会塌到整组。
+4. **唯一和 Nomi 同域（视频创作）的官方样本 DaVinci Resolve 21.1，选择了「能力面先发、审批面留白」**：官方 What's New 里 MCP 只有一行，新能力全部以 scripting API 形式发布，权限/破坏性防护/日志只字未提（Digital Production 公开点名）。它能这么做是因为宿主（Claude Code / Codex）自带审批 UI——**Nomi 自己就是宿主，这条不成立**（[davinci-resolve.md](./davinci-resolve.md) §4、§10）。
 
 ---
 
-## 对 Nomi 的可迁移结论（15 条）
+## 对 Nomi 的可迁移结论（18 条）
 
 > 每条格式：**结论** — 依据（出处）— 落到 Nomi 是什么。
 
@@ -120,6 +127,18 @@
 15. **改工具名是破坏性变更，必须同时让已连接宿主刷新清单。**
     Figma `get_code`→`get_design_context` 后，用户因客户端缓存旧清单而看到"新工具坏了"，Figma 员工的回复只能是"重连刷新"（[counterexamples.md](./counterexamples.md) 2.1）。MCP 有 `notifications/tools/list_changed` 正是为此。
     → Nomi：P1「加新必删旧」在工具面上还要加一条——**删旧的同时发 list_changed，并在门岗里验它真的发了**。否则外部宿主（Claude Code / Codex）会拿着旧描述调新运行时。
+
+16. **★ 工具面分三层：能力方法 → 有护栏的工作流动作 → 模型看见的复合工具。**
+    同域样本 `gursky` 把 361 个 Resolve API 方法、136 个 "guarded workflow actions"、9 个复合工具**分别统计覆盖率**，原文："API coverage answers 'can MCP reach every Blackmagic method?', while kernel coverage answers 'which higher-level, guarded agent workflows are available?'"；动作名直接编码风险（`probe_*` 只读探针 / `safe_*` 带回读校验的写 / `*_boundary_report` 自述边界）（[davinci-resolve.md](./davinci-resolve.md) §6）。
+    → Nomi：别在「薄包装 vs 粗动词」里二选一。底层能力不暴露给模型，中层是带护栏的动作，上层才是工具清单。**同时给结论 1 打一条补丁**：把操作收进 `method` 枚举的代价是 annotation 塌到整组（"annotation is conservative when any action in the group can mutate state"）——**「预览报价」和「执行扣费」绝不能进同一个工具的枚举**，否则只读也要过审批卡。
+
+17. **★ 写操作返回统一信封，并让「没测到」和「测了没问题」在类型上分开。**
+    `_operation` 信封 = `status`(success/partial/blocked/failed) + `verification`（`contradiction` 单列：报成功但回读不一致）+ `changes` + `warnings` + `execution_id`；文档明写两处刻意缺席："`verification.status: \"unverified\"` means *no evidence was reported*, not 'checked and clean'"、"A missing `changes` means the action did not report a delta, not that nothing changed"（[davinci-resolve.md](./davinci-resolve.md) §6）。同一家还把破坏性建模成 **risk level(`low`/`medium`/`high`/`critical`) × blast radius(`item`/`track`/`timeline`/`project`/`system`)**——本库 14 个样本里唯一有「影响半径」的。
+    → Nomi：直接对上我们踩过的 `expectAbsent 通过得太早` 与 `harness 的 catch 洗成产品结论` 两个坑——**「没测到」必须是独立取值，不能和「测了没问题」共用 `success`**；审批卡该显示的不是「这是破坏性操作」而是「这会动 1 个节点 / 整条分镜 / 整个项目」，影响半径进结论 7 那张文案表。
+
+18. **重活（渲染/导出/付费生成）拆成「校验 → 设置/报价 → 入队 → 启动 → 查状态」，且「查状态」与「等到好」是两个工具。**
+    `validate_render_settings` → `safe_set_render_settings` → `prepare_render_job` → `render_job_lifecycle_probe`；另一家把 `get_render_progress`（探针）与 `wait_for_render`（阻塞）分开给，让模型自己选要不要挂住（[davinci-resolve.md](./davinci-resolve.md) §5、§8）。同域官方样本反面：它只给 API 级动词，把「长片→3 分钟高光→删掉短于 1 秒的剪辑→渲染 H.265」这条编排整个留给模型（§3）。
+    → Nomi：导出 MP4 与付费生成同形，与结论 5（报价确认）、结论 11（run handle）合流；**并且我们的主链路至少要有一个任务级动词承载**，不能每次让模型现场重新发明流程。
 
 ---
 
