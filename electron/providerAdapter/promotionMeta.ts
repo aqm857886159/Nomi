@@ -48,6 +48,15 @@ export function adapterModelMetadataForPromotion(input: {
       state: failedModes.length > 0 ? "partial" : "verified",
       runId: input.runId,
       activeRevision: input.revisionId,
+      /**
+       * **这次发布凭的是什么**（2026-09-11）。付费验证删掉之后，发布的凭据是一次免费自检
+       * （鉴权 + 模型清单 + 说明卡形状），而不是「真的出过一次片」。界面据此如实标「未试跑」——
+       * 这是 D4 诚实交付：我们证明了地址和形状对，没证明它一定能出片。
+       *
+       * 老装机上由真实付费生成认证过的行**没有**这个字段，因此不会被误标——判据是「有没有这个
+       * 印记」，不是「adapter 在不在」。第一次真实生成就是试跑。
+       */
+      evidence: "self-check",
       modes: input.modeResults,
       updatedAt: input.updatedAt,
     },
