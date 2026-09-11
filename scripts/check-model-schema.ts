@@ -13,11 +13,11 @@
  * 模型可见 schema 恰恰是「可以修掉一个工具、同时在另一个工具上犯同样的错」那一族，
  * 所以取身份式，与 `check:boundaries` 同款纪律。
  *
- * **三个 profile 一起扫**，因为「内外同源」（方案 §3.6）要求外部宿主看到的 schema
+ * **两个 profile 一起扫**，因为「内外同源」（方案 §3.6）要求外部宿主看到的 schema
  * 不弱于内部 agent：
- *   · `lane`     —— 新通路的模型可见工具面（`electron/agentLane/laneToolCatalog.ts`）
- *   · `internal` —— 旧通路发给 pi 的工具表（`modelToolSurfaceManifest`）
+ *   · `internal` —— Agent lane 的模型可见工具面（`electron/agentLane/laneToolCatalog.ts`，注册表派生）
  *   · `mcp`      —— 对外 `tools/list` 真正广播出去的那份（`MCP_TOOL_RESOLVER`）
+ * （PR A 之前还有第三个 `internal`＝harness 清单；那扇门已删，见 `docs/plan/2026-09-11-agent-tool-face-implementation.md`。）
  *
  * 用法：
  *   pnpm exec tsx scripts/check-model-schema.ts                    校验（棘轮）
@@ -31,13 +31,11 @@ import { MCP_TOOL_RESOLVER } from "../electron/capabilityCore/mcpToolCatalog";
 import {
   collectStructuralFailures, collectVendorCompatibilityFailures, toPublishedJsonSchema,
 } from "../electron/shared/agentCapabilities/modelVisibleJsonSchema";
-import { LANE_MODEL_TOOL_CATALOG, LANE_DEFERRED_TOOL_CATALOG, LANE_TOOL_BUDGET } from "../electron/agentLane/laneToolCatalog";
-import { modelToolSurfaceManifest } from "../electron/harness/tools/modelToolSurfaceManifest";
+import { LANE_MODEL_TOOL_CATALOG, LANE_DEFERRED_TOOL_CATALOG, LANE_NATIVE_TOOL_CATALOG, LANE_TOOL_BUDGET } from "../electron/agentLane/laneToolCatalog";
 import {
   evaluateLaneToolBudget, laneToolMenu, laneRequestToolDefinition, LANE_TOOL_SCHEMA_TOKEN_CEILING,
   type LaneToolCombination,
 } from "../electron/agentLane/laneToolGroups.mjs";
-import { laneModelReadDefinition } from "../electron/agentLane/laneModelRead.mjs";
 import { LANE_CODING_TOOL_NAMES, loadPiCodingToolFactories } from "../electron/agentLane/laneCodingTools.mjs";
 import { laneToolModelDescription, type LaneToolSpec } from "../electron/shared/agentLane/laneToolContract";
 import {
@@ -57,7 +55,7 @@ const MIN_DESCRIPTION_CHARS = 120;
 /** 到了这个复杂度还没有示例，模型只能猜形状（#547：35/35 零示例）。 */
 const EXAMPLE_REQUIRED_FIELD_COUNT = 10;
 
-type Profile = "lane" | "internal" | "mcp";
+type Profile = "internal" | "mcp";
 
 interface ModelVisibleTool {
   profile: Profile;
@@ -99,32 +97,15 @@ interface Finding {
 // ── 枚举模型可见工具 ────────────────────────────────────────────────────────
 
 function collectTools(): ModelVisibleTool[] {
-  const tools: ModelVisibleTool[] = [{ profile: "lane", name: laneModelReadDefinition.name, description: laneModelReadDefinition.description,
-    schema: laneModelReadDefinition.parameters, hasExample: false }];
-
-  for (const tool of [...LANE_MODEL_TOOL_CATALOG, ...LANE_DEFERRED_TOOL_CATALOG]) {
+  // `nomi_read` 在注册表里（`internalGroup:"models"`，原生装配层执行），不再单独手写一条。
+  const tools: ModelVisibleTool[] = [];
+  for (const tool of [...LANE_MODEL_TOOL_CATALOG, ...LANE_DEFERRED_TOOL_CATALOG, ...LANE_NATIVE_TOOL_CATALOG]) {
     tools.push({
-      profile: "lane",
+      profile: "internal",
       name: tool.name,
       description: tool.description,
       schema: toPublishedJsonSchema(tool.schema),
       hasExample: tool.examples.length > 0,
-    });
-  }
-
-  const internal = [
-    ...modelToolSurfaceManifest.generation,
-    ...modelToolSurfaceManifest.editing,
-    ...modelToolSurfaceManifest.canvas,
-    ...modelToolSurfaceManifest.document,
-  ];
-  for (const tool of internal) {
-    tools.push({
-      profile: "internal",
-      name: tool.name,
-      description: tool.intent,
-      schema: toPublishedJsonSchema(tool.inputSchema),
-      hasExample: hasInlineExample(tool.intent),
     });
   }
 
@@ -263,7 +244,7 @@ function analyse(tools: readonly ModelVisibleTool[]): Finding[] {
   //
   // 所以判据是：**schema 相同 + schema 里仍留着一个多值判别枚举**。
   // 前者说「两个工具长得一样」，后者说「名字没承担区分的责任」。缺任何一半都不成立。
-  for (const profile of ["lane", "internal", "mcp"] as const) {
+  for (const profile of ["internal", "mcp"] as const) {
     const byFingerprint = new Map<string, string[]>();
     for (const tool of tools.filter((candidate) => candidate.profile === profile)) {
       if (!hasMultiValueEnumField(tool.schema)) continue;
@@ -417,17 +398,16 @@ export async function laneToolCombinations(deferred: readonly LaneToolSpec[] = L
     const tool = codingByName.get(name)!;
     return laneToolModelDescription(tool) + JSON.stringify(tool.parameters);
   });
-  const domainGroupNames = [...new Set(deferred.map(tool => tool.internalGroup!))];
+  // `models` 组（`nomi_read`）从 PR A 起也是注册表声明（`LANE_NATIVE_TOOL_CATALOG`），与领域组一起量。
+  const domainGroupNames = [...new Set([...deferred, ...LANE_NATIVE_TOOL_CATALOG].map(tool => tool.internalGroup!))];
   const groups = [
     { name: "coding", toolNames: LANE_CODING_TOOL_NAMES.filter(name => name !== "read") },
-    ...domainGroupNames.map(name => ({ name, toolNames: deferred.filter(tool => tool.internalGroup === name).map(tool => tool.name) })),
-    { name: "models", toolNames: [laneModelReadDefinition.name] },
+    ...domainGroupNames.map(name => ({ name, toolNames: [...deferred, ...LANE_NATIVE_TOOL_CATALOG].filter(tool => tool.internalGroup === name).map(tool => tool.name) })),
   ];
   const request = laneRequestToolDefinition(groups);
   const alwaysOnNames = [...LANE_MODEL_TOOL_CATALOG.map(tool => tool.name), request.name, "read"];
   const read = codingByName.get("read")!;
   const alwaysOn = await estimateSchemaTokens([...alwaysOnChunks, request.description + JSON.stringify(request.parameters), laneToolModelDescription(read) + JSON.stringify(read.parameters)]);
-  const modelReadTokens = await estimateSchemaTokens([laneModelReadDefinition.description + JSON.stringify(laneModelReadDefinition.parameters)]);
   const coding = await estimateSchemaTokens(codingChunks);
   const domainChunk = (tool: LaneToolSpec) =>
     laneToolModelDescription(tool) + JSON.stringify(toPublishedJsonSchema(tool.schema));
@@ -441,10 +421,9 @@ export async function laneToolCombinations(deferred: readonly LaneToolSpec[] = L
       estimatedTokens: alwaysOn + coding,
     },
   ];
-  combinations.push({ label: "always-on + models", toolNames: [...alwaysOnNames, laneModelReadDefinition.name], estimatedTokens: alwaysOn + modelReadTokens });
-  let domainTokens = modelReadTokens;
+  let domainTokens = 0;
   for (const name of domainGroupNames) {
-    const tools = deferred.filter(tool => tool.internalGroup === name);
+    const tools = [...deferred, ...LANE_NATIVE_TOOL_CATALOG].filter(tool => tool.internalGroup === name);
     const tokens = await estimateSchemaTokens(tools.map(domainChunk));
     domainTokens += tokens;
     combinations.push({
@@ -516,7 +495,7 @@ async function main(): Promise<void> {
 
   const totalCurrent = RULE_ORDER.reduce((n, rule) => n + (byRule.get(rule)?.size ?? 0), 0);
   const totalFrozen = RULE_ORDER.reduce((n, rule) => n + baselineIdentities(baseline, rule).size, 0);
-  const byProfile = (["lane", "internal", "mcp"] as const)
+  const byProfile = (["internal", "mcp"] as const)
     .map((profile) => `${profile} ${tools.filter((tool) => tool.profile === profile).length}`)
     .join(" / ");
   console.log(

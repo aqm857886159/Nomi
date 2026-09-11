@@ -156,7 +156,7 @@ test('packaged MCP surface truth sources select the package lane on the PR path'
     journeys: true,
     package: true,
   })
-  assert.deepEqual(surfaces(classifyValidationPolicy(['electron/harness/tools/modelToolSurfaceManifest.ts'])), {
+  assert.deepEqual(surfaces(classifyValidationPolicy(['electron/shared/agentCapabilities/verbs/canvasVerbs.ts'])), {
     ...focusedOnly,
     unit: 'full',
     desktop: true,

@@ -54,14 +54,6 @@ export const DOCUMENT_READ_CAPABILITY = {
   exposure: "mcp_safe",
   requiredScope: "document:read",
   targetKind: "document",
-  projections: {
-    pi: {
-      description: "Read the current creation document or selection as plain text.",
-    },
-    mcp: {
-      description: "Read the creation document or a bounded selection as text.",
-    },
-  },
 } as const satisfies CapabilityContract<DocumentReadInput, DocumentReadResult>;
 
 /** Registry-owned aliases for the two semantic scopes of one capability. */

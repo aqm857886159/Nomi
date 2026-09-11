@@ -57,7 +57,7 @@ export function createPiSkillReadTransportAdapter(
 
   return Object.freeze({
     async tryExecute(call, signal) {
-      if (call.toolName !== SKILL_READ_CAPABILITY.aliases.pi) return null;
+      if (call.toolName !== SKILL_READ_CAPABILITY.aliases.method) return null;
       if (disposed) return failure("capability_surface_unavailable");
       if (signal.aborted) return failure("capability_cancelled");
       const input = readInput(call);
