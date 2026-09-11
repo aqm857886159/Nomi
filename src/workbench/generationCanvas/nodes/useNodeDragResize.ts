@@ -203,9 +203,10 @@ export function useNodeDragResize({
     if (flowManagedDrag) return
     const resizeStart = resizeStartRef.current
     if (resizeStart) {
-      const effectiveZoom = useGenerationCanvasStore.getState().canvasZoom || 1
-      const deltaX = Math.round((event.clientX - resizeStart.pointerX) / effectiveZoom)
-      const deltaY = Math.round((event.clientY - resizeStart.pointerY) / effectiveZoom)
+      // 这四个 handler 在 React Flow 宿主里第一行就 return（拖/缩放归 RF 与 NodeResizer 管），
+      // 只有画布外的宿主（设计实验室样张）才真的走到这里——那里没有视口，屏幕像素即画布像素。
+      const deltaX = Math.round(event.clientX - resizeStart.pointerX)
+      const deltaY = Math.round(event.clientY - resizeStart.pointerY)
       const pullsWest = resizeStart.direction.includes('w')
       const pullsEast = resizeStart.direction.includes('e')
       const pullsNorth = resizeStart.direction.includes('n')
@@ -288,9 +289,8 @@ export function useNodeDragResize({
       setCanvasDragging(event.currentTarget, false, CANVAS_DRAGGING_OWNER.node)
       return
     }
-    const effectiveZoom = useGenerationCanvasStore.getState().canvasZoom || 1
-    const deltaX = Math.round((event.clientX - dragStart.pointerX) / effectiveZoom)
-    const deltaY = Math.round((event.clientY - dragStart.pointerY) / effectiveZoom)
+    const deltaX = Math.round(event.clientX - dragStart.pointerX)
+    const deltaY = Math.round(event.clientY - dragStart.pointerY)
     if (!dragStart.dragging) {
       if (Math.abs(deltaX) < 2 && Math.abs(deltaY) < 2) return
       dragStart.dragging = true
