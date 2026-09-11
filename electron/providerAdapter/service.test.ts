@@ -198,7 +198,7 @@ function dependencies(catalog: ReturnType<typeof fakeCatalog>): ProviderAdapterS
     }),
     resolveLanguageModels: () => [{} as LanguageModelV1],
     compile: async () => ({ draft: draft(), failures: [] }),
-    repair: async () => draft(),
+    probeCredential: async () => ({ ok: true as const, modelIds: [], listed: false }),
     verify: async ({ mode }) => ({ ok: true, taskKind: mode.taskKind }),
     now: () => now,
     id: () => "run-test",
@@ -550,279 +550,6 @@ describe("ProviderAdapterService", () => {
     expect(catalog.staged).toHaveLength(1);
   });
 
-  it("reconciles a remotely accepted create after response loss and never creates twice", async () => {
-    const catalog = fakeCatalog();
-    const deps = dependencies(catalog);
-    const adapterStore = store();
-    let creates = 0;
-    deps.compile = async () => ({
-      draft: {
-        ...draft(),
-        models: [{ ...draft().models[1], modes: [draft().models[1].modes[0]] }],
-      },
-      failures: [],
-    });
-    deps.verify = vi.fn(async ({ mode }) => {
-      creates += 1;
-      return {
-        ok: false,
-        taskKind: mode.taskKind,
-        stage: "create",
-        error: "connection closed before response",
-        errorCategory: "network",
-        submissionState: "unknown",
-        remoteTaskId: "remote-task-accepted-1",
-      } satisfies AdapterVerificationResult;
-    });
-    deps.reconcile = vi.fn(async ({ mode, remoteTaskId }) => ({
-      ok: true,
-      taskKind: mode.taskKind,
-      remoteTaskId,
-      submissionState: "settled",
-    } satisfies AdapterVerificationResult));
-    const first = new ProviderAdapterService(adapterStore, { ...deps, schedule: () => {} });
-    const started = await first.start({
-      ...startInput,
-      models: [startInput.models[1]],
-      certification: {
-        contractDigest: "b".repeat(64),
-        idempotencyKey: "confirm-response-loss-1",
-        remoteIdempotency: "unsupported",
-      },
-    });
-
-    await first.executeRun(started.id);
-    expect(first.getRun(started.id)?.stage).toBe("reconciling");
-
-    const restarted = new ProviderAdapterService(adapterStore, { ...deps, schedule: () => {} });
-    restarted.resumeInterrupted();
-    await restarted.executeRun(started.id);
-
-    expect(creates).toBe(1);
-    expect(deps.reconcile).toHaveBeenCalledWith(expect.objectContaining({ remoteTaskId: "remote-task-accepted-1" }));
-    expect(restarted.getRun(started.id)?.stage).toBe("completed");
-  });
-
-  it("checkpoints a parsed remote task id before polling so a crash resumes with zero new create", async () => {
-    const catalog = fakeCatalog();
-    const deps = dependencies(catalog);
-    const adapterStore = store();
-    let creates = 0;
-    deps.maxRepairs = 0;
-    deps.verifyTimeoutMs = 5;
-    deps.compile = async () => ({
-      draft: { ...draft(), models: [{ ...draft().models[1], modes: [draft().models[1].modes[0]] }] },
-      failures: [],
-    });
-    deps.verify = vi.fn(async (input: VerifyInput) => {
-      creates += 1;
-      input.onRemoteTaskAccepted?.("remote-before-poll-1");
-      return new Promise<AdapterVerificationResult>(() => {});
-    });
-    deps.reconcile = vi.fn(async ({ mode, remoteTaskId }) => ({
-      ok: true,
-      taskKind: mode.taskKind,
-      remoteTaskId,
-      submissionState: "settled",
-    } satisfies AdapterVerificationResult));
-    const first = new ProviderAdapterService(adapterStore, { ...deps, schedule: () => {} });
-    const started = await first.start({
-      ...startInput,
-      models: [startInput.models[1]],
-      certification: {
-        contractDigest: "1".repeat(64),
-        idempotencyKey: "remote-id-before-poll",
-        remoteIdempotency: "unsupported",
-      },
-    });
-
-    await first.executeRun(started.id);
-    const restarted = new ProviderAdapterService(adapterStore, { ...deps, schedule: () => {} });
-    restarted.resumeInterrupted();
-    await restarted.executeRun(started.id);
-
-    expect(creates).toBe(1);
-    expect(deps.reconcile).toHaveBeenCalledWith(expect.objectContaining({ remoteTaskId: "remote-before-poll-1" }));
-    expect(restarted.getRun(started.id)?.stage).toBe("completed");
-  });
-
-  it("resumes only the unsettled mode after a multi-mode crash and preserves failed outcomes", async () => {
-    const catalog = fakeCatalog();
-    const deps = dependencies(catalog);
-    const adapterStore = store();
-    const creates: string[] = [];
-    deps.maxRepairs = 0;
-    deps.verifyTimeoutMs = 5;
-    deps.compile = async () => ({ draft: { ...draft(), models: [draft().models[1]] }, failures: [] });
-    deps.verify = vi.fn(async (input: VerifyInput) => {
-      creates.push(input.mode.taskKind);
-      if (input.mode.taskKind === "text_to_image") {
-        return { ok: true, taskKind: input.mode.taskKind } satisfies AdapterVerificationResult;
-      }
-      input.onRemoteTaskAccepted?.("remote-image-edit-1");
-      return new Promise<AdapterVerificationResult>(() => {});
-    });
-    deps.reconcile = vi.fn(async ({ mode, remoteTaskId }) => ({
-      ok: false,
-      taskKind: mode.taskKind,
-      stage: "create",
-      error: "invalid reference shape",
-      errorCategory: "input",
-      remoteTaskId,
-      submissionState: "settled",
-    } satisfies AdapterVerificationResult));
-    const first = new ProviderAdapterService(adapterStore, { ...deps, schedule: () => {} });
-    const started = await first.start({
-      ...startInput,
-      models: [startInput.models[1]],
-      certification: {
-        contractDigest: "2".repeat(64),
-        idempotencyKey: "multi-mode-crash",
-        remoteIdempotency: "unsupported",
-      },
-    });
-    await first.executeRun(started.id);
-
-    const restarted = new ProviderAdapterService(adapterStore, { ...deps, schedule: () => {} });
-    restarted.resumeInterrupted();
-    await restarted.executeRun(started.id);
-
-    expect(creates).toEqual(["text_to_image", "image_edit"]);
-    expect(deps.reconcile).toHaveBeenCalledTimes(1);
-    expect(deps.reconcile).toHaveBeenCalledWith(expect.objectContaining({
-      mode: expect.objectContaining({ taskKind: "image_edit" }),
-      remoteTaskId: "remote-image-edit-1",
-    }));
-    expect(restarted.getRun(started.id)?.models[0].modes).toEqual(expect.arrayContaining([
-      expect.objectContaining({ taskKind: "text_to_image", state: "verified" }),
-      expect.objectContaining({ taskKind: "image_edit", state: "failed", errorCategory: "input" }),
-    ]));
-  });
-
-  it.each(["settled", "failed", "unknown"] as const)("resumes the indexed attempt 2 outcome (%s) without reopening attempt 1", async (outcome) => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-adapter-latest-attempt-"));
-    dirs.push(root);
-    const filePath = path.join(root, "provider-adapters.json");
-    const catalog = fakeCatalog();
-    const deps = dependencies(catalog);
-    deps.maxRepairs = 0;
-    deps.schedule = () => {};
-    const first = new ProviderAdapterService(new ProviderAdapterStore(filePath), deps);
-    const started = await first.start({
-      ...startInput,
-      models: [startInput.models[0]],
-      certification: { contractDigest: "8".repeat(64), idempotencyKey: `latest-attempt-${outcome}`, remoteIdempotency: "unsupported" },
-    });
-    const operationLedger = new OperationLedger(path.join(root, "integration-certification", "operations.json"));
-    let operation = operationLedger.getByRunId(started.id)!;
-    const firstKey = certificationModeOperationKey("text-v1", "chat", 1);
-    operation = operationLedger.markSubmitting(started.id, {
-      operationKey: firstKey, modelKey: "text-v1", taskKind: "chat", attempt: 1,
-      providerIdempotency: "unsupported", expectedRevision: operation.revision, now,
-    });
-    operation = operationLedger.markSettled(started.id, {
-      operationKey: firstKey, expectedRevision: operation.revision,
-      result: { ok: false, taskKind: "chat", stage: "create", errorCategory: "input" }, now,
-    });
-    const secondKey = certificationModeOperationKey("text-v1", "chat", 2);
-    operation = operationLedger.markSubmitting(started.id, {
-      operationKey: secondKey, modelKey: "text-v1", taskKind: "chat", attempt: 2,
-      providerIdempotency: "unsupported", expectedRevision: operation.revision, now,
-    });
-    if (outcome === "unknown") {
-      operationLedger.markUnknown(started.id, {
-        operationKey: secondKey, expectedRevision: operation.revision, remoteTaskId: "remote-attempt-two",
-        userAction: "reconcile_or_contact_provider", now,
-      });
-    } else {
-      operationLedger.markSettled(started.id, {
-        operationKey: secondKey, expectedRevision: operation.revision,
-        result: { ok: outcome === "settled", taskKind: "chat", ...(outcome === "failed" ? { stage: "create" as const, errorCategory: "input" as const } : {}) }, now,
-      });
-    }
-    deps.verify = vi.fn(async ({ mode }) => ({ ok: true, taskKind: mode.taskKind } satisfies AdapterVerificationResult));
-    deps.reconcile = vi.fn(async ({ mode, remoteTaskId }) => ({
-      ok: true, taskKind: mode.taskKind, remoteTaskId, submissionState: "settled",
-    } satisfies AdapterVerificationResult));
-    const restarted = new ProviderAdapterService(new ProviderAdapterStore(filePath), deps);
-    if (outcome === "unknown") restarted.resumeInterrupted();
-    await restarted.executeRun(started.id);
-
-    expect(deps.verify).not.toHaveBeenCalled();
-    if (outcome === "unknown") expect(deps.reconcile).toHaveBeenCalledWith(expect.objectContaining({ remoteTaskId: "remote-attempt-two" }));
-  });
-
-  it("keeps an unknown submission fail-closed with a structured action when it cannot reconcile", async () => {
-    const catalog = fakeCatalog();
-    const deps = dependencies(catalog);
-    deps.verify = vi.fn(async ({ mode }) => ({
-      ok: false,
-      taskKind: mode.taskKind,
-      stage: "create",
-      error: "socket closed",
-      errorCategory: "network",
-      submissionState: "unknown",
-    } satisfies AdapterVerificationResult));
-    const adapterStore = store();
-    const service = new ProviderAdapterService(adapterStore, { ...deps, schedule: () => {} });
-    const started = await service.start({
-      ...startInput,
-      models: [startInput.models[1]],
-      certification: {
-        contractDigest: "c".repeat(64),
-        idempotencyKey: "confirm-unknown-no-id-1",
-        remoteIdempotency: "unsupported",
-      },
-    });
-
-    await service.executeRun(started.id);
-    service.resumeInterrupted();
-
-    expect(deps.verify).toHaveBeenCalledTimes(1);
-    expect(service.getRun(started.id)).toMatchObject({
-      stage: "reconciling",
-      recovery: { reasonCode: "submission_reconcile_unavailable", userAction: "reconcile_or_contact_provider" },
-    });
-  });
-
-  it("blocks a competing session in the same lineage while a remote submission is unresolved", async () => {
-    const catalog = fakeCatalog();
-    const deps = dependencies(catalog);
-    let sequence = 0;
-    deps.id = () => `run-lineage-${++sequence}`;
-    deps.verify = vi.fn(async ({ mode }) => ({
-      ok: false,
-      taskKind: mode.taskKind,
-      stage: "create",
-      error: "response lost",
-      errorCategory: "network",
-      submissionState: "unknown",
-    } satisfies AdapterVerificationResult));
-    const service = new ProviderAdapterService(store(), { ...deps, schedule: () => {} });
-    const first = await service.start({
-      ...startInput,
-      models: [startInput.models[1]],
-      certification: {
-        contractDigest: "d".repeat(64),
-        idempotencyKey: "lineage-first",
-        remoteIdempotency: "supported",
-      },
-    });
-    await service.executeRun(first.id);
-
-    await expect(service.start({
-      ...startInput,
-      models: [startInput.models[1]],
-      certification: {
-        contractDigest: "e".repeat(64),
-        idempotencyKey: "lineage-second",
-        remoteIdempotency: "supported",
-      },
-    })).rejects.toThrowError(/unresolved remote submission/i);
-    expect(deps.verify).toHaveBeenCalledTimes(1);
-    expect(catalog.staged).toHaveLength(1);
-  });
-
   it("keeps the catalog identity when adding models to an existing connection", async () => {
     const catalog = fakeCatalog();
     const originalStage = catalog.stage.bind(catalog);
@@ -859,7 +586,7 @@ describe("ProviderAdapterService", () => {
     const next = adapterModelMetadataForPromotion({
       oldMeta,
       candidate: draft().models[1],
-      modeResults: [{ taskKind: "text_to_image", state: "failed", attempts: 1, stage: "create" }],
+      modeResults: [{ taskKind: "text_to_image", state: "failed", attempts: 1, stage: "credential", selfCheckReason: "credential_rejected" }],
       runId: "run-new",
       revisionId: "revision-new",
       updatedAt: now,
@@ -923,9 +650,8 @@ describe("ProviderAdapterService", () => {
     const deps = dependencies(catalog);
     deps.verify = async ({ mode }) =>
       mode.taskKind === "image_edit"
-        ? { ok: false, taskKind: mode.taskKind, stage: "create", error: "HTTP 400 image field" }
+        ? { ok: false, taskKind: mode.taskKind, stage: "credential", selfCheckReason: "credential_rejected", error: "HTTP 400 image field" }
         : { ok: true, taskKind: mode.taskKind };
-    deps.repair = async () => draft();
     const service = new ProviderAdapterService(store(), deps);
     const started = await service.start(startInput);
 
@@ -937,65 +663,14 @@ describe("ProviderAdapterService", () => {
     expect(service.getRun(started.id)?.stage).toBe("partial");
   });
 
-  it("retests every mode after an AI repair so a fix cannot regress a prior pass", async () => {
-    const catalog = fakeCatalog();
-    const deps = dependencies(catalog);
-    // 按 taskKind 定位失败，不按调用次序——次序会随分级（媒体先编译、文本后合入）而变，
-    // 而这条测的意图是「某个媒体模式失败过一次 → 重修 → 全量重测」，与次序无关。
-    let imageEditAttempts = 0;
-    const verify = vi.fn(async ({ mode }) => {
-      if (mode.taskKind === "image_edit") {
-        imageEditAttempts += 1;
-        if (imageEditAttempts === 1) return { ok: false, taskKind: mode.taskKind, stage: "create", error: "bad image field" };
-      }
-      return { ok: true, taskKind: mode.taskKind };
-    });
-    deps.verify = verify;
-    deps.repair = vi.fn(async () => draft());
-    const service = new ProviderAdapterService(store(), deps);
-    const started = await service.start(startInput);
-
-    await service.executeRun(started.id);
-
-    expect(deps.repair).toHaveBeenCalledTimes(1);
-    expect(deps.repair).toHaveBeenCalledWith(expect.objectContaining({
-      failure: expect.objectContaining({ modelKey: "paint-v2", taskKind: "image_edit" }),
-    }));
-    expect(verify).toHaveBeenCalledTimes(6);
-    expect(catalog.promoted[0]?.verified).toEqual([
-      "paint-v2/text_to_image",
-      "paint-v2/image_edit",
-      "text-v1/chat",
-    ]);
-    expect(service.getRun(started.id)?.stage).toBe("completed");
-  });
-
   // 回归钉子（2026-08-11 用户接 DeepSeek 踩到「自动修复一直失败」）：文本模型验证走
   // streamTextTask（生产同一条路）、根本不读编译出来的 HTTP 草稿，所以重修草稿对文本失败
   // 是个空操作——旧代码照样空转 2 轮、界面还写着「正在根据真实错误自动修复…」，用户白等。
-  it("does not burn repair rounds on a text failure that repairing the HTTP draft cannot change", async () => {
-    const catalog = fakeCatalog();
-    const deps = dependencies(catalog);
-    deps.verify = async ({ mode }) =>
-      mode.taskKind === "chat"
-        ? { ok: false, taskKind: mode.taskKind, stage: "create", error: "empty reply" }
-        : { ok: true, taskKind: mode.taskKind };
-    deps.repair = vi.fn(async () => draft());
-    const service = new ProviderAdapterService(store(), deps);
-    const started = await service.start(startInput);
-
-    await service.executeRun(started.id);
-
-    expect(deps.repair).not.toHaveBeenCalled();
-    expect(service.getRun(started.id)?.repairAttempt).toBe(0);
-  });
-
   it("does not publish a failed candidate when no mode passed", async () => {
     const catalog = fakeCatalog();
     const deps = dependencies(catalog);
     deps.compile = async () => ({ draft: { ...draft(), models: [draft().models[1]] }, failures: [] });
-    deps.verify = async ({ mode }) => ({ ok: false, taskKind: mode.taskKind, stage: "create", error: "HTTP 500" });
-    deps.repair = async () => ({ ...draft(), models: [draft().models[1]] });
+    deps.verify = async ({ mode }) => ({ ok: false, taskKind: mode.taskKind, stage: "credential", selfCheckReason: "credential_rejected", error: "HTTP 500" });
     const service = new ProviderAdapterService(store(), deps);
     const started = await service.start({ ...startInput, models: [startInput.models[1]] });
 
@@ -1010,8 +685,7 @@ describe("ProviderAdapterService", () => {
     const catalog = fakeCatalog();
     const deps = dependencies(catalog);
     deps.compile = async () => ({ draft: { ...draft(), models: [draft().models[1]] }, failures: [] });
-    deps.verify = async ({ mode }) => ({ ok: false, taskKind: mode.taskKind, stage: "create", error: "HTTP 500" });
-    deps.maxRepairs = 0;
+    deps.verify = async ({ mode }) => ({ ok: false, taskKind: mode.taskKind, stage: "credential", selfCheckReason: "credential_rejected", error: "HTTP 500" });
     catalog.fail = () => {
       throw new Error("catalog cleanup failed");
     };
@@ -1058,7 +732,6 @@ describe("ProviderAdapterService", () => {
     const catalog = fakeCatalog();
     const deps = dependencies(catalog);
     deps.compile = async () => ({ draft: { ...draft(), models: [draft().models[1]] }, failures: [] });
-    deps.maxRepairs = 0;
     let failedAfterCatalog = false;
     const journal = new PromotionJournal(journalPath, {
       write: (target, state) => {
@@ -1131,11 +804,10 @@ describe("ProviderAdapterService", () => {
     const deps = dependencies(catalog);
     deps.discover = async () => ({ sources: [], corpus: "" });
     deps.compile = vi.fn(deps.compile);
-    deps.repair = vi.fn(deps.repair);
     deps.verify = async ({ mode }) => ({
       ok: false,
       taskKind: mode.taskKind,
-      stage: "create",
+      stage: "credential", selfCheckReason: "credential_rejected",
       error: "HTTP 404",
     });
     const service = new ProviderAdapterService(store(), deps);
@@ -1144,32 +816,9 @@ describe("ProviderAdapterService", () => {
     await service.executeRun(started.id);
 
     expect(deps.compile).not.toHaveBeenCalled();
-    expect(deps.repair).not.toHaveBeenCalled();
     expect(catalog.failed).toEqual([started.id]);
     expect(catalog.promoted).toEqual([]);
     expect(service.getRun(started.id)?.stage).toBe("failed");
-  });
-
-  it("keeps verified modes publishable when repairing a different failed model returns malformed output", async () => {
-    const catalog = fakeCatalog();
-    const deps = dependencies(catalog);
-    deps.verify = async ({ mode }) =>
-      mode.taskKind === "chat"
-        ? { ok: true, taskKind: mode.taskKind }
-        : { ok: false, taskKind: mode.taskKind, stage: "create", error: "HTTP 404 wrong endpoint" };
-    deps.repair = async () => {
-      throw new Error("No object generated: could not parse the response");
-    };
-    const service = new ProviderAdapterService(store(), deps);
-    const started = await service.start(startInput);
-
-    await service.executeRun(started.id);
-
-    expect(catalog.promoted[0]?.verified).toEqual(["text-v1/chat"]);
-    expect(service.getRun(started.id)).toMatchObject({
-      stage: "partial",
-      error: expect.stringContaining("could not parse"),
-    });
   });
 
   it("falls an uncompiled model back to the generic contract without blocking deterministic text", async () => {
@@ -1295,33 +944,6 @@ describe("ProviderAdapterService", () => {
     });
   });
 
-  it("treats an in-flight verification deadline as unknown instead of retrying create", async () => {
-    const catalog = fakeCatalog();
-    const deps = dependencies(catalog);
-    deps.batchTimeoutMs = 5;
-    deps.verifyTimeoutMs = 1_000;
-    deps.maxRepairs = 0;
-    deps.compile = async () => ({ draft: { ...draft(), models: [draft().models[1]] }, failures: [] });
-    deps.verify = () => new Promise(() => {});
-    const service = new ProviderAdapterService(store(), deps);
-    const started = await service.start({ ...startInput, models: [startInput.models[1]] });
-
-    await service.executeRun(started.id);
-
-    expect(service.getRun(started.id)).toMatchObject({
-      stage: "reconciling",
-      error: expect.stringContaining("will not create another task"),
-      recovery: { reasonCode: "submission_reconcile_unavailable" },
-      models: [expect.objectContaining({
-        modes: expect.arrayContaining([
-          expect.objectContaining({ state: "testing" }),
-        ]),
-      })],
-    });
-    expect(catalog.promoted).toEqual([]);
-    expect(catalog.failed).toEqual([]);
-  });
-
   it("times out one model compilation, falls it back, and continues compiling later models", async () => {
     const catalog = fakeCatalog();
     const deps = dependencies(catalog);
@@ -1368,56 +990,6 @@ describe("ProviderAdapterService", () => {
     expect(catalog.promoted[0]?.draft.models.find((model) => model.modelKey === "paint-v3")?.modes[0]?.create.path).toBe("/paint-v3");
   });
 
-  it("keeps verified modes publishable when automatic repair times out", async () => {
-    const catalog = fakeCatalog();
-    const deps = dependencies(catalog);
-    deps.compile = async () => ({ draft: { ...draft(), models: [draft().models[1]] }, failures: [] });
-    deps.verify = async ({ mode }) => mode.taskKind === "image_edit"
-      ? { ok: true, taskKind: mode.taskKind }
-      : { ok: false, taskKind: mode.taskKind, stage: "create", error: "wrong request" };
-    deps.repair = () => new Promise(() => {});
-    deps.repairTimeoutMs = 5;
-    deps.batchTimeoutMs = 100;
-    const service = new ProviderAdapterService(store(), deps);
-    const started = await service.start({ ...startInput, models: [startInput.models[1]] });
-
-    await service.executeRun(started.id);
-
-    expect(service.getRun(started.id)).toMatchObject({
-      stage: "partial",
-      currentModelKey: undefined,
-      error: expect.stringContaining("Adapter repair timed out"),
-    });
-    expect(catalog.failed).toEqual([]);
-    expect(catalog.promoted[0]?.verified).toEqual(["paint-v2/image_edit"]);
-  });
-
-  it("records a batch deadline reached during repair as timed_out when nothing passed", async () => {
-    const catalog = fakeCatalog();
-    const deps = dependencies(catalog);
-    deps.compile = async () => ({ draft: { ...draft(), models: [draft().models[1]] }, failures: [] });
-    deps.verify = async ({ mode }) => ({
-      ok: false,
-      taskKind: mode.taskKind,
-      stage: "create",
-      error: "wrong request",
-    });
-    deps.repair = () => new Promise(() => {});
-    deps.repairTimeoutMs = 1_000;
-    deps.batchTimeoutMs = 5;
-    const service = new ProviderAdapterService(store(), deps);
-    const started = await service.start({ ...startInput, models: [startInput.models[1]] });
-
-    await service.executeRun(started.id);
-
-    expect(service.getRun(started.id)).toMatchObject({
-      stage: "timed_out",
-      error: expect.stringContaining("deadline"),
-    });
-    expect(catalog.promoted).toEqual([]);
-    expect(catalog.failed).toEqual([started.id]);
-  });
-
   it("uses the generic contract when documentation exists but no compiler AI is configured", async () => {
     const catalog = fakeCatalog();
     const deps = dependencies(catalog);
@@ -1443,13 +1015,9 @@ describe("ProviderAdapterService", () => {
     let clock = now;
     deps.now = () => clock;
     deps.batchTimeoutMs = 1_000;
-    deps.maxRepairs = 0;
     deps.compile = async () => ({ draft: { ...draft(), models: [draft().models[1]] }, failures: [] });
-    deps.verify = vi.fn(async ({ mode }) => {
-      if (mode.taskKind === "text_to_image") {
-        clock = "2026-08-07T00:00:02.000Z";
-        return { ok: true, taskKind: mode.taskKind };
-      }
+    deps.verify = vi.fn(async ({ mode }): Promise<AdapterVerificationResult> => {
+      if (mode.taskKind === "text_to_image") clock = "2026-08-07T00:00:02.000Z";
       return { ok: true, taskKind: mode.taskKind };
     });
     const service = new ProviderAdapterService(store(), deps);
@@ -1500,37 +1068,6 @@ describe("ProviderAdapterService", () => {
     expect(catalog.promoted).toEqual([]);
     expect(catalog.failed).toEqual([started.id]);
     expect(deps.compile).not.toHaveBeenCalled();
-  });
-
-  it("pauses the batch after one verification timeout instead of spending on the remaining mode", async () => {
-    const catalog = fakeCatalog();
-    const deps = dependencies(catalog);
-    deps.compile = async () => ({ draft: { ...draft(), models: [draft().models[1]] }, failures: [] });
-    deps.maxRepairs = 0;
-    deps.verifyTimeoutMs = 5;
-    deps.batchTimeoutMs = 100;
-    deps.verify = vi.fn(async ({ mode }) => {
-      if (mode.taskKind === "text_to_image") return new Promise(() => {});
-      return { ok: true, taskKind: mode.taskKind };
-    });
-    const service = new ProviderAdapterService(store(), deps);
-    const started = await service.start({ ...startInput, models: [startInput.models[1]] });
-
-    await service.executeRun(started.id);
-
-    expect(deps.verify).toHaveBeenCalledTimes(1);
-    expect(service.getRun(started.id)).toMatchObject({
-      stage: "reconciling",
-      completedCount: 0,
-      totalCount: 1,
-      recovery: { reasonCode: "submission_reconcile_unavailable" },
-      models: [expect.objectContaining({
-        modes: expect.arrayContaining([
-          expect.objectContaining({ taskKind: "text_to_image", state: "testing" }),
-          expect.objectContaining({ taskKind: "image_edit", state: "queued" }),
-        ]),
-      })],
-    });
   });
 
   it("cancels active work and ignores its eventual result", async () => {
@@ -1669,24 +1206,21 @@ describe("ProviderAdapterService", () => {
     ]);
   });
 
-  it("certifies an externally compiled contract with no text model available and never tries to repair it", async () => {
+  it("certifies an externally compiled contract with no text model available", async () => {
     const catalog = fakeCatalog();
     const deps = dependencies(catalog);
     const discover = vi.fn(async () => ({ sources: [], corpus: "" }));
     const compile = vi.fn(async () => ({ draft: draft(), failures: [] }));
-    const repair = vi.fn(async () => draft());
     deps.discover = discover;
     deps.compile = compile;
-    deps.repair = repair;
     // 鸡生蛋的那台机器：一个可用的文本模型都没有。
     deps.resolveLanguageModels = () => [];
-    // 图片模式验证失败——如果我们还去「自动修复」，就会立刻叫 repair（而它必然抛 needs_ai）。
     const verified: Array<{ modelKey: string; path: string }> = [];
     deps.verify = async ({ model, mode }) => {
       verified.push({ modelKey: model.modelKey, path: mode.create.path });
       return mode.taskKind === "chat"
         ? { ok: true as const, taskKind: mode.taskKind }
-        : { ok: false as const, taskKind: mode.taskKind, stage: "create" as const, error: "provider rejected the request" };
+        : { ok: false as const, taskKind: mode.taskKind, stage: "contract" as const, error: "no executable request channel", selfCheckReason: "no_channel" as const };
     };
     const service = new ProviderAdapterService(store(), deps);
 
@@ -1699,7 +1233,6 @@ describe("ProviderAdapterService", () => {
 
     expect(discover).not.toHaveBeenCalled();
     expect(compile).not.toHaveBeenCalled();
-    expect(repair).not.toHaveBeenCalled();
     // 媒体模型跑的就是外部交回来的那张卡（/images 来自 externalDraft）；文本条目仍以
     // withTextModels 的确定性契约为单一真相（外部卡里的 /chat 被它盖掉，与编译器那条路一致）。
     expect(verified).toEqual([
