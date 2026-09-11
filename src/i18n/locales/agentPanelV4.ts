@@ -385,6 +385,12 @@ export const zhAgentPanelV4 = {
   /** 叉掉这一条（2026-09-10 用户：可以叉掉，一直放占空间）。 */
   autoModeBannerDismiss: '不再显示这条提醒',
 
+  // 命令沙箱没起来时 composer 上沿那一行交代（见 `AgentPanelV4SandboxNotice.tsx`）。
+  // `{{reason}}` 是两个原因码各自的那半句，不是上游的英文异常正文。
+  sandboxInactive: '命令需逐条确认：{{reason}}',
+  sandboxInactiveUnsupported: '这台设备没有系统级命令沙箱',
+  sandboxInactiveInitFailed: '命令沙箱这次没能启动',
+
   /** 介入槽翻页器（`‹ 2/4 ›`）的无障碍名。 */
   pagerPrev: '上一张',
   pagerNext: '下一张',
@@ -752,6 +758,10 @@ export const enAgentPanelV4 = {
   autoModeBannerNote: 'Paid and irreversible still ask',
   autoModeBannerRevert: 'Back to Auto-edit',
   autoModeBannerDismiss: 'Hide this reminder',
+
+  sandboxInactive: 'Commands need confirming one at a time: {{reason}}',
+  sandboxInactiveUnsupported: 'this device has no OS-level command sandbox',
+  sandboxInactiveInitFailed: 'the command sandbox did not start this time',
 
   pagerPrev: 'Previous',
   pagerNext: 'Next',
