@@ -44,11 +44,7 @@ function readSnapshot(value: unknown): SessionSnapshot | null {
   }
 }
 
-export function AiAssistedOnboardingSection({
-  onManualConnect,
-}: {
-  onManualConnect: () => void
-}): JSX.Element | null {
+export function AiAssistedOnboardingSection(): JSX.Element | null {
   const [info, setInfo] = React.useState<McpInfo | null>(null)
   const [session, setSession] = React.useState<LiveSession | null>(null)
   const [snapshot, setSnapshot] = React.useState<SessionSnapshot | null>(null)
@@ -168,7 +164,6 @@ export function AiAssistedOnboardingSection({
       info={info}
       progress={progress}
       onOpenAssistantConnections={openAssistantConnections}
-      onManualConnect={onManualConnect}
       firstSeen={firstSeen}
     />
   )

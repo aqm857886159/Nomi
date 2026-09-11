@@ -4,7 +4,6 @@ import {
   IconChevronRight,
   IconCloud,
   IconCode,
-  IconPlugConnected,
   IconServerBolt,
 } from '@tabler/icons-react'
 import { useTranslation } from 'react-i18next'
@@ -334,7 +333,6 @@ export function ModelSettingsHome({
   dataSourceContent,
   availableFooter,
   onReload,
-  onCustomApi,
   onDirectScript,
 }: {
   connections: ModelSettingsHomeConnection[]
@@ -350,30 +348,13 @@ export function ModelSettingsHome({
   dataSourceContent?: React.ReactNode
   availableFooter?: React.ReactNode
   onReload: () => void
-  onCustomApi: () => void
   onDirectScript: () => void
 }): JSX.Element {
   const { t } = useTranslation()
   const [search, setSearch] = React.useState('')
   const [morePlatformsOpen, setMorePlatformsOpen] = React.useState(false)
   const [otherWaysOpen, setOtherWaysOpen] = React.useState(false)
-  // 「手动接入」不另开向导：滚到本页已有的「自定义 API / 中转站」那一行并描一次边
-  // （§1.5.2 一功能一个家——那一行才是手动接入的家）。
-  const [manualHighlighted, setManualHighlighted] = React.useState(false)
   const scrollRef = React.useRef<HTMLDivElement>(null)
-  const handleManualConnect = React.useCallback(() => {
-    setManualHighlighted(true)
-    window.requestAnimationFrame(() => {
-      scrollRef.current
-        ?.querySelector<HTMLElement>('[data-model-home-action="custom-api"]')
-        ?.scrollIntoView({ block: 'center', behavior: 'smooth' })
-    })
-  }, [])
-  React.useEffect(() => {
-    if (!manualHighlighted) return
-    const timer = window.setTimeout(() => setManualHighlighted(false), 2400)
-    return () => window.clearTimeout(timer)
-  }, [manualHighlighted])
   // 各行探完把结果报上来（探测本身仍归每行的 useVendorHealth，这里只收结论，不第二次探）。
   const [unreachableKeys, setUnreachableKeys] = React.useState<ReadonlySet<string>>(() => new Set())
   const handleHealthChange = React.useCallback((vendorKey: string, unreachable: boolean) => {
@@ -465,17 +446,6 @@ export function ModelSettingsHome({
     </section>
   ) : null
 
-  const customApiRow = (
-    <ActionRow
-      icon={<IconPlugConnected size={16} stroke={1.7} aria-hidden="true" />}
-      title={t('onboardingProviders.drawer.home.customApi')}
-      hint={t('onboardingProviders.drawer.home.customApiHint')}
-      onClick={onCustomApi}
-      dataMarker="custom-api"
-      highlighted={manualHighlighted}
-    />
-  )
-
   const alternateRows = otherAvailable.map((connection) => (
     <AvailableConnectionRow
       key={connection.vendorKey}
@@ -488,17 +458,12 @@ export function ModelSettingsHome({
     <section className="mt-5" data-model-home-other-methods>
       <SectionHeading title={t('onboardingProviders.drawer.home.otherMethods')} />
       <RowGroup>
-        {customApiRow}
         {alternateRows}
         {availableFooter ? <div className="p-2">{availableFooter}</div> : null}
       </RowGroup>
     </section>
   ) : (
     <>
-      <section className="mt-5" data-model-home-other-methods>
-        <SectionHeading title={t('onboardingProviders.drawer.home.otherMethods')} />
-        <RowGroup>{customApiRow}</RowGroup>
-      </section>
       {otherAvailable.length > 0 || availableFooter ? (
         <section className="mt-5" data-model-home-other-ways>
           <SectionHeading title={t('onboardingProviders.drawer.home.otherWays')} />
@@ -562,7 +527,7 @@ export function ModelSettingsHome({
             {/* 「用 AI 帮我接入」：想接模型的人一定会到这一屏，所以入口就放在这一屏的最上面
                 （搜索框正下方）。它不是一个模型家，也不接 MCP——只把「跟助手说什么」交到手上。 */}
             <section className="mt-4" data-model-home-assisted>
-              <AiAssistedOnboardingSection onManualConnect={handleManualConnect} />
+              <AiAssistedOnboardingSection />
             </section>
 
             {taskCount > 0 && taskContent ? (

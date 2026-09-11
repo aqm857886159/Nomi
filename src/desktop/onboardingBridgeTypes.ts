@@ -32,6 +32,12 @@ export type DesktopAdapterModeResult = {
    * **别在 UI 里从 error 文案猜**。
    */
   compileFailureReason?: string
+  /**
+   * 「**我们这边**缺什么」这一维（electron/providerAdapter/selfCheck.ts 的 AdapterSelfCheckReason）。
+   * 与 errorCategory（上游怎么拒绝我们）正交：缺一条查询接口、改图模式没声明参考图槽，
+   * 都不是用户填错了，界面据此给真正走得通的下一步，而不是甩英文原文 + 「你自己接」。
+   */
+  selfCheckReason?: string
   httpStatus?: number
   verifiedAt?: string
 }

@@ -794,7 +794,6 @@ export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPa
       dataSourceContent={<TikhubConnectorCard />}
       availableFooter={comfyuiConnected.length > 0 ? <AddComfyuiInstanceButton onAdded={refresh} /> : undefined}
       onReload={reloadFromError}
-      onCustomApi={() => openWizard('newapi')}
       onDirectScript={() => openWizard(undefined, undefined, 'scriptDraft')}
     />
   )

@@ -132,7 +132,7 @@ export function ModelChipGroups({ models, connected, onToggle, onDelete, onOpenM
                     key={`${m.vendorKey}-${m.modelKey}`}
                     type="button"
                     aria-pressed={onOpenModel ? undefined : m.enabled}
-                    title={m.enabled ? t('onboardingProviders.modelControls.enabledTitle') : t('onboardingProviders.modelControls.hiddenTitle')}
+                    title={m.enabled ? t('onboardingProviders.modelControls.hideModelTitle') : t('onboardingProviders.modelControls.showModelTitle')}
                     onClick={() => {
                       if (onOpenModel) onOpenModel(m)
                       else onToggle?.(m, !m.enabled)
