@@ -12,7 +12,7 @@ export type IntegrationHandoff = {
   sessionId: string
   revision: number
   ownerClientId: string
-  display?: { name?: string; origin?: string; authType?: string; runId?: string; challengeId?: string }
+  display?: { name?: string; origin?: string; authType?: string; runId?: string }
 }
 
 export type DesktopAdapterModeResult = {
@@ -143,7 +143,7 @@ export type DesktopOnboardingBridge = {
     revision: number
     ownerClientId: string
     createdAt: string
-    display?: { name?: string; origin?: string; authType?: string; runId?: string; challengeId?: string }
+    display?: { name?: string; origin?: string; authType?: string; runId?: string }
   }>>
   integrationHandoffSubscribe?: (callback: (entry: unknown) => void) => () => void
   integrationHandoffAck?: (requestId: string) => Promise<{ ok: boolean }>
@@ -157,7 +157,7 @@ export type DesktopOnboardingBridge = {
     enumOptions?: unknown
     uiWorkflow?: string
   }) => Promise<unknown>
-  integrationSessionConfirm?: (payload: { sessionId: string; expectedRevision: number; challengeId: string }) => Promise<unknown>
+  integrationSessionStartSelfCheck?: (payload: { sessionId: string; expectedRevision: number }) => Promise<unknown>
   integrationSessionGet?: (sessionId: string) => Promise<unknown>
   antigravityStatus: () => Promise<AntigravityConnectionStatus>
   antigravityTest: (request?: AntigravityTestRequest) => Promise<AntigravityConnectionStatus>

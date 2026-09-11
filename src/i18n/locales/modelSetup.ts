@@ -84,13 +84,14 @@ export const zhModelSetup = {
   saveFailed: '没能保存',
   saveFailedHint: '连接和模型没有写入本地，请保留当前选择后重试。',
   integrationUnavailable: '接入会话不可用，请回到模型设置后重试。',
-  integrationConfirmTitle: '确认接入并开始自检',
+  integrationSelfCheckTitle: '开始自检',
   // 旧文案写的是「这是一次真实生产请求……消耗上游额度」——而实际最坏一个模型 6 次付费出图。
   // 2026-09-11 起这一步只做免费自检：不发任何生成请求，也就没有额度可花。
-  integrationConfirmHint: '自检只做三件事：确认密钥可用、拉一次模型清单、检查调用方式是否完整。不会发起生成请求，也不会消耗额度。',
-  integrationSpendWarning: '自检只访问显示的接入地址。Nomi 不会把 API Key 展示给对话助手。',
-  integrationConfirmAction: '开始自检',
-  integrationConfirmFailed: '确认没有完成，请检查窗口状态后重试。',
+  // 2026-09-12 连词条名里的 confirm / spend 一起退役：这一步不是确认花钱，是开始检查。
+  integrationSelfCheckHint: '自检只做三件事：确认密钥可用、拉一次模型清单、检查调用方式是否完整。不会发起生成请求，也不会消耗额度。',
+  integrationSelfCheckScope: '自检只访问显示的接入地址。Nomi 不会把 API Key 展示给对话助手。',
+  integrationSelfCheckAction: '开始自检',
+  integrationSelfCheckFailed: '自检没有跑起来，请检查窗口状态后重试。',
   integrationFailed: '验证没有通过，这条工作流还没接进来。',
   integrationFailedWithReason: '验证没有通过（{{code}}），这条工作流还没接进来。',
   integrationPending: '正在读取…',
@@ -225,13 +226,13 @@ export const enModelSetup = {
   saveFailed: 'Could not save',
   saveFailedHint: 'The connection and models were not written locally. Keep the current selection and try again.',
   integrationUnavailable: 'The integration session is unavailable. Return to Model settings and try again.',
-  integrationConfirmTitle: 'Confirm integration and start the self-check',
-  integrationConfirmHint:
+  integrationSelfCheckTitle: 'Start the self-check',
+  integrationSelfCheckHint:
     'The self-check does three things: confirm the key works, fetch the model list once, and check that the call contract is complete. It never sends a generation request, so it costs nothing.',
-  integrationSpendWarning:
+  integrationSelfCheckScope:
     'The self-check only reaches the integration address shown here. Nomi never shows your API key to the assistant.',
-  integrationConfirmAction: 'Start self-check',
-  integrationConfirmFailed: 'Confirmation did not complete. Check the window and try again.',
+  integrationSelfCheckAction: 'Start self-check',
+  integrationSelfCheckFailed: 'The self-check did not start. Check the window and try again.',
   integrationFailed: 'Verification did not pass. This workflow is not connected yet.',
   integrationFailedWithReason: 'Verification did not pass ({{code}}). This workflow is not connected yet.',
   integrationPending: 'Loading…',
