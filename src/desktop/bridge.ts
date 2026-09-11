@@ -655,6 +655,8 @@ export type DesktopBridge = DesktopMediaBridge &
           unknownNodeTypes: string[]
           missingEnumValues: Array<{ nodeId: string; classType: string; title?: string; inputKey: string; value: string }>
           enumOptions?: Array<{ classType: string; inputKey: string; options: string[] }>
+          /** 没见过的 combo 外壳（node class + input key + 原始 spec），供「反馈给 Nomi」诊断用。旧 preload 可能没有 → UI 兜住 undefined。 */
+          unknownComboShapes?: Array<{ classType: string; inputKey: string; spec: unknown }>
         }
       | { ok: false; error: string }
     >
@@ -671,6 +673,7 @@ export type DesktopBridge = DesktopMediaBridge &
                   unknownNodeTypes: string[]
                   missingEnumValues: Array<{ nodeId: string; classType: string; title?: string; inputKey: string; value: string }>
                   enumOptions?: Array<{ classType: string; inputKey: string; options: string[] }>
+                  unknownComboShapes?: Array<{ classType: string; inputKey: string; spec: unknown }>
                 }
               | { ok: false; error: string }
           }>

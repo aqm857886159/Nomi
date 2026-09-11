@@ -94,12 +94,17 @@ export function useGenerationCanvasReactFlowPointer({
       button: event.button as 1 | 2,
       moved: false,
     }
+    // 中键 / 右键 / 空格+左键平移：CSS 的 `:active` 认不出这三种入口（它只跟主键走），
+    // 光标会一直停在 grab 上，手已经在拖了画面却说「可以拖」。裸左键**不写**这个属性——
+    // 它由 `:active` 管，写属性等于给整个 stage 子树白白排一次样式（旧内核同一处判据：
+    // OLD useCanvasViewportGestures.ts:302 `button !== 0 || spaceHeld`）。
+    hostRef.current?.setAttribute('data-panning', 'true')
     try {
       event.currentTarget.setPointerCapture(event.pointerId)
     } catch {
       // Pointer capture can be unavailable in test DOMs.
     }
-  }, [readOnly])
+  }, [hostRef, readOnly])
 
   const handleCanvasPointerMoveCapture = React.useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     const nativeLeftPan = nativeLeftPanRef.current
@@ -165,6 +170,7 @@ export function useGenerationCanvasReactFlowPointer({
     const auxiliaryPan = auxiliaryPanRef.current
     if (auxiliaryPan) {
       auxiliaryPanRef.current = null
+      hostRef.current?.removeAttribute('data-panning')
       setCanvasDragging(hostRef.current, false, CANVAS_DRAGGING_OWNER.reactFlowPan)
       const current = flow.getViewport()
       setLiveViewport(current)
