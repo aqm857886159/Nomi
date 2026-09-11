@@ -30,7 +30,7 @@ import {
   AUTO_PAN_SAFE_MARGIN_PX,
   MIN_NODE_BAND_COVERAGE,
   clampIntoAutoPanSafeArea,
-  expectedFullySelected,
+  expectedPartiallySelected,
   nodeBandCoverage,
   sweptRect,
 } from './canvas-perf/gestureGeometry.mjs'
@@ -713,7 +713,7 @@ async function runAction(page, scenario, fixture) {
     const swept = sweptRect(start, end)
     // 期望值从**扫过的这块区域**derive，不再写死节点个数：节点个数随窗口尺寸变，
     // 而窗口尺寸在 CI 和本机并不一样（这正是原来那个 12 在 Linux 上翻红的原因）。
-    const expectedSelection = expectedFullySelected(boxes, swept)
+    const expectedSelection = expectedPartiallySelected(boxes, swept)
     await page.keyboard.down('Shift')
     await dragPath(page, start, end, 60, 12)
     await page.keyboard.up('Shift')
@@ -1272,14 +1272,16 @@ function sampleHardFailures(sample) {
     failures.push(`blank click left ${sample.actionDetails.selectedAfterClear} selected nodes`)
   if (sample.scenario === 'marquee-select' && !sample.error && Number.isFinite(sample.actionDetails?.selected)) {
     const { selected, expectedSelection, nodeBandCoverage: bandCoverage } = sample.actionDetails
-    // ① 框选正确性：框里的节点必须全被选中，框外的一个都不能进来。
-    //    区间的上下界差的只是压在框线上那几个节点（DOM 与 React Flow 的亚像素分歧），
+    // ① 框选正确性：生产用的是 selectionMode=Partial（见
+    //    GenerationCanvasReactFlowViewport.tsx），框和节点只要有重叠就算选中，
+    //    不要求整个节点都在框里。expectedPartiallySelected 按这个语义 derive 区间，
+    //    上下界差的只是压在框线上那几个节点（DOM 与 React Flow 的亚像素分歧），
     //    真实的少选/多选回归依然会红。
     if (Number.isFinite(expectedSelection?.definite) && Number.isFinite(expectedSelection?.possible)) {
       if (selected < expectedSelection.definite || selected > expectedSelection.possible)
         failures.push(
           `marquee selected ${selected} nodes, expected ${expectedSelection.definite}–${expectedSelection.possible} `
-            + 'fully inside the swept rect',
+            + 'overlapping the swept rect (selectionMode=Partial)',
         )
     } else {
       failures.push('marquee sample did not record a derived selection expectation')

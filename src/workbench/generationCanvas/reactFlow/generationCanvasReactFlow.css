@@ -11,6 +11,13 @@
   cursor: grabbing !important;
 }
 
+/* 中键 / 右键 / 空格+左键平移：`:active` 只跟主键走，认不出这三种入口，光标会停在 grab 上
+   ——手已经在拖，画面还在说「可以拖」。属性由 useGenerationCanvasReactFlowPointer 在平移
+   起止写/清（裸左键不写，它归上面那条 `:active`）。 */
+.generation-canvas-react-flow[data-panning] {
+  cursor: grabbing;
+}
+
 .generation-canvas-react-flow .react-flow {
   width: 100%;
   height: 100%;
@@ -311,4 +318,24 @@
 
 .generation-canvas-react-flow .react-flow__attribution {
   display: none;
+}
+
+/* 媒体预览（图片/视频灯箱）打开时收起画布 chrome。
+ *
+ * 遮罩只有 40% 黑，所有浮层都能透过它继续露脸；旗子由 nodes/NodeMediaPreviewDialog.tsx 挂在
+ * 画布宿主 `.workbench-generation__canvas` 上，关闭时摘掉，布局与交互自动恢复。
+ * 用 `visibility` 不用 `display`：不卸载、不触发重排，按钮忙态和滚动位置原样回来。
+ *
+ * 这条规则迁移前住在 styles/generationCanvas.css:24-31，被 `903d992f6`（Agent 面板折叠修复）
+ * 连带删掉；2026-09-11 迁移等价审计 §③ 行 4 按当前类名恢复。
+ * 与旧版的唯一有意差别：旧版还收 `.workbench-generation__ai`。该类名今天已不存在，
+ * 且灯箱只覆盖画布区（见对话框里「never inert the uncovered Agent/sidebar region」的裁决），
+ * Agent 面板不在收起之列。 */
+.workbench-generation__canvas[data-media-preview-open='true'] .generation-canvas-v2-toolbar,
+.workbench-generation__canvas[data-media-preview-open='true'] .generation-canvas-v2__navigation-stack,
+.workbench-generation__canvas[data-media-preview-open='true'] .generation-canvas-v2__selection-toolbar,
+.workbench-generation__canvas[data-media-preview-open='true'] .generation-canvas-v2-node__composer,
+.workbench-generation__canvas[data-media-preview-open='true'] [data-node-floating-toolbar],
+.workbench-generation__canvas[data-media-preview-open='true'] .workbench-generation__timeline-handle {
+  visibility: hidden;
 }

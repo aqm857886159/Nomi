@@ -14,7 +14,7 @@ import {
   type WorkflowBinding,
   type WorkflowEnumOption,
 } from "./comfyuiWorkflowImport";
-import { bustComfyObjectInfoCache, fetchComfyuiObjectInfoIndex } from "../comfyuiObjectInfo";
+import { bustComfyObjectInfoCache, fetchComfyuiObjectInfoIndex, type ComfyUnknownComboSpec } from "../comfyuiObjectInfo";
 import { convertUiWorkflowToApi, looksLikeUiWorkflow } from "../comfyuiGraphConvert";
 import { COMFYUI_VENDOR_KEY, isComfyuiVendor } from "./types";
 import {
@@ -37,7 +37,19 @@ export type ImportWorkflowResult = {
   revisionId: string;
 } | { ok: false; error: string };
 export type ReconcileWorkflowResult =
-  | { ok: true; serverReachable: boolean; unknownNodeTypes: string[]; missingEnumValues: MissingEnumValue[]; enumOptions: WorkflowEnumOption[] }
+  | {
+      ok: true;
+      serverReachable: boolean;
+      unknownNodeTypes: string[];
+      missingEnumValues: MissingEnumValue[];
+      enumOptions: WorkflowEnumOption[];
+      /**
+       * 「没见过的」combo 外壳（不是「这个字段没本地列表」，是「这个外壳我们完全不认识」——
+       * 2026-09-11 owner 拍板：以后 ComfyUI 再变新格式，用户能自己一键反馈，不用等我们真机踩一次才发现）。
+       * 直接原样带出这一台 /object_info 遇到的全部（同一台机器一次对账最多 50 条，见 comfyuiObjectInfo.ts）。
+       */
+      unknownComboShapes: ComfyUnknownComboSpec[];
+    }
   | { ok: false; error: string };
 export type ReconcileWorkflowBatchResult =
   | { ok: true; results: Array<{ id: string; result: ReconcileWorkflowResult }> }
@@ -91,9 +103,15 @@ export async function reconcileComfyWorkflowText(text: unknown, vendorKey?: unkn
     // 对账是用户动作（分析/重新检测）：爆缓存拿新鲜事实——刚装好的模型必须立刻被认出来。
     bustComfyObjectInfoCache(baseUrl);
     const index = await fetchComfyuiObjectInfoIndex(baseUrl);
-    if (!index) return { ok: true, serverReachable: false, unknownNodeTypes: [], missingEnumValues: [], enumOptions: [] };
+    if (!index) return { ok: true, serverReachable: false, unknownNodeTypes: [], missingEnumValues: [], enumOptions: [], unknownComboShapes: [] };
     // enumOptions 顺手带出：导入/保存时烤进参数控件（checkpoint/LoRA 在画布变真实文件下拉）。
-    return { ok: true, serverReachable: true, ...reconcileComfyWorkflow(graph, index), enumOptions: collectGraphEnumOptions(graph, index) };
+    return {
+      ok: true,
+      serverReachable: true,
+      ...reconcileComfyWorkflow(graph, index),
+      enumOptions: collectGraphEnumOptions(graph, index),
+      unknownComboShapes: index.unknownComboShapes,
+    };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
   }
@@ -142,7 +160,7 @@ export async function reconcileComfyWorkflowTexts(
     results: parsed.map((item) => {
       if ("error" in item) return { id: item.id, result: item.error };
       if (!index) {
-        return { id: item.id, result: { ok: true, serverReachable: false, unknownNodeTypes: [], missingEnumValues: [], enumOptions: [] } };
+        return { id: item.id, result: { ok: true, serverReachable: false, unknownNodeTypes: [], missingEnumValues: [], enumOptions: [], unknownComboShapes: [] } };
       }
       return {
         id: item.id,
@@ -151,6 +169,7 @@ export async function reconcileComfyWorkflowTexts(
           serverReachable: true,
           ...reconcileComfyWorkflow(item.graph, index),
           enumOptions: collectGraphEnumOptions(item.graph, index),
+          unknownComboShapes: index.unknownComboShapes,
         },
       };
     }),

@@ -14,9 +14,13 @@ import React from 'react'
 
 import { NomiSelect } from '../../../design'
 import { dedupeModelOptions } from '../../../config/modelIdentity'
-import { keepRunnableVendorOptions } from '../../../config/modelCatalogCache'
-import { buildModelSelectOptions } from '../../../workbench/common/useDedupedModelSelect'
+import { keepRunnableVendorOptions, seedModelCatalogForTests } from '../../../config/modelCatalogCache'
+import { ModelBoxOrderSection } from '../../../workbench/settings/ModelBoxOrderSection'
+import { seedModelBoxPreferenceForLab } from '../../../workbench/common/useModelBoxPreference'
+import { buildModelSelectOptions, modelBoxHiddenNote } from '../../../workbench/common/useDedupedModelSelect'
+import { partitionByModelBoxPreference } from '../../../config/modelBoxPreference'
 import type { ModelOption } from '../../../config/models'
+import type { ModelBoxPreferenceSettings } from '../../../../electron/shared/contracts/modelBoxPreference'
 
 /** 舞台宽度：比画布节点的参数条宽一点，让下拉自然展开的宽度看得完整。 */
 export const STAGE_WIDTH = 460
@@ -35,16 +39,19 @@ const NEVER_AILING = (): false => false
  * @param models              这一格的**整份**目录（含没接入的家；筛不筛由生产代码说了算）
  * @param runnableVendorKeys  已接入的供应商 key（真机上由 catalog 的 getRunnableVendorKeys 算出）
  * @param preferredVendorKeys 用户在「设置 → AI 策略 → 优先供应商」排出来的顺序；空数组 = 没设过
+ * @param modelBoxPreference  「显示哪些 / 排在哪 / 记住哪家」那张表；缺省 = 没排过没藏过没记过
  */
 export function ModelPickerStage({
   models,
   runnableVendorKeys,
   preferredVendorKeys = [],
+  modelBoxPreference = null,
   selected = '',
 }: {
   models: readonly ModelOption[]
   runnableVendorKeys: ReadonlySet<string>
   preferredVendorKeys?: readonly string[]
+  modelBoxPreference?: ModelBoxPreferenceSettings | null
   selected?: string
 }): JSX.Element {
   const stageRef = React.useRef<HTMLDivElement>(null)
@@ -58,8 +65,17 @@ export function ModelPickerStage({
       dedupeModelOptions(keepRunnableVendorOptions(models, runnableVendorKeys)),
       NEVER_AILING,
       preferredVendorKeys,
+      modelBoxPreference,
     ),
-    [models, runnableVendorKeys, preferredVendorKeys],
+    [models, runnableVendorKeys, preferredVendorKeys, modelBoxPreference],
+  )
+  // 脚注的条数也由**生产那份**判据算（同一个 partition 函数），不是夹具里写死一个「2」。
+  const hiddenNote = React.useMemo(
+    () => modelBoxHiddenNote(partitionByModelBoxPreference(
+      dedupeModelOptions(keepRunnableVendorOptions(models, runnableVendorKeys)),
+      modelBoxPreference,
+    ).hidden.length),
+    [models, runnableVendorKeys, modelBoxPreference],
   )
   // 浮层的 portal 目标必须在首帧就拿得到，所以先渲染一帧再点——`useLayoutEffect` 里
   // ref 已经指向真实节点，点击同一帧内完成，`markReady` 的两帧 rAF 之后浮层早就定好位了。
@@ -83,9 +99,43 @@ export function ModelPickerStage({
         // 点 chip = 换这一行走哪家。真机把 (modelKey, vendor) 一起写进节点；实验室没有节点可写，
         // 但仍要**真的**改选中值，否则这个 chip 就是个点不动的装饰。
         onChipChange={(optionValue) => setPicked(optionValue)}
+        hiddenNote={hiddenNote}
         portalTarget={stageRef}
       />
     </div>
+  )
+}
+
+const LAB_CATALOG_HEALTH = {
+  ok: true,
+  counts: { vendors: 2, enabledVendors: 2, models: 8, enabledModels: 8, mappings: 8, enabledMappings: 8, enabledApiKeys: 2 },
+  byKind: [{ kind: 'image' as const, enabledModels: 8, executableModels: 8 }],
+  issues: [],
+}
+
+/**
+ * 「模型框里显示哪些、排在哪」设置区的取景台。
+ *
+ * 两处种子都只替掉**最外面那一次取数**（目录 / 偏好），从那往下是现役代码：
+ * `useModelOptionsState` → `dedupeModelOptions` → `buildModelBoxRows` →
+ * 真的 `ModelBoxOrderSection`。屏上任何一行的位置、哪个标签是蓝的、哪两个落进「已隐藏」，
+ * 都是生产代码算出来的，不是这里摆出来的。
+ */
+export function ModelBoxSettingsStage({
+  preference,
+  models,
+}: {
+  preference: ModelBoxPreferenceSettings
+  models: readonly ModelOption[]
+}): JSX.Element {
+  const [ready, setReady] = React.useState(false)
+  React.useLayoutEffect(() => {
+    seedModelCatalogForTests(LAB_CATALOG_HEALTH, [{ kind: 'image', requiredMode: 'text_to_image', options: models }])
+    seedModelBoxPreferenceForLab(preference)
+    setReady(true)
+  }, [models, preference])
+  return (
+    <SettingsStage>{ready ? <ModelBoxOrderSection /> : null}</SettingsStage>
   )
 }
 

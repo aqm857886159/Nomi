@@ -21,6 +21,7 @@ import { NomiSelect } from '../../design'
 import { getDesktopBridge } from '../../desktop/bridge'
 import { cancelComfyCandidateTestRevision, type TaskKind } from '../../workbench/api/taskApi'
 import { paramCandidates } from './comfyuiParamCandidates'
+import { buildGitHubIssueUrl } from '../community/communityLinks'
 // 类型与参数塑形规则的单一真相源——整页（工作流设置）与这条导入路共用同一份，
 // 抄第二份必然漂（那正是「提示词被参数占位覆盖」反复复发的形状）。
 import {
@@ -48,6 +49,34 @@ type Reconcile = {
   missingEnumValues: Array<{ nodeId: string; classType: string; title?: string; inputKey: string; value: string }>
   /** (classType, inputKey) → 本机 combo 可选值；导入时烤进参数控件（画布真实文件下拉）。 */
   enumOptions?: Array<{ classType: string; inputKey: string; options: string[] }>
+  /** 没见过的 combo 外壳（node class + input key + 原始 spec）——2026-09-11 owner 拍板加的诊断，
+   * 「反馈给 Nomi」一键把这仨信息拼进 GitHub issue，不用真机踩一次才发现新格式。 */
+  unknownComboShapes?: Array<{ classType: string; inputKey: string; spec: unknown }>
+}
+
+function openExternal(url: string): void {
+  window.open(url, '_blank', 'noopener,noreferrer')
+}
+
+/** 把「没见过的外壳」拼成一条 GitHub issue 深链：node class/input key 进标题，原始 spec JSON 进正文——
+ * 复用 communityLinks 里唯一一处 issue 深链拼装（P1：不为这一处诊断另起第二份 URL 拼装逻辑）。 */
+function buildUnknownComboShapeIssueUrl(item: { classType: string; inputKey: string; spec: unknown }): string {
+  const specJson = (() => {
+    try {
+      return JSON.stringify(item.spec, null, 2)
+    } catch {
+      return String(item.spec)
+    }
+  })()
+  return buildGitHubIssueUrl({
+    intent: 'problem',
+    stage: 'model',
+    errorKind: `comfyui-combo-shape:${item.classType}.${item.inputKey}`,
+    fields: {
+      what_happened: `ComfyUI 节点 \`${item.classType}\` 的输入 \`${item.inputKey}\` 用了 Nomi 没见过的 combo 格式，无法核对/烤下拉。`,
+      extra: `\`\`\`json\n${specJson}\n\`\`\``,
+    },
+  })
 }
 type ComfyuiWorkflowImportPanelProps = {
   onImported: () => void
@@ -422,6 +451,26 @@ export function ComfyuiWorkflowImportPanel({ onImported, onVerificationRequested
                   list: shortList(reconcile.missingEnumValues.map((m) => `${m.classType}.${m.inputKey}="${m.value.slice(0, 40)}"`)),
                 })}
               </span>
+            </div>
+          ) : null}
+          {reconcile && reconcile.unknownComboShapes && reconcile.unknownComboShapes.length > 0 ? (
+            <div className="flex items-start gap-2 rounded-nomi-sm bg-[var(--workbench-danger-soft)] px-2.5 py-2">
+              <IconAlertTriangle size={15} className="shrink-0 mt-0.5 text-workbench-danger" />
+              <div className="flex min-w-0 flex-1 flex-col items-start gap-1.5">
+                <span className="text-caption text-nomi-ink leading-relaxed">
+                  {t('onboardingProviders.comfyWorkflow.unknownComboShapes', {
+                    count: reconcile.unknownComboShapes.length,
+                    list: shortList(reconcile.unknownComboShapes.map((u) => `${u.classType}.${u.inputKey}`)),
+                  })}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => openExternal(buildUnknownComboShapeIssueUrl(reconcile.unknownComboShapes![0]))}
+                  className="text-caption font-medium text-nomi-accent underline-offset-2 hover:underline"
+                >
+                  {t('onboardingProviders.comfyWorkflow.reportUnknownShape')}
+                </button>
+              </div>
             </div>
           ) : null}
 
