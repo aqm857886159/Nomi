@@ -402,13 +402,16 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
       ipcRenderer.invoke("nomi:scene3d:frames-to-video", payload) as Promise<{ url: string; assetId?: string }>,
     mobile: {
       feedback: (payload: MobileBridgeFeedback) => ipcRenderer.invoke('nomi:director:mobile:feedback', payload) as Promise<boolean>,
-      start: (payload?: { text?: Record<string, string> }) =>
+      start: (payload?: { text?: Record<string, string>; consent?: boolean }) =>
         ipcRenderer.invoke("nomi:director:mobile:start", payload) as Promise<{
           running: boolean
           secure: boolean
           port: number | null
           urls: string[]
           devices: Array<{ id: string; name: string; latencyMs: number | null; connectedAt: number }>
+          consentRequired: boolean
+          certFingerprint: string | null
+          pairingExpiresAt: number | null
           qrByUrl?: Record<string, string>
         }>,
       stop: () =>
@@ -418,6 +421,9 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
           port: number | null
           urls: string[]
           devices: Array<{ id: string; name: string; latencyMs: number | null; connectedAt: number }>
+          consentRequired: boolean
+          certFingerprint: string | null
+          pairingExpiresAt: number | null
           qrByUrl?: Record<string, string>
         }>,
       status: () =>
@@ -427,6 +433,9 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
           port: number | null
           urls: string[]
           devices: Array<{ id: string; name: string; latencyMs: number | null; connectedAt: number }>
+          consentRequired: boolean
+          certFingerprint: string | null
+          pairingExpiresAt: number | null
           qrByUrl?: Record<string, string>
         }>,
       onEvent: (callback: (event: unknown) => void) => {
