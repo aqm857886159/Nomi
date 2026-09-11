@@ -463,3 +463,34 @@ describe('storyboardPlanEdits — addShot 继承上一镜（v5）', () => {
     expect(p.shots[0]).toMatchObject({ index: 1, durationSec: 5 })
   })
 })
+
+describe('applyModelToAll：厂商与模型成对写', () => {
+  // BulkModelPicker 的每一行本来就是「模型 × 具体哪一家」，它把 vendor 一起回调出来。
+  // 这里以前只写 modelKey，落画布时按 key 反查目录首家 = 「选 A 家发去 B 家」。
+  const planOf = (): StoryboardPlan => ({
+    title: 't',
+    anchors: [],
+    shots: [
+      { index: 1, shotKind: 'video', durationSec: 5, anchorIds: [], prompt: 'a', modelKey: 'old', modelVendor: 'kie', modeId: 'm', params: { resolution: '720p' } },
+      { index: 2, shotKind: 'video', durationSec: 5, anchorIds: [], prompt: 'b' },
+    ],
+  })
+
+  it('选定模型时 vendor 跟着写进每一镜', () => {
+    const next = applyModelToAll(planOf(), 'nano-banana', 'apimart')
+    expect(next.shots.map((shot) => [shot.modelKey, shot.modelVendor])).toEqual([
+      ['nano-banana', 'apimart'],
+      ['nano-banana', 'apimart'],
+    ])
+  })
+
+  it('回「默认模型」时 vendor 一并清掉（不留下一个无主的厂商）', () => {
+    const next = applyModelToAll(planOf(), '')
+    expect(next.shots.every((shot) => shot.modelKey === undefined && shot.modelVendor === undefined)).toBe(true)
+  })
+
+  it('换模型仍清 modeId/params（模式与参数属于具体模型）', () => {
+    const next = applyModelToAll(planOf(), 'nano-banana', 'apimart')
+    expect(next.shots.every((shot) => shot.modeId === undefined && shot.params === undefined)).toBe(true)
+  })
+})
