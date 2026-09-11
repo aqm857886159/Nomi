@@ -12,6 +12,36 @@
   ],
   "registered": [
     {
+      "site": "src/ui/onboarding/assistedProgressProjection.ts::type:AssistedProgressOutcome/type-union",
+      "members": [
+        "cancelled",
+        "completed",
+        "failed",
+        "running"
+      ],
+      "reason": "同一投影的「这次接入总体怎么了」四态，只服务那张卡的渲染分支。与 electron/tasks/localTaskJobs.ts 的 Job.status 不是同一语义：那边是本机任务队列的执行态（有 succeeded/queued），这边是接入会话终态的**呈现分档**——partial 与 failed 在这里刻意合并成 failed（模型没进列表就不许显示绿勾），而任务队列不能这么合。不复用即为了让那条合并规则只有一个地方可改。"
+    },
+    {
+      "site": "src/ui/onboarding/assistedProgressProjection.ts::type:AssistedProgressRowState/type-union",
+      "members": [
+        "active",
+        "done",
+        "pending"
+      ],
+      "reason": "五步进度里**每一行**的显示态，由 outcome + 当前步号算出来（done/active/pending 三档对应三个图标）。它是纯呈现词表、不进任何持久化，唯一读者是 AssistedIntegrationProgress.tsx 的 StepIcon；与上面的 outcome 分工明确：outcome 说整件事怎么了，这个说某一行怎么画。"
+    },
+    {
+      "site": "src/ui/onboarding/assistedProgressProjection.ts::variable:ASSISTED_PROGRESS_STEPS/as-const",
+      "members": [
+        "certifying",
+        "credential",
+        "listed",
+        "proposal",
+        "session"
+      ],
+      "reason": "外部 Agent 接模型时，模型页给用户看的那五步的唯一 owner。它不是第二份生命周期词表——真相源仍是 electron/shared/integrationContract.ts 的 12 个 stage，本表只是它的**用户语言投影**，映射关系写死在同文件的 ASSISTED_PROGRESS_STAGES 里，并由 assistedProgressProjection.test.ts 断言「12 个 stage 一个不漏」。故意与 stage 名不同名：stage 是排错口径（灰字里原样显示），这五个是「到哪一步了」的口径。设计定稿 docs/design/2026-09-11-ai-assisted-onboarding-entry.md §Progress。"
+    },
+    {
       "site": "electron/agentLane/laneLegacyMigration.mts::variable:manifestSchema/property:phase/z.enum",
       "members": [
         "completed",

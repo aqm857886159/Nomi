@@ -98,7 +98,8 @@ export const LAB_SCREENS: readonly LabScreen[] = [
     id: 'settings',
     label: '设置 · 隐私与诊断',
     states: SETTINGS_STATES,
-    // 这屏各状态取景框一样大（设置内容区实际可用宽），尺寸从取景台取，不另抄一个数。
+    // 这屏各状态取景框一样宽（设置内容区实际可用宽），尺寸从取景台取，不另抄一个数。
+    // 高度按最高的那一格给：「用 AI 帮我接入」展开三步图后比隐私那一格高。
     cell: { width: SETTINGS_CELL_WIDTH, height: SETTINGS_CELL_HEIGHT },
   },
   // ── primitive 陈列三屏 ────────────────────────────────────────────────────
