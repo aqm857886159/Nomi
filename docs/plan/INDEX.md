@@ -13,6 +13,7 @@
 
 | 文件 | 一句话 | 状态 |
 |---|---|---|
+| [2026-09-12-feedback-landing-plan.md](2026-09-12-feedback-landing-plan.md) | **09-11/12 真实使用反馈落地方案**：把 58 条问题 + 10 条真实验收缺陷按六个架构根分成 B1–B15 批（文稿真相源 / 失败回执 / 确认分级一张表 / 单 owner / Skill / 沙箱可见），每批带改法（只删不加阀门）、验收门（R16/R30/走查）、执行者、文件重叠矩阵、≤6 路并行分组与自检表；记录 09-12 拍板（钱的闸三档、全自动不弹报价卡、文稿读主进程）及被作废的旧结论；配套清单与根因在同伴两份 09-12 文档（未提交） | 📝 |
 | [2026-09-08-vacuous-waitforfunction-sweep.md](2026-09-08-vacuous-waitforfunction-sweep.md) | 清扫七处 async 空等待，测试等待门岗覆盖 walk/e2e 并提供 R17 红证 | ✅ |
 | [2026-09-08-mcp-tool-refs-catalog-detection.md](2026-09-08-mcp-tool-refs-catalog-detection.md) | 工具引用按对象结构选择 Agent/MCP 目录；含 R17 红绿证据 | 📎 |
 | [2026-09-07-generation-strategy-resolver.md](2026-09-07-generation-strategy-resolver.md) | **生成策略解析器**：生成前按真实模型档案裁决每一镜的时长/参数上限，给出「必须合并 / 必须拆条」建议并一键采纳，落画布前再过一道闸；纯函数引擎 + GUI 审阅面板 + 行内警示 + 内外同源的 `resolve` 能力契约。附录 G 记 2026-09-07 接手 PR #573 的返工（判断有两份答案那一族根因） | 🚧 |
