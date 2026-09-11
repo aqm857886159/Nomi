@@ -25,6 +25,7 @@ import {
   isVideoLikeGenerationNodeKind,
 } from '../model/generationNodeKinds'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
+import { useNodeWriteAccess } from './nodeWriteAccess'
 import type { CanvasMutationOptions } from '../store/canvasGuards'
 import { comfyWorkflowTakesPrompt } from '../runner/promptRequirement'
 import {
@@ -141,7 +142,8 @@ export default function NodeParameterControls({
   const { t } = useTranslation()
   const nodes = useGenerationCanvasStore((state) => state.nodes)
   const edges = useGenerationCanvasStore((state) => state.edges)
-  const updateNode = useGenerationCanvasStore((state) => state.updateNode)
+  // 写入面由宿主接住（付费确认卡走它自己的草稿账本，确认前不碰画布）——见 nodeWriteAccess。
+  const { updateNode, latestNode } = useNodeWriteAccess()
   const storeConnectNodes = useGenerationCanvasStore((state) => state.connectNodes)
   const storeDisconnectEdge = useGenerationCanvasStore((state) => state.disconnectEdge)
   const meta = React.useMemo<Record<string, unknown>>(() => node.meta || {}, [node.meta])
@@ -206,8 +208,7 @@ export default function NodeParameterControls({
   // P1 单一真相源：所有 meta 增量 patch 都从 store 读**最新** meta 再 spread，绝不基于渲染快照 prop
   // `node.meta`（那是第二份真相源）。连边赋图 + 紧接改参数等「先后两次写」时，读快照会让后写覆盖前写
   // (lost-update 竞态)。updateNode 是整体替换 meta（Object.assign 浅替换），故必须在此处自己合并最新值。
-  const getLatestMeta = (): Record<string, unknown> =>
-    useGenerationCanvasStore.getState().nodes.find((n) => n.id === node.id)?.meta || {}
+  const getLatestMeta = (): Record<string, unknown> => latestNode(node.id)?.meta || {}
 
   const updateMeta = (patch: Record<string, unknown>, options?: CanvasMutationOptions) => {
     updateNode(node.id, {
@@ -225,7 +226,7 @@ export default function NodeParameterControls({
   }, [archMode, meta])
 
   const updateAspectRatioMeta = (patch: Record<string, unknown>, targetRatio: number | null) => {
-    const latest = useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === node.id)
+    const latest = latestNode(node.id)
     if (!latest) return
     const nextMeta = { ...(latest.meta || {}), ...patch }
     updateNode(
@@ -236,9 +237,9 @@ export default function NodeParameterControls({
 
   const handleModelChange = (value: string, vendor?: string) => {
     const state = useGenerationCanvasStore.getState()
-    const latestNode = state.nodes.find((candidate) => candidate.id === node.id) || node
+    const current = latestNode(node.id) || node
     updateNode(node.id, buildNodeModelChangePatch({
-      node: latestNode,
+      node: current,
       nodes: state.nodes,
       edges: state.edges,
       modelOptions,
@@ -356,8 +357,8 @@ export default function NodeParameterControls({
   const setArrayValue = (metaKey: string, next: string[]) => updateMeta({ [metaKey]: next })
   const handleArrayAdd = (slot: ArchetypeArraySlot, url: string) => {
     const state = useGenerationCanvasStore.getState()
-    const latestNode = state.nodes.find(n => n.id === node.id) ?? node
-    if (archMode && nodeReferenceCapacity(archMode, latestNode, state.nodes, state.edges) === 0) {
+    const currentNode = latestNode(node.id) ?? node
+    if (archMode && nodeReferenceCapacity(archMode, currentNode, state.nodes, state.edges) === 0) {
       reportFeedback(t('generationCommon.parameters.referenceTotal', { max: archMode.maxTotalReferences }))
       return
     }

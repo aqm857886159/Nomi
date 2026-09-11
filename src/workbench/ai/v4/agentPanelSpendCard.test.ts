@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { projectSpendCard } from './agentPanelSpendCard'
-import { candidatePatchFromNode } from './useAgentPanelSpendConfirm'
+import { candidatePatchFromNode } from './spendCardDraft'
 import type { PendingSpendConfirm } from '../../../desktop/productionRunBridgeTypes'
 import type { GenerationCanvasNode } from '../../generationCanvas/model/generationCanvasTypes'
 

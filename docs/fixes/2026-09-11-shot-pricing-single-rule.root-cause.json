@@ -1,0 +1,148 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-11-shot-pricing-single-rule",
+  "change_kind": "corrective",
+  "problem_type": "「一镜要花多少钱」这条算式在主进程和渲染层各有一份实现，两份随时间漂开；渲染层那份少算，于是用户看到的价比真正要扣的少",
+  "symptom": "画布的批量确认条（以及 Agent 面板付费确认卡要做的本地重算）印出来的金额，比主进程封印合同时真正要扣的少：目录里配了规格加价（如 size:1536x1024 +0.2）的模型，渲染层只累加基价，加价一分都不进那个数。少报比不报更坏——用户是照着那个数点的头，以为便宜",
+  "direct_cause": "报价算式原本住在主进程实现层 electron/productionRun/shotPricing.ts 的 deriveShotPrice：price = pricing.cost + Σ(命中选中参数的 enabled specCost.cost)。渲染层 import 不到主进程实现层，于是 src/workbench/generationCanvas/spend/planCostEstimate.ts 自己写了一份 `credits += Math.max(0, pricing.cost)`——只有基价，没有规格加价那一项。第二处更隐蔽的岔口在 src/config/modelOptionMappers.ts：把目录价目搬进 ModelOption 时又归一了一次（`Math.max(0, Math.floor(cost))`，非有限值落成 0），而主进程的 catalogPricingResolver.toModelPricing 是原样透传的。两处叠起来：基价 0.3 的模型在渲染层先被 floor 成 0，再丢掉加价，最后印出「¥0」——恰好是唯一会被读成「这次不花钱」的那个数",
+  "class_root": "「一镜多少钱」这条语义在这份代码库里没有单一持有者。它的读者天然跨进程（主进程封印合同要一个数、渲染层要在用户改参数时当场显示一个数），而仓库里唯一能被两边同时 import 的地方是中立契约层 electron/shared/；算式却住在主进程实现层，于是渲染层每多一个要显示价格的界面，就会再长出一份自己的算法。R14.1 的「同一语义有几份定义」正是这一类",
+  "affected_population": [
+    "在生成画布上框选多个节点、看批量确认条上「本波预估额度」再决定要不要生成的用户——只要所选模型在目录里配了规格加价，条上那个数就比实际扣的少",
+    "任何把目录基价配成非整数（如 0.3 元/张）的用户：渲染层的 Math.floor 会把它显示成 0，读起来就是「这次不花钱」",
+    "Agent 面板付费确认卡上改参数的用户——本轮新增的本地重算如果沿用渲染层那份算式，会把同一个少报直接印到那颗「生成 ¥X」按钮上"
+  ],
+  "scope_paths": [
+    "electron/shared/contracts/shotPricingRule.ts",
+    "electron/shared/contracts/shotPricingRule.test.ts",
+    "electron/productionRun/shotPricing.ts",
+    "electron/productionRun/catalogPricingResolver.ts",
+    "src/config/models.ts",
+    "src/config/modelOptionMappers.ts",
+    "src/workbench/generationCanvas/spend/planCostEstimate.ts",
+    "src/workbench/ai/v4/spendCardEstimate.ts",
+    "src/workbench/ai/v4/spendCardEstimate.test.ts",
+    "tests/ux/agent-spend-reprice.walk.mjs",
+    "src/config/modelOptionMappers.test.ts",
+    "src/workbench/generationCanvas/spend/planCostEstimate.test.ts"
+  ],
+  "entry_points": [
+    "electron/productionRun/productionPendingSpend.ts — 付费确认卡的宿主投影，逐镜报价（主进程）",
+    "electron/capabilityCore/mcpGenerationTools.ts — 封印合同与 seal 时的硬上限用的 shotPrices（主进程）",
+    "electron/spendQuote.ts — 对外报价投影（主进程）",
+    "src/workbench/generationCanvas/spend/planCostEstimate.ts — 画布批量确认条的「本波预估额度」（渲染层，此前只累加基价）",
+    "src/workbench/ai/v4/spendCardEstimate.ts — 付费确认卡改参数后的本地重算（渲染层，本轮新增，直接接唯一算式）",
+    "src/config/modelOptionMappers.ts — 目录价目 → ModelOption.pricing 的唯一搬运点（此前在这里第二次归一，把 0.3 变成 0）"
+  ],
+  "invariants": [
+    "一镜的价只由一处算：electron/shared/contracts/shotPricingRule.ts 的 deriveShotPrice（基价 + 命中选中参数的 enabled 规格加价）。任何要显示或收取这个数的地方都 import 它，不许再写一份",
+    "「哪一行目录是这个模型」的身份匹配规则与算式同处一地（createModelPricingResolver：vendorKey + modelKey/modelAlias，大小写不敏感）——判据差一点，卡上的数和真正要扣的数就会岔开",
+    "价目从目录到任何读者之间**原样搬运**，不许第二次归一（取整、截负、把非数字落成 0）。合不合法由算式判",
+    "算不出就诚实报 { known:false }，绝不落成 0——免费 / 算不出 / 真的零元三种里，只有印 0 会被读成「这次不花钱」"
+  ],
+  "generality_proof": "算式与身份匹配规则搬进中立契约层 electron/shared/contracts/shotPricingRule.ts（纯函数，零 import，主进程与渲染层都能合法 import，见 .dependency-cruiser.mjs 的渲染层→electron/shared 例外）。主进程侧 shotPricing.ts 不再自带实现，只把契约层的 deriveShotPrice 原样转出去，既有六个调用点一个字都不用改也不可能漂；渲染层侧删掉 ModelOptionPricing 的第二份形状定义（改为从契约层 re-export 同一个类型），planCostEstimate 与新的 spendCardEstimate 都调同一个函数。于是「再写一份算式」在类型层面就没有落脚点：形状只有一份，函数只有一份，import 路径只有一条。契约层那份单测（shotPricingRule.test.ts）钉住基价+加价、两种 specKey 写法、未启用档不计钱、无价目/关闭 → known:false 绝不落 0、非标量参数不参与匹配",
+  "shared_boundaries": [
+    {
+      "path": "electron/shared/contracts/shotPricingRule.ts",
+      "symbol": "deriveShotPrice / createModelPricingResolver",
+      "responsibility": "「一镜多少钱」与「哪一行目录是这个模型」的唯一持有者。跨进程的两个读者（主进程封印、渲染层显示）都只能经它拿这个数；它自己不 import 任何东西，所以两边不可能各带一份"
+    },
+    {
+      "path": "src/config/modelOptionMappers.ts",
+      "symbol": "toCatalogModelPricing",
+      "responsibility": "目录价目进入渲染层的唯一搬运点：原样搬运、不做第二次归一，让渲染层读到的价目与主进程逐字节相同"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/spend/planCostEstimate.ts",
+      "entry_point": "画布批量确认条的「本波预估额度」",
+      "disposition": "enforced",
+      "evidence": "此前是 `credits += Math.max(0, pricing.cost)`（只有基价）；已改为调用契约层 deriveShotPrice，参数喂节点 meta，规格加价随之进账。planCostEstimate.test.ts 与新增的 spendCardEstimate.test.ts 一起覆盖"
+    },
+    {
+      "path": "src/config/modelOptionMappers.ts",
+      "entry_point": "toCatalogModelPricing：目录价目 → ModelOption.pricing",
+      "disposition": "enforced",
+      "evidence": "此前 `Math.max(0, Math.floor(cost))` 且非有限值落成 0，与主进程 catalogPricingResolver.toModelPricing 的原样透传不一致——基价 0.3 在渲染层变成 0。已改为原样搬运；走查夹具目录里正是 0.3 基价，真机截图上卡印 CNY 0.30，与主进程投影的 0.3 相同"
+    },
+    {
+      "path": "src/workbench/ai/v4/spendCardEstimate.ts",
+      "entry_point": "付费确认卡改参数后的本地重算",
+      "disposition": "enforced",
+      "evidence": "本轮新增的读者，从第一天就 import 契约层算式与 resolver（不自己判身份、不自己算钱）。真机走查 tests/ux/agent-spend-reprice.walk.mjs：改 chip 后卡上与按钮上同时印 CNY 0.50；同一次真机探针读主进程投影得到 price {known:true, amount:0.5}，两边分毫不差"
+    },
+    {
+      "path": "electron/productionRun/productionPendingSpend.ts",
+      "entry_point": "宿主投影的逐镜报价",
+      "disposition": "not-affected",
+      "evidence": "它 import 的是 productionRun/shotPricing 的 deriveShotPrice，而那个符号现在就是契约层那一份的转出（`export { deriveShotPrice }`）——调用点一个字没改，拿到的已经是唯一算式。electron/spendQuote.ts 与 electron/capabilityCore/mcpGenerationTools.ts 同理"
+    },
+    {
+      "path": "src/workbench/ai/v4/agentPanelV4ModelRows.ts",
+      "entry_point": "模型下拉里那一行的「N 积分」尾标",
+      "disposition": "not-affected",
+      "evidence": "它印的不是「这一镜多少钱」，而是目录里这一行的基价标签——此刻还没有镜、没有参数选择，规格加价无从谈起。逐行读过：只读 `pricing.cost` 做展示，不做任何逐镜金额推导，不属于本条不变量的适用范围"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "同一条语义已经独立长出两份实现（主进程的 deriveShotPrice 与渲染层 planCostEstimate 的基价累加），外加第三处各写各的归一（modelOptionMappers 的 floor/clamp/落 0 对 catalogPricingResolver 的原样透传）。它会复发是因为结构上就该复发：渲染层 import 不到主进程实现层，而每多一个要显示价格的界面就要一个数——本轮新增的付费确认卡本地重算正是第四个读者，不动结构的话它就会成为第三份算式",
+    "same_class_scan": [
+      "`grep -rn \"priceCny|estimateCost|shotPrice|costPerShot|pricePerShot|unitPrice\" electron src --include=*.ts --include=*.tsx`（排除测试）——逐条判定：productionRunReducer / productionGenerationSeal / mcpGenerationMultiShot 只是搬运已算好的 shotPrices，MultiShotContractSummary 只显示宿主给的 price.amount，connectors 的 unitPriceUsd 是 TikHub 连接器的单价与本条无关",
+      "`grep -rn \"deriveShotPrice\" electron src tests`——全部六个生产调用点（spendQuote / catalogPricingResolver / shotPricing 的两处投影 / productionPendingSpend / mcpGenerationTools）加两个渲染层调用点（planCostEstimate / spendCardEstimate）现在都指向契约层同一个函数",
+      "`grep -rn \"pricing.cost|specCosts\" electron src`（排除测试）——找出所有直接读价目字段的地方，确认除唯一算式外只剩：目录类型定义、两处 mapper、以及模型下拉那条纯展示标签",
+      "`grep -rn \"pricing\" src --include=*.ts --include=*.tsx`（排除 tokenPricing 与 i18n）——确认 ModelOption.pricing 在整个渲染层只有 modelOptionMappers.ts 一个产地"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/shared/contracts/shotPricingRule.ts",
+    "invariant": "一镜的价与模型身份匹配只有这一份实现；任何读者 import 它，不许自带算式，价目原样搬运不做第二次归一",
+    "failure_mode": "再写一份算式意味着要么重新声明 ModelPricing 的形状（形状已只此一份且从契约层 re-export，重复声明会在类型层面立刻显形），要么绕开 deriveShotPrice 自己累加——后者会被 shotPricingRule.test.ts 钉住的语义（基价+加价、known:false 绝不落 0）与 spendCardEstimate.test.ts 的逐镜对账当场证伪，真机走查 agent-spend-reprice.walk.mjs 再从界面这一端量一次同一个数",
+    "exception_policy": "none",
+    "strategy": "把算式与身份匹配一起搬进零 import 的中立契约层，主进程侧只留转出（不留第二份实现，P1 加新必删旧），渲染层侧删掉自己的形状定义与自己的算法、改为 import 同一份；同时把「目录价目进渲染层」那一处的第二次归一删掉，让两端读到的价目逐字节相同",
+    "artifacts": [
+      "electron/shared/contracts/shotPricingRule.ts",
+      "electron/shared/contracts/shotPricingRule.test.ts"
+    ]
+  },
+  "class_regression_tests": [
+    "electron/shared/contracts/shotPricingRule.test.ts"
+  ],
+  "regression_tests": [
+    "electron/shared/contracts/shotPricingRule.test.ts",
+    "src/workbench/ai/v4/spendCardEstimate.test.ts",
+    "src/workbench/generationCanvas/spend/planCostEstimate.test.ts",
+    "src/config/modelOptionMappers.test.ts",
+    "tests/ux/agent-spend-reprice.walk.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/productionRun/shotPricing.ts",
+      "src/config/models.ts",
+      "src/config/modelOptionMappers.ts",
+      "src/workbench/generationCanvas/spend/planCostEstimate.ts"
+    ],
+    "rationale": "四处旧实现在同一批改动里直接删掉，不留并行版：shotPricing.ts 的 deriveShotPrice 函数体与价目类型删除、改为从契约层转出；models.ts 的 ModelOptionPricing/ModelOptionPricingSpec 两个接口删除、改为 re-export 契约层同名类型；modelOptionMappers.ts 的第二次归一（floor/clamp/落 0）删除；planCostEstimate.ts 的基价累加删除、换成调用唯一算式。保留任何一份都等于保留一个会再次漂开的数——而漂开的方向已经证明是「少报」"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "纯内部重构，没有引入、升级或降级任何依赖；改动只在本仓的模块边界之间搬家",
+    "exit_criteria": []
+  },
+  "migration": "没有持久化格式变化：价目仍是目录里那一行的 model.pricing（用户可改），合同、收据、Run 事件的结构一个字节都没动。用户侧唯一可感知的变化是「数变对了」——此前少报的场景（配了规格加价、或基价是非整数）现在印出的是主进程真正要扣的那个数；不需要迁移、不需要重开项目",
+  "residual_risks": [
+    "本轮把「两端读同一份价目」做到了取值这一步，但**没有**给『渲染层不许再写第二份报价算式』加机器门岗（现在靠的是类型只此一份 + 单测 + 走查三重，不是 AST 扫描）。真要再写一份，作者得先绕开类型；这条约束的强度弱于 check:vocabularies 那种词表门岗，后续如果再出现第五个价格读者，应当把它升级成门岗",
+    "planCostEstimate 的 resolvePricing 直接回 `option.pricing`（模型行已由 findModelOptionByIdentifier 认出来），没有走 createModelPricingResolver 的身份匹配。这一处两端的身份判据因此不是同一段代码——目前不会岔开（那一行就是用户在节点上选中的那一行），但它是本条不变量里最薄的一环",
+    "付费确认卡按下之后那段「手势 → 收据 → 门 → start → 出站」在 loopback 夹具里跑不到（generationProviderBootstrap 只为 apimart 这个 vendorKey 装配语义生成 provider），因此「卡上印的数 = 供应商真正被收的钱」这最后一跳本轮只证到主进程投影那一层，没有证到出站报文。现场与返回码记在 docs/plan/2026-09-11-permission-p1-implementation.md 已知缺口 ⑥"
+  ],
+  "internal_only_reason": "这条不变量是本仓自有的语义（「一镜多少钱」怎么算、价目由哪张目录表说了算），不对齐任何外部规范或第三方 API 契约——目录 pricing/specCosts 的形状是本仓 electron/catalog/types.ts 自己定义的，算式的加法规则也是本仓在 P4 S2 自己定的。没有可查的官方文档或上游源码能对这条规则给出判据",
+  "invariant_owner_layer": {
+    "layer": "electron/shared/contracts/shotPricingRule.ts",
+    "tests": [
+      "electron/shared/contracts/shotPricingRule.test.ts",
+      "src/workbench/ai/v4/spendCardEstimate.test.ts"
+    ]
+  }
+}
