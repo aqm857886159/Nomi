@@ -260,7 +260,7 @@ P1.1b 的三条已知缺口（`×N` 在面板宿主里改不动东西 / 生产�
 ### P1.1a 已知缺口（实测发现，**本轮不修**，各自需要独立裁决）
 
 1. **非 apimart 的供应商，付费卡按下去必然失败。** `electron/capabilityCore/generationProviderBootstrap.ts` 只把 `apimart` 装成可提交的生成供应商，其余 vendor 一律 `providerReady:false` → 付费卡确认返回「供应商缺少必需能力：configured_provider」。这与「用户接官方端点 / 自建中转」的方向直接冲突，但改它是供应商装配层的结构裁决，不属于本轮两件确定项。走查因此只走到「按下去 → 宿主拒绝」，真正跑起来那一段由上面的 vitest 夹具覆盖（文件头写明了为什么，不假绿）。
-2. **卡上换模型会被 Run 白名单挡下。** `allowedModels` 是建草稿那一刻从候选身份冻下来的（`productionGenerationOperationStore.create`），而卡上的模型 chip 允许用户换。`agentPanelSpendConfirm.e2e.test.ts` 里有一条【已知缺口】测试把现状钉住——修好之后它会红，届时改成正向断言而不是删掉。
+2. ~~**卡上换模型会被 Run 白名单挡下。**~~ **2026-09-12（#748）已修**，做法正是这里预告的那条：那条【已知缺口】测试**翻成了正向断言而不是删掉**（换模型 → 确认 → loopback 供应商收到的 `model` 就是换后那个）。根因不在白名单本身，而在「一道防 agent 偷换身份的闸被真人的选择撞上，判据里却没有『谁按的』这一维」：放行收在只有真人能到达的那条命令（`generation.revise`）上，边界是同一镜同一任务类别，跨类别与 agent 的 `generation.patch` 照旧 fail-closed。方案与验收见 [`docs/plan/2026-09-11-permission-p1-implementation.md` §「卡上换模型不再被冻结的白名单挡下」](2026-09-11-permission-p1-implementation.md)，合同 `docs/fixes/2026-09-12-spend-card-model-swap-blocked.root-cause.json`。
 
 ### 顺手修掉的一条（属于本轮卡的行为，非缺口）
 

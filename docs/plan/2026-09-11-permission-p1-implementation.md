@@ -241,6 +241,38 @@ DeepSeek 那一行量的是**真实模型面对真实说法会走哪条路**。
 不是它的行为）。留作一条待裁决：Agent 在什么情形下该自己发起付费生成、什么情形下该只落草稿——
 那是权限模型 P2「自主开关」要回答的问题，不是 P1.1b 的。
 
+### 卡上换模型不再被冻结的白名单挡下（#748 · 2026-09-12）
+
+**背后逻辑（一句话）**：用户在付费卡上把模型 chip 换成另一个模型、按下「生成」，看到的是一句
+「制作合同暂不能批准：模型「…」未加入白名单」。他做的只是在下拉里选了另一个模型——
+**那个下拉本来就是我们给他的**。
+
+**为什么会这样**：Run 的 policy 在**建草稿那一刻**从候选身份冻下来
+（`productionGenerationOperationStore.ts:86-90`）。冻它防的是「后面再来的命令偷偷换掉
+host/provider/model」——那条威胁的主体是 **agent**，而 agent 改候选走的是 `generation.patch`。
+`generation.revise` 只有一个入口：付费卡上真人按的那一下。
+**一道闸被两种来源共用，而判据里没有「谁按的」这一维**，于是只能二选一：放行 agent 偷换（不可接受），
+或者拦住真人自己的选择（上线以来的现状）。
+
+**修在哪一层**：不在提交前那道 `assertProductionPolicyReady`（到那里来源信息已经丢了，
+放宽它等于连 agent 一起放行），而在**只有真人能到达的那条命令**上——
+`productionGenerationPlanEdits.ts` 新增纯函数 `policyAdmittingUserRevisedIdentity`，
+reducer 的两条 revise 路径（draft 态 / 已封印+门在等）各调它一次。
+
+放行的边界是**同一镜、同一任务类别**（`candidate.mode`）：卡上那个下拉本来就只列同类别的模型，
+跨类别（图 → 视频）换掉的是整个花钱量级，不叫「改一下」，照旧 fail-closed；凭空多出来的镜同理。
+**放行的只是判据里的身份，不是那笔钱**：`maxSpend`、收据、决门、封印一个都不动，
+换完仍要重新计价、重新出卡、重新由真人按一次。旧身份不被顶掉（并集），用户还能换回去。
+
+**验收**：
+`electron/productionRun/generationRevise.test.ts` 六条（同类别放行 / 换供应商放行 /
+已封印时撤门与放行同时发生且 maxSpend 不变 / 跨类别不放行 / 只改参数 policy 一个字不动 /
+**agent 的 `generation.patch` 换模型仍被拦**——阳性对照）；
+`electron/capabilityCore/agentPanelSpendConfirm.e2e.test.ts` 把上一轮那条「【已知缺口】换模型会被拒」
+**翻成正面断言**（不是删掉它）：换模型 → 卡上印的就是换后那个模型、价格按同一条算式重算 →
+确认 → **loopback 供应商真正收到的报文里 `model` 就是换后那个**，画布上没有多出第二个节点。
+根因合同 `docs/fixes/2026-09-12-spend-card-model-swap-blocked.root-cause.json`（schema-v3，`recurring`）。
+
 ## 先查别人
 
 完整报告：[docs/research/2026-09-10-permission-rework-prior-art/prior-art.md](../research/2026-09-10-permission-rework-prior-art/prior-art.md)
