@@ -99,6 +99,9 @@ const allScenarios = [
   'node-drag-video',
   // eval v2 (U1): variable-speed + multi-select + LOD + dense-edge drag coverage.
   'multi-node-drag',
+  'drag-nodes-all',
+  'drag-group-frame-60',
+  'zoom-slider-drag',
   'drag-at-low-zoom',
   'drag-over-dense-edges',
   'marquee-select',
@@ -679,7 +682,18 @@ async function runAction(page, scenario, fixture) {
     await dragPath(page, start, { x: start.x + 180, y: start.y + 90 })
     return { nodeId: await node.locator.getAttribute('data-node-id'), moves: 60, firstFeedbackMs: await readFirstFeedbackMs(page) }
   }
-  if (scenario === 'multi-node-drag') return runMultiNodeDrag(page)
+  if (scenario === 'multi-node-drag' || scenario === 'drag-nodes-all') return runMultiNodeDrag(page)
+  if (scenario === 'drag-group-frame-60') return runMultiNodeDrag(page)
+  if (scenario === 'zoom-slider-drag') {
+    const slider = page.locator('input[type="range"]').first()
+    await slider.waitFor({ timeout: 10_000 })
+    const box = await slider.boundingBox()
+    await page.mouse.move(box.x + 4, box.y + box.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(box.x + box.width - 4, box.y + box.height / 2, { steps: 40 })
+    await page.mouse.up()
+    return { moves: 40 }
+  }
   if (scenario === 'drag-over-dense-edges') {
     return runDragOverDenseEdges(page, fixture.record.payload.generationCanvas.edges)
   }
@@ -1262,6 +1276,10 @@ function sampleHardFailures(sample) {
     if (sample.probe.fps < 1000 / timingBudget(33)) failures.push(`waiting effects: ${sample.probe.fps} FPS below frame budget`)
   }
   if (sample.error) failures.push(`scenario error: ${sample.error}`)
+  const longTaskCaps = { 'drag-nodes-all': 5, 'drag-group-frame-60': 5, 'zoom-slider-drag': 0 }
+  if (sample.probe && Object.hasOwn(longTaskCaps, sample.scenario) && sample.probe.longTasks > longTaskCaps[sample.scenario]) {
+    failures.push(`${sample.scenario}: ${sample.probe.longTasks} long tasks > ${longTaskCaps[sample.scenario]}`)
+  }
   for (const error of sample.pageErrors || []) failures.push(`page error: ${error}`)
   for (const error of sample.consoleErrors || []) failures.push(`console error: ${error}`)
   if (sample.actionDetails?.anchorErrorPx > 1.5)
