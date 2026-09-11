@@ -12,6 +12,7 @@ import PromptEditor from '../../assets/PromptEditor'
 import { promptToContent } from '../../assets/promptEditorContent'
 import { useAllProjectAssets } from '../../assets/useAllProjectAssets'
 import { useNodeMentionSource } from './useNodeMentionSource'
+import { NODE_SCROLL_REGION_CLASS_NAME } from './nodeScrollRegionClassName'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { canRunGenerationNode, confirmAndRunNode, confirmAndRunNodeVariants, regenerateNodeInPlace, unmetReferenceDependencyForNode } from '../runner/generationRunController'
@@ -395,7 +396,7 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize, h
         }}
       >
       {hasReferenceControls ? (
-        <div data-node-composer-references className="min-h-0 shrink-0 overflow-y-auto overscroll-contain border-b border-nomi-line-soft" style={inPanel ? undefined : { maxHeight: referenceMaxHeight }}>
+        <div data-node-composer-references className={cn(NODE_SCROLL_REGION_CLASS_NAME, 'min-h-0 shrink-0 overflow-y-auto overscroll-contain border-b border-nomi-line-soft')} style={inPanel ? undefined : { maxHeight: referenceMaxHeight }}>
           <NodeParameterControls node={node} section="references" onInsertMention={insertMention} />
         </div>
       ) : null}
@@ -436,7 +437,7 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize, h
         // scrollport retains its minimum even when fixed controls exhaust the card.
         <div
           data-node-composer-prompt
-          className={cn('relative flex-1 min-h-[72px] w-0 min-w-full overflow-y-auto overscroll-contain')}
+          className={cn(NODE_SCROLL_REGION_CLASS_NAME, 'relative flex-1 min-h-[72px] w-0 min-w-full overflow-y-auto overscroll-contain')}
           style={{ cursor: node.locked ? 'default' : 'text', userSelect: node.locked ? 'auto' : 'text' }}
         >
           <PromptEditor
