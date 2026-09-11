@@ -22,7 +22,7 @@ test('production native resources read installed Skill metadata without widening
     manifest: null, origin: 'user', audience: 'internal', packageVersion: 'nomi-skill-v1', contentHash: 'fixture' };
   const desktop = await openLaneNativeDesktop({ projectDir: fixture.projectDir, settingsRoot, skills: [skill] });
   t.after(() => desktop.close());
-  assert.equal(desktop.skills.length, 1);
+  assert.equal(desktop.skillIndex.current().entries.length, 1);
   assert.equal(desktop.tools.length, 9);
   const read = desktop.tools.find((tool) => tool.name === 'read')!;
   const content = await read.execute('skill', { path: filePath } as never, (() => undefined) as never, undefined, {} as never, BACKGROUND_CONTEXT);

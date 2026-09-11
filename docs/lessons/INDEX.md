@@ -130,6 +130,7 @@
 - [`nomi_get_run` 结果要读 `structuredContent.nomiRunData`](nomi-get-run-mcp-projection-shape.md) — text 块是人话不是 JSON
 - [MCP elicitation 的支持面（结论已反转）](claude-code-lacks-elicitation-capability.md) — CLI ≥2.1.76 已支持；旧结论别再当前提
 - [「参考图连了没用上」断在档案键 ↔ body 字段名的 join](reference-slot-to-body-key-join.md) — 先跑 `check:reference-contract` 别读码猜；含「reach=none 不等于 bug」「一次只种一个槽」两个假红坑
+- [真实付费验收只用 APIMart；`task_failed` 先怀疑素材本身，别先怀疑链路](paid-smoke-apimart-only.md) — 100×100 纯色占位图会被判 `invalid image content` 并一路吞成通用失败；换真实照片同一条链路（含 `audio_urls`）立刻出片；附本地代理限制、kie 余额坑、轮询会重复上传引用素材的副作用
 
 ## E. 产品判断与对外表达
 

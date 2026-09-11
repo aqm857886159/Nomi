@@ -1,0 +1,169 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-11-legacy-spend-door",
+  "problem_type": "Paid action authorization owner",
+  "symptom": "A local process holding the loopback RPC token can mint a spend grant by asserting spendConfirmed, or by setting NOMI_LOOP_SPEND_OK=1 on the headless host",
+  "direct_cause": "gateway.withPreApprovedSpend mints a grant from a caller-supplied boolean, and createDiskGateway.confirmSpend mints one from an environment variable",
+  "class_root": "One invariant ('no paid submission without a human approval the enforcing process can verify') was guarded by two doors with different evidence standards; the weaker door accepted the caller's own word, so the invariant was only as strong as its weakest owner.",
+  "affected_population": [
+    "Any local process able to read ~/.nomi/capability-core/token",
+    "Any headless capability-core host spawned with the environment escape hatch"
+  ],
+  "scope_paths": [
+    "electron/capabilityCore/gateway.ts",
+    "electron/capabilityCore/mcpLoopbackRpcRequest.ts",
+    "electron/capabilityCore/mcpNodeLauncher.ts",
+    "electron/capabilityCore/mcpProtocol.ts",
+    "electron/capabilityCore/mcpStdioServer.ts",
+    "electron/capabilityCore/rpcServer.ts",
+    "electron/capabilityCore/spendDoorSingleOwner.test.ts",
+    "electron/productionRun/productionRunApprovalReceipt.ts",
+    "scripts/comfyui-utility-workflow-walkthrough.mjs",
+    "scripts/lib/nomiClient.mjs"
+  ],
+  "entry_points": [
+    "rpcServer loopback POST /rpc body.spendConfirmed",
+    "mcpStdioServer direct invoker options.spendConfirmed",
+    "createDiskGateway.confirmSpend via NOMI_LOOP_SPEND_OK"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://modelcontextprotocol.io/specification/2025-06-18/client/elicitation",
+      "checked_at": "2026-09-11",
+      "purpose": "Confirm elicitation is a UI channel, not an authorization boundary: servers MUST NOT use it for sensitive information and approval controls are client-implemented SHOULDs."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic/security_best_practices",
+      "checked_at": "2026-09-11",
+      "purpose": "Token passthrough and confused-deputy rules: a server MUST NOT accept tokens not issued for it, and consent must bind to a specific client."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://openai.github.io/openai-agents-python/tools/",
+      "checked_at": "2026-09-11",
+      "purpose": "Comparable design: tool approval is a runner-side state transition (needs_approval / interruptions / state.approve), never a caller-supplied field."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://datatracker.ietf.org/doc/html/rfc8252",
+      "checked_at": "2026-09-11",
+      "purpose": "Loopback peers cannot be authenticated and statically distributed secrets are not confidential, so holding the loopback token cannot imply spend authority."
+    }
+  ],
+  "internal_only_reason": "",
+  "invariants": [
+    "Paid generation is released only by evidence the main process can itself verify: a receipt-authority-verified HumanApprovalReceiptV1, or a human-gesture stamp applied inside the trusted IPC boundary"
+  ],
+  "generality_proof": "Every paid release now funnels through productionRunApprovalReceipt.createGateApprovalOwner, which fails closed when no receipt authority is wired. No other module can mint a spend grant from caller-supplied input: the gateway's headless confirmSpend returns null unconditionally, and the wire protocol no longer carries a spend-approval flag.",
+  "shared_boundaries": [
+    {
+      "path": "electron/productionRun/productionRunApprovalReceipt.ts",
+      "symbol": "createGateApprovalOwner",
+      "responsibility": "The surviving owner of the invariant: verify the human evidence behind every spend gate decision and trust-grant downgrade, and refuse when it is absent."
+    },
+    {
+      "path": "electron/capabilityCore/gateway.ts",
+      "symbol": "createDiskGateway",
+      "responsibility": "The capability-core side of the same invariant: no gateway may mint a spend grant from caller-supplied input (a client-asserted boolean or an environment variable); the headless gateway refuses unconditionally."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/capabilityCore/rpcServer.ts",
+      "entry_point": "POST /rpc body.spendConfirmed",
+      "disposition": "not-affected",
+      "evidence": "Removed in this change; the top-level flag is no longer parsed; the gateway is chosen without reference to any caller assertion."
+    },
+    {
+      "path": "electron/capabilityCore/mcpStdioServer.ts",
+      "entry_point": "createMcpStdioDirectInvoker options.spendConfirmed",
+      "disposition": "not-affected",
+      "evidence": "Removed in this change; makeConfirmedGateway deleted; the invoker always uses createDiskGateway."
+    },
+    {
+      "path": "electron/capabilityCore/gateway.ts",
+      "entry_point": "createDiskGateway.confirmSpend",
+      "disposition": "not-affected",
+      "evidence": "Removed in this change; the environment branch is deleted; the headless gateway returns null unconditionally."
+    },
+    {
+      "path": "electron/capabilityCore/generationDispatcher.ts",
+      "entry_point": "requireGenerationReceipt",
+      "disposition": "enforced",
+      "evidence": "Approval booleans (approved/confirm/spendConfirmed) are explicitly rejected in favour of a verified receipt."
+    },
+    {
+      "path": "electron/tasks/taskIpcHandlers.ts",
+      "entry_point": "nomi:tasks:grant-spend",
+      "disposition": "enforced",
+      "evidence": "Renderer path is behind the trusted IPC sender assertion; it is a real human gesture in Nomi's own window."
+    },
+    {
+      "path": "electron/spendGrant.ts",
+      "entry_point": "assertAndConsumeSpendGrant / assertAndConsumeQuotedSpend",
+      "disposition": "enforced",
+      "evidence": "Main-process hard gate at the vendor submit boundary is unchanged; a missing grant still fails closed."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "This is the second time the same invariant grew a second owner with a weaker evidence standard (docs/qa/2026-08-20-mcp-issues.md:95 already registered the environment escape hatch as something an agent must not reach, and mitigated it by convention rather than removal). Any future 'confirmation happened on the caller's side' feature can reintroduce it.",
+    "same_class_scan": [
+      "rg 'mintSpendGrant' across electron/ and src/ and classify each caller's evidence standard",
+      "rg 'spendConfirmed|planConfirmed|documentConfirmed|approved|autoApprove' for caller-asserted approval booleans crossing the loopback RPC boundary",
+      "rg 'NOMI_.*_OK|NOMI_.*_BYPASS' for environment escape hatches on security boundaries"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/capabilityCore/gateway.ts",
+    "invariant": "Paid generation is released only by evidence the main process can itself verify",
+    "failure_mode": "Stop and show actionable feedback",
+    "exception_policy": "none",
+    "strategy": "Collapse the two doors into one owner: the headless gateway can no longer mint from any caller-supplied input, the wire protocol no longer carries a spend-approval flag, and a source-level ratchet test fails if either symbol reappears anywhere under electron/. The surviving owner is productionRunApprovalReceipt.createGateApprovalOwner (see invariant_owner_layer), which is unchanged by this fix.",
+    "artifacts": [
+      "electron/capabilityCore/gateway.ts",
+      "electron/capabilityCore/mcpStdioServer.ts",
+      "electron/capabilityCore/rpcServer.ts",
+      "electron/capabilityCore/mcpLoopbackRpcRequest.ts",
+      "electron/capabilityCore/spendDoorSingleOwner.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/capabilityCore/spendDoorSingleOwner.test.ts",
+    "electron/capabilityCore/rpcServer.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/capabilityCore/spendDoorSingleOwner.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/capabilityCore/gateway.ts",
+      "electron/capabilityCore/mcpStdioServer.ts",
+      "electron/capabilityCore/rpcServer.ts",
+      "electron/capabilityCore/mcpLoopbackRpcRequest.ts",
+      "scripts/_robot-demo-gen.mjs"
+    ],
+    "rationale": "No fallback, no flag, no environment override. The removed door had zero live callers: McpInvokeOptions.spendConfirmed had no producer anywhere in the tree, nomi_generate is already a tombstone, and core.generateOnProject has no production caller. What remained was reachable only by a local process hand-crafting a loopback request or setting the environment variable."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Internal authorization boundary; no third-party dependency involved.",
+    "exit_criteria": []
+  },
+  "migration": "None required for users. External MCP hosts already drive paid generation through the semantic surface (nomi_request_generation_gate then nomi_decide_generation_gate, which requires a verified receipt, then nomi_start_generation); the removed aliases were already retired.",
+  "residual_risks": [
+    "core.generateOnProject and the ProjectGateway.confirmSpend interface member are now dead code with no production caller. They are held alive only by core.test.ts. Removing that whole legacy orchestration is tracked separately; while it exists, a future wiring mistake could reattach it to a transport.",
+    "createRendererGateway.confirmSpend still mints on a renderer confirmation reply. It is only reachable from that same dead path today, and the renderer bridge is a trusted main-process seam, but it is a second mint site until the legacy path is removed."
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/productionRun/productionRunApprovalReceipt.ts",
+    "tests": [
+      "electron/productionRun/productionRunApprovalReceipt.test.ts",
+      "electron/capabilityCore/spendDoorSingleOwner.test.ts"
+    ]
+  }
+}

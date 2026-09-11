@@ -12,6 +12,7 @@
 // 纯函数（打包/校验/冲突命名）与 FS 函数（显式目录，便于单测，不碰 electron app）分离；
 // runtimePaths 薄包装见末尾。
 import { createHash } from "node:crypto";
+import { broadcastSkillLibraryChanged } from "./skillLibraryBroadcast";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -276,6 +277,7 @@ export function deleteUserSkill(directoryName: string): DeleteSkillResult {
     return { ok: false, error: "该技能不在用户目录（内置技能只读，不能删除）" };
   }
   fs.rmSync(target, { recursive: true, force: true });
+  broadcastSkillLibraryChanged();
   return { ok: true, dirName: name };
 }
 
@@ -293,5 +295,8 @@ export function importSkillPackageToUserDir(raw: unknown): ImportSkillResult {
   const validated = validateSkillPackage(normalizeSkillImportInput(raw));
   if (!validated.ok) return validated;
   const { dirName } = writeSkillImport(getUserSkillsRoot(), validated.pkg);
+  // 盘变了就说一声。挂在写盘这一层，是因为入口不止一个（渲染层导入、拖拽、Agent 的
+  // `author_skill`），而漏掉的那一个不会报错——它只是让用户在技能菜单里找不到刚加的东西。
+  broadcastSkillLibraryChanged();
   return { ok: true, dirName, skillName: validated.skillName || dirName };
 }

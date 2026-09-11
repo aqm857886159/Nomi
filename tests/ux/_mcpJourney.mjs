@@ -15,10 +15,10 @@ import { require as tsxRequire } from 'tsx/cjs/api'
 // NOMI_MCP_STDIO=1. That process is genuinely headless (no window, app.dock.hide, disk gateway) and
 // speaks real newline-delimited JSON-RPC 2.0 over stdio — the exact framing mcpProtocol.ts implements.
 // It is the same real-process transport production-mcp-journey uses; see the journey headers for
-// why this (not the bare-Node mcpNodeLauncher wrapper) is the faithful path for a zero-dialog headless
-// spend: the launcher always ensures a *GUI* app instance whose unopened-project spend routes through
-// the renderer confirm card (createHybridGateway) and cannot complete without a human click, whereas the
-// headless stdio server routes spend through elicitation → makeConfirmedGateway (mcpStdioServer.ts:99).
+// why this (not the bare-Node mcpNodeLauncher wrapper) is the faithful path for the headless transport:
+// the launcher always ensures a *GUI* app instance, whereas this one is the real disk-gateway process.
+// Spend is NOT reachable from either without a main-process approval receipt — the client-asserted
+// spend door was deleted 2026-09-11 (see electron/capabilityCore/spendDoorSingleOwner.test.ts).
 import { spawn } from 'node:child_process'
 import crypto from 'node:crypto'
 import fs from 'node:fs'
@@ -271,8 +271,8 @@ export function seedMcpClientIdentityEnv(capabilityDir, client = 'claude') {
  * The base env always carries a verified client identity (seedMcpClientIdentityEnv, default 'claude') —
  * the production binding refuses to start without one — and the `env` bag can override the pair for
  * journeys that pin a different registered client (both mcp-generation journeys pin 'codex').
- * NOMI_LOOP_SPEND_OK is intentionally NOT set — spend must flow through elicitation → makeConfirmedGateway,
- * proving the headless zero-dialog spend path (mcpStdioServer.ts:99), not an env escape hatch.
+ * No spend escape hatch exists for these journeys to set: paid generation is released only by the
+ * main-process receipt gate (productionRun/productionRunApprovalReceipt.ts createGateApprovalOwner).
  */
 export function spawnMcpStdioClient({
   settingsDir, userDataDir, projectsDir, capabilityDir, clientInfo, capabilities, env, captureStderr = false,

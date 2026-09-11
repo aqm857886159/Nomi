@@ -137,21 +137,59 @@ describe("Agent lane production cutover structure", () => {
   });
 });
 
-describe("回复语言跟界面语言走：lane 的身份提示词不许是开 lane 那一刻的快照（2026-09-11 走查）", () => {
-  // 真机现象：用户在设置里把界面切成 English 后，同一个项目里连开新对话，助手仍整段中文——
-  // 只有冷启动才生效。根因是 `systemPrompt` 是**字符串快照**，而 lane 会跨很多回合活着。
-  // 端到端的证明在真机走查；这里钉住结构：宿主必须能拿到「现在的」那一段，且每回合重新求值。
-  it("port 允许传函数，laneHost 每回合重新拼，桌面运行时传的就是函数", () => {
+describe("一条 lane 的系统提示词每回合整体重新求值（2026-09-11 两轮走查）", () => {
+  // 第一轮（语言）：用户在设置里把界面切成 English 后，同一个项目里连开新对话，助手仍整段中文。
+  // 第二轮（技能）：用户在 Agent 面板旁边导入一个技能包，模型说它不存在——都要关掉项目再打开才生效。
+  // 同一个根因：一条 lane 会跨很多回合活着，而它的装配参数里混着两种寿命完全不同的东西。
+  // 端到端的证明在真机走查；这里钉住结构：会变的事实必须有来源，且宿主在回合边界求值。
+  it("port 上会变的字段收的是来源不是快照", () => {
     const port = source("electron/agentLane/laneRuntimePort.ts");
-    const host = source("electron/agentLane/laneHost.mts");
-    const runtime = source("electron/agentLane/laneDesktopRuntime.ts");
+    const paths = source("electron/agentLane/laneCodingPaths.mts");
 
     expect(port).toContain("systemPrompt: string | (() => string)");
-    // transform_context 每个回合都跑一次——它必须调 composeSystemPrompt()，不是引用开 lane 时的常量。
+    expect(port).toContain("skills: readonly SkillRecord[] | (() => readonly SkillRecord[])");
+    // 可信读根与索引同源：看得见就必须读得到，不许一个活一个死。
+    expect(paths).toContain("export type LaneTrustedSkillRoots = readonly string[] | (() => readonly string[])");
+  });
+
+  it("laneHost 在回合边界求值一次：runId 变才重扫技能库、重拼提示词；回合内不改口", () => {
+    const host = source("electron/agentLane/laneHost.mts");
+
+    const resolver = host.slice(host.indexOf("const systemPromptForRun"), host.indexOf("const systemPrompt = promptForRun"));
+    expect(resolver).toContain("if (runId === promptRunId) return promptForRun;");
+    expect(resolver).toContain("await native?.skillIndex.refresh();");
+    expect(resolver).toContain("promptForRun = composeSystemPrompt();");
+    // transform_context 每次模型请求都跑——它必须走那个按 runId 记账的解析器，
+    // 既不能引用开 lane 时的常量（回合间不更新），也不能每次都重拼（回合内会改口）。
     const transform = host.slice(host.indexOf("harness.hooks.on('transform_context'"), host.indexOf("harness.hooks.on('before_tool'"));
-    expect(transform).toContain("composeSystemPrompt()");
+    expect(transform).toContain("await systemPromptForRun(event.runId)");
     expect(transform).not.toMatch(/\{\s*systemPrompt:\s*\[systemPrompt,/);
-    // 桌面运行时：语言铁律必须在函数体里（每次求值都重读 locale），不是先算好再传。
+    expect(transform).not.toContain("composeSystemPrompt()");
+    // 「这条技能要不要 coding 工具」判在准入那一刻，而用户可能刚导入它——先刷再问。
+    const admission = host.slice(host.indexOf("if (command.kind === 'prompt' && !projection.running"), host.indexOf("const admission = await lane.accept"));
+    expect(admission).toContain("await native?.skillIndex.refresh();");
+    expect(admission).toContain("laneSkillUnlockReason(currentSkills()");
+  });
+
+  it("桌面运行时三样会变的事实都传来源，没有一样是先算好的闭包常量", () => {
+    const runtime = source("electron/agentLane/laneDesktopRuntime.ts");
+
+    // 语言铁律与项目记忆必须在函数体里（每次求值都重读），不是先算好再传。
     expect(runtime).toContain("systemPrompt: () => [buildLanguageRule()");
+    expect(runtime).toContain("currentProjectMemory(binding.projectId)");
+    expect(runtime).not.toMatch(/let memory = ''/);
+    // 技能库同理：给函数，宿主每回合重读一次。
+    expect(runtime).toContain("skills: () => readSkillRecords().filter(isSkillSelectableInWorkbench)");
+  });
+
+  it("技能索引与可信读根是同一个 owner 的同一份快照", () => {
+    const nativeDesktop = source("electron/agentLane/laneNativeDesktop.mts");
+    const host = source("electron/agentLane/laneHost.mts");
+
+    expect(nativeDesktop).toContain("createLaneSkillIndexSource");
+    expect(nativeDesktop).toContain("trustedSkillRoots: () => skillIndex.current().trustedSkillRoots");
+    // 装配层不许再把索引摊成一个数组交出去——那正是「快照」回来的形状。
+    expect(nativeDesktop).not.toMatch(/skills:\s*installed\.skills/);
+    expect(host).toContain("native?.skillIndex.current().promptSection");
   });
 });
