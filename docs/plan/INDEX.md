@@ -113,6 +113,7 @@
 
 | 文件 | 一句话 | 状态 |
 |---|---|---|
+| [2026-09-11-canvas-migration-audit.md](2026-09-11-canvas-migration-audit.md) | **React Flow 迁移逐项等价审计**（OLD `8f9365aeb` vs main）：46 项交互逐条对照，列出 6 项无人拍板的改动与 6 项丢失；③ 表按用户影响排序，是各条回填轨的裁决依据 | 📎 |
 | [2026-09-08-canvas-undo-barrier-sweep.md](2026-09-08-canvas-undo-barrier-sweep.md) | 独立边模式、断线、节点锁手势的撤销边界与同族扫描 | 📎 |
 | [2026-09-06-agent-artifact-node.md](2026-09-06-agent-artifact-node.md) | **AI 手艺产物节点（agent-artifact）**：承载 SVG / 动态 HTML / 表格 / Markdown / 3D 摆位等不调模型的产物；meta.artifact 不扩 result 闭集、HTML 沙箱 allow-scripts、动作复用 FloatingToolbarShell；v1 已落地（Agent 交付落盘/渲染/下载/复制/SVG 固化为参考图），3D 视口截图与手艺选择决策树 = 下一刀 | 🚧 |
 | [2026-09-06-depth-video-canvas-node.md](2026-09-06-depth-video-canvas-node.md) | **本机跑深度视频当动作参考**（Depth Anything V2 Small，WebGPU 渲染层推理、ffmpeg 抽帧合成、权重按需下载校验）；2026-09-07 用户两次拍板后收成「选中视频 → 浮条『提取深度』→ 点了直接跑 → 旁边长出一张带出身的普通视频卡」，无面板无参数，骨架链已随 mode 一起删 | ✅ |
