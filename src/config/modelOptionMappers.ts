@@ -4,41 +4,24 @@ import { archetypeParameterControls } from './modelArchetypes'
 import { ANTIGRAVITY_VENDOR_KEY } from '../../electron/shared/antigravity'
 import { getAntigravityModelVariant } from '../../electron/shared/antigravityModelVariants'
 
-/**
- * 目录里那一行的价目 → 渲染层认识的形状。
- *
- * **不取整**（2026-09-11 修）：目录存的是金额（`pricing.cost: 0.3` 就是三毛），
- * 这里原本 `Math.floor` 到整数，理由是「它是积分」——于是所有**低于 1 的价格一律变成 0**，
- * 画布批量确认条印出「预估约 0 金币」，而主进程按同一行算出来的是 0.30。
- * 一个会被读成「这次不花钱」的 0，比不报价还坏（`shotPricingRule.ts` 的第二条不变量）。
- *
- * 价格不是有限非负数时**整行不给价目**（回 `undefined`），让算式诚实地报「算不出」；
- * 原本落成 0 是在编一个数。
- */
+// 目录价目 → 渲染层价目。**原样搬运，不做第二次归一**。
+//
+// 这里曾经自作主张 `Math.max(0, Math.floor(cost))`、并把「不是数字」落成 0。三样都会让卡上的数
+// 和主进程真正要扣的数岔开（主进程只把目录字段原样喂给算式）：向下取整少报几分、负数/NaN 被抹成
+// 「¥0」——而 0 恰好是唯一会被读成「这次不花钱」的那个数。价目合不合法由那条唯一算式判
+// （`electron/shared/contracts/shotPricingRule.ts`：非有限或为负 → 诚实地报「算不出」）。
 function toCatalogModelPricing(pricing: ModelCatalogModelDto['pricing']): ModelOptionPricing | undefined {
   if (!pricing) return undefined
-  if (typeof pricing.cost !== 'number' || !Number.isFinite(pricing.cost) || pricing.cost < 0) return undefined
   const specCosts = Array.isArray(pricing.specCosts)
     ? pricing.specCosts
         .map((spec) => {
           const specKey = typeof spec?.specKey === 'string' ? spec.specKey.trim() : ''
           if (!specKey) return null
-          // 加价档本身算不出就当**没有这一档**（不加钱），而不是当 0 分之后继续报一个整价：
-          // 前者少算的是一个我们确实不知道的加价，后者是把不知道说成知道。
-          if (typeof spec.cost !== 'number' || !Number.isFinite(spec.cost) || spec.cost < 0) return null
-          return {
-            specKey,
-            cost: spec.cost,
-            enabled: typeof spec.enabled === 'boolean' ? spec.enabled : true,
-          }
+          return { specKey, cost: spec.cost, enabled: spec.enabled }
         })
         .filter((spec): spec is ModelOptionPricing['specCosts'][number] => spec !== null)
     : []
-  return {
-    cost: pricing.cost,
-    enabled: typeof pricing.enabled === 'boolean' ? pricing.enabled : true,
-    specCosts,
-  }
+  return { cost: pricing.cost, enabled: pricing.enabled, specCosts }
 }
 
 export function toCatalogModelOptions(items: ModelCatalogModelDto[]): ModelOption[] {

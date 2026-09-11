@@ -10,6 +10,9 @@
 //   ② 改之后、按下之前——卡上的价**当场**变了，而画布节点**一个字都没动**；
 //   ③ 按下之后——改动才回写进画布节点（主进程落候选 → 投影回画布，单向一条链）。
 //
+// 断言到③为止：再往后那条「手势 → 收据 → 门 → start → 出站」本轮实测仍然不通，
+// 见文件末尾那段说明与计划文档的已知缺口 ⑥。
+//
 // 只有远端供应商是 loopback 夹具（零额度）；SDK、IPC、ProductionRun、渲染层、落盘全是真的。
 // 像真人一样点：在面板里打字、在卡上点 chip、按那颗印着价的按钮——不灌 store、不直调桥。
 import { DEFAULT_TIMEOUT_MS, clickOrFail, expect, proveProbe } from './_assert.mjs'
@@ -99,17 +102,27 @@ try {
   await expect.poll(async () => nodeSize(win, projectId), { timeout: DEFAULT_TIMEOUT_MS }).toBe(UPGRADED_SIZE)
   await walk.snap('reprice-03-written-back-on-generate')
 
-  // 「供应商真正收到的那份载荷也带着新尺寸」**本轮不断言**，而且不是忘了：
-  // 这一族走查按 `NOMI_E2E_PRODUCTION_FIXTURE: '0'` 起，loopback 那个供应商根本没被
-  // 装进生成 provider 面（实测 confirmSpend 回 `configured_provider`），所以生产提交那一段
-  // 在这里跑不到底。把提交链接上是另一条分支（P1.1a「确认→生产零额度夹具」）的活。
-  // 断言一个我们已经知道跑不到的行为，只会得到一条永远红着没人看的走查（R17）。
+  // ── 这条走查到此为止，以及为什么（P3：假绿比红更糟）──
   //
-  // 本轮要证的那条不变量并不依赖它：**卡上改的东西什么时候落到画布**——三个时刻都已钉死。
-  expect(walk.fixture.images.length, '整场走查一次供应商生成都没发生（零额度）').toBe(0)
+  // 再往后那条「手势 → 收据 → 门 → start → 出站」**这个夹具跑不到**，而且原因是确定的：
+  // `confirmPendingSpend` 回的是
+  //   `Provider agent-runtime-loopback lacks required recovery capabilities: configured_provider`
+  // （2026-09-11 真机探针实测）。`generationProviderBootstrap.ts` 只为 **`apimart` 这一个
+  // vendorKey** 装配语义生成 provider，别的供应商一律 `providerReady:false`；本夹具的供应商叫
+  // `agent-runtime-loopback`，所以它永远过不了那道门。**这是夹具的边界，不是本轮改动的回归**
+  // （`docs/plan/2026-09-11-permission-p1-implementation.md` 已知缺口 ⑥，那里记着完整现场）。
+  //
+  // 同一次探针还证实了本轮真正要证的那件事：主进程投影里这一镜的价就是 `0.5`
+  // （`candidateRevision:2`、`parameters.size:"1536x1024"`），与卡上印的 `CNY 0.50` 分毫不差——
+  // 因为两边现在跑的是同一条算式。
+  //
+  // 顺带暴露的一条（缺口 ⑥ 已记）：渲染层这一侧是**静默**的——`useAgentPanelSpendConfirm` 的
+  // `act` 把 `ProductionActionResult` 整个吞掉，成功失败一个样，用户看到的是「按了没反应」。
+  expect(walk.fixture.images, '本轮走查零额度：到此为止一次供应商生成都不该发生').toHaveLength(0)
 
   walk.report.verified = ['price-follows-the-chip-immediately', 'canvas-node-untouched-until-generate',
-    'candidate-written-back-on-generate', 'zero-provider-calls']
+    'candidate-written-back-on-generate']
+  walk.report.unproven = ['confirm-chain-reaches-the-provider（计划文档已知缺口 ⑥，本轮未修）']
   walk.report.probes = { card: cardProof, sizeChip: chipProof }
 } catch (error) {
   failure = error
