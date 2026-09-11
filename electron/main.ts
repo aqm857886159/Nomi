@@ -439,8 +439,7 @@ function registerIpc(): void {
     assertTrustedSender(event);
     recreateMainWindowFromSender(event.sender, { preserveRoute: true, reason: "hard reload window" });
   });
-  // 读目录前补一次内置种子（渲染层热更新不重启 main，不补就停在旧目录）。**共用同一份目录的读路径
-  // 必须都补**：只补 models:list 正是 2026-09-11 用户报的「供应商列表不全」——新种子在模型列表里有、供应商列表里没有。
+  // 读目录前补一次内置种子（渲染层热更新不重启 main，不补就停在旧目录）：共用同一份目录的读路径必须都补——只补 models:list 正是「供应商列表不全」的根因。
   const readCatalog = <T>(read: (params?: unknown) => T) => (params?: unknown): T => {
     ensureBuiltinModelSeeds();
     return read(params);
