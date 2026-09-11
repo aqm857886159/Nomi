@@ -19,7 +19,7 @@ export type ModelParameterControl = {
   label: string;
   type: ModelParameterControlType;
   /** Media-reference controls retain the declared asset kind; older controls default to image. */
-  mediaKind?: "image" | "video";
+  mediaKind?: "image" | "video" | "audio";
   options: ModelParameterControlOption[];
   /** Intersect options when another parameter has the declared value. */
   optionConstraints?: { when: { key: string; value: string | number | boolean }; values: (string | number | boolean)[] }[];
