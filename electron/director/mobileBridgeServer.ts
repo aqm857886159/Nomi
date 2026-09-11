@@ -135,7 +135,7 @@ export class MobileBridgeServer {
     this.pairingTtlMs = options.pairingTtlMs ?? MOBILE_PAIRING_TTL_MS
   }
 
-  /** 用户在 Nomi 自己的窗口里点了「允许并开启」。只活在本进程内存：冷启动重新问一遍。 */
+  /** 用户在 Nomi 自己的窗口里点了「允许开启」。只活在本进程内存：冷启动重新问一遍。 */
   grantConsent(): void {
     this.consented = true
   }

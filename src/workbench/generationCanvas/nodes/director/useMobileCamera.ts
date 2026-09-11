@@ -7,7 +7,7 @@
  *        积分基准永远是视口相机当前位姿（POV 下它跟随求值 / 关键帧 / 录制）；未录制时经 writeCameraSpatialTransform 按编辑层写回，
  *        录制中视口相机是真相 → 只 applyViewPose；手机一转头就关掉该机位的看向 / rig（否则求值层盖掉朝向，转了没反应），提示一次、可撤销。
  *        同意闸（2026-09-11）：打开对话框只是「问一句」——不带 consent 调一次 start，主进程回 consentRequired 就不起监听；
- *        用户点过「允许并开启」才带 consent 再调一次。配对码被用掉/过期时主进程发 pairing 事件，这里重取状态重画二维码。
+ *        用户点过「允许开启」才带 consent 再调一次。配对码被用掉/过期时主进程发 pairing 事件，这里重取状态重画二维码。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import React from 'react'

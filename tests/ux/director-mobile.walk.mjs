@@ -43,14 +43,14 @@ try {
   await addCameraPreset(lab, '正面中景')
   await clickOrFail(win.getByTestId('director-pip').getByRole('button', { name: '进入视角' }), '进入机位')
   await clickOrFail(win.getByRole('button', { name: '连接手机虚拟相机' }), '连接手机')
-  // ① 同意闸：还没点「允许并开启」之前，主进程一个端口都没开，对话框里也没有二维码 / 链接
+  // ① 同意闸：还没点「允许开启」之前，主进程一个端口都没开，对话框里也没有二维码 / 链接
   await expectVisible(win.getByTestId('director-mobile-consent'), '没出同意卡就直接开了局域网服务', stationTimeout({ operations: 4 }))
   const beforeConsent = await win.evaluate(() => window.nomiDesktop.director.mobile.status())
   expect(beforeConsent.running).toBe(false)
   expect(beforeConsent.consentRequired).toBe(true)
   expect(beforeConsent.urls).toEqual([])
   await screenshotSettled(win, { path: path.join(shots, '00-consent.png') })
-  await clickOrFail(win.getByRole('button', { name: '允许并开启' }), '同意开启局域网服务')
+  await clickOrFail(win.getByRole('button', { name: '允许开启' }), '同意开启局域网服务')
   await expectVisible(win.getByTestId('director-mobile-dialog').locator('code').first(), '局域网二维码未生成', stationTimeout({ operations: 4 }))
   const status = await win.evaluate(() => window.nomiDesktop.director.mobile.status())
   expect(status.running).toBe(true)

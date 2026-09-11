@@ -31,7 +31,7 @@
 防线放在**服务自己**而不是对话框（R28：能让最早那层拦住的，别留给 UI）。`MobileBridgeServer.start()` 在没拿到
 `grantConsent()` 之前直接 `reject(MobileBridgeConsentError)`，一个 socket 都不 bind。IPC 层 `nomi:director:mobile:start`
 的载荷多一个 `consent?: true`：`assertTrustedSender` 之后，只有它为真才调 `grantConsent()`。渲染层打开对话框时照旧调
-`start()`（不带 consent），拿回 `consentRequired: true` 的状态，**画面上不出二维码**，出的是一张同意卡：讲清「会在哪个网段开什么口、同一 Wi-Fi 下谁都能看到这个端口」，用户点「允许并开启」才带 `consent: true` 再调一次。
+`start()`（不带 consent），拿回 `consentRequired: true` 的状态，**画面上不出二维码**，出的是一张同意卡：讲清「会在哪个网段开什么口、同一 Wi-Fi 下谁都能看到这个端口」，用户点「允许开启」才带 `consent: true` 再调一次。
 
 同意的有效期 = **本次 App 运行**（主进程内存，不落盘）。每次冷启动重新问一遍；同一次运行里反复开关对话框不再骚扰。
 落盘会变成「一次点头永久放行」，冷启动重问是这类网络入口的通行折中（与系统防火墙每次装新版本重新问同构）。

@@ -22,7 +22,7 @@ export type DesktopDirectorBridge = {
   }) => Promise<{ url: string; assetId?: string }>
   mobile: {
     feedback: (payload: MobileBridgeFeedback) => Promise<boolean>
-    /** consent: true = 用户刚在同意卡上点了「允许并开启」；不带它时主进程只回状态、不开监听。 */
+    /** consent: true = 用户刚在同意卡上点了「允许开启」；不带它时主进程只回状态、不开监听。 */
     start: (payload?: { text?: Record<string, string>; consent?: boolean }) => Promise<DesktopDirectorMobileStatus>
     stop: () => Promise<DesktopDirectorMobileStatus>
     status: () => Promise<DesktopDirectorMobileStatus>
