@@ -2,9 +2,10 @@
  * [INPUT]: 依赖 react、react-i18next、../../../../../../design 的 DesignModal / WorkbenchButton、
  *          ../../../../../../vendor/tablerIcons、../../../../../../ui/toast、../../fields/SliderNumberField、
  *          ../../MobileCameraContext
- * [OUTPUT]: 对外提供 MobileConnectDialog：二维码（主进程 SVG）+ 复制链接 + 设备/延迟 + 三步指南 + 平移/升降速度 + 断开服务 ⇄ 重新开启
- * [POS]: director/panels/dialogs 的手机虚拟相机对话框（清单 §6 C5）：打开即起局域网桥；关掉对话框不停服务，点「断开」才停；
- *        服务关闭态不摆空二维码 / 空链接，只留一句状态 + 「重新开启」。
+ * [OUTPUT]: 对外提供 MobileConnectDialog：同意卡 → 二维码（主进程 SVG）+ 复制链接 + 证书指纹 + 设备/延迟 + 三步指南 + 平移/升降速度 + 断开服务 ⇄ 重新开启
+ * [POS]: director/panels/dialogs 的手机虚拟相机对话框（清单 §6 C5）：打开对话框只是问一句——本次 App 运行还没同意过时
+ *        先出同意卡（讲清会开什么口、配对码一次性且有时效），点「允许并开启」才真起局域网桥；
+ *        关掉对话框不停服务，点「断开」才停；服务关闭态不摆空二维码 / 空链接，只留一句状态 + 「重新开启」。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import React from 'react'
@@ -40,6 +41,9 @@ export function MobileConnectDialog(): JSX.Element {
   const devices = mobile.status?.devices ?? []
   const lanMissing = urls.length > 0 && urls.every((url) => url.includes('127.0.0.1') || url.includes('localhost'))
   const running = Boolean(mobile.status?.running)
+  // status 还没回来（starting）时不摆同意卡，免得闪一下；只有主进程明确说「还没同意」才出
+  const consentRequired = mobile.status?.consentRequired === true
+  const fingerprint = mobile.status?.certFingerprint ?? ''
   const idleText = mobile.starting ? t('director.camera.mobileStarting') : running ? t('director.camera.mobileWaiting') : t('director.camera.mobileStopped')
 
   React.useEffect(() => {
@@ -69,6 +73,16 @@ export function MobileConnectDialog(): JSX.Element {
       <div className="flex flex-col gap-3" data-nomi-escape-layer="director-mobile-dialog" data-testid="director-mobile-dialog">
         {!mobile.available ? (
           <p className="text-caption text-nomi-ink-60">{t('director.camera.mobileNeedDesktop')}</p>
+        ) : consentRequired ? (
+          <div className="flex flex-col gap-2" data-testid="director-mobile-consent">
+            <p className="text-body text-nomi-ink">{t('director.camera.mobileConsentTitle')}</p>
+            <p className="text-caption text-nomi-ink-60">{t('director.camera.mobileConsentBody')}</p>
+            <div className="flex justify-end">
+              <WorkbenchButton size="sm" variant="primary" disabled={mobile.starting} onClick={() => void mobile.start({ consent: true })}>
+                {t('director.camera.mobileConsentAllow')}
+              </WorkbenchButton>
+            </div>
+          </div>
         ) : (
           <>
             <ol className="list-decimal space-y-1 pl-4 text-caption text-nomi-ink-80">
@@ -103,6 +117,13 @@ export function MobileConnectDialog(): JSX.Element {
                       {copied ? t('director.camera.mobileCopied') : t('director.camera.mobileCopy')}
                     </WorkbenchButton>
                   </>
+                ) : null}
+                {fingerprint ? (
+                  <div className="flex flex-col gap-0.5" data-testid="director-mobile-fingerprint">
+                    <span className="text-caption text-nomi-ink-60">{t('director.camera.mobileFingerprint')}</span>
+                    <code className="break-all rounded-nomi border border-nomi-line bg-nomi-bg px-2 py-1 font-nomi-mono text-micro text-nomi-ink">{fingerprint}</code>
+                    <span className="text-caption text-nomi-ink-40">{t('director.camera.mobileFingerprintHint')}</span>
+                  </div>
                 ) : null}
                 {!running ? null : devices.length === 0 ? (
                   <p className="text-caption text-nomi-ink-40">{t('director.camera.mobileWaiting')}</p>
@@ -146,7 +167,7 @@ export function MobileConnectDialog(): JSX.Element {
                   {t('director.camera.mobileDisconnect')}
                 </WorkbenchButton>
               ) : (
-                <WorkbenchButton size="sm" variant="primary" disabled={mobile.starting} onClick={() => void mobile.start()}>
+                <WorkbenchButton size="sm" variant="primary" disabled={mobile.starting} onClick={() => void mobile.start({ consent: true })}>
                   {t('director.camera.mobileRestart')}
                 </WorkbenchButton>
               )}

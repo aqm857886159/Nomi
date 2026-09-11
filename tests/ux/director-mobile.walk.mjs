@@ -1,11 +1,14 @@
 // Real isolated Electron renderer/preload/IPC/HTTPS/WS -> a browser acting as a phone.
 // Validates real camera pixels and recording acknowledgement, not physical gyro hardware.
+// 2026-09-11 安全加固也走这条真机路径：同意卡（没点允许前不开监听）→ 二维码里带证书指纹 →
+// 配对码用一次即废（第二台拿同一张二维码连不上）。
 import fs from 'node:fs'
 import path from 'node:path'
 import { chromium } from 'playwright'
 import { launchNomiApp, repoRoot } from './_launchApp.mjs'
 import { expect, clickOrFail, expectVisible, proveProbe, expectAbsent, screenshotSettled } from './_assert.mjs'
 import { addCameraPreset, placeCharacter } from './_directorLab.mjs'
+import { addCanvasNodeFromRail } from './_canvasRail.mjs'
 import { createBlankProject, prepareIsolation } from '../../evals/lib/isoApp.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 
@@ -26,12 +29,8 @@ try {
   await createBlankProject(win, iso.projectsDir)
   await expectVisible(win.getByRole('button', { name: '生成', exact: true }).first(), '工作台未打开', stationTimeout({ operations: 4 }))
   await clickOrFail(win.getByRole('button', { name: '生成', exact: true }).first(), '生成区')
-  const board = win.locator('button[aria-label^="新建一个"][aria-label$="节点"]').first()
-  if (await board.count()) await board.click()
-  await expectVisible(win.locator('[data-node-kind="director"]').first(), '导演台入口未出现', stationTimeout({ operations: 4 }))
-  await win.keyboard.press('Escape')
-  await win.mouse.click(60, 520)
-  await clickOrFail(win.locator('[data-node-kind="director"]').first(), '添加导演台')
+  // 导演台在左缘工具条的「更多」里（2026-09-06 第三档），走共享点法，别自己拼选择器
+  await addCanvasNodeFromRail(win, 'director')
   await clickOrFail(win.getByTestId('director-node-open').first(), '进入导演台')
   await expectVisible(win.getByTestId('director-pip'), '导演台未渲染', stationTimeout({ operations: 4 }))
   await win.waitForFunction(() => {
@@ -44,8 +43,24 @@ try {
   await addCameraPreset(lab, '正面中景')
   await clickOrFail(win.getByTestId('director-pip').getByRole('button', { name: '进入视角' }), '进入机位')
   await clickOrFail(win.getByRole('button', { name: '连接手机虚拟相机' }), '连接手机')
-  await expectVisible(win.getByTestId('director-mobile-dialog').locator('code'), '局域网二维码未生成', stationTimeout({ operations: 4 }))
+  // ① 同意闸：还没点「允许并开启」之前，主进程一个端口都没开，对话框里也没有二维码 / 链接
+  await expectVisible(win.getByTestId('director-mobile-consent'), '没出同意卡就直接开了局域网服务', stationTimeout({ operations: 4 }))
+  const beforeConsent = await win.evaluate(() => window.nomiDesktop.director.mobile.status())
+  expect(beforeConsent.running).toBe(false)
+  expect(beforeConsent.consentRequired).toBe(true)
+  expect(beforeConsent.urls).toEqual([])
+  await screenshotSettled(win, { path: path.join(shots, '00-consent.png') })
+  await clickOrFail(win.getByRole('button', { name: '允许并开启' }), '同意开启局域网服务')
+  await expectVisible(win.getByTestId('director-mobile-dialog').locator('code').first(), '局域网二维码未生成', stationTimeout({ operations: 4 }))
   const status = await win.evaluate(() => window.nomiDesktop.director.mobile.status())
+  expect(status.running).toBe(true)
+  expect(status.consentRequired).toBe(false)
+  // ③ 指纹：桌面显示的那串 = 证书真实指纹，且随二维码的 fragment 走带外通道到手机
+  expect(typeof status.certFingerprint).toBe('string')
+  await expectVisible(win.getByTestId('director-mobile-fingerprint'), '桌面端没显示证书指纹')
+  expect(await win.getByTestId('director-mobile-fingerprint').locator('code').textContent()).toBe(status.certFingerprint)
+  const fpInQr = status.certFingerprint.replaceAll(':', '').toLowerCase()
+  expect(status.urls[0]).toContain(`#fp=${fpInQr}`)
   const url = new URL(status.urls[0])
   url.hostname = '127.0.0.1'
   browser = await chromium.launch({ headless: true, channel: process.env.NOMI_BROWSER_CHANNEL || 'chrome' })
@@ -58,6 +73,20 @@ try {
     return image instanceof HTMLImageElement && image.complete && image.naturalWidth > 0
   }, null, { timeout: stationTimeout({ operations: 2 }) })
   const previewProof = await proveProbe(phone.locator('#preview:visible'), '手机监视器已显示有效机位帧')
+  // 手机页显示的是二维码带来的那串指纹（带外），供人眼与浏览器证书详情比对
+  await expect(phone.locator('#fpValue')).toHaveText(status.certFingerprint)
+  // 指纹在右栏底部：横屏下要能滚到、不能是永远够不着的暗区
+  await phone.locator('#fpValue').scrollIntoViewIfNeeded()
+  await expect(phone.locator('#fpValue')).toBeInViewport()
+  const dotProof = await proveProbe(phone.locator('#dot.on'), '配对成功后手机状态点亮起')
+  // ② 配对码用一次即废：同一张二维码（同一个 k）再开一台，连不上
+  const replayPage = await browser.newPage({ viewport: { width: 960, height: 540 }, ignoreHTTPSErrors: true })
+  await replayPage.goto(url.href)
+  await expect(replayPage.locator('#status')).toHaveText('未连接')
+  await expectAbsent(replayPage.locator('#dot.on'), { provenBy: dotProof, message: '用过的配对码不该让第二台设备连上' })
+  await screenshotSettled(replayPage, { path: path.join(shots, '05-pairing-code-burned.png') })
+  expect((await win.evaluate(() => window.nomiDesktop.director.mobile.status())).devices).toHaveLength(1)
+  await replayPage.close()
   const frame = await phone.locator('#preview').evaluate((image) => {
     const canvas = document.createElement('canvas')
     canvas.width = image.naturalWidth; canvas.height = image.naturalHeight

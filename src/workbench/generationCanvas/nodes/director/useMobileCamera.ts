@@ -6,6 +6,8 @@
  * [POS]: director 根的手机虚拟相机编排（清单 §6 C5）：主进程跑 HTTPS+WS，这里只经 bridge 收事件；
  *        积分基准永远是视口相机当前位姿（POV 下它跟随求值 / 关键帧 / 录制）；未录制时经 writeCameraSpatialTransform 按编辑层写回，
  *        录制中视口相机是真相 → 只 applyViewPose；手机一转头就关掉该机位的看向 / rig（否则求值层盖掉朝向，转了没反应），提示一次、可撤销。
+ *        同意闸（2026-09-11）：打开对话框只是「问一句」——不带 consent 调一次 start，主进程回 consentRequired 就不起监听；
+ *        用户点过「允许并开启」才带 consent 再调一次。配对码被用掉/过期时主进程发 pairing 事件，这里重取状态重画二维码。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import React from 'react'
@@ -31,7 +33,7 @@ export type MobileCameraApi = {
   starting: boolean
   speeds: MobileCameraSpeeds
   setSpeeds: (speeds: MobileCameraSpeeds) => void
-  start: () => Promise<boolean>
+  start: (options?: { consent?: boolean }) => Promise<boolean>
   stop: () => Promise<void>
 }
 
@@ -66,6 +68,9 @@ function mobilePageText(t: (key: string) => string): Record<string, string> {
     connected: t('director.mobilePage.connected'),
     disconnected: t('director.mobilePage.disconnected'),
     gyroDenied: t('director.mobilePage.gyroDenied'),
+    fingerprint: t('director.mobilePage.fingerprint'),
+    fingerprintHint: t('director.mobilePage.fingerprintHint'),
+    fingerprintMismatch: t('director.mobilePage.fingerprintMismatch'),
   }
 }
 
@@ -145,6 +150,17 @@ export function useMobileCamera({ recorder, apiRef }: { recorder: CameraRecorder
         else recorderRef.current.stop()
         void getDesktopBridge()?.director?.mobile?.feedback?.({ recording: Boolean(store.getState().recording) }).catch(() => false)
       }
+      if (event.type === 'pairing') {
+        // 配对码被用掉或过期 → 二维码换新，桌面端重取一次状态（QR SVG 只在主进程生成）
+        const epoch = epochRef.current
+        void getDesktopBridge()
+          ?.director?.mobile?.status()
+          .then((next) => {
+            if (epoch === epochRef.current) setStatus(next)
+          })
+          .catch(() => {})
+        return
+      }
       if (event.type === 'device' && event.state === 'disconnected') lastAtRef.current = null
       setStatus((current) => {
         if (!current) return current
@@ -167,7 +183,7 @@ export function useMobileCamera({ recorder, apiRef }: { recorder: CameraRecorder
     return mobile.onEvent(applyEvent)
   }, [applyEvent])
 
-  const start = React.useCallback((): Promise<boolean> => {
+  const start = React.useCallback((options?: { consent?: boolean }): Promise<boolean> => {
     if (startRef.current) return startRef.current
     const mobile = getDesktopBridge()?.director?.mobile
     if (!mobile) return Promise.resolve(false)
@@ -175,11 +191,11 @@ export function useMobileCamera({ recorder, apiRef }: { recorder: CameraRecorder
     setStarting(true)
     const pending = (async () => {
     try {
-      const next = await mobile.start({ text: mobilePageText(t) })
+      const next = await mobile.start({ text: mobilePageText(t), ...(options?.consent ? { consent: true } : {}) })
       if (epoch !== epochRef.current) return false
       lastAtRef.current = null
       setStatus(next)
-      return true
+      return next.running
     } catch {
       if (epoch !== epochRef.current) return false
       toast(t('director.camera.mobileStartFailed'), 'error')
