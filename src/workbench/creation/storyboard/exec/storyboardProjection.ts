@@ -11,6 +11,7 @@ import { buildPlannedNodeMeta } from '../../../generationCanvas/agent/plannedNod
 import type { AgentModelEntry } from '../../../generationCanvas/agent/availableModels'
 import { renderShotNodePrompt, renderShotKeyframePrompt, effectiveShotDurationSec, type PlanShot, type StoryboardPlan } from '../../../generationCanvas/agent/storyboardPlan'
 import { shotReferenceMetaPatch } from '../shotRow/shotReferenceSlots'
+import { resolveKeyframeParams, resolveShotParams } from '../../../generationCanvas/agent/storyboardShotScope'
 import type { ArchetypeMode } from '../../../../config/modelArchetypes/types'
 const PRIMITIVE = new Set(['string', 'number', 'boolean'])
 
@@ -27,7 +28,10 @@ export function projectShotNode(
   const rowModelKey = part === 'shot' ? effectiveShotValue(shot, node, 'modelKey') as string | undefined : shot.keyframe?.modelKey
   const rowModelVendor = part === 'shot' ? effectiveShotValue(shot, node, 'modelVendor') as string | undefined : shot.keyframe?.modelVendor
   const rowModeId = part === 'shot' ? effectiveShotValue(shot, node, 'modeId') as string | undefined : shot.keyframe?.modeId
-  const rowParams = (part === 'shot' ? shot.params : shot.keyframe?.params) || {}
+  // 整片默认（画幅…）与行覆盖的合并只有一个口：storyboardShotScope 的 resolver。
+  // 这里曾直接读 `shot.params`，于是「继承整片默认」的行写回节点时把画幅丢了——
+  // 与落画布那一处是同一个 bug 的两个出口（2026-09-12 根因合同）。
+  const rowParams = part === 'shot' ? resolveShotParams(plan, shot) : resolveKeyframeParams(plan, shot)
   const metaModeId = (meta.archetype as { modeId?: unknown } | undefined)?.modeId
   if (rowModelKey && (meta.modelKey !== rowModelKey || (rowModelVendor && meta.modelVendor !== rowModelVendor) || (rowModeId && metaModeId !== rowModeId))) {
     // 行上选的 vendor 一起递进去：同名模型来自不同供应商是两个模型（身份唯一键）。

@@ -21,7 +21,9 @@ import {
   overriddenAspectCount,
   planDefaultAspect,
   setPlanDefaultAspect,
-} from '../../generationCanvas/agent/storyboardAspectScope'
+  unsupportedFilmDefaultKeys,
+} from '../../generationCanvas/agent/storyboardShotScope'
+import { resolveShotArchetypeMode } from './shotRow/shotRowModel'
 
 /**
  * 「全部镜头」批量条（样张 A 拍板 2026-08-17）。
@@ -62,16 +64,29 @@ export default function StoryboardBulkBar({ plan, imageModelOptions, videoModelO
 
   // 批量选模型：走 BulkModelPicker（与画布框选工具条同一份实现，P1 无并行版），选项厂商明确。
   //
-  // ⚠️ 已知缺口（2026-08-18 实查，不假装修好）：PlanShot 没有 vendor 字段，applyModelToAll 也只写
-  // modelKey。所以这里选的「哪一家」在落画布时**不被保留**——storyboardPlanToCreateNodesArgs 只把
-  // modelKey 透传给 PlanCreatedNode，buildPlannedNodeMeta 再用 entryByKey.get(modelKey) 反查厂商，
-  // 而 buildAgentModelEntries 按 modelKey 首次出现去重（首家胜出）。落地厂商 = 目录里第一家，
-  // 与用户所选无关。要真正贯通须给 PlanShot/PlanCreatedNode 加 vendor 字段（见 storyboardPlan.test.ts
-  // 的「厂商在 plan→canvas 落地路径上被丢弃」用例，那条测试就是这个缺口的固化记录）。
+  // 2026-09-12 补齐：这里以前把 BulkModelPicker 回调的第二个参数（vendor）丢掉，只写 modelKey——
+  // 落画布时 buildPlannedNodeMeta 按 modelKey 反查厂商，而目录按 modelKey 首次出现去重，
+  // 于是落地厂商 = 目录里第一家，与用户所选无关（「选 A 家发去 B 家」）。现在 vendor 与 key 成对写进
+  // 每一镜（PlanShot.modelVendor 一直就有这个字段），与镜卡逐镜选模型同口径。
   const onBulkModelPick = React.useCallback(
-    (value: string) => onChange(applyModelToAll(plan, value)),
+    (value: string, vendor?: string) => onChange(applyModelToAll(plan, value, vendor)),
     [plan, onChange],
   )
+
+  // 整片画幅设了，但有几镜的模型根本没有画幅参数（如只吃参考图的首帧路）——那几镜发出去时
+  // 不会带画幅。界面必须如实说出来，而不是继续把它们画成竖的假装设上了（显示 ≡ 请求）。
+  const unsupportedAspectRows = React.useMemo(() => {
+    const optionsByKind = { image: imageModelOptions, video: videoModelOptions }
+    return plan.shots.filter((shot) => {
+      if (!shot.modelKey) return false // 默认模型：此刻无契约可判，不瞎报。
+      const pool = optionsByKind[shot.shotKind === 'image' ? 'image' : 'video']
+      const option = pool.find((candidate) => (candidate.modelKey || candidate.value) === shot.modelKey) ?? null
+      const resolved = resolveShotArchetypeMode(option, shot.modeId)
+      if (!resolved) return false
+      // 判据与执行侧完全一致：buildPlannedNodeMeta 按 control.key 匹配，键不在这份表里就发不出去。
+      return unsupportedFilmDefaultKeys(plan, shot, resolved.mode.params).length > 0
+    }).length
+  }, [plan, imageModelOptions, videoModelOptions])
 
   if (plan.shots.length === 0) return null
 
@@ -163,6 +178,7 @@ export default function StoryboardBulkBar({ plan, imageModelOptions, videoModelO
       <span className="ml-auto shrink-0 text-micro text-nomi-ink-40">
         {t('storyboardEditor.bulk.hint', { count: plan.shots.length })}
         {overriddenRows > 0 ? ` · ${t('storyboardEditor.aspectScope.bulkHint', { count: overriddenRows })}` : ''}
+        {unsupportedAspectRows > 0 ? ` · ${t('storyboardEditor.aspectScope.unsupportedHint', { count: unsupportedAspectRows })}` : ''}
       </span>
     </div>
   )

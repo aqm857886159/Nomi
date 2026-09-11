@@ -196,6 +196,7 @@ export const zhStoryboardEditor = {
     overrideMark: '覆盖',
     rowMenu: '换画幅…',
     bulkHint: '已覆盖画幅的 {{count}} 镜不跟着变',
+    unsupportedHint: '{{count}} 镜的模型不吃整片画幅，按它自己的尺寸或参考图走',
   },
   composerBar: {
     doneTag: '已生成',
@@ -557,6 +558,7 @@ export const enStoryboardEditor = {
     overrideMark: 'overridden',
     rowMenu: 'Change Aspect…',
     bulkHint: '{{count}} shots with an overridden aspect stay as they are',
+    unsupportedHint: "{{count}} shots run a model that does not take the film aspect; they follow its own size or reference image",
   },
   composerBar: {
     doneTag: 'Generated',

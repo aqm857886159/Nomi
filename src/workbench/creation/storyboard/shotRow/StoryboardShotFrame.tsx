@@ -32,7 +32,7 @@ import { FRAME_COLUMN_WIDTH, type FrameMediaBox } from './shotFrameGeometry'
 type Props = {
   shot: PlanShot
   exec: ShotRowExec
-  /** 这一行**生效**的画幅（storyboardAspectScope.effectiveShotAspect）；只用于挂点与图片语义，
+  /** 这一行**生效**的画幅（storyboardShotScope.effectiveShotAspect）；只用于挂点与图片语义，
    *  几何不读它——几何来自表级的 `box`。 */
   aspect: string
   /** 整张表共用的媒体盒（`tableFrameMediaBox`）。行不自己算，算了就又不齐了。 */
