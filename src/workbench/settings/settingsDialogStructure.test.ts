@@ -292,7 +292,7 @@ describe('settings dialog structure', () => {
     const consumers = [
       'src/workbench/settings/CanvasGestureSection.tsx',
       'src/ui/onboarding/workflowPage/WorkflowGraphCanvas.tsx',
-      'src/workbench/generationCanvas/components/useCanvasViewportGestures.ts',
+      'src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx',
     ]
     for (const consumer of consumers) {
       const file = path.join(process.cwd(), consumer)
