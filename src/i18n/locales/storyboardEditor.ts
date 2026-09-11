@@ -144,6 +144,8 @@ export const zhStoryboardEditor = {
     moveToScene: '移到场',
     allScenes: '未分场',
     applyModel: '统一模型',
+    // 混选图片镜与视频镜时条上有两枚下拉；无障碍名要认得出「这枚管哪一档」。
+    applyModelScoped: '统一模型 · {{scope}}',
     delete: '删除已选',
     clear: '取消选择',
     insert: '在这里插入镜头',
@@ -505,6 +507,7 @@ export const enStoryboardEditor = {
     moveToScene: 'Move to scene',
     allScenes: 'No scene',
     applyModel: 'Use one model',
+    applyModelScoped: 'Use one model · {{scope}}',
     delete: 'Delete selected',
     clear: 'Clear selection',
     insert: 'Insert a shot here',

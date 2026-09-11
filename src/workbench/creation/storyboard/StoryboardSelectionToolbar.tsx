@@ -1,8 +1,9 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconLock, IconPlayerPlay, IconRobot, IconTrash, IconX } from '@tabler/icons-react'
-import type { ModelOption } from '../../../config/models'
+import BulkModelPicker from '../../common/BulkModelPicker'
 import { SelectionToolbarFrame } from '../../generationCanvas/components/SelectionToolbarFrame'
+import type { StoryboardBulkModelGroup, StoryboardShotKind } from './storyboardBulkModelScope'
 
 /**
  * 分镜页多选浮条。布局/作用域语义对齐画布 `CanvasSelectionToolbar`：纸白圆角浮条、已选计数、
@@ -10,10 +11,14 @@ import { SelectionToolbarFrame } from '../../generationCanvas/components/Selecti
  *
  * v6 新增「交给 Agent」（§2.7 入口 2/3）——三个入口对应三种选择规模（全部 / 多选 / 单行），
  * 不是同一功能的重复入口。三处共用 `data-storyboard-agent-handoff`，走查一次数得出"是不是三个都在"。
+ *
+ * 「统一模型」不是本文件自己的下拉：它与画布框选工具条、分镜「全部镜头」批量条共用
+ * `BulkModelPicker`（厂商明确、自带去重与健康度排序）。选中集合里有几种镜种就有几个下拉，
+ * 作用域写在 `leadingLabel` 上（「图片 ×3」），镜种分组由 `storyboardBulkModelScope` 派生。
  */
 export default function StoryboardSelectionToolbar({
   selectedCount,
-  modelOptions,
+  modelGroups,
   sceneOptions,
   onGenerate,
   onMoveToScene,
@@ -24,11 +29,13 @@ export default function StoryboardSelectionToolbar({
   onLock,
 }: {
   selectedCount: number
-  modelOptions: readonly ModelOption[]
+  /** 按选中集合的镜种分好的模型档（`storyboardBulkModelGroups`）；一档一个下拉。 */
+  modelGroups: readonly StoryboardBulkModelGroup[]
   sceneOptions: readonly { id: string; title: string }[]
   onGenerate: () => void
   onMoveToScene: (sceneId: string) => void
-  onApplyModel: (modelKey: string) => void
+  /** 选中即定死 (kind, modelKey, vendor)——镜种随选项一起回传，下游不用再猜这条属于哪一档。 */
+  onApplyModel: (kind: StoryboardShotKind, modelKey: string, vendor?: string) => void
   onDelete: () => void
   onClear: () => void
   /** 「交给 Agent」：把选中的这几镜交给常驻 Agent 改（改动就地预览 + 确认卡）。 */
@@ -37,7 +44,6 @@ export default function StoryboardSelectionToolbar({
   onLock?: (() => void) | undefined
 }): JSX.Element {
   const { t } = useTranslation()
-  const [modelKey, setModelKey] = React.useState('')
   return (
     <SelectionToolbarFrame
       className="sticky bottom-2 z-10 mx-auto max-w-full"
@@ -81,24 +87,22 @@ export default function StoryboardSelectionToolbar({
           </option>
         ))}
       </select>
-      {modelOptions.length > 0 ? (
-        <select
-          value={modelKey}
-          onChange={(event) => {
-            setModelKey(event.target.value)
-            if (event.target.value) onApplyModel(event.target.value)
-          }}
-          aria-label={t('storyboardEditor.selection.applyModel')}
-          className="h-7 max-w-44 shrink-0 rounded-full border border-nomi-line bg-nomi-paper px-2 text-micro text-nomi-ink-80"
-        >
-          <option value="">{t('storyboardEditor.selection.applyModel')}</option>
-          {modelOptions.map((model) => (
-            <option key={model.value} value={model.value}>
-              {model.label}
-            </option>
-          ))}
-        </select>
-      ) : null}
+      {modelGroups.map((group) => {
+        const scope = t(`generationCommon.production.modelGroup.${group.kind}`, { count: group.count })
+        return (
+          <span key={group.kind} className="shrink-0" data-storyboard-model-group={group.kind}>
+            <BulkModelPicker
+              modelOptions={group.options}
+              onPick={(value, vendor) => onApplyModel(group.kind, value, vendor)}
+              ariaLabel={t('storyboardEditor.selection.applyModelScoped', { scope })}
+              leadingLabel={scope}
+              placeholder={t('storyboardEditor.selection.applyModel')}
+              size="sm"
+              triggerMaxWidth={140}
+            />
+          </span>
+        )
+      })}
       {onLock ? (
         <button
           type="button"

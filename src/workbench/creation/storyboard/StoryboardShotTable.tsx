@@ -34,6 +34,7 @@ import { stableShotId } from '../../generationCanvas/agent/storyboardPlan'
 import type { ShotVariant } from './shotRow/shotVariants'
 import { positionsForAnchorFilter } from './storyboardDInteractions'
 import StoryboardSelectionToolbar from './StoryboardSelectionToolbar'
+import { applyBulkModelToShots, storyboardBulkModelGroups, type StoryboardShotKind } from './storyboardBulkModelScope'
 import { confirmDialog } from '../../../design'
 
 /**
@@ -185,7 +186,9 @@ export default function StoryboardShotTable({ plan, projectId, rows, anchorCards
     // selectedRows 每次渲染都是新数组；用稳定签名当依赖，避免每帧回调。
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedKeysSignature, rows])
-  const selectableModelOptions = [...new Map([...imageModelOptions, ...videoModelOptions].map((option) => [option.value, option])).values()]
+  // 「统一模型」按选中集合的**镜种**分档（storyboardBulkModelScope 单源）——图片镜只列图片模型、
+  // 视频镜只列视频模型；两种都选中就出两个下拉。混成一条平列表是 2026-09-11 反馈的那条错。
+  const selectedModelGroups = storyboardBulkModelGroups({ shots: selectedRows.map((runtime) => runtime.shot), imageModelOptions, videoModelOptions })
   const selectKeyOf = (shot: StoryboardRowRuntime['shot']): string => shot.shotId ?? `index:${shot.index}`
   const onSelectShot = (position: number, event: React.MouseEvent): void => {
     const keyAt = (index: number): string => selectKeyOf(rows[index].shot)
@@ -212,9 +215,8 @@ export default function StoryboardShotTable({ plan, projectId, rows, anchorCards
     if (!sceneId) return
     onChange({ ...plan, shots: plan.shots.map((shot) => selectedShotIds.has(selectKeyOf(shot)) ? (sceneId === '__none__' ? (() => { const { sceneId: _removed, ...rest } = shot; return rest })() : { ...shot, sceneId }) : shot) })
   }
-  const applyModelToSelected = (modelKey: string): void => {
-    if (!modelKey) return
-    onChange({ ...plan, shots: plan.shots.map((shot) => selectedShotIds.has(selectKeyOf(shot)) ? { ...shot, modelKey, modeId: undefined, params: undefined } : shot) })
+  const applyModelToSelected = (kind: StoryboardShotKind, modelKey: string, vendor?: string): void => {
+    onChange(applyBulkModelToShots({ plan, isSelected: (shot) => selectedShotIds.has(selectKeyOf(shot)), kind, modelKey, vendor }))
   }
   const deleteSelected = async (): Promise<void> => {
     const generated = selectedRows.some((row) => Boolean(row.exec.resultUrl))
@@ -452,7 +454,7 @@ export default function StoryboardShotTable({ plan, projectId, rows, anchorCards
       {selectedRows.length > 0 ? (
         <StoryboardSelectionToolbar
           selectedCount={selectedRows.length}
-          modelOptions={selectableModelOptions}
+          modelGroups={selectedModelGroups}
           sceneOptions={plan.scenes ?? []}
           onGenerate={() => onGenerateSelected(selectedRows)}
           onMoveToScene={moveSelectedToScene}
