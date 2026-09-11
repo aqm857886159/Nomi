@@ -22,6 +22,7 @@ describe('mobile bridge lifetime', () => {
       return server
     })
     const bridge = new MobileBridgeServer(() => {}, { secure: false, host: '127.0.0.1' })
+    bridge.grantConsent()
     live.push(bridge)
     return bridge
   }

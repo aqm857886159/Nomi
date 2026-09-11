@@ -1,12 +1,15 @@
 // 导演台手机虚拟相机 IPC：start/stop/status + 事件推送。
-// 证书缓存在 userData/director-mobile；页面文案由渲染层随 start 注入（i18n 不住主进程）。
+// 证书缓存在 userData/director-mobile；页面文案由渲染层随 start 载荷注入（i18n 不住主进程）。
 // 事件通道照 nomi:tasks:text:event：绑启动它的 webContents，窗口销毁即停服务。
+// 同意闸（2026-09-11）：start 的载荷带 `consent: true` 才算一次用户显式同意；同意只活在**本次 App 运行**
+// 的主进程内存里（不落盘、不跨冷启动），照 productionRunApprovalReceipt 的既有纪律——人证在主进程内部装配，
+// 渲染层只能发起一次同意，能不能监听由服务自己判（MobileBridgeServer.start 没同意必抛）。
 import path from 'node:path'
 import { app, ipcMain, webContents as electronWebContents } from 'electron'
 import type { WebContents } from 'electron'
 import { toString as qrToSvg } from 'qrcode'
 import { assertTrustedSender } from '../ipcSenderGuard'
-import { MobileBridgeServer, type MobileBridgeEvent, type MobileBridgeStatus } from './mobileBridgeServer'
+import { MobileBridgeConsentError, MobileBridgeServer, type MobileBridgeEvent, type MobileBridgeStatus } from './mobileBridgeServer'
 import type { MobileBridgeFeedback } from '../shared/contracts/directorMobileBridge'
 
 const START = 'nomi:director:mobile:start'
@@ -15,7 +18,12 @@ const STATUS = 'nomi:director:mobile:status'
 const EVENT = 'nomi:director:mobile:event'
 const FEEDBACK = 'nomi:director:mobile:feedback'
 
-const IDLE_STATUS: MobileBridgeStatus = { running: false, secure: true, port: null, urls: [], devices: [], qrByUrl: {} }
+/** 本次 App 运行里用户同意过开局域网监听。冷启动重新问一遍。 */
+let consentGrantedThisRun = false
+
+function idleStatus(): MobileBridgeStatus {
+  return { running: false, secure: true, port: null, urls: [], devices: [], qrByUrl: {}, consentRequired: !consentGrantedThisRun, certFingerprint: null, pairingExpiresAt: null }
+}
 
 async function withQr(status: MobileBridgeStatus): Promise<MobileBridgeStatus> {
   const qrByUrl: Record<string, string> = {}
@@ -55,27 +63,36 @@ function bindSender(sender: WebContents): void {
 
 async function shutdown(expectedOwner: number): Promise<MobileBridgeStatus> {
   return enqueueLifetime(async () => {
-    if (subscriberId !== expectedOwner) return server ? withQr(server.status()) : IDLE_STATUS
+    if (subscriberId !== expectedOwner) return server ? withQr(server.status()) : idleStatus()
     if (server) await server.stop()
     server = null
     subscriberId = null
-    return IDLE_STATUS
+    return idleStatus()
   })
 }
 
 export function registerDirectorMobileIpc(): void {
-  ipcMain.handle(START, async (event, payload: { text?: Record<string, string> } | undefined) => {
+  ipcMain.handle(START, async (event, payload: { text?: Record<string, string>; consent?: boolean } | undefined) => {
     assertTrustedSender(event)
     return enqueueLifetime(async () => {
-      if (event.sender.isDestroyed()) return IDLE_STATUS
+      if (event.sender.isDestroyed()) return idleStatus()
       bindSender(event.sender)
+      if (payload?.consent === true) consentGrantedThisRun = true
+      // 没同意就连服务对象都不造：没有任何路径能从这里走到 listen
+      if (!consentGrantedThisRun) return idleStatus()
       if (!server) {
         server = new MobileBridgeServer(sendEvent, {
           certDir: path.join(app.getPath('userData'), 'director-mobile'),
           text: payload?.text ?? {},
         })
       }
-      return withQr(await server.start())
+      server.grantConsent()
+      try {
+        return await withQr(await server.start())
+      } catch (error) {
+        if (!(error instanceof MobileBridgeConsentError)) throw error
+        return idleStatus()
+      }
     })
   })
 
@@ -86,7 +103,7 @@ export function registerDirectorMobileIpc(): void {
 
   ipcMain.handle(STATUS, async (event) => {
     assertTrustedSender(event)
-    return server ? withQr(server.status()) : IDLE_STATUS
+    return server ? withQr(server.status()) : idleStatus()
   })
   ipcMain.handle(FEEDBACK, (event, payload: MobileBridgeFeedback) => {
     assertTrustedSender(event)
