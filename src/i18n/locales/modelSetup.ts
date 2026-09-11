@@ -84,10 +84,12 @@ export const zhModelSetup = {
   saveFailed: '没能保存',
   saveFailedHint: '连接和模型没有写入本地，请保留当前选择后重试。',
   integrationUnavailable: '接入会话不可用，请回到模型设置后重试。',
-  integrationConfirmTitle: '确认接入并开始验证',
-  integrationConfirmHint: '这是一次真实生产请求，用来证明选中的模型确实可用。确认后才会消耗上游额度。',
-  integrationSpendWarning: '请求会发送到显示的接入地址。Nomi 不会把 API Key 展示给对话助手。',
-  integrationConfirmAction: '确认验证',
+  integrationConfirmTitle: '确认接入并开始自检',
+  // 旧文案写的是「这是一次真实生产请求……消耗上游额度」——而实际最坏一个模型 6 次付费出图。
+  // 2026-09-11 起这一步只做免费自检：不发任何生成请求，也就没有额度可花。
+  integrationConfirmHint: '自检只做三件事：确认密钥可用、拉一次模型清单、检查调用方式是否完整。不会发起生成请求，也不会消耗额度。',
+  integrationSpendWarning: '自检只访问显示的接入地址。Nomi 不会把 API Key 展示给对话助手。',
+  integrationConfirmAction: '开始自检',
   integrationConfirmFailed: '确认没有完成，请检查窗口状态后重试。',
   integrationPending: '正在读取…',
   existingConnectionError: {
@@ -102,7 +104,7 @@ export const zhModelSetup = {
     START_FAILED: '没能启动验证，请保留当前选择后重试。',
   },
   added: '{{name}} 已添加',
-  addedHint: '已保存为“已配置、未验证”，可稍后在模型详情中选择调用方式。',
+  addedHint: '已保存。自检通过后它会出现在画布的模型列表里，并标注「未试跑」——第一次真实生成就是试跑。',
   addAnother: '再加一个',
   done: '完成',
   addFailed: '没能完成添加',
@@ -221,12 +223,12 @@ export const enModelSetup = {
   saveFailed: 'Could not save',
   saveFailedHint: 'The connection and models were not written locally. Keep the current selection and try again.',
   integrationUnavailable: 'The integration session is unavailable. Return to Model settings and try again.',
-  integrationConfirmTitle: 'Confirm integration and start verification',
+  integrationConfirmTitle: 'Confirm integration and start the self-check',
   integrationConfirmHint:
-    'This runs a real production request to prove the selected models work. It may use upstream quota.',
+    'The self-check does three things: confirm the key works, fetch the model list once, and check that the call contract is complete. It never sends a generation request, so it costs nothing.',
   integrationSpendWarning:
-    'The request will be sent to the displayed endpoint. Nomi never shows the API key to the chat agent.',
-  integrationConfirmAction: 'Confirm Verify',
+    'The self-check only reaches the integration address shown here. Nomi never shows your API key to the assistant.',
+  integrationConfirmAction: 'Start self-check',
   integrationConfirmFailed: 'Confirmation did not complete. Check the window and try again.',
   integrationPending: 'Loading…',
   existingConnectionError: {
@@ -241,7 +243,7 @@ export const enModelSetup = {
     START_FAILED: 'Verification could not start. Keep the current selection and try again.',
   },
   added: '{{name}} added',
-  addedHint: 'Saved as configured and unverified. Choose its call method later from model details.',
+  addedHint: 'Saved. Once the self-check passes it appears in the canvas model list marked “not tried yet” — your first real generation is the try run.',
   addAnother: 'Add another',
   done: 'Done',
   addFailed: 'Could not add the model',
