@@ -10,7 +10,7 @@ type ActionName = {
 // their state or opening an Undo barrier. Runtime result attachment is a write;
 // status/progress is not a new edit. Previously accepted jobs are never cancelled.
 const documentActions = {
-  markReady: false, captureHistory: true, setCanvasTransform: false, setCanvasZoom: false,
+  markReady: false, captureHistory: true,
   setGenerationAiDraft: false, setGenerationAiMessages: false, setGenerationAiCollapsed: false,
   resetGenerationAiConversation: false, copySelectedNodes: false, cutSelectedNodes: true,
   duplicateNodesForDrag: true, pasteNodes: true, undo: true, redo: true, readSnapshot: false, readDocumentSnapshot: false,

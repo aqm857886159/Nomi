@@ -17,7 +17,7 @@ type Props = {
   deconstructing?: boolean
 }
 
-/** Real host stores and production node; density changes use the canvas's physical zoom. */
+/** Real host stores and production node; the outer scale mimics the canvas, density is pinned on the document. */
 export function ShotTableStage({ density = 'full', empty = false, selected = false, generating = false, failed = false, facts = false, deconstructing = false }: Props): JSX.Element {
   const [ready, setReady] = React.useState(false)
   const node = useGenerationCanvasStore(store => store.nodes.find(candidate => candidate.id === 'table-specimen'))
@@ -28,6 +28,9 @@ export function ShotTableStage({ density = 'full', empty = false, selected = fal
     const table = facts ? createDeconstructionShotTable('reference-specimen', '雨夜参考片 · 15s') : createStoryboardShotTable('table-document', design.id)
     table.updatedAt = '2026-09-10T00:00:00.000Z'
     table.view.selectedRowIds = selected ? ['shot-2', 'shot-3'] : []
+    // 画布外的样张没有 React Flow 视口（缩放的唯一真相在那里，见 reactFlow/canvasViewportScale.ts）。
+    // 密度档因此直接钉在文档字段上——那也是用户能手动钉住密度时走的同一条路。
+    table.view.density = density
     if (table.source.kind === 'deconstruction' && 'columns' in table) {
       table.source.status = deconstructing ? 'running' : 'ready'
       table.source.phase = deconstructing ? 1 : undefined
@@ -53,7 +56,7 @@ export function ShotTableStage({ density = 'full', empty = false, selected = fal
       meta: { storyboardDesignId: design.id, shotId: shot.shotId },
     }))
     useWorkbenchStore.setState({ storyboardDesignsByDocumentId: { 'table-document': [design] } })
-    useGenerationCanvasStore.setState({ nodes: [tableNode, ...shotNodes], edges: [], canvasZoom: zoom })
+    useGenerationCanvasStore.setState({ nodes: [tableNode, ...shotNodes], edges: [] })
     setReady(true)
   }, [density, empty, selected, generating, failed, facts, deconstructing, zoom])
   return <div className="bg-nomi-bg p-4" style={{ width: 992, height: 452 }}><div style={{ width: 960, height: 420, transform: `scale(${zoom})`, transformOrigin: 'top left' }}>{ready && node ? <ShotTableNode node={node} selected={selected} /> : null}</div></div>
