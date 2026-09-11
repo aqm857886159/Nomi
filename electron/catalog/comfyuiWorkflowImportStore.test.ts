@@ -375,3 +375,32 @@ describe("reconcileComfyWorkflowTexts（设置页批量缺件对账）", () => {
     vi.unstubAllGlobals();
   });
 });
+
+describe("reconcileComfyWorkflowText：没见过的 combo 外壳原样带出（供「反馈给 Nomi」诊断用）", () => {
+  it("这一台 /object_info 遇到的 unknownComboShapes 原样出现在对账结果里", async () => {
+    emptyCatalog();
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
+      CLIPTextEncode: { input: { required: { text: ["STRING"] } } },
+      CheckpointLoaderSimple: { input: { required: { ckpt_name: [["m.safetensors"]] } } },
+      KSampler: { input: { required: {} } },
+      CreateVideo: { input: { required: { pick: ["SUPER_COMBO_V9", { options: ["a"] }] } } },
+    }))));
+    const { reconcileComfyWorkflowText } = await import("./comfyuiWorkflowImportStore");
+    const result = await reconcileComfyWorkflowText(textToVideoWorkflow("ok"));
+    expect(result).toMatchObject({
+      ok: true,
+      serverReachable: true,
+      unknownComboShapes: [{ classType: "CreateVideo", inputKey: "pick", spec: ["SUPER_COMBO_V9", { options: ["a"] }] }],
+    });
+    vi.unstubAllGlobals();
+  });
+
+  it("ComfyUI 不可达时 unknownComboShapes 是空数组（不是缺字段）", async () => {
+    emptyCatalog();
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("ECONNREFUSED"); }));
+    const { reconcileComfyWorkflowText } = await import("./comfyuiWorkflowImportStore");
+    const result = await reconcileComfyWorkflowText(textToVideoWorkflow("ok"));
+    expect(result).toMatchObject({ ok: true, serverReachable: false, unknownComboShapes: [] });
+    vi.unstubAllGlobals();
+  });
+});

@@ -1,13 +1,14 @@
 // 执行计划画布原位预览(harness S2b,获批样张方案 A):
 // 波次徽标盖在节点左上角(① 先跑、②③ 等前置),被拦节点标 ⚠;顶部确认条一句话+价格+两个键。
 // 外挂 overlay,不喂 GenerationCanvas/BaseGenerationNode 两个白名单巨壳(R12);
-// 坐标随 store 的 zoom/offset 实时换算(screen = pos*zoom + offset),徽标不随缩放变大。
+// 坐标随 React Flow 视口实时换算(screen = pos*zoom + offset),徽标不随缩放变大。
 //
 // F15 三缺补齐：
 //   F11 价格——顶条显本波预估额度（解不出标「价格未知」，未知≠0）。
 //   F10/F12 被拦可点下一步——⚠ 不再是裸符号：等待类（等定妆/等上游）走中性色 + 一句人话原因 + 点击聚焦
 //     那张要处理的卡（去定妆/去生成上游）；真失败/环走 danger 色。
 import React from 'react'
+import { useViewport } from '@xyflow/react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../../../utils/cn'
 import { IconListCheck } from '@tabler/icons-react'
@@ -46,8 +47,9 @@ export function BatchPlanOverlay() {
   const confirm = useBatchPlanPreviewStore((state) => state.confirm)
   const nodes = useGenerationCanvasStore((state) => state.nodes)
   const edges = useGenerationCanvasStore((state) => state.edges)
-  const zoom = useGenerationCanvasStore((state) => state.canvasZoom)
-  const offset = useGenerationCanvasStore((state) => state.canvasOffset)
+  // 视口真相在 React Flow（框架自带 useViewport 按 x/y/zoom 三个标量浅比较，别在这里另写订阅）。
+  // 迁移后这里读的是 store 里那两个没人写的字段，徽标恒画在 pos*1+0 —— 一缩放/平移就全错位。
+  const { x: offsetX, y: offsetY, zoom } = useViewport()
   const planIds = React.useMemo(() => (plan ? plan.waves.flat() : []), [plan])
   const cost = useBatchPlanCost(planIds)
   if (!plan) return null
@@ -83,8 +85,8 @@ export function BatchPlanOverlay() {
         const wave = waveByNode.get(node.id)
         const blockedInfo = blockedById.get(node.id)
         if (!wave && !blockedInfo) return null
-        const left = node.position.x * zoom + offset.x
-        const top = node.position.y * zoom + offset.y
+        const left = node.position.x * zoom + offsetX
+        const top = node.position.y * zoom + offsetY
         const waiting = blockedInfo ? isWaitingReason(blockedInfo.reason) : false
         return (
           <button

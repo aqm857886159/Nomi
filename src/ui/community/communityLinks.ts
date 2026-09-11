@@ -49,12 +49,18 @@ export function buildShareMessage(template: string): string {
     .replace(/\{\{github\}\}/g, NOMI_COMMUNITY_LINKS.github)
 }
 
-export function buildGitHubIssueUrl(input: { intent: 'problem' | 'suggestion'; stage: string; errorKind?: string }): string {
+/**
+ * `fields`：GitHub issue form 用字段 id 当查询参数名预填正文（如 bug_report.yml 的
+ * `what_happened`/`extra`，见 .github/ISSUE_TEMPLATE/bug_report.yml）。P1：这是本仓库唯一一处
+ * 拼 GitHub issue 深链的地方——诊断类调用方（如 ComfyUI 未知 combo 外壳反馈）复用它，不另起一份。
+ */
+export function buildGitHubIssueUrl(input: { intent: 'problem' | 'suggestion'; stage: string; errorKind?: string; fields?: Record<string, string> }): string {
   const kind = input.errorKind ? ` · ${input.errorKind.slice(0, 40)}` : ''
   const title = `${input.intent === 'problem' ? '[Bug]' : '[Idea]'} ${input.stage}${kind}`
   const params = new URLSearchParams({
     template: input.intent === 'problem' ? 'bug_report.yml' : 'feature_request.yml',
     title: title.slice(0, 80),
   })
+  for (const [key, value] of Object.entries(input.fields ?? {})) params.set(key, value)
   return `${NOMI_COMMUNITY_LINKS.issues}?${params.toString()}`
 }

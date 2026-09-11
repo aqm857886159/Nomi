@@ -917,6 +917,9 @@ export const zhOnboardingProviders = {
     missingNodes: '本机 ComfyUI 缺 {{count}} 个节点：{{list}}——先装齐（如用 ComfyUI-Manager），否则运行必失败',
     missingFiles:
       '{{count}} 个输入引用了本机没有的文件/选项：{{list}}——在 ComfyUI 里改成本机存在的值后重新导出，或把该输入暴露成参数、生成时改填',
+    unknownComboShapes:
+      '{{count}} 个输入用了 Nomi 没见过的新格式（{{list}}）——ComfyUI 可能又升级了，这些字段暂时无法核对/烤下拉',
+    reportUnknownShape: '反馈给 Nomi',
   },
   comfyPreset: {
     sectionTitle: '预置模板（官方 · 即用）',
@@ -2121,6 +2124,9 @@ export const enOnboardingProviders = {
       'Your ComfyUI is missing {{count}} node type(s): {{list}} — install them first (e.g. via ComfyUI-Manager), or every run will fail',
     missingFiles:
       '{{count}} input(s) reference files/options not on this machine: {{list}} — switch to values that exist in your ComfyUI and re-export, or expose the input as a parameter and set it at generation time',
+    unknownComboShapes:
+      '{{count}} input(s) use a format Nomi has not seen before: {{list}} — ComfyUI may have upgraded again; these fields cannot be checked or turned into a dropdown yet',
+    reportUnknownShape: 'Report Issue',
   },
   comfyPreset: {
     sectionTitle: 'Preset templates (official, ready to use)',
