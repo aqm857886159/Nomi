@@ -1,0 +1,24 @@
+{
+  "count": 19,
+  "entries": [
+    "electron/agentLane/laneCommandCodec.ts :: ${label} must stay under ${MAX_PROMPT_BYTES} bytes",
+    "electron/agentLane/laneCommandCodec.ts :: ${label} needs non-empty text",
+    "electron/agentLane/laneCommandCodec.ts :: A cancel-queued command needs the entryId it cancels",
+    "electron/agentLane/laneCommandCodec.ts :: An approval command needs the toolCallId it answers",
+    "electron/agentLane/laneCommandCodec.ts :: An approval reason must be text",
+    "electron/agentLane/laneCommandCodec.ts :: An approval reason must stay under ${MAX_REASON_BYTES} bytes",
+    "electron/agentLane/laneCommandCodec.ts :: Lane command must be an object",
+    "electron/agentLane/laneCommandCodec.ts :: Unknown approval action: ${String(action)}",
+    "electron/agentLane/laneCommandCodec.ts :: Unknown lane command kind: ${String(record.kind)}",
+    "electron/agentLane/laneDesktopInput.ts :: Invalid provider payload",
+    "electron/agentLane/laneDesktopInput.ts :: Model is not configured",
+    "electron/agentLane/laneDesktopInput.ts :: Native PDF was not preserved by the provider payload adapter",
+    "electron/agentLane/laneHost.mts :: ${noteType} is not a UI-only lane note; it needs a real projector, not () => undefined",
+    "electron/agentLane/laneHost.mts :: A single agent lane cannot handle ${command.kind}; that command belongs to the workspace",
+    "electron/agentLane/laneHost.mts :: This agent lane could not cancel that message: ${cancelled.error._tag}",
+    "electron/agentLane/laneHost.mts :: This agent lane refused the message: ${queued.error._tag}",
+    "electron/agentLane/laneHost.mts :: This lane cannot resolve its recorded input context.",
+    "electron/agentLane/laneIpc.ts :: A single-shot request needs a request identity",
+    "electron/agentLane/laneSession.mts :: Nomi lane session ${options.sessionId} is not on disk under ${laneSessionsRoot(options.projectDir)}"
+  ]
+}
