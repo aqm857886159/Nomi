@@ -53,46 +53,16 @@ export function resolveCanvasPointerDownAction(input: CanvasPointerDownInput): C
   return input.readOnly ? 'ignore' : 'marquee'
 }
 
-/**
- * capture 阶段只接「压在节点上也要平移」的三个入口。空白左键平移**必须**留到 bubble 阶段——
- * capture 抢在节点/控件的 pointerdown 之前，在那里接左键等于把节点拖拽和按钮点击一起吞掉。
- */
-export function isCanvasCapturePanPointer(input: { button: number; spaceHeld: boolean }): boolean {
-  return input.spaceHeld || input.button === 1 || input.button === 2
-}
-
-/**
- * 主指针已经按下后才形成的平移和弦（指针从别处滑进 stage、或按下左键后再补按空格/中键）。
- * **不含裸左键**：裸左键此刻可能正在框选或拖节点，在 move 里认领它会把那两件事劫走。
- */
-export function resolveCanvasPanButtonFromMove(input: {
-  buttons: number
-  spaceHeld: boolean
-}): 0 | 1 | 2 | null {
-  if ((input.buttons & 2) !== 0) return 2
-  if ((input.buttons & 4) !== 0) return 1
-  if (input.spaceHeld && (input.buttons & 1) !== 0) return 0
-  return null
-}
-
-/** 平移是否还该继续：只问发起它的那颗键还按着没。空格中途松开由 keyup 单独收尾（见 useCanvasViewportGestures）。 */
-export function isCanvasPanButtonHeld(button: 0 | 1 | 2, input: { buttons: number }): boolean {
-  if (button === 2) return (input.buttons & 2) !== 0
-  if (button === 1) return (input.buttons & 4) !== 0
-  return (input.buttons & 1) !== 0
-}
+// 2026-09-11 回填①：`isCanvasCapturePanPointer` / `resolveCanvasPanButtonFromMove` /
+// `isCanvasPanButtonHeld` / `shouldFinishCanvasConnection` / `shouldPreventDefaultForCanvasPanStart`
+// 随旧手势内核（useCanvasViewportGestures / useCanvasPointerInteractions / useDragToConnect）
+// 一起删。这五格的职责今天归 React Flow 的 panOnDrag / onConnectEnd 与
+// reactFlow/useGenerationCanvasReactFlowPointer 的辅助平移；留着只会让人以为还有第二份仲裁。
 
 export function canvasDragExceededThreshold(startX: number, startY: number, x: number, y: number): boolean {
   return Math.abs(x - startX) >= CANVAS_DRAG_THRESHOLD || Math.abs(y - startY) >= CANVAS_DRAG_THRESHOLD
 }
 
-export function shouldFinishCanvasConnection(button: number, pointerUpConsumed = false): boolean {
-  return button === 0 && !pointerUpConsumed
-}
-
-export function shouldPreventDefaultForCanvasPanStart(button: number): boolean {
-  return button !== 2
-}
 
 export function isCanvasContextMenuPointer(button: number, ctrlKey: boolean, platform: string): boolean {
   return button === 2 || (button === 0 && ctrlKey && isMacPlatform(platform))

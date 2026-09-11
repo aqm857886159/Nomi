@@ -24,7 +24,7 @@ import { createLaneCodingPaths, type LaneTrustedSkillRoots } from './laneCodingP
 
 import type { AgentHarnessTool } from '@earendil-works/pi-agent-core';
 
-import type { LaneToolEffects } from '../shared/agentLane/laneToolContract.js';
+import { laneToolMutates, type LaneToolEffect } from '../shared/agentLane/laneToolContract.js';
 import type { LaneBashOperations, LaneSandbox } from './laneCodingSandbox.mjs';
 
 /** pi 的 coding 工具在 lane 里的组身份。延迟装载按组解锁，不按单个工具。 */
@@ -39,14 +39,14 @@ export type LaneCodingToolName = (typeof LANE_CODING_TOOL_NAMES)[number];
  * 收回的手段是 fs 层的（git / 文稿撤销栈），不是画布那种 `proposal`。**别把它们标成
  * `proposal`**：标错的后果不是报错，是审批卡上写着「你还要再点接受」而其实文件已经改了。
  */
-export const LANE_CODING_TOOL_EFFECTS: Readonly<Record<LaneCodingToolName, LaneToolEffects>> = {
-  read: { mutates: false, billable: false, reversal: 'none' },
-  grep: { mutates: false, billable: false, reversal: 'none' },
-  find: { mutates: false, billable: false, reversal: 'none' },
-  ls: { mutates: false, billable: false, reversal: 'none' },
-  edit: { mutates: true, billable: false, reversal: 'undoable' },
-  write: { mutates: true, billable: false, reversal: 'undoable' },
-  bash: { mutates: true, billable: false, reversal: 'undoable' },
+export const LANE_CODING_TOOL_EFFECTS: Readonly<Record<LaneCodingToolName, LaneToolEffect>> = {
+  read: 'read',
+  grep: 'read',
+  find: 'read',
+  ls: 'read',
+  edit: 'reversible_local',
+  write: 'reversible_local',
+  bash: 'reversible_local',
 };
 
 /**
@@ -294,13 +294,13 @@ function withBashTimeout(operations: LaneBashOperations, ceilingMs: number): Lan
  * 是第三个位置参数），这样「用户按停止」在 coding 工具上和在领域工具上是同一条路。
  */
 function adaptPiTool(tool: PiAgentTool): AgentHarnessTool<undefined> {
-  const effects = LANE_CODING_TOOL_EFFECTS[tool.name as LaneCodingToolName];
+  const effect = LANE_CODING_TOOL_EFFECTS[tool.name as LaneCodingToolName];
   const adapted = {
     ...tool,
     description: laneToolModelDescription(tool),
     promptGuidelines: [tool.description, ...(tool.promptGuidelines ?? [])],
     // 崩溃恢复敢不敢替我们再跑一次——与 `laneTools.mts` 同一个派生点、同一条判据。
-    replay: effects && !effects.mutates ? 'safe' : 'never',
+    replay: effect && !laneToolMutates(effect) ? 'safe' : 'never',
     execute: async (
       toolCallId: string,
       params: unknown,

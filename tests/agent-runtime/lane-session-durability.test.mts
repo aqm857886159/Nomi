@@ -21,7 +21,7 @@ import { createLaneFileSystem, LANE_DIR_MODE, LANE_FILE_MODE } from '../../elect
 import { laneSessionsRoot } from '../../electron/agentLane/laneSession.mjs';
 import { createDocumentLaneTools } from '../../electron/agentLane/laneDocumentTools.js';
 import type { LaneToolDescriptor } from '../../electron/agentLane/laneRuntimePort.js';
-import { createDocumentPort, createLaneFixture } from './laneFixture.mjs';
+import { createDocumentPort, createLaneFixture, FIXTURE_DESCRIBE } from './laneFixture.mjs';
 
 const ONE_TURN = [
   { type: 'tool' as const, calls: [{ id: 'call-read', name: 'read_full_text', arguments: {} }] },
@@ -151,8 +151,8 @@ test('G-02 · a tool failure throws, so pi records an errored result instead of 
     contractId: 'document.read',
     name: 'always_fails',
     description: 'A tool that always reports a failure, used to prove failures are not recorded as successes.',
-    promptSnippet: 'always report a failure.',
-    effects: { mutates: false, billable: false, reversal: 'none' },
+    promptSnippet: 'always report a failure.', nextAction: 'none', describe: FIXTURE_DESCRIBE,
+    effect: 'read',
     execution: { timeoutMs: LANE_READ_TOOL_TIMEOUT_MS },
     schema: z.object({}).strict(),
     examples: [{ when: 'Call it with no arguments:', arguments: {} }],

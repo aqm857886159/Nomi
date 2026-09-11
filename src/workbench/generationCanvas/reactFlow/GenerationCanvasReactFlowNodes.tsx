@@ -29,6 +29,7 @@ import {
 import type { GenerationFlowEdge, GenerationFlowNode } from './generationCanvasReactFlowAdapter'
 import { GenerationFlowNodeScope } from './generationFlowNodeContext'
 import { resolveGenerationFlowConnectionAffordance } from './generationCanvasReactFlowVisualContract'
+import { edgeLabelTransform, useCanvasLiveZoom } from './canvasViewportScale'
 import type { CanvasPluginNodeState } from '../plugins/canvasPluginTypes'
 
 const MAGNETIC_HANDLE_ICON_RADIUS = 14.5
@@ -264,6 +265,42 @@ export function GenerationFlowNodeView({ data, selected }: NodeProps<GenerationF
   )
 }
 
+/**
+ * 边模式胶囊的壳：落点 + 恒定屏幕尺寸。
+ *
+ * **落点**（2026-09-11 拍板，迁移等价审计 §③ 行 11）：胶囊恒落在贝塞尔中点，
+ * 而不是旧版的「用户点下去的那一点」。中点是这条边的身份位置——同一条边无论从哪里点开，
+ * 标签都在同一处，多条边同时亮起时也不会挤成一堆；代价是点长边的一端时菜单弹在边中间。
+ * 有意保留，不必再改。
+ *
+ * **尺寸**：`EdgeLabelRenderer` 把内容 portal 进 `.react-flow__edgelabel-renderer`，
+ * 那个容器在 `.react-flow__viewport` 里面，**跟着视口一起缩放**——固定 12px 字号于是
+ * 缩到 30% 小得看不清、放到 300% 大得离谱（迁移前旧边层用 `scale(1/zoom)` 抵消过）。
+ * 这里用同一条：`edgeLabelTransform` 反缩放回恒定屏幕尺寸。
+ *
+ * 订阅收在这一层（而不是提到 `GenerationFlowEdgeView`）是刻意的：
+ * 胶囊只给「选中节点的边」画，缩放时因此只重渲这几条，不惊动整张图的边。
+ */
+function EdgeModeLabelLayer({ id, labelX, labelY, children }: {
+  id: string
+  labelX: number
+  labelY: number
+  children: React.ReactNode
+}): JSX.Element {
+  const zoom = useCanvasLiveZoom()
+  return (
+    <EdgeLabelRenderer>
+      <div
+        className="generation-canvas-react-flow__edge-label generation-canvas-v2__edge-control"
+        style={{ transform: edgeLabelTransform(labelX, labelY, zoom) }}
+        data-edge-id={id}
+      >
+        {children}
+      </div>
+    </EdgeLabelRenderer>
+  )
+}
+
 export function GenerationFlowEdgeView({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data, selected }: EdgeProps<GenerationFlowEdge>): JSX.Element {
   const { t } = useTranslation()
   const [path, labelX, labelY] = getBezierPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition })
@@ -327,12 +364,7 @@ export function GenerationFlowEdgeView({ id, sourceX, sourceY, targetX, targetY,
       ) : null}
       <circle className="generation-canvas-v2__edge-dot" cx={targetX} cy={targetY} r={3.2} />
       {showLabel ? (
-        <EdgeLabelRenderer>
-          <div
-            className="generation-canvas-react-flow__edge-label generation-canvas-v2__edge-control"
-            style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}
-            data-edge-id={id}
-          >
+        <EdgeModeLabelLayer id={id} labelX={labelX} labelY={labelY}>
             <button
               type="button"
               className="generation-canvas-react-flow__edge-label-button generation-canvas-v2__edge-tag-pill"
@@ -393,8 +425,7 @@ export function GenerationFlowEdgeView({ id, sourceX, sourceY, targetX, targetY,
                 </button>
               </div>
             ) : null}
-          </div>
-        </EdgeLabelRenderer>
+        </EdgeModeLabelLayer>
       ) : null}
     </g>
   )

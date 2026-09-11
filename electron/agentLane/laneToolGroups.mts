@@ -4,6 +4,7 @@
 import { LANE_MODEL_TOOL_CATALOG, LANE_TOOL_BUDGET } from './laneToolCatalog.js';
 import { LANE_CODING_TOOL_NAMES } from './laneCodingTools.mjs';
 import { Type } from 'typebox';
+import { LANE_CODING_TOOL_GROUP } from '../shared/agentLane/laneToolGroupNames.js';
 
 /** 一个可按需点亮的领域组。`coding` 由装配层注册，其余来自 `LANE_DEFERRED_TOOL_GROUPS`。 */
 export interface LaneToolGroupDefinition {
@@ -11,8 +12,8 @@ export interface LaneToolGroupDefinition {
   readonly toolNames: readonly string[]
 }
 
-/** coding 解锁其余六个原生工具，并授予 resident read 项目读取能力。 */
-export const LANE_CODING_TOOL_GROUP = 'coding';
+/** 组名住中立层 `laneToolGroupNames.ts`（叶子模块）；这里只是再导出，避免与 `laneToolCatalog.ts` 成环。 */
+export { LANE_CODING_TOOL_GROUP, LANE_MODELS_TOOL_GROUP, LANE_NATIVE_TOOL_GROUPS } from '../shared/agentLane/laneToolGroupNames.js';
 
 /** 找工具的那个工具。**唯一一个 always-on 的解锁入口**，schema 极小（照 pi 的 kimi 示例形状）。 */
 export const LANE_TOOL_REQUEST_TOOL_NAME = 'nomi_request_tools';
@@ -52,7 +53,7 @@ export interface LaneToolMenuInput {
 }
 
 export interface LaneToolMenu {
-  /** 这一次请求要亮的工具名，**顺序是合同**（前缀稳定才有缓存，`agentToolCatalog.ts:31-35` 同一条纪律）。 */
+  /** 这一次请求要亮的工具名，**顺序是合同**（前缀稳定才有缓存，`verbDeclarations.ts` 同一条纪律）。 */
   readonly activeToolNames: readonly string[]
   /** 亮着的那个领域组的名字，没有就是 `null`。 */
   readonly activeGroup: string | null

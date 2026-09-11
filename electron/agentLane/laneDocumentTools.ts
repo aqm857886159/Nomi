@@ -1,8 +1,8 @@
 // Agent lane · `document.read` / `document.write` 的**执行那一半**。
 //
-// 说明书那一半（名字、三条描述通道、schema、示例、容忍钩子、副作用声明）住
-// `electron/shared/agentCapabilities/documentModelTools.ts` —— 它不属于任何一个 profile，
-// 对外 MCP 的 `nomi_document_read` / `nomi_document_edit` 读的是同一份（方案 §3.1，阶段 5a）。
+// 说明书那一半（名字、五槽描述、schema、示例、容忍钩子、效果声明）是
+// `electron/shared/agentCapabilities/verbs/documentVerbs.ts` 里的动词声明 —— 它不属于任何一个 profile，
+// 对外 MCP 的 `nomi_document_read` / `nomi_document_edit` 读的是注册表派生的同一份（PR A 单一 owner）。
 // 留在这里的只有「拿到参数之后真的去动编辑器」那一步，它需要一个活着的领域 port。
 import {
   documentReadScopeForAlias,
@@ -16,7 +16,7 @@ import {
   type DocumentWriteInput,
   type DocumentWriteResult,
 } from "../shared/agentCapabilities/documentWrite";
-import { documentModelToolSpecs } from "../shared/agentCapabilities/documentModelTools";
+import { specsForCapability } from "../shared/agentCapabilities/modelFacingToolRegistry";
 import { bindLaneTool, type LaneToolDescriptor, type LaneToolExecutionContext } from "./laneRuntimePort";
 
 /** 领域侧。lane 不认识编辑器，只认识这两个动作——K4/K5 的「按 id 引用，永不复制」同一条纪律。 */
@@ -26,7 +26,7 @@ export interface DocumentLanePort {
 }
 
 export function createDocumentLaneTools(port: DocumentLanePort): LaneToolDescriptor[] {
-  return documentModelToolSpecs().map((spec) => {
+  return [...specsForCapability("document.read"), ...specsForCapability("document.write")].map((spec) => {
     const scope = documentReadScopeForAlias(spec.name);
     if (scope) {
       return bindLaneTool(spec, async (_args, context) => {

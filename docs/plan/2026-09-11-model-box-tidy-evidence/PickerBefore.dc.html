@@ -1,0 +1,48 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap">
+  <style>
+    body { margin: 0; font-family: Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", system-ui, sans-serif; }
+    a { color: oklch(0.55 0.13 250); } a:hover { color: oklch(0.45 0.13 250); }
+    .root.light { --paper: oklch(1 0 0); --ink: oklch(0.22 0.01 80); --ink-80: oklch(0.32 0.01 80); --ink-60: oklch(0.50 0.01 80); --ink-40: oklch(0.68 0.01 80); --ink-05: oklch(0.97 0.003 80); --line: oklch(0.91 0.004 80); --accent: oklch(0.55 0.13 250); --accent-soft: color-mix(in srgb, oklch(0.55 0.13 250) 12%, oklch(1 0 0)); }
+    .root.dark { --paper: oklch(0.235 0.007 80); --ink: oklch(0.93 0.006 85); --ink-80: oklch(0.85 0.006 85); --ink-60: oklch(0.70 0.006 85); --ink-40: oklch(0.55 0.006 85); --ink-05: oklch(0.27 0.006 80); --line: oklch(0.36 0.007 80); --accent: oklch(0.70 0.13 250); --accent-soft: color-mix(in srgb, oklch(0.70 0.13 250) 12%, oklch(0.235 0.007 80)); }
+    .root { color: var(--ink); background: var(--paper); font-size: 14px; line-height: 1.5; }
+    .opt { display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 10px; border-radius: 6px; }
+    .opt .ico { width: 16px; height: 16px; color: var(--ink-40); flex: none; }
+    .opt .nm { flex: 1 1 0; min-width: 0; font-size: 12px; color: var(--ink-80); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .chip { display: inline-flex; align-items: center; height: 18px; padding: 0 7px; border-radius: 999px; font-size: 11px; border: 1px solid var(--line); color: var(--ink-40); }
+    .chip.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+    .caption { font-size: 11px; color: var(--ink-40); }
+  </style>
+</helmet>
+<div class="root {{themeClass}}" style="width: 320px; height: 372px; padding: 16px; box-sizing: border-box; display: flex; flex-direction: column; gap: 10px;">
+  <div style="font-size: 12px; font-weight: 500; color: var(--ink-60);">现在 · 画布节点模型框</div>
+  <div style="border: 1px solid var(--line); border-radius: 10px; padding: 6px; box-shadow: 0 8px 24px rgba(0,0,0,0.10); display: flex; flex-direction: column; gap: 2px; background: var(--paper);">
+    <div class="opt"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3l9 4.5-9 4.5-9-4.5z"/><path d="M3 12l9 4.5 9-4.5"/></svg><span class="nm">GPT Image 2</span><span class="chip on">APIMart</span><span class="chip">Kie</span></div>
+    <div class="opt"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3l9 4.5-9 4.5-9-4.5z"/><path d="M3 12l9 4.5 9-4.5"/></svg><span class="nm">Nano Banana 2</span><span class="chip on">APIMart</span><span class="chip">Kie</span></div>
+    <div class="opt"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3l9 4.5-9 4.5-9-4.5z"/><path d="M3 12l9 4.5 9-4.5"/></svg><span class="nm">Seedream 5.0 Pro</span><span class="chip on">APIMart</span><span class="chip">Kie</span></div>
+    <div class="opt"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3l9 4.5-9 4.5-9-4.5z"/><path d="M3 12l9 4.5 9-4.5"/></svg><span class="nm">FLUX.2 Pro</span><span class="chip">Kie</span></div>
+    <div class="opt"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3l9 4.5-9 4.5-9-4.5z"/><path d="M3 12l9 4.5 9-4.5"/></svg><span class="nm">Qwen-Image 3.0</span><span class="chip">APIMart</span></div>
+    <div class="opt"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3l9 4.5-9 4.5-9-4.5z"/><path d="M3 12l9 4.5 9-4.5"/></svg><span class="nm">Nano Banana 2 Lite</span><span class="chip">Kie</span></div>
+    <div class="opt"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3l9 4.5-9 4.5-9-4.5z"/><path d="M3 12l9 4.5 9-4.5"/></svg><span class="nm">Seedream 5.0 Lite</span><span class="chip">Kie</span></div>
+    <div class="opt"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3l9 4.5-9 4.5-9-4.5z"/><path d="M3 12l9 4.5 9-4.5"/></svg><span class="nm">Z-Image Turbo</span><span class="chip">APIMart</span></div>
+  </div>
+  <div class="caption">全部按目录顺序列出；同名模型切走再切回，蓝色 chip 会跳回全局默认那家。</div>
+</div>
+</x-dc>
+<script data-dc-script data-props='{"dark":{"editor":"boolean","default":false,"section":"主题"},"$preview":{"width":320,"height":372}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { themeClass: this.props.dark ? 'dark' : 'light' };
+  }
+}
+</script>
+</body>
+</html>

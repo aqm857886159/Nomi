@@ -22,8 +22,10 @@ import { formatSize, truncateHead, type AgentHarnessTool, type AgentToolResult }
 import type { ZodError, ZodIssue } from 'zod';
 import { LANE_MODEL_OUTPUT_MAX_BYTES, LANE_MODEL_OUTPUT_MAX_LINES } from '../shared/agentLane/laneContracts.js';
 import {
-  LANE_READ_TOOL_TIMEOUT_MS, laneToolModelDescription, renderLaneToolFailure, type LaneToolFailureShape,
+  LANE_READ_TOOL_TIMEOUT_MS, laneToolBillable, laneToolModelDescription, laneToolMutates, renderLaneToolFailure,
+  type LaneToolFailureShape,
 } from '../shared/agentLane/laneToolContract.js';
+import { VERB_EFFECTS } from '../shared/agentCapabilities/verbDeclaration.js';
 import type { LaneToolDescriptor } from './laneRuntimePort.js';
 import { toModelVisibleSchema } from './laneToolSchema.mjs';
 
@@ -176,18 +178,14 @@ export function createLaneTools(descriptors: readonly LaneToolDescriptor[]): Age
     if (!descriptor.description.trim()) {
       throw new Error(`Nomi lane tool ${descriptor.name} needs a model-visible description`);
     }
-    // 自声明的副作用与它自己必须自洽（阶段 2 评审第 ⑨ 维）。装配期抛，不是运行期发现：
-    // 一个「不改状态却说自己可撤销」的声明，唯一的症状会是崩溃恢复时替用户多跑一次。
-    const effects = descriptor.effects;
-    if (!effects.mutates && effects.reversal !== 'none') {
-      throw new Error(
-        `Nomi lane tool ${descriptor.name} declares mutates=${effects.mutates} with reversal="${effects.reversal}". `
-        + 'A read-only tool has nothing to reverse; irreversible writes must not promise an undo.',
-      );
+    // 副作用是**一个四值枚举**（`verbDeclaration.ts` 的唯一词表）。装配期抛，不是运行期发现：
+    // 一个词表外的值唯一的症状会是崩溃恢复时替用户多跑一次、或审批闸把它当只读放行。
+    const effect = descriptor.effect;
+    if (!VERB_EFFECTS.includes(effect)) {
+      throw new Error(`Nomi lane tool ${descriptor.name} declares effect "${String(effect)}"; allowed: ${VERB_EFFECTS.join(', ')}.`);
     }
-    if (effects.billable && !effects.mutates) {
-      throw new Error(`Nomi lane tool ${descriptor.name} claims to spend the user's money without changing anything.`);
-    }
+    const mutates = laneToolMutates(effect);
+    const billable = laneToolBillable(effect);
     const timeoutMs = descriptor.execution.timeoutMs;
     if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) {
       throw new Error(`Nomi lane tool ${descriptor.name} needs a positive execution.timeoutMs budget.`);
@@ -197,7 +195,7 @@ export function createLaneTools(descriptors: readonly LaneToolDescriptor[]): Age
     // 生成吃光，进程一崩这次提交就再也找不回来。所以它只能「拿到 id 就回」，进度另走
     // 状态查询工具。把这条写成装配期不变量，是因为违反它的工具**不会报错**——它只会很慢，
     // 而「很慢」在真机上和「模型在想事情」长得一模一样。
-    if (effects.billable && timeoutMs > LANE_READ_TOOL_TIMEOUT_MS) {
+    if (billable && timeoutMs > LANE_READ_TOOL_TIMEOUT_MS) {
       throw new Error(
         `Nomi lane tool ${descriptor.name} spends money and claims a ${timeoutMs}ms budget. `
         + `A billable tool must submit and return an id within ${LANE_READ_TOOL_TIMEOUT_MS}ms; `
@@ -223,12 +221,12 @@ export function createLaneTools(descriptors: readonly LaneToolDescriptor[]): Age
       // 一次真实批次的行为；它是**声明**，按上游自己的契约填对（`pi-agent-core/dist/types.d.ts:353-359`
       // 的原话就是「这个工具必须一次一个」）。哪天上游让 harness 也读它，我们不用再动一行。
       // `lane-tool-contract` 里那条断言把这个「今天由谁决定」钉住，上游改了它先红。
-      executionMode: effects.mutates ? 'sequential' : 'parallel',
+      executionMode: mutates ? 'sequential' : 'parallel',
       // 崩溃恢复时敢不敢替我们再跑一次。**从工具自己声明的副作用派生，唯一的派生点**：
       // 一次文稿写入重放两遍就是写了两遍（`'never'`），而重放一次 `nomi_canvas_read`
       // 只是多读一次画布（`'safe'`）。上一版对**每一个**工具硬写 `'never'`，包括纯读的
       // 那五个——那不会报错，只会让冷恢复白白丢掉本来能自动补上的那次读。
-      replay: effects.mutates ? 'never' : 'safe',
+      replay: mutates ? 'never' : 'safe',
       ...(descriptor.prepareArguments
         ? { prepareArguments: descriptor.prepareArguments as (args: unknown) => never }
         : {}),

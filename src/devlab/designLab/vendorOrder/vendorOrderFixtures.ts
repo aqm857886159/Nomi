@@ -8,6 +8,7 @@
 // 关键：夹具喂进去的是**整份目录**（含没接入的家）。先把它们筛掉再喂，屏上「没接入的不出现」
 // 就成了夹具自己造的假象，改坏生产代码照样绿——那正是这间实验室要消灭的东西。
 import type { ModelOption } from '../../../config/models'
+import type { ModelBoxPreferenceSettings } from '../../../../electron/shared/contracts/modelBoxPreference'
 
 /** 内置中转两家 + 官方一家 + 一家没接入的。够覆盖偏好、分级、未接入三种来源。 */
 export const VENDOR_APIMART = 'apimart'
@@ -64,3 +65,29 @@ export const CONFIGURED_VENDOR_ENTRIES = [
   { vendorKey: VENDOR_KIE, name: 'Kie' },
   { vendorKey: VENDOR_VOLCENGINE, name: '火山方舟' },
 ]
+
+// ── 模型框整理（2026-09-11 用户拍板的样张 Main.dc.html / PickerAfter.dc.html） ──
+//
+// 这一份夹具只决定「目录里有哪些模型、哪几家」；显示哪些、排在哪、哪个标签是蓝的，
+// 全部由现役的 `partitionByModelBoxPreference` + `sortModelProviders` 算出来。
+export const MODEL_BOX_MODELS: ModelOption[] = toOptions([
+  { label: 'GPT Image 2', canonicalId: 'gpt-image-2', vendors: [VENDOR_APIMART, VENDOR_KIE] },
+  { label: 'Nano Banana 2', canonicalId: 'nano-banana-2', vendors: [VENDOR_APIMART, VENDOR_KIE] },
+  { label: 'Seedream 5.0 Pro', canonicalId: 'seedream-5-0-pro', vendors: [VENDOR_APIMART, VENDOR_KIE] },
+  { label: 'FLUX.2 Pro', canonicalId: 'flux-2-pro', vendors: [VENDOR_KIE] },
+  { label: 'Qwen-Image 3.0', canonicalId: 'qwen-image-3-0', vendors: [VENDOR_APIMART] },
+  { label: 'Nano Banana 2 Lite', canonicalId: 'nano-banana-2-lite', vendors: [VENDOR_KIE] },
+  { label: 'Seedream 5.0 Lite', canonicalId: 'seedream-5-0-lite', vendors: [VENDOR_KIE] },
+  { label: 'Z-Image Turbo', canonicalId: 'z-image-turbo', vendors: [VENDOR_APIMART] },
+])
+
+/**
+ * 样张里那台机器的偏好：藏了两个、手排过顺序、在 Nano Banana 2 上手点过 Kie。
+ * 三个字段同时非空是有意的——它们在真机上本来就住同一张表、同一次读出来。
+ */
+export const MODEL_BOX_PREFERENCE: ModelBoxPreferenceSettings = {
+  schemaVersion: 1,
+  modelOrder: ['gpt-image-2', 'nano-banana-2', 'seedream-5-0-pro', 'flux-2-pro', 'qwen-image-3-0', 'nano-banana-2-lite'],
+  hiddenModelIds: ['seedream-5-0-lite', 'z-image-turbo'],
+  preferredVendorByModel: { 'nano-banana-2': VENDOR_KIE },
+}

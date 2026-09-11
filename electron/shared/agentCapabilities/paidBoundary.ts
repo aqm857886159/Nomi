@@ -4,8 +4,8 @@
 //
 // 花钱的那一刀今天写在三个互不认识的地方：
 //   ① 注册表里 `generation.gate` 是唯一 `effect:"paid"` 的契约（`generation.ts`）；
-//   ② 内部面靠 `modelToolSurfaceManifest.ts` 里一张**手写**的三行名单
-//      （`GENERATION_HOST_ONLY_TRANSITIONS`）把它挡在模型看不见的地方；
+//   ② 内部面曾靠 harness 清单里一张**手写**的三行名单把它挡在模型看不见的地方（PR A 删除了那份清单，
+//      现在由动词声明的装配期不变量 A1 直接抛）；
 //   ③ 对外 MCP 的 `nomi_operation_gate` / `nomi_operation_execute` **根本不是注册表契约**，
 //      是 `mcpGenerationToolCatalog.ts` 里两份手写 JSON Schema。
 //
@@ -49,7 +49,7 @@ export function paidBoundaryAliases(surface: CapabilityProjectionSurface): reado
 
 const PAID_ALIASES: ReadonlySet<string> = new Set(
   PAID_CAPABILITY_CONTRACTS.flatMap((contract) =>
-    (["pi", "mcp", "ui"] as const).flatMap((surface) => aliasesOf(contract, surface))),
+    (["pi", "mcp", "ui", "method"] as const).flatMap((surface) => aliasesOf(contract, surface))),
 );
 
 /**
@@ -74,7 +74,13 @@ export function paidBoundaryReason(toolName: string): string | undefined {
     + "and only a verified Host/UI receipt can settle it. No approval mode auto-approves this.";
 }
 
-/** 内部（Agent lane）profile 投影它吗？付费能力一律不投影——模型面根本够不着。 */
+/**
+ * 内部（Agent lane）profile 投影它吗？付费能力一律不投影——模型面根本够不着。
+ *
+ * 阶段 5a 这条是**静默过滤**（审计 C12：一个漏标 `paid` 的花钱契约会静默进内部面）；从 PR A 起
+ * 注册表把它当**断言**用（`modelFacingToolRegistry.ts`）：一条声明投影到内部 profile 却落在付费契约上，
+ * 装配期当场抛，而不是安静地少一个工具。
+ */
 export function projectsToInternalProfile(contract: AnyCapabilityContract): boolean {
   return contract.effect !== "paid";
 }
@@ -88,7 +94,7 @@ export interface HostOnlyTransition {
 
 export function hostOnlyTransitions(): readonly HostOnlyTransition[] {
   return Object.freeze(PAID_CAPABILITY_CONTRACTS.flatMap((contract) =>
-    aliasesOf(contract, "pi").map((name) => Object.freeze({
+    aliasesOf(contract, "method").map((name) => Object.freeze({
       name,
       capabilityRefs: Object.freeze([contract.id]),
       reason: paidBoundaryReason(name) ?? "",
@@ -144,7 +150,7 @@ export function assertPaidBoundaryExternalSurface(tools: readonly PaidBoundaryEx
     }
     for (const method of paidMethods) claimed.add(method);
   }
-  const unclaimed = paidBoundaryAliases("pi").filter((alias) => !claimed.has(alias));
+  const unclaimed = paidBoundaryAliases("method").filter((alias) => !claimed.has(alias));
   if (unclaimed.length > 0) {
     throw new Error(
       `The paid boundary has aliases no external tool claims: ${unclaimed.join(", ")}. `
