@@ -17,8 +17,6 @@ import type { AnchorCheckpointCardModel } from './anchorCheckpointView'
 
 type Props = {
   model: AnchorCheckpointCardModel
-  /** 自动放行倒计时（秒）：仅当 run 配了 anchorAutoReleaseMs 才 >0；生产默认不设 → 0 → 脚注不显示。 */
-  autoReleaseSeconds?: number
   /** 「开拍」= 批准。resolve(true)。 */
   onApprove: () => void
   /** 「先不拍」= 不表态。resolve(false)、门保持 waiting。 */
@@ -35,7 +33,7 @@ function formatMoney(value: number, currency: string, language: string): string 
   }
 }
 
-export function AnchorCheckpointCard({ model, autoReleaseSeconds = 0, onApprove, onDefer, onRework }: Props): JSX.Element {
+export function AnchorCheckpointCard({ model, onApprove, onDefer, onRework }: Props): JSX.Element {
   const { t, i18n } = useTranslation()
   const [selected, setSelected] = React.useState<Set<string>>(() => new Set())
   const [zoomUrl, setZoomUrl] = React.useState<string | null>(null)
@@ -160,14 +158,8 @@ export function AnchorCheckpointCard({ model, autoReleaseSeconds = 0, onApprove,
         </p>
       </div>
 
-      {/* 固定 footer（不随网格滚）：左=自动放行脚注（默认空）；右=先不拍 + 开拍/重拍。 */}
-      <div className={cn('shrink-0 mt-3 flex items-center gap-2.5 border-t border-nomi-line pt-3')} data-anchor-checkpoint-footer>
-        <span className={cn('text-micro leading-relaxed text-nomi-ink-40')} data-anchor-checkpoint-footnote>
-          {autoReleaseSeconds > 0
-            ? t('generationCommon.production.checkpoint.autoRelease', { minutes: Math.max(1, Math.round(autoReleaseSeconds / 60)) })
-            : ''}
-        </span>
-        <span className={cn('flex-1')} />
+      {/* 固定 footer（不随网格滚）：右=先不拍 + 开拍/重拍。检查点永不自动放行，所以左边没有脚注要摆。 */}
+      <div className={cn('shrink-0 mt-3 flex items-center justify-end gap-2.5 border-t border-nomi-line pt-3')} data-anchor-checkpoint-footer>
         <WorkbenchButton className={cn('h-8 px-4 cursor-pointer')} onClick={onDefer} data-anchor-checkpoint-defer>
           {t('generationCommon.production.checkpoint.defer')}
         </WorkbenchButton>

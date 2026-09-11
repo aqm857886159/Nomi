@@ -42,13 +42,34 @@ let seq = 0
 type PendingEntry = {
   resolve: (value: unknown) => void
   reject: (error: Error) => void
-  timer: ReturnType<typeof setTimeout>
+  /** 清掉这条 pending 的一切副作用（定时器 / 生命周期监听 / map 条目）。恰好调用一次。 */
+  settle: () => void
+  /** 发出这一刻的收件人对象本身。换窗口时用它判断「这条还在不在原来那个界面上」。 */
+  recipient: WebContents
+  /** 这条请求在等**真人做决定**（没有墙钟期限，见 requestRendererDecision）。 */
+  awaitsHumanDecision: boolean
   webContentsId: number
   frameRoutingId: number
   origin: string
 }
 const pending = new Map<number, PendingEntry>()
 let replyListenerBound = false
+
+/**
+ * 等真人做决定的请求靠「收件的那个渲染层还在不在」收尾，而不是靠等了多久。
+ * 真 WebContents 这两个事件都有；测试里的假对象可能没有 once/removeListener，故按存在与否降级。
+ */
+const RECIPIENT_GONE_EVENTS = ['destroyed', 'render-process-gone'] as const
+type RecipientLifecycle = {
+  once?: (event: string, listener: () => void) => void
+  removeListener?: (event: string, listener: () => void) => void
+}
+
+type Deadline =
+  /** 渲染层是自己在干活（读写 store、渲染分镜…）：等太久就是它卡住了，超时即失败。 */
+  | { kind: 'timeout'; ms: number }
+  /** 渲染层在等**人**：没有期限，只在那个界面真的没了的时候 fail-closed。 */
+  | { kind: 'until-recipient-gone' }
 
 function frameOrigin(url: string | undefined): string | null {
   if (!url) return null
@@ -63,6 +84,13 @@ function frameOrigin(url: string | undefined): string | null {
 /** 主进程在创建/销毁主窗口时调用，登记/清除当前可达的渲染层。 */
 export function setRendererTarget(webContents: WebContents | null): void {
   target = webContents
+  // 换了窗口（或者没有窗口了）＝ 那张卡连同承载它的界面一起没了。等真人决定的请求没有墙钟期限，
+  // 只能在这里 fail-closed 收尾，否则它会永远挂着；而调用方拿到的必须是「没确认」，不是「确认了」。
+  for (const entry of [...pending.values()]) {
+    if (!entry.awaitsHumanDecision || entry.recipient === webContents) continue
+    entry.settle()
+    entry.reject(new RendererUnavailableError('Nomi 窗口已关闭，这一步没有被确认'))
+  }
 }
 
 export function isRendererAvailable(): boolean {
@@ -96,8 +124,7 @@ function ensureReplyListener(): void {
       })
       return
     }
-    clearTimeout(entry.timer)
-    pending.delete(id)
+    entry.settle()
     if (payload?.ok) entry.resolve(payload.result)
     else entry.reject(new RendererApplyError(String(payload?.error || '渲染层处理失败')))
   })
@@ -106,8 +133,29 @@ function ensureReplyListener(): void {
 /**
  * 向渲染层发一条请求并等其应答。timeoutMs 内无应答即 reject（不挂死）。
  * 窗口不可用立即 reject（RendererUnavailableError），调用方据此降级到 B 模式（直写盘）。
+ *
+ * 只用于**渲染层自己干得完**的活。要等人按按钮的用 `requestRendererDecision`。
  */
 export function requestRenderer(op: string, payload: unknown, timeoutMs: number): Promise<unknown> {
+  return dispatch(op, payload, { kind: 'timeout', ms: timeoutMs })
+}
+
+/**
+ * 等**真人做决定**的请求（付费确认、方案确认、生成闸确认）：**没有墙钟期限**。
+ *
+ * 2026-09-11 用户拍板：审批卡永不因空闲超时。卡片那边的倒计时已经删了，这里再留一个 60/65s
+ * 兜底，就等于把倒计时搬到用户看不见的地方——卡还好端端在屏幕上，请求却早已被替他答成「否」；
+ * 他三分钟后按下「生成 ¥0.50」，reply 因为 pending 已被删而被静默丢弃，界面一动不动。
+ * 那是这轮要根治的形态本身，只是藏在了主进程里。
+ *
+ * 活性没有丢，只是判据从「等了多久」换成「收件的那个渲染层还在不在」：窗口销毁 / 渲染进程没了 /
+ * 主窗口被换掉 → 立即 reject（fail-closed，调用方一律当作未确认）。人还在看着卡的时候，永远等下去。
+ */
+export function requestRendererDecision(op: string, payload: unknown): Promise<unknown> {
+  return dispatch(op, payload, { kind: 'until-recipient-gone' })
+}
+
+function dispatch(op: string, payload: unknown, deadline: Deadline): Promise<unknown> {
   ensureReplyListener()
   if (!target || target.isDestroyed()) {
     return Promise.reject(new RendererUnavailableError())
@@ -116,21 +164,47 @@ export function requestRenderer(op: string, payload: unknown, timeoutMs: number)
   // 收件人身份在**发出这一刻**定格：之后即便 target 被换掉（窗口重建），这条 pending 仍只认原收件人，
   // 不会被新窗口或别的 frame 的同 id 回复顶掉。主 frame 的 routingId 走 mainFrame（渲染层的
   // capability.onApply 就跑在主 frame 里）。
-  const recipient = target!
+  const recipient = target
   const recipientFrameRoutingId = recipient.mainFrame?.routingId ?? 1
   const recipientOrigin = frameOrigin(recipient.getURL())
   if (!recipientOrigin) return Promise.reject(new RendererUnavailableError('Nomi 窗口来源不可验证'))
   return new Promise<unknown>((resolve, reject) => {
-    const timer = setTimeout(() => {
+    const lifecycle = recipient as unknown as RecipientLifecycle
+    let timer: ReturnType<typeof setTimeout> | null = null
+    const settle = (): void => {
+      if (timer) clearTimeout(timer)
       pending.delete(id)
-      reject(new RendererApplyError(`渲染层无响应（${Math.round(timeoutMs / 1000)}s 超时）`))
-    }, timeoutMs)
-    pending.set(id, { resolve, reject, timer, webContentsId: recipient.id, frameRoutingId: recipientFrameRoutingId, origin: recipientOrigin })
+      if (deadline.kind === 'until-recipient-gone') {
+        for (const event of RECIPIENT_GONE_EVENTS) lifecycle.removeListener?.(event, onRecipientGone)
+      }
+    }
+    function onRecipientGone(): void {
+      if (!pending.has(id)) return
+      settle()
+      reject(new RendererUnavailableError('Nomi 窗口已关闭，这一步没有被确认'))
+    }
+    if (deadline.kind === 'timeout') {
+      timer = setTimeout(() => {
+        settle()
+        reject(new RendererApplyError(`渲染层无响应（${Math.round(deadline.ms / 1000)}s 超时）`))
+      }, deadline.ms)
+    } else {
+      for (const event of RECIPIENT_GONE_EVENTS) lifecycle.once?.(event, onRecipientGone)
+    }
+    pending.set(id, {
+      resolve,
+      reject,
+      settle,
+      recipient,
+      awaitsHumanDecision: deadline.kind === 'until-recipient-gone',
+      webContentsId: recipient.id,
+      frameRoutingId: recipientFrameRoutingId,
+      origin: recipientOrigin,
+    })
     try {
-      target!.send(CAPABILITY_APPLY_CHANNEL, { id, op, payload })
+      recipient.send(CAPABILITY_APPLY_CHANNEL, { id, op, payload })
     } catch (error) {
-      clearTimeout(timer)
-      pending.delete(id)
+      settle()
       reject(error instanceof Error ? error : new RendererApplyError(String(error)))
     }
   })

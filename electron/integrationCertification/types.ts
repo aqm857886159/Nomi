@@ -1,4 +1,5 @@
 import type { ProfileKind } from "../catalog/types";
+import type { FetchTaskResultFn, RunTaskFn } from "../capabilityCore/core";
 import type { CertificationMediaEvidence } from "../providerAdapter/certificationMedia";
 import type { AdapterVerificationResult } from "../providerAdapter/verifier";
 export const CERTIFICATION_LEDGER_VERSION = 3 as const;
@@ -171,4 +172,19 @@ export type PromotionJournalState = {
     finalizedAt: string;
   }>;
   archives: CertificationArchiveRef[];
+};
+
+/**
+ * 本机 ComfyUI 认证真正要用的三样运行时能力。**必填，不许 optional**：
+ * 2026-09-11 真机矩阵实锤，它们一旦缺席，`certifyComfy` 照样挂得上去，
+ * 「有没有这个能力」的检查全过，真调用才在闭包里炸、还被 catch 洗成
+ * `certification_unavailable` —— 整条 ComfyUI 接入链必炸且静默（R28）。
+ * 归属层：注册处的**构造期**。缺一样就编译不过，轮不到运行时。
+ */
+export type ComfyCertificationRuntime = {
+  /** Canonical native ComfyUI candidate runner. Supplied by both GUI and stdio. */
+  runTask: RunTaskFn;
+  fetchTaskResult: FetchTaskResultFn;
+  /** Main-process spend authority used after the integration receipt is consumed. */
+  mintSpendGrant: (nodeIds: string[], maxAttemptsPerNode?: number) => string;
 };
