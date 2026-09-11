@@ -34,4 +34,24 @@ describe('estimatePlanCost — F11 本波价格（未知 ≠ 0）', () => {
     const est = estimatePlanCost([node('a')], () => undefined)
     expect(est.known).toBe(false)
   })
+
+  // 2026-09-11 根因回归：这里此前只累加基价，规格加价一分都不进这个数——同一批镜头，
+  // 条上印的比主进程真正要扣的少。现在两边跑的是契约层那条唯一算式（基价 + 命中的加价）。
+  it('选中的参数命中规格加价 → 加价必须进这个数（此前只累加基价，少报）', () => {
+    const upgraded = { ...node('a'), meta: { size: '1536x1024' } } as GenerationCanvasNode
+    const option: ModelOption = {
+      value: 'm', label: 'M',
+      pricing: { cost: 0.3, enabled: true, specCosts: [{ specKey: 'size:1536x1024', cost: 0.2, enabled: true }] },
+    }
+    expect(estimatePlanCost([upgraded], () => option)).toEqual({ known: true, credits: 0.5 })
+    // 没选到那一档就不加钱——加价钉的是「某个参数选了某个值」，不是无条件涨价。
+    const base = { ...node('a'), meta: { size: '1024x1024' } } as GenerationCanvasNode
+    expect(estimatePlanCost([base], () => option)).toEqual({ known: true, credits: 0.3 })
+  })
+
+  // 未启用的价目档不该被当成「已知的 0 元」印出去。
+  it('价目整条 enabled:false → 未知，不是 0', () => {
+    const off: ModelOption = { value: 'm', label: 'M', pricing: { cost: 3, enabled: false, specCosts: [] } }
+    expect(estimatePlanCost([node('a')], () => off).known).toBe(false)
+  })
 })
