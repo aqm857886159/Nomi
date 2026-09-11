@@ -514,30 +514,27 @@ describe("Agent 面板付费卡：确认 → 真的开始生成（零额度 loop
  */
 describe("三档 × 付费报价卡（2026-09-12 拍板）", () => {
   /**
-   * 模型那一侧真正走得到的一轮：**建草稿**。
+   * 模型那一侧的一轮：草稿已经在（和别的用例同一个 `draft()`——面板上的付费卡本来就是从
+   * `origin.host='nomi'` 的草稿投影出来的），然后模型走它能走到的**最后一步**：预检。
    *
-   * 桌面 lane 上这就是模型的最后一步——付费门不在它的工具表里，连 preview 都不在这个宿主的
-   * schema 里。草稿一建好，报价卡就该出现；「全自动」档的免卡放行正发生在同一刻。
+   * 「全自动」的免卡放行就发生在预检返回之前——付费门根本不在模型的工具表里
+   * （`paidBoundary.ts`「内部面不投影」），所以这一步之后球就传给了宿主。
    */
   async function modelTurn(base: ReturnType<typeof harness>, vendorOrigin: string, submits: string[], mode: ProjectAgentApprovalPolicy["mode"]) {
     const built = buildActions(base, vendorOrigin, submits);
     const transport = built.transport(mode);
-    const created = await callTool(transport, "nomi_generation_plan", {
-      operation: "create", taskKind: "text_to_image", candidate: candidate("image-model", { size: "1024x1024" }),
-    });
+    await draft(base);
+    const previewed = await callTool(transport, "nomi_preview_execution", { operationId: OPERATION_ID });
     await base.canvasLanding.settleCanvasLanding(PROJECT_ID);
-    const operationId = ((created as { result?: { drafted?: { operation?: { operationId?: string } }; operation?: { operationId?: string } } }).result);
-    const resolved = operationId?.drafted?.operation?.operationId ?? operationId?.operation?.operationId ?? "";
-    return { ...built, created, operationId: resolved };
+    return { ...built, operationId: OPERATION_ID, previewed };
   }
 
-  it("全自动：草稿一建好宿主就自己决门 → 没有报价卡、生成真的开始了、收据写着 policy:full_auto", async () => {
+  it("全自动：预检之后宿主自己决门 → 没有报价卡、生成真的开始了、收据写着 policy:full_auto", async () => {
     const vendor = await startLoopbackVendor();
     const base = harness();
     const submits: string[] = [];
     try {
-      const { withWindow, operationId, created, receipts } = await modelTurn(base, vendor.origin, submits, "project");
-      expect(operationId, "建草稿必须成功——后面每一条断言都以它为前提").toBeTruthy();
+      const { withWindow, operationId, previewed, receipts } = await modelTurn(base, vendor.origin, submits, "project");
 
       // ① 没有卡：等用户点头的那一笔不存在了，因为已经决过了。
       expect(withWindow.listPendingSpend(PROJECT_ID)).toHaveLength(0);
@@ -560,7 +557,7 @@ describe("三档 × 付费报价卡（2026-09-12 拍板）", () => {
       expect(receipt.humanActor).toBe("policy:project:agent-lane");
 
       // 工具结果里也说得出这一笔是策略批的（模型据此知道「已经开跑」，不会再去催用户点卡）。
-      expect(created).toMatchObject({ ok: true, result: { spendDecision: { decidedBy: "policy:full_auto" } } });
+      expect(previewed).toMatchObject({ ok: true, result: { spendDecision: { decidedBy: "policy:full_auto" } } });
     } finally {
       await vendor.close();
     }
@@ -603,9 +600,8 @@ describe("三档 × 付费报价卡（2026-09-12 拍板）", () => {
           leaseFor: () => lease,
         },
       );
-      await callTool(transport, "nomi_generation_plan", {
-        operation: "create", taskKind: "text_to_image", candidate: candidate("image-model", { size: "1024x1024" }),
-      });
+      await draft(base);
+      await callTool(transport, "nomi_preview_execution", { operationId: OPERATION_ID });
       await base.canvasLanding.settleCanvasLanding(PROJECT_ID);
       // 不知道档位时**不许**替用户花钱：供应商一次都没被碰，卡还在原处等人。
       expect(submits).toHaveLength(0);
