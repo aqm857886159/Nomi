@@ -1,6 +1,6 @@
 import { ipcMain } from "electron";
 import { assertTrustedSender } from "../ipcSenderGuard";
-import { getIntegrationSessionService, type IntegrationSessionService } from "./integrationSession";
+import type { IntegrationSessionService } from "./integrationSession";
 import { readCatalog } from "../catalog/catalogStore";
 import { isComfyuiVendor } from "../catalog/types";
 
@@ -10,13 +10,16 @@ function objectPayload(value: unknown): Record<string, unknown> {
 }
 
 /** Trusted renderer seam for credential entry and receipt minting. Secrets only
- * cross this main-window IPC boundary and are never returned in its projections. */
-export function registerIntegrationSessionIpc(service?: IntegrationSessionService): void {
-  const resolve = () => service || getIntegrationSessionService();
+ * cross this main-window IPC boundary and are never returned in its projections.
+ *
+ * `service` 必填：以前它是 optional、缺席时回落到单例零参兜底构造，于是整条 ComfyUI
+ * 认证链拿不到运行时依赖而必炸且静默（2026-09-11 真机矩阵 §BUG-2）。装配处见
+ * `integrationSessionRuntimeInstall.installIntegrationSessionRuntime`。 */
+export function registerIntegrationSessionIpc(service: IntegrationSessionService): void {
   ipcMain.handle("nomi:integration-session:get", (event, raw: unknown) => {
     assertTrustedSender(event);
     const payload = objectPayload(raw);
-    return resolve().get(String(payload.sessionId || ""));
+    return service.get(String(payload.sessionId || ""));
   });
   ipcMain.handle("nomi:integration-session:comfyui:prepare", (event, raw: unknown) => {
     assertTrustedSender(event);
@@ -29,7 +32,6 @@ export function registerIntegrationSessionIpc(service?: IntegrationSessionServic
       const owned = readCatalog().models.some((model) => model.vendorKey === vendorKey && model.modelKey === modelKey);
       if (!owned) throw new Error("ComfyUI workflow does not belong to the selected connection");
     }
-    const service = resolve();
     const created = service.begin({
       kind: "comfyui-workflow",
       name: String(payload.name || "ComfyUI workflow"),
@@ -56,7 +58,7 @@ export function registerIntegrationSessionIpc(service?: IntegrationSessionServic
   ipcMain.handle("nomi:integration-session:credential", (event, raw: unknown) => {
     assertTrustedSender(event);
     const payload = objectPayload(raw);
-    return resolve().saveCredential(
+    return service.saveCredential(
       payload.sessionId,
       payload.expectedRevision,
       "nomi",
@@ -70,7 +72,7 @@ export function registerIntegrationSessionIpc(service?: IntegrationSessionServic
     if (!Number.isInteger(frameId)) throw new Error("Trusted renderer frame is unavailable");
     let origin = "file://";
     try { origin = new URL(event.senderFrame?.url || "file://").origin || "file://"; } catch { /* trusted sender guard already checked origin */ }
-    const confirmed = resolve().confirmFromTrustedUi({
+    const confirmed = service.confirmFromTrustedUi({
       sessionId: String(payload.sessionId || ""),
       expectedRevision: Number(payload.expectedRevision),
       challengeId: String(payload.challengeId || ""),
@@ -79,7 +81,7 @@ export function registerIntegrationSessionIpc(service?: IntegrationSessionServic
       origin,
     });
     return confirmed.ownerClientId === "nomi"
-      ? resolve().startConfirmedFromTrustedUi(confirmed.id, confirmed.revision)
+      ? service.startConfirmedFromTrustedUi(confirmed.id, confirmed.revision)
       : confirmed;
   });
 }

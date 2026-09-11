@@ -347,14 +347,13 @@
       "site": "electron/productionRun/batchScheduleDerivation.ts::type:CheckpointStatus/type-union",
       "members": [
         "approved",
-        "auto_release",
         "not_required",
         "pending_anchors",
         "rejected",
         "should_open",
         "waiting"
       ],
-      "reason": "ProductionRun 账本域的业务合同（approved / auto_release / not_required / pending_anchors / rejected / should_open / waiting），描述关卡、产物、阶段或整条生产运行，不等同于通用后台任务态。"
+      "reason": "ProductionRun 账本域的业务合同（approved / not_required / pending_anchors / rejected / should_open / waiting），描述关卡、产物、阶段或整条生产运行，不等同于通用后台任务态。审批门没有自动放行成员：2026-09-11 拍板「审批卡永不因空闲超时」，waiting 只能由真人决议移动。"
     },
     {
       "site": "electron/productionRun/budgetLedger.ts::type:Reservation/property:status/type-union",

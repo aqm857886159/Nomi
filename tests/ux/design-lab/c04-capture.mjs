@@ -43,7 +43,6 @@ try {
         const selector = specimen === 'c04' ? '[data-storyboard-strategy-panel]' : '[data-spend-confirm-dialog]'
         await page.locator(selector).waitFor({ state: 'visible' })
         await page.evaluate(() => document.fonts.ready)
-        if (specimen === 'c06') await page.locator(selector).hover() // Real interaction pauses the production countdown.
         const text = await page.locator(selector).innerText()
         const rows = await page.locator('[data-storyboard-strategy-blocker]').count()
         if (specimen === 'c04' && rows !== (phase === 'before' ? 8 : 1)) throw new Error(`Unexpected blocker rows: ${rows}`)

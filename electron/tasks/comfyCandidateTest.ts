@@ -8,6 +8,7 @@ import { CertificationMediaError } from "../providerAdapter/certificationMedia";
 import type { TaskResult } from "../runtime";
 import { redactNetworkMessage } from "../networkErrorDetails";
 import { stripNomiErrorCode } from "../shared/nomiErrorCodes";
+import { logError } from "../logging/logger";
 
 export type ComfyCandidateTestResult =
   | { ok: true; revisionId: string; active: { vendorKey: string; modelKey: string }; remoteTaskId?: string }
@@ -97,6 +98,9 @@ function awaitWithAbort<T>(promise: Promise<T>, signal: AbortSignal): Promise<T>
 }
 
 function safeFailure(revisionId: string, error: unknown, timedOut: boolean): ComfyCandidateTestResult {
+  // reasonCode 是给用户看的粗码，原始错误以前在这里被彻底丢掉：真机上「/prompt 明明成功了
+  // 却报 provider_failed」时，盘上、界面上、日志里全都没有线索。日志已脱敏（redactError）。
+  logError("onboarding", "comfy-candidate-test-failed", error, { revisionId, timedOut });
   if (error instanceof CertificationMediaError) {
     return { ok: false, revisionId, reasonCode: error.reasonCode, params: error.params };
   }
@@ -144,7 +148,17 @@ async function executeCandidate(
         projectId: intent.payload.request.extras?.projectId,
       }), controller.signal)).result;
     }
-    if (result.status !== "succeeded" || !result.assets.length) throw new Error("Provider candidate failed");
+    if (result.status !== "succeeded" || !result.assets.length) {
+      // 「哪一半不成立」必须写下来：status 不对和「succeeded 但零产物」是两条完全不同的排查路，
+      // 只抛一句 Provider candidate failed 等于让下一个人重新装一遍仪器。
+      logError("onboarding", "comfy-candidate-no-output", undefined, {
+        revisionId: intent.revisionId,
+        status: result.status,
+        assets: result.assets.length,
+        ...(result.error ? { providerError: String(result.error) } : {}),
+      });
+      throw new Error("Provider candidate failed");
+    }
     const active = activeComfyCandidateRevision(intent.revisionId);
     if (!active) throw new Error("Candidate completed without atomic promotion");
     return { ok: true, revisionId: intent.revisionId, active, ...(remoteTaskId ? { remoteTaskId } : {}) };

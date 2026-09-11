@@ -5,6 +5,7 @@ import { capabilityCoreDir, ensureCapabilitySigningKey, type CapabilityOriginHos
 import { createApprovalReceiptAuthority } from "../capabilityCore/approvalReceipt";
 import { createProductionRunLock } from "../productionRun/productionRunLock";
 import { writeCertificationJsonAtomic } from "./certificationPersistence";
+import { logError } from "../logging/logger";
 import { ConnectionCertificationService, getConnectionCertificationService } from "./service";
 import type {
   AdapterAuthType,
@@ -24,17 +25,17 @@ import { mutateCatalog, readCatalog, normalizeProviderKind } from "../catalog/ca
 import { decryptApiKeyRecord } from "../catalog/secrets";
 import { deriveVendorKeyFromBaseUrl } from "../catalog/catalogCommit";
 import type { ProfileKind } from "../catalog/types";
-import type { FetchTaskResultFn, RunTaskFn } from "../capabilityCore/core";
 import { runComfyCandidateTest } from "../tasks/comfyCandidateTest";
 import { isComfyuiVendor, COMFYUI_VENDOR_KEY } from "../catalog/types";
 import { OperationLedger } from "./operationLedger";
-import type { CertificationOperationRecord } from "./types";
+import type { CertificationOperationRecord, ComfyCertificationRuntime } from "./types";
 import type { WorkflowBinding, WorkflowEnumOption } from "../catalog/comfyuiWorkflowImport";
 import {
   integrationConfirmationProjection,
   type IntegrationConfirmationChallenge,
 } from "./integrationSpendGate";
 export type { IntegrationConfirmationChallenge } from "./integrationSpendGate";
+export type { ComfyCertificationRuntime } from "./types";
 import {
   proposalCandidates,
   proposalRejected,
@@ -175,11 +176,6 @@ type Dependencies = {
    * resulting `/view`/decode/promotion path) without issuing `/prompt`.
    */
   reconcileComfy?: (session: IntegrationSession, idempotencyKey: string, remoteTaskId: string) => Promise<void>;
-  /** Canonical native ComfyUI candidate runner. Supplied by both GUI and stdio. */
-  runTask?: RunTaskFn;
-  fetchTaskResult?: FetchTaskResultFn;
-  /** Main-process spend authority used after the integration receipt is consumed. */
-  mintSpendGrant?: (nodeIds: string[], maxAttemptsPerNode?: number) => string;
   credentialResolver?: (session: IntegrationSession) => string | undefined;
   /** 「Nomi 自己有没有文本模型可以拿来读文档」。默认问真实 catalog；测试注入布尔。 */
   compilerAvailable?: () => boolean;
@@ -206,18 +202,15 @@ type Dependencies = {
 /** Runtime wiring used by both GUI RPC and packaged stdio. Keeps secrets in main and
  * injects the same certification/receipt/handoff boundaries into every transport. */
 export function createRuntimeIntegrationSessionService(
-  input: {
+  input: ComfyCertificationRuntime & {
     approvalReceiptAuthority?: Dependencies["approvalReceiptAuthority"];
     certification?: ConnectionCertificationService;
     enqueueHandoff?: Dependencies["enqueueHandoff"];
     save?: Dependencies["save"];
     filePath?: string;
     now?: () => string;
-    runTask?: Dependencies["runTask"];
-    fetchTaskResult?: Dependencies["fetchTaskResult"];
-    mintSpendGrant?: Dependencies["mintSpendGrant"];
     comfyOperationLedger?: Dependencies["comfyOperationLedger"];
-  } = {},
+  },
 ): IntegrationSessionService {
   const authority = input.approvalReceiptAuthority || defaultIntegrationReceiptAuthority();
   const certification = input.certification || getConnectionCertificationService();
@@ -374,7 +367,6 @@ export function createRuntimeIntegrationSessionService(
     );
   };
   const certifyComfy = async (session: IntegrationSession, idempotencyKey: string) => {
-    if (!runTask || !fetchTaskResult || !mintSpendGrant) throw new Error("comfy_certification_unavailable");
     const workflow = session.config.workflow;
     if (!workflow) throw new Error("comfy_workflow_missing");
     // The source vendor is selected from the frozen endpoint, never from an
@@ -530,9 +522,6 @@ export function createRuntimeIntegrationSessionService(
     save: input.save,
     now: input.now,
     credentialResolver: resolveCredential,
-    runTask,
-    fetchTaskResult,
-    mintSpendGrant,
     certifyComfy,
     comfyOperationLedger,
     reconcileComfy,
@@ -1581,6 +1570,14 @@ export class IntegrationSessionService {
       session.blockingReason = {
         code: safeCertificationFailureCode(error),
       };
+      // blockingReason 只留一个粗码（provider_failed / invalid_input / …），原始错误以前
+      // 在这里被彻底丢掉：真机上「明明 /prompt 成功了却报失败」时，盘上和界面上都没有任何
+      // 线索可查。日志已做脱敏（redactError），记下来才有得排。
+      logError("onboarding", "integration-certification-failed", error, {
+        sessionId: session.id,
+        kind: session.kind,
+        code: session.blockingReason.code,
+      });
     }
     if (session.kind === "comfyui-workflow" && this.deps.comfyOperationLedger && comfyReservation?.operation) {
       const current = this.deps.comfyOperationLedger.getByRunId(comfyReservation.operation.runId);
@@ -1634,12 +1631,14 @@ export class IntegrationSessionService {
   }
 }
 let singleton: IntegrationSessionService | null = null;
-export function configureIntegrationSessionService(deps: Dependencies = {}): IntegrationSessionService {
-  if (!singleton) singleton = new IntegrationSessionService(deps);
-  return singleton;
-}
-export function getIntegrationSessionService(deps?: Dependencies): IntegrationSessionService {
-  if (deps && !singleton) singleton = new IntegrationSessionService(deps);
-  singleton ||= createRuntimeIntegrationSessionService();
+/**
+ * 进程内唯一实例的取用口。**没装过就炸，不再零参兜底造一个**——那个兜底造出来的实例
+ * 拿不到 runTask/fetchTaskResult/mintSpendGrant，ComfyUI 认证必炸且静默（见
+ * `ComfyCertificationRuntime` 注释）。装配只走 `installIntegrationSessionRuntime()`
+ * （integrationSessionRuntimeInstall.ts），发生在各进程入口的启动期；
+ * 所以这里抛 = 启动顺序坏了，而不是某个用户动作坏了。
+ */
+export function getIntegrationSessionService(): IntegrationSessionService {
+  if (!singleton) throw new Error("integration_session_service_not_installed");
   return singleton;
 }
