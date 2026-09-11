@@ -18,7 +18,7 @@ import { sealAndApproveProductionGeneration } from "../productionRun/productionG
 import type { ProductionGenerationShot } from "../productionRun/productionRunTypes";
 
 // P4 §3.2 — 锚定妆照检查点的**生产审批入口** E2E（修 §8.5 停死 gap 的验收）。此前所有测试都用
-// repository.execute 直发 gate.decide 或 anchorAutoReleaseMs 绕过检查点，正好把「生产没有入口」盖住。
+// repository.execute 直发 gate.decide 或那个现已删除的自动放行超时绕过检查点，正好把「生产没有入口」盖住。
 // 这里走真入口整链：真 loopback vendor（零额度）→ 真 durable Run → 真 scheduler 停在检查点 →
 // **真 dispatcher `production.decide-gate`**（= nomi_decide_gate 的 method 层）→ 真 service post-decide
 // 钩子经插槽重踢 → 镜头批自动续跑到完成。核心断言：批准动作本身让批次醒过来（入口不用再做任何事），

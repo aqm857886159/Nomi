@@ -125,7 +125,7 @@ try {
     check(!cardText.includes(banned), `卡上无内部术语「${banned}」`)
   }
 
-  // 固定 footer：费用块 + 冻结项 + 倒计时 + 按钮区。
+  // 固定 footer：费用块 + 冻结项 + 按钮区。
   const footer = card.locator('[data-production-footer]')
   check(await footer.count() === 1, '固定 footer 存在')
   const footerText = await footer.innerText()
@@ -137,12 +137,13 @@ try {
   check(footerText.includes('返回修改'), 'footer 左侧「返回修改」文字链')
   check(footerText.includes('确认生成 3 镜'), '主按钮「确认生成 3 镜」')
 
-  // 倒计时「交互即暂停」：刚才已经在卡上动过（waitFor/innerText 不算真实交互），显式 hover 触发暂停。
-  await card.locator('> div').first().hover().catch(() => {})
-  await win.waitForTimeout(300)
-  const countdownState = await card.locator('[data-production-countdown]').getAttribute('data-production-countdown')
-  check(countdownState === 'paused', '倒计时交互即暂停（data-production-countdown=paused）')
-  check((await footer.innerText()).includes('已暂停 · 你正在查看'), '暂停文案「已暂停 · 你正在查看」')
+  // 审批卡永不因空闲超时（2026-09-11 拍板）：卡上没有倒计时条，放着不动也不会替用户答。
+  // 判据分两条——DOM 上没有那个条（结构），停 2s 之后卡还在等（行为）。只断结构会漏掉
+  // 「条不渲染但计时器照跑，到点自己 resolve(false)」那种看不见的自动决定。
+  check(await card.locator('[data-production-countdown]').count() === 0, '卡上没有倒计时条')
+  await win.waitForTimeout(2000)
+  check(await card.count() === 1, '静置 2s 之后卡还在等人答（没有到点自动决定）')
+  check(!(await footer.innerText()).includes('自动'), 'footer 不说任何「自动」')
 
   // 光模式截图（卡整体 + footer 特写）。
   await card.screenshot({ path: path.join(shotsDir, '01-multishot-card-light.png') })

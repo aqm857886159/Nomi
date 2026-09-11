@@ -267,13 +267,24 @@ export async function buildProfileTaskResult(input: {
   const responseMapping = isJsonRecord(rawResponseMapping) ? rawResponseMapping : null;
   const providerMetaMapping = isJsonRecord(rawMetaMapping) ? rawMetaMapping : null;
   const providerMeta = providerMetaFromResponse(response, providerMetaMapping);
-  const taskId = firstString(
+  // 「上游到底给没给任务编号」只能有一个答案。providerMeta 只看 provider_meta_mapping 与
+  // extractTaskId 认得的那几个键（id / taskId / task_id / jobId…），**看不见 response_mapping**；
+  // 而像本机 ComfyUI 这样把编号叫 `prompt_id` 的供应商，编号只走 response_mapping 这一条路。
+  // 于是 result.id 明明已经拿到了 prompt_id，runTask 里那道「没返回任务编号就按失败处理」的闸
+  // 却问的是 providerMeta，答案是「没有」——整条 ComfyUI 认证必失败（2026-09-11 真机实锤）。
+  // 所以在这里就把「来自上游的编号」统一回填：本地兜底 id（taskIdFallback）刻意不回填，
+  // 那道闸要拦的正是「拿伪造编号去轮询」。
+  const providerTaskId = firstString(
     firstMappedString(response, responseMapping, "task_id"),
     providerMeta.task_id,
     providerMeta.query_id,
     extractTaskIdShared(response),
-    input.taskIdFallback,
   );
+  if (providerTaskId) {
+    providerMeta.task_id = providerMeta.task_id || providerTaskId;
+    providerMeta.query_id = providerMeta.query_id || providerTaskId;
+  }
+  const taskId = firstString(providerTaskId, input.taskIdFallback);
   const mappedAssetValues = ["assets", "image_url", "video_url", "audio_url", "model_url"].flatMap((key) => valuesFromMapping(response, responseMapping, key));
   const assetUrls = Array.from(new Set([...mappedAssetValues.flatMap(collectAssetUrls), ...collectAssetUrls(extractAssetUrl(response))]));
   const { status, unrecognizedStatus } = resolveTaskStatus(response, responseMapping, input.mapping.statusMapping, assetUrls);
