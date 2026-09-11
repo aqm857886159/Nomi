@@ -17,17 +17,10 @@ describe("canvas.write canonical contract", () => {
     expect(CANVAS_WRITE_CAPABILITY).toEqual({
       id: "canvas.write",
       version: 1,
-      aliases: { pi: "set_node_prompt", mcp: "nomi_canvas_edit", ui: "nomi_canvas_plan" },
+      // `pi` surface 上只放模型可见的三个动词；operation 值是 schema 枚举，不是别名。
+      aliases: { pi: "nomi_canvas_write", mcp: "nomi_canvas_edit", ui: "nomi_canvas_plan" },
       additionalAliases: {
-        pi: [
-          "create_canvas_nodes",
-          "connect_canvas_edges",
-          "tidy_canvas",
-          "propose_storyboard_plan",
-          "arrange_storyboard_to_timeline",
-          "create_staging_reference",
-          "create_camera_move",
-        ],
+        pi: ["nomi_storyboard_write", "nomi_shot_reference_write"],
       },
       inputSchema: canvasWriteSemanticInputSchema,
       outputSchema: canvasWriteResultSchema,
@@ -52,10 +45,6 @@ describe("canvas.write canonical contract", () => {
       exposure: "mcp_safe",
       requiredScope: "canvas:write",
       targetKind: "canvas",
-      projections: {
-        pi: { description: "Propose an exact, reversible prompt update to one generation canvas node." },
-        mcp: { description: "Propose a validated, reversible canvas edit from current intent." },
-      },
     });
     expect(CANVAS_WRITE_CAPABILITY.aliases.mcp).toBe("nomi_canvas_edit");
   });

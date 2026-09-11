@@ -24,7 +24,6 @@ export const PRODUCTION_RUN_READ_CAPABILITY = {
   exposure: "internal_only",
   requiredScope: "production:read",
   targetKind: "production",
-  projections: { pi: { description: "Read the current ProductionRun projection or resumable progress." } },
 } as const satisfies CapabilityContract<unknown, unknown>;
 
 export const PRODUCTION_RUN_WRITE_CAPABILITY = {
@@ -40,7 +39,6 @@ export const PRODUCTION_RUN_WRITE_CAPABILITY = {
   exposure: "internal_only",
   requiredScope: "production:write",
   targetKind: "production",
-  projections: { pi: { description: "Create a draft or control a ProductionRun without submitting paid work." } },
 } as const satisfies CapabilityContract<unknown, unknown>;
 
 export const PRODUCTION_ARTIFACT_WRITE_CAPABILITY = {
@@ -58,7 +56,6 @@ export const PRODUCTION_ARTIFACT_WRITE_CAPABILITY = {
   exposure: "internal_only",
   requiredScope: "production:artifact:write",
   targetKind: "production",
-  projections: { pi: { description: "Revise, review, or materialize a versioned production artifact." } },
 } as const satisfies CapabilityContract<unknown, unknown>;
 
 export const ARTIFACT_REVIEW_DECISIONS = ["approved", "changes_requested", "rejected"] as const;

@@ -29,10 +29,11 @@
  * 阶段 5a 之前 lane 与对外 MCP 各写各的描述符，那才是并行版（P1），现在两边 import 同一个类型。
  */
 export type {
-  ModelFacingToolEffects as LaneToolEffects,
+  VerbEffect as LaneToolEffect,
   ModelFacingToolExample as LaneToolExample,
   ModelFacingToolSpec as LaneToolSpec,
 } from "../agentCapabilities/modelFacingTools";
+export { verbMutates as laneToolMutates, verbBillable as laneToolBillable, approvalFacetsOf as laneToolApprovalFacets } from "../agentCapabilities/modelFacingTools";
 
 import type { ModelFacingToolExample as LaneToolExample, ModelFacingToolSpec as LaneToolSpec } from "../agentCapabilities/modelFacingTools";
 

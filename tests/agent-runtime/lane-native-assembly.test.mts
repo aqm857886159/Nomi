@@ -84,7 +84,7 @@ test('request tools only resolves registered groups and does not grant file writ
     '一次只切一个组：数组形状不再是合法参数');
   const result = await call({ group: 'media' });
   assert.equal(result.addedToolNames, undefined);
-  assert.equal(native.effects.write.mutates, true);
+  assert.equal(native.effects.write, 'reversible_local');
   assert.equal(native.activeToolNames().length, 20, 'No local activation truth duplicates pi state.');
   await assert.rejects(createLaneNativeAssembly({ projectDir: fixture.projectDir, sandbox, bashTimeoutMs: 5_000,
     deferredGroups: [{ name: 'escape', toolNames: ['read'] }] }), /Duplicate deferred tool/);

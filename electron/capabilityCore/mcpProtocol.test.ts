@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 
 import { CANVAS_READ_MCP_ADAPTER, createMcpCapabilityResolver } from './mcpCapabilityProjection'
 import { createMcpProtocol, type McpTransport } from './mcpProtocol'
-import { mcpProfileTools } from '../shared/agentCapabilities/modelFacingToolRegistry'
+import { mcpProfileTools, specsForCapability } from '../shared/agentCapabilities/modelFacingToolRegistry'
+import { mcpToolDescription } from '../shared/agentCapabilities/modelFacingTools'
 import { EXPORT_READ_CAPABILITY } from '../shared/agentCapabilities/exportCapabilities'
 import { CANVAS_NODE_PROMPT_GUIDELINES } from '../shared/agentCapabilities/canvasWrite'
 import { CANVAS_READ_CAPABILITY } from '../shared/agentCapabilities/canvasRead'
@@ -36,7 +37,7 @@ describe('MCP L1 tools/list_changed notification', () => {
       const read = listed.tools.find(tool => tool.name === 'nomi_read')!
       expect(read.description).toContain('For target=canvas only')
       expect(listed.tools.find(tool => tool.name === EXPORT_READ_CAPABILITY.aliases.mcp)?.description)
-        .toBe(EXPORT_READ_CAPABILITY.projections.mcp?.description)
+        .toBe(mcpToolDescription(EXPORT_READ_CAPABILITY, specsForCapability(EXPORT_READ_CAPABILITY.id)))
     } finally { protocol.dispose() }
   })
 
