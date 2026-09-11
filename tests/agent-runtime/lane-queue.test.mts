@@ -21,7 +21,7 @@ import { projectLaneSnapshot, type LaneModelFacts } from '../../electron/shared/
 import type { LaneToolDescriptor, LaneApprovalOptions } from '../../electron/agentLane/laneRuntimePort.js';
 import { LANE_APPROVAL_NOTE_TYPE, type LaneProjection } from '../../electron/shared/agentLane/laneContracts.js';
 import { LANE_READ_TOOL_TIMEOUT_MS } from '../../electron/shared/agentLane/laneToolContract.js';
-import { createLaneFixture } from './laneFixture.mjs';
+import { createLaneFixture, FIXTURE_DESCRIBE } from './laneFixture.mjs';
 
 /** 「每步问」：让写入必然停下来等人。abort 那条要一个稳定的等待点。 */
 const STEP: LaneApprovalOptions = { hasUserInterface: true, policy: () => ({ mode: 'step', spend: 'confirm' }) };
@@ -42,8 +42,8 @@ function heldTool(name: string) {
     name,
     contractId: 'document.read',
     description: 'Reads the document, but only returns once the test lets it go.',
-    promptSnippet: 'read the document.',
-    effects: { mutates: false, billable: false, reversal: 'none' },
+    promptSnippet: 'read the document.', nextAction: 'none', describe: FIXTURE_DESCRIBE,
+    effect: 'read',
     // 读类预算。这个工具会一直卡到测试放行它，所以预算大小不影响这一族——
     // 但契约要求每个工具都说出自己的上限（3c 的工具级超时），不许留空。
     execution: { timeoutMs: LANE_READ_TOOL_TIMEOUT_MS },
