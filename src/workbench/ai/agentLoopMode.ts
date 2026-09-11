@@ -2,6 +2,7 @@ import type { ProjectAgentAttachmentClaim } from '../../../electron/shared/workb
 import type { AgentAttachmentPayload, AgentsChatResponseDto } from '../../api/desktopClient'
 
 import type { AgentContextSnapshot } from '../../../electron/shared/agentContextSnapshot'
+import { LaneCommandFailure } from './lane/laneCommandFailure'
 import { laneClient } from './lane/laneClient'
 import { getAssistantModelPref } from './assistantModelPref'
 import { useAgentUsageStore } from './agentUsageStore'
@@ -50,7 +51,7 @@ export async function runSingleShotAgent(request: SingleShotAgentRequest): Promi
   const result = await pending
   if (!result.ok) {
     if (cancelled) throw new DOMException('Agent request cancelled', 'AbortError')
-    throw new Error(result.message)
+    throw new LaneCommandFailure(result.code, result.diagnostic)
   }
   if (!result.singleShot) throw new Error('agent_lane_single_shot_result_missing')
   const projection = result.singleShot
