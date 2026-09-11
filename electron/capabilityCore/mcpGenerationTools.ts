@@ -131,7 +131,20 @@ export type GenerationOperationStore = {
   cancel(projectId: string, operationId: string, now: string): GenerationOperation | Promise<GenerationOperation>;
   /** P4 S4 试拍首镜: invalidate the waiting authority and return a narrowed plan to draft for re-seal. */
   trialNarrow?(projectId: string, operationId: string, now: string): GenerationOperation | Promise<GenerationOperation>;
+  /**
+   * 2026-09-11 付费卡上改参数：撤掉还没被点头的授权、把改动落到候选、回到 draft 等重新封印。
+   * 与 `trialNarrow` 同族（同一条「撤授权 → 回 draft → 重新 seal/gate」的路），差别只在改了什么。
+   */
+  revise?(projectId: string, operationId: string, input: GenerationReviseInput, now: string): GenerationOperation | Promise<GenerationOperation>;
 };
+
+/** 卡上那一次改动：改哪一镜（缺省 = 顶层候选）、改了什么。 */
+export type GenerationReviseInput = Readonly<{
+  shotId?: string;
+  patch: Readonly<Record<string, unknown>>;
+  /** 只对 `shotId` 有意义：把这一镜勾上/取消勾选（「逐镜 / 全部」那个范围切换的落点）。 */
+  included?: boolean;
+}>;
 
 function freeze<T>(value: T): T {
   if (!value || typeof value !== "object" || Object.isFrozen(value)) return value;

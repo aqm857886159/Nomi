@@ -26,11 +26,9 @@ import {
 } from '../model/generationNodeKinds'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import type { CanvasMutationOptions } from '../store/canvasGuards'
-import { importWorkbenchLocalAssetFile } from '../../api/assetUploadApi'
 import { comfyWorkflowTakesPrompt } from '../runner/promptRequirement'
 import {
   type DynamicCatalogControl,
-  assetUrl,
   buildEffectiveImageCatalogConfig,
   defaultPatchForCatalogControl,
   videoAspectDefaultPatch,
@@ -44,6 +42,7 @@ import {
   resultPreviewUrl,
   shouldUseVideoFrameSlotFallback,
 } from './controls/parameterControlModel'
+import { createSlotFileUploads } from './controls/slotFileUploads'
 import {
   type ArchetypeArraySlot,
   appendArchetypeArrayValue,
@@ -105,6 +104,18 @@ type NodeParameterControlsProps = {
   onInsertMention?: (url: string) => void
   /** 当前 composer 连在节点哪条边；比例切换用它保持同一连接锚点。 */
   composerAttachmentSide?: ComposerAttachmentSide
+  /**
+   * 参数**下拉浮层**的落点容器（`host="panel"` 的 composer 传自己的卡）。画布上不传：浮层 portal 到
+   * body、打开时定位一次就不跟随，而节点卡本来就不滚动。面板里的卡随转录滚动，body 上的静止浮层会
+   * **留在原地**脱离卡；给了落点就换成「就地展开 + 浮层进卡」，和 `panelMode="inline"` 同一条理由。
+   */
+  inlinePanelTarget?: React.RefObject<HTMLElement | null>
+  /**
+   * 就地展开的参数面板**本体**落在哪（`host="panel"` 传底栏下面那个空 div）。和上面那条是两件事：
+   * 那条是下拉浮层的 portal 根（整张卡），这条是面板的位置。不给就原地渲染在摘要 pill 后面——
+   * 那会让整幅面板变成底栏那一排的兄弟去抢宽度，把「模型/参数/×N」挤成两行。
+   */
+  inlinePanelSlot?: React.RefObject<HTMLElement | null>
 }
 
 export default function NodeParameterControls({
@@ -112,6 +123,8 @@ export default function NodeParameterControls({
   section = 'all',
   onInsertMention,
   composerAttachmentSide = 'bottom',
+  inlinePanelTarget,
+  inlinePanelSlot,
 }: NodeParameterControlsProps): JSX.Element | null {
   const reportFeedback = React.useCallback((message: string) => {
     notify({ identity: `NodeParameterControls:${node.id}`, reason: 'interaction', message, level: 'inline', present: setUploadError })
@@ -395,45 +408,6 @@ export default function NodeParameterControls({
     }
     setArrayValue(metaKey, next)
   }
-  const handleArrayUpload = async (slot: ArchetypeArraySlot, file: File | null | undefined) => {
-    if (!file) return
-    setUploadingArrayKey(slot.metaKey)
-    setUploadError('')
-    try {
-      const uploaded = await importWorkbenchLocalAssetFile(file, file.name || slot.label, {
-        ownerNodeId: node.id,
-        taskKind: 'image_edit',
-      })
-      const url = assetUrl(uploaded)
-      if (!url) throw new Error(t('generationCommon.parameters.missingAssetUrl'))
-      handleArrayAdd(slot, url)
-    } catch (error) {
-      setUploadError(error instanceof Error ? error.message : String(error))
-    } finally {
-      setUploadingArrayKey('')
-    }
-  }
-
-  // D3 源视频单槽（video-edit）：上传一个视频 → 写 meta.sourceVideoUrl（传输映射成 video_url）。
-  const handleSourceVideoUpload = async (metaKey: string, file: File | null | undefined) => {
-    if (!file) return
-    setUploadingArrayKey(metaKey)
-    setUploadError('')
-    try {
-      const uploaded = await importWorkbenchLocalAssetFile(
-        file,
-        file.name || t('generationCommon.parameters.sourceVideo'),
-        { ownerNodeId: node.id, taskKind: 'image_edit' },
-      )
-      const url = assetUrl(uploaded)
-      if (!url) throw new Error(t('generationCommon.parameters.missingVideoUrl'))
-      updateMeta({ [metaKey]: url })
-    } catch (error) {
-      setUploadError(error instanceof Error ? error.message : String(error))
-    } finally {
-      setUploadingArrayKey('')
-    }
-  }
   const handleSlotAssignment = (slot: ImageUrlSlot, newSourceNodeId: string) => {
     const state = useGenerationCanvasStore.getState()
     const target = state.nodes.find((candidate) => candidate.id === node.id) || node
@@ -470,39 +444,18 @@ export default function NodeParameterControls({
     updateNode(node.id, { meta: { ...latestMeta, ...patch } }, { history: !existingEdge })
     setOpenSlotKey('')
   }
-  const handleSlotUpload = async (slot: ImageUrlSlot, file: File | null | undefined) => {
-    if (!file) return
-    if (!file.type.startsWith(`${slot.mediaKind ?? 'image'}/`)) {
-      // 三选一（同类根因的又一个入口，2026-09-11 补：ComfyUI 声明的音频参数槽走这条上传器，
-      // 此前只区分 video/image，音频槽拖错文件会显示「只能选择图片文件」这种文不对题的提示）。
-      setUploadError(t(
-        slot.mediaKind === 'video' ? 'generationCommon.parameters.videoOnly'
-          : slot.mediaKind === 'audio' ? 'generationCommon.parameters.audioOnly'
-            : 'generationCommon.parameters.imageOnly',
-      ))
-      return
-    }
-    setUploadingSlotKey(slot.key)
-    setUploadError('')
-    try {
-      const uploaded = await importWorkbenchLocalAssetFile(file, file.name || slot.label, {
-        ownerNodeId: node.id,
-        ...(slot.mediaKind === 'video' || slot.mediaKind === 'audio' ? {} : { taskKind: 'image_edit' }),
-      })
-      const url = assetUrl(uploaded)
-      if (!url) throw new Error(t(
-        slot.mediaKind === 'video' ? 'generationCommon.parameters.missingVideoUrl'
-          : slot.mediaKind === 'audio' ? 'generationCommon.parameters.missingAudioUrl'
-            : 'generationCommon.parameters.missingImageUrl',
-      ))
-      setSingleFrameUrlMeta(slot, url)
-    } catch (error) {
-      setUploadError(error instanceof Error ? error.message : String(error))
-    } finally {
-      setUploadingSlotKey('')
-    }
-  }
-
+  // 三个「本地文件 → 槽 url」入口共用一条导入路径（controls/slotFileUploads）。写入仍归这里：
+  // 数组走 handleArrayAdd 的唯一追加路径，单槽走 setSingleFrameUrlMeta 的断边+写 meta。
+  const { handleArrayUpload, handleSourceVideoUpload, handleSlotUpload } = createSlotFileUploads({
+    nodeId: node.id,
+    t,
+    onArrayAdd: handleArrayAdd,
+    onSourceVideoUrl: (metaKey, url) => updateMeta({ [metaKey]: url }),
+    onSingleFrameUrl: setSingleFrameUrlMeta,
+    setUploadingArrayKey,
+    setUploadingSlotKey,
+    setUploadError,
+  })
   // ComfyUI 导入的工作流不再走特例：它把声明的每个媒体输入都以 type:'image-url' 写进 meta.parameters，
   // 于是这里的通用出槽器**按条出槽**——声明几个就长几个（2026-08-20，治「多参工作流只能连一张图」）。
   const modelImageUrlSlots = [
@@ -707,6 +660,8 @@ export default function NodeParameterControls({
         activeVariantId={activeVariantId}
         onVariantSelect={handleVariantSwitch}
         summaryOverride={workflowSummary}
+        {...(inlinePanelTarget ? { panelMode: 'inline' as const, portalTarget: inlinePanelTarget } : {})}
+        {...(inlinePanelSlot ? { inlinePanelSlot } : {})}
       />
     )
   }

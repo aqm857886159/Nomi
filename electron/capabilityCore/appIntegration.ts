@@ -24,7 +24,7 @@ import type { ApprovalReceiptAuthority } from './approvalReceipt'
 import { readWorkspaceProject, resolveWorkspaceProjectDir } from '../workspace/workspaceRepository'
 import { createRuntimeMcpGenerationPolicy, type McpGenerationPolicy } from './mcpGenerationPolicy'
 import type { DispatchContext } from './dispatcher'
-import { requestRenderer } from './rendererBridge'
+import { requestRenderer, rendererTargetIdentity } from './rendererBridge'
 import { createGenerationPlanningHandler } from './mcpGenerationTools'
 import { installGuiResolveNarrowIpc } from './generationResolveIpc'
 import { planStoryboardFromScript } from './mcpStoryboardPlanner'
@@ -33,7 +33,7 @@ import { createProductionGenerationSubmission } from '../productionRun/productio
 import {
   prepareProductionGenerationAuthorization,
 } from '../productionRun/prepareProductionGenerationAuthorization'
-import { createMultiShotBatchScheduler, type MultiShotBatchScheduler } from '../productionRun/multiShotBatchScheduler'
+import { createMultiShotBatchScheduler } from '../productionRun/multiShotBatchScheduler'
 import { registerBatchSchedulerKicker } from '../productionRun/batchSchedulerKick'
 import type { ProductionActionResult } from '../productionRun/productionRunTypes'
 import { createCanvasLandingHost } from '../productionRun/canvasLandingHost'
@@ -42,13 +42,7 @@ import { createCatalogModelPricingResolver, createCatalogShotPriceResolver } fro
 import type { ModuleRegistry } from './moduleRegistry'
 import { createGenerationOutputMaterializer } from './generationOutputMaterializer'
 import { hardenedFetch } from '../hardenedFetch'
-import { observeSingleShotGeneration } from '../productionRun/singleShotGenerationObserver'
-import { createSingleShotObservationLifecycle } from '../productionRun/singleShotObservationLifecycle'
-import {
-  markSingleShotAttention,
-  markSingleShotCompleted,
-  markSingleShotRunning,
-} from '../productionRun/singleShotRunLifecycle'
+import { createRunObservationDrivers } from './appIntegrationRunObservation'
 import { readGenerationDefaultModelResolver } from './generationDefaultModelResolver'
 import { readCatalog } from '../catalog/catalogStore'
 import { buildVideoModelCandidates, recommendVideoGeneration, videoArchetypeIdFromMeta } from '../shared/videoCapabilities'
@@ -66,6 +60,9 @@ import { createLiveGenerationRuntime } from './liveGenerationRuntime'
 import { createGenerationProviderBootstrap } from './generationProviderBootstrap'
 import { createDefaultAuthorities } from './appIntegrationAuthorities'
 import { createProductionActionHooks } from './appIntegrationProductionActions'
+import { installPendingSpendActions, pendingSpendDependencies } from './appIntegrationSpendConfirm'
+// 付费确认卡的四个动作住在它自己的模块里（这里只装配）。main.ts 的 IPC 经能力核门面转调，所以门面要露出这四个名字。
+export { listPendingSpendConfirmations, revisePendingSpendConfirmation, discardPendingSpendConfirmation, confirmPendingSpendConfirmation } from './appIntegrationSpendConfirm'
 import { repairStaleMcpConfigs } from './mcpConfig'
 import { logDevDetail, logError, logInfo, logWarn } from '../logging/logger'
 
@@ -331,139 +328,15 @@ export async function startCapabilityCore(
         onBatchComplete: () => generationService.advanceSemanticProduction(projectId, runId),
       })
     }
-    // 慢供应商未到静止点时定时重踢；Run lock、intent log 与 commandId 保证重启/并发幂等。
-    const REKICK_DELAY_MS = 15_000
-    const activeBatchDrives = new Set<string>()
-    const batchRekickTimers = new Map<string, ReturnType<typeof setTimeout>>()
-    // Single-shot submissions intentionally return the durable provider receipt
-    // immediately. Keep observation outside the MCP turn, but dedupe it by Run
-    // so a replay/reconnect can never start two poll/materialize loops. The
-    // lifecycle advances an epoch on core shutdown/restart and aborts stale
-    // provider waits before they can materialize or touch the renderer.
-    const singleShotObservationLifecycle = createSingleShotObservationLifecycle()
-    disposeSingleShotObservationLifecycle = singleShotObservationLifecycle.stop
-    // Single-shot lifecycle status is owned by the same durable ProductionRun
-    // repository as the provider submission.  Keep these callbacks local to
-    // the capability-core instance so a stopped/replaced instance cannot write
-    // a stale status after its epoch is invalidated.
-    const settleSingleShotRunning = (projectId: string, runId: string): void => {
-      try {
-        markSingleShotRunning(generationService.repository, projectId, runId)
-      } catch (error) {
-        logWarn('production-run', 'single-shot-running-status-failed', undefined, error)
-      }
-    }
-    const settleSingleShotCompleted = (projectId: string, runId: string, options: { jobId?: string; artifactId?: string } = {}): void => {
-      try {
-        markSingleShotCompleted(generationService.repository, projectId, runId, options)
-      } catch (error) {
-        logWarn('production-run', 'single-shot-completion-status-failed', undefined, error)
-      }
-    }
-    const settleSingleShotAttention = (projectId: string, runId: string, jobId?: string): void => {
-      try {
-        markSingleShotAttention(generationService.repository, projectId, runId, jobId)
-      } catch (error) {
-        logWarn('production-run', 'single-shot-attention-status-failed', undefined, error)
-      }
-    }
-    const activeSingleShotJobId = (projectId: string, runId: string): string | undefined => {
-      try {
-        const run = generationService.repository.read(projectId, runId)
-        return run?.jobs.find((job) => Boolean(job.providerTaskId) && !['adopted', 'cancelled_remote', 'detached', 'too_late'].includes(job.status))?.jobId
-      } catch {
-        return undefined
-      }
-    }
-    const scheduleBatchRekick = (projectId: string, runId: string): void => {
-      const key = `${projectId}:${runId}`
-      if (batchRekickTimers.has(key)) return
-      const timer = setTimeout(() => {
-        batchRekickTimers.delete(key)
-        kickSchedulerForRun(projectId, runId)
-      }, REKICK_DELAY_MS)
-      timer.unref?.()
-      batchRekickTimers.set(key, timer)
-    }
-    const driveScheduler = (
-      projectId: string,
-      runId: string,
-      scheduler: Pick<MultiShotBatchScheduler, 'runToQuiescence'>,
-      label: string,
-    ): void => {
-      const key = `${projectId}:${runId}`
-      activeBatchDrives.add(key)
-      void scheduler.runToQuiescence()
-        .then((outcome) => {
-          if (!outcome.quiescent) scheduleBatchRekick(projectId, runId)
-        })
-        .catch((error) => {
-          logWarn('production-run', 'observation-step-failed', { step: label }, error)
-        })
-        .finally(() => activeBatchDrives.delete(key))
-    }
-    const kickSchedulerForRun = (projectId: string, runId: string): void => {
-      if (activeBatchDrives.has(`${projectId}:${runId}`)) return // 已有长跑 drive；它的下一轮派生会接住新状态
-      let run
-      try {
-        run = generationService.repository.read(projectId, runId)
-      } catch {
-        return
-      }
-      if (!run || !run.generationPlan?.shots || run.generationPlan.shots.length === 0) return
-      if (run.generationPlan.state !== 'submitted') return // 还没确认过的草稿不驱动
-      if (['completed', 'cancelled', 'paused', 'pausing'].includes(run.status)) return // 已停/急停不自动续
-      const scheduler = buildSchedulerForRun(projectId, runId, run)
-      if (!scheduler) return
-      driveScheduler(projectId, runId, scheduler, 'batch resume tick')
-    }
-    const observeSingleShotRun = (
-      submission: ReturnType<typeof createProductionGenerationSubmission>,
-      projectId: string,
-      runId: string,
-    ): void => {
-      const key = `${projectId}:${runId}`
-      void singleShotObservationLifecycle.run(key, async ({ signal, isCurrent }) => {
-        try {
-          const result = await observeSingleShotGeneration({
-            submission,
-            input: { projectId, operationId: runId },
-            signal,
-            isCurrent,
-            // The Run/artifact store remains the only result owner. Reusing the
-            // existing landing operation makes single-shot completion idempotent
-            // and lets the renderer attach the local artifact to its placeholder.
-            onMaterialized: async () => {
-              if (!isCurrent()) return
-              await landCanvasBestEffort(projectId, runId, isCurrent)
-            },
-          })
-          // An owner stop is expected lifecycle control, not a provider failure;
-          // leave the durable Run untouched for the next restart/open recovery.
-          if (result.aborted) return
-          if (result.nextAction === 'completed') {
-            settleSingleShotCompleted(projectId, runId, {
-              ...(result.materialized?.jobId ? { jobId: result.materialized.jobId } : {}),
-              ...(result.materialized?.artifactId ? { artifactId: result.materialized.artifactId } : {}),
-            })
-          } else if (result.nextAction === 'attention') {
-            settleSingleShotAttention(projectId, runId, result.lastPoll?.jobId ?? activeSingleShotJobId(projectId, runId))
-          }
-        } catch (error) {
-          // Poll/materialization failures are durable attention, not a silent
-          // promise rejection that causes the same provider task to be retried
-          // forever on the next project reopen. Never submit from this path.
-          if (isCurrent()) settleSingleShotAttention(projectId, runId, activeSingleShotJobId(projectId, runId))
-          logWarn('production-run', 'single-shot-observation-failed', undefined, error)
-        }
-      }).catch((error) => {
-        // The inner try/catch handles provider/materialization errors. A final
-        // lifecycle rejection (for example, a duplicate observer) must not
-        // write attention: by this point the worker may belong to an older
-        // capability-core epoch and the current Run could be unrelated.
-        logWarn('production-run', 'single-shot-observation-failed', undefined, error)
-      })
-    }
+    // 观察与调度驱动（多镜推到静止点 + 单镜回合外轮询）整块住在 appIntegrationRunObservation：
+    // 它们共享同一批 per-instance 状态（在飞的 drive / 重踢定时器 / 单镜 epoch），核重启时一起作废。
+    const runObservation = createRunObservationDrivers({
+      repository: generationService.repository,
+      landCanvasBestEffort,
+      buildSchedulerForRun,
+    })
+    disposeSingleShotObservationLifecycle = runObservation.stop
+    const { settleSingleShotRunning, settleSingleShotCompleted, settleSingleShotAttention, driveScheduler, kickSchedulerForRun, observeSingleShotRun } = runObservation
     // P4 §3.2：所有 gate 入口共用 post-decide 重踢。
     registerBatchSchedulerKicker(kickSchedulerForRun)
     const generationPlanning = authorities.generationPlanning
@@ -621,8 +494,17 @@ export async function startCapabilityCore(
     try {
       const requestGenerationGate = authorities.requestGenerationGate ?? runOwnedGenerationAuthority.requestGenerationGate
       const authorizeGeneration = authorities.authorizeGeneration ?? runOwnedGenerationAuthority.authorizeGeneration
-      const confirmGenerationInNomi = authorities.confirmGenerationInNomi ?? defaults.confirmGenerationInNomi
-      disposeResidentGenerationAdapter = installResidentGenerationAdapter({ planning: generationPlanning, requestGenerationGate, authorizeGeneration, confirmGenerationInNomi, approvalReceiptAuthority: defaults.approvalReceiptAuthority!, projectSessionAuthority: defaults.projectSessionAuthority, owner: generationService }, authorities.onGenerationReady)
+      // P1 单轨化（2026-09-11）：这条 lane 不再注入 `confirmGenerationInNomi`（居中弹窗的入口），
+      // 于是「agent 代发的付费确认弹居中卡」结构上不可能；真被走到会 fail-closed。面板那条走 appIntegrationSpendConfirm。
+      const residentGeneration = installResidentGenerationAdapter({ planning: generationPlanning, requestGenerationGate, authorizeGeneration, approvalReceiptAuthority: defaults.approvalReceiptAuthority!, projectSessionAuthority: defaults.projectSessionAuthority, owner: generationService }, authorities.onGenerationReady)
+      disposeResidentGenerationAdapter = residentGeneration.dispose
+      // 付费确认卡的编排：租约与 resident 适配器共用同一个 `leaseFor`（不另起一份续期逻辑）。
+      installPendingSpendActions(pendingSpendDependencies({
+        isProjectOpen, repository: generationService.repository, operations: operationStore, planning: generationPlanning,
+        requestGenerationGate, authorizeGeneration, receipts: defaults.approvalReceiptAuthority!,
+        rendererTarget: rendererTargetIdentity, committedSelection: canvasReadSurfaceRuntime.getCommittedProjectSelection,
+        leaseFor: residentGeneration.leaseFor, resolvePricing: resolveModelPricing,
+      }))
     } catch (error) {
       logError('capability', 'resident-generation-adapter-install-failed', error)
     }
@@ -787,6 +669,6 @@ export function stopCapabilityCore(): void {
   reworkProductionShotHook = null
   resumeProductionBatchHook = null
   disposeSingleShotObservationLifecycle?.(); disposeSingleShotObservationLifecycle = null
-  disposeResidentGenerationAdapter?.(); disposeResidentGenerationAdapter = null
+  disposeResidentGenerationAdapter?.(); disposeResidentGenerationAdapter = null; installPendingSpendActions(null)
   installGuiResolveNarrowIpc(null)
 }

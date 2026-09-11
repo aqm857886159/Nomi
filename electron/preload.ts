@@ -190,6 +190,13 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
       ipcRenderer.invoke("nomi:production-runs:rework", { projectId, runId, ...(shotId ? { shotId } : {}) }),
     resumeBatch: (projectId: string, runId: string, reason: "budget" | "manual") =>
       ipcRenderer.invoke("nomi:production-runs:resume-batch", { projectId, runId, reason }),
+    // 2026-09-11 Agent 面板付费确认卡：读待确认的那笔 / 卡上改参数 / 丢弃草稿 / 确认并开跑。
+    pendingSpend: (projectId: string) => ipcRenderer.invoke("nomi:production-runs:pending-spend", { projectId }),
+    reviseSpend: (payload: unknown) => ipcRenderer.invoke("nomi:production-runs:revise-spend", payload),
+    discardSpend: (projectId: string, operationId: string) =>
+      ipcRenderer.invoke("nomi:production-runs:discard-spend", { projectId, operationId }),
+    confirmSpend: (projectId: string, operationId: string, shotIds?: readonly string[]) =>
+      ipcRenderer.invoke("nomi:production-runs:confirm-spend", { projectId, operationId, ...(shotIds ? { shotIds } : {}) }),
   },
   assets: {
     list: (payload: unknown) => ipcRenderer.invoke("nomi:assets:list", payload),

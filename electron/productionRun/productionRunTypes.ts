@@ -416,6 +416,9 @@ export type ProductionActionResult = {
     | "no_prior_attempt" // 该镜没有可返工的上一次（从没生成过）
     | "run_not_open" // 该项目不是当前打开的项目（守卫）
     | "not_multishot" // 不是语义多镜 Run
+    | "revised" // 付费卡上改了参数：旧授权已撤、计划回到草稿等重新封印
+    | "discarded" // 付费卡上按了 ×：这份草稿被丢弃
+    | "spend_confirmed" // 付费卡上确认了：收据已签、门已批、已开跑
     | "unavailable" // 能力核未就绪 / provider 未配置
     | "failed"; // 其它失败（人话原因在 message，供日志）
   message?: string;

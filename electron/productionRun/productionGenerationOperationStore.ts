@@ -148,6 +148,31 @@ export function createProductionGenerationOperationStore(
       if (!operation) throw new Error("Production Run lost its generation plan");
       return operation;
     },
+    /**
+     * 2026-09-11 付费卡上改参数。`commandId` 带 `planVersion`：改参数是**可重放的用户动作**
+     * （用户可能连点两下），幂等键只用 operationId 会把第二次改动吃掉；带上 planVersion 之后，
+     * 每一次真的把计划推进一版的改动都有自己的键，而同一版上的重发仍然幂等（同 trial_narrow）。
+     */
+    async revise(projectId, operationId, input, now) {
+      const current = read(projectId, operationId);
+      const result = await owner.command(projectId, operationId, {
+        commandId: `generation.revise:${operationId}:v${current.planVersion}:${current.candidate.revision}:${input.shotId ?? "plan"}`,
+        expectedRevision: owner.readFull(projectId, operationId).revision,
+        type: "generation.revise",
+        payload: {
+          patch: input.patch,
+          ...(input.shotId ? { shotId: input.shotId } : {}),
+          ...(input.shotId && typeof input.included === "boolean" ? { included: input.included } : {}),
+        },
+        issuedAt: now,
+      });
+      const operation = operationFromRun(result.run);
+      if (!operation) throw new Error("Production Run lost its generation plan");
+      // 改草稿立刻投影回画布：卡上改的提示词/模型必须同步到那份已经落地的草稿节点，
+      // 否则「卡上说的」和「画布上的」又分叉成两个账本（同 patch 那条链，不新建第二条）。
+      notifyPlanChanged(operation.projectId, operation.operationId);
+      return operation;
+    },
     async trialNarrow(projectId, operationId, now) {
       const current = read(projectId, operationId);
       const result = await owner.command(projectId, operationId, {

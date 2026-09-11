@@ -24,25 +24,13 @@ import {
 } from "./productionGenerationAuthorizationState";
 import { generationSealShotPrices, SealBudgetExceededError } from "./productionGenerationSeal";
 import { checkSealAffordability } from "./shotPricing";
+import {
+  applyGenerationCandidatePatch,
+  revokeWaitingGenerationAuthorization,
+  unsealedGenerationPlanFields,
+} from "./productionGenerationPlanEdits";
 
 export { SealBudgetExceededError } from "./productionGenerationSeal";
-
-/** Update one shot inside a plan by id; throws if the plan has no such shot. */
-function replaceShot(
-  plan: ProductionGenerationPlan,
-  shotId: string,
-  update: (shot: ProductionGenerationShot) => ProductionGenerationShot,
-): ProductionGenerationShot[] {
-  const shots = plan.shots ?? [];
-  let found = false;
-  const next = shots.map((shot) => {
-    if (shot.shotId !== shotId) return shot;
-    found = true;
-    return update(shot);
-  });
-  if (!found) throw new Error(`Generation shot not found: ${shotId}`);
-  return next;
-}
 
 /** A shot is included in the sealed contract unless it was explicitly unchecked (试拍/分批). */
 function isShotIncluded(shot: Pick<ProductionGenerationShot, "included">): boolean {
@@ -262,40 +250,10 @@ export function applyProductionCommand(
     case "generation.patch": {
       const currentPlan = current.generationPlan;
       if (!currentPlan || currentPlan.state !== "draft") throw new Error("new_draft_required: edit a new generation draft");
-      const patch = record(command.payload, "patch") as Partial<ProductionGenerationShot["candidate"]>;
       // P4 S1 shot-addressing patch variant: edit one shot's candidate (model/mode/params/prompt/refs)
       // and/or its included flag (试拍/分批). No shotId → patch the top-level candidate exactly as today.
-      const rawShotId = typeof command.payload.shotId === "string" ? command.payload.shotId.trim() : "";
-      const shotId = rawShotId || undefined;
-      if (shotId) {
-        const hasIncluded = typeof command.payload.included === "boolean";
-        const shots = replaceShot(currentPlan, shotId, (shot) => ({
-          ...shot,
-          candidate: {
-            ...shot.candidate,
-            ...patch,
-            revision: shot.candidate.revision + 1,
-            parameters: patch.parameters ? structuredClone(patch.parameters) : structuredClone(shot.candidate.parameters),
-            references: patch.references ? structuredClone(patch.references) : structuredClone(shot.candidate.references),
-          },
-          ...(hasIncluded ? { included: command.payload.included as boolean } : {}),
-          updatedAt: now,
-        }));
-        return {
-          run: { ...current, generationPlan: { ...currentPlan, shots, updatedAt: now }, updatedAt: now },
-          eventType: "generation.plan.updated",
-          message: currentPlan.operationId,
-        };
-      }
-      const candidate = {
-        ...currentPlan.candidate,
-        ...patch,
-        revision: currentPlan.candidate.revision + 1,
-        parameters: patch.parameters ? structuredClone(patch.parameters) : structuredClone(currentPlan.candidate.parameters),
-        references: patch.references ? structuredClone(patch.references) : structuredClone(currentPlan.candidate.references),
-      };
       return {
-        run: { ...current, generationPlan: { ...currentPlan, candidate, updatedAt: now }, updatedAt: now },
+        run: { ...current, generationPlan: applyGenerationCandidatePatch(currentPlan, command, now), updatedAt: now },
         eventType: "generation.plan.updated",
         message: currentPlan.operationId,
       };
@@ -375,17 +333,10 @@ export function applyProductionCommand(
       // Trial-first changes the provider payload and spend scope. Revoke the unapproved authority,
       // return to draft, and force the normal prepare -> seal -> gate path to create a new digest.
       const currentPlan = current.generationPlan;
-      if (!currentPlan || currentPlan.state !== "sealed" || !currentPlan.shots || !currentPlan.authorizationDigest || !currentPlan.authorizationGateId) {
+      if (!currentPlan || currentPlan.state !== "sealed" || !currentPlan.shots) {
         throw new Error("A waiting authorized multi-shot plan is required to narrow to a trial shot");
       }
-      const authorizationGate = current.gates.find((gate) => gate.gateId === currentPlan.authorizationGateId);
-      if (!authorizationGate || authorizationGate.status !== "waiting") {
-        throw new Error("Trial-first is available only before the spend gate is decided");
-      }
-      const abandonedJobs = current.jobs.filter((job) => job.authorizationDigest === currentPlan.authorizationDigest);
-      if (abandonedJobs.some((job) => job.status !== "authorization_required")) {
-        throw new Error("Trial-first cannot replace an authorization that has begun execution");
-      }
+      const revoked = revokeWaitingGenerationAuthorization(current, currentPlan, now, "Trial-first");
       const videoShots = currentPlan.shots.filter((shot) => shot.role !== "anchor");
       const firstIncludedVideo = videoShots.find((shot) => isShotIncluded(shot));
       if (!firstIncludedVideo) throw new Error("No included video shot to trial");
@@ -405,27 +356,59 @@ export function applyProductionCommand(
       return {
         run: {
           ...current,
-          planVersion: current.planVersion + 1,
-          gates: current.gates.map((gate) => gate.gateId === authorizationGate.gateId
-            ? { ...gate, status: "revoked", decidedAt: now }
-            : gate),
-          jobs: current.jobs.filter((job) => job.authorizationDigest !== currentPlan.authorizationDigest),
-          generationPlan: {
-            ...currentPlan,
-            state: "draft",
-            candidate: { ...currentPlan.candidate, sealedContractHash: undefined },
-            contract: undefined,
-            shots,
-            planHash: undefined,
-            authorizationEnvelope: undefined,
-            authorizationDigest: undefined,
-            authorizationGateId: undefined,
-            approvedReceiptId: undefined,
-            approvedAt: undefined,
-            approvedAttempt: undefined,
-            costCertainty: undefined,
-            updatedAt: now,
-          },
+          planVersion: revoked.planVersion,
+          gates: revoked.gates,
+          jobs: revoked.jobs,
+          generationPlan: { ...unsealedGenerationPlanFields(currentPlan, now), shots },
+          updatedAt: now,
+        },
+        eventType: "generation.plan.updated",
+        message: currentPlan.operationId,
+      };
+    }
+    case "generation.revise": {
+      // 2026-09-11 付费卡上改参数：用户在 agent 面板的确认卡上改了提示词/时长/模型。
+      //
+      // 为什么不能沿用框架的「改了直接跑」（pi `before_tool` 的 `{ args }` 返回值会重新校验，
+      // 技术上做得到）：pi **不改写转录里那条 assistant toolCall**，于是面板收据上写的
+      // 和实际执行的会分叉——而用户是照着收据点的头。钱这条轴上「收据 = 实际执行」是
+      // 领域约束，不是偏好。所以改参数必须撤掉旧授权、重新计价、重新封印、重新出卡。
+      //
+      // 两种进来的状态：
+      //   · `sealed` + 付费门 `waiting` —— 走 `trial_narrow` 那条同族路（撤授权 → 回 draft）。
+      //   · `draft` —— 还没封印，直接改（此时它与 `generation.patch` 等价，但入口只留一个：
+      //     卡上那一个动作不该按内部状态分裂成两条命令）。
+      const currentPlan = current.generationPlan;
+      if (!currentPlan) throw new Error("Generation plan not found");
+      if (currentPlan.state === "submitted" || currentPlan.state === "cancelled") {
+        throw new Error("A submitted or cancelled generation plan cannot be revised");
+      }
+      if (currentPlan.state === "draft") {
+        return {
+          run: { ...current, generationPlan: applyGenerationCandidatePatch(currentPlan, command, now), updatedAt: now },
+          eventType: "generation.plan.updated",
+          message: currentPlan.operationId,
+        };
+      }
+      const revoked = revokeWaitingGenerationAuthorization(current, currentPlan, now, "Revise");
+      const unsealed = unsealedGenerationPlanFields(currentPlan, now);
+      const shots = unsealed.shots?.map((shot) => ({
+        ...shot,
+        candidate: { ...shot.candidate, sealedContractHash: undefined },
+        contract: undefined,
+        approvedReceiptId: undefined,
+        approvedAt: undefined,
+        approvedAttempt: undefined,
+        updatedAt: now,
+      }));
+      const reopened: ProductionGenerationPlan = { ...unsealed, ...(shots ? { shots } : {}) };
+      return {
+        run: {
+          ...current,
+          planVersion: revoked.planVersion,
+          gates: revoked.gates,
+          jobs: revoked.jobs,
+          generationPlan: applyGenerationCandidatePatch(reopened, command, now),
           updatedAt: now,
         },
         eventType: "generation.plan.updated",
