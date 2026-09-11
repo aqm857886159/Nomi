@@ -77,7 +77,7 @@
     {
       "path": "src/workbench/ai/lane/laneCommandFailure.ts",
       "symbol": "laneFailureText",
-      "responsibility": "Consumer-side display boundary: the only place a lane failure becomes a sentence. Known codes map to t(laneErrorI18nKey(code)); the catch-all code goes to classifyGenerationError so vendor prose the user must act on still surfaces; an unclassified Latin-script string is logged and replaced with a localized fallback."
+      "responsibility": "Consumer-side display boundary: the only place a lane failure becomes a sentence. Known codes map to t(LANE_ERROR_TEXT_KEY[code]) — whole-literal keys, because a built `agentLaneError.${code}` prefix would blind the dead-key gate to the entire namespace; the catch-all code goes to classifyGenerationError so vendor prose the user must act on still surfaces; an unclassified Latin-script string is logged and replaced with a localized fallback."
     },
     {
       "path": "electron/shared/agentLane/laneDesktopContracts.ts",

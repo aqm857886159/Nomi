@@ -11,8 +11,10 @@
  * `LaneDesktopResult` 的失败分支叫 `diagnostic` 不叫 `message`，类型改完 tsc 会点名每个消费者。
  * 这里只补编译器看不见的那两半）：
  *
- *   ① 码表与文案一一对应（硬零）。`LANE_ERROR_CODES` 的每个码，两种语言都必须有一句话；
- *      多出来的孤儿文案同样报红。新增一个码却忘了写文案，当场红。
+ *   ① 码表与文案一一对应（硬零）。`LANE_ERROR_CODES` 的每个码，两种语言都必须有一句话，
+ *      `LANE_ERROR_TEXT_KEY` 里还要有一条**整键**；多出来的孤儿同样报红。整键存在渲染层而不是
+ *      在用处拼 `agentLaneError.${code}`，理由见 `src/i18n/translationKey.ts`：拼出来的动态前缀
+ *      会盖掉整个命名空间的死键检测。
  *   ② `diagnostic` 不许进显示汇（硬零）。它只许流向 console / LaneCommandFailure 构造 /
  *      类型声明。出现在 JSX、setError、toast、alertDialog 里就是这次泄漏的形状。
  *   ③ lane 命令路径上的英文散句 throw（棘轮）。它们现在全部经 `laneErrorCodeOf` 落到兜底码、
@@ -55,25 +57,32 @@ const isSource = (name) => /\.(ts|tsx|mts|cts)$/.test(name) && !/\.test\./.test(
 // ── 规则① 码表 ↔ 文案 ──────────────────────────────────────────────────────────
 const codesFile = path.join(repoRoot, 'electron', 'shared', 'agentLane', 'laneErrorCodes.ts')
 const localeFile = path.join(repoRoot, 'src', 'i18n', 'locales', 'agentLaneError.ts')
+const keyMapFile = path.join(repoRoot, 'src', 'workbench', 'ai', 'lane', 'laneCommandFailure.ts')
 const codesSource = fs.readFileSync(codesFile, 'utf8')
 const localeSource = fs.readFileSync(localeFile, 'utf8')
+const keyMapSource = fs.readFileSync(keyMapFile, 'utf8')
 
 const codeBlock = /export const LANE_ERROR_CODES = \[([\s\S]*?)\] as const/.exec(codesSource)
 if (!codeBlock) failures.push(`${rel(codesFile)}: 找不到 LANE_ERROR_CODES 字面量数组——门岗读不到码表就等于没有门岗`)
 const codes = codeBlock ? [...codeBlock[1].matchAll(/^\s*'([a-z][a-z0-9_]*)',$/gm)].map((m) => m[1]) : []
 
-function localeKeys(exportName) {
-  const block = new RegExp(`export const ${exportName} = \\{([\\s\\S]*?)\\n\\}`).exec(localeSource)
+function declaredKeys(source, exportName) {
+  const block = new RegExp(`export const ${exportName} = \\{([\\s\\S]*?)\\n\\}`).exec(source)
   return block ? [...block[1].matchAll(/^\s*([a-z][a-z0-9_]*):/gm)].map((m) => m[1]) : null
 }
-for (const [exportName, label] of [['zhAgentLaneError', 'zh-CN'], ['enAgentLaneError', 'en']]) {
-  const keys = localeKeys(exportName)
-  if (!keys) { failures.push(`${rel(localeFile)}: 找不到 ${exportName}`); continue }
+for (const [exportName, label, source, file] of [
+  ['zhAgentLaneError', 'zh-CN', localeSource, localeFile],
+  ['enAgentLaneError', 'en', localeSource, localeFile],
+  // 整键表住在消费方而不是 locales/：死键门岗不扫词典文件本身，键写在那里等于没人引用它。
+  ['LANE_ERROR_TEXT_KEY', '整键表', keyMapSource, keyMapFile],
+]) {
+  const keys = declaredKeys(source, exportName)
+  if (!keys) { failures.push(`${rel(file)}: 找不到 ${exportName}`); continue }
   for (const code of codes) {
-    if (!keys.includes(code)) failures.push(`${rel(localeFile)}: ${label} 缺 '${code}' 的文案——新增码必须同时写两种语言`)
+    if (!keys.includes(code)) failures.push(`${rel(file)}: ${label} 缺 '${code}'——新增码必须同时补两种语言的文案和 LANE_ERROR_TEXT_KEY 的整键`)
   }
   for (const key of keys) {
-    if (!codes.includes(key)) failures.push(`${rel(localeFile)}: ${label} 的 '${key}' 不在 LANE_ERROR_CODES 里（孤儿文案）`)
+    if (!codes.includes(key)) failures.push(`${rel(file)}: ${label} 的 '${key}' 不在 LANE_ERROR_CODES 里（孤儿条目）`)
   }
 }
 
@@ -86,20 +95,28 @@ const DIAGNOSTIC_ALLOWED = [
 ]
 const DISPLAY_SINKS = /\b(setError|toast|showInfoToast|showUndoToast|alertDialog|confirmDialog|report|reportFeedback)\s*\(/
 // 只看**读得到 lane 结果**的那些文件。`diagnostic` 在仓库里还有别的、与桥无关的用法
-// （迁移报告等），把它们一并卷进来只会逼人加豁免，那正是门岗失真的开始。
+// （`projectCategoryMigration.ts` 的迁移报告 spread 就是一例），把它们一并卷进来只会逼人加豁免，
+// 那正是门岗失真的开始。
 const TOUCHES_LANE = /LaneCommandResult|LaneDesktopResult|LaneCommandFailure|laneClient/
+// 但**显示汇那一半不设这道闸**：2026-09-11 那次泄漏的落地点正是
+// `ProjectAgentResidentShell.tsx`——它渲染的是一路转手下来的字符串，通篇不出现任何 lane 类型名，
+// 按 TOUCHES_LANE 筛会被整个跳过，等于门岗看不见报障现场本身。
+// 故拆成两半：
+//   · **进显示汇**（`setError(x.diagnostic)` / JSX `{x.diagnostic}`）= 全仓硬零，不管文件认不认识 lane；
+//   · **只是提到**（既不是构造也不是 console）= 仍只在读得到 lane 结果的文件里管，
+//     否则迁移报告那类同名字段会被误伤。
 for (const file of [...walk(path.join(repoRoot, 'src'), isSource), ...walk(path.join(repoRoot, 'electron'), isSource)]) {
   const name = rel(file)
   if (DIAGNOSTIC_ALLOWED.some((allowed) => allowed.test(name))) continue
   const source = fs.readFileSync(file, 'utf8')
-  if (!TOUCHES_LANE.test(source)) continue
+  const touchesLane = TOUCHES_LANE.test(source)
   source.split('\n').forEach((line, index) => {
     if (!/\.diagnostic\b/.test(line)) return
     const construction = /new LaneCommandFailure\(/.test(line)
     const logging = /console\.(error|warn|log|debug|info)\(/.test(line)
     const display = DISPLAY_SINKS.test(line) || /\{\s*[a-zA-Z.]*\.diagnostic\s*\}/.test(line)
-    if (display || (!construction && !logging)) {
-      failures.push(`${name}:${index + 1}: \`diagnostic\` 是诊断串不是界面文案——按 code 取 t(laneErrorI18nKey(code))`)
+    if (display || (touchesLane && !construction && !logging)) {
+      failures.push(`${name}:${index + 1}: \`diagnostic\` 是诊断串不是界面文案——按 code 取 t(LANE_ERROR_TEXT_KEY[code])`)
     }
   })
 }

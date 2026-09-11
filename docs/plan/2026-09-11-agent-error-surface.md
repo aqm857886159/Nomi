@@ -65,7 +65,7 @@ laneWorkspace: throw new Error('The agent is opening a conversation. …')
 
 **我们与他们的偏差（和理由）**：VS Code 在 **throw 处**本地化，因为主/渲染共用一份 nls bundle。
 Nomi 的语言只住在渲染层（`src/i18n`），主进程拿不到它——所以我们取**主进程出码、渲染层
-`t(laneErrorI18nKey(code))`**。这条偏差是领域约束（进程边界上语言不在同一侧），不是口味。
+`t(LANE_ERROR_TEXT_KEY[code])`**。这条偏差是领域约束（进程边界上语言不在同一侧），不是口味。
 其余三条照抄：闭集码 + 边界收窄 + 必有兜底码（Codex `Other` → 我们 `agent_lane_execute_failed`）；
 诊断串封顶 2KB（Codex 同一格的做法）；码是普通字段不是 `instanceof`（VS Code 踩过的 IPC 坑）。
 
@@ -76,12 +76,13 @@ Nomi 的语言只住在渲染层（`src/i18n`），主进程拿不到它——�
 
 | 层 | 文件 | 改动 |
 |---|---|---|
-| 中立契约 | `electron/shared/agentLane/laneErrorCodes.ts`（新） | `LANE_ERROR_CODES` 闭集 20 个码 + `laneErrorCodeOf()`（边界收窄）+ `laneErrorI18nKey()` |
+| 中立契约 | `electron/shared/agentLane/laneErrorCodes.ts`（新） | `LANE_ERROR_CODES` 闭集 20 个码 + `laneErrorCodeOf()`（边界收窄） |
 | 契约类型 | `electron/shared/agentLane/laneDesktopContracts.ts` | 失败分支 `{ code: string; message: string }` → `{ code: LaneErrorCode; diagnostic: string }`。**改名是防线**：tsc 当场点名每一个消费者（R28 让编译器拦） |
 | 主进程 | `laneIpc.ts` / `laneWorkspace.mts` / `laneHost.mts` / `laneSession.mts` | 用户会读到的 throw 全改成码；catch 走 `laneErrorCodeOf`；诊断串截 2KB；`settleLifecycle` / `settleStructure`（换对话除外） |
-| 渲染层 | `src/workbench/ai/lane/laneCommandFailure.ts`（新） | **唯一**的「失败 → 界面文案」边界：带码走码，兜底码交分类器，分类器也不认且是拉丁散句 → 本地化兜底句 + `console.error` |
+| 渲染层 | `src/workbench/ai/lane/laneCommandFailure.ts`（新） | **唯一**的「失败 → 界面文案」边界：带码走码，兜底码交分类器，分类器也不认且是拉丁散句 → 本地化兜底句 + `console.error`。码 → 文案键用 `LANE_ERROR_TEXT_KEY` 存**整键**并 `satisfies Record<LaneErrorCode, TranslationKey>`——拼 `agentLaneError.${code}` 会成为一条覆盖整个命名空间的动态前缀，等于让死键门岗对这片全瞎（`OVERBROAD_NAMESPACE_DEBT` 已清零、只减不增）。整键表只能住在消费方：`src/i18n/locales/` 被死键门岗当词典跳过，写在那里的字面量不算引用 |
 | 渲染层 | `laneClient.ts` | `open` 在飞时，后续命令**等自己这次 open 落定**再带真身份发（以前带空身份撞上去被拒） |
 | 文案 | `src/i18n/locales/agentLaneError.ts`（新） | 20 个码 × zh-CN / en |
+| 渲染层 | `laneCommandFailure.ts` 的 `LaneCommandFailure` 构造器 | `diagnostic` 在**构造处**收成字符串。这个构造器长在 IPC 边界上，实参是刚过完桥的原始格；类型说它是 `string`，但那是我们这侧的声明——Error 子类过 IPC 掉类型（「先查别人」里 VS Code 那条）、preload 与渲染层版本不齐，这一格就可能不是字符串。它跑在 **catch 里**，一抛就等于这次失败连兜底句都没有、用户什么都看不到，比印英文原文更糟 |
 | 门岗 | `scripts/check-error-surface.mjs`（新） | ①码↔文案硬零 ②`diagnostic` 不许进显示汇 硬零 ③lane 命令路径英文散句 throw 棘轮（19，只减不增） |
 
 ## 同类扫描结论（为什么只收这一族）
@@ -99,5 +100,11 @@ Nomi 的语言只住在渲染层（`src/i18n`），主进程拿不到它——�
 - 生成域的 `classifyGenerationError` 在自己的通路上仍有同形状的 `unknown → 原文` 兜底。
   本次只收口了对话域（面板横幅 + 项目横幅）。生成域的错误卡有「技术详情」折叠，泄漏的
   可感知程度低一档，但同一族——留作下一批。
+- 规则②的「进显示汇」那一半**不设 `TOUCHES_LANE` 闸**：报障现场 `ProjectAgentResidentShell.tsx`
+  渲染的是一路转手下来的字符串，通篇不出现任何 lane 类型名，按那道闸筛会被整个跳过——
+  等于门岗看不见报障现场本身（这条是复核时用变异测试量出来的，不是推想）。「只是提到」
+  那一半仍留着闸，否则 `projectCategoryMigration.ts` 的同名字段会被误伤。
+- 那几处 `vi.fn()` 是无类型的，所以契约改名时 `check:test-types` 没点名它们，红是在
+  `pnpm run test` 才冒出来的。把 lane 夹具都标上类型是更早的一道防线（R28），留作下一批。
 - `showableRaw` 用「有没有汉字」区分「已本地化的人话」与「没翻译的散句」。对 `en` 用户而言
   一句中文兜底同样是泄漏；那个方向由 `check:i18n` 的 electron 中文基线（只减不增）在收。

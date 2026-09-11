@@ -11,13 +11,54 @@
 // 这一层就是那条通路的收口：**只认码**。`diagnostic` 只进 console 与「技术详情」，
 // 任何情况下都不会成为界面文字——它可能是内部断言、第三方栈文本，或一句没翻译的英文，
 // 三者都不是用户能据以行动的事实。
-import {
-  laneErrorI18nKey, looksLikeMachineCode, isLaneErrorCode,
-  type LaneErrorCode,
-} from '../../../../electron/shared/agentLane/laneErrorCodes'
+import { looksLikeMachineCode, isLaneErrorCode, type LaneErrorCode } from '../../../../electron/shared/agentLane/laneErrorCodes'
+import type { TranslationKey } from '../../../i18n/translationKey'
 import { classifyGenerationError } from '../../observability/classifyError'
 
 type Translate = (key: string, options?: Record<string, unknown>) => string
+
+/**
+ * 码 → **整键**。存整键而不是在别处拼 `agentLaneError.${code}`：整键字面量才是死键门岗认的
+ * 精确引用，拼出来的动态前缀会盖掉整个命名空间的死键检测（`src/i18n/translationKey.ts` 的理由）。
+ * `satisfies` 让编译器顺带校验每个键真的在词典里，且一个码都不许漏。
+ */
+export const LANE_ERROR_TEXT_KEY = {
+  agent_lane_bridge_absent: 'agentLaneError.agent_lane_bridge_absent',
+  agent_lane_closed: 'agentLaneError.agent_lane_closed',
+  agent_lane_disposed: 'agentLaneError.agent_lane_disposed',
+  agent_lane_opening: 'agentLaneError.agent_lane_opening',
+  agent_lane_owner_mismatch: 'agentLaneError.agent_lane_owner_mismatch',
+  agent_lane_workspace_stale: 'agentLaneError.agent_lane_workspace_stale',
+  agent_lane_invalid_command: 'agentLaneError.agent_lane_invalid_command',
+  agent_lane_request_duplicate: 'agentLaneError.agent_lane_request_duplicate',
+  agent_lane_provider_error: 'agentLaneError.agent_lane_provider_error',
+  agent_lane_model_unconfigured: 'agentLaneError.agent_lane_model_unconfigured',
+  agent_skill_unavailable: 'agentLaneError.agent_skill_unavailable',
+  project_binding_stale: 'agentLaneError.project_binding_stale',
+  project_identity_unavailable: 'agentLaneError.project_identity_unavailable',
+  project_agent_unavailable: 'agentLaneError.project_agent_unavailable',
+  agent_lane_conversation_missing: 'agentLaneError.agent_lane_conversation_missing',
+  agent_lane_conversation_exists: 'agentLaneError.agent_lane_conversation_exists',
+  agent_lane_conversation_in_use: 'agentLaneError.agent_lane_conversation_in_use',
+  agent_lane_busy_running: 'agentLaneError.agent_lane_busy_running',
+  agent_lane_approval_missing: 'agentLaneError.agent_lane_approval_missing',
+  agent_lane_execute_failed: 'agentLaneError.agent_lane_execute_failed',
+} as const satisfies Record<LaneErrorCode, TranslationKey>
+
+/**
+ * 把跨进程来的任意一格**当字符串用之前**先收成字符串。
+ *
+ * 这一层是用户看到字之前的最后一道。它的类型说 `diagnostic: string` / `message: string`，但
+ * 那是**我们这侧的声明**，不是运行时保证：自定义 Error 子类过 IPC 会掉类型、只剩普通字段
+ * （方案「先查别人」里 VS Code 踩过的那条），preload 与渲染层版本不齐时这一格就可能是
+ * `undefined`。此时 `raw.trim()` 抛 TypeError——而抛的位置正是**接错误的 catch 里**，
+ * 于是这次失败连一句兜底话都没有，用户什么都看不到。那比印出一句英文原文更糟。
+ *
+ * 所以这里不信类型、只看值：不是字符串就当空串，由调用处走兜底句那一档。
+ */
+function asText(value: unknown): string {
+  return typeof value === 'string' ? value : ''
+}
 
 /**
  * 一次 lane 命令的失败。**带着码过来**，不是一句话——`Error.message` 只是为了让它在
@@ -28,10 +69,15 @@ export class LaneCommandFailure extends Error {
   /** 诊断串：日志与「技术详情」用。**不是界面文案。** */
   readonly diagnostic: string
   constructor(laneCode: LaneErrorCode, diagnostic: string) {
-    super(`${laneCode}${diagnostic ? `: ${diagnostic}` : ''}`)
+    // 收在**构造处**，不是等到取文案时才收：这个构造器就长在 IPC 边界上
+    // （`new LaneCommandFailure(result.code, result.diagnostic)`），实参是刚过完桥的原始格。
+    // 早一步收，`this.diagnostic` 对所有下游就都是字符串了；晚一步收，连这里的模板拼接
+    // 都可能先抛——而它跑在 catch 里，抛出去就等于这次失败彻底消失。
+    const text = asText(diagnostic)
+    super(`${laneCode}${text ? `: ${text}` : ''}`)
     this.name = 'LaneCommandFailure'
     this.laneCode = laneCode
-    this.diagnostic = diagnostic
+    this.diagnostic = text
   }
 }
 
@@ -65,13 +111,13 @@ function showableRaw(raw: string): boolean {
  *      这一档就是这次泄漏的落点，现在 fail-closed。
  */
 export function laneFailureText(error: unknown, t: Translate): string {
-  const code: LaneErrorCode | null = error instanceof LaneCommandFailure ? error.laneCode
-    : isLaneErrorCode(error instanceof Error ? error.message.trim() : '') ? (error as Error).message.trim() as LaneErrorCode
+  const code: LaneErrorCode | null = error instanceof LaneCommandFailure && isLaneErrorCode(error.laneCode) ? error.laneCode
+    : isLaneErrorCode(error instanceof Error ? asText(error.message).trim() : '') ? asText((error as Error).message).trim() as LaneErrorCode
       : null
-  if (code && code !== 'agent_lane_execute_failed') return t(laneErrorI18nKey(code))
+  if (code && code !== 'agent_lane_execute_failed') return t(LANE_ERROR_TEXT_KEY[code])
 
-  const raw = error instanceof LaneCommandFailure ? error.diagnostic
-    : error instanceof Error ? error.message : typeof error === 'string' ? error : ''
+  const raw = asText(error instanceof LaneCommandFailure ? error.diagnostic
+    : error instanceof Error ? error.message : typeof error === 'string' ? error : '')
   if (!raw.trim()) return t('agentResident.sendFailed')
 
   const report = classifyGenerationError(raw)

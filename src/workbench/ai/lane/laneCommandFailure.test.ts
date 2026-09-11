@@ -7,8 +7,8 @@
 // 类边界：这一族不是「这一句忘了翻译」，是「主进程的任意字符串能不能成为界面文字」。
 // 所以断言写成**任意**未分类英文散句都进不了界面，而不是只断言那一句。
 import { describe, expect, it, vi } from 'vitest'
-import { LaneCommandFailure, laneFailureText } from './laneCommandFailure'
-import { LANE_ERROR_CODES, laneErrorI18nKey } from '../../../../electron/shared/agentLane/laneErrorCodes'
+import { LaneCommandFailure, laneFailureText, LANE_ERROR_TEXT_KEY } from './laneCommandFailure'
+import { LANE_ERROR_CODES } from '../../../../electron/shared/agentLane/laneErrorCodes'
 import { zhAgentLaneError, enAgentLaneError } from '../../../i18n/locales/agentLaneError'
 
 const key = (k: string) => k
@@ -19,7 +19,7 @@ describe('lane failure → 界面文案', () => {
       new LaneCommandFailure('agent_lane_opening', 'The agent is opening a conversation. Try again after it opens.'),
       key,
     )
-    expect(shown).toBe(laneErrorI18nKey('agent_lane_opening'))
+    expect(shown).toBe(LANE_ERROR_TEXT_KEY.agent_lane_opening)
     expect(shown).not.toContain('The agent is opening')
   })
 
@@ -56,6 +56,22 @@ describe('lane failure → 界面文案', () => {
 
   it('裸 Error 里如果就是一个已登记的码，同样按码取文案', () => {
     expect(laneFailureText(new Error('agent_lane_workspace_stale'), key))
-      .toBe(laneErrorI18nKey('agent_lane_workspace_stale'))
+      .toBe(LANE_ERROR_TEXT_KEY.agent_lane_workspace_stale)
+  })
+
+  // 这一层是用户看到字之前的最后一道，而它是在 catch 里被调用的：它自己抛，这次失败就连一句
+  // 兜底话都没有——用户什么都看不到，比印出英文原文更糟。类型说这几格是 string，但那是我们这侧
+  // 的声明：自定义 Error 子类过 IPC 会掉类型，preload 与渲染层版本不齐时就可能是 undefined。
+  // 故断言「不管塞进来什么，都得吐出一句话」，而不是只断言好数据那条路。
+  it.each([
+    ['diagnostic 是 undefined', new LaneCommandFailure('agent_lane_execute_failed', undefined as unknown as string)],
+    ['diagnostic 是对象', new LaneCommandFailure('agent_lane_execute_failed', { toString: null } as unknown as string)],
+    ['laneCode 不在码表里', new LaneCommandFailure('not_a_registered_code' as never, 'boom')],
+    ['message 是 undefined 的裸 Error', Object.assign(new Error(), { message: undefined as unknown as string })],
+  ])('%s 也不许把这一层自己抛掉', (_label, thrown) => {
+    let shown = ''
+    expect(() => { shown = laneFailureText(thrown, key) }).not.toThrow()
+    expect(shown).toBeTruthy()
+    expect(shown).not.toContain('undefined')
   })
 })

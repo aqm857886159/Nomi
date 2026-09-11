@@ -14,7 +14,7 @@
 //
 // 解法（最早共享边界）：桥上本来就有 `code` 这一格，把它从 `string` 收紧成**枚举**，让
 //   ① 主进程负责把每一种失败判成一个码（`laneErrorCodeOf`）；
-//   ② 渲染层**只读码**、按 `laneErrorI18nKey(code)` 取本地化文案（`message` 只进日志/技术详情）。
+//   ② 渲染层**只读码**、按 `LANE_ERROR_TEXT_KEY[code]` 取本地化文案（诊断串只进日志/技术详情）。
 //   码不随人话翻译而变，人话不再穿过进程边界。
 //
 // 与 `nomiErrorCodes.ts` 的分工：那份管**生成域**里「供应商/素材」那一族（码嵌在 message 里
@@ -23,7 +23,12 @@
 
 /**
  * lane 命令可能失败的全部原因。**新增一种失败必须在这里加一个码**，并在
- * `src/i18n/locales/agentLaneError.ts` 里给出两种语言的文案——少一边 `check:error-surface` 当场红。
+ * `src/i18n/locales/agentLaneError.ts` 里给出两种语言的文案 + `LANE_ERROR_TEXT_KEY` 的整键
+ * ——少一样 `check:error-surface` 当场红。
+ *
+ * 键表住渲染层而不是这里，是因为**整键字面量**才是死键门岗认的精确引用：
+ * 在这边拼 `agentLaneError.${code}` 会被判成「覆盖整个命名空间的动态前缀」，
+ * 那等于主动放弃整个命名空间的死键检测（`scripts/check-i18n-dead-keys.ts` 的判据）。
  *
  * 码的形状（`agent_lane_*` / `project_*`）与主进程既有的 throw 字面量一致，因此
  * `laneErrorCodeOf` 认得出它们，不需要把几十处 throw 全改一遍。
@@ -109,7 +114,3 @@ export function laneErrorCodeOf(error: unknown): LaneErrorCode {
   return 'agent_lane_execute_failed'
 }
 
-/** 界面文案的键。两种语言都必须有——缺一边 `check:i18n` 报红。 */
-export function laneErrorI18nKey(code: LaneErrorCode): string {
-  return `agentLaneError.${code}`
-}
