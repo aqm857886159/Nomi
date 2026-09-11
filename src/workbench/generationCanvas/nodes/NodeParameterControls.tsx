@@ -26,11 +26,9 @@ import {
 } from '../model/generationNodeKinds'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import type { CanvasMutationOptions } from '../store/canvasGuards'
-import { importWorkbenchLocalAssetFile } from '../../api/assetUploadApi'
 import { comfyWorkflowTakesPrompt } from '../runner/promptRequirement'
 import {
   type DynamicCatalogControl,
-  assetUrl,
   buildEffectiveImageCatalogConfig,
   defaultPatchForCatalogControl,
   videoAspectDefaultPatch,
@@ -44,6 +42,7 @@ import {
   resultPreviewUrl,
   shouldUseVideoFrameSlotFallback,
 } from './controls/parameterControlModel'
+import { runSlotUpload } from './controls/slotUpload'
 import {
   type ArchetypeArraySlot,
   appendArchetypeArrayValue,
@@ -398,42 +397,31 @@ export default function NodeParameterControls({
   }
   const handleArrayUpload = async (slot: ArchetypeArraySlot, file: File | null | undefined) => {
     if (!file) return
-    setUploadingArrayKey(slot.metaKey)
-    setUploadError('')
-    try {
-      const uploaded = await importWorkbenchLocalAssetFile(file, file.name || slot.label, {
-        ownerNodeId: node.id,
-        taskKind: 'image_edit',
-      })
-      const url = assetUrl(uploaded)
-      if (!url) throw new Error(t('generationCommon.parameters.missingAssetUrl'))
-      handleArrayAdd(slot, url)
-    } catch (error) {
-      setUploadError(error instanceof Error ? error.message : String(error))
-    } finally {
-      setUploadingArrayKey('')
-    }
+    await runSlotUpload({
+      file,
+      label: slot.label,
+      ownerNodeId: node.id,
+      taskKind: 'image_edit',
+      missingUrlMessage: t('generationCommon.parameters.missingAssetUrl'),
+      setBusy: (busy) => setUploadingArrayKey(busy ? slot.metaKey : ''),
+      setError: setUploadError,
+      apply: (url) => handleArrayAdd(slot, url),
+    })
   }
 
   // D3 源视频单槽（video-edit）：上传一个视频 → 写 meta.sourceVideoUrl（传输映射成 video_url）。
   const handleSourceVideoUpload = async (metaKey: string, file: File | null | undefined) => {
     if (!file) return
-    setUploadingArrayKey(metaKey)
-    setUploadError('')
-    try {
-      const uploaded = await importWorkbenchLocalAssetFile(
-        file,
-        file.name || t('generationCommon.parameters.sourceVideo'),
-        { ownerNodeId: node.id, taskKind: 'image_edit' },
-      )
-      const url = assetUrl(uploaded)
-      if (!url) throw new Error(t('generationCommon.parameters.missingVideoUrl'))
-      updateMeta({ [metaKey]: url })
-    } catch (error) {
-      setUploadError(error instanceof Error ? error.message : String(error))
-    } finally {
-      setUploadingArrayKey('')
-    }
+    await runSlotUpload({
+      file,
+      label: t('generationCommon.parameters.sourceVideo'),
+      ownerNodeId: node.id,
+      taskKind: 'image_edit',
+      missingUrlMessage: t('generationCommon.parameters.missingVideoUrl'),
+      setBusy: (busy) => setUploadingArrayKey(busy ? metaKey : ''),
+      setError: setUploadError,
+      apply: (url) => updateMeta({ [metaKey]: url }),
+    })
   }
   const handleSlotAssignment = (slot: ImageUrlSlot, newSourceNodeId: string) => {
     const state = useGenerationCanvasStore.getState()
@@ -483,25 +471,20 @@ export default function NodeParameterControls({
       ))
       return
     }
-    setUploadingSlotKey(slot.key)
-    setUploadError('')
-    try {
-      const uploaded = await importWorkbenchLocalAssetFile(file, file.name || slot.label, {
-        ownerNodeId: node.id,
-        ...(slot.mediaKind === 'video' || slot.mediaKind === 'audio' ? {} : { taskKind: 'image_edit' }),
-      })
-      const url = assetUrl(uploaded)
-      if (!url) throw new Error(t(
+    await runSlotUpload({
+      file,
+      label: slot.label,
+      ownerNodeId: node.id,
+      ...(slot.mediaKind === 'video' || slot.mediaKind === 'audio' ? {} : { taskKind: 'image_edit' as const }),
+      missingUrlMessage: t(
         slot.mediaKind === 'video' ? 'generationCommon.parameters.missingVideoUrl'
           : slot.mediaKind === 'audio' ? 'generationCommon.parameters.missingAudioUrl'
             : 'generationCommon.parameters.missingImageUrl',
-      ))
-      setSingleFrameUrlMeta(slot, url)
-    } catch (error) {
-      setUploadError(error instanceof Error ? error.message : String(error))
-    } finally {
-      setUploadingSlotKey('')
-    }
+      ),
+      setBusy: (busy) => setUploadingSlotKey(busy ? slot.key : ''),
+      setError: setUploadError,
+      apply: (url) => setSingleFrameUrlMeta(slot, url),
+    })
   }
 
   // ComfyUI 导入的工作流不再走特例：它把声明的每个媒体输入都以 type:'image-url' 写进 meta.parameters，
