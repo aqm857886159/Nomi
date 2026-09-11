@@ -16,12 +16,18 @@ import { getDesktopBridge } from '../../desktop/bridge'
 import { FoldableModelCard } from './FoldableModelCard'
 import { DesignSegmentedControl } from '../../design'
 import type { McpInfo, McpVerifyReason } from '../../desktop/mcpBridgeTypes'
-import { resolveAssistantActivationState, type AssistantClientKey } from './assistantActivationState'
+import {
+  ASSISTANT_CLIENT_LABEL,
+  ASSISTANT_CLIENT_ORDER,
+  resolveAssistantActivationState,
+  type AssistantClientKey,
+} from './assistantActivationState'
 
 const GUIDE_URL = 'https://github.com/aqm857886159/Nomi/blob/main/docs/guide/capability-core-cli-mcp.md'
 type ClientKey = AssistantClientKey
-const CLIENT_LABEL: Record<ClientKey, string> = { claude: 'Claude Code', codex: 'Codex', cursor: 'Cursor', pi: 'Pi', workbuddy: 'WorkBuddy' }
-const CLIENT_ORDER: ClientKey[] = ['claude', 'codex', 'cursor', 'pi', 'workbuddy']
+// 名字与顺序的 owner 在 assistantActivationState（模型页那张「用 AI 帮我接入」卡念的是同一份）。
+const CLIENT_LABEL = ASSISTANT_CLIENT_LABEL
+const CLIENT_ORDER = ASSISTANT_CLIENT_ORDER
 // pi 是唯一一个「写完配置还差一步」的客户端：它自己不带 MCP，得先装社区适配器（pi-mcp-adapter）。
 // 这条命令我们只给、不代跑——装第三方包是用户自己机器上的决定（R20/R28）。
 const PI_ADAPTER_COMMAND = 'pi install npm:pi-mcp-adapter'
@@ -379,6 +385,16 @@ export function ConnectAssistantCard({
               <div className="text-body-sm text-nomi-ink-80 leading-relaxed rounded-nomi-sm border border-nomi-line bg-nomi-paper px-3 py-2.5">
                 “{t('onboardingProviders.assistant.example')}”
               </div>
+              {/* 「让助手替你接模型」这件事的家在设置 →「模型」页顶部那张卡（它管的是「跟助手说什么」，
+                  本卡管的是「把 Nomi 接进助手」）。这里只放一条指路，不在两处各留一份指引（P1）。 */}
+              <button
+                type="button"
+                data-assistant-add-model-pointer
+                onClick={() => window.dispatchEvent(new CustomEvent('nomi-open-settings', { detail: { tab: 'models' } }))}
+                className="self-start text-caption text-nomi-ink-40 hover:text-nomi-accent"
+              >
+                {t('onboardingProviders.assistant.addModelPointer')}
+              </button>
               <button
                 type="button"
                 onClick={handleUninstall}
