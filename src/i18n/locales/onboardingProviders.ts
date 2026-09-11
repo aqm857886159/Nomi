@@ -2126,7 +2126,7 @@ export const enOnboardingProviders = {
       '{{count}} input(s) reference files/options not on this machine: {{list}} — switch to values that exist in your ComfyUI and re-export, or expose the input as a parameter and set it at generation time',
     unknownComboShapes:
       '{{count}} input(s) use a format Nomi has not seen before: {{list}} — ComfyUI may have upgraded again; these fields cannot be checked or turned into a dropdown yet',
-    reportUnknownShape: 'Report to Nomi',
+    reportUnknownShape: 'Report Issue',
   },
   comfyPreset: {
     sectionTitle: 'Preset templates (official, ready to use)',
