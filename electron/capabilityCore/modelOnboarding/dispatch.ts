@@ -382,13 +382,30 @@ async function connectProvider(verb: VerbDeclaration, params: Record<string, unk
 async function chooseModels(verb: VerbDeclaration, params: Record<string, unknown>, deps: ModelOnboardingDeps, key: string): Promise<OnboardingResult> {
   const setupId = String(params.setupId)
   const chosen = (params.models as Array<{ modelKey: string; kind: string }>) || []
+  // 探到过候选就必须从候选里挑。第一版把 candidates 直接写成 chosen——等于模型
+  // 报什么就算什么，编出来的 modelKey 会被原样收下，用户模型框里多一个永远出不了片的模型。
+  // 供应商没有 model-list 端点时候选为空，那时才允许手写（描述里也是这么说的）。
+  const current = deps.sessions.get(setupId, deps.owner)
+  const discovered = current.candidates ?? []
+  const handEntered = discovered.length === 0
+  if (!handEntered) {
+    const known = new Set(discovered.map((candidate) => candidate.modelKey))
+    const invented = chosen.filter((model) => !known.has(model.modelKey))
+    if (invented.length) {
+      throw new IntegrationRequestError(
+        'integration_model_not_a_candidate',
+        `These modelKey values are not among the models ${current.config.name} offers: ${invented.map((model) => model.modelKey).join(', ')}. Copy a modelKey verbatim from nomi_list_models; this provider published ${discovered.length} candidate(s).`,
+        { action: 'choose_models', invented: invented.map((model) => model.modelKey).join(','), candidates: discovered.length },
+      )
+    }
+  }
   await mutateLatest(deps, setupId, (revision) => deps.sessions.propose(setupId, revision, deps.owner, {
-    candidates: chosen,
+    candidates: handEntered ? chosen : current.candidates,
     selections: chosen.map((model) => ({ modelKey: model.modelKey })),
   }))
   return envelope({
     deps, verb, idempotencyKey: key, setupId,
-    claims: [...ALWAYS_UNVERIFIED, 'model_id_exists'],
+    claims: handEntered ? [...ALWAYS_UNVERIFIED, 'model_id_exists'] : [...ALWAYS_UNVERIFIED],
     changes: [{ state: 'S11.3', summary: `Chose ${chosen.length} model(s) to onboard.` }],
     nextAction: { kind: 'none', userSees: `${chosen.length} model(s) are now listed under this connection, marked "not yet tried". They are not selectable on the canvas until you show them.` },
     filter: { setupId },

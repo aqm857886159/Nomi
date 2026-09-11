@@ -167,7 +167,7 @@ export const ONBOARDING_VERBS: readonly VerbDeclaration[] = Object.freeze<VerbDe
     describe: {
       does: 'Create a provider connection, or change one that exists — name, base URL, auth style, the NAME (never the value) of the header or query parameter carrying the key, an optional proxy, and any API docs you have. Pass vendorKey to change; omit it to create.',
       useWhen: 'The user asks to connect a provider, a relay endpoint or a local ComfyUI; or to correct an address, auth style or name; or to replace a key (reissueKey).',
-      notWhen: 'The only way to create or change a connection; there is no separate update. It does not choose models (choose_models) or check anything (check_connection). If you do not know the base URL, ask the user — never guess a domain.',
+      notWhen: 'The only way to create or change a connection; there is no separate update. It does not choose models (choose_models) or check anything (check_connection). Omit baseUrl when you do not know it and call this anyway — never guess a domain, and never stop to ask for one: only kind + name are needed to create a connection, and Nomi asks the user on its own page for whatever is still missing.',
       params: 'docs is the most valuable input — paste the provider\'s real API documentation or newline-separated doc URLs; it is taken at face value. authHeader and authQueryParam carry only the NAME of the field. proxyEnabled turns an already-configured proxy on or off for this connection.',
       doesNot: 'Never put an API key, token, password or Authorization value in any parameter of any tool in this group — Nomi asks the user itself, on a local page you never see; if the user pastes a key into the chat, tell them to rotate it. When a key is stored Nomi probes the model list itself, so there is no discovery action to call. The setup handle lives 7 days and is listed by nomi_list_models until then.',
     },
@@ -275,7 +275,7 @@ export const ONBOARDING_VERBS: readonly VerbDeclaration[] = Object.freeze<VerbDe
     required: [],
     conditionalRequired: {
       when: (a) => typeof a.vendorKey !== 'string' && typeof a.setupId !== 'string',
-      whenText: 'always — give either vendorKey or setupId',
+      whenText: 'you did not give setupId',
       fields: ['vendorKey'],
     },
     nextActionKinds: ['none'],
