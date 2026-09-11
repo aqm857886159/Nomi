@@ -18,6 +18,7 @@ import type { AgentArtifactMeta, ArtifactFileType } from '../../model/artifactMe
 import { withArtifactSandboxPolicy } from './artifactSandboxDocument'
 import { NomiMarkdown } from '../../../common/NomiMarkdown'
 import type { GenerationCanvasNode } from '../../model/generationCanvasTypes'
+import { NODE_SCROLL_REGION_CLASS_NAME } from '../nodeScrollRegionClassName'
 
 const Model3DViewer = lazyWithChunkBoundary('3D 模型预览', () => import('../model3d/Model3DViewer'))
 
@@ -53,7 +54,7 @@ function MarkdownPreview({ url }: { url: string }): JSX.Element {
   // 等于把「已经排好版的东西」退回原材料。NomiMarkdown 是全仓唯一的 Markdown 渲染器
   // （token 化、带 GFM 表格），compact 档正是给这种窄容器用的。
   return (
-    <div className="h-full w-full overflow-auto bg-nomi-paper px-3 py-2.5 select-text cursor-text">
+    <div className={cn(NODE_SCROLL_REGION_CLASS_NAME, 'h-full w-full overflow-auto bg-nomi-paper px-3 py-2.5 select-text cursor-text')}>
       <NomiMarkdown compact>{markdown}</NomiMarkdown>
     </div>
   )
@@ -83,7 +84,7 @@ function TablePreview({ url }: { url: string }): JSX.Element {
   // 注意：表格产物由 Agent 生成、只含结构化表格 HTML（无脚本）——仍走 React 解析而非 dangerouslySetInnerHTML，
   // 从源头避免把任意 HTML 当代码执行（安全原则：可执行内容只在 HtmlSandbox 的沙箱里碰）。
   return (
-    <div className="h-full w-full overflow-auto bg-nomi-paper px-3 py-2.5 select-text cursor-text">
+    <div className={cn(NODE_SCROLL_REGION_CLASS_NAME, 'h-full w-full overflow-auto bg-nomi-paper px-3 py-2.5 select-text cursor-text')}>
       <div className="w-fit min-w-full">
         <TableView html={tableHtml} />
       </div>
@@ -155,7 +156,7 @@ function TextPreview({ url }: { url: string }): JSX.Element {
   }, [url])
   if (text === null) return <div className="h-full w-full bg-nomi-ink-05 animate-pulse" />
   return (
-    <pre className="h-full w-full overflow-auto bg-nomi-ink-05 px-3 py-2.5 text-body-sm text-nomi-ink-80 font-mono whitespace-pre-wrap break-words select-text cursor-text">
+    <pre className={cn(NODE_SCROLL_REGION_CLASS_NAME, 'h-full w-full overflow-auto bg-nomi-ink-05 px-3 py-2.5 text-body-sm text-nomi-ink-80 font-mono whitespace-pre-wrap break-words select-text cursor-text')}>
       {text}
     </pre>
   )
