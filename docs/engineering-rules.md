@@ -549,6 +549,45 @@ pnpm run delivery:verify-merged -- --expected-sha <merge-commit-sha>
 
 **派工/自验清单必须显式点名本闸（2026-09-01 教训）**：凡改动触及 electron/ 高风险 pattern（`*ipc.ts` / `*store.ts` / `runtime.ts` / catalog 核心 / validator 等），任务 brief 与自验清单必须写明「跑 `pnpm run check:root-cause-contracts`、改动作者自写契约」——不点名就会漏：曾有 4 个返工 PR 因 brief 验证档只列 typecheck/lint/focused，集体被本闸拦下返场补契约（同批次里自写了契约的 2 个 PR 一次过闸）。
 
+### R21.3 动生产代码之前先数门：这份状态一共有几扇入口（2026-09-11）
+
+R21.1 问「这条不变量归哪层管」，R21.2 问「这一层这周是不是第三次了」。还差最前面的一问：
+**这条不变量碰到的那份状态，一共有几扇门？** 合同里的 `same_class_entry_points` 与
+`recurrence.same_class_scan` 本来该答它，但那两项是**叙述**——作者说他扫过了，门岗只能核对格式。
+
+2026-09-11 一天连着三簇 bug 是同一个形状：**不变量只在一扇门上实现了，另一个入口绕过去**——
+画布落地有 6 个直接写入口（`src/workbench/generationCanvas/agent/applyCanvasToolCall.ts` 的调用点），
+付费收据的核验回调有两个生产装配点，`SkillRecord` 有 8 个 store 之外的消费者各自决定投影
+（[`docs/audit/2026-09-11-skill-fact-projections-structure.md`](audit/2026-09-11-skill-fact-projections-structure.md)）。
+三次都被当成一处独立的 bug 修了一遍，**根因不在修的人身上、在派工上**：任务书写的是「这里坏了，修这里」，
+执行体被框在一个文件里，看不见另外几扇门。人在高负载下不会去数——那是机器的活。
+
+从 2026-09-11 起，日期在这天（含）之后的纠正型合同必须带 `doors` 与 `door_reduction`：
+
+```json
+"doors": [
+  { "kind": "write", "path": "src/workbench/capability/capabilityApplyHandler.ts", "line": 625, "symbol": "applyCanvasToolCall" },
+  { "kind": "read",  "path": "electron/promptLibrary/curatedPrompts.ts",           "line": 6,   "symbol": "readSkillRecords" }
+],
+"door_reduction": { "before": 6, "after": 2, "why_not": "before ≥ 2 且一扇没减时必填" }
+```
+
+- **门表用脚本生成，不手写**：`node scripts/door-map.mjs <mutator 符号或文件>`（TS compiler API 扫 `src/` + `electron/`，
+  约 1 秒出结果，输出可直接粘进合同）。手写的门表和一句「我扫过了」是同一种东西。
+- **门岗核对四件事**（`scripts/root-cause-contracts.mjs`，随 `check:root-cause-contracts` 跑）：每条 door 的 path 存在、
+  **该行真的提到该 symbol**（写错行号 = 没重数）；`door_reduction.after` 等于 `doors.length`（门表记的是修完之后还剩几扇）；
+  `before ≥ 2` 而一扇没减时 `why_not` 必填；本次改动中落在本合同 `scope_paths` 内的 `src/`/`electron/` 生产文件 ⊆ 门表 path 集合
+  （**改了门表之外的文件 = 门没数全，或 scope 画大了**）。
+- **允许不减，不允许无声地不减**。有时几扇门确实必须各自存在（分属不同进程、不同信任域）——那就写清楚，
+  让它变成记在账上的判断，而不是下一个人以为「本来就该这样」。
+- **只数直接调用点，不做传递闭包**：隔一跳的门要再数一跳（`executeCanvasWriteTarget` 要数 `applyProposalBatch` 才看得见）。
+  传递闭包在本仓会爬成几百行没人读的清单，而一张没人读的门表等于没有门表。限制写在脚本头部并由回归测试钉死。
+- 老合同按日期阈值豁免（`scripts/root-cause-contracts.mjs` 的 `DOOR_MAP_SINCE`），追溯只会把 400 份历史合同一次性打红。
+
+派工侧的另一半（复发类修复先派数门工人、任务书与 PR 必须引用门表）见 R27 与
+[`docs/engineering/agent-orchestration-playbook.md`](engineering/agent-orchestration-playbook.md)，门岗是 `check:door-map`。
+方案：[`docs/plan/2026-09-11-door-map-rule.md`](plan/2026-09-11-door-map-rule.md)。
+
 ## R22 验证分层与测试预算
 
 > 2026-08-29 用户拍板建立测试预算；2026-08-30 从 `fast/full` 两档升级为独立风险面。目标不是少测，而是把反馈成本花在真正可能受影响的地方：小改动尽快反馈，高风险绝不降级，也不把无关性能或打包成本强加给每个 PR。
