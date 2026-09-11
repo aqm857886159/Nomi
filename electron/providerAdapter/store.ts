@@ -18,6 +18,19 @@ import type {
 import type { PromotionTerminalStage } from "../integrationCertification/types";
 
 const EMPTY_STATE: ProviderAdapterStoreState = { version: 1, revision: 0, runs: [], revisions: [], inputs: [] };
+
+/**
+ * 文件租约的有效期。被 kill 的进程留下的租约要等这么久才可被 `reclaimExpired` 接管，
+ * 所以**任何想熬过一次陈旧租约的等待，预算都必须长过这个数**
+ * （见 terminalGuarantee.ts 的 `assertTerminalWriteOutlastsLease`）。
+ */
+export const PROVIDER_ADAPTER_STORE_LOCK_LEASE_MS = 30_000;
+/**
+ * 同步自旋上限。`mutate` 全同步（回调里没有 await，同进程两次 mutate 不可能交错），
+ * 自旋期间 `Atomics.wait` 会把整个主线程冻住——所以这里**故意保持很短**，
+ * 熬陈旧租约的活交给调用方的异步退避重试，别把 Electron 主进程卡住 30 秒。
+ */
+export const PROVIDER_ADAPTER_STORE_LOCK_SPIN_MS = 3_000;
 export const TERMINAL_ADAPTER_STAGES = new Set<ProviderAdapterRun["stage"]>([
   "completed",
   "partial",
@@ -143,7 +156,7 @@ export class ProviderAdapterStore {
       epochPath: `${filePath}.lock.epoch`,
       ownerId: `provider-adapter-store-${process.pid}-${crypto.randomUUID()}`,
       pid: process.pid,
-      leaseMs: 30_000,
+      leaseMs: PROVIDER_ADAPTER_STORE_LOCK_LEASE_MS,
     });
   }
 
@@ -293,7 +306,7 @@ export class ProviderAdapterStore {
   }
 
   private mutate<T>(update: (fresh: ProviderAdapterStoreState) => { state: ProviderAdapterStoreState; result: T }): T {
-    const deadline = Date.now() + 3_000;
+    const deadline = Date.now() + PROVIDER_ADAPTER_STORE_LOCK_SPIN_MS;
     const spin = new Int32Array(new SharedArrayBuffer(4));
     let lease: ReturnType<ProductionRunLock["acquire"]> | undefined;
     while (!lease) {
