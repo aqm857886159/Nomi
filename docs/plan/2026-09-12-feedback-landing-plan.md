@@ -161,12 +161,12 @@ A4 反馈缺失 / A5 每帧全量重算 / A6 深底小字 / A7 optional 回调�
 |---|---|---|
 | **PR #758 模型框整理（显示/排序/默认/记住手选）** | ✅ **已合**（2026-09-11T21:13:22Z，已在 `origin/main` `63a0636dd`）| **不再是依赖**：B5 的 #49（记住上次选择）**现在就去复核**，若已覆盖则本文不动；B15 同文件冲突已解除 |
 | PR #754 接模型工具面收成 4 个工具（`feat/mcp-onboarding-tool-face-20260911`）| OPEN | B13、P0-1 / P0-2 的落点 |
-| PR #757 P1.1b 改参数重出卡 | ✅ **已合**（09-11 21:24）| B3 / B4 / 排队项「报价卡右上角 ×」——**不再是依赖** |
-| **PR #762** `tooling/gates-risk-tier-20260912`（本机 gates 按风险分档）| OPEN（已推）| #1 / 簇 A；其结论要跟着落：**整合 main 必须放在 gates 锁里面** |
+| PR #757 P1.1b 改参数重出卡（`feat/permission-p11b-reprice-writeback-20260911`）| ✅ **已合**（2026-09-11T21:24:21Z）| B3 / B4 / 排队项「报价卡右上角 ×」——**不再是依赖** |
+| **PR #762** `tooling/gates-risk-tier-20260912`（本机 gates 按风险分档）| OPEN（分支已推 `4cf3604c`）| #1 / 簇 A；其结论要跟着落：**整合 main 必须放在 gates 锁里面** |
 | PR #755 磁吸把手恢复（`fix/canvas-magnetic-handle-restore-20260912`）| OPEN | B8（同目录 `generationCanvas/components/`）|
 | **PR #759** `rule/door-map-root-cause-20260911`（数门 + `check:door-map`）| OPEN，已推 22 文件（`scripts/door-map.mjs` **不在 main**）| **所有 recurring 合同**的 `doors` 字段；B1/B3/B4/B5 都要用它 |
 | **PR #760** `feat/agent-tool-face-single-owner-20260911`（PR A）| OPEN，已推 111 文件 | B1 的前置 |
-| **PR #761** `fix/integration-run-failure-path-20260912` | ✅ **已合**（09-11 21:48）| B2 的 MCP 半边（**MCP-P0 ① / MCP-P1 ①②③**：reaper / cancel / 逐模型错误原文）已落地，B2 不重做——**不再是依赖** |
+| **PR #761** `fix/integration-run-failure-path-20260912` | ✅ **已合**（2026-09-11T21:48:07Z）| B2 的 MCP 半边（**MCP-P0 ① / MCP-P1 ①②③**：reaper / cancel / 逐模型错误原文）已落地，B2 不重做——**不再是依赖** |
 | `feat/agent-tool-face-20-verbs-20260911`（PR B，`read_script/write_script`）| **未推送**，worktree `/Users/aoqimin/Desktop/Nomi-tool-face-b` @ `788a0dd67` | B1（在这两个动词之上改真相源，不在旧 20 动词上改）|
 | **`fix/storyboard-plan-defaults-passthrough-20260912`** ⚠️ **本文原先漏列** | **未推送**，worktree `/Users/aoqimin/Desktop/Nomi-plan-defaults`，工作区已改 20+ 文件；范围 = **整片默认参数 → 镜头参数的普查 + 单一 resolver，全部参数不止画幅**；已把 `storyboardAspectScope.ts` 改名成 `storyboardShotScope.ts`，并改 `storyboardPlanSchema.ts` / `storyboardProjection.ts` / `StoryboardShotTable.tsx` / `StoryboardBulkBar.tsx` / `StoryboardShotFrame.tsx` / `StoryboardPlanEditor.tsx` / `canvasWrite.ts` / `check-storyboard-owner.mjs` | **B5 ① 整条是它的活，B5 不重做**；B5 / B6a / B7 与它在 `creation/storyboard/` 与 `generationCanvas/agent/` 全面重叠 → **三批都等它合入** |
 | **`research/canvas-perf-at-scale-20260912`** ⚠️ **本文原先漏列** | **未推送**，worktree `/Users/aoqimin/Desktop/Nomi-canvas-perf-scale`，在写 `tests/perf/` + 改 `canvas-performance-fixture.mjs`，**数字还没出** | **B8 的验收预算必须来自它**（60 / 150 / 300 节点实测 + 先查别人），B8 不得自定预算 |
@@ -175,6 +175,7 @@ A4 反馈缺失 / A5 每帧全量重算 / A6 深底小字 / A7 optional 回调�
 | `feat/model-onboarding-two-paths-20260911`（+P0-1 删 `needs_spend_confirmation` +P0-2 自动发现返回空）| 远端 `c6c98d797` 只有 4 个 docs 文件；本地 worktree 与远端**不同步**（本地 `2c976928d`）⚠️ | B13 全部；J9 / J10 的落点。**P0-1 / P0-2 是它的活，本文不重做** |
 | `docs/agent-tool-face-research-20260911` | **未推送**，worktree `/Users/aoqimin/Desktop/Nomi-docs-0911` | B1 / B2 的「先查别人」引用（`check:prior-art` 要它）|
 | `docs/real-onboarding-acceptance-20260912` | ✅ 已推（`8ca6682b`，19 文件）| B13 缺陷清单来源（P0-1…P2-9、P0-10）|
+| **第 0 波四条 RC 分支**：`fix/sandbox-runtime-packaging-20260912` / `fix/model-availability-single-owner-20260912` / `fix/rc-small-fix-cluster-20260912` / `fix/spend-card-full-auto-and-loud-missing-card-20260912` | **四条全都还没建**（`git ls-remote` 逐条空）| 见 **§0.5**——它们走 0.22 RC 切线，不是 B1–B15 的一部分；B3 ⑥⑦ 由其中第四条接走 |
 | 排队项：报价卡右上角 ×（#757 后）| 未开工 | 并入 B4 |
 | 排队项：画布第三刀（画布工具 → 同一扇门、静默分支可见）| 未开工 | 与 B4 同族不同文件；B4 不碰画布工具 |
 | 排队项：Goal 模式 | 未开工 | 不在本文 |
