@@ -15,6 +15,7 @@ import { useNodeMentionSource } from './useNodeMentionSource'
 import { NODE_SCROLL_REGION_CLASS_NAME } from './nodeScrollRegionClassName'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
+import { useNodeWriteAccess } from './nodeWriteAccess'
 import { canRunGenerationNode, confirmAndRunNode, confirmAndRunNodeVariants, regenerateNodeInPlace, unmetReferenceDependencyForNode } from '../runner/generationRunController'
 import type { UnmetReferenceDependency } from './controls/referenceDependency'
 import { collectUngeneratedReferenceAncestors } from '../runner/referenceAncestors'
@@ -142,7 +143,9 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize, h
   }, [node.id, onFeedback])
   const { t } = useTranslation()
   const inPanel = host === 'panel'
-  const updateNode = useGenerationCanvasStore((state) => state.updateNode)
+  // 写到哪儿由宿主接住（见 nodeWriteAccess）：画布宿主写 store，付费确认卡写它自己的草稿账本，
+  // 直到用户按下「生成」才由主进程把改动投影回画布。组件这一侧两个宿主一条写入调用。
+  const { updateNode } = useNodeWriteAccess()
   const status = node.status || 'idle'
   const isGenerating = status === 'queued' || status === 'running'
   const hasResult = Boolean(node.result?.url)

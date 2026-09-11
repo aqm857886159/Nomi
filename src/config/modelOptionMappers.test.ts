@@ -89,3 +89,37 @@ describe('findModelOptionByIdentifier — vendor 二次寻址', () => {
     expect(resolved.vendor).toBe('relay-a')
   })
 })
+
+describe('toCatalogModelPricing — 价目原样搬运，不做第二次归一', () => {
+  const withPricing = (pricing: ModelCatalogModelDto['pricing']): ModelCatalogModelDto =>
+    ({ ...dto('gpt-image-2', 'relay-a'), ...(pricing ? { pricing } : {}) })
+
+  // 2026-09-11 根因：这里此前 `Math.max(0, Math.floor(cost))`，而主进程的 catalogPricingResolver
+  // 是原样透传的。基价 0.3 的模型在卡上会被印成 0——而 0 恰好是唯一会被读成「这次不花钱」的数。
+  it('非整数基价与加价一分不少地带过去（此前 Math.floor 会把 0.3 抹成 0）', () => {
+    const [option] = toCatalogModelOptions([withPricing({
+      cost: 0.3, enabled: true,
+      specCosts: [{ specKey: 'size:1536x1024', cost: 0.2, enabled: true }],
+    })])
+    expect(option.pricing?.cost).toBe(0.3)
+    expect(option.pricing?.specCosts[0]?.cost).toBe(0.2)
+  })
+
+  // 合不合法由那条唯一算式判（非有限或为负 → 诚实报「算不出」），不在搬运这一层擅自兜成 0。
+  it('负数与非数字不在这一层被兜成 0（那会变成「这次不花钱」）', () => {
+    const [negative] = toCatalogModelOptions([withPricing({ cost: -5, enabled: true, specCosts: [] })])
+    expect(negative.pricing?.cost).toBe(-5)
+    const [nan] = toCatalogModelOptions([withPricing({
+      cost: Number.NaN, enabled: true, specCosts: [],
+    })])
+    expect(Number.isNaN(nan.pricing?.cost as number)).toBe(true)
+  })
+
+  it('specKey 空白的那几条仍然丢掉（它配不上任何一个参数选择）', () => {
+    const [option] = toCatalogModelOptions([withPricing({
+      cost: 1, enabled: true,
+      specCosts: [{ specKey: '  ', cost: 9, enabled: true }, { specKey: ' 4k ', cost: 2, enabled: true }],
+    })])
+    expect(option.pricing?.specCosts).toEqual([{ specKey: '4k', cost: 2, enabled: true }])
+  })
+})
