@@ -16,6 +16,7 @@ import { useProductionCanvasLandingStore } from '../../production/productionCanv
 import { deriveShotPlaceholderState, shotIdForNode } from '../../production/shotPlaceholderState'
 import { reworkProductionShot, resumeProductionBatch } from '../../production/productionShotActions'
 import { GeneratingOverlay } from './render/CardCommon'
+import { NODE_SCROLL_REGION_CLASS_NAME } from './nodeScrollRegionClassName'
 
 /** 该节点是否属某多镜 Run 的占位（meta.productionRunId）。非占位 → 组件早退，零开销。 */
 function productionRunIdOf(node: GenerationCanvasNode): string | null {
@@ -136,7 +137,7 @@ export function ProductionShotPlaceholder({ node, reportFeedback }: { reportFeed
           {t('generationCommon.production.canvasLanding.failedTitle')}
         </span>
       </div>
-      <div className="mt-2 min-h-0 flex-1 overflow-y-auto" onWheel={(event) => event.stopPropagation()}>
+      <div className={cn(NODE_SCROLL_REGION_CLASS_NAME, 'mt-2 min-h-0 flex-1 overflow-y-auto')}>
         <p className="break-words text-caption leading-relaxed text-nomi-ink-60">
           {state.failureMessage || t('generationCommon.production.canvasLanding.failedFallback')}
         </p>
