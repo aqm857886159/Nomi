@@ -103,7 +103,7 @@ describe('composer sends commit local cleanup only after current admission', () 
   it.each(['negative-ack', 'exception'])('keeps the skill reference when the send fails with %s', async kind => {
     fixture.state.creationActiveSkill = { key: 'workbench-storyboard-planner', name: '分镜规划' }
     if (kind === 'exception') fixture.say.mockRejectedValue(new Error('lane down'))
-    else fixture.say.mockResolvedValue({ ok: false, message: 'lane down' })
+    else fixture.say.mockResolvedValue({ ok: false, code: 'agent_lane_execute_failed', diagnostic: 'lane down' })
     expect(await mountActions().send('plan the opening')).toBe(false)
     expect(fixture.state.creationActiveSkill).toEqual({ key: 'workbench-storyboard-planner', name: '分镜规划' })
   })
@@ -117,7 +117,7 @@ describe('composer sends commit local cleanup only after current admission', () 
 
   it.each(['negative-ack', 'exception'])('returns false and keeps the draft on %s', async kind => {
     if (kind === 'exception') fixture.say.mockRejectedValue(new Error('missing skill'))
-    else fixture.say.mockResolvedValue({ ok: false, message: 'missing skill' })
+    else fixture.say.mockResolvedValue({ ok: false, code: 'agent_lane_execute_failed', diagnostic: 'missing skill' })
     expect(await mountActions().send('keep this draft')).toBe(false)
     expect(fixture.state.projectAgentDraft).toBe('keep this draft')
   })

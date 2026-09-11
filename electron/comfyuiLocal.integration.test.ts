@@ -156,9 +156,16 @@ describe("本地 ComfyUI 传输链（真 HTTP 端到端）", () => {
       response: created.response, mapping, operation: mapping.create, request,
       taskIdFallback: "", wantedKind: "image", vendor, model,
     });
-    // prompt_id → result.id（response_mapping.task_id="prompt_id"）。真轮询路从缓存键(=result.id)回填
-    // providerMeta.task_id（taskResultQuery.ts:70-71），故 id 落在 result.id 而非 providerMeta。
+    // prompt_id → result.id（response_mapping.task_id="prompt_id"）。
     expect(createNorm.result.id).toBe(REQUEST_PROMPT_ID);
+    // 而且 providerMeta 也必须拿得到同一个编号。这条曾经不成立：providerMeta 只看
+    // provider_meta_mapping 与 extractTaskId 认得的那几个键，**看不见 response_mapping**，
+    // 于是 runTask 里那道「上游没返回任务编号就按失败处理」的闸对 ComfyUI 恒真——
+    // result.id 明明拿到了 prompt_id，整条认证却必失败（2026-09-11 真机实锤，
+    // 日志 comfy-candidate-no-output providerError=「供应商没有返回任务编号」）。
+    // 「这一跳有没有拿到上游编号」只能有一个答案，这里钉死它。
+    expect(createNorm.providerMeta.task_id).toBe(REQUEST_PROMPT_ID);
+    expect(createNorm.providerMeta.query_id).toBe(REQUEST_PROMPT_ID);
     // ComfyUI 真收到的是 API 格式工作流图（不是 UI json），提示词注入 + 数字是真数字
     expect(lastPromptBody?.prompt?.["6"]?.inputs?.text).toBe("a red cube on green grass");
     // ckpt 默认留空 → "comfyui-prompt" 请求变换真跑了一趟 /object_info 并 derive 出本机第一个 checkpoint
@@ -175,9 +182,8 @@ describe("本地 ComfyUI 传输链（真 HTTP 端到端）", () => {
     expect(lastPromptBody?.trace_context).toEqual({ source: "integration-test" });
 
     // ── 2) 轮询 GET /history/{id} 直到成功 ──
-    // 镜像真轮询路（taskResultQuery.ts）：providerMeta.task_id/query_id 从缓存键(=create result.id)回填。
-    const taskId = createNorm.result.id;
-    const providerMeta = { ...createNorm.providerMeta, task_id: taskId, query_id: taskId };
+    // create 那一跳已经把上游编号回填进 providerMeta，轮询直接用它（不再靠调用方补一遍）。
+    const providerMeta = createNorm.providerMeta;
     let status = createNorm.result.status;
     let assetUrl = "";
     let providerUrl = "";

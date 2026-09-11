@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto'
 import { assertTrustedSender } from '../ipcSenderGuard'
 import { LANE_IPC_CHANNELS, type LaneWorkspaceHandle, type LaneWorkspaceProjection } from '../shared/agentLane/laneContracts'
 import { LaneCommandError, parseLaneCommand } from './laneCommandCodec'
+import { laneErrorCodeOf } from '../shared/agentLane/laneErrorCodes'
 import type { LaneDesktopResult, LaneRestoredDesktopInput } from '../shared/agentLane/laneDesktopContracts'
 
 export interface LaneIpcDependencies {
@@ -19,6 +20,15 @@ export interface LaneIpcDependencies {
 }
 
 export interface LaneIpcRegistration { dispose(): Promise<void> }
+
+/** 诊断串的上限。它只进日志与「技术详情」，不需要完整正文。 */
+const MAX_DIAGNOSTIC_CHARS = 2048
+
+function laneDiagnostic(error: unknown): string {
+  const text = error instanceof Error ? error.message : String(error)
+  return text.length > MAX_DIAGNOSTIC_CHARS ? `${text.slice(0, MAX_DIAGNOSTIC_CHARS)}…` : text
+}
+
 
 export function registerAgentLaneIpc(dependencies: LaneIpcDependencies): LaneIpcRegistration {
   let active: { workspace: LaneWorkspaceHandle; workspaceId: string; target: WebContents; unsubscribe: () => void; destroyed: () => void } | undefined
@@ -48,20 +58,39 @@ export function registerAgentLaneIpc(dependencies: LaneIpcDependencies): LaneIpc
     return next
   }
 
+  /**
+   * 等这一轮开/关落定。
+   *
+   * 面板刚打开的那一两秒里用户就打字/点按钮是**常态**，不是异常用法。以前这条路上的两处
+   * 判断都直接**拒**（一句英文原文糊在面板顶上，那句话还得他自己重打），而开/关本身是有界的
+   * ——正确的行为是等它落定，再按落定后的真相判一次。
+   *
+   * 逐次等而不是等一次：切项目是 `close` + `open` 两次 `replace`，第一次落定时第二次已经排上了。
+   * `lifecycle` 没再被换掉就说明没有后续，可以收手；上限只是防一条卡死的关闭把命令永远挂住
+   * ——真挂满了下面的 `switching` 判断会以 `agent_lane_opening` 收尾（fail-closed，有码可译）。
+   */
+  async function settleLifecycle(): Promise<void> {
+    for (let step = 0; switching && step < 8; step += 1) {
+      const awaited = lifecycle
+      await awaited
+      if (lifecycle === awaited) break
+    }
+  }
+
   ipcMain.handle(LANE_IPC_CHANNELS.command, async (event, wire: unknown) => {
     assertTrustedSender(event)
     try {
-      if (disposed) throw new Error('The agent workspace is closed.')
+      if (disposed) throw new Error('agent_lane_disposed')
       const kind = wire && typeof wire === 'object' ? (wire as { kind?: unknown }).kind : undefined
       if (kind === 'single-shot' || kind === 'single-shot-abort') {
         const requestId = (wire as { requestId?: unknown }).requestId
-        if (typeof requestId !== 'string' || !requestId.trim() || requestId.length > 256) throw new LaneCommandError('Invalid request identity')
+        if (typeof requestId !== 'string' || !requestId.trim() || requestId.length > 256) throw new LaneCommandError('A single-shot request needs a request identity')
         const key = `${event.sender.id}:${requestId}`
         if (kind === 'single-shot-abort') {
           singleShots.get(key)?.controller.abort()
           return { ok: true as const }
         }
-        if (singleShots.has(key)) throw new LaneCommandError('This request is already running')
+        if (singleShots.has(key)) throw new Error('agent_lane_request_duplicate')
         const controller = new AbortController()
         const destroyed = () => controller.abort()
         singleShots.set(key, { target: event.sender, controller })
@@ -75,7 +104,7 @@ export function registerAgentLaneIpc(dependencies: LaneIpcDependencies): LaneIpc
         const workspaceId = randomUUID()
         await replace(async () => {
           await close()
-          if (disposed) throw new Error('The agent workspace is closed.')
+          if (disposed) throw new Error('agent_lane_disposed')
           const workspace = await dependencies.openWorkspace(event, wire)
           if (disposed || event.sender.isDestroyed()) { await workspace.close(); return }
           const target = event.sender
@@ -89,12 +118,19 @@ export function registerAgentLaneIpc(dependencies: LaneIpcDependencies): LaneIpc
         })
         return { ok: true as const, workspaceId }
       }
+      if (kind === 'workspace-close' && !active && !switching) {
+        abortSingleShots(event.sender)
+        return { ok: true as const }
+      }
+      // 命令撞上正在进行的开/关：等，别拒（理由见 settleLifecycle）。等完之后下面每一条判断
+      // 看到的都是**落定后**的真相——该归属就执行，该作废就以 `agent_lane_workspace_stale` 收尾。
+      if (switching) await settleLifecycle()
       if (kind === 'workspace-close' && !active) {
         abortSingleShots(event.sender)
         return { ok: true as const }
       }
       if (!active || active.target !== event.sender) {
-        return { ok: false as const, code: 'agent_lane_closed', message: 'No agent conversation is open in this window.' }
+        return { ok: false as const, code: 'agent_lane_closed' as const, diagnostic: 'no workspace is open for this sender' }
       }
       if ((wire as { workspaceId?: unknown }).workspaceId !== active.workspaceId) throw new Error('agent_lane_workspace_stale')
       if (kind === 'workspace-close') {
@@ -102,7 +138,7 @@ export function registerAgentLaneIpc(dependencies: LaneIpcDependencies): LaneIpc
         return { ok: true as const }
       }
       dependencies.validate(event)
-      if (switching) throw new Error('The agent is opening a conversation. Try again after it opens.')
+      if (switching) throw new Error('agent_lane_opening')
       if (kind === 'workspace-policy') {
         dependencies.updatePolicy(event, (wire as { policy?: unknown }).policy, active.workspace)
         return { ok: true as const }
@@ -141,8 +177,11 @@ export function registerAgentLaneIpc(dependencies: LaneIpcDependencies): LaneIpc
           ? { restoredInput: dependencies.restoreInput(owner.workspace, outcome.restoredInput) } : {}),
       }
     } catch (error) {
-      const code = error instanceof LaneCommandError ? error.code : 'agent_lane_execute_failed'
-      return { ok: false as const, code, message: error instanceof Error ? error.message : String(error) }
+      // 桥上只出**码**。`message` 留着是给日志与「技术详情」的诊断串——渲染层的显示边界
+      // (`laneCommandFailureText`) 按码取本地化文案，永不把它印成界面文字。
+      // 诊断串封顶：一条来自第三方栈/上游正文的失败可以是几十 KB，而它的用途只有日志与
+      // 「技术详情」。Codex 对同一格的处置是 UI 2KB / 正文 1KB 上限（codex-rs/protocol/src/error.rs:34）。
+      return { ok: false as const, code: laneErrorCodeOf(error), diagnostic: laneDiagnostic(error) }
     }
   })
 
