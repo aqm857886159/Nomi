@@ -99,6 +99,14 @@ describe("Agent lane production cutover structure", () => {
   });
 
   it("keeps retired area turn controllers out of the production import graph", () => {
+    // 2026-09-11: both controllers were deleted outright (zero production references
+    // left; canvasTurnController's only non-guard consumer was a test, migrated to a
+    // local turn store). The import-graph check stays as a no-reintroduction guard;
+    // the exists() checks below are what keep this test from going vacuous now that
+    // the files themselves are gone.
+    expect(exists("src/workbench/generationCanvas/agent/canvasTurnController.ts")).toBe(false);
+    expect(exists("src/workbench/creation/creationTurnController.ts")).toBe(false);
+
     const productionFiles = [
       "src/workbench/creation/creationAiReplyText.ts",
       "src/workbench/project/projectPersistenceService.ts",

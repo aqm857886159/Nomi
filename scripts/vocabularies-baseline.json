@@ -1325,14 +1325,6 @@
       "reason": "**媒体加载失败原因**分类（不是状态），用于给用户不同的人话提示。"
     },
     {
-      "site": "src/workbench/generationCanvas/nodes/Scene3DEditor.tsx::function:readTakeCaptureStatus/type-union",
-      "members": [
-        "done",
-        "generating"
-      ],
-      "reason": "3D/全景交互的局部捕获或反馈结果（done / generating），仅属于该交互域。"
-    },
-    {
       "site": "src/workbench/generationCanvas/nodes/deferredNodeMediaQueue.ts::type:DeferredNodeMediaState/type-union",
       "members": [
         "error",
