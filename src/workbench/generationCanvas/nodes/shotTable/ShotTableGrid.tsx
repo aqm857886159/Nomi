@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { cn } from '../../../../utils/cn'
 import { WorkbenchButton } from '../../../../design'
 import type { ShotTableRowView } from './selectShotTableRows'
+import { NODE_SCROLL_REGION_CLASS_NAME } from '../nodeScrollRegionClassName'
 
 type Props = {
   rows: readonly ShotTableRowView[]
@@ -19,7 +20,7 @@ export function ShotTableGrid({ rows, compact, selectedIds, onSelect, onOpen, fa
   const { t } = useTranslation()
   const facts = factColumns?.filter(column => column.visible).slice().sort((a, b) => a.order - b.order)
   const leading = compact ? ['index', 'thumbnail'] as const : ['index', 'thumbnail', 'duration'] as const
-  return <div className="nowheel nodrag generation-canvas-react-flow__no-pan min-h-0 flex-1 overflow-auto" onPointerDown={event => event.stopPropagation()} onClick={event => event.stopPropagation()}>
+  return <div className={cn(NODE_SCROLL_REGION_CLASS_NAME, 'min-h-0 flex-1 overflow-auto')} onPointerDown={event => event.stopPropagation()} onClick={event => event.stopPropagation()}>
     <table style={{ minWidth: facts && !compact ? 1100 : undefined }} className="w-full table-fixed border-collapse text-left text-body-sm text-nomi-ink">
       <colgroup>
         <col style={{ width: 28 }} />{leading.map(column => <col key={column} style={{ width: column === 'index' ? 40 : column === 'duration' ? 92 : 60 }} />)}

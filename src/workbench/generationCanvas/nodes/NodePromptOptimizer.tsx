@@ -16,6 +16,7 @@ import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { diffPromptWords } from './promptDiff'
 import i18n from '../../../i18n'
+import { NODE_SCROLL_REGION_CLASS_NAME } from './nodeScrollRegionClassName'
 
 /** 组改写指令。导出供单测——铁律有没有真进 prompt 必须可验，否则「加了 rubric」只是句口号（W4）。 */
 export function buildOptimizePrompt(original: string, idea: string, isVideo: boolean): string {
@@ -135,6 +136,7 @@ export function NodePromptOptimizer({ node, isVideo }: { node: GenerationCanvasN
             <>
               <div
                 className={cn(
+                  NODE_SCROLL_REGION_CLASS_NAME,
                   'max-h-[160px] overflow-y-auto rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2 py-1.5 text-body-sm leading-relaxed text-nomi-ink',
                 )}
               >
@@ -168,6 +170,7 @@ export function NodePromptOptimizer({ node, isVideo }: { node: GenerationCanvasN
             <>
               <textarea
                 className={cn(
+                  NODE_SCROLL_REGION_CLASS_NAME,
                   'w-full h-[52px] resize-none rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2 py-1.5',
                   'text-body-sm text-nomi-ink placeholder:text-nomi-ink-60 outline-none focus:border-nomi-accent',
                 )}

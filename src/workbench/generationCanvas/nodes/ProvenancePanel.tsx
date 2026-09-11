@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { cn } from '../../../utils/cn'
 import { useOverlayEscape } from '../../../design'
+import { NODE_SCROLL_REGION_CLASS_NAME } from './nodeScrollRegionClassName'
 
 /** Trim trailing zeros from a credits amount (8.50 → "8.5", 8.00 → "8"). Local to the
  *  provenance viewer so it does not depend on the estimate module. */
@@ -55,6 +56,7 @@ export default function ProvenancePanel({ node, open, onClose }: Props): JSX.Ele
     >
       <div
         className={cn(
+          NODE_SCROLL_REGION_CLASS_NAME,
           'w-full max-w-[560px] max-h-[80vh] overflow-y-auto',
           'bg-nomi-paper border border-nomi-line rounded-nomi-lg shadow-nomi-md p-5',
         )}
@@ -136,7 +138,7 @@ export default function ProvenancePanel({ node, open, onClose }: Props): JSX.Ele
                 <div className="text-micro text-nomi-ink-40 uppercase tracking-wide mb-1">
                   {t('generationCommon.provenance.params')}
                 </div>
-                <pre className="bg-nomi-bg border border-nomi-line-soft rounded-nomi-sm p-2 text-micro font-mono overflow-x-auto text-nomi-ink-80">
+                <pre className={cn(NODE_SCROLL_REGION_CLASS_NAME, 'bg-nomi-bg border border-nomi-line-soft rounded-nomi-sm p-2 text-micro font-mono overflow-x-auto text-nomi-ink-80')}>
                   {JSON.stringify(provenance.params, null, 2)}
                 </pre>
               </div>
