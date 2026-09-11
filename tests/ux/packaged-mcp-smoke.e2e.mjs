@@ -203,14 +203,24 @@ async function smokeClient(client, { signed = true } = {}) {
         name: `Packaged MCP integration draft - ${client}`,
         baseUrl: 'https://example.invalid/v1',
         authType: 'bearer',
-        clientRequestId: `packaged-${client}-integration-draft`,
       },
     })
-    assert(integrationBegin.result?.isError !== true, `${client} signed integration.begin succeeds without a credential`)
+    assert(integrationBegin.result?.isError !== true, `${client} signed nomi_model_setup connect_provider succeeds without a credential`)
     const integration = JSON.parse(integrationBegin.result?.content?.[0]?.text || '{}')
-    assert(typeof integration.id === 'string' && integration.ownerClientId === client, `${client} integration draft is owned by its signed identity`)
-    assert(integration.stage === 'needs_credential' && integration.credentialStatus === 'missing', `${client} integration draft remains unverified until secure credential handoff`)
-    assert(!JSON.stringify(integration).match(/authorization|api.?key|credentialRef/i), `${client} integration draft exposes no credential-shaped value`)
+    const draft = integration.state?.setups?.find((setup) => setup.id === integration.setupId)
+    assert(typeof integration.setupId === 'string' && draft?.ownerClientId === client, `${client} setup draft is owned by its signed identity`)
+    // 「让用户填 key」不是动词，是这一跳的后果：模型侧只看到 nextAction.kind，
+    // 拿不到也永远不会拿到 key 的值。
+    assert(integration.nextAction?.kind === 'user_sees_key_page', `${client} connect_provider hands the key step back as nextAction, not as another verb`)
+    assert(draft?.credentialStatus === 'missing', `${client} setup draft remains unverified until secure credential handoff`)
+    // 自检免费、也证不了出片：信封里必须仍留着 model_produces_output。
+    assert(integration.unverified?.some((entry) => entry.claim === 'model_produces_output'), `${client} envelope still admits the model has produced nothing`)
+    // 安全断言的本意是「没有任何密钥**值**漏出来」。credentialRef / credentialStatus 是字段名不是值，
+    // 所以按值查：Authorization 头的值、apiKey 字段、以及常见 key 前缀。
+    const serialized = JSON.stringify(integration)
+    assert(!/"(apiKey|apiToken|secret|password)"\s*:\s*"[^"]/i.test(serialized)
+      && !/"authorization"\s*:\s*"[^"]/i.test(serialized)
+      && !/\bsk-[A-Za-z0-9_-]{8}/.test(serialized), `${client} integration draft exposes no credential-shaped value`)
 
     const created = await rpc('tools/call', {
       name: 'nomi_project_create',

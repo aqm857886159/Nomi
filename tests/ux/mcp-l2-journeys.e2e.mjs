@@ -165,19 +165,25 @@ try {
   // 读门只有一个：nomi_list_models（不带参数也能把丢掉的 setupId 找回来）。
   const afterCredential = await call(mcp, 'nomi_list_models', { setupId: integrationSessionId })
   check(resultTextJson(afterCredential).state?.setups?.some((setup) => setup.id === integrationSessionId), 'C7 T14 nomi_list_models 读得到这次在途接入')
+  // 走设计规定的那一跳：connect_provider 的 nextAction.waitWith 就是 nomi_await_setup。
+  // 「等」是独立的读工具，不是靠重复写动作表达——旧面上没有它，实测里模型只能反复 confirm，
+  // 而重签挑战把人刚点过的那一下作废了（4 次点击 3 次白点）。
+  const awaited = await call(mcp, 'nomi_await_setup', { setupId: integrationSessionId, timeoutSeconds: 30 })
+  const awaitedData = resultTextJson(awaited)
+  check(awaitedData.state?.setups?.some((setup) => setup.id === integrationSessionId), 'C7 T14 nomi_await_setup 返回这次接入的最新状态')
+
   // 模型入参里没有 expectedRevision —— 这一跳和上一跳之间会话已经往前走过（凭据落地），
   // 旧面在这里必然报 revision stale，新面上这件事不可表达。
-  const rejectedProposal = await mcp.callTool('nomi_model_setup', {
-    action: 'choose_models', setupId: integrationSessionId,
-    models: [{ modelKey: 'missing-model', kind: 'image' }],
-  })
-  check(rejectedProposal.isError && /model|candidate|selection/i.test(parseToolResult(rejectedProposal).text), 'C7 T14 choose_models 返回字段级可读打回原因')
   const proposed = await call(mcp, 'nomi_model_setup', {
     action: 'choose_models', setupId: integrationSessionId,
     models: [{ modelKey: 'relay-image', kind: 'image' }],
   })
   const proposedData = resultTextJson(proposed)
   check(Boolean(proposedData.changeId), 'C7 T14 choose_models 通过强 schema 落库门并返回可撤销的 changeId')
+  // 这家还没探到候选（供应商没有 model-list 端点），所以这一轮是手写的——手写时
+  // 信封必须承认「模型 id 存在」还没有凭据。
+  check(proposedData.unverified?.some((entry) => entry.claim === 'model_id_exists'),
+    `C7 T14 手写 modelKey 时 unverified 里留着 model_id_exists（实际 ${JSON.stringify(proposedData.unverified)?.slice(0, 200)}）`)
   // 重放恒等（Stripe 语义）：同一跳再调一次返回**同一个** changeId。旧面在这里会重签挑战，
   // 把人刚才那次点击作废——实测里 4 次点击 3 次白点就是这么来的。
   const replayed = await call(mcp, 'nomi_model_setup', {
@@ -185,6 +191,19 @@ try {
     models: [{ modelKey: 'relay-image', kind: 'image' }],
   })
   check(resultTextJson(replayed).changeId === proposedData.changeId, 'C7 T14 重复调用写动作返回一字不差的同一个结果')
+
+  // 上一跳之后这家有候选了（relay-image）。**现在**编一个 modelKey 出来必须被打回，
+  // 而且打回的话要说清是哪个字段、哪几个值——工具描述里写着「Never invent a modelKey」，
+  // 这条断言就是那句话的运行时判据。没有它，描述只是一句空话：第一版的 choose_models
+  // 把 candidates 直接写成模型报上来的那批，编出来的 modelKey 会被原样收下，
+  // 用户画布模型框里就多一个永远出不了片、却看起来和真的一模一样的模型。
+  const rejectedProposal = await mcp.callTool('nomi_model_setup', {
+    action: 'choose_models', setupId: integrationSessionId,
+    models: [{ modelKey: 'missing-model', kind: 'image' }],
+  })
+  const rejectedText = parseToolResult(rejectedProposal).text
+  check(rejectedProposal.isError && /missing-model/.test(rejectedText) && /candidate|model/i.test(rejectedText),
+    `C7 T14 编出来的 modelKey 被打回，且原因点名那个值（实际 isError=${rejectedProposal.isError} text=${JSON.stringify(rejectedText).slice(0, 300)}）`)
 
   // 自检是免费的：billable 恒 false，且**不向生成端点发任何请求**。
   const checked = await call(mcp, 'nomi_model_setup', { action: 'check_connection', setupId: integrationSessionId })
