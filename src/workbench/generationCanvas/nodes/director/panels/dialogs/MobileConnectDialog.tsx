@@ -10,7 +10,7 @@
  */
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { DesignModal, WorkbenchButton } from '../../../../../../design'
+import { DesignModal, WorkbenchButton, useClipboardCopy } from '../../../../../../design'
 import { toast } from '../../../../../../ui/toast'
 import { IconCheck, IconCopy } from '../../../../../../vendor/tablerIcons'
 import { useMobileCameraApi } from '../../MobileCameraContext'
@@ -35,7 +35,8 @@ export function MobileConnectDialog(): JSX.Element {
   const mobile = useMobileCameraApi()
   const urls = mobile.status?.urls ?? NO_URLS
   const [activeUrl, setActiveUrl] = React.useState('')
-  const [copied, setCopied] = React.useState(false)
+  const clipboard = useClipboardCopy()
+  const copied = clipboard.copied
   const selected = urls.includes(activeUrl) ? activeUrl : preferredUrl(urls)
   const qrSvg = selected ? mobile.status?.qrByUrl?.[selected] : undefined
   const devices = mobile.status?.devices ?? []
@@ -52,14 +53,8 @@ export function MobileConnectDialog(): JSX.Element {
 
   const copy = async () => {
     if (!selected) return
-    try {
-      await navigator.clipboard.writeText(selected)
-      setCopied(true)
-      toast(t('director.camera.mobileCopied'), 'success')
-      window.setTimeout(() => setCopied(false), 1500)
-    } catch {
-      toast(t('director.camera.mobileCopyFailed'), 'error')
-    }
+    const ok = await clipboard.copy(selected)
+    toast(ok ? t('director.camera.mobileCopied') : t('director.camera.mobileCopyFailed'), ok ? 'success' : 'error')
   }
 
   return (

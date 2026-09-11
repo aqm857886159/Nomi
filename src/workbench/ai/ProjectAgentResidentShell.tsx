@@ -516,7 +516,6 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
         onHistory={() => setThreadsOpen((value) => !value)}
         onCollapse={() => setCollapsed(true)}
         flowHandlers={{
-          onCopy: (text) => { void navigator.clipboard?.writeText(text) },
           onContinue: (index) => {
             const item = data.flow[index]
             if (item?.kind !== 'assistant' || !item.continuationEntryId) return

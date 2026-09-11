@@ -2,7 +2,7 @@ import React from 'react'
 import { useTranslation } from 'react-i18next'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { cn } from '../../../utils/cn'
-import { useOverlayEscape } from '../../../design'
+import { useClipboardCopy, useOverlayEscape } from '../../../design'
 import { NODE_SCROLL_REGION_CLASS_NAME } from './nodeScrollRegionClassName'
 
 /** Trim trailing zeros from a credits amount (8.50 → "8.5", 8.00 → "8"). Local to the
@@ -29,20 +29,13 @@ type Props = {
   /** Optional regenerate handler — if absent, button is hidden. */
 }
 
-function copyToClipboard(text: string): void {
-  if (!text) return
-  try {
-    void navigator.clipboard?.writeText(text)
-  } catch {
-    /* ignore */
-  }
-}
-
 export default function ProvenancePanel({ node, open, onClose }: Props): JSX.Element | null {
   const { t, i18n } = useTranslation()
   // Esc = 关闭（只读溯源面板，关掉不丢任何东西）。hook 必须在 early return 之前。
   const dialogRef = React.useRef<HTMLDivElement | null>(null)
   useOverlayEscape(dialogRef, open, onClose)
+  // 「复制提示」曾是一条 `void navigator.clipboard?.writeText(...)`：写没写进去谁也不知道。
+  const clipboard = useClipboardCopy()
   if (!open) return null
   const provenance = node.result?.provenance
   return (
@@ -116,10 +109,18 @@ export default function ProvenancePanel({ node, open, onClose }: Props): JSX.Ele
               {provenance.prompt ? (
                 <button
                   type="button"
-                  onClick={() => copyToClipboard(provenance.prompt || '')}
-                  className="mt-1 text-micro text-nomi-accent hover:underline"
+                  onClick={() => { void clipboard.copy(provenance.prompt || '') }}
+                  data-provenance-copy-state={clipboard.state}
+                  className={cn(
+                    'mt-1 text-micro hover:underline',
+                    clipboard.copied ? 'text-workbench-success' : clipboard.failed ? 'text-workbench-danger' : 'text-nomi-accent',
+                  )}
                 >
-                  {t('generationCommon.provenance.copyPrompt')}
+                  {clipboard.copied
+                    ? t('common.copied')
+                    : clipboard.failed
+                      ? t('common.copyFailed')
+                      : t('generationCommon.provenance.copyPrompt')}
                 </button>
               ) : null}
             </div>

@@ -11,7 +11,8 @@ import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../../../utils/cn'
 import { AgentPanelV4Markdown } from './AgentPanelV4Markdown'
-import { ActionIcon, IconChevronRight, IconCopy, IconRefresh } from './AgentPanelV4Icons'
+import { ActionIcon, IconCheck, IconChevronRight, IconCopy, IconRefresh } from './AgentPanelV4Icons'
+import { useClipboardCopy } from '../../../design'
 import { Message, MessageActions, MessageResponse } from './vendor/aiElementsPrimitives'
 import { SkillMedia } from '../../skillLibrary/SkillMedia'
 import type { V4AssistantStatus, V4Chip } from './agentPanelV4Types'
@@ -95,7 +96,6 @@ export function V4AssistantMessage({
   status,
   skill,
   labels,
-  onCopy,
   onRetry,
   onContinue,
 }: {
@@ -106,14 +106,17 @@ export function V4AssistantMessage({
    * 用户只能猜到底用上没有（2026-09-10 反馈 #6）。缺席 = 这一轮没挂技能，那一行整行不渲染。
    */
   skill?: string
-  labels: { copy: string; retry: string; continue: string }
-  /** 三个动作都可缺：设计实验室单件取景时没有宿主可调，钮仍在，只是按下去没有去处。 */
-  onCopy?: (text: string) => void
+  labels: { copy: string; copied: string; copyFailed: string; retry: string; continue: string }
+  /** 两个动作可缺：设计实验室单件取景时没有宿主可调，钮仍在，只是按下去没有去处。
+   *  **复制不在此列**——它不需要宿主（写剪贴板是浏览器的事），所以它没有 handler，
+   *  按钮自己做完整件事、自己亮回执。曾经它是一根 `onCopy` 线，宿主那头只写了
+   *  `void navigator.clipboard?.writeText(text)`，成败一起吞掉：用户点了复制什么都没发生。 */
   onRetry?: () => void
   /** 「继续」= 给这个还活着的回合追加一句指令（`turn.steer`），不是重发。 */
   onContinue?: () => void
 }): JSX.Element {
   const { t } = useTranslation()
+  const clipboard = useClipboardCopy()
   return (
     <div className="group" data-v4-block="assistant" data-status={status}>
       <Message role="assistant">
@@ -130,11 +133,16 @@ export function V4AssistantMessage({
           <MessageActions className="opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
             <button
               type="button"
-              aria-label={labels.copy}
-              onClick={() => onCopy?.(text)}
-              className="grid size-[22px] place-items-center rounded-nomi-sm hover:bg-nomi-ink-05"
+              aria-label={clipboard.copied ? labels.copied : clipboard.failed ? labels.copyFailed : labels.copy}
+              data-v4-copy-state={clipboard.state}
+              onClick={() => { void clipboard.copy(text) }}
+              className={cn(
+                'grid size-[22px] place-items-center rounded-nomi-sm hover:bg-nomi-ink-05',
+                clipboard.copied && 'text-workbench-success',
+                clipboard.failed && 'text-workbench-danger',
+              )}
             >
-              <IconCopy size={14} />
+              {clipboard.copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
             </button>
             <button
               type="button"

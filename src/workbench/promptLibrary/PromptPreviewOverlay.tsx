@@ -12,6 +12,7 @@ import {
   IconPhoto,
 } from '@tabler/icons-react'
 import { cn } from '../../utils/cn'
+import { useClipboardCopy } from '../../design'
 import type { LibraryPrompt } from '../api/promptLibraryApi'
 import { promptDisplayTitle, promptSourceLabel } from './promptDisplay'
 
@@ -31,7 +32,9 @@ export function PromptPreviewOverlay({ prompt, originRect, onClose, onSendToCanv
   const boxRef = React.useRef<HTMLDivElement>(null)
   const [closing, setClosing] = React.useState(false)
   const [sent, setSent] = React.useState(false)
-  const [copied, setCopied] = React.useState(false)
+  // 原来是「先 setCopied(true)，再 void writeText().catch(() => undefined)」：
+  // 写失败时它照样说「已复制」，而且那句话再也不退回去。回执只能由真实结果驱动。
+  const clipboard = useClipboardCopy()
   const isVideo = prompt.mediaType === 'video'
   const hasMedia = Boolean(prompt.mediaUrl)
   const displayTitle = promptDisplayTitle(prompt)
@@ -88,10 +91,7 @@ export function PromptPreviewOverlay({ prompt, originRect, onClose, onSendToCanv
     setSent(true)
     window.setTimeout(close, 950)
   }
-  const handleCopy = () => {
-    void navigator.clipboard?.writeText(prompt.prompt).catch(() => undefined)
-    setCopied(true)
-  }
+  const handleCopy = () => { void clipboard.copy(prompt.prompt) }
 
   return (
     <Portal>
@@ -183,13 +183,18 @@ export function PromptPreviewOverlay({ prompt, originRect, onClose, onSendToCanv
               type="button"
               onClick={handleCopy}
               aria-label={t('libraries.prompt.preview.copyAria')}
+              data-prompt-copy-state={clipboard.state}
               className={cn(
                 'inline-flex items-center gap-1.5 h-9 px-3 rounded-full cursor-pointer',
                 'border border-nomi-line bg-transparent text-nomi-ink-80 text-body-sm hover:bg-nomi-ink-05',
               )}
             >
-              {copied ? <IconCheck size={15} stroke={2} /> : <IconCopy size={15} stroke={1.8} />}
-              {copied ? t('libraries.prompt.preview.copied') : t('libraries.prompt.preview.copy')}
+              {clipboard.copied ? <IconCheck size={15} stroke={2} /> : <IconCopy size={15} stroke={1.8} />}
+              {clipboard.copied
+                ? t('libraries.prompt.preview.copied')
+                : clipboard.failed
+                  ? t('common.copyFailed')
+                  : t('libraries.prompt.preview.copy')}
             </button>
             <span className={cn('flex-1')} />
             {prompt.sourceUrl ? (

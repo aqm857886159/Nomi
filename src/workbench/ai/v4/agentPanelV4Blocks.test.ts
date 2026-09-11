@@ -66,7 +66,7 @@ describe('① 用户气泡', () => {
 })
 
 describe('② 助手文本', () => {
-  const labels = { copy: '复制回复', retry: '重来', continue: '继续' }
+  const labels = { copy: '复制回复', copied: '已复制', copyFailed: '复制失败', retry: '重来', continue: '继续' }
   it('流式带光标、完成不带', () => {
     expect(html(el(V4AssistantMessage, { text: 'x', status: 'streaming', labels }))).toContain('style="--streamdown-caret:')
     expect(html(el(V4AssistantMessage, { text: 'x', status: 'complete', labels }))).not.toContain('style="--streamdown-caret:')
@@ -79,6 +79,17 @@ describe('② 助手文本', () => {
     expect(markup).toContain('group-hover:opacity-100')
     expect(markup).toContain('复制回复')
     expect(markup).toContain('重来')
+  })
+
+  /**
+   * 2026-09-11 用户实测：这枚复制 icon「点了没反应」。根因是它当时是一根 `onCopy` 线，
+   * 宿主那头只写了 `void navigator.clipboard?.writeText(text)`——成败一起吞掉。
+   * 现在它自己做完整件事，所以初始态必须有一个可读的回执位（`data-v4-copy-state`）。
+   */
+  it('复制钮自带回执位，不再依赖宿主传 handler', () => {
+    const markup = html(el(V4AssistantMessage, { text: 'x', status: 'complete', labels }))
+    expect(markup).toContain('data-v4-copy-state="idle"')
+    expect(markup).toContain('aria-label="复制回复"')
   })
 
   it('中断态出「继续」，且不出复制/重来', () => {

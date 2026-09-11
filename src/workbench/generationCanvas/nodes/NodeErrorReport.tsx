@@ -4,7 +4,7 @@ import { MODEL_ACCESS_ENTRY } from '../../../../electron/shared/contracts/modelA
 import { useTranslation } from 'react-i18next'
 import { IconChevronDown, IconChevronRight, IconRefresh, IconReplace, IconSettings, IconWand, IconX } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
-import { WorkbenchButton } from '../../../design'
+import { WorkbenchButton, useClipboardCopy } from '../../../design'
 import { isKnownVendor } from '../../../config/knownVendors'
 import { notifyModelOptionsRefresh } from '../../../config/modelCatalogCache'
 import { getDesktopBridge } from '../../../desktop/bridge'
@@ -73,7 +73,8 @@ export function NodeErrorReport({
     [customCallTarget],
   )
   const [showRaw, setShowRaw] = React.useState(false)
-  const [copied, setCopied] = React.useState(false)
+  const clipboard = useClipboardCopy()
+  const copied = clipboard.copied
   const rootRef = React.useRef<HTMLDivElement>(null)
 
   const handleRetry = React.useCallback(
@@ -170,13 +171,7 @@ export function NodeErrorReport({
   const handleCopy = React.useCallback(
     async (event: React.MouseEvent) => {
       event.stopPropagation()
-      try {
-        await navigator.clipboard.writeText(report.raw)
-        setCopied(true)
-        window.setTimeout(() => setCopied(false), 1200)
-      } catch {
-        /* read-only env */
-      }
+      await clipboard.copy(report.raw)
     },
     [report.raw],
   )
@@ -308,7 +303,7 @@ export function NodeErrorReport({
           </button>
         ) : null}
         <button type="button" onClick={handleCopy} className="shrink-0 whitespace-nowrap text-caption text-nomi-ink-40 hover:text-nomi-ink">
-          {copied ? t('generationCommon.error.copied') : t('generationCommon.error.copyDetails')}
+          {copied ? t('generationCommon.error.copied') : clipboard.failed ? t('common.copyFailed') : t('generationCommon.error.copyDetails')}
         </button>
         <button type="button" onClick={handleFeedback} className="shrink-0 whitespace-nowrap text-caption text-nomi-ink-40 hover:text-nomi-ink">
           {t('generationCommon.error.feedback')}

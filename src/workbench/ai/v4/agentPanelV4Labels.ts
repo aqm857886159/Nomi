@@ -34,6 +34,8 @@ export function useV4Labels() {
     queue,
     assistant: {
       copy: t('agentPanelV4.copyReply'),
+      copied: t('common.copied'),
+      copyFailed: t('common.copyFailed'),
       retry: t('agentPanelV4.retry'),
       continue: t('agentPanelV4.continue'),
     },

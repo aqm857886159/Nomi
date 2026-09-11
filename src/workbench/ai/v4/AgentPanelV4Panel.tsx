@@ -43,7 +43,6 @@ export type { V4FlowItem }
 
 /** 对话流里某一条的动作。`index` 是流内序号——调用方用它换回宿主的 itemId。 */
 export type V4FlowHandlers = Readonly<{
-  onCopy?: (text: string) => void
   onRetry?: (index: number) => void
   onContinue?: (index: number) => void
   onUndoTool?: (toolCallId: string) => void
@@ -142,7 +141,6 @@ export function V4FlowRow({
         status={item.status}
         {...(item.skill ? { skill: item.skill } : {})}
         labels={labels.assistant}
-        onCopy={handlers?.onCopy}
         {...(handlers?.onRetry ? { onRetry: () => handlers.onRetry?.(at) } : {})}
         {...(handlers?.onContinue ? { onContinue: () => handlers.onContinue?.(at) } : {})}
       />
