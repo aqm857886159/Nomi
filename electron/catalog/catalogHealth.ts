@@ -1,6 +1,6 @@
 import { apiKeyDecryptStatus } from "./secrets";
 import type { BillingModelKind, CatalogState } from "./types";
-import { modelHasPublishedExecution } from "../shared/modelPublication";
+import { createCatalogAvailability } from "./catalogModelAvailability";
 
 export function deriveModelCatalogHealth(state: CatalogState): unknown {
   const enabledVendors = state.vendors.filter((vendor) => vendor.enabled);
@@ -11,13 +11,10 @@ export function deriveModelCatalogHealth(state: CatalogState): unknown {
   const enabledApiKeys = Object.entries(state.apiKeysByVendor).filter(
     ([vendorKey, key]) => key.enabled && credentialStatus.get(vendorKey) === "ok",
   ).length;
-  const executableModels = enabledModels.filter((model) => {
-    const vendor = state.vendors.find((item) => item.key === model.vendorKey);
-    const apiKey = state.apiKeysByVendor[model.vendorKey];
-    return Boolean(modelHasPublishedExecution(model, { mappings: state.mappings }) && vendor?.enabled && (
-      vendor.authType === "none" || (apiKey?.enabled && credentialStatus.get(model.vendorKey) === "ok")
-    ));
-  });
+  // 「可执行」= 全 App 唯一那条可用性判据的结果，健康度不另写一份（旧版多要一个 apiKey.enabled，
+  // 而凭据停用已在写入边界 depublishVendorForDisabledCredential 翻成 vendor.enabled=false，那一条是重复的）。
+  const availability = createCatalogAvailability(state);
+  const executableModels = enabledModels.filter((model) => availability.of(model).usable);
   const byKind = (["text", "image", "video", "audio"] as BillingModelKind[]).map((kind) => ({
     kind,
     enabledModels: enabledModels.filter((model) => model.kind === kind).length,

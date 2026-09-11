@@ -4,7 +4,7 @@ import { readCatalog } from "./catalogStore";
 import { apiKeyDecryptStatus, decryptApiKeyRecord, decryptCustomConfigWithLegacy } from "./secrets";
 import { selectExecutableModel, type BillingModelKind } from "./types";
 import type { Model, Vendor } from "./types";
-import { modelHasPublishedExecution } from "../shared/modelPublication";
+import { catalogModelAvailability, createCatalogAvailability } from "./catalogModelAvailability";
 
 export function findExecutableModel(
   vendorKey: string,
@@ -33,7 +33,10 @@ export function findExecutableModel(
     }
     throw new Error(`Model is not enabled: ${modelKey}`);
   }
-  if (!modelHasPublishedExecution(model, { mappings: state.mappings })) {
+  // 「能不能用」的判据只有一处（catalogModelAvailability → shared/modelAvailability）。这里不再
+  // 自己拼 published / key 两条——本函数额外要做的只是**把明文 key 解出来**并按三态给人话。
+  const availability = catalogModelAvailability(state, model);
+  if (!availability.usable && availability.reason === "model_unpublished") {
     throw new Error(`Model is not published: ${modelKey}`);
   }
   const keyRecord = state.apiKeysByVendor[vendorKey];
@@ -66,8 +69,9 @@ export function findExecutableModelForTask(
 ): { vendor: Vendor; model: Model; apiKey: string; customConfig: Record<string, string> } {
   if (modelKey) return findExecutableModel(vendorKey, modelKey, kind);
   const state = readCatalog();
-  const model = state.models.find((item) => item.vendorKey === vendorKey && item.enabled && item.kind === kind
-    && modelHasPublishedExecution(item, { mappings: state.mappings }));
+  const availability = createCatalogAvailability(state);
+  const model = state.models.find((item) => item.vendorKey === vendorKey && item.kind === kind
+    && availability.of(item).usable);
   if (!model) throw new Error(`No enabled ${kind} model for vendor: ${vendorKey}`);
   return findExecutableModel(vendorKey, model.modelKey, kind);
 }
