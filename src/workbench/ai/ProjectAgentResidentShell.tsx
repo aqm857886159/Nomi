@@ -30,6 +30,7 @@ import { useAgentPanelSpendConfirm } from './v4/useAgentPanelSpendConfirm'
 import { useAgentPanelAutoMode } from './v4/useAgentPanelAutoMode'
 import { V4AutoModeBanner } from './v4/AgentPanelV4AutoMode'
 import NodeGenerationComposer from '../generationCanvas/nodes/NodeGenerationComposer'
+import { NodeWriteAccessProvider } from '../generationCanvas/nodes/nodeWriteAccess'
 import { useShotVerifyFeedback } from './resident/useShotVerifyFeedback'
 import { adoptLaneTaskCandidate } from './lane/laneTaskCandidateActions'
 import { useV4Labels } from './v4/agentPanelV4Labels'
@@ -94,13 +95,18 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
   // 「要不要让我做这件事」，这一张答的是「要不要花这笔钱」——后者住在 ProductionRun 域里，
   // `LanePendingApproval` 上根本没有报价字段。两者同时在时钱优先：钱撤不回来。
   const spend = useAgentPanelSpendConfirm()
+  // 卡体是画布节点那张生成框**整件**，但写入面换成卡自己的账本（`spend.writeAccess`）：
+  // 用户还没答应花这笔钱，画布上那个草稿节点就不该被改；改动在按下「生成」那一刻
+  // 才由主进程落进候选、再投影回画布（单向，没有拉锯）。见 nodeWriteAccess 顶部注释。
   const spendComposer = spend.pending && spend.node ? (
-    <NodeGenerationComposer
-      node={spend.node}
-      visualSize={spend.node.size ?? { width: 340, height: 192 }}
-      host="panel"
-      onFeedback={() => undefined}
-    />
+    <NodeWriteAccessProvider value={spend.writeAccess}>
+      <NodeGenerationComposer
+        node={spend.node}
+        visualSize={spend.node.size ?? { width: 340, height: 192 }}
+        host="panel"
+        onFeedback={() => undefined}
+      />
+    </NodeWriteAccessProvider>
   ) : null
   // 切到「全自动」要先问一句（换档本身可撤销，所以它就是介入槽的可撤销档）。
   const autoMode = useAgentPanelAutoMode(actions.permission, actions.setPermission)
