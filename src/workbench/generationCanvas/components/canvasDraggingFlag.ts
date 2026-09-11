@@ -9,7 +9,7 @@
 // 天然覆盖全部节点，也不用把状态一层层传下去。
 //
 // 为什么不进 React：它只驱动可见性（CSS），进 state 就等于每次拖动开始/结束让节点树重渲一轮——
-// 和光标那次栽的是同一个坑（见 useCanvasViewportGestures 头部注释）。
+// 和光标那次栽的是同一个坑（见 reactFlow/useGenerationCanvasReactFlowPointer 的 data-panning 那段注释）。
 //
 // 时机纪律：**跨过拖拽阈值才升**，不是按下就升。否则「点一下空白」也会写两次属性，
 // 每次都让整棵 stage 子树重算样式——那正是 2026-08-08 用户报的「点空白也在刷新」。

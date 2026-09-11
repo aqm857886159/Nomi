@@ -11,6 +11,13 @@
   cursor: grabbing !important;
 }
 
+/* 中键 / 右键 / 空格+左键平移：`:active` 只跟主键走，认不出这三种入口，光标会停在 grab 上
+   ——手已经在拖，画面还在说「可以拖」。属性由 useGenerationCanvasReactFlowPointer 在平移
+   起止写/清（裸左键不写，它归上面那条 `:active`）。 */
+.generation-canvas-react-flow[data-panning] {
+  cursor: grabbing;
+}
+
 .generation-canvas-react-flow .react-flow {
   width: 100%;
   height: 100%;
