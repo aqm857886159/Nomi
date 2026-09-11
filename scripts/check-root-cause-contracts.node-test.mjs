@@ -664,3 +664,106 @@ test("rename evidence: the checker inventory includes both endpoints", () => {
     assert.deepEqual(gitPaths(["diff", "--no-renames", "--name-only", "HEAD", "--"], { cwd }).sort(), ["legacy.ts", "shared.ts"]);
   } finally { fs.rmSync(cwd, { recursive: true, force: true }); }
 });
+
+// —— doors / door_reduction（2026-09-11 起必填，R21「数门」）——
+// 加它的理由：合同已经逼你写 class_root 和 same_class_entry_points，但那两项都是**叙述**——
+// 作者说他扫过了，门岗只能核对格式。2026-09-11 一天三簇 bug 是同一个形状：不变量只在一扇门上
+// 实现，另一个入口绕过去。门表把「扫过了」变成 path:line 可核对的东西；door_reduction 问第二件事：
+// 数完之后你把门合并了没有——允许不减，不允许无声地不减。
+const DOOR_FILE = "docs/fixes/2026-09-11-doors-fixture.root-cause.json";
+const DOOR_OWNER = "electron/catalog/assetLocalization.ts";
+const DOOR_SECOND = "electron/catalog/assetUploadStrategy.ts";
+const doorSources = new Map([
+  [DOOR_OWNER, ["// header", "export function localizeAssetsForVendor() {}", "const unrelated = 1;"].join("\n")],
+  [DOOR_SECOND, ["import { localizeAssetsForVendor } from './assetLocalization';", "localizeAssetsForVendor();"].join("\n")],
+]);
+const doorFiles = new Set([DOOR_FILE, DOOR_OWNER, DOOR_SECOND, "electron/catalog/assetLocalization.test.ts"]);
+
+function validateDoors({ doors, doorReduction, changedFiles } = {}) {
+  const contract = {
+    ...completeContract,
+    __file: DOOR_FILE,
+    scope_paths: ["electron/catalog/"],
+    invariant_owner_layer: { layer: DOOR_OWNER, tests: ["electron/catalog/assetLocalization.test.ts"] },
+  };
+  if (doors !== undefined) contract.doors = doors;
+  if (doorReduction !== undefined) contract.door_reduction = doorReduction;
+  return validateRootCauseChange({
+    changedFiles: changedFiles ?? [DOOR_FILE, DOOR_OWNER, "electron/catalog/assetLocalization.test.ts"],
+    contracts: [contract],
+    existingFiles: doorFiles,
+    fileContents: doorSources,
+  });
+}
+
+const ownerDoor = { kind: "write", path: DOOR_OWNER, line: 2, symbol: "localizeAssetsForVendor" };
+const secondDoor = { kind: "write", path: DOOR_SECOND, line: 2, symbol: "localizeAssetsForVendor" };
+
+test("doors: 阈值之后的合同不带门表就红（先验它会红）", () => {
+  const result = validateDoors({ doorReduction: { before: 1, after: 1 } });
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join("\n"), /doors is required/);
+  assert.match(result.errors.join("\n"), /door-map\.mjs/);
+});
+
+test("doors: 数完门、门表解析得到、改的生产文件都在门表里 → 绿", () => {
+  const result = validateDoors({ doors: [ownerDoor], doorReduction: { before: 2, after: 1 } });
+  assert.equal(result.ok, true, result.errors.join("\n"));
+});
+
+test("doors: path:line 处没有那个 symbol 就是没数门，红", () => {
+  const wrongLine = validateDoors({ doors: [{ ...ownerDoor, line: 3 }], doorReduction: { before: 1, after: 1 } });
+  assert.match(wrongLine.errors.join("\n"), /door does not resolve/);
+
+  const ghost = validateDoors({ doors: [{ ...ownerDoor, path: "electron/catalog/ghost.ts" }], doorReduction: { before: 1, after: 1 } });
+  assert.match(ghost.errors.join("\n"), /door path does not exist/);
+
+  const malformed = validateDoors({ doors: [{ kind: "mutate", path: DOOR_OWNER, line: 2, symbol: "x" }], doorReduction: { before: 1, after: 1 } });
+  assert.match(malformed.errors.join("\n"), /requires kind "write" or "read"/);
+});
+
+test("doors: 改了门表之外的生产文件 = 门没数全，红", () => {
+  const result = validateDoors({
+    doors: [ownerDoor],
+    doorReduction: { before: 1, after: 1 },
+    changedFiles: [DOOR_FILE, DOOR_OWNER, DOOR_SECOND, "electron/catalog/assetLocalization.test.ts"],
+  });
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join("\n"), new RegExp(`changed production file is not in the door map: ${DOOR_SECOND}`));
+});
+
+test("door_reduction: after 必须等于门表长度；≥2 扇一扇没减必须写 why_not", () => {
+  const missing = validateDoors({ doors: [ownerDoor] });
+  assert.match(missing.errors.join("\n"), /door_reduction requires integer before\/after/);
+
+  const mismatched = validateDoors({ doors: [ownerDoor], doorReduction: { before: 3, after: 3, why_not: "各自必须存在" } });
+  assert.match(mismatched.errors.join("\n"), /must equal doors\.length/);
+
+  const unreducedSilently = validateDoors({
+    doors: [ownerDoor, secondDoor],
+    doorReduction: { before: 2, after: 2 },
+    changedFiles: [DOOR_FILE, DOOR_OWNER, DOOR_SECOND, "electron/catalog/assetLocalization.test.ts"],
+  });
+  assert.match(unreducedSilently.errors.join("\n"), /door_reduction\.why_not is required/);
+
+  const unreducedExplained = validateDoors({
+    doors: [ownerDoor, secondDoor],
+    doorReduction: { before: 2, after: 2, why_not: "两个入口分属不同进程，合并需要先建中立契约层" },
+    changedFiles: [DOOR_FILE, DOOR_OWNER, DOOR_SECOND, "electron/catalog/assetLocalization.test.ts"],
+  });
+  assert.equal(unreducedExplained.ok, true, unreducedExplained.errors.join("\n"));
+});
+
+test("doors: 阈值之前的合同不追溯（棘轮按日期，不是并行版本）", () => {
+  const older = {
+    ...completeContract,
+    __file: "docs/fixes/2026-09-10-fixture.root-cause.json",
+    invariant_owner_layer: { layer: DOOR_OWNER, tests: ["electron/catalog/assetLocalization.test.ts"] },
+  };
+  const result = validateRootCauseChange({
+    changedFiles: ["docs/fixes/2026-09-10-fixture.root-cause.json", DOOR_OWNER, "electron/catalog/assetLocalization.test.ts"],
+    contracts: [older],
+    existingFiles: doorFiles,
+  });
+  assert.equal(result.ok, true, result.errors.join("\n"));
+});
