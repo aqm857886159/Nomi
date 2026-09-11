@@ -192,3 +192,77 @@ describe("generation.revise · 卡上改参数", () => {
     }, NOW)).toThrow(/submitted or cancelled/);
   });
 });
+
+/**
+ * #748 已知缺口的正面：**卡上换模型不该被那道防 agent 的白名单挡下。**
+ *
+ * Run 的 policy 是建草稿那一刻从候选身份冻下来的，冻它是为了「后面再来的命令不能偷偷换掉
+ * host/provider/model」。那道闸防的是 agent——agent 改候选走 `generation.patch`。
+ * 而 `generation.revise` 只有一个入口：付费卡上真人按的那一下。用防 agent 的闸拦真人自己
+ * 的选择，用户看到的是「模型未加入白名单」，而他做的只是换了个模型。
+ *
+ * 放行的边界是**同一个任务类别**（`candidate.mode`）：卡上那个下拉本来就只列同类别的模型，
+ * 跨类别换掉的是整个花钱量级，不叫「改一下」——所以类别一变就 fail-closed。
+ */
+describe("generation.revise · 卡上换模型与 Run 白名单（#748）", () => {
+  const FROZEN = {
+    mode: "balanced" as const, trustedHosts: ["nomi"],
+    allowedProviders: ["fixture-provider"], allowedModels: ["fixture-model"],
+    maxSpend: null, maxAttemptsPerJob: 2, minimizeUploads: true,
+  };
+  /** 建草稿那一刻的样子：白名单只认当时那一个供应商 + 那一个模型。 */
+  function frozenDraft(): ProductionRun {
+    const a = candidate("cand-a", "shot a");
+    return { ...draftRun([{ shotId: "shot-a", candidate: a, updatedAt: NOW }], a), policy: { ...FROZEN } };
+  }
+  const revise = (run: ProductionRun, patch: Record<string, unknown>) => applyProductionCommand(run, {
+    commandId: "revise-model", expectedRevision: run.revision, type: "generation.revise",
+    payload: { shotId: "shot-a", patch }, issuedAt: NOW,
+  }, NOW).run;
+
+  it("换成同类别的另一个模型 → 白名单当场认它（否则确认时一句「模型未加入白名单」）", () => {
+    const next = revise(frozenDraft(), { modelId: "fixture-model-pro" });
+    expect(next.policy.allowedModels).toEqual(["fixture-model", "fixture-model-pro"]);
+    expect(next.generationPlan!.shots![0].candidate.modelId).toBe("fixture-model-pro");
+    // 旧的没被顶掉：用户还能在卡上换回去。
+    expect(next.policy.allowedModels).toContain("fixture-model");
+  });
+
+  it("换供应商同样认（卡上的模型 chip 带着它自己那家）", () => {
+    const next = revise(frozenDraft(), { providerId: "other-relay", modelId: "fixture-model" });
+    expect(next.policy.allowedProviders).toEqual(["fixture-provider", "other-relay"]);
+  });
+
+  it("已封印 + 门在等时换模型：撤门回 draft 的同时也把新模型认了", () => {
+    const sealed: ProductionRun = { ...sealedRun(), policy: { ...FROZEN } };
+    const next = revise(sealed, { modelId: "fixture-model-pro" });
+    expect(next.policy.allowedModels).toContain("fixture-model-pro");
+    // 放行的只是判据里的身份，不是那笔钱：旧授权照撤，仍要重新出卡、重新由真人按一次。
+    expect(next.generationPlan!.state).toBe("draft");
+    expect(next.generationPlan!.authorizationDigest).toBeUndefined();
+    expect(next.gates.every((gate) => gate.status !== "waiting")).toBe(true);
+    expect(next.policy.maxSpend).toBe(FROZEN.maxSpend);
+  });
+
+  it("跨任务类别（图 → 视频）不放行：那换掉的是整个花钱量级，白名单照旧挡下", () => {
+    const next = revise(frozenDraft(), { modelId: "video-model", mode: "image-to-video" });
+    expect(next.policy.allowedModels).toEqual(["fixture-model"]);
+    expect(next.policy.allowedProviders).toEqual(["fixture-provider"]);
+  });
+
+  it("只改参数、没换身份 → 白名单一个字不动", () => {
+    const before = frozenDraft();
+    const next = revise(before, { parameters: { aspectRatio: "1:1" } });
+    expect(next.policy).toEqual(before.policy);
+  });
+
+  it("agent 的 generation.patch 换模型**不**放行——那道防 agent 的闸还在原处", () => {
+    const run = frozenDraft();
+    const next = applyProductionCommand(run, {
+      commandId: "patch-model", expectedRevision: run.revision, type: "generation.patch",
+      payload: { shotId: "shot-a", patch: { modelId: "fixture-model-pro" } }, issuedAt: NOW,
+    }, NOW).run;
+    expect(next.generationPlan!.shots![0].candidate.modelId).toBe("fixture-model-pro");
+    expect(next.policy.allowedModels).toEqual(["fixture-model"]);
+  });
+});
