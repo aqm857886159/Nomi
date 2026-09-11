@@ -38,6 +38,7 @@ import {
   type ParameterOptionPurpose,
 } from './parameterOptionPresentation'
 import { translateModelDisplayText } from '../../../i18n/modelDisplayText'
+import { NODE_SCROLL_REGION_CLASS_NAME } from './nodeScrollRegionClassName'
 
 export type InlineParameterBarLayout = 'inline' | 'stacked'
 export type InlineParameterBarPanelMode = 'portal' | 'inline'
@@ -531,7 +532,7 @@ export default function InlineParameterBar({
 
   const renderParameterPanel = (surface: 'portal' | 'inline'): JSX.Element => {
     const content = (
-      <div className="flex flex-col gap-3 overflow-y-auto overscroll-contain rounded-nomi-lg p-3" style={{ maxHeight: surface === 'portal' ? panelInit?.maxHeight : 320 }}>
+      <div className={cn(NODE_SCROLL_REGION_CLASS_NAME, 'flex flex-col gap-3 overflow-y-auto overscroll-contain rounded-nomi-lg p-3')} style={{ maxHeight: surface === 'portal' ? panelInit?.maxHeight : 320 }}>
         {modeChoices?.length && onModeSelect ? (
           <div className="flex flex-col gap-1.5" data-agent-generation-mode="true">
             <div className="text-micro font-semibold leading-none text-nomi-ink-40">
