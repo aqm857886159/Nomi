@@ -1,0 +1,298 @@
+{
+  "_comment": [
+    "R30 第三个数：**选对工具率**（今天只有「写对率」与「回合成功率」两个数）。",
+    "写对率问的是「模型填对参数了吗」，选对工具率问的是「模型挑对那扇门了吗」——",
+    "#547 的 0/18 里有一半其实死在第二个问题上，而现有夹具一条都测不到它。",
+    "",
+    "用法（两档，同一份题库）：",
+    "  ① 零额度 loopback —— 喂给 tests/agent-runtime/laneFixture.mjs 的假模型，",
+    "     断言 firstToolName === expectedTool；分母是本文件条数。",
+    "  ② DeepSeek 真实跑 —— 用户 09-09 拍板便宜档优先 DeepSeek（key 在 ~/.nomi-secrets.env）。",
+    "     数字写进 PR，不写进基线（真实模型有方差）。",
+    "",
+    "字段语义：",
+    "  utterance    —— 用户真会说的那句话，逐字。不是功能名，不是界面标签。",
+    "  lang         —— zh / en，各半（模型在中文输入下选错工具的比例本身就是一个数）。",
+    "  expectedTool —— 今天的工具面下**唯一正确**的那个 internal 工具名。",
+    "  expectedOperation —— 该工具 operation 判别字段应有的值；无判别字段则为 null。",
+    "  contestedWith —— 今天同样能完成这件事、因此模型可能挑走的兄弟工具。",
+    "     **这一列非空 = 一个「同效果重复」的实证**，不是备注。关门方案合上一扇门之后，",
+    "     对应条目的这一列应当变空；它变空的那天就是那扇门真的关上了。",
+    "  note         —— 为什么期望值是它（仅给人读，不进断言）。"
+  ],
+  "version": 1,
+  "generatedFor": "docs/audit/2026-09-11-model-tool-face.md",
+  "profile": "internal",
+  "cases": [
+    {
+      "id": "canvas-read-zh",
+      "utterance": "现在画布上都有什么？",
+      "lang": "zh",
+      "expectedTool": "nomi_canvas_read",
+      "expectedOperation": null,
+      "contestedWith": [],
+      "note": "唯一的画布读门，无歧义。用作阳性对照——这一条都错说明夹具本身坏了。"
+    },
+    {
+      "id": "canvas-read-en",
+      "utterance": "What's on the canvas right now?",
+      "lang": "en",
+      "expectedTool": "nomi_canvas_read",
+      "expectedOperation": null,
+      "contestedWith": [],
+      "note": "同上，英文侧对照。"
+    },
+    {
+      "id": "node-prompt-edit-zh",
+      "utterance": "把开场那个镜头改成黄昏，光线暖一点",
+      "lang": "zh",
+      "expectedTool": "nomi_canvas_write",
+      "expectedOperation": "set_node_prompt",
+      "contestedWith": ["nomi_storyboard_write", "nomi_generation_plan"],
+      "note": "改一个已存在节点的提示词。但 nomi_storyboard_write 的 patch_shots 改同一件事，nomi_generation_plan 的 patch 也改同一件事——三扇门。"
+    },
+    {
+      "id": "node-prompt-edit-en",
+      "utterance": "Change the opening shot to golden hour instead of noon.",
+      "lang": "en",
+      "expectedTool": "nomi_canvas_write",
+      "expectedOperation": "set_node_prompt",
+      "contestedWith": ["nomi_storyboard_write", "nomi_generation_plan"],
+      "note": "同上，英文侧。"
+    },
+    {
+      "id": "new-shots-zh",
+      "utterance": "给天台这场戏加三个镜头",
+      "lang": "zh",
+      "expectedTool": "nomi_storyboard_write",
+      "expectedOperation": "propose_storyboard_plan",
+      "contestedWith": ["nomi_canvas_write"],
+      "note": "成组的镜头走分镜门；但 nomi_canvas_write 的 create_canvas_nodes 同样能建出这三个节点。"
+    },
+    {
+      "id": "new-shots-en",
+      "utterance": "Add three shots for the rooftop scene.",
+      "lang": "en",
+      "expectedTool": "nomi_storyboard_write",
+      "expectedOperation": "propose_storyboard_plan",
+      "contestedWith": ["nomi_canvas_write"],
+      "note": "同上，英文侧。"
+    },
+    {
+      "id": "gen-image-zh",
+      "utterance": "帮我生成一张海上日出的图",
+      "lang": "zh",
+      "expectedTool": "nomi_generation_plan",
+      "expectedOperation": "create",
+      "contestedWith": ["nomi_canvas_write", "nomi_storyboard_write"],
+      "note": "单张图 = 建草稿。09-10 拍板「草稿建即落画布」之后，三扇门都把节点放上画布——这一条是重复组最贵的实证。"
+    },
+    {
+      "id": "gen-video-en",
+      "utterance": "Generate a 5-second clip of waves hitting the rocks.",
+      "lang": "en",
+      "expectedTool": "nomi_generation_plan",
+      "expectedOperation": "create",
+      "contestedWith": ["nomi_canvas_write", "nomi_storyboard_write"],
+      "note": "同上，视频侧。注意工具描述当前写着「This host cannot preview or start paid generation」，与草稿会出付费卡的运行时相矛盾。"
+    },
+    {
+      "id": "staging-ref-en",
+      "utterance": "Put the two characters side by side, facing each other.",
+      "lang": "en",
+      "expectedTool": "nomi_shot_reference_write",
+      "expectedOperation": "create_staging_reference",
+      "contestedWith": [],
+      "note": "站位参考是这个工具独有的语义，无兄弟门。"
+    },
+    {
+      "id": "camera-move-zh",
+      "utterance": "这个镜头推近一点，慢慢推",
+      "lang": "zh",
+      "expectedTool": "nomi_shot_reference_write",
+      "expectedOperation": "create_camera_move",
+      "contestedWith": [],
+      "note": "运镜参考同上。"
+    },
+    {
+      "id": "gen-status-zh",
+      "utterance": "刚才那个生成跑到哪一步了？",
+      "lang": "zh",
+      "expectedTool": "nomi_generation_status",
+      "expectedOperation": "read",
+      "contestedWith": ["get_production_run"],
+      "note": "生成任务状态。但 production run 也叫「跑到哪了」，两个读门语义上分不开。"
+    },
+    {
+      "id": "gen-cancel-en",
+      "utterance": "Cancel that video generation, I picked the wrong model.",
+      "lang": "en",
+      "expectedTool": "nomi_generation_status",
+      "expectedOperation": "cancel",
+      "contestedWith": ["control_production_run"],
+      "note": "取消生成。control_production_run 的 action:cancel 取消的是 production run，名字上模型分不出来。"
+    },
+    {
+      "id": "export-cancel-zh",
+      "utterance": "导出先停了吧，我还要再改改",
+      "lang": "zh",
+      "expectedTool": "cancel_export_job",
+      "expectedOperation": null,
+      "contestedWith": [],
+      "note": "导出与生成是两条独立管线；这一条测模型会不会把「取消」一律打到生成门上。"
+    },
+    {
+      "id": "export-status-en",
+      "utterance": "Is the export finished yet?",
+      "lang": "en",
+      "expectedTool": "inspect_export_job",
+      "expectedOperation": null,
+      "contestedWith": ["verify_render"],
+      "note": "查导出任务状态。verify_render 验的是收据而非进度，但两条描述都说「export」。"
+    },
+    {
+      "id": "export-start-zh",
+      "utterance": "导成 mp4 吧",
+      "lang": "zh",
+      "expectedTool": "export_timeline",
+      "expectedOperation": null,
+      "contestedWith": [],
+      "note": "唯一的导出发起门。"
+    },
+    {
+      "id": "doc-replace-zh",
+      "utterance": "把我选中的这段改写得口语一点",
+      "lang": "zh",
+      "expectedTool": "replace_selection",
+      "expectedOperation": null,
+      "contestedWith": [],
+      "note": "有选区 → 替换选区。测模型会不会退化成 append_to_end。"
+    },
+    {
+      "id": "doc-append-en",
+      "utterance": "Add a closing paragraph to the end of the script.",
+      "lang": "en",
+      "expectedTool": "append_to_end",
+      "expectedOperation": null,
+      "contestedWith": ["insert_at_cursor"],
+      "note": "「末尾」明说了；insert_at_cursor 是光标处，描述里两者的边界只靠一个介词。"
+    },
+    {
+      "id": "doc-read-zh",
+      "utterance": "先把整个稿子读一遍",
+      "lang": "zh",
+      "expectedTool": "read_full_text",
+      "expectedOperation": null,
+      "contestedWith": [],
+      "note": "全文读。"
+    },
+    {
+      "id": "doc-read-selection-en",
+      "utterance": "What did I just highlight?",
+      "lang": "en",
+      "expectedTool": "read_selection",
+      "expectedOperation": null,
+      "contestedWith": [],
+      "note": "选区读。read_full_text 的描述没说「有选区时别用我」，这条测那个缺口。"
+    },
+    {
+      "id": "timeline-range-zh",
+      "utterance": "第 100 到 200 帧之间是什么内容？",
+      "lang": "zh",
+      "expectedTool": "inspect_timeline_range",
+      "expectedOperation": null,
+      "contestedWith": ["read_timeline"],
+      "note": "给了帧范围 → 范围读。read_timeline 读全量，描述里说了「plus」但没说「有范围时别用我」。"
+    },
+    {
+      "id": "timeline-plan-en",
+      "utterance": "Move the opening clip to the very front of the timeline.",
+      "lang": "en",
+      "expectedTool": "propose_edit_plan",
+      "expectedOperation": null,
+      "contestedWith": ["apply_edit_plan"],
+      "note": "先预览后应用是本仓的纪律，但两个工具的描述都以「edit plan」开头，模型很容易直接 apply。"
+    },
+    {
+      "id": "timeline-undo-zh",
+      "utterance": "刚才时间轴那下改坏了，撤销",
+      "lang": "zh",
+      "expectedTool": "undo_timeline_edit",
+      "expectedOperation": null,
+      "contestedWith": [],
+      "note": "唯一的时间轴撤销门。"
+    },
+    {
+      "id": "media-search-en",
+      "utterance": "Find the b-roll clips I imported yesterday.",
+      "lang": "en",
+      "expectedTool": "search_media",
+      "expectedOperation": null,
+      "contestedWith": ["get_media"],
+      "note": "没有 assetId → 只能搜。get_media 需要 id，但它的描述没说「没有 id 时用 search_media」。"
+    },
+    {
+      "id": "media-inspect-zh",
+      "utterance": "这个视频多长？多少分辨率？",
+      "lang": "zh",
+      "expectedTool": "inspect_media",
+      "expectedOperation": null,
+      "contestedWith": ["get_media"],
+      "note": "技术元数据 vs 媒体记录——两条描述今天逐字都是 189 字符且几乎同形，是最明显的一组近义门。"
+    },
+    {
+      "id": "media-waveform-en",
+      "utterance": "Show me where the loud parts are in that audio.",
+      "lang": "en",
+      "expectedTool": "read_waveform",
+      "expectedOperation": null,
+      "contestedWith": [],
+      "note": "波形是独有语义。"
+    },
+    {
+      "id": "delete-nodes-zh",
+      "utterance": "把那三个空节点删掉",
+      "lang": "zh",
+      "expectedTool": "delete_canvas_nodes",
+      "expectedOperation": null,
+      "contestedWith": [],
+      "note": "唯一的画布删除门；测模型会不会误用 nomi_canvas_write。"
+    },
+    {
+      "id": "production-start-en",
+      "utterance": "Make me a 30-second product intro video from scratch.",
+      "lang": "en",
+      "expectedTool": "start_production_run",
+      "expectedOperation": null,
+      "contestedWith": ["nomi_storyboard_write", "nomi_generation_plan"],
+      "note": "成片级请求走 production。但三扇门的描述都能接住这句话——start_production_run 是唯一一个在描述里显式划界的（「For a concrete image/video request … use the generation plan intent」）。"
+    },
+    {
+      "id": "materialize-zh",
+      "utterance": "分镜我看过了，放到画布上吧",
+      "lang": "zh",
+      "expectedTool": "materialize_production_storyboard",
+      "expectedOperation": null,
+      "contestedWith": ["nomi_storyboard_write"],
+      "note": "第四扇通往画布的门。与 nomi_storyboard_write 的 arrange_storyboard_to_timeline 在用户那句话里完全无法区分。"
+    },
+    {
+      "id": "artifact-review-en",
+      "utterance": "Approve version 2 of the script.",
+      "lang": "en",
+      "expectedTool": "review_production_artifact",
+      "expectedOperation": null,
+      "contestedWith": ["decide_production_gate"],
+      "note": "审一个具体产物版本 vs 记录一个关卡决定——两条描述都含 decision 枚举。"
+    },
+    {
+      "id": "artifact-revise-zh",
+      "utterance": "这版脚本第三段太长了，让它重写一版",
+      "lang": "zh",
+      "expectedTool": "revise_production_artifact",
+      "expectedOperation": null,
+      "contestedWith": [],
+      "note": "要新版本而不是审批当前版本。"
+    }
+  ]
+}
