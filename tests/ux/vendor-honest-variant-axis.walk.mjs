@@ -90,7 +90,7 @@ const composer = win.locator('.generation-canvas-v2-node__composer')
 const modeGroup = composer.locator('[role="group"][aria-label="生成方式"]')
 const modeButtons = modeGroup.locator('button')
 // 变体选择器 = InlineParameterBar 里紧跟模型芯片的小下拉，aria-label 走 i18n 的
-// generationCommon.parameters.variant（zh-CN = 「变体」）。它和「每次生成张数」(variantCountAria)
+// generationCommon.parameters.variant（zh-CN = 「变体」）。它和「每次生成几个」(variantCountAria)
 // 是两个东西，别混。
 const variantSelect = composer.locator('[aria-label="变体"]')
 
@@ -127,7 +127,7 @@ async function readBoundIdentity() {
 
 /**
  * 从 NomiSelect 里挑模型。`:visible` 是硬要求——Mantine 把未展开弹层的选项也留在 DOM 里，
- * 裸选会选到画布上别的下拉（变体、每次生成张数…）的选项。
+ * 裸选会选到画布上别的下拉（变体、每次生成几个…）的选项。
  */
 async function pickModel(match, humanLabel) {
   await clickOrFail(composer.locator('[aria-label="模型"]'), '模型下拉')

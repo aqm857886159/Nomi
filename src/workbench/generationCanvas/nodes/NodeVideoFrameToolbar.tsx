@@ -50,7 +50,7 @@ export default function NodeVideoFrameToolbar({ reportFeedback, node, downloadin
     <>
 
     {shotCutOpen ? <NodeShotCutPanel onFeedback={reportFeedback} node={node} onClose={() => setShotCutOpen(false)} /> : null}
-    <FloatingToolbarShell ariaLabel={t('generationCommon.videoToolbar.aria')}>
+    <FloatingToolbarShell ariaLabel={t('generationCommon.videoToolbar.aria')} lockNodeId={node.id}>
       <ToolbarButton
         icon={<IconPlayerTrackPrev size={I.size} stroke={I.stroke} />}
         label={

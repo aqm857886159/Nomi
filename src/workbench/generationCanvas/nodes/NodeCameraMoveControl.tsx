@@ -2,7 +2,6 @@ import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { Popover } from '@mantine/core'
 import {
-  IconChevronDown,
   IconVideo,
   IconZoomIn,
   IconZoomOut,
@@ -20,6 +19,7 @@ import {
   type Icon,
 } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
+import { NodePromptToolIconButton } from './NodePromptToolCluster'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import {
@@ -31,7 +31,7 @@ import {
 } from './director/agent/cameraMoveVocab'
 import { createCameraMoveReferenceNode } from './director/agent/createCameraMoveReferenceNode'
 
-// 手动运镜控件（B1）：视频镜头 composer 底栏的一枚「运镜」芯片 + 弹层，是 AI 工具 create_camera_move
+// 手动运镜控件（B1）：视频镜头 composer 底栏 B 簇里的一颗 🎥 + 弹层，是 AI 工具 create_camera_move
 // 的**第二道门**——不搭 3D 场景，选个精确运镜 + 速度 + 景别，一键建灰模运镜小片自动接入本镜的
 // video_ref。产路与 AI 工具共用 createCameraMoveReferenceNode（单一真相源，P1/P4）；运镜表/标签/
 // 速度/景别一律 derive 自 cameraMoveVocab，绝不重打（P2）。见 docs/plan/2026-06-22-ai-camera-move-tool.md。
@@ -140,14 +140,19 @@ export default function NodeCameraMoveControl({ node }: { node: GenerationCanvas
   }, [open, node.meta])
 
   const saved = readPick(node.meta)
-  // 芯片标签：上次「应用」过的运镜 · 速度（如「运镜 · 推近 慢」）。
+  // 「选过没有」不能问 readPick——它对空 meta 也返回一套默认值（push_in/medium/medium），
+  // 拿它判激活点等于每个视频节点一上来就亮着。判据只有一个：meta 里那把钥匙在不在。
+  const hasPick = isCameraMove((node.meta?.cameraMovePick as Record<string, unknown> | undefined)?.move)
+  // hover 名字：选过就报**已选值**（运镜 · 速度，与旧芯片 chipSummary 同一口径），没选过只说功能名。
   const moveLabel = (move: CameraMove): string =>
     t(`generationCommon.cameraMove.move.${move}` as 'generationCommon.cameraMove.move.push_in')
   const speedLabel = (speed: CameraSpeed): string =>
     t(`generationCommon.cameraMove.${speed}` as 'generationCommon.cameraMove.medium')
   const shotLabel = (shot: StagingShot): string =>
     t(`generationCommon.cameraMove.${shot}` as 'generationCommon.cameraMove.wide')
-  const chipSummary = `${moveLabel(saved.move)} ${speedLabel(saved.speed)}`
+  const triggerLabel = hasPick
+    ? t('generationCommon.composerBarV1.cameraPicked', { move: moveLabel(saved.move), speed: speedLabel(saved.speed) })
+    : t('generationCommon.cameraMove.title')
   const duration = CAMERA_SPEED_DURATION[draft.speed]
 
   // 单一真相源写法：从 store 读最新 meta 再 spread（防 lost-update 竞态，与 NodeParameterControls 同规）。
@@ -170,32 +175,20 @@ export default function NodeCameraMoveControl({ node }: { node: GenerationCanvas
   return (
     <Popover opened={open} onChange={setOpen} position="bottom-start" offset={6} withinPortal shadow="md" radius="md">
       <Popover.Target>
-        <button
-          type="button"
-          aria-label={t('generationCommon.cameraMove.title')}
-          title={t('generationCommon.cameraMove.hint')}
+        {/* v1.1：带文字的芯片整颗删掉，只剩 B 簇里这颗缩小一号的纯 icon（已选带激活点、
+            hover 报「推近 · 中」）。弹层与逻辑一行没动。 */}
+        <NodePromptToolIconButton
+          toolId="camera-move"
+          icon={<IconVideo size={16} stroke={2} aria-hidden />}
+          label={triggerLabel}
+          active={hasPick}
+          aria-haspopup="dialog"
+          aria-expanded={open}
           onClick={(event) => {
             event.stopPropagation()
             setOpen((prev) => !prev)
           }}
-          className={cn(
-            'inline-flex items-center gap-1 h-7 pl-2.5 pr-2 rounded-pill border border-nomi-line bg-nomi-paper',
-            'text-caption text-nomi-ink-80 cursor-pointer hover:border-nomi-ink-20 focus:outline-none focus-visible:border-nomi-accent',
-          )}
-        >
-          <IconVideo size={13} stroke={1.6} className="shrink-0 text-nomi-ink-40" aria-hidden />
-          <span className="shrink-0">{t('generationCommon.cameraMove.title')}</span>
-          <span className="text-nomi-ink-40" aria-hidden>
-            ·
-          </span>
-          <span className="shrink-0 whitespace-nowrap">{chipSummary}</span>
-          <IconChevronDown
-            size={12}
-            stroke={1.6}
-            className="shrink-0 text-nomi-ink-40 pointer-events-none"
-            aria-hidden
-          />
-        </button>
+        />
       </Popover.Target>
       <Popover.Dropdown
         onClick={(event) => event.stopPropagation()}

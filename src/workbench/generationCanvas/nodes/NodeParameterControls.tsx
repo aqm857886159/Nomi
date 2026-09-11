@@ -79,7 +79,8 @@ import AssetReference, { type AssetSlot } from '../../assets/AssetReference'
 import type { AssetRef } from '../../assets/assetTypes'
 import { moveArrayItem } from '../../assets/assetTypes'
 import { removeMention } from '../../assets/promptMentions'
-import InlineParameterBar from './InlineParameterBar'
+import InlineParameterBar, { type InlineParameterBarParameterLayout } from './InlineParameterBar'
+import { composerHeadlineSummary } from './composerHeadlineSummary'
 import { useNodeModelAutoSelect } from './useNodeModelAutoSelect'
 import { resolveArchetypeForOption, resolveRenderedControls } from './nodeModelArchetype'
 import {
@@ -105,6 +106,12 @@ type NodeParameterControlsProps = {
   /** 当前 composer 连在节点哪条边；比例切换用它保持同一连接锚点。 */
   composerAttachmentSide?: ComposerAttachmentSide
   /**
+   * 参数区怎么摆（透传给 InlineParameterBar，那边写着两种形态的判据）。
+   * 画布节点**不传** → 默认 `summary`（摘要 pill + 面板，2026-09-11 04:30 用户拍板节点保持原样）；
+   * 付费确认卡（`host="panel"` 的 composer）显式传 `chips`，逐参数一颗下拉。
+   */
+  parameterLayout?: InlineParameterBarParameterLayout
+  /**
    * 参数**下拉浮层**的落点容器（`host="panel"` 的 composer 传自己的卡）。画布上不传：浮层 portal 到
    * body、打开时定位一次就不跟随，而节点卡本来就不滚动。面板里的卡随转录滚动，body 上的静止浮层会
    * **留在原地**脱离卡；给了落点就换成「就地展开 + 浮层进卡」，和 `panelMode="inline"` 同一条理由。
@@ -123,6 +130,7 @@ export default function NodeParameterControls({
   section = 'all',
   onInsertMention,
   composerAttachmentSide = 'bottom',
+  parameterLayout,
   inlinePanelTarget,
   inlinePanelSlot,
 }: NodeParameterControlsProps): JSX.Element | null {
@@ -637,7 +645,9 @@ export default function NodeParameterControls({
     updateMeta({ [slot.key]: null })
   }
 
-  // section="parameters"：底栏 = 模型芯片 + 变体 + 最常调参数内联 + 「更多」弹层（主次分层，实现见 InlineParameterBar）。
+  // section="parameters"：底栏 = 模型芯片 + 变体 + 摘要 pill + 统一参数面板（实现见 InlineParameterBar）。
+  // **画布节点不传 parameterLayout** → 默认 `summary`：2026-09-11 04:30 用户纠正，
+  // 同日 02:10 的逐参数 chip 只给付费确认卡，节点这一处退回原样（摘要 pill + 面板，含比例小图形）。
   if (section === 'parameters') {
     // 导入的 ComfyUI 工作流：参数名是作者随手起的（采样步数/帧率/Float (duration)…），
     // 把当前值串成 pill（`15 · 24`）没人认得出那是自己勾的东西。改成报名字+条数。
@@ -645,6 +655,17 @@ export default function NodeParameterControls({
     const workflowSummary = isImportedComfyWorkflowModel(selectedModelOption?.meta) && renderedControls.length > 0
       ? t('generationCommon.parameters.workflowParams', { count: renderedControls.length })
       : undefined
+    // v1.1 底栏：档案模型的 pill 只报「最影响结果和价格的两个值」（视频=比例+时长、图=比例+清晰度），
+    // 其余参数一个不少、仍在同一块弹层里。走 summaryOverride 这条**已有的**缝（导入工作流那支
+    // 在用同一个入口），不新造第二条摘要通路。工作流的口径优先——它连「值串出来没人认得」
+    // 这个更基本的问题都还没解决，轮不到再挑两个。
+    const summaryOverride = workflowSummary ?? composerHeadlineSummary({
+      isImageLike,
+      isVideoLike,
+      controls: renderedControls,
+      meta,
+      formatSeconds: (value) => t('generationCommon.composerBarV1.seconds', { value }),
+    })
     return (
       <InlineParameterBar
         modelOptions={modelOptions}
@@ -659,7 +680,8 @@ export default function NodeParameterControls({
         variantChoices={showVariantBar ? variantChoices : []}
         activeVariantId={activeVariantId}
         onVariantSelect={handleVariantSwitch}
-        summaryOverride={workflowSummary}
+        summaryOverride={summaryOverride}
+        {...(parameterLayout ? { parameterLayout } : {})}
         {...(inlinePanelTarget ? { panelMode: 'inline' as const, portalTarget: inlinePanelTarget } : {})}
         {...(inlinePanelSlot ? { inlinePanelSlot } : {})}
       />
