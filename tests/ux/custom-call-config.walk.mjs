@@ -119,7 +119,7 @@ if (await varsLine.count()) {
   console.log(`  · 可用变量含 config? ${/config/.test(txt) ? '✅' : '❌'}`)
 }
 
-const saveBtn = win.locator('button').filter({ hasText: /^保存并启用$|^Save and enable$/ }).first()
+const saveBtn = win.locator('button').filter({ hasText: /^保存启用$|^Save Enable$/ }).first()
 await saveBtn.click({ timeout: 4000 }).catch(() => {})
 await win.waitForTimeout(1500)
 

@@ -53,7 +53,7 @@
     "check:platform-archetypes": "node ./scripts/check-platform-archetypes.mjs",
     "check:orphan-cables": "pnpm exec tsx scripts/check-orphan-mapping-cables.ts",
     "check:root-cause-contracts": "node --test ./scripts/check-root-cause-contracts.node-test.mjs ./scripts/new-root-cause-contract.node-test.mjs && node ./scripts/check-root-cause-contracts.mjs",
-    "check:ponytail-review": "node --test ./scripts/ponytail-review-hook.node-test.mjs",
+    "check:ponytail-review": "node --test ./scripts/ponytail-review-hook.node-test.mjs ./scripts/check-ponytail-deferred.node-test.mjs && node ./scripts/check-ponytail-deferred.mjs",
     "check:model-certification-coverage": "node ./scripts/check-model-certification-coverage.mjs",
     "check:git-delivery": "node --test ./scripts/git-delivery.node-test.mjs ./scripts/package-build-stamp.node-test.mjs",
     "check:secrets": "node ./scripts/check-no-secrets.mjs --all",

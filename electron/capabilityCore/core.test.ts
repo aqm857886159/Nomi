@@ -59,6 +59,28 @@ describe('headless 轮询预算', () => {
     expect(resolveCapabilityPollTimeoutMs('text_to_image', undefined)).toBe(240_000)
     expect(resolveCapabilityPollTimeoutMs('image_to_video', '1234')).toBe(1234)
   })
+
+  // 回归：任务已提交（付费已发生）后，查结果的瞬时网络失败绝不能冒泡终止任务——
+  // 与渲染层 catalogTaskActions 的 POLL_FAILURE_GRACE_MS 免费宽限同策。
+  // 修复前：第一次 fetchTaskResult 抛错直接冒泡，generateOnProject reject、节点落 error。
+  it('查结果瞬时失败在宽限期内免费重试，恢复后照常落 succeeded', async () => {
+    const project = createNamedProject('轮询宽限测试')
+    let polls = 0
+    const out = await generateOnProject(
+      { projectId: project.id, intent: 'image', prompt: '一只赛博朋克猫', vendor: 'apimart', modelKey: 'seedream-4' },
+      createDiskGateway(project.id),
+      async () => ({ id: 't1', status: 'queued' }),
+      async () => {
+        polls += 1
+        if (polls <= 2) throw new Error('network blip')
+        return { result: { id: 't1', status: 'succeeded', assets: [{ type: 'image', url: 'nomi-local://gen.png' }] } }
+      },
+    )
+    expect(polls).toBe(3)
+    expect(out.status).toBe('succeeded')
+    const canvas = await readRawProjectCanvas(project.id)
+    expect(canvas.nodes.find((node) => node.id === out.nodeId)?.result).toBeTruthy()
+  })
 })
 
 const tempRoots: string[] = []

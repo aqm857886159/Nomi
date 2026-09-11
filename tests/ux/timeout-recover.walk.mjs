@@ -76,7 +76,7 @@ try {
   await node.waitFor({ state: 'visible', timeout: 8000 }).catch(() => {})
   const probe = await win.evaluate(() => {
     const panel = document.querySelector('[role="status"][aria-label*="重新拉取"]')
-    const btn = Array.from(document.querySelectorAll('button')).find((b) => /重新拉取结果/.test(b.textContent || ''))
+    const btn = Array.from(document.querySelectorAll('button')).find((b) => /重新拉取/.test(b.textContent || ''))
     const cs = panel ? getComputedStyle(panel) : null
     const bcs = btn ? getComputedStyle(btn) : null
     return {
@@ -92,7 +92,7 @@ try {
   await snap('recoverable-panel')
 
   // 点「重新拉取结果」→ 应翻成 running（品牌 logo 转圈），无 vendor 会回退，但能截到 pending/转圈瞬间。
-  const btn = win.locator('button', { hasText: '重新拉取结果' }).first()
+  const btn = win.locator('button', { hasText: '重新拉取' }).first()
   if (await btn.count()) {
     await btn.click().catch(() => {})
     await win.waitForTimeout(500)

@@ -127,7 +127,7 @@ export async function launchJourneyUi({ journey, recorder }) {
     if (await save.isVisible().catch(() => false)) {
       await save.first().click()
     }
-    const fetch = win.getByRole('button', { name: /获取模型列表|获取可用模型|重新获取列表/ }).first()
+    const fetch = win.getByRole('button', { name: /获取模型|获取可用模型|重新获取列表/ }).first()
     await fetch.waitFor({ state: 'visible', timeout: 15_000 })
     await fetch.click()
     // Picker is inline on the same page: model rows + a "验证 N 个模型" confirm.
@@ -215,7 +215,7 @@ export async function launchJourneyUi({ journey, recorder }) {
   // existed here; "自定义调用" is the CustomCallEditor reached one step deeper. This
   // helper waits for the terminal repair action and returns its text.
   async function waitForModeRepairAction(timeoutMs = 40_000) {
-    const action = win.getByRole('button', { name: '继续手动配置', exact: true }).first()
+    const action = win.getByRole('button', { name: '手动配置', exact: true }).first()
     await action.waitFor({ state: 'visible', timeout: timeoutMs })
     return action
   }

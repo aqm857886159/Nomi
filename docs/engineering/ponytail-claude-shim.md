@@ -40,8 +40,11 @@ Codex 账号额度用尽期间（本次：恢复日 **2026-09-11**），`scripts
 壳只在拿到非空模型输出后才写报告文件；在那之前的任何失败都让报告保持钩子预建的 0 字节，
 钩子于是判 `runner_failed` 并拦住 Git。已实测的路径见下方验证表。
 
-超时：壳自限 165s（可用 `PONYTAIL_REVIEW_CLAUDE_TIMEOUT_MS` 调，上限 175s），压在钩子的
-`REVIEW_TIMEOUT_MS = 180s` 之下，好让超时由壳报出来而不是被信号砍掉。
+超时：钩子的墙钟自 2026-09-11 起是**派生的**（按 diff 大小与机器负载，180s–600s，见
+`resolveReviewTimeoutMs`），并通过 `PONYTAIL_REVIEW_TIMEOUT_MS` 传给壳。壳自限在该预算
+减 15s 的位置，好让超时由壳报出来而不是被信号砍掉；`PONYTAIL_REVIEW_CLAUDE_TIMEOUT_MS`
+只能把它往小调。**壳不许再写死第二份墙钟**——165s 的常量会在大 diff 上把钩子给的 600s
+提前砍掉，正是这次要修的那种假超时。
 
 ## 怎么设 env
 

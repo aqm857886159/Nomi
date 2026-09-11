@@ -164,7 +164,15 @@ async function executeTaskQuery(taskId: string, cached: CachedTask): Promise<{ v
     // this query has produced and decoded a real artifact. Resolve the exact
     // staged revision instead of treating that disabled model as unavailable.
     const stagedCandidate = resolveComfyCandidateExecution(cached.request);
-    const { vendor, model, apiKey } = stagedCandidate || findExecutableModel(cached.vendor, cached.model.modelKey, cached.wantedKind);
+    // 模型解析必须可守（与 rebuildCachedTaskFromPayload 同款）：模型下架/凭证失效是**永久
+    // 条件**，裸抛会被渲染层当可恢复轮询错误、45s 后落「可找回」——错误既不指向根因也
+    // 不会再自愈。落诚实失败终态（用户去供应商后台核对或重配模型）。
+    let vendor: ReturnType<typeof findExecutableModel>["vendor"], model: Model, apiKey: string;
+    try {
+      ({ vendor, model, apiKey } = stagedCandidate || findExecutableModel(cached.vendor, cached.model.modelKey, cached.wantedKind));
+    } catch {
+      return { vendor: cached.vendor, result: { id: taskId, kind: cached.request.kind, status: "failed", assets: [], raw: {}, error: desktopT("tasks.modelUnresolvable") } };
+    }
     let executed = await executeProfileOperation({
       vendor,
       model,
@@ -228,17 +236,23 @@ async function executeTaskQuery(taskId: string, cached: CachedTask): Promise<{ v
     const now = Date.now();
     const streak = advanceUnrecognizedStatusStreak(cached.unrecognizedStatusStreak, normalized.unrecognizedStatus, now);
     if (normalized.unrecognizedStatus) reportUnrecognizedStatus(cached, taskId, normalized.unrecognizedStatus);
-    const result = unrecognizedStatusExhausted(streak, now)
-      ? {
-          ...normalized.result,
-          status: "failed" as const,
-          error: desktopT("tasks.unrecognizedStatus", {
-            status: streak?.verb || "",
-            polls: streak?.polls || 0,
-            seconds: Math.round((now - (streak?.firstSeenAt || now)) / 1000),
-          }),
-        }
-      : normalized.result;
+    // 「COMPLETED 但零产物判失败」守卫对 query 返回统一生效——不能只挂在 result-op 二跳分支：
+    // kie/apimart 一族 mapping 只有 query op（result 资产就在 query 响应里），query 回 completed
+    // 且取不到资产时同样必须落失败，否则持久化 succeeded+0 assets 的静默空成功。
+    const result = ensureAsyncMediaOutput(
+      unrecognizedStatusExhausted(streak, now)
+        ? {
+            ...normalized.result,
+            status: "failed" as const,
+            error: desktopT("tasks.unrecognizedStatus", {
+              status: streak?.verb || "",
+              polls: streak?.polls || 0,
+              seconds: Math.round((now - (streak?.firstSeenAt || now)) / 1000),
+            }),
+          }
+        : normalized.result,
+      cached.wantedKind || model.kind,
+    );
 
     if (result.status === "succeeded" || result.status === "failed") {
       // 终态才入日志(轮询 tick 不记);cache.delete 保证单次触发

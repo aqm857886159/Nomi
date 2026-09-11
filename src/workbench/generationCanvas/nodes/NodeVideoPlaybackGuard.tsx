@@ -35,10 +35,13 @@ export function NodeVideoPlaybackGuard({
   const [pointerInside, setPointerInside] = React.useState(false)
   const [focusInside, setFocusInside] = React.useState(false)
   const persistHealedUrl = React.useCallback(
-    (healedUrl: string) => {
+    (healedUrl: string, sourceUrl: string) => {
       const state = useGenerationCanvasStore.getState()
       const node = state.nodes.find((candidate) => candidate.id === nodeId)
-      if (node?.result) state.updateNode(nodeId, { result: { ...node.result, url: healedUrl } })
+      // 自愈期间节点重新生成（result.url 已不是发起自愈的那个）→ 不许旧 healedUrl 覆盖新结果。
+      if (node?.result && node.result.url === sourceUrl) {
+        state.updateNode(nodeId, { result: { ...node.result, url: healedUrl } })
+      }
     },
     [nodeId],
   )
