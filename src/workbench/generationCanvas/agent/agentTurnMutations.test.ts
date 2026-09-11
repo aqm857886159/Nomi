@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { AgentTurnHandle } from '../../ai/agentTurnLifecycle'
+import { create } from 'zustand'
+import { createAgentTurnState, type AgentTurnHandle, type AgentTurnState } from '../../ai/agentTurnLifecycle'
 import type { TimelineClip } from '../../timeline/timelineTypes'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 const deps = vi.hoisted(() => ({ catalog: vi.fn(), clip: vi.fn() }))
@@ -10,8 +11,17 @@ vi.mock('./availableModels', async (importOriginal) => ({
 vi.mock('../../timeline/buildGenerationNodeTimelineClip', () => ({ buildGenerationNodeTimelineClip: deps.clip }))
 import { applyCanvasToolCall } from './applyCanvasToolCall'
 import { applyProposalBatch, type ProposalStep, type ProposalOutcome } from './proposalTxn'
-import { useCanvasTurnStore } from './canvasTurnController'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
+
+// Local test-only turn store: production canvas writers (canvasWriteTarget.ts) build
+// their own inline `{ canWrite }` from `assertExecutionCurrent(request)`; there is no
+// live area-specific store for this canvas anymore (the last one, canvasTurnController,
+// was retired as dead code — zero production imports — see
+// electron/agentLane/laneDesktopStructure.test.ts's "retired area turn controllers" guard).
+// This suite still needs *some* stateful begin/abandon/requestUserCancel turn handle to
+// exercise applyCanvasToolCall/applyProposalBatch's real cancellation semantics, so it
+// builds one locally instead of depending on a module kept alive only for this test.
+const useCanvasTurnStore = create<AgentTurnState>((set, get) => createAgentTurnState(set, get))
 import { useWorkbenchStore } from '../../workbenchStore'
 import { createDefaultTimeline } from '../../timeline/timelineMath'
 import { resetAdoptionRegistry } from '../../adoption/adoptionProposalRegistry'
