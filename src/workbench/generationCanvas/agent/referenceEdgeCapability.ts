@@ -30,7 +30,7 @@ export type EdgeCapabilityResult = { ok: true } | { ok: false; reason: EdgeSkipR
 
 /**
  * 源节点能给出哪种可参考资产。按节点 kind 的执行语义 derive(与 resolver 取参考的口径一致):
- * 可执行视频→video、可执行图片→image、非执行但 providesImageReference(asset/panorama/scene3d…)→image。
+ * 可执行视频→video、可执行图片→image、非执行但 providesImageReference(asset/panorama/director…)→image。
  * 文本/镜头/输出等(无 execution+不提供图参考)→ null:它们没有可被下游当参考的产物。
  */
 export function referenceAssetKindForNode(node: GenerationCanvasNode): ReferenceAssetKind | null {

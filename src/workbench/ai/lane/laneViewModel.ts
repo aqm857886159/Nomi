@@ -38,6 +38,7 @@ import type {
   TaskCardData,
   ToolReceipt,
   V4ActionFamily,
+  V4Chip,
   V4FlowItem,
   V4ToolStatus,
 } from '../v4/agentPanelV4Types'
@@ -95,6 +96,21 @@ export interface LaneViewModelLabels {
   formatMoney(currency: string, amount: number): string
   /** join 不到领域事实时卡上那句脚注（「任务详情在任务中心」）。 */
   taskUnknown: string
+  /**
+   * 技能 key → 用户在技能库里看到的那个名字。
+   *
+   * **不给默认值、也不在这一层猜**：技能叫什么由技能库单点持有（`skillDisplayTitle`，
+   * `/` 菜单与技能库画廊读的也是它），这一层没有那份目录。查不到时说什么由调用方决定
+   * （今天是原样印 key——「有这么个技能、但它现在不在这台机器上」是真话，
+   * 凭空隐藏那颗 chip 才是把用户做过的操作抹掉）。
+   */
+  skillLabel(skillKey: string): string
+  /**
+   * 技能 key → 它的封面 / 预览。和 `skillLabel` 同一份目录、同一个查不到的处置：
+   * 没有就不给，chip 落到 `SkillMedia` 自己的图标占位，**不画一个假的色块**。
+   * 这一层同样不持有技能目录，所以由调用方喂。缺席（设计实验室、单测）= 没有封面。
+   */
+  skillMedia?(skillKey: string): { cover?: string; preview?: { url: string; type: 'image' | 'video' } } | undefined
 }
 
 /**
@@ -210,6 +226,57 @@ function taskCardFor(part: Extract<LanePart, { kind: 'task' }>, labels: LaneView
   }
 }
 
+/**
+ * 同一回合里被工具行隔开的助手文本 → **一个气泡**。
+ *
+ * 为什么这不是「排版偏好」：模型一轮回复在传输上本来就是**一条消息里的若干块**
+ * （text / tool-call / text …，pi 的 `content` 数组、AI SDK 的 `UIMessage.parts` 都是这个形状）。
+ * 一块一个气泡，等于把「一个人说的一段话」切成三个人说的三句话——用户看到的是
+ * 「好，我先看看…」「好的，用 Seedream 4.5…」「已经提交生成了…」三块各自带边距地摊着，
+ * 读起来像模型自言自语了三次（2026-09-10 用户反馈 #7）。
+ *
+ * 合并规则只有两条，都以**转录记下来的事实**为准，不猜：
+ *   · 回合边界 = 用户消息。回合是用户说一句、模型答一轮，这是转录里唯一硬的分界。
+ *   · 落点 = 这一回合**最后**一段文本的位置。留在第一段那里，流式生长的字就跑到
+ *     已经发生的工具行**上面**去了——那是在时间线里倒着写。
+ *
+ * 段与段之间用空行接：Markdown 里空行才是段落分隔，直接拼会把两段粘成一段。
+ * 工具行一个都不动——它们仍按 `sequence` 内联在流里（2026-09-06 拍板「工具调用内联不置顶」）。
+ */
+function mergeAssistantTextPerTurn(
+  items: readonly V4FlowItem[],
+  turnOf: readonly number[],
+  /**
+   * 这一回合用了哪个技能（人话名字）。**凭据盖在合并出来的那个气泡上，不新开一行**：
+   * v4 只有 8 个积木，「已使用技能」是助手文本的一个**状态**，不是第九种东西（定稿 Vocabulary 板）。
+   * 用户气泡上那颗 chip 说的是「我挂了它」，气泡头这一行说的是「它真的进了这一轮」——
+   * 两句话不一样，所以两处都要有（用户反馈 #6：选了技能，对话里一个字都看不到它）。
+   */
+  skillOfTurn: (turn: number) => string | undefined,
+): V4FlowItem[] {
+  const texts = new Map<number, string[]>()
+  const last = new Map<number, number>()
+  items.forEach((item, index) => {
+    if (item.kind !== 'assistant') return
+    const turn = turnOf[index]!
+    const bucket = texts.get(turn)
+    if (bucket) bucket.push(item.text)
+    else texts.set(turn, [item.text])
+    last.set(turn, index)
+  })
+  const merged: V4FlowItem[] = []
+  items.forEach((item, index) => {
+    if (item.kind !== 'assistant') { merged.push(item); return }
+    const turn = turnOf[index]!
+    // 不是这一回合最后一段就整条不出：它的正文已经进了那一段的气泡里。
+    if (last.get(turn) !== index) return
+    const skill = skillOfTurn(turn)
+    // 三态与「继续」的落点取**最后一段**：还在流的是它，被打断的也是它。
+    merged.push({ ...item, text: texts.get(turn)!.filter(Boolean).join('\n\n'), ...(skill ? { skill } : {}) })
+  })
+  return merged
+}
+
 /** 收据七态里，「结果回来了」只有三种可能：成了 / 被闸拒了 / 坏了。 */
 function settledStatus(isError: boolean, denied: boolean): V4ToolStatus {
   if (!isError) return 'output-available'
@@ -225,8 +292,17 @@ function settledStatus(isError: boolean, denied: boolean): V4ToolStatus {
  */
 export function laneViewModel(projection: LaneProjection, labels: LaneViewModelLabels, undoableToolCallId?: string): LaneViewModel {
   const items: V4FlowItem[] = []
+  /**
+   * 每一条流项属于第几回合。**它不是第二份顺序真相**——顺序仍然只有 `sequence` 一个来源；
+   * 这里记的是「用户上一次说话之后」这件事，而合并气泡与技能凭据都以回合为单位。
+   */
+  const turnOf: number[] = []
   const slots = new Map<string, ToolSlot>()
   const denials = new Map<string, LaneApprovalNote>()
+  /** 这一回合挂着的技能（来自开启这一回合的那条用户消息）。缺席 = 这一轮没挂技能。 */
+  const skillOfTurn = new Map<number, string>()
+  let turn = 0
+  const push = (item: V4FlowItem): void => { turnOf.push(turn); items.push(item) }
 
   let previous = -1
   for (const part of projection.parts) {
@@ -245,29 +321,34 @@ export function laneViewModel(projection: LaneProjection, labels: LaneViewModelL
       continue
     }
     if (part.kind === 'error') {
-      items.push({ kind: 'error', reason: part.text })
+      push({ kind: 'error', reason: part.text })
       continue
     }
     if (part.kind === 'task') {
-      items.push({ kind: 'task', task: taskCardFor(part, labels) })
+      push({ kind: 'task', task: taskCardFor(part, labels) })
       continue
     }
     if (part.kind === 'user') {
-      items.push({ kind: 'user', text: part.text })
+      // 用户说话 = 新回合开始。这是转录里唯一硬的回合分界（模型一轮回复内部没有分界可言）。
+      turn += 1
+      if (part.skillKey) skillOfTurn.set(turn, part.skillKey)
+      const chip: V4Chip | undefined = part.skillKey
+        ? { kind: 'skill', label: labels.skillLabel(part.skillKey), ...labels.skillMedia?.(part.skillKey) } : undefined
+      push({ kind: 'user', text: part.text, ...(chip ? { chips: [chip] } : {}) })
       continue
     }
     if (part.kind === 'assistant-text') {
-      items.push({ kind: 'assistant', text: part.text, status: part.interrupted ? 'interrupted' : part.streaming ? 'streaming' : 'complete',
+      push({ kind: 'assistant', text: part.text, status: part.interrupted ? 'interrupted' : part.streaming ? 'streaming' : 'complete',
         ...(part.continuationEntryId ? { continuationEntryId: part.continuationEntryId } : {}) })
       continue
     }
     if (part.kind === 'thinking') {
-      items.push({ kind: 'thinking', label: labels.thinkingLabel, meta: '', text: part.text, streaming: part.streaming })
+      push({ kind: 'thinking', label: labels.thinkingLabel, meta: '', text: part.text, streaming: part.streaming })
       continue
     }
     if (part.kind === 'tool-call') {
       slots.set(part.toolCallId, { index: items.length, toolName: part.toolName, args: part.args })
-      items.push({ kind: 'tool', receipt: receiptFor(part, labels) })
+      push({ kind: 'tool', receipt: receiptFor(part, labels) })
       continue
     }
     // tool-result：并回**它自己那一行**。找不到对应的调用不新开一行——那会让用户看到一条
@@ -300,7 +381,10 @@ export function laneViewModel(projection: LaneProjection, labels: LaneViewModelL
     ? labels.free : metricText(usage.cost, labels.formatCost, labels.unknown)
   const reasoning = metricText(usage.reasoningTokens, labels.formatTokens, labels.unknown)
   return {
-    items,
+    items: mergeAssistantTextPerTurn(items, turnOf, (at) => {
+      const skillKey = skillOfTurn.get(at)
+      return skillKey ? labels.skillLabel(skillKey) : undefined
+    }),
     running: projection.running,
     // 队列原样带出去：这一层不合并、不去重、不改顺序——pi 的 FIFO 就是用户打字的顺序。
     queues: projection.queues,

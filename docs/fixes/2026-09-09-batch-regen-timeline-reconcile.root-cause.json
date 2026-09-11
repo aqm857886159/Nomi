@@ -1,0 +1,80 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-09-batch-regen-timeline-reconcile",
+  "problem_type": "Batch regeneration does not backfill timeline clips referencing regenerated nodes",
+  "symptom": "Regenerating a node through the batch path while its clip sits on the timeline leaves the clip pointing at the old asset URL; the same regeneration through the single-shot paths updates the clip in place.",
+  "direct_cause": "runGenerationNodesBatch's worker collects successes without calling reconcileTimelineForUpdatedNodes, while both single-shot paths (regenerateNodeInPlace, confirmAndRunNodeVariants) call it after runGenerationNode.",
+  "class_root": "Every path that lands a new result on a node must pass through the same timeline backfill gate; the backfill gate is a property of the result-landing boundary, not of individual callers.",
+  "affected_population": [
+    "Users regenerating timeline-referenced nodes via multi-select batch run"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/runner/generationRunController.ts"
+  ],
+  "entry_points": [
+    "runGenerationNodesBatch worker success path"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Internal runner-to-store reconciliation; no external format change.",
+  "invariants": [
+    "After a successful runGenerationNode lands a result, timeline clips referencing that node are backfilled (same position, new URL) regardless of which dispatch path ran it.",
+    "Nodes without timeline clips remain untouched (reconcile is a no-op)."
+  ],
+  "generality_proof": "The fix sits at the single success point shared by every batch worker, so all batch dispatches (plain batch, wave plan workers sharing this loop) reconcile; single-shot paths already reconcile at their own call sites.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "symbol": "runGenerationNodesBatch worker",
+      "responsibility": "Reconcile timeline for each successfully regenerated node before reporting success."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "entry_point": "regenerateNodeInPlace",
+      "disposition": "enforced",
+      "evidence": "Already calls reconcileTimelineForUpdatedNodes after runGenerationNode; unchanged reference implementation."
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "entry_point": "confirmAndRunNodeVariants",
+      "disposition": "enforced",
+      "evidence": "Already reconciles per-variant after runGenerationNode; unchanged."
+    }
+  ],
+  "recurrence": {
+    "classification": "one_off",
+    "reason": "The batch worker was the single dispatch path missing the reconcile call; both single-shot paths and the semantic scheduler's own loop were audited for the same omission.",
+    "same_class_scan": [
+      "Checked confirmAndRunNodeVariants and regenerateNodeInPlace: both reconcile.",
+      "Checked runGenerationNodesByPlan: it dispatches through runGenerationNodesBatch, so the worker fix covers it."
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/runner/generationQueue.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/runner/generationQueue.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "No legacy path removed; the reconcile call is added, not moved."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency change.",
+    "exit_criteria": []
+  },
+  "migration": "No persistence schema change.",
+  "residual_risks": [
+    "Failed nodes in a batch still do not reconcile (no new result to backfill), matching single-shot behavior."
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/runner/generationRunController.ts",
+    "tests": [
+      "src/workbench/generationCanvas/runner/generationQueue.test.ts"
+    ],
+    "note": "The batch worker owns result landing for batch dispatches; the regression pins a timeline-referencing clip being backfilled."
+  }
+}

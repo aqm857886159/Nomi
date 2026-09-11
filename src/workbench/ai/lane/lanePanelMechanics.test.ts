@@ -20,6 +20,7 @@ const labels: LaneViewModelLabels = {
   formatStages: (done, total) => `${done}/${total} stages`,
   formatMoney: (currency, amount) => `${currency} ${amount.toFixed(2)}`,
   taskUnknown: '[task-unknown]',
+  skillLabel: (key) => `[skill:${key}]`,
 }
 
 /** 三态的常用取值。写成构件是因为下面几乎每条都要摆一次。 */

@@ -23,12 +23,16 @@ import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 
-// The hook kills this process at REVIEW_TIMEOUT_MS (180s). Stay below that so a
-// timeout is reported by the shim rather than as a signal kill, and so there is
-// time to leave the report file empty.
-const DEFAULT_TIMEOUT_MS = 165_000
-const MAX_TIMEOUT_MS = 175_000
+// The hook kills this process at its own derived budget (2026-09-11: no longer a
+// 180s constant — see resolveReviewTimeoutMs). It hands that budget down as
+// PONYTAIL_REVIEW_TIMEOUT_MS; stay HEADROOM below it so a timeout is reported by
+// the shim rather than as a signal kill, and so there is time to leave the report
+// file empty. Never hardcode a second clock here: a shim that stops at 165s while
+// the hook allows 600s would re-create exactly the false timeout being fixed.
+const TIMEOUT_HEADROOM_MS = 15_000
+const FALLBACK_BUDGET_MS = 180_000
 const MAX_OUTPUT_BYTES = 4_000_000
 
 const SKILL_SUBPATH = path.join('skills', 'ponytail-review', 'SKILL.md')
@@ -107,10 +111,12 @@ function readSkillRules(env) {
   return fail(`no ${SKILL_SUBPATH} under ${PLUGIN_CACHE}; set PONYTAIL_REVIEW_SKILL_PATH`)
 }
 
-function resolveTimeout(env) {
+export function resolveTimeout(env) {
+  const budget = Number.parseInt(String(env.PONYTAIL_REVIEW_TIMEOUT_MS || ''), 10)
+  const ceiling = (Number.isFinite(budget) && budget > TIMEOUT_HEADROOM_MS ? budget : FALLBACK_BUDGET_MS)
+    - TIMEOUT_HEADROOM_MS
   const raw = Number.parseInt(String(env.PONYTAIL_REVIEW_CLAUDE_TIMEOUT_MS || ''), 10)
-  if (!Number.isFinite(raw) || raw <= 0) return DEFAULT_TIMEOUT_MS
-  return Math.min(raw, MAX_TIMEOUT_MS)
+  return Number.isFinite(raw) && raw > 0 ? Math.min(raw, ceiling) : ceiling
 }
 
 function main() {
@@ -180,4 +186,7 @@ function main() {
   return 0
 }
 
-process.exitCode = main()
+// Same invocation guard as scripts/ponytail-review-hook.mjs: importing this file
+// (tests) must not run a review.
+const invokedPath = process.argv[1] ? pathToFileURL(path.resolve(process.argv[1])).href : ''
+if (import.meta.url === invokedPath) process.exitCode = main()

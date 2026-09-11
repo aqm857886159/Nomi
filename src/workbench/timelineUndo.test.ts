@@ -76,6 +76,18 @@ describe('时间轴撤销栈', () => {
     expect(useWorkbenchStore.getState().timeline.tracks.flatMap((t) => t.clips).length).toBe(splitCount)
   })
 
+  it('换字体压 undo 栈且清 redo 栈（⌘Z 回到换字体前，不再是更早一次编辑）', () => {
+    const s = useWorkbenchStore.getState()
+    const textClipId = s.addTimelineTextClip('caption', 0)
+    s.updateTimelineTextClip(textClipId, '第一版文案')
+    const beforeFont = useWorkbenchStore.getState().timeline
+    useWorkbenchStore.getState().updateTimelineTextClipFont(textClipId, 'font-b')
+    expect(useWorkbenchStore.getState().timelineUndoStack.length).toBeGreaterThan(0)
+    // undo → 字体回到换字体前（修复前：font 改动不压栈，undo 会退到更早一次编辑）
+    useWorkbenchStore.getState().undoTimeline()
+    expect(useWorkbenchStore.getState().timeline).toBe(beforeFont)
+  })
+
   it('新编辑清空 redo 栈（undo 后再做新编辑 → 不能 redo 回陈旧态）', () => {
     const s = useWorkbenchStore.getState()
     s.addTimelineClipAtFrame(imageClip('a', 0, 90), 'image', 0)

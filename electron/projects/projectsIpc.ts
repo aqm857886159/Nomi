@@ -57,7 +57,6 @@ export function registerProjectsIpc(deps: ProjectsIpcDeps): void {
     assertTrustedSender(event);
     return recoverProject(String(projectId || ""));
   });
-  registerSyncIpc("nomi:projects:save", saveProject as (...args: never[]) => unknown);
   ipcMain.handle("nomi:projects:save-async", (event, projectId: unknown, record: unknown) => {
     assertTrustedSender(event);
     return saveProject(String(projectId || ""), record);

@@ -1,0 +1,97 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-07-director-temporary-model-format",
+  "problem_type": "Temporary model upload loses decoder identity",
+  "symptom": "Uploading FBX in the browser creates a fallback box and reports Kaydara FB is not valid JSON.",
+  "direct_cause": "The temporary upload path replaces the filename with an extensionless blob URL; both model and character renderers choose FBX versus GLTF by the modelPath suffix.",
+  "class_root": "The asset-address creation boundary discards format identity required by downstream decoders.",
+  "affected_population": [
+    "Browser/devlab temporary FBX uploads; all temporary model uploads pass this boundary"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/nodes/director/panels/side/AssetsTab.tsx"
+  ],
+  "entry_points": [
+    "AssetsTab.uploadFiles temporary branch",
+    "ModelEntity FBX/GLTF routing",
+    "CharacterEntity FBX/GLTF routing after Mixamo detection"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Existing decoders work; the internal upload path loses the filename they already require.",
+  "invariants": [
+    "A temporary binary model URL retains its original filename for decoder selection",
+    "Stored desktop assets continue to use their existing durable URLs"
+  ],
+  "generality_proof": "All temporary binary asset uploads preserve their original name in the URL fragment; both existing model consumers read the same modelPath without decoder-specific fallback.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/panels/side/AssetsTab.tsx",
+      "symbol": "uploadFiles",
+      "responsibility": "Create temporary binary asset addresses with original format identity"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/scene/entities/ModelEntity.tsx",
+      "entry_point": "isFbxUrl in ModelEntity",
+      "disposition": "enforced",
+      "evidence": "Uses modelPath created by uploadFiles; real FBX walk fails before fix and decodes after."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/scene/entities/CharacterEntity.tsx",
+      "entry_point": "FBX character branch after ModelEntity Mixamo upgrade",
+      "disposition": "enforced",
+      "evidence": "Keeps the same modelPath; walk checks actual bone extent after upgrade."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/panels/side/AssetsTab.tsx",
+      "entry_point": "Desktop importWorkbenchLocalAssetFile succeeds",
+      "disposition": "not-affected",
+      "evidence": "hostedAssetUrl already retains extension and is not rewritten."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every temporary FBX upload loses its extension in the same branch.",
+    "same_class_scan": [
+      "Read uploadFiles URL creation for all supported binary kinds",
+      "Read shared isFbxUrl and both ModelEntity/CharacterEntity call sites",
+      "Ran real FBX decoder red case; GLB is alternate format class test"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/nodes/director/panels/side/AssetsTab.tsx",
+    "invariant": "Temporary model identity survives address generation.",
+    "failure_mode": "Unsupported files remain rejected at existing asset-kind validation.",
+    "exception_policy": "none",
+    "strategy": "Preserve encoded original filename on the temporary address at creation.",
+    "artifacts": [
+      "src/workbench/generationCanvas/nodes/director/panels/side/AssetsTab.tsx"
+    ]
+  },
+  "regression_tests": [
+    "tests/ux/director-model-import.walk.mjs"
+  ],
+  "class_regression_tests": [
+    "tests/ux/director-model-import.walk.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/nodes/director/panels/side/AssetsTab.tsx"
+    ],
+    "rationale": "Replace extensionless temporary URL creation in place."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No decoder API change; restores data required by existing application routing.",
+    "exit_criteria": []
+  },
+  "migration": "Durable assets unchanged. Existing expired temporary blob addresses require re-upload as already disclosed in the UI.",
+  "residual_risks": [
+    "Temporary uploads still expire when their owning browser document closes; the UI explicitly says to re-upload.",
+    "External-resource .gltf packages have not been validated in this isolated walk."
+  ],
+  "invariant_owner_layer": {"layer": "src/workbench/generationCanvas/nodes/director/panels/side/AssetsTab.tsx", "tests": ["tests/ux/director-model-import.walk.mjs"], "why": "不变量由 src/workbench/generationCanvas/nodes/director/panels/side/AssetsTab.tsx 单点持有（即本合同的 prevention.enforcement_path / shared_boundaries）；上游其它入口只调用它、不各自重判。tests 是该层现有的类级与回归测试，改动这条不变量必先让它们红。"}
+}

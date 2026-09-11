@@ -207,3 +207,23 @@ export function installUncaughtExceptionNoiseFilter(
   };
   target.on("uncaughtException", handler);
 }
+
+/** IPC 边界形状（仅本注册器需要）：把 ipcMain.on 与 sender 守卫作为注入面，测试不引 electron。
+ * 泛型 E 让 main.ts 直接传 assertTrustedUiSender（其入参是窄化的 IpcEvent），无需 any/断言。 */
+export type RendererCrashIpcBoundary<E = unknown> = {
+  onMessage: (channel: string, handler: (event: E, message: unknown) => void) => void;
+  assertTrusted: (event: E) => void;
+};
+
+/**
+ * 渲染层崩溃（RootErrorBoundary）也落到同一崩溃日志（P0-8）。主窗口与挂 Nomi preload 的
+ * 辅助窗（app-surface）都可报，但都要过 sender 守卫——这曾是 main.ts 里唯一没有守卫的消息
+ * 通道，任何挂 preload 的窗口可无限制刷写崩溃日志（2MB truncate 滚动兜底故危害有限）。
+ * 注册住在 crashLog 而非 main.ts：main.ts 是基线 828 的已知巨壳，门岗只减不增。
+ */
+export function registerRendererCrashIpc<E>(boundary: RendererCrashIpcBoundary<E>): void {
+  boundary.onMessage("nomi:log:renderer-crash", (event, message) => {
+    boundary.assertTrusted(event);
+    logCrash("renderer", String(message));
+  });
+}

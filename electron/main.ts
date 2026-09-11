@@ -28,7 +28,7 @@ import { openWorkspaceFolder, selectWorkspaceFolder } from "./workspace/workspac
 import { listWorkspaceFiles, resolveWorkspaceFilePath } from "./workspace/workspaceFileIndex";
 import { registerWorkspaceFileDeleteIpc } from "./workspace/workspaceFileDelete";
 import { registerWorkspaceSyncIpc } from "./workspace/workspaceSyncIpc";
-import { logCrash } from "./crashLog";
+import { registerRendererCrashIpc } from "./crashLog";
 import { installMainProcessLifecycle } from "./mainProcessLifecycle";
 import { registerExportJobIpc } from "./export/exportJobIpc";
 import { registerTextStreamIpc } from "./ai/textStreamIpc";
@@ -53,6 +53,7 @@ import { installMainWindowInteractions } from "./mainWindowInteractions";
 import { getMainWindow, setMainWindow } from "./appWindowRegistry";
 import { createMainWindowGuard } from "./mainWindowPresence";
 import { assertTrustedSender, assertTrustedUiSender } from "./ipcSenderGuard";
+import { registerDirectorMobileIpc } from "./director/mobileBridgeIpc";
 import { registerScreenshotIpc } from "./screenshot/screenshotIpc";
 import { registerVideoIpc } from "./video/videoIpc";
 import { registerTikhubConnectorIpc } from "./connectors/tikhubConnectorIpc";
@@ -140,7 +141,6 @@ let capabilityCoreModule: typeof import("./capabilityCore/appIntegration") | nul
 let capabilityCoreModulePromise: Promise<typeof import("./capabilityCore/appIntegration")> | null = null;
 let capabilityPortCache: number | null = null;
 let desktopCanvasReadExecutionRuntime: CanvasReadExecutionRuntime | null = null;
-
 function loadRuntimeModule(): Promise<typeof import("./runtime")> {
   runtimeModulePromise ??= import("./runtime");
   return runtimeModulePromise;
@@ -350,7 +350,6 @@ async function createWindow(
   }
   return mainWindow;
 }
-
 // 零窗口自愈的唯一入口（issue #62）；activate / second-instance / 窗口重建失败都走它。
 const ensureMainWindow = createMainWindowGuard({ createWindow, onWindowReady: () => flushPendingProductionDeepLink() });
 
@@ -409,8 +408,8 @@ function registerIpc(): void {
   // model-integration-trusted-audio.e2e 抓到后按根因恢复注册。
   registerIntegrationHandoffIpc();
   registerIntegrationSessionIpc();
-  // 渲染层崩溃（RootErrorBoundary）也落到同一崩溃日志（P0-8）。
-  ipcMain.on("nomi:log:renderer-crash", (_event, message: unknown) => logCrash("renderer", String(message)));
+  // 渲染层崩溃（RootErrorBoundary）也落到同一崩溃日志（P0-8）；注册与 sender 守卫住在 crashLog（main.ts 巨壳只减不增）。
+  registerRendererCrashIpc({ onMessage: ipcMain.on.bind(ipcMain), assertTrusted: assertTrustedUiSender });
   // 窗口控制（Windows 自绘标题栏）：只注册一次，作用于发起请求的那个窗口（fromWebContents），
   // 而非闭包捕获某个窗口实例——后者会在第二次 createWindow（重开库/activate）时重复注册 handle 抛错、崩窗。
   ipcMain.handle("nomi:window:minimize", (event) => BrowserWindow.fromWebContents(event.sender)?.minimize());
@@ -595,6 +594,7 @@ function registerIpc(): void {
     const { framesToVideoAsset } = await import("./video/framesToVideo");
     return framesToVideoAsset(payload);
   });
+  registerDirectorMobileIpc();
   registerExportJobIpc({
     getActiveProjectSelection: () => canvasReadSurfaceRuntime.getCommittedProjectSelection(),
   });

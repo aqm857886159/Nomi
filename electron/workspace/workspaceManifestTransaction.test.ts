@@ -12,12 +12,15 @@ import {
 import {
   withWorkspaceManifestTransaction,
   withWorkspaceManifestTransactionSync,
+  withWorkspaceManifestStagedTransaction,
   type WorkspaceManifestTransaction,
 } from "./workspaceManifestTransaction";
 
 const _compileTimeRejectsAsyncTransactionCallback = (): void => {
   // @ts-expect-error synchronous manifest transactions reject Promise-like callback results
   withWorkspaceManifestTransactionSync("/compile-time-only", async () => "not-sync");
+  // @ts-expect-error async lock acquisition does not allow an async staged callback
+  withWorkspaceManifestStagedTransaction("/compile-time-only", async () => "not-staged");
 };
 
 const tempRoots: string[] = [];

@@ -7,8 +7,8 @@ describe('getDefaultCategoryForNodeKind', () => {
   it('character → cast（角色）', () => {
     expect(getDefaultCategoryForNodeKind('character')).toBe('cast')
   })
-  it('场景资产类 kind 归 scene（scene/panorama/scene3d）', () => {
-    for (const kind of ['scene', 'panorama', 'scene3d'] as const) {
+  it('场景资产类 kind 归 scene（scene/panorama/director）', () => {
+    for (const kind of ['scene', 'panorama', 'director'] as const) {
       expect(getDefaultCategoryForNodeKind(kind)).toBe('scene')
     }
   })

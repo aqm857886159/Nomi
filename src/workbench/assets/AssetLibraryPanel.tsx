@@ -287,7 +287,7 @@ export function AssetLibraryContent({
           refreshAllProjectAssets()
           reportMediaImport(result, report)
           // 落点可见性（2026-08-07 飞书反馈「上传传到另一个位置没看到」）：选中首个新节点 +
-          // 请求画布 fit 平移视口过去（复用 Scene3DEditor 同款组合，不造第二套）。
+          // 请求画布 fit 平移视口过去（复用导演台节点同款组合，不造第二套）。
           const firstNode = result.created[0]?.node
           if (firstNode) {
             useGenerationCanvasStore.getState().selectNode(firstNode.id)

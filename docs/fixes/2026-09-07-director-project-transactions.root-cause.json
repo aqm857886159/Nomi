@@ -1,0 +1,131 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-07-director-project-transactions",
+  "problem_type": "Project graph operations and history restore do not preserve complete ownership",
+  "symptom": "Cross-layer copy/move throws, asset undo leaves entries behind, duplicated layers lose track order, nested ungroup detaches children, and switching entities retains stale clip selection. Cross-parent grouping, cloning and crowd creation detach local coordinates; malformed saved parent cycles hide the object tree.",
+  "direct_cause": "Cross-layer writes capture a frozen target outside the draft; history restores a hand-picked field list; graph edits ignore parent and track references; selection pruning validates IDs globally instead of against their selected owner.",
+  "class_root": "User actions are treated as partial field mutations rather than complete project and owned-subtree transactions.",
+  "affected_population": [
+    "Objects, groups, cameras and lights crossing scenes",
+    "Asset and compound action undo/redo",
+    "Nested groups and copied scene track ordering",
+    "All clip and keyframe selection owners"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/nodes/director/model/directorStore.ts",
+    "src/workbench/generationCanvas/nodes/director/model/storeEntityActions.ts",
+    "src/workbench/generationCanvas/nodes/director/model/directorProject.ts",
+    "src/workbench/generationCanvas/nodes/director/panels/side/SceneObjectsTab.tsx",
+    "src/workbench/generationCanvas/nodes/director/model/sceneObjectGraph.ts"
+  ],
+  "entry_points": [
+    "Scene outliner cross-layer copy/move/group controls",
+    "Global and toolbar undo/redo",
+    "Asset folder/item operations",
+    "Timeline and outliner selection"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://threejs.org/docs/#Object3D.attach",
+      "checked_at": "2026-09-07",
+      "purpose": "Confirm transform composition and the non-uniform parent-scale limitation of TRS reparenting."
+    }
+  ],
+  "invariants": [
+    "History restores every project field",
+    "A composite action creates one reversible history entry and rolls back on error",
+    "All project writes use the live draft",
+    "Subtrees retain internal references and track metadata",
+    "A selected clip/keyframe belongs to the selected entity",
+    "Reparenting and cross-layer transfer transform rest poses and every trajectory in the same coordinate frame",
+    "Loaded parent graphs are rooted forests"
+  ],
+  "generality_proof": "The store owns complete snapshot restoration and action grouping for all callers; cross-scene operations resolve both scenes inside the same draft; shared selection pruning validates ownership after every project mutation and selection change.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/model/directorStore.ts",
+      "symbol": "createDirectorStore",
+      "responsibility": "Complete project history, grouped actions and owned selection pruning."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/model/storeEntityActions.ts",
+      "symbol": "copyEntitiesToScene",
+      "responsibility": "Move/copy a complete entity subtree inside one project draft."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/model/sceneObjectGraph.ts",
+      "symbol": "transformObject / selectedRoots / objectWorldFrame",
+      "responsibility": "Shared affine-space and subtree semantics for grouping, ungrouping, clone and scene transfer."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/model/storeAssetActions.ts",
+      "entry_point": "addAssetFolder/addAssetItem and undo",
+      "disposition": "enforced",
+      "evidence": "Both save project history; complete restore now includes assets."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/panels/side/SceneObjectsTab.tsx",
+      "entry_point": "cross-layer operations and row selection",
+      "disposition": "enforced",
+      "evidence": "Controls dispatch to draft-bound transfer and owner-aware selection."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/model/storeCameraActions.ts",
+      "entry_point": "compound camera/clip creation",
+      "disposition": "enforced",
+      "evidence": "Compound user actions consume withHistory and restore as one action."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The same operations are reachable for every project and entity family, and missing snapshot fields recur when project schema grows.",
+    "same_class_scan": [
+      "Read directorStore undo/redo/load/reset/pruneSelection",
+      "Read every createEntityActions cross-layer/group/clone consumer",
+      "Read asset actions and camera/timeline composed actions",
+      "Checked scene duplication and remapSceneIds track references"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/nodes/director/model/directorStore.ts",
+    "invariant": "Complete project history and owner-aware selection are enforced at the store boundary.",
+    "failure_mode": "Invalid targets are rejected before mutation and failed compound actions restore their original state.",
+    "exception_policy": "none",
+    "strategy": "Replace partial snapshot field restoration and captured frozen writes with complete grouped project operations.",
+    "artifacts": [
+      "src/workbench/generationCanvas/nodes/director/model/directorStore.ts",
+      "src/workbench/generationCanvas/nodes/director/model/storeEntityActions.ts",
+      "src/workbench/generationCanvas/nodes/director/model/sceneObjectGraph.ts",
+      "src/workbench/generationCanvas/nodes/director/model/directorProject.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/nodes/director/model/directorSceneTransactions.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/nodes/director/model/directorSceneTransactions.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/nodes/director/model/directorStore.ts",
+      "src/workbench/generationCanvas/nodes/director/model/storeEntityActions.ts"
+    ],
+    "rationale": "Remove partial history restoration, frozen target writes and globally-valid but wrongly-owned selection."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Existing immutable draft and project types are sufficient; no runtime upgrade controls these application invariants.",
+    "exit_criteria": []
+  },
+  "migration": "No schema change. Existing projects are normalized and future copy/move/history operations use the corrected shared boundary.",
+  "residual_risks": [
+    "Non-uniform parent scale combined with rotation can create shear that the existing TRS schema cannot represent exactly; no new shear schema is introduced.",
+    "Physical-phone sensors and external AI service are outside the project graph tests."
+  ],
+  "invariant_owner_layer": {"layer": "src/workbench/generationCanvas/nodes/director/model/directorStore.ts", "tests": ["src/workbench/generationCanvas/nodes/director/model/directorSceneTransactions.test.ts"], "why": "不变量由 src/workbench/generationCanvas/nodes/director/model/directorStore.ts 单点持有（即本合同的 prevention.enforcement_path / shared_boundaries）；上游其它入口只调用它、不各自重判。tests 是该层现有的类级与回归测试，改动这条不变量必先让它们红。"}
+}

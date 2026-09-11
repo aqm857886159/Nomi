@@ -1,0 +1,92 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-07-director-canvas-image-discovery",
+  "problem_type": "AI canvas reference image discovery omits valid result owners and history",
+  "symptom": "Asset and edited-image results plus older generated images are absent from the AI reference picker.",
+  "direct_cause": "DirectorNode filters kind=image and reads only node.result.",
+  "class_root": "Reference candidates are inferred from node kind instead of the shared image result contract.",
+  "affected_population": [
+    "All canvas image results including asset, edited and historical results"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/nodes/director/DirectorNode.tsx",
+    "src/workbench/generationCanvas/nodes/director/bridge/canvasImages.ts",
+    "src/workbench/generationCanvas/nodes/director/panels/CanvasImagesContext.ts"
+  ],
+  "entry_points": [
+    "DirectorNode canvas reference picker"
+  ],
+  "external_sources": [],
+  "invariants": [
+    "Every valid image result is selectable independent of node kind",
+    "Current result and history do not duplicate the same node URL",
+    "Historical references have stable compound identities"
+  ],
+  "generality_proof": "All nodes pass through one result-type collector; both current and historical entries use the same validation and deduplication.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/bridge/canvasImages.ts",
+      "symbol": "collectCanvasImages",
+      "responsibility": "Derive all reference images from typed canvas results."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/DirectorNode.tsx",
+      "entry_point": "canvasImagesKey subscription",
+      "disposition": "enforced",
+      "evidence": "Signature comes from the same collector as the displayed list."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/panels/CanvasImagesContext.ts",
+      "entry_point": "CanvasImagesContext",
+      "disposition": "enforced",
+      "evidence": "The picker receives current and historical results through one shape."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any asset node or older result can be omitted under the old kind/current-result filter.",
+    "same_class_scan": [
+      "Read GenerationCanvasNode/result/history types",
+      "Read DirectorNode current image subscription and projection",
+      "Read AiSceneBar reference picker"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/nodes/director/bridge/canvasImages.ts",
+    "invariant": "Result semantics, not producer kind, determine image eligibility.",
+    "failure_mode": "Non-image, empty and duplicate results are omitted.",
+    "exception_policy": "none",
+    "strategy": "Use one collector for the reactive signature and the picker payload.",
+    "artifacts": [
+      "src/workbench/generationCanvas/nodes/director/bridge/canvasImages.ts",
+      "src/workbench/generationCanvas/nodes/director/DirectorNode.tsx"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/nodes/director/bridge/canvasImages.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/nodes/director/bridge/canvasImages.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/nodes/director/DirectorNode.tsx"
+    ],
+    "rationale": "Remove both copies of the image-node-only/current-result projection."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Uses existing typed canvas results; no runtime dependency change.",
+    "exit_criteria": []
+  },
+  "migration": "No stored schema changes.",
+  "residual_risks": [
+    "Reference selection is tested locally; live external AI scene generation requires a configured provider."
+  ],
+  "internal_only_reason": "Canvas image ownership is defined by GenerationNodeResult.type and per-node history. The approved director feature inventory (section 2.6) explicitly includes current and historical images.",
+  "invariant_owner_layer": {"layer": "src/workbench/generationCanvas/nodes/director/bridge/canvasImages.ts", "tests": ["src/workbench/generationCanvas/nodes/director/bridge/canvasImages.test.ts"], "why": "不变量由 src/workbench/generationCanvas/nodes/director/bridge/canvasImages.ts 单点持有（即本合同的 prevention.enforcement_path / shared_boundaries）；上游其它入口只调用它、不各自重判。tests 是该层现有的类级与回归测试，改动这条不变量必先让它们红。"}
+}

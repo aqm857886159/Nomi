@@ -14,7 +14,38 @@ describe("IntegrationSessionService", () => {
     });
   }
 
-  function make() {
+  /**
+   * 走完真实的人证关卡：Agent 请求挑战 → 可信 UI 侧真人手势 → 铸收据。
+   *
+   * 为什么用例里必须走它：`start` 现在只在 `human_confirmed` 放行。旧用例直接从
+   * `needs_spend_confirmation` 跳到 `start` 并塞一个字符串 "receipt-1"，等于把这一关整个测没了——
+   * 正是 R30 点名的盲区（夹具用变量直传，真实模型在回路里的那一段从没被测过）。
+   */
+  function approveSpend(service: IntegrationSessionService, sessionId: string, owner: "codex" | "claude", key: string) {
+    const current = service.get(sessionId, owner);
+    const requested = service.requestConfirmation(sessionId, current.revision, owner, key);
+    const afterRequest = service.get(sessionId, owner);
+    expect(afterRequest.stage).toBe("awaiting_human_confirmation");
+    return service.confirmFromTrustedUi({
+      sessionId,
+      expectedRevision: afterRequest.revision,
+      challengeId: requested.challengeId,
+      webContentsId: 1,
+      frameId: 1,
+      origin: "file://",
+    });
+  }
+
+  function testAuthority(dir: string) {
+    return createApprovalReceiptAuthority({
+      filePath: path.join(dir, "receipts.json"),
+      macKey: "integration-test-key",
+    });
+  }
+
+  // compilerAvailable 默认注 true = 「这台机器上已经有能读文档的文本模型」，也就是这些既有用例
+  // 一直隐含的处境。为 false 的那条路（鸡生蛋）由本文件末尾的专门用例覆盖。
+  function make(overrides: { compilerAvailable?: () => boolean } = {}) {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-integration-session-"));
     const filePath = path.join(dir, "sessions.json");
     return {
@@ -23,6 +54,7 @@ describe("IntegrationSessionService", () => {
         filePath,
         now: () => "2026-08-28T00:00:00.000Z",
         save: (target, state) => fs.writeFileSync(target, JSON.stringify(state)),
+        compilerAvailable: overrides.compilerAvailable || (() => true),
       }),
     };
   }
@@ -83,7 +115,7 @@ describe("IntegrationSessionService", () => {
     })).resolves.toMatchObject({ stage: "needs_spend_confirmation" });
     await expect(service.propose(started.id, ready.revision, "claude", {
       candidates: [{ modelKey: "text-1", kind: "text" }], selections: [{ modelKey: "text-1" }],
-    })).rejects.toThrow(/stale/);
+    })).rejects.toThrow(/behind the session/);
     expect(fs.existsSync(filePath)).toBe(true);
     const reloaded = new IntegrationSessionService({ filePath });
     expect(reloaded.get(started.id, "claude").id).toBe(started.id);
@@ -97,10 +129,12 @@ describe("IntegrationSessionService", () => {
         childRunRef: { runId: "run-1", revisionDigest: "a".repeat(64) },
       })),
     };
+    const certDir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-session-cert-"));
     const withCert = new IntegrationSessionService({
-      filePath: path.join(fs.mkdtempSync(path.join(os.tmpdir(), "nomi-session-cert-")), "sessions.json"),
+      filePath: path.join(certDir, "sessions.json"),
       certification: cert as never,
       credentialResolver: () => "secret",
+      approvalReceiptAuthority: testAuthority(certDir),
       save: (target, state) => fs.writeFileSync(target, JSON.stringify(state)),
     });
     const session = withCert.begin(
@@ -109,8 +143,11 @@ describe("IntegrationSessionService", () => {
     );
     const ready = withCert.markCredentialReady(session.id, "ref", "codex");
     const selected = await proposeHttp(withCert, session.id, ready.revision, "codex");
-    await expect(withCert.start(session.id, selected.revision, "codex", "idem")).rejects.toThrow(/receipt/i);
-    const result = await withCert.start(session.id, selected.revision, "codex", "idem", "receipt-1");
+    // 人还没批：start 必须明说「等人批」，而不是含糊地报收据问题（这正是实测里 agent 读错的那一跳）。
+    await expect(withCert.start(session.id, selected.revision, "codex", "idem")).rejects.toThrow(/not ready to start|approved/i);
+    const approved = approveSpend(withCert, session.id, "codex", "idem");
+    expect(approved.stage).toBe("human_confirmed");
+    const result = await withCert.start(session.id, approved.revision, "codex", "idem", approved.pendingReceiptId);
     expect(result.childRunRef?.runId).toBe("run-1");
     expect(cert.startHttp).toHaveBeenCalledTimes(1);
     expect(service).toBeDefined();
@@ -132,16 +169,19 @@ describe("IntegrationSessionService", () => {
       filePath: path.join(dir, "sessions.json"),
       certification: certification as never,
       credentialResolver: () => "secret",
+      approvalReceiptAuthority: testAuthority(dir),
       save: (target, state) => fs.writeFileSync(target, JSON.stringify(state)),
+      compilerAvailable: () => true,
     });
     const session = service.begin(
       { kind: "http-api-provider", name: "Audio Provider", baseUrl: "https://api.example" },
       "codex",
     );
     const ready = service.markCredentialReady(session.id, "ref", "codex");
-    const selected = await proposeHttp(service, session.id, ready.revision, "codex", "audio-flagship", "audio");
+    await proposeHttp(service, session.id, ready.revision, "codex", "audio-flagship", "audio");
+    const approved = approveSpend(service, session.id, "codex", "async-http");
 
-    const started = await service.start(session.id, selected.revision, "codex", "async-http", "receipt-1");
+    const started = await service.start(session.id, approved.revision, "codex", "async-http", approved.pendingReceiptId);
     expect(started).toMatchObject({ stage: "certifying", childRunRef: { runId: "run-async" } });
     childStage = "testing";
     expect(service.get(session.id, "codex").stage).toBe("certifying");
@@ -164,6 +204,7 @@ describe("IntegrationSessionService", () => {
       filePath: path.join(dir, "sessions.json"),
       certification: cert as never,
       credentialResolver: () => "secret",
+      approvalReceiptAuthority: testAuthority(dir),
       save: (target, state) => fs.writeFileSync(target, JSON.stringify(state)),
     });
     const session = service.begin(
@@ -171,9 +212,10 @@ describe("IntegrationSessionService", () => {
       "codex",
     );
     const ready = service.markCredentialReady(session.id, "ref", "codex");
-    const selected = await proposeHttp(service, session.id, ready.revision, "codex");
-    const first = await service.start(session.id, selected.revision, "codex", "same-key", "receipt-1");
-    const second = await service.start(session.id, first.revision, "codex", "same-key", "receipt-1");
+    await proposeHttp(service, session.id, ready.revision, "codex");
+    const approved = approveSpend(service, session.id, "codex", "same-key");
+    const first = await service.start(session.id, approved.revision, "codex", "same-key", approved.pendingReceiptId);
+    const second = await service.start(session.id, first.revision, "codex", "same-key", approved.pendingReceiptId);
     expect(second.childRunRef).toEqual(first.childRunRef);
     expect(cert.startHttp).toHaveBeenCalledTimes(1);
   });
@@ -185,12 +227,14 @@ describe("IntegrationSessionService", () => {
       filePath: path.join(dir, "sessions.json"),
       certification: cert as never,
       credentialResolver: () => undefined,
+      approvalReceiptAuthority: testAuthority(dir),
       save: (target, state) => fs.writeFileSync(target, JSON.stringify(state)),
     });
     const session = service.begin({ kind: "http-api-provider", name: "Provider", baseUrl: "https://api.example" }, "codex");
     const ready = service.markCredentialReady(session.id, "ref", "codex");
-    const selected = await proposeHttp(service, session.id, ready.revision, "codex");
-    const result = await service.start(session.id, selected.revision, "codex", "missing-key", "receipt-1");
+    await proposeHttp(service, session.id, ready.revision, "codex");
+    const approved = approveSpend(service, session.id, "codex", "missing-key");
+    const result = await service.start(session.id, approved.revision, "codex", "missing-key", approved.pendingReceiptId);
     expect(result.stage).toBe("failed");
     expect(result.blockingReason).toEqual({ code: "credential_unavailable" });
     expect(cert.startHttp).not.toHaveBeenCalled();
@@ -208,12 +252,14 @@ describe("IntegrationSessionService", () => {
     const service = new IntegrationSessionService({
       filePath: path.join(dir, "sessions.json"),
       certifyComfy,
+      approvalReceiptAuthority: testAuthority(dir),
       save: (target, state) => fs.writeFileSync(target, JSON.stringify(state)),
     });
     const session = service.begin({ kind: "comfyui-workflow", name: "Local" }, "codex");
     const workflow = service.submitWorkflow(session.id, session.revision, "codex", '{"nodes":{}}');
-    const ready = service.resolveInput(session.id, workflow.revision, "codex", {});
-    const starting = service.start(session.id, ready.revision, "codex", "comfy-key", "receipt-1");
+    service.resolveInput(session.id, workflow.revision, "codex", {});
+    const approved = approveSpend(service, session.id, "codex", "comfy-key");
+    const starting = service.start(session.id, approved.revision, "codex", "comfy-key", approved.pendingReceiptId);
     await new Promise((resolve) => setTimeout(resolve, 0));
     const certifying = service.get(session.id, "codex");
     expect(certifying.stage).toBe("certifying");
@@ -256,6 +302,7 @@ describe("IntegrationSessionService", () => {
     );
     const ready = service.markCredentialReady(session.id, "ref", "codex");
     const selected = await proposeHttp(service, session.id, ready.revision, "codex");
+    // 伪造收据在人证之前就被拒：收据校验先于阶段判断，所以这条断言仍然测的是「收据必须注册过」。
     await expect(service.start(session.id, selected.revision, "codex", "idem", "forged-receipt")).rejects.toThrow(
       /receipt/i,
     );
@@ -353,7 +400,7 @@ describe("IntegrationSessionService", () => {
       "codex",
     );
     const opened = service.openCredentials(session.id, session.revision, "codex");
-    expect(() => service.saveCredential(opened.id, opened.revision - 1, "nomi", "sk-stale")).toThrow(/stale/);
+    expect(() => service.saveCredential(opened.id, opened.revision - 1, "nomi", "sk-stale")).toThrow(/behind the session/);
     expect(() => service.saveCredential(opened.id, opened.revision, "nomi", "sk-no-keychain")).toThrow(/secure storage/);
     expect(retireHandoff).not.toHaveBeenCalled();
   });
@@ -490,5 +537,147 @@ describe("IntegrationSessionService", () => {
     );
     expect(replay.childRunRef).toEqual(started.childRunRef);
     expect(certification.startHttp).toHaveBeenCalledTimes(1);
+  });
+  // ── 鸡生蛋（2026-09-10）：本机没有可读文档的文本模型时，编译交给驱动 Agent ─────────
+  //
+  // 旧行为是 start 之后在认证里抛 AdapterNeedsAiError：「想接模型，先接一个模型」。
+  // 新行为把「待编译的输入」在 propose 阶段就交回去，收回来的东西照样过 validateProviderAdapterDraft。
+
+  function mediaProposal() {
+    return { candidates: [{ modelKey: "paint-v2", kind: "image" }], selections: [{ modelKey: "paint-v2" }] };
+  }
+  function suppliedContract(overrides: Record<string, unknown> = {}) {
+    return JSON.stringify({
+      sources: [{ url: "https://docs.example/api", evidence: "POST /images returns data[0].url" }],
+      models: [
+        {
+          modelKey: "paint-v2",
+          labelZh: "ignored - Nomi locks the label",
+          kind: "image",
+          modes: [
+            {
+              taskKind: "text_to_image",
+              create: {
+                method: "POST",
+                path: "/images",
+                body: { prompt: "{{request.prompt}}" },
+                response_mapping: { image_url: "data.0.url" },
+              },
+              sourceUrls: ["https://docs.example/api"],
+            },
+          ],
+        },
+      ],
+      ...overrides,
+    });
+  }
+
+  it("hands the compile job to the driving agent when no text model can read the documentation", async () => {
+    const { service } = make({ compilerAvailable: () => false });
+    const session = service.begin(
+      { kind: "http-api-provider", name: "Relay", baseUrl: "https://api.example/v1", docs: "POST /images -> data[0].url" },
+      "codex",
+    );
+    const ready = service.markCredentialReady(session.id, "ref", "codex");
+
+    const proposed = await service.propose(session.id, ready.revision, "codex", mediaProposal());
+
+    expect(proposed.stage).toBe("needs_input");
+    expect(proposed.unresolvedFields).toEqual([
+      { key: "proposal.adapterDraft", reasonCode: "adapter_contract_required" },
+    ]);
+    expect(proposed.compileRequest).toMatchObject({
+      field: "proposal.adapterDraft",
+      provider: { baseUrl: "https://api.example/v1", authType: "bearer" },
+      models: [{ modelKey: "paint-v2", kind: "image" }],
+      docs: { provided: true, bytes: 27 },
+    });
+    // 交底必须自足：目标 schema + 撰写规则都在返回值里，Agent 不需要读 Nomi 的仓库。
+    expect(String(proposed.compileRequest?.instructions)).toContain("declarative provider adapter schema");
+    const schema = JSON.stringify(proposed.compileRequest?.contractSchema);
+    expect(schema).toContain("sourceUrls");
+    expect(schema).toContain("referenceParam");
+  });
+
+  it("accepts an agent-compiled contract, locks identity, and advances to spend confirmation", async () => {
+    const { service } = make({ compilerAvailable: () => false });
+    const session = service.begin(
+      { kind: "http-api-provider", name: "Relay", baseUrl: "https://api.example/v1" },
+      "codex",
+    );
+    const ready = service.markCredentialReady(session.id, "ref", "codex");
+    const blocked = await service.propose(session.id, ready.revision, "codex", mediaProposal());
+
+    const accepted = await service.propose(session.id, blocked.revision, "codex", {
+      ...mediaProposal(),
+      adapterDraft: suppliedContract(),
+    });
+
+    expect(accepted.stage).toBe("needs_spend_confirmation");
+    expect(accepted.unresolvedFields).toEqual([]);
+    expect(accepted.compileRequest).toBeUndefined();
+    expect(accepted.adapterDraft).toEqual({ present: true, modelKeys: ["paint-v2"] });
+  });
+
+  it("rejects an agent-compiled contract that does not pass the adapter validator, without moving the session", async () => {
+    const { service } = make({ compilerAvailable: () => false });
+    const session = service.begin(
+      { kind: "http-api-provider", name: "Relay", baseUrl: "https://api.example/v1" },
+      "codex",
+    );
+    const ready = service.markCredentialReady(session.id, "ref", "codex");
+    const blocked = await service.propose(session.id, ready.revision, "codex", mediaProposal());
+
+    await expect(service.propose(session.id, blocked.revision, "codex", {
+      ...mediaProposal(),
+      // 媒体模式没有任何产物映射 —— 认证跑起来必然拿不到图，必须在收件处就被打回。
+      adapterDraft: suppliedContract({
+        models: [
+          {
+            modelKey: "paint-v2",
+            labelZh: "Paint",
+            kind: "image",
+            modes: [
+              {
+                taskKind: "text_to_image",
+                create: { method: "POST", path: "/images" },
+                sourceUrls: ["https://docs.example/api"],
+              },
+            ],
+          },
+        ],
+      }),
+    })).rejects.toThrow(/propose rejected: proposal\.adapterDraft/);
+    // 拒绝不改 revision：Agent 拿同一个 expectedRevision 修好再交。
+    expect(service.get(session.id, "codex").revision).toBe(blocked.revision);
+    expect(service.get(session.id, "codex").stage).toBe("needs_input");
+  });
+
+  it("still goes straight to spend confirmation for a text-only proposal on a machine with no text model", async () => {
+    const { service } = make({ compilerAvailable: () => false });
+    const session = service.begin(
+      { kind: "http-api-provider", name: "Relay", baseUrl: "https://api.example/v1" },
+      "codex",
+    );
+    const ready = service.markCredentialReady(session.id, "ref", "codex");
+
+    const proposed = await proposeHttp(service, session.id, ready.revision, "codex");
+
+    expect(proposed.stage).toBe("needs_spend_confirmation");
+    expect(proposed.compileRequest).toBeUndefined();
+  });
+
+  it("does not ask the agent to compile for a self-hosted endpoint that uses the built-in contract", async () => {
+    const { service } = make({ compilerAvailable: () => false });
+    const session = service.begin(
+      { kind: "http-api-provider", name: "Local", baseUrl: "http://192.168.1.20:8000/v1" },
+      "codex",
+    );
+    const ready = service.markCredentialReady(session.id, "ref", "codex");
+
+    const proposed = await service.propose(session.id, ready.revision, "codex", mediaProposal());
+
+    expect(proposed.stage).toBe("needs_spend_confirmation");
+    expect(proposed.compileRequest).toBeUndefined();
   });
 });

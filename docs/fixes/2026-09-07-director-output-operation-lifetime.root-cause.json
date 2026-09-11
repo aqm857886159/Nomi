@@ -1,0 +1,115 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-07-director-output-operation-lifetime",
+  "problem_type": "Async director output operation loses ownership before completion",
+  "symptom": "Encoding releases the busy indicator, permits another recording, ignores cancellation after encoding starts and propagates frame-capture exceptions without a user error. A desktop screenshot with no saved asset url falls back to base64 and enters the persistent project.",
+  "direct_cause": "Capture finally clears videoRecording before the encoding await, with one reusable cancellation boolean and no mounted lifetime.",
+  "class_root": "A recording must own capture, encoding, cancellation and final registration as one task until it settles.",
+  "affected_population": [
+    "Timeline record button",
+    "Toolbar and shortcut screenshot commands",
+    "Editor close during capture or encoding",
+    "Desktop capture/encoding failures"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/nodes/director/useDirectorOutputs.ts",
+    "src/workbench/generationCanvas/nodes/director/bridge/persistOutputs.ts",
+    "src/workbench/generationCanvas/nodes/director/scene/PipRenderer.tsx"
+  ],
+  "entry_points": [
+    "outputs.recordVideo",
+    "outputs.takeScreenshot"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "Audited useDirectorOutputs, timeline/TimelineHeader, the top-bar deliver cluster and bridge/persistOutputs. The desktop IPC has no cancellation API, so late results must be discarded by the application task owner.",
+  "invariants": [
+    "Only one output recording owns the timeline until capture and encoding settle",
+    "Cancelled or unmounted tasks never register outputs or show success",
+    "Capture and encoding errors resolve false with one error notification and release task state",
+    "Only durable desktop asset handles can be registered as persisted outputs; data/blob urls are rejected at the asset bridge",
+    "PIP rendering restores temporary visibility, viewport and scissor even when render throws"
+  ],
+  "generality_proof": "Every recording entry shares useDirectorOutputs. A per-operation cancellation token and mounted guard span all awaits; a single try/catch/finally owns busy state and playhead restoration. Screenshot persistence validates the final bridge result for every UI caller, so malformed desktop results cannot fall back into project data.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/useDirectorOutputs.ts",
+      "symbol": "useDirectorOutputs",
+      "responsibility": "Own recording task through capture, encode, register and cleanup"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/bridge/persistOutputs.ts",
+      "symbol": "persistDirectorScreenshot",
+      "responsibility": "Validate durable saved asset handle before reporting desktop persistence success"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/timeline/TimelineHeader.tsx",
+      "entry_point": "outputs.recordVideo",
+      "disposition": "enforced",
+      "evidence": "Timeline command consumes OutputsContext from the same hook"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/panels/topbar/DirectorTopBar.tsx",
+      "entry_point": "outputs.takeScreenshot",
+      "disposition": "enforced",
+      "evidence": "Top-bar deliver cluster screenshot command shares the same output hook and persistence lifetime guard (2026-09-09: moved from the deleted panels/BottomBar.tsx)"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/useDirectorOutputs.ts",
+      "entry_point": "takeScreenshot",
+      "disposition": "enforced",
+      "evidence": "Both screenshot hotkey and toolbar call the same persistence bridge before addOutputImage"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "A recording must own capture, encoding, cancellation and final registration as one task until it settles.",
+    "same_class_scan": [
+      "rg recordVideo / cancelRecording / setVideoRecording across director: inspected both controls, OutputsContext and bridge",
+      "Checked both captureFrame rejection and persistDirectorFramesVideo late completion/unmount populations",
+      "Checked desktop asset urls: missing, whitespace, data URI and blob URI; browser fallback has explicit localOnly=true and does not claim durable persistence"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/nodes/director/useDirectorOutputs.ts",
+    "invariant": "Only one output recording owns the timeline until capture and encoding settle; Cancelled or unmounted tasks never register outputs or show success; Capture and encoding errors resolve false with one error notification and release task state",
+    "failure_mode": "Resolve false, discard late output, keep task exclusive until settle and restore playhead once.",
+    "exception_policy": "none",
+    "strategy": "Every recording entry shares useDirectorOutputs. A per-operation cancellation token and mounted guard span all awaits; a single try/catch/finally owns busy state and playhead restoration.",
+    "artifacts": [
+      "src/workbench/generationCanvas/nodes/director/useDirectorOutputs.ts",
+      "src/workbench/generationCanvas/nodes/director/bridge/persistOutputs.ts",
+      "src/workbench/generationCanvas/nodes/director/scene/PipRenderer.tsx"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/nodes/director/useDirectorOutputs.test.ts",
+    "src/workbench/generationCanvas/nodes/director/bridge/persistOutputs.test.ts",
+    "src/workbench/generationCanvas/nodes/director/scene/ViewCamera.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/nodes/director/useDirectorOutputs.test.ts",
+    "src/workbench/generationCanvas/nodes/director/bridge/persistOutputs.test.ts",
+    "src/workbench/generationCanvas/nodes/director/scene/ViewCamera.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/nodes/director/useDirectorOutputs.ts",
+      "src/workbench/generationCanvas/nodes/director/bridge/persistOutputs.ts"
+    ],
+    "rationale": "Remove reusable cancelRef and capture-only finally that releases ownership before encoding."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "React/three/desktop bridge remain unchanged; the application owns keyboard routing, coordinate contract and asynchronous operation lifetime.",
+    "exit_criteria": []
+  },
+  "migration": "No persisted schema changes. Existing projects use the corrected runtime boundaries upon next open.",
+  "residual_risks": [
+    "Desktop encoder cannot stop mid-IPC; cancellation discards its result but already-started encoding may finish and leave an unreferenced asset."
+  ],
+  "invariant_owner_layer": {"layer": "src/workbench/generationCanvas/nodes/director/useDirectorOutputs.ts", "tests": ["src/workbench/generationCanvas/nodes/director/useDirectorOutputs.test.ts", "src/workbench/generationCanvas/nodes/director/bridge/persistOutputs.test.ts", "src/workbench/generationCanvas/nodes/director/scene/ViewCamera.test.ts"], "why": "不变量由 src/workbench/generationCanvas/nodes/director/useDirectorOutputs.ts 单点持有（即本合同的 prevention.enforcement_path / shared_boundaries）；上游其它入口只调用它、不各自重判。tests 是该层现有的类级与回归测试，改动这条不变量必先让它们红。"}
+}

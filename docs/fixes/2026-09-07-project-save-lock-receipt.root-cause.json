@@ -1,0 +1,110 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-07-project-save-lock-receipt",
+  "problem_type": "synchronous project saves fail during legitimate manifest lock acquisition and discard publication error identity",
+  "symptom": "The real Electron director journey completed PNG and MP4 output and canvas references but logged project save error: Workspace manifest is being changed by another process during persistence subscription cleanup.",
+  "direct_cause": "The renderer save service returned a Promise around a synchronous projects.save IPC call. Its staged transaction tried to publish the manifest lock once, so it never used the existing asynchronous acquisition budget. Publication EEXIST, ENOTEMPTY and EPERM all became one Busy error without their original cause.",
+  "class_root": "The project-save boundary lacked an asynchronous, ordered receipt that retained staged validation and awaited real disk commit across every caller. Asynchronous acquisition exposed both main-process waiter overtaking and renderer lifetime gaps: cleanup sampled a runtime already owned by another project, explicit saves bypassed pending automatic writes, and clearing the active UI target erased access to unfinished write receipts.",
+  "affected_population": [
+    "Desktop automatic, explicit, cleanup, rename and migration project saves",
+    "Asset-result removal and headless project gateway writes",
+    "Windows users encountering a transient lock publication failure or any legitimate same-root manifest writer"
+  ],
+  "scope_paths": [
+    "electron/workspace/workspaceManifestLock.ts",
+    "electron/workspace/workspaceManifestTransaction.ts",
+    "electron/workspace/workspaceManifest.ts",
+    "electron/workspace/workspaceRepository.ts",
+    "electron/projects/repository.ts",
+    "electron/projects/projectsIpc.ts",
+    "electron/preload.ts",
+    "electron/capabilityCore/gateway.ts",
+    "src/desktop/bridge.ts",
+    "src/workbench/project/projectRepository.ts",
+    "src/workbench/project/projectPersistenceService.ts",
+    "src/workbench/project/workbenchProjectSession.ts",
+    "src/workbench/project/useProjectWindowLifecycle.ts",
+    "src/workbench/library/localProjectStore.ts",
+    "src/workbench/assets/deleteAssetResult.ts",
+    "src/workbench/NomiStudioApp.tsx"
+  ],
+  "entry_points": ["Persistence subscription cleanup and automatic save", "Explicit save and desktop close/reload", "Project rename and migration", "Asset-result removal", "Headless disk gateway apply"],
+  "external_sources": [],
+  "internal_only_reason": "The reproduction uses Nomi's exact built manifest lock, staged transaction and repository modules. It is an internal save ownership and return-contract mismatch, not a dependency API or version change.",
+  "invariants": [
+    "Project saves await the existing bounded lock acquisition without blocking a same-process owner from releasing its lease.",
+    "Same-canonical-root staged requests execute in invocation order, while different roots remain independent and failed predecessors do not poison the tail.",
+    "All staged content is validated before commit; backup precedes main, both are read back and lease ownership is checked before success.",
+    "Current project identity and revision are read under the acquired lease; revision is derived from that current manifest.",
+    "The save Promise resolves only after commit, verification, lease release and repository bookkeeping; callers do not report success before this receipt.",
+    "Publication errors retain their original cause; EPERM without a published target lock is distinguished from observed lock competition, and permanent failures still reject within the existing budget.",
+    "A subscription captures payloads only while it owns the runtime; disposal drains its captured payloads and never samples another project's hydrated store.",
+    "Automatic, explicit and disposal saves consume the same subscription queue; a newer explicit snapshot supersedes older pending content before its receipt is acknowledged.",
+    "Each subscription retains its write receipt independently of the active UI target until disposal succeeds; hydration, overlapping library exit and close/reload cannot acknowledge unfinished writes.",
+    "Repeated library exits share the whole pending leave Promise; failed exits remain retryable and late save completion cannot replace a newly active project in the UI."
+  ],
+  "generality_proof": "Automatic and explicit renderer writes, metadata-only rename, asset deletion, migration and the headless gateway now call one Promise save implementation. The shared canonical-root staged transaction serializes those requests and reuses the existing synchronous validator/committer and cross-process lease. There is no alternate synchronous project-save channel or duplicated writer.",
+  "shared_boundaries": [
+    { "path": "electron/workspace/workspaceManifestTransaction.ts", "symbol": "withWorkspaceManifestStagedTransaction", "responsibility": "Order requests by canonical root, await the existing lease, and run the existing staged synchronous validation and commit under that lease." },
+    { "path": "electron/workspace/workspaceRepository.ts", "symbol": "saveWorkspaceProject", "responsibility": "Read authoritative identity and revision inside the lease, preserve backup/main ordering, and return the completed durable save receipt." },
+    { "path": "electron/workspace/workspaceManifestLock.ts", "symbol": "acquireWorkspaceManifestLock", "responsibility": "Retain publication failure causes and bounded waiting while preserving live-owner and synchronous fail-closed behavior." },
+    { "path": "src/workbench/project/workbenchProjectSession.ts", "symbol": "subscribeWorkbenchProjectPersistence", "responsibility": "Capture snapshots while the original project owns the runtime, coalesce automatic and explicit saves in one queue, and retain the write receipt through hydration and disposal." },
+    { "path": "src/workbench/project/workbenchProjectSession.ts", "symbol": "persistActiveWorkbenchProjectNow", "responsibility": "Drain outgoing subscription receipts before flushing the current owner; clearing the active UI pointer does not clear outstanding persistence work." },
+    { "path": "src/workbench/project/useProjectWindowLifecycle.ts", "symbol": "useProjectWindowLifecycle", "responsibility": "Acknowledge the existing desktop close/reload handshake only after shared save receipts succeed; useProjectLeaveAction shares repeated library-exit requests and permits retry after failure." }
+  ],
+  "same_class_entry_points": [
+    { "path": "src/workbench/project/projectPersistenceService.ts", "entry_point": "persistProject, bindProjectPersistence and hydrateProject migration", "disposition": "enforced", "evidence": "All saveLocalProject calls are awaited; active UI publication after asynchronous completion checks the original project identity." },
+    { "path": "src/workbench/project/projectRepository.ts", "entry_point": "saveLocalProject and renameLocalProject", "disposition": "enforced", "evidence": "Both use the sole Promise desktop save operation; rename still preserves the complete record payload." },
+    { "path": "src/workbench/assets/deleteAssetResult.ts", "entry_point": "Inactive project result metadata deletion", "disposition": "enforced", "evidence": "The metadata save receipt is awaited before proceeding to file removal." },
+    { "path": "electron/capabilityCore/gateway.ts", "entry_point": "writeDiskSnapshot and disk gateway apply", "disposition": "enforced", "evidence": "The headless gateway propagates the same repository save Promise and does not acknowledge a pending write." },
+    { "path": "electron/workspace/workspaceManifestTransaction.ts", "entry_point": "withWorkspaceManifestTransactionSync", "disposition": "not-affected", "evidence": "Non-save synchronous callers still fail closed under a live owner and reject Promise-like callbacks; they do not block the main process awaiting a same-process lease." },
+    { "path": "src/workbench/NomiStudioApp.tsx", "entry_point": "leaveProject and backToLibrary", "disposition": "enforced", "evidence": "Repeated returns share one leave Promise, shared persistence receipts complete before release, and failed persistence retains the project and triggers subscription rebinding for retry." },
+    { "path": "src/workbench/project/workbenchProjectSession.ts", "entry_point": "Automatic debounce, explicit save, hydration target clearing and subscription disposal", "disposition": "enforced", "evidence": "Four independent fixed regressions prove original-project payload ownership, disposal/close receipt sharing, explicit coalescing over older queued content, and receipt survival between target clearing and disposal." }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Every save producer could hit the same one-attempt IPC boundary, and every newer request could overtake older asynchronous lock waiters without per-root ordering.",
+    "same_class_scan": [
+      "Scanned all production saveWorkspaceProject, saveProject, projects.save, saveLocalProject and renameLocalProject callers and return wrappers.",
+      "Mapped the real built renderer stack to subscription cleanup rather than to asynchronous lock timeout.",
+      "Compared same-process ownership, a real Windows child-process publication collision, no-owner EPERM injection, and directory fsync/handle closure.",
+      "Captured a deterministic three-request revision order of [2,3,1] after asynchronous acquisition alone, then covered ordered completion, failure recovery and cross-root independence.",
+      "Independent review reproduced cleanup writing new-project version 99 under old-project ID, disposal/close early acknowledgement, explicit A-to-C-to-B order and hydration clearing the UI target before disposal. Fixed all four at the shared subscription owner and queue rather than guarding only UI callbacks."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/workspace/workspaceManifestTransaction.ts",
+    "invariant": "Every project save uses one ordered, asynchronously acquired staged transaction and returns its completed persistence receipt.",
+    "failure_mode": "Live-owner timeout, permanent publication errors, invalid identity/content, commit verification and lease loss reject instead of acknowledging a save; the original publication cause is retained.",
+    "exception_policy": "none",
+    "strategy": "Reuse the existing lease and staged committer behind a canonical-root Promise tail, remove synchronous project-save IPC, and await the resulting Promise throughout all consumers. Renderer subscriptions own captured snapshots and queue receipts independently of the UI target; explicit and overlapping exits drain that same queue.",
+    "artifacts": ["electron/workspace/workspaceManifestTransaction.ts", "electron/workspace/workspaceRepository.ts", "electron/projects/projectsIpc.ts", "src/workbench/project/workbenchProjectSession.ts", "src/workbench/project/useProjectWindowLifecycle.ts"]
+  },
+  "regression_tests": [
+    "electron/workspace/workspaceSaveLock.test.ts",
+    "electron/workspace/workspaceManifestTransaction.test.ts",
+    "electron/workspace/workspaceRepository.test.ts",
+    "electron/runtime.workspace-projects.test.ts",
+    "electron/capabilityCore/projectSessionRuntime.repository.integration.test.ts",
+    "src/workbench/project/projectRepository.rename.test.ts",
+    "src/workbench/project/projectPersistenceService.agentTurn.test.ts",
+    "src/workbench/project/workbenchProjectSession.saveReceipt.test.ts",
+    "src/workbench/project/useProjectWindowLifecycle.test.ts",
+    "src/workbench/project/releaseWorkbenchProjectSession.test.ts"
+  ],
+  "class_regression_tests": ["electron/workspace/workspaceSaveLock.test.ts", "electron/workspace/workspaceManifestTransaction.test.ts", "src/workbench/project/workbenchProjectSession.saveReceipt.test.ts", "src/workbench/project/useProjectWindowLifecycle.test.ts", "src/workbench/project/projectPersistenceService.agentTurn.test.ts"],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": ["electron/projects/projectsIpc.ts", "electron/preload.ts", "src/desktop/bridge.ts", "src/workbench/project/workbenchProjectSession.ts"],
+    "rationale": "Removed the synchronous nomi:projects:save registration and invokeSync call, the unused saveAsync bridge alias, and explicit saving's direct saveCurrentWorkbenchProject bypass. projects.save is the sole asynchronous desktop contract; renderer explicit writes use the subscription queue."
+  },
+  "dependency_lifecycle": { "decision": "not-applicable", "rationale": "No package or dependency version changed; the existing Node filesystem operations, lease and transaction implementation remain the owner.", "exit_criteria": [] },
+  "migration": "No project data migration is needed. Backup contents, immutable UUID, generation and on-disk schema remain unchanged; the renderer/preload pair must be rebuilt together for the Promise save contract.",
+  "residual_risks": [
+    "The original Electron log discarded errno and owner information, so it cannot prove which historical publication contender or filesystem holder caused that individual failure.",
+    "Windows symlink privilege is unavailable in this environment; existing true-symlink tests retain their capability skips, while lexical canonical-root alias ordering is exercised.",
+    "Abrupt process termination and power loss cannot wait for renderer close handshakes; existing atomic file and recovery semantics remain responsible for those cases."
+  ],
+  "invariant_owner_layer": {"layer": "electron/workspace/workspaceManifestTransaction.ts", "tests": ["electron/workspace/workspaceSaveLock.test.ts", "electron/workspace/workspaceManifestTransaction.test.ts", "src/workbench/project/workbenchProjectSession.saveReceipt.test.ts", "src/workbench/project/useProjectWindowLifecycle.test.ts", "src/workbench/project/projectPersistenceService.agentTurn.test.ts", "electron/workspace/workspaceRepository.test.ts", "electron/runtime.workspace-projects.test.ts", "electron/capabilityCore/projectSessionRuntime.repository.integration.test.ts", "src/workbench/project/projectRepository.rename.test.ts", "src/workbench/project/releaseWorkbenchProjectSession.test.ts"], "why": "不变量由 electron/workspace/workspaceManifestTransaction.ts 单点持有（即本合同的 prevention.enforcement_path / shared_boundaries）；上游其它入口只调用它、不各自重判。tests 是该层现有的类级与回归测试，改动这条不变量必先让它们红。"}
+}
