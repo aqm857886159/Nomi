@@ -1,0 +1,399 @@
+{
+  "label": "profileall",
+  "machine": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "cpus": 10,
+    "cpuModel": "Apple M5",
+    "memoryGb": 24,
+    "node": "v24.13.1",
+    "build": "dist (pnpm build) + dev Electron binary",
+    "viewport": {
+      "width": 1600,
+      "height": 1000
+    }
+  },
+  "generatedAt": "2026-09-11T22:39:22.987Z",
+  "scales": [
+    "I150",
+    "I300"
+  ],
+  "scenarios": [
+    "drag-nodes-all"
+  ],
+  "runs": 1,
+  "results": [
+    {
+      "scale": "I150",
+      "scenario": "drag-nodes-all",
+      "nodes": 150,
+      "edges": 75,
+      "selected": 150,
+      "path": "react-flow-kernel (node)",
+      "viewport": {
+        "zoom": 0.217,
+        "mountedNodes": 150,
+        "lightweightNodes": 0
+      },
+      "runs": 1,
+      "fps": 44.6,
+      "frameP50Ms": 9.5,
+      "frameP95Ms": 56.2,
+      "frameMaxMs": 70.9,
+      "longTasks": 249,
+      "longTaskMs": 18088,
+      "longTaskMaxMs": 82,
+      "nodeStyleWrites": 37350,
+      "distinctTouchedNodes": 150,
+      "medianTouchedPerFlush": 150,
+      "maxTouchedPerFlush": 150,
+      "domFlushes": 250,
+      "subtreeMutations": 124533,
+      "mountedNodes": 150,
+      "cdpScriptMs": null,
+      "cdpStyleMs": null,
+      "cdpLayoutMs": null,
+      "cdpTaskMs": null,
+      "cdpLayoutCount": null,
+      "cdpStyleCount": null,
+      "jsHeapMb": null,
+      "loadAvg1": 17.9,
+      "frameP50MsMin": 9.5,
+      "frameP95MsMin": 56.2,
+      "samples": [
+        {
+          "elapsedMs": 24459,
+          "frames": 1090,
+          "fps": 44.6,
+          "frameP50Ms": 9.5,
+          "frameP95Ms": 56.2,
+          "frameMaxMs": 70.9,
+          "longTasks": 249,
+          "longTaskMs": 18088,
+          "longTaskMaxMs": 82,
+          "nodeStyleWrites": 37350,
+          "distinctTouchedNodes": 150,
+          "maxTouchedPerFlush": 150,
+          "medianTouchedPerFlush": 150,
+          "domFlushes": 250,
+          "subtreeMutations": 124533,
+          "mountedNodes": 150,
+          "loadAvg1": 17.9
+        }
+      ],
+      "profileTop": [
+        {
+          "frame": "(program) @ (anonymous)",
+          "hits": 38954,
+          "share": 61.6
+        },
+        {
+          "frame": "(idle) @ (anonymous)",
+          "hits": 11227,
+          "share": 17.8
+        },
+        {
+          "frame": "(garbage collector) @ (anonymous)",
+          "hits": 722,
+          "share": 1.1
+        },
+        {
+          "frame": "(anonymous) @ index-FPAPwF2P.js",
+          "hits": 666,
+          "share": 1.1
+        },
+        {
+          "frame": "formatLanguageCode @ index-FPAPwF2P.js",
+          "hits": 657,
+          "share": 1
+        },
+        {
+          "frame": "Pc @ canvasViewportScale-mUvAWIFP.js",
+          "hits": 561,
+          "share": 0.9
+        },
+        {
+          "frame": "we @ react-vendor-BQQcTRIt.js",
+          "hits": 474,
+          "share": 0.7
+        },
+        {
+          "frame": "(anonymous) @ canvasViewportScale-mUvAWIFP.js",
+          "hits": 467,
+          "share": 0.7
+        },
+        {
+          "frame": "bs @ react-vendor-BQQcTRIt.js",
+          "hits": 311,
+          "share": 0.5
+        },
+        {
+          "frame": "wc @ react-vendor-BQQcTRIt.js",
+          "hits": 294,
+          "share": 0.5
+        },
+        {
+          "frame": "qe @ react-vendor-BQQcTRIt.js",
+          "hits": 248,
+          "share": 0.4
+        },
+        {
+          "frame": "Ht @ react-vendor-BQQcTRIt.js",
+          "hits": 233,
+          "share": 0.4
+        },
+        {
+          "frame": "ar @ react-vendor-BQQcTRIt.js",
+          "hits": 201,
+          "share": 0.3
+        },
+        {
+          "frame": "a @ canvasViewportScale-mUvAWIFP.js",
+          "hits": 197,
+          "share": 0.3
+        },
+        {
+          "frame": "e_ @ index-FPAPwF2P.js",
+          "hits": 180,
+          "share": 0.3
+        },
+        {
+          "frame": "ju @ react-vendor-BQQcTRIt.js",
+          "hits": 175,
+          "share": 0.3
+        },
+        {
+          "frame": "setAttribute @ (anonymous)",
+          "hits": 172,
+          "share": 0.3
+        },
+        {
+          "frame": "QC @ index-FPAPwF2P.js",
+          "hits": 156,
+          "share": 0.2
+        },
+        {
+          "frame": "off @ index-FPAPwF2P.js",
+          "hits": 155,
+          "share": 0.2
+        },
+        {
+          "frame": "translate @ index-FPAPwF2P.js",
+          "hits": 153,
+          "share": 0.2
+        },
+        {
+          "frame": "cl @ react-vendor-BQQcTRIt.js",
+          "hits": 153,
+          "share": 0.2
+        },
+        {
+          "frame": "Xa @ canvasViewportScale-mUvAWIFP.js",
+          "hits": 135,
+          "share": 0.2
+        },
+        {
+          "frame": "Ps @ react-vendor-BQQcTRIt.js",
+          "hits": 134,
+          "share": 0.2
+        },
+        {
+          "frame": "aa @ canvasViewportScale-mUvAWIFP.js",
+          "hits": 132,
+          "share": 0.2
+        },
+        {
+          "frame": "Ns @ react-vendor-BQQcTRIt.js",
+          "hits": 131,
+          "share": 0.2
+        }
+      ]
+    },
+    {
+      "scale": "I300",
+      "scenario": "drag-nodes-all",
+      "nodes": 300,
+      "edges": 150,
+      "selected": 204,
+      "path": "react-flow-kernel (node)",
+      "viewport": {
+        "zoom": 0.2,
+        "mountedNodes": 204,
+        "lightweightNodes": 0
+      },
+      "runs": 1,
+      "fps": 12.5,
+      "frameP50Ms": 11.6,
+      "frameP95Ms": 266.7,
+      "frameMaxMs": 612,
+      "longTasks": 253,
+      "longTaskMs": 75981,
+      "longTaskMaxMs": 891,
+      "nodeStyleWrites": 74604,
+      "distinctTouchedNodes": 300,
+      "medianTouchedPerFlush": 300,
+      "maxTouchedPerFlush": 300,
+      "domFlushes": 270,
+      "subtreeMutations": 220745,
+      "mountedNodes": 300,
+      "cdpScriptMs": null,
+      "cdpStyleMs": null,
+      "cdpLayoutMs": null,
+      "cdpTaskMs": null,
+      "cdpLayoutCount": null,
+      "cdpStyleCount": null,
+      "jsHeapMb": null,
+      "loadAvg1": 47.1,
+      "frameP50MsMin": 11.6,
+      "frameP95MsMin": 266.7,
+      "samples": [
+        {
+          "elapsedMs": 82216,
+          "frames": 1024,
+          "fps": 12.5,
+          "frameP50Ms": 11.6,
+          "frameP95Ms": 266.7,
+          "frameMaxMs": 612,
+          "longTasks": 253,
+          "longTaskMs": 75981,
+          "longTaskMaxMs": 891,
+          "nodeStyleWrites": 74604,
+          "distinctTouchedNodes": 300,
+          "maxTouchedPerFlush": 300,
+          "medianTouchedPerFlush": 300,
+          "domFlushes": 270,
+          "subtreeMutations": 220745,
+          "mountedNodes": 300,
+          "loadAvg1": 47.1
+        }
+      ],
+      "profileTop": [
+        {
+          "frame": "(program) @ (anonymous)",
+          "hits": 163424,
+          "share": 82.1
+        },
+        {
+          "frame": "(idle) @ (anonymous)",
+          "hits": 5276,
+          "share": 2.6
+        },
+        {
+          "frame": "getContext @ (anonymous)",
+          "hits": 3530,
+          "share": 1.8
+        },
+        {
+          "frame": "(garbage collector) @ (anonymous)",
+          "hits": 1555,
+          "share": 0.8
+        },
+        {
+          "frame": "Pc @ canvasViewportScale-mUvAWIFP.js",
+          "hits": 1313,
+          "share": 0.7
+        },
+        {
+          "frame": "formatLanguageCode @ index-FPAPwF2P.js",
+          "hits": 1245,
+          "share": 0.6
+        },
+        {
+          "frame": "(anonymous) @ index-FPAPwF2P.js",
+          "hits": 1242,
+          "share": 0.6
+        },
+        {
+          "frame": "(anonymous) @ canvasViewportScale-mUvAWIFP.js",
+          "hits": 1054,
+          "share": 0.5
+        },
+        {
+          "frame": "we @ react-vendor-BQQcTRIt.js",
+          "hits": 867,
+          "share": 0.4
+        },
+        {
+          "frame": "a @ canvasViewportScale-mUvAWIFP.js",
+          "hits": 796,
+          "share": 0.4
+        },
+        {
+          "frame": "bs @ react-vendor-BQQcTRIt.js",
+          "hits": 655,
+          "share": 0.3
+        },
+        {
+          "frame": "wc @ react-vendor-BQQcTRIt.js",
+          "hits": 565,
+          "share": 0.3
+        },
+        {
+          "frame": "qe @ react-vendor-BQQcTRIt.js",
+          "hits": 482,
+          "share": 0.2
+        },
+        {
+          "frame": "cl @ react-vendor-BQQcTRIt.js",
+          "hits": 419,
+          "share": 0.2
+        },
+        {
+          "frame": "ju @ react-vendor-BQQcTRIt.js",
+          "hits": 378,
+          "share": 0.2
+        },
+        {
+          "frame": "Xa @ canvasViewportScale-mUvAWIFP.js",
+          "hits": 372,
+          "share": 0.2
+        },
+        {
+          "frame": "Xe @ react-vendor-BQQcTRIt.js",
+          "hits": 354,
+          "share": 0.2
+        },
+        {
+          "frame": "(anonymous) @ react-vendor-BQQcTRIt.js",
+          "hits": 336,
+          "share": 0.2
+        },
+        {
+          "frame": "ar @ react-vendor-BQQcTRIt.js",
+          "hits": 329,
+          "share": 0.2
+        },
+        {
+          "frame": "setAttribute @ (anonymous)",
+          "hits": 324,
+          "share": 0.2
+        },
+        {
+          "frame": "translate @ index-FPAPwF2P.js",
+          "hits": 314,
+          "share": 0.2
+        },
+        {
+          "frame": "removeEventListener @ (anonymous)",
+          "hits": 312,
+          "share": 0.2
+        },
+        {
+          "frame": "ha @ react-vendor-BQQcTRIt.js",
+          "hits": 306,
+          "share": 0.2
+        },
+        {
+          "frame": "aa @ canvasViewportScale-mUvAWIFP.js",
+          "hits": 304,
+          "share": 0.2
+        },
+        {
+          "frame": "vs @ react-vendor-BQQcTRIt.js",
+          "hits": 295,
+          "share": 0.1
+        }
+      ]
+    }
+  ]
+}
