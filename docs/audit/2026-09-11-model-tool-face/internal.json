@@ -1,0 +1,3478 @@
+{
+  "profile": "internal",
+  "count": 36,
+  "tools": [
+    {
+      "name": "read_full_text",
+      "contractId": "document.read",
+      "internalGroup": null,
+      "description": "Read the entire creation document as plain text. Takes no arguments; the returned text is the document exactly as the user sees it. Long text is truncated to the first 2000 lines or 50KB, whichever comes first; when that happens the result says so and tells you what to do next.",
+      "promptSnippet": "read the whole creation document as plain text.",
+      "promptGuidelines": [
+        "Read the creation document before you change it: the user may have edited it since the last thing you saw.",
+        "Write finished prose into the document, never a diff, a summary of your change, or a plan to write it later."
+      ],
+      "effects": {
+        "mutates": false,
+        "billable": false,
+        "reversal": "none"
+      },
+      "execution": {
+        "timeoutMs": 30000
+      },
+      "aliasBoundInput": {
+        "scope": "full"
+      },
+      "profiles": [
+        "internal",
+        "mcp"
+      ],
+      "mcpTransportFields": {
+        "documentId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Which document to act on. Omit to use the project's active creation document."
+        }
+      },
+      "hasPrepareArguments": true,
+      "examples": [
+        {
+          "when": "Always call it with no arguments:",
+          "arguments": {}
+        }
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "read_selection",
+      "contractId": "document.read",
+      "internalGroup": null,
+      "description": "Read only the text the user currently has selected in the creation document. Takes no arguments; returns an empty string when nothing is selected, which means you should ask rather than guess. Long text is truncated to the first 2000 lines or 50KB, whichever comes first; when that happens the result says so and tells you what to do next.",
+      "promptSnippet": "read just the text the user has selected — the only way to resolve \"this\" or \"here\".",
+      "promptGuidelines": [
+        "Read the creation document before you change it: the user may have edited it since the last thing you saw.",
+        "Write finished prose into the document, never a diff, a summary of your change, or a plan to write it later."
+      ],
+      "effects": {
+        "mutates": false,
+        "billable": false,
+        "reversal": "none"
+      },
+      "execution": {
+        "timeoutMs": 30000
+      },
+      "aliasBoundInput": {
+        "scope": "selection"
+      },
+      "profiles": [
+        "internal",
+        "mcp"
+      ],
+      "mcpTransportFields": {
+        "documentId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Which document to act on. Omit to use the project's active creation document."
+        }
+      },
+      "hasPrepareArguments": true,
+      "examples": [
+        {
+          "when": "Always call it with no arguments:",
+          "arguments": {}
+        }
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "insert_at_cursor",
+      "contractId": "document.write",
+      "internalGroup": null,
+      "description": "Insert new text into the creation document at the user's cursor. Existing text is never removed; everything after the cursor is pushed down. Pass the finished prose in `content` — not a diff, not a description of what you would write.",
+      "promptSnippet": "insert finished prose at the user's cursor, pushing later text down.",
+      "promptGuidelines": [
+        "Read the creation document before you change it: the user may have edited it since the last thing you saw.",
+        "Write finished prose into the document, never a diff, a summary of your change, or a plan to write it later."
+      ],
+      "effects": {
+        "mutates": true,
+        "billable": false,
+        "reversal": "undoable"
+      },
+      "execution": {
+        "timeoutMs": 60000
+      },
+      "aliasBoundInput": {
+        "operation": "insert"
+      },
+      "profiles": [
+        "internal",
+        "mcp"
+      ],
+      "mcpTransportFields": {
+        "documentId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Which document to act on. Omit to use the project's active creation document."
+        }
+      },
+      "hasPrepareArguments": true,
+      "examples": [
+        {
+          "when": "Write one finished paragraph:",
+          "arguments": {
+            "content": "The rain had not stopped for three days."
+          }
+        }
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The exact text to write into the document. Plain prose or Markdown, never a diff or a summary of the change."
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "replace_selection",
+      "contractId": "document.write",
+      "internalGroup": null,
+      "description": "Replace the text the user currently has selected with new text. The selection disappears and `content` takes its place, so read the selection first unless the user told you exactly what to write. Pass the finished prose in `content`; an empty selection makes this behave like an insertion at the cursor.",
+      "promptSnippet": "swap the user's current selection for new prose.",
+      "promptGuidelines": [
+        "Read the creation document before you change it: the user may have edited it since the last thing you saw.",
+        "Write finished prose into the document, never a diff, a summary of your change, or a plan to write it later."
+      ],
+      "effects": {
+        "mutates": true,
+        "billable": false,
+        "reversal": "undoable"
+      },
+      "execution": {
+        "timeoutMs": 60000
+      },
+      "aliasBoundInput": {
+        "operation": "replace"
+      },
+      "profiles": [
+        "internal",
+        "mcp"
+      ],
+      "mcpTransportFields": {
+        "documentId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Which document to act on. Omit to use the project's active creation document."
+        }
+      },
+      "hasPrepareArguments": true,
+      "examples": [
+        {
+          "when": "Write one finished paragraph:",
+          "arguments": {
+            "content": "The rain had not stopped for three days."
+          }
+        }
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The exact text to write into the document. Plain prose or Markdown, never a diff or a summary of the change."
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "append_to_end",
+      "contractId": "document.write",
+      "internalGroup": null,
+      "description": "Append text to the very end of the creation document. Nothing existing is touched and the cursor position is irrelevant, which makes this the safe choice for adding a new section. Pass the finished prose in `content`, including any leading blank line you want between it and the previous text.",
+      "promptSnippet": "add a new section at the very end of the document.",
+      "promptGuidelines": [
+        "Read the creation document before you change it: the user may have edited it since the last thing you saw.",
+        "Write finished prose into the document, never a diff, a summary of your change, or a plan to write it later."
+      ],
+      "effects": {
+        "mutates": true,
+        "billable": false,
+        "reversal": "undoable"
+      },
+      "execution": {
+        "timeoutMs": 60000
+      },
+      "aliasBoundInput": {
+        "operation": "append"
+      },
+      "profiles": [
+        "internal",
+        "mcp"
+      ],
+      "mcpTransportFields": {
+        "documentId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Which document to act on. Omit to use the project's active creation document."
+        }
+      },
+      "hasPrepareArguments": true,
+      "examples": [
+        {
+          "when": "Write one finished paragraph:",
+          "arguments": {
+            "content": "The rain had not stopped for three days."
+          }
+        }
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The exact text to write into the document. Plain prose or Markdown, never a diff or a summary of the change."
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "nomi_canvas_read",
+      "contractId": "canvas.read",
+      "internalGroup": null,
+      "description": "Read the current generation canvas: every node with its id, kind, title, prompt, status and position, plus the reference edges between them and any groups. Takes no arguments. Call it before any canvas write, because node ids, shot numbers and existing prompts all come from here — inventing an id is the single most common way a canvas edit fails. Node ids returned here are the exact strings to pass as `nodeId` / `sourceClientId` / `targetClientId`.",
+      "promptSnippet": "read every node, edge and group currently on the generation canvas.",
+      "promptGuidelines": [
+        "Read the canvas before you change it: node ids, shot numbers and model keys all come from what is actually there.",
+        "Never invent a modelKey, vendor or nodeId. Use the exact values returned by nomi_canvas_read or listed in the user's available-models list; leave the field out when you are unsure and the system fills in a default.",
+        "Every canvas write is a reversible proposal the user still has to accept — describe what you are proposing in your reply rather than claiming it is already done."
+      ],
+      "effects": {
+        "mutates": false,
+        "billable": false,
+        "reversal": "none"
+      },
+      "execution": {
+        "timeoutMs": 30000
+      },
+      "aliasBoundInput": {},
+      "profiles": [
+        "internal",
+        "mcp"
+      ],
+      "mcpTransportFields": {},
+      "hasPrepareArguments": true,
+      "examples": [
+        {
+          "when": "Always call it with no arguments:",
+          "arguments": {}
+        }
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "nomi_canvas_write",
+      "contractId": "canvas.write",
+      "internalGroup": null,
+      "description": "Create, connect, retitle or tidy generation-canvas nodes in one reversible batch. The operation selects which fields apply; unrelated fields are rejected.",
+      "promptSnippet": "create, connect, retitle or tidy canvas nodes.",
+      "promptGuidelines": [
+        "Read the canvas before you change it: node ids, shot numbers and model keys all come from what is actually there.",
+        "Never invent a modelKey, vendor or nodeId. Use the exact values returned by nomi_canvas_read or listed in the user's available-models list; leave the field out when you are unsure and the system fills in a default.",
+        "Every canvas write is a reversible proposal the user still has to accept — describe what you are proposing in your reply rather than claiming it is already done.",
+        "Send a whole batch in one call rather than one node at a time.",
+        "High-quality generation prompt, in the SAME language as the user (Chinese user → Chinese prompt). Write it as a STRUCTURED skeleton, not a run-on sentence:\n- character/scene reference card: stable appearance/environment description + unified style keywords (neutral full-body pose for a character, empty wide establishing shot for a scene; no plot action).\n- image / keyframe shot: scene·time·light → subject·action·expression → shot language (wide / close-up / low-angle…) → style keywords.\n- video shot: camera move (push / pull / pan / track…) → on-screen action progression → rhythm & duration feel; do NOT restate the static keyframe description.\nKeep the same subject's appearance description consistent across shots. agent-artifact nodes carry no prompt: send an empty string."
+      ],
+      "effects": {
+        "mutates": true,
+        "billable": false,
+        "reversal": "proposal"
+      },
+      "execution": {
+        "timeoutMs": 60000
+      },
+      "aliasBoundInput": {},
+      "profiles": [
+        "internal",
+        "mcp"
+      ],
+      "mcpTransportFields": {},
+      "hasPrepareArguments": true,
+      "examples": [
+        {
+          "when": "创建一个镜头：",
+          "arguments": {
+            "operation": "create_canvas_nodes",
+            "summary": "开场镜头",
+            "nodes": [
+              {
+                "clientId": "s1",
+                "kind": "keyframe",
+                "title": "开场",
+                "prompt": "清晨日出"
+              }
+            ]
+          }
+        }
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "operation": {
+            "type": "string",
+            "enum": [
+              "set_node_prompt",
+              "create_canvas_nodes",
+              "connect_canvas_edges",
+              "tidy_canvas"
+            ],
+            "description": "Action; field annotations identify applicable values."
+          },
+          "nodeId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "[for set_node_prompt]"
+          },
+          "prompt": {
+            "type": "string",
+            "maxLength": 262144,
+            "description": "[for set_node_prompt]"
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1,
+            "description": "[for create_canvas_nodes] One-sentence summary of the plan, shown to the user before confirmation."
+          },
+          "nodes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "clientId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "text",
+                    "character",
+                    "scene",
+                    "image",
+                    "keyframe",
+                    "video",
+                    "shot",
+                    "output",
+                    "panorama",
+                    "agent-artifact"
+                  ]
+                },
+                "title": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "prompt": {
+                  "type": "string",
+                  "maxLength": 262144,
+                  "description": "Generation prompt in the user's language; empty for agent-artifact."
+                },
+                "position": {
+                  "type": "object",
+                  "properties": {
+                    "x": {
+                      "type": "number"
+                    },
+                    "y": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "x",
+                    "y"
+                  ],
+                  "additionalProperties": true
+                },
+                "categoryId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "modelKey": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "vendor": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Catalog vendor key paired with modelKey. Keep it only when it comes from the available-models list."
+                },
+                "modelVendor": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Legacy alias of vendor; if both are present they must identify the same catalog vendor."
+                },
+                "modeId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "variantId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Optional model-archetype variant (for example standard, fast, or mini), paired with modelKey."
+                },
+                "params": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": [
+                      "string",
+                      "number",
+                      "boolean"
+                    ]
+                  }
+                },
+                "referenceSheet": {
+                  "type": "boolean"
+                },
+                "storyboardKeyframe": {
+                  "type": "boolean"
+                },
+                "staticFeatures": {
+                  "type": "string"
+                },
+                "dynamicFeatures": {
+                  "type": "string"
+                },
+                "metadata": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": [
+                      "string",
+                      "number",
+                      "boolean"
+                    ]
+                  }
+                },
+                "artifact": {
+                  "type": "object",
+                  "properties": {
+                    "fileType": {
+                      "type": "string",
+                      "enum": [
+                        "svg",
+                        "html",
+                        "markdown",
+                        "table",
+                        "text"
+                      ]
+                    },
+                    "content": {
+                      "type": "string",
+                      "maxLength": 262144
+                    }
+                  },
+                  "required": [
+                    "fileType",
+                    "content"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "clientId",
+                "kind",
+                "title",
+                "prompt"
+              ],
+              "additionalProperties": false
+            },
+            "minItems": 1,
+            "maxItems": 24,
+            "description": "[for create_canvas_nodes]"
+          },
+          "edges": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "sourceClientId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "targetClientId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "mode": {
+                  "type": "string",
+                  "enum": [
+                    "reference",
+                    "first_frame",
+                    "last_frame",
+                    "style_ref",
+                    "character_ref",
+                    "composition_ref"
+                  ],
+                  "description": "Reference-slot semantics: character_ref (cast sheet feeds keyframe), style_ref (scene/style feeds keyframe), composition_ref, first_frame (keyframe image feeds the video's first frame; when the source is a VIDEO node this means last-frame relay and must be opted-in by the user), last_frame, reference (generic). Omit for a generic reference edge. Only connect a reference the TARGET model actually supports — see each model's per-mode reference slots in the available-models list; text/shot/output nodes cannot be a reference source. Unsupported edges are skipped and reported back in skippedEdges."
+                }
+              },
+              "required": [
+                "sourceClientId",
+                "targetClientId"
+              ],
+              "additionalProperties": false
+            },
+            "maxItems": 48,
+            "description": "[for create_canvas_nodes, connect_canvas_edges] Reference edges between this plan's nodes (use their clientId) and/or existing real node ids. Submit together with nodes in this same call."
+          },
+          "anchorCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 24,
+            "description": "[for create_canvas_nodes]"
+          },
+          "groupCategoryId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "[for create_canvas_nodes]"
+          },
+          "categoryId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "[for tidy_canvas]"
+          }
+        },
+        "required": [
+          "operation"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "nomi_storyboard_write",
+      "contractId": "canvas.write",
+      "internalGroup": null,
+      "description": "保存分镜、修改指定镜头或排列时间线。operation 必填：整份方案用 propose_storyboard_plan，局部修改用 patch_shots，排列用 arrange_storyboard_to_timeline。镜头通过 anchorIds 引用跨镜一致的角色、场景、道具和风格。",
+      "promptSnippet": "save a storyboard, patch rows or arrange shots on the timeline.",
+      "promptGuidelines": [
+        "Read the canvas before you change it: node ids, shot numbers and model keys all come from what is actually there.",
+        "Never invent a modelKey, vendor or nodeId. Use the exact values returned by nomi_canvas_read or listed in the user's available-models list; leave the field out when you are unsure and the system fills in a default.",
+        "Every canvas write is a reversible proposal the user still has to accept — describe what you are proposing in your reply rather than claiming it is already done.",
+        "propose_storyboard_plan replaces the whole plan; patch_shots changes named rows only; arrange_storyboard_to_timeline lays existing shot nodes in story order.",
+        "Stable anchor id becomes canvas clientId. Describe neutral, stable appearance/environment for visual cards; reusable prompt words for text anchors.",
+        "carrier=visual generates shot reference images (faces/scenes/props); carrier=text folds words into shot prompts (tone/brand colors/wardrobe). character/scene/prop default visual; style defaults text.",
+        "Same-sceneId shots must be contiguous; omit without grouping. Match all shot kinds to requested mode; default image unless video is explicit. Image: duration 0, no motion/transition/dialogue. Video: seconds, clamped to model max.",
+        "Reference anchors by id. Video prompts: camera move + action progression, no repeated static anchors. Preserve captions and speaker/line dialogue verbatim on canvas/timeline. Explicit hard cut: cut; unauthored transition: omit.",
+        "modelKey, mode/variant and parameter keys must come from available models; omit unknowns for defaults. First frames use image models; prefer image_ref/edit with visual anchors.",
+        "First frame: static composition, shot size, light, pose/expression, environment; no motion, action progression, dialogue, subtitles or sound. Use supported image parameters. 图片+视频: first frame belongs inside its video shot, never a separate shot."
+      ],
+      "effects": {
+        "mutates": true,
+        "billable": false,
+        "reversal": "proposal"
+      },
+      "execution": {
+        "timeoutMs": 60000
+      },
+      "aliasBoundInput": {},
+      "profiles": [
+        "internal",
+        "mcp"
+      ],
+      "mcpTransportFields": {},
+      "hasPrepareArguments": true,
+      "examples": [
+        {
+          "when": "保存一个镜头（标题未指定时）：",
+          "arguments": {
+            "operation": "propose_storyboard_plan",
+            "title": "开场",
+            "anchors": [],
+            "shots": [
+              {
+                "index": 1,
+                "shotKind": "image",
+                "durationSec": 0,
+                "anchorIds": [],
+                "prompt": "清晨日出"
+              }
+            ]
+          }
+        }
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "operation": {
+            "type": "string",
+            "enum": [
+              "propose_storyboard_plan",
+              "patch_shots",
+              "arrange_storyboard_to_timeline"
+            ],
+            "description": "Action; field annotations identify applicable values."
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "description": "[for propose_storyboard_plan]"
+          },
+          "anchors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Stable anchor id; becomes the canvas clientId."
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "character",
+                    "scene",
+                    "prop",
+                    "style"
+                  ]
+                },
+                "name": {
+                  "type": "string",
+                  "description": "Display name & shot-reference key ('林夏' / '天台' / '红书包' / '全片风格')."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Reusable anchor appearance or prompt text."
+                },
+                "carrier": {
+                  "type": "string",
+                  "enum": [
+                    "visual",
+                    "text"
+                  ],
+                  "description": "visual: reference image; text: words folded into shot prompts."
+                },
+                "scope": {
+                  "type": "string",
+                  "enum": [
+                    "all",
+                    "selective"
+                  ],
+                  "description": "all = every shot (style/brand); selective = only named shots."
+                }
+              },
+              "required": [
+                "id",
+                "kind",
+                "name",
+                "description",
+                "carrier"
+              ],
+              "additionalProperties": true
+            },
+            "maxItems": 24,
+            "description": "[for propose_storyboard_plan]"
+          },
+          "shots": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "index": {
+                  "type": "integer",
+                  "description": "1-based shot number in script order."
+                },
+                "sceneId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Optional scene/group id; same-scene shots share it and remain contiguous."
+                },
+                "shotKind": {
+                  "type": "string",
+                  "enum": [
+                    "image",
+                    "video"
+                  ],
+                  "description": "image: still frame (default); video: duration and camera motion."
+                },
+                "durationSec": {
+                  "type": "number",
+                  "description": "Seconds; image shots use 0. Clamped to model maximum."
+                },
+                "anchorIds": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Referenced anchor ids."
+                },
+                "prompt": {
+                  "type": "string",
+                  "description": "Generatable action and camera prompt; omit static anchor descriptions."
+                },
+                "modelKey": {
+                  "type": "string",
+                  "description": "已指定填目录键；未指定用默认。"
+                },
+                "modeId": {
+                  "type": "string",
+                  "description": "Catalog mode/variant paired with modelKey; omit for default."
+                },
+                "params": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": [
+                      "string",
+                      "number",
+                      "boolean"
+                    ]
+                  },
+                  "description": "已指定按档案填；未指定派生，禁编键。"
+                },
+                "subtitle": {
+                  "type": "string",
+                  "description": "Verbatim on-screen caption."
+                },
+                "dialogue": {
+                  "type": "string",
+                  "description": "Verbatim spoken dialogue: speaker and line."
+                },
+                "transition": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "cut",
+                        "dissolve",
+                        "fade",
+                        "match_cut",
+                        "whip_pan"
+                      ]
+                    },
+                    "durationFrames": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0
+                    }
+                  },
+                  "required": [
+                    "type"
+                  ],
+                  "additionalProperties": true,
+                  "description": "Transition to next shot; cut means hard cut, omit if unauthored."
+                },
+                "keyframe": {
+                  "type": "object",
+                  "properties": {
+                    "enabled": {
+                      "type": "boolean",
+                      "description": "Set true only for 图片+视频 mode: create a first-frame image before the video."
+                    },
+                    "prompt": {
+                      "type": "string",
+                      "description": "Static first-frame composition, light, pose and environment."
+                    },
+                    "modelKey": {
+                      "type": "string",
+                      "description": "Catalog first-frame image model key; omit for saved default."
+                    },
+                    "modeId": {
+                      "type": "string",
+                      "description": "First-frame image mode; prefer reference/edit with visual anchors."
+                    },
+                    "params": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": [
+                          "string",
+                          "number",
+                          "boolean"
+                        ]
+                      },
+                      "description": "Parameters declared by the selected first-frame image model."
+                    }
+                  },
+                  "additionalProperties": true,
+                  "description": "First-frame image plan within this logical shot."
+                }
+              },
+              "required": [
+                "index",
+                "durationSec",
+                "anchorIds",
+                "prompt"
+              ],
+              "additionalProperties": true
+            },
+            "minItems": 1,
+            "maxItems": 24,
+            "description": "[for propose_storyboard_plan]"
+          },
+          "select": {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "all",
+                  "indexes"
+                ]
+              },
+              "indexes": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 24
+                },
+                "minItems": 1,
+                "maxItems": 24
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "additionalProperties": false,
+            "description": "[for patch_shots]"
+          },
+          "patch": {
+            "type": "object",
+            "properties": {
+              "prompt": {
+                "type": "string",
+                "maxLength": 262144
+              },
+              "promptAppend": {
+                "type": "string",
+                "maxLength": 262144
+              },
+              "shotKind": {
+                "type": "string",
+                "enum": [
+                  "image",
+                  "video"
+                ]
+              },
+              "durationSec": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 60
+              },
+              "aspectRatio": {
+                "type": "string",
+                "minLength": 1
+              },
+              "modelKey": {
+                "type": "string",
+                "minLength": 1
+              },
+              "modelVendor": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "additionalProperties": false,
+            "description": "[for patch_shots]"
+          },
+          "nodeIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1,
+            "maxItems": 48,
+            "description": "[for arrange_storyboard_to_timeline]"
+          }
+        },
+        "required": [
+          "operation"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "nomi_shot_reference_write",
+      "contractId": "canvas.write",
+      "internalGroup": null,
+      "description": "Attach a staging or camera-motion reference to one shot. Vocabulary inputs render a gray 3D reference; free-text composition or motion inputs update its prompt.",
+      "promptSnippet": "attach staging or camera-motion references to a shot.",
+      "promptGuidelines": [
+        "Read the canvas before you change it: node ids, shot numbers and model keys all come from what is actually there.",
+        "Never invent a modelKey, vendor or nodeId. Use the exact values returned by nomi_canvas_read or listed in the user's available-models list; leave the field out when you are unsure and the system fills in a default.",
+        "Every canvas write is a reversible proposal the user still has to accept — describe what you are proposing in your reply rather than claiming it is already done.",
+        "Reference tools do not generate the shot itself. Staging requires characters or customBlocking; motion requires move or customMove. Use the vocabulary only when it matches the intent.",
+        "shotClientId: this turn's create_canvas_nodes clientId or existing shot/keyframe/video id. Render connects as composition_ref; omit id for standalone reference.",
+        "Stage 1–6 characters using precise 3D vocabulary, or supply customBlocking. Default pose standing; squat=deep squat, crouch=upright half-crouch, single-knee=proposal kneel, cheer=arms up; hands-on-hips, point and wave are literal poses.",
+        "layout: side-by-side=shoulder-to-shoulder row（并排/一字排开）; line=front-to-back queue（纵队）; facing=two facing each other; behind=one ahead of another; circle=around a center.",
+        "sceneTemplate supplies a gray backdrop: street has roads/lane lines/sidewalk/buildings/trees/lamps/cars; room has three walls/bed/table/sofa/ceiling light. Use it for environment and scale; street needs environment=day for a lit sky. Props are individual objects; prefer sceneTemplate for whole backdrops. Positions are [x,z] ground meters relative to characters at origin; omitted props auto-spread to their right.",
+        "For out-of-vocabulary multi-tier/over-the-shoulder/prop-relative/reference-image compositions, use customBlocking film terms, never a wrong layout/pose. It injects a KEYFRAME IMAGE prompt directive, not a 3D render, and is less precise. With customBlocking, characters/layout/camera may be omitted; never omit both characters and customBlocking.",
+        "shotClientId: this turn's clientId or existing VIDEO id. Render attaches as video reference; model copies camera path, not gray content.",
+        "Use one dominant move: orbit_left/right circles ~300°; push_in/pull_out dollies toward/away; crane_up/down booms; track_left/right tracks laterally; arc_left/right arcs ~90°; zoom_in/out changes FOV with camera static; dolly_zoom pulls back while zooming in, keeping subject size constant as background stretches (Hitchcock/vertigo).",
+        "Use enum move only when it matches the intent. For whip-pan, handheld follow, compound/sequenced moves (push then whip to window) or reference-video matching, omit move and describe customMove with film terms. This injects a video-prompt cinematography directive, not a 3D render, and is less precise. Set move OR customMove for the same intent.",
+        "Subject pose defaults standing (also sit/walk). street/room sceneTemplate: gray backdrop; camera moves around subject at origin. props: individual objects. Prop [x,z] is ground meters; omission auto-spreads right of subject."
+      ],
+      "effects": {
+        "mutates": true,
+        "billable": false,
+        "reversal": "proposal"
+      },
+      "execution": {
+        "timeoutMs": 60000
+      },
+      "aliasBoundInput": {},
+      "profiles": [
+        "internal",
+        "mcp"
+      ],
+      "mcpTransportFields": {},
+      "hasPrepareArguments": true,
+      "examples": [
+        {
+          "when": "Push in:",
+          "arguments": {
+            "operation": "create_camera_move",
+            "shotClientId": "s1",
+            "move": "push_in"
+          }
+        }
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "operation": {
+            "type": "string",
+            "enum": [
+              "create_staging_reference",
+              "create_camera_move"
+            ],
+            "description": "Action; field annotations identify applicable values."
+          },
+          "shotClientId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "[for create_staging_reference, create_camera_move]"
+          },
+          "characters": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "Character label, e.g. '林夏' / '角色A'."
+                },
+                "pose": {
+                  "type": "string",
+                  "enum": [
+                    "standing",
+                    "t-pose",
+                    "walk",
+                    "run",
+                    "sit",
+                    "squat",
+                    "crouch",
+                    "single-knee",
+                    "double-knee",
+                    "hands-on-hips",
+                    "point",
+                    "wave",
+                    "cheer"
+                  ],
+                  "description": "Body-pose preset; default standing."
+                },
+                "facing": {
+                  "type": "string",
+                  "enum": [
+                    "toward",
+                    "away",
+                    "camera",
+                    "left",
+                    "right"
+                  ],
+                  "description": "Facing direction. toward = face the partner / circle center."
+                }
+              },
+              "additionalProperties": true
+            },
+            "maxItems": 6,
+            "description": "[for create_staging_reference]"
+          },
+          "layout": {
+            "type": "string",
+            "enum": [
+              "solo",
+              "facing",
+              "side-by-side",
+              "line",
+              "behind",
+              "circle"
+            ],
+            "description": "[for create_staging_reference]"
+          },
+          "camera": {
+            "type": "object",
+            "properties": {
+              "angle": {
+                "type": "string",
+                "enum": [
+                  "front",
+                  "three-quarter",
+                  "side",
+                  "back"
+                ]
+              },
+              "height": {
+                "type": "string",
+                "enum": [
+                  "eye",
+                  "low",
+                  "high",
+                  "overhead"
+                ],
+                "description": "low = low-angle look up; high = high-angle look down; overhead = top-down."
+              },
+              "shot": {
+                "type": "string",
+                "enum": [
+                  "wide",
+                  "medium",
+                  "close"
+                ]
+              }
+            },
+            "additionalProperties": true,
+            "description": "[for create_staging_reference]"
+          },
+          "environment": {
+            "type": "string",
+            "enum": [
+              "studio",
+              "day",
+              "night"
+            ],
+            "description": "[for create_staging_reference]"
+          },
+          "crowd": {
+            "type": "object",
+            "properties": {
+              "rows": {
+                "type": "integer"
+              },
+              "columns": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "rows",
+              "columns"
+            ],
+            "additionalProperties": true,
+            "description": "[for create_staging_reference]"
+          },
+          "sceneTemplate": {
+            "type": "string",
+            "enum": [
+              "street",
+              "room"
+            ],
+            "description": "[for create_staging_reference, create_camera_move]"
+          },
+          "props": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "car",
+                    "building",
+                    "tree",
+                    "streetlamp",
+                    "wall",
+                    "suv",
+                    "bus",
+                    "bicycle",
+                    "scooter",
+                    "sofa",
+                    "diningTable",
+                    "fridge",
+                    "washingMachine",
+                    "trashBins",
+                    "atm",
+                    "backpack"
+                  ]
+                },
+                "position": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 2,
+                  "maxItems": 2,
+                  "description": "Ground [x,z] meters, relative to characters at origin."
+                },
+                "rotationY": {
+                  "type": "number",
+                  "description": "Yaw in degrees."
+                },
+                "scale": {
+                  "type": "number",
+                  "description": "Uniform scale (0.1–10, default 1)."
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": true
+            },
+            "maxItems": 12,
+            "description": "[for create_staging_reference, create_camera_move]"
+          },
+          "customBlocking": {
+            "type": "string",
+            "description": "[for create_staging_reference]"
+          },
+          "move": {
+            "type": "string",
+            "enum": [
+              "orbit_left",
+              "orbit_right",
+              "push_in",
+              "pull_out",
+              "crane_up",
+              "crane_down",
+              "track_left",
+              "track_right",
+              "arc_left",
+              "arc_right",
+              "zoom_in",
+              "zoom_out",
+              "dolly_zoom"
+            ],
+            "description": "[for create_camera_move]"
+          },
+          "customMove": {
+            "type": "string",
+            "minLength": 1,
+            "description": "[for create_camera_move]"
+          },
+          "speed": {
+            "type": "string",
+            "enum": [
+              "slow",
+              "medium",
+              "fast"
+            ],
+            "description": "[for create_camera_move]"
+          },
+          "shot": {
+            "type": "string",
+            "enum": [
+              "wide",
+              "medium",
+              "close"
+            ],
+            "description": "[for create_camera_move]"
+          },
+          "subjectPose": {
+            "type": "string",
+            "enum": [
+              "standing",
+              "t-pose",
+              "walk",
+              "run",
+              "sit",
+              "squat",
+              "crouch",
+              "single-knee",
+              "double-knee",
+              "hands-on-hips",
+              "point",
+              "wave",
+              "cheer"
+            ],
+            "description": "[for create_camera_move]"
+          }
+        },
+        "required": [
+          "operation"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "read_timeline",
+      "contractId": "timeline.read",
+      "internalGroup": null,
+      "description": "Read the whole project timeline as a planning snapshot: fps, duration, playhead, every track and clip, text overlays and transitions. Takes no arguments. Call this first — the `revision` it returns is the optimistic lock every edit plan has to carry, and clip ids come from here. The snapshot is path-free: it names clips and source assets by id, never by a file path on disk.",
+      "promptSnippet": "read the whole timeline (fps, clips, text, transitions) plus the revision to plan against.",
+      "promptGuidelines": [
+        "Frames, not seconds: every timeline position and duration in these tools is an integer frame count at the project fps returned by read_timeline.",
+        "Always plan against a fresh revision: read the timeline, build the plan from what you just read, and pass that same revision back. If a plan is rejected for a stale revision, read again before retrying — resending the old number cannot succeed."
+      ],
+      "effects": {
+        "mutates": false,
+        "billable": false,
+        "reversal": "none"
+      },
+      "execution": {
+        "timeoutMs": 30000
+      },
+      "aliasBoundInput": {
+        "operation": "read_timeline"
+      },
+      "profiles": [
+        "internal",
+        "mcp"
+      ],
+      "mcpTransportFields": {},
+      "hasPrepareArguments": true,
+      "examples": [
+        {
+          "when": "Always call it with no arguments:",
+          "arguments": {}
+        }
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "inspect_timeline_range",
+      "contractId": "timeline.read",
+      "internalGroup": "timeline",
+      "description": "Inspect only the clips and text overlays that intersect one frame range of the timeline. Use this instead of read_timeline when the user is talking about a specific moment (\"the part around 0:30\") and the whole timeline would be far more than you need. `startFrame` and `endFrame` are integer frame numbers at the project fps; convert from seconds yourself using the fps from read_timeline.",
+      "promptSnippet": "read just the clips and text inside one frame range.",
+      "promptGuidelines": [
+        "Frames, not seconds: every timeline position and duration in these tools is an integer frame count at the project fps returned by read_timeline.",
+        "Always plan against a fresh revision: read the timeline, build the plan from what you just read, and pass that same revision back. If a plan is rejected for a stale revision, read again before retrying — resending the old number cannot succeed."
+      ],
+      "effects": {
+        "mutates": false,
+        "billable": false,
+        "reversal": "none"
+      },
+      "execution": {
+        "timeoutMs": 30000
+      },
+      "aliasBoundInput": {
+        "operation": "inspect_timeline_range"
+      },
+      "profiles": [
+        "internal",
+        "mcp"
+      ],
+      "mcpTransportFields": {},
+      "hasPrepareArguments": true,
+      "examples": [
+        {
+          "when": "Look at the fourth to sixth second at 30fps:",
+          "arguments": {
+            "startFrame": 120,
+            "endFrame": 180
+          }
+        }
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "startFrame": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "endFrame": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "exclusiveMinimum": 0
+          }
+        },
+        "required": [
+          "startFrame",
+          "endFrame"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "get_media",
+      "contractId": "asset.read",
+      "internalGroup": "media",
+      "description": "Read one active-project media record by stable asset id without returning any path or URL. Returns the stored record only; no file path, no URL, and no media bytes ever cross this boundary.",
+      "promptSnippet": "read one media record by asset id.",
+      "promptGuidelines": [
+        "Media is addressed by stable asset id, never by a file path: the id is what search_media returns and what every other media tool takes.",
+        "These tools report bounded technical facts (duration, codec, frame ranges, waveform buckets). They never claim to have watched or listened to the media."
+      ],
+      "effects": {
+        "mutates": false,
+        "billable": false,
+        "reversal": "none"
+      },
+      "execution": {
+        "timeoutMs": 30000
+      },
+      "aliasBoundInput": {
+        "operation": "get_media"
+      },
+      "profiles": [
+        "internal",
+        "mcp"
+      ],
+      "mcpTransportFields": {},
+      "hasPrepareArguments": true,
+      "examples": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "assetId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          }
+        },
+        "required": [
+          "assetId"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "inspect_media",
+      "contractId": "asset.read",
+      "internalGroup": "media",
+      "description": "Inspect bounded technical metadata without claiming semantic visual or audio understanding. Returns container-level facts only. It does not describe what is visible or audible in the media.",
+      "promptSnippet": "read bounded technical metadata for one media asset.",
+      "promptGuidelines": [
+        "Media is addressed by stable asset id, never by a file path: the id is what search_media returns and what every other media tool takes.",
+        "These tools report bounded technical facts (duration, codec, frame ranges, waveform buckets). They never claim to have watched or listened to the media."
+      ],
+      "effects": {
+        "mutates": false,
+        "billable": false,
+        "reversal": "none"
+      },
+      "execution": {
+        "timeoutMs": 30000
+      },
+      "aliasBoundInput": {
+        "operation": "inspect_media"
+      },
+      "profiles": [
+        "internal",
+        "mcp"
+      ],
+      "mcpTransportFields": {},
+      "hasPrepareArguments": true,
+      "examples": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "assetId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          }
+        },
+        "required": [
+          "assetId"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "search_media",
+      "contractId": "asset.read",
+      "internalGroup": "media",
+      "description": "Search active-project media and return bounded path-free records. Results are bounded by `limit` (default and maximum are enforced server-side); narrow with `query` and `kinds` rather than paging blindly.",
+      "promptSnippet": "search the project's media and get back path-free records.",
+      "promptGuidelines": [
+        "Media is addressed by stable asset id, never by a file path: the id is what search_media returns and what every other media tool takes.",
+        "These tools report bounded technical facts (duration, codec, frame ranges, waveform buckets). They never claim to have watched or listened to the media."
+      ],
+      "effects": {
+        "mutates": false,
+        "billable": false,
+        "reversal": "none"
+      },
+      "execution": {
+        "timeoutMs": 30000
+      },
+      "aliasBoundInput": {
+        "operation": "search_media"
+      },
+      "profiles": [
+        "internal",
+        "mcp"
+      ],
+      "mcpTransportFields": {},
+      "hasPrepareArguments": true,
+      "examples": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "kinds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "image",
+                "video",
+                "audio"
+              ]
+            },
+            "maxItems": 3
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          }
+        },
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "inspect_source_range",
+      "contractId": "asset.read",
+      "internalGroup": "media",
+      "description": "Validate one source-frame range and list its bounded structural timeline usages. Frames are integer source-frame numbers at the asset's own frame rate, which is not necessarily the project frame rate.",
+      "promptSnippet": "check one source frame range and list where it is used.",
+      "promptGuidelines": [
+        "Media is addressed by stable asset id, never by a file path: the id is what search_media returns and what every other media tool takes.",
+        "These tools report bounded technical facts (duration, codec, frame ranges, waveform buckets). They never claim to have watched or listened to the media."
+      ],
+      "effects": {
+        "mutates": false,
+        "billable": false,
+        "reversal": "none"
+      },
+      "execution": {
+        "timeoutMs": 30000
+      },
+      "aliasBoundInput": {
+        "operation": "inspect_source_range"
+      },
+      "profiles": [
+        "internal",
+        "mcp"
+      ],
+      "mcpTransportFields": {},
+      "hasPrepareArguments": true,
+      "examples": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "assetId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          },
+          "startFrame": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "endFrame": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "exclusiveMinimum": 0
+          }
+        },
+        "required": [
+          "assetId",
+          "startFrame",
+          "endFrame"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "read_waveform",
+      "contractId": "asset.read",
+      "internalGroup": "media",
+      "description": "Read bounded peak and RMS waveform buckets without exposing media bytes or local paths. Seconds are measured from the start of the asset; `buckets` caps how many samples come back, so ask for the resolution you actually need.",
+      "promptSnippet": "read peak/RMS waveform buckets for one audio range.",
+      "promptGuidelines": [
+        "Media is addressed by stable asset id, never by a file path: the id is what search_media returns and what every other media tool takes.",
+        "These tools report bounded technical facts (duration, codec, frame ranges, waveform buckets). They never claim to have watched or listened to the media."
+      ],
+      "effects": {
+        "mutates": false,
+        "billable": false,
+        "reversal": "none"
+      },
+      "execution": {
+        "timeoutMs": 30000
+      },
+      "aliasBoundInput": {
+        "operation": "read_waveform"
+      },
+      "profiles": [
+        "internal",
+        "mcp"
+      ],
+      "mcpTransportFields": {},
+      "hasPrepareArguments": true,
+      "examples": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "assetId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          },
+          "startSeconds": {
+            "type": "number",
+            "minimum": 0
+          },
+          "endSeconds": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "buckets": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 256
+          }
+        },
+        "required": [
+          "assetId"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "propose_edit_plan",
+      "contractId": "timeline.read",
+      "internalGroup": "timeline",
+      "description": "Validate and preview an atomic timeline edit plan without changing the project. Valid operation kinds: move, remove, split, trim, source-window, ripple, transition, text, audio.",
+      "promptSnippet": "Validate and preview an atomic timeline edit plan without changing the project. Valid operation kinds: move, remove, split, trim, source-window, ripple, transition, text, audio.",
+      "promptGuidelines": [],
+      "effects": {
+        "mutates": false,
+        "billable": false,
+        "reversal": "none"
+      },
+      "execution": {
+        "timeoutMs": 30000
+      },
+      "aliasBoundInput": {},
+      "profiles": [
+        "internal"
+      ],
+      "mcpTransportFields": {},
+      "hasPrepareArguments": true,
+      "examples": [
+        {
+          "when": "Preview before applying:",
+          "arguments": {
+            "planId": "plan-1",
+            "baseRevision": "revision-1",
+            "summary": "Move the opening clip",
+            "operations": [
+              {
+                "kind": "move",
+                "clipId": "clip-1",
+                "startFrame": 0
+              }
+            ]
+          }
+        }
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "planId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "baseRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "operations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "move",
+                    "remove",
+                    "split",
+                    "trim",
+                    "source-window",
+                    "ripple",
+                    "transition",
+                    "text",
+                    "clip-audio"
+                  ],
+                  "description": "Action; field annotations identify applicable values."
+                },
+                "clipId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "[for move, remove, split, trim, source-window, text, clip-audio]"
+                },
+                "startFrame": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991,
+                  "description": "[for move, text]"
+                },
+                "targetTrackId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "[for move]"
+                },
+                "clipIds": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "minItems": 1,
+                  "description": "[for remove]"
+                },
+                "ripple": {
+                  "type": "boolean",
+                  "description": "[for remove]"
+                },
+                "atFrame": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991,
+                  "description": "[for split]"
+                },
+                "rightClipId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "[for split]"
+                },
+                "edge": {
+                  "type": "string",
+                  "enum": [
+                    "left",
+                    "right"
+                  ],
+                  "description": "[for trim]"
+                },
+                "deltaFrame": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991,
+                  "description": "[for trim, ripple]"
+                },
+                "sourceStartFrame": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991,
+                  "description": "[for source-window]"
+                },
+                "sourceEndFrame": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991,
+                  "description": "[for source-window]"
+                },
+                "fromFrame": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991,
+                  "description": "[for ripple]"
+                },
+                "trackId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "[for ripple]"
+                },
+                "includeText": {
+                  "type": "boolean",
+                  "description": "[for ripple]"
+                },
+                "action": {
+                  "type": "string",
+                  "enum": [
+                    "set",
+                    "remove",
+                    "add",
+                    "edit",
+                    "style",
+                    "time"
+                  ],
+                  "description": "[for transition, text]"
+                },
+                "fromClipId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "[for transition]"
+                },
+                "toClipId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "[for transition]"
+                },
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "cut",
+                    "dissolve",
+                    "fade",
+                    "match_cut",
+                    "whip_pan"
+                  ],
+                  "description": "[for transition]"
+                },
+                "durationFrames": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991,
+                  "exclusiveMinimum": 0,
+                  "description": "[for transition]"
+                },
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "[for text]"
+                },
+                "sourceNodeId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "[for text]"
+                },
+                "text": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "[for text]"
+                },
+                "style": {
+                  "type": "string",
+                  "enum": [
+                    "caption",
+                    "title"
+                  ],
+                  "description": "[for text]"
+                },
+                "endFrame": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991,
+                  "description": "[for text]"
+                },
+                "audio": {
+                  "type": "object",
+                  "properties": {
+                    "gainDb": {
+                      "type": "number"
+                    },
+                    "muted": {
+                      "type": "boolean"
+                    },
+                    "fadeInFrames": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "fadeOutFrames": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "additionalProperties": false,
+                  "description": "[for clip-audio]"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "minItems": 1,
+            "maxItems": 128
+          }
+        },
+        "required": [
+          "planId",
+          "baseRevision",
+          "summary",
+          "operations"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "apply_edit_plan",
+      "contractId": "timeline.write",
+      "internalGroup": "timeline",
+      "description": "Apply one compare-and-swap guarded timeline edit plan after user approval. Valid operation kinds: move, remove, split, trim, source-window, ripple, transition, text, audio.",
+      "promptSnippet": "Apply one compare-and-swap guarded timeline edit plan after user approval. Valid operation kinds: move, remove, split, trim, source-window, ripple, transition, text, audio.",
+      "promptGuidelines": [],
+      "effects": {
+        "mutates": true,
+        "billable": false,
+        "reversal": "undoable"
+      },
+      "execution": {
+        "timeoutMs": 60000
+      },
+      "aliasBoundInput": {},
+      "profiles": [
+        "internal"
+      ],
+      "mcpTransportFields": {},
+      "hasPrepareArguments": true,
+      "examples": [
+        {
+          "when": "Apply the reviewed plan:",
+          "arguments": {
+            "planId": "plan-1",
+            "baseRevision": "revision-1",
+            "summary": "Move the opening clip",
+            "operations": [
+              {
+                "kind": "move",
+                "clipId": "clip-1",
+                "startFrame": 0
+              }
+            ]
+          }
+        }
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "planId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "baseRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "operations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "move",
+                    "remove",
+                    "split",
+                    "trim",
+                    "source-window",
+                    "ripple",
+                    "transition",
+                    "text",
+                    "clip-audio"
+                  ],
+                  "description": "Action; field annotations identify applicable values."
+                },
+                "clipId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "[for move, remove, split, trim, source-window, text, clip-audio]"
+                },
+                "startFrame": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991,
+                  "description": "[for move, text]"
+                },
+                "targetTrackId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "[for move]"
+                },
+                "clipIds": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "minItems": 1,
+                  "description": "[for remove]"
+                },
+                "ripple": {
+                  "type": "boolean",
+                  "description": "[for remove]"
+                },
+                "atFrame": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991,
+                  "description": "[for split]"
+                },
+                "rightClipId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "[for split]"
+                },
+                "edge": {
+                  "type": "string",
+                  "enum": [
+                    "left",
+                    "right"
+                  ],
+                  "description": "[for trim]"
+                },
+                "deltaFrame": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991,
+                  "description": "[for trim, ripple]"
+                },
+                "sourceStartFrame": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991,
+                  "description": "[for source-window]"
+                },
+                "sourceEndFrame": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991,
+                  "description": "[for source-window]"
+                },
+                "fromFrame": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991,
+                  "description": "[for ripple]"
+                },
+                "trackId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "[for ripple]"
+                },
+                "includeText": {
+                  "type": "boolean",
+                  "description": "[for ripple]"
+                },
+                "action": {
+                  "type": "string",
+                  "enum": [
+                    "set",
+                    "remove",
+                    "add",
+                    "edit",
+                    "style",
+                    "time"
+                  ],
+                  "description": "[for transition, text]"
+                },
+                "fromClipId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "[for transition]"
+                },
+                "toClipId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "[for transition]"
+                },
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "cut",
+                    "dissolve",
+                    "fade",
+                    "match_cut",
+                    "whip_pan"
+                  ],
+                  "description": "[for transition]"
+                },
+                "durationFrames": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991,
+                  "exclusiveMinimum": 0,
+                  "description": "[for transition]"
+                },
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "[for text]"
+                },
+                "sourceNodeId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "[for text]"
+                },
+                "text": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "[for text]"
+                },
+                "style": {
+                  "type": "string",
+                  "enum": [
+                    "caption",
+                    "title"
+                  ],
+                  "description": "[for text]"
+                },
+                "endFrame": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991,
+                  "description": "[for text]"
+                },
+                "audio": {
+                  "type": "object",
+                  "properties": {
+                    "gainDb": {
+                      "type": "number"
+                    },
+                    "muted": {
+                      "type": "boolean"
+                    },
+                    "fadeInFrames": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "fadeOutFrames": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "additionalProperties": false,
+                  "description": "[for clip-audio]"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "minItems": 1,
+            "maxItems": 128
+          }
+        },
+        "required": [
+          "planId",
+          "baseRevision",
+          "summary",
+          "operations"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "undo_timeline_edit",
+      "contractId": "timeline.write",
+      "internalGroup": "timeline",
+      "description": "Undo the exact most recent Agent timeline edit after user approval. Use its returned undoToken and the current expectedRevision; stale or superseded edits are rejected.",
+      "promptSnippet": "Undo the exact most recent Agent timeline edit after user approval. Use its returned undoToken and the current expectedRevision; stale or superseded edits are rejected.",
+      "promptGuidelines": [],
+      "effects": {
+        "mutates": true,
+        "billable": false,
+        "reversal": "undoable"
+      },
+      "execution": {
+        "timeoutMs": 60000
+      },
+      "aliasBoundInput": {},
+      "profiles": [
+        "internal"
+      ],
+      "mcpTransportFields": {},
+      "hasPrepareArguments": true,
+      "examples": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "undoToken": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "expectedRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 300
+          }
+        },
+        "required": [
+          "undoToken",
+          "expectedRevision"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "inspect_export_job",
+      "contractId": "export.read",
+      "internalGroup": "media",
+      "description": "Inspect one active-project export job through a path-free receipt. Use the jobId returned by export_timeline; includes current status, progress and whether cancellation is still available.",
+      "promptSnippet": "Inspect one active-project export job through a path-free receipt. Use the jobId returned by export_timeline; includes current status, progress and whether cancellation is still available.",
+      "promptGuidelines": [],
+      "effects": {
+        "mutates": false,
+        "billable": false,
+        "reversal": "none"
+      },
+      "execution": {
+        "timeoutMs": 30000
+      },
+      "aliasBoundInput": {},
+      "profiles": [
+        "internal"
+      ],
+      "mcpTransportFields": {},
+      "hasPrepareArguments": true,
+      "examples": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "jobId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          }
+        },
+        "required": [
+          "jobId"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "verify_render",
+      "contractId": "export.read",
+      "internalGroup": "media",
+      "description": "Verify one non-empty export receipt without claiming decoded media inspection. This checks the persisted export receipt and output size; it does not inspect frames or confirm visual quality.",
+      "promptSnippet": "Verify one non-empty export receipt without claiming decoded media inspection. This checks the persisted export receipt and output size; it does not inspect frames or confirm visual quality.",
+      "promptGuidelines": [],
+      "effects": {
+        "mutates": false,
+        "billable": false,
+        "reversal": "none"
+      },
+      "execution": {
+        "timeoutMs": 30000
+      },
+      "aliasBoundInput": {},
+      "profiles": [
+        "internal"
+      ],
+      "mcpTransportFields": {},
+      "hasPrepareArguments": true,
+      "examples": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "jobId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          }
+        },
+        "required": [
+          "jobId"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "export_timeline",
+      "contractId": "export.write",
+      "internalGroup": "media",
+      "description": "Start an approved export at one exact canonical Timeline revision. Read the current revision first; stale revisions and empty timelines are rejected. Follow the returned jobId for completion.",
+      "promptSnippet": "Start an approved export at one exact canonical Timeline revision. Read the current revision first; stale revisions and empty timelines are rejected. Follow the returned jobId for completion.",
+      "promptGuidelines": [],
+      "effects": {
+        "mutates": true,
+        "billable": false,
+        "reversal": "none"
+      },
+      "execution": {
+        "timeoutMs": 60000
+      },
+      "aliasBoundInput": {},
+      "profiles": [
+        "internal"
+      ],
+      "mcpTransportFields": {},
+      "hasPrepareArguments": true,
+      "examples": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "expectedRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "outputName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "aspectRatio": {
+            "type": "string",
+            "enum": [
+              "16:9",
+              "9:16",
+              "1:1",
+              "4:5",
+              "3:4",
+              "4:3",
+              "21:9"
+            ]
+          },
+          "resolution": {
+            "type": "string",
+            "enum": [
+              "720p",
+              "1080p"
+            ]
+          },
+          "quality": {
+            "type": "string",
+            "enum": [
+              "small",
+              "standard",
+              "high"
+            ]
+          }
+        },
+        "required": [
+          "expectedRevision"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "cancel_export_job",
+      "contractId": "export.write",
+      "internalGroup": "media",
+      "description": "Cancel one active-project export job after explicit approval. Use the exact returned jobId; completed or otherwise non-cancellable jobs return their current status without starting new work.",
+      "promptSnippet": "Cancel one active-project export job after explicit approval. Use the exact returned jobId; completed or otherwise non-cancellable jobs return their current status without starting new work.",
+      "promptGuidelines": [],
+      "effects": {
+        "mutates": true,
+        "billable": false,
+        "reversal": "none"
+      },
+      "execution": {
+        "timeoutMs": 60000
+      },
+      "aliasBoundInput": {},
+      "profiles": [
+        "internal"
+      ],
+      "mcpTransportFields": {},
+      "hasPrepareArguments": true,
+      "examples": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "jobId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          }
+        },
+        "required": [
+          "jobId"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "delete_canvas_nodes",
+      "contractId": "canvas.delete",
+      "internalGroup": "maintenance",
+      "description": "Delete exact unlocked Canvas nodes after fresh explicit approval for each call. Undo is not guaranteed. Read their current node identifiers first; locked nodes and stale selections are rejected.",
+      "promptSnippet": "Delete exact unlocked Canvas nodes after fresh explicit approval for each call. Undo is not guaranteed. Read their current node identifiers first; locked nodes and stale selections are rejected.",
+      "promptGuidelines": [],
+      "effects": {
+        "mutates": true,
+        "billable": false,
+        "reversal": "none"
+      },
+      "execution": {
+        "timeoutMs": 60000
+      },
+      "aliasBoundInput": {},
+      "profiles": [
+        "internal"
+      ],
+      "mcpTransportFields": {},
+      "hasPrepareArguments": true,
+      "examples": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "nodeIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            },
+            "minItems": 1,
+            "maxItems": 24
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 300
+          }
+        },
+        "required": [
+          "nodeIds"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "nomi_generation_plan",
+      "contractId": "generation.plan",
+      "internalGroup": "generation",
+      "description": "Read generation context (summary by default; taskKind narrows it; scope: full explicitly requests details), create or revise a draft. This host cannot preview or start paid generation. Minimal create: {\"operation\":\"create\",\"taskKind\":\"text_to_image\",\"candidate\":{\"candidateId\":\"candidate-1\",\"revision\":1,\"moduleId\":\"image\",\"providerId\":\"from-context\",\"modelId\":\"from-context\",\"mode\":\"from-context\",\"prompt\":\"海上日出\"}}",
+      "promptSnippet": "Read generation context (summary by default; taskKind narrows it; scope: full explicitly requests details), create or revise a draft. This host cannot preview or start paid generation. Minimal create: {\"operation\":\"create\",\"taskKind\":\"text_to_image\",\"candidate\":{\"candidateId\":\"candidate-1\",\"revision\":1,\"moduleId\":\"image\",\"providerId\":\"from-context\",\"modelId\":\"from-context\",\"mode\":\"from-context\",\"prompt\":\"海上日出\"}}",
+      "promptGuidelines": [],
+      "effects": {
+        "mutates": true,
+        "billable": false,
+        "reversal": "undoable"
+      },
+      "execution": {
+        "timeoutMs": 60000
+      },
+      "aliasBoundInput": {},
+      "profiles": [
+        "internal"
+      ],
+      "mcpTransportFields": {},
+      "hasPrepareArguments": true,
+      "examples": [
+        {
+          "when": "Create a draft (use identifiers from context):",
+          "arguments": {
+            "operation": "create",
+            "taskKind": "text_to_image",
+            "candidate": {
+              "candidateId": "candidate-1",
+              "revision": 1,
+              "moduleId": "image",
+              "providerId": "from-context",
+              "modelId": "from-context",
+              "mode": "from-context",
+              "prompt": "海上日出"
+            }
+          }
+        }
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "operation": {
+            "type": "string",
+            "enum": [
+              "context",
+              "create",
+              "patch"
+            ],
+            "description": "Action; field annotations identify applicable values."
+          },
+          "taskKind": {
+            "type": "string",
+            "enum": [
+              "text_to_image",
+              "image_edit",
+              "text_to_video",
+              "image_to_video"
+            ],
+            "description": "[for context, create]"
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "summary",
+              "full"
+            ],
+            "description": "[for context]"
+          },
+          "prompt": {
+            "type": "string",
+            "minLength": 1,
+            "description": "[for create]"
+          },
+          "moduleId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "[for create]"
+          },
+          "providerId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "[for create]"
+          },
+          "modelId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "[for create]"
+          },
+          "mode": {
+            "type": "string",
+            "minLength": 1,
+            "description": "[for create]"
+          },
+          "modeId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "[for create]"
+          },
+          "variantId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "[for create]"
+          },
+          "parameters": {
+            "type": "object",
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/properties/parameters/additionalProperties"
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": {
+                    "$ref": "#/properties/parameters/additionalProperties"
+                  }
+                }
+              ]
+            },
+            "description": "[for create]"
+          },
+          "references": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "assetId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "contentHash": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "version": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "image",
+                    "video",
+                    "audio"
+                  ]
+                },
+                "role": {
+                  "type": "string",
+                  "enum": [
+                    "character",
+                    "first_frame",
+                    "last_frame",
+                    "reference",
+                    "audio"
+                  ]
+                }
+              },
+              "required": [
+                "assetId",
+                "contentHash",
+                "version"
+              ],
+              "additionalProperties": false
+            },
+            "description": "[for create]"
+          },
+          "candidate": {
+            "type": "object",
+            "properties": {
+              "candidateId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "revision": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "moduleId": {
+                "type": "string"
+              },
+              "providerId": {
+                "type": "string"
+              },
+              "modelId": {
+                "type": "string"
+              },
+              "mode": {
+                "type": "string"
+              },
+              "modeId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "variantId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "prompt": {
+                "type": "string"
+              },
+              "parameters": {
+                "type": "object",
+                "additionalProperties": {
+                  "$ref": "#/properties/parameters/additionalProperties"
+                },
+                "default": {}
+              },
+              "references": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/properties/references/items"
+                },
+                "default": []
+              }
+            },
+            "required": [
+              "candidateId",
+              "revision",
+              "moduleId",
+              "providerId",
+              "modelId",
+              "mode",
+              "prompt"
+            ],
+            "additionalProperties": true,
+            "description": "[for create]"
+          },
+          "shots": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "shotId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "role": {
+                  "type": "string",
+                  "enum": [
+                    "anchor",
+                    "shot"
+                  ]
+                },
+                "included": {
+                  "type": "boolean"
+                },
+                "candidate": {
+                  "type": "object",
+                  "properties": {
+                    "candidateId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "revision": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "moduleId": {
+                      "type": "string"
+                    },
+                    "providerId": {
+                      "type": "string"
+                    },
+                    "modelId": {
+                      "type": "string"
+                    },
+                    "mode": {
+                      "type": "string"
+                    },
+                    "modeId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "variantId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "prompt": {
+                      "type": "string"
+                    },
+                    "parameters": {
+                      "$ref": "#/properties/candidate/properties/parameters"
+                    },
+                    "references": {
+                      "$ref": "#/properties/candidate/properties/references"
+                    }
+                  },
+                  "required": [
+                    "candidateId",
+                    "revision",
+                    "moduleId",
+                    "providerId",
+                    "modelId",
+                    "mode",
+                    "prompt"
+                  ],
+                  "additionalProperties": true
+                },
+                "prompt": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "taskKind": {
+                  "type": "string",
+                  "enum": [
+                    "text_to_image",
+                    "image_edit",
+                    "text_to_video",
+                    "image_to_video"
+                  ]
+                },
+                "modelId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "mode": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "modeId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "variantId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "parameters": {
+                  "$ref": "#/properties/candidate/properties/parameters"
+                },
+                "references": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/properties/references/items"
+                  }
+                }
+              },
+              "additionalProperties": false
+            },
+            "description": "[for create]"
+          },
+          "scriptText": {
+            "type": "string",
+            "minLength": 1,
+            "description": "[for create]"
+          },
+          "operationId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "[for patch]"
+          },
+          "patch": {
+            "type": "object",
+            "properties": {
+              "prompt": {
+                "type": "string"
+              },
+              "taskKind": {
+                "type": "string",
+                "enum": [
+                  "text_to_image",
+                  "image_edit",
+                  "text_to_video",
+                  "image_to_video"
+                ]
+              },
+              "moduleId": {
+                "type": "string"
+              },
+              "providerId": {
+                "type": "string"
+              },
+              "modelId": {
+                "type": "string"
+              },
+              "mode": {
+                "type": "string"
+              },
+              "modeId": {
+                "type": "string"
+              },
+              "variantId": {
+                "type": "string"
+              },
+              "parameters": {
+                "$ref": "#/properties/candidate/properties/parameters"
+              },
+              "references": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/properties/references/items"
+                }
+              }
+            },
+            "additionalProperties": false,
+            "description": "[for patch]"
+          }
+        },
+        "required": [
+          "operation"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "nomi_generation_status",
+      "contractId": "generation.control",
+      "internalGroup": "generation",
+      "description": "Read, cancel, or reconcile one generation operation. Read status before cancellation or reconciliation. Never retry unknown provider work or spend credit.",
+      "promptSnippet": "Read, cancel, or reconcile one generation operation. Read status before cancellation or reconciliation. Never retry unknown provider work or spend credit.",
+      "promptGuidelines": [],
+      "effects": {
+        "mutates": true,
+        "billable": false,
+        "reversal": "undoable"
+      },
+      "execution": {
+        "timeoutMs": 60000
+      },
+      "aliasBoundInput": {},
+      "profiles": [
+        "internal"
+      ],
+      "mcpTransportFields": {},
+      "hasPrepareArguments": true,
+      "examples": [
+        {
+          "when": "Read the current task:",
+          "arguments": {
+            "operation": "read",
+            "operationId": "run-1"
+          }
+        }
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "operation": {
+            "type": "string",
+            "enum": [
+              "read",
+              "cancel",
+              "reconcile"
+            ],
+            "description": "Action; field annotations identify applicable values."
+          },
+          "operationId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "[for read, cancel, reconcile]"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "found",
+              "not_found"
+            ],
+            "description": "[for reconcile]"
+          }
+        },
+        "required": [
+          "operation"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "get_production_run",
+      "contractId": "production.run.read",
+      "internalGroup": "production",
+      "description": "Read one production task's current status, gates, jobs, budget, and artifact refs. Use the runId returned when the draft was created. Read-only; no provider work is submitted.",
+      "promptSnippet": "Read one production task's current status, gates, jobs, budget, and artifact refs. Use the runId returned when the draft was created. Read-only; no provider work is submitted.",
+      "promptGuidelines": [
+        "Use run and artifact identifiers returned by Nomi. Preserve expectedVersion and revision. Paid gates must be confirmed in Nomi."
+      ],
+      "effects": {
+        "mutates": false,
+        "billable": false,
+        "reversal": "none"
+      },
+      "execution": {
+        "timeoutMs": 30000
+      },
+      "aliasBoundInput": {},
+      "profiles": [
+        "internal"
+      ],
+      "mcpTransportFields": {},
+      "hasPrepareArguments": true,
+      "examples": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "description": "The run id returned by start_production_run."
+          }
+        },
+        "required": [
+          "runId"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "subscribe_production_run",
+      "contractId": "production.run.read",
+      "internalGroup": "production",
+      "description": "Read meaningful progress after a cursor; use the returned nextCursor to continue without duplicate events. Waiting is bounded; this observes existing work and never starts or resumes a job.",
+      "promptSnippet": "Read meaningful progress after a cursor; use the returned nextCursor to continue without duplicate events. Waiting is bounded; this observes existing work and never starts or resumes a job.",
+      "promptGuidelines": [
+        "Use run and artifact identifiers returned by Nomi. Preserve expectedVersion and revision. Paid gates must be confirmed in Nomi."
+      ],
+      "effects": {
+        "mutates": false,
+        "billable": false,
+        "reversal": "none"
+      },
+      "execution": {
+        "timeoutMs": 30000
+      },
+      "aliasBoundInput": {},
+      "profiles": [
+        "internal"
+      ],
+      "mcpTransportFields": {},
+      "hasPrepareArguments": true,
+      "examples": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "description": "The run id returned by start_production_run."
+          },
+          "afterCursor": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Last consumed event cursor; default 0."
+          },
+          "waitMs": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 25000,
+            "description": "Optional bounded wait for new progress."
+          }
+        },
+        "required": [
+          "runId"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "read_production_artifact",
+      "contractId": "production.run.read",
+      "internalGroup": "production",
+      "description": "Read a versioned artifact's metadata and preview ref; use the content tool only when the actual text/plan is needed. Supply runId and artifactId from the current task projection.",
+      "promptSnippet": "Read a versioned artifact's metadata and preview ref; use the content tool only when the actual text/plan is needed. Supply runId and artifactId from the current task projection.",
+      "promptGuidelines": [
+        "Use run and artifact identifiers returned by Nomi. Preserve expectedVersion and revision. Paid gates must be confirmed in Nomi."
+      ],
+      "effects": {
+        "mutates": false,
+        "billable": false,
+        "reversal": "none"
+      },
+      "execution": {
+        "timeoutMs": 30000
+      },
+      "aliasBoundInput": {},
+      "profiles": [
+        "internal"
+      ],
+      "mcpTransportFields": {},
+      "hasPrepareArguments": true,
+      "examples": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "description": "The run id returned by start_production_run."
+          },
+          "artifactId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "description": "The artifact id from the run projection."
+          }
+        },
+        "required": [
+          "runId",
+          "artifactId"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "read_production_artifact_content",
+      "contractId": "production.run.read",
+      "internalGroup": "production",
+      "description": "Read one persisted script or storyboard only when its content is needed for the next decision; bounded by the domain owner.",
+      "promptSnippet": "Read one persisted script or storyboard only when its content is needed for the next decision; bounded by the domain owner.",
+      "promptGuidelines": [
+        "Use run and artifact identifiers returned by Nomi. Preserve expectedVersion and revision. Paid gates must be confirmed in Nomi."
+      ],
+      "effects": {
+        "mutates": false,
+        "billable": false,
+        "reversal": "none"
+      },
+      "execution": {
+        "timeoutMs": 30000
+      },
+      "aliasBoundInput": {},
+      "profiles": [
+        "internal"
+      ],
+      "mcpTransportFields": {},
+      "hasPrepareArguments": true,
+      "examples": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "description": "The run id returned by start_production_run."
+          },
+          "artifactId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "description": "The artifact id from the run projection."
+          }
+        },
+        "required": [
+          "runId",
+          "artifactId"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "start_production_run",
+      "contractId": "production.run.write",
+      "internalGroup": "production",
+      "description": "Create a reviewable brief/playbook draft only; it stops at the first review gate and never generates media. For a concrete image/video request or a multi-minute finished piece, use the generation plan intent; Nomi Host handles preview, approval, and start transitions.",
+      "promptSnippet": "Create a reviewable brief/playbook draft only; it stops at the first review gate and never generates media. For a concrete image/video request or a multi-minute finished piece, use the generation plan intent; Nomi Host handles preview, approval, and start transitions.",
+      "promptGuidelines": [
+        "Use run and artifact identifiers returned by Nomi. Preserve expectedVersion and revision. Paid gates must be confirmed in Nomi."
+      ],
+      "effects": {
+        "mutates": true,
+        "billable": false,
+        "reversal": "undoable"
+      },
+      "execution": {
+        "timeoutMs": 60000
+      },
+      "aliasBoundInput": {},
+      "profiles": [
+        "internal"
+      ],
+      "mcpTransportFields": {},
+      "hasPrepareArguments": true,
+      "examples": [
+        {
+          "when": "Create a reviewable brief draft:",
+          "arguments": {
+            "goal": "A short product introduction",
+            "durationSeconds": 30
+          }
+        }
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "goal": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000,
+            "description": "What the finished piece should achieve; do not force the user into a schema."
+          },
+          "playbook": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "description": "Optional registered playbook name; omit to use the default."
+          },
+          "playbookVersion": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "audience": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "channel": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "tone": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "durationSeconds": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 3600
+          },
+          "sellingPoints": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500
+            },
+            "maxItems": 20
+          }
+        },
+        "required": [
+          "goal"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "control_production_run",
+      "contractId": "production.run.write",
+      "internalGroup": "production",
+      "description": "Pause, resume, cancel, or change the run trust level. Paid gates and unknown provider receipts remain protected. Use the current runId; state transitions are validated by the production owner.",
+      "promptSnippet": "Pause, resume, cancel, or change the run trust level. Paid gates and unknown provider receipts remain protected. Use the current runId; state transitions are validated by the production owner.",
+      "promptGuidelines": [
+        "Use run and artifact identifiers returned by Nomi. Preserve expectedVersion and revision. Paid gates must be confirmed in Nomi."
+      ],
+      "effects": {
+        "mutates": true,
+        "billable": false,
+        "reversal": "undoable"
+      },
+      "execution": {
+        "timeoutMs": 60000
+      },
+      "aliasBoundInput": {},
+      "profiles": [
+        "internal"
+      ],
+      "mcpTransportFields": {},
+      "hasPrepareArguments": true,
+      "examples": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "description": "The run id returned by start_production_run."
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "pause",
+              "resume",
+              "cancel",
+              "set_trust"
+            ]
+          },
+          "trustLevel": {
+            "type": "string",
+            "enum": [
+              "key_confirm",
+              "budget_only",
+              "confirm_all"
+            ]
+          }
+        },
+        "required": [
+          "runId",
+          "action"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "decide_production_gate",
+      "contractId": "production.run.write",
+      "internalGroup": "production",
+      "description": "Record a user's decision for a creative or anchor checkpoint gate; budget and paid gates stay in Nomi. Use the gateId and allowed choice from the current production task.",
+      "promptSnippet": "Record a user's decision for a creative or anchor checkpoint gate; budget and paid gates stay in Nomi. Use the gateId and allowed choice from the current production task.",
+      "promptGuidelines": [
+        "Use run and artifact identifiers returned by Nomi. Preserve expectedVersion and revision. Paid gates must be confirmed in Nomi."
+      ],
+      "effects": {
+        "mutates": true,
+        "billable": false,
+        "reversal": "undoable"
+      },
+      "execution": {
+        "timeoutMs": 60000
+      },
+      "aliasBoundInput": {},
+      "profiles": [
+        "internal"
+      ],
+      "mcpTransportFields": {},
+      "hasPrepareArguments": true,
+      "examples": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "description": "The run id returned by start_production_run."
+          },
+          "gateId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "approved",
+              "rejected"
+            ]
+          },
+          "choiceKey": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          }
+        },
+        "required": [
+          "runId",
+          "gateId",
+          "decision"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "revise_production_artifact",
+      "contractId": "production.artifact.write",
+      "internalGroup": "production",
+      "description": "Request a new script or storyboard version from an existing artifact; never overwrite the source version. Read the artifact first and supply its exact expectedVersion with the requested revision.",
+      "promptSnippet": "Request a new script or storyboard version from an existing artifact; never overwrite the source version. Read the artifact first and supply its exact expectedVersion with the requested revision.",
+      "promptGuidelines": [
+        "Use run and artifact identifiers returned by Nomi. Preserve expectedVersion and revision. Paid gates must be confirmed in Nomi."
+      ],
+      "effects": {
+        "mutates": true,
+        "billable": false,
+        "reversal": "undoable"
+      },
+      "execution": {
+        "timeoutMs": 60000
+      },
+      "aliasBoundInput": {},
+      "profiles": [
+        "internal"
+      ],
+      "mcpTransportFields": {},
+      "hasPrepareArguments": true,
+      "examples": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "description": "The run id returned by start_production_run."
+          },
+          "artifactId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "description": "The artifact id from the run projection."
+          },
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "script",
+              "storyboard"
+            ]
+          },
+          "instruction": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          }
+        },
+        "required": [
+          "runId",
+          "artifactId",
+          "expectedVersion",
+          "kind",
+          "instruction"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "review_production_artifact",
+      "contractId": "production.artifact.write",
+      "internalGroup": "production",
+      "description": "Approve, request changes to, or reject one exact artifact version; the version is never implicit. Read the current artifact and provide expectedVersion; stale review targets are rejected.",
+      "promptSnippet": "Approve, request changes to, or reject one exact artifact version; the version is never implicit. Read the current artifact and provide expectedVersion; stale review targets are rejected.",
+      "promptGuidelines": [
+        "Use run and artifact identifiers returned by Nomi. Preserve expectedVersion and revision. Paid gates must be confirmed in Nomi."
+      ],
+      "effects": {
+        "mutates": true,
+        "billable": false,
+        "reversal": "undoable"
+      },
+      "execution": {
+        "timeoutMs": 60000
+      },
+      "aliasBoundInput": {},
+      "profiles": [
+        "internal"
+      ],
+      "mcpTransportFields": {},
+      "hasPrepareArguments": true,
+      "examples": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "description": "The run id returned by start_production_run."
+          },
+          "artifactId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "description": "The artifact id from the run projection."
+          },
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "approved",
+              "changes_requested",
+              "rejected"
+            ]
+          }
+        },
+        "required": [
+          "runId",
+          "artifactId",
+          "expectedVersion",
+          "decision"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "materialize_production_storyboard",
+      "contractId": "production.artifact.write",
+      "internalGroup": "production",
+      "description": "Attach an approved storyboard version to the real generation canvas, preserving run/artifact provenance. Supply its exact expectedVersion; this writes the canvas and does not generate paid media.",
+      "promptSnippet": "Attach an approved storyboard version to the real generation canvas, preserving run/artifact provenance. Supply its exact expectedVersion; this writes the canvas and does not generate paid media.",
+      "promptGuidelines": [
+        "Use run and artifact identifiers returned by Nomi. Preserve expectedVersion and revision. Paid gates must be confirmed in Nomi."
+      ],
+      "effects": {
+        "mutates": true,
+        "billable": false,
+        "reversal": "undoable"
+      },
+      "execution": {
+        "timeoutMs": 60000
+      },
+      "aliasBoundInput": {},
+      "profiles": [
+        "internal"
+      ],
+      "mcpTransportFields": {},
+      "hasPrepareArguments": true,
+      "examples": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "description": "The run id returned by start_production_run."
+          },
+          "artifactId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "description": "The artifact id from the run projection."
+          },
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "runId",
+          "artifactId",
+          "expectedVersion"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    }
+  ]
+}
