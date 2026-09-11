@@ -1,0 +1,74 @@
+{
+ "10": {
+  "class_type": "LoadImage",
+  "inputs": {
+   "image": "matrix_input.png",
+   "upload": "image"
+  },
+  "_meta": {
+   "title": "Load Image"
+  }
+ },
+ "20": {
+  "class_type": "ImageResizeKJv2",
+  "inputs": {
+   "image": [
+    "10",
+    0
+   ],
+   "width": 768,
+   "height": 768,
+   "upscale_method": "lanczos",
+   "keep_proportion": "stretch",
+   "pad_color": "0, 0, 0",
+   "crop_position": "center",
+   "divisible_by": 2
+  },
+  "_meta": {
+   "title": "Resize Image v2 (KJ)"
+  }
+ },
+ "21": {
+  "class_type": "GetImageSizeAndCount",
+  "inputs": {
+   "image": [
+    "20",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "Get Image Size & Count (KJ)"
+  }
+ },
+ "22": {
+  "class_type": "ColorMatch",
+  "inputs": {
+   "image_ref": [
+    "10",
+    0
+   ],
+   "image_target": [
+    "21",
+    0
+   ],
+   "method": "mkl",
+   "strength": 1.0
+  },
+  "_meta": {
+   "title": "Color Match (KJ)"
+  }
+ },
+ "9": {
+  "class_type": "SaveImage",
+  "inputs": {
+   "filename_prefix": "NomiMatrixRow7",
+   "images": [
+    "22",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "Save Image"
+  }
+ }
+}
