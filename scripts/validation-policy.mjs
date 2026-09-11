@@ -72,7 +72,7 @@ const CANVAS_PATTERNS = [
 
 const FULL_CANVAS_PATTERNS = [
   /^src\/workbench\/generationCanvas\/reactFlow(?:\/|$)/,
-  /^tests\/ux\/(?:canvas-real-suite|react-flow|canvas-drag-pan|group-ports|canvas-shortcuts|canvas-node-context|canvas-context-menu|canvas-batch|selection-toolbar|group-baseline|group-reference).*/,
+  /^tests\/ux\/(?:canvas-real-suite|react-flow|canvas-drag-pan|group-ports|canvas-shortcuts|canvas-node-context|canvas-context-menu|canvas-batch|canvas-magnetic-handle|selection-toolbar|group-baseline|group-reference).*/,
 ]
 
 const PERFORMANCE_PATTERNS = [
