@@ -250,7 +250,6 @@ async function callViaRpc(
         method,
         params,
         planConfirmed: options?.planConfirmed,
-        spendConfirmed: options?.spendConfirmed,
         signal: controller.signal,
       }),
     })
