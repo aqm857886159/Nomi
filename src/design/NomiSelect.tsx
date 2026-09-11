@@ -1,7 +1,7 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { Combobox, useCombobox } from '@mantine/core'
-import { IconCheck, IconChevronDown } from '@tabler/icons-react'
+import { IconCheck, IconChevronDown, IconEyeOff } from '@tabler/icons-react'
 import { cn } from '../utils/cn'
 import { NOMI_OVERLAY_Z_INDEX } from './overlayLayers'
 import { NomiIdentityIcon, type NomiIdentityIconSource } from './NomiIdentityIcon'
@@ -74,6 +74,14 @@ export type NomiSelectProps = {
   searchable?: boolean
   /** Nested floating panels own their portal so outside-click handling and scrolling stay correct. */
   portalTarget?: React.RefObject<HTMLElement | null>
+  /**
+   * 列表底部那一行「有些选项被你藏起来了」的脚注（模型框：「已隐藏 N 个 · 在设置里找回」）。
+   *
+   * 为什么它是这个组件的一个具名槽、而不是一个通用的 footer：一个通用插槽会立刻被拿去塞
+   * 别的东西（提示、广告、第二个动作），而这里要表达的只有一件事——**这个列表不是全部**。
+   * 空串/缺省 = 什么都不渲染：没藏过东西的下拉不该无缘无故多一条脚注。
+   */
+  hiddenNote?: string
 }
 
 const SURFACE_SHADOW = 'var(--workbench-shadow-pop)'
@@ -109,6 +117,7 @@ export function NomiSelect({
   className,
   searchable = false,
   portalTarget,
+  hiddenNote,
 }: NomiSelectProps): JSX.Element {
   const { t } = useTranslation()
   const [more, setMore] = React.useState(false)
@@ -297,6 +306,17 @@ export function NomiSelect({
             <button type="button" onClick={() => { setMore(true); combobox.resetSelectedOption() }} className="w-full px-2 py-1.5 text-left text-caption text-nomi-ink-60">{t('onboardingProviders.modelControls.more')}</button>
           ) : null}
         </Combobox.Options>
+        {hiddenNote ? (
+          // 不是选项：它点不了、也不该被键盘导航选中——藏起来的东西要找回在设置里，
+          // 这行只负责让「列表变短了」这件事说出来（放在 Options 外面就自然不进 Mantine 的选项序列）。
+          <div
+            data-nomi-select-hidden-note
+            className="mt-0.5 flex h-7 items-center gap-1.5 border-t border-nomi-line px-2.5 text-micro leading-none text-nomi-ink-40"
+          >
+            <IconEyeOff size={12} stroke={1.7} aria-hidden="true" />
+            {hiddenNote}
+          </div>
+        ) : null}
       </Combobox.Dropdown>
     </Combobox>
   )
