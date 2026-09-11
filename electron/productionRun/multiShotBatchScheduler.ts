@@ -36,11 +36,6 @@ import { logWarn } from "../logging/logger";
  */
 
 export type BatchSchedulerOptions = {
-  /**
-   * Auto-release the anchor checkpoint after this many ms (§3.2). Undefined = never (default): the
-   * batch pauses at the checkpoint until the user approves. `0` = release immediately (test/express).
-   */
-  anchorAutoReleaseMs?: number;
   /** Safety cap on how many NEW shots this run dispatches (test hook for partial batches). */
   maxShotsPerRun?: number;
   /** Safety cap on scheduler ticks before giving up (default 64). A healthy batch needs a few. */
@@ -167,14 +162,6 @@ export function createMultiShotBatchScheduler(deps: BatchSchedulerDependencies) 
     return command(run, "gate.add", { gate }, "open-anchor-checkpoint");
   }
 
-  /** Record an auto-release as an approval on the checkpoint gate (§3.2) —留痕, then shots release. */
-  function autoReleaseCheckpoint(run: ProductionRun): ProductionRun {
-    const gateId = anchorCheckpointGateId(run.runId);
-    const gate = run.gates.find((candidate) => candidate.gateId === gateId);
-    if (!gate || gate.status !== "waiting") return run;
-    return command(run, "gate.decide", { gateId, status: "approved" }, "auto-release-anchor-checkpoint");
-  }
-
   async function notifyBatchComplete(progress: BatchDerivationResult["progress"]): Promise<void> {
     if (!deps.onBatchComplete || progress.total === 0 || progress.completed !== progress.total || progress.inFlight !== 0) return;
     try {
@@ -237,7 +224,6 @@ export function createMultiShotBatchScheduler(deps: BatchSchedulerDependencies) 
         },
         anchorGate,
         now: now(),
-        anchorAutoReleaseMs: options.anchorAutoReleaseMs,
       });
       lastResult = result;
 
@@ -247,14 +233,7 @@ export function createMultiShotBatchScheduler(deps: BatchSchedulerDependencies) 
         openCheckpoint(run, result.checkpoint);
         continue; // re-derive with the gate present
       }
-      // 2. Auto-release: record the approval, then re-derive so shots release.
-      if (result.checkpoint.status === "auto_release") {
-        if (!consumeTick()) break;
-        autoReleaseCheckpoint(run);
-        continue;
-      }
-
-      // 3. Dispatch anchors first (fresh or a rejected-checkpoint re-attempt).
+      // 2. Dispatch anchors first (fresh or a rejected-checkpoint re-attempt).
       if (result.anchorDispatch.length > 0) {
         if (!consumeTick()) break;
         for (const task of result.anchorDispatch) {
@@ -263,7 +242,7 @@ export function createMultiShotBatchScheduler(deps: BatchSchedulerDependencies) 
         continue; // re-derive: anchors now have jobs; checkpoint may open next
       }
 
-      // 4. Dispatch shots (the derivation only clears them once the checkpoint released / no anchors).
+      // 3. Dispatch shots (the derivation only clears them once the checkpoint released / no anchors).
       // Reserve happens inside the Run lock; if the ledger's reserve throws "Budget authorization
       // exceeded", that is the last hard wall → structured halt.
       if (result.shotDispatch.length > 0) {
@@ -284,7 +263,7 @@ export function createMultiShotBatchScheduler(deps: BatchSchedulerDependencies) 
               const finalResult = deriveBatchPlan({
                 runId: finalRun.runId, runStatus: finalRun.status, plan: finalRun.generationPlan!, jobs: finalRun.jobs, budget: finalRun.budget,
                 perShotPrice: (shotId) => { const shot = (finalRun.generationPlan?.shots ?? []).find((c) => c.shotId === shotId); return shot ? deps.perShotPrice(shot) : { known: false }; },
-                anchorGate: finalGate, now: now(), anchorAutoReleaseMs: options.anchorAutoReleaseMs,
+                anchorGate: finalGate, now: now(),
               });
               const halt = finalResult.halt ?? buildExhaustedHalt(finalRun, task.shotId, deps.perShotPrice);
               throw new BudgetExhaustedError(halt);
@@ -295,7 +274,7 @@ export function createMultiShotBatchScheduler(deps: BatchSchedulerDependencies) 
         continue; // re-derive: dispatched shots now have jobs; halt/completion decided next
       }
 
-      // 5. Units in flight → poll them in rounds with REAL waits between rounds (the slow-provider fix:
+      // 4. Units in flight → poll them in rounds with REAL waits between rounds (the slow-provider fix:
       // this used to spin 32 instant polls inside dispatchUnit and then rest claiming "quiescent" while
       // the jobs sat at processing forever). A settle re-derives immediately; otherwise back off and try
       // again until the drive's wait budget runs out.
