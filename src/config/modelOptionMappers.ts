@@ -4,32 +4,24 @@ import { archetypeParameterControls } from './modelArchetypes'
 import { ANTIGRAVITY_VENDOR_KEY } from '../../electron/shared/antigravity'
 import { getAntigravityModelVariant } from '../../electron/shared/antigravityModelVariants'
 
+// 目录价目 → 渲染层价目。**原样搬运，不做第二次归一**。
+//
+// 这里曾经自作主张 `Math.max(0, Math.floor(cost))`、并把「不是数字」落成 0。三样都会让卡上的数
+// 和主进程真正要扣的数岔开（主进程只把目录字段原样喂给算式）：向下取整少报几分、负数/NaN 被抹成
+// 「¥0」——而 0 恰好是唯一会被读成「这次不花钱」的那个数。价目合不合法由那条唯一算式判
+// （`electron/shared/contracts/shotPricingRule.ts`：非有限或为负 → 诚实地报「算不出」）。
 function toCatalogModelPricing(pricing: ModelCatalogModelDto['pricing']): ModelOptionPricing | undefined {
   if (!pricing) return undefined
-  const cost = typeof pricing.cost === 'number' && Number.isFinite(pricing.cost)
-    ? Math.max(0, Math.floor(pricing.cost))
-    : 0
   const specCosts = Array.isArray(pricing.specCosts)
     ? pricing.specCosts
         .map((spec) => {
           const specKey = typeof spec?.specKey === 'string' ? spec.specKey.trim() : ''
           if (!specKey) return null
-          const specCost = typeof spec.cost === 'number' && Number.isFinite(spec.cost)
-            ? Math.max(0, Math.floor(spec.cost))
-            : 0
-          return {
-            specKey,
-            cost: specCost,
-            enabled: typeof spec.enabled === 'boolean' ? spec.enabled : true,
-          }
+          return { specKey, cost: spec.cost, enabled: spec.enabled }
         })
         .filter((spec): spec is ModelOptionPricing['specCosts'][number] => spec !== null)
     : []
-  return {
-    cost,
-    enabled: typeof pricing.enabled === 'boolean' ? pricing.enabled : true,
-    specCosts,
-  }
+  return { cost: pricing.cost, enabled: pricing.enabled, specCosts }
 }
 
 export function toCatalogModelOptions(items: ModelCatalogModelDto[]): ModelOption[] {
