@@ -7,11 +7,21 @@ import { fetchModelList, readExtraHeaders } from '../ai/onboarding/modelListProb
 import { isJsonRecord, mergeHeadersCaseInsensitive } from '../jsonUtils'
 import { desktopT } from '../i18n'
 import { providerProxyUrl } from '../providerNetwork'
+import { isBuiltinDirectKeyVendor, builtinVendorSeed } from './builtinVendorSeeds'
+import { probeDirectKeyCredential, promoteDirectKeyVendor } from './directKeyCredential'
 
 /** Return whether verification is pending; explicit auth rejection throws without publishing the candidate. */
 export async function validateCandidateCredential(vendor: Vendor, apiKey: string): Promise<boolean> {
   if (!apiKey || !vendor.baseUrlHint || vendor.authType === 'none') {
     throw new Error(desktopT('credential.validationUnavailable'))
+  }
+  // direct-key 供应商（apimart）：代码拥有的 livenessProbe 才是诚实的 key 判据。
+  // /v1/models 探测对 apimart 恒 401（vendorBaseFallback.ts 注释），把它当「key 无效」
+  // 是 2026-09-10 走查的回归根因。见 directKeyCredential.ts 顶部说明。
+  if (isBuiltinDirectKeyVendor(vendor.key) && builtinVendorSeed(vendor.key)?.livenessProbe) {
+    const outcome = await probeDirectKeyCredential(vendor, apiKey)
+    if (outcome === 'invalid-key') throw new Error(desktopT('credential.invalid'))
+    return outcome === 'pending'
   }
   const providerKind = normalizeProviderKind(vendor.providerKind)
   const authType = vendor.authType || (providerKind === 'anthropic' ? 'x-api-key' : 'bearer')
@@ -51,6 +61,13 @@ export async function revalidatePendingCredential(vendorKey: string): Promise<vo
     if (snapshot !== candidateCredentialSnapshot(vendorKey)) throw new Error(desktopT('credential.changed'))
     if (pending) throw new Error(desktopT('credential.revalidationUnavailable'))
     mutateCatalog((_tx, current) => { delete current.apiKeysByVendor[vendorKey].verificationPending })
+    // pending→verified 的转正：direct-key 凭据存进来时是 enabled:false（诚实门要求
+    // 未验证先不发布），复检通过后凭据与 vendor 一起发布——只清 pending 不发布，
+    // 用户会卡在「验证过了但模型还是不出现」的半截状态。
+    if (isBuiltinDirectKeyVendor(vendorKey)) {
+      mutateCatalog((_tx, current) => { const record = current.apiKeysByVendor[vendorKey]; if (record) record.enabled = true })
+      promoteDirectKeyVendor(vendorKey)
+    }
     for (const window of BrowserWindow.getAllWindows()) if (!window.isDestroyed()) window.webContents.send('nomi:model-catalog:changed')
   })()
   pendingProbes.set(vendorKey, { snapshot, promise })

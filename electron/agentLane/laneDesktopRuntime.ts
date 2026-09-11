@@ -136,7 +136,9 @@ export function createDesktopLaneDependencies(surface: DesktopCanvasReadRuntime,
         const { openDesktopLaneWorkspace } = createRequire(__filename)('./laneNativeLoader.cjs') as { openDesktopLaneWorkspace: OpenDesktopLaneWorkspace }
         workspace = await openDesktopLaneWorkspace({ projectDir, fetch: appFetch,
           native: { settingsRoot: getSettingsRoot(), skills: readSkillRecords().filter(isSkillSelectableInWorkbench) },
-          systemPrompt: [buildLanguageRule(), NOMI_AGENT_IDENTITY, memory].filter(Boolean).join('\n\n'),
+          // 给函数不给快照：回复语言铁律跟界面语言走，用户中途在设置里切了语言，
+          // 这条已经开着的 lane 下一个回合就该改口，而不是等冷启动（2026-09-11 走查）。
+          systemPrompt: () => [buildLanguageRule(), NOMI_AGENT_IDENTITY, memory].filter(Boolean).join('\n\n'),
           tools: ports.tools, toolLifecycle: ports.toolLifecycle, input,
           tasks: tasks.resolve,
           approval: { hasUserInterface: true, policy: () => composer.approvalPolicy },

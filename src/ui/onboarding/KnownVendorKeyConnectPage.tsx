@@ -15,6 +15,7 @@ export function KnownVendorKeyConnectPage({
   modelCount,
   hasApiKey = false,
   credentialVerificationPending = false,
+  curatedModelsPublished = false,
   onBack,
   onSaved,
   onContinueVerification,
@@ -29,6 +30,13 @@ export function KnownVendorKeyConnectPage({
    */
   hasApiKey?: boolean
   credentialVerificationPending?: boolean
+  /**
+   * 该供应商的预置模型**此刻**已经在可用列表里（凭据 enabled → vendor 未被 de-publish，
+   * 见 electron/catalog/credentialPublication.ts：凭据停用必然连带 vendor 停用，
+   * 故「vendor.enabled && hasApiKey」就是「模型已发布」的同一个判据，不是第二份真相）。
+   * direct-key 供应商（apimart）填完 key 即到这个状态；certification 供应商要走完认证才到。
+   */
+  curatedModelsPublished?: boolean
   onBack: () => void
   onSaved: () => void
   onContinueVerification: () => void
@@ -177,6 +185,8 @@ export function KnownVendorKeyConnectPage({
                 <div className="text-body-sm font-semibold text-nomi-ink">
                   {verificationPending
                     ? t('onboardingProviders.keyOnly.offlineTitle')
+                    : curatedModelsPublished
+                    ? t('onboardingProviders.keyOnly.publishedTitle', { name: vendorName })
                     : hasApiKey && apiKey === ''
                     ? t('onboardingProviders.keyOnly.pendingTitle', { name: vendorName })
                     : t('onboardingProviders.keyOnly.savedTitle', { name: vendorName })}
@@ -184,6 +194,8 @@ export function KnownVendorKeyConnectPage({
                 <p className="mt-1 text-caption leading-relaxed text-nomi-ink-60">
                   {verificationPending
                     ? t('onboardingProviders.keyOnly.offlineHint')
+                    : curatedModelsPublished
+                    ? t('onboardingProviders.keyOnly.publishedHint', { count: modelCount })
                     : hasApiKey && apiKey === ''
                     ? t('onboardingProviders.keyOnly.pendingHint')
                     : t('onboardingProviders.keyOnly.savedHint')}

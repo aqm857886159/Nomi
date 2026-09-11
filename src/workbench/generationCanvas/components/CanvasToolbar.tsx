@@ -267,6 +267,12 @@ type CanvasToolbarProps = {
 
 /** hover 展开的延迟：短到顺手、长到不会「路过就弹」。 */
 const MORE_MENU_HOVER_DELAY_MS = 200
+/**
+ * hover 收起的延迟 = `--nomi-duration-fast`（140ms，与全局过渡同一档）。
+ * 它不是「让缝隙来得及穿过去」的补丁——几何已经由下面那条 hover 容器管死了；
+ * 它兜的是「指针在容器边界上抖一帧」和「菜单比工具条还高时顶部那一小段」。
+ */
+const MORE_MENU_CLOSE_DELAY_MS = 140
 
 export default function CanvasToolbar({ getInsertionPosition, categoryId }: CanvasToolbarProps): JSX.Element {
   const { t } = useTranslation()
@@ -276,14 +282,25 @@ export default function CanvasToolbar({ getInsertionPosition, categoryId }: Canv
   const preference = useCanvasMenuPreferenceStore((state) => state.preference)
   React.useEffect(() => { void useCanvasMenuPreferenceStore.getState().load().catch(() => {}) }, [])
   const [moreOpen, setMoreOpen] = React.useState(false)
-  const hoverTimerRef = React.useRef<number | null>(null)
+  const openTimerRef = React.useRef<number | null>(null)
+  const closeTimerRef = React.useRef<number | null>(null)
 
-  const clearHoverTimer = React.useCallback(() => {
-    if (hoverTimerRef.current === null) return
-    window.clearTimeout(hoverTimerRef.current)
-    hoverTimerRef.current = null
+  const clearOpenTimer = React.useCallback(() => {
+    if (openTimerRef.current === null) return
+    window.clearTimeout(openTimerRef.current)
+    openTimerRef.current = null
   }, [])
-  React.useEffect(() => clearHoverTimer, [clearHoverTimer])
+  const clearCloseTimer = React.useCallback(() => {
+    if (closeTimerRef.current === null) return
+    window.clearTimeout(closeTimerRef.current)
+    closeTimerRef.current = null
+  }, [])
+  const closeMore = React.useCallback(() => {
+    clearOpenTimer()
+    clearCloseTimer()
+    setMoreOpen(false)
+  }, [clearCloseTimer, clearOpenTimer])
+  React.useEffect(() => () => { clearOpenTimer(); clearCloseTimer() }, [clearCloseTimer, clearOpenTimer])
 
   const handleAddNode = (kind: GenerationNodeKind) => {
     addNode({ kind, position: getInsertionPosition(), categoryId })
@@ -297,7 +314,7 @@ export default function CanvasToolbar({ getInsertionPosition, categoryId }: Canv
   })
 
   const handlePick = (intent: CanvasAddIntent) => {
-    setMoreOpen(false)
+    closeMore()
     if (intent.kind) handleAddNode(intent.kind)
     else picker.open()
   }
@@ -312,8 +329,21 @@ export default function CanvasToolbar({ getInsertionPosition, categoryId }: Canv
         'max-h-[calc(100%-32px)]',
       )}
       aria-label={t('canvas.toolbar')}
+      // hover 容器 = **整条工具条**（菜单与它的间隙桥都是它的 DOM 后代，故指针在
+      // 「工具条 ∪ 间隙桥 ∪ 菜单」这块连通区域里移动时一个 pointerleave 都不会发）。
+      // 2026-09-11 走查根因：容器原来只有「更多」那颗 32×32 的按钮，而菜单向上高出它
+      // 133px——指针从按钮斜着奔顶部那一项，必然先离开按钮上沿、又还没进菜单左沿，
+      // 落在工具条上的空白点就被立刻判成 pointerleave 关掉。把容器换成本来就覆盖菜单
+      // 全高的工具条后，起点与终点都在同一块凸区域里，直线段全程在内：斜着走、慢走、
+      // 快走都不再有「缝」可掉。P1：原来那条 8px `before` 桥同 commit 删掉，不留两套。
+      onPointerEnter={clearCloseTimer}
+      onPointerLeave={() => {
+        clearOpenTimer()
+        clearCloseTimer()
+        closeTimerRef.current = window.setTimeout(() => setMoreOpen(false), MORE_MENU_CLOSE_DELAY_MS)
+      }}
       onKeyDown={(event) => {
-        if (event.key === 'Escape') setMoreOpen(false)
+        if (event.key === 'Escape') closeMore()
       }}
     >
       {picker.input}
@@ -350,14 +380,14 @@ export default function CanvasToolbar({ getInsertionPosition, categoryId }: Canv
             <span className="my-0.5 h-px w-5 shrink-0 bg-nomi-line" aria-hidden="true" />
             <div
               className="relative"
+              // 只管**开**：进这颗按钮（或已展开的菜单）才展开。收起归工具条那层管——
+              // 收起判据一旦跟着这颗 32×32 的按钮走，就又回到「按几何缝隙判定」的老路。
               onPointerEnter={() => {
-                clearHoverTimer()
-                hoverTimerRef.current = window.setTimeout(() => setMoreOpen(true), MORE_MENU_HOVER_DELAY_MS)
+                clearCloseTimer()
+                clearOpenTimer()
+                openTimerRef.current = window.setTimeout(() => setMoreOpen(true), MORE_MENU_HOVER_DELAY_MS)
               }}
-              onPointerLeave={() => {
-                clearHoverTimer()
-                setMoreOpen(false)
-              }}
+              onPointerLeave={clearOpenTimer}
             >
               <button
                 type="button"
@@ -373,23 +403,35 @@ export default function CanvasToolbar({ getInsertionPosition, categoryId }: Canv
                   '[&>svg]:size-[18px] [&>svg]:stroke-[1.8]',
                 )}
                 onClick={() => {
-                  clearHoverTimer()
+                  clearOpenTimer()
+                  clearCloseTimer()
                   setMoreOpen((open) => !open)
                 }}
               >
                 <IconPlus size={18} stroke={1.6} />
               </button>
               {moreOpen ? (
+                // 间隙桥：`left-full` + `pl-2` 把「按钮右沿 → 菜单左沿」那 8px 视觉空隙补成
+                // hit-area，且**沿菜单全高**，不再只补按钮那条 32px 横带。它是菜单的父层而不是
+                // 伪元素，高度天然等于菜单高度，菜单加几项都不会漏；也刻意不往左盖住工具条本体，
+                // 免得菜单开着时把上面几颗常驻钮的点击吞掉。
                 <div
-                  className={cn(
-                    'generation-canvas-v2-toolbar__more-menu',
-                    'absolute bottom-0 left-[calc(100%+8px)] z-[9] grid gap-0.5 w-[148px] p-[6px]',
-                    'border border-workbench-border rounded-nomi bg-nomi-paper shadow-workbench-pop',
-                  )}
-                  role="menu"
-                  aria-label={t('canvas.moreMenu')}
+                  className="absolute bottom-0 left-full z-[13] pl-2"
+                  data-canvas-more-hover-bridge="true"
                 >
-                  <CanvasAddSectionList sections={canvasMoreAddSections(preference)} onPick={handlePick} />
+                  <div
+                    className={cn(
+                      'generation-canvas-v2-toolbar__more-menu',
+                      // 2026-09-10 走查反馈：菜单 z-[9] 会被节点 composer（z-[8] 同层后挂）
+                      // 和节点浮条（z-[12]）盖住，hover「＋」点不到菜单项——提到浮条之上。
+                      'relative z-[13] grid gap-0.5 w-[148px] p-[6px]',
+                      'border border-workbench-border rounded-nomi bg-nomi-paper shadow-workbench-pop',
+                    )}
+                    role="menu"
+                    aria-label={t('canvas.moreMenu')}
+                  >
+                    <CanvasAddSectionList sections={canvasMoreAddSections(preference)} onPick={handlePick} />
+                  </div>
                 </div>
               ) : null}
             </div>

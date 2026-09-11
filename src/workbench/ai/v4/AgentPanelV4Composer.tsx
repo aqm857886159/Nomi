@@ -30,7 +30,7 @@ import {
   IconPlus,
   IconX,
 } from './AgentPanelV4Icons'
-import { approvalPolicyForTier, maxComposerHeight, useComposerHeight, shouldSubmitComposer } from './agentPanelV4Logic'
+import { approvalPolicyForTier, maxComposerHeight, rowsFromContentHeight, useComposerHeight, shouldSubmitComposer } from './agentPanelV4Logic'
 import type { ComposerMode, ComposerPopover, PermissionTier, V4Chip } from './agentPanelV4Types'
 import { DEFAULT_PERMISSION_TIER, PERMISSION_TIERS } from './agentPanelV4Types'
 
@@ -124,7 +124,36 @@ export function AgentPanelV4Composer({
   inputRef,
 }: AgentPanelV4ComposerProps): JSX.Element {
   const { t } = useTranslation()
-  const rows = Math.max(1, value.split('\n').length)
+  const hardRows = Math.max(1, value.split('\n').length)
+  // 2026-09-10 走查反馈：硬换行之外，长句软换行（wrap）也要算行——把 textarea 瞬时压扁
+  // 再读 scrollHeight（useLayoutEffect 在绘制前完成，无闪烁），拿到的是纯内容高度。
+  // 行数仍然走同一套 useComposerHeight 规则，不另起高度真相源。
+  //
+  // 2026-09-11 走查根因：光写 `height:0` 量不出来。这个 textarea 是 flex 列容器里的
+  // **拉伸项**（`flex-1` = `flex:1 1 0%`），主轴尺寸由 flex-basis 与剩余空间决定，
+  // 行内 height 根本不生效——`scrollHeight` 回的是「它被撑开后的自身高度」，于是删字
+  // 时算出来的行数只增不减，框成了只涨不落的棘轮（清空后仍卡在 158px）。
+  // 所以量之前必须先让它**脱离父布局的约束**：`flex:0 0 auto` + `height:0`，量完原样还原。
+  const textareaRef = React.useRef<HTMLTextAreaElement | null>(null)
+  const [measuredRows, setMeasuredRows] = React.useState(hardRows)
+  React.useLayoutEffect(() => {
+    const el = textareaRef.current
+    if (!el) return
+    const measure = (): void => {
+      const previousFlex = el.style.flex
+      const previousHeight = el.style.height
+      el.style.flex = '0 0 auto'
+      el.style.height = '0px'
+      setMeasuredRows(rowsFromContentHeight(el.scrollHeight))
+      el.style.flex = previousFlex
+      el.style.height = previousHeight
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [value])
+  const rows = Math.max(hardRows, measuredRows)
   const chipRows = chips?.length ? 1 : 0
   const height = useComposerHeight(panelHeight, dock ? 'dock' : mode, rows, chipRows)
   // 高度是**下限 + 上限**，不是写死值：`height` 是规则算出来的自然高（一行 86px、逐行长），
@@ -176,7 +205,11 @@ export function AgentPanelV4Composer({
         </div>
       ) : null}
       <textarea
-        ref={inputRef}
+        ref={(el) => {
+          textareaRef.current = el
+          if (typeof inputRef === 'function') inputRef(el)
+          else if (inputRef) (inputRef as React.MutableRefObject<HTMLTextAreaElement | null>).current = el
+        }}
         value={value}
         readOnly={!onValueChange}
         onChange={(event) => onValueChange?.(event.target.value)}
@@ -245,6 +278,10 @@ export function AgentPanelV4Composer({
           {t('agentPanelV4.skill')}
         </V4Row>
 
+        {/* 2026-09-10 走查反馈：权限+发送两钮会跟着模型名长度左右漂——定稿本就画了
+            「Skill …… 权限」之间的推开的空档，这里把空档落成 flex-1 spacer，
+            右簇（权限/发送）永远右锚定，左簇宽度再怎么变也只向左生长。 */}
+        <span className="min-w-0 flex-1" aria-hidden="true" />
         <V4Row as="button"
           type="button"
           onClick={() => onTogglePopover?.('permission')}

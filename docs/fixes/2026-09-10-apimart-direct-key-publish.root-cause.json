@@ -1,0 +1,126 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-10-apimart-direct-key-publish",
+  "problem_type": "回归（假阴性双联症）：direct-key 供应商的 key 明明可用，目录却把它藏起来；验证判据用错了端点，把「探测端点不可达」误报成「key 无效」",
+  "symptom": "2026-09-10 用户真机走查：①在设置里写入 apimart key 后，模型不再像以前一样一次性全部出现在选择器与 agent 可用清单里——模型列表整个消失，但直连生成实际可用；②key 验证转圈约 12 秒后报全部失败。",
+  "direct_cause": "两条链叠加。①electron/catalog/rendererCatalogMutation.ts 的 sanitizeRendererVendorApiKeyMutation 把渲染层 key 写入强制成 enabled:false + verificationPending（「key 永不晋升 vendor」诚实门），而 electron/catalog/credentialPublication.ts 的 depublishVendorForDisabledCredential 会把凭据停用的 vendor 整体 de-publish——direct-key 供应商（apimart，credentialMode:'direct-key'，设计契约是「填 key 即解锁全部预置模型」，见 electron/catalog/apimartVendor.ts:28 与 builtinVendorSeeds.ts:42-45）没有认证晋升通路，于是 key 落盘即被永久藏住，generationProviderBootstrap.ts:106-112 还要求 credential.enabled===true 才建 provider。②validateCandidateCredential.ts 用 GET {baseUrl}/v1/models 的可达性当 key 有效性判据，apimart 对该端点回 401（vendorBaseFallback.ts:153 注释已确认）→ 12s 超时/401 → 验证恒失败。",
+  "class_root": "凭据「什么时候算可用」的判据与「什么时候发布」的动作都写死在 certification 供应商的流程形状上：certification 的晋升唯一归认证会话所有（这是 2026-09-01 honesty 合同的正确不变量），但 direct-key 供应商的「认证」就是代码拥有的契约本身（builtinVendorSeeds 里的 immutable seed），它既没有自己的验证判据（被动复用了对它不成立的 /v1/models 探测），也没有自己的发布通路（被动落进「渲染层写入一律停用」的诚实门）。任何「按凭据模式分派行为」的边界缺一个分支，direct-key 就会继承一个对它必然错误的默认。",
+  "migration": "无旧实现可删——这是给 direct-key 分支补上它应有的两条路（验证判据 + 发布动作），certification 供应商的路径与 2026-09-01 honesty 不变量一字未动（rendererCatalogMutation.test.ts 的停用/停发布用例原样通过）。新增 electron/catalog/directKeyCredential.ts 承载这两条路，validateCandidateCredential.ts 与 rendererCatalogMutation.ts 各加一个按 credentialMode 分派的分支。",
+  "affected_population": [
+    "每一个 isBuiltinDirectKeyVendor(vendorKey) 为真的内置供应商（当前 = apimart）：其用户写入的 key 必须能通过验证并发布 curated 模型，而不是被认证独占的诚实门永久藏住",
+    "所有 certification 供应商：行为不变——渲染层 key 写入仍然恒停用、仍然 de-publish vendor、验证仍走 /v1/models 判据；direct-key 分支不构成绕过面"
+  ],
+  "scope_paths": [
+    "electron/catalog/directKeyCredential.ts",
+    "electron/catalog/validateCandidateCredential.ts",
+    "electron/catalog/rendererCatalogMutation.ts",
+    "electron/catalog/builtinVendorSeeds.ts"
+  ],
+  "entry_points": [
+    "validateCandidateCredential (electron/catalog/validateCandidateCredential.ts) — 所有 key 验证的唯一汇合点：存 key 前的预检（upsertRendererCatalogVendorApiKey）与首用前的复检（revalidatePendingCredential）都走它；direct-key 分支在此分派到 livenessProbe 判据",
+    "upsertRendererCatalogVendorApiKey (electron/catalog/rendererCatalogMutation.ts) — 渲染层凭据写入的唯一 IPC 汇合点（nomi:model-catalog:vendor-api-key:upsert）；direct-key verified 时在此写 enabled:true 并调 promoteDirectKeyVendor",
+    "probeDirectKeyCredential / promoteDirectKeyVendor (electron/catalog/directKeyCredential.ts) — direct-key 的两条正路：验证 = 种子代码拥有的 livenessProbe（与每周雷达 scripts/model-liveness.ts 同一声明同一成功判据）；发布 = 三守卫（scope 匹配 + 无认证占用 + curated 契约在）通过才翻 vendor.enabled"
+  ],
+  "invariants": [
+    "direct-key 供应商的验证判据只能是种子声明里代码拥有的 livenessProbe，绝不能是对外 /v1/models 端点的可达性——该端点对部分聚合商（apimart 已证实）恒 401，可达性 ≠ key 有效性",
+    "direct-key 凭据只有验证 verified 才发布（凭据 enabled:true + vendor 重新 enable）；pending（网络/上游抖动）必须诚实保持停用 + verificationPending，绝不伪装可用——2026-09-01 honesty 不变量（凭据停用 ⇒ vendor de-publish）对 direct-key 同样成立，只是新增了 verified 这条正路",
+    "promoteDirectKeyVendor 的三守卫（builtinVendorScopeMatches + 无认证占用 adapter + hasBuiltinCuratedExecution）缺一不 promote：用户改过 baseUrl 或契约漂移时，验证通过的 key 也只能发布凭据、绝不能发布 vendor",
+    "渲染层传入的 enabled 永远不算数（sanitizeRendererVendorApiKeyMutation 恒 false、manualCertificationBoundary.test.ts 继续锁死）；direct-key 的启用决策只由主进程验证结果做出"
+  ],
+  "regression_tests": [
+    "electron/catalog/directKeyCredential.test.ts"
+  ],
+  "residual_risks": [
+    "livenessProbe 验证每次存 key 消耗一次 max_tokens:1 的真实调用（apimart: POST /api/v1/chat/completions）——这是有意的：它就是唯一诚实的「key 能出活」证据；探测模型取该 vendor 第一个启用的模型（directKeyProbeModelId），若种子模型全被用户停用则探测 pending，不误报",
+    "探测未走 vendor 的自定义代理配置（probeDirectKeyCredential 直连 fetch）——代理用户的验证可能 pending；首用前的 revalidatePendingCredential 与真实生成仍走完整网络栈，错误会在那里如实暴露",
+    "pending→verified 转正（revalidatePendingCredential）依赖下次首用前探测成功；若供应商长期网络不可达，凭据保持停用——这是诚实门的正确行为，不是新风险"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "验证判据对齐的是仓库内已核验的一手证据：apimart 对 GET /v1/models 回 401 的事实记录在 electron/vendor/vendorBaseFallback.ts:153 注释（2026-09-08 前后实测），livenessProbe 声明（POST /api/v1/chat/completions，successPath choices.0）带官方文档出处与核对日期（electron/catalog/apimartVendor.ts:29-33，source url docs.apimart.ai，checkedAt 2026-09-08），种子契约与 direct-key 语义见 docs/plan/2026-06-07-apimart-curated-onboarding.md。发布路径对齐的内部设计是 builtinVendorSeeds.ts:42-45 的 credentialMode 契约注释与 2026-09-01 credential-enable-honesty 根因合同（本修复显式继承其不变量而非放宽它）。",
+  "invariant_owner_layer": {
+    "layer": "electron/catalog/directKeyCredential.ts",
+    "tests": [
+      "electron/catalog/directKeyCredential.test.ts"
+    ]
+  },
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "「按凭据模式分派验证与发布行为」的边界漏一个分支，是一类会复发的结构问题：内置供应商清单（builtinVendorSeeds）是活的，下一个 direct-key 种子（或现有种子新增凭据模式）会再次被动继承 certification 形状的默认判据与默认停用。修法不是给 apimart 打供应商名补丁，而是在验证与发布的唯一汇合点各加一个按 credentialMode 分派的分支，并把 direct-key 的判据/守卫收进单一 owner 文件。",
+    "same_class_scan": [
+      "grep validateCandidateCredential 全仓：调用方仅 upsertRendererCatalogVendorApiKey（存 key 预检）与 revalidatePendingCredential（首用前复检）两处（electron/catalog/validateCandidateCredential.ts:12,50），两条路都经新分支受益，无第三条绕行",
+      "grep credentialModeForVendor / isBuiltinDirectKeyVendor 全仓：消费点为 builtinVendorSeeds.ts:101（定义）、generationProviderBootstrap.ts:57,63（provider 侧已按 direct-key 分派——provider 侧的分支本来就在，唯独 catalog 侧验证/发布缺分支，本次补齐后两侧对称）",
+      "grep livenessProbe 全仓：声明只有 builtinVendorSeeds.ts:48（类型）与 apimartVendor.ts:29（唯一实例），执行端原有 scripts/model-liveness.ts（每周雷达，独立进程）；主进程验证侧此前无消费者，本次成为第二个消费方且复用同一声明，无并行声明"
+    ]
+  },
+  "generality_proof": "修在两个唯一汇合点上：validateCandidateCredential 是全部 key 验证（预检+复检）的必经函数，upsertRendererCatalogVendorApiKey 是全部渲染层凭据写入的必经 IPC 边界。分支判据用 isBuiltinDirectKeyVendor(vendor.key) + 种子 livenessProbe 是否存在（数据驱动，不写供应商名），因此下一个 direct-key 种子只要声明了 livenessProbe 就自动获得正确的验证判据与发布通路；发布守卫（scope/无认证占用/curated 契约）全部从运行时 bootstrap 的同名判据（hasSafeDirectKeyScope / hasBuiltinCuratedExecution）复用同一真相源，契约漂移 fail-closed。certification 供应商在这两处的行为逐字节不变（rendererCatalogMutation.test.ts 原用例全绿证明）。",
+  "shared_boundaries": [
+    {
+      "path": "electron/catalog/directKeyCredential.ts",
+      "symbol": "probeDirectKeyCredential + promoteDirectKeyVendor",
+      "responsibility": "direct-key 凭据的验证判据与发布动作的唯一 owner：验证 = 种子 livenessProbe（401/403=invalid-key throw、200+successPath=verified、其余=pending），发布 = 三守卫（scope 匹配 + 无认证占用 + curated 契约在）全过才翻 vendor.enabled"
+    },
+    {
+      "path": "electron/catalog/validateCandidateCredential.ts",
+      "symbol": "validateCandidateCredential",
+      "responsibility": "全部 key 验证的唯一汇合点：按 credentialMode 分派——direct-key 走 livenessProbe 判据，certification 维持 /v1/models 判据；并负责 pending→verified 转正时同步发布凭据与 vendor"
+    },
+    {
+      "path": "electron/catalog/rendererCatalogMutation.ts",
+      "symbol": "upsertRendererCatalogVendorApiKey",
+      "responsibility": "渲染层凭据写入的唯一 IPC 边界：direct-key verified 时写凭据 enabled:true 并 promote vendor；渲染层传入的 enabled 永远忽略，启用决策只由主进程验证结果做出"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/catalog/directKeyCredential.test.ts",
+      "entry_point": "direct-key 凭据验证与发布回归闸（probe 200=verified / 401,403=throw / 网络=pending / verified 发布凭据+vendor / pending 诚实停用 / scope 漂移 fail-closed）",
+      "disposition": "enforced",
+      "evidence": "7 条用例全部驱动真实 catalogStore（临时 userData 目录 + 真实内置种子）：verified 用例断言凭据 enabled:true、无 verificationPending、vendor.enabled 翻真三件事同一次写入发生；pending 用例断言凭据停用 + verificationPending 且 vendor 保持未发布（诚实门对 direct-key 成立）；scope 漂移用例把 baseUrlHint 改指 evil.example 后断言验证通过也只发布凭据、绝不发布 vendor。"
+    },
+    {
+      "path": "electron/catalog/rendererCatalogMutation.test.ts",
+      "entry_point": "writes the credential disabled-pending-certification… / network failure saves the candidate… / 401,403 never overwrites…（certification 路径回归闸）",
+      "disposition": "not-affected",
+      "evidence": "certification 供应商（测试里的 relay）三条原用例在本次改动后原样通过：停用写入、pending 标记、401/403 拒绝覆盖的形状逐字节不变——诚实门没有被 direct-key 分支撕开绕行口"
+    },
+    {
+      "path": "electron/capabilityCore/generationProviderBootstrap.ts",
+      "entry_point": "createGenerationProviderBootstrap（apimart provider 的 credential.enabled===true + vendor.enabled + hasBuiltinCuratedExecution 检查，:101-112 与 resolveConnection :119-134）",
+      "disposition": "not-affected",
+      "evidence": "bootstrap 的守卫一字未改；本次发布通路产出的正是它在等的标志组合（凭据 enabled + vendor enabled + curated 契约在），generationProviderBootstrap.test.ts 226-250 的 direct-key fail-closed 用例（endpoint 漂移拒绝建 provider）原样通过——发布侧与运行时侧的守卫对称"
+    },
+    {
+      "path": "electron/catalog/credentialPublication.test.ts",
+      "entry_point": "applyApiKeyUpsert → depublishVendorForDisabledCredential 的全部继承用例（渲染层 IPC / mutateCatalog 事务 / 整包导入）",
+      "disposition": "not-affected",
+      "evidence": "全部通过：direct-key 的 verified 发布写的是 enabled:true（构造上不触发停用守卫，与 promote 家族同一排除机制）；pending 路径写 enabled:false + verificationPending，de-publish 照常生效（directKeyCredential.test.ts 的 pending 用例断言 vendor 保持未发布）——诚实门对两种凭据模式都成立"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/catalog/directKeyCredential.ts",
+    "invariant": "direct-key 凭据的验证判据只能是种子代码拥有的 livenessProbe，发布只能走三守卫（scope 匹配 + 无认证占用 + curated 契约在）的 promoteDirectKeyVendor；任何新的 direct-key 种子自动继承，任何 certification 供应商自动排除",
+    "failure_mode": "绕过者（新的验证入口或发布路径）必须显式调用 directKeyCredential.ts 之外的探测/发布逻辑，directKeyCredential.test.ts 的 scope 漂移与 pending 诚实停用用例 + rendererCatalogMutation.test.ts 的 certification 停用用例会把形状漂移钉红；contract 检查器把三个 touched 高危文件与本合同绑定，再动这片必须有新合同",
+    "exception_policy": "none",
+    "strategy": "按 credentialMode 分派收进单一 owner 文件：验证与发布各留一个入口，判据全部从 immutable seed 与运行时 bootstrap 复用（零新真相源），供应商名永不进分支条件",
+    "artifacts": [
+      "electron/catalog/directKeyCredential.ts",
+      "electron/catalog/validateCandidateCredential.ts",
+      "electron/catalog/rendererCatalogMutation.ts",
+      "electron/catalog/directKeyCredential.test.ts"
+    ]
+  },
+  "class_regression_tests": [
+    "electron/catalog/directKeyCredential.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "无旧实现可删：direct-key 此前根本没有自己的验证判据与发布通路（被动继承 certification 形状的默认），本次是新增分支而非替换并行版；certification 侧代码路径与测试一字未动"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "无第三方依赖新增/升级/保留；livenessProbe 判据与 HTTP 构造复用仓库内既有模块（requestPipeline 的 buildHttpRequest、jsonUtils 的 readNestedRecord）",
+    "exit_criteria": []
+  }
+}
