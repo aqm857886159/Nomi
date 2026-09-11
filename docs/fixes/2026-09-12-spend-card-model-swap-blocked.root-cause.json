@@ -1,0 +1,139 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-12-spend-card-model-swap-blocked",
+  "change_kind": "corrective",
+  "problem_type": "一道**防 agent 偷换身份**的白名单，拦住的却是**真人在付费卡上亲手做的那个选择**——因为白名单只认「身份变了没有」，不区分这一下是谁按的",
+  "symptom": "用户在 Agent 面板的付费确认卡上把模型 chip 换成另一个模型，然后按「生成」，弹出的是一句「制作合同暂不能批准：模型「image-model-pro」未加入白名单」。他做的只是在下拉里选了另一个模型——那个下拉本来就是我们给他的。#748 记的就是这一条",
+  "direct_cause": "Run 的 policy 在**建草稿那一刻**从候选身份冻下来（electron/productionRun/productionGenerationOperationStore.ts:86-90：`allowedProviders/allowedModels` = 候选与各镜候选的并集）。`generation.revise` 把新的 modelId 落进候选，却没有动 policy；提交前 assertProductionPolicyReady（electron/productionRun/productionPolicyReadiness.ts:63）拿 job 的 provider/model 去比那张冻好的表，新模型自然不在表里，于是抛 ProductionPolicyIncompleteError",
+  "class_root": "同一道闸被两种来源共用，而闸的判据里没有「谁按的」这一维。policy 冻结防的是**后续命令偷偷换掉 host/provider/model**——那条威胁的主体是 agent（agent 改候选走 `generation.patch`）。付费卡上那一下是**真人**按的：`generation.revise` 这条命令只有一个入口（渲染层付费卡 → IPC `nomi:production-runs:revise-spend` → appIntegrationSpendConfirm），有窗口代表真人。把这两种来源塞进同一个判据，结果必然二选一：要么放行 agent 偷换（不可接受），要么拦住真人自己的选择（现状）。正解是让判据认来源——在**只有真人能到达的那条命令**上，把他亲手选中的身份认进白名单",
+  "affected_population": [
+    "在 Agent 面板付费确认卡上换模型再按「生成」的所有用户——卡上那个模型下拉从上线第一天起就是死的：换了必被拒，一分钱也花不出去",
+    "多镜草稿里只改其中一镜模型的用户：整批一起被拒，不是只拒那一镜",
+    "连带地，任何想『agent 提了个模型、我换成我信得过的那个再付钱』的用户——这恰好是付费确认卡存在的理由本身"
+  ],
+  "scope_paths": [
+    "electron/productionRun/productionGenerationPlanEdits.ts",
+    "electron/productionRun/productionRunReducer.ts",
+    "electron/productionRun/generationRevise.test.ts",
+    "electron/capabilityCore/agentPanelSpendConfirm.e2e.test.ts",
+    "electron/productionRun/productionPolicyReadiness.ts"
+  ],
+  "entry_points": [
+    "electron/productionRun/productionRunReducer.ts — `generation.revise` 分支（draft 态与「已封印 + 付费门在等」两条路），付费卡改动落进 durable 候选的唯一入口",
+    "electron/productionRun/productionRunReducer.ts — `generation.patch` 分支：**agent** 改候选走的那条，本轮一个字没改（那道防 agent 的闸留在原处）",
+    "electron/productionRun/productionPolicyReadiness.ts — assertProductionPolicyReady，提交前拿 job 身份比白名单的那一处判据",
+    "electron/productionRun/productionGenerationOperationStore.ts — create()，白名单被冻下来的那一刻"
+  ],
+  "invariants": [
+    "白名单放行的边界是「真人在卡上亲手选中的身份」：只有 `generation.revise`（唯一真人入口）能把身份认进白名单，且只认**同一镜、同一任务类别**（candidate.mode）下换掉的 provider/model",
+    "跨任务类别（图 → 视频）不放行，凭空多出来的镜不放行——那换掉的是整个花钱量级，不叫「改一下」，fail-closed",
+    "agent 的 `generation.patch` 一个字都不放行：它改了候选，白名单原样不动，提交时照旧被拦",
+    "放行的只是**判据里的身份**，不是那笔钱：maxSpend、收据、决门、封印一个都不动；换完仍要重新计价、重新出卡、重新由真人按一次",
+    "旧身份不被顶掉（白名单是并集），用户换出去还能换回来"
+  ],
+  "generality_proof": "放行逻辑收成一个纯函数 policyAdmittingUserRevisedIdentity(policy, before, after)，与它的逆向配套（applyGenerationCandidatePatch）同住 electron/productionRun/productionGenerationPlanEdits.ts。它按「镜」逐份比对改动前后的候选身份（顶层那份用 `@plan` 寻址，它是单镜旧形态的默认镜），因此单镜与多镜、draft 与「已封印+门在等」两条 revise 路径走的是同一段代码——reducer 里两处 return 各调它一次，不存在「一条路修了另一条忘了」。放行的判据只有一条且是结构性的：`before` 里找得到同一把钥匙、且 mode 相同。找不到（新镜）或 mode 变了（换了花钱量级）就原样返回 policy。未加宽时返回的是**同一个对象引用**，所以「只改参数不动身份 → policy 一个字节没变」是可断言的事实而不是约定",
+  "shared_boundaries": [
+    {
+      "path": "electron/productionRun/productionGenerationPlanEdits.ts",
+      "symbol": "policyAdmittingUserRevisedIdentity",
+      "responsibility": "「真人在卡上换掉的身份算不算数」这条判据的唯一持有者。两条 revise 路径都只能经它加宽白名单；它自己不碰钱、不碰门、不碰封印"
+    },
+    {
+      "path": "electron/productionRun/productionPolicyReadiness.ts",
+      "symbol": "assertProductionPolicyReady",
+      "responsibility": "提交前比白名单的唯一判据，本轮一字未改——闸没有被削弱，只是喂给它的那张表把真人亲手选的那一项算了进去"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/productionRun/productionRunReducer.ts",
+      "entry_point": "`generation.revise` · draft 态（草稿还没封印，用户在卡上改）",
+      "disposition": "enforced",
+      "evidence": "改为 policy: policyAdmittingUserRevisedIdentity(...) 后再落候选补丁。generationRevise.test.ts「换成同类别的另一个模型 → 白名单当场认它」"
+    },
+    {
+      "path": "electron/productionRun/productionRunReducer.ts",
+      "entry_point": "`generation.revise` · 已封印 + 付费门在等（撤旧授权后重开）",
+      "disposition": "enforced",
+      "evidence": "同一个函数、同一处判据。generationRevise.test.ts「已封印 + 门在等时换模型：撤门回 draft 的同时也把新模型认了」，并同时断言 state 退回 draft、authorizationDigest 清空、maxSpend 不变——放行的不是那笔钱"
+    },
+    {
+      "path": "electron/productionRun/productionRunReducer.ts",
+      "entry_point": "`generation.patch`（agent 改候选）",
+      "disposition": "not-affected",
+      "evidence": "刻意不放行，并用阳性对照钉住：generationRevise.test.ts「agent 的 generation.patch 换模型**不**放行——那道防 agent 的闸还在原处」断言候选变了而 allowedModels 一个字没动"
+    },
+    {
+      "path": "electron/capabilityCore/appIntegrationSpendConfirm.ts",
+      "entry_point": "IPC `nomi:production-runs:revise-spend` → revise",
+      "disposition": "not-affected",
+      "evidence": "逐行读过：它只把渲染层的补丁转给 store.revise，不自己判身份、不自己碰 policy。「有窗口 = 真人」这件事由 assertTrustedSender + 「只服务当前打开的项目」两道守卫在这一层保证，判据本身住在下游那个纯函数里"
+    },
+    {
+      "path": "electron/productionRun/productionRunService.ts",
+      "entry_point": "非生成类 Run 的 policy（来自设置里的自动化白名单，不是从候选冻下来的）",
+      "disposition": "not-affected",
+      "evidence": "productionRunService.ts:111-113 的 policy 直接来自用户在设置里维护的那张表——那本来就是用户自己在改，不存在「冻下来之后拦住他」这回事；本条不变量不适用"
+    },
+    {
+      "path": "electron/productionRun/productionRunRepository.ts",
+      "entry_point": "createProductionRun 里按 jobs 推导的 allowedProviders/allowedModels（repository.ts:459-460）",
+      "disposition": "not-affected",
+      "evidence": "那是「合同里有哪些 job 就认哪些身份」的同步推导，白名单随 job 走、不冻结，因此不会出现「候选变了白名单没跟上」的岔口"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "「一道为 agent 设的闸拦住了真人」这一类在本仓已经不是第一次：P1 那一轮刚把 agent 路径的居中确认弹窗单轨化（docs/fixes/2026-09-11-agent-paid-confirm-not-in-panel），根因同样是「模型面看不见付费能力」这条对 agent 正确的约束在宿主一侧没有对应出口。只要闸的判据里没有「谁按的」这一维，每新增一个真人入口就会再撞一次——而付费确认卡正在长出更多真人可改的面（模型、参数、提示词、镜范围）",
+    "same_class_scan": [
+      "`grep -rn --include='*.ts' --include='*.tsx' --include='*.mts' -E \"allowedModels|allowedProviders|trustedHosts\" electron src`（排除测试）——逐条判定：automationPolicyContract / productionRunService / productionRunRuntime 是设置面那张用户自己维护的表（不冻结）；productionRunRepository:459 按 jobs 同步推导（不冻结）；productionGenerationOperationStore:86-90 是本条的冻结点；productionPolicyReadiness / approvalPolicy 是读者",
+      "`grep -rn --include='*.ts' \"generation.revise\\|generation.patch\" electron src`——确认 revise 只有付费卡这一个入口（appIntegrationSpendConfirm ← IPC ← 渲染层），patch 是 agent 那条；两条命令因此可以、也只能在 reducer 这一层分辨来源",
+      "`grep -rn --include='*.ts' \"ProductionPolicyIncompleteError\\|assertProductionPolicyReady\" electron`——提交前那道判据只有 repository 与 service 两个调用点，都在 job 已经成形之后，来源信息在那里已经丢失；这正是「修在最早共享边界」要把放行放在 revise 命令里、而不是放在 readiness 里的理由",
+      "`grep -rn --include='*.ts' --include='*.tsx' \"未加入白名单\" electron src`——这句用户可见的话只有 productionPolicyReadiness 一处产地，没有第二份文案在别处编同样的拒绝"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/productionRun/productionGenerationPlanEdits.ts",
+    "invariant": "白名单只为「真人在卡上亲手换掉、且任务类别没变」的身份加宽；agent 的 patch、跨类别、凭空多出来的镜一律 fail-closed，钱那一侧一个字不动",
+    "failure_mode": "想绕开它就得在 reducer 之外再写一处加宽 policy 的代码——而 policy 在 revise 这条路上只有这一个写点，再写一份会立刻和 generationRevise.test.ts 的四条正/反断言冲突：跨类别那条、agent patch 那条、只改参数 policy 全等那条、以及「撤门回 draft 但 maxSpend 不变」那条，任何一处放宽都会让其中至少一条红",
+    "exception_policy": "none",
+    "strategy": "在唯一的真人入口上把「他亲手选中的身份」认进白名单，判据收成一个纯函数并由两条 revise 路径共用；agent 那条路（generation.patch）一个字不改，并用阳性对照测试钉住它仍被拦",
+    "artifacts": [
+      "electron/productionRun/productionGenerationPlanEdits.ts",
+      "electron/productionRun/generationRevise.test.ts"
+    ]
+  },
+  "class_regression_tests": [
+    "electron/productionRun/generationRevise.test.ts"
+  ],
+  "regression_tests": [
+    "electron/productionRun/generationRevise.test.ts",
+    "electron/capabilityCore/agentPanelSpendConfirm.e2e.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "没有旧实现被替换：加宽 policy 这件事此前**根本不存在**（这正是缺口本身）。reducer 的两处 return 改为把 policy 过一遍新函数，旧写法当场消失，不留并行分支、不留开关"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "没有引入、升级或降级任何依赖；改动只在本仓主进程内部",
+    "exit_criteria": []
+  },
+  "migration": "没有持久化格式变化：policy 的形状、合同、收据、Run 事件一个字节都没动，加宽只发生在内存里那一次 revise 命令的结果上并随 Run 正常落盘。已有的草稿不需要迁移——它们的白名单仍是冻下来那一份，用户下次在卡上换模型时才会被加宽。用户侧可感知的变化只有一条：卡上那个模型下拉从今天起是活的",
+  "residual_risks": [
+    "放行的边界用的是 candidate.mode（目录任务种类）。如果将来有两个同 mode 但价钱差一个量级的模型，换过去不会被这道闸拦——拦它的是「换完重新计价、重新出卡、重新由真人按一次」那条链，而不是白名单。这是有意的取舍：白名单不是预算闸，预算闸是 maxSpend 与那张要人按的卡",
+    "`generation.revise` 之所以能被当成「真人按的」，靠的是它上游只有一个带窗口的 IPC 入口（assertTrustedSender + 当前项目守卫）。这一条今天由代码结构保证，但**没有机器门岗**钉住「revise 不许长出第二个调用方」。真要新增一个非真人的 revise 调用方，这条不变量会静默失效——后续如果 revise 的调用点超过一个，应当把「谁能发 revise」升级成显式的来源标记而不是靠调用点唯一",
+    "多镜草稿里，`@plan` 这把顶层钥匙与各镜 shotId 共处一张表。如果将来某一镜的 shotId 真的叫 `@plan`，两者会撞车。目前 shotId 由宿主生成、不会取这个名字，但这是个靠约定而非类型保证的地方"
+  ],
+  "internal_only_reason": "这条不变量是本仓自有的授权语义（Run policy 冻结防的是谁、什么样的改动算「真人的选择」），不对齐任何外部规范或第三方 API 契约——AutomationPolicy 的形状与 generation.revise / generation.patch 两条命令都是本仓自己定义的。MCP 规范只管工具调用的传输，不规定宿主怎么给一次生成划授权边界",
+  "invariant_owner_layer": {
+    "layer": "electron/productionRun/productionGenerationPlanEdits.ts",
+    "tests": [
+      "electron/productionRun/generationRevise.test.ts",
+      "electron/capabilityCore/agentPanelSpendConfirm.e2e.test.ts"
+    ],
+    "why": "不变量由 policyAdmittingUserRevisedIdentity 单点持有（即本合同的 prevention.enforcement_path / shared_boundaries）；reducer 的两条 revise 路径只调用它、不各自重判，提交前的 assertProductionPolicyReady 只读结果。tests 是该层的类级与端到端回归：前者在纯 reducer 上钉正/反四条，后者在真实 IPC + loopback 供应商上证「换后那个模型真的出现在出站报文里」。改动这条不变量必先让它们红。"
+  }
+}

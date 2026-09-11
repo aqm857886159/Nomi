@@ -1,0 +1,257 @@
+{
+  "name": "spend-r30-loopback",
+  "mode": "development",
+  "tempRoot": "/var/folders/f4/vz86j5nd0_sf56qdhzrmbbvw0000gn/T/nomi-pi-spend-r30-loopback-87rcK4",
+  "outputDir": "/Users/aoqimin/Desktop/Nomi-p11b/.tmp/pi-spend-r30-loopback-development-1789111158532",
+  "launches": [
+    {
+      "packaged": false,
+      "appPath": "/Users/aoqimin/Desktop/Nomi-p11b",
+      "userData": "/var/folders/f4/vz86j5nd0_sf56qdhzrmbbvw0000gn/T/nomi-pi-spend-r30-loopback-87rcK4/user-data",
+      "node": "24.18.1",
+      "electron": "43.4.1",
+      "pid": 29964
+    }
+  ],
+  "screenshots": [],
+  "paidCalls": 0,
+  "projectId": "project-1789111160319-7jx79p",
+  "projectRoot": "/var/folders/f4/vz86j5nd0_sf56qdhzrmbbvw0000gn/T/nomi-pi-spend-r30-loopback-87rcK4/projects/未命名项目 09_11 15_19-mtwmlaf7-3092191b",
+  "r30": {
+    "arm": "loopback fixture (zero quota)",
+    "cases": 22,
+    "toolWriteRate": "22/22 (100%)",
+    "turnSuccessRate": "22/22 (100%)",
+    "draftLandedRate": "20/20 (100%)",
+    "toolRoutes": {
+      "nomi_generation_plan": 20
+    },
+    "scope": "判据=这一句是否新落下一份待确认草稿（画布节点 +1）且介入槽里那张卡印着真实金额；回合成功另要求模型正常回话。草稿不清场，所以卡是否在屏幕上不能当per-case判据，节点增量才是。含 2 条阴性对照。",
+    "rows": [
+      {
+        "id": "c01",
+        "expectsDraft": true,
+        "landed": true,
+        "drafted": true,
+        "price": "CNY 0.30",
+        "toolCorrect": true,
+        "turnOk": true,
+        "said": "草稿已就绪，等你确认。"
+      },
+      {
+        "id": "c02",
+        "expectsDraft": true,
+        "landed": true,
+        "drafted": true,
+        "price": "CNY 0.30",
+        "toolCorrect": true,
+        "turnOk": true,
+        "said": "草稿已就绪，等你确认。"
+      },
+      {
+        "id": "c03",
+        "expectsDraft": true,
+        "landed": true,
+        "drafted": true,
+        "price": "CNY 0.30",
+        "toolCorrect": true,
+        "turnOk": true,
+        "said": "草稿已就绪，等你确认。"
+      },
+      {
+        "id": "c04",
+        "expectsDraft": true,
+        "landed": true,
+        "drafted": true,
+        "price": "CNY 0.30",
+        "toolCorrect": true,
+        "turnOk": true,
+        "said": "草稿已就绪，等你确认。"
+      },
+      {
+        "id": "c05",
+        "expectsDraft": true,
+        "landed": true,
+        "drafted": true,
+        "price": "CNY 0.30",
+        "toolCorrect": true,
+        "turnOk": true,
+        "said": "草稿已就绪，等你确认。"
+      },
+      {
+        "id": "c06",
+        "expectsDraft": true,
+        "landed": true,
+        "drafted": true,
+        "price": "CNY 0.30",
+        "toolCorrect": true,
+        "turnOk": true,
+        "said": "草稿已就绪，等你确认。"
+      },
+      {
+        "id": "c07",
+        "expectsDraft": true,
+        "landed": true,
+        "drafted": true,
+        "price": "CNY 0.30",
+        "toolCorrect": true,
+        "turnOk": true,
+        "said": "草稿已就绪，等你确认。"
+      },
+      {
+        "id": "c08",
+        "expectsDraft": true,
+        "landed": true,
+        "drafted": true,
+        "price": "CNY 0.30",
+        "toolCorrect": true,
+        "turnOk": true,
+        "said": "草稿已就绪，等你确认。"
+      },
+      {
+        "id": "c09",
+        "expectsDraft": true,
+        "landed": true,
+        "drafted": true,
+        "price": "CNY 0.30",
+        "toolCorrect": true,
+        "turnOk": true,
+        "said": "草稿已就绪，等你确认。"
+      },
+      {
+        "id": "c10",
+        "expectsDraft": true,
+        "landed": true,
+        "drafted": true,
+        "price": "CNY 0.30",
+        "toolCorrect": true,
+        "turnOk": true,
+        "said": "草稿已就绪，等你确认。"
+      },
+      {
+        "id": "c11",
+        "expectsDraft": true,
+        "landed": true,
+        "drafted": true,
+        "price": "CNY 0.30",
+        "toolCorrect": true,
+        "turnOk": true,
+        "said": "草稿已就绪，等你确认。"
+      },
+      {
+        "id": "c12",
+        "expectsDraft": true,
+        "landed": true,
+        "drafted": true,
+        "price": "CNY 0.30",
+        "toolCorrect": true,
+        "turnOk": true,
+        "said": "草稿已就绪，等你确认。"
+      },
+      {
+        "id": "c13",
+        "expectsDraft": true,
+        "landed": true,
+        "drafted": true,
+        "price": "CNY 0.30",
+        "toolCorrect": true,
+        "turnOk": true,
+        "said": "草稿已就绪，等你确认。"
+      },
+      {
+        "id": "c14",
+        "expectsDraft": true,
+        "landed": true,
+        "drafted": true,
+        "price": "CNY 0.30",
+        "toolCorrect": true,
+        "turnOk": true,
+        "said": "草稿已就绪，等你确认。"
+      },
+      {
+        "id": "c15",
+        "expectsDraft": true,
+        "landed": true,
+        "drafted": true,
+        "price": "CNY 0.30",
+        "toolCorrect": true,
+        "turnOk": true,
+        "said": "草稿已就绪，等你确认。"
+      },
+      {
+        "id": "c16",
+        "expectsDraft": true,
+        "landed": true,
+        "drafted": true,
+        "price": "CNY 0.30",
+        "toolCorrect": true,
+        "turnOk": true,
+        "said": "草稿已就绪，等你确认。"
+      },
+      {
+        "id": "c17",
+        "expectsDraft": true,
+        "landed": true,
+        "drafted": true,
+        "price": "CNY 0.30",
+        "toolCorrect": true,
+        "turnOk": true,
+        "said": "草稿已就绪，等你确认。"
+      },
+      {
+        "id": "c18",
+        "expectsDraft": true,
+        "landed": true,
+        "drafted": true,
+        "price": "CNY 0.30",
+        "toolCorrect": true,
+        "turnOk": true,
+        "said": "草稿已就绪，等你确认。"
+      },
+      {
+        "id": "c19",
+        "expectsDraft": true,
+        "landed": true,
+        "drafted": true,
+        "price": "CNY 0.30",
+        "toolCorrect": true,
+        "turnOk": true,
+        "said": "草稿已就绪，等你确认。"
+      },
+      {
+        "id": "c20",
+        "expectsDraft": true,
+        "landed": true,
+        "drafted": true,
+        "price": "CNY 0.30",
+        "toolCorrect": true,
+        "turnOk": true,
+        "said": "草稿已就绪，等你确认。"
+      },
+      {
+        "id": "n01",
+        "expectsDraft": false,
+        "landed": false,
+        "drafted": false,
+        "price": "CNY 0.30",
+        "toolCorrect": true,
+        "turnOk": true,
+        "said": "这一笔要花多少钱，等你点头之前我不会动手。"
+      },
+      {
+        "id": "n02",
+        "expectsDraft": false,
+        "landed": false,
+        "drafted": false,
+        "price": "CNY 0.30",
+        "toolCorrect": true,
+        "turnOk": true,
+        "said": "这一笔要花多少钱，等你点头之前我不会动手。"
+      }
+    ]
+  },
+  "textRequests": 42,
+  "imageRequests": 0,
+  "unexpected": [],
+  "result": "passed"
+}

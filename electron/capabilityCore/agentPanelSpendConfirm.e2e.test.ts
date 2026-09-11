@@ -398,17 +398,59 @@ describe("Agent 面板付费卡：确认 → 真的开始生成（零额度 loop
     }
   });
   /**
-   * 已知缺口（2026-09-11 本轮实测发现，**不在 P1.1a 范围内修**，记在
-   * docs/plan/2026-09-10-permission-model-rework.md 的「P1.1a 已知缺口」）：
+   * #748 记下的已知缺口，本轮修好，断言随之翻成正面（不是删掉它）。
    *
-   * 卡上的模型 chip 让用户换模型，面板 hook 也会把 `modelId` 打进补丁（`candidatePatchFromNode`），
-   * 但 Run 的 policy `allowedModels` 是**建草稿那一刻**从候选身份冻下来的，于是换了模型再确认会被
-   * 白名单挡下——用户看到的是一句「模型未加入白名单」，而他做的只是在卡上选了另一个模型。
+   * 缺口是什么：Run 的 policy `allowedModels` 在**建草稿那一刻**从候选身份冻下来，
+   * 于是用户在卡上换个模型再确认，会撞上一句「模型未加入白名单」——而他做的只是
+   * 在下拉里选了另一个模型。冻它本是为了拦 **agent** 偷换模型（agent 走
+   * `generation.patch`，那条路一个字没改）；`generation.revise` 只有付费卡这一个入口。
    *
-   * 这条断言把现状钉住：它现在证明「换模型会被拒」。修好之后这条会红，那正是提醒——
-   * 届时把它改成正向断言（换模型也能确认并执行），而不是删掉。
+   * 现在放行的边界是**同一个任务类别**（`candidate.mode`）。跨类别仍然 fail-closed。
    */
-  it("【已知缺口】卡上换模型后确认会被 Run 白名单挡下（建草稿时冻的 allowedModels）", async () => {
+  it("卡上换模型 → 确认 → 供应商收到的就是换后那个模型（#748 缺口已修）", async () => {
+    const vendor = await startLoopbackVendor();
+    const base = harness();
+    const submits: string[] = [];
+    const { withWindow } = buildActions(base, vendor.origin, submits);
+    try {
+      await draft(base);
+      const nodeId = [...base.renderer.nodes.values()][0];
+
+      clock += 1000;
+      expect(await withWindow.revisePendingSpend({
+        projectId: PROJECT_ID, operationId: OPERATION_ID, patch: { modelId: "image-model-pro" },
+      })).toMatchObject({ ok: true, code: "revised" });
+      await base.canvasLanding.settleCanvasLanding(PROJECT_ID);
+
+      // 卡上印的已经是换后那个模型，价格按同一条算式重算（这个模型同价：0.30）。
+      const afterEdit = withWindow.listPendingSpend(PROJECT_ID)[0];
+      expect(afterEdit.shots[0]).toMatchObject({ modelId: "image-model-pro" });
+      expect(afterEdit.knownSubtotal).toBeCloseTo(0.3, 6);
+
+      clock += 1000;
+      expect(await withWindow.confirmPendingSpend({ projectId: PROJECT_ID, operationId: OPERATION_ID }))
+        .toMatchObject({ ok: true, code: "spend_confirmed" });
+      await base.canvasLanding.settleCanvasLanding(PROJECT_ID);
+
+      // 供应商真正收到的是换后那个模型——不是「没被拒」而已。
+      expect(submits).toHaveLength(1);
+      expect(vendor.bodies).toHaveLength(1);
+      expect(vendor.bodies[0]).toMatchObject({ model: "image-model-pro" });
+
+      const run = base.repository.read(PROJECT_ID, OPERATION_ID)!;
+      expect(run.generationPlan!.state).toBe("submitted");
+      // 白名单认下了新模型，**旧的没被顶掉**（用户还能换回去），而那笔钱的闸一个都没松。
+      expect(run.policy.allowedModels).toContain("image-model-pro");
+      expect(run.policy.allowedModels).toContain("image-model");
+      // 换模型没有多开一个画布节点：还是草稿一建就落的那一个。
+      expect(base.renderer.nodes.size).toBe(1);
+      expect([...base.renderer.nodes.values()][0]).toBe(nodeId);
+    } finally {
+      await vendor.close();
+    }
+  });
+
+  it("跨任务类别换模型仍被白名单挡下：那换掉的是整个花钱量级，不叫「改一下」", async () => {
     const vendor = await startLoopbackVendor();
     const base = harness();
     const submits: string[] = [];
@@ -417,12 +459,12 @@ describe("Agent 面板付费卡：确认 → 真的开始生成（零额度 loop
       await draft(base);
       clock += 1000;
       expect(await withWindow.revisePendingSpend({
-        projectId: PROJECT_ID, operationId: OPERATION_ID, patch: { modelId: "image-model-pro" },
+        projectId: PROJECT_ID, operationId: OPERATION_ID,
+        patch: { modelId: "video-model", mode: "image-to-video" },
       })).toMatchObject({ ok: true });
       clock += 1000;
       const confirmed = await withWindow.confirmPendingSpend({ projectId: PROJECT_ID, operationId: OPERATION_ID });
       expect(confirmed.ok).toBe(false);
-      expect(confirmed.message ?? "").toContain("image-model-pro");
       // 被拒得干净：没花钱，草稿还在，用户还能改回去。
       expect(submits).toHaveLength(0);
       expect(vendor.bodies).toHaveLength(0);
