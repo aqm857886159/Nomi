@@ -56,13 +56,20 @@ vi.mock("./rendererBridge", () => ({
   isRendererAvailable: () => rendererUp,
   requestRenderer: async (op: string) => {
     rendererOps.push(op);
-    if (op === "spend.confirm") return spendReply;
-    if (op === "plan.confirm") return planReply;
     if (op === "document.write") return documentReply;
     if (op === "timeline.read") return { timeline: [] };
     if (op === "asset.read") return { assets: [] };
+    // 确认卡等的是人，必须走 requestRendererDecision——走到这里就是把墙钟期限放回了审批路径。
+    if (op === "spend.confirm" || op === "plan.confirm") throw new Error(`确认卡不得走带超时的桥: ${op}`);
     // hybrid 网关读写应走盘,绝不该把 canvas.* 转给渲染层——命中即测试失败。
     throw new Error(`hybrid 不应调用渲染层 op: ${op}`);
+  },
+  // 2026-09-11：等真人作答的那条没有 timeoutMs 参数，活性靠「渲染层还在不在」。
+  requestRendererDecision: async (op: string) => {
+    rendererOps.push(op);
+    if (op === "spend.confirm") return spendReply;
+    if (op === "plan.confirm") return planReply;
+    throw new Error(`不该用等人的桥发这个 op: ${op}`);
   },
 }));
 

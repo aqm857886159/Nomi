@@ -370,6 +370,8 @@ export const zhAgentPanelV4 = {
   spendParamsScopeAria: '生成范围',
   spendParamsDecline: '不要',
   spendParamsScopeUnknown: '价格没取到。要继续就得接受「花多少事后才知道」。',
+  /** 宿主拒绝这一下时的兜底句（它通常自己带一句更具体的，那句优先）。按了没反应是最贵的一种沉默。 */
+  spendActionFailed: '这一步没成，Nomi 没有开始生成，也没有花钱。',
   qualityStandard: '标准画质',
   qualityPro: '高画质',
 
@@ -739,6 +741,7 @@ export const enAgentPanelV4 = {
   spendParamsScopeAria: 'Generation scope',
   spendParamsDecline: 'No',
   spendParamsScopeUnknown: 'No price came back. Continuing means you only learn the cost afterwards.',
+  spendActionFailed: 'That did not go through. Nomi has not started generating and has not spent anything.',
   qualityStandard: 'Standard',
   qualityPro: 'High quality',
 

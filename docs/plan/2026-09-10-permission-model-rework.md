@@ -194,3 +194,70 @@
 1. 4.3 可编辑卡取方案 B（直接回写 overrides，动三层合同）——推荐，A 作补充。
 2. 4.2 自主模式下付费动作的二选一策略（每次确认 / 会话预算自动）默认取哪个——推荐默认「每次确认」。
 3. 批量卡的「全部放行」是否需要二次确认——推荐不要（卡上逐项可改已经是确认本身）。
+
+---
+
+## P1.1a（2026-09-11）：审批卡永不空闲超时 + 「确认 → 真的开始生成」端到端夹具
+
+> 用户已拍板的两件确定项，不再讨论：**① 审批卡永不因空闲超时（去掉倒计时）；② 付费与不可逆永远问（全自动也问钱）。**
+> 本节是这一轮的范围/不动项/验收。先查别人见本文件开头的「先查别人」一节（行业共识 3「危险/花钱类永不自动」正是这条拍板的同构依据）。
+
+### 范围（做了什么）
+
+**① 删干净倒计时与一切「空闲到点自动决定」**（P1：不留开关、不留 fallback）
+
+| 删掉的东西 | 落点 |
+|---|---|
+| 确认卡倒计时状态机（每 200ms tick、到点 `resolvePending(false)`） | `src/workbench/generationCanvas/spend/SpendConfirmDialog.tsx` |
+| 多镜卡「交互即暂停」（它只为倒计时存在，倒计时没了它也没有意义） | 同上 |
+| 两条倒计时进度条 + `data-production-countdown` 锚点 | 同上 |
+| 请求契约上的 `countdownMs` 字段 | `src/workbench/generationCanvas/spend/spendConfirm.ts` |
+| 四处 `countdownMs` 调用点（外部 MCP 付费门 / 多镜合同门 / 单镜生成门 / 方案门） | `src/workbench/capability/capabilityApplyHandler.ts` |
+| 锚检查点卡的「N 分钟无操作将自动开拍」脚注 | `src/workbench/generationCanvas/spend/AnchorCheckpointCard.tsx` |
+| 锚检查点的**自动放行超时**（`anchorAutoReleaseMs` 选项 + `auto_release` 状态 + `autoReleaseCheckpoint` 命令） | `electron/productionRun/batchScheduleDerivation.ts`、`multiShotBatchScheduler.ts` |
+| 对应 i18n（`spend.autoIgnore`、`production.batch.countdownPaused/countdownAuto`、`production.checkpoint.autoRelease`，zh+en） | `src/i18n/locales/generationCommon.ts` |
+| **主进程那半边的同一件事**：等真人按确认卡的四处墙钟兜底（`RENDERER_SPEND_TIMEOUT_MS = 65_000` ×2、`taskSpend` 写死的 `65_000`、生成闸的 `60_000`） | `electron/capabilityCore/gateway.ts`、`electron/tasks/taskSpend.ts`、`electron/capabilityCore/appIntegrationAuthorities.ts` |
+
+> **第四处是删完卡上倒计时之后才露出来的，值得单记一笔。** 主进程原本有一道「比卡的 60s 倒计时略长」的防挂死兜底（65s）。倒计时一删，它就从「兜底」变成了「暗面倒计时」：卡还好端端地在屏幕上等人，请求却已经在用户看不见的地方被替他答成「否」，pending 被删掉；他三分钟后按下「生成 ¥0.50」，那条回复没人认领，界面一动不动。比原来的「自动按了未确认」更难懂——连卡消失这个线索都没有。
+>
+> 写那道兜底的人没错：一个请求确实不能永远挂着。**错的是活性判据选成了「等了多久」，而正确的判据是「那个要按按钮的界面还在不在」。** 所以修法不是把 65s 改成 65 天，而是把两种等法在 API 上分开：
+>
+> - `requestRenderer(op, payload, timeoutMs)` —— 等**渲染层自己干活**（读写 store、物化分镜、导出）。等太久就是它卡住了，超时正是对的。
+> - `requestRendererDecision(op, payload)` —— 等**人**。不接受时长参数（调用方连表达一个审批期限的位置都没有）；只在窗口销毁 / 渲染进程没了 / 主窗口被换掉时 fail-closed 地 reject。人还在看着卡的时候，等多久都行。
+>
+> 活性一分没少，时间彻底退出审批。回归测试在 `electron/capabilityCore/rendererBridge.test.ts`，做过变异验证（把 `until-recipient-gone` 换回 10ms 超时 → 三条当场全红）。
+
+**不动项（这些是防重放/幂等的安全语义，不是空闲超时，删了会开安全洞）**：
+
+| 留着的 TTL | 为什么它不是「空闲自动决定」 |
+|---|---|
+| `electron/capabilityCore/approvalReceipt.ts` 的收据 TTL + 一次性消费 | 收据过期 = 这张凭据不能再用（防重放），**不等于替用户答了「不」**。过期后卡照样等人按。 |
+| `electron/spendQuote.ts` / `electron/spendGrant.ts` 的 TTL | 报价与授权令牌的新鲜度，过期只会让下一次提交要求重新报价，不会自己决定门。 |
+| `electron/submissionLedger.ts` 的 `expiresAt` | 幂等去重窗口（同一条提交重放多久内算同一次），与审批无关。 |
+| `productionContractView` / gate 的 `expiresAt` 显示 | 告诉用户这道门的凭据什么时候失效，是**信息**不是动作。 |
+| `electron/capabilityCore/mcpElicitation.ts` 的 300s 请求超时 | 那张卡是**外部 MCP 客户端**（Claude Desktop / Codex）自己画的，我们这边只是一条发给外部进程的 JSON-RPC。MCP 规范为请求设超时，而外部客户端静默断开时这也是唯一能收尾的手段。拍板管的是「Nomi 自己的审批卡永不空闲超时」，不是替别人家的客户端决定它的 UI 该等多久。 |
+| `productionRunDriverOps` / `productionRunArtifactOperations` / `productionRunService` 的 5–30 分钟 `requestRenderer` 超时 | 等的是渲染层**自己在干活**（导出、逐镜校验、物化分镜），不是等人按按钮。等太久就是它卡住了。 |
+
+**② 「确认 → 真的开始生成」零额度端到端夹具**
+
+- `electron/capabilityCore/agentPanelSpendConfirm.e2e.test.ts`（新）——本轮的 CI 门。真 loopback HTTP 供应商（零额度），其余全真：durable Run → 草稿落画布 → 面板付费卡投影 → 卡上改参数（`generation.revise`，撤旧授权 + 候选推一版）→ 确认（`requestGenerationGate` 重封印 → 主进程手势 → 铸收据 → `authorizeGeneration` 决门 → 一次性消费 → `start`）→ 提交-轮询-落库 → 产物回到同一个画布节点。逐条断言：**收据信封里冻的 `candidateRevision` = 执行时的候选版本**、**供应商真正收到的 body 就是卡上改后那份**、**三次落地共用 `canvas-landing:{runId}` 一个章 → 始终一个节点**、以及无窗口时 fail-closed 与确认后不重复扣费。
+  幂等那条做过变异验证：把 `canvasLandingOperationId` 改成每次带序号，断言当场红。
+- `tests/ux/agent-spend-confirm-executes.walk.mjs`（新）——真人路径那一半：一个窗口、界面动作、在卡上点开尺寸下拉选一项、按那颗印着价的按钮。与 `agent-spend-card.walk.mjs` 同样是手动档走查（该族 agent 面板走查全部未进 CI 清单，本轮不改这条既有编排）。
+
+### P1.1a 已知缺口（实测发现，**本轮不修**，各自需要独立裁决）
+
+1. **非 apimart 的供应商，付费卡按下去必然失败。** `electron/capabilityCore/generationProviderBootstrap.ts` 只把 `apimart` 装成可提交的生成供应商，其余 vendor 一律 `providerReady:false` → 付费卡确认返回「供应商缺少必需能力：configured_provider」。这与「用户接官方端点 / 自建中转」的方向直接冲突，但改它是供应商装配层的结构裁决，不属于本轮两件确定项。走查因此只走到「按下去 → 宿主拒绝」，真正跑起来那一段由上面的 vitest 夹具覆盖（文件头写明了为什么，不假绿）。
+2. **卡上换模型会被 Run 白名单挡下。** `allowedModels` 是建草稿那一刻从候选身份冻下来的（`productionGenerationOperationStore.create`），而卡上的模型 chip 允许用户换。`agentPanelSpendConfirm.e2e.test.ts` 里有一条【已知缺口】测试把现状钉住——修好之后它会红，届时改成正向断言而不是删掉。
+
+### 顺手修掉的一条（属于本轮卡的行为，非缺口）
+
+`src/workbench/ai/v4/useAgentPanelSpendConfirm.ts` 的 `act` 此前是 `.catch(() => undefined)`：主进程返回的 `{ok:false, message}` 和抛出来的异常一起被吞掉，用户按下「生成 ¥0.50」之后界面一动不动、一个字的解释都没有。**按了没反应是最贵的一种沉默**（用户只会再按一次，或者以为 Nomi 坏了）。现在宿主说不行就当场 toast 出来。**印给用户的是 i18n 那一句**（`agentPanelV4.spendActionFailed`：「这一步没成，Nomi 没有开始生成，也没有花钱。」），宿主原话只进控制台——主进程的 message 混着内部术语和英文（实测那句是 `Provider agent-runtime-loopback lacks required recovery capabilities: configured_provider`），直接印出去等于把状态机糊在中文用户脸上（R15 / R2）。走查第 ④ 条两头都断：必须说人话、且不许出现 `configured_provider`。
+
+### 验收
+
+- `pnpm run gates` 全绿（contracts + unit + build）。
+- `npx vitest run electron/capabilityCore/agentPanelSpendConfirm.e2e.test.ts` 4 条全绿，幂等断言过变异验证。
+- `node tests/ux/agent-spend-confirm-executes.walk.mjs` 真机绿（截图在 `.tmp/pi-spend-confirm-executes-*`）。
+- `npx vitest run electron/capabilityCore/rendererBridge.test.ts` 5 条全绿，新增 3 条过变异验证。
+- 全仓 `grep -rn -i -E 'countdown|倒计时|autoApproveAfter|idleTimeout' src electron` 只剩本节这份说明与「没有倒计时」的断言本身。
+- 补扫 `grep -rn 'requestRenderer(' electron/ | grep -v test` 逐条判「等的是渲染层还是人」，等人的四处全部走 `requestRendererDecision`。（**同类扫描的词表要按语义展开，不要按命名展开**——第一轮漏掉主进程那三处，正是因为它们叫「timeout」而不叫「countdown」。）

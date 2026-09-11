@@ -23,13 +23,12 @@ function Specimen() {
   const spend = new URLSearchParams(location.search).get('specimen') === 'c06'
   React.useEffect(() => {
     if (!spend) return
-    // Exact request shape from capabilityApplyHandler.ts:209–226, including countdown and actions.
+    // Exact request shape from capabilityApplyHandler.ts (batch gate): contract projection + actions.
     void useSpendConfirmStore.getState().requestConfirm({
       kind: 'contract', title: i18n.t('runtime.capability.generationGateBatchTitle'),
       message: i18n.t('generationCommon.production.batch.body', { project: fixture.plan.title }),
       confirmLabel: i18n.t('generationCommon.production.batch.confirm', { count: fixture.plan.shots.length }),
-      source: 'agent', countdownMs: Math.min(300_000, 60_000 + fixture.plan.shots.length * 8_000),
-      contract: fixture.contract, onTrialFirst: () => {}, onBackToEdit: () => {},
+      source: 'agent', contract: fixture.contract, onTrialFirst: () => {}, onBackToEdit: () => {},
     })
     return () => useSpendConfirmStore.getState().resolvePending(false)
   }, [spend])
