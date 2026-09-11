@@ -42,23 +42,24 @@ export type WorkflowImageBinding = {
   inputKey: string
   paramKey: string
   label: string
-  mediaKind: 'image' | 'video'
+  mediaKind: 'image' | 'video' | 'audio'
 }
 
 /** 统一读取媒体绑定；显式 images: [] 表示用户确实不想暴露任何媒体槽，不能再回落到旧角色。 */
 export function workflowMediaBindings(binding: WorkflowBinding): WorkflowImageBinding[] {
   if (binding.images !== undefined) return binding.images
-  return [
+  const candidates: Array<WorkflowImageBinding | null> = [
     binding.sourceVideoNodeId && binding.sourceVideoInputKey
-      ? { nodeId: binding.sourceVideoNodeId, inputKey: binding.sourceVideoInputKey, paramKey: 'source_video_url', label: binding.sourceVideoInputKey, mediaKind: 'video' as const }
+      ? { nodeId: binding.sourceVideoNodeId, inputKey: binding.sourceVideoInputKey, paramKey: 'source_video_url', label: binding.sourceVideoInputKey, mediaKind: 'video' }
       : null,
     binding.firstFrameNodeId && binding.firstFrameInputKey
-      ? { nodeId: binding.firstFrameNodeId, inputKey: binding.firstFrameInputKey, paramKey: 'first_frame_url', label: binding.firstFrameInputKey, mediaKind: 'image' as const }
+      ? { nodeId: binding.firstFrameNodeId, inputKey: binding.firstFrameInputKey, paramKey: 'first_frame_url', label: binding.firstFrameInputKey, mediaKind: 'image' }
       : null,
     binding.lastFrameNodeId && binding.lastFrameInputKey
-      ? { nodeId: binding.lastFrameNodeId, inputKey: binding.lastFrameInputKey, paramKey: 'last_frame_url', label: binding.lastFrameInputKey, mediaKind: 'image' as const }
+      ? { nodeId: binding.lastFrameNodeId, inputKey: binding.lastFrameInputKey, paramKey: 'last_frame_url', label: binding.lastFrameInputKey, mediaKind: 'image' }
       : null,
-  ].filter((item): item is WorkflowImageBinding => Boolean(item))
+  ]
+  return candidates.filter((item): item is WorkflowImageBinding => Boolean(item))
 }
 
 export type WorkflowCandidate = {
@@ -67,8 +68,8 @@ export type WorkflowCandidate = {
   classType: string
   title?: string
   value: string | number | boolean
-  /** 媒体输入才有：收图还是收视频（LoadVideo.file 收视频）。 */
-  mediaKind?: 'image' | 'video'
+  /** 媒体输入才有：收图、收视频还是收音频（LoadVideo.file 收视频/LoadAudio.audio 收音频）。 */
+  mediaKind?: 'image' | 'video' | 'audio'
 }
 export type WorkflowOutputCandidate = { nodeId: string; classType: string; kind: 'image' | 'video' | 'model3d' | 'unsupported' }
 
@@ -116,13 +117,13 @@ export function mediaBindingsFromAnalysis(analysis: WorkflowAnalysis): WorkflowI
         ? 'first_frame_url'
         : is(suggested.lastFrameNodeId, suggested.lastFrameInputKey)
           ? 'last_frame_url'
-          : `comfy_${candidate.mediaKind === 'video' ? 'video' : 'image'}_${index + 1}`
+          : `comfy_${candidate.mediaKind === 'video' ? 'video' : candidate.mediaKind === 'audio' ? 'audio' : 'image'}_${index + 1}`
     return [{
       nodeId: candidate.nodeId,
       inputKey: candidate.inputKey,
       paramKey,
       label: candidate.title?.trim() || `${candidate.inputKey} #${candidate.nodeId}`,
-      mediaKind: candidate.mediaKind === 'video' ? 'video' : 'image',
+      mediaKind: candidate.mediaKind === 'video' ? 'video' : candidate.mediaKind === 'audio' ? 'audio' : 'image',
     }]
   })
 }
@@ -297,6 +298,13 @@ export function roleChoicesForNode(
         inputKey: candidate.inputKey,
         active: workflowMediaBindings(binding).some((item) => item.paramKey === 'source_video_url' && item.nodeId === nodeId && item.inputKey === candidate.inputKey),
       })
+      continue
+    }
+    if (candidate.mediaKind === 'audio') {
+      // LoadAudio.audio 收的是**音频**，四个老角色(prompt/firstFrame/lastFrame/sourceVideo)一个都
+      // 不是它——若落进下面的通用分支会被菜单里错误地提供「设为首帧/尾帧」，选中即把一段音频 URL
+      // 当图片首帧发出去。它已经通过 mediaBindingsFromAnalysis 的通用 images[] 列表自动带出
+      // （不靠角色指派），这里不给旧角色菜单选项，只是不再把它错分类成图片。
       continue
     }
     choices.push({

@@ -8,6 +8,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { runGenerationNodesBatch, runGenerationNodesByPlan } from './generationRunController'
 import { QUEUE_BRAKE_THRESHOLD, useGenerationQueueStore } from './generationQueueStore'
+import { useWorkbenchStore } from '../../workbenchStore'
+import { createDefaultTimeline } from '../../timeline/timelineMath'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { setCanvasEventSinkForTests } from '../events/canvasEventEmitter'
 import { __resetCanvasUndoJournalForTests } from '../events/canvasUndoJournal'
@@ -122,6 +124,31 @@ describe('生成队列外化', () => {
       useGenerationQueueStore.getState().markSettled(batchId, nodeId, 'error', { countsTowardBrake: false })
     }
     expect(useGenerationQueueStore.getState().batches[batchId]?.paused).toBe(false)
+  })
+
+  it('批量成功后回填时间轴：引用该节点的 clip 换成新产物 URL（对齐单发路径）', async () => {
+    const [id] = addImageNodes(1)
+    const staleClip = {
+      id: 'c-batch-1', type: 'image', sourceNodeId: id, label: id, url: 'https://example.com/old.png',
+      startFrame: 0, endFrame: 90, frameCount: 90,
+    } as never
+    const base = createDefaultTimeline()
+    // 生成模块树内不许直写 addTimelineClipAtFrame（adoption-bridge 铁律）——测试种子用 setState 直置。
+    useWorkbenchStore.setState({
+      timeline: { ...base, tracks: base.tracks.map((track) => track.type === 'image' ? { ...track, clips: [staleClip] } : track) },
+      timelineUndoStack: [], timelineRedoStack: [],
+    })
+
+    const result = await runGenerationNodesBatch([id], {
+      assetUploadConsent: 'not-needed',
+      concurrency: 1,
+      executor: async () => fakeResult(id),
+    })
+
+    expect(result.successes).toHaveLength(1)
+    const clip = useWorkbenchStore.getState().timeline.tracks.flatMap((track) => track.clips).find((entry) => entry.id === 'c-batch-1')
+    // 修复前：批量路径不回填，时间轴 clip 仍指旧 URL。
+    expect(clip?.url).toBe(`https://example.com/${id}.png`)
   })
 
   it('不变量③：不传 batchId 时行为不变（退化路径 = 回滚保险）', async () => {

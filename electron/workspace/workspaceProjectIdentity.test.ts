@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
 import fs from "node:fs";
+import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
 
@@ -69,7 +70,7 @@ function writeRawBackup(root: string, value: Record<string, unknown>): string {
 }
 
 function runIdentityChild(root: string, uuid: string, readyPath: string): Promise<WorkspaceProjectIdentity> {
-  const tsx = path.resolve("node_modules/.bin/tsx");
+  const tsx = createRequire(import.meta.url).resolve("tsx/cli");
   const script = [
     'import fs from "node:fs";',
     'import { ensureWorkspaceProjectIdentity } from "./electron/workspace/workspaceProjectIdentity.ts";',
@@ -84,10 +85,11 @@ function runIdentityChild(root: string, uuid: string, readyPath: string): Promis
   ].join("\n");
   return new Promise((resolve, reject) => {
     execFile(
-      tsx,
-      ["-e", script],
+      process.execPath,
+      [tsx, "-e", script],
       {
         cwd: process.cwd(),
+        windowsHide: true,
         env: {
           ...process.env,
           TEST_WORKSPACE_ROOT: root,
@@ -400,10 +402,14 @@ describe("workspace project identity", () => {
     const childA = runIdentityChild(root, "11111111-1111-4111-8111-111111111111", readyA);
     const childB = runIdentityChild(root, "22222222-2222-4222-8222-222222222222", readyB);
 
-    await waitForFiles([readyA, readyB]);
-    await new Promise<void>((resolve) => setTimeout(resolve, 20));
-    releaseWorkspaceManifestLock(held);
-    const [identityA, identityB] = await Promise.all([childA, childB]);
+    const children = Promise.all([childA, childB]);
+    try {
+      await Promise.race([waitForFiles([readyA, readyB]), children]);
+      await new Promise<void>((resolve) => setTimeout(resolve, 20));
+    } finally {
+      releaseWorkspaceManifestLock(held);
+    }
+    const [identityA, identityB] = await children;
     const restarted = await ensureWorkspaceProjectIdentity(root, {
       randomUuid: () => "33333333-3333-4333-8333-333333333333",
     });

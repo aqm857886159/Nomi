@@ -5,7 +5,7 @@ export type ParameterReferenceSlot = {
   key: string
   label: string
   group: ParameterReferenceGroup
-  mediaKind?: 'image' | 'video'
+  mediaKind?: 'image' | 'video' | 'audio'
 }
 export type ParameterReferenceContract = {
   modelKey: string
@@ -52,13 +52,13 @@ export function readParameterReferenceContract(meta: Record<string, unknown> | u
     if (typeof slot.key !== 'string' || typeof slot.label !== 'string' || typeof slot.group !== 'string') return null
     const key = slot.key.trim()
     if (!key || seen.has(key) || !['reference', 'first_frame', 'last_frame'].includes(slot.group)) return null
-    if (slot.mediaKind !== undefined && slot.mediaKind !== 'image' && slot.mediaKind !== 'video') return null
+    if (slot.mediaKind !== undefined && slot.mediaKind !== 'image' && slot.mediaKind !== 'video' && slot.mediaKind !== 'audio') return null
     seen.add(key)
     slots.push({
       key,
       label: slot.label.trim() || key,
       group: slot.group as ParameterReferenceGroup,
-      ...(slot.mediaKind === 'image' || slot.mediaKind === 'video' ? { mediaKind: slot.mediaKind } : {}),
+      ...(slot.mediaKind === 'image' || slot.mediaKind === 'video' || slot.mediaKind === 'audio' ? { mediaKind: slot.mediaKind } : {}),
     })
   }
   return { ...identity, slots }

@@ -23,7 +23,6 @@ import {
   PendingGenerationPlaceholder,
   LocalImageOpPendingStatus,
   RemoveBackgroundPendingPlaceholder,
-  Scene3DEditorLoading,
   STRIPED_BG_CLASS,
 } from './render/CardCommon'
 import PanoramaUploadFallback from './PanoramaUploadFallback'
@@ -77,7 +76,6 @@ export type BaseGenerationNodeProps = {
   waitingMotion?: 'reduced'
   waitingPreset?: ImageGenerationPreset
 }
-const Scene3DEditor = lazyWithChunkBoundary('3D 场景编辑器', () => import('./Scene3DEditor')) // A5：chunk 失败只降级本卡
 const Model3DViewer = lazyWithChunkBoundary('3D 模型预览', () => import('./model3d/Model3DViewer')) // 生成出的 .glb 卡内可旋转预览（R3F）
 const TextDocumentNode = lazyWithChunkBoundary('文本节点编辑器', () => import('./render/TextDocumentNode'))
 const PanoramaViewer = lazyWithChunkBoundary('全景预览', () => import('./PanoramaViewer'))
@@ -232,10 +230,9 @@ function BaseGenerationNodeImpl({
   const canSendToTimeline = canDragGenerationNodeToTimeline(node, { readOnly })
   const showTimelineNotch =
     canSendToTimeline &&
-    node.kind !== 'scene3d' &&
     (node.result?.type === 'image' || node.result?.type === 'video') &&
     !resultStackOpen
-  const showSideTimelineDrag = canSendToTimeline && node.kind !== 'scene3d' && !showTimelineNotch
+  const showSideTimelineDrag = canSendToTimeline && !showTimelineNotch
   // 2026-09-05：这几条的 zh+en 词条一直都在，只是渲染处写死了中文（英文界面恒显中文），现接回词条。
   const sourceNodeLabel = sourceNodeTitle || (node.derivedFrom && !sourceNodeExists ? t('generationCommon.node.sourceMissing') : node.derivedFrom || '')
   const sourceCategoryName = sourceNodeCategoryId ? getBuiltinCategoryById(sourceNodeCategoryId)?.name : null
@@ -520,11 +517,7 @@ function BaseGenerationNodeImpl({
         draggable={false}
         {...mediaPreviewDoubleClick}
       >
-        {artifactSlots.body ? artifactSlots.body : node.kind === 'scene3d' ? (
-          <React.Suspense fallback={<Scene3DEditorLoading />}>
-            <Scene3DEditor node={node} width={visualSize.width} height={previewHeight} readOnly={readOnly} />
-          </React.Suspense>
-        ) : node.kind === 'panorama' ? (
+        {artifactSlots.body ? artifactSlots.body : node.kind === 'panorama' ? (
           node.result?.url || node.meta?.imageUrl ? (
             <React.Suspense fallback={<NodeBodyLoading />}>
               <PanoramaViewer
@@ -542,7 +535,7 @@ function BaseGenerationNodeImpl({
           )
         ) : node.result?.url ? (
           node.result.type === 'model3d' ? (
-            <React.Suspense fallback={<Scene3DEditorLoading />}>
+            <React.Suspense fallback={<NodeBodyLoading />}>
               <Model3DViewer url={node.result.url} />
             </React.Suspense>
           ) : node.result.type === 'video' ? (

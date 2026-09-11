@@ -1,0 +1,161 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-10-integration-docs-reach-compiler",
+  "problem_type": "Operator-supplied integration knowledge stops at the intake surface instead of reaching the consumer that needs it",
+  "symptom": "nomi_integration begin accepts up to 64KB of API documentation, but the adapter compiler still guesses docs.<vendor-domain>; on a machine with no published text model the same run then fails with AdapterNeedsAiError, so onboarding the first provider requires an already-onboarded provider.",
+  "direct_cause": "ProviderAdapterConnectionInput carries no docs field, so registration drops session.config.docs; discoverProviderDocs is the only documentation source, and compilation is hard-wired to locally resolved LanguageModelV1 instances.",
+  "class_root": "Every cross-boundary channel of the onboarding path lacked an explicit route from intake to consumer: documentation was received and parked, the missing-compiler case raised an error instead of handing back the compilable input, and the exchange package existed only as two functions with no published shape.",
+  "affected_population": [
+    "Anyone onboarding a relay, self-hosted gateway or intranet endpoint whose documentation is not on a public docs.<domain> site",
+    "Any first provider onboarded on a machine that has no published text model yet",
+    "Driving agents (Codex, Claude Code, other MCP hosts) that can read the provider docs themselves",
+    "Anyone moving a working provider configuration to a second machine or writing one by hand"
+  ],
+  "scope_paths": [
+    "electron/providerAdapter/",
+    "electron/integrationCertification/",
+    "electron/capabilityCore/mcpIntegrationTools.ts",
+    "electron/catalog/catalogPackageFormat.ts",
+    "electron/catalog/catalogStore.ts"
+  ],
+  "entry_points": [
+    "MCP nomi_integration begin/propose/confirm",
+    "Integration session registration into ProviderAdapterService",
+    "Provider adapter run processing, including runs resumed after a restart",
+    "Model catalog package import/export"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://modelcontextprotocol.io/specification/2025-06-18/client/elicitation",
+      "checked_at": "2026-09-10",
+      "purpose": "Confirm the ecosystem shape for asking the driving side for one structured input (schema plus reason) before inventing a bespoke pending state."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://json-schema.org/draft-07/schema",
+      "checked_at": "2026-09-10",
+      "purpose": "Describe the desktop-local-v1 package with a standard schema language rather than prose, so external writers and constrained decoding can use it."
+    }
+  ],
+  "invariants": [
+    "Documentation supplied by the operator or driving agent is the compiler's preferred source; domain guessing runs only when nothing was supplied.",
+    "A missing local text model degrades to handing the compilable input back to the driving agent, never to a dead end, and never to a relaxed validator: every adapter contract passes validateProviderAdapterDraft before certification.",
+    "Provider identity, selected model ids, billing kinds and labels are filled by Nomi and cannot be overridden by an externally supplied contract.",
+    "The exported catalog package satisfies the published JSON Schema, and the published schema is derived from the same zod contract the readers use."
+  ],
+  "generality_proof": "All three intake channels converge on two chokepoints: resolveProviderDocs is the single place that decides which documentation the compiler reads (it is called from the service's injectable discover default, so both the MCP path and any future caller pass through it), and validateProviderAdapterDraft is the single gate every adapter contract crosses regardless of whether it was compiled locally, supplied by an agent through propose, or restored from a persisted run after a restart.",
+  "shared_boundaries": [
+    {
+      "path": "electron/providerAdapter/providedDocs.ts",
+      "symbol": "resolveProviderDocs",
+      "responsibility": "Single decision of which documentation the compiler reads: supplied prose or supplied URL list first, domain guessing only as fallback."
+    },
+    {
+      "path": "electron/providerAdapter/serviceCompilation.ts",
+      "symbol": "externallyCompiledDraft",
+      "responsibility": "Validate an externally compiled adapter contract at the execution boundary, so persisted and resumed runs cannot bypass the intake-time check."
+    },
+    {
+      "path": "electron/providerAdapter/agentCompileRequest.ts",
+      "symbol": "draftFromSuppliedContract",
+      "responsibility": "Lock provider and model identity onto an externally supplied contract and route it through validateProviderAdapterDraft."
+    },
+    {
+      "path": "electron/catalog/catalogPackageFormat.ts",
+      "symbol": "catalogPackageSchema",
+      "responsibility": "Publish the desktop-local-v1 shape once, deriving the JSON Schema and the export builder from the same contract."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/capabilityCore/mcpIntegrationTools.ts",
+      "entry_point": "nomi_integration begin and propose",
+      "disposition": "enforced",
+      "evidence": "docs reaches the compiler through session config and ProviderAdapterConnectionInput; adapterDraft is accepted only as a proposal field and is validated in the main process."
+    },
+    {
+      "path": "electron/integrationCertification/integrationSession.ts",
+      "entry_point": "registerProviderConnection handoff",
+      "disposition": "enforced",
+      "evidence": "The registration payload now carries session.config.docs and the validated adapterDraft; propose stops at needs_input with a compileRequest when neither Nomi nor the agent can compile."
+    },
+    {
+      "path": "electron/providerAdapter/service.ts",
+      "entry_point": "process() for a run restored from disk after a restart",
+      "disposition": "enforced",
+      "evidence": "Run inputs live in a persisted side table and are re-validated by externallyCompiledDraft on every process pass, not only when the proposal arrived."
+    },
+    {
+      "path": "electron/catalog/rendererCatalogMutation.ts",
+      "entry_point": "sanitizeRendererCatalogImport into importModelCatalogPackage",
+      "disposition": "enforced",
+      "evidence": "The renderer import path calls the same importModelCatalogPackage, so the envelope contract applies to it without touching that file."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The same shape returns from every additional intake channel: a second MCP host, the renderer settings surface, a resumed run, or a hand-written package file. Any of them can hand us knowledge we then fail to route to the consumer.",
+    "same_class_scan": [
+      "git grep for session.config.docs and for docs: in electron/capabilityCore/mcpIntegrationTools.ts and electron/integrationCertification: the only intake was begin, and the only consumer was discoverProviderDocs.",
+      "git grep AdapterNeedsAiError across electron/providerAdapter: raised from compiler.ts and surfaced by the service; the propose-time availability judgement now shares compilerLanguageModelCandidates with the run-time resolver so the two cannot drift.",
+      "git grep exportModelCatalogPackage/importModelCatalogPackage: main.ts IPC, runtime.ts, rendererCatalogMutation.ts and the catalog tests all funnel through the two catalogStore functions now guarded by the envelope contract."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/providerAdapter/providedDocs.ts",
+    "invariant": "The compiler reads supplied documentation whenever any was supplied, and guesses only when none was.",
+    "failure_mode": "A URL list longer than the fetch budget is rejected by name instead of silently truncated; unreachable or empty supplied pages yield an empty corpus and the run reports missing documentation rather than silently falling back to domain guessing.",
+    "exception_policy": "none",
+    "strategy": "Put the source decision in one exported function that both branches leave through, instead of in the service's injectable dependency default where a test or a future caller could replace it.",
+    "artifacts": [
+      "electron/providerAdapter/providedDocs.ts",
+      "electron/providerAdapter/service.ts",
+      "electron/providerAdapter/serviceCompilation.ts",
+      "electron/providerAdapter/agentCompileRequest.ts",
+      "electron/catalog/catalogPackageFormat.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/providerAdapter/providedDocs.test.ts",
+    "electron/providerAdapter/service.test.ts",
+    "electron/integrationCertification/integrationSession.test.ts",
+    "electron/capabilityCore/mcpIntegrationTools.test.ts",
+    "electron/catalog/catalogPackageFormat.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/providerAdapter/providedDocs.test.ts",
+    "electron/providerAdapter/service.test.ts",
+    "electron/integrationCertification/integrationSession.test.ts",
+    "electron/capabilityCore/mcpIntegrationTools.test.ts",
+    "electron/catalog/catalogPackageFormat.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/providerAdapter/service.ts",
+      "electron/providerAdapter/serviceLanguageModels.ts"
+    ],
+    "rationale": "The inline discover-then-compile block in service.process and the duplicated compiler-candidate collection are gone: documentation resolution and media compilation now live in discoverAndCompileMediaModels, and both the propose-time availability check and the run-time resolver read compilerLanguageModelCandidates. No parallel version of either remains."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency change. zod-to-json-schema and hardenedFetch were already present and are reused; nothing was upgraded or added to make this work.",
+    "exit_criteria": []
+  },
+  "migration": "No disk migration. The provider adapter store gains an additive `inputs` side table inside the existing version 1 file: an older file simply has no inputs, and an older binary reading a newer file ignores a key it does not know. Inputs are deleted with the runs they serve, so supplied documentation does not outlive its run.",
+  "residual_risks": [
+    "The whole path has not yet been exercised against a real provider with a real driving agent: this branch proves the seams with unit tests only, so the end-to-end claim stays unproven until a real onboarding run is recorded.",
+    "A driving agent can still submit a contract that passes the validator but describes the API incorrectly; that failure surfaces during real certification, and repair is deliberately not attempted for externally compiled contracts because repairing would require the very text model whose absence created this path.",
+    "The desktop-local-v1 package has no UI entry point yet, so the published schema currently constrains only the IPC and MCP writers."
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/providerAdapter/providedDocs.ts",
+    "tests": [
+      "electron/providerAdapter/providedDocs.test.ts",
+      "electron/providerAdapter/service.test.ts"
+    ],
+    "why": "It is the only module that decides where the compiler's documentation comes from, and it is reached from every intake channel through the service's discover dependency; its tests assert both directions (supplied wins, and guessing happens only when nothing was supplied)."
+  }
+}

@@ -1,0 +1,103 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-07-director-ai-request-ownership",
+  "problem_type": "AI results outlive their request and move to whichever layer is active at completion",
+  "symptom": "AI results outlive their request and move to whichever layer is active at completion",
+  "direct_cause": "The async run reads activeSceneId only when it finishes and separate geometry/library writes do not share request ownership.",
+  "class_root": "A pending task needs one immutable target and one publish boundary guarded by the current request identity.",
+  "affected_population": [
+    "All director sessions using the affected user and stored-data entry points"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/nodes/director/useAiSceneBuilder.ts",
+    "src/workbench/generationCanvas/nodes/director/model/storeAiSceneActions.ts",
+    "src/workbench/generationCanvas/nodes/director/panels/ai/AiSceneBar.tsx"
+  ],
+  "entry_points": [
+    "Read run cancel reset and effect cleanup",
+    "Read materializeAiScene current/new layer branches",
+    "Read saveToLibrary asynchronous upload completion"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "This is internal director request and asset ownership; no third-party behavior determines the invariant.",
+  "invariants": [
+    "Every accepted mutation has a current owner and valid target",
+    "Rejected or cancelled input makes no project change"
+  ],
+  "generality_proof": "All equivalent producers converge on the same action or request boundary, which validates ownership before mutating project state.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/useAiSceneBuilder.ts",
+      "symbol": "ownsRequest / saveToLibrary",
+      "responsibility": "Invalidate cancel/reset/unmount and check ownership after every awaited stage."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/model/storeAiSceneActions.ts",
+      "symbol": "materializeAiScene",
+      "responsibility": "Validate originating layer and publish generated geometry plus library entry in one undoable mutation."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/useAiSceneBuilder.ts",
+      "entry_point": "run / cancel / reset / effect cleanup",
+      "disposition": "enforced",
+      "evidence": "Real hook callback tests use delayed model and upload completions; no late project or asset writes after cancellation."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/director/model/storeAiSceneActions.ts",
+      "entry_point": "materializeAiScene current_layer / new_layer",
+      "disposition": "enforced",
+      "evidence": "Explicit originating scene lookup rejects deleted targets; one undo removes both generated layer and library item."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any user may repeat these event and input sequences.",
+    "same_class_scan": [
+      "Read run cancel reset and effect cleanup",
+      "Read materializeAiScene current/new layer branches",
+      "Read saveToLibrary asynchronous upload completion"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/nodes/director/useAiSceneBuilder.ts",
+    "invariant": "Only the current request publishes into its originating layer; geometry and library entry share one undo transaction.",
+    "failure_mode": "Reject invalid input without mutating project; cancelled work cannot publish.",
+    "exception_policy": "none",
+    "strategy": "Capture targetSceneId at run admission; clear request identity on cancel/reset/unmount; upload first then publish atomically.",
+    "artifacts": [
+      "src/workbench/generationCanvas/nodes/director/useAiSceneBuilder.ts",
+      "src/workbench/generationCanvas/nodes/director/model/storeAiSceneActions.ts",
+      "src/workbench/generationCanvas/nodes/director/panels/ai/AiSceneBar.tsx"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/nodes/director/useAiSceneBuilder.test.ts",
+    "src/workbench/generationCanvas/nodes/director/model/storeAiSceneActions.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/nodes/director/useAiSceneBuilder.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/nodes/director/useAiSceneBuilder.ts",
+      "src/workbench/generationCanvas/nodes/director/model/storeAiSceneActions.ts"
+    ],
+    "rationale": "Replace the permissive mutation paths in place without parallel fallbacks."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "Application-owned event ordering and input invariants use existing APIs.",
+    "exit_criteria": []
+  },
+  "migration": "No schema version change; valid existing records keep their identities and cancelled requests are discarded.",
+  "residual_risks": [
+    "Physical model-provider output quality is not established by deterministic AI fixture tests.",
+    "When file persistence completes after cancellation, no project handle is published; the unreferenced cached file follows the existing asset cache lifecycle.",
+    "The hook callback unit tests do not mount React effects; unmount cleanup is code-reviewed, not claimed as an exercised unit path."
+  ],
+  "invariant_owner_layer": {"layer": "src/workbench/generationCanvas/nodes/director/useAiSceneBuilder.ts", "tests": ["src/workbench/generationCanvas/nodes/director/useAiSceneBuilder.test.ts", "src/workbench/generationCanvas/nodes/director/model/storeAiSceneActions.test.ts"], "why": "不变量由 src/workbench/generationCanvas/nodes/director/useAiSceneBuilder.ts 单点持有（即本合同的 prevention.enforcement_path / shared_boundaries）；上游其它入口只调用它、不各自重判。tests 是该层现有的类级与回归测试，改动这条不变量必先让它们红。"}
+}

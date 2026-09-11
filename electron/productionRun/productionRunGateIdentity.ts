@@ -23,6 +23,43 @@ export function isShotGate(gate: Pick<ProductionRun['gates'][number], 'gateId' |
   return gate.scope === 'job_set' && gate.gateId.startsWith('gate-shot-')
 }
 
+/**
+ * 付费门（spend gate）= **批准它会导致向供应商花钱**。这是「哪些门必须有真人授权」的唯一定义，
+ * 由 scope 判、不看 gateId 前缀（前缀是展示用的身份，不是钱的语义）：
+ * - `budget_envelope`：批准即写预算账本授权（productionRunRepository 只在这个 scope 上 authorize ledger）。
+ * - `job_set`：按构造只有逐镜提交门（见 shotGateId / productionRunDriverOps），批准即放行
+ *   `production.generate-node`，下一步就是真实供应商调用。
+ * 其余 scope 都不发起付费调用：`stage`（方向/样片/冻结创意门）、`anchor_checkpoint`（定妆质量门，
+ * 预算在确认卡上已批过）、`export`/`publish`（本地导出/发布，不调供应商）。
+ *
+ * 付费边界只许在这里改：改这个谓词 = 改「什么算花钱」，必须连带复核 productionRunApprovalReceipt 的
+ * fail-closed 规则与 autoApproveGate 的拒绝清单。
+ */
+export function isSpendGate(gate: Pick<ProductionRun['gates'][number], 'gateId' | 'scope'>): boolean {
+  return gate.scope === 'budget_envelope' || gate.scope === 'job_set'
+}
+
+/**
+ * 「以后 ¥X 内别再逐镜问」= 把 Run 降到 budget_only 这一档。这个降档**会替真人放行后续付费提交**
+ * （逐镜确认门从此不再生成），所以它和付费门同权：必须有一次真人答过的确认。
+ *
+ * 这两个函数是那次确认的**身份**——收据签在什么上、验的时候拿什么比：
+ * - `trustGrantGateId`：合成门 id。刻意不用 `gate-` 前缀，于是一张信任收据永远落不进 `gate.decide`
+ *   （那里按 `command.payload.gateId` 比对），反向也一样（真门收据的 costScope 不是 `trust.budget-only:`）。
+ * - `trustGrantCostScope`：把「哪个 run + 什么币种 + 多少钱」编进 costScope（既有约定，见
+ *   `generation.multi-shot:${runId}`）。**改上限或换 run ⇒ 串不一样 ⇒ 收据失配**，这就是「上限绑死」。
+ */
+export function trustGrantGateId(planVersion: number): string {
+  return `trust-budget-only-v${planVersion}`;
+}
+
+export function trustGrantCostScope(runId: string, currency: string, maximum: number): string {
+  if (!runId || !currency || !Number.isFinite(maximum) || maximum <= 0) {
+    throw new Error("A trust grant needs a run, a currency and a positive ceiling");
+  }
+  return `trust.budget-only:${runId}:${currency}:${maximum}`;
+}
+
 export function sampleGateId(planVersion: number): string {
   return `gate-sample-v${planVersion}`
 }

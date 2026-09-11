@@ -256,7 +256,7 @@ describe('MCP semantic operation production-path matrix', () => {
     const fallbackDocument = await client.call(25, 'nomi_document_read', { leaseHandle, documentId: 'missing-document', scope: 'full' })
     expect(fallbackDocument.result?.structuredContent).toEqual(expect.objectContaining({ text: expect.any(String) }))
     const currentRecord = readWorkspaceProject(PROJECT_ID, fixture.deps)!
-    saveWorkspaceProject(PROJECT_ID, {
+    await saveWorkspaceProject(PROJECT_ID, {
       ...currentRecord,
       payload: { ...(currentRecord.payload as Record<string, unknown>), activeDocumentId: 42 },
     }, fixture.deps)
@@ -298,14 +298,14 @@ describe('MCP semantic operation production-path matrix', () => {
       expect(outcomeCode(failed)).toBe(expected)
       faulty.protocol.dispose()
     }
-    saveWorkspaceProject(PROJECT_ID, {
+    await saveWorkspaceProject(PROJECT_ID, {
       ...(readWorkspaceProject(PROJECT_ID, fixture.deps) as Record<string, unknown>),
       payload: { workbenchDocuments: [], activeDocumentId: 'doc-1' },
     }, fixture.deps)
     const missingDocument = await client.call(27, 'nomi_document_read', { leaseHandle, scope: 'full' })
     expect(missingDocument.result?.isError).toBe(true)
     expect(outcomeCode(missingDocument)).toBe('document_not_found')
-    saveWorkspaceProject(PROJECT_ID, {
+    await saveWorkspaceProject(PROJECT_ID, {
       ...((readWorkspaceProject(PROJECT_ID, fixture.deps) as Record<string, unknown>)),
       payload: { activeDocumentId: 'doc-1' },
     }, fixture.deps)

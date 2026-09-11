@@ -30,6 +30,8 @@ import type { CapabilityOriginHost } from './security'
 import { createMcpGenerationPolicy, type McpGenerationPolicy } from './mcpGenerationPolicy'
 import { dispatchSemanticGeneration, guardLegacyGenerationRoute, isSemanticGenerationRoute } from './generationDispatcher'
 import { RpcError, type RpcPublicErrorCode } from './rpcError'
+import { assertOnlyFields, optionalText, requiredIdentifier } from './dispatcherParams'
+import { issueTrustGrantChallenge } from './productionTrustGrantChallenge'
 export { RpcError } from './rpcError'
 export type { RpcPolicyErrorCode, RpcPolicyErrorDetails } from './rpcError'
 import type { ProjectLeaseV2 } from './projectLease'
@@ -43,6 +45,9 @@ import {
 import { withCredentialElicitationTicket } from '../integrationCertification/credentialElicitation'
 import { manageModelCatalogConnection } from '../catalog/catalogManagement'
 
+/** 带 id = 读那一个；不带 = 列出这个客户端自己的会话。 */
+const readIntegrationSession = (sessions: IntegrationSessionService, sessionId: unknown, owner: CapabilityOriginHost) =>
+  (typeof sessionId === 'string' && sessionId.trim() ? sessions.get(sessionId, owner) : sessions.list(owner))
 export function projectIdOf(params: Record<string, unknown>): string {
   return typeof params.projectId === 'string' ? params.projectId : ''
 }
@@ -225,24 +230,6 @@ const PRODUCTION_START_FIELDS = new Set([
   'projectId', 'playbook', 'playbookVersion', 'host', 'actorId', 'brief', 'trustLevel',
 ])
 
-function requiredIdentifier(value: unknown, label: string): string {
-  const normalized = typeof value === 'string' ? value.trim() : ''
-  if (!/^[A-Za-z0-9._-]{1,160}$/.test(normalized) || normalized === '.' || normalized === '..') throw new RpcError(`Invalid ${label} id`, 400)
-  return normalized
-}
-
-function assertOnlyFields(params: Record<string, unknown>, allowed: Set<string>): void {
-  const unexpected = Object.keys(params).find((key) => !allowed.has(key))
-  if (unexpected) throw new RpcError(`Production field is not allowed: ${unexpected}`, 400)
-}
-
-function optionalText(value: unknown, label: string, max = 500): string | undefined {
-  if (value === undefined || value === null || value === '') return undefined
-  const normalized = typeof value === 'string' ? value.trim() : ''
-  if (!normalized || normalized.length > max) throw new RpcError(`Invalid ${label}`, 400)
-  return normalized
-}
-
 function stringList(value: unknown, label: string, maxItems = 20): string[] | undefined {
   if (value === undefined) return undefined
   if (!Array.isArray(value) || value.length > maxItems) throw new RpcError(`Invalid ${label}`, 400)
@@ -380,7 +367,7 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
       const withHandles = await Promise.all(projects.map(async (project) => {
         try {
           const selection = await projectSession.authority.issueProjectSelection('listed_project', project.id, projectSession.connection)
-          return { ...project, projectSelectionHandle: selection.token }
+          return { ...project, projectSelectionHandle: selection.handle.handleId }
         } catch {
           return project
         }
@@ -395,7 +382,7 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
         created.id,
         ctx.projectSession.connection,
       )
-      return { ...created, projectSelectionHandle: selection.token }
+      return { ...created, projectSelectionHandle: selection.handle.handleId }
     }
     case 'models.list':
       return { models: listAvailableModels() }
@@ -486,10 +473,14 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
         expectedVersion: artifactVersion(params.expectedVersion),
       })
     }
+    case 'production.trust-challenge': {
+      // 2026-09-10：降到 budget_only 前，先在**调用方客户端**里把逐镜价目与上限摊开问一次真人。
+      return issueTrustGrantChallenge(ctx, params)
+    }
     case 'production.control': {
       // A4：pause/resume/cancel。B3：set_trust（配 trustLevel）改信任档位。
       // commandId 按 (action[/trustLevel], revision) 确定 → 同一状态下重复触发天然幂等。
-      assertOnlyFields(params, new Set(['projectId', 'runId', 'action', 'trustLevel']))
+      assertOnlyFields(params, new Set(['projectId', 'runId', 'action', 'trustLevel', 'receiptId', 'receiptToken']))
       const action = String(params.action || '')
       if (!['pause', 'resume', 'cancel', 'set_trust'].includes(action)) throw new RpcError('Invalid production control action', 400)
       const projectId = requiredIdentifier(params.projectId, 'project')
@@ -503,11 +494,19 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
           && gate.scope === 'job_set' && gate.gateId.startsWith('gate-shot-'))) {
           throw new RpcError('Decide the waiting shot in Nomi before changing its trust level', 403)
         }
+        // 降档到 budget_only = 一次付费放行 → 带上客户端确认拿到的收据（Run 命令边界验+一次性消费）。
+        const receiptId = optionalText(params.receiptId, 'approval receipt id', 200)
+        const receiptToken = optionalText(params.receiptToken, 'approval receipt token', 8192)
         await ctx.productionRuns.command(projectId, runId, {
           commandId: `mcp-control-set_trust-${trustLevel}-${full.revision}`,
           expectedRevision: full.revision,
           type: 'run.control',
-          payload: { action, trustLevel },
+          payload: {
+            action,
+            trustLevel,
+            ...(receiptId ? { receiptId } : {}),
+            ...(receiptToken ? { receiptToken } : {}),
+          },
           issuedAt: new Date().toISOString(),
         })
         return ctx.productionRuns.readProjection(projectId, runId)
@@ -723,17 +722,12 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
         ...(typeof params.title === 'string' && params.title.trim() ? { title: params.title.trim() } : {}),
       })
     case 'integration.begin': {
+      const optional = ['sessionId', 'baseUrl', 'docs', 'providerKind', 'authType', 'authHeader', 'authQueryParam', 'clientRequestId'] as const
       return (ctx.integrationSessions || getIntegrationSessionService()).begin(
         {
           kind: params.kind as 'http-api-provider' | 'comfyui-workflow',
           name: params.name as string,
-          ...(typeof params.baseUrl === 'string' ? { baseUrl: params.baseUrl } : {}),
-          ...(typeof params.docs === 'string' ? { docs: params.docs } : {}),
-          ...(typeof params.providerKind === 'string' ? { providerKind: params.providerKind } : {}),
-          ...(typeof params.authType === 'string' ? { authType: params.authType as import('../providerAdapter/types').AdapterAuthType } : {}),
-          ...(typeof params.authHeader === 'string' ? { authHeader: params.authHeader } : {}),
-          ...(typeof params.authQueryParam === 'string' ? { authQueryParam: params.authQueryParam } : {}),
-          ...(typeof params.clientRequestId === 'string' ? { clientRequestId: params.clientRequestId } : {}),
+          ...Object.fromEntries(optional.filter((key) => typeof params[key] === 'string').map((key) => [key, params[key]])),
         },
         ctx.origin?.host || 'external',
       )
@@ -777,11 +771,9 @@ export async function dispatch(method: string, params: Record<string, unknown>, 
         params.idempotencyKey as string,
         params.receipt as string,
       )
+    // 不带 sessionId = 「我把 id 弄丢了」。修复前这里直接报 Invalid sessionId，而 MCP 面上没有第二条路。
     case 'integration.get':
-      return (ctx.integrationSessions || getIntegrationSessionService()).get(
-        params.sessionId,
-        ctx.origin?.host || 'external',
-      )
+      return readIntegrationSession(ctx.integrationSessions || getIntegrationSessionService(), params.sessionId, ctx.origin?.host || 'external')
     case 'integration.cancel':
       return (ctx.integrationSessions || getIntegrationSessionService()).cancel(
         params.sessionId,

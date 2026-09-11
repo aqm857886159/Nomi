@@ -43,7 +43,7 @@ Nomi：本地优先 AI 视频创作工作台。
 
 **交付身份只走统一命令**：任务开始先跑 `delivery:preflight`；PR 合并后只在 Git fetch 得到的真实 merge SHA 上跑 `delivery:verify-merged`。任务 commit、PR head、merge commit 与 tree 分开报告；禁止用 REST compare 文件列表重建 Git tree/commit，禁止把 `same-tree-different-commit` 叫成代码不匹配。
 
-**提交/推送前的 Ponytail 闸门（R25，R24 由 PR #223 保留）**：每次成功的 commit 或 push 前都必须由版本化 `pre-commit` / `pre-push` hook 调用只读、限时的 Ponytail Codex 适配器，对准确的 staged 或 outgoing ref diff 运行 `/ponytail-review`（Codex 中是 `@ponytail-review`）；pre-commit 先通过敏感数据扫描，扫描已阻止的提交不会继续调用模型。缺少 Codex/插件、超时、异常或无合法结果标记就 fail-closed。发现过度工程化时只记录阻断状态；逐条删除清单需另行运行 `@ponytail-review` 后处理。
+**提交/推送前的 Ponytail 闸门（R25，R24 由 PR #223 保留）**：每次成功的 commit 或 push 前都必须由版本化 `pre-commit` / `pre-push` hook 调用只读、限时的 Ponytail Codex 适配器，对准确的 staged 或 outgoing ref diff 运行 `/ponytail-review`（Codex 中是 `@ponytail-review`）；pre-commit 先通过敏感数据扫描，扫描已阻止的提交不会继续调用模型。缺少 Codex/插件、超时、异常或无合法结果标记就 fail-closed。发现过度工程化时只记录阻断状态；逐条删除清单需另行运行 `@ponytail-review` 后处理。评审墙钟按 diff 大小与机器负载派生（base 180s ＋ 每 50KB +60s，负载>4 ×1.5，上限 600s），全机同一时刻只跑一个评审（`/tmp/nomi-ponytail.lock`，排队 ≤15 分钟且不计入超时）。**runner 不可用时的留痕延后**：`PONYTAIL_REVIEW_DEFER=1` 只在提交阶段生效，敏感数据扫描照跑，评审记一行进 `.claude/ponytail-deferred.log` 后放行，`check:ponytail-review` 一直红到补审或 `--accept <sha>`；绕口写法（`-c core.hooksPath=` 等）照旧拒绝，留痕只有这一条明路。
 
 ## 五条核心原则
 
@@ -55,7 +55,7 @@ Nomi：本地优先 AI 视频创作工作台。
 
 **P4 通用第一** — 能力/组件/交互按「模型身份 / 通用场景」设计，与具体供应商/模型解耦。不为不同模型写两套 UI（那是并行版，违反 P1）。档案声明槽，通用系统负责填。
 
-**P5 想清楚再动手** — UI 改动先读设计系统 `docs/design/nomi-design-system.md`（token/组件/规范）再画，再出可视样张（HTML mockup）+ 用户拍板；**改/扩现有 UI 先看它真实样子**（读完整外壳组件或真实截图，样张是真实布局+改动、不是脑补）；**接线前先看真实数据**（实验室组件必须由真实宿主数据驱动＝ShellStage 手法；基线绿≠可接线）；**加/挪控件先过 §1.5 控件层级规则**（L1 常驻/L2–L4·一功能一个家·先分组→去重→归位→最后才收纳）；架构改动先查 Context7 + 读顶尖开源代码 + 6 角色评审；多文件改动先写 `docs/plan` 文档。
+**P5 想清楚再动手** — UI 改动先读设计系统 `docs/design/nomi-design-system.md`（token/组件/规范）再画，再出可视样张（HTML mockup）+ 用户拍板；**改/扩现有 UI 先看它真实样子**（读完整外壳组件或真实截图，样张是真实布局+改动、不是脑补）；**接线前先看真实数据**（实验室组件必须由真实宿主数据驱动＝ShellStage 手法；基线绿≠可接线）；**加/挪控件先过 §1.5 控件层级规则**（L1 常驻/L2–L4·一功能一个家·先分组→去重→归位→最后才收纳）；架构改动先查 Context7 + 读顶尖开源代码 + 6 角色评审；多文件改动先写 `docs/plan` 文档；**动手前先 grill**（2026-09-11 用户拍板）：重要改动（产品行为 / 架构 / 外部契约 / 用户可见流程 / 花钱边界 / 会连带别的面）派实施前，先按 grill-me 方式把问题**一轮批量**问清——每题带默认答案、**连带面单独成题**（同一组件多宿主、改 A 面会带动 B 面的，必须单独问「B 也变吗」）、直到没有静默假设；讨论定不了的先做可丢弃原型再回来问；纯 bug 修复（根因明确、不改行为）不问，参考 https://aihero.dev/skills-grill-me 。
 
 ## 动手前/报完成前/push 前的三闸
 
@@ -94,7 +94,7 @@ Nomi：本地优先 AI 视频创作工作台。
 | R21 | 修复必须走根因流程；可复发/高风险交 v3 合同 | 所有纠正性改动强制走 `root-cause-remediation`；`recurring` 或高风险生产路径提交 schema-v3 `docs/fixes/*.root-cause.json`；`check:root-cause-contracts` 核验；**合同必答「这条不变量归哪层管、那层有没有测试」（`invariant_owner_layer`），同一层 7 天内第三份合同先出结构评审（`check:symptom-cluster`）** |
 | R22 | 验证分层与测试预算 | contracts 常跑；unit/desktop/journey/canvas/performance/package 按真实风险独立触发；不删安全/持久化/认证边界覆盖 |
 | R23 | React Flow 生成画布单内核与迁移等价 | 生产画布只允许 React Flow 一个交互/变换内核，Zustand 是业务与持久化真相源；迁移必须逐项保留既有几何、交互、视觉和反馈，并用 adapter/结构测试 + 真实 Electron 走查证明 |
-| R25 | 提交/推送前 Ponytail 评审 | pre-commit/pre-push 自动调用只读、限时 `/ponytail-review` 适配器；失败或缺少结果 fail-closed |
+| R25 | 提交/推送前 Ponytail 评审 | pre-commit/pre-push 自动调用只读、限时 `/ponytail-review` 适配器；超时按 diff 与负载派生、全机串行一把锁；失败或缺少结果 fail-closed，runner 不可用时只许 `PONYTAIL_REVIEW_DEFER=1` 留痕延后 |
 | R26 | 分层边界不许反向/循环 | 渲染层禁直捅主进程（走 bridge/中立契约层）、主进程禁反向 import 渲染层、禁新增完全静态循环；`check:boundaries` 棘轮（基线只减不增），加规则先验会红（R17）|
 | R27 | 多智能体编排手册 | 派工/收货/接力机器化纪律：谁的方案谁实施·验收必跨池、任务书发行权独占+开工三行头、收货三查（behind 数/两点回滚/套件失败 delta=0）、等待用 sleep 轮询+哨兵法（禁 --watch/Monitor/交卷）；**实施派工前先派反方出「先查别人」报告、任务书必须引用它（`check:prior-art`）**。详见 L2 `docs/engineering/agent-orchestration-playbook.md` |
 | R28 | 防线建在最早能拦住的那层 | 能让编译器拦的别留给门岗，能让门岗拦的别留给人；安全关键依赖不许「optional + 欠账登记」——登记是备忘录不是防线 |
@@ -108,7 +108,7 @@ Nomi：本地优先 AI 视频创作工作台。
 
 **自己定**（做完一句话说明）：实现细节、命名、模块拆法、测试策略、bug 修复顺序。**评测/测试/验证类的额度花费默认授权**（跑真生成 / 真模型 / VLM / E2E 等）——直接花、不问，事后报花了多少即可。
 
-**才问用户**（AskUserQuestion，合并成一轮，给推荐项）：产品方向/不可逆取舍 / 架构岔路（影响大、多个合理解）/ 需要用户独有资源（API key、真实素材；**额度仅产品级/大额/不可逆花费才问**）。
+**才问用户**（AskUserQuestion，合并成一轮，给推荐项）：产品方向/不可逆取舍 / 架构岔路（影响大、多个合理解）/ 需要用户独有资源（API key、真实素材；**额度仅产品级/大额/不可逆花费才问**）。重要改动的 grill 轮见 P5。
 
 **遇到样张/需求自相矛盾**：停下上报，不许自己挑一条实现。
 

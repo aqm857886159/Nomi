@@ -9,8 +9,7 @@ import { enSettings, zhSettings } from './locales/settings'
 import { enOnboardingProviders, zhOnboardingProviders } from './locales/onboardingProviders'
 import { enComfyuiWorkflowPage, zhComfyuiWorkflowPage } from './locales/comfyuiWorkflowPage'
 import { enLibraries, zhLibraries } from './locales/libraries'
-import { enScene3d, zhScene3d } from './locales/scene3d'
-import { enScene3dJourney, zhScene3dJourney } from './locales/scene3dJourney'
+import { enDirector, zhDirector } from './locales/director'
 import { enTimelineEditor, zhTimelineEditor } from './locales/timelineEditor'
 import { enCreationAi, zhCreationAi } from './locales/creationAi'
 import { enStoryboardEditor, zhStoryboardEditor } from './locales/storyboardEditor'
@@ -77,17 +76,17 @@ export const zhCN = {
     upToDate: '已是最新版本',
     available: '发现新版',
     downloadUpdate: '下载更新',
-    openDownload: '直接下载安装包',
+    openDownload: '去下载',
     macManualUpdate: '将打开官网并自动下载适合这台 Mac 的安装包；下载后打开 DMG 替换旧版。',
     previewUpdatesDisabled: '这是独立的开发预览版，不接收正式版自动更新。',
     downloading: '正在下载更新…',
     downloadingHint: '后台下载，可继续创作 · {{percent}}%',
     downloaded: '下载完成',
-    restartInstall: '重启并安装',
+    restartInstall: '重启安装',
     updateError: '更新出错',
     checkAvailable: '检查是否有新版本可用',
     checkUpdate: '检查更新',
-    feedbackShare: '反馈与分享',
+    feedbackShare: '反馈',
     feedbackShareDescription: '遇到问题或想分享 Nomi？从这里开始',
   },
   updaterDialog: {
@@ -98,8 +97,8 @@ export const zhCN = {
     version: '版本 {{version}}',
     progress: '下载进度 {{percent}}%',
     errorBody: '暂时无法完成更新，请重试。',
-    restartInstall: '重启并安装',
-    badge: '更新待处理',
+    restartInstall: '重启安装',
+    badge: '待更新',
     runningHint: '当前有任务运行，完成后再更新',
   },
   taskCenter: {
@@ -132,6 +131,8 @@ export const zhCN = {
     },
     productionRun: {
       title: 'Nomi 制作',
+      // 草稿行的镜数后缀：行首已经是「模型 · 比例 · 提示词」，多镜时才补这一段。
+      draftShots: '{{count}} 个镜头',
       statuses: {
         draft: '等待开始', awaitingDirection: '等待确认方向', awaitingScriptReview: '等待审核剧本', awaitingStoryboardReview: '等待审核分镜',
         awaitingContract: '等待确认制作与预算', ready: '准备生成', running: '正在生成', pausing: '正在暂停',
@@ -244,7 +245,7 @@ export const zhCN = {
     syncRecheck: '重新检查',
     // 「检查这一下自己失败了」≠「检查跑完发现还没就绪」——不出声的话两者在界面上完全一样。
     syncRecheckFailed: '这次没检查成——文件夹可能暂时读不到，稍后再试一次。',
-    syncOpenFolder: '打开文件夹',
+    syncOpenFolder: '打开目录',
     searchPlaceholder: '搜索项目',
     continueCreating: '继续创作',
     deleteProject: '删除项目',
@@ -256,7 +257,7 @@ export const zhCN = {
     modelStatus: '模型状态',
     textModelMissing: '创作助手尚未连接模型',
     textModelMissingHint: '写故事、拆镜头的助手与画布生成模型分别配置。',
-    connectTextModel: '连接助手模型',
+    connectTextModel: '连接模型',
     sourceFilter: '筛选项目来源',
     noMatchNamed: '没有匹配「{{query}}」的项目',
     // 首次空库（无搜索、来源=全部、零项目）：给行动指引，别用系统腔（2026-08-25 走查 F1）。
@@ -316,6 +317,8 @@ export const zhCN = {
     projectRepairMessage: '未找到可用的自动备份。可以打开项目文件夹检查 .nomi/project.json：{{path}}',
     openProjectFolder: '打开项目文件夹',
     hostConfigRepaired: '已修复 {{clients}} 的 Nomi 接入配置，重启 {{clients}} 后生效',
+    integrationConfirmPending: '「{{name}}」等你确认后才会开始验证',
+    integrationConfirmPendingAction: '去确认',
     initializeTitle: '初始化为 Nomi 项目',
     initializeMessage: '{{path}}\n\nNomi 会创建 .nomi/，并把生成的图片、视频保存到 assets/ 和 exports/。',
     folderUnsupported: '当前运行环境不支持打开项目文件夹',
@@ -337,7 +340,7 @@ export const zhCN = {
     progressLabel: '上手 4 步，已完成 {{done}} / {{total}}',
     panelLabel: '上手 4 步',
     collapse: '收起',
-    fullHandbook: '看完整手册',
+    fullHandbook: '完整手册',
     dismiss: '不再提示',
     steps: {
       model: { label: '接入模型', hint: '连一个 AI 服务（用你自己的 Key）。' },
@@ -364,7 +367,7 @@ export const zhCN = {
     collapse: '收起侧栏',
     newGroup: '新建分组',
     categoryName: '分类名称',
-    derivedNode: '由其他节点派生',
+    derivedNode: '派生节点',
     resize: '拖拽调整侧栏宽度',
   },
   canvas: {
@@ -383,7 +386,7 @@ export const zhCN = {
     moreMenu: '更多',
     importFile: '文件…',
     importFileAction: '导入文件',
-    menuPreference: { hide: '隐藏', moveUp: '上移', reset: '恢复默认菜单', saveFailed: '菜单偏好保存失败，请重试' },
+    menuPreference: { hide: '隐藏', moveUp: '上移', reset: '恢复默认', saveFailed: '菜单偏好保存失败，请重试' },
     addSections: {
       generate: '生成',
       more: '更多',
@@ -399,7 +402,7 @@ export const zhCN = {
       model3d: '3D 模型',
       whiteboard: '画板',
       panorama: '全景图',
-      scene3d: '3D 场景',
+      director: '导演台',
     },
   },
   modelSetup: zhModelSetup,
@@ -412,14 +415,7 @@ export const zhCN = {
   antigravity: zhAntigravity,
   comfyuiWorkflowPage: zhComfyuiWorkflowPage,
   libraries: zhLibraries,
-  scene3d: {
-    ...zhScene3d,
-    coach: { ...zhScene3d.coach, ...zhScene3dJourney.coach },
-    fullscreen: { ...zhScene3d.fullscreen, ...zhScene3dJourney.fullscreen },
-    trajectory: { ...zhScene3d.trajectory, ...zhScene3dJourney.trajectory },
-    export: zhScene3dJourney.export,
-    moveHub: zhScene3dJourney.moveHub,
-  },
+  director: zhDirector,
   timelineEditor: zhTimelineEditor,
   creationAi: zhCreationAi,
   storyboardEditor: zhStoryboardEditor,
@@ -498,11 +494,11 @@ export const en = {
     downloading: 'Downloading update…',
     downloadingHint: 'Downloading in the background · {{percent}}%',
     downloaded: 'Download complete',
-    restartInstall: 'Restart and install',
+    restartInstall: 'Reinstall',
     updateError: 'Update failed',
     checkAvailable: 'Check whether a new version is available',
-    checkUpdate: 'Check for updates',
-    feedbackShare: 'Feedback & share',
+    checkUpdate: 'Check Updates',
+    feedbackShare: 'Feedback',
     feedbackShareDescription: 'Report a problem or share Nomi',
   },
   updaterDialog: {
@@ -513,7 +509,7 @@ export const en = {
     version: 'Version {{version}}',
     progress: 'Download progress {{percent}}%',
     errorBody: 'The update could not be completed. Try again.',
-    restartInstall: 'Restart and install',
+    restartInstall: 'Reinstall',
     badge: 'Update pending',
     runningHint: 'A task is running. The update will wait until it finishes.',
   },
@@ -547,6 +543,7 @@ export const en = {
     },
     productionRun: {
       title: 'Nomi production',
+      draftShots: '{{count}} shots',
       statuses: {
         draft: 'Waiting to start', awaitingDirection: 'Direction approval required', awaitingScriptReview: 'Script review required', awaitingStoryboardReview: 'Storyboard review required',
         awaitingContract: 'Production and budget approval required', ready: 'Ready to generate', running: 'Generating', pausing: 'Pausing',
@@ -561,8 +558,8 @@ export const en = {
       diskFull: 'Not enough disk space. Free up space and export again.',
       permissionDenied: 'Export cannot access a required file. Check file permissions.',
       mediaUnreadable: 'A source cannot be read. Check that it plays, then export again.',
-      revealOutput: 'Show exported video',
-      returnToExport: 'Return to export',
+      revealOutput: 'View Output',
+      returnToExport: 'To Export',
       statuses: {
         queued: 'Queued', preparing: 'Preparing media', planning: 'Planning export', rendering: 'Rendering', encoding: 'Encoding',
         muxing: 'Muxing audio and video', finalizing: 'Finalizing', succeeded: 'Export complete', failed: 'Export failed', cancelled: 'Cancelled',
@@ -596,7 +593,7 @@ export const en = {
     browser: 'Browser',
     openBrowser: 'Open browser',
     modelAccess: 'Models',
-    goToProduce: 'Go to export',
+    goToProduce: 'Export',
     openModelAccess: 'Open model setup',
     windowTitleBar: 'Window title bar',
     projectQuickActions: 'Project quick actions',
@@ -670,7 +667,7 @@ export const en = {
     textModelMissing: 'No model connected to the creative assistant',
     textModelMissingHint:
       'The assistant for stories and shot planning is configured separately from canvas generation models.',
-    connectTextModel: 'Connect assistant model',
+    connectTextModel: 'Connect Model',
     sourceFilter: 'Filter project sources',
     noMatchNamed: 'No projects match “{{query}}”',
     firstEmpty: 'No projects yet — start with “New blank project” above',
@@ -729,6 +726,8 @@ export const en = {
     projectRepairMessage: 'No valid automatic backup was found. Open the project folder and inspect .nomi/project.json: {{path}}',
     openProjectFolder: 'Open project folder',
     hostConfigRepaired: 'Repaired the Nomi connection for {{clients}}. Restart {{clients}} to apply it.',
+    integrationConfirmPending: '"{{name}}" is waiting for your confirmation before verification starts',
+    integrationConfirmPendingAction: 'Review',
     initializeTitle: 'Initialize as a Nomi project',
     initializeMessage:
       '{{path}}\n\nNomi will create .nomi/ and save generated images and videos in assets/ and exports/.',
@@ -753,8 +752,8 @@ export const en = {
     progressLabel: 'Getting started: {{done}} of {{total}} steps complete',
     panelLabel: '4 steps to get started',
     collapse: 'Collapse',
-    fullHandbook: 'Open full guide',
-    dismiss: 'Do not show again',
+    fullHandbook: 'Full Guide',
+    dismiss: 'Dismiss',
     steps: {
       model: { label: 'Connect a model', hint: 'Connect an AI service using your own key.' },
       storyboard: { label: 'Plan one shot', hint: 'Ask Nomi to turn your idea into shots in Create.' },
@@ -781,7 +780,7 @@ export const en = {
     collapse: 'Collapse sidebar',
     newGroup: 'New group',
     categoryName: 'Category name',
-    derivedNode: 'Derived from another node',
+    derivedNode: 'Derived Node',
     resize: 'Drag to resize sidebar',
   },
   canvas: {
@@ -800,7 +799,7 @@ export const en = {
     moreMenu: 'More',
     importFile: 'File…',
     importFileAction: 'Import file',
-    menuPreference: { hide: 'Hide', moveUp: 'Move up', reset: 'Restore default menu', saveFailed: 'Could not save menu preferences. Please try again.' },
+    menuPreference: { hide: 'Hide', moveUp: 'Move up', reset: 'Restore Default', saveFailed: 'Could not save menu preferences. Please try again.' },
     addSections: {
       generate: 'Generate',
       more: 'More',
@@ -816,7 +815,7 @@ export const en = {
       model3d: '3D model',
       whiteboard: 'Whiteboard',
       panorama: 'Panorama',
-      scene3d: '3D scene',
+      director: 'Director',
     },
   },
   modelSetup: enModelSetup,
@@ -829,14 +828,7 @@ export const en = {
   antigravity: enAntigravity,
   comfyuiWorkflowPage: enComfyuiWorkflowPage,
   libraries: enLibraries,
-  scene3d: {
-    ...enScene3d,
-    coach: { ...enScene3d.coach, ...enScene3dJourney.coach },
-    fullscreen: { ...enScene3d.fullscreen, ...enScene3dJourney.fullscreen },
-    trajectory: { ...enScene3d.trajectory, ...enScene3dJourney.trajectory },
-    export: enScene3dJourney.export,
-    moveHub: enScene3dJourney.moveHub,
-  },
+  director: enDirector,
   timelineEditor: enTimelineEditor,
   creationAi: enCreationAi,
   storyboardEditor: enStoryboardEditor,

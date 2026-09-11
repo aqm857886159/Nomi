@@ -119,9 +119,13 @@ describe('multiple declared media inputs retain identity through the final wire 
       { key: 'comfy_image_1', label: 'Reference', group: 'reference', mediaKind: 'image' },
       { key: 'comfy_image_1', label: 'Duplicate', group: 'reference', mediaKind: 'image' },
     ]],
-    ['audio mediaKind', [
+    // 'audio' 曾在这条黑名单里 —— 用户报的根因之一(「ComfyUI 音频输入用不了」)：LoadAudio 扫描器
+    // 产出的 mediaKind:'audio' 被这道校验当非法值,整份契约判 null。'model3d' 才是真正超出
+    // mediaKind 定义域(image/video/audio)的值,顶替占住这条"未知 mediaKind 必须整份拒绝"的覆盖；
+    // 正面用例见下面 describe('ComfyUI LoadAudio 媒体输入…')。
+    ['model3d mediaKind (真正超出 image/video/audio 定义域)', [
       { key: 'comfy_image_1', label: 'Reference', group: 'reference', mediaKind: 'image' },
-      { key: 'bad-media', label: 'Bad', group: 'reference', mediaKind: 'audio' },
+      { key: 'bad-media', label: 'Bad', group: 'reference', mediaKind: 'model3d' },
     ]],
     ['null mediaKind', [
       { key: 'comfy_image_1', label: 'Reference', group: 'reference', mediaKind: 'image' },

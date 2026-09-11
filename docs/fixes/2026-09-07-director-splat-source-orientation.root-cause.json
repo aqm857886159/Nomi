@@ -1,0 +1,38 @@
+{
+  "schema_version":3,
+  "id":"2026-09-07-director-splat-source-orientation",
+  "problem_type":"Asset insertion loses the source coordinate convention",
+  "symptom":"A newly added real valley is upside down relative to the source director console.",
+  "direct_cause":"AssetsTab.addFileAsset assigns zero rotation to both ordinary models and Gaussian splat sources.",
+  "class_root":"The shared creation boundary does not preserve the declared source orientation of each asset kind.",
+  "affected_population":["New linked and uploaded splat entities"],
+  "scope_paths":["src/workbench/generationCanvas/nodes/director/panels/side/AssetsTab.tsx"],
+  "entry_points":["Linked asset row", "Uploaded asset row"],
+  "external_sources":[],
+  "internal_only_reason":"This is approved source-product parity, not a universal SPZ-format axis claim. In the reference director console ordinary models start at rotation 0 and splat assets at X180. Spark consumes authored transforms without deciding this creation default.",
+  "invariants":["New splat assets start at X180, while ordinary models retain their upright source axes.","Stored or user-edited transforms are never renormalized when the entity loads or is renamed."],
+  "generality_proof":"Every asset-list origin invokes the same addFileAsset callback. Selecting the default by asset kind there covers every origin without filename/provider exceptions or persistent-data rewriting.",
+  "shared_boundaries":[{"path":"src/workbench/generationCanvas/nodes/director/panels/side/AssetsTab.tsx","symbol":"addFileAsset","responsibility":"Apply the approved source orientation once, when creating a new entity from an asset."}],
+  "same_class_entry_points":[
+    {"path":"src/workbench/generationCanvas/nodes/director/panels/side/AssetsTab.tsx","entry_point":"renderLinked linked rows","disposition":"enforced","evidence":"Double-click and add action both invoke addFileAsset with kind splat."},
+    {"path":"src/workbench/generationCanvas/nodes/director/panels/side/AssetsTab.tsx","entry_point":"renderItem uploaded asset row","disposition":"enforced","evidence":"Uploaded root and nested splats retain kind and invoke the same addFileAsset callback."},
+    {"path":"src/workbench/generationCanvas/nodes/director/model/directorProject.ts","entry_point":"normalizeScene","disposition":"not-affected","evidence":"Persisted and imported scene-object rotations are authored transforms; they must not receive a second source-axis correction."}
+  ],
+  "recurrence":{"classification":"recurring","reason":"Every new splat from any asset-list origin receives the wrong default again.","same_class_scan":["Read AssetsTab renderLinked/renderItem/addFileAsset and all model/splat creation defaults.","Compared the reference splat/model creation branches and DirectorEntities transform application; inspected normalizeScene to exclude authored scene imports."]},
+  "prevention":{
+    "kind":"centralized-boundary",
+    "enforcement_path":"src/workbench/generationCanvas/nodes/director/panels/side/AssetsTab.tsx",
+    "invariant":"New asset entities derive their source orientation from asset kind at the single shared creation boundary.",
+    "failure_mode":"Asset kinds retain their existing routing; orientation is assigned only on new splat creation, with no mutation of existing objects.",
+    "exception_policy":"none",
+    "strategy":"Replace the unconditional zero default with the source-product splat/model orientation rule in addFileAsset.",
+    "artifacts":["src/workbench/generationCanvas/nodes/director/panels/side/AssetsTab.tsx"]
+  },
+  "regression_tests":["src/workbench/generationCanvas/nodes/director/panels/side/AssetsTab.test.ts","tests/ux/director-assets.walk.mjs"],
+  "class_regression_tests":["src/workbench/generationCanvas/nodes/director/panels/side/AssetsTab.test.ts"],
+  "legacy_paths":{"status":"removed","removed_paths":["src/workbench/generationCanvas/nodes/director/panels/side/AssetsTab.tsx"],"rationale":"Removes the unconditional zero rotation at asset insertion; no alternate insertion implementation is introduced."},
+  "dependency_lifecycle":{"decision":"not-applicable","rationale":"The source-product creation default is controlled by Nomi asset insertion, not a loader or dependency version.","exit_criteria":[]},
+  "migration":"No automatic migration: existing project object rotations may be authored. Only newly inserted assets use the corrected default.",
+  "residual_risks":["The source-product splat default may need manual user rotation for scans authored with another coordinate convention; no format-wide claim is made."],
+  "invariant_owner_layer": {"layer": "src/workbench/generationCanvas/nodes/director/panels/side/AssetsTab.tsx", "tests": ["src/workbench/generationCanvas/nodes/director/panels/side/AssetsTab.test.ts", "tests/ux/director-assets.walk.mjs"], "why": "不变量由 src/workbench/generationCanvas/nodes/director/panels/side/AssetsTab.tsx 单点持有（即本合同的 prevention.enforcement_path / shared_boundaries）；上游其它入口只调用它、不各自重判。tests 是该层现有的类级与回归测试，改动这条不变量必先让它们红。"}
+}

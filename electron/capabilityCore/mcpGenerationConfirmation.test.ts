@@ -287,4 +287,65 @@ describe('生产装配面：没有验证器时，客户端的同意换不来收�
     })
     expect(transport.confirmGenerationInNomi).toHaveBeenCalledTimes(1)
   })
+  // 2026-09-10（R2 + 21:00 拍板）：客户端里那段文字**就是**那张确认卡。只给一个总数等于让用户闭眼签字，
+  // 所以摘要必须摊开逐镜价目（镜号 · 模型 · 单价）+ 合计；降到 budget_only 时还要说清「¥X 内不再逐镜问」。
+  it('itemizes每镜价目与合计，并在信任降档时说清 ¥X 内不再逐镜问', async () => {
+    const frames: unknown[] = []
+    const transport: McpTransport = {
+      send: (frame) => frames.push(frame),
+      invoke: vi.fn(async () => ({})),
+      isAppOpen: () => false,
+      getAuthenticatedClient: () => 'codex',
+    }
+    const protocol = await initialized(transport)
+    void protocol.requestGenerationConfirmation({
+      challengeId: 'challenge-trust',
+      model: 'apimart · kling-v2（i2v）',
+      costScope: 'trust.budget-only:run-1:¥:9',
+      maximumCost: 9,
+      currency: '¥',
+      expiresAt: '2026-08-23T01:00:00.000Z',
+      trustGrant: { currency: '¥', maximum: 9 },
+      shots: {
+        currency: '¥',
+        shots: [
+          { shotId: 'shot-1', index: 1, sceneOneLiner: '开场', providerModelText: 'apimart · kling-v2（i2v）', durationSeconds: null, price: { known: true, amount: 4 }, degradations: [] },
+          { shotId: 'shot-2', index: 2, sceneOneLiner: '收尾', providerModelText: 'apimart · kling-v2（i2v）', durationSeconds: null, price: { known: false }, degradations: [] },
+        ],
+      },
+    })
+    await tick()
+    const request = frames.find((frame) => (frame as { method?: string }).method === 'elicitation/create') as { params: { message: string; requestedSchema: unknown } }
+    expect(request.params.message).toContain('#1 开场 · apimart · kling-v2（i2v） · ¥4')
+    // 算不出价格的那镜如实写「价格未知」，绝不凑一个 ¥0 出来。
+    expect(request.params.message).toContain('#2 收尾 · apimart · kling-v2（i2v） · 价格未知')
+    expect(request.params.message).toContain('合计最多 ¥9')
+    expect(request.params.message).toContain('¥9 内不再逐镜问')
+  })
+
+  // 永不把「算不出」当 ¥0 摆出去：整批都定不出价就别弹。（真免费的模型 amount=0 仍照常问——
+  // 未知与免费是两回事，见 shotPricing 的 price.known。）
+  it('refuses to ask anyone when every shot price is unknown', async () => {
+    const frames: unknown[] = []
+    const confirmGenerationInNomi = vi.fn(async () => true)
+    const transport: McpTransport = {
+      send: (frame) => frames.push(frame),
+      invoke: vi.fn(async () => ({})),
+      isAppOpen: () => true,
+      getAuthenticatedClient: () => 'codex',
+      confirmGenerationInNomi,
+    }
+    const protocol = await initialized(transport)
+    await expect(protocol.requestGenerationConfirmation({
+      ...challenge,
+      challengeId: 'challenge-unpriced',
+      confirmationText: undefined,
+      shots: {
+        currency: '¥',
+        shots: [{ shotId: 'shot-1', index: 1, sceneOneLiner: '开场', providerModelText: 'apimart · kling-v2', durationSeconds: null, price: { known: false }, degradations: [] }],
+      },
+    })).resolves.toMatchObject({ confirmed: false, surface: 'none' })
+    expect(frames.some((frame) => (frame as { method?: string }).method === 'elicitation/create')).toBe(false)
+    expect(confirmGenerationInNomi).not.toHaveBeenCalled()
+  })
 })

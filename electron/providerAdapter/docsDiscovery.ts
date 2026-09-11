@@ -85,7 +85,7 @@ function decodeHtmlEntities(text: string): string {
     .replace(/&#39;/gi, "'");
 }
 
-function readableText(raw: string, contentType: string): string {
+export function readableText(raw: string, contentType: string): string {
   if (!contentType.toLowerCase().includes("html") && !/<(?:html|body|p|h\d|a)\b/i.test(raw)) {
     return raw.replace(/\r/g, "").replace(/\n{3,}/g, "\n\n").trim();
   }
@@ -102,7 +102,7 @@ function readableText(raw: string, contentType: string): string {
   );
 }
 
-function pageTitle(raw: string): string | undefined {
+export function pageTitle(raw: string): string | undefined {
   const match = raw.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i) || raw.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i);
   return match ? readableText(match[1], "text/html").slice(0, 300) : undefined;
 }
@@ -134,7 +134,7 @@ function appendWithinBytes(current: string, next: string, maxBytes: number): str
   return `${current}${separator}${bytes.subarray(0, remaining).toString("utf8")}`;
 }
 
-function truncateUtf8(text: string, maxBytes: number): string {
+export function truncateUtf8(text: string, maxBytes: number): string {
   const bytes = Buffer.from(text, "utf8");
   if (bytes.length <= maxBytes) return text;
   return bytes.subarray(0, Math.max(0, maxBytes)).toString("utf8").replace(/\uFFFD$/, "");

@@ -147,6 +147,8 @@ export const zhAgentPanelV4 = {
   fixtureProcessOne: '我看到参数需要是数组而不是字符串，让我修正。',
   fixtureProcessTwo: '我把 JSON 字符串化两次了，这次直接传数组。',
 
+  // 「这一轮真的按这套方法做了」的凭据。挂在助手气泡头上，不是第九个积木。
+  skillUsed: '已使用技能：{{name}}',
   thinkingLabel: '正在想…',
   thinkingDone: '思考过程',
   thinkingSeconds: '{{count}}s',
@@ -483,6 +485,7 @@ export const enAgentPanelV4 = {
   fixtureProcessOne: 'I see the parameter needs to be an array, not a string — let me fix that.',
   fixtureProcessTwo: 'I serialized the JSON twice; sending the array directly this time.',
 
+  skillUsed: 'Skill used: {{name}}',
   thinkingLabel: 'Thinking…',
   thinkingDone: 'Thought process',
   thinkingSeconds: '{{count}}s',

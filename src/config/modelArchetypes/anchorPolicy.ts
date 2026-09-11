@@ -1,7 +1,7 @@
 import type { ArchetypeReferenceSlotKind } from './types'
 
 export type AnchorConsumption = 'character' | 'scene' | 'firstFrame' | 'none'
-export type ReferenceAssetKind = 'image' | 'video'
+export type ReferenceAssetKind = 'image' | 'video' | 'audio'
 
 /** Shared by edge admission and storyboard policy; never inferred from model names. */
 export const SLOT_ACCEPTS: Record<ArchetypeReferenceSlotKind, readonly ReferenceAssetKind[]> = {
@@ -10,7 +10,7 @@ export const SLOT_ACCEPTS: Record<ArchetypeReferenceSlotKind, readonly Reference
   image_ref: ['image'],
   video_ref: ['video'],
   source_video: ['video'],
-  audio_ref: [],
+  audio_ref: ['audio'],
 }
 
 type ModeSlots = { slots: readonly { kind: ArchetypeReferenceSlotKind; characterIndexed?: boolean; roleName?: string }[] }

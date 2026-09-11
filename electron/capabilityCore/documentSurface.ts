@@ -44,7 +44,7 @@ export function readProjectDocument(projectId: string, documentId: string | unde
   return { text }
 }
 
-export function writeProjectDocument(
+export async function writeProjectDocument(
   projectId: string,
   documentId: string | undefined,
   operation: 'insert' | 'replace' | 'append',
@@ -60,7 +60,7 @@ export function writeProjectDocument(
     const item = record(candidate)
     return item.id === document.id ? { ...item, contentJson: contentFor(nextText), updatedAt: Date.now() } : candidate
   })
-  const saved = saveProject(projectId, { ...project, payload: { ...payload, workbenchDocuments: documents, activeDocumentId: document.id } })
+  const saved = await saveProject(projectId, { ...project, payload: { ...payload, workbenchDocuments: documents, activeDocumentId: document.id } })
   return {
     applied: true as const,
     revision: Number(saved.revision ?? 0),

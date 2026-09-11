@@ -22,7 +22,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { launchNomiApp } from './_launchApp.mjs'
-import { screenshotSettled, clickOrFail } from './_assert.mjs'
+import { screenshotSettled, clickOrFail, expectVisible } from './_assert.mjs'
 import { stationTimeout } from './_station-budget.mjs'
 import { CANVAS_PANEL, COMPOSER, COMPOSER_MODEL, MODEL_POPOVER } from './agent-runtime-walk-support.mjs'
 
@@ -77,7 +77,7 @@ async function optionsForRow(row) {
   await closeModelPopover()
   await clickOrFail(win.locator(`${CANVAS_PANEL} ${COMPOSER_MODEL}`), '模型选择器')
   const popover = win.locator(`${CANVAS_PANEL} ${MODEL_POPOVER}`)
-  await popover.waitFor({ state: 'visible', timeout: stationTimeout() })
+  await expectVisible(popover, '模型弹层')
   const trigger = popover.locator(`[data-v4-model-row="${row}"] button`).first()
   if (!(await trigger.count())) { await closeModelPopover(); return { options: [], note: 'row-missing' } }
   await clickOrFail(trigger, `「${row}」那一行的模型下拉`)
@@ -127,11 +127,11 @@ try {
   await win.evaluate(() => { localStorage.setItem('nomi-color-scheme', 'light'); for (const k of ['nomi:splash:v1', 'nomi:journey-tour:v1', 'nomi:canvas-gesture-hint:v1']) localStorage.setItem(k, 'seen') })
   await win.reload(); await win.waitForLoadState('domcontentloaded'); await win.waitForTimeout(2500)
 
-  await win.getByText('新建空白项目', { exact: false }).first().click({ timeout: stationTimeout() })
+  await clickOrFail(win.getByText('新建空白项目', { exact: false }), '新建空白项目')
   await win.waitForTimeout(2500)
-  await win.getByRole('button', { name: '生成', exact: true }).first().click({ timeout: stationTimeout() })
+  await clickOrFail(win.getByRole('button', { name: '生成', exact: true }), '生成 标签')
   await win.waitForTimeout(2000)
-  await win.locator(`${CANVAS_PANEL} ${COMPOSER}`).first().waitFor({ state: 'visible', timeout: stationTimeout() })
+  await expectVisible(win.locator(`${CANVAS_PANEL} ${COMPOSER}`), '画布 agent composer')
 
   // ── 对偶前态：没 key 时 apimart 一个都挑不到 ──
   const beforeVendor = await apimartVendorState()
@@ -142,13 +142,13 @@ try {
   // ── 真人动作：设置 → 模型 → APIMart → 粘贴 key → 保存 ──
   await clickOrFail(win.locator('button[aria-label*="设置"], button[aria-label*="Settings"]').first(), '打开设置')
   const dialog = win.locator('[role="dialog"][aria-modal="true"]').first()
-  await dialog.waitFor({ state: 'visible', timeout: stationTimeout() })
+  await expectVisible(dialog, '设置弹窗')
   await clickOrFail(dialog.locator('[data-settings-tab-id="models"]').first(), '设置「模型」tab')
   await win.waitForTimeout(1200)
   await clickOrFail(dialog.locator('[data-model-home-available="apimart"]').first(), '模型首页里的 APIMart')
   await win.waitForTimeout(1200)
   const connectPage = dialog.locator('[data-key-only-vendor="apimart"]').first()
-  await connectPage.waitFor({ state: 'visible', timeout: stationTimeout() })
+  await expectVisible(connectPage, 'APIMart 接入页')
   await screenshotSettled(dialog, { path: path.join(shots, '04b-apimart-connect-page.png') })
 
   // key 从不进入本脚本：这里只读**密文**，解密与写剪贴板都在主进程里做。
@@ -179,7 +179,7 @@ try {
   await clickOrFail(connectPage.locator('[data-platform-key-only] button').last(), '保存 APIMart 密钥')
   // livenessProbe 是一次真实网络调用；给它足够时间落定，再看结果卡。
   const successCard = connectPage.locator('[data-key-only-success]').first()
-  await successCard.waitFor({ state: 'visible', timeout: stationTimeout({ operations: 6 }) })
+  await expectVisible(successCard, 'APIMart 保存结果卡', stationTimeout({ operations: 6 }))
   await win.waitForTimeout(1500)
   const savedTitle = (await successCard.innerText().catch(() => '')).trim().replace(/\s+/g, ' ')
   await screenshotSettled(dialog, { path: path.join(shots, '04c-apimart-key-saved.png') })

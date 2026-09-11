@@ -1,6 +1,6 @@
 import { formatAvailableModelsForPrompt } from "../../../../electron/shared/agentCapabilities/availableModels";
 import { describe, it, expect } from "vitest";
-import { buildAgentModelEntries } from "./availableModels";
+import { buildAgentModelEntries, pickSavedDefaultModel, pickStoryboardDefaultModel } from "./availableModels";
 import type { ModelOption } from "../../../config/models";
 
 // 用 meta.archetypeId 显式命中内置档案（resolveArchetypeForModel 优先看 archetypeId）。
@@ -134,5 +134,40 @@ describe("formatAvailableModelsForPrompt", () => {
       opt({ value: "imagen-4", label: "Imagen 4", meta: { archetypeId: "imagen-4" } }),
     ]);
     expect(formatAvailableModelsForPrompt(entries)).toContain("纯文生,不接参考边");
+  });
+});
+
+// 2026-09-10：给 agent 建的卡挑模型的**权威**是用户保存的默认，正则阶梯只是兜底。
+// 此前正则阶梯是唯一判据（gpt image → nano banana → 第一个），用户在设置里设的默认被完全无视。
+describe("默认模型解析：用户保存的偏好优先，正则阶梯只兜底", () => {
+  const entries = buildAgentModelEntries([
+    opt({ value: "gpt-image-2", label: "GPT Image 2", vendor: "apimart", meta: { archetypeId: "gpt-image-2" } }),
+    opt({ value: "nano-banana", label: "Nano Banana", vendor: "apimart", meta: { archetypeId: "nano-banana" } }),
+    opt({ value: "nano-banana", label: "Nano Banana", vendor: "my-relay", meta: { archetypeId: "nano-banana" } }),
+  ]);
+
+  it("用户设了默认 → 用他的（哪怕正则阶梯会挑另一个）", () => {
+    expect(pickStoryboardDefaultModel(entries, "image")?.modelKey).toBe("gpt-image-2");
+    const picked = pickSavedDefaultModel(entries, "image", {
+      text_to_image: { vendorKey: "my-relay", modelKey: "nano-banana" },
+    });
+    expect(picked?.modelKey).toBe("nano-banana");
+    expect(picked?.vendor).toBe("my-relay");
+  });
+
+  it("身份两段都要对：只有模型段命中不算（同名模型来自另一家会串台）", () => {
+    expect(pickSavedDefaultModel(entries, "image", {
+      text_to_image: { vendorKey: "vendor-that-is-gone", modelKey: "nano-banana" },
+    })).toBeUndefined();
+  });
+
+  it("文生图没设 → 退到图生图那条偏好（一份偏好覆盖同一媒介两个模式）", () => {
+    expect(pickSavedDefaultModel(entries, "image", {
+      image_edit: { vendorKey: "apimart", modelKey: "nano-banana" },
+    })?.vendor).toBe("apimart");
+  });
+
+  it("一个默认都没设 → undefined，由调用方回落兜底阶梯", () => {
+    expect(pickSavedDefaultModel(entries, "image", {})).toBeUndefined();
   });
 });

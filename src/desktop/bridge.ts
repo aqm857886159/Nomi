@@ -16,6 +16,8 @@ import type { GenerationResolvePlanEnvelope, GenerationResolvePlanRequest } from
 export type { ProviderKind }
 export type { DesktopAdapterModeResult, DesktopProviderAdapterRun, DesktopProviderRegistration } from './onboardingBridgeTypes'
 export type { ScreenshotHotkeyStatus, DesktopAssetDto, DesktopAssetFolder, DesktopAssetFoldersState } from './bridgeMedia'
+export type { DesktopDirectorBridge, DesktopDirectorMobileEvent, DesktopDirectorMobileStatus } from './directorBridgeTypes'
+import type { DesktopDirectorBridge } from './directorBridgeTypes'
 
 /** 落盘的对话消息(conversation 域;draft/附件是 session 域不落盘)。 */
 export type PersistedAiMessage = {
@@ -45,6 +47,7 @@ export type PersistedConversationsV2 = {
 }
 
 /** 代理三态：跟随系统探测 / 只对 Nomi 生效的自定义地址 / 强制直连。 */
+
 export type DesktopProxyMode = 'system' | 'custom' | 'off'
 
 /** 一种媒体类型现在实际走的上传通道（main 侧 describeAssetTransportChannels 的产物）。 */
@@ -361,8 +364,7 @@ export type DesktopBridge = DesktopMediaBridge &
     readAsync?: (projectId: string) => Promise<unknown | null>
     diagnose?: (projectId: string) => Promise<{ projectId: string; rootPath?: string; status: 'ok' | 'not-registered' | 'missing-folder' | 'missing-manifest' | 'corrupt-manifest' | 'id-mismatch'; recoverable: boolean; backupAvailable: boolean }>
     recover?: (projectId: string) => Promise<unknown>
-    save: (projectId: string, record: unknown) => unknown
-    saveAsync?: (projectId: string, record: unknown) => Promise<unknown>
+    save: (projectId: string, record: unknown) => Promise<unknown>
     delete: (projectId: string) => { id: string; deleted: boolean }
   }
   assets: {
@@ -511,17 +513,8 @@ export type DesktopBridge = DesktopMediaBridge &
       projectId?: string
     }) => Promise<{ layers: string[] }>
   }
-  scene3d: {
-    /** N 帧 PNG dataURL（沿相机轨迹采样）→ ffmpeg 拼 H.264 mp4 → 项目素材。
-     *  AI 运镜工具的「轨迹→视频文件」桥，见 electron/video/framesToVideo.ts。 */
-    framesToVideo: (payload: {
-      projectId: string
-      ownerNodeId?: string | null
-      fileName?: string
-      fps: number
-      frames: string[]
-    }) => Promise<{ url: string; assetId?: string }>
-  }
+  /** 导演台出片 + 手机虚拟相机。开发页 / 老 preload 没有这座桥 → 对话框明说需要桌面运行时。 */
+  director?: DesktopDirectorBridge
   /** Generation strategy resolver GUI 窄 IPC：planning seam 在 main（候选/决策与 agent/MCP 同源），
     渲染层不自构候选。可选（`?`）：旧 preload 没有此口，调用方须兜住 undefined。 */
   generationStrategy?: {

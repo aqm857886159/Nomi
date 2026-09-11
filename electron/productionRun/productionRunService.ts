@@ -13,7 +13,7 @@ import {
 import { buildProductionDeepLink } from './productionDeepLink'
 import { applyRunControl } from './productionRunControl'
 import { createDriverOps } from './productionRunDriverOps'
-import { isShotGate } from './productionRunGateIdentity'
+import { isShotGate, isSpendGate } from './productionRunGateIdentity'
 import { withEventTap } from './productionRunEventTap'
 import { assertStoryboardSourceFresh, createArtifactOperations } from './productionRunArtifactOperations'
 import { assertStoryboardSourceApproved } from './productionRunReducer'
@@ -21,7 +21,7 @@ import { MEANINGFUL_EVENT_TYPES } from './productionRunMeaningfulEvents'
 import { readAutomationPolicySettings } from '../settings/automationPolicySettings'
 import { assertProductionPolicyReady } from './productionPolicyReadiness'
 import { normalizeTrustLevel, trustLevelOf } from './productionRunTypes'
-import { approvalReceiptForGate, duplicateGateDecisionFor } from './productionRunApprovalReceipt'
+import { createGateApprovalOwner } from './productionRunApprovalReceipt'
 import { isAnchorCheckpointGate } from './anchorCheckpoint'
 import { kickBatchSchedulerForRun } from './batchSchedulerKick'
 import { recoverStoryboardContentHashes } from './productionRunStoryboardHashRecovery'
@@ -65,7 +65,11 @@ type ServiceDeps = {
   }>
   /** A5：每批持久化事件的旁路监听（系统通知等）。异常被吞，绝不影响制作主流程。 */
   onEvents?: (events: RunEvent[], run: ProductionRun) => void
-  /** Optional main-process receipt owner. When supplied, gate.decide must verify and consume a receipt. */
+  /**
+   * 主进程收据权威。**不传不等于放行**：构造时会退成 fail-closed 的人证持有者，付费门届时只认
+   * productionRunIpc 盖的真人手势章（见 createGateApprovalOwner）。生产装配必须传，装配点是
+   * productionRunRuntime.getProductionRunService()。
+   */
   approvalReceiptAuthority?: ApprovalReceiptAuthority
   /** Current project document revision, resolved by the project owner rather than the command body. */
   projectRevisionResolver?: (projectId: string) => number | undefined
@@ -111,6 +115,9 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
       minimizeUploads: settings.minimizeUploads,
     }
   })
+  // 装配不变量：service 内部**没有**「没有人证持有者」这个状态。缺权威时持有的是 fail-closed 的那份，
+  // 于是命令路径上不再有 `if (!authority)` 这种「验不了就跳过」的分支（R28：能在构造期消掉的空状态别留到运行时）。
+  const gateApproval = createGateApprovalOwner(deps.approvalReceiptAuthority, deps.projectRevisionResolver)
   const inFlight = new Set<string>()
   const recoveryInFlight = new Set<string>()
   const reconciliationInFlight = new Set<string>()
@@ -290,16 +297,24 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
       // 若正卡在创意/样片门等待且新档位是 budget_only → 顺手自动批准该门，让「直接出」立刻生效。
       const current = requireRun(safeProjectId, safeRunId)
       const trustLevel = normalizeTrustLevel(runCommand.payload.trustLevel)
+      // 降到 budget_only = 一次付费放行（此后逐镜确认门不再生成）→ 必须有一次真人答过的确认：
+      // Nomi 窗口里的手势章，或一张绑死「预算上限 + runId」的 elicitation 收据。缺两者 → 拒。
+      const trustReceipt = gateApproval.verifyTrustGrant(safeProjectId, safeRunId, current, runCommand)
       const result = repository.execute(safeProjectId, safeRunId, {
         ...runCommand,
         type: 'policy.set',
         payload: { policy: { ...current.policy, trustLevel } },
       })
+      // 事件先落库再消费收据：崩溃最多留下一张对着已生效档位的可重放收据，不会把档位改回去。
+      gateApproval.consume(trustReceipt || undefined)
       if (trustLevel === 'budget_only') {
-        const waitingCreativeGate = result.run.gates.find((gate) => gate.status === 'waiting' && (
-          gate.scope === 'stage' && (gate.gateId.startsWith('gate-direction-') || gate.gateId.startsWith('gate-sample-'))
-          || isShotGate(gate)
-        ))
+        // 2026-09-10 根因：这里原本也把 isShotGate(gate) 算进「顺手批掉」的范围。逐镜门是**付费门**
+        // （批准即放行 production.generate-node），而 set_trust 只能由客户端工具调用发起（渲染层 IPC
+        // 把 run.control 的 payload 收窄成 pause/resume/cancel，根本递不进 trustLevel）——等于一次
+        // 客户端工具调用就能替用户批掉一次真实扣费。降档只降「问得多细」，不代表替真人授权花钱。
+        const waitingCreativeGate = result.run.gates.find((gate) => gate.status === 'waiting'
+          && gate.scope === 'stage'
+          && (gate.gateId.startsWith('gate-direction-') || gate.gateId.startsWith('gate-sample-')))
         if (waitingCreativeGate) void autoApproveGate(safeProjectId, safeRunId, waitingCreativeGate.gateId)
       }
       return result
@@ -389,12 +404,13 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
       })
       return result
     }
-    const duplicateGateDecision = runCommand.type === 'gate.decide'
-      ? duplicateGateDecisionFor(deps.approvalReceiptAuthority, safeProjectId, safeRunId, requireRun(safeProjectId, safeRunId), runCommand, deps.projectRevisionResolver)
+    const gateDecisionRun = runCommand.type === 'gate.decide' ? requireRun(safeProjectId, safeRunId) : undefined
+    const duplicateGateDecision = gateDecisionRun
+      ? gateApproval.duplicateGateDecisionFor(safeProjectId, safeRunId, gateDecisionRun, runCommand)
       : undefined
     const gateReceipt = duplicateGateDecision
       ? duplicateGateDecision.gateReceipt
-      : approvalReceiptForGate(deps.approvalReceiptAuthority, safeProjectId, safeRunId, runCommand, deps.projectRevisionResolver)
+      : gateDecisionRun && gateApproval.verifyGateDecision(safeProjectId, safeRunId, gateDecisionRun, runCommand)
     if (duplicateGateDecision) return { run: duplicateGateDecision.current, events: [] }
     if (runCommand.type === 'gate.decide' && runCommand.payload.status === 'approved') {
       const current = requireRun(safeProjectId, safeRunId)
@@ -411,11 +427,9 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
       }
     }
     const result = repository.execute(safeProjectId, safeRunId, runCommand)
-    if (gateReceipt && deps.approvalReceiptAuthority) {
-      // The Run event is durable before receipt consumption. A crash can only leave
-      // a replayable receipt against an already-decided gate; it cannot reopen it.
-      deps.approvalReceiptAuthority.consumeReceipt(gateReceipt.token)
-    }
+    // The Run event is durable before receipt consumption. A crash can only leave
+    // a replayable receipt against an already-decided gate; it cannot reopen it.
+    gateApproval.consume(gateReceipt || undefined)
     if (runCommand.type === 'gate.decide' && runCommand.payload.status === 'approved' && runCommand.payload.gateId === 'gate-direction-v1') {
       void proposeScript(result.run)
     }
@@ -502,6 +516,9 @@ export function createProductionRunService(deps: ServiceDeps = {}) {
       const current = requireRun(projectId, runId)
       const gate = current.gates.find((item) => item.gateId === gateId)
       if (!gate || gate.status !== 'waiting') return
+      // 付费门永远不自动批：自动批准没有人证，而付费门的不变量就是「必须有真人授权」。防线放在这个
+      // 共享出口，任何未来的自动批准调用者都被同一条规则拦住（不靠每个调用点自己记得筛）。
+      if (isSpendGate(gate)) throw new Error(`Spend gate cannot be auto-approved by trust level: ${gate.gateId}`)
       await command(projectId, runId, {
         commandId: `auto-trust-budget-only:${gateId}:${current.revision}`,
         expectedRevision: current.revision,

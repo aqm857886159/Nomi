@@ -77,9 +77,9 @@ const EXCLUDED_FILES = new Set([
   'src/workbench/generationCanvas/agent/generationCanvasTools.ts', // agent tool result prose
   'src/workbench/generationCanvas/agent/runStoryboardPlanner.ts', // agent-only instruction
   'src/workbench/generationCanvas/nodes/controls/parameterControlModel.ts', // translated in nodeModelArchetype/archetypeMeta
-  'src/workbench/generationCanvas/nodes/scene3d/attachCameraMoveToTarget.ts', // camera-move directive appended to the model prompt (and matched back by includes('镜头运动：')), not UI copy
-  'src/workbench/generationCanvas/nodes/scene3d/poseMetrics.ts', // posecode report feeds the VLM prompt and loop logs, not UI
-  'src/workbench/generationCanvas/nodes/scene3d/scene3dPropSpecs.ts', // stable object defaults; toolbar uses scene3d keys
+  'src/workbench/generationCanvas/nodes/director/agent/attachCameraMoveToTarget.ts', // camera-move directive appended to the model prompt (and matched back by includes('镜头运动：')), not UI copy
+  'src/workbench/generationCanvas/nodes/director/model/posePresets.ts', // preset labels are source documentation; UI renders i18n director.pose.* by preset id
+  'src/workbench/generationCanvas/nodes/director/migration/legacyPropSpecs.ts', // V1 prop defaults kept verbatim for migration; group names come from the persisted legacy scene
   'src/workbench/library/projectTemplates.ts', // getProjectTemplate selects localized template data
   'src/workbench/library/tryNowExamples.ts', // dormant authored examples, not rendered
   'src/workbench/onboarding/demoProject.ts', // explicitly contains parallel zh-CN/en authored demo data

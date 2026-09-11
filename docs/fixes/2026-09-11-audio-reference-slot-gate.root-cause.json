@@ -1,0 +1,200 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-11-audio-reference-slot-gate",
+  "problem_type": "A declared third media kind (audio) is silently rejected by shared boundaries hardcoded to a binary image/video assumption",
+  "symptom": "Users report two things: (1) a Sound node cannot be connected as a reference into a Video node even though the selected video model (Seedance 2.0 omni) declares an audio_ref reference slot; (2) a ComfyUI workflow's LoadAudio input is never recognized as a media slot and is instead exposed as a plain scalar/text control the user must hand-type a raw ComfyUI filename into.",
+  "direct_cause": "src/config/modelArchetypes/anchorPolicy.ts declared ReferenceAssetKind as only 'image' | 'video' and SLOT_ACCEPTS.audio_ref as an empty array; src/workbench/generationCanvas/agent/referenceEdgeCapability.ts's referenceAssetKindForNode() never classified an execution-kind 'audio' node (or an imported asset node with result.type 'audio') as a referenceable source, so the canvas edge-admission gate rejected the edge before the target model's declared slot was ever consulted. Independently, electron/catalog/comfyuiWorkflowImport.ts had no LOAD_AUDIO_RE matching ComfyUI's real LoadAudio class_type, so isMediaInput never recognized a LoadAudio.audio input; and even where mediaKind:'audio' could be produced, three downstream validators (electron/catalog/parameterReferenceContract.ts's readParameterReferenceContract, src/config/modelCatalogMeta.ts's parseParameterControl/parseModelParameterControlsAtomic) explicitly rejected or silently stripped any mediaKind other than 'image'/'video', so a workflow containing even one LoadAudio-derived slot had its entire parameterReferenceSlots contract invalidated (not just the audio slot).",
+  "class_root": "Several independent shared boundaries model 'media reference kind' as a closed binary enum (image | video) instead of deriving it from the actual declared/producible set, so any new media kind a model archetype or an external format (ComfyUI) can produce is unreachable through every one of those boundaries until each is updated in lockstep.",
+  "affected_population": [
+    "Every archetype that declares an audio_ref slot: Seedance 2.0 omni (bytedance/dreamina/volcengine/apimart variants), Runway Seed Audio speech/sfx modes, the built-in Audio archetype's transcribe mode, Eleven Music/SFX reference slots, Suno extend/cover",
+    "Any imported ComfyUI workflow containing a LoadAudio node (real corpus fixture 'unsupported-output' in electron/catalog/comfyuiWorkflowFixtures.ts proves this is not hypothetical)",
+    "Any future archetype or ComfyUI node type introducing a fourth media kind will hit the same class of gate unless the added coverage test (anchorPolicy.slotCoverage.test.ts) is kept green"
+  ],
+  "scope_paths": [
+    "src/config/modelArchetypes/anchorPolicy.ts",
+    "src/workbench/generationCanvas/agent/referenceEdgeCapability.ts",
+    "src/workbench/generationCanvas/model/parameterReferenceSlots.ts",
+    "electron/catalog/parameterReferenceContract.ts",
+    "electron/catalog/comfyuiWorkflowImport.ts",
+    "electron/catalog/comfyuiWorkflowBindingNormalize.ts",
+    "electron/catalog/comfyuiWorkflowTaskContract.ts",
+    "electron/shared/videoCapabilities/types.ts",
+    "electron/shared/comfyCertificationFixtures.ts",
+    "src/config/modelCatalogMeta.ts",
+    "src/ui/onboarding/comfyuiWorkflowBinding.ts",
+    "src/ui/onboarding/comfyuiCanvasPreview.ts",
+    "src/ui/onboarding/workflowPage/WorkflowCanvasPreview.tsx",
+    "electron/catalog/comfyuiWorkflowFixtures.ts",
+    "src/workbench/generationCanvas/runner/generationRunController.ts",
+    "src/i18n/locales/generationCommon.ts",
+    "src/i18n/locales/comfyuiWorkflowPage.ts",
+    "src/workbench/generationCanvas/nodes/NodeParameterControls.tsx"
+  ],
+  "entry_points": [
+    "Canvas manual edge connect (completeNodeConnection -> connectToNode -> resolveCanvasReferenceConnection -> validateReferenceEdge)",
+    "Agent connect_nodes tool (same validateReferenceEdge/partitionConnectableEdges gate)",
+    "Reference slot display/resolution (resolveReferenceSlots via referenceAssetKindForNode + SLOT_ACCEPTS)",
+    "Generation-time reference resolution (generationReferenceResolver.ts, referenceSlots.ts)",
+    "ComfyUI workflow import scanner (analyzeComfyWorkflow -> buildImportedWorkflow)",
+    "ComfyUI parameter-slot canvas admission (parameterReferenceSlots.ts acceptsParameterReferenceSource)",
+    "ComfyUI 'Run test' certification fixture builder (comfyCertificationFixtures.ts)"
+  ],
+  "external_sources": [
+    {
+      "kind": "source-code",
+      "url": "https://raw.githubusercontent.com/comfyanonymous/ComfyUI/master/comfy_extras/nodes_audio.py",
+      "checked_at": "2026-09-11",
+      "purpose": "Confirm the real ComfyUI LoadAudio node's class_type string ('LoadAudio') and its file-name input key ('audio') before writing the LOAD_AUDIO_RE detector and test fixtures, per R5 (never invent a wire contract from memory)."
+    }
+  ],
+  "invariants": [
+    "Every ArchetypeReferenceSlotKind that any built-in archetype actually declares maps to a non-empty SLOT_ACCEPTS entry (no declared slot is a permanent dead end).",
+    "referenceAssetKindForNode classifies every GenerationNodeKind whose executionKind is a member of ReferenceAssetKind (image/video/audio) as that same kind, and classifies an imported asset node by its actual result.type across all three kinds, not just video-vs-image.",
+    "A ComfyUI workflow's LoadAudio.audio input is recognized as a media input (mediaKind:'audio'), never silently downgraded to a scalar text widget.",
+    "No validator in the parameterReferenceSlots/parameterReferenceContract/modelCatalogMeta chain treats mediaKind:'audio' as grounds to invalidate an otherwise-valid declaration or to silently drop the field."
+  ],
+  "generality_proof": "anchorPolicy.ts's SLOT_ACCEPTS and referenceEdgeCapability.ts's referenceAssetKindForNode are the single supplier-agnostic classifier/allow-list used by every archetype (canvas edges) and every consumer of resolveGenerationReferences/referenceSlots.ts (display + generation-time send). Fixing ReferenceAssetKind and SLOT_ACCEPTS.audio_ref once, plus adding the 'audio' branch to referenceAssetKindForNode's two derivation paths (execution-kind and imported-asset result.type), unblocks every archetype that declares audio_ref without touching per-vendor code, because every one of those archetypes already routes through the same shared boundary. Symmetrically for ComfyUI: comfyuiWorkflowImport.ts's LOAD_AUDIO_RE + mediaKind assignment is the single scanner used for every imported workflow regardless of which cloud/local ComfyUI instance produced it; parameterReferenceContract.ts and modelCatalogMeta.ts are the single validators every declared slot passes through before reaching the canvas, so widening their mediaKind union once fixes every ComfyUI workflow with an audio input, not just the one in the bug report's example.",
+  "shared_boundaries": [
+    {
+      "path": "src/config/modelArchetypes/anchorPolicy.ts",
+      "symbol": "SLOT_ACCEPTS",
+      "responsibility": "Single supplier-agnostic table of which resolved asset kinds each declared reference slot kind accepts; used by edge validation, storyboard policy, and reference-slot resolution."
+    },
+    {
+      "path": "src/workbench/generationCanvas/agent/referenceEdgeCapability.ts",
+      "symbol": "referenceAssetKindForNode",
+      "responsibility": "Single classifier deriving which asset kind a canvas node can supply as a reference, consumed by edge validation, mode auto-promotion, mention candidates, and generation-time reference resolution."
+    },
+    {
+      "path": "electron/catalog/comfyuiWorkflowImport.ts",
+      "symbol": "analyzeComfyWorkflow / isMediaInput",
+      "responsibility": "Single scanner classifying every ComfyUI graph input as media (image/video/audio) vs scalar, for every imported workflow."
+    },
+    {
+      "path": "electron/catalog/parameterReferenceContract.ts",
+      "symbol": "readParameterReferenceContract",
+      "responsibility": "Single validator admitting or rejecting a persisted parameterReferenceSlots declaration before the canvas or generation path trusts it."
+    },
+    {
+      "path": "src/config/modelCatalogMeta.ts",
+      "symbol": "parseParameterControl / parseModelParameterControlsAtomic",
+      "responsibility": "Single parser for model catalog parameter controls (including ComfyUI-imported media controls); the atomic variant is the strict all-or-nothing gate for explicit ComfyUI declarations."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/model/parameterReferenceSlots.ts",
+      "entry_point": "acceptsParameterReferenceSource",
+      "disposition": "enforced",
+      "evidence": "Independent second classifier (ComfyUI explicit parameter slots, not archetype slots) that computed 'kind' from execution kind with only video/image branches; added the audio branch so an audio-kind source can fill a mediaKind:'audio' ComfyUI parameter slot, covered by parameterReferenceSlots.test.ts's new 'routes an audio declaration only to audio' / 'does not accept an image source for an audio declaration' pair."
+    },
+    {
+      "path": "electron/catalog/comfyuiWorkflowTaskContract.ts",
+      "entry_point": "resolveComfyWorkflowTaskKind",
+      "disposition": "enforced",
+      "evidence": "hasImageInput used `mediaKind !== 'video'`, which counted an audio-only input as an image input and would misroute an audio-conditioned image workflow to image_edit instead of text_to_image; fixed to `mediaKind === 'image' || mediaKind === undefined` and covered by comfyuiWorkflowImport.test.ts's new 'audio only input does not masquerade as image input' test."
+    },
+    {
+      "path": "src/ui/onboarding/comfyuiWorkflowBinding.ts",
+      "entry_point": "roleChoicesForNode",
+      "disposition": "enforced",
+      "evidence": "The renderer-side mirror of the import analysis offered firstFrame/lastFrame legacy role menu choices for any non-video media input; without an explicit audio branch a LoadAudio candidate would be offered 'set as first/last frame', corrupting the request if chosen. Added an audio branch that skips role offers (audio has no legacy singleton role; it flows through the generic images[] list instead)."
+    },
+    {
+      "path": "electron/shared/comfyCertificationFixtures.ts",
+      "entry_point": "buildComfyCertificationFixtureParams",
+      "disposition": "enforced",
+      "evidence": "The 'Run test' real-submission self-test fixture builder only produced image/video fixture data; without an audio branch a certification run against a workflow with a LoadAudio slot would either crash or silently omit that slot's value. Added a minimal valid WAV fixture and a referenceAudioUrls field, covered by comfyCertificationFixtures.test.ts's new audio tests."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeParameterControls.tsx",
+      "entry_point": "handleSlotUpload",
+      "disposition": "enforced",
+      "evidence": "Found by the i18n dead-key gate (check:i18n), not by the initial same-class grep: this ComfyUI declared-parameter-slot upload handler already had a binary video/image ternary for its error message, missing-URL message, and taskKind override. An mediaKind:'audio' slot (now reachable end-to-end after this fix) fell through to the image branch, so dropping the wrong file type on an audio slot showed the imageOnly ('只能选择图片文件') message instead of an audio-specific one, and every upload got tagged taskKind:'image_edit'. Widened all three ternaries to three-way and wired the two i18n keys (generationCommon.parameters.audioOnly/missingAudioUrl) that a prior pass had added to the locale files but never referenced anywhere, which is exactly why check:i18n's dead-key gate caught it.",
+      "found_via": "check:i18n dead-key gate failing on generationCommon.parameters.audioOnly / missingAudioUrl (declared in locales, unreferenced in source) during this task's own acceptance pass, after the rest of the fix was already believed complete — direct evidence that even a deliberate same_class_scan can miss an entry point, and that a machine gate catching it is more reliable than another round of grep."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/controls/archetypeMeta.ts",
+      "entry_point": "buildArchetypeInputParams / ARRAY_SLOT_ROUTE.audio_ref",
+      "disposition": "not-affected",
+      "evidence": "This layer (the archetype-driven request-body builder) was already audio-aware per its own B4 comment ('连接音频被静默丢弃' fixed earlier) and already routes audio_ref edges into reference_audio_urls once references.referenceAudios is populated; confirmed unaffected by reading the ARRAY_SLOT_ROUTE table and existing archetypeMeta.test.ts coverage, and re-verified end-to-end via the new audio-reference-connect.walk.mjs walkthrough's dry-run of buildArchetypeInputParams."
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/generationReferenceResolver.ts",
+      "entry_point": "getAssetKindByUrl",
+      "disposition": "not-affected",
+      "evidence": "This independent URL-to-kind classifier (used for the generic referenceImages/referenceVideos/referenceAudios split, separate from the edge-admission gate) already branched on result.type/kind === 'audio'; confirmed by reading the function and its existing 'kind === audio' branch, so no change was needed here."
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner/generationRunController.ts",
+      "entry_point": "canRunGenerationNode (executionKind === 'audio' branch)",
+      "disposition": "not-affected",
+      "evidence": "This branch already called resolveGenerationReferences + hasAnyArchetypeReference generically and only carried a stale comment claiming SLOT_ACCEPTS.audio_ref was always empty; only the comment was corrected (no logic change) once the shared boundary made the audio path real, confirmed passing by canRunGenerationNode.test.ts's existing and new audio cases."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any future archetype declaring a new reference slot kind, or any future ComfyUI/external node type producing a media kind beyond image/video, will hit the same class of gate at one or more of these boundaries unless each is re-checked; the bug already reproduced independently at two unrelated boundaries (canvas edge admission and ComfyUI workflow import) for the same media kind, which is direct evidence of recurrence rather than a one-off typo.",
+    "same_class_scan": [
+      "rg -n \"'image' \\| 'video'\" across electron/ and src/ to enumerate every inline binary media-kind union; found and triaged ~20 unrelated unions (browser media types, task kinds, prompt library types) vs. ~10 that were genuinely part of the reference/parameter-media-kind chain and needed widening",
+      "rg -n 'mediaKind' across electron/ and src/ to find every consumer of the widened field; found and fixed the two additional real gates (comfyuiWorkflowTaskContract.ts's hasImageInput miscount, comfyuiWorkflowBinding.ts's stale role-menu branch) that a narrower search for only 'anchorPolicy'/'referenceEdgeCapability' would have missed",
+      "Ran the full pre-existing test suite after each widening; 4 pre-existing tests (electron/catalog/parameterReferenceContract.test.ts, electron/catalog/comfyuiMediaWire.test.ts, src/config/modelCatalogMeta.test.ts, src/workbench/generationCanvas/model/parameterReferenceSlots.test.ts) had explicitly hardcoded 'audio mediaKind is invalid/unsupported' as an expected assertion — direct proof the same invariant gap was independently encoded in four different test files, not just the two files named in the bug report",
+      "electron/catalog/comfyuiWorkflowCorpus.test.ts's real 259-template corpus fixture 'unsupported-output' already contained a genuine LoadAudio node whose input silently returned mediaKinds:[] before this fix — real-world evidence the defect was already live in captured production-shaped data, not a hypothetical"
+    ]
+  },
+  "prevention": {
+    "kind": "type-system",
+    "enforcement_path": "src/config/modelArchetypes/anchorPolicy.ts",
+    "invariant": "ReferenceAssetKind and SLOT_ACCEPTS are the single closed-set source of truth for which asset kinds each slot kind accepts; TypeScript's Record<ArchetypeReferenceSlotKind, ...> already guarantees every slot key is present, and the new anchorPolicy.slotCoverage.test.ts guarantees no declared slot kind maps to an empty (dead-end) accept list.",
+    "failure_mode": "A slot kind with an empty SLOT_ACCEPTS entry fails anchorPolicy.slotCoverage.test.ts at CI time; a node kind whose executionKind is a ReferenceAssetKind member but is unclassified by referenceAssetKindForNode fails referenceEdgeCapability.test.ts's registry-exhaustive coverage test at CI time.",
+    "exception_policy": "none",
+    "strategy": "Two class-level regression tests (anchorPolicy.slotCoverage.test.ts scanning MODEL_ARCHETYPES for any slot kind with an empty accept list; referenceEdgeCapability.test.ts scanning GENERATION_NODE_KINDS for any executionKind in {image,video,audio} left unclassified) turn 'someone adds a new slot kind or node kind and forgets to wire the shared gate' into an immediate, class-wide CI failure instead of a silent per-model/per-node gap discovered only by user report.",
+    "artifacts": [
+      "src/config/modelArchetypes/anchorPolicy.ts",
+      "src/config/modelArchetypes/anchorPolicy.slotCoverage.test.ts",
+      "src/workbench/generationCanvas/agent/referenceEdgeCapability.ts",
+      "src/workbench/generationCanvas/agent/referenceEdgeCapability.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/config/modelArchetypes/anchorPolicy.slotCoverage.test.ts",
+    "src/workbench/generationCanvas/agent/referenceEdgeCapability.test.ts",
+    "src/workbench/generationCanvas/model/parameterReferenceSlots.test.ts",
+    "src/workbench/generationCanvas/runner/canRunGenerationNode.test.ts",
+    "electron/catalog/comfyuiWorkflowImport.test.ts",
+    "electron/catalog/comfyuiWorkflowCorpus.test.ts",
+    "electron/catalog/comfyuiMediaWire.test.ts",
+    "electron/catalog/parameterReferenceContract.test.ts",
+    "electron/shared/comfyCertificationFixtures.test.ts",
+    "src/config/modelCatalogMeta.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/config/modelArchetypes/anchorPolicy.slotCoverage.test.ts",
+    "src/workbench/generationCanvas/agent/referenceEdgeCapability.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "No parallel/fallback path was introduced; every fix widens an existing single shared boundary in place (P1 — no new code path added alongside the old one). Four pre-existing test cases that had encoded the bug as expected behavior ('audio mediaKind rejected/unsupported') were rewritten in place to assert the corrected invariant, not left as a second parallel expectation."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party runtime or SDK controls this invariant; ArchetypeReferenceSlotKind/mediaKind are Nomi's own application-level types, and ComfyUI's LoadAudio class_type/input-key contract was confirmed directly against upstream source (external_sources above) rather than a dependency version.",
+    "exit_criteria": []
+  },
+  "migration": "No stored data migration needed. Existing model archetype declarations (audio_ref slots) and existing imported ComfyUI workflow bindings are read as-is; the fix only changes how already-declared/already-scanned audio media is classified and admitted, it does not change any persisted schema or require re-import of existing ComfyUI workflows (the next open of the workflow-settings page will re-scan and pick up LoadAudio recognition automatically since analyzeComfyWorkflow is not cached to disk).",
+  "residual_risks": [
+    "The three affected 'audio requires a companion image/video reference' Seedance archetypes (2.0 family) still correctly block generation on audio-alone per vendor documentation (requiresAnyOf) — this is intentional product behavior, not a residual bug, and is covered by the paired canRunGenerationNode.test.ts cases plus the walkthrough's step ②/③.",
+    "The ComfyUI 'Run test' certification fixture audio WAV is a synthetic minimal silent clip; it proves the wiring reaches the ComfyUI submission boundary but does not prove every possible LoadAudio-consuming custom node accepts an 8kHz/8-sample WAV without further validation on the ComfyUI side — that is inherent to any local ComfyUI installation, not something Nomi's request layer can guarantee.",
+    "A live-account paid Seedance 2.0 omni generation with a real audio_ref reference was attempted via APIMart as the final verification step; its outcome (success, or environment/credential blocker) is reported separately in AUDIO-LAST.md rather than assumed here."
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/config/modelArchetypes/anchorPolicy.ts",
+    "tests": [
+      "src/config/modelArchetypes/anchorPolicy.slotCoverage.test.ts",
+      "src/config/modelArchetypes/anchorPolicy.test.ts",
+      "src/workbench/generationCanvas/agent/referenceEdgeCapability.test.ts"
+    ],
+    "why": "anchorPolicy.ts's SLOT_ACCEPTS is the single table every archetype-slot consumer (edge admission, storyboard policy, reference-slot resolution, generation-time send) reads; it is the earliest point at which a new declared slot kind's accepted asset kinds must be correct, and the class-level slotCoverage test makes an empty/wrong entry fail CI immediately rather than surfacing only when a specific archetype+node-kind combination is exercised."
+  }
+}

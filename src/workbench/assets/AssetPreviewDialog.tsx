@@ -9,6 +9,7 @@ import { VideoPlaybackStatusOverlay } from '../../media/VideoPlaybackStatusOverl
 import type { AssetRef } from './assetTypes'
 import { getDesktopBridge } from '../../desktop/bridge'
 import { notify } from '../../ui/notificationPolicy'
+import { currentFullscreenOverlayTopOffset } from '../../ui/app-shell/windowChrome'
 
 const Model3DViewer = React.lazy(() => import('../generationCanvas/nodes/model3d/Model3DViewer'))
 
@@ -16,6 +17,8 @@ const Model3DViewer = React.lazy(() => import('../generationCanvas/nodes/model3d
 // 不复用 NodeMediaPreviewDialog——它 portal 到画布区、且创作页画布 hidden 时预览会挂到隐藏画布上
 // 看不到（强耦合 `.workbench-generation__canvas`）。素材库在侧边栏、跨创作/生成/预览页，必须 body
 // 全屏。只复用其视频自愈核心 useVideoPlaybackHeal（点开大图播不了时探测+转码，不再纯黑无提示）。
+// 从 Windows 自绘窗口栏之下起画（不是 inset-0 铺满）：那条 32px 是系统拖拽带，右上角关闭钮压上去
+// 会被当成拖窗口吃掉——正是 #58 那个「点中心没反应」的同一族（见 ui/app-shell/windowChrome）。
 export type AssetPreviewSequenceItem = {
   asset?: AssetRef
   durationSec?: number
@@ -117,7 +120,8 @@ export function AssetPreviewDialog({ asset, onClose, sequence, initialIndex = 0 
 
   return createPortal(
     <div
-      className={cn('fixed inset-0 z-application-modal flex items-center justify-center overflow-hidden p-8', 'bg-black/60')}
+      className={cn('fixed inset-x-0 bottom-0 z-application-modal flex items-center justify-center overflow-hidden p-8', 'bg-black/60')}
+      style={{ top: currentFullscreenOverlayTopOffset() }}
       role="dialog"
       aria-modal="true"
       data-asset-preview-dialog="true"

@@ -34,7 +34,7 @@ try {
 
   await page.locator('[data-testid="clip"]').nth(1).click()
   await programMonitor.waitFor({ state: 'visible' })
-  const axisAfter = await page.getByRole('region', { name: '剪辑时间线' }).boundingBox()
+  const axisAfter = await page.getByRole('region', { name: '时间线' }).boundingBox()
   const previewBox = await programMonitor.boundingBox()
   assert(axisAfter && previewBox, '成片监视器与剪辑轴都有可测几何')
   assert(previewBox.y + previewBox.height < axisAfter.y, '成片监视器位于剪辑轴上方')
@@ -124,7 +124,7 @@ try {
   const mobileMetrics = await page.evaluate(() => ({ scrollWidth: document.documentElement.scrollWidth, viewportWidth: window.innerWidth }))
   assert(mobileMetrics.scrollWidth <= mobileMetrics.viewportWidth, '窄屏没有横向溢出')
   const mobilePreview = await page.getByRole('region', { name: '成片预览' }).boundingBox()
-  const mobileAxis = await page.getByRole('region', { name: '剪辑时间线' }).boundingBox()
+  const mobileAxis = await page.getByRole('region', { name: '时间线' }).boundingBox()
   assert(mobilePreview && mobileAxis && mobilePreview.y >= 56 && mobilePreview.y + mobilePreview.height < mobileAxis.y, '窄屏预览不盖顶栏且仍位于轴上方')
   await page.screenshot({ path: mobileShot, fullPage: true })
 

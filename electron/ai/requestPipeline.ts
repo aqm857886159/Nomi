@@ -514,7 +514,8 @@ export function looksLikeLogicalError(body: unknown): number | null {
   if (!isRecord(body)) return null;
   const code = body.code;
   if (typeof code === "number" && code >= 400 && code < 600) return code;
-  if (typeof code === "string" && /^\d{3}$/.test(code) && Number(code) >= 400) return Number(code);
+  // 与下行 errorCode 分支同口径 /^\d+$/：4 位业务码（如 "1004"）也是逻辑错，3 位正则会漏判成成功。
+  if (typeof code === "string" && /^\d+$/.test(code) && Number(code) >= 400) return Number(code);
   // RunningHub 风格：errorCode 存在且非「成功」值（0 / "0" / 空）即逻辑错。
   const ec = body.errorCode;
   if (typeof ec === "number" && ec !== 0) return ec;

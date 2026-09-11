@@ -2,6 +2,7 @@
 //
 // 这三条在定稿 Composer 板里是**表**，不是「看起来差不多」——所以它们该被断言，不是被截图。
 // 截图只能证明「今天这一格长这样」；断言证明的是「面板换个高度时规则仍然成立」。
+import fs from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
   COMPOSER_SIX_LINE_CAP,
@@ -104,5 +105,27 @@ describe('rowsFromContentHeight（软换行行数，2026-09-10 走查反馈）',
     expect(rowsFromContentHeight(36)).toBe(1)
     expect(rowsFromContentHeight(56)).toBe(2)
     expect(rowsFromContentHeight(76)).toBe(3)
+  })
+})
+
+describe('composer 量高必须脱离父 flex 约束（2026-09-11 走查根因的结构断言）', () => {
+  // 为什么是「读源码」而不是「渲染后量高」：jsdom 没有布局引擎，`scrollHeight` 恒 0，
+  // 那个 bug（flex 拉伸项上写 height:0 不生效 → 行数只增不减）在单测里**表现不出来**。
+  // 真正的证明在真机走查（tests/ux/pr720-ux-geometry.walk.mjs 的 #7b）。
+  // 这条只做棘轮：谁把「量之前先 flex:0 0 auto」删掉，这里当场红，不用等下一次走查。
+  const source = fs.readFileSync(new URL('./AgentPanelV4Composer.tsx', import.meta.url), 'utf8')
+  const measureBlock = source.slice(source.indexOf('const measure = ()'), source.indexOf('observer.observe(el)'))
+
+  it('量高前把 textarea 摘出主轴拉伸（flex:0 0 auto），量完还原', () => {
+    expect(measureBlock).toContain("el.style.flex = '0 0 auto'")
+    expect(measureBlock).toContain("el.style.height = '0px'")
+    expect(measureBlock).toContain('el.style.flex = previousFlex')
+    expect(measureBlock).toContain('el.style.height = previousHeight')
+    // 顺序：先脱约束再压高，否则压高那一步仍然被 flex-basis 覆盖。
+    expect(measureBlock.indexOf("el.style.flex = '0 0 auto'"))
+      .toBeLessThan(measureBlock.indexOf("el.style.height = '0px'"))
+    // 阳性对照：这把尺子对「只写 height:0」的旧写法必须是红的。
+    expect("const measure = () => { el.style.height = '0px'; el.scrollHeight }")
+      .not.toContain("el.style.flex = '0 0 auto'")
   })
 })

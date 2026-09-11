@@ -62,7 +62,7 @@ async function driveToContract(service: ReturnType<typeof createProductionRunSer
     issuedAt: new Date().toISOString(),
   })
   await service.command('project-1', runId, {
-    commandId: 'contract', expectedRevision: attached.run.revision, type: 'gate.decide',
+    commandId: 'contract', expectedRevision: attached.run.revision, type: 'gate.decide', humanGesture: true,
     payload: { gateId: 'gate-contract-v1', status: 'approved' }, issuedAt: new Date().toISOString(),
   })
 }
@@ -130,7 +130,7 @@ describe('trust level gate-skip matrix (B3 · 预算门永不跳)', () => {
     expect(beforeApprove.gates.find((g) => g.gateId === 'gate-direction-v1')!.status).toBe('waiting') // 没被自动批
     // 手动批准方向门。
     await service.command('project-1', runId, {
-      commandId: 'approve-direction', expectedRevision: beforeApprove.revision, type: 'gate.decide',
+      commandId: 'approve-direction', expectedRevision: beforeApprove.revision, type: 'gate.decide', humanGesture: true,
       payload: { gateId: 'gate-direction-v1', status: 'approved', choiceKey: 'a' }, issuedAt: new Date().toISOString(),
     })
     await driveToContract(service, runId)
@@ -172,6 +172,57 @@ describe('set_trust 对话改档 (B3 · 降档留痕 + 立即生效)', () => {
     await driveToContract(service, runId)
     await waitFor(() => service.readFull('project-1', runId)!.status === 'awaiting_rough_cut_review')
     expect(service.readFull('project-1', runId)!.gates.some((g) => g.gateId === 'gate-sample-v1')).toBe(false)
+  })
+
+  // 2026-09-10 根因回归闸：set_trust 只能由**客户端工具调用**发起（渲染层 IPC 把 run.control 收窄成
+  // pause/resume/cancel，递不进 trustLevel）。原实现在降到 budget_only 时会顺手自动批准正在等待的
+  // 逐镜门——那是付费门，批准即放行 provider 调用。等于一次工具调用替真人授权了一次扣费。
+  //
+  // 21:00 拍板后加严：confirm_all → budget_only 本身就是「以后这些镜头不再问你」= 一次付费放行，
+  // 因此**没有人证时连降档都不许发生**；带了人证降档生效，但正在等待的那道逐镜付费门仍原样等着
+  // （自动批准永远碰不到付费门——两条不变量各管各的，不许互相顶替）。
+  it('budget_only 无收据无手势 → 拒；带手势降档生效但逐镜付费门仍原样等着', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-trust-shot-'))
+    const calls = { count: 0 }
+    const service = makeService(root, calls)
+    const runId = 'run-trust-shot'
+    service.createDraft({
+      runId, projectId: 'project-1', playbook: { name: 'brand.promo', version: '1.0.0' },
+      origin: { host: 'codex' }, brief: { goal: 'shot gate', durationSeconds: 30 },
+      policy: { trustLevel: 'confirm_all' },
+    })
+    await waitFor(() => Boolean(service.readFull('project-1', runId)?.gates.some((g) => g.gateId === 'gate-direction-v1' && g.status === 'waiting')))
+    const atDirection = service.readFull('project-1', runId)!
+    await service.command('project-1', runId, {
+      commandId: 'direction-shot', expectedRevision: atDirection.revision, type: 'gate.decide', humanGesture: true,
+      payload: { gateId: 'gate-direction-v1', status: 'approved', choiceKey: 'a' }, issuedAt: new Date().toISOString(),
+    })
+    await driveToContract(service, runId)
+    await waitFor(() => service.readFull('project-1', runId)!.gates.some((g) => g.gateId.startsWith('gate-shot-') && g.status === 'waiting'))
+    const atShot = service.readFull('project-1', runId)!
+    const shotGate = atShot.gates.find((g) => g.gateId.startsWith('gate-shot-') && g.status === 'waiting')!
+    const submissionsBefore = calls.count
+
+    // ① 无收据、无手势 → 拒（fail-closed）。档位一动不动。
+    await expect(service.command('project-1', runId, {
+      commandId: 'set-trust-shot-bare', expectedRevision: atShot.revision, type: 'run.control',
+      payload: { action: 'set_trust', trustLevel: 'budget_only' }, issuedAt: new Date().toISOString(),
+    })).rejects.toThrowError(expect.objectContaining({ code: 'human_approval_required' }))
+    expect(trustLevelOf(service.readFull('project-1', runId)!.policy)).toBe('confirm_all')
+
+    // ② Nomi 窗口里的真人手势章 → 降档生效。
+    await service.command('project-1', runId, {
+      commandId: 'set-trust-shot', expectedRevision: atShot.revision, type: 'run.control', humanGesture: true,
+      payload: { action: 'set_trust', trustLevel: 'budget_only' }, issuedAt: new Date().toISOString(),
+    })
+
+    await waitFor(() => trustLevelOf(service.readFull('project-1', runId)!.policy) === 'budget_only')
+    const after = service.readFull('project-1', runId)!
+    expect(after.gates.find((g) => g.gateId === shotGate.gateId)!.status).toBe('waiting')
+    expect(calls.count).toBe(submissionsBefore)
+    const events = await service.readEvents('project-1', runId, 0, 0)
+    expect(events.events.some((event) => event.type === 'gate.decided'
+      && (event.commandId || '').startsWith('auto-trust-budget-only:gate-shot-'))).toBe(false)
   })
 
   it('set_trust 转述带新档位与后果（budget_only：创意/样片门自动过、预算门仍在）', () => {

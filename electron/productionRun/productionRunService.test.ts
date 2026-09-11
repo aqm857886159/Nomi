@@ -51,6 +51,74 @@ function makeApprovalReceipt(clock: () => string = () => '2026-08-23T00:00:00.00
   return { authority, receiptId: minted.receipt.receiptId }
 }
 
+/**
+ * 一个「已封存付费授权 + confirm_all（逐镜确认开着）」的 Run。降到 budget_only 就是把这几镜的
+ * 逐镜确认一次性拿掉——付费放行，所以要收据。逐镜价目/合计/上限全部来自这个信封（唯一价格真相源）。
+ */
+function trustGrantRun(): ProductionRun {
+  return {
+    ...run,
+    policy: { ...run.policy, trustLevel: 'confirm_all' },
+    generationPlan: {
+      operationId: 'run-1',
+      state: 'sealed',
+      candidate: {} as never,
+      costCertainty: 'known',
+      authorizationDigest: 'digest-trust',
+      authorizationGateId: 'gate-1',
+      authorizationEnvelope: {
+        schemaVersion: 1,
+        immutableProjectUuid: 'uuid-1',
+        projectGeneration: 1,
+        projectId: 'project-1',
+        projectRevision: 2,
+        runId: 'run-1',
+        planVersion: 1,
+        gateId: 'gate-1',
+        costScope: 'generation.multi-shot:run-1',
+        expiresAt: '2026-08-24T00:00:00.000Z',
+        budget: { currency: 'CNY', maximum: 9, ledgerCeiling: 20 },
+        jobs: [
+          { jobId: 'job-1', shotId: 'shot-1', providerId: 'apimart', modelId: 'kling-v2', mode: 'i2v', price: { currency: 'CNY', maximum: 4 } },
+          { jobId: 'job-2', shotId: 'shot-2', providerId: 'apimart', modelId: 'kling-v2', mode: 'i2v', price: { currency: 'CNY', maximum: 5 } },
+        ],
+      } as never,
+      updatedAt: '2026-08-08T10:00:00.000Z',
+    },
+  }
+}
+
+/** 铸一张信任降档收据。costScope 里的 maximum 就是「¥X 内不再逐镜问」的那个 X。 */
+function mintTrustReceipt(maximum: number, keySuffix: string) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-trust-receipt-'))
+  tempDirs.push(dir)
+  const authority = createApprovalReceiptAuthority({
+    filePath: path.join(dir, 'receipts.json'),
+    macKey: 'trust-receipt-key',
+    storeMacKey: 'trust-receipt-store-key',
+    keyId: 'trust-receipt-v1',
+    now: () => '2026-08-23T00:00:00.000Z',
+    randomId: (() => { let index = 0; return () => `trust-receipt-${keySuffix}-${++index}` })(),
+  })
+  const challenge = authority.requestChallenge({
+    challengeKey: `trust.budget-only:run-1:CNY:${maximum}:digest-trust`,
+    immutableProjectUuid: 'uuid-1',
+    projectGeneration: 1,
+    projectId: 'project-1',
+    runId: 'run-1',
+    gateId: 'trust-budget-only-v1',
+    contractHash: 'digest-trust',
+    targetHash: 'digest-trust',
+    projectRevision: 2,
+    costScope: `trust.budget-only:run-1:CNY:${maximum}`,
+    pricingSnapshotHash: 'digest-trust',
+    reservationPreview: { currency: 'CNY', maximum },
+  })
+  const gesture = authority.createClientElicitationAttestation(challenge.token, 'codex')
+  const minted = authority.mintReceipt(challenge.token, gesture)
+  return { authority, receiptId: minted.receipt.receiptId }
+}
+
 const run: ProductionRun = {
   schemaVersion: 1,
   runId: 'run-1',
@@ -241,6 +309,35 @@ describe('production run service projection boundary', () => {
     })
     expect(decided.run.gates[0].status).toBe('approved')
     expect(consume).toHaveBeenCalledTimes(1)
+  })
+
+  // 2026-09-10 根因回归闸（装配侧）：生产装配长期没注入收据权威，旧实现在权威缺席时直接放行付费门。
+  // 这里用「没有权威的 service」复现那个装配，证明它现在**拒绝**，且只有主进程手势章过得去。
+  it('fails closed on a spend gate when the service was assembled without a receipt authority', async () => {
+    const execute = vi.fn(() => ({ run: { ...run, revision: 3 }, events: [] }))
+    const repository = { read: vi.fn(() => run), readEvents: vi.fn(() => []), execute }
+    const service = createProductionRunService({ repository: repository as never, projectRootResolver: () => null })
+    const decide = (commandId: string, extra: Record<string, unknown> = {}) => service.command('project-1', 'run-1', {
+      commandId,
+      expectedRevision: 2,
+      type: 'gate.decide',
+      payload: { gateId: 'gate-1', status: 'approved' },
+      issuedAt: new Date().toISOString(),
+      ...extra,
+    })
+
+    await expect(decide('remote-approve-no-authority')).rejects.toMatchObject({ code: 'human_approval_required' })
+    expect(execute).not.toHaveBeenCalled()
+
+    // 带着收据也一样拒：验不动就是验不动，绝不「验不了就放行」。
+    await expect(decide('remote-approve-with-unverifiable-receipt', {
+      payload: { gateId: 'gate-1', status: 'approved', receiptId: 'receipt-from-nowhere' },
+    })).rejects.toMatchObject({ code: 'human_approval_required' })
+    expect(execute).not.toHaveBeenCalled()
+
+    // Nomi 自己窗口里的真人手势（productionRunIpc 在受信发送方校验后盖的章）照常通过。
+    await expect(decide('in-app-gesture', { humanGesture: true })).resolves.toMatchObject({ run: { revision: 3 } })
+    expect(execute).toHaveBeenCalledTimes(1)
   })
 
   it('rejects a stale receipt before execute and also checks receipts on duplicate decisions', async () => {
@@ -463,5 +560,55 @@ describe('production run service projection boundary', () => {
     })).rejects.toMatchObject({ code: 'receipt_expired' })
     expect(execute).not.toHaveBeenCalled()
     expect(consume).not.toHaveBeenCalled()
+  })
+  // 2026-09-10 21:00 拍板：「以后 ¥X 内别再逐镜问」的确认弹在**客户端**里（elicitation），答「是」拿到的
+  // 收据就是人证。收据把上限编在 costScope 里（trust.budget-only:<runId>:<币种>:<上限>）——服务端从
+  // 已封存授权重算这个串再比对，所以改上限或换 run 的收据一律失配。
+  it('accepts a ceiling-bound elicitation receipt for the budget_only downgrade and consumes it once', async () => {
+    const current = trustGrantRun()
+    const approval = mintTrustReceipt(9, 'ok')
+    const execute = vi.fn(() => ({ run: { ...current, revision: 3 }, events: [] }))
+    const repository = { read: vi.fn(() => current), readEvents: vi.fn(() => []), execute }
+    const consume = vi.spyOn(approval.authority, 'consumeReceipt')
+    const service = createProductionRunService({
+      repository: repository as never,
+      projectRootResolver: () => null,
+      approvalReceiptAuthority: approval.authority,
+      projectRevisionResolver: () => 2,
+    })
+
+    const result = await service.command('project-1', 'run-1', {
+      commandId: 'trust-with-receipt',
+      expectedRevision: 2,
+      type: 'run.control',
+      payload: { action: 'set_trust', trustLevel: 'budget_only', receiptId: approval.receiptId },
+      issuedAt: new Date().toISOString(),
+    })
+    expect(result.run.revision).toBe(3)
+    expect(execute).toHaveBeenCalledTimes(1)
+    expect(consume).toHaveBeenCalledTimes(1)
+  })
+
+  it('rejects a budget_only downgrade whose receipt is bound to a different ceiling', async () => {
+    const current = trustGrantRun()
+    // 用户在客户端答的是「¥99 内不再问」，而这个 Run 真正要放行的是 ¥9——两个数字不是一回事，拒。
+    const approval = mintTrustReceipt(99, 'mismatch')
+    const execute = vi.fn(() => ({ run: current, events: [] }))
+    const repository = { read: vi.fn(() => current), readEvents: vi.fn(() => []), execute }
+    const service = createProductionRunService({
+      repository: repository as never,
+      projectRootResolver: () => null,
+      approvalReceiptAuthority: approval.authority,
+      projectRevisionResolver: () => 2,
+    })
+
+    await expect(service.command('project-1', 'run-1', {
+      commandId: 'trust-with-wrong-ceiling',
+      expectedRevision: 2,
+      type: 'run.control',
+      payload: { action: 'set_trust', trustLevel: 'budget_only', receiptId: approval.receiptId },
+      issuedAt: new Date().toISOString(),
+    })).rejects.toMatchObject({ code: 'receipt_invalid', message: expect.stringContaining('costScope') })
+    expect(execute).not.toHaveBeenCalled()
   })
 })

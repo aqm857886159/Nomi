@@ -8,9 +8,12 @@
  *   英文界面那一遍才是真正的鉴别态（修之前那里整段英文）。
  *
  * 为什么两次界面语言各起一次 App：locale 判据在主进程（getDesktopLocale），系统提示词由
- * lane 宿主合成。会话中途在设置里切语言，本轮实测**不会**让当前这条 lane 换语言（第一版
- * 脚本就是这么栽的：英文界面下助手仍整段中文，看着像修坏了，其实根本没走到英文分支）。
- * 所以英文那一遍从冷启动就带着 en 进去，被测的确实是 buildLanguageRule 的英文分支。
+ * lane 宿主合成。第一版脚本在同一次会话里切语言，结果英文界面下助手仍整段中文，看着像
+ * 修坏了、其实根本没走到英文分支——那是 `systemPrompt` 被当成开 lane 时的快照传进去的
+ * 老 bug（2026-09-11 已修：laneRuntimePort 的 systemPrompt 放宽成函数、laneHost 每回合
+ * 重新求值，见 docs/fixes/2026-09-11-pr720-walkthrough-reds.root-cause.json）。这里仍然
+ * 两次冷启动：本脚本要证的是 buildLanguageRule 的两个分支各自写对了，把「中途切换也生效」
+ * 混进来只会让一条红说不清是哪一头的问题。
  *
  * 真人动作：新建空白项目 → 进「生成」→ 在模型下拉里挑一个真实文本模型 → 打字发问 → 读回复。
  * 花费：只烧文本模型 token（两轮），不碰图/视频生成。
@@ -22,8 +25,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { launchNomiApp } from './_launchApp.mjs'
 import { prepareIsolation } from '../../evals/lib/isoApp.mjs'
-import { screenshotSettled, clickOrFail } from './_assert.mjs'
-import { stationTimeout } from './_station-budget.mjs'
+import { screenshotSettled, clickOrFail, expectVisible } from './_assert.mjs'
 import {
   CANVAS_PANEL, ASSISTANT_MESSAGE, COMPOSER, COMPOSER_INPUT, COMPOSER_SEND, COMPOSER_MODEL,
   MODEL_POPOVER, waitForV4TurnIdle,
@@ -92,25 +94,24 @@ async function askForPrompt({ locale, question, shotName }) {
     const uiLocale = await win.evaluate(() => document.documentElement.lang || '')
     const english = locale === 'en'
 
-    await win.getByText(english ? /New (blank|empty) project/i : '新建空白项目', { exact: false }).first().click({ timeout: stationTimeout() })
+    await clickOrFail(win.getByText(english ? /New (blank|empty) project/i : '新建空白项目', { exact: false }), english ? 'New blank project' : '新建空白项目')
     await win.waitForTimeout(2500)
-    await win.getByRole('button', { name: english ? 'Generate' : '生成', exact: true }).first().click({ timeout: stationTimeout() })
+    await clickOrFail(win.getByRole('button', { name: english ? 'Generate' : '生成', exact: true }), english ? 'Generate tab' : '生成 标签')
     await win.waitForTimeout(2000)
-    await win.locator(`${CANVAS_PANEL} ${COMPOSER}`).first().waitFor({ state: 'visible', timeout: stationTimeout() })
+    await expectVisible(win.locator(`${CANVAS_PANEL} ${COMPOSER}`), '画布 agent composer')
 
     // 真人动作：在「对话」那一行的下拉里挑模型（弹层每类一行，行尾一个 NomiSelect）。
     await clickOrFail(win.locator(`${CANVAS_PANEL} ${COMPOSER_MODEL}`), '模型选择器')
     const popover = win.locator(`${CANVAS_PANEL} ${MODEL_POPOVER}`)
-    await popover.waitFor({ state: 'visible', timeout: stationTimeout() })
+    await expectVisible(popover, '模型弹层')
     const chatTrigger = popover.locator('[data-v4-model-row]').first().locator('button').first()
-    await chatTrigger.click({ timeout: stationTimeout() })
+    await clickOrFail(chatTrigger, '模型弹层「对话」行触发器')
     await win.waitForTimeout(900)
     // 作用域按 aria-controls 限死：页面上另有图片/视频两个下拉，不限死会选错行。
     const listboxId = await chatTrigger.getAttribute('aria-controls')
     if (!listboxId) throw new Error('「对话」模型下拉没有 aria-controls，无法定位选项列表')
-    await win.locator(`#${listboxId} [role="option"]`)
-      .filter({ hasText: new RegExp(TEXT_MODEL.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')) }).first()
-      .click({ timeout: stationTimeout() })
+    await clickOrFail(win.locator(`#${listboxId} [role="option"]`)
+      .filter({ hasText: new RegExp(TEXT_MODEL.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')) }), `文本模型选项「${TEXT_MODEL}」`)
     await win.waitForTimeout(900)
     await win.keyboard.press('Escape').catch(() => {})
     await win.waitForTimeout(600)

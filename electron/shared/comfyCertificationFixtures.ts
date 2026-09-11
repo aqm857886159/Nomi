@@ -11,7 +11,7 @@
 export type ComfyCertificationMediaSlot = {
   paramKey: string;
   label: string;
-  mediaKind: "image" | "video";
+  mediaKind: "image" | "video" | "audio";
 };
 
 const IMAGE_FIXTURES = [
@@ -47,6 +47,12 @@ const VIDEO_FIXTURE =
   "3zL4FNaFDnRCM2R0vwAAAAhBmiRsQr/+wAAAAAhBnkJ4hf/BgQAAAAgBnmF0Qr/EgAAAAAgBnmNqQr/EgQ==";
 
 
+// 最小合法 WAV（8kHz 单声道 16-bit，8 个静音采样，44 字节头 + 16 字节数据）——
+// 与上面 IMAGE_FIXTURES/VIDEO_FIXTURE 同一用途：证明 LoadAudio 声明的媒体槽在「运行测试」
+// 真跑链路里也收得到素材，不是加了识别却在真提交这一步又漏掉（用户报的根因之一
+// 「ComfyUI 音频输入用不了」——半吊子实现最容易在这类"最后一米"的地方复发）。
+const AUDIO_FIXTURE = "UklGRjQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YRAAAAAAAAAAAAAAAAAAAAAAAAAA";
+
 function dataUrl(mime: string, base64: string): string {
   return `data:${mime};base64,${base64.replace(/\s+/g, "")}`;
 }
@@ -63,12 +69,16 @@ export function buildComfyCertificationFixtureParams(input: {
   const params: Record<string, unknown> = {};
   const imageUrls: string[] = [];
   const videoUrls: string[] = [];
+  const audioUrls: string[] = [];
   for (const [index, slot] of input.slots.entries()) {
     const value = slot.mediaKind === "video"
       ? dataUrl("video/mp4", VIDEO_FIXTURE)
-      : dataUrl("image/png", IMAGE_FIXTURES[index]);
+      : slot.mediaKind === "audio"
+        ? dataUrl("audio/wav", AUDIO_FIXTURE)
+        : dataUrl("image/png", IMAGE_FIXTURES[index]);
     params[slot.paramKey] = value;
     if (slot.mediaKind === "video") videoUrls.push(value);
+    else if (slot.mediaKind === "audio") audioUrls.push(value);
     else imageUrls.push(value);
   }
   return {
@@ -81,6 +91,7 @@ export function buildComfyCertificationFixtureParams(input: {
     modelVendor: input.vendorKey,
     ...(imageUrls.length ? { referenceImages: imageUrls } : {}),
     ...(videoUrls.length ? { referenceVideoUrls: videoUrls } : {}),
+    ...(audioUrls.length ? { referenceAudioUrls: audioUrls } : {}),
     parameterReferenceSlots: {
       modelKey: input.modelKey,
       vendorKey: input.vendorKey,

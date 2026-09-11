@@ -167,9 +167,9 @@ try {
   await clickOrFail(win.getByRole('button', { name: '打开模型设置', exact: true }), '导入三图工作流')
   const settings = win.getByRole('dialog', { name: '设置', exact: true })
   await clickOrFail(settings.getByRole('button').filter({ hasText: '本地 ComfyUI' }).first(), '打开 ComfyUI 接入')
-  await clickOrFail(settings.getByRole('button', { name: '导入自定义工作流（文生视频 / 图生视频…）', exact: true }), '打开 JSON 导入入口')
+  await clickOrFail(settings.getByRole('button', { name: '自定义', exact: true }), '打开 JSON 导入入口')
   await settings.getByRole('textbox', { name: 'ComfyUI 工作流 JSON', exact: true }).fill(JSON.stringify(graph))
-  await clickOrFail(settings.getByRole('button', { name: '分析工作流', exact: true }), '分析三输入图')
+  await clickOrFail(settings.getByRole('button', { name: '分析', exact: true }), '分析三输入图')
   const mediaRows = settings.getByRole('checkbox', { name: 'LoadImage.image', exact: true })
   await expect(mediaRows).toHaveCount(3)
   for (let i = 0; i < 3; i += 1) await expect(mediaRows.nth(i)).toBeChecked()
@@ -180,7 +180,7 @@ try {
   // Import is staging only. The durable integration handoff must be confirmed
   // before the candidate can be promoted into the selectable catalog.
   await expect(settings.getByRole('heading', { name: '确认接入并开始验证', exact: true })).toBeVisible()
-  await clickOrFail(settings.getByRole('button', { name: '确认并开始验证', exact: true }), '确认 ComfyUI 真实验证')
+  await clickOrFail(settings.getByRole('button', { name: '确认验证', exact: true }), '确认 ComfyUI 真实验证')
   const imported = readCatalog().models.find((model) => model.labelZh === workflowName)
   await expect.poll(() => {
     const current = readCatalog().models.find((model) => model.labelZh === workflowName)

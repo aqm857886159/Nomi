@@ -1,0 +1,9 @@
+{
+  "_comment": [
+    "控件文案契约（check:controls 规则四~六）的存量棘轮：只减不增。",
+    "身份 = 「规则 | i18n key | 判定详情」。规则本体见 docs/design/nomi-design-system.md §1.8，",
+    "动作规范词的 owner 是 docs/GLOSSARY.md「动作词」表。",
+    "改好一条就从这里删一行；不许往里加新行。重拍：node scripts/check-control-contract.mjs --update-copy-baseline"
+  ],
+  "offenders": []
+}

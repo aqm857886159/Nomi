@@ -77,7 +77,7 @@ export async function runJourney(journey, collector) {
       await fill('connection-url', win.getByPlaceholder('https://api.openai.com/v1'), fixture.origin)
       await fill('connection-key', win.getByPlaceholder('sk-...'), 'sk-fixture-key')
       await click('save-connection', win.getByRole('button', { name: '保存连接', exact: true }))
-      await click('fetch-models', win.getByRole('button', { name: /获取模型列表|获取可用模型|重新获取列表/ }).first(), {
+      await click('fetch-models', win.getByRole('button', { name: /获取模型|获取可用模型|重新获取列表/ }).first(), {
         complete: () => expect(win.getByRole('button', { name: 'fixture-text-chat', exact: true })).toBeVisible(),
       })
       await click('choose-model', win.getByRole('button', { name: 'fixture-text-chat', exact: true }))

@@ -56,6 +56,10 @@ block() {
 
   正确做法：去掉绕过写法，正常提交。
     git commit -m "..."
+  Ponytail runner 真的不可用（Codex 没装 / 插件没开 / 等锁超时）时的**唯一明路**：
+    PONYTAIL_REVIEW_DEFER=1 git commit -m "..."
+  它保留敏感数据扫描，把这次跳过写进 .claude/ponytail-deferred.log，
+  check:ponytail-review 会一直红到补跑 @ponytail-review 并 --accept。绕口写法这三样全丢。
   钩子随 checkout 就在（.claude/settings.json 直指 scripts/claude-hooks/，2026-09-07 起不再需要
   pnpm install）；钩子真的坏了 → 修钩子，不是绕开它。
 EOF

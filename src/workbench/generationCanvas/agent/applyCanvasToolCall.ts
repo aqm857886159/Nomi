@@ -14,16 +14,16 @@ import {
 } from './generationCanvasTools'
 import { listAvailableModelsForAgent } from './availableModels'
 import { buildModelEntryIndex, buildPlannedNodeMeta } from './plannedNodeMeta'
+import { indexMaterializedNodes, materializationKey, readNodeInputStamp } from './materializationStamp'
 import { withCanvasGestureContext, type CanvasGestureContext } from '../events/canvasGestureContext'
 import { layoutPlannedNodes, layoutStoryboardNodes } from './trajectoryLayout'
 import { FOCUS_GENERATION_NODE_EVENT } from '../nodes/nodeSizing'
 import { arrangeStoryboardToTimeline } from './sendStoryboardToTimeline'
 import { parseStoryboardPlan } from './storyboardPlanSchema'
-import type { StagingSpec, StagingCharacterSpec } from '../nodes/scene3d/stagingBuilder'
-import type { CameraMoveSpec } from '../nodes/scene3d/cameraMoveBuilder'
-import type { ScenePropPlacement } from '../nodes/scene3d/scene3dPropSpecs'
-import type { Scene3DSceneTemplate } from '../nodes/scene3d/scene3dSceneTemplates'
-import type { CameraSpeed } from '../nodes/scene3d/cameraMoveVocab'
+import type { StagingSpec, StagingCharacterSpec } from '../nodes/director/agent/stagingBuilder'
+import type { CameraMoveSpec } from '../nodes/director/agent/cameraMoveBuilder'
+import type { LegacySceneTemplate, ScenePropPlacement } from '../nodes/director/migration/legacySceneBuilders'
+import type { CameraSpeed } from '../nodes/director/agent/cameraMoveVocab'
 import { useWorkbenchStore } from '../../workbenchStore'
 import { assertTurnCanWrite } from '../../ai/agentTurnLifecycle'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
@@ -122,7 +122,7 @@ const strValue = (value: unknown): string | undefined =>
 
 /** 灰模布景字段（sceneTemplate + props）容错提取——站位/运镜两工具共用（P4）。 */
 function parseSceneBackdrop(record: Record<string, unknown>): {
-  sceneTemplate?: Scene3DSceneTemplate
+  sceneTemplate?: LegacySceneTemplate
   props?: ScenePropPlacement[]
 } {
   const rawProps = Array.isArray(record.props) ? record.props : []
@@ -148,7 +148,7 @@ function parseSceneBackdrop(record: Record<string, unknown>): {
       ]
     })
   return {
-    sceneTemplate: strValue(record.sceneTemplate) as Scene3DSceneTemplate | undefined,
+    sceneTemplate: strValue(record.sceneTemplate) as LegacySceneTemplate | undefined,
     props: props.length > 0 ? props : undefined,
   }
 }
@@ -198,7 +198,7 @@ export function parseCameraMoveSpec(record: Record<string, unknown>): {
   shot?: CameraMoveSpec['shot']
   subjectPose?: string
   customMove?: string
-  sceneTemplate?: Scene3DSceneTemplate
+  sceneTemplate?: LegacySceneTemplate
   props?: ScenePropPlacement[]
 } {
   const str = strValue
@@ -324,7 +324,35 @@ export async function applyCanvasToolCall(
   }
 
   if (operation === 'create_canvas_nodes') {
-    const incoming = Array.isArray(record.nodes) ? record.nodes : []
+    const requested = Array.isArray(record.nodes) ? record.nodes : []
+    // 幂等（判据的唯一 owner 在这条写边界，不在调用方）：带物化章的节点，章已经在画布上就**不再建
+    // 第二个**，直接把已有节点 id 回给调用方并登记进 clientId 注册表（后续连边/set_prompt 照样指得到）。
+    // 此前 capabilityApplyHandler 与 multiShotCanvasLanding 各自手写了一份同样的去重（P1 违规）：
+    // 多一个落地入口就多一份实现，而任何一份漏了，用户看到的就是 agent 重试堆出的重复节点。
+    const stampIndex = indexMaterializedNodes(readGenerationCanvasSnapshot().nodes)
+    const reusedByClientId: Record<string, string> = {}
+    const requestedAnchorCount = typeof record.anchorCount === 'number' ? record.anchorCount : null
+    let retainedAnchorCount = 0
+    const incoming = requested.filter((raw, index) => {
+      const stamp = readNodeInputStamp(raw)
+      const existingNodeId = stamp ? stampIndex.get(materializationKey(stamp)) : undefined
+      if (stamp && existingNodeId) {
+        reusedByClientId[stamp.clientId] = existingNodeId
+        registerCanvasToolClientId(stamp.clientId, existingNodeId)
+        const clientId = typeof (raw as Record<string, unknown>)?.clientId === 'string'
+          ? ((raw as Record<string, unknown>).clientId as string)
+          : ''
+        if (clientId && clientId !== stamp.clientId) {
+          reusedByClientId[clientId] = existingNodeId
+          registerCanvasToolClientId(clientId, existingNodeId)
+        }
+        return false
+      }
+      // anchorCount 说的是「入参前 N 个是锚」。丢掉已存在的节点后，锚数必须跟着重算，
+      // 否则布局会把镜头当成锚排在参考行里。
+      if (requestedAnchorCount !== null && index < requestedAnchorCount) retainedAnchorCount += 1
+      return true
+    })
     // 任一节点带 modelKey 才加载可用模型清单（校验+补全 agent 选的模型/参数，否则零 IPC）。
     const needsModels = incoming.some(
       (raw) => raw && typeof raw === 'object' && typeof (raw as Record<string, unknown>).modelKey === 'string',
@@ -340,7 +368,7 @@ export async function applyCanvasToolCall(
     // 分镜方案落画布（storyboardPlanToCreateNodesArgs 给 anchorCount）→ 参考行在上 + 镜头折行网格；
     // 其余（agent 直接建卡）→ 原轨迹分层布局。两者都从已有节点包围盒下方起、不压旧内容。
     const existingCanvasNodes = readGenerationCanvasSnapshot().nodes
-    const storyboardAnchorCount = typeof record.anchorCount === 'number' ? record.anchorCount : null
+    const storyboardAnchorCount = requestedAnchorCount === null ? null : retainedAnchorCount
     const layout =
       storyboardAnchorCount !== null
         ? layoutStoryboardNodes(plannedKinds, storyboardAnchorCount, existingCanvasNodes)
@@ -450,8 +478,9 @@ export async function applyCanvasToolCall(
         ...(meta ? { meta } : {}),
       }
     })
-    const created = inCtx(() => generationCanvasTools.create_nodes(inputs))
-    const clientIdToNodeId: Record<string, string> = {}
+    const created = inputs.length > 0 ? inCtx(() => generationCanvasTools.create_nodes(inputs)) : []
+    // 复用的（本次没建、章已在画布上的）先进映射，再让本次真建的覆盖同名键。
+    const clientIdToNodeId: Record<string, string> = { ...reusedByClientId }
     incoming.forEach((raw, index) => {
       const node = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
       const clientId = typeof node.clientId === 'string' ? node.clientId : ''
@@ -550,30 +579,11 @@ export async function applyCanvasToolCall(
       }
     }
 
-    // 站位参考：词汇 spec → 3D 场景 → 建 scene3d 节点(带 stagingAutoCapture)。
-    // 节点挂载时离屏出图 + 连 composition_ref 到目标镜头（Scene3DEditor 内完成）。
+    // 站位参考：词汇 spec → 导演台工程 → 建 director 节点(带 stagingAutoCapture)。
+    // 常驻 StagingCaptureHost 扫到标志就离屏出图 + 连 composition_ref 到目标镜头（director/agent）。
     const spec = parseStagingSpec(record)
-    const { buildStagingSceneAudited } = await import('../nodes/scene3d/stagingBuilder')
-    // 运行时自检(F3,零额度几何守卫):修正非法/近似姿势 id(治静默落站立)+ 角色过近自动拉开间距。
-    const { state, issues: stagingIssues } = buildStagingSceneAudited(spec)
-    const existing = readGenerationCanvasSnapshot().nodes
-    const position = layoutPlannedNodes(['image'], existing)[0]
-    const created = inCtx(() =>
-      generationCanvasTools.create_nodes([
-        {
-          kind: 'scene3d',
-          categoryId: getDefaultCategoryForNodeKind('scene3d'),
-          title: '站位参考',
-          prompt: '',
-          position,
-          meta: {
-            scene3dState: state,
-            stagingAutoCapture: targetNodeId ? { targetNodeId } : {},
-          },
-        },
-      ]),
-    )
-    const stagingNodeId = created[0]?.id ?? null
+    const { createStagingReferenceNode } = await import('../nodes/director/agent/createStagingReferenceNode')
+    const { stagingNodeId, issues: stagingIssues } = createStagingReferenceNode({ spec, targetNodeId, inCtx })
     const cam = spec.camera ?? {}
     return {
       stagingNodeId,
@@ -615,7 +625,7 @@ export async function applyCanvasToolCall(
       }
     }
 
-    // 运镜参考:词汇 spec → 含相机轨迹的 3D 场景 → 建 scene3d 节点(带 cameraMoveAutoCapture)。
+    // 运镜参考:词汇 spec → 含相机轨迹的 3D 场景 → 迁成导演台工程 → 建 director 节点(带 cameraMoveAutoCapture)。
     // 节点挂载时常驻 Host(CameraMoveCaptureHost)离屏沿轨迹采帧拼 mp4 + 喂目标镜头视频参考(S3)。
     // 这里只建节点 + 打标志,不渲(S2 Host 异步出片),与 staging 执行结构对称。
     // 建节点 + 标志的实现抽进 createCameraMoveReferenceNode(单一真相源)——手动运镜控件(B1)也调它,
@@ -629,8 +639,8 @@ export async function applyCanvasToolCall(
       props: parsed.props,
     }
     const [{ createCameraMoveReferenceNode }, { CAMERA_SPEED_DURATION, CAMERA_MOVE_LABEL }] = await Promise.all([
-      import('../nodes/scene3d/cameraMoveReferenceNode'),
-      import('../nodes/scene3d/cameraMoveVocab'),
+      import('../nodes/director/agent/createCameraMoveReferenceNode'),
+      import('../nodes/director/agent/cameraMoveVocab'),
     ])
     const speed: CameraSpeed = spec.speed ?? 'medium'
     const { cameraMoveNodeId } = createCameraMoveReferenceNode({ spec, targetNodeId, inCtx })

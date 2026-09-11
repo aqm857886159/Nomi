@@ -163,6 +163,12 @@ function rendererCommand(value: unknown): RunCommand {
     type,
     payload: rendererCommandPayload(type, raw.payload),
     issuedAt: typeof raw.issuedAt === "string" && raw.issuedAt.trim() ? raw.issuedAt.trim() : new Date().toISOString(),
+    // 真人手势章：调用方已过 assertTrustedSender（Nomi 自己的窗口），且渲染层的确认卡是这条命令的唯一来路。
+    // 章由这里**自己盖**，不看 raw——渲染层伪造不了、MCP 客户端根本进不来这个通道。付费门在没有收据时
+    // 认它当人证（productionRunApprovalReceipt.ts）。只盖在真的要它的命令上（gate.decide），别在整条渲染
+    // 通道上撒一个万能标记。注意：这只证「来自受信窗口」，不是一条带签名的手势证明；升级成
+    // createMainProcessGestureAttestation 需要确认卡先领 challenge，见 docs/fixes 合同的残留风险。
+    ...(type === "gate.decide" ? { humanGesture: true as const } : {}),
   };
 }
 

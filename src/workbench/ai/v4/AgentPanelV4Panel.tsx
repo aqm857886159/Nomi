@@ -122,6 +122,7 @@ export function V4FlowRow({
       <V4AssistantMessage
         text={item.text}
         status={item.status}
+        {...(item.skill ? { skill: item.skill } : {})}
         labels={labels.assistant}
         onCopy={handlers?.onCopy}
         {...(handlers?.onRetry ? { onRetry: () => handlers.onRetry?.(at) } : {})}

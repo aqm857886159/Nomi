@@ -23,7 +23,7 @@ async function driveToRoughCut(
     origin: { host: 'codex' }, brief: { goal: 'qa verify', durationSeconds: 30 },
   })
   await service.command('project-1', runId, {
-    commandId: 'direction', expectedRevision: service.readFull('project-1', runId)!.revision, type: 'gate.decide',
+    commandId: 'direction', expectedRevision: service.readFull('project-1', runId)!.revision, type: 'gate.decide', humanGesture: true,
     payload: { gateId: 'gate-direction-v1', status: 'approved' }, issuedAt: new Date().toISOString(),
   })
   await approveLatestScript(service, 'project-1', runId)
@@ -39,14 +39,14 @@ async function driveToRoughCut(
     issuedAt: new Date().toISOString(),
   })
   await service.command('project-1', runId, {
-    commandId: 'contract', expectedRevision: attached.run.revision, type: 'gate.decide',
+    commandId: 'contract', expectedRevision: attached.run.revision, type: 'gate.decide', humanGesture: true,
     payload: { gateId: 'gate-contract-v1', status: 'approved' }, issuedAt: new Date().toISOString(),
   })
   // 样片门：首镜落地后停一次 → 批准续跑剩余镜头 → qa → assemble → 粗剪。
   await waitFor(() => service.readFull('project-1', runId)!.gates.some((g) => g.gateId === 'gate-sample-v1' && g.status === 'waiting'))
   const atSample = service.readFull('project-1', runId)!
   await service.command('project-1', runId, {
-    commandId: 'approve-sample', expectedRevision: atSample.revision, type: 'gate.decide',
+    commandId: 'approve-sample', expectedRevision: atSample.revision, type: 'gate.decide', humanGesture: true,
     payload: { gateId: 'gate-sample-v1', status: 'approved' }, issuedAt: new Date().toISOString(),
   })
 }
