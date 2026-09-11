@@ -65,6 +65,8 @@ type GenerationFlowConnectionHandleProps = {
   type: 'source' | 'target'
   affordance: 'dot' | 'magnetic' | 'hidden'
   active: boolean
+  /** `null` = 没有连线在进行；`''` = 有连线但端点不在这张卡上；否则是这张卡上被吸住的把手 id。 */
+  activeHandleId: string | null
   label: string
 }
 
@@ -73,10 +75,16 @@ function GenerationFlowConnectionHandle({
   type,
   affordance,
   active,
+  activeHandleId,
   label,
 }: GenerationFlowConnectionHandleProps): JSX.Element {
   const position = side === 'left' ? Position.Left : Position.Right
   const id = `${type}-${side}`
+  const connecting = activeHandleId !== null
+  // 两件不同的事实，两个不同的属性。`data-active` =「有连线在进行、我是合法候选」——整段拖拽里
+  // 每个候选都为真；`data-snapped` =「端点此刻就吸在我身上」——同一时刻只属于一个把手。
+  // 它们曾共用 `data-active`，于是吸附不可观测：正向断言对任意候选都过（假绿），反向永远清不掉（真红）。
+  const snapped = activeHandleId === id
   const homeX = side === 'left' ? 'calc(100% - 28px)' : '28px'
   return (
     <Handle
@@ -89,10 +97,19 @@ function GenerationFlowConnectionHandle({
       data-side={side}
       data-affordance={type === 'source' ? affordance : 'target'}
       data-active={active ? 'true' : undefined}
+      data-snapped={snapped ? 'true' : undefined}
+      // 拖拽中源把手让开：它和目标热区叠在同一条卡片边上，不让它抢走落点。
+      style={type === 'source' && connecting ? { pointerEvents: 'none' } : undefined}
       className={cn(
         'generation-canvas-react-flow__handle',
         `generation-canvas-react-flow__handle--${type}`,
         type === 'source' && `generation-canvas-react-flow__handle--${affordance}`,
+        // 目标侧外侧热区：伪元素命中返回 Handle 自身（XYHandle 优先 elementFromPoint），
+        // 量出来的锚点仍是卡片边上那 1px。只在连线进行时开 pointer-events——空闲时是 none，
+        // 于是画在节点层之下的连线照旧随处点得到（常驻带子把边吞掉正是被否掉的那版）。
+        type === 'target' && 'after:absolute after:top-0 after:w-[112px] after:h-[min(168px,calc(var(--generation-flow-node-height)+28px))] after:-translate-y-1/2 after:content-[""]',
+        type === 'target' && (side === 'left' ? 'after:right-0' : 'after:left-0'),
+        type === 'target' && (connecting ? 'after:pointer-events-auto' : 'after:pointer-events-none'),
       )}
     >
       {type === 'source' && affordance !== 'hidden' ? (
@@ -120,6 +137,13 @@ function GenerationFlowConnectionHandle({
 export function GenerationFlowNodeView({ data, selected }: NodeProps<GenerationFlowNode>): JSX.Element {
   const { t } = useTranslation()
   const node = data.generationNode
+  // 每张卡一个标量订阅：同一对把手之间的指针移动不会让它重渲染。
+  const activeHandleId = useStore((state) => {
+    const connection = state.connection
+    if (!connection.inProgress) return null
+    if (connection.fromHandle.nodeId === node.id) return connection.fromHandle.id ?? ''
+    return connection.isValid && connection.toHandle?.nodeId === node.id ? connection.toHandle.id ?? '' : ''
+  })
   const collapsedGroupProxy = node.meta?.collapsedGroupProxy === true
   const NodeComponent = getGenerationNodeComponentForNode(node)
   const size = resolveNodeVisualSize(node)
@@ -214,8 +238,8 @@ export function GenerationFlowNodeView({ data, selected }: NodeProps<GenerationF
       />
       {!data.readOnly ? (
         <>
-          <GenerationFlowConnectionHandle side="left" type="target" affordance="hidden" active={isPendingConnectionTarget} label={targetConnectionLabel} />
-          <GenerationFlowConnectionHandle side="right" type="target" affordance="hidden" active={isPendingConnectionTarget} label={targetConnectionLabel} />
+          <GenerationFlowConnectionHandle activeHandleId={activeHandleId} side="left" type="target" affordance="hidden" active={isPendingConnectionTarget} label={targetConnectionLabel} />
+          <GenerationFlowConnectionHandle activeHandleId={activeHandleId} side="right" type="target" affordance="hidden" active={isPendingConnectionTarget} label={targetConnectionLabel} />
         </>
       ) : null}
       {!collapsedGroupProxy ? (
@@ -257,8 +281,8 @@ export function GenerationFlowNodeView({ data, selected }: NodeProps<GenerationF
       ) : null}
       {!data.readOnly ? (
         <>
-          <GenerationFlowConnectionHandle side="left" type="source" affordance={connectionAffordance} active={isPendingConnectionSource} label={startConnectionLabel} />
-          <GenerationFlowConnectionHandle side="right" type="source" affordance={connectionAffordance} active={isPendingConnectionSource} label={startConnectionLabel} />
+          <GenerationFlowConnectionHandle activeHandleId={activeHandleId} side="left" type="source" affordance={connectionAffordance} active={isPendingConnectionSource} label={startConnectionLabel} />
+          <GenerationFlowConnectionHandle activeHandleId={activeHandleId} side="right" type="source" affordance={connectionAffordance} active={isPendingConnectionSource} label={startConnectionLabel} />
         </>
       ) : null}
     </div>
