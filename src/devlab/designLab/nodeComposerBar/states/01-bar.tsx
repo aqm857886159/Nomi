@@ -3,7 +3,8 @@
 // 前五格渲染的都是**现役** BaseGenerationNode + NodeGenerationComposer 本体（coverage: 'shell'）——
 // 2026-09-11 拍板的 v1.1 已接线，参数区是摘要 pill：同日 02:10 的逐参数 chip 于 04:30 被用户收回，
 // **画布节点保持原样**，chip 只给付费确认卡。改了真身，这一屏跟着变，不需要在这里画第二遍。
-// 第六格是那第二种摆法的陈列（同一个组件 + 一个属性），本分支上还没有生产宿主 → 'component-only'。
+// 第六格是那第二种摆法的陈列（同一个组件 + 一个属性）；它的生产宿主是付费确认卡
+// （`NodeGenerationComposer host="panel"`，#736 合入后进来的），整件的样子在 v4 屏那几格。
 //
 // 格 id 保持样张阶段的名字不变：截图文件名是拍板对账的锚点，改名等于把前几版的对账线索弄丢。
 import React from 'react'
@@ -69,11 +70,11 @@ export const COMPOSER_BAR_STATES: readonly LabState[] = [
     id: 'composer-bar-chips-mode',
     name: 'chips 模式（付费卡用）· 同一组件的 parameterLayout 属性',
     source: CHIPS_SOURCE,
-    // 付费确认卡（这个摆法真正的宿主）在权限那条分支上，本分支没有生产调用点——
-    // 按 LabState.mirrors 的约定，这种「组件有、生产还没接」的格子必须显式写 'none'，
-    // 不能借用上面那几条画布的行号假装它有家。
-    mirrors: 'none',
-    coverage: 'component-only',
+    // 这个摆法的生产宿主已经进来了（#736 的付费确认卡 = `NodeGenerationComposer host="panel"`，
+    // 它显式传 `parameterLayout='chips'`）。所以这一格不再是「组件有、生产没接」的零采纳件，
+    // 指路牌指向那个真实调用点；它整件的样子在 v4 屏的 `v4-spend-params-*` 几格。
+    mirrors: 'src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx:479',
+    coverage: 'shell',
     scheme: 'light',
     render: () => <ChipsModeStage />,
   },

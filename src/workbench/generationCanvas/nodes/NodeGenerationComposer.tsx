@@ -74,10 +74,40 @@ const TEXT_MODE_PLACEHOLDER_KEY = {
 // 从 BaseGenerationNode 抽出（A1.5 接缝）：只有「生成类」节点挂它，素材节点不挂。
 // 所有生成相关依赖（runner / NodeParameterControls / 布局计算）都收在这里，壳保持 kind 无关。
 
+/**
+ * 这张 composer 挂在哪里。
+ *
+ * `canvas`（默认）= 画布上那张浮在节点下沿的卡：绝对定位、自带边框阴影、右下角一颗圆形 `↑`。
+ * `panel` = Agent 面板的介入槽里那张付费卡：卡壳由介入槽提供，所以这里**脱掉自己的壳**
+ * （不定位、不描边、不投影），并把「生成」交还给卡的底栏——「生成」和「不要」是同一个决定的
+ * 两面，分在两处等于把一个决定拆成两个家（§1.5 一功能一个家）。
+ *
+ * 刻意用一个 host 字段而不是一堆 `hideX` 开关：宿主只有两种，两种各自成套。
+ * 散开成开关之后，第三个调用者一定会挑出一套没人验证过的组合。
+ *
+ * **`panel` 到底不渲染哪几件**（2026-09-10 用户 v2 反馈：「卡里不需要优化/运镜/更多——都写完了还优化啥」）：
+ *
+ * | 不渲染 | 为什么 |
+ * |---|---|
+ * | 「更多 ▾」`effects.more` + 推荐行 `effects.recommendations` | 提示词是 Nomi **已经写完**的。卡的任务是「看一眼、要不要改一个字、按下去」，不是重新起草 |
+ * | 运镜 `NodeCameraMoveControl` | 同上：运镜已经写在提示词里了 |
+ * | 提示词优化 `NodePromptOptimizer` | 同上，且它要再花一次模型钱——在一张**正在确认花钱**的卡上放第二笔花钱按钮是错的 |
+ * | 生成钮（圆形 `↑`） | 由卡壳的主按钮接替（「生成」与「不要」并排） |
+ *
+ * 锁 `NodeLockBadge` 不在这张表里，因为它**两个宿主都没有**：2026-09-11 v1.1 把它挪回节点浮条
+ * （它的作用对象是这个节点、不是这一次生成），不需要再按宿主分叉。
+ *
+ * 剩下的恰好就是用户点名的那三件、按他给的顺序：**`[模型 ▾] [参数 ▾] [×N ▾]`**，恒一行不换行。
+ * 其中「参数」在这个宿主是**逐参数 chip**（`parameterLayout='chips'`，2026-09-11 用户拍板：
+ * 只改付费卡，画布节点的参数条不动）——正在确认「出什么、花多少」时，多一次点击最贵。
+ */
+export type NodeComposerHost = 'canvas' | 'panel'
+
 type Props = {
   onFeedback: (message: string) => void
   node: GenerationCanvasNode
   visualSize: { width: number; height: number }
+  host?: NodeComposerHost
 }
 
 type FloatingComposerLayout = {
@@ -100,7 +130,7 @@ function floatingComposerLayout(_width: number, _height: number, kind: Generatio
   return { maxHeight, gap }
 }
 
-export default function NodeGenerationComposer({ onFeedback, node, visualSize }: Props): JSX.Element {
+export default function NodeGenerationComposer({ onFeedback, node, visualSize, host = 'canvas' }: Props): JSX.Element {
   const feedbackOwnerRef = React.useRef<string | null>(node.id)
   feedbackOwnerRef.current = node.id
   React.useEffect(() => { feedbackOwnerRef.current = node.id; return () => { feedbackOwnerRef.current = null } }, [node.id])
@@ -110,6 +140,7 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize }:
     notify({ identity: `NodeGenerationComposer:${node.id}`, reason: 'interaction', message, level: 'inline', present: setFeedback })
   }, [node.id, onFeedback])
   const { t } = useTranslation()
+  const inPanel = host === 'panel'
   const updateNode = useGenerationCanvasStore((state) => state.updateNode)
   const status = node.status || 'idle'
   const isGenerating = status === 'queued' || status === 'running'
@@ -294,11 +325,22 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize }:
 
   // B 簇（帮我写提示词）：运镜 → 效果 → 优化，顺序就是 2026-09-11 拍板那句话。
   // 运镜排头是因为三者里只有它带状态（选过带激活点），状态位紧挨分隔线更容易被扫到。
-  // 一件都没有（锁住的节点、不吃提示词的工作流）就整段不渲染——空的分组连同两根分隔线
+  // 一件都没有（锁住的节点、不吃提示词的工作流、面板宿主）就整段不渲染——空的分组连同两根分隔线
   // 留在那里只会在底栏里留一段没人看得懂的空白。
-  const showCameraMove = isVideoLikeGenerationNodeKind(node.kind) && !node.locked
-  const showOptimizer = acceptsPrompt && (nodeExecutionKind === 'image' || nodeExecutionKind === 'video') && !node.locked
-  const hasPromptTools = showCameraMove || hasPromptPickerButton || showOptimizer
+  // 面板宿主整段没有：卡上的提示词是 Nomi 已经写完的，这一刻的活是「看一眼、按下去」，
+  // 而且优化要再花一次模型钱——在一张正在确认花钱的卡上摆第二颗花钱的钮是错的（见 NodeComposerHost）。
+  const showCameraMove = !inPanel && isVideoLikeGenerationNodeKind(node.kind) && !node.locked
+  const showPromptPicker = !inPanel && hasPromptPickerButton
+  const showOptimizer = !inPanel && acceptsPrompt && (nodeExecutionKind === 'image' || nodeExecutionKind === 'video') && !node.locked
+  const hasPromptTools = showCameraMove || showPromptPicker || showOptimizer
+
+  // 就地展开的参数面板的落点（只有 `panel` 宿主有）。
+  //
+  // 为什么要一个专门的落点，而不是让面板留在底栏那一排里：面板是**整幅**的（`w-full`），
+  // 留在排里就只有两条路——要么允许换行（v2 那样，`[模型][参数]` 一行、面板一行、`×N` 又一行，
+  // 底栏看起来就是散的，正是用户说的「参数摆得不齐、还上下两行」），要么不换行被挤成一条缝。
+  // 把面板搬到底栏**下面**这个落点，底栏就能恒一行，面板也拿到整幅宽度。
+  const parameterPanelSlotRef = React.useRef<HTMLDivElement>(null)
 
   // 卡宽由模型底栏驱动；推荐项让位，输入内滚、底栏固定。
 
@@ -308,14 +350,16 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize }:
       ref={anchorRef}
       className={cn(
         'generation-canvas-v2-node__composer',
-        'absolute z-[8] w-max',
+        // 面板里的卡由介入槽定位，这里只是一段普通内容流；画布上才是浮在节点下沿的绝对定位层。
+        inPanel ? 'w-full' : 'absolute z-[8] w-max',
         // 画布拖动期间隐身（拖节点、拖选区/组框、拖画布平移都算；状态源=stage 的 data-dragging，见 canvasDraggingFlag）。
         // 刻意用 visibility 而非条件卸载：里面是 TipTap 编辑器实例，卸载 = 丢未提交的输入 +
         // 每次拖动重建编辑器（拖动是最高频动作）。
-        'group-data-[dragging=true]/canvas:invisible',
+        !inPanel && 'group-data-[dragging=true]/canvas:invisible',
       )}
+      data-composer-host={host}
       data-flipped={flipUp ? 'true' : 'false'}
-      style={{
+      style={inPanel ? { cursor: 'default', userSelect: 'auto', touchAction: 'auto' } : {
         left,
         top,
         transform: `scale(${1 / (canvasZoom || 1)})`,
@@ -334,13 +378,13 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize }:
       <div
         className={cn(
           'generation-canvas-v2-node__composer-card',
-          'relative flex flex-col gap-1.5 p-3 min-w-0 max-w-[880px] w-max',
-          // 卡片不滚动，只有提示词拥有滚动；附属推荐行承担收缩。
-          'border border-nomi-line rounded-nomi bg-nomi-paper overflow-hidden shadow-nomi-md',
+          'relative flex flex-col gap-1.5 min-w-0',
+          // 面板宿主里**卡壳是介入槽的**：再描一层边就成了框中框，而里外说的是同一张卡。
+          inPanel ? 'w-full p-0' : 'p-3 max-w-[880px] w-max border border-nomi-line rounded-nomi bg-nomi-paper overflow-hidden shadow-nomi-md',
           'transition-[outline-color] duration-150',
           isDragOver && 'outline-2 outline-dashed outline-nomi-accent outline-offset-[-2px]',
         )}
-        style={{
+        style={inPanel ? { cursor: 'default', userSelect: 'auto', touchAction: 'auto' } : {
           maxHeight,
           maxWidth,
           minWidth: Math.min(360, maxWidth),
@@ -351,7 +395,7 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize }:
         }}
       >
       {hasReferenceControls ? (
-        <div data-node-composer-references className="min-h-0 shrink-0 overflow-y-auto overscroll-contain border-b border-nomi-line-soft" style={{ maxHeight: referenceMaxHeight }}>
+        <div data-node-composer-references className="min-h-0 shrink-0 overflow-y-auto overscroll-contain border-b border-nomi-line-soft" style={inPanel ? undefined : { maxHeight: referenceMaxHeight }}>
           <NodeParameterControls node={node} section="references" onInsertMention={insertMention} />
         </div>
       ) : null}
@@ -410,22 +454,33 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize }:
           />
         </div>
       )}
-      {hasPromptPickerButton && effects.recommendations}
+      {/* 推荐行不进面板宿主：卡上的提示词是 Nomi 已经写完的，这一刻不是重新起草的时候。 */}
+      {showPromptPicker && effects.recommendations}
       {/* 底栏（v1.1，2026-09-11 用户拍板）：铺满卡宽（w-full），一行三段、不换行：
             `[模型 ▾] [16:9 · 5s ▾] │ [🎥][✦][✨] │ [×N ▾] ……… [↑]`
           从左到右是「出什么 → 怎么写 → 出几张 → 走」，与人在按下生成那一刻的决策顺序同向。
           三类归位见 docs/design/2026-09-10-node-composer-bar-v1.md：
             A 决定出什么/花多少 → 第一段与第三段；B 帮我写提示词 → 中段缩小一号的纯 icon；
             锁 → 回节点浮条（它的作用对象是**这个节点**，不是这一次生成）。
-          参数区是**摘要 pill**（同日 02:10 的逐参数 chip 于 04:30 被用户收回，只给付费确认卡）。
+          参数区两个宿主各一种摆法：画布节点是**摘要 pill**（同日 02:10 的逐参数 chip 于 04:30 被用户
+          收回），付费确认卡是**逐参数 chip**——那一刻用户正在逐项确认「出什么、花多少」，多一次点击最贵。
+          面板宿主只剩第一段与第三段（B 簇、锁、生成钮都不进，见 NodeComposerHost 那张表），
+          `flex-nowrap` 对两个宿主都成立：排不下不靠换行解决，靠别往这一排里塞第四件。
           `data-node-composer-footer` / `data-bar-segment` 是走查锚点，好断言「单行 + 段序没漂」。 */}
       <div data-node-composer-footer className={cn('flex items-center gap-2 mt-auto pt-1 shrink-0 w-full flex-nowrap')}>
-        {/* 第一段：模型芯片 + 变体 + 参数摘要 pill（只报两个值，见 composerHeadlineSummary）。 */}
+        {/* 第一段：模型芯片 + 变体 + 参数区（画布=摘要 pill，见 composerHeadlineSummary；付费卡=chips）。 */}
         <div data-bar-segment="model-params" className={cn('flex min-w-0 shrink items-center')}>
           <NodeParameterControls
             node={node}
             section="parameters"
             composerAttachmentSide={flipUp ? 'top' : 'bottom'}
+            {...(inPanel
+              ? {
+                parameterLayout: 'chips' as const,
+                inlinePanelTarget: anchorRef,
+                inlinePanelSlot: parameterPanelSlotRef,
+              }
+              : {})}
           />
         </div>
         {/* 第二段：B 簇。分隔线用节点浮条那根现役 ToolbarDivider，不另画一根。 */}
@@ -436,7 +491,7 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize }:
               {/* 手动运镜（B1）：视频镜头才有 video_ref 槽——仅对 video-like 节点显示
                   （AI 工具 create_camera_move 的第二道门，共用同一产路）。 */}
               {showCameraMove ? <NodeCameraMoveControl node={node} /> : null}
-              {hasPromptPickerButton ? effects.more : null}
+              {showPromptPicker ? effects.more : null}
               {showOptimizer ? <NodePromptOptimizer node={node} isVideo={nodeExecutionKind === 'video'} /> : null}
             </NodePromptToolCluster>
             <ToolbarDivider />
@@ -459,7 +514,7 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize }:
             />
           </div>
         ) : null}
-        {(() => {
+        {inPanel ? null : (() => {
           const disabledReason = unmetDependency
             ? t('generationCommon.composer.referenceCompanionRequired', {
                 slot: unmetDependency.slotLabel,
@@ -505,6 +560,9 @@ export default function NodeGenerationComposer({ onFeedback, node, visualSize }:
           )
         })()}
       </div>
+      {/* 参数面板的落点：底栏**下面**、整幅宽。`empty:hidden` 让它在面板收着时一个像素都不占
+          （空 div 也会吃掉外层 flex 的 gap）。画布宿主没有这个落点——那儿的面板 portal 到 body。 */}
+      {inPanel ? <div ref={parameterPanelSlotRef} className="w-full empty:hidden" data-node-composer-parameter-panel-slot /> : null}
       </div>
       {isDragOver ? (
         <div

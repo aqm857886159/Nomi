@@ -42,7 +42,7 @@ import {
   resultPreviewUrl,
   shouldUseVideoFrameSlotFallback,
 } from './controls/parameterControlModel'
-import { runSlotUpload } from './controls/slotUpload'
+import { createSlotFileUploads } from './controls/slotFileUploads'
 import {
   type ArchetypeArraySlot,
   appendArchetypeArrayValue,
@@ -79,7 +79,7 @@ import AssetReference, { type AssetSlot } from '../../assets/AssetReference'
 import type { AssetRef } from '../../assets/assetTypes'
 import { moveArrayItem } from '../../assets/assetTypes'
 import { removeMention } from '../../assets/promptMentions'
-import InlineParameterBar from './InlineParameterBar'
+import InlineParameterBar, { type InlineParameterBarParameterLayout } from './InlineParameterBar'
 import { composerHeadlineSummary } from './composerHeadlineSummary'
 import { useNodeModelAutoSelect } from './useNodeModelAutoSelect'
 import { resolveArchetypeForOption, resolveRenderedControls } from './nodeModelArchetype'
@@ -105,6 +105,24 @@ type NodeParameterControlsProps = {
   onInsertMention?: (url: string) => void
   /** 当前 composer 连在节点哪条边；比例切换用它保持同一连接锚点。 */
   composerAttachmentSide?: ComposerAttachmentSide
+  /**
+   * 参数区怎么摆（透传给 InlineParameterBar，那边写着两种形态的判据）。
+   * 画布节点**不传** → 默认 `summary`（摘要 pill + 面板，2026-09-11 04:30 用户拍板节点保持原样）；
+   * 付费确认卡（`host="panel"` 的 composer）显式传 `chips`，逐参数一颗下拉。
+   */
+  parameterLayout?: InlineParameterBarParameterLayout
+  /**
+   * 参数**下拉浮层**的落点容器（`host="panel"` 的 composer 传自己的卡）。画布上不传：浮层 portal 到
+   * body、打开时定位一次就不跟随，而节点卡本来就不滚动。面板里的卡随转录滚动，body 上的静止浮层会
+   * **留在原地**脱离卡；给了落点就换成「就地展开 + 浮层进卡」，和 `panelMode="inline"` 同一条理由。
+   */
+  inlinePanelTarget?: React.RefObject<HTMLElement | null>
+  /**
+   * 就地展开的参数面板**本体**落在哪（`host="panel"` 传底栏下面那个空 div）。和上面那条是两件事：
+   * 那条是下拉浮层的 portal 根（整张卡），这条是面板的位置。不给就原地渲染在摘要 pill 后面——
+   * 那会让整幅面板变成底栏那一排的兄弟去抢宽度，把「模型/参数/×N」挤成两行。
+   */
+  inlinePanelSlot?: React.RefObject<HTMLElement | null>
 }
 
 export default function NodeParameterControls({
@@ -112,6 +130,9 @@ export default function NodeParameterControls({
   section = 'all',
   onInsertMention,
   composerAttachmentSide = 'bottom',
+  parameterLayout,
+  inlinePanelTarget,
+  inlinePanelSlot,
 }: NodeParameterControlsProps): JSX.Element | null {
   const reportFeedback = React.useCallback((message: string) => {
     notify({ identity: `NodeParameterControls:${node.id}`, reason: 'interaction', message, level: 'inline', present: setUploadError })
@@ -395,34 +416,6 @@ export default function NodeParameterControls({
     }
     setArrayValue(metaKey, next)
   }
-  const handleArrayUpload = async (slot: ArchetypeArraySlot, file: File | null | undefined) => {
-    if (!file) return
-    await runSlotUpload({
-      file,
-      label: slot.label,
-      ownerNodeId: node.id,
-      taskKind: 'image_edit',
-      missingUrlMessage: t('generationCommon.parameters.missingAssetUrl'),
-      setBusy: (busy) => setUploadingArrayKey(busy ? slot.metaKey : ''),
-      setError: setUploadError,
-      apply: (url) => handleArrayAdd(slot, url),
-    })
-  }
-
-  // D3 源视频单槽（video-edit）：上传一个视频 → 写 meta.sourceVideoUrl（传输映射成 video_url）。
-  const handleSourceVideoUpload = async (metaKey: string, file: File | null | undefined) => {
-    if (!file) return
-    await runSlotUpload({
-      file,
-      label: t('generationCommon.parameters.sourceVideo'),
-      ownerNodeId: node.id,
-      taskKind: 'image_edit',
-      missingUrlMessage: t('generationCommon.parameters.missingVideoUrl'),
-      setBusy: (busy) => setUploadingArrayKey(busy ? metaKey : ''),
-      setError: setUploadError,
-      apply: (url) => updateMeta({ [metaKey]: url }),
-    })
-  }
   const handleSlotAssignment = (slot: ImageUrlSlot, newSourceNodeId: string) => {
     const state = useGenerationCanvasStore.getState()
     const target = state.nodes.find((candidate) => candidate.id === node.id) || node
@@ -459,34 +452,18 @@ export default function NodeParameterControls({
     updateNode(node.id, { meta: { ...latestMeta, ...patch } }, { history: !existingEdge })
     setOpenSlotKey('')
   }
-  const handleSlotUpload = async (slot: ImageUrlSlot, file: File | null | undefined) => {
-    if (!file) return
-    if (!file.type.startsWith(`${slot.mediaKind ?? 'image'}/`)) {
-      // 三选一（同类根因的又一个入口，2026-09-11 补：ComfyUI 声明的音频参数槽走这条上传器，
-      // 此前只区分 video/image，音频槽拖错文件会显示「只能选择图片文件」这种文不对题的提示）。
-      setUploadError(t(
-        slot.mediaKind === 'video' ? 'generationCommon.parameters.videoOnly'
-          : slot.mediaKind === 'audio' ? 'generationCommon.parameters.audioOnly'
-            : 'generationCommon.parameters.imageOnly',
-      ))
-      return
-    }
-    await runSlotUpload({
-      file,
-      label: slot.label,
-      ownerNodeId: node.id,
-      ...(slot.mediaKind === 'video' || slot.mediaKind === 'audio' ? {} : { taskKind: 'image_edit' as const }),
-      missingUrlMessage: t(
-        slot.mediaKind === 'video' ? 'generationCommon.parameters.missingVideoUrl'
-          : slot.mediaKind === 'audio' ? 'generationCommon.parameters.missingAudioUrl'
-            : 'generationCommon.parameters.missingImageUrl',
-      ),
-      setBusy: (busy) => setUploadingSlotKey(busy ? slot.key : ''),
-      setError: setUploadError,
-      apply: (url) => setSingleFrameUrlMeta(slot, url),
-    })
-  }
-
+  // 三个「本地文件 → 槽 url」入口共用一条导入路径（controls/slotFileUploads）。写入仍归这里：
+  // 数组走 handleArrayAdd 的唯一追加路径，单槽走 setSingleFrameUrlMeta 的断边+写 meta。
+  const { handleArrayUpload, handleSourceVideoUpload, handleSlotUpload } = createSlotFileUploads({
+    nodeId: node.id,
+    t,
+    onArrayAdd: handleArrayAdd,
+    onSourceVideoUrl: (metaKey, url) => updateMeta({ [metaKey]: url }),
+    onSingleFrameUrl: setSingleFrameUrlMeta,
+    setUploadingArrayKey,
+    setUploadingSlotKey,
+    setUploadError,
+  })
   // ComfyUI 导入的工作流不再走特例：它把声明的每个媒体输入都以 type:'image-url' 写进 meta.parameters，
   // 于是这里的通用出槽器**按条出槽**——声明几个就长几个（2026-08-20，治「多参工作流只能连一张图」）。
   const modelImageUrlSlots = [
@@ -704,6 +681,9 @@ export default function NodeParameterControls({
         activeVariantId={activeVariantId}
         onVariantSelect={handleVariantSwitch}
         summaryOverride={summaryOverride}
+        {...(parameterLayout ? { parameterLayout } : {})}
+        {...(inlinePanelTarget ? { panelMode: 'inline' as const, portalTarget: inlinePanelTarget } : {})}
+        {...(inlinePanelSlot ? { inlinePanelSlot } : {})}
       />
     )
   }

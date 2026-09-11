@@ -99,6 +99,25 @@ type InlineParameterBarProps = {
   /** Width of the summary trigger in CSS pixels（只在 `summary` 下有意义）。The resident contract uses
    * the wider 150px dialog pill; the canvas remains 110px. */
   summaryWidth?: number
+  /**
+   * 身份行两个下拉的浮层落点。
+   *
+   * 画布上不传 = Mantine 默认 portal 到 body（下拉要能盖出节点卡外面）。对话流里的卡不一样：
+   * 卡随转录滚动，portal 到 body 的下拉会**脱离卡**留在原地。传一个卡内的容器 ref，
+   * 下拉就跟着卡走——和 `panelMode="inline"` 是同一条理由。
+   */
+  portalTarget?: React.RefObject<HTMLElement | null>
+  /**
+   * 就地展开的参数面板落在哪个容器里（只对 `panelMode="inline"` 有意义）。
+   *
+   * 面板是**整幅**的（`w-full`）。横排布局里 identityRow 与摘要 pill 用的都是 `contents`，
+   * 所以面板会直接变成参数条那一排的兄弟去和模型芯片抢宽度（v2 实测：芯片被挤成一个光秃秃的图标）。
+   * v2 靠给那一排开 `flex-wrap` 兜底，代价是「模型 / 参数 / ×N」被拆成上下两行、长短不齐——
+   * 正是 2026-09-10 用户看到 v2 时说的「参数摆得不齐、还上下两行」。
+   * v3 改成把面板**搬出那一排**：调用方给一个落点（底栏下面那个空 div），面板 portal 过去，
+   * 参数条本身恒一行。不给落点就退回原地渲染（画布不走这条路，那儿用 portal 面板）。
+   */
+  inlinePanelSlot?: React.RefObject<HTMLElement | null>
   /** Optional generation-mode group shown at the top of the shared panel. */
   modeChoices?: readonly { id: string; label: string }[]
   activeModeId?: string
@@ -216,6 +235,8 @@ export default function InlineParameterBar({
   layout = 'inline',
   panelMode = 'portal',
   summaryWidth,
+  portalTarget,
+  inlinePanelSlot,
   modeChoices,
   activeModeId = '',
   modeLabel,
@@ -595,6 +616,7 @@ export default function InlineParameterBar({
         options={modelSelect.modelOptions}
         onChange={modelSelect.onModelPick}
         onChipChange={modelSelect.onModelProviderPick}
+        {...(portalTarget ? { portalTarget } : {})}
       />
       {/* 变体（型号）小下拉：紧跟模型芯片（身份级，恒内联）。有变体的模型才显示。 */}
       {catalogVariants || visibleVariants.length > 1 ? (
@@ -606,6 +628,7 @@ export default function InlineParameterBar({
           options={visibleVariants}
           disabled={visibleVariants.length < 2}
           onChange={catalogVariants ? modelSelect.onVariantPick : (v) => onVariantSelect?.(v)}
+          {...(portalTarget ? { portalTarget } : {})}
         />
       ) : null}
     </div>
@@ -654,6 +677,7 @@ export default function InlineParameterBar({
           onChange={(next) => (isParameterControl(control)
             ? onParameterControlChange(control, next)
             : onCatalogControlChange(control, next))}
+          {...(portalTarget ? { portalTarget } : {})}
         />
       </span>
     )
@@ -709,9 +733,17 @@ export default function InlineParameterBar({
     </button>
   ) : null
 
+  // 就地展开的面板：有落点就 portal 过去（参数条恒一行），没有就原地渲染在触发器下面。
+  const inlinePanel = panelOpen && panelMode === 'inline'
+    ? <div className="mt-1.5 w-full">{renderParameterPanel('inline')}</div>
+    : null
+
+  // 两种形态共用同一对出口：就地展开（可能 portal 到调用方给的落点）+ 静止浮层（portal 到 body）。
   const panelPortals = (
     <>
-      {panelOpen && panelMode === 'inline' ? <div className="mt-1.5 w-full">{renderParameterPanel('inline')}</div> : null}
+      {inlinePanel
+        ? (inlinePanelSlot?.current ? createPortal(inlinePanel, inlinePanelSlot.current) : inlinePanel)
+        : null}
       {panelOpen && panelMode === 'portal' && panelInit ? createPortal(renderParameterPanel('portal'), document.body) : null}
     </>
   )
