@@ -302,7 +302,6 @@ async function selectedCount(page) {
  * 返回实际选中数（Partial 选择模式下会略多于 count，表里如实记录）。
  */
 async function marqueeSelectCount(page, count) {
-  const stage = await stageBox(page)
   const boxes = await page.evaluate(() => Array.from(document.querySelectorAll('.react-flow__node'))
     .map((element) => {
       const rect = element.getBoundingClientRect()

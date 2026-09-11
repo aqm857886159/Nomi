@@ -69,6 +69,14 @@ export default tseslint.config(
     languageOptions: { globals: globals.node },
   },
   {
+    // 画布规模基准（tests/perf/）：Node 脚本，但 page.evaluate 的回调体是**页内**代码，
+    // document / window 在那里合法。两套全局都给，而不是把整个目录塞进上面的 ignores——
+    // tests/ux/** 当年整体豁免是因为那批文件把页内代码写成字符串，ESLint 根本看不见；
+    // 这里的页内代码是真回调，看得见就该继续查 no-undef（少写一个字母仍要红）。
+    files: ['tests/perf/**/*.mjs'],
+    languageOptions: { globals: { ...globals.node, ...globals.browser } },
+  },
+  {
     // The regression must enter through Electron CommonJS before loading the
     // native pi ESM island; require is intentional here, not application style.
     files: ['tests/network/**/*.cjs'],
