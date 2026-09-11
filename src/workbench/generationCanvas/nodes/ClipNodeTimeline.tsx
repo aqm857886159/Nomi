@@ -19,6 +19,7 @@ import {
   type ClipNodeResizeTarget,
 } from './clipNodeDragModel'
 import { formatClipNodeDuration } from './clipNodeVisual'
+import { NODE_SCROLL_REGION_CLASS_NAME } from './nodeScrollRegionClassName'
 
 type ClipNodeTimelineProps = {
   timeline: TimelineState
@@ -501,10 +502,12 @@ export default function ClipNodeTimeline({
   const activeSnap = dragPreview?.snap ?? resizePreview?.snap ?? null
 
   return (
-    <section className="grid gap-1.5" aria-label={t('generationCommon.clipNode.timeline')} onWheel={(event) => event.stopPropagation()}>
+    <section className="grid gap-1.5" aria-label={t('generationCommon.clipNode.timeline')}>
+      {/* 画布用 d3-zoom 原生监听器处理 wheel 缩放，比 React 合成事件更早——onWheel 里
+          stopPropagation 拦不住它（见 nodeScrollRegionClassName.ts），真正管用的是 nowheel。 */}
       <div
         ref={axisRef}
-        className="relative h-20 min-w-0 overflow-x-auto overflow-y-hidden overscroll-contain rounded-nomi-sm border border-nomi-line bg-nomi-bg"
+        className={cn(NODE_SCROLL_REGION_CLASS_NAME, 'relative h-20 min-w-0 overflow-x-auto overflow-y-hidden overscroll-contain rounded-nomi-sm border border-nomi-line bg-nomi-bg')}
       >
         <div
           className="relative h-full"
