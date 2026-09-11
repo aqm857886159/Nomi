@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { IconAlertTriangle, IconCheck, IconLock } from '../../vendor/tablerIcons'
 import { DesignButton } from '../../design'
 import { getDesktopBridge } from '../../desktop/bridge'
+import { integrationConfirmationOutcome } from './integrationConfirmationOutcome'
 
 export type IntegrationVerificationHandoff = {
   requestId: string
@@ -58,7 +59,18 @@ export function IntegrationConfirmationPanel({ handoff, onDone }: Props): JSX.El
       const revision = Number(session.revision)
       const challengeId = handoff.display?.challengeId || String(session.pendingChallengeId || '')
       if (!Number.isSafeInteger(revision) || !challengeId) throw new Error(t('modelSetup.integrationUnavailable'))
-      await confirmUi({ sessionId: handoff.sessionId, expectedRevision: revision, challengeId })
+      const projection = await confirmUi({ sessionId: handoff.sessionId, expectedRevision: revision, challengeId })
+      // 主进程已经把失败原因如实写回来了；不看返回值就 onDone = 弹层默默关掉、
+      // 用户回到「还没有接入生成模型」而毫不知情（真机矩阵 §BUG-2 的后半段）。
+      const outcome = integrationConfirmationOutcome(projection)
+      if (!outcome.done) {
+        setError(
+          outcome.reasonCode
+            ? t('modelSetup.integrationFailedWithReason', { code: outcome.reasonCode })
+            : t('modelSetup.integrationFailed'),
+        )
+        return
+      }
       await bridge.onboarding.integrationHandoffAck?.(handoff.requestId)
       onDone()
     } catch (value) {

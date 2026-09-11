@@ -320,6 +320,11 @@ describe("IntegrationSessionService", () => {
     const enqueue = vi.fn();
     const service = createRuntimeIntegrationSessionService({
       filePath: path.join(dir, "sessions.json"),
+      // 认证运行时是必填依赖（缺席即静默失败的那一族，见 ComfyCertificationRuntime）。
+      // 本例不走 ComfyUI 认证，注入会抛的桩：被调用到就说明用例走错了路。
+      runTask: () => { throw new Error("runTask must not be reached in this case"); },
+      fetchTaskResult: () => { throw new Error("fetchTaskResult must not be reached in this case"); },
+      mintSpendGrant: () => { throw new Error("mintSpendGrant must not be reached in this case"); },
       approvalReceiptAuthority: authority as never,
       enqueueHandoff: enqueue,
       save: undefined,
