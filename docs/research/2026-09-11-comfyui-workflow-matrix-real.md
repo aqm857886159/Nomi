@@ -287,8 +287,8 @@ Flux / WAN / SVD **按要求没下**，只用其工作流测第③步。
   `-kjnodes-sample.json` / `-kjnodes-combo-census.json`
 - **结构化记录** `findings.json`
 - **输入素材** `matrix_input.png` / `matrix_input.mp4`
-- **探针脚本** `probes/`（本次新增，只走界面、不预埋 catalog、不灌 store）：
-  `comfy-real-matrix.mjs`（主矩阵）、`-connect`、`-gate-probe`、`-import-probe`、`-canvas`，跑法见 `probes/README.md`。
+- **探针脚本** `prototype/`（本次新增，只走界面、不预埋 catalog、不灌 store）：
+  `comfy-real-matrix.mjs`（主矩阵）、`-connect`、`-gate-probe`、`-import-probe`、`-canvas`，跑法见 `prototype/README.md`。
   **刻意不放进 `tests/ux/`**：它们是「记录并继续」的探索脚本，没有断言，
   会被 `check:walkthroughs`（≥2 条失败路径）和 `check:test-waits`（禁私有墙钟等待）拦下——**这两条门岗拦得对**，
   为了过门岗往探针里塞凑数断言只会骗过下一个读它的人。真正该补的回归走查见上面收口清单最后一节。

@@ -3,7 +3,11 @@
 这些是 2026-09-11 真机矩阵的**探索脚本**：只走界面（粘贴/点按钮/截图/dump DOM），
 刻意采用「记录并继续」而不是断言即停——目的是一趟扫完 7 行、把问题全暴露出来。
 
-**所以它们不放在 `tests/ux/`**：`check:walkthroughs` 要求每条走查 ≥2 条失败路径，
+**目录叫 `prototype/` 不是随手起的**：`eslint.config.mjs` 的 ignores 里已有
+`docs/research/**/prototype/**`「研究产物中的原型脚本（可独立运行的 ESM 采集/校验器）——非产品源码，不 lint」，
+本目录正是那一类，沿用既有约定，不为它改 lint 配置。
+
+**它们不放在 `tests/ux/`**：`check:walkthroughs` 要求每条走查 ≥2 条失败路径，
 `check:test-waits` 禁止私有墙钟等待。这两条门岗是对的——一条没有断言的走查在别的门岗眼里
 和一条严密的走查长得一样。为了过门岗往探针里塞凑数断言，比把它们放在这里更糟。
 
@@ -13,7 +17,7 @@
 
 跑法（需要本机 ComfyUI 在 127.0.0.1:8188，且仓库已 `pnpm run build`）：
 
-    node docs/research/2026-09-11-comfyui-matrix-evidence/probes/comfy-real-matrix.mjs
+    node docs/research/2026-09-11-comfyui-matrix-evidence/prototype/comfy-real-matrix.mjs
     ONLY_ROWS=row4b,row7a node .../comfy-real-matrix.mjs     # 只跑某几行
     PROBE_MODE=skip node .../comfy-real-matrix-import-probe.mjs
 
