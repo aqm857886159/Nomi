@@ -14,6 +14,7 @@ import { createDiskGateway } from './gateway'
 import { ensureBuiltinModelSeeds } from '../catalog/catalogStore'
 import { runTask, fetchTaskResult } from '../runtime'
 import { verifyToken } from './security'
+import { installIntegrationSessionRuntime } from '../integrationCertification/integrationSessionRuntimeInstall'
 import { applySystemProxy } from '../systemProxy'
 import { readProxyPrefs } from '../proxySettings'
 import { getProductionRunService } from '../productionRun/productionRunRuntime'
@@ -63,6 +64,9 @@ function emit(payload: unknown): void {
 }
 
 async function run(): Promise<number> {
+  // 一次性 host 也要自己装接入会话服务：dispatch 的 integration.* 全经过它，
+  // 而 GUI 的 registerIpc 在这个进程里根本不跑（根因合同 2026-09-11-comfyui-certification-wiring）。
+  installIntegrationSessionRuntime()
   const command = readCommandFromArgv()
   // 即便本机直连，host 仍要求 token——外部进程想驱动它必须证明拿到了用户机器上的 token（S6）。
   if (!verifyToken(command.token)) {

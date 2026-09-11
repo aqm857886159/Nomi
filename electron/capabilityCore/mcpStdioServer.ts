@@ -21,6 +21,7 @@ import { readProxyPrefs } from '../proxySettings'
 import { getProductionRunService } from '../productionRun/productionRunRuntime'
 import { startArtifactPreviewHttpServer, withAssetPreview } from '../productionRun/artifactPreviewHttpServer'
 import { startCredentialElicitationServer } from '../integrationCertification/credentialElicitationServer'
+import { installIntegrationSessionRuntime } from '../integrationCertification/integrationSessionRuntimeInstall'
 import { readWorkspaceProject, resolveWorkspaceProjectDir } from '../workspace/workspaceRepository'
 import { ensureWorkspaceProjectIdentity } from '../workspace/workspaceProjectIdentity'
 import { getProjectLocationState, getWorkspaceRepositoryDeps } from '../runtimePaths'
@@ -274,6 +275,9 @@ export async function startMcpStdioServer(authorities: McpStdioServerOptions = {
   const previewServer = await startArtifactPreviewHttpServer(
     withAssetPreview(productionRuns, (projectId) => resolveWorkspaceProjectDir(projectId, getWorkspaceRepositoryDeps())),
   )
+  // 接入会话服务：headless 进程也必须自己装（GUI 那条 registerIpc 根本不跑）。下面的凭据页与
+  // dispatcher 的 integration.* 都取它，不装就是整条接模型链在 stdio 下不可用。
+  installIntegrationSessionRuntime()
   // MCP URL 模式 elicitation 的一次性凭据页（headless 时这就是密钥的唯一入口）。自成一个严格 CSP 的
   // 回环 listener，不蹭预览服务器那套跨源放行的头（见 credentialElicitationServer.ts）。
   await startCredentialElicitationServer()
