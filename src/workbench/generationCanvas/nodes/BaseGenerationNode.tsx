@@ -109,15 +109,15 @@ function BaseGenerationNodeImpl({
   const isMultiSelectActive = useGenerationCanvasStore((state) => selected && state.selectedNodeIds.length > 1)
   const sourceNodeTitle = useGenerationCanvasStore((state) => {
     if (!node.derivedFrom) return undefined
-    return state.nodes.find((candidate) => candidate.id === node.derivedFrom)?.title
+    return state.nodeLookup.get(node.derivedFrom)?.data?.title
   })
   const sourceNodeCategoryId = useGenerationCanvasStore((state) => {
     if (!node.derivedFrom) return undefined
-    return state.nodes.find((candidate) => candidate.id === node.derivedFrom)?.categoryId
+    return state.nodeLookup.get(node.derivedFrom)?.data?.categoryId
   })
   const sourceNodeExists = useGenerationCanvasStore((state) => {
     if (!node.derivedFrom) return false
-    return state.nodes.some((candidate) => candidate.id === node.derivedFrom)
+    return state.nodeLookup.has(node.derivedFrom)
   })
   const startConnection = useGenerationCanvasStore((state) => state.startConnection)
   const updateNode = useGenerationCanvasStore((state) => state.updateNode)
@@ -223,7 +223,7 @@ function BaseGenerationNodeImpl({
   const canGenerate =
     useGenerationCanvasStore((state) =>
       canRunGenerationNode(node, {
-        nodes: state.nodes,
+        nodes: Array.from(state.nodeLookup.values(), (entry) => entry.data),
         edges: state.edges,
       }),
     ) && !isGenerating
