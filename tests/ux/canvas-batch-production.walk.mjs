@@ -2,7 +2,7 @@ import { expectComposerFooterHit } from './_composerFixedFooter.mjs'
 // Real Electron journey for canvas batch production. The UI, spend gate, IPC, queue, HTTP transport,
 // persistence, retry, and screenshots are real; only the remote vendor is replaced by a loopback fixture.
 import { launchNomiApp, ACCEPTANCE_WIDE_VIEWPORT } from './_launchApp.mjs'
-import { findCanvasBlankPoint } from './_canvasHit.mjs'
+import { findCanvasBlankPoint, findNodeHitPoint } from './_canvasHit.mjs'
 import fs from 'node:fs'
 import http from 'node:http'
 import os from 'node:os'
@@ -292,7 +292,12 @@ try {
   await clearSelection(win)
 
   const source = win.locator(`.react-flow__node[data-id="${sourceId}"]`)
-  await source.click({ position: { x: 36, y: 36 } })
+  // 选中源节点：点哪儿现问一句「这点归谁」，不写死节点内偏移。写死的 (36,36) 在
+  // 2026-09-11 之后永远点不到——main 把「文字」提成左缘工具条的常驻按钮，工具条高了
+  // 一格，正好盖住这颗节点的左上角，Playwright 重试到 30s 超时（判据见 _canvasHit.mjs）。
+  const sourceHit = await findNodeHitPoint(win, { nodeSelector: `.react-flow__node[data-id="${sourceId}"]` })
+  check(Boolean(sourceHit), '源节点身上找得到一个没被画布浮层盖住的点')
+  await win.mouse.click(sourceHit.x, sourceHit.y)
   await win.waitForTimeout(500)
   const target = win.locator(`.react-flow__node[data-id="${targetId}"]`)
   const handleBox = await source.locator('.generation-canvas-react-flow__handle[data-side="right"]').last().boundingBox()

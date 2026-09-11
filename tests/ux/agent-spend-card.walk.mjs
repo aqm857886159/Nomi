@@ -79,11 +79,19 @@ try {
   // （持续双向同步会和落地链拉锯，见 useAgentPanelSpendConfirm 里的理由），所以此刻价格还是旧的。
   // 与其断言一个我们已经知道不成立的行为，不如在这里只证「参数条是真能点的那一条」，
   // 把缺口写在 docs/plan/2026-09-11 的「已知缺口」里（P3：假绿比红更糟）。
-  const paramTrigger = card.locator('button[aria-label="生成参数"]').first()
-  await clickOrFail(paramTrigger, '卡上的参数摘要')
-  const sizeSelect = card.locator('button[aria-label="尺寸"]').first()
-  await expect(sizeSelect, '卡体里就是画布节点那条参数条：尺寸能点开').toBeVisible()
+  // 付费卡这一处的参数条是**逐参数 chip**（`parameterLayout='chips'`，2026-09-11 用户拍板：
+  // 只改付费卡、画布节点那条不动）。所以这里断言的不是「点开摘要 pill 能看到参数」，
+  // 而是「看得见的那个值本身就是可点的控件」——正在确认花多少钱的那一刻，多一次点击最贵。
+  await expect(card.locator('[data-parameter-summary]'),
+    '付费卡不摆摘要 pill：它是 chips 形态，不是画布节点那套').toHaveCount(0)
+  const chips = card.locator('[data-parameter-chip]')
+  await expect(chips.first(), '付费卡底栏至少有一颗逐参数 chip（档案 derive 断了就会一颗都没有）').toBeVisible()
+  // 尺寸在这个夹具模型上是 `size`（角色 aspect）→ 它必须**直接**在底栏上，不藏在 ⚙ 后面。
+  const sizeSelect = card.locator('[data-parameter-chip] button[aria-label="尺寸"]').first()
+  await expect(sizeSelect, '卡体就是画布节点那条参数条的 chips 摆法：尺寸一步可点，不用先点开面板').toBeVisible()
+  await clickOrFail(sizeSelect, '卡上的尺寸 chip')
   await walk.snap('spend-card-parameters-are-editable')
+  await win.keyboard.press('Escape')
 
   // ③ 等待中切到「全自动」。钱这条轴与档位正交：卡必须还在等人答。
   await clickOrFail(win.locator(`${CANVAS_PANEL} ${COMPOSER_PERMISSION}`), '权限档选择器')

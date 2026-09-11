@@ -550,7 +550,12 @@ export const zhGenerationCommon = {
   },
   parameters: {
     auto: '自动',
+    // 摘要 pill 的文案覆盖（画布节点 summary 形态）：导入的 ComfyUI 工作流参数名是作者随手起的，
+    // 串当前值成 `15 · 24` 没人认得出那是自己勾的东西（群反馈 2026-08-20 G2#433），改成报名字+条数。
     workflowParams: '工作流参数 · {{count}} 项',
+    // ⚙ 的名字带数字（付费卡 chips 形态）：它要回答的是「齿轮后面还有没有东西」。
+    // 数字为 0 时这颗齿轮根本不渲染，所以不必再写一版无数字文案。
+    moreParameters: '更多参数 · {{count}} 项',
     configureModel: '去配置模型',
     openModelCatalog: '点击打开模型设置',
     configure: '去配置 →',
@@ -627,6 +632,14 @@ export const zhGenerationCommon = {
     dragAria: '拖动文本节点',
     label: '文本',
   },
+  // 节点生成浮框底栏 v1（样张 docs/design/2026-09-10-node-composer-bar-v1.md，2026-09-10 拍板的三类归位）。
+  // A 类（决定出什么/花多少）留底栏；B 类（帮我写提示词）收成提示词框右上角一簇纯 icon；锁回节点浮条。
+  composerBarV1: {
+    promptTools: '写提示词',
+    effects: '效果与提示词库',
+    cameraPicked: '{{move}} · {{speed}}',
+    seconds: '{{value}}s',
+  },
   composer: {
     attachmentImage: '图片',
     attachmentFile: '文件',
@@ -651,9 +664,11 @@ export const zhGenerationCommon = {
     generating: '生成中…',
     generateReferencesFirst: '先生成参考，再生成本镜',
     regenerate: '重新生成',
-    variantCountAria: '每次生成张数',
-    variantCountTitle: '每次生成 {{count}} 张',
-    variantCountOption: '{{count}} 张',
+    // 「张」只对图片成立；同一个通用件现在也管视频/音频/3D（2026-09-10 反馈 #11），
+    // 用用户自己的说法「生成几个」，不按媒体分叉出四套文案。
+    variantCountAria: '每次生成几个',
+    variantCountTitle: '每次生成 {{count}} 个',
+    variantCountOption: '{{count}} 个',
     generate: '生成',
     generateAsset: '生成素材',
     uploading: '上传中',
@@ -804,7 +819,6 @@ export const zhGenerationCommon = {
   },
   cameraMove: {
     title: '运镜',
-    hint: '运镜：不用搭 3D 场景，一键生成灰模运镜片接入本镜',
     noSceneHint: '不用搭 3D 场景',
     type: '运镜类型',
     speed: '速度',
@@ -917,7 +931,6 @@ export const zhGenerationCommon = {
     optimizePrompt: '优化提示',
     aria: '用 Nomi 优化提示词',
     running: '优化中…',
-    optimize: '优化',
   },
   videoToolbar: {
     aria: '视频操作',
@@ -1979,6 +1992,7 @@ export const enGenerationCommon = {
   parameters: {
     auto: 'Auto',
     workflowParams: 'Workflow params · {{count}}',
+    moreParameters: 'More parameters · {{count}}',
     configureModel: 'Configure a model',
     openModelCatalog: 'Open model setup',
     configure: 'Configure →',
@@ -2053,6 +2067,12 @@ export const enGenerationCommon = {
     dragAria: 'Drag text node',
     label: 'Text',
   },
+  composerBarV1: {
+    promptTools: 'Prompt helpers',
+    effects: 'Effects & prompt library',
+    cameraPicked: '{{move}} · {{speed}}',
+    seconds: '{{value}}s',
+  },
   composer: {
     attachmentImage: 'Image',
     attachmentFile: 'File',
@@ -2078,9 +2098,9 @@ export const enGenerationCommon = {
     generating: 'Generating…',
     generateReferencesFirst: 'Generate references before this shot',
     regenerate: 'Regenerate',
-    variantCountAria: 'Images per run',
+    variantCountAria: 'Outputs per run',
     variantCountTitle: 'Generate {{count}} per run',
-    variantCountOption: '{{count}} images',
+    variantCountOption: '{{count}} outputs',
     generate: 'Generate',
     generateAsset: 'Generate asset',
     uploading: 'Uploading',
@@ -2229,7 +2249,6 @@ export const enGenerationCommon = {
   },
   cameraMove: {
     title: 'Camera move',
-    hint: 'Generate a blocking camera-move clip and attach it to this shot without building a 3D scene',
     noSceneHint: 'No 3D scene required',
     type: 'Camera move type',
     speed: 'Speed',
@@ -2343,7 +2362,6 @@ export const enGenerationCommon = {
     optimizePrompt: 'Optimize Prompt',
     aria: 'Optimize prompt with Nomi',
     running: 'Optimizing…',
-    optimize: 'Optimize',
   },
   videoToolbar: {
     aria: 'Video actions',

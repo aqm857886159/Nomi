@@ -1,0 +1,170 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-10-node-composer-placement",
+  "problem_type": "Anchored floating surface derives its position from global page state instead of its own anchor, so unrelated layout changes move it and can starve it of width",
+  "symptom": "2026-09-10 real-machine feedback #10: after selecting a canvas node, the generation composer that floats under it drifts around, does not sit directly under the node, and is sometimes clipped; the same feedback also mentioned the one-row footer, but on 2026-09-10 review the user ruled the single-row footer fine and deferred footer composition to a separate design discussion, so footer layout is deliberately out of scope here. Feedback #11: the version-history peek cards behind a video node look like blank image placeholders, so the user reads them as \"how many will be generated\".",
+  "direct_cause": "useComposerViewportPlacement fed every article[data-node-id], bottom dock, result stack and handle hit-area of the whole workspace into resolveComposerObstaclePlacement as obstacles, and re-ran that search from a ResizeObserver over all of them plus a MutationObserver on the workspace subtree. The search returns the nearest free rectangle, so the composer moved whenever any unrelated element moved, and its width was capped by whatever gap the search happened to find rather than by the viewport. The R13 walkthrough then exposed a second mechanism in the same class: once the obstacle observers were gone, a plain ResizeObserver on the stage and the card could not see the two inputs that actually matter. It reports border-box layout size, so it is blind to the node's scale-in mount animation (the node measures 11 percent small mid-animation, which froze the composer 22.7px off for the rest of the session) and blind to a stage that moves without resizing. Placement therefore has to watch the two input rectangles themselves.",
+  "class_root": "An anchored floating surface had no invariant binding its geometry to its own anchor. Placement was allowed to depend on global page state, so the surface's position and size were not a function of (viewport, anchor, natural size) and could not be reasoned about or asserted.",
+  "affected_population": [
+    "Every user who selects any generation canvas node while other nodes, the bottom dock, a result stack tray or a floating toolbar is on screen",
+    "Every canvas zoom level: the obstacle rectangles are screen-space, so density (and therefore drift) grows as the user zooms out",
+    "The agent panel context popover, which called the same solver with obstacles: [] and therefore only ever needed clamp plus side choice",
+    "Audio and 3D generation nodes, which were denied the shared variant-count control by a hard image/video check at the call site"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/nodes/anchoredPlacement.ts",
+    "src/workbench/generationCanvas/nodes/useComposerViewportPlacement.ts",
+    "src/workbench/generationCanvas/nodes/NodeGenerationComposer.tsx",
+    "src/workbench/generationCanvas/nodes/NodeResultStack.tsx",
+    "src/workbench/generationCanvas/nodes/generationVariantCount.ts",
+    "src/workbench/generationCanvas/components/CardStackPeeks.tsx",
+    "src/workbench/ai/v4/AgentPanelV4Context.tsx"
+  ],
+  "entry_points": [
+    "Node composer floating card: useComposerViewportPlacement, mounted by NodeGenerationComposer for every selected generation node",
+    "Agent panel context usage popover: AgentPanelV4Context, previously calling the same obstacle solver with an empty obstacle list",
+    "Result stack peek cards: NodeResultStack -> CardStackPeeks, and the group variant CollapsedGroupCard -> CardStackPeeks",
+    "Variant count control: NodeGenerationComposer footer, backed by generationVariantCount and confirmAndRunNodeVariants"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://reactflow.dev/api-reference/components/node-toolbar",
+      "checked_at": "2026-09-10",
+      "purpose": "Establish what the framework's own node-anchored floating surface does: position/align/offset only, explicitly counter-scaled against the viewport, with no clamping, flipping or obstacle detection. This is the reference behaviour the fix converges on."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://floating-ui.com/docs/flip",
+      "checked_at": "2026-09-10",
+      "purpose": "Confirm the standard semantics of the only two placement behaviours we keep: flip changes placement to keep the element in view, and shift translates it back inside the boundary. Used to decide that the residual logic is arithmetic rather than a capability worth a new direct dependency."
+    }
+  ],
+  "invariants": [
+    "The composer's resolved rectangle is a pure function of (stage rect, anchor rect, natural size, gap, above clearance); no other element on the page can change it",
+    "The resolved rectangle is fully contained in the stage rect after the margin inset, at every zoom level",
+    "The composer attaches below its anchor unless the below region cannot hold it, in which case it flips above; it never attaches left, right, or on top of its own anchor",
+    "The composer footer keeps the composition, wording and order settled on 2026-07-17 and stays a single row; placement changes must not push it onto a second row (asserted in the walkthrough)",
+    "A result peek card carries the media affordance of the node it belongs to, so version history is never read as an empty image slot",
+    "Whether a node offers the variant-count control is derived from its execution kind, not from a per-kind list at the call site"
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/nodes/anchoredPlacement.ts",
+    "tests": [
+      "src/workbench/generationCanvas/nodes/anchoredPlacement.test.ts"
+    ]
+  },
+  "generality_proof": "Both floating surfaces that previously computed placement (the node composer and the agent panel context popover) now call the single pure function resolveAnchoredPlacement, and the obstacle solver plus its observers are deleted rather than left callable, so no caller can reintroduce global-state-dependent placement without adding a new solver. The purity invariant is asserted directly by a class-level test that runs the same anchor with and without extra rectangles on the page and requires an identical result, which is the machine form of 'it does not drift'. The peek affordance is owned by the shared component every caller already renders (CardStackPeeks), and the variant-count decision is owned by generationVariantCount, so a future execution kind gets the correct answer without touching the composer.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/anchoredPlacement.ts",
+      "symbol": "resolveAnchoredPlacement",
+      "responsibility": "Sole owner of anchored floating-surface geometry: clamps the rectangle into the stage and chooses below/above from the available space, using only the stage and the anchor. Takes no obstacle input, so global page state structurally cannot reach placement."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/generationVariantCount.ts",
+      "symbol": "supportsGenerationVariants",
+      "responsibility": "Sole owner of 'may this node be generated N times': derived from the execution kind producing a stackable media artifact, so every surface asks the same question instead of listing kinds."
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/CardStackPeeks.tsx",
+      "symbol": "CardStackPeeks",
+      "responsibility": "Sole owner of the stacked-card peek appearance for both result history and collapsed groups; renders the caller-supplied media affordance so a peek card can never be mistaken for an empty media slot."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/nodes/useComposerViewportPlacement.ts",
+      "entry_point": "useComposerViewportPlacement",
+      "disposition": "enforced",
+      "evidence": "The hook now calls resolveAnchoredPlacement and observes only the composer card and the stage element; the workspace-wide MutationObserver and the obstacle ResizeObserver set are removed in this change, so no unrelated element can trigger a reposition."
+    },
+    {
+      "path": "src/workbench/ai/v4/AgentPanelV4Context.tsx",
+      "entry_point": "ContextUsageBlock placement effect",
+      "disposition": "enforced",
+      "evidence": "It called resolveComposerObstaclePlacement with obstacles: [] , which degenerated to clamp plus side choice; it now calls resolveAnchoredPlacement directly, so the two floating surfaces cannot diverge as the deleted solver can no longer be reached."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/nodeResultStackPlacement.ts",
+      "entry_point": "resolveResultStackPlacement",
+      "disposition": "not-affected",
+      "evidence": "It already chooses a side purely from left/right space and a required width, with no page-wide input, so it is outside the failure class; it is the in-repo precedent the new function follows."
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/useCanvasBottomDockRects.ts",
+      "entry_point": "useCanvasBottomDockRects",
+      "disposition": "not-affected",
+      "evidence": "It measures dock rectangles so a selection bar can avoid the dock; avoidance is its purpose and its inputs are a fixed, self-declared set of dock elements rather than every article on the canvas, so it neither drifts nor belongs to this class."
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/CollapsedGroupCard.tsx",
+      "entry_point": "CollapsedGroupCard peek stack",
+      "disposition": "not-affected",
+      "evidence": "Its peek cards stand for member nodes of a group, not for versions of one media artifact, so it deliberately passes no media affordance; giving it one would create a second meaning for the same visual."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The mechanism is reachable by every user on every canvas that holds more than one node, at every zoom level, and it re-fires on ordinary actions (moving a node, opening a result tray, the bottom dock appearing). It also already spread to a second surface: the agent panel copied the same solver. Without an owned invariant, the next anchored surface would copy it again.",
+    "same_class_scan": [
+      "git grep -n 'resolveComposerObstaclePlacement' src -> exactly two production callers: nodes/useComposerViewportPlacement.ts and ai/v4/AgentPanelV4Context.tsx; both migrated in this change",
+      "git grep -n 'MutationObserver' src/workbench/generationCanvas -> the workspace-wide subtree observer in useComposerViewportPlacement was the only page-wide one on the canvas; it is deleted here",
+      "git grep -n 'getBoundingClientRect' src/workbench/generationCanvas -> independently reviewed useCanvasBottomDockRects.ts and nodeResultStackPlacement.ts; both take a bounded, self-declared input set and are recorded above as not-affected",
+      "git grep -n 'GENERATION_VARIANT_COUNTS' src -> the only kind gate was the image/video conditional at NodeGenerationComposer's footer; the runner confirmAndRunNodeVariants has no kind branch at all",
+      "git grep -n 'CardStackPeeks' src -> two render sites, NodeResultStack (versions) and CollapsedGroupCard (group members); both reviewed and dispositioned"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/nodes/anchoredPlacement.ts",
+    "invariant": "Anchored placement is computed from the stage rect and the anchor rect alone; the resolved rectangle is contained in the stage and attaches below the anchor unless the below region cannot hold it.",
+    "failure_mode": "Degenerate input fails closed to a zero-sized rectangle inside the stage rather than to an off-screen or overlapping position, and the composer is hidden while width or height is zero, so an unmeasurable card is never painted in the wrong place.",
+    "exception_policy": "none",
+    "strategy": "The function takes no obstacle parameter and the obstacle solver is deleted in the same change, so global page state has no route into placement for any caller. Both existing callers are migrated, and the purity invariant is asserted by a class-level test that requires identical output when unrelated rectangles are present. Freshness is enforced by watching exactly the two inputs: a ResizeObserver for the card's own natural size, plus a per-frame comparison of the node and stage rectangles (Floating UI autoUpdate's animationFrame strategy), which is the only thing that sees transform-driven and move-without-resize changes. The watch reads two rectangles per frame, writes nothing when they are unchanged, and is skipped entirely while the canvas is dragging, when the composer is deliberately invisible.",
+    "artifacts": [
+      "src/workbench/generationCanvas/nodes/anchoredPlacement.ts",
+      "src/workbench/generationCanvas/nodes/useComposerViewportPlacement.ts",
+      "src/workbench/ai/v4/AgentPanelV4Context.tsx",
+      "src/workbench/generationCanvas/nodes/generationVariantCount.ts",
+      "src/workbench/generationCanvas/components/CardStackPeeks.tsx"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/generationCanvas/nodes/anchoredPlacement.test.ts",
+    "src/workbench/generationCanvas/nodes/generationVariantCount.test.ts",
+    "src/workbench/generationCanvas/components/CardStackPeeks.test.ts",
+    "tests/ux/node-composer-placement.walk.mjs"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/nodes/anchoredPlacement.test.ts",
+    "src/workbench/generationCanvas/nodes/generationVariantCount.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/nodes/composerObstaclePlacement.ts",
+      "src/workbench/generationCanvas/nodes/composerObstaclePlacement.test.ts"
+    ],
+    "rationale": "The free-rectangle obstacle solver and its test are deleted in the same commit as the replacement, and both production callers are migrated, so the old placement behaviour is not reachable as a fallback."
+  },
+  "dependency_lifecycle": {
+    "decision": "retain-with-exit",
+    "rationale": "The ecosystem answer for flip plus clamp is @floating-ui, which is present only transitively under Mantine and TipTap and would be a phantom import under this repo's strict pnpm layout. Promoting it to a direct dependency would also require portalling the composer out of the CSS-scaled React Flow node, which would drop the drag-time visibility trick that keeps the TipTap instance mounted. We therefore retain the in-repo pure function, which is bounded arithmetic over two rectangles.",
+    "exit_criteria": [
+      "If anchored placement ever needs behaviour beyond below/above flip and stage clamp (arrow positioning, autoPlacement, virtual elements, or following a scroll container), stop extending anchoredPlacement.ts and migrate to @floating-ui/react-dom as a direct dependency under the R29 four-list and framework-surface process",
+      "If a second anchored surface needs a placement option that resolveAnchoredPlacement does not already provide, treat that as the same trigger rather than adding an option",
+      "Re-evaluate when the composer no longer needs to stay mounted inside the React Flow node, since portalling is the blocker that makes the library awkward here"
+    ],
+    "current": "@floating-ui/dom 1.8.0 / @floating-ui/react-dom 2.1.9, present only transitively under @mantine/core 8.3.18 and @tiptap/extension-floating-menu 3.23.5",
+    "target": "@floating-ui/react-dom as a direct dependency, adopted whole with the composer portalled out of the React Flow node, once any exit criterion below is hit"
+  },
+  "migration": "No migration. Nothing persisted changes: no node.meta field, no store shape, no project file format. Placement is computed at render time, the peek affordance is a new optional prop that defaults to today's appearance, and the variant-count predicate only widens which nodes see an existing control.",
+  "residual_risks": [
+    "Choosing anchor fidelity over occlusion avoidance means the composer may now overlap a neighbouring node's corner when nodes are packed tightly; this is the accepted trade recorded in the plan, and it is not covered by an automated assertion",
+    "The composer clamps to the stage rectangle, which contains the canvas's own left tool rail, so a card wider than the node can be partly covered by that rail (visible in 01-video-node-composer.png). This predates the change (the rail was never in the deleted obstacle list) and is left as-is: insetting the stage by chrome would reintroduce measuring other elements, which is the behaviour the user asked to remove",
+    "The peek-card media affordance is covered by unit tests only; producing a real multi-version stack needs a paid generation, so the zero-credit walkthrough cannot screenshot it",
+    "The walkthrough drives a video node only; image, audio and 3D composers share the same code path and unit tests but were not separately screenshotted",
+    "The single-row footer can still clip a long parameter summary at narrow card widths (the \"16:9 · 720p\" -> \"6:9 · 72\" half of feedback #10). That is knowingly left open: the user ruled on 2026-09-10 that the single row is fine and that how the footer is integrated belongs to a separate design discussion, so no control composition, wording or order is touched here"
+  ]
+}

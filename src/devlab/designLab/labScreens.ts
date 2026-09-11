@@ -6,6 +6,8 @@ import { SETTINGS_SOUND_STATES } from './settingsSound/states/01-sound'
 import { CATALOG_LIVENESS_STATES } from './catalogLiveness/states/01-listing'
 import { CANVAS_ADD_MENU_STATES } from './canvasAddMenu/canvasAddMenuStates'
 import { CANVAS_FRAME_STATES } from './canvasFrame/canvasFrameStates'
+import { NODE_COMPOSER_BAR_STATES } from './nodeComposerBar/nodeComposerBarStates'
+import { NODE_COMPOSER_BAR_CELL_HEIGHT, NODE_COMPOSER_BAR_CELL_WIDTH } from './nodeComposerBar/nodeComposerBarLabKit'
 import { CANVAS_FRAME_CELL_HEIGHT, CANVAS_FRAME_CELL_WIDTH } from './canvasFrame/canvasFrameLabKit'
 import { CANVAS_ADD_CELL_HEIGHT, CANVAS_ADD_CELL_WIDTH } from './canvasAddMenu/canvasAddMenuLabKit'
 import { EDITING_STATES } from './editing/editingStates'
@@ -83,6 +85,14 @@ export const LAB_SCREENS: readonly LabScreen[] = [
     // 六格取景一样大：框的几何是这一屏要看的东西，格子不同宽就没法一眼比出
     // 「空框 / 有内容 / 拖入 / 拖出」四态里框的边界有没有变。
     cell: { width: CANVAS_FRAME_CELL_WIDTH, height: CANVAS_FRAME_CELL_HEIGHT },
+  },
+  {
+    id: 'node-composer-bar',
+    label: '画布 · 节点生成浮框底栏',
+    states: NODE_COMPOSER_BAR_STATES,
+    // 八格取景一样大：这一屏要人比的是「同一个浮框，改前 vs 改后底栏里有什么」。
+    // 格子不同宽，「挤没挤」就无从比起。
+    cell: { width: NODE_COMPOSER_BAR_CELL_WIDTH, height: NODE_COMPOSER_BAR_CELL_HEIGHT },
   },
   {
     id: 'settings',
