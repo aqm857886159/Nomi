@@ -1,0 +1,142 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-08-canvas-magnetic-handle",
+  "problem_type": "migration-parity-read-from-code-instead-of-user-behavior",
+  "symptom": "卡片旁边的连线点不到：两张卡间距小于约 224px 时，那条线整条没有可点的点（改生成方式、断开连接都做不了）。并列症状：拖线时「端点此刻吸在谁身上」在 DOM 里没有名字，走查正向断言对任意候选都过、反向永远清不掉。",
+  "direct_cause": "把迁移前的「选中才出带子」当成实现细节删掉，112×168 的磁吸热区变成每张卡常驻；热区挂在 .react-flow__node 下，而 React Flow 把边画在其下的 .react-flow__edges，连线两端必然落进带子。另一半：data-active 同时表示「我是合法候选」和「端点归我」，两个事实共用一个属性。",
+  "class_root": "判断「迁移等价」时拿旧代码当规格读，而不是拿用户行为当规格：旧实现里 selected && 图片类 这道门不是可以省掉的实现细节，它正是「同一时刻至多一张卡有带子」这条保证，而这条保证才是连线始终点得到的原因。同一族的第二条：给一个属性挂两个事实，事实就不可观测。",
+  "affected_population": [
+    "画布上任意两张间距小于约 224px 的卡片之间的连线（全部 kind、全部用户）；以及所有依赖「已吸附」这一事实的走查断言"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx",
+    "tests/ux/canvas-magnetic-handle.walk.mjs"
+  ],
+  "entry_points": [
+    "未选中卡片旁边点一条连线（打开连线模式药丸 / 断开连接）",
+    "选中图片类卡片后从外侧热区起手连线",
+    "拖线进入目标左右外侧热区并松手"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://reactflow.dev/api-reference/components/handle",
+      "checked_at": "2026-09-08",
+      "purpose": "原生 Handle 起终点连接权限"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://reactflow.dev/api-reference/types/connection-line-component-props",
+      "checked_at": "2026-09-08",
+      "purpose": "框架统一吸附终点"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://reactflow.dev/api-reference/types/on-connect-end",
+      "checked_at": "2026-09-08",
+      "purpose": "最终状态与正文解析边界"
+    }
+  ],
+  "invariants": [
+    "磁吸带子只挂在**选中的**图片类卡片上（panorama、折叠组代理除外）；同一时刻至多一张卡有带子，所以卡片之间的连线始终点得到。",
+    "未选中的卡片左右各一个 28px 圆点把手，圆心压在卡片那条边上；卡片外侧不捕获指针，那儿仍归 React Flow pane。",
+    "目标侧外侧热区是 RF Handle 的伪元素命中区，只在连线进行时开 pointer-events；空闲时 pointer-events:none，不参与命中。",
+    "「候选」与「已吸附」是两个事实，各有各的属性：data-active 在整段拖拽里对每个合法候选都为真（它开的是 pointer-events），data-snapped 同一时刻只属于一个把手。两者曾共用 data-active，导致吸附不可观测——正向断言对任意候选都通过、反向断言永远清不掉，同一个锚点两头说谎。",
+    "tests/ux/canvas-magnetic-handle.walk.mjs 必须登记在 tests/ux/canvas-real-suite.mjs 的 FULL_CANVAS_SCENARIOS 与某个 shard 桶里，并被 scripts/validation-policy.mjs 的 FULL_CANVAS_PATTERNS 匹配；否则这条验收走查在 CI 里根本不跑，功能等于没有回归保护。"
+  ],
+  "generality_proof": "所有 kind 走 GenerationFlowNodeView 的同一组 Handle；affordance 由单一 visual contract 决定，热区几何由单一 CSS owner 决定，不逐 kind 开特例。走查用 elementFromPoint 判「这一点归谁」，判据与生产命中一致。另在真实 Electron 复跑三条未改动的走查证明没有连带回归：canvas-card-stack（此前被本 PR 弄红的那条）退出码 0、canvas-drag-pan-gestures 51 项全绿、group-ports 全绿。",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx",
+      "symbol": "GenerationFlowConnectionHandle",
+      "responsibility": "左右两侧的 RF 命中、连接权限、data-active/data-snapped 两个事实，以及目标外侧热区的 pointer-events 开关；「这张卡此刻是圆点还是带子」仍由它调用的 resolveGenerationFlowConnectionAffordance（origin/main 那版，本次未改）裁决：只有 primarySelection 的图片类卡片是 magnetic。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx",
+      "entry_point": "GenerationFlowNodeView source-left/source-right",
+      "disposition": "enforced",
+      "evidence": "两侧共用同一 affordance；走查逐卡逐侧量圆点 28px、圆心贴边、外侧 56px 归 pane。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx",
+      "entry_point": "GenerationFlowNodeView target-left/target-right",
+      "disposition": "enforced",
+      "evidence": "目标热区伪元素只在 connecting 时 pointer-events:auto；空闲两侧都不参与命中。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/GroupFrame.tsx",
+      "entry_point": "组框上的常驻磁吸把手",
+      "disposition": "not-affected",
+      "evidence": "本 PR 曾给组框也加常驻带子（探针实测边的末端命中的就是它）；迁移前没有这一份，已把 GroupFrame.tsx 与 CanvasGroupProjectionLayer.tsx 整体退回 origin/main，组框仍按 pendingConnection 当落点，group-ports 走查全绿。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/reactFlow/canvasConnectionDropTarget.ts",
+      "entry_point": "resolveCanvasDropTargetFromDom",
+      "disposition": "not-affected",
+      "evidence": "2026-09-03-canvas-connect-regression 合同只管正文解析，本次未改。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/NodeResultStack.tsx",
+      "entry_point": "CardStackPeeks 与历史图片/视频托盘",
+      "disposition": "not-affected",
+      "evidence": "托盘被遮挡是常驻带子派生出来的症状；带子撤回选中态后 canvas-card-stack 在未改动的 main 版走查上退出码 0。"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "同一把手在迁移前后已经三次改变行为；这一次的错法（拿代码当规格）会对任何一次渲染器迁移复发，影响全部用户。",
+    "same_class_scan": [
+      "rg resolveGenerationFlowConnectionAffordance：唯一生产调用在 GenerationFlowNodeView。",
+      "rg MagneticConnectionHandle：ClipNode / BaseGenerationNode / DirectorNode / CollapsedGroupCard 是 legacy 非 RF 宿主（CSS 里 display:none !important 已关掉 RF 内的那份）；本 PR 新加的 GroupFrame 那份已删。",
+      "git show 8f9365aeb:.../BaseGenerationNode.tsx 与 .../styles/generationCanvas.css：逐项对照迁移前几何（±14px/±112px/29px/28px/180ms/120ms），差异写进 docs/plan/2026-09-09-magnetic-walk-contract.md 的老新对照表。",
+      "走查侧 rg magnetic|handle-hit|29px tests/ux/*.mjs：gestures / card-stack / S5 / group-ports 全部回到 main 版（选中才出带子），只有新增的 canvas-magnetic-handle 一份消费新契约。"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx",
+    "invariant": "带子只给 primarySelection 的图片类卡片（由 resolveGenerationFlowConnectionAffordance 裁决，本次恢复成主线那版）；目标外侧热区只在连线进行时可命中。同一时刻至多一张卡捕获卡片外侧的指针。",
+    "failure_mode": "panorama / 折叠组代理返回 hidden，不挂任何把手；非图片类与未选中返回 dot。",
+    "exception_policy": "none",
+    "strategy": "把「同一时刻至多一张卡有带子」从注释变成可执行断言：canvas-magnetic-handle 走查在未选中卡片外侧 56px 处用 elementFromPoint 判归属（必须是 pane），并在两张间距 150px 的卡之间点开连线模式药丸。两条断言都在被否掉的常驻带子版上先验证会红（docs/plan/canvas-magnetic-handle-evidence/red-results.json）。",
+    "artifacts": [
+      "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx",
+      "tests/ux/canvas-magnetic-handle.walk.mjs"
+    ]
+  },
+  "regression_tests": [
+    "tests/ux/canvas-magnetic-handle.walk.mjs"
+  ],
+  "class_regression_tests": [
+    "tests/ux/canvas-magnetic-handle.walk.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowNodes.tsx"
+    ],
+    "rationale": "常驻带子那套整段删除：无选中门槛的 affordance、组框上第二份磁吸把手、为让开常驻带子而加的 z 序/isolation/CSS，以及四份被改去消费它的走查，全部回到 origin/main 那版（git checkout origin/main -- …）。本 PR 相对主线只剩两处净增量，都在 GenerationCanvasReactFlowNodes.tsx：data-snapped 与只在连线期间可命中的目标外侧热区。不留并行版、不留开关。"
+  },
+  "dependency_lifecycle": {
+    "decision": "retain-with-exit",
+    "current": "@xyflow/react 12.11.5",
+    "target": "继续使用锁定的 12.11.5；未来受支持 12.x 升级前复验原生 Handle 命中合同",
+    "rationale": "官方原生能力足够，无需安装或升级。",
+    "exit_criteria": [
+      "未来升级若 elementFromPoint 优先行为变化，三条 Electron 走查必须先红并调整适配后绿，才允许升级。"
+    ]
+  },
+  "migration": "无数据迁移；保留 source-left/right、target-left/right ID 与侧边几何。",
+  "residual_risks": [
+    "跟随动画的 120ms 收敛段（迁移前 group-data-[following] 的 duration-[120ms]）在 React Flow 版里没有，仍是 180ms；这是迁移时就有的差异，本次未改，已写进老新对照表。",
+    "被否掉的那版留下的性能采样（原 performance-summary.json）随实现一并删除；当前实现的把手几何与 origin/main 一致，不再声称任何性能增减。"
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/reactFlow",
+    "tests": [
+      "src/workbench/generationCanvas/reactFlow/generationCanvasReactFlowVisualContract.test.ts"
+    ]
+  }
+}
