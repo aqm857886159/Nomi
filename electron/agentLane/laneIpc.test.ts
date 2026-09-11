@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { LANE_IPC_CHANNELS, type LaneWorkspaceHandle } from '../shared/agentLane/laneContracts'
+import { LANE_ERROR_CODES } from '../shared/agentLane/laneErrorCodes'
 
 const ipc = vi.hoisted(() => ({ handlers: new Map<string, (...args: unknown[]) => unknown>() }))
 vi.mock('electron', () => ({ ipcMain: {
@@ -131,6 +132,56 @@ describe('desktop lane lifecycle', () => {
       expect(first.execute).not.toHaveBeenCalled()
       expect(second.execute).not.toHaveBeenCalled()
     } finally { release(); await registration.dispose() }
+  })
+
+  // 用户在面板刚打开的那一两秒里就动手（打字回车 / 点卡上的按钮）是常态。以前这条路上的判断
+  // 直接拒，桥上回的还是主进程那句英文散句——2026-09-11 用户真机截图里红色横幅上的那行字。
+  it('holds a command that lands mid-open and runs it in the workspace that opens', async () => {
+    const sender = { id: 1, send: vi.fn(), isDestroyed: () => false, once: vi.fn(), removeListener: vi.fn() }
+    let release!: () => void
+    const blocked = new Promise<void>((resolve) => { release = resolve })
+    const execute = vi.fn(async () => ({}))
+    const workspace = { projection: () => ({ lanes: [], active: { lane: 'main', parts: [] } }),
+      subscribe: () => () => {}, close: vi.fn(), execute } as unknown as LaneWorkspaceHandle
+    const registration = registerAgentLaneIpc({
+      openWorkspace: async () => { await blocked; return workspace },
+      validate: vi.fn(), configure: vi.fn(), receipt: vi.fn(), singleShot: vi.fn(), updatePolicy: vi.fn(), restoreInput: vi.fn() })
+    const send = (wire: unknown) => ipc.handlers.get(LANE_IPC_CHANNELS.command)!({ sender }, wire)
+    try {
+      const opening = send({ kind: 'workspace-open', binding: { projectId: 'one' } })
+      await new Promise((resolve) => setTimeout(resolve, 0))
+      const held = send({ kind: 'abort' })
+      release()
+      const opened = await opening as { workspaceId: string }
+      expect(opened.workspaceId).toBeTruthy()
+      // 命令等到了这条对话开好，然后按落定后的真相判：它没带 workspaceId，所以以
+      // **码**收尾（`agent_lane_workspace_stale`），而不是主进程那句英文原文。
+      expect(await held).toMatchObject({ ok: false, code: 'agent_lane_workspace_stale' })
+    } finally { release(); await registration.dispose() }
+  })
+
+  // 类边界：桥上任何一条失败都只出**已登记的码**，`diagnostic` 那一格永远不是给用户看的话。
+  it('reports every failure as a registered code, never as prose', async () => {
+    const sender = { id: 1, send: vi.fn(), isDestroyed: () => false, once: vi.fn(), removeListener: vi.fn() }
+    const workspace = { projection: () => ({ lanes: [], active: { lane: 'main', parts: [] } }),
+      subscribe: () => () => {}, close: vi.fn(),
+      execute: vi.fn(async () => { throw new Error('Native PDF was not preserved by the provider payload adapter') }) } as unknown as LaneWorkspaceHandle
+    const registration = registerAgentLaneIpc({ openWorkspace: async () => workspace,
+      validate: vi.fn(), configure: vi.fn(), receipt: vi.fn(), singleShot: vi.fn(), updatePolicy: vi.fn(), restoreInput: vi.fn() })
+    const send = (wire: unknown) => ipc.handlers.get(LANE_IPC_CHANNELS.command)!({ sender }, wire)
+    try {
+      const opened = await send({ kind: 'workspace-open', binding: { projectId: 'one' } }) as { workspaceId: string }
+      for (const wire of [
+        { kind: 'abort', workspaceId: opened.workspaceId },
+        { kind: 'prompt', text: '', workspaceId: opened.workspaceId },
+        { kind: 'nonsense', workspaceId: opened.workspaceId },
+        { kind: 'lane-create', laneName: '../escape', workspaceId: opened.workspaceId },
+      ]) {
+        const result = await send(wire) as { ok: boolean; code: string; diagnostic: string }
+        expect(result.ok, JSON.stringify(wire)).toBe(false)
+        expect(LANE_ERROR_CODES as readonly string[], JSON.stringify(wire)).toContain(result.code)
+      }
+    } finally { await registration.dispose() }
   })
 
 })

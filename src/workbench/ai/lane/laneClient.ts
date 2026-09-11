@@ -20,6 +20,7 @@ import type { ProjectBinding } from '../../../../electron/shared/projectBinding'
 import type { LaneComposerContext, LaneDesktopCommand, LaneDesktopResult, LaneReceiptCommand, LaneSingleShotRequest } from '../../../../electron/shared/agentLane/laneDesktopContracts'
 import { LANE_IPC_CHANNELS } from '../../../../electron/shared/agentLane/laneContracts'
 import { laneComposerIntent, type LaneComposerIntent } from '../../../../electron/shared/agentLane/laneComposerIntent'
+import { LaneCommandFailure } from './laneCommandFailure'
 
 export type LaneCommandResult = LaneDesktopResult
 
@@ -120,7 +121,7 @@ export interface LaneClient {
 const NO_BRIDGE: LaneCommandResult = {
   ok: false,
   code: 'agent_lane_bridge_absent',
-  message: 'The agent lane bridge is not exposed in this build.',
+  diagnostic: 'nomiDesktop.agentLane is not exposed on this build',
 }
 
 export function createLaneClient(bridge: LaneBridge | undefined = resolveLaneBridge()): LaneClient {
@@ -145,8 +146,18 @@ export function createLaneClient(bridge: LaneBridge | undefined = resolveLaneBri
     unsubscribe = bridge?.onProjection(publish)
   }
   connect(bridge)
-  const send = async (command: LaneDesktopCommand): Promise<LaneCommandResult> =>
-    bridge ? bridge.send({ ...command, ...(current ? { workspaceId: current.subscriptionId } : {}) }) : NO_BRIDGE
+  // 「这次 open 还没落定」。面板刚打开的那一两秒里用户就打字/点按钮是常态：以前这些命令
+  // 带着一个**空身份**发出去（`current` 还是 null），主进程那边当然找不到归属，于是回一条
+  // 失败、那句话还得他自己重打。现在它们等自己这次 open 落定，再带着真身份发。
+  let opening: Promise<unknown> | undefined
+  const send = async (command: LaneDesktopCommand): Promise<LaneCommandResult> => {
+    if (!bridge) return NO_BRIDGE
+    // open / close 本身不能等自己（那是死锁），只有「装进这条对话」的命令要等。
+    if (opening && command.kind !== 'workspace-open' && command.kind !== 'workspace-close') {
+      await opening.catch(() => undefined)
+    }
+    return bridge.send({ ...command, ...(current ? { workspaceId: current.subscriptionId } : {}) })
+  }
 
   const approval = (toolCallId: string, action: LaneApprovalAction, reason?: string) =>
     send({ kind: 'approval', toolCallId, action, ...(reason?.trim() ? { reason } : {}) })
@@ -154,19 +165,23 @@ export function createLaneClient(bridge: LaneBridge | undefined = resolveLaneBri
   return {
     connect,
     open: async (binding, model) => {
-      const opening = ++epoch
+      const generation = ++epoch
       current = null
       publish(EMPTY_LANE_WORKSPACE)
-      const result = await send({ kind: 'workspace-open', binding, ...(model ? { model } : {}) })
-      if (opening === epoch && result.ok && result.workspaceId) {
-        current = Object.freeze({ subscriptionId: result.workspaceId, binding: Object.freeze({ ...binding }) })
-      }
-      return result
+      const inFlight = send({ kind: 'workspace-open', binding, ...(model ? { model } : {}) })
+      opening = inFlight
+      try {
+        const result = await inFlight
+        if (generation === epoch && result.ok && result.workspaceId) {
+          current = Object.freeze({ subscriptionId: result.workspaceId, binding: Object.freeze({ ...binding }) })
+        }
+        return result
+      } finally { if (opening === inFlight) opening = undefined }
     },
     close: async () => {
       const closing = ++epoch
       const result = await send({ kind: 'workspace-close' })
-      if (!result.ok) throw new Error(result.message)
+      if (!result.ok) throw new LaneCommandFailure(result.code, result.diagnostic)
       if (closing === epoch) {
         current = null
         publish(EMPTY_LANE_WORKSPACE)
@@ -177,7 +192,7 @@ export function createLaneClient(bridge: LaneBridge | undefined = resolveLaneBri
     singleShot: (request) => send({ kind: 'single-shot', ...request }),
     abortSingleShot: (requestId) => send({ kind: 'single-shot-abort', requestId }),
     receipt: (subscriptionId, command) => {
-      if (current?.subscriptionId !== subscriptionId) return Promise.resolve({ ok: false, code: 'agent_lane_workspace_stale', message: 'agent_lane_workspace_stale' })
+      if (current?.subscriptionId !== subscriptionId) return Promise.resolve({ ok: false, code: 'agent_lane_workspace_stale', diagnostic: 'receipt addressed a workspace this window no longer owns' })
       return send(command)
     },
     projection: () => latest.active,
