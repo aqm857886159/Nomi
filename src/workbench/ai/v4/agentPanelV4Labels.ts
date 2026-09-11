@@ -45,6 +45,7 @@ export function useV4Labels() {
       cancel: t('agentPanelV4.cancel'),
       confirmReject: t('agentPanelV4.confirmReject'),
       collapsePlan: t('agentPanelV4.collapsePlan'),
+      expandPlan: t('agentPanelV4.expandPlan'),
     },
     context: {
       context: t('agentPanelV4.context'),
