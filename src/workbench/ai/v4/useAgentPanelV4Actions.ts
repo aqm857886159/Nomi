@@ -12,6 +12,7 @@ import { projectAgentAttachmentClaims, composerAttachmentsFromProjectAgentRefs }
 import { buildResidentContextSnapshot, type AgentContextSnapshot } from '../resident/residentContextSnapshot'
 import { composeResidentSystemPrompt } from '../resident/residentPromptSelection'
 import { friendlyError, type ResidentSurface } from '../resident/residentShellDisplay'
+import { LaneCommandFailure } from '../lane/laneCommandFailure'
 import { buildStaticAgentSystemPrompt } from '../../generationCanvas/agent/canvasSystemPrompt'
 import { getCreationAiMode } from '../../creation/creationAiModes'
 import { runProposalUndo, getCommittedProposal } from '../../generationCanvas/agent/proposalUndo'
@@ -104,7 +105,7 @@ export function useAgentPanelV4Actions(surface: ResidentSurface, data: AgentPane
   const owner = laneClient.context()
   const checked = React.useCallback(async (command: Promise<LaneCommandResult>) => {
     const result = await command
-    if (!result.ok) throw new Error(result.message)
+    if (!result.ok) throw new LaneCommandFailure(result.code, result.diagnostic)
     if (result.restoredInput?.length) {
       const draft = useWorkbenchStore.getState().projectAgentDraft
       setDraft([draft, ...result.restoredInput.map((entry) => entry.text)].filter(Boolean).join('\n'))

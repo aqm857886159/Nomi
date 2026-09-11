@@ -1,0 +1,208 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-11-agent-error-surface",
+  "problem_type": "Main-process error prose reaches a user-visible surface untranslated and unproductised",
+  "symptom": "2026-09-11 user device screenshot: the Agent panel renders a red English sentence at the top — 'The agent is opening a conversation. Try again after it opens.' — while the user was simply interacting with the panel shortly after opening it.",
+  "direct_cause": "laneWorkspace.assertReady() throws that English sentence whenever a structural change (model replacement, conversation create/select/delete) is pending; laneIpc's catch forwards error.message verbatim as the result's `message`; the renderer's checked() rewraps it as new Error(result.message), discarding the structured `code` that was already in the same result; friendlyError then hands the free prose to classifyGenerationError, whose `unknown` branch promotes the raw string to the banner text.",
+  "class_root": "No boundary owned the invariant 'a string produced by the main process may never become user-visible text'. The bridge carried an untyped `code` next to a human-readable `message`, so every consumer was free to display the message instead of mapping the code; and check:i18n only scans electron/ for Han characters, so writing the prose in English was the one way to pass the gate.",
+  "affected_population": [
+    "Every desktop user of the Agent panel who interacts with it while a model is being (re)configured or a conversation is being opened — the configureModel path closes and reopens the pi session, so the window is hundreds of milliseconds to seconds",
+    "Every en and zh-CN user equally: the leaked text is untranslated English in both locales",
+    "Every lane command failure, not just this one: the same catch forwarded any thrown message from laneIpc, laneWorkspace, laneHost, laneDesktopRuntime, laneCommandCodec and the pi runtime below them"
+  ],
+  "scope_paths": [
+    "electron/shared/agentLane/laneErrorCodes.ts",
+    "electron/shared/agentLane/laneDesktopContracts.ts",
+    "electron/agentLane/laneIpc.ts",
+    "electron/agentLane/laneWorkspace.mts",
+    "electron/agentLane/laneHost.mts",
+    "electron/agentLane/laneSession.mts",
+    "src/workbench/ai/lane/laneCommandFailure.ts",
+    "src/workbench/ai/lane/laneClient.ts",
+    "src/workbench/ai/lane/laneReceiptClient.ts",
+    "src/workbench/ai/resident/residentShellDisplay.ts",
+    "src/workbench/ai/v4/useAgentPanelV4Actions.ts",
+    "src/workbench/ai/agentLoopMode.ts",
+    "src/workbench/NomiStudioApp.tsx",
+    "src/i18n/locales/agentLaneError.ts",
+    "src/i18n/resources.ts",
+    "scripts/check-error-surface.mjs"
+  ],
+  "entry_points": [
+    "Agent panel banner (ProjectAgentResidentShell data-agent-error) fed by useAgentPanelV4Actions.error",
+    "Project feedback banner in NomiStudioApp fed by report() during project hydration lane open",
+    "alertDialog from adoptLaneTaskCandidate via friendlyError",
+    "Single-shot agent loop failures via agentLoopMode",
+    "Proposal receipt failures via laneReceiptClient"
+  ],
+  "external_sources": [
+    {
+      "kind": "source-code",
+      "url": "https://github.com/openai/codex/blob/main/codex-rs/protocol/src/error.rs",
+      "checked_at": "2026-09-11",
+      "purpose": "Confirm the convention of a closed error enum with authored prose per variant, an explicit narrowing step at the process boundary (to_codex_protocol_error with an Other catch-all), transporting {message, code} together, and capping the diagnostic string (ERROR_MESSAGE_UI_MAX_BYTES = 2KB)."
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/microsoft/vscode/blob/main/src/vs/platform/files/common/files.ts",
+      "checked_at": "2026-09-11",
+      "purpose": "Confirm that machine codes (FileSystemProviderErrorCode, FileOperationResult) are separate enums from prose and that toFileOperationResult normalises arbitrary errors into a code; plus the Electron IPC constraint that code must be a plain serialisable field because custom Error subclasses lose their type across the bridge."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://pi.dev/docs/latest/sdk",
+      "checked_at": "2026-09-11",
+      "purpose": "Confirm pi ships stable backend-independent error codes (FileErrorCode, ExecutionErrorCode, ModelsErrorCode) but gives the host no presentation or localisation guidance, so deciding what the user sees is explicitly ours."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://code.claude.com/docs/en/errors",
+      "checked_at": "2026-09-11",
+      "purpose": "Confirm Claude Agent SDK carries a closed SDKAssistantMessageError enum alongside the human message rather than instead of it, and models rate-limit state as structured fields."
+    }
+  ],
+  "invariants": [
+    "A lane command failure crossing the preload bridge carries a code drawn from the closed LANE_ERROR_CODES set; the accompanying string is named `diagnostic` and is never user-visible text",
+    "Every LANE_ERROR_CODES member has zh-CN and en copy in src/i18n/locales/agentLaneError.ts",
+    "A command that arrives while the same conversation is being structurally replaced waits for that replacement instead of being refused; a command that arrives while the conversation itself is being replaced fails with agent_lane_workspace_stale and never touches the closing handle",
+    "An unclassified Latin-script string from the main process is logged, never rendered"
+  ],
+  "generality_proof": "The fix does not translate the reported sentence. It changes the shape of what crosses the bridge: LaneDesktopResult's failure branch is now { code: LaneErrorCode; diagnostic: string }, so the compiler named every consumer that previously read `message` (four call sites, all converted). laneIpc's single catch narrows any thrown value to a registered code via laneErrorCodeOf, so producers below it — laneWorkspace, laneHost, laneDesktopRuntime, laneCommandCodec, laneSession and the pi runtime — cannot emit display text no matter what they throw. On the consuming side, laneFailureText is the only function that turns a failure into a sentence, and it reads the code; the free string reaches console only. Therefore any future failure in the class, from any of these producers, is either a registered code with localized copy or the localized fallback line.",
+  "shared_boundaries": [
+    {
+      "path": "electron/agentLane/laneIpc.ts",
+      "symbol": "laneErrorCodeOf",
+      "responsibility": "Producer-side narrowing: every thrown value from any lane layer becomes one registered LaneErrorCode before it crosses the bridge, with agent_lane_execute_failed as the catch-all; the accompanying diagnostic string is capped at 2048 characters."
+    },
+    {
+      "path": "src/workbench/ai/lane/laneCommandFailure.ts",
+      "symbol": "laneFailureText",
+      "responsibility": "Consumer-side display boundary: the only place a lane failure becomes a sentence. Known codes map to t(LANE_ERROR_TEXT_KEY[code]) — whole-literal keys, because a built `agentLaneError.${code}` prefix would blind the dead-key gate to the entire namespace; the catch-all code goes to classifyGenerationError so vendor prose the user must act on still surfaces; an unclassified Latin-script string is logged and replaced with a localized fallback."
+    },
+    {
+      "path": "electron/shared/agentLane/laneDesktopContracts.ts",
+      "symbol": "LaneDesktopResult",
+      "responsibility": "Type-level enforcement: the failure branch names its string `diagnostic` and types `code` as LaneErrorCode, so tsc names any consumer that tries to read the old display-shaped `message`."
+    },
+    {
+      "path": "electron/agentLane/laneWorkspace.mts",
+      "symbol": "awaitReady",
+      "responsibility": "Lifecycle boundary: a command landing during a same-conversation structural change waits for it; a command landing during a conversation replacement fails as agent_lane_workspace_stale without ever reaching the closing handle."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/ai/v4/useAgentPanelV4Actions.ts",
+      "entry_point": "checked",
+      "disposition": "enforced",
+      "evidence": "Previously `throw new Error(result.message)`, discarding result.code; now throws LaneCommandFailure(result.code, result.diagnostic), and friendlyError resolves it through laneFailureText. This is the exact path in the reported screenshot."
+    },
+    {
+      "path": "src/workbench/NomiStudioApp.tsx",
+      "entry_point": "hydrateProject",
+      "disposition": "enforced",
+      "evidence": "A second, independent banner (projectFeedback, text-nomi-danger at line 700) fed by `report(projectId, error.message)` after `throw new Error(opened.message)`. Same class, different surface; now LaneCommandFailure + laneFailureText, other errors take the localized restore-failed line."
+    },
+    {
+      "path": "src/workbench/ai/lane/laneReceiptClient.ts",
+      "entry_point": "receipt",
+      "disposition": "enforced",
+      "evidence": "Proposal receipt failures rethrew result.message into the same friendlyError path; converted to LaneCommandFailure."
+    },
+    {
+      "path": "src/workbench/ai/agentLoopMode.ts",
+      "entry_point": "runSingleShotAgentTurn",
+      "disposition": "enforced",
+      "evidence": "Single-shot lane failures rethrew result.message; converted to LaneCommandFailure so its consumers get a code."
+    },
+    {
+      "path": "src/workbench/ai/lane/laneClient.ts",
+      "entry_point": "close",
+      "disposition": "enforced",
+      "evidence": "`throw new Error(result.message)` on a failed workspace-close; converted to LaneCommandFailure. Its NO_BRIDGE constant also carried the English sentence 'The agent lane bridge is not exposed in this build.' and now carries a code plus a non-display diagnostic."
+    },
+    {
+      "path": "electron/agentLane/laneCodingTools.mts",
+      "entry_point": "lane coding tool handlers",
+      "disposition": "not-affected",
+      "evidence": "Its English prose ('Timeout must be a positive number of seconds.') is a tool result written for the model, not for the user — the same split Codex draws with FunctionCallError::RespondToModel. It never reaches a display surface, so it is deliberately outside the class and outside the check:error-surface ratchet scope."
+    },
+    {
+      "path": "src/workbench/generationCanvas/runner",
+      "entry_point": "classifyGenerationError consumers in the generation domain",
+      "disposition": "not-affected",
+      "evidence": "The generation domain has its own producer-side code mechanism (nomiErrorCodes tagNomiError and the vendorHttp VENDOR_ERROR_IPC_MARKER) and surfaces raw text inside a collapsible technical-details affordance rather than as a bare banner. Structurally the same unknown-branch remains and is recorded in residual_risks; it is not changed here."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any thrown value from any of the six lane layers below laneIpc reached the banner through the same three transfers, so the class reopens with every new throw site. The gate that was supposed to stop it actively selected for the failing shape: check:i18n scans electron/ for Han characters only, so the safe-looking move for a developer was to write the message in English — exactly what produced this defect.",
+    "same_class_scan": [
+      "Repository-wide AST-ish scan of electron/ for `new *Error('<literal containing whitespace and Latin letters>')`: 1488 sites across the main process, confirming that translating producers is not a viable boundary",
+      "Scoped scan of electron/agentLane + electron/shared/agentLane: 66 prose sites, of which laneWorkspace.mts:79/84/90 carried the exact reported sentence and 'The agent workspace is closed.' — proving laneIpc:105 was not the only producer of the reported string",
+      "grep for `result.message` / `opened.message` / `.message` feeding display sinks across src/workbench: found five lane consumers (useAgentPanelV4Actions, NomiStudioApp, laneClient, laneReceiptClient, agentLoopMode) plus ~30 generation-domain sites on a different channel",
+      "grep for friendlyError callers: two production callers (useAgentPanelV4Actions, laneTaskCandidateActions), both now routed through laneFailureText",
+      "Read scripts/check-i18n-visible-text.mjs hasHan/ELECTRON_BASELINE_FILE to confirm the electron-side gate is CJK-only and therefore structurally blind to this defect"
+    ]
+  },
+  "prevention": {
+    "kind": "type-system",
+    "enforcement_path": "electron/shared/agentLane/laneDesktopContracts.ts",
+    "invariant": "The failure branch of LaneDesktopResult exposes only { code: LaneErrorCode; diagnostic: string }; there is no field named or shaped like display text, and code is a closed union rather than string.",
+    "failure_mode": "A consumer that reads the old display-shaped field fails to compile; a producer that emits an unregistered code fails to compile; an unmapped thrown value is narrowed by laneErrorCodeOf to agent_lane_execute_failed, which renders the localized fallback line rather than the raw string.",
+    "exception_policy": "none",
+    "strategy": "The bridge contract is the earliest point both sides must agree on, and it is checked by the compiler rather than by review. The renaming of message to diagnostic was deliberate: it made tsc enumerate every consumer of the leaked field instead of leaving the sweep to grep. Two static rules in check:error-surface cover what the type cannot see — that every code has copy in both locales, and that diagnostic never flows into a display sink — plus a shrinking ratchet on English prose throws in the nine lane command-path files.",
+    "artifacts": [
+      "electron/shared/agentLane/laneErrorCodes.ts",
+      "electron/shared/agentLane/laneDesktopContracts.ts",
+      "electron/agentLane/laneIpc.ts",
+      "electron/agentLane/laneWorkspace.mts",
+      "src/workbench/ai/lane/laneCommandFailure.ts",
+      "src/i18n/locales/agentLaneError.ts",
+      "scripts/check-error-surface.mjs",
+      "scripts/error-surface-baseline.json"
+    ]
+  },
+  "invariant_owner_layer": {
+    "layer": "electron/shared/agentLane/laneDesktopContracts.ts",
+    "tests": [
+      "src/workbench/ai/lane/laneCommandFailure.test.ts",
+      "electron/agentLane/laneIpc.test.ts",
+      "src/workbench/ai/lane/laneClient.test.ts"
+    ],
+    "why": "不变量（「桥上只出码，诊断串不是界面文案」）由这份契约类型单点持有：失败分支写成 { code: LaneErrorCode; diagnostic: string }，两侧任何一方想读回 message 都编译不过。生产端的收窄（laneErrorCodeOf）与消费端的显示（laneFailureText）都以它为准，不各自重判。tests 是该层现有的类级与回归测试：laneIpc.test.ts 断言桥上每一条失败都落在 LANE_ERROR_CODES 里，laneCommandFailure.test.ts 断言任何未分类英文散句都进不了界面，改动这条不变量必先让它们红。"
+  },
+  "regression_tests": [
+    "src/workbench/ai/lane/laneCommandFailure.test.ts",
+    "electron/agentLane/laneIpc.test.ts",
+    "tests/agent-runtime/lane-workspace-lifecycle.test.mts",
+    "src/workbench/ai/lane/laneClient.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/ai/lane/laneCommandFailure.test.ts",
+    "electron/agentLane/laneIpc.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/agentLane/laneIpc.ts",
+      "electron/agentLane/laneWorkspace.mts",
+      "electron/agentLane/laneHost.mts",
+      "electron/agentLane/laneSession.mts",
+      "src/workbench/ai/resident/residentShellDisplay.ts",
+      "src/workbench/ai/lane/laneClient.ts"
+    ],
+    "rationale": "The old display-shaped `message` field is gone from the contract rather than kept alongside the code, so there is no fallback path a caller can still take. friendlyError no longer contains its own classification body; it delegates to the single laneFailureText boundary. The prose literals that produced the reported string were replaced in place, not duplicated."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The invariant is entirely ours: pi ships stable error codes for its own subsystems but explicitly leaves host presentation and localisation to the application (pi.dev/docs/latest/sdk), and no pi or Electron version change affects whether our bridge carries a code or a sentence.",
+    "exit_criteria": []
+  },
+  "migration": "No stored data carries these strings. Lane failures are transient bridge results, so the first build after this change emits codes only; there is no persisted record of the old message field to migrate. Existing tests that asserted on the old English sentences were updated to assert on the codes.",
+  "residual_risks": [
+    "classifyGenerationError's unknown branch still promotes an unclassified raw string to the reason in the generation domain (node error cards, batch runner). Same class, different channel, lower visibility because that surface has a technical-details affordance; not changed here and not claimed fixed.",
+    "laneFailureText distinguishes 'already localized prose' from 'untranslated leak' by the presence of Han characters. For an en user a Chinese fallback string is still a leak; that direction is owned by the existing shrinking CJK baseline in check:i18n, not by this change.",
+    "settleLifecycle and settleStructure bound their wait to eight chained transitions. A pathologically churning client would exhaust the bound and receive agent_lane_opening; this fails closed with translated copy but has not been exercised against a real stuck pi session close."
+  ]
+}
