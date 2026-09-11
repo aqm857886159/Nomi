@@ -584,26 +584,21 @@
       "site": "electron/providerAdapter/types.ts::type:AdapterModeResult/property:stage/type-union",
       "members": [
         "compile",
-        "create",
+        "contract",
+        "credential",
         "docs",
-        "localize_reference",
-        "poll",
         "promote",
-        "result",
         "verify_asset"
       ],
-      "reason": "AdapterModeResult.stage 记录单个模型模式失败或停留的具体接入步骤：docs、compile、localize_reference、create、poll、verify_asset、promote；它用于定位 mode 级错误，边界不同于整次 AdapterRunStage。"
+      "reason": "AdapterModeResult.stage 记录单个模型模式失败或停留的具体接入步骤。2026-09-11 用户拍板删掉流程内的付费验证后，中转自检只剩 credential（鉴权/可达）与 contract（说明卡形状）两段，原来的 localize_reference / create / poll / result 随那条真实生成路径一起删除（P1）；verify_asset 留给本地 ComfyUI 候选那条免费的真实产物校验，docs / compile / promote 仍属编译与提升阶段。边界不同于整次 AdapterRunStage。"
     },
     {
       "site": "electron/providerAdapter/verifier.ts::type:AdapterVerificationResult/property:stage/type-union",
       "members": [
-        "create",
-        "localize_reference",
-        "poll",
-        "result",
-        "verify_asset"
+        "contract",
+        "credential"
       ],
-      "reason": "AdapterVerificationResult.stage 是真实请求验证器的失败步骤合同：localize_reference、create、poll、verify_asset 由 verifier 抛出点写入；verifyAdapterMode 的局部 stage 原样进入该导出结果，必须从失败 variant derive。"
+      "reason": "AdapterVerificationResult.stage 是**免费自检**的失败步骤合同（2026-09-11 起不再发任何生成请求）：credential = 鉴权与可达，contract = 说明卡形状。它是 AdapterModeResult.stage 的真子集——自检只可能停在这两段，而 AdapterModeResult 还要装得下编译/提升与本地 ComfyUI 的 verify_asset。"
     },
     {
       "site": "electron/shared/agentCapabilities/generationPlanSchemas.ts::variable:GENERATION_RECONCILE_OUTCOMES/as-const",
