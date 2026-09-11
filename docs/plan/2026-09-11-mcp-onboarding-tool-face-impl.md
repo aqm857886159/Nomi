@@ -28,18 +28,34 @@ Anthropic 官方建议「合并相关操作用 `action` 枚举」；先例库（
 
 ---
 
-## 1. 先查别人
+## 先查别人（§1）
 
-| 来源 | 结论 | 我们怎么用 |
+> 先例库正本：[docs/research/2026-09-11-agent-tool-face-prior-art/README.md](../research/2026-09-11-agent-tool-face-prior-art/README.md)
+> （13 个产品 + 5 份设计指南 + 反例集，2026-09-11）。本分支把它随方案一起带上，
+> 这样门岗和评审都能自己翻开每一条的出处，而不是只读到一句「查过了」。
+
+| 来源（可复核） | 结论 | 我们怎么用 |
 |---|---|---|
-| `docs/design/2026-09-11-mcp-onboarding-tool-face.md` | 9 动词、五槽描述、信封、幂等三刀、O1–O7、SKILL.md 改写稿 | **本方案的正本**；只改「9 个工具名 → 4 个工具 + action 枚举」这一层 |
-| `docs/design/2026-09-11-agent-tool-face-first-principles.md` §6.1/§6.2 | 一份声明三处派生（描述 / schema / 运行时）；`nextAction` + `userSees` | 4 个工具从同一份 `ONBOARDING_ACTIONS` 声明派生 |
-| `docs/research/2026-09-11-agent-tool-face-prior-art/` | 15 条结论：GitHub `issue_write` 的 STOP 文案、Figma「主入口自述」、Anthropic 五要素、顺序写 SKILL 不写工具描述、改名要发 `list_changed` | `unverified` 是 STOP 的结构版；`nomi_list_models` 描述里自述主入口；顺序进 SKILL.md；`list_changed` 由 `mcpProtocol` 发 |
-| Anthropic「合并相关操作」 vs 达芬奇「枚举塌审批注解」 | 两条相反的官方建议 | 调和规则 = 状态 × 效果类别（见 §0）；`check:tool-face` 的「同格多工具 / 跨格合并」两条把它变成门岗 |
-| Stripe 幂等语义 | 同 key 重放返回同一结果 | 宿主按 `(setupId, action, canonicalJson(args) 的 SHA-256)` 派生，模型不铸键 |
-| Cherry Studio `ModelHealthCheckSkipReason` + AbortController | 「为什么跳过」是一等公民；自检不掐会一直烧 | `check_connection` 返回五段式 + `timeoutSeconds` 默认 15s |
-| MCP 规范 2025-06-18 elicitation / 2025-11-25 URL 模式 | 禁止用 form 模式索取 API key | 「让用户填 key」= `nextAction.kind=user_sees_key_page`，不是动词 |
-| MCP 规范 2026-07-28 有状态工具指南 | 返回显式 handle、后续调用传回、保留策略写进创建工具描述 | 保留 `setupId`，砍掉句柄之外的一切 |
+| `docs/research/2026-09-11-agent-tool-face-prior-art/README.md:60` | 13 家工具数中位数 ≈ 29，**没有一家把全部能力一次性摆出来**（Playwright 71 个里默认只暴露 24） | 本轮 4 个工具全量暴露；「按任务阶段分组暴露」登记为下一步（§8 待拍板 2） |
+| `docs/research/2026-09-11-agent-tool-face-prior-art/README.md:62` | MCP 的 `destructiveHint` 在四个官方 server 里**一次都没被用上**，各家都另建审批机制 | 不靠 annotation 表达后果：`effect` 是我们自己的四值，`blastRadius` 把「波及什么」写成数据 |
+| `docs/research/2026-09-11-agent-tool-face-prior-art/davinci-resolve.md:242` · `:309` | 把操作收进 `action` 枚举，**审批注解的粒度会塌到整组**；枚举收敛只在「同组读写属性一致」时才免费。原文点名：绝不要把「预览报价」和「执行扣费」放进同一个枚举 | 这条直接变成合并规则：同格合并、跨格必拆。`nomi_remove_provider` 因此单开，`check:tool-face` C1/C2 把它钉成门岗 |
+| `docs/research/2026-09-11-agent-tool-face-prior-art/github.md:25` · `:54` | GitHub 把 `create_issue` + `update_issue` 合成一个 `issue_write`，判据写进描述；`issue_write` 用 STOP 文案挡住模型替用户下结论 | `connect_provider` 同样「建与改是同一个动作」（给 vendorKey 就是改）；STOP 的结构版就是 `unverified[]` |
+| `docs/research/2026-09-11-agent-tool-face-prior-art/figma.md:22` | `get_design_context` 在自己的描述里自述「我是这一组的默认入口，其它工具要么喂我、要么是我的兜底」 | `nomi_list_models` 描述第一句就自述主入口，其余三个的 `notWhen` 都指回它 |
+| `docs/research/2026-09-11-agent-tool-face-prior-art/design-guides.md:7` · `:46` · `:96` | Anthropic 三份指南：描述五要素、合并相关操作、把工具描述当 prompt 来写 | 五槽描述（做什么 / 何时用 / 何时不用该用谁 / 参数从哪来 / 后果）由 `declarations.ts` 派生；第五槽不手写 |
+| `docs/research/2026-09-11-agent-tool-face-prior-art/design-guides.md:209` | `idempotentHint` 是**给宿主看的提示**，不是让模型铸键的接口 | 幂等键由宿主按 `(setupId, action, canonicalJson(args) 的 SHA-256)` 派生；模型入参里没有 key 也没有版本号 |
+| `docs/fixes/2026-09-11-mcp-onboarding-defects.root-cause.json:5` · `:6` | 我们自己的实测：58 次调用写对 36 次（62%）、9 回合只走完 1 个；六个面各藏了一个模型需要的事实，其中 (4) 是「schema 广告的必填是假的」 | 这是本方案要推翻的基线，也是阳性对照臂要复现的那个 60–65% |
+| `docs/audit/2026-09-06-agent-tool-layer-audit.md:23` | 同一份审计早就点名：35 个工具**没有一个**带示例、必填字段没有一句说明 | `declarations.ts` 每个动作带 `inputExamples`，且每条都必须过自己的 schema（测试钉住） |
+
+**结论：不自研第二套，照抄现役做法，只在一处偏离。** 合并用 `action` 枚举（GitHub / Anthropic），
+读写分开（Figma / 13 家共识），主入口自述（Figma），描述当 prompt 写（Anthropic）——这些原样拿来。
+**唯一的偏离**是合并边界：Anthropic 说「合并相关操作」，达芬奇实测说「枚举会塌审批注解」，
+两条官方建议互相矛盾，没有现成答案，所以我们自己定了一条判据（状态 × 效果类别）并把它做成门岗。
+偏离理由是领域约束而不是偏好：**Nomi 自己就是宿主**，审批卡是我们弹的，
+所以「注解塌到整组」在别人那里是文档问题，在我们这里会变成用户每次只读也要点确认（达芬奇那条原文的原话）。
+
+仍在另一条分支、尚未并入的两份（合并后本节改为直链）：
+`design/mcp-onboarding-tool-face-20260911:docs/design/2026-09-11-mcp-onboarding-tool-face.md`（9 动词设计正本）
+与同分支的 `docs/design/2026-09-11-agent-tool-face-first-principles.md` §6.1/§6.2（一份声明三处派生）。
 
 ---
 

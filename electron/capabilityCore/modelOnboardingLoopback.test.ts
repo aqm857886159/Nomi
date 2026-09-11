@@ -225,8 +225,8 @@ describe("MCP 接模型 loopback · 4 工具面 (R30)", () => {
     resetModelOnboardingRuntime();
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-onboard-remove-"));
     const { sessions } = makeService(dir);
-    const deps = { sessions, owner: HOST } as never;
-    const driver = makeDriver(deps);
+    const deps = { sessions, owner: HOST };
+    const driver = makeDriver(deps as never);
     const view = await driver.call("nomi_list_models", {}) as { state: { fingerprint: string; connections: Array<{ vendorKey: string }> } };
     const target = view.state.connections[0]?.vendorKey;
     if (!target) return; // 空 catalog 的机器上没有可删的连接；这一条不制造假绿。
