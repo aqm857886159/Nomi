@@ -31,7 +31,7 @@ import { createNomiProvider } from './laneModelProvider.mjs';
 import {
   LANE_APPROVAL_NOTE_TYPE, LANE_TASK_NOTE_TYPE, LANE_UI_NOTE_PREFIX, laneNoteEntersModelContext,
   type LaneApprovalNote, type LaneCancelQueuedResult, type LaneCommand, type LaneCommandOutcome,
-  type LaneHandle, type LanePendingApproval, type LaneProjection, type LaneThinkingLevel,
+  type LaneHandle, type LanePendingApproval, type LaneProjection, type LaneSkillIndexEntry, type LaneThinkingLevel,
 } from '../shared/agentLane/laneContracts.js';
 import { createLaneApprovalGate } from './laneApprovalGate.js';
 import type { OpenLane, OpenLaneOptions } from './laneRuntimePort.js';
@@ -198,19 +198,43 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
   // 2026-09-07 合并评审实核：`composeLaneSystemPrompt` 此前零生产调用者——通道②③写满了，
   // 一个字都到不了模型。拼接点放在这里，是因为这里是唯一知道「这条 lane 装了哪些工具」的地方。
   // 技能索引那一段用 pi 的 `formatSkillsForPrompt` 渲染（`laneSkillIndex.mts` 里一行渲染代码都没有）。
+  //
+  // 索引有两种来源，寿命不同：
+  //   · 桌面原生（`native.skillIndex`）**是活的**——每个回合重扫一次技能库，用户中途导入的技能
+  //     下一个回合就在索引里，而且 `read` 同时被允许读它（同一份快照，见 `laneInstalledSkills.mts`）。
+  //   · `options.skills` 是影子夹具/单测那条路：调用方自己给一份定死的索引，本来就不会变。
   // 没有技能时不去 import 那个包：一条 lane 不该为了拿一个空串付一次 ESM 解析。
-  const skills = native?.skills ?? options.skills ?? [];
-  const skillSection = skills.length > 0
-    ? renderLaneSkillSection(await loadPiSkillFormatter(), skills)
+  const staticSkills = options.skills ?? [];
+  const staticSection = !native && staticSkills.length > 0
+    ? renderLaneSkillSection(await loadPiSkillFormatter(), staticSkills)
     : '';
+  const currentSkills = (): readonly LaneSkillIndexEntry[] => native?.skillIndex.current().entries ?? staticSkills;
   const promptTools = [...options.tools, ...(native?.promptTools ?? [])];
-  // 每个回合重新求值（`transform_context` 里也调它）：跟着设置走的段落——现在是回复语言
-  // 铁律——必须是「现在的设置」，不是「开 lane 那一刻的设置」。工具段与技能段本来就是常量，
-  // 重拼一次只是字符串拼接，代价可忽略。
   const composeSystemPrompt = (): string => composeLaneSystemPrompt(
     typeof options.systemPrompt === 'function' ? options.systemPrompt() : options.systemPrompt,
-    promptTools, skillSection);
-  const systemPrompt = composeSystemPrompt();
+    promptTools, native?.skillIndex.current().promptSection ?? staticSection);
+  /**
+   * **一条 lane 的系统提示词，每个回合整体重新求值一次；回合内不变。**
+   *
+   * 这是这一层唯一的「什么时候求值」规则，替掉了此前「哪个字段自己记得刷新」的逐字段约定：
+   *   · 回合内不变——正在跑的那一个回合不会中途改口（技能、界面语言、项目记忆一视同仁）。
+   *     用户在模型说到一半时切了语言，这一轮说完再改，而不是一句中文一句英文。
+   *   · 每个回合都变——会变的事实由**来源**提供（函数 / `LaneSkillIndexSource`），
+   *     不是开 lane 那一刻的闭包常量；以后再加一个会变的段落，不必再发明一条刷新路径。
+   *
+   * 粒度是回合不是请求：一个回合最多 `LANE_MAX_MODEL_REQUESTS` 次模型请求，按请求刷等于
+   * 把技能库全量重扫乘 24，而且回合内会改口——那恰恰是评审裁决明确不要的行为。
+   */
+  let promptRunId: string | undefined;
+  let promptForRun = composeSystemPrompt();
+  const systemPromptForRun = async (runId: string): Promise<string> => {
+    if (runId === promptRunId) return promptForRun;
+    promptRunId = runId;
+    await native?.skillIndex.refresh();
+    promptForRun = composeSystemPrompt();
+    return promptForRun;
+  };
+  const systemPrompt = promptForRun;
   const { harness } = await AgentHarness.create<undefined>({
     session, models, model, systemPrompt, tools,
     compaction: laneCompactionSettings(model.contextWindow, options.limits?.contextTokenBudget),
@@ -346,7 +370,7 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
           toolCallId: '', toolName: tool.name, args: value ? { operation: value } : {},
         })}`);
       }).join('\n') : '';
-    return { systemPrompt: [composeSystemPrompt(), catalogBase ? formatLaneModelIndex(catalogBase.context) : '', input?.context.systemPrompt, authority].filter(Boolean).join('\n\n') };
+    return { systemPrompt: [await systemPromptForRun(event.runId), catalogBase ? formatLaneModelIndex(catalogBase.context) : '', input?.context.systemPrompt, authority].filter(Boolean).join('\n\n') };
   });
 
   harness.hooks.on('before_tool', async (event, hookContext) => {
@@ -506,7 +530,10 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
     execute: async (command: LaneCommand, executionOptions): Promise<LaneCommandOutcome> => {
       if (command.kind === 'prompt' && !projection.running && !pending) {
         const message = inputMessage(command.text);
-        const unlock = typeof message !== 'string' ? laneSkillUnlockReason(skills, [message.context.skillKey ?? '']) : null;
+        // 「这条技能要不要 coding 工具」判在准入这一刻，而用户可能就是刚导入它的——
+        // 所以先把索引刷到这个回合，再问。不刷的症状是模型说「我去跑它的 selftest」，然后说它没有工具。
+        await native?.skillIndex.refresh();
+        const unlock = typeof message !== 'string' ? laneSkillUnlockReason(currentSkills(), [message.context.skillKey ?? '']) : null;
         if (native && unlock) {
           await native.unlockCoding(context);
         }

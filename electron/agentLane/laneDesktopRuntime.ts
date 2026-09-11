@@ -30,6 +30,14 @@ import { parseLaneCommand } from './laneCommandCodec'
 import { readSkillRecords, isSkillSelectableInWorkbench } from '../skills/skillStore'
 import { createDesktopLaneTasks } from './laneDesktopTasks'
 
+/**
+ * 这一刻的项目记忆。读不出来就当没有——记忆是锦上添花的事实，缺了它 lane 仍然要能说话，
+ * 而一个抛出去的异常会让整个回合失败（`getProjectMemory` 会回放事件日志，盘上坏一条就抛）。
+ */
+function currentProjectMemory(projectId: string): string {
+  try { return formatMemoryForPrompt(getProjectMemory(projectId).facts) } catch { return '' }
+}
+
 function selectModel(preference: LaneComposerContext['model']) {
   const selected = chooseTextModel(preference?.modelKey ?? '', false, preference?.vendorKey ?? '')
   const { vendor, model, apiKey } = selected
@@ -128,17 +136,22 @@ export function createDesktopLaneDependencies(surface: DesktopCanvasReadRuntime,
           await workspace.appendTaskNote({ productionRunId: runId, operationId: call.toolCallId })
         },
       }) } catch (error) { tasks.dispose(); throw error }
-      let memory = ''
-      try { memory = formatMemoryForPrompt(getProjectMemory(binding.projectId).facts) } catch { /* optional project facts */ }
+      // 项目记忆与技能库一样是「每一刻都可能变的事实」：用户在记忆折叠里删一条、锁一个节点，
+      // 或者 Agent 自己写下一条偏好，都发生在这条 lane 活着的时候。所以这里**不预先算好**——
+      // 读放在下面 `systemPrompt` 的函数体里，由宿主在每个回合边界求值一次。
       const input = createDesktopLaneInput({ projectId: binding.projectId,
         capture: () => composer, activate: (context) => { activeInput = context }, model: () => selected })
       try {
         const { openDesktopLaneWorkspace } = createRequire(__filename)('./laneNativeLoader.cjs') as { openDesktopLaneWorkspace: OpenDesktopLaneWorkspace }
         workspace = await openDesktopLaneWorkspace({ projectDir, fetch: appFetch,
-          native: { settingsRoot: getSettingsRoot(), skills: readSkillRecords().filter(isSkillSelectableInWorkbench) },
-          // 给函数不给快照：回复语言铁律跟界面语言走，用户中途在设置里切了语言，
-          // 这条已经开着的 lane 下一个回合就该改口，而不是等冷启动（2026-09-11 走查）。
-          systemPrompt: () => [buildLanguageRule(), NOMI_AGENT_IDENTITY, memory].filter(Boolean).join('\n\n'),
+          // 给函数不给快照（下同）：用户在 Agent 面板旁边导入一个技能包、或者让 Agent 自己写一个落盘，
+          // 都发生在这条 lane 活着的时候。传数组时那条技能要关掉项目重开才出现（2026-09-11 走查）。
+          native: { settingsRoot: getSettingsRoot(), skills: () => readSkillRecords().filter(isSkillSelectableInWorkbench) },
+          // 给函数不给快照：回复语言铁律跟界面语言走、项目记忆跟用户和 Agent 的改动走，
+          // 这条已经开着的 lane 下一个回合就该跟上，而不是等冷启动（2026-09-11 走查）。
+          // 宿主每个回合求值一次（`laneHost` 的 `systemPromptForRun`），不是每次模型请求。
+          systemPrompt: () => [buildLanguageRule(), NOMI_AGENT_IDENTITY, currentProjectMemory(binding.projectId)]
+            .filter(Boolean).join('\n\n'),
           tools: ports.tools, toolLifecycle: ports.toolLifecycle, input,
           tasks: tasks.resolve,
           approval: { hasUserInterface: true, policy: () => composer.approvalPolicy },
