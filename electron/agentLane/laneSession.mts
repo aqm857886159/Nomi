@@ -218,7 +218,7 @@ export async function openLaneTraceDirectory(projectDir: string, laneName?: stri
   try {
     const all = await repo.list(laneName === undefined ? undefined : { cwd: laneSessionCwd(laneName) }, context);
     const known = all.filter(item => item.cwd.startsWith(CWD_PREFIX));
-    if (laneName !== undefined && !known.length) throw new Error('Agent conversation not found');
+    if (laneName !== undefined && !known.length) throw new Error('agent_lane_conversation_missing');
     const summaries: string[] = [];
     let selected: { createdAt: number; directory: string } | undefined;
     for (const metadata of known) {
