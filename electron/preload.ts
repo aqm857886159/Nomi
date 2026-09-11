@@ -117,6 +117,10 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
       get: () => ipcRenderer.invoke("nomi:settings:vendor-preference-get"),
       set: (payload: unknown) => ipcRenderer.invoke("nomi:settings:vendor-preference-set", payload),
     },
+    modelBoxPreference: {
+      get: () => ipcRenderer.invoke("nomi:settings:model-box-preference-get"),
+      set: (payload: unknown) => ipcRenderer.invoke("nomi:settings:model-box-preference-set", payload),
+    },
     canvasMenuPreference: {
       get: () => ipcRenderer.invoke("nomi:settings:canvas-menu-preference-get"),
       set: (payload: unknown) => ipcRenderer.invoke("nomi:settings:canvas-menu-preference-set", payload),

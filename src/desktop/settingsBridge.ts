@@ -43,6 +43,10 @@ export type DesktopSettingsBridge = {
     get: () => Promise<import('../../electron/shared/contracts/vendorPreference').VendorPreferenceSettings>
     set: (payload: unknown) => Promise<import('../../electron/shared/contracts/vendorPreference').VendorPreferenceSettings>
   }
+  modelBoxPreference: {
+    get: () => Promise<import('../../electron/shared/contracts/modelBoxPreference').ModelBoxPreferenceSettings>
+    set: (payload: unknown) => Promise<import('../../electron/shared/contracts/modelBoxPreference').ModelBoxPreferenceSettings>
+  }
   canvasMenuPreference: {
     get: () => Promise<import('../../electron/shared/contracts/canvasMenuPreference').CanvasMenuPreferenceSettings>
     set: (payload: unknown) => Promise<import('../../electron/shared/contracts/canvasMenuPreference').CanvasMenuPreferenceSettings>
