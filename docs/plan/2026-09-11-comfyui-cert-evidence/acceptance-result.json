@@ -1,0 +1,36 @@
+{
+  "baseUrl": "http://127.0.0.1:8188",
+  "baselinePromptIds": [
+    "2a26aa95-b58e-4c67-9227-4d017fa1ad55",
+    "a1457773-0d97-470c-9a2f-3d4162f8901f",
+    "e48bed4f-97ce-423b-b3e7-be749d2af983",
+    "fbc3b6d5-518e-437d-ad02-8c9a2f826723",
+    "fa186144-241b-4970-918f-3b55a1249988",
+    "d3b1d3ad-5f64-44d5-a271-905fb2b74d08",
+    "00eb43aa-3a08-4b4d-92d7-28e903c53416",
+    "be5b7358-0d78-4c1b-b44f-50dfe7d4492f",
+    "2a2c878a-ac15-4e1d-a772-bde83ae69d5a",
+    "242470c4-52ec-4a5e-a9b0-1ca93dc7fc46",
+    "064e2131-e753-4253-ad12-648058ce243d",
+    "d3c54d07-5c69-46b9-a614-2000e59b7e34",
+    "99a4ac5f-a1fb-4fda-bd79-9c18fe28dcf6"
+  ],
+  "finalHistory": [
+    "2a26aa95-b58e-4c67-9227-4d017fa1ad55",
+    "a1457773-0d97-470c-9a2f-3d4162f8901f",
+    "e48bed4f-97ce-423b-b3e7-be749d2af983",
+    "fbc3b6d5-518e-437d-ad02-8c9a2f826723",
+    "fa186144-241b-4970-918f-3b55a1249988",
+    "d3b1d3ad-5f64-44d5-a271-905fb2b74d08",
+    "00eb43aa-3a08-4b4d-92d7-28e903c53416",
+    "be5b7358-0d78-4c1b-b44f-50dfe7d4492f",
+    "2a2c878a-ac15-4e1d-a772-bde83ae69d5a",
+    "242470c4-52ec-4a5e-a9b0-1ca93dc7fc46",
+    "064e2131-e753-4253-ad12-648058ce243d",
+    "d3c54d07-5c69-46b9-a614-2000e59b7e34",
+    "99a4ac5f-a1fb-4fda-bd79-9c18fe28dcf6",
+    "26178be8-342a-4861-ba5a-6a16cf1fff9b",
+    "c7496627-f8e4-4a87-a3e0-ddccb220dd8d"
+  ],
+  "failures": []
+}

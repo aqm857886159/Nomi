@@ -51,6 +51,7 @@
 
 | 文件 | 一句话 | 状态 |
 |---|---|---|
+| [2026-09-11-comfyui-certification-wiring.md](2026-09-11-comfyui-certification-wiring.md) | **ComfyUI 接入主链阻断**：认证服务的三样运行时依赖被写成 optional、注册处零参构造，于是能力挂得上、真调用必炸且被 catch 洗成中性码 —— ComfyUI 实例永远停在「未启用」；接上依赖后又露出第二跳（上游任务编号被算了两遍，闸问的是没有的那一份）。修法：必填契约 + 装配收口 + 编号只有一个答案；本机真 ComfyUI 验收到真出图（[证据](2026-09-11-comfyui-cert-evidence/)）| 🚧 |
 | [2026-09-11-ai-assisted-onboarding-entry.md](2026-09-11-ai-assisted-onboarding-entry.md) | **「用 AI 帮我接入」入口**：把「让你已经在用的 AI 助手替你接模型」这条路搬到模型设置页顶部，并补上缺的那半——任务提示词 + 标准 frontmatter 的 [`agent-skills/nomi-add-model/SKILL.md`](../../agent-skills/nomi-add-model/SKILL.md)；设计定稿 [2026-09-11-ai-assisted-onboarding-entry.md](../design/2026-09-11-ai-assisted-onboarding-entry.md)、先查别人 [prior-art.md](../research/2026-09-11-ai-assisted-onboarding-entry/prior-art.md) | ✅ |
 | [2026-06-07-model-onboarding-final-plan.md](2026-06-07-model-onboarding-final-plan.md) | **模型接入最终方案**（R7 定稿，审计+设计+计划）— 本簇主文档 | ✅ |
 | [2026-08-30-runway-seedance25-onboarding.md](2026-08-30-runway-seedance25-onboarding.md) | Runway Seedance 2.5 接入与分镜设置（源分支只含文档、未合并；配套指南带「未发布」横幅）| 📋 |

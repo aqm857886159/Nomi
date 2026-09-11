@@ -89,6 +89,8 @@ export const zhModelSetup = {
   integrationSpendWarning: '请求会发送到显示的接入地址。Nomi 不会把 API Key 展示给对话助手。',
   integrationConfirmAction: '确认验证',
   integrationConfirmFailed: '确认没有完成，请检查窗口状态后重试。',
+  integrationFailed: '验证没有通过，这条工作流还没接进来。',
+  integrationFailedWithReason: '验证没有通过（{{code}}），这条工作流还没接进来。',
   integrationPending: '正在读取…',
   existingConnectionError: {
     CONNECTION_NOT_FOUND: '这个连接已经不存在，返回模型页重新选择连接。',
@@ -228,6 +230,8 @@ export const enModelSetup = {
     'The request will be sent to the displayed endpoint. Nomi never shows the API key to the chat agent.',
   integrationConfirmAction: 'Confirm Verify',
   integrationConfirmFailed: 'Confirmation did not complete. Check the window and try again.',
+  integrationFailed: 'Verification did not pass. This workflow is not connected yet.',
+  integrationFailedWithReason: 'Verification did not pass ({{code}}). This workflow is not connected yet.',
   integrationPending: 'Loading…',
   existingConnectionError: {
     CONNECTION_NOT_FOUND: 'This connection no longer exists. Return to Models and choose another connection.',
