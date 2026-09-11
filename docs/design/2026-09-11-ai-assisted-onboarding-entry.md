@@ -84,7 +84,7 @@
 | 建立接入会话 | `draft` |
 | 你贴 Key | `needs_credential` |
 | 找模型、挑模型 | `needs_input` → `discovering` → `needs_selection` |
-| 试跑一次验证 | `needs_spend_confirmation` → `certifying` |
+| 试跑一次验证 | `needs_spend_confirmation` → `awaiting_human_confirmation` → `human_confirmed` → `certifying` |
 | 出现在上面的「已接入」里 | `committing` → `completed` |
 
 - **失败不复用「进行中」的壳**：标题直说结果（「没有接进来」），给出事前停在哪一步 + 原始错误码 + 一句人话。

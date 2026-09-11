@@ -17,7 +17,11 @@ export const ASSISTED_PROGRESS_STAGES: Record<AssistedProgressStep, readonly Int
   session: ['draft'],
   credential: ['needs_credential'],
   proposal: ['needs_input', 'discovering', 'needs_selection'],
-  certifying: ['needs_spend_confirmation', 'certifying'],
+  // 花费确认那一关 main 在 2026-09-10 拆成三个真状态（该 Agent 调 confirm 了 / 挑战已签发等真人点 /
+  // 人点完了该调 start）。**用户那一侧它们仍是同一步**：都还停在「试跑一次验证」上，
+  // 三行分开画只会把「Agent 该做什么」这套内部口径泄露给他。要他点的那一下由现役付费确认卡当场弹，
+  // 不靠这五步里的一行去催——所以这一步认领它们仨，灰字里把真实 stage 名原样列出来对日志。
+  certifying: ['needs_spend_confirmation', 'awaiting_human_confirmation', 'human_confirmed', 'certifying'],
   listed: ['committing', 'completed'],
 }
 
