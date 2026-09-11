@@ -1,0 +1,173 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-11-director-lan-pairing-hardening",
+  "problem_type": "网络入口没有同意闸、没有凭据时效、没有入站上限：一个面向局域网的监听服务，开不开、谁能连、连上之后能塞多大多怪的东西，三件事全都没有一处说了算",
+  "symptom": "导演台 V2 的手机虚拟相机（#721，merge 625203990）在用户点开「连接手机虚拟相机」对话框那一刻就在 0.0.0.0 上起了 HTTPS + WebSocket 服务（useMobileCamera.ts 的 openDialog 打开即 void start() → mobileBridgeServer.open() 直接 listen）。四个可观察后果：①用户只是想看看这功能长什么样，机器已经在当前 Wi-Fi 上开了口，界面上一句提示都没有；②URL / 二维码里的 12 字节令牌一起服务就固定、不换不过期，二维码被投屏拍到或截图发群后，服务活着期间任何人都能接管机位；③自签证书的指纹不出现在任何界面，手机端只能闭眼点「继续前往」，同网段有人伪造一个同名服务用户也分不出来；④ws 的 maxPayload 用的是默认 100 MiB（node_modules/ws/lib/websocket-server.js:74），畸形 JSON 只 return、二进制只判 `< 32` 就放行，一帧 100 MB 能把主进程内存顶上去而且不留痕。",
+  "direct_cause": "mobileBridgeServer.ts（#721 版本）四处：①`start()` 没有任何前置条件，`open()` 里 `server.listen(port, '0.0.0.0')` 是唯一的准入判断点，而它什么都不判；②`this.token = crypto.randomBytes(12)` 在 `open()` 里生成一次，`status()` 把它拼进 URL，upgrade 处理器只做 `url.searchParams.get('k') !== this.token` 的字符串比较——既没有使用次数，也没有失效时刻；③证书只在 `loadOrCreateCert()` 里生成/读缓存，PEM 从不出主进程，`MobileBridgeStatus` 里没有指纹字段，手机页也没有显示位；④`new WebSocketServer({ noServer: true })` 没传 maxPayload，`ws.on('message')` 里坏 JSON 走 `catch { return }`、未知 type 走隐式 return、`decodePacketValues` 只判 `byteLength < MOBILE_PACKET_BYTES` 且把 NaN 归零——三种畸形都被静默吞掉。",
+  "class_root": "一个对外开放的入口，它的三道准入（要不要开 / 谁能进 / 进来能塞什么）没有各自的判据持有者，而是散落成「监听那一行」「比较那一行」「消息回调里各 return 一下」。只要判据不是一处独立、可单独喂样本的对象，它就只能表达『此刻这一个调用点想到的情况』，表达不了『这条不变量在服务的整个生命周期里恒真』——于是新增一种帧、换一种连接方式、多一个调用 start 的地方，都会从判据的缝里漏过去。修法因此不是给每处补 if，而是把三道准入各自提成一个有名字的边界：同意归服务自己（没同意 start 必抛）、凭据归配对码对象（一次性 + 有时效 + 轮换）、帧内容归一个纯判定模块（唯一判据，畸形一律断开）。",
+  "migration": "#721 的形状整体被替换，没有并行版：`this.token` 这个服务级长生令牌删掉，换成 `pairing`（一次性配对码 + 失效时刻）+ `sessions`（配对换出的会话令牌）；`decodePacketValues` 从 mobileBridgeServer.ts 移出到 mobileBridgeMessages.ts 并改成严格判定（原函数与 MOBILE_PACKET_FLOATS/MOBILE_PACKET_BYTES 两个常量在同 commit 从 server 删掉，调用点全部改指新模块）；消息回调里那三处静默 return 删掉，改由 parseControlMessage 统一裁决并 close(1008)。渲染层 `mobile.start()` 的语义随之变成「先问一句」，同意后才带 consent 再调一次；手机页把 URL 里的 k 当一次性码用，配对后改用 sessionStorage 里的会话令牌重连。没有持久化结构变更，`git revert` 即回到 #721 的形状。",
+  "affected_population": [
+    "所有点开过「连接手机虚拟相机」对话框的用户：#721 的行为是打开即监听，哪怕只是好奇点一下、根本没打算连手机，端口也已经开在当前 Wi-Fi 上",
+    "所有在会议室 / 咖啡馆 / 合租 Wi-Fi 上用这功能并且投屏或截图过那张二维码的用户：令牌不换不过期，看过一眼的人在服务活着期间随时能接管激活机位",
+    "所有照提示点过「继续前往」的手机用户：#721 没有任何办法让他们分辨连上的是自己的电脑还是同网段的仿冒服务",
+    "整台机器的稳定性：局域网上任何一台设备都能给这个端口发一帧 100 MiB 的 WebSocket 消息，而主进程是 Nomi 的全部"
+  ],
+  "scope_paths": [
+    "electron/director/mobileBridgeServer.ts",
+    "electron/director/mobileBridgeMessages.ts",
+    "electron/director/mobileBridgeIpc.ts",
+    "electron/director/mobilePage.ts",
+    "electron/shared/contracts/directorMobileBridge.ts",
+    "electron/preload.ts",
+    "src/desktop/directorBridgeTypes.ts",
+    "src/workbench/generationCanvas/nodes/director/useMobileCamera.ts",
+    "src/workbench/generationCanvas/nodes/director/panels/dialogs/MobileConnectDialog.tsx"
+  ],
+  "entry_points": [
+    "electron/director/mobileBridgeServer.ts 的 MobileBridgeServer.start()／open() —— 全仓唯一一处把监听绑到 0.0.0.0 的地方（`grep -rn '\\.listen(' electron` 的四处里，另外三处 artifactPreviewHttpServer.ts:113 / credentialElicitationServer.ts:35 / rpcServer.ts:406 都绑 127.0.0.1）",
+    "electron/director/mobileBridgeServer.ts 的 `server.on('upgrade')` 处理器 —— 手机侧进入这座桥的唯一门，凭据判定归它",
+    "electron/director/mobileBridgeServer.ts 的 `attach()` 里的 `ws.on('message')` —— 局域网那头能送进主进程的唯一入口，帧内容判定归它",
+    "electron/director/mobileBridgeIpc.ts 的 `nomi:director:mobile:start` handler —— 渲染层能触发监听的唯一 IPC 通道（assertTrustedSender 之后，同意在这里装配）"
+  ],
+  "invariants": [
+    "没有一次显式的用户同意（本次 App 运行内），进程里不存在任何路径能让这座桥 bind 端口：MobileBridgeServer.start() 在 grantConsent() 之前必抛 MobileBridgeConsentError，抛之前连证书都不生成",
+    "二维码 / URL 里的配对码是一次性的：第一个成功的 WS upgrade 消费掉它并当场轮换；任何一个配对码从签发起最多 MOBILE_PAIRING_TTL_MS 有效，过期即拒并轮换",
+    "配对成功后手机拿到的是会话令牌而不是配对码，断线重连走会话令牌 —— 一次性不能以「断线就得重新扫码」为代价",
+    "凭据比较走定长 + crypto.timingSafeEqual，不用 === 逐字符短路比较",
+    "自签证书的 SHA-256 指纹必须同时出现在桌面端界面和二维码 URL 的 fragment 里；fragment 不随请求上线，因此它是一条从桌面走二维码到手机的带外声明",
+    "入站帧有两道上限：ws 的 maxPayload = MOBILE_CONTROL_MAX_BYTES（协议层），以及 mobileBridgeMessages 的逐字段 schema（语义层）",
+    "任何不合 schema 的入站帧的处置是断开（close 1008），不是静默 return——静默吞掉畸形帧等于把错误藏到线上",
+    "入站帧的判据只有 mobileBridgeMessages.ts 一处：server 的消息回调不许再自己判类型 / 长度 / 取值"
+  ],
+  "regression_tests": [
+    "electron/director/mobileBridgeSecurity.test.ts",
+    "electron/director/mobileBridgeServer.test.ts",
+    "electron/director/mobileBridgeIpc.test.ts",
+    "electron/director/mobilePage.test.ts",
+    "electron/director/mobileBridgeFeedback.test.ts",
+    "electron/director/mobileBridgeLifecycle.test.ts",
+    "tests/ux/director-mobile.walk.mjs"
+  ],
+  "residual_risks": [
+    "自签证书指纹的**自动**比对（手机页把 fragment 里的那串和服务自报的那串比）只挡得住「二维码是旧的 / 证书重新生成过」这类误配，挡不住中间人——对手照抄一串即可。真正可核的那条链是人眼比对：浏览器证书详情里的真实证书 vs 二维码带过来的那串。界面文案因此写的是「比一下再继续」，没有吹成「已验证安全」",
+    "同意的有效期是本次 App 运行（主进程内存）。同一次运行里用户同意过之后，再开对话框不会重新问——这是刻意的折中（落盘会变成一次点头永久放行，每次都问会把这个功能变成骚扰）。冷启动重新问",
+    "会话令牌在服务运行期间不过期（stop 时随 sessions 一起清空）。配对过的那台手机在服务活着期间可以一直重连，这正是它的用途；它没有额外的空闲超时",
+    "本次没有做速率限制：局域网上的设备仍可以高频建连被拒。拒绝路径只做一次定长比较后 socket.destroy()，成本极低，不构成放大攻击面"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://www.electronjs.org/docs/latest/tutorial/security",
+      "checked_at": "2026-09-11",
+      "purpose": "查 Electron 官方安全清单对「特权动作前的许可」「IPC sender 校验」怎么说：第 5 条 Handle session permission requests from remote content、第 17 条 Validate the sender of all IPC messages、第 1 条 Only load secure content。同时确认了清单**没有**任何一条讲主进程自己开监听端口——也就是说同意闸没有现成规范可抄，得我们自己定，但「许可只从一条受信边界流进来」这个形状照官方做"
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/websockets/ws/blob/master/lib/websocket-server.js",
+      "checked_at": "2026-09-11",
+      "purpose": "查 ws 自带的帧级上限：本地 node_modules/ws/lib/websocket-server.js:50 的 `@param {Number} [options.maxPayload=104857600]` 与 :74 的默认 `100 * 1024 * 1024`，类型见 node_modules/@types/ws/index.d.ts:263。结论是协议层上限框架已经提供（超限它自己按 RFC 6455 用 1009 关连接），我们只需要把开关拧到 4 KiB，不另写计数器（R29）"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://github.com/ThomasHartDev/obs-phone-cam",
+      "checked_at": "2026-09-11",
+      "purpose": "查同类「手机当机位、不装 App、扫码开浏览器页」的开源项目怎么配对：README 明写 \"By default the server generates a self-signed cert, so Safari shows a one-time warning you tap through.\"，配对只有二维码、没有一次性码也没有会话令牌（TOFU）。这是反面参照——它假设用户在自己书房，而 Nomi 的二维码会被投屏和截图带走，所以我们在它之上加了一次性配对码"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://github.com/JesseAustin/phone-webcam",
+      "checked_at": "2026-09-11",
+      "purpose": "查另一个同类项目（Android 当 OBS 摄像头）的凭据做法：README 安全节写 \"A fresh random salt is generated every session; no two sessions share the same encryption keys.\"。证明「每会话新凭据」是这类局域网桥的既有做法，我们的「配对码用一次就换、换出会话令牌」是它在『只有浏览器、不装 App』约束下的等价物"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "这不是一次手误，而是一种会反复长出来的写法：主进程里每多一个 HTTP/WS 服务，就要重新回答一次「要不要用户同意 / 凭据怎么过期 / 入站怎么限」，而这三问在 #721 之前从没有一处写下来过。仓库里已经有四个 listen 点（本桥 + 三个 loopback），其中 rpcServer 是**独立**长出了自己的 8 MiB 上限（rpcServer.ts:88），credentialElicitationServer 是独立在注释里写死「0.0.0.0 绝不用」——同一族约束各写一遍、各写各的，正是复发的形状。手机桥是第一个真的绑到 0.0.0.0 的，所以第一个爆出来。",
+    "same_class_scan": [
+      "`grep -rn '\\.listen(' electron`（排除测试）四处：electron/director/mobileBridgeServer.ts:224（本次改，唯一绑 0.0.0.0 的）、electron/productionRun/artifactPreviewHttpServer.ts:113、electron/integrationCertification/credentialElicitationServer.ts:35、electron/capabilityCore/rpcServer.ts:406——后三处都硬编码 '127.0.0.1'，局域网够不着，因此不在同意闸这条不变量的适用面内",
+      "`grep -rn 'createServer\\|WebSocketServer' electron`（排除测试）：WebSocketServer 全仓只有 mobileBridgeServer.ts:210 一处（本次拧上 maxPayload）；http.createServer 的另外三处就是上面那三个 loopback 服务",
+      "入站体积上限的同类入口：electron/capabilityCore/rpcServer.ts:84-98 的 readBody 已有 8 MiB 上限并在超限时 413 + req.destroy()（enforced，不需要动）；electron/integrationCertification/credentialElicitationServer.ts 不读请求体（表单走 URL 与 IPC），没有这一族的暴露面"
+    ]
+  },
+  "generality_proof": "三道准入各自被提成一个有名字、能单独喂样本的边界，所以整类不再靠『调用点记得判』：①同意归 MobileBridgeServer.start() —— 它是这座桥通往 listen 的唯一路径，以后不管谁调 start（IPC、测试、将来的自动重连），没同意就一律抛，UI 层怎么改都绕不过去；②凭据归 MobileBridgeServer.admit() 与 ensurePairing()/rotatePairing() 这一组 —— 有效期和一次性是配对码对象自己的属性而不是某个 if，新增连接方式（今天是 k 与 s 两种）只能从 admit 走，加第三种也得在这里表态；③帧内容归 mobileBridgeMessages.ts —— 它是纯判定、不碰 socket，所以 server 的消息回调退化成「问它 + 按结论处置」，以后加一种控制帧必须先在白名单里登记，忘了登记的后果是当场被自己的服务拒掉（红在测试里），而不是像 #721 那样被静默吞掉。上限那一半直接交还给框架（ws 的 maxPayload），我们不维护第二份计数器。",
+  "shared_boundaries": [
+    {
+      "path": "electron/director/mobileBridgeServer.ts",
+      "symbol": "MobileBridgeServer.start() 的同意闸 + admit()/ensurePairing()/rotatePairing() 的配对码",
+      "responsibility": "拦住两件事：没拿到本次 App 运行的用户同意就 bind 端口；以及用一个过期的、已经被消费掉的、或者压根不匹配的凭据完成 WS upgrade。凭据比较走 timingSafeEqual，配对成功当场轮换并发 pairing 事件"
+    },
+    {
+      "path": "electron/director/mobileBridgeMessages.ts",
+      "symbol": "decodePacketValues / parseControlMessage",
+      "responsibility": "局域网那头能送进主进程的每一帧的唯一判据：二进制包长度必须正好 32 字节且 8 个 Float32 落在各自量程里，文本控制帧只认 hello/record/pong 白名单并逐字段判类型取值；不合规返回 null / {ok:false}，调用方据此断开"
+    },
+    {
+      "path": "electron/director/mobileBridgeIpc.ts",
+      "symbol": "nomi:director:mobile:start handler 的 consent 装配",
+      "responsibility": "同意只从这一条受信 IPC 边界流进来：assertTrustedSender 之后，只有载荷明确带 consent:true 才调 server.grantConsent()；没同意时连 MobileBridgeServer 对象都不造，返回 consentRequired 状态"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/director/mobileBridgeServer.ts",
+      "entry_point": "MobileBridgeServer.open() 的 server.listen(port, '0.0.0.0')",
+      "disposition": "enforced",
+      "evidence": "全仓唯一绑到 0.0.0.0 的监听点（grep -rn '\\.listen(' electron 的四处里其余三处都是 127.0.0.1）。本次在它上游加了同意闸：start() 未 grantConsent 直接抛，electron/director/mobileBridgeSecurity.test.ts 的「没同意时 start 抛 MobileBridgeConsentError，一个端口都没 bind」钉死 running=false / port=null / urls=[]"
+    },
+    {
+      "path": "electron/capabilityCore/rpcServer.ts",
+      "entry_point": "readBody 的 8 MiB 入站上限 + server.listen(0, '127.0.0.1')",
+      "disposition": "not-affected",
+      "evidence": "逐行读过 rpcServer.ts:84-98：入站体积上限这一族它自己已经有（LIMIT = 8 * 1024 * 1024，超限 RpcError 413 + req.destroy()），不存在本次要修的那个洞；绑定地址是硬编码 127.0.0.1（rpcServer.ts:406），局域网够不着，因此同意闸这条不变量对它不适用"
+    },
+    {
+      "path": "electron/integrationCertification/credentialElicitationServer.ts",
+      "entry_point": "startCredentialElicitationServer 的 server.listen(0, '127.0.0.1')",
+      "disposition": "not-affected",
+      "evidence": "逐行读过 credentialElicitationServer.ts:18-40：绑定地址硬编码 127.0.0.1 且源码里就写着「0.0.0.0 绝不用——只 127.0.0.1，外网/局域网够不着这张表单」；它不读请求体（表单值走 URL 与 IPC），所以入站体积这一族也没有暴露面"
+    },
+    {
+      "path": "electron/productionRun/artifactPreviewHttpServer.ts",
+      "entry_point": "server.listen(0, '127.0.0.1')",
+      "disposition": "not-affected",
+      "evidence": "artifactPreviewHttpServer.ts:113 绑 127.0.0.1，只在本机给预览页发已生成的产物文件，局域网够不着；它是 GET-only 的静态出站通路，没有入站帧这一族的判据需求"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/director/mobileBridgeMessages.ts",
+    "invariant": "局域网那头送进主进程的每一帧都必须先过 mobileBridgeMessages 的判定；判定不过的处置是断开连接，server 的消息回调不许自己判类型 / 长度 / 取值，也不许把畸形帧静默 return 掉",
+    "failure_mode": "把新的帧类型或字段直接写进 mobileBridgeServer 的消息回调而不在 mobileBridgeMessages 的白名单里登记，会被自己的服务当场拒掉并断开连接——electron/director/mobileBridgeSecurity.test.ts 的「未知类型 / 字段类型不对的控制帧被断开」与「长度不是 32 字节、或量程越界的二进制包被断开」会红，真机走查 tests/ux/director-mobile.walk.mjs 也会在手机页连不上那一步红",
+    "exception_policy": "none",
+    "strategy": "把「这一帧合不合法」从散在回调里的三处 return 提成一个纯判定模块，让它成为唯一判据，并把畸形的处置从静默吞掉改成断开",
+    "artifacts": [
+      "electron/director/mobileBridgeMessages.ts",
+      "electron/director/mobileBridgeServer.ts",
+      "electron/director/mobileBridgeSecurity.test.ts"
+    ]
+  },
+  "class_regression_tests": [
+    "electron/director/mobileBridgeSecurity.test.ts",
+    "electron/director/mobileBridgeServer.test.ts",
+    "tests/ux/director-mobile.walk.mjs"
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/director/mobileBridgeServer.ts",
+    "tests": [
+      "electron/director/mobileBridgeSecurity.test.ts",
+      "electron/director/mobileBridgeServer.test.ts"
+    ]
+  },
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/director/mobileBridgeServer.ts"
+    ],
+    "rationale": "旧实现与新实现不并存（P1）：服务级长生令牌 `this.token`、旧的 `decodePacketValues`（`< 32` 放行 + NaN 归零）以及 MOBILE_PACKET_FLOATS / MOBILE_PACKET_BYTES 两个常量都在同 commit 从 mobileBridgeServer.ts 删掉——令牌换成 pairing + sessions，解码搬进 mobileBridgeMessages.ts 并改严，常量随之只剩一份。消息回调里那三处静默 return 一并删掉。没有留 fallback、没有环境变量开关、没有『旧行为』分支"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "本次不升级也不保留任何依赖：ws / selfsigned / qrcode 都停在 #721 带进来的版本，改的全是我们自己怎么用它们（ws 的 maxPayload 是既有选项，node:crypto 的 X509Certificate 是运行时自带）。没有引入新依赖",
+    "exit_criteria": []
+  }
+}

@@ -160,10 +160,21 @@ try {
   await imageNode.locator('[data-node-media-state="ready"]').waitFor({ state: 'attached', timeout: 10_000 })
   await expectCount(groupMembers, 3, '展开的雨夜参考组应显示三个成员节点')
   const groupMembersProof = await proveProbe(groupMembers, '展开编组里的成员节点可被同一 data-node-id 探针找到')
-  check('图片版本卡角可见', await imageNode.getByRole('button', { name: '3 版' }).isVisible())
-  check('视频版本卡角可见', await videoNode.getByRole('button', { name: '2 版' }).isVisible())
-  check('图片卡角最多两层', await imageNode.locator('[data-card-stack-rear]').count() === 2)
-  check('视频两版只有一层后卡', await videoNode.locator('[data-card-stack-rear]').count() === 1)
+  // 这四条以前是 `check(..., await X.isVisible())` / `await X.count() === N`——**一次性采样、零等待**。
+  // 上面那句 waitFor 只等了图片节点的媒体就绪（`data-node-media-state="ready"`），视频节点走的是
+  // deferred 媒体队列里的另一条、另一个挂载时机，所以图片那条恰好稳、视频那条在慢机器上会赶在卡角
+  // 挂上来之前就采到 false。2026-09-11 main 的 Canvas Acceptance 分片 2 正是这么红的（merge
+  // 0cea000d8），而**同一棵 tree**（4983ba30）在 PR #725 的同一分片上全绿——红的是断言写法不是产品。
+  // 改成 web-first 断言：由 expect 自己的超时预算轮询到真信号，不新增任何私有墙钟等待（R18）。
+  // 本文件 386 行附近早就为「点完立刻 isVisible()」写下过同一条教训，这里把剩下的采样点补齐。
+  await expectVisible(imageNode.getByRole('button', { name: '3 版' }), '图片版本卡角应可见')
+  check('图片版本卡角可见', true)
+  await expectVisible(videoNode.getByRole('button', { name: '2 版' }), '视频版本卡角应可见')
+  check('视频版本卡角可见', true)
+  await expectCount(imageNode.locator('[data-card-stack-rear]'), 2, '图片卡角最多两层后卡')
+  check('图片卡角最多两层', true)
+  await expectCount(videoNode.locator('[data-card-stack-rear]'), 1, '视频两版只有一层后卡')
+  check('视频两版只有一层后卡', true)
   await screenshotSettled(win, { path: path.join(outputDir, '01-real-version-stacks-light.png') })
 
   await imageNode.click({ position: { x: 120, y: 120 } })
@@ -333,7 +344,9 @@ try {
   check('收起后只剩一个组卡', true)
   await expectAbsent(groupMembers, { provenBy: groupMembersProof, message: '收起后组内三个成员节点不再各自占画布' })
   check('三位成员已从画布投影隐藏', true)
-  check('编组显示节点语义', await collapsed.getByRole('button', { name: '3 节点' }).isVisible())
+  // 同上：收起动画刚落地那一帧采样会假红，交给 web-first 断言等真信号。
+  await expectVisible(collapsed.getByRole('button', { name: '3 节点' }), '编组卡应显示「3 节点」语义')
+  check('编组显示节点语义', true)
   const collapsedMagneticHandles = collapsed.locator('.generation-canvas-v2-node__magnetic-handle')
   await expectCount(collapsedMagneticHandles, 2, '收起编组应保留左右两个磁性连接句柄')
   const collapsedHandleStates = await collapsedMagneticHandles.evaluateAll((handles) => handles.map((handle) => {

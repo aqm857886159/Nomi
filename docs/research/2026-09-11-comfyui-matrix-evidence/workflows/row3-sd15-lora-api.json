@@ -1,0 +1,126 @@
+{
+ "4": {
+  "class_type": "CheckpointLoaderSimple",
+  "inputs": {
+   "ckpt_name": "v1-5-pruned-emaonly-fp16.safetensors"
+  },
+  "_meta": {
+   "title": "Load Checkpoint"
+  }
+ },
+ "11": {
+  "class_type": "LoraLoader",
+  "inputs": {
+   "lora_name": "lcm-lora-sdv1-5.safetensors",
+   "strength_model": 1.0,
+   "strength_clip": 1.0,
+   "model": [
+    "4",
+    0
+   ],
+   "clip": [
+    "4",
+    1
+   ]
+  },
+  "_meta": {
+   "title": "Load LoRA"
+  }
+ },
+ "6": {
+  "class_type": "CLIPTextEncode",
+  "inputs": {
+   "text": "a cozy cabin in a snowy forest, warm light",
+   "clip": [
+    "11",
+    1
+   ]
+  },
+  "_meta": {
+   "title": "Positive Prompt"
+  }
+ },
+ "7": {
+  "class_type": "CLIPTextEncode",
+  "inputs": {
+   "text": "",
+   "clip": [
+    "11",
+    1
+   ]
+  },
+  "_meta": {
+   "title": "Negative Prompt"
+  }
+ },
+ "5": {
+  "class_type": "EmptyLatentImage",
+  "inputs": {
+   "width": 512,
+   "height": 512,
+   "batch_size": 1
+  },
+  "_meta": {
+   "title": "Empty Latent"
+  }
+ },
+ "3": {
+  "class_type": "KSampler",
+  "inputs": {
+   "seed": 777,
+   "steps": 8,
+   "cfg": 1.8,
+   "sampler_name": "lcm",
+   "scheduler": "normal",
+   "denoise": 1.0,
+   "model": [
+    "11",
+    0
+   ],
+   "positive": [
+    "6",
+    0
+   ],
+   "negative": [
+    "7",
+    0
+   ],
+   "latent_image": [
+    "5",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "KSampler"
+  }
+ },
+ "8": {
+  "class_type": "VAEDecode",
+  "inputs": {
+   "samples": [
+    "3",
+    0
+   ],
+   "vae": [
+    "4",
+    2
+   ]
+  },
+  "_meta": {
+   "title": "VAE Decode"
+  }
+ },
+ "9": {
+  "class_type": "SaveImage",
+  "inputs": {
+   "filename_prefix": "NomiMatrixRow3",
+   "images": [
+    "8",
+    0
+   ]
+  },
+  "_meta": {
+   "title": "Save Image"
+  }
+ }
+}
