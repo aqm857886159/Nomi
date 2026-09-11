@@ -28,7 +28,7 @@ export const zhModelSetup = {
   noApiKeyHint: '适用于局域网或已经在网关层完成鉴权的服务',
   getKey: '没有 Key？去 {{provider}} 官网获取 →',
   models: '模型',
-  noModelsListedHint: '这个地址没自动列出模型，可在「选择模型」里手动输入 id，或重新拉取',
+  noModelsListedHint: '该供应商没有模型清单接口 / 返回了空列表；可在「选择模型」里手动输入 id，或重新拉取',
   noModelsFetchedHint: '没自动拉到模型，可在「选择模型」里手动输入 id，或重新拉取',
   noModelsFetchedWithReason: '没自动拉到模型：{{error}}。可在「选择模型」里手动输入 id，或重新拉取',
   discoveryUnsupported: '这个地址未提供可识别的模型列表，不代表模型不可用。可手动输入模型 ID，再配置调用方式。',
@@ -158,7 +158,7 @@ export const enModelSetup = {
   getKey: 'No key? Get one from {{provider}} →',
   models: 'Models',
   noModelsListedHint:
-    'This endpoint did not list models automatically. Enter an ID manually in Choose models, or fetch again.',
+    'This provider has no model listing endpoint / returned an empty list. Enter an ID manually in Choose models, or fetch again.',
   noModelsFetchedHint:
     'Models could not be fetched automatically. Enter an ID manually in Choose models, or fetch again.',
   noModelsFetchedWithReason:
