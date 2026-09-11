@@ -32,16 +32,13 @@ export type LayoutSemanticInput = z.infer<typeof layoutSemanticInputSchema>
 export type LayoutResult = z.infer<typeof layoutResultSchema>
 
 export const LAYOUT_READ_CAPABILITY = {
-  id: 'layout.read', version: 1, aliases: { pi: 'layout_read', mcp: 'nomi_layout_read' }, inputSchema: layoutReadInputSchema, outputSchema: layoutResultSchema,
+  id: 'layout.read', version: 1, aliases: { mcp: 'nomi_layout_read' }, inputSchema: layoutReadInputSchema, outputSchema: layoutResultSchema,
   effect: 'read', effectClass: 'reversible_local', execution: { port: 'document', availability: 'renderer_required' }, exposure: 'mcp_safe', requiredScope: 'layout:read', targetKind: 'editing-layout',
-  projections: { pi: { description: 'Read the current five-panel editing layout.' }, mcp: { description: 'Read the current five-panel editing layout.' } },
 } as const satisfies CapabilityContract<z.infer<typeof layoutReadInputSchema>, LayoutResult>
 
 export const LAYOUT_WRITE_CAPABILITY = {
-  id: 'layout.write', version: 1, aliases: { pi: 'layout_write', mcp: 'nomi_layout_write' }, inputSchema: layoutWriteInputSchema, outputSchema: layoutResultSchema,
+  id: 'layout.write', version: 1, aliases: { mcp: 'nomi_layout_write' }, inputSchema: layoutWriteInputSchema, outputSchema: layoutResultSchema,
   effect: 'reversible_write', effectClass: 'reversible_local', execution: { port: 'document', availability: 'renderer_required' }, exposure: 'mcp_safe', requiredScope: 'layout:write', targetKind: 'editing-layout',
-  projections: { pi: { description: 'Write a reversible local editing layout change.' }, mcp: { description: 'Write a reversible local editing layout change.' } },
 } as const satisfies CapabilityContract<z.infer<typeof layoutWriteInputSchema>, LayoutResult>
 
-export function layoutPiDescriptionForAlias(alias: string): string | undefined { return alias === 'layout_read' ? LAYOUT_READ_CAPABILITY.projections.pi.description : alias === 'layout_write' ? LAYOUT_WRITE_CAPABILITY.projections.pi.description : undefined }
 export function layoutPiInputSchemaForAlias(alias: string) { return alias === 'layout_read' ? z.object({}).strict() : alias === 'layout_write' ? layoutWriteInputSchema.omit({ operation: true }) : undefined }

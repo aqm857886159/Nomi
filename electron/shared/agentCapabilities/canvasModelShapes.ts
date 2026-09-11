@@ -38,7 +38,7 @@ const storyboardAnchorSchema = z.object({
     .min(1)
     .describe("Stable anchor id; becomes the canvas clientId."),
   kind: z.enum(["character", "scene", "prop", "style"]),
-  name: z.string().describe("Display name & shot-reference key ('林夏' / '天台' / '红书包' / '全片风格')."),
+  name: z.string().describe("Display name and shot-reference key in the user's language (e.g. '林夏' / '天台')."),
   description: z
     .string()
     .describe("Reusable anchor appearance or prompt text."),
@@ -76,7 +76,7 @@ const storyboardShotSchema = z.object({
   modelKey: z
     .string()
     .optional()
-    .describe("已指定填目录键；未指定用默认。"),
+    .describe("Catalog model key if the user named one; omit for the default model."),
   modeId: z
     .string()
     .optional()
@@ -84,7 +84,7 @@ const storyboardShotSchema = z.object({
   params: z
     .record(generationParamValueSchema)
     .optional()
-    .describe("已指定按档案填；未指定派生，禁编键。"),
+    .describe("Only parameter keys the selected model's profile declares; omit to derive defaults. Never invent keys."),
   subtitle: z
     .string()
     .optional()
@@ -105,7 +105,7 @@ const storyboardShotSchema = z.object({
       enabled: z
         .boolean()
         .optional()
-        .describe("Set true only for 图片+视频 mode: create a first-frame image before the video."),
+        .describe("Set true only for image-plus-video mode: create a first-frame image before the video."),
       prompt: z
         .string()
         .optional()
@@ -146,7 +146,7 @@ export const stagingReferenceParamsSchema = z.object({
   characters: z
     .array(
       z.object({
-        name: z.string().optional().describe("Character label, e.g. '林夏' / '角色A'."),
+        name: z.string().optional().describe("Character label in the user's language (e.g. '林夏' / '角色A')."),
         pose: z
           .enum([
             "standing",
@@ -346,14 +346,14 @@ export const STORYBOARD_MODEL_GUIDELINES = Object.freeze([
   "Same-sceneId shots must be contiguous; omit without grouping. Match all shot kinds to requested mode; default image unless video is explicit. Image: duration 0, no motion/transition/dialogue. Video: seconds, clamped to model max.",
   "Reference anchors by id. Video prompts: camera move + action progression, no repeated static anchors. Preserve captions and speaker/line dialogue verbatim on canvas/timeline. Explicit hard cut: cut; unauthored transition: omit.",
   "modelKey, mode/variant and parameter keys must come from available models; omit unknowns for defaults. First frames use image models; prefer image_ref/edit with visual anchors.",
-  "First frame: static composition, shot size, light, pose/expression, environment; no motion, action progression, dialogue, subtitles or sound. Use supported image parameters. 图片+视频: first frame belongs inside its video shot, never a separate shot.",
+  "First frame: static composition, shot size, light, pose/expression, environment; no motion, action progression, dialogue, subtitles or sound. Use supported image parameters. Image-plus-video mode: first frame belongs inside its video shot, never a separate shot.",
   "aspectRatio is film-level: set it once at plan top level; only a genuinely different shot overrides it via params.aspect_ratio. Never copy one ratio into every shot."
 ]);
 
 export const STAGING_MODEL_GUIDELINES = Object.freeze([
   "shotClientId: this turn's create_canvas_nodes clientId or existing shot/keyframe/video id. Render connects as composition_ref; omit id for standalone reference.",
   "Stage 1–6 characters using precise 3D vocabulary, or supply customBlocking. Default pose standing; squat=deep squat, crouch=upright half-crouch, single-knee=proposal kneel, cheer=arms up; hands-on-hips, point and wave are literal poses.",
-  "layout: side-by-side=shoulder-to-shoulder row（并排/一字排开）; line=front-to-back queue（纵队）; facing=two facing each other; behind=one ahead of another; circle=around a center.",
+  "layout: side-by-side=shoulder-to-shoulder row; line=front-to-back queue; facing=two facing each other; behind=one ahead of another; circle=around a center.",
   "sceneTemplate supplies a gray backdrop: street has roads/lane lines/sidewalk/buildings/trees/lamps/cars; room has three walls/bed/table/sofa/ceiling light. Use it for environment and scale; street needs environment=day for a lit sky. Props are individual objects; prefer sceneTemplate for whole backdrops. Positions are [x,z] ground meters relative to characters at origin; omitted props auto-spread to their right.",
   "For out-of-vocabulary multi-tier/over-the-shoulder/prop-relative/reference-image compositions, use customBlocking film terms, never a wrong layout/pose. It injects a KEYFRAME IMAGE prompt directive, not a 3D render, and is less precise. With customBlocking, characters/layout/camera may be omitted; never omit both characters and customBlocking."
 ]);

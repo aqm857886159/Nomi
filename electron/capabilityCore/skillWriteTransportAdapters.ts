@@ -142,7 +142,7 @@ export function createPiSkillWriteTransportAdapter(
 
   return Object.freeze({
     async prepare(call, context, signal) {
-      if (call.toolName !== SKILL_WRITE_CAPABILITY.aliases.pi) return null;
+      if (call.toolName !== SKILL_WRITE_CAPABILITY.aliases.method) return null;
       if (disposed) throw Object.assign(new Error("capability_surface_unavailable"), { code: "capability_surface_unavailable" });
       if (signal.aborted) throw Object.assign(new Error("capability_cancelled"), { code: "capability_cancelled" });
 

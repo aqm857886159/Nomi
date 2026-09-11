@@ -18,7 +18,7 @@ import { LANE_READ_TOOL_TIMEOUT_MS } from '../../electron/shared/agentLane/laneT
 import {
   LANE_MODEL_OUTPUT_MAX_BYTES, LANE_MODEL_OUTPUT_MAX_LINES,
 } from '../../electron/shared/agentLane/laneContracts.js';
-import { createDocumentPort, createLaneFixture } from './laneFixture.mjs';
+import { createDocumentPort, createLaneFixture, FIXTURE_DESCRIBE } from './laneFixture.mjs';
 
 test('the lane’s limits are pi’s own two numbers, not a pair we picked', () => {
   // 中立契约层那两个常量是**镜像**：CJS 侧的工具说明书和 ESM 岛里的截断器都读它，
@@ -43,8 +43,8 @@ function echoTool(name: string, text: string): LaneToolDescriptor {
     contractId: 'document.read',
     name,
     description: `Returns a fixed body of text, used to prove the transport truncates what the model sees.`,
-    promptSnippet: 'return a fixed body of text.',
-    effects: { mutates: false, billable: false, reversal: 'none' },
+    promptSnippet: 'return a fixed body of text.', nextAction: 'none', describe: FIXTURE_DESCRIBE,
+    effect: 'read',
     execution: { timeoutMs: LANE_READ_TOOL_TIMEOUT_MS },
     schema: z.object({}).strict(),
     examples: [{ when: 'Call it with no arguments:', arguments: {} }],

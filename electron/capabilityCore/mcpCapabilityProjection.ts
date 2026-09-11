@@ -21,7 +21,7 @@ import {
   toSemanticInput,
   type McpProfileTool,
 } from "../shared/agentCapabilities/modelFacingTools";
-import { mcpProfileToolFor, modelFacingToolSpecs } from "../shared/agentCapabilities/modelFacingToolRegistry";
+import { mcpProfileToolFor, modelFacingToolSpecs, specsForCapability } from "../shared/agentCapabilities/modelFacingToolRegistry";
 import { findUnsupportedSchemaFeatures, type SchemaLike } from "./mcpArgValidation";
 import { transportSchemaFromZod } from "./mcpTransportSchemaFromZod";
 import { buildCanonicalMcpToolResult, type CanonicalMcpToolResult } from "./mcpCanonicalToolResult";
@@ -103,7 +103,7 @@ export function immutableSchemaSnapshot(schema: SchemaLike): SchemaLike {
 }
 
 function isMcpExposable(adapter: McpCapabilityAdapter): boolean {
-  if (!adapter.contract.aliases.mcp || !adapter.contract.projections.mcp) return false;
+  if (!adapter.contract.aliases.mcp) return false;
   if (adapter.contract.exposure === "internal_only") return false;
   // Generic self-asserted mcp_safe registrations remain hidden. The exact
   // module-owned adapter identity is the registration brand.
@@ -313,12 +313,13 @@ export function isMcpEditingMethod(method: string): boolean {
 }
 
 export function createMcpCapabilityResolver(registrations: readonly McpCapabilityAdapter[]): McpCapabilityResolver {
-  const specs = modelFacingToolSpecs("mcp");
   const tools = Object.freeze(
     registrations.filter(isMcpExposable).map((adapter): McpCapabilityTool => {
       const name = adapter.mcpName ?? adapter.contract.aliases.mcp;
-      const description = mcpToolDescription(adapter.contract, specs.filter(spec => spec.contractId === adapter.contract.id));
-      if (!name || !description) throw new Error(`Missing MCP projection metadata for ${adapter.contract.id}`);
+      if (!name) throw new Error(`Missing MCP alias for ${adapter.contract.id}`);
+      // 描述只有一个 owner（`verbDeclarations.ts`）：传输目录还是手写的那些契约（`mcpHandwrittenTransport`）
+      // 也从同一批声明派生描述，不再读契约上的第二份文案。
+      const description = mcpToolDescription(adapter.contract, specsForCapability(adapter.contract.id));
       const annotations = readOnlyAnnotations(adapter);
       const inputSchema = immutableSchemaSnapshot(adapter.transportInputSchema);
       const method = adapter.contract.id;

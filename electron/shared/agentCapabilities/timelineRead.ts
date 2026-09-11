@@ -347,18 +347,6 @@ export function timelineReadInputForAlias(alias: string, value: unknown): Timeli
   return timelineReadSemanticInputSchema.parse({ operation: alias, ...schema.parse(value) });
 }
 
-export function timelineReadPiDescriptionForAlias(alias: string): string | undefined {
-  switch (alias) {
-    case TIMELINE_READ_ALIASES.read:
-      return "Read the canonical project timeline as a path-free planning snapshot.";
-    case TIMELINE_READ_ALIASES.inspectRange:
-      return "Inspect clips and text overlays that intersect one timeline frame range.";
-    case TIMELINE_READ_ALIASES.proposePlan:
-      return "Validate and preview an atomic timeline edit plan without changing the project. Valid operation kinds: move, remove, split, trim, source-window, ripple, transition, text, audio.";
-    default:
-      return undefined;
-  }
-}
 
 export const TIMELINE_READ_CAPABILITY = {
   id: "timeline.read",
@@ -375,8 +363,4 @@ export const TIMELINE_READ_CAPABILITY = {
   exposure: "mcp_safe",
   requiredScope: "timeline:read",
   targetKind: "timeline",
-  projections: {
-    pi: { description: "Read and preview the current project timeline." },
-    mcp: { description: "Read the project timeline or a bounded frame range." },
-  },
 } as const satisfies CapabilityContract<TimelineReadInput, TimelineReadResult>;
