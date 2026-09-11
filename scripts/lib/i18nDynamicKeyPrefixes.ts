@@ -135,6 +135,7 @@ export const DYNAMIC_KEY_PREFIXES: DynamicPrefix[] = [
   { prefix: 'generationCommon.production.batch.frozen', why: '动态: 批次冻结项;枚举来源: SpendConfirmDialog 的 frozen item(production.batch.frozen.* 词条)' },
   { prefix: 'generationCommon.production.contract', why: '动态: 制作契约字段;枚举来源: ProductionContractSummary 的 label(production.contract.* 词条)' },
   { prefix: 'generationCommon.production.contract.trustLevelValue', why: '动态: 契约信任等级值;枚举来源: ProductionContractSummary 的 view.trustLevel(contract.trustLevelValue.* 词条)' },
+  { prefix: 'generationCommon.production.modelGroup', why: '动态: 批量「统一模型」下拉的作用域标签;枚举来源: 画布是 CanvasGenerationExecutionGroup.executionKind(canvasBatchModelLabel.ts),分镜多选条是 storyboardBulkModelScope 的 StoryboardShotKind(image|video)——两处共用同一组 modelGroup.* 词条,不各存一份 labelKey' },
   { prefix: 'generationCommon.production.origin', why: '动态: 制作发起来源;枚举来源: ProductionRunTaskCard 的 view.originHost(production.origin.* 词条)' },
   { prefix: 'generationCommon.production.runAction', why: '动态: 制作运行动作;枚举来源: ProductionRunTaskCard 的 action(production.runAction.* 词条)' },
   { prefix: 'generationCommon.production.runDetails.stageStatus', why: '动态: 制作阶段状态;枚举来源: ProductionDetails 的 stage.status(runDetails.stageStatus.* 词条)' },

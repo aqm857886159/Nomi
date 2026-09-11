@@ -44,7 +44,6 @@ export const zhCN = {
     plusMore: '+{{count}}',
     undo: '撤销',
     // 复制回执：全站的复制按钮共用这一对（`design/clipboard` 是唯一写口）。
-    copy: '复制',
     copied: '已复制',
     copyFailed: '复制失败',
   },
@@ -465,7 +464,6 @@ export const en = {
     noMatchingOptions: 'No matching options',
     plusMore: '+{{count}}',
     undo: 'Undo',
-    copy: 'Copy',
     copied: 'Copied',
     copyFailed: 'Copy failed',
   },
