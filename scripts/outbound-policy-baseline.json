@@ -9,6 +9,7 @@
     "electron/capabilityCore/apimartGenerationProvider.ts",
     "electron/capabilityCore/mcpLoopbackRpcRequest.test.ts",
     "electron/capabilityCore/mcpStdioServer.ts",
+    "electron/catalog/directKeyCredential.ts",
     "electron/catalog/imageEditProbe.ts",
     "electron/catalog/multipartOperation.ts",
     "electron/catalog/nativeEndpointProbe.ts",

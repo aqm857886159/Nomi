@@ -460,6 +460,9 @@ export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPa
         directory={card.directory}
         vendorName={translateModelDisplayText(card.meta.name)}
         modelCount={card.vendorModels.length} hasApiKey={card.meta.hasApiKey} credentialVerificationPending={card.meta.credentialVerificationPending}
+        // 「模型已发布」不另立标志位：凭据停用必然连带 vendor 停用（credentialPublication.ts），
+        // 所以 vendor 还 enabled 且有 key ⇔ 这家的预置模型此刻就在可用列表里。
+        curatedModelsPublished={card.meta.enabled && card.meta.hasApiKey}
         onBack={goBack}
         onSaved={refresh}
         onContinueVerification={() => openWizard(undefined, card.directory.vendorKey)}

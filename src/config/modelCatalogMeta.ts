@@ -206,7 +206,7 @@ function parseParameterControl(value: unknown): ModelParameterControl | null {
     key,
     label,
     type: type !== 'image-url' && options.length > 0 ? 'select' : type,
-    ...((value.mediaKind === 'image' || value.mediaKind === 'video')
+    ...((value.mediaKind === 'image' || value.mediaKind === 'video' || value.mediaKind === 'audio')
       ? { mediaKind: value.mediaKind }
       : {}),
     options: dedupeByValue(options),
@@ -251,7 +251,7 @@ export function parseModelParameterControlsAtomic(meta: unknown): ModelParameter
     if (!isRecord(value)) return null
     if (Object.prototype.hasOwnProperty.call(value, 'type') && parseExplicitParameterControlType(value.type) === null) return null
     if (Object.prototype.hasOwnProperty.call(value, 'mediaKind')
-      && value.mediaKind !== 'image' && value.mediaKind !== 'video') return null
+      && value.mediaKind !== 'image' && value.mediaKind !== 'video' && value.mediaKind !== 'audio') return null
     const control = parseParameterControl(value)
     if (!control || keys.has(control.key)) return null
     keys.add(control.key)

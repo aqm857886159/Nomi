@@ -737,8 +737,9 @@ export function canRunGenerationNode(
     const mode = audioArchetype ? currentArchetypeMode(audioArchetype, meta) : null
     const needsAudioRef = (mode?.slots || []).some((slot) => slot.kind === 'audio_ref')
     if (!needsAudioRef) return true
-    // 连线来源也算（今天没有音频源节点种类，SLOT_ACCEPTS.audio_ref=[]，故实际恒空）——口径与另两支一致，
-    // 将来加了音频节点不必再想起来补这一处。
+    // 连线来源也算（2026-09-11 起「声音」节点/导入的音频素材是一等参考源，SLOT_ACCEPTS.audio_ref=
+    // ['audio']——用户报的根因「声音节点连不上视频节点」修在 anchorPolicy.ts + referenceEdgeCapability.ts）
+    // ——口径与另两支一致，这里当年就已经按「将来会有音频源」写好，不用再改。
     const audioReferences = 'id' in node && node.id ? resolveGenerationReferences(node, context) : undefined
     return Boolean(audioArchetype && hasAnyArchetypeReference(meta, audioArchetype, audioReferences))
   }

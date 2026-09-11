@@ -11,7 +11,11 @@ describe('parseModelParameterControls — 参数边界', () => {
   it('preserves a declared media kind without turning ordinary controls into media slots', () => {
     expect(controlFrom({ type: 'image-url', mediaKind: 'video' })).toMatchObject({ type: 'image-url', mediaKind: 'video' })
     expect(controlFrom({ type: 'image-url', mediaKind: 'image' })).toMatchObject({ mediaKind: 'image' })
-    expect(controlFrom({ type: 'image-url', mediaKind: 'audio' })).not.toHaveProperty('mediaKind')
+    // 'audio' 曾在这里被静默丢弃(用户报的根因之一「ComfyUI 音频输入用不了」——LoadAudio 扫描器
+    // 产出的 mediaKind:'audio' 一路传到这个通用目录解析器就被吃掉，槽退化成没有 mediaKind 的
+    // 普通控件)。现在与 image/video 同等保留；真正超出 mediaKind 定义域的值才丢弃（见下一断言）。
+    expect(controlFrom({ type: 'image-url', mediaKind: 'audio' })).toMatchObject({ mediaKind: 'audio' })
+    expect(controlFrom({ type: 'image-url', mediaKind: 'model3d' })).not.toHaveProperty('mediaKind')
     expect(controlFrom({ type: 'number', mediaKind: 'video' })).toMatchObject({ type: 'number', mediaKind: 'video' })
     expect(controlFrom({ type: 'image-url' })).not.toHaveProperty('mediaKind')
   })

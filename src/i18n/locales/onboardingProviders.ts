@@ -393,6 +393,10 @@ export const zhOnboardingProviders = {
     // 供应商已有 key 但尚未完成验证晋级时（hasApiKey && !enabled）显示此状态说明。
     pendingTitle: '{{name}} 密钥已保存，等待验证',
     pendingHint: '密钥已加密存储。点「继续验证」后 Nomi 会通过真实请求验证模型，通过的模型会出现在画布可用列表。',
+    // direct-key 供应商（凭据已验证并随之发布）：模型**此刻**就在可用列表里，
+    // 不能再说「等待验证 / 验证后才会出现」——2026-09-11 走查记的文案落后于行为。
+    publishedTitle: '{{name}} 已接入，预置模型可用',
+    publishedHint: '密钥已通过一次真实请求验证并加密保存，{{count}} 个预置模型现在就能在画布和 Agent 的模型列表里选到。要核对清单、加自定义模型或补充配置，点「继续验证」。',
     replaceKey: '更换密钥',
     unavailable: '暂时连不上 Nomi 后台，请重启应用后再试。',
     saveFailed: '保存失败：{{message}}',
@@ -1574,6 +1578,8 @@ export const enOnboardingProviders = {
     savedHint: 'The key is encrypted locally, but no model has passed a real production request yet. Continue verification; only verified models will appear in the available model list.',
     pendingTitle: '{{name}} key saved — verification pending',
     pendingHint: 'Your key is encrypted locally. Click "Continue verification" and Nomi will run a real request to confirm your models. Verified models appear in the canvas model list.',
+    publishedTitle: '{{name}} connected — preset models ready',
+    publishedHint: 'Your key passed a real request and is encrypted locally. All {{count}} preset models are already selectable on the canvas and in the agent model list. Click "Continue verification" to review the list, add custom models, or adjust the configuration.',
     replaceKey: 'Replace key',
     unavailable: 'The Nomi backend is unavailable. Restart the app and try again.',
     saveFailed: 'Could not save: {{message}}',
