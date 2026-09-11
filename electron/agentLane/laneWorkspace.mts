@@ -47,13 +47,15 @@ export async function openLaneWorkspace(
   const listeners = new Set<(projection: LaneWorkspaceProjection) => void>();
   let closed = false;
   let structuralPending = 0;
+  // 其中**换掉了这条对话**的那些（新建/切换/删除）。换模型不算：它开的还是同一条对话。
+  let laneChangePending = 0;
   let structure = Promise.resolve();
   let lanes: readonly LaneSummary[] = await readLanes();
   let selection = readLaneWorkspaceSelection(options.projectDir);
   const selected = lanes.find(lane => lane.laneName === selection?.laneName && lane.sessionId === selection.sessionId);
   const explicit = options.laneName === undefined ? undefined : lanes.find(lane => lane.laneName === options.laneName);
   if (options.laneName !== undefined && lanes.length && !explicit) {
-    throw new Error(`This project has no conversation named "${options.laneName}"`);
+    throw new Error('agent_lane_conversation_missing');
   }
   const initialLane = explicit?.laneName ?? selected?.laneName ?? lanes[0]?.laneName ?? options.laneName ?? DEFAULT_LANE;
   let active: LaneHandle = await openOne({ ...options, laneName: initialLane });
@@ -76,21 +78,49 @@ export async function openLaneWorkspace(
   }
 
   function assertOpen(): void {
-    if (closed) throw new Error('The agent workspace is closed.');
+    if (closed) throw new Error('agent_lane_disposed');
   }
 
-  function assertReady(): void {
+  /**
+   * 等这一轮结构性变化（换模型 / 切对话 / 新建 / 删除）落定。
+   *
+   * 2026-09-11 用户真机截图的落点就在这里：以前 `assertReady()` 在 `structuralPending > 0` 时
+   * **直接抛**，抛的还是一句英文散句，于是面板顶部糊出「The agent is opening a conversation.」。
+   * 而这个窗口一点都不窄——`switchTo` 要关掉 pi 会话再开一条（读盘 + 载入转录），几百毫秒到
+   * 几秒；用户在面板里挑完模型接着打字，正好撞在里面。
+   *
+   * 换模型这件事本身就是「我要用它发下一句」，所以正确的行为是**等它换完再发**，而不是让
+   * 用户对着一条红字把那句话重打一遍。逐次等：`structure` 没再被换掉就说明没有后续；
+   * 上限只防一条卡死的切换把命令永远挂住，真挂满了以 `agent_lane_opening` 收尾（有码可译）。
+   */
+  async function settleStructure(): Promise<void> {
+    for (let step = 0; structuralPending && !laneChangePending && step < 8; step += 1) {
+      const awaited = structure;
+      await awaited;
+      if (structure === awaited) break;
+    }
+  }
+
+  async function awaitReady(): Promise<void> {
     assertOpen();
-    if (structuralPending) throw new Error('The agent is opening a conversation. Try again after it opens.');
+    // 换对话（新建/切换/删除）**不等**：等完再执行，用户那句话就落进了另一条对话里。
+    // 它该以「对话已经换过了，重新发一次」收尾——这正是 `agent_lane_workspace_stale` 说的事。
+    if (laneChangePending) throw new Error('agent_lane_workspace_stale');
+    if (structuralPending) await settleStructure();
+    assertOpen();
+    if (laneChangePending) throw new Error('agent_lane_workspace_stale');
+    if (structuralPending) throw new Error('agent_lane_opening');
   }
 
   // Only resource changes hold this queue. Model turns, approvals and abort never
   // enter it; commands during replacement fail before touching the closing handle.
-  function changeStructure(change: () => Promise<void>): Promise<void> {
-    if (closed) return Promise.reject(new Error('The agent workspace is closed.'));
+  function changeStructure(change: () => Promise<void>, changesLane = false): Promise<void> {
+    if (closed) return Promise.reject(new Error('agent_lane_disposed'));
     structuralPending += 1;
+    if (changesLane) laneChangePending += 1;
     const next = structure.then(async () => { assertOpen(); await change(); }).finally(() => {
       structuralPending -= 1;
+      if (changesLane) laneChangePending -= 1;
       publish();
     });
     structure = next.catch(() => undefined);
@@ -144,7 +174,7 @@ export async function openLaneWorkspace(
       // 同名已存在 → 抛。「新建」悄悄变成「打开一条有历史的对话」是最坏的那种默认值：
       // 用户以为自己在一张白纸上开始，而模型看得见上一件事的全部上下文。
       if (lanes.some((lane) => lane.laneName === command.laneName)) {
-        throw new Error(`This project already has a conversation named "${command.laneName}"`);
+        throw new Error('agent_lane_conversation_exists');
       }
       await switchTo(command.laneName);
       lanes = await readLanes();
@@ -155,7 +185,7 @@ export async function openLaneWorkspace(
       // 不存在 → 抛，不静默新建：面板拿着一份过期列表点进一条已被删掉的对话时，
       // 静默新建会给他一条空白对话，而他以为那是自己昨天写的东西。
       if (!lanes.some((lane) => lane.laneName === command.laneName)) {
-        throw new Error(`This project has no conversation named "${command.laneName}"`);
+        throw new Error('agent_lane_conversation_missing');
       }
       await switchTo(command.laneName);
       lanes = await readLanes();
@@ -164,10 +194,10 @@ export async function openLaneWorkspace(
     // 删除。当前这条不许删——删完就没有活着的对话了，而「工作区没有 active」这个状态
     // 下游一个消费者都没有。产品上的正确姿势是先切走再删，面板照这条来。
     if (command.laneName === active.laneName) {
-      throw new Error('Switch to another conversation before deleting this one');
+      throw new Error('agent_lane_conversation_in_use');
     }
     if (!(await deleteLaneSession(options.projectDir, command.laneName, context))) {
-      throw new Error(`This project has no conversation named "${command.laneName}"`);
+      throw new Error('agent_lane_conversation_missing');
     }
     lanes = await readLanes();
   }
@@ -175,7 +205,7 @@ export async function openLaneWorkspace(
   let closing: Promise<void> | undefined;
   return {
     configureModel: (model) => changeStructure(async () => {
-      if (active.projection().running) throw new Error('Stop the current turn before changing its model.');
+      if (active.projection().running) throw new Error('agent_lane_busy_running');
       await switchTo(active.laneName, { ...options, model });
       lanes = await readLanes();
     }),
@@ -188,15 +218,15 @@ export async function openLaneWorkspace(
     },
     execute: async (command: LaneCommand, executionOptions): Promise<LaneCommandOutcome> => {
       if (command.kind === 'lane-select' || command.kind === 'lane-create' || command.kind === 'lane-delete') {
-        await changeStructure(() => handleLaneCommand(command));
+        await changeStructure(() => handleLaneCommand(command), true);
         return {};
       }
-      assertReady();
+      await awaitReady();
       const outcome = await active.execute(command, executionOptions);
       publish();
       return outcome;
     },
-    appendTaskNote: async (note) => { assertReady(); await active.appendTaskNote(note); },
+    appendTaskNote: async (note) => { await awaitReady(); await active.appendTaskNote(note); },
     refreshTasks: () => { if (!closed && !structuralPending) active.refreshTasks(); },
     close: () => {
       closed = true;

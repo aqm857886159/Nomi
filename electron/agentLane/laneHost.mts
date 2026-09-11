@@ -555,11 +555,11 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
         throw new Error(`A single agent lane cannot handle ${command.kind}; that command belongs to the workspace`);
       }
       if (command.kind === 'approval') {
-        if (!gate) throw new Error('This agent lane has no approval gate');
+        if (!gate) throw new Error('agent_lane_approval_missing');
         // 答的不是当前那张卡（用户点得慢、卡已经翻篇了）——**抛**，不静默吞掉。
         // 吞掉的后果是面板上那张卡一直转，而没有任何东西再来兑现它。
         if (!gate.answer(command.toolCallId, command.action, command.reason)) {
-          throw new Error(`No approval is waiting for tool call ${command.toolCallId}`);
+          throw new Error('agent_lane_approval_missing');
         }
         return {};
       }
