@@ -103,11 +103,6 @@ export type SpendConfirmRequest = {
   onBackToEdit?: () => void
   /** 明细行（节点 / 模型 / 预估），让用户一眼看懂谁要花钱、花在哪。 */
   details?: Array<{ label: string; value: string }>
-  /**
-   * 倒计时（毫秒）：设了即显进度条 + 「N 秒后自动忽略」，到点自动按「未确认」返回（不死等）。
-   * 给 MCP/agent 驱动的确认用——外部调用方那头在等，超时必须给个干净返回。
-   */
-  countdownMs?: number
   /** When anonymous hosting is required, this disclosure is rendered in the same spend card. */
   hostingDisclosure?: HostingDisclosure
 }
