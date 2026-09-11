@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { MCP_TOOL_NAMES } from './mcpProtocol'
 import { MCP_TOOL_RESOLVER, CANVAS_READ_METHOD, type McpToolDefinition } from './mcpToolCatalog'
-import { MCP_INTEGRATION_TOOL } from './mcpIntegrationTools'
+import { ONBOARDING_VERBS } from './modelOnboarding/declarations'
 
 // 面收敛（surface-16-collapse）等价锚 + P1 无并行版断言。
 // ① 退役：42 个旧 MCP name 同 commit 从目录删净（resolve→undefined、不在 tools/list、不在 MCP_TOOL_NAMES）。
@@ -15,7 +15,10 @@ const RETIRED_OLD_NAMES = [
   'nomi_cancel_generation', 'nomi_reconcile_generation', 'nomi_integration_begin', 'nomi_integration_open_credentials',
   'nomi_integration_discover', 'nomi_integration_select', 'nomi_integration_request_confirmation',
   'nomi_integration_submit_workflow', 'nomi_integration_resolve_input', 'nomi_integration_start', 'nomi_integration_get',
-  'nomi_integration_cancel', 'nomi_list_projects', 'nomi_create_project', 'nomi_list_models', 'nomi_read_canvas',
+  'nomi_integration_cancel', 'nomi_list_projects', 'nomi_create_project', 'nomi_read_canvas',
+  // 'nomi_list_models' 于 2026-09-11 复活为**接入设置的读门**（连接 / 模型 / 在途接入 + 未试跑角标），
+  // 与 nomi_read target=models（「现在能拿来生成的是哪些」，带 moduleId 与参考槽）职责不同、描述互指。
+  // 它不在退役表里，因为它现在是活的工具名，不是被收敛掉的旧 1→1 镜像。
   'nomi_add_nodes', 'nomi_connect_nodes', 'nomi_set_node_prompt', 'nomi_delete_nodes', 'nomi_start_playbook',
   'nomi_get_run', 'nomi_subscribe_run', 'nomi_get_artifact', 'nomi_read_artifact', 'nomi_request_script_revision',
   'nomi_request_storyboard_revision', 'nomi_review_artifact', 'nomi_materialize_storyboard', 'nomi_control_run',
@@ -27,7 +30,9 @@ const RETIRED_OLD_NAMES = [
 const COLLAPSED_TOOL_NAMES = [
   'nomi_session_open', 'nomi_read', 'nomi_canvas_edit', 'nomi_asset_import', 'nomi_operation_plan',
   'nomi_operation_preview', 'nomi_operation_gate', 'nomi_operation_execute', 'nomi_operation_control',
-  'nomi_run_start', 'nomi_run_control', 'nomi_artifact_review', 'nomi_run_gate', 'nomi_integration', 'nomi_integration_manage',
+  'nomi_run_start', 'nomi_run_control', 'nomi_artifact_review', 'nomi_run_gate',
+  // T14 · 接模型这条路（2026-09-11 重做）：4 个工具 = 4 种后果。
+  'nomi_list_models', 'nomi_await_setup', 'nomi_model_setup', 'nomi_remove_provider',
   'nomi_project_create',
 ]
 // M2 语义编辑（非本次 42→15 收敛的一员；此处只断言「原样保留、不被误删」）。并线裁定（2026-09-02）：
@@ -86,7 +91,7 @@ describe('MCP surface collapse 42→15 · P1 retirement', () => {
     // 阶段 5a：注解**全量派生**自契约的 effect/effectClass（`mcpAnnotationsFor`），不再是一张
     // 手写的 4 个适配器名单。名单漏掉的两个（document_read / layout_read）因此第一次带上
     // readOnlyHint —— 它们的契约本来就是 `effect:"read"`，漏标的后果是宿主对一次读也去问用户。
-    expect(readOnly).toEqual(['nomi_read', 'nomi_operation_preview', 'nomi_document_read', 'nomi_timeline_read', 'nomi_export_job', 'nomi_media_query', 'nomi_layout_read'])
+    expect(readOnly).toEqual(['nomi_read', 'nomi_operation_preview', 'nomi_list_models', 'nomi_await_setup', 'nomi_document_read', 'nomi_timeline_read', 'nomi_export_job', 'nomi_media_query', 'nomi_layout_read'])
   })
 })
 
@@ -125,9 +130,6 @@ describe('MCP surface collapse · equivalence-anchor mapping table', () => {
     // artifact_content (was nomi_read_artifact)
     expect(route('nomi_read', { target: 'artifact_content', projectId: P, runId: 'r-1', artifactId: 'a-1' }))
       .toEqual({ method: 'production.artifact.read', params: { projectId: P, runId: 'r-1', artifactId: 'a-1' } })
-    // integration (was nomi_integration_get)
-    expect(route('nomi_read', { target: 'integration', sessionId: 's-1' }))
-      .toEqual({ method: 'integration.get', params: { sessionId: 's-1' } })
   })
 
   it('T3 nomi_canvas_edit routes canvas writes through the semantic lease-scoped surface (no legacy catalog methods)', () => {
@@ -221,25 +223,29 @@ describe('MCP surface collapse · equivalence-anchor mapping table', () => {
       .toEqual({ method: 'production.storyboard.materialize', params: { projectId: P, runId: 'r-1', artifactId: 'a-1', expectedVersion: 3 } })
   })
 
-  it('T14 nomi_integration exposes only the 5 deterministic seams (get went to nomi_read)', () => {
-    expect(route('nomi_integration', { action: 'begin', kind: 'http-api-provider', name: 'X', baseUrl: 'https://x', authType: 'bearer', authHeader: 'Authorization' }))
-      .toEqual({ method: 'integration.begin', params: { kind: 'http-api-provider', name: 'X', baseUrl: 'https://x', authType: 'bearer', authHeader: 'Authorization' } })
-    expect(route('nomi_integration', { action: 'open_credentials', sessionId: 's', expectedRevision: 1 }))
-      .toEqual({ method: 'integration.open_credentials', params: { sessionId: 's', expectedRevision: 1 } })
-    expect(route('nomi_integration', { action: 'propose', sessionId: 's', expectedRevision: 1, proposal: { candidates: [{ modelKey: 'm', kind: 'text' }], selections: [{ modelKey: 'm' }] } }))
-      .toEqual({ method: 'integration.propose', params: { sessionId: 's', expectedRevision: 1, proposal: { candidates: [{ modelKey: 'm', kind: 'text' }], selections: [{ modelKey: 'm' }] } } })
-    // confirm → integration.request_confirmation ($ 付费两相之一)
-    expect(route('nomi_integration', { action: 'confirm', sessionId: 's', expectedRevision: 1, idempotencyKey: 'k' }))
-      .toEqual({ method: 'integration.request_confirmation', params: { sessionId: 's', expectedRevision: 1, idempotencyKey: 'k' } })
-    // start → integration.start ($ 付费两相之二，前置 receipt)
-    expect(route('nomi_integration', { action: 'start', sessionId: 's', expectedRevision: 1, idempotencyKey: 'k', receipt: 'rc' }))
-      .toEqual({ method: 'integration.start', params: { sessionId: 's', expectedRevision: 1, idempotencyKey: 'k', receipt: 'rc' } })
-    expect(route('nomi_integration', { action: 'cancel', sessionId: 's', expectedRevision: 1 }))
-      .toEqual({ method: 'integration.cancel', params: { sessionId: 's', expectedRevision: 1 } })
-    expect(route('nomi_integration_manage', { action: 'set_proxy', vendorKey: 'relay', enabled: true }))
-      .toEqual({ method: 'integration.manage.set_proxy', params: { action: 'set_proxy', vendorKey: 'relay', enabled: true } })
-    expect((MCP_INTEGRATION_TOOL.inputSchema as unknown as { properties: { action: { enum: string[] } } }).properties.action.enum)
-      .toEqual(['begin', 'open_credentials', 'propose', 'confirm', 'start', 'cancel'])
+  it('T14 接模型这条路是 4 个工具 = 4 种后果（读 / 等 / 可撤销六步 / 唯一不可逆）', () => {
+    // 一个工具 = 一种后果 = 动哪个状态 × 效果类别；同格合并用 action，跨格必拆。
+    expect(route('nomi_model_setup', { action: 'connect_provider', kind: 'http-api-provider', name: 'X', baseUrl: 'https://x', authType: 'bearer', authHeader: 'Authorization' }))
+      .toEqual({ method: 'modelSetup.connect_provider', params: { action: 'connect_provider', kind: 'http-api-provider', name: 'X', baseUrl: 'https://x', authType: 'bearer', authHeader: 'Authorization' } })
+    expect(route('nomi_model_setup', { action: 'choose_models', setupId: 's', models: [{ modelKey: 'm', kind: 'text' }] }))
+      .toEqual({ method: 'modelSetup.choose_models', params: { action: 'choose_models', setupId: 's', models: [{ modelKey: 'm', kind: 'text' }] } })
+    expect(route('nomi_model_setup', { action: 'check_connection', vendorKey: 'relay' }))
+      .toEqual({ method: 'modelSetup.check_connection', params: { action: 'check_connection', vendorKey: 'relay' } })
+    expect(route('nomi_model_setup', { action: 'show_models', vendorKey: 'relay', modelKeys: ['m'], visible: false }))
+      .toEqual({ method: 'modelSetup.show_models', params: { action: 'show_models', vendorKey: 'relay', modelKeys: ['m'], visible: false } })
+    expect(route('nomi_model_setup', { action: 'cancel', setupId: 's' }))
+      .toEqual({ method: 'modelSetup.cancel', params: { action: 'cancel', setupId: 's' } })
+    expect(route('nomi_await_setup', { setupId: 's' }))
+      .toEqual({ method: 'modelSetup.await', params: { action: 'nomi_await_setup', setupId: 's' } })
+    expect(route('nomi_remove_provider', { vendorKey: 'relay', ifUnchanged: 'fp_1' }))
+      .toEqual({ method: 'modelSetup.remove_provider', params: { action: 'nomi_remove_provider', vendorKey: 'relay', ifUnchanged: 'fp_1' } })
+
+    // 可撤销那一格里的 6 步全在一个工具上；不可逆那一步**不在**里面。
+    const setupActions = ONBOARDING_VERBS.filter((verb) => verb.tool === 'nomi_model_setup').map((verb) => verb.action)
+    expect(setupActions).toEqual(['connect_provider', 'choose_models', 'draft_adapter', 'check_connection', 'show_models', 'cancel'])
+    expect(setupActions).not.toContain('remove_provider')
+    // 花钱的动作一个都没有（09-11 拍板：自检免费）。
+    expect(ONBOARDING_VERBS.some((verb) => (verb.effect as string) === 'spend')).toBe(false)
   })
 
   it('T15 nomi_project_create ≡ nomi_create_project', () => {
