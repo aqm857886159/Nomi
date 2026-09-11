@@ -59,8 +59,6 @@ describe('document write handoff', () => {
     const state = useGenerationCanvasStore.getState()
     state.selectNode('n')
     state.clearSelection()
-    state.setCanvasTransform(2, { x: 5, y: 8 })
-    state.setCanvasZoom(1)
     state.setNodeStatus('n', 'running')
     state.setNodeProgress('n', undefined)
     state.dismissNodeError('n')

@@ -137,8 +137,6 @@ export type GenerationCanvasState = {
   pendingConnectionSourceId: string
   pendingConnectionSourceSide: ConnectionAnchorSide
   pendingConnectionSourceKind: ConnectionEndpointKind
-  canvasZoom: number
-  canvasOffset: { x: number; y: number }
   generationAiDraft: string
   generationAiMessages: WorkbenchAiMessage[]
   generationAiCollapsed: boolean
@@ -147,8 +145,6 @@ export type GenerationCanvasState = {
   hasClipboard: boolean
   markReady: () => void
   captureHistory: () => void
-  setCanvasTransform: (zoom: number, offset: { x: number; y: number }) => void
-  setCanvasZoom: (zoom: number) => void
   setGenerationAiDraft: (draft: string) => void
   setGenerationAiMessages: (messages: WorkbenchAiMessage[] | ((messages: WorkbenchAiMessage[]) => WorkbenchAiMessage[])) => void
   setGenerationAiCollapsed: (collapsed: boolean) => void
