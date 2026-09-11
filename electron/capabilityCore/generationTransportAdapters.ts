@@ -171,6 +171,19 @@ function trialFirst(value: unknown): boolean {
 const FULL_AUTO_POLICY_SURFACE = "agent-lane";
 
 /**
+ * 刚建好的这份草稿是哪一笔。`create` 的 id 由宿主生成、只在结果里（模型没法先知道它），
+ * `patch` 的在入参里。两处都读不到就抛——**不许拿一个猜出来的 id 去开付费门**。
+ */
+function draftedOperationId(drafted: unknown, args: Record<string, unknown>): string {
+  const operation = drafted && typeof drafted === "object" && !Array.isArray(drafted)
+    ? (drafted as { operation?: { operationId?: unknown } }).operation
+    : undefined;
+  const fromResult = operation && typeof operation.operationId === "string" ? operation.operationId.trim() : "";
+  if (fromResult) return fromResult;
+  return operationId(args);
+}
+
+/**
  * Build the adapter used by one Host partition. `leaseFor` is an internal
  * main-process identity bridge; the resulting lease never crosses the model
  * or renderer boundary.
@@ -210,12 +223,14 @@ export function createPiGenerationTransportAdapter(
   /**
    * 「全自动」档里那次**没有报价卡**的放行（2026-09-12 用户拍板）。
    *
-   * ── 为什么闸在 `preview` 之后 ──
+   * ── 为什么闸在草稿刚建好之后 ──
    *
-   * `preview` 是模型能走到的**最后一步**：它回的 `nextAction` 是 `request_gate`，而付费门
-   * 根本不在模型的工具表里（`paidBoundary.ts`「内部面不投影」）。换句话说，模型交完这一步就
-   * 把球传给了宿主——另外两档里宿主的回应是在介入槽里摆一张报价卡等用户点，
-   * 「全自动」档里宿主的回应就是**在同一个边界上自己决**。不是绕过闸，是同一道闸换了个决定者：
+   * 桌面 lane 上模型能走到的最后一步就是**建草稿**（`create`）或往草稿里塞几镜（`patch`）——
+   * 付费门根本不在它的工具表里（`paidBoundary.ts`「内部面不投影」），连 `preview` 都不在
+   * 这个宿主的 schema 里（`generationPlanSchemaForHost({ preview: false })`）。
+   * 草稿一建好，`projectPendingSpendConfirm` 就会把它投影成面板上那张报价卡——
+   * **那一刻就是用户点下去的那一刻**。另外两档里宿主的回应是在介入槽里摆一张卡等人点，
+   * 「全自动」档里宿主的回应就是在同一个边界上自己决。不是绕过闸，是同一道闸换了个决定者：
    * 封印照做、收据照铸照签、一次性消费照旧（`generationSpendDecision.ts` 那一条链）。
    *
    * ── 三个「不」──
@@ -223,14 +238,14 @@ export function createPiGenerationTransportAdapter(
    *   · **不新增预算**：这里没有任何金额判断。用户拍板的是「全自动 = 不再逐次问」，
    *     不是「¥X 以内不问」——设置里那条硬预算上限 2026-09-10 已经删掉，不许在这里长回来。
    *   · **不吞错**：决门失败就把错抛回去（`safeFailure` 会把它变成模型看得见的失败），
-   *     报价卡也还在原处等用户——**这不是兜底**，是「没决成，所以它仍然待决」的真实状态。
-   *   · **不猜档位**：`approvalPolicy` 缺席按默认档走，也就是照旧弹卡。
-   *
-   * `provider_configure` 那一档不决：供应商都没配好，封印只会立刻失败。
+   *     而草稿仍是草稿，报价卡照旧在原处等用户——**这不是兜底**，是「没决成，所以它仍然待决」
+   *     的真实状态。
+   *   · **不猜档位**：`approvalPolicy` 缺席按默认档走，也就是照旧弹卡。外部 MCP 宿主那条路
+   *     从来不传它，所以它们的确认语义一个字没变（那条路自己有 elicitation 与收据门）。
    */
-  const decideByPolicyAfterPreview = async (
+  const decideByPolicyAfterDraft = async (
     args: Record<string, unknown>,
-    preview: unknown,
+    drafted: unknown,
     currentLease: ProjectLeaseV2,
     signal: AbortSignal,
   ): Promise<unknown> => {
@@ -238,22 +253,18 @@ export function createPiGenerationTransportAdapter(
     if (!deps.requestGenerationGate || !deps.authorizeGeneration || !deps.approvalReceiptAuthority) {
       throw Object.assign(new Error("generation_approval_unavailable"), { code: "generation_approval_unavailable" });
     }
-    const nextAction = preview && typeof preview === "object" && !Array.isArray(preview)
-      ? (preview as { nextAction?: unknown }).nextAction
-      : undefined;
-    if (nextAction !== "request_gate") return undefined;
     const outcome = await abortable(decideGenerationSpend({
       requestGenerationGate: deps.requestGenerationGate,
       authorizeGeneration: deps.authorizeGeneration,
       planning: deps.planning,
       receipts: deps.approvalReceiptAuthority,
     }, {
-      operationId: operationId(args),
+      operationId: draftedOperationId(drafted, args),
       lease: currentLease,
       decision: { kind: "policy-full-auto", surface: FULL_AUTO_POLICY_SURFACE },
       actorId: FULL_AUTO_POLICY_SURFACE,
     }), signal);
-    return { preview, spendDecision: { decidedBy: outcome.decidedBy, receiptId: outcome.receiptId }, started: outcome.started };
+    return { drafted, spendDecision: { decidedBy: outcome.decidedBy, receiptId: outcome.receiptId }, started: outcome.started };
   };
 
   const reject = async (args: Record<string, unknown>, currentLease: ProjectLeaseV2, signal: AbortSignal): Promise<void> => {
@@ -343,8 +354,9 @@ export function createPiGenerationTransportAdapter(
         // here keeps malformed model calls out of the durable operation store.
         if (capability !== "context" && capability !== "create") operationId(args);
         const result = await plan(capability, args, currentLease, signal);
-        if (capability === "preview") {
-          const decided = await decideByPolicyAfterPreview(args, result, currentLease, signal);
+        // 草稿刚建好 = 报价卡该出现的那一刻。「全自动」档在这里替用户决门（见上）。
+        if (capability === "create" || capability === "plan") {
+          const decided = await decideByPolicyAfterDraft(args, result, currentLease, signal);
           if (decided) return { ok: true, result: decided };
         }
         return { ok: true, result, silent: capability === "context" || capability === "read" };
