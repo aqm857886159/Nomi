@@ -17,8 +17,8 @@ async function run() {
     first = spawnModelIntegrationMcp({ dirs, client: 'codex', signed: true })
     await first.initialize()
     const firstDraft = parseToolResult(
-      await first.callTool('nomi_integration', {
-        action: 'begin',
+      await first.callTool('nomi_model_setup', {
+        action: 'connect_provider',
         kind: 'http-api-provider',
         name: 'Packaged restart draft',
         baseUrl: 'https://example.invalid/v1',
@@ -33,8 +33,8 @@ async function run() {
     const sessionId = firstDraft.json.id
     const revision = firstDraft.json.revision
     const duplicate = parseToolResult(
-      await first.callTool('nomi_integration', {
-        action: 'begin',
+      await first.callTool('nomi_model_setup', {
+        action: 'connect_provider',
         kind: 'http-api-provider',
         name: 'Packaged restart draft',
         baseUrl: 'https://example.invalid/v1',

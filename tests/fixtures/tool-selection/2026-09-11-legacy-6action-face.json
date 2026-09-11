@@ -1,0 +1,253 @@
+{
+  "_comment": [
+    "阳性对照臂的量尺：2026-09-11 之前那个 6-action 接模型工具面的**冻结契约快照**。",
+    "",
+    "为什么要它（docs/lessons/race-repro-needs-positive-control）：新面测出 ≥90% 只有在",
+    "「同一把尺子量旧面得到 60–65%」时才说明问题。没有阳性对照的绿灯不作数——夹具自己坏了",
+    "也会给出好看的数字。",
+    "",
+    "它**只有 schema，没有运行时**：不接派发、不被生产代码 import，只被 loopback 的对照臂读。",
+    "所以它不是 P1 意义上的并行版（旧实现已在同 commit 删除），它是一把尺子。",
+    "",
+    "数字来源：docs/research/2026-09-11-mcp-onboarding-defects/prior-art.md §0",
+    "（Codex CLI 0.153.4 + 真实 DeepSeek key，9 回合 58 次调用，首次写对 36/58 = 62%）。",
+    "",
+    "这一臂怎么算「首次写对」：模型只看得到 advertisedRequired（旧面是 ['action'] —— 这正是缺陷本身），",
+    "于是它按 schema 写；运行时按 runtimeRequired 校验。差集里的字段分两类：",
+    "  · copyable  —— 上一跳的返回值里有，原样抄就行（sessionId、proposal、receipt）→ 模型抄得到，算写对",
+    "  · mustCompute —— 要模型自己算或自己铸（expectedRevision、idempotencyKey）→ 实测里它算不对，算写错",
+    "外加 unsupported：旧面上**根本没有**的动作（显示/隐藏、等待），模型只能拿别的动词凑 → 算写错。",
+    "这三类正是实测 22 次失败的三族（9 + 6 + 4 + 3 其他）。",
+    "",
+    "⚠️ 这一臂的司机是**确定性最坏情况**司机，不是 Codex 的复制品：它把每个「模型得自己算」的字段",
+    "一律记成写错。真实 Codex 有时候猜对了，所以实测是 62%，而这把尺子给旧面 ~28%。",
+    "两个数字都不许互相冒充：**28% 是本仓夹具对旧面的确定性读数**（harness 有没有分辨力），",
+    "**62% 是真实模型对旧面的读数**（PR 里的 ×3 司机臂拿它比）。",
+    "把区间调到 60–65% 去凑实测数 = 篡改量尺，不做。"
+  ],
+  "version": 1,
+  "generatedFor": "positive-control-arm",
+  "tools": {
+    "nomi_integration": {
+      "advertisedRequired": [
+        "action"
+      ],
+      "actions": {
+        "begin": {
+          "runtimeRequired": [
+            "kind",
+            "name",
+            "baseUrl"
+          ],
+          "classes": {
+            "kind": "copyable",
+            "name": "copyable",
+            "baseUrl": "copyable"
+          }
+        },
+        "open_credentials": {
+          "runtimeRequired": [
+            "sessionId",
+            "expectedRevision"
+          ],
+          "classes": {
+            "sessionId": "copyable",
+            "expectedRevision": "mustCompute"
+          }
+        },
+        "propose": {
+          "runtimeRequired": [
+            "sessionId",
+            "expectedRevision",
+            "proposal"
+          ],
+          "classes": {
+            "sessionId": "copyable",
+            "expectedRevision": "mustCompute",
+            "proposal": "copyable"
+          }
+        },
+        "confirm": {
+          "runtimeRequired": [
+            "sessionId",
+            "expectedRevision",
+            "idempotencyKey"
+          ],
+          "classes": {
+            "sessionId": "copyable",
+            "expectedRevision": "mustCompute",
+            "idempotencyKey": "mustCompute"
+          }
+        },
+        "start": {
+          "runtimeRequired": [
+            "sessionId",
+            "expectedRevision",
+            "idempotencyKey"
+          ],
+          "classes": {
+            "sessionId": "copyable",
+            "expectedRevision": "mustCompute",
+            "idempotencyKey": "mustCompute"
+          }
+        },
+        "cancel": {
+          "runtimeRequired": [
+            "sessionId",
+            "expectedRevision"
+          ],
+          "classes": {
+            "sessionId": "copyable",
+            "expectedRevision": "mustCompute"
+          }
+        }
+      }
+    },
+    "nomi_integration_manage": {
+      "advertisedRequired": [
+        "action",
+        "vendorKey"
+      ],
+      "actions": {
+        "update_vendor": {
+          "runtimeRequired": [
+            "vendorKey"
+          ],
+          "classes": {
+            "vendorKey": "copyable"
+          }
+        },
+        "delete_vendor": {
+          "runtimeRequired": [
+            "vendorKey"
+          ],
+          "classes": {
+            "vendorKey": "copyable"
+          }
+        },
+        "delete_model": {
+          "runtimeRequired": [
+            "vendorKey",
+            "modelKey"
+          ],
+          "classes": {
+            "vendorKey": "copyable",
+            "modelKey": "copyable"
+          }
+        },
+        "set_proxy": {
+          "runtimeRequired": [
+            "vendorKey",
+            "enabled"
+          ],
+          "classes": {
+            "vendorKey": "copyable",
+            "enabled": "copyable"
+          }
+        }
+      }
+    },
+    "nomi_read": {
+      "advertisedRequired": [
+        "target"
+      ],
+      "actions": {
+        "integration": {
+          "runtimeRequired": [
+            "target"
+          ],
+          "classes": {
+            "target": "copyable"
+          }
+        }
+      }
+    }
+  },
+  "newCallToLegacyHops": {
+    "_comment": [
+      "新面的一跳在旧面上要走几跳。少掉的那几跳正是「探端点 / 开 key 页 / 确认 / 开始」——",
+      "四件本来就不该是模型动作的事，以及旧面上根本没有的两件（等待、显示/隐藏）。"
+    ],
+    "nomi_list_models": [
+      {
+        "tool": "nomi_read",
+        "action": "integration"
+      }
+    ],
+    "nomi_await_setup": [
+      {
+        "tool": "nomi_integration",
+        "action": "confirm",
+        "unsupported": true,
+        "note": "旧面没有「等」的表达方式；实测里模型用重复 confirm 表达等待，而重签作废了人的点击"
+      }
+    ],
+    "nomi_model_setup:connect_provider": [
+      {
+        "tool": "nomi_integration",
+        "action": "begin"
+      },
+      {
+        "tool": "nomi_integration",
+        "action": "open_credentials"
+      },
+      {
+        "tool": "nomi_integration",
+        "action": "propose",
+        "note": "空 proposal 探端点：探测是后果不是动作，新面已删掉这一跳"
+      }
+    ],
+    "nomi_model_setup:choose_models": [
+      {
+        "tool": "nomi_integration",
+        "action": "propose"
+      }
+    ],
+    "nomi_model_setup:draft_adapter": [
+      {
+        "tool": "nomi_integration",
+        "action": "propose"
+      }
+    ],
+    "nomi_model_setup:check_connection": [
+      {
+        "tool": "nomi_integration",
+        "action": "confirm"
+      },
+      {
+        "tool": "nomi_integration",
+        "action": "start"
+      }
+    ],
+    "nomi_model_setup:show_models": [
+      {
+        "tool": "nomi_integration_manage",
+        "action": "delete_model",
+        "unsupported": true,
+        "note": "旧面上没有显示/隐藏，模型只能挑删除——群里问了四次的「模型太多怎么减少」就是这个"
+      }
+    ],
+    "nomi_model_setup:cancel": [
+      {
+        "tool": "nomi_integration",
+        "action": "cancel"
+      }
+    ],
+    "nomi_remove_provider": [
+      {
+        "tool": "nomi_integration_manage",
+        "action": "delete_vendor"
+      }
+    ]
+  },
+  "deterministicWorstCaseRate": {
+    "value": 0.281,
+    "tolerance": 0.03,
+    "note": "harness 分辨力基线：同一把尺子量旧面的确定性读数。它变高 = 尺子坏了。"
+  },
+  "observedRealModelRate": {
+    "value": 0.62,
+    "source": "docs/research/2026-09-11-mcp-onboarding-defects/prior-art.md §0",
+    "note": "真实 Codex CLI 0.153.4 对旧面的读数（36/58）。只与 PR 里的真实模型臂比，不与确定性臂比。"
+  }
+}

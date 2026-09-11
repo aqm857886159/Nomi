@@ -105,24 +105,20 @@ async function run() {
   let revision = 0
   try {
     await withMcp(dirs, runtime, async (mcp) => {
-      const begin = parseToolResult(await mcp.callTool('nomi_integration', {
-        action: 'begin',
+      // 2026-09-11 工具面重做：建连接 + 开安全页是**一跳**（要 key 是后果，不是动词）。
+      const begin = parseToolResult(await mcp.callTool('nomi_model_setup', {
+        action: 'connect_provider',
         kind: 'http-api-provider',
         name: 'Trusted audio journey',
         baseUrl: provider.baseUrl,
         providerKind: 'openai-compatible',
         authType: 'bearer',
-        clientRequestId: 'trusted-audio-j1',
       }))
-      assert(!begin.isError && begin.json?.stage === 'needs_credential', 'MCP creates an unverified audio session')
-      sessionId = begin.json.id
-      revision = begin.json.revision
-      const handoff = parseToolResult(await mcp.callTool('nomi_integration', {
-        action: 'open_credentials',
-        sessionId,
-        expectedRevision: revision,
-      }))
-      assert(!handoff.isError && handoff.json?.stage === 'needs_credential', 'MCP requests the credential handoff')
+      assert(!begin.isError, `MCP creates an unverified audio session: ${begin.text}`)
+      sessionId = begin.json?.setupId
+      assert(Boolean(sessionId), 'connect_provider returns a setup handle')
+      assert(begin.json?.nextAction?.kind === 'user_sees_key_page', 'the model is told the user must type a key, not to call another verb')
+      revision = 0
     })
 
     await withTrustedRenderer(dirs, async (win) => {
@@ -130,11 +126,13 @@ async function run() {
         const onboarding = window.nomiDesktop?.onboarding
         const current = await onboarding?.integrationSessionGet?.(id)
         const revision = Number(current?.revision)
+        if (!Number.isInteger(revision)) throw new Error(`trusted renderer could not read setup ${id}`)
         const result = await onboarding?.integrationSessionSaveCredential?.({
           sessionId: id,
           expectedRevision: revision,
           apiKey: 'isolated-fixture-key',
         })
+        if (result?.credentialStatus !== 'ready') throw new Error('trusted renderer did not store the credential')
         return result
       }, { id: sessionId })
       assert(saved?.credentialStatus === 'ready' && saved?.stage === 'draft', 'trusted renderer stores the credential')
@@ -142,102 +140,53 @@ async function run() {
     })
 
     await withMcp(dirs, runtime, async (mcp) => {
-      const current = parseToolResult(await mcp.callTool('nomi_read', { target: 'integration', sessionId }))
-      const proposed = parseToolResult(await mcp.callTool('nomi_integration', {
-        action: 'propose',
-        sessionId,
-        expectedRevision: current.json.revision,
-        proposal: {
-          candidates: [{ modelKey: 'tts-journey-audio', kind: 'audio', evidence: ['docs', 'manual'], classification: 'supported' }],
-          selections: [{ modelKey: 'tts-journey-audio' }],
-        },
+      // 模型入参里没有 expectedRevision：会话在上一段里被可信 UI 推进过，旧面在这里必然 stale。
+      const chosen = parseToolResult(await mcp.callTool('nomi_model_setup', {
+        action: 'choose_models',
+        setupId: sessionId,
+        models: [{ modelKey: 'tts-journey-audio', kind: 'audio' }],
       }))
-      assert(!proposed.isError && proposed.json?.stage === 'needs_spend_confirmation', `MCP accepts the audio proposal: ${proposed.text}`)
-      const requested = parseToolResult(await mcp.callTool('nomi_integration', {
-        action: 'confirm',
-        sessionId,
-        expectedRevision: proposed.json.revision,
-        idempotencyKey: 'trusted-audio-certification',
-      }))
-      assert(!requested.isError && requested.json?.challengeId, 'MCP requests a signed immutable confirmation challenge')
-    })
+      assert(!chosen.isError && chosen.json?.changeId, `MCP accepts the audio selection without a revision: ${chosen.text}`)
 
-    await withTrustedRenderer(dirs, async (win) => {
-      const confirmed = await win.evaluate(async ({ id }) => {
-        const onboarding = window.nomiDesktop?.onboarding
-        const handoffs = await onboarding?.integrationHandoffList?.() || []
-        const verification = handoffs.find((item) => item.sessionId === id && item.target === 'verification')
-        if (!verification?.display?.challengeId) throw new Error('verification handoff missing')
-        const current = await onboarding?.integrationSessionGet?.(id)
-        const result = await onboarding?.integrationSessionConfirm?.({
-          sessionId: id,
-          expectedRevision: Number(current?.revision),
-          challengeId: verification.display.challengeId,
-        })
-        await onboarding?.integrationHandoffAck?.(verification.requestId)
-        return result
-      }, { id: sessionId })
-      assert(confirmed?.pendingReceiptId && confirmed?.stage === 'needs_spend_confirmation', 'trusted UI mints an opaque receipt')
-      assertNoCredentialMaterial(confirmed, 'trusted confirmation projection')
-    })
-
-    await withMcp(dirs, runtime, async (mcp) => {
-      const confirmed = parseToolResult(await mcp.callTool('nomi_read', { target: 'integration', sessionId }))
-      assert(confirmed.json?.pendingReceiptId, 'MCP observes only the opaque receipt handle')
-      let state = parseToolResult(await mcp.callTool('nomi_integration', {
-        action: 'start',
-        sessionId,
-        expectedRevision: confirmed.json.revision,
-        idempotencyKey: 'trusted-audio-certification',
-        receipt: confirmed.json.pendingReceiptId,
+      // 免费自检。它证明地址通、key 被收下、模型 id 在对方清单里——**不出片**。
+      const checked = parseToolResult(await mcp.callTool('nomi_model_setup', {
+        action: 'check_connection',
+        setupId: sessionId,
       }, 60_000))
+      assert(!checked.isError, `free self-check runs: ${checked.text}`)
       assert(
-        !state.isError && (state.json?.stage === 'certifying' || state.json?.stage === 'completed'),
-        `certification starts without a false terminal failure: ${state.text}`,
+        (checked.json?.blastRadius?.outboundRequests || []).every((request) => request.billable === false),
+        'every outbound request on this path is declared free',
       )
-      const deadline = Date.now() + 30_000
-      while (state.json?.stage === 'certifying' && Date.now() < deadline) {
-        await new Promise((resolve) => setTimeout(resolve, 100))
-        state = parseToolResult(await mcp.callTool('nomi_read', { target: 'integration', sessionId }))
-      }
-      let adapterEvidence = null
-      try {
-        const stored = JSON.parse(fs.readFileSync(path.join(dirs.settingsDir, 'provider-adapters.json'), 'utf8'))
-        const run = stored.runs?.find((item) => item.id === state.json?.childRunRef?.runId)
-        adapterEvidence = run
-          ? {
-              stage: run.stage,
-              error: run.error,
-              models: run.models?.map((model) => ({
-                modelKey: model.modelKey,
-                modes: model.modes?.map((mode) => ({
-                  taskKind: mode.taskKind,
-                  state: mode.state,
-                  stage: mode.stage,
-                  error: mode.error,
-                  reasonCode: mode.reasonCode,
-                  errorParams: mode.errorParams,
-                })),
-              })),
-            }
-          : null
-      } catch {
-        adapterEvidence = null
-      }
       assert(
-        state.json?.stage === 'completed',
-        `audio certification completes: ${state.text}; adapter=${JSON.stringify(adapterEvidence)}; requests=${JSON.stringify(provider.requests)}; stderr=${JSON.stringify(mcp.stderr())}`,
+        (checked.json?.unverified || []).some((entry) => entry.claim === 'model_produces_output'),
+        'a passing self-check still says nothing has been generated yet',
       )
-      const models = parseToolResult(await mcp.callTool('nomi_read', { target: 'models' }))
-      const promoted = models.outcome?.models?.find((item) => item.modelKey === 'tts-journey-audio')
-        || models.json?.models?.find((item) => item.modelKey === 'tts-journey-audio')
-      assert(promoted?.kind === 'audio' && promoted?.keyStatus === 'ok', 'promoted audio model appears in the ordinary usable picker contract')
-      assertNoCredentialMaterial({ state: state.json, promoted }, 'completed MCP journey')
+
+      // 发布：自检过不过都发布，出现时带「未试跑」。
+      const shown = parseToolResult(await mcp.callTool('nomi_model_setup', {
+        action: 'show_models',
+        vendorKey: checked.json?.vendorKey,
+        modelKeys: ['tts-journey-audio'],
+        visible: true,
+      }))
+      assert(!shown.isError && shown.json?.blastRadius?.modelsAppearing === 1, `show_models publishes the model: ${shown.text}`)
+
+      const listed = parseToolResult(await mcp.callTool('nomi_list_models', { vendorKey: checked.json?.vendorKey }))
+      const row = (listed.json?.state?.connections || [])
+        .flatMap((connection) => connection.models || [])
+        .find((model) => model.modelKey === 'tts-journey-audio')
+      if (!row) throw new Error(`nomi_list_models never reported the onboarded model: ${listed.text}`)
+      assert(row?.visibleInPicker === true, 'the chosen model is in the canvas picker')
+      // 「已试跑」只有用户自己在画布上跑过一次才成立；自检永远点不亮它。
+      assert(row?.tried === false, 'the model is published but labelled not yet tried')
+      assertNoCredentialMaterial({ listed: listed.json, row }, 'completed MCP journey')
     })
 
+    // 09-11 拍板的可证伪形式：接模型这条路上**一次生成都不发**。第一次真跑是用户自己点的。
     const audioCreates = provider.requests.filter((item) => item.method === 'POST' && item.path === '/v1/audio/speech')
-    assert(audioCreates.length === 1, 'canonical certification creates exactly one audio request')
-    console.log('MODEL INTEGRATION TRUSTED AUDIO PASS: MCP -> trusted renderer -> certification -> ordinary model list')
+    assert(audioCreates.length === 0, 'onboarding never spends: no audio generation request is sent at any point')
+    console.log('MODEL INTEGRATION TRUSTED AUDIO PASS: MCP -> trusted renderer -> free self-check -> published as not-yet-tried')
   } finally {
     await provider.close().catch(() => undefined)
     fs.rmSync(dirs.tempRoot, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 })

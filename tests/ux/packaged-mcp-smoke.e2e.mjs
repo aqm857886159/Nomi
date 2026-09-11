@@ -141,31 +141,26 @@ async function smokeClient(client, { signed = true } = {}) {
       }
       // Same write requests as the signed path must reject with the typed code.
       const begin = await rpc('tools/call', {
-        name: 'nomi_integration',
+        name: 'nomi_model_setup',
         arguments: {
-          action: 'begin',
+          action: 'connect_provider',
           kind: 'http-api-provider',
           name: 'Unsigned generic host',
           baseUrl: 'https://example.invalid/v1',
         },
       })
-      assert(begin.error?.code === -32001 && begin.error?.data?.code === 'mcp_connection_unauthenticated', `${client} unsigned integration.begin is rejected`)
-      const openCredentials = await rpc('tools/call', {
-        name: 'nomi_integration',
-        arguments: { action: 'open_credentials', sessionId: 'unsigned-session', expectedRevision: 1 },
+      assert(begin.error?.code === -32001 && begin.error?.data?.code === 'mcp_connection_unauthenticated', `${client} unsigned connect_provider is rejected`)
+      // 不可逆那一格单独再试一次：删除是这条路上唯一删得掉东西的动作，边界必须对它也关着。
+      const removal = await rpc('tools/call', {
+        name: 'nomi_remove_provider',
+        arguments: { vendorKey: 'unsigned-vendor', ifUnchanged: 'fp_unsigned' },
       })
-      assert(openCredentials.error?.code === -32001 && openCredentials.error?.data?.code === 'mcp_connection_unauthenticated', `${client} unsigned credential handoff is rejected`)
-      const start = await rpc('tools/call', {
-        name: 'nomi_integration',
-        arguments: {
-          action: 'start',
-          sessionId: 'unsigned-session',
-          expectedRevision: 1,
-          idempotencyKey: 'unsigned-start',
-          receipt: 'unsigned-receipt',
-        },
+      assert(removal.error?.code === -32001 && removal.error?.data?.code === 'mcp_connection_unauthenticated', `${client} unsigned provider removal is rejected`)
+      const checked = await rpc('tools/call', {
+        name: 'nomi_model_setup',
+        arguments: { action: 'check_connection', vendorKey: 'unsigned-vendor' },
       })
-      assert(start.error?.code === -32001 && start.error?.data?.code === 'mcp_connection_unauthenticated', `${client} unsigned certification start is rejected`)
+      assert(checked.error?.code === -32001 && checked.error?.data?.code === 'mcp_connection_unauthenticated', `${client} unsigned self-check is rejected`)
       return { tools: 0, resources: 0, body: 0, origin: 'external' }
     }
     assert(initialized.result?.serverInfo?.name === 'nomi-capability-core', `${client} initialize handshake`)
@@ -201,9 +196,9 @@ async function smokeClient(client, { signed = true } = {}) {
     // provider request. The companion unsigned branch above proves that the
     // exact same write boundary remains closed to an unsigned generic host.
     const integrationBegin = await rpc('tools/call', {
-      name: 'nomi_integration',
+      name: 'nomi_model_setup',
       arguments: {
-        action: 'begin',
+        action: 'connect_provider',
         kind: 'http-api-provider',
         name: `Packaged MCP integration draft - ${client}`,
         baseUrl: 'https://example.invalid/v1',
