@@ -18,6 +18,7 @@ import { getDesktopBridge } from '../../desktop/bridge'
 import { notify } from '../notificationPolicy'
 import { resolvePrecheckGateAction } from './precheckGate'
 import { translateModelDisplayText } from '../../i18n/modelDisplayText'
+import { copyToClipboard } from '../../design'
 
 type Preset = {
   key: string; labelZh: string; descZh: string; workflowText: string; binding: unknown
@@ -167,7 +168,7 @@ export function ComfyuiPresetSection({ vendorKey, modelLabels, onImported, onVer
                         type="button"
                         aria-label={t('onboardingProviders.comfyPreset.copyName', { name: m.file })}
                         title={t('onboardingProviders.comfyPreset.copyNameShort')}
-                        onClick={() => { report(preset.key, ''); void navigator.clipboard.writeText(m.file).then(() => report(preset.key, t('onboardingProviders.comfyPreset.copied'))).catch((error: unknown) => report(preset.key, error instanceof Error ? error.message : String(error))) }}
+                        onClick={() => { report(preset.key, ''); void copyToClipboard(m.file).then((ok) => report(preset.key, t(ok ? 'onboardingProviders.comfyPreset.copied' : 'common.copyFailed'))) }}
                         className="grid size-6 shrink-0 place-items-center rounded-nomi-sm text-nomi-ink-30 hover:bg-nomi-ink-05 hover:text-nomi-ink-60"
                       >
                         <IconCopy size={13} stroke={1.7} />

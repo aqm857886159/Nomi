@@ -1,7 +1,7 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconArrowLeft, IconBrandGithub, IconCamera, IconCheck, IconCopy, IconExternalLink, IconMessage, IconWorld } from '@tabler/icons-react'
-import { DesignButton, DesignTextarea } from '../../design'
+import { DesignButton, DesignTextarea, useClipboardCopy } from '../../design'
 import { getDesktopBridge } from '../../desktop/bridge'
 import { buildFeedbackDiagnostics, type FeedbackDiagnostics } from './feedbackDiagnostics'
 import { buildGitHubIssueUrl, buildPrivateFeedbackUrl, buildShareMessage, NOMI_COMMUNITY_LINKS, PRIVATE_FEEDBACK_URL } from './communityLinks'
@@ -84,8 +84,10 @@ export function FeedbackShareContent({
   const [appInfo, setAppInfo] = React.useState<{ version?: string; platform?: string; arch?: string } | null>(null)
   const [diagnostics, setDiagnostics] = React.useState<FeedbackDiagnostics | null>(null)
   const [outboxItem, setOutboxItem] = React.useState<FeedbackOutboxItem | null>(null)
-  const [copied, setCopied] = React.useState(false)
-  const [shareCopied, setShareCopied] = React.useState(false)
+  const summaryClipboard = useClipboardCopy()
+  const shareClipboard = useClipboardCopy()
+  const copied = summaryClipboard.copied
+  const shareCopied = shareClipboard.copied
   const [validationMessage, setValidationMessage] = React.useState('')
 
   // 请求变化时重置到对应起点（失败卡带 intent/stage → 直达表单；否则落 home）。
@@ -98,8 +100,8 @@ export function FeedbackShareContent({
     setDetails('')
     setDiagnostics(null)
     setOutboxItem(null)
-    setCopied(false)
-    setShareCopied(false)
+    summaryClipboard.reset()
+    shareClipboard.reset()
     setValidationMessage('')
     let active = true
     void getDesktopBridge()?.update?.appInfo().then((info) => {
@@ -147,28 +149,18 @@ export function FeedbackShareContent({
     const text = [draft.summary, draft.details, `Nomi ${nextDiagnostics.app.version} · ${nextDiagnostics.app.platform} · ${nextDiagnostics.app.arch}`]
       .filter(Boolean)
       .join('\n')
-    try {
-      await navigator.clipboard.writeText(text)
-      setCopied(true)
-      window.setTimeout(() => setCopied(false), 1400)
-    } catch {
-      // Clipboard permissions are optional; the draft remains in the local outbox.
-    }
-  }, [buildDiagnostics, diagnostics, draft.details, draft.summary])
+    // 剪贴板权限是可选的；写不进去时草稿仍在本地发件箱里，所以这里只亮回执、不拦流程。
+    await summaryClipboard.copy(text)
+  }, [buildDiagnostics, diagnostics, draft.details, draft.summary, summaryClipboard])
 
   // 「一段可直接转发的话」：中文/英文推荐语 + 链接，一键复制（问题 #2 的正解）。
   // 用户原诉求是「发给朋友给的是网站链接」——分享给朋友要的是能直接粘进聊天框的一段话，
   // 不是让他自己去凑一句推荐词。文案在 communityLinks.buildShareMessage 里，随界面语言走。
   const shareMessage = React.useMemo(() => buildShareMessage(t('community.shareMessage')), [t])
   const handleShareCopy = React.useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(shareMessage)
-      setShareCopied(true)
-      window.setTimeout(() => setShareCopied(false), 1600)
-    } catch {
-      // Clipboard permissions are optional; the message stays visible for manual copy.
-    }
-  }, [shareMessage])
+    // 写不进去时消息本身仍显示着，用户可以手抄。
+    await shareClipboard.copy(shareMessage)
+  }, [shareClipboard, shareMessage])
 
   return (
     <div data-feedback-share-content data-feedback-page={page}>
