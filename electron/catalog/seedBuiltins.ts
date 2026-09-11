@@ -61,7 +61,7 @@ import { MODELSCOPE_VENDOR_SEED } from "./modelscopeVendor";
 import { MODELSCOPE_IMAGE_MODELS, MODELSCOPE_IMAGE_QUERY, MODELSCOPE_IMAGE_STATUS } from "./modelscopeImages";
 import { MODELSCOPE_TEXT_MODELS } from "./modelscopeTexts";
 import { VOLCENGINE_VENDOR_SEED, VOLCENGINE_SPEECH_VENDOR_SEED } from "./volcengineVendor";
-import { BUILTIN_VENDOR_SEEDS, type VendorSeed } from "./builtinVendorSeeds";
+import { BUILTIN_VENDOR_SEEDS, builtinVendorSeed, type VendorSeed } from "./builtinVendorSeeds";
 import { DREAMINA_VENDOR_SEED } from "./dreaminaVendor";
 import { DREAMINA_CURATED_MODELS, DREAMINA_CURATED_MAPPINGS } from "./dreaminaVideos";
 import { DREAMINA_IMAGE_CURATED_MODELS, DREAMINA_IMAGE_CURATED_MAPPINGS } from "./dreaminaImages";
@@ -305,6 +305,39 @@ const RUNWAY_CURATED_MODELS = officialCuratedModels(RUNWAY_OFFICIAL_MODELS);
 const RUNWAY_CURATED_MAPPINGS = officialCuratedMappings(RUNWAY_OFFICIAL_MODELS);
 
 /**
+ * **curated 执行契约登记表 —— 单一真相源**（2026-09-10）。
+ *
+ * 在此之前，「这家有哪些代码拥有的模型 / mapping」以**两份手抄清单**的形式存在
+ * （applyBuiltinSeeds 里 18 行 reconcileModels + 18 行 reconcileMappings），
+ * 而「这家能不能凭 key 发布」是第三份、写死成 `vendorKey !== apimart` 的白名单。
+ * 三份描述同一件事就一定会漂：新接一家只加了播种那两行，发布判据不认它，
+ * 于是「填了 key 模型却全消失」——2026-09-10 用户反馈的正是这个（18 家里 17 家中招）。
+ *
+ * 收成这一张表之后：播种走它，发布判据也走它，加一家只加一行，判据自动跟上（P1）。
+ * 表的顺序 = 原播种顺序，装机行为逐字不变。
+ */
+const CURATED_VENDOR_CONTRACTS: readonly { vendorKey: string; models: CuratedModel[]; mappings: CuratedMapping[] }[] = [
+  { vendorKey: KIE_VENDOR_SEED.key, models: KIE_CURATED_MODELS, mappings: KIE_CURATED_MAPPINGS },
+  { vendorKey: APIMART_VENDOR_SEED.key, models: APIMART_CURATED_MODELS, mappings: APIMART_CURATED_MAPPINGS },
+  { vendorKey: AGNES_VENDOR_SEED.key, models: AGNES_CURATED_MODELS, mappings: AGNES_CURATED_MAPPINGS },
+  { vendorKey: MODELSCOPE_VENDOR_SEED.key, models: MODELSCOPE_CURATED_MODELS, mappings: MODELSCOPE_CURATED_MAPPINGS },
+  { vendorKey: VOLCENGINE_VENDOR_SEED.key, models: VOLCENGINE_CURATED_MODELS, mappings: VOLCENGINE_CURATED_MAPPINGS },
+  { vendorKey: VOLCENGINE_SPEECH_VENDOR_SEED.key, models: VOLCENGINE_SPEECH_CURATED_MODELS, mappings: VOLCENGINE_SPEECH_CURATED_MAPPINGS },
+  { vendorKey: DREAMINA_VENDOR_SEED.key, models: DREAMINA_CURATED_MODELS, mappings: DREAMINA_CURATED_MAPPINGS },
+  { vendorKey: DREAMINA_VENDOR_SEED.key, models: DREAMINA_IMAGE_CURATED_MODELS, mappings: DREAMINA_IMAGE_CURATED_MAPPINGS },
+  { vendorKey: RUNNINGHUB_VENDOR_SEED.key, models: RUNNINGHUB_3D_CURATED_MODELS, mappings: RUNNINGHUB_3D_CURATED_MAPPINGS },
+  { vendorKey: RUNNINGHUB_VENDOR_SEED.key, models: RUNNINGHUB_VIDEO_CURATED_MODELS, mappings: RUNNINGHUB_VIDEO_CURATED_MAPPINGS },
+  { vendorKey: RUNNINGHUB_VENDOR_SEED.key, models: RUNNINGHUB_IMAGE_CURATED_MODELS, mappings: RUNNINGHUB_IMAGE_CURATED_MAPPINGS },
+  { vendorKey: COMFYUI_VENDOR_SEED.key, models: COMFYUI_CURATED_MODELS, mappings: COMFYUI_CURATED_MAPPINGS },
+  { vendorKey: CODEX_LOCAL_VENDOR_SEED.key, models: CODEX_IMAGE_CURATED_MODELS, mappings: CODEX_IMAGE_CURATED_MAPPINGS },
+  { vendorKey: MINIMAX_VENDOR_SEED.key, models: MINIMAX_OFFICIAL_CURATED_MODELS, mappings: MINIMAX_OFFICIAL_CURATED_MAPPINGS },
+  { vendorKey: ELEVENLABS_VENDOR_SEED.key, models: ELEVENLABS_CURATED_MODELS, mappings: ELEVENLABS_CURATED_MAPPINGS },
+  { vendorKey: MESHY_VENDOR_SEED.key, models: MESHY_CURATED_MODELS, mappings: MESHY_CURATED_MAPPINGS },
+  { vendorKey: FAL_VENDOR_SEED.key, models: FAL_CURATED_MODELS, mappings: FAL_CURATED_MAPPINGS },
+  { vendorKey: RUNWAY_VENDOR_SEED.key, models: RUNWAY_CURATED_MODELS, mappings: RUNWAY_CURATED_MAPPINGS },
+];
+
+/**
  * **退役的 curated 记录（变体合并迁移，2026-06-16）**：Seedance 一族原是 4 个独立 catalog 行
  * （标准/fast/face/fast-face），合并成 1 行后，老装机里残留 3 个变体模型 + 6 条 mapping 成孤儿
  * （reconcile 只 insert/update 不删）→ picker 仍显示 4 项。这里**精确按我们当初种的 seed id / modelKey**
@@ -520,24 +553,9 @@ export function applyBuiltinSeeds(state: CatalogState, now: string): { state: Ca
   if (pruneRetiredModels(models, KIE_VENDOR_SEED.key, RETIRED_KIE_VIDEO_MODEL_KEYS)) changed = true;
 
   // 模型 insert + 对账（两家各跑同一套逻辑）。
-  if (reconcileModels(models, KIE_VENDOR_SEED.key, KIE_CURATED_MODELS, now, state.suppressedBuiltinModels)) changed = true;
-  if (reconcileModels(models, APIMART_VENDOR_SEED.key, APIMART_CURATED_MODELS, now, state.suppressedBuiltinModels)) changed = true;
-  if (reconcileModels(models, AGNES_VENDOR_SEED.key, AGNES_CURATED_MODELS, now, state.suppressedBuiltinModels)) changed = true;
-  if (reconcileModels(models, MODELSCOPE_VENDOR_SEED.key, MODELSCOPE_CURATED_MODELS, now, state.suppressedBuiltinModels)) changed = true;
-  if (reconcileModels(models, VOLCENGINE_VENDOR_SEED.key, VOLCENGINE_CURATED_MODELS, now, state.suppressedBuiltinModels)) changed = true;
-  if (reconcileModels(models, VOLCENGINE_SPEECH_VENDOR_SEED.key, VOLCENGINE_SPEECH_CURATED_MODELS, now, state.suppressedBuiltinModels)) changed = true;
-  if (reconcileModels(models, DREAMINA_VENDOR_SEED.key, DREAMINA_CURATED_MODELS, now, state.suppressedBuiltinModels)) changed = true;
-  if (reconcileModels(models, DREAMINA_VENDOR_SEED.key, DREAMINA_IMAGE_CURATED_MODELS, now, state.suppressedBuiltinModels)) changed = true;
-  if (reconcileModels(models, RUNNINGHUB_VENDOR_SEED.key, RUNNINGHUB_3D_CURATED_MODELS, now, state.suppressedBuiltinModels)) changed = true;
-  if (reconcileModels(models, RUNNINGHUB_VENDOR_SEED.key, RUNNINGHUB_VIDEO_CURATED_MODELS, now, state.suppressedBuiltinModels)) changed = true;
-  if (reconcileModels(models, RUNNINGHUB_VENDOR_SEED.key, RUNNINGHUB_IMAGE_CURATED_MODELS, now, state.suppressedBuiltinModels)) changed = true;
-  if (reconcileModels(models, COMFYUI_VENDOR_SEED.key, COMFYUI_CURATED_MODELS, now, state.suppressedBuiltinModels)) changed = true;
-  if (reconcileModels(models, CODEX_LOCAL_VENDOR_SEED.key, CODEX_IMAGE_CURATED_MODELS, now, state.suppressedBuiltinModels)) changed = true;
-  if (reconcileModels(models, MINIMAX_VENDOR_SEED.key, MINIMAX_OFFICIAL_CURATED_MODELS, now, state.suppressedBuiltinModels)) changed = true;
-  if (reconcileModels(models, ELEVENLABS_VENDOR_SEED.key, ELEVENLABS_CURATED_MODELS, now, state.suppressedBuiltinModels)) changed = true;
-  if (reconcileModels(models, MESHY_VENDOR_SEED.key, MESHY_CURATED_MODELS, now, state.suppressedBuiltinModels)) changed = true;
-  if (reconcileModels(models, FAL_VENDOR_SEED.key, FAL_CURATED_MODELS, now, state.suppressedBuiltinModels)) changed = true;
-  if (reconcileModels(models, RUNWAY_VENDOR_SEED.key, RUNWAY_CURATED_MODELS, now, state.suppressedBuiltinModels)) changed = true;
+  for (const contract of CURATED_VENDOR_CONTRACTS) {
+    if (reconcileModels(models, contract.vendorKey, contract.models, now, state.suppressedBuiltinModels)) changed = true;
+  }
 
   // kie 历史包袱 repair：把视频形状的坏 (kie, text_to_image) 替换成正确的 GPT Image 2 文生图契约
   // （旧 onboarding 抽错留下的；契约见 kieGptImage2.ts 直连实测确认）。apimart 无此历史，不需要。
@@ -556,40 +574,36 @@ export function applyBuiltinSeeds(state: CatalogState, now: string): { state: Ca
   }
 
   // mapping insert + 对账（两家各跑同一套逻辑）。
-  if (reconcileMappings(mappings, KIE_VENDOR_SEED.key, KIE_CURATED_MAPPINGS, now)) changed = true;
-  if (reconcileMappings(mappings, APIMART_VENDOR_SEED.key, APIMART_CURATED_MAPPINGS, now)) changed = true;
-  if (reconcileMappings(mappings, AGNES_VENDOR_SEED.key, AGNES_CURATED_MAPPINGS, now)) changed = true;
-  if (reconcileMappings(mappings, MODELSCOPE_VENDOR_SEED.key, MODELSCOPE_CURATED_MAPPINGS, now)) changed = true;
-  if (reconcileMappings(mappings, VOLCENGINE_VENDOR_SEED.key, VOLCENGINE_CURATED_MAPPINGS, now)) changed = true;
-  if (reconcileMappings(mappings, VOLCENGINE_SPEECH_VENDOR_SEED.key, VOLCENGINE_SPEECH_CURATED_MAPPINGS, now)) changed = true;
-  if (reconcileMappings(mappings, DREAMINA_VENDOR_SEED.key, DREAMINA_CURATED_MAPPINGS, now)) changed = true;
-  if (reconcileMappings(mappings, DREAMINA_VENDOR_SEED.key, DREAMINA_IMAGE_CURATED_MAPPINGS, now)) changed = true;
-  if (reconcileMappings(mappings, RUNNINGHUB_VENDOR_SEED.key, RUNNINGHUB_3D_CURATED_MAPPINGS, now)) changed = true;
-  if (reconcileMappings(mappings, RUNNINGHUB_VENDOR_SEED.key, RUNNINGHUB_VIDEO_CURATED_MAPPINGS, now)) changed = true;
-  if (reconcileMappings(mappings, RUNNINGHUB_VENDOR_SEED.key, RUNNINGHUB_IMAGE_CURATED_MAPPINGS, now)) changed = true;
-  if (reconcileMappings(mappings, COMFYUI_VENDOR_SEED.key, COMFYUI_CURATED_MAPPINGS, now)) changed = true;
-  if (reconcileMappings(mappings, CODEX_LOCAL_VENDOR_SEED.key, CODEX_IMAGE_CURATED_MAPPINGS, now)) changed = true;
-  if (reconcileMappings(mappings, MINIMAX_VENDOR_SEED.key, MINIMAX_OFFICIAL_CURATED_MAPPINGS, now)) changed = true;
-  if (reconcileMappings(mappings, ELEVENLABS_VENDOR_SEED.key, ELEVENLABS_CURATED_MAPPINGS, now)) changed = true;
-  if (reconcileMappings(mappings, MESHY_VENDOR_SEED.key, MESHY_CURATED_MAPPINGS, now)) changed = true;
-  if (reconcileMappings(mappings, FAL_VENDOR_SEED.key, FAL_CURATED_MAPPINGS, now)) changed = true;
-  if (reconcileMappings(mappings, RUNWAY_VENDOR_SEED.key, RUNWAY_CURATED_MAPPINGS, now)) changed = true;
+  for (const contract of CURATED_VENDOR_CONTRACTS) {
+    if (reconcileMappings(mappings, contract.vendorKey, contract.mappings, now)) changed = true;
+  }
 
   if (!changed) return { state, changed: false };
   return { state: { ...state, vendors, models, mappings }, changed: true };
 }
 
 /**
- * Verify that a direct-key vendor still points at a code-owned curated
- * execution contract.  Renderer-created/edited rows are intentionally not
- * enough: an enabled adapter-less mapping would otherwise look "published"
- * to the legacy publication helper.  This check is used at the credential and
- * provider boundaries, so a later catalog edit fails closed as well.
+ * 这家在当前 catalog 里，是否仍指向**代码拥有的**执行契约。
+ *
+ * 判据用在凭据发布与 provider 两个边界上，所以后来的一次 catalog 编辑（改了 create/query、
+ * 删了 mapping、被认证适配器接管）都会让它 fail-closed。渲染层自己建/改出来的行故意不算数：
+ * 一条启用但无 adapter 的 mapping 否则会对旧发布助手装成「已发布」。
+ *
+ * 2026-09-10：判据从 `vendorKey !== apimart` 的硬编码白名单改为**登记表驱动**
+ * （CURATED_VENDOR_CONTRACTS）。旧写法让 18 家里的另外 17 家永远返回 false，于是它们填完 key
+ * 就被 de-publish 且再也回不来——用户反馈「写入 key 没有像以前一样一次性打开所有模型」的类根因。
+ * 见 docs/fixes/2026-09-10-vendor-key-publish-class.root-cause.json。
  */
 export function hasBuiltinCuratedExecution(state: CatalogState, vendorKey: string): boolean {
-  if (vendorKey !== APIMART_VENDOR_SEED.key) return false;
-  const curatedModelByKey = new Map(APIMART_CURATED_MODELS.map((model) => [model.modelKey, model] as const));
-  const curatedMappingsById = new Map(APIMART_CURATED_MAPPINGS.map((mapping) => [mapping.id, mapping] as const));
+  const seed = builtinVendorSeed(vendorKey);
+  if (!seed) return false;
+  // 执行契约住在主进程专用路径（多输出的 Replicate 元素拆解）——它没有 mapping，但同样是
+  // 代码拥有且实测固化的契约。为它编一条没人消费的 mapping 才是不诚实的那条路。
+  if (seed.bespokeExecution) return true;
+  const contracts = CURATED_VENDOR_CONTRACTS.filter((contract) => contract.vendorKey === vendorKey);
+  if (contracts.length === 0) return false;
+  const curatedModelByKey = new Map(contracts.flatMap((contract) => contract.models).map((model) => [model.modelKey, model] as const));
+  const curatedMappingsById = new Map(contracts.flatMap((contract) => contract.mappings).map((mapping) => [mapping.id, mapping] as const));
   const models = state.models.filter((model) => model.vendorKey === vendorKey && model.enabled);
   for (const model of models) {
     const curated = curatedModelByKey.get(model.modelKey);
@@ -603,6 +617,8 @@ export function hasBuiltinCuratedExecution(state: CatalogState, vendorKey: strin
     // This predicate gates the media GenerationProvider. Text models are
     // consumed by the separate language-model path and must not make a
     // catalog with all image/video mappings removed look generation-ready.
+    // 现役 curated 家全都至少出一个媒体模型，所以这里不为「只出文本的家」预留分支：
+    // 真出现那么一家时，装配期不变量 (b) 会当场红，由那次改动的作者显式决定怎么算（P1：不写投机路径）。
     if (model.kind === "text") continue;
     // For media models, require exactly one intact code-owned mapping
     // (duplicate IDs are ambiguous and fail closed).
