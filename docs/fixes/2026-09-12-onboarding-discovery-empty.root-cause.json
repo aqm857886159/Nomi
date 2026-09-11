@@ -1,0 +1,89 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-12-onboarding-discovery-empty",
+  "problem_type": "credential-ready discovery omission",
+  "symptom": "await_setup returned stage draft and empty candidates after key save",
+  "direct_cause": "credential IPC persisted ready state but never invoked shared HTTP discovery",
+  "class_root": "credential persistence must immediately project authoritative provider candidates",
+  "affected_population": [
+    "HTTP provider onboarding via Nomi UI"
+  ],
+  "scope_paths": [
+    "electron/integrationCertification/integrationSessionIpc.ts"
+  ],
+  "entry_points": [
+    "nomi:integration-session:credential"
+  ],
+  "internal_only_reason": "Internal lifecycle invariant; provider list probing already exists in HttpProviderConnector.",
+  "invariants": [
+    "A saved HTTP credential is followed by one authoritative discovery projection."
+  ],
+  "generality_proof": "The IPC credential boundary is the shared Nomi UI credential write and routes through IntegrationSessionService.propose, the same discovery implementation used by MCP propose.",
+  "shared_boundaries": [
+    {
+      "path": "electron/integrationCertification/integrationSessionIpc.ts",
+      "symbol": "nomi:integration-session:credential",
+      "responsibility": "Persist credential then invoke shared discovery."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/integrationCertification/integrationSessionIpc.ts",
+      "entry_point": "nomi:integration-session:credential",
+      "disposition": "enforced",
+      "evidence": "UI credential save now calls propose with empty proposal."
+    },
+    {
+      "path": "electron/integrationCertification/integrationSession.ts",
+      "entry_point": "propose",
+      "disposition": "enforced",
+      "evidence": "MCP and UI converge on discoverAndPersistHttpCandidates."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "Any UI key save previously left draft state until a separate propose call.",
+    "same_class_scan": [
+      "rg saveCredential across integrationCertification",
+      "rg discoverAndPersistHttpCandidates across integrationCertification"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/integrationCertification/integrationSessionIpc.ts",
+    "invariant": "HTTP credential save immediately invokes shared discovery.",
+    "failure_mode": "Discovery errors surface to caller; empty provider responses remain explicit model_discovery_empty.",
+    "exception_policy": "none",
+    "strategy": "Converge UI credential completion with the existing MCP discovery path.",
+    "artifacts": [
+      "electron/integrationCertification/integrationSessionIpc.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/integrationCertification/integrationSession.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/integrationCertification/integrationSession.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "No legacy persisted format."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No dependency controls lifecycle.",
+    "exit_criteria": []
+  },
+  "migration": "No migration; existing draft sessions discover on next propose.",
+  "residual_risks": [
+    "Real provider availability can change independently of the discovery contract."
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/integrationCertification/integrationSessionIpc.ts",
+    "tests": [
+      "electron/integrationCertification/integrationSession.test.ts"
+    ],
+    "why": "Credential IPC is the earliest shared UI write boundary and delegates to the tested session discovery implementation."
+  }
+}
