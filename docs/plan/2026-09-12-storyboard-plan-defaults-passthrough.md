@@ -15,7 +15,13 @@
 
 ---
 
-## 1. 先查别人
+## 先查别人
+
+> 报告全文：[docs/research/2026-09-12-storyboard-plan-defaults-passthrough/prior-art.md](../research/2026-09-12-storyboard-plan-defaults-passthrough/prior-art.md)
+> （四问：依赖 / 仓库 / 生态 / TikHub 自媒体；自媒体原文 30 条落在同目录 `tikhub/tikhub-search.md`）
+>
+> 一句话结论：**两段作用域这个模型仓库里早有、生态里也早有，缺的是它的第二个读者——给请求体用的 resolver。**
+> 所以本轮不新造「默认值合并器」（并行版，P1），只给现役 owner 补导出口。
 
 | 来源 | 它已经说了什么 | 本轮怎么用它 |
 |---|---|---|
@@ -24,6 +30,10 @@
 | `docs/plan/2026-09-09-storyboard-single-truth-*`（分镜/画布单一真相，方案 B：方案正本 + 逐字段覆写） | 确立 `overriddenFields` 那条"画布上手改过的字段归画布"的规则，`storyboardOverrides.ts` 是它的 owner | 本轮不动它：行覆盖 / 画布覆写是**第三段**作用域，resolver 产出的是前两段的合并值，`projectShotNode` 末尾照旧让画布覆写最后落笔 |
 | `src/config/modelArchetypes/gptImage2.ts:11-13` 的铁律注释 | 档案层声明**中性 canonical 参数**，各站线缆字段名/值格式的差异由 codec 的 `paramMap` 翻译 | 解释了为什么 canonical 键是 `aspect_ratio`，也解释了 §6 那条遗留：一部分档案的画幅能力天生长成 `size`（像素档），不是命名漂移 |
 | `src/workbench/generationCanvas/nodes/aspectRatio.ts:12` `ASPECT_RATIO_KEYS` / `controls/parameterControlModel.ts:113` `ASPECT_RATIO_ALIASES` | 仓库里早有"哪个键表示画幅"的 owner | §6 遗留项的落点就在这两处之一，本轮不新造第三份 |
+| `node_modules/@xyflow/react/dist/esm/index.js:1874-1876` / `types/component-props.d.ts:40-49`（React Flow `defaultEdgeOptions`） | 框架的默认值是**创建时盖章**：`onConnect` 那一刻把默认展开进新 edge，之后与默认再无关系；只有 `:1538` 的 `selectable ?? true` 是读时问默认 | **刻意不抄盖章那一半**——整片画幅是会被用户随时改的，盖章等于把同一个值抄进 95% 的行（v6 §2.4.1 拆掉的正是它）。盖章语义只留给第三段（画布覆写） |
+| `node_modules/zod/v3/types.js:1984` / `:2053`（`unknownKeys: "strip"` 是 `z.object` 的默认） | 未声明的键**按契约被静默剥掉**——这不是 bug | 定性了 §2.1 第 1 条：修法是把 `planKey` 逐个声明进 schema（并由门岗判据 1 保证），**不是**给 schema 加 `.passthrough()` |
+| CSS 层叠与继承（<https://www.w3.org/TR/css-cascade/>） | 继承值不抄进每个元素，而是在**计算值**阶段沿树求出来；元素自己写了声明才叫覆盖 | 本轮优先级链就是一条 cascade；「键缺席」≡「没有这条声明」，而不是「显式 auto」。也是 §4.1「清冗余值是对的」的理论依据 |
+| TikHub 自媒体 30 条（`docs/research/2026-09-12-storyboard-plan-defaults-passthrough/tikhub/tikhub-search.md`）：抖音「AI视频比例翻车」<https://www.douyin.com/video/7646282377853772392>、小红书把画幅写进提示词 <https://www.xiaohongshu.com/explore/6a922cb4000000002501d6f6> | 「设了比例、出来不是那个比例」是这群人的通用体验；真实绕行是**不信任那个参数、改用提示词去求** | 支持 §6 的诚实交付：接不住的模型要在界面**说出来**，而不是默默替用户把值塞进 prompt |
 
 ---
 

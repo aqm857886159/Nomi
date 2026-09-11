@@ -30,7 +30,10 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
 import { createAgentRuntimeFixture, FIXTURE_IMAGE_MODEL } from './agent-runtime-fixture.mjs'
-import { clickOrFail, expect, expectVisible, screenshotSettled } from './_assert.mjs'
+import { DEFAULT_TIMEOUT_MS, clickOrFail, expect, expectVisible, screenshotSettled } from './_assert.mjs'
+// 等待上限一律从 `_station-budget.mjs` 派生（R18/check:test-waits）：本文件不写任何硬闹钟数字，
+// 「一次本地操作 15s、一条要过 runner 的链 2×15s」是全仓共用的那一把尺子，改预算只改那一处。
+import { stationTimeout } from './_station-budget.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-film-aspect-'))
@@ -149,13 +152,13 @@ try {
   // ── 1. 起点：整片画幅还没定（批量条显「按模型默认」）──
   const aspectMarker = win.locator('[data-storyboard-aspect-default]')
   await expect(aspectMarker, '批量条上没有整片画幅挂点')
-    .toHaveAttribute('data-storyboard-aspect-default', 'model-default', { timeout: 15_000 })
+    .toHaveAttribute('data-storyboard-aspect-default', 'model-default', { timeout: DEFAULT_TIMEOUT_MS })
   await snap('01-before-film-aspect.png')
 
   // ── 2. 真人手势：在「全部镜头」批量条上把整片画幅设成 9:16 ──
   await pickFromSelect('全部镜头的画幅', '9:16', '整片画幅')
   await expect(aspectMarker, '选完 9:16 后批量条没有把整片默认换过去')
-    .toHaveAttribute('data-storyboard-aspect-default', '9:16', { timeout: 5000 })
+    .toHaveAttribute('data-storyboard-aspect-default', '9:16', { timeout: DEFAULT_TIMEOUT_MS })
   // 每一行都只是"继承"——一行覆盖胶囊都不该冒出来（继承是读时算的，不是抄进每一行）。
   const overrideChips = await win.locator('[data-storyboard-aspect-override]').count()
   if (overrideChips !== 0) failures.push(`整片改画幅后不该出现行覆盖胶囊，实为 ${overrideChips} 枚`)
@@ -167,11 +170,14 @@ try {
   await expectVisible(spendDialog(), '行内生成没有弹花钱确认卡（执行通路断了）')
   await snap('03-spend-confirm.png')
   await clickOrFail(spendDialog().getByRole('button', { name: '生成', exact: true }), '确认生成（fixture 零额度）')
+  // 确认之后要过 materialize → 花钱回执 → runner → loopback 供应商，算两次操作的安全网（安全网不是完成条件：
+  // 判绿的仍是下面那两条断言本身）。
   await expect
-    .poll(() => fixture.images.length, { timeout: 30_000, message: '确认后 loopback 供应商一次图片请求都没收到' })
+    .poll(() => fixture.images.length,
+      { timeout: stationTimeout({ operations: 2 }), message: '确认后 loopback 供应商一次图片请求都没收到' })
     .toBe(1)
   await expect(win.locator('[data-storyboard-row="1"] [data-storyboard-frame]'), '镜 1 没有进入 done')
-    .toHaveAttribute('data-storyboard-frame', 'done', { timeout: 30_000 })
+    .toHaveAttribute('data-storyboard-frame', 'done', { timeout: stationTimeout({ operations: 2 }) })
   await snap('04-generated.png')
 
   // ── 4. 验收点：**出站报文**带着整片画幅（显示 ≡ 请求）──
