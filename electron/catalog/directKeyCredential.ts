@@ -1,4 +1,4 @@
-// direct-key 凭据的验证与发布 —— 2026-09-10 走查反馈回归修复。
+// 内置供应商凭据的验证与发布 —— 2026-09-10 走查反馈回归修复（第二刀：从 apimart 一家扩到整类）。
 //
 // 根因（docs/plan/2026-09-10-ux-feedback-triage.md §5）：direct-key 供应商（apimart）
 // 的设计契约是「填 key 即解锁全部预置模型」，但两道门把它拦死：
@@ -14,12 +14,17 @@
 //     max_tokens:1，与每周雷达 scripts/model-liveness.ts 同一声明、同一成功判据）。
 //     401/403 → key 无效（throw）；探测成功 → verified；网络/上游其它失败 → pending
 //     （诚实：不假装可用，也不把网络抖动误报成 key 错误）。
-//   ② 发布 = verified 后把凭据写 enabled:true 并把 vendor 行重新 enable（direct-key
-//     的「认证」就是代码拥有的契约本身：scope 匹配 + 无认证占用 + curated 执行契约
-//     还在，三者缺一就不 promote，供应商改过 baseUrl/契约漂移照样 fail-closed）。
+//   ② 发布 = 凭据落盘后把 vendor 行重新 enable（内置家的「认证」就是代码拥有的契约本身：
+//     scope 匹配 + 无认证占用 + curated 执行契约还在，三者缺一就不发布，供应商改过
+//     baseUrl / 契约漂移照样 fail-closed）。
+//
+// 2026-09-10 第二刀：以上两条原来只对 apimart 生效（发布判据写死 vendorKey、验证判据写死
+// /v1/models），另外 17 家内置供应商填 key 后整家下架且重启不自愈。现在两条判据都由**种子声明**
+// 派生：`credentialValidationStrategy` 决定怎么验，`hasBuiltinCuratedExecution`（登记表驱动）
+// 决定能不能发布。见 docs/plan/2026-09-10-vendor-key-publish-class.md。
 
 import { mutateCatalog, readCatalog } from './catalogStore'
-import { builtinVendorSeed, builtinVendorScopeMatches, isBuiltinDirectKeyVendor } from './builtinVendorSeeds'
+import { builtinVendorSeed, builtinVendorScopeMatches } from './builtinVendorSeeds'
 import { hasBuiltinCuratedExecution } from './seedBuiltins'
 import { buildHttpRequest, appendQueryParams } from '../ai/requestPipeline'
 import { readNestedRecord } from '../jsonUtils'
@@ -80,13 +85,18 @@ function hasCertificationOwnedAdapter(state: Parameters<typeof hasBuiltinCurated
 }
 
 /**
- * Re-enable the vendor row for a verified direct-key credential. Guards are
- * the same triple the runtime bootstrap checks (scope match / no certification
- * adapter / curated execution contract intact) — promotion only happens when
- * the transport still points at the code-owned contract.
+ * 把这家内置供应商重新置为已发布（凭据存下来之后调用）。
+ *
+ * 守卫仍是 bootstrap 检查的同一组三条（scope 匹配 / 无认证适配器接管 / 代码拥有的执行契约完好），
+ * 缺一就不发布——供应商改过 baseUrl、契约漂移、被认证接管，照样 fail-closed。
+ *
+ * 2026-09-10：去掉 `isBuiltinDirectKeyVendor` 前置。发布该由**种子声明的契约**决定，
+ * 不该由 vendor 名的白名单决定：18 家内置里只有 apimart 是 direct-key，于是另外 17 家
+ * 填完 key 就整家下架且重启不自愈（seedVendor 存在即跳过）。判据换成登记表之后，
+ * 「新接一家忘了改发布判据」这一族在装配期就没有了。
  */
-export function promoteDirectKeyVendor(vendorKey: string): void {
-  if (!isBuiltinDirectKeyVendor(vendorKey)) return
+export function publishBuiltinCuratedVendor(vendorKey: string): void {
+  if (!builtinVendorSeed(vendorKey)) return
   mutateCatalog((_tx, current) => {
     const vendor = current.vendors.find((item) => item.key === vendorKey)
     if (!vendor || vendor.enabled) return

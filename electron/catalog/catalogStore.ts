@@ -467,7 +467,7 @@ function applyApiKeyUpsert(state: CatalogState, vendorKey: string, payload: unkn
     ...(existing?.customConfig ? { customConfig: existing.customConfig } : {}),
   };
   if (!enabled) invalidateVendorValidation(state, key);
-  if (!enabled || state.apiKeysByVendor[key].verificationPending) depublishVendorForDisabledCredential(state, key, t);
+  if (!enabled) depublishVendorForDisabledCredential(state, key, t);
 }
 export function upsertModelCatalogVendorApiKey(vendorKey: string, payload: unknown): unknown {
   const state = readCatalog();

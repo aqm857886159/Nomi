@@ -3,8 +3,8 @@ import type { CatalogState, Model } from './types'
 import { derivePublishedExecution, modelHasPublishedExecution } from '../shared/modelPublication'
 
 import { validateCandidateCredential, candidateCredentialSnapshot } from './validateCandidateCredential'
-import { isBuiltinDirectKeyVendor } from './builtinVendorSeeds'
-import { promoteDirectKeyVendor } from './directKeyCredential'
+import { credentialValidationStrategy } from './builtinVendorSeeds'
+import { publishBuiltinCuratedVendor } from './directKeyCredential'
 import { desktopT } from '../i18n'
 
 type Json = Record<string, unknown>
@@ -140,16 +140,20 @@ export async function upsertRendererCatalogVendorApiKey(vendorKey: string, paylo
   const snapshot = candidateCredentialSnapshot(vendorKey)
   const verificationPending = await validateCandidateCredential(vendor, String(candidate.apiKey || '').trim())
   if (snapshot !== candidateCredentialSnapshot(vendorKey)) throw new Error(desktopT('credential.changed'))
-  // direct-key：verified → 凭据 enabled:true + vendor 重新发布；pending（网络/上游抖动）
+  // 内置家：验证通过 → 凭据 enabled:true + vendor 重新发布；探测型的 pending（网络/上游抖动）
   // → 诚实保持停用 + verificationPending，首用前 revalidatePendingCredential 再转正。
-  // 渲染层传来的 enabled 永远不算数（恒 false），启用与否只由这里的验证结果决定。
-  const directKeyVerified = isBuiltinDirectKeyVendor(vendorKey) && !verificationPending
+  // `first-use` 那一类没有可信的预检可跑，validateCandidateCredential 直接判「不 pending」，照常发布。
+  // 自定义 / 中转供应商（无内置种子）行为完全不变：仍由认证晋升决定发布。
+  // 渲染层传来的 enabled 永远不算数（恒 false，manualCertificationBoundary.test.ts 锁着），
+  // 启用与否只由这里的主进程验证结果决定。
+  const strategy = credentialValidationStrategy(vendorKey)
+  const publishNow = Boolean(strategy) && !verificationPending
   const result = upsertModelCatalogVendorApiKey(vendorKey, {
     ...candidate,
     ...(verificationPending ? { verificationPending: true } : {}),
-    ...(directKeyVerified ? { enabled: true } : {}),
+    ...(publishNow ? { enabled: true } : {}),
   })
-  if (directKeyVerified) promoteDirectKeyVendor(vendorKey)
+  if (publishNow) publishBuiltinCuratedVendor(vendorKey)
   return result
 }
 
