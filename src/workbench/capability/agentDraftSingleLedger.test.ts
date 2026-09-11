@@ -7,6 +7,13 @@
 // 这里钉的是**渲染半**：落地报文带上候选身份后，节点必须以候选为准；同 op 重放必须幂等。
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+// 落盘 owner 用 spy 换掉：这条不变量要证的是「真写了画布就当场落盘」，不是落盘本身怎么写。
+const { persistNowSpy } = vi.hoisted(() => ({ persistNowSpy: vi.fn(async () => null) }))
+vi.mock('../project/workbenchProjectSession', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../project/workbenchProjectSession')>()),
+  persistActiveWorkbenchProjectNow: persistNowSpy,
+}))
+
 vi.mock('../generationCanvas/agent/availableModels', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../generationCanvas/agent/availableModels')>()),
   listAvailableModelsForAgent: vi.fn(async () => [
@@ -56,6 +63,7 @@ function landedNodes() {
 describe('agent draft lands on the canvas as one ledger', () => {
   beforeEach(() => {
     resetClientIdRegistry()
+    persistNowSpy.mockClear()
     useGenerationCanvasStore.getState().restoreSnapshot({ nodes: [], edges: [], groups: [] })
   })
 
@@ -130,6 +138,34 @@ describe('agent draft lands on the canvas as one ledger', () => {
       })
     }
     expect(landedNodes()).toHaveLength(1)
+  })
+
+  // 落地会让 project.revision 前进，而付费授权信封盖的就是 project.revision。交给 700ms 防抖 = 这次前进
+  // 可能落在「封信封」与「用户点确认」之间，把用户的批准作废成「此确认已失效」（2026-09-10 CI 的 C9 红）。
+  // 所以真写了画布就当场落盘；幂等空跑绝不落盘，否则每次重开项目补齐都白推高一次 revision。
+  it('真写了画布 → 当场落盘（不交给防抖），revision 在 materializeShots 返回时已经定了', async () => {
+    await materializeShots({
+      materializationOperationId: OPERATION_ID,
+      runId: 'run-draft-1',
+      shots: [draftShot(1, '一只猫在窗台上')],
+    })
+    expect(persistNowSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('幂等空跑（同 revision 重放）：一个字没写，就不落盘', async () => {
+    await materializeShots({
+      materializationOperationId: OPERATION_ID,
+      runId: 'run-draft-1',
+      shots: [draftShot(1, '一只猫在窗台上')],
+    })
+    persistNowSpy.mockClear()
+
+    await materializeShots({
+      materializationOperationId: OPERATION_ID,
+      runId: 'run-draft-1',
+      shots: [draftShot(1, '一只猫在窗台上')],
+    })
+    expect(persistNowSpy).not.toHaveBeenCalled()
   })
 
   it('候选的模型此刻不可用：保留 agent 的意图戳，不悄悄换成别的模型', async () => {

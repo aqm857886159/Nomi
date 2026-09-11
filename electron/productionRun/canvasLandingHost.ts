@@ -28,10 +28,32 @@ export type CanvasLandingHost = {
   landCanvasBestEffort: (projectId: string, runId: string, isCurrent?: () => boolean) => Promise<boolean>;
   /** 草稿账本的投影钩子：agent 一建/一改草稿就投影一次。永不 await（落地不得阻断草稿命令）。 */
   landDraftOnCanvas: (projectId: string, runId: string) => void;
+  /**
+   * 等这个项目上**Nomi 自己发起的**落地全部结束（永不抛；没有在飞的立即返回）。
+   *
+   * 为什么需要它：落地会写画布 → 项目落盘 → `project.revision` 前进，而付费授权信封盖的正是
+   * `project.revision`（收据只在它描述的那份项目文档还是当前版本时有效，见
+   * `capabilityCore/approvalReceiptRuntime.ts`）。草稿落地是 fire-and-forget，于是这次前进可能落在
+   * 「封信封」与「用户点确认」之间——用户的批准被 Nomi 自己的投影作废，报「此确认已失效」。
+   * 所以封信封前必须等自家在飞的投影落完。**用户自己改项目**仍然作废收据，那是 #722 要的语义，不动。
+   */
+  settleCanvasLanding: (projectId: string) => Promise<void>;
 };
 
 export function createCanvasLandingHost(deps: CanvasLandingHostDeps): CanvasLandingHost {
-  const landCanvasBestEffort = async (projectId: string, runId: string, isCurrent?: () => boolean): Promise<boolean> => {
+  // 每个项目一份「在飞的落地」聚合承诺。三个落地时机都登记（都会写项目文档），
+  // settleCanvasLanding 只等它，不改任何一条链的执行顺序。
+  const inFlightByProject = new Map<string, Promise<void>>();
+  const track = (projectId: string, work: Promise<unknown>): void => {
+    const entry = work.then(() => undefined, () => undefined);
+    const previous = inFlightByProject.get(projectId);
+    const merged = previous ? Promise.all([previous, entry]).then(() => undefined) : entry;
+    inFlightByProject.set(projectId, merged);
+    void merged.then(() => {
+      if (inFlightByProject.get(projectId) === merged) inFlightByProject.delete(projectId);
+    });
+  };
+  const runLanding = async (projectId: string, runId: string, isCurrent?: () => boolean): Promise<boolean> => {
     if (isCurrent && !isCurrent()) return false;
     let run: ProductionRun | null | undefined;
     try {
@@ -57,11 +79,25 @@ export function createCanvasLandingHost(deps: CanvasLandingHostDeps): CanvasLand
       },
     });
   };
+  const landCanvasBestEffort = (projectId: string, runId: string, isCurrent?: () => boolean): Promise<boolean> => {
+    const work = runLanding(projectId, runId, isCurrent);
+    track(projectId, work);
+    return work;
+  };
   return {
     landCanvasBestEffort,
     landDraftOnCanvas: (projectId, runId) => {
       if (!deps.isProjectOpen(projectId)) return;
       void landCanvasBestEffort(projectId, runId);
+    },
+    settleCanvasLanding: async (projectId) => {
+      // 等待期间可能又追加了一段（agent 连着改草稿）：等到这条链真的空掉为止。
+      let pending = inFlightByProject.get(projectId);
+      while (pending) {
+        await pending;
+        const next = inFlightByProject.get(projectId);
+        pending = next === pending ? undefined : next;
+      }
     },
   };
 }

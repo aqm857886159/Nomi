@@ -39,9 +39,48 @@ Agent 说「草稿已建」，用户却在画布上什么都看不到——因�
 
 - `electron/productionRun/productionRunApprovalReceipt.ts`；`productionRunService.ts` 的 set_trust /
   decide 段；`electron/harness/context/agentContext.ts`（另一个工人在改）。
-- 付费闸、授权信封、seal/approve 的任何判据——本方案只碰**草稿期**与**落地投影**，不碰钱。
+- 付费闸、授权信封、seal/approve 的任何**判据**——本方案只碰**草稿期**与**落地投影**，不碰钱。
+  **2026-09-10 修正**：判据确实一个字没改，但「不碰钱」的假设错了——见下面「与 #722 的相互作用」。
 - `landCanvasForRun` 的 best-effort 铁律：落地失败只记 warn，绝不阻断生成。
 - 分镜方案（storyboard）那条落地路径的语义；它只跟着 ⑥ 的去重下沉走。
+
+## 与 #722 的相互作用（2026-09-10 CI 的 C9 红，事后补记）
+
+`#722` 让付费收据 **fail-closed**：收据只在它描述的那份项目文档还是当前版本时有效，判据就是
+`project.revision`。而本方案的「建草稿即落画布」是 **fire-and-forget** 的项目文档写：
+落地 → 渲染层建节点 → 700ms 防抖后落盘 → `project.revision` 前进。
+
+于是这次前进可能落在「封授权信封」与「用户点确认」之间：**用户点了确认，却被告知「此确认已失效」**
+（`receipt_invalid: projectRevision does not match the current scope`）。两个 PR 各自绿，合起来红。
+这不是测试的问题——它是真实用户会撞上的形状：agent 建完草稿，用户点确认付费，被驳回。
+
+根因不是判据太严，是 **Nomi 自己的投影写没有被排序**。两条闸，都在「写必须有序」这一族：
+
+1. 落地真写了画布 → **当场落盘**（复用 `canonicalCanvasPlanPatch` 用的同一个
+   `persistActiveWorkbenchProjectNow`，P1 一个 owner），不交给防抖；幂等空跑不落盘。
+2. 封信封前 → **等自家在飞的落地落完**（`canvasLandingHost.settleCanvasLanding`）。
+
+**用户自己**改项目照样作废收据——那正是 #722 要的语义，一个字没动。
+
+## 与「封存」的相互作用（2026-09-11 CI 的 C9 红，同一条根因链的下一段）
+
+上面那两条闸让 C9 的重新确认过了，走查往下跑了一段，露出**下一段**：Run 一路跑到
+`needs_attention`，摘要写「生成镜头缺少画布节点」——四个 job 全都没有 `nodeId`。
+
+链条三段，缺一段都不炸：
+
+1. 本方案让草稿一建就落画布，`plan.bind-shot-nodes` 把 shotId→nodeId 写进镜——**绑定发生在封存之前**
+   （在 #723 之前，第一次绑定永远发生在「确认即落」，也就是封存之后）。
+2. `generation.seal` 用调用方 `sealMultiShotFor` **逐字段重建**的镜整体替换 `plan.shots`，那份投影只带
+   shotId/role/included/candidate/contract，**不带 nodeId** → 绑定被抹。而同一条 seal 命令当场就按
+   `shot.nodeId` 铸 job（`authorizationUnits`），于是这批 job 永远没有 nodeId。
+3. 「确认即落」那次重落地算出的绑定与草稿那次**逐字节相同** → bind 命令的 commandId 也相同
+   （`canvas-landing:{runId}:bind:{shotId}={nodeId}…`）→ 被仓储按幂等重放吞掉，补不回来。
+
+根因不是「seal 太狠」也不是「幂等太狠」，是**封存越权**：seal 冻的是合同与候选，
+`nodeId` / `canvasDetached` 是画布落地 owner 写的「shot ↔ 画布节点」单一真相
+（`productionRunTypes.ts` 该字段的注释原话）。修在替换 `plan.shots` 的那个 owner——
+reducer 的 `sealGenerationShots` 把绑定带过封存线。三条回归测试，变异验证：去掉这段即红。
 
 ## 回滚
 

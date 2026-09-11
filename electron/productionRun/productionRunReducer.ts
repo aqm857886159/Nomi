@@ -46,6 +46,9 @@ function sealGenerationShots(plan: ProductionGenerationPlan, raw: unknown): Prod
   if (raw === undefined) return undefined;
   if (!Array.isArray(raw) || raw.length === 0) throw new Error("Multi-shot generation seal requires a non-empty shots list");
   const seen = new Set<string>();
+  // 封存前这一镜已有的画布绑定。seal 冻的是**合同与候选**；`nodeId` / `canvasDetached` 是画布落地
+  // owner 写的「shot ↔ 画布节点」单一真相（productionRunTypes.ts 该字段的注释），不归 seal 管。
+  const priorByShotId = new Map((plan.shots ?? []).map((shot) => [shot.shotId, shot] as const));
   const sealed = raw.map((value, index) => {
     if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`Invalid generation shot ${index}`);
     const shot = value as ProductionGenerationShot;
@@ -63,9 +66,22 @@ function sealGenerationShots(plan: ProductionGenerationPlan, raw: unknown): Prod
     } else if (shot.contract) {
       throw new Error(`Excluded generation shot ${shotId} must not carry a sealed sub-contract`);
     }
-    return shot;
+    // 调用方（capabilityCore 的 sealMultiShotFor）**逐字段重建**每一镜，只带 shotId/role/included/
+    // candidate/contract——照单全收就等于把已经落地的 nodeId 抹掉。抹掉的代价不是「下次补上」：
+    //   ① seal 当场就按 shot.nodeId 铸 job（productionGenerationAuthorizationState.authorizationUnits），
+    //      抹掉 = 这批 job 永远没有 nodeId → semanticGenerationReadiness 判「生成镜头缺少画布节点」，
+    //      整个 Run 停在 needs_attention；
+    //   ② 确认即落那次重落地算出的绑定与草稿那次**逐字节相同**，故 bind 命令的 commandId
+    //      （canvas-landing:{runId}:bind:{shotId}={nodeId}…）也相同，被仓储按幂等重放吞掉 → 补不回来。
+    // 所以这里必须把绑定带过封存线。用户自己删占位留下的 canvasDetached 同理（撤销事实优先）。
+    const prior = priorByShotId.get(shotId);
+    if (!prior) return shot;
+    const carried = {
+      ...(shot.nodeId === undefined && prior.nodeId ? { nodeId: prior.nodeId } : {}),
+      ...(shot.canvasDetached === undefined && prior.canvasDetached ? { canvasDetached: prior.canvasDetached } : {}),
+    };
+    return Object.keys(carried).length > 0 ? { ...shot, ...carried } : shot;
   });
-  void plan;
   return sealed;
 }
 

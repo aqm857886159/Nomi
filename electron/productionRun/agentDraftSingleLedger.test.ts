@@ -9,7 +9,10 @@ import { describe, expect, it, vi } from 'vitest'
 import { buildMaterializeShotsPayload } from './multiShotCanvasLanding'
 import { buildProductionRunDraftSummary, promptFirstLine } from './productionRunDraftSummary'
 import { createProductionGenerationOperationStore } from './productionGenerationOperationStore'
-import type { PlanCandidate } from '../capabilityCore/executionContract'
+import { createCanvasLandingHost } from './canvasLandingHost'
+import { prepareProductionGenerationAuthorization } from './prepareProductionGenerationAuthorization'
+import { applyProductionCommand } from './productionRunReducer'
+import type { ExecutionContractV1, PlanCandidate } from '../capabilityCore/executionContract'
 import type { ProductionGenerationShot, ProductionRun } from './productionRunTypes'
 
 const NOW = '2026-09-10T00:00:00.000Z'
@@ -157,5 +160,146 @@ describe('draft lifecycle notifies the canvas landing', () => {
       onPlanChanged: () => { throw new Error('renderer unavailable') },
     })
     expect(await store.create({ operationId: 'run-1', projectId: 'proj-1', candidate: candidate(), now: NOW })).toMatchObject({ operationId: 'run-1' })
+  })
+})
+
+// 第四条不变量（2026-09-10 CI 的 C9 红）：**Nomi 自己的草稿投影不许作废用户的付费批准。**
+//
+// 机制：落地写画布 → 项目落盘 → project.revision 前进；而付费授权信封盖的就是 project.revision
+// （收据只在它描述的那份项目文档还是当前版本时有效，approvalReceiptRuntime）。草稿落地是 fire-and-forget，
+// 于是这次前进可能落在「封信封」与「用户点确认」之间，用户点了确认却被告知「此确认已失效」。
+// 闸就一条：封信封前先等自家在飞的落地落完（settleCanvasLanding）。
+// **用户自己改项目**照样作废收据——那是 #722 要的语义，这里不碰。
+describe('付费信封与自家画布投影的先后', () => {
+  const landingRun: ProductionRun = run({}, [shot('s1'), shot('s2')])
+
+  function hostWith(requestRenderer: () => Promise<unknown>) {
+    return createCanvasLandingHost({
+      readRun: () => landingRun,
+      command: async () => undefined,
+      requestRenderer,
+      resolveProjectRoot: () => '/tmp/nomi-proj',
+      previewSecret: () => 'preview-secret',
+      isProjectOpen: () => true,
+    })
+  }
+
+  it('settleCanvasLanding 只在在飞的草稿落地真写完之后才放行', async () => {
+    let releaseRenderer: () => void = () => {}
+    const rendererGate = new Promise<void>((resolve) => { releaseRenderer = resolve })
+    const order: string[] = []
+    const host = hostWith(async () => {
+      await rendererGate
+      order.push('landed')
+      return { bindings: [{ shotId: 's1', nodeId: 'node-1' }] }
+    })
+
+    host.landDraftOnCanvas('proj-1', 'run-1')
+    const settled = host.settleCanvasLanding('proj-1').then(() => { order.push('sealed') })
+    releaseRenderer()
+    await settled
+
+    // 顺序本身就是判据：闸先放行（['sealed','landed']）= 信封盖的是即将被自家写覆盖的旧 revision。
+    expect(order).toEqual(['landed', 'sealed'])
+  })
+
+  it('落地失败也必须放行（best-effort 铁律：不许把付费闸挂死在渲染层上）', async () => {
+    const host = hostWith(async () => { throw new Error('renderer unavailable') })
+    host.landDraftOnCanvas('proj-1', 'run-1')
+    await expect(host.settleCanvasLanding('proj-1')).resolves.toBeUndefined()
+  })
+
+  it('没有在飞的落地 → 立即放行（不给每次封信封加一次等待）', async () => {
+    const host = hostWith(async () => ({ bindings: [] }))
+    await expect(host.settleCanvasLanding('proj-untouched')).resolves.toBeUndefined()
+  })
+})
+
+// 第五条不变量（2026-09-11 CI 的 C9 红，与第四条同一条根因链的下一段）：
+// **封存不许抹掉画布绑定。**
+//
+// 机制（三段扣在一起才炸）：
+//   ① #723 起草稿一建就落画布，`plan.bind-shot-nodes` 当场把 shotId→nodeId 写进镜——绑定发生在**封存之前**；
+//   ② `generation.seal` 用调用方 `sealMultiShotFor` 逐字段重建的镜整体替换 `plan.shots`，而那份投影只带
+//      shotId/role/included/candidate/contract，**不带 nodeId** → 绑定被抹；同一条 seal 命令又当场按
+//      `shot.nodeId` 铸 job（authorizationUnits），于是这批 job 永远没有 nodeId；
+//   ③ 确认即落那次重落地算出的绑定与草稿那次逐字节相同 → bind 命令的 commandId 也相同 → 被仓储按幂等
+//      重放吞掉（productionRunRepository.executeUnlocked 的 priorEvents 分支），补不回来。
+// 后果：`semanticGenerationReadiness` 判「生成镜头缺少画布节点」，整个 Run 停在 needs_attention，
+// 走查里就是「C9 run_events 轮询观察不到粗剪审核终态」。
+// 修在最早的共享边界：替换 `plan.shots` 的那个 owner（reducer 的 sealGenerationShots）负责把绑定带过封存线。
+describe('封存不许抹掉画布绑定', () => {
+  const CONTRACT_NOW = '2026-09-11T00:00:00.000Z'
+
+  function sealedCandidate(shotId: string): PlanCandidate {
+    return { ...candidate({ candidateId: shotId }), sealedContractHash: `hash-${shotId}` }
+  }
+  function contractFor(shotId: string): ExecutionContractV1 {
+    const source = candidate({ candidateId: shotId })
+    return {
+      schemaVersion: 1, candidateId: shotId, candidateRevision: source.revision,
+      moduleId: source.moduleId, moduleVersion: '1.0.0', providerId: source.providerId, modelId: source.modelId,
+      mode: source.mode, prompt: source.prompt, parameters: source.parameters, references: [],
+      contractHash: `hash-${shotId}`, warnings: [], droppedFields: [],
+    } as ExecutionContractV1
+  }
+  /** capabilityCore 的 sealMultiShotFor 投出来的形状：**逐字段重建，不带 nodeId**。这是引爆点，故照抄。 */
+  function sealMultiShotShape(shotIds: readonly string[]): ProductionGenerationShot[] {
+    return shotIds.map((shotId) => ({ shotId, candidate: sealedCandidate(shotId), contract: contractFor(shotId) } as ProductionGenerationShot))
+  }
+  function draftRunWithBoundShots(): ProductionRun {
+    const shots = [shot('c9-shot-1', { nodeId: 'node-1' }), shot('c9-shot-2', { nodeId: 'node-2' })]
+    const base = run({}, shots)
+    return { ...base, generationPlan: { ...base.generationPlan!, candidate: shots[0].candidate } }
+  }
+
+  it('seal 替换 plan.shots 时把已落地的 nodeId 带过封存线', () => {
+    const effect = applyProductionCommand(draftRunWithBoundShots(), {
+      commandId: 'seal-1', expectedRevision: 1, type: 'generation.seal',
+      payload: { contract: contractFor('c9-shot-1'), shots: sealMultiShotShape(['c9-shot-1', 'c9-shot-2']), planHash: 'plan-hash-1' },
+      issuedAt: CONTRACT_NOW,
+    }, CONTRACT_NOW)
+    expect(effect.run.generationPlan?.shots?.map((entry) => entry.nodeId)).toEqual(['node-1', 'node-2'])
+  })
+
+  it('用户删过占位（canvasDetached）同样带过去：撤销事实优先，恢复不复活', () => {
+    const shots = [shot('c9-shot-1', { canvasDetached: true })]
+    const base = run({}, shots)
+    const detachedRun: ProductionRun = { ...base, generationPlan: { ...base.generationPlan!, candidate: shots[0].candidate } }
+    const effect = applyProductionCommand(detachedRun, {
+      commandId: 'seal-detached', expectedRevision: 1, type: 'generation.seal',
+      payload: { contract: contractFor('c9-shot-1'), shots: sealMultiShotShape(['c9-shot-1']), planHash: 'plan-hash-2' },
+      issuedAt: CONTRACT_NOW,
+    }, CONTRACT_NOW)
+    expect(effect.run.generationPlan?.shots?.[0].canvasDetached).toBe(true)
+    expect(effect.run.generationPlan?.shots?.[0].nodeId).toBeUndefined()
+  })
+
+  it('seal 当场铸出的 job 带 nodeId（真实症状那条：没有它 semanticGenerationReadiness 判「缺少画布节点」）', () => {
+    const current = draftRunWithBoundShots()
+    const shots = sealMultiShotShape(['c9-shot-1', 'c9-shot-2'])
+    const authorization = prepareProductionGenerationAuthorization({
+      lease: { projectId: 'proj-1', immutableProjectUuid: 'project-uuid-1', projectGeneration: 1, revocationEpoch: 0 },
+      projectRevision: 7,
+      operation: { operationId: 'run-1', projectId: 'proj-1', candidate: shots[0].candidate, planVersion: current.planVersion },
+      contract: contractFor('c9-shot-1'),
+      multiShot: { shots, planHash: 'plan-hash-1' },
+      providers: [{
+        providerId: 'apimart',
+        capabilities: { submitIdempotency: true, query: true, reconcile: true, cancel: true, materialize: true },
+        buildRequest: (input) => input,
+        submit: async () => ({ providerTaskId: 'unused' }),
+      }],
+      resolveShotPrice: () => ({ known: true, amount: 6 }),
+      now: CONTRACT_NOW,
+    })
+    const effect = applyProductionCommand(current, {
+      commandId: 'seal-with-authorization', expectedRevision: 1, type: 'generation.seal',
+      payload: { contract: contractFor('c9-shot-1'), shots, planHash: 'plan-hash-1', authorization },
+      issuedAt: CONTRACT_NOW,
+    }, CONTRACT_NOW)
+    const generateJobs = effect.run.jobs.filter((job) => job.stageId === 'generate')
+    expect(generateJobs).toHaveLength(2)
+    expect(generateJobs.map((job) => job.nodeId)).toEqual(['node-1', 'node-2'])
   })
 })

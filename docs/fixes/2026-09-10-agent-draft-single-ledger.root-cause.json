@@ -16,6 +16,8 @@
     "electron/productionRun/productionGenerationOperationStore.ts",
     "electron/productionRun/productionRunDraftSummary.ts",
     "electron/productionRun/productionRunRepository.ts",
+    "electron/productionRun/productionRunReducer.ts",
+    "electron/productionRun/productionGenerationAuthorizationState.ts",
     "electron/productionRun/productionRunTypes.ts",
     "electron/capabilityCore/appIntegration.ts",
     "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts",
@@ -53,7 +55,9 @@
     "A landed node's model identity equals the candidate's (providerId, modelId); the renderer never substitutes a default for a node that carries a candidate stamp.",
     "A candidate edit (higher PlanCandidate.revision) re-binds the landed node's prompt/title/model; an unchanged revision changes nothing, so an idempotent replay cannot overwrite the user's own canvas edits.",
     "One (materializationOperationId, materializationClientId) maps to at most one canvas node, enforced inside the canvas write boundary rather than in each caller.",
-    "The materialize-shots wire carries model identity only - never transportModelId, parameters, or credentials."
+    "The materialize-shots wire carries model identity only - never transportModelId, parameters, or credentials.",
+    "Nomi's own draft projection never invalidates the user's spend approval: a generation authorization envelope is sealed only after every in-flight canvas landing for that project has settled, and a landing that structurally changed the canvas persists the project before it reports done, so project.revision is final when the envelope stamps it. A change the *user* makes still invalidates the receipt - that is the #722 fail-closed contract and it is unchanged.",
+    "Sealing a plan freezes contracts and candidates; it never erases the canvas binding. generation.seal replaces plan.shots wholesale with the caller's field-by-field projection (sealMultiShotFor), which carries no nodeId, so the reducer carries nodeId/canvasDetached across the seal line from the shot it replaces. Without that, a draft-time binding is wiped exactly when the same command mints the jobs from shot.nodeId, every generate job is left with no node, semanticGenerationReadiness reports a missing canvas node, and the re-land at paid confirmation cannot heal it because its bindings are byte-identical, so its commandId is identical and the repository replays it as an already-applied command."
   ],
   "generality_proof": "Every canvas node an agent can create goes through exactly one write boundary, applyCanvasToolCall's create_canvas_nodes. Moving the stamp-based idempotency judgement into it means the multi-shot landing, the storyboard materialization, and any future landing entry inherit it without opting in - the callers that previously carried their own copy now have none. Likewise, the candidate model identity is projected once in buildMaterializeShotsPayload, which is the only producer of the materialize-shots payload for all three landing moments (draft create/patch, paid confirmation, project reopen), and it is consumed through buildPlannedNodeMeta, the repository's single owner for turning a planned model into node meta. Draft-time landing is attached to the Run-owned operation store rather than to one MCP handler, so any host that creates or edits a draft through the durable store triggers the same projection.",
   "shared_boundaries": [
@@ -71,6 +75,11 @@
       "path": "electron/productionRun/multiShotCanvasLanding.ts",
       "symbol": "buildMaterializeShotsPayload",
       "responsibility": "Sole producer of the canvas landing payload; projects the candidate's model identity onto the wire field by field and withholds transportModelId and parameters."
+    },
+    {
+      "path": "electron/productionRun/productionRunReducer.ts",
+      "symbol": "sealGenerationShots",
+      "responsibility": "The one place that replaces plan.shots at seal time, and therefore the one place that can preserve the canvas binding (nodeId/canvasDetached) written by the landing owner. Any future seal caller inherits the carry-over without opting in."
     },
     {
       "path": "electron/productionRun/canvasLandingHost.ts",
@@ -118,6 +127,18 @@
       "entry_point": "useNodeModelAutoSelect",
       "disposition": "enforced",
       "evidence": "The auto-select effect now refuses to write a substitute model onto any node carrying a candidate stamp and raises a visible warning instead, closing the last path by which a landed node's model could silently diverge from the agent's choice."
+    },
+    {
+      "path": "electron/productionRun/productionRunRepository.ts",
+      "entry_point": "executeUnlocked commandId replay",
+      "disposition": "enforced",
+      "evidence": "A command whose commandId already appears in the event log is replayed from the prior event and never re-applied. The landing bind derives its commandId from the binding content (canvas-landing:{runId}:bind:{shotId}={nodeId}...), so a second landing that computes the same bindings is inert by design. That is correct idempotency and is left alone; the consequence - a binding lost between two identical binds can never be restored - is why the seal carry-over above owns this invariant rather than a later re-land."
+    },
+    {
+      "path": "electron/productionRun/productionGenerationAuthorizationState.ts",
+      "entry_point": "authorizationUnits",
+      "disposition": "enforced",
+      "evidence": "It reads shot.nodeId from the sealed shots to stamp every minted generate job, so it is the consumer that makes the seal-time carry-over load-bearing; electron/productionRun/agentDraftSingleLedger.test.ts asserts the minted jobs carry the pre-seal nodeId."
     },
     {
       "path": "electron/productionRun/productionRunApprovalReceipt.ts",
