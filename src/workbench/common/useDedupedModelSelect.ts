@@ -5,6 +5,7 @@
 //   ② 供应商下拉：仅当选中模型有多家可用时出现，让用户锁定某家（写该家 value）。
 // 节点仍存 (vendor, modelKey)，生成路径与失败换家逻辑不变 —— 去重纯发生在选择层。
 import React from 'react'
+import { IconEyeOff } from '@tabler/icons-react'
 import type { ModelOption } from '../../config/models'
 import type { NomiSelectOption } from '../../design'
 import i18n from '../../i18n'
@@ -66,6 +67,25 @@ function isModelAiling(model: DedupedModel, isAiling: AilingProbe): boolean {
  */
 export const CONNECT_VENDOR_OPTION_VALUE = '\u0000nomi-connect-vendor'
 
+/**
+ * 模型框底部那一行「隐藏模型」。
+ *
+ * 治的是 09-11 群反馈第二条「减少模型怎么操作」：能力（Model.enabled）一直都在，
+ * 但用户想整理模型的那一刻人在画布的模型下拉里，而那里**一个入口都没有**——要整理得离开画布、
+ * 去设置里翻四五层。这一行把入口放在他人所在的地方。
+ *
+ * 刻意**不**在下拉里就地改可见性：隐藏与删除必须留在同一个家里，用户才不会在两处各学一套；
+ * 那个家就是设置里的模型列表，图标（眼睛）与措辞（显示 / 隐藏）与这里逐字相同。
+ * 这条也是全仓所有模型框共用的同一份实现（节点 / 镜卡 / 批量），不各写一份（B7 的「三处心智不一」）。
+ */
+export function modelVisibilityFooterAction(): { label: string; icon: React.ReactNode; onSelect: () => void } {
+  return {
+    label: i18n.t('onboardingProviders.modelControls.manageVisibility'),
+    icon: React.createElement(IconEyeOff, { size: 13, stroke: 1.8, 'aria-hidden': true }),
+    onSelect: openModelCatalog,
+  }
+}
+
 export function openModelCatalog(): void {
   if (typeof window !== 'undefined') window.dispatchEvent(new Event('nomi-open-model-catalog'))
 }
@@ -77,6 +97,23 @@ function connectVendorOption(): NomiSelectOption {
     trailing: i18n.t('generationCommon.parameters.connectVendorAction'),
     trailingTone: 'accent',
   }
+}
+
+/**
+ * 这一行是**只自检过、还没真跑过一次**的模型吗。
+ *
+ * 2026-09-11 之后，一个中转模型进模型框的凭据是一次免费自检（鉴权 + 模型清单 + 说明卡形状），
+ * 它证明「地址和形状对」，不证明「点了一定能出片」。诚实交付要求把这个差别说出来，
+ * 而不是让用户以为列在这里的东西都验过了（D4）。印记由主进程在发布时写下（promotionMeta.ts）；
+ * 老装机上由真实付费生成认证过的行没有这个印记，因此不会被误标。
+ */
+function untriedByModel(model: DedupedModel): boolean {
+  return model.providers.some((provider) => {
+    const meta = provider.option.meta
+    if (!meta || typeof meta !== 'object') return false
+    const adapter = (meta as { adapter?: unknown }).adapter
+    return Boolean(adapter && typeof adapter === 'object' && (adapter as { evidence?: unknown }).evidence === 'self-check')
+  })
 }
 
 /** 病的沉到最后 + 灰化 + 右侧标注换成「最近多次失败」；健康的保持原有顺序不动。 */
@@ -105,7 +142,12 @@ export function buildModelSelectOptions(deduped: readonly DedupedModel[], isAili
       value: m.canonicalId,
       label: m.label,
       icon: modelIdentityIcon(m),
-      ...(multiVendor ? { chips } : { trailing: providerLabel(providers[0]) }),
+      // 「未试跑」附在厂商短名后面，**不另起一个新元素**：2026-09-06 用户拍板过「别把模型名挤没」，
+      // 而这一行要说的只是一句限定语（这家、还没真跑过），不是第二条信息。
+      // 多家那种情况行尾已经是 chip 排（与 trailing 互斥），就不标——多家里总有真跑过的。
+      ...(multiVendor
+        ? { chips }
+        : { trailing: untriedByModel(m) ? `${providerLabel(providers[0])} · ${i18n.t('generationCommon.parameters.untried')}` : providerLabel(providers[0]) }),
     }
     // 「最近多次失败」是行级判断（每一家都在避让期才成立），压过 chip 的换家提示——
     // 这一行现在没有一家能走，摆一排可点的 chip 是在骗人。

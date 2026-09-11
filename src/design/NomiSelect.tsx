@@ -74,6 +74,14 @@ export type NomiSelectProps = {
   searchable?: boolean
   /** Nested floating panels own their portal so outside-click handling and scrolling stay correct. */
   portalTarget?: React.RefObject<HTMLElement | null>
+  /**
+   * 列表底部的一行动作——**不是一个选项**，点它不选中任何值。
+   *
+   * 给「在这个列表本身上做点什么」用（第一个用例：模型框底部的「隐藏模型」）。与「更多」那行
+   * 同一处摆放、同一种形态，所以它不会长成下拉里的第二种心智。图标由调用方给：
+   * 这是设计系统组件，不该知道「隐藏」该用哪个图标。
+   */
+  footerAction?: { label: string; icon?: React.ReactNode; onSelect: () => void }
 }
 
 const SURFACE_SHADOW = 'var(--workbench-shadow-pop)'
@@ -109,6 +117,7 @@ export function NomiSelect({
   className,
   searchable = false,
   portalTarget,
+  footerAction,
 }: NomiSelectProps): JSX.Element {
   const { t } = useTranslation()
   const [more, setMore] = React.useState(false)
@@ -299,6 +308,16 @@ export function NomiSelect({
           })}
           {!more && !query && options.some((option) => option.more && option.value !== value) ? (
             <button type="button" onClick={() => { setMore(true); combobox.resetSelectedOption() }} className="w-full px-2 py-1.5 text-left text-caption text-nomi-ink-60">{t('onboardingProviders.modelControls.more')}</button>
+          ) : null}
+          {footerAction ? (
+            <button
+              type="button"
+              onClick={() => { combobox.closeDropdown(); footerAction.onSelect() }}
+              className="mt-0.5 flex w-full items-center gap-1.5 border-t border-nomi-line px-2 py-1.5 text-left text-caption text-nomi-ink-60 hover:bg-nomi-ink-05 hover:text-nomi-ink"
+            >
+              {footerAction.icon}
+              {footerAction.label}
+            </button>
           ) : null}
         </Combobox.Options>
       </Combobox.Dropdown>
