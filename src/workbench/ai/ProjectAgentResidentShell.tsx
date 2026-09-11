@@ -139,6 +139,22 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
    */
   const flowScroll = flowScrollMemoryFor(surface, data.activeThreadId)
   const [popover, setPopover] = React.useState<ComposerPopover | null>(null)
+  // 2026-09-10 走查反馈：弹层只有 Escape 和原按钮 toggle 两条关闭路径，点面板其他地方
+  // 不关。补 outside-close：pointerdown 落在弹层本体 / 触发钮 / NomiSelect 传送门之外
+  // 即收起。触发钮要豁免——否则「pointerdown 先关 + click 再 toggle」会把它重新打开。
+  React.useEffect(() => {
+    if (!popover) return
+    const onPointerDown = (event: PointerEvent): void => {
+      const target = event.target as Element | null
+      if (!target) return
+      if (target.closest('[data-v4-popover-anchor]')) return
+      if (target.closest('[data-v4-control="model"], [data-v4-control="skill"], [data-v4-control="permission"]')) return
+      if (target.closest('[role="listbox"], [data-radix-popper-content-wrapper]')) return
+      setPopover(null)
+    }
+    document.addEventListener('pointerdown', onPointerDown, true)
+    return () => document.removeEventListener('pointerdown', onPointerDown, true)
+  }, [popover])
   const [threadsOpen, setThreadsOpen] = React.useState(false)
   const [commandQuery, setCommandQuery] = React.useState('')
   const attachmentApi = useComposerAttachments({ attachments, setAttachments, onError: () => undefined })

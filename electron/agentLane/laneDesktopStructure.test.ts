@@ -136,3 +136,22 @@ describe("Agent lane production cutover structure", () => {
     expect(preload).not.toContain("sourceHash: proposal");
   });
 });
+
+describe("回复语言跟界面语言走：lane 的身份提示词不许是开 lane 那一刻的快照（2026-09-11 走查）", () => {
+  // 真机现象：用户在设置里把界面切成 English 后，同一个项目里连开新对话，助手仍整段中文——
+  // 只有冷启动才生效。根因是 `systemPrompt` 是**字符串快照**，而 lane 会跨很多回合活着。
+  // 端到端的证明在真机走查；这里钉住结构：宿主必须能拿到「现在的」那一段，且每回合重新求值。
+  it("port 允许传函数，laneHost 每回合重新拼，桌面运行时传的就是函数", () => {
+    const port = source("electron/agentLane/laneRuntimePort.ts");
+    const host = source("electron/agentLane/laneHost.mts");
+    const runtime = source("electron/agentLane/laneDesktopRuntime.ts");
+
+    expect(port).toContain("systemPrompt: string | (() => string)");
+    // transform_context 每个回合都跑一次——它必须调 composeSystemPrompt()，不是引用开 lane 时的常量。
+    const transform = host.slice(host.indexOf("harness.hooks.on('transform_context'"), host.indexOf("harness.hooks.on('before_tool'"));
+    expect(transform).toContain("composeSystemPrompt()");
+    expect(transform).not.toMatch(/\{\s*systemPrompt:\s*\[systemPrompt,/);
+    // 桌面运行时：语言铁律必须在函数体里（每次求值都重读 locale），不是先算好再传。
+    expect(runtime).toContain("systemPrompt: () => [buildLanguageRule()");
+  });
+});

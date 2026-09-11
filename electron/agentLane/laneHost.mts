@@ -204,7 +204,13 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
     ? renderLaneSkillSection(await loadPiSkillFormatter(), skills)
     : '';
   const promptTools = [...options.tools, ...(native?.promptTools ?? [])];
-  const systemPrompt = composeLaneSystemPrompt(options.systemPrompt, promptTools, skillSection);
+  // 每个回合重新求值（`transform_context` 里也调它）：跟着设置走的段落——现在是回复语言
+  // 铁律——必须是「现在的设置」，不是「开 lane 那一刻的设置」。工具段与技能段本来就是常量，
+  // 重拼一次只是字符串拼接，代价可忽略。
+  const composeSystemPrompt = (): string => composeLaneSystemPrompt(
+    typeof options.systemPrompt === 'function' ? options.systemPrompt() : options.systemPrompt,
+    promptTools, skillSection);
+  const systemPrompt = composeSystemPrompt();
   const { harness } = await AgentHarness.create<undefined>({
     session, models, model, systemPrompt, tools,
     compaction: laneCompactionSettings(model.contextWindow, options.limits?.contextTokenBudget),
@@ -340,7 +346,7 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
           toolCallId: '', toolName: tool.name, args: value ? { operation: value } : {},
         })}`);
       }).join('\n') : '';
-    return { systemPrompt: [systemPrompt, catalogBase ? formatLaneModelIndex(catalogBase.context) : '', input?.context.systemPrompt, authority].filter(Boolean).join('\n\n') };
+    return { systemPrompt: [composeSystemPrompt(), catalogBase ? formatLaneModelIndex(catalogBase.context) : '', input?.context.systemPrompt, authority].filter(Boolean).join('\n\n') };
   });
 
   harness.hooks.on('before_tool', async (event, hookContext) => {
