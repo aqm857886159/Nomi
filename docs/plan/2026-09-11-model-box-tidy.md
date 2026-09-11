@@ -7,7 +7,7 @@
 > 实施说明：拍板后按本方案落地，样张（`Main.dc.html` / `PickerAfter.dc.html`）与实现逐项对账；
 > 唯一解析点落在 `src/config/modelBoxPreference.ts`，设置区与所有模型框读同一份结果。
 > 真机验收截图 `after-*.png` 与三张样张同住证据目录。
-> §5 里「未配置供应商也能预排位置」那条待拍板项**没做**（拍板结论 = 只列已配置的家，见 §1 表格与样张提示文案）。
+> §5 里「未配置供应商也能预排位置」那条待拍板项**没做**（拍板结论 = 只列已配置的家，见「先查别人」§1 表格与样张提示文案）。
 
 ---
 
@@ -17,7 +17,7 @@
 
 ---
 
-## 1. 先查别人（R6/R31 判据，四条均为官方文档，检索日期 2026-09-11）
+## 先查别人（§1 · R6/R31 判据，四条均为官方文档，检索日期 2026-09-11）
 
 | 产品 | 官方出处 | 与本方案相关的做法 | 对 Nomi 的借鉴 |
 |---|---|---|---|
@@ -82,7 +82,7 @@ export type ModelBoxPreferenceSettings = {
    *  按原有 catalogLifecycle 规则回退——不是「取代」原排序，是「插在它前面多一级」。 */
   modelOrder: string[]
   /** ③ 隐藏名单（黑名单式，不是白名单）：canonicalId 集合。
-   *  黑名单而非白名单的理由见 §1 表格 Claude Code 行下方的取舍——
+   *  黑名单而非白名单的理由见「先查别人」§1 表格 Claude Code 行下方的取舍——
    *  新增模型默认可见，用户主动隐藏的才消失，符合「加新模型不需要用户额外操作才能看见」的默认预期。 */
   hiddenModelIds: string[]
   /** ④ 逐模型记住的供应商：canonicalId → vendorKey。
@@ -96,7 +96,7 @@ export type ModelBoxPreferenceSettings = {
 | ① 供应商全 | 无新字段——是**读路径 bug**，改法是让 `nomi:model-catalog:vendors:list` 也调一次 `ensureBuiltinModelSeeds()`（`electron/main.ts:442`，照抄 `:443-448` 的写法）。是否让「未配置」的家也进排序表是待拍板项，见 §5。 | `electron/catalog/catalogStore.ts`（播种） | `AiModelsSection.tsx` 的 `configuredVendorEntries` 计算不变，或按 §5 拍板结果新增「未配置」分组 |
 | ② 模型排序 | `modelOrder: string[]` | `electron/settings/modelBoxPreferenceSettings.ts`（新，仿 `vendorPreferenceSettings.ts`） | `sortModelsByCatalogLifecycle` 前插一级：先按 `modelOrder` 里的位置排，不在列表里的模型退回现有四档规则（`src/config/modelIdentity.ts:63-73` 改造，不新开第二个排序函数） |
 | ③ 隐藏模型 | `hiddenModelIds: string[]` | 同上 | `dedupeModelOptions`/`buildModelSelectOptions` 入口前过滤一次（`useDedupedModelSelect.ts`），**不复用/不新增 `Model.enabled`**——`enabled` 是「所有人能不能用」（Open WebUI 的 Enabled 层），`hiddenModelIds` 是「我自己想不想看见」（Open WebUI 的 Hide 层），两层字段各自单一 owner，写反了会把「我藏起来」误标成「全局禁用」波及别的设备/未来的团队协作场景 |
-| ④ 记住供应商 | `preferredVendorByModel: Record<string,string>` | 同上 | `useDedupedModelSelect.ts` 的 `onModelPick`：`current` 未命中时，先查 `preferredVendorByModel[canonicalId]`，命中且该供应商仍可用才用它，否则才落回 `pickHealthiestProvider`（全局序）——优先级与 OpenRouter sticky routing 一致（§1） |
+| ④ 记住供应商 | `preferredVendorByModel: Record<string,string>` | 同上 | `useDedupedModelSelect.ts` 的 `onModelPick`：`current` 未命中时，先查 `preferredVendorByModel[canonicalId]`，命中且该供应商仍可用才用它，否则才落回 `pickHealthiestProvider`（全局序）——优先级与 OpenRouter sticky routing 一致（见「先查别人」§1） |
 
 **关于③覆盖缺口的修法**（不是新机制，是把已有机制接上三张漏掉的卡）：`DreaminaMemberCard.tsx`、`ComfyuiLocalCard.tsx`、`LocalModelCard.tsx` 在已登录/已连接态各自的模型列表下，接入同一份 `ModelChipGroups`（`connected` 传各自真实的连接状态，不新造判据）。这不是本方案的新数据字段，是「通用机制 + 通用消费点」原则下把遗漏的三个消费点补齐——③本身的「隐藏」用的是上面 `hiddenModelIds`，「启停」用的是既有 `Model.enabled`，两者都已有 owner，这里只是把 UI 接上。
 

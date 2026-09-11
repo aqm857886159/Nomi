@@ -19,6 +19,19 @@ function invokeSync<T>(channel: string, ...args: unknown[]): T {
   return unwrapIpcResult(ipcRenderer.sendSync(channel, ...args) as IpcResult<T>, channel);
 }
 
+/**
+ * 设置区里绝大多数条目是**同一种形状**：一条读、一条写、写完回读归一后的值。
+ * 这里把那一种形状收成一处，理由不是省行数，是让「多一个偏好」只需要写一行、
+ * 不可能写出「读的是 A、写的是 B」那种手抄错位。两条频道名仍然逐字写出来
+ * （不拼字符串）——频道名是跨进程合同，grep 得到才追得动。
+ */
+function getSetChannels(getChannel: string, setChannel: string) {
+  return {
+    get: () => ipcRenderer.invoke(getChannel),
+    set: (payload: unknown) => ipcRenderer.invoke(setChannel, payload),
+  };
+}
+
 function unwrapIpcResult<T>(result: IpcResult<T>, channel: string): T {
   if (!result || result.ok !== true) {
     throw new Error(result?.error || `Desktop IPC failed: ${channel}`);
@@ -89,22 +102,10 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
       reset: () => ipcRenderer.invoke("nomi:settings:project-location-reset"),
       reveal: () => ipcRenderer.invoke("nomi:settings:project-location-reveal"),
     },
-    automationPolicy: {
-      get: () => ipcRenderer.invoke("nomi:settings:automation-policy-get"),
-      set: (payload: unknown) => ipcRenderer.invoke("nomi:settings:automation-policy-set", payload),
-    },
-    assetRelay: {
-      get: () => ipcRenderer.invoke("nomi:settings:asset-relay-get"),
-      set: (payload: unknown) => ipcRenderer.invoke("nomi:settings:asset-relay-set", payload),
-    },
-    systemPrompts: {
-      get: () => ipcRenderer.invoke("nomi:settings:system-prompts-get"),
-      set: (payload: unknown) => ipcRenderer.invoke("nomi:settings:system-prompts-set", payload),
-    },
-    generationModelDefaults: {
-      get: () => ipcRenderer.invoke("nomi:settings:generation-model-defaults-get"),
-      set: (payload: unknown) => ipcRenderer.invoke("nomi:settings:generation-model-defaults-set", payload),
-    },
+    automationPolicy: getSetChannels("nomi:settings:automation-policy-get", "nomi:settings:automation-policy-set"),
+    assetRelay: getSetChannels("nomi:settings:asset-relay-get", "nomi:settings:asset-relay-set"),
+    systemPrompts: getSetChannels("nomi:settings:system-prompts-get", "nomi:settings:system-prompts-set"),
+    generationModelDefaults: getSetChannels("nomi:settings:generation-model-defaults-get", "nomi:settings:generation-model-defaults-set"),
     attentionSound: {
       get: () => ipcRenderer.invoke("nomi:settings:attention-sound-get"),
       set: (value: unknown) => ipcRenderer.invoke("nomi:settings:attention-sound-set", value),
@@ -113,18 +114,9 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
       preview: () => ipcRenderer.invoke("nomi:settings:attention-sound-preview"),
       stop: () => ipcRenderer.invoke("nomi:settings:attention-sound-stop"),
     },
-    vendorPreference: {
-      get: () => ipcRenderer.invoke("nomi:settings:vendor-preference-get"),
-      set: (payload: unknown) => ipcRenderer.invoke("nomi:settings:vendor-preference-set", payload),
-    },
-    modelBoxPreference: {
-      get: () => ipcRenderer.invoke("nomi:settings:model-box-preference-get"),
-      set: (payload: unknown) => ipcRenderer.invoke("nomi:settings:model-box-preference-set", payload),
-    },
-    canvasMenuPreference: {
-      get: () => ipcRenderer.invoke("nomi:settings:canvas-menu-preference-get"),
-      set: (payload: unknown) => ipcRenderer.invoke("nomi:settings:canvas-menu-preference-set", payload),
-    },
+    vendorPreference: getSetChannels("nomi:settings:vendor-preference-get", "nomi:settings:vendor-preference-set"),
+    modelBoxPreference: getSetChannels("nomi:settings:model-box-preference-get", "nomi:settings:model-box-preference-set"),
+    canvasMenuPreference: getSetChannels("nomi:settings:canvas-menu-preference-get", "nomi:settings:canvas-menu-preference-set"),
     telemetry: {
       get: () => ipcRenderer.invoke("nomi:settings:telemetry-get"),
       set: (payload: unknown) => ipcRenderer.invoke("nomi:settings:telemetry-set", payload),

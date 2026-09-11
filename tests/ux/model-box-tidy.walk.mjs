@@ -15,7 +15,8 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launchNomiApp } from './_launchApp.mjs'
-import { expectAbsent, proveProbe, screenshotSettled } from './_assert.mjs'
+import { DEFAULT_TIMEOUT_MS, expectAbsent, proveProbe, screenshotSettled } from './_assert.mjs'
+import { stationTimeout } from './_station-budget.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'docs/plan/2026-09-11-model-box-tidy-evidence')
@@ -84,6 +85,11 @@ fs.writeFileSync(path.join(settingsDir, 'model-catalog.json'), JSON.stringify({
   apiKeysByVendor: Object.fromEntries(VENDORS.map(({ key }) => [key, { vendorKey: key, apiKey: `model-box-${key}`, enc: 'plain', enabled: true, createdAt: NOW, updatedAt: NOW }])),
 }, null, 2))
 
+// 真生成那一步要等「提交 → 调度 → 供应商回图 → 落盘 → 节点转 success」这一串，比单个界面动作长一档。
+// 走同一份预算函数按操作数要额度（`_station-budget.mjs`），不自己拍一个墙钟：
+// 它是**安全上限不是完成条件**（完成条件是下面 waitForFunction 里的 data-status），
+// 并行满载时整份预算一起放大，这一档不会单独变成最先炸的那个。
+const GENERATION_TIMEOUT_MS = stationTimeout({ operations: 4 })
 const check = (condition, message) => { if (!condition) throw new Error(`WALK FAIL: ${message}`); console.log(`  ✓ ${message}`) }
 const snap = async (win, name, target = win) => { await screenshotSettled(target, { path: path.join(shotsDir, name) }); console.log(`  · ${name}`) }
 // 浮层（Mantine portal + fixed 定位）按 locator 截图会卡在「element is not visible」——
@@ -107,9 +113,9 @@ const dismissFirstRun = async (win) => {
 }
 const openSettings = async (win) => {
   await win.evaluate(() => window.dispatchEvent(new CustomEvent('nomi-open-settings', { detail: { tab: 'ai' } })))
-  await win.locator('[data-settings-page="ai"], [data-settings-section="ai-models"]').first().waitFor({ timeout: 8000 })
+  await win.locator('[data-settings-page="ai"], [data-settings-section="ai-models"]').first().waitFor({ timeout: DEFAULT_TIMEOUT_MS })
   const section = win.locator('[data-model-box-order]')
-  await section.waitFor({ timeout: 8000 })
+  await section.waitFor({ timeout: DEFAULT_TIMEOUT_MS })
   await section.scrollIntoViewIfNeeded()
   return section
 }
@@ -125,28 +131,28 @@ const closeSettings = async (win) => {
 // 选中某一行（选完自动关），或者再点一次触发钮（closeModelPicker）。
 const openModelPicker = async (win) => {
   const node = win.locator('[data-kind="image"][data-node-id]').last()
-  await node.waitFor({ timeout: 5000 })
-  await node.locator('button[aria-label="模型"]').first().click({ timeout: 5000 })
-  await win.getByRole('option').first().waitFor({ timeout: 8000 })
+  await node.waitFor({ timeout: DEFAULT_TIMEOUT_MS })
+  await node.locator('button[aria-label="模型"]').first().click({ timeout: DEFAULT_TIMEOUT_MS })
+  await win.getByRole('option').first().waitFor({ timeout: DEFAULT_TIMEOUT_MS })
   return node
 }
 const closeModelPicker = async (win) => {
-  await win.locator('[data-kind="image"][data-node-id]').last().locator('button[aria-label="模型"]').first().click({ timeout: 5000 })
+  await win.locator('[data-kind="image"][data-node-id]').last().locator('button[aria-label="模型"]').first().click({ timeout: DEFAULT_TIMEOUT_MS })
   await win.waitForTimeout(300)
 }
 const optionLabels = async (win) => {
   const rows = win.getByRole('option')
-  await rows.first().waitFor({ timeout: 8000 })
+  await rows.first().waitFor({ timeout: DEFAULT_TIMEOUT_MS })
   return (await rows.allInnerTexts()).map((text) => text.trim())
 }
 const activeChipOf = async (win, label) => {
   const row = win.getByRole('option').filter({ hasText: label }).first()
-  await row.waitFor({ timeout: 8000 })
+  await row.waitFor({ timeout: DEFAULT_TIMEOUT_MS })
   return row.locator('button[aria-pressed="true"]').first().innerText()
 }
 const spendDialog = async (win) => {
   const dialog = win.locator('div.fixed.inset-0').filter({ hasText: /开始生成/ }).last()
-  await dialog.waitFor({ timeout: 8000 })
+  await dialog.waitFor({ timeout: DEFAULT_TIMEOUT_MS })
   return dialog
 }
 
@@ -158,15 +164,15 @@ try {
   // 目录（含两家的 key）由 settingsDir 里那份 model-catalog.json 预埋，**不**走渲染层写 key 的路径：
   // 那条路要求供应商能真的被预检验证（authType:'none' 的 loopback 家过不去，见
   // validateCandidateCredential），而这条旅程要考的不是接入流程，是接入之后模型框怎么排。
-  await win.getByText('新建空白项目', { exact: false }).first().click({ timeout: 5000 }); await win.waitForTimeout(2200)
-  await win.locator('[aria-label="工作区切换"]').getByText('生成', { exact: true }).click({ timeout: 5000 }); await win.waitForTimeout(1000)
+  await win.getByText('新建空白项目', { exact: false }).first().click({ timeout: DEFAULT_TIMEOUT_MS }); await win.waitForTimeout(2200)
+  await win.locator('[aria-label="工作区切换"]').getByText('生成', { exact: true }).click({ timeout: DEFAULT_TIMEOUT_MS }); await win.waitForTimeout(1000)
 
   // ── ① 设置里排序 + 隐藏 ──
   let section = await openSettings(win)
   // 拍板样张 Main.dc.html 的取景就是这一屏：两张表上下相邻。先把这一屏拍下来，
   // 否则「上面那张表」在证据里只以文字形式存在——对账对不上图。
   const vendorSection = win.locator('[data-vendor-preference-order]')
-  await vendorSection.waitFor({ timeout: 8000 })
+  await vendorSection.waitFor({ timeout: DEFAULT_TIMEOUT_MS })
   await vendorSection.scrollIntoViewIfNeeded()
   const twoListTitles = await win.locator('[data-vendor-preference-order] h3, [data-model-box-order] h3').allInnerTexts()
   check(twoListTitles[0]?.trim() === '同一个模型多家都有，默认走哪家' && twoListTitles[1]?.trim() === '模型框里显示哪些、排在哪',
@@ -204,7 +210,7 @@ try {
   await closeSettings(win)
 
   // ── ② 回画布：模型框按设置来 ──
-  await win.locator('[aria-label="添加图片节点"]').first().click({ timeout: 5000 }); await win.waitForTimeout(800)
+  await win.locator('[aria-label="添加图片节点"]').first().click({ timeout: DEFAULT_TIMEOUT_MS }); await win.waitForTimeout(800)
   const node = await openModelPicker(win)
   const nodeId = await node.getAttribute('data-node-id')
   const labels = await optionLabels(win)
@@ -257,10 +263,10 @@ try {
   const currentNode = win.locator('[data-kind="image"][data-node-id]').last()
   const promptEditor = currentNode.locator('div[contenteditable="true"]').last()
   await promptEditor.click(); await promptEditor.fill('模型框整理真实生成验收图')
-  await currentNode.locator('button[aria-label="生成素材"]').first().click({ timeout: 5000 })
+  await currentNode.locator('button[aria-label="生成素材"]').first().click({ timeout: DEFAULT_TIMEOUT_MS })
   const dialog = await spendDialog(win)
   await dialog.getByRole('button', { name: '生成', exact: true }).click()
-  await win.waitForFunction((id) => document.querySelector(`[data-node-id="${id}"]`)?.getAttribute('data-status') === 'success', nodeId, { timeout: 30_000 })
+  await win.waitForFunction((id) => document.querySelector(`[data-node-id="${id}"]`)?.getAttribute('data-status') === 'success', nodeId, { timeout: GENERATION_TIMEOUT_MS })
   check(wireCalls.length === 1 && wireCalls[0].vendorKey === 'kie' && wireCalls[0].model === 'model-box-alpha',
     `真实生成请求发到了手点过的那一家（${JSON.stringify(wireCalls)}）`)
 
