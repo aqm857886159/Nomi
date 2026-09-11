@@ -1,0 +1,30 @@
+{
+  "total": 2,
+  "schemaOk": 2,
+  "schemaRate": 1,
+  "serverErrors": 0,
+  "rows": [
+    {
+      "tool": "nomi_list_models",
+      "args": {},
+      "schemaErrors": [],
+      "isError": false,
+      "resultText": "{\"content\":[{\"type\":\"text\",\"text\":\"{\\n  \\\"ok\\\": true,\\n  \\\"state\\\": {\\n    \\\"connections\\\": [\\n      {\\n        \\\"vendorKey\\\": \\\"kie\\\",\\n        \\\"name\\\": \\\"Kie.ai\\\",\\n        \\\"baseUrl\\\": \\\"https://api.kie.ai\\\",\\n        \\\"authType\\\": \\\"bearer\\\",\\n        \\\"keyStatus\\\": \\\"missing\\\",\\n        \\\"models\\\": [\\n          {\\n            \\\"vendorKey\\\": \\\"kie\\\",\\n            \\\"modelKey\\\": \\\"bytedance/see"
+    },
+    {
+      "tool": "nomi_model_setup",
+      "args": {
+        "action": "connect_provider",
+        "kind": "http-api-provider",
+        "name": "DeepSeek 官方 API",
+        "baseUrl": "https://api.deepseek.com",
+        "authType": "bearer",
+        "authHeader": "Authorization",
+        "docs": "https://api-docs.deepseek.com/"
+      },
+      "schemaErrors": [],
+      "isError": false,
+      "resultText": "{\"content\":[{\"type\":\"text\",\"text\":\"{\\n  \\\"ok\\\": true,\\n  \\\"setupId\\\": \\\"integration-db4a4b75-dfeb-43b2-8152-4d43a8429bbe\\\",\\n  \\\"changeId\\\": \\\"chg_07d9128c32ae870e23ff\\\",\\n  \\\"state\\\": {\\n    \\\"connections\\\": [\\n      {\\n        \\\"vendorKey\\\": \\\"kie\\\",\\n        \\\"name\\\": \\\"Kie.ai\\\",\\n        \\\"baseUrl\\\": \\\"https://api.kie.ai\\\",\\n        \\\"authType\\\": \\\"bearer\\\",\\n        \\\"keyStatus\\\": \\\"missing\\\""
+    }
+  ]
+}

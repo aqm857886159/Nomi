@@ -1,0 +1,43 @@
+{
+  "total": 2,
+  "schemaOk": 2,
+  "schemaRate": 1,
+  "serverErrors": 0,
+  "rows": [
+    {
+      "tool": "nomi_model_setup",
+      "args": {
+        "action": "choose_models",
+        "setupId": "integration-e9facc5c-0c61-4d9e-9c15-4a13135278d9",
+        "models": [
+          {
+            "modelKey": "deepseek-flash",
+            "kind": "text"
+          },
+          {
+            "modelKey": "deepseek-v4-pro",
+            "kind": "text"
+          }
+        ]
+      },
+      "schemaErrors": [],
+      "isError": false,
+      "resultText": "{\"content\":[{\"type\":\"text\",\"text\":\"{\\n  \\\"ok\\\": true,\\n  \\\"setupId\\\": \\\"integration-e9facc5c-0c61-4d9e-9c15-4a13135278d9\\\",\\n  \\\"changeId\\\": \\\"chg_376df6ceae748177c934\\\",\\n  \\\"state\\\": {\\n    \\\"connections\\\": [\\n      {\\n        \\\"vendorKey\\\": \\\"api-deepseek-com\\\",\\n        \\\"name\\\": \\\"DeepSeek 官方 API\\\",\\n        \\\"baseUrl\\\": \\\"https://api.deepseek.com\\\",\\n        \\\"authType\\\": \\\"bearer\\\",\\n      "
+    },
+    {
+      "tool": "nomi_model_setup",
+      "args": {
+        "action": "show_models",
+        "vendorKey": "api-deepseek-com",
+        "modelKeys": [
+          "deepseek-flash",
+          "deepseek-v4-pro"
+        ],
+        "visible": true
+      },
+      "schemaErrors": [],
+      "isError": false,
+      "resultText": "{\"content\":[{\"type\":\"text\",\"text\":\"{\\n  \\\"ok\\\": true,\\n  \\\"vendorKey\\\": \\\"api-deepseek-com\\\",\\n  \\\"changeId\\\": \\\"chg_496dfbe460ba63f57fcf\\\",\\n  \\\"state\\\": {\\n    \\\"connections\\\": [\\n      {\\n        \\\"vendorKey\\\": \\\"api-deepseek-com\\\",\\n        \\\"name\\\": \\\"DeepSeek 官方 API\\\",\\n        \\\"baseUrl\\\": \\\"https://api.deepseek.com\\\",\\n        \\\"authType\\\": \\\"bearer\\\",\\n        \\\"keyStatus\\\": \\\"ready\\\",\\n "
+    }
+  ]
+}

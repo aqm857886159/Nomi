@@ -1,0 +1,70 @@
+## 任务提示词
+
+用 nomi-add-model 这个技能，帮我把 DeepSeek 官方 API 的 deepseek-chat（文档 https://api-docs.deepseek.com/） 接进 Nomi。
+如果你的助手有技能目录，把下面那份 SKILL.md 存进去；没有就直接照它做。
+接完跑一次最小样例确认真能出东西，再告诉我它在模型列表里叫什么。
+
+---
+
+## 技能文件
+
+`nomi-add-model/SKILL.md`
+
+---
+name: nomi-add-model
+description: 把一个生成模型（文本 / 图片 / 视频 / 音频 / 3D）接进本机 Nomi，直到画布的模型框里能选到它。当用户说「帮我把 X 接进 Nomi」「在 Nomi 里加个模型」「给 Nomi 接一下这家中转站」时使用。需要宿主已连上 Nomi 的 MCP server。
+compatibility: 需要宿主已接入 Nomi 的 MCP server，并能调用 nomi_list_models / nomi_await_setup / nomi_model_setup / nomi_remove_provider。
+metadata:
+  nomi-audience: external-host + embedded-agent
+  nomi-contract: electron/capabilityCore/modelOnboarding/declarations.ts
+---
+
+# 把模型接进 Nomi
+
+> 每个工具**做什么、什么时候用、什么时候别用、参数从哪来**，都写在工具自己的描述里，每回合都读得到。
+> 这份技能只写工具描述里没有、也不该有的三样东西：**顺序与岔路**、**只有跨工具才成立的纪律**、**做完对用户说什么**。
+
+## 这条路长什么样
+
+```
+nomi_model_setup(connect_provider)
+    →（Nomi 自己向用户要 key）→ nomi_await_setup
+    → nomi_model_setup(choose_models)
+    → [只有在返回里看到 compileRequest 时：nomi_model_setup(draft_adapter)]
+    → nomi_model_setup(check_connection)
+    → nomi_model_setup(show_models, visible: true)
+```
+
+岔路只有两条：**这台机器上已经存过这家的 key** → 跳过等待那一步；
+**返回里带 `compileRequest`** → 说明本机没有可读文档的文本模型，写说明卡这活儿落到你头上。
+
+`nomi_list_models` 是这一组的主入口：所有 `vendorKey` / `modelKey` / `setupId` 都从它来。
+上下文丢了就不带参数调一次，它会把在途接入排在最前面。
+
+## 三条一直成立的纪律
+
+1. **任何参数里都不许出现 key 的值。** Nomi 自己向用户要，在一个你看不到的本机页面上。
+   用户要是把 key 贴进聊天了，提醒他这条已经在聊天记录里，建议轮换。
+
+2. **等人就调 `nomi_await_setup`。** 不要用「再调一次写动作」来表达等待——重调是安全的
+   （同一跳重放返回一模一样的结果），但它不会告诉你任何新东西。
+
+3. **`unverified` 里还有 `model_produces_output` 的时候，不许说「接好了」。**
+   免费自检证明的是地址通、key 被收下、模型 id 在对方清单里；它**证不了这个模型能出片**
+   （本仓记着两个反例：有的供应商对合法 key 恒回 401，有的回 200 却跑不通）。
+   照着 `nextAction.userSees` 转述，不要自己润色成完成。
+
+## 做完告诉用户什么
+
+一句话说清四件：接进来的是哪几个模型、它们在模型列表里叫什么、自检查到了什么（以及**没**查什么）、
+现在能不能在画布上选到。
+
+模型现在会带着「未试跑」角标出现在画布模型框里——这是故意的：**自检没过也不下架**。
+真正的第一次试跑是用户自己点的（模型页上的「试跑」按钮会先显示价格），不是你替他跑。
+
+没接成就说卡在哪、对方返回了什么原文——不要把「已提交」说成「已接好」。
+
+## 先查真实文档
+
+写 `adapterDraft` 前抓供应商官方文档逐项对账：端点路径、请求体字段名、鉴权放 header 还是 query、
+**异步任务要不要轮询**。最后这条是最常见的失败原因：返回任务 id 却没声明 `query` 操作的适配器无法认证。
