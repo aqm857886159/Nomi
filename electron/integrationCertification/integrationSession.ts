@@ -17,6 +17,7 @@ import {
   adapterContractJsonSchema,
 } from "../providerAdapter/agentCompileRequest";
 import { hasCompilerLanguageModel } from "../providerAdapter/serviceLanguageModels";
+import { cancelCertifyingRun, sessionModelResults, type IntegrationModelResult } from "./integrationSessionRunView";
 import { adapterDraftFromProposal, compileRequestFor } from "./integrationAdapterContract";
 import type { ApprovalReceiptAuthority, HumanApprovalReceiptV1 } from "../capabilityCore/approvalReceipt";
 import type { IntegrationHandoff } from "./handoffQueue";
@@ -159,6 +160,7 @@ export type IntegrationSessionProjection = Omit<
   /** 交底 + 目标 schema + 撰写规则。驱动 Agent 照着它回填 proposal.adapterDraft。 */
   compileRequest?: IntegrationCompileRequest & { contractSchema: Record<string, unknown>; instructions: string };
   adapterDraft?: { present: boolean; modelKeys: string[] };
+  modelResults?: IntegrationModelResult[]; // 逐模型结论，含供应商原始错误；无 run 时不出现
 };
 export type PersistedIntegrationState = { version: 1; revision: number; sessions: IntegrationSession[] };
 type PersistedState = PersistedIntegrationState;
@@ -770,6 +772,7 @@ export class IntegrationSessionService {
     return this.projection(session);
   }
   projection(session: IntegrationSession): IntegrationSessionProjection {
+    const modelResults = sessionModelResults(this.certification, session);
     const rawConfig = { ...session.config };
     const workflow = rawConfig.workflow;
     const uiWorkflow = rawConfig.uiWorkflow;
@@ -816,6 +819,7 @@ export class IntegrationSessionService {
           : {}),
       },
       ...(session.credentialRef ? { credentialRef: { status: session.credentialStatus, scope: "session" } } : {}),
+      ...(modelResults.length ? { modelResults } : {}), // 盘上一直有，以前只是没投影到会话面上
     };
   }
   private syncHttpCertification(session: IntegrationSession): void {
@@ -1620,8 +1624,9 @@ export class IntegrationSessionService {
     if (session.ownerClientId !== owner) throw new IntegrationRequestError("integration_owner_mismatch", "Integration session belongs to a different signed client");
     assertIntegrationRevision(expectedRevision, session.revision);
     if (TERMINAL.has(session.stage)) return this.projection(session);
+    // 逃生口：HTTP 会话的 certifying 不再是无出口的黑洞（见 integrationSessionRunView.ts）。
     if (session.stage === "certifying" || session.stage === "committing")
-      throw new Error("Cannot cancel certification in progress");
+      session.blockingReason = cancelCertifyingRun(this.certification, session);
     session.stage = "cancelled";
     session.revision += 1;
     session.updatedAt = (this.deps.now || (() => new Date().toISOString()))();

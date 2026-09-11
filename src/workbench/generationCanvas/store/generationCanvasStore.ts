@@ -41,8 +41,6 @@ export const useGenerationCanvasStore = create<GenerationCanvasState>()(subscrib
   pendingConnectionSourceId: '',
   pendingConnectionSourceSide: 'right',
   pendingConnectionSourceKind: 'node',
-  canvasZoom: 1,
-  canvasOffset: { x: 0, y: 0 },
   generationAiDraft: '',
   generationAiMessages: [],
   generationAiCollapsed: true,
@@ -56,8 +54,6 @@ export const useGenerationCanvasStore = create<GenerationCanvasState>()(subscrib
       Object.assign(state, getHistoryFlags())
     })
   },
-  setCanvasTransform: (zoom, offset) => set({ canvasZoom: zoom, canvasOffset: offset }),
-  setCanvasZoom: (zoom) => set({ canvasZoom: zoom }),
   setGenerationAiDraft: (generationAiDraft) => {
     set({ generationAiDraft })
   },
@@ -238,8 +234,6 @@ export const useGenerationCanvasStore = create<GenerationCanvasState>()(subscrib
       selectedNodeIds: [],
       pendingConnectionSourceId: '',
       pendingConnectionSourceSide: 'right',
-      canvasZoom: 1,
-      canvasOffset: { x: 0, y: 0 },
       hasClipboard: false,
       ...getHistoryFlags(),
     })

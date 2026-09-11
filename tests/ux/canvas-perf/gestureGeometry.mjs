@@ -116,24 +116,36 @@ export function sweptRect(start, end) {
 /**
  * 框选期望值：扫过的矩形里「一定被选中」和「可能被选中」各有几个。
  *
- * React Flow 默认 `selectionMode = SelectionMode.Full`（生产代码没有覆盖它），
- * 也就是**整个节点都在框里**才算选中；压在框线上的不算。所以：
- *   · definite = 把框缩 1px 之后仍然完整包住的节点数 —— 这些必须被选中；
- *   · possible = 把框放 1px 之后能完整包住的节点数 —— 选中数不能超过它。
+ * 生产代码把 `selectionMode` 显式设成了 `SelectionMode.Partial`
+ * （见 `src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx`），
+ * 也就是**框和节点有重叠（哪怕只压住一角）就算选中**——不要求整个节点都在框里。
+ * 判据来自 `@xyflow/system` 的 `getNodesInside`：`partially=true` 时
+ * `isVisible = overlappingArea > 0`（node_modules/.pnpm/@xyflow+system.../dist/esm/index.js）。
+ * 所以：
+ *   · definite = 把框缩 1px 之后仍然有重叠的节点数 —— 缩小的框是真实框的子集，
+ *     缩小后还相交，说明这些节点在真实框下必然相交，必须被选中；
+ *   · possible = 把框放 1px 之后仍然有重叠的节点数 —— 放大的框是真实框的超集，
+ *     选中数不能超过它。
  * 判据用 `definite ≤ 实际选中 ≤ possible`，把亚像素分歧留在区间里，
  * 同时任何真实的框选回归（少选、多选）都仍然会红。
+ *
+ * （2026-09-11 前生产代码没有覆盖 `selectionMode`，默认走的是 React Flow 的
+ * `SelectionMode.Full`——整个节点都在框里才算选中；那版判据叫
+ * `expectedFullySelected`，用的是「整个节点都在框里」的包含判定。PR #752 把
+ * `selectionMode` 显式改成 `Partial` 后那版判据的假设不再成立，遂改判据以匹配
+ * 生产代码的真实选中语义，而不是反过来把生产代码的行为拗回旧判据。）
  *
  * @param {Array<{ x: number, y: number, width: number, height: number }>} boxes 节点的屏幕外接盒
  * @param {{ x: number, y: number, width: number, height: number }} rect 扫过的矩形
  * @param {number} [tolerance]
  * @returns {{ definite: number, possible: number }}
  */
-export function expectedFullySelected(boxes, rect, tolerance = SELECTION_BOUNDARY_TOLERANCE_PX) {
-  assertRect(rect, 'expectedFullySelected(rect)')
+export function expectedPartiallySelected(boxes, rect, tolerance = SELECTION_BOUNDARY_TOLERANCE_PX) {
+  assertRect(rect, 'expectedPartiallySelected(rect)')
   const list = Array.isArray(boxes) ? boxes : []
   return {
-    definite: countFullyInside(list, insetRect(rect, tolerance)),
-    possible: countFullyInside(list, insetRect(rect, -tolerance)),
+    definite: countIntersecting(list, insetRect(rect, tolerance)),
+    possible: countIntersecting(list, insetRect(rect, -tolerance)),
   }
 }
 
@@ -178,16 +190,12 @@ function intersect(a, b) {
   return { x, y, width: Math.max(0, right - x), height: Math.max(0, bottom - y) }
 }
 
-function countFullyInside(boxes, rect) {
+function countIntersecting(boxes, rect) {
   let count = 0
   for (const box of boxes) {
     if (!box || !Number.isFinite(box.x) || !Number.isFinite(box.y)) continue
-    if (
-      box.x >= rect.x
-      && box.y >= rect.y
-      && box.x + box.width <= rect.x + rect.width
-      && box.y + box.height <= rect.y + rect.height
-    ) {
+    const overlap = intersect(box, rect)
+    if (overlap.width > 0 && overlap.height > 0) {
       count += 1
     }
   }

@@ -1,5 +1,6 @@
 import React from 'react'
 import { useStore } from '@xyflow/react'
+import { selectFlowZoom, shotTableDensityForZoom } from '../../reactFlow/canvasViewportScale'
 import { useGenerationFlowNodeManagedDrag } from '../../reactFlow/generationFlowNodeContext'
 import { useTranslation } from 'react-i18next'
 import { IconTable } from '@tabler/icons-react'
@@ -22,7 +23,7 @@ export default function ShotTableNode(props: NodeProps): JSX.Element {
   return managed ? <FlowShotTable {...props} /> : <ShotTableContent {...props} />
 }
 function FlowShotTable(props: NodeProps): JSX.Element {
-  const density = useStore(state => state.transform[2] >= 0.8 ? 'full' : state.transform[2] >= 0.4 ? 'compact' : 'card')
+  const density = useStore(state => shotTableDensityForZoom(selectFlowZoom(state)))
   return <ShotTableContent {...props} flowDensity={density} />
 }
 function ShotTableContent({ node: rawNode, selected, readOnly = false, flowDensity }: NodeProps & { flowDensity?: 'full' | 'compact' | 'card' }): JSX.Element {
@@ -31,8 +32,9 @@ function ShotTableContent({ node: rawNode, selected, readOnly = false, flowDensi
   const table = React.useMemo(() => readShotTable(node.meta), [node.meta])
   const designs = useWorkbenchStore(state => state.storyboardDesignsByDocumentId)
   const nodes = useGenerationCanvasStore(state => state.nodes)
-  // Subscribe to a density band, not every viewport frame.
-  const zoomDensity = useGenerationCanvasStore(state => state.canvasZoom >= 0.8 ? 'full' : state.canvasZoom >= 0.4 ? 'compact' : 'card')
+  // 画布外的宿主（设计实验室样张）没有视口，也就没有缩放——按 1 档算。
+  // 画布内的档位由 FlowShotTable 从 React Flow 的 transform 订阅（唯一真相）。
+  const zoomDensity = shotTableDensityForZoom(1)
   const imageModelOptions = useModelOptionsState('image').options
   const videoModelOptions = useModelOptionsState('video').options
   const rows = React.useMemo(() => table ? selectShotTableRows({ table, designs, nodes, imageModelOptions, videoModelOptions }) : [], [table, designs, nodes, imageModelOptions, videoModelOptions])
