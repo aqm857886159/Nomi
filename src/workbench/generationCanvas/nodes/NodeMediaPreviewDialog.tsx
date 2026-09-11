@@ -40,6 +40,12 @@ export default function NodeMediaPreviewDialog({ mediaType, url, title, onClose 
     coverChildren()
     const observer = new MutationObserver(coverChildren)
     if (canvasViewport) observer.observe(canvasViewport, { childList: true })
+    // 遮罩只有 40% 黑：`inert` 只挡得住交互，挡不住「看见」——工具条、导航栈、节点浮条
+    // 会继续浮在大图上面（2026-09-11 迁移等价审计 §③ 行 4；规则被 `903d992f6` 误删）。
+    // 收起哪些由 CSS 一处声明（reactFlow/generationCanvasReactFlow.css 的媒体预览段），
+    // 这里只负责挂/摘这面旗子，关闭后原布局与交互自动恢复。
+    const previousPreviewState = canvasViewport?.getAttribute('data-media-preview-open') ?? null
+    canvasViewport?.setAttribute('data-media-preview-open', 'true')
     closeButtonRef.current?.focus()
 
     const handleKeyDown = (event: KeyboardEvent): void => {
@@ -50,6 +56,10 @@ export default function NodeMediaPreviewDialog({ mediaType, url, title, onClose 
       document.removeEventListener('keydown', handleKeyDown)
       observer.disconnect()
       for (const [child, inert] of previousInert) child.inert = inert
+      if (canvasViewport) {
+        if (previousPreviewState === null) canvasViewport.removeAttribute('data-media-preview-open')
+        else canvasViewport.setAttribute('data-media-preview-open', previousPreviewState)
+      }
       previousFocus?.focus()
     }
   }, [canvasViewport, onClose])
