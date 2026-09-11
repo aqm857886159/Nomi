@@ -402,13 +402,16 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
       ipcRenderer.invoke("nomi:scene3d:frames-to-video", payload) as Promise<{ url: string; assetId?: string }>,
     mobile: {
       feedback: (payload: MobileBridgeFeedback) => ipcRenderer.invoke('nomi:director:mobile:feedback', payload) as Promise<boolean>,
-      start: (payload?: { text?: Record<string, string> }) =>
+      start: (payload?: { text?: Record<string, string>; consent?: boolean }) =>
         ipcRenderer.invoke("nomi:director:mobile:start", payload) as Promise<{
           running: boolean
           secure: boolean
           port: number | null
           urls: string[]
           devices: Array<{ id: string; name: string; latencyMs: number | null; connectedAt: number }>
+          consentRequired: boolean
+          certFingerprint: string | null
+          pairingExpiresAt: number | null
           qrByUrl?: Record<string, string>
         }>,
       stop: () =>
@@ -418,6 +421,9 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
           port: number | null
           urls: string[]
           devices: Array<{ id: string; name: string; latencyMs: number | null; connectedAt: number }>
+          consentRequired: boolean
+          certFingerprint: string | null
+          pairingExpiresAt: number | null
           qrByUrl?: Record<string, string>
         }>,
       status: () =>
@@ -427,6 +433,9 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
           port: number | null
           urls: string[]
           devices: Array<{ id: string; name: string; latencyMs: number | null; connectedAt: number }>
+          consentRequired: boolean
+          certFingerprint: string | null
+          pairingExpiresAt: number | null
           qrByUrl?: Record<string, string>
         }>,
       onEvent: (callback: (event: unknown) => void) => {
@@ -724,6 +733,12 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
     exportPackage: (dirName: string) => invokeSync("nomi:skill:export", dirName),
     importPackage: (payload: unknown) => invokeSync("nomi:skill:import", payload),
     deleteByDir: (dirName: string) => invokeSync("nomi:skill:delete", dirName),
+    /** 技能盘变了（导入/删除/Agent 写完落盘）。范式与 modelCatalog.onChanged 一致。 */
+    onChanged: (callback: () => void) => {
+      const listener = () => callback();
+      ipcRenderer.on("nomi:skill-library:changed", listener);
+      return () => { ipcRenderer.removeListener("nomi:skill-library:changed", listener); };
+    },
   },
   capability: {
     // 「接入 AI 编程助手」卡：读状态/配置 + 一键写入/撤销 ~/.claude.json。

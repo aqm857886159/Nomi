@@ -27,7 +27,6 @@ import { handleDocumentEditConfirmation } from './mcpDocumentConfirmation'
 import { handleTimelineEditConfirmation } from './mcpTimelineConfirmation'
 
 export type McpInvokeOptions = {
-  spendConfirmed?: boolean
   planConfirmed?: boolean
   documentConfirmed?: boolean
   signal?: AbortSignal

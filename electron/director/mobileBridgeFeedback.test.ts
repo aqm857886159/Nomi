@@ -11,6 +11,7 @@ describe('mobile preview and recording feedback', () => {
 
   async function connect() {
     bridge = new MobileBridgeServer(() => {}, { secure: false, host: '127.0.0.1' })
+    bridge.grantConsent()
     const state = await bridge.start()
     const url = new URL(state.urls[0])
     phone = new WebSocket(`ws://127.0.0.1:${state.port}/ws?k=${url.searchParams.get('k')}`)
@@ -19,7 +20,12 @@ describe('mobile preview and recording feedback', () => {
 
   it('sends desktop recording truth and a bounded binary PNG over the authenticated connection', async () => {
     await connect()
-    const state = new Promise<string>((resolve) => phone.once('message', (value) => resolve(String(value))))
+    // 连上先收到配对回执（会话令牌 + 指纹），录制状态是它之后那条
+    const state = new Promise<string>((resolve) => phone.on('message', (value, binary) => {
+      if (binary) return
+      const text = String(value)
+      if ((JSON.parse(text) as { type?: string }).type === 'state') resolve(text)
+    }))
     expect(bridge.feedback({ recording: true })).toBe(true)
     expect(JSON.parse(await state)).toEqual({ type: 'state', recording: true })
     const frame = new Promise<Buffer>((resolve) => phone.on('message', (value, binary) => { if (binary) resolve(value as Buffer) }))

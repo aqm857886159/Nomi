@@ -1,0 +1,255 @@
+{
+  "ImageResizeKJv2": {
+    "input": {
+      "required": {
+        "image": [
+          "IMAGE"
+        ],
+        "width": [
+          "INT",
+          {
+            "default": 512,
+            "min": 0,
+            "max": 16384,
+            "step": 1
+          }
+        ],
+        "height": [
+          "INT",
+          {
+            "default": 512,
+            "min": 0,
+            "max": 16384,
+            "step": 1
+          }
+        ],
+        "upscale_method": [
+          [
+            "nearest-exact",
+            "bilinear",
+            "area",
+            "bicubic",
+            "lanczos",
+            "nvidia_rtx_vsr"
+          ]
+        ],
+        "keep_proportion": [
+          [
+            "stretch",
+            "resize",
+            "pad",
+            "pad_edge",
+            "pad_edge_pixel",
+            "crop",
+            "pillarbox_blur",
+            "total_pixels"
+          ],
+          {
+            "default": false
+          }
+        ],
+        "pad_color": [
+          "STRING",
+          {
+            "default": "0, 0, 0",
+            "tooltip": "Color to use for padding."
+          }
+        ],
+        "crop_position": [
+          [
+            "center",
+            "top",
+            "bottom",
+            "left",
+            "right"
+          ],
+          {
+            "default": "center"
+          }
+        ],
+        "divisible_by": [
+          "INT",
+          {
+            "default": 2,
+            "min": 0,
+            "max": 512,
+            "step": 1
+          }
+        ]
+      },
+      "optional": {
+        "mask": [
+          "MASK"
+        ],
+        "device": [
+          [
+            "cpu",
+            "gpu"
+          ]
+        ]
+      },
+      "hidden": {
+        "unique_id": "UNIQUE_ID"
+      }
+    },
+    "input_order": {
+      "required": [
+        "image",
+        "width",
+        "height",
+        "upscale_method",
+        "keep_proportion",
+        "pad_color",
+        "crop_position",
+        "divisible_by"
+      ],
+      "optional": [
+        "mask",
+        "device"
+      ],
+      "hidden": [
+        "unique_id"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "IMAGE",
+      "INT",
+      "INT",
+      "MASK"
+    ],
+    "output_is_list": [
+      false,
+      false,
+      false,
+      false
+    ],
+    "output_name": [
+      "IMAGE",
+      "width",
+      "height",
+      "mask"
+    ],
+    "name": "ImageResizeKJv2",
+    "display_name": "Resize Image v2",
+    "description": "\nResizes the image to the specified width and height.  \nSize can be retrieved from the input.\n\nKeep proportions keeps the aspect ratio of the image, by  \nhighest dimension.  \n",
+    "python_module": "custom_nodes.ComfyUI-KJNodes",
+    "category": "KJNodes/image",
+    "output_node": false,
+    "has_intermediate_output": false,
+    "search_aliases": []
+  },
+  "GetImageSizeAndCount": {
+    "input": {
+      "required": {
+        "image": [
+          "IMAGE"
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "image"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "IMAGE",
+      "INT",
+      "INT",
+      "INT"
+    ],
+    "output_is_list": [
+      false,
+      false,
+      false,
+      false
+    ],
+    "output_name": [
+      "image",
+      "width",
+      "height",
+      "count"
+    ],
+    "name": "GetImageSizeAndCount",
+    "display_name": "Get Image Size & Count",
+    "description": "\nReturns width, height and batch size of the image,  \nand passes it through unchanged.  \n\n",
+    "python_module": "custom_nodes.ComfyUI-KJNodes",
+    "category": "KJNodes/image",
+    "output_node": false,
+    "has_intermediate_output": false,
+    "search_aliases": []
+  },
+  "ColorMatch": {
+    "input": {
+      "required": {
+        "image_ref": [
+          "IMAGE"
+        ],
+        "image_target": [
+          "IMAGE"
+        ],
+        "method": [
+          [
+            "mkl",
+            "hm",
+            "reinhard",
+            "mvgd",
+            "hm-mvgd-hm",
+            "hm-mkl-hm"
+          ],
+          {
+            "default": "mkl"
+          }
+        ]
+      },
+      "optional": {
+        "strength": [
+          "FLOAT",
+          {
+            "default": 1.0,
+            "min": 0.0,
+            "max": 10.0,
+            "step": 0.01
+          }
+        ],
+        "multithread": [
+          "BOOLEAN",
+          {
+            "default": true
+          }
+        ]
+      }
+    },
+    "input_order": {
+      "required": [
+        "image_ref",
+        "image_target",
+        "method"
+      ],
+      "optional": [
+        "strength",
+        "multithread"
+      ]
+    },
+    "is_input_list": false,
+    "output": [
+      "IMAGE"
+    ],
+    "output_is_list": [
+      false
+    ],
+    "output_name": [
+      "image"
+    ],
+    "name": "ColorMatch",
+    "display_name": "Color Match",
+    "description": "\ncolor-matcher enables color transfer across images which comes in handy for automatic  \ncolor-grading of photographs, paintings and film sequences as well as light-field  \nand stopmotion corrections.  \n\nThe methods behind the mappings are based on the approach from Reinhard et al.,  \nthe Monge-Kantorovich Linearization (MKL) as proposed by Pitie et al. and our analytical solution  \nto a Multi-Variate Gaussian Distribution (MVGD) transfer in conjunction with classical histogram   \nmatching. As shown below our HM-MVGD-HM compound outperforms existing methods.   \nhttps://github.com/hahnec/color-matcher/\n\n",
+    "python_module": "custom_nodes.ComfyUI-KJNodes",
+    "category": "KJNodes/image",
+    "output_node": false,
+    "has_intermediate_output": false,
+    "deprecated": true,
+    "search_aliases": []
+  }
+}

@@ -20,7 +20,7 @@ import { laneToolModelDescription } from '../shared/agentLane/laneToolContract.j
 // 与 pi 的 `description` 原样进请求，我们只在旁边挂一份 `LaneToolEffects`（审批闸与崩溃恢复
 // 要读它，而 pi 没有这个概念——**加一层注解不是重写一份实现**）。
 import path from 'node:path';
-import { createLaneCodingPaths } from './laneCodingPaths.mjs';
+import { createLaneCodingPaths, type LaneTrustedSkillRoots } from './laneCodingPaths.mjs';
 
 import type { AgentHarnessTool } from '@earendil-works/pi-agent-core';
 
@@ -140,8 +140,11 @@ export async function loadPiCodingToolFactories(): Promise<PiCodingToolFactories
 export interface LaneCodingToolsInput {
   /** 项目根。**同时**是工具的 cwd、包容的边界、沙箱的 allowWrite。三者是同一个值，不许各传各的。 */
   readonly projectDir: string
-  /** Main-process installed package roots. Read-only; never inferred from model arguments. */
-  readonly trustedSkillRoots?: readonly string[]
+  /**
+   * Main-process installed package roots. Read-only; never inferred from model arguments.
+   * 给来源不给快照：用户会在会话中途导入技能，索引与可信根必须同源同刷（`LaneTrustedSkillRoots`）。
+   */
+  readonly trustedSkillRoots?: LaneTrustedSkillRoots
   /** bash 用的沙箱（`openLaneSandbox` 的产物）。`active:false` 时策略层会把自动放行整档摘掉。 */
   readonly canReadProject?: () => Promise<boolean>
   readonly sandbox: LaneSandbox

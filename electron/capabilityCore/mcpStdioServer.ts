@@ -12,7 +12,7 @@ import { createMcpProtocol, MCP_REQUEST_SIGNAL, type McpInvokeOptions } from './
 import { MAX_MCP_LINE_BYTES, parseMcpStdioLine } from './mcpStdioLine'
 import { MCP_CANCELLED_IN_FLIGHT_EVENT, MCP_OVERSIZED_LINE_EVENT } from './mcpStdioDiagnostics'
 import { getDesktopLocale, setDesktopLocale } from '../i18n'
-import { createDiskGateway, withPreApprovedSpend, type ProjectGateway } from './gateway'
+import { createDiskGateway } from './gateway'
 import { readLiveInstance, type InstanceAdvertisement } from './lockfile'
 import { runTask, fetchTaskResult } from '../runtime'
 import { applySystemProxy } from '../systemProxy'
@@ -130,15 +130,6 @@ function transportTimeoutMs(): number {
   return Number.isFinite(raw) && raw > 0 ? raw : 360_000
 }
 
-/**
- * 付费已确认（elicitation 真人点了）→ 直铸令牌放行本次生成。仅在 elicit confirmed 后用，不碰全局 env。
- * 「预批付费」这层只此一份定义（gateway.withPreApprovedSpend），App 开着走 RPC 的那条路复用同一份
- * ——两条路的钱路语义不会各写各的、漂移开（rpcServer.ts 读 body.spendConfirmed 处）。
- */
-function makeConfirmedGateway(projectId: string): ProjectGateway {
-  return withPreApprovedSpend(createDiskGateway(projectId))
-}
-
 async function callViaRpc(
   instance: InstanceAdvertisement,
   method: string,
@@ -162,7 +153,6 @@ async function callViaRpc(
         method,
         params,
         planConfirmed: options?.planConfirmed,
-        spendConfirmed: options?.spendConfirmed,
         documentConfirmed: options?.documentConfirmed,
         signal: controller.signal,
       }),
@@ -207,7 +197,7 @@ export function createMcpStdioDirectInvoker(
       executor: canvasReadExecutionRuntime.executor,
     }).tryExecute(routedMethod, routedParams, { signal: routedOptions?.signal })
     if (canvasRead.handled) return canvasRead.result
-    const makeGateway = routedOptions?.spendConfirmed ? makeConfirmedGateway : createDiskGateway
+    const makeGateway = createDiskGateway
     // 交付②④：GUI 没开的进程内路——本进程就是 Electron（NOMI_MCP_STDIO 模式），有 nativeImage → dispatchAndEnrich
     // 里就地富化生成结果（缩略图/签名链）。收口在包装器（0a），此路与 GUI-开着的 RPC 路一样忘不了富化。
     const dispatch = () => dispatchFn(routedMethod, routedParams, {
