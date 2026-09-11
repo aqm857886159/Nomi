@@ -9,15 +9,14 @@ import { ARTIFACT_REVIEW_DECISIONS } from "./productionRun";
 const runId = z.string().trim().min(1).max(160).describe("The run id returned by start_production_run.");
 const artifactId = z.string().trim().min(1).max(160).describe("The artifact id from the run projection.");
 
+// 说明书（描述/何时用/何时不用）**不住这里**：唯一 owner 是 `verbs/productionVerbs.ts`；这里只剩名字与 schema。
 const descriptors = {
   get_production_run: {
     name: "get_production_run",
-    description: "Read one production task's current status, gates, jobs, budget, and artifact refs. Use the runId returned when the draft was created. Read-only; no provider work is submitted.",
     parameters: z.object({ runId }).strict(),
   },
   subscribe_production_run: {
     name: "subscribe_production_run",
-    description: "Read meaningful progress after a cursor; use the returned nextCursor to continue without duplicate events. Waiting is bounded; this observes existing work and never starts or resumes a job.",
     parameters: z.object({
       runId,
       afterCursor: z.number().int().nonnegative().optional().describe("Last consumed event cursor; default 0."),
@@ -26,17 +25,14 @@ const descriptors = {
   },
   read_production_artifact: {
     name: "read_production_artifact",
-    description: "Read a versioned artifact's metadata and preview ref; use the content tool only when the actual text/plan is needed. Supply runId and artifactId from the current task projection.",
     parameters: z.object({ runId, artifactId }).strict(),
   },
   read_production_artifact_content: {
     name: "read_production_artifact_content",
-    description: "Read one persisted script or storyboard only when its content is needed for the next decision; bounded by the domain owner.",
     parameters: z.object({ runId, artifactId }).strict(),
   },
   start_production_run: {
     name: "start_production_run",
-    description: "Create a reviewable brief/playbook draft only; it stops at the first review gate and never generates media. For a concrete image/video request or a multi-minute finished piece, use the generation plan intent; Nomi Host handles preview, approval, and start transitions.",
     parameters: z.object({
       goal: z.string().trim().min(1).max(2_000).describe("What the finished piece should achieve; do not force the user into a schema."),
       playbook: z.string().trim().min(1).max(160).optional().describe("Optional registered playbook name; omit to use the default."),
@@ -50,7 +46,6 @@ const descriptors = {
   },
   control_production_run: {
     name: "control_production_run",
-    description: "Pause, resume, cancel, or change the run trust level. Paid gates and unknown provider receipts remain protected. Use the current runId; state transitions are validated by the production owner.",
     parameters: z.object({
       runId,
       action: z.enum(["pause", "resume", "cancel", "set_trust"]),
@@ -59,7 +54,6 @@ const descriptors = {
   },
   decide_production_gate: {
     name: "decide_production_gate",
-    description: "Record a user's decision for a creative or anchor checkpoint gate; budget and paid gates stay in Nomi. Use the gateId and allowed choice from the current production task.",
     parameters: z.object({
       runId,
       gateId: z.string().trim().min(1).max(160),
@@ -69,7 +63,6 @@ const descriptors = {
   },
   revise_production_artifact: {
     name: "revise_production_artifact",
-    description: "Request a new script or storyboard version from an existing artifact; never overwrite the source version. Read the artifact first and supply its exact expectedVersion with the requested revision.",
     parameters: z.object({
       runId,
       artifactId,
@@ -80,7 +73,6 @@ const descriptors = {
   },
   review_production_artifact: {
     name: "review_production_artifact",
-    description: "Approve, request changes to, or reject one exact artifact version; the version is never implicit. Read the current artifact and provide expectedVersion; stale review targets are rejected.",
     parameters: z.object({
       runId,
       artifactId,
@@ -90,7 +82,6 @@ const descriptors = {
   },
   materialize_production_storyboard: {
     name: "materialize_production_storyboard",
-    description: "Attach an approved storyboard version to the real generation canvas, preserving run/artifact provenance. Supply its exact expectedVersion; this writes the canvas and does not generate paid media.",
     parameters: z.object({ runId, artifactId, expectedVersion: z.number().int().min(1) }).strict(),
   },
 } as const;

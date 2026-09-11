@@ -43,7 +43,7 @@ function manifest(): SkillManifest {
 function call(overrides: Partial<RuntimeToolCall> = {}): RuntimeToolCall {
   return {
     toolCallId: "tool-skill-1",
-    toolName: SKILL_WRITE_CAPABILITY.aliases.pi,
+    toolName: SKILL_WRITE_CAPABILITY.aliases.method,
     args: { dirName: "creative-avatar", skillMarkdown: SKILL_MARKDOWN },
     ...overrides,
   };
