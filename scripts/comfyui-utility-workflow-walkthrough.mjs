@@ -44,7 +44,7 @@ const { app, win } = await launchNomiApp({
   name: 'comfyui-utility-workflow',
   settingsDir,
   projectsDir,
-  env: { NOMI_LOOP_SPEND_OK: '1', NOMI_RENDERER_URL: 'file://' + path.join(repoRoot, 'dist', 'index.html') },
+  env: { NOMI_RENDERER_URL: 'file://' + path.join(repoRoot, 'dist', 'index.html') },
   settleMs: 2000,
 })
 const errors = []
