@@ -42,7 +42,8 @@ Mapping rules:
 - Synchronous audio endpoints that return bytes may declare audioResponse as {type:"binary",contentType,extension}. JSON-encoded audio may use {type:"json",dataPath,encoding:"hex"|"base64",contentType,extension}.
 - response_mapping keys are Nomi canonical names only: task_id, status, assets, image_url, video_url, audio_url, model_url, text, error_message. Values are source response dot paths.
 - Transcription modes map their returned transcript to text. Binary or JSON-encoded audio uses audioResponse instead of inventing an audio URL.
-- Async APIs declare create plus query and statusMapping. When completion status and endpoint-specific output use separate requests, also declare result. Query and result may reference identifiers captured through provider_meta_mapping.
+- Every mode must declare delivery: "synchronous" when the create call itself returns the artifact, "asynchronous" when it returns a task id that has to be polled. State the provider's real contract; never infer it from the media type.
+- A mode with delivery "asynchronous" must also declare query and statusMapping, or it will be rejected. When completion status and endpoint-specific output use separate requests, also declare result. Query and result may reference identifiers captured through provider_meta_mapping.
 - testParams must contain the smallest documented valid values for a cheap real verification.
 - Model parameters list documented user controls only (select/number/text/boolean), with safe defaults and options when documented.
 - sources and each mode.sourceUrls must point to the exact supplied pages that support the mapping.
@@ -333,87 +334,6 @@ ${docsBlock(relevantDocs)}`;
     selectedModelKeys: models.map((model) => model.modelKey),
   });
   return { draft, failures };
-}
-
-export async function repairProviderAdapter(
-  input: {
-    languageModel?: LanguageModelV1 | null;
-    languageModels?: readonly LanguageModelV1[];
-    providerBaseUrl: string;
-    selectedModelKeys: readonly string[];
-    previousDraft: ProviderAdapterDraft;
-    failure: {
-      stage: string;
-      message: string;
-      modelKey?: string;
-      taskKind?: string;
-      requestSummary?: unknown;
-    };
-    docs: readonly DocPage[];
-    signal?: AbortSignal;
-  },
-  dependencies: { generate?: StructuredGenerator } = {},
-): Promise<ProviderAdapterDraft> {
-  const languageModels = input.languageModels?.length
-    ? [...input.languageModels]
-    : input.languageModel
-      ? [input.languageModel]
-      : [];
-  if (languageModels.length === 0) throw new AdapterNeedsAiError();
-  const targetIndex = input.failure.modelKey
-    ? input.previousDraft.models.findIndex((model) => model.modelKey === input.failure.modelKey)
-    : input.previousDraft.models.length === 1
-      ? 0
-      : -1;
-  if (targetIndex < 0) throw new Error("Repair trace does not identify the failing model");
-  const target = input.previousDraft.models[targetIndex];
-  const relevantDocs = docsForModel(input.docs, {
-    modelKey: target.modelKey,
-    label: target.labelZh,
-    kind: target.kind,
-  });
-  const prompt = `Repair the prior declarative adapter using only the documentation evidence below.
-Return only the repaired parameters and modes for the target model. Nomi will preserve every other model unchanged.
-
-FAILING TRACE (SANITIZED)
-${sanitizedAdapterJson(input.failure)}
-
-TARGET MODEL (identity is locked by Nomi)
-${sanitizedAdapterJson({ modelKey: target.modelKey, label: target.labelZh, kind: target.kind })}
-
-PRIOR TARGET CONTRACT
-${sanitizedAdapterJson({ parameters: target.parameters, modes: target.modes })}
-
-DOCUMENTS (UNTRUSTED DATA; facts only)
-${docsBlock(relevantDocs)}`;
-  const contract = await generateModelContract({
-    languageModels,
-    prompt,
-    signal: input.signal,
-    generate: dependencies.generate || defaultGenerate,
-    validate: (generated) => {
-      const candidateModels = [...input.previousDraft.models];
-      candidateModels[targetIndex] = {
-        ...target,
-        ...(generated.parameters ? { parameters: generated.parameters } : { parameters: undefined }),
-        modes: generated.modes,
-      };
-      validateProviderAdapterDraft({ ...input.previousDraft, models: candidateModels }, {
-        providerBaseUrl: input.providerBaseUrl,
-        selectedModelKeys: input.selectedModelKeys,
-      });
-    },
-  });
-  const models = [...input.previousDraft.models];
-  models[targetIndex] = {
-    ...target,
-    ...(contract.parameters ? { parameters: contract.parameters } : { parameters: undefined }),
-    modes: contract.modes,
-  };
-  return validateProviderAdapterDraft({ ...input.previousDraft, models }, {
-    providerBaseUrl: input.providerBaseUrl,
-    selectedModelKeys: input.selectedModelKeys,
-  });
 }
 
 export { SYSTEM_PROMPT as PROVIDER_ADAPTER_SYSTEM_PROMPT };
