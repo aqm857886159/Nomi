@@ -7,6 +7,8 @@
 + merge `d5024dada57205428f3d525629cce588a6280450`（`feat/model-onboarding-two-paths-20260911`，15 个未推的本地提交）
 无冲突。`pnpm install --frozen-lockfile` + `pnpm build` 全绿。走查台见 [harness.md](harness.md)。
 本报告只记录，**没有改任何产品代码**。
+**本次验收实际跑的树是 `6697ab1df`**；之后为了过 `check:fresh-base` 才把 `origin/main` 并了进来，
+并进来的提交没有参与这次走查。
 
 **一句话结论**：入参这一层修好了（62% → 100%，零服务器报错），但**没有一次真的接成**。
 按产品自己给的指引原样跑，三次里零次靠自己走完：接入会话卡死在 `needs_spend_confirmation`（外部会话没有出口），
