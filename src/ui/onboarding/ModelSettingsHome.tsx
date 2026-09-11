@@ -13,6 +13,7 @@ import type { Mapping } from '../../../electron/catalog/types'
 import { DesignButton, DesignSearchInput, NomiLoadingMark } from '../../design'
 import { translateModelDisplayText } from '../../i18n/modelDisplayText'
 import { cn } from '../../utils/cn'
+import { AiAssistedOnboardingSection } from './AiAssistedOnboardingSection'
 import type { ChipModel } from './ModelChipGroups'
 import { useVendorHealth } from './useVendorHealth'
 import { vendorConnectionPill } from './vendorConnectionView'
@@ -100,6 +101,7 @@ function ActionRow({
   expanded,
   dataMarker,
   directScript = false,
+  highlighted = false,
 }: {
   icon: React.ReactNode
   title: string
@@ -110,6 +112,8 @@ function ActionRow({
   expanded?: boolean
   dataMarker?: string
   directScript?: boolean
+  /** 「或：手动接入 →」把人送到这一行时的一次性描边（不是常驻状态）。 */
+  highlighted?: boolean
 }): JSX.Element {
   return (
     <button
@@ -118,7 +122,11 @@ function ActionRow({
       aria-expanded={expanded}
       data-model-home-action={dataMarker}
       data-model-home-direct-script={directScript ? '' : undefined}
-      className="group flex min-h-[52px] w-full items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-nomi-ink-10"
+      data-model-home-highlighted={highlighted ? '' : undefined}
+      className={cn(
+        'group flex min-h-[52px] w-full items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-nomi-ink-10',
+        highlighted && 'ring-1 ring-inset ring-nomi-accent',
+      )}
     >
       <span className="grid size-7 shrink-0 place-items-center rounded-nomi-sm bg-nomi-ink-05 text-nomi-ink-60">
         {icon}
@@ -349,6 +357,23 @@ export function ModelSettingsHome({
   const [search, setSearch] = React.useState('')
   const [morePlatformsOpen, setMorePlatformsOpen] = React.useState(false)
   const [otherWaysOpen, setOtherWaysOpen] = React.useState(false)
+  // 「手动接入」不另开向导：滚到本页已有的「自定义 API / 中转站」那一行并描一次边
+  // （§1.5.2 一功能一个家——那一行才是手动接入的家）。
+  const [manualHighlighted, setManualHighlighted] = React.useState(false)
+  const scrollRef = React.useRef<HTMLDivElement>(null)
+  const handleManualConnect = React.useCallback(() => {
+    setManualHighlighted(true)
+    window.requestAnimationFrame(() => {
+      scrollRef.current
+        ?.querySelector<HTMLElement>('[data-model-home-action="custom-api"]')
+        ?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    })
+  }, [])
+  React.useEffect(() => {
+    if (!manualHighlighted) return
+    const timer = window.setTimeout(() => setManualHighlighted(false), 2400)
+    return () => window.clearTimeout(timer)
+  }, [manualHighlighted])
   // 各行探完把结果报上来（探测本身仍归每行的 useVendorHealth，这里只收结论，不第二次探）。
   const [unreachableKeys, setUnreachableKeys] = React.useState<ReadonlySet<string>>(() => new Set())
   const handleHealthChange = React.useCallback((vendorKey: string, unreachable: boolean) => {
@@ -447,6 +472,7 @@ export function ModelSettingsHome({
       hint={t('onboardingProviders.drawer.home.customApiHint')}
       onClick={onCustomApi}
       dataMarker="custom-api"
+      highlighted={manualHighlighted}
     />
   )
 
@@ -507,7 +533,7 @@ export function ModelSettingsHome({
         </div>
       </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-5">
+      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 pb-5">
         {showSearch ? (
           <div className="sticky top-0 z-[5] bg-nomi-paper pb-2 pt-3">
             <DesignSearchInput
@@ -533,6 +559,12 @@ export function ModelSettingsHome({
           </div>
         ) : (
           <>
+            {/* 「用 AI 帮我接入」：想接模型的人一定会到这一屏，所以入口就放在这一屏的最上面
+                （搜索框正下方）。它不是一个模型家，也不接 MCP——只把「跟助手说什么」交到手上。 */}
+            <section className="mt-4" data-model-home-assisted>
+              <AiAssistedOnboardingSection onManualConnect={handleManualConnect} />
+            </section>
+
             {taskCount > 0 && taskContent ? (
               <section className="mt-4" data-model-home-task-strip>
                 <SectionHeading
