@@ -19,7 +19,6 @@ import { ModelBoxOrderSection } from '../../../workbench/settings/ModelBoxOrderS
 import { seedModelBoxPreferenceForLab } from '../../../workbench/common/useModelBoxPreference'
 import { buildModelSelectOptions, modelBoxHiddenNote } from '../../../workbench/common/useDedupedModelSelect'
 import { partitionByModelBoxPreference } from '../../../config/modelBoxPreference'
-import { dedupeModelOptions as dedupeForPartition } from '../../../config/modelIdentity'
 import type { ModelOption } from '../../../config/models'
 import type { ModelBoxPreferenceSettings } from '../../../../electron/shared/contracts/modelBoxPreference'
 
@@ -73,7 +72,7 @@ export function ModelPickerStage({
   // 脚注的条数也由**生产那份**判据算（同一个 partition 函数），不是夹具里写死一个「2」。
   const hiddenNote = React.useMemo(
     () => modelBoxHiddenNote(partitionByModelBoxPreference(
-      dedupeForPartition(keepRunnableVendorOptions(models, runnableVendorKeys)),
+      dedupeModelOptions(keepRunnableVendorOptions(models, runnableVendorKeys)),
       modelBoxPreference,
     ).hidden.length),
     [models, runnableVendorKeys, modelBoxPreference],

@@ -91,8 +91,3 @@ export const MODEL_BOX_PREFERENCE: ModelBoxPreferenceSettings = {
   hiddenModelIds: ['seedream-5-0-lite', 'z-image-turbo'],
   preferredVendorByModel: { 'nano-banana-2': VENDOR_KIE },
 }
-
-/** 一个都没藏过：模型框底部**不该**多出那行脚注（阴性对照）。 */
-export const MODEL_BOX_PREFERENCE_EMPTY: ModelBoxPreferenceSettings = {
-  schemaVersion: 1, modelOrder: [], hiddenModelIds: [], preferredVendorByModel: {},
-}

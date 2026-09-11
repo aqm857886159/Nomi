@@ -6,7 +6,8 @@
 // 两家供应商各起一个 loopback 服务器，落在哪一个上是**不可辩驳**的判据。
 // 外部供应商只由隔离 loopback 代替；Electron、IPC、设置持久化、选择器、付费确认、生成走生产路径。
 //
-// 产出的截图直接落在方案的证据目录里（docs/plan/2026-09-11-model-box-tidy-evidence/after-*.png），
+// 产出的截图直接落在方案的证据目录里（docs/plan/2026-09-11-model-box-tidy-evidence/after-*.png，
+//   含 after-settings-two-lists.png：两张表同屏，对应样张 Main.dc.html 的取景），
 // 与拍板样张 Main.dc.html / PickerAfter.dc.html 摆一起逐项对账。
 import fs from 'node:fs'
 import http from 'node:http'
@@ -162,6 +163,16 @@ try {
 
   // ── ① 设置里排序 + 隐藏 ──
   let section = await openSettings(win)
+  // 拍板样张 Main.dc.html 的取景就是这一屏：两张表上下相邻。先把这一屏拍下来，
+  // 否则「上面那张表」在证据里只以文字形式存在——对账对不上图。
+  const vendorSection = win.locator('[data-vendor-preference-order]')
+  await vendorSection.waitFor({ timeout: 8000 })
+  await vendorSection.scrollIntoViewIfNeeded()
+  const twoListTitles = await win.locator('[data-vendor-preference-order] h3, [data-model-box-order] h3').allInnerTexts()
+  check(twoListTitles[0]?.trim() === '同一个模型多家都有，默认走哪家' && twoListTitles[1]?.trim() === '模型框里显示哪些、排在哪',
+    `两张表的标题与拍板样张逐字一致（${twoListTitles.map((text) => text.trim()).join(' / ')}）`)
+  await snap(win, 'after-settings-two-lists.png', win.locator('[data-settings-dialog]'))
+  await section.scrollIntoViewIfNeeded()
   const rowIds = async () => section.locator('[data-model-box-row]').evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-model-box-row')))
   const before = await rowIds()
   // 隔离 profile 上本来就有内置种子模型（即梦会员等免鉴权的家），所以断言只钉**我们这三个**的
