@@ -408,6 +408,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
           onChangeAspect={onChangeAspect}
           onUpdate={onUpdate}
           onGenerate={statusTag ? undefined : onGenerate}
+          generating={exec?.status === 'generating'}
           statusTag={statusTag}
         />
       </div>

@@ -172,6 +172,10 @@ export default function StoryboardFrameActions({
 }: Props): JSX.Element | null {
   const { t } = useTranslation()
   const [recovering, setRecovering] = React.useState(false)
+  // 「重试」按下去要重新扣一次费，所以它比别的钮更不该让人点第二下：
+  // 2026-09-11 用户实测——点了之后这颗钮没有任何变化，和没点着长得一样。
+  // 忙态既是回执也是闸（`disabled`），和旁边那颗免费的「重新拉取结果」同一副长相。
+  const [retrying, setRetrying] = React.useState(false)
   const hasResult = Boolean(exec.resultUrl) && (exec.status === 'done' || exec.status === 'locked')
   const failed = exec.status === 'failed'
   const recoverable = exec.status === 'recoverable'
@@ -188,13 +192,16 @@ export default function StoryboardFrameActions({
         // 让"这一下要花钱"在点之前就说得出口（P3/D4：缺口明着标）。
         <button
           type="button"
-          onClick={onGenerate}
+          onClick={() => { if (retrying) return; setRetrying(true); onGenerate() }}
+          disabled={retrying}
+          aria-busy={retrying}
+          data-storyboard-retry-state={retrying ? 'busy' : 'idle'}
           title={t('storyboardEditor.frame.retryHint')}
           aria-label={t('storyboardEditor.frame.retryHint')}
-          className="h-6 px-2 rounded-nomi-sm border border-workbench-danger text-micro text-workbench-danger inline-flex items-center gap-1 hover:bg-workbench-danger-soft"
+          className="h-6 px-2 rounded-nomi-sm border border-workbench-danger text-micro text-workbench-danger inline-flex items-center gap-1 hover:bg-workbench-danger-soft disabled:opacity-50 disabled:hover:bg-transparent"
         >
-          <IconRefresh size={12} stroke={1.8} />
-          {t('storyboardEditor.frame.retry')}
+          <IconRefresh size={12} stroke={1.8} className={cn(retrying && 'animate-spin')} />
+          {retrying ? t('storyboardEditor.frame.generating') : t('storyboardEditor.frame.retry')}
         </button>
       ) : null}
       {recoverable && onRecover ? (
