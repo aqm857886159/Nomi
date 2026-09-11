@@ -14,21 +14,19 @@ import type { MultiShotContractProjection } from './productionContractView'
 // 三种来源共用这一个对话框（不另造并行卡，P1）：
 // - 用户直发（light）：多一个「本会话不再提示」。
 // - agent 受理（不 light）：每次必确认。
-// - 外部 AI 助手（MCP，source='agent'）：换机器人图标 + 明细行 + 倒计时（到点自动按未确认返回，不死等）。
+// - 外部 AI 助手（MCP，source='agent'）：换机器人图标 + 明细行。
+// 审批卡**永不因空闲超时**（2026-09-11 用户拍板）：没有倒计时、没有到点自动决定。钱的闸只有真人能决，
+// 等多久都行——外部调用方那头的超时是它自己的事，不该由我们替用户按下「未确认」。
 export function SpendConfirmDialog() {
   const { t } = useTranslation()
   const pending = useSpendConfirmStore((state) => state.pending)
   const resolvePending = useSpendConfirmStore((state) => state.resolvePending)
   const [rememberHosting, setRememberHosting] = React.useState(false)
-  const [remainingMs, setRemainingMs] = React.useState(0)
-  // P4 S3a：多镜确认卡「交互即暂停」——用户一旦在卡上动一下（点/移入/聚焦），倒计时停在原地，
-  // 文案切「已暂停 · 你正在查看」。换 pending 时重置。只对多镜卡生效（外部单发确认仍到点自动返回）。
-  const [interacted, setInteracted] = React.useState(false)
   // B1：方向门单选（默认选第一个候选）。换 pending 时重置到第一个。
   const directionCandidates = pending?.directionCandidates ?? []
   const [choiceKey, setChoiceKey] = React.useState<string | null>(null)
   // B3 无障碍保障（花钱确认比破坏性删除更重，此前 Esc/焦点/语义三样全缺）：
-  // 手写壳保留（倒计时 / 三种宽度 / 滚动内容区 + 固定 footer 是 Mantine Modal 结构给不了的），
+  // 手写壳保留（三种宽度 / 滚动内容区 + 固定 footer 是 Mantine Modal 结构给不了的），
   // 只补齐模态该有的四件事：Esc 可关、焦点陷阱、返回焦点、role/aria-modal/aria-labelledby。
   const cardRef = React.useRef<HTMLDivElement | null>(null)
   const titleId = React.useId()
@@ -65,45 +63,15 @@ export function SpendConfirmDialog() {
     }
   }, [])
 
-
   const isMultiShot = pending?.kind === 'contract' && Boolean(pending.contract?.shotList)
   // P4 §3.2 形象确认卡：与多镜卡同款「滚动内容区 + 固定 footer」布局（~560px），自渲染 footer（先不拍/开拍/重拍）。
   const isAnchorCheckpoint = pending?.kind === 'anchorCheckpoint' && Boolean(pending.anchorCheckpoint)
   const flexShell = isMultiShot || isAnchorCheckpoint
-  const countdownPaused = isMultiShot && interacted
 
   React.useEffect(() => {
     setChoiceKey(pending?.directionCandidates?.[0]?.key ?? null)
-    setInteracted(false)
     setRememberHosting(false)
   }, [pending])
-
-  // 倒计时：设了 countdownMs 才跑。每 200ms 收敛，到点自动按「未确认」返回（不死等——外部调用方那头在等）。
-  // 多镜卡交互后暂停：freeze remainingMs、停 tick（交互即暂停是 S3a 拍板，倒计时是「无人看时」的兜底）。
-  React.useEffect(() => {
-    if (!pending?.countdownMs) {
-      setRemainingMs(0)
-      return
-    }
-    if (countdownPaused) return
-    const total = pending.countdownMs
-    // 暂停后再无交互（不会发生，但安全起见）从当前剩余续跑，而不是从头。
-    const base = remainingMs > 0 && remainingMs <= total ? remainingMs : total
-    const startedAt = Date.now()
-    setRemainingMs(base)
-    const tick = window.setInterval(() => {
-      const left = base - (Date.now() - startedAt)
-      if (left <= 0) {
-        window.clearInterval(tick)
-        resolvePending(false)
-      } else {
-        setRemainingMs(left)
-      }
-    }, 200)
-    return () => window.clearInterval(tick)
-    // remainingMs 故意不进依赖：它每 tick 变，进依赖会重启 interval。base 只在挂载/pending/暂停切换时取一次。
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pending, resolvePending, countdownPaused])
 
   if (!pending) return null
 
@@ -119,9 +87,6 @@ export function SpendConfirmDialog() {
         : pending.kind === 'anchorCheckpoint'
           ? IconUser
           : isAgent ? IconRobot : IconCoin
-  const countdownTotal = pending.countdownMs || 0
-  const remainingSec = countdownTotal ? Math.ceil(remainingMs / 1000) : 0
-  const remainingPct = countdownTotal ? Math.max(0, Math.min(100, (remainingMs / countdownTotal) * 100)) : 0
 
   return (
     // BodyPortal + 中央 z 层级（overlayLayers 契约：全局浮层都 portal 到 body 消费统一层级）——
@@ -158,14 +123,6 @@ export function SpendConfirmDialog() {
           // 多镜卡 / 形象卡：flex 列 + footer shrink-0，内容区滚动、footer 恒在（清单/网格另有内滚）。
           flexShell ? 'flex flex-col overflow-hidden' : 'overflow-y-auto',
         )}
-        // 多镜卡「交互即暂停」：任意鼠标/键盘触达即冻结倒计时。
-        {...(isMultiShot
-          ? {
-              onPointerDownCapture: () => setInteracted(true),
-              onKeyDownCapture: () => setInteracted(true),
-              onMouseEnter: () => setInteracted(true),
-            }
-          : {})}
       >
         <div className={cn('flex items-center gap-2.5 mb-2', flexShell ? 'shrink-0' : '')}>
           <span
@@ -205,10 +162,6 @@ export function SpendConfirmDialog() {
             view={pending.contract}
             list={pending.contract.shotList}
             message={pending.message}
-            countdownTotal={countdownTotal}
-            remainingSec={remainingSec}
-            remainingPct={remainingPct}
-            countdownPaused={countdownPaused}
             confirmLabel={pending.confirmLabel}
             onBackToEdit={() => {
               const cb = pending.onBackToEdit
@@ -324,22 +277,6 @@ export function SpendConfirmDialog() {
           </div>
         ) : null}
 
-        {countdownTotal ? (
-          <div className={cn('flex items-center gap-2 mb-3')}>
-            <div className={cn('flex-1 h-1 rounded-full bg-nomi-ink-05 overflow-hidden')}>
-              <div
-                className={cn('h-full rounded-full', remainingSec <= 10 ? 'bg-nomi-accent' : 'bg-nomi-ink-30')}
-                style={{ width: `${remainingPct}%` }}
-              />
-            </div>
-            <span className={cn('text-micro text-nomi-ink-60 tabular-nums shrink-0 w-[88px] text-right')}>
-              {t('generationCommon.spend.autoIgnore', { seconds: remainingSec })}
-            </span>
-          </div>
-        ) : null}
-
-
-
         <div className={cn('flex items-center justify-end gap-2')}>
           <WorkbenchButton className={cn('h-8 px-4 cursor-pointer')} onClick={() => resolvePending(false)}>
             {pending.cancelLabel || (isAgent ? t('generationCommon.spend.ignore') : t('generationCommon.spend.cancel'))}
@@ -386,16 +323,12 @@ function formatAmount(value: number): string {
 
 /**
  * P4 S3a 多镜确认卡的 body + 固定 footer。抽成独立组件（SpendConfirmDialog 已近上限，且这块自成一体）。
- * 内容区（一句正文 + 规格/主角/清单）滚动、footer（费用块 / 冻结项 / 倒计时 / 按钮）恒在不滚出。
+ * 内容区（一句正文 + 规格/主角/清单）滚动、footer（费用块 / 冻结项 / 按钮）恒在不滚出。
  */
 function MultiShotCardBody(props: {
   view: import('./productionContractView').ProductionContractView
   list: MultiShotContractProjection
   message: string
-  countdownTotal: number
-  remainingSec: number
-  remainingPct: number
-  countdownPaused: boolean
   confirmLabel?: string
   onBackToEdit: () => void
   onTrialFirst: () => void
@@ -403,7 +336,7 @@ function MultiShotCardBody(props: {
   onConfirm: () => void
   t: (key: string, opts?: Record<string, unknown>) => string
 }): JSX.Element {
-  const { view, list, message, countdownTotal, remainingSec, remainingPct, countdownPaused, confirmLabel, t } = props
+  const { view, list, message, confirmLabel, t } = props
   const firstShotPrice = list.shots[0]?.price
   const trialLabel = firstShotPrice?.known
     ? t('generationCommon.production.batch.trialFirst', { amount: formatAmount(firstShotPrice.amount) })
@@ -416,7 +349,7 @@ function MultiShotCardBody(props: {
         <MultiShotContractSummary view={view} />
       </div>
 
-      {/* 固定 footer：不随清单滚。费用块 → 冻结项 → 倒计时 → 按钮区。 */}
+      {/* 固定 footer：不随清单滚。费用块 → 冻结项 → 按钮区。 */}
       <div className={cn('shrink-0 mt-3 grid gap-2.5 border-t border-nomi-line pt-3')} data-production-footer>
         {/* 费用块：左「预估合计 + 单镜返工承诺句」 | 右「最多花费 ≤¥X」。 */}
         <div className={cn('flex items-start justify-between gap-4')}>
@@ -453,23 +386,6 @@ function MultiShotCardBody(props: {
             {list.frozenItems
               .map((item) => t(`generationCommon.production.batch.frozen.${item}`))
               .join(' · ')}
-          </div>
-        ) : null}
-
-        {/* 倒计时条：交互即暂停（文案切「已暂停 · 你正在查看」）；时长随镜数伸缩由调用方给的 countdownMs 决定。 */}
-        {countdownTotal ? (
-          <div className={cn('flex items-center gap-2')} data-production-countdown={countdownPaused ? 'paused' : 'running'}>
-            <div className={cn('flex-1 h-1 rounded-full bg-nomi-ink-05 overflow-hidden')}>
-              <div
-                className={cn('h-full rounded-full', countdownPaused ? 'bg-nomi-ink-20' : remainingSec <= 10 ? 'bg-nomi-accent' : 'bg-nomi-ink-30')}
-                style={{ width: `${countdownPaused ? 100 : remainingPct}%` }}
-              />
-            </div>
-            <span className={cn('text-micro text-nomi-ink-60 tabular-nums shrink-0 text-right')}>
-              {countdownPaused
-                ? t('generationCommon.production.batch.countdownPaused')
-                : t('generationCommon.production.batch.countdownAuto', { seconds: remainingSec })}
-            </span>
           </div>
         ) : null}
 

@@ -144,6 +144,20 @@ function scheduler(root: string, repository: ReturnType<typeof createProductionR
   });
 }
 
+/**
+ * 真人批准锚检查点——检查点**永不自己放行**（2026-09-11 拍板），所以任何要跑完整批的测试都得像生产
+ * 此前这些测试传一个现已删除的 `anchorAutoReleaseMs: 0` 绕过它，正好把「没有入口」盖住。
+ */
+function approveCheckpoint(repository: ReturnType<typeof createProductionRunRepository>): void {
+  const run = repository.read("project-1", "op-batch")!;
+  const gate = run.gates.find((candidate) => candidate.scope === "anchor_checkpoint" && candidate.status === "waiting");
+  if (!gate) throw new Error("expected a waiting anchor checkpoint to approve");
+  repository.execute("project-1", "op-batch", {
+    commandId: `approve-checkpoint:${run.revision}`, expectedRevision: run.revision,
+    type: "gate.decide", payload: { gateId: gate.gateId, status: "approved" }, issuedAt: NOW,
+  });
+}
+
 function schedulerWithCompletion(
   root: string,
   repository: ReturnType<typeof createProductionRunRepository>,
@@ -294,12 +308,14 @@ describe("P4 S4 batch scheduler — crash recovery", () => {
     const { root, repository } = setupBatch(shots, null);
     const submit = vi.fn(async () => ({ providerTaskId: `task-${submit.mock.calls.length + 1}` }));
 
-    // First run: anchor generates + checkpoint auto-releases (test uses auto-release so it completes),
-    // shots submit. Then we "crash" by constructing a fresh scheduler and running again — no double submit.
-    await scheduler(root, repository, submit, { anchorAutoReleaseMs: 0 }).runToQuiescence();
+    // First run: the anchor generates and the batch parks at the checkpoint — nothing releases it but a
+    // person, so the test approves it the way the production entrance does (gate.decide), then re-runs.
+    await scheduler(root, repository, submit).runToQuiescence();
+    approveCheckpoint(repository);
+    await scheduler(root, repository, submit).runToQuiescence();
     const firstCount = submit.mock.calls.length;
     // Simulate restart: a brand-new scheduler over the SAME durable Run re-derives and finds nothing new.
-    await scheduler(root, repository, submit, { anchorAutoReleaseMs: 0 }).runToQuiescence();
+    await scheduler(root, repository, submit).runToQuiescence();
 
     // Total provider submissions = 1 anchor + 2 shots = 3, and the restart added none.
     expect(firstCount).toBe(3);
