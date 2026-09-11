@@ -1,61 +1,29 @@
 import type { PlanCandidate } from "../capabilityCore/executionContract";
 
 /**
- * P4 S2 — per-shot pricing derive + preview projection + seal precheck (pure, provider-free).
+ * P4 S2 — preview projection + gate projection + seal precheck (pure, provider-free).
  *
- * ## Why this module exists and where the numbers come from
+ * **算式本身不住在这里**：`deriveShotPrice`（基价 + 命中的规格加价）2026-09-11 搬进了中立契约层
+ * `electron/shared/contracts/shotPricingRule.ts`，因为付费确认卡要在渲染层用同一条算式**当场**重算
+ * 价格（改一个 chip 价格就得动），而渲染层 import 不到主进程实现层。这里只做**投影与门前检查**，
+ * 并把算式原样转出去，好让既有调用方一个字都不用改（P1：不留第二份算式）。
  *
- * The only pricing truth source is the catalog model row's optional `pricing` field
- * (electron/catalog/types.ts:207-213): `{ cost, enabled, specCosts: [{ specKey, cost, enabled }] }`.
- * It is user-configurable. Everything here derives from it — never a hard-coded price.
- *
- * ## The specKey matching rule (no prior code precedent — see the plan §9 honesty boundary)
- *
- * The catalog `specCosts` shape has existed since C1 (commit ee7b0a47) but **no consumer ever joined
- * it to a parameter selection** — the intended `estimateGenerationCost` (archetype params × specCosts)
- * was documented as "数据已有全未用" (docs/plan/2026-06-11-nomi-harness-master-plan.md:244) and never
- * built; there is no `specKey` example anywhere in the tree. S2 therefore has to *define* the rule.
- * The conservative rule adopted here mirrors the documented additive join and stays honest:
- *
- *   price(shot) = pricing.cost  +  Σ specCost.cost   for every ENABLED specCost whose specKey matches
- *                                                    a parameter the shot actually selected.
- *
- * A specKey "matches a selection" when it equals either:
- *   - a bare selected value  (specKey "720p"           matches parameters.resolution === "720p"), or
- *   - a paramKey:value pair  (specKey "resolution:720p" matches the same selection).
- * Values are compared as trimmed strings (numeric selections stringify: duration 5 → "5").
- *
- * If there is no pricing row, pricing is disabled, or the base cost is not a finite non-negative
- * number → the price is honestly `{ known: false }`. We NEVER substitute 0 for an unknown price:
- * an unpriced model must surface as "未知" in preview, not as "¥0" (plan §3.1/§9). (The separate
- * *ledger* wiring may still reserve 0 for an unpriced shot — that is "no priced liability to reserve",
- * not a fabricated display price; the two concerns are deliberately kept apart.)
+ * 价目的唯一真相源仍是目录行的 `model.pricing`（`electron/catalog/types.ts`，用户可改），
+ * 「算不出绝不落成 0」的语义也由那条算式一处守住。
  */
 
-export type ModelPricingSpec = {
-  specKey: string;
-  cost: number;
-  enabled: boolean;
-};
+import { deriveShotPrice, type PricingResolver, type ShotPrice } from "../shared/contracts/shotPricingRule";
 
-export type ModelPricing = {
-  cost: number;
-  enabled: boolean;
-  specCosts: ReadonlyArray<ModelPricingSpec>;
-};
-
-/** A catalog model row reduced to its identity + pricing (the only fields this module reads). */
-export type ModelPricingRow = {
-  providerId: string;
-  modelId: string;
-  pricing?: ModelPricing;
-};
-
-/** Resolve the pricing config for a provider/model identity (candidate.providerId maps to vendorKey). */
-export type PricingResolver = (providerId: string, modelId: string) => ModelPricing | undefined;
-
-/** A derived per-shot price: an honest known amount, or explicitly unknown. Never a fabricated 0. */
-export type ShotPrice = { known: true; amount: number } | { known: false };
+export type {
+  ModelPricingSpec,
+  ModelPricing,
+  ModelPricingRow,
+  PricingResolver,
+  ShotPrice,
+  PricedCandidate,
+  ShotPriceInput,
+} from "../shared/contracts/shotPricingRule";
+export { deriveShotPrice };
 
 /**
  * A paid gate cannot be issued when the catalog cannot prove a price.  Keep
@@ -78,52 +46,8 @@ export function assertKnownShotPrice(price: ShotPrice, shotId: string): asserts 
   if (!price.known) throw new GenerationPricingUnavailableError(shotId);
 }
 
-export type ShotPriceInput = {
-  candidate: Pick<PlanCandidate, "providerId" | "modelId" | "parameters">;
-  resolvePricing: PricingResolver;
-};
-
 function isFiniteNonNegative(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value) && value >= 0;
-}
-
-/**
- * The set of specKeys a shot's parameter selection can match: for each parameter, both the bare
- * stringified value and the `paramKey:value` composite. Non-scalar values are ignored (a specCost
- * cannot meaningfully key on an object/array selection).
- */
-function selectedSpecKeys(parameters: Record<string, unknown>): Set<string> {
-  const keys = new Set<string>();
-  for (const [paramKey, raw] of Object.entries(parameters)) {
-    if (raw === undefined || raw === null) continue;
-    const scalar = typeof raw === "string" || typeof raw === "number" || typeof raw === "boolean";
-    if (!scalar) continue;
-    const value = String(raw).trim();
-    if (!value) continue;
-    keys.add(value);
-    keys.add(`${paramKey}:${value}`);
-  }
-  return keys;
-}
-
-/**
- * Derive a single shot's price from its selected model + parameters and the catalog pricing.
- * Pure. Returns `{ known: false }` (never 0) when the price cannot be honestly established.
- */
-export function deriveShotPrice(input: ShotPriceInput): ShotPrice {
-  const pricing = input.resolvePricing(input.candidate.providerId, input.candidate.modelId);
-  if (!pricing || pricing.enabled !== true || !isFiniteNonNegative(pricing.cost)) return { known: false };
-
-  const selected = selectedSpecKeys(input.candidate.parameters ?? {});
-  let amount = pricing.cost;
-  for (const spec of pricing.specCosts ?? []) {
-    if (spec.enabled !== true) continue;
-    if (!isFiniteNonNegative(spec.cost)) continue;
-    const specKey = typeof spec.specKey === "string" ? spec.specKey.trim() : "";
-    if (!specKey) continue;
-    if (selected.has(specKey)) amount += spec.cost;
-  }
-  return { known: true, amount };
 }
 
 // ---------------------------------------------------------------------------------------------------
