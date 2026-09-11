@@ -202,19 +202,27 @@ function SpendComposerCard({
   const node = nodes.find((candidate) => candidate.id === NODE_ID(index))
 
   // 展开态由取景台**真的点一下触发钮**得到，不是另画一份展开的样子。
-  // 触发钮按 aria-label 找：那两个 label 本来就走 i18n，跟着语言走，不写死中文选择器。
+  // 模型下拉按 aria-label 找（那条 label 走 i18n，跟着语言走，不写死中文选择器）；
+  // 参数面板的触发器按**走查锚点属性**找，因为它是谁取决于摆法：
+  // chips 形态（付费卡这一处）是那颗 ⚙ `[data-parameter-more]`，summary 形态是摘要 pill
+  // `[data-parameter-summary]`。此前这里写死了摘要 pill 的 aria-label——摆法一换就点了个空，
+  // 截回来的是一张「和收起时一模一样」的假证据（这一格自称面板展开，却什么都没展开）。
   //
   // 为什么要等 `optionsReady`：目录是**异步**到的（现役 `useModelOptionsState` 先 setState([]) 再落数据）。
   // 在没有模型的那一帧上点，参数条上根本还没有那颗芯片——点了个寂寞，截回来的是「没展开」的假证据。
   // 所以这里等的不是一个墙钟，是「那颗钮真的在了」这个条件（R18：不许私接墙钟等待）。
   const modelLabel = fx.t('generationCommon.parameters.model')
-  const panelLabel = fx.t('generationCommon.parameters.generationParameters')
   const optionsReady = useGenerationModelOptionsState('video', 'text_to_video').options.length > 0
   React.useLayoutEffect(() => {
     if (!openTrigger || !ready || !optionsReady) return
-    const selector = `button[aria-label="${openTrigger === 'model' ? modelLabel : panelLabel}"]`
-    cardRef.current?.querySelector<HTMLButtonElement>(selector)?.click()
-  }, [openTrigger, ready, optionsReady, modelLabel, panelLabel])
+    const selector = openTrigger === 'model'
+      ? `button[aria-label="${modelLabel}"]`
+      : '[data-parameter-more], [data-parameter-summary]'
+    const trigger = cardRef.current?.querySelector<HTMLButtonElement>(selector)
+    // 点不到就说出来：这一格的全部信息量就在「展开之后长什么样」，静默截一张收起态是假证据。
+    if (!trigger) throw new Error(`[v4-spend-params] 找不到 openTrigger="${openTrigger}" 的触发器：${selector}`)
+    trigger.click()
+  }, [openTrigger, ready, optionsReady, modelLabel])
 
   if (!ready || !node) return <Piece><div /></Piece>
 
@@ -406,7 +414,7 @@ export const V4_SPEND_PARAMS_STATES: readonly LabState[] = [
   },
   {
     id: 'v4-spend-params-panel-open',
-    name: '付费卡 · 参数面板就地展开（画质 / 时长 / 比例 / 声效 全都能改，不只是模型）',
+    name: '付费卡 · ⚙ 就地展开长尾参数（比例/时长/画质已在底栏 chip 上，这里是没上 chip 的那些）',
     source: SOURCE,
     mirrors: 'src/workbench/generationCanvas/nodes/InlineParameterBar.tsx:337',
     coverage: 'component-only',

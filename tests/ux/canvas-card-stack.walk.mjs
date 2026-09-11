@@ -168,13 +168,45 @@ try {
 
   await imageNode.click({ position: { x: 120, y: 120 } })
   await expect(imageNode.locator('.generation-canvas-v2-node__composer-card')).toBeVisible()
+  // 2026-09-10 起浮框几何的唯一 owner 是 `resolveAnchoredPlacement`：位置只由「视口 + 它自己的
+  // 锚点」决定，**刻意不再避让障碍**（自研的「最大空矩形避让搜索」已连同 composerObstaclePlacement.ts
+  // 一起删掉；理由、框架出处与有效期条件见 src/workbench/generationCanvas/nodes/anchoredPlacement.ts
+  // 文件头与 docs/research/2026-09-10-node-composer-placement/prior-art.md）。所以旧的「参数卡
+  // 不得与任何非选中节点相交」描述的是已经删掉的那套行为，留着只会把「今天碰巧避开了」钉成不变量。
+  // 换成守新形态下真正该成立的两条，两条都跟这一幕强相关（画布上正好摊着展开的雨夜参考组）：
+  //   ① 钉住：浮框整块落在它自己节点的正下方（翻转时正上方），且横向跨过该节点中线——
+  //      「跑到一块空地上去」这种漂移在这条下当场红；贴到可用区边缘 clamp 时按 clamp 判。
+  //   ② 在最上层：卡自己处处命中得到。盖住别的节点可以（新设计就这么定的），被别的节点盖住不行。
   await expect.poll(() => imageNode.evaluate((selected) => {
-    const card = selected.querySelector('.generation-canvas-v2-node__composer-card').getBoundingClientRect()
-    return [...document.querySelectorAll('article[data-node-id]')].filter(node => node !== selected).filter(node => {
-      const rect = node.getBoundingClientRect()
-      return card.left < rect.right && card.right > rect.left && card.top < rect.bottom && card.bottom > rect.top
-    }).map(node => node.getAttribute('data-node-id'))
-  }), { message: '参数卡矩形不得与任何非选中节点矩形相交' }).toEqual([])
+    const anchor = selected.querySelector('.generation-canvas-v2-node__composer')
+    const card = anchor?.querySelector('.generation-canvas-v2-node__composer-card')
+    const stage = selected.closest('.generation-canvas-v2__stage')
+    if (!anchor || !card || !stage) return ['参数卡还没挂上']
+    const nodeRect = selected.getBoundingClientRect()
+    const anchorRect = anchor.getBoundingClientRect()
+    const cardRect = card.getBoundingClientRect()
+    const stageRect = stage.getBoundingClientRect()
+    const flippedUp = anchor.getAttribute('data-flipped') === 'true'
+    const problems = []
+    // ① 在正确的一侧，且不许侵入节点自己的矩形。
+    const onSide = flippedUp ? anchorRect.bottom <= nodeRect.top + 1 : anchorRect.top >= nodeRect.bottom - 1
+    if (!onSide) problems.push(`浮框没贴在节点${flippedUp ? '上' : '下'}沿（data-flipped=${anchor.getAttribute('data-flipped')}）`)
+    // ① 横向锚在自己节点身上：跨过节点中线，或者已经被可用区边缘 clamp 住。
+    const nodeCentreX = (nodeRect.left + nodeRect.right) / 2
+    // 13 = useComposerViewportPlacement 的 VIEWPORT_MARGIN(12) + 1px 量测容差，不是随手取的数。
+    const clampedToStage = anchorRect.left <= stageRect.left + 13 || anchorRect.right >= stageRect.right - 13
+    if (!(anchorRect.left <= nodeCentreX && anchorRect.right >= nodeCentreX) && !clampedToStage) {
+      problems.push(`浮框横向没锚在自己节点上（节点中线 ${Math.round(nodeCentreX)}，浮框 ${Math.round(anchorRect.left)}–${Math.round(anchorRect.right)}）`)
+    }
+    // ② 卡整块在最上层：左中右三点各打一次真实命中测试。
+    for (const ratio of [0.15, 0.5, 0.85]) {
+      const hit = document.elementFromPoint(cardRect.left + cardRect.width * ratio, cardRect.top + Math.min(10, cardRect.height / 2))
+      if (hit && card.contains(hit)) continue
+      const blocker = hit?.closest('article[data-node-id]')?.getAttribute('data-node-id') ?? hit?.tagName ?? '画布之外'
+      problems.push(`参数卡在横向 ${Math.round(ratio * 100)}% 处被「${blocker}」盖住`)
+    }
+    return problems
+  }), { message: '参数卡必须钉在自己节点的正下/正上方，并且盖在别的节点之上（新几何不避让障碍，被盖住才是回归）' }).toEqual([])
   const regenerate = imageNode.locator('.generation-canvas-v2-node__composer-card').getByRole('button', { name: '重新生成', exact: true })
   await regenerate.scrollIntoViewIfNeeded()
   await expect.poll(() => regenerate.evaluate(button => {
