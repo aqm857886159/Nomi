@@ -7,7 +7,7 @@ import type { ShotDegradation, ShotPrice } from '../../../../electron/production
 import type { MultiShotContractProjection, ProductionContractView } from './productionContractView'
 
 // P4 S3a — 多镜确认卡的「可滚动内容区」：规格条 4 格 + 主角形象 chips + 汇总行 + 逐镜清单（内部有界滚动 ~40vh）。
-// 固定 footer（费用块 / 冻结项 / 倒计时 / 按钮）不在这里——由 SpendConfirmDialog 的 contract 分支渲染，
+// 固定 footer（费用块 / 冻结项 / 按钮）不在这里——由 SpendConfirmDialog 的 contract 分支渲染，
 // 好让它不随清单滚动（NodeErrorReport 2026-07-31 同款「动作固定、内容滚动」教训）。
 // 逐镜行**只读**：改内容走「返回修改」（一功能一个家，卡内不加编辑控件）。
 // 术语零内部词（「锚/封存/物化/合同」不上卡）；降级从 S2 结构化 code 经 t() 翻人话。

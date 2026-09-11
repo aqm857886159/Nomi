@@ -43,8 +43,8 @@ export type BuildAnchorCheckpointGateInput = {
 };
 
 /**
- * Build the anchor checkpoint gate. Waiting until the user approves the anchor look (or an auto-release
- * timeout, handled in the derivation). The title/summary are the AGENT-FACING gate labels (English, like
+ * Build the anchor checkpoint gate. Waiting until the user approves the anchor look — there is no
+ * timeout that decides it for him. The title/summary are the AGENT-FACING gate labels (English, like
  * the sibling direction/contract gates — the renderer owns the user-facing card copy via i18n); they pass
  * the projection sanitizer and carry no internal terms (anchor/seal/materialize) to any surface.
  */
