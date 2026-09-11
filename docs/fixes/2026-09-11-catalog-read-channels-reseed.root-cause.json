@@ -1,0 +1,169 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-11-catalog-read-channels-reseed",
+  "change_kind": "corrective",
+  "problem_type": "同一份持久化目录有多条读取入口，其中只有一条在读之前把内置种子补齐；其余几条读到的是过期快照。缺陷不在任何一条入口自己身上——每一条单独看都在做合理的事——而在于「读目录之前要补种子」这条不变量没有任何一层持有，全靠每个作者写下一条新的读频道时自己想起来",
+  "symptom": "用户 2026-09-11 原话第一条：「设置里的供应商列表要全」。表现是：新增的内置供应商（Agnes AI、魔搭、火山方舟、RunningHub 等种子）在「模型」tab 的模型列表里能看见，却不出现在 AI 策略里那张供应商排序表里；重启 Nomi 之后又好了。用户据此以为是排序功能坏了，实际是这张表的数据源读到了过期目录",
+  "direct_cause": "`electron/main.ts` 的 `registerIpc()` 里，`nomi:model-catalog:models:list` 的处理器在读之前显式调用了 `ensureBuiltinModelSeeds()`，并留了注释说明理由（「Renderer 热更新不会重启 Electron main，读取时补一次内置种子」）；紧邻的 `nomi:model-catalog:vendors:list` 直接调 `listModelCatalogVendors()` 读盘，没有那一步。渲染层热更新不会重启主进程，所以两条频道读的是同一个进程里同一份目录：models:list 把新种子补进去了，而 vendors:list 如果先被调用（设置面板打开时就是它先），拿到的就是还没补种子的那份。AI 策略里的供应商排序区由 `AiModelsSection.tsx` 的 `configuredVendorEntries` 从 vendors:list 的返回值算出来，于是整块表跟着少。一次真正的冷重启会在启动路径上补种子，所以「重启就好了」——这也是它长期没被定位成 bug 的原因",
+  "class_root": "「读目录的入口必须先把内置种子补齐」这条不变量在这份代码库里没有持有者：它既不在 `catalogStore` 的读函数里（那些函数只管读盘），也不在 IPC 注册的装配层（每条频道各自决定要不要补），而是散落成每个处理器里的一行手写调用。没有持有者的不变量必然按入口数量随机地被遵守——本次机器扫描证实：五条读频道里只有一条做对了，另外四条（vendors:list、mappings:list、health、export）都漏了",
+  "affected_population": [
+    "打开「设置 → AI 策略」想调整供应商优先顺序的用户：新接入/新内置的供应商不出现在排序表里，用户以为排序坏了或者以为那家没接进来（这是本次用户报告的具体场景）",
+    "打开「设置 → 模型」看目录健康度的用户：`nomi:model-catalog:health` 统计的 vendors/models/mappings 条数基于未补种子的目录，新内置供应商与其模型不计入，「你接了几个模型」的数字偏小",
+    "使用目录导出（`nomi:model-catalog:export`）备份或迁移接入配置的用户：导出的包里缺少本次版本新增、但当前进程还没补进目录的内置供应商种子，导入到另一台机器后配置不完整",
+    "读取调用映射列表（`nomi:model-catalog:mappings:list`）的接入面：新种子带来的 mapping 不出现，表现为「模型在列表里但点了没有通道」"
+  ],
+  "scope_paths": [
+    "electron/main.ts",
+    "electron/catalogReadChannelsReseed.test.ts",
+    "electron/settings/modelBoxPreferenceIpc.ts",
+    "electron/settings/registerSettingsIpc.ts",
+    "electron/settings/modelBoxPreferenceSettings.ts",
+    "electron/shared/contracts/modelBoxPreference.ts",
+    "electron/settings/modelBoxPreferenceContract.test.ts",
+    "tests/ux/model-box-tidy.walk.mjs"
+  ],
+  "entry_points": [
+    "`nomi:model-catalog:vendors:list` —— 用户报的那一条：AI 策略里的供应商排序表直接由它喂数据",
+    "`nomi:model-catalog:models:list` —— 唯一一条本来就做对了的（本次改为走共享的 readCatalog，删掉处理器里那行手写调用）",
+    "`nomi:model-catalog:mappings:list` —— 同类漏网，本次由机器扫描找出",
+    "`nomi:model-catalog:health` —— 同类漏网，本次由机器扫描找出",
+    "`nomi:model-catalog:export` —— 同类漏网，本次由机器扫描找出（第一版扫描器正则写坏时漏报过它，见 invariants 第三条）",
+    "`nomi:settings:model-box-preference-get` / `-set` —— 本次新增的设置读写对，走 `registerSettingsIpc` 装配；它们不读目录，但同属本次改动触及的高风险 IPC 面，见 same_class_entry_points 的说明"
+  ],
+  "invariants": [
+    "任何读取模型目录的 IPC 频道，必须在读之前经过 `readCatalog()`（它负责 `ensureBuiltinModelSeeds()`）；写频道不得包这一层——补种子是读路径的新鲜度保证，不是写路径的前置条件",
+    "目录频道新增一个动词（既不在读动词表也不在写动词表里）时，必须由作者显式归类成读或写，不允许「没归类」默认落进不补种子的那一边",
+    "机器扫描器自身必须带阳性对照：断言「没有漏网的读频道」之前，先断言「确实扫到了足够多的注册行」。本次第一版扫描器的正则写成 `[^)]*?`，恰好匹配不上已经包好 `readCatalog(...)` 的那些行（它们自带一对括号），于是只看得见没包的那一小半——阳性对照是唯一发现它的东西",
+    "本次新增的设置 IPC（`nomi:settings:model-box-preference-get/-set`）两条都经过 `assertTrustedSender`，且读写都经 `normalizeModelBoxPreferenceSettings` 归一：坏数据、未知模型 id、超长 id、非法 schema 版本一律降级为默认值而不抛错，渲染层永远拿到一个结构合法的对象"
+  ],
+  "generality_proof": "把「读之前补种子」从五个处理器里的手写调用收进 `registerIpc()` 内的一个 `readCatalog()` 包装器——它成为这条不变量唯一的持有者，新增读频道时正确写法只有一种（把读函数交给它），而不是「记得在函数体第一行加一句」。光有共享写法还不够（下一个作者仍可能直接写 `registerSyncIpc(channel, readFn)` 绕过去），所以配一条静态扫描测试 `catalogReadChannelsReseed.test.ts`：它枚举 `electron/main.ts` 里全部 `nomi:model-catalog:*` 注册行，按动词表分成读/写，逐条断言读的必须以 `readCatalog(` 开头、写的必须不是，并对任何没归类的新动词直接报红。漏掉的那条会被指名道姓地打印出频道名，而不是等用户在设置里数供应商少了几家",
+  "shared_boundaries": [
+    {
+      "path": "electron/main.ts",
+      "symbol": "readCatalog",
+      "responsibility": "模型目录读路径的唯一新鲜度边界：先 ensureBuiltinModelSeeds() 再把参数透传给真正的读函数。所有 nomi:model-catalog 读频道都从这里过，处理器里不再各写一行手动补种子"
+    },
+    {
+      "path": "electron/catalogReadChannelsReseed.test.ts",
+      "symbol": "model catalog read channels reseed builtins first",
+      "responsibility": "上面那条不变量的机器化持有者：静态枚举 main.ts 的目录频道注册点，读频道必须走 readCatalog、写频道必须不走、新动词必须显式归类；自带阳性对照防止扫描器失效后空集通过"
+    },
+    {
+      "path": "electron/shared/contracts/modelBoxPreference.ts",
+      "symbol": "normalizeModelBoxPreferenceSettings",
+      "responsibility": "本次新增设置面的跨进程归一边界：主进程读盘、主进程写盘、渲染层拿到的值都经它降级归一，坏数据退默认不抛错；IPC 层不自己判断字段合法性"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/main.ts",
+      "entry_point": "nomi:model-catalog:vendors:list",
+      "disposition": "enforced",
+      "evidence": "用户报的那一条。改前直接 `listModelCatalogVendors()`，改后走 `readCatalog(listModelCatalogVendors)`；真机走查 tests/ux/model-box-tidy.walk.mjs 在隔离 profile 上打开设置，供应商排序表能列出目录里全部已配置的家"
+    },
+    {
+      "path": "electron/main.ts",
+      "entry_point": "nomi:model-catalog:mappings:list",
+      "disposition": "enforced",
+      "evidence": "同类漏网：改前没有任何补种子调用。由 catalogReadChannelsReseed.test.ts 的扫描发现（不是靠人眼读代码），已改为走 readCatalog"
+    },
+    {
+      "path": "electron/main.ts",
+      "entry_point": "nomi:model-catalog:health",
+      "disposition": "enforced",
+      "evidence": "同类漏网：目录健康度统计基于未补种子的目录，新内置供应商与模型不计入。同由扫描发现，已改为走 readCatalog"
+    },
+    {
+      "path": "electron/main.ts",
+      "entry_point": "nomi:model-catalog:export",
+      "disposition": "enforced",
+      "evidence": "同类漏网：导出的目录包会缺当前进程还没补进去的内置种子。扫描器修好正则后的第一次运行就把它标了出来（第一版正则漏报过它），已改为走 readCatalog"
+    },
+    {
+      "path": "electron/main.ts",
+      "entry_point": "nomi:model-catalog:vendor:upsert / model:upsert / mapping:upsert / *:delete / vendor-api-key:clear / model:retype / import（全部写频道）",
+      "disposition": "not-affected",
+      "evidence": "写路径不适用这条不变量：补种子是为了保证**读到的**是最新目录，写之前补一次既不改变写入结果，又让每次写多跑一遍播种。已由 catalogReadChannelsReseed.test.ts 的第三条用例反向钉住（写频道若被包进 readCatalog 直接报红），确保「都包一层」不会变成默认动作"
+    },
+    {
+      "path": "electron/settings/modelBoxPreferenceIpc.ts",
+      "entry_point": "nomi:settings:model-box-preference-get / -set",
+      "disposition": "enforced",
+      "evidence": "本次新增的设置 IPC 对，不读模型目录、不适用补种子那条不变量；它适用的是设置面自己的两条：两个 handler 都先 `assertTrustedSender(event)`，读写都经 `normalizeModelBoxPreferenceSettings` 归一。契约降级行为由 electron/settings/modelBoxPreferenceContract.test.ts 覆盖（未知 id、重复、超长 id、非法 schema 版本全部退默认不抛错）"
+    },
+    {
+      "path": "electron/settings/registerSettingsIpc.ts",
+      "entry_point": "registerSettingsIpc 的装配点",
+      "disposition": "enforced",
+      "evidence": "只多一行 `registerModelBoxPreferenceIpc()`，与既有 `registerVendorPreferenceIpc()` 同构；新增频道的信任与归一都在被装配的模块里做完（见上一条），装配层不新增任何判断分支，因此没有第二处需要同步维护的规则"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "不是一次手误：机器扫描证实五条读频道里四条都漏了同一步（vendors:list、mappings:list、health、export），只有 models:list 做对。四处分别属于不同时期、不同作者加的频道，说明只要这条不变量继续靠人自觉，下一条新增的读频道仍会漏。用户看到的症状（列表不全、重启就好）在四个入口上会以四种不同面貌出现，逐个当独立 bug 修必然再来一次",
+    "same_class_scan": [
+      "`grep -n 'registerSyncIpc(\"nomi:model-catalog' electron/main.ts` 列出全部 15 条目录频道，逐条按读/写归类，确认读的五条里只有 models:list 补了种子",
+      "`grep -rn 'ensureBuiltinModelSeeds' electron/` 找出全部调用点：启动路径、models:list 处理器、以及另一处 onboarding 路径；确认没有任何一层在读函数内部兜底（`listModelCatalogVendors` 等只管读盘）",
+      "新增 electron/catalogReadChannelsReseed.test.ts 把上面这次人工扫描固化成每次 CI 都跑的枚举断言——第一版正则 `[^)]*?` 漏掉了已包装的行，靠测试自带的阳性对照（注册行数 > 10、读频道数 > 1）当场露馅后修正为吃到行尾",
+      "反向确认写频道不该补：逐条读 upsert/delete/clear/retype/import 的实现，确认它们各自都会把最终状态写回目录，补种子对写入结果没有影响，只增加每次写的开销"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/main.ts",
+    "invariant": "所有 nomi:model-catalog 读频道都必须经过 readCatalog()（内含 ensureBuiltinModelSeeds），写频道不得经过它；新增动词必须在扫描器的读/写动词表里显式归类",
+    "failure_mode": "新增一条读目录的频道却直接把读函数交给 registerSyncIpc（或新增一个没归类的动词），electron/catalogReadChannelsReseed.test.ts 会在 CI 里打印出具体频道名并报红——不必等用户在设置里发现供应商少了几家、也不必等某人想起来「重启一下试试」",
+    "exception_policy": "none",
+    "strategy": "把补种子这一步从五个处理器里的手写调用收成 registerIpc() 内的一个包装器（唯一正确写法），同时删掉 models:list 处理器里那行原来手写的调用——不保留新旧两种写法并存的中间态（P1 加新必删旧）。再用一条静态枚举测试把「有没有走这个包装器」变成机器判据，并给扫描器本身加阳性对照，防止扫描器失效后以空集通过的形式假绿",
+    "artifacts": [
+      "electron/main.ts",
+      "electron/catalogReadChannelsReseed.test.ts"
+    ]
+  },
+  "regression_tests": [
+    "electron/catalogReadChannelsReseed.test.ts",
+    "electron/settings/modelBoxPreferenceContract.test.ts",
+    "tests/ux/model-box-tidy.walk.mjs"
+  ],
+  "class_regression_tests": [
+    "electron/catalogReadChannelsReseed.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/main.ts"
+    ],
+    "rationale": "models:list 处理器里那行手写的 `ensureBuiltinModelSeeds()`（连同解释它的注释）在同一处改动里删除，改为走共享的 readCatalog()。不保留它作为「双保险」：留着就等于这条不变量同时有两个来源，下一个人读代码时会以为处理器里写一行才是正确写法，于是继续在新频道里手抄——正是本次四处漏网的成因"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "纯仓内装配层改动：没有引入、升级或替换任何第三方依赖，Electron 与 catalog 存储实现均未变动",
+    "exit_criteria": []
+  },
+  "migration": "无数据迁移。目录文件格式、IPC 频道名、返回值结构都没有变化，改的只是「读之前补不补种子」这一步的执行位置。用户侧的变化是：新版本新增的内置供应商种子在**当前这次运行**里就会出现在供应商列表、目录健康度和导出包里，不再需要重启 Nomi。新增的 model-box-preference.json 是独立新文件，缺失时按默认值（没排过、没藏过、没记过）处理，旧装机升级后行为与升级前一致",
+  "residual_risks": [
+    "`readCatalog` 是 `registerIpc()` 函数体内的一个局部包装器，它能拦住的是「在 main.ts 里注册目录频道」这一种加法。如果将来有人绕过 registerSyncIpc、在别的模块里另起一条读目录的 IPC，本次的静态扫描（只读 electron/main.ts）看不见它。更彻底的防线是把补种子沉进 catalogStore 的读函数内部，但那会让每个内部读点都触发播种（含播种自身的读），风险与收益本次没有评估，留作后续",
+    "补种子现在发生在四条新增的读路径上（mappings:list、health、export、vendors:list）。`ensureBuiltinModelSeeds()` 本来就在最热的 models:list 上每次调用，所以单次开销是已知可接受的量级；但本次没有专门测量「设置面板打开时连续触发多条读频道」的累计耗时，若日后出现设置面板打开变慢的反馈，这里是第一个要量的地方",
+    "扫描器的读/写归类靠频道名后缀的动词表。一个既读又写的复合频道（例如将来的 `:sync`）会被迫归到一边，归错了扫描器不会察觉——它只保证「每个动词都有人做过决定」，保证不了那个决定是对的"
+  ],
+  "external_sources": [
+    {
+      "kind": "source-code",
+      "url": "https://github.com/electron/electron/blob/main/docs/api/ipc-main.md",
+      "checked_at": "2026-09-11",
+      "purpose": "确认 ipcMain 的同步频道处理器每次调用都独立执行、主进程不会在渲染层热更新时重启——这是「两条频道读的是同一个进程里同一份目录、只补一条等于没补」这一判断的前提"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://docs.openwebui.com/features/workspace/models/",
+      "checked_at": "2026-09-11",
+      "purpose": "本次改动所属方案（docs/plan/2026-09-11-model-box-tidy.md）「先查别人」一节的参照之一：确认「隐藏」与「全局启停」在同类产品里是两层独立字段，据此决定新增 hiddenModelIds 而不是复用 catalog 的 Model.enabled"
+    }
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/main.ts",
+    "tests": [
+      "electron/catalogReadChannelsReseed.test.ts"
+    ]
+  }
+}
