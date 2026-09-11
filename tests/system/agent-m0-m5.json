@@ -39,7 +39,7 @@
     "m2-semantic-contract": {
       "kind": "vitest-mcp-contract",
       "command": "pnpm",
-      "args": ["exec", "vitest", "run", "electron/harness/tools/modelToolSurfaceManifest.test.ts", "electron/harness/tools/agentToolCatalog.test.ts", "electron/capabilityCore/mcpCanvasDocumentSurface.test.ts", "electron/capabilityCore/mcpEditingSurface.test.ts", "electron/capabilityCore/generationTransportAdapters.test.ts", "--reporter=verbose"],
+      "args": ["exec", "vitest", "run", "electron/shared/agentCapabilities/verbDeclarations.test.ts", "electron/capabilityCore/mcpCanvasDocumentSurface.test.ts", "electron/capabilityCore/mcpEditingSurface.test.ts", "electron/capabilityCore/generationTransportAdapters.test.ts", "--reporter=verbose"],
       "boundaryMock": "transport-boundary"
     },
     "m2-degradation": {

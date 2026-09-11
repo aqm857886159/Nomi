@@ -6,16 +6,12 @@
 // 这里把「这条起手真的做得到」拆成两道断言，两道都跑在真的表上、不复述任何清单：
 //   ① 每个面**恰好三条**，且每条的能力 id 在 `CAPABILITY_CONTRACTS` 里查得到。
 //      能力改名/下架 → `starterChipsForSurface` 过滤掉它 → 数量不足 → 当场红。
-//   ② 把这条起手的**真实句子**（zh / en 两版）连同这个面的 capability 喂给
-//      `agentToolsForRequest`——那是这个面真正会交给模型的工具集——断言里面至少有一个
-//      别名属于这条起手声明的能力。这一道拦的是另一种假：能力确实注册了，但这句话
-//      的意图路由把它送到了另一个工具集（把「分镜」写成「镜头」就会这样）。
-//
-// 测试文件可以 import `electron/harness/`（check:boundaries 的扫描范围排除 `.test.`），
-// 生产的空态模块则只碰中立契约层 `electron/shared/`。
+//   ② 这条起手声明的能力，在模型真正拿到的内部工具面（`modelFacingToolSpecs("internal")`，
+//      注册表派生、不按意图路由裁剪——#646 之后工具集不再按 capability 分组）上至少有一个动词。
+//      这一道拦的是另一种假：能力确实注册了，但没有任何模型可见动词指向它（付费边界、
+//      「外部才有」的 profile 都会造成这种形状）。
 import { describe, expect, it } from 'vitest'
-import { agentToolsForRequest } from '../../../../electron/harness/agentChatPolicy'
-import type { AgentChatRequest } from '../../../../electron/harness/agentChatContracts'
+import { modelFacingToolSpecs } from '../../../../electron/shared/agentCapabilities/modelFacingToolRegistry'
 import { CAPABILITY_ALIAS_ENTRIES, CAPABILITY_CONTRACTS } from '../../../../electron/shared/agentCapabilities/registry'
 import { enAgentPanelV4, zhAgentPanelV4 } from '../../../i18n/locales/agentPanelV4'
 import { starterChipsForSurface, V4_EMPTY_TITLE_KEY } from './agentPanelV4EmptyState'
@@ -23,25 +19,14 @@ import type { ResidentSurface } from '../resident/residentShellDisplay'
 
 const SURFACES: readonly ResidentSurface[] = ['creation', 'storyboard', 'generation', 'preview']
 
-/** 面 → 这个面发出去的 capability。与 `useAgentPanelV4Actions.send` 同一条判据。 */
-const CAPABILITY_FOR_SURFACE: Record<ResidentSurface, AgentChatRequest['capability']> = {
-  creation: 'creation-editor',
-  storyboard: 'creation-editor',
-  generation: 'canvas-agent',
-  preview: 'canvas-agent',
-}
-
-/** 一个能力在各投影面上的全部工具名（pi / mcp / ui + operation 别名）。 */
+/** 一个能力在各投影面上的全部工具名（pi / mcp / ui / method + operation 别名）。 */
 function aliasesOf(capabilityId: string): readonly string[] {
   return CAPABILITY_ALIAS_ENTRIES.filter((entry) => entry.contract.id === capabilityId).map((entry) => String(entry.alias))
 }
 
-function toolNamesFor(surface: ResidentSurface, prompt: string): readonly string[] {
-  return agentToolsForRequest({
-    capability: CAPABILITY_FOR_SURFACE[surface],
-    prompt,
-    history: { kind: 'ephemeral' },
-  } as AgentChatRequest).map((tool) => tool.name)
+/** 模型真正拿到的内部工具面里，指向这个能力的动词名。 */
+function internalToolNamesFor(capabilityId: string): readonly string[] {
+  return modelFacingToolSpecs('internal').filter((spec) => spec.contractId === capabilityId).map((spec) => spec.name)
 }
 
 // `key` 收 unknown：`TranslationKey` 在 tsconfig.test-types 那套工程里解析不出字面量联合
@@ -72,18 +57,19 @@ describe('Agent 面板 v4 空态起手', () => {
     }
   })
 
-  it('起手句发出去之后，模型手里真有那个能力的工具（zh / en 两版都验）', () => {
+  it('起手句发出去之后，模型手里真有那个能力的工具（zh / en 两版的起手句都存在）', () => {
     for (const surface of SURFACES) {
       for (const chip of starterChipsForSurface(surface)) {
         const aliases = aliasesOf(chip.capabilityId)
         expect(aliases.length, `${chip.capabilityId} 一个别名都没有`).toBeGreaterThan(0)
+        const tools = internalToolNamesFor(chip.capabilityId)
+        expect(
+          tools.length,
+          `${surface} / ${chip.id}：内部工具面上没有任何动词指向 ${chip.capabilityId}`,
+        ).toBeGreaterThan(0)
+        expect(tools.every((name) => aliases.includes(name)), `${chip.capabilityId} 的动词名必须是契约自己声明的 pi 别名`).toBe(true)
         for (const locale of [zhAgentPanelV4, enAgentPanelV4]) {
-          const prompt = localeText(locale, chip.promptKey)
-          const tools = toolNamesFor(surface, prompt)
-          expect(
-            tools.some((name) => aliases.includes(name)),
-            `${surface} / ${chip.id}：「${prompt}」路由出的工具集里没有 ${chip.capabilityId}（拿到的是 ${tools.join(', ')}）`,
-          ).toBe(true)
+          expect(localeText(locale, chip.promptKey).length).toBeGreaterThan(0)
         }
       }
     }

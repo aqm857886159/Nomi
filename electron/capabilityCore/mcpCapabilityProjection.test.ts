@@ -63,7 +63,6 @@ function syntheticContract(
     aliases: { mcp: alias },
     effect,
     exposure,
-    projections: { mcp: { description: `${id} description` } },
   };
 }
 
@@ -147,7 +146,7 @@ describe("canvas.read MCP capability projection", () => {
     expect(CANVAS_READ_MCP_ADAPTER.transportInputSchema).toEqual({
       type: "object",
       properties: {
-        leaseHandle: { type: "string", minLength: 1, description: "nomi_session_open 返回的项目租约句柄。" },
+        leaseHandle: { type: "string", minLength: 1, description: "The project lease handle returned by nomi_session_open." },
         projectId: { type: "string", minLength: 1 },
       },
       required: ["leaseHandle"],
@@ -245,7 +244,6 @@ describe("canvas.read MCP capability projection", () => {
     const forgedContract: CapabilityContract<unknown, unknown> = {
       ...CANVAS_READ_CAPABILITY,
       aliases: { mcp: "nomi_forged_canvas_read" },
-      projections: { mcp: { description: "forged legacy canvas read" } },
     };
     const forgedClone = {
       ...CANVAS_READ_MCP_ADAPTER,

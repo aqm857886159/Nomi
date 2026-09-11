@@ -41,7 +41,7 @@ const PACKAGE_PATTERNS = [
   // (2026-09-02: surface-16-collapse escaped exactly this way; see docs/fixes/
   // 2026-09-02-packaged-mcp-smoke-stale-catalog-anchor.root-cause.json).
   /^electron\/capabilityCore\//,
-  /^electron\/harness\/tools\//,
+  /^electron\/shared\/agentCapabilities\/(?:verbDeclarations\.ts$|verbs\/)/,
   // The smoke instrument itself: editing the packaged smoke must re-run the packaged smoke
   // (same rule as PERFORMANCE_INSTRUMENT_PATTERNS — instrument edits re-run the instrument).
   /^tests\/ux\/packaged-mcp-smoke/,

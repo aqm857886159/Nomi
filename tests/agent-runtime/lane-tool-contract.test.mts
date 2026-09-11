@@ -20,6 +20,8 @@ import {
   laneToolModelDescription, renderLaneToolFailure, laneToolFailureToRpc,
 } from '../../electron/shared/agentLane/laneToolContract.js';
 import { modelArgumentTolerance } from '../../electron/shared/agentCapabilities/modelArgumentTolerance.js';
+import { VERB_EFFECTS } from '../../electron/shared/agentCapabilities/verbDeclaration.js';
+import { laneToolBillable, laneToolMutates } from '../../electron/shared/agentLane/laneToolContract.js';
 
 /** 产物按 JSON Schema 的形状读——`any` 会让门岗的字段名写错时静默通过。 */
 interface PublishedSchema {
@@ -269,19 +271,18 @@ test('失败正文带机器码之外的人话与可行动下一步，且内外�
 
 // ── 副作用自声明（阶段 2 评审第 ⑨ 维）─────────────────────────────────────────
 
-test('每个工具自己说清「改不改状态 / 花不花钱 / 怎么收回」，而 replay 从中派生', async () => {
+test('每个工具恰好一个效果，而 replay 从中派生', async () => {
   const { createLaneTools } = await import('../../electron/agentLane/laneTools.mjs');
 
   for (const spec of LANE_MODEL_TOOL_CATALOG) {
-    const { mutates, billable, reversal } = spec.effects;
-    assert.equal(mutates, reversal !== 'none', `${spec.name}：改状态与「怎么收回」必须一致`);
-    assert.equal(billable, false, `${spec.name}：阶段 2 的 lane 上不该有花钱的工具`);
+    assert.ok(VERB_EFFECTS.includes(spec.effect), `${spec.name}：effect 必须在四值词表里`);
+    assert.equal(laneToolBillable(spec.effect), false, `${spec.name}：阶段 2 的 lane 上不该有花钱的工具`);
   }
-  // 事实断言而不是同义反复：这一档差别是真的——画布写入是提案（用户还要接受），
-  // 文稿写入已经落进稿子（只是进了撤销栈）。
+  // 事实断言而不是同义反复：画布写入与文稿写入都是可撤的本地写；读是读。
   const byName = new Map(LANE_MODEL_TOOL_CATALOG.map((spec) => [spec.name, spec] as const));
-  assert.equal(byName.get('nomi_canvas_write')?.effects.reversal, 'proposal');
-  assert.equal(byName.get('append_to_end')?.effects.reversal, 'undoable');
+  assert.equal(byName.get('nomi_canvas_write')?.effect, 'reversible_local');
+  assert.equal(byName.get('append_to_end')?.effect, 'reversible_local');
+  assert.equal(byName.get('read_full_text')?.effect, 'read');
 
   const descriptors = LANE_MODEL_TOOL_CATALOG.map((spec) => ({
     ...spec, execute: async () => ({ ok: true as const, text: '' }),
@@ -289,18 +290,14 @@ test('每个工具自己说清「改不改状态 / 花不花钱 / 怎么收回�
   const built = createLaneTools(descriptors);
   for (const [index, tool] of built.entries()) {
     // 唯一的派生点。重放一次读只是多读一次，重放一次写就是写了两遍。
-    assert.equal(tool.replay, descriptors[index].effects.mutates ? 'never' : 'safe', tool.name);
+    assert.equal(tool.replay, laneToolMutates(descriptors[index].effect) ? 'never' : 'safe', tool.name);
   }
   assert.ok(built.some((tool) => tool.replay === 'safe'), '全是 never 就说明派生没生效——上一版正是如此');
 
-  // 阳性对照 ×2：不自洽的声明必须在**装配期**被拒，而不是等崩溃恢复时多跑一次才发现。
+  // 阳性对照：词表外的效果必须在**装配期**被拒，而不是等崩溃恢复时多跑一次才发现。
   const readOnly = { ...LANE_MODEL_TOOL_CATALOG[0], execute: async () => ({ ok: true as const, text: '' }) };
   assert.throws(
-    () => createLaneTools([{ ...readOnly, effects: { mutates: false, billable: false, reversal: 'undoable' } }]),
-    /nothing to reverse/,
-  );
-  assert.throws(
-    () => createLaneTools([{ ...readOnly, effects: { mutates: false, billable: true, reversal: 'none' } }]),
-    /spend the user's money/,
+    () => createLaneTools([{ ...readOnly, effect: 'undoable' as never }]),
+    /declares effect "undoable"/,
   );
 });
