@@ -16,6 +16,7 @@
     "electron/productionRun/productionGenerationOperationStore.ts",
     "electron/productionRun/productionGenerationPlanEdits.ts",
     "electron/productionRun/productionActionIpc.ts",
+    "electron/productionRun/productionRunTypes.ts",
     "electron/capabilityCore/appIntegrationSpendConfirm.ts",
     "electron/capabilityCore/appIntegration.ts",
     "electron/capabilityCore/residentGenerationAdapterFactory.ts",
