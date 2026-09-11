@@ -18,6 +18,7 @@ import { cn } from '../../../../utils/cn'
 import type { GenerationCanvasNode, TiptapDocJson } from '../../model/generationCanvasTypes'
 import { useGenerationCanvasStore } from '../../store/generationCanvasStore'
 import { useNomiRichTextEditor } from '../../../common/useNomiRichTextEditor'
+import { NODE_SCROLL_REGION_CLASS_NAME } from '../nodeScrollRegionClassName'
 import { buildRichTextActions } from '../../../common/richTextActions'
 import { NodeEmptyState } from './NodeEmptyState'
 
@@ -156,6 +157,7 @@ function TextDocumentNodeImpl({ node }: Props): JSX.Element {
             的系统 focus 描边（否则 macOS 强调色会画出黄/橙框）。 */}
         <section
           className={cn(
+            NODE_SCROLL_REGION_CLASS_NAME,
             'relative flex-1 min-h-0 overflow-auto cursor-text select-text touch-auto',
             '[&_.ProseMirror]:outline-none [&_.ProseMirror:focus]:outline-none [&_.ProseMirror:focus-visible]:outline-none',
           )}
