@@ -43,6 +43,10 @@ export const zhCN = {
     noMatchingOptions: '没有匹配的选项',
     plusMore: '+{{count}}',
     undo: '撤销',
+    // 复制回执：全站的复制按钮共用这一对（`design/clipboard` 是唯一写口）。
+    copy: '复制',
+    copied: '已复制',
+    copyFailed: '复制失败',
   },
   media: {
     imageLoadFailedWithSource: '图片加载失败：{{source}}',
@@ -455,6 +459,9 @@ export const en = {
     noMatchingOptions: 'No matching options',
     plusMore: '+{{count}}',
     undo: 'Undo',
+    copy: 'Copy',
+    copied: 'Copied',
+    copyFailed: 'Copy failed',
   },
   media: {
     imageLoadFailedWithSource: 'Image failed to load: {{source}}',
