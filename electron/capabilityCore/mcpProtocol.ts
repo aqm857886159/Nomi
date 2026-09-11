@@ -576,7 +576,7 @@ export function createMcpProtocol(transport: McpTransport) {
           return
         }
         // 接模型要 key：规范 2025-11-25 要求走 URL 模式 elicitation（密钥不得经 form / 客户端 / 模型上下文）。
-        if (tool.name === 'nomi_integration' && args.action === 'open_credentials') {
+        if (tool.name === 'nomi_model_setup' && args.action === 'connect_provider') {
           const outcome = await runIntegrationCredentialElicitation({
             built,
             invoke: (method, params) => invokeForRequest(method, params),
