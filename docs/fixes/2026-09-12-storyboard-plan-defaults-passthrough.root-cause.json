@@ -1,0 +1,210 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-12-storyboard-plan-defaults-passthrough",
+  "change_kind": "corrective",
+  "problem_type": "「整片级设置」在分镜里只被界面读，没有被请求体读——同一个值在显示端和发送端是两份真相，于是用户设了什么、界面画成什么样，和真正发给供应商的参数可以完全不一样",
+  "symptom": "在分镜「全部镜头」批量条上把整片画幅设成 9:16，分镜表每一格也跟着画成竖的，落画布生成出来的**仍是横的**（或模型档案默认的 auto / 1:1）。界面没有任何提示说那个 9:16 没被采纳。同一形状还有三个出口：图片+视频镜的首帧图与它喂的视频画幅可以不一致；生成策略引擎按「这镜没有画幅」给建议、落画布却按整片默认发；片种模板声明的「短剧 9:16」从来没有算过数",
+  "direct_cause": "StoryboardPlan.aspectRatio（2026-09-05 拍板的整片默认）的全部非测试消费者都是分镜表 UI：StoryboardBulkBar.tsx:55、StoryboardShotTable.tsx:249,336、StoryboardPlanEditor.tsx:502。落画布那一层 src/workbench/generationCanvas/agent/storyboardPlan.ts 的 buildShotRowNodes 直接铺 `{ ...(shot.params || {}), ...duration }`，写回节点那一层 src/workbench/creation/storyboard/exec/storyboardProjection.ts 的 projectShotNode 直接读 `shot.params`，策略引擎输入 src/workbench/generationCanvas/agent/storyboardStrategy.ts 直接铺 `{ ...shot.params }`——三处都不读 plan.aspectRatio。而「继承整片默认」在数据上的表示**就是 shot.params 里没有这个键**（storyboardShotScope 刻意清掉冗余值，避免第二份真相），所以 95% 的行落到画布上不带 aspect_ratio，静默回落成模型档案默认。第二个出口在解析那一刻：storyboardPlanSchema 里没有 aspectRatio 键（zod 默认静默丢未知键），主进程 propose_storyboard_plan 的 envelope 又是 .strict()（直接拒收），所以规划师在方案顶层写整片画幅这条路结构上就不存在",
+  "class_root": "这一层（storyboardShotScope，原名 storyboardAspectScope）只导出了**给界面看的 getter**（planDefaultAspect / effectiveShotAspect / isAspectOverridden），没有导出**给请求体用的 resolver**。作用域语义因此只在显示端被执行，发送端每多一条落地路径就会各自铺一遍 shot.params——落画布、写回节点、策略引擎输入三条路正是这样各错一次。R14.1 的「同一语义有几份定义」在这里的具体形态是：『这一镜生效的参数是什么』有一份权威定义（作用域层）和三份自制定义（各落地路径），而自制的那三份都恰好漏掉了整片那一段",
+  "affected_population": [
+    "任何用分镜表批量条设整片画幅的用户——竖屏短剧是 Nomi 的主用例，用户设成 9:16、表里每格也是竖的，出片仍按模型默认走，且界面不提示",
+    "选了「短剧」片种模板的用户：模板声明 9:16（storyboardProfiles.ts:17），但 profile.aspect 在本轮之前零消费者，那句声明从来没有影响过任何一次生成",
+    "用图片+视频（首帧）模式的用户：首帧图不带整片画幅，与它喂的视频可以不同画幅——首帧被裁或被拉，运动落点从第一帧就偏",
+    "让规划师（propose_storyboard_plan / 分镜规划技能）产出整片画幅的用户与 Agent：那个值在解析边界就消失，模型只能逐镜填 params，填不填全凭自觉",
+    "在批量条上统一模型的用户：那枚下拉每一行本就是「模型 × 具体哪一家」，但 applyModelToAll 只写 modelKey、丢掉 vendor，落地按 key 反查目录首家 =「选 A 家发去 B 家」"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/agent/storyboardShotScope.ts",
+    "src/workbench/generationCanvas/agent/storyboardShotScope.test.ts",
+    "src/workbench/generationCanvas/agent/storyboardPlan.ts",
+    "src/workbench/generationCanvas/agent/storyboardPlan.test.ts",
+    "src/workbench/generationCanvas/agent/storyboardPlanRequestParams.test.ts",
+    "src/workbench/generationCanvas/agent/storyboardPlanSchema.ts",
+    "src/workbench/generationCanvas/agent/storyboardPlanEdits.ts",
+    "src/workbench/generationCanvas/agent/storyboardPlanEdits.test.ts",
+    "src/workbench/generationCanvas/agent/storyboardStrategy.ts",
+    "src/workbench/generationCanvas/agent/storyboardStrategy.test.ts",
+    "src/workbench/generationCanvas/agent/storyboardLauncher.ts",
+    "src/workbench/creation/storyboard/exec/storyboardProjection.ts",
+    "src/workbench/creation/storyboard/exec/storyboardProjection.test.ts",
+    "src/workbench/creation/storyboard/StoryboardBulkBar.tsx",
+    "src/i18n/locales/storyboardEditor.ts",
+    "electron/shared/agentCapabilities/canvasWrite.ts",
+    "electron/shared/agentCapabilities/canvasModelShapes.ts",
+    "scripts/check-storyboard-owner.mjs",
+    "tests/ux/storyboard-film-aspect-passthrough.walk.mjs",
+    "docs/plan/2026-09-12-storyboard-plan-defaults-passthrough.md"
+  ],
+  "entry_points": [
+    "src/workbench/generationCanvas/agent/storyboardPlan.ts:buildShotRowNodes — 整份方案落画布与单行 materialize 共用的建节点构造器（MCP production.materialize-storyboard、分镜表行内生成、引导 tour 都经它）",
+    "src/workbench/creation/storyboard/exec/storyboardProjection.ts:projectShotNode — 改分镜表后把行投影进已存在的画布节点（行内生成前的写回收口、整份方案编辑的投影）",
+    "src/workbench/generationCanvas/agent/storyboardStrategy.ts:storyboardPlanToPlanShotInputs — 分镜方案 → 生成策略引擎输入（合并/拆条建议与 param.unknown / param.value 判定都读它）",
+    "src/workbench/generationCanvas/agent/storyboardPlanSchema.ts:parseStoryboardPlan — 规划师产出的方案进入渲染层的唯一解析口",
+    "electron/shared/agentCapabilities/canvasWrite.ts:storyboardPlanActionInputSchema — propose_storyboard_plan 在主进程的 .strict() envelope（对外 MCP 与 Agent lane 同源）",
+    "src/workbench/creation/storyboard/StoryboardBulkBar.tsx — 「全部镜头」批量条：整片画幅、整片模型、整片时长、整片类型四枚控件的唯一入口"
+  ],
+  "invariants": [
+    "一镜**发出去时携带**的生成参数只由一处算：storyboardShotScope 的 resolveShotParams / resolveKeyframeParams（语义恒为『行写了的 ?? 整片默认 ?? 什么都不带』）。任何落地、投影或要展示「会发什么」的地方都调它，不许自己铺 shot.params",
+    "整片默认为空时**参数键必须缺席**，绝不编一个值——三种情况（用户没定 / 用户显式选了「按模型默认」/ 旧方案没有这个字段）都交回模型档案默认接管。编一个值等于替用户把画幅定死，而他看不见是谁定的",
+    "「继承整片默认」在数据上的表示是**键缺席**，不是把默认值抄进每一行。抄一遍就造出第二份真相，UI 再也分不出「这一镜真的不一样」和「这一镜只是跟着默认」",
+    "登记在 FILM_DEFAULTS 里的每个整片级键，必须同时在渲染层 storyboardPlanSchema 与主进程 storyboardPlanActionInputSchema 里有落脚点；少一处，规划师写的整片值就在解析边界被静默丢掉",
+    "模型档案接不住某个整片级键时（该 mode 的 params 里没有这个 control.key），这个键诚实缺席，并且**界面必须说出来**——不许一边把那几镜画成竖的、一边发一个不带画幅的请求",
+    "modelKey 与 modelVendor 永远成对写。身份唯一键是 (vendor, modelKey)：同名模型来自不同供应商是两个模型，只写 key 等于让落地层按目录首家猜"
+  ],
+  "generality_proof": "作用域层从「画幅作用域」推广成「整片级设置作用域」（storyboardAspectScope.ts → storyboardShotScope.ts，同一个 owner 的延续，不是新起一份），并第一次导出请求体那一端的 resolver。整片级设置收进一张登记表 FILM_DEFAULTS：每条登记 { paramKey（落到请求的参数键）, planKey（住在 plan 上的字段名）, planValue（读整片那一段）, shotOverride（读行那一段）}；resolveShotParams / resolveKeyframeParams / unsupportedFilmDefaultKeys 三个出口全部从这张表 derive。于是『加一条整片级设置』的代价是表里加一行，三条落地路径与界面说明自动跟上，不需要任何一处再记得一次。判据与执行侧同源：unsupportedFilmDefaultKeys 按 control.key 匹配，与 buildPlannedNodeMeta 丢弃未知键用的是同一个判据，所以界面说「这镜接不住」与请求里真的没有它永远同进同退。机器化在 scripts/check-storyboard-owner.mjs：从 FILM_DEFAULTS 抽出 (paramKey, planKey) 对，核验 ① 每个 planKey 在两处 schema 里都有落脚点 ② 除 owner / 纯编辑层 / 工具 patch / 逐镜参数 UI / 只读展示之外没有文件直接读 shot.params ③ 三条落地路径确实调到了 resolver（只禁裸铺不够——整段删掉也会「通过」）。三条判据都做过变异测试：把 buildShotRowNodes 改回裸铺 → 红（判据 ③）；从 storyboardPlanSchema 删掉 aspectRatio → 红（判据 ①）",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/agent/storyboardShotScope.ts",
+      "symbol": "FILM_DEFAULTS / resolveShotParams / resolveKeyframeParams / unsupportedFilmDefaultKeys",
+      "responsibility": "「整片默认 × 行覆盖 → 这一镜真正携带的生成参数」的唯一持有者。整片那一段的读写（planDefaultAspect / setPlanDefaultAspect / setShotAspectOverride）与请求那一端的 resolver 同处一地，所以显示与请求不可能各算各的"
+    },
+    {
+      "path": "scripts/check-storyboard-owner.mjs",
+      "symbol": "film-level default census",
+      "responsibility": "把上面那条不变量做成机器判据：登记表 ↔ 两处 schema ↔ 三条落地路径。加一条整片级设置忘了补 schema、或某条落地路径绕开 resolver，都在门岗这一层显形，不等真机走查"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/generationCanvas/agent/storyboardPlan.ts",
+      "entry_point": "buildShotRowNodes：整份方案落画布 + 单行 materialize 的建节点构造器（含首帧图节点）",
+      "disposition": "enforced",
+      "evidence": "此前 `params: { ...(shot.params || {}), ...duration }`，首帧图是 `...(shot.keyframe?.params ? {...} : {})`。已改为 resolveShotParams / resolveKeyframeParams。storyboardPlan.test.ts 新增「整片默认 → 落画布节点参数」一组：继承行带上整片画幅、覆盖行按自己的来、图片镜同样在作用域内、单行 materialize 与整份落画布同口径、首帧与视频同画幅、未定时诚实缺席、duration 不被挤掉"
+    },
+    {
+      "path": "src/workbench/creation/storyboard/exec/storyboardProjection.ts",
+      "entry_point": "projectShotNode：改分镜表后把行写回已存在的画布节点（行内生成前的收口）",
+      "disposition": "enforced",
+      "evidence": "此前 `const rowParams = (part === 'shot' ? shot.params : shot.keyframe?.params) || {}`——与落画布是同一个 bug 的第二个出口：先落画布、后改整片画幅时，节点上永远不会出现那个值。已改为同一对 resolver。storyboardProjection.test.ts 覆盖继承/覆盖/缺席/首帧/duration 五格"
+    },
+    {
+      "path": "src/workbench/generationCanvas/agent/storyboardStrategy.ts",
+      "entry_point": "storyboardPlanToPlanShotInputs：分镜方案 → 生成策略引擎（planResolver）输入",
+      "disposition": "enforced",
+      "evidence": "此前 `...(shot.params ? { params: { ...shot.params } } : {})`。这一处最阴：引擎按『这镜没有画幅』给合并/拆条建议并判 param.unknown，落画布却按整片默认发——建议与请求是两份东西。已改为 resolveShotParams，并保持「什么参数都没有时不带 params 字段」的既有契约形状。storyboardStrategy.test.ts 新增三格"
+    },
+    {
+      "path": "src/workbench/generationCanvas/agent/storyboardPlanSchema.ts",
+      "entry_point": "parseStoryboardPlan：规划师方案进入渲染层的唯一解析口",
+      "disposition": "enforced",
+      "evidence": "zod 默认静默丢未知键，schema 里没有 aspectRatio 键 = 规划师写的整片画幅在解析那一刻消失。已补 `aspectRatio: z.string().min(1).optional()`；编译期漂移守卫（_schemaToType/_typeToSchema）保证它与手写类型同进同退。storyboardPlan.test.ts 有一格从 parseStoryboardPlan 一路断到落画布参数"
+    },
+    {
+      "path": "electron/shared/agentCapabilities/canvasWrite.ts",
+      "entry_point": "storyboardPlanActionInputSchema：propose_storyboard_plan 在主进程的 .strict() envelope",
+      "disposition": "enforced",
+      "evidence": "`.strict()` 会直接拒收顶层多出来的字段，所以少这一行 = 模型即使写了整片画幅也过不了主进程边界。已补 aspectRatio，**刻意不带 .describe()**（它随共享契约广播到对外 MCP 的 tools/list，而 check:mcp-payload 是 shrink-only 棘轮；实测 45057 → 45224 bytes，仍在 45822 以内）。模型面的 typed 分支 storyboardPlanModelBranch 是 `.extend()` 派生的，自动继承这个字段"
+    },
+    {
+      "path": "src/workbench/generationCanvas/agent/storyboardPlanEdits.ts",
+      "entry_point": "applyModelToAll：批量条统一模型",
+      "disposition": "enforced",
+      "evidence": "BulkModelPicker 的 onPick 本就回调 (value, vendor)，批量条却只接了第一个参数；applyModelToAll 也只写 modelKey。落地时 buildPlannedNodeMeta 按 modelKey 反查目录，而 buildAgentModelEntries 按 (vendor, modelKey) 去重后首家胜出 = 用户选的那一家被换掉。已改为成对写，回「默认模型」时一并清。storyboardPlanEdits.test.ts 新增三格"
+    },
+    {
+      "path": "src/workbench/generationCanvas/agent/storyboardProfiles.ts",
+      "entry_point": "STORYBOARD_PROFILES[*].aspect：片种模板声明的画幅",
+      "disposition": "enforced",
+      "evidence": "实测零消费者——模板写着「短剧 9:16」，规划师提示词里也这么说（storyboardLauncher.ts:76），但它从不影响任何一次生成。已接进 planDefaultAspect 的回退链：`plan.aspectRatio ?? (全镜共同值 ‖ 片种声明)`。**刻意不给没选片种的方案兜底**：storyboardProfileForKey(undefined) 会回落 free-form 的 16:9，拿它当默认等于替每份方案硬定横屏——那正是本条不变量第二句要禁的『编一个值』"
+    },
+    {
+      "path": "src/workbench/creation/storyboard/StoryboardBulkBar.tsx",
+      "entry_point": "整片画幅胶囊旁的说明文字",
+      "disposition": "enforced",
+      "evidence": "新增「N 镜的模型不吃整片画幅，按它自己的尺寸或参考图走」，计数用 unsupportedFilmDefaultKeys + resolveShotArchetypeMode（都是既有纯函数）。没选模型的行不计数（此刻无契约可判，不瞎报）。这一条是不变量第五句的落点：接不住时不许一边画成竖的一边发不带画幅的请求"
+    },
+    {
+      "path": "src/workbench/generationCanvas/agent/storyboardPatchShots.ts",
+      "entry_point": "patch_shots 工具的 patch.aspectRatio",
+      "disposition": "not-affected",
+      "evidence": "它写的是**行级**值（`next.params = { ...shot.params, aspect_ratio }`），语义上就是覆盖，不是整片默认——select.kind='all' 时等于逐行覆盖，落画布照旧带着走。逐行读过：不读也不写 plan.aspectRatio，不在本条不变量的适用范围内。门岗的 shot.params 允许清单里按「工具 patch 写入」列着"
+    },
+    {
+      "path": "src/workbench/creation/storyboard/StoryboardShotTable.tsx",
+      "entry_point": "行菜单「把这行参数应用到全部」（onApplyParamsToAll）",
+      "disposition": "not-affected",
+      "evidence": "一次性命令式批量编辑：把某一行的 params 抄进每一行，产出的是逐行值。它不声明整片默认、也不读 plan.aspectRatio，与 applyDurationToAll / applyShotKindToAll 同类。源行若只是继承整片默认，它抄过去的就不含 aspect_ratio——行为与 resolver 一致，不会造出与整片默认冲突的第二份真相"
+    },
+    {
+      "path": "electron/shared/videoCapabilities/planResolver.ts",
+      "entry_point": "resolveGenerationPlan：按档案裁决参数（param.unknown / param.value）",
+      "disposition": "not-affected",
+      "evidence": "它读的是上游递进来的 PlanShotInput.params，而那一处（storyboardStrategy）本轮已改成 resolveShotParams。它自己不碰 StoryboardPlan，也没有第二份「这一镜生效参数」的定义，属于本条不变量的**下游读者**而非并行实现"
+    },
+    {
+      "path": "src/workbench/generationCanvas/agent/plannedNodeMeta.ts",
+      "entry_point": "buildPlannedNodeMeta：planned params → node.meta（铺档案默认 + 合法覆盖）",
+      "disposition": "not-affected",
+      "evidence": "它是「参数进不进得了请求」的档案闸，不是「这一镜生效参数是什么」的第二份定义——本条不变量第二句（诚实缺席）正是把判断权交给它。resolver 产出的 aspect_ratio 到这里被按 control.key 校验：档案声明了就带上，没声明就丢。storyboardPlanRequestParams.test.ts 从 plan 一路断到这份 meta，两种档案各一格"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "同一个形状已经独立出现三次（落画布、写回节点、策略引擎输入各自铺了一遍 shot.params），加上解析边界两处静默丢弃（渲染层 zod 丢未知键、主进程 .strict() 拒收）。它会复发是结构性的：作用域层只导出了给 UI 看的 getter，于是每多一条需要「这一镜的参数」的路径，作者都得自己想起来还有整片那一段——而三次里三次都没想起来。片种模板的 aspect 与批量条丢 vendor 是同一结构的另外两个实例：一个整片级声明存在，但发送端没有任何东西去读它",
+    "same_class_scan": [
+      "`grep -rn \"shot\\.params|keyframe\\??\\.params\" src electron --include=*.ts --include=*.tsx`（排除测试）——逐条判定全部 14 处：3 处是落地/投影路径（已改走 resolver）、1 处 owner、2 处纯编辑（addShot/duplicateShotAt 的血统继承）、1 处工具 patch 写入、1 处行覆盖写入、4 处逐镜只读（参数 UI / 行字段投影 / 只读展示 / 工具人话展示）、2 处下游读者（planResolver / mcpGenerationTools 读的是已解析好的 PlanShotInput）。这条扫描现在由 check:storyboard-owner 常态跑",
+      "`grep -rn \"effectiveShotAspect|planDefaultAspect|setPlanDefaultAspect|shotAspectOverride|isAspectOverridden|overriddenAspectCount\" src electron tests`——修前全部非测试消费者都在分镜表 UI（StoryboardBulkBar / StoryboardShotTable / StoryboardPlanEditor / 设计实验室），落地路径零命中，这就是「只服务了显示端」的直接证据",
+      "`grep -rn \"aspectRatio\" src electron docs --include=*.ts --include=*.tsx`——找出所有叫这个名字的东西，区分出三族：StoryboardPlan.aspectRatio（本条 owner）、modelCatalogMeta 的 ImageModelControlBinding='aspectRatio'（catalog 控件绑定）、nodes/aspectRatio.ts（W:H 解析）。确认三者互不冒充",
+      "`for f in src/config/modelArchetypes/*.ts; do grep -c 'key: \"aspect_ratio\"' ...`——统计档案层画幅控件的键分布：8 个 aspect_ratio、13 个 size（像素档）、2 个 ratio、2 个 aspectRatio。这一族是本轮**没做**的遗留（见 residual_risks 第一条与 docs/plan §6）",
+      "`grep -rn \"STORYBOARD_PROFILES|storyboardProfileForKey|profileKey\" src --include=*.ts --include=*.tsx`——确认 profile.aspect 在本轮之前只被一条测试读过，生产零消费者",
+      "`grep -rn \"applyModelToAll|applyDurationToAll|applyShotKindToAll\" src`——确认批量编辑那三条只写逐镜字段（不是整片默认），其中只有 applyModelToAll 有 vendor 丢失问题"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/agent/storyboardShotScope.ts",
+    "invariant": "整片级设置的登记、合并与「模型接不接得住」的判定只有这一份实现；落地、投影、策略引擎与界面说明都 import 它，不许自己铺 shot.params，也不许在别处手抄登记表",
+    "failure_mode": "绕开 resolver 自己铺 shot.params 会被 check:storyboard-owner 的判据 ② 当场点名（文件级，带修复提示）；把某条路径整段删掉再自己写一份，会被判据 ③ 点名（它核验三条路径确实调到 resolver）；加一条整片级设置忘了补 schema，会被判据 ① 点名。三条判据全部从 FILM_DEFAULTS 表 derive，所以门岗不可能与登记表漂开。语义层面另有六组单测（resolver 三段语义 / 落画布 / 写回节点 / 策略引擎 / 批量写 vendor / 档案闸之后的请求参数）与一条真机走查（批量条选 9:16 → 行内生成 → loopback 出站报文 aspect_ratio=9:16）",
+    "exception_policy": "none",
+    "strategy": "把作用域层从「画幅作用域」推广成「整片级设置作用域」并补上请求体那一端的 resolver（加新必删旧：三条路径里的裸铺同 commit 删除，不留并行版）；整片级设置收进一张登记表，三个出口与门岗全部从表 derive；两处 schema 补上登记的 planKey，让规划师写的整片值活得过解析边界。门岗的 shot.params 允许清单不是豁免口：它只收四类——作用域 owner 自己、纯编辑层（新增/复制镜头的血统继承）、写入路径（工具 patch / 行覆盖）、逐镜只读（参数编辑 UI / 字段投影 / 展示）。清单里每一行都写着它为什么不是落地路径；落地路径本身没有例外可申请",
+    "artifacts": [
+      "src/workbench/generationCanvas/agent/storyboardShotScope.ts",
+      "scripts/check-storyboard-owner.mjs",
+      "src/workbench/generationCanvas/agent/storyboardShotScope.test.ts"
+    ]
+  },
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/agent/storyboardShotScope.test.ts",
+    "src/workbench/generationCanvas/agent/storyboardPlanRequestParams.test.ts"
+  ],
+  "regression_tests": [
+    "src/workbench/generationCanvas/agent/storyboardShotScope.test.ts",
+    "src/workbench/generationCanvas/agent/storyboardPlan.test.ts",
+    "src/workbench/generationCanvas/agent/storyboardPlanRequestParams.test.ts",
+    "src/workbench/generationCanvas/agent/storyboardStrategy.test.ts",
+    "src/workbench/generationCanvas/agent/storyboardPlanEdits.test.ts",
+    "src/workbench/creation/storyboard/exec/storyboardProjection.test.ts",
+    "tests/ux/storyboard-film-aspect-passthrough.walk.mjs"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/agent/storyboardAspectScope.ts",
+      "src/workbench/generationCanvas/agent/storyboardPlan.ts",
+      "src/workbench/creation/storyboard/exec/storyboardProjection.ts",
+      "src/workbench/generationCanvas/agent/storyboardStrategy.ts"
+    ],
+    "rationale": "storyboardAspectScope.ts 整文件改名成 storyboardShotScope.ts（git mv，同一个 owner 的延续，不留旧路径做转发）；三条落地路径里各自那份裸铺 shot.params 在同一 commit 删除、换成 resolver 调用。保留任何一份都等于保留一条会再次漏掉整片那一段的路——而三次里三次都漏掉了"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "纯内部改动，没有引入、升级或降级任何依赖；改动只在本仓既有模块之间搬家与收口",
+    "exit_criteria": []
+  },
+  "migration": "没有持久化格式变化，不需要迁移脚本。StoryboardPlan.aspectRatio 本来就是可选字段，旧方案缺省时整片默认仍按「全镜共同值」读时 derive（行为与修前一致）；本轮只在那条回退链末尾加了「片种声明」一段，且只对**显式选了片种**的方案生效。用户侧可感知的变化是：此前设了没用的整片画幅现在真的发得出去；选了短剧片种的旧方案（没有全镜共同画幅、也没显式设过）会开始按模板的 9:16 走——那正是模板一直承诺的行为。首帧图从本轮起跟随整片画幅，与它喂的视频一致",
+  "residual_risks": [
+    "**档案的画幅控件键不统一，整片意图只到得了 canonical 那一族。** 实测 8 个档案声明 aspect_ratio、13 个声明像素 size（Agnes / Imagen4 / Qwen 这一族的画幅能力天生长成像素档，不是命名漂移）、2 个 ratio、2 个 aspectRatio（camelCase，疑似漂移）。整片画幅写 canonical aspect_ratio，所以在后三族上被 plannedNodeMeta 诚实丢弃。本轮**没做**翻译，因为它需要一个跨进程可共用的 owner 而落点未定：现役匹配器 videoAspectDefaultPatch 在渲染层（nodes/controls/parameterControlModel.ts:571），第二个读者 planResolver 在 electron/shared（按边界规则不能 import src/），硬接会长出第二份匹配器——正是本条要消灭的那类。本轮的诚实交付是界面如实说出来（批量条那句），并由 storyboardPlanRequestParams.test.ts 把 Agnes 那一格（aspect_ratio 缺席、size 仍是档案默认）钉死。已开独立任务",
+    "批量条那句「N 镜的模型不吃整片画幅」只对**行上显式选了模型**的镜头计数；用「默认模型」的行此刻无契约可判（默认模型是异步解析的），不计入。这是刻意的（不瞎报），但意味着用户若整片用默认模型、而那个默认模型恰好是 size 族，界面不会提示。要补需要把默认模型解析提前到批量条，属于另一件事",
+    "resolver 是纯函数、不感知模型，所以「这一镜生效的参数」在 resolver 这一层是**意图**，真正能不能发出去由档案闸（buildPlannedNodeMeta / planResolver）说了算。两层判据同源（都按 control.key 匹配），但它们是两段代码——档案闸若将来改判据而没同步 unsupportedFilmDefaultKeys，界面说的和实际发的会重新岔开。今天靠 storyboardPlanRequestParams.test.ts 从 plan 一路断到 meta 来锁，不是靠门岗",
+    "真机走查为了在出站报文上取证，对自己 settingsDir 里的夹具目录做了两处外科手术（图片模型档案换成 nano-banana、出站模板加一行 aspect_ratio）。手术写在走查文件里并附了理由，但这意味着走查证的是「档案声明了画幅的模型真的带上了」，**没有**证 size 族那条路——那条由单测锁"
+  ],
+  "internal_only_reason": "这条不变量是本仓自有的语义（分镜方案里「整片默认 × 行覆盖」两段作用域怎么合并成一镜的生成参数），不对齐任何外部规范或第三方 API 契约。StoryboardPlan 是本仓自定义的中间表示，两段作用域是 2026-09-05 用户拍板的产品设计，合并优先级由本仓自己定。参数键 aspect_ratio 的 canonical 化有外部依据（各供应商官方文档），但那属于档案层的既有裁决（见 src/config/modelArchetypes/gptImage2.ts:11-13 的铁律注释），不是本条不变量在定的事",
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/agent/storyboardShotScope.ts",
+    "tests": [
+      "src/workbench/generationCanvas/agent/storyboardShotScope.test.ts",
+      "src/workbench/generationCanvas/agent/storyboardPlanRequestParams.test.ts",
+      "src/workbench/creation/storyboard/exec/storyboardProjection.test.ts"
+    ]
+  }
+}
