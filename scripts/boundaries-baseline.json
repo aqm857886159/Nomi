@@ -30,7 +30,6 @@
     "src/workbench/assets/assetTypes.ts -> electron/workspace/workspaceFileIndex.ts",
     "src/workbench/assets/importAudioToLibrary.ts -> electron/assets/mediaTypes.ts",
     "src/workbench/creation/creationAiModes.ts -> electron/settings/systemPromptsContract.ts",
-    "src/workbench/creation/creationTurnController.ts -> electron/harness/agentChatContracts.ts",
     "src/workbench/creation/systemPromptOverrides.ts -> electron/settings/systemPromptsContract.ts",
     "src/workbench/export/exportTypes.ts -> electron/export/exportTypes.ts",
     "src/workbench/generationCanvas/agent/trajectoryLayout.ts -> electron/capabilityCore/canvasNodeLayout.ts",
