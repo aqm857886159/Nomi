@@ -47,7 +47,7 @@ node scripts/door-map.mjs applyCanvasToolCall executeCanvasWriteTarget
 **无守卫（5）**：
 - `src/workbench/creation/storyboard/exec/storyboardRowActions.ts:97` — 分镜行落地，只有一行手写 `if (!gesture.canWrite())` 预检
 - `src/workbench/capability/multiShotCanvasLanding.ts:230` — 批量镜头落画布，只有 `withCanvasGestureContext`，靠 `materializationOperationId` 幂等章自保
-- `src/workbench/capability/capabilityApplyHandler.ts:625` — `production.materialize-storyboard`（MCP 与应用内共用），画布侧零守卫
+- `src/workbench/capability/capabilityApplyHandler.ts:620` — `production.materialize-storyboard`（MCP 与应用内共用），画布侧零守卫
 - `src/workbench/onboarding/journeyTourStore.ts:99` — 引导演示落画布
 - `src/workbench/onboarding/journeyTourStore.ts:132` — 同上，且整段套在 `try{}catch{}` 里静默吞错
 
@@ -68,7 +68,7 @@ node scripts/door-map.mjs --write=createProductionRunRepository
 ```
 **写 7 · 读 13。**
 
-守卫是 `createGateApprovalOwner`（`productionRunApprovalReceipt.ts:118`）：付费门（`isSpendGate`）批准只认两种人证——
+守卫是 `createGateApprovalOwner`（`productionRunApprovalReceipt.ts:122`）：付费门（`isSpendGate`）批准只认两种人证——
 主进程收据权威验过的 receipt（HMAC + TTL + 一次性），或 `productionRunIpc` 在 `assertTrustedSender` 之后自己盖的
 `humanGesture` 章。它**fail-closed 装配**：拿不到权威时持有的仍是这份 owner（`productionRunService.ts:120`），
 不是 `undefined`，所以命令路径上不存在「验不了就跳过」的分支。第二条守卫是 `assertCurrentProjectRevision`。
@@ -84,7 +84,7 @@ node scripts/door-map.mjs --write=createProductionRunRepository
   `ProductionRunRepository | ProductionRunService`，传 repository 时走 `repository!.execute(...)`，**完全不经 `gateApproval`**，
   而同文件 `:171` 还会给 `gate.decide` 盖上 `humanGesture: true`。
 
-这一扇是**结构上可达、当前装配下不可达**：`electron/main.ts:620` 无参调用，默认取 `getProductionRunService()`，
+这一扇是**结构上可达、当前装配下不可达**：`electron/main.ts:621` 无参调用，默认取 `getProductionRunService()`，
 走 `:221` 的 `service.command`。也就是说今天没人走，但**明天一个 `registerProductionRunIpc(repo)` 就能把付费闸整条摘掉**。
 这正是门表要让人看见的那种东西——它在任何单点 review 里都长得像一个无害的可选参数。
 
@@ -144,7 +144,7 @@ node scripts/door-map.mjs applyDocumentWrite
 
 守卫 = 目标文档 id 相等 + `assertDocumentWritePreconditions(expected, current)` 的 revision/contentHash 前置条件
 + `resolveDocumentWriteRange` 锚点解析。
-`capabilityApplyHandler.ts:400`（用 `tools.readState()` 现读 preconditions）与
+`capabilityApplyHandler.ts:395`（用 `tools.readState()` 现读 preconditions）与
 `NomiStudioApp.tsx:244`（额外先做 `activeDocumentId` 比对 + `signal.aborted` + `assertCurrent()`）都过。
 
 **同层旁路（记录，不计入无守卫门）**：同一个 `toolsApi` 还导出
@@ -168,7 +168,7 @@ node scripts/door-map.mjs --write=upsertApiKey,upsertModelCatalogVendorApiKey,cl
 - Key 守卫 = `applyApiKeyUpsert:447` 的「非空 + `findNonHeaderSafeChar` 非法字符拦截 + `makeApiKeyRecordFromPlain` 加密」。
 
 **带守卫**：目录 14/17（`antigravityCatalog.ts:131`、`catalogCommit.ts:374`、`comfyuiWorkflowImportStore.ts:266`、
-`customCallDraft.ts:56/102`、`modelRetype.ts:75`、`integrationSession.ts:402/1026`、`serviceCatalog.ts:135/212/334/466/469`）；
+`customCallDraft.ts:56/102`、`modelRetype.ts:75`、`integrationSession.ts:394/1015`、`serviceCatalog.ts:135/212/334/466/469`）；
 key 11/11（10 扇经 `applyApiKeyUpsert`；`clearModelCatalogVendorApiKey` 的 2 处写空串 `enc:"plain"`，
 不经加密/字符校验，属**按构造安全**——无明文可泄——记为带守卫但留一笔）。
 
@@ -224,4 +224,5 @@ node scripts/door-map.mjs --write=saveWorkspaceProject,createWorkspaceProject --
    （按 R21.3，那些合同必须带 `doors` 与 `door_reduction`）。普查只负责把门摆到桌面上。
 
 **复现**：本文每个数字都来自上面列出的命令，`node scripts/door-map.mjs` 约 1–2 秒出结果。
-行号会随代码变动，复现时以当次输出为准。
+**行号基线 = `e3d326380`（本分支合入 `origin/main` 之后）**——本文所有 `file:line` 在该提交上逐条核对过一遍；
+行号会随代码变动，复现时以当次输出为准，门的**数量与判定**才是本文的结论。
