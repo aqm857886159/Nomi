@@ -52,6 +52,27 @@ if (ARM === 'legacy') {
   TOOLS = JSON.parse(dumped.stdout)
 }
 
+/**
+ * 给 Codex 造一个只认探针的 CODEX_HOME：抄用户的 model/provider 设置与 auth.json，
+ * 但 **mcp_servers 表是空的**，探针由命令行 -c 注入。这样既不动用户的 ~/.codex，
+ * 也不会让真的 nomi server 混进这次测量。
+ */
+function makeCodexHome() {
+  const home = path.join(work, 'codex-home')
+  fs.mkdirSync(home, { recursive: true })
+  const realHome = path.join(os.homedir(), '.codex')
+  const realConfig = fs.existsSync(path.join(realHome, 'config.toml')) ? fs.readFileSync(path.join(realHome, 'config.toml'), 'utf8') : ''
+  // 只保留 [mcp_servers] 之前那段（模型 / provider / 认证设置），把整张 server 表丢掉。
+  const head = realConfig.split(/^\[mcp_servers/m)[0]
+  fs.writeFileSync(path.join(home, 'config.toml'), `${head}\n[mcp_servers]\n`)
+  for (const name of ['auth.json']) {
+    const from = path.join(realHome, name)
+    if (fs.existsSync(from)) fs.copyFileSync(from, path.join(home, name))
+  }
+  return home
+}
+const codexHome = DRIVER === 'codex' ? makeCodexHome() : null
+
 // 逐字相同的前言：A/B 里任何措辞差都会变成服从度差而不是工具面差
 // （docs/lessons/prompt-ab-gating-question-confounds-arms）。
 const PREAMBLE = 'You are connected to Nomi, a local-first video creation workbench, through its MCP tools. Help the user with what they ask, using the tools. Do not ask the user for confirmation before calling a read-only tool.'
@@ -94,12 +115,19 @@ function runCase(testCase, index) {
       '--mcp-config', mcp, '--allowedTools', ...allowed, '--max-turns', '6'],
       { cwd: work, encoding: 'utf8', timeout: 180000, stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 32 * 1024 * 1024 })
   } else if (DRIVER === 'codex') {
-    res = spawnSync('codex', ['exec', '--skip-git-repo-check', '--sandbox', 'read-only',
-      '-c', 'approval_policy="never"',
+    // **隔离的 CODEX_HOME**：用户全局 ~/.codex/config.toml 里挂着一个真的 `nomi` MCP server，
+    // 它和探针的工具名会打架——第一版就是在那种环境下量的，模型一部分注意力跑去了真 app，
+    // 分母不可信。这里只给它探针一个 server（docs/lessons/assert-you-are-in-the-situation-you-claim）。
+    //
+    // approvals 一律绕过：探针**什么都不执行**，而旧面没有任何 annotation、新面的读工具带
+    // readOnlyHint —— 留着审批策略，两臂差的就是「谁标了 readOnlyHint」而不是「谁好读」，
+    // 那是我自己配置引进来的混杂。旧面第一版 30/30 一个工具都没调，正是栽在这里。
+    res = spawnSync('codex', ['exec', '--skip-git-repo-check', '--dangerously-bypass-approvals-and-sandbox',
       '-c', 'mcp_servers.probe.command="node"',
       '-c', `mcp_servers.probe.args=${JSON.stringify([probe, toolsPath, logPath, testCase.state])}`,
       `${PREAMBLE}\n\n${testCase.utterance}`],
-      { cwd: work, encoding: 'utf8', timeout: 240000, stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 32 * 1024 * 1024 })
+      { cwd: work, encoding: 'utf8', timeout: 240000, stdio: ['ignore', 'pipe', 'pipe'],
+        env: { ...process.env, CODEX_HOME: codexHome }, maxBuffer: 32 * 1024 * 1024 })
   } else {
     res = runDeepseek(testCase, logPath)
   }
