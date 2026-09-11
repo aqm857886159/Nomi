@@ -2,7 +2,7 @@ import { useSyncExternalStore } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { GenerationCanvasNode } from '../generationCanvas/model/generationCanvasTypes'
 import { useGenerationQueueStore, type GenerationQueueEntry } from '../generationCanvas/runner/generationQueueStore'
-import { generationFeedback } from './generationFeedback'
+import { generationFeedback, savedFeedbackWindowOpen } from './generationFeedback'
 
 // One local clock for all visible surfaces; no per-node persistence writes or competing timers.
 let now = Date.now()
@@ -48,6 +48,9 @@ export function useGenerationFeedback(node: GenerationCanvasNode | null | undefi
   useTranslation()
   const entries = useGenerationQueueStore((state) => state.entries)
   const { current, queued, queueAhead, active } = selectGenerationFeedbackNode(node, keyframeNode, entries)
-  const timestamp = useGenerationFeedbackClock(active)
+  // 落地回执是**限时**的，所以刚跑完的那几秒钟表也得继续走——否则「跑完」那一帧渲染出回执之后
+  // 再没有第二帧来把它收走，一句一次性的话就又变回常驻的了。窗口过完这一格自己退订。
+  const ticking = active || (current ? savedFeedbackWindowOpen(current, Date.now()) : false)
+  const timestamp = useGenerationFeedbackClock(ticking)
   return current ? generationFeedback(current, timestamp, queued, queueAhead) : null
 }

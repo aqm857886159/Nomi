@@ -3,7 +3,7 @@ import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import type { GenerationCanvasNode } from '../generationCanvas/model/generationCanvasTypes'
-import { generationFeedback } from './generationFeedback'
+import { generationFeedback, SAVED_FEEDBACK_WINDOW_MS } from './generationFeedback'
 import { GenerationStatusBar } from '../generationCanvas/nodes/GenerationStatusBar'
 
 const node = (percent?: number): GenerationCanvasNode => ({ id: 'test', kind: 'image', title: '', position: { x: 0, y: 0 }, status: 'running', progress: { phase: 'generating', updatedAt: 1000, ...(percent === undefined ? {} : { percent }) } })
@@ -42,7 +42,21 @@ it('rejects invalid percentages before they can become seemingly real zero or on
 it('does not reuse an active feedback object after an immutable status transition sharing progress', () => {
   const active = node()
   const first = generationFeedback(active, 19000)
-  const done = { ...active, status: 'success' as const }
+  const done = { ...active, status: 'success' as const, runs: [{ id: 'r', status: 'success' as const, startedAt: 1000, updatedAt: 18000, completedAt: 18000 }] }
   expect(generationFeedback(done, 19000)?.saved).toBe(true)
   expect(generationFeedback(done, 19000)).not.toBe(first)
+})
+
+it('「已保存到项目」是限时回执，不是节点的常驻状态', () => {
+  // 2026-09-11 用户实测：每一个做完的图片节点下面都永久挂着这一条。
+  // 图已经在画面里了，那才是「保存成功」最强的证据；文字只在刚落地那几秒有意义。
+  const run = (completedAt: number) => [{ id: 'r', status: 'success' as const, startedAt: 0, updatedAt: completedAt, completedAt }]
+  const saved = { ...node(), status: 'success' as const, runs: run(19000) }
+  expect(generationFeedback(saved, 19000)?.saved).toBe(true)
+  expect(generationFeedback({ ...saved, id: 'a' }, 19000 + SAVED_FEEDBACK_WINDOW_MS - 1)?.saved).toBe(true)
+  expect(generationFeedback({ ...saved, id: 'b' }, 19000 + SAVED_FEEDBACK_WINDOW_MS)).toBeNull()
+  // 重开项目读回来的老节点：完成时刻早就过去了，一条都不该冒出来。
+  expect(generationFeedback({ ...saved, id: 'c', runs: run(1) }, 19000)).toBeNull()
+  // 连 run 记录都没有（老项目）——同样不显示，而不是退回到常驻。
+  expect(generationFeedback({ ...saved, id: 'd', runs: [] }, 19000)).toBeNull()
 })

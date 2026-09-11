@@ -10,10 +10,17 @@ import { generationFeedback } from '../../observability/generationFeedback'
 import { useGenerationQueueStore } from '../runner/generationQueueStore'
 afterEach(() => useGenerationQueueStore.setState({ entries: [], batches: {} }))
 
-const node: GenerationCanvasNode = { id: 'shot-status', kind: 'image', title: '', position: { x: 0, y: 0 }, status: 'success' }
+// 刚落地的成功节点：`completedAt` 就是「现在」，落地回执还在窗口里。
+const justSaved = (): GenerationCanvasNode['runs'] => [{ id: 'run-0', status: 'success', startedAt: Date.now() - 2000, updatedAt: Date.now(), completedAt: Date.now() }]
+const node: GenerationCanvasNode = { id: 'shot-status', kind: 'image', title: '', position: { x: 0, y: 0 }, status: 'success', runs: justSaved() }
 describe('shot inline lifecycle feedback', () => {
   it('keeps completion visible in its own node', () => {
     expect(renderToStaticMarkup(React.createElement(NodeGenerationStatus, { node }))).toContain('已保存到项目')
+  })
+  it('落地回执是一次性的：窗口过完节点下面什么都不挂', () => {
+    // 2026-09-11 用户实测：每个做完的图片节点下面都永久挂着这一条，一屏十几条重复的废话。
+    const old = { ...node, runs: [{ id: 'run-0', status: 'success' as const, startedAt: 0, updatedAt: 1, completedAt: 1 }] }
+    expect(renderToStaticMarkup(React.createElement(NodeGenerationStatus, { node: old }))).toBe('')
   })
   it('keeps the failed phase and reason next to its node', () => {
     const html = renderToStaticMarkup(React.createElement(NodeGenerationStatus, { node: { ...node, status: 'error', error: '服务连接中断' } }))
