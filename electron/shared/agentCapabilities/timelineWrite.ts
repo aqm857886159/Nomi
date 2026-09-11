@@ -96,16 +96,6 @@ export function timelineWriteInputForAlias(alias: string, value: unknown): Timel
   return timelineWriteSemanticInputSchema.parse({ operation: alias, ...schema.parse(value) });
 }
 
-export function timelineWritePiDescriptionForAlias(alias: string): string | undefined {
-  switch (alias) {
-    case TIMELINE_WRITE_ALIASES.applyPlan:
-      return "Apply one compare-and-swap guarded timeline edit plan after user approval. Valid operation kinds: move, remove, split, trim, source-window, ripple, transition, text, audio.";
-    case TIMELINE_WRITE_ALIASES.undo:
-      return "Undo the exact most recent Agent timeline edit after user approval. Use its returned undoToken and the current expectedRevision; stale or superseded edits are rejected.";
-    default:
-      return undefined;
-  }
-}
 
 export const TIMELINE_WRITE_CAPABILITY = {
   id: "timeline.write",
@@ -121,8 +111,4 @@ export const TIMELINE_WRITE_CAPABILITY = {
   exposure: "mcp_safe",
   requiredScope: "timeline:write",
   targetKind: "timeline",
-  projections: {
-    pi: { description: "Apply or undo an approved project timeline edit." },
-    mcp: { description: "Preview/apply/undo revision-guarded timeline edits after Host approval." },
-  },
 } as const satisfies CapabilityContract<TimelineWriteInput, TimelineWriteResult>;
