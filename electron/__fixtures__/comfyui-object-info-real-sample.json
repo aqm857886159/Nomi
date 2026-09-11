@@ -1,0 +1,36 @@
+{
+  "_provenance": "逐字摘自本机 ~/ComfyUI 0.35.0（真实自定义节点，非零起点）2026-09-11 curl localhost:8188/object_info 的真实响应，仅裁剪不相关输入键/压缩嵌套选项数组长度。见 electron/comfyuiObjectInfo.test.ts。",
+  "TripleCLIPLoader": {
+    "input": { "required": { "clip_name1": ["COMBO", { "multiselect": false, "options": [] }] } }
+  },
+  "LatentConcat": {
+    "input": { "required": { "dim": ["COMBO", { "multiselect": false, "options": ["x", "-x", "y", "-y", "t", "-t"] }] } }
+  },
+  "LoadImageOutput": {
+    "input": { "required": { "image": ["COMBO", { "image_upload": true, "remote": { "route": "/internal/files/output" } }] } }
+  },
+  "KSampler": {
+    "input": { "required": { "sampler_name": [["euler", "euler_ancestral", "ddim"], { "tooltip": "sampler" }] } }
+  },
+  "CreateVideo": {
+    "input": { "optional": { "bit_depth": ["COMBO", { "default": "auto", "multiselect": false, "options": ["auto", 8, 10] }] } }
+  },
+  "ImageResizeKJ": {
+    "input": { "optional": { "crop": [["disabled", "center", 0], { "tooltip": "0 = default center crop" }] } }
+  },
+  "ResizeImageMaskNode": {
+    "input": {
+      "required": {
+        "resize_type": [
+          "COMFY_DYNAMICCOMBO_V3",
+          {
+            "tooltip": "Select how to resize",
+            "options": [
+              { "key": "scale dimensions", "inputs": { "required": { "width": ["INT", { "default": 512 }] } } }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}
