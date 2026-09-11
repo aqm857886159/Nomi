@@ -497,6 +497,7 @@ B3 = 「我们只确认对方收下了这个请求，能不能出片你自己第
 | ③ | **「验证失败即下架」这道单向门** | `modelPublication.ts`：`meta.adapter` 存在就只认 `activeRevision` 的那条分支改成「没有 certified revision 时回落到 enabled mapping / 脚本」 |
 | ④ | **手动「添加自定义模型」给未适配供应商的新建入口**：模型设置首页「其他接入方式」里的「自定义 API / 中转站」那一行，以及 AI 卡上的「或：手动接入 →」 | `ModelSettingsHome.tsx`、`AiAssistedOnboardingCard/Section.tsx`、`OnboardingDrawer.tsx`，i18n `drawer.home.customApi(+Hint)` / `assistedOnboarding.manual` |
 | ②c | 文本模型的 `streamTextTask` 探针（它也是一次真实请求） | `verifier.ts`；文本与媒体现在走**同一条**免费自检（P4 通用第一，顺带删掉整段 kind 分支） |
+| ⑧ | **花费确认这一整关**（2026-09-12 补删，见 §10.8）：`needs_spend_confirmation` / `awaiting_human_confirmation` / `human_confirmed` 三个 stage、签名挑战、opaque receipt、真人手势章、MCP 的 `confirm` 动作 | `integrationContract.ts` 词表、`integrationSession.ts` 的 `requestConfirmation` / `confirmFromTrustedUi` / `startConfirmedFromTrustedUi`、`integrationSpendGate.ts`（整文件）、`mcpIntegrationTools.ts` 的 `confirm`、`dispatcher.ts` 的 `integration.request_confirmation` |
 
 **④ 的边界（保留了什么，故意的）**：
 - 已适配的 13 家（`knownVendors.ts`）填 key 那条路**原样保留**——它本来就不经 `providerAdapter/service.ts`，
@@ -559,3 +560,35 @@ B3 = 「我们只确认对方收下了这个请求，能不能出片你自己第
 2. 交付契约（⑥）：删掉 `transportDelivery.ts` 的断言调用，配方退回按 kind 发 query。
 3. 自检（②⑤）：`verifier.ts` 恢复付费路径需要连带恢复 `reconcile` / `onRemoteTaskAccepted` 与 ledger 的
    unknown 分支——**刻意做成不可半途回滚**，因为「一半付费一半免费」正是两套并行版（P1）。
+
+## 10.8 补删：花费确认那一关（2026-09-12）
+
+**为什么它还在**：§10.2 ② 删掉了「付费真实生成」，但**授权那次付费的那道闸**没跟着删。
+于是留下一道**守着已经不存在的钱**的关卡——而它偏偏又是整条路上唯一走不通的一段。
+
+**它坏在哪（2026-09-12 真实验收 §P0-1，Codex CLI + DeepSeek 官方 key，真机）**：
+`propose` 之后会话进 `needs_spend_confirmation`，而这一关唯一的出口
+`startConfirmedFromTrustedUi()` 第一行就是 `if (session.ownerClientId !== "nomi") throw`。
+外部宿主的会话 owner 是 `codex` —— **永远出不来**。实测里 agent 连问三回合「卡在哪」，
+只能如实说「没有可执行的确认句柄」；Nomi 窗口里一张确认卡也没弹（`pendingChallengeId: null`）。
+
+**用户拍板（2026-09-12）**：接模型**没有付费验证**，因此**任何路径都没有花费确认**。
+钱的闸只有一处——画布每次提交时的报价卡（memory `money-gate-per-submit-no-budget-setting`）。
+
+**删完之后的形状**：那三档合并成一个只有机器语义的 `ready_to_certify`（方案收下了、自检还没开跑）。
+它**不是**换了名字的旧闸——旧闸要挑战+收据+真人手势才走得出去，新档谁拥有会话谁就能直接 `start`。
+
+**Nomi 窗口里那个按钮留着，但换了真名**：模型页仍会弹一屏让用户亲手开跑，因为那是他从
+「贴完 key」到「模型出现了」之间唯一看得见的反馈（§P1-4 抱怨的正是没有反馈）。
+它现在叫「开始自检」而不是「确认」——**这是一个开始检查的动作，不是一个批准花钱的动作**。
+词条名一并退役：`integrationConfirm*` / `integrationSpendWarning` → `integrationSelfCheck*`。
+交接单只发给 `nomi` 自己拥有的会话：给外部会话也发，等于在 Nomi 里放一个按下去必然
+`integration_owner_mismatch` 的按钮。
+
+**旧盘上的会话**：读盘时一次性改写成 `ready_to_certify` 并丢掉收据/挑战字段
+（`integrationSessionRecord.migrateRetiredSpendGate`）。被那条死路卡住的人升级后直接被放出来，
+不必重来一遍。故意**不**写成「不在现役词表里就改写」——那会把 stage 打错字的损坏记录一起洗白。
+
+**验收**：`mcpOnboardingDefects.test.ts` 的「缺陷 1」三条改成钉「它真的没了」
+（外部宿主 propose → start 一路到底 / 词表里再没有带 confirm 的阶段 / 旧盘会话被放出来）；
+`mcpOnboardingLoopback.test.ts` 的 R30 零额度台架少掉 confirm 那几步后仍走完全程。

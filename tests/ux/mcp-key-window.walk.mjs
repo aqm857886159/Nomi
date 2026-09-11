@@ -146,14 +146,8 @@ async function main() {
       expectedRevision: ready.revision,
       proposal: { candidates: [{ modelKey: 'kling-video-v1', kind: 'video' }], selections: [{ modelKey: 'kling-video-v1' }] },
     })
-    if (proposed.credentialStatus !== 'ready' || proposed.stage !== 'needs_spend_confirmation')
+    if (proposed.credentialStatus !== 'ready' || proposed.stage !== 'ready_to_certify')
       throw new Error(`propose regressed to credential state: ${JSON.stringify(proposed)}`)
-    const confirmed = await rpc(advert, connectionAttestation, 'integration.request_confirmation', {
-      sessionId: begun.id,
-      expectedRevision: proposed.revision,
-      idempotencyKey: 'mcp-key-window-walkthrough-confirm',
-    })
-    if (!confirmed.challengeId) throw new Error(`confirm did not return a challenge: ${JSON.stringify(confirmed)}`)
 
     // B 面：能力核启动时真的改写了某个助手的 Nomi 接入配置 → 主窗口弹一句「去重启它」。
     // 走查里不能让它真去改开发者的 ~/.claude.json（NOMI_E2E=1 时修复整个关掉，见 mcpConfig），
