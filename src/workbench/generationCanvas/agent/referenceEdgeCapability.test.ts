@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { archetypeForNode, isTextPromptEdge, referenceAssetKindForNode, validateReferenceEdge, partitionConnectableEdges, resolveTargetModeForEdge } from './referenceEdgeCapability'
 import { resolveArchetypeForModel } from '../../../config/modelArchetypes'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
+import { GENERATION_NODE_KINDS, getGenerationNodeExecutionKind } from '../model/generationNodeKinds'
 
 // archetypeId 显式命中内置档案(resolveArchetypeForModel/getArchetypeById 优先看它):
 //   imagen-4   = 纯文生(所有模式 slots:[])——不吃任何参考
@@ -35,10 +36,41 @@ describe('referenceAssetKindForNode — 源能给哪种可参考资产', () => {
     const imageAsset = { ...node('n', 'asset'), result: { id: 'r', type: 'image', url: 'x.png', createdAt: 0 } } as GenerationCanvasNode
     expect(referenceAssetKindForNode(imageAsset)).toBe('image')
   })
+  it('导入的**音频素材**(kind=asset 但 result.type=audio)→ audio(不是 image)', () => {
+    // 同一类根因的第二种形态：用户拖一段音频文件导进画布当素材(kind=asset)，而不是用专门的
+    // 「声音」生成节点(kind=audio)——这条 asset 分支此前只区分 video/image 两种 result.type，
+    // 音频素材会被这条 fallback 默默归成 image，同样连不上 audio_ref 槽。
+    const audioAsset = { ...node('n', 'asset'), result: { id: 'r', type: 'audio', url: 'x.mp3', createdAt: 0 } } as GenerationCanvasNode
+    expect(referenceAssetKindForNode(audioAsset)).toBe('audio')
+  })
   it('文本/镜头/输出节点 → null(无可参考产物)', () => {
     for (const kind of ['text', 'shot', 'output']) {
       expect(referenceAssetKindForNode(node('n', kind))).toBeNull()
     }
+  })
+
+  it('音频节点 → audio(用户报的根因:声音节点连不上视频节点)', () => {
+    expect(referenceAssetKindForNode(node('n', 'audio'))).toBe('audio')
+  })
+
+  // 根因回归(R21 class_root)：referenceAssetKindForNode 是「源节点产出哪种可参考资产」的唯一分类器，
+  // 只认 image/video/audio 三种(ReferenceAssetKind)。它按 node kind 的 executionKind 派生——
+  // 但派生表历史上只写了 image/video 两支,新增第三个执行种类(audio)时没人记得回来加分支,于是
+  // 一个执行上明明产出音频的节点被分类成 null(=不可参考),画布的连线校验、@ 提及候选、参考槽解析
+  // 全部跟着拒绝它,不管目标模型的参考槽声明写了什么。这条测试不针对 'audio' 这一个 kind 硬编码——
+  // 它扫描节点注册表里**所有**已声明 executionKind 且该 executionKind 落在 ReferenceAssetKind 定义域
+  // (image/video/audio)内的 kind,断言分类器都认得它,不许再漏一个。
+  it('registry 里每个 executionKind ∈ {image,video,audio} 的节点 kind 都被分类器认得(不漏判)', () => {
+    const referenceableExecutionKinds = new Set(['image', 'video', 'audio'])
+    const covered: string[] = []
+    for (const kind of GENERATION_NODE_KINDS) {
+      const exec = getGenerationNodeExecutionKind(kind)
+      if (!exec || !referenceableExecutionKinds.has(exec)) continue
+      covered.push(kind)
+      expect(referenceAssetKindForNode(node('n', kind)), `kind=${kind} executionKind=${exec}`).toBe(exec)
+    }
+    // 防止遍历逻辑本身写错导致假绿(比如 GENERATION_NODE_KINDS 为空数组)。
+    expect(covered.length).toBeGreaterThanOrEqual(3)
   })
 })
 

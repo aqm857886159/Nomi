@@ -7,13 +7,17 @@ import type { GenerationCanvasEdge, GenerationCanvasNode } from './generationCan
 import { resolveGenerationReferences } from '../runner/generationReferenceResolver'
 import { buildCatalogTaskRequest } from '../runner/catalogTaskActions'
 
-function source(id: string, kind: 'image' | 'video' = 'image'): GenerationCanvasNode {
+function source(id: string, kind: 'image' | 'video' | 'audio' = 'image'): GenerationCanvasNode {
   return { id, kind, title: id, position: { x: 0, y: 0 }, result: { id, type: kind, url: `https://asset.test/${id}`, createdAt: 1 } }
 }
 const catalog = { parameters: [
   { key: 'a', label: 'A', type: 'image-url' },
   { key: 'b', label: 'B', type: 'image-url' },
   { key: 'clip', label: 'Clip', type: 'image-url', mediaKind: 'video' },
+  // ComfyUI LoadAudio 声明的媒体槽（用户报的根因之一「ComfyUI 音频输入用不了」）：与 clip(video)
+  // 同一条链路，只是 mediaKind 换成 audio——下面 'routes an audio declaration…' 与
+  // 'does not accept an image source for an audio declaration' 两条测试对称覆盖。
+  { key: 'voice', label: 'Voice', type: 'image-url', mediaKind: 'audio' },
 ] }
 function target(): GenerationCanvasNode {
   return { id: 'target', kind: 'video', title: 'target', prompt: 'make video', position: { x: 0, y: 0 },
@@ -68,7 +72,12 @@ describe('parameter reference assignment shared contract', () => {
     ] }],
     ['malformed parameterControls', { parameterControls: [null] }],
     ['unknown explicit control type', { parameters: [{ key: 'image', type: 'bogus' }] }],
-    ['unsupported explicit media kind', { parameters: [{ key: 'asset', type: 'text', mediaKind: 'audio' }] }],
+    // 'audio' 曾在这里被当"unsupported explicit media kind"(用户报的根因之一「ComfyUI 音频输入
+    // 用不了」)——LoadAudio 扫描器产出的 mediaKind:'audio' 一路传到这个 ComfyUI 专用的严格解析器，
+    // 被判整份契约作废、退化回 legacy 启发式。'model3d' 才是真正超出 mediaKind 定义域
+    // (image/video/audio)的值，顶替占住这条"未知 mediaKind 必须整份拒绝"的覆盖；
+    // audio 的正面用例见下面 'accepts an explicit audio media control...'。
+    ['unsupported explicit media kind', { parameters: [{ key: 'asset', type: 'text', mediaKind: 'model3d' }] }],
     ['non-string parameter key alias', { parameters: [{ name: ['image'], type: 'image-url' }] }],
     ['ambiguous dual arrays', { parameters: [], parameterControls: [] }],
     ['valid parameters with malformed spare controls', {
@@ -110,7 +119,7 @@ describe('parameter reference assignment shared contract', () => {
       edge('legacy', 'one', undefined, 0), edge('explicit', 'pending', 'a', 9),
     ])
     expect(assignments.map(({ slot, edge: input }) => [slot.key, input?.source])).toEqual([
-      ['a', 'pending'], ['b', 'one'], ['clip', undefined],
+      ['a', 'pending'], ['b', 'one'], ['clip', undefined], ['voice', undefined],
     ])
   })
 
@@ -139,6 +148,25 @@ describe('parameter reference assignment shared contract', () => {
   it('does not accept a video source for an image declaration', () => {
     const node = target()
     const assignments = resolveParameterReferenceAssignments(node, [node, source('movie', 'video')], [edge('wrong', 'movie', 'a')])
+    expect(assignments.every((assignment) => !assignment.edge)).toBe(true)
+  })
+
+  // 用户报的根因之一「ComfyUI 音频输入用不了」：LoadAudio 扫描出的媒体槽最终落到这条与 video 完全
+  // 对称的通路(acceptsParameterReferenceSource 按 mediaKind 精确匹配源资产类型)。video 声明已经
+  // 有上面两条对称测试(只收 video、不收 image)，audio 必须补齐同一对，否则回归只覆盖了一半。
+  it('routes an audio declaration only to audio and never treats it as an image/video reference', () => {
+    const node = target()
+    const nodes = [node, source('one'), source('narration', 'audio')]
+    const edges = normalizeParameterEdges(nodes, [edge('audio', 'narration'), edge('image', 'one')])
+    expect(edges.map((input) => input.targetParamKey)).toEqual(['voice', 'a'])
+    const references = resolveGenerationReferences(node, { nodes, edges })
+    expect(references.parameterReferenceUrls).toMatchObject({ voice: 'https://asset.test/narration', a: 'https://asset.test/one' })
+    expect(buildImageUrlSlots(catalog)[3].mediaKind).toBe('audio')
+  })
+
+  it('does not accept an image source for an audio declaration', () => {
+    const node = target()
+    const assignments = resolveParameterReferenceAssignments(node, [node, source('one')], [edge('wrong', 'one', 'voice')])
     expect(assignments.every((assignment) => !assignment.edge)).toBe(true)
   })
 

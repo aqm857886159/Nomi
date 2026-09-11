@@ -473,7 +473,13 @@ export default function NodeParameterControls({
   const handleSlotUpload = async (slot: ImageUrlSlot, file: File | null | undefined) => {
     if (!file) return
     if (!file.type.startsWith(`${slot.mediaKind ?? 'image'}/`)) {
-      setUploadError(t(slot.mediaKind === 'video' ? 'generationCommon.parameters.videoOnly' : 'generationCommon.parameters.imageOnly'))
+      // 三选一（同类根因的又一个入口，2026-09-11 补：ComfyUI 声明的音频参数槽走这条上传器，
+      // 此前只区分 video/image，音频槽拖错文件会显示「只能选择图片文件」这种文不对题的提示）。
+      setUploadError(t(
+        slot.mediaKind === 'video' ? 'generationCommon.parameters.videoOnly'
+          : slot.mediaKind === 'audio' ? 'generationCommon.parameters.audioOnly'
+            : 'generationCommon.parameters.imageOnly',
+      ))
       return
     }
     setUploadingSlotKey(slot.key)
@@ -481,10 +487,14 @@ export default function NodeParameterControls({
     try {
       const uploaded = await importWorkbenchLocalAssetFile(file, file.name || slot.label, {
         ownerNodeId: node.id,
-        ...(slot.mediaKind === 'video' ? {} : { taskKind: 'image_edit' }),
+        ...(slot.mediaKind === 'video' || slot.mediaKind === 'audio' ? {} : { taskKind: 'image_edit' }),
       })
       const url = assetUrl(uploaded)
-      if (!url) throw new Error(t(slot.mediaKind === 'video' ? 'generationCommon.parameters.missingVideoUrl' : 'generationCommon.parameters.missingImageUrl'))
+      if (!url) throw new Error(t(
+        slot.mediaKind === 'video' ? 'generationCommon.parameters.missingVideoUrl'
+          : slot.mediaKind === 'audio' ? 'generationCommon.parameters.missingAudioUrl'
+            : 'generationCommon.parameters.missingImageUrl',
+      ))
       setSingleFrameUrlMeta(slot, url)
     } catch (error) {
       setUploadError(error instanceof Error ? error.message : String(error))
