@@ -40,6 +40,42 @@ const labels = {
 }
 
 describe('production run task-center projection', () => {
+  // 2026-09-10 真机：agent 建完草稿，任务面板只有一句「等待开始」——模型、提示词一个字都看不到，
+  // 用户无从判断 agent 定的对不对（也就发现不了「画布上的模型和 agent 说的不一致」）。
+  it('草稿行说人话：模型 · 比例 · 提示词摘要，而不是只有「等待开始」', () => {
+    const [row] = buildProductionRunTaskRows([
+      summary({
+        status: 'draft',
+        draft: {
+          candidateId: 'cand-1',
+          revision: 1,
+          vendor: 'apimart',
+          modelKey: 'gpt-image-2',
+          mode: 'text_to_image',
+          promptLine: '雨夜便利店门口',
+          aspectRatio: '9:16',
+          shotCount: 1,
+        },
+      }),
+    ], labels)
+    expect(row.phaseText).toBe('gpt-image-2 · 9:16 · 雨夜便利店门口')
+  })
+
+  it('多镜草稿追加镜数（文案走 i18n 插值，不在投影里拼中文）', () => {
+    const [row] = buildProductionRunTaskRows([
+      summary({
+        status: 'draft',
+        draft: { candidateId: 'c', revision: 1, vendor: 'apimart', modelKey: 'seedance-2', mode: 'text_to_video', promptLine: '开场', shotCount: 6 },
+      }),
+    ], { ...labels, draftShots: (count: number) => `${count} 个镜头` })
+    expect(row.phaseText).toBe('seedance-2 · 开场 · 6 个镜头')
+  })
+
+  it('老快照（没有 draft 摘要）→ 回落状态文案，不空一行', () => {
+    const [row] = buildProductionRunTaskRows([summary({ status: 'draft' })], labels)
+    expect(row.phaseText).toBe('等待开始')
+  })
+
   it('uses the newest full Run revision so one card cannot be completed under a running summary', () => {
     const listed = summary({ revision: 8, status: 'running' })
     const completed = summary({ revision: 9, status: 'completed' })

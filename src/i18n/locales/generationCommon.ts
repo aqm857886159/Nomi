@@ -453,6 +453,9 @@ export const zhGenerationCommon = {
     mountOverflow: '{{names}}…等 {{count}} 个',
     generateBeforeTimeline: '该节点还没生成画面，先点「生成」再拖到时间轴',
     providerDisconnected: '「{{vendor}}」的模型当前不可用。请检查密钥、连接和模型状态，或手动切换供应商。',
+    // Agent 的草稿给这张卡指定了模型，但它此刻不在可用清单里。**不替他换一个**——
+    // 换了以后「agent 说的」和「卡上的」就对不上了，而这正是 2026-09-10 那个 bug 的形状。
+    candidateModelUnavailable: 'Agent 为这张卡选的模型「{{model}}」（{{vendor}}）当前不可用，已保留它的选择没有替换。请检查该供应商的密钥与模型状态，或自己换一个模型。',
     providerFailed: '「{{vendor}}」：{{reason}}。{{hint}}',
     switchProvider: '切到 {{vendor}} · {{model}}',
     technicalReview: {
@@ -1877,6 +1880,7 @@ export const enGenerationCommon = {
     mountOverflow: '{{names}}… {{count}} total',
     generateBeforeTimeline: 'Generate this node before dragging it to the timeline',
     providerDisconnected: 'The model from {{vendor}} is unavailable. Check the key, connection and model status, or choose another provider.',
+    candidateModelUnavailable: 'The model the agent picked for this card ({{model}} · {{vendor}}) is unavailable right now. Its choice was kept rather than replaced — check that provider\'s key and model status, or pick another model yourself.',
     providerFailed: '{{vendor}}: {{reason}}. {{hint}}',
     switchProvider: 'Switch to {{vendor}} · {{model}}',
     technicalReview: {
