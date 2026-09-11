@@ -17,9 +17,9 @@
 
 ## 先查别人
 
-1. Seedance 2.0 omni 模式官方文档（Volcengine 方舟）——`electron/config/modelArchetypes/seedance20Contract.test.ts:9-19` 已引用其原文核实过：omni 支持最多 3 段参考音频，但**不支持纯音频输入**，必须搭配参考图或参考视频（`requiresAnyOf: ["image_ref","video_ref"]`）。本次没有重新去抓官方页面，因为这条约束早就被 2026-08-20 那次修复核实并落进 `electron/shared/videoCapabilities/seedance.ts:96` 的注释和 `seedance20Contract.test.ts`；本次改动**沿用**这条约束，不解除它——单独连一条音频边到 omni 节点上，`canRunGenerationNode` 理应继续判「不可生成」，这是诚实的产品行为，不是本次要修的 bug（走查第②步专门验证了这一点没被误伤）。
+1. Seedance 2.0 omni 模式官方文档（Volcengine 方舟）——`src/config/modelArchetypes/seedance20Contract.test.ts:9-19` 已引用其原文核实过：omni 支持最多 3 段参考音频，但**不支持纯音频输入**，必须搭配参考图或参考视频（`requiresAnyOf: ["image_ref","video_ref"]`）。本次没有重新去抓官方页面，因为这条约束早就被 2026-08-20 那次修复核实并落进 `electron/shared/videoCapabilities/seedance.ts:96` 的注释和 `seedance20Contract.test.ts`；本次改动**沿用**这条约束，不解除它——单独连一条音频边到 omni 节点上，`canRunGenerationNode` 理应继续判「不可生成」，这是诚实的产品行为，不是本次要修的 bug（走查第②步专门验证了这一点没被误伤）。
 2. ComfyUI 官方 `LoadAudio` 节点源码——`https://raw.githubusercontent.com/comfyanonymous/ComfyUI/master/comfy_extras/nodes_audio.py`（2026-09-11 抓取核实）：`node_id="LoadAudio"`，文件名输入键叫 `audio`（`IO.Combo.Input("audio", upload=IO.UploadType.audio, ...)`）。这与仓内 `MEDIA_INPUT_KEYS` 早就收着的 `"audio"` 键名完全对得上——**扫描器的键名允许列表两年前就等着这一天，只是从来没配上 class_type 识别正则**，是本次修复最直接的证据。
-3. 仓内教训 `docs/lessons/nomi-reference-slots-are-already-declarative.md`——参考槽是声明式数据，六种 slot kind 早有渲染器，不该给某个模型另写特例 UI（P4）。本次修复严格遵守这条：**只改共享门岗（谁能当参考源、槽收不收这个资产类型），不碰任何单个模型的展示逻辑**——`AssetReference.tsx`/`NodeParameterControls.tsx` 早已是通用 `AssetKind`（含 `audio`）驱动，一行都没改。
+3. 仓内教训 `docs/lessons/nomi-reference-slots-are-already-declarative.md:6`——参考槽是声明式数据，六种 slot kind 早有渲染器，不该给某个模型另写特例 UI（P4）。本次修复严格遵守这条：**只改共享门岗（谁能当参考源、槽收不收这个资产类型），不碰任何单个模型的展示逻辑**——`AssetReference.tsx`/`NodeParameterControls.tsx` 早已是通用 `AssetKind`（含 `audio`）驱动，一行都没改。
 
 ## 根因（R21）
 
