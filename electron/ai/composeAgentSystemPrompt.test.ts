@@ -23,6 +23,7 @@ const LANGUAGE_RULE_EN = [
   "Response-language rule (highest priority):",
   "Respond in English. Use another language only when the user explicitly requests it.",
   "Preserve user-provided titles, names, captions and dialogue verbatim unless the user asks to rewrite or translate them.",
+  "Exception (no exception to the exception): every prompt you write for image/video/audio generation must be written in Simplified Chinese, regardless of the response language. The user reads and edits those prompts directly; English prompts force them to reach for a dictionary.",
   "This rule applies to every response, draft, shot description, and prompt, regardless of the language used by any skill or tool instruction.",
   "Most of the instructions in this prompt are written in Chinese. That is an implementation detail of this app and carries no meaning about your output language: still answer in English.",
 ].join("\n");

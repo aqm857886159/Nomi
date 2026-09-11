@@ -121,8 +121,15 @@ export interface OpenLaneOptions {
   /** 复用已存在的会话（冷重启走这条）。缺省新建一条并把 id 报出来。 */
   sessionId?: string
   model: NomiModelConfig
-  /** 宿主的身份提示词。`Available tools` / `Guidelines` 两段由 `openLane` 按 `tools` 自己拼，别在这里手写。 */
-  systemPrompt: string
+  /**
+   * 宿主的身份提示词。`Available tools` / `Guidelines` 两段由 `openLane` 按 `tools` 自己拼，别在这里手写。
+   *
+   * **想跟着设置变的，给函数不给快照**（与下面 `tasks` 同一条纪律）：一条 lane 会跨很多回合活着，
+   * 传字符串就等于把「这段提示词该说什么」冻在开 lane 那一刻。2026-09-11 走查实锤：回复语言规则
+   * 是快照传进来的，用户中途在设置里把界面切成英文后，这条 lane 里连开新对话都还在说中文，
+   * 只有冷启动才生效。给函数时 `openLane` 每个回合重新求值（`transform_context`）。
+   */
+  systemPrompt: string | (() => string)
   /** Snapshot the composer per message; activate only after pi consumes that message. */
   input?: {
     capture(): LaneComposerContext

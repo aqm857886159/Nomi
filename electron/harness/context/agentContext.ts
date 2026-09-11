@@ -62,6 +62,7 @@ export function buildLanguageRule(): string {
         "Response-language rule (highest priority):",
         "Respond in English. Use another language only when the user explicitly requests it.",
         "Preserve user-provided titles, names, captions and dialogue verbatim unless the user asks to rewrite or translate them.",
+        "Exception (no exception to the exception): every prompt you write for image/video/audio generation must be written in Simplified Chinese, regardless of the response language. The user reads and edits those prompts directly; English prompts force them to reach for a dictionary.",
         "This rule applies to every response, draft, shot description, and prompt, regardless of the language used by any skill or tool instruction.",
         // 关键一句:身份层/skill/工具说明大部分是中文,模型会**照着提示词的语言说话**。
         // 不点破「提示词的语言 ≠ 输出的语言」,它就会中英混着答(2026-08-28 用户实测:半中半英)。
@@ -71,6 +72,7 @@ export function buildLanguageRule(): string {
         "回复语言铁律（最高优先级）：",
         "默认用简体中文回复。只有用户明确要求换语言时才换。",
         "用户给定的标题、名称、字幕和台词保持原文，除非用户要求改写或翻译；界面语言与示例语言不能覆盖这些字段。",
+        "送进生成模型的提示词（图/视频/音频的生成 prompt）一律用简体中文书写，与回复语言无关——用户要直接阅读和修改它们，英文提示词等于让他们查词典。",
         "这条对每一次回复、草稿、分镜描述和提示词都适用，不论 skill 或工具说明本身用的是什么语言。",
       ].join("\n");
 }
