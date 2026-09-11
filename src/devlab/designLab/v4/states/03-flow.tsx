@@ -14,13 +14,14 @@ import { agentTopbarChipBadge } from '../../../../ui/app-shell/agentTopbarChipBa
 import { TooltipProvider } from '../../../../design'
 import { dockStatusLabel } from '../../../../workbench/ai/v4/agentPanelV4DockStatus'
 import { useV4Labels } from '../../../../workbench/ai/v4/agentPanelV4Labels'
-import { useV4Fixtures } from '../agentPanelV4LabKit'
+import { useV4Fixtures, V4_LAB_SLOT_HANDLERS } from '../agentPanelV4LabKit'
 import type { LabState } from '../../labScreen'
 
 function FlowCreation(): JSX.Element {
   const fx = useV4Fixtures()
   return (
     <AgentPanelV4Panel
+      slotHandlers={V4_LAB_SLOT_HANDLERS}
       flow={fx.flows.creation}
       slot={fx.slots.plan}
       context={{ ...fx.context, used: 36000 }}
@@ -34,6 +35,7 @@ function FlowGeneration(): JSX.Element {
   const fx = useV4Fixtures()
   return (
     <AgentPanelV4Panel
+      slotHandlers={V4_LAB_SLOT_HANDLERS}
       flow={fx.flows.generation}
       slot={fx.slots.spendOneClip}
       context={{ ...fx.context, used: 68000 }}
@@ -47,6 +49,7 @@ function FlowPreview(): JSX.Element {
   const fx = useV4Fixtures()
   return (
     <AgentPanelV4Panel
+      slotHandlers={V4_LAB_SLOT_HANDLERS}
       flow={fx.flows.preview}
       slot={fx.slots.threeEdits}
       context={{ ...fx.context, used: 82000 }}
@@ -57,13 +60,14 @@ function FlowPreview(): JSX.Element {
 
 function RenderingPanel(): JSX.Element {
   const fx = useV4Fixtures()
-  return <AgentPanelV4Panel flow={fx.flows.rendering} context={{ ...fx.context, used: 44000 }} height={640} />
+  return <AgentPanelV4Panel slotHandlers={V4_LAB_SLOT_HANDLERS} flow={fx.flows.rendering} context={{ ...fx.context, used: 44000 }} height={640} />
 }
 
 function DarkPanel(): JSX.Element {
   const fx = useV4Fixtures()
   return (
     <AgentPanelV4Panel
+      slotHandlers={V4_LAB_SLOT_HANDLERS}
       flow={fx.flows.dark}
       slot={fx.slots.reversible}
       context={{ ...fx.context, used: 82000 }}
@@ -109,7 +113,7 @@ function CollapsedScene(): JSX.Element {
           </span>
         </div>
         <div className="flex min-h-0 min-w-0 flex-1 flex-col justify-end gap-2 p-3">
-          <V4Intervention data={fx.slots.reversible} labels={labels.intervention} />
+          <V4Intervention {...V4_LAB_SLOT_HANDLERS} data={fx.slots.reversible} labels={labels.intervention} />
           <AgentPanelV4Composer
             panelHeight={360}
             dock
