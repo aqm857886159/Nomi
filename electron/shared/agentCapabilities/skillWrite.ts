@@ -43,7 +43,7 @@ export const SKILL_WRITE_ALIASES = Object.freeze({
 export const SKILL_WRITE_CAPABILITY = {
   id: "skill.write",
   version: 1,
-  aliases: { pi: SKILL_WRITE_ALIASES.author },
+  aliases: { method: SKILL_WRITE_ALIASES.author },
   inputSchema: skillWriteSemanticInputSchema,
   outputSchema: skillWriteResultSchema,
   effect: "reversible_write",
@@ -52,11 +52,6 @@ export const SKILL_WRITE_CAPABILITY = {
   exposure: "internal_only",
   requiredScope: "skills:write",
   targetKind: "project",
-  projections: {
-    pi: {
-      description: "Save a validated Nomi Skill package to the user's Skill library.",
-    },
-  },
 } as const satisfies CapabilityContract<SkillWriteInput, SkillWriteResult>;
 
 export function skillWriteInputForAlias(alias: string, args: unknown): SkillWriteInput | undefined {

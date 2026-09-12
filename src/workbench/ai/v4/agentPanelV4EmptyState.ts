@@ -10,10 +10,8 @@
 //      注册表里没有这个 id，这条起手当场消失（不是渲染成一个死 chip）；
 //   ② `agentPanelV4EmptyState.test.ts` 断言每个面**恰好三条**——于是「能力改名/下架」
 //      不是静默少一颗 chip，而是当场红；
-//   ③ 那个测试还把 zh / en 两版起手句喂给 `agentChatPolicy.agentToolsForRequest`
-//      （各面真正的工具投影），证明这句话发出去之后模型手里真有那个工具。
-//      起手句的措辞因此是**承重的**：把「分镜」写成「镜头」、把 storyboard 写成 shots，
-//      意图路由就走到别的工具集上，测试会告诉你。
+//   ③ 那个测试还断言这个能力在模型真正拿到的内部工具面（`modelFacingToolSpecs("internal")`）
+//      上至少有一个动词，证明这句话发出去之后模型手里真有那个工具。
 import { CAPABILITY_CONTRACTS } from '../../../../electron/shared/agentCapabilities/registry'
 import type { ResidentSurface } from '../resident/residentShellDisplay'
 import type { TranslationKey } from '../../../i18n/translationKey'

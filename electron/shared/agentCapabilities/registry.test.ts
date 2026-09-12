@@ -49,7 +49,7 @@ it("derives fresh storyboard review from operation metadata without making ordin
       .toEqual({ requiresPlanReview: true, planReviewAllowsReuse: false });
     expect(capabilityRequiresPlanReview("nomi_canvas_edit", { operation })).toBe(true);
   }
-  expect(capabilityRequiresPlanReview("propose_storyboard_plan")).toBe(true);
+  expect(capabilityRequiresPlanReview("nomi_storyboard_write", { operation: "propose_storyboard_plan" })).toBe(true);
   expect(capabilityPlanReviewOf(CANVAS_WRITE_CAPABILITY, { operation: "set_node_prompt" }))
     .toEqual({ requiresPlanReview: false, planReviewAllowsReuse: true });
   expect(capabilityPlanReviewOf(TIMELINE_WRITE_CAPABILITY, {}))
@@ -85,10 +85,17 @@ describe("capability contract registry", () => {
     ]);
 
     const ids = CAPABILITY_CONTRACTS.map((contract) => contract.id);
-    const aliases = CAPABILITY_CONTRACTS.flatMap((contract) => Object.values(contract.aliases));
+    // 一个名字只能指向一个契约。同一契约在两个 surface 上用同一个名字（`nomi_canvas_read` 内外同名）
+    // 不是重复——那正是「内外同源」；两个契约共用一个名字才是。
+    const ownerByAlias = new Map<string, string>();
+    for (const contract of CAPABILITY_CONTRACTS) {
+      for (const alias of Object.values(contract.aliases)) {
+        expect(ownerByAlias.get(alias) ?? contract.id, `${alias} claimed by two contracts`).toBe(contract.id);
+        ownerByAlias.set(alias, contract.id);
+      }
+    }
 
     expect(new Set(ids).size).toBe(ids.length);
-    expect(new Set(aliases).size).toBe(aliases.length);
     expect(ids).toEqual([
       "asset.read",
       "canvas.delete",
@@ -114,14 +121,17 @@ describe("capability contract registry", () => {
       "generation.run.read",
       "generation.control",
     ]);
+    // 主别名按 surface 摆平：`pi` 只放模型可见动词名（与 `verbDeclarations.ts` 对账，门岗
+    // `no-orphan-alias`），`method` 放宿主/dispatcher 方法名，`mcp` 放对外名，`ui` 放渲染层入口名。
+    const aliases = CAPABILITY_CONTRACTS.flatMap((contract) => Object.values(contract.aliases));
     expect(aliases).toEqual([
       "get_media",
       "nomi_media_query",
       "delete_canvas_nodes",
       "nomi_canvas_maintenance",
-      "read_canvas_state",
       "nomi_canvas_read",
-      "set_node_prompt",
+      "nomi_canvas_read",
+      "nomi_canvas_write",
       "nomi_canvas_edit",
       "nomi_canvas_plan",
       "read_full_text",
@@ -135,9 +145,7 @@ describe("capability contract registry", () => {
       "nomi_timeline_read",
       "apply_edit_plan",
       "nomi_timeline_edit",
-      "layout_read",
       "nomi_layout_read",
-      "layout_write",
       "nomi_layout_write",
       "get_production_run",
       "start_production_run",
@@ -148,6 +156,7 @@ describe("capability contract registry", () => {
       "nomi_generation_plan",
       "nomi_resolve_generation_plan",
       "nomi_request_generation_gate",
+      "nomi_operation_read",
       "nomi_generation_status",
       "nomi_cancel_generation",
     ]);
@@ -155,13 +164,8 @@ describe("capability contract registry", () => {
     expect(CAPABILITY_CONTRACTS.every((contract) => CAPABILITY_EFFECT_CLASSES.includes(contract.effectClass))).toBe(true);
     expect(resolveCapabilityAlias(CANVAS_WRITE_CAPABILITY.aliases.pi)?.contract).toBe(CANVAS_WRITE_CAPABILITY);
     expect(capabilityOperationAliasesFor(CANVAS_WRITE_CAPABILITY.id, "pi")).toEqual([
-      "create_canvas_nodes",
-      "connect_canvas_edges",
-      "tidy_canvas",
-      "propose_storyboard_plan",
-      "arrange_storyboard_to_timeline",
-      "create_staging_reference",
-      "create_camera_move",
+      "nomi_storyboard_write",
+      "nomi_shot_reference_write",
     ]);
     expect(resolveCapabilityAlias("nomi_set_node_prompt")).toBeUndefined();
     expect(resolveCapabilityAlias(DOCUMENT_READ_ALIASES.selection)?.contract).toBe(DOCUMENT_READ_CAPABILITY);

@@ -29,51 +29,30 @@
 // 同源之后两边**结构上**不可能不同，但结构性质要有人证明它还成立：`scripts/check-model-schema.ts`
 // 的 `profile-schema-drift` 规则按能力逐个比对两个 profile 的 `alias → 模型可见 JSON Schema` 指纹，
 // 手改任何一边当场红（R17 的阳性对照在 `check-model-schema.node-test.mjs`）。
-import { z, type ZodTypeAny } from "zod";
-
 import type { CapabilityContract } from "./capabilityContract";
 import { unwrapWholeArguments } from "./modelArgumentTolerance";
 import { toPublishedJsonSchema, type JsonSchemaObject } from "./modelVisibleJsonSchema";
+import {
+  MODEL_TOOL_READ_TIMEOUT_MS_VALUE,
+  MODEL_TOOL_WRITE_TIMEOUT_MS_VALUE,
+  renderVerbDescription,
+  verbMutates,
+  type VerbDeclaration,
+} from "./verbDeclaration";
 
 type AnyCapabilityContract = CapabilityContract<unknown, unknown>;
 
-/** 两个 profile。名字与 `check:model-schema` 的 profile 列、方案 §3.1 的表头逐字一致。 */
-export type ToolProfile = "internal" | "mcp";
-export type LaneDomainToolGroup = "timeline" | "production" | "generation" | "media" | "maintenance";
-
-/**
- * 一个工具**自己声明**它会造成什么后果（阶段 2 第 ⑨ 维）。
- *
- * 每个字段都有真正的消费者，不是装饰：
- * - `mutates` → pi 的 `replay` 恢复策略（`laneTools.mts` 的唯一派生点）；
- * - `billable` → 装配期不变量（花钱必然改状态），面板花费收据按它分档；
- * - `reversal` → 装配期不变量（只读必然 `none`），审批闸按它决定要不要停下来问用户。
- */
-export interface ModelFacingToolEffects {
-  /** 会不会改领域状态。只读工具重放一次是安全的，写入工具不是。 */
-  readonly mutates: boolean;
-  /** 会不会花用户在供应商那里的钱。 */
-  readonly billable: boolean;
-  /**
-   * 改动怎么收回：
-   * - `none` —— 不保证能撤回；只读没有改动，不可逆写入也不能承诺撤销；
-   * - `proposal` —— 只是一份提案，用户还要点接受（画布这一族全是）；
-   * - `undoable` —— 已经落进领域状态，但进了撤销栈（文稿写入这一族）。
-   */
-  readonly reversal: "none" | "proposal" | "undoable";
-}
-
-/** Deferred descriptors inherit risk from the capability owner, never from a mutates shortcut. */
-export function modelEffectsForCapability(
-  contract: Pick<AnyCapabilityContract, "effect" | "effectClass">,
-): ModelFacingToolEffects {
-  const mutates = contract.effect !== "read";
-  return {
-    mutates,
-    billable: contract.effect === "paid" || contract.effectClass === "spend",
-    reversal: mutates && contract.effectClass === "reversible_local" ? "undoable" : "none",
-  };
-}
+// 类型与效果词表的**唯一定义**住 `verbDeclaration.ts`；这里只是同一份定义的再导出，
+// 让 lane / MCP / 门岗继续从 `modelFacingTools` 这个名字 import（不是第二份定义）。
+export type {
+  ToolProfile,
+  LaneDomainToolGroup,
+  VerbEffect,
+  VerbNextAction,
+  VerbExample as ModelFacingToolExample,
+} from "./verbDeclaration";
+export { NO_ARGUMENTS_SCHEMA, verbMutates, verbBillable, approvalFacetsOf } from "./verbDeclaration";
+import type { ToolProfile } from "./verbDeclaration";
 
 /**
  * 一个工具**最多允许跑多久**（方案 §1.6 第五行；阶段 3c）。
@@ -82,112 +61,52 @@ export function modelEffectsForCapability(
  * 明说不做），所以没有这条的后果是：领域端口挂住 = 整条 lane 挂住，而症状是「它不动了」——
  * 既没有报错也没有收据，和模型在想事情长得一模一样。
  *
- * **为什么是契约上的必填字段而不是一个默认值**：默认值会让「这个工具到底该跑多久」变成
- * 一件没人想过的事，而第一个真的会跑很久的工具（生成类）会以和 `read_timeline` 完全相同的
- * 形状进来。写成必填，编译器就是最早那道防线（R28）。
- *
- * **它住在共用描述符里而不是某一个 profile 里**（阶段 5a）：预算是「这个领域动作最慢多久」，
- * 与谁在调它无关。两个 profile 各写各的预算就是第二个真相源。
+ * **它从 `effect` 派生，不逐工具手写**：读类 30s；写类按领域最慢的那条路给。花钱的工具必须
+ * **提交即返回**（拿到 id 就回），所以它的预算也在读类量级——见 `laneTools.mts` 的装配期不变量。
  *
  * **审批等待不计时**：计时器在 `laneTools.mts` 的 `execute` 里才 arm，而闸跑在
  * `before_tool`——也就是**进 execute 之前**。用户想看五分钟再点「允许」，这条预算一秒不走。
  */
 export interface ModelFacingToolExecution {
-  /**
-   * 预算毫秒。读类 30s；写类按领域最慢的那条路给。
-   * 花钱的工具必须**提交即返回**（拿到 id 就回，别等结果），所以它的预算也在读类量级——
-   * 见 `laneTools.mts` 的装配期不变量。
-   */
   readonly timeoutMs: number;
 }
 
 /** 读类工具的预算。一次领域读跑到 30 秒就是领域坏了，不是慢。 */
-export const MODEL_TOOL_READ_TIMEOUT_MS = 30_000;
+export const MODEL_TOOL_READ_TIMEOUT_MS = MODEL_TOOL_READ_TIMEOUT_MS_VALUE;
 
 /** 写类工具的预算。画布/文稿一次写入含持久化，给到一分钟。 */
-export const MODEL_TOOL_WRITE_TIMEOUT_MS = 60_000;
+export const MODEL_TOOL_WRITE_TIMEOUT_MS = MODEL_TOOL_WRITE_TIMEOUT_MS_VALUE;
 
 /**
- * 一个 schema-valid 的调用示例（#547：35/35 工具零示例）。
+ * 一个「模型可见工具」= 一份动词声明 + 从它派生的三样东西（描述、菜单行、超时预算）。
  *
- * **写进 description，不用 Anthropic 专有的 `input_examples`**——我们要跨供应商，
- * 而那个字段只有一家认。示例的 `arguments` 会被测试拿去真的过一遍 schema：
- * 一个过不了自己 schema 的示例比没有示例更糟，它教模型写错。
- */
-export interface ModelFacingToolExample {
-  /** 一句话说清这个示例在做什么，进 description 的示例块。 */
-  readonly when: string;
-  /** 真正的参数对象。必须能通过本工具的 schema。 */
-  readonly arguments: Readonly<Record<string, unknown>>;
-}
-
-/**
- * 一个「模型可见工具」= 一个契约的一个别名的说明书那一半（无需任何领域 port）。
+ * **声明是唯一 owner**（`verbDeclaration.ts`）；这里的派生字段没有第二个写入点：
+ * - `description`   = 五槽渲染（做什么 → 何时用 → 何时不用 → 参数 → 后果句）
+ * - `promptSnippet` = `describe.does`（系统提示词 `Available tools` 菜单那一行）
+ * - `execution`     = 按 `effect` 派生的预算
  *
  * **两个 profile 读的是同一个对象**，所以这里的每个字段都必须是「与传输无关」的：
  * 租约、方法路由键、结果投影都不在这里，它们住各自 profile 的适配器里。
  */
-export interface ModelFacingToolSpec {
-  /** 归属契约。MCP profile 按它归并成一个对外工具。 */
-  readonly contractId: string;
-  /** Deferred internal menu group. Undefined means initially visible. */
-  readonly internalGroup?: LaneDomainToolGroup;
-  /** Mixed read/write tools resolve approval against the actual domain operation. */
-  readonly operationCapabilityIds?: Readonly<Record<string, string>>;
-  /** 别名 = internal profile 的工具名。一别名一工具。 */
-  readonly name: string;
-  /**
-   * 通道①。**只说这个工具自己的事**：干什么、有什么限制、输出会不会被截断。
-   * 「该用它还是用隔壁那个」不写在这里——那是通道③ 的活，写在这里就是买 N 遍。
-   */
+export interface ModelFacingToolSpec extends VerbDeclaration {
+  /** 通道①，派生。只说这个工具自己的事。 */
   readonly description: string;
-  /** 通道②。一行，进系统提示词的 `Available tools` 菜单。全表只出现一次。 */
+  /** 通道②，派生 = `describe.does`。一行，进系统提示词的 `Available tools` 菜单。 */
   readonly promptSnippet: string;
-  /** 通道③。进系统提示词的 `Guidelines`，**跨工具去重**。 */
-  readonly promptGuidelines?: readonly string[];
-  /** 这个工具会造成什么后果。**必填**。 */
-  readonly effects: ModelFacingToolEffects;
-  /** 这个工具最多跑多久。**必填**——见 `ModelFacingToolExecution` 头部。 */
+  /** 派生自 `effect`。 */
   readonly execution: ModelFacingToolExecution;
-  /**
-   * 模型真正要填的那一部分语义输入。**由别名决定的字段已经剥掉**——
-   * `read_full_text` 的 `scope` 不在这里，因为名字已经把它定死了（见 `aliasBoundInput`）。
-   */
-  readonly schema: ZodTypeAny;
-  /** 至少一个，当工具字段数 ≥10 或语义上有分支时（门岗 `missing-example`）。 */
-  readonly examples: readonly ModelFacingToolExample[];
-  /**
-   * 别名已经替模型填掉的那几个语义字段。**两个 profile 都从这里恢复它们**：
-   * internal 在执行前补回去，mcp 把它们发布成工具的判别字段。
-   *
-   * 空对象 = 这个别名不定死任何字段（画布写那一族：`operation` 本来就在参数里）。
-   */
-  readonly aliasBoundInput?: Readonly<Record<string, string>>;
-  /**
-   * 哪些 profile 投影它。缺省两个都投。
-   *
-   * 「外部才有 / 内部才有」的工具走这里显式声明，**不是**靠某个 profile 自己判断——
-   * 判断散出去就是第二个真相源。
-   */
-  readonly profiles?: readonly ToolProfile[];
-  /**
-   * 「外部才有」的**传输**字段，显式白名单（方案 §3.1：差异只允许 profile 声明的字段）。
-   *
-   * 只有一族字段有资格进这里：**内部 lane 结构上不可能需要**的寻址参数。`documentId` 是
-   * 唯一的实例——Agent lane 永远写用户此刻正看着的那份文稿（`activeDocumentId`），而外部
-   * 宿主是无头的，它必须能说出「哪一份」。
-   *
-   * 它**不进语义输入**：`document.read` 的契约只认 `scope`，文档寻址由 `dispatcher.ts`
-   * 在租约里解析。所以它也不进指纹——和租约字段一样，是声明出来的差异，不是漂移。
-   */
-  readonly mcpTransportFields?: Readonly<Record<string, JsonSchemaObject>>;
-  /**
-   * pi 官方的容忍钩子（`pi-agent-core/dist/types.d.ts:347`），在 ajv 校验**之前**跑。
-   *
-   * 为什么容忍只能落在这里：schema 不合法的参数根本走不到执行边界，pi 的校验器先把它
-   * 拦下并自己生成了错误回给模型。放松 schema 则是对**所有**调用放松，那是 0/18 的来历。
-   */
-  prepareArguments?(args: unknown): unknown;
+}
+
+/** 声明 → 说明书。**唯一派生点**，注册表装配时对每条声明调一次。 */
+export function toModelFacingToolSpec(declaration: VerbDeclaration): ModelFacingToolSpec {
+  return Object.freeze({
+    ...declaration,
+    description: renderVerbDescription(declaration),
+    promptSnippet: declaration.describe.does,
+    execution: Object.freeze({
+      timeoutMs: verbMutates(declaration.effect) ? MODEL_TOOL_WRITE_TIMEOUT_MS : MODEL_TOOL_READ_TIMEOUT_MS,
+    }),
+  });
 }
 
 /** 别名把哪几个语义字段定死了。空对象 = 一个都没有。 */
@@ -221,7 +140,7 @@ export const MCP_LEASE_PROPERTIES: Readonly<Record<string, JsonSchemaObject>> = 
   leaseHandle: Object.freeze({
     type: "string",
     minLength: 1,
-    description: "nomi_session_open 返回的项目租约句柄。",
+    description: "The project lease handle returned by nomi_session_open.",
   }),
   projectId: Object.freeze({ type: "string", minLength: 1 }),
 });
@@ -336,11 +255,35 @@ export function mcpAnnotationsFor(contract: AnyCapabilityContract): McpProfileTo
   return undefined;
 }
 
-/** Shared description for both descriptor profiles and the real MCP publication path. */
+/**
+ * 对外 MCP 工具的描述——**从同一批声明派生**（不再读契约上的 `projections.mcp.description`，
+ * 那是审计 §6.1 里的第二扇门，随 PR A 删除）。
+ *
+ * 一契约一工具：每个别名一行 `selector: does`（单别名就只有 `does`），`promptGuidelines` 跨别名去重后附在末尾。
+ * 只投 `does` 这一槽而不是五槽全文，是 PR A「不改语义」的边界：PR A 之前对外面就是「一句摘要 + 纪律」，
+ * `check:mcp-payload` 的棘轮按那个体积冻结；五槽全文与后果句对外发布是 PR B 与 20 动词一起做的事
+ * （设计正本 §6.4 零差异），届时棘轮按「能力面有意扩张」记账，不在这里悄悄涨。
+ */
 export function mcpToolDescription(contract: AnyCapabilityContract, specs: readonly ModelFacingToolSpec[]): string {
-  const description = contract.projections.mcp?.description;
-  if (!description) throw new Error(`Missing MCP projection metadata for ${contract.id}`);
-  return [description, ...new Set(specs.flatMap(spec => spec.promptGuidelines ?? []))].join("\n");
+  if (specs.length === 0) throw new Error(`No model-facing descriptor for ${contract.id}`);
+  // 选择器只在**传输也从这份声明派生**时才印（`operation=…:`，与广播出去的枚举逐字相同）。传输还手写的
+  // 契约（`mcpHandwrittenTransport`）对外的 operation 词表是适配器自己的，印内部别名会指到不存在的值，
+  // 所以只列「它能做什么」的句子，不带选择器。
+  const lines = specs.length === 1
+    ? [specs[0]!.describe.does]
+    : specs.map((spec) => {
+      if (!projectsToProfile(spec, "mcp")) return spec.describe.does;
+      const bound = Object.entries(aliasBoundInputOf(spec)).map(([field, value]) => `${field}=${value}`);
+      const selector = bound.length > 0 ? bound.join(", ") : rootEnumSelectorsLabel(spec);
+      return `${selector}: ${spec.describe.does}`;
+    });
+  return [...lines, ...new Set(specs.flatMap((spec) => spec.promptGuidelines ?? []))].join("\n");
+}
+
+function rootEnumSelectorsLabel(spec: ModelFacingToolSpec): string {
+  const selectors = rootEnumSelectors(spec);
+  const entries = Object.entries(selectors);
+  return entries.length > 0 ? entries.map(([field, values]) => `${field}=${values.join("|")}`).join(", ") : spec.name;
 }
 
 /**
@@ -356,8 +299,7 @@ export function projectMcpTool(
   specs: readonly ModelFacingToolSpec[],
 ): McpProfileTool {
   const name = contract.aliases.mcp;
-  const description = contract.projections.mcp?.description;
-  if (!name || !description) throw new Error(`Missing MCP projection metadata for ${contract.id}`);
+  if (!name) throw new Error(`Capability ${contract.id} has no mcp alias to publish under`);
   if (specs.length === 0) throw new Error(`No model-facing descriptor for ${contract.id}`);
 
   const discriminators = new Map<string, Set<string>>();
@@ -594,9 +536,6 @@ export function mcpProjectionDrift(
   if (stableStringify(expected) === stableStringify(broadcast)) return undefined;
   return `${contract.aliases.mcp ?? contract.id} 广播的 inputSchema 与共享描述符重算的结果不同`;
 }
-
-/** 显式的空对象 schema。`{}` 说的是「随便填」，这个说的是「这个工具不收参数」。 */
-export const NO_ARGUMENTS_SCHEMA = z.object({}).strict();
 
 /**
  * 两个 profile 对同一个能力还在说同一句话吗？

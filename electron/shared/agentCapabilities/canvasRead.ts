@@ -317,7 +317,7 @@ export const CANVAS_READ_CAPABILITY = {
   id: "canvas.read",
   version: 1,
   aliases: {
-    pi: "read_canvas_state",
+    pi: "nomi_canvas_read",
     mcp: "nomi_canvas_read",
   },
   inputSchema: canvasReadSemanticInputSchema,
@@ -331,12 +331,4 @@ export const CANVAS_READ_CAPABILITY = {
   exposure: "mcp_safe",
   requiredScope: "canvas:read",
   targetKind: "project",
-  projections: {
-    pi: {
-      description: "Read the current generation canvas (nodes + edges).",
-    },
-    mcp: {
-      description: "Read the project canvas as compact nodes and edges.",
-    },
-  },
 } as const satisfies CapabilityContract<CanvasReadInput, CanvasReadResult>;

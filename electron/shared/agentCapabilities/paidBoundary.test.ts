@@ -6,7 +6,6 @@ import { describe, expect, it } from "vitest";
 
 import { CAPABILITY_CONTRACTS } from "./registry";
 import { LANE_MODEL_TOOL_CATALOG } from "../../agentLane/laneToolCatalog";
-import { GENERATION_HOST_ONLY_TRANSITIONS } from "../../harness/tools/modelToolSurfaceManifest";
 import {
   PAID_CAPABILITY_CONTRACTS,
   assertPaidBoundaryExternalSurface,
@@ -26,7 +25,9 @@ describe("付费边界（方案 §3.1 第二行）", () => {
   });
 
   it("内部面：付费能力不投影，模型面根本够不着", () => {
-    for (const alias of paidBoundaryAliases("pi")) {
+    // 付费边界上的名字只住 `method` surface（宿主/dispatcher 方法名）；`pi` surface 上一个都没有。
+    expect(paidBoundaryAliases("pi")).toEqual([]);
+    for (const alias of paidBoundaryAliases("method")) {
       expect(LANE_MODEL_TOOL_CATALOG.some((tool) => tool.name === alias)).toBe(false);
     }
     // 阳性对照：这条断言不是因为「lane 目录恰好是空的」而通过。
@@ -35,14 +36,14 @@ describe("付费边界（方案 §3.1 第二行）", () => {
     expect(projectsToInternalProfile(CAPABILITY_CONTRACTS.find((c) => c.id === "document.read")!)).toBe(true);
   });
 
-  it("宿主独占转换的名单是算出来的，语义与原来手写的三行逐字一致", () => {
-    expect(GENERATION_HOST_ONLY_TRANSITIONS.map(({ name }) => name)).toEqual([
+  it("宿主独占转换的名单是算出来的，语义与 PR A 之前手写的三行逐字一致", () => {
+    const transitions = hostOnlyTransitions();
+    expect(transitions.map(({ name }) => name)).toEqual([
       "nomi_request_generation_gate",
       "nomi_start_generation",
       "nomi_decide_generation_gate",
     ]);
-    expect(GENERATION_HOST_ONLY_TRANSITIONS).toEqual(hostOnlyTransitions());
-    for (const transition of GENERATION_HOST_ONLY_TRANSITIONS) {
+    for (const transition of transitions) {
       expect(transition.capabilityRefs).toEqual(["generation.gate"]);
       expect(transition.reason).toMatch(/never model-initiated/);
     }

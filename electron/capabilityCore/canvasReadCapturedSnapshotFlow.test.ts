@@ -282,7 +282,7 @@ describe("production captured canvas read through real main interception", () =>
       const handle = await state.sealSurfaceSnapshot.mock.results[0]!.value;
       const adapter = canvasRead.capture(event, { capturedCanvasReadSnapshot: handle, projectId: request.projectId }, 'production-a-1');
       try {
-        readDecision = await adapter.tryExecute({ toolCallId: 'read-captured-a', toolName: 'read_canvas_state', args: {} }, signal);
+        readDecision = await adapter.tryExecute({ toolCallId: 'read-captured-a', toolName: 'nomi_canvas_read', args: {} }, signal);
       } finally { adapter.dispose(); }
       return runLaneSingleShot({ fetch: globalThis.fetch, model: { kind: 'openai-compatible', providerId: 'fixture', modelId: 'fixture',
         baseURL: http.baseURL, authType: 'api-key', apiKey: 'fixture' }, prompt: request.prompt, signal });
@@ -432,7 +432,7 @@ describe("production captured canvas read through real main interception", () =>
     );
     await expect(
       capturedAdapter.tryExecute(
-        { toolCallId: "read-captured-a", toolName: "read_canvas_state", args: {} },
+        { toolCallId: "read-captured-a", toolName: "nomi_canvas_read", args: {} },
         new AbortController().signal,
       ),
     ).resolves.toEqual({ ok: true, result: canvasReadResultSchema.parse(SNAPSHOT_A), silent: true });

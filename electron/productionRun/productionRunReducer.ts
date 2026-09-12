@@ -26,6 +26,7 @@ import { generationSealShotPrices, SealBudgetExceededError } from "./productionG
 import { checkSealAffordability } from "./shotPricing";
 import {
   applyGenerationCandidatePatch,
+  policyAdmittingUserRevisedIdentity,
   revokeWaitingGenerationAuthorization,
   unsealedGenerationPlanFields,
 } from "./productionGenerationPlanEdits";
@@ -384,8 +385,15 @@ export function applyProductionCommand(
         throw new Error("A submitted or cancelled generation plan cannot be revised");
       }
       if (currentPlan.state === "draft") {
+        const patched = applyGenerationCandidatePatch(currentPlan, command, now);
         return {
-          run: { ...current, generationPlan: applyGenerationCandidatePatch(currentPlan, command, now), updatedAt: now },
+          run: {
+            ...current,
+            // 卡上换模型是**真人**按的，不该撞上那道防 agent 的白名单（#748 已知缺口）。
+            policy: policyAdmittingUserRevisedIdentity(current.policy, currentPlan, patched),
+            generationPlan: patched,
+            updatedAt: now,
+          },
           eventType: "generation.plan.updated",
           message: currentPlan.operationId,
         };
@@ -402,13 +410,16 @@ export function applyProductionCommand(
         updatedAt: now,
       }));
       const reopened: ProductionGenerationPlan = { ...unsealed, ...(shots ? { shots } : {}) };
+      const patched = applyGenerationCandidatePatch(reopened, command, now);
       return {
         run: {
           ...current,
           planVersion: revoked.planVersion,
           gates: revoked.gates,
           jobs: revoked.jobs,
-          generationPlan: applyGenerationCandidatePatch(reopened, command, now),
+          // 同上：撤掉旧授权之后仍要重新出卡、重新由真人按一次，放行的只是判据里的身份，不是那笔钱。
+          policy: policyAdmittingUserRevisedIdentity(current.policy, currentPlan, patched),
+          generationPlan: patched,
           updatedAt: now,
         },
         eventType: "generation.plan.updated",

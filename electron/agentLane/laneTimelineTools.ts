@@ -1,13 +1,15 @@
 // Agent lane · `timeline.read` 的**执行那一半**。
 //
-// 说明书那一半住 `electron/shared/agentCapabilities/timelineModelTools.ts`（两个 profile 共用，
-// 方案 §3.1）；那里也写着 `propose_edit_plan` 为什么还进不了模型可见 schema。
+// 说明书那一半是 `electron/shared/agentCapabilities/verbs/timelineVerbs.ts` 里的动词声明（两个 profile 共用）。
+// 这里只绑 `timeline.read` 上真正走 typed port 的两个读动词（`read_timeline` / `inspect_timeline_range`）；
+// `propose_edit_plan` 虽同属 `timeline.read` 契约，但走 `laneExtendedTools.ts` 的 dispatcher 路由。
 import {
+  TIMELINE_READ_ALIASES,
   projectTimelineReadResult,
   type TimelineReadInput,
   type TimelineReadResult,
 } from "../shared/agentCapabilities/timelineRead";
-import { timelineModelToolSpecs } from "../shared/agentCapabilities/timelineModelTools";
+import { specsForCapability } from "../shared/agentCapabilities/modelFacingToolRegistry";
 import { bindLaneTool, type LaneToolDescriptor, type LaneToolExecutionContext } from "./laneRuntimePort";
 
 /** 领域侧。lane 不认识时间轴渲染，只认识「读一段」。 */
@@ -16,7 +18,7 @@ export interface TimelineLanePort {
 }
 
 export function createTimelineLaneTools(port: TimelineLanePort): LaneToolDescriptor[] {
-  return timelineModelToolSpecs().map((spec) =>
+  return specsForCapability("timeline.read").filter((spec) => spec.name !== TIMELINE_READ_ALIASES.proposePlan).map((spec) =>
     bindLaneTool(spec, async (args, context) => {
       const operation = spec.name as TimelineReadInput["operation"];
       const input = { operation, ...(args as Record<string, unknown>) } as TimelineReadInput;
