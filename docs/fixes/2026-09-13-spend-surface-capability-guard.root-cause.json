@@ -1,0 +1,96 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-13-spend-surface-capability-guard",
+  "change_kind": "corrective",
+  "problem_type": "可选桌面能力缺失时被错误当成产品介入卡错误",
+  "symptom": "画布性能真实 Electron 场景在宿主未提供 productionRuns.pendingSpend 时反复记录 missing-intervention-card，导致性能结果不可靠并阻断 Quality Gate。",
+  "direct_cause": "useAgentPanelSpendConfirm.refresh 无条件调用 productionRunApi.pendingSpend；可选 bridge 能力不存在时该调用 reject，catch 将其转成用户可见缺失介入卡。",
+  "class_root": "渲染层 capability adapter 没有在调用边界区分能力不存在与能力调用失败，导致可选能力缺失被伪装成业务错误。",
+  "affected_population": [
+    "运行禁用 capability core 的真实画布性能/验收场景",
+    "使用不提供 productionRuns 的桌面宿主或旧版本 bridge 的用户"
+  ],
+  "scope_paths": [
+    "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts",
+    "src/workbench/ai/v4/useAgentPanelSpendConfirm.test.ts"
+  ],
+  "entry_points": [
+    "useAgentPanelSpendConfirm.refresh → getDesktopBridge().productionRuns.pendingSpend",
+    "真实 canvas benchmark 启动 Electron 后的 Agent panel spend refresh"
+  ],
+  "invariants": [
+    "可选 bridge 能力不存在时不得发起调用、不得创建 missing-intervention-card",
+    "能力存在但 pendingSpend 调用拒绝时必须保留错误可见性，不能静默吞掉",
+    "guard 必须位于 renderer capability adapter 的最早共享边界"
+  ],
+  "generality_proof": "扫描 useAgentPanelSpendConfirm 的所有 pendingSpend 调用与 productionRuns bridge 访问，refresh 是唯一调用边界；缺失能力和已安装能力拒绝分别由同一 guard 分流，避免在各宿主或场景复制判断。",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "同一可选能力边界模式会在不同宿主、禁用 capability core 的测试及未来 bridge 版本中复发；修复共享 hook 边界可统一阻断。",
+    "same_class_scan": [
+      "rg productionRuns.pendingSpend/getDesktopBridge 全仓，确认调用集中于 src/workbench/ai/v4/useAgentPanelSpendConfirm.ts:refresh",
+      "真实 canvas benchmark 日志中 waiting-effects、cold-open、node-drag、reload-heavy 等场景均出现同一错误，证明跨场景复发。"
+    ]
+  },
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts",
+      "symbol": "useAgentPanelSpendConfirm.refresh",
+      "responsibility": "在调用 productionRuns.pendingSpend 前判定可选 bridge 能力存在；缺失时清理本地 pending/readFailure 并返回。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts",
+      "entry_point": "refresh",
+      "disposition": "enforced",
+      "evidence": "新增 capability guard，能力缺失不调用 pendingSpend；能力存在仍进入原有 reject 错误路径。"
+    },
+    {
+      "path": "src/workbench/ai/v4/useAgentPanelSpendConfirm.test.ts",
+      "entry_point": "capability boundary cases",
+      "disposition": "enforced",
+      "evidence": "新增两条 focused 测试分别覆盖缺失能力与已安装能力 reject。"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts",
+    "invariant": "可选 productionRuns 能力缺失是宿主状态，不是用户业务错误；只有已安装能力的调用拒绝才进入错误卡路径。",
+    "failure_mode": "若 guard 被移除，禁用 capability core 的每个真实画布场景都会再次产生 missing-intervention-card 并使结果不可靠。",
+    "exception_policy": "none",
+    "strategy": "在唯一 renderer hook 边界统一探测可选 bridge，再复用原有错误处理。",
+    "artifacts": [
+      "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts"
+    ]
+  },
+  "invariant_owner_layer": {
+    "layer": "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts",
+    "tests": [
+      "src/workbench/ai/v4/useAgentPanelSpendConfirm.test.ts"
+    ],
+    "why": "该 hook 是 UI 对 productionRuns bridge 的唯一共享调用边界，测试直接证明缺失与拒绝两种状态。"
+  },
+  "regression_tests": [
+    "src/workbench/ai/v4/useAgentPanelSpendConfirm.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/ai/v4/useAgentPanelSpendConfirm.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "无旧实现分支；本次在现有共享边界加入 fail-closed capability guard。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "根因来自本地 bridge 能力存在性，不涉及第三方依赖版本。",
+    "exit_criteria": []
+  },
+  "migration": "无需数据迁移；能力缺失宿主继续运行，能力存在宿主行为保持原有错误可见性。",
+  "residual_risks": [
+    "若宿主错误地暴露 productionRuns 但实现不完整，仍会进入原有 reject 错误路径并提示用户；这保留了失败可见性。",
+    "本次真实验证使用禁用 capability core 的 Electron 性能场景，未使用付费模型或真实 key。"
+  ],
+  "internal_only_reason": "这是仓库内部 Electron bridge 与 renderer hook 的边界修复；验证证据来自仓库代码、真实 CI Electron 画布场景和 focused tests。"
+}
