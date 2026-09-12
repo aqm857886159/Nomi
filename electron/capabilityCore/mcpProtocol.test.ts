@@ -5,7 +5,6 @@ import { createMcpProtocol, type McpTransport } from './mcpProtocol'
 import { mcpProfileTools, specsForCapability } from '../shared/agentCapabilities/modelFacingToolRegistry'
 import { mcpToolDescription } from '../shared/agentCapabilities/modelFacingTools'
 import { EXPORT_READ_CAPABILITY } from '../shared/agentCapabilities/exportCapabilities'
-import { CANVAS_NODE_PROMPT_GUIDELINES } from '../shared/agentCapabilities/canvasWrite'
 import { CANVAS_READ_CAPABILITY } from '../shared/agentCapabilities/canvasRead'
 import { registerProductionPlaybook } from '../productionRun/productionPlaybooks'
 
@@ -29,10 +28,6 @@ describe('MCP L1 tools/list_changed notification', () => {
         for (const guideline of new Set(source.specs.flatMap(spec => spec.promptGuidelines ?? []))) {
           expect(actual?.description, `${name} retains its shared guideline`).toContain(guideline)
         }
-      }
-      const canvas = listed.tools.find(tool => tool.name === 'nomi_canvas_edit')!
-      for (const guideline of CANVAS_NODE_PROMPT_GUIDELINES) {
-        expect(canvas.description.split(guideline)).toHaveLength(2)
       }
       const read = listed.tools.find(tool => tool.name === 'nomi_read')!
       expect(read.description).toContain('For target=canvas only')

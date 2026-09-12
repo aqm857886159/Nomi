@@ -25,7 +25,7 @@ type Prepared =
   | { kind: 'skill'; value: PreparedSkillWrite }
   | { kind: 'direct'; value: { call: RuntimeToolCall } }
 
-type Pending = { prepared: Prepared; approved?: CanvasWriteApprovalAuthority | true }
+type Pending = { call: RuntimeToolCall; prepared: Prepared; approved?: CanvasWriteApprovalAuthority | true }
 
 export interface LaneExtendedDesktopPortsInput {
   binding: ProjectBinding
@@ -101,20 +101,19 @@ export function createLaneExtendedDesktopPorts(input: LaneExtendedDesktopPortsIn
       } else if (lane === 'generation' && call.toolName === 'cancel_job') {
         // 取消一个任务：先问导出域认不认这个 id；不认就是生成任务，走生成域的取消（直接路径，审批由闸管）。
         const exportCall = exportJobTransportCall(call)
-        let value: PreparedExportWrite | null = null
-        try { value = await input.phase4.prepareWrite(exportCall, signal) } catch { value = null }
+        const value: PreparedExportWrite | null = await input.phase4.prepareWrite(exportCall, signal).catch(() => null)
         prepared = value ? { kind: 'export', value } : { kind: 'direct', value: { call } }
       } else {
         // Draft creation, generation planning and the model-setup panel have their own durable domain owner.
         prepared = { kind: 'direct', value: { call } }
       }
       if (disposed || signal.aborted) rejectPreparation('capability_cancelled')
-      pending.set(call.toolCallId, { prepared })
+      pending.set(call.toolCallId, { call, prepared })
     },
     async approved(call, record) {
       const entry = pending.get(call.toolCallId)
       if (!entry) return
-      if (entry.approved || disposed || entry.prepared.value.call.toolName !== call.toolName) rejectPreparation('capability_authority_invalid')
+      if (entry.approved || disposed || entry.call.toolName !== call.toolName) rejectPreparation('capability_authority_invalid')
       if (entry.prepared.kind === 'direct') {
         // The lane's approval note is already durable before this callback; no G5 journal is fabricated.
         entry.approved = true
@@ -146,18 +145,22 @@ export function createLaneExtendedDesktopPorts(input: LaneExtendedDesktopPortsIn
     if (disposed || signal.aborted) return failure('capability_cancelled')
     const spec = byName.get(call.toolName)
     if (!spec) return failure('capability_unsupported')
-    const contract = capabilityContractById(modelToolCapabilityId(spec, call.args))
+    // Compare the same schema-normalized arguments captured during prepare. Zod
+    // may materialize defaults/normalization, so comparing the raw wire object
+    // would reject an otherwise identical approved call.
+    const normalizedCall = { ...call, args: spec.schema.parse(call.args) }
+    const contract = capabilityContractById(modelToolCapabilityId(spec, normalizedCall.args))
     if (!contract) return failure('capability_unsupported')
-    if (contract.effect === 'read') return executeRead(call, signal)
+    if (contract.effect === 'read') return executeRead(normalizedCall, signal)
     const entry = pending.get(call.toolCallId)
-    if (!entry?.approved || entry.prepared.value.call.toolName !== call.toolName
-      || JSON.stringify(entry.prepared.value.call.args) !== JSON.stringify(call.args)) return failure('capability_authority_invalid')
+    if (!entry?.approved || entry.call.toolName !== normalizedCall.toolName
+      || JSON.stringify(entry.call.args) !== JSON.stringify(normalizedCall.args)) return failure('capability_authority_invalid')
     // Consume before crossing the domain boundary. Even an exception cannot reuse this approval.
     pending.delete(call.toolCallId)
     const { prepared, approved } = entry
     let result: RuntimeToolDecision
     if (prepared.kind === 'direct') {
-      const { call: transport } = translate(call)
+      const { call: transport } = translate(normalizedCall)
       result = await input.generation()?.tryExecute(transport, signal) ?? failure('generation_surface_unavailable')
     } else {
       if (approved === true) return failure('capability_authority_invalid')
@@ -173,8 +176,8 @@ export function createLaneExtendedDesktopPorts(input: LaneExtendedDesktopPortsIn
         }
       }
     }
-    if (result.ok && call.toolName === 'draft_shots' && !(call.args as { draftId?: unknown }).draftId) {
-      await input.onTaskCreated?.(call, result.result)
+    if (result.ok && normalizedCall.toolName === 'draft_shots' && !(normalizedCall.args as { draftId?: unknown }).draftId) {
+      await input.onTaskCreated?.(normalizedCall, result.result)
     }
     return result
   }

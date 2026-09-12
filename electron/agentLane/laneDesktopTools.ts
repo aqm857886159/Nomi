@@ -141,7 +141,7 @@ export function createDesktopLaneTools(input: {
         if (!context.documentId || !context.target || !context.preconditions) throw new Error('document_target_stale')
         // 传输层按方法词表（insert/replace/append）认路；动词参数在这里翻一次，`laneDocumentTools.ts` 是唯一对应表。
         const { operation, content } = documentWriteInputOf(verbArgs)
-        const prepared = await documentWrite.prepare({ ...call, toolName: operation, args: { content } }, {
+        const prepared = await documentWrite.prepare({ ...call, toolName: 'nomi_document_edit', args: { operation, content } }, {
           documentId: context.documentId, target: context.target, preconditions: context.preconditions,
         }, signal)
         if (!prepared) throw new Error('capability_unsupported')

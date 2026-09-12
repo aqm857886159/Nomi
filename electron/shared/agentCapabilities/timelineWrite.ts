@@ -67,7 +67,7 @@ export type TimelineWriteResult = z.infer<typeof timelineWriteResultSchema>;
 
 export function projectTimelineWriteResult(
   source: unknown,
-  expectedOperation: TimelineWriteInput["operation"],
+  expectedOperation: TimelineWriteInput["operation"] | "edit_timeline",
 ): TimelineWriteResult {
   const result = timelineWriteResultSchema.parse(source);
   if (result.operation !== expectedOperation) throw new Error("timeline operation mismatch");

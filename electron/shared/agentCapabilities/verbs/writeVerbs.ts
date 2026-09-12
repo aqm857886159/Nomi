@@ -104,7 +104,7 @@ export function writeVerbs(): VerbDeclaration[] {
       shots: z.array(draftShotSchema).min(1).max(40).describe("The shots to create or update."),
     }).strict(),
     examples: [
-      { when: "One opening still:", arguments: { shots: [{ title: "开场", prompt: "清晨日出下的海面，广角，暖光", taskKind: "text_to_image", candidate: { providerId: "apimart", modelId: "image-1" } }] } },
+      { when: "One opening still:", arguments: { shots: [{ title: "Opening", prompt: "sunrise over the sea, wide shot, warm light", taskKind: "text_to_image", candidate: { providerId: "apimart", modelId: "image-1" } }] } },
       { when: "Change one existing shot's prompt:", arguments: { draftId: "op-1", shots: [{ shotId: "shot-3", prompt: "夜景，霓虹灯下的街道" }] } },
     ],
     prepareArguments: modelArgumentTolerance({ arrayFields: ["shots"] }),
@@ -164,7 +164,7 @@ export function writeVerbs(): VerbDeclaration[] {
       title: z.string().trim().min(1).max(120).describe("Node title in the user's language."),
       content: z.string().min(1).describe("The whole artifact content."),
     }).strict(),
-    examples: [{ when: "A shot comparison table:", arguments: { fileType: "table", title: "分镜对照表", content: "| 镜 | 内容 |\n|---|---|\n| 1 | 开场 |" } }],
+    examples: [{ when: "A shot comparison table:", arguments: { fileType: "table", title: "Shot comparison", content: "| Shot | Content |\n|---|---|\n| 1 | Opening |" } }],
     prepareArguments: rejectGeneratingNodes("make_artifact", modelArgumentTolerance({ fieldAliases: { content: ["text", "body"] } })),
   };
 
