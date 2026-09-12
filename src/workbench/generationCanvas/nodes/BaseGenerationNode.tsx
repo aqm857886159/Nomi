@@ -41,7 +41,8 @@ import { ProductionShotOverlays } from './ProductionShotOverlays'
 import { useProductionNodeRetry } from './useProductionNodeRetry'
 import { encodeTimelineGenerationNodeDragPayload, TIMELINE_GENERATION_NODE_DRAG_MIME } from '../../timeline/timelineDragPayload'
 import { addGenerationNodeToTimelineEnd } from '../../timeline/addNodeToTimelineEnd'
-import { canRunGenerationNode, confirmAndRunNode } from '../runner/generationRunController'
+import { confirmAndRunNode } from '../runner/generationRunController'
+import { selectCanvasNodeById, selectCanvasNodeCanRun, selectCanvasNodeExists } from '../store/canvasNodeGenerationIndex'
 import { retryLocalAssetImport } from '../adapters/assetImportAdapter'
 import { NodeErrorReport } from './NodeErrorReport'
 import { NodeRecoverableReport } from './NodeRecoverableReport'
@@ -107,18 +108,18 @@ function BaseGenerationNodeImpl({
   const moveNode = useGenerationCanvasStore((state) => state.moveNode)
   const moveSelectedNodes = useGenerationCanvasStore((state) => state.moveSelectedNodes)
   const isMultiSelectActive = useGenerationCanvasStore((state) => selected && state.selectedNodeIds.length > 1)
-  const sourceNodeTitle = useGenerationCanvasStore((state) => {
-    if (!node.derivedFrom) return undefined
-    return state.nodeLookup.get(node.derivedFrom)?.data?.title
-  })
-  const sourceNodeCategoryId = useGenerationCanvasStore((state) => {
-    if (!node.derivedFrom) return undefined
-    return state.nodeLookup.get(node.derivedFrom)?.data?.categoryId
-  })
-  const sourceNodeExists = useGenerationCanvasStore((state) => {
-    if (!node.derivedFrom) return false
-    return state.nodeLookup.has(node.derivedFrom)
-  })
+  // S3(2026-09-12)：这三条与下面的 canGenerate 原先各扫一遍 state.nodes。每张卡都挂一份，
+  // 全选拖动时 N 张卡每帧各扫一遍全表 = O(N²)。改走 canvasNodeGenerationIndex 的
+  // 单次派生索引（每个 store 版本算一次，每张卡只读自己那一格）。
+  const sourceNodeTitle = useGenerationCanvasStore(
+    (state) => selectCanvasNodeById(state, node.derivedFrom)?.title,
+  )
+  const sourceNodeCategoryId = useGenerationCanvasStore(
+    (state) => selectCanvasNodeById(state, node.derivedFrom)?.categoryId,
+  )
+  const sourceNodeExists = useGenerationCanvasStore((state) =>
+    selectCanvasNodeExists(state, node.derivedFrom),
+  )
   const startConnection = useGenerationCanvasStore((state) => state.startConnection)
   const updateNode = useGenerationCanvasStore((state) => state.updateNode)
   const isPendingConnectionSource = useGenerationCanvasStore((state) => state.pendingConnectionSourceId === node.id)
@@ -220,13 +221,7 @@ function BaseGenerationNodeImpl({
     commitPersistedChange,
   })
   const isGenerating = status === 'queued' || status === 'running'
-  const canGenerate =
-    useGenerationCanvasStore((state) =>
-      canRunGenerationNode(node, {
-        nodes: Array.from(state.nodeLookup.values(), (entry) => entry.data),
-        edges: state.edges,
-      }),
-    ) && !isGenerating
+  const canGenerate = useGenerationCanvasStore((state) => selectCanvasNodeCanRun(state, node.id)) && !isGenerating
   const canSendToTimeline = canDragGenerationNodeToTimeline(node, { readOnly })
   const showTimelineNotch =
     canSendToTimeline &&

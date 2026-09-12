@@ -17,6 +17,13 @@ export const CANVAS_PERF_SCALES = Object.freeze({
   M: { imageCount: 48, videoCount: 48, edgeCount: 192, clipCount: 24 },
   L: { imageCount: 96, videoCount: 96, edgeCount: 384, clipCount: 48 },
   XL: { imageCount: 160, videoCount: 160, edgeCount: 640, clipCount: 80 },
+  // 2026-09-12 规模调查（docs/research/2026-09-12-canvas-perf-at-scale/）：
+  // 创始人报的场景是「**图片**多、选中一大批拖动」，不是图/视频各半。视频节点自带
+  // <video> 解码与播放态，会把「图片多」这条曲线里的成本盖掉，所以这三档是纯图片档，
+  // 节点数就是图片数（60 / 150 / 300），边按 N/2 给一点真实密度，时间轴留空。
+  I60: { imageCount: 60, videoCount: 0, edgeCount: 30, clipCount: 0 },
+  I150: { imageCount: 150, videoCount: 0, edgeCount: 75, clipCount: 0 },
+  I300: { imageCount: 300, videoCount: 0, edgeCount: 150, clipCount: 0 },
 })
 
 const IMAGE_ASSETS = [

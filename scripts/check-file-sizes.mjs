@@ -36,7 +36,7 @@ const ALLOWLIST = {
   // projection alongside the legacy model settings pages. Keep this reviewed
   // baseline until the planned settings-surface extraction. (2026-08-29)
   "src/ui/onboarding/OnboardingDrawer.tsx": 806,
-  "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx": 703, // …→ 731（2026-08-25 P4 S6：多镜叠加合一 ProductionShotOverlays）→ 713（2026-08-29 React Flow 单内核：移除旧布局与缩放分支）→ 710（2026-09-07 agent-artifact：正文/浮条插槽移出壳 + composer 排除表收进 resolveRenderKind）
+  "src/workbench/generationCanvas/nodes/BaseGenerationNode.tsx": 677, // …→ 713（2026-08-29 React Flow 单内核：移除旧布局与缩放分支）→ 710（2026-09-07 agent-artifact：正文/浮条插槽移出壳 + composer 排除表收进 resolveRenderKind）→ 677（2026-09-12 S3：四个整表选择器收进 canvasNodeGenerationIndex）
   // Project Agent Host 迁移巨壳（M1 transplant：electron 切片随 r2 入库、renderer 切片随
   // 本次 cutover 入库；上游 pr223 原型已人工评审同一批 owner，数字按本分支实际行数锁棘轮，
   // 只减不增，下一个分解批次按稳定 ownership seam 拆分后逐个出表）。834→836：并 origin/main 的
