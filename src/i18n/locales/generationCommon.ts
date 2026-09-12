@@ -2341,6 +2341,7 @@ export const enGenerationCommon = {
     deconstructHint: 'Break this video into a shot-structure table (framing / mood / visuals / captions / dialogue / prompts) → pick shots to bring onto the canvas and learn from',
   },
   panorama: {
+    created: 'Panorama screenshot node created',
     screenshotTitle: 'Panorama screenshot',
     screenshotPrompt: 'Framed panorama screenshot',
     notReady: 'The panorama is not ready yet. Try again shortly.',
