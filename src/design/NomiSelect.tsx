@@ -12,8 +12,9 @@ import { NomiIdentityIcon, type NomiIdentityIconSource } from './NomiIdentityIco
  * ⚠️ **不是「全仓统一」**（这句话在 2026-09-07 之前写在这里，而全仓仍有 6 处原生 `<select>`）：
  *   · `generationCanvas/nodes/scene3d/scene3dMoveHub.tsx:166`、
  *     `generationCanvas/components/SelectionPromptSaveController.tsx:215`、
- *     `creation/storyboard/StoryboardSelectionToolbar.tsx:70,85`、
- *     `creation/storyboard/shotRow/StoryboardFrameActions.tsx:126` —— 这 5 处是真该迁的；
+ *     `creation/storyboard/StoryboardSelectionToolbar.tsx:76`、
+ *     `creation/storyboard/shotRow/StoryboardFrameActions.tsx:126` —— 这 4 处是真该迁的
+ *     （原本是 5 处：分镜多选条的「统一模型」2026-09-12 已并进 `BulkModelPicker`）；
  *   · `generationCanvas/components/CanvasToolbar.tsx:392` 是**有意的例外**：一个 `opacity-0`
  *     的原生 select 铺在图标上当菜单触发器，形态是「图标钮弹菜单」不是「选择面板」。
  *     它真正该等的是菜单原语（D 档刀 1），不是本组件。

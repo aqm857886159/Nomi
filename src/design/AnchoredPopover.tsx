@@ -27,8 +27,9 @@ import { resolveAnchoredPopoverPlacement, type AnchoredPopoverAlign } from './an
  * 别再写一句新的「全站唯一」，写清楚**判据**。
  *
  * ## 全仓浮层定位现有四套（2026-09-08 复核）
- *   ① 本组件 —— 生产侧 2 个消费者（`workbench/timeline/TimelineTransitionPicker.tsx`、
- *      `workbench/assets/AssetPickerPopover.tsx`），外加设计实验室的 3 处陈列；
+ *   ① 本组件 —— 生产侧 3 个消费者（`workbench/timeline/TimelineTransitionPicker.tsx`、
+ *      `workbench/assets/AssetPickerPopover.tsx`、`workbench/library/ProjectSyncBadge.tsx`
+ *      ——最后这个是 2026-09-12 从 ④ 那类「原地 absolute」收编过来的），外加设计实验室的 3 处陈列；
  *   ② Radix —— `src/design/tooltip.tsx`（tooltip 一族）**与 `src/design/menu.tsx`（菜单一族，
  *      2026-09-08 刀 1 起：`timeline/TimelineContextMenu.tsx`、
  *      `generationCanvas/components/NodeContextMenu.tsx`）**。刀 1 没有引进第五套定位库，

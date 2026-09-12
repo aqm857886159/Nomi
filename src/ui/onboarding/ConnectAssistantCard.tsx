@@ -14,7 +14,7 @@ import {
 import { cn } from '../../utils/cn'
 import { getDesktopBridge } from '../../desktop/bridge'
 import { FoldableModelCard } from './FoldableModelCard'
-import { DesignSegmentedControl } from '../../design'
+import { DesignSegmentedControl, useClipboardCopy } from '../../design'
 import type { McpInfo, McpVerifyReason } from '../../desktop/mcpBridgeTypes'
 import {
   ASSISTANT_CLIENT_LABEL,
@@ -83,8 +83,10 @@ export function ConnectAssistantCard({
   const [target, setTarget] = React.useState<ClientKey>('claude')
   const pickedDefault = React.useRef(false)
   const [busy, setBusy] = React.useState(false)
-  const [copied, setCopied] = React.useState(false)
-  const [adapterCopied, setAdapterCopied] = React.useState(false)
+  const configClipboard = useClipboardCopy()
+  const adapterClipboard = useClipboardCopy()
+  const copied = configClipboard.copied
+  const adapterCopied = adapterClipboard.copied
   const [error, setError] = React.useState('')
   const [verify, setVerify] = React.useState<VerifyState | null>(null)
   const [checkNonce, setCheckNonce] = React.useState(0)
@@ -170,17 +172,11 @@ export function ConnectAssistantCard({
   }
 
   const handleCopy = () => {
-    void navigator.clipboard.writeText(client.snippet).then(() => {
-      setCopied(true)
-      window.setTimeout(() => setCopied(false), 1600)
-    })
+    void configClipboard.copy(client.snippet)
   }
 
   const handleCopyAdapterCommand = () => {
-    void navigator.clipboard.writeText(PI_ADAPTER_COMMAND).then(() => {
-      setAdapterCopied(true)
-      window.setTimeout(() => setAdapterCopied(false), 1600)
-    })
+    void adapterClipboard.copy(PI_ADAPTER_COMMAND)
   }
 
   const openAutomationPermissions = () => {

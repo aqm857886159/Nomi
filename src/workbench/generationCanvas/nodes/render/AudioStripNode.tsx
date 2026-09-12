@@ -10,6 +10,7 @@ import { notify } from '../../../../ui/notificationPolicy'
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { IconPlayerPlay, IconPlayerPause, IconWaveSine, IconFileText, IconCopy, IconBadgeCc } from '../../../../vendor/tablerIcons'
+import { copyToClipboard } from '../../../../design'
 import { cn } from '../../../../utils/cn'
 import { WorkbenchButton } from '../../../../design'
 import type { GenerationCanvasNode } from '../../model/generationCanvasTypes'
@@ -167,12 +168,16 @@ function AudioStripNodeImpl({ node }: Props): JSX.Element {
     setCurrentTime(audio.currentTime)
   }, [])
 
+  // 复制转写文本：回执走这张卡本来就有的那行 status（和它旁边的「生成字幕」同一个说法）。
+  // 原来这条是 `void ...writeText(...).catch(() => {})`——成败一起吞掉，点了像没点。
   const handleCopyText = React.useCallback(
     (event: React.MouseEvent) => {
       event.stopPropagation()
-      void navigator.clipboard?.writeText(result?.text || '').catch(() => {})
+      void copyToClipboard(result?.text || '').then((ok) => {
+        reportFeedback(t(ok ? 'common.copied' : 'common.copyFailed'))
+      })
     },
-    [result?.text],
+    [result?.text, reportFeedback, t],
   )
 
   const handleGenerateSubtitle = React.useCallback(
@@ -183,10 +188,9 @@ function AudioStripNodeImpl({ node }: Props): JSX.Element {
         reportFeedback(t('generationCommon.audio.noSubtitleContent'))
         return
       }
-      void navigator.clipboard
-        ?.writeText(srt)
-        .then(() => reportFeedback(t('generationCommon.audio.subtitleCopied')))
-        .catch(() => {})
+      void copyToClipboard(srt).then((ok) => {
+        reportFeedback(ok ? t('generationCommon.audio.subtitleCopied') : t('common.copyFailed'))
+      })
     },
     [node, reportFeedback, t],
   )

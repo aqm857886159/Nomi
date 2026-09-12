@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { IconExternalLink, IconSparkles } from '@tabler/icons-react'
 import { ANTIGRAVITY_VENDOR_KEY, ANTIGRAVITY_IMAGE_MODEL_KEY } from '../../../electron/shared/antigravity'
 import { antigravityErrorKey } from '../../../electron/shared/antigravityErrors'
-import { DesignButton } from '../../design'
+import { DesignButton, copyToClipboard } from '../../design'
 import { getDesktopBridge } from '../../desktop/bridge'
 import type { TranslationKey } from '../../i18n/translationKey'
 import { FoldableModelCard } from './FoldableModelCard'
@@ -47,8 +47,7 @@ export function AntigravityConnectionCard({ enabled, models, selectedVariants, s
   const tools = models.filter((model) => model.modelKey === ANTIGRAVITY_IMAGE_MODEL_KEY).map((model) => ({ ...model, labelZh: t('antigravity.tool') }))
   const routes = models.filter((model) => model.modelKey === 'auto').map((model) => ({ ...model, labelZh: t('antigravity.automatic') }))
   const copyLogin = async () => {
-    try { await navigator.clipboard.writeText(status?.loginCommand || 'agy'); setFeedback('copied') }
-    catch { setFeedback('copyFailed') }
+    setFeedback(await copyToClipboard(status?.loginCommand || 'agy') ? 'copied' : 'copyFailed')
   }
   const disableConnection = () => {
     try { getDesktopBridge()?.modelCatalog.upsertVendor({ key: ANTIGRAVITY_VENDOR_KEY, enabled: false }); onChanged() }

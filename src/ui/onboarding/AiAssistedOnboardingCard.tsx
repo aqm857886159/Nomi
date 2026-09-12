@@ -33,6 +33,7 @@ import {
 } from './aiAssistedOnboardingContent'
 import { AssistedIntegrationProgress } from './AssistedIntegrationProgress'
 import type { AssistedProgressView } from './assistedProgressProjection'
+import { useClipboardCopy } from '../../design'
 
 export type AiAssistedOnboardingCardProps = {
   /** MCP 快照；null = 桥还没就绪（卡照常可用，只是不显示「连上没」那一行）。 */
@@ -56,8 +57,8 @@ export function AiAssistedOnboardingCard({
 }: AiAssistedOnboardingCardProps): JSX.Element {
   const { t } = useTranslation()
   const [host, setHost] = React.useState<AssistedOnboardingHost>('claude')
-  const [copied, setCopied] = React.useState(false)
-  const [copyError, setCopyError] = React.useState('')
+  const clipboard = useClipboardCopy()
+  const copied = clipboard.copied
   const [previewOpen, setPreviewOpen] = React.useState(false)
 
   const clientKey = host === 'other' ? null : ASSISTED_ONBOARDING_CLIENT_KEYS[host]
@@ -72,25 +73,10 @@ export function AiAssistedOnboardingCard({
   const clipboardText = buildAssistedOnboardingClipboard({ host, prompt, headings, mcpSnippet })
 
   // 切宿主 = 换了要复制的东西，「已复制 ✓」立刻失效（否则那颗勾在说谎）。
-  React.useEffect(() => {
-    setCopied(false)
-    setCopyError('')
-  }, [host])
+  // 换了宿主 = 换了要复制的那段命令；上一次的「已复制」不该留在新宿主头上。
+  React.useEffect(() => { clipboard.reset() }, [host])
 
-  const handleCopy = (): void => {
-    void navigator.clipboard.writeText(clipboardText).then(
-      () => {
-        setCopied(true)
-        setCopyError('')
-      },
-      (error: unknown) => {
-        setCopied(false)
-        setCopyError(t('onboardingProviders.assistedOnboarding.copyFailed', {
-          message: error instanceof Error ? error.message : String(error),
-        }))
-      },
-    )
-  }
+  const handleCopy = (): void => { void clipboard.copy(clipboardText) }
 
   // 这一行只说得起「配置里有没有这条」——**不是**「还连不连得上」。真握手要 spawn 一次，
   // 那件事的家在 ConnectAssistantCard（实连验证），本卡不许再起一份（P1）。
@@ -217,7 +203,7 @@ export function AiAssistedOnboardingCard({
             </div>
           ) : null}
 
-          {copyError ? <div className="text-caption text-workbench-danger">{copyError}</div> : null}
+          {clipboard.failed ? <div className="text-caption text-workbench-danger">{t('common.copyFailed')}</div> : null}
 
           <button
             type="button"

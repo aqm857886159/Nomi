@@ -103,7 +103,7 @@ function SlotStack({ cell }: { cell: ShotReferenceCell }): JSX.Element {
       ))}
       {cell.numbered ? (
         <span
-          className="absolute z-[4] rounded-br-nomi-sm bg-nomi-overlay-chip px-1 text-micro text-nomi-paper tabular-nums"
+          className="absolute z-[4] rounded-br-nomi-sm bg-nomi-overlay-chip px-1 text-micro text-nomi-media-ink tabular-nums"
           style={{ left: `${box.cardLeft}px`, top: `${box.cardTop}px` }}
         >
           1
@@ -111,7 +111,7 @@ function SlotStack({ cell }: { cell: ShotReferenceCell }): JSX.Element {
       ) : null}
       {/* 角标落在预留框的右下角——扇面最低点在它左上方，两者不叠，也不会被格子裁掉。 */}
       <span
-        className="absolute bottom-0 right-0 z-[4] rounded-nomi-sm bg-nomi-overlay-chip-strong px-1 text-micro text-nomi-paper tabular-nums"
+        className="absolute bottom-0 right-0 z-[4] rounded-nomi-sm bg-nomi-overlay-chip-strong px-1 text-micro text-nomi-media-ink tabular-nums"
         data-storyboard-ref-stack-count={used}
       >
         {total === null ? used : `${used}/${total}`}
@@ -273,7 +273,7 @@ export default function ShotReferenceZone({ mode, archetype, bindings, onChangeB
                     >
                       <NomiImage src={first.url} alt={caption.text} className="absolute inset-0 h-full w-full object-cover" />
                       {cell.numbered ? (
-                        <span className="absolute left-0 top-0 rounded-br-nomi-sm bg-nomi-overlay-chip px-1 text-micro text-nomi-paper tabular-nums">1</span>
+                        <span className="absolute left-0 top-0 rounded-br-nomi-sm bg-nomi-overlay-chip px-1 text-micro text-nomi-media-ink tabular-nums">1</span>
                       ) : null}
                     </span>
                   ) : (

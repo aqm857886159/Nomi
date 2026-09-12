@@ -10,6 +10,7 @@ import {
   canStopAskingFor,
   interventionKindOf,
   missingParamSuggestion,
+  planConfirmDecision,
   projectV4Intervention,
   type V4InterventionLabels,
 } from './agentPanelV4Intervention'
@@ -153,6 +154,39 @@ describe('③ 槽里没有可编辑的东西', () => {
     // 视图模型里没有任何「可编辑」的字段——编辑器整件删了，这条防止它以后从别处回来。
     expect(Object.keys(slot ?? {})).not.toContain('editable')
     expect(Object.keys(slot ?? {})).not.toContain('children')
+  })
+
+  it('取消勾选的行在投影里就是没勾的——「不勾就是不做」得先勾得动', () => {
+    const slot = projectV4Intervention(
+      {
+        toolName: 'propose_edit_plan',
+        args: {},
+        effectClass: 'reversible_local',
+        pendingCount: 1,
+        planLines: [{ text: '镜头 1' }, { text: '镜头 2' }, { text: '镜头 3' }],
+        uncheckedPlanRows: new Set(['镜头 2']),
+      },
+      labels,
+      t,
+    )
+    expect(slot?.plan?.map((row) => [row.label, row.checked])).toEqual([
+      ['镜头 1', true], ['镜头 2', false], ['镜头 3', true],
+    ])
+  })
+})
+
+describe('计划卡的「确认」按勾选集派生，不是无条件放行', () => {
+  it('一条都没取消 = 批准', () => {
+    expect(planConfirmDecision(new Set(), ['镜头 1', '镜头 2'])).toEqual({ action: 'approve' })
+  })
+
+  it('取消了几条 = 带「只做这几条」的 deny；协议没有第三个答案，全批就是骗钱', () => {
+    expect(planConfirmDecision(new Set(['镜头 2']), ['镜头 1', '镜头 3']))
+      .toEqual({ action: 'deny', keptRows: ['镜头 1', '镜头 3'] })
+  })
+
+  it('一条都不留 = 不带话的 deny（整张不要）', () => {
+    expect(planConfirmDecision(new Set(['镜头 1']), [])).toEqual({ action: 'deny', keptRows: [] })
   })
 })
 

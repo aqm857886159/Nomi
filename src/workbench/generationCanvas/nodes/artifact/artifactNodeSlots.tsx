@@ -10,6 +10,7 @@ import { lazyWithChunkBoundary } from '../../../../ui/chunkBoundary'
 import { canArtifactCopyText, readAgentArtifactMeta } from '../../model/artifactMeta'
 import type { GenerationCanvasNode } from '../../model/generationCanvasTypes'
 import { resolveNodeVisualSize } from '../nodeSizing'
+import { copyToClipboard } from '../../../../design'
 
 const ArtifactBody = lazyWithChunkBoundary('Agent 产物预览', () => import('./ArtifactBody'))
 const ArtifactNodeToolbar = lazyWithChunkBoundary('Agent 产物操作', () => import('./ArtifactNodeToolbar'))
@@ -42,7 +43,7 @@ export function useArtifactNodeSlots(node: GenerationCanvasNode, options: Artifa
     return async () => {
       const response = await fetch(artifact.url)
       if (!response.ok) throw new Error(String(response.status))
-      await navigator.clipboard.writeText(await response.text())
+      if (!await copyToClipboard(await response.text())) throw new Error('clipboard')
     }
   }, [artifact])
 

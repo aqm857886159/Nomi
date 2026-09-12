@@ -4,6 +4,9 @@ import { AgentPanelV4Panel } from './ai/v4/AgentPanelV4Panel'
 import { describe, expect, it } from 'vitest'
 import { WorkspacePanelFrameContext, useWorkspacePanelFrame, workspacePanelFrame, workspacePanelHeader } from './WorkspacePanelFrame'
 
+// 介入槽的写口在生产里是必填（R28）。测试里显式给一份空壳，表示「这一格不验行为」。
+const NO_HANDLERS = { onPlanToggle: () => undefined, onCollapsePlan: () => undefined }
+
 function Probe(): JSX.Element {
   return React.createElement('section', { 'data-enabled': useWorkspacePanelFrame(), className: workspacePanelFrame }, React.createElement('header', { className: workspacePanelHeader }))
 }
@@ -21,7 +24,7 @@ describe('creation workspace frame boundary', () => {
 })
 
 it('keeps the real Agent body identical and its 40px header outside creation', () => {
-  const panel = React.createElement(AgentPanelV4Panel, { flow: [], context: {} })
+  const panel = React.createElement(AgentPanelV4Panel, { slotHandlers: NO_HANDLERS, flow: [], context: {} })
   const original = renderToStaticMarkup(panel)
   const creation = renderToStaticMarkup(React.createElement(WorkspacePanelFrameContext.Provider, { value: true }, panel))
   expect(original.split('</header>')[0]).toContain('h-10')

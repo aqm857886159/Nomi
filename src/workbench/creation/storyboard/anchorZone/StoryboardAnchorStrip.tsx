@@ -74,7 +74,7 @@ export default function StoryboardAnchorStrip({ cards, filterAnchorId, onFilterB
                 </span>
               )}
               {card.locked ? (
-                <span className="absolute right-0 top-0 grid place-items-center rounded-bl-nomi-sm bg-nomi-overlay-chip-strong px-0.5 text-nomi-paper">
+                <span className="absolute right-0 top-0 grid place-items-center rounded-bl-nomi-sm bg-nomi-overlay-chip-strong px-0.5 text-nomi-media-ink">
                   <IconLock size={9} stroke={2} aria-label={t('storyboardEditor.frame.lockedBadge')} />
                 </span>
               ) : null}

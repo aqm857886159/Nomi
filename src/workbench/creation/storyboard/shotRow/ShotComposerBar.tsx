@@ -1,6 +1,6 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { IconDots } from '../../../../vendor/tablerIcons'
+import { IconDots, IconLoader2 } from '../../../../vendor/tablerIcons'
 import { cn } from '../../../../utils/cn'
 import { DesignSwitch, NomiSelect } from '../../../../design'
 import type { ModelOption } from '../../../../config/models'
@@ -52,6 +52,13 @@ type Props = {
   onUpdate: (patch: Partial<PlanShot>) => void
   /** 行内「生成 / 重试」；缺省 = 不渲染主按钮（如已生成态）。 */
   onGenerate?: (() => void) | undefined
+  /**
+   * 这一镜正在跑（`exec.status === 'generating'`）。
+   * 2026-09-11 用户实测：点「生成」之后这颗钮纹丝不动——没有按下态、没有忙态，
+   * 和"没点着"长得一样，于是用户接着点第二下、第三下（每一下都是一次真实的排队）。
+   * 忙态不是装饰，它同时是**闸**：`disabled` 让第二下点不进去。
+   */
+  generating?: boolean
   /** 已生成/已锁定时替代主按钮的那枚状态标签文案。 */
   statusTag?: string | null
 }
@@ -84,6 +91,7 @@ export default function ShotComposerBar({
   onChangeAspect,
   onUpdate,
   onGenerate,
+  generating = false,
   statusTag,
 }: Props): JSX.Element {
   const { t } = useTranslation()
@@ -267,10 +275,17 @@ export default function ShotComposerBar({
           <button
             type="button"
             onClick={onGenerate}
-            className="h-6 rounded-nomi-sm bg-nomi-ink px-2.5 text-micro font-medium text-nomi-paper hover:opacity-90 active:opacity-80"
+            disabled={generating}
+            data-storyboard-generate-state={generating ? 'busy' : 'idle'}
+            className={cn(
+              'inline-flex h-6 items-center gap-1 rounded-nomi-sm bg-nomi-ink px-2.5 text-micro font-medium text-nomi-paper',
+              generating ? 'cursor-default opacity-60' : 'hover:opacity-90 active:opacity-80',
+            )}
             aria-label={t('storyboardEditor.frame.generateAria', { index: shot.index })}
+            aria-busy={generating}
           >
-            {t('storyboardEditor.frame.generate')}
+            {generating ? <IconLoader2 size={12} stroke={2} className="animate-spin" aria-hidden /> : null}
+            {generating ? t('storyboardEditor.frame.generating') : t('storyboardEditor.frame.generate')}
           </button>
         ) : null}
       </div>

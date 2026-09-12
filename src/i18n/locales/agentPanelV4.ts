@@ -107,6 +107,8 @@ export const zhAgentPanelV4 = {
   confirmReject: '确认不要',
   escalate: '不再问 →',
   collapsePlan: '收起 ▴',
+  expandPlan: '展开 ▾',
+  planKeepOnly: '只做这几条：{{kept}}',
   cancel: '取消',
 
   // 队列
@@ -500,6 +502,8 @@ export const enAgentPanelV4 = {
   confirmReject: 'Confirm no',
   escalate: "Don't ask again →",
   collapsePlan: 'Collapse ▴',
+  expandPlan: 'Expand ▾',
+  planKeepOnly: 'Only do these: {{kept}}',
   cancel: 'Cancel',
 
   queueStatus: { queued: 'Queued', running: 'Running', complete: 'Done' },

@@ -60,7 +60,7 @@ export const PromptCard = React.memo(function PromptCard({ prompt, onSelect }: P
             className={cn(
               'absolute top-1.5 left-1.5 inline-flex items-center gap-1 px-1.5 py-px rounded-full text-micro leading-none',
               // 描边加到 /35：暗色卡顶常压在深色媒体上（深发/暗景），深徽标+弱边=黑底黑字看不见（用户反馈）。
-              'bg-nomi-overlay-chip-strong border border-nomi-paper/35 text-nomi-paper shadow-nomi-sm backdrop-blur-sm',
+              'bg-nomi-overlay-chip-strong border border-nomi-media-ink/35 text-nomi-media-ink shadow-nomi-sm backdrop-blur-sm',
             )}
           >
             {isVideo ? <IconPlayerPlayFilled size={9} /> : null}
@@ -75,7 +75,7 @@ export const PromptCard = React.memo(function PromptCard({ prompt, onSelect }: P
               'bg-gradient-to-t from-nomi-media-veil via-nomi-media-veil/70 to-transparent',
             )}
           >
-            <span className={cn('block text-caption text-nomi-paper font-semibold truncate drop-shadow-[0_1px_2px_var(--nomi-scrim)]')}>{promptDisplayTitle(prompt)}</span>
+            <span className={cn('block text-caption text-nomi-media-ink font-semibold truncate drop-shadow-[0_1px_2px_var(--nomi-scrim)]')}>{promptDisplayTitle(prompt)}</span>
             <span className={cn('block text-micro text-nomi-paper/80 truncate')}>{promptSourceLabel(prompt)}</span>
           </span>
         </button>

@@ -1,8 +1,9 @@
 import React from 'react'
 import i18n from '../i18n'
+import { copyToClipboard, COPIED_FEEDBACK_MS, type ClipboardCopyState } from '../design'
 
 type Props = { children: React.ReactNode }
-type State = { error: Error | null; info: string }
+type State = { error: Error | null; info: string; copyState: ClipboardCopyState }
 type DesktopReloadBridge = { nomiDesktop?: { app?: { hardReloadWindow?: () => void } } }
 
 function reloadRendererWindow(): void {
@@ -23,7 +24,12 @@ function reloadRendererWindow(): void {
  * 而不是整屏白让用户/维护者盲修。错误同时打到主进程崩溃日志（若桥可用）。
  */
 export class RootErrorBoundary extends React.Component<Props, State> {
-  state: State = { error: null, info: '' }
+  state: State = { error: null, info: '', copyState: 'idle' }
+  private copyTimer: ReturnType<typeof setTimeout> | undefined
+
+  componentWillUnmount(): void {
+    if (this.copyTimer !== undefined) clearTimeout(this.copyTimer)
+  }
 
   static getDerivedStateFromError(error: Error): Partial<State> {
     return { error }
@@ -43,14 +49,20 @@ export class RootErrorBoundary extends React.Component<Props, State> {
     console.error('[nomi] renderer crashed:', error, detail)
   }
 
+  // 崩溃屏上这颗钮是用户唯一能带走现场的出口：它到底复制成没成，必须说。
+  // 原来是 `.catch(() => undefined)`——写失败（无权限/非安全上下文）和写成功长得一模一样。
   private handleCopy = (): void => {
     const { error, info } = this.state
     const text = `${error?.name}: ${error?.message}\n${error?.stack || ''}\n--- componentStack ---${info}`
-    void navigator.clipboard?.writeText(text).catch(() => undefined)
+    void copyToClipboard(text).then((ok) => {
+      this.setState({ copyState: ok ? 'copied' : 'failed' })
+      if (this.copyTimer !== undefined) clearTimeout(this.copyTimer)
+      this.copyTimer = setTimeout(() => this.setState({ copyState: 'idle' }), COPIED_FEEDBACK_MS)
+    })
   }
 
   render(): React.ReactNode {
-    const { error } = this.state
+    const { error, copyState } = this.state
     if (!error) return this.props.children
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-nomi-bg p-8 text-nomi-ink">
@@ -74,8 +86,13 @@ export class RootErrorBoundary extends React.Component<Props, State> {
               type="button"
               className="rounded-nomi border border-nomi-line px-3 py-1.5 text-body-sm"
               onClick={this.handleCopy}
+              data-crash-copy-state={copyState}
             >
-              {i18n.t('errors.copyDetails')}
+              {copyState === 'copied'
+                ? i18n.t('common.copied')
+                : copyState === 'failed'
+                  ? i18n.t('common.copyFailed')
+                  : i18n.t('errors.copyDetails')}
             </button>
           </div>
         </div>

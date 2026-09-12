@@ -25,6 +25,16 @@ import type { V4FlowItem } from '../../../workbench/ai/v4/AgentPanelV4Panel'
 import type { V4CommandRow, V4ModelRow } from '../../../workbench/ai/v4/AgentPanelV4Composer'
 
 /** 面板宽度 = 定稿的 390（可拖 320–520，< 320 收成 rail）。 */
+/**
+ * 取景位没有宿主：介入槽的写口在生产里是**必填**（R28——少接一根线就该编译不过），
+ * 所以实验室要**显式**写一份空壳，而不是靠 prop 可选来蒙混。
+ * 摆在这儿的是长相，不是行为；按下去没有去处是这些格子的既定语义。
+ */
+export const V4_LAB_SLOT_HANDLERS = Object.freeze({
+  onPlanToggle: () => undefined,
+  onCollapsePlan: () => undefined,
+})
+
 export const V4_PANEL_WIDTH = 390
 /** 接触表格子高度：装得下最高的一格（计划槽 + 四行勾选）。 */
 export const V4_CELL_HEIGHT = 700

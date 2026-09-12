@@ -99,7 +99,7 @@ export function AnchorCheckpointCard({ model, onApprove, onDefer, onRework }: Pr
                       <span
                         className={cn(
                           'absolute right-1.5 top-1.5 grid size-6 place-items-center rounded-full opacity-0 transition-opacity',
-                          'bg-nomi-overlay-chip text-nomi-paper group-hover:opacity-100',
+                          'bg-nomi-overlay-chip text-nomi-media-ink group-hover:opacity-100',
                         )}
                         aria-hidden
                       >

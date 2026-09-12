@@ -14,6 +14,7 @@ import { IconMovie, IconExternalLink, IconCircleCheck, IconQrcode, IconDownload,
 import { cn } from '../../utils/cn'
 import { getDesktopBridge } from '../../desktop/bridge'
 import { FoldableModelCard } from './FoldableModelCard'
+import { useClipboardCopy } from '../../design'
 
 export type DreaminaStatus = { installed: boolean; loggedIn: boolean; totalCredit: number | null; vipLevel: string; notMaestroVip: boolean }
 type DeviceFlow = { verificationUri: string; userCode: string; deviceCode: string; expiresAt: string }
@@ -33,7 +34,7 @@ export function DreaminaMemberCard({ status, onChanged, onOpenDetails, detailMod
   const [busy, setBusy] = React.useState(false)
   const [flow, setFlow] = React.useState<DeviceFlow | null>(null)
   const [polling, setPolling] = React.useState(false)
-  const [copied, setCopied] = React.useState(false)
+  const clipboard = useClipboardCopy()
   const [error, setError] = React.useState('')
   const cancelPoll = React.useRef(false)
 
@@ -91,9 +92,7 @@ export function DreaminaMemberCard({ status, onChanged, onOpenDetails, detailMod
 
   const handleCopyLink = () => {
     if (!flow) return
-    void navigator.clipboard.writeText(flow.verificationUri).then(() => {
-      setCopied(true); window.setTimeout(() => setCopied(false), 1600)
-    })
+    void clipboard.copy(flow.verificationUri)
   }
 
   const cardStatus: 'ok' | 'todo' = status.installed && status.loggedIn ? 'ok' : 'todo'
@@ -156,7 +155,7 @@ export function DreaminaMemberCard({ status, onChanged, onOpenDetails, detailMod
           <div className="flex items-center gap-2">
             <div className="flex-1 text-caption text-nomi-ink-60">{t('onboardingProviders.dreamina.verificationCode')} <code className="text-nomi-ink font-mono">{flow.userCode.slice(0, 12)}…</code></div>
             <button type="button" onClick={handleCopyLink} className="h-8 px-2 text-caption text-nomi-ink-60 inline-flex items-center gap-1 hover:text-nomi-accent">
-              {copied ? <IconCheck size={13} stroke={1.8} /> : <IconCopy size={13} stroke={1.6} />}{copied ? t('onboardingProviders.dreamina.copied') : t('onboardingProviders.dreamina.copyLink')}
+              {clipboard.copied ? <IconCheck size={13} stroke={1.8} /> : <IconCopy size={13} stroke={1.6} />}{clipboard.copied ? t('onboardingProviders.dreamina.copied') : clipboard.failed ? t('common.copyFailed') : t('onboardingProviders.dreamina.copyLink')}
             </button>
           </div>
           <div className="text-caption text-nomi-ink-40">{polling ? t('onboardingProviders.dreamina.waitingAuthorize') : t('onboardingProviders.dreamina.authorizePending')}</div>

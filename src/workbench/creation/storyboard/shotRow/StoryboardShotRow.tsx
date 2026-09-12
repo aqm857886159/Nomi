@@ -19,6 +19,7 @@ import {
 import { cn } from '../../../../utils/cn'
 import type { MentionSuggestionItem, MentionUploadControls } from '../../../assets/AssetMentionSuggestionList'
 import type { PlanAnchor, PlanShot } from '../../../generationCanvas/agent/storyboardPlan'
+import { NO_SCENE_VALUE } from '../../../generationCanvas/agent/storyboardPlanEdits'
 import type { PromptSegmentRange, StoryboardProfile } from '../../../generationCanvas/agent/storyboardPlan'
 import type { ModelOption } from '../../../../config/models'
 import { resolveShotArchetypeMode } from './shotRowModel'
@@ -238,7 +239,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
               {props.scenes.map((scene) => (
                 <MenuItem key={scene.id} icon={<IconArrowRight size={13} stroke={1.8} />} label={scene.title} onClick={() => { props.onMoveToScene?.(scene.id); closeMenus() }} />
               ))}
-              <MenuItem icon={<IconArrowRight size={13} stroke={1.8} />} label={t('storyboardEditor.selection.allScenes')} onClick={() => { props.onMoveToScene?.('__none__'); closeMenus() }} />
+              <MenuItem icon={<IconArrowRight size={13} stroke={1.8} />} label={t('storyboardEditor.selection.allScenes')} onClick={() => { props.onMoveToScene?.(NO_SCENE_VALUE); closeMenus() }} />
             </>
           ) : null}
           <span className="my-0.5 h-px bg-nomi-line-soft" aria-hidden />
@@ -407,6 +408,7 @@ export default function StoryboardShotRow(props: Props): JSX.Element {
           onChangeAspect={onChangeAspect}
           onUpdate={onUpdate}
           onGenerate={statusTag ? undefined : onGenerate}
+          generating={exec?.status === 'generating'}
           statusTag={statusTag}
         />
       </div>

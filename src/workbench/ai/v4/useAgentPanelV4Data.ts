@@ -38,6 +38,20 @@ export type AgentPanelV4Data = Readonly<{
   activeThreadId: string | null
   flow: readonly V4FlowItem[]
   slot: InterventionData | undefined
+  /**
+   * 计划槽的两件交互状态 + 它们的写口。住在读侧，是因为「哪几行还勾着」是**投影的输入**
+   * （`uncheckedPlanRows` → `planRowsOf`），不是壳的长相；两份状态放两个地方必然会漂。
+   * 换一条待决（`toolCallId` 变）时整体归零：上一张卡取消掉的行，与这一张无关。
+   */
+  plan: Readonly<{
+    /** 被取消勾选的行 label。 */
+    unchecked: ReadonlySet<string>
+    /** 还勾着的行 label（按清单原序）。全勾时 = 全部行。 */
+    kept: readonly string[]
+    collapsed: boolean
+    toggleRow: (label: string, checked: boolean) => void
+    toggleCollapsed: () => void
+  }>
   queue: readonly QueueRowData[]
   context: ContextUsage
   /** 当前待决里排第一条的那个（介入槽渲染的就是它）。 */
@@ -205,9 +219,34 @@ export function useAgentPanelV4Data(surface: ResidentSurface): AgentPanelV4Data 
     return collapseV4Flow(items, t)
   }, [view.items, view.retry, view.running, primaryPending, t])
   const planRows = useTimelinePlanRows(primaryPending?.toolName, primaryPending?.args, timeline, t)
+  const [planState, setPlanState] = React.useState<{ forCallId: string | null; unchecked: ReadonlySet<string>; collapsed: boolean }>(
+    { forCallId: null, unchecked: new Set(), collapsed: false },
+  )
+  // 归零绑在 `toolCallId` 上而不是「卡消失了就清」：同一张卡在面板/收起坞之间来回换外壳时
+  // 组件会重挂，用后者会把用户刚取消掉的几行悄悄勾回来。
+  const planCallId = primaryPending?.toolCallId ?? null
+  const plan = React.useMemo(() => {
+    const fresh = planState.forCallId !== planCallId
+    const unchecked: ReadonlySet<string> = fresh ? new Set<string>() : planState.unchecked
+    return {
+      unchecked,
+      collapsed: fresh ? false : planState.collapsed,
+      toggleRow: (label: string, checked: boolean) => setPlanState((current) => {
+        const base = current.forCallId === planCallId ? current : { forCallId: planCallId, unchecked: new Set<string>(), collapsed: false }
+        const next = new Set(base.unchecked)
+        if (checked) next.delete(label); else next.add(label)
+        return { forCallId: planCallId, unchecked: next, collapsed: base.collapsed }
+      }),
+      toggleCollapsed: () => setPlanState((current) => {
+        const base = current.forCallId === planCallId ? current : { forCallId: planCallId, unchecked: new Set<string>(), collapsed: false }
+        return { ...base, forCallId: planCallId, collapsed: !base.collapsed }
+      }),
+    }
+  }, [planCallId, planState])
   const slot = primaryPending ? projectV4Intervention({
     ...laneInterventionSource(primaryPending),
     ...(planRows.length ? { planLines: planRows } : {}),
+    uncheckedPlanRows: plan.unchecked,
   }, labels.interventionCopy, t) : undefined
   const queue = view.queues.map((entry) => ({
     title: entry.text || t('agentPanelV4.queueUntitled'),
@@ -241,6 +280,7 @@ export function useAgentPanelV4Data(surface: ResidentSurface): AgentPanelV4Data 
     activeThreadId,
     flow,
     slot,
+    plan: { ...plan, kept: (slot?.plan ?? []).filter((row) => row.checked).map((row) => row.label) },
     queue,
     context,
     primaryPending,

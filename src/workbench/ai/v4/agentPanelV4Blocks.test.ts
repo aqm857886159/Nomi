@@ -16,6 +16,9 @@ import ReconcileDeviationCard from '../../generationCanvas/components/ReconcileD
 import { AgentPanelV4Composer } from './AgentPanelV4Composer'
 import type { InterventionData, ToolReceipt, V4InterventionKind, V4TaskStatus, V4ToolStatus } from './agentPanelV4Types'
 
+// 介入槽的写口在生产里是必填（R28）。测试里显式给一份空壳，表示「这一格不验行为」。
+const NO_HANDLERS = { onPlanToggle: () => undefined, onCollapsePlan: () => undefined }
+
 const el = React.createElement
 const html = (node: React.ReactElement): string => renderToStaticMarkup(node)
 
@@ -34,7 +37,7 @@ const taskLabels = {
   adopt: '采用',
   undo: '撤销',
 }
-const slotLabels = { confirm: '确认', reject: '不要', escalate: '不再问 →', cancel: '取消', confirmReject: '确认不要', collapsePlan: '收起 ▴' }
+const slotLabels = { confirm: '确认', reject: '不要', escalate: '不再问 →', cancel: '取消', confirmReject: '确认不要', collapsePlan: '收起 ▴', expandPlan: '展开 ▾' }
 // `unknown` 是「这个数我们没有」的那个字（环上写「—」而不是「0%」）。接线后它是必填的，
 // 因为缺字段是常态：目录没写 contextWindow、供应商不报推理 token，都会走到它。
 const contextLabels = { context: '上下文用量', input: '输入', output: '输出', reasoning: '推理', cache: '缓存命中', threadCost: '本线程花费', unknown: '—', usedOnly: '已用 {{amount}}' }
@@ -63,7 +66,7 @@ describe('① 用户气泡', () => {
 })
 
 describe('② 助手文本', () => {
-  const labels = { copy: '复制回复', retry: '重来', continue: '继续' }
+  const labels = { copy: '复制回复', copied: '已复制', copyFailed: '复制失败', retry: '重来', continue: '继续' }
   it('流式带光标、完成不带', () => {
     expect(html(el(V4AssistantMessage, { text: 'x', status: 'streaming', labels }))).toContain('style="--streamdown-caret:')
     expect(html(el(V4AssistantMessage, { text: 'x', status: 'complete', labels }))).not.toContain('style="--streamdown-caret:')
@@ -76,6 +79,17 @@ describe('② 助手文本', () => {
     expect(markup).toContain('group-hover:opacity-100')
     expect(markup).toContain('复制回复')
     expect(markup).toContain('重来')
+  })
+
+  /**
+   * 2026-09-11 用户实测：这枚复制 icon「点了没反应」。根因是它当时是一根 `onCopy` 线，
+   * 宿主那头只写了 `void navigator.clipboard?.writeText(text)`——成败一起吞掉。
+   * 现在它自己做完整件事，所以初始态必须有一个可读的回执位（`data-v4-copy-state`）。
+   */
+  it('复制钮自带回执位，不再依赖宿主传 handler', () => {
+    const markup = html(el(V4AssistantMessage, { text: 'x', status: 'complete', labels }))
+    expect(markup).toContain('data-v4-copy-state="idle"')
+    expect(markup).toContain('aria-label="复制回复"')
   })
 
   it('中断态出「继续」，且不出复制/重来', () => {
@@ -182,7 +196,7 @@ describe('⑤ 介入槽 · 八种内容体', () => {
   const of = (kind: V4InterventionKind): InterventionData => ({ kind, title: '标题' })
 
   it.each(SLOT_KINDS)('%s 渲得出且带自己的 data-kind', (kind) => {
-    const markup = html(el(V4Intervention, { data: of(kind), labels: slotLabels }))
+    const markup = html(el(V4Intervention, { ...NO_HANDLERS, data: of(kind), labels: slotLabels }))
     expect(markup).toContain(`data-kind="${kind}"`)
   })
 
@@ -190,17 +204,17 @@ describe('⑤ 介入槽 · 八种内容体', () => {
     // 接线后「不再问 →」还多一个条件：**调用方真的能执行它**（给了 `onEscalate`）。
     // 没有去处的钮和有去处的钮长得一样，那就是在假装能按——空态发送钮那条同一个道理。
     const hasEscalate = (kind: V4InterventionKind) =>
-      html(el(V4Intervention, { data: of(kind), labels: slotLabels, onEscalate: () => undefined })).includes('不再问')
+      html(el(V4Intervention, { ...NO_HANDLERS, data: of(kind), labels: slotLabels, onEscalate: () => undefined })).includes('不再问')
     expect(hasEscalate('approval-reversible')).toBe(true)
     expect(hasEscalate('approval-irreversible')).toBe(false)
     expect(hasEscalate('spend')).toBe(false)
     expect(hasEscalate('credential')).toBe(false)
-    // 计划槽画布上没有「不再问」也没有「不要」：它是清单，不勾就是不做。
+    // 计划槽没有「不再问」：它不是一个能「以后别问了」的能力。
     expect(hasEscalate('plan')).toBe(false)
   })
 
   it.each(['汤先到，人后到', '镜头 2：端起汤碗'])('计划人话与技术详情分开且默认折叠：%s', (label) => {
-    const markup = html(el(V4Intervention, {
+    const markup = html(el(V4Intervention, { ...NO_HANDLERS,
       data: { kind: 'plan', title: '计划', plan: [{ label, technical: '{"kind":"text"}', detail: 'MiniMax-H3 · 768P · 8s · 16:9', checked: true }] },
       labels: slotLabels,
     }))
@@ -211,26 +225,44 @@ describe('⑤ 介入槽 · 八种内容体', () => {
     expect(markup).not.toMatch(/<label[^>]*>[^]*?&quot;kind&quot;[^]*?<\/label>/)
   })
 
-  it('计划槽底栏是「主动作 · 改一下 …… 收起 ▴」，不带「不要」', () => {
-    const markup = html(el(V4Intervention, {
+  it('计划槽底栏是「主动作 · 改一下 …… 收起 ▴ · ×」', () => {
+    const markup = html(el(V4Intervention, { ...NO_HANDLERS,
       data: { kind: 'plan', title: '拆出 4 镜', confirmLabel: '生成 3 镜', alternateLabel: '改一下' },
       labels: slotLabels,
     }))
     expect(markup).toContain('生成 3 镜')
     expect(markup).toContain('改一下')
     expect(markup).toContain('收起 ▴')
+    // 否定动作永远是那颗 ×（文字只当无障碍名），计划卡不再是唯一没有它的档
+    // ——2026-09-11 用户实测「8 镜计划卡无法取消」。
+    expect(markup).toContain('data-v4-control="reject"')
     expect(markup).not.toContain('>不要<')
   })
 
+  it('收起态只换字、不丢底栏；展开态清单自己有滚动容器', () => {
+    const plan = { kind: 'plan' as const, title: '拆出 8 镜', plan: [{ label: '镜头 1', checked: true }, { label: '镜头 2', checked: true }] }
+    const expanded = html(el(V4Intervention, { ...NO_HANDLERS, data: plan, labels: slotLabels }))
+    // 卡壳是 overflow-hidden，清单不自带滚动 = 第 N 行起看不见（用户 2026-09-11 实测）。
+    expect(expanded).toContain('data-v4-block="plan-rows"')
+    expect(expanded).toMatch(/class="[^"]*overflow-y-auto[^"]*"[^>]*data-v4-block="plan-rows"/)
+    expect(expanded).toContain('镜头 2')
+    expect(expanded).toContain('收起 ▴')
+
+    const collapsed = html(el(V4Intervention, { ...NO_HANDLERS, data: plan, labels: slotLabels, planCollapsed: true }))
+    expect(collapsed).not.toContain('data-v4-block="plan-rows"')
+    expect(collapsed).toContain('展开 ▾')
+    expect(collapsed).toContain('data-v4-control="confirm"')
+  })
+
   it('按钮只有「确认 / 不要」，没有第三个主动作', () => {
-    const markup = html(el(V4Intervention, { data: of('approval-irreversible'), labels: slotLabels }))
+    const markup = html(el(V4Intervention, { ...NO_HANDLERS, data: of('approval-irreversible'), labels: slotLabels }))
     expect(markup).toContain('确认')
     expect(markup).toContain('不要')
     expect(markup).not.toContain('取消')
   })
 
   it('反问只有选项 chip，没有确认/不要——选项本身就是回答', () => {
-    const markup = html(el(V4Intervention, {
+    const markup = html(el(V4Intervention, { ...NO_HANDLERS,
       data: { kind: 'question', title: '用什么画幅？', options: ['16:9', '9:16'], selectedOption: 0 },
       labels: slotLabels,
     }))
@@ -239,7 +271,7 @@ describe('⑤ 介入槽 · 八种内容体', () => {
   })
 
   it('拒绝原因是渐进披露的输入 + 取消/确认不要', () => {
-    const markup = html(el(V4Intervention, {
+    const markup = html(el(V4Intervention, { ...NO_HANDLERS,
       data: { kind: 'reject-reason', title: 'x', reasonPlaceholder: '拒绝原因（可选）' },
       labels: slotLabels,
     }))
@@ -353,7 +385,7 @@ describe('⑧ composer 底栏逐件', () => {
 
 
 it('the real panel mounts the approved domain deviation card at the end of its flow', () => {
-  const markup = html(el(AgentPanelV4Panel, {
+  const markup = html(el(AgentPanelV4Panel, { slotHandlers: NO_HANDLERS,
     flow: [{ kind: 'assistant', text: 'Completed image', status: 'complete' }], context: usage,
     flowTail: el(ReconcileDeviationCard, {
       deviations: [{ kind: 'content', where: '镜头 1', field: '构图', expected: '杯子居中', actual: '偏左', reason: 'F_VERIFY_LOW' }],

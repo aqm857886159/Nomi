@@ -84,7 +84,7 @@ export default function StoryboardVariantsDrawer({
                   className="absolute inset-0 h-full w-full object-cover"
                 />
                 <span
-                  className="absolute bottom-1 left-1 max-w-[calc(100%-8px)] truncate rounded-nomi-sm bg-nomi-overlay-chip px-1 text-micro text-nomi-paper"
+                  className="absolute bottom-1 left-1 max-w-[calc(100%-8px)] truncate rounded-nomi-sm bg-nomi-overlay-chip px-1 text-micro text-nomi-media-ink"
                   data-storyboard-output-tag={variant.tag}
                 >
                   @{variant.tag}

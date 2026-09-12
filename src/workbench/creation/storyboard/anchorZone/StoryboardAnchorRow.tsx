@@ -122,7 +122,7 @@ export default function StoryboardAnchorRow({
         >
           <NomiImage src={runtime.resultUrl} alt={t('storyboardEditor.anchor.resultAlt', { name: displayName })} className="absolute inset-0 h-full w-full object-cover" />
           {runtime.locked ? (
-            <span className="absolute right-1 top-1 z-[2] inline-flex items-center gap-0.5 rounded-pill bg-nomi-overlay-chip-strong px-1 py-0.5 text-micro text-nomi-paper">
+            <span className="absolute right-1 top-1 z-[2] inline-flex items-center gap-0.5 rounded-pill bg-nomi-overlay-chip-strong px-1 py-0.5 text-micro text-nomi-media-ink">
               <IconLock size={10} stroke={2} aria-label={t('storyboardEditor.frame.lockedBadge')} />
             </span>
           ) : null}
@@ -132,14 +132,22 @@ export default function StoryboardAnchorRow({
     if (runtime.generating) {
       return (
         <div className="relative overflow-hidden rounded-nomi border border-nomi-line bg-nomi-ink-05" style={style} data-anchor-face="generating">
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-nomi-scrim p-2 text-center text-nomi-paper">
-            <div className="h-1 w-[64px] overflow-hidden rounded-pill bg-nomi-paper/25">
-              <div className="h-full bg-nomi-paper transition-[width]" style={{ width: `${runtime.progressPercent ?? 12}%` }} />
-            </div>
-            <span className="text-micro leading-tight">
-              {runtime.progressPercent !== null
-                ? t('storyboardEditor.frame.generatingPercent', { percent: Math.round(runtime.progressPercent) })
-                : t('storyboardEditor.frame.generating')}
+          {/* scrim 只负责压暗底图，**不负责托住字**：它只有 0.42 alpha，白字压在亮底图上实测 1.8:1
+              （2026-09-11 用户说「生成中」看不清）。字与进度条搬进 overlay-chip-strong 那枚胶囊——
+              那个 token 存在的理由就是「在任意亮度的媒体上托住白字」，最坏情况（纯白底图）4.5:1。 */}
+          <div className="absolute inset-0 flex items-center justify-center bg-nomi-scrim p-2">
+            <span
+              className="inline-flex flex-col items-center gap-1.5 rounded-nomi-sm bg-nomi-overlay-chip-strong px-2 py-1 text-center text-nomi-media-ink"
+              data-anchor-generating-chip="true"
+            >
+              <span className="block h-1 w-[64px] overflow-hidden rounded-pill bg-nomi-media-ink/25">
+                <span className="block h-full bg-nomi-media-ink transition-[width]" style={{ width: `${runtime.progressPercent ?? 12}%` }} />
+              </span>
+              <span className="text-micro leading-tight">
+                {runtime.progressPercent !== null
+                  ? t('storyboardEditor.frame.generatingPercent', { percent: Math.round(runtime.progressPercent) })
+                  : t('storyboardEditor.frame.generating')}
+              </span>
             </span>
           </div>
         </div>

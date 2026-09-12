@@ -39,7 +39,7 @@ import type { GenerationCanvasNode } from '../../../../workbench/generationCanva
 import { seedModelCatalogForTests } from '../../../../config/modelCatalogCache'
 import { useGenerationModelOptionsState } from '../../../../workbench/generationCanvas/adapters/modelOptionsAdapter'
 import type { ModelOption } from '../../../../config/models'
-import { Piece, useV4Fixtures } from '../agentPanelV4LabKit'
+import { Piece, useV4Fixtures, V4_LAB_SLOT_HANDLERS } from '../agentPanelV4LabKit'
 import type { LabState } from '../../labScreen'
 
 const SOURCE = '2026-09-10-spend-card-node-params-and-full-auto.md'
@@ -308,6 +308,7 @@ function SpendComposerCard({
     <Piece>
       <div ref={cardRef}>
         <V4Intervention
+          {...V4_LAB_SLOT_HANDLERS}
           data={data}
           labels={{ ...labels.intervention, reject: fx.t('agentPanelV4.spendParamsDecline') }}
           onPage={setIndex}
@@ -333,6 +334,7 @@ function AutoModeConfirmCard(): JSX.Element {
   return (
     <Piece>
       <V4Intervention
+        {...V4_LAB_SLOT_HANDLERS}
         data={{
           kind: 'approval-reversible',
           // 2026-09-10 用户拍板：标题左边那个对勾删掉。标题是一句问句，前面顶着 ✓ 读起来像「已经切好了」。

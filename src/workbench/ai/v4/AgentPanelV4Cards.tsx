@@ -124,7 +124,7 @@ export function V4TaskCard({
                   {candidate.thumbnailUrl ? <img src={candidate.thumbnailUrl} alt="" className="size-full object-cover" /> : null}
                   {/* 角标写的是**这一张是谁**（画布 Vocabulary 板是「采用」、FlowGeneration 板是「2 ✓」），
                       由数据给；`adopted` 只管那圈 accent 描边，不改写文字。 */}
-                  <span className="absolute left-1 top-1 rounded-sm bg-nomi-overlay-chip px-1 text-micro leading-[15px] text-nomi-paper">
+                  <span className="absolute left-1 top-1 rounded-sm bg-nomi-overlay-chip px-1 text-micro leading-[15px] text-nomi-media-ink">
                     {candidate.tag}
                   </span>
                 </Tile>
@@ -296,6 +296,7 @@ export function V4Intervention({
   onOption,
   onPlanToggle,
   onCollapsePlan,
+  planCollapsed = false,
 }: {
   data: InterventionData
   /**
@@ -311,7 +312,7 @@ export function V4Intervention({
    * 又摆一条能点的参数条（那是同一件事的两个说法）。
    */
   composer?: React.ReactNode
-  labels: { confirm: string; reject: string; escalate: string; cancel: string; confirmReject: string; collapsePlan: string }
+  labels: { confirm: string; reject: string; escalate: string; cancel: string; confirmReject: string; collapsePlan: string; expandPlan: string }
   /** 确认。计划槽传的是当前勾选集，其余档传 `undefined`。 */
   onConfirm?: () => void
   /** 翻到第几张卡（`data.pager` 在时才有意义）。 */
@@ -324,8 +325,18 @@ export function V4Intervention({
   onEscalate?: () => void
   onAlternate?: () => void
   onOption?: (option: string, index: number) => void
-  onPlanToggle?: (label: string, checked: boolean) => void
-  onCollapsePlan?: () => void
+  /**
+   * 计划行的勾选。**必填**（R28：能让编译器拦的别留给门岗）——它曾是可选 prop，
+   * 宿主一个都没传，于是「不勾就是不做」这句承诺在界面上点不动
+   * （2026-09-11 用户实测：8 镜计划卡无法取消）。可选 prop 的代价就是这个：
+   * 少接一根线不报错，只是安静地变成一个点不动的复选框。
+   * 真没有宿主的取景位（设计实验室）也得**显式**写 `() => undefined`，那是一次表态，不是遗漏。
+   */
+  onPlanToggle: (label: string, checked: boolean) => void
+  /** 收起/展开计划清单。同上，必填。 */
+  onCollapsePlan: () => void
+  /** 清单当前是不是收起态（由宿主持有：它知道这张卡是哪一次待决的）。 */
+  planCollapsed?: boolean
 }): JSX.Element {
   // 拒绝原因是**渐进披露**的：先点「不要」，才出现那一行输入和「确认不要」。
   // 一上来就摆一个输入框，等于要求用户为每一次拒绝写作文。
@@ -340,8 +351,11 @@ export function V4Intervention({
   const canEscalate = (data.kind === 'approval-reversible' || data.kind === 'reject-reason') && Boolean(onEscalate)
   // 反问只有选项 chip，没有确认/不要——选项本身就是回答（定稿 ⑤ 反问格）。
   const hasActions = data.kind !== 'question'
-  // 计划槽底栏照画布画的那样收尾：主动作 + 「改一下」…… 「收起 ▴」，没有「不要」——
-  // 计划是清单，取消一项靠取消勾选，整张不要就是不勾任何一项。
+  // 计划槽底栏：主动作 + 「改一下」…… 「收起 ▴/展开 ▾」，**以及和其余档一样的那颗 ×**。
+  //
+  // 原来这里没有 ×，理由是「整张不要就是不勾任何一项」。2026-09-11 用户实测把这条否了：
+  // 逐条取消 8 个勾再确认，是让人用 8 下点击说一句「不用了」，而且当时那几个勾还点不动。
+  // × 是全站统一的否定动作（一 icon 一含义），计划卡不该是唯一的例外。
   const isPlan = data.kind === 'plan'
   const pager = data.pager
   /**
@@ -391,15 +405,18 @@ export function V4Intervention({
         {data.options?.length ? (
           <V4OptionChips options={data.options} selectedOption={data.selectedOption} onSelect={onOption} />
         ) : null}
-        {data.plan?.length ? (
-          <div className="flex flex-col gap-1">
+        {data.plan?.length && !planCollapsed ? (
+          // 清单自己滚：卡壳是 `overflow-hidden`（圆角要它），所以清单不给自己一个滚动容器
+          // 就等于「第 9 行起不存在」——用户 2026-09-11 报的 8 镜计划卡正是这样，
+          // 下面几镜连同底栏一起被裁在卡外。高度上限按 6 行留（再多就该收起来读）。
+          <div className="flex max-h-[13.5rem] flex-col gap-1 overflow-y-auto" data-v4-block="plan-rows">
             {data.plan.map((row, index) => (
               <div key={`${index}-${row.label}`} className="flex items-start gap-2 py-[3px] text-caption text-nomi-ink-80">
                 <input
                   type="checkbox"
                   aria-label={row.label}
                   checked={row.checked}
-                  onChange={(event) => onPlanToggle?.(row.label, event.target.checked)}
+                  onChange={(event) => onPlanToggle(row.label, event.target.checked)}
                   className="mt-0.5 size-3.5 shrink-0 accent-nomi-accent"
                 />
                 {row.technical ? (
@@ -481,10 +498,16 @@ export function V4Intervention({
               ) : null}
               <span className="flex-1" />
               {isPlan ? (
-                <button type="button" className="text-micro text-nomi-ink-40" onClick={onCollapsePlan}>
-                  {labels.collapsePlan}
+                <button
+                  type="button"
+                  className="text-micro text-nomi-ink-40"
+                  onClick={onCollapsePlan}
+                  data-v4-control="collapse-plan"
+                >
+                  {planCollapsed ? labels.expandPlan : labels.collapsePlan}
                 </button>
-              ) : (
+              ) : null}
+              {(
                 // 否定动作 = 一颗 ×（2026-09-10 拍板的按钮规则：一屏一个主动作、否定动作用 ×）。
                 // 它和「生成」并排在同一行，仍是同一个决定的两面；但**不是第二颗文字按钮**——
                 // 两颗一样重的文字钮会让人在花钱的卡上多想一秒「哪颗是往前」。

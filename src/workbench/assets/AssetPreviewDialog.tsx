@@ -137,7 +137,7 @@ export function AssetPreviewDialog({ asset, onClose, sequence, initialIndex = 0 
           'absolute right-4 top-4 z-[3] grid size-9 place-items-center rounded-full cursor-pointer',
           // 边框 + 强 scrim：预览背景是 bg-black/60，无边框的深色徽标钮会和暗背景融为一体（用户反馈
           // 「找不到关闭钮」）。给一圈 paper/25 描边把边缘钉出来、并用 chip-strong 提对比，光暗都读得清。
-          'border border-nomi-paper/25 bg-nomi-overlay-chip-strong text-nomi-paper shadow-nomi-md backdrop-blur-sm',
+          'border border-nomi-media-ink/25 bg-nomi-overlay-chip-strong text-nomi-media-ink shadow-nomi-md backdrop-blur-sm',
           'hover:bg-nomi-paper hover:text-nomi-ink hover:border-transparent',
           'focus-visible:outline-2 focus-visible:outline-nomi-paper focus-visible:outline-offset-2',
         )}
@@ -148,7 +148,7 @@ export function AssetPreviewDialog({ asset, onClose, sequence, initialIndex = 0 
       </button>
 
       {sequence && sequence.length > 0 ? (
-        <div className="absolute left-1/2 top-4 z-[3] flex -translate-x-1/2 items-center gap-2 rounded-full border border-nomi-paper/20 bg-nomi-overlay-chip-strong px-3 py-1.5 text-caption text-nomi-paper shadow-nomi-sm backdrop-blur-sm">
+        <div className="absolute left-1/2 top-4 z-[3] flex -translate-x-1/2 items-center gap-2 rounded-full border border-nomi-media-ink/20 bg-nomi-overlay-chip-strong px-3 py-1.5 text-caption text-nomi-media-ink shadow-nomi-sm backdrop-blur-sm">
           <button type="button" className="px-1 text-nomi-paper/80 hover:text-nomi-paper disabled:opacity-40" disabled={sequenceIndex <= 0} onClick={() => setSequenceIndex((index) => Math.max(0, index - 1))} aria-label={t('storyboardEditor.playback.previous')}>
             ←
           </button>
@@ -163,7 +163,7 @@ export function AssetPreviewDialog({ asset, onClose, sequence, initialIndex = 0 
         <span
           className={cn(
             'pointer-events-none absolute left-4 top-4 z-[2] flex max-w-[calc(100%-80px)] items-baseline gap-2 truncate rounded-full px-3 py-1.5',
-            'border border-nomi-paper/20 bg-nomi-overlay-chip-strong text-caption font-medium text-nomi-paper shadow-nomi-sm backdrop-blur-sm',
+            'border border-nomi-media-ink/20 bg-nomi-overlay-chip-strong text-caption font-medium text-nomi-media-ink shadow-nomi-sm backdrop-blur-sm',
           )}
           data-asset-preview-title="true"
         >
@@ -177,7 +177,7 @@ export function AssetPreviewDialog({ asset, onClose, sequence, initialIndex = 0 
           type="button"
           className={cn(
             'absolute right-16 top-4 z-[3] grid size-9 place-items-center rounded-full cursor-pointer',
-            'border border-nomi-paper/25 bg-nomi-overlay-chip-strong text-nomi-paper shadow-nomi-md backdrop-blur-sm',
+            'border border-nomi-media-ink/25 bg-nomi-overlay-chip-strong text-nomi-media-ink shadow-nomi-md backdrop-blur-sm',
             'hover:bg-nomi-paper hover:text-nomi-ink hover:border-transparent disabled:cursor-wait disabled:opacity-60',
             'focus-visible:outline-2 focus-visible:outline-nomi-paper focus-visible:outline-offset-2',
           )}
@@ -246,7 +246,7 @@ export function AssetPreviewDialog({ asset, onClose, sequence, initialIndex = 0 
           onPointerDown={(event) => event.stopPropagation()}
         />
       ) : (
-        <div className="flex h-40 w-[min(70vw,560px)] items-center justify-center rounded-nomi border border-dashed border-nomi-paper/30 bg-nomi-overlay-chip-strong px-6 text-body-sm text-nomi-paper/70" data-storyboard-playback-empty-row="true">
+        <div className="flex h-40 w-[min(70vw,560px)] items-center justify-center rounded-nomi border border-dashed border-nomi-media-ink/30 bg-nomi-overlay-chip-strong px-6 text-body-sm text-nomi-media-ink/70" data-storyboard-playback-empty-row="true">
           {!sequence?.some((item) => item.playable) ? t('storyboardEditor.playback.allNotGenerated') : currentItem?.label || t('storyboardEditor.playback.notGenerated')}
         </div>
       )}

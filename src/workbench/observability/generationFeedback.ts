@@ -13,6 +13,30 @@ export type GenerationFeedback = {
   previewLabel: string
 }
 
+/**
+ * 「已保存到项目」这句话能待多久。
+ *
+ * 它是一次**落地回执**，不是节点的常驻状态：图已经在画面里了，那才是「保存成功」最强的证据。
+ * 2026-09-11 用户实测反馈——每一个做完的图片节点下面都永久挂着这一条，
+ * 一屏十几个节点就是十几条重复的废话，把真正要读的东西（失败、还在跑的那几个）淹掉。
+ *
+ * 用「完成时刻 + 窗口」而不是一个 `seen` 标记：窗口是**从数据派生**的，
+ * 重开项目、切面、换外壳都不会让一条早就该消失的回执重新冒出来，也不用为它存一份状态。
+ */
+export const SAVED_FEEDBACK_WINDOW_MS = 4000
+
+/** 这个节点刚刚落地、回执还在窗口里吗。 */
+export function savedFeedbackWindowOpen(node: GenerationCanvasNode, now: number): boolean {
+  if (node.status !== 'success') return false
+  const run = node.runs?.[0]
+  const at = run?.completedAt ?? run?.updatedAt
+  if (at === undefined) return false
+  const elapsed = now - at
+  // 负数 = 完成时间在「现在」之后（时钟回拨/上游时间戳）。回落到不显示：
+  // 这条回执可有可无，而一条赖着不走的回执正是要修的病。
+  return elapsed >= 0 && elapsed < SAVED_FEEDBACK_WINDOW_MS
+}
+
 /** Cache the exact narration result, so all three surfaces consume one call per node/tick/locale. */
 const cache = new WeakMap<object, { key: string; feedback: GenerationFeedback | null }>()
 
@@ -28,7 +52,7 @@ export function generationFeedback(node: GenerationCanvasNode, now: number, queu
 
 function deriveFeedback(node: GenerationCanvasNode, now: number, queued: boolean, queueAhead?: number): GenerationFeedback | null {
   const active = queued || node.status === 'queued' || node.status === 'running'
-  const saved = !queued && node.status === 'success'
+  const saved = !queued && savedFeedbackWindowOpen(node, now)
   const failed = !queued && node.status === 'error'
   if (!active && !saved && !failed) return null
   const stage = queued ? 'queued' : isGenerationProgressStage(node.progress?.phase)

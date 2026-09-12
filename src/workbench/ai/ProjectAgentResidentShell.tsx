@@ -18,7 +18,8 @@ import { useResidentActivityStore } from './residentActivity'
 import { TimelineAgentReceiptEffect } from './resident/TimelineAgentReceiptEffect'
 import { useTimelinePlanPreview } from './resident/timelineAgentSurface'
 import type { ResidentSurface } from './resident/residentShellDisplay'
-import { AgentPanelV4Panel } from './v4/AgentPanelV4Panel'
+import { AgentPanelV4Panel, type V4InterventionHandlers } from './v4/AgentPanelV4Panel'
+import { planConfirmDecision } from './v4/agentPanelV4Intervention'
 import { flowScrollMemoryFor } from './v4/agentPanelV4ScrollMemory'
 import { V4Intervention } from './v4/AgentPanelV4Cards'
 import { V4CollapsedDock } from './v4/AgentPanelV4Dock'
@@ -125,6 +126,44 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
     onScope: spend.setScope,
   }
   const autoModeSlotHandlers = { onConfirm: autoMode.confirm, onReject: autoMode.cancel }
+  // 计划行的两根线（勾选 / 收起）与「这张卡是谁给的」无关——三个数据源都可能带清单，
+  // 所以在最外层一次补齐。它们在 `V4Intervention` 上是**必填 prop**：以前是可选的，
+  // 宿主一根都没接，用户点了半天以为界面坏了（2026-09-11 实测）。
+  const planSlotHandlers = {
+    onPlanToggle: data.plan.toggleRow,
+    onCollapsePlan: data.plan.toggleCollapsed,
+    planCollapsed: data.plan.collapsed,
+  }
+  /**
+   * 计划卡的「确认」。
+   *
+   * 卡标题上印着的承诺是「不勾就是不做」，但 lane 的审批协议只有准 / 不准两个答案，
+   * 没有「按这份清单改一改再准」。所以取消过勾选之后的确认 = 一次带话的 deny：
+   * 那句话一字不改成为模型看到的 tool result（见 `laneClient.deny` 注释），
+   * 模型据此重开一张只含留下那几条的计划。一条都不留 = 整张不要，那就是不带话的 deny。
+   *
+   * 不做成「照样全批」——那才是真正的欺骗：用户明明取消了三镜，钱照花。
+   */
+  const confirmLaneSlot = (): void => {
+    const decision = planConfirmDecision(data.plan.unchecked, data.plan.kept)
+    if (decision.action === 'approve') { actions.approve(); return }
+    actions.reject(decision.keptRows.length
+      ? t('agentPanelV4.planKeepOnly', { kept: decision.keptRows.map((row) => `\n· ${row}`).join('') })
+      : undefined)
+  }
+  // 面板与收起坞共用同一份写口。两处各抄一遍的代价已经付过：收起坞那份长期少了 onAlternate。
+  const slotHandlers: V4InterventionHandlers = autoMode.slot
+    ? { ...autoModeSlotHandlers, ...planSlotHandlers }
+    : spend.slot
+      ? { ...spendSlotHandlers, ...planSlotHandlers }
+      : {
+        onConfirm: confirmLaneSlot,
+        onReject: actions.reject,
+        onEscalate: actions.stopAsking,
+        onOption: (option: string) => actions.answerOption(option),
+        onAlternate: () => window.dispatchEvent(new Event('nomi-open-model-catalog')),
+        ...planSlotHandlers,
+      }
   const autoModeBanner = autoMode.bannerVisible ? (
     <V4AutoModeBanner
       label={t('agentPanelV4.permission.project')}
@@ -402,16 +441,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
               data={activeSlot}
               labels={labels.intervention}
               {...(!autoMode.slot && spend.slot && spendComposer ? { composer: spendComposer } : {})}
-              {...(autoMode.slot
-                ? autoModeSlotHandlers
-                : spend.slot
-                  ? spendSlotHandlers
-                  : {
-                    onConfirm: actions.approve,
-                    onReject: actions.reject,
-                    onEscalate: actions.stopAsking,
-                    onOption: (option: string) => actions.answerOption(option),
-                  })}
+              {...slotHandlers}
             />
           ) : null}
           {autoModeBanner}
@@ -486,7 +516,6 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
         onHistory={() => setThreadsOpen((value) => !value)}
         onCollapse={() => setCollapsed(true)}
         flowHandlers={{
-          onCopy: (text) => { void navigator.clipboard?.writeText(text) },
           onContinue: (index) => {
             const item = data.flow[index]
             if (item?.kind !== 'assistant' || !item.continuationEntryId) return
@@ -497,13 +526,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
           onErrorAction: recoverFromFailure,
           onSuggestion: (_index, option) => actions.answerOption(option),
         }}
-        slotHandlers={autoMode.slot ? autoModeSlotHandlers : spend.slot ? spendSlotHandlers : {
-          onConfirm: actions.approve,
-          onReject: actions.reject,
-          onEscalate: actions.stopAsking,
-          onOption: (option) => actions.answerOption(option),
-          onAlternate: () => window.dispatchEvent(new Event('nomi-open-model-catalog')),
-        }}
+        slotHandlers={slotHandlers}
         queueHandlers={{
           onAction: actions.queueAction,
           onDestructiveAction: actions.queueInterrupt,

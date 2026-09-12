@@ -84,7 +84,7 @@ export default function ShotReferenceSlotPopover({
                   <span className="relative size-12 shrink-0 overflow-hidden rounded-nomi-sm border border-nomi-line bg-nomi-ink-05">
                     <NomiImage src={binding.url} alt={name} className="absolute inset-0 h-full w-full object-cover" />
                     {cell.numbered ? (
-                      <span className="absolute left-0 top-0 rounded-br-nomi-sm bg-nomi-overlay-chip px-1 text-micro text-nomi-paper tabular-nums">
+                      <span className="absolute left-0 top-0 rounded-br-nomi-sm bg-nomi-overlay-chip px-1 text-micro text-nomi-media-ink tabular-nums">
                         {index + 1}
                       </span>
                     ) : null}

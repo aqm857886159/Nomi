@@ -93,14 +93,14 @@ export default function StoryboardShotFrame({
           ? 'bg-nomi-accent text-nomi-paper'
           : quiet
             ? 'bg-nomi-ink-10 text-nomi-ink-60'
-            : 'bg-nomi-overlay-chip text-nomi-paper',
+            : 'bg-nomi-overlay-chip text-nomi-media-ink',
       )}
     >
       {String(shot.index).padStart(2, '0')}
     </button>
   )
   const durationBadge = (
-    <span className="absolute bottom-1 right-1 z-[2] px-1 rounded-nomi-sm bg-nomi-overlay-chip text-micro text-nomi-paper tabular-nums">
+    <span className="absolute bottom-1 right-1 z-[2] px-1 rounded-nomi-sm bg-nomi-overlay-chip text-micro text-nomi-media-ink tabular-nums">
       {t('storyboardEditor.frame.durationBadge', { seconds: effectiveShotDurationSec(shot) })}
     </span>
   )
@@ -127,7 +127,7 @@ export default function StoryboardShotFrame({
         {indexBadge(false)}
         {durationBadge}
         {locked ? (
-          <span className="absolute top-1 right-1 z-[2] px-1 py-0.5 rounded-pill bg-nomi-overlay-chip-strong text-nomi-paper inline-flex items-center gap-0.5">
+          <span className="absolute top-1 right-1 z-[2] px-1 py-0.5 rounded-pill bg-nomi-overlay-chip-strong text-nomi-media-ink inline-flex items-center gap-0.5">
             <IconLock size={10} stroke={2} aria-label={t('storyboardEditor.frame.lockedBadge')} />
           </span>
         ) : exec.changedRefs.length > 0 ? (

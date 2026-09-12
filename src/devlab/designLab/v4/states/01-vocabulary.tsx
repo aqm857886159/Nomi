@@ -19,7 +19,7 @@ import { V4ErrorBar, V4ToolReceipt } from '../../../../workbench/ai/v4/AgentPane
 import { V4FlowRow } from '../../../../workbench/ai/v4/AgentPanelV4Panel'
 import { useV4Labels } from '../../../../workbench/ai/v4/agentPanelV4Labels'
 import type { ToolReceipt, V4AssistantStatus } from '../../../../workbench/ai/v4/agentPanelV4Types'
-import { Piece, useV4Fixtures } from '../agentPanelV4LabKit'
+import { Piece, useV4Fixtures, V4_LAB_SLOT_HANDLERS } from '../agentPanelV4LabKit'
 import { laneDrivenReceipt, laneSnapshotToolDenied, laneSnapshotToolRunning } from '../laneDrivenFixtures'
 import type { LabState } from '../../labScreen'
 
@@ -145,7 +145,7 @@ function SlotCell({ pick }: { pick: keyof ReturnType<typeof useV4Fixtures>['slot
   const labels = useV4Labels()
   return (
     <Piece>
-      <V4Intervention data={fx.slots[pick]} labels={labels.intervention} />
+      <V4Intervention {...V4_LAB_SLOT_HANDLERS} data={fx.slots[pick]} labels={labels.intervention} />
     </Piece>
   )
 }

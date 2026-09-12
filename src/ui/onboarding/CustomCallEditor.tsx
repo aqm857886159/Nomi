@@ -32,6 +32,7 @@ import { customCallPersistedStateSignature } from './customCallEditorDirty'
 import { CustomCallContractSidebar } from './CustomCallContractSidebar'
 import { ModelSettingsPageSurface } from './ModelSettingsPageSurface'
 import { useCustomCallTestRun } from './useCustomCallTestRun'
+import { useClipboardCopy } from '../../design'
 
 export type CustomCallTarget = {
   vendorKey: string
@@ -69,7 +70,8 @@ export function CustomCallEditor({
   const [configRows, setConfigRows] = React.useState<CustomConfigRow[]>([])
   const [configOpen, setConfigOpen] = React.useState(false)
   const [initialPersistedState, setInitialPersistedState] = React.useState({ targetKey: '', signature: '' })
-  const [briefCopied, setBriefCopied] = React.useState(false)
+  const briefClipboard = useClipboardCopy()
+  const briefCopied = briefClipboard.copied
   const abortRef = React.useRef<AbortController | null>(null)
   const testResultRef = React.useRef<HTMLDivElement>(null)
 
@@ -134,7 +136,7 @@ export function CustomCallEditor({
     setSelectedModeId(modeId)
     setAiError('')
     setSaveError('')
-    setBriefCopied(false)
+    briefClipboard.reset()
   }, [savedScriptForSelectedScope, script, selectedModeId, selectedScopeLabel, setScriptForMode, t])
 
   // 打开时装载既有脚本 + 该供应商已存的自定义配置；关闭清态。
@@ -151,7 +153,7 @@ export function CustomCallEditor({
       setMaterial('')
       setAiError('')
       setSaveError('')
-      setBriefCopied(false)
+      briefClipboard.reset()
     }
     return () => abortRef.current?.abort()
   // targetKey avoids resetting typed drafts when the page parent refreshes the same target object.
@@ -325,13 +327,8 @@ export function CustomCallEditor({
       ...(selectedMode ? { taskKind: selectedMode.taskKind, modeId: selectedMode.id } : {}),
     })
     if (!instruction) return
-    try {
-      await navigator.clipboard.writeText(String(instruction))
-      setBriefCopied(true)
-    } catch {
-      setSaveError(t('onboardingProviders.customCall.saveFailed', { message: 'clipboard' }))
-    }
-  }, [target, bridge, material, script, selectedMode, test, t])
+    await briefClipboard.copy(String(instruction))
+  }, [target, bridge, material, script, selectedMode, test, briefClipboard])
 
   const insertTemplate = React.useCallback(
     (id: string) => {
@@ -646,7 +643,9 @@ export function CustomCallEditor({
                     >
                       {briefCopied
                         ? t('onboardingProviders.customCall.copyBriefDone')
-                        : t('onboardingProviders.customCall.copyBrief')}
+                        : briefClipboard.failed
+                          ? t('common.copyFailed')
+                          : t('onboardingProviders.customCall.copyBrief')}
                     </DesignButton>
                   </div>
                 ) : null}

@@ -47,8 +47,14 @@ export type V4InterventionSource = Readonly<{
   pendingCount: number
   /** 时间轴计划的行（`useTimelinePlanRows` 的输出）。有就用它当计划清单。 */
   planLines?: readonly Readonly<{ text: string; technical?: string }>[]
-  /** 计划槽里当前勾选的行。未提供 = 全勾。 */
-  checkedPlanRows?: ReadonlySet<string>
+  /**
+   * 计划槽里被**取消勾选**的行（按 label）。默认（空集）= 全勾。
+   *
+   * 记「取消的」而不是「勾上的」，是因为清单的行在同一次待决里可能还没投影出来
+   * （`planLines` 是异步查时间轴得到的）：记勾上的那一份要先有全表才填得满，
+   * 空集在那一瞬会被读成「一条都没勾」。取消集没有这个先后问题。
+   */
+  uncheckedPlanRows?: ReadonlySet<string>
 }>
 
 function asRecord(value: unknown): Readonly<Record<string, unknown>> {
@@ -157,19 +163,38 @@ export function projectV4Intervention(
   return Object.freeze(base)
 }
 
+/**
+ * 计划卡按下「确认」时到底发什么。
+ *
+ * lane 的审批协议只有准 / 不准（`laneClient.approve` / `deny`），没有「照这份清单改了再准」。
+ * 但计划卡标题印着的承诺是「不勾就是不做」，所以：
+ *   · 一条都没取消 → 就是批准；
+ *   · 取消了几条、还留着几条 → 带话的 deny，那句话一字不改成为模型看到的 tool result，
+ *     模型据此重开一张只含留下那几条的计划；
+ *   · 一条都不留 → 不带话的 deny（整张不要）。
+ * 纯函数是因为这条判断值得被断言：把它写在 onClick 里，只有真人点过才知道它对不对。
+ */
+export function planConfirmDecision(
+  unchecked: ReadonlySet<string>,
+  keptRows: readonly string[],
+): Readonly<{ action: 'approve' } | { action: 'deny'; keptRows: readonly string[] }> {
+  if (unchecked.size === 0) return Object.freeze({ action: 'approve' as const })
+  return Object.freeze({ action: 'deny' as const, keptRows })
+}
+
 function planRowsOf(source: V4InterventionSource): readonly PlanRow[] {
-  const checked = source.checkedPlanRows
+  const unchecked = source.uncheckedPlanRows
   if (source.planLines?.length) {
     return source.planLines.map((line) => ({
       label: line.text,
       ...(line.technical ? { technical: line.technical } : {}),
-      checked: checked ? checked.has(line.text) : true,
+      checked: !unchecked?.has(line.text),
     }))
   }
   return residentPlanShots(source.args).map((shot) => ({
     label: shot.title,
     ...(shot.description ? { detail: shot.description } : {}),
-    checked: checked ? checked.has(shot.title) : true,
+    checked: !unchecked?.has(shot.title),
   }))
 }
 

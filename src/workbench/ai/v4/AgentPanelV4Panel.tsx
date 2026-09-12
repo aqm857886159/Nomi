@@ -43,7 +43,6 @@ export type { V4FlowItem }
 
 /** 对话流里某一条的动作。`index` 是流内序号——调用方用它换回宿主的 itemId。 */
 export type V4FlowHandlers = Readonly<{
-  onCopy?: (text: string) => void
   onRetry?: (index: number) => void
   onContinue?: (index: number) => void
   onUndoTool?: (toolCallId: string) => void
@@ -63,8 +62,10 @@ export type V4InterventionHandlers = Readonly<{
   onEscalate?: () => void
   onAlternate?: () => void
   onOption?: (option: string, index: number) => void
-  onPlanToggle?: (label: string, checked: boolean) => void
-  onCollapsePlan?: () => void
+  /** 计划行勾选 / 收起。**必填**——见 `V4Intervention` 里那段注释（R28）。 */
+  onPlanToggle: (label: string, checked: boolean) => void
+  onCollapsePlan: () => void
+  planCollapsed?: boolean
 }>
 
 export type V4QueueHandlers = Readonly<{
@@ -104,7 +105,8 @@ export type AgentPanelV4PanelProps = {
   height?: number
   darkMode?: boolean
   flowHandlers?: V4FlowHandlers
-  slotHandlers?: V4InterventionHandlers
+  /** 介入槽的写口。**必填**：少接一根线，卡上那几颗按钮就是点不动的（R28）。 */
+  slotHandlers: V4InterventionHandlers
   queueHandlers?: V4QueueHandlers
   onHistory?: () => void
   onCollapse?: () => void
@@ -139,7 +141,6 @@ export function V4FlowRow({
         status={item.status}
         {...(item.skill ? { skill: item.skill } : {})}
         labels={labels.assistant}
-        onCopy={handlers?.onCopy}
         {...(handlers?.onRetry ? { onRetry: () => handlers.onRetry?.(at) } : {})}
         {...(handlers?.onContinue ? { onContinue: () => handlers.onContinue?.(at) } : {})}
       />

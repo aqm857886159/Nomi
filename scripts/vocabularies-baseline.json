@@ -11,6 +11,15 @@
     }
   ],
   "registered": [
+  {
+      "site": "src/design/clipboard.ts::type:ClipboardCopyState/type-union",
+      "members": [
+          "copied",
+          "failed",
+          "idle"
+      ],
+      "reason": "复制按钮那一枚**回执**的三态，全站的复制钮共用这一份（2026-09-11 用户报「助手输出的复制 icon 点了没反应」，根因是 15 个调用点各有各的回执规矩）。与 taskCenter/taskCenterEntries.ts 的 resolveTaskButtonTone 只重叠 idle/failed 两词，语义不是一回事：那边是**任务**的运行语气（有 busy——任务会跑一段时间，按钮要表达「正在跑」），这边是一次瞬时写入的结果（写剪贴板没有「正在写」这一档，只有成了/没成，且 copied 会在 COPIED_FEEDBACK_MS 后自己退回 idle）。合并会逼出一个任务侧永远取不到的 copied 和一个复制侧永远取不到的 busy。"
+  },
     {
       "site": "src/ui/onboarding/assistedProgressProjection.ts::type:AssistedProgressOutcome/type-union",
       "members": [
