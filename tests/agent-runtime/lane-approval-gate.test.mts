@@ -19,7 +19,7 @@ import { LANE_APPROVAL_NOTE_TYPE, isLaneApprovalNote, type LaneProjection }
 import { LANE_WRITE_TOOL_TIMEOUT_MS } from '../../electron/shared/agentLane/laneToolContract.js';
 import type { LaneApprovalOptions } from '../../electron/agentLane/laneRuntimePort.js';
 import { createDocumentLaneTools } from '../../electron/agentLane/laneDocumentTools.js';
-import { createDocumentPort, createLaneFixture } from './laneFixture.mjs';
+import { createDocumentPort, createLaneFixture, FIXTURE_DESCRIBE } from './laneFixture.mjs';
 
 const APPEND = { type: 'tool' as const, calls: [{ id: 'call-append', name: 'append_to_end', arguments: { content: ' and then she left.' } }] };
 const CLOSING = { type: 'text' as const, text: 'Done.' };
@@ -132,8 +132,8 @@ test('G3b ① · 「本会话允许这类」按能力记：同一个能力的下
       name: 'plan_timeline',
       contractId: 'timeline.write',
       description: 'Apply a timeline edit plan, used here to exercise the plan-review approval path.',
-      promptSnippet: 'apply a timeline edit plan.',
-      effects: { mutates: true, billable: false, reversal: 'undoable' },
+      promptSnippet: 'apply a timeline edit plan.', nextAction: 'none', describe: FIXTURE_DESCRIBE,
+      effect: 'reversible_local',
       execution: { timeoutMs: LANE_WRITE_TOOL_TIMEOUT_MS },
       schema: z.object({}).strict(),
       examples: [{ when: 'Call it with no arguments:', arguments: {} }],

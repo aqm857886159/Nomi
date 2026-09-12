@@ -693,7 +693,10 @@ describe("ProviderAdapterService", () => {
     const service = new ProviderAdapterService(adapterStore, deps);
     const started = await service.start({ ...startInput, models: [startInput.models[1]] });
 
-    await expect(service.executeRun(started.id)).rejects.toThrow("catalog cleanup failed");
+    // 2026-09-12：executeRun **不再把失败漏成 rejection**（那正是让 run 永久停在中间态的那条路）。
+    // 它现在正常 resolve，把终态化交给 terminal guarantee；而本条测试真正要钉的东西没变——
+    // 清理失败时绝不能留下一个「已终态」的半成品，也绝不能写出 revision。
+    await expect(service.executeRun(started.id)).resolves.toBeUndefined();
 
     expect(catalog.promoted).toEqual([]);
     expect(adapterStore.snapshot().revisions).toEqual([]);
@@ -704,6 +707,7 @@ describe("ProviderAdapterService", () => {
     };
     expect(service.cancel(started.id)?.stage).toBe("cancelled");
     expect(catalog.failed).toEqual([started.id]);
+    service.stopWatchdog(); // 别把还在退避的重试定时器留在 event loop 上
   });
 
   it("does not report completion when publishing the catalog result fails", async () => {
