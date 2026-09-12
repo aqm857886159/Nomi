@@ -10,6 +10,19 @@ import { canvasWriteSemanticInputSchema, type CanvasWriteInput, type CanvasWrite
 import { specsForCapability } from "../shared/agentCapabilities/modelFacingToolRegistry";
 import { formatCanvasForAgent } from "../shared/agentCapabilities/canvasReadCompact";
 import { bindLaneTool, type LaneToolDescriptor, type LaneToolExecutionContext } from "./laneRuntimePort";
+import { z } from "zod";
+import { storyboardPlanParamsSchema } from "../shared/agentCapabilities/canvasModelShapes";
+
+const storyboardAliasSchema = z.object({
+  operation: z.enum(["propose_storyboard_plan", "patch_shots"]),
+  title: z.string().min(1).optional(), aspectRatio: z.string().min(1).optional(),
+  anchors: storyboardPlanParamsSchema.shape.anchors.optional(), shots: storyboardPlanParamsSchema.shape.shots.optional(),
+  select: z.object({ kind: z.enum(["all", "indexes"]), indexes: z.array(z.number().int().min(1).max(24)).min(1).max(24).optional() }).strict().optional(),
+  patch: z.object({ prompt: z.string().min(1).optional(), promptAppend: z.string().min(1).optional(), shotKind: z.enum(["image", "video"]).optional(), durationSec: z.number().int().min(1).max(60).optional(), aspectRatio: z.string().min(1).optional(), modelKey: z.string().min(1).optional(), modelVendor: z.string().min(1).optional() }).strict().optional(),
+}).strict().superRefine((value, context) => {
+  if (value.operation === "propose_storyboard_plan" && (!value.title || !value.anchors || !value.shots)) context.addIssue({ code: z.ZodIssueCode.custom, message: "propose_storyboard_plan needs title, anchors and shots" });
+  if (value.operation === "patch_shots" && (!value.select || !value.patch)) context.addIssue({ code: z.ZodIssueCode.custom, message: "patch_shots needs select and patch" });
+});
 
 /** 领域侧。lane 不认识 React Flow，只认识「读一次画布」和「提一次可撤销的改动」。 */
 export interface CanvasLanePort {
@@ -62,6 +75,8 @@ export function createCanvasLaneTools(port: CanvasLanePort): LaneToolDescriptor[
   if (write) for (const name of ["nomi_canvas_write", "nomi_canvas_edit", "nomi_canvas_plan"]) {
     if (!specs.some(spec => spec.name === name)) specs.push({ ...write, name, schema: canvasWriteSemanticInputSchema, prepareArguments: (value: unknown) => value })
   }
+  const storyboard = specs.find(spec => spec.name === "nomi_storyboard_write")
+  if (storyboard) specs[specs.findIndex(spec => spec.name === "nomi_storyboard_write")] = { ...storyboard, schema: storyboardAliasSchema, prepareArguments: (value: unknown) => value }
   return specs.map((spec) => {
     if (spec.contractId === "canvas.read") {
       return bindLaneTool(spec, async (_args, context) => {
