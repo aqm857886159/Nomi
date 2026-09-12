@@ -55,7 +55,7 @@ type Props = {
   /** 这镜引用了、但锚已不存在的 id（展开态红标 + 阻断确认）。 */
   danglingIds: string[]
   exec?: ShotRowExec | undefined
-  /** 这一行生效的画幅（storyboardAspectScope.effectiveShotAspect）。 */
+  /** 这一行生效的画幅（storyboardShotScope.effectiveShotAspect）。 */
   aspect: string
   /** 整张表共用的媒体盒（`tableFrameMediaBox`）——行不自己按画幅算，算了混排就又不齐（§2.4 修订）。 */
   frameBox: FrameMediaBox

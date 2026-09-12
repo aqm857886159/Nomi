@@ -1,8 +1,8 @@
 /**
  * 生成浮框底栏中段的「B 簇」——帮我写提示词的那三件：🎥 运镜 · ✦ 效果 · ✨ 优化。
  *
- * 为什么单独一个文件：这三件的**触发器外观**必须一模一样（缩小一号的纯 icon、hover 出名字、
- * 可带一个激活点），而它们的弹层与逻辑分别住在 NodeCameraMoveControl / useNodeEffectChips /
+ * 为什么单独一个文件：这两件的**触发器外观**必须一模一样（缩小一号的纯 icon、hover 出名字、
+ * 可带一个激活点），而它们的弹层与逻辑分别住在 useNodeEffectChips /
  * NodePromptOptimizer 三处。把外观抄三份就是三个平行版（P1），下一次调间距只会改中一份。
  * 这里只放**外观与分组**，一行业务逻辑都没有。
  *
@@ -44,12 +44,12 @@ export function NodePromptToolCluster({ ariaLabel, children }: { ariaLabel: stri
  * 讲给门岗听，不是绕过它：形态一旦退化成带文字的按钮，名字就该跟着改，门岗也就该量它。
  */
 type NodePromptToolIconButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
-  /** 走查与簇内顺序的锚点：camera-move / effects / optimize。 */
+  /** 走查与簇内顺序的锚点：effects / optimize。 */
   toolId: string
   icon: React.ReactNode
   /** hover 出的那个名字，同时是 aria-label。已选值的回显也走它（运镜报「推近 · 中」）。 */
   label: string
-  /** 带状态的那颗（目前只有运镜）已选时点亮的小圆点。 */
+  /** 可选的状态点已选时点亮的小圆点。 */
   active?: boolean
   /** 禁用时必须说清为什么点不了（§1.6 C1/C4）：禁用的 button 自己不触发 title，得靠外层包一层。 */
   disabledReason?: string

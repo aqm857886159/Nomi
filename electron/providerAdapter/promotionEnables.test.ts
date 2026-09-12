@@ -63,7 +63,7 @@ function promoteWithEverythingFailed() {
           modelKey: model.modelKey,
           labelZh: model.labelZh,
           kind: "text",
-          modes: [{ taskKind: "chat", state: "failed", attempts: 1, stage: "create", error: "empty reply" }],
+          modes: [{ taskKind: "chat", state: "failed", attempts: 1, stage: "credential", error: "empty reply" }],
         },
       ],
       sourceUrls: [],

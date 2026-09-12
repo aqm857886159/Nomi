@@ -11,7 +11,7 @@ import {
 import { certificationModeOperationKey } from "../integrationCertification/modeIdentity";
 import { deriveVendorKeyFromBaseUrl } from "../catalog/catalogCommit";
 import type { BillingModelKind, Model, Vendor } from "../catalog/types";
-import { AdapterNeedsAiError, compileProviderAdapter, repairProviderAdapter } from "./compiler";
+import { AdapterNeedsAiError, compileProviderAdapter } from "./compiler";
 import type { DiscoveredDocs } from "./docsDiscovery";
 import { resolveProviderDocs } from "./providedDocs";
 import { builtinDraftForUndocumentedEndpoint } from "./builtinOpenAiCompatibleDraft";
@@ -31,7 +31,7 @@ import type {
   ProviderAdapterRegistration,
   ProviderAdapterRun,
 } from "./types";
-import { verifyAdapterMode, type AdapterVerificationResult } from "./verifier";
+import { probeAdapterCredential, verifyAdapterMode, type AdapterCredentialProbe, type AdapterVerificationResult } from "./verifier";
 import { redactAdapterSecrets } from "./redaction";
 import { defaultCatalog, type LoadedConnection, type ProviderAdapterCatalogPort } from "./serviceCatalog";
 import { AdapterWaitError, awaitAdapterStep, deadlineExpired, deadlineFrom } from "./serviceLifecycle";
@@ -88,40 +88,27 @@ export type ProviderAdapterServiceDependencies = {
     docs: DiscoveredDocs["sources"];
     signal?: AbortSignal;
   }) => Promise<ProviderAdapterCompilation>;
-  repair: (input: {
-    languageModels: readonly LanguageModelV1[];
-    providerBaseUrl: string;
-    selectedModelKeys: readonly string[];
-    previousDraft: ProviderAdapterDraft;
-    failure: { stage: string; message: string; modelKey?: string; taskKind?: string; requestSummary?: unknown };
-    docs: DiscoveredDocs["sources"];
-    signal?: AbortSignal;
-  }) => Promise<ProviderAdapterDraft>;
+  /**
+   * 一条连接探一次的免费凭据自检（鉴权 + 模型清单）。结论对这条连接下所有模型相同。
+   * 2026-09-11：**自动修复（repair）整族删了**——它存在的唯一理由是「付费验证失败了再花钱试一次」，
+   * 而付费验证本身已经不在了。修不动的说明卡如实回报，由驱动 Agent 拿真实错误重新 propose。
+   */
+  probeCredential: (input: { vendor: Vendor; apiKey: string; signal?: AbortSignal }) => Promise<AdapterCredentialProbe>;
   verify: (input: {
     vendor: Vendor;
     model: Model;
     apiKey: string;
     mode: ProviderAdapterDraft["models"][number]["modes"][number];
-    onRemoteTaskAccepted?: (remoteTaskId: string) => void;
-    signal?: AbortSignal;
-  }) => Promise<AdapterVerificationResult>;
-  reconcile?: (input: {
-    vendor: Vendor;
-    model: Model;
-    apiKey: string;
-    mode: ProviderAdapterDraft["models"][number]["modes"][number];
-    remoteTaskId: string;
+    credential: AdapterCredentialProbe;
     signal?: AbortSignal;
   }) => Promise<AdapterVerificationResult>;
   operationLedger?: OperationLedger;
   promotionJournal?: PromotionJournal;
   now: () => string;
   id: () => string;
-  maxRepairs?: number;
   batchTimeoutMs?: number;
   discoverTimeoutMs?: number;
   compileTimeoutMs?: number;
-  repairTimeoutMs?: number;
   verifyTimeoutMs?: number;
   canonicalStartWaitMs?: number;
   certificationCheckpoint?: (checkpoint: CertificationStartCheckpoint) => void | Promise<void>;
@@ -136,16 +123,14 @@ const defaultDependencies: ProviderAdapterServiceDependencies = {
   discover: (input) => resolveProviderDocs(input),
   resolveLanguageModels: defaultResolveLanguageModels,
   compile: (input) => compileProviderAdapter(input),
-  repair: (input) => repairProviderAdapter(input),
+  probeCredential: (input) => probeAdapterCredential(input),
   verify: (input) => verifyAdapterMode(input),
   now: () => new Date().toISOString(),
   id: () => `adapter-run-${crypto.randomUUID()}`,
-  maxRepairs: 2,
   batchTimeoutMs: 5 * 60_000,
   discoverTimeoutMs: 45_000,
   compileTimeoutMs: 120_000,
-  repairTimeoutMs: 90_000,
-  verifyTimeoutMs: 90_000,
+  verifyTimeoutMs: 30_000,
 };
 
 export class ProviderAdapterService {
@@ -273,7 +258,10 @@ export class ProviderAdapterService {
     }
     for (const run of recoverableAdapterRuns(this.store.snapshot().runs)) {
       if (run.recovery?.reasonCode === "promotion_commit_unknown") continue;
-      if (this.certification.resumeDisposition(run, Boolean(this.dependencies.reconcile)) === "wait") continue;
+      // 没有对账能力了（自检不提交任何东西，也就不会有「不知道有没有落地」的远端任务）。
+      // 本次改动之前落盘、仍停在 submitting/unknown 的历史 run 由 resumeDisposition 判成 wait，
+      // 停在那里等人处理，而不是被我们再花一次钱去重试。
+      if (this.certification.resumeDisposition(run, false) === "wait") continue;
       const deadlineAt = run.deadlineAt || deadlineFrom(run.createdAt, this.dependencies.batchTimeoutMs ?? 5 * 60_000);
       if (deadlineExpired(deadlineAt, this.dependencies.now())) {
         this.finishTerminal(run.id, "timed_out", "Adapter run deadline expired before it could resume");
@@ -381,9 +369,7 @@ export class ProviderAdapterService {
       const runInput = this.store.getRunInput(id);
       const suppliedDraft = externallyCompiledDraft(runInput, connection);
       const needsCompile = mediaModels.length > 0 && !suppliedDraft;
-      let docs: DiscoveredDocs = { sources: [], corpus: "" };
       let compilation = suppliedDraft ? { draft: suppliedDraft, failures: [] } : genericCompilation(connection, []);
-      let compiledModelKeys = new Set<string>(suppliedDraft ? suppliedDraft.models.map((model) => model.modelKey) : []);
       const languageModels = needsCompile ? this.dependencies.resolveLanguageModels(connection) : [];
       if (needsCompile) {
         const compiled = await discoverAndCompileMediaModels({
@@ -415,80 +401,24 @@ export class ProviderAdapterService {
             }),
           ),
         });
-        docs = compiled.docs;
         compilation = compiled.compilation;
-        compiledModelKeys = compiled.compiledModelKeys;
       }
       // 文本条目不经 AI：接法固定、模式表也固定（chat）。合进草稿只为让验证与展示有位置。
       // 文本条目**以这里为单一真相**——编译器万一也吐了同名文本条目（误分类/被喂了不该喂的），
       // 一律以这份为准替换掉，否则同一个模型会出现两条、验证跑两遍（有回归钉子）。
       const textModels = connection.models.filter((model) => model.kind === "text");
-      let candidate: ProviderAdapterDraft = {
+      const candidate: ProviderAdapterDraft = {
         ...compilation.draft,
         models: withTextModels(compilation.draft.models, textModels),
       };
-      let verification = await this.verifyDraft(id, connection, candidate, 1, compilation.failures);
-      let results = verification.results;
-      if (verification.deadlineError) {
-        await this.promoteFinal(id, candidate, results, verification.deadlineError, true);
-        return;
-      }
-      const maxRepairs = this.dependencies.maxRepairs ?? 2;
-      let repairError: string | undefined;
-      let deadlineReached = false;
-      // 自动修复重新生成的是「HTTP 接法草稿」，而文本模型的验证走 streamTextTask（生产同一条路）、
-      // 压根不读这份草稿——对文本失败重修等于原样再发一次同样的请求，必然同样失败。
-      // 旧行为：白转 2 轮、界面还写着「正在根据真实错误自动修复…」（假的），用户干等 2 分钟拿同一个结果。
-      // 只让「修得动的」失败（真正按草稿发请求的非文本模型）触发重修。(2026-08-12)
-      // 外部编译的说明卡我们修不动（重修本身要叫文本模型，而这条路存在的前提正是没有）。
-      // 失败如实回报，由驱动 Agent 拿着真实错误重新 propose 一份，别在这里假装在修。
-      const repairableKeys = suppliedDraft ? new Set<string>() : compiledModelKeys;
-      for (let repairAttempt = 1; repairAttempt <= maxRepairs; repairAttempt += 1) {
-        const compiledKeys = new Set(candidate.models.map((model) => model.modelKey));
-        const failure = results.find(
-          (result) => result.state === "failed" && compiledKeys.has(result.modelKey) && repairableKeys.has(result.modelKey),
-        );
-        if (!failure) break;
-        this.setStage(id, "repairing", failure.modelKey, { repairAttempt });
-        try {
-          // 只让重修碰它修得动的那些模型，修完再把文本条目按单一真相合回去——
-          // 否则重修会顺手用 AI 重新生成文本条目，把确定性的那份覆盖掉。
-          const repaired = await this.awaitStep(id, "Adapter repair", this.dependencies.repairTimeoutMs ?? 90_000, (signal) =>
-            this.dependencies.repair({
-              languageModels,
-              providerBaseUrl: String(connection.vendor.baseUrlHint || ""),
-              selectedModelKeys: candidate.models.filter((model) => repairableKeys.has(model.modelKey)).map((model) => model.modelKey),
-              previousDraft: candidate,
-              failure: {
-                stage: failure.stage || "create",
-                message: failure.error || "Unknown verification failure",
-                modelKey: failure.modelKey,
-                taskKind: failure.taskKind,
-              },
-              docs: docs.sources,
-              signal,
-            }),
-          );
-          candidate = { ...repaired, models: withTextModels(repaired.models, textModels) };
-        } catch (error) {
-          if (error instanceof AdapterWaitError) {
-            if (error.reason === "cancelled" || error.reason === "terminal") throw error;
-            repairError = error.message;
-            deadlineReached = error.reason === "deadline";
-            break;
-          }
-          repairError = redactAdapterSecrets(error instanceof Error ? error.message : String(error));
-          break;
-        }
-        // Full regression after every repair: a local fix must not break a mode that previously passed.
-        verification = await this.verifyDraft(id, connection, candidate, repairAttempt + 1, compilation.failures);
-        results = verification.results;
-        if (verification.deadlineError) {
-          repairError = verification.deadlineError;
-          deadlineReached = true;
-          break;
-        }
-      }
+      // 一次自检，没有第二轮。**自动修复整族删了**（2026-09-11 用户拍板「删掉所有会花用户钱的
+      // 自动逻辑」）：它的机制是「失败 → 叫 AI 重写说明卡 → 再发一次真实生成 → 全量回归」，
+      // 最坏 3 轮 × 2 模式 = 6 次付费出图，而它修的正是我们自己按 kind 写死的那份配方。
+      // 根因治在配方层（transportDelivery.ts 的声明式交付形状），不靠事后花钱重试（P2）。
+      const verification = await this.verifyDraft(id, connection, candidate, 1, compilation.failures);
+      const results = verification.results;
+      const deadlineReached = Boolean(verification.deadlineError);
+      const repairError = verification.deadlineError;
       const compileError = compileErrorBanner(compilation.failures);
       await this.promoteFinal(
         id,
@@ -532,6 +462,11 @@ export class ProviderAdapterService {
     }));
     const results = initial.results;
     let deadlineError: string | undefined;
+    // 凭据自检**一条连接只打一次**：结论对这条连接下每个模型每个模式都一样，按模式各打一次
+    // 纯属白打（也会毫无必要地给上游刷 N 次 /models）。
+    const credential = await this.awaitStep(id, "Credential self-check", this.dependencies.verifyTimeoutMs ?? 30_000, (signal) =>
+      this.dependencies.probeCredential({ vendor: connection.vendor, apiKey: connection.apiKey, signal }),
+    );
     for (const candidateModel of draft.models) {
       const model = connection.models.find((item) => item.modelKey === candidateModel.modelKey);
       if (!model) throw new Error(`Selected model disappeared during verification: ${candidateModel.modelKey}`);
@@ -574,24 +509,9 @@ export class ProviderAdapterService {
                 );
               }
             },
-            execute: (onRemoteTaskAccepted) => this.awaitStep(id, "Model verification", this.dependencies.verifyTimeoutMs ?? 90_000, (signal) =>
-              this.dependencies.verify({ vendor: connection.vendor, model, apiKey: connection.apiKey, mode, signal, onRemoteTaskAccepted }),
+            execute: () => this.awaitStep(id, "Model self-check", this.dependencies.verifyTimeoutMs ?? 30_000, (signal) =>
+              this.dependencies.verify({ vendor: connection.vendor, model, apiKey: connection.apiKey, mode, credential, signal }),
             ),
-            ...(this.dependencies.reconcile
-              ? { reconcile: (remoteTaskId: string) => this.awaitStep(
-                  id,
-                  "Model submission reconciliation",
-                  this.dependencies.verifyTimeoutMs ?? 90_000,
-                  (signal) => this.dependencies.reconcile!({
-                    vendor: connection.vendor,
-                    model,
-                    apiKey: connection.apiKey,
-                    mode,
-                    remoteTaskId,
-                    signal,
-                  }),
-                ) }
-              : {}),
             reuse: (operation) => {
               const persisted = this.store.getRun(id)?.models
                 .find((item) => item.modelKey === candidateModel.modelKey)?.modes
@@ -600,23 +520,18 @@ export class ProviderAdapterService {
                 ? {
                     ok: false as const,
                     taskKind: mode.taskKind,
-                    stage: persisted?.stage === "localize_reference" || persisted?.stage === "poll" || persisted?.stage === "verify_asset"
-                      ? persisted.stage
-                      : operation.settledResult?.stage === "localize_reference"
-                        || operation.settledResult?.stage === "poll"
-                        || operation.settledResult?.stage === "verify_asset"
-                        ? operation.settledResult.stage
-                      : "create" as const,
-                    error: persisted?.error || "Provider verification failed",
+                    stage: persisted?.stage === "contract" || operation.settledResult?.stage === "contract"
+                      ? ("contract" as const)
+                      : ("credential" as const),
+                    error: persisted?.error || "Provider self-check failed",
                     errorCategory: persisted?.errorCategory || operation.settledResult?.errorCategory,
                     httpStatus: persisted?.httpStatus,
+                    selfCheckReason: persisted?.selfCheckReason || ("endpoint_unreachable" as const),
                     submissionState: "settled" as const,
                   }
                 : {
                     ok: true as const,
                     taskKind: mode.taskKind,
-                    mediaEvidence: operation.artifactEvidence,
-                    remoteTaskId: operation.remoteTaskId,
                     submissionState: "settled" as const,
                   };
             },
@@ -631,9 +546,10 @@ export class ProviderAdapterService {
           verified = {
             ok: false,
             taskKind: mode.taskKind,
-            stage: "verify_asset",
+            stage: "credential",
             error: error.message,
             errorCategory: "network",
+            selfCheckReason: "endpoint_unreachable",
           };
         }
         const modeResult = modeResultFromVerification({

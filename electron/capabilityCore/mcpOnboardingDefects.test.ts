@@ -28,10 +28,6 @@ function makeSessions(dir: string, overrides: ConstructorParameters<typeof Integ
       get: vi.fn(() => ({ id: "run-x", stage: "completed", childRunRef: { runId: "run-x", revisionDigest: "a".repeat(64) } })),
     } as never,
     credentialResolver: () => "stored-key",
-    approvalReceiptAuthority: createApprovalReceiptAuthority({
-      filePath: path.join(dir, "receipts.json"),
-      macKey: "defects-mac-key",
-    }),
     save: (target, state) => fs.writeFileSync(target, JSON.stringify(state)),
     enqueueHandoff: () => undefined,
     compilerAvailable: () => true,
@@ -44,6 +40,7 @@ function tmp(prefix: string): string {
 }
 
 async function toSpendGate(sessions: IntegrationSessionService) {
+  // 名字留着是因为它仍然是「提完方案的那一刻」；那一刻现在叫 ready_to_certify。
   const begun = sessions.begin(
     { kind: "http-api-provider", name: "DeepSeek", baseUrl: "https://api.deepseek.com" },
     HOST,
@@ -55,73 +52,48 @@ async function toSpendGate(sessions: IntegrationSessionService) {
   return { id: begun.id, revision: proposed.revision };
 }
 
-describe("缺陷 1 · 花费确认不再是死循环", () => {
-  it("confirm 在等待期是幂等的：重复调用返回同一枚挑战，不作废人马上要点的那一次", async () => {
+describe("缺陷 1 · 花费确认这一关整个不存在了", () => {
+  /**
+   * 2026-09-12 用户拍板：接模型**没有付费验证**，因此**没有花费确认**——任何路径都没有。
+   * 这一关原本要靠三个 stage、一枚签名挑战、一次真人手势和一张收据才走得完，而它唯一的出口
+   * （`startConfirmedFromTrustedUi`）第一行就写死 `ownerClientId === "nomi"`：
+   * 外部宿主的会话**永远**出不来（2026-09-12 真实验收 §P0-1，Codex 连问三回合只能停下）。
+   *
+   * 下面三条钉的是「它真的没了」，不是「它修好了」。
+   */
+  it("提完方案就能自己开跑：外部宿主一路到底，中间没有谁要点头", async () => {
     const sessions = makeSessions(tmp("nomi-defect1-"));
-    const gate = await toSpendGate(sessions);
-    const first = sessions.requestConfirmation(gate.id, gate.revision, HOST, "key-a");
-    expect(first.stage).toBe("awaiting_human_confirmation");
-
-    const afterFirst = sessions.get(gate.id, HOST);
-    // 不同的 idempotencyKey 也不许重签：Agent 换个键再确认一次是实测里真实发生过的事。
-    const second = sessions.requestConfirmation(gate.id, afterFirst.revision, HOST, "key-b");
-    expect(second.challengeId).toBe(first.challengeId);
-    expect(second.stage).toBe("awaiting_human_confirmation");
-
-    // 人现在才点。挑战还是第一枚，所以这一点是有效的（修复前它已经被作废了）。
-    const confirmed = sessions.confirmFromTrustedUi({
-      sessionId: gate.id,
-      expectedRevision: sessions.get(gate.id, HOST).revision,
-      challengeId: first.challengeId,
-      webContentsId: 1,
-      frameId: 1,
-      origin: "file://",
-    });
-    expect(confirmed.stage).toBe("human_confirmed");
-  });
-
-  it("stage 分得清「等人点」和「人点完了」，start 只在后者放行", async () => {
-    const sessions = makeSessions(tmp("nomi-defect1b-"));
-    const gate = await toSpendGate(sessions);
-    const challenge = sessions.requestConfirmation(gate.id, gate.revision, HOST, "key");
-    const waiting = sessions.get(gate.id, HOST);
-    expect(waiting.stage).toBe("awaiting_human_confirmation");
-    await expect(sessions.start(gate.id, waiting.revision, HOST, "key")).rejects.toMatchObject({
-      code: "integration_stage_not_allowed",
-    });
-
-    sessions.confirmFromTrustedUi({
-      sessionId: gate.id,
-      expectedRevision: waiting.revision,
-      challengeId: challenge.challengeId,
-      webContentsId: 1,
-      frameId: 1,
-      origin: "file://",
-    });
-    const ready = sessions.get(gate.id, HOST);
-    expect(ready.stage).toBe("human_confirmed");
-    const started = await sessions.start(gate.id, ready.revision, HOST, "key");
+    const ready = await toSpendGate(sessions);
+    expect(sessions.get(ready.id, HOST).stage).toBe("ready_to_certify");
+    const started = await sessions.start(ready.id, ready.revision, HOST, "key");
     expect(started.childRunRef?.runId).toBe("run-x");
+    expect(sessions.get(ready.id, HOST).stage).toBe("completed");
   });
 
-  it("confirm 的返回给的是相对时间和下一步，不是让模型自己比 UTC", async () => {
-    const sessions = makeSessions(tmp("nomi-defect1c-"));
-    const gate = await toSpendGate(sessions);
-    const challenge = sessions.requestConfirmation(gate.id, gate.revision, HOST, "key");
-    expect(challenge.expiresInSeconds).toBeGreaterThan(0);
-    expect(Date.parse(challenge.serverTime)).toBeGreaterThan(0);
-    expect(challenge.nextAction).toMatch(/do NOT call confirm again/i);
-    expect(challenge.expectedRevision).toBe(sessions.get(gate.id, HOST).revision);
+  it("词表里再也没有带 confirm 的阶段", () => {
+    // 旧判据是「名字里带 confirm 就是花费关」。花费关没了，这条判据要连同成员一起是空的——
+    // 哪天有人再引进一个带 confirm 的阶段，这条用例先红。
+    expect(INTEGRATION_STAGES.filter((stage) => stage.includes("confirm"))).toEqual([]);
+    expect(INTEGRATION_STAGES).not.toContain("needs_spend_confirmation");
   });
 
-  it("花费关的三档由词表派生，不是另抄一份成员清单", () => {
-    // isSpendGateStage 用的是「名字里带 confirm」这条判据；这条用例把它钉死，
-    // 免得以后新增一个恰好带 confirm 的阶段被静默拉进花费关。
-    expect(INTEGRATION_STAGES.filter((stage) => stage.includes("confirm"))).toEqual([
-      "needs_spend_confirmation",
-      "awaiting_human_confirmation",
-      "human_confirmed",
-    ]);
+  it("旧盘上停在花费确认的会话被读成「该跑自检了」，不是读崩也不是永远卡着", async () => {
+    // 被那条死路卡住的人，升级后要能直接走出来（迁移在 integrationSessionRecord 里）。
+    const dir = tmp("nomi-defect1c-");
+    const sessions = makeSessions(dir);
+    const stuck = await toSpendGate(sessions);
+    const file = path.join(dir, "sessions.json");
+    const raw = JSON.parse(fs.readFileSync(file, "utf8")) as { sessions: Array<Record<string, unknown>> };
+    raw.sessions[0].stage = "needs_spend_confirmation";
+    raw.sessions[0].pendingChallengeId = "challenge-from-the-old-world";
+    raw.sessions[0].pendingReceiptId = "receipt-from-the-old-world";
+    fs.writeFileSync(file, JSON.stringify(raw));
+
+    const reopened = makeSessions(dir);
+    const revived = reopened.get(stuck.id, HOST);
+    expect(revived.stage).toBe("ready_to_certify");
+    expect(JSON.stringify(revived)).not.toContain("old-world");
+    await expect(reopened.start(stuck.id, revived.revision, HOST, "key")).resolves.toMatchObject({ stage: "completed" });
   });
 });
 
@@ -243,7 +215,7 @@ describe("缺陷 4 · schema 的 required 说真话", () => {
   it("缺字段一次列全，而不是逐个抛（实测里 22 次失败有 9 次栽在逐个抛上）", () => {
     expect(() => MCP_INTEGRATION_TOOL.build({ action: "begin", kind: "http-api-provider" }))
       .toThrow(/missing name, baseUrl/);
-    expect(() => MCP_INTEGRATION_TOOL.build({ action: "confirm", sessionId: "s" }))
+    expect(() => MCP_INTEGRATION_TOOL.build({ action: "start", sessionId: "s" }))
       .toThrow(/missing expectedRevision, idempotencyKey/);
   });
 });

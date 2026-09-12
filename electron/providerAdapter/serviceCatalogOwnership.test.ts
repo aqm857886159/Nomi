@@ -155,7 +155,7 @@ function run(runId: string, stage: ProviderAdapterRun["stage"], modeState: "veri
         taskKind: "text_to_image",
         state: modeState,
         attempts: 1,
-        ...(modeState === "failed" ? { stage: "create" as const, error: "cancelled" } : {}),
+        ...(modeState === "failed" ? { stage: "credential" as const, error: "cancelled" } : {}),
       }],
     }],
     sourceUrls: [],
@@ -566,7 +566,7 @@ describe("provider adapter catalog run ownership", () => {
       selectedModelKeys: [modelKey, "video-b"],
       models: [
         run("run-multi", "partial", "verified").models[0],
-        { modelKey: "video-b", labelZh: "Video B", kind: "video", modes: [{ taskKind: "text_to_video", state: "failed", attempts: 1, stage: "create", error: "failed" }] },
+        { modelKey: "video-b", labelZh: "Video B", kind: "video", modes: [{ taskKind: "text_to_video", state: "failed", attempts: 1, stage: "credential", error: "failed" }] },
       ],
     };
     const result = defaultCatalog.promote({

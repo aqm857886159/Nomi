@@ -8,6 +8,7 @@ import {
   HumanApprovalRequiredError,
   ReceiptExpiredError,
   ReceiptReplayResult,
+  ReceiptScopeError,
   createApprovalReceiptAuthority,
 } from "./approvalReceipt";
 
@@ -152,5 +153,79 @@ describe("ApprovalReceiptAuthority", () => {
     const attestation = authority.createClientElicitationAttestation(pending.token, "codex");
     const tampered = { ...attestation, authenticatedClient: "evil-client" };
     expect(() => authority.mintReceipt(pending.token, tampered)).toThrow(HumanApprovalRequiredError);
+  });
+});
+
+/**
+ * 「全自动」档那次**没有人点**的放行（2026-09-12 用户拍板）。
+ *
+ * 这一组守的是「免卡 ≠ 免账」：卡不出了，但封印、签名、一次性、可验证一样都不少，
+ * 而且账本上一眼看得出这一笔是**策略**批的，不是编了一个人出来。
+ */
+describe("policy_decision attestation（全自动档的免卡放行）", () => {
+  it("铸得出、验得过，收据写着 policy:full_auto 而不是一个假的人", () => {
+    const { authority } = makeAuthority();
+    const pending = challenge(authority);
+    const attestation = authority.createPolicyDecisionAttestation(pending.token, {
+      policyMode: "project",
+      policySurface: "agent-lane",
+    });
+    const minted = authority.mintReceipt(pending.token, attestation);
+    expect(minted.receipt.decidedBy).toBe("policy:full_auto");
+    expect(minted.receipt.humanActor).toBe("policy:project:agent-lane");
+    expect(minted.receipt.gestureAttestation.kind).toBe("policy_decision");
+    // 验证走的是同一条路：签名、受众、一次性都照旧。
+    expect(authority.verifyReceipt(minted.token)).toEqual(minted.receipt);
+    expect(authority.consumeReceipt(minted.token).replayed).toBe(false);
+    expect(authority.consumeReceipt(minted.token).replayed).toBe(true);
+  });
+
+  it("人点的那条仍然写 human:gesture——两种来源在账本上分得开", () => {
+    const { authority } = makeAuthority();
+    const pending = challenge(authority);
+    const minted = authority.mintReceipt(pending.token, authority.createMainProcessGestureAttestation(pending.token, {
+      webContentsId: 10, frameId: 2, origin: "app://nomi", decision: "accept",
+    }));
+    expect(minted.receipt.decidedBy).toBe("human:gesture");
+  });
+
+  it("只有「全自动」铸得出：别的档位当场抛，「把某一档偷偷当成全自动」在这一层走不通", () => {
+    const { authority } = makeAuthority();
+    const pending = challenge(authority);
+    for (const policyMode of ["step", "safe-auto", ""] as const) {
+      expect(() => authority.createPolicyDecisionAttestation(pending.token, {
+        policyMode: policyMode as "project", policySurface: "agent-lane",
+      })).toThrow(ReceiptScopeError);
+    }
+    // 没说是哪个宿主面按策略代答的，也不给铸——账本要答得出「谁批的」。
+    expect(() => authority.createPolicyDecisionAttestation(pending.token, { policyMode: "project", policySurface: "  " }))
+      .toThrow(ReceiptScopeError);
+  });
+
+  it("调用方伪造不出来：手搓一份 policy_decision 过不了签名", () => {
+    const { authority } = makeAuthority();
+    const pending = challenge(authority);
+    const real = authority.createPolicyDecisionAttestation(pending.token, { policyMode: "project", policySurface: "agent-lane" });
+    // ① 整份现编。
+    expect(() => authority.mintReceipt(pending.token, {
+      ...real, mac: "not-the-real-mac",
+    })).toThrow(HumanApprovalRequiredError);
+    // ② 拿真签名改字段（把宿主面改成别的）——MAC 覆盖了它，照样不认。
+    expect(() => authority.mintReceipt(pending.token, { ...real, policySurface: "somewhere-else" }))
+      .toThrow(HumanApprovalRequiredError);
+    // ③ 把档位改成别的：verify 也 fail-closed。
+    expect(() => authority.mintReceipt(pending.token, { ...real, policyMode: "safe-auto" }))
+      .toThrow(HumanApprovalRequiredError);
+    // ④ 一个光秃秃的「策略同意了」对象。
+    expect(() => authority.mintReceipt(pending.token, { kind: "policy_decision", decision: "accept" }))
+      .toThrow(HumanApprovalRequiredError);
+  });
+
+  it("过期的挑战不因为「是策略批的」就多活一秒", () => {
+    const { authority, advance } = makeAuthority();
+    const pending = challenge(authority, 5_000);
+    const attestation = authority.createPolicyDecisionAttestation(pending.token, { policyMode: "project", policySurface: "agent-lane" });
+    advance(10);
+    expect(() => authority.mintReceipt(pending.token, attestation)).toThrow(ReceiptExpiredError);
   });
 });

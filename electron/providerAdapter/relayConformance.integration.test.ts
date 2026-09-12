@@ -35,7 +35,7 @@ vi.mock("electron", () => ({
 }));
 
 import { buildOpenAiCompatibleDraft } from "./builtinOpenAiCompatibleDraft";
-import { verifyAdapterMode } from "./verifier";
+import { checkAdapterModeContract } from "./selfCheck";
 import { executeProfileOperation } from "../runtime";
 import type { Model, Vendor } from "../catalog/types";
 import type { AdapterModeDraft } from "./types";
@@ -284,9 +284,29 @@ function modeOf(taskKind: string): AdapterModeDraft {
   return mode;
 }
 
-/** 真认证探针（service.ts:127 的 verify 就是它，未打桩）。 */
-function certify(mode: AdapterModeDraft) {
-  return verifyAdapterMode({ vendor: vendor(), model: model(), apiKey: "sk-relay-test", mode });
+/**
+ * **真生产请求**（executeProfileOperation，未打桩）。
+ *
+ * 2026-09-11 之前这里打的是认证探针——那次探针就是一次付费出图，台架因此能在「用户第一次用」
+ * 之前抓到端点族/参考图/夹具三类错。付费验证删掉之后，那一次真实请求挪到了**用户第一次生成**，
+ * 所以这几条规则也跟着挪到生产这条路上：抓的东西一个没少，只是抓在它现在真正发生的地方。
+ */
+function sendProduction(mode: AdapterModeDraft, prompt: string) {
+  const referenceUrl = `data:image/png;base64,${pngOfSize(256, 256).toString("base64")}`;
+  return executeProfileOperation({
+    vendor: vendor(),
+    model: model(),
+    apiKey: "sk-relay-test",
+    request: {
+      kind: mode.taskKind,
+      prompt,
+      extras: {
+        modelKey: MODEL_KEY,
+        ...(mode.referenceParam ? { referenceImages: [referenceUrl] } : {}),
+      },
+    } as never,
+    operation: mode.create,
+  });
 }
 
 const editHit = () => hits.find((hit) => hit.path === "/v1/images/edits");
@@ -339,37 +359,34 @@ describe("自建中转一致性台架 · 严格假中转拒绝规则（转录自
   });
 });
 
-describe("自建中转一致性台架 · 真实接入链（内置草稿 → 真认证探针 → 严格中转）", () => {
-  it("文生图：认证通过，且打的是 /v1/images/generations", async () => {
-    const result = await certify(modeOf("text_to_image"));
-    expect(result.ok, `文生图认证失败：${result.ok ? "" : result.error}`).toBe(true);
+describe("自建中转一致性台架 · 真实接入链（内置草稿 → 免费自检 + 真生产请求 → 严格中转）", () => {
+  it("文生图：说明卡自检通过，且真发出去打的是 /v1/images/generations", async () => {
+    const mode = modeOf("text_to_image");
+    expect(checkAdapterModeContract(model(), mode).ok, "文生图说明卡自检没过").toBe(true);
+    await sendProduction(mode, "a blue square");
     expect(hits.some((hit) => hit.path === "/v1/images/generations" && hit.status === 200)).toBe(true);
   });
 
-  it("改图：认证通过全链路——协议选对（multipart /v1/images/edits，不是聊天端点）", async () => {
+  it("改图：协议选对（multipart /v1/images/edits，不是聊天端点）且严格中转收下了", async () => {
     const mode = modeOf("image_edit");
     // 协议选择必须按模型族 derive：gpt-image 系 → multipart /v1/images/edits。
     // 走成 /v1/chat/completions 的话，严格中转按规则 A 回真机原文 400。
     expect(mode.create.path, "改图协议选错端点族（规则 A 会拒）").toBe("/v1/images/edits");
     expect(mode.create.multipart, "改图应走 multipart wire").toBeTruthy();
+    expect(checkAdapterModeContract(model(), mode).ok, "改图说明卡自检没过").toBe(true);
 
-    const result = await certify(mode);
-    expect(result.ok, `改图认证失败：${result.ok ? "" : `[${result.stage}] ${result.error}`}`).toBe(true);
+    await sendProduction(mode, "keep the blue square");
 
-    const hit = requireEditHit("认证探针根本没打到 /v1/images/edits");
+    const hit = requireEditHit("生产请求根本没打到 /v1/images/edits");
     expect(hit.status, `严格中转拒绝了这次改图：${hit.rejection}`).toBe(200);
   });
 
-  it("改图：探针**真的注入了参考图**——文件 part 收到 256×256 的 PNG 字节", async () => {
+  it("改图：参考图**真的进了报文**——文件 part 收到 256×256 的 PNG 字节", async () => {
     // 这条同时守三件事：referenceParam 有声明（否则 0 个 part → 规则 B）、multipart 尊重注入的
-    // localAssetReader（否则 part 里是 URL 字符串 → 规则 D）、fixture 够大（否则 → 规则 C）。
-    const result = await certify(modeOf("image_edit"));
-    expect(
-      result.ok,
-      `改图认证失败（严格中转按真机规则拒绝了我们）：${result.ok ? "" : `[${result.stage}] ${result.error}`}`,
-    ).toBe(true);
+    // 参考图（否则 part 里是 URL 字符串 → 规则 D）、夹具够大（否则 → 规则 C）。
+    await sendProduction(modeOf("image_edit"), "keep the blue square");
 
-    const hit = requireEditHit("认证探针根本没打到 /v1/images/edits —— 改图协议选错了端点族（规则 A）");
+    const hit = requireEditHit("生产请求根本没打到 /v1/images/edits —— 改图协议选错了端点族（规则 A）");
     expect(hit.files.length, "改图报文里没有任何文件 part —— 参考图没进报文").toBeGreaterThan(0);
     const file = hit.files[0];
     expect(file.field).toBe("image[]");
@@ -378,7 +395,7 @@ describe("自建中转一致性台架 · 真实接入链（内置草稿 → 真�
     expect(hit.fields.model).toBe(MODEL_KEY);
   });
 
-  it("改图模式声明了参考输入契约，且键就是这条 wire 真实读的那个", async () => {
+  it("改图模式声明了参考输入契约，且键就是这条 wire 真实读的那个", () => {
     const mode = modeOf("image_edit");
     expect(mode.referenceParam, "参考类模式漏声明 referenceParam → 探针拿零参考图去验改图通道").toBe("reference_images");
     expect(mode.referenceShape).toBe("array");

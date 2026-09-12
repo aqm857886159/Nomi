@@ -20,6 +20,7 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { getActiveWorkbenchProjectId } from '../../project/workbenchProjectSession'
+import { getDesktopBridge } from '../../../desktop/bridge'
 import { productionRunApi } from '../../production/productionRunApi'
 import { toast } from '../../../ui/toast'
 import { useGenerationCanvasStore } from '../../generationCanvas/store/generationCanvasStore'
@@ -42,9 +43,19 @@ import {
 } from './spendCardDraft'
 import { priceDisagreements, pricingResolverFromModelOptions, repricePendingSpend, type SpendPriceDisagreement } from './spendCardEstimate'
 import type { InterventionData } from './agentPanelV4Types'
+import { missingCardReasonOfReadFailure, missingInterventionCard, type MissingCardReason } from './missingInterventionCard'
 
 /** 和任务中心同一个节拍：付费卡是同一批 Run 事实的另一个读者，不另立一套刷新频率。 */
 const POLL_INTERVAL_MS = 1500
+
+export function hasPendingSpendCapability(): boolean {
+  return typeof getDesktopBridge()?.productionRuns?.pendingSpend === 'function'
+}
+
+export function isOptionalSpendSurfaceUnavailable(error: unknown): boolean {
+  const code = error && typeof error === 'object' && 'code' in error ? String((error as { code?: unknown }).code ?? '') : ''
+  return code === 'spend_confirm_surface_unavailable' || missingCardReasonOfReadFailure(error) === 'spend-surface-unavailable'
+}
 
 export type AgentPanelSpendConfirm = Readonly<{
   pending: PendingSpendConfirm | undefined
@@ -73,6 +84,8 @@ export function useAgentPanelSpendConfirm(): AgentPanelSpendConfirm {
   const [busy, setBusy] = React.useState(false)
   const [disagreements, setDisagreements] = React.useState<readonly SpendPriceDisagreement[]>([])
   const [modelOptions, setModelOptions] = React.useState<readonly ModelOption[]>([])
+  // 「读不到」是一种**结果**，不是一种空。它一路留到槽里，渲成一张会说话的卡。
+  const [readFailure, setReadFailure] = React.useState<MissingCardReason | undefined>(undefined)
   const nodes = useGenerationCanvasStore((state) => state.nodes)
   // 「Nomi 选的」说的是**最初那一份**：用户在卡上换过模型之后这句话就不再为真。
   // 所以记的是这一笔第一次被看到时的模型身份，不是当前这一份（当前那份一改就跟着变，永远为真）。
@@ -84,9 +97,11 @@ export function useAgentPanelSpendConfirm(): AgentPanelSpendConfirm {
       setPending(undefined)
       return undefined
     }
+    if (!hasPendingSpendCapability()) { setPending(undefined); setReadFailure(undefined); return undefined }
     try {
       const rows = await productionRunApi.pendingSpend(projectId)
       const next = rows[0]
+      setReadFailure(undefined)
       setPending(next)
       if (next && originalModelIds.current?.operationId !== next.operationId) {
         originalModelIds.current = { operationId: next.operationId, modelIds: next.shots.map((shot) => shot.modelId) }
@@ -99,9 +114,17 @@ export function useAgentPanelSpendConfirm(): AgentPanelSpendConfirm {
         setDraft(EMPTY_SPEND_DRAFT)
       }
       return next
-    } catch {
-      // 通道还没起来 / 项目正在切——这不是错误态，只是「现在没有要确认的东西」。
+    } catch (error) {
+      // 2026-09-12：这里原来是「通道还没起来 / 项目正在切——这不是错误态，只是『现在没有
+      // 要确认的东西』」，然后 `setPending(undefined)`。那句话把两件事说成了一件——
+      // **读不到 ≠ 没有**。主进程现在只在「真的没有」时回空数组，抛出来的一律是失败；
+      // 失败就必须让用户看见，否则模型说「请在确认卡上点头」而面板一片空白。
       setPending(undefined)
+      if (isOptionalSpendSurfaceUnavailable(error)) {
+        setReadFailure(undefined)
+        return undefined
+      }
+      setReadFailure(missingCardReasonOfReadFailure(error))
       return undefined
     }
   }, [])
@@ -185,12 +208,17 @@ export function useAgentPanelSpendConfirm(): AgentPanelSpendConfirm {
   }), [])
 
   const slot = React.useMemo(() => {
+    // 读不到的时候**先**出那张会说话的卡：此刻我们并不知道有没有待确认的一笔，
+    // 而「不知道」正是必须说出口的那一种（`missingInterventionCard.ts`）。
+    if (readFailure) {
+      return missingInterventionCard({ reason: readFailure, announcer: 'spend-confirm', detail: 'productionRunApi.pendingSpend rejected' }, t)
+    }
     if (!repriced) return undefined
     const remembered = originalModelIds.current
     return projectSpendCard(repriced, { page: index, scope }, t, {
       ...(remembered?.operationId === repriced.operationId ? { agentPickedModelIds: remembered.modelIds } : {}),
     })
-  }, [repriced, index, scope, t])
+  }, [readFailure, repriced, index, scope, t])
 
   /**
    * 卡上四个动作共用的一次执行。**宿主说不行就必须让用户看见**：

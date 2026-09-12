@@ -24,7 +24,11 @@
 // windows-install`（建 `srt-sandbox` 本地账户 + 装 WFP 出网过滤器）。我们不会替用户提权，
 // 所以那台机器上 `active` 就是 `false`，UI 明标「此平台无系统级沙箱」。R29 文档 §5 有实核表。
 import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
+import { asarUnpackedJoin } from '../shared/asarUnpackedPath.js';
+import type { LaneSandboxInactiveCode } from '../shared/agentLane/laneContracts.js';
 
 /** pi 的 `BashOperations` 结构镜像（只镜像我们要实现的那一个方法，不 import 它的类型进 CJS 侧）。 */
 export interface LaneBashOperations {
@@ -51,11 +55,25 @@ export interface LaneSandboxPolicy {
   readonly allowedDomains: readonly string[]
 }
 
+/**
+ * 沙箱没起来时，「为什么」分成两半：**给用户看的码** 和 **给排错看的正文**。
+ *
+ * 分开是因为它们的读者和寿命都不同。`code` 是产品契约——界面按它挑一句中文/英文
+ * （`agentPanelV4.sandboxInactive*`），上游换个措辞不会让那句话跟着变。`detail` 是这一刻的
+ * 诊断（平台名、上游异常正文），只进主进程日志：把它直接印到面板上，就是把
+ * `Sandbox initialization failed: EACCES …` 丢给一个正在做视频的人看。
+ */
+export interface LaneSandboxInactive {
+  readonly code: LaneSandboxInactiveCode
+  /** 排错正文。**只进日志，不进界面**。 */
+  readonly detail: string
+}
+
 export interface LaneSandbox {
   /** 这一刻沙箱是不是真在生效。策略层拿它决定第 ① 档存不存在。 */
   readonly active: boolean
-  /** 不 active 时的人话原因（进 UI 的「此平台无系统级沙箱」那句话旁边）。 */
-  readonly inactiveReason?: string
+  /** 不 active 时的原因。见 `LaneSandboxInactive`。 */
+  readonly inactive?: LaneSandboxInactive
   /** 交给 `createBashTool(cwd, { operations })` 的那个插槽。 */
   readonly operations: LaneBashOperations
   close(): Promise<void>
@@ -96,6 +114,75 @@ export interface SandboxManagerLike {
 }
 
 /**
+ * 沙箱运行时交给**别的进程**的那几个文件，在打包后的真实路径。
+ *
+ * ── 为什么必须我们来给 ──
+ *
+ * 运行时自己找这些文件的办法是 `dirname(fileURLToPath(import.meta.url))` 再往上拼
+ * `vendor/...`（`dist/sandbox/generate-seccomp-filter.js` 的 `getLocalSeccompPaths`、
+ * `java-proxy-agent.js` 的 `findJar`、`windows-sandbox-utils.js` 的 `repoRoot` 都是这一招）。
+ * 打包后这个模块是从 `app.asar` 里加载的，于是 `import.meta.url` 指进归档，拼出来的
+ * 也是归档里的路径——**哪怕 `asarUnpack` 已经把真文件摊到了 `app.asar.unpacked/`**。
+ *
+ * 这就是本条最反直觉的地方，也是 2026-09-12 那份教训的正文：`asarUnpack` 只保证
+ * 「盘上有一份真的」，它**不改**任何人手里已经拿着的字符串。Electron 只给自己进程的 `fs`
+ * 打了补丁，所以运行时那句 `existsSync(归档里的路径)` 回 `true`、当场认定找到了、
+ * 不再往后试别的候选——然后把这个路径 `spawn` 出去，内核回 `ENOTDIR`。
+ * 实测见 `docs/lessons/2026-09-12-sandbox-runtime-not-unpacked.md`。
+ *
+ * 所以 0.0.75 开的那三个显式入口（`seccomp.applyPath` / `javaAgentJarPath` /
+ * `windows.srtWin.path`，见 `dist/sandbox/sandbox-config.d.ts`）不是备选项，是**唯一**
+ * 能让打包后的 app 用上这些二进制的路。给它们是 R29 意义上的「用框架给的接口」，
+ * 不是绕过框架。
+ *
+ * ── 为什么按平台给 ──
+ *
+ * 每个文件只在它那个平台上会被执行：`apply-seccomp` 是 Linux 的，`srt-win.exe` 是
+ * Windows 的。全都无条件塞进去，等于在 macOS 上声明一个这辈子不会被打开的路径——
+ * 配置里多一个无效字段，下次排错的人就要多排除一个。jar 没有平台条件：
+ * 沙箱里跑 JVM 这件事三个平台都可能发生。
+ *
+ * 开发态（没打包）时 `asarUnpackedPath` 是恒等变换，算出来的就是运行时自己也会找到的那条路，
+ * 所以开发和打包跑的是**同一条代码路径**——这正是这个 bug 当初能活到打包才暴露的原因。
+ */
+export function laneSandboxVendorPaths(
+  deps: { resolvePackageJson: () => string; exists: (candidate: string) => boolean; platform: string; arch: string },
+): { seccomp?: { applyPath: string }; javaAgentJarPath?: string; windows?: { srtWin: { path: string } } } {
+  let vendorRoot: string;
+  try {
+    // 包根 = `package.json` 的目录；`require.resolve` 解开 pnpm 的符号链接，拿到真实落盘处。
+    vendorRoot = path.join(path.dirname(deps.resolvePackageJson()), 'vendor');
+  } catch {
+    // 解析不到就一个字段都不给，让运行时按自己的办法找。这里不是 fail-closed 的地方：
+    // 沙箱起不起得来由 `initialize` 自己回答，这个函数只负责「能指路就指准」。
+    return {};
+  }
+  const usable = (...segments: string[]): string | undefined => {
+    const candidate = asarUnpackedJoin(vendorRoot, ...segments);
+    return deps.exists(candidate) ? candidate : undefined;
+  };
+  const result: { seccomp?: { applyPath: string }; javaAgentJarPath?: string; windows?: { srtWin: { path: string } } } = {};
+  const jar = usable('java-proxy-agent', 'srt-proxy-agent.jar');
+  if (jar) result.javaAgentJarPath = jar;
+  if (deps.platform === 'linux') {
+    const applyPath = usable('seccomp', deps.arch, 'apply-seccomp');
+    if (applyPath) result.seccomp = { applyPath };
+  }
+  if (deps.platform === 'win32') {
+    const srtWin = usable('srt-win', deps.arch, 'srt-win.exe');
+    if (srtWin) result.windows = { srtWin: { path: srtWin } };
+  }
+  return result;
+}
+
+const defaultVendorDeps = () => ({
+  resolvePackageJson: () => createRequire(import.meta.url).resolve('@anthropic-ai/sandbox-runtime/package.json'),
+  exists: (candidate: string) => existsSync(candidate),
+  platform: process.platform as string,
+  arch: process.arch as string,
+});
+
+/**
  * 起一个沙箱。**失败不抛**——它返回一个 `active:false` 的沙箱。
  *
  * 为什么不抛：抛出去的后果是整条 lane 开不起来，于是「这台机器没有沙箱」这件事的症状是
@@ -104,10 +191,15 @@ export interface SandboxManagerLike {
  */
 export async function openLaneSandbox(
   policy: LaneSandboxPolicy,
-  deps: { manager: SandboxManagerLike; localOperations: LaneBashOperations },
+  deps: {
+    manager: SandboxManagerLike
+    localOperations: LaneBashOperations
+    /** 只有测试会传——生产走 `defaultVendorDeps()`（真 require.resolve + 真 fs）。 */
+    vendor?: Parameters<typeof laneSandboxVendorPaths>[0]
+  },
 ): Promise<LaneSandbox> {
   if (!deps.manager.isSupportedPlatform()) {
-    return inactive(deps.localOperations, `No OS-level sandbox on ${process.platform}.`);
+    return inactive(deps.localOperations, 'unsupported-platform', `No OS-level sandbox on ${process.platform}.`);
   }
   try {
     await deps.manager.initialize({
@@ -117,9 +209,12 @@ export async function openLaneSandbox(
         allowWrite: [...policy.allowWrite],
         denyWrite: [...policy.denyWrite],
       },
+      // 打包后这几个字段是「二进制找得到」和「找不到」的分界线，见 `laneSandboxVendorPaths` 头部。
+      ...laneSandboxVendorPaths(deps.vendor ?? defaultVendorDeps()),
     });
   } catch (cause) {
-    return inactive(deps.localOperations, `Sandbox initialization failed: ${cause instanceof Error ? cause.message : String(cause)}`);
+    return inactive(deps.localOperations, 'init-failed',
+      `Sandbox initialization failed: ${cause instanceof Error ? cause.message : String(cause)}`);
   }
   return {
     active: true,
@@ -128,10 +223,10 @@ export async function openLaneSandbox(
   };
 }
 
-function inactive(localOperations: LaneBashOperations, reason: string): LaneSandbox {
+function inactive(localOperations: LaneBashOperations, code: LaneSandboxInactiveCode, detail: string): LaneSandbox {
   return {
     active: false,
-    inactiveReason: reason,
+    inactive: { code, detail },
     // 仍然给 operations：`active:false` 不等于「不能跑命令」，等于「每条都要人点头」。
     // 没有沙箱又不许跑，这台机器上的技能脚本就一条都用不了——那是把缺口变成了功能缺失。
     operations: localOperations,

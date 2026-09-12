@@ -24,6 +24,12 @@ const VALIDATION_INFRASTRUCTURE_PATTERNS = [
   /^scripts\/(?:validation-policy|select-quality-gate-profile|check-quality-gate-workflow|real-user-test-gates|test-system|test-focused|git-delivery|canvas-performance-verdict|eval-journey|.*walkthrough)(?:\.|$)/,
   /^tests\/system(?:\/|$)/,
   /^tests\/ux\/(?:canvas-real-suite|canvas-performance-(?:benchmark|verdict))(?:\.|$)/,
+  // 走查的**共享 harness**（下划线前缀那一族：_launchApp / _assert / _canvasHit / _feel …）。
+  // 它们是所有 Electron 走查的启动器、断言库和命中判据——改一行等于改全部走查的地基，
+  // 可此前没有任何 pattern 认领它们，会被判成 isolated_change 走 focused（2026-09-12 补，
+  // 判据与先红后绿的证据见 scripts/run-gates-tests.node-test.mjs）。下划线前缀是判据的一部分：
+  // 具名走查脚本（tests/ux/smoke.e2e.mjs 等）只是单个场景，不该把整台机器拖进全量。
+  /^tests\/ux\/_[^/]+\.(?:mjs|cjs|js|ts|mts)$/,
   /^(?:eslint|playwright|vitest)\.config\.(?:ts|mts|cts|js|mjs|cjs)$/,
 ]
 
