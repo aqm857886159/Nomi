@@ -97,8 +97,14 @@
 3. **类级回归** `src/workbench/ai/modelAvailabilityAgreement.test.ts`：
    一份目录喂给三条**现役**读取链（首页横幅 / 助手下拉 / 设置页计数 / 画布闸），断言它们**对得上**。
 4. **矩阵单测** `electron/shared/modelAvailability.test.ts`：认证 × 钥匙 × 启停 × 角色的笛卡尔积。
-5. **端到端走查** `tests/ux/model-availability-agreement.walk.mjs`：真 Electron，
-   「没钥匙 → 有钥匙 → 钥匙又没了 → 重启」走一圈，三处每一步都必须一起翻。
+5. **端到端走查** `tests/ux/model-availability-agreement.walk.mjs`：真 Electron、真设置页，
+   「没钥匙 → MCP 又接进来一行没走完认证的 → 真人在设置卡里粘 key → 冷重启 → 断开」
+   五个状态走一圈，三处每一步都必须一起翻（41 条判据）。
+   钥匙**由真人路径粘进去**（设置 → 更多已适配平台 → 魔搭社区 → 保存验证），不是往 bridge 里灌：
+   渲染层的写入是配置不是发布（`rendererCatalogMutation.ts` 三个 sanitize 一律按下 `enabled`），
+   自己捏的供应商从第一步起就是 `vendor_disabled`，那样「没钥匙 ⇒ 0 个可用」是**对的答案配错的理由**。
+   可证伪性已验：把 `resolveModelHomeStatus` 改回不看 `availability`（修复前的形状）后，
+   「填了钥匙」那一步当场红（设置页 11 / 目录 10）。
 
 ## 先查别人
 
