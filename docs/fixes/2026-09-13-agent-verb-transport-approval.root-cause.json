@@ -17,7 +17,10 @@
     "electron/shared/agentCapabilities/verbs/writeVerbs.ts",
     "electron/agentLane/laneExtendedDesktopPorts.test.ts",
     "electron/agentLane/laneDesktopTools.test.ts",
-    "electron/shared/agentCapabilities/timelineWrite.ts"
+    "electron/shared/agentCapabilities/timelineWrite.ts",
+    "scripts/check-mcp-tool-references-lib.mjs",
+    "tests/ux/agent-artifact.walk.mjs",
+    "tests/ux/golden-path.e2e.mjs"
   ],
   "entry_points": [
     "toolLifecycle.prepare/approved/settled",
@@ -53,6 +56,11 @@
       "path": "electron/shared/agentCapabilities/verbs/writeVerbs.ts",
       "symbol": "canonical verb schemas and examples",
       "responsibility": "keep model-facing examples aligned with the published schema without untranslated UI literals"
+    },
+    {
+      "path": "scripts/check-mcp-tool-references-lib.mjs",
+      "symbol": "scanSource",
+      "responsibility": "classify MCP names by resolver membership before host fixture structure so executable MCP fixtures use the MCP catalog"
     }
   ],
   "same_class_entry_points": [
@@ -94,18 +102,21 @@
     "artifacts": [
       "electron/agentLane/laneExtendedDesktopPorts.ts",
       "electron/agentLane/laneDesktopTools.ts",
-      "electron/shared/agentCapabilities/verbs/writeVerbs.ts"
+      "electron/shared/agentCapabilities/verbs/writeVerbs.ts",
+      "scripts/check-mcp-tool-references-lib.mjs"
     ]
   },
   "regression_tests": [
     "electron/agentLane/laneExtendedDesktopPorts.test.ts",
     "electron/agentLane/laneDesktopTools.test.ts",
-    "electron/shared/agentCapabilities/registry.test.ts"
+    "electron/shared/agentCapabilities/registry.test.ts",
+    "scripts/check-mcp-tool-references.node-test.mjs"
   ],
   "class_regression_tests": [
     "electron/agentLane/laneExtendedDesktopPorts.test.ts",
     "electron/agentLane/laneDesktopTools.test.ts",
-    "electron/shared/agentCapabilities/registry.test.ts"
+    "electron/shared/agentCapabilities/registry.test.ts",
+    "scripts/check-mcp-tool-references.node-test.mjs"
   ],
   "legacy_paths": {
     "status": "not-applicable",

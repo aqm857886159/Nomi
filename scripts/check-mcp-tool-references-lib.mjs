@@ -95,8 +95,14 @@ export function scanSource(source, { declared, hostDeclared = new Set() }) {
       catalog,
     })
   for (const match of source.matchAll(CALL_FUNCTION)) add(match, 'call', declared)
-  for (const match of source.matchAll(NAME_PROPERTY))
-    add(match, 'name', hostPositions.has(match.index ?? 0) ? hostDeclared : declared)
+  for (const match of source.matchAll(NAME_PROPERTY)) {
+    const name = match[2] ?? match[1]
+    // MCP fixtures often represent tools/call as `{type:"tool", name:"nomi_*"}`.
+    // The structural host marker is still useful for non-MCP names, but a name
+    // already present in the MCP resolver must be checked against that resolver
+    // even when it is nested in a host-style reply object.
+    add(match, 'name', declared.has(name) ? declared : (hostPositions.has(match.index ?? 0) ? hostDeclared : declared))
+  }
   const unique = new Map()
   for (const reference of references) unique.set(`${reference.index}:${reference.name}`, reference)
   return [...unique.values()].sort((a, b) => a.index - b.index)
