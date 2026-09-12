@@ -20,6 +20,7 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { getActiveWorkbenchProjectId } from '../../project/workbenchProjectSession'
+import { getDesktopBridge } from '../../../desktop/bridge'
 import { productionRunApi } from '../../production/productionRunApi'
 import { toast } from '../../../ui/toast'
 import { useGenerationCanvasStore } from '../../generationCanvas/store/generationCanvasStore'
@@ -46,6 +47,10 @@ import { missingCardReasonOfReadFailure, missingInterventionCard, type MissingCa
 
 /** 和任务中心同一个节拍：付费卡是同一批 Run 事实的另一个读者，不另立一套刷新频率。 */
 const POLL_INTERVAL_MS = 1500
+
+export function hasPendingSpendCapability(): boolean {
+  return typeof getDesktopBridge()?.productionRuns?.pendingSpend === 'function'
+}
 
 export type AgentPanelSpendConfirm = Readonly<{
   pending: PendingSpendConfirm | undefined
@@ -87,6 +92,7 @@ export function useAgentPanelSpendConfirm(): AgentPanelSpendConfirm {
       setPending(undefined)
       return undefined
     }
+    if (!hasPendingSpendCapability()) { setPending(undefined); setReadFailure(undefined); return undefined }
     try {
       const rows = await productionRunApi.pendingSpend(projectId)
       const next = rows[0]
