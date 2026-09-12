@@ -1058,7 +1058,7 @@ async function runAction(page, scenario, fixture) {
     const reloadProbes = []
     for (let index = 0; index < 3; index += 1) {
       const startedAt = Date.now()
-      await page.reload({ waitUntil: 'domcontentloaded' })
+      await page.reload({ waitUntil: 'domcontentloaded', timeout: 30_000 })
       await page.locator('.generation-canvas-v2__stage').waitFor({ timeout: 20_000 })
       await page.waitForFunction(
         ({ nodeCount }) => {
