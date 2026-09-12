@@ -287,6 +287,16 @@ export interface LaneRetry {
   readonly nextAttemptAt: number
 }
 
+/**
+ * 命令沙箱**没起来**的原因码。
+ *
+ * 只有两个成员，因为**用户能做的处置只有两种**：换一台支持的机器（平台不支持），
+ * 或者重开一次会话再看（这次没初始化成功）。上游那句英文异常正文不是原因码——
+ * 它是排错用的诊断串，只进主进程日志，一个字都不该出现在界面上
+ * （R15：可见文字走 i18n；`check:error-surface`：不把内部英文原文丢给用户）。
+ */
+export type LaneSandboxInactiveCode = 'unsupported-platform' | 'init-failed'
+
 /** 一次推送 = lane 当前的全部有序段。阶段 1 走全量快照；增量是阶段 3 的事。 */
 export interface LaneProjection {
   readonly legacy?: LaneLegacyFacts
@@ -304,6 +314,17 @@ export interface LaneProjection {
   readonly queues: readonly LaneQueuedMessage[]
   /** 只在真的在退避时存在。见 `LaneRetry`。 */
   readonly retry?: LaneRetry
+  /**
+   * 命令沙箱**没起来**时才有；值是原因码（`LaneSandboxInactiveCode`）。
+   *
+   * **有它 = 这条 lane 里每一条命令都要用户逐条点头**：`codingCommandPolicy` 的第 ① 档
+   * （自动放行）整档消失，理由见那个文件头部。字段缺失 = 沙箱在生效，界面对这件事一个字不提。
+   *
+   * 为什么要上屏：没有它时，「沙箱没起来」的全部症状就是「每条命令都在问我」——
+   * 那和「Nomi 变啰嗦了」在界面上长得一模一样，用户没有任何线索知道原因，也不知道换台机器就好了
+   * （D4：缺口明着标）。
+   */
+  readonly sandboxInactive?: LaneSandboxInactiveCode
 }
 
 /** 一个项目里的一条对话，在列表上的样子。正文不过桥——列表只需要认出它是哪一条。 */
