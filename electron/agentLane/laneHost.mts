@@ -193,7 +193,15 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
   const models = createModels({ credentials });
   models.setProvider(provider);
   const tools = [...createLaneTools(options.tools), ...(native?.tools ?? [])];
-  const activeToolNames = native?.activeToolNames() ?? tools.map((tool) => tool.name);
+  // The native menu is a visibility catalogue, while desktop surface assembly
+  // owns the executable descriptors. Keep only names that are actually
+  // registered in this process; otherwise pi rejects the whole turn with
+  // `configured_tools_unavailable` before it can reach the provider.
+  const registeredToolNames = new Set(tools.map((tool) => tool.name));
+  // Every descriptor assembled by the desktop surface is resident for this
+  // lane. The native menu may contain projected aliases, but only registered
+  // descriptors can be handed to the harness.
+  const activeToolNames = [...registeredToolNames];
   // `Available tools` / `Guidelines` 两段由宿主拼，不靠调用方记得（G-03 的后一半）。
   // 2026-09-07 合并评审实核：`composeLaneSystemPrompt` 此前零生产调用者——通道②③写满了，
   // 一个字都到不了模型。拼接点放在这里，是因为这里是唯一知道「这条 lane 装了哪些工具」的地方。
@@ -287,7 +295,7 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
   }
   // Upgrade old menus once, preserving explicit coding access before schemas become resident.
   if (native) {
-    const resident = native.activeToolNames();
+    const resident = native.activeToolNames().filter((name) => registeredToolNames.has(name));
     const restored = await lane.getActiveTools(context);
     native.bindActiveTools(lane);
     if (resident.some(name => !restored.includes(name)) && LANE_CODING_TOOL_NAMES.every(name => restored.includes(name))) {
