@@ -1,5 +1,5 @@
 {
-  "debtCap": 70,
+  "debtCap": 67,
   "converged": [
     {
       "retiredOwners": [
@@ -1804,32 +1804,6 @@
         "timed_out"
       ],
       "reason": "TERMINAL 是 future neutral AdapterRunStage contract 的终态子集；共享合同落地时由 isTerminalAdapterRunStage helper 唯一判断，liveHarness 不再维护成员列表。"
-    },
-    {
-      "site": "electron/providerAdapter/service.ts::class:ProviderAdapterService/method:finishRunWithFailure/parameter:stage/type-union",
-      "members": [
-        "cancelled",
-        "failed",
-        "needs_ai",
-        "timed_out"
-      ],
-      "reason": "AdapterRunStage 的失败终态子集被再次写在参数类型上；待从 electron/providerAdapter/types.ts::type:AdapterRunStage derive。"
-    },
-    {
-      "site": "electron/providerAdapter/service.ts::class:ProviderAdapterService/method:finishTerminal/parameter:stage/type-union",
-      "members": [
-        "cancelled",
-        "timed_out"
-      ],
-      "reason": "finishTerminal.stage 只是 AdapterRunStage 中会终止 controller 的 cancelled、timed_out 子集；所有值最终进入共同 finishRunWithFailure 路径。应改为 Extract<AdapterRunStage, 'cancelled' | 'timed_out'>，不维护第二份成员。"
-    },
-    {
-      "site": "electron/providerAdapter/service.ts::class:ProviderAdapterService/method:finishWithError/parameter:stage/type-union",
-      "members": [
-        "failed",
-        "needs_ai"
-      ],
-      "reason": "finishWithError.stage 只是 AdapterRunStage 中普通失败的 failed、needs_ai 子集；所有值最终进入共同 finishRunWithFailure 路径。应改为 Extract<AdapterRunStage, 'failed' | 'needs_ai'>，不维护第二份成员。"
     },
     {
       "site": "electron/providerAdapter/store.ts::variable:TERMINAL_ADAPTER_STAGES/set",

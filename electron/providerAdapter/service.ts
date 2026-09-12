@@ -54,6 +54,14 @@ import {
 } from "./serviceRunLifecycle";
 import { defaultResolveLanguageModels } from "./serviceLanguageModels";
 import {
+  createTerminalMachinery,
+  neverThrows,
+  writeAdapterTerminalFailure,
+  type TerminalReaper,
+  type TerminalWriteGuarantee,
+} from "./terminalGuarantee";
+import { logError } from "../logging/logger";
+import {
   initialVerificationState,
   modeResultFromVerification,
   persistedModeResult,
@@ -104,6 +112,10 @@ export type ProviderAdapterServiceDependencies = {
   verifyTimeoutMs?: number;
   canonicalStartWaitMs?: number;
   certificationCheckpoint?: (checkpoint: CertificationStartCheckpoint) => void | Promise<void>;
+  terminalWriteBackoffMs?: readonly number[]; // 以下四项只给测试注入
+  terminalWriteTimer?: (callback: () => void, ms: number) => unknown;
+  reaperIntervalMs?: number;
+  terminalErrorJournalPath?: string;
 };
 
 const defaultDependencies: ProviderAdapterServiceDependencies = {
@@ -126,6 +138,9 @@ export class ProviderAdapterService {
   private readonly active = new Map<string, Promise<void>>();
   private readonly controllers = new Map<string, AbortController>();
   private readonly certification: ProviderAdapterCertificationCoordinator;
+  /** 终态保证 + deadline 看门狗；不变量说明见 terminalGuarantee.ts 顶部。 */
+  private readonly terminal: TerminalWriteGuarantee;
+  private readonly reaper: TerminalReaper;
 
   constructor(
     private readonly store = new ProviderAdapterStore(),
@@ -142,7 +157,24 @@ export class ProviderAdapterService {
         canonicalStartWaitMs: dependencies.canonicalStartWaitMs,
       },
     );
+    const machinery = createTerminalMachinery({
+      write: (runId, stage, message) => { writeAdapterTerminalFailure({ store: this.store, id: runId, stage, message, redact: redactAdapterSecrets,
+        catalogFail: (run) => this.dependencies.catalog.fail(run), now: this.dependencies.now, buildRun: (input) => buildTerminalFailureRun(input as Parameters<typeof buildTerminalFailureRun>[0]) }); },
+      read: (runId) => this.store.getRun(runId),
+      activeRuns: () => this.store.listRuns({ activeOnly: true, limit: 200 }),
+      forceTimeout: (runId, message) => { this.finishTerminal(runId, "timed_out", message); },
+      now: this.dependencies.now,
+      abort: (runId) => this.controllers.get(runId)?.abort(),
+      log: (entry) => neverThrows(() => logError("onboarding", "adapter-terminal-write-abandoned", new Error(entry.writeError), { runId: entry.runId, stage: entry.stage })),
+      options: this.dependencies,
+    });
+    this.terminal = machinery.guarantee;
+    this.reaper = machinery.reaper;
   }
+
+  stopWatchdog(): void { this.reaper.stop(); this.terminal.dispose(); }
+  awaitTerminalWrites(): Promise<void> { return this.terminal.flush(); } // 测试用：等重试链落定
+  sweepExpiredRuns(): string[] { return this.reaper.sweep(); }
 
   register(rawInput: ProviderAdapterRegisterInput): ProviderAdapterRegistration {
     return registerProviderConnection({
@@ -213,11 +245,11 @@ export class ProviderAdapterService {
       this.controllers.get(id)?.abort();
       return this.store.getRun(id);
     }
-    const run = this.finishTerminal(id, "cancelled", "Adapter verification cancelled by user");
-    this.controllers.get(id)?.abort();
-    return run;
+    this.finishTerminal(id, "cancelled", "Adapter verification cancelled by user");
+    return this.store.getRun(id);
   }
   resumeInterrupted(): void {
+    this.terminal.compensate(); this.reaper.start(); // 先补偿上次没写成的终态，再开看门狗
     this.certification.recoverPreparedStarts();
     try {
       this.certification.replayPromotions();
@@ -244,10 +276,21 @@ export class ProviderAdapterService {
     if (existing) return existing;
     const controller = new AbortController();
     this.controllers.set(id, controller);
-    const work = this.process(id).finally(() => {
-      this.active.delete(id);
-      if (this.controllers.get(id) === controller) this.controllers.delete(id);
-    });
+    // 以前是 fire-and-forget：`process()` 里的失败处理自己抛出时（终态写拿不到文件锁）
+    // 没人接，run 永久停在 `certifying`。失败路径必须与主路径等强，所以这里必须兜住。
+    const work = this.process(id)
+      .catch((error: unknown) => {
+        neverThrows(() => logError("onboarding", "adapter-run-execution-crashed", error, { runId: id }));
+        void this.terminal.settle(
+          id,
+          "failed",
+          redactAdapterSecrets(error instanceof Error ? error.message : String(error)),
+        );
+      })
+      .finally(() => {
+        this.active.delete(id);
+        if (this.controllers.get(id) === controller) this.controllers.delete(id);
+      });
     this.active.set(id, work);
     return work;
   }
@@ -274,7 +317,7 @@ export class ProviderAdapterService {
     try {
       const connection = await this.dependencies.catalog.load(initial.vendorKey, initial.selectedModelKeys);
       if (!connection) {
-        this.finishWithError(id, "failed", "Provider credentials or selected models are no longer available");
+        this.finishTerminal(id, "failed", "Provider credentials or selected models are no longer available");
         return;
       }
       const fingerprint = connectionFingerprint({
@@ -392,8 +435,8 @@ export class ProviderAdapterService {
         // The durable ledger is the authority. Keep the candidate staged and wait
         // for an explicit remote reconciliation; never turn uncertainty into retry.
         return;
-      } else if (error instanceof AdapterNeedsAiError) this.finishWithError(id, "needs_ai", error.message);
-      else this.finishWithError(id, "failed", error instanceof Error ? error.message : String(error));
+      } else if (error instanceof AdapterNeedsAiError) this.finishTerminal(id, "needs_ai", error.message);
+      else this.finishTerminal(id, "failed", error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -588,48 +631,9 @@ export class ProviderAdapterService {
     }));
   }
 
-  private finishWithError(id: string, stage: "failed" | "needs_ai", message: string): void {
-    this.finishRunWithFailure(id, stage, message);
-  }
-
-  private finishTerminal(
-    id: string,
-    stage: "cancelled" | "timed_out",
-    message: string,
-  ): ProviderAdapterRun | undefined {
-    try {
-      return this.finishRunWithFailure(id, stage, message);
-    } finally {
-      this.controllers.get(id)?.abort();
-    }
-  }
-
-  private finishRunWithFailure(
-    id: string,
-    stage: "failed" | "needs_ai" | "cancelled" | "timed_out",
-    message: string,
-  ): ProviderAdapterRun | undefined {
-    const existing = this.store.getRun(id);
-    if (!existing || isTerminalAdapterStage(existing.stage)) return existing;
-    const failureStage = existing.stage === "discovering_docs"
-      ? "docs"
-      : existing.stage === "compiling"
-        ? "compile"
-        : existing.stage === "testing"
-          ? "credential"
-          : "promote";
-    const error = redactAdapterSecrets(message);
-    const finishedAt = this.dependencies.now();
-    const run = buildTerminalFailureRun({
-      existing,
-      stage,
-      error,
-      failureStage,
-      finishedAt,
-    });
-    this.dependencies.catalog.fail(run);
-    this.store.upsertRun(run);
-    return run;
+  /** 终态化的唯一入口；写不进去时由 terminal guarantee 退避重试 + 旁路日志兜底。 */
+  private finishTerminal(id: string, stage: ProviderAdapterRun["stage"], message: string): void {
+    void this.terminal.settle(id, stage, message);
   }
 
   private updateRunIfActive(
