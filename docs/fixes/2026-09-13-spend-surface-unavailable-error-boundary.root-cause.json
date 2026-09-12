@@ -1,0 +1,96 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-13-spend-surface-unavailable-error-boundary",
+  "change_kind": "corrective",
+  "problem_type": "可选桌面能力缺失时被错误当成产品介入卡错误",
+  "symptom": "preload 静态暴露 pendingSpend 函数但 capability core 未安装时，真实 Electron 画布场景仍收到 spend_confirm_surface_unavailable 并渲染 missing-intervention-card。",
+  "direct_cause": "函数存在性 guard 无法区分静态 preload stub 与已安装服务；catch 将明确的 spend_confirm_surface_unavailable 错误继续映射为用户业务错误。",
+  "class_root": "可选 bridge 的能力状态既可能表现为缺失函数，也可能表现为带稳定错误码的拒绝；边界只覆盖前者会在 preload stub 场景复发。",
+  "affected_population": [
+    "运行禁用 capability core 的真实画布性能/验收场景",
+    "使用不提供 productionRuns 的桌面宿主或旧版本 bridge 的用户"
+  ],
+  "scope_paths": [
+    "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts",
+    "src/workbench/ai/v4/useAgentPanelSpendConfirm.test.ts"
+  ],
+  "entry_points": [
+    "useAgentPanelSpendConfirm.refresh 的 capability guard 与 pendingSpend catch",
+    "productionActionIpc/appIntegrationSpendConfirm 返回 spend_confirm_surface_unavailable 的真实 Electron 路径"
+  ],
+  "invariants": [
+    "能力函数不存在或明确返回 spend_confirm_surface_unavailable 时不得渲染 missing-intervention-card",
+    "能力存在且返回其他错误时必须保留错误可见性",
+    "判断集中在 renderer capability adapter 的共享 refresh 边界"
+  ],
+  "generality_proof": "同一 refresh 同时覆盖静态 preload stub、真实能力缺失和已安装服务拒绝；仅将稳定的 unavailable 错误码归类为能力不存在，其他异常继续走原有错误卡。",
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "可选能力在静态 preload、旧 bridge、裁剪宿主中可能分别以函数缺失或稳定 unavailable 错误码出现；只修一侧会复发。",
+    "same_class_scan": [
+      "rg pendingSpend 与 spend_confirm_surface_unavailable，确认 renderer refresh 是统一读取边界，错误码由 electron/productionRun 与 capabilityCore 产生。",
+      "真实 Canvas Performance 18 场景在函数存在但能力未安装时全部复现同一错误，证明需覆盖拒绝形态。"
+    ]
+  },
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts",
+      "symbol": "useAgentPanelSpendConfirm.refresh",
+      "responsibility": "在调用前及拒绝后识别可选 spend surface 不可用状态，避免把宿主裁剪误报为业务错误。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts",
+      "entry_point": "refresh catch",
+      "disposition": "enforced",
+      "evidence": "对明确 spend_confirm_surface_unavailable 错误清空 readFailure，其他错误仍写入 readFailure。"
+    },
+    {
+      "path": "src/workbench/ai/v4/useAgentPanelSpendConfirm.test.ts",
+      "entry_point": "unavailable and host failure cases",
+      "disposition": "enforced",
+      "evidence": "测试稳定 unavailable 错误码被抑制，普通 host failure 保持可见。"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts",
+    "invariant": "可选 spend surface 缺失（函数缺失或明确 unavailable 错误码）不产生业务错误卡；非 unavailable 拒绝保持可见。",
+    "failure_mode": "若 guard 被移除，禁用 capability core 的每个真实画布场景都会再次产生 missing-intervention-card 并使结果不可靠。",
+    "exception_policy": "none",
+    "strategy": "在唯一 renderer hook 边界统一探测可选 bridge，再复用原有错误处理。",
+    "artifacts": [
+      "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts"
+    ]
+  },
+  "invariant_owner_layer": {
+    "layer": "src/workbench/ai/v4/useAgentPanelSpendConfirm.ts",
+    "tests": [
+      "src/workbench/ai/v4/useAgentPanelSpendConfirm.test.ts"
+    ],
+    "why": "该 hook 是 UI 对 productionRuns bridge 的唯一共享调用边界，测试直接证明缺失与拒绝两种状态。"
+  },
+  "regression_tests": [
+    "src/workbench/ai/v4/useAgentPanelSpendConfirm.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/ai/v4/useAgentPanelSpendConfirm.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "无旧实现分支；本次在现有共享边界加入 fail-closed capability guard。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "根因来自本地 bridge 能力存在性，不涉及第三方依赖版本。",
+    "exit_criteria": []
+  },
+  "migration": "无需数据迁移；旧 preload 或裁剪 capability core 继续运行，已安装服务的非 unavailable 错误行为不变。",
+  "residual_risks": [
+    "若宿主返回错误文本但不带稳定 unavailable code，仍会按普通 host failure 呈现，避免误吞未知错误。",
+    "真实 benchmark 证明该错误跨 18 个场景复发；本修复仍需新的性能门岗确认。"
+  ],
+  "internal_only_reason": "这是仓库内部 Electron bridge 与 renderer hook 的边界修复；验证证据来自仓库代码、真实 CI Electron 画布场景和 focused tests。"
+}

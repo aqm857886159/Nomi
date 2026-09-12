@@ -193,9 +193,14 @@ test('repository helper subsets and incomplete projections remain debt', () => {
   const baseline = JSON.parse(fs.readFileSync(repositoryBaselinePath, 'utf8'))
   const registeredSites = new Set(baseline.registered.map((entry) => entry.site))
   const debtBySite = new Map(baseline.debt.map((entry) => [entry.site, entry]))
-  const adapterSubsets = [
+  // 2026-09-12：这三条债已经**收敛掉**（不是搬家）——finishTerminal / finishWithError /
+  // finishRunWithFailure 三个同义终态入口合成了唯一的 finishTerminal，参数类型直接用
+  // ProviderAdapterRun["stage"]，不再各写一份子集。所以它们必须**同时**不在 registered、
+  // 也不在 debt 里；再冒出来就是有人又开了第二个终态入口。
+  const convergedAdapterSubsets = [
     'electron/providerAdapter/service.ts::class:ProviderAdapterService/method:finishTerminal/parameter:stage/type-union',
     'electron/providerAdapter/service.ts::class:ProviderAdapterService/method:finishWithError/parameter:stage/type-union',
+    'electron/providerAdapter/service.ts::class:ProviderAdapterService/method:finishRunWithFailure/parameter:stage/type-union',
   ]
   const shotSubsets = [
     'src/workbench/production/shotPlaceholderState.ts::variable:DONE_STATUSES/set',
@@ -207,9 +212,9 @@ test('repository helper subsets and incomplete projections remain debt', () => {
     'src/workbench/generationCanvas/nodes/nodeAssetWrite.ts::type:AddAssetOutcome/property:status/type-union'
   const shotPhase = 'src/workbench/production/shotPlaceholderState.ts::type:ShotPlaceholderPhase/type-union'
 
-  for (const site of adapterSubsets) {
+  for (const site of convergedAdapterSubsets) {
     assert.equal(registeredSites.has(site), false, site)
-    assert.match(debtBySite.get(site)?.reason ?? '', /AdapterRunStage.*Extract/i, site)
+    assert.equal(debtBySite.has(site), false, site)
   }
   for (const site of shotSubsets) {
     assert.equal(registeredSites.has(site), false, site)

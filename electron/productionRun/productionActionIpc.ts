@@ -50,18 +50,22 @@ export function registerProductionActionIpc(deps: {
    * 付费确认卡的四个通道。全部按同一条守卫收口：**只服务当前打开的项目**——
    * 卡是「用户此刻在这个项目的面板里做的决定」，跨项目的那笔生成没有人在看着这张卡。
    *
-   * 读通道回**空数组**而不是抛：面板每次轮询都会问一次，能力核还没起来时抛异常会把
-   * 面板打成错误态，而真相只是「现在还没有要确认的东西」。
+   * ⚠️ 读通道**不再吞异常**（2026-09-12）。原来这里是 `try { … } catch { return [] }`，
+   * 理由写的是「能力核还没起来时抛异常会把面板打成错误态」。那句话把两件事说成了一件：
+   *
+   *   · 「现在没有要确认的东西」——空数组，对；
+   *   · 「我读不到，不知道有没有」——**也回了空数组**，于是面板安安静静地什么都不画，
+   *     而模型那头刚刚告诉用户「请在确认卡中批准」。用户看到的是沉默。
+   *
+   * 现在读不到就让这次调用**拒绝**，渲染层据此渲一张会说话的卡
+   * （`missingInterventionCard.ts`）。「没有卡」和「画不出卡」从此是两种不同的结果。
+   * 没打开项目仍回空数组——那是真的没有要确认的东西，不是失败。
    */
   ipcMain.handle("nomi:production-runs:pending-spend", async (event, payload: unknown): Promise<readonly PendingSpendConfirm[]> => {
     assertTrustedSender(event);
     const projectId = str(objectOf(payload).projectId);
     if (!projectId || projectId !== deps.getActiveProjectId()) return [];
-    try {
-      return (await deps.loadCore()).listPendingSpendConfirmations(projectId);
-    } catch {
-      return [];
-    }
+    return (await deps.loadCore()).listPendingSpendConfirmations(projectId);
   });
 
   const spendOperation = (payload: unknown): { projectId: string; operationId: string } | ProductionActionResult => {

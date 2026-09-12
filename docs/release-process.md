@@ -75,7 +75,11 @@ RC 工作流会：
 - 图片/视频生成与任务恢复；
 - FFmpeg、MP4 导出和文件选择器；
 - macOS 双架构与 Windows 安装包；
-- 官网下载和应用内检查更新。
+- 官网下载和应用内检查更新；
+- **打包产物的命令沙箱 `active:true` 证据**：在打包好的 `.app` 上跑
+  `node tests/ux/packaged-sandbox-active.e2e.mjs <打包产物路径>`，留下那一行
+  `packaged sandbox active:true …`。沙箱没起来不会崩、不会红，症状只有
+  「Agent 每条命令都要我点头」——只有这条证据能在发版前分辨它。
 
 RC 发现问题时，在原功能分支或 release 分支修复并重新运行 RC。不要修改已经生成的安装包。
 

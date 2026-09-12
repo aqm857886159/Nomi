@@ -11,6 +11,8 @@ import { createGenerationPlanningHandler, type GenerationOperation, type Generat
 import { PROJECT_LEASE_ALGORITHM, PROJECT_LEASE_AUDIENCE, PROJECT_LEASE_VERSION, type ProjectLeaseV2 } from "./projectLease";
 import { createRunOwnedGenerationGateAuthority } from "./runOwnedGenerationGateAuthority";
 import { createPendingSpendActions } from "./appIntegrationSpendConfirm";
+import { createPiGenerationTransportAdapter } from "./generationTransportAdapters";
+import type { ProjectAgentApprovalPolicy } from "../shared/agentCapabilities/capabilityApprovalPolicy";
 import { createCanvasLandingHost } from "../productionRun/canvasLandingHost";
 import { canvasLandingOperationId, type MaterializeShotsWirePayload } from "../productionRun/multiShotCanvasLanding";
 import { createProductionGenerationOperationStore } from "../productionRun/productionGenerationOperationStore";
@@ -261,7 +263,31 @@ function buildActions(base: ReturnType<typeof harness>, vendorOrigin: string, su
     now,
   });
   const window = () => ({ webContentsId: 1, frameId: 0, origin: "app://nomi" });
-  return { actions, withWindow: actions(window), withoutWindow: actions(() => null), submission, handler, receipts };
+  /**
+   * 模型那一侧真正用的传输适配器。「全自动」那条免卡放行就长在它里面（`preview` 之后），
+   * 所以这条链必须由**同一个夹具**驱动——另起一份夹具就等于在测一个我们自己编的世界。
+   */
+  const transport = (mode: ProjectAgentApprovalPolicy["mode"]) => createPiGenerationTransportAdapter(
+    { projectId: PROJECT_ID, immutableProjectUuid: "project-uuid-1", projectGeneration: 1 },
+    {
+      planning: handler,
+      requestGenerationGate: authority.requestGenerationGate,
+      authorizeGeneration: authority.authorizeGeneration,
+      approvalReceiptAuthority: receipts,
+      leaseFor: () => lease,
+      approvalPolicy: () => ({ mode, spend: "confirm" }),
+    },
+  );
+  return { actions, withWindow: actions(window), withoutWindow: actions(() => null), submission, handler, receipts, authority, transport };
+}
+
+/** 模型那一侧的一次调用（`tryExecute` 的入参形状）。 */
+async function callTool(
+  transport: ReturnType<ReturnType<typeof buildActions>["transport"]>,
+  toolName: string,
+  args: Record<string, unknown>,
+) {
+  return transport.tryExecute({ toolCallId: `call-${toolName}`, toolName, args }, new AbortController().signal);
 }
 
 /** Agent 在面板里建的那份草稿（origin.host='nomi' 才会投影成面板上的付费卡）。 */
@@ -398,17 +424,59 @@ describe("Agent 面板付费卡：确认 → 真的开始生成（零额度 loop
     }
   });
   /**
-   * 已知缺口（2026-09-11 本轮实测发现，**不在 P1.1a 范围内修**，记在
-   * docs/plan/2026-09-10-permission-model-rework.md 的「P1.1a 已知缺口」）：
+   * #748 记下的已知缺口，本轮修好，断言随之翻成正面（不是删掉它）。
    *
-   * 卡上的模型 chip 让用户换模型，面板 hook 也会把 `modelId` 打进补丁（`candidatePatchFromNode`），
-   * 但 Run 的 policy `allowedModels` 是**建草稿那一刻**从候选身份冻下来的，于是换了模型再确认会被
-   * 白名单挡下——用户看到的是一句「模型未加入白名单」，而他做的只是在卡上选了另一个模型。
+   * 缺口是什么：Run 的 policy `allowedModels` 在**建草稿那一刻**从候选身份冻下来，
+   * 于是用户在卡上换个模型再确认，会撞上一句「模型未加入白名单」——而他做的只是
+   * 在下拉里选了另一个模型。冻它本是为了拦 **agent** 偷换模型（agent 走
+   * `generation.patch`，那条路一个字没改）；`generation.revise` 只有付费卡这一个入口。
    *
-   * 这条断言把现状钉住：它现在证明「换模型会被拒」。修好之后这条会红，那正是提醒——
-   * 届时把它改成正向断言（换模型也能确认并执行），而不是删掉。
+   * 现在放行的边界是**同一个任务类别**（`candidate.mode`）。跨类别仍然 fail-closed。
    */
-  it("【已知缺口】卡上换模型后确认会被 Run 白名单挡下（建草稿时冻的 allowedModels）", async () => {
+  it("卡上换模型 → 确认 → 供应商收到的就是换后那个模型（#748 缺口已修）", async () => {
+    const vendor = await startLoopbackVendor();
+    const base = harness();
+    const submits: string[] = [];
+    const { withWindow } = buildActions(base, vendor.origin, submits);
+    try {
+      await draft(base);
+      const nodeId = [...base.renderer.nodes.values()][0];
+
+      clock += 1000;
+      expect(await withWindow.revisePendingSpend({
+        projectId: PROJECT_ID, operationId: OPERATION_ID, patch: { modelId: "image-model-pro" },
+      })).toMatchObject({ ok: true, code: "revised" });
+      await base.canvasLanding.settleCanvasLanding(PROJECT_ID);
+
+      // 卡上印的已经是换后那个模型，价格按同一条算式重算（这个模型同价：0.30）。
+      const afterEdit = withWindow.listPendingSpend(PROJECT_ID)[0];
+      expect(afterEdit.shots[0]).toMatchObject({ modelId: "image-model-pro" });
+      expect(afterEdit.knownSubtotal).toBeCloseTo(0.3, 6);
+
+      clock += 1000;
+      expect(await withWindow.confirmPendingSpend({ projectId: PROJECT_ID, operationId: OPERATION_ID }))
+        .toMatchObject({ ok: true, code: "spend_confirmed" });
+      await base.canvasLanding.settleCanvasLanding(PROJECT_ID);
+
+      // 供应商真正收到的是换后那个模型——不是「没被拒」而已。
+      expect(submits).toHaveLength(1);
+      expect(vendor.bodies).toHaveLength(1);
+      expect(vendor.bodies[0]).toMatchObject({ model: "image-model-pro" });
+
+      const run = base.repository.read(PROJECT_ID, OPERATION_ID)!;
+      expect(run.generationPlan!.state).toBe("submitted");
+      // 白名单认下了新模型，**旧的没被顶掉**（用户还能换回去），而那笔钱的闸一个都没松。
+      expect(run.policy.allowedModels).toContain("image-model-pro");
+      expect(run.policy.allowedModels).toContain("image-model");
+      // 换模型没有多开一个画布节点：还是草稿一建就落的那一个。
+      expect(base.renderer.nodes.size).toBe(1);
+      expect([...base.renderer.nodes.values()][0]).toBe(nodeId);
+    } finally {
+      await vendor.close();
+    }
+  });
+
+  it("跨任务类别换模型仍被白名单挡下：那换掉的是整个花钱量级，不叫「改一下」", async () => {
     const vendor = await startLoopbackVendor();
     const base = harness();
     const submits: string[] = [];
@@ -417,16 +485,131 @@ describe("Agent 面板付费卡：确认 → 真的开始生成（零额度 loop
       await draft(base);
       clock += 1000;
       expect(await withWindow.revisePendingSpend({
-        projectId: PROJECT_ID, operationId: OPERATION_ID, patch: { modelId: "image-model-pro" },
+        projectId: PROJECT_ID, operationId: OPERATION_ID,
+        patch: { modelId: "video-model", mode: "image-to-video" },
       })).toMatchObject({ ok: true });
       clock += 1000;
       const confirmed = await withWindow.confirmPendingSpend({ projectId: PROJECT_ID, operationId: OPERATION_ID });
       expect(confirmed.ok).toBe(false);
-      expect(confirmed.message ?? "").toContain("image-model-pro");
       // 被拒得干净：没花钱，草稿还在，用户还能改回去。
       expect(submits).toHaveLength(0);
       expect(vendor.bodies).toHaveLength(0);
       expect(withWindow.listPendingSpend(PROJECT_ID)).toHaveLength(1);
+    } finally {
+      await vendor.close();
+    }
+  });
+});
+
+/**
+ * 「全自动」档：付费生成不再出报价卡（2026-09-12 用户拍板）。
+ *
+ * 三条断言构成这一档的全部含义，缺一条它就变味：
+ *   ① **没有卡**——面板上一张待确认都不该有（否则「全自动」只是换了个说法的「自动改」）；
+ *   ② **真的跑了**——供应商收到了那一次请求（否则它是「全自动地什么都不做」）；
+ *   ③ **闸一步没少**——门被批准、收据存在，而且收据上写着是**策略**批的，不是编了一个人出来。
+ *
+ * 另外两档拿同一个夹具跑一遍：它们必须**一个字都没变**——卡在、供应商没被碰。
+ * 只测「全自动能跑」不够：这一改真正的风险是它顺手把另外两档也放行了。
+ */
+describe("三档 × 付费报价卡（2026-09-12 拍板）", () => {
+  /**
+   * 模型那一侧真正走得到的一轮：**建草稿**。
+   *
+   * 桌面 lane 上这就是模型的最后一步——付费门不在它的工具表里，连 preview 都不在这个宿主的
+   * schema 里。草稿一建好，报价卡就该出现；「全自动」档的免卡放行正发生在同一刻。
+   */
+  async function modelTurn(base: ReturnType<typeof harness>, vendorOrigin: string, submits: string[], mode: ProjectAgentApprovalPolicy["mode"]) {
+    const built = buildActions(base, vendorOrigin, submits);
+    const transport = built.transport(mode);
+    const created = await callTool(transport, "nomi_generation_plan", {
+      operation: "create", taskKind: "text_to_image", candidate: candidate("image-model", { size: "1024x1024" }),
+    });
+    await base.canvasLanding.settleCanvasLanding(PROJECT_ID);
+    const operationId = ((created as { result?: { drafted?: { operation?: { operationId?: string } }; operation?: { operationId?: string } } }).result);
+    const resolved = operationId?.drafted?.operation?.operationId ?? operationId?.operation?.operationId ?? "";
+    return { ...built, created, operationId: resolved };
+  }
+
+  it("全自动：草稿一建好宿主就自己决门 → 没有报价卡、生成真的开始了、收据写着 policy:full_auto", async () => {
+    const vendor = await startLoopbackVendor();
+    const base = harness();
+    const submits: string[] = [];
+    try {
+      const { withWindow, operationId, created, receipts } = await modelTurn(base, vendor.origin, submits, "project");
+      expect(operationId, "建草稿必须成功——后面每一条断言都以它为前提").toBeTruthy();
+
+      // ① 没有卡：等用户点头的那一笔不存在了，因为已经决过了。
+      expect(withWindow.listPendingSpend(PROJECT_ID)).toHaveLength(0);
+
+      // ② 真的跑了：供应商收到一次，且只有一次。
+      expect(submits).toHaveLength(1);
+      expect(vendor.bodies).toHaveLength(1);
+
+      // ③ 闸一步没少，而且账本上说得出是谁批的。
+      const run = base.repository.read(PROJECT_ID, operationId)!;
+      const plan = run.generationPlan!;
+      expect(plan.state).toBe("submitted");
+      const gate = run.gates.find((entry) => entry.gateId === plan.authorizationGateId)!;
+      expect(gate.status).toBe("approved");
+      expect(gate.receiptId).toBeTruthy();
+      const receipt = receipts.verifyReceipt(receipts.resolveReceiptToken(gate.receiptId!));
+      expect(receipt.decidedBy).toBe("policy:full_auto");
+      expect(receipt.gestureAttestation.kind).toBe("policy_decision");
+      // 没有人点，所以 humanActor 记的是那条策略——不是编一个 web_contents 出来。
+      expect(receipt.humanActor).toBe("policy:project:agent-lane");
+
+      // 工具结果里也说得出这一笔是策略批的（模型据此知道「已经开跑」，不会再去催用户点卡）。
+      expect(created).toMatchObject({ ok: true, result: { spendDecision: { decidedBy: "policy:full_auto" } } });
+    } finally {
+      await vendor.close();
+    }
+  });
+
+  for (const mode of ["step", "safe-auto"] as const) {
+    it(`${mode}：一个字都没变——报价卡照常出现，供应商一次都没被碰`, async () => {
+      const vendor = await startLoopbackVendor();
+      const base = harness();
+      const submits: string[] = [];
+      try {
+        const { withWindow, operationId } = await modelTurn(base, vendor.origin, submits, mode);
+
+        const pending = withWindow.listPendingSpend(PROJECT_ID);
+        expect(pending).toHaveLength(1);
+        expect(pending[0].operationId).toBe(operationId);
+        expect(submits).toHaveLength(0);
+        expect(vendor.bodies).toHaveLength(0);
+        expect(base.repository.read(PROJECT_ID, operationId)!.generationPlan!.state).not.toBe("submitted");
+      } finally {
+        await vendor.close();
+      }
+    });
+  }
+
+  it("档位读不到时按默认档走：不许替用户花钱", async () => {
+    const vendor = await startLoopbackVendor();
+    const base = harness();
+    const submits: string[] = [];
+    try {
+      const built = buildActions(base, vendor.origin, submits);
+      // 没有 `approvalPolicy` 这一项的适配器 = 这条路没有档位可读（MCP 那一侧就是这样）。
+      const transport = createPiGenerationTransportAdapter(
+        { projectId: PROJECT_ID, immutableProjectUuid: "project-uuid-1", projectGeneration: 1 },
+        {
+          planning: built.handler,
+          requestGenerationGate: built.authority.requestGenerationGate,
+          authorizeGeneration: built.authority.authorizeGeneration,
+          approvalReceiptAuthority: built.receipts,
+          leaseFor: () => lease,
+        },
+      );
+      await callTool(transport, "nomi_generation_plan", {
+        operation: "create", taskKind: "text_to_image", candidate: candidate("image-model", { size: "1024x1024" }),
+      });
+      await base.canvasLanding.settleCanvasLanding(PROJECT_ID);
+      // 不知道档位时**不许**替用户花钱：供应商一次都没被碰，卡还在原处等人。
+      expect(submits).toHaveLength(0);
+      expect(built.withWindow.listPendingSpend(PROJECT_ID)).toHaveLength(1);
     } finally {
       await vendor.close();
     }

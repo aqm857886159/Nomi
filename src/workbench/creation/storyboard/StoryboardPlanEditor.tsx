@@ -18,7 +18,7 @@ import {
   type PlanIssue,
 } from '../../generationCanvas/agent/storyboardPlanEdits'
 import type { StoryboardPlan } from '../../generationCanvas/agent/storyboardPlan'
-import { planDefaultAspect } from '../../generationCanvas/agent/storyboardAspectScope'
+import { planDefaultAspect } from '../../generationCanvas/agent/storyboardShotScope'
 import StoryboardAnchorZone from './anchorZone/StoryboardAnchorZone'
 import StoryboardBulkBar from './StoryboardBulkBar'
 import StoryboardShotTable from './StoryboardShotTable'

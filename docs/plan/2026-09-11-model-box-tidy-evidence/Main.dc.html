@@ -1,0 +1,92 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap">
+  <style>
+    body { margin: 0; font-family: Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", system-ui, sans-serif; }
+    a { color: oklch(0.55 0.13 250); } a:hover { color: oklch(0.45 0.13 250); }
+    .root.light { --paper: oklch(1 0 0); --ink: oklch(0.22 0.01 80); --ink-80: oklch(0.32 0.01 80); --ink-60: oklch(0.50 0.01 80); --ink-40: oklch(0.68 0.01 80); --ink-20: oklch(0.88 0.005 80); --ink-10: oklch(0.94 0.003 80); --ink-05: oklch(0.97 0.003 80); --line: oklch(0.91 0.004 80); --line-soft: oklch(0.95 0.003 80); --accent: oklch(0.55 0.13 250); --accent-soft: color-mix(in srgb, oklch(0.55 0.13 250) 12%, oklch(1 0 0)); }
+    .root.dark { --paper: oklch(0.235 0.007 80); --ink: oklch(0.93 0.006 85); --ink-80: oklch(0.85 0.006 85); --ink-60: oklch(0.70 0.006 85); --ink-40: oklch(0.55 0.006 85); --ink-20: oklch(0.42 0.006 80); --ink-10: oklch(0.31 0.006 80); --ink-05: oklch(0.27 0.006 80); --line: oklch(0.36 0.007 80); --line-soft: oklch(0.31 0.007 80); --accent: oklch(0.70 0.13 250); --accent-soft: color-mix(in srgb, oklch(0.70 0.13 250) 12%, oklch(0.235 0.007 80)); }
+    .root { color: var(--ink); background: var(--paper); font-size: 14px; line-height: 1.5; }
+    .nav-item { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; border-radius: 6px; font-size: 12px; color: var(--ink-60); }
+    .nav-item.active { background: var(--paper); color: var(--ink); font-weight: 500; box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
+    .rank { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 11px; font-weight: 600; }
+    .row { display: flex; align-items: center; gap: 12px; min-height: 32px; }
+    .name { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--ink-80); }
+    .icon-btn { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 6px; color: var(--ink-40); background: transparent; border: 0; }
+    .chip { display: inline-flex; align-items: center; height: 18px; padding: 0 7px; border-radius: 999px; font-size: 11px; border: 1px solid var(--line); color: var(--ink-40); }
+    .chip.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+    .seg { display: inline-flex; gap: 2px; padding: 2px; border-radius: 6px; background: var(--ink-05); }
+    .seg span { padding: 3px 10px; border-radius: 6px; font-size: 12px; color: var(--ink-60); }
+    .seg span.on { background: var(--paper); color: var(--ink); font-weight: 500; box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
+    .hidden-row .name { color: var(--ink-40); }
+    .hidden-row .chip { opacity: 0.6; }
+  </style>
+</helmet>
+<div class="root {{themeClass}}" style="width: 760px; height: 760px; display: flex; border-radius: 16px; border: 1px solid var(--line); overflow: hidden; box-sizing: border-box;">
+  <div style="width: 196px; flex: none; display: flex; flex-direction: column; gap: 2px; padding: 8px; background: var(--ink-05); border-right: 1px solid var(--line); box-sizing: border-box;">
+    <div style="padding: 4px 12px 12px; font-size: 13px; font-weight: 500; color: var(--ink);">设置</div>
+    <div class="nav-item"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/></svg>文件与保存</div>
+    <div class="nav-item"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 4.5-9 4.5-9-4.5z"/><path d="M3 12l9 4.5 9-4.5"/></svg>模型</div>
+    <div class="nav-item active"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>AI 策略</div>
+    <div class="nav-item"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>自动化与权限</div>
+    <div class="nav-item"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h16M4 16h16"/><circle cx="9" cy="8" r="2"/><circle cx="15" cy="16" r="2"/></svg>通用</div>
+    <div class="nav-item"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>关于</div>
+  </div>
+  <div style="flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; overflow: hidden;">
+    <div style="padding: 16px 20px 12px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 2px;">
+      <div style="font-size: 14px; font-weight: 500; color: var(--ink);">AI 策略</div>
+      <div style="font-size: 11px; color: var(--ink-40);">接好的模型默认怎么用</div>
+    </div>
+    <div style="flex: 1 1 0; min-height: 0; overflow: auto; padding: 16px 20px 20px; display: flex; flex-direction: column; gap: 24px;">
+
+      <section style="display: flex; flex-direction: column; gap: 4px;">
+        <div style="font-size: 12px; font-weight: 500; color: var(--ink-60);">同一个模型多家都有，默认走哪家</div>
+        <div style="font-size: 11px; color: var(--ink-40); margin-bottom: 8px;">按这个顺序挑第一家；下面每行的供应商标签也按这个顺序排。只列已配置的供应商。</div>
+        <div style="display: grid; gap: 8px;">
+          <div class="row"><span class="rank">1</span><span class="name">APIMart</span><span style="display: flex; gap: 4px;"><button class="icon-btn" aria-label="上移"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg></button><button class="icon-btn" aria-label="下移"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button></span></div>
+          <div class="row"><span class="rank">2</span><span class="name">Kie</span><span style="display: flex; gap: 4px;"><button class="icon-btn" aria-label="上移"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg></button><button class="icon-btn" aria-label="下移"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button></span></div>
+          <div class="row"><span class="rank">3</span><span class="name">我的中转站</span><span style="display: flex; gap: 4px;"><button class="icon-btn" aria-label="上移"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg></button><button class="icon-btn" aria-label="下移"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button></span></div>
+        </div>
+      </section>
+
+      <section style="display: flex; flex-direction: column; gap: 4px;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <div style="flex: 1 1 0; font-size: 12px; font-weight: 500; color: var(--ink-60);">模型框里显示哪些、排在哪</div>
+          <div class="seg"><span class="on">图片</span><span>视频</span><span>音频</span></div>
+        </div>
+        <div style="font-size: 11px; color: var(--ink-40); margin-bottom: 8px;">行的顺序就是模型框的顺序；隐藏的不进模型框，随时找回。每行标签按上面那张表排，蓝的是默认走的那家；你手点过的，永远听你的。</div>
+        <div style="display: grid; gap: 8px;">
+          <div class="row"><span class="rank">1</span><span class="name">GPT Image 2</span><span style="display: flex; gap: 4px;"><span class="chip on">APIMart</span><span class="chip">Kie</span></span><span style="display: flex; gap: 4px;"><button class="icon-btn" aria-label="上移"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg></button><button class="icon-btn" aria-label="下移"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button><button class="icon-btn" aria-label="隐藏"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></button></span></div>
+          <div class="row"><span class="rank">2</span><span class="name">Nano Banana 2</span><span style="display: flex; gap: 4px;"><span class="chip">APIMart</span><span class="chip on">Kie</span></span><span style="display: flex; gap: 4px;"><button class="icon-btn" aria-label="上移"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg></button><button class="icon-btn" aria-label="下移"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button><button class="icon-btn" aria-label="隐藏"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></button></span></div>
+          <div class="row"><span class="rank">3</span><span class="name">Seedream 5.0 Pro</span><span style="display: flex; gap: 4px;"><span class="chip on">APIMart</span><span class="chip">Kie</span></span><span style="display: flex; gap: 4px;"><button class="icon-btn" aria-label="上移"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg></button><button class="icon-btn" aria-label="下移"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button><button class="icon-btn" aria-label="隐藏"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></button></span></div>
+          <div class="row"><span class="rank">4</span><span class="name">FLUX.2 Pro</span><span style="display: flex; gap: 4px;"><span class="chip on">Kie</span></span><span style="display: flex; gap: 4px;"><button class="icon-btn" aria-label="上移"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg></button><button class="icon-btn" aria-label="下移"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button><button class="icon-btn" aria-label="隐藏"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></button></span></div>
+          <div class="row"><span class="rank">5</span><span class="name">Qwen-Image 3.0</span><span style="display: flex; gap: 4px;"><span class="chip on">APIMart</span></span><span style="display: flex; gap: 4px;"><button class="icon-btn" aria-label="上移"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg></button><button class="icon-btn" aria-label="下移"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button><button class="icon-btn" aria-label="隐藏"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></button></span></div>
+          <div class="row"><span class="rank">6</span><span class="name">Nano Banana 2 Lite</span><span style="display: flex; gap: 4px;"><span class="chip on">Kie</span></span><span style="display: flex; gap: 4px;"><button class="icon-btn" aria-label="上移"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg></button><button class="icon-btn" aria-label="下移"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button><button class="icon-btn" aria-label="隐藏"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></button></span></div>
+        </div>
+        <div style="margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line-soft); display: flex; flex-direction: column; gap: 8px;">
+          <div style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--ink-40);"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>已隐藏 · 2</div>
+          <div class="row hidden-row"><span class="rank" style="background: var(--ink-05); color: var(--ink-40);">·</span><span class="name">Seedream 5.0 Lite</span><span style="display: flex; gap: 4px;"><span class="chip">Kie</span></span><span style="display: flex; gap: 4px;"><button class="icon-btn" aria-label="显示"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18"/><path d="M10.6 10.6a3 3 0 0 0 4.2 4.2"/><path d="M9.9 5.1A10.5 10.5 0 0 1 12 5c6 0 10 7 10 7a17 17 0 0 1-3.2 3.9"/><path d="M6.6 6.6A17 17 0 0 0 2 12s4 7 10 7c1.4 0 2.6-.3 3.8-.8"/></svg></button></span></div>
+          <div class="row hidden-row"><span class="rank" style="background: var(--ink-05); color: var(--ink-40);">·</span><span class="name">Z-Image Turbo</span><span style="display: flex; gap: 4px;"><span class="chip">APIMart</span></span><span style="display: flex; gap: 4px;"><button class="icon-btn" aria-label="显示"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18"/><path d="M10.6 10.6a3 3 0 0 0 4.2 4.2"/><path d="M9.9 5.1A10.5 10.5 0 0 1 12 5c6 0 10 7 10 7a17 17 0 0 1-3.2 3.9"/><path d="M6.6 6.6A17 17 0 0 0 2 12s4 7 10 7c1.4 0 2.6-.3 3.8-.8"/></svg></button></span></div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+</x-dc>
+<script data-dc-script data-props='{"dark":{"editor":"boolean","default":false,"section":"主题"},"$preview":{"width":760,"height":760}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { themeClass: this.props.dark ? 'dark' : 'light' };
+  }
+}
+</script>
+</body>
+</html>

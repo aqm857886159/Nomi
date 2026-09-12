@@ -195,6 +195,19 @@
 2. 4.2 自主模式下付费动作的二选一策略（每次确认 / 会话预算自动）默认取哪个——推荐默认「每次确认」。
 3. 批量卡的「全部放行」是否需要二次确认——推荐不要（卡上逐项可改已经是确认本身）。
 
+## 八、P1 的实施分期（指针表，细节各有正本，不在这里复制第二份）
+
+P1 这一期按「先接进面板，再把改参数之后的行为修对」拆成两段。两段的**范围 / 不动项 / 回滚 / 验收门**
+各自有一份正本，本表只说去哪儿看——同一件事写两遍，迟早会有一遍是旧的（P1 加新必删旧）。
+
+| 段 | 做了什么 | 正本 |
+|---|---|---|
+| P1.1a | 付费确认卡接进 Agent 面板介入槽；**删干净倒计时与一切「空闲到点自动决定」**；confirm→production 端到端夹具 | 本文件下面那一节（P1.1a） |
+| P1.1b | **卡上改完参数之后的那四件事**：即时重报价（同一条算式搬进契约层、渲染层本地重算）、回写只发生在按下「生成」那一刻、全部/逐镜两层覆写、R30 两组数字 | [`docs/plan/2026-09-11-permission-p1-implementation.md` § P1.1b](2026-09-11-permission-p1-implementation.md) |
+
+P1.1b 的三条已知缺口（`×N` 在面板宿主里改不动东西 / 生产提交段那条走查跑不到底 / 正式报价与本地
+估算不一致时只原地换数不出声）记在实施文档的「已知缺口」里，不在这里另记一份。
+
 ---
 
 ## P1.1a（2026-09-11）：审批卡永不空闲超时 + 「确认 → 真的开始生成」端到端夹具
@@ -247,7 +260,7 @@
 ### P1.1a 已知缺口（实测发现，**本轮不修**，各自需要独立裁决）
 
 1. **非 apimart 的供应商，付费卡按下去必然失败。** `electron/capabilityCore/generationProviderBootstrap.ts` 只把 `apimart` 装成可提交的生成供应商，其余 vendor 一律 `providerReady:false` → 付费卡确认返回「供应商缺少必需能力：configured_provider」。这与「用户接官方端点 / 自建中转」的方向直接冲突，但改它是供应商装配层的结构裁决，不属于本轮两件确定项。走查因此只走到「按下去 → 宿主拒绝」，真正跑起来那一段由上面的 vitest 夹具覆盖（文件头写明了为什么，不假绿）。
-2. **卡上换模型会被 Run 白名单挡下。** `allowedModels` 是建草稿那一刻从候选身份冻下来的（`productionGenerationOperationStore.create`），而卡上的模型 chip 允许用户换。`agentPanelSpendConfirm.e2e.test.ts` 里有一条【已知缺口】测试把现状钉住——修好之后它会红，届时改成正向断言而不是删掉。
+2. ~~**卡上换模型会被 Run 白名单挡下。**~~ **2026-09-12（#748）已修**，做法正是这里预告的那条：那条【已知缺口】测试**翻成了正向断言而不是删掉**（换模型 → 确认 → loopback 供应商收到的 `model` 就是换后那个）。根因不在白名单本身，而在「一道防 agent 偷换身份的闸被真人的选择撞上，判据里却没有『谁按的』这一维」：放行收在只有真人能到达的那条命令（`generation.revise`）上，边界是同一镜同一任务类别，跨类别与 agent 的 `generation.patch` 照旧 fail-closed。方案与验收见 [`docs/plan/2026-09-11-permission-p1-implementation.md` §「卡上换模型不再被冻结的白名单挡下」](2026-09-11-permission-p1-implementation.md)，合同 `docs/fixes/2026-09-12-spend-card-model-swap-blocked.root-cause.json`。
 
 ### 顺手修掉的一条（属于本轮卡的行为，非缺口）
 
@@ -261,3 +274,74 @@
 - `npx vitest run electron/capabilityCore/rendererBridge.test.ts` 5 条全绿，新增 3 条过变异验证。
 - 全仓 `grep -rn -i -E 'countdown|倒计时|autoApproveAfter|idleTimeout' src electron` 只剩本节这份说明与「没有倒计时」的断言本身。
 - 补扫 `grep -rn 'requestRenderer(' electron/ | grep -v test` 逐条判「等的是渲染层还是人」，等人的四处全部走 `requestRendererDecision`。（**同类扫描的词表要按语义展开，不要按命名展开**——第一轮漏掉主进程那三处，正是因为它们叫「timeout」而不叫「countdown」。）
+
+---
+
+## 2026-09-12 增补：「全自动」档的付费生成不再逐笔出报价卡
+
+> 用户 2026-09-12 拍板。它**改的是本方案 §4.1 那张矩阵里的一格**：三档仍然是「每步问 / 自动改 / 全自动」，
+> 但「全自动」这一档下，付费生成由档位代答，不再逐笔弹报价卡；另外两档一个字不变。
+> 设置里没有预算上限，也不许新增（那条硬上限 2026-09-10 已删）。
+
+### 为什么这一格变了
+
+2026-09-10 写的是「三档都 confirm」，理由是删掉硬预算上限之后 `spend: within-budget` 成了一张没有额度的
+通行证，只能先全部收成 `confirm`。今天拍板的是另一件事：**档位本身就是那次授权**——切进「全自动」
+要过一张二次确认卡，开着时面板顶上常驻一条提醒，用户是知情的。所以判据挂在 `mode` 上，
+不挂在没有额度撑着的 `spend` 轴上。
+
+### 两个面，别再混着说
+
+| | 谁问的问题 | 2026-09-12 的答案 |
+|---|---|---|
+| **模型面** `capabilityIsHardGated` | 模型能不能自己发起一次付费调用？ | **不能，任何档位下都不能**（一个字没改）。付费能力压根不投影进模型的工具表（`paidBoundary.ts`「内部面不投影」） |
+| **宿主面** `spendDecidedByPolicy`（新增） | 草稿建好了，是弹卡等用户点，还是按档位代答？ | 只有「全自动」代答 |
+
+### 免卡 ≠ 免账
+
+闸一步没少，只是换了个决定者。两条路走**同一个函数**（新增 `electron/capabilityCore/generationSpendDecision.ts`）：
+
+```
+封印(requestGenerationGate) → 铸收据(主进程签) → 决门(authorizeGeneration) → 一次性消费 → start
+```
+
+唯一差别是那张 attestation 怎么来的：真人在 Nomi 窗口里点的那一下（`human-gesture`），
+或「全自动」代答（`policy-full-auto`，新增的 `policy_decision` attestation，**只有 `project` 档铸得出来**）。
+收据上写 `decidedBy: "policy:full_auto"`、`humanActor: "policy:project:agent-lane"`——
+账本一眼看得出这一笔是策略批的，不是编了一个人出来。
+
+**闸挂在草稿刚建好那一刻**：桌面 lane 上模型能走到的最后一步就是 `create` / `patch`
+（这个宿主的 schema 里根本没有 `preview`），而草稿一建好，`projectPendingSpendConfirm` 就会把它
+投影成报价卡——那一刻正是另外两档里用户点下去的那一刻。（第一版把闸挂在 `preview` 之后，
+判据是 MCP 那条路才会回的 `nextAction: "request_gate"`，桌面 lane 一次都走不到，等于没做。）
+
+### 顺手修掉的两处自相矛盾（评审发现）
+
+1. **文案**：`src/i18n/locales/agentPanelV4.ts` 的三档说明、切档二次确认、常驻提醒三处都写着
+   「付费和不可逆的操作仍然每次问」。留着就是骗用户——他照着这句话理解自己刚做的选择，
+   然后钱在他没看见的地方花出去。
+2. **档位被伪造**：`electron/agentLane/laneApprovalGate.ts` 把 `forceConfirmation` 实现成
+   `{ mode: 'step', spend: 'confirm' }`——一个调用点伪造一份用户从没选过的档位，交给下游所有读档位的判据。
+   档位恰恰是上面那条新判据的唯一依据，它不能有第二个答案。现在那条事实作为 subject 上的
+   `hostMustConfirm` 表达（像 `destructiveHint` 一样只抬不降），净效果一个字没变：
+   沙箱逃逸的 shell 命令在任何档位下仍然当次确认，用户自己答过的「这类以后别问」仍然算数。
+
+### 外部 MCP 宿主：不受影响
+
+档位快照只由桌面 lane 传进生成适配器（`laneDesktopRuntime` 的 `composer.approvalPolicy`）。
+外部 MCP 宿主走的是 `mcpGateConfirmation` / `confirmGenerationInNomi` 那条路，**从来拿不到 `approvalPolicy`**，
+所以它们的确认语义一个字没变（那条路自己有 elicitation 与收据门，由 `check:spend-receipt` 钉着）。
+适配器缺 `approvalPolicy` 时按默认档（自动改）走 = 照旧弹卡：不知道档位时不许替用户花钱。
+
+### 验收
+
+- `electron/capabilityCore/agentPanelSpendConfirm.e2e.test.ts`「三档 × 付费报价卡」四条：零额度 loopback
+  HTTP 供应商上，全自动（无卡 + 供应商真收到一次 + 门 approved + 收据 `policy:full_auto`）、
+  每步问 / 自动改（卡照常出现、供应商一次没碰）、读不到档位（按默认档，不替用户花钱）。
+- `electron/shared/agentCapabilities/capabilityApprovalPolicy.test.ts` 两组新 describe：宿主面三档逐个核对、
+  `hostMustConfirm` 只抬不降且不夺走用户自己给过的授权。
+- `electron/capabilityCore/approvalReceipt.test.ts`：`policy_decision` 的铸/验/伪造/改字段/改档位/过期全部 fail-closed。
+- `node tests/ux/agent-spend-full-auto.walk.mjs` 真机绿（截图 `.tmp/pi-spend-full-auto-*`）。
+  它证的是**档位真的改变了宿主的行为**：「自动改」档下宿主根本不去碰那道门（面板上没有任何失败），
+  「全自动」档下宿主当场去决门（这台夹具的供应商装不进生成链，于是必然出现一条看得见的失败）。
+  「决成了所以没有卡」那一半由上面的 e2e 在真 loopback 供应商上证——理由同 P1.1a 已知缺口 ①。

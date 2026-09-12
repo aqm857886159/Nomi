@@ -1,0 +1,168 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-12-integration-run-failure-path",
+  "change_kind": "corrective",
+  "problem_type": "接模型验证 run 的**失败路径**比主路径弱：主路径的失败能进 catch，catch 自己的失败无人兜底。于是一次写盘失败就让状态机永久停在中间态，用户与驱动 Agent 都没有出口",
+  "symptom": "2026-09-11 真机接入 otokapi 的 6 个文本模型：点过确认、run 进入 certifying 之后卡死 >7 分钟，界面一直显示「正在验证」。`cancel` 被拒（\"Cannot cancel certification in progress\"），`session.read` 只给得出一个粗码、看不到任何一个模型的真实错误。重启 app 之后会话才转 failed(certification_timed_out)——也就是说失败原因在重启前根本不存在于任何可读的地方。同一批 6 个模型 curl 直连全部 200，上游没有问题",
+  "direct_cause": "某个模型验证失败/超时 → `ProviderAdapterService.finishWithError` → `finishRunWithFailure` → `store.upsertRun` → `ProviderAdapterStore.mutate` 的文件租约锁自旋 3 秒拿不到，抛 `Provider adapter store lock timed out`。这个异常从 `process()` 一路冒到 `queueMicrotask(() => void this.executeRun(id))`（service.ts:269，fire-and-forget 无 catch），变成未处理 rejection 被吞掉；run 留在 `certifying`，会话经 `syncHttpCertification` 跟着留在 `certifying`，`IntegrationSessionService.cancel` 对这两个阶段直接 throw，于是没有任何一条路能把它推到终态。锁之所以 3 秒都拿不到是一条结构性错配：租约 TTL 是 30 秒（store.ts 的 leaseMs），被 kill 的进程留下的租约要等它过期才能被 `reclaimExpired` 接管，而自旋上限只有 3 秒——短于租约上限的等待**结构上不可能**熬过一次陈旧租约，每一次终态写都必然超时",
+  "class_root": "状态机缺少「任何中间态最终必须终态化」这条不变量，也没有留逃生口。锁只是放大器：真正的类根因是**失败路径没有被当成一等路径来设计**——终态写是尽力而为的一次同步调用，没人检查它成没成，失败了既不重试、不留证、也不通知任何人；而中间态没有看门狗，只有「下次启动」这一个恢复时机。任何一次写盘失败（锁、盘满、只读、权限）都会复现同一个形状",
+  "affected_population": [
+    "任何用 MCP `nomi_integration` / 接模型面板接入 HTTP 供应商的用户：只要终态写那一下撞上锁（另一个 Nomi 实例、上一次被 kill 的实例留下的租约、慢盘），接入就永久卡在「正在验证」，且拿不到任何错误原文",
+    "批量接入多个模型的用户风险更高：模型越多、验证越久，越容易压到 deadline，也就越容易走到那条失败路径",
+    "驱动接入的 Agent（WorkBuddy / Claude Code / Codex）：它只能读 session，而 session 在这个状态下既不前进也不给原因，Agent 唯一能做的是让用户重启 app"
+  ],
+  "scope_paths": [
+    "electron/providerAdapter/terminalGuarantee.ts",
+    "electron/providerAdapter/terminalGuarantee.test.ts",
+    "electron/providerAdapter/terminalGuaranteeStore.test.ts",
+    "electron/providerAdapter/serviceFailurePath.test.ts",
+    "electron/providerAdapter/service.ts",
+    "electron/providerAdapter/store.ts",
+    "electron/integrationCertification/integrationSessionRunView.ts",
+    "electron/integrationCertification/integrationSessionRunView.test.ts",
+    "electron/integrationCertification/integrationSession.ts"
+  ],
+  "entry_points": [
+    "electron/providerAdapter/service.ts:299 executeRun — run 执行的唯一入口（此前 fire-and-forget，promise 无 catch）",
+    "electron/providerAdapter/service.ts:329 process — 主路径；它的 catch 里调终态写",
+    "electron/providerAdapter/service.ts:733 finishTerminal — 终态写的唯一入口（本轮把 finishWithError / finishRunWithFailure / writeTerminalFailure 三个同义入口收成这一个）",
+    "electron/providerAdapter/service.ts:266 cancel — 用户/Agent 侧的撤销入口",
+    "electron/providerAdapter/service.ts:277 resumeInterrupted — 启动恢复；本轮在这里加旁路补偿与看门狗启动",
+    "electron/providerAdapter/store.ts:295 mutate — run 状态的唯一写入口（文件租约锁在这里）",
+    "electron/providerAdapter/store.ts:159 getRun / 171 listRuns — run 状态的读入口（不走锁，所以死锁期间读得到「还在 certifying」）",
+    "electron/integrationCertification/integrationSession.ts:820 syncHttpCertification — run 状态 → 会话阶段的唯一同步点",
+    "electron/integrationCertification/integrationSession.ts:1611 cancel — 会话侧的撤销入口（此前对 certifying/committing 无条件 throw）"
+  ],
+  "invariants": [
+    "**run 不许停在中间态**：任何一次终态写要么最终落进 provider-adapters.json，要么在 provider-adapters.json.errors.jsonl 里留下一条 append-only 的证据等待启动补偿。两者都不发生是不允许的状态",
+    "终态写的退避总预算必须**长过** store 文件锁的租约 TTL；预算短于租约上限的等待结构上熬不过一次陈旧租约。这条在 TerminalWriteGuarantee 构造时断言，档位调错当场炸",
+    "凡是 deadline 已过且仍非终态的 run，看门狗每 30 秒必须把它强制终态化（timed_out）——恢复不能只发生在「下次启动」",
+    "`executeRun` 返回的 promise 永远不 reject：失败路径自己失败时也要被接住并转交给终态保证，不许变成未处理 rejection",
+    "所有兜底都必须**响**：进 errors.jsonl、进日志、进 session read 的逐模型结果、cancel 返回明确结论。没有静默吞掉的路径",
+    "`certifying` 的 HTTP 会话一定有出口：cancel 先真的去撤 run，撤不掉也放人走并如实标注 certification_already_submitted"
+  ],
+  "generality_proof": "终态写的三层保证（同步直写 → 指数退避重试 → append-only 旁路 + 启动补偿）与看门狗都住在 electron/providerAdapter/terminalGuarantee.ts 这一个模块里，由 `ProviderAdapterService` 在构造时装配一次；服务层只剩一个终态入口 `finishTerminal`（本轮把原来的 finishWithError / finishTerminal / finishRunWithFailure / writeTerminalFailure 四个同义入口收成一个，不留并行版）。于是「终态化」在这份代码里没有第二条路：想绕开保证，就得绕开唯一那个入口。退避预算与租约 TTL 的关系由 `assertTerminalWriteOutlastsLease` 在构造时断言，两个常量都从 store.ts 导出（PROVIDER_ADAPTER_STORE_LOCK_LEASE_MS / PROVIDER_ADAPTER_STORE_LOCK_SPIN_MS），谁改了其中一个而没同时改另一个，服务一构造就炸——这条错配再也不可能安静地存在",
+  "shared_boundaries": [
+    {
+      "path": "electron/providerAdapter/terminalGuarantee.ts",
+      "symbol": "TerminalWriteGuarantee / TerminalReaper / writeAdapterTerminalFailure",
+      "responsibility": "「run 不许停在中间态」这条不变量的持有者：终态怎么写、写不进去怎么办、中间态过了 deadline 谁来收，全在这一个模块"
+    },
+    {
+      "path": "electron/integrationCertification/integrationSessionRunView.ts",
+      "symbol": "cancelCertifyingRun / sessionModelResults",
+      "responsibility": "会话面上「certifying 的出口」与「逐模型结论怎么读」的持有者；run 的真相仍在 providerAdapter，这里只做投影，不另造第二份状态"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/providerAdapter/service.ts",
+      "entry_point": "executeRun 的 fire-and-forget promise",
+      "disposition": "enforced",
+      "evidence": "`this.process(id).catch(...)` 记日志 + 转交 terminal.settle。serviceFailurePath.test.ts「executeRun 不再把失败漏成 unhandled rejection」：catalog.load 抛错 + 盘上植入未到期租约（终态写必然超时），executeRun 仍 resolve，errors.jsonl 落一条 lock timed out，去掉锁后 resumeInterrupted 把 run 收成 failed 并清账"
+    },
+    {
+      "path": "electron/providerAdapter/service.ts",
+      "entry_point": "finishWithError / finishRunWithFailure / writeTerminalFailure 三个同义终态入口",
+      "disposition": "enforced",
+      "evidence": "已合并成唯一的 `finishTerminal`，它只做一件事：`this.terminal.settle(...)`。旧的三个入口在同一 commit 里删除（P1 加新必删旧），不存在绕开保证的第二条路"
+    },
+    {
+      "path": "electron/providerAdapter/store.ts",
+      "entry_point": "mutate 的 3 秒同步自旋（H1/H3 审计）",
+      "disposition": "enforced",
+      "evidence": "H1 审计结论：`mutate` 的回调是同步的，整段没有 await，**不存在跨 await 持锁的路径**；同进程两次 mutate 不可能交错，所以「锁被占」只可能来自别的进程或陈旧租约。因此没有把自旋上限提到 30s（`Atomics.wait` 会把 Electron 主进程一起冻住 30 秒，既救不了锁又卡死界面），改为把自旋常量命名导出并保持 3s，把熬租约的活交给调用方的**异步**退避——预算 45s > 租约 30s，由构造期断言钉住。terminalGuaranteeStore.test.ts 用真实 store + 盘上植入的真实租约两端都验过"
+    },
+    {
+      "path": "electron/productionRun/productionRunLock.ts",
+      "entry_point": "epoch 接管对运行中陈旧租约的行为（H2 审计）",
+      "disposition": "not-affected",
+      "evidence": "逐行读过：`acquire` 先 `parseLease`，存在即 `reclaimExpired`——只在 `now >= expiresAt` 时用原子 rename 抢占，未过期一律抛 Busy（所以不会抢走活着的持有者）。`mutate` 在读完状态、写盘之前调 `assertOwned(lease)`，租约若已被别人接管会抛 Lost 而**不写**，`finally` 里的 `release` 同样先 assertOwned，因此也不会删掉别人的锁——fencing 是完整的。运行中的陈旧租约（进程被 kill）由 30s 过期 + reclaim 自然收回，行为正确，本轮不改；本条的修复是让等待方的预算长过这个 30s"
+    },
+    {
+      "path": "electron/integrationCertification/integrationSession.ts",
+      "entry_point": "会话 cancel 在 certifying/committing 无条件 throw",
+      "disposition": "enforced",
+      "evidence": "HTTP 会话改为经 `cancelCertifyingRun` 真的去撤 run；撤不掉也放人走并标 certification_already_submitted。ComfyUI 的 certifying 是一个还在飞的本地 promise、没有可撤的 run，对它放行只会让「已取消」和随后 resolve 的「已完成」打架，所以那条路**仍然拒绝**——integrationSessionRunView.test.ts 三条与 integrationSession.test.ts 既有那条一起钉住"
+    },
+    {
+      "path": "electron/integrationCertification/integrationSession.ts",
+      "entry_point": "session.read 看不到逐模型的原始错误",
+      "disposition": "enforced",
+      "evidence": "run 的 `models[].modes[]` 里本就持久化了 error / httpStatus / errorCategory / reasonCode（serviceVerificationResults.ts 的 persistedModeResult），只是没投影到会话面上。`sessionModelResults` 把它投影进 projection 的 modelResults，不新造第二份真相。integrationSessionRunView.test.ts 覆盖"
+    },
+    {
+      "path": "electron/capabilityCore/mcpIntegrationTools.ts",
+      "entry_point": "PR #754 在途的 nomi_check_connection（免费自检）—— 路径在该分支是 electron/capabilityCore/modelOnboarding/dispatch.ts，main 上对应的接入工具面是本文件",
+      "disposition": "not-affected",
+      "evidence": "逐行读过在途分支 feat/mcp-onboarding-tool-face-20260911：`checkConnection` 直接调 probeModels 把结论写进模型目录的 meta.nomiSelfCheck，**不创建 run**，因此不经过本条不变量的那把锁。但同一分支的 `nomi_await_setup` 仍在等 certifying/committing，`nomi_cancel` 仍走 sessions.cancel——run 状态机与 cancel 逃生口对它照样适用"
+    },
+    {
+      "path": "electron/providerAdapter/service.ts",
+      "entry_point": "在途分支 feat/model-onboarding-two-paths-20260911（付费验证已删、改为免费自检）",
+      "disposition": "not-affected",
+      "evidence": "逐行核对过：那条分支删的是 repair 轮与付费真实生成（verifier.ts / process() 的重修循环），**run 状态机一个字没动**——queueMicrotask fire-and-forget 仍在 service.ts:257，finishWithError 仍在 :591，store.mutate 的 3 秒自旋与 30 秒租约原样保留，integrationSession.ts:1623 的 \"Cannot cancel certification in progress\" 也还在。免费自检同样要写 run 状态，所以本条修复对它完全适用，两边合并时改动在不同代码块、不冲突"
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "这是一族而不是一次：终态写失败（锁、盘满、只读、权限、被 kill 的实例留下的租约）在这份代码里都会走到同一条无兜底的路，而并行 worktree/多实例正是本机的常态。真机上同一个症状在同一晚复现了两次（6 模型一轮、gpt-5.6-sol+terra 一轮）。结构上它必然复发：只要「终态写」还是一次无人检查的尽力而为、中间态还只有「下次启动」一个恢复时机",
+    "same_class_scan": [
+      "`grep -rn \"queueMicrotask\\|void this\\.\" electron/providerAdapter electron/integrationCertification --include=*.ts`（排除测试）——找所有 fire-and-forget 的调度点；本模块只有 service.ts 的 schedule 一处，已挂 catch",
+      "`grep -rn \"store.upsertRun\\|store.updateRun\" electron/providerAdapter --include=*.ts`（排除测试）——逐条判定哪些是终态写：finishTerminal 一处（已进保证），promoteFinal 的成功路径与 markStaleIfSuperseded / supersedeActiveLineageRuns 的 stale 写属于主路径，失败时仍由 executeRun 的 catch + 看门狗兜住",
+      "`grep -rn \"createProductionRunLock\" electron --include=*.ts`——所有用同一把文件租约锁的 store：providerAdapter/store.ts、productionRun/productionRunRepository.ts、productionGenerationSubmission.ts。本轮只把 providerAdapter 这条链修到位；另两条的等待预算是否也短于租约 TTL 记在 residual_risks",
+      "`grep -rn \"Cannot cancel\\|stage === \\\"certifying\\\"\" electron --include=*.ts`（排除测试）——找所有把用户锁在中间态的拒绝点；只有 integrationSession.ts:1611 一处，已开逃生口"
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/providerAdapter/terminalGuarantee.ts",
+    "invariant": "run 不许停在中间态：终态写要么最终落盘，要么在 errors.jsonl 留证等补偿；退避预算必须长过锁租约 TTL；deadline 过期的中间态由看门狗每 30 秒强制终态化",
+    "failure_mode": "① 把退避档位调短到不超过租约 TTL —— `assertTerminalWriteOutlastsLease` 在 `TerminalWriteGuarantee` 构造时抛，服务起不来（terminalGuarantee.test.ts 两条直接钉这一点）；② 绕开唯一终态入口自己 upsertRun 成终态 —— 服务里已不存在第二个终态入口，新写一个会在 review 与 serviceFailurePath.test.ts 的「executeRun 不抛」那条前显形；③ 去掉 executeRun 的 catch —— 同一条测试立刻红；④ 去掉看门狗 —— serviceFailurePath.test.ts 的两条 sweep 测试立刻红",
+    "exception_policy": "none",
+    "strategy": "把「终态写一定要落地」从一次尽力而为的同步调用，升级成一个有三层、每层都会响的保证，并给中间态配看门狗；同时把服务里四个同义终态入口收成一个，让保证没有旁路可绕",
+    "artifacts": [
+      "electron/providerAdapter/terminalGuarantee.ts",
+      "electron/providerAdapter/terminalGuarantee.test.ts",
+      "electron/providerAdapter/terminalGuaranteeStore.test.ts"
+    ]
+  },
+  "class_regression_tests": [
+    "electron/providerAdapter/terminalGuarantee.test.ts",
+    "electron/providerAdapter/terminalGuaranteeStore.test.ts"
+  ],
+  "regression_tests": [
+    "electron/providerAdapter/terminalGuarantee.test.ts",
+    "electron/providerAdapter/terminalGuaranteeStore.test.ts",
+    "electron/providerAdapter/serviceFailurePath.test.ts",
+    "electron/integrationCertification/integrationSessionRunView.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/providerAdapter/service.ts"
+    ],
+    "rationale": "旧的三个同义终态入口（finishWithError / finishRunWithFailure / writeTerminalFailure 的服务内实现）在同一 commit 里删除，只剩唯一的 finishTerminal 转交 TerminalWriteGuarantee；终态写的实现体搬进 terminalGuarantee.ts 的 writeAdapterTerminalFailure，服务内不留第二份。留任何一份都等于留一条绕开保证的路——而这条路已经证明会把 run 永久停在中间态"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "纯内部改动，没有引入、升级或降级任何依赖；新增的只有本仓自己的模块与一份 append-only 旁路日志文件",
+    "exit_criteria": []
+  },
+  "migration": "没有持久化格式变化：provider-adapters.json 的结构一个字节没动。新增的 provider-adapters.json.errors.jsonl 是**旁路**文件，不存在时一切照旧（读取函数对 ENOENT 返回空），补偿成功后自动删除。会话投影新增可选字段 modelResults（没有 run 时不出现），是纯增量，老客户端忽略即可。不需要迁移、不需要重开项目",
+  "residual_risks": [
+    "同一把文件租约锁还被 productionRun/productionRunRepository.ts 与 productionGenerationSubmission.ts 用着，它们的等待预算是否也短于 30 秒租约 TTL 本轮**没有**逐条核**（same_class_scan 里列出了入口）。那两条链的失败形状与本条同族，应当在下一轮用同一条不变量扫一遍",
+    "「退避预算 > 租约 TTL」目前靠构造期断言，不是 AST 门岗：如果将来有人新写一个用同一把锁的等待者而不经过 TerminalWriteGuarantee，这条不变量管不到它。真要复发，得先绕开唯一终态入口",
+    "P2（逐模型并发验证 + 部分晋升 + 仅重试失败模型）与 P3（目录刷新滞后）按用户拍板不在本轮范围内。也就是说「6 个模型压线超时」这个**效率**问题本轮没修——本轮修的是「超时之后不再死锁、有出口、有原文」。超时仍然会发生，只是现在它会在 deadline 到点后自动终态化并说明原因",
+    "看门狗周期 30 秒意味着最坏情况用户要多等 30 秒才看到终态。这是刻意的取舍（更密的轮询要读盘），deadline 本身是 5 分钟量级，30 秒相对可忽略"
+  ],
+  "internal_only_reason": "这条不变量是本仓自有的状态机语义（run 的阶段集合、终态定义、文件租约锁的租期与自旋），不对齐任何外部规范或第三方 API 契约。provider-adapters.json 与那把锁都是本仓自己定义的格式，没有可查的官方文档能对「中间态该怎么收尾」给出判据",
+  "invariant_owner_layer": {
+    "layer": "electron/providerAdapter/terminalGuarantee.ts",
+    "tests": [
+      "electron/providerAdapter/terminalGuarantee.test.ts",
+      "electron/providerAdapter/terminalGuaranteeStore.test.ts",
+      "electron/providerAdapter/serviceFailurePath.test.ts"
+    ]
+  }
+}

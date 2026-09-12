@@ -23,9 +23,33 @@ export type AdapterFailureInput = {
   stage?: string
   /** 编译失败的结构化细分原因，主进程带过来（见 onboardingBridgeTypes.DesktopAdapterModeResult）。 */
   compileFailureReason?: string
+  /**
+   * 「**我们这边**缺什么」这一维（selfCheck.ts 的 AdapterSelfCheckReason）。
+   *
+   * 这张表此前只有一个维度——「上游怎么拒绝我们」。于是 Nomi 自己的能力缺口（缺一条查询接口、
+   * 改图模式没声明参考图槽）全部落进 `unknown`，界面把一串英文甩给用户，再配一个「你自己接」
+   * 的按钮：用户唯一能推断的是「我填错了」，而他没填错。09-11 群反馈那句「手动添加的模型都没法
+   * 通过验证」看到的就是这一格。两维正交，我们这边的缺口优先说。
+   */
+  selfCheckReason?: string
 }
 
 export function adapterFailureAdvice(input: AdapterFailureInput): AdapterFailureAdvice {
+  // 我们这边的缺口先说——它不是上游拒绝了用户，改地址改密钥都没用。
+  switch (input.selfCheckReason) {
+    case 'async_without_query':
+      return { reasonKey: 'asyncWithoutQuery', action: 'selfConnect' }
+    case 'reference_slot_missing':
+      return { reasonKey: 'referenceSlotMissing', action: 'selfConnect' }
+    case 'no_channel':
+      return { reasonKey: 'noGenericContract', action: 'selfConnect' }
+    case 'credential_rejected':
+      return { reasonKey: 'auth', action: 'fixKey' }
+    case 'endpoint_unreachable':
+      return { reasonKey: 'network', action: 'fixUrl' }
+    default:
+      break
+  }
   // 「这个 kind 在通用协议上没有标准端点」是编译失败里**性质不同**的一种：不是我们没读懂、
   // 也不是用户填错，而是这条路本来就不通（当前只有 3D）。这时候还说「我们没读懂文档」等于
   // 把用户往「换个地址再试」上引——他该走的是直接脚本 / ComfyUI 工作流那条真的走得通的路。

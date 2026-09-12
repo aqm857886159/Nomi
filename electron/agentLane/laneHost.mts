@@ -304,10 +304,14 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
   const watch = await lane.watch(context);
   let snapshot: LaneSnapshot = watch.snapshot;
   let pending: LanePendingApproval | undefined;
-  let projection: LaneProjection = projectLaneSnapshot(snapshot, modelFacts, pending, options.tasks);
+  // 沙箱状态**整条 lane 只测一次**（`openLaneNativeDesktop` 开 lane 那一刻），所以它不是
+  // 快照的函数，也不该进 `projectLaneSnapshot` 的参数表——那个纯函数的入参每多一个，
+  // 「这次投影为什么和上次不一样」的可能来源就多一个。这里摊进去，投影层一个字都不用改。
+  const sandboxFacts = native?.sandboxInactive ? { sandboxInactive: native.sandboxInactive.code } : {};
+  let projection: LaneProjection = { ...projectLaneSnapshot(snapshot, modelFacts, pending, options.tasks), ...sandboxFacts };
   const listeners = new Set<(next: LaneProjection) => void>();
   const publish = () => {
-    projection = projectLaneSnapshot(snapshot, modelFacts, pending, options.tasks);
+    projection = { ...projectLaneSnapshot(snapshot, modelFacts, pending, options.tasks), ...sandboxFacts };
     for (const listener of listeners) listener(projection);
   };
   watch.start((event, eventContext) => {
@@ -582,11 +586,11 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
         throw new Error(`A single agent lane cannot handle ${command.kind}; that command belongs to the workspace`);
       }
       if (command.kind === 'approval') {
-        if (!gate) throw new Error('This agent lane has no approval gate');
+        if (!gate) throw new Error('agent_lane_approval_missing');
         // 答的不是当前那张卡（用户点得慢、卡已经翻篇了）——**抛**，不静默吞掉。
         // 吞掉的后果是面板上那张卡一直转，而没有任何东西再来兑现它。
         if (!gate.answer(command.toolCallId, command.action, command.reason)) {
-          throw new Error(`No approval is waiting for tool call ${command.toolCallId}`);
+          throw new Error('agent_lane_approval_missing');
         }
         return {};
       }

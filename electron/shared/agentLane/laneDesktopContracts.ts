@@ -6,6 +6,7 @@ import type { ProjectAgentApprovalPolicy } from '../agentCapabilities/capability
 import type { AgentContextSnapshot } from '../agentContextSnapshot'
 import type { PreconditionSet, TargetRef } from '../capabilityTargeting'
 import type { LaneCommand, LaneCommandOutcome, LaneProjection } from './laneContracts'
+import type { LaneErrorCode } from './laneErrorCodes'
 import type { ProjectAgentProposalReceiptWrite, ProjectAgentProposalReceiptTransition, ProjectAgentProposalReceiptClear, ProjectAgentProposalReceiptView } from '../projectAgentProposalReceipt'
 
 /** User input only. Model credentials and capability authority are resolved in main. */
@@ -54,7 +55,10 @@ export interface LaneRestoredDesktopInput {
 
 export type LaneDesktopResult =
   | ({ ok: true; workspaceId?: string; receipt?: ProjectAgentProposalReceiptView | null; cleared?: true; singleShot?: LaneProjection } & Omit<LaneCommandOutcome, 'restoredInput'> & { restoredInput?: readonly LaneRestoredDesktopInput[] })
-  | { ok: false; code: string; message: string }
+  // 失败只出**码**。第二格刻意不叫 `message`——它不是给人看的话，是给日志/「技术详情」的诊断串
+  // （可能是内部不变量断言、第三方栈文本，或一句没翻译的英文）。界面文案由渲染层按
+  // `LANE_ERROR_TEXT_KEY[code]` 取；把这一格印到界面上就是 2026-09-11 那次红色英文原文泄漏。
+  | { ok: false; code: LaneErrorCode; diagnostic: string }
 
 /** pi's documented custom-message extension: persisted input, never executable authority. */
 export interface LaneInputMessage {

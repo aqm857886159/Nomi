@@ -22,6 +22,7 @@ import { completeNodeConnection } from './completeNodeConnection'
 import type { ConnectionAnchorSide } from '../store/canvasStoreTypes'
 import { getNodeSizeBounds, resolveNodeVisualSize } from './nodeSizing'
 import { useNodeDragResize } from './useNodeDragResize'
+import { useCanvasLiveZoom } from '../reactFlow/canvasViewportScale'
 import { exportTimelineToMp4 } from '../../export/exportApi'
 import { getDesktopBridge } from '../../../desktop/bridge'
 import { buildWorkspaceFileUrl } from '../../explorer/workspaceFileDrag'
@@ -66,7 +67,9 @@ export default function ClipNode({ node: rawNode, selected, readOnly = false }: 
   const commitPersistedChange = useGenerationCanvasStore((state) => state.commitPersistedChange)
   const moveNode = useGenerationCanvasStore((state) => state.moveNode)
   const moveSelectedNodes = useGenerationCanvasStore((state) => state.moveSelectedNodes)
-  const canvasZoom = useGenerationCanvasStore((state) => state.canvasZoom)
+  // 画布缩放的唯一真相是 React Flow 的 transform（见 reactFlow/canvasViewportScale.ts）。
+  // 这里读错一格，卡内时间轴的拖/裁就会按错误的屏幕像素→帧换算走位。
+  const canvasZoom = useCanvasLiveZoom()
   const isMultiSelectActive = useGenerationCanvasStore((state) => selected && state.selectedNodeIds.length > 1)
   const startConnection = useGenerationCanvasStore((state) => state.startConnection)
   const pendingSourceId = useGenerationCanvasStore((state) => state.pendingConnectionSourceId)

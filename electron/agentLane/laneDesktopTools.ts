@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto'
 import type { IpcMainInvokeEvent } from 'electron'
 import type { ProjectBinding } from '../shared/projectBinding'
 import type { LaneComposerContext } from '../shared/agentLane/laneDesktopContracts'
+import type { ProjectAgentApprovalPolicy } from '../shared/agentCapabilities/capabilityApprovalPolicy'
 import type { RuntimeToolCall, RuntimeToolDecision } from '../shared/agentCapabilities/transportContracts'
 import type { CanvasWriteResult } from '../shared/agentCapabilities/canvasWrite'
 import type { DocumentWriteResult } from '../shared/agentCapabilities/documentWrite'
@@ -51,6 +52,13 @@ export function createDesktopLaneTools(input: {
   context(): LaneComposerContext
   receipts: ProjectAgentProposalReceiptService
   generationFactory: () => ResidentGenerationAdapterFactory['factory'] | undefined
+  /**
+   * 用户此刻选的审批档位。和 `laneHost` 的 `approval.policy` **同一个来源**（宿主持有的
+   * `composer.approvalPolicy`），因为它们回答的是同一个问题的两半：工具审批那一半问
+   * 「这一步要不要停下来问」，这一半问「这笔钱要不要停下来问」。两半读同一份快照，
+   * 用户就不会遇到「档位在一处生效、在另一处没生效」。
+   */
+  approvalPolicy(): ProjectAgentApprovalPolicy
   onTaskCreated(call: RuntimeToolCall, result: unknown): Promise<void>
 }) {
   if (!input.surface.surfacePortRuntime) throw new Error('surface_port_unavailable')
@@ -179,7 +187,7 @@ export function createDesktopLaneTools(input: {
       if (factory !== installedFactory) {
         generation?.dispose()
         installedFactory = factory
-        generation = factory?.(input.binding)
+        generation = factory?.(input.binding, input.approvalPolicy)
       }
       return generation
     }, onTaskCreated: input.onTaskCreated,

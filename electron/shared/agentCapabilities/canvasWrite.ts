@@ -173,6 +173,11 @@ export const storyboardPlanActionInputSchema = z
   .object({
     operation: z.literal("propose_storyboard_plan"),
     title: z.string().trim().min(1),
+    // 整片默认画幅（行级用 shots[].params.aspect_ratio 覆盖）。这个 envelope 是 `.strict()` 的，
+    // 少这一行 = 规划师在顶层写的整片画幅在主进程边界就被拒收。刻意不带 `.describe()`：
+    // 它会随共享契约广播到对外 MCP 的 tools/list，而 check:mcp-payload 是零余量的 shrink-only
+    // 棘轮（同 select.kind 一栏的理由）。散文写在 lane 的工具指引里，对 MCP 载荷是 0 字节。
+    aspectRatio: z.string().trim().min(1).optional(),
     anchors: jsonTolerantArray(z.array(z.record(z.unknown())).max(24)),
     shots: jsonTolerantArray(z.array(z.record(z.unknown())).min(1).max(24)),
   })

@@ -40,8 +40,6 @@ export function releaseWorkbenchProjectRuntimeState(): void {
     selectedNodeIds: [],
     pendingConnectionSourceId: '',
     pendingConnectionSourceSide: 'right',
-    canvasZoom: 1,
-    canvasOffset: { x: 0, y: 0 },
     generationAiDraft: '',
     generationAiMessages: [],
     generationAiCollapsed: true,

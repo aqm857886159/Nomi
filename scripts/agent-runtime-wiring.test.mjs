@@ -101,7 +101,10 @@ describe('private pi build and test wiring', () => {
       'python3 scripts/with-gates-lock.py --command "tsc -p tests/agent-runtime/tsconfig.json && node --test --test-concurrency=1 --test-timeout=60000 .tmp/agent-runtime-tests/tests/agent-runtime/*.test.mjs"',
     )
     expect(reachable('test').has('test:agent-runtime')).toBe(true)
+    // 2026-09-12 起 gates 经 scripts/run-gates-tests.mjs 分档，两档的目标脚本由 TIER_COMMANDS
+    // 声明、由 resolveReachable 认领——所以这条「原生套件必须挂在门岗链上」的不变量原样成立。
     expect(reachable('gates').has('test:agent-runtime')).toBe(true)
+    expect(reachable('gates:full').has('test:agent-runtime')).toBe(true)
     const config = json('tests/agent-runtime/tsconfig.json')
     expect(config.compilerOptions).toMatchObject({ rootDir: '../..', outDir: '../../.tmp/agent-runtime-tests' })
     const vitestIncludes = stringArrayProperty('vitest.config.ts', 'include')

@@ -4,7 +4,7 @@ import { IconDots } from '../../../../vendor/tablerIcons'
 import { cn } from '../../../../utils/cn'
 import { DesignSwitch, NomiSelect } from '../../../../design'
 import type { ModelOption } from '../../../../config/models'
-import { useDedupedModelSelect } from '../../../common/useDedupedModelSelect'
+import { modelVisibilityFooterAction, useDedupedModelSelect } from '../../../common/useDedupedModelSelect'
 import { translateModelDisplayText } from '../../../../i18n/modelDisplayText'
 import type { ArchetypeMode, ModelArchetype } from '../../../../config/modelArchetypes/types'
 import type { ModelParameterControl } from '../../../../config/modelCatalogMeta'
@@ -132,6 +132,8 @@ export default function ShotComposerBar({
             options={modelSelectOptions}
             onChange={(id) => (id ? modelSelect.onModelPick(id) : onShotModelChange(''))}
             onChipChange={modelSelect.onModelProviderPick}
+            footerAction={modelVisibilityFooterAction()}
+            hiddenNote={modelSelect.hiddenNote}
           />
         </Chip>
       ) : null}

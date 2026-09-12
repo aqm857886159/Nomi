@@ -73,7 +73,7 @@ test('workspace serializes create and delete before deciding whether the target 
   const [created, deleted] = await outcomes;
   assert.equal(created.status, 'fulfilled');
   assert.equal(deleted.status, 'rejected');
-  if (deleted.status === 'rejected') assert.match(String(deleted.reason), /Switch to another conversation/);
+  if (deleted.status === 'rejected') assert.match(String(deleted.reason), /agent_lane_conversation_in_use/);
   assert.equal(workspace.projection().active.lane, 'research');
   assert.deepEqual(workspace.projection().lanes.map((lane) => lane.laneName).sort(), ['main', 'research']);
 });
@@ -92,7 +92,7 @@ test('duplicate concurrent creates consult the disk-backed list after the first 
   const [created, duplicate] = await outcomes;
   assert.equal(created.status, 'fulfilled');
   assert.equal(duplicate.status, 'rejected');
-  if (duplicate.status === 'rejected') assert.match(String(duplicate.reason), /already has a conversation/);
+  if (duplicate.status === 'rejected') assert.match(String(duplicate.reason), /agent_lane_conversation_exists/);
   assert.equal(workspace.projection().active.lane, 'research');
 });
 
@@ -136,12 +136,12 @@ test('failed replacement closes the workspace instead of dispatching commands to
   });
   t.after(() => workspace.close());
   await assert.rejects(workspace.execute({ kind: 'lane-create', laneName: 'research' }), /fixture open failure/);
-  await assert.rejects(workspace.execute({ kind: 'abort' }), /workspace is closed/);
-  await assert.rejects(workspace.configureModel(fixture.options.model), /workspace is closed/);
+  await assert.rejects(workspace.execute({ kind: 'abort' }), /agent_lane_disposed/);
+  await assert.rejects(workspace.configureModel(fixture.options.model), /agent_lane_disposed/);
   assert.equal(opens, 2, 'a failed workspace cannot open more hosts');
 });
 
-test('direct commands fail immediately during replacement instead of waiting on its structural queue', { timeout: 10_000 }, async (t) => {
+test('commands fail immediately while the conversation itself is being replaced, instead of landing in the new one', { timeout: 10_000 }, async (t) => {
   const fixture = await createLaneFixture(t, []);
   const opener = controlledOpener(t);
   const workspace = await openLaneWorkspace(fixture.options, opener.open);
@@ -150,9 +150,11 @@ test('direct commands fail immediately during replacement instead of waiting on 
   const creating = workspace.execute({ kind: 'lane-create', laneName: 'research' });
   await gate.entered.promise;
   try {
-    await assert.rejects(workspace.execute({ kind: 'prompt', text: 'Do not send to the closing lane.' }), /opening a conversation/);
-    await assert.rejects(workspace.execute({ kind: 'abort' }), /opening a conversation/);
-    await assert.rejects(workspace.execute({ kind: 'approval', toolCallId: 'old-call', action: 'allow-once' }), /opening a conversation/);
+    // 换对话仍旧当场拒：等完再发，那句话就落进了**另一条**对话。码换成 workspace_stale，
+    // 因为用户读到的正确解释是「对话换过了，重新发一次」，不是「等它开完」。
+    await assert.rejects(workspace.execute({ kind: 'prompt', text: 'Do not send to the closing lane.' }), /agent_lane_workspace_stale/);
+    await assert.rejects(workspace.execute({ kind: 'abort' }), /agent_lane_workspace_stale/);
+    await assert.rejects(workspace.execute({ kind: 'approval', toolCallId: 'old-call', action: 'allow-once' }), /agent_lane_workspace_stale/);
     assert.equal(fixture.http.requests.length, 0);
   } finally { gate.release.resolve(); await creating; }
 });
@@ -162,13 +164,13 @@ test('close cancels structural work admitted but not yet started and stays idemp
   const opener = controlledOpener(t);
   const workspace = await openLaneWorkspace(fixture.options, opener.open);
   const creating = workspace.execute({ kind: 'lane-create', laneName: 'research' });
-  const rejected = assert.rejects(creating, /workspace is closed/);
+  const rejected = assert.rejects(creating, /agent_lane_disposed/);
   const closing = workspace.close();
   assert.equal(workspace.close(), closing);
   await Promise.all([closing, rejected]);
   assert.deepEqual(opener.opened.map((options) => options.laneName), ['main']);
-  await assert.rejects(workspace.execute({ kind: 'lane-create', laneName: 'late' }), /workspace is closed/);
-  await assert.rejects(workspace.configureModel(fixture.options.model), /workspace is closed/);
+  await assert.rejects(workspace.execute({ kind: 'lane-create', laneName: 'late' }), /agent_lane_disposed/);
+  await assert.rejects(workspace.configureModel(fixture.options.model), /agent_lane_disposed/);
 });
 
 function pendingApproval(workspace: LaneWorkspaceHandle) {
@@ -190,7 +192,7 @@ for (const action of ['approval', 'abort'] as const) {
     const before = fixture.document.text();
     const prompt = workspace.execute({ kind: 'prompt', text: 'Append the closing line.' });
     const pending = await pendingApproval(workspace);
-    await assert.rejects(workspace.configureModel(fixture.options.model), /Stop the current turn/);
+    await assert.rejects(workspace.configureModel(fixture.options.model), /agent_lane_busy_running/);
     await workspace.execute(action === 'approval'
       ? { kind: 'approval', toolCallId: pending.toolCallId, action: 'allow-once' } : { kind: 'abort' });
     await prompt;
@@ -199,3 +201,23 @@ for (const action of ['approval', 'abort'] as const) {
     assert.equal(fixture.http.requests.length, action === 'abort' ? 1 : 2);
   });
 }
+
+// 2026-09-11 报障现场：用户在面板里换完模型接着动手（打字回车 / 点卡上的按钮），面板顶部
+// 糊出一行红色英文原文「The agent is opening a conversation. Try again after it opens.」。
+// 换模型开的还是**同一条**对话，用户换它就是为了用它发下一句——正确的行为是等它换完再发。
+test('a command that lands while the model is being replaced waits for the same conversation instead of being refused', { timeout: 10_000 }, async (t) => {
+  const fixture = await createLaneFixture(t, []);
+  const opener = controlledOpener(t);
+  const workspace = await openLaneWorkspace(fixture.options, opener.open);
+  t.after(() => workspace.close());
+  const gate = opener.pauseNext();
+  const configuring = workspace.configureModel({ ...fixture.options.model, modelId: 'second-model' });
+  await gate.entered.promise;
+  const aborting = workspace.execute({ kind: 'abort' });
+  gate.release.resolve();
+  await configuring;
+  await aborting;
+  assert.equal(workspace.projection().active.lane, 'main');
+  assert.deepEqual(opener.opened.map((options) => [options.laneName, options.model?.modelId]),
+    [['main', 'chosen-model'], ['main', 'second-model']]);
+});

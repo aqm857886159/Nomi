@@ -164,10 +164,11 @@ const SLOT_ACTION: Record<V4InterventionKind, Parameters<typeof ActionIcon>[0]['
   plan: 'plan',
   credential: 'credential',
   deviation: 'think',
+  'missing-card': 'think',
 }
 
 function SlotIcon({ kind }: { kind: V4InterventionKind }): JSX.Element {
-  if (kind === 'approval-irreversible' || kind === 'deviation') return <IconAlertTriangle size={13} aria-hidden="true" />
+  if (kind === 'approval-irreversible' || kind === 'deviation' || kind === 'missing-card') return <IconAlertTriangle size={13} aria-hidden="true" />
   if (kind === 'approval-reversible' || kind === 'reject-reason') return <IconCheck size={13} aria-hidden="true" />
   return <ActionIcon action={SLOT_ACTION[kind]} size={13} />
 }
@@ -339,7 +340,9 @@ export function V4Intervention({
   // 走的是抬全局档那条路，已随本次接线删除。
   const canEscalate = (data.kind === 'approval-reversible' || data.kind === 'reject-reason') && Boolean(onEscalate)
   // 反问只有选项 chip，没有确认/不要——选项本身就是回答（定稿 ⑤ 反问格）。
-  const hasActions = data.kind !== 'question'
+  // 反问只有选项 chip；「本该有卡却没有」是一条**报错**，没有可点的东西——
+  // 给它一个「确认」按钮等于让用户去确认一件我们自己都没渲染出来的事。
+  const hasActions = data.kind !== 'question' && data.kind !== 'missing-card'
   // 计划槽底栏照画布画的那样收尾：主动作 + 「改一下」…… 「收起 ▴」，没有「不要」——
   // 计划是清单，取消一项靠取消勾选，整张不要就是不勾任何一项。
   const isPlan = data.kind === 'plan'

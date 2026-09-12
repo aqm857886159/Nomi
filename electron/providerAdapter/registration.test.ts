@@ -53,7 +53,6 @@ describe("provider connection save-first registration", () => {
       discover: vi.fn(),
       resolveLanguageModels: vi.fn(() => []),
       compile: vi.fn(),
-      repair: vi.fn(),
       verify: vi.fn(),
       now: () => now,
       id: vi.fn(),
@@ -101,7 +100,6 @@ describe("provider connection save-first registration", () => {
       discover: vi.fn(async () => { throw new Error("discover must not run"); }),
       resolveLanguageModels: vi.fn(() => []),
       compile: vi.fn(async () => { throw new Error("compile must not run"); }),
-      repair: vi.fn(async () => { throw new Error("repair must not run"); }),
       verify: vi.fn(async () => { throw new Error("verify must not run"); }),
       now: () => now,
       id: vi.fn(() => { throw new Error("id must not be allocated"); }),
@@ -156,7 +154,6 @@ describe("provider connection save-first registration", () => {
     const discover = vi.fn(async () => { throw new Error("docs must not run while saving"); });
     const resolveLanguageModels = vi.fn(() => { throw new Error("AI resolution must not run while saving"); });
     const compile = vi.fn(async () => { throw new Error("compiler must not run while saving"); });
-    const repair = vi.fn(async () => { throw new Error("repair must not run while saving"); });
     const verify = vi.fn(async () => { throw new Error("real verification must not run while saving"); });
     const catalog: ProviderAdapterCatalogPort = {
       register,
@@ -172,7 +169,6 @@ describe("provider connection save-first registration", () => {
       discover,
       resolveLanguageModels,
       compile,
-      repair,
       verify,
       now: () => now,
       id: vi.fn(() => { throw new Error("run id must not be allocated while saving"); }),
@@ -210,7 +206,7 @@ describe("provider connection save-first registration", () => {
       models,
     }));
     expect(adapterStore.snapshot().runs).toEqual([]);
-    for (const dependency of [stage, schedule, discover, resolveLanguageModels, compile, repair, verify]) {
+    for (const dependency of [stage, schedule, discover, resolveLanguageModels, compile, verify]) {
       expect(dependency).not.toHaveBeenCalled();
     }
   });

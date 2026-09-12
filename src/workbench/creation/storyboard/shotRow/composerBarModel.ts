@@ -16,7 +16,7 @@ import type { ModelParameterControl } from '../../../../config/modelCatalogMeta'
 
 /** 底栏不渲染这些键：它们各自另有 owner，出现在这里就是第二份真相。 */
 const OWNED_ELSEWHERE = new Set([
-  // 画幅是「整片默认 + 行级覆盖」两段的，owner 是 storyboardAspectScope；底栏只在覆盖时出一枚胶囊。
+  // 画幅是「整片默认 + 行级覆盖」两段的，owner 是 storyboardShotScope；底栏只在覆盖时出一枚胶囊。
   'aspect_ratio',
   // 时长的 owner 是 PlanShot.durationSec（合计时长、时间轴停留都读它）；底栏那枚「时长」写的就是它。
   'duration',

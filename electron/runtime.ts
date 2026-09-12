@@ -39,7 +39,15 @@ import {
 export { createProject, deleteProject, listProjects, readProject, resolveProjectRelativePath, saveProject };
 export { copyAssetFile, copyProjectAsset, importRemoteAsset, listProjectAssets, moveAssetFile, writeAsset } from "./assets/projectAssetStore";
 // localizedTaskAssetFileName 已抽到 ./assets/localizedAsset（规则 9/12 减负 giant shell）；re-export 保持既有 import（含 runtime.assets.test）不变。
-export { localizedTaskAssetFileName }; export type ProfileOperationStage = AntigravityProcessStage | Extract<NonNullable<import("./providerAdapter/types").AdapterModeResult["stage"]>, "result">;
+export { localizedTaskAssetFileName };
+/**
+ * 生产执行时**正在发哪一条 op**：create / query / result。
+ *
+ * 这与「接入自检失败在哪一段」是两件事，只是恰好都叫 stage。此前它是从
+ * `AdapterModeResult["stage"]` 里 Extract 出 "result" 拼出来的——那条耦合让「改认证流程」
+ * 顺手就能改坏「生产发哪条 op」。2026-09-11 删付费验证时它立刻炸了，所以在这里各自定义（P1）。
+ */
+export type ProfileOperationStage = AntigravityProcessStage | "result";
 // 任务执行复用 catalog 状态（readCatalog + extractVendorExtraHeaders 纯函数）；
 // catalogStore 反向复用本文件任务引擎 → 运行期循环引用（CommonJS 安全）。
 import { extractVendorExtraHeaders, readCatalog } from "./catalog/catalogStore";
