@@ -179,3 +179,12 @@ branch refs/heads/claude/agent-architecture-issues-fd31e8
 - Task branch is isolated in its own worktree; no product code changed for this census.
 - Protected items: active worktrees and unknown/detached worktrees are retained; no cleanup performed.
 - Conclusion: census is read-only evidence; follow-up delivery decisions require separate scoped tasks.
+
+
+## 先查别人
+
+- 依赖里已有？无相关依赖能力；本任务仅记录 worktree/PR 状态（`package.json:1`）。
+- 仓库里已有？`docs/engineering/agent-orchestration-playbook.md:1` 已定义交付盘点与收货规则。
+- 生态里已有？GitHub 官方 PR/工作流文档：https://docs.github.com/en/pull-requests。
+- TikHub 自媒体里怎么说？本次未使用 TikHub，因为任务是仓库内部交付盘点，不涉及用户调研（`docs/research/TEMPLATE.md:1`）。
+- 结论：复用现有盘点与交付规则，不新增实现。
