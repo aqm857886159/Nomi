@@ -13,15 +13,15 @@ describe("asset.read capability", () => {
     expect(ASSET_READ_CAPABILITY.effect).toBe("read");
     expect(ASSET_READ_CAPABILITY.effectClass).toBe("reversible_local");
     expect([ASSET_READ_CAPABILITY.aliases.pi, ...ASSET_READ_CAPABILITY.additionalAliases.method]).toEqual([
-      "get_media",
+      "look_at_media",
       "inspect_media",
       "search_media",
       "inspect_source_range",
       "read_waveform",
     ]);
     expect(assetReadPiInputSchemaForAlias(ASSET_READ_ALIASES.search)?.safeParse({ extra: true }).success).toBe(false);
-    expect(assetReadInputForAlias("get_media", { assetId: "asset-1" })).toEqual({
-      operation: "get_media",
+    expect(assetReadInputForAlias("look_at_media", { assetId: "asset-1" })).toEqual({
+      operation: "look_at_media",
       assetId: "asset-1",
     });
   });

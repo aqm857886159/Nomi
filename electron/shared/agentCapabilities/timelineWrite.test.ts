@@ -13,7 +13,7 @@ describe("timeline.write capability contract", () => {
     expect(TIMELINE_WRITE_CAPABILITY.id).toBe("timeline.write");
     expect(TIMELINE_WRITE_CAPABILITY.effect).toBe("reversible_write");
     expect(TIMELINE_WRITE_CAPABILITY.effectClass).toBe("reversible_local");
-    expect(TIMELINE_WRITE_CAPABILITY.aliases.pi).toBe("apply_edit_plan");
+    expect(TIMELINE_WRITE_CAPABILITY.aliases.pi).toBe("edit_timeline");
     expect(TIMELINE_WRITE_CAPABILITY.additionalAliases.method).toEqual(["undo_timeline_edit"]);
   });
 
@@ -24,7 +24,7 @@ describe("timeline.write capability contract", () => {
       summary: "Move a clip",
       operations: [{ kind: "move", clipId: "clip-a", startFrame: 24 }],
     };
-    expect(timelineWriteInputForAlias("apply_edit_plan", apply)).toEqual({ operation: "apply_edit_plan", ...apply });
+    expect(timelineWriteInputForAlias("edit_timeline", apply)).toEqual({ operation: "edit_timeline", ...apply });
     expect(
       timelineWriteInputForAlias("undo_timeline_edit", {
         undoToken: "timeline-undo:v1:receipt-a",
@@ -46,14 +46,14 @@ describe("timeline.write capability contract", () => {
 
   it("exposes only strict scalar write receipts for the matching operation", () => {
     const result = {
-      operation: "apply_edit_plan" as const,
+      operation: "edit_timeline" as const,
       ok: true,
       revision: "cafebabe",
       applied: true,
       replayed: false,
       undoToken: "timeline-undo:v1:receipt-a",
     };
-    expect(projectTimelineWriteResult(result, "apply_edit_plan")).toEqual(result);
+    expect(projectTimelineWriteResult(result, "edit_timeline")).toEqual(result);
     expect(timelineWriteResultSchema.safeParse({ ...result, timeline: { url: "file:///private.mp4" } }).success)
       .toBe(false);
     expect(timelineWriteResultSchema.safeParse({ ...result, path: "/private/project" }).success).toBe(false);
@@ -62,6 +62,6 @@ describe("timeline.write capability contract", () => {
       ok: true,
       undone: true,
       revision: "deadbeef",
-    }, "apply_edit_plan")).toThrow("timeline operation mismatch");
+    }, "edit_timeline")).toThrow("timeline operation mismatch");
   });
 });
