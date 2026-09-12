@@ -11,11 +11,15 @@ export type CapabilityEffectClass = (typeof CAPABILITY_EFFECT_CLASSES)[number];
 export type CapabilityExposure = "internal_only" | "mcp_safe" | "legacy_unverified";
 export type CapabilityPortKind = "document" | "canvas" | "timeline" | "production-run" | "asset" | "export" | "skills";
 export type CapabilityAvailability = "main_only" | "renderer_required" | "main_or_renderer";
-export type CapabilityProjectionSurface = "pi" | "mcp" | "ui";
-
-export type CapabilityProjectionMetadata = {
-  readonly description: string;
-};
+/**
+ * 别名的四个 surface：
+ *   · `pi`     模型可见的内部工具名——**必须**是一条已声明的动词（`verbDeclarations.ts`），门岗 `no-orphan-alias` 逐条核；
+ *   · `mcp`    对外 `tools/list` 上的名字；
+ *   · `ui`     渲染层自己的入口名；
+ *   · `method` 宿主 / dispatcher 的方法名（生成家族的 `nomi_operation_create` 一族、付费边界三相）——模型永远看不见，
+ *              付费边界从这一 surface 派生（`paidBoundary.ts`）。
+ */
+export type CapabilityProjectionSurface = "pi" | "mcp" | "ui" | "method";
 
 export type CapabilityContract<Input, Output> = {
   readonly id: string;
@@ -49,5 +53,4 @@ export type CapabilityContract<Input, Output> = {
   readonly exposure: CapabilityExposure;
   readonly requiredScope: string;
   readonly targetKind: string;
-  readonly projections: Readonly<Partial<Record<CapabilityProjectionSurface, CapabilityProjectionMetadata>>>;
 };

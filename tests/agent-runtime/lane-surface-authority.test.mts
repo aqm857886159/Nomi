@@ -4,7 +4,7 @@ import { z } from 'zod';
 import type { LaneComposerContext } from '../../electron/shared/agentLane/laneDesktopContracts.js';
 import { LANE_MODEL_TOOL_CATALOG, LANE_DEFERRED_TOOL_CATALOG } from '../../electron/agentLane/laneToolCatalog.js';
 import { bindLaneTool } from '../../electron/agentLane/laneRuntimePort.js';
-import { createLaneFixture } from './laneFixture.mjs';
+import { createLaneFixture, FIXTURE_DESCRIBE } from './laneFixture.mjs';
 
 for (const contractId of ['canvas.delete', 'canvas.write', 'timeline.write', 'document.write']) {
   for (const target of [undefined, { kind: 'document' as const, documentId: 'doc', anchor: { kind: 'whole-document' as const } }, { kind: 'canvas' as const, nodeIds: [] }]) {
@@ -20,8 +20,8 @@ for (const contractId of ['canvas.delete', 'canvas.write', 'timeline.write', 'do
       const lane = await fixture.openLane({ ...fixture.options,
         input: { capture: () => context, activate: () => {}, rewritePayload: payload => payload,
           providerContent: async message => message.content },
-        tools: [{ name: 'mutate_surface', contractId, description: 'Mutate a surface.', promptSnippet: 'Mutate a surface.',
-          schema: z.object({}), examples: [], effects: { mutates: true, billable: false, reversal: 'none' },
+        tools: [{ name: 'mutate_surface', contractId, description: 'Mutate a surface.', promptSnippet: 'Mutate a surface.', nextAction: 'none', describe: FIXTURE_DESCRIBE,
+          schema: z.object({}), examples: [], effect: 'irreversible',
           execution: { timeoutMs: 30_000 }, execute: async () => { executions++; return { ok: true, text: "applied" }; } }],
         toolLifecycle: { prepare: async () => { preparations++; }, approved: async () => {}, settled: () => {} },
       });

@@ -37,7 +37,7 @@ export type GenerationResolveInput = z.infer<typeof generationResolveInputSchema
 export const GENERATION_CONTEXT_READ_CAPABILITY = {
   id: "generation.context.read",
   version: 1,
-  aliases: { pi: "nomi_get_generation_context" },
+  aliases: { method: "nomi_get_generation_context" },
   inputSchema: input,
   outputSchema: output,
   effect: "read",
@@ -46,14 +46,14 @@ export const GENERATION_CONTEXT_READ_CAPABILITY = {
   exposure: "internal_only",
   requiredScope: "context:read",
   targetKind: "generation",
-  projections: { pi: { description: "Read the current catalog-backed generation context." } },
 } as const satisfies CapabilityContract<unknown, unknown>;
 
 export const GENERATION_PLAN_CAPABILITY = {
   id: "generation.plan",
   version: 1,
   aliases: { pi: "nomi_generation_plan" },
-  additionalAliases: Object.freeze({ pi: Object.freeze(["nomi_operation_create", "nomi_submit_generation_plan", "nomi_preview_execution"]) }),
+  // dispatcher 的方法名住 `method` surface：模型永远看不见它们，但 `resolveCapabilityAlias` 仍认。
+  additionalAliases: Object.freeze({ method: Object.freeze(["nomi_operation_create", "nomi_submit_generation_plan", "nomi_preview_execution"]) }),
   inputSchema: input,
   outputSchema: output,
   effect: "reversible_write",
@@ -62,7 +62,6 @@ export const GENERATION_PLAN_CAPABILITY = {
   exposure: "internal_only",
   requiredScope: "generation:plan",
   targetKind: "generation",
-  projections: { pi: { description: "Create, edit, or preview a generation plan without submitting paid work." } },
 } as const satisfies CapabilityContract<unknown, unknown>;
 
 /**
@@ -73,7 +72,7 @@ export const GENERATION_PLAN_CAPABILITY = {
 export const GENERATION_RESOLVE_CAPABILITY = {
   id: "generation.resolve",
   version: 1,
-  aliases: { pi: "nomi_resolve_generation_plan" },
+  aliases: { method: "nomi_resolve_generation_plan" },
   inputSchema: generationResolveInputSchema,
   outputSchema: output,
   effect: "read",
@@ -82,22 +81,17 @@ export const GENERATION_RESOLVE_CAPABILITY = {
   exposure: "internal_only",
   requiredScope: "generation:plan",
   targetKind: "generation",
-  projections: {
-    pi: {
-      description: "Check logical shots against real model duration/parameter limits and propose merges or splits before any plan is created. Stateless: nothing is stored and nothing is charged.",
-    },
-  },
 } as const satisfies CapabilityContract<unknown, unknown>;
 
 export const GENERATION_GATE_CAPABILITY = {
   id: "generation.gate",
   version: 1,
-  aliases: { pi: "nomi_request_generation_gate" },
+  aliases: { method: "nomi_request_generation_gate" },
   // 付费门的三个相位是**同一个能力**的三个别名，不是三个能力：request 发确认挑战、
   // decide 提交客户端已完成的凭据、start 在收据结清后真正提交。阶段 5a 之前 decide
   // 只以字符串字面量活在 `generationDispatcher.ts` 的路由表和 `modelToolSurfaceManifest.ts`
   // 那张手写的三行名单里——契约上查不到它，于是「付费边界上有哪些名字」只能靠手抄。
-  additionalAliases: { pi: Object.freeze(["nomi_start_generation", "nomi_decide_generation_gate"]) },
+  additionalAliases: { method: Object.freeze(["nomi_start_generation", "nomi_decide_generation_gate"]) },
   inputSchema: input,
   outputSchema: output,
   effect: "paid",
@@ -106,14 +100,14 @@ export const GENERATION_GATE_CAPABILITY = {
   exposure: "internal_only",
   requiredScope: "generation:submit",
   targetKind: "generation",
-  projections: { pi: { description: "Confirm and start one frozen generation plan." } },
 } as const satisfies CapabilityContract<unknown, unknown>;
 
 export const GENERATION_RUN_READ_CAPABILITY = {
   id: "generation.run.read",
   version: 1,
-  aliases: { pi: "nomi_generation_status" },
-  additionalAliases: Object.freeze({ pi: Object.freeze(["nomi_operation_read"]) }),
+  // 模型可见的 `nomi_generation_status` 归 `generation.control`（它能 cancel），`read` 这一支经
+  // `operationCapabilityIds` 回到这里；本契约自己只有 dispatcher 方法名（审计 M4 的修法）。
+  aliases: { method: "nomi_operation_read" },
   inputSchema: input,
   outputSchema: output,
   effect: "read",
@@ -122,14 +116,13 @@ export const GENERATION_RUN_READ_CAPABILITY = {
   exposure: "internal_only",
   requiredScope: "generation:read",
   targetKind: "generation",
-  projections: { pi: { description: "Read a generation plan, task, or artifact state." } },
 } as const satisfies CapabilityContract<unknown, unknown>;
 
 export const GENERATION_CONTROL_CAPABILITY = {
   id: "generation.control",
   version: 1,
-  aliases: { pi: "nomi_cancel_generation" },
-  additionalAliases: { pi: Object.freeze(["nomi_reconcile_generation"]) },
+  aliases: { pi: "nomi_generation_status", method: "nomi_cancel_generation" },
+  additionalAliases: { method: Object.freeze(["nomi_reconcile_generation"]) },
   inputSchema: input,
   outputSchema: output,
   effect: "reversible_write",
@@ -138,7 +131,6 @@ export const GENERATION_CONTROL_CAPABILITY = {
   exposure: "internal_only",
   requiredScope: "generation:control",
   targetKind: "generation",
-  projections: { pi: { description: "Cancel or reconcile a generation operation without retrying unknown work." } },
 } as const satisfies CapabilityContract<unknown, unknown>;
 
 export const GENERATION_CAPABILITIES = Object.freeze([
