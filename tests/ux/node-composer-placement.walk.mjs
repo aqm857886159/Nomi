@@ -310,7 +310,7 @@ try {
   check('视频节点有「每次生成几个」控件', first.variantControl)
   // ⑤.5 v1.1 底栏形态（段序 / B 簇缩小一号 / 提示词区清空 / 锁归位）。
   checkComposerBarV1('视频节点', first)
-  check('视频节点 B 簇三颗：运镜 → 效果 → 优化', first.clusterTools.join(' → ') === 'camera-move → effects → optimize',
+  check('视频节点 B 簇两颗：效果 → 优化', first.clusterTools.join(' → ') === 'effects → optimize',
     `实际「${first.clusterTools.join(' → ')}」`)
 
   // ⑤.6 摘要 pill 的那两句主张：**读得出** + **点得开真能改**（v1.1 形态；同日 02:10 的逐参数

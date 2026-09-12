@@ -1,4 +1,4 @@
-// 「画布 · 节点生成浮框底栏」六格：视频（运镜未选 / 已选）、图片、明暗各一，
+// 「画布 · 节点生成浮框底栏」六格：视频、图片、明暗各一，
 // 外加一格「chips 模式（付费卡用）」。
 // 前五格渲染的都是**现役** BaseGenerationNode + NodeGenerationComposer 本体（coverage: 'shell'）——
 // 2026-09-11 拍板的 v1.1 已接线，参数区是摘要 pill：同日 02:10 的逐参数 chip 于 04:30 被用户收回，
@@ -32,12 +32,12 @@ export const COMPOSER_BAR_STATES: readonly LabState[] = [
   },
   {
     id: 'composer-bar-v1-video-camera',
-    name: 'v1.1 · 视频节点（运镜已选 · icon 带激活点）',
+    name: 'v1.1 · 视频节点（运镜写在提示词）',
     source: SOURCE,
     mirrors: MIRRORS,
     coverage: 'shell',
     scheme: 'light',
-    render: () => <ComposerBarStage kind="video" cameraPicked />,
+    render: () => <ComposerBarStage kind="video" />,
   },
   {
     id: 'composer-bar-v1-image',
@@ -50,12 +50,12 @@ export const COMPOSER_BAR_STATES: readonly LabState[] = [
   },
   {
     id: 'composer-bar-v1-video-dark',
-    name: 'v1.1 · 视频节点 · 暗',
+    name: 'v1.1 · 视频节点 · 暗（运镜写在提示词）',
     source: SOURCE,
     mirrors: MIRRORS,
     coverage: 'shell',
     scheme: 'dark',
-    render: () => <ComposerBarStage kind="video" cameraPicked />,
+    render: () => <ComposerBarStage kind="video" />,
   },
   {
     id: 'composer-bar-v1-image-dark',
