@@ -88,6 +88,24 @@ export type CapabilityApprovalSubject = Readonly<{
    * 外部工具不会因此少问一次。原生能力这里恒 `false`。
    */
   destructiveHint: boolean;
+  /**
+   * 受信的**宿主**判定：这一次调用必须当次确认，不管用户选的是哪一档。
+   *
+   * 今天只有一个来源——沙箱逃逸档的 shell 命令（`laneNativeApproval.ts`：分类器判它跑出了
+   * 项目目录/沙箱）。它是一条**关于这次调用**的事实，和 `destructiveHint` 一样**只抬不降**：
+   * `true` 抬进逐次确认，`false` 什么都不做。
+   *
+   * 为什么它长在这里，而不是由调用方换掉档位（2026-09-12 修）：`laneApprovalGate` 原来写的是
+   * `forceConfirmation ? { mode: 'step', spend: 'confirm' } : policy`——一个调用点**伪造出一份
+   * 用户从没选过的档位**，塞给下游所有读档位的判据。于是「用户现在在哪一档」在这条路上有了
+   * 第二个答案，而档位恰恰是「全自动下付费不再逐笔问」的唯一依据（`spendDecidedByPolicy`）：
+   * 一份伪造的 `step` 能把那个问题也一起答错。事实归事实、档位归档位，判据仍只有这里一个 owner。
+   *
+   * 它不进 `capabilityIsHardGated`：硬闸那一族连「本会话别再问这类」的按钮都不给，而逃逸命令
+   * 恰恰要留着那个按钮（用户答应过的那条命令模式可以复用，见 `codingCommandPolicy` 的
+   * `rememberablePattern`）。所以它只夺走「不问就放行」，不夺走「用户自己说以后别问」。
+   */
+  hostMustConfirm?: boolean;
 }>;
 
 export type CapabilityWorkModeDecision = Readonly<{ allowed: boolean; reason?: string }>;
@@ -102,6 +120,31 @@ export type CapabilityWorkModeDecision = Readonly<{ allowed: boolean; reason?: s
  * 外加 ④ **解不出效果类**：未登记的别名，我们证明不了它安全。
  * 以及 ⑤ 契约声明的逐次计划审阅：这一次的载荷必须当次确认，不能借用别的计划的授权。
  */
+/**
+ * 「这一笔付费，宿主自己决定还是先问用户？」——**只有这一个函数回答**（2026-09-12 用户拍板）。
+ *
+ * ── 它和上面 `capabilityIsHardGated` 问的不是同一个问题 ──
+ *
+ * `capabilityIsHardGated` 管的是**模型面**：任何档位下模型都不能自己发起一次付费调用。
+ * 那条不变量一个字没动，而且它根本轮不到档位说话——付费能力压根不投影进模型的工具表
+ * （`paidBoundary.ts`：「内部面不投影」），模型够不着。
+ *
+ * 这个函数管的是**宿主面**：草稿已经建好、闸已经在那里了，接下来是弹一张报价卡等用户点，
+ * 还是由用户此前选的档位代答。三档里只有「全自动」代答：
+ *   · `step`（每步问）/ `safe-auto`（自动改）—— 逐次弹卡，一个字不变；
+ *   · `project`（全自动）—— 不弹卡，闸在同一个边界上由策略决定，收据照铸照签，
+ *     账本上写着 `decidedBy: "policy:full_auto"`（`approvalReceipt.ts`）。
+ *
+ * 为什么 2026-09-10 写的是「三档都 confirm」而今天不是：那天删掉了设置里的硬预算上限，
+ * 于是 `within-budget` 成了一张没有额度的通行证，只能先全部收成 `confirm`。
+ * 2026-09-12 用户拍板的是另一件事——**档位本身**就是那次授权：切进「全自动」要二次确认，
+ * 开着时面板顶上常驻一条提醒，用户是知情的。所以判据挂在 `mode` 上，
+ * 不挂在 `spend` 上（`spend` 那根轴没有预算撑着，见 `agentPanelV4Types.ts` 的说明）。
+ */
+export function spendDecidedByPolicy(policy: ProjectAgentApprovalPolicy | undefined): boolean {
+  return projectAgentApprovalPolicyOf(policy).mode === "project";
+}
+
 export function capabilityIsHardGated(subject: CapabilityApprovalSubject): boolean {
   if (subject.destructiveHint) return true;
   if (subject.requiresPlanReview && subject.planReviewAllowsReuse === false) return true;
@@ -148,6 +191,9 @@ export function capabilityMayReuseSafeApproval(
 ): boolean {
   const normalized = projectAgentApprovalPolicyOf(policy);
   if (normalized.mode === "step") return false;
+  // 宿主说这一次必须当次确认（逃逸档 shell 命令）。用户自己答过「这类以后别问」的那一条
+  // 仍然算数——那是他本人给的授权，不是档位替他给的。
+  if (subject.hostMustConfirm && !safeApprovalGranted) return false;
   if (capabilityIsHardGated(subject)) return false;
   if (normalized.mode === "project") return true;
   return !subject.requiresPlanReview || safeApprovalGranted;

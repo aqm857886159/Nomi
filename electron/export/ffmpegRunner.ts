@@ -4,6 +4,7 @@ import { spawn } from "node:child_process";
 import { createExportTempDir, createSafeOutputPaths } from "./exportPaths";
 import { renameSyncWithRetry } from "../jsonFile";
 import { ensureExecutable } from "./ensureExecutable";
+import { asarUnpackedPath } from "../shared/asarUnpackedPath";
 import { buildWebmToMp4Args } from "./ffmpegCommandBuilder";
 import { parseFfmpegProgressChunk, progressFromOutTime } from "./ffmpegProgress";
 import { desktopT } from "../i18n";
@@ -102,14 +103,9 @@ function exportProfileFromLegacyOptions(options: TranscodeWebmFileToMp4Options):
   };
 }
 
-function executablePathForRuntime(candidate: string): string {
-  if (!candidate.includes("app.asar")) return candidate;
-  return candidate.replace(/app\.asar(?!\.unpacked)/g, "app.asar.unpacked");
-}
-
 function commandExists(command: string, pathEnv = process.env.PATH || ""): boolean {
   if (!command) return false;
-  const runtimeCommand = executablePathForRuntime(command);
+  const runtimeCommand = asarUnpackedPath(command);
   if (path.isAbsolute(runtimeCommand)) return fs.existsSync(runtimeCommand);
   const pathParts = String(pathEnv || "").split(path.delimiter).filter(Boolean);
   return pathParts.some((dir) => fs.existsSync(path.join(dir, runtimeCommand)));
@@ -206,7 +202,7 @@ export function resolveFfmpegPath(explicitPath?: string, options: ResolveFfmpegP
     path.join(resourcesPath, "app.asar.unpacked", "node_modules", "@ffmpeg-installer", process.platform === "win32" ? "win32-x64" : process.platform === "darwin" && process.arch === "arm64" ? "darwin-arm64" : process.platform === "darwin" ? "darwin-x64" : "linux-x64", executableName),
     executableName,
   ];
-  return candidates.map(executablePathForRuntime).find((candidate) => commandExists(candidate, options.pathEnv)) || "";
+  return candidates.map((candidate) => asarUnpackedPath(candidate)).find((candidate) => commandExists(candidate, options.pathEnv)) || "";
 }
 
 function defaultRunProcess(command: string, args: string[], options: RunFfmpegProcessOptions = {}): Promise<FfmpegProcessResult> {

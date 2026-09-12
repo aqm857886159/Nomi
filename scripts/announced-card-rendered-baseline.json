@@ -1,0 +1,10 @@
+{
+  "_why": "「声称有卡却什么都没画」这一族的存量基线（棘轮：只减不增）。键是「文件 :: 规则」，值是条数。",
+  "_how_to_shrink": "把那条分支改成会说话的失败：主进程抛、渲染层渲 missingInterventionCard。不许靠加豁免清账。",
+  "_debt": {
+    "src/workbench/ai/v4/useAgentPanelV4Data.ts :: silent-catch": "技能库读失败时收成空列表。它不是确认卡那条链（没有任何一面 announce「有一张技能卡在等你确认」），所以 2026-09-12 没跟着一起改；登记在案只为一件事——这个文件上再长出一条同形状的分支时当场红，那一条多半就是卡那条链的。要清掉它得先决定技能库读不到时用户该看到什么（那是另一个面的产品问题）。"
+  },
+  "allowed": {
+    "src/workbench/ai/v4/useAgentPanelV4Data.ts :: silent-catch": 1
+  }
+}

@@ -139,7 +139,7 @@ test('termination reaches the foreground process group and releases the lock', {
 test('heavy npm entrypoints all use the shared machine lock', () => {
   const { scripts } = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
   for (const [name, command] of Object.entries(scripts)) {
-    if (['gates', 'gates:contracts', 'test', 'check:design-lab', 'design-lab:update'].includes(name)
+    if (['gates', 'gates:full', 'gates:contracts', 'test', 'check:design-lab', 'design-lab:update'].includes(name)
       || name.startsWith('test:system') || name.startsWith('design-lab:walk:')
       || /\.(?:e2e|walk|visual)\.mjs\b|(?:real-user-test-gates|canvas-real-suite|eval-journey)\.mjs/.test(command)) {
       assert.match(command, /^python3 scripts\/with-gates-lock\.py /, name)

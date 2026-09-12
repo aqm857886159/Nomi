@@ -58,7 +58,7 @@ export const zhAgentPanelV4 = {
   permissionWhy: {
     step: '改动、花钱、计划都先问。',
     'safe-auto': '文稿和时间轴改动直接做（收据可撤销），付费生成才问。',
-    project: '可撤销的改动直接做，不再逐步问你。付费和不可逆的操作仍然每次问。',
+    project: '可撤销的改动直接做，付费生成也按你切档时那次确认直接跑，不再逐笔问。不可逆的操作仍然每次问。',
   },
 
   // Context 环
@@ -172,6 +172,16 @@ export const zhAgentPanelV4 = {
   queueUntitled: '未命名任务',
   rejectReasonPlaceholder: '拒绝原因（可选）',
   interventionMore: '还有 {{count}} 条待确认',
+  // 「本该有一张确认卡，却什么都没画出来」——见 missingInterventionCard.ts 顶部注释。
+  missingCard: {
+    title: '这里本该有一张确认卡',
+    body: '有一条在等你确认，但 Nomi 没能把卡画出来（{{reason}}）。先别重试同一步——换一句话让 Agent 重新提一次，或者重开这个项目。',
+    reason: {
+      'host-unreachable': '读不到主进程那一份待确认清单',
+      'spend-surface-unavailable': '付费确认这条通道没装起来',
+      'unknown-kind': '认不出这是哪一种确认',
+    },
+  },
   missingParamAsk: '还差一个「{{name}}」才能往下做，你想要哪种？',
   credentialSummary: '在 Nomi 自己的窗口里填，模型看不到。',
   credentialTitle: '这个模型还没配密钥',
@@ -377,13 +387,19 @@ export const zhAgentPanelV4 = {
 
   // 「全自动」档（2026-09-10 用户拍板 · 增量 2）
   autoModeConfirmTitle: '切到「全自动」？',
-  autoModeConfirmBody: '之后可撤销的改动 Nomi 直接做，不再逐步问你。**付费和不可逆的操作仍然每次问。**',
+  autoModeConfirmBody: '之后可撤销的改动 Nomi 直接做，**付费生成也会直接跑、不再逐笔给你看报价**——这一次确认就是你对它们的授权。不可逆的操作仍然每次问。',
   autoModeConfirmOk: '切到全自动',
   autoModeConfirmCancel: '不用',
-  autoModeBannerNote: '付费和不可逆仍会问',
+  autoModeBannerNote: '付费生成会直接跑，不可逆仍会问',
   autoModeBannerRevert: '回到自动改',
   /** 叉掉这一条（2026-09-10 用户：可以叉掉，一直放占空间）。 */
   autoModeBannerDismiss: '不再显示这条提醒',
+
+  // 命令沙箱没起来时 composer 上沿那一行交代（见 `AgentPanelV4SandboxNotice.tsx`）。
+  // `{{reason}}` 是两个原因码各自的那半句，不是上游的英文异常正文。
+  sandboxInactive: '命令需逐条确认：{{reason}}',
+  sandboxInactiveUnsupported: '这台设备没有系统级命令沙箱',
+  sandboxInactiveInitFailed: '命令沙箱这次没能启动',
 
   /** 介入槽翻页器（`‹ 2/4 ›`）的无障碍名。 */
   pagerPrev: '上一张',
@@ -456,7 +472,7 @@ export const enAgentPanelV4 = {
   permissionWhy: {
     step: 'Edits, spending and plans are all confirmed first.',
     'safe-auto': 'Document and timeline edits happen directly (receipts are undoable); paid generation still asks.',
-    project: 'Undoable edits happen directly instead of asking step by step. Paid and irreversible actions are still confirmed every time.',
+    project: 'Undoable edits happen directly, and paid generation runs on the confirmation you gave when switching in — no per-run quote. Irreversible actions are still confirmed every time.',
   },
 
   context: 'Context usage',
@@ -556,6 +572,15 @@ export const enAgentPanelV4 = {
   queueUntitled: 'Untitled task',
   rejectReasonPlaceholder: 'Reason for declining (optional)',
   interventionMore: '{{count}} more waiting',
+  missingCard: {
+    title: 'A confirmation card should be here',
+    body: 'Something is waiting for your decision, but Nomi could not draw its card ({{reason}}). Do not retry the same step — ask the Agent to propose it again, or reopen this project.',
+    reason: {
+      'host-unreachable': 'the pending list could not be read from the main process',
+      'spend-surface-unavailable': 'the paid-confirmation channel is not installed',
+      'unknown-kind': 'this confirmation type was not recognised',
+    },
+  },
   missingParamAsk: 'I still need a “{{name}}” before I can continue — which one?',
   credentialSummary: 'Enter it in Nomi\u2019s own window; the model never sees it.',
   credentialTitle: 'This model has no API key yet',
@@ -746,12 +771,16 @@ export const enAgentPanelV4 = {
   qualityPro: 'High quality',
 
   autoModeConfirmTitle: 'Switch to Full auto?',
-  autoModeConfirmBody: 'Nomi will make undoable edits directly instead of asking you step by step. **Paid and irreversible actions are still confirmed every time.**',
+  autoModeConfirmBody: 'Nomi will make undoable edits directly and **paid generation will run without showing you a quote each time** — this confirmation is your authorisation for them. Irreversible actions are still confirmed every time.',
   autoModeConfirmOk: 'Switch to full auto',
   autoModeConfirmCancel: 'Not now',
-  autoModeBannerNote: 'Paid and irreversible still ask',
+  autoModeBannerNote: 'Paid generation runs directly; irreversible still asks',
   autoModeBannerRevert: 'Back to Auto-edit',
   autoModeBannerDismiss: 'Hide this reminder',
+
+  sandboxInactive: 'Commands need confirming one at a time: {{reason}}',
+  sandboxInactiveUnsupported: 'this device has no OS-level command sandbox',
+  sandboxInactiveInitFailed: 'the command sandbox did not start this time',
 
   pagerPrev: 'Previous',
   pagerNext: 'Next',

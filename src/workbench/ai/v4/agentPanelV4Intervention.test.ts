@@ -4,7 +4,9 @@
 //    `InterventionSlot.showAlways` 逐字一致（只有 `reversible_local`）。这条不是文案问题：
 //    抬全局档会让所有同类能力一起放行，那是扩大授权面。
 // ③ 提案内联编辑器删掉后，槽里只剩确认 / 不要 / 不再问 —— 投影层不再产出任何「可编辑」的东西。
-// ④ `missing_param` 不进这个槽（它没有「不要」这个出口），走对话流的提问 + 建议 chip。
+// ④ `missing_param` 渲成槽里的**反问卡**（2026-09-12 改）。它以前「走对话流的提问 + 建议 chip」，
+//    可那条分支从来没有接过线（`missingParamSuggestion` 全仓零调用方），真实后果是宿主 announce
+//    「有一条在等你」而槽里一片空白。现在缺参数就是一句问题 + 几个现成答案 = 反问格本来的形状。
 import { describe, expect, it } from 'vitest'
 import {
   canStopAskingFor,
@@ -71,17 +73,34 @@ describe('kind 判定', () => {
     expect(interventionKindOf({ question: '用什么画幅？' }, 'irreversible', false)).toBe('question')
   })
 
-  it('④ 缺参数**不进**这个槽', () => {
-    expect(interventionKindOf({ missingParam: 'duration' }, 'reversible_local', false)).toBeUndefined()
-    expect(projectV4Intervention(
+  it('④ 缺参数进这个槽，渲成反问卡——**永远不返回空**', () => {
+    expect(interventionKindOf({ missingParam: 'duration' }, 'reversible_local', false)).toBe('question')
+    const slot = projectV4Intervention(
       { toolName: 'generation.control', args: { missingParam: 'duration' }, effectClass: 'reversible_local', pendingCount: 1 },
       labels,
       t,
-    )).toBeUndefined()
+    )
+    // 宿主 announce 了「有一条在等你」，这里就必须画出点什么。空白是这一族 bug 的样子。
+    expect(slot.kind).toBe('question')
+    expect(slot.summary).toContain('duration')
+  })
+
+  it('这个函数的返回值不可空：所有登记形状都解得出一个 kind', () => {
+    // 「announce 了却什么都没画」在这条链上**编译期**就不可能（R28）。这条测试守的是运行期
+    // 那一半：别再有哪一支悄悄回 `undefined as unknown as ...`。
+    const shapes: readonly Record<string, unknown>[] = [
+      {}, { question: '?' }, { missingParam: 'duration' }, { missingCredential: 'kling' },
+    ]
+    for (const args of shapes) {
+      for (const effectClass of ['spend', 'reversible_local', 'irreversible', undefined] as const) {
+        expect(interventionKindOf(args, effectClass, false)).toBeTruthy()
+        expect(projectV4Intervention({ toolName: 'x', args, effectClass, pendingCount: 1 }, labels, t).kind).toBeTruthy()
+      }
+    }
   })
 })
 
-describe('④ 缺参数走对话流的提问 + 建议 chip', () => {
+describe('④ 缺参数那句问题的措辞（现在由反问卡用同一个函数写出来）', () => {
   it('工具给了 question 就用它的原话，给了 options 就变成建议 chip', () => {
     const suggestion = missingParamSuggestion(
       { missingParam: 'aspectRatio', question: '第 2 镜用什么画幅？', options: ['16:9', '9:16'] },

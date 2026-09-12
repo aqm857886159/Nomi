@@ -1,0 +1,38 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-12-gates-risk-tier",
+  "change_kind": "structural",
+  "scope_paths": [
+    "package.json",
+    "scripts/run-gates-tests.mjs",
+    "scripts/run-gates-tests.node-test.mjs",
+    "scripts/stamp-gates-ok.mjs",
+    "scripts/validation-policy.mjs",
+    "scripts/check-gates-chain.mjs",
+    "scripts/check-hook-behavior.node-test.mjs",
+    "scripts/with-gates-lock.node-test.mjs",
+    "scripts/agent-runtime-wiring.test.mjs",
+    "tests/system/profiles.mjs"
+  ],
+  "regression_tests": [
+    "scripts/run-gates-tests.node-test.mjs",
+    "scripts/check-hook-behavior.node-test.mjs",
+    "scripts/with-gates-lock.node-test.mjs",
+    "scripts/agent-runtime-wiring.test.mjs"
+  ],
+  "structural_evidence": {
+    "affected_paths": [
+      "scripts/stamp-gates-ok.mjs",
+      "scripts/validation-policy.mjs",
+      "scripts/check-gates-chain.mjs"
+    ],
+    "preserved_exports": [
+      { "path": "scripts/stamp-gates-ok.mjs", "name": "writeStamp" },
+      { "path": "scripts/stamp-gates-ok.mjs", "name": "STAMP_KEYED_FIELDS" },
+      { "path": "scripts/validation-policy.mjs", "name": "classifyValidationPolicy" },
+      { "path": "scripts/check-gates-chain.mjs", "name": "resolveReachable" }
+    ],
+    "behavior_preservation": "把本机 `pnpm run gates` 接到 R22 早就存在的分档判据上，三个高风险文件各自的对外契约一行未改。① scripts/stamp-gates-ok.mjs：STAMP_KEYED_FIELDS 仍是 ['sha','worktree']，writeStamp 仍按该清单逐行写身份字段，读戳方 scripts/claude-hooks/pre-push-check.sh:190-196 只 sed 取 `^sha=` / `^worktree=` 两行，所以新增的 `tier=` 与既有 `stamped_at=` 同属「给人看的附加行」，push 闸的放行判据（新鲜度/认树/认提交）逐项不变——check:hook-behavior 实跑读戳方证明这一点。同 commit 把「哪些行不是身份」从测试里的硬编码例外提升成导出常量 STAMP_INFORMATIONAL_FIELDS，消除第二份真相源。② scripts/validation-policy.mjs：只往 VALIDATION_INFRASTRUCTURE_PATTERNS 追加一条 `^tests/ux/_[^/]+\\.(mjs|cjs|js|ts|mts)$`，classifyValidationPolicy 的签名、输出维度与既有判据全部不变；这一条只会把原本判 focused 的共享走查 harness 升成 full（失败方向向上，不存在降档）。③ scripts/check-gates-chain.mjs：可达性判据 resolveReachable 的算法不变，只让它认领选测调度点 scripts/run-gates-tests.mjs 的两档目标脚本（从 TIER_COMMANDS 现取，不抄字面量）——因为调度点必然执行其中一档，不认领反而会让门岗误判「默认档什么测试都不跑」。实跑核对：`node scripts/check-gates-chain.mjs` 仍报 82 个 check:* 全部可达、蓄意豁免 2 个，与改动前逐字相同。没有任何门岗被移出链条：gates 仍字面引用 gates:contracts，减少的只是「与本次改动无关的全量 Vitest」这一项，而它在 CI 的 Unit job 上按同一份 policy 照跑。",
+    "verification_limits": "checker 机器校验的只是：change_kind 与 structural_evidence 必填项、三个 affected_paths 真实存在且在本次 diff 中变化且被 scope_paths 覆盖、四条 preserved_exports 的具名导出仍在文件里（保守语法扫描，不是模块解析）、四个 regression_tests 真实存在且本次有改动。checker 证明不了三件事。第一，「push 闸判据没变」——那一条靠 `pnpm run check:hook-behavior` 实际启动 pre-push-check.sh 跑完整识别矩阵（含戳的三维校验与 doc-only 判据）证明，不是靠读代码。第二，「新 pattern 真的会拦住它该拦的东西」——那一条靠 R17 的先红后绿实证：scripts/run-gates-tests.node-test.mjs 里断言「改 tests/ux/_launchApp.mjs → tier 必须是 full」，补 pattern 前实跑为红（AssertionError: 'focused' !== 'full'），补上后转绿；同一用例还钉住反向不乱红（tests/ux/smoke.e2e.mjs 仍是 focused）。第三，也是最本质的一条：**本机默认档不再跑全量 Vitest，本机就不再能独立证明全量绿**。这不是被掩盖的风险而是本次改动的设计意图——全量的 owner 从「每棵 worktree 各跑一遍」移交给 GitHub CI 的 Unit job 与 merge queue 的投机合并提交，两者消费的是同一份 scripts/validation-policy.mjs。代价是：CI 不可用的时段，本机绿的证明力确实变弱了，补法是显式跑 `pnpm run gates:full`。仍然只能靠人工判断的是：作者是否诚实地把一次真实行为变更归类成了 structural。"
+  }
+}

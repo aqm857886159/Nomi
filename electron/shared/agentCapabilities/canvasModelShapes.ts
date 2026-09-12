@@ -346,7 +346,8 @@ export const STORYBOARD_MODEL_GUIDELINES = Object.freeze([
   "Same-sceneId shots must be contiguous; omit without grouping. Match all shot kinds to requested mode; default image unless video is explicit. Image: duration 0, no motion/transition/dialogue. Video: seconds, clamped to model max.",
   "Reference anchors by id. Video prompts: camera move + action progression, no repeated static anchors. Preserve captions and speaker/line dialogue verbatim on canvas/timeline. Explicit hard cut: cut; unauthored transition: omit.",
   "modelKey, mode/variant and parameter keys must come from available models; omit unknowns for defaults. First frames use image models; prefer image_ref/edit with visual anchors.",
-  "First frame: static composition, shot size, light, pose/expression, environment; no motion, action progression, dialogue, subtitles or sound. Use supported image parameters. Image-plus-video mode: first frame belongs inside its video shot, never a separate shot."
+  "First frame: static composition, shot size, light, pose/expression, environment; no motion, action progression, dialogue, subtitles or sound. Use supported image parameters. Image-plus-video mode: first frame belongs inside its video shot, never a separate shot.",
+  "aspectRatio is film-level: set it once at plan top level; only a genuinely different shot overrides it via params.aspect_ratio. Never copy one ratio into every shot."
 ]);
 
 export const STAGING_MODEL_GUIDELINES = Object.freeze([
