@@ -62,7 +62,10 @@ export function createExtendedLaneTools(port: LaneExtendedPort): LaneToolDescrip
         nextAction: 'Read the current project state and review the current identifiers, revision and approval before requesting a new action. Do not repeat an unknown paid submission.',
       })
       if (spec.name === 'generate') spendCardResult(decision.result)
-      const text = spec.name === 'list_models' ? laneGenerationContextText(decision.result, args) : JSON.stringify(decision.result ?? null)
+      let text = spec.name === 'list_models' ? laneGenerationContextText(decision.result, args) : JSON.stringify(decision.result ?? null)
+      if (spec.name === 'list_models' && (args as { operation?: string }).operation === 'context' && (args as { scope?: string }).scope !== 'full') {
+        const bytes = Buffer.from(text, 'utf8'); if (bytes.length > 4096) text = bytes.subarray(0, 4096).toString('utf8') + '\n[scope: summary truncated]';
+      }
       const nextAction = nextActionFor(spec.name, decision.result)
       return { ok: true, text, details: decision.result, ...(nextAction ? { nextAction } : {}) }
     }))

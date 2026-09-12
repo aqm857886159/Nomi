@@ -25,7 +25,9 @@ type StageArgs = { shotId: string; staging?: Record<string, unknown>; cameraMove
 export function canvasWriteInputOf(verb: string, args: unknown): CanvasWriteInput {
   let semantic: unknown;
   // Retired canvas aliases remain executable for persisted transcripts.
-  const canonicalVerb = ["nomi_canvas_write", "nomi_canvas_edit", "nomi_canvas_plan", "nomi_storyboard_write", "nomi_shot_reference_write"].includes(verb) ? "arrange_canvas" : verb;
+  const canonicalVerb = ["nomi_canvas_write", "nomi_canvas_edit", "nomi_canvas_plan", "nomi_storyboard_write", "nomi_shot_reference_write"].includes(verb)
+    ? ((args as Record<string, unknown>)?.operation ? "legacy_semantic" : "arrange_canvas") : verb;
+  if (canonicalVerb === "legacy_semantic") return canvasWriteSemanticInputSchema.parse(args);
   if (canonicalVerb === "arrange_canvas") {
     const { links, tidy, categoryId } = args as ArrangeArgs;
     if (links && links.length > 0) {
@@ -58,7 +60,7 @@ export function createCanvasLaneTools(port: CanvasLanePort): LaneToolDescriptor[
   // through the canonical canvas.write implementation.
   const write = specs.find(spec => spec.name === "nomi_canvas_write") ?? specs.find(spec => spec.contractId === "canvas.write")
   if (write) for (const name of ["nomi_canvas_write", "nomi_canvas_edit", "nomi_canvas_plan"]) {
-    if (!specs.some(spec => spec.name === name)) specs.push({ ...write, name })
+    if (!specs.some(spec => spec.name === name)) specs.push({ ...write, name, schema: canvasWriteSemanticInputSchema, prepareArguments: (value: unknown) => value })
   }
   return specs.map((spec) => {
     if (spec.contractId === "canvas.read") {
@@ -89,7 +91,7 @@ function canvasWriteNextAction(input: CanvasWriteInput, receipt: CanvasWriteResu
  */
 function canvasWriteReceiptText(input: CanvasWriteInput, receipt: CanvasWriteResult): string {
   if ("cancelled" in receipt) return `The user declined the ${input.operation} proposal. Nothing changed on the canvas.`;
-  const lines = [`Applied ${input.operation}.`];
+  const lines = [`Applied directly (undoable).`];
   if ("clientIdToNodeId" in receipt) {
     lines.push(`Created ${Object.keys(receipt.clientIdToNodeId).length} node(s). Use look_at_canvas to inspect them before further edits.`);
   }

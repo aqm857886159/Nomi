@@ -30,6 +30,7 @@ export const draftShotSchema = z.object({
   durationSec: z.number().positive().max(600).optional().describe("Video clip length in seconds; omit for stills."),
   modelKey: z.string().trim().min(1).optional().describe("Catalog model key from list_models; omit for the user's default."),
   modeId: z.string().trim().min(1).optional().describe("Mode id of that model from list_models."),
+  candidate: z.object({ providerId: z.string().trim().min(1), modelId: z.string().trim().min(1) }).optional().describe("Catalog candidate identity when known."),
   parameters: generationParameters.optional().describe("Parameter values the model's profile declares; the host clamps them to real limits and reports every clamp."),
   references: z.array(z.string().trim().min(1)).max(30).optional().describe("Asset ids (from look_at_media) or shot ids (from look_at_canvas or this call) used as references."),
 }).strict();
@@ -92,10 +93,12 @@ export function writeVerbs(): VerbDeclaration[] {
     promptGuidelines: [...READ_GUIDELINES, ...CANVAS_NODE_PROMPT_GUIDELINES],
     schema: z.object({
       draftId: z.string().trim().min(1).max(160).optional().describe("The draft id returned by an earlier draft_shots call, when updating its shots."),
+      taskKind: z.enum(["text_to_image", "image_edit", "text_to_video", "image_to_video"]).optional(),
+      candidate: z.object({ providerId: z.string().trim().min(1), modelId: z.string().trim().min(1) }).optional(),
       shots: z.array(draftShotSchema).min(1).max(40).describe("The shots to create or update."),
     }).strict(),
     examples: [
-      { when: "One opening still:", arguments: { shots: [{ title: "开场", prompt: "清晨日出下的海面，广角，暖光", taskKind: "text_to_image" }] } },
+      { when: "One opening still:", arguments: { shots: [{ title: "开场", prompt: "清晨日出下的海面，广角，暖光", taskKind: "text_to_image", candidate: { providerId: "apimart", modelId: "image-1" } }] } },
       { when: "Change one existing shot's prompt:", arguments: { draftId: "op-1", shots: [{ shotId: "shot-3", prompt: "夜景，霓虹灯下的街道" }] } },
     ],
     prepareArguments: modelArgumentTolerance({ arrayFields: ["shots"] }),
