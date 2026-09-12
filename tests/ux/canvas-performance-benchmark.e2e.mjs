@@ -1,6 +1,6 @@
 import { captureScenarioFailure } from './canvas-perf/failureDiagnostics.mjs'
 import { prepareWaitingFx, sampleWaitingFx, cleanupWaitingFx } from './canvas-perf/waitingFxScenario.mjs'
-import { launchNomiApp } from './_launchApp.mjs'
+import { launchNomiApp, closeNomiApp } from './_launchApp.mjs'
 import { findCanvasBlankPoint, findNodeHitPoint } from './_canvasHit.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -1268,7 +1268,7 @@ async function runScenario({ scale, scenario, runIndex, rootDir }) {
       elapsedMs: Date.now() - startedAt,
     }
   } finally {
-    await app?.close().catch(() => {})
+    await closeNomiApp(app)
   }
 }
 
