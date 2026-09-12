@@ -1,22 +1,21 @@
 import { classifyCommand } from '../shared/agentCapabilities/codingCommandPolicy';
 import type { LaneApprovalSubjectResolver } from '../shared/agentLane/laneApproval';
-import type { LaneToolEffects } from '../shared/agentLane/laneToolContract';
+import { laneToolApprovalFacets, type LaneToolEffect } from '../shared/agentLane/laneToolContract';
 
 /** Main-process effects are trusted. Model arguments cannot add a tool or relax a shell verdict. */
 export function createLaneNativeApprovalResolver(input: {
   projectDir: string;
   sandboxActive: boolean;
-  effects: Readonly<Record<string, LaneToolEffects>>;
+  effects: Readonly<Record<string, LaneToolEffect>>;
 }): LaneApprovalSubjectResolver {
   return (request) => {
-    const effects = Object.hasOwn(input.effects, request.toolName) ? input.effects[request.toolName] : undefined;
-    if (!effects) return undefined;
+    const effect = Object.hasOwn(input.effects, request.toolName) ? input.effects[request.toolName] : undefined;
+    if (!effect) return undefined;
+    // 审批闸眼里的两个事实从同一个四值效果派生（`approvalFacetsOf`，唯一的对应表）。
     const subject = {
       toolName: request.toolName,
       capabilityId: `native:${request.toolName}`,
-      effect: effects.billable ? 'paid' as const : effects.mutates ? 'reversible_write' as const : 'read' as const,
-      effectClass: effects.billable ? 'spend' as const : effects.reversal === 'none' && effects.mutates
-        ? 'irreversible' as const : 'reversible_local' as const,
+      ...laneToolApprovalFacets(effect),
       requiresPlanReview: false,
       destructiveHint: false,
     };

@@ -47,7 +47,7 @@ const PACKAGE_PATTERNS = [
   // (2026-09-02: surface-16-collapse escaped exactly this way; see docs/fixes/
   // 2026-09-02-packaged-mcp-smoke-stale-catalog-anchor.root-cause.json).
   /^electron\/capabilityCore\//,
-  /^electron\/harness\/tools\//,
+  /^electron\/shared\/agentCapabilities\/(?:verbDeclarations\.ts$|verbs\/)/,
   // The smoke instrument itself: editing the packaged smoke must re-run the packaged smoke
   // (same rule as PERFORMANCE_INSTRUMENT_PATTERNS — instrument edits re-run the instrument).
   /^tests\/ux\/packaged-mcp-smoke/,
@@ -78,7 +78,7 @@ const CANVAS_PATTERNS = [
 
 const FULL_CANVAS_PATTERNS = [
   /^src\/workbench\/generationCanvas\/reactFlow(?:\/|$)/,
-  /^tests\/ux\/(?:canvas-real-suite|react-flow|canvas-drag-pan|group-ports|canvas-shortcuts|canvas-node-context|canvas-context-menu|canvas-batch|selection-toolbar|group-baseline|group-reference).*/,
+  /^tests\/ux\/(?:canvas-real-suite|react-flow|canvas-drag-pan|group-ports|canvas-shortcuts|canvas-node-context|canvas-context-menu|canvas-batch|canvas-magnetic-handle|selection-toolbar|group-baseline|group-reference).*/,
 ]
 
 const PERFORMANCE_PATTERNS = [

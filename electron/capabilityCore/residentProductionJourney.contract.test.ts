@@ -4,7 +4,7 @@ import path from "node:path";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { agentToolsForRequest } from "../harness/agentChatPolicy";
+import { modelFacingToolSpecs } from "../shared/agentCapabilities/modelFacingToolRegistry";
 import type { RuntimeToolCall } from "../shared/agentCapabilities/transportContracts";
 import { createCanvasReadSurfaceRegistry, createSurfaceOwnerAuthority } from "./canvasReadSurfaceRegistry";
 import { createMainCapabilityExecutorRegistry } from "./capabilityExecutorRegistry";
@@ -254,16 +254,11 @@ describe("resident Agent production journey (zero quota contract)", () => {
     expect(providerSubmit).not.toHaveBeenCalled();
     expect(repository.read(PROJECT_ID, OPERATION_ID)?.generationPlan?.state).toBe("submitted");
 
-    const tools = agentToolsForRequest({
-      capability: "canvas-agent",
-      projectId: PROJECT_ID,
-      history: { kind: "ephemeral" },
-      prompt: "帮我做一个5分钟品牌视频，写剧本、拆分镜、生成并导出",
-    });
-    const toolNames = tools.map((tool) => tool.name);
+    // 模型面上真有这条长片旅程需要的每一个动词（内部 profile 由注册表派生，不再按意图路由裁剪）。
+    const toolNames = modelFacingToolSpecs("internal").map((tool) => tool.name);
     expect(toolNames).toEqual(expect.arrayContaining([
       "start_production_run",
-      "nomi_canvas_plan",
+      "nomi_storyboard_write",
       "nomi_generation_plan",
       "nomi_generation_status",
       "export_timeline",

@@ -24,6 +24,7 @@ import type { PiGenerationTransportAdapter } from '../capabilityCore/generationT
 import { getProductionRunService } from '../productionRun/productionRunRuntime'
 import { createLaneExtendedDesktopPorts } from './laneExtendedDesktopPorts'
 import { LANE_RECEIPT_AUTHORITY_NOTE } from '../shared/agentLane/laneReceiptAuthority'
+import { laneToolMutates } from '../shared/agentLane/laneToolContract'
 import type { ProjectAgentProposalReceiptService } from '../capabilityCore/projectAgentProposalReceiptStore'
 import type { ResidentGenerationAdapterFactory } from '../capabilityCore/residentGenerationAdapterFactory'
 import { documentProposalReceiptFor, prepareDocumentProposalReceipt, commitDocumentProposalReceipt, abandonDocumentProposalReceipt } from '../capabilityCore/projectAgentDocumentReceipt'
@@ -112,7 +113,7 @@ export function createDesktopLaneTools(input: {
   const toolLifecycle: NonNullable<OpenLaneOptions['toolLifecycle']> = {
     prepare: async (call: RuntimeToolCall, signal: AbortSignal) => {
       const tool = byName.get(call.toolName)
-      if (!tool?.effects.mutates) return
+      if (!tool || !laneToolMutates(tool.effect)) return
       const args = tool.schema.parse(call.args)
       if (tool.contractId === 'document.write') {
         const context = input.context()

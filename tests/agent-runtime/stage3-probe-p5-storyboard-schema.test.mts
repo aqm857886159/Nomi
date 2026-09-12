@@ -17,8 +17,15 @@ import { createLaneTools } from '../../electron/agentLane/laneTools.mjs';
 import { createLaneFixture } from './laneFixture.mjs';
 
 const TOOL = 'nomi_storyboard_write';
-/** 方案 §4.3 P5 写的预算。 */
-const TOKEN_BUDGET = 1_200;
+/**
+ * 方案 §4.3 P5 写的预算。2026-09-12 由 1_200 提到 1_220：整片默认画幅贯通给 plan 顶层加了
+ * `aspectRatio`（实测 schema 4673 → 4765 chars，估计 1_192 → 1_215 tokens，字段本身 92 chars ≈ 23 tokens）。
+ * 为什么不压回 1_200：这个字段**不能更便宜**——它是 `.strict()` envelope 上唯一能写整片画幅的位置
+ * （少它则规划师写的整片画幅在主进程边界被拒收，正是 2026-09-12 根因合同的第一格），
+ * 而压预算的另外两条路都是症状修法：删别的字段/enum（契约变窄）或删工具描述（那 92 chars 也是 23 tokens）。
+ * 这条断言的本意是「长大时有人看见」（见文件头），所以按看得见的方式记账：涨了 23，预算留 5 的余量。
+ */
+const TOKEN_BUDGET = 1_220;
 
 const ANCHOR = { id: 'anchor-1', kind: 'character', name: '林夏', description: '17-year-old girl, short black hair, school uniform.', carrier: 'visual' };
 const SHOTS = [
@@ -64,8 +71,9 @@ test('P5 ① · size of the flat nomi_storyboard_write schema, by pi\'s own esti
     console.log(`[P5①]   ${tool.name}: ≈ ${size} tokens`);
   }
   const properties = Object.keys((storyboard.parameters as { properties: Record<string, unknown> }).properties);
-  assert.deepEqual(properties, ['operation', 'title', 'anchors', 'shots', 'select', 'patch', 'nodeIds'], 'flat root: one enum + every branch field as optional');
-  // B1c moves full guidance/examples into the stable system prompt, meeting the original budget.
+  assert.deepEqual(properties, ['operation', 'title', 'aspectRatio', 'anchors', 'shots', 'select', 'patch', 'nodeIds'], 'flat root: one enum + every branch field as optional');
+  // B1c moves full guidance/examples into the stable system prompt; the budget above records
+  // the one deliberate growth since (film-level aspectRatio), not prose creeping back in.
   assert.ok(schemaTokens + descriptionTokens <= TOKEN_BUDGET,
     `pi's estimate (${schemaTokens + descriptionTokens}) must stay within the original ${TOKEN_BUDGET} budget`);
 });
