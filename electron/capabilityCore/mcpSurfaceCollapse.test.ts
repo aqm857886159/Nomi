@@ -39,7 +39,6 @@ const COLLAPSED_TOOL_NAMES = [
 const M2_EDITING_TOOL_NAMES = [
   'nomi_canvas_maintenance', 'nomi_document_read', 'nomi_document_edit',
   'nomi_timeline_read', 'nomi_timeline_edit', 'nomi_export_job', 'nomi_media_query',
-  'nomi_layout_read', 'nomi_layout_write',
 ]
 const NEW_TOOL_NAMES = [...COLLAPSED_TOOL_NAMES, ...M2_EDITING_TOOL_NAMES]
 
@@ -86,7 +85,7 @@ describe('MCP surface collapse 42→15 · P1 retirement', () => {
     // 阶段 5a：注解**全量派生**自契约的 effect/effectClass（`mcpAnnotationsFor`），不再是一张
     // 手写的 4 个适配器名单。名单漏掉的两个（document_read / layout_read）因此第一次带上
     // readOnlyHint —— 它们的契约本来就是 `effect:"read"`，漏标的后果是宿主对一次读也去问用户。
-    expect(readOnly).toEqual(['nomi_read', 'nomi_operation_preview', 'nomi_document_read', 'nomi_timeline_read', 'nomi_export_job', 'nomi_media_query', 'nomi_layout_read'])
+    expect(readOnly).toEqual(['nomi_read', 'nomi_operation_preview', 'nomi_document_read', 'nomi_timeline_read', 'nomi_export_job', 'nomi_media_query'])
   })
 })
 

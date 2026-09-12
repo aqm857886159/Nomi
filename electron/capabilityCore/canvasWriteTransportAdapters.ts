@@ -109,7 +109,12 @@ export function createPiCanvasWriteTransportAdapter(
             ? canvasDeleteInputForAlias(call.toolName, args)!
             : canvasDeleteSemanticInputSchema.parse({ operation: "delete_canvas_nodes", ...args });
         } else {
-          const parsed = semanticTool ? args : canvasWritePiInputSchemaForAlias(call.toolName)?.parse(args);
+          // MCP transport metadata is carried beside the semantic operation.
+          // Do not feed project/lease routing fields into the strict semantic
+          // schema: they are verified by the session boundary, not part of
+          // the canvas mutation itself.
+          const { projectId: _projectId, leaseHandle: _leaseHandle, ...semanticArgs } = args;
+          const parsed = semanticTool ? semanticArgs : canvasWritePiInputSchemaForAlias(call.toolName)?.parse(args);
           semanticInput = canvasWriteSemanticInputSchema.parse({ operation, ...parsed });
         }
       } catch {

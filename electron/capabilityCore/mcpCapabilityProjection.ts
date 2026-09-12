@@ -3,7 +3,7 @@ import { toPublishedJsonSchema } from "../shared/agentCapabilities/modelVisibleJ
 
 import type { CapabilityContract } from "../shared/agentCapabilities/capabilityContract";
 import { CANVAS_READ_CAPABILITY } from "../shared/agentCapabilities/canvasRead";
-import { CANVAS_WRITE_CAPABILITY, canvasWriteResultSchema } from "../shared/agentCapabilities/canvasWrite";
+import { CANVAS_WRITE_CAPABILITY, canvasWriteResultSchema, canvasWriteSemanticInputSchema } from "../shared/agentCapabilities/canvasWrite";
 import { CANVAS_DELETE_CAPABILITY, canvasDeletePiInputSchema, canvasDeleteSemanticInputSchema, canvasDeleteResultSchema } from "../shared/agentCapabilities/canvasDelete";
 import { DOCUMENT_READ_CAPABILITY, documentReadResultSchema } from "../shared/agentCapabilities/documentRead";
 import { DOCUMENT_WRITE_CAPABILITY, documentWriteResultSchema } from "../shared/agentCapabilities/documentWrite";
@@ -345,10 +345,39 @@ export const CANVAS_READ_MCP_ADAPTER: McpCapabilityAdapter = derivedAdapter(CANV
 // 阶段 5a：schema 不再从 `canvasWriteSemanticInputSchema` 单独生成，而是与 Agent lane 的三个写工具
 // **同源**——外部宿主因此第一次也拿到了 typed 的分镜 / 站位 / 运镜形状（以前它读到的是契约上
 // 那两个 `z.record(z.unknown())`，25 个字段名一个都没有，那正是 #547 的 0/18）。
-export const CANVAS_EDIT_MCP_ADAPTER: McpCapabilityAdapter = derivedAdapter(CANVAS_WRITE_CAPABILITY, {
+const derivedCanvasEditAdapter = derivedAdapter(CANVAS_WRITE_CAPABILITY, {
   authority: { kind: "project_session", requiredScope: CANVAS_WRITE_CAPABILITY.requiredScope },
   port: { kind: "canvas", access: "write" },
   outputSchema: canvasWriteResultSchema,
+});
+const canvasEditSemanticTransportSchema = transportSchemaFromZod(canvasWriteSemanticInputSchema, { label: "canvasEdit" }) as SchemaLike;
+const canvasEditLeaseSchema = transportSchemaFromZod(z.object(leaseField), { label: "canvasEditLease" }) as SchemaLike;
+const canvasEditInputSchema = immutableSchemaSnapshot({
+  ...canvasEditSemanticTransportSchema,
+  properties: {
+    ...((canvasEditSemanticTransportSchema as { properties?: Record<string, unknown> }).properties ?? {}),
+    ...((canvasEditLeaseSchema as { properties?: Record<string, unknown> }).properties ?? {}),
+  },
+  required: ["leaseHandle"],
+  additionalProperties: false,
+});
+
+// The MCP canvas surface is a composite semantic operation surface. Its
+// operation field is the canonical discriminator for storyboard mutations,
+// while the generated internal descriptor remains intentionally narrower for
+// the lane verbs. Parse the externally published canonical input directly so
+// patch_shots/propose_storyboard_plan are not rejected as unknown lane verbs.
+export const CANVAS_EDIT_MCP_ADAPTER: McpCapabilityAdapter = Object.freeze({
+  ...derivedCanvasEditAdapter,
+  transportInputSchema: canvasEditInputSchema,
+  parseCall(args) {
+    const { leaseHandle, projectId, ...semanticArgs } = args;
+    const semanticInput = canvasWriteSemanticInputSchema.parse(semanticArgs);
+    return {
+      semanticInput,
+      transport: { ...semanticArgs, leaseHandle, ...(projectId ? { projectId } : {}) },
+    };
+  },
 });
 
 const canvasMaintenanceMcpInput = contractModelSchema("delete_canvas_nodes", canvasDeletePiInputSchema).partial().extend({

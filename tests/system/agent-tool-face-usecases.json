@@ -1,0 +1,302 @@
+{
+  "schemaVersion": 1,
+  "canonicalVerbs": [
+    "look_at_canvas",
+    "read_script",
+    "read_timeline",
+    "look_at_media",
+    "list_models",
+    "check_job",
+    "read_skill",
+    "write_script",
+    "draft_shots",
+    "generate",
+    "arrange_canvas",
+    "make_artifact",
+    "stage_shot",
+    "edit_timeline",
+    "undo",
+    "delete_from_canvas",
+    "export_video",
+    "cancel_job",
+    "save_skill",
+    "start_model_setup"
+  ],
+  "metrics": [
+    "first_tool_accuracy",
+    "turn_success_rate",
+    "read_before_write_rate",
+    "wrong_verb_rejection_rate",
+    "approval_accuracy",
+    "persistence_rate",
+    "restart_readback_rate",
+    "page_click_success_rate"
+  ],
+  "cases": [
+    {
+      "id": "U01",
+      "userSays": "画布上现在有什么？",
+      "firstTool": "look_at_canvas",
+      "proof": [
+        "trajectory",
+        "page",
+        "answer"
+      ],
+      "tools": [
+        "look_at_canvas"
+      ]
+    },
+    {
+      "id": "U02",
+      "userSays": "把文稿里雨夜那段读出来",
+      "firstTool": "read_script",
+      "proof": [
+        "trajectory",
+        "answer"
+      ],
+      "tools": [
+        "read_script"
+      ]
+    },
+    {
+      "id": "U03",
+      "userSays": "时间轴 0:20 到 0:30 发生了什么？",
+      "firstTool": "read_timeline",
+      "proof": [
+        "trajectory",
+        "answer"
+      ],
+      "tools": [
+        "read_timeline"
+      ]
+    },
+    {
+      "id": "U04",
+      "userSays": "素材库里有雨天视频吗？",
+      "firstTool": "look_at_media",
+      "proof": [
+        "trajectory",
+        "answer"
+      ],
+      "tools": [
+        "look_at_media"
+      ]
+    },
+    {
+      "id": "U05",
+      "userSays": "现在能用哪些视频模型？",
+      "firstTool": "list_models",
+      "proof": [
+        "trajectory",
+        "answer"
+      ],
+      "tools": [
+        "list_models"
+      ]
+    },
+    {
+      "id": "U06",
+      "userSays": "这个生成任务完成了吗？",
+      "firstTool": "check_job",
+      "proof": [
+        "trajectory",
+        "answer"
+      ],
+      "tools": [
+        "check_job"
+      ]
+    },
+    {
+      "id": "U07",
+      "userSays": "读取一下分镜技能",
+      "firstTool": "read_skill",
+      "proof": [
+        "trajectory",
+        "answer"
+      ],
+      "tools": [
+        "read_skill"
+      ]
+    },
+    {
+      "id": "U08",
+      "userSays": "把结尾改得更克制，追加一句",
+      "firstTool": "read_script",
+      "proof": [
+        "trajectory",
+        "page",
+        "persistence"
+      ],
+      "tools": [
+        "read_script",
+        "write_script"
+      ]
+    },
+    {
+      "id": "U09",
+      "userSays": "把文稿拆成六个镜头，先别生成",
+      "firstTool": "read_script",
+      "proof": [
+        "trajectory",
+        "page",
+        "persistence"
+      ],
+      "tools": [
+        "read_script",
+        "draft_shots"
+      ]
+    },
+    {
+      "id": "U10",
+      "userSays": "就生成刚才那六个镜头",
+      "firstTool": "generate",
+      "proof": [
+        "trajectory",
+        "page",
+        "approval"
+      ],
+      "tools": [
+        "generate"
+      ]
+    },
+    {
+      "id": "U11",
+      "userSays": "把角色参考连到第二镜",
+      "firstTool": "look_at_canvas",
+      "proof": [
+        "trajectory",
+        "page",
+        "persistence"
+      ],
+      "tools": [
+        "look_at_canvas",
+        "arrange_canvas"
+      ]
+    },
+    {
+      "id": "U12",
+      "userSays": "做一张镜头对照表放画布上",
+      "firstTool": "make_artifact",
+      "proof": [
+        "trajectory",
+        "page",
+        "persistence"
+      ],
+      "tools": [
+        "make_artifact"
+      ]
+    },
+    {
+      "id": "U13",
+      "userSays": "给第四镜加一个推进镜头参考",
+      "firstTool": "look_at_canvas",
+      "proof": [
+        "trajectory",
+        "page",
+        "persistence"
+      ],
+      "tools": [
+        "look_at_canvas",
+        "stage_shot"
+      ]
+    },
+    {
+      "id": "U14",
+      "userSays": "把开头剪短两秒并加字幕",
+      "firstTool": "read_timeline",
+      "proof": [
+        "trajectory",
+        "page",
+        "approval",
+        "persistence"
+      ],
+      "tools": [
+        "read_timeline",
+        "edit_timeline"
+      ]
+    },
+    {
+      "id": "U15",
+      "userSays": "撤销你刚才的时间轴改动",
+      "firstTool": "undo",
+      "proof": [
+        "trajectory",
+        "page",
+        "persistence"
+      ],
+      "tools": [
+        "undo"
+      ]
+    },
+    {
+      "id": "U16",
+      "userSays": "删除画布上的旧海报",
+      "firstTool": "look_at_canvas",
+      "proof": [
+        "trajectory",
+        "page",
+        "approval",
+        "persistence"
+      ],
+      "tools": [
+        "look_at_canvas",
+        "delete_from_canvas"
+      ]
+    },
+    {
+      "id": "U17",
+      "userSays": "导出当前视频",
+      "firstTool": "read_timeline",
+      "proof": [
+        "trajectory",
+        "page",
+        "approval",
+        "persistence"
+      ],
+      "tools": [
+        "read_timeline",
+        "export_video"
+      ]
+    },
+    {
+      "id": "U18",
+      "userSays": "停止正在导出的任务",
+      "firstTool": "check_job",
+      "proof": [
+        "trajectory",
+        "page",
+        "approval"
+      ],
+      "tools": [
+        "check_job",
+        "cancel_job"
+      ]
+    },
+    {
+      "id": "U19",
+      "userSays": "把这个写作方法保存成技能",
+      "firstTool": "save_skill",
+      "proof": [
+        "trajectory",
+        "page",
+        "persistence"
+      ],
+      "tools": [
+        "save_skill"
+      ]
+    },
+    {
+      "id": "U20",
+      "userSays": "帮我接入一个视频模型",
+      "firstTool": "start_model_setup",
+      "proof": [
+        "trajectory",
+        "page",
+        "persistence"
+      ],
+      "tools": [
+        "start_model_setup"
+      ]
+    }
+  ]
+}
