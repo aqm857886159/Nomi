@@ -52,6 +52,11 @@ export function hasPendingSpendCapability(): boolean {
   return typeof getDesktopBridge()?.productionRuns?.pendingSpend === 'function'
 }
 
+export function isOptionalSpendSurfaceUnavailable(error: unknown): boolean {
+  const code = error && typeof error === 'object' && 'code' in error ? String((error as { code?: unknown }).code ?? '') : ''
+  return code === 'spend_confirm_surface_unavailable' || missingCardReasonOfReadFailure(error) === 'spend-surface-unavailable'
+}
+
 export type AgentPanelSpendConfirm = Readonly<{
   pending: PendingSpendConfirm | undefined
   /** 当前这一页的**草稿节点**（宿主投影 ⊕ 覆写）。它不在画布 store 里，改它不动画布。 */
@@ -115,6 +120,10 @@ export function useAgentPanelSpendConfirm(): AgentPanelSpendConfirm {
       // **读不到 ≠ 没有**。主进程现在只在「真的没有」时回空数组，抛出来的一律是失败；
       // 失败就必须让用户看见，否则模型说「请在确认卡上点头」而面板一片空白。
       setPending(undefined)
+      if (isOptionalSpendSurfaceUnavailable(error)) {
+        setReadFailure(undefined)
+        return undefined
+      }
       setReadFailure(missingCardReasonOfReadFailure(error))
       return undefined
     }
