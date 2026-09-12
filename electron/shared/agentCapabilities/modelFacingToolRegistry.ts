@@ -62,7 +62,12 @@ export function resolveModelToolCapabilityId(name: string, args?: unknown): stri
 
 /** 某个能力的全部别名说明书，按声明顺序。 */
 export function specsForCapability(contractId: string): readonly ModelFacingToolSpec[] {
-  return MODEL_FACING_TOOL_SPECS.filter((spec) => spec.contractId === contractId);
+  const matched = MODEL_FACING_TOOL_SPECS.filter((spec) => spec.contractId === contractId || spec.alsoCovers?.includes(contractId));
+  if (contractId === "canvas.write") {
+    const canonical = matched.find((spec) => spec.name === "arrange_canvas");
+    if (canonical) return Object.freeze([...matched, ...["nomi_canvas_write", "nomi_canvas_edit", "nomi_canvas_plan", "nomi_storyboard_write", "nomi_shot_reference_write"].map(name => ({ ...canonical, name }))]);
+  }
+  return matched;
 }
 
 /** 一个 profile 真正投影出去的说明书。过滤只来自声明（`profiles`）；付费边界在装配期已经抛过。 */
