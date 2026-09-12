@@ -10,6 +10,7 @@
 // 我们不在这里抄第二份 Vendor 定义（抄了必然漂移）。身份字段与 TS 类型之间有编译期桥（见下），
 // 谁改了 `Vendor.enabled` 的名字，tsc 当场红。
 import { z } from "zod";
+import { modeDeliveryDefect } from "./transportDelivery";
 import { nowIso } from "../jsonUtils";
 import { decryptApiKeyRecord } from "./secrets";
 import { publicVendor } from "./customConfigStore";
@@ -85,8 +86,19 @@ const mappingSchema = z
     taskKind: z.string().min(1),
     name: z.string(),
     create: z.object({ method: z.string().min(1), path: z.string().min(1) }).passthrough(),
+    /**
+     * 这条 wire 的交付形状，由**上游契约**声明，不由媒体类型推断（见 transportDelivery.ts）。
+     * 声明 asynchronous 就必须带上 query 与 statusMapping，否则一个已受理的远端任务会被丢掉——
+     * 这正是 2026-09-11「图片中转永远验不过」那条类根因。缺省时按存量数据的「有 query 即异步」推断。
+     */
+    delivery: z.enum(["synchronous", "asynchronous"]).optional()
+      .describe("How this endpoint delivers results, declared by the provider contract and never inferred from the media type. 'asynchronous' requires query and statusMapping so an accepted remote task is polled to completion instead of dropped."),
   })
   .passthrough()
+  .superRefine((mapping, context) => {
+    const defect = modeDeliveryDefect(mapping as Parameters<typeof modeDeliveryDefect>[0]);
+    if (defect) context.addIssue({ code: "custom", message: `Mapping ${String(mapping.id)} ${defect}` });
+  })
   .describe("One task mapping (create/query/result HTTP declarations). Shape: electron/catalog/types.ts Mapping.");
 
 const vendorBundleSchema = z

@@ -7,7 +7,6 @@ import { dispatch } from "./dispatcher";
 import { validateToolArguments } from "./mcpArgValidation";
 import { MCP_INTEGRATION_TOOL } from "./mcpIntegrationTools";
 import { MCP_TOOL_RESOLVER } from "./mcpToolCatalog";
-import { createApprovalReceiptAuthority } from "./approvalReceipt";
 import { IntegrationSessionService } from "../integrationCertification/integrationSession";
 
 /**
@@ -17,8 +16,9 @@ import { IntegrationSessionService } from "../integrationCertification/integrati
  * 而现有 e2e 全都用 JS 变量直传句柄和入参（完美复制、永远不会写错），把这一族问题整个测没了。
  * 这里换一种口径：**每一步的入参都先按对外广播的 JSON Schema 校验一次**，校验通过才允许派发。
  * 一次写对率 = 首次校验通过的步数 / 总步数。它测的不是模型聪不聪明，而是「照着我们广告的契约
- * 一步步走，能不能走通」——修复前答案是不能（schema 上的必填是假的、confirm 会作废人的点击、
- * 会话丢了找不回来）。
+ * 一步步走，能不能走通」——修复前答案是不能（schema 上的必填是假的、会话丢了找不回来，
+ * 而且外部宿主走到花费确认那一档就**永远出不来**——那一整关已于 2026-09-12 随「接模型不做
+ * 付费验证」一起删掉）。
  */
 
 const HOST = "codex" as const;
@@ -42,10 +42,6 @@ function makeService(dir: string) {
     filePath: path.join(dir, "sessions.json"),
     certification: certification as never,
     credentialResolver: () => "loopback-key",
-    approvalReceiptAuthority: createApprovalReceiptAuthority({
-      filePath: path.join(dir, "receipts.json"),
-      macKey: "loopback-mac-key",
-    }),
     save: (target, state) => fs.writeFileSync(target, JSON.stringify(state)),
     enqueueHandoff: () => undefined,
     compilerAvailable: () => true,
@@ -120,64 +116,22 @@ describe("MCP model-onboarding loopback (R30)", () => {
         selections: [{ modelKey: "deepseek-flash" }],
       },
     }) as { revision: number; stage: string };
-    expect(proposed.stage).toBe("needs_spend_confirmation");
+    // 提完方案就到「该跑自检了」。这里**没有**第七步：接模型没有付费验证，也就没有花费确认
+    // （2026-09-12 用户拍板）。旧版本在这里卡死——外部宿主根本走不出 needs_spend_confirmation
+    // （见 docs/research/2026-09-12-real-onboarding-acceptance §P0-1）。
+    expect(proposed.stage).toBe("ready_to_certify");
 
-    // ⑦ 请求花费确认 → 进入「等真人点」
-    const challenge = await call(integration, {
-      action: "confirm",
-      sessionId: begun.id,
-      expectedRevision: proposed.revision,
-      idempotencyKey: "loopback-1",
-    }) as { challengeId: string; stage: string; nextAction: string; expiresInSeconds: number };
-    expect(challenge.stage).toBe("awaiting_human_confirmation");
-    expect(challenge.expiresInSeconds).toBeGreaterThan(0);
-    expect(challenge.nextAction).toMatch(/wait for the person/i);
-
-    // ⑧ Agent 在等待期又调了一次 confirm（实测里两个独立回合都这么做）——必须幂等，
-    //    绝不能作废人马上要点的那枚挑战。
-    const afterRepeat = await call(integration, {
-      action: "confirm",
-      sessionId: begun.id,
-      expectedRevision: (await call(read, { target: "integration", sessionId: begun.id }) as { revision: number }).revision,
-      idempotencyKey: "loopback-retry",
-    }) as { challengeId: string; stage: string };
-    expect(afterRepeat.challengeId).toBe(challenge.challengeId);
-    expect(afterRepeat.stage).toBe("awaiting_human_confirmation");
-
-    // ⑨ 人还没点就 start：必须明说「等人批」，而不是含糊地报收据问题
-    const beforeApproval = await call(read, { target: "integration", sessionId: begun.id }) as { revision: number };
-    await expect(call(integration, {
-      action: "start",
-      sessionId: begun.id,
-      expectedRevision: beforeApproval.revision,
-      idempotencyKey: "loopback-1",
-    })).rejects.toThrow(/not approved|approve|human_confirmed/i);
-
-    // ⑩ 真人在 Nomi 窗口里点确认（可信 UI 路径，不经过 MCP）
-    const confirmed = sessions.confirmFromTrustedUi({
-      sessionId: begun.id,
-      expectedRevision: (sessions.get(begun.id, HOST) as { revision: number }).revision,
-      challengeId: challenge.challengeId,
-      webContentsId: 1,
-      frameId: 1,
-      origin: "file://",
-    });
-    expect(confirmed.stage).toBe("human_confirmed");
-
-    // ⑪ Agent 读回状态，看见「人点完了」
-    const approved = await call(read, { target: "integration", sessionId: begun.id }) as { revision: number; stage: string };
-    expect(approved.stage).toBe("human_confirmed");
-
-    // ⑫ start（不传 receipt：会话上那枚人已确认的收据就是它）
+    // ⑦ 直接 start：同一个外部宿主，不需要任何人在 Nomi 里点
     const started = await call(integration, {
       action: "start",
       sessionId: begun.id,
-      expectedRevision: approved.revision,
+      expectedRevision: proposed.revision,
       idempotencyKey: "loopback-1",
     }) as { stage: string; childRunRef?: { runId: string } };
+
     expect(started.childRunRef?.runId).toBe("run-loopback");
 
-    // ⑬ 终态
+    // ⑧ 终态
     const final = await call(read, { target: "integration", sessionId: begun.id }) as { stage: string };
     expect(final.stage).toBe("completed");
     expect(certification.startHttp).toHaveBeenCalledTimes(1);
@@ -186,6 +140,6 @@ describe("MCP model-onboarding loopback (R30)", () => {
     const firstTryRate = (attempted.length - rejectedBySchema.length) / attempted.length;
     expect(rejectedBySchema).toEqual([]);
     expect(firstTryRate).toBeGreaterThanOrEqual(0.9);
-    expect(attempted.length).toBeGreaterThanOrEqual(13);
+    expect(attempted.length).toBeGreaterThanOrEqual(7);
   });
 });

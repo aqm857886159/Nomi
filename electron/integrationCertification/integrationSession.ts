@@ -1,9 +1,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { capabilityCoreDir, ensureCapabilitySigningKey, type CapabilityOriginHost } from "../capabilityCore/security";
-import { createApprovalReceiptAuthority } from "../capabilityCore/approvalReceipt";
-import { createProductionRunLock } from "../productionRun/productionRunLock";
+import { capabilityCoreDir, type CapabilityOriginHost } from "../capabilityCore/security";
 import { writeCertificationJsonAtomic } from "./certificationPersistence";
 import { logError } from "../logging/logger";
 import { ConnectionCertificationService, getConnectionCertificationService } from "./service";
@@ -19,7 +17,6 @@ import {
 import { hasCompilerLanguageModel } from "../providerAdapter/serviceLanguageModels";
 import { cancelCertifyingRun, sessionModelResults, type IntegrationModelResult } from "./integrationSessionRunView";
 import { adapterDraftFromProposal, compileRequestFor } from "./integrationAdapterContract";
-import type { ApprovalReceiptAuthority, HumanApprovalReceiptV1 } from "../capabilityCore/approvalReceipt";
 import type { IntegrationHandoff } from "./handoffQueue";
 import { enqueueIntegrationHandoff, retireIntegrationHandoffs } from "./handoffQueue";
 import { mutateCatalog, readCatalog, normalizeProviderKind } from "../catalog/catalogStore";
@@ -31,11 +28,6 @@ import { isComfyuiVendor, COMFYUI_VENDOR_KEY } from "../catalog/types";
 import { OperationLedger } from "./operationLedger";
 import type { CertificationOperationRecord, ComfyCertificationRuntime } from "./types";
 import type { WorkflowBinding, WorkflowEnumOption } from "../catalog/comfyuiWorkflowImport";
-import {
-  integrationConfirmationProjection,
-  type IntegrationConfirmationChallenge,
-} from "./integrationSpendGate";
-export type { IntegrationConfirmationChallenge } from "./integrationSpendGate";
 export type { ComfyCertificationRuntime } from "./types";
 import {
   proposalCandidates,
@@ -67,7 +59,6 @@ import {
   IntegrationRequestError,
   type IntegrationCredentialStatus,
   type IntegrationStage,
-  type IntegrationStartReceiptStatus,
 } from "../shared/integrationContract";
 export type IntegrationKind = "http-api-provider" | "comfyui-workflow";
 export type { IntegrationStage } from "../shared/integrationContract";
@@ -135,14 +126,6 @@ export type IntegrationSession = {
   selections: IntegrationCandidate[];
   credentialRef?: string;
   startIdempotencyKey?: string;
-  startReceiptDigest?: string;
-  /** Opaque receipt id minted by the trusted UI; never a signed token. */
-  pendingReceiptId?: string;
-  /** Durable start intent state. `pending` means the session was persisted
-   * before receipt consumption and can finish that step after a crash. */
-  startReceiptStatus?: IntegrationStartReceiptStatus;
-  pendingChallengeId?: string;
-  pendingConfirmationKey?: string;
   /** 待驱动 Agent 编译时的交底；收到合法 adapterDraft 后清空。 */
   compileRequest?: IntegrationCompileRequest;
   /** 驱动 Agent 交回并已通过 validateProviderAdapterDraft 的说明卡。 */
@@ -181,19 +164,6 @@ type Dependencies = {
   credentialResolver?: (session: IntegrationSession) => string | undefined;
   /** 「Nomi 自己有没有文本模型可以拿来读文档」。默认问真实 catalog；测试注入布尔。 */
   compilerAvailable?: () => boolean;
-  /** Main-process authority for the user-confirmed, signed integration receipt. */
-  approvalReceiptAuthority?: Pick<ApprovalReceiptAuthority, "requestChallenge" | "verifyReceipt"> &
-    Partial<
-      Pick<
-        ApprovalReceiptAuthority,
-        | "resolveReceiptToken"
-        | "resolveChallengeToken"
-        | "verifyChallenge"
-        | "consumeReceipt"
-        | "createMainProcessGestureAttestation"
-        | "mintReceipt"
-      >
-    >;
   /** Durable UI handoff sink. The session service never emits an event-only handoff. */
   enqueueHandoff?: (input: Omit<IntegrationHandoff, "requestId" | "createdAt">) => unknown;
   retireHandoff?: (sessionId: string, target: IntegrationHandoff["target"]) => unknown;
@@ -202,10 +172,9 @@ type Dependencies = {
   comfyOperationLedger?: OperationLedger;
 };
 /** Runtime wiring used by both GUI RPC and packaged stdio. Keeps secrets in main and
- * injects the same certification/receipt/handoff boundaries into every transport. */
+ * injects the same certification/handoff boundaries into every transport. */
 export function createRuntimeIntegrationSessionService(
   input: ComfyCertificationRuntime & {
-    approvalReceiptAuthority?: Dependencies["approvalReceiptAuthority"];
     certification?: ConnectionCertificationService;
     enqueueHandoff?: Dependencies["enqueueHandoff"];
     save?: Dependencies["save"];
@@ -214,7 +183,6 @@ export function createRuntimeIntegrationSessionService(
     comfyOperationLedger?: Dependencies["comfyOperationLedger"];
   },
 ): IntegrationSessionService {
-  const authority = input.approvalReceiptAuthority || defaultIntegrationReceiptAuthority();
   const certification = input.certification || getConnectionCertificationService();
   // Construct one ledger instance for both the service and its Comfy callback.
   // Capturing the raw optional dependency here would silently disable the
@@ -518,7 +486,6 @@ export function createRuntimeIntegrationSessionService(
   return new IntegrationSessionService({
     filePath: input.filePath,
     certification,
-    approvalReceiptAuthority: authority,
     enqueueHandoff: input.enqueueHandoff || enqueueIntegrationHandoff,
     retireHandoff: retireIntegrationHandoffs,
     save: input.save,
@@ -534,21 +501,6 @@ export function installRuntimeIntegrationSessionService(service: IntegrationSess
   singleton = service;
   return service;
 }
-let runtimeReceiptAuthority: ReturnType<typeof createApprovalReceiptAuthority> | null = null;
-function defaultIntegrationReceiptAuthority() {
-  runtimeReceiptAuthority ||= createApprovalReceiptAuthority({
-    filePath: path.join(capabilityCoreDir(), "approval-receipts.json"),
-    macKey: ensureCapabilitySigningKey("approval-receipt"),
-    storeMacKey: ensureCapabilitySigningKey("approval-receipt-store"),
-    keyId: "approval-receipt-v1",
-    lock: createProductionRunLock({
-      filePath: path.join(capabilityCoreDir(), "semantic-authorities.lock"),
-      epochPath: path.join(capabilityCoreDir(), "semantic-authorities.epoch"),
-      ownerId: `integration-session-${process.pid}`,
-    }),
-  });
-  return runtimeReceiptAuthority;
-}
 const MAX_TEXT = 64 * 1024;
 const MAX_WORKFLOW = 2 * 1024 * 1024;
 const WRITE_STAGES = new Set<IntegrationStage>([
@@ -556,8 +508,6 @@ const WRITE_STAGES = new Set<IntegrationStage>([
     (stage) => !["certifying", "committing", "completed", "partial", "failed", "cancelled"].includes(stage),
   ),
 ]);
-/** 花费确认那三档（该你 confirm / 等真人点 / 人点完了）。判据从词表派生，不另立成员清单。 */
-const isSpendGateStage = (stage: IntegrationStage): boolean => stage.includes("confirm");
 const TERMINAL = new Set<IntegrationStage>(
   INTEGRATION_STAGES.filter((stage) => ["completed", "partial", "failed", "cancelled"].includes(stage)),
 );
@@ -622,38 +572,6 @@ function safeHandoffOrigin(baseUrl: string): { origin?: string } {
     return {};
   }
 }
-
-function verifyIntegrationReceipt(
-  authority: NonNullable<Dependencies["approvalReceiptAuthority"]>,
-  receiptInput: string,
-  session: IntegrationSession,
-  idempotencyKey: string,
-): HumanApprovalReceiptV1 {
-  let token = receiptInput;
-  try {
-    token = authority.resolveReceiptToken ? authority.resolveReceiptToken(receiptInput) : receiptInput;
-  } catch {
-    // A caller may carry the signed token itself in a trusted UI bridge. It
-    // still must pass the authority's signature/registry check below.
-  }
-  const receipt = authority.verifyReceipt(token);
-  const expectedContract = integrationContractDigest(session, idempotencyKey);
-  if (
-    receipt.contractHash !== expectedContract ||
-    receipt.targetHash !== expectedContract ||
-    receipt.projectId !== session.id ||
-    receipt.runId !== session.id ||
-    receipt.gateId !== `integration-certification:${session.id}`
-  ) {
-    throw new Error("Receipt does not match the integration certification contract");
-  }
-  return receipt;
-}
-
-function integrationReceiptContract(session: IntegrationSession, idempotencyKey: string): string {
-  return integrationContractDigest(session, idempotencyKey);
-}
-
 
 export class IntegrationSessionService {
   private state: PersistedState;
@@ -764,12 +682,37 @@ export class IntegrationSessionService {
         `Integration session stage "${session.stage}" does not allow this action`,
         { stage: session.stage },
       );
+    const before = session.stage;
     fn(session);
     session.revision += 1;
     session.updatedAt = (this.deps.now || (() => new Date().toISOString()))();
     this.state.revision += 1;
     this.persist();
+    if (before !== "ready_to_certify" && session.stage === "ready_to_certify") this.announceReadyToCertify(session);
     return this.projection(session);
+  }
+  /**
+   * 会话走到「该跑自检了」时给 Nomi 窗口递一张交接单，模型页据此弹出「开始自检」那一屏。
+   *
+   * **这不是花费闸**：自检一次上游生成都不发，交接单只是让用户知道活儿走到哪了、
+   * 并给他一个亲手开跑的地方。只对 Nomi 自己拥有的会话发——外部宿主的会话由驱动 Agent
+   * 直接调 start，给它发交接单等于在 Nomi 里放一个按下去必然 owner_mismatch 的按钮。
+   *
+   * 放在 `mutate` 这一层而不是各条转场里：进这一档的路有三条（HTTP 提方案 / 补答案 /
+   * ComfyUI 提工作流），分头发迟早漏一条（P2 修在最早的共享边界）。
+   */
+  private announceReadyToCertify(session: IntegrationSession): void {
+    if (session.ownerClientId !== "nomi") return;
+    this.deps.enqueueHandoff?.({
+      target: "verification",
+      sessionId: session.id,
+      revision: session.revision,
+      ownerClientId: session.ownerClientId,
+      display: {
+        name: session.config.name,
+        ...(session.config.baseUrl ? safeHandoffOrigin(session.config.baseUrl) : {}),
+      },
+    });
   }
   projection(session: IntegrationSession): IntegrationSessionProjection {
     const modelResults = sessionModelResults(this.certification, session);
@@ -1077,7 +1020,7 @@ export class IntegrationSessionService {
         current.unresolvedFields = compileRequest
           ? [{ key: "proposal.adapterDraft", reasonCode: compileRequest.reasonCode }]
           : [];
-        current.stage = compileRequest ? "needs_input" : "needs_spend_confirmation";
+        current.stage = compileRequest ? "needs_input" : "ready_to_certify";
       });
     }
     if (rawProposal.candidates !== undefined || rawProposal.selections !== undefined || rawProposal.adapterDraft !== undefined)
@@ -1100,209 +1043,10 @@ export class IntegrationSessionService {
       current.candidates = [];
       current.selections = [];
       current.unresolvedFields = [];
-      current.stage = "needs_spend_confirmation";
+      current.stage = "ready_to_certify";
     });
   }
 
-  /**
-   * Create the signed, immutable confirmation challenge consumed by the trusted Nomi UI.
-   *
-   * 幂等契约：挑战一旦签发，会话进入 `awaiting_human_confirmation`，**再调 confirm 只原样返回
-   * 当前挑战**，不重签、不作废人刚才那次点击（修复前是后写覆盖，实测里人点三次全是白点）。
-   * 这也是 idempotency key 的标准语义：重放返回同一结果，不是重放作废上一次。
-   */
-  requestConfirmation(
-    sessionId: unknown,
-    expectedRevision: unknown,
-    owner: CapabilityOriginHost,
-    idempotencyKey: string,
-  ): IntegrationConfirmationChallenge {
-    const session = this.getOrThrow(sessionId);
-    if (session.ownerClientId !== owner || owner === "external") throw new Error("Signed client identity is required");
-    assertIntegrationRevision(expectedRevision, session.revision);
-    if (!isSpendGateStage(session.stage))
-      throw new IntegrationRequestError(
-        "integration_stage_not_allowed",
-        `Integration session stage "${session.stage}" is not the spend-confirmation gate`,
-        { stage: session.stage },
-      );
-    const key = text(idempotencyKey, "idempotencyKey", 200);
-    const authority = this.deps.approvalReceiptAuthority;
-    if (!authority) throw new Error("Integration approval is unavailable");
-    const nowIso = (this.deps.now || (() => new Date().toISOString()))();
-    // 人点完了：不碰挑战，直接告诉 Agent「该 start 了」，并给收据自己的到期时间。
-    if (session.stage === "human_confirmed" && session.pendingReceiptId) {
-      // 收据过期/已消费由 start 自己报，这里不把读取失败伪装成「还没确认」。
-      let receiptExpiresAt = "";
-      try {
-        if (authority.resolveReceiptToken) receiptExpiresAt = authority.verifyReceipt(authority.resolveReceiptToken(session.pendingReceiptId)).expiresAt;
-      } catch { /* 见上 */ }
-      return integrationConfirmationProjection(session, {
-        challengeId: session.pendingChallengeId || "",
-        expiresAt: receiptExpiresAt,
-        contractHash: integrationReceiptContract(session, session.pendingConfirmationKey || key),
-        maximumCost: session.kind === "comfyui-workflow" ? 1 : session.selections.length,
-        currency: "USD",
-        now: nowIso,
-      });
-    }
-    if (
-      session.stage === "awaiting_human_confirmation" &&
-      session.pendingChallengeId &&
-      authority.resolveChallengeToken &&
-      authority.verifyChallenge
-    ) {
-      try {
-        const existing = authority.verifyChallenge(authority.resolveChallengeToken(session.pendingChallengeId));
-        return integrationConfirmationProjection(session, {
-          challengeId: existing.challengeId,
-          expiresAt: existing.expiresAt,
-          contractHash: existing.contractHash,
-          maximumCost: existing.reservationPreview.maximum,
-          currency: existing.reservationPreview.currency,
-          now: nowIso,
-        });
-      } catch {
-        // An expired or corrupt challenge is replaced below. The replacement
-        // keeps the same challenge key, so the authority remains idempotent.
-      }
-    }
-    // 只有「没有活挑战」才到这里（首次 confirm，或挑战已过期）。重签沿用原确认键，
-    // 否则合同哈希会变，人上一次看到的报价就对不上了。
-    const effectiveKey = session.stage === "awaiting_human_confirmation" && session.pendingConfirmationKey
-      ? session.pendingConfirmationKey
-      : key;
-    const contractHash = integrationReceiptContract(session, effectiveKey);
-    const challenge = authority.requestChallenge({
-      challengeKey: `integration:${session.id}:${effectiveKey}`,
-      immutableProjectUuid: session.id,
-      projectGeneration: 1,
-      projectId: session.id,
-      runId: session.id,
-      gateId: `integration-certification:${session.id}`,
-      contractHash,
-      targetHash: contractHash,
-      projectRevision: session.revision,
-      costScope: "integration.certification",
-      pricingSnapshotHash: contractHash,
-      reservationPreview: {
-        currency: "USD",
-        maximum: session.kind === "comfyui-workflow" ? 1 : session.selections.length,
-      },
-      display: {
-        // ComfyUI sessions certify a workflow rather than discovered model
-        // selections. The approval contract still requires a non-empty model
-        // display field, so use the user-visible workflow name as its safe
-        // summary instead of emitting an invalid empty value.
-        model: (session.selections.length
-          ? session.selections.map((item) => item.modelKey).join(", ")
-          : session.config.name || "ComfyUI workflow").slice(0, 480),
-        shotSummary:
-          session.kind === "comfyui-workflow"
-            ? "1 ComfyUI workflow certification run"
-            : `${session.selections.length} model certification run`,
-      },
-    });
-    this.deps.enqueueHandoff?.({
-      target: "verification",
-      sessionId: session.id,
-      revision: session.revision,
-      ownerClientId: session.ownerClientId,
-      display: {
-        name: session.config.name,
-        ...(session.config.baseUrl ? safeHandoffOrigin(session.config.baseUrl) : {}),
-        challengeId: challenge.challenge.challengeId,
-      },
-    });
-    session.pendingChallengeId = challenge.challenge.challengeId;
-    session.pendingConfirmationKey = effectiveKey;
-    // 推进到「等真人点」。这一档的全部意义就是让 Agent 分得清「等人」和「人点完了」。
-    session.stage = "awaiting_human_confirmation";
-    session.revision += 1;
-    session.updatedAt = (this.deps.now || (() => new Date().toISOString()))();
-    this.state.revision += 1;
-    this.persist();
-    return integrationConfirmationProjection(session, {
-      challengeId: challenge.challenge.challengeId,
-      expiresAt: challenge.challenge.expiresAt,
-      contractHash,
-      maximumCost: challenge.challenge.reservationPreview.maximum,
-      currency: challenge.challenge.reservationPreview.currency,
-      now: (this.deps.now || (() => new Date().toISOString()))(),
-    });
-  }
-
-  /** Trusted UI confirms the immutable contract and mints the receipt handle
-   * that the owning MCP client can consume on its next start call. */
-  confirmFromTrustedUi(input: {
-    sessionId: string;
-    expectedRevision: number;
-    challengeId: string;
-    webContentsId: number;
-    frameId: number;
-    origin: string;
-  }): IntegrationSessionProjection {
-    const session = this.getOrThrow(input.sessionId);
-    assertIntegrationRevision(input.expectedRevision, session.revision);
-    // `needs_spend_confirmation` 仍被接受：本版本之前落盘的会话读出来就是那一档，不能因为
-    // 词表变细就让人点不动它（老数据不是并行代码路径）。
-    if (session.stage !== "awaiting_human_confirmation" && session.stage !== "needs_spend_confirmation")
-      throw new IntegrationRequestError(
-        "integration_stage_not_allowed",
-        `Integration session stage "${session.stage}" is not awaiting human confirmation`,
-        { stage: session.stage },
-      );
-    const authority = this.deps.approvalReceiptAuthority;
-    if (!authority) throw new Error("Integration approval is unavailable");
-    if (
-      !authority.resolveChallengeToken ||
-      !authority.verifyChallenge ||
-      !authority.createMainProcessGestureAttestation ||
-      !authority.mintReceipt
-    )
-      throw new Error("Integration approval UI is unavailable");
-    const token = authority.resolveChallengeToken(input.challengeId);
-    const challenge = authority.verifyChallenge(token);
-    if (
-      challenge.challengeId !== session.pendingChallengeId ||
-      challenge.projectId !== session.id ||
-      challenge.runId !== session.id ||
-      challenge.gateId !== `integration-certification:${session.id}`
-    )
-      throw new Error("Integration challenge scope mismatch");
-    if (
-      session.pendingConfirmationKey &&
-      challenge.contractHash !== integrationReceiptContract(session, session.pendingConfirmationKey)
-    )
-      throw new Error("Integration challenge contract mismatch");
-    const attestation = authority.createMainProcessGestureAttestation(token, {
-      webContentsId: input.webContentsId,
-      frameId: input.frameId,
-      origin: input.origin,
-      decision: "accept",
-    });
-    const minted = authority.mintReceipt(token, attestation);
-    session.pendingReceiptId = minted.receipt.receiptId;
-    session.startReceiptStatus = undefined;
-    // 人点完了。这一档是 start 的唯一入口，也是 Agent 唯一该看的「可以花钱了」信号。
-    session.stage = "human_confirmed";
-    session.revision += 1;
-    session.updatedAt = (this.deps.now || (() => new Date().toISOString()))();
-    this.state.revision += 1;
-    this.persist();
-    return this.projection(session);
-  }
-  /** Continue a manual Nomi-owned integration after the trusted UI minted its
-   * opaque receipt. The renderer never receives the receipt token or chooses a
-   * different contract/idempotency key. */
-  startConfirmedFromTrustedUi(sessionId: unknown, expectedRevision: unknown) {
-    const session = this.getOrThrow(sessionId);
-    if (session.ownerClientId !== "nomi") throw new Error("Only a Nomi-owned integration can auto-start from the UI");
-    assertIntegrationRevision(expectedRevision, session.revision);
-    if (!session.pendingConfirmationKey || !session.pendingReceiptId)
-      throw new Error("Integration confirmation is incomplete");
-    return this.start(session.id, session.revision, "nomi", session.pendingConfirmationKey, session.pendingReceiptId);
-  }
   submitWorkflow(
     sessionId: unknown,
     expectedRevision: unknown,
@@ -1337,36 +1081,36 @@ export class IntegrationSessionService {
       for (const field of session.unresolvedFields)
         if (!(field.key in answers)) throw new Error(`Missing answer: ${field.key}`);
       session.unresolvedFields = [];
-      session.stage = session.candidates.length ? "needs_selection" : "needs_spend_confirmation";
+      session.stage = session.candidates.length ? "needs_selection" : "ready_to_certify";
     });
   }
+  /**
+   * 跑一次**不花钱**的自检，通过就落库。2026-09-12 用户拍板：接模型没有付费验证，
+   * 因此这里没有收据、没有挑战、没有真人手势章——谁拥有这个会话，谁就能直接调它。
+   * （删掉的那套东西唯一的作用是「授权花钱」；钱的闸只剩画布每次提交时的报价卡。）
+   */
   async start(
     sessionId: unknown,
     expectedRevision: unknown,
     owner: CapabilityOriginHost,
     idempotencyKey: string,
-    receipt?: string,
   ) {
     if (owner === "external") throw new Error("Signed client identity is required");
     const session = this.getOrThrow(sessionId);
     if (session.ownerClientId !== owner) throw new IntegrationRequestError("integration_owner_mismatch", "Integration session belongs to a different signed client");
     assertIntegrationRevision(expectedRevision, session.revision);
     const normalizedIdempotencyKey = text(idempotencyKey, "idempotencyKey", 200);
+    // 同一把 idempotency key 重放：上一次已经把会话推进到跑/落库中但还没拿到 childRunRef，
+    // 就接着那一次走，不重开一次远端提交。
     const resumableStart =
       session.startIdempotencyKey === normalizedIdempotencyKey &&
-      session.startReceiptStatus === "consumed" &&
       (session.stage === "certifying" || session.stage === "committing") &&
       !session.childRunRef;
 
-    // Idempotent replay is deliberately checked before receipt verification and
-    // consumption. A receipt is single-use, so a retried start must be able to
-    // return the already-settled canonical run without asking the UI to mint or
-    // consume a second receipt.
     if (session.startIdempotencyKey === normalizedIdempotencyKey && session.childRunRef)
       return this.get(session.id, owner);
     // A process can die after the durable reservation and before the session
-    // terminal write. Reopen the reservation first, without asking for (or
-    // consuming) a second receipt. A settled reservation is replayable; an
+    // terminal write. Reopen the reservation first. A settled reservation is replayable; an
     // in-flight one is explicitly surfaced for reconciliation and never
     // re-enters the remote create path.
     if (
@@ -1393,53 +1137,12 @@ export class IntegrationSessionService {
       this.persist();
       return this.projection(session);
     }
-    // 没有任何收据可谈（调用方没给，会话上也没有）＝ 人根本还没批。报「收据无效」是把因果
-    // 讲反了：agent 会照着它去重试收据而不是去等人。先把真正的原因说出来。
-    if (!resumableStart && !receipt && !session.pendingReceiptId && session.stage !== "human_confirmed") {
-      throw new IntegrationRequestError(
-        "integration_stage_not_allowed",
-        session.stage === "awaiting_human_confirmation"
-          ? 'A person has not approved this spend yet. Wait for stage "human_confirmed" (poll nomi_read target=integration); calling confirm again does not help'
-          : `Integration session stage "${session.stage}" is not ready to start`,
-        { stage: session.stage },
-      );
-    }
-    const receiptValue = resumableStart
-      ? String(receipt || session.pendingReceiptId || `resume-${digest(normalizedIdempotencyKey).slice(0, 32)}`)
-      : text(receipt || session.pendingReceiptId, "receipt", 8 * 1024);
-    let receiptToken = receiptValue;
-    if (!resumableStart && !this.deps.approvalReceiptAuthority) {
-      // Unit-level callers may inject a certification double without wiring the
-      // Electron receipt authority. Runtime factories always inject it and fail
-      // closed, so this compatibility path is unreachable in the app.
-      if (!this.deps.certification && !this.deps.certifyComfy) throw new Error("Integration approval is unavailable");
-    } else if (!resumableStart) {
-      const authority = this.deps.approvalReceiptAuthority;
-      if (!authority) throw new Error("Integration approval authority is unavailable");
-      receiptToken = (() => {
-        try {
-          return authority.resolveReceiptToken ? authority.resolveReceiptToken(receiptValue) : receiptValue;
-        } catch {
-          return receiptValue;
-        }
-      })();
-      verifyIntegrationReceipt(authority, receiptValue, session, normalizedIdempotencyKey);
-      if (!authority.consumeReceipt) throw new Error("Integration approval authority cannot consume receipts");
-    }
-    if (
-      !resumableStart &&
-      session.startIdempotencyKey === normalizedIdempotencyKey &&
-      session.startReceiptDigest !== digest(receiptValue)
-    )
-      throw new Error("Receipt does not match the existing idempotent start");
     if (!resumableStart && (session.stage === "certifying" || session.stage === "committing"))
       throw new Error("Integration session certification is already in progress");
-    if (!resumableStart && session.stage !== "human_confirmed")
+    if (!resumableStart && session.stage !== "ready_to_certify")
       throw new IntegrationRequestError(
         "integration_stage_not_allowed",
-        session.stage === "awaiting_human_confirmation"
-          ? "A person has not approved this spend yet. Wait for stage \"human_confirmed\" (poll nomi_read target=integration); calling confirm again does not help"
-          : `Integration session stage "${session.stage}" is not ready to start`,
+        `Integration session stage "${session.stage}" is not ready to start`,
         { stage: session.stage },
       );
     const canonicalComfyKey =
@@ -1485,7 +1188,6 @@ export class IntegrationSessionService {
         if (session.startIdempotencyKey === normalizedIdempotencyKey && session.childRunRef)
           return this.projection(session);
         session.startIdempotencyKey = normalizedIdempotencyKey;
-        session.startReceiptDigest = digest(receiptValue);
         session.childRunRef = operation.childRunRef;
         session.stage = "completed";
         session.blockingReason = undefined;
@@ -1497,28 +1199,15 @@ export class IntegrationSessionService {
       }
     }
     session.startIdempotencyKey = normalizedIdempotencyKey;
-    if (!resumableStart) session.startReceiptDigest = digest(receiptValue);
-    // Persist the start intent before consuming the one-shot receipt. This is
-    // the durable handoff point for a crash between UI approval and execution.
-    session.startReceiptStatus = session.startReceiptStatus === "consumed" ? "consumed" : "pending";
+    // 先把「开跑」这个意图落盘再真正开跑：进程死在这中间时，重放同一把 key 能接着走。
     session.stage = "certifying";
     session.revision += 1;
     session.updatedAt = (this.deps.now || (() => new Date().toISOString()))();
     this.state.revision += 1;
     this.persist();
-    if (!resumableStart && this.deps.approvalReceiptAuthority && session.startReceiptStatus === "pending") {
-      if (!this.deps.approvalReceiptAuthority.consumeReceipt)
-        throw new Error("Integration approval authority cannot consume receipts");
-      this.deps.approvalReceiptAuthority.consumeReceipt(receiptToken);
-      session.startReceiptStatus = "consumed";
-      session.revision += 1;
-      session.updatedAt = (this.deps.now || (() => new Date().toISOString()))();
-      this.state.revision += 1;
-      this.persist();
-    }
     const credential = this.deps.credentialResolver?.(session);
-    // Credential lookup happens after the durable start intent and receipt
-    // consumption. A missing/undecryptable key is therefore a terminal,
+    // Credential lookup happens after the durable start intent is persisted.
+    // A missing/undecryptable key is therefore a terminal,
     // diagnosable certification failure, never an uncaught exception that
     // leaves the session permanently in `certifying`.
     if (session.kind === "http-api-provider" && !credential) {

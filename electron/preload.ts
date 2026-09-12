@@ -592,8 +592,8 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
       vendorKey: string; name: string; workflow: string; binding: unknown; modelKey?: string;
       enumOptions?: unknown; uiWorkflow?: string;
     }) => ipcRenderer.invoke("nomi:integration-session:comfyui:prepare", payload),
-    integrationSessionConfirm: (payload: { sessionId: string; expectedRevision: number; challengeId: string }) =>
-      ipcRenderer.invoke("nomi:integration-session:confirm", payload),
+    integrationSessionStartSelfCheck: (payload: { sessionId: string; expectedRevision: number }) =>
+      ipcRenderer.invoke("nomi:integration-session:start-self-check", payload),
     integrationSessionGet: (sessionId: string) => ipcRenderer.invoke("nomi:integration-session:get", { sessionId }),
     antigravityStatus: () => ipcRenderer.invoke("nomi:antigravity:status"),
     antigravityTest: (payload?: unknown) => ipcRenderer.invoke("nomi:antigravity:test", payload),

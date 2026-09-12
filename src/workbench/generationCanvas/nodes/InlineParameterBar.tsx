@@ -30,7 +30,7 @@ import { hasUsableSliderStep, isCompleteNumericDraft } from './controls/numericD
 import { commonRatioSortKey } from './aspectRatio'
 import { ratioShape, shapedGroupLabel } from './aspectRatioShape'
 import { resolveArchetypeForOption } from './nodeModelArchetype'
-import { useDedupedModelSelect } from '../../common/useDedupedModelSelect'
+import { modelVisibilityFooterAction, useDedupedModelSelect } from '../../common/useDedupedModelSelect'
 import {
   localizeAutoOption,
   parameterOptionLayout,
@@ -617,6 +617,7 @@ export default function InlineParameterBar({
         options={modelSelect.modelOptions}
         onChange={modelSelect.onModelPick}
         onChipChange={modelSelect.onModelProviderPick}
+        footerAction={modelVisibilityFooterAction()}
         hiddenNote={modelSelect.hiddenNote}
         {...(portalTarget ? { portalTarget } : {})}
       />

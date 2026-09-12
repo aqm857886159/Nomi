@@ -213,7 +213,7 @@ describe("OperationLedger", () => {
     } as never);
     current = store.markSettled("run-1", {
       operationKey: "a".repeat(64), expectedRevision: current.revision,
-      result: { ok: false, taskKind: "text_to_video", stage: "create", errorCategory: "input" }, now: "2026-08-28T00:00:02.000Z",
+      result: { ok: false, taskKind: "text_to_video", stage: "credential", errorCategory: "input" }, now: "2026-08-28T00:00:02.000Z",
     });
     current = store.markSubmitting("run-1", {
       operationKey: "b".repeat(64), modelKey: "bytedance/seedance-2", taskKind: "text_to_video", attempt: 2,
@@ -227,7 +227,7 @@ describe("OperationLedger", () => {
     } else {
       store.markSettled("run-1", {
         operationKey: "b".repeat(64), expectedRevision: current.revision,
-        result: { ok: outcome === "settled", taskKind: "text_to_video", ...(outcome === "failed" ? { stage: "create" as const, errorCategory: "input" as const } : {}) },
+        result: { ok: outcome === "settled", taskKind: "text_to_video", ...(outcome === "failed" ? { stage: "credential" as const, errorCategory: "input" as const } : {}) },
         now: "2026-08-28T00:00:04.000Z",
       });
     }
@@ -357,7 +357,7 @@ describe("OperationLedger", () => {
     store.markSettled("run-1", {
       operationKey: certificationModeOperationKey("paint-v2", "image_edit", 1),
       expectedRevision: current.revision,
-      result: { ok: false, taskKind: "image_edit", stage: "create", errorCategory: "input" },
+      result: { ok: false, taskKind: "image_edit", stage: "credential", errorCategory: "input" },
       now: "2026-08-28T00:00:04.000Z",
     });
 

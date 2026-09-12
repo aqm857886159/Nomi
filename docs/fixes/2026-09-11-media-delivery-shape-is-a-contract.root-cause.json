@@ -1,0 +1,193 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-11-media-delivery-shape-is-a-contract",
+  "problem_type": "media delivery shape hardcoded per media kind instead of declared per provider contract",
+  "symptom": "A user's relay image model (gpt-image-2.5-flare) failed integration with the raw English string 'Provider returned a pending task but the adapter has no query operation'. The failing attempt had already paid for a real image generation, the accepted upstream task was dropped without polling or cancellation, and the failure stamped meta.adapter.state=failed which removed the model from the canvas model picker entirely.",
+  "direct_cause": "newapiTransportFor(kind) returned the transport recipe keyed on the media kind, and the image branch has never carried a query operation, so any relay that implements images as submit-then-poll could not be polled; the verifier then threw a non-VendorRequestError whose message reached the user verbatim.",
+  "class_root": "Nomi treated 'is this media endpoint synchronous or asynchronous' as a constant of the media kind, when it is a fact each upstream declares for itself. When the real response contradicted the hardcoded assumption, the conflict was reported as an unknown upstream error rather than handled as a missing declaration on our side.",
+  "affected_population": [
+    "Users connecting a self-hosted or third-party OpenAI-compatible relay whose image endpoint returns a task id instead of image data",
+    "Users connecting any future media kind through the built-in OpenAI-compatible draft",
+    "Maintainers adding a new media kind or a new relay transport recipe"
+  ],
+  "scope_paths": [
+    "electron/catalog/transportDelivery.ts",
+    "electron/catalog/newapiTransport.ts",
+    "electron/catalog/catalogCommit.ts",
+    "electron/catalog/catalogPackageFormat.ts",
+    "electron/providerAdapter/builtinOpenAiCompatibleDraft.ts",
+    "electron/providerAdapter/selfCheck.ts",
+    "electron/providerAdapter/validator.ts",
+    "docs/engineering/formats/desktop-local-v1.schema.json"
+  ],
+  "entry_points": [
+    "newapiTransportFor relay transport recipe used by catalog commit",
+    "buildOpenAiCompatibleDraft built-in contract for undocumented endpoints",
+    "validateProviderAdapterDraft execution boundary for AI-compiled and externally supplied contracts",
+    "importModelCatalogPackage desktop-local-v1 catalog package reader"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://doc.newapi.pro",
+      "checked_at": "2026-09-11",
+      "purpose": "Confirm that new-api publishes create plus query for video and a synchronous images endpoint, and publishes no task cancellation endpoint."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://developers.openai.com/api/docs/api-reference/images",
+      "checked_at": "2026-09-11",
+      "purpose": "Confirm the OpenAI-compatible images contract returns image data on the create call."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://replicate.com/docs/reference/http",
+      "checked_at": "2026-09-11",
+      "purpose": "Reference asynchronous media API shape: a prediction is created, then polled, and can be cancelled."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://fal.ai/docs/documentation/model-apis/inference/queue",
+      "checked_at": "2026-09-11",
+      "purpose": "Reference queue-based media API shape where submit and status are separate endpoints."
+    }
+  ],
+  "invariants": [
+    "A transport mode declares its delivery shape explicitly; delivery is never inferred from the media kind.",
+    "A mode that declares asynchronous delivery carries both a query operation and a status mapping, or it fails the free self-check before any money is spent.",
+    "A transport recipe that declares asynchronous delivery also declares how an accepted task is abandoned: a cancel operation or poll-to-completion. Dropping an accepted task is not a permitted disposition.",
+    "A mode that declares synchronous delivery does not also carry a query operation, so there is exactly one truth about how results arrive.",
+    "The delivery declaration reaches every contract producer and reader: the AI compiler prompt, the zod contract schema handed to external agents, the catalog package format, and the published desktop-local-v1 JSON Schema."
+  ],
+  "generality_proof": "Delivery is declared once in electron/catalog/transportDelivery.ts and consumed by every producer and checker: the relay recipe table asserts it at module load, the free self-check rejects an inconsistent mode, the adapter validator rejects an inconsistent AI-compiled or externally supplied contract, and the catalog package reader rejects an inconsistent imported mapping. Image, image_edit, video, image_to_video and audio each carry their own declaration rather than sharing one keyed on kind, so adding a new media kind forces a new declaration instead of silently inheriting a wrong one.",
+  "shared_boundaries": [
+    {
+      "path": "electron/catalog/transportDelivery.ts",
+      "symbol": "modeDeliveryDefect",
+      "responsibility": "Decide, as a pure function with no network, whether one mode's delivery declaration is self-consistent."
+    },
+    {
+      "path": "electron/catalog/transportDelivery.ts",
+      "symbol": "assertTransportDeliveryContract",
+      "responsibility": "Fail the process at module load when a transport recipe declares asynchronous delivery without a query operation, status mapping, or abandon disposition."
+    },
+    {
+      "path": "electron/catalog/newapiTransport.ts",
+      "symbol": "NEWAPI_DELIVERY_CONTRACTS",
+      "responsibility": "Hold the per-task-kind delivery declarations for the OpenAI-compatible relay family as the single source of truth."
+    },
+    {
+      "path": "electron/providerAdapter/selfCheck.ts",
+      "symbol": "checkAdapterModeContract",
+      "responsibility": "Turn a delivery defect into a structured self-check reason before any request is sent."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/catalog/newapiTransport.ts",
+      "entry_point": "image and image_edit transport recipes",
+      "disposition": "enforced",
+      "evidence": "Both now declare synchronous delivery explicitly, and image_edit carries its own declaration instead of relying on a shared async object that never reached it."
+    },
+    {
+      "path": "electron/catalog/newapiTransport.ts",
+      "entry_point": "video and image_to_video transport recipes",
+      "disposition": "enforced",
+      "evidence": "Both declare asynchronous delivery with the documented query endpoint, the status mapping, and a poll-to-completion abandon disposition; new-api publishes no cancel endpoint, so none is invented."
+    },
+    {
+      "path": "electron/catalog/newapiTransport.ts",
+      "entry_point": "audio synchronous byte recipe",
+      "disposition": "enforced",
+      "evidence": "The 2026-08-30 audio fix drew this boundary at 'audio bytes'; the same declaration now covers it, so the class no longer has an audio-shaped hole and an image-shaped hole."
+    },
+    {
+      "path": "electron/providerAdapter/validator.ts",
+      "entry_point": "validateProviderAdapterDraft and adapterSuppliedContractSchema",
+      "disposition": "enforced",
+      "evidence": "AI-compiled and externally supplied contracts are rejected at the execution boundary when they declare asynchronous delivery without query or statusMapping; the same requirement is emitted into the JSON Schema handed to external agents."
+    },
+    {
+      "path": "electron/catalog/catalogPackageFormat.ts",
+      "entry_point": "importModelCatalogPackage desktop-local-v1 reader",
+      "disposition": "enforced",
+      "evidence": "An imported mapping carrying an inconsistent delivery declaration is refused by the same pure function."
+    },
+    {
+      "path": "electron/catalog/comfyuiCandidateLifecycle.ts",
+      "entry_point": "local ComfyUI candidate certification",
+      "disposition": "not-affected",
+      "evidence": "ComfyUI candidates execute against a local workflow runner with its own polling contract and never go through the relay transport recipes."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The identical symptom string reached users through audio on 2026-08-30 and through images on 2026-09-11. The 2026-08-30 contract drew the class boundary at 'synchronous audio bytes', which left every other media kind free to hardcode delivery by kind, so the next kind would have returned it again.",
+    "same_class_scan": [
+      "Read every branch of newapiTransportFor and confirmed delivery was decided by the kind argument for image, video and audio.",
+      "Read builtinOpenAiCompatibleDraft and found image_edit never received the shared async spread that text_to_image and image_to_video received.",
+      "Read catalogCommit's relay commit path and confirmed it consumed the same recipe and propagated query only for video.",
+      "Read validateProviderAdapterDraft and the supplied-contract zod schema and confirmed neither required a delivery declaration, so an AI-compiled contract could declare a pending-task endpoint with no query.",
+      "Read catalogPackageFormat and confirmed an imported mapping had no delivery consistency check.",
+      "Read comfyuiCandidateLifecycle and confirmed it does not use the relay recipes.",
+      "Read the 2026-08-30 audio contract and confirmed its class boundary stopped at audio response bytes."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/catalog/transportDelivery.ts",
+    "invariant": "Delivery shape is declared per upstream contract, and an asynchronous declaration must carry a query operation, a status mapping, and an abandon disposition.",
+    "failure_mode": "A transport recipe that violates the invariant throws at module load, so the process cannot start; a mode-level violation fails the free self-check, the adapter validator, and the catalog package reader before any request is sent.",
+    "exception_policy": "none",
+    "strategy": "Move delivery from an argument-keyed branch into an explicit per-task-kind declaration table, assert the invariant where the table is defined, and have every producer and reader of a mode contract consult the same pure checker.",
+    "artifacts": [
+      "electron/catalog/transportDelivery.ts",
+      "electron/catalog/newapiTransport.ts",
+      "electron/catalog/catalogPackageFormat.ts",
+      "electron/providerAdapter/selfCheck.ts",
+      "electron/providerAdapter/validator.ts",
+      "electron/providerAdapter/compiler.ts",
+      "docs/engineering/formats/desktop-local-v1.schema.json"
+    ]
+  },
+  "invariant_owner_layer": {
+    "layer": "electron/catalog/transportDelivery.ts",
+    "tests": [
+      "electron/catalog/transportDelivery.test.ts",
+      "electron/catalog/catalogPackageFormat.test.ts",
+      "electron/providerAdapter/selfCheck.test.ts"
+    ],
+    "rationale": "The invariant belongs to the transport-recipe derivation layer, not to the verifier. The verifier only discovered the conflict; it never owned the declaration, which is exactly why the 2026-08-30 fix at the verifier boundary did not stop the image recurrence."
+  },
+  "regression_tests": [
+    "electron/catalog/transportDelivery.test.ts",
+    "electron/providerAdapter/selfCheck.test.ts",
+    "electron/providerAdapter/relayConformance.integration.test.ts",
+    "electron/providerAdapter/relayConformanceVideoAudio.integration.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/catalog/transportDelivery.test.ts",
+    "electron/providerAdapter/selfCheck.test.ts",
+    "electron/providerAdapter/relayConformance.integration.test.ts",
+    "electron/providerAdapter/relayConformanceVideoAudio.integration.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/catalog/newapiTransport.ts",
+      "electron/providerAdapter/builtinOpenAiCompatibleDraft.ts",
+      "electron/providerAdapter/verifier.ts"
+    ],
+    "rationale": "The kind-keyed delivery branch, the hand-sprinkled shared async object in the built-in draft, and the paid create-poll-download verification path are deleted in the same commit. No callable fallback retains the old interpretation."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The invariant is owned by Nomi's own transport declarations and does not depend on a third-party package version.",
+    "exit_criteria": []
+  },
+  "migration": "No catalog migration is required. Mappings persisted before this change carry no delivery field and are interpreted by the documented backward-compatible inference: a mapping with a query operation is asynchronous, one without is synchronous. That is exactly the behaviour those rows already had.",
+  "residual_risks": [
+    "A relay whose image endpoint is asynchronous still cannot be polled until someone supplies its query endpoint, because new-api publishes none for images and inventing one would violate R5. The difference is that the user now learns this for free, in plain language, with a working next step, instead of after paying for a dropped generation.",
+    "new-api publishes no task cancellation endpoint, so the video abandon disposition is poll-to-completion rather than an explicit cancel."
+  ]
+}

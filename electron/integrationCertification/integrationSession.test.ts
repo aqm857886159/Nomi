@@ -4,42 +4,12 @@ import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { IntegrationSessionService } from "./integrationSession";
 import { createRuntimeIntegrationSessionService } from "./integrationSession";
-import { createApprovalReceiptAuthority } from "../capabilityCore/approvalReceipt";
 
 describe("IntegrationSessionService", () => {
   async function proposeHttp(service: IntegrationSessionService, sessionId: string, revision: number, owner: "codex" | "claude", modelKey = "text-1", kind = "text") {
     return service.propose(sessionId, revision, owner, {
       candidates: [{ modelKey, kind }],
       selections: [{ modelKey }],
-    });
-  }
-
-  /**
-   * 走完真实的人证关卡：Agent 请求挑战 → 可信 UI 侧真人手势 → 铸收据。
-   *
-   * 为什么用例里必须走它：`start` 现在只在 `human_confirmed` 放行。旧用例直接从
-   * `needs_spend_confirmation` 跳到 `start` 并塞一个字符串 "receipt-1"，等于把这一关整个测没了——
-   * 正是 R30 点名的盲区（夹具用变量直传，真实模型在回路里的那一段从没被测过）。
-   */
-  function approveSpend(service: IntegrationSessionService, sessionId: string, owner: "codex" | "claude", key: string) {
-    const current = service.get(sessionId, owner);
-    const requested = service.requestConfirmation(sessionId, current.revision, owner, key);
-    const afterRequest = service.get(sessionId, owner);
-    expect(afterRequest.stage).toBe("awaiting_human_confirmation");
-    return service.confirmFromTrustedUi({
-      sessionId,
-      expectedRevision: afterRequest.revision,
-      challengeId: requested.challengeId,
-      webContentsId: 1,
-      frameId: 1,
-      origin: "file://",
-    });
-  }
-
-  function testAuthority(dir: string) {
-    return createApprovalReceiptAuthority({
-      filePath: path.join(dir, "receipts.json"),
-      macKey: "integration-test-key",
     });
   }
 
@@ -112,7 +82,7 @@ describe("IntegrationSessionService", () => {
     const ready = service.markCredentialReady(started.id, "ref", "claude");
     await expect(service.propose(started.id, ready.revision, "claude", {
       candidates: [{ modelKey: "text-1", kind: "text" }], selections: [{ modelKey: "text-1" }],
-    })).resolves.toMatchObject({ stage: "needs_spend_confirmation" });
+    })).resolves.toMatchObject({ stage: "ready_to_certify" });
     await expect(service.propose(started.id, ready.revision, "claude", {
       candidates: [{ modelKey: "text-1", kind: "text" }], selections: [{ modelKey: "text-1" }],
     })).rejects.toThrow(/behind the session/);
@@ -120,7 +90,7 @@ describe("IntegrationSessionService", () => {
     const reloaded = new IntegrationSessionService({ filePath });
     expect(reloaded.get(started.id, "claude").id).toBe(started.id);
   });
-  it("delegates HTTP certification only after spend stage and stores child run ref", async () => {
+  it("delegates HTTP certification only once the proposal is ready and stores child run ref", async () => {
     const { service } = make();
     const cert = {
       startHttp: vi.fn(async () => ({
@@ -134,7 +104,6 @@ describe("IntegrationSessionService", () => {
       filePath: path.join(certDir, "sessions.json"),
       certification: cert as never,
       credentialResolver: () => "secret",
-      approvalReceiptAuthority: testAuthority(certDir),
       save: (target, state) => fs.writeFileSync(target, JSON.stringify(state)),
     });
     const session = withCert.begin(
@@ -143,11 +112,9 @@ describe("IntegrationSessionService", () => {
     );
     const ready = withCert.markCredentialReady(session.id, "ref", "codex");
     const selected = await proposeHttp(withCert, session.id, ready.revision, "codex");
-    // 人还没批：start 必须明说「等人批」，而不是含糊地报收据问题（这正是实测里 agent 读错的那一跳）。
-    await expect(withCert.start(session.id, selected.revision, "codex", "idem")).rejects.toThrow(/not ready to start|approved/i);
-    const approved = approveSpend(withCert, session.id, "codex", "idem");
-    expect(approved.stage).toBe("human_confirmed");
-    const result = await withCert.start(session.id, approved.revision, "codex", "idem", approved.pendingReceiptId);
+    // 提完方案就该能自己开跑：这一步没有花费确认，外部宿主不必等任何人点（P0-1 的回归）。
+    expect(selected.stage).toBe("ready_to_certify");
+    const result = await withCert.start(session.id, selected.revision, "codex", "idem");
     expect(result.childRunRef?.runId).toBe("run-1");
     expect(cert.startHttp).toHaveBeenCalledTimes(1);
     expect(service).toBeDefined();
@@ -169,7 +136,6 @@ describe("IntegrationSessionService", () => {
       filePath: path.join(dir, "sessions.json"),
       certification: certification as never,
       credentialResolver: () => "secret",
-      approvalReceiptAuthority: testAuthority(dir),
       save: (target, state) => fs.writeFileSync(target, JSON.stringify(state)),
       compilerAvailable: () => true,
     });
@@ -179,9 +145,9 @@ describe("IntegrationSessionService", () => {
     );
     const ready = service.markCredentialReady(session.id, "ref", "codex");
     await proposeHttp(service, session.id, ready.revision, "codex", "audio-flagship", "audio");
-    const approved = approveSpend(service, session.id, "codex", "async-http");
+    const approved = service.get(session.id, "codex");
 
-    const started = await service.start(session.id, approved.revision, "codex", "async-http", approved.pendingReceiptId);
+    const started = await service.start(session.id, approved.revision, "codex", "async-http");
     expect(started).toMatchObject({ stage: "certifying", childRunRef: { runId: "run-async" } });
     childStage = "testing";
     expect(service.get(session.id, "codex").stage).toBe("certifying");
@@ -204,7 +170,6 @@ describe("IntegrationSessionService", () => {
       filePath: path.join(dir, "sessions.json"),
       certification: cert as never,
       credentialResolver: () => "secret",
-      approvalReceiptAuthority: testAuthority(dir),
       save: (target, state) => fs.writeFileSync(target, JSON.stringify(state)),
     });
     const session = service.begin(
@@ -213,28 +178,27 @@ describe("IntegrationSessionService", () => {
     );
     const ready = service.markCredentialReady(session.id, "ref", "codex");
     await proposeHttp(service, session.id, ready.revision, "codex");
-    const approved = approveSpend(service, session.id, "codex", "same-key");
-    const first = await service.start(session.id, approved.revision, "codex", "same-key", approved.pendingReceiptId);
-    const second = await service.start(session.id, first.revision, "codex", "same-key", approved.pendingReceiptId);
+    const approved = service.get(session.id, "codex");
+    const first = await service.start(session.id, approved.revision, "codex", "same-key");
+    const second = await service.start(session.id, first.revision, "codex", "same-key");
     expect(second.childRunRef).toEqual(first.childRunRef);
     expect(cert.startHttp).toHaveBeenCalledTimes(1);
   });
 
-  it("settles a consumed start as a diagnosable failure when the credential cannot be reloaded", async () => {
+  it("settles a started self-check as a diagnosable failure when the credential cannot be reloaded", async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-session-missing-credential-"));
     const cert = { startHttp: vi.fn() };
     const service = new IntegrationSessionService({
       filePath: path.join(dir, "sessions.json"),
       certification: cert as never,
       credentialResolver: () => undefined,
-      approvalReceiptAuthority: testAuthority(dir),
       save: (target, state) => fs.writeFileSync(target, JSON.stringify(state)),
     });
     const session = service.begin({ kind: "http-api-provider", name: "Provider", baseUrl: "https://api.example" }, "codex");
     const ready = service.markCredentialReady(session.id, "ref", "codex");
     await proposeHttp(service, session.id, ready.revision, "codex");
-    const approved = approveSpend(service, session.id, "codex", "missing-key");
-    const result = await service.start(session.id, approved.revision, "codex", "missing-key", approved.pendingReceiptId);
+    const approved = service.get(session.id, "codex");
+    const result = await service.start(session.id, approved.revision, "codex", "missing-key");
     expect(result.stage).toBe("failed");
     expect(result.blockingReason).toEqual({ code: "credential_unavailable" });
     expect(cert.startHttp).not.toHaveBeenCalled();
@@ -252,14 +216,13 @@ describe("IntegrationSessionService", () => {
     const service = new IntegrationSessionService({
       filePath: path.join(dir, "sessions.json"),
       certifyComfy,
-      approvalReceiptAuthority: testAuthority(dir),
       save: (target, state) => fs.writeFileSync(target, JSON.stringify(state)),
     });
     const session = service.begin({ kind: "comfyui-workflow", name: "Local" }, "codex");
     const workflow = service.submitWorkflow(session.id, session.revision, "codex", '{"nodes":{}}');
     service.resolveInput(session.id, workflow.revision, "codex", {});
-    const approved = approveSpend(service, session.id, "codex", "comfy-key");
-    const starting = service.start(session.id, approved.revision, "codex", "comfy-key", approved.pendingReceiptId);
+    const approved = service.get(session.id, "codex");
+    const starting = service.start(session.id, approved.revision, "codex", "comfy-key");
     await new Promise((resolve) => setTimeout(resolve, 0));
     const certifying = service.get(session.id, "codex");
     expect(certifying.stage).toBe("certifying");
@@ -279,44 +242,8 @@ describe("IntegrationSessionService", () => {
     expect(() => new IntegrationSessionService({ filePath })).toThrow(/invalid/i);
   });
 
-  it("requires a registered authority receipt when the runtime wires one", async () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-session-receipt-"));
-    const verifyReceipt = vi.fn(() => {
-      throw new Error("Receipt is not registered");
-    });
-    const service = new IntegrationSessionService({
-      filePath: path.join(dir, "sessions.json"),
-      certification: { startHttp: vi.fn() } as never,
-      credentialResolver: () => "secret",
-      approvalReceiptAuthority: {
-        resolveReceiptToken: vi.fn(() => {
-          throw new Error("unknown receipt id");
-        }),
-        verifyReceipt,
-      } as never,
-      save: (target, state) => fs.writeFileSync(target, JSON.stringify(state)),
-    });
-    const session = service.begin(
-      { kind: "http-api-provider", name: "Provider", baseUrl: "https://api.example" },
-      "codex",
-    );
-    const ready = service.markCredentialReady(session.id, "ref", "codex");
-    const selected = await proposeHttp(service, session.id, ready.revision, "codex");
-    // 伪造收据在人证之前就被拒：收据校验先于阶段判断，所以这条断言仍然测的是「收据必须注册过」。
-    await expect(service.start(session.id, selected.revision, "codex", "idem", "forged-receipt")).rejects.toThrow(
-      /receipt/i,
-    );
-    expect(verifyReceipt).toHaveBeenCalledTimes(1);
-  });
-
-  it("runtime factory wires the supplied receipt authority and durable handoff sink", () => {
+  it("runtime factory wires the durable handoff sink", () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-session-runtime-"));
-    const authority = {
-      resolveReceiptToken: vi.fn((value: string) => value),
-      verifyReceipt: vi.fn(() => {
-        throw new Error("Receipt is not registered");
-      }),
-    };
     const enqueue = vi.fn();
     const service = createRuntimeIntegrationSessionService({
       filePath: path.join(dir, "sessions.json"),
@@ -325,7 +252,6 @@ describe("IntegrationSessionService", () => {
       runTask: () => { throw new Error("runTask must not be reached in this case"); },
       fetchTaskResult: () => { throw new Error("fetchTaskResult must not be reached in this case"); },
       mintSpendGrant: () => { throw new Error("mintSpendGrant must not be reached in this case"); },
-      approvalReceiptAuthority: authority as never,
       enqueueHandoff: enqueue,
       save: undefined,
     });
@@ -335,7 +261,6 @@ describe("IntegrationSessionService", () => {
     );
     service.openCredentials(session.id, session.revision, "codex");
     expect(enqueue).toHaveBeenCalledWith(expect.objectContaining({ sessionId: session.id, target: "credential" }));
-    expect(authority.verifyReceipt).not.toHaveBeenCalled();
   });
 
   it("enqueues a safe credential handoff after opening the credential page", () => {
@@ -410,88 +335,48 @@ describe("IntegrationSessionService", () => {
     expect(retireHandoff).not.toHaveBeenCalled();
   });
 
-  it("creates a safe verification request and queues a verification handoff without exposing its token", async () => {
+  it("queues the self-check handoff for a Nomi-owned session and never for an external one", async () => {
+    // 交接单驱动模型页那张「开始自检」卡，而那张卡按下去会以 owner=nomi 调 start。
+    // 给 codex 拥有的会话也发一张，就是在 Nomi 里放一个按下去必然 owner_mismatch 的按钮。
     const { filePath } = make();
-    const requestChallenge = vi.fn((input: Record<string, unknown>) => ({
-      token: "challenge-token",
-      challenge: input,
-    }));
     const enqueueHandoff = vi.fn();
     const service = new IntegrationSessionService({
       filePath,
       save: (target, state) => fs.writeFileSync(target, JSON.stringify(state)),
-      approvalReceiptAuthority: {
-        requestChallenge: requestChallenge as never,
-        resolveReceiptToken: vi.fn(),
-        verifyReceipt: vi.fn(),
-        verifyChallenge: vi.fn(),
-      } as never,
       enqueueHandoff,
     });
-    const session = service.begin(
+    const external = service.begin(
       { kind: "http-api-provider", name: "Provider", baseUrl: "https://api.example" },
       "codex",
     );
-    const ready = service.markCredentialReady(session.id, "ref", "codex");
-    const selected = await proposeHttp(service, session.id, ready.revision, "codex");
-    const challenge = service.requestConfirmation(selected.id, selected.revision, "codex", "idem");
-    expect(JSON.stringify(challenge)).not.toContain("challenge-token");
-    expect(requestChallenge).toHaveBeenCalledWith(
-      expect.objectContaining({
-        projectId: session.id,
-        runId: session.id,
-        gateId: `integration-certification:${session.id}`,
-      }),
+    const externalReady = service.markCredentialReady(external.id, "ref", "codex");
+    const proposed = await proposeHttp(service, external.id, externalReady.revision, "codex");
+    expect(proposed.stage).toBe("ready_to_certify");
+    expect(enqueueHandoff).not.toHaveBeenCalledWith(expect.objectContaining({ target: "verification" }));
+
+    const mine = service.begin(
+      { kind: "http-api-provider", name: "Mine", baseUrl: "https://mine.example" },
+      "nomi",
     );
+    const mineReady = service.markCredentialReady(mine.id, "ref", "nomi");
+    await service.propose(mine.id, mineReady.revision, "nomi", {
+      candidates: [{ modelKey: "text-1", kind: "text" }],
+      selections: [{ modelKey: "text-1" }],
+    });
     expect(enqueueHandoff).toHaveBeenCalledWith(expect.objectContaining({
       target: "verification",
-      sessionId: session.id,
-      display: expect.objectContaining({ challengeId: challenge.challengeId }),
+      sessionId: mine.id,
+      display: expect.objectContaining({ name: "Mine", origin: "https://mine.example" }),
     }));
+    // 交接单只带安全摘要：没有挑战号、没有收据、没有密钥。
+    const verification = enqueueHandoff.mock.calls
+      .map((call) => call[0] as Record<string, unknown>)
+      .find((entry) => entry.target === "verification");
+    expect(JSON.stringify(verification)).not.toMatch(/challenge|receipt/i);
   });
 
-  it("uses the workflow name for ComfyUI approval display when no model selections exist", () => {
-    const { filePath } = make();
-    const requestChallenge = vi.fn((input: Record<string, unknown>) => ({
-      token: "challenge-token",
-      challenge: input,
-    }));
-    const enqueueHandoff = vi.fn();
-    const service = new IntegrationSessionService({
-      filePath,
-      save: (target, state) => fs.writeFileSync(target, JSON.stringify(state)),
-      approvalReceiptAuthority: {
-        requestChallenge: requestChallenge as never,
-        resolveReceiptToken: vi.fn(),
-        verifyReceipt: vi.fn(),
-        verifyChallenge: vi.fn(),
-      } as never,
-      enqueueHandoff,
-    });
-    const session = service.begin({ kind: "comfyui-workflow", name: "Three input workflow" }, "codex");
-    const submitted = service.submitWorkflow(
-      session.id,
-      session.revision,
-      "codex",
-      JSON.stringify({ "1": { class_type: "LoadImage", inputs: { image: "a.png" } } }),
-      { outputNodeId: "1", outputKind: "image", images: [] },
-    );
-    const ready = service.resolveInput(submitted.id, submitted.revision, "codex", {});
-    // The test double only validates that the request is formed; the real
-    // authority additionally signs and persists the challenge.
-    service.requestConfirmation(ready.id, ready.revision, "codex", "comfy-display");
-    expect(requestChallenge).toHaveBeenCalledWith(expect.objectContaining({
-      display: expect.objectContaining({ model: "Three input workflow" }),
-    }));
-  });
-
-  it("completes request-confirmation through trusted UI and consumes one opaque receipt", async () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-session-confirm-"));
-    const authority = createApprovalReceiptAuthority({
-      filePath: path.join(dir, "receipts.json"),
-      macKey: "integration-test-key",
-      now: () => "2026-08-28T00:00:00.000Z",
-    });
+  it("runs the free self-check straight from the proposal and replays one idempotent start", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nomi-session-selfcheck-"));
     const certification = {
       startHttp: vi.fn(async () => ({
         id: "run-confirmed",
@@ -502,7 +387,6 @@ describe("IntegrationSessionService", () => {
     const service = new IntegrationSessionService({
       filePath: path.join(dir, "sessions.json"),
       certification: certification as never,
-      approvalReceiptAuthority: authority,
       credentialResolver: () => "secret-is-main-only",
       save: (target, state) => fs.writeFileSync(target, JSON.stringify(state)),
       enqueueHandoff: () => undefined,
@@ -513,33 +397,10 @@ describe("IntegrationSessionService", () => {
     );
     const ready = service.markCredentialReady(session.id, "opaque", "codex");
     const selected = await proposeHttp(service, session.id, ready.revision, "codex");
-    const requested = service.requestConfirmation(selected.id, selected.revision, "codex", "confirm-once");
-    const afterRequest = service.get(selected.id, "codex");
-    const confirmed = service.confirmFromTrustedUi({
-      sessionId: selected.id,
-      expectedRevision: afterRequest.revision,
-      challengeId: requested.challengeId,
-      webContentsId: 1,
-      frameId: 1,
-      origin: "file://",
-    });
-    expect(confirmed.pendingReceiptId).toEqual(expect.any(String));
-    expect(JSON.stringify(confirmed)).not.toContain("secret-is-main-only");
-    const started = await service.start(
-      session.id,
-      confirmed.revision,
-      "codex",
-      "confirm-once",
-      confirmed.pendingReceiptId,
-    );
+    expect(JSON.stringify(selected)).not.toContain("secret-is-main-only");
+    const started = await service.start(session.id, selected.revision, "codex", "start-once");
     expect(started.stage).toBe("completed");
-    const replay = await service.start(
-      session.id,
-      started.revision,
-      "codex",
-      "confirm-once",
-      confirmed.pendingReceiptId,
-    );
+    const replay = await service.start(session.id, started.revision, "codex", "start-once");
     expect(replay.childRunRef).toEqual(started.childRunRef);
     expect(certification.startHttp).toHaveBeenCalledTimes(1);
   });
@@ -618,7 +479,7 @@ describe("IntegrationSessionService", () => {
       adapterDraft: suppliedContract(),
     });
 
-    expect(accepted.stage).toBe("needs_spend_confirmation");
+    expect(accepted.stage).toBe("ready_to_certify");
     expect(accepted.unresolvedFields).toEqual([]);
     expect(accepted.compileRequest).toBeUndefined();
     expect(accepted.adapterDraft).toEqual({ present: true, modelKeys: ["paint-v2"] });
@@ -668,7 +529,7 @@ describe("IntegrationSessionService", () => {
 
     const proposed = await proposeHttp(service, session.id, ready.revision, "codex");
 
-    expect(proposed.stage).toBe("needs_spend_confirmation");
+    expect(proposed.stage).toBe("ready_to_certify");
     expect(proposed.compileRequest).toBeUndefined();
   });
 
@@ -682,7 +543,7 @@ describe("IntegrationSessionService", () => {
 
     const proposed = await service.propose(session.id, ready.revision, "codex", mediaProposal());
 
-    expect(proposed.stage).toBe("needs_spend_confirmation");
+    expect(proposed.stage).toBe("ready_to_certify");
     expect(proposed.compileRequest).toBeUndefined();
   });
 });

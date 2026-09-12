@@ -68,7 +68,7 @@ function promote(draftModels: AdapterModelDraft[], verifiedModes: Array<{ modelK
           attempts: 1,
           ...(verifiedModes.some((item) => item.modelKey === model.modelKey && item.taskKind === mode.taskKind)
             ? {}
-            : { stage: "create" as const, error: "probe failed" }),
+            : { stage: "credential" as const, error: "probe failed" }),
         })),
       })),
       sourceUrls: [],
