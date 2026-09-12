@@ -77,6 +77,7 @@
 - [管道跑测试会吞掉退出码](piped-test-runs-mask-exit-codes.md) — `| tail` 的 exit 0 是 tail 的；错的 reporter 名会「全绿」通过
 - [测试文件不进主 typecheck](tests-are-not-typechecked.md) — 已由 `check:test-types` 接管，但 `pnpm typecheck` 仍看不见测试
 - [判测试翻红前先查别的 worktree](flaky-test-check-other-worktrees-first.md) — 并行 suite 能把耗时放大 40x，和真 flake 长得一样
+- [写在规则里的分档，没人把它接到本机入口上](local-gates-ran-full-suite-and-jammed-the-machine-lock.md) — ✅ 已固化；`pnpm run gates` 排队十几分钟、9 棵树抢一把锁时读；判据存在 ≠ 判据被调用，改验证策略先 grep 全部调用点
 - [并行会话各跑各的 gates 会把机器压进 swap](parallel-gates-thrash-the-machine.md) — ✅ 已由 `vitest-fair-share` 接管；判超时红灯前先看 load 与 `sys%`，sys>15% 时超时红灯不作数
 - [门岗只能下它真拿到证据的那个结论](gate-verdict-must-be-backed-by-evidence.md) — ✅ 已固化；门岗指的证据文件根本不存在（让你看差异图但一张都没有）= 红的是工具不是你的改动
 - [productionRun 这类 flake 的分腿处置](production-run-tests-are-flaky.md) — 验修复用 `git cat-file` 看代码，别看 PR 状态

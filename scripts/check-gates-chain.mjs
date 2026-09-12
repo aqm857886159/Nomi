@@ -16,11 +16,20 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { TIER_COMMANDS } from './run-gates-tests.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
 /** gates:contracts 的执行体；它的实参就是要跑的门岗清单（见 extractScriptRefs 的说明）。 */
 const GATES_RUNNER = 'scripts/run-gates-contracts.mjs'
+/**
+ * gates 的**选测调度点**（2026-09-12，R22 分档）。它按风险面在 TIER_COMMANDS 声明的两档之间选一档跑，
+ * 所以那两个脚本名都是「真的会被执行」的引用，必须算进可达集合——否则本门岗会以为默认档什么测试都不跑。
+ *
+ * 这不是假绿：调度点**必然**跑其中一档，且失败方向固定为升档（判不出来 → 全量）。两档的目标脚本
+ * 从 TIER_COMMANDS 现取，不在这里抄第二份字面量（抄一份就等于又开一个会漂移的真相源）。
+ */
+const TIER_RUNNER = 'scripts/run-gates-tests.mjs'
 
 /**
  * 蓄意不入链的 check:*——**每条都必须写清楚为什么**。
@@ -74,6 +83,12 @@ function extractScriptRefs(command, knownScripts) {
   if (command.includes(GATES_RUNNER)) {
     for (const token of command.split(/[\s,]+/)) {
       const name = token.replace(/^--advisory=/, '')
+      if (knownScripts.has(name)) refs.add(name)
+    }
+  }
+  if (command.includes(TIER_RUNNER)) {
+    for (const args of Object.values(TIER_COMMANDS)) {
+      const name = args[args.length - 1]
       if (knownScripts.has(name)) refs.add(name)
     }
   }
