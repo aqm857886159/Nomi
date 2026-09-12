@@ -75,6 +75,7 @@ export function buildStoryboardPlanningMessage(input: {
     shotModeDirective(input.shotMode ?? 'image'),
     '片种模板只能从以下内置 profile 选择：genre.short-drama（9:16、带台词轨、骨架段 shotSize/emotion）或 genre.free-form（16:9、无骨架、纯自由文本）。默认使用 genre.short-drama；输出 profileKey，并在 storyboardProfile 中原样带出所选声明。',
     '使用有骨架模板时，先按 promptSkeleton 填 prompt，再用 promptSegments 标注每段在 prompt 中的 start/end 字符范围；范围只是可丢失的视图标注，不要另造列字段或 promptOverridden。',
+    '画幅是**整片级**的：写在方案顶层 aspectRatio（如 "9:16"），只有"这一镜真的不一样"时才在那一镜的 params.aspect_ratio 上覆盖。不要把同一个画幅抄进每一镜。',
     '',
     '输出硬约束：JSON 根必须是对象，anchors/shots 必须是数组本体；不要把任何数组序列化成字符串。',
     '',
