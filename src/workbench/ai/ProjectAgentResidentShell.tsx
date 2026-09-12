@@ -30,6 +30,8 @@ import { useAgentPanelSpendConfirm } from './v4/useAgentPanelSpendConfirm'
 import { assertAnnouncedCardRendered } from './v4/missingInterventionCard'
 import { useAgentPanelAutoMode } from './v4/useAgentPanelAutoMode'
 import { V4AutoModeBanner } from './v4/AgentPanelV4AutoMode'
+import { V4SandboxNotice } from './v4/AgentPanelV4SandboxNotice'
+import { v4SandboxNoticeText } from './v4/agentPanelV4SandboxReason'
 import NodeGenerationComposer from '../generationCanvas/nodes/NodeGenerationComposer'
 import { NodeWriteAccessProvider } from '../generationCanvas/nodes/nodeWriteAccess'
 import { useShotVerifyFeedback } from './resident/useShotVerifyFeedback'
@@ -139,6 +141,16 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
       onRevert={() => actions.setPermission('safe-auto')}
       onDismiss={autoMode.dismissBanner}
     />
+  ) : null
+  // 命令沙箱没起来时的那一行交代。它和「全自动」提醒共用 composer 上沿那一格：
+  // 两条同时在的时候先印沙箱那条——它解释的是**另一条为什么不作数**（开着全自动仍逐条问），
+  // 顺序反过来读起来就是自相矛盾。
+  const sandboxInactive = data.snapshot.active.sandboxInactive
+  const composerBanner = sandboxInactive || autoModeBanner ? (
+    <>
+      {sandboxInactive ? <V4SandboxNotice text={v4SandboxNoticeText(sandboxInactive, t)} /> : null}
+      {autoModeBanner}
+    </>
   ) : null
   const shotVerifyFeedback = useShotVerifyFeedback(surface, actions.send)
   /**
@@ -484,7 +496,7 @@ export default function ProjectAgentResidentShell({ surface }: { surface: Reside
         onStarter={startFromStarter}
         slot={activeSlot}
         {...(!autoMode.slot && spend.slot && spendComposer ? { slotComposer: spendComposer } : {})}
-        {...(autoModeBanner ? { composerBanner: autoModeBanner } : {})}
+        {...(composerBanner ? { composerBanner } : {})}
         queue={data.queue}
         queueHint={t('agentPanelV4.queueHint')}
         context={data.context}

@@ -345,7 +345,9 @@
       "node_modules/@ffmpeg-installer/**",
       "node_modules/.pnpm/@ffmpeg-installer+*/**",
       "node_modules/@ffprobe-installer/**",
-      "node_modules/.pnpm/@ffprobe-installer+*/**"
+      "node_modules/.pnpm/@ffprobe-installer+*/**",
+      "node_modules/@anthropic-ai/sandbox-runtime/vendor/**",
+      "node_modules/.pnpm/@anthropic-ai+sandbox-runtime@*/node_modules/@anthropic-ai/sandbox-runtime/vendor/**"
     ],
     "icon": "build/icon.png",
     "files": [
