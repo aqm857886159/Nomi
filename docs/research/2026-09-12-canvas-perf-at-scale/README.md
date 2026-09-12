@@ -452,8 +452,10 @@ p50 一直是 8.4 ms（rAF 照常在跑），但**最长帧在 300 节点上是�
 ## 3. 画布上到底有几条「搬东西」的路
 
 > **路径约定**：下文形如 `components/xxx.ts:NN` 的相对路径，基准目录都是 `src/workbench/generationCanvas/`。
-> 其余路径（`docs/`、`electron/`、`tests/`、`src/theme/`）从仓库根算起。全部行号按分支
-> `research/canvas-perf-at-scale-20260912` 的 HEAD（`499f3c943`）核过。
+> 其余路径（`docs/`、`electron/`、`tests/`、`src/theme/`）从仓库根算起。
+> 全部行号在 `499f3c943`（本轮采样用的那棵树）上逐条核过，并在合入 `origin/main` 之后
+> **重新核过一遍仍然成立**——本文引用的每一个源码文件在这 68 个 commit 里都没有被改动，
+> 所以「量的那份代码」和「今天 main 上的那份代码」是同一份。
 
 **直接回答「我们的拖动是不是绕开了 React Flow 内核、每帧把位置写进 Zustand」：**
 **拖卡不是，拖组框是。** 抓一张选中的卡（或 React Flow 自己盖上来的 `.react-flow__nodesselection-rect`）
