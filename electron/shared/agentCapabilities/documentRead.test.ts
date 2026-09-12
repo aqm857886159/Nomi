@@ -22,7 +22,7 @@ describe("document.read canonical contract", () => {
   });
 
   it("derives the full and selection aliases without creating another capability", () => {
-    expect(documentReadScopeForAlias("read_full_text")).toBe("full");
+    expect(documentReadScopeForAlias("read_script")).toBe("full");
     expect(documentReadScopeForAlias("read_selection")).toBe("selection");
     expect(documentReadScopeForAlias("read_document")).toBeUndefined();
   });

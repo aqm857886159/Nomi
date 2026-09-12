@@ -12,7 +12,7 @@ describe("asset.read capability", () => {
   it("owns all five strict Pi aliases", () => {
     expect(ASSET_READ_CAPABILITY.effect).toBe("read");
     expect(ASSET_READ_CAPABILITY.effectClass).toBe("reversible_local");
-    expect([ASSET_READ_CAPABILITY.aliases.pi, ...ASSET_READ_CAPABILITY.additionalAliases.pi]).toEqual([
+    expect([ASSET_READ_CAPABILITY.aliases.pi, ...ASSET_READ_CAPABILITY.additionalAliases.method]).toEqual([
       "get_media",
       "inspect_media",
       "search_media",

@@ -14,7 +14,7 @@ describe("timeline.read capability contract", () => {
     expect(TIMELINE_READ_CAPABILITY.effect).toBe("read");
     expect(TIMELINE_READ_CAPABILITY.effectClass).toBe("reversible_local");
     expect(TIMELINE_READ_CAPABILITY.aliases.pi).toBe("read_timeline");
-    expect(TIMELINE_READ_CAPABILITY.additionalAliases.pi).toEqual([
+    expect(TIMELINE_READ_CAPABILITY.additionalAliases.method).toEqual([
       "inspect_timeline_range",
       "propose_edit_plan",
     ]);
