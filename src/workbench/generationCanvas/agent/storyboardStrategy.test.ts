@@ -286,3 +286,24 @@ describe("storyboardStrategy · 建议采纳包装（applyMerge/applySplit → �
     expect(next.shots.map((item) => item.durationSec)).toEqual([15, 15, 10]);
   });
 });
+
+describe("storyboardStrategy · 整片默认也要进引擎输入", () => {
+  // 策略引擎（planResolver）按 params 判 param.unknown / param.value 并给出建议。它读到的参数
+  // 必须与真正发出去的一致——否则引擎按"没有画幅"裁决、落画布却按整片默认发，建议与请求是两份东西。
+  it("继承整片默认的镜头，引擎输入里带上整片画幅", () => {
+    const source: StoryboardPlan = { ...plan([shot({ index: 1, durationSec: 6, prompt: "镜一" })]), aspectRatio: "9:16" };
+    expect(storyboardPlanToPlanShotInputs(source)[0]?.params).toEqual({ aspect_ratio: "9:16" });
+  });
+
+  it("行覆盖赢整片默认", () => {
+    const source: StoryboardPlan = {
+      ...plan([shot({ index: 1, durationSec: 6, prompt: "镜一", params: { aspect_ratio: "16:9" } })]),
+      aspectRatio: "9:16",
+    };
+    expect(storyboardPlanToPlanShotInputs(source)[0]?.params).toEqual({ aspect_ratio: "16:9" });
+  });
+
+  it("整片默认未定且该镜没参数 → 不带 params 字段（保持既有契约形状）", () => {
+    expect(storyboardPlanToPlanShotInputs(plan([shot({ index: 1, durationSec: 6, prompt: "镜一" })]))[0]?.params).toBeUndefined();
+  });
+});

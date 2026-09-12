@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { effectiveShotDurationSec, storyboardPlanToCreateNodesArgs, type StoryboardPlan } from './storyboardPlan'
+import { effectiveShotDurationSec, storyboardPlanToCreateNodesArgs, storyboardShotToCreateNodesArgs, type StoryboardPlan } from './storyboardPlan'
 import { buildAnchorSheetPrompt } from './storyboardPromptCompiler'
 import { parseStoryboardPlan, storyboardPlanSchema } from './storyboardPlanSchema'
 import { storyboardProfileForKey } from './storyboardProfiles'
@@ -653,5 +653,81 @@ describe('v5 C2 storyboard profiles', () => {
     })
     expect(parsed.storyboardProfile).toEqual(profile)
     expect(parsed.shots[0].prompt).toBe('远景，雨夜')
+  })
+})
+
+/**
+ * 整片默认画幅**真的到得了画布**（2026-09-12 根因合同）。
+ *
+ * 修之前：用户在批量条上把整片画幅设成 9:16，分镜表每一格也画成竖的，落画布的节点 params 里
+ * 却**一个 aspect_ratio 都没有**——继承整片默认的行（也就是 95% 的行）在这里静默掉队，
+ * 出片回落成模型档案默认（`auto` / `16:9`）。现有测试只覆盖逐镜写死 params 的那条路，看不见它。
+ */
+describe('整片默认 → 落画布节点参数（film-level passthrough）', () => {
+  const filmPlan = (aspectRatio?: string, extra?: Partial<StoryboardPlan>): StoryboardPlan => ({
+    title: '整片画幅',
+    anchors: [],
+    shots: [
+      { index: 1, shotKind: 'video', durationSec: 5, anchorIds: [], prompt: '镜一' },
+      { index: 2, shotKind: 'video', durationSec: 5, anchorIds: [], prompt: '镜二', params: { aspect_ratio: '16:9' } },
+      { index: 3, shotKind: 'image', durationSec: 0, anchorIds: [], prompt: '镜三' },
+    ],
+    ...(aspectRatio !== undefined ? { aspectRatio } : {}),
+    ...extra,
+  })
+
+  it('整份方案落画布：继承的行带上整片画幅，覆盖的行按自己的来', () => {
+    const { nodes } = storyboardPlanToCreateNodesArgs(filmPlan('9:16'))
+    const byPrompt = (prompt: string) => nodes.find((node) => node.prompt === prompt)
+    expect(byPrompt('镜一')?.params?.aspect_ratio).toBe('9:16')
+    expect(byPrompt('镜二')?.params?.aspect_ratio).toBe('16:9')
+    // 图片镜同样是整片画幅的作用域（分镜表把它也画成竖的）。
+    expect(byPrompt('镜三')?.params?.aspect_ratio).toBe('9:16')
+  })
+
+  it('单行 materialize 走同一个 resolver（行内「生成」与整份落画布不许有两种画幅）', () => {
+    const plan = filmPlan('9:16')
+    const { nodes } = storyboardShotToCreateNodesArgs(plan, plan.shots[0])
+    expect(nodes.find((node) => node.prompt === '镜一')?.params?.aspect_ratio).toBe('9:16')
+  })
+
+  it('图片+视频镜：首帧图与视频同画幅（首帧被裁/被拉，运动落点从第一帧就偏）', () => {
+    const plan: StoryboardPlan = {
+      title: '首帧',
+      anchors: [],
+      aspectRatio: '9:16',
+      shots: [{ index: 1, shotKind: 'video', durationSec: 5, anchorIds: [], prompt: '镜一', keyframe: { enabled: true, prompt: '首帧' } }],
+    }
+    const { nodes } = storyboardPlanToCreateNodesArgs(plan)
+    expect(nodes).toHaveLength(2)
+    expect(nodes.every((node) => node.params?.aspect_ratio === '9:16')).toBe(true)
+  })
+
+  it('整片默认未定 → 节点不带 aspect_ratio（诚实缺席，交回模型档案默认）', () => {
+    const { nodes } = storyboardPlanToCreateNodesArgs(filmPlan())
+    expect(nodes.find((node) => node.prompt === '镜一')?.params?.aspect_ratio).toBeUndefined()
+    expect(nodes.find((node) => node.prompt === '镜二')?.params?.aspect_ratio).toBe('16:9')
+  })
+
+  it('片种模板声明的画幅也落得到画布（选了短剧就是竖屏）', () => {
+    const { nodes } = storyboardPlanToCreateNodesArgs(filmPlan(undefined, { profileKey: 'genre.short-drama' }))
+    expect(nodes.find((node) => node.prompt === '镜一')?.params?.aspect_ratio).toBe('9:16')
+  })
+
+  it('duration 仍只写视频镜，且不被 resolver 挤掉', () => {
+    const { nodes } = storyboardPlanToCreateNodesArgs(filmPlan('9:16'))
+    expect(nodes.find((node) => node.prompt === '镜一')?.params?.duration).toBe(5)
+    expect(nodes.find((node) => node.prompt === '镜三')?.params?.duration).toBeUndefined()
+  })
+
+  it('规划师在方案顶层写的整片画幅活得过 parseStoryboardPlan（zod 默认丢未知键）', () => {
+    const parsed = parseStoryboardPlan({
+      title: 't',
+      aspectRatio: '9:16',
+      anchors: [],
+      shots: [{ index: 1, durationSec: 5, anchorIds: [], prompt: 'p' }],
+    })
+    expect(parsed.aspectRatio).toBe('9:16')
+    expect(storyboardPlanToCreateNodesArgs(parsed).nodes[0]?.params?.aspect_ratio).toBe('9:16')
   })
 })

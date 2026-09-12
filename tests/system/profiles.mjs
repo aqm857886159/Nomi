@@ -10,7 +10,9 @@ export const STAGES = {
   matrix: stage("matrix", "node", ["scripts/test-capability-matrix.mjs"]),
   contracts: stage("contracts", "pnpm", ["run", "gates:contracts"]),
   unit: stage("unit", "pnpm", ["run", "test"]),
-  gates: stage("gates", "pnpm", ["run", "gates"]),
+  // 显式全量档（full-local / release）永远跑 gates:full：默认 gates 自 2026-09-12 起按风险分档，
+  // 若这里跟着默认走，「显式全量本地验证」就会被悄悄降级成 focused（R22）。
+  gates: stage("gates", "pnpm", ["run", "gates:full"]),
   build: stage("build", "pnpm", ["run", "build"]),
   e2e: stage("e2e", "pnpm", ["run", "test:e2e"]),
   "canvas-critical": stage("canvas-critical", "pnpm", ["run", "test:canvas:critical"]),

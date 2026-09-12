@@ -120,6 +120,28 @@ describe("付费卡的宿主投影", () => {
     expect(pending.unknownShotCount).toBe(1);
   });
 
+  /**
+   * 「我知道有一笔在等，但我一镜都画不出来」——这不是空，是失败（2026-09-12）。
+   *
+   * 它原来写的是 `return undefined`，和「真的没有要确认的东西」长得一模一样。后果是：
+   * 门一直 `waiting`，面板一张卡都没有，用户只看到沉默。现在它喊出来，读通道据此拒绝，
+   * 渲染层渲那张会说话的卡。
+   */
+  it("等人点头却投影不出任何一镜 → 抛，不写成「没有」", () => {
+    const broken = run();
+    broken.generationPlan = { ...broken.generationPlan!, shots: [] };
+    // 阳性对照：`shotsOf` 的退路把 `plan.candidate` 当成那一镜，所以正常的空 shots 仍然出卡。
+    expect(projectPendingSpendConfirm(broken, resolvePricing)?.shots).toHaveLength(1);
+
+    // 退路自己也塌了的时候：**抛**，不是回 undefined。断在 `shotsOf` 还是断在那道守卫都行，
+    // 这条测试要的只有一件事——这个函数不许在「明明有一笔在等」的时候安静地回「没有」。
+    const empty = run();
+    empty.generationPlan = { ...empty.generationPlan!, shots: [], candidate: undefined as never };
+    let outcome: unknown = "did-not-throw";
+    try { outcome = projectPendingSpendConfirm(empty, resolvePricing); } catch (error) { outcome = error; }
+    expect(outcome).toBeInstanceOf(Error);
+  });
+
   it("一个项目里多笔时按 updatedAt 排序（介入槽只显示第一张，其余算「还有 N 条」）", () => {
     const older = run({ runId: "op-old", updatedAt: "2026-09-10T00:00:00.000Z" });
     const newer = run({ runId: "op-new", updatedAt: "2026-09-12T00:00:00.000Z" });

@@ -81,7 +81,17 @@ export function projectPendingSpendConfirm(
     return undefined;
   }
   const shots = shotsOf(plan, resolvePricing);
-  if (shots.length === 0) return undefined;
+  // 走到这里意味着**这一笔确实在等人点头**（draft，或封印后那道门还 `waiting`），却一镜都投影不出来。
+  // 那不是「没有要确认的东西」，是「我知道有，但我画不出来」——写成 `undefined` 的后果是：
+  // 门一直等着，面板一张卡都没有，用户只看到沉默（2026-09-11 那次的形状）。
+  // `shotsOf` 在没有 included 镜时会退回 `plan.candidate` 那一镜，所以这里理应不可达；
+  // 真的到了就把它喊出来——读通道据此拒绝，渲染层渲那张会说话的卡。
+  if (shots.length === 0) {
+    throw Object.assign(
+      new Error(`pending_spend_projection_empty: run ${run.runId} operation ${plan.operationId} is awaiting a decision but projects no shot`),
+      { code: "pending_spend_projection_empty" },
+    );
+  }
   const knownSubtotal = shots.reduce((sum, shot) => (shot.price.known ? sum + shot.price.amount : sum), 0);
   return Object.freeze({
     projectId: run.projectId,

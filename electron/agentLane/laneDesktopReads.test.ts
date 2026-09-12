@@ -53,6 +53,8 @@ async function fixture(toolName: string, args: Record<string, unknown>, stale = 
   const assembly = createDesktopLaneTools({ event: {} as IpcMainInvokeEvent, binding, surface,
     receipts: createProjectAgentProposalReceiptService({ projectRoot: root, binding }),
     context: () => ({ documentId: 'fixture-document', approvalPolicy: { mode: 'safe-auto', spend: 'confirm' } }),
+    // 档位和工具审批读**同一份**快照（生产里两者都来自 `composer.approvalPolicy`）。
+    approvalPolicy: () => ({ mode: 'safe-auto', spend: 'confirm' }),
     generationFactory: () => undefined, onTaskCreated: async () => undefined })
   cleanups.push(async () => assembly.dispose())
   if (stale) registry.suspend(owner, { surfaceInstanceId: 'another-surface' })

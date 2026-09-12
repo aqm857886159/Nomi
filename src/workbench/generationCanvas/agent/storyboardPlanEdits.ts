@@ -382,11 +382,22 @@ export function applyShotKindToAll(plan: StoryboardPlan, next: ShotTypeValue): S
 /**
  * 整片改模型。清 modeId/params——模式/参数属于具体模型，换模型后由 buildPlannedNodeMeta
  * 按新模型取默认模式（与镜卡 onShotModelChange 同口径）。空串 = 回「默认模型」。
+ *
+ * **vendor 必须与 modelKey 成对写**：BulkModelPicker 的每一行本来就是「模型 × 具体哪一家」，
+ * 它把 vendor 一起回调出来。以前这里只写 modelKey，于是落画布时 buildPlannedNodeMeta 用
+ * `entryByKey.get(modelKey)` 反查——而 buildAgentModelEntries 按 modelKey 首次出现去重，
+ * 落地厂商 = 目录里第一家，与用户所选无关（「选 A 家发去 B 家」）。同 buildShotRowNodes 的纪律。
  */
-export function applyModelToAll(plan: StoryboardPlan, modelKey: string): StoryboardPlan {
+export function applyModelToAll(plan: StoryboardPlan, modelKey: string, modelVendor?: string): StoryboardPlan {
   return {
     ...plan,
-    shots: plan.shots.map((shot) => ({ ...shot, modelKey: modelKey || undefined, modeId: undefined, params: undefined })),
+    shots: plan.shots.map((shot) => ({
+      ...shot,
+      modelKey: modelKey || undefined,
+      modelVendor: modelKey ? modelVendor || undefined : undefined,
+      modeId: undefined,
+      params: undefined,
+    })),
   }
 }
 
@@ -400,7 +411,7 @@ export function applyDurationToAll(plan: StoryboardPlan, sec: number): Storyboar
 }
 
 // 画幅**不在这一层**（v6 §2.4.1）：它是「整片默认 + 行级覆盖」两段的，读写唯一 owner 是
-// `storyboardAspectScope.ts`。v5 的 applyAspectToAll/deriveBulkAspect/BULK_ASPECT_OPTIONS 三件
+// `storyboardShotScope.ts`。v5 的 applyAspectToAll/deriveBulkAspect/BULK_ASPECT_OPTIONS 三件
 // 已随本次改版删除——它们把"整片改画幅"实现成"把同一个值抄进每一行"，正是那层作用域丢失的成因。
 
 /** 全镜共同值，否则 null（无镜头也是 null）。批量条据此显「混合」。 */
