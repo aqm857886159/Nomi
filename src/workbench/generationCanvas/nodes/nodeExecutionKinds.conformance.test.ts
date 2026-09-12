@@ -10,7 +10,10 @@ import { GENERATION_NODE_PLUGINS } from './registry'
 describe('generation node execution kinds · one vocabulary', () => {
   it('every plugin with an executionKind matches the shared table, and the table names no unknown kind', () => {
     const fromPlugins = Object.fromEntries(
-      GENERATION_NODE_PLUGINS.filter((plugin) => plugin.executionKind).map((plugin) => [plugin.kind, plugin.executionKind]),
+      GENERATION_NODE_PLUGINS.filter((plugin) => 'executionKind' in plugin && plugin.executionKind).map((plugin) => [
+        plugin.kind,
+        plugin.executionKind,
+      ]),
     )
     expect(fromPlugins).toEqual(NODE_EXECUTION_KIND_BY_NODE_KIND)
     const kinds = new Set(GENERATION_NODE_PLUGINS.map((plugin) => plugin.kind as string))
