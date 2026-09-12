@@ -131,19 +131,19 @@ await walkDesignLabScreen({
       { provenBy: clusterInBarProof, message: `${state.id} 提示词区右端不该有任何控件` },
     )
     const clusterButtons = await page.locator('[data-prompt-tool-cluster="true"] [data-prompt-tool]').count()
-    const expected = state.id.includes('image') ? 2 : 3
+    const expected = 2
     if (clusterButtons !== expected) record(`${state.id} B 簇应有 ${expected} 颗 icon（视频含运镜、图片没有），实际 ${clusterButtons}`)
     // 簇内顺序也是拍板那句话的一部分：运镜 → 效果 → 优化。图片节点没有运镜，只掉头一颗。
     const clusterOrder = await page.locator('[data-prompt-tool-cluster="true"] [data-prompt-tool]').evaluateAll(
       (nodes) => nodes.map((node) => node.getAttribute('data-prompt-tool')).join(' → '),
     )
-    const wantedOrder = (state.id.includes('image') ? ['effects', 'optimize'] : ['camera-move', 'effects', 'optimize']).join(' → ')
+    const wantedOrder = (['effects', 'optimize']).join(' → ')
     if (clusterOrder !== wantedOrder) record(`${state.id} B 簇顺序应是「${wantedOrder}」，实际「${clusterOrder}」`)
     const clusterText = (await page.locator('[data-prompt-tool-cluster="true"]').innerText().catch(() => '')).trim()
     if (clusterText) record(`${state.id} B 簇必须是纯 icon，却渲出了文字「${clusterText}」`)
     // 「哪几格该有激活点」按 id 白名单判，别用 includes 猜——`image-dark` 里也有 dark，
     // 猜一次就把一格图片态误判成「运镜没生效」（第一版就这么假红过）。
-    const CAMERA_PICKED = new Set(['composer-bar-v1-video-camera', 'composer-bar-v1-video-dark'])
+    const CAMERA_PICKED = new Set()
     const dots = page.locator('[data-prompt-tool-active="true"]')
     if (CAMERA_PICKED.has(state.id)) {
       const dot = await dots.count()
