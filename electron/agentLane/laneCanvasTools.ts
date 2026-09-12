@@ -24,7 +24,9 @@ type StageArgs = { shotId: string; staging?: Record<string, unknown>; cameraMove
 /** 动词参数 → 契约语义输入。**唯一对应表**；返回值再过一次契约 parse，保证跨字段约束（连边至少一条等）照旧生效。 */
 export function canvasWriteInputOf(verb: string, args: unknown): CanvasWriteInput {
   let semantic: unknown;
-  if (verb === "arrange_canvas") {
+  // Retired canvas aliases remain executable for persisted transcripts.
+  const canonicalVerb = ["nomi_canvas_write", "nomi_canvas_edit", "nomi_canvas_plan", "nomi_storyboard_write", "nomi_shot_reference_write"].includes(verb) ? "arrange_canvas" : verb;
+  if (canonicalVerb === "arrange_canvas") {
     const { links, tidy, categoryId } = args as ArrangeArgs;
     if (links && links.length > 0) {
       semantic = { operation: "connect_canvas_edges", edges: links.map((link) => ({ sourceClientId: link.fromId, targetClientId: link.toId, ...(link.role ? { mode: link.role } : {}) })) };
@@ -33,13 +35,13 @@ export function canvasWriteInputOf(verb: string, args: unknown): CanvasWriteInpu
     } else {
       throw new Error("arrange_canvas needs links to connect or tidy: true");
     }
-  } else if (verb === "make_artifact") {
+  } else if (canonicalVerb === "make_artifact") {
     const { fileType, title, content } = args as ArtifactArgs;
     semantic = {
       operation: "create_canvas_nodes", summary: title,
       nodes: [{ clientId: "artifact-1", kind: "agent-artifact", title, prompt: "", artifact: { fileType, content } }],
     };
-  } else if (verb === "stage_shot") {
+  } else if (canonicalVerb === "stage_shot") {
     const { shotId, staging, cameraMove } = args as StageArgs;
     semantic = staging
       ? { operation: "create_staging_reference", shotClientId: shotId, ...staging }
