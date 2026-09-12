@@ -1,0 +1,20 @@
+[
+  {
+    "name": "01-unselected-dots",
+    "pass": false,
+    "error": "Error: 未选中的卡片没有磁吸带子：canvas-perf-image-0（基线已证：选中卡片的磁吸带子可观测）\n\nexpect(locator).toHaveCount(expected) failed\n\nLocator:  locator('.react-flow__node[data-id=\"canvas-perf-image-0\"] .generation-canvas-react-flow__handle--magnetic')\nExpected: 0\nReceived: 2\nTimeout:  15000ms\n\nCall log:\n  - Expect \"to.have.count\" with timeout 15000ms\n  - waiting for locator('.react-flow__node[data-id=\"canvas-perf-image-0\"] .generation-canvas-react-flow__handle--magnetic')\n    34 × locator resolved to 2 elements\n       - unexpected value \"2\"\n"
+  },
+  {
+    "name": "02-selected-band-follows",
+    "pass": true
+  },
+  {
+    "name": "03-drag-snaps-to-target",
+    "pass": true
+  },
+  {
+    "name": "04-close-edge-stays-clickable",
+    "pass": false,
+    "error": "Error: 连线上存在真的点得到的点\n\nexpect(received).not.toBeNull()\n\nReceived: null"
+  }
+]

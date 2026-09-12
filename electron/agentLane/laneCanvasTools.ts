@@ -1,8 +1,8 @@
 // Agent lane · `canvas.read` / `canvas.write` 的**执行那一半**。
 //
-// 说明书那一半（三个语义拆分的写工具、扁平 schema、typed 分镜形状、示例、容忍钩子）住
-// `electron/shared/agentCapabilities/canvasModelTools.ts` —— 它不属于任何一个 profile，
-// 对外 MCP 的 `nomi_canvas_edit` 从阶段 5a 起读的是同一份（方案 §3.1）。
+// 说明书那一半（三个语义拆分的写工具、扁平 schema、typed 分镜形状、示例、容忍钩子）是
+// `electron/shared/agentCapabilities/verbs/canvasVerbs.ts` 里的动词声明 —— 它不属于任何一个 profile，
+// 对外 MCP 的 `nomi_canvas_edit` 读的是注册表派生的同一份（PR A 单一 owner）。
 import {
   canvasReadResultSchema,
   type CanvasReadResult,
@@ -12,7 +12,7 @@ import {
   type CanvasWriteInput,
   type CanvasWriteResult,
 } from "../shared/agentCapabilities/canvasWrite";
-import { canvasModelToolSpecs } from "../shared/agentCapabilities/canvasModelTools";
+import { specsForCapability } from "../shared/agentCapabilities/modelFacingToolRegistry";
 import { formatCanvasForAgent } from "../shared/agentCapabilities/canvasReadCompact";
 import { bindLaneTool, type LaneToolDescriptor, type LaneToolExecutionContext } from "./laneRuntimePort";
 
@@ -23,7 +23,7 @@ export interface CanvasLanePort {
 }
 
 export function createCanvasLaneTools(port: CanvasLanePort): LaneToolDescriptor[] {
-  return canvasModelToolSpecs().map((spec) => {
+  return [...specsForCapability("canvas.read"), ...specsForCapability("canvas.write")].map((spec) => {
     if (spec.name === "nomi_canvas_read") {
       return bindLaneTool(spec, async (_args, context) => {
         const result: CanvasReadResult = canvasReadResultSchema.parse(await port.read(context));

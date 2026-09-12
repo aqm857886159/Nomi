@@ -1,10 +1,10 @@
 // Assemble upstream tools; pi owns tool activation and its durable addedToolNames transitions.
-import { createLaneModelRead } from './laneModelRead.mjs';
+import { createLaneModelRead, laneModelReadSpec } from './laneModelRead.mjs';
 import type { AgentModelEntry } from '../shared/agentCapabilities/availableModels.js';
 import type { AgentLane, AgentHarnessTool } from '@earendil-works/pi-agent-core';
 import { BACKGROUND_CONTEXT } from '@earendil-works/pi-agent-core/harness/context';
 import type { Context } from '@earendil-works/pi-agent-core/harness/context';
-import type { LaneToolEffects } from '../shared/agentLane/laneToolContract.js';
+import type { LaneToolEffect } from '../shared/agentLane/laneToolContract.js';
 import {
   createLaneCodingTools, LANE_CODING_TOOL_EFFECTS, LANE_CODING_TOOL_NAMES,
   loadPiCodingToolFactories, codingToolPromptSections,
@@ -57,9 +57,11 @@ export async function createLaneNativeAssembly(input: Omit<LaneCodingToolsInput,
       return tool.execute(...args);
     },
   }));
+  // `models` 组从注册表里那条声明派生（`internalGroup`），不再手写名字。
+  const modelReadSpec = laneModelReadSpec();
   const groups: readonly LaneDeferredGroup[] = [
     { name: 'coding', toolNames: LANE_CODING_TOOL_NAMES.filter(name => name !== 'read') }, ...(input.deferredGroups ?? []),
-    { name: 'models', toolNames: ['nomi_read'] },
+    { name: modelReadSpec.internalGroup!, toolNames: [modelReadSpec.name] },
   ];
   const alwaysOn = laneToolMenu().activeToolNames;
   const names = new Set(alwaysOn);
@@ -95,19 +97,23 @@ export async function createLaneNativeAssembly(input: Omit<LaneCodingToolsInput,
       };
     },
   };
-  const effects: Readonly<Record<string, LaneToolEffects>> = Object.freeze({
+  const effects: Readonly<Record<string, LaneToolEffect>> = Object.freeze({
     ...LANE_CODING_TOOL_EFFECTS,
-    nomi_read: { mutates: false, billable: false, reversal: 'none' },
-    [LANE_TOOL_REQUEST_TOOL_NAME]: { mutates: false, billable: false, reversal: 'none' },
+    [modelReadSpec.name]: modelReadSpec.effect,
+    [LANE_TOOL_REQUEST_TOOL_NAME]: 'read',
   });
   const modelRead = createLaneModelRead(() => input.availableModels?.() ?? []);
-  const promptSources = [...coding, modelRead, request] as unknown as PiAgentTool[];
-  const promptTools = promptSources.flatMap((tool) => tool.promptSnippet ? [{
-    name: tool.name,
-    promptSnippet: tool.promptSnippet,
-    description: tool.description,
-    ...(tool.promptGuidelines ? { promptGuidelines: tool.promptGuidelines } : {}),
-  }] : []);
+  const promptSources = [...coding, request] as unknown as PiAgentTool[];
+  // `nomi_read` 的系统提示词条目直接用注册表那份说明书（全文 + 示例 + 纪律），与领域工具同一条路。
+  const promptTools = [
+    ...promptSources.flatMap((tool) => tool.promptSnippet ? [{
+      name: tool.name,
+      promptSnippet: tool.promptSnippet,
+      description: tool.description,
+      ...(tool.promptGuidelines ? { promptGuidelines: tool.promptGuidelines } : {}),
+    }] : []),
+    modelReadSpec,
+  ];
   return {
     tools: [...coding, modelRead as AgentHarnessTool<undefined>, request],
     promptTools,
@@ -122,6 +128,6 @@ export async function createLaneNativeAssembly(input: Omit<LaneCodingToolsInput,
     resolveApprovalSubject: createLaneNativeApprovalResolver({
       projectDir: input.projectDir, sandboxActive: input.sandbox.active, effects,
     }),
-    promptSections: codingToolPromptSections(promptSources),
+    promptSections: codingToolPromptSections([...promptSources, modelRead as unknown as PiAgentTool]),
   };
 }

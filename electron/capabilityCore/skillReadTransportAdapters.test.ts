@@ -22,7 +22,7 @@ function record(overrides: Partial<SkillRecord> = {}): SkillRecord {
 }
 
 function call(args: unknown): RuntimeToolCall {
-  return { toolCallId: "skill-read-1", toolName: SKILL_READ_CAPABILITY.aliases.pi, args };
+  return { toolCallId: "skill-read-1", toolName: SKILL_READ_CAPABILITY.aliases.method, args };
 }
 
 function liveSignal(): AbortSignal {

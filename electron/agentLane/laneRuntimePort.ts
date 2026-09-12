@@ -13,7 +13,7 @@ import type {
   LaneHandle, LanePendingApproval, LaneProjection, LaneSkillIndexEntry, LaneTaskFacts, LaneWorkspaceHandle,
 } from '../shared/agentLane/laneContracts'
 import { LaneDomainFailure } from '../shared/agentLane/laneToolContract'
-import type { LaneToolEffects, LaneToolFailureShape, LaneToolSpec } from '../shared/agentLane/laneToolContract'
+import type { LaneToolEffect, LaneToolFailureShape, LaneToolSpec } from '../shared/agentLane/laneToolContract'
 import type { RuntimeToolCall } from '../shared/agentCapabilities/transportContracts'
 import type { LaneComposerContext, LaneInputMessage } from '../shared/agentLane/laneDesktopContracts'
 import type { NomiModelConfig } from '../shared/agentLane/laneModelConfig'
@@ -22,7 +22,7 @@ import type { LaneApprovalSubjectResolver } from '../shared/agentLane/laneApprov
 import type { SkillRecord } from '../skills/skillStore'
 
 export type { LaneHandle, LaneProjection }
-export type { LaneToolEffects, LaneToolFailureShape, LaneToolSpec }
+export type { LaneToolEffect, LaneToolFailureShape, LaneToolSpec }
 export { LaneDomainFailure }
 
 /**

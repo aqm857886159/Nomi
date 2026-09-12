@@ -27,6 +27,8 @@ import {
 } from '../../electron/agentLane/laneToolGroups.mjs';
 import { openLaneSandbox, sandboxPolicyFor, type LaneBashOperations, type SandboxManagerLike }
   from '../../electron/agentLane/laneCodingSandbox.mjs';
+import { VERB_EFFECTS } from '../../electron/shared/agentCapabilities/verbDeclaration.js';
+import { laneToolBillable, laneToolMutates } from '../../electron/shared/agentLane/laneToolContract.js';
 
 async function projectDir(t: TestContext): Promise<string> {
   const dir = await mkdtemp(path.join(tmpdir(), 'nomi-coding-'));
@@ -346,12 +348,12 @@ test('B1c the full resident catalog has no report-only budget exemption', () => 
 
 // ── effects 自洽（与 laneTools.mts 同一条装配期不变量）──────────────────
 
-test('每个 coding 工具的 effects 自洽：只读必然无可撤销，写入必然说清怎么收回', () => {
+test('每个 coding 工具的效果是四值词表里的一个，且 coding 工具不花供应商的钱', () => {
   for (const name of LANE_CODING_TOOL_NAMES) {
-    const effects = LANE_CODING_TOOL_EFFECTS[name];
-    assert.ok(effects, `${name} 没声明 effects`);
-    assert.equal(effects.mutates, effects.reversal !== 'none', `${name} 的 mutates 与 reversal 不自洽`);
-    assert.equal(effects.billable, false, 'coding 工具不花供应商的钱');
+    const effect = LANE_CODING_TOOL_EFFECTS[name];
+    assert.ok(effect, `${name} 没声明 effect`);
+    assert.ok(VERB_EFFECTS.includes(effect), `${name} 的 effect 不在词表里`);
+    assert.equal(laneToolBillable(effect), false, 'coding 工具不花供应商的钱');
   }
 });
 
@@ -365,9 +367,9 @@ test('只读的 coding 工具崩溃恢复可以安全重放，写入的不行', 
   });
   assert.equal(tools.length, LANE_CODING_TOOL_NAMES.length, 'pi 的 coding 工具数变了——先读 CHANGELOG');
   for (const tool of tools) {
-    const effects = LANE_CODING_TOOL_EFFECTS[tool.name as LaneCodingToolName];
-    assert.ok(effects, `pi 给了一个我们没声明 effects 的工具：${tool.name}`);
-    const expected = effects.mutates ? 'never' : 'safe';
+    const effect = LANE_CODING_TOOL_EFFECTS[tool.name as LaneCodingToolName];
+    assert.ok(effect, `pi 给了一个我们没声明 effect 的工具：${tool.name}`);
+    const expected = laneToolMutates(effect) ? 'never' : 'safe';
     assert.equal(tool.replay, expected, `${tool.name} 的 replay 派生错了`);
   }
 });

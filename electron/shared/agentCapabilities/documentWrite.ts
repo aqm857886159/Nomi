@@ -56,12 +56,4 @@ export const DOCUMENT_WRITE_CAPABILITY = {
   exposure: "mcp_safe",
   requiredScope: "document:write",
   targetKind: "document",
-  projections: {
-    pi: {
-      description: "Propose an insertion, selection replacement, or append to the current creation document.",
-    },
-    mcp: {
-      description: "Propose document insertion, selection replacement, or append.",
-    },
-  },
 } as const satisfies CapabilityContract<DocumentWriteInput, DocumentWriteResult>;
