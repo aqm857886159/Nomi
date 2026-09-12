@@ -84,12 +84,13 @@
 | 建立接入会话 | `draft` |
 | 你贴 Key | `needs_credential` |
 | 找模型、挑模型 | `needs_input` → `discovering` → `needs_selection` |
-| 试跑一次验证 | `needs_spend_confirmation` → `awaiting_human_confirmation` → `human_confirmed` → `certifying` |
+| 试跑一次验证 | `ready_to_certify` → `certifying` |
 | 出现在上面的「已接入」里 | `committing` → `completed` |
 
 - **失败不复用「进行中」的壳**：标题直说结果（「没有接进来」），给出事前停在哪一步 + 原始错误码 + 一句人话。
   **不吞掉已保存的 Key**。`partial` 与 `failed` 同档——模型没进列表，不许显示一颗绿勾。
-- 「要花钱先弹确认」沿用现有的付费确认卡，不新造。
+- **这条路上没有钱闸**：2026-09-12 用户拍板，接模型没有付费验证，自检一次上游生成都不发，所以也没有花费确认卡。
+  钱的闸只有一处，在画布每次提交时的报价卡。
 - 完成后进度收起，卡退回默认样子——模型此刻已经在上面的「已接入」里了。
 
 ### §V2 —— 不推荐（Agent 面板加号里的入口）

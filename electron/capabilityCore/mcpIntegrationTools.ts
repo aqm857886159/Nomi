@@ -1,9 +1,10 @@
 import type { IntegrationKind } from '../integrationCertification/integrationSession'
 import { IntegrationRequestError } from '../shared/integrationContract'
 
-// T14 · 确定性接入缝：Nomi 只持有凭据、提案落库、付费确认/启动和取消。
+// T14 · 确定性接入缝：Nomi 只持有凭据、提案落库、启动自检和取消。
 // 发现候选、翻页、适配杂牌 API、构造 workflow、补未决字段属于情境活，由驱动 Agent 完成后一次 propose。
-// confirm → start 保持两相，expectedRevision 是会话状态指纹；key 和 receipt 永远不在 MCP 参数中。
+// propose 通过即可直接 start：接模型**没有付费验证**（2026-09-12 用户拍板），所以没有 confirm 这一跳、
+// 没有挑战也没有收据。expectedRevision 是会话状态指纹；key 永远不在 MCP 参数中。
 
 const istr = (value: unknown): string => (typeof value === 'string' ? value : '')
 
@@ -12,7 +13,6 @@ export const INTEGRATION_METHOD_BY_ACTION: Record<string, string> = {
   begin: 'integration.begin',
   open_credentials: 'integration.open_credentials',
   propose: 'integration.propose',
-  confirm: 'integration.request_confirmation',
   start: 'integration.start',
   cancel: 'integration.cancel',
 }
@@ -26,7 +26,7 @@ const sessionFields = {
  * 每个 action 的**真实**必填集（单一真相源）。
  *
  * 2026-09-10 真实宿主实测：schema 广告 `required: ['action']`，而实现逐字段顺序抛错
- * （begin 要 kind/name/baseUrl，open_credentials 要 expectedRevision，confirm 要 idempotencyKey）。
+ * （begin 要 kind/name/baseUrl，open_credentials 要 expectedRevision，start 要 idempotencyKey）。
  * 模型严格照 schema 调，于是每个缺的字段烧掉一次完整往返——22 次失败调用里 9 次是这一类。
  * 模型没做错任何事，是我们广告了假的契约。
  *
@@ -42,13 +42,11 @@ const sessionFields = {
  *
  * `begin` 永远要 kind + name（HTTP 供应商还要 baseUrl）；带上 `sessionId` 表示「接着这一个做」，
  * 不带则同一个 kind+baseUrl 会复用已有的未完成会话，而不是再建一个。
- * `start` 的 `receipt` 不在必填里——不传时服务端用会话上那枚人已确认过的待消费收据。
  */
 export const INTEGRATION_REQUIRED_BY_ACTION: Record<string, readonly string[]> = {
   begin: ['kind', 'name'],
   open_credentials: ['sessionId', 'expectedRevision'],
   propose: ['sessionId', 'expectedRevision', 'proposal'],
-  confirm: ['sessionId', 'expectedRevision', 'idempotencyKey'],
   start: ['sessionId', 'expectedRevision', 'idempotencyKey'],
   cancel: ['sessionId', 'expectedRevision'],
 }
@@ -120,7 +118,7 @@ export const MCP_INTEGRATION_TOOL = {
   inputSchema: {
     type: 'object',
     properties: {
-      action: { type: 'string', enum: ['begin', 'open_credentials', 'propose', 'confirm', 'start', 'cancel'], description: INTEGRATION_ACTION_DESCRIPTION },
+      action: { type: 'string', enum: ['begin', 'open_credentials', 'propose', 'start', 'cancel'], description: INTEGRATION_ACTION_DESCRIPTION },
       ...sessionFields,
       kind: { type: 'string', enum: ['http-api-provider', 'comfyui-workflow'] },
       name: { type: 'string', minLength: 1, maxLength: 240 },
@@ -133,7 +131,6 @@ export const MCP_INTEGRATION_TOOL = {
       clientRequestId: { type: 'string', maxLength: 200 },
       proposal: proposalSchema,
       idempotencyKey: { type: 'string', minLength: 1, maxLength: 200 },
-      receipt: { type: 'string', minLength: 1, maxLength: 8192 },
     },
     required: ['action'],
     additionalProperties: false,
@@ -161,10 +158,8 @@ export const MCP_INTEGRATION_TOOL = {
         return { sessionId: a.sessionId, expectedRevision: a.expectedRevision }
       case 'propose':
         return { sessionId: a.sessionId, expectedRevision: a.expectedRevision, proposal: a.proposal }
-      case 'confirm':
-        return { sessionId: a.sessionId, expectedRevision: a.expectedRevision, idempotencyKey: a.idempotencyKey }
       case 'start':
-        return { sessionId: a.sessionId, expectedRevision: a.expectedRevision, idempotencyKey: a.idempotencyKey, receipt: a.receipt }
+        return { sessionId: a.sessionId, expectedRevision: a.expectedRevision, idempotencyKey: a.idempotencyKey }
       default:
         return {}
     }

@@ -528,7 +528,7 @@ export function draftShapeForKind(
       mappingCreate: t.create,
       // 图生视频通道：不注册它，连了参考图/首帧的视频节点会被 imageEditGuardError 拒发（「没有配置
       // 图生视频通道」）——中转接入的视频模型此前一律缺这条。
-      ...(t.imageToVideo ? { mappingImageToVideo: t.imageToVideo } : {}),
+      ...(t.imageToVideo ? { mappingImageToVideo: t.imageToVideo.create } : {}),
       ...(t.query ? { mappingQuery: t.query } : {}),
     };
   }

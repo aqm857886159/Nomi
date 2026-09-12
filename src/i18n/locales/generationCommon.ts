@@ -567,6 +567,9 @@ export const zhGenerationCommon = {
     parameters: '参数',
     panel: '生成参数面板',
     provider: '供应商',
+    // 「未试跑」：自检只证明了地址、密钥与调用形状对，没证明这个模型点了一定能出片。
+    // 第一次真实生成就是试跑（钱的闸在提交处看报价确认）。
+    untried: '未试跑',
     noVendorConnected: '还没接入供应商',
     connectVendorAction: '去接入',
     // 模型框底部脚注：列表变短了要说出来，否则「我藏的」和「坏了」在屏幕上长得一样。
@@ -1983,6 +1986,7 @@ export const enGenerationCommon = {
     parameters: 'Parameters',
     panel: 'Generation parameters panel',
     provider: 'Provider',
+    untried: 'not tried yet',
     noVendorConnected: 'No provider connected yet',
     connectVendorAction: 'Connect',
     hiddenModels: '{{count}} hidden · bring back in Settings',

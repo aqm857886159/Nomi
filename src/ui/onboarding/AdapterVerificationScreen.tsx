@@ -220,6 +220,7 @@ export function AdapterVerificationScreen({
                   httpStatus: failure.httpStatus,
                   stage: failure.stage,
                   compileFailureReason: failure.compileFailureReason,
+                  selfCheckReason: failure.selfCheckReason,
                 })
                 const status = failure.httpStatus
                   ? String(failure.httpStatus)

@@ -152,44 +152,36 @@ async function run() {
           selections: [{ modelKey: 'tts-journey-audio' }],
         },
       }))
-      assert(!proposed.isError && proposed.json?.stage === 'needs_spend_confirmation', `MCP accepts the audio proposal: ${proposed.text}`)
-      const requested = parseToolResult(await mcp.callTool('nomi_integration', {
-        action: 'confirm',
-        sessionId,
-        expectedRevision: proposed.json.revision,
-        idempotencyKey: 'trusted-audio-certification',
-      }))
-      assert(!requested.isError && requested.json?.challengeId, 'MCP requests a signed immutable confirmation challenge')
+      assert(!proposed.isError && proposed.json?.stage === 'ready_to_certify', `MCP accepts the audio proposal: ${proposed.text}`)
     })
 
+    // 接模型没有付费验证，也就没有花费确认：可信 UI 这一跳整个不存在了（2026-09-12 拍板）。
+    // 外部宿主提完方案直接 start——这正是旧版本走不通的那一步。
+    //
+    // 先证一件**反面**的事：这条会话归 codex 所有，Nomi 窗口里就不该冒出要人点的交接单。
+    // 冒出来 = 在 Nomi 里放了一个按下去必然 integration_owner_mismatch 的按钮
+    // （会话服务只对 ownerClientId === 'nomi' 发这张单）。它会静默退化，所以钉在这里。
     await withTrustedRenderer(dirs, async (win) => {
-      const confirmed = await win.evaluate(async ({ id }) => {
-        const onboarding = window.nomiDesktop?.onboarding
-        const handoffs = await onboarding?.integrationHandoffList?.() || []
-        const verification = handoffs.find((item) => item.sessionId === id && item.target === 'verification')
-        if (!verification?.display?.challengeId) throw new Error('verification handoff missing')
-        const current = await onboarding?.integrationSessionGet?.(id)
-        const result = await onboarding?.integrationSessionConfirm?.({
-          sessionId: id,
-          expectedRevision: Number(current?.revision),
-          challengeId: verification.display.challengeId,
-        })
-        await onboarding?.integrationHandoffAck?.(verification.requestId)
-        return result
-      }, { id: sessionId })
-      assert(confirmed?.pendingReceiptId && confirmed?.stage === 'needs_spend_confirmation', 'trusted UI mints an opaque receipt')
-      assertNoCredentialMaterial(confirmed, 'trusted confirmation projection')
+      const handoffs = await win.evaluate(
+        async () => (await window.nomiDesktop?.onboarding?.integrationHandoffList?.()) || [],
+      )
+      const mine = handoffs.filter((item) => item.sessionId === sessionId)
+      const verification = mine.filter((item) => item.target === 'verification')
+      // 阳性对照：这条会话确实有交接单（凭据那张），所以「没有 verification」不是因为列表恒空。
+      if (mine.length === 0) throw new Error('handoff list returned nothing for this session — the probe itself is dead')
+      if (verification.length > 0)
+        throw new Error(`external session must not queue a Nomi-side confirmation: ${JSON.stringify(verification)}`)
     })
 
     await withMcp(dirs, runtime, async (mcp) => {
-      const confirmed = parseToolResult(await mcp.callTool('nomi_read', { target: 'integration', sessionId }))
-      assert(confirmed.json?.pendingReceiptId, 'MCP observes only the opaque receipt handle')
+      const ready = parseToolResult(await mcp.callTool('nomi_read', { target: 'integration', sessionId }))
+      assert(ready.json?.stage === 'ready_to_certify', `session waits for start, not for a person: ${ready.text}`)
+      assertNoCredentialMaterial(ready.json, 'ready-to-certify projection')
       let state = parseToolResult(await mcp.callTool('nomi_integration', {
         action: 'start',
         sessionId,
-        expectedRevision: confirmed.json.revision,
+        expectedRevision: ready.json.revision,
         idempotencyKey: 'trusted-audio-certification',
-        receipt: confirmed.json.pendingReceiptId,
       }, 60_000))
       assert(
         !state.isError && (state.json?.stage === 'certifying' || state.json?.stage === 'completed'),

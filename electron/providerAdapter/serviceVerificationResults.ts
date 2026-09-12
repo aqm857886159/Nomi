@@ -67,7 +67,6 @@ export function modeResultFromVerification(input: {
         state: "verified",
         attempts: input.attempt,
         verifiedAt: input.verifiedAt,
-        ...(result.mediaEvidence ? { mediaEvidence: result.mediaEvidence } : {}),
       }
     : {
         modelKey: input.modelKey,
@@ -78,9 +77,7 @@ export function modeResultFromVerification(input: {
         error: result.error,
         ...(result.errorCategory ? { errorCategory: result.errorCategory } : {}),
         ...(result.httpStatus ? { httpStatus: result.httpStatus } : {}),
-        ...(result.reasonCode ? { reasonCode: result.reasonCode } : {}),
-        ...(result.errorParams ? { errorParams: result.errorParams } : {}),
-        ...(result.submissionState === "unknown" ? { submissionState: "unknown" as const } : {}),
+        ...(result.selfCheckReason ? { selfCheckReason: result.selfCheckReason } : {}),
       };
 }
 
@@ -94,6 +91,7 @@ export function persistedModeResult(result: ModeResultWithModel): AdapterModeRes
     ...(result.errorCategory ? { errorCategory: result.errorCategory } : {}),
     ...(result.compileFailureReason ? { compileFailureReason: result.compileFailureReason } : {}),
     ...(result.httpStatus ? { httpStatus: result.httpStatus } : {}),
+    ...(result.selfCheckReason ? { selfCheckReason: result.selfCheckReason } : {}),
     ...(result.verifiedAt ? { verifiedAt: result.verifiedAt } : {}),
     ...(result.mediaEvidence ? { mediaEvidence: result.mediaEvidence } : {}),
     ...(result.reasonCode ? { reasonCode: result.reasonCode } : {}),

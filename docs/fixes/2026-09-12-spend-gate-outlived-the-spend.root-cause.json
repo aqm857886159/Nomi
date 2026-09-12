@@ -1,0 +1,163 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-12-spend-gate-outlived-the-spend",
+  "problem_type": "A gate keeps standing after the thing it guarded is deleted, and its only exit is reachable by one owner",
+  "symptom": "An external MCP host (Codex CLI, owner=codex) drives model onboarding to the end and never gets in. After `propose` the session enters `needs_spend_confirmation` and stays there forever: `check_connection`, `await_setup` and `list_models` all report the same stage, and no confirmation card ever appears in Nomi (`pendingChallengeId: null`). The agent asked three turns in a row what it was waiting for and could only answer that it had no actionable confirmation handle. Recorded live on 2026-09-12 with a real DeepSeek key: docs/research/2026-09-12-real-onboarding-acceptance/README.md P0-1.",
+  "direct_cause": "`startConfirmedFromTrustedUi()` was the only transition out of the spend-confirmation stages, and its first line was `if (session.ownerClientId !== \"nomi\") throw`. A session owned by `codex` could never satisfy it, and `IntegrationSessionService.start()` refused every stage except `human_confirmed`, which only that transition could produce.",
+  "class_root": "The gate outlived the spend it authorized. On 2026-09-11 the paid real-generation step was deleted from onboarding (certification became a free self-check), but the three-stage human-approval gate that existed solely to authorize that payment was left standing. A gate with no remaining purpose still has full blocking power, and because its exit was written for the Nomi-owned path only, every non-Nomi owner inherits a permanent dead end. The missing invariant: an onboarding stage must be leavable by whoever owns the session — no stage may require an actor that the session's owner cannot be — and no approval gate may survive the deletion of the thing it approved.",
+  "affected_population": [
+    "Every external MCP host driving model onboarding (Codex CLI, Claude Code, Cursor and any future signed client): sessions they own could never leave the spend-confirmation stages",
+    "Nomi-owned sessions were unaffected in outcome but still paid the cost of a signed challenge, an opaque receipt and a human gesture to authorize a self-check that spends nothing",
+    "Sessions already persisted in that stage on disk before this change"
+  ],
+  "scope_paths": [
+    "electron/shared/integrationContract.ts",
+    "electron/integrationCertification/integrationSession.ts",
+    "electron/integrationCertification/integrationSessionRecord.ts",
+    "electron/integrationCertification/integrationSessionIpc.ts",
+    "electron/integrationCertification/integrationSessionRuntimeInstall.ts",
+    "electron/capabilityCore/dispatcher.ts",
+    "electron/capabilityCore/mcpIntegrationTools.ts",
+    "electron/preload.ts",
+    "electron/providerAdapter/service.ts",
+    "electron/providerAdapter/terminalGuarantee.ts"
+  ],
+  "entry_points": [
+    "MCP `nomi_integration` action=start driven by an external signed client",
+    "The trusted Nomi renderer starting the self-check from the model settings page",
+    "The ComfyUI prepare path, which reaches the same stage through submitWorkflow + resolveInput"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "The invariant is internal to Nomi's own onboarding session state machine and its ownership model. No third-party specification decides whether a stage may be owner-restricted; the deciding input is the user's 2026-09-12 ruling that model onboarding performs no paid verification and therefore has no spend confirmation on any path.",
+  "invariants": [
+    "Every non-terminal integration stage can be left by the client that owns the session; no transition hardcodes a specific owner such as \"nomi\"",
+    "Model onboarding mints and consumes no spend approval: no challenge, no receipt, no human gesture attestation anywhere in the certification session",
+    "The integration stage vocabulary has exactly one owner (INTEGRATION_STAGES); adding, renaming or removing a stage cannot happen without the vocabulary gate demanding a written reason",
+    "Failure stage names reported by the adapter terminal path come from the current self-check vocabulary, not from the retired paid-verification vocabulary"
+  ],
+  "generality_proof": "Both surviving entry points now leave `ready_to_certify` through the single method `IntegrationSessionService.start()`, which authorizes with `session.ownerClientId !== owner` — the session's own owner — and never against a hardcoded host. Deleting the three spend stages removes the class rather than patching one exit: there is no longer any stage whose exit could be owner-restricted, because the only remaining human-facing affordance (the model page's start button) calls the same owner-checked `start` as the MCP path. The vocabulary gate (`check:vocabularies`) owns the stage list, so a future stage cannot be introduced silently; the mcpOnboardingDefects test pins that no stage name contains `confirm` at all, which is the cheapest machine-checkable proxy for 'the spend gate did not come back'.",
+  "shared_boundaries": [
+    {
+      "path": "electron/shared/integrationContract.ts",
+      "symbol": "INTEGRATION_STAGES",
+      "responsibility": "Single owner of the onboarding lifecycle vocabulary. Main, renderer DTOs, persistence recovery and the MCP projection all derive from this tuple, so a stage cannot exist for one surface only."
+    },
+    {
+      "path": "electron/integrationCertification/integrationSession.ts",
+      "symbol": "IntegrationSessionService.start",
+      "responsibility": "The only transition out of `ready_to_certify`. Authorizes against the session's own ownerClientId and requires no receipt, so whoever owns the session can always run the free self-check."
+    },
+    {
+      "path": "electron/integrationCertification/integrationSession.ts",
+      "symbol": "IntegrationSessionService.announceReadyToCertify",
+      "responsibility": "Emits the Nomi-side handoff for the start affordance, and only for Nomi-owned sessions, so an external session is never offered a button that would fail its own ownership check."
+    },
+    {
+      "path": "electron/integrationCertification/integrationSessionRecord.ts",
+      "symbol": "migrateRetiredSpendGate",
+      "responsibility": "Rewrites sessions persisted in the three retired stages into `ready_to_certify` and drops the challenge/receipt fields, so a user already stuck behind the dead end is released instead of being read as corrupt."
+    },
+    {
+      "path": "electron/providerAdapter/terminalGuarantee.ts",
+      "symbol": "writeAdapterTerminalFailure",
+      "responsibility": "Maps a run that died during `testing` onto the current self-check failure segment `credential`; `verify_asset` now belongs only to the local ComfyUI candidate check, so terminal failures cannot report a segment the self-check no longer has."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/capabilityCore/dispatcher.ts",
+      "entry_point": "integration.start",
+      "disposition": "enforced",
+      "evidence": "The MCP route forwards `ctx.origin?.host` as the owner into the same `start()`; with `integration.request_confirmation` deleted there is no longer any route that can park a session in an owner-restricted stage."
+    },
+    {
+      "path": "electron/integrationCertification/integrationSessionIpc.ts",
+      "entry_point": "nomi:integration-session:start-self-check",
+      "disposition": "enforced",
+      "evidence": "The trusted renderer channel calls the same `start()` with owner \"nomi\" instead of the deleted confirm/mint/auto-start trio, so the GUI path and the MCP path leave the stage through one method rather than two."
+    },
+    {
+      "path": "electron/integrationCertification/integrationSessionIpc.ts",
+      "entry_point": "nomi:integration-session:comfyui:prepare",
+      "disposition": "enforced",
+      "evidence": "It no longer issues a confirmation challenge after resolveInput; the session simply lands in `ready_to_certify` and the handoff is emitted by the shared mutate boundary, which is the same path the HTTP proposal takes."
+    },
+    {
+      "path": "electron/capabilityCore/generationDispatcher.ts",
+      "entry_point": "generation gate confirmation",
+      "disposition": "not-affected",
+      "evidence": "The generation-time spend gate is a different, still-live money gate: it is the user's actual per-submit quote card and it keeps its challenge/receipt authority. Only the onboarding session dropped its approvalReceiptAuthority dependency; grep for approvalReceiptAuthority shows productionRun and generationDispatcher untouched by this change."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "This is the second half of a deletion that was already performed once: the 2026-09-11 change removed the paid verification but not its authorization gate, and nothing in the repository forced those two to be deleted together. The same shape can recur whenever a capability is removed while the approval, quota or receipt machinery built for it stays behind — the leftover keeps full blocking power while having no remaining purpose, and it is invisible in tests because it still 'works'.",
+    "same_class_scan": [
+      "grep -rn 'needs_spend_confirmation|awaiting_human_confirmation|human_confirmed|spendConfirm|pendingChallengeId|confirmSpend' across electron/ src/ tests/ docs/ skills/ — separated the onboarding gate (deleted here) from the generation-time quote card in src/workbench/generationCanvas/spend/ (untouched, it is the user's real money gate)",
+      "grep for approvalReceiptAuthority by file: 12 uses in integrationSession.ts (all removed) versus productionRunService / generationDispatcher / generationTransportAdapters / rpcServer (all untouched), confirming the onboarding gate was a separate instance of the same machinery rather than a shared one",
+      "Enumerated every producer of the stage: propose (HTTP), resolveInput (answers), submitWorkflow+resolveInput (ComfyUI) — three producers, which is why the handoff moved into the shared `mutate` boundary instead of each transition",
+      "Enumerated every consumer: dispatcher route, MCP tool action enum and required-field table, IPC channel, preload bridge, renderer panel, assistedProgressProjection stage mapping, vocabularies baseline, and the design-lab progress screens"
+    ]
+  },
+  "invariant_owner_layer": {
+    "layer": "electron/shared/integrationContract.ts",
+    "tests": [
+      "electron/capabilityCore/mcpOnboardingDefects.test.ts",
+      "electron/integrationCertification/integrationSession.test.ts",
+      "electron/capabilityCore/mcpOnboardingLoopback.test.ts"
+    ],
+    "notes": "The stage vocabulary layer owns the invariant and it does have tests: mcpOnboardingDefects pins that no stage name contains `confirm` and that an external host can go propose -> start unaided; integrationSession.test pins that the handoff is emitted for Nomi-owned sessions only; the zero-quota loopback bench replays the whole external-host journey without a confirm step. scripts/check-vocabularies.mjs additionally makes any future stage addition or rename fail closed until it is registered with a written reason."
+  },
+  "prevention": {
+    "kind": "static-gate",
+    "enforcement_path": "electron/shared/integrationContract.ts",
+    "invariant": "The integration stage list lives in exactly one tuple (INTEGRATION_STAGES) that every surface derives from, and that tuple is a registered vocabulary: adding, renaming or removing any stage fails check:vocabularies until it is registered with a written reason. The retired spend-gate names are registered only as a one-way migration list, not as a second live vocabulary.",
+    "failure_mode": "check:vocabularies exits non-zero and names the unregistered members, so a reintroduced approval stage cannot reach main silently; a session record carrying an unknown stage still throws in validateState rather than being silently rewritten.",
+    "exception_policy": "none",
+    "strategy": "Delete the class instead of patching the exit, then put the vocabulary that defined the class under a machine gate. Because every surface derives its stage union from INTEGRATION_STAGES, a stage that is not in the tuple cannot be produced by any path, and a stage that is added to the tuple cannot pass CI without a human-written justification.",
+    "artifacts": [
+      "electron/shared/integrationContract.ts",
+      "electron/integrationCertification/integrationSession.ts",
+      "electron/integrationCertification/integrationSessionRecord.ts",
+      "scripts/vocabularies-baseline.json"
+    ]
+  },
+  "regression_tests": [
+    "electron/capabilityCore/mcpOnboardingDefects.test.ts",
+    "electron/integrationCertification/integrationSession.test.ts",
+    "electron/capabilityCore/mcpOnboardingLoopback.test.ts",
+    "electron/capabilityCore/mcpIntegrationTools.test.ts",
+    "electron/capabilityCore/mcpSurfaceCollapse.test.ts",
+    "electron/integrationCertification/comfyuiIntegrationSession.test.ts",
+    "electron/providerAdapter/serviceHangingModel.integration.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/capabilityCore/mcpOnboardingDefects.test.ts",
+    "electron/integrationCertification/integrationSession.test.ts",
+    "electron/capabilityCore/mcpOnboardingLoopback.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/integrationCertification/integrationSpendGate.ts",
+      "electron/integrationCertification/integrationSession.ts",
+      "electron/integrationCertification/integrationSessionIpc.ts",
+      "electron/capabilityCore/mcpIntegrationTools.ts",
+      "electron/capabilityCore/dispatcher.ts",
+      "electron/shared/integrationContract.ts",
+      "electron/preload.ts"
+    ],
+    "rationale": "No compatibility shim and no auto-confirm fallback was left behind. The whole spend gate is gone in the same change: the three stages, the confirmation challenge projection file, requestConfirmation / confirmFromTrustedUi / startConfirmedFromTrustedUi, the receipt parameter of start(), the receipt persistence fields and their status vocabulary, the MCP confirm action and its dispatcher route, and the preload confirm channel. Sessions persisted in the old stages are migrated forward once on read, which is a one-way data migration rather than a surviving code path."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party runtime controls this invariant. The deleted machinery was Nomi's own approval-receipt authority, which remains in use for the generation-time money gate; onboarding simply stopped depending on it.",
+    "exit_criteria": []
+  },
+  "migration": "Sessions already persisted in `needs_spend_confirmation`, `awaiting_human_confirmation` or `human_confirmed` are rewritten to `ready_to_certify` on read and their challenge/receipt fields are dropped (migrateRetiredSpendGate). Rewriting rather than discarding is deliberate: the sessions stuck in those stages are exactly the ones the dead end trapped, so a migration releases them instead of making them start over. The migration matches the three retired names explicitly rather than 'any stage not in the current vocabulary', so a record whose stage is corrupt or misspelled still fails validation instead of being laundered into a valid state.",
+  "residual_risks": [
+    "No real-host rerun has been performed since the fix: the P0-1 evidence is the failing 2026-09-12 run, and the passing side is covered by the zero-quota loopback bench plus unit tests, not by a fresh Codex CLI session against a live provider. Reproving it needs a real host and a real key.",
+    "The invariant enforced by machine is 'no stage named confirm, and stage additions need a written reason', which is narrower than the true invariant 'no stage is leavable only by one specific owner'. A future owner-restricted stage under a different name would pass the gate and be caught only by review.",
+    "The Nomi-side start affordance is still a human step. It is not a money gate and is named for what it does (start the self-check), but nothing machine-checkable stops it from accreting approval semantics again."
+  ]
+}
