@@ -638,7 +638,6 @@ export const zhGenerationCommon = {
   composerBarV1: {
     promptTools: '写提示词',
     effects: '效果与提示词库',
-    cameraPicked: '{{move}} · {{speed}}',
     seconds: '{{value}}s',
   },
   composer: {
@@ -819,22 +818,6 @@ export const zhGenerationCommon = {
     canvasControls: '画布操作',
   },
   cameraMove: {
-    title: '运镜',
-    noSceneHint: '不用搭 3D 场景',
-    type: '运镜类型',
-    speed: '速度',
-    shot: '景别',
-    slow: '慢',
-    medium: '中',
-    fast: '快',
-    wide: '远',
-    close: '近',
-    overlayHint: '叠加第二段运镜——敬请期待',
-    addLayer: '叠一层',
-    comingSoon: '敬请期待',
-    readout: '{{move}} · {{speed}} · {{duration}}s → 灰模运镜片自动接入 video_ref',
-    apply: '应用',
-    created: '已生成「{{move}} · {{speed}} · {{duration}}s」运镜片，正在离屏渲染并接入本镜运镜参考。',
     move: {
       orbit_left: '左环绕',
       orbit_right: '右环绕',
@@ -953,7 +936,6 @@ export const zhGenerationCommon = {
     notReady: '全景还没准备好，请稍后再试',
     capturing: '截图中…',
     captureFailed: '截图失败，请重试',
-    created: '已创建全景截图节点',
     capturingShort: '截图中',
     captureFrame: '截图取景框',
     closePreview: '关闭预览',
@@ -2067,7 +2049,6 @@ export const enGenerationCommon = {
   composerBarV1: {
     promptTools: 'Prompt helpers',
     effects: 'Effects & prompt library',
-    cameraPicked: '{{move}} · {{speed}}',
     seconds: '{{value}}s',
   },
   composer: {
@@ -2245,23 +2226,6 @@ export const enGenerationCommon = {
     canvasControls: 'Canvas controls',
   },
   cameraMove: {
-    title: 'Camera move',
-    noSceneHint: 'No 3D scene required',
-    type: 'Camera move type',
-    speed: 'Speed',
-    shot: 'Shot size',
-    slow: 'Slow',
-    medium: 'Medium',
-    fast: 'Fast',
-    wide: 'Wide',
-    close: 'Close',
-    overlayHint: 'Add a second camera move — coming soon',
-    addLayer: 'Add layer',
-    comingSoon: 'Coming soon',
-    readout: '{{move}} · {{speed}} · {{duration}}s → automatically attach the blocking clip as video_ref',
-    apply: 'Apply',
-    created:
-      'Created “{{move}} · {{speed}} · {{duration}}s”. Rendering offscreen and attaching it as this shot’s camera-move reference.',
     move: {
       orbit_left: 'Orbit left',
       orbit_right: 'Orbit right',
@@ -2381,7 +2345,6 @@ export const enGenerationCommon = {
     notReady: 'The panorama is not ready yet. Try again shortly.',
     capturing: 'Capturing…',
     captureFailed: 'Screenshot failed. Try again.',
-    created: 'Created a panorama screenshot node',
     capturingShort: 'Capturing',
     captureFrame: 'Capture framed view',
     closePreview: 'Close preview',
