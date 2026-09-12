@@ -313,7 +313,7 @@ async function stageBox(page) {
  */
 export async function fitCanvasView(page, { expectZoomBelow = 0.9 } = {}) {
   for (let attempt = 0; attempt < 4; attempt += 1) {
-    await page.getByLabel('适应视图').first().click({ timeout: 15_000 })
+    await page.getByLabel('适应视图').first().click()
     await sleep(page, 800)
     const zoom = await readCanvasZoom(page)
     if (zoom !== null && zoom < expectZoomBelow) return zoom
