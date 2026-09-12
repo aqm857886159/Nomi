@@ -6,7 +6,7 @@ import { spawnLaneCrashChild } from './laneCrashFixture.mjs';
 
 test('injected assertion while the crash child is parked', async (t) => {
   const fixture = await createLaneFixture(t, [{ type: 'tool', calls: [
-    { id: 'call-append', name: 'append_to_end', arguments: { content: 'unapproved' } },
+    { id: 'call-append', name: 'write_script', arguments: { where: 'end', content: 'unapproved' } },
   ] }]);
   const crash = spawnLaneCrashChild(fixture);
   await crash.sessionId;

@@ -1,8 +1,7 @@
 // Agent lane · `timeline.read` 的**执行那一半**。
 //
-// 说明书那一半是 `electron/shared/agentCapabilities/verbs/timelineVerbs.ts` 里的动词声明（两个 profile 共用）。
-// 这里只绑 `timeline.read` 上真正走 typed port 的两个读动词（`read_timeline` / `inspect_timeline_range`）；
-// `propose_edit_plan` 虽同属 `timeline.read` 契约，但走 `laneExtendedTools.ts` 的 dispatcher 路由。
+// 说明书那一半是 `verbs/readVerbs.ts` 的 `read_timeline`：给了 startFrame/endFrame 就只看那一段
+// （契约 operation `inspect_timeline_range`），否则整条（`read_timeline`，唯一带 revision 的读）。
 import {
   TIMELINE_READ_ALIASES,
   projectTimelineReadResult,
@@ -17,15 +16,19 @@ export interface TimelineLanePort {
   read(input: TimelineReadInput, context: LaneToolExecutionContext): Promise<unknown>;
 }
 
+/** `read_timeline` 参数 → 契约语义输入。范围齐全才是 range 读；只给一半按契约的跨字段约束拒。 */
+export function timelineReadInputOf(args: unknown): TimelineReadInput {
+  const { startFrame, endFrame } = args as { startFrame?: number; endFrame?: number };
+  if (startFrame === undefined && endFrame === undefined) return { operation: TIMELINE_READ_ALIASES.read } as TimelineReadInput;
+  return { operation: TIMELINE_READ_ALIASES.inspectRange, startFrame: startFrame ?? 0, endFrame: endFrame ?? 0 } as TimelineReadInput;
+}
+
 export function createTimelineLaneTools(port: TimelineLanePort): LaneToolDescriptor[] {
-  return specsForCapability("timeline.read").filter((spec) => spec.name !== TIMELINE_READ_ALIASES.proposePlan).map((spec) =>
+  return specsForCapability("timeline.read").map((spec) =>
     bindLaneTool(spec, async (args, context) => {
-      const operation = spec.name as TimelineReadInput["operation"];
-      const input = { operation, ...(args as Record<string, unknown>) } as TimelineReadInput;
-      // 领域适配器的**输出**仍然校验：那是能力契约的收据形状（K1），
-      // 与「模型输入校验几次」是两件事。
-      const result: TimelineReadResult = projectTimelineReadResult(await port.read(input, context), operation);
-      return { ok: true, text: JSON.stringify(result), details: { operation } };
+      const input = timelineReadInputOf(args);
+      const result: TimelineReadResult = projectTimelineReadResult(await port.read(input, context), input.operation);
+      return { ok: true, text: JSON.stringify(result), details: { operation: input.operation } };
     }),
   );
 }

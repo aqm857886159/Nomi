@@ -22,10 +22,10 @@ const say = (value: string): L1Frame => ({ parts: [text(value)], calls: [] });
 const calls = (...items: L1Call[]): L1Frame => ({
   parts: items.map(item => ({ kind: 'toolCall', id: item.id, name: item.name, args: item.args })), calls: items,
 });
-const read = (id: string, value = INITIAL_DOCUMENT): L1Call => ({ id, name: 'read_full_text', args: {},
+const read = (id: string, value = INITIAL_DOCUMENT): L1Call => ({ id, name: 'read_script', args: {},
   domainArgs: { scope: 'full' }, resultText: value });
 const write = (id: string, operation: 'append' | 'insert' | 'replace', content: string, revision: number): L1Call => ({
-  id, name: operation === 'append' ? 'append_to_end' : operation === 'insert' ? 'insert_at_cursor' : 'replace_selection',
+  id, name: operation === 'append' ? 'write_script' : operation === 'insert' ? 'write_script' : 'write_script',
   args: { content }, domainArgs: { operation, content }, resultText: `Applied ${operation} to the document. New revision ${revision}.`,
 });
 const domain = (id: string, name: string, args: Record<string, unknown>, result: unknown, domainArgs = args): L1Call => ({
@@ -63,7 +63,7 @@ export const L1_SCENARIOS: readonly L1Scenario[] = [
       ...calls(write('first-d3', 'append', ' One.', 1), write('second-d3', 'append', ' Two.', 2)).parts],
   }, say('Both beats are written.'))], { finalDocument: 'Opening. One. Two.' }),
   scenario('C1', 'canvas', 'Inspect the canvas then create an opening node', [turn('Create an opening frame.',
-    calls({ ...domain('read-c1', 'nomi_canvas_read', {}, emptyCanvas), resultText: '画布当前为空。' }),
+    calls({ ...domain('read-c1', 'look_at_canvas', {}, emptyCanvas), resultText: '画布当前为空。' }),
     calls(canvas('write-c1', 'nomi_canvas_write', { operation: 'create_canvas_nodes', summary: 'Opening frame',
       nodes: [{ clientId: 's1', kind: 'keyframe', title: 'Opening', prompt: 'Sunrise' }] })), say('The opening frame is ready for review.'))]),
   scenario('C2', 'canvas', 'Save an ordered two-shot storyboard', [turn('Make two shots from the scene.',

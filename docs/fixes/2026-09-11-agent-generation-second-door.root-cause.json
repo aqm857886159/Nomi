@@ -1,0 +1,225 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-11-agent-generation-second-door",
+  "problem_type": "agent tool surface exposes several doors to one user-visible effect, and only one of them carries the paid-confirmation gate",
+  "symptom": "用户对 Agent 说「给我生成一张开场图」，Agent 调 nomi_canvas_write 建了一个 kind=image 的节点并回答「已经为你创建好了」。画布上出现了一个与正常占位节点肉眼无法区分的空节点，但面板上没有付费确认卡，也永远不会有图生成出来。用户等着图出现，图不会出现，而界面上没有任何地方说明发生了什么。同一族还有两条：nomi_storyboard_write 的 propose_storyboard_plan 一次落一整排永不出卡的生成类节点；materialize_production_storyboard 同样落节点不出卡。此外 start_production_run 建的 Run 打的是 origin.host=\"embedded-agent\"，而付费卡的投影判据是 origin.host===\"nomi\"，于是这条 Agent 路径上的花钱请求结构上永远到不了用户眼前。",
+  "direct_cause": "「把生成类节点放到画布上」这个效果有四个模型可达的入口，其中只有 nomi_generation_plan 一条会打上 origin.host=\"nomi\"（electron/capabilityCore/generationTransportAdapters.ts:201），因而只有它会被 projectPendingSpendConfirm 投影成付费卡（electron/productionRun/productionPendingSpend.ts:71）。另外三条各自直接建节点，不产生 durable 生成计划，也就不产生报价、不产生任何用户可见的等待确认状态。模型可见的描述还在把它往错的方向推：唯一正确的工具自己的描述里写着 \"This host cannot preview or start paid generation\"（electron/shared/agentCapabilities/extendedModelTools.ts:53），而错的那个写着 \"Create ... generation-canvas nodes\"（electron/shared/agentCapabilities/canvasModelTools.ts:150）——对「生成一张图」这个意图，后者看起来才是正解。 PR A（工具面单一 owner）之后描述只有一份，但四扇门仍在：三个画布写动词的 schema 仍能接受生成类 kind，Run 起点仍在模型面。",
+  "class_root": "模型可见工具面上没有任何一层对「效果」做过声明或去重：工具是按**能力契约**注册的（electron/shared/agentCapabilities/modelFacingToolRegistry.ts:40），注册表校验名字唯一、校验只读不许声明可撤、校验花钱必须改状态，但从不问「这两个工具会不会造出同一样东西」。于是每新增一个能沾到画布的能力，就多一扇绕开付费闸的门，而绕开是静默的——因为付费闸挂在**某一个工具的传输适配器**上（origin.host 打点），不是挂在**效果**上。审批与报价必须按效果对齐、跨越工具边界，这一点 Codex 的 intercept_apply_patch 与 Claude Code 的 `Edit(...) allow 蕴含 read` 都已是成熟做法，Nomi 这一层完全缺席。",
+  "affected_population": [
+    "任何在 Agent 面板里用自然语言要求生成图片、视频、音频或 3D 的用户——模型选错工具时他拿到一个永远不会有内容的空节点和一句「已完成」",
+    "任何让 Agent 排分镜再出图的用户——propose_storyboard_plan 一次落一整排空节点，全部不出卡",
+    "任何经外部 MCP 宿主（Claude Code / Codex 等）驱动 Nomi 建镜头的用户——同一批工具、同一个盲区",
+    "任何走 start_production_run 起生产 Run 的用户——该 Run 后续产生的生成计划因 origin 不匹配而永远不会在面板上要求确认"
+  ],
+  "scope_paths": [
+    "electron/shared/agentCapabilities/verbDeclaration.ts",
+    "electron/shared/agentCapabilities/verbDeclarations.ts",
+    "electron/shared/agentCapabilities/verbs/readVerbs.ts",
+    "electron/shared/agentCapabilities/verbs/writeVerbs.ts",
+    "electron/shared/canvas/nodeExecutionKinds.ts",
+    "electron/shared/agentLane/laneToolContract.ts",
+    "electron/agentLane/laneCanvasTools.ts",
+    "electron/agentLane/laneVerbTransport.ts",
+    "electron/agentLane/laneExtendedDesktopPorts.ts",
+    "electron/agentLane/laneExtendedTools.ts",
+    "electron/capabilityCore/generationTransportAdapters.ts",
+    "electron/capabilityCore/mcpGenerationTools.ts",
+    "electron/productionRun/productionPendingSpend.ts",
+    "scripts/check-tool-face.ts"
+  ],
+  "entry_points": [
+    "draft_shots —— 唯一能在画布上造出生成类节点的动词（generation.plan create/patch，草稿建即落画布、不出卡）",
+    "generate —— 唯一出报价卡的动词（generation.plan present；返回 isError + 「不要再调工具、不要声称已生成」）",
+    "arrange_canvas / make_artifact / stage_shot —— 收到生成类 kind 一律 wrong_verb 拒绝并点名 draft_shots（prepareArguments，ajv 之前）",
+    "Run 家族 10 个工具 —— 从模型面删除（契约别名只剩 method surface），start_production_run 那扇「永远出不了卡」的门不存在了",
+    "对外 MCP：nomi_canvas_edit 由同一批声明派生（verb 判别字段），手写目录里的 Run/operation 工具在后续刀收编"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/define-tools",
+      "checked_at": "2026-09-11",
+      "purpose": "工具描述的官方要求：说清干什么 / 什么时候用与不用 / 每个参数 / 关键限制，至少 3-4 句；以及「把相关操作合并成更少的工具以降低选择歧义」。(b) 五条描述改写按它写。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://www.anthropic.com/engineering/writing-tools-for-agents",
+      "checked_at": "2026-09-11",
+      "purpose": "官方对本 bug 的一句话诊断：\"When tools overlap in function or have a vague purpose, agents can get confused about which ones to use.\""
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://developers.openai.com/api/docs/guides/function-calling",
+      "checked_at": "2026-09-11",
+      "purpose": "「把反复出现的失败写进描述」「用系统提示词说清何时不要用」「一个回合开始时函数数量控制在 20 以内」——(b) 的负向指引与工具总数的 backlog 依据。"
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/openai/codex/blob/main/codex-rs/core/src/tools/handlers/apply_patch.rs#L499",
+      "checked_at": "2026-09-11",
+      "purpose": "intercept_apply_patch：shell 里的第二扇门被接回同一个处理器、同一个 diff tracker、同一份 pre/post hook 身份（tool_name 一律报 apply_patch）。本合同 prevention 的形状直接抄它。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://code.claude.com/docs/en/tools-reference",
+      "checked_at": "2026-09-11",
+      "purpose": "权限规则按效果写、故意跨工具边界：\"An Edit(...) allow rule also grants read access to the same path\"；以及 Bash 的 cat/head/tail 也满足 read-before-edit。佐证「闸挂在效果上而不是工具上」。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://docs.cline.bot/features/auto-approve",
+      "checked_at": "2026-09-11",
+      "purpose": "审批轴 =（效果 × 范围），不是工具名。与 Nomi 09-10「只问花钱/撤不回」的拍板同形。"
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/earendil-works/pi/blob/main/packages/coding-agent/src/core/extensions/runner.ts#L500-L510",
+      "checked_at": "2026-09-11",
+      "purpose": "R29 四列表的「它提供」那一格：pi 的工具注册只有 \"first registration per name wins\" 的 Map，无效果去重、无冲突检测、无命名空间（同文件却检测快捷键冲突、去重斜杠命令）。结论是这层必须建在我们自己的注册表里，不改上游。"
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://arxiv.org/abs/2505.03275",
+      "checked_at": "2026-09-11",
+      "purpose": "RAG-MCP：工具目录变大导致选择准确率下降（43.13% vs 13.62%），佐证「工具总数」是选对率的天花板，列进 residual_risks。"
+    }
+  ],
+  "invariants": [
+    "只有 draft_shots 能造出生成类节点（executionKind 非空的 kind）；任何别的模型可见动词收到这种意图都以 wrong_verb 拒绝并点名 draft_shots，不转发、不兜底。",
+    "只有 generate 会把报价卡摆到用户面前；draft_shots 建的草稿 cardHidden，projectPendingSpendConfirm 不投影它。",
+    "「是不是生成类」从 electron/shared/canvas/nodeExecutionKinds.ts 派生（渲染层插件表与它逐字对账），不在任何闸里手写第二份 kind 名单。",
+    "模型可见工具只有一个 owner（VerbDeclaration[]）；同一效果只能有一个动词造成（check:tool-face mutual-tiebreak + 装配期 A1），第二个 owner 出现时装配期抛。",
+    "generate 的返回值是 isError + 明文停下；模型不可能把「卡已出」说成「已生成」，因为它读到的是一条错误结果。",
+    "Run 是宿主的状态机，不上模型面：契约上的 Run 名字只住 method surface，check:tool-face no-orphan-alias 保证不会悄悄回到 pi surface。"
+  ],
+  "generality_proof": "闸建在模型能到达的最早一层：动词声明本身。① 结构上：20 个动词里只有 draft_shots 的 schema 能表达「造一个生成类镜头」，其余三个画布写动词的 schema 没有 kind 字段；② 意图上：三个画布写动词的 prepareArguments（pi 的 ajv 之前）按中立层词表 isGeneratingNodeKind 判「模型想造生成类节点」，命中即 wrong_verb + useInstead=draft_shots——判据不是手写名单，渲染层插件表与词表由 nodeExecutionKinds.conformance.test.ts 对账；③ 出卡只有一条路：draft_shots 建的草稿 cardHidden=true，只有 generate（generation.plan present）能翻成可投影，projectPendingSpendConfirm 是唯一投影点；④ Run 家族从模型面删除而不是修 origin.host：门不是被修好，是不存在了。任何未来新增的能力若想在画布上造节点，必须在 VerbDeclaration 上声明 effectGroups: canvas-node-creation，check:tool-face 的 mutual-tiebreak 强制它与 draft_shots 双向裁决，否则门岗红。",
+  "shared_boundaries": [
+    {
+      "path": "electron/shared/agentCapabilities/verbDeclaration.ts",
+      "symbol": "assembleVerbDeclarations",
+      "responsibility": "模型可见动词的唯一装配点：一效果一工具（A1）、描述五槽（A2）、语言（A3）、不与付费边界矛盾（A4）；装配期抛，App 起不来。"
+    },
+    {
+      "path": "electron/shared/canvas/nodeExecutionKinds.ts",
+      "symbol": "isGeneratingNodeKind",
+      "responsibility": "「哪些节点种类会生成」的唯一词表；主进程闸与渲染层插件表都从它读。"
+    },
+    {
+      "path": "electron/shared/agentCapabilities/verbs/writeVerbs.ts",
+      "symbol": "rejectGeneratingNodes",
+      "responsibility": "三个画布写动词的共同前置：生成类意图 → wrong_verb 点名 draft_shots，只点名不代调。"
+    },
+    {
+      "path": "electron/agentLane/laneVerbTransport.ts",
+      "symbol": "verbToTransportCall",
+      "responsibility": "动词 → 传输方法的唯一对应表；draft_shots 的 create 带 cardHidden，generate 翻成 present。"
+    },
+    {
+      "path": "electron/productionRun/productionPendingSpend.ts",
+      "symbol": "projectPendingSpendConfirm",
+      "responsibility": "「哪些 Run 会出付费卡」的唯一投影；cardHidden 的草稿不投影。"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/shared/agentCapabilities/verbs/writeVerbs.ts",
+      "entry_point": "arrange_canvas",
+      "disposition": "enforced",
+      "evidence": "schema 无 kind 字段；prepareArguments 的 rejectGeneratingNodes 对 nodes[]/kind 里的生成类种类抛 wrong_verb（tests/agent-runtime/lane-tool-selection.test.mts 断言 useInstead=draft_shots 且画布节点数不变）。"
+    },
+    {
+      "path": "electron/shared/agentCapabilities/verbs/writeVerbs.ts",
+      "entry_point": "make_artifact",
+      "disposition": "enforced",
+      "evidence": "只能造 agent-artifact（canvasWriteInputOf 写死 kind），同一 rejectGeneratingNodes 前置。"
+    },
+    {
+      "path": "electron/shared/agentCapabilities/verbs/writeVerbs.ts",
+      "entry_point": "stage_shot",
+      "disposition": "enforced",
+      "evidence": "只能造 director 参考（create_staging_reference / create_camera_move），同一前置。"
+    },
+    {
+      "path": "electron/shared/agentCapabilities/productionRun.ts",
+      "entry_point": "start_production_run / materialize_production_storyboard 等 10 个",
+      "disposition": "enforced",
+      "evidence": "契约别名只剩 method surface，模型面上不存在；check:tool-face no-orphan-alias 与 verbDeclarations.test.ts 守住。"
+    },
+    {
+      "path": "electron/capabilityCore/mcpCapabilityProjection.ts",
+      "entry_point": "nomi_canvas_edit（对外）",
+      "disposition": "enforced",
+      "evidence": "从同一批声明派生（verb 判别字段），同一 prepareArguments 经 prepareMcpArguments 跑在校验之前。"
+    },
+    {
+      "path": "src/workbench/capability/capabilityApplyHandler.ts",
+      "entry_point": "case 'production.materialize-storyboard' / 'canvas.apply'",
+      "disposition": "not-affected",
+      "evidence": "宿主侧/用户手势可达，模型不可达；不在本刀范围，登记在 residual_risks。"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/shared/agentCapabilities/verbDeclaration.ts",
+    "invariant": "模型可见的每一个效果只有一个动词能造成；生成类节点只由 draft_shots 造、报价卡只由 generate 出；别的动词收到这种意图只能 wrong_verb 拒绝并点名，不转发、不兜底。",
+    "failure_mode": "装配期：第二个声明同一效果/同一 notWhen 不互相点名 → App 起不来（A1–A4 + check:tool-face mutual-tiebreak 红）。运行期：arrange_canvas/make_artifact/stage_shot 收到生成类 kind → wrong_verb（isError），画布节点数不变。generate 返回 isError + STOP 文案，模型不会声称已生成。",
+    "exception_policy": "none",
+    "strategy": "拒绝而不是归一（设计正本 §9 推翻了草稿的『归一到同一个处理器』方案）：错动词不被静默接回正门，因为静默转发让模型学不到正确的门，也让「谁出的卡」没法审计。结构保底（用户永远拿不到一个不会出卡的空节点），描述提率（20 动词一效果一名，R30 题库量选对率）。",
+    "artifacts": [
+      "electron/shared/agentCapabilities/verbDeclaration.ts",
+      "electron/shared/agentCapabilities/verbDeclarations.ts",
+      "electron/shared/agentLane/laneToolContract.ts",
+      "electron/agentLane/laneCanvasTools.ts",
+      "electron/agentLane/laneExtendedDesktopPorts.ts",
+      "electron/agentLane/laneExtendedTools.ts"
+    ]
+  },
+  "invariant_owner_layer": {
+    "layer": "electron/shared/agentCapabilities/verbDeclaration.ts",
+    "tests": [
+      "electron/shared/agentCapabilities/verbDeclarations.test.ts",
+      "src/workbench/generationCanvas/nodes/nodeExecutionKinds.conformance.test.ts"
+    ]
+  },
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "每新增一个能沾到画布或能起 Run 的能力，就可能多一扇绕开付费闸的门，而绕开是静默的——今天已经独立发生了四次（nomi_canvas_write / nomi_storyboard_write / materialize_production_storyboard / start_production_run 的 origin），四次的成因完全相同：闸挂在某一个工具的传输适配器上，而不是挂在效果上。没有一个效果级的 owner 声明，第五次一定会来，而且和前四次一样不会报错。",
+    "same_class_scan": [
+      "全量枚举了模型可见工具注册表（modelFacingToolRegistry.ts:40-48 收齐的六族 specs），逐个判「它能不能把生成类节点放到画布上」，得到四条模型可达入口，结论写进 docs/plan/2026-09-11-close-agent-doors.doors.json。",
+      "git grep applyCanvasToolCall / executeCanvasWriteTarget / executeCanonicalCanvasPlanPatch 全仓，得到 8 处画布写边界，按 reachableBy（model / user / host）分类，模型可达的 5 处逐处给了裁决。",
+      "按 origin.host 反查付费卡投影判据（productionPendingSpend.ts:71），确认 \"embedded-agent\" 是同一个 Agent 的第二个自称，且它下面的花钱请求结构上到不了面板。",
+      "按 executionKind 反查「哪些 kind 算生成类」，确认 nodes/registry.ts 上已有机器可读的声明，闸不需要手写第二份词表；同时发现 text 的 executionKind 归属需要一次产品确认（见 residual_risks）。",
+      "核实了任务书里点名的 runStoryboardPlanner：它只输出 JSON IR、提示词第一行就是「不调用工具，不写入画布」、全函数无 store 写入——**它不是一扇门**，本次不动它（D3：叫某东西是 bug 前先搞懂现有设计为什么这么写）。",
+      "逐条比对了 Claude Code / Codex / Cursor / Cline 的工具面与 pi 的 tool registry，确认「效果去重」在 pi 上完全不存在、在 Codex 上以 intercept 形式存在、在 Claude Code 与 Cline 上以「权限按效果跨工具」形式存在；出处全部带 URL 写进方案正本的「先查别人」一节。",
+      "PR B 实施时按 20 动词重新枚举：只有 draft_shots 的 schema 含 prompt+taskKind（能表达生成意图）；arrange_canvas/make_artifact/stage_shot 三个写画布的动词 schema 都没有 kind 字段，再加 prepareArguments 前置对「模型硬塞 nodes[]」也拒。"
+    ]
+  },
+  "regression_tests": [
+    "electron/shared/agentCapabilities/verbDeclarations.test.ts",
+    "src/workbench/generationCanvas/nodes/nodeExecutionKinds.conformance.test.ts"
+  ],
+  "class_regression_tests": [
+    "electron/shared/agentCapabilities/verbDeclarations.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "electron/shared/agentCapabilities/verbs/productionVerbs.ts",
+      "electron/shared/agentCapabilities/verbs/canvasVerbs.ts",
+      "electron/capabilityCore/mcpCapabilityProjection.ts"
+    ],
+    "rationale": "P1：20 动词替 37 个旧名，同 commit 删旧；Run 家族契约别名只剩 method surface。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "pi SDK 在这件事上什么都不提供，但这不是升级能解决的缺口：效果去重、审批归一与反重叠描述引导是 Nomi 自己的领域语义（哪些节点会花钱、钱的闸长什么样、报价从哪来），上游没有也不应该有这些概念。已核实 pi 的工具注册只有 first-registration-wins 的 Map（runner.ts:500-510），且同一文件对快捷键冲突与斜杠命令重名是有检测的——机制存在，只是没用到工具上。落点因此在我们自己的注册表 modelFacingToolRegistry.ts，不改上游、不提上游 PR。",
+    "exit_criteria": []
+  },
+  "migration": "无数据迁移。draft_shots 新建的 Run 带 generationPlan.cardHidden=true；已落盘的旧 Run 没有这个字段，投影时按『可出卡』处理（行为逐字不变）。工具改名对已有转录无影响：pi 的会话里旧工具名只是历史消息。",
+  "residual_risks": [
+    "对外 MCP 的手写目录（nomi_operation_* / nomi_run_* / nomi_artifact_review / nomi_read）还没收编成派生（check:tool-face mcp-transport-catalog 棘轮 18 条），外部宿主仍能经 nomi_run_start 起 Run——这一扇门在外部面还开着，下一刀收。",
+    "draft_shots 的多镜按 shotId 逐镜 patch 走不到（generation.plan 的 patch 语义只到顶层候选）；多镜草稿改一镜要重建草稿。",
+    "arrange_canvas 暂只支持 links 与 tidy（group/retitle/reposition 没有契约 operation）；undo 暂只覆盖时间轴改动。",
+    "宿主侧旁路（capabilityApplyHandler 的 production.materialize-storyboard / canvas.apply）不接模型输入，本刀不动。"
+  ]
+}

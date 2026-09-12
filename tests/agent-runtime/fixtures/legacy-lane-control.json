@@ -1,9 +1,9 @@
 {
   "beats": [
-    "call:read_full_text:{}",
-    "result:read_full_text:ok",
-    "call:append_to_end:{\"content\":\"\\n\\nThe end.\"}",
-    "result:append_to_end:ok",
+    "call:read_script:{}",
+    "result:read_script:ok",
+    "call:write_script:{\"content\":\"\\n\\nThe end.\"}",
+    "result:write_script:ok",
     "text:I read the document and appended the closing line."
   ],
   "promptTokens": 30,

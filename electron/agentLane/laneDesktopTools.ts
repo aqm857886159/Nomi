@@ -19,10 +19,15 @@ import { createPiDocumentWriteTransportAdapter, type PreparedDocumentWrite } fro
 import { createPiCanvasWriteTransportAdapter, type PreparedCanvasWrite, } from '../capabilityCore/canvasWriteTransportAdapters'
 import { createPiTimelineReadTransportAdapter, createPiTimelineWriteTransportAdapter } from '../capabilityCore/timelineTransportAdapters'
 import { createPiPhase4SurfaceTransportAdapter } from '../capabilityCore/phase4SurfaceTransportAdapters'
-import { createPiProductionRunTransportAdapter } from '../capabilityCore/productionRunTransportAdapters'
+import { createPiSkillReadTransportAdapter } from '../capabilityCore/skillReadTransportAdapters'
+import { createPiSkillWriteTransportAdapter } from '../capabilityCore/skillWriteTransportAdapters'
+import { requestRenderer } from '../capabilityCore/rendererBridge'
 import type { PiGenerationTransportAdapter } from '../capabilityCore/generationTransportAdapters'
-import { getProductionRunService } from '../productionRun/productionRunRuntime'
 import { createLaneExtendedDesktopPorts } from './laneExtendedDesktopPorts'
+import { canvasWriteInputOf } from './laneCanvasTools'
+import { documentWriteInputOf } from './laneDocumentTools'
+import { specsForCapability } from '../shared/agentCapabilities/modelFacingToolRegistry'
+import { bindLaneTool } from './laneRuntimePort'
 import { LANE_RECEIPT_AUTHORITY_NOTE } from '../shared/agentLane/laneReceiptAuthority'
 import { laneToolMutates } from '../shared/agentLane/laneToolContract'
 import type { ProjectAgentProposalReceiptService } from '../capabilityCore/projectAgentProposalReceiptStore'
@@ -58,7 +63,8 @@ export function createDesktopLaneTools(input: {
   const timelineRead = createPiTimelineReadTransportAdapter(shared)
   const timelineWrite = createPiTimelineWriteTransportAdapter(shared)
   const phase4 = createPiPhase4SurfaceTransportAdapter(shared)
-  const production = createPiProductionRunTransportAdapter({ service: getProductionRunService(), binding: input.binding })
+  const skillRead = createPiSkillReadTransportAdapter()
+  const skillWrite = createPiSkillWriteTransportAdapter({ binding: input.binding })
   const canvasWrite = createPiCanvasWriteTransportAdapter({ ...shared,
     port: input.surface.surfacePortRuntime.createCanvasWritePort(capturedPort) })
   const preparedDocuments = new Map<string, PreparedDocumentWrite>()
@@ -108,23 +114,33 @@ export function createDesktopLaneTools(input: {
       // The alias transport owns operation binding; its strict args exclude that semantic field.
       toolCallId: context.toolCallId, toolName: operation, args,
     }, context.signal)) }),
+    // `start_model_setup`：只打开「设置 · 模型」面板并预填供应商；密钥永远由用户在面板里输入。
+    ...specsForCapability('model.setup.open').map(spec => bindLaneTool(spec, async (args) => {
+      const provider = typeof (args as { provider?: unknown }).provider === 'string' ? (args as { provider: string }).provider : undefined
+      await requestRenderer('settings.open-model-provider', { ...(provider ? { provider } : {}) }, 30_000)
+      return { ok: true, text: 'Nomi opened the model settings panel.' + (provider ? ` The ${provider} provider is preselected.` : ''), details: { opened: true, ...(provider ? { provider } : {}) },
+        nextAction: { kind: 'user_sees_panel', userSees: `The model settings panel is open${provider ? ` on ${provider}` : ''}; the user pastes the API key there. This call stored nothing.` } }
+    })),
   ]
   const byName = new Map(tools.map((tool) => [tool.name, tool]))
   const toolLifecycle: NonNullable<OpenLaneOptions['toolLifecycle']> = {
     prepare: async (call: RuntimeToolCall, signal: AbortSignal) => {
       const tool = byName.get(call.toolName)
       if (!tool || !laneToolMutates(tool.effect)) return
-      const args = tool.schema.parse(call.args)
+      const verbArgs = tool.schema.parse(call.args)
       if (tool.contractId === 'document.write') {
         const context = input.context()
         if (!context.documentId || !context.target || !context.preconditions) throw new Error('document_target_stale')
-        const prepared = await documentWrite.prepare({ ...call, args }, {
+        // 传输层按方法词表（insert/replace/append）认路；动词参数在这里翻一次，`laneDocumentTools.ts` 是唯一对应表。
+        const { operation, content } = documentWriteInputOf(verbArgs)
+        const prepared = await documentWrite.prepare({ ...call, toolName: operation, args: { content } }, {
           documentId: context.documentId, target: context.target, preconditions: context.preconditions,
         }, signal)
         if (!prepared) throw new Error('capability_unsupported')
         preparedDocuments.set(call.toolCallId, prepared)
       } else if (tool.contractId === 'canvas.write') {
-        const prepared = await canvasWrite.prepare({ ...call, toolName: 'nomi_canvas_edit', args }, signal)
+        // 三个画布写动词 → 契约 operation（`canvasWriteInputOf`，唯一对应表）；传输层按 `nomi_canvas_edit` + operation 认路。
+        const prepared = await canvasWrite.prepare({ ...call, toolName: 'nomi_canvas_edit', args: canvasWriteInputOf(call.toolName, verbArgs) }, signal)
         if (!prepared) throw new Error('capability_unsupported')
         preparedCanvases.set(call.toolCallId, prepared)
       }
@@ -157,7 +173,7 @@ export function createDesktopLaneTools(input: {
   let installedFactory: ResidentGenerationAdapterFactory['factory'] | undefined
   let generation: PiGenerationTransportAdapter | undefined
   const extended = createLaneExtendedDesktopPorts({ binding: input.binding,
-    timelineRead, timelineWrite, canvasWrite, phase4, production, receipts: input.receipts,
+    timelineRead, timelineWrite, canvasWrite, phase4, skillRead, skillWrite, receipts: input.receipts,
     generation: () => {
       const factory = input.generationFactory()
       if (factory !== installedFactory) {
@@ -177,7 +193,7 @@ export function createDesktopLaneTools(input: {
     } satisfies NonNullable<OpenLaneOptions['toolLifecycle']>,
     dispose: () => {
       extended.dispose(); generation?.dispose()
-      for (const port of [canvasRead, documentRead, documentWrite, canvasWrite, timelineRead, timelineWrite, phase4, production]) port.dispose()
+      for (const port of [canvasRead, documentRead, documentWrite, canvasWrite, timelineRead, timelineWrite, phase4, skillRead, skillWrite]) port.dispose()
       preparedDocuments.clear(); preparedCanvases.clear(); approvals.clear(); approvedCalls.clear()
       documentReceipts.clear()
     },

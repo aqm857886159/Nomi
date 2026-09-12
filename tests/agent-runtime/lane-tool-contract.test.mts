@@ -281,8 +281,8 @@ test('每个工具恰好一个效果，而 replay 从中派生', async () => {
   // 事实断言而不是同义反复：画布写入与文稿写入都是可撤的本地写；读是读。
   const byName = new Map(LANE_MODEL_TOOL_CATALOG.map((spec) => [spec.name, spec] as const));
   assert.equal(byName.get('nomi_canvas_write')?.effect, 'reversible_local');
-  assert.equal(byName.get('append_to_end')?.effect, 'reversible_local');
-  assert.equal(byName.get('read_full_text')?.effect, 'read');
+  assert.equal(byName.get('write_script')?.effect, 'reversible_local');
+  assert.equal(byName.get('read_script')?.effect, 'read');
 
   const descriptors = LANE_MODEL_TOOL_CATALOG.map((spec) => ({
     ...spec, execute: async () => ({ ok: true as const, text: '' }),

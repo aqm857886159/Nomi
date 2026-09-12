@@ -126,7 +126,7 @@ test('the structural floor refuses the three shapes that told the model nothing 
 
 test('an explicitly empty object is a true statement, not an empty schema', () => {
   // 「这个工具不收参数」和「随便你填」在 JSON Schema 里长得像，含义相反。
-  // `read_full_text` 是前者——它的 scope 由工具名定死了，不该再让模型选一次。
+  // `read_script` 是前者——它的 scope 由工具名定死了，不该再让模型选一次。
   const json = build(z.object({}).strict());
   assert.equal(json.type, 'object');
   assert.deepEqual(json.properties, {});

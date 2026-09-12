@@ -37,7 +37,7 @@ export const LANE_SYSTEM_PROMPT = 'NOMI_LANE_SYSTEM';
 
 /** 测试里手写的工具声明共用的五槽描述（`VerbDeclaration.describe` 必填；夹具只关心执行，不关心措辞）。 */
 export const FIXTURE_DESCRIBE = Object.freeze({
-  does: 'Fixture tool.', useWhen: 'Only inside this test.', notWhen: 'Never outside the fixture (read_full_text is the real read).', params: 'None.',
+  does: 'Fixture tool.', useWhen: 'Only inside this test.', notWhen: 'Never outside the fixture (read_script is the real read).', params: 'None.',
 });
 
 /** 一个最小但**真**的文稿端口：写进去的东西读得回来，revision 会涨。 */

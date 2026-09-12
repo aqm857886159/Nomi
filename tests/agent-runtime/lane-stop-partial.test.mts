@@ -47,7 +47,7 @@ test('Stop commits the actual partial once, never runs pending tools, and cold h
   t.after(held.release)
   const fixture = await createLaneFixture(t, [{ type: 'message', parts: [
     { type: 'text', text: 'ACTUAL_PARTIAL' },
-    { type: 'toolCall', id: 'unsettled-write', name: 'append_to_end', arguments: { content: 'NEVER_WRITE' } },
+    { type: 'toolCall', id: 'unsettled-write', name: 'write_script', arguments: { where: 'end', content: 'NEVER_WRITE' } },
   ], beforeFinish: held.beforeFinish }])
   const before = fixture.document.text()
   const lane = await openLane(fixture.options)
@@ -83,7 +83,7 @@ for (const cause of ['abort', 'timeout'] as const) {
       timestamp: 1, stopReason: 'pending', usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0,
         cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } },
       content: [Object.assign({ type: 'text' as const, text: 'OBSERVED', textSignature: 'real-signature' }, { index: 0 }),
-        Object.assign({ type: 'toolCall' as const, id: 'call', name: 'write', arguments: { content: 'not executed' } },
+        Object.assign({ type: 'toolCall' as const, id: 'call', name: 'write', arguments: { where: 'end', content: 'not executed' } },
           { index: 1, partialArgs: 'parser scratch', streamIndex: 1 })],
     }
     const upstream = createAssistantMessageEventStream()
@@ -109,7 +109,7 @@ for (const cause of ['abort', 'timeout'] as const) {
     const result = await stream.result()
     assert.equal(result.stopReason, cause === 'abort' ? 'aborted' : 'error')
     assert.deepEqual(result.content, [{ type: 'text', text: 'OBSERVED', textSignature: 'real-signature' },
-      { type: 'toolCall', id: 'call', name: 'write', arguments: { content: 'not executed' } }])
+      { type: 'toolCall', id: 'call', name: 'write', arguments: { where: 'end', content: 'not executed' } }])
     assert.equal(fixture.http.requests.length, 0)
   })
 }

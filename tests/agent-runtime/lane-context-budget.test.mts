@@ -170,14 +170,14 @@ test('C59 on-demand models returns every mode contract and follows the latest ca
     { ...model.modes[0]!, modeId: 'first', params: [{ key: 'resolution', type: 'select' as const, label: '分辨率',
       options: [{ value: '1080P', label: '1080P' }] }] }] }];
   const tool = createLaneModelRead(() => entries);
-  const full = await tool.execute('full', { target: 'models' });
+  const full = await tool.execute('full', { kind: 'models' });
   assert.equal(JSON.parse(full.content[0]!.text).models.length, 2);
-  const narrowed = await tool.execute('narrow', { target: 'models', modelKey: 'Second-Video' });
+  const narrowed = await tool.execute('narrow', { kind: 'models', modelKey: 'Second-Video' });
   assert.match(narrowed.content[0]!.text, /1080P/);
   assert.doesNotMatch(narrowed.content[0]!.text, /MiniMax-H3/);
   entries = [];
-  assert.deepEqual(JSON.parse((await tool.execute('new', { target: 'models' })).content[0]!.text), { models: [] });
-  await assert.rejects(tool.execute('invalid', { target: 'files' }), /target=models/);
+  assert.deepEqual(JSON.parse((await tool.execute('new', { kind: 'models' })).content[0]!.text), { models: [] });
+  assert.deepEqual(JSON.parse((await tool.execute('invalid', { kind: 'files' })).content[0]!.text), { models: [] });
 });
 
 test('C61 configured cost thresholds retain the real small-window safety margin and reject invalid budgets', async () => {

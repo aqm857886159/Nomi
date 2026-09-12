@@ -75,7 +75,7 @@ for (const change of ['same-provider-model', 'different-provider-protocol'] as c
 
 test('model rebinding retains the SDK active tools added by a real tool result without activating the rest', async (t) => {
   const fixture = await createLaneFixture(t, [
-    { type: 'tool', calls: [{ id: 'unlock-selection', name: 'read_full_text', arguments: {} }] },
+    { type: 'tool', calls: [{ id: 'unlock-selection', name: 'read_script', arguments: {} }] },
     { type: 'text', text: 'Selection read unlocked.' },
     { type: 'tool', calls: [{ id: 'use-selection', name: 'read_selection', arguments: {} }] },
     { type: 'text', text: 'Selection read after model replacement.' },
@@ -85,12 +85,12 @@ test('model rebinding retains the SDK active tools added by a real tool result w
   const configured = await createNomiProvider(fixture.options.model, globalThis.fetch);
   const models = createModels({ credentials: configured.credentials });
   models.setProvider(configured.provider);
-  const tools = createLaneTools(fixture.options.tools).map((tool) => tool.name === 'read_full_text'
+  const tools = createLaneTools(fixture.options.tools).map((tool) => tool.name === 'read_script'
     ? { ...tool, execute: async (...args: Parameters<typeof tool.execute>) => ({
       ...await tool.execute(...args), addedToolNames: ['read_selection'],
     }) } : tool);
   const { harness } = await AgentHarness.create<undefined>({ session: opened.session, models, model: configured.model,
-    systemPrompt: fixture.options.systemPrompt, tools, activeToolNames: ['read_full_text'] }, context);
+    systemPrompt: fixture.options.systemPrompt, tools, activeToolNames: ['read_script'] }, context);
   let closingSeed: Promise<void> | undefined;
   const closeSeed = () => closingSeed ??= (async () => {
     try { await harness.close(context); } finally { await opened.release(context); }
@@ -98,7 +98,7 @@ test('model rebinding retains the SDK active tools added by a real tool result w
   t.after(closeSeed);
   const seeded = await harness.lane('main', context);
   assert.equal((await seeded.prompt('Unlock the fixture selection reader.', undefined, context)).ok, true);
-  assert.deepEqual(await seeded.getActiveTools(context), ['read_full_text', 'read_selection']);
+  assert.deepEqual(await seeded.getActiveTools(context), ['read_script', 'read_selection']);
   await closeSeed();
   const host = await openLane({ ...fixture.options, model: { ...fixture.options.model, modelId: 'replacement-model' } });
   t.after(() => host.close());
@@ -106,6 +106,6 @@ test('model rebinding retains the SDK active tools added by a real tool result w
   assert.equal(fixture.http.requests.length, 4, 'the reopened host completes a real tool turn with the new model');
   const body = fixture.http.requests[2]!.body as { model: string; tools: Array<{ function: { name: string } }> };
   assert.equal(body.model, 'replacement-model');
-  assert.deepEqual(body.tools.map((tool) => tool.function.name), ['read_full_text', 'read_selection']);
+  assert.deepEqual(body.tools.map((tool) => tool.function.name), ['read_script', 'read_selection']);
   assert.ok(host.projection().parts.some((part) => part.kind === 'tool-result' && part.toolCallId === 'use-selection' && !part.isError));
 });

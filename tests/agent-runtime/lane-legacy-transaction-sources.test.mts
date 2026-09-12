@@ -42,7 +42,7 @@ function sources(projectDir: string) {
 test('three source files complete archive/import/cold reopen in array order without any network requests', async t => {
   for (let index = 0; index < 3; index++) await t.test(`source ${index}`, async st => {
     const fx = await createLaneFixture(st, [
-      { type: 'tool', calls: [{ id: 'new-read', name: 'read_full_text', arguments: {} }] },
+      { type: 'tool', calls: [{ id: 'new-read', name: 'read_script', arguments: {} }] },
       { type: 'text', text: 'continued' },
     ]);
     const source = sources(fx.projectDir)[index];
@@ -74,7 +74,7 @@ test('three source files complete archive/import/cold reopen in array order with
     await continued.execute({ kind: 'prompt', text: 'Read the current document.' });
     assert.equal(fx.http.requests.length, 2);
     const firstRequest = fx.http.requests[0].body as { tools?: Array<{ function?: { name?: string } }> };
-    assert.ok(firstRequest.tools?.some(tool => tool.function?.name === 'read_full_text'));
+    assert.ok(firstRequest.tools?.some(tool => tool.function?.name === 'read_script'));
     assert.ok(continued.projection().parts.some(part => part.kind === 'tool-result' && part.toolCallId === 'new-read' && !part.isError));
     await continued.close();
     const again = await fx.openLane({ ...fx.options, laneName: manifest.targets[0].laneName });

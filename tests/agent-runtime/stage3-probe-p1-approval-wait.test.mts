@@ -20,7 +20,7 @@ import {
   PROBE_CONTEXT, deferred, openProbeLane, rejectOnAbort, resolveOnAbort,
 } from './stage3ProbeHarness.mjs';
 
-const APPEND = { type: 'tool' as const, calls: [{ id: 'call-append', name: 'append_to_end', arguments: { content: 'unapproved' } }] };
+const APPEND = { type: 'tool' as const, calls: [{ id: 'call-append', name: 'write_script', arguments: { where: 'end', content: 'unapproved' } }] };
 const CLOSING = { type: 'text' as const, text: 'Understood.' };
 
 /** 转录里那次调用的结果。**从 pi 的转录读**，不从我们的投影读——探针问的是 pi。 */

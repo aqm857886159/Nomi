@@ -22,7 +22,7 @@ for (const kind of ['openai-compatible', 'openai-responses', 'anthropic'] as con
       { type: 'message', parts: [
         ...(kind === 'openai-compatible' ? [{ type: 'thinking' as const, text: 'PRIVATE_THINKING' }] : []),
         { type: 'text', text: 'NATIVE_STOPPED_PROSE' },
-        { type: 'toolCall', id: 'unexecuted-write', name: 'append_to_end', arguments: { content: 'NEVER_WRITE' } },
+        { type: 'toolCall', id: 'unexecuted-write', name: 'write_script', arguments: { where: 'end', content: 'NEVER_WRITE' } },
       ], beforeFinish: () => held },
       { type: 'text', text: 'An unrelated answer.' },
       { type: 'text', text: 'Continued from the actual prose.' },

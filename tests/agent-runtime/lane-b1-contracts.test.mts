@@ -19,13 +19,13 @@ import { createLaneFixture } from './laneFixture.mjs';
 
 const sandbox = { active: true, operations: { exec: async () => ({ exitCode: 0 }) }, close: async () => undefined };
 const closing = { type: 'text' as const, text: '完成。' };
-const plan = () => LANE_DEFERRED_TOOL_CATALOG.find(s => s.name === 'nomi_generation_plan')!;
+const plan = () => LANE_DEFERRED_TOOL_CATALOG.find(s => s.name === 'draft_shots')!;
 const textOf = (result: { content: readonly { type: string; text?: string }[] }) => result.content.map(p => p.text ?? '').join('\n');
 
 test('C19 · switching groups tells the model core tools remain callable', async t => {
   const f = await createLaneFixture(t, [
     { type: 'tool', calls: [{ id: 'switch', name: 'nomi_request_tools', arguments: { group: 'coding' } }] },
-    { type: 'tool', calls: [{ id: 'core', name: 'read_full_text', arguments: {} }] }, closing,
+    { type: 'tool', calls: [{ id: 'core', name: 'read_script', arguments: {} }] }, closing,
   ]);
   const native = await createLaneNativeAssembly({ projectDir: f.projectDir, sandbox, bashTimeoutMs: 5000 });
   const request = native.tools.find(tool => tool.name === 'nomi_request_tools')!;
@@ -118,7 +118,7 @@ test('C27 · prompt approval projection follows current policy changes', async t
 });
 
 test('C42 · steer immediately releases approval and precedes the next assistant request', async t => {
-  const f = await createLaneFixture(t, [{ type: 'tool', calls: [{ id: 'write', name: 'append_to_end', arguments: { content: 'BAD' } }] }, closing],
+  const f = await createLaneFixture(t, [{ type: 'tool', calls: [{ id: 'write', name: 'write_script', arguments: { where: 'end', content: 'BAD' } }] }, closing],
     { hasUserInterface: true, policy: () => ({ mode: 'step', spend: 'confirm' }) });
   const lane = await f.openLane(f.options);
   let ready!: () => void;
@@ -179,7 +179,7 @@ test('C27 class · read confirmation and trusted overrides use the execution dec
   const f = await createLaneFixture(t, [closing], { hasUserInterface: true, policy: () => ({ mode: 'step', spend: 'confirm' }) });
   const lane = await f.openLane(f.options);
   await lane.execute({ kind: 'prompt', text: '只看一下' });
-  assert.match(JSON.stringify(f.http.requests[0].body.messages), /- read_full_text: 此动作会向用户确认/);
+  assert.match(JSON.stringify(f.http.requests[0].body.messages), /- read_script: 此动作会向用户确认/);
   const g = await createLaneFixture(t, [closing], {
     hasUserInterface: true, policy: () => ({ mode: 'safe-auto', spend: 'confirm' }),
     resolveSubject: () => ({ forceConfirmation: true, subject: { toolName: 'nomi_canvas_write',
