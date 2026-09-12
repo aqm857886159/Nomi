@@ -42,7 +42,7 @@ export const SKILL_READ_CAPABILITY = {
   id: "skill.read",
   version: 1,
   // 没有模型可见工具（模型经 pi 的 `read` 读 SKILL.md）；这是宿主传输的方法名。
-  aliases: { method: SKILL_READ_ALIASES.load },
+  aliases: { pi: "read_skill", method: SKILL_READ_ALIASES.load },
   inputSchema: skillReadSemanticInputSchema,
   outputSchema: skillReadResultSchema,
   effect: "read",

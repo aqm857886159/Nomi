@@ -100,8 +100,9 @@ export function timelineWriteInputForAlias(alias: string, value: unknown): Timel
 export const TIMELINE_WRITE_CAPABILITY = {
   id: "timeline.write",
   version: 1,
-  aliases: { pi: TIMELINE_WRITE_ALIASES.applyPlan, mcp: "nomi_timeline_edit" },
-  additionalAliases: { pi: Object.freeze([TIMELINE_WRITE_ALIASES.undo]) },
+  // 模型可见动词是 `edit_timeline` 与 `undo`；apply_edit_plan / undo_timeline_edit 是传输层的方法词表。
+  aliases: { pi: "edit_timeline", mcp: "nomi_timeline_edit", method: TIMELINE_WRITE_ALIASES.applyPlan },
+  additionalAliases: { pi: Object.freeze(["undo"]), method: Object.freeze([TIMELINE_WRITE_ALIASES.undo]) },
   inputSchema: timelineWriteSemanticInputSchema,
   outputSchema: timelineWriteResultSchema,
   effect: "reversible_write",

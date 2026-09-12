@@ -307,9 +307,13 @@ export function projectMcpTool(
   const requiredCounts = new Map<string, number>();
   const transportOnly = new Map<string, JsonSchemaObject>();
 
+  // 一契约多动词、且动词自己没有判别字段（`aliasBoundInput` 或必填根级枚举）时，对外工具用 `verb` 字段选动词。
+  // 值就是动词名——不另起一套词表；内部面按名字选，外部面按同一个名字选。
+  const needsVerbDiscriminator = specs.length > 1
+    && specs.some((spec) => Object.keys(aliasBoundInputOf(spec)).length === 0 && Object.keys(rootEnumSelectors(spec)).length === 0);
   for (const spec of specs) {
     for (const [field, schema] of Object.entries(mcpTransportFieldsOf(spec))) transportOnly.set(field, schema);
-    for (const [field, value] of Object.entries(aliasBoundInputOf(spec))) {
+    for (const [field, value] of Object.entries(needsVerbDiscriminator ? { ...aliasBoundInputOf(spec), verb: spec.name } : aliasBoundInputOf(spec))) {
       const bucket = discriminators.get(field) ?? new Set<string>();
       bucket.add(value);
       discriminators.set(field, bucket);
@@ -385,7 +389,7 @@ export function resolveMcpSpec(
   const discriminatorFields = Object.keys(tool.discriminators);
   if (discriminatorFields.length > 0) {
     return tool.specs.find((spec) => {
-      const bound = aliasBoundInputOf(spec);
+      const bound: Record<string, string> = { ...aliasBoundInputOf(spec), ...("verb" in tool.discriminators ? { verb: spec.name } : {}) };
       return discriminatorFields.every((field) => args[field] === bound[field]);
     });
   }

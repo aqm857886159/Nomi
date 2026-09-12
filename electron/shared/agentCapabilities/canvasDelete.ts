@@ -43,7 +43,7 @@ export function canvasDeleteInputForAlias(alias: string, value: unknown): Canvas
 export const CANVAS_DELETE_CAPABILITY = {
   id: "canvas.delete",
   version: 1,
-  aliases: { pi: CANVAS_DELETE_ALIAS, mcp: "nomi_canvas_maintenance" },
+  aliases: { pi: "delete_from_canvas", mcp: "nomi_canvas_maintenance", method: CANVAS_DELETE_ALIAS },
   inputSchema: canvasDeleteSemanticInputSchema,
   outputSchema: canvasDeleteResultSchema,
   effect: "destructive",

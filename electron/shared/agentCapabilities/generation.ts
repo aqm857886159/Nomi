@@ -37,7 +37,7 @@ export type GenerationResolveInput = z.infer<typeof generationResolveInputSchema
 export const GENERATION_CONTEXT_READ_CAPABILITY = {
   id: "generation.context.read",
   version: 1,
-  aliases: { method: "nomi_get_generation_context" },
+  aliases: { pi: "list_models", method: "nomi_get_generation_context" },
   inputSchema: input,
   outputSchema: output,
   effect: "read",
@@ -51,9 +51,10 @@ export const GENERATION_CONTEXT_READ_CAPABILITY = {
 export const GENERATION_PLAN_CAPABILITY = {
   id: "generation.plan",
   version: 1,
-  aliases: { pi: "nomi_generation_plan" },
+  aliases: { pi: "draft_shots" },
+  // `generate` 出卡；`nomi_generation_plan` 是传输层（generationTransportAdapters）的方法名。
   // dispatcher 的方法名住 `method` surface：模型永远看不见它们，但 `resolveCapabilityAlias` 仍认。
-  additionalAliases: Object.freeze({ method: Object.freeze(["nomi_operation_create", "nomi_submit_generation_plan", "nomi_preview_execution"]) }),
+  additionalAliases: Object.freeze({ pi: Object.freeze(["generate"]), method: Object.freeze(["nomi_generation_plan", "nomi_operation_create", "nomi_submit_generation_plan", "nomi_preview_execution"]) }),
   inputSchema: input,
   outputSchema: output,
   effect: "reversible_write",
@@ -107,7 +108,7 @@ export const GENERATION_RUN_READ_CAPABILITY = {
   version: 1,
   // 模型可见的 `nomi_generation_status` 归 `generation.control`（它能 cancel），`read` 这一支经
   // `operationCapabilityIds` 回到这里；本契约自己只有 dispatcher 方法名（审计 M4 的修法）。
-  aliases: { method: "nomi_operation_read" },
+  aliases: { pi: "check_job", method: "nomi_operation_read" },
   inputSchema: input,
   outputSchema: output,
   effect: "read",
@@ -121,8 +122,8 @@ export const GENERATION_RUN_READ_CAPABILITY = {
 export const GENERATION_CONTROL_CAPABILITY = {
   id: "generation.control",
   version: 1,
-  aliases: { pi: "nomi_generation_status", method: "nomi_cancel_generation" },
-  additionalAliases: { method: Object.freeze(["nomi_reconcile_generation"]) },
+  aliases: { method: "nomi_generation_status" },
+  additionalAliases: { method: Object.freeze(["nomi_cancel_generation", "nomi_reconcile_generation"]) },
   inputSchema: input,
   outputSchema: output,
   effect: "reversible_write",

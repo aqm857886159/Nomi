@@ -164,8 +164,9 @@ export function exportWriteInputForAlias(alias: string, value: unknown): ExportW
 export const EXPORT_READ_CAPABILITY = {
   id: "export.read",
   version: 1,
-  aliases: { pi: EXPORT_READ_ALIASES.inspect, mcp: "nomi_export_job" },
-  additionalAliases: { pi: Object.freeze([EXPORT_READ_ALIASES.verify]) },
+  // 模型面上导出任务经 `check_job`（归 generation.run.read）读；这两个名字是传输层的方法词表。
+  aliases: { mcp: "nomi_export_job", method: EXPORT_READ_ALIASES.inspect },
+  additionalAliases: { method: Object.freeze([EXPORT_READ_ALIASES.verify]) },
   inputSchema: exportReadSemanticInputSchema,
   outputSchema: exportReadResultSchema,
   effect: "read",
@@ -179,8 +180,9 @@ export const EXPORT_READ_CAPABILITY = {
 export const EXPORT_WRITE_CAPABILITY = {
   id: "export.write",
   version: 1,
-  aliases: { pi: EXPORT_WRITE_ALIASES.start },
-  additionalAliases: { pi: Object.freeze([EXPORT_WRITE_ALIASES.cancel]) },
+  // 模型可见动词是 `export_video` 与 `cancel_job`；export_timeline / cancel_export_job 是传输层的方法词表。
+  aliases: { pi: "export_video", method: EXPORT_WRITE_ALIASES.start },
+  additionalAliases: { pi: Object.freeze(["cancel_job"]), method: Object.freeze([EXPORT_WRITE_ALIASES.cancel]) },
   inputSchema: exportWriteSemanticInputSchema,
   outputSchema: exportWriteResultSchema,
   effect: "destructive",

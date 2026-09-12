@@ -30,12 +30,13 @@
  */
 export type {
   VerbEffect as LaneToolEffect,
+  VerbNextAction,
   ModelFacingToolExample as LaneToolExample,
   ModelFacingToolSpec as LaneToolSpec,
 } from "../agentCapabilities/modelFacingTools";
 export { verbMutates as laneToolMutates, verbBillable as laneToolBillable, approvalFacetsOf as laneToolApprovalFacets } from "../agentCapabilities/modelFacingTools";
 
-import type { ModelFacingToolExample as LaneToolExample, ModelFacingToolSpec as LaneToolSpec } from "../agentCapabilities/modelFacingTools";
+import type { ModelFacingToolExample as LaneToolExample, ModelFacingToolSpec as LaneToolSpec, VerbNextAction } from "../agentCapabilities/modelFacingTools";
 
 /**
  * 「一个工具最多允许跑多久」的 lane 侧叫法与预算常量。**同一份定义的别名**，理由与数字
@@ -72,6 +73,44 @@ export interface LaneToolFailureShape {
    * 那是 provenance/隐私边界。今天 pi 那层会把整个 `Received arguments` 原样回给模型。
    */
   readonly issues?: readonly { readonly path: string; readonly expected: string; readonly receivedType: string }[];
+  /**
+   * `code === "wrong_verb"` 时点名正确的动词。**只点名，不代调**（设计正本原则 7：错动词拒绝，
+   * 没有静默转发、没有兜底）。模型读到后自己改用它。
+   */
+  readonly useInstead?: string;
+}
+
+/** `wrong_verb` 的唯一构造点：拒绝的原因、该用哪个动词、下一步。 */
+export function wrongVerbFailure(input: { readonly attempted: string; readonly useInstead: string; readonly because: string }): LaneToolFailureShape {
+  return {
+    code: "wrong_verb",
+    message: `${input.attempted} does not do this: ${input.because}`,
+    nextAction: `Call ${input.useInstead} instead with the same intent. Nothing was changed by this call.`,
+    useInstead: input.useInstead,
+  };
+}
+
+/**
+ * 写动词成功时的返回信封（设计正本 §6.2）：用户接下来会看到什么。`userSees` 是宿主写的一句人话，
+ * 与面板投影同源——模型可以直接转述，不必自己编「已经出卡了」。
+ */
+export interface LaneToolNextAction {
+  readonly kind: VerbNextAction;
+  readonly userSees: string;
+  readonly jobId?: string;
+  readonly cardId?: string;
+  /** 给 `undo` 用；`reversible_local` 的写动词必有。 */
+  readonly changeId?: string;
+}
+
+/** 信封 → 模型看到的尾行。**唯一渲染点**，与失败正文的 `Next:` 行同一形状。 */
+export function renderLaneToolNextAction(next: LaneToolNextAction): string {
+  const refs = [
+    ...(next.changeId ? [`changeId=${next.changeId}`] : []),
+    ...(next.jobId ? [`jobId=${next.jobId}`] : []),
+    ...(next.cardId ? [`cardId=${next.cardId}`] : []),
+  ];
+  return `User sees: ${next.userSees}${refs.length > 0 ? ` (${refs.join(", ")})` : ""}`;
 }
 
 /**
@@ -87,6 +126,7 @@ export function renderLaneToolFailure(failure: LaneToolFailureShape): string {
   if (failure.allowed && failure.allowed.length > 0) {
     lines.push(`Allowed values: ${failure.allowed.join(", ")}.`);
   }
+  if (failure.useInstead) lines.push(`Use ${failure.useInstead} instead.`);
   lines.push(`Next: ${failure.nextAction}`);
   return lines.join("\n");
 }
@@ -121,6 +161,7 @@ export function laneToolFailureToRpc(failure: LaneToolFailureShape): Readonly<Re
     nextAction: failure.nextAction,
     ...(failure.allowed ? { allowed: failure.allowed } : {}),
     ...(failure.issues ? { issues: failure.issues } : {}),
+    ...(failure.useInstead ? { useInstead: failure.useInstead } : {}),
   };
 }
 

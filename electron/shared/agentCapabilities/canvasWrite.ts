@@ -598,13 +598,14 @@ export const CANVAS_WRITE_CAPABILITY = {
   version: 1,
   // `pi` surface 上只放模型可见的三个动词（`verbs/canvasVerbs.ts`）；operation 值不是别名，
   // 它们是 schema 里的枚举（`CANVAS_WRITE_OPERATIONS`）。
+  // 模型可见动词：arrange_canvas / make_artifact / stage_shot（都不能造生成类节点——那只归 draft_shots）。
   aliases: {
-    pi: "nomi_canvas_write",
+    pi: "arrange_canvas",
     mcp: "nomi_canvas_edit",
     ui: "nomi_canvas_plan",
   },
   additionalAliases: {
-    pi: Object.freeze(["nomi_storyboard_write", "nomi_shot_reference_write"]),
+    pi: Object.freeze(["make_artifact", "stage_shot"]),
   },
   inputSchema: canvasWriteSemanticInputSchema,
   outputSchema: canvasWriteResultSchema,
