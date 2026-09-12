@@ -16,7 +16,8 @@
   ],
   "internal_only_reason": "Internal lifecycle invariant; provider list probing already exists in HttpProviderConnector.",
   "invariants": [
-    "A saved HTTP credential is followed by one authoritative discovery projection."
+    "A saved HTTP credential is followed by one authoritative discovery projection.",
+    "A discovery projection that carries no candidates carries a stated reason the user can read; it is never returned as a silent empty list."
   ],
   "generality_proof": "The IPC credential boundary is the shared Nomi UI credential write and routes through IntegrationSessionService.propose, the same discovery implementation used by MCP propose.",
   "shared_boundaries": [
@@ -38,6 +39,12 @@
       "entry_point": "propose",
       "disposition": "enforced",
       "evidence": "MCP and UI converge on discoverAndPersistHttpCandidates."
+    },
+    {
+      "path": "electron/integrationCertification/credentialElicitationRuntime.ts",
+      "entry_point": "saveCredential (MCP 一次性凭据页)",
+      "disposition": "not-affected",
+      "evidence": "这道门是外部 Agent 在驱动：用户在凭据页存完 key 后，驱动方按 MCP 契约接着调 integration.propose（dispatcher.ts 'integration.propose'），发现就发生在那一步。它本来就有第二步，没有「存完就没人管了」这个处境——正是 Nomi 自己的界面缺了这一步。凭据页另有 testCredential 走同一个 discoverHttpModels 做联通性验证。"
     }
   ],
   "recurrence": {
@@ -52,18 +59,20 @@
     "kind": "centralized-boundary",
     "enforcement_path": "electron/integrationCertification/integrationSessionIpc.ts",
     "invariant": "HTTP credential save immediately invokes shared discovery.",
-    "failure_mode": "Discovery errors surface to caller; empty provider responses remain explicit model_discovery_empty.",
+    "failure_mode": "Discovery errors surface to the caller as a localized sentence; an empty provider response stays an explicit model_discovery_empty blocking reason, which the credential-save UI renders as one sentence instead of closing.",
     "exception_policy": "none",
     "strategy": "Converge UI credential completion with the existing MCP discovery path.",
     "artifacts": [
-      "electron/integrationCertification/integrationSessionIpc.ts"
+      "electron/integrationCertification/integrationSessionIpc.ts",
+      "src/ui/onboarding/modelDiscovery.ts"
     ]
   },
   "regression_tests": [
-    "electron/integrationCertification/integrationSession.test.ts"
+    "electron/integrationCertification/integrationSessionCredentialDiscovery.test.ts",
+    "src/ui/onboarding/modelDiscovery.test.ts"
   ],
   "class_regression_tests": [
-    "electron/integrationCertification/integrationSession.test.ts"
+    "electron/integrationCertification/integrationSessionCredentialDiscovery.test.ts"
   ],
   "legacy_paths": {
     "status": "not-applicable",
@@ -82,7 +91,7 @@
   "invariant_owner_layer": {
     "layer": "electron/integrationCertification/integrationSessionIpc.ts",
     "tests": [
-      "electron/integrationCertification/integrationSession.test.ts"
+      "electron/integrationCertification/integrationSessionCredentialDiscovery.test.ts"
     ],
     "why": "Credential IPC is the earliest shared UI write boundary and delegates to the tested session discovery implementation."
   }
