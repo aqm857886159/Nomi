@@ -157,6 +157,22 @@ async function run() {
 
     // 接模型没有付费验证，也就没有花费确认：可信 UI 这一跳整个不存在了（2026-09-12 拍板）。
     // 外部宿主提完方案直接 start——这正是旧版本走不通的那一步。
+    //
+    // 先证一件**反面**的事：这条会话归 codex 所有，Nomi 窗口里就不该冒出要人点的交接单。
+    // 冒出来 = 在 Nomi 里放了一个按下去必然 integration_owner_mismatch 的按钮
+    // （会话服务只对 ownerClientId === 'nomi' 发这张单）。它会静默退化，所以钉在这里。
+    await withTrustedRenderer(dirs, async (win) => {
+      const handoffs = await win.evaluate(
+        async () => (await window.nomiDesktop?.onboarding?.integrationHandoffList?.()) || [],
+      )
+      const mine = handoffs.filter((item) => item.sessionId === sessionId)
+      const verification = mine.filter((item) => item.target === 'verification')
+      // 阳性对照：这条会话确实有交接单（凭据那张），所以「没有 verification」不是因为列表恒空。
+      if (mine.length === 0) throw new Error('handoff list returned nothing for this session — the probe itself is dead')
+      if (verification.length > 0)
+        throw new Error(`external session must not queue a Nomi-side confirmation: ${JSON.stringify(verification)}`)
+    })
+
     await withMcp(dirs, runtime, async (mcp) => {
       const ready = parseToolResult(await mcp.callTool('nomi_read', { target: 'integration', sessionId }))
       assert(ready.json?.stage === 'ready_to_certify', `session waits for start, not for a person: ${ready.text}`)
