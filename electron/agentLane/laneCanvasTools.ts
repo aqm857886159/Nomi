@@ -51,7 +51,14 @@ export function canvasWriteInputOf(verb: string, args: unknown): CanvasWriteInpu
 }
 
 export function createCanvasLaneTools(port: CanvasLanePort): LaneToolDescriptor[] {
-  return [...specsForCapability("canvas.read"), ...specsForCapability("canvas.write")].map((spec) => {
+  const specs = [...specsForCapability("canvas.read"), ...specsForCapability("canvas.write")]
+  // Keep retired Pi/MCP/UI names readable by old transcripts while routing them
+  // through the canonical canvas.write implementation.
+  const write = specs.find(spec => spec.name === "nomi_canvas_write") ?? specs.find(spec => spec.contractId === "canvas.write")
+  if (write) for (const name of ["nomi_canvas_write", "nomi_canvas_edit", "nomi_canvas_plan"]) {
+    if (!specs.some(spec => spec.name === name)) specs.push({ ...write, name })
+  }
+  return specs.map((spec) => {
     if (spec.contractId === "canvas.read") {
       return bindLaneTool(spec, async (_args, context) => {
         const result: CanvasReadResult = canvasReadResultSchema.parse(await port.read(context));

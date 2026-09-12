@@ -1,15 +1,11 @@
 {
-  "operation": "create",
-  "prompt": "年轻女创作者，24岁，短发齐肩，素颜干净。穿浅色宽松棉麻衬衫、深色长裤，背一台黑色微单相机。身材纤细，气质安静内敛。中性站姿，正面全身，双手自然垂放。傍晚暖黄自然光，柔和打亮面部和肩部。电影写实风格，背景虚化的河边旧街。",
   "taskKind": "text_to_image",
-  "modelId": "gpt-image-2",
-  "mode": "t2i",
-  "providerId": "apimart",
-  "moduleId": "apimart",
-  "candidateId": "xiaohu-cast-gen-1",
-  "revision": 1,
-  "parameters": {
-    "aspect_ratio": "3:4",
-    "resolution": "1K"
-  }
+  "candidate": "xiaohu-cast-gen-1",
+  "shots": [
+    {
+      "title": "开场",
+      "prompt": "年轻女创作者，24岁，短发齐肩，素颜干净。穿浅色宽松棉麻衬衫、深色长裤，背一台黑色微单相机。身材纤细，气质安静内敛。中性站姿，正面全身，双手自然垂放。傍晚暖黄自然光，柔和打亮面部和肩部。电影写实风格，背景虚化的河边旧街。",
+      "taskKind": "text_to_image"
+    }
+  ]
 }
