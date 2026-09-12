@@ -7,7 +7,7 @@ import {
   ASPECT_OPTIONS,
   effectiveShotAspect,
   isAspectOverridden,
-} from '../../../workbench/generationCanvas/agent/storyboardAspectScope'
+} from '../../../workbench/generationCanvas/agent/storyboardShotScope'
 import { tableFrameMediaBox } from '../../../workbench/creation/storyboard/shotRow/shotFrameGeometry'
 import type { ShotRowExec } from '../../../workbench/creation/storyboard/exec/storyboardRowStatus'
 import type { ShotVariant } from '../../../workbench/creation/storyboard/shotRow/shotVariants'

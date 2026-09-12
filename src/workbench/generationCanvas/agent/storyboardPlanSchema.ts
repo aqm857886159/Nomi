@@ -79,6 +79,9 @@ export const storyboardPlanSchema = z.object({
   anchors: jsonTolerantArray(z.array(planAnchorSchema)),
   shots: jsonTolerantArray(z.array(planShotSchema)),
   scenes: z.array(z.object({ id: z.string().min(1), title: z.string() })).optional(),
+  // 整片默认画幅。**必须在 schema 里**：zod 默认静默丢未知键，少这一行就等于规划师在方案顶层
+  // 写的整片画幅在 parseStoryboardPlan 那一刻消失（2026-09-12 根因合同）。
+  aspectRatio: z.string().min(1).optional(),
   profileKey: z.string().min(1).optional(),
   storyboardProfile: storyboardProfileSchema.optional(),
   sourceScriptArtifactId: z.string().min(1).optional(),
