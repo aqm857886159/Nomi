@@ -26,6 +26,7 @@ import { firstString, isJsonRecord, parseLooseJsonObject, trim } from "../jsonUt
 // main 上 chooseTextModel/resolveTextBrainKeys 已从 agentChatV2 抽到 textBrainResolver（1040 commit 间的重构）；
 // 旧分支从 agentChatV2 import 已失效，port 时改指真源（docs/ARCHITECTURE-NOW 的「文本大脑」判据同一处）。
 import { resolveTextBrainKeys } from "../ai/textBrainResolver";
+import { logError } from "../logging/logger";
 import { runTask } from "../runtime";
 
 /** 用户自定义列：`hint` 会拼进 VLM 的输出 schema —— 你想让 AI 关注什么，就加一列告诉它。 */
@@ -239,7 +240,7 @@ export async function deconstructVideo(payload: DeconstructVideoPayload, onPhase
         seconds.map(async (s) => (await extractVideoFrameToAsset({ videoUrl, which: s, projectId })).url),
       );
     } catch (error) {
-      console.error('[deconstruct:frame-failed]', error instanceof Error ? error.message : String(error));
+      logError("tasks", "deconstruct.frame-failed", error, { shot: shot.index, frames: seconds.length });
       return { shot, frameUrls: [] as string[], parsed: null as Record<string, unknown> | null };
     }
     try {
@@ -259,7 +260,7 @@ export async function deconstructVideo(payload: DeconstructVideoPayload, onPhase
       });
       return { shot, frameUrls, parsed: parseLooseJsonObject(textFromTaskResult((result as { raw?: unknown }).raw)) };
     } catch (error) {
-      console.error('[deconstruct:model-failed]', error instanceof Error ? error.message : String(error));
+      logError("tasks", "deconstruct.model-failed", error, { shot: shot.index, vendor: brain.vendor, modelKey: brain.modelKey, frames: frameUrls.length });
       return { shot, frameUrls, parsed: null };
     }
   });
