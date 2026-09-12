@@ -32,7 +32,7 @@ type AnyCapabilityContract = CapabilityContract<unknown, unknown>;
 
 /** 两个 profile。名字与 `check:model-schema` 的 profile 列、方案 §3.1 的表头逐字一致。 */
 export type ToolProfile = "internal" | "mcp";
-export type LaneDomainToolGroup = "timeline" | "production" | "generation" | "media" | "maintenance" | "models";
+export type LaneDomainToolGroup = "timeline" | "generation" | "media" | "maintenance" | "models" | "skills";
 
 /**
  * **全仓唯一的效果词表**（设计正本 §3）。
@@ -114,6 +114,11 @@ export interface VerbDeclaration {
   readonly internalGroup?: LaneDomainToolGroup;
   /** 混合读写工具按 operation 解析审批对象。 */
   readonly operationCapabilityIds?: Readonly<Record<string, string>>;
+  /**
+   * 这个动词还替哪些契约说话（`check_job` 同时读生成任务与导出任务；`cancel_job` 同时取消两者）。
+   * 审批仍按 `contractId`；这里只影响「哪些契约有说明书」——对外 MCP 的描述从它派生，不再有第二份文案。
+   */
+  readonly alsoCovers?: readonly string[];
   /** 别名已经替模型填掉的语义字段；两个 profile 都从这里恢复它们。 */
   readonly aliasBoundInput?: Readonly<Record<string, string>>;
   /** 哪些 profile 投影它。缺省两个都投；不同于缺省时必须给 `profileReason`。 */
@@ -281,6 +286,9 @@ export function assembleVerbDeclarations(input: VerbAssemblyInput): readonly Ver
   for (const declaration of input.declarations) {
     const contract = input.contractById(declaration.contractId);
     if (!contract) throw new Error(`Verb ${declaration.name} names an unregistered capability: ${declaration.contractId}`);
+    for (const covered of declaration.alsoCovers ?? []) {
+      if (!input.contractById(covered)) throw new Error(`Verb ${declaration.name} claims to cover an unregistered capability: ${covered}`);
+    }
     published.set(declaration.name, toPublishedJsonSchema(declaration.schema));
     assertOneEffect(declaration, contract, input.isPaidBoundaryName);
     assertFiveSlots(declaration, names, published.get(declaration.name)!);

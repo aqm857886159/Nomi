@@ -31,13 +31,13 @@ describe("动词声明 · 装配期不变量", () => {
   });
 
   it("A1 · 一效果一工具：效果与契约不一致、内部 profile 见 spend、读动词承诺 nextAction 都抛", () => {
-    expect(() => assemble(mutate("nomi_generation_plan", (d) => ({ ...d, effect: "spend", nextAction: "user_sees_spend_card" }))))
+    expect(() => assemble(mutate("generate", (d) => ({ ...d, effect: "spend", nextAction: "user_sees_spend_card" }))))
       .toThrow(/implies "reversible_local"/);
     expect(() => assemble(mutate("read_timeline", (d) => ({ ...d, effect: "reversible_local" }))))
       .toThrow(/implies "read"/);
     expect(() => assemble(mutate("read_timeline", (d) => ({ ...d, nextAction: "user_sees_panel" }))))
       .toThrow(/read-only but promises/);
-    expect(() => assemble(mutate("nomi_canvas_write", (d) => ({ ...d, operationEffects: { create_canvas_nodes: "read" } } as VerbDeclaration))))
+    expect(() => assemble(mutate("arrange_canvas", (d) => ({ ...d, operationEffects: { create_canvas_nodes: "read" } } as VerbDeclaration))))
       .toThrow(/per-operation effects/);
     // 内部 profile 里出现 spend：先绕过契约对账（用一个真的付费契约）也过不了「内部不投 spend」。
     expect(() => assemble([...VERB_DECLARATIONS, {
@@ -47,41 +47,41 @@ describe("动词声明 · 装配期不变量", () => {
   });
 
   it("A2 · 描述五槽：缺槽、notWhen 不点名别的动词、点名不存在的名字、does 太长都抛", () => {
-    expect(() => assemble(mutate("read_full_text", (d) => ({ ...d, describe: { ...d.describe, notWhen: "" } }))))
+    expect(() => assemble(mutate("read_script", (d) => ({ ...d, describe: { ...d.describe, notWhen: "" } }))))
       .toThrow(/describe\.notWhen empty/);
-    expect(() => assemble(mutate("read_full_text", (d) => ({ ...d, describe: { ...d.describe, notWhen: "Do not use it for anything else." } }))))
+    expect(() => assemble(mutate("read_script", (d) => ({ ...d, describe: { ...d.describe, notWhen: "Do not use it for anything else." } }))))
       .toThrow(/must name at least one other declared verb/);
-    expect(() => assemble(mutate("read_full_text", (d) => ({ ...d, describe: { ...d.describe, notWhen: "Use nomi_make_video instead of read_selection." } }))))
+    expect(() => assemble(mutate("read_script", (d) => ({ ...d, describe: { ...d.describe, notWhen: "Use read_timeline or nomi_make_video instead of read_script." } }))))
       .toThrow(/names "nomi_make_video"/);
-    expect(() => assemble(mutate("read_full_text", (d) => ({ ...d, describe: { ...d.describe, does: `Reads. ${"x".repeat(200)}` } }))))
+    expect(() => assemble(mutate("read_script", (d) => ({ ...d, describe: { ...d.describe, does: `Reads. ${"x".repeat(200)}` } }))))
       .toThrow(/at most 160 characters/);
     // 合法近邻：schema 自己的枚举值可以出现在描述里。
-    expect(() => assemble(mutate("nomi_canvas_write", (d) => ({ ...d, describe: { ...d.describe, params: `${d.describe.params} create_canvas_nodes batches nodes.` } }))))
+    expect(() => assemble(mutate("arrange_canvas", (d) => ({ ...d, describe: { ...d.describe, params: `${d.describe.params} links batches nodes.` } }))))
       .not.toThrow();
   });
 
   it("A3 · 语言统一：说明性文字里的中文抛；引号里的示例值与 examples.arguments 豁免", () => {
-    expect(() => assemble(mutate("read_full_text", (d) => ({ ...d, examples: [{ when: "创建一个镜头：", arguments: {} }] }))))
+    expect(() => assemble(mutate("read_script", (d) => ({ ...d, examples: [{ when: "创建一个镜头：", arguments: {} }] }))))
       .toThrow(/contains CJK characters/);
-    expect(() => assemble(mutate("read_full_text", (d) => ({ ...d, promptGuidelines: ["先读文稿。"] }))))
+    expect(() => assemble(mutate("read_script", (d) => ({ ...d, promptGuidelines: ["先读文稿。"] }))))
       .toThrow(/promptGuidelines\[0\]/);
     expect(proseWithoutQuotedExamples("Display name, in the user's language (e.g. '林夏' / '天台').")).not.toMatch(/[一-鿿]/);
-    expect(() => assemble(mutate("nomi_canvas_write", (d) => ({ ...d, examples: [{ when: "Create one node:", arguments: { operation: "create_canvas_nodes", summary: "开场", nodes: [{ clientId: "s1", kind: "keyframe", title: "开场", prompt: "清晨" }] } }] }))))
+    expect(() => assemble(mutate("arrange_canvas", (d) => ({ ...d, examples: [{ when: "Create one node:", arguments: { links: [{ fromId: "node-a", toId: "node-b", role: "character_ref" }] } }] }))))
       .not.toThrow();
   });
 
   it("A4 · 不与付费边界矛盾：手写的后果句抛；后果句只能由 effect × nextAction 派生", () => {
-    expect(() => assemble(mutate("nomi_generation_plan", (d) => ({ ...d, describe: { ...d.describe, does: "This host cannot preview or start paid generation." } }))))
+    expect(() => assemble(mutate("generate", (d) => ({ ...d, describe: { ...d.describe, does: "This host cannot preview or start paid generation." } }))))
       .toThrow(/hand-writes a consequence/);
-    expect(() => assemble(mutate("nomi_canvas_write", (d) => ({ ...d, describe: { ...d.describe, useWhen: `${d.describe.useWhen} It never generates.` } }))))
+    expect(() => assemble(mutate("arrange_canvas", (d) => ({ ...d, describe: { ...d.describe, useWhen: `${d.describe.useWhen} It never generates.` } }))))
       .toThrow(/hand-writes a consequence/);
     expect(() => verbConsequence("read", "user_sees_spend_card")).toThrow(/inconsistent/);
-    expect(renderVerbDescription(VERB_DECLARATIONS.find((d) => d.name === "nomi_generation_plan")!))
+    expect(renderVerbDescription(VERB_DECLARATIONS.find((d) => d.name === "generate")!))
       .toMatch(/priced confirmation card .* nothing is generated and nothing is spent until the user approves/);
   });
 
   it("profile 差异只能来自声明：缺 profileReason 抛；付费边界一个名字都不进内部面", () => {
-    expect(() => assemble(mutate("nomi_generation_plan", (d) => ({ ...d, profileReason: undefined }))))
+    expect(() => assemble(mutate("generate", (d) => ({ ...d, profileReason: undefined }))))
       .toThrow(/gives no profileReason/);
     for (const spec of modelFacingToolSpecs("internal")) expect(isPaidBoundaryAlias(spec.name), spec.name).toBe(false);
     for (const tool of mcpProfileTools()) expect(tool.name.startsWith("nomi_"), tool.name).toBe(true);
