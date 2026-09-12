@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { modelDiscoveryMessage, runModelDiscovery } from './modelDiscovery'
+import { credentialSaveNotice, modelDiscoveryMessage, runModelDiscovery } from './modelDiscovery'
 
 const previous = [{ id: 'already-picked', kind: 'video' }]
 
@@ -79,6 +79,22 @@ describe('model discovery picker state', () => {
     current = false
     finish()
     expect(await pending).toBeUndefined()
+  })
+
+  // P0-2 的第二半：存 key 会就地发现模型，而「发现成功但返回空清单」是唯一不抛错的落空出口。
+  // 它一旦返回 null，调用方就会直接关掉抽屉——用户什么也看不到，只能自己手打 model id。
+  it('turns every blocking credential-save outcome into a sentence, and never a silent null', () => {
+    expect(credentialSaveNotice({ stage: 'needs_input', blockingReason: { code: 'model_discovery_empty' } })?.key).toBe(
+      'modelSetup.credentialSavedNoModels',
+    )
+    // 别的码不认识也要说出来，不许当成「没问题」吞掉。
+    expect(credentialSaveNotice({ blockingReason: { code: 'credential_required' } })).toEqual({
+      key: 'modelSetup.credentialSavedBlocked',
+      values: { reason: 'credential_required' },
+    })
+    // 真的拿到清单（needs_selection、无阻塞）才允许安静收尾。
+    expect(credentialSaveNotice({ stage: 'needs_selection', candidates: [{ modelKey: 'deepseek-flash' }] })).toBeNull()
+    expect(credentialSaveNotice(undefined)).toBeNull()
   })
 
   it('uses one status mapper for both entry points and does not infer categories from English errors', () => {
