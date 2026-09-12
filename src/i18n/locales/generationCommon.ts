@@ -931,6 +931,7 @@ export const zhGenerationCommon = {
     deconstructHint: '把这条视频拆成一张镜头结构表（景别/情绪/画面/字幕/对白/提示词）→ 勾选镜头加进画布学着做',
   },
   panorama: {
+    created: '已创建全景截图节点',
     screenshotTitle: '全景截图',
     screenshotPrompt: '全景取景框截图',
     notReady: '全景还没准备好，请稍后再试',
