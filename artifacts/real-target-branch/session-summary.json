@@ -1,0 +1,65 @@
+{
+  "inputs": [],
+  "trace_count": 3,
+  "traces": [
+    {
+      "runId": "01a097c5-6701-71a6-a944-851716c8b396",
+      "fromTipId": null,
+      "tipId": "01a097c5-7e47-71a6-a944-8526f41d3dcd",
+      "startedAt": 1789252691713,
+      "endedAt": 1789252725577,
+      "status": "aborted",
+      "pricing": "unpriced",
+      "model": {
+        "provider": "dm-fox",
+        "model": "gpt-5.5"
+      },
+      "error": null,
+      "tools": [
+        {
+          "toolCallId": "call_Ggs19d4O5GqGEVCd9q3Xe0pu",
+          "durationMs": 1.063916999992216
+        }
+      ]
+    },
+    {
+      "runId": "01a097c6-7866-71a6-a944-852c45ea33c6",
+      "fromTipId": "01a097c5-7e47-71a6-a944-8526f41d3dcd",
+      "tipId": "01a097c6-7872-71a6-a944-853318f66cb8",
+      "startedAt": 1789252761702,
+      "endedAt": 1789252799456,
+      "status": "aborted",
+      "pricing": "unpriced",
+      "model": {
+        "provider": "dm-fox",
+        "model": "gpt-5.5"
+      },
+      "error": null,
+      "tools": []
+    },
+    {
+      "runId": "01a097d1-5021-71a6-a944-8539b5987b7b",
+      "fromTipId": "01a097c6-7872-71a6-a944-853318f66cb8",
+      "tipId": "01a097d1-749e-71a6-a944-85524290ba01",
+      "startedAt": 1789253472289,
+      "endedAt": 1789253485438,
+      "status": "completed",
+      "pricing": "unpriced",
+      "model": {
+        "provider": "dm-fox",
+        "model": "gpt-5.5"
+      },
+      "error": null,
+      "tools": [
+        {
+          "toolCallId": "call_HZZmmlgX9BF3iVdijHjplo0Q",
+          "durationMs": 0.9894169999752194
+        },
+        {
+          "toolCallId": "call_rtyVCaj4SfGs3Lh2jBRV6EGk",
+          "durationMs": 0.5154170000459999
+        }
+      ]
+    }
+  ]
+}
