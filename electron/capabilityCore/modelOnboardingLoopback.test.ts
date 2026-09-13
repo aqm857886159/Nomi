@@ -7,7 +7,6 @@ import { validateToolArguments } from "./mcpArgValidation";
 import { MODEL_ONBOARDING_TOOLS } from "./modelOnboarding/tools";
 import { ONBOARDING_VERBS } from "./modelOnboarding/declarations";
 import { dispatchModelOnboarding, resetModelOnboardingRuntime } from "./modelOnboarding/dispatch";
-import { createApprovalReceiptAuthority } from "./approvalReceipt";
 import { IntegrationSessionService } from "../integrationCertification/integrationSession";
 
 /**
@@ -75,7 +74,6 @@ function makeService(dir: string) {
     filePath: path.join(dir, "sessions.json"),
     certification: certification as never,
     credentialResolver: () => "loopback-key",
-    approvalReceiptAuthority: createApprovalReceiptAuthority({ filePath: path.join(dir, "receipts.json"), macKey: "loopback-mac-key" }),
     save: (target, state) => fs.writeFileSync(target, JSON.stringify(state)),
     enqueueHandoff: () => undefined,
     compilerAvailable: () => true,
