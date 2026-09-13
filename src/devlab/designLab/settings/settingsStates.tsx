@@ -7,6 +7,7 @@
 // 这屏的基线**还没录**：接触表要先给用户看过（calibration.json 的
 // pendingApprovalScreens 里有一条显式登记，拍板录完基线就删掉它）。
 import { PRIVACY_DIAGNOSTICS_STATES } from './states/01-privacy-diagnostics'
+import { ASSISTED_ONBOARDING_STATES } from './states/02-assisted-onboarding'
 import type { LabState } from '../labScreen'
 
-export const SETTINGS_STATES: readonly LabState[] = [...PRIVACY_DIAGNOSTICS_STATES]
+export const SETTINGS_STATES: readonly LabState[] = [...PRIVACY_DIAGNOSTICS_STATES, ...ASSISTED_ONBOARDING_STATES]

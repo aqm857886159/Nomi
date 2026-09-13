@@ -3,7 +3,7 @@ import test from 'node:test';
 import { z } from 'zod';
 import { openLane } from '../../electron/agentLane/laneHost.mjs';
 import type { LaneComposerContext } from '../../electron/shared/agentLane/laneDesktopContracts.js';
-import { createLaneFixture } from './laneFixture.mjs';
+import { createLaneFixture, FIXTURE_DESCRIBE } from './laneFixture.mjs';
 
 // User changes the selection twice while one tool is running. Each queued instruction
 // must retain the selection it named; no sleep or second transcript is involved.
@@ -29,8 +29,8 @@ test('desktop input follows consumed messages, including after a queued selectio
       providerContent: async (message) => `${message.content}\nDocument: ${message.context.documentId}`,
     },
     tools: [{ name: 'read_document', contractId: 'document.read',
-      description: 'Read the selected document.', promptSnippet: 'read the selected document.',
-      effects: { mutates: false, billable: false, reversal: 'none' },
+      description: 'Read the selected document.', promptSnippet: 'read the selected document.', nextAction: 'none', describe: FIXTURE_DESCRIBE,
+      effect: 'read',
       execution: { timeoutMs: 30_000 }, schema: z.object({}), examples: [],
       execute: async () => {
         visited.push(active?.documentId ?? 'missing');

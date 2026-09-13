@@ -15,6 +15,61 @@ const TimelinePanel = lazyWithChunkBoundary(
   () => import('../timeline/TimelinePanel'),
 )
 import { computeTimelineDuration } from '../timeline/timelineMath'
+import { resolveTimelineHandleLeft, type Interval } from './timelineHandlePlacement'
+
+/**
+ * 收起态时间轴手柄的水平落位（2026-09-10 走查反馈 #13 修正）。
+ *
+ * 手柄原来是 `left-1/2` 盲居中——agent 面板拖宽、画布变窄时中心跟着左移，压到底部
+ * 已停靠的东西。这里量出画布内**其他**底部停靠区（`data-canvas-bottom-dock` 标记纪律，
+ * 不含手柄自己）的横向区间，交给纯计算层在自由间隙里选离中心最近的落位。
+ * 测量时机与 useCanvasBottomDockRects 同款：画布 Resize + 停靠区挂摘（childList），
+ * rAF 合帧；不订子树，避免 React Flow 平移时逐帧重量。
+ */
+function useTimelineHandleLeft(
+  canvasRef: React.RefObject<HTMLElement | null>,
+  handleRef: React.RefObject<HTMLElement | null>,
+  enabled: boolean,
+): number | null {
+  const [left, setLeft] = React.useState<number | null>(null)
+  React.useLayoutEffect(() => {
+    const canvas = canvasRef.current
+    const handle = handleRef.current
+    if (!enabled || !canvas || !handle) return undefined
+    if (typeof ResizeObserver === 'undefined' || typeof MutationObserver === 'undefined') return undefined
+    let frame = 0
+    const measure = (): void => {
+      frame = 0
+      const width = canvas.clientWidth
+      const handleWidth = handle.offsetWidth
+      if (!(width > 0) || !(handleWidth > 0)) return
+      const canvasRect = canvas.getBoundingClientRect()
+      const docks: Interval[] = []
+      for (const element of Array.from(canvas.querySelectorAll('[data-canvas-bottom-dock="true"]'))) {
+        if (element === handle || element.contains(handle) || handle.contains(element)) continue
+        const rect = element.getBoundingClientRect()
+        if (!(rect.width > 0 && rect.height > 0)) continue
+        docks.push({ left: rect.left - canvasRect.left, right: rect.right - canvasRect.left })
+      }
+      setLeft(resolveTimelineHandleLeft(width, docks, handleWidth))
+    }
+    const request = (): void => {
+      if (frame) return
+      frame = window.requestAnimationFrame(measure)
+    }
+    measure()
+    const resize = new ResizeObserver(request)
+    resize.observe(canvas)
+    const mutation = new MutationObserver(request)
+    mutation.observe(canvas, { childList: true })
+    return () => {
+      resize.disconnect()
+      mutation.disconnect()
+      if (frame) window.cancelAnimationFrame(frame)
+    }
+  }, [enabled, canvasRef, handleRef])
+  return left
+}
 
 type GenerationWorkspaceProps = {
   canvas: React.ReactNode
@@ -53,6 +108,9 @@ export default function GenerationWorkspace({
   }, [timeline])
   const assistantTargetWidth = `${assistantPaneWidth(width)}px`
   const hasAssistant = Boolean(agentDockRef)
+  const canvasRef = React.useRef<HTMLDivElement | null>(null)
+  const timelineHandleRef = React.useRef<HTMLButtonElement | null>(null)
+  const timelineHandleLeft = useTimelineHandleLeft(canvasRef, timelineHandleRef, timelineCollapsed)
   const assistantColumnWidth = hasAssistant ? (aiCollapsed ? '0px' : assistantTargetWidth) : '0px'
   const isDockedAssistant = hasAssistant
   const workspaceStyle = {
@@ -84,6 +142,7 @@ export default function GenerationWorkspace({
       aria-label={t('generationCommon.workspace.aria')}
     >
       <div
+        ref={canvasRef}
         className={cn(
           'workbench-generation__canvas',
           'min-w-0 min-h-0 overflow-hidden border-b border-[var(--workbench-border)]',
@@ -95,15 +154,20 @@ export default function GenerationWorkspace({
             （2026-08-08 飞书反馈）时间轴是主时间观入口，应在底部中间。 */}
         {timelineCollapsed ? (
           <button
+            ref={timelineHandleRef}
             type="button"
             className={cn(
               'workbench-generation__timeline-handle',
-              'absolute bottom-3 left-1/2 -translate-x-1/2 z-[8]',
+              'absolute bottom-3 z-[8]',
+              // 2026-09-10 修正：不再盲居中——left 由 useTimelineHandleLeft 算出
+              //（避开所有底部停靠区的自由间隙里离中心最近的位置）；测量未就绪时回退居中。
+              timelineHandleLeft != null ? 'transition-[left] duration-nomi-fast' : 'left-1/2 -translate-x-1/2',
               'inline-flex items-center gap-2 rounded-full px-3 py-1.5',
               'border border-[var(--workbench-border)] bg-nomi-paper shadow-workbench-pop',
               'text-body-sm font-medium text-nomi-ink',
               'transition-colors hover:bg-nomi-ink-05',
             )}
+            style={timelineHandleLeft != null ? { left: timelineHandleLeft } : undefined}
             // 常驻底部：画布上的选择浮条得让开这一块（量法见
             // generationCanvas/reactFlow/useCanvasBottomDockRects.ts）。
             data-canvas-bottom-dock="true"
@@ -125,7 +189,10 @@ export default function GenerationWorkspace({
         {timelineCollapsed ? null : <TimelineMiniPreview />}
       </div>
       {hasAssistant ? <AssistantPane dockRef={agentDockRef} collapsed={aiCollapsed} /> : null}
-      <div className={cn('workbench-generation__timeline', 'relative col-span-full min-w-0 min-h-0')}>
+      {/* 2026-09-10 走查反馈：时间轴原先 col-span-full 横跨 agent 列，agent 面板
+          弹簧动画改宽时时间轴跟着左右伸缩、盖住画布内容。时间轴是画布的时间观，
+          只占画布列（col-start-1），agent 列与它解耦。 */}
+      <div className={cn('workbench-generation__timeline', 'relative col-start-1 min-w-0 min-h-0')}>
         {timelineCollapsed ? null : (
           <>
             <TimelineResizeHandle />

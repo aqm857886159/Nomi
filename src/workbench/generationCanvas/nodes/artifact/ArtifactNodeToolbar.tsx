@@ -68,7 +68,7 @@ export default function ArtifactNodeToolbar({ reportFeedback, nodeId, title, art
   }, [artifact, nodeId, reportFeedback, t])
 
   return (
-    <FloatingToolbarShell ariaLabel={t('runtime.nodeRegistry.agent-artifact.actions')}>
+    <FloatingToolbarShell ariaLabel={t('runtime.nodeRegistry.agent-artifact.actions')} lockNodeId={null}>
 
       {canArtifactBecomeReference(artifact.fileType) ? (
         <ToolbarButton

@@ -3,6 +3,7 @@
 // 渲染层不消费这些（electron 专用；渲染层有自己的 DTO，经 desktopClient 单源）。
 import type { ApiKeyRecord } from "./secrets";
 import type { ParamMap } from "./paramTranslate";
+import type { TransportAbandonDisposition, TransportDelivery } from "./transportDelivery";
 import catalogVersion from "./catalogVersion.json";
 import {
   AI_SDK_PROVIDER_KINDS,
@@ -519,6 +520,10 @@ export type Mapping = {
   name: string;
   enabled: boolean;
   create: HttpOperation;
+  /** 见 transportDelivery.ts：上游契约声明的交付形状。缺省按「有 query 即异步」推断（存量数据）。 */
+  delivery?: TransportDelivery;
+  /** 异步任务不要了怎么办（取消端点 / 轮询到底）。 */
+  abandon?: TransportAbandonDisposition;
   query?: HttpOperation;
   result?: HttpOperation;
   statusMapping?: Record<string, string[]>;

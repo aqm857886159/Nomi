@@ -6,6 +6,8 @@ import { SETTINGS_SOUND_STATES } from './settingsSound/states/01-sound'
 import { CATALOG_LIVENESS_STATES } from './catalogLiveness/states/01-listing'
 import { CANVAS_ADD_MENU_STATES } from './canvasAddMenu/canvasAddMenuStates'
 import { CANVAS_FRAME_STATES } from './canvasFrame/canvasFrameStates'
+import { NODE_COMPOSER_BAR_STATES } from './nodeComposerBar/nodeComposerBarStates'
+import { NODE_COMPOSER_BAR_CELL_HEIGHT, NODE_COMPOSER_BAR_CELL_WIDTH } from './nodeComposerBar/nodeComposerBarLabKit'
 import { CANVAS_FRAME_CELL_HEIGHT, CANVAS_FRAME_CELL_WIDTH } from './canvasFrame/canvasFrameLabKit'
 import { CANVAS_ADD_CELL_HEIGHT, CANVAS_ADD_CELL_WIDTH } from './canvasAddMenu/canvasAddMenuLabKit'
 import { EDITING_STATES } from './editing/editingStates'
@@ -85,10 +87,19 @@ export const LAB_SCREENS: readonly LabScreen[] = [
     cell: { width: CANVAS_FRAME_CELL_WIDTH, height: CANVAS_FRAME_CELL_HEIGHT },
   },
   {
+    id: 'node-composer-bar',
+    label: '画布 · 节点生成浮框底栏',
+    states: NODE_COMPOSER_BAR_STATES,
+    // 八格取景一样大：这一屏要人比的是「同一个浮框，改前 vs 改后底栏里有什么」。
+    // 格子不同宽，「挤没挤」就无从比起。
+    cell: { width: NODE_COMPOSER_BAR_CELL_WIDTH, height: NODE_COMPOSER_BAR_CELL_HEIGHT },
+  },
+  {
     id: 'settings',
     label: '设置 · 隐私与诊断',
     states: SETTINGS_STATES,
-    // 这屏各状态取景框一样大（设置内容区实际可用宽），尺寸从取景台取，不另抄一个数。
+    // 这屏各状态取景框一样宽（设置内容区实际可用宽），尺寸从取景台取，不另抄一个数。
+    // 高度按最高的那一格给：「用 AI 帮我接入」展开三步图后比隐私那一格高。
     cell: { width: SETTINGS_CELL_WIDTH, height: SETTINGS_CELL_HEIGHT },
   },
   // ── primitive 陈列三屏 ────────────────────────────────────────────────────

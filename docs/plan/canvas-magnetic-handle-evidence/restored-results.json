@@ -1,0 +1,18 @@
+[
+  {
+    "name": "01-unselected-dots",
+    "pass": true
+  },
+  {
+    "name": "02-selected-band-follows",
+    "pass": true
+  },
+  {
+    "name": "03-drag-snaps-to-target",
+    "pass": true
+  },
+  {
+    "name": "04-close-edge-stays-clickable",
+    "pass": true
+  }
+]

@@ -16,8 +16,11 @@ import { capabilitySupportsUndo } from '../../../../electron/shared/agentCapabil
 //    （分镜行双击进 v6 全页、节点进节点）——§1.5.2 一功能一个家。一个 382 行的编辑器塞在
 //    composer 上方那一格里，等于在最窄的地方做最重的事。
 //
-// ④ `missing_param` **不进这个槽**。缺参数不是审批：它没有「不要」这个出口，用户要做的只是
-//    补一句话。它走 `missingParamSuggestion()` 变成对话流里的一条提问 + 建议 chip。
+// ④ `missing_param` 进这个槽，渲成**反问卡**（2026-09-12 改）。原来写的是「它不进这个槽，
+//    走 `missingParamSuggestion()` 变成对话流里的一条提问」——但那条对话流分支从来没有接过线
+//    （`missingParamSuggestion` 全仓零调用方）。真实后果是宿主 announce 了「有一条在等你」、
+//    槽里却什么都没有。缺参数本来就是一句问题 + 几个现成答案，那正是反问格的形状；
+//    它没有「不要」这个出口也成立——反问格本来就只有选项 chip，没有确认/不要（见下 `hasActions`）。
 import type { CapabilityEffectClass } from '../../../../electron/shared/agentCapabilities/capabilityContract'
 import { residentPlanShots, residentQuestionOptions, residentProposalParameters } from '../resident/residentExceptionProjections'
 import { readableToolName, readableToolPreview } from '../resident/residentToolDisplay'
@@ -90,11 +93,22 @@ function proposalContent(record: Readonly<Record<string, unknown>>): string | un
   return undefined
 }
 
-/** 这次待决属于八个 kind 里的哪一个；缺参数在这里返回 `undefined`（它不进槽）。 */
-export function interventionKindOf(args: unknown, effectClass: CapabilityEffectClass | undefined, isPlan: boolean): V4InterventionKind | undefined {
+/**
+ * 这次待决属于哪一个 kind。**返回值不可空**（2026-09-12）。
+ *
+ * 它以前对「缺参数」回 `undefined`，注释说那一族「走 `missingParamSuggestion()` 变成对话流里
+ * 的一条提问」——可 `missingParamSuggestion` 从来没有被任何组件调用过（全仓 grep 只命中它自己）。
+ * 于是真实后果是：宿主明明在 announce「有一条在等你」（dock 上就写着「等你确认 1 条」），
+ * 而槽里画的是 `undefined`——**一片空白**。用户那头就是「模型说要我确认，我却找不到在哪确认」。
+ *
+ * 现在缺参数就是一张**反问卡**（它本来就是一句问题 + 几个现成答案），那条死掉的分支连同
+ * 它的空返回一起删掉。签名改成不可空之后，「announce 了却什么都没画」在这条链上
+ * **编译期就不可能**（R28：能让编译器拦的别留给门岗）。
+ */
+export function interventionKindOf(args: unknown, effectClass: CapabilityEffectClass | undefined, isPlan: boolean): V4InterventionKind {
   const record = asRecord(args)
   if (stringField(record, 'missingCredential')) return 'credential'
-  if (stringField(record, 'missingParam')) return undefined
+  if (stringField(record, 'missingParam')) return 'question'
   if (stringField(record, 'question')) return 'question'
   if (isPlan) return 'plan'
   if (effectClass === 'spend') return 'spend'
@@ -118,14 +132,13 @@ export function projectV4Intervention(
   source: V4InterventionSource,
   labels: V4InterventionLabels,
   t: Translate,
-): InterventionData | undefined {
+): InterventionData {
   const record = asRecord(source.args)
   const isPlan = Boolean(source.planLines?.length) || residentPlanShots(source.args).length > 0
   const kind = interventionKindOf(source.args, source.effectClass, isPlan)
-  if (!kind) return undefined
   const more = source.pendingCount > 1 ? t('agentPanelV4.interventionMore', { count: source.pendingCount - 1 }) : ''
   const summaryParts = [
-    kind === 'question' ? stringField(record, 'question') : readableToolPreview(t, source.toolName, source.args),
+    kind === 'question' ? (missingParamSuggestion(source.args, t)?.text ?? stringField(record, 'question')) : readableToolPreview(t, source.toolName, source.args),
     // 「1 条内容」不足以让人决定要不要——用户在这一刻要判断的是**那句话该不该进文稿**。
     // B2e：完整保留列表、表格和换行；滚动由现有槽外壳管理。
     proposalContent(record),

@@ -18,6 +18,10 @@ import type { PlanShot, StoryboardPlan } from "./storyboardPlan";
 // `shot.shotId ?? shot-${index}`，而落画布/行绑定用的是 `stableShotId`（多一道字符白名单）——
 // 同一个镜头在「引擎输入 id」与「行绑定 id」上会得出两个值，闸的作用域和行内警示就对不上号（R14.1）。
 import { stableShotId } from "./storyboardPlan";
+// 同理：镜头**发出去时携带的参数**也只有一把尺（`resolveShotParams` = 行覆盖 ?? 整片默认 ?? 缺席）。
+// 这里曾直接铺那一行自己写着的参数，于是策略引擎按"没有画幅"去裁决、落画布却按整片默认发——
+// 引擎给的建议与真正发出去的请求是两份东西（2026-09-12 根因合同）。
+import { resolveShotParams } from "./storyboardShotScope";
 import type {
   MergeProposal,
   PlanIssue,
@@ -42,7 +46,10 @@ export function storyboardPlanToPlanShotInputs(plan: StoryboardPlan): PlanShotIn
     ...(shot.anchorIds.length > 0 ? { anchorIds: [...shot.anchorIds] } : {}),
     ...(shot.modelKey ? { modelKey: shot.modelKey } : {}),
     ...(shot.modeId ? { modeId: shot.modeId } : {}),
-    ...(shot.params ? { params: { ...shot.params } } : {}),
+    ...(() => {
+      const params = resolveShotParams(plan, shot);
+      return Object.keys(params).length > 0 ? { params } : {};
+    })(),
     ...(shot.ffDesc ? { beatNote: shot.ffDesc } : {}),
   }));
 }

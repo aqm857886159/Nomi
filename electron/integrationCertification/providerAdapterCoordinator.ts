@@ -116,7 +116,6 @@ function settledResultFromVerification(result: AdapterVerificationResult): Certi
         taskKind: result.taskKind,
         stage: result.stage,
         ...(result.errorCategory ? { errorCategory: result.errorCategory } : {}),
-        ...(result.reasonCode ? { reasonCode: result.reasonCode } : {}),
       };
 }
 
@@ -480,37 +479,14 @@ export class ProviderAdapterCertificationCoordinator {
       operation = this.ledger.getByRunId(input.runId)!;
       mode = operation.modeOperations[input.operationKey] || operation.modeOperations[operation.modeOperationKeys[modeIdentity]?.operationKey];
       if (!mode) throw new Error("Certification mode operation is missing after verification");
-      const unknown = result.submissionState === "unknown"
-        || (!result.ok && (result.stage === "create" || result.stage === "poll")
-          && (result.errorCategory === "network" || result.errorCategory === "timeout"));
-      if (unknown) {
-        if (mode.submissionState === "submitting" || mode.submissionState === "submitted") {
-          operation = this.ledger.markUnknown(input.runId, {
-            operationKey: mode.operationKey,
-            expectedRevision: operation.revision,
-            userAction: "reconcile_or_contact_provider",
-            ...(result.remoteTaskId ? { remoteTaskId: result.remoteTaskId } : {}),
-            now: this.now(),
-          });
-          this.syncRunOperationState(input.runId, operation);
-        }
-        this.markSubmissionUnknown(input.runId, mode.remoteTaskId || result.remoteTaskId ? "submission_unknown" : "submission_reconcile_unavailable");
-        throw new AdapterReconciliationRequiredError();
-      }
-      if (mode.submissionState === "submitting" && result.remoteTaskId) {
-        operation = this.ledger.markSubmitted(input.runId, {
-          operationKey: mode.operationKey,
-          remoteTaskId: result.remoteTaskId,
-          expectedRevision: operation.revision,
-          now: this.now(),
-        });
-        mode = operation.modeOperations[mode.operationKey];
-      }
+      // 自检不向上游提交任何东西，所以**不可能**留下一个「不知道有没有落地」的远端任务：
+      // 「提交状态未知 → 需要对账」那一整族分支随付费验证一起删了（P1，无并行版）。
+      // ledger 的 markUnknown/markSubmitted 仍然保留，但只服务于**本次改动之前**落盘、
+      // 仍停在 submitting/unknown 的历史 run 的恢复路径。
       if (mode.submissionState === "submitting" || mode.submissionState === "submitted") {
         operation = this.ledger.markSettled(input.runId, {
           operationKey: mode.operationKey,
           expectedRevision: operation.revision,
-          ...(result.ok && result.mediaEvidence ? { artifactEvidence: result.mediaEvidence } : {}),
           result: settledResultFromVerification(result),
           now: this.now(),
         });

@@ -25,12 +25,11 @@ import {
   isVideoLikeGenerationNodeKind,
 } from '../model/generationNodeKinds'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
+import { useNodeWriteAccess } from './nodeWriteAccess'
 import type { CanvasMutationOptions } from '../store/canvasGuards'
-import { importWorkbenchLocalAssetFile } from '../../api/assetUploadApi'
 import { comfyWorkflowTakesPrompt } from '../runner/promptRequirement'
 import {
   type DynamicCatalogControl,
-  assetUrl,
   buildEffectiveImageCatalogConfig,
   defaultPatchForCatalogControl,
   videoAspectDefaultPatch,
@@ -44,6 +43,7 @@ import {
   resultPreviewUrl,
   shouldUseVideoFrameSlotFallback,
 } from './controls/parameterControlModel'
+import { createSlotFileUploads } from './controls/slotFileUploads'
 import {
   type ArchetypeArraySlot,
   appendArchetypeArrayValue,
@@ -80,7 +80,8 @@ import AssetReference, { type AssetSlot } from '../../assets/AssetReference'
 import type { AssetRef } from '../../assets/assetTypes'
 import { moveArrayItem } from '../../assets/assetTypes'
 import { removeMention } from '../../assets/promptMentions'
-import InlineParameterBar from './InlineParameterBar'
+import InlineParameterBar, { type InlineParameterBarParameterLayout } from './InlineParameterBar'
+import { composerHeadlineSummary } from './composerHeadlineSummary'
 import { useNodeModelAutoSelect } from './useNodeModelAutoSelect'
 import { resolveArchetypeForOption, resolveRenderedControls } from './nodeModelArchetype'
 import {
@@ -105,6 +106,24 @@ type NodeParameterControlsProps = {
   onInsertMention?: (url: string) => void
   /** 当前 composer 连在节点哪条边；比例切换用它保持同一连接锚点。 */
   composerAttachmentSide?: ComposerAttachmentSide
+  /**
+   * 参数区怎么摆（透传给 InlineParameterBar，那边写着两种形态的判据）。
+   * 画布节点**不传** → 默认 `summary`（摘要 pill + 面板，2026-09-11 04:30 用户拍板节点保持原样）；
+   * 付费确认卡（`host="panel"` 的 composer）显式传 `chips`，逐参数一颗下拉。
+   */
+  parameterLayout?: InlineParameterBarParameterLayout
+  /**
+   * 参数**下拉浮层**的落点容器（`host="panel"` 的 composer 传自己的卡）。画布上不传：浮层 portal 到
+   * body、打开时定位一次就不跟随，而节点卡本来就不滚动。面板里的卡随转录滚动，body 上的静止浮层会
+   * **留在原地**脱离卡；给了落点就换成「就地展开 + 浮层进卡」，和 `panelMode="inline"` 同一条理由。
+   */
+  inlinePanelTarget?: React.RefObject<HTMLElement | null>
+  /**
+   * 就地展开的参数面板**本体**落在哪（`host="panel"` 传底栏下面那个空 div）。和上面那条是两件事：
+   * 那条是下拉浮层的 portal 根（整张卡），这条是面板的位置。不给就原地渲染在摘要 pill 后面——
+   * 那会让整幅面板变成底栏那一排的兄弟去抢宽度，把「模型/参数/×N」挤成两行。
+   */
+  inlinePanelSlot?: React.RefObject<HTMLElement | null>
 }
 
 export default function NodeParameterControls({
@@ -112,6 +131,9 @@ export default function NodeParameterControls({
   section = 'all',
   onInsertMention,
   composerAttachmentSide = 'bottom',
+  parameterLayout,
+  inlinePanelTarget,
+  inlinePanelSlot,
 }: NodeParameterControlsProps): JSX.Element | null {
   const reportFeedback = React.useCallback((message: string) => {
     notify({ identity: `NodeParameterControls:${node.id}`, reason: 'interaction', message, level: 'inline', present: setUploadError })
@@ -120,7 +142,8 @@ export default function NodeParameterControls({
   const { t } = useTranslation()
   const nodes = useGenerationCanvasStore((state) => state.nodes)
   const edges = useGenerationCanvasStore((state) => state.edges)
-  const updateNode = useGenerationCanvasStore((state) => state.updateNode)
+  // 写入面由宿主接住（付费确认卡走它自己的草稿账本，确认前不碰画布）——见 nodeWriteAccess。
+  const { updateNode, latestNode } = useNodeWriteAccess()
   const storeConnectNodes = useGenerationCanvasStore((state) => state.connectNodes)
   const storeDisconnectEdge = useGenerationCanvasStore((state) => state.disconnectEdge)
   const meta = React.useMemo<Record<string, unknown>>(() => node.meta || {}, [node.meta])
@@ -185,8 +208,7 @@ export default function NodeParameterControls({
   // P1 单一真相源：所有 meta 增量 patch 都从 store 读**最新** meta 再 spread，绝不基于渲染快照 prop
   // `node.meta`（那是第二份真相源）。连边赋图 + 紧接改参数等「先后两次写」时，读快照会让后写覆盖前写
   // (lost-update 竞态)。updateNode 是整体替换 meta（Object.assign 浅替换），故必须在此处自己合并最新值。
-  const getLatestMeta = (): Record<string, unknown> =>
-    useGenerationCanvasStore.getState().nodes.find((n) => n.id === node.id)?.meta || {}
+  const getLatestMeta = (): Record<string, unknown> => latestNode(node.id)?.meta || {}
 
   const updateMeta = (patch: Record<string, unknown>, options?: CanvasMutationOptions) => {
     updateNode(node.id, {
@@ -204,7 +226,7 @@ export default function NodeParameterControls({
   }, [archMode, meta])
 
   const updateAspectRatioMeta = (patch: Record<string, unknown>, targetRatio: number | null) => {
-    const latest = useGenerationCanvasStore.getState().nodes.find((candidate) => candidate.id === node.id)
+    const latest = latestNode(node.id)
     if (!latest) return
     const nextMeta = { ...(latest.meta || {}), ...patch }
     updateNode(
@@ -215,9 +237,9 @@ export default function NodeParameterControls({
 
   const handleModelChange = (value: string, vendor?: string) => {
     const state = useGenerationCanvasStore.getState()
-    const latestNode = state.nodes.find((candidate) => candidate.id === node.id) || node
+    const current = latestNode(node.id) || node
     updateNode(node.id, buildNodeModelChangePatch({
-      node: latestNode,
+      node: current,
       nodes: state.nodes,
       edges: state.edges,
       modelOptions,
@@ -335,8 +357,8 @@ export default function NodeParameterControls({
   const setArrayValue = (metaKey: string, next: string[]) => updateMeta({ [metaKey]: next })
   const handleArrayAdd = (slot: ArchetypeArraySlot, url: string) => {
     const state = useGenerationCanvasStore.getState()
-    const latestNode = state.nodes.find(n => n.id === node.id) ?? node
-    if (archMode && nodeReferenceCapacity(archMode, latestNode, state.nodes, state.edges) === 0) {
+    const currentNode = latestNode(node.id) ?? node
+    if (archMode && nodeReferenceCapacity(archMode, currentNode, state.nodes, state.edges) === 0) {
       reportFeedback(t('generationCommon.parameters.referenceTotal', { max: archMode.maxTotalReferences }))
       return
     }
@@ -395,45 +417,6 @@ export default function NodeParameterControls({
     }
     setArrayValue(metaKey, next)
   }
-  const handleArrayUpload = async (slot: ArchetypeArraySlot, file: File | null | undefined) => {
-    if (!file) return
-    setUploadingArrayKey(slot.metaKey)
-    setUploadError('')
-    try {
-      const uploaded = await importWorkbenchLocalAssetFile(file, file.name || slot.label, {
-        ownerNodeId: node.id,
-        taskKind: 'image_edit',
-      })
-      const url = assetUrl(uploaded)
-      if (!url) throw new Error(t('generationCommon.parameters.missingAssetUrl'))
-      handleArrayAdd(slot, url)
-    } catch (error) {
-      setUploadError(error instanceof Error ? error.message : String(error))
-    } finally {
-      setUploadingArrayKey('')
-    }
-  }
-
-  // D3 源视频单槽（video-edit）：上传一个视频 → 写 meta.sourceVideoUrl（传输映射成 video_url）。
-  const handleSourceVideoUpload = async (metaKey: string, file: File | null | undefined) => {
-    if (!file) return
-    setUploadingArrayKey(metaKey)
-    setUploadError('')
-    try {
-      const uploaded = await importWorkbenchLocalAssetFile(
-        file,
-        file.name || t('generationCommon.parameters.sourceVideo'),
-        { ownerNodeId: node.id, taskKind: 'image_edit' },
-      )
-      const url = assetUrl(uploaded)
-      if (!url) throw new Error(t('generationCommon.parameters.missingVideoUrl'))
-      updateMeta({ [metaKey]: url })
-    } catch (error) {
-      setUploadError(error instanceof Error ? error.message : String(error))
-    } finally {
-      setUploadingArrayKey('')
-    }
-  }
   const handleSlotAssignment = (slot: ImageUrlSlot, newSourceNodeId: string) => {
     const state = useGenerationCanvasStore.getState()
     const target = state.nodes.find((candidate) => candidate.id === node.id) || node
@@ -470,39 +453,18 @@ export default function NodeParameterControls({
     updateNode(node.id, { meta: { ...latestMeta, ...patch } }, { history: !existingEdge })
     setOpenSlotKey('')
   }
-  const handleSlotUpload = async (slot: ImageUrlSlot, file: File | null | undefined) => {
-    if (!file) return
-    if (!file.type.startsWith(`${slot.mediaKind ?? 'image'}/`)) {
-      // 三选一（同类根因的又一个入口，2026-09-11 补：ComfyUI 声明的音频参数槽走这条上传器，
-      // 此前只区分 video/image，音频槽拖错文件会显示「只能选择图片文件」这种文不对题的提示）。
-      setUploadError(t(
-        slot.mediaKind === 'video' ? 'generationCommon.parameters.videoOnly'
-          : slot.mediaKind === 'audio' ? 'generationCommon.parameters.audioOnly'
-            : 'generationCommon.parameters.imageOnly',
-      ))
-      return
-    }
-    setUploadingSlotKey(slot.key)
-    setUploadError('')
-    try {
-      const uploaded = await importWorkbenchLocalAssetFile(file, file.name || slot.label, {
-        ownerNodeId: node.id,
-        ...(slot.mediaKind === 'video' || slot.mediaKind === 'audio' ? {} : { taskKind: 'image_edit' }),
-      })
-      const url = assetUrl(uploaded)
-      if (!url) throw new Error(t(
-        slot.mediaKind === 'video' ? 'generationCommon.parameters.missingVideoUrl'
-          : slot.mediaKind === 'audio' ? 'generationCommon.parameters.missingAudioUrl'
-            : 'generationCommon.parameters.missingImageUrl',
-      ))
-      setSingleFrameUrlMeta(slot, url)
-    } catch (error) {
-      setUploadError(error instanceof Error ? error.message : String(error))
-    } finally {
-      setUploadingSlotKey('')
-    }
-  }
-
+  // 三个「本地文件 → 槽 url」入口共用一条导入路径（controls/slotFileUploads）。写入仍归这里：
+  // 数组走 handleArrayAdd 的唯一追加路径，单槽走 setSingleFrameUrlMeta 的断边+写 meta。
+  const { handleArrayUpload, handleSourceVideoUpload, handleSlotUpload } = createSlotFileUploads({
+    nodeId: node.id,
+    t,
+    onArrayAdd: handleArrayAdd,
+    onSourceVideoUrl: (metaKey, url) => updateMeta({ [metaKey]: url }),
+    onSingleFrameUrl: setSingleFrameUrlMeta,
+    setUploadingArrayKey,
+    setUploadingSlotKey,
+    setUploadError,
+  })
   // ComfyUI 导入的工作流不再走特例：它把声明的每个媒体输入都以 type:'image-url' 写进 meta.parameters，
   // 于是这里的通用出槽器**按条出槽**——声明几个就长几个（2026-08-20，治「多参工作流只能连一张图」）。
   const modelImageUrlSlots = [
@@ -684,7 +646,9 @@ export default function NodeParameterControls({
     updateMeta({ [slot.key]: null })
   }
 
-  // section="parameters"：底栏 = 模型芯片 + 变体 + 最常调参数内联 + 「更多」弹层（主次分层，实现见 InlineParameterBar）。
+  // section="parameters"：底栏 = 模型芯片 + 变体 + 摘要 pill + 统一参数面板（实现见 InlineParameterBar）。
+  // **画布节点不传 parameterLayout** → 默认 `summary`：2026-09-11 04:30 用户纠正，
+  // 同日 02:10 的逐参数 chip 只给付费确认卡，节点这一处退回原样（摘要 pill + 面板，含比例小图形）。
   if (section === 'parameters') {
     // 导入的 ComfyUI 工作流：参数名是作者随手起的（采样步数/帧率/Float (duration)…），
     // 把当前值串成 pill（`15 · 24`）没人认得出那是自己勾的东西。改成报名字+条数。
@@ -692,6 +656,17 @@ export default function NodeParameterControls({
     const workflowSummary = isImportedComfyWorkflowModel(selectedModelOption?.meta) && renderedControls.length > 0
       ? t('generationCommon.parameters.workflowParams', { count: renderedControls.length })
       : undefined
+    // v1.1 底栏：档案模型的 pill 只报「最影响结果和价格的两个值」（视频=比例+时长、图=比例+清晰度），
+    // 其余参数一个不少、仍在同一块弹层里。走 summaryOverride 这条**已有的**缝（导入工作流那支
+    // 在用同一个入口），不新造第二条摘要通路。工作流的口径优先——它连「值串出来没人认得」
+    // 这个更基本的问题都还没解决，轮不到再挑两个。
+    const summaryOverride = workflowSummary ?? composerHeadlineSummary({
+      isImageLike,
+      isVideoLike,
+      controls: renderedControls,
+      meta,
+      formatSeconds: (value) => t('generationCommon.composerBarV1.seconds', { value }),
+    })
     return (
       <InlineParameterBar
         modelOptions={modelOptions}
@@ -706,7 +681,10 @@ export default function NodeParameterControls({
         variantChoices={showVariantBar ? variantChoices : []}
         activeVariantId={activeVariantId}
         onVariantSelect={handleVariantSwitch}
-        summaryOverride={workflowSummary}
+        summaryOverride={summaryOverride}
+        {...(parameterLayout ? { parameterLayout } : {})}
+        {...(inlinePanelTarget ? { panelMode: 'inline' as const, portalTarget: inlinePanelTarget } : {})}
+        {...(inlinePanelSlot ? { inlinePanelSlot } : {})}
       />
     )
   }

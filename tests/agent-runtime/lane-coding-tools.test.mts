@@ -25,8 +25,11 @@ import {
 import {
   evaluateLaneToolBudget, laneToolMenu, LANE_TOOL_REQUEST_TOOL_NAME, LANE_CODING_TOOL_GROUP,
 } from '../../electron/agentLane/laneToolGroups.mjs';
-import { openLaneSandbox, sandboxPolicyFor, type LaneBashOperations, type SandboxManagerLike }
+import { laneSandboxVendorPaths, openLaneSandbox, sandboxPolicyFor,
+  type LaneBashOperations, type SandboxManagerLike }
   from '../../electron/agentLane/laneCodingSandbox.mjs';
+import { VERB_EFFECTS } from '../../electron/shared/agentCapabilities/verbDeclaration.js';
+import { laneToolBillable, laneToolMutates } from '../../electron/shared/agentLane/laneToolContract.js';
 
 async function projectDir(t: TestContext): Promise<string> {
   const dir = await mkdtemp(path.join(tmpdir(), 'nomi-coding-'));
@@ -245,7 +248,10 @@ test('安全断言⑤ 平台不支持时 active=false 且带人话原因，不�
     { manager, localOperations },
   );
   assert.equal(sandbox.active, false);
-  assert.match(sandbox.inactiveReason ?? '', /No OS-level sandbox/);
+  // 码是产品契约（界面按它挑那句人话），正文只是诊断——两半都断言住，
+  // 不然把 code 写死成一个值、正文里放任何东西，测试照样绿。
+  assert.equal(sandbox.inactive?.code, 'unsupported-platform');
+  assert.match(sandbox.inactive?.detail ?? '', /No OS-level sandbox/);
   assert.ok(sandbox.operations, 'active:false 不等于不能跑命令——等于每条都要人点头');
 });
 
@@ -261,7 +267,69 @@ test('沙箱初始化失败也是 active=false，不是整条 lane 开不起来'
     { manager, localOperations },
   );
   assert.equal(sandbox.active, false);
-  assert.match(sandbox.inactiveReason ?? '', /bubblewrap missing/);
+  assert.equal(sandbox.inactive?.code, 'init-failed');
+  assert.match(sandbox.inactive?.detail ?? '', /bubblewrap missing/);
+});
+
+// ── 打包后二进制找不找得到（2026-09-12 的发布阻塞项）──
+//
+// 这三条守的是那条最反直觉的事实：`asarUnpack` 把真文件摊到了 `app.asar.unpacked/`，
+// 但运行时自己用 `import.meta.url` 拼出来的路径仍然指进 `app.asar`，而且它那句
+// `existsSync` 在 Electron 里回 `true`——于是它「找到了」，不再试别的候选，然后把一个
+// `execve` 不了的路径交出去。所以真正让二进制被用上的是我们显式传的这几个路径。
+// 真机实测见 `docs/lessons/2026-09-12-sandbox-runtime-not-unpacked.md`。
+
+function vendorDeps(input: { platform: string; arch: string; packageJson: string; present?: readonly string[] }) {
+  return {
+    resolvePackageJson: () => input.packageJson,
+    // 只认解包副本存在——正是打包后的真实形状：归档里那份对 `execve` 不存在。
+    exists: (candidate: string) => (input.present ?? []).some((suffix) => candidate.endsWith(suffix)),
+    platform: input.platform,
+    arch: input.arch,
+  };
+}
+
+test('打包后给出的是 app.asar.unpacked 里那份，不是归档里那份', () => {
+  const packaged = '/Apps/Nomi.app/Contents/Resources/app.asar/node_modules/@anthropic-ai/sandbox-runtime/package.json';
+  const linux = laneSandboxVendorPaths(vendorDeps({
+    platform: 'linux', arch: 'x64', packageJson: packaged,
+    present: ['vendor/seccomp/x64/apply-seccomp', 'vendor/java-proxy-agent/srt-proxy-agent.jar'],
+  }));
+  assert.equal(linux.seccomp?.applyPath,
+    '/Apps/Nomi.app/Contents/Resources/app.asar.unpacked/node_modules/@anthropic-ai/sandbox-runtime/vendor/seccomp/x64/apply-seccomp');
+  assert.equal(linux.javaAgentJarPath,
+    '/Apps/Nomi.app/Contents/Resources/app.asar.unpacked/node_modules/@anthropic-ai/sandbox-runtime/vendor/java-proxy-agent/srt-proxy-agent.jar');
+  // 改写是**全路径替换**，不是只换第一处；而且不许把已改写的再改一次。
+  assert.ok(!linux.seccomp?.applyPath.includes('app.asar/'), '归档路径一个都不许漏过去');
+  assert.ok(!linux.seccomp?.applyPath.includes('unpacked.unpacked'), '防重入');
+
+  const windows = laneSandboxVendorPaths(vendorDeps({
+    platform: 'win32', arch: 'arm64', packageJson: packaged, present: ['vendor/srt-win/arm64/srt-win.exe'],
+  }));
+  assert.match(windows.windows?.srtWin.path ?? '', /app\.asar\.unpacked\b.*[\\/]srt-win[\\/]arm64[\\/]srt-win\.exe$/);
+});
+
+test('按平台给：macOS 上不声明一个这辈子不会被打开的路径', () => {
+  const present = ['apply-seccomp', 'srt-win.exe', 'srt-proxy-agent.jar'];
+  const mac = laneSandboxVendorPaths(vendorDeps({
+    platform: 'darwin', arch: 'arm64', packageJson: '/repo/node_modules/@anthropic-ai/sandbox-runtime/package.json', present,
+  }));
+  assert.equal(mac.seccomp, undefined, 'seccomp 是 Linux 的');
+  assert.equal(mac.windows, undefined, 'srt-win 是 Windows 的');
+  // jar 没有平台条件：沙箱里跑 JVM 三个平台都可能发生。
+  assert.ok(mac.javaAgentJarPath?.endsWith('srt-proxy-agent.jar'));
+});
+
+test('盘上没有就一个字段都不给——让上游按自己的办法找，而不是塞一个错路径', () => {
+  const none = laneSandboxVendorPaths(vendorDeps({
+    platform: 'linux', arch: 'x64', packageJson: '/repo/node_modules/@anthropic-ai/sandbox-runtime/package.json',
+  }));
+  assert.deepEqual(none, {});
+  // 连包都解析不到时同样静默退出，不抛——沙箱起不起得来由 initialize 回答，不由这个函数回答。
+  assert.deepEqual(laneSandboxVendorPaths({
+    resolvePackageJson: () => { throw new Error('MODULE_NOT_FOUND'); },
+    exists: () => true, platform: 'linux', arch: 'x64',
+  }), {});
 });
 
 test('沙箱策略：allowWrite 只有项目目录与 /tmp；Nomi 设置目录进 denyRead', () => {
@@ -346,12 +414,12 @@ test('B1c the full resident catalog has no report-only budget exemption', () => 
 
 // ── effects 自洽（与 laneTools.mts 同一条装配期不变量）──────────────────
 
-test('每个 coding 工具的 effects 自洽：只读必然无可撤销，写入必然说清怎么收回', () => {
+test('每个 coding 工具的效果是四值词表里的一个，且 coding 工具不花供应商的钱', () => {
   for (const name of LANE_CODING_TOOL_NAMES) {
-    const effects = LANE_CODING_TOOL_EFFECTS[name];
-    assert.ok(effects, `${name} 没声明 effects`);
-    assert.equal(effects.mutates, effects.reversal !== 'none', `${name} 的 mutates 与 reversal 不自洽`);
-    assert.equal(effects.billable, false, 'coding 工具不花供应商的钱');
+    const effect = LANE_CODING_TOOL_EFFECTS[name];
+    assert.ok(effect, `${name} 没声明 effect`);
+    assert.ok(VERB_EFFECTS.includes(effect), `${name} 的 effect 不在词表里`);
+    assert.equal(laneToolBillable(effect), false, 'coding 工具不花供应商的钱');
   }
 });
 
@@ -365,9 +433,9 @@ test('只读的 coding 工具崩溃恢复可以安全重放，写入的不行', 
   });
   assert.equal(tools.length, LANE_CODING_TOOL_NAMES.length, 'pi 的 coding 工具数变了——先读 CHANGELOG');
   for (const tool of tools) {
-    const effects = LANE_CODING_TOOL_EFFECTS[tool.name as LaneCodingToolName];
-    assert.ok(effects, `pi 给了一个我们没声明 effects 的工具：${tool.name}`);
-    const expected = effects.mutates ? 'never' : 'safe';
+    const effect = LANE_CODING_TOOL_EFFECTS[tool.name as LaneCodingToolName];
+    assert.ok(effect, `pi 给了一个我们没声明 effect 的工具：${tool.name}`);
+    const expected = laneToolMutates(effect) ? 'never' : 'safe';
     assert.equal(tool.replay, expected, `${tool.name} 的 replay 派生错了`);
   }
 });
@@ -387,7 +455,7 @@ test('沙箱在 OS 层真的挡住 ~/.ssh 与出网（macOS 实跑；其他平�
     { manager, localOperations },
   );
   t.after(() => sandbox.close());
-  assert.equal(sandbox.active, true, `沙箱没起来：${sandbox.inactiveReason ?? ''}`);
+  assert.equal(sandbox.active, true, `沙箱没起来：${sandbox.inactive?.detail ?? ''}`);
 
   const run = async (command: string) => {
     let output = '';

@@ -2,6 +2,7 @@ import { registerCanvasMenuPreferenceIpc } from "./canvasMenuPreferenceIpc";
 import { registerAutomationPolicyIpc } from "./automationPolicyIpc";
 import { registerGenerationModelDefaultsIpc } from "./generationModelDefaultsIpc";
 import { registerVendorPreferenceIpc } from "./vendorPreferenceIpc";
+import { registerModelBoxPreferenceIpc } from "./modelBoxPreferenceIpc";
 import { registerProjectLocationIpc } from "./projectLocationIpc";
 import { registerSystemPromptsIpc } from "./systemPromptsIpc";
 import { hydrateAssetRelayRuntime } from "./assetRelaySettings";
@@ -20,6 +21,7 @@ export function registerSettingsIpc(): void {
   registerSystemPromptsIpc();
   registerGenerationModelDefaultsIpc();
   registerVendorPreferenceIpc();
+  registerModelBoxPreferenceIpc();
   registerCanvasMenuPreferenceIpc();
   registerTelemetryIpc();
   registerAttentionSoundIpc();

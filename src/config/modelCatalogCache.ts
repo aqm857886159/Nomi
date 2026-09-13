@@ -172,6 +172,31 @@ async function getCatalogModelOptions(
   return promise
 }
 
+/**
+ * 测试/设计实验室专用：把一份目录直接放进缓存，让**现役那条链**（`useModelOptionsState`
+ * → `preloadModelOptions`）在没有桌面桥的环境里也能拿到真模型。
+ *
+ * 为什么要有它：实验室跑在浏览器里，`listWorkbenchModelCatalogModels` 走的是 IPC 桥，
+ * 无桥时 catch 成空 → 底栏参数条一个模型都没有、一个参数都渲不出来。以前的绕法是
+ * 由夹具**手喂 props 给 `InlineParameterBar`**，那等于绕开了「节点怎么拿到模型」这一整段
+ * ——屏上那条参数条就不再是节点上那一条了。种缓存只替掉**最外面那一次取数**：
+ * 从这里往下（选谁当默认、按 `modelKey` 认档案、算出哪些参数、渲染成什么）全部仍是现役代码。
+ * 种进来的是已解析的 `ModelOption[]`，所以调用方要自己保证喂的是真身份串（写错一个字，
+ * 下游认不出档案，参数就空了——那正是这条链会当场露馅的地方）。
+ *
+ * health 一并种：无桥时 `getCatalogHealth()` 会抛，`deriveModelCatalogStatus` 于是把状态
+ * 判成 `api_unreachable`，参数条上会挂一句「目录连不上」——那是环境的噪音，不是形态。
+ */
+export function seedModelCatalogForTests(
+  health: ModelCatalogHealthDto,
+  entries: readonly { kind: NodeKind; requiredMode: ProfileKind; options: readonly ModelOption[] }[],
+): void {
+  catalogHealthCache = health
+  for (const entry of entries) {
+    catalogOptionsCache.set(`${resolveCatalogKind(entry.kind)}:${entry.requiredMode}`, [...entry.options])
+  }
+}
+
 export async function preloadModelOptions(
   kind?: NodeKind,
   requiredMode?: ProfileKind,

@@ -20,11 +20,11 @@ import { laneToolModelDescription } from '../shared/agentLane/laneToolContract.j
 // 与 pi 的 `description` 原样进请求，我们只在旁边挂一份 `LaneToolEffects`（审批闸与崩溃恢复
 // 要读它，而 pi 没有这个概念——**加一层注解不是重写一份实现**）。
 import path from 'node:path';
-import { createLaneCodingPaths } from './laneCodingPaths.mjs';
+import { createLaneCodingPaths, type LaneTrustedSkillRoots } from './laneCodingPaths.mjs';
 
 import type { AgentHarnessTool } from '@earendil-works/pi-agent-core';
 
-import type { LaneToolEffects } from '../shared/agentLane/laneToolContract.js';
+import { laneToolMutates, type LaneToolEffect } from '../shared/agentLane/laneToolContract.js';
 import type { LaneBashOperations, LaneSandbox } from './laneCodingSandbox.mjs';
 
 /** pi 的 coding 工具在 lane 里的组身份。延迟装载按组解锁，不按单个工具。 */
@@ -39,14 +39,14 @@ export type LaneCodingToolName = (typeof LANE_CODING_TOOL_NAMES)[number];
  * 收回的手段是 fs 层的（git / 文稿撤销栈），不是画布那种 `proposal`。**别把它们标成
  * `proposal`**：标错的后果不是报错，是审批卡上写着「你还要再点接受」而其实文件已经改了。
  */
-export const LANE_CODING_TOOL_EFFECTS: Readonly<Record<LaneCodingToolName, LaneToolEffects>> = {
-  read: { mutates: false, billable: false, reversal: 'none' },
-  grep: { mutates: false, billable: false, reversal: 'none' },
-  find: { mutates: false, billable: false, reversal: 'none' },
-  ls: { mutates: false, billable: false, reversal: 'none' },
-  edit: { mutates: true, billable: false, reversal: 'undoable' },
-  write: { mutates: true, billable: false, reversal: 'undoable' },
-  bash: { mutates: true, billable: false, reversal: 'undoable' },
+export const LANE_CODING_TOOL_EFFECTS: Readonly<Record<LaneCodingToolName, LaneToolEffect>> = {
+  read: 'read',
+  grep: 'read',
+  find: 'read',
+  ls: 'read',
+  edit: 'reversible_local',
+  write: 'reversible_local',
+  bash: 'reversible_local',
 };
 
 /**
@@ -140,8 +140,11 @@ export async function loadPiCodingToolFactories(): Promise<PiCodingToolFactories
 export interface LaneCodingToolsInput {
   /** 项目根。**同时**是工具的 cwd、包容的边界、沙箱的 allowWrite。三者是同一个值，不许各传各的。 */
   readonly projectDir: string
-  /** Main-process installed package roots. Read-only; never inferred from model arguments. */
-  readonly trustedSkillRoots?: readonly string[]
+  /**
+   * Main-process installed package roots. Read-only; never inferred from model arguments.
+   * 给来源不给快照：用户会在会话中途导入技能，索引与可信根必须同源同刷（`LaneTrustedSkillRoots`）。
+   */
+  readonly trustedSkillRoots?: LaneTrustedSkillRoots
   /** bash 用的沙箱（`openLaneSandbox` 的产物）。`active:false` 时策略层会把自动放行整档摘掉。 */
   readonly canReadProject?: () => Promise<boolean>
   readonly sandbox: LaneSandbox
@@ -291,13 +294,13 @@ function withBashTimeout(operations: LaneBashOperations, ceilingMs: number): Lan
  * 是第三个位置参数），这样「用户按停止」在 coding 工具上和在领域工具上是同一条路。
  */
 function adaptPiTool(tool: PiAgentTool): AgentHarnessTool<undefined> {
-  const effects = LANE_CODING_TOOL_EFFECTS[tool.name as LaneCodingToolName];
+  const effect = LANE_CODING_TOOL_EFFECTS[tool.name as LaneCodingToolName];
   const adapted = {
     ...tool,
     description: laneToolModelDescription(tool),
     promptGuidelines: [tool.description, ...(tool.promptGuidelines ?? [])],
     // 崩溃恢复敢不敢替我们再跑一次——与 `laneTools.mts` 同一个派生点、同一条判据。
-    replay: effects && !effects.mutates ? 'safe' : 'never',
+    replay: effect && !laneToolMutates(effect) ? 'safe' : 'never',
     execute: async (
       toolCallId: string,
       params: unknown,

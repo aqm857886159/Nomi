@@ -453,6 +453,9 @@ export const zhGenerationCommon = {
     mountOverflow: '{{names}}…等 {{count}} 个',
     generateBeforeTimeline: '该节点还没生成画面，先点「生成」再拖到时间轴',
     providerDisconnected: '「{{vendor}}」的模型当前不可用。请检查密钥、连接和模型状态，或手动切换供应商。',
+    // Agent 的草稿给这张卡指定了模型，但它此刻不在可用清单里。**不替他换一个**——
+    // 换了以后「agent 说的」和「卡上的」就对不上了，而这正是 2026-09-10 那个 bug 的形状。
+    candidateModelUnavailable: 'Agent 为这张卡选的模型「{{model}}」（{{vendor}}）当前不可用，已保留它的选择没有替换。请检查该供应商的密钥与模型状态，或自己换一个模型。',
     providerFailed: '「{{vendor}}」：{{reason}}。{{hint}}',
     switchProvider: '切到 {{vendor}} · {{model}}',
     technicalReview: {
@@ -525,7 +528,6 @@ export const zhGenerationCommon = {
     catalogCredits: '{{amount}} 点（目录报价）',
     agentNotice: '经 AI 助手驱动 · 需你确认花费',
     agentNoticePlan: '经 AI 助手驱动 · 需你确认生成',
-    autoIgnore: '{{seconds}}s 后自动忽略',
     ignore: '忽略',
     cancel: '取消',
     confirm: '确认生成',
@@ -547,7 +549,12 @@ export const zhGenerationCommon = {
   },
   parameters: {
     auto: '自动',
+    // 摘要 pill 的文案覆盖（画布节点 summary 形态）：导入的 ComfyUI 工作流参数名是作者随手起的，
+    // 串当前值成 `15 · 24` 没人认得出那是自己勾的东西（群反馈 2026-08-20 G2#433），改成报名字+条数。
     workflowParams: '工作流参数 · {{count}} 项',
+    // ⚙ 的名字带数字（付费卡 chips 形态）：它要回答的是「齿轮后面还有没有东西」。
+    // 数字为 0 时这颗齿轮根本不渲染，所以不必再写一版无数字文案。
+    moreParameters: '更多参数 · {{count}} 项',
     configureModel: '去配置模型',
     openModelCatalog: '点击打开模型设置',
     configure: '去配置 →',
@@ -560,8 +567,13 @@ export const zhGenerationCommon = {
     parameters: '参数',
     panel: '生成参数面板',
     provider: '供应商',
+    // 「未试跑」：自检只证明了地址、密钥与调用形状对，没证明这个模型点了一定能出片。
+    // 第一次真实生成就是试跑（钱的闸在提交处看报价确认）。
+    untried: '未试跑',
     noVendorConnected: '还没接入供应商',
     connectVendorAction: '去接入',
+    // 模型框底部脚注：列表变短了要说出来，否则「我藏的」和「坏了」在屏幕上长得一样。
+    hiddenModels: '已隐藏 {{count}} 个 · 在设置里找回',
     referenceTotal: '参考总数最多 {{max}} 个（图片、视频和音频合计）',
     referenceFull: '参考已满（最多 {{max}} 个，含连线）',
     maximum: '最多 {{max}} 个{{label}}',
@@ -624,6 +636,13 @@ export const zhGenerationCommon = {
     dragAria: '拖动文本节点',
     label: '文本',
   },
+  // 节点生成浮框底栏 v1（样张 docs/design/2026-09-10-node-composer-bar-v1.md，2026-09-10 拍板的三类归位）。
+  // A 类（决定出什么/花多少）留底栏；B 类（帮我写提示词）收成提示词框右上角一簇纯 icon；锁回节点浮条。
+  composerBarV1: {
+    promptTools: '写提示词',
+    effects: '效果与提示词库',
+    seconds: '{{value}}s',
+  },
   composer: {
     attachmentImage: '图片',
     attachmentFile: '文件',
@@ -648,9 +667,11 @@ export const zhGenerationCommon = {
     generating: '生成中…',
     generateReferencesFirst: '先生成参考，再生成本镜',
     regenerate: '重新生成',
-    variantCountAria: '每次生成张数',
-    variantCountTitle: '每次生成 {{count}} 张',
-    variantCountOption: '{{count}} 张',
+    // 「张」只对图片成立；同一个通用件现在也管视频/音频/3D（2026-09-10 反馈 #11），
+    // 用用户自己的说法「生成几个」，不按媒体分叉出四套文案。
+    variantCountAria: '每次生成几个',
+    variantCountTitle: '每次生成 {{count}} 个',
+    variantCountOption: '{{count}} 个',
     generate: '生成',
     generateAsset: '生成素材',
     uploading: '上传中',
@@ -800,23 +821,6 @@ export const zhGenerationCommon = {
     canvasControls: '画布操作',
   },
   cameraMove: {
-    title: '运镜',
-    hint: '运镜：不用搭 3D 场景，一键生成灰模运镜片接入本镜',
-    noSceneHint: '不用搭 3D 场景',
-    type: '运镜类型',
-    speed: '速度',
-    shot: '景别',
-    slow: '慢',
-    medium: '中',
-    fast: '快',
-    wide: '远',
-    close: '近',
-    overlayHint: '叠加第二段运镜——敬请期待',
-    addLayer: '叠一层',
-    comingSoon: '敬请期待',
-    readout: '{{move}} · {{speed}} · {{duration}}s → 灰模运镜片自动接入 video_ref',
-    apply: '应用',
-    created: '已生成「{{move}} · {{speed}} · {{duration}}s」运镜片，正在离屏渲染并接入本镜运镜参考。',
     move: {
       orbit_left: '左环绕',
       orbit_right: '右环绕',
@@ -914,7 +918,6 @@ export const zhGenerationCommon = {
     optimizePrompt: '优化提示',
     aria: '用 Nomi 优化提示词',
     running: '优化中…',
-    optimize: '优化',
   },
   videoToolbar: {
     aria: '视频操作',
@@ -931,12 +934,12 @@ export const zhGenerationCommon = {
     deconstructHint: '把这条视频拆成一张镜头结构表（景别/情绪/画面/字幕/对白/提示词）→ 勾选镜头加进画布学着做',
   },
   panorama: {
+    created: '已创建全景截图节点',
     screenshotTitle: '全景截图',
     screenshotPrompt: '全景取景框截图',
     notReady: '全景还没准备好，请稍后再试',
     capturing: '截图中…',
     captureFailed: '截图失败，请重试',
-    created: '已创建全景截图节点',
     capturingShort: '截图中',
     captureFrame: '截图取景框',
     closePreview: '关闭预览',
@@ -1250,8 +1253,6 @@ export const zhGenerationCommon = {
       defer: '先不拍',
       approve: '形象都对，开拍 {{count}} 镜',
       reworkSelected: '先重拍选中的，再回来过目',
-      // 自动放行脚注：生产默认不设 → 不显示；仅配了自动放行才出。取消链接因门机制不支持 per-gate 覆盖，暂不提供（只显倒计时）。
-      autoRelease: '{{minutes}} 分钟无操作将自动开拍',
     },
     reconcile: {
       questionTitle: '核对供应商任务',
@@ -1331,8 +1332,6 @@ export const zhGenerationCommon = {
         references: '参考',
         price: '价格',
       },
-      countdownPaused: '已暂停 · 你正在查看',
-      countdownAuto: '{{seconds}} 秒后自动忽略',
       backToEdit: '返回修改',
       trialFirst: '先试拍第 1 镜（¥{{amount}}）',
       trialFirstUnknown: '先试拍第 1 镜',
@@ -1879,6 +1878,7 @@ export const enGenerationCommon = {
     mountOverflow: '{{names}}… {{count}} total',
     generateBeforeTimeline: 'Generate this node before dragging it to the timeline',
     providerDisconnected: 'The model from {{vendor}} is unavailable. Check the key, connection and model status, or choose another provider.',
+    candidateModelUnavailable: 'The model the agent picked for this card ({{model}} · {{vendor}}) is unavailable right now. Its choice was kept rather than replaced — check that provider\'s key and model status, or pick another model yourself.',
     providerFailed: '{{vendor}}: {{reason}}. {{hint}}',
     switchProvider: 'Switch to {{vendor}} · {{model}}',
     technicalReview: {
@@ -1952,7 +1952,6 @@ export const enGenerationCommon = {
     catalogCredits: '{{amount}} credits (catalog quote)',
     agentNotice: 'Started by an AI assistant · Your approval is required before spending',
     agentNoticePlan: 'Started by an AI assistant · Your approval is required before generating',
-    autoIgnore: 'Auto-ignore in {{seconds}}s',
     ignore: 'Ignore',
     cancel: 'Cancel',
     confirm: 'Confirm generation',
@@ -1975,6 +1974,7 @@ export const enGenerationCommon = {
   parameters: {
     auto: 'Auto',
     workflowParams: 'Workflow params · {{count}}',
+    moreParameters: 'More parameters · {{count}}',
     configureModel: 'Configure a model',
     openModelCatalog: 'Open model setup',
     configure: 'Configure →',
@@ -1986,8 +1986,10 @@ export const enGenerationCommon = {
     parameters: 'Parameters',
     panel: 'Generation parameters panel',
     provider: 'Provider',
+    untried: 'not tried yet',
     noVendorConnected: 'No provider connected yet',
     connectVendorAction: 'Connect',
+    hiddenModels: '{{count}} hidden · bring back in Settings',
     referenceTotal: 'Up to {{max}} references in total (images, videos and audio combined)',
     referenceFull: 'References are full (up to {{max}}, including connections)',
     maximum: 'Up to {{max}} {{label}}',
@@ -2049,6 +2051,11 @@ export const enGenerationCommon = {
     dragAria: 'Drag text node',
     label: 'Text',
   },
+  composerBarV1: {
+    promptTools: 'Prompt helpers',
+    effects: 'Effects & prompt library',
+    seconds: '{{value}}s',
+  },
   composer: {
     attachmentImage: 'Image',
     attachmentFile: 'File',
@@ -2074,9 +2081,9 @@ export const enGenerationCommon = {
     generating: 'Generating…',
     generateReferencesFirst: 'Generate references before this shot',
     regenerate: 'Regenerate',
-    variantCountAria: 'Images per run',
+    variantCountAria: 'Outputs per run',
     variantCountTitle: 'Generate {{count}} per run',
-    variantCountOption: '{{count}} images',
+    variantCountOption: '{{count}} outputs',
     generate: 'Generate',
     generateAsset: 'Generate asset',
     uploading: 'Uploading',
@@ -2224,24 +2231,6 @@ export const enGenerationCommon = {
     canvasControls: 'Canvas controls',
   },
   cameraMove: {
-    title: 'Camera move',
-    hint: 'Generate a blocking camera-move clip and attach it to this shot without building a 3D scene',
-    noSceneHint: 'No 3D scene required',
-    type: 'Camera move type',
-    speed: 'Speed',
-    shot: 'Shot size',
-    slow: 'Slow',
-    medium: 'Medium',
-    fast: 'Fast',
-    wide: 'Wide',
-    close: 'Close',
-    overlayHint: 'Add a second camera move — coming soon',
-    addLayer: 'Add layer',
-    comingSoon: 'Coming soon',
-    readout: '{{move}} · {{speed}} · {{duration}}s → automatically attach the blocking clip as video_ref',
-    apply: 'Apply',
-    created:
-      'Created “{{move}} · {{speed}} · {{duration}}s”. Rendering offscreen and attaching it as this shot’s camera-move reference.',
     move: {
       orbit_left: 'Orbit left',
       orbit_right: 'Orbit right',
@@ -2339,7 +2328,6 @@ export const enGenerationCommon = {
     optimizePrompt: 'Optimize Prompt',
     aria: 'Optimize prompt with Nomi',
     running: 'Optimizing…',
-    optimize: 'Optimize',
   },
   videoToolbar: {
     aria: 'Video actions',
@@ -2357,12 +2345,12 @@ export const enGenerationCommon = {
     deconstructHint: 'Break this video into a shot-structure table (framing / mood / visuals / captions / dialogue / prompts) → pick shots to bring onto the canvas and learn from',
   },
   panorama: {
+    created: 'Panorama screenshot node created',
     screenshotTitle: 'Panorama screenshot',
     screenshotPrompt: 'Framed panorama screenshot',
     notReady: 'The panorama is not ready yet. Try again shortly.',
     capturing: 'Capturing…',
     captureFailed: 'Screenshot failed. Try again.',
-    created: 'Created a panorama screenshot node',
     capturingShort: 'Capturing',
     captureFrame: 'Capture framed view',
     closePreview: 'Close preview',
@@ -2676,7 +2664,6 @@ export const enGenerationCommon = {
       defer: 'Not yet',
       approve: 'Looks right — shoot {{count}} shots',
       reworkSelected: 'Reshoot the selected ones first',
-      autoRelease: 'Shooting starts automatically after {{minutes}} min of inactivity',
     },
     reconcile: {
       questionTitle: 'Reconcile provider task',
@@ -2756,8 +2743,6 @@ export const enGenerationCommon = {
         references: 'references',
         price: 'price',
       },
-      countdownPaused: 'Paused · you are reviewing',
-      countdownAuto: 'Auto-dismiss in {{seconds}}s',
       backToEdit: 'Edit',
       trialFirst: 'Try shot 1 first (¥{{amount}})',
       trialFirstUnknown: 'Try shot 1 first',

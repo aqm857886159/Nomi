@@ -14,6 +14,7 @@
 //     此时 P 是半个词、不是子树,故改为枚举全部字面量后缀,逐个校验 `P+suffix` 是叶子。
 
 import { VENDOR_CONNECTION_PILL_LABEL_MEMBERS } from '../../src/ui/onboarding/vendorConnectionView'
+import { MISSING_CARD_REASONS } from '../../src/workbench/ai/v4/missingInterventionCard'
 
 export type DynamicPrefix =
   | { prefix: string; why: string; kind?: 'subtree'; members?: readonly string[] }
@@ -59,6 +60,19 @@ export const DYNAMIC_KEY_PREFIXES: DynamicPrefix[] = [
   // ── browserAssets ──
   { prefix: 'browserAssets.capture.error', why: '动态: 抓取错误码;枚举来源: browserAssetPopoverUtils 的 capture error key(capture.error.* 词条)' },
   // ── onboardingProviders ──
+  {
+    prefix: 'onboardingProviders.assistedOnboarding.steps',
+    members: ['paste.title', 'paste.body', 'pasteAnyHost', 'ask.title', 'ask.body', 'key.title', 'key.body'],
+    why: "动态: 「复制指引」之后那三步小示意;枚举来源: AiAssistedOnboardingCard.tsx 里那个 ['paste','ask','key'] as const 字面量元组(steps.*.title/.body 词条)",
+  },
+  {
+    prefix: 'onboardingProviders.assistedOnboarding.progress.steps',
+    members: [
+      'session.title', 'session.body', 'credential.title', 'credential.body', 'proposal.title', 'proposal.body',
+      'certifying.title', 'certifying.body', 'listed.title', 'listed.body',
+    ],
+    why: "动态: 外部 Agent 接模型时那五步;枚举来源: assistedProgressProjection.ts 的 ASSISTED_PROGRESS_STEPS(它本身是 integrationContract 12 个 stage 的投影)(progress.steps.*.title/.body 词条)",
+  },
   { prefix: 'onboardingProviders.modelControls.kind', why: '动态: 模型 chip 类别;枚举来源: isKnownModelChipKind 判定的 kind 集(modelControls.kind.* 词条)' },
   { prefix: 'onboardingProviders.workspace.capability.editor.errors', why: '动态: 能力编辑器表单错误码;枚举来源: ModelCapabilityEditor 的 errors.form/errors.modes(editor.errors.* 词条)' },
   { prefix: 'onboardingProviders.workspace.adapter.title', why: '动态: 适配器状态卡标题;枚举来源: ModelAdapterStatusSection 的 state.state 联合(adapter.title.* 词条)' },
@@ -174,6 +188,12 @@ export const DYNAMIC_KEY_PREFIXES: DynamicPrefix[] = [
   { prefix: 'libraries.sidebar.nodeKindShort', why: '动态: 节点类型短名;枚举来源: 节点 kind(nodeKindShort.* 词条)' },
   { prefix: 'libraries.skill.importReason', why: '动态: 技能导入失败原因;枚举来源: skill import reason 联合(skill.importReason.* 词条)' },
   { prefix: 'libraries.workflow', why: '动态: 流程库字段;枚举来源: WorkflowLibraryContent 的 value(workflow.* 词条)' },
+  // ── agentPanelV4.missingCard ──
+  {
+    prefix: 'agentPanelV4.missingCard.reason',
+    members: [...MISSING_CARD_REASONS],
+    why: '动态: 「本该有一张确认卡却没渲染」断在哪一环;枚举来源直接 import 自 missingInterventionCard.ts 的 MISSING_CARD_REASONS——那是这一族唯一的 owner,加一种 reason 而忘了配文案会在这里当场红',
+  },
   // ── assetLibrary.findReference ──
   { prefix: 'assetLibrary.findReference.platform', why: '动态: 参考平台名;枚举来源: electron/shared/contracts/referenceSearch.ts 的 REFERENCE_PLATFORMS(douyin/xhs/tiktok),UI 按平台 id 取名而不是让主进程回传中文文案(主进程不产出用户可见文字)' },
   { prefix: 'assetLibrary.findReference.reason', why: "动态: 关键词转译原因;枚举来源: ReferenceSearchResult.translationReason 的语义 token('english-index'),同上——主进程只回 token,文案归 UI" },

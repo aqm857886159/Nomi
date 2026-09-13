@@ -138,7 +138,7 @@ export const V4_COMPOSER_STATES: readonly LabState[] = [
   },
   {
     id: 'v4-composer-permission-project',
-    name: 'composer · 权限「全自动」（project / within-budget）',
+    name: 'composer · 权限「全自动」（project · 付费仍逐次问）',
     source: '2026-09-06-agent-panel-v4.md · Composer 板',
     coverage: 'component-only',
     render: () => <ComposerCell permission="project" />,

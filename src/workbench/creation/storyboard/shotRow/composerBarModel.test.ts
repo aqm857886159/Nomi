@@ -70,7 +70,7 @@ describe('shotComposerBar', () => {
 
   /**
    * P4 通用第一：分镜行的参数集合与**画布图片/视频节点**是同一份档案投影，只是分镜行另外把
-   * 画幅与时长交给了各自的 owner（`storyboardAspectScope` / `PlanShot.durationSec`）。
+   * 画幅与时长交给了各自的 owner（`storyboardShotScope` / `PlanShot.durationSec`）。
    * 这条断言就是"别另造一套"的机器判据——档案改了两边同时跟着改，谁都别写第二张映射表。
    */
   it('与画布节点 composer 同一集合（差集只有画幅与时长两个另有 owner 的键）', () => {

@@ -53,6 +53,10 @@ export const LAB_SCREENS = {
     registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/canvasFrame/states'),
     baselineDir: path.join(BASELINE_ROOT, 'canvas-frame'),
   },
+  'node-composer-bar': {
+    registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/nodeComposerBar/states'),
+    baselineDir: path.join(BASELINE_ROOT, 'node-composer-bar'),
+  },
   settings: {
     registryDir: path.join(REPO_ROOT, 'src/devlab/designLab/settings/states'),
     baselineDir: path.join(BASELINE_ROOT, 'settings'),

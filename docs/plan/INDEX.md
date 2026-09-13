@@ -51,6 +51,8 @@
 
 | 文件 | 一句话 | 状态 |
 |---|---|---|
+| [2026-09-11-comfyui-certification-wiring.md](2026-09-11-comfyui-certification-wiring.md) | **ComfyUI 接入主链阻断**：认证服务的三样运行时依赖被写成 optional、注册处零参构造，于是能力挂得上、真调用必炸且被 catch 洗成中性码 —— ComfyUI 实例永远停在「未启用」；接上依赖后又露出第二跳（上游任务编号被算了两遍，闸问的是没有的那一份）。修法：必填契约 + 装配收口 + 编号只有一个答案；本机真 ComfyUI 验收到真出图（[证据](2026-09-11-comfyui-cert-evidence/)）| 🚧 |
+| [2026-09-11-ai-assisted-onboarding-entry.md](2026-09-11-ai-assisted-onboarding-entry.md) | **「用 AI 帮我接入」入口**：把「让你已经在用的 AI 助手替你接模型」这条路搬到模型设置页顶部，并补上缺的那半——任务提示词 + 标准 frontmatter 的 [`agent-skills/nomi-add-model/SKILL.md`](../../agent-skills/nomi-add-model/SKILL.md)；设计定稿 [2026-09-11-ai-assisted-onboarding-entry.md](../design/2026-09-11-ai-assisted-onboarding-entry.md)、先查别人 [prior-art.md](../research/2026-09-11-ai-assisted-onboarding-entry/prior-art.md) | ✅ |
 | [2026-06-07-model-onboarding-final-plan.md](2026-06-07-model-onboarding-final-plan.md) | **模型接入最终方案**（R7 定稿，审计+设计+计划）— 本簇主文档 | ✅ |
 | [2026-08-30-runway-seedance25-onboarding.md](2026-08-30-runway-seedance25-onboarding.md) | Runway Seedance 2.5 接入与分镜设置（源分支只含文档、未合并；配套指南带「未发布」横幅）| 📋 |
 | [2026-08-15-model-integration-no-dead-end-master-plan.md](2026-08-15-model-integration-no-dead-end-master-plan.md) | 模型接入「不留死路」总纲：事实源 manifest + 能力契约 + 旅程矩阵 | 🚧 |
@@ -112,6 +114,7 @@
 
 | 文件 | 一句话 | 状态 |
 |---|---|---|
+| [2026-09-11-canvas-migration-audit.md](2026-09-11-canvas-migration-audit.md) | **React Flow 迁移逐项等价审计**（OLD `8f9365aeb` vs main）：46 项交互逐条对照，列出 6 项无人拍板的改动与 6 项丢失；③ 表按用户影响排序，是各条回填轨的裁决依据 | 📎 |
 | [2026-09-08-canvas-undo-barrier-sweep.md](2026-09-08-canvas-undo-barrier-sweep.md) | 独立边模式、断线、节点锁手势的撤销边界与同族扫描 | 📎 |
 | [2026-09-06-agent-artifact-node.md](2026-09-06-agent-artifact-node.md) | **AI 手艺产物节点（agent-artifact）**：承载 SVG / 动态 HTML / 表格 / Markdown / 3D 摆位等不调模型的产物；meta.artifact 不扩 result 闭集、HTML 沙箱 allow-scripts、动作复用 FloatingToolbarShell；v1 已落地（Agent 交付落盘/渲染/下载/复制/SVG 固化为参考图），3D 视口截图与手艺选择决策树 = 下一刀 | 🚧 |
 | [2026-09-06-depth-video-canvas-node.md](2026-09-06-depth-video-canvas-node.md) | **本机跑深度视频当动作参考**（Depth Anything V2 Small，WebGPU 渲染层推理、ffmpeg 抽帧合成、权重按需下载校验）；2026-09-07 用户两次拍板后收成「选中视频 → 浮条『提取深度』→ 点了直接跑 → 旁边长出一张带出身的普通视频卡」，无面板无参数，骨架链已随 mode 一起删 | ✅ |
@@ -308,3 +311,10 @@
 
 - [左侧栏三组设计成文与 shot_table 实施](2026-09-10-left-sidebar-and-shot-table-node.md)
 - [shot_table 两来源数据契约](2026-09-10-shot-table-contract.md)
+- [内置供应商「填 key 不解锁模型」类根因修复](2026-09-10-vendor-key-publish-class.md) — 发布判据改登记表驱动、验证判据按种子声明分派、装配期三条不变量（🚧 进行中）；先查别人报告在 [../research/2026-09-10-vendor-key-publish-class/prior-art.md](../research/2026-09-10-vendor-key-publish-class/prior-art.md)
+
+- [2026-09-09 Agent 原生剪辑：Nomi 完整可执行方案（A'–G'）](2026-09-09-agent-native-editing-plan.md) — 时间轴 agent 层施工图；配套竞品回应方案包见 [`2026-09-09-competitive-response-plans/INDEX.md`](2026-09-09-competitive-response-plans/INDEX.md)（P0-P2 分期、开工纪律：#646 未过门前不开新战线）；2026-09-11 从竞品研究方案包归档入库
+- [2026-09-11 卫生 PR：方案包入库 + ARCHITECTURE-NOW 去过时 + 删两个死控制器](2026-09-11-docs-hygiene.md) — 竞品方案包搬入 `docs/{research,plan,product}`（19 篇）；`docs/ARCHITECTURE-NOW.md` 三行过时描述改写为 pi lane 现役状态；删 `canvasTurnController.ts`/`creationTurnController.ts` 两个零生产引用死控制器（✅ 已交付）
+- [2026-09-11 删掉「客户端自报即发放」的付费通道](2026-09-11-remove-legacy-spend-door.md) — 付费放行收敛到主进程收据门一个 owner；删 `gateway.withPreApprovedSpend`、`NOMI_LOOP_SPEND_OK` env 逃生口与线协议上的 `spendConfirmed` 自报位；加源码棘轮测试防复发；根因合同 [`2026-09-11-legacy-spend-door.root-cause.json`](../fixes/2026-09-11-legacy-spend-door.root-cause.json)（✅ 已交付）
+
+- [2026-09-12 接模型验证 run 的失败路径：不许停在中间态](2026-09-12-integration-run-failure-path.md) — 终态写三层保证（同步→退避→errors.jsonl+启动补偿）、deadline 看门狗、certifying 逃生口、逐模型错误原文进 session.read；含 H1/H2 锁审计结论与门表；根因合同 [`2026-09-12-integration-run-failure-path.root-cause.json`](../fixes/2026-09-12-integration-run-failure-path.root-cause.json)，结构评审 [`../audit/2026-09-12-integration-layer-structural-review.md`](../audit/2026-09-12-integration-layer-structural-review.md)（✅ 已交付）

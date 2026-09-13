@@ -25,8 +25,8 @@ test('the budget reports group contributions and enforces the complete resident 
   // 每一个注册组都要有自己的一行，一个都不许漏——漏掉的那个组永远不会被量。
   const judged = combinations
   assert.deepEqual(judged.map(one => one.label),
-    ['always-on（含 request）', 'always-on + coding', 'always-on + models',
-      ...LANE_DEFERRED_TOOL_GROUPS.map(group => `always-on + ${group.name}`), '全部组常驻（实际最大组合）'])
+    ['always-on（含 request）', 'always-on + coding',
+      ...LANE_DEFERRED_TOOL_GROUPS.map(group => `always-on + ${group.name}`), 'always-on + models', '全部组常驻（实际最大组合）'])
   for (const combination of judged.slice(1)) {
     assert.deepEqual(combination.toolNames.slice(0, alwaysOn.length), alwaysOn,
       '每个组合都是「常驻 + 一个组」，常驻那一段逐字相同')

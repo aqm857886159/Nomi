@@ -9,6 +9,7 @@ import {
   type PiGenerationTransportAdapter,
 } from "./generationTransportAdapters";
 import type { ProjectBinding } from "../shared/projectBinding";
+import type { ProjectAgentApprovalPolicy } from "../shared/agentCapabilities/capabilityApprovalPolicy";
 import type { ProductionRunService } from "../productionRun/productionRunService";
 
 type RunOwner = Pick<ProductionRunService, "readFull" | "command">;
@@ -24,7 +25,17 @@ export type ResidentGenerationAdapterFactoryInput = Readonly<{
 }>;
 
 export type ResidentGenerationAdapterFactory = Readonly<{
-  factory: (binding: ProjectBinding) => PiGenerationTransportAdapter;
+  /**
+   * `approvalPolicy` 是宿主持有的档位快照（lane 传 `() => composer.approvalPolicy`）。
+   * 缺席 = 这条路没有档位可读 → 适配器按默认档走，也就是照旧弹报价卡。
+   */
+  factory: (binding: ProjectBinding, approvalPolicy?: () => ProjectAgentApprovalPolicy | undefined) => PiGenerationTransportAdapter;
+  /**
+   * 同一条项目租约的**唯一**取得口。付费确认卡（`appIntegrationSpendConfirm.ts`）要用它去开
+   * Run 自己的付费门；再写一份缓存/续期逻辑就会出现两份过期判断，而过期判断错在钱这条轴上
+   * 是「门开着但没人守」。
+   */
+  leaseFor: (binding: ProjectBinding) => Promise<ProjectLeaseV2>;
   dispose: () => void;
 }>;
 
@@ -32,10 +43,10 @@ export type ResidentGenerationAdapterFactory = Readonly<{
 export function installResidentGenerationAdapter(
   input: ResidentGenerationAdapterFactoryInput,
   onReady?: (factory: ResidentGenerationAdapterFactory["factory"]) => void,
-): () => void {
+): ResidentGenerationAdapterFactory {
   const adapter = createResidentGenerationAdapterFactory(input);
   onReady?.(adapter.factory);
-  return adapter.dispose;
+  return adapter;
 }
 
 /**
@@ -93,7 +104,10 @@ export function createResidentGenerationAdapterFactory(
     });
   };
 
-  const factory = (binding: ProjectBinding): PiGenerationTransportAdapter => createPiGenerationTransportAdapter(binding, {
+  const factory = (
+    binding: ProjectBinding,
+    approvalPolicy?: () => ProjectAgentApprovalPolicy | undefined,
+  ): PiGenerationTransportAdapter => createPiGenerationTransportAdapter(binding, {
     planning: input.planning,
     requestGenerationGate: input.requestGenerationGate,
     authorizeGeneration: input.authorizeGeneration,
@@ -101,10 +115,12 @@ export function createResidentGenerationAdapterFactory(
     confirmGenerationInNomi: input.confirmGenerationInNomi,
     approvalReceiptAuthority: input.approvalReceiptAuthority,
     leaseFor,
+    ...(approvalPolicy ? { approvalPolicy } : {}),
   });
 
   return {
     factory,
+    leaseFor,
     dispose() {
       disposed = true;
       connections.clear();

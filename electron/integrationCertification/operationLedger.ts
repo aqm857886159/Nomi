@@ -138,7 +138,7 @@ function validateSettledResult(raw: unknown): CertificationSettledResult {
     taskKind: safeToken(raw.taskKind, "settled task kind") as CertificationSettledResult["taskKind"],
   };
   if (raw.stage !== undefined) {
-    if (!["localize_reference", "create", "poll", "verify_asset"].includes(String(raw.stage))) {
+    if (!["credential", "contract", "verify_asset", "localize_reference", "create", "poll"].includes(String(raw.stage))) { // 自检两段 + 本地 ComfyUI；末三个只为读懂付费验证时代的旧盘记录。
       throw new CertificationPersistenceError("invalid_state", "Invalid settled result stage");
     }
     result.stage = raw.stage as CertificationSettledResult["stage"];

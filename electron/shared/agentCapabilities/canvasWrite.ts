@@ -173,6 +173,11 @@ export const storyboardPlanActionInputSchema = z
   .object({
     operation: z.literal("propose_storyboard_plan"),
     title: z.string().trim().min(1),
+    // 整片默认画幅（行级用 shots[].params.aspect_ratio 覆盖）。这个 envelope 是 `.strict()` 的，
+    // 少这一行 = 规划师在顶层写的整片画幅在主进程边界就被拒收。刻意不带 `.describe()`：
+    // 它会随共享契约广播到对外 MCP 的 tools/list，而 check:mcp-payload 是零余量的 shrink-only
+    // 棘轮（同 select.kind 一栏的理由）。散文写在 lane 的工具指引里，对 MCP 载荷是 0 字节。
+    aspectRatio: z.string().trim().min(1).optional(),
     anchors: jsonTolerantArray(z.array(z.record(z.unknown())).max(24)),
     shots: jsonTolerantArray(z.array(z.record(z.unknown())).min(1).max(24)),
   })
@@ -456,28 +461,6 @@ export function canvasWritePiInputSchemaForAlias(alias: string): z.ZodTypeAny | 
   }
 }
 
-export function canvasWritePiDescriptionForAlias(alias: string): string | undefined {
-  switch (alias) {
-    case "set_node_prompt":
-      return "Propose an exact, reversible prompt update to one generation canvas node.";
-    case "create_canvas_nodes":
-      return "Propose a reversible batch of canvas nodes and their reference edges in one call.";
-    case "connect_canvas_edges":
-      return "Propose reversible reference edges between existing canvas nodes.";
-    case "tidy_canvas":
-      return "Propose an undoable layout cleanup for one canvas category.";
-    case "propose_storyboard_plan":
-      return "Save a structured storyboard plan for review in the creation area.";
-    case "arrange_storyboard_to_timeline":
-      return "Arrange the selected storyboard shots into the timeline in story order.";
-    case "create_staging_reference":
-      return "Create a staging reference and attach it to the selected shot.";
-    case "create_camera_move":
-      return "Create a camera-move reference and attach it to the selected video shot.";
-    default:
-      return undefined;
-  }
-}
 
 const reconciliationSchema = z.object({ ok: z.boolean(), deviationCount: z.number().int().nonnegative() }).strict();
 const skippedEdgeSchema = z
@@ -618,13 +601,15 @@ export function canvasWriteOperationForAlias(alias: string): CanvasWriteOperatio
 export const CANVAS_WRITE_CAPABILITY = {
   id: "canvas.write",
   version: 1,
+  // `pi` surface 上只放模型可见的三个动词（`verbs/canvasVerbs.ts`）；operation 值不是别名，
+  // 它们是 schema 里的枚举（`CANVAS_WRITE_OPERATIONS`）。
   aliases: {
-    pi: CANVAS_WRITE_ALIASES.setNodePrompt,
+    pi: "nomi_canvas_write",
     mcp: "nomi_canvas_edit",
     ui: "nomi_canvas_plan",
   },
   additionalAliases: {
-    pi: Object.freeze(Object.values(CANVAS_WRITE_OPERATION_ALIASES)),
+    pi: Object.freeze(["nomi_storyboard_write", "nomi_shot_reference_write"]),
   },
   inputSchema: canvasWriteSemanticInputSchema,
   outputSchema: canvasWriteResultSchema,
@@ -652,14 +637,6 @@ export const CANVAS_WRITE_CAPABILITY = {
   exposure: "mcp_safe",
   requiredScope: "canvas:write",
   targetKind: "canvas",
-  projections: {
-    pi: {
-      description: "Propose an exact, reversible prompt update to one generation canvas node.",
-    },
-    mcp: {
-      description: "Propose a validated, reversible canvas edit from current intent.",
-    },
-  },
 } as const satisfies CapabilityContract<CanvasWriteInput, CanvasWriteResult>;
 
 /** Node-authoring workflow, published once per active tool instead of in every node field. */

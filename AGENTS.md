@@ -24,6 +24,8 @@ Nomi：本地优先 AI 视频创作工作台。
 | `pnpm dev` | 开发模式启动（Vite + Electron） |
 | `pnpm build` | Vite 构建 + electron tsc |
 | `pnpm run test` | Vitest 单测 |
+| `pnpm run gates` | 五门（按风险分档）：contracts 全部 + **改动相关**的测试 + build + 盖戳；碰测试基础设施/删改名/空 diff 自动升全量并打印原因 |
+| `pnpm run gates:full` | 五门全量档（今天的全量测试）：测试基础设施改动、手动发布边界、想自己兜底时用 |
 | `pnpm run test:system:focused` | 普通 PR 的 changed/sibling/related tests；仍须配合 contracts |
 | `pnpm run test:system:full` | 测试基础设施或手动发布边界的显式全量本地验证 |
 | `pnpm run delivery:preflight` | 任务开始前有界刷新远端基线并验证独立干净分支 |
@@ -41,7 +43,7 @@ Nomi：本地优先 AI 视频创作工作台。
 | `pnpm run check:audit` | 审计节奏提醒（≥25 commit 提示） |
 | `npx skills experimental_install` | 从 `skills-lock.json` 还原 `.Codex/skills/`（换机/协作者用） |
 
-**Push 前按风险面分层（R22）**：contracts 始终跑（一次跑完全部门岗再汇总，不再第一个红就停；`check:docs-index`/`check:doc-status`/`check:ledger` 只出 warning 不阻断，合入 main 后由 `docs-autosync` workflow 自动补齐回写）；unit 独立选 focused/full；Electron、真实旅程、React Flow 画布、性能和 macOS package 各按受影响路径独立触发，`main` push 也按真实 `before..after` 分类，不因事件名自动全量。删除/重命名、空 diff、测试/CI 分类器自身和手动发布边界 fail-closed 到全维度。连续小修先在本地收敛，再一次性验证和 push，不让每个微提交反复触发全套 CI。
+**Push 前按风险面分层（R22）**：contracts 始终跑（一次跑完全部门岗再汇总，不再第一个红就停；`check:docs-index`/`check:doc-status`/`check:ledger` 只出 warning 不阻断，合入 main 后由 `docs-autosync` workflow 自动补齐回写）；unit 独立选 focused/full（**本机 `pnpm run gates` 也按同一份 `scripts/validation-policy.mjs` 分档**，全量一万两千多个测试交给 CI 并行机器，不再占着全机那把 gates 锁；想本机兜底跑全量用 `pnpm run gates:full`）；Electron、真实旅程、React Flow 画布、性能和 macOS package 各按受影响路径独立触发，`main` push 也按真实 `before..after` 分类，不因事件名自动全量。删除/重命名、空 diff、测试/CI 分类器自身和手动发布边界 fail-closed 到全维度。连续小修先在本地收敛，再一次性验证和 push，不让每个微提交反复触发全套 CI。
 
 **交付身份只走统一命令**：任务开始先跑 `delivery:preflight`；PR 合并后只在 Git fetch 得到的真实 merge SHA 上跑 `delivery:verify-merged`。任务 commit、PR head、merge commit 与 tree 分开报告；禁止用 REST compare 文件列表重建 Git tree/commit，禁止把 `same-tree-different-commit` 叫成代码不匹配。
 
@@ -57,7 +59,7 @@ Nomi：本地优先 AI 视频创作工作台。
 
 **P4 通用第一** — 能力/组件/交互按「模型身份 / 通用场景」设计，与具体供应商/模型解耦。不为不同模型写两套 UI（那是并行版，违反 P1）。档案声明槽，通用系统负责填。
 
-**P5 想清楚再动手** — UI 改动先读设计系统 `docs/design/nomi-design-system.md`（token/组件/规范）再画，再出可视样张（HTML mockup）+ 用户拍板；**改/扩现有 UI 先看它真实样子**（读完整外壳组件或真实截图，样张是真实布局+改动、不是脑补）；**接线前先看真实数据**（实验室组件必须由真实宿主数据驱动＝ShellStage 手法；基线绿≠可接线）；**加/挪控件先过 §1.5 控件层级规则**（L1 常驻/L2–L4·一功能一个家·先分组→去重→归位→最后才收纳）；架构改动先查 Context7 + 读顶尖开源代码 + 6 角色评审；多文件改动先写 `docs/plan` 文档。
+**P5 想清楚再动手** — UI 改动先读设计系统 `docs/design/nomi-design-system.md`（token/组件/规范）再画，再出可视样张（HTML mockup）+ 用户拍板；**改/扩现有 UI 先看它真实样子**（读完整外壳组件或真实截图，样张是真实布局+改动、不是脑补）；**接线前先看真实数据**（实验室组件必须由真实宿主数据驱动＝ShellStage 手法；基线绿≠可接线）；**加/挪控件先过 §1.5 控件层级规则**（L1 常驻/L2–L4·一功能一个家·先分组→去重→归位→最后才收纳）；架构改动先查 Context7 + 读顶尖开源代码 + 6 角色评审；多文件改动先写 `docs/plan` 文档；**动手前先 grill**（2026-09-11 用户拍板）：重要改动（产品行为 / 架构 / 外部契约 / 用户可见流程 / 花钱边界 / 会连带别的面）派实施前，先按 grill-me 方式把问题**一轮批量**问清——每题带默认答案、**连带面单独成题**（同一组件多宿主、改 A 面会带动 B 面的，必须单独问「B 也变吗」）、直到没有静默假设；讨论定不了的先做可丢弃原型再回来问；纯 bug 修复（根因明确、不改行为）不问，参考 https://aihero.dev/skills-grill-me 。
 
 ## 动手前/报完成前/push 前的三闸
 
@@ -110,7 +112,7 @@ Nomi：本地优先 AI 视频创作工作台。
 
 **自己定**（做完一句话说明）：实现细节、命名、模块拆法、测试策略、bug 修复顺序。**评测/测试/验证类的额度花费默认授权**（跑真生成 / 真模型 / VLM / E2E 等）——直接花、不问，事后报花了多少即可。
 
-**才问用户**（AskUserQuestion，合并成一轮，给推荐项）：产品方向/不可逆取舍 / 架构岔路（影响大、多个合理解）/ 需要用户独有资源（API key、真实素材；**额度仅产品级/大额/不可逆花费才问**）。
+**才问用户**（AskUserQuestion，合并成一轮，给推荐项）：产品方向/不可逆取舍 / 架构岔路（影响大、多个合理解）/ 需要用户独有资源（API key、真实素材；**额度仅产品级/大额/不可逆花费才问**）。重要改动的 grill 轮见 P5。
 
 **遇到样张/需求自相矛盾**：停下上报，不许自己挑一条实现。
 

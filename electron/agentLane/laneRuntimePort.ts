@@ -13,7 +13,7 @@ import type {
   LaneHandle, LanePendingApproval, LaneProjection, LaneSkillIndexEntry, LaneTaskFacts, LaneWorkspaceHandle,
 } from '../shared/agentLane/laneContracts'
 import { LaneDomainFailure } from '../shared/agentLane/laneToolContract'
-import type { LaneToolEffects, LaneToolFailureShape, LaneToolSpec } from '../shared/agentLane/laneToolContract'
+import type { LaneToolEffect, LaneToolFailureShape, LaneToolSpec } from '../shared/agentLane/laneToolContract'
 import type { RuntimeToolCall } from '../shared/agentCapabilities/transportContracts'
 import type { LaneComposerContext, LaneInputMessage } from '../shared/agentLane/laneDesktopContracts'
 import type { NomiModelConfig } from '../shared/agentLane/laneModelConfig'
@@ -22,7 +22,7 @@ import type { LaneApprovalSubjectResolver } from '../shared/agentLane/laneApprov
 import type { SkillRecord } from '../skills/skillStore'
 
 export type { LaneHandle, LaneProjection }
-export type { LaneToolEffects, LaneToolFailureShape, LaneToolSpec }
+export type { LaneToolEffect, LaneToolFailureShape, LaneToolSpec }
 export { LaneDomainFailure }
 
 /**
@@ -113,7 +113,16 @@ export interface LaneApprovalOptions {
 
 export interface OpenLaneOptions {
   fetch: typeof globalThis.fetch
-  native?: { settingsRoot: string; skills: readonly SkillRecord[] }
+  /**
+   * 桌面原生资源（沙箱、coding 工具、技能索引）。
+   *
+   * **`skills` 想跟着技能库变，就给函数不给快照**（与 `systemPrompt` / `tasks` 同一条纪律）：
+   * 用户在 Agent 面板旁边导入一个技能包、或者让 Agent 自己写一个落盘，都发生在这条 lane
+   * 活着的时候。2026-09-11 走查实锤：传数组时那条技能要关掉项目重开才出现在索引里。
+   * 给函数时每个回合重读一次（`laneInstalledSkills.mts` 的 `LaneSkillIndexSource`），
+   * 模型看到的索引与 `read` 允许越出项目的技能根始终是同一份。
+   */
+  native?: { settingsRoot: string; skills: readonly SkillRecord[] | (() => readonly SkillRecord[]) }
   /** 项目目录。会话落在 `<project>/.nomi/agent-sessions/` 下。 */
   projectDir: string
   /** 一条 lane = 一条独立的对话轨。默认 `main`。 */
@@ -121,8 +130,15 @@ export interface OpenLaneOptions {
   /** 复用已存在的会话（冷重启走这条）。缺省新建一条并把 id 报出来。 */
   sessionId?: string
   model: NomiModelConfig
-  /** 宿主的身份提示词。`Available tools` / `Guidelines` 两段由 `openLane` 按 `tools` 自己拼，别在这里手写。 */
-  systemPrompt: string
+  /**
+   * 宿主的身份提示词。`Available tools` / `Guidelines` 两段由 `openLane` 按 `tools` 自己拼，别在这里手写。
+   *
+   * **想跟着设置变的，给函数不给快照**（与下面 `tasks` 同一条纪律）：一条 lane 会跨很多回合活着，
+   * 传字符串就等于把「这段提示词该说什么」冻在开 lane 那一刻。2026-09-11 走查实锤：回复语言规则
+   * 是快照传进来的，用户中途在设置里把界面切成英文后，这条 lane 里连开新对话都还在说中文，
+   * 只有冷启动才生效。给函数时 `openLane` 每个回合重新求值（`transform_context`）。
+   */
+  systemPrompt: string | (() => string)
   /** Snapshot the composer per message; activate only after pi consumes that message. */
   input?: {
     capture(): LaneComposerContext

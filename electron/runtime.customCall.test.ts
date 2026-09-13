@@ -1,8 +1,13 @@
 // Fixture user accepts the quote card; the real taskSpend guard still runs.
 vi.mock("./capabilityCore/rendererBridge", () => ({
-  requestRenderer: vi.fn(async (operation: string) => {
+  // 付费确认等的是**人**，走没有墙钟期限的那条（2026-09-11 拍板：审批卡永不因空闲超时）。
+  requestRendererDecision: vi.fn(async (operation: string) => {
     if (operation !== "spend.confirm") throw new Error(`Unexpected renderer operation: ${operation}`);
     return { confirmed: true };
+  }),
+  // 带超时的那条是给「渲染层自己干活」用的。付费路径再走到它就是回归，所以这里直接炸。
+  requestRenderer: vi.fn(async (operation: string) => {
+    throw new Error(`Spend confirmation must not use the timeout-bound bridge: ${operation}`);
   }),
 }));
 

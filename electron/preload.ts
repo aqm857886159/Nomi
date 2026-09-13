@@ -19,6 +19,19 @@ function invokeSync<T>(channel: string, ...args: unknown[]): T {
   return unwrapIpcResult(ipcRenderer.sendSync(channel, ...args) as IpcResult<T>, channel);
 }
 
+/**
+ * 设置区里绝大多数条目是**同一种形状**：一条读、一条写、写完回读归一后的值。
+ * 这里把那一种形状收成一处，理由不是省行数，是让「多一个偏好」只需要写一行、
+ * 不可能写出「读的是 A、写的是 B」那种手抄错位。两条频道名仍然逐字写出来
+ * （不拼字符串）——频道名是跨进程合同，grep 得到才追得动。
+ */
+function getSetChannels(getChannel: string, setChannel: string) {
+  return {
+    get: () => ipcRenderer.invoke(getChannel),
+    set: (payload: unknown) => ipcRenderer.invoke(setChannel, payload),
+  };
+}
+
 function unwrapIpcResult<T>(result: IpcResult<T>, channel: string): T {
   if (!result || result.ok !== true) {
     throw new Error(result?.error || `Desktop IPC failed: ${channel}`);
@@ -89,22 +102,10 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
       reset: () => ipcRenderer.invoke("nomi:settings:project-location-reset"),
       reveal: () => ipcRenderer.invoke("nomi:settings:project-location-reveal"),
     },
-    automationPolicy: {
-      get: () => ipcRenderer.invoke("nomi:settings:automation-policy-get"),
-      set: (payload: unknown) => ipcRenderer.invoke("nomi:settings:automation-policy-set", payload),
-    },
-    assetRelay: {
-      get: () => ipcRenderer.invoke("nomi:settings:asset-relay-get"),
-      set: (payload: unknown) => ipcRenderer.invoke("nomi:settings:asset-relay-set", payload),
-    },
-    systemPrompts: {
-      get: () => ipcRenderer.invoke("nomi:settings:system-prompts-get"),
-      set: (payload: unknown) => ipcRenderer.invoke("nomi:settings:system-prompts-set", payload),
-    },
-    generationModelDefaults: {
-      get: () => ipcRenderer.invoke("nomi:settings:generation-model-defaults-get"),
-      set: (payload: unknown) => ipcRenderer.invoke("nomi:settings:generation-model-defaults-set", payload),
-    },
+    automationPolicy: getSetChannels("nomi:settings:automation-policy-get", "nomi:settings:automation-policy-set"),
+    assetRelay: getSetChannels("nomi:settings:asset-relay-get", "nomi:settings:asset-relay-set"),
+    systemPrompts: getSetChannels("nomi:settings:system-prompts-get", "nomi:settings:system-prompts-set"),
+    generationModelDefaults: getSetChannels("nomi:settings:generation-model-defaults-get", "nomi:settings:generation-model-defaults-set"),
     attentionSound: {
       get: () => ipcRenderer.invoke("nomi:settings:attention-sound-get"),
       set: (value: unknown) => ipcRenderer.invoke("nomi:settings:attention-sound-set", value),
@@ -113,14 +114,9 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
       preview: () => ipcRenderer.invoke("nomi:settings:attention-sound-preview"),
       stop: () => ipcRenderer.invoke("nomi:settings:attention-sound-stop"),
     },
-    vendorPreference: {
-      get: () => ipcRenderer.invoke("nomi:settings:vendor-preference-get"),
-      set: (payload: unknown) => ipcRenderer.invoke("nomi:settings:vendor-preference-set", payload),
-    },
-    canvasMenuPreference: {
-      get: () => ipcRenderer.invoke("nomi:settings:canvas-menu-preference-get"),
-      set: (payload: unknown) => ipcRenderer.invoke("nomi:settings:canvas-menu-preference-set", payload),
-    },
+    vendorPreference: getSetChannels("nomi:settings:vendor-preference-get", "nomi:settings:vendor-preference-set"),
+    modelBoxPreference: getSetChannels("nomi:settings:model-box-preference-get", "nomi:settings:model-box-preference-set"),
+    canvasMenuPreference: getSetChannels("nomi:settings:canvas-menu-preference-get", "nomi:settings:canvas-menu-preference-set"),
     telemetry: {
       get: () => ipcRenderer.invoke("nomi:settings:telemetry-get"),
       set: (payload: unknown) => ipcRenderer.invoke("nomi:settings:telemetry-set", payload),
@@ -190,6 +186,13 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
       ipcRenderer.invoke("nomi:production-runs:rework", { projectId, runId, ...(shotId ? { shotId } : {}) }),
     resumeBatch: (projectId: string, runId: string, reason: "budget" | "manual") =>
       ipcRenderer.invoke("nomi:production-runs:resume-batch", { projectId, runId, reason }),
+    // 2026-09-11 Agent 面板付费确认卡：读待确认的那笔 / 卡上改参数 / 丢弃草稿 / 确认并开跑。
+    pendingSpend: (projectId: string) => ipcRenderer.invoke("nomi:production-runs:pending-spend", { projectId }),
+    reviseSpend: (payload: unknown) => ipcRenderer.invoke("nomi:production-runs:revise-spend", payload),
+    discardSpend: (projectId: string, operationId: string) =>
+      ipcRenderer.invoke("nomi:production-runs:discard-spend", { projectId, operationId }),
+    confirmSpend: (projectId: string, operationId: string, shotIds?: readonly string[]) =>
+      ipcRenderer.invoke("nomi:production-runs:confirm-spend", { projectId, operationId, ...(shotIds ? { shotIds } : {}) }),
   },
   assets: {
     list: (payload: unknown) => ipcRenderer.invoke("nomi:assets:list", payload),
@@ -395,13 +398,16 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
       ipcRenderer.invoke("nomi:scene3d:frames-to-video", payload) as Promise<{ url: string; assetId?: string }>,
     mobile: {
       feedback: (payload: MobileBridgeFeedback) => ipcRenderer.invoke('nomi:director:mobile:feedback', payload) as Promise<boolean>,
-      start: (payload?: { text?: Record<string, string> }) =>
+      start: (payload?: { text?: Record<string, string>; consent?: boolean }) =>
         ipcRenderer.invoke("nomi:director:mobile:start", payload) as Promise<{
           running: boolean
           secure: boolean
           port: number | null
           urls: string[]
           devices: Array<{ id: string; name: string; latencyMs: number | null; connectedAt: number }>
+          consentRequired: boolean
+          certFingerprint: string | null
+          pairingExpiresAt: number | null
           qrByUrl?: Record<string, string>
         }>,
       stop: () =>
@@ -411,6 +417,9 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
           port: number | null
           urls: string[]
           devices: Array<{ id: string; name: string; latencyMs: number | null; connectedAt: number }>
+          consentRequired: boolean
+          certFingerprint: string | null
+          pairingExpiresAt: number | null
           qrByUrl?: Record<string, string>
         }>,
       status: () =>
@@ -420,6 +429,9 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
           port: number | null
           urls: string[]
           devices: Array<{ id: string; name: string; latencyMs: number | null; connectedAt: number }>
+          consentRequired: boolean
+          certFingerprint: string | null
+          pairingExpiresAt: number | null
           qrByUrl?: Record<string, string>
         }>,
       onEvent: (callback: (event: unknown) => void) => {
@@ -580,8 +592,8 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
       vendorKey: string; name: string; workflow: string; binding: unknown; modelKey?: string;
       enumOptions?: unknown; uiWorkflow?: string;
     }) => ipcRenderer.invoke("nomi:integration-session:comfyui:prepare", payload),
-    integrationSessionConfirm: (payload: { sessionId: string; expectedRevision: number; challengeId: string }) =>
-      ipcRenderer.invoke("nomi:integration-session:confirm", payload),
+    integrationSessionStartSelfCheck: (payload: { sessionId: string; expectedRevision: number }) =>
+      ipcRenderer.invoke("nomi:integration-session:start-self-check", payload),
     integrationSessionGet: (sessionId: string) => ipcRenderer.invoke("nomi:integration-session:get", { sessionId }),
     antigravityStatus: () => ipcRenderer.invoke("nomi:antigravity:status"),
     antigravityTest: (payload?: unknown) => ipcRenderer.invoke("nomi:antigravity:test", payload),
@@ -717,6 +729,12 @@ contextBridge.exposeInMainWorld("nomiDesktop", {
     exportPackage: (dirName: string) => invokeSync("nomi:skill:export", dirName),
     importPackage: (payload: unknown) => invokeSync("nomi:skill:import", payload),
     deleteByDir: (dirName: string) => invokeSync("nomi:skill:delete", dirName),
+    /** 技能盘变了（导入/删除/Agent 写完落盘）。范式与 modelCatalog.onChanged 一致。 */
+    onChanged: (callback: () => void) => {
+      const listener = () => callback();
+      ipcRenderer.on("nomi:skill-library:changed", listener);
+      return () => { ipcRenderer.removeListener("nomi:skill-library:changed", listener); };
+    },
   },
   capability: {
     // 「接入 AI 编程助手」卡：读状态/配置 + 一键写入/撤销 ~/.claude.json。

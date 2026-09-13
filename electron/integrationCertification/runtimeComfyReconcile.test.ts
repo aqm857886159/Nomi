@@ -115,7 +115,6 @@ describe("runtime ComfyUI reconciliation", () => {
     const rawSession = persisted.sessions[0];
     rawSession.stage = "certifying";
     rawSession.startIdempotencyKey = key;
-    rawSession.startReceiptStatus = "consumed";
     rawSession.config = { ...(rawSession.config as Record<string, unknown>), modelKey: "recovery-workflow" };
     rawSession.configDigest = sha(rawSession.config);
     save(sessionsFile, persisted);
@@ -186,6 +185,11 @@ describe("runtime ComfyUI reconciliation", () => {
     };
     const restarted = createRuntimeIntegrationSessionService({
       filePath: sessionsFile,
+      // 认证运行时是必填依赖（缺席即静默失败的那一族，见 ComfyCertificationRuntime）。
+      // 本例不走 ComfyUI 认证，注入会抛的桩：被调用到就说明用例走错了路。
+      runTask: () => { throw new Error("runTask must not be reached in this case"); },
+      fetchTaskResult: () => { throw new Error("fetchTaskResult must not be reached in this case"); },
+      mintSpendGrant: () => { throw new Error("mintSpendGrant must not be reached in this case"); },
       save,
       certification: certification as never,
       comfyOperationLedger: ledger,

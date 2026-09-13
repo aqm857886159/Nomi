@@ -131,7 +131,7 @@ async function readBoundIdentity() {
 
 /**
  * 从 NomiSelect 里挑模型。`:visible` 是硬要求——Mantine 把未展开弹层的选项也留在 DOM 里，
- * 裸选会选到画布上别的下拉（变体、每次生成张数…）的选项。
+ * 裸选会选到画布上别的下拉（变体、每次生成几个…）的选项。
  */
 async function pickModel(match, humanLabel) {
   await clickOrFail(composer.locator('[aria-label="模型"]'), '模型下拉')

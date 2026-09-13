@@ -122,7 +122,8 @@ export default function GroupFrame({
       }}
       role={readOnly ? undefined : 'button'}
       tabIndex={readOnly ? undefined : 0}
-      // 拖线松手时 useDragToConnect 靠这个属性在元素栈里认出组框（与 data-node-id 同一套命中法）。
+      // 拖线松手时落点模型（reactFlow/canvasConnectionDropTarget）靠这个属性在元素栈里认出组框
+      // （与 data-node-id 同一套命中法）。
       data-group-id={box.group.id}
       data-frame-empty={box.empty ? 'true' : undefined}
       data-frame-membership={preview ? preview.change : undefined}

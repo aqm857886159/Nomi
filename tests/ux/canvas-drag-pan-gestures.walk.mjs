@@ -19,11 +19,14 @@ import { CANVAS_PANE_SELECTOR, findCanvasBlankPoint, findNodeHitPoint } from './
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const shotsDir = path.join(repoRoot, 'tests/ux/shots/canvas-drag-pan-gestures')
+// 回填①的交付证据（PR 正文引用的就是这几张）：与常规走查截图分开放，别混进按次覆盖的 shots。
+const evidenceDir = path.join(repoRoot, 'docs/plan/2026-09-11-triage-board-evidence')
 const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'nomi-canvas-drag-pan-'))
 const userDataDir = path.join(tempRoot, 'user-data')
 const projectsDir = path.join(tempRoot, 'projects')
 mkdirSync(projectsDir, { recursive: true })
 mkdirSync(shotsDir, { recursive: true })
+mkdirSync(evidenceDir, { recursive: true })
 
 const { app, win: _initialWin } = await launchNomiApp({
   name: 'canvas-drag-pan-gestures',
@@ -62,6 +65,13 @@ async function snap(name) {
   const file = path.join(shotsDir, name)
   await screenshotSettled(getWin(), { path: file })
   console.log(`  · 截图 ${name}`)
+  return file
+}
+
+async function evidence(name) {
+  const file = path.join(evidenceDir, name)
+  await screenshotSettled(getWin(), { path: file })
+  console.log(`  · 证据截图 ${name}`)
   return file
 }
 
@@ -153,9 +163,11 @@ async function findMarqueeGesture() {
       point.y >= stageRect.top + inset && point.y <= stageRect.bottom - inset
 
     // 余量从大往小试，最大那档扫满整块 stage（四边各内缩到自动平移带之外）。
-    // 为什么要余量最大化：框选是**拖动中**判定的，而 React Flow 只选「完全落在框内」的节点；
-    // 扫满 stage，避免窄画布下框选边缘过紧；余量由 stage 与节点实测推出，
-    // 唯一的常数是 React Flow 自己的自动平移带宽度（见上方注释）。
+    // 为什么这一笔要余量最大化：它断的是「两张卡都被选上」，扫满 stage 最不挑窗口宽度。
+    // **框选语义本身是「相交即选」**（selectionMode=Partial，2026-06-14 canvas-smoothness-ABC §B2
+    // 拍板；迁移时漏传、2026-09-11 回填）——半扫一张卡也该选上，那条判据由下面
+    // 「只扫到一半」的那一笔单独断，不靠这一笔顺带证明。
+    // 余量由 stage 与节点实测推出，唯一的常数是 React Flow 自己的自动平移带宽度（见上方注释）。
     const gapLadder = [
       Math.max(
         bounds.left - (stageRect.left + inset),
@@ -292,9 +304,17 @@ try {
     const saved = await catalog.upsertVendorApiKey('kie', { apiKey: 'nomi-e2e-placeholder', enabled: true })
     return { saved, vendor: catalog.listVendors().find(item => item.key === 'kie') }
   })
-  expect(savedCredential.saved.verificationPending).toBe(true)
-  expect(savedCredential.vendor.credentialVerificationPending).toBe(true)
-  expect(savedCredential.saved.hasApiKey).toBe(true)
+  // 这三行断的是**前提**（占位 key 真的存进去了），不是验证流程本身。
+  // #726（vendor-key-publish-class）改了 kie 这类内置 curated 家的 key 判据：没有便宜且可信的
+  // 预检（最小真实请求 = 一次付费生成，不能替用户花钱），于是缺省判据是 `first-use`——
+  // **存 key 即发布、不再挂「待验证」**（理由逐字写在 builtinVendorSeeds.ts 的 keyValidation 上）。
+  // 此前这里断言 `verificationPending === true`，断的其实是「/v1/models 探测打不通那台假 host」
+  // 这个副产物；判据一改它就必红。改成断言新语义本身，两边都说得出口。
+  expect(savedCredential.saved.hasApiKey, '占位 key 要真的落进 catalog').toBe(true)
+  expect(savedCredential.saved.verificationPending ?? false,
+    'first-use 判据不挂「待验证」：没有可验的便宜端点，挂上就是一句做不到的承诺（#726）').toBe(false)
+  expect(savedCredential.vendor.credentialVerificationPending ?? false,
+    'vendor 行上的那面旗子同理不该亮').toBe(false)
   await getWin().reload()
   await getWin().waitForLoadState('domcontentloaded')
   await getWin().waitForTimeout(1500)
@@ -496,6 +516,81 @@ try {
     JSON.stringify(marqueeVisual),
   )
   assert(marqueeSelected.length >= 2, '框选把框内节点都选上了', `${marqueeSelected.length} 个`)
+
+  // ── ① 框选「扫到即选」：框只盖住一张卡的一半，那张卡照样被选上 ─────────────
+  // 用户的习惯动作是扫一下就选上。React Flow 默认 selectionMode=Full＝必须整张卡落进框里，
+  // 窄画布下等于选不中（审计 ③ 表第 5 行）。这一笔是那条语义的唯一判据。
+  const clearBeforePartial = await findBlankPoint()
+  await getWin().mouse.click(clearBeforePartial.x, clearBeforePartial.y)
+  await getWin().waitForTimeout(250)
+  assert((await selectedNodeIds()).length === 0, '半扫之前先把选区清空（否则选上了也说明不了问题）')
+
+  const partialGesture = await getWin().evaluate(({ paneSelector, inset }) => {
+    const stage = document.querySelector('.generation-canvas-v2__stage')
+    const nodes = Array.from(document.querySelectorAll('.generation-canvas-v2-node'))
+    if (!stage || !nodes.length) return null
+    const stageRect = stage.getBoundingClientRect()
+    const insideStage = (point) =>
+      point.x >= stageRect.left + inset && point.x <= stageRect.right - inset &&
+      point.y >= stageRect.top + inset && point.y <= stageRect.bottom - inset
+    const overlaps = (box, rect) =>
+      box.right > rect.left && box.left < rect.right && box.bottom > rect.top && box.top < rect.bottom
+    const contains = (box, rect) =>
+      box.left <= rect.left && box.right >= rect.right && box.top <= rect.top && box.bottom >= rect.bottom
+    for (const node of nodes) {
+      const rect = node.getBoundingClientRect()
+      for (const gap of [56, 40, 28, 18, 12]) {
+        // 从卡左上外侧的空白起手，只扫到它的横向中线就松手：框与卡相交，但**不包含**它。
+        const start = { x: rect.left - gap, y: rect.top - gap }
+        const end = { x: rect.left + rect.width / 2, y: rect.bottom + gap }
+        if (!insideStage(start) || !insideStage(end)) continue
+        const hit = document.elementFromPoint(start.x, start.y)
+        if (!hit || !stage.contains(hit) || !hit.matches(paneSelector)) continue
+        const box = {
+          left: Math.min(start.x, end.x), right: Math.max(start.x, end.x),
+          top: Math.min(start.y, end.y), bottom: Math.max(start.y, end.y),
+        }
+        if (contains(box, rect)) continue
+        // 别把另一张卡也扫进来：那样选中数就解释不清是谁被选上的。
+        if (nodes.some((other) => other !== node && overlaps(box, other.getBoundingClientRect()))) continue
+        return {
+          id: node.getAttribute('data-node-id'),
+          start: { x: Math.round(start.x), y: Math.round(start.y) },
+          end: { x: Math.round(end.x), y: Math.round(end.y) },
+          coveredRatio: Math.round(((box.right - rect.left) / rect.width) * 100) / 100,
+        }
+      }
+    }
+    return null
+  }, { paneSelector: CANVAS_PANE_SELECTOR, inset: MARQUEE_STAGE_INSET_PX })
+  assert(Boolean(partialGesture), '找得到「只扫到一张卡一半」的框选手势', JSON.stringify(partialGesture))
+  assert(
+    partialGesture.coveredRatio > 0.2 && partialGesture.coveredRatio < 0.9,
+    '这一框确实只盖住这张卡的一部分（否则 Full/Partial 两种语义都会绿）',
+    `盖住 ${Math.round(partialGesture.coveredRatio * 100)}%`,
+  )
+  await getWin().keyboard.down('Shift')
+  await getWin().mouse.move(partialGesture.start.x, partialGesture.start.y)
+  await getWin().mouse.down()
+  await getWin().mouse.move(partialGesture.end.x, partialGesture.end.y, { steps: 16 })
+  await getWin().waitForTimeout(200)
+  const partialSelectedDuringDrag = await selectedNodeIds()
+  await snap('02a-partial-marquee.png')
+  await evidence('backfill-a-partial-marquee.png')
+  await getWin().mouse.up()
+  await getWin().keyboard.up('Shift')
+  await getWin().waitForTimeout(320)
+  const partialSelected = await selectedNodeIds()
+  assert(
+    partialSelected.includes(partialGesture.id),
+    '框只扫过卡的一半，这张卡照样被选上（相交即选，不是必须整张落进框）',
+    JSON.stringify({ gesture: partialGesture, selected: partialSelected }),
+  )
+  assert(
+    partialSelectedDuringDrag.includes(partialGesture.id),
+    '拖动中就已经选上了（证据截图里框与选中态同框）',
+    JSON.stringify(partialSelectedDuringDrag),
+  )
 
   // 适应视图可能在宽屏把两个节点放大到接近上限；重置视图后，后面两轮滚轮都有缩放余量。
   await getWin().locator('.generation-canvas-v2__zoom-bar button').nth(1).click()
@@ -906,6 +1001,46 @@ try {
     assert(layouts <= 6, '平移是纯合成：整段拖动几乎不重算布局', `${layouts} 次 / 60 帧`)
   }
 
+  // ── ⑨ 双击空白不缩放（旧画布没有这个手势；内核默认 zoomOnDoubleClick=true）────────
+  const doubleClickPoint = await findBlankPoint()
+  const beforeDoubleClick = await readTransform()
+  await getWin().mouse.dblclick(doubleClickPoint.x, doubleClickPoint.y)
+  await getWin().waitForTimeout(520)
+  const afterDoubleClick = await readTransform()
+  assert(
+    afterDoubleClick.zoom === beforeDoubleClick.zoom,
+    '双击空白不缩放（误触不再突然放大一档）',
+    `${beforeDoubleClick.zoom.toFixed(3)} → ${afterDoubleClick.zoom.toFixed(3)}`,
+  )
+
+  // ── ⑩ 中键拖平移：光标要变成「抓紧」────────────────────────────────────
+  // CSS 的 `:active` 只跟主键走，认不出中键 / 右键 / 空格——那三种入口的光标靠宿主写
+  // data-panning。迁移后没人写它，于是中键拖的时候手已经在拖、画面还在说「可以拖」。
+  const middlePanPoint = await findBlankPoint()
+  const beforeMiddlePan = await readTransform()
+  await getWin().mouse.move(middlePanPoint.x, middlePanPoint.y)
+  await getWin().mouse.down({ button: 'middle' })
+  await getWin().mouse.move(middlePanPoint.x - 90, middlePanPoint.y - 60, { steps: 12 })
+  const duringMiddlePan = await getWin().evaluate(() => {
+    const stage = document.querySelector('.generation-canvas-v2__stage')
+    return { panningAttr: stage.getAttribute('data-panning'), cursor: getComputedStyle(stage).cursor }
+  })
+  await snap('07-middle-drag-panning.png')
+  await getWin().mouse.up({ button: 'middle' })
+  await getWin().waitForTimeout(280)
+  const afterMiddlePan = await readTransform()
+  const middlePanAttrLeft = await getWin().evaluate(
+    () => document.querySelector('.generation-canvas-v2__stage').hasAttribute('data-panning'),
+  )
+  assert(duringMiddlePan.panningAttr === 'true', '中键拖平移期间写了 data-panning', JSON.stringify(duringMiddlePan))
+  assert(duringMiddlePan.cursor === 'grabbing', '中键拖平移光标是 grabbing', duringMiddlePan.cursor)
+  assert(!middlePanAttrLeft, '松手后 data-panning 清干净（不留残留态）')
+  assert(
+    Math.round(afterMiddlePan.x - beforeMiddlePan.x) <= -40,
+    '中键拖真的平移了画布',
+    `Δx=${Math.round(afterMiddlePan.x - beforeMiddlePan.x)}`,
+  )
+
   // ── 平移的其它入口没被改坏：空格 + 左键仍平移 ─────────────────────────
   const onNode = await videoNode.boundingBox()
   const spacePanBefore = await readTransform()
@@ -922,6 +1057,100 @@ try {
     '空格+左键压在节点上仍然平移画布（不是拖节点）',
     `Δx=${Math.round(spacePanAfter.x - spacePanBefore.x)}`,
   )
+
+  // ── ③ 「画布手势」设置真的作用于生成画布，帮助浮层与实物一致 ─────────────
+  // 设置页那个二选一（#832，2026-07-31 用户拍板）迁移后整条失效：滚轮恒缩放，选了没用，
+  // 而帮助浮层还照着这个开关生成文案——说明书与实物不符（审计 ③ 表第 3 行）。
+  // 这一段走真人路径：点设置 → 通用 → 点芯片 → 关掉 → 回画布滚轮。
+  const modifierGlyph = process.platform === 'darwin' ? '⌘' : 'Ctrl'
+
+  async function chooseCanvasGesture(scheme) {
+    await getWin().getByRole('button', { name: '设置', exact: true }).first().click()
+    const dialog = getWin().getByRole('dialog', { name: '设置', exact: true })
+    await expect(dialog).toBeVisible()
+    await dialog.locator('[data-settings-tab-id="general"]').click()
+    const chip = dialog.locator(`[data-canvas-gesture-scheme="${scheme}"]`)
+    await chip.click()
+    await expect(chip).toHaveAttribute('aria-checked', 'true')
+    await dialog.locator('[data-settings-close]').click()
+    await expect(dialog).toHaveCount(0)
+    await getWin().waitForTimeout(360)
+  }
+
+  async function readControlsHelp(name) {
+    await getWin().getByRole('button', { name: '画布操作', exact: true }).first().click()
+    const panel = getWin().getByRole('dialog', { name: '画布操作帮助', exact: true })
+    await expect(panel).toBeVisible()
+    await evidence(name)
+    const text = (await panel.innerText()).replace(/\s+/g, ' ')
+    await getWin().keyboard.press('Escape')
+    await getWin().waitForTimeout(260)
+    return text
+  }
+
+  await chooseCanvasGesture('modifier-zoom')
+  const panSchemeHelp = await readControlsHelp('backfill-a-help-modifier-zoom.png')
+  assert(
+    panSchemeHelp.includes('滚轮 / 双指滑') && panSchemeHelp.includes(`${modifierGlyph} + 滚轮`),
+    '平移档的帮助浮层写着「滚轮/双指滑=平移、修饰键+滚轮=缩放」',
+    panSchemeHelp.slice(0, 160),
+  )
+
+  const wheelPanPoint = await findBlankPoint()
+  const beforeWheelPan = await readTransform()
+  await getWin().mouse.move(wheelPanPoint.x, wheelPanPoint.y)
+  await getWin().mouse.wheel(0, 240)
+  await getWin().waitForTimeout(360)
+  const afterWheelVerticalPan = await readTransform()
+  assert(
+    afterWheelVerticalPan.zoom === beforeWheelPan.zoom,
+    '平移档：滚轮不再缩放画布（这正是设置失效时的症状）',
+    `${beforeWheelPan.zoom.toFixed(3)} → ${afterWheelVerticalPan.zoom.toFixed(3)}`,
+  )
+  assert(
+    Math.round(afterWheelVerticalPan.y - beforeWheelPan.y) <= -100,
+    '平移档：滚轮纵向平移画布',
+    `Δy=${Math.round(afterWheelVerticalPan.y - beforeWheelPan.y)}`,
+  )
+  await getWin().mouse.wheel(180, 0)
+  await getWin().waitForTimeout(360)
+  const afterWheelHorizontalPan = await readTransform()
+  assert(
+    Math.round(afterWheelHorizontalPan.x - afterWheelVerticalPan.x) <= -80,
+    '平移档：横向滚动（触控板左右滑）横向平移画布',
+    `Δx=${Math.round(afterWheelHorizontalPan.x - afterWheelVerticalPan.x)}`,
+  )
+  await getWin().keyboard.down(mod)
+  await getWin().mouse.wheel(0, -240)
+  await getWin().keyboard.up(mod)
+  await getWin().waitForTimeout(360)
+  const afterModifierZoom = await readTransform()
+  assert(
+    afterModifierZoom.zoom > afterWheelHorizontalPan.zoom,
+    '平移档：修饰键+滚轮仍然缩放（真值表第二行，也是这一档唯一的缩放入口）',
+    `${afterWheelHorizontalPan.zoom.toFixed(3)} → ${afterModifierZoom.zoom.toFixed(3)}`,
+  )
+  await snap('08-wheel-pan-scheme.png')
+
+  await chooseCanvasGesture('wheel-zoom')
+  const zoomSchemeHelp = await readControlsHelp('backfill-a-help-wheel-zoom.png')
+  assert(
+    !zoomSchemeHelp.includes('滚轮 / 双指滑'),
+    '缩放档的帮助浮层不再列「滚轮=平移」那一行（文案跟着实物走）',
+    zoomSchemeHelp.slice(0, 160),
+  )
+  const wheelZoomPoint = await findBlankPoint()
+  const beforeWheelZoom = await readTransform()
+  await getWin().mouse.move(wheelZoomPoint.x, wheelZoomPoint.y)
+  await getWin().mouse.wheel(0, -240)
+  await getWin().waitForTimeout(360)
+  const afterWheelZoom = await readTransform()
+  assert(
+    afterWheelZoom.zoom > beforeWheelZoom.zoom,
+    '缩放档：滚轮照旧缩放画布（默认档没被这次回填改坏）',
+    `${beforeWheelZoom.zoom.toFixed(3)} → ${afterWheelZoom.zoom.toFixed(3)}`,
+  )
+  await snap('09-wheel-zoom-scheme.png')
 
   assert(pageErrors.length === 0, '全程无页面错误', pageErrors.join(' | '))
   console.log(`\n✅ 画布手势走查通过：${passed} 项断言，截图在 ${shotsDir}`)

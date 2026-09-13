@@ -38,7 +38,7 @@ export const MANTINE_ACTION_STATES: readonly LabState[] = [
     source: SOURCE_MANTINE,
     mirrors: [
       'src/ui/onboarding/KnownVendorKeyConnectPage.tsx:153',
-      'src/ui/onboarding/IntegrationConfirmationPanel.tsx:122',
+      'src/ui/onboarding/IntegrationSelfCheckPanel.tsx:122',
       'src/ui/onboarding/AdapterVerificationScreen.tsx:234',
     ],
     coverage: 'shell',

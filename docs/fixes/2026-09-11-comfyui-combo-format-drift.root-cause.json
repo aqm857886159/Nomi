@@ -1,0 +1,148 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-11-comfyui-combo-format-drift",
+  "change_kind": "corrective",
+  "problem_type": "A local capability index assumed exactly one on-the-wire serialization shape for a value the upstream service (ComfyUI) has been migrating across two shapes at once, so half the real population became silently unreadable instead of erroring.",
+  "symptom": "Real-machine verification (2026-09-11, comfyanonymous/ComfyUI main HEAD, self-reported version 0.35.0, CPU-only, 0 custom nodes, 0 installed model files, /object_info fetched live): of 928 node classes, 500 combo input fields serialize as the newer comfy_api.latest._io.py shape ['COMBO', {options, remote, multiselect, ...}] instead of the legacy [optionsArray, config?] shape our indexer recognized. Every field in that population - including plain model-file loaders such as TripleCLIPLoader.clip_name1/2/3, HypernetworkLoader.hypernetwork_name and UpscaleModelLoader.model_name - was invisible to electron/comfyuiObjectInfo.ts's parser, which returned undefined for the whole class whenever every one of its combo fields used the new shape. The originally reported framing ('installed files get reported missing') was verified to be backwards: reconcileComfyWorkflow's guard (`if (!options || options.includes(value)) continue`) treats an unrecognized field as 'nothing to check', not 'value not in list', so the true production effect is a false negative - a workflow referencing a genuinely missing or misspelled model filename in one of these fields passed import-time reconciliation silently and only failed later at /prompt execution with a confusing server error. The paired defect in collectGraphEnumOptions is a real false negative too: the field's dropdown never gets baked, so the canvas shows a plain text box (forcing the user to hand-type a ComfyUI-internal filename) instead of a real picker.",
+  "direct_cause": "electron/comfyuiObjectInfo.ts's parseObjectInfoIndex only accepted a combo spec whose spec[0] was itself a string array (the legacy function-based INPUT_TYPES shape). ComfyUI's newer V3 node schema (comfy_api/latest/_io.py, Combo.Input.as_dict, verified at github.com/comfyanonymous/ComfyUI master, lines 345-386, wired into the v1-compatible /object_info response by add_to_dict_v1 at lines 1923-1926 as `(io_type, as_dict)`) instead emits spec = ['COMBO', { options?, remote?, multiselect?, ... }] - a string literal followed by a config object. Array.isArray(spec[0]) is false for that shape, so the field was skipped as 'not an enum' with no distinction from a field that genuinely has no combo semantics.",
+  "class_root": "The parser encoded a single assumed wire shape for a value that a live, still-evolving upstream service serializes in more than one way depending on which node-authoring API produced the node, and had no fallback branch for the shape it did not anticipate. The missing invariant: a local index of an external service's capability description must recognize every shape that service's own current source code can legitimately emit, not just the shape observed in one historical sample. The same class already bit this codebase once before (electron/catalog/comfyuiWorkflowImport.ts's MEDIA_INPUT_KEYS / electron/catalog/comfyuiLocal.ts's STANDARD_MEDIA_LOADER_INPUTS: LoadVideo's real input key is 'file', not the assumed 'image', discovered against 259 real corpus workflows) and was independently rediscovered by an unrelated local-first AI creation tool (Velorn, PR #107, 'Fix dynamic ComfyUI combo choice parsing') hitting the identical ['COMBO', {options}] shape gap.",
+  "affected_population": [
+    "Every ComfyUI workflow import/reconciliation pass (comfyuiWorkflowImportStore.reconcile, the onboarding import panel, the preset/template library 'recheck' action) against a server running any node built on the comfy_api.latest V3 schema - today that already includes TripleCLIPLoader, QuadrupleCLIPLoader, HypernetworkLoader, UpscaleModelLoader, LTXVAudioVAELoader, LTXAVTextEncoderLoader, AudioEncoderLoader, LoadBackgroundRemovalModel, FrameInterpolationModelLoader, OpticalFlowLoader, LoadMoGeModel, LoadMediaPipeFaceLandmarker, LoadDA3Model and the entire comfy_api_nodes cloud-API node family (Gemini, Kling, Grok, Anthropic, etc.), and grows every time upstream migrates another legacy node to V3",
+    "Every user importing a workflow authored against a recent ComfyUI build that references a model file the user has not yet installed in one of the affected node types - the missing-file warning that exists specifically to catch this never fires",
+    "Every user whose canvas parameter panel should show a real file-name dropdown for one of the affected fields - they see a plain text input and must hand-type a ComfyUI-internal filename instead",
+    "The internal checkpoint auto-derive path (fetchComfyuiCheckpoints, used to fill an empty ckpt_name) is on the same code path and will silently regain correctness automatically once ComfyUI migrates CheckpointLoaderSimple to V3 - verified today it is still the legacy function-based node, so this specific consumer is not yet exposed but shares the same future exposure"
+  ],
+  "scope_paths": [
+    "electron/comfyuiObjectInfo.ts",
+    "electron/comfyuiObjectInfo.test.ts",
+    "electron/__fixtures__/comfyui-object-info-real-sample.json",
+    "electron/catalog/comfyuiWorkflowImport.ts",
+    "electron/catalog/comfyuiWorkflowImportStore.ts",
+    "electron/catalog/comfyuiWorkflowImportStore.test.ts",
+    "electron/catalog/comfyuiLocal.ts",
+    "electron/comfyuiTemplates.ts",
+    "src/desktop/bridge.ts",
+    "src/ui/onboarding/ComfyuiWorkflowImportPanel.tsx",
+    "src/ui/community/communityLinks.ts",
+    "src/ui/community/communityLinks.test.ts",
+    "src/i18n/locales/onboardingProviders.ts",
+    "tests/ux/comfy-unknown-combo-feedback.walk.mjs",
+    "docs/plan/2026-09-11-comfyui-dynamic-combo.md"
+  ],
+  "entry_points": [
+    "fetchComfyuiObjectInfoIndex(baseUrl) -> parseObjectInfoIndex, called from electron/comfyuiTemplates.ts buildComfyuiTemplateDetail (template library import/recheck) and from electron/catalog/comfyuiWorkflowImportStore.ts's reconcile path (onboarding workflow import panel)",
+    "fetchComfyuiCheckpoints(baseUrl) -> parseObjectInfoIndex, called from electron/catalog/comfyuiLocal.ts (built-in text-to-image ckpt_name auto-derive when left blank)",
+    "reconcileComfyWorkflow(graph, index) in electron/catalog/comfyuiWorkflowImport.ts, consuming index.enumsByClass to flag missing model files / unknown enum values at import time",
+    "collectGraphEnumOptions(graph, index) in electron/catalog/comfyuiWorkflowImport.ts, consuming index.enumsByClass to bake real file-name dropdowns into imported parameter controls"
+  ],
+  "invariants": [
+    "classifyComboSpec (originally named extractComboOptions; renamed 2026-09-11 when it grew a third outcome) is the only place in the codebase that inspects the shape of a /object_info combo input spec; legacy [optionsArray, config?], V3 ['COMBO', {options, ...}], and the known-and-deliberately-excluded 'COMFY_DYNAMICCOMBO_V3' shape are all classified there and nowhere else",
+    "A combo field that cannot be enumerated is represented as absent from enumsByClass (unknown), never as an empty array (known-zero) and never silently coerced into 'nothing to validate'. Within 'cannot be enumerated' there are now two distinguishable sub-cases the UI treats differently: a known-but-empty case (remote-only combo, DynamicCombo's nested sub-schema, or a non-combo type spec) stays silent as before; a genuinely unrecognized outer shape is additionally recorded in ComfyObjectInfoIndex.unknownComboShapes for the 'Report Issue' (zh-CN: '反馈给 Nomi') UI feedback path",
+    "An empty options array (old or new format) still counts as a real enum with zero members, so reconciliation reports every referenced value against it as missing rather than skipping validation",
+    "Every consumer of ComfyObjectInfoIndex (reconcileComfyWorkflow, collectGraphEnumOptions, fetchComfyuiCheckpoints) reads enumsByClass without re-deriving or re-checking the spec shape itself",
+    "Array/COMBO-options elements that are string or number are both accepted (numbers coerced to string) in both the legacy and V3 shapes - verified against two real, currently-shipping fields (CreateVideo.bit_depth, KJNodes ImageResizeKJ.crop) that mix the two types; only genuinely non-primitive elements (objects, booleans, null) or an unrecognized outer envelope name trigger the unknownComboShapes path"
+  ],
+  "external_sources": [
+    {
+      "kind": "source-code",
+      "url": "https://github.com/comfyanonymous/ComfyUI/blob/master/comfy_api/latest/_io.py",
+      "checked_at": "2026-09-11",
+      "purpose": "Ground truth for the exact V3 wire shape: Combo.Input.as_dict (lines 345-386) and MultiCombo.Input.as_dict (lines 397-415) produce the {options, multiselect, remote, ...} config object; add_to_dict_v1 (lines 1923-1926) confirms the final /object_info tuple is (io_type_string, as_dict) i.e. ['COMBO', {...}], not an array-of-options in position 0. Verified against a live --depth 1 clone of the current main HEAD, not from memory."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://docs.comfy.org/custom-nodes/backend/datatypes",
+      "checked_at": "2026-09-11",
+      "purpose": "Confirms this page only documents the legacy [optionsArray, config?] shape and has no mention of the V3 ['COMBO', {...}] shape - establishes that the doc is stale relative to upstream source and could not have been relied on alone; real-machine verification against live /object_info was required instead."
+    },
+    {
+      "kind": "source-code",
+      "url": "https://github.com/VelornLabs/velorn/pull/107",
+      "checked_at": "2026-09-11",
+      "purpose": "An unrelated local-first AI creation tool independently hit and fixed the identical defect class ('Newer ComfyUI versions can describe dynamic choices as [\"COMBO\", { options: [...] }], but the current parser only reads legacy choice-array and inline-object shapes') with a structurally similar two-branch extractor, corroborating this is a real upstream shape, not a fixture artifact; their extractComboChoicesFromSpec collapses 'unknown shape' and 'known-zero options' into the same empty array, which this fix deliberately does not replicate because Nomi already has a prior incident (documented inline in electron/comfyuiObjectInfo.ts) where that exact collapse silently disabled missing-file detection for users with zero installed models."
+    }
+  ],
+  "invariant_owner_layer": {
+    "layer": "electron/comfyuiObjectInfo.ts",
+    "tests": [
+      "electron/comfyuiObjectInfo.test.ts"
+    ]
+  },
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "This is the second time this codebase has shipped a parser that assumes ComfyUI's wire format for a given concept is fixed, when the upstream project actively runs old and new node-authoring APIs side by side and keeps migrating more built-in nodes to the newer one over time (500 of 928 classes already, growing with every ComfyUI release). The same shape-drift class reappears any time a new node-authoring API version changes how an existing concept serializes, and it will recur again for whichever field Nomi's indexer next assumes has one shape - it is not tied to this one field, this one node, or this one ComfyUI version.",
+    "same_class_scan": [
+      "grep for other independent /object_info combo-shape parsers across electron/ and src/ (object_info|ObjectInfo hits in electron/comfyuiIpc.ts, electron/comfyuiTemplates.ts, electron/comfyuiObjectInfo.ts, electron/tasks/requestTransforms.ts, electron/comfyui/endpointResolver.ts, electron/catalog/{comfyuiWorkflowImportStore,comfyuiWorkflowImport,types,comfyuiLocal,comfyuiPresets}.ts, src/ui/onboarding/*, src/desktop/bridge.ts) confirmed exactly one parser (parseObjectInfoIndex/classifyComboSpec) and exactly two consumers of its output (fetchComfyuiCheckpoints in comfyuiLocal.ts, fetchComfyuiObjectInfoIndex in comfyuiTemplates.ts) - no second, un-fixed copy of the shape-detection logic exists anywhere else in the tree",
+      "checked comfy_api/latest/_io.py for every other Input subclass that could reach /object_info as a bare-string-plus-config tuple similar to Combo (Int, Float, Boolean, String, MultiCombo, DynamicCombo) - only Combo/MultiCombo share the io_type 'COMBO' our reconciliation logic cares about; DynamicCombo uses a distinct io_type ('COMFY_DYNAMICCOMBO_V3') and is correctly left unrecognized (out of scope, not silently mis-parsed) because it nests a whole sub-schema rather than a flat option list",
+      "found and cross-checked the same defect class already fixed once in this codebase for a different field: electron/catalog/comfyuiWorkflowImport.ts's MEDIA_INPUT_KEYS constant and electron/catalog/comfyuiLocal.ts's STANDARD_MEDIA_LOADER_INPUTS map both exist because a single hardcoded input-key assumption ('image') missed LoadVideo's real key ('file') against 259 real corpus workflows - that fix already uses the 'accept a documented set of shapes, not one assumed shape' pattern this fix now applies to combo spec parsing",
+      "confirmed via the real /object_info dump that CheckpointLoaderSimple and LoraLoader are still legacy-format today (options: [] in the old [array, config] shape), so the internal ckpt_name auto-derive consumer is not currently exposed to this specific defect, but shares the exact same future exposure the day upstream migrates those two nodes - captured in affected_population and invariants rather than deferred silently"
+    ]
+  },
+  "generality_proof": "The repair lives in exactly one function, classifyComboSpec, which parseObjectInfoIndex calls for every combo-shaped input key across every node class in a single pass. Both existing consumers of its output - reconcileComfyWorkflow/collectGraphEnumOptions in electron/catalog/comfyuiWorkflowImport.ts (the workflow import/reconciliation path) and fetchComfyuiCheckpoints in electron/catalog/comfyuiLocal.ts (the built-in checkpoint auto-derive path) - required zero code changes to pick up the fix, because they only ever read the already-parsed enumsByClass map and never re-inspect the raw spec shape themselves; this was verified by grepping every file that mentions object_info/ObjectInfo in electron/ and src/ and confirming parseObjectInfoIndex has exactly two call sites (fetchComfyuiObjectInfoIndex, fetchComfyuiCheckpoints) and no parallel shape-detection logic exists anywhere else. The same-class scan additionally confirms the fix generalizes correctly at its boundary rather than over-reaching: DynamicCombo's distinct io_type is correctly left unrecognized (it is a different concept, not a variant of the same one), and MultiCombo's options shape is identical to Combo's so it is accepted by the same branch without a special case, deferring only the unrelated question of multi-value semantics (documented as a TODO, not silently mishandled).",
+  "shared_boundaries": [
+    {
+      "path": "electron/comfyuiObjectInfo.ts",
+      "symbol": "classifyComboSpec",
+      "responsibility": "The single point that decides whether a raw /object_info input spec has a usable local enum list, and if so what it is. Recognizes both the legacy array-headed shape and the V3 ['COMBO', {options}] shape; returns undefined (not an empty array) for any shape it cannot enumerate, including remote-only/dynamic combos with no options field, so 'unknown' is never confused with 'known zero'."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "electron/comfyuiTemplates.ts",
+      "entry_point": "buildComfyuiTemplateDetail's call to fetchComfyuiObjectInfoIndex feeding reconcileComfyWorkflow and collectGraphEnumOptions for the preset/template library's 'recheck' action",
+      "disposition": "enforced",
+      "evidence": "Consumes ComfyObjectInfoIndex.enumsByClass produced by the now-fixed parseObjectInfoIndex without any code change on this side; the file itself is unmodified and its existing test suite (electron/comfyuiTemplates.test.ts) passes unchanged, confirming the fix reaches this entry point purely through the shared boundary."
+    },
+    {
+      "path": "electron/catalog/comfyuiLocal.ts",
+      "entry_point": "fetchComfyuiCheckpoints call site used to auto-fill an empty CheckpointLoaderSimple.ckpt_name",
+      "disposition": "not-affected",
+      "evidence": "Same shared parser, but the real /object_info dump (2026-09-11) shows CheckpointLoaderSimple is still the legacy function-based node ([[], {tooltip}]), so this specific consumer sees no behavior change today; it automatically gains protection the day upstream migrates that node to V3, which is exactly the future exposure recorded in affected_population rather than left as a silent gap."
+    },
+    {
+      "path": "electron/catalog/comfyuiWorkflowImport.ts",
+      "entry_point": "MEDIA_INPUT_KEYS constant (the LoadVideo.file vs assumed .image input-key-name fix)",
+      "disposition": "not-affected",
+      "evidence": "A prior instance of the same defect class (assuming ComfyUI has one fixed wire shape for a concept) but for input *key names*, not combo *option values*; it does not consume enumsByClass or classifyComboSpec at all, so it needed no change - cited here only as scanned evidence that the class has a known precedent already resolved with the same 'accept a documented set of shapes' pattern."
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "electron/comfyuiObjectInfo.ts",
+    "invariant": "Combo spec shape recognition happens in exactly one function (classifyComboSpec); no second Array.isArray(spec[0])-style shape check may exist anywhere else in the tree, and 'unrecognized shape' must always be distinguishable from 'recognized shape with zero options'.",
+    "failure_mode": "A shape classifyComboSpec does not recognize is returned as undefined and the field is simply absent from enumsByClass for that class - reconciliation and dropdown-baking both correctly treat it as unknown (skip, no false report, no false dropdown) rather than one of them guessing a different answer than the other, because both read the same map produced by the same function.",
+    "exception_policy": "none",
+    "strategy": "By keeping every shape-recognition decision inside one pure, unit-tested function that both existing consumers reach only through its output map, a future ComfyUI schema change (a third combo shape, or a change to the V3 shape) has exactly one place to be taught, and the two consumers cannot drift into disagreeing about what a given spec means the way they would if each re-implemented its own shape check.",
+    "artifacts": [
+      "electron/comfyuiObjectInfo.ts",
+      "electron/comfyuiObjectInfo.test.ts"
+    ]
+  },
+  "class_regression_tests": [
+    "electron/comfyuiObjectInfo.test.ts",
+    "electron/catalog/comfyuiWorkflowImportStore.test.ts"
+  ],
+  "legacy_paths": {
+    "status": "not-applicable",
+    "removed_paths": [],
+    "rationale": "This is an additive extension of the single existing parser function, not a replacement of a parallel/legacy implementation - there was no second combo-shape parser to remove. The old legacy-array branch's behavior (including the 'empty array is still a real enum' semantics) is preserved byte-for-byte inside the same function, just alongside a new branch for the V3 shape."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "No third-party package or SDK version changed. This adapts our own hand-written parser to a wire format ComfyUI's live server already emits today (not a future or opt-in version); there is nothing to pin, upgrade, or set an exit date for.",
+    "exit_criteria": []
+  },
+  "migration": "No stored data or persisted schema changes. ComfyObjectInfoIndex is an in-memory cache (60s TTL) rebuilt from a live /object_info fetch every time; nothing is written to disk in the old shape that needs migrating, and the type ComfyObjectInfoIndex itself (classNames: Set<string>, enumsByClass: Map<string, Map<string, string[]>>) is unchanged.",
+  "regression_tests": [
+    "electron/comfyuiObjectInfo.test.ts",
+    "electron/catalog/comfyuiWorkflowImportStore.test.ts",
+    "src/ui/community/communityLinks.test.ts",
+    "tests/ux/comfy-unknown-combo-feedback.walk.mjs"
+  ],
+  "residual_risks": [
+    "MultiCombo's multi-value semantics are deliberately not handled (options are parsed identically to single-select Combo, values are never validated as arrays) - if a future workflow import needs to reconcile or bake dropdowns for an actual multiselect field, that TODO must be picked up separately; today's reconcile logic filters to typeof value === 'string' so a multiselect's real array value is silently skipped rather than mis-validated, which is safe but still a real gap.",
+    "DynamicCombo (io_type 'COMFY_DYNAMICCOMBO_V3', used by nodes like GeminiNodeV2's model-dependent parameter sets and ResizeImageMaskNode's resize_type) remains entirely out of scope by design - it is a nested sub-schema, not a flat enum - so any future need to reconcile against its nested options would require new, separate work rather than an extension of extractComboOptions/classifyComboSpec.",
+    "The 'unknown combo shape' feedback banner (ComfyObjectInfoIndex.unknownComboShapes, surfaced in src/ui/onboarding/ComfyuiWorkflowImportPanel.tsx via a 'Report Issue' (zh-CN: '反馈给 Nomi') action that opens a prefilled GitHub issue with the node class, input key, and raw spec JSON - 2026-09-11 owner-approved answer to 'will there be more new formats we have to fix again') is wired through the workflow-import reconcile path only (reconcileComfyWorkflowText/reconcileComfyWorkflowTexts in comfyuiWorkflowImportStore.ts), not through the lighter-weight health-probe path (comfyuiProbe.ts's probeComfyuiSystemStats, which only hits /system_stats and deliberately does not also fetch the potentially multi-MB /object_info payload on every card health check). A genuinely new/unrecognized combo shape on a class the user has not yet tried to import a workflow against will not surface the feedback prompt until they open the import panel and analyze a workflow referencing it - a deliberate scope boundary, not an oversight.",
+    "2026-09-11 re-verification against a second, independently-installed real ComfyUI instance (this machine's own ~/ComfyUI, self-reported 0.35.0, WITH real third-party custom nodes installed - unlike the first verification's zero-custom-node scratch clone) found two additional real, currently-shipping fields the original fix did not yet recognize: built-in CreateVideo.bit_depth (V3 COMBO shape with options ['auto', 8, 10] - a string mixed with numbers) and third-party KJNodes ImageResizeKJ.crop (legacy array shape ['disabled', 'center', 0] - the same mixed-type pattern in the old format). classifyComboSpec was widened to accept string-or-number elements in both shapes (numbers coerced to strings, preserving the string[] contract) rather than flagging them as an unknown shape, because this is real, currently-shipping behavior, not a hypothetical. A live curl against this instance's 1188-class /object_info found zero remaining unrecognized-but-should-be-known shapes among its real COMBO/legacy-array fields, but a different user's custom-node set could still emit a shape neither round of real-machine testing observed - the unknownComboShapes diagnostic exists specifically to catch that case going forward without requiring another manual real-machine hunt."
+  ]
+}

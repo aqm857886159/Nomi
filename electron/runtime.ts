@@ -39,7 +39,15 @@ import {
 export { createProject, deleteProject, listProjects, readProject, resolveProjectRelativePath, saveProject };
 export { copyAssetFile, copyProjectAsset, importRemoteAsset, listProjectAssets, moveAssetFile, writeAsset } from "./assets/projectAssetStore";
 // localizedTaskAssetFileName 已抽到 ./assets/localizedAsset（规则 9/12 减负 giant shell）；re-export 保持既有 import（含 runtime.assets.test）不变。
-export { localizedTaskAssetFileName }; export type ProfileOperationStage = AntigravityProcessStage | Extract<NonNullable<import("./providerAdapter/types").AdapterModeResult["stage"]>, "result">;
+export { localizedTaskAssetFileName };
+/**
+ * 生产执行时**正在发哪一条 op**：create / query / result。
+ *
+ * 这与「接入自检失败在哪一段」是两件事，只是恰好都叫 stage。此前它是从
+ * `AdapterModeResult["stage"]` 里 Extract 出 "result" 拼出来的——那条耦合让「改认证流程」
+ * 顺手就能改坏「生产发哪条 op」。2026-09-11 删付费验证时它立刻炸了，所以在这里各自定义（P1）。
+ */
+export type ProfileOperationStage = AntigravityProcessStage | "result";
 // 任务执行复用 catalog 状态（readCatalog + extractVendorExtraHeaders 纯函数）；
 // catalogStore 反向复用本文件任务引擎 → 运行期循环引用（CommonJS 安全）。
 import { extractVendorExtraHeaders, readCatalog } from "./catalog/catalogStore";
@@ -267,13 +275,24 @@ export async function buildProfileTaskResult(input: {
   const responseMapping = isJsonRecord(rawResponseMapping) ? rawResponseMapping : null;
   const providerMetaMapping = isJsonRecord(rawMetaMapping) ? rawMetaMapping : null;
   const providerMeta = providerMetaFromResponse(response, providerMetaMapping);
-  const taskId = firstString(
+  // 「上游到底给没给任务编号」只能有一个答案。providerMeta 只看 provider_meta_mapping 与
+  // extractTaskId 认得的那几个键（id / taskId / task_id / jobId…），**看不见 response_mapping**；
+  // 而像本机 ComfyUI 这样把编号叫 `prompt_id` 的供应商，编号只走 response_mapping 这一条路。
+  // 于是 result.id 明明已经拿到了 prompt_id，runTask 里那道「没返回任务编号就按失败处理」的闸
+  // 却问的是 providerMeta，答案是「没有」——整条 ComfyUI 认证必失败（2026-09-11 真机实锤）。
+  // 所以在这里就把「来自上游的编号」统一回填：本地兜底 id（taskIdFallback）刻意不回填，
+  // 那道闸要拦的正是「拿伪造编号去轮询」。
+  const providerTaskId = firstString(
     firstMappedString(response, responseMapping, "task_id"),
     providerMeta.task_id,
     providerMeta.query_id,
     extractTaskIdShared(response),
-    input.taskIdFallback,
   );
+  if (providerTaskId) {
+    providerMeta.task_id = providerMeta.task_id || providerTaskId;
+    providerMeta.query_id = providerMeta.query_id || providerTaskId;
+  }
+  const taskId = firstString(providerTaskId, input.taskIdFallback);
   const mappedAssetValues = ["assets", "image_url", "video_url", "audio_url", "model_url"].flatMap((key) => valuesFromMapping(response, responseMapping, key));
   const assetUrls = Array.from(new Set([...mappedAssetValues.flatMap(collectAssetUrls), ...collectAssetUrls(extractAssetUrl(response))]));
   const { status, unrecognizedStatus } = resolveTaskStatus(response, responseMapping, input.mapping.statusMapping, assetUrls);

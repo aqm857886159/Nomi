@@ -36,8 +36,32 @@ function operationFromRun(run: ReturnType<ProductionRunService["readFull"]>): Ge
   };
 }
 
+/**
+ * Draft-lifecycle observers. A generation draft is the user-visible intent ("the agent said it made
+ * one"), so the moment it is created or edited the canvas projection must follow — otherwise the only
+ * place the user can see it is a task row, and the nodes appear only on the next project reopen.
+ *
+ * The hook is fire-and-forget by contract: canvas landing is best-effort (§1 铁律) and must never
+ * block or fail a durable draft command.
+ */
+export type ProductionGenerationOperationStoreHooks = {
+  onPlanChanged?: (projectId: string, operationId: string) => void;
+};
+
 /** Durable adapter: the semantic MCP handler talks to ProductionRun, never to a second draft store. */
-export function createProductionGenerationOperationStore(owner: GenerationRunOwner): GenerationOperationStore {
+export function createProductionGenerationOperationStore(
+  owner: GenerationRunOwner,
+  hooks: ProductionGenerationOperationStoreHooks = {},
+): GenerationOperationStore {
+  // Never let a landing observer's throw surface as a draft-command failure.
+  const notifyPlanChanged = (projectId: string, operationId: string): void => {
+    if (!hooks.onPlanChanged) return;
+    try {
+      hooks.onPlanChanged(projectId, operationId);
+    } catch {
+      // best-effort projection; the durable plan is already committed.
+    }
+  };
   const read = (projectId: string, operationId: string): GenerationOperation => {
     const operation = operationFromRun(owner.readFull(projectId, operationId));
     if (!operation) throw new Error(`Generation operation not found: ${operationId}`);
@@ -69,6 +93,8 @@ export function createProductionGenerationOperationStore(owner: GenerationRunOwn
       });
       const operation = operationFromRun(run);
       if (!operation) throw new Error("Production Run did not persist a generation plan");
+      // 建草稿即刻落画布（与「确认即落」「打开项目补齐」共用同一条幂等落地链）。
+      notifyPlanChanged(operation.projectId, operation.operationId);
       return operation;
     },
     read,
@@ -83,6 +109,8 @@ export function createProductionGenerationOperationStore(owner: GenerationRunOwn
       });
       const operation = operationFromRun(result.run);
       if (!operation) throw new Error("Production Run lost its generation plan");
+      // 改草稿同样立刻投影：已落的节点按候选 revision 重绑定 prompt/模型（不新建第二条落地链）。
+      notifyPlanChanged(operation.projectId, operation.operationId);
       return operation;
     },
     async seal(projectId, operationId, contract: ExecutionContractV1, now, multiShot, authorization) {
@@ -118,6 +146,31 @@ export function createProductionGenerationOperationStore(owner: GenerationRunOwn
       });
       const operation = operationFromRun(result.run);
       if (!operation) throw new Error("Production Run lost its generation plan");
+      return operation;
+    },
+    /**
+     * 2026-09-11 付费卡上改参数。`commandId` 带 `planVersion`：改参数是**可重放的用户动作**
+     * （用户可能连点两下），幂等键只用 operationId 会把第二次改动吃掉；带上 planVersion 之后，
+     * 每一次真的把计划推进一版的改动都有自己的键，而同一版上的重发仍然幂等（同 trial_narrow）。
+     */
+    async revise(projectId, operationId, input, now) {
+      const current = read(projectId, operationId);
+      const result = await owner.command(projectId, operationId, {
+        commandId: `generation.revise:${operationId}:v${current.planVersion}:${current.candidate.revision}:${input.shotId ?? "plan"}`,
+        expectedRevision: owner.readFull(projectId, operationId).revision,
+        type: "generation.revise",
+        payload: {
+          patch: input.patch,
+          ...(input.shotId ? { shotId: input.shotId } : {}),
+          ...(input.shotId && typeof input.included === "boolean" ? { included: input.included } : {}),
+        },
+        issuedAt: now,
+      });
+      const operation = operationFromRun(result.run);
+      if (!operation) throw new Error("Production Run lost its generation plan");
+      // 改草稿立刻投影回画布：卡上改的提示词/模型必须同步到那份已经落地的草稿节点，
+      // 否则「卡上说的」和「画布上的」又分叉成两个账本（同 patch 那条链，不新建第二条）。
+      notifyPlanChanged(operation.projectId, operation.operationId);
       return operation;
     },
     async trialNarrow(projectId, operationId, now) {

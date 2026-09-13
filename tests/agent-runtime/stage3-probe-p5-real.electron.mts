@@ -17,8 +17,8 @@ import { join } from 'node:path';
 import type { HookHandler, LaneSnapshot } from '@earendil-works/pi-agent-core';
 
 import { createCanvasLaneTools, type CanvasLanePort } from '../../electron/agentLane/laneCanvasTools.js';
-// 阶段 5a：说明书那一半搬到能力契约旁边（两个 profile 共用），执行那一半留在 lane。
-import { canvasModelToolSpecs } from '../../electron/shared/agentCapabilities/canvasModelTools.js';
+// PR A：说明书那一半是注册表里的动词声明（两个 profile 共用），执行那一半留在 lane。
+import { specsForCapability } from '../../electron/shared/agentCapabilities/modelFacingToolRegistry.js';
 import { composeLaneSystemPrompt } from '../../electron/agentLane/lanePromptSections.js';
 
 /** P5 探针量的是「工具多了模型还听不听话」，不喂技能——空串是一个**说出口的决定**，不是遗漏。 */
@@ -136,7 +136,7 @@ async function runTask(config: NomiModelConfig, task: TaskSpec, tools: LaneToolD
   try {
     const probe = await openProbeLane(scope, { fetch: globalThis.fetch,
       projectDir: join(app.getPath('temp'), `nomi-p5-${task.id}-${Date.now()}`),
-      systemPrompt: composeLaneSystemPrompt(IDENTITY_PROMPT, canvasModelToolSpecs(), NO_SKILL_SECTION),
+      systemPrompt: composeLaneSystemPrompt(IDENTITY_PROMPT, [...specsForCapability('canvas.read'), ...specsForCapability('canvas.write')], NO_SKILL_SECTION),
       model: config, tools,
     }, { beforeTool });
     probe.harness.hooks.on('before_request', async () => { requests += 1; return undefined; });

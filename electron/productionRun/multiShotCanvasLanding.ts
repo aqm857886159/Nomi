@@ -10,6 +10,39 @@ import { createArtifactProjection } from "./artifactProjection";
 import type { ProductionRun, ProductionGenerationShot } from "./productionRunTypes";
 import { logWarn } from "../logging/logger";
 
+/**
+ * 一镜候选的**模型身份**，随落地报文过 RPC。它是画布节点模型的唯一来源：带上它，渲染层就不再
+ * 自己另挑一个默认模型（那正是「agent 说的模型」与「节点上的模型」对不上的直接原因）。
+ *
+ * 只带身份，**绝不带 transportModelId、密钥或任何供应商凭据**：transportModelId 是内部投影，
+ * 渲染层不需要也不许知道；节点 `meta.modelKey` 与候选 `modelId` 本来就是同一个串
+ * （generationDefaultModelResolver 的 `modelId: model.modelKey`），故不造转换层。
+ *
+ * `revision` = PlanCandidate.revision。渲染层据它判断「这镜的意图变了没有」：变了才重绑定
+ * prompt/模型，没变一个字不动——这样 `generation.patch` 能同步下去，而「打开项目补齐」这条
+ * 幂等重放不会覆盖用户之后在画布上的手改。
+ */
+export type MaterializeShotCandidateWire = {
+  candidateId: string;
+  revision: number;
+  vendor: string;
+  modelKey: string;
+  modeId?: string;
+  mode: string;
+  /**
+   * 候选**选中的那些参数**（画质 / 时长 / 尺寸 / 声效……）。
+   *
+   * 为什么必须过这条线：渲染层重绑定时走 `buildPlannedNodeMeta`，而它按模型档案铺的是**默认值**。
+   * 不把候选真正选的参数带过来，每一次重绑定都会把用户（或 agent）挑过的值悄悄改回档案默认——
+   * 2026-09-11 实测：付费卡上把尺寸从 1024x1024 改成 1536x1024，落地链下一拍就把它按回去，
+   * 价格跟着弹回原价。这不是显示问题：**节点是候选的投影，投影漏掉了参数**。
+   *
+   * 只带标量（字符串/数字/布尔）：参数面上真正能选的就是这些，而这条线不该变成一个任意 JSON 通道。
+   * 绝不含 transportModelId、密钥或供应商 URL。
+   */
+  parameters?: Record<string, string | number | boolean>;
+};
+
 /** 渲染层 materialize-shots 载荷里的一镜（与渲染层 MaterializeShotInput 对齐，跨 RPC 序列化形状）。 */
 export type MaterializeShotWire = {
   shotId: string;
@@ -17,6 +50,7 @@ export type MaterializeShotWire = {
   kind?: "image" | "video";
   title?: string;
   prompt?: string;
+  candidate?: MaterializeShotCandidateWire;
   result?: { id: string; type: "image" | "video"; url: string; createdAt: number; thumbnailUrl?: string; providerUrl?: string; model?: string };
 };
 
@@ -40,6 +74,32 @@ function shotTitle(shot: ProductionGenerationShot, index: number): string {
     return p ? p.slice(0, 24) : `参考 ${index + 1}`;
   }
   return `镜头 ${index + 1}`;
+}
+
+/**
+ * 候选 → 落地报文里的模型身份。**逐字段列举**（不是 spread），这样 PlanCandidate 以后新增
+ * transportModelId 之类的内部字段时，绝不会顺着这条 RPC 悄悄流到渲染层。
+ */
+/** 候选参数里能过线的那一半：标量。非标量（引用、嵌套对象）由参考槽那条路自己走。 */
+function scalarParameters(parameters: Record<string, unknown> | undefined): Record<string, string | number | boolean> | undefined {
+  if (!parameters) return undefined;
+  const scalars: Record<string, string | number | boolean> = {};
+  for (const [key, value] of Object.entries(parameters)) {
+    if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") scalars[key] = value;
+  }
+  return Object.keys(scalars).length > 0 ? scalars : undefined;
+}
+
+function candidateWire(candidate: ProductionGenerationShot["candidate"]): MaterializeShotCandidateWire {
+  return {
+    candidateId: candidate.candidateId,
+    revision: candidate.revision,
+    vendor: candidate.providerId,
+    modelKey: candidate.modelId,
+    ...(candidate.modeId ? { modeId: candidate.modeId } : {}),
+    mode: candidate.mode,
+    ...(scalarParameters(candidate.parameters) ? { parameters: scalarParameters(candidate.parameters)! } : {}),
+  };
 }
 
 /** 镜的执行模态 → 画布节点 kind（anchor 恒 image；镜按 transportTaskKind 猜，缺省 video）。 */
@@ -114,6 +174,7 @@ export function buildMaterializeShotsPayload(
         ? (shot.candidate.prompt.trim().slice(0, 24) || shotTitle(shot, index))
         : shotTitle(shot, index),
       prompt: shot.candidate?.prompt ?? "",
+      ...(shot.candidate ? { candidate: candidateWire(shot.candidate) } : {}),
       ...(result ? { result } : {}),
     };
   });

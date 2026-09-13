@@ -1,0 +1,219 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-10-agent-draft-single-ledger",
+  "problem_type": "A durable agent-authored intent has no single ledger: it is written to the main-process Run but projected to the user-visible canvas late, partially, and without its model identity",
+  "symptom": "Agent says the draft was created; the Tasks panel only shows \"Production draft is waiting to start\" and the canvas has no nodes. Reopening the project makes nodes appear, but their model and prompt differ from what the agent chose, and an agent retry piles up duplicate nodes.",
+  "direct_cause": "nomi_generation_plan create/patch only wrote run.generationPlan.candidate. The canvas projection ran solely from reconcileOpenProjectHook on project open, and its materialize-shots wire carried no model identity, so the renderer's own default-model ladder picked a different model for every landed node.",
+  "class_root": "Nothing owned the invariant \"the plan candidate is the intent and the canvas node is its projection\". The projection had no lifecycle trigger at draft time, no model identity on the wire, and its idempotency judgement was hand-written separately in each caller instead of living in the canvas write boundary.",
+  "affected_population": [
+    "Every user whose agent (in-app resident agent or an external MCP host) creates or edits a generation draft while the project is open",
+    "Every semantic single-shot and multi-shot production draft, any provider and any model",
+    "Existing projects whose nodes were landed before this change (they carry no candidate stamp and are treated as first landing)"
+  ],
+  "scope_paths": [
+    "electron/productionRun/canvasLandingHost.ts",
+    "electron/productionRun/multiShotCanvasLanding.ts",
+    "electron/productionRun/productionGenerationOperationStore.ts",
+    "electron/productionRun/productionRunDraftSummary.ts",
+    "electron/productionRun/productionRunRepository.ts",
+    "electron/productionRun/productionRunReducer.ts",
+    "electron/productionRun/productionGenerationAuthorizationState.ts",
+    "electron/productionRun/productionRunTypes.ts",
+    "electron/capabilityCore/appIntegration.ts",
+    "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts",
+    "src/workbench/generationCanvas/agent/materializationStamp.ts",
+    "src/workbench/generationCanvas/agent/candidateNodeMeta.ts",
+    "src/workbench/generationCanvas/agent/availableModels.ts",
+    "src/workbench/generationCanvas/nodes/useNodeModelAutoSelect.ts",
+    "src/workbench/capability/multiShotCanvasLanding.ts",
+    "src/workbench/capability/capabilityApplyHandler.ts",
+    "src/workbench/taskCenter/productionRunTaskCenter.ts",
+    "src/config/models.ts"
+  ],
+  "entry_points": [
+    "Semantic MCP generation draft create/patch (nomi_generation_plan) through the Run-owned operation store",
+    "Canvas landing on project open (reconcileOpenProjectHook)",
+    "Canvas landing at paid confirmation (single-shot and multi-shot start)",
+    "Storyboard materialization from the in-app editor and external MCP (production.materialize-storyboard)"
+  ],
+  "external_sources": [
+    {
+      "kind": "official-doc",
+      "url": "https://datatracker.ietf.org/doc/draft-ietf-httpapi-idempotency-key-header/",
+      "checked_at": "2026-09-10",
+      "purpose": "Confirms the ecosystem convention that the idempotency judgement belongs to the callee (the write boundary), while callers only supply a stable key - the shape adopted for create_canvas_nodes."
+    },
+    {
+      "kind": "official-doc",
+      "url": "https://automerge.org/docs/reference/documents/",
+      "checked_at": "2026-09-10",
+      "purpose": "Single-source-of-truth document plus idempotent apply is the established structure for keeping a view in sync with a durable intent; used to justify one landing chain instead of a second write path."
+    }
+  ],
+  "invariants": [
+    "A generation draft that exists durably in the Run is visible on the canvas as soon as the project is open - not only after a reopen.",
+    "A landed node's model identity equals the candidate's (providerId, modelId); the renderer never substitutes a default for a node that carries a candidate stamp.",
+    "A candidate edit (higher PlanCandidate.revision) re-binds the landed node's prompt/title/model; an unchanged revision changes nothing, so an idempotent replay cannot overwrite the user's own canvas edits.",
+    "One (materializationOperationId, materializationClientId) maps to at most one canvas node, enforced inside the canvas write boundary rather than in each caller.",
+    "The materialize-shots wire carries model identity only - never transportModelId, parameters, or credentials.",
+    "Nomi's own draft projection never invalidates the user's spend approval: a generation authorization envelope is sealed only after every in-flight canvas landing for that project has settled, and a landing that structurally changed the canvas persists the project before it reports done, so project.revision is final when the envelope stamps it. A change the *user* makes still invalidates the receipt - that is the #722 fail-closed contract and it is unchanged.",
+    "Sealing a plan freezes contracts and candidates; it never erases the canvas binding. generation.seal replaces plan.shots wholesale with the caller's field-by-field projection (sealMultiShotFor), which carries no nodeId, so the reducer carries nodeId/canvasDetached across the seal line from the shot it replaces. Without that, a draft-time binding is wiped exactly when the same command mints the jobs from shot.nodeId, every generate job is left with no node, semanticGenerationReadiness reports a missing canvas node, and the re-land at paid confirmation cannot heal it because its bindings are byte-identical, so its commandId is identical and the repository replays it as an already-applied command."
+  ],
+  "generality_proof": "Every canvas node an agent can create goes through exactly one write boundary, applyCanvasToolCall's create_canvas_nodes. Moving the stamp-based idempotency judgement into it means the multi-shot landing, the storyboard materialization, and any future landing entry inherit it without opting in - the callers that previously carried their own copy now have none. Likewise, the candidate model identity is projected once in buildMaterializeShotsPayload, which is the only producer of the materialize-shots payload for all three landing moments (draft create/patch, paid confirmation, project reopen), and it is consumed through buildPlannedNodeMeta, the repository's single owner for turning a planned model into node meta. Draft-time landing is attached to the Run-owned operation store rather than to one MCP handler, so any host that creates or edits a draft through the durable store triggers the same projection.",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts",
+      "symbol": "create_canvas_nodes",
+      "responsibility": "Owns node-creation idempotency: a node whose (materializationOperationId, materializationClientId) stamp already exists on the canvas is reused, registered in the clientId registry, and returned to the caller instead of being created again."
+    },
+    {
+      "path": "src/workbench/generationCanvas/agent/materializationStamp.ts",
+      "symbol": "indexMaterializedNodes",
+      "responsibility": "Sole definition of the materialization stamp keys and their lookup, so no caller can reimplement a slightly different dedup rule."
+    },
+    {
+      "path": "electron/productionRun/multiShotCanvasLanding.ts",
+      "symbol": "buildMaterializeShotsPayload",
+      "responsibility": "Sole producer of the canvas landing payload; projects the candidate's model identity onto the wire field by field and withholds transportModelId and parameters."
+    },
+    {
+      "path": "electron/productionRun/productionRunReducer.ts",
+      "symbol": "sealGenerationShots",
+      "responsibility": "The one place that replaces plan.shots at seal time, and therefore the one place that can preserve the canvas binding (nodeId/canvasDetached) written by the landing owner. Any future seal caller inherits the carry-over without opting in."
+    },
+    {
+      "path": "electron/productionRun/canvasLandingHost.ts",
+      "symbol": "createCanvasLandingHost",
+      "responsibility": "Assembles the one best-effort landing chain shared by all three moments (draft create/patch, paid confirmation, project reopen) so they cannot diverge into separate write paths with separate operation ids."
+    },
+    {
+      "path": "electron/productionRun/productionGenerationOperationStore.ts",
+      "symbol": "createProductionGenerationOperationStore",
+      "responsibility": "Durable draft lifecycle owner; notifies the canvas landing on every create/patch so the projection can never lag the intent, and swallows observer failures so landing stays best-effort."
+    },
+    {
+      "path": "src/workbench/generationCanvas/agent/availableModels.ts",
+      "symbol": "pickSavedDefaultModel",
+      "responsibility": "Makes the user's saved default the authority for agent-created cards; the name-pattern ladder is demoted to a documented last resort for users who have configured no default at all."
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "src/workbench/capability/multiShotCanvasLanding.ts",
+      "entry_point": "materializeShots",
+      "disposition": "enforced",
+      "evidence": "Its hand-written existingByShot/missing dedup no longer decides whether nodes are created; it now reads the shared stamp index only to size the undo barrier and to detect nodes whose candidate revision advanced. Node creation goes through create_canvas_nodes, which owns the judgement."
+    },
+    {
+      "path": "src/workbench/capability/capabilityApplyHandler.ts",
+      "entry_point": "production.materialize-storyboard",
+      "disposition": "enforced",
+      "evidence": "The second hand-written copy (existingByClientId + missingNodes + a separate connect_nodes call) is deleted; the handler now makes one unconditional applyCanvasToolCall and reads the returned clientIdToNodeId, which includes reused nodes."
+    },
+    {
+      "path": "electron/capabilityCore/appIntegration.ts",
+      "entry_point": "reconcileOpenProjectHook",
+      "disposition": "enforced",
+      "evidence": "Reopen reconciliation calls the same landCanvasBestEffort with the same canvas-landing:{runId} operation id as the new draft-time hook, so the two moments share one idempotent chain rather than racing two."
+    },
+    {
+      "path": "src/workbench/creation/storyboard/exec/storyboardRowActions.ts",
+      "entry_point": "resolveStoryboardImageDefault",
+      "disposition": "enforced",
+      "evidence": "The storyboard row executor consumes the same resolver that now prefers the user's saved default, so the in-app storyboard path and the agent path can no longer disagree about which model a new card gets."
+    },
+    {
+      "path": "src/workbench/generationCanvas/nodes/useNodeModelAutoSelect.ts",
+      "entry_point": "useNodeModelAutoSelect",
+      "disposition": "enforced",
+      "evidence": "The auto-select effect now refuses to write a substitute model onto any node carrying a candidate stamp and raises a visible warning instead, closing the last path by which a landed node's model could silently diverge from the agent's choice."
+    },
+    {
+      "path": "electron/productionRun/productionRunRepository.ts",
+      "entry_point": "executeUnlocked commandId replay",
+      "disposition": "enforced",
+      "evidence": "A command whose commandId already appears in the event log is replayed from the prior event and never re-applied. The landing bind derives its commandId from the binding content (canvas-landing:{runId}:bind:{shotId}={nodeId}...), so a second landing that computes the same bindings is inert by design. That is correct idempotency and is left alone; the consequence - a binding lost between two identical binds can never be restored - is why the seal carry-over above owns this invariant rather than a later re-land."
+    },
+    {
+      "path": "electron/productionRun/productionGenerationAuthorizationState.ts",
+      "entry_point": "authorizationUnits",
+      "disposition": "enforced",
+      "evidence": "It reads shot.nodeId from the sealed shots to stamp every minted generate job, so it is the consumer that makes the seal-time carry-over load-bearing; electron/productionRun/agentDraftSingleLedger.test.ts asserts the minted jobs carry the pre-seal nodeId."
+    },
+    {
+      "path": "electron/productionRun/productionRunApprovalReceipt.ts",
+      "entry_point": "approval receipt gate",
+      "disposition": "not-affected",
+      "evidence": "This change touches only draft-state projection and canvas landing. No seal, approval, authorization envelope, or spend path is read or written, and the receipt gate keeps deciding on the sealed contract exactly as before."
+    }
+  ],
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "The same mechanism recurs for every draft any agent creates, on every provider and model, and it recurred structurally: two callers had independently hand-written the same dedup rule, which is exactly how a third landing entry would have shipped without one. A durable field written by the agent with no renderer reader is a repeatable shape, not a one-off typo.",
+    "same_class_scan": [
+      "git grep -n 'materializationOperationId' across src/ and electron/ found the two hand-written dedup implementations (src/workbench/capability/capabilityApplyHandler.ts and src/workbench/capability/multiShotCanvasLanding.ts) plus the storyboard stamping in src/workbench/generationCanvas/agent/storyboardPlan.ts; all three now route through materializationStamp.ts.",
+      "git grep -n 'landCanvasBestEffort|landCanvasForRun' across electron/ enumerated every landing moment (paid confirmation for single-shot and multi-shot, single-shot materialization observer, reopen reconciliation) and confirmed they all share canvasLandingOperationId(runId).",
+      "git grep -n 'pickStoryboardDefaultModel|chooseDefaultModelOption|getDefaultModel|resolveDefaultModelOption' enumerated the four renderer default-model resolvers; getDefaultModel had zero callers and was deleted, the name-pattern ladder was demoted behind the saved default, and useNodeModelAutoSelect now yields to a candidate stamp.",
+      "git grep -n 'ProductionRunSummary' confirmed the Tasks panel and its button are the only consumers of the list projection, so adding the draft summary reaches every surface that showed the bare 'waiting to start' line."
+    ]
+  },
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts",
+    "invariant": "For every create_canvas_nodes call, a node input carrying a materialization stamp whose (operationId, clientId) already exists on the canvas is reused rather than created, and the candidate model identity supplied with the input is the only source of the node's model meta.",
+    "failure_mode": "A malformed operation id fails the stamp regex and is treated as unstamped (the node is created normally rather than silently joining another operation's ledger); a candidate model missing from the available-model list yields no model meta at all, and the node keeps the agent's intent stamp while the auto-select effect raises a visible warning instead of substituting a model.",
+    "exception_policy": "none",
+    "strategy": "The canvas write boundary is the earliest point every agent-created node must pass, so putting both the idempotency judgement and the model-identity resolution there makes them unavoidable for existing and future callers; the callers that had their own copies now have none, which removes the possibility of divergence rather than documenting it.",
+    "artifacts": [
+      "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts",
+      "src/workbench/generationCanvas/agent/materializationStamp.ts",
+      "src/workbench/generationCanvas/agent/candidateNodeMeta.ts",
+      "src/workbench/capability/capabilityApplyHandler.ts",
+      "src/workbench/capability/multiShotCanvasLanding.ts",
+      "electron/productionRun/multiShotCanvasLanding.ts",
+      "electron/productionRun/productionGenerationOperationStore.ts",
+      "src/workbench/generationCanvas/nodes/useNodeModelAutoSelect.ts"
+    ]
+  },
+  "regression_tests": [
+    "src/workbench/capability/agentDraftSingleLedger.test.ts",
+    "electron/productionRun/agentDraftSingleLedger.test.ts",
+    "src/workbench/generationCanvas/agent/materializationStamp.test.ts",
+    "src/workbench/taskCenter/productionRunTaskCenter.test.ts",
+    "src/workbench/generationCanvas/agent/availableModels.test.ts",
+    "src/workbench/generationCanvas/nodes/useNodeModelAutoSelect.test.ts"
+  ],
+  "class_regression_tests": [
+    "src/workbench/generationCanvas/agent/materializationStamp.test.ts",
+    "electron/productionRun/agentDraftSingleLedger.test.ts",
+    "src/workbench/generationCanvas/agent/availableModels.test.ts"
+  ],
+  "invariant_owner_layer": {
+    "layer": "src/workbench/generationCanvas/agent/applyCanvasToolCall.ts",
+    "tests": [
+      "src/workbench/generationCanvas/agent/materializationStamp.test.ts",
+      "src/workbench/generationCanvas/agent/applyCanvasToolCall.test.ts",
+      "src/workbench/capability/agentDraftSingleLedger.test.ts"
+    ],
+    "structural_ticket": "docs/plan/2026-09-10-agent-draft-single-ledger.md"
+  },
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/capability/capabilityApplyHandler.ts",
+      "src/workbench/capability/multiShotCanvasLanding.ts",
+      "src/config/models.ts"
+    ],
+    "rationale": "The two hand-written stamp dedup implementations are deleted from their callers in the same change as the write-boundary owner is introduced (no parallel version, no fallback). src/config/models.ts loses getDefaultModel, a zero-caller default-model resolver that competed with the saved-default owner."
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "The invariant is entirely internal to Nomi's own draft/landing data flow. React Flow renders nodes but owns no synchronization between an external intent and node data, so no third-party version controls the outcome and no upgrade would change it.",
+    "exit_criteria": []
+  },
+  "migration": "No data migration. Nodes landed before this change carry no candidate stamp: nodeCandidateRevision returns null and the first landing pass after the upgrade re-binds them to the current candidate, after which the revision comparison keeps later idempotent replays inert. Nodes the user created themselves are unstamped and keep the existing auto-select behavior unchanged.",
+  "residual_risks": [
+    "Draft-time landing is fire-and-forget by design (canvas landing is best-effort and must not block a durable draft command), so a renderer that is busy or mid-navigation can still fall back to the reopen reconciliation path; that fallback is now redundant rather than the only route, but it is not proven under load.",
+    "Verified by unit and integration tests only. A real-model walkthrough (R13/R16) confirming the agent-said/canvas-shows parity end to end on a live provider has not been run in this change."
+  ]
+}

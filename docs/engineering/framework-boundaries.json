@@ -809,10 +809,7 @@
                     "verdict": "unused",
                     "why": "选中集的真相源在 Zustand，选中变化只经 onNodesChange 一条路回写。再接一份内核的选中事件就是同一语义两份定义（R14.1）；框选只用到 onSelectionEnd（收框那一下要落 Zustand）。"
                   },
-                  "selectionMode": {
-                    "verdict": "unused",
-                    "why": "选中集的真相源在 Zustand，选中变化只经 onNodesChange 一条路回写。再接一份内核的选中事件就是同一语义两份定义（R14.1）；框选只用到 onSelectionEnd（收框那一下要落 Zustand）。"
-                  },
+                  "selectionMode": {"verdict": "derived", "at": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx:198", "reason": "SelectionMode.Partial＝扫到即选，是 docs/plan/2026-06-14-canvas-smoothness-ABC.md §B2 拍板的框选语义（旧内核做 AABB 相交）。内核默认 Full 要求整张卡完全落进框内，用户得把框拉得比卡还大。", "why": "迁移时漏传、2026-09-11 回填①补回；值是 @xyflow/react 的枚举成员，机器扫出来算动态赋值。"},
                   "panActivationKeyCode": {
                     "verdict": "upstream-default",
                     "default": "'Space'",
@@ -889,13 +886,13 @@
                     "verdict": "derived",
                     "reason": "创作画布需在既定 20–300% 范围查看节点概览与细节；表节点低于 40% 展示卡片，所有缩放入口必须保持同一范围。",
                     "why": "Existing shared canvas range is passed to React Flow kernel, fit and slider; no independent zoom clamp.",
-                    "at": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx:176"
+                    "at": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx:181"
                   },
                   "maxZoom": {
                     "verdict": "derived",
                     "reason": "创作画布需在既定 20–300% 范围查看节点概览与细节；表节点低于 40% 展示卡片，所有缩放入口必须保持同一范围。",
                     "why": "Existing shared canvas range is passed to React Flow kernel, fit and slider; no independent zoom clamp.",
-                    "at": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx:176"
+                    "at": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx:181"
                   },
                   "viewport": {
                     "verdict": "unused",
@@ -926,36 +923,16 @@
                     "verdict": "unused",
                     "why": "画布样式只走设计 token 与组件 className（R10：全局/内联样式只可减不可增）。从内核 props 传内联样式会开出第二条样式源。"
                   },
-                  "zoomOnScroll": {
-                    "verdict": "upstream-default",
-                    "default": "true",
-                    "why": "滚轮缩放是画布类工具的通用手势（Figma/Miro 同款），没有偏离的理由。"
-                  },
+                  "zoomOnScroll": {"verdict": "derived", "at": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx:203", "why": "按「画布手势」二选一设置（#832，2026-07-31 用户拍板）派生：src/workbench/generationCanvas/reactFlow/canvasViewportGestureProps.ts 把 resolveWheelIntent 的真值表翻译成这颗开关。"},
                   "zoomOnPinch": {
                     "verdict": "upstream-default",
                     "default": "true",
                     "why": "触控板捏合缩放，同上。"
                   },
-                  "panOnScroll": {
-                    "verdict": "upstream-default",
-                    "default": "false",
-                    "why": "两指滚动走缩放不走平移（zoomOnScroll=true 那条）；两颗同时开会让同一个手势有两种解释。"
-                  },
-                  "panOnScrollSpeed": {
-                    "verdict": "upstream-default",
-                    "default": "0.5",
-                    "why": "panOnScroll 没开，这一格没有生效路径。"
-                  },
-                  "panOnScrollMode": {
-                    "verdict": "upstream-default",
-                    "default": "\"free\"",
-                    "why": "panOnScroll 没开，这一格没有生效路径。"
-                  },
-                  "zoomOnDoubleClick": {
-                    "verdict": "upstream-default",
-                    "default": "true",
-                    "why": "画布上没有一条产品判据要求覆盖它。覆盖之前得先有判据——没有判据就写值，等于把偏好钉进代码（R29：偏好不是理由）。"
-                  },
+                  "panOnScroll": {"verdict": "derived", "at": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx:204", "why": "与 zoomOnScroll 互斥，由同一档设置在 src/workbench/generationCanvas/reactFlow/canvasViewportGestureProps.ts 一处派生——两颗分开写迟早漂成「既缩放又平移」。"},
+                  "panOnScrollSpeed": {"verdict": "derived", "at": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx:206", "reason": "1 = 1:1 跟手，与旧内核 `scheduleOffset({ x: offsetRef.current.x - panX … })` 等价；内核默认 0.5 让同样的两指滑动只走一半路程，与旧画布并排一试就不跟手。", "why": "和 panOnScroll 同一处交出（src/workbench/generationCanvas/reactFlow/canvasViewportGestureProps.ts）：速度跟着开关走。"},
+                  "panOnScrollMode": {"verdict": "derived", "at": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx:205", "reason": "Free（自由方向）：限制成单轴会把触控板的斜向滑动折成一根轴，用户读到的是「画布卡住了」。", "why": "和 panOnScroll 同一处交出（src/workbench/generationCanvas/reactFlow/canvasViewportGestureProps.ts），开关开了模式却留在别处是这类配置最常见的漂移。"},
+                  "zoomOnDoubleClick": {"verdict": "constant", "value": "false", "reason": "旧画布没有「双击空白」这个手势，双击在本产品里是卡内进编辑态的起手式；内核默认 true 会让一次误触突然放大一档，并与卡内双击抢同一下输入。", "at": "src/workbench/generationCanvas/reactFlow/GenerationCanvasReactFlowViewport.tsx:200"},
                   "reconnectRadius": {
                     "verdict": "unused",
                     "why": "线缆端点不可拖改：一条边表示「上游产物 → 下游参考槽」的语义绑定，拖端点等于改语义。要改就重新连一次（onConnect），产品里没有「拖端点」这个动作。"

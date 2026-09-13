@@ -45,6 +45,15 @@ export type V4InterventionKind =
   | 'plan'
   | 'credential'
   | 'deviation'
+  /**
+   * 「本该出现一张确认卡，但它没有渲染出来」（2026-09-12）。
+   *
+   * 它不是一种审批档，是**那条链断了的样子**。宿主投影、工具结果、系统提示词里那句
+   * 「此动作会向用户确认」——任何一处**声称**有一张卡在等用户，而槽里什么都没画出来，
+   * 就渲这一张，把断在哪里写在脸上。以前那些地方一律 `return undefined`，于是用户
+   * 看到的是「模型说请在确认卡里批准」+ 一片空白，只能去猜是不是坏了（2026-09-11 真实反馈）。
+   */
+  | 'missing-card'
 
 /**
  * 一行收据 / 任务卡 / 思考行的 icon 家族（定稿 Process 板「icon ↔ 动词」表）。
@@ -141,6 +150,80 @@ export type InterventionData = Readonly<{
   options?: readonly string[]
   selectedOption?: number
   plan?: readonly PlanRow[]
+  /**
+   * 付费卡的**价格行**（形态 9 · B-02「逐项单价 + 合计」）。
+   *
+   * 为什么它是一个字段而不是几个散字段：这一行说的是**同一件事**——「这次要花多少、怎么算出来的」。
+   * 拆成 breakdown/total/unavailable 三个平级可选字段，第一个把 total 填了却忘了 breakdown 的人
+   * 就会渲出一个没有来路的数字，而那正是付费卡最不该有的东西。
+   *
+   * `total` 缺 = **这次算不出价格**（中转/自建端点没有价目是常态）。那时渲的是 `unavailable` 那句话，
+   * 绝不落成 `¥0`——印 0 等于对用户说「这次免费」，是三种可能里唯一错得离谱的那一种。
+   *
+   * 2026-09-10 用户拍板：参数在卡上可改，所以这一行必须**随参数原地刷新**。数只有一个产地
+   * （报价），这里只负责印。
+   */
+  price?: Readonly<{
+    /** 怎么算出来的（「4 段 × 3s · 标准画质 · ¥0.10/秒」）。 */
+    breakdown: string
+    /** 合计的标签（「合计」）。它必须有地方放：合计紧跟算式时，两个 ¥ 数字挨着会读不出谁是谁
+     *  （现役 P0 件 11 的病灶就是这个标签无处安放，见 09-06 不一致清单 B5）。 */
+    totalLabel?: string
+    /** 合计。缺 = 算不出。 */
+    total?: string
+    /** 算不出时印的那句话（现役是「暂时算不出价格」）。 */
+    unavailable?: string
+    /** 批量时逐项摊开的那几行。空 = 不出这个折叠口。 */
+    perItem?: readonly Readonly<{ label: string; amount: string }>[]
+    /** 折叠口那句话（「逐镜 4」）。 */
+    perItemLabel?: string
+  }>
+  /**
+   * 卡顶右侧的翻页器（`‹ 2/4 ›`）。
+   *
+   * 一批要生成的镜头**一镜一张卡**（2026-09-10 用户拍板：「后面还有卡就左右翻」）。
+   * 为什么不摊成 4 张卡竖着排：那样提示词框会把转录顶到几屏之外，而用户此刻要做的
+   * 只有一件事——逐条看过去。翻页把「同一件事的第 N 项」压在同一个位置上，
+   * 眼睛不用重新找。缺省 = 只有一项，不渲染翻页器。
+   *
+   * 2026-09-10 v3：翻页器从槽头搬到**动作行**，因为它现在还决定主按钮上印的那个数
+   * （`scope` 在「逐镜」时印这一页的价，在「全部」时印合计）。改一个数的控件，
+   * 得和那个数放在同一处。
+   */
+  pager?: Readonly<{
+    index: number
+    total: number
+    /**
+     * 范围切换：这一镜，还是全部。
+     *
+     * v2 把「全部生成 ¥1.20」做成动作行上的**第二颗文字按钮**，v3 拿掉了——
+     * 2026-09-10 拍板的按钮规则是「一屏一个主动作、批量不是第二颗文字按钮」。
+     * 批量本来也不是第二个决定，它是同一个决定（生成）的**范围**；
+     * 范围该长成一个切换，切完主按钮自己改口。缺省 = 单镜卡，不渲染。
+     */
+    scope?: Readonly<{
+      value: 'each' | 'all'
+      eachLabel: string
+      allLabel: string
+      ariaLabel: string
+    }>
+    /**
+     * 键盘翻页提示（「←→」这种极小字）。
+     *
+     * 卡聚焦时左右方向键翻页；提示只用两个箭头字符，占不到 20px——
+     * 写成一整句「按左右键翻页」就是让用户多读一行（D1）。
+     */
+    keyHint?: string
+  }>
+  /**
+   * 槽头不画那颗 icon。
+   *
+   * 2026-09-10 用户拍板：切「全自动」那张确认卡标题左边的对勾要删掉。
+   * 它是 `approval-reversible` 档统一的「可撤销」记号，而这张卡的标题是一句**问句**
+   * （「切到全自动？」）——问句前面顶着一个 ✓ 读起来像「已经切好了」，
+   * 记号和它要说的事正好相反。
+   */
+  hideIcon?: true
   /** 「不要」之后渐进披露的拒绝原因输入。 */
   reasonPlaceholder?: string
   confirmLabel?: string
@@ -215,12 +298,21 @@ export type ContextUsage = Readonly<{
 
 /**
  * 三档 → 合同两个字段。定稿 §2：「每步问」= 改动/花钱/计划都先问；「自动改」= 可撤销改动直接做、
- * 付费仍逐次问；「全自动」= 预算内都不问。介入槽的「不再问 →」= 当场抬到下一档。
+ * 付费仍逐次问；「全自动」= **可撤销的改动都不问**。介入槽的「不再问 →」= 当场抬到下一档。
+ *
+ * ⚠️ **`spend` 这根轴三档都是 `confirm`**（2026-09-10 用户拍板：「钱的闸 = 每次提交看报价确认」，
+ * 同时删掉了设置里的硬预算上限）。合同里两根轴本来就是**故意分开**的
+ * （`capabilityApprovalPolicy.ts`：“kept independent deliberately”），把 `spend` 折进档位就等于
+ * 让「全自动」顺手把付费也放行——而全自动的定义恰恰是「没人看着的时候连着做」，
+ * 那正是最不该自动花钱的一刻。全自动免掉的只有 `reversible_local` 的逐次确认。
+ *
+ * 早先 `project` 档写的是 `within-budget`，配套的是一个「项目预算上限」设置；那条设置已删，
+ * 于是 `within-budget` 变成了一张没有额度的通行证——留着它就是留一个只在账单上看得见的洞。
  */
 export const PERMISSION_POLICIES: Readonly<Record<PermissionTier, ProjectAgentApprovalPolicy>> = {
   step: { mode: 'step', spend: 'confirm' },
   'safe-auto': { mode: 'safe-auto', spend: 'confirm' },
-  project: { mode: 'project', spend: 'within-budget' },
+  project: { mode: 'project', spend: 'confirm' },
 }
 
 /** 档位顺序，用于「不再问 →」抬一档。 */

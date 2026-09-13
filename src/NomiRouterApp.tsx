@@ -7,7 +7,8 @@ import { buildStudioUrl } from './utils/appRoutes'
 import { getAppRoutePath } from './utils/routes'
 import { lazyWithChunkBoundary } from './ui/chunkBoundary'
 import { useTranslation } from 'react-i18next'
-import { useIntegrationConfirmationNotice } from './workbench/capability/useIntegrationConfirmationNotice'
+import { useIntegrationSelfCheckNotice } from './workbench/capability/useIntegrationSelfCheckNotice'
+import { notifySkillLibraryChanged } from './workbench/skillLibrary/skillLibraryChanged'
 
 const NomiStudioApp = lazyWithChunkBoundary('i18n:router.mainInterface', () => import('./workbench/NomiStudioApp'))
 
@@ -32,12 +33,18 @@ function RouteLoading(): JSX.Element {
 export default function NomiRouterApp(): JSX.Element {
   // 接入等人确认时给一条看得见的提示。挂在路由根上而不是设置对话框里，是因为它要解决的
   // 恰恰是「用户没打开设置页就看不见」这件事。
-  useIntegrationConfirmationNotice()
+  useIntegrationSelfCheckNotice()
   React.useEffect(() => {
     const refresh = (): void => notifyModelOptionsRefresh('all')
     window.addEventListener('nomi-model-catalog-changed', refresh)
     const unsubscribe = getDesktopBridge()?.modelCatalog.onChanged?.(() => window.dispatchEvent(new Event('nomi-model-catalog-changed')))
-    return () => { unsubscribe?.(); window.removeEventListener('nomi-model-catalog-changed', refresh) }
+    // 技能盘同理：**唯一的派发点在主进程**（写盘那一层），渲染层只负责把它接进本地总线。
+    // 这样三个写入者（面板导入、拖拽、Agent 的 author_skill）不必各自记得喊一声。
+    const unsubscribeSkills = getDesktopBridge()?.skill.onChanged?.(() => notifySkillLibraryChanged())
+    return () => {
+      unsubscribe?.(); unsubscribeSkills?.()
+      window.removeEventListener('nomi-model-catalog-changed', refresh)
+    }
   }, [])
   return (
     <HashRouter>

@@ -8,6 +8,7 @@ import {
   isVisualAnchor,
   referenceOrderForShot,
 } from './storyboardPromptCompiler'
+import { resolveKeyframeParams, resolveShotParams } from './storyboardShotScope'
 
 /**
  * 「分镜方案」中间表示（IR）—— 剧本→方案文档→确认→落画布 主链路的中枢。
@@ -211,7 +212,7 @@ export type StoryboardPlan = {
   /**
    * **整片默认画幅**（v6 §2.4.1，2026-09-05 用户拍板）。一部片子 95% 的镜头共享同一个画幅，
    * 所以它住在方案上、不住在每一行；行级只在"这一镜真的不一样"时写 `PlanShot.params.aspect_ratio`
-   * 覆盖它。读写一律走 `storyboardAspectScope.ts`（单一 owner），缺省时那层从全镜共同值 derive，
+   * 覆盖它。读写一律走 `storyboardShotScope.ts`（单一 owner），缺省时那层从全镜共同值 derive，
    * 旧 plan 因此不需要迁移脚本。
    */
   aspectRatio?: string
@@ -527,7 +528,8 @@ function buildShotRowNodes(
       ...(keyframeModelKey ? { modelKey: keyframeModelKey } : {}),
       ...(keyframeVendor ? { modelVendor: keyframeVendor } : {}),
       ...(keyframeModeId ? { modeId: keyframeModeId } : {}),
-      ...(shot.keyframe?.params ? { params: shot.keyframe.params } : {}),
+      // 整片默认（画幅…）经唯一 resolver 合进首帧图——首帧与它喂的视频必须同画幅。
+      params: resolveKeyframeParams(plan, shot),
       metadata: storyboardShotMetadata(
         plan,
         shot,
@@ -547,9 +549,12 @@ function buildShotRowNodes(
     ...(modelKey ? { modelKey } : {}),
     ...(modelVendor ? { modelVendor } : {}),
     ...(modeId ? { modeId } : {}),
-    // duration 仅视频镜头写（由卡的「时长」选择器管）；图片镜头不写。其余模型参数（比例/清晰度/负向…）来自 shot.params。
+    // duration 仅视频镜头写（由卡的「时长」选择器管）；图片镜头不写。
+    // 其余模型参数（比例/清晰度/负向…）一律经 resolveShotParams —— 它是「行覆盖 ?? 整片默认 ?? 缺席」
+    // 的唯一判定口。**不要**在这里直接铺 `shot.params`：那正是整片默认到不了画布的成因
+    // （2026-09-12 根因合同 storyboard-plan-defaults-passthrough）。
     params: {
-      ...(shot.params || {}),
+      ...resolveShotParams(plan, shot),
       ...(!isImageShot && Number.isFinite(shot.durationSec) ? { duration: shot.durationSec } : {}),
     },
     metadata: {

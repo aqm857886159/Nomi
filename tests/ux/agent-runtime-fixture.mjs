@@ -60,7 +60,13 @@ function modelCatalog(baseURL) {
     }],
     models: [
       { ...common, modelKey: FIXTURE_TEXT_MODEL, labelZh: FIXTURE_TEXT_MODEL_LABEL, kind: 'text', published: true, meta: { supportsImageInput: true } },
-      { ...common, modelKey: FIXTURE_IMAGE_MODEL, labelZh: FIXTURE_IMAGE_MODEL_LABEL, kind: 'image', published: true, meta: { archetypeId: 'agnes-image' } },
+      // 价目是**目录里的一行**，不是走查编的数：`pricing.cost` 是基价，`specCosts` 是命中某个
+      // 参数选择时的加价（`shotPricing.ts` 的唯一判据）。付费确认卡上的价格由主进程按它算出来，
+      // 所以没有这一行，卡就只能诚实地印「暂时算不出价格」——那样「改参数 → 价格变」这条
+      // 走查根本无从取证。加价键选 size 是因为它就是这个夹具模型真正暴露的那个参数。
+      { ...common, modelKey: FIXTURE_IMAGE_MODEL, labelZh: FIXTURE_IMAGE_MODEL_LABEL, kind: 'image', published: true,
+        meta: { archetypeId: 'agnes-image' },
+        pricing: { cost: 0.3, enabled: true, specCosts: [{ specKey: 'size:1536x1024', cost: 0.2, enabled: true }] } },
     ],
     mappings: ['text_to_image', 'image_edit'].map(imageMapping),
     apiKeysByVendor: {

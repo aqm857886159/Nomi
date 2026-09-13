@@ -1,4 +1,9 @@
 import { getVendorPreference } from "../../api/vendorPreferenceApi";
+import {
+  loadGenerationModelDefaults,
+  type GenerationDefaultTaskKind,
+  type GenerationModelDefaultMap,
+} from "../model/generationModelDefaults";
 import { orderByVendorPreference } from "../../../../electron/shared/contracts/vendorPreference";
 // 可用模型清单生成器：把 catalog 真实可用的模型 join 上各自档案（archetype），
 // flatten 成 agent 可读 / 计划清单卡可渲染的清单。
@@ -103,7 +108,45 @@ export async function listAvailableModelsForAgent(): Promise<AgentModelEntry[]> 
   return orderByVendorPreference(buildAgentModelEntries(options.flat()), preference.orderedVendorKeys, (row) => row.vendor);
 }
 
-/** Shared model identity preference for storyboard drafts and materialization. */
+/**
+ * 用户保存的「新建卡片默认模型」在这四类任务上的键。图片卡先读文生图、没设再读图生图；
+ * 视频卡先读文生视频、没设再读图生视频——一份偏好覆盖同一媒介的两个模式，用户不必设四遍。
+ */
+const DEFAULT_TASK_KINDS: Record<'image' | 'video', readonly GenerationDefaultTaskKind[]> = {
+  image: ['text_to_image', 'image_edit'],
+  video: ['text_to_video', 'image_to_video'],
+}
+
+/**
+ * 按**用户保存的默认**挑模型。身份必须两段都对（`(vendorKey, modelKey)`）：只比模型段会串台——
+ * 两个中转站提供同名模型时，用户选的是 A 家的，落到卡片上却可能是 B 家的，账单和结果都不对。
+ * 偏好指向的模型此刻不在可用清单里（供应商删了 / 模型禁用了 / 换了台机器）→ 返回 undefined，
+ * 由调用方回落，绝不把卡片钉在一个跑不了的模型上。
+ */
+export function pickSavedDefaultModel(
+  entries: readonly AgentModelEntry[],
+  kind: 'image' | 'video',
+  defaults: GenerationModelDefaultMap,
+): AgentModelEntry | undefined {
+  const candidates = entries.filter((entry) => entry.kind === kind)
+  for (const taskKind of DEFAULT_TASK_KINDS[kind]) {
+    const preferred = defaults[taskKind]
+    if (!preferred) continue
+    const match = candidates.find(
+      (entry) => entry.vendor === preferred.vendorKey && entry.modelKey === preferred.modelKey,
+    )
+    if (match) return match
+  }
+  return undefined
+}
+
+/**
+ * **兜底**阶梯（只在「用户一个默认都没配」或配的那个此刻不可用时才轮到它）。
+ *
+ * 保留理由：全新用户还没进过设置页，此刻仍必须给出一个能跑的模型，否则 agent 建的卡是空的、
+ * 生成钮直接是灰的——「什么都不给」比「给一个通用的好模型」更伤。它**不是权威**：
+ * 权威是用户保存的默认（`pickSavedDefaultModel`），这条阶梯只在权威缺席时补位。
+ */
 export function pickStoryboardDefaultModel(entries: readonly AgentModelEntry[], kind: 'image' | 'video'): AgentModelEntry | undefined {
   const candidates = entries.filter(entry => entry.kind === kind)
   const byName = (re: RegExp) => candidates.find(entry => re.test(`${entry.modelKey} ${entry.modelAlias ?? ''} ${entry.label}`))
@@ -113,9 +156,28 @@ export function pickStoryboardDefaultModel(entries: readonly AgentModelEntry[], 
 }
 
 /**
+ * 「给 agent 建的卡挑哪个模型」的**唯一入口**：用户保存的默认优先，缺席才走兜底阶梯。
+ * 偏好的 owner 是主进程那份设置（`generationDefaultModelResolver` 读的同一份），这里只做只读投影，
+ * 不复制它的解析逻辑、也不另存一份偏好。
+ */
+async function preferredDefaultModel(
+  entries: readonly AgentModelEntry[],
+  kind: 'image' | 'video',
+): Promise<AgentModelEntry | undefined> {
+  let defaults: GenerationModelDefaultMap = {}
+  try {
+    defaults = await loadGenerationModelDefaults()
+  } catch {
+    defaults = {}
+  }
+  return pickSavedDefaultModel(entries, kind, defaults) ?? pickStoryboardDefaultModel(entries, kind)
+}
+
+/**
  * 分镜方案落画布时给镜头/定妆卡选的默认图片模型 + 两个模式（用户拍板 2026-06-15：image-first）。
- * 通用解析（不硬编码 vendor 目录，P4）：偏好 GPT Image → Nano Banana → 第一个可用图片模型
- * （总能给个默认；用户在画布上仍可自己换，不强制不禁用）。返回两个模式供调用方逐节点选：
+ * 解析顺序（2026-09-10 收敛）：**用户在设置里保存的默认模型优先**（text_to_image → image_edit），
+ * 只有他一个都没配、或配的那个此刻不可用时，才走「GPT Image → Nano Banana → 第一个可用图片模型」
+ * 这条兜底阶梯（总能给个默认；用户在画布上仍可自己换，不强制不禁用）。返回两个模式供调用方逐节点选：
  * - `modeId`：默认模式（纯文生，无必填输入图）——给定妆卡、以及**没有任何参考入边**的镜头用。
  * - `refModeId`：声明了 image_ref 槽的**图生图**模式——给**有参考入边**的镜头用（定妆卡→镜头、
  *   镜头→镜头的参考才喂得进，T8 能力校验）。GPT Image 2 的 i2i 输入图槽 `min:1`，故只给真有
@@ -130,7 +192,7 @@ export async function resolveStoryboardImageDefault(): Promise<{ modelKey?: stri
   } catch {
     return {}
   }
-  const prefer = pickStoryboardDefaultModel(entries, 'image')
+  const prefer = await preferredDefaultModel(entries, 'image')
   if (!prefer) return {}
   const plainMode = prefer.modes.find((m) => m.modeId === prefer.defaultModeId) ?? prefer.modes[0]
   const refMode = prefer.modes.find((m) => m.slots.some((s) => s.kind === 'image_ref'))
@@ -145,7 +207,8 @@ export async function resolveStoryboardImageDefault(): Promise<{ modelKey?: stri
 
 /**
  * 分镜方案落画布时给镜头选的默认视频模型 + 模式（用户拍板 B-clean：有时长就是视频）。
- * 通用解析（不硬编码 vendor 目录，P4）：偏好 Seedance → 第一个可用视频模型。镜头会连定妆卡参考
+ * 解析顺序同图片：**用户保存的默认优先**（text_to_video → image_to_video），缺席才走
+ * 「Seedance → 第一个可用视频模型」这条兜底阶梯（不硬编码 vendor 目录，P4）。镜头会连定妆卡参考
  * （图→视频），故模式优先挑带 image_ref / first_frame 槽的 i2v（参考才喂得进），否则默认模式。
  * 无任何可用视频模型 → 全空，镜头不带模型、用户在画布上自己选；编辑器为某镜选了模型则覆盖本默认。
  */
@@ -156,7 +219,7 @@ export async function resolveStoryboardVideoDefault(): Promise<{ modelKey?: stri
   } catch {
     return {}
   }
-  const prefer = pickStoryboardDefaultModel(entries, 'video')
+  const prefer = await preferredDefaultModel(entries, 'video')
   if (!prefer) return {}
   const refMode = prefer.modes.find((m) => m.slots.some((s) => s.kind === 'image_ref' || s.kind === 'first_frame'))
   const mode = refMode ?? prefer.modes.find((m) => m.modeId === prefer.defaultModeId) ?? prefer.modes[0]

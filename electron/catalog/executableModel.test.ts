@@ -73,7 +73,8 @@ describe("findExecutableModel — 诚实 key 错误（missing vs locked）", () 
     expect(resolved.model.modelKey).toBe("seedream");
   });
 
-  it("rejects an enabled adapter candidate with a key and enabled mapping until certification publishes execution", () => {
+  // 2026-09-11「自检失败不下架」：一次没验成的自检不许让一行比没验过时更不可用。
+  it("keeps an enabled adapter candidate with a key and enabled mapping executable while its self-check is unverified", () => {
     catalogState.apiKeysByVendor = {
       volcengine: { vendorKey: "volcengine", apiKey: b64("sk-real"), enc: "safeStorage", enabled: true, createdAt: "t", updatedAt: "t" },
     };
@@ -87,7 +88,7 @@ describe("findExecutableModel — 诚实 key 错误（missing vs locked）", () 
       name: "raw enabled", enabled: true, create: { method: "POST", path: "/images" }, createdAt: "t", updatedAt: "t",
     }];
 
-    expect(() => findExecutableModel("volcengine", "seedream", "image")).toThrow(/not enabled|not published/i);
+    expect(findExecutableModel("volcengine", "seedream", "image").model.modelKey).toBe("seedream");
   });
 
   it("legacy plaintext stays a migration-only record and never becomes an executable credential", () => {

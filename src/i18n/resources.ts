@@ -19,6 +19,7 @@ import { enVideoDepth, zhVideoDepth } from './locales/videoDepth'
 import { enAgentResident, zhAgentResident } from './locales/agentResident'
 import { enCommunity, zhCommunity } from './locales/community'
 import { enAgentPanelV4, zhAgentPanelV4 } from './locales/agentPanelV4'
+import { enAgentLaneError, zhAgentLaneError } from './locales/agentLaneError'
 
 export const zhCN = {
   shotTable: zhShotTable,
@@ -131,6 +132,8 @@ export const zhCN = {
     },
     productionRun: {
       title: 'Nomi 制作',
+      // 草稿行的镜数后缀：行首已经是「模型 · 比例 · 提示词」，多镜时才补这一段。
+      draftShots: '{{count}} 个镜头',
       statuses: {
         draft: '等待开始', awaitingDirection: '等待确认方向', awaitingScriptReview: '等待审核剧本', awaitingStoryboardReview: '等待审核分镜',
         awaitingContract: '等待确认制作与预算', ready: '准备生成', running: '正在生成', pausing: '正在暂停',
@@ -315,8 +318,8 @@ export const zhCN = {
     projectRepairMessage: '未找到可用的自动备份。可以打开项目文件夹检查 .nomi/project.json：{{path}}',
     openProjectFolder: '打开项目文件夹',
     hostConfigRepaired: '已修复 {{clients}} 的 Nomi 接入配置，重启 {{clients}} 后生效',
-    integrationConfirmPending: '「{{name}}」等你确认后才会开始验证',
-    integrationConfirmPendingAction: '去确认',
+    integrationSelfCheckPending: '「{{name}}」等你开始自检',
+    integrationSelfCheckPendingAction: '去自检',
     initializeTitle: '初始化为 Nomi 项目',
     initializeMessage: '{{path}}\n\nNomi 会创建 .nomi/，并把生成的图片、视频保存到 assets/ 和 exports/。',
     folderUnsupported: '当前运行环境不支持打开项目文件夹',
@@ -423,6 +426,7 @@ export const zhCN = {
   agentResident: zhAgentResident,
   community: zhCommunity,
   agentPanelV4: zhAgentPanelV4,
+  agentLaneError: zhAgentLaneError,
 } as const
 
 type TranslationShape<T> = {
@@ -541,6 +545,7 @@ export const en = {
     },
     productionRun: {
       title: 'Nomi production',
+      draftShots: '{{count}} shots',
       statuses: {
         draft: 'Waiting to start', awaitingDirection: 'Direction approval required', awaitingScriptReview: 'Script review required', awaitingStoryboardReview: 'Storyboard review required',
         awaitingContract: 'Production and budget approval required', ready: 'Ready to generate', running: 'Generating', pausing: 'Pausing',
@@ -723,8 +728,8 @@ export const en = {
     projectRepairMessage: 'No valid automatic backup was found. Open the project folder and inspect .nomi/project.json: {{path}}',
     openProjectFolder: 'Open project folder',
     hostConfigRepaired: 'Repaired the Nomi connection for {{clients}}. Restart {{clients}} to apply it.',
-    integrationConfirmPending: '"{{name}}" is waiting for your confirmation before verification starts',
-    integrationConfirmPendingAction: 'Review',
+    integrationSelfCheckPending: '"{{name}}" is waiting for you to start its self-check',
+    integrationSelfCheckPendingAction: 'Review',
     initializeTitle: 'Initialize as a Nomi project',
     initializeMessage:
       '{{path}}\n\nNomi will create .nomi/ and save generated images and videos in assets/ and exports/.',
@@ -835,6 +840,7 @@ export const en = {
   agentResident: enAgentResident,
   community: enCommunity,
   agentPanelV4: enAgentPanelV4,
+  agentLaneError: enAgentLaneError,
 } satisfies TranslationShape<typeof zhCN>
 
 export const resources = {

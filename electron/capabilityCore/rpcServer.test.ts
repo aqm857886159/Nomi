@@ -56,13 +56,20 @@ vi.mock("./rendererBridge", () => ({
   isRendererAvailable: () => rendererUp,
   requestRenderer: async (op: string) => {
     rendererOps.push(op);
-    if (op === "spend.confirm") return spendReply;
-    if (op === "plan.confirm") return planReply;
     if (op === "document.write") return documentReply;
     if (op === "timeline.read") return { timeline: [] };
     if (op === "asset.read") return { assets: [] };
+    // 确认卡等的是人，必须走 requestRendererDecision——走到这里就是把墙钟期限放回了审批路径。
+    if (op === "spend.confirm" || op === "plan.confirm") throw new Error(`确认卡不得走带超时的桥: ${op}`);
     // hybrid 网关读写应走盘,绝不该把 canvas.* 转给渲染层——命中即测试失败。
     throw new Error(`hybrid 不应调用渲染层 op: ${op}`);
+  },
+  // 2026-09-11：等真人作答的那条没有 timeoutMs 参数，活性靠「渲染层还在不在」。
+  requestRendererDecision: async (op: string) => {
+    rendererOps.push(op);
+    if (op === "spend.confirm") return spendReply;
+    if (op === "plan.confirm") return planReply;
+    throw new Error(`不该用等人的桥发这个 op: ${op}`);
   },
 }));
 
@@ -653,8 +660,8 @@ describe("capabilityCore/rpcServer", () => {
     expect(lastRunTaskReq).toBeNull();
   });
 
-  it("retired generate route → spendConfirmed 也不能复活旧付费入口", async () => {
-    // 客户端预确认只作用于仍存在的 canonical route；不能把 retired alias 变成静默付费调用。
+  it("客户端自报 spendConfirmed 不再是付费通路（retired alias 照样 404）", async () => {
+    // 2026-09-11 删第二扇门后：请求体顶层那个自报位已不在协议里，塞了也什么都不发生。
     rendererUp = true;
     spendReply = { confirmed: false };
     const created = await rpc("project.create", { name: "已在客户端确认" });
@@ -670,8 +677,8 @@ describe("capabilityCore/rpcServer", () => {
     expect(lastRunTaskReq).toBeNull();
   });
 
-  it("安全：spendConfirmed 只预批付费,不顺手预批方案门(confirmPlan 仍要真人)", async () => {
-    // 防「一个 flag 顺走一串权限」：预批范围必须恰好是付费确认本身。
+  it("安全：塞 spendConfirmed 也不顺手预批方案门(confirmPlan 仍要真人)", async () => {
+    // 防「一个 flag 顺走一串权限」：这个自报位已被删，方案门必须照旧问真人。
     rendererUp = true;
     openProjectId = "";
     const created = await rpc("project.create", { name: "预批范围" });
@@ -688,7 +695,7 @@ describe("capabilityCore/rpcServer", () => {
       spendConfirmed: true,
     });
     expect(added.body.ok).toBe(true);
-    // hybrid 网关的 confirmPlan 仍走渲染层问真人——没被 spendConfirmed 带着一起放行。
+    // hybrid 网关的 confirmPlan 仍走渲染层问真人。
     expect(rendererOps).toContain("plan.confirm");
   });
 

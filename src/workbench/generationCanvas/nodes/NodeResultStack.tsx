@@ -20,11 +20,13 @@ import { deleteAssetResult } from '../../assets/deleteAssetResult'
 import { CardStackPeeks } from '../components/CardStackPeeks'
 import NodeMediaPreviewDialog from './NodeMediaPreviewDialog'
 import { DeferredNodeVideo } from './DeferredNodeMedia'
+import { NODE_SCROLL_REGION_CLASS_NAME } from './nodeScrollRegionClassName'
 import { useResultDownload } from './useResultDownload'
 import { getActiveWorkbenchProjectId } from '../../project/workbenchProjectSession'
 import { reworkProductionShot } from '../../production/productionShotActions'
 import { historyVideoTimeFromPointer, nudgeHistoryVideoTime } from './historyVideoScrub'
 import { resolveResultStackPlacement, type ResultStackPlacement } from './nodeResultStackPlacement'
+import { getGenerationNodeIcon } from './renderRegistry'
 
 const INITIAL_VISIBLE_RESULTS = 12
 
@@ -34,6 +36,23 @@ function productionMetaOf(node: GenerationCanvasNode): { runId: string; shotId?:
   if (!runId) return null
   const shotId = typeof meta?.productionShotId === 'string' ? meta.productionShotId.trim() : ''
   return { runId, ...(shotId ? { shotId } : {}) }
+}
+
+/**
+ * 版本堆叠伪卡上的媒体示能。复用 `getGenerationNodeIcon` 这个唯一出口，所以
+ * 「左侧栏那颗图标和堆叠上这颗不是同一个」在结构上不可能发生（同 renderRegistry 的注释）。
+ * 插件节点解析不到就不画——宁可回到原外观，也不猜一个错的媒体类型。
+ */
+function StackMediaGlyph({ kind }: { kind: GenerationCanvasNode['kind'] }): JSX.Element | null {
+  const Icon = React.useMemo(() => {
+    try {
+      return getGenerationNodeIcon(kind)
+    } catch {
+      return null
+    }
+  }, [kind])
+  if (!Icon) return null
+  return <Icon size={14} stroke={1.6} aria-hidden="true" />
 }
 
 function resultTitle(node: GenerationCanvasNode, index: number): string {
@@ -340,6 +359,8 @@ export function NodeResultStack({
         expanded={open}
         onToggle={() => setOpen((value) => !value)}
         forceTrigger={showSingleProductionAction}
+        mediaGlyph={<StackMediaGlyph kind={node.kind} />}
+        mediaKind={node.kind}
       />
       <AnimatePresence initial={false}>
         {open ? (
@@ -377,7 +398,7 @@ export function NodeResultStack({
                 </button>
               ) : null}
             </header>
-            <div className="min-h-0 overflow-y-auto p-2" role="list">
+            <div className={cn(NODE_SCROLL_REGION_CLASS_NAME, 'min-h-0 overflow-y-auto p-2')} role="list">
               {entries.slice(0, visibleCount).map((entry, index) => {
                 const identity = resultIdentity(entry)
                 const isCurrent = identity === currentId

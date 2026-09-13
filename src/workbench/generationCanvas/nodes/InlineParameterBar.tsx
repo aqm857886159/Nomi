@@ -2,9 +2,9 @@ import React from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { Slider } from '@mantine/core'
-import { IconChevronDown } from '@tabler/icons-react'
+import { IconAdjustmentsHorizontal, IconChevronDown } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
-import { DesignSwitch, NomiSegmented, NomiSelect, type NomiSegmentedOption } from '../../../design'
+import { DesignSwitch, NomiSegmented, NomiSelect, WorkbenchIconButton, type NomiSegmentedOption } from '../../../design'
 import { formatVideoOptionLabel, type ModelParameterControl } from '../../../config/modelCatalogMeta'
 import type { ModelOption } from '../../../config/models'
 import {
@@ -17,11 +17,20 @@ import {
   optionLabel,
   optionValue,
 } from './controls/parameterControlModel'
+import {
+  overflowParameterControls,
+  parameterChipLabel,
+  parameterChipOptions,
+  parameterChipValue,
+  planParameterChips,
+  splitPrimaryParameterControls,
+} from './primaryParameterChips'
+import { useFittedChipCount } from './useFittedChipCount'
 import { hasUsableSliderStep, isCompleteNumericDraft } from './controls/numericDraft'
 import { commonRatioSortKey } from './aspectRatio'
 import { ratioShape, shapedGroupLabel } from './aspectRatioShape'
 import { resolveArchetypeForOption } from './nodeModelArchetype'
-import { useDedupedModelSelect } from '../../common/useDedupedModelSelect'
+import { modelVisibilityFooterAction, useDedupedModelSelect } from '../../common/useDedupedModelSelect'
 import {
   localizeAutoOption,
   parameterOptionLayout,
@@ -29,9 +38,22 @@ import {
   type ParameterOptionPurpose,
 } from './parameterOptionPresentation'
 import { translateModelDisplayText } from '../../../i18n/modelDisplayText'
+import { NODE_SCROLL_REGION_CLASS_NAME } from './nodeScrollRegionClassName'
 
 export type InlineParameterBarLayout = 'inline' | 'stacked'
 export type InlineParameterBarPanelMode = 'portal' | 'inline'
+/**
+ * 参数怎么摆——**同一个组件的一个布局属性**，不是两个组件。
+ *
+ * · `summary`（默认）＝ 摘要 pill + 统一面板：一颗 pill 报当前配置，点开是**全部**参数
+ *   （比例那组带小图形）。画布节点用它——2026-09-11 04:30 用户拍板：节点保持原样。
+ * · `chips` ＝ 每个主参数一颗下拉 chip + ⚙ 收长尾：看得见的值本身就是可点的控件，一步到位。
+ *   付费确认卡（`host='panel'`）用它——那一刻用户正在逐项确认「出什么、花多少」，多一次点击最贵。
+ *
+ * 为什么是一个属性而不是两个组件：面板里那些控件（分段 / 滑杆 / 数字草稿 / 开关）两边一模一样，
+ * 拆成两份就是并行版（P1），改一处修不了另一处。
+ */
+export type InlineParameterBarParameterLayout = 'summary' | 'chips'
 
 type InlineParameterBarProps = {
   modelOptions: readonly ModelOption[]
@@ -48,9 +70,16 @@ type InlineParameterBarProps = {
   activeVariantId?: string
   onVariantSelect?: (id: string) => void
   /**
-   * 摘要 pill 文案覆盖。默认 pill 显示各参数**当前值**串接（`16:9 · 2k`）——
-   * 这对档案模型可读：你一眼认得出比例和清晰度。但 ComfyUI 导入工作流的参数是**任意**的，
-   * 值串出来是 `15 · 24`（采样步数和帧率），没人看得出那是自己导入时勾的东西
+   * 摘要 pill / 逐参数 chip 二选一。**默认 `summary`**：画布节点不传这个属性，拿到的就是
+   * 2026-07-17 起那套摘要 pill + 面板（用户 2026-09-11 04:30 拍板：节点退回原样）。
+   * 付费确认卡显式传 `chips`。
+   */
+  parameterLayout?: InlineParameterBarParameterLayout
+  /**
+   * 摘要 pill 文案覆盖（只在 `parameterLayout='summary'` 下有意义）。
+   * 默认 pill 显示各参数**当前值**串接（`16:9 · 2k`）——这对档案模型可读：你一眼认得出比例和清晰度。
+   * 但 ComfyUI 导入工作流的参数是**任意**的，值串出来是 `15 · 24`（采样步数和帧率），
+   * 没人看得出那是自己导入时勾的东西
    * （群反馈 2026-08-20 G2#433「勾了功能画布里没对应按钮」——其实渲染了，只是这颗 pill 没说）。
    * 传了就用它当 pill 文案；点开的参数面板内容不受影响。
    * 2026-08-20 用户拍板，是 2026-07-17「摘要 pill」拍板形态内的一处窄例外。
@@ -68,9 +97,28 @@ type InlineParameterBarProps = {
    * scrolls.
    */
   panelMode?: InlineParameterBarPanelMode
-  /** Width of the summary trigger in CSS pixels. The resident contract uses
+  /** Width of the summary trigger in CSS pixels（只在 `summary` 下有意义）。The resident contract uses
    * the wider 150px dialog pill; the canvas remains 110px. */
   summaryWidth?: number
+  /**
+   * 身份行两个下拉的浮层落点。
+   *
+   * 画布上不传 = Mantine 默认 portal 到 body（下拉要能盖出节点卡外面）。对话流里的卡不一样：
+   * 卡随转录滚动，portal 到 body 的下拉会**脱离卡**留在原地。传一个卡内的容器 ref，
+   * 下拉就跟着卡走——和 `panelMode="inline"` 是同一条理由。
+   */
+  portalTarget?: React.RefObject<HTMLElement | null>
+  /**
+   * 就地展开的参数面板落在哪个容器里（只对 `panelMode="inline"` 有意义）。
+   *
+   * 面板是**整幅**的（`w-full`）。横排布局里 identityRow 与摘要 pill 用的都是 `contents`，
+   * 所以面板会直接变成参数条那一排的兄弟去和模型芯片抢宽度（v2 实测：芯片被挤成一个光秃秃的图标）。
+   * v2 靠给那一排开 `flex-wrap` 兜底，代价是「模型 / 参数 / ×N」被拆成上下两行、长短不齐——
+   * 正是 2026-09-10 用户看到 v2 时说的「参数摆得不齐、还上下两行」。
+   * v3 改成把面板**搬出那一排**：调用方给一个落点（底栏下面那个空 div），面板 portal 过去，
+   * 参数条本身恒一行。不给落点就退回原地渲染（画布不走这条路，那儿用 portal 面板）。
+   */
+  inlinePanelSlot?: React.RefObject<HTMLElement | null>
   /** Optional generation-mode group shown at the top of the shared panel. */
   modeChoices?: readonly { id: string; label: string }[]
   activeModeId?: string
@@ -78,11 +126,22 @@ type InlineParameterBarProps = {
   onModeSelect?: (id: string) => void
 }
 
-// section="parameters"：底栏 = 模型芯片 + 变体 + **摘要 pill**（当前参数一句话）。
-// 点摘要 pill 弹**统一参数面板**：每个参数一组「小标题 + 分段选择器」，点即改、面板不关（可连改多项）。
-// 2026-07-17 用户拍板（样张 docs/design/mockups/node-param-panel.html），替代旧「前 2 内联 + 更多弹层」
-// 方案 B——参数多时内联下拉挤、分层线武断；摘要 pill 让当前配置一眼读完、面板给全部参数同一交互。
-// 「生成方式」（文生/图生 tab）保持在 composer 顶部不进面板（用户拍板第 2 点）。
+// section="parameters"：底栏 = 模型芯片 + 变体 + **参数区**。参数区有两种摆法，由 `parameterLayout` 选：
+//
+//   summary（默认 · 画布节点）  [模型 ▾] [变体 ▾] [16:9 · 5s ▾]
+//     一颗摘要 pill 报当前配置，点开是**统一参数面板**：每个参数一组「小标题 + 分段选择器」，
+//     点即改、面板不关（可连改多项），比例那组每项带一个比例小图形。
+//     2026-07-17 用户拍板（样张 docs/design/mockups/node-param-panel.html）。
+//     2026-09-11 02:10 曾被逐参数 chip 换掉，同日 04:30 用户纠正：**节点退回原样**，chip 只给付费卡。
+//
+//   chips（付费确认卡）  [模型 ▾] [变体 ▾] [16:9 ▾] [5s ▾] [1080p ▾] [⚙]
+//     每个主参数自己一颗下拉 chip——看得见的那个值本身就是可点的控件，一步到位（付费确认那一刻
+//     多一次点击最贵）。哪几个参数变 chip **由模型档案 derive**（`splitPrimaryParameterControls`，
+//     判据写在那个文件里），不在这里点名任何模型或键：档案里没声明比例，就不出比例 chip。
+//     长尾（种子 / 生成音频 / 水印…）、供应商收在 ⚙ 后面，与 chip 不重复出现（一功能一个家）。
+//
+// 两种摆法共用同一块面板与同一批控件渲染函数——差的只是「参数区那一格里放什么、面板里剩什么」。
+// 「生成方式」（文生/图生 tab）在画布上仍住 composer 顶部，不进面板（2026-07-17 用户拍板第 2 点）。
 
 /**
  * 面板里的自由输入行（无候选项、无可用区间的参数）。
@@ -172,10 +231,13 @@ export default function InlineParameterBar({
   variantChoices,
   activeVariantId,
   onVariantSelect,
+  parameterLayout = 'summary',
   summaryOverride,
   layout = 'inline',
   panelMode = 'portal',
   summaryWidth,
+  portalTarget,
+  inlinePanelSlot,
   modeChoices,
   activeModeId = '',
   modeLabel,
@@ -190,15 +252,31 @@ export default function InlineParameterBar({
     selectedModelOption?.vendor,
   )
 
-  // 摘要 pill 文本：各参数当前值串接（16:9 · 1080p · 5 · 音频）。
+  const chipsMode = parameterLayout === 'chips'
+  const stacked = layout === 'stacked'
+
+  // ── chips 形态：底栏摆哪几颗 chip ──
+  // 「哪几个是主参数」的判据全在 primaryParameterChips.ts（从档案 derive）；
+  // 「这一行装不装得下」是**量出来的**（useFittedChipCount 读真实盒子），不在这里估宽度。
+  // summary 形态用不到这两件事，但 hook 不能条件调用——所以 enabled 关掉、chips 规划成空。
+  const { primary } = splitPrimaryParameterControls(renderedControls)
+  const barRef = React.useRef<HTMLDivElement | null>(null)
+  // 竖排（窄面板）本来就允许换行，用不着退位；横排底栏不许换行，装不下就退回 ⚙。
+  const fittedCount = useFittedChipCount(barRef, primary.length, { enabled: chipsMode && !stacked })
+  const planned = planParameterChips(primary, stacked ? primary.length : fittedCount)
+  const chips = chipsMode ? planned.chips : []
+  // summary 形态的面板装**全部**参数（摘要 pill 不占走任何一个）；chips 形态只装没上底栏的那些。
+  const panelControls = chipsMode ? overflowParameterControls(renderedControls, chips) : renderedControls
+
+  // 摘要 pill 文本（summary 形态）：各参数当前值串接（16:9 · 1080p · 5 · 音频）。
   const summaryText = summaryOverride || renderedControls
     .map((c) => summaryPart(c, meta, t('generationCommon.parameters.auto')))
     .filter(Boolean)
     .join(' · ')
 
   // ── 参数浮层：静止定位（打开定位一次，绝不跟随）。 ──
-  // 打开时以 pill 中心定位一次，之后绝不跟随；比例变化通过节点原子锚定保证 pill 本身不动。
-  // 摘要文本也在打开期间冻结，触发器与浮层都不需要用户追着鼠标找。
+  // 打开时以触发器（pill / ⚙）中心定位一次，之后绝不跟随；
+  // 比例变化通过节点原子锚定保证触发器本身不动。摘要文本也在打开期间冻结，宽度不跳。
   const [panelOpen, setPanelOpen] = React.useState(false)
   const [panelInit, setPanelInit] = React.useState<{
     left: number
@@ -207,7 +285,8 @@ export default function InlineParameterBar({
     side: 'above' | 'below'
   } | null>(null)
   const [frozenSummary, setFrozenSummary] = React.useState('')
-  const pillRef = React.useRef<HTMLButtonElement | null>(null)
+  // 触发器只有一个：summary 形态是那颗摘要 pill，chips 形态是那颗 ⚙。
+  const triggerRef = React.useRef<HTMLButtonElement | null>(null)
   const panelRef = React.useRef<HTMLDivElement | null>(null)
 
   const PANEL_W = 320
@@ -219,7 +298,7 @@ export default function InlineParameterBar({
       setPanelOpen(true)
       return
     }
-    const rect = pillRef.current?.getBoundingClientRect()
+    const rect = triggerRef.current?.getBoundingClientRect()
     if (!rect) return
     const vw = window.innerWidth
     const vh = window.innerHeight
@@ -229,7 +308,7 @@ export default function InlineParameterBar({
     // 翻向此刻锁定：上方优先（底栏贴卡底），上方不足 240px 才放下方。定位仅此一次。
     const side: 'above' | 'below' = spaceAbove >= 240 ? 'above' : 'below'
     const maxHeight = side === 'above' ? Math.min(420, spaceAbove) : Math.min(420, Math.max(160, vh - rect.bottom - 18))
-    // above 用 bottom 锚（面板实高小于 maxHeight 时依然贴住 pill 顶）；below 用 top 锚。
+    // above 用 bottom 锚（面板实高小于 maxHeight 时依然贴住触发器顶）；below 用 top 锚。
     const top = side === 'above' ? vh - rect.top + PANEL_GAP : rect.bottom + PANEL_GAP
     setPanelInit({ left, top, maxHeight, side })
     setFrozenSummary(summaryText)
@@ -248,7 +327,7 @@ export default function InlineParameterBar({
       // 会被当成「点外面」把面板关掉，表现为「点击不了」。
       if (!panelRef.current) return
       if (panelRef.current.contains(target)) return
-      if (pillRef.current?.contains(target)) return
+      if (triggerRef.current?.contains(target)) return
       closePanel()
     }
     const onKeyDown = (event: KeyboardEvent): void => {
@@ -441,7 +520,9 @@ export default function InlineParameterBar({
   }
 
   const hasProvider = modelSelect.providerOptions.length > 1
-  const hasPanel = renderedControls.length > 0 || hasProvider
+  // 触发器只在**里面真有东西**时出现：长尾参数、供应商、生成方式一件都没有的模型
+  // （chips 形态下参数可能全上了 chip），留一颗点开是空白的触发器比不留更糟。
+  const hasPanel = panelControls.length > 0 || hasProvider || Boolean(modeChoices?.length && onModeSelect)
   // Catalog variants keep separate exact IDs; media archetype variants keep their existing parameter contract.
   // Both use the same approved variant control next to the family/model chip.
   const catalogVariants = modelSelect.variantOptions.length > 0
@@ -451,7 +532,7 @@ export default function InlineParameterBar({
 
   const renderParameterPanel = (surface: 'portal' | 'inline'): JSX.Element => {
     const content = (
-      <div className="flex flex-col gap-3 overflow-y-auto overscroll-contain rounded-nomi-lg p-3" style={{ maxHeight: surface === 'portal' ? panelInit?.maxHeight : 320 }}>
+      <div className={cn(NODE_SCROLL_REGION_CLASS_NAME, 'flex flex-col gap-3 overflow-y-auto overscroll-contain rounded-nomi-lg p-3')} style={{ maxHeight: surface === 'portal' ? panelInit?.maxHeight : 320 }}>
         {modeChoices?.length && onModeSelect ? (
           <div className="flex flex-col gap-1.5" data-agent-generation-mode="true">
             <div className="text-micro font-semibold leading-none text-nomi-ink-40">
@@ -465,7 +546,10 @@ export default function InlineParameterBar({
             )}
           </div>
         ) : null}
-        {renderedControls.map((control) => renderPanelGroup(control))}
+        {/* summary 形态：全部参数都在这里（摘要 pill 只是读，不占走任何一个）。
+            chips 形态：只放**没上底栏**的那些——上了 chip 的参数在这里再出现一次，
+            就是同一个值两个家（§1.5.2）。 */}
+        {panelControls.map((control) => renderPanelGroup(control))}
         {hasProvider ? (
           <div className="flex flex-col gap-1.5">
             <div className="text-micro font-semibold leading-none text-nomi-ink-40">
@@ -516,37 +600,115 @@ export default function InlineParameterBar({
     )
   }
 
-  const stacked = layout === 'stacked'
   const resolvedSummaryWidth = summaryWidth ?? (stacked ? 150 : 110)
+  // chips 形态的横排里身份两枚**不缩**：模型名本身已由 triggerMaxWidth 截到 150px，再让它跟着挤，
+  // 结果是「宽度不够时模型名先被榨没、chip 却一颗不少」——而模型是这一行的一等决策（§1.5.4）。
+  // 不缩也是「装不下」这件事能被量出来的前提：所有成员都不缩，行才会真的溢出（见 useFittedChipCount）。
+  // summary 形态只有一颗定宽 pill，不存在「装不下」，身份两枚照旧允许压缩（保持 2026-07-17 的样子）。
+  const identityChipClass = chipsMode && !stacked ? 'shrink-0' : undefined
   const identityRow = (
     <div className={cn('flex min-w-0 items-center gap-2', stacked && 'w-full')}>
       <NomiSelect
         ariaLabel={t('generationCommon.parameters.model')}
         placeholder={t('generationCommon.parameters.selectModel')}
         triggerMaxWidth={stacked ? 132 : 150}
+        className={identityChipClass}
         value={modelSelect.modelValue}
         options={modelSelect.modelOptions}
         onChange={modelSelect.onModelPick}
         onChipChange={modelSelect.onModelProviderPick}
+        footerAction={modelVisibilityFooterAction()}
+        hiddenNote={modelSelect.hiddenNote}
+        {...(portalTarget ? { portalTarget } : {})}
       />
       {/* 变体（型号）小下拉：紧跟模型芯片（身份级，恒内联）。有变体的模型才显示。 */}
       {catalogVariants || visibleVariants.length > 1 ? (
         <NomiSelect
           ariaLabel={t('generationCommon.parameters.variant')}
           leadingLabel={t('generationCommon.parameters.variant')}
+          className={identityChipClass}
           value={catalogVariants ? modelSelect.variantValue : activeVariantId || ''}
           options={visibleVariants}
           disabled={visibleVariants.length < 2}
           onChange={catalogVariants ? modelSelect.onVariantPick : (v) => onVariantSelect?.(v)}
+          {...(portalTarget ? { portalTarget } : {})}
         />
       ) : null}
     </div>
   )
 
+  /**
+   * 一个主参数 = 一颗下拉 chip。chip 上**只印当前值**（`16:9`、`5s`、`1080p`）不印参数名——
+   * 这三个值本身就读得懂，印上「比例 16:9」是把同一件事说两遍、还多占一格宽。
+   * 参数名没有丢：它是 chip 的 `aria-label` 与 hover 的 `title`（读屏与鼠标各拿一份）。
+   */
+  const renderChip = (control: DynamicModelControl): JSX.Element => {
+    const label = translateModelDisplayText(control.label)
+    const value = parameterChipValue(control, meta)
+    const options = parameterChipOptions(control).map((option) => {
+      const localized = localizeAutoOption(
+        option.value,
+        translateModelDisplayText(option.label),
+        t('generationCommon.parameters.auto'),
+      )
+      return {
+        value: localized.value,
+        label: parameterChipLabel(control, localized.text, (seconds) => t('generationCommon.composerBarV1.seconds', { value: seconds })),
+      }
+    })
+    // 比例按常用序重排（16:9 / 9:16 领头，自动恒最前）——与面板里那组分段同一把尺子
+    // （`commonRatioSortKey`），换成下拉不等于换一套顺序。
+    const purpose = resolveParameterOptionPurpose(options.map((option) => ({ value: option.value, text: option.label })))
+    const sorted = purpose === 'aspect-ratio'
+      ? [...options].sort((a, b) => commonRatioSortKey(a.value, a.label) - commonRatioSortKey(b.value, b.label))
+      : options
+    const current = sorted.find((option) => option.value === value)
+    return (
+      <span
+        key={control.key}
+        className="inline-flex shrink-0"
+        // 走查锚点：靠 key 找 chip、靠 value 断言选完真的写进了 store。
+        // 不靠中文 aria-label 去找（换个语言就断了）。
+        data-parameter-chip={control.key}
+        data-parameter-chip-value={value}
+      >
+        <NomiSelect
+          ariaLabel={label}
+          title={`${label} · ${current?.label ?? value}`}
+          value={value}
+          options={sorted}
+          onChange={(next) => (isParameterControl(control)
+            ? onParameterControlChange(control, next)
+            : onCatalogControlChange(control, next))}
+          {...(portalTarget ? { portalTarget } : {})}
+        />
+      </span>
+    )
+  }
+
+  const moreTrigger = hasPanel ? (
+    <WorkbenchIconButton
+      ref={triggerRef}
+      size="sm"
+      className="shrink-0"
+      icon={<IconAdjustmentsHorizontal aria-hidden />}
+      // 数字是有行动价值的：它说明这颗按钮后面**确实还有东西**（导入的 ComfyUI 工作流参数全在这里，
+      // 群反馈 2026-08-20 G2#433 要的就是「勾过的功能到底在不在」这句话）。
+      label={t('generationCommon.parameters.moreParameters', { count: panelControls.length })}
+      aria-expanded={panelOpen}
+      data-parameter-more="true"
+      onClick={() => (panelOpen ? closePanel() : openPanel())}
+    />
+  ) : null
+
+  /** summary 形态的触发器：一颗报当前配置的摘要 pill，点开是同一块面板。 */
   const summaryTrigger = hasPanel ? (
     <button
-      ref={pillRef}
+      ref={triggerRef}
       type="button"
+      // 走查锚点：断言得能拿到那串摘要本身，
+      // 不能靠中文 aria-label 去找（换个语言就断了）。
+      data-parameter-summary={pillText}
       aria-label={t('generationCommon.parameters.generationParameters')}
       aria-expanded={panelOpen}
       title={pillText || t('generationCommon.parameters.generationParameters')}
@@ -574,14 +736,45 @@ export default function InlineParameterBar({
     </button>
   ) : null
 
+  // 就地展开的面板：有落点就 portal 过去（参数条恒一行），没有就原地渲染在触发器下面。
+  const inlinePanel = panelOpen && panelMode === 'inline'
+    ? <div className="mt-1.5 w-full">{renderParameterPanel('inline')}</div>
+    : null
+
+  // 两种形态共用同一对出口：就地展开（可能 portal 到调用方给的落点）+ 静止浮层（portal 到 body）。
+  const panelPortals = (
+    <>
+      {inlinePanel
+        ? (inlinePanelSlot?.current ? createPortal(inlinePanel, inlinePanelSlot.current) : inlinePanel)
+        : null}
+      {panelOpen && panelMode === 'portal' && panelInit ? createPortal(renderParameterPanel('portal'), document.body) : null}
+    </>
+  )
+
   return (
-    <div className={cn('generation-canvas-v2-node__params--parameters', 'min-w-0', stacked ? 'flex flex-col items-stretch gap-1.5' : 'flex items-center gap-2')}>
+    <div
+      ref={barRef}
+      className={cn(
+        'generation-canvas-v2-node__params--parameters',
+        'min-w-0',
+        stacked ? 'flex flex-col items-stretch gap-1.5' : 'flex items-center gap-2',
+      )}
+    >
       {stacked ? identityRow : <div className="contents">{identityRow}</div>}
-      {summaryTrigger ? (
+      {chipsMode ? (
+        <>
+          {/* 横排：chip 与 ⚙ 直接排在模型芯片后面（`contents` 让它们成为同一条 flex 行的成员，
+              好让底栏「单行不换行」这条断言量得到）。竖排（窄面板）自己成一行并允许换行。 */}
+          <div className={cn(stacked ? 'flex w-full flex-wrap items-center gap-1.5' : 'contents')}>
+            {chips.map((control) => renderChip(control))}
+            {moreTrigger}
+          </div>
+          {panelPortals}
+        </>
+      ) : summaryTrigger ? (
         <div className={cn('min-w-0', stacked ? 'w-full' : 'contents')}>
           {summaryTrigger}
-          {panelOpen && panelMode === 'inline' ? <div className="mt-1.5 w-full">{renderParameterPanel('inline')}</div> : null}
-          {panelOpen && panelMode === 'portal' && panelInit ? createPortal(renderParameterPanel('portal'), document.body) : null}
+          {panelPortals}
         </div>
       ) : null}
     </div>

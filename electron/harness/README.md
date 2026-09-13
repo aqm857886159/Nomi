@@ -9,7 +9,6 @@
 ```text
 electron/harness/
 ├── agentChatContracts.ts     主进程、preload、界面共用的请求/事件/结果
-├── agentChatPolicy.ts        本轮能力、项目归属和精确目标的校验
 ├── context/
 │   ├── agentContext.ts      Nomi 身份、Skill、四层系统提示词
 │   ├── agentContextHost.ts  主进程唯一的上下文服务实例
@@ -18,9 +17,8 @@ electron/harness/
 │   ├── contextPaths.ts     复用已有项目目录规则
 │   ├── contextStore.ts     原子落盘、版本检查、旧档原件备份
 │   └── legacyBubbles.ts    旧聊天气泡的有限导入，不伪造历史工具执行
-├── tools/
-│   ├── modelToolSurfaceManifest.ts  画布/文稿/生成/剪辑的模型可见工具清单（唯一 owner）
-│   └── agentToolCatalog.ts     把上面那份清单投影成 pi 工具表
+├── （模型可见工具面不在这里：唯一 owner 是 electron/shared/agentCapabilities/verbDeclarations.ts，
+│     lane 与 MCP 都从 modelFacingToolRegistry.ts 派生；2026-09-11 PR A 删掉了 tools/ 与 agentChatPolicy.ts）
 └── runtime/
     ├── runtimePort.ts       Nomi 自有端口，不向外暴露 SDK 类型
     └── pi/                  唯一 pi SDK 适配目录
@@ -36,7 +34,7 @@ electron/harness/
         └── errorFacts.mts    有界、脱敏的供应商错误事实
 ```
 
-最短阅读顺序：`agentChatContracts` → `agentChatPolicy` → `contextService` → `runtimePort` → `pi/run`。只改文稿或画布工具参数时，通常不需要读或改整个运行核。
+最短阅读顺序：`agentChatContracts` → `contextService` → `runtimePort` → `pi/run`。只改文稿或画布工具参数时，通常不需要读或改整个运行核。
 
 ## 一次指令怎么走
 

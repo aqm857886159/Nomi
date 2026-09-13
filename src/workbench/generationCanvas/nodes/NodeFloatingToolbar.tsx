@@ -4,6 +4,7 @@ import { IconInfoCircle, IconChevronDown, IconCopy } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import { useWorkbenchStore } from '../../workbenchStore'
+import { NodeLockBadge } from './NodeLockBadge'
 import { FOCUS_GENERATION_NODE_EVENT } from './nodeSizing'
 
 // 节点浮动工具栏的**单一共享实现**（P1 收口）：图片编辑 / 视频抽帧 / 全景 / 下载三+条以前是三份
@@ -14,8 +15,15 @@ import { FOCUS_GENERATION_NODE_EVENT } from './nodeSizing'
 
 const ICON = { size: 16, stroke: 1.6 } as const
 
-/** 浮条外壳：定位 + 反向缩放 + token 合规容器。 */
-export function FloatingToolbarShell({ ariaLabel, children }: { ariaLabel: string; children: React.ReactNode }): JSX.Element {
+/**
+ * 浮条外壳：定位 + 反向缩放 + token 合规容器，外加**锁的唯一家**。
+ *
+ * `lockNodeId` 必填（不是可选）：浮条有五条（图片编辑 / 视频抽帧 / 全景 / 下载 / 空节点变体）
+ * 加一条产物浮条，锁要「一功能一个家」就必须每条都答一次「你这条挂的是不是一个可锁的节点」。
+ * 写成可选，下一条浮条忘了传就是静默少一把锁——让编译器拦（R28），别留给走查。
+ * `null` 是合法的一档：手艺产物浮条挂的不是生成节点，它没有锁。
+ */
+export function FloatingToolbarShell({ ariaLabel, lockNodeId, children }: { ariaLabel: string; lockNodeId: string | null; children: React.ReactNode }): JSX.Element {
   const canvasZoom = useWorkbenchStore((state) => state.categoryViewports[state.activeCategoryId]?.zoom ?? 1)
   return (
     <div
@@ -35,6 +43,12 @@ export function FloatingToolbarShell({ ariaLabel, children }: { ariaLabel: strin
       aria-label={ariaLabel}
       onPointerDown={(event) => event.stopPropagation()}
     >
+      {lockNodeId ? (
+        <>
+          <NodeLockBadge nodeId={lockNodeId} />
+          <ToolbarDivider />
+        </>
+      ) : null}
       {children}
     </div>
   )
@@ -222,7 +236,7 @@ export function EmptyNodeVariantToolbar({ nodeId, visible }: { nodeId: string; v
   const { t } = useTranslation()
   if (!visible) return null
   return (
-    <FloatingToolbarShell ariaLabel={t('generationCommon.node.duplicateVariant')}>
+    <FloatingToolbarShell ariaLabel={t('generationCommon.node.duplicateVariant')} lockNodeId={nodeId}>
       <ToolbarDuplicateVariantButton nodeId={nodeId} />
     </FloatingToolbarShell>
   )

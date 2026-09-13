@@ -175,21 +175,15 @@ try {
     proposal: { candidates: [{ modelKey: 'relay-image', kind: 'image' }], selections: [{ modelKey: 'relay-image' }] },
   })
   const proposedData = resultTextJson(proposed)
-  check(proposedData.stage === 'needs_spend_confirmation', 'C7 T14 propose 通过强 schema 落库门')
-  const proposalConfirm = await call(mcp, 'nomi_integration', {
-    action: 'confirm', sessionId: integrationSessionId, expectedRevision: proposedData.revision, idempotencyKey: 'c7-t14-paid-phase',
+  check(proposedData.stage === 'ready_to_certify', 'C7 T14 propose 通过强 schema 落库门')
+  // 接模型没有付费验证，所以 propose 与 start 之间没有 confirm 这一跳（2026-09-12 拍板）。
+  // 仍然要证的是「这一跳不会花钱」：自检跑完，供应商的付费生成端点一次都没被碰过。
+  const staleStart = await mcp.callTool('nomi_integration', {
+    action: 'start', sessionId: integrationSessionId, expectedRevision: proposedData.revision - 1,
+    idempotencyKey: 'c7-t14-stale-revision',
   })
-  const proposalConfirmData = resultTextJson(proposalConfirm)
-  check(Boolean(proposalConfirmData.challengeId), 'C7 T14 confirm 只生成不可变花费挑战')
-  const afterConfirm = await call(mcp, 'nomi_read', { target: 'integration', sessionId: integrationSessionId })
-  const afterConfirmData = resultTextJson(afterConfirm)
-  const bypassStart = await mcp.callTool('nomi_integration', {
-    action: 'start', sessionId: integrationSessionId, expectedRevision: afterConfirmData.revision,
-    idempotencyKey: 'c7-t14-paid-phase', receipt: 'not-a-trusted-receipt',
-  })
-  // Authorization is a machine contract; translated recovery prose is not an error code.
-  check(bypassStart.isError === true && resultData(bypassStart).errorCode === 'receipt_invalid', `C7 T14 start 无可信收据不可绕过 confirm; actual=${JSON.stringify(bypassStart)}`)
-  check(provider.hits.filter((hit) => /^\/v1\/(images|videos)\/generations$/.test(hit.url || '')).length === 0, 'C7 T14 付费绕过失败且未提交供应商任务')
+  check(staleStart.isError === true && resultData(staleStart).errorCode === 'integration_revision_stale', `C7 T14 start 仍按 expectedRevision 把关; actual=${JSON.stringify(staleStart)}`)
+  check(provider.hits.filter((hit) => /^\/v1\/(images|videos)\/generations$/.test(hit.url || '')).length === 0, 'C7 T14 自检不提交供应商付费任务')
   const proxyOff = await call(mcp, 'nomi_integration_manage', { action: 'set_proxy', vendorKey: 'apimart', enabled: false })
   check(resultTextJson(proxyOff).enabled === false, 'C7 管理动词可关闭单连接代理')
 

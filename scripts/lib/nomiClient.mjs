@@ -115,7 +115,7 @@ function callViaHost(token, method, params, spawnEnv) {
     }
     const child = spawn(electronBinary, [hostScript, '--cmd', JSON.stringify({ token, method, params })], {
       stdio: ['ignore', 'pipe', 'pipe'],
-      // spawnEnv：调用方按本次调用注入的环境（如付费确认通过后传 NOMI_LOOP_SPEND_OK=1 给本次 host），
+      // spawnEnv：调用方按本次调用注入的环境（如指定模型目录、超时），
       // per-call 注入避免改 process.env 全局态在并发调用间串台。
       env: { ...process.env, ...(process.env.NOMI_APP_NAME || appName ? { NOMI_APP_NAME: process.env.NOMI_APP_NAME || appName } : {}), ...(spawnEnv || {}) },
     })

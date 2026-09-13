@@ -9,12 +9,14 @@ import { useTranslation } from 'react-i18next'
 import { IconX } from '@tabler/icons-react'
 import { cn } from '../../../utils/cn'
 import { NomiLogoMark, WorkbenchButton } from '../../../design'
+import { NodePromptToolIconButton } from './NodePromptToolCluster'
 import { getTextBrain } from '../../api/promptLibraryApi'
 import { runWorkbenchTextTaskStream } from '../../api/taskApi'
 import { useGenerationCanvasStore } from '../store/generationCanvasStore'
 import type { GenerationCanvasNode } from '../model/generationCanvasTypes'
 import { diffPromptWords } from './promptDiff'
 import i18n from '../../../i18n'
+import { NODE_SCROLL_REGION_CLASS_NAME } from './nodeScrollRegionClassName'
 
 /** 组改写指令。导出供单测——铁律有没有真进 prompt 必须可验，否则「加了 rubric」只是句口号（W4）。 */
 export function buildOptimizePrompt(original: string, idea: string, isVideo: boolean): string {
@@ -113,7 +115,9 @@ export function NodePromptOptimizer({ node, isVideo }: { node: GenerationCanvasN
   const diff = result != null ? diffPromptWords(originalRef.current, result) : null
 
   return (
-    <div className={cn('relative ml-auto')}>
+    // v1.1（2026-09-11 拍板）：触发器降级成 B 簇里那颗缩小一号的纯 icon（保留现役 NomiLogoMark
+    // 实心标记），带文字的旧外观与把自己推到行尾的 `ml-auto` 一起删掉——底栏的行尾只留主行动。
+    <div className={cn('relative inline-flex')}>
       {open ? (
         <div
           className={cn(
@@ -132,6 +136,7 @@ export function NodePromptOptimizer({ node, isVideo }: { node: GenerationCanvasN
             <>
               <div
                 className={cn(
+                  NODE_SCROLL_REGION_CLASS_NAME,
                   'max-h-[160px] overflow-y-auto rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2 py-1.5 text-body-sm leading-relaxed text-nomi-ink',
                 )}
               >
@@ -165,6 +170,7 @@ export function NodePromptOptimizer({ node, isVideo }: { node: GenerationCanvasN
             <>
               <textarea
                 className={cn(
+                  NODE_SCROLL_REGION_CLASS_NAME,
                   'w-full h-[52px] resize-none rounded-nomi-sm border border-nomi-line bg-nomi-paper px-2 py-1.5',
                   'text-body-sm text-nomi-ink placeholder:text-nomi-ink-60 outline-none focus:border-nomi-accent',
                 )}
@@ -185,15 +191,15 @@ export function NodePromptOptimizer({ node, isVideo }: { node: GenerationCanvasN
         </div>
       ) : null}
 
-      <WorkbenchButton
-        variant="default"
-        aria-label={t('generationCommon.optimizer.aria')}
-        title={t('generationCommon.optimizer.aria')}
+      <NodePromptToolIconButton
+        toolId="optimize"
+        icon={open ? <IconX size={16} stroke={2} /> : <NomiLogoMark size={16} />}
+        label={running ? t('generationCommon.optimizer.running') : t('generationCommon.optimizer.aria')}
+        active={running}
+        aria-haspopup="dialog"
+        aria-expanded={open}
         onClick={toggle}
-      >
-        {open ? <IconX size={14} stroke={1.6} /> : <NomiLogoMark size={14} />}
-        {running ? t('generationCommon.optimizer.running') : t('generationCommon.optimizer.optimize')}
-      </WorkbenchButton>
+      />
     </div>
   )
 }

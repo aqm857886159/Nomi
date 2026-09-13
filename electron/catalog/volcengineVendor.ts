@@ -26,10 +26,15 @@ export const VOLCENGINE_VENDOR_SEED = {
 //     vendor.authType 表达不了三头，故声明 "none"——三头由 audioTaskRunner 手搓（凭证存 APP_ID:ACCESS_KEY）。
 //   - 故必须独立 vendor：方舟那家存的是 ark- bearer key，与语音的 APP_ID:ACCESS_KEY 不是同一套凭证，
 //     一个 vendor 只有一个 key 槽，合在一起会互相覆盖。
+//   - 凭据判据：openspeech 没有模型列表端点，唯一的真实判据是一次合成调用（要花钱），
+//     故声明 `keyValidation: "first-use"`——App ID + Access Token 存得进、这家即发布，
+//     首次配音时的三头鉴权失败走现有诚实报错。此前它因 authType:"none" 在
+//     validateCandidateCredential 第一行就被拒，凭据**根本存不进去**（2026-09-10 修）。
 export const VOLCENGINE_SPEECH_VENDOR_SEED = {
   key: "volcengine-speech",
   name: "火山豆包语音",
   baseUrl: "https://openspeech.bytedance.com",
   authType: "none" as const,
   authHeader: null,
+  keyValidation: "first-use" as const,
 } as const;

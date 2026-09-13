@@ -6,7 +6,7 @@ import {
   REACT_FLOW_AUTO_PAN_EDGE_PX,
   autoPanSafeArea,
   clampIntoAutoPanSafeArea,
-  expectedFullySelected,
+  expectedPartiallySelected,
   nodeBandCoverage,
   sweptRect,
 } from './gestureGeometry.mjs'
@@ -54,24 +54,25 @@ describe('canvas benchmark 手势几何', () => {
     expect(() => autoPanSafeArea({ x: 0, y: 0, width: 60, height: 400 })).toThrow(/装不下/)
   })
 
-  it('期望选中数按 SelectionMode.Full derive：整个节点在框里才算', () => {
+  it('期望选中数按 SelectionMode.Partial derive：框和节点有重叠就算选中', () => {
     const rect = { x: 100, y: 100, width: 400, height: 400 }
     const boxes = [
-      { x: 120, y: 120, width: 100, height: 100 }, // 完全在框内
-      { x: 250, y: 250, width: 100, height: 100 }, // 完全在框内
-      { x: 450, y: 120, width: 100, height: 100 }, // 右边被框线切掉 → Full 模式不选
-      { x: 700, y: 700, width: 50, height: 50 }, // 完全在框外
+      { x: 120, y: 120, width: 100, height: 100 }, // 完全在框内 → 选中
+      { x: 250, y: 250, width: 100, height: 100 }, // 完全在框内 → 选中
+      { x: 450, y: 120, width: 100, height: 100 }, // 右边被框线切掉，但仍有重叠 → Partial 模式选中
+      { x: 700, y: 700, width: 50, height: 50 }, // 完全在框外、无重叠 → 不选
     ]
-    const { definite, possible } = expectedFullySelected(boxes, rect)
-    expect(definite).toBe(2)
-    expect(possible).toBe(2)
+    const { definite, possible } = expectedPartiallySelected(boxes, rect)
+    expect(definite).toBe(3)
+    expect(possible).toBe(3)
   })
 
-  it('压在框线上的节点落进「可能」区间，不参与硬判定', () => {
+  it('压在框线上、亚像素级重叠的节点落进「可能」区间，不参与硬判定', () => {
     const rect = { x: 100, y: 100, width: 400, height: 400 }
-    // 右边缘正好贴着 x=500 这条框线：DOM 与 React Flow 的亚像素分歧就发生在这种节点上。
-    const boxes = [{ x: 400, y: 200, width: 100, height: 100 }]
-    const { definite, possible } = expectedFullySelected(boxes, rect)
+    // 右边缘正好贴着 x=500 这条框线：框缩 1px 后两者不再重叠，框放 1px 后仍有重叠——
+    // DOM 与 React Flow 的亚像素分歧就发生在这种节点上。
+    const boxes = [{ x: 500, y: 200, width: 100, height: 100 }]
+    const { definite, possible } = expectedPartiallySelected(boxes, rect)
     expect(definite).toBe(0)
     expect(possible).toBe(1)
   })

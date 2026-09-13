@@ -65,7 +65,7 @@ import {
 import { useModelPageRequest, type ModelPageRequest } from './useModelPageRequest'
 import { CertificationIntentKey } from './certificationIntentKey'
 import { CertificationUiError, certificationFailureMessage } from './certificationFailureMessage'
-import { IntegrationConfirmationPanel, type IntegrationVerificationHandoff } from './IntegrationConfirmationPanel'
+import { IntegrationSelfCheckPanel, type IntegrationVerificationHandoff } from './IntegrationSelfCheckPanel'
 import { translateModelDisplayText } from '../../i18n/modelDisplayText'
 
 export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPageRequest } = {}): JSX.Element {
@@ -460,6 +460,9 @@ export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPa
         directory={card.directory}
         vendorName={translateModelDisplayText(card.meta.name)}
         modelCount={card.vendorModels.length} hasApiKey={card.meta.hasApiKey} credentialVerificationPending={card.meta.credentialVerificationPending}
+        // 「模型已发布」不另立标志位：凭据停用必然连带 vendor 停用（credentialPublication.ts），
+        // 所以 vendor 还 enabled 且有 key ⇔ 这家的预置模型此刻就在可用列表里。
+        curatedModelsPublished={card.meta.enabled && card.meta.hasApiKey}
         onBack={goBack}
         onSaved={refresh}
         onContinueVerification={() => openWizard(undefined, card.directory.vendorKey)}
@@ -571,7 +574,7 @@ export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPa
   const verificationHandoff = integrationHandoffs.find((item) => item.target === 'verification')
   if (page.type === 'home' && verificationHandoff) {
     return (
-      <IntegrationConfirmationPanel
+      <IntegrationSelfCheckPanel
         handoff={verificationHandoff as IntegrationVerificationHandoff}
         onDone={() => {
           void reloadIntegrationHandoffs()
@@ -791,7 +794,6 @@ export function OnboardingDrawer({ pageRequest = null }: { pageRequest?: ModelPa
       dataSourceContent={<TikhubConnectorCard />}
       availableFooter={comfyuiConnected.length > 0 ? <AddComfyuiInstanceButton onAdded={refresh} /> : undefined}
       onReload={reloadFromError}
-      onCustomApi={() => openWizard('newapi')}
       onDirectScript={() => openWizard(undefined, undefined, 'scriptDraft')}
     />
   )

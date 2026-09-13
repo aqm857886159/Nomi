@@ -61,6 +61,7 @@ import { desktopT, registerI18nIpc, setDesktopLocale } from "./i18n";
 import { registerSettingsIpc } from "./settings/registerSettingsIpc";
 import { registerIntegrationHandoffIpc } from "./integrationCertification/handoffQueue";
 import { registerIntegrationSessionIpc } from "./integrationCertification/integrationSessionIpc";
+import { installIntegrationSessionRuntime } from "./integrationCertification/integrationSessionRuntimeInstall";
 import { registerProductionRunIpc } from "./productionRun/productionRunIpc";
 import { registerProductionActionIpc } from "./productionRun/productionActionIpc";
 import { installProductionRunDesktopLifecycle } from "./productionRun/productionRunDesktopLifecycle";
@@ -404,10 +405,10 @@ function registerIpc(): void {
   ));
   registerI18nIpc();
   // 会话式模型接入的可信渲染层交接（凭据保存/确认/handoff 队列）。0b6441c6 移植时这两行被误删，而
-  // preload 与 OnboardingWizard/IntegrationConfirmationPanel 仍调这些通道（No handler registered）；
+  // preload 与 OnboardingWizard/IntegrationSelfCheckPanel 仍调这些通道（No handler registered）；
   // model-integration-trusted-audio.e2e 抓到后按根因恢复注册。
   registerIntegrationHandoffIpc();
-  registerIntegrationSessionIpc();
+  registerIntegrationSessionIpc(installIntegrationSessionRuntime());
   // 渲染层崩溃（RootErrorBoundary）也落到同一崩溃日志（P0-8）；注册与 sender 守卫住在 crashLog（main.ts 巨壳只减不增）。
   registerRendererCrashIpc({ onMessage: ipcMain.on.bind(ipcMain), assertTrusted: assertTrustedUiSender });
   // 窗口控制（Windows 自绘标题栏）：只注册一次，作用于发起请求的那个窗口（fromWebContents），
@@ -438,15 +439,15 @@ function registerIpc(): void {
     assertTrustedSender(event);
     recreateMainWindowFromSender(event.sender, { preserveRoute: true, reason: "hard reload window" });
   });
-  registerSyncIpc("nomi:model-catalog:vendors:list", listModelCatalogVendors);
-  registerSyncIpc("nomi:model-catalog:models:list", (params?: unknown) => {
-    // Renderer 热更新不会重启 Electron main；读取时补一次内置种子，避免 onboarding
-    // 长时间停留在旧的持久化目录（例如 APIMart 缺 Grok Imagine 1.5）。
+  // 读目录前补一次内置种子（渲染层热更新不重启 main，不补就停在旧目录）：共用同一份目录的读路径必须都补——只补 models:list 正是「供应商列表不全」的根因。
+  const readCatalog = <T>(read: (params?: unknown) => T) => (params?: unknown): T => {
     ensureBuiltinModelSeeds();
-    return listModelCatalogModels(params);
-  });
-  registerSyncIpc("nomi:model-catalog:mappings:list", listModelCatalogMappings);
-  registerSyncIpc("nomi:model-catalog:health", getModelCatalogHealth);
+    return read(params);
+  };
+  registerSyncIpc("nomi:model-catalog:vendors:list", readCatalog(listModelCatalogVendors));
+  registerSyncIpc("nomi:model-catalog:models:list", readCatalog(listModelCatalogModels));
+  registerSyncIpc("nomi:model-catalog:mappings:list", readCatalog(listModelCatalogMappings));
+  registerSyncIpc("nomi:model-catalog:health", readCatalog(getModelCatalogHealth));
   registerSyncIpc("nomi:model-catalog:vendor:upsert", upsertRendererCatalogVendor);
   registerSyncIpc("nomi:model-catalog:vendor:delete", deleteModelCatalogVendor);
   registerSyncIpc("nomi:model-catalog:vendor-api-key:clear", clearModelCatalogVendorApiKey);
@@ -458,7 +459,7 @@ function registerIpc(): void {
   registerSyncIpc("nomi:model-catalog:models:delete", deleteModelCatalogModels);
   registerSyncIpc("nomi:model-catalog:mapping:upsert", upsertRendererCatalogMapping);
   registerSyncIpc("nomi:model-catalog:mapping:delete", deleteModelCatalogMapping);
-  registerSyncIpc("nomi:model-catalog:export", exportModelCatalogPackage);
+  registerSyncIpc("nomi:model-catalog:export", readCatalog(exportModelCatalogPackage));
   registerSyncIpc("nomi:model-catalog:import", importRendererCatalogPackage);
   // 域 IPC 各住各的模块（给 main.ts 800 行门腾空间；新通道加到对应模块，别回填这里）。comfy 那棵树重 → 惰性 require；素材通道薄 → 顶部静态 import。
   (require("./comfyuiIpc") as typeof import("./comfyuiIpc")).registerComfyuiIpc(registerSyncIpc);

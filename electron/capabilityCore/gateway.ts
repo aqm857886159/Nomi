@@ -11,7 +11,7 @@ import { readProject, saveProject } from '../projects/repository'
 import { mintSpendGrant } from '../spendGrant'
 import { prepareSpendQuote, takeSpendQuote } from '../spendQuote'
 import { normalizeSnapshot, type CanvasSnapshot } from './canvasGraph'
-import { requestRenderer } from './rendererBridge'
+import { requestRenderer, requestRendererDecision } from './rendererBridge'
 
 /** 弹付费确认卡需要的上下文（让用户一眼看懂谁要花钱、花在哪、花多少）。 */
 export type SpendConfirmInfo = {
@@ -55,7 +55,9 @@ export interface ProjectGateway {
 /**
  * 方案已在别处确认（协议层 elicitation-first 拿到真人 accept）→ 包一层让 confirmPlan 直接放行，
  * 其余读写/付费确认原样透传。用于 A 模式（App 开着）：真人已在聊天里批准这批节点，就不该再弹渲染层方案卡
- * （免双问）。付费门不受影响——confirmSpend 仍走原网关（钱路最终决定权留在 App，与 spendConfirmed 对称）。
+ * （免双问）。**只作用于方案门**：加节点免费、可撤，客户端「预批」拿不到它本来拿不到的权限。
+ * 付费门没有对应物——钱路只认主进程收据门（productionRunApprovalReceipt.createGateApprovalOwner），
+ * 客户端自报永远换不到 spend grant（2026-09-11 删第二扇门）。
  * 「为什么信客户端传的 planConfirmed、且禁止把本模式复制到 spend/export 硬边界」的完整信任边界论据见
  * rpcServer.ts 读 body.planConfirmed 处（该 flag 的 RPC 入口）。
  */
@@ -65,29 +67,6 @@ export function withPreApprovedPlan(gateway: ProjectGateway): ProjectGateway {
     apply: gateway.apply,
     confirmSpend: gateway.confirmSpend,
     confirmPlan: async () => true,
-  }
-}
-
-/**
- * 付费已在**调用方客户端**经 elicitation 得到真人确认 → 包一层直铸令牌，不再弹应用内确认卡（免双问）。
- * 其余读写/方案确认原样透传。
- *
- * 为什么确认可以不发生在 Nomi 窗口里：判据是「谁能替我们问到真人」。请求经 MCP 进来说明人在调用方那头，
- * 客户端声明 elicitation 就是它能弹真对话框；窗口开着 ≠ 用户注意力在 Nomi。协议层只在收到客户端
- * `action:'accept' + confirm:true` 后才置这个位（mcpProtocol.ts），模型自己伪造不了那一帧
- * ——spendGrant.ts 写死的威胁模型（「Nomi 的 AI 触发不了未确认的付费生成」）不破。
- *
- * ⚠️ 代价说清楚（2026-08-18 用户拍板接受）：本模式经 loopback RPC 过线后，能读 `~/.nomi/capability-core/token`
- * 的本地进程可借它静默烧额度——此前那条路会弹卡、用户看得见能拒。换来的是「Claude 里点一次就行，
- * 不必为了确认跑去 Nomi」。**边界仅放宽到这里**：令牌仍只在主进程铸、`assertAndConsumeSpendGrant` 仍逐次硬校验，
- * 且导出等其余硬边界一律不得复制本模式。
- */
-export function withPreApprovedSpend(gateway: ProjectGateway): ProjectGateway {
-  return {
-    readDoc: gateway.readDoc,
-    apply: gateway.apply,
-    confirmSpend: async (info) => mintSpendGrant({ nodeIds: [info.nodeId] }),
-    confirmPlan: gateway.confirmPlan,
   }
 }
 
@@ -108,10 +87,13 @@ async function writeDiskSnapshot(projectId: string, snapshot: CanvasSnapshot): P
 
 /**
  * 磁盘网关（B 模式：app 关着，headless host 内）。本进程无窗口可弹应用内确认卡，
- * 故付费授权认 env NOMI_LOOP_SPEND_OK：它=「本次 host 调用已被显式授权」，两个合法来源——
- * ① 评测/CLI 脚本显式设（nomiClient.mjs spawn host 时按本次调用注入）；进程内 MCP server 走的是
- *    makeConfirmedGateway（elicitation 真人确认后直铸令牌，mcpStdioServer.ts），不碰本 env。
- * 两者都是「真人/脚本显式授权」,模型自己设不了 env → 红队信任边界不破。无授权 → null → runTask 硬闸拦。
+ * 也**没有任何替代凭证**：付费放行的唯一 owner 是主进程收据门
+ * （`productionRun/productionRunApprovalReceipt.ts` 的 `createGateApprovalOwner`——收据权威验过的
+ * HMAC 收据，或受信 IPC 边界自己盖的真人手势章）。本网关够不到那两样，故 confirmSpend 恒 null。
+ *
+ * 2026-09-11 删掉了这里的 env 逃生口（设一个环境变量即铸令牌）：它把「谁授权了这笔钱」
+ * 的判据交给**调用方进程自己**，而调用方的资格只是「能读 ~/.nomi/capability-core/token」。
+ * 不变量归收据门那层管——这里不许长第二条发放路径。
  */
 export function createDiskGateway(projectId: string): ProjectGateway {
   return {
@@ -121,8 +103,9 @@ export function createDiskGateway(projectId: string): ProjectGateway {
     async apply(snapshot) {
       await writeDiskSnapshot(projectId, snapshot)
     },
-    async confirmSpend(info) {
-      return process.env.NOMI_LOOP_SPEND_OK === '1' ? mintSpendGrant({ nodeIds: [info.nodeId] }) : null
+    async confirmSpend() {
+      // 无窗口、无收据 → 拒发（fail-closed）。enforcement 仍在 runTask 的 assertAndConsumeSpendGrant。
+      return null
     },
     async confirmPlan() {
       // 无窗口可弹方案卡（headless）。方案是免费可撤操作 → 放行（不像付费门要拒发）。
@@ -133,8 +116,6 @@ export function createDiskGateway(projectId: string): ProjectGateway {
 
 // 画布读写转发超时：界面 store 操作是本地同步的，15s 足够兜「渲染层卡住」。
 const RENDERER_APPLY_TIMEOUT_MS = 15_000
-// 付费确认等待：卡片自身 60s 倒计时，主进程这道兜底略长（65s），防渲染层异常永不应答（不死等）。
-const RENDERER_SPEND_TIMEOUT_MS = 65_000
 
 /**
  * 混合网关：窗口活着、但目标项目**没在前台**时用。
@@ -165,20 +146,21 @@ export function createRendererGateway(projectId: string): ProjectGateway {
     async confirmSpend(info) {
       try {
         const quote = prepareSpendQuote([{ vendorKey: info.vendor, modelKey: info.modelKey, parameters: info.parameters }])
-        const reply = (await requestRenderer('spend.confirm', { ...info, quote }, RENDERER_SPEND_TIMEOUT_MS)) as { confirmed?: boolean } | null
+        const reply = (await requestRendererDecision('spend.confirm', { ...info, quote })) as { confirmed?: boolean } | null
         // 真人点确认才到这里；铸令牌发生在主进程、消费仍在 runTask 硬闸（信任边界不破）。
         return reply?.confirmed ? mintSpendGrant({ nodeIds: [info.nodeId], quote: takeSpendQuote(quote.quoteId) }) : null
       } catch {
-        // 超时/渲染层不可用 → 当作未确认（不死等，把干净错误透传给 agent）。
+        // 渲染层不可用（窗口关了/进程没了）→ 当作未确认，把干净错误透传给 agent。
+        // 注意这里**没有**「等太久就算没确认」那一档：卡在屏幕上等多久都不算答案（见 requestRendererDecision）。
         return null
       }
     },
     async confirmPlan(info) {
       try {
-        const reply = (await requestRenderer('plan.confirm', info, RENDERER_SPEND_TIMEOUT_MS)) as { confirmed?: boolean } | null
+        const reply = (await requestRendererDecision('plan.confirm', info)) as { confirmed?: boolean } | null
         return Boolean(reply?.confirmed)
       } catch {
-        // 弹卡失败/超时 → 当未确认（不静默落一堆节点；用户可让 agent 再试）。
+        // 弹卡失败/窗口没了 → 当未确认（不静默落一堆节点；用户可让 agent 再试）。同样没有空闲超时这一档。
         return false
       }
     },

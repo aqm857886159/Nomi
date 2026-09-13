@@ -1,0 +1,169 @@
+{
+  "schema_version": 3,
+  "id": "2026-09-11-pr720-walkthrough-reds",
+  "problem_type": "渲染/宿主层用一个「看起来对、实际被别的规则覆盖」的参照系当判据：hover 开合按按钮矩形判、内容高按被 flex 约束的元素量、回复语言按开 lane 那一刻的设置读——三处的意图都写对了，生效的却是另一套规则",
+  "symptom": "2026-09-11 PR #720 真机复验走查（docs/research/2026-09-10-ux-feedback-fixes/walkthrough-pr720.md）两条红 + 两条观察：①左缘「+」更多菜单：指针从按钮斜着奔菜单顶部那一项，在 (112,589) 处菜单提前关闭、菜单项点不到（奔与按钮同高的最底项才走得通）；②Agent 聊天框只涨不落——连打 128 字从 98px 涨到 158px 是对的，全选删空后仍是 158px，等 5s、失焦、重新打字再删都不缩；③apimart 填完 key 后模型已经出现在下拉里，成功卡却仍写「等待验证…点『继续验证』后通过的模型才会出现在画布可用列表」；④在设置里把界面语言从中文切成 English 后，同一个项目里开新对话，助手仍整段中文，只有冷启动才生效。",
+  "direct_cause": "①CanvasToolbar.tsx 把 `onPointerLeave` 挂在包着那颗 32×32「更多」按钮的 `div.relative` 上，而菜单 `absolute bottom-0` 向上高出按钮 133px（按钮 x[83,115]y[591,623]、菜单 x[123,271]y[458,623]，4 项里 3 项在按钮上沿之上）；`before:inset-y-0 before:-left-2 before:w-2` 那条 8px 桥只覆盖 x∈[115,123] 且只在按钮那条横带上有高度。指针斜着往上走时先离开按钮上沿（y<591）、又还没进菜单左沿（x<123），落在工具条上的空白点即触发 pointerleave，且关闭无延时。②AgentPanelV4Composer.tsx 量内容高的做法是「把 textarea 瞬时压到 `height:0px` 再读 `scrollHeight`」，但这个 textarea 是 flex 列容器里的拉伸项（`flex-1` = `flex:1 1 0%`），主轴尺寸由 flex-basis 与剩余空间决定，行内 height 根本不生效——实测清空后 `value.length=0` 而 `scrollHeight` 仍是 116（正好等于它被撑开后的自身高度），`rowsFromContentHeight` 于是只增不减。③KnownVendorKeyConnectPage.tsx 的成功卡只有 `verificationPending` / `hasApiKey` 两个分支，没有「凭据已发布」这一态，文案停留在 direct-key 发布通路（2026-09-10 af99139b8）之前的行为。④laneRuntimePort.ts 的 `systemPrompt` 是 string 快照，laneDesktopRuntime.ts 在 `openDesktopLaneWorkspace` 时把 `buildLanguageRule()` 求值一次传进去，laneHost.mts 的 `transform_context`（每回合都跑）复用的是那个闭包常量。",
+  "class_root": "一个要持续成立的判定，判据取自一个只在某一瞬间 / 某一子区域成立的参照系：hover 的「还在不在交互区内」参照的是触发按钮的矩形，而真实交互区是「按钮 ∪ 间隙 ∪ 弹层」；「内容有多高」参照的是一个主轴尺寸被父 flex 规则接管的元素，量出来的是布局结果不是内容；「回复该用什么语言」参照的是开 lane 那一刻的设置快照，而设置是会变的。三处都不是「某一行写错了」，而是**没有人负责证明这个参照系在判定生效的全过程里都成立**——所以修法一律是把判据换成真正决定结果的那个量（弹层自己的区域 / 脱离父约束后的内容高 / 当前设置），而不是给缝隙打补丁、给缩回加特判、给语言加刷新按钮。",
+  "affected_population": [
+    "所有在生成画布上用 hover 展开左缘「更多」菜单的用户：菜单里 4 项中有 3 项在按钮上沿之上，斜着去点必然掉进缝里——这正是用户原始反馈「hover 上去点不到」的那一半",
+    "所有在 Agent 面板里打长句的用户：框一旦被撑高就再也不回落，删空后仍占着 158px，把对话区永久压掉两行",
+    "所有 direct-key 供应商（当前 = apimart）填 key 的用户：模型已经可用，卡片却说还没验证，用户会以为没接上而反复点「继续验证」",
+    "所有中途切换界面语言的用户：当前项目的 lane 直到冷启动前都还在用旧语言回话"
+  ],
+  "scope_paths": [
+    "src/workbench/generationCanvas/components/CanvasToolbar.tsx",
+    "src/workbench/ai/v4/AgentPanelV4Composer.tsx",
+    "src/ui/onboarding/KnownVendorKeyConnectPage.tsx",
+    "src/ui/onboarding/OnboardingDrawer.tsx",
+    "src/i18n/locales/onboardingProviders.ts",
+    "electron/agentLane/laneRuntimePort.ts",
+    "electron/agentLane/laneHost.mts",
+    "electron/agentLane/laneDesktopRuntime.ts"
+  ],
+  "entry_points": [
+    "CanvasToolbar（src/workbench/generationCanvas/components/CanvasToolbar.tsx）— 左缘工具条根节点现在是 hover 容器本身：菜单与间隙桥都是它的 DOM 后代，指针在「工具条 ∪ 间隙桥 ∪ 菜单」这块连通区域里移动时一个 pointerleave 都不会发；按钮那层只管展开",
+    "AgentPanelV4Composer 的 measure（src/workbench/ai/v4/AgentPanelV4Composer.tsx）— 量高前先 `flex:0 0 auto` 把 textarea 摘出主轴拉伸再压 `height:0`，量完原样还原；行数仍走 rowsFromContentHeight/useComposerHeight 这一套规则，不另起高度真相源",
+    "KnownVendorKeyConnectPage 成功卡（src/ui/onboarding/KnownVendorKeyConnectPage.tsx）— 新增 `curatedModelsPublished` 一态，由调用方从「vendor.enabled && hasApiKey」derive（凭据停用必然连带 vendor 停用，见 electron/catalog/credentialPublication.ts，故这不是第二份真相）",
+    "openLane 的 systemPrompt（electron/agentLane/laneRuntimePort.ts + laneHost.mts）— 契约放宽成 `string | (() => string)`，laneHost 的 `transform_context` 每回合调 `composeSystemPrompt()` 重新求值；laneDesktopRuntime 传的是函数，于是回复语言铁律每回合都重读当前 locale"
+  ],
+  "invariants": [
+    "hover 展开的浮层，其「收起」判据必须挂在一个几何上覆盖了「触发件 ∪ 间隙 ∪ 浮层」的容器上；只覆盖触发件矩形的容器 + 一条按触发件高度裁出来的伪元素桥不算数",
+    "补间隙的 hit-area 必须由浮层自身的盒子 derive（做成浮层的父层，高度天然等于浮层高度），不能是按触发件尺寸手写的偏移——浮层多一项就会漏",
+    "量一个元素的内容高之前，必须先让它脱离父布局对主轴尺寸的接管（flex 拉伸项写 `flex:0 0 auto`），否则 scrollHeight 回的是布局结果不是内容高",
+    "自适应高度必须双向：内容变短时算出来的行数必须跟着变小，不许出现「只在 value 变短时重置」这类只处理某一条路径的特判",
+    "会跟着用户设置变的提示词段落，传给长生命周期宿主时必须给函数不给快照（与同文件 `tasks` 的既有纪律一致）",
+    "接入成功卡的文案必须与「模型此刻是否已在可用列表」这一真实状态对齐；这一状态只能从「vendor.enabled && hasApiKey」derive，不新立标志位"
+  ],
+  "regression_tests": [
+    "tests/ux/pr720-ux-geometry.walk.mjs",
+    "src/workbench/generationCanvas/components/canvasToolbarModel.test.ts",
+    "src/workbench/ai/v4/agentPanelV4Logic.test.ts",
+    "electron/agentLane/laneDesktopStructure.test.ts"
+  ],
+  "class_regression_tests": [
+    "tests/ux/pr720-ux-geometry.walk.mjs",
+    "src/workbench/generationCanvas/components/canvasToolbarModel.test.ts",
+    "src/workbench/ai/v4/agentPanelV4Logic.test.ts",
+    "electron/agentLane/laneDesktopStructure.test.ts"
+  ],
+  "external_sources": [],
+  "internal_only_reason": "三条都由平台规范里没有争议的既有行为决定，判据取自仓库内可复跑的真机证据而不是文档解读：①pointerenter/pointerleave 对后代元素不重复触发是 DOM 既定语义，本次的证明是走查里四条真人路径（顶/底项 × 慢/快）的实测坐标；②flex 项主轴尺寸由 flex-basis 接管、行内 height 不生效，本次的证明是走查实测「value.length=0 而 scrollHeight=116」；③④是仓库自身的契约：credentialPublication.ts 的「凭据停用 ⇒ vendor de-publish」不变量与 laneRuntimePort.ts 里 `tasks` 那条「给函数不给快照」的既有纪律。没有第三方依赖或外部规范能替这三处做决定。",
+  "invariant_owner_layer": {
+    "layer": "tests/ux/pr720-ux-geometry.walk.mjs",
+    "tests": [
+      "tests/ux/pr720-ux-geometry.walk.mjs"
+    ]
+  },
+  "recurrence": {
+    "classification": "recurring",
+    "reason": "这三处都不是一次性手误，而是同一种会反复长出来的写法：①仓库里 hover 展开的浮层不止这一个，只要「收起挂在触发件上」这个形状被复制，浮层一旦比触发件大就必然复发；②「压 0 高读 scrollHeight」是自适应 textarea 的通行写法，只要下一个 textarea 也是 flex 拉伸项就会再中一次；③把随设置变的值在长生命周期对象创建时求值一次，是同一份 port 文件里已经用注释警告过的老问题（`tasks` 那条），说明它复发过。",
+    "same_class_scan": [
+      "grep onPointerLeave 全仓（src/）：生产代码里 hover 收起浮层的用法为 CanvasToolbar 的更多菜单（本次改）与设计系统 Tooltip/TooltipProvider（Radix 自带 hoverable content，收起判据由库管、不是手写矩形）；连线松手的 NodeAddMenu 是点击式不是 hover 式，不属本类",
+      "grep scrollHeight 全仓（src/）：自适应高度的读取点为 AgentPanelV4Composer（本次改，唯一一处把元素压高再读的）；其余读取点是滚动位置计算（AgentPanelV4ScrollMemory 一族），不做高度反推，不属本类",
+      "grep systemPrompt 全仓（electron/agentLane/）：生产传入点为 laneDesktopRuntime 的 openWorkspace（本次改成函数）与 singleShot（每次调用现算，构造上无快照问题）；laneHost.mts 的 transform_context 是唯一的每回合重拼点，本次改成调 composeSystemPrompt()"
+    ]
+  },
+  "generality_proof": "三处各自修在「谁决定这个判定」的那一层，而不是在出错的那一点上加特判：①收起判据从 32×32 的按钮上移到左缘工具条根节点——工具条本来就覆盖菜单全高，而菜单与间隙桥都是它的 DOM 后代，于是「指针还在不在交互区」由一块连通区域回答，菜单以后加几项、变多高都不用改；间隙桥做成菜单的父层（`left-full pl-2`），高度由菜单自身 derive，手写偏移只剩「8px 视觉间隙」这一个真实设计量。②量高前先摘出主轴拉伸，于是 scrollHeight 回的是内容而不是布局结果，涨与落走同一条路径，不存在「只处理变短」的半边特判。③把 port 的 systemPrompt 放宽成函数并在每回合重新求值，任何随设置变的段落（今天是语言，明天可能是项目记忆或权限说明）都自动跟上，不需要再为每一种新增一条刷新路径。④成功卡的新状态从既有不变量 derive，不新立标志位，因此不会与 catalog 的真相漂移。",
+  "shared_boundaries": [
+    {
+      "path": "src/workbench/generationCanvas/components/CanvasToolbar.tsx",
+      "symbol": "CanvasToolbar 根节点的 onPointerEnter/onPointerLeave + 更多菜单的间隙桥",
+      "responsibility": "「更多」菜单 hover 开合的唯一判据：收起挂在覆盖了按钮与菜单全高的工具条根节点上（菜单与桥都是它的后代），展开仍挂在按钮那层；间隙桥是菜单的父层，宽度只写 8px 视觉间隙、高度由菜单自身 derive"
+    },
+    {
+      "path": "src/workbench/ai/v4/AgentPanelV4Composer.tsx",
+      "symbol": "AgentPanelV4Composer 的 measure（useLayoutEffect + ResizeObserver）",
+      "responsibility": "composer 内容高的唯一测量点：量之前让 textarea 脱离父 flex 对主轴尺寸的接管，量完原样还原；行数交给 rowsFromContentHeight/useComposerHeight 这一套既有规则"
+    },
+    {
+      "path": "electron/agentLane/laneHost.mts",
+      "symbol": "composeSystemPrompt + transform_context 钩子",
+      "responsibility": "一条 lane 每个回合的身份提示词由这里统一重拼：跟着设置走的段落必须在这一刻求值，而不是复用开 lane 时的闭包常量"
+    },
+    {
+      "path": "src/ui/onboarding/KnownVendorKeyConnectPage.tsx",
+      "symbol": "KnownVendorKeyConnectPage 成功卡的状态分支",
+      "responsibility": "接入成功卡文案与真实发布状态对齐：verificationPending / curatedModelsPublished / 已存 key 待验证 / 刚存未刷新四态各说各的实话"
+    }
+  ],
+  "same_class_entry_points": [
+    {
+      "path": "tests/ux/pr720-ux-geometry.walk.mjs",
+      "entry_point": "#5 hover「+」四条真人路径（顶项/底项 × 慢 1px·30ms / 快 8px·4ms）与 #7b 三个时机的缩回（清空 / 失焦 / 再打再删）",
+      "disposition": "enforced",
+      "evidence": "真机 Electron、隔离 profile、像真人一样用鼠标逐点移动：每条路径都断言「全程不关」且「目标项 expectHittable（命中、可见、未被遮挡）」；#7b 断言打满会涨、清空/失焦/再打再删三个时机都回到一行高。修前 top 那两条与 #7b 必红，修后四条全绿。"
+    },
+    {
+      "path": "src/workbench/generationCanvas/components/canvasToolbarModel.test.ts",
+      "entry_point": "「更多」hover 开合的结构不变量（收起挂在工具条根节点、8px before 桥已删、按钮那层不 setMoreOpen(false)、间隙桥是 left-full+pl-2 的父层）",
+      "disposition": "enforced",
+      "evidence": "变异验证过会红：把按钮那层的 onPointerLeave 改回 `setMoreOpen(false)` 后本用例当场失败（2026-09-11 实跑）。它钉的是根因形状，不用等下一次真机走查才发现回归。"
+    },
+    {
+      "path": "src/workbench/ai/v4/agentPanelV4Logic.test.ts",
+      "entry_point": "composer 量高必须脱离父 flex 约束（flex:0 0 auto 在 height:0 之前、量完两项都还原）",
+      "disposition": "enforced",
+      "evidence": "jsdom 没有布局引擎、scrollHeight 恒 0，这个 bug 在渲染型单测里表现不出来——所以这条是源码级棘轮，带阳性对照（旧写法字符串不含 flex 逃逸）。变异验证过会红：删掉 `el.style.flex = '0 0 auto'` 后本用例当场失败（2026-09-11 实跑）。"
+    },
+    {
+      "path": "electron/agentLane/laneDesktopStructure.test.ts",
+      "entry_point": "回复语言跟界面语言走：port 允许传函数、laneHost 每回合重新拼、桌面运行时传的是函数",
+      "disposition": "enforced",
+      "evidence": "变异验证过会红：把 transform_context 里的 `composeSystemPrompt()` 改回引用开 lane 时的 `systemPrompt` 常量后本用例当场失败（2026-09-11 实跑）。"
+    },
+    {
+      "path": "src/design/tooltip.tsx",
+      "entry_point": "设计系统 Tooltip（TooltipProvider 的 delayDuration / disableHoverableContent）",
+      "disposition": "not-affected",
+      "evidence": "Tooltip 的收起判据由 Radix 自己的 hoverable-content 逻辑管，不是手写的容器矩形；而且 tooltip 内容不可点、不存在「指针要走进去」的需求，不属「hover 容器覆盖不到浮层」这一类。"
+    },
+    {
+      "path": "electron/agentLane/laneSingleShot.mts",
+      "entry_point": "runLaneSingleShot 的 systemPrompt",
+      "disposition": "not-affected",
+      "evidence": "单发调用每次都在 laneDesktopRuntime.singleShot 里现算 `buildLanguageRule()` 再传（laneDesktopRuntime.ts:92），生命周期只有这一次请求，构造上不存在「快照过期」；走查 #1 的英文界面用例已证它拿到的是当前 locale。"
+    }
+  ],
+  "prevention": {
+    "kind": "centralized-boundary",
+    "enforcement_path": "src/workbench/generationCanvas/components/CanvasToolbar.tsx",
+    "invariant": "hover 展开的浮层，收起判据必须挂在几何上覆盖「触发件 ∪ 间隙 ∪ 浮层」的那一层容器上，且补间隙的 hit-area 由浮层自身的盒子 derive；同一条 PR 里 composer 的内容高必须在脱离父 flex 约束后测量，lane 的身份提示词必须每回合重新求值",
+    "failure_mode": "把收起判据挪回触发件那层、把 8px 伪元素桥加回来、把 `flex:0 0 auto` 从测量里删掉、或者把 transform_context 改回引用开 lane 时的常量——四种回退各被一条已变异验证过的结构断言当场钉红（canvasToolbarModel.test.ts / agentPanelV4Logic.test.ts / laneDesktopStructure.test.ts），真机层再由 pr720-ux-geometry 走查的四条 hover 路径与三个缩回时机兜底",
+    "exception_policy": "none",
+    "strategy": "三处都把判据换成真正决定结果的那个量，并让它由结构 derive 而不是手写：hover 区域 = 一块把浮层包进去的 DOM 子树（浮层加项自动跟上）、内容高 = 脱约束后的 scrollHeight（涨落同一条路径）、身份提示词 = 每回合求值的函数（新增的可变段落自动跟上）。旧写法（8px before 桥）同 commit 删除，不留并行版。",
+    "artifacts": [
+      "src/workbench/generationCanvas/components/CanvasToolbar.tsx",
+      "src/workbench/ai/v4/AgentPanelV4Composer.tsx",
+      "electron/agentLane/laneHost.mts",
+      "electron/agentLane/laneRuntimePort.ts",
+      "electron/agentLane/laneDesktopRuntime.ts",
+      "src/ui/onboarding/KnownVendorKeyConnectPage.tsx",
+      "src/ui/onboarding/OnboardingDrawer.tsx",
+      "src/i18n/locales/onboardingProviders.ts",
+      "src/workbench/generationCanvas/components/canvasToolbarModel.test.ts",
+      "src/workbench/ai/v4/agentPanelV4Logic.test.ts",
+      "electron/agentLane/laneDesktopStructure.test.ts",
+      "tests/ux/pr720-ux-geometry.walk.mjs"
+    ]
+  },
+  "legacy_paths": {
+    "status": "removed",
+    "removed_paths": [
+      "src/workbench/generationCanvas/components/CanvasToolbar.tsx"
+    ],
+    "rationale": "`before:absolute before:inset-y-0 before:-left-2 before:w-2` 那条只覆盖按钮横带的 8px 伪元素桥同 commit 删除，由「菜单的父层间隙桥 + 工具条级 hover 容器」整体取代（P1：不留两套 hit-area）。composer 的 `height:0` 测量不是被替换而是被补全（加上脱离父 flex 约束这一步），lane 的 string 形式 systemPrompt 仍是 port 的合法输入（单发路径就在用它），两处都无旧路径可删。"
+  },
+  "dependency_lifecycle": {
+    "decision": "not-applicable",
+    "rationale": "刻意不引入 @floating-ui/react 的 safePolygon：它当前只作为 Mantine 的传递依赖存在于 pnpm store，node_modules/@floating-ui 未提升，直接 import 等于用幻影依赖；把它提成直接依赖属于引入新框架层，按 R29 要先出四列表 + 参考实现逐层对照 + 字段级裁决，代价远大于本条修复。改用「DOM 子树即 hover 区域」的原生解法后，几何由结构 derive、零新增依赖、零新增运行时代码。",
+    "exit_criteria": []
+  },
+  "migration": "无数据/状态迁移：四处都是渲染与提示词组装层的行为修正。已保存的凭据、已存在的 lane 会话、已持久化的画布数据格式一字未动；已经开着的 lane 在下一个回合自动拿到当前语言的提示词，不需要重开项目。",
+  "residual_risks": [
+    "hover 区域现在等于「工具条 ∪ 间隙桥 ∪ 菜单」，因此菜单展开时指针移到工具条上别的常驻按钮，菜单会保持展开（离开工具条后 140ms 收起）。这是有意的取舍：斜着去点顶部那一项的路径必然经过工具条上半段，把那一段排除掉就等于把用户报的那半个 bug 留着。",
+    "140ms 的收起延时兜的是边界抖动与「菜单比工具条还高」的极端情形（当前 4 项的菜单比工具条矮，几何上不会发生）；若以后「更多」里塞到菜单高过工具条，顶部那一小段会重新依赖这个延时——走查的 top-slow 路径会先红。",
+    "成功卡的「已发布」判据是 `vendor.enabled && hasApiKey`，它在 save() 之后依赖父层 refresh() 把新状态拿回来；refresh 到达前的那一小段会显示「已保存·尚未验证」。这是保守方向的偏差（不会谎称已可用）。",
+    "界面语言中途切换只影响**之后**的回合：已经在跑的那一个回合不会中途改口，历史消息也不会被翻译——这是有意的，不是遗留缺口。"
+  ]
+}

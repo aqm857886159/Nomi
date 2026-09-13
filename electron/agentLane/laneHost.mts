@@ -31,7 +31,7 @@ import { createNomiProvider } from './laneModelProvider.mjs';
 import {
   LANE_APPROVAL_NOTE_TYPE, LANE_TASK_NOTE_TYPE, LANE_UI_NOTE_PREFIX, laneNoteEntersModelContext,
   type LaneApprovalNote, type LaneCancelQueuedResult, type LaneCommand, type LaneCommandOutcome,
-  type LaneHandle, type LanePendingApproval, type LaneProjection, type LaneThinkingLevel,
+  type LaneHandle, type LanePendingApproval, type LaneProjection, type LaneSkillIndexEntry, type LaneThinkingLevel,
 } from '../shared/agentLane/laneContracts.js';
 import { createLaneApprovalGate } from './laneApprovalGate.js';
 import type { OpenLane, OpenLaneOptions } from './laneRuntimePort.js';
@@ -198,13 +198,43 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
   // 2026-09-07 合并评审实核：`composeLaneSystemPrompt` 此前零生产调用者——通道②③写满了，
   // 一个字都到不了模型。拼接点放在这里，是因为这里是唯一知道「这条 lane 装了哪些工具」的地方。
   // 技能索引那一段用 pi 的 `formatSkillsForPrompt` 渲染（`laneSkillIndex.mts` 里一行渲染代码都没有）。
+  //
+  // 索引有两种来源，寿命不同：
+  //   · 桌面原生（`native.skillIndex`）**是活的**——每个回合重扫一次技能库，用户中途导入的技能
+  //     下一个回合就在索引里，而且 `read` 同时被允许读它（同一份快照，见 `laneInstalledSkills.mts`）。
+  //   · `options.skills` 是影子夹具/单测那条路：调用方自己给一份定死的索引，本来就不会变。
   // 没有技能时不去 import 那个包：一条 lane 不该为了拿一个空串付一次 ESM 解析。
-  const skills = native?.skills ?? options.skills ?? [];
-  const skillSection = skills.length > 0
-    ? renderLaneSkillSection(await loadPiSkillFormatter(), skills)
+  const staticSkills = options.skills ?? [];
+  const staticSection = !native && staticSkills.length > 0
+    ? renderLaneSkillSection(await loadPiSkillFormatter(), staticSkills)
     : '';
+  const currentSkills = (): readonly LaneSkillIndexEntry[] => native?.skillIndex.current().entries ?? staticSkills;
   const promptTools = [...options.tools, ...(native?.promptTools ?? [])];
-  const systemPrompt = composeLaneSystemPrompt(options.systemPrompt, promptTools, skillSection);
+  const composeSystemPrompt = (): string => composeLaneSystemPrompt(
+    typeof options.systemPrompt === 'function' ? options.systemPrompt() : options.systemPrompt,
+    promptTools, native?.skillIndex.current().promptSection ?? staticSection);
+  /**
+   * **一条 lane 的系统提示词，每个回合整体重新求值一次；回合内不变。**
+   *
+   * 这是这一层唯一的「什么时候求值」规则，替掉了此前「哪个字段自己记得刷新」的逐字段约定：
+   *   · 回合内不变——正在跑的那一个回合不会中途改口（技能、界面语言、项目记忆一视同仁）。
+   *     用户在模型说到一半时切了语言，这一轮说完再改，而不是一句中文一句英文。
+   *   · 每个回合都变——会变的事实由**来源**提供（函数 / `LaneSkillIndexSource`），
+   *     不是开 lane 那一刻的闭包常量；以后再加一个会变的段落，不必再发明一条刷新路径。
+   *
+   * 粒度是回合不是请求：一个回合最多 `LANE_MAX_MODEL_REQUESTS` 次模型请求，按请求刷等于
+   * 把技能库全量重扫乘 24，而且回合内会改口——那恰恰是评审裁决明确不要的行为。
+   */
+  let promptRunId: string | undefined;
+  let promptForRun = composeSystemPrompt();
+  const systemPromptForRun = async (runId: string): Promise<string> => {
+    if (runId === promptRunId) return promptForRun;
+    promptRunId = runId;
+    await native?.skillIndex.refresh();
+    promptForRun = composeSystemPrompt();
+    return promptForRun;
+  };
+  const systemPrompt = promptForRun;
   const { harness } = await AgentHarness.create<undefined>({
     session, models, model, systemPrompt, tools,
     compaction: laneCompactionSettings(model.contextWindow, options.limits?.contextTokenBudget),
@@ -274,10 +304,14 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
   const watch = await lane.watch(context);
   let snapshot: LaneSnapshot = watch.snapshot;
   let pending: LanePendingApproval | undefined;
-  let projection: LaneProjection = projectLaneSnapshot(snapshot, modelFacts, pending, options.tasks);
+  // 沙箱状态**整条 lane 只测一次**（`openLaneNativeDesktop` 开 lane 那一刻），所以它不是
+  // 快照的函数，也不该进 `projectLaneSnapshot` 的参数表——那个纯函数的入参每多一个，
+  // 「这次投影为什么和上次不一样」的可能来源就多一个。这里摊进去，投影层一个字都不用改。
+  const sandboxFacts = native?.sandboxInactive ? { sandboxInactive: native.sandboxInactive.code } : {};
+  let projection: LaneProjection = { ...projectLaneSnapshot(snapshot, modelFacts, pending, options.tasks), ...sandboxFacts };
   const listeners = new Set<(next: LaneProjection) => void>();
   const publish = () => {
-    projection = projectLaneSnapshot(snapshot, modelFacts, pending, options.tasks);
+    projection = { ...projectLaneSnapshot(snapshot, modelFacts, pending, options.tasks), ...sandboxFacts };
     for (const listener of listeners) listener(projection);
   };
   watch.start((event, eventContext) => {
@@ -340,7 +374,7 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
           toolCallId: '', toolName: tool.name, args: value ? { operation: value } : {},
         })}`);
       }).join('\n') : '';
-    return { systemPrompt: [systemPrompt, catalogBase ? formatLaneModelIndex(catalogBase.context) : '', input?.context.systemPrompt, authority].filter(Boolean).join('\n\n') };
+    return { systemPrompt: [await systemPromptForRun(event.runId), catalogBase ? formatLaneModelIndex(catalogBase.context) : '', input?.context.systemPrompt, authority].filter(Boolean).join('\n\n') };
   });
 
   harness.hooks.on('before_tool', async (event, hookContext) => {
@@ -500,7 +534,10 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
     execute: async (command: LaneCommand, executionOptions): Promise<LaneCommandOutcome> => {
       if (command.kind === 'prompt' && !projection.running && !pending) {
         const message = inputMessage(command.text);
-        const unlock = typeof message !== 'string' ? laneSkillUnlockReason(skills, [message.context.skillKey ?? '']) : null;
+        // 「这条技能要不要 coding 工具」判在准入这一刻，而用户可能就是刚导入它的——
+        // 所以先把索引刷到这个回合，再问。不刷的症状是模型说「我去跑它的 selftest」，然后说它没有工具。
+        await native?.skillIndex.refresh();
+        const unlock = typeof message !== 'string' ? laneSkillUnlockReason(currentSkills(), [message.context.skillKey ?? '']) : null;
         if (native && unlock) {
           await native.unlockCoding(context);
         }
@@ -549,11 +586,11 @@ export const openLane: OpenLane = async (options: OpenLaneOptions): Promise<Lane
         throw new Error(`A single agent lane cannot handle ${command.kind}; that command belongs to the workspace`);
       }
       if (command.kind === 'approval') {
-        if (!gate) throw new Error('This agent lane has no approval gate');
+        if (!gate) throw new Error('agent_lane_approval_missing');
         // 答的不是当前那张卡（用户点得慢、卡已经翻篇了）——**抛**，不静默吞掉。
         // 吞掉的后果是面板上那张卡一直转，而没有任何东西再来兑现它。
         if (!gate.answer(command.toolCallId, command.action, command.reason)) {
-          throw new Error(`No approval is waiting for tool call ${command.toolCallId}`);
+          throw new Error('agent_lane_approval_missing');
         }
         return {};
       }

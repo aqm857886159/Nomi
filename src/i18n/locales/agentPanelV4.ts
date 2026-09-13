@@ -58,7 +58,7 @@ export const zhAgentPanelV4 = {
   permissionWhy: {
     step: '改动、花钱、计划都先问。',
     'safe-auto': '文稿和时间轴改动直接做（收据可撤销），付费生成才问。',
-    project: '预算内都不问，流里只留收据。',
+    project: '可撤销的改动直接做，付费生成也按你切档时那次确认直接跑，不再逐笔问。不可逆的操作仍然每次问。',
   },
 
   // Context 环
@@ -172,6 +172,16 @@ export const zhAgentPanelV4 = {
   queueUntitled: '未命名任务',
   rejectReasonPlaceholder: '拒绝原因（可选）',
   interventionMore: '还有 {{count}} 条待确认',
+  // 「本该有一张确认卡，却什么都没画出来」——见 missingInterventionCard.ts 顶部注释。
+  missingCard: {
+    title: '这里本该有一张确认卡',
+    body: '有一条在等你确认，但 Nomi 没能把卡画出来（{{reason}}）。先别重试同一步——换一句话让 Agent 重新提一次，或者重开这个项目。',
+    reason: {
+      'host-unreachable': '读不到主进程那一份待确认清单',
+      'spend-surface-unavailable': '付费确认这条通道没装起来',
+      'unknown-kind': '认不出这是哪一种确认',
+    },
+  },
   missingParamAsk: '还差一个「{{name}}」才能往下做，你想要哪种？',
   credentialSummary: '在 Nomi 自己的窗口里填，模型看不到。',
   credentialTitle: '这个模型还没配密钥',
@@ -342,6 +352,61 @@ export const zhAgentPanelV4 = {
   slotDeviationTitle: '第 3 镜没有首帧，跳过还是先生图？',
   slotDeviationDraw: '先生图（+¥0.12）',
   slotDeviationSkip: '跳过',
+  // 付费卡 · 参数条版（2026-09-10 用户拍板：参数行 = 节点那条参数条，确认前全部可改）
+  spendParamsTitle: '生成 {{count}} 镜的视频',
+  // 同一张卡也用来确认图片生成（agent 建的草稿两种都有）。标题不许一律写「视频」——
+  // 用户看着一张图片草稿被说成视频，第一反应是「它是不是搞错了」，而这一刻他正要付钱。
+  spendParamsTitleImage: '生成 {{count}} 张图片',
+  /** 模型芯片上的极小徽标：这一项是 Nomi 替你挑的，不是你选的。 */
+  spendParamsModelPicked: 'Nomi 选的',
+  /** 「怎么算出来的」那半行。数由报价给，语序在这里。 */
+  spendParamsBreakdown: '{{count}} 镜 × {{seconds}}s · {{quality}} · {{unit}}/秒',
+  /** 逐镜参数已经不一样了：那句算式不再成立，改说「逐镜不同」，数字交给下面的逐镜折叠口。 */
+  spendParamsBreakdownMixed: '{{count}} 镜 · 逐镜不同',
+  /** 报不出价时的算式：**不印单价、不印时长**。报不出价却印着 ¥0.10/秒，等于自己编了一个数。 */
+  spendParamsBreakdownNoUnit: '{{count}} 镜',
+  spendParamsTotalLabel: '合计',
+  spendParamsUnavailable: '暂时算不出价格',
+  spendParamsPerItem: '逐镜 · {{count}} 镜',
+  spendParamsShot: '镜头 {{number}}',
+  /** 确认钮：动词 + 这一刻的合计。改了参数它当场跟着变。 */
+  spendParamsConfirm: '生成 {{amount}}',
+  spendParamsConfirmUnknown: '仍要生成',
+  /** 范围切到「全部」后的同一颗主按钮：多印一句「几镜」，因为这时的数不再是眼前这一页的。 */
+  spendParamsConfirmAll: '生成 {{count}} 镜 {{amount}}',
+  /** 范围切换两档（2026-09-10 v3：批量不再是第二颗文字按钮，是同一个决定的范围）。 */
+  spendParamsScopeEach: '逐镜',
+  spendParamsScopeAll: '全部',
+  spendParamsScopeAria: '生成范围',
+  spendParamsDecline: '不要',
+  spendParamsScopeUnknown: '价格没取到。要继续就得接受「花多少事后才知道」。',
+  /** 宿主拒绝这一下时的兜底句（它通常自己带一句更具体的，那句优先）。按了没反应是最贵的一种沉默。 */
+  spendActionFailed: '这一步没成，Nomi 没有开始生成，也没有花钱。',
+  qualityStandard: '标准画质',
+  qualityPro: '高画质',
+
+  // 「全自动」档（2026-09-10 用户拍板 · 增量 2）
+  autoModeConfirmTitle: '切到「全自动」？',
+  autoModeConfirmBody: '之后可撤销的改动 Nomi 直接做，**付费生成也会直接跑、不再逐笔给你看报价**——这一次确认就是你对它们的授权。不可逆的操作仍然每次问。',
+  autoModeConfirmOk: '切到全自动',
+  autoModeConfirmCancel: '不用',
+  autoModeBannerNote: '付费生成会直接跑，不可逆仍会问',
+  autoModeBannerRevert: '回到自动改',
+  /** 叉掉这一条（2026-09-10 用户：可以叉掉，一直放占空间）。 */
+  autoModeBannerDismiss: '不再显示这条提醒',
+
+  // 命令沙箱没起来时 composer 上沿那一行交代（见 `AgentPanelV4SandboxNotice.tsx`）。
+  // `{{reason}}` 是两个原因码各自的那半句，不是上游的英文异常正文。
+  sandboxInactive: '命令需逐条确认：{{reason}}',
+  sandboxInactiveUnsupported: '这台设备没有系统级命令沙箱',
+  sandboxInactiveInitFailed: '命令沙箱这次没能启动',
+
+  /** 介入槽翻页器（`‹ 2/4 ›`）的无障碍名。 */
+  pagerPrev: '上一张',
+  pagerNext: '下一张',
+  /** 键盘翻页提示：只印两个箭头字符（不是一句说明；说明会让用户多读一行）。 */
+  pagerKeyHint: '←→',
+
   slotThreeEdits: '3 处改动，已在时间轴高亮',
   slotEditTransition: '转场 · 镜头 2→3 叠化 12 帧',
   slotEditCaption: '字幕 · 第 2 镜 →「清爽相伴」',
@@ -407,7 +472,7 @@ export const enAgentPanelV4 = {
   permissionWhy: {
     step: 'Edits, spending and plans are all confirmed first.',
     'safe-auto': 'Document and timeline edits happen directly (receipts are undoable); paid generation still asks.',
-    project: 'Nothing is asked inside budget; only receipts appear in the flow.',
+    project: 'Undoable edits happen directly, and paid generation runs on the confirmation you gave when switching in — no per-run quote. Irreversible actions are still confirmed every time.',
   },
 
   context: 'Context usage',
@@ -507,6 +572,15 @@ export const enAgentPanelV4 = {
   queueUntitled: 'Untitled task',
   rejectReasonPlaceholder: 'Reason for declining (optional)',
   interventionMore: '{{count}} more waiting',
+  missingCard: {
+    title: 'A confirmation card should be here',
+    body: 'Something is waiting for your decision, but Nomi could not draw its card ({{reason}}). Do not retry the same step — ask the Agent to propose it again, or reopen this project.',
+    reason: {
+      'host-unreachable': 'the pending list could not be read from the main process',
+      'spend-surface-unavailable': 'the paid-confirmation channel is not installed',
+      'unknown-kind': 'this confirmation type was not recognised',
+    },
+  },
   missingParamAsk: 'I still need a “{{name}}” before I can continue — which one?',
   credentialSummary: 'Enter it in Nomi\u2019s own window; the model never sees it.',
   credentialTitle: 'This model has no API key yet',
@@ -674,6 +748,44 @@ export const enAgentPanelV4 = {
   slotDeviationTitle: 'Shot 3 has no first frame — skip it or draw one first?',
   slotDeviationDraw: 'Draw one first (+¥0.12)',
   slotDeviationSkip: 'Skip',
+  spendParamsTitle: 'Generate video for {{count}} shots',
+  spendParamsTitleImage: 'Generate {{count}} image(s)',
+  spendParamsModelPicked: 'Nomi picked',
+  spendParamsBreakdown: '{{count}} shots × {{seconds}}s · {{quality}} · {{unit}}/s',
+  spendParamsBreakdownMixed: '{{count}} shots · settings differ',
+  spendParamsBreakdownNoUnit: '{{count}} shots',
+  spendParamsTotalLabel: 'Total',
+  spendParamsUnavailable: 'Price unavailable right now',
+  spendParamsPerItem: 'Per shot ({{count}})',
+  spendParamsShot: 'Shot {{number}}',
+  spendParamsConfirm: 'Generate {{amount}}',
+  spendParamsConfirmUnknown: 'Generate anyway',
+  spendParamsConfirmAll: 'Generate {{count}} shots {{amount}}',
+  spendParamsScopeEach: 'Per shot',
+  spendParamsScopeAll: 'All',
+  spendParamsScopeAria: 'Generation scope',
+  spendParamsDecline: 'No',
+  spendParamsScopeUnknown: 'No price came back. Continuing means you only learn the cost afterwards.',
+  spendActionFailed: 'That did not go through. Nomi has not started generating and has not spent anything.',
+  qualityStandard: 'Standard',
+  qualityPro: 'High quality',
+
+  autoModeConfirmTitle: 'Switch to Full auto?',
+  autoModeConfirmBody: 'Nomi will make undoable edits directly and **paid generation will run without showing you a quote each time** — this confirmation is your authorisation for them. Irreversible actions are still confirmed every time.',
+  autoModeConfirmOk: 'Switch to full auto',
+  autoModeConfirmCancel: 'Not now',
+  autoModeBannerNote: 'Paid generation runs directly; irreversible still asks',
+  autoModeBannerRevert: 'Back to Auto-edit',
+  autoModeBannerDismiss: 'Hide this reminder',
+
+  sandboxInactive: 'Commands need confirming one at a time: {{reason}}',
+  sandboxInactiveUnsupported: 'this device has no OS-level command sandbox',
+  sandboxInactiveInitFailed: 'the command sandbox did not start this time',
+
+  pagerPrev: 'Previous',
+  pagerNext: 'Next',
+  pagerKeyHint: '←→',
+
   slotThreeEdits: '3 edits, highlighted on the timeline',
   slotEditTransition: 'Transition · 12-frame dissolve, shot 2→3',
   slotEditCaption: 'Caption · shot 2 → “Fresh match”',

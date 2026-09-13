@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { MCP_CAPABILITY_RESOLVER } from "./mcpCapabilityProjection";
-import { modelToolSurfaceManifest } from "../harness/tools/modelToolSurfaceManifest";
 import { createMcpProtocol } from "./mcpProtocol";
 
 describe("M2 semantic editing surface", () => {
@@ -16,15 +15,6 @@ describe("M2 semantic editing surface", () => {
       "nomi_export_job",
       "nomi_media_query",
     ]));
-  });
-
-  it("projects the same four intent names to the model surface", () => {
-    expect(modelToolSurfaceManifest.editing.map(({ name }) => name)).toEqual([
-      "nomi_timeline_read",
-      "nomi_timeline_edit",
-      "nomi_export_job",
-      "nomi_media_query",
-    ]);
   });
 
   it("returns the semantic intents from the real tools/list handler", async () => {

@@ -3,6 +3,8 @@ import type { CatalogState, Model } from './types'
 import { derivePublishedExecution, modelHasPublishedExecution } from '../shared/modelPublication'
 
 import { validateCandidateCredential, candidateCredentialSnapshot } from './validateCandidateCredential'
+import { credentialValidationStrategy } from './builtinVendorSeeds'
+import { publishBuiltinCuratedVendor } from './directKeyCredential'
 import { desktopT } from '../i18n'
 
 type Json = Record<string, unknown>
@@ -125,10 +127,12 @@ export function upsertRendererCatalogVendor(payload: unknown) {
   return upsertModelCatalogVendor(sanitizeRendererVendorMutation(payload, readCatalog()))
 }
 
-/** Renderer credential writes are configuration only.  A key can never promote
- * a vendor; certification owns the later enabled transition.  The paired vendor
- * de-publish is inherited from the store, not done here — see
- * `credentialPublication.ts`. */
+/** Renderer credential writes are configuration only.  For certification vendors a key
+ * can never promote the vendor — certification owns the later enabled transition.  The
+ * paired vendor de-publish is inherited from the store, not done here — see
+ * `credentialPublication.ts`.  direct-key vendors (apimart) are the designed exception:
+ * the code-owned contract *is* the certification, so a verified key publishes the
+ * credential and the vendor in the same step (see `directKeyCredential.ts`). */
 export async function upsertRendererCatalogVendorApiKey(vendorKey: string, payload: unknown) {
   const candidate = sanitizeRendererVendorApiKeyMutation(payload)
   const vendor = readCatalog().vendors.find((item) => item.key === vendorKey)
@@ -136,7 +140,21 @@ export async function upsertRendererCatalogVendorApiKey(vendorKey: string, paylo
   const snapshot = candidateCredentialSnapshot(vendorKey)
   const verificationPending = await validateCandidateCredential(vendor, String(candidate.apiKey || '').trim())
   if (snapshot !== candidateCredentialSnapshot(vendorKey)) throw new Error(desktopT('credential.changed'))
-  return upsertModelCatalogVendorApiKey(vendorKey, { ...candidate, ...(verificationPending ? { verificationPending: true } : {}) })
+  // 内置家：验证通过 → 凭据 enabled:true + vendor 重新发布；探测型的 pending（网络/上游抖动）
+  // → 诚实保持停用 + verificationPending，首用前 revalidatePendingCredential 再转正。
+  // `first-use` 那一类没有可信的预检可跑，validateCandidateCredential 直接判「不 pending」，照常发布。
+  // 自定义 / 中转供应商（无内置种子）行为完全不变：仍由认证晋升决定发布。
+  // 渲染层传来的 enabled 永远不算数（恒 false，manualCertificationBoundary.test.ts 锁着），
+  // 启用与否只由这里的主进程验证结果决定。
+  const strategy = credentialValidationStrategy(vendorKey)
+  const publishNow = Boolean(strategy) && !verificationPending
+  const result = upsertModelCatalogVendorApiKey(vendorKey, {
+    ...candidate,
+    ...(verificationPending ? { verificationPending: true } : {}),
+    ...(publishNow ? { enabled: true } : {}),
+  })
+  if (publishNow) publishBuiltinCuratedVendor(vendorKey)
+  return result
 }
 
 export function sanitizeRendererVendorApiKeyMutation(payload: unknown): Json {
